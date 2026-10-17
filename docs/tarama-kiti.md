@@ -35,6 +35,24 @@ flowchart LR
 | Batarya | Tüm kiti besler | Değiştirilebilir alet aküleri: ucuz, sağlam, sahada hızlı değişir |
 | Personel telefonu | Durum ekranı, kayıt başlat/durdur, QR saat göstergesi | Saha uygulamasının bir ekranı olarak |
 
+## Neden mikrodenetleyici değil de Raspberry Pi
+
+İşlem gücü açısından Pi 5 bu iş için fazla; kayıt sırasında kapasitesinin küçük bir kısmını kullanır. Yine de seçilmesinin nedeni işlem gücü değil, yazılım ekosistemi:
+
+| İş | Mikrodenetleyici (ör. STM32H7, ESP32) | Raspberry Pi 5 |
+| --- | --- | --- |
+| GNSS kaydı ve PPS | Kolay | Kolay |
+| LiDAR verisini almak (Ethernet, ~4 MB/s) | STM32H7 ile mümkün. Ancak LiDAR'ın kontrol protokolünü üreticinin Linux SDK'sı yerine sıfırdan yazmak gerekir | Üreticinin SDK'sı ve ROS 2 sürücüsü hazır |
+| PTP zaman sunucusu | STM32H7'nin Ethernet'inde donanım zaman damgası var, hatta Pi'dan daha hassas | Yazılım PTP; yürüme hızında fazlasıyla yeterli |
+| İki saat boyunca ~4 MB/s kesintisiz yazma | SD karta mümkün ama sınırda; USB SSD sürmek zor | USB 3 SSD ile rahat |
+| Kayıt formatı | Ham paketler; sonradan dönüştürme gerekir | Doğrudan MCAP |
+| Wi-Fi durum ekranı, rota kapsaması, sahada kalite kontrolü | Ek bir çip ve ayrı firmware gerekir | Aynı yazılımın parçası |
+| Robota taşınabilirlik | Ayrı yazılım | Hoverboard robotundaki ROS 2 altyapısının aynısı |
+
+Mikrodenetleyiciyle yapılabilir, ama tasarruf küçük: kart başına ~60–90 $ ve ~5–6 W. Bu, ~2.800 $'lık bir kitin %3'ü kadar ve batarya zaten yetiyor. Buna karşılık LiDAR protokolünü, dosya sistemini ve durum ekranını sıfırdan yazmak aylar sürer. Tek kişilik bir geliştirme için doğru takas Pi.
+
+**İleride:** Kit yüzlerce adet üretilirse Pi yerine endüstriyel bir modül (ör. Compute Module 5) ve özel bir taşıyıcı kart düşünülebilir. Zaman hassasiyeti kritikleşirse, hoverboard'daki ESP32 + Pi düzenine benzer şekilde, zamanlama işini küçük bir mikrodenetleyici Pi'ın yanında üstlenebilir. Pi 5'in 4 GB'lık modeli de kayıt için yeterli.
+
 ## Montaj ve yükseklikler
 
 ```
