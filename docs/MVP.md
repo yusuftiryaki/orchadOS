@@ -287,6 +287,8 @@ Genel durum skoru için öneri: sınıf ağırlıklarının ortalaması (Sağlı
 
 Modelin omurgası parsel → yer → ağaç → ziyaret zinciridir. AI'ın ve uzmanın görüşleri ayrı satırlarda tutulur; böylece kimin neyi söylediği her zaman izlenebilir. Konum alanları PostGIS geometrisidir.
 
+Aşağıdaki tablo MVP'nin ihtiyacını tarif eder. Yeni sensörlere ve robotlara hazır, sensörden bağımsız hedef model [veri-modeli.md](veri-modeli.md) dosyasında; oradaki öneri, MVP'nin doğrudan o modelle başlaması.
+
 | Varlık | Temel alanlar | Bağlı olduğu varlık |
 | --- | --- | --- |
 | Owner (sahip) | Ad, telefon, iletişim tercihi, KVKK rızası ve tarihi | — |

@@ -6,3 +6,5 @@ Gaziantep'teki Antep fıstığı bahçe sahipleri için bağımsız, kanıta day
 
 - [MVP dokümanı](docs/MVP.md): Ürün tanımı, kapsam, modüller (kayıt, envanter, periyodik tarama, değerlendirme, portal), veri modeli, yol haritası.
 - [Teknik mimari ve maliyet fizibilitesi](docs/teknik-mimari.md): Ölçeklenebilir mimari, veri hacmi, depolama, veritabanı, işlem gücü, LLM maliyeti, KVKK.
+- [Hedef veri modeli](docs/veri-modeli.md): Sensörden bağımsız model; konu, toplama, ürün ve bulgu katmanları, metrik kaydı, MVP'den geçiş.
+- [Uzun vadeli vizyon](docs/vizyon.md): Robotik saha operasyonu, ML değerlendirme, detaylı ağaç ölçümleri, birleşik tarama kiti (RTK + 360° + LiDAR), çok üreticili robot filosu.
