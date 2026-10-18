@@ -181,7 +181,7 @@ Her ziyarette parsel iki yönde, yani grid şeklinde, 360° kamera ve GPS ile ta
 8. **Kalite kapısı:**
    - Cihazda: Bulanık ya da karanlık yakın plan kabul edilmez, zorunlu adım atlanamaz.
    - İşlemeden sonra: Her panoramaya kalite skoru verilir ve kapsama haritası çıkar. Kapsama eşiğin altındaysa ya da kör nokta varsa yeniden tarama görevi açılır.
-9. **Yükleme:** Ham video onlarca GB tuttuğu için taşınabilir SSD ile ofise getirilir ve işleme hattına verilir. Yakın plan fotoğraflar ve gözlemler internet olunca uygulamadan senkronize olur.
+9. **Yükleme:** Ham video onlarca GB tuttuğu için kameranın hafıza kartıyla ofise getirilir ve işleme hattına verilir. Yakın plan fotoğraflar ve gözlemler internet olunca uygulamadan senkronize olur.
 
 **Ziyaret kaydı:** Personel, tarih, başlangıç ve bitiş saati, hava, ekipman seri numaraları, GPS izi ve sahada yaşanan sorunlar.
 
