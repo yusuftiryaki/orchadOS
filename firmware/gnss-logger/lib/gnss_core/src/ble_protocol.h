@@ -43,7 +43,9 @@ enum class ResultCode : uint8_t {
 constexpr size_t kMaxSessionIdLen = 36;
 constexpr size_t kMaxParcelIdLen = 64;
 constexpr size_t kMaxPayloadLen = 200;
-constexpr size_t kMaxCommandLen = 2 + 1 + kMaxSessionIdLen + 1 + kMaxParcelIdLen;
+// Longest valid command: mark_event with a full payload (start_session is
+// at most 2 + 1 + 36 + 1 + 64 = 104 bytes).
+constexpr size_t kMaxCommandLen = 2 + 1 + 1 + kMaxPayloadLen;
 
 struct Command {
   Opcode op = Opcode::kStopSession;
