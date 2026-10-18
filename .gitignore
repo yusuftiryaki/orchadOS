@@ -5,3 +5,38 @@
 node_modules/
 __pycache__/
 .venv/
+
+# Saha ve işleme verisi asla repoya girmez
+data/
+*.insv
+*.insp
+*.mcap
+*.ubx
+*.rinex
+*.obs
+
+# Web
+.next/
+dist/
+coverage/
+
+# Flutter / Android
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+apps/field/build/
+*.apk
+*.aab
+local.properties
+
+# Python
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# PlatformIO
+.pio/
+
+# Supabase
+supabase/.temp/
+supabase/.branches/

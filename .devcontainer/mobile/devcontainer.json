@@ -1,0 +1,48 @@
+{
+  "name": "orchadOS mobile (Flutter)",
+  "build": { "dockerfile": "Dockerfile" },
+  "remoteUser": "ubuntu",
+
+  "workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind",
+  "workspaceFolder": "${localWorkspaceFolder}",
+
+  "runArgs": [
+    // Host networking: the app can reach the local Supabase on the host's
+    // localhost / LAN address, same as the "core" container.
+    "--network=host",
+    // --- USB for adb (real Android phone) ------------------------------------
+    // Stop the host's adb server first (`adb kill-server` on the host), otherwise
+    // it holds the phone and the container cannot see it.
+    "-v", "/dev/bus/usb:/dev/bus/usb",
+    "--device-cgroup-rule=c 189:* rmw"
+  ],
+
+  "features": {
+    // Node only for the Claude Code CLI.
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" }
+  },
+
+  "mounts": [
+    "source=${localEnv:HOME}/.claude,target=/home/ubuntu/.claude,type=bind",
+    "source=${localEnv:HOME}/.claude.json,target=/home/ubuntu/.claude.json,type=bind"
+  ],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "dart-code.dart-code",
+        "dart-code.flutter",
+        "redhat.vscode-yaml",
+        "yzhang.markdown-all-in-one",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "dart.flutterSdkPath": "/opt/flutter"
+      }
+    }
+  },
+
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && flutter --version"
+}

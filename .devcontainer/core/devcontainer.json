@@ -1,0 +1,66 @@
+{
+  "name": "orchadOS core",
+  "build": { "dockerfile": "Dockerfile" },
+  "remoteUser": "ubuntu",
+
+  // Mount the repo at the SAME absolute path as on the host. The Supabase CLI
+  // starts its containers on the host Docker and bind-mounts paths from the
+  // workspace; with a different path inside the container those mounts break.
+  "workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind",
+  "workspaceFolder": "${localWorkspaceFolder}",
+
+  "runArgs": [
+    // Host networking: Supabase (54321-54324), Next.js (3000) and the container
+    // share localhost with the host browser — no port forwarding to manage.
+    "--network=host",
+    // --- USB for the ESP32 GNSS logger --------------------------------------
+    // Bind mount + cgroup rule keeps hotplug working for libusb devices.
+    "-v", "/dev/bus/usb:/dev/bus/usb",
+    "--device-cgroup-rule=c 189:* rmw"
+    // ESP32 serial (/dev/ttyUSB*, /dev/ttyACM*) is a snapshot: plug it in
+    // BEFORE the container starts, then uncomment and rebuild:
+    // ,"--device=/dev/ttyUSB0"
+  ],
+
+  "features": {
+    // Node LTS for apps/web, the Supabase CLI (as a dev dependency) and Claude Code.
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" },
+    // Use the host Docker daemon: `supabase start` runs Postgres/PostGIS, Auth,
+    // Storage on the host instead of nesting Docker inside this container.
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+
+  // Reuse the host's Claude login (host uid 1000 == container 'ubuntu' uid 1000).
+  "mounts": [
+    "source=${localEnv:HOME}/.claude,target=/home/ubuntu/.claude,type=bind",
+    "source=${localEnv:HOME}/.claude.json,target=/home/ubuntu/.claude.json,type=bind"
+  ],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg",
+        "platformio.platformio-ide",
+        "ms-vscode.vscode-serial-monitor",
+        "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml",
+        "yzhang.markdown-all-in-one",
+        "bierner.markdown-mermaid",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "python.defaultInterpreterPath": "/usr/bin/python3"
+      }
+    }
+  },
+
+  "postCreateCommand": "sudo corepack enable && npm install -g @anthropic-ai/claude-code"
+}
