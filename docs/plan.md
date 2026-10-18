@@ -65,6 +65,8 @@ gantt
 | İP10 | Operasyon hazırlıkları | P0 | 4 gün + dış süreler | Metodoloji v0 (ölçekler, referans fotoğraflar), KVKK aydınlatma ve rıza metinleri, sözleşme taslağı, uzman anlaşması, pilot sahiplerin onayı |
 | İP11 | İşleme istasyonu | P0 | 1 gün | GPU'lu, büyük diskli bir bilgisayar alınmış ya da ayarlanmış; işleme hattı üzerinde çalışıyor |
 
+**Durum, 18 Ekim 2026 — İP1 incelemede:** `ip1-supabase-schema` dalında hedef veri modelinin MVP alt kümesi migration olarak yazıldı; satır bazlı yetki kuralları, 310 yerli ve 302 aktif ağaçlı sentetik bahçe örnek verisi, 101 pgTAP testi geçiyor. `main`'e birleştirilmeyi bekliyor.
+
 Toplam yaklaşık 55 gün (İP9 hariç).
 
 ## Hemen başlaması gereken dış işler

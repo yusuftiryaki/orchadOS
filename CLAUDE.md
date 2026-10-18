@@ -27,3 +27,16 @@
 
 ## Komutlar
 İş paketleri ilerledikçe buraya eklenecek (her bileşenin build ve test komutu).
+
+### Veritabanı (`supabase/`)
+Kökte bir kez `pnpm install` (Supabase komut satırı aracı; sürümü `package.json` ve kilit dosyasında sabit). Docker çalışıyor olmalı; bulut oturumunda SessionStart kancası (`scripts/cloud-session-start.sh`) başlatır.
+
+| Komut | Ne yapar |
+| --- | --- |
+| `pnpm db:start` | Yerel Supabase'i başlatır: Postgres + PostGIS, Auth, PostgREST, Storage. Studio, Realtime, e-posta, edge ve analitik kapalı (`supabase/config.toml`) |
+| `pnpm db:stop` | Durdurur |
+| `pnpm db:reset` | Veritabanını sıfırdan kurar: `supabase/migrations/` + `supabase/seed.sql` |
+| `pnpm db:test` | pgTAP testleri (`supabase/tests/`) |
+| `pnpm db:status` | Yerel adresler ve anahtarlar |
+
+Örnek kullanıcılar (sadece yerel): `owner@`, `viewer@`, `field@`, `expert@`, `ops@example.com`, parola `orchados-dev`.
