@@ -27,7 +27,7 @@ MVP, kayıttan rapora kadar tek bir uçtan uca döngüyü kapsar. Havadan ve sen
 | Bileşen | MVP'de | Not |
 | --- | --- | --- |
 | Sahip kaydı ve parsel tanımı | Var | Kaydı operasyon açar, self-servis kayıt yok |
-| Envanter: sınır, ağaç haritası, kodlama | Var | RTK ile, parsel başına bir kez |
+| Envanter: sınır, ağaç haritası, kodlama | Var | Grid taramadan üçgenlemeyle, parsel başına bir kez |
 | Periyodik grid 360° tarama | Var | Her ziyarette iki yönde |
 | Yakın plan örneklem fotoğrafı | Var | Sorunlu ağaçlar ve tabakalı örneklem |
 | İşleme hattı: kare seçimi, ağaç eşleştirme | Var | MVP'de operatör bilgisayarında |
@@ -79,23 +79,53 @@ Kayıt, sahibin kabaca bildiği bilgilerle başlar. Kesin bilgiler envanter ziya
 
 ## Modül 2 – Envanter çıkarımı
 
-Envanter, her parselin dijital haritasını bir kez çıkarır. Sonraki tüm taramalar bu haritaya göre eşleştirilir ve karşılaştırılır. Konum hassasiyeti en çok burada lazım, bu yüzden envanter RTK ile yapılır.
+Envanter, her parselin dijital haritasını bir kez çıkarır. Sonraki tüm taramalar bu haritaya göre eşleştirilir ve karşılaştırılır. Ağaç konumları sahada ağaç ağaç alınmaz; grid taramanın panoramalarından **üçgenlemeyle** çıkarılır. Sahada sadece sınır yürüyüşü, grid tarama ve belirsiz ağaçlar için kısa bir doğrulama turu yapılır. 20 dönümlük bir bahçede saha süresi yaklaşık 2–2,5 saat; envanter de periyodik taramayla aynı kitle yapılır.
 
-**Adımlar**
+**Neden bu yöntem:** Panoramalardan ağaç tespit eden algoritma, periyodik taramalarda her ziyarette "ağaç yerinde mi, yeni dikim var mı" kontrolü için zaten gerekli. Envanter için yazılan kod, her ziyarette değişim tespiti olarak yeniden kullanılır. Ağaç ağaç RTK ile konum almaya göre saha süresi yarıya iner.
 
-1. **Hazırlık:** Sahibin kaba sınırı ve harita altlığı cihaza offline indirilir. RTK alıcısında ham veri kaydı (PPK) başlatılır.
-2. **Kullanım sınırının çıkarılması:** Sahibin ya da yetkilendirdiği kişinin gösterdiği sınır boyunca yürünür, köşe noktalarında durulup nokta alınır. Sınırı belirleyen işaretler fotoğraflanır: sınır taşı, çit, duvar, yol, komşu bahçeyle ayrım hattı. Sınırı gösteren kişi sahada yoksa personel sahiple telefonda konuşarak ilerler. Çizilen sınır, sahip portalda onaylayınca kesinleşir.
-3. **Ağaç konumları:** Personel her ağacın gövdesinin yanında durup RTK noktası alır ve bir genel fotoğraf çeker. Ardından şu gözlem sorularını cevaplar:
-   - Sıra ağacı mı, ara ağaç mı?
-   - Cinsiyet: dişi / erkek / bilinmiyor
-   - Aşı: aşılı / aşısız (buttum) / bilinmiyor
-   - Yaş sınıfı: fidan / genç / verimli / yaşlı (referans görsellerle)
-   - Dip sürgünü var mı, belirgin kuruma var mı?
-4. **Boş yerler:** Sıra düzeninde ağaç olmayan pozisyonlarda da nokta alınır ve "boş yer" olarak işaretlenir.
-5. **Otomatik kodlama:** Yazılım ağaç noktalarına sıra doğruları oturtur ve her yere bir kod verir. Personel ve uzman kodlamayı onaylar.
-6. **İlk grid tarama:** Modül 3 protokolüyle yapılır. Her ağacın dört yönden referans görüntüsü, yani "sıfır noktası" oluşur.
-7. **Altyapı:** Kuyu, havuz, damla sulama hattı, çit, kapı ve kulübe nokta olarak kaydedilir.
-8. **Uzman onayı:** Uzman, cinsiyet, aşı ve yaş sınıfı cevaplarını fotoğraflardan kontrol eder ve envanter raporunu imzalar.
+**Sahada (ilk ziyaret)**
+
+1. **Hazırlık:** Sahibin kaba sınırı ve harita altlığı cihaza offline indirilir. Kitte GNSS ham kaydı başlatılır. Envanter otların kısa olduğu dönemde yapılır (hasat sonrası ya da kış), çünkü uzun ot gövde diplerini kapatır.
+2. **Kullanım sınırının çıkarılması:** Sahibin ya da yetkilendirdiği kişinin gösterdiği sınır boyunca kitle yürünür. Personel her köşede telefondan "köşe" işareti koyar; köşelerin konumu sonradan PPK ile santimetreye düzeltilir. Sınırı belirleyen işaretler fotoğraflanır: sınır taşı, çit, duvar, yol, komşu bahçeyle ayrım hattı. Sınırı gösteren kişi sahada yoksa personel sahiple telefonda konuşarak ilerler.
+3. **Grid tarama:** Modül 3 protokolüyle, motosikletle yapılır. Her ağacın dört yönden ilk referans görüntüsü, yani "sıfır noktası" oluşur.
+
+**Ofiste**
+
+4. **Gövde konumlarının çıkarılması:** Ofisteki kişi, haritada her ağaç için iki farklı panoramada gövdeye tıklar ve yazılım konumu üçgenler (ağaç başına ~10 sn). Her tıklama, gövde tespit modeli için etiketli veri olur. Model eğitildikçe konumları kendisi önerir; insan sadece onaylar ve düzeltir.
+5. **Kodlama ve boş yerler:** Yazılım gövde konumlarına sıra doğruları oturtur ve her yere bir kod verir. Sıra düzeninde beklenen ama gövde bulunamayan pozisyonlar "boş yer" olarak işaretlenir.
+6. **Ağaç özelliklerinin ilk değerlendirmesi:** Panoramalardan yaş sınıfı (fidan / genç / verimli / yaşlı, taç ve gövde büyüklüğüne göre), dip sürgünü, belirgin kuruma ve görülebiliyorsa aşı durumu işaretlenir. Görüntüden karar verilemeyenler "belirsiz" kalır. Cinsiyet envanterde "bilinmiyor" başlar.
+7. **Altyapı:** Kuyu, havuz, damla sulama hattı, çit, kapı ve kulübe panoramalar üzerinden işaretlenir.
+8. **Doğrulama listesi:** Belirsiz ağaçlar, fidan olabilecek boş yerler, çok gövdeli ya da dipten sürgün vermiş ağaçlar bir listeye girer; tipik olarak ağaçların %10–15'i.
+
+**Sahada (doğrulama turu)**
+
+9. **Hedefli doğrulama:** Uygulama personeli listedeki ağaçlara yönlendirir; personel yakın fotoğraf çeker ve soruları cevaplar. Ağaçları bulmak için kod ve sıra sayımı yeterli, ayrıca jalon gerekmez. Bu tur ayrı bir gidiş olabileceği gibi, ilk periyodik ziyaretle birleştirilebilir.
+10. **Onaylar:** Uzman ağaç özelliklerini ve kodlamayı kontrol edip envanter raporunu imzalar. Sahip sınırı portalda onaylar.
+
+**Süre (20 dönüm, ~300 ağaç)**
+
+| Adım | Nerede | Süre |
+| --- | --- | --- |
+| Varış, kit kontrolü, sınırı gösterecek kişiyle buluşma | Saha | 20–30 dk |
+| Sınır yürüyüşü | Saha | 30–45 dk |
+| Grid tarama (motosikletle) | Saha | 45–55 dk |
+| Video işleme | İşleme istasyonu, gözetimsiz | 1–1,5 saat |
+| Gövde üçgenleme | Ofis | ~50 dk; model geldikçe azalır |
+| Ağaç özellikleri ve altyapı | Ofis | ~30 dk |
+| Doğrulama turu (~30–45 ağaç) | Saha | 30–45 dk |
+| Uzman kontrolü | Uzaktan | 30–50 dk |
+
+**Pilotta referans sıralarla doğrulama:** Her pilot bahçede 2–3 sıra (40–60 ağaç) ayrıca jalon ve ikinci bir RTK alıcısıyla ağaç ağaç ölçülür ve otomatik sonuçla karşılaştırılır.
+
+| Ölçüt | Kabul eşiği |
+| --- | --- |
+| Yakalama oranı, yetişkin ağaçlar | %99 ve üstü |
+| Yakalama oranı, fidanlar | Ayrı ölçülür; düşükse boş yerlerin hepsi doğrulama turuna girer |
+| Yanlış alarm | %1'in altında |
+| Konum hatası | Ağaçların %95'inde 50 cm'nin altında |
+| Kodlama hatası | %1'in altında |
+
+Eşikler tutmazsa yedek yol: otomatik sonuç üzerine tüm ağaçları kapsayan bir saha doğrulama turu. Referans ölçüm için gereken ikinci RTK alıcısı ve jalon (~400–600 $) sadece pilot dönemde kullanılır.
 
 **Kodlama kuralı**
 
@@ -107,19 +137,19 @@ Envanter, her parselin dijital haritasını bir kez çıkarır. Sonraki tüm tar
 
 Sıra yönü ve numaralandırmanın başladığı köşe parsel başına bir kez seçilir ve bir daha değişmez. Bir ağaç kurusa ya da kesilse bile yer kodu korunur; boş yere yeni ağaç dikilirse aynı koda yeni bir ağaç kaydı bağlanır.
 
-**Cinsiyet notu:** Kışın yaprak ve çiçek olmadığı için cinsiyeti ayırt etmek zordur. Envanterdeki "bilinmiyor" cevapları ilkbahar ziyaretinde çiçeklerden doğrulanır.
+**Cinsiyet notu:** Kışın yaprak ve çiçek olmadığı için cinsiyeti ayırt etmek zordur. Envanterde "bilinmiyor" olarak başlayan cinsiyet, ilkbahar ziyaretinde çiçeklerden belirlenir.
 
 **Çıktılar**
 
 | Çıktı | İçerik |
 | --- | --- |
 | Kullanım sınırı (sürüm 1) | Poligon, alan (m² ve dönüm), sahip onayı |
-| Ağaç ve yer haritası | Her yerin kodu ve konumu; ağaç özellikleri |
-| Envanter özeti | Yer, ağaç, boş yer ve ara ağaç sayısı; dişi/erkek oranı; aşısız ağaç sayısı; yaş dağılımı |
-| Referans görüntüler | Her ağacın genel fotoğrafı ve dört yönden panorama kesitleri |
+| Ağaç ve yer haritası | Her yerin kodu ve konumu, konumun belirsizliği; ağaç özellikleri |
+| Envanter özeti | Yer, ağaç, boş yer ve ara ağaç sayısı; aşısız ağaç sayısı; yaş dağılımı. Dişi/erkek oranı ilkbahar ziyaretinden sonra eklenir |
+| Referans görüntüler | Her ağacın dört yönden panorama kesitleri; doğrulama turundaki ağaçlar için yakın planlar |
 | Envanter raporu | Uzman imzalı; portalda ve PDF olarak |
 
-**Kabul kriteri:** Sınır sahip tarafından onaylanmış, tüm ağaçlar ve boş yerler kodlanmış, grid tarama kapsaması kalite kapısından geçmiş ve uzman onayı alınmış olmalı.
+**Kabul kriteri:** Sınır sahip tarafından onaylanmış, tüm ağaçlar ve boş yerler kodlanmış, doğrulama listesi kapanmış, grid tarama kapsaması kalite kapısından geçmiş ve uzman onayı alınmış olmalı.
 
 ## Modül 3 – Periyodik tarama
 
@@ -338,7 +368,10 @@ Mimari tek kişinin yönetebileceği biçimde tasarlandı: yönetilen bir backen
 | Düzeltme verisi | TUSAGA-Aktif (CORS-TR) aboneliği | Açık soru | PPK için istasyon verisi |
 | Direk ve bağlantı | Sırt çantası direği, titreşim sönümleyici | — | Kamera ve anten aynı direkte |
 | Android telefon | Orta segment | — | Saha uygulaması ve yakın plan |
-| Güç ve depolama | Powerbank, taşınabilir SSD | — | Ham video ofise SSD ile taşınır |
+| GNSS kaydedici | ESP32 + microSD | — | LiDAR'sız kitte Raspberry Pi gerekmez |
+| Güç ve depolama | Batarya, kamera için microSD kartlar | — | Video kameranın kartıyla ofise gelir |
+
+Kitin ayrıntılı tasarımı, LiDAR'lı sürümü ve maliyeti [tarama-kiti.md](tarama-kiti.md) dosyasında.
 
 Kit sökülüp takılabilir tasarlanır; aynı kit ileride traktöre, ATV'ye ya da motosiklete de bağlanabilir. MVP'de tarama yürüyerek yapılır.
 
@@ -369,9 +402,9 @@ gantt
 **Aşamalar**
 
 - **Kit ve elle doğrulama:** Kit siparişi ve kamera SDK başvurusu. Kendi bahçende QField ile elle envanter. Metodoloji belgesinin ilk taslak sürümü.
-- **Teknik denemeler:** Tek bir koridorda 360° çekim. Telefon GPS'i ile RTK'nın eşleştirme doğruluğunun karşılaştırılması. Kare seçimi ve gezilebilir panorama demosu.
-- **MVP geliştirme:** Saha uygulaması, işleme hattı, uzman paneli ve portal.
-- **Pilot envanterleri:** 1–4 bahçede Modül 2 envanteri.
+- **Teknik denemeler:** Tek bir koridorda 360° çekim. Telefon GPS'i ile RTK'nın eşleştirme doğruluğunun karşılaştırılması. Panoramalardan gövde üçgenleme denemesi. Kare seçimi ve gezilebilir panorama demosu.
+- **MVP geliştirme:** Saha uygulaması, işleme hattı, ofis üçgenleme aracı, uzman paneli ve portal.
+- **Pilot envanterleri:** 1–4 bahçede Modül 2 envanteri; her bahçede 2–3 referans sırayla doğrulama.
 
 **Karar kapıları**
 
@@ -388,6 +421,7 @@ Pilotun asıl sorusu şu: Eşleştirme güvenilir mi ve sahipler bu rapor için 
 | Ölçüt | Hedef |
 | --- | --- |
 | Ağaç eşleştirme doğruluğu (uzman kontrolünde) | %95 ve üstü |
+| Envanter yakalama oranı, yetişkin ağaçlar (referans sıralarda) | %99 ve üstü |
 | Tarama kapsaması | %95 ve üstü |
 | Personel ile uzman arasında gözlem uyumu | %85 ve üstü |
 | Ziyaret başına uzman süresi | Pilotta ölçülecek |
@@ -401,7 +435,8 @@ Pilotun asıl sorusu şu: Eşleştirme güvenilir mi ve sahipler bu rapor için 
 | Risk | Etkisi | Önlem |
 | --- | --- | --- |
 | Stitch otomatikleştirilemiyor | İşleme tek kişide darboğaz olur | SDK başvurusu kamera alınmadan yapılır; alternatif kamera değerlendirilir |
-| Yanlış ağaca eşleştirme (özellikle ara ağaçlar) | Bulgu yanlış ağaca yazılır, güven kaybolur | RTK envanter, dört yönden kesit, sıra dizilişi kontrolü, uzman onayı |
+| Yanlış ağaca eşleştirme (özellikle ara ağaçlar) | Bulgu yanlış ağaca yazılır, güven kaybolur | Referans sıralarla doğrulanmış envanter, dört yönden kesit, sıra dizilişi kontrolü, uzman onayı |
+| Envanterde ağaç kaçırma (özellikle fidan ve kütük) | Eksik envanter sonraki tüm ziyaretlere taşınır | Otların kısa olduğu dönemde envanter, boş yerlerin doğrulama turuna alınması, fidan için ayrı yakalama ölçümü |
 | Engebe ve titreşim | Bulanık ve eğik kareler | N kareden en iyisi, hızlı enstantane, dur-çek-yürü, kalite kapısı |
 | Kışın yaprak olmaması | Sağlık değerlendirmesi zayıf kalır | Kış ölçekleri dal, gövde ve budamayla sınırlı tutulur |
 | AI'ın yanlış güveni | Hatalı toplu onay | Rastgele %5 uzman kontrolü, eşik ayarı |
