@@ -73,3 +73,43 @@ Betik ~5 dakikada bitmezse ortam önbelleğe alınmaz. Supabase imajlarının ö
 - Kullanılmayan imaj ve önbellekleri temizlemek için host'ta `docker system prune` kullanılabilir.
 - Container'a elle `apt install` ile kurulan şey yeniden derlemede kaybolur. Kalıcı olması gerekiyorsa ilgili `Dockerfile`'a eklenmeli.
 - Gerçek saha verisi (ham video, MCAP, GNSS kayıtları) repoya girmez; `.gitignore` bunu engeller. Geliştirmede küçültülmüş örnek kayıtlar kullanılır.
+
+## İP1: Supabase imajları ve bulutta Docker
+
+18 Ekim 2026 · Supabase komut satırı aracı 2.121.0
+
+**Kayıt:** `supabase start` imajları varsayılan olarak **AWS ECR Public** (`public.ecr.aws/supabase/...`) üzerinden çekiyor, Docker Hub'a gitmiyor. Ağ izin listesindeki bu kayıt yeterli; ek ayar gerekmedi. Gerekirse kayıt `SUPABASE_INTERNAL_IMAGE_REGISTRY` ortam değişkeniyle değiştirilebilir (örneğin `ghcr.io`); bu yol denenmedi. İmaj sürümleri komut satırı aracının sürümüne bağlı olduğu için araç `package.json` içinde tam sürümle sabitlendi.
+
+**Çekilen imajlar:**
+
+| İmaj | Kayıt | Diskte | İndirme (sıkıştırılmış) |
+| --- | --- | --- | --- |
+| `supabase/postgres:17.11.0.004` | public.ecr.aws | 1,70 GB | 368 MB |
+| `supabase/storage-api:v1.82.1` | public.ecr.aws | 1,43 GB | 251 MB |
+| `supabase/kong:2.8.1` | public.ecr.aws | 203 MB | 49 MB |
+| `supabase/gotrue:v2.197.0` | public.ecr.aws | 94 MB | 30 MB |
+| `supabase/pg_prove:3.36` (sadece `pnpm db:test`) | public.ecr.aws | 75 MB | 17 MB |
+| `supabase/postgrest:v16.4` | public.ecr.aws | 27 MB | 7 MB |
+| **Toplam** | | **~3,5 GB** | **~720 MB** |
+
+**Kapalı servisler:** `supabase/config.toml` içinde Studio, Realtime, e-posta test sunucusu (Mailpit), edge runtime, analitik (Logflare + Vector) ve Storage vektör kovaları kapalı; imgproxy zaten kapalı (görsel dönüştürme açık değil). İP1 için Postgres, Auth (GoTrue), PostgREST, Storage ve API ağ geçidi (Kong) yeterli. Bu haliyle yerel kopya ~370 MB RAM kullanıyor. Studio gerekirse `[studio] enabled = true` yapılır.
+
+**Bulutta dockerd:** Bulut ortamında Docker servisi kendiliğinden başlamıyor. `.claude/settings.json` içindeki SessionStart kancası `scripts/cloud-session-start.sh` betiğini çalıştırır:
+
+- Sadece `CLAUDE_CODE_REMOTE=true` iken bir şey yapar; yerelde hemen çıkar.
+- `docker info` başarısızsa `dockerd`'yi arka planda başlatır (root ise doğrudan, değilse parolasız `sudo` ile) ve en fazla ~60 sn `docker info` başarılı olana kadar bekler.
+- Oturumu asla düşürmez: her durumda 0 ile çıkar. Kayıtlar `/tmp/orchados-session-start.log` ve `/tmp/dockerd.log` dosyalarında.
+
+Elle başlatmak için: `sudo dockerd > /tmp/dockerd.log 2>&1 &` (root ise `sudo` olmadan), ardından `docker info` başarılı olana kadar beklenir.
+
+**Kurulum betiğinde imaj önbelleği (öneri, denenmedi):** İmajların her oturumda yeniden inmemesi için ortamın kurulum betiğine şu satırlar eklenebilir. Ortam önbelleğinin Docker imajlarını da saklayıp saklamadığı doğrulanmalı.
+
+```bash
+(dockerd > /tmp/dockerd.log 2>&1 &)
+for i in $(seq 30); do docker info > /dev/null 2>&1 && break; sleep 2; done
+for img in postgres:17.11.0.004 storage-api:v1.82.1 gotrue:v2.197.0 postgrest:v16.4 kong:2.8.1 pg_prove:3.36; do
+  docker pull "public.ecr.aws/supabase/$img"
+done
+```
+
+**Not:** Bu bölümdeki ölçümler (imaj listesi, boyutlar, RAM) yerel makinede, Docker 29.1.3 ile alındı. Kancanın dockerd başlatan yolu bulut oturumunda henüz denenmedi.

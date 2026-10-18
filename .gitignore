@@ -7,7 +7,7 @@ __pycache__/
 .venv/
 
 # Saha ve işleme verisi asla repoya girmez
-data/
+/data/
 *.insv
 *.insp
 *.mcap
