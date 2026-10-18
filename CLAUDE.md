@@ -40,3 +40,22 @@ Kökte bir kez `pnpm install` (Supabase komut satırı aracı; sürümü `packag
 | `pnpm db:status` | Yerel adresler ve anahtarlar |
 
 Örnek kullanıcılar (sadece yerel): `owner@`, `viewer@`, `field@`, `expert@`, `ops@example.com`, parola `orchados-dev`.
+
+### GNSS kaydedici (`firmware/gnss-logger/`)
+| Komut | Ne yapar |
+| --- | --- |
+| `pio test -e native` | Donanımsız birim testleri (Unity) |
+| `pio run -e esp32dev` | ESP32 derlemesi |
+| `pio run -e esp32dev -t upload` | Flaşlama (sadece yerelde, USB) |
+
+BLE protokolü, dosya biçimleri ve bağlantı tablosu: `firmware/gnss-logger/README.md`.
+
+### İşleme hattı (`services/pipeline/`)
+| Komut | Ne yapar |
+| --- | --- |
+| `uv sync` | Bağımlılıkları kurar |
+| `uv run pytest` | Testler (RTKLIB yoksa ilgili testler atlanır) |
+| `uv run orchados-pipeline synth <klasör>` | Sentetik bir oturum üretir |
+| `uv run orchados-pipeline run <oturum>` | Tüm aşamaları sırayla çalıştırır |
+
+Aşamalar, girdi/çıktı biçimleri ve QR saat kodu biçimi: `services/pipeline/README.md`.

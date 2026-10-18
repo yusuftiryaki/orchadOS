@@ -65,7 +65,15 @@ gantt
 | İP10 | Operasyon hazırlıkları | P0 | 4 gün + dış süreler | Metodoloji v0 (ölçekler, referans fotoğraflar), KVKK aydınlatma ve rıza metinleri, sözleşme taslağı, uzman anlaşması, pilot sahiplerin onayı |
 | İP11 | İşleme istasyonu | P0 | 1 gün | GPU'lu, büyük diskli bir bilgisayar alınmış ya da ayarlanmış; işleme hattı üzerinde çalışıyor |
 
-**Durum, 18 Ekim 2026 — İP1 incelemede:** `ip1-supabase-schema` dalında hedef veri modelinin MVP alt kümesi migration olarak yazıldı; satır bazlı yetki kuralları, 310 yerli ve 302 aktif ağaçlı sentetik bahçe örnek verisi, 101 pgTAP testi geçiyor. `main`'e birleştirilmeyi bekliyor.
+**Durum (18 Ekim 2026)**
+
+| İP | Durum | Not |
+| --- | --- | --- |
+| İP0 | Tamam | Repo iskeleti, `core` ve `mobile` devcontainer'ları, bulut ortamı |
+| İP1 | Tamam (PR #1) | Şema, satır bazlı yetki, 310 yerli ve 302 aktif ağaçlı sentetik bahçe, 101 pgTAP testi. Açık: yayımlanmamış değerlendirmelerin sahipten gizlenmesi (İP8), depolama alanları ve kuralları (İP4 yükleme) |
+| İP2 | Yazılım tamam (PR #2) | 72 birim testi, ESP32 derlemesi. Açık: gerçek donanım testleri (README'deki 12 adım), kit gelince |
+| İP4 | Çekirdek tamam (PR #3) | 54 test, uçtan uca sentetik oturum. Açık: veritabanı ve depolamaya yükleme, gerçek PPK denemesi (İP3) |
+| Entegrasyon | Açık | İP2 `events.csv` 6 sütun yazıyor, İP4 4 sütun bekliyor; `session.json` alan adları eşleşmeli; QR biçimi (`OQ1:<gps_ms>:<etiket>`) İP6'ya aktarılmalı |
 
 Toplam yaklaşık 55 gün (İP9 hariç).
 
