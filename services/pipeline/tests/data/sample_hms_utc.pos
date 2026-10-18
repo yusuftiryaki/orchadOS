@@ -1,0 +1,4 @@
+% program   : RTKLIB ver.2.4.3 b34 (handmade sample for tests)
+%  UTC                   latitude(deg) longitude(deg)  height(m)   Q  ns   sdn(m)   sde(m)   sdu(m)  sdne(m)  sdeu(m)  sdun(m) age(s)  ratio
+2026/10/18 09:00:00.000   37.060000000   37.380000000   880.1234   1  18   0.0080   0.0070   0.0150  -0.0010   0.0005  -0.0020   1.00   12.3
+2026/10/18 09:00:00.200   37.060001800   37.380000000   880.1250   2  18   0.0080   0.0070   0.0150  -0.0010   0.0005  -0.0020   1.20   12.1
