@@ -1,0 +1,181 @@
+# Bileşenler Arası Arayüzler
+
+Bu belge saha uygulaması (İP6), ESP32 GNSS kaydedici (İP2), 360° kamera, operasyon ve işleme hattı (İP4) arasındaki sözleşmelerin **tek kaynağıdır**. Bir biçim değişecekse önce burası güncellenir, sonra bileşenler.
+
+Bit düzeyindeki ayrıntıların kaynağı ilgili bileşenin README'sidir; bu belge onlara atıf yapar, çakışma olursa bileşen README'si geçerlidir ve bu belge düzeltilir:
+
+- ESP32 dosya biçimleri ve BLE protokolü: [firmware/gnss-logger/README.md](../firmware/gnss-logger/README.md)
+- İşleme hattının aşamaları ve çıktıları: [services/pipeline/README.md](../services/pipeline/README.md)
+
+"**Karar**" diye işaretlenen maddeler, bileşenler ayrı yazılırken açık kalmış ve entegrasyonda karara bağlanmış noktalardır.
+
+## Zaman
+
+- Bileşenler arasında taşınan tüm zamanlar **GPS zamanıdır: GPS dönemi başlangıcından (1980-01-06 00:00:00) bu yana tam sayı nanosaniye, artık saniye yok.** Alan adları `gps_time_ns` ile biter.
+- UTC yalnızca insanların okuması için yazılır (`utc` alanları, ISO 8601, `Z` ekli). GPS − UTC = 18 s (2017'den beri); ESP32 bu değeri `gnss/session.json`'da `gps_utc_leap_seconds` olarak yazar.
+- QR kodunda zaman milisaniye çözünürlüğündedir (`gps_time_ms`), yine GPS zamanı.
+- ESP32 olaylarında `esp_micros` kartın açılıştan beri mikrosaniyesidir; tek başına anlamı yoktur, PPS çapası ile GPS zamanına çevrilir (aşağıda).
+
+## Oturum klasörü
+
+Bir tarama oturumu işleme istasyonuna tek bir klasör olarak gelir. Klasör adı serbesttir; kimlik `session.json`'dan okunur.
+
+```
+<oturum>/
+  session.json        saha uygulaması + operasyon
+  gnss/
+    gnss.ubx          ESP32 (SD karttaki /sessions/<session_id>/ klasöründen)
+    events.csv        ESP32
+    session.json      ESP32
+  video/*.mp4         kamera (masaüstü yazılımından dışa aktarılmış equirectangular)
+  base/*              operasyon (opsiyonel; baz/CORS RINEX)
+  trees.json          operasyon (opsiyonel; ileride veritabanından)
+```
+
+| Yol | Üreten | Ne zaman | Zorunlu |
+| --- | --- | --- | --- |
+| `session.json` | Saha uygulaması yazar, operasyon tamamlar | Oturum başlatılırken; operasyon işlemeden önce eksik alanları doldurur | Evet |
+| `gnss/gnss.ubx`, `gnss/events.csv`, `gnss/session.json` | ESP32 GNSS kaydedici | Kayıt sırasında SD karta; operasyon kartın `/sessions/<session_id>/` klasörünü olduğu gibi `gnss/` altına kopyalar | Evet |
+| `video/*.mp4` | 360° kamera → operasyon | Kameranın masaüstü yazılımıyla equirectangular (2:1) dışa aktarılır; birden çok parça dosya adı sırasıyla ardışık kabul edilir | Evet |
+| `base/*` | Operasyon | CORS ya da kendi baz istasyonundan RINEX gözlem + navigasyon | Hayır (yoksa PPK yok) |
+| `trees.json` | Operasyon | Ağaç konumları | Hayır |
+
+**Karar:** ESP32'nin `session.json`'u adını korur ve `gnss/` altında durur; kökteki `session.json` başka bir dosyadır. Operasyon SD karttaki klasörü yeniden adlandırmadan kopyalar; dosyalar değiştirilmez (içerik hash'leri yakalama kimliğidir).
+
+## `gnss/events.csv`
+
+Kaynak: [firmware/gnss-logger/README.md → `events.csv`](../firmware/gnss-logger/README.md#eventscsv). UTF-8, RFC 4180, başlık satırı zorunlu:
+
+```
+esp_micros,gps_time_ns,event_type,payload,pps_esp_micros,pps_gps_time_ns
+```
+
+| Sütun | Anlamı |
+| --- | --- |
+| `esp_micros` | Olayın ESP32 açılıştan beri mikrosaniyesi |
+| `gps_time_ns` | Olayın GPS zamanı (ns). PPS eşlemesi yoksa ya da olay çapadan 2 sn'den uzaksa boş |
+| `event_type` | `session_start`, `session_stop`, `corner`, `qr_sync`, `pps_lost`, `pps_regained`, `sd_error` |
+| `payload` | Olaya göre metin; virgül ya da tırnak içerirse tırnaklanır |
+| `pps_esp_micros`, `pps_gps_time_ns` | Satır yazılırken geçerli PPS çapası (son PPS kenarının `esp_micros`'u ve GPS zamanı); çapa yoksa ikisi de boş |
+
+| Olay | `payload` |
+| --- | --- |
+| `session_start` | `parcel_id=<parsel>` |
+| `session_stop` | `command`, `sd_full` ya da `sd_error` |
+| `corner` | Telefondan gelen metin (köşe numarası) |
+| `qr_sync` | Telefonun o anda gösterdiği QR'ın **metninin tamamı** (aşağıda) |
+| `pps_lost`, `pps_regained` | Boş |
+| `sd_error` | `gnss_write`, `events_write` ya da `sd_full` |
+
+**Çapadan GPS zamanı:** `gps_time_ns = pps_gps_time_ns + (esp_micros − pps_esp_micros) × 1000`.
+
+İşleme hattının uyguladığı kurallar:
+
+- Başlık satırı birebir yukarıdaki gibi olmalı. Eski dört sütunlu biçim (`esp_micros,gps_time_ns,event_type,payload`) açık bir hatayla reddedilir. Her satır tam altı alan içermelidir.
+- `gps_time_ns` boş ama çapa doluysa zaman yukarıdaki formülle yeniden hesaplanır ve olay `gps_time_derived` olarak işaretlenir; ingest bunu uyarı olarak listeler. **Karar:** Hat bunu çapa 60 sn'ye kadar eskiyse yapar (ESP32 kristali ±40 ppm → 60 sn'de en fazla ~2,4 ms hata, QR çözünürlüğünün çok altında). Daha eskiyse zaman boş kalır.
+- Çapanın yalnızca bir alanı doluysa satır hatalıdır.
+- `session_start` payload'ındaki parsel, kök `session.json`'daki `parcel_id` ile aynı olmalıdır; değilse oturum reddedilir.
+
+## İki ayrı oturum dosyası
+
+### `gnss/session.json` (ESP32 yazar)
+
+Kaynak: [firmware/gnss-logger/README.md → `session.json`](../firmware/gnss-logger/README.md#sessionjson). Oturum başında yazılır (`stop: null`), bitişte yeniden yazılır.
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `format_version` | int | 1 |
+| `session_id` | str | Telefonun `start_session` ile verdiği kimlik (1–36 karakter, `[A-Za-z0-9_-]`) |
+| `parcel_id` | str | Telefonun verdiği parsel kimliği |
+| `firmware_version` | str | Ör. `0.1.0` |
+| `receiver` | nesne | Alıcı yapılandırması: `model`, `port`, `baud`, `meas_period_ms`, `rawx_rate_hz`, `nav_pvt_rate_hz`, `messages`, `nmea`, `timepulse_grid`, `config_status` (`ok`, `no_response`, `nak`, `invalid_settings`), `detected_baud` |
+| `gps_utc_leap_seconds` | int | 18 |
+| `start`, `stop` | nesne | `esp_micros`, `gps_time_ns` (eşleme yoksa `null`), `utc` (eşleme yoksa `null`). `stop` güç kesintisinde `null` kalır |
+| `stop_reason` | str | `command`, `sd_full`, `sd_error` |
+| `gnss_bytes` | int | `gnss.ubx`'e yazılan bayt |
+| `dropped_bytes` | int | Tampon taşmasıyla atılan bayt |
+
+ESP32 kamera yüksekliğini, kalibrasyonu ya da personeli bilmez; bu dosyaya eklenmez.
+
+### Kök `session.json` (saha uygulaması ve operasyon yazar)
+
+**Karar:** Alan adları veritabanındaki `public.session` tablosuyla ([veri-modeli.md](veri-modeli.md)) aynı tutuldu. Saha uygulaması oturum başlatılırken bildiği alanları yazar; operasyon işlemeden önce kit/kalibrasyon alanlarını tamamlar. Bilinmeyen alanlar korunur.
+
+| Alan | Tür | Yazan | Zorunlu | Anlamı |
+| --- | --- | --- | --- | --- |
+| `session_id` | str | Saha uygulaması | Evet | Oturum kimliği (`public.session.id`, UUID). ESP32'ye `start_session` ile aynısı verilir; bu yüzden 36 karakteri ve `[A-Za-z0-9_-]` kümesini aşamaz |
+| `parcel_id` | str | Saha uygulaması | Evet | Parsel kimliği (UUID); ESP32'ye aynısı verilir |
+| `org_id` | str | Saha uygulaması | Hayır | Kurum kimliği |
+| `kind` | str | Saha uygulaması | Hayır | `public.session.kind`; tarama için `scan` |
+| `methodology_version` | str | Saha uygulaması | Hayır | Tarama protokolü sürümü |
+| `rig_id` | str | Saha uygulaması / operasyon | Hayır | Kullanılan kit (`public.rig`) |
+| `calibration_id` | str | Operasyon | Hayır | Kitin oturum tarihinde geçerli kalibrasyon kaydı |
+| `camera_height_m` | float | Operasyon (kalibrasyondan) | Hayır, vars. 2,0 | Kamera merceğinin zeminden yüksekliği. Yoksa hat uyarı verir |
+| `camera_yaw_offset_deg` | float | Operasyon (kalibrasyondan) | Hayır | Panorama orta sütununun hareket yönüne göre açısı; yoksa hat parametresi kullanılır |
+| `lead_user_id` | str | Saha uygulaması | Hayır | Ekip lideri kullanıcı kimliği |
+| `crew_user_ids` | str[] | Saha uygulaması | Hayır | Diğer personelin kullanıcı kimlikleri |
+| `app_version` | str | Saha uygulaması | Hayır | Saha uygulaması sürümü |
+
+**Karar (KVKK):** Personel yalnızca kullanıcı kimliğiyle anılır; ad, telefon ya da sahip bilgisi bu dosyaya yazılmaz.
+
+Örnek:
+
+```json
+{
+  "session_id": "4f2a9c1e-7b2d-4e8f-9a51-0c3d2e1f6a7b",
+  "parcel_id": "9b1d7e2a-3c4f-4a5b-8c6d-7e8f9a0b1c2d",
+  "kind": "scan",
+  "methodology_version": "scan-v1",
+  "rig_id": "kit-01",
+  "calibration_id": "kit-01-2026-10",
+  "camera_height_m": 2.05,
+  "camera_yaw_offset_deg": 0.0,
+  "lead_user_id": "0f6c2b9a-1d3e-4f5a-8b7c-9d0e1f2a3b4c",
+  "app_version": "0.1.0"
+}
+```
+
+### Birleştirme
+
+İşleme hattı iki dosyayı ayrı modellerle okur (`SessionInfo`, `LoggerSession`) ve `manifest.json`'da `session` ve `logger` olarak yan yana yazar.
+
+- İki dosyada da bulunan `session_id` ve `parcel_id` **birebir aynı olmalıdır**; değilse ingest oturumu reddeder.
+- `gnss/session.json` zorunludur (**karar**: ESP32 onu oturumun ilk saniyesinde yazar; yoksa `gnss/` klasörü yanlış kopyalanmıştır).
+- `stop: null`, `dropped_bytes > 0`, `config_status ≠ ok` ya da `format_version ≠ 1` uyarı olarak listelenir; işleme durmaz.
+
+## QR saat kodu
+
+Saha uygulaması taramanın başında ve sonunda telefon ekranında sürekli yenilenen bir QR kod gösterir; kamera bunu kaydeder. İçerik düz metindir:
+
+```
+OQ1:<gps_time_ms>[:<oturum_etiketi>]
+```
+
+| Alan | Anlamı |
+| --- | --- |
+| `OQ1` | Biçim ve sürüm işareti |
+| `gps_time_ms` | QR görüntüsünün ekranda belirdiği an, **GPS zamanı**, GPS başlangıcından bu yana tam sayı milisaniye. Telefon saati UTC ise 18 s eklenir |
+| `oturum_etiketi` | Opsiyonel ama saha uygulaması her zaman yazar (**karar**): `session_id`'den harf, rakam, `_` ve `-` dışındaki karakterler atıldıktan sonraki ilk 8 karakter. Başka oturumun QR'ı yanlışlıkla okunursa elenir |
+
+Örnek: `OQ1:1476435618200:4f2a9c1e`
+
+Kurallar:
+
+- **Yenileme hızı:** QR en az 10 Hz yenilenir (100 ms; hattaki parametre `sync.qr_refresh_ms`). Değer, görüntünün belirdiği andır; hat okunan değere yenileme aralığının yarısını ekler. Ekranın bilinen bir gecikmesi varsa `sync.qr_display_latency_ms` ile verilir.
+- **Gösterim süresi:** Kayıt başladıktan sonraki ilk 20 sn içinde ve kayıt bitmeden önceki son 20 sn içinde birkaç saniye (`sync.qr_search_s`); telefon kameraya yakın ve düz tutulur.
+- **`qr_sync` olayı:** QR ekranda gösterilmeye başladığı anda telefon ESP32'ye `mark_event(qr_sync, payload)` gönderir. **Karar:** `payload` o anda gösterilen QR'ın metninin tamamıdır (`OQ1:...`). İP2 README'sindeki örnekte görülen ISO 8601 UTC metni de hat tarafından okunur ve GPS zamanına çevrilir, ama saha uygulaması `OQ1` biçimini kullanır.
+- **Çapraz kontrol:** Hat her `qr_sync` olayı için `sync.json`'daki `qr_sync_checks` listesine şunları yazar: QR değeri, olayın GPS zamanı (çapadan hesaplandıysa işaretli), `event_minus_qr_ms` (olay zamanı − QR değeri; beklenen değer BLE gecikmesi, tipik olarak < 50 ms) ve videodan okunan en yakın QR değerine uzaklık. |fark| > 250 ms (`sync.qr_event_max_diff_ms`) ise uyarı verilir; fark ~18 s ise telefonun UTC gösterdiği belirtilir. QR değeri videodaki okumaların hiçbirine 10 sn'den (`sync.qr_event_video_max_gap_s`) yakın değilse ya da etiket başka oturumunsa da uyarı verilir. Bu olaylar saat uydurmasında kullanılmaz; uydurma yalnızca videodaki QR okumalarına dayanır.
+
+## BLE protokolü
+
+Kaynak: [firmware/gnss-logger/README.md → BLE protokolü](../firmware/gnss-logger/README.md#ble-protokolü). Özet:
+
+- Cihaz adı `orchados-gnss-XXXX`; servis `cdee0001-…`, durum `cdee0002-…` (read/notify, 31 bayt, sürüm 1), komut `cdee0003-…` (write). Tüm alanlar little-endian; uygulama MTU ≥ 247 ister.
+- Komutlar: `start_session(session_id, parcel_id)`, `stop_session`, `mark_event(corner | qr_sync, payload)`. Sonuç durum mesajındaki `last_cmd_seq` / `last_cmd_result` ile izlenir.
+- `start_session`'a verilen `session_id` ve `parcel_id`, kök `session.json`'dakilerle aynı olmalıdır (yukarıdaki birleştirme kuralı).
+
+## Açık noktalar
+
+- `trees.json`'un yerini İP1 veritabanı alacak; o zaman bu belgede API sözleşmesi tanımlanacak.
+- Kamera jiroskop verisi (ince zaman eşleme) henüz sözleşmede yok.
+- İP2 README'sindeki örnek `events.csv`'nin ikinci satırında `gps_time_ns` çapadan formülle hesaplanan değerden 20 µs farklıdır (çapa `esp_micros` 12000020). Satır `gps_time_ns` taşıdığı için hat dosyadaki değeri kullanır; örnek ileride düzeltilebilir.

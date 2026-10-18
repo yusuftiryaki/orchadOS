@@ -9,13 +9,22 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from .context import RunContext
-from .events import KNOWN_TYPES, EventsFormatError, read_events
+from .events import KNOWN_TYPES, EventsFormatError, GnssEvent, read_events
 from .hashing import sha256_file
-from .models import FileRole, Manifest, ManifestFile, SessionInfo, VideoInfo, write_model
+from .models import (
+    FileRole,
+    LoggerSession,
+    Manifest,
+    ManifestFile,
+    SessionInfo,
+    VideoInfo,
+    write_model,
+)
 from .ubx import ScanStats, iter_frames
 from .video import VideoError, probe
 
 SESSION_JSON = "session.json"
+LOGGER_SESSION_PATH = "gnss/session.json"
 UBX_PATH = "gnss/gnss.ubx"
 EVENTS_PATH = "gnss/events.csv"
 VIDEO_DIR = "video"
@@ -46,6 +55,62 @@ def rinex_kind(path: Path) -> FileRole | None:
     return None
 
 
+def _load_json_model[T](root: Path, rel: str, cls: type[T], problems: list[str]) -> T | None:
+    path = root / rel
+    if not path.is_file():
+        problems.append(f"missing {rel}")
+        return None
+    try:
+        return cls.model_validate(json.loads(path.read_text(encoding="utf-8")))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        problems.append(f"{rel}: not valid JSON ({exc})")
+    except ValidationError as exc:
+        fields = ", ".join(".".join(map(str, e["loc"])) for e in exc.errors())
+        problems.append(f"{rel}: invalid or missing fields: {fields}")
+    return None
+
+
+def _session_conflicts(session: SessionInfo, logger: LoggerSession) -> list[str]:
+    """Fields both files carry must agree."""
+    problems = []
+    for name in ("session_id", "parcel_id"):
+        a, b = getattr(session, name), getattr(logger, name)
+        if a != b:
+            problems.append(
+                f"{name} mismatch: {SESSION_JSON} has {a!r}, {LOGGER_SESSION_PATH} has {b!r}"
+            )
+    return problems
+
+
+def _event_conflicts(session: SessionInfo, events: list[GnssEvent]) -> list[str]:
+    problems = []
+    for e in events:
+        if e.event_type == "session_start" and e.payload.startswith("parcel_id="):
+            parcel = e.payload.removeprefix("parcel_id=")
+            if parcel != session.parcel_id:
+                problems.append(
+                    f"parcel_id mismatch: {SESSION_JSON} has {session.parcel_id!r}, "
+                    f"{EVENTS_PATH} line {e.line} has {parcel!r}"
+                )
+    return problems
+
+
+def _logger_warnings(logger: LoggerSession) -> list[str]:
+    warnings = []
+    if logger.format_version != 1:
+        warnings.append(
+            f"{LOGGER_SESSION_PATH}: format_version {logger.format_version}, expected 1"
+        )
+    status = logger.receiver.get("config_status")
+    if status not in (None, "ok"):
+        warnings.append(f"{LOGGER_SESSION_PATH}: receiver config_status is {status!r}")
+    if logger.stop is None:
+        warnings.append(f"{LOGGER_SESSION_PATH}: session was not closed (stop is null)")
+    if logger.dropped_bytes:
+        warnings.append(f"{LOGGER_SESSION_PATH}: logger dropped {logger.dropped_bytes} bytes")
+    return warnings
+
+
 def _scan_ubx(path: Path) -> ScanStats:
     stats = ScanStats()
     for _ in iter_frames(path.read_bytes(), stats):
@@ -60,18 +125,14 @@ def build_manifest(ctx: RunContext) -> Manifest:
     if not root.is_dir():
         raise IngestError(root, ["session folder does not exist"])
 
-    session: SessionInfo | None = None
-    sj = root / SESSION_JSON
-    if not sj.is_file():
-        problems.append(f"missing {SESSION_JSON}")
-    else:
-        try:
-            session = SessionInfo.model_validate(json.loads(sj.read_text(encoding="utf-8")))
-        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            problems.append(f"{SESSION_JSON}: not valid JSON ({exc})")
-        except ValidationError as exc:
-            fields = ", ".join(".".join(map(str, e["loc"])) for e in exc.errors())
-            problems.append(f"{SESSION_JSON}: invalid or missing fields: {fields}")
+    session = _load_json_model(root, SESSION_JSON, SessionInfo, problems)
+    if session is not None and "camera_height_m" not in session.model_fields_set:
+        warnings.append(f"{SESSION_JSON}: camera_height_m not set, default 2.0 m used")
+    logger = _load_json_model(root, LOGGER_SESSION_PATH, LoggerSession, problems)
+    if session is not None and logger is not None:
+        problems += _session_conflicts(session, logger)
+    if logger is not None:
+        warnings += _logger_warnings(logger)
 
     ubx_counts: dict[str, int] = {}
     ubx = root / UBX_PATH
@@ -98,13 +159,23 @@ def build_manifest(ctx: RunContext) -> Manifest:
         problems.append(f"missing {EVENTS_PATH}")
     else:
         try:
-            counts = Counter(e.event_type for e in read_events(ev))
+            events = read_events(ev)
+        except (EventsFormatError, UnicodeDecodeError) as exc:
+            problems.append(f"{EVENTS_PATH}: {exc}")
+        else:
+            counts = Counter(e.event_type for e in events)
             event_counts = dict(sorted(counts.items()))
             unknown = sorted(set(counts) - KNOWN_TYPES)
             if unknown:
                 warnings.append(f"{EVENTS_PATH}: unknown event types {unknown}")
-        except (EventsFormatError, UnicodeDecodeError) as exc:
-            problems.append(f"{EVENTS_PATH}: {exc}")
+            derived = sum(e.gps_time_derived for e in events)
+            if derived:
+                warnings.append(
+                    f"{EVENTS_PATH}: gps_time_ns recomputed from the PPS anchor for "
+                    f"{derived} event(s)"
+                )
+            if session is not None:
+                problems += _event_conflicts(session, events)
 
     videos: dict[str, VideoInfo] = {}
     vdir = root / VIDEO_DIR
@@ -152,6 +223,8 @@ def build_manifest(ctx: RunContext) -> Manifest:
             continue
         if rel == SESSION_JSON:
             role = FileRole.session_meta
+        elif rel == LOGGER_SESSION_PATH:
+            role = FileRole.logger_session
         elif rel == UBX_PATH:
             role = FileRole.gnss_raw
         elif rel == EVENTS_PATH:
@@ -176,6 +249,7 @@ def build_manifest(ctx: RunContext) -> Manifest:
     return Manifest(
         producer=ctx.producer("ingest"),
         session=session,
+        logger=logger,
         files=files,
         event_counts=event_counts,
         ubx_frame_counts=ubx_counts,

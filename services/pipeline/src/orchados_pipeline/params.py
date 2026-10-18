@@ -34,6 +34,11 @@ class SyncParams(_Section):
     qr_display_latency_ms: float = 0.0
     min_pairs: int = 3
     outlier_mad_k: float = 5.0
+    # qr_sync logger events: |event GPS time - QR value| above this is reported
+    # (BLE latency is typically < 50 ms; a phone showing UTC is off by ~18 s).
+    qr_event_max_diff_ms: float = 250.0
+    # ... and a QR value no video reading comes within this distance of.
+    qr_event_video_max_gap_s: float = 10.0
     # Escape hatch when no QR is readable: camera_s -> gps_ns = offset + camera_s * 1e9.
     manual_offset_ns: int | None = None
 

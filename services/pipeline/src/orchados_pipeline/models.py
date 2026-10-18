@@ -37,20 +37,58 @@ class Producer(Model):
 
 
 class SessionInfo(BaseModel):
-    """session.json. Unknown keys written by the logger are kept."""
+    """Root session.json, written by the field app and completed by operations.
+
+    See docs/arayuzler.md. Unknown keys are kept.
+    """
 
     model_config = ConfigDict(extra="allow")
 
     session_id: str
     parcel_id: str
     org_id: str | None = None
+    kind: str | None = None
+    methodology_version: str | None = None
+    rig_id: str | None = None
+    calibration_id: str | None = None
     camera_height_m: float = 2.0
     # Rig calibration: azimuth of the panorama centre relative to travel direction.
     camera_yaw_offset_deg: float | None = None
+    # Staff are referenced by user id only; names and phone numbers never go here.
+    lead_user_id: str | None = None
+    crew_user_ids: list[str] = Field(default_factory=list)
+    app_version: str | None = None
+
+
+class LoggerTimestamp(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    esp_micros: int
+    gps_time_ns: int | None = None
+    utc: str | None = None
+
+
+class LoggerSession(BaseModel):
+    """gnss/session.json, written by the ESP32 GNSS logger (İP2). Unknown keys are kept."""
+
+    model_config = ConfigDict(extra="allow")
+
+    format_version: int
+    session_id: str
+    parcel_id: str
+    firmware_version: str
+    receiver: dict
+    gps_utc_leap_seconds: int
+    start: LoggerTimestamp
+    stop: LoggerTimestamp | None = None
+    stop_reason: str | None = None
+    gnss_bytes: int | None = None
+    dropped_bytes: int | None = None
 
 
 class FileRole(StrEnum):
     session_meta = "session_meta"
+    logger_session = "logger_session"
     gnss_raw = "gnss_raw"
     gnss_events = "gnss_events"
     video = "video"
@@ -79,6 +117,7 @@ class Manifest(Model):
     schema_: Literal["orchados.manifest/1"] = Field("orchados.manifest/1", alias="schema")
     producer: Producer
     session: SessionInfo
+    logger: LoggerSession | None = None
     files: list[ManifestFile]
     event_counts: dict[str, int]
     ubx_frame_counts: dict[str, int]
@@ -143,6 +182,21 @@ class QrObservation(Model):
     inlier: bool = True
 
 
+class QrSyncCheck(Model):
+    """A qr_sync logger event compared with the QR value it carries and the video."""
+
+    line: int  # line in events.csv
+    payload: str
+    qr_gps_time_ms: int | None  # decoded from the payload; None if not a time value
+    event_gps_time_ns: int | None
+    gps_time_derived: bool = False
+    # event GPS time - QR value (ms): BLE latency plus the part of the refresh interval elapsed.
+    event_minus_qr_ms: float | None = None
+    # Nearest QR value read from the video minus the payload's value (ms).
+    nearest_video_qr_ms: float | None = None
+    warning: str | None = None
+
+
 class ClockModel(Model):
     """gps_ns = offset_ns + camera_s * 1e9 * (1 + drift_ppm * 1e-6)."""
 
@@ -158,6 +212,7 @@ class ClockModel(Model):
     scan_end_camera_s: float
     observations: list[QrObservation] = Field(default_factory=list)
     qr_sync_events: int = 0
+    qr_sync_checks: list[QrSyncCheck] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
     def camera_to_gps_ns(self, camera_s: float) -> int:

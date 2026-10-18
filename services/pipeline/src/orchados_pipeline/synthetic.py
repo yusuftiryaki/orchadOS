@@ -3,8 +3,9 @@
 Builds a complete session folder: an equirectangular MP4 drawn with OpenCV
 (trees as trunks and crowns at their true bearings, QR time codes at the start
 and end, deliberately blurred frames), a NAV-PVT UBX log of the same path,
-events.csv, session.json and trees.json. The ground truth is written to
-synthetic_truth.json.
+and the logger's gnss/events.csv and gnss/session.json in the İP2 format (see
+docs/arayuzler.md), the root session.json and trees.json. The ground truth is
+written to synthetic_truth.json.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ import numpy as np
 
 from .events import format_events
 from .geo import LocalFrame, bearing_deg, wrap180
-from .gpstime import utc_to_gps_ns
+from .gpstime import gps_ns_to_iso, utc_to_gps_ns
 from .projection import direction_to_pixel
 from .sync import encode_qr_payload
 from .ubx import build_frame, encode_nav_pvt
@@ -53,6 +54,8 @@ class SyntheticConfig:
     tree_rows_e: tuple[float, ...] = (-3.0, 3.0, 9.0)
     tree_cols_n: tuple[float, ...] = (4.0, 10.0, 16.0, 22.0)
     seed: int = 7
+    # Phone -> logger delay of the qr_sync command (BLE), added to the event time.
+    qr_event_latency_ms: int = 30
 
 
 class Path2D:
@@ -236,22 +239,73 @@ def make_session(dest: Path, cfg: SyntheticConfig | None = None) -> SyntheticTru
     (dest / "gnss" / "gnss.ubx").write_bytes(bytes(blob))
 
     def esp(g: int) -> int:
+        # ESP32 boot clock; runs exactly at GPS rate here.
         return 5_000_000 + (g - first) // 1000
 
+    def row(g: int, kind: str, payload: str, pps_ok: bool = True, anchor_s: int = 0):
+        """events.csv row; the anchor is the last PPS edge, `anchor_s` seconds older."""
+        a = (g // 10**9 - anchor_s) * 10**9
+        return (esp(g), g if pps_ok else None, kind, payload, esp(a), a)
+
+    def qr_event(cam_s: float) -> tuple[int, str]:
+        g = t0 + round(cam_s * 1e9 * k)
+        shown = int((g // 1_000_000) // cfg.qr_refresh_ms * cfg.qr_refresh_ms)
+        return shown * 1_000_000 + cfg.qr_event_latency_ms * 1_000_000, encode_qr_payload(
+            shown, cfg.session_id
+        )
+
+    g_start_qr, start_qr = qr_event(0.5)
+    g_end_qr, end_qr = qr_event(tail_start + 0.5)
+    g_lost = g_end_qr - 1_600_000_000
     events = [
-        (esp(first), first, "session_start", cfg.session_id),
-        (esp(t0 + 10**9), t0 + 10**9, "qr_sync", "start"),
-        (esp(t0 + int(tail_start * 1e9)), t0 + int(tail_start * 1e9), "qr_sync", "end"),
-        (esp(last), last, "session_stop", ""),
+        row(first, "session_start", f"parcel_id={cfg.parcel_id}"),
+        row(g_start_qr, "qr_sync", start_qr),
+        # PPS outage around the end QR: its GPS time must be rebuilt from the anchor.
+        row(g_lost, "pps_lost", "", anchor_s=1),
+        row(g_end_qr, "qr_sync", end_qr, pps_ok=False, anchor_s=3),
+        row(g_end_qr + 1_200_000_000, "pps_regained", ""),
+        row(last, "session_stop", "command"),
     ]
     (dest / "gnss" / "events.csv").write_text(format_events(events), encoding="utf-8")
+    logger_session = {
+        "format_version": 1,
+        "session_id": cfg.session_id,
+        "parcel_id": cfg.parcel_id,
+        "firmware_version": "0.1.0",
+        "receiver": {
+            "model": "ZED-F9P",
+            "port": "UART1",
+            "baud": 460800,
+            "meas_period_ms": 200,
+            "rawx_rate_hz": 1,
+            "nav_pvt_rate_hz": 5,
+            "messages": ["RXM-RAWX", "RXM-SFRBX", "NAV-PVT"],
+            "nmea": False,
+            "timepulse_grid": "GPS",
+            "config_status": "ok",
+            "detected_baud": 460800,
+        },
+        "gps_utc_leap_seconds": 18,
+        "start": {"esp_micros": esp(first), "gps_time_ns": first, "utc": gps_ns_to_iso(first)},
+        "stop": {"esp_micros": esp(last), "gps_time_ns": last, "utc": gps_ns_to_iso(last)},
+        "stop_reason": "command",
+        "gnss_bytes": len(blob),
+        "dropped_bytes": 0,
+    }
+    (dest / "gnss" / "session.json").write_text(
+        json.dumps(logger_session, indent=2) + "\n", encoding="utf-8"
+    )
     session = {
         "session_id": cfg.session_id,
         "parcel_id": cfg.parcel_id,
+        "kind": "scan",
+        "methodology_version": "scan-v1",
+        "rig_id": "rig-synth",
+        "calibration_id": "cal-synth-1",
         "camera_height_m": cfg.camera_height_m,
-        "firmware_version": "synthetic",
-        "start_gps_ns": first,
-        "stop_gps_ns": last,
+        "camera_yaw_offset_deg": 0.0,
+        "lead_user_id": "00000000-0000-0000-0000-000000000003",
+        "app_version": "synthetic",
     }
     (dest / "session.json").write_text(json.dumps(session, indent=2) + "\n", encoding="utf-8")
     public_trees = [{k2: t[k2] for k2 in ("tree_id", "slot_code", "lat", "lon")} for t in trees]

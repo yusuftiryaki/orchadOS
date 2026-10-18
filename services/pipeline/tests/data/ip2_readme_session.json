@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "session_id": "S-1",
+  "parcel_id": "P-12",
+  "firmware_version": "0.1.0",
+  "receiver": {"model": "ZED-F9P", "port": "UART1", "baud": 460800, "meas_period_ms": 200, "rawx_rate_hz": 1, "nav_pvt_rate_hz": 5, "messages": ["RXM-RAWX", "RXM-SFRBX", "NAV-PVT"], "nmea": false, "timepulse_grid": "GPS", "config_status": "ok", "detected_baud": 38400},
+  "gps_utc_leap_seconds": 18,
+  "start": {"esp_micros":10500000,"gps_time_ns":1476350120500000000,"utc":"2026-10-18T09:15:02.500Z"},
+  "stop": {"esp_micros":7210500000,"gps_time_ns":null,"utc":null},
+  "stop_reason": "command",
+  "gnss_bytes": 73400320,
+  "dropped_bytes": 0
+}
