@@ -1,0 +1,38 @@
+[project]
+name = "orchados-pipeline"
+version = "0.1.0"
+description = "orchadOS processing pipeline: ingest, positioning, time sync, frame selection, panoramas and tree crops"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.26",
+    "opencv-python-headless>=4.9",
+    "pydantic>=2.6",
+]
+
+[project.scripts]
+orchados-pipeline = "orchados_pipeline.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "rtklib: needs RTKLIB command line tools (convbin, rnx2rtkp)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
