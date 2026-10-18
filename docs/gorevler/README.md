@@ -5,7 +5,7 @@ Bu klasördeki her dosya, bir Claude Code bulut oturumuna verilen bir iş paketi
 ## Ortak kurallar
 
 1. **Önce oku:** `CLAUDE.md`, `docs/plan.md`, görev dosyası ve görev dosyasının işaret ettiği dokümanlar.
-2. **Dal:** `main`'den görev dosyasında yazan adla yeni bir dal aç. Sadece bu dalda çalış.
+2. **Dal:** `main`'den yeni bir dal aç. Oturuma bir dal atanmışsa (ör. `claude/...`) onu kullan. Sadece bu dalda çalış.
 3. **Sadece kendi klasörün:** Görev dosyasında belirtilen klasörün dışındaki dosyalara dokunma. Özellikle `CLAUDE.md`, `docs/plan.md`, kökteki `package.json` ve diğer bileşenlerin klasörleri değişmez; bunları birleştirme sırasında koordinatör günceller. Bu dosyalarda değişiklik gerektiğini düşünüyorsan PR açıklamasına yaz.
 4. **Dil:** Kod, tanımlayıcılar, kod yorumları ve commit mesajları İngilizce. Bileşen klasöründeki `README.md` Türkçe.
 5. **Commit mesajları** şu satırla biter:
