@@ -43,6 +43,30 @@ Supabase komut satırı aracı, Postgres/PostGIS, Auth ve Storage'ı **host'un D
 - Container içinde `adb devices` telefonu göstermeli, ardından `flutter run`.
 - İlk derleme Gradle bağımlılıklarını indirir ve birkaç dakika sürer.
 
+## Bulut oturumları (Claude Code)
+
+Yazılım iş paketlerinin günlük geliştirmesi Claude Code bulut oturumlarında yapılır: 4 sanal çekirdek, 16 GB RAM, 30 GB disk, Docker var. Bulut ortamı devcontainer kullanmaz; eksik araçlar ortamın kurulum betiğiyle yüklenir.
+
+| Nerede | Ne |
+| --- | --- |
+| Bulut | İP1 şema, İP4 işleme hattı (küçük örneklerle), İP5/İP7/İP8 web, İP9 AI worker, İP6'nın kod ve testleri |
+| Yerel (`core`, `mobile`) | ESP32 flaşlama, saha uygulamasını gerçek telefonda çalıştırma, sonuçları gözle kontrol |
+| İşleme istasyonu | Gerçek saha verisi; bulut ortamına konmaz |
+
+**Ortam:** claude.ai/code'da `orchadOS` adlı bir bulut ortamı, ağ erişimi **Trusted**. Kurulum betiği (ortam ayarlarındaki **Setup script** alanı; bu kopya referans içindir):
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+apt-get update
+apt-get install -y --no-install-recommends ffmpeg rtklib gdal-bin proj-bin
+uv tool install platformio
+```
+
+Betik ~5 dakikada bitmezse ortam önbelleğe alınmaz. Supabase imajlarının önbelleğe alınması İP1'de bu betiğe eklenecek.
+
+**Akış:** Bulut oturumu GitHub'dan klonlar, kendi dalında çalışır ve dalı GitHub'a gönderir. Diff claude.ai/code'da incelenir, PR açılır, `main`'e birleştirilir. Yerelde `git pull` ile çekilir. Yerelde yapılan değişiklikler buluta ancak GitHub'a gönderildikten sonra ulaşır.
+
 ## Disk ve bakım
 
 - `core` imajı ~1,8 GB, `mobile` imajı ~5 GB. Makinede ~25 GB boş yer var; ikisi birlikte sığar, ama Supabase imajları da birkaç GB ekler.
