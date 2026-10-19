@@ -1,7 +1,7 @@
 -- Schema shape: schemas, tables, enums, geometry SRIDs, RLS switched on, triggers, seed basics.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(30);
 
 select has_extension('postgis', 'postgis is installed');
 select has_schema('private', 'private schema exists');
@@ -57,7 +57,21 @@ select enum_has_labels('public', 'graft_status', array['grafted', 'ungrafted', '
 select enum_has_labels('public', 'age_class', array['sapling', 'young', 'productive', 'old', 'unknown'], 'age classes');
 select enum_has_labels('public', 'tree_status', array['active', 'lost'], 'tree status');
 select enum_has_labels('public', 'measurement_source', array['staff', 'algorithm', 'ai', 'expert'], 'measurement sources');
-select enum_has_labels('public', 'metric_value_type', array['numeric', 'scale', 'category'], 'metric value types');
+select enum_has_labels('public', 'metric_value_type', array['numeric', 'scale', 'category', 'boolean'], 'metric value types');
+
+select views_are(
+  'public', array['tree_latest_assessment', 'tree_latest_measurement'], 'public has the latest-value views'
+);
+select is(
+  (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind = 'v'
+     and not coalesce('security_invoker=true' = any (c.reloptions), false)),
+  0::bigint,
+  'every view in public runs with security_invoker'
+);
+select is(
+  (select public from storage.buckets where id = 'media'), false, 'media bucket exists and is private'
+);
 
 select has_trigger('public', 'capture', 'capture_insert_only', 'capture is insert-only');
 select has_trigger('public', 'asset', 'asset_insert_only', 'asset is insert-only');

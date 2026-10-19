@@ -92,13 +92,16 @@ describe("parcel detail", () => {
 
 describe("tree colours", () => {
   const treeSlotCode = "S1-1";
+  // The seed session is in review; owners see results only of published sessions.
+  const publishedSession = "e0000000-0000-4000-8000-0000000000f1";
   let assessmentIds: string[] = [];
 
   afterAll(async () => {
     if (assessmentIds.length) await admin.from("assessment").delete().in("id", assessmentIds);
+    await admin.from("session").delete().eq("id", publishedSession);
   });
 
-  it("follow the latest assessment of each tree", async () => {
+  it("follow the latest published assessment of each tree", async () => {
     const { data: tree, error } = await admin
       .from("tree")
       .select("id, slot!inner(code)")
@@ -108,10 +111,19 @@ describe("tree colours", () => {
       .single();
     expect(error).toBeNull();
 
+    const session = await admin.from("session").insert({
+      id: publishedSession,
+      org_id: SEED.org,
+      parcel_id: SEED.parcel,
+      kind: "periodic_scan",
+      status: "published",
+    });
+    expect(session.error).toBeNull();
+
     const base = {
       org_id: SEED.org,
       parcel_id: SEED.parcel,
-      session_id: SEED.session,
+      session_id: publishedSession,
       tree_id: tree!.id,
       source: "ai" as const,
       model_name: "test-model",
@@ -122,6 +134,13 @@ describe("tree colours", () => {
       .insert([
         { ...base, overall_class: "healthy", assessed_at: "2026-10-11T00:00:00Z" },
         { ...base, overall_class: "problem", assessed_at: "2026-10-12T00:00:00Z" },
+        // Newer, but in the unpublished seed session: hidden from the owner.
+        {
+          ...base,
+          session_id: SEED.session,
+          overall_class: "dead",
+          assessed_at: "2026-10-13T00:00:00Z",
+        },
       ])
       .select("id");
     expect(inserted.error).toBeNull();
@@ -132,5 +151,10 @@ describe("tree colours", () => {
     const slot = data!.slots.features.find((f) => f.properties.code === treeSlotCode);
     expect(slot?.properties.state).toBe("problem");
     expect(slot?.properties.tree?.health).toBe("problem");
+
+    const { client: expert } = await signIn("expert");
+    const expertData = await getParcelMap(expert, SEED.parcel);
+    const expertSlot = expertData!.slots.features.find((f) => f.properties.code === treeSlotCode);
+    expect(expertSlot?.properties.tree?.health).toBe("dead");
   });
 });

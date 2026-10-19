@@ -163,19 +163,29 @@ Kurallar:
 
 - **Yenileme hızı:** QR en az 10 Hz yenilenir (100 ms; hattaki parametre `sync.qr_refresh_ms`). Değer, görüntünün belirdiği andır; hat okunan değere yenileme aralığının yarısını ekler. Ekranın bilinen bir gecikmesi varsa `sync.qr_display_latency_ms` ile verilir.
 - **Gösterim süresi:** Kayıt başladıktan sonraki ilk 20 sn içinde ve kayıt bitmeden önceki son 20 sn içinde birkaç saniye (`sync.qr_search_s`); telefon kameraya yakın ve düz tutulur.
-- **`qr_sync` olayı:** QR ekranda gösterilmeye başladığı anda telefon ESP32'ye `mark_event(qr_sync, payload)` gönderir. **Karar:** `payload` o anda gösterilen QR'ın metninin tamamıdır (`OQ1:...`). İP2 README'sindeki örnekte görülen ISO 8601 UTC metni de hat tarafından okunur ve GPS zamanına çevrilir, ama saha uygulaması `OQ1` biçimini kullanır.
+- **`qr_sync` olayı:** QR ekranda gösterilmeye başladığı anda telefon ESP32'ye `mark_event(qr_sync, payload)` gönderir. **Karar:** `payload` o anda gösterilen QR'ın metninin tamamıdır (`OQ1:...`); İP2 README'sindeki örnek de bu biçimdedir. Eski kayıtlarda görülebilecek ISO 8601 UTC metni de hat tarafından okunur ve GPS zamanına çevrilir, ama saha uygulaması `OQ1` biçimini kullanır.
 - **Çapraz kontrol:** Hat her `qr_sync` olayı için `sync.json`'daki `qr_sync_checks` listesine şunları yazar: QR değeri, olayın GPS zamanı (çapadan hesaplandıysa işaretli), `event_minus_qr_ms` (olay zamanı − QR değeri; beklenen değer BLE gecikmesi, tipik olarak < 50 ms) ve videodan okunan en yakın QR değerine uzaklık. |fark| > 250 ms (`sync.qr_event_max_diff_ms`) ise uyarı verilir; fark ~18 s ise telefonun UTC gösterdiği belirtilir. QR değeri videodaki okumaların hiçbirine 10 sn'den (`sync.qr_event_video_max_gap_s`) yakın değilse ya da etiket başka oturumunsa da uyarı verilir. Bu olaylar saat uydurmasında kullanılmaz; uydurma yalnızca videodaki QR okumalarına dayanır.
 
 ## BLE protokolü
 
 Kaynak: [firmware/gnss-logger/README.md → BLE protokolü](../firmware/gnss-logger/README.md#ble-protokolü). Özet:
 
-- Cihaz adı `orchados-gnss-XXXX`; servis `cdee0001-…`, durum `cdee0002-…` (read/notify, 31 bayt, sürüm 1), komut `cdee0003-…` (write). Tüm alanlar little-endian; uygulama MTU ≥ 247 ister.
+- Cihaz adı `orchados-gnss-XXXX`; servis `cdee0001-…`, durum `cdee0002-…` (read/notify, 39 bayt, sürüm 1), komut `cdee0003-…` (write). Tüm alanlar little-endian; uygulama MTU ≥ 247 ister.
+- **Durumda GPS zamanı:** Ofset 31'de `gps_time_ns` (u64): mesajın oluşturulduğu anın GPS zamanı, `çapa_gps + (şimdi − çapa_micros) × 1000`; PPS eşlemesi yoksa `0` (bu durumda `flags` bit3 de 0'dır). Firmware 0.2.0'dan itibaren gönderilir; 0.1.0 31 bayt gönderir. Aynı sürümde alanlar yalnızca sona eklendiği için çözücüler 31 bayt ve üzerini kabul eder; 31 baytlık mesajda alan yok sayılır. Saha uygulaması bu değerle telefon saatinin GPS zamanına ofsetini bulur ve QR'ı GPS zamanıyla gösterir; değer yoksa telefon saati + 18 sn kullanır ve bunu işaretler.
 - Komutlar: `start_session(session_id, parcel_id)`, `stop_session`, `mark_event(corner | qr_sync, payload)`. Sonuç durum mesajındaki `last_cmd_seq` / `last_cmd_result` ile izlenir.
 - `start_session`'a verilen `session_id` ve `parcel_id`, kök `session.json`'dakilerle aynı olmalıdır (yukarıdaki birleştirme kuralı).
+
+## Medya depolama
+
+Saha fotoğrafları ve işleme hattının ürünleri (panorama, ağaç kesiti vb.) Supabase Storage'daki **özel** `media` alanında tutulur. Ham video ve MCAP gibi büyük ham kayıtlar işleme istasyonunda kalır (`uri` `station://...`).
+
+- **Nesne yolu:** `org/<org_id>/parcel/<parcel_id>/<sha256>`. `sha256` dosya içeriğinin küçük harfli onaltılık SHA-256'sıdır ve ilgili `capture.content_hash` ya da `asset.content_hash` ile aynıdır. Uzantı yoktur; tür satırdaki `mime_type`'tan okunur. Örnek: `org/b0000000-0000-4000-8000-000000000001/parcel/c0000000-0000-4000-8000-000000000001/2d71…4881`.
+- **Satırdaki adres:** Dosya `media` alanındaysa `capture.uri` / `asset.uri` = `storage://media/` + nesne yolu. **Karar:** Ayrı bir depolama anahtarı sütunu eklenmedi; yol, satırdaki `org_id`, `parcel_id` ve `content_hash`'ten türetilir.
+- **Değiştirilemez:** Aynı yola ikinci kez yazılmaz, nesne güncellenmez ya da silinmez (API kullanıcıları için güncelleme/silme kuralı yok). İçerik değişirse hash ve dolayısıyla yol da değişir.
+- **Yazma:** Yalnızca servis rolü (işleme hattı) ve operasyon. Operasyon yalnızca kendi kurumunun bir parselinin altına, kurala uyan bir adla yazabilir. Saha uygulaması dosyayı doğrudan yüklemez.
+- **Okuma:** Kurum rolleri kurumlarının bütün nesnelerini okur. Sahip ve izleyici, aynı kurum, parsel ve hash'e sahip bir `asset` ya da `capture` satırını görebiliyorlarsa nesneyi de okur; yani yayımlanmamış oturumların dosyaları onlara kapalıdır (veri-modeli.md, "Yayın").
 
 ## Açık noktalar
 
 - `trees.json`'un yerini İP1 veritabanı alacak; o zaman bu belgede API sözleşmesi tanımlanacak.
 - Kamera jiroskop verisi (ince zaman eşleme) henüz sözleşmede yok.
-- İP2 README'sindeki örnek `events.csv`'nin ikinci satırında `gps_time_ns` çapadan formülle hesaplanan değerden 20 µs farklıdır (çapa `esp_micros` 12000020). Satır `gps_time_ns` taşıdığı için hat dosyadaki değeri kullanır; örnek ileride düzeltilebilir.
