@@ -11,6 +11,7 @@ import 'app/providers.dart';
 import 'core/db/database.dart';
 import 'core/media/field_camera.dart';
 import 'core/media/media_store.dart';
+import 'core/media/plugin_field_camera.dart';
 import 'features/auth/auth_repository.dart';
 import 'features/gnss/fake_gnss_logger.dart';
 import 'features/gnss/flutter_blue_gnss_logger.dart';
@@ -20,9 +21,11 @@ import 'features/gnss/gnss_logger.dart';
 /// - `SUPABASE_URL`, `SUPABASE_KEY`: sign in against Supabase; without them
 ///   the app uses the offline development users.
 /// - `FAKE_GNSS=true`: simulated logger instead of BLE (emulator, demos).
+/// - `FAKE_CAMERA=true`: synthetic photos instead of the camera (demos).
 const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const _supabaseKey = String.fromEnvironment('SUPABASE_KEY');
 const _fakeGnss = bool.fromEnvironment('FAKE_GNSS');
+const _fakeCamera = bool.fromEnvironment('FAKE_CAMERA');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,8 +48,9 @@ Future<void> main() async {
       overrides: [
         databaseProvider.overrideWithValue(AppDatabase.open()),
         gnssLoggerProvider.overrideWithValue(logger),
-        // The real in-app camera (camera package) is a follow-up; see README.
-        cameraProvider.overrideWithValue(FakeFieldCamera()),
+        cameraProvider.overrideWithValue(
+          _fakeCamera ? FakeFieldCamera() : PluginFieldCamera(),
+        ),
         mediaStoreProvider.overrideWithValue(
           FileMediaStore(Directory(p.join(docs.path, 'media'))),
         ),

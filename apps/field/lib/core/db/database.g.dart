@@ -1636,6 +1636,83 @@ class $CapturesTable extends Captures
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _qcVerdictMeta = const VerificationMeta(
+    'qcVerdict',
+  );
+  @override
+  late final GeneratedColumn<String> qcVerdict = GeneratedColumn<String>(
+    'qc_verdict',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _qcVersionMeta = const VerificationMeta(
+    'qcVersion',
+  );
+  @override
+  late final GeneratedColumn<String> qcVersion = GeneratedColumn<String>(
+    'qc_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _qcSharpnessMeta = const VerificationMeta(
+    'qcSharpness',
+  );
+  @override
+  late final GeneratedColumn<double> qcSharpness = GeneratedColumn<double>(
+    'qc_sharpness',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _qcBrightnessMeta = const VerificationMeta(
+    'qcBrightness',
+  );
+  @override
+  late final GeneratedColumn<double> qcBrightness = GeneratedColumn<double>(
+    'qc_brightness',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _qcDarkRatioMeta = const VerificationMeta(
+    'qcDarkRatio',
+  );
+  @override
+  late final GeneratedColumn<double> qcDarkRatio = GeneratedColumn<double>(
+    'qc_dark_ratio',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _qcBrightRatioMeta = const VerificationMeta(
+    'qcBrightRatio',
+  );
+  @override
+  late final GeneratedColumn<double> qcBrightRatio = GeneratedColumn<double>(
+    'qc_bright_ratio',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _qcFindingsMeta = const VerificationMeta(
+    'qcFindings',
+  );
+  @override
+  late final GeneratedColumn<String> qcFindings = GeneratedColumn<String>(
+    'qc_findings',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     sha256,
@@ -1652,6 +1729,13 @@ class $CapturesTable extends Captures
     capturedAt,
     gpsTimeMs,
     timeSource,
+    qcVerdict,
+    qcVersion,
+    qcSharpness,
+    qcBrightness,
+    qcDarkRatio,
+    qcBrightRatio,
+    qcFindings,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1778,6 +1862,60 @@ class $CapturesTable extends Captures
     } else if (isInserting) {
       context.missing(_timeSourceMeta);
     }
+    if (data.containsKey('qc_verdict')) {
+      context.handle(
+        _qcVerdictMeta,
+        qcVerdict.isAcceptableOrUnknown(data['qc_verdict']!, _qcVerdictMeta),
+      );
+    }
+    if (data.containsKey('qc_version')) {
+      context.handle(
+        _qcVersionMeta,
+        qcVersion.isAcceptableOrUnknown(data['qc_version']!, _qcVersionMeta),
+      );
+    }
+    if (data.containsKey('qc_sharpness')) {
+      context.handle(
+        _qcSharpnessMeta,
+        qcSharpness.isAcceptableOrUnknown(
+          data['qc_sharpness']!,
+          _qcSharpnessMeta,
+        ),
+      );
+    }
+    if (data.containsKey('qc_brightness')) {
+      context.handle(
+        _qcBrightnessMeta,
+        qcBrightness.isAcceptableOrUnknown(
+          data['qc_brightness']!,
+          _qcBrightnessMeta,
+        ),
+      );
+    }
+    if (data.containsKey('qc_dark_ratio')) {
+      context.handle(
+        _qcDarkRatioMeta,
+        qcDarkRatio.isAcceptableOrUnknown(
+          data['qc_dark_ratio']!,
+          _qcDarkRatioMeta,
+        ),
+      );
+    }
+    if (data.containsKey('qc_bright_ratio')) {
+      context.handle(
+        _qcBrightRatioMeta,
+        qcBrightRatio.isAcceptableOrUnknown(
+          data['qc_bright_ratio']!,
+          _qcBrightRatioMeta,
+        ),
+      );
+    }
+    if (data.containsKey('qc_findings')) {
+      context.handle(
+        _qcFindingsMeta,
+        qcFindings.isAcceptableOrUnknown(data['qc_findings']!, _qcFindingsMeta),
+      );
+    }
     return context;
   }
 
@@ -1843,6 +1981,34 @@ class $CapturesTable extends Captures
         DriftSqlType.string,
         data['${effectivePrefix}time_source'],
       )!,
+      qcVerdict: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}qc_verdict'],
+      ),
+      qcVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}qc_version'],
+      ),
+      qcSharpness: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}qc_sharpness'],
+      ),
+      qcBrightness: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}qc_brightness'],
+      ),
+      qcDarkRatio: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}qc_dark_ratio'],
+      ),
+      qcBrightRatio: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}qc_bright_ratio'],
+      ),
+      qcFindings: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}qc_findings'],
+      ),
     );
   }
 
@@ -1875,7 +2041,27 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
   final String shotCode;
   final DateTime capturedAt;
   final int gpsTimeMs;
+
+  /// `gps` or `phone`: whether [gpsTimeMs] came from the logger's GPS time
+  /// or from the phone clock alone.
   final String timeSource;
+
+  /// On-device quality check (schema 2; null on rows from schema 1).
+  /// `accept` or `warn`; rejected photos are never stored.
+  final String? qcVerdict;
+
+  /// Version of the check and its thresholds (`photo-qc-v1`).
+  final String? qcVersion;
+
+  /// Variance of the Laplacian, mean luminance (0–255) and clipped pixel
+  /// shares (0–1) on the downscaled photo.
+  final double? qcSharpness;
+  final double? qcBrightness;
+  final double? qcDarkRatio;
+  final double? qcBrightRatio;
+
+  /// Warnings the crew accepted, e.g. `blurry:warn`; empty when none.
+  final String? qcFindings;
   const CaptureRow({
     required this.sha256,
     required this.sessionId,
@@ -1891,6 +2077,13 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
     required this.capturedAt,
     required this.gpsTimeMs,
     required this.timeSource,
+    this.qcVerdict,
+    this.qcVersion,
+    this.qcSharpness,
+    this.qcBrightness,
+    this.qcDarkRatio,
+    this.qcBrightRatio,
+    this.qcFindings,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1911,6 +2104,27 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
     map['captured_at'] = Variable<DateTime>(capturedAt);
     map['gps_time_ms'] = Variable<int>(gpsTimeMs);
     map['time_source'] = Variable<String>(timeSource);
+    if (!nullToAbsent || qcVerdict != null) {
+      map['qc_verdict'] = Variable<String>(qcVerdict);
+    }
+    if (!nullToAbsent || qcVersion != null) {
+      map['qc_version'] = Variable<String>(qcVersion);
+    }
+    if (!nullToAbsent || qcSharpness != null) {
+      map['qc_sharpness'] = Variable<double>(qcSharpness);
+    }
+    if (!nullToAbsent || qcBrightness != null) {
+      map['qc_brightness'] = Variable<double>(qcBrightness);
+    }
+    if (!nullToAbsent || qcDarkRatio != null) {
+      map['qc_dark_ratio'] = Variable<double>(qcDarkRatio);
+    }
+    if (!nullToAbsent || qcBrightRatio != null) {
+      map['qc_bright_ratio'] = Variable<double>(qcBrightRatio);
+    }
+    if (!nullToAbsent || qcFindings != null) {
+      map['qc_findings'] = Variable<String>(qcFindings);
+    }
     return map;
   }
 
@@ -1932,6 +2146,27 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
       capturedAt: Value(capturedAt),
       gpsTimeMs: Value(gpsTimeMs),
       timeSource: Value(timeSource),
+      qcVerdict: qcVerdict == null && nullToAbsent
+          ? const Value.absent()
+          : Value(qcVerdict),
+      qcVersion: qcVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(qcVersion),
+      qcSharpness: qcSharpness == null && nullToAbsent
+          ? const Value.absent()
+          : Value(qcSharpness),
+      qcBrightness: qcBrightness == null && nullToAbsent
+          ? const Value.absent()
+          : Value(qcBrightness),
+      qcDarkRatio: qcDarkRatio == null && nullToAbsent
+          ? const Value.absent()
+          : Value(qcDarkRatio),
+      qcBrightRatio: qcBrightRatio == null && nullToAbsent
+          ? const Value.absent()
+          : Value(qcBrightRatio),
+      qcFindings: qcFindings == null && nullToAbsent
+          ? const Value.absent()
+          : Value(qcFindings),
     );
   }
 
@@ -1955,6 +2190,13 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
       capturedAt: serializer.fromJson<DateTime>(json['capturedAt']),
       gpsTimeMs: serializer.fromJson<int>(json['gpsTimeMs']),
       timeSource: serializer.fromJson<String>(json['timeSource']),
+      qcVerdict: serializer.fromJson<String?>(json['qcVerdict']),
+      qcVersion: serializer.fromJson<String?>(json['qcVersion']),
+      qcSharpness: serializer.fromJson<double?>(json['qcSharpness']),
+      qcBrightness: serializer.fromJson<double?>(json['qcBrightness']),
+      qcDarkRatio: serializer.fromJson<double?>(json['qcDarkRatio']),
+      qcBrightRatio: serializer.fromJson<double?>(json['qcBrightRatio']),
+      qcFindings: serializer.fromJson<String?>(json['qcFindings']),
     );
   }
   @override
@@ -1975,6 +2217,13 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
       'capturedAt': serializer.toJson<DateTime>(capturedAt),
       'gpsTimeMs': serializer.toJson<int>(gpsTimeMs),
       'timeSource': serializer.toJson<String>(timeSource),
+      'qcVerdict': serializer.toJson<String?>(qcVerdict),
+      'qcVersion': serializer.toJson<String?>(qcVersion),
+      'qcSharpness': serializer.toJson<double?>(qcSharpness),
+      'qcBrightness': serializer.toJson<double?>(qcBrightness),
+      'qcDarkRatio': serializer.toJson<double?>(qcDarkRatio),
+      'qcBrightRatio': serializer.toJson<double?>(qcBrightRatio),
+      'qcFindings': serializer.toJson<String?>(qcFindings),
     };
   }
 
@@ -1993,6 +2242,13 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
     DateTime? capturedAt,
     int? gpsTimeMs,
     String? timeSource,
+    Value<String?> qcVerdict = const Value.absent(),
+    Value<String?> qcVersion = const Value.absent(),
+    Value<double?> qcSharpness = const Value.absent(),
+    Value<double?> qcBrightness = const Value.absent(),
+    Value<double?> qcDarkRatio = const Value.absent(),
+    Value<double?> qcBrightRatio = const Value.absent(),
+    Value<String?> qcFindings = const Value.absent(),
   }) => CaptureRow(
     sha256: sha256 ?? this.sha256,
     sessionId: sessionId ?? this.sessionId,
@@ -2008,6 +2264,15 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
     capturedAt: capturedAt ?? this.capturedAt,
     gpsTimeMs: gpsTimeMs ?? this.gpsTimeMs,
     timeSource: timeSource ?? this.timeSource,
+    qcVerdict: qcVerdict.present ? qcVerdict.value : this.qcVerdict,
+    qcVersion: qcVersion.present ? qcVersion.value : this.qcVersion,
+    qcSharpness: qcSharpness.present ? qcSharpness.value : this.qcSharpness,
+    qcBrightness: qcBrightness.present ? qcBrightness.value : this.qcBrightness,
+    qcDarkRatio: qcDarkRatio.present ? qcDarkRatio.value : this.qcDarkRatio,
+    qcBrightRatio: qcBrightRatio.present
+        ? qcBrightRatio.value
+        : this.qcBrightRatio,
+    qcFindings: qcFindings.present ? qcFindings.value : this.qcFindings,
   );
   CaptureRow copyWithCompanion(CapturesCompanion data) {
     return CaptureRow(
@@ -2031,6 +2296,23 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
       timeSource: data.timeSource.present
           ? data.timeSource.value
           : this.timeSource,
+      qcVerdict: data.qcVerdict.present ? data.qcVerdict.value : this.qcVerdict,
+      qcVersion: data.qcVersion.present ? data.qcVersion.value : this.qcVersion,
+      qcSharpness: data.qcSharpness.present
+          ? data.qcSharpness.value
+          : this.qcSharpness,
+      qcBrightness: data.qcBrightness.present
+          ? data.qcBrightness.value
+          : this.qcBrightness,
+      qcDarkRatio: data.qcDarkRatio.present
+          ? data.qcDarkRatio.value
+          : this.qcDarkRatio,
+      qcBrightRatio: data.qcBrightRatio.present
+          ? data.qcBrightRatio.value
+          : this.qcBrightRatio,
+      qcFindings: data.qcFindings.present
+          ? data.qcFindings.value
+          : this.qcFindings,
     );
   }
 
@@ -2050,13 +2332,20 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
           ..write('shotCode: $shotCode, ')
           ..write('capturedAt: $capturedAt, ')
           ..write('gpsTimeMs: $gpsTimeMs, ')
-          ..write('timeSource: $timeSource')
+          ..write('timeSource: $timeSource, ')
+          ..write('qcVerdict: $qcVerdict, ')
+          ..write('qcVersion: $qcVersion, ')
+          ..write('qcSharpness: $qcSharpness, ')
+          ..write('qcBrightness: $qcBrightness, ')
+          ..write('qcDarkRatio: $qcDarkRatio, ')
+          ..write('qcBrightRatio: $qcBrightRatio, ')
+          ..write('qcFindings: $qcFindings')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     sha256,
     sessionId,
     kind,
@@ -2071,7 +2360,14 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
     capturedAt,
     gpsTimeMs,
     timeSource,
-  );
+    qcVerdict,
+    qcVersion,
+    qcSharpness,
+    qcBrightness,
+    qcDarkRatio,
+    qcBrightRatio,
+    qcFindings,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2089,7 +2385,14 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
           other.shotCode == this.shotCode &&
           other.capturedAt == this.capturedAt &&
           other.gpsTimeMs == this.gpsTimeMs &&
-          other.timeSource == this.timeSource);
+          other.timeSource == this.timeSource &&
+          other.qcVerdict == this.qcVerdict &&
+          other.qcVersion == this.qcVersion &&
+          other.qcSharpness == this.qcSharpness &&
+          other.qcBrightness == this.qcBrightness &&
+          other.qcDarkRatio == this.qcDarkRatio &&
+          other.qcBrightRatio == this.qcBrightRatio &&
+          other.qcFindings == this.qcFindings);
 }
 
 class CapturesCompanion extends UpdateCompanion<CaptureRow> {
@@ -2107,6 +2410,13 @@ class CapturesCompanion extends UpdateCompanion<CaptureRow> {
   final Value<DateTime> capturedAt;
   final Value<int> gpsTimeMs;
   final Value<String> timeSource;
+  final Value<String?> qcVerdict;
+  final Value<String?> qcVersion;
+  final Value<double?> qcSharpness;
+  final Value<double?> qcBrightness;
+  final Value<double?> qcDarkRatio;
+  final Value<double?> qcBrightRatio;
+  final Value<String?> qcFindings;
   final Value<int> rowid;
   const CapturesCompanion({
     this.sha256 = const Value.absent(),
@@ -2123,6 +2433,13 @@ class CapturesCompanion extends UpdateCompanion<CaptureRow> {
     this.capturedAt = const Value.absent(),
     this.gpsTimeMs = const Value.absent(),
     this.timeSource = const Value.absent(),
+    this.qcVerdict = const Value.absent(),
+    this.qcVersion = const Value.absent(),
+    this.qcSharpness = const Value.absent(),
+    this.qcBrightness = const Value.absent(),
+    this.qcDarkRatio = const Value.absent(),
+    this.qcBrightRatio = const Value.absent(),
+    this.qcFindings = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CapturesCompanion.insert({
@@ -2140,6 +2457,13 @@ class CapturesCompanion extends UpdateCompanion<CaptureRow> {
     required DateTime capturedAt,
     required int gpsTimeMs,
     required String timeSource,
+    this.qcVerdict = const Value.absent(),
+    this.qcVersion = const Value.absent(),
+    this.qcSharpness = const Value.absent(),
+    this.qcBrightness = const Value.absent(),
+    this.qcDarkRatio = const Value.absent(),
+    this.qcBrightRatio = const Value.absent(),
+    this.qcFindings = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : sha256 = Value(sha256),
        sessionId = Value(sessionId),
@@ -2169,6 +2493,13 @@ class CapturesCompanion extends UpdateCompanion<CaptureRow> {
     Expression<DateTime>? capturedAt,
     Expression<int>? gpsTimeMs,
     Expression<String>? timeSource,
+    Expression<String>? qcVerdict,
+    Expression<String>? qcVersion,
+    Expression<double>? qcSharpness,
+    Expression<double>? qcBrightness,
+    Expression<double>? qcDarkRatio,
+    Expression<double>? qcBrightRatio,
+    Expression<String>? qcFindings,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2186,6 +2517,13 @@ class CapturesCompanion extends UpdateCompanion<CaptureRow> {
       if (capturedAt != null) 'captured_at': capturedAt,
       if (gpsTimeMs != null) 'gps_time_ms': gpsTimeMs,
       if (timeSource != null) 'time_source': timeSource,
+      if (qcVerdict != null) 'qc_verdict': qcVerdict,
+      if (qcVersion != null) 'qc_version': qcVersion,
+      if (qcSharpness != null) 'qc_sharpness': qcSharpness,
+      if (qcBrightness != null) 'qc_brightness': qcBrightness,
+      if (qcDarkRatio != null) 'qc_dark_ratio': qcDarkRatio,
+      if (qcBrightRatio != null) 'qc_bright_ratio': qcBrightRatio,
+      if (qcFindings != null) 'qc_findings': qcFindings,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2205,6 +2543,13 @@ class CapturesCompanion extends UpdateCompanion<CaptureRow> {
     Value<DateTime>? capturedAt,
     Value<int>? gpsTimeMs,
     Value<String>? timeSource,
+    Value<String?>? qcVerdict,
+    Value<String?>? qcVersion,
+    Value<double?>? qcSharpness,
+    Value<double?>? qcBrightness,
+    Value<double?>? qcDarkRatio,
+    Value<double?>? qcBrightRatio,
+    Value<String?>? qcFindings,
     Value<int>? rowid,
   }) {
     return CapturesCompanion(
@@ -2222,6 +2567,13 @@ class CapturesCompanion extends UpdateCompanion<CaptureRow> {
       capturedAt: capturedAt ?? this.capturedAt,
       gpsTimeMs: gpsTimeMs ?? this.gpsTimeMs,
       timeSource: timeSource ?? this.timeSource,
+      qcVerdict: qcVerdict ?? this.qcVerdict,
+      qcVersion: qcVersion ?? this.qcVersion,
+      qcSharpness: qcSharpness ?? this.qcSharpness,
+      qcBrightness: qcBrightness ?? this.qcBrightness,
+      qcDarkRatio: qcDarkRatio ?? this.qcDarkRatio,
+      qcBrightRatio: qcBrightRatio ?? this.qcBrightRatio,
+      qcFindings: qcFindings ?? this.qcFindings,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2271,6 +2623,27 @@ class CapturesCompanion extends UpdateCompanion<CaptureRow> {
     if (timeSource.present) {
       map['time_source'] = Variable<String>(timeSource.value);
     }
+    if (qcVerdict.present) {
+      map['qc_verdict'] = Variable<String>(qcVerdict.value);
+    }
+    if (qcVersion.present) {
+      map['qc_version'] = Variable<String>(qcVersion.value);
+    }
+    if (qcSharpness.present) {
+      map['qc_sharpness'] = Variable<double>(qcSharpness.value);
+    }
+    if (qcBrightness.present) {
+      map['qc_brightness'] = Variable<double>(qcBrightness.value);
+    }
+    if (qcDarkRatio.present) {
+      map['qc_dark_ratio'] = Variable<double>(qcDarkRatio.value);
+    }
+    if (qcBrightRatio.present) {
+      map['qc_bright_ratio'] = Variable<double>(qcBrightRatio.value);
+    }
+    if (qcFindings.present) {
+      map['qc_findings'] = Variable<String>(qcFindings.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2294,6 +2667,13 @@ class CapturesCompanion extends UpdateCompanion<CaptureRow> {
           ..write('capturedAt: $capturedAt, ')
           ..write('gpsTimeMs: $gpsTimeMs, ')
           ..write('timeSource: $timeSource, ')
+          ..write('qcVerdict: $qcVerdict, ')
+          ..write('qcVersion: $qcVersion, ')
+          ..write('qcSharpness: $qcSharpness, ')
+          ..write('qcBrightness: $qcBrightness, ')
+          ..write('qcDarkRatio: $qcDarkRatio, ')
+          ..write('qcBrightRatio: $qcBrightRatio, ')
+          ..write('qcFindings: $qcFindings, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4837,6 +5217,13 @@ typedef $$CapturesTableCreateCompanionBuilder = CapturesCompanion Function({
   required DateTime capturedAt,
   required int gpsTimeMs,
   required String timeSource,
+  Value<String?> qcVerdict,
+  Value<String?> qcVersion,
+  Value<double?> qcSharpness,
+  Value<double?> qcBrightness,
+  Value<double?> qcDarkRatio,
+  Value<double?> qcBrightRatio,
+  Value<String?> qcFindings,
   Value<int> rowid,
 });
 typedef $$CapturesTableUpdateCompanionBuilder = CapturesCompanion Function({
@@ -4854,6 +5241,13 @@ typedef $$CapturesTableUpdateCompanionBuilder = CapturesCompanion Function({
   Value<DateTime> capturedAt,
   Value<int> gpsTimeMs,
   Value<String> timeSource,
+  Value<String?> qcVerdict,
+  Value<String?> qcVersion,
+  Value<double?> qcSharpness,
+  Value<double?> qcBrightness,
+  Value<double?> qcDarkRatio,
+  Value<double?> qcBrightRatio,
+  Value<String?> qcFindings,
   Value<int> rowid,
 });
 
@@ -4950,6 +5344,41 @@ class $$CapturesTableFilterComposer
 
   ColumnFilters<String> get timeSource => $composableBuilder(
     column: $table.timeSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get qcVerdict => $composableBuilder(
+    column: $table.qcVerdict,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get qcVersion => $composableBuilder(
+    column: $table.qcVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get qcSharpness => $composableBuilder(
+    column: $table.qcSharpness,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get qcBrightness => $composableBuilder(
+    column: $table.qcBrightness,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get qcDarkRatio => $composableBuilder(
+    column: $table.qcDarkRatio,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get qcBrightRatio => $composableBuilder(
+    column: $table.qcBrightRatio,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get qcFindings => $composableBuilder(
+    column: $table.qcFindings,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5051,6 +5480,41 @@ class $$CapturesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get qcVerdict => $composableBuilder(
+    column: $table.qcVerdict,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get qcVersion => $composableBuilder(
+    column: $table.qcVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get qcSharpness => $composableBuilder(
+    column: $table.qcSharpness,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get qcBrightness => $composableBuilder(
+    column: $table.qcBrightness,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get qcDarkRatio => $composableBuilder(
+    column: $table.qcDarkRatio,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get qcBrightRatio => $composableBuilder(
+    column: $table.qcBrightRatio,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get qcFindings => $composableBuilder(
+    column: $table.qcFindings,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SessionsTableOrderingComposer get sessionId {
     final $$SessionsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -5129,6 +5593,37 @@ class $$CapturesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get qcVerdict =>
+      $composableBuilder(column: $table.qcVerdict, builder: (column) => column);
+
+  GeneratedColumn<String> get qcVersion =>
+      $composableBuilder(column: $table.qcVersion, builder: (column) => column);
+
+  GeneratedColumn<double> get qcSharpness => $composableBuilder(
+    column: $table.qcSharpness,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get qcBrightness => $composableBuilder(
+    column: $table.qcBrightness,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get qcDarkRatio => $composableBuilder(
+    column: $table.qcDarkRatio,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get qcBrightRatio => $composableBuilder(
+    column: $table.qcBrightRatio,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get qcFindings => $composableBuilder(
+    column: $table.qcFindings,
+    builder: (column) => column,
+  );
+
   $$SessionsTableAnnotationComposer get sessionId {
     final $$SessionsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -5195,6 +5690,13 @@ class $$CapturesTableTableManager
                 Value<DateTime> capturedAt = const Value.absent(),
                 Value<int> gpsTimeMs = const Value.absent(),
                 Value<String> timeSource = const Value.absent(),
+                Value<String?> qcVerdict = const Value.absent(),
+                Value<String?> qcVersion = const Value.absent(),
+                Value<double?> qcSharpness = const Value.absent(),
+                Value<double?> qcBrightness = const Value.absent(),
+                Value<double?> qcDarkRatio = const Value.absent(),
+                Value<double?> qcBrightRatio = const Value.absent(),
+                Value<String?> qcFindings = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CapturesCompanion(
                 sha256: sha256,
@@ -5211,6 +5713,13 @@ class $$CapturesTableTableManager
                 capturedAt: capturedAt,
                 gpsTimeMs: gpsTimeMs,
                 timeSource: timeSource,
+                qcVerdict: qcVerdict,
+                qcVersion: qcVersion,
+                qcSharpness: qcSharpness,
+                qcBrightness: qcBrightness,
+                qcDarkRatio: qcDarkRatio,
+                qcBrightRatio: qcBrightRatio,
+                qcFindings: qcFindings,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5229,6 +5738,13 @@ class $$CapturesTableTableManager
                 required DateTime capturedAt,
                 required int gpsTimeMs,
                 required String timeSource,
+                Value<String?> qcVerdict = const Value.absent(),
+                Value<String?> qcVersion = const Value.absent(),
+                Value<double?> qcSharpness = const Value.absent(),
+                Value<double?> qcBrightness = const Value.absent(),
+                Value<double?> qcDarkRatio = const Value.absent(),
+                Value<double?> qcBrightRatio = const Value.absent(),
+                Value<String?> qcFindings = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CapturesCompanion.insert(
                 sha256: sha256,
@@ -5245,6 +5761,13 @@ class $$CapturesTableTableManager
                 capturedAt: capturedAt,
                 gpsTimeMs: gpsTimeMs,
                 timeSource: timeSource,
+                qcVerdict: qcVerdict,
+                qcVersion: qcVersion,
+                qcSharpness: qcSharpness,
+                qcBrightness: qcBrightness,
+                qcDarkRatio: qcDarkRatio,
+                qcBrightRatio: qcBrightRatio,
+                qcFindings: qcFindings,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

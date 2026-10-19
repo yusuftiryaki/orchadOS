@@ -8,17 +8,23 @@ import 'package:orchados_field/app/theme.dart';
 import 'package:orchados_field/core/db/database.dart';
 import 'package:orchados_field/core/media/field_camera.dart';
 import 'package:orchados_field/core/media/media_store.dart';
+import 'package:orchados_field/core/media/synthetic_photo.dart';
+import 'package:orchados_field/core/quality/photo_quality.dart';
 import 'package:orchados_field/core/time/clock.dart';
 import 'package:orchados_field/features/auth/auth_repository.dart';
 import 'package:orchados_field/features/gnss/fake_gnss_logger.dart';
 
 /// Everything a widget test needs, with fakes for hardware.
 class TestHarness {
-  TestHarness({bool provideGpsTime = true, int phoneClockErrorMs = 0})
-    : clock = FakeClock(DateTime.utc(2026, 12, 3, 8, 30)),
-      db = AppDatabase(NativeDatabase.memory()),
-      camera = FakeFieldCamera(),
-      media = MemoryMediaStore() {
+  TestHarness({
+    bool provideGpsTime = true,
+    int phoneClockErrorMs = 0,
+    List<SyntheticPhotoKind> photos = const [],
+    CameraOpenResult cameraOpenResult = CameraOpenResult.ready,
+  }) : clock = FakeClock(DateTime.utc(2026, 12, 3, 8, 30)),
+       db = AppDatabase(NativeDatabase.memory()),
+       camera = FakeFieldCamera(script: photos, openResult: cameraOpenResult),
+       media = MemoryMediaStore() {
     // Each test opens its own in-memory database.
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
     logger = FakeGnssLogger(
@@ -33,6 +39,10 @@ class TestHarness {
         gnssLoggerProvider.overrideWithValue(logger),
         cameraProvider.overrideWithValue(camera),
         mediaStoreProvider.overrideWithValue(media),
+        // Same check, on the test isolate so that fake time controls it.
+        photoQualityCheckerProvider.overrideWithValue(
+          const PhotoQualityChecker(useIsolate: false),
+        ),
         authRepositoryProvider.overrideWithValue(DevAuthRepository()),
       ],
     );
@@ -70,6 +80,24 @@ Future<void> tapVisible(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
   await tester.pump();
   await tester.tap(finder);
+}
+
+/// From a tree form: opens the camera for [shotCode], takes a picture and
+/// waits for the quality check. Leaves the review step open.
+Future<void> shoot(WidgetTester tester, String shotCode) async {
+  await tapVisible(tester, find.byKey(Key('shot-$shotCode')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('camera-shutter')));
+  await settle(tester);
+  await tester.pumpAndSettle();
+}
+
+/// Takes a picture for [shotCode] and presses "Kullan".
+Future<void> shootAndUse(WidgetTester tester, String shotCode) async {
+  await shoot(tester, shotCode);
+  await tester.tap(find.byKey(const Key('review-use')));
+  await tester.pumpAndSettle();
+  await settle(tester);
 }
 
 /// Lets logger replies, database writes and stream updates run. The

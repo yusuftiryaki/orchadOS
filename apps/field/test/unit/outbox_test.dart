@@ -6,6 +6,8 @@ import 'package:orchados_field/core/db/database.dart';
 import 'package:orchados_field/core/db/field_repository.dart';
 import 'package:orchados_field/core/db/outbox.dart';
 import 'package:orchados_field/core/media/media_store.dart';
+import 'package:orchados_field/core/quality/photo_quality.dart';
+import 'package:orchados_field/core/quality/quality_config.dart';
 import 'package:orchados_field/core/time/clock.dart';
 import 'package:orchados_field/core/time/gps_clock.dart';
 
@@ -32,16 +34,30 @@ void main() {
     startGpsTimeMs: 1,
   );
 
-  PendingShot shot(String code, List<int> bytes) => PendingShot(
-    shotCode: code,
-    sha256: sha256Hex(bytes),
-    localPath: 'mem://$code',
-    mediaType: 'image/jpeg',
-    byteSize: bytes.length,
-    capturedAt: clock.now(),
-    gpsTimeMs: 1000,
-    timeSource: TimeSource.gps,
+  QualityResult quality({double sharpness = 900}) => judge(
+    QualityScores(
+      sharpness: sharpness,
+      meanBrightness: 110,
+      darkClippedRatio: 0.01,
+      brightClippedRatio: 0.02,
+      analysisWidth: 480,
+      analysisHeight: 360,
+    ),
+    PhotoQualityConfig.defaults,
   );
+
+  PendingShot shot(String code, List<int> bytes, {QualityResult? q}) =>
+      PendingShot(
+        shotCode: code,
+        sha256: sha256Hex(bytes),
+        localPath: 'mem://$code',
+        mediaType: 'image/jpeg',
+        byteSize: bytes.length,
+        capturedAt: clock.now(),
+        gpsTimeMs: 1000,
+        timeSource: TimeSource.gps,
+        quality: q ?? quality(),
+      );
 
   test('every record is queued, in order', () async {
     await createSession('s1');
@@ -109,6 +125,55 @@ void main() {
     final s = (await repo.session('s1'))!;
     expect(s.sessionType, 'scan');
     expect(s.methodologyVersion, methodologyVersion);
+  });
+
+  test('captures carry the quality check and its version', () async {
+    await createSession('s1');
+    clock.time = t0.add(const Duration(seconds: 3));
+    await repo.saveTreeObservation(
+      sessionId: 's1',
+      treeId: 't-1',
+      slotCode: 'S1-1',
+      shots: [
+        shot('trunk', [1]),
+        shot('cuts', [2], q: quality(sharpness: 120)),
+      ],
+      answers: {'pruned': true},
+      methodVersion: 'winter-v0',
+    );
+    final byShot = {for (final c in await repo.captures('s1')) c.shotCode: c};
+    final ok = byShot['trunk']!;
+    expect(ok.qcVerdict, 'accept');
+    expect(ok.qcVersion, photoQualityCheckVersion);
+    expect(ok.qcSharpness, 900);
+    expect(ok.qcBrightness, 110);
+    expect(ok.qcDarkRatio, 0.01);
+    expect(ok.qcBrightRatio, 0.02);
+    expect(ok.qcFindings, '');
+    expect(ok.timeSource, 'gps');
+    expect(ok.gpsTimeMs, 1000);
+    final warned = byShot['cuts']!;
+    expect(warned.qcVerdict, 'warn');
+    expect(warned.qcFindings, 'blurry:warn');
+  });
+
+  test('a rejected photo cannot be saved', () async {
+    await createSession('s1');
+    await expectLater(
+      repo.saveTreeObservation(
+        sessionId: 's1',
+        treeId: 't-1',
+        slotCode: 'S1-1',
+        shots: [
+          shot('trunk', [1], q: quality(sharpness: 5)),
+        ],
+        answers: {'pruned': true},
+        methodVersion: 'winter-v0',
+      ),
+      throwsArgumentError,
+    );
+    expect(await db.select(db.captures).get(), isEmpty);
+    expect(await db.select(db.measurements).get(), isEmpty);
   });
 
   test('markSent and markFailed', () async {

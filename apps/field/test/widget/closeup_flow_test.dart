@@ -71,15 +71,12 @@ void main() {
     await answerAll(tester, value: false);
     expect(saveButton(tester).onPressed, isNull);
 
-    await tapVisible(tester, find.byKey(const Key('shot-trunk')));
-    await settle(tester);
+    await shootAndUse(tester, 'trunk');
     // Retake: the first photo is replaced and its file dropped.
-    await tapVisible(tester, find.byKey(const Key('shot-trunk')));
-    await settle(tester);
+    await shootAndUse(tester, 'trunk');
     expect(find.text('Yeniden çek'), findsOneWidget);
     expect(saveButton(tester).onPressed, isNull);
-    await tapVisible(tester, find.byKey(const Key('shot-cuts')));
-    await settle(tester);
+    await shootAndUse(tester, 'cuts');
     expect(h.camera.count, 3);
     expect(h.media.files.length, 2);
 
@@ -108,6 +105,7 @@ void main() {
       expect(c.sha256, sha256Hex(h.media.files[c.localPath]!));
       expect(c.subjectId, 't-0512');
       expect(c.slotCode, 'S5-12');
+      expect(c.qcVerdict, 'accept');
     }
     final measurements = (await tester.runAsync(
       () => repo.measurements(sessionId),

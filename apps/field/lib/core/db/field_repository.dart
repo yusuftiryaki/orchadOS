@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../quality/photo_quality.dart';
 import '../time/clock.dart';
 import '../time/gps_clock.dart';
 import 'database.dart';
@@ -25,6 +26,7 @@ class PendingShot {
     required this.capturedAt,
     required this.gpsTimeMs,
     required this.timeSource,
+    required this.quality,
   });
 
   final String shotCode;
@@ -35,6 +37,9 @@ class PendingShot {
   final DateTime capturedAt;
   final int gpsTimeMs;
   final TimeSource timeSource;
+
+  /// On-device quality check; never [QualityVerdict.reject].
+  final QualityResult quality;
 }
 
 /// Writes field records and their outbox entries atomically.
@@ -144,6 +149,10 @@ class FieldRepository {
     required String methodVersion,
   }) => db.transaction(() async {
     for (final s in shots) {
+      if (!s.quality.canSave) {
+        throw ArgumentError('rejected photo ${s.sha256} cannot be saved');
+      }
+      final q = s.quality.scores;
       await db
           .into(db.captures)
           .insert(
@@ -162,6 +171,13 @@ class FieldRepository {
               capturedAt: s.capturedAt,
               gpsTimeMs: s.gpsTimeMs,
               timeSource: s.timeSource.code,
+              qcVerdict: Value(s.quality.verdict.code),
+              qcVersion: Value(s.quality.version),
+              qcSharpness: Value(q?.sharpness),
+              qcBrightness: Value(q?.meanBrightness),
+              qcDarkRatio: Value(q?.darkClippedRatio),
+              qcBrightRatio: Value(q?.brightClippedRatio),
+              qcFindings: Value(s.quality.findings.join(',')),
             ),
             mode: InsertMode.insertOrIgnore,
           );
