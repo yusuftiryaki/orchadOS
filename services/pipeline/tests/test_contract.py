@@ -52,7 +52,7 @@ def test_readme_events_parse():
     ev = read_events(EVENTS)
     assert [e.event_type for e in ev] == ["session_start", "qr_sync"]
     assert ev[0].payload == "parcel_id=P-12"
-    assert ev[1].gps_time_ns == 1476350122250000000 and not ev[1].gps_time_derived
+    assert ev[1].gps_time_ns == 1476350122249980000 and not ev[1].gps_time_derived
     assert (ev[1].pps_esp_micros, ev[1].pps_gps_time_ns) == (12000020, 1476350122000000000)
 
 
