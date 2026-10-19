@@ -1,0 +1,52 @@
+name: ci-firmware
+
+on:
+  pull_request:
+    paths:
+      - "firmware/**"
+      - ".github/workflows/ci-firmware.yml"
+  push:
+    branches: [main]
+    paths:
+      - "firmware/**"
+      - ".github/workflows/ci-firmware.yml"
+
+concurrency:
+  group: ci-firmware-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gnss-logger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: firmware/gnss-logger
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache PlatformIO toolchains
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('firmware/gnss-logger/platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Native unit tests
+        run: pio test -e native
+
+      - name: ESP32 build
+        run: pio run -e esp32dev
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: gnss-logger-firmware
+          path: firmware/gnss-logger/.pio/build/esp32dev/firmware.bin
+          retention-days: 14

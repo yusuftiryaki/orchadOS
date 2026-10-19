@@ -1,0 +1,51 @@
+name: ci-pipeline
+
+on:
+  pull_request:
+    paths:
+      - "services/pipeline/**"
+      - "firmware/gnss-logger/README.md" # contract tests compare against it
+      - ".github/workflows/ci-pipeline.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/pipeline/**"
+      - "firmware/gnss-logger/README.md"
+      - ".github/workflows/ci-pipeline.yml"
+
+concurrency:
+  group: ci-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: services/pipeline
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install RTKLIB
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends rtklib
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint and format
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Tests
+        run: uv run pytest -q
+
+      - name: End-to-end on a synthetic session
+        run: |
+          uv run orchados-pipeline synth "$RUNNER_TEMP/s"
+          uv run orchados-pipeline run "$RUNNER_TEMP/s"
