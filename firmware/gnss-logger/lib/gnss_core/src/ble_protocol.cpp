@@ -131,6 +131,14 @@ void putU2(uint8_t* p, uint16_t v) {
 void putU4(uint8_t* p, uint32_t v) {
   for (int i = 0; i < 4; ++i) p[i] = static_cast<uint8_t>(v >> (8 * i));
 }
+void putU8(uint8_t* p, uint64_t v) {
+  for (int i = 0; i < 8; ++i) p[i] = static_cast<uint8_t>(v >> (8 * i));
+}
+uint64_t readU8(const uint8_t* p) {
+  uint64_t v = 0;
+  for (int i = 7; i >= 0; --i) v = (v << 8) | p[i];
+  return v;
+}
 }  // namespace
 
 void encodeStatus(const Status& s, uint8_t* out) {
@@ -152,10 +160,17 @@ void encodeStatus(const Status& s, uint8_t* out) {
   putU4(out + 25, s.droppedBytes);
   out[29] = s.lastCmdSeq;
   out[30] = s.lastCmdResult;
+  putU8(out + 31, s.gpsTimeNs);
+}
+
+uint64_t statusGpsTimeNs(const TimeSync& time, int64_t nowMicros) {
+  int64_t gpsNs = 0;
+  if (!time.toGpsNs(nowMicros, &gpsNs) || gpsNs <= 0) return 0;
+  return static_cast<uint64_t>(gpsNs);
 }
 
 bool decodeStatus(const uint8_t* d, size_t len, Status* out) {
-  if (len < kStatusLen || d[0] != kProtocolVersion) return false;
+  if (len < kStatusMinLen || d[0] != kProtocolVersion) return false;
   Status s;
   s.recording = d[1];
   s.flags = d[2];
@@ -174,6 +189,7 @@ bool decodeStatus(const uint8_t* d, size_t len, Status* out) {
   s.droppedBytes = ubx::readU4(d + 25);
   s.lastCmdSeq = d[29];
   s.lastCmdResult = d[30];
+  if (len >= kStatusLen) s.gpsTimeNs = readU8(d + 31);
   *out = s;
   return true;
 }

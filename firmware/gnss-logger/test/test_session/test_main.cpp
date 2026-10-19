@@ -40,7 +40,7 @@ void test_start_creates_session_files() {
   const std::string& js = sd.files["/sessions/S1/session.json"];
   TEST_ASSERT_TRUE(js.find("\"session_id\": \"S1\"") != std::string::npos);
   TEST_ASSERT_TRUE(js.find("\"parcel_id\": \"P1\"") != std::string::npos);
-  TEST_ASSERT_TRUE(js.find("\"firmware_version\": \"0.1.0\"") !=
+  TEST_ASSERT_TRUE(js.find("\"firmware_version\": \"0.2.0\"") !=
                    std::string::npos);
   TEST_ASSERT_TRUE(js.find("\"stop\": null") != std::string::npos);
 }

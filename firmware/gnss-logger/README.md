@@ -114,7 +114,7 @@ esp_micros,gps_time_ns,event_type,payload,pps_esp_micros,pps_gps_time_ns
 | `session_start` | `parcel_id=<parsel>` |
 | `session_stop` | Neden: `command`, `sd_full`, `sd_error` |
 | `corner` | Telefondan gelen metin (ör. köşe numarası) |
-| `qr_sync` | Telefondan gelen metin (QR'da gösterilen zaman ya da kimlik) |
+| `qr_sync` | Telefonun o anda gösterdiği QR'ın metninin tamamı: `OQ1:<gps_time_ms>:<oturum_etiketi>` ([docs/arayuzler.md](../../docs/arayuzler.md#qr-saat-kodu)) |
 | `pps_lost`, `pps_regained` | Boş |
 | `sd_error` | `gnss_write`, `events_write` ya da `sd_full` |
 
@@ -123,7 +123,7 @@ esp_micros,gps_time_ns,event_type,payload,pps_esp_micros,pps_gps_time_ns
 ```
 esp_micros,gps_time_ns,event_type,payload,pps_esp_micros,pps_gps_time_ns
 10500000,1476350120500000000,session_start,parcel_id=P-12,10000000,1476350120000000000
-12250000,1476350122250000000,qr_sync,2026-10-18T09:15:04.250Z,12000020,1476350122000000000
+12250000,1476350122249980000,qr_sync,OQ1:1476350122230:S-1,12000020,1476350122000000000
 ```
 
 ### `session.json`
@@ -135,7 +135,7 @@ Oturum başında yazılır (`stop: null`), bitişte yeniden yazılır.
   "format_version": 1,
   "session_id": "S-1",
   "parcel_id": "P-12",
-  "firmware_version": "0.1.0",
+  "firmware_version": "0.2.0",
   "receiver": {"model": "ZED-F9P", "port": "UART1", "baud": 460800, "meas_period_ms": 200, "rawx_rate_hz": 1, "nav_pvt_rate_hz": 5, "messages": ["RXM-RAWX", "RXM-SFRBX", "NAV-PVT"], "nmea": false, "timepulse_grid": "GPS", "config_status": "ok", "detected_baud": 38400},
   "gps_utc_leap_seconds": 18,
   "start": {"esp_micros":10500000,"gps_time_ns":1476350120500000000,"utc":"2026-10-18T09:15:02.500Z"},
@@ -158,9 +158,9 @@ Cihaz adı `orchados-gnss-XXXX` (XXXX: BT MAC adresinin son iki baytı). Tüm ç
 | Durum | `cdee0002-a1bf-488e-8eda-a2c084827c6c` | read, notify (saniyede 1 ve her komuttan hemen sonra) |
 | Komut | `cdee0003-a1bf-488e-8eda-a2c084827c6c` | write (yanıtlı yazma önerilir) |
 
-**MTU:** Durum 31 bayt, en uzun komut 204 bayt. Uygulama bağlanınca MTU ≥ 247 istemelidir (Android'de `requestMtu(247)`; iOS kendisi anlaşır). Firmware 247 önerir.
+**MTU:** Durum 39 bayt, en uzun komut 204 bayt. Uygulama bağlanınca MTU ≥ 247 istemelidir (Android'de `requestMtu(247)`; iOS kendisi anlaşır). Firmware 247 önerir.
 
-### Durum (31 bayt, protokol sürümü 1)
+### Durum (39 bayt, protokol sürümü 1)
 
 | Ofset | Tür | Alan | Açıklama |
 | --- | --- | --- | --- |
@@ -180,8 +180,11 @@ Cihaz adı `orchados-gnss-XXXX` (XXXX: BT MAC adresinin son iki baytı). Tüm ç
 | 25 | u32 | `dropped_bytes` | Bu oturumda tampon taşmasıyla atılan bayt |
 | 29 | u8 | `last_cmd_seq` | Son işlenen komutun sıra numarası |
 | 30 | u8 | `last_cmd_result` | Son komutun sonucu (aşağıda); açılıştan beri komut yoksa `0xFF` |
+| 31 | u64 | `gps_time_ns` | Mesajın oluşturulduğu anın GPS zamanı (GPS dönemi başlangıcından beri ns): `çapa_gps + (şimdi − çapa_micros) × 1000`. PPS eşlemesi yoksa (bit3 = 0) `0` |
 
-Uygulama alan eklenirse sürüm numarasını kontrol etmeli; aynı sürümde yalnızca sona alan eklenir, bu yüzden 31 bayttan uzun durum mesajları kabul edilmelidir.
+Uygulama alan eklenirse sürüm numarasını kontrol etmeli; aynı sürümde yalnızca sona alan eklenir, bu yüzden 39 bayttan uzun durum mesajları kabul edilmelidir. `gps_time_ns` sonradan eklendi (firmware 0.1.0 31 bayt gönderir, 0.2.0'dan itibaren 39 bayt); 31 baytlık bir mesajda alan yok sayılır ve zaman eşlemesi bilinmiyor kabul edilir.
+
+`gps_time_ns`, `bit3` (GPS zaman eşlemesi var) ile aynı hesaptan gelir: ikisi her zaman birlikte doludur ya da boştur. Değer, olaylardaki `gps_time_ns` ile aynı kurala uyar (çapadan en fazla 2 sn uzaklık). Telefon bunu, bildirimin alındığı anla karşılaştırıp kendi saatinin GPS zamanına ofsetini bulur; BLE bildirim gecikmesi (tipik olarak < 50 ms) bu ofsete eklenir.
 
 ### Komutlar
 
@@ -193,7 +196,7 @@ Her komut `[opcode u8][seq u8]` ile başlar. `seq` uygulamanın seçtiği sıra 
 | `stop_session` | `02 seq` | |
 | `mark_event(type, payload)` | `03 seq type len payload` | `type`: `01` corner, `02` qr_sync. `payload`: 0–200 bayt UTF-8, kontrol karakteri yok |
 
-`qr_sync`, telefon QR kodunu ekranda gösterdiği anda gönderilir; olayın `esp_micros`'u komutun işlendiği andır (BLE gecikmesi tipik olarak < 50 ms). Payload'a QR'da gösterilen değer yazılmalıdır.
+`qr_sync`, telefon QR kodunu ekranda gösterdiği anda gönderilir; olayın `esp_micros`'u komutun işlendiği andır (BLE gecikmesi tipik olarak < 50 ms). Payload, o anda gösterilen QR'ın metninin tamamıdır (`OQ1:...`).
 
 Örnekler (onaltılık):
 
@@ -221,7 +224,7 @@ Her komut `[opcode u8][seq u8]` ile başlar. `seq` uygulamanın seçtiği sıra 
 
 ## Testler
 
-`pio test -e native` şu konuları kapsar: UBX çerçeve ayrıştırma (parçalı, gürültülü, bozuk sağlama toplamlı, aşırı büyük ve uzunluğu bozuk çerçeveler), elle hazırlanmış NAV-PVT çerçevesinin alanları ve GPS zamanı, CFG-VALSET mesajlarının bayt bayt doğruluğu (beklenen baytlar Python ile bağımsız üretildi), sahte alıcıyla baud keşfi/ACK/NAK, PPS–GPS eşleme, çapa taşıma, PPS kaybı ve geri gelmesi, olay satırı biçimi ve kaçışlar, BLE komut/durum kodlama-çözme, halka ve çift tampon, sahte SD kartla oturum yaşam döngüsü (kart yok, dolu, yazma hatası, mevcut oturum).
+`pio test -e native` şu konuları kapsar: UBX çerçeve ayrıştırma (parçalı, gürültülü, bozuk sağlama toplamlı, aşırı büyük ve uzunluğu bozuk çerçeveler), elle hazırlanmış NAV-PVT çerçevesinin alanları ve GPS zamanı, CFG-VALSET mesajlarının bayt bayt doğruluğu (beklenen baytlar Python ile bağımsız üretildi), sahte alıcıyla baud keşfi/ACK/NAK, PPS–GPS eşleme, çapa taşıma, PPS kaybı ve geri gelmesi, olay satırı biçimi ve kaçışlar, BLE komut/durum kodlama-çözme (durumdaki `gps_time_ns` ofseti, çapadan hesabı, eşleme yokken 0 ve 31 baytlık eski mesaj), halka ve çift tampon, sahte SD kartla oturum yaşam döngüsü (kart yok, dolu, yazma hatası, mevcut oturum).
 
 ## Bilinen sınırlar
 

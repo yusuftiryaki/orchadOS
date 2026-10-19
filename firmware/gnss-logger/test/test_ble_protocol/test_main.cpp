@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "ble_protocol.h"
+#include "time_sync.h"
 
 using namespace gl::ble;
 
@@ -142,8 +143,10 @@ void test_status_encoding_bytes() {
   s.droppedBytes = 0;
   s.lastCmdSeq = 7;
   s.lastCmdResult = 0;
+  s.gpsTimeNs = 1476350122250000000ULL;
   uint8_t out[kStatusLen];
   encodeStatus(s, out);
+  TEST_ASSERT_EQUAL(39, kStatusLen);
   const uint8_t expected[kStatusLen] = {
       0x01, 0x01, 0x29, 0x01, 0x01, 0x03, 0x02, 0x1B,  // header bytes
       0x0E, 0x00, 0x00, 0x00,                          // hAcc
@@ -152,7 +155,8 @@ void test_status_encoding_bytes() {
       0x18, 0x47,                                      // battery mV
       0x00, 0x01, 0x00,                                // firmware
       0x00, 0x00, 0x00, 0x00,                          // dropped
-      0x07, 0x00};                                     // last command
+      0x07, 0x00,                                      // last command
+      0x80, 0xD6, 0xD0, 0x38, 0x9D, 0x0C, 0x7D, 0x14}; // gps_time_ns
   TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, out, kStatusLen);
 
   Status back;
@@ -160,7 +164,61 @@ void test_status_encoding_bytes() {
   TEST_ASSERT_EQUAL_UINT32(0x01020304, back.bytesWritten);
   TEST_ASSERT_EQUAL(18200, back.batteryMv);
   TEST_ASSERT_EQUAL(27, back.numSv);
-  TEST_ASSERT_FALSE(decodeStatus(out, kStatusLen - 1, &back));
+  TEST_ASSERT_TRUE(back.gpsTimeNs == 1476350122250000000ULL);
+  TEST_ASSERT_FALSE(decodeStatus(out, kStatusMinLen - 1, &back));
+}
+
+void test_status_gps_time_offset_and_legacy_length() {
+  Status s;
+  s.gpsTimeNs = 0x0102030405060708ULL;
+  uint8_t out[kStatusLen];
+  encodeStatus(s, out);
+  // Offset 31, u64 little-endian, after last_cmd_result.
+  const uint8_t expected[8] = {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01};
+  TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, out + 31, 8);
+
+  // A 31-byte message (before gps_time_ns was appended) still decodes.
+  Status back;
+  TEST_ASSERT_TRUE(decodeStatus(out, kStatusMinLen, &back));
+  TEST_ASSERT_TRUE(back.gpsTimeNs == 0);
+  // Longer messages (fields appended later) decode too.
+  uint8_t longer[kStatusLen + 4] = {};
+  encodeStatus(s, longer);
+  TEST_ASSERT_TRUE(decodeStatus(longer, sizeof(longer), &back));
+  TEST_ASSERT_TRUE(back.gpsTimeNs == 0x0102030405060708ULL);
+}
+
+void test_status_gps_time_from_anchor() {
+  constexpr int64_t kS = 1000000;
+  constexpr int64_t kWeek2441Ns = 2441LL * 604800 * 1000000000LL;
+  gl::NavPvt pvt{};
+  pvt.year = 2026;
+  pvt.month = 10;
+  pvt.day = 18;
+  pvt.hour = 9;
+  pvt.validDate = pvt.validTime = pvt.fullyResolved = true;
+  pvt.iTowMs = 33320000;
+  const int64_t anchorGps = kWeek2441Ns + 33320LL * 1000000000LL;
+
+  gl::TimeSync t;
+  const int64_t edge = 10 * kS + 20;
+  // No PPS mapping yet: 0.
+  TEST_ASSERT_TRUE(statusGpsTimeNs(t, edge) == 0);
+
+  t.onPps(edge);
+  t.onNavPvt(pvt, edge + 80000);
+  t.update(edge + 100000);
+  // anchor_gps + (now - anchor_micros) * 1000
+  const int64_t now = edge + 412345;
+  TEST_ASSERT_TRUE(statusGpsTimeNs(t, now) ==
+                   static_cast<uint64_t>(anchorGps + 412345LL * 1000));
+
+  // Too far from the anchor: no mapping, 0.
+  TEST_ASSERT_TRUE(statusGpsTimeNs(t, edge + gl::TimeSync::kMaxExtrapolationUs +
+                                          1) == 0);
+  // PPS lost: 0.
+  t.update(edge + 2 * kS);
+  TEST_ASSERT_TRUE(statusGpsTimeNs(t, edge + 2 * kS) == 0);
 }
 
 void test_default_status() {
@@ -169,6 +227,9 @@ void test_default_status() {
   encodeStatus(s, out);
   TEST_ASSERT_EQUAL_HEX8(0xFF, out[8]);  // unknown hAcc
   TEST_ASSERT_EQUAL_HEX8(0xFF, out[30]);  // no command yet
+  for (size_t i = 31; i < kStatusLen; ++i) {
+    TEST_ASSERT_EQUAL_HEX8(0x00, out[i]);  // no GPS time mapping
+  }
 }
 
 int main() {
@@ -180,6 +241,8 @@ int main() {
   RUN_TEST(test_malformed_commands);
   RUN_TEST(test_invalid_arguments);
   RUN_TEST(test_status_encoding_bytes);
+  RUN_TEST(test_status_gps_time_offset_and_legacy_length);
+  RUN_TEST(test_status_gps_time_from_anchor);
   RUN_TEST(test_default_status);
   return UNITY_END();
 }

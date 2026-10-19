@@ -47,7 +47,8 @@ select results_eq($$ select id from public.parcel $$,
   array['c0000000-0000-4000-8000-000000000001'::uuid], 'owner sees only their own parcel');
 select results_eq($$ select count(*) from public.tree $$, array[303::bigint], 'owner sees all trees of their parcel');
 select results_eq($$ select count(*) from public.slot $$, array[310::bigint], 'owner sees all slots of their parcel');
-select results_eq($$ select count(*) from public.measurement $$, array[1::bigint], 'owner sees measurements of their parcel');
+-- The seed session is in_review; its results stay hidden until it is published (04_publication).
+select is_empty($$ select id from public.measurement $$, 'owner does not see measurements of an unpublished session');
 select results_eq($$ select count(*) from public.session $$, array[1::bigint], 'owner sees sessions of their parcel');
 select results_eq($$ select count(*) from public.org $$, array[1::bigint], 'owner sees the org of their parcel');
 select is_empty($$ select id from public.device $$, 'owner does not see the org kit');

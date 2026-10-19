@@ -118,10 +118,24 @@ export type Database = {
             referencedColumns: ["id", "parcel_id", "org_id"];
           },
           {
+            foreignKeyName: "assessment_measurement_assessment_id_parcel_id_org_id_fkey";
+            columns: ["assessment_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree_latest_assessment";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
             foreignKeyName: "assessment_measurement_measurement_id_parcel_id_org_id_fkey";
             columns: ["measurement_id", "parcel_id", "org_id"];
             isOneToOne: false;
             referencedRelation: "measurement";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "assessment_measurement_measurement_id_parcel_id_org_id_fkey";
+            columns: ["measurement_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree_latest_measurement";
             referencedColumns: ["id", "parcel_id", "org_id"];
           },
         ];
@@ -616,6 +630,13 @@ export type Database = {
             referencedColumns: ["id", "parcel_id", "org_id"];
           },
           {
+            foreignKeyName: "finding_assessment_id_parcel_id_org_id_fkey";
+            columns: ["assessment_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree_latest_assessment";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
             foreignKeyName: "finding_parcel_id_org_id_fkey";
             columns: ["parcel_id", "org_id"];
             isOneToOne: false;
@@ -705,6 +726,7 @@ export type Database = {
           tree_id: string | null;
           uncertainty: number | null;
           unit: string | null;
+          value_boolean: boolean | null;
           value_category: string | null;
           value_numeric: number | null;
           value_scale: number | null;
@@ -730,6 +752,7 @@ export type Database = {
           tree_id?: string | null;
           uncertainty?: number | null;
           unit?: string | null;
+          value_boolean?: boolean | null;
           value_category?: string | null;
           value_numeric?: number | null;
           value_scale?: number | null;
@@ -754,6 +777,7 @@ export type Database = {
           tree_id?: string | null;
           uncertainty?: number | null;
           unit?: string | null;
+          value_boolean?: boolean | null;
           value_category?: string | null;
           value_numeric?: number | null;
           value_scale?: number | null;
@@ -840,6 +864,13 @@ export type Database = {
             columns: ["measurement_id", "parcel_id", "org_id"];
             isOneToOne: false;
             referencedRelation: "measurement";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "measurement_evidence_measurement_id_parcel_id_org_id_fkey";
+            columns: ["measurement_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree_latest_measurement";
             referencedColumns: ["id", "parcel_id", "org_id"];
           },
         ];
@@ -1501,7 +1532,126 @@ export type Database = {
       };
     };
     Views: {
-      [_ in never]: never;
+      tree_latest_assessment: {
+        Row: {
+          approved_at: string | null;
+          approved_by: string | null;
+          assessed_at: string | null;
+          assessed_by: string | null;
+          auto_approved: boolean | null;
+          confidence: number | null;
+          created_at: string | null;
+          id: string | null;
+          methodology_version: string | null;
+          model_name: string | null;
+          model_version: string | null;
+          notes: string | null;
+          org_id: string | null;
+          overall_class: Database["public"]["Enums"]["health_class"] | null;
+          parcel_id: string | null;
+          session_id: string | null;
+          session_time: string | null;
+          source: Database["public"]["Enums"]["assessment_source"] | null;
+          tree_id: string | null;
+        };
+        ComputedFields: never;
+        Relationships: [
+          {
+            foreignKeyName: "assessment_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "assessment_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "assessment_tree_id_parcel_id_org_id_fkey";
+            columns: ["tree_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      tree_latest_measurement: {
+        Row: {
+          confidence: number | null;
+          created_at: string | null;
+          id: string | null;
+          measured_at: string | null;
+          method: string | null;
+          method_version: string | null;
+          metric_definition_id: string | null;
+          org_id: string | null;
+          params_hash: string | null;
+          parcel_id: string | null;
+          recorded_by: string | null;
+          session_id: string | null;
+          session_time: string | null;
+          slot_id: string | null;
+          source: Database["public"]["Enums"]["measurement_source"] | null;
+          subject: Database["public"]["Enums"]["measurement_subject"] | null;
+          tree_id: string | null;
+          uncertainty: number | null;
+          unit: string | null;
+          value_boolean: boolean | null;
+          value_category: string | null;
+          value_numeric: number | null;
+          value_scale: number | null;
+          zone_id: string | null;
+        };
+        ComputedFields: never;
+        Relationships: [
+          {
+            foreignKeyName: "measurement_metric_definition_id_fkey";
+            columns: ["metric_definition_id"];
+            isOneToOne: false;
+            referencedRelation: "metric_definition";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "measurement_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "measurement_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "measurement_slot_id_parcel_id_org_id_fkey";
+            columns: ["slot_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "slot";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "measurement_tree_id_parcel_id_org_id_fkey";
+            columns: ["tree_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "measurement_zone_id_parcel_id_org_id_fkey";
+            columns: ["zone_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "zone";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
     };
     Functions: {
       approve_boundary: {
@@ -1564,7 +1714,7 @@ export type Database = {
       irrigation_type: "irrigated" | "rainfed" | "unknown";
       measurement_source: "staff" | "algorithm" | "ai" | "expert";
       measurement_subject: "tree" | "slot" | "zone" | "parcel";
-      metric_value_type: "numeric" | "scale" | "category";
+      metric_value_type: "numeric" | "scale" | "category" | "boolean";
       operation_kind:
         | "mowing"
         | "spraying"
@@ -1739,7 +1889,7 @@ export const Constants = {
       irrigation_type: ["irrigated", "rainfed", "unknown"],
       measurement_source: ["staff", "algorithm", "ai", "expert"],
       measurement_subject: ["tree", "slot", "zone", "parcel"],
-      metric_value_type: ["numeric", "scale", "category"],
+      metric_value_type: ["numeric", "scale", "category", "boolean"],
       operation_kind: [
         "mowing",
         "spraying",
