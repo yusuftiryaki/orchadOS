@@ -65,22 +65,25 @@ gantt
 | İP10 | Operasyon hazırlıkları | P0 | 4 gün + dış süreler | Metodoloji v0 (ölçekler, referans fotoğraflar), KVKK aydınlatma ve rıza metinleri, sözleşme taslağı, uzman anlaşması, pilot sahiplerin onayı |
 | İP11 | İşleme istasyonu | P0 | 1 gün | GPU'lu, büyük diskli bir bilgisayar alınmış ya da ayarlanmış; işleme hattı üzerinde çalışıyor |
 
-**Durum (18 Ekim 2026)**
+**Durum (19 Ekim 2026)**
 
 | İP | Durum | Not |
 | --- | --- | --- |
 | İP0 | Tamam | Repo iskeleti, `core` ve `mobile` devcontainer'ları, bulut ortamı |
-| İP1 | Tamam (PR #1) | Şema, satır bazlı yetki, 310 yerli ve 302 aktif ağaçlı sentetik bahçe, 101 pgTAP testi. Açık: yayımlanmamış değerlendirmelerin sahipten gizlenmesi (İP8), depolama alanları ve kuralları (İP4 yükleme) |
-| İP2 | Yazılım tamam (PR #2) | 72 birim testi, ESP32 derlemesi. Açık: gerçek donanım testleri (README'deki 12 adım), kit gelince |
+| İP1 | Tamam (PR #1, #7) | Şema, satır bazlı yetki, sentetik bahçe; yayımlanmamış sonuçlar sahipten gizli; son değerlendirme/ölçüm görünümleri (önce en yeni oturum, aynı oturumda kaynak önceliği); `media` depolama alanı; 173 pgTAP testi |
+| İP2 | Yazılım tamam (PR #2, #7) | Firmware 0.2.0: BLE durum mesajında GPS zamanı; 74 birim testi, ESP32 derlemesi. Açık: gerçek donanım testleri (README'deki adımlar), kit gelince |
 | İP4 | Çekirdek tamam (PR #3, #4) | 76 test, uçtan uca sentetik oturum, İP2 biçimleriyle sözleşme testleri. Açık: veritabanı ve depolamaya yükleme, gerçek PPK denemesi (İP3) |
 | Entegrasyon | Tamam (PR #4) | Sözleşmeler `docs/arayuzler.md` içinde |
-| İP5/İP7/İP8 temeli | Web iskeleti tamam (PR #5) | Rol bazlı bölümler, parsel listesi ve haritası; 37 birim, 21 entegrasyon, 14 tarayıcı testi |
-| İP6 | İskelet tamam (PR #6) | BLE protokolü, QR saat, ekran akışı, çevrimdışı kuyruk; 46 test. Açık: gerçek kamera, senkronizasyon, kapsama haritası, telefonda deneme, APK derlemesi (yerelde) |
+| İP5 | v0.1 tamam (PR #9) | Ofis üçgenleme aracı: tıklayarak üçgenleme, sıra oturtma ve kodlama, boş yerler, doğrulama listesi (CSV), kayıt; 12 sentetik ağaç 30 cm içinde. Açık: depolamadan okuyan panorama kaynağı, tek işlemde kayıt, tıklama verisinin saklanması |
+| İP7/İP8 temeli | Web iskeleti tamam (PR #5) | Rol bazlı bölümler, parsel listesi ve haritası. Web toplam: 86 birim, 29 entegrasyon, 16 tarayıcı testi |
+| İP6 | İskelet + kamera tamam (PR #6, #8) | BLE protokolü, QR saat, ekran akışı, çevrimdışı kuyruk, gerçek kamera ve cihazda kalite kontrolü; 66 test. Açık: senkronizasyon, kapsama haritası, telefonda deneme, APK derlemesi (yerelde) |
 
-**Açık işler (ikinci dalgadan)**
+**Açık işler**
 
-- [ ] **Firmware:** BLE durum mesajına `gps_time_ns` alanı (ofset 31, u64); QR saatinin GPS zamanına göre gösterilmesi buna bağlı. README'deki `qr_sync` örneği `OQ1` biçimine çevrilmeli; örnek satırdaki 20 µs tutarsızlık düzeltilmeli.
-- [ ] **Şema:** Yayımlanmamış değerlendirme ve bulguların sahipten gizlenmesi (İP8'den önce); "ağaç başına son değerlendirme" görünümü; personel evet/hayır cevaplarında belirsizlik alanının zorunluluğu.
+- [ ] **Envanter kaydı tek işlemde:** Yer ve ağaç kaydı şu an iki ayrı ekleme; `save_inventory(...)` adlı, kullanıcının yetkisiyle çalışan tek işlemlik bir veritabanı fonksiyonu.
+- [ ] **Etiketli veri:** Ofis aracındaki gövde tıklamaları (gövde tespit modeli için etiket) şimdilik tarayıcıda; veritabanında saklanmalı.
+- [ ] **Web:** Ağaç rengi `tree_latest_assessment` görünümüne bağlanmalı (şu an kaynak gözetmeden en yeni değerlendirme).
+- [ ] **Saha uygulaması:** README ve `GnssStatus` yorumu, firmware 0.2.0'daki GPS zamanı alanını hâlâ "önerilen" diye anlatıyor; evet/hayır cevapları gönderilirken `value_bool` → `value_boolean` eşlemesi.
 - [ ] **Lisans:** `flutter_blue_plus` ticari kullanımda ücretli. Ticari kullanıma geçmeden lisans ya da paket değişikliği.
 - [ ] **Saha uygulaması:** `flutter build apk` bulutta Maven 429 hatası verdi; yerelde `mobile` devcontainer'ında denenecek.
 
