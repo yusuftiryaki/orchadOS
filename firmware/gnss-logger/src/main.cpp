@@ -267,11 +267,13 @@ void loggerTask(void*) {
       batteryMv = readBatteryMv();
       ble::Status st;
       st.recording = g_recorder.recording() ? 1 : 0;
-      int64_t unused;
+      // GPS time of the moment the message is built; 0 without a mapping.
+      st.gpsTimeNs = ble::statusGpsTimeNs(g_time, esp_timer_get_time());
+      const bool timeMapped = st.gpsTimeNs != 0;
       st.flags = (g_recorder.sdPresent() ? ble::flags::kSdPresent : 0) |
                  (g_recorder.sdLowSpace() ? ble::flags::kSdLowSpace : 0) |
                  (g_recorder.sdError() ? ble::flags::kSdError : 0) |
-                 (g_time.toGpsNs(now, &unused) ? ble::flags::kTimeMapped : 0) |
+                 (timeMapped ? ble::flags::kTimeMapped : 0) |
                  (g_recorder.meta().droppedBytes > 0 ? ble::flags::kDataDropped
                                                      : 0) |
                  (havePvt && lastPvt.gnssFixOk ? ble::flags::kGnssFixOk : 0);
