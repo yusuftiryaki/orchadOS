@@ -1,0 +1,1793 @@
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export type Database = {
+  public: {
+    Tables: {
+      assessment: {
+        Row: {
+          approved_at: string | null;
+          approved_by: string | null;
+          assessed_at: string;
+          assessed_by: string | null;
+          auto_approved: boolean;
+          confidence: number | null;
+          created_at: string;
+          id: string;
+          methodology_version: string | null;
+          model_name: string | null;
+          model_version: string | null;
+          notes: string | null;
+          org_id: string;
+          overall_class: Database["public"]["Enums"]["health_class"] | null;
+          parcel_id: string;
+          session_id: string;
+          source: Database["public"]["Enums"]["assessment_source"];
+          tree_id: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          approved_at?: string | null;
+          approved_by?: string | null;
+          assessed_at?: string;
+          assessed_by?: string | null;
+          auto_approved?: boolean;
+          confidence?: number | null;
+          created_at?: string;
+          id?: string;
+          methodology_version?: string | null;
+          model_name?: string | null;
+          model_version?: string | null;
+          notes?: string | null;
+          org_id: string;
+          overall_class?: Database["public"]["Enums"]["health_class"] | null;
+          parcel_id: string;
+          session_id: string;
+          source: Database["public"]["Enums"]["assessment_source"];
+          tree_id?: string | null;
+        };
+        Update: {
+          approved_at?: string | null;
+          approved_by?: string | null;
+          assessed_at?: string;
+          assessed_by?: string | null;
+          auto_approved?: boolean;
+          confidence?: number | null;
+          created_at?: string;
+          id?: string;
+          methodology_version?: string | null;
+          model_name?: string | null;
+          model_version?: string | null;
+          notes?: string | null;
+          org_id?: string;
+          overall_class?: Database["public"]["Enums"]["health_class"] | null;
+          parcel_id?: string;
+          session_id?: string;
+          source?: Database["public"]["Enums"]["assessment_source"];
+          tree_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "assessment_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "assessment_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "assessment_tree_id_parcel_id_org_id_fkey";
+            columns: ["tree_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      assessment_measurement: {
+        Row: {
+          assessment_id: string;
+          measurement_id: string;
+          org_id: string;
+          parcel_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          assessment_id: string;
+          measurement_id: string;
+          org_id: string;
+          parcel_id: string;
+        };
+        Update: {
+          assessment_id?: string;
+          measurement_id?: string;
+          org_id?: string;
+          parcel_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "assessment_measurement_assessment_id_parcel_id_org_id_fkey";
+            columns: ["assessment_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "assessment";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "assessment_measurement_measurement_id_parcel_id_org_id_fkey";
+            columns: ["measurement_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "measurement";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      asset: {
+        Row: {
+          byte_size: number | null;
+          content_hash: string;
+          created_at: string;
+          id: string;
+          kind: Database["public"]["Enums"]["asset_kind"];
+          mime_type: string | null;
+          org_id: string;
+          params_hash: string | null;
+          parcel_id: string;
+          pipeline: string;
+          pipeline_version: string;
+          pose: Json | null;
+          position: unknown;
+          position_uncertainty_m: number | null;
+          produced_at: string;
+          quality_score: number | null;
+          session_id: string;
+          tree_id: string | null;
+          uri: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          byte_size?: number | null;
+          content_hash: string;
+          created_at?: string;
+          id?: string;
+          kind: Database["public"]["Enums"]["asset_kind"];
+          mime_type?: string | null;
+          org_id: string;
+          params_hash?: string | null;
+          parcel_id: string;
+          pipeline: string;
+          pipeline_version: string;
+          pose?: Json | null;
+          position?: unknown;
+          position_uncertainty_m?: number | null;
+          produced_at?: string;
+          quality_score?: number | null;
+          session_id: string;
+          tree_id?: string | null;
+          uri: string;
+        };
+        Update: {
+          byte_size?: number | null;
+          content_hash?: string;
+          created_at?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["asset_kind"];
+          mime_type?: string | null;
+          org_id?: string;
+          params_hash?: string | null;
+          parcel_id?: string;
+          pipeline?: string;
+          pipeline_version?: string;
+          pose?: Json | null;
+          position?: unknown;
+          position_uncertainty_m?: number | null;
+          produced_at?: string;
+          quality_score?: number | null;
+          session_id?: string;
+          tree_id?: string | null;
+          uri?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "asset_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "asset_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "asset_tree_id_parcel_id_org_id_fkey";
+            columns: ["tree_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      asset_source: {
+        Row: {
+          asset_id: string;
+          created_at: string;
+          id: string;
+          org_id: string;
+          parcel_id: string;
+          source_asset_id: string | null;
+          source_capture_id: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          asset_id: string;
+          created_at?: string;
+          id?: string;
+          org_id: string;
+          parcel_id: string;
+          source_asset_id?: string | null;
+          source_capture_id?: string | null;
+        };
+        Update: {
+          asset_id?: string;
+          created_at?: string;
+          id?: string;
+          org_id?: string;
+          parcel_id?: string;
+          source_asset_id?: string | null;
+          source_capture_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "asset_source_asset_id_parcel_id_org_id_fkey";
+            columns: ["asset_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "asset";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "asset_source_source_asset_id_parcel_id_org_id_fkey";
+            columns: ["source_asset_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "asset";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "asset_source_source_capture_id_parcel_id_org_id_fkey";
+            columns: ["source_capture_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "capture";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      boundary: {
+        Row: {
+          area_m2: number | null;
+          created_at: string;
+          created_by: string | null;
+          geom: unknown;
+          id: string;
+          org_id: string;
+          owner_approved_at: string | null;
+          owner_approved_by: string | null;
+          parcel_id: string;
+          session_id: string | null;
+          source: Database["public"]["Enums"]["boundary_source"];
+          surveyed_at: string | null;
+          version: number;
+          vertex_uncertainty_m: number | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          area_m2?: never;
+          created_at?: string;
+          created_by?: string | null;
+          geom: unknown;
+          id?: string;
+          org_id: string;
+          owner_approved_at?: string | null;
+          owner_approved_by?: string | null;
+          parcel_id: string;
+          session_id?: string | null;
+          source: Database["public"]["Enums"]["boundary_source"];
+          surveyed_at?: string | null;
+          version: number;
+          vertex_uncertainty_m?: number | null;
+        };
+        Update: {
+          area_m2?: never;
+          created_at?: string;
+          created_by?: string | null;
+          geom?: unknown;
+          id?: string;
+          org_id?: string;
+          owner_approved_at?: string | null;
+          owner_approved_by?: string | null;
+          parcel_id?: string;
+          session_id?: string | null;
+          source?: Database["public"]["Enums"]["boundary_source"];
+          surveyed_at?: string | null;
+          version?: number;
+          vertex_uncertainty_m?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "boundary_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "boundary_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      calibration: {
+        Row: {
+          created_at: string;
+          extrinsics: Json | null;
+          id: string;
+          intrinsics: Json | null;
+          org_id: string;
+          rig_id: string;
+          sensor_id: string | null;
+          valid_from: string;
+          valid_to: string | null;
+          version: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          extrinsics?: Json | null;
+          id?: string;
+          intrinsics?: Json | null;
+          org_id: string;
+          rig_id: string;
+          sensor_id?: string | null;
+          valid_from: string;
+          valid_to?: string | null;
+          version: string;
+        };
+        Update: {
+          created_at?: string;
+          extrinsics?: Json | null;
+          id?: string;
+          intrinsics?: Json | null;
+          org_id?: string;
+          rig_id?: string;
+          sensor_id?: string | null;
+          valid_from?: string;
+          valid_to?: string | null;
+          version?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calibration_rig_id_org_id_fkey";
+            columns: ["rig_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "rig";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "calibration_sensor_id_org_id_fkey";
+            columns: ["sensor_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "sensor";
+            referencedColumns: ["id", "org_id"];
+          },
+        ];
+      };
+      capture: {
+        Row: {
+          byte_size: number | null;
+          calibration_id: string | null;
+          captured_by: string | null;
+          content_hash: string;
+          created_at: string;
+          ended_at: string | null;
+          id: string;
+          kind: Database["public"]["Enums"]["capture_kind"];
+          metadata: NonNullable<Json>;
+          mime_type: string | null;
+          org_id: string;
+          parcel_id: string;
+          position: unknown;
+          position_uncertainty_m: number | null;
+          rig_id: string | null;
+          sensor_id: string | null;
+          session_id: string;
+          started_at: string;
+          tree_id: string | null;
+          uri: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          byte_size?: number | null;
+          calibration_id?: string | null;
+          captured_by?: string | null;
+          content_hash: string;
+          created_at?: string;
+          ended_at?: string | null;
+          id?: string;
+          kind: Database["public"]["Enums"]["capture_kind"];
+          metadata?: NonNullable<Json>;
+          mime_type?: string | null;
+          org_id: string;
+          parcel_id: string;
+          position?: unknown;
+          position_uncertainty_m?: number | null;
+          rig_id?: string | null;
+          sensor_id?: string | null;
+          session_id: string;
+          started_at: string;
+          tree_id?: string | null;
+          uri: string;
+        };
+        Update: {
+          byte_size?: number | null;
+          calibration_id?: string | null;
+          captured_by?: string | null;
+          content_hash?: string;
+          created_at?: string;
+          ended_at?: string | null;
+          id?: string;
+          kind?: Database["public"]["Enums"]["capture_kind"];
+          metadata?: NonNullable<Json>;
+          mime_type?: string | null;
+          org_id?: string;
+          parcel_id?: string;
+          position?: unknown;
+          position_uncertainty_m?: number | null;
+          rig_id?: string | null;
+          sensor_id?: string | null;
+          session_id?: string;
+          started_at?: string;
+          tree_id?: string | null;
+          uri?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "capture_calibration_id_org_id_fkey";
+            columns: ["calibration_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "calibration";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "capture_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "capture_rig_id_org_id_fkey";
+            columns: ["rig_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "rig";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "capture_sensor_id_org_id_fkey";
+            columns: ["sensor_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "sensor";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "capture_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "capture_tree_id_parcel_id_org_id_fkey";
+            columns: ["tree_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      device: {
+        Row: {
+          created_at: string;
+          firmware_version: string | null;
+          id: string;
+          kind: Database["public"]["Enums"]["device_kind"];
+          manufacturer: string;
+          model: string;
+          name: string | null;
+          org_id: string;
+          serial_number: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          firmware_version?: string | null;
+          id?: string;
+          kind: Database["public"]["Enums"]["device_kind"];
+          manufacturer: string;
+          model: string;
+          name?: string | null;
+          org_id: string;
+          serial_number?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          firmware_version?: string | null;
+          id?: string;
+          kind?: Database["public"]["Enums"]["device_kind"];
+          manufacturer?: string;
+          model?: string;
+          name?: string | null;
+          org_id?: string;
+          serial_number?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "device_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      finding: {
+        Row: {
+          approved_at: string | null;
+          approved_by: string | null;
+          assessment_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          description: string;
+          id: string;
+          kind: string;
+          location: unknown;
+          org_id: string;
+          parcel_id: string;
+          position_uncertainty_m: number | null;
+          recommendation: string | null;
+          session_id: string;
+          severity: Database["public"]["Enums"]["finding_severity"];
+          tree_id: string | null;
+          zone_id: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          approved_at?: string | null;
+          approved_by?: string | null;
+          assessment_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          description: string;
+          id?: string;
+          kind: string;
+          location?: unknown;
+          org_id: string;
+          parcel_id: string;
+          position_uncertainty_m?: number | null;
+          recommendation?: string | null;
+          session_id: string;
+          severity: Database["public"]["Enums"]["finding_severity"];
+          tree_id?: string | null;
+          zone_id?: string | null;
+        };
+        Update: {
+          approved_at?: string | null;
+          approved_by?: string | null;
+          assessment_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          description?: string;
+          id?: string;
+          kind?: string;
+          location?: unknown;
+          org_id?: string;
+          parcel_id?: string;
+          position_uncertainty_m?: number | null;
+          recommendation?: string | null;
+          session_id?: string;
+          severity?: Database["public"]["Enums"]["finding_severity"];
+          tree_id?: string | null;
+          zone_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "finding_assessment_id_parcel_id_org_id_fkey";
+            columns: ["assessment_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "assessment";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "finding_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "finding_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "finding_tree_id_parcel_id_org_id_fkey";
+            columns: ["tree_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "finding_zone_id_parcel_id_org_id_fkey";
+            columns: ["zone_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "zone";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      finding_evidence: {
+        Row: {
+          asset_id: string;
+          created_at: string;
+          finding_id: string;
+          org_id: string;
+          parcel_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          asset_id: string;
+          created_at?: string;
+          finding_id: string;
+          org_id: string;
+          parcel_id: string;
+        };
+        Update: {
+          asset_id?: string;
+          created_at?: string;
+          finding_id?: string;
+          org_id?: string;
+          parcel_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "finding_evidence_asset_id_parcel_id_org_id_fkey";
+            columns: ["asset_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "asset";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "finding_evidence_finding_id_parcel_id_org_id_fkey";
+            columns: ["finding_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "finding";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      measurement: {
+        Row: {
+          confidence: number | null;
+          created_at: string;
+          id: string;
+          measured_at: string;
+          method: string;
+          method_version: string;
+          metric_definition_id: string;
+          org_id: string;
+          params_hash: string | null;
+          parcel_id: string;
+          recorded_by: string | null;
+          session_id: string;
+          slot_id: string | null;
+          source: Database["public"]["Enums"]["measurement_source"];
+          subject: Database["public"]["Enums"]["measurement_subject"] | null;
+          tree_id: string | null;
+          uncertainty: number | null;
+          unit: string | null;
+          value_category: string | null;
+          value_numeric: number | null;
+          value_scale: number | null;
+          zone_id: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          confidence?: number | null;
+          created_at?: string;
+          id?: string;
+          measured_at: string;
+          method: string;
+          method_version: string;
+          metric_definition_id: string;
+          org_id: string;
+          params_hash?: string | null;
+          parcel_id: string;
+          recorded_by?: string | null;
+          session_id: string;
+          slot_id?: string | null;
+          source: Database["public"]["Enums"]["measurement_source"];
+          subject?: never;
+          tree_id?: string | null;
+          uncertainty?: number | null;
+          unit?: string | null;
+          value_category?: string | null;
+          value_numeric?: number | null;
+          value_scale?: number | null;
+          zone_id?: string | null;
+        };
+        Update: {
+          confidence?: number | null;
+          created_at?: string;
+          id?: string;
+          measured_at?: string;
+          method?: string;
+          method_version?: string;
+          metric_definition_id?: string;
+          org_id?: string;
+          params_hash?: string | null;
+          parcel_id?: string;
+          recorded_by?: string | null;
+          session_id?: string;
+          slot_id?: string | null;
+          source?: Database["public"]["Enums"]["measurement_source"];
+          subject?: never;
+          tree_id?: string | null;
+          uncertainty?: number | null;
+          unit?: string | null;
+          value_category?: string | null;
+          value_numeric?: number | null;
+          value_scale?: number | null;
+          zone_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "measurement_metric_definition_id_fkey";
+            columns: ["metric_definition_id"];
+            isOneToOne: false;
+            referencedRelation: "metric_definition";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "measurement_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "measurement_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "measurement_slot_id_parcel_id_org_id_fkey";
+            columns: ["slot_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "slot";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "measurement_tree_id_parcel_id_org_id_fkey";
+            columns: ["tree_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "measurement_zone_id_parcel_id_org_id_fkey";
+            columns: ["zone_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "zone";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      measurement_evidence: {
+        Row: {
+          asset_id: string;
+          created_at: string;
+          measurement_id: string;
+          org_id: string;
+          parcel_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          asset_id: string;
+          created_at?: string;
+          measurement_id: string;
+          org_id: string;
+          parcel_id: string;
+        };
+        Update: {
+          asset_id?: string;
+          created_at?: string;
+          measurement_id?: string;
+          org_id?: string;
+          parcel_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "measurement_evidence_asset_id_parcel_id_org_id_fkey";
+            columns: ["asset_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "asset";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "measurement_evidence_measurement_id_parcel_id_org_id_fkey";
+            columns: ["measurement_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "measurement";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      membership: {
+        Row: {
+          created_at: string;
+          id: string;
+          org_id: string;
+          role: Database["public"]["Enums"]["org_role"];
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          id?: string;
+          org_id: string;
+          role: Database["public"]["Enums"]["org_role"];
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          org_id?: string;
+          role?: Database["public"]["Enums"]["org_role"];
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "membership_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      metric_definition: {
+        Row: {
+          card_visibility: Database["public"]["Enums"]["card_visibility"];
+          categories: string[] | null;
+          code: string;
+          created_at: string;
+          description: string | null;
+          id: string;
+          name: string;
+          scale_max: number | null;
+          scale_min: number | null;
+          subject_kinds: Database["public"]["Enums"]["measurement_subject"][];
+          unit: string | null;
+          valid_seasons: Database["public"]["Enums"]["season"][];
+          value_type: Database["public"]["Enums"]["metric_value_type"];
+        };
+        ComputedFields: never;
+        Insert: {
+          card_visibility: Database["public"]["Enums"]["card_visibility"];
+          categories?: string[] | null;
+          code: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          name: string;
+          scale_max?: number | null;
+          scale_min?: number | null;
+          subject_kinds?: Database["public"]["Enums"]["measurement_subject"][];
+          unit?: string | null;
+          valid_seasons: Database["public"]["Enums"]["season"][];
+          value_type: Database["public"]["Enums"]["metric_value_type"];
+        };
+        Update: {
+          card_visibility?: Database["public"]["Enums"]["card_visibility"];
+          categories?: string[] | null;
+          code?: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          name?: string;
+          scale_max?: number | null;
+          scale_min?: number | null;
+          subject_kinds?: Database["public"]["Enums"]["measurement_subject"][];
+          unit?: string | null;
+          valid_seasons?: Database["public"]["Enums"]["season"][];
+          value_type?: Database["public"]["Enums"]["metric_value_type"];
+        };
+        Relationships: [];
+      };
+      operation: {
+        Row: {
+          area: unknown;
+          area_m2: number | null;
+          created_at: string;
+          created_by: string | null;
+          details: NonNullable<Json>;
+          dose: number | null;
+          dose_unit: string | null;
+          ended_at: string | null;
+          id: string;
+          kind: Database["public"]["Enums"]["operation_kind"];
+          notes: string | null;
+          org_id: string;
+          parcel_id: string;
+          performed_by: string | null;
+          performer: Database["public"]["Enums"]["performer_kind"];
+          prescription_no: string | null;
+          product_name: string | null;
+          session_id: string | null;
+          started_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          area?: unknown;
+          area_m2?: number | null;
+          created_at?: string;
+          created_by?: string | null;
+          details?: NonNullable<Json>;
+          dose?: number | null;
+          dose_unit?: string | null;
+          ended_at?: string | null;
+          id?: string;
+          kind: Database["public"]["Enums"]["operation_kind"];
+          notes?: string | null;
+          org_id: string;
+          parcel_id: string;
+          performed_by?: string | null;
+          performer?: Database["public"]["Enums"]["performer_kind"];
+          prescription_no?: string | null;
+          product_name?: string | null;
+          session_id?: string | null;
+          started_at: string;
+        };
+        Update: {
+          area?: unknown;
+          area_m2?: number | null;
+          created_at?: string;
+          created_by?: string | null;
+          details?: NonNullable<Json>;
+          dose?: number | null;
+          dose_unit?: string | null;
+          ended_at?: string | null;
+          id?: string;
+          kind?: Database["public"]["Enums"]["operation_kind"];
+          notes?: string | null;
+          org_id?: string;
+          parcel_id?: string;
+          performed_by?: string | null;
+          performer?: Database["public"]["Enums"]["performer_kind"];
+          prescription_no?: string | null;
+          product_name?: string | null;
+          session_id?: string | null;
+          started_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "operation_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "operation_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      org: {
+        Row: {
+          created_at: string;
+          id: string;
+          kind: Database["public"]["Enums"]["org_kind"];
+          name: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["org_kind"];
+          name: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["org_kind"];
+          name?: string;
+        };
+        Relationships: [];
+      };
+      parcel: {
+        Row: {
+          created_at: string;
+          district: string | null;
+          estimated_area_m2: number | null;
+          estimated_tree_count: number | null;
+          id: string;
+          irrigation: Database["public"]["Enums"]["irrigation_type"];
+          local_origin: unknown;
+          local_origin_uncertainty_m: number | null;
+          name: string;
+          numbering_origin_corner: Database["public"]["Enums"]["corner"] | null;
+          org_id: string;
+          position: unknown;
+          position_uncertainty_m: number | null;
+          province: string | null;
+          row_azimuth_deg: number | null;
+          status: Database["public"]["Enums"]["parcel_status"];
+          village: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          district?: string | null;
+          estimated_area_m2?: number | null;
+          estimated_tree_count?: number | null;
+          id?: string;
+          irrigation?: Database["public"]["Enums"]["irrigation_type"];
+          local_origin?: unknown;
+          local_origin_uncertainty_m?: number | null;
+          name: string;
+          numbering_origin_corner?: Database["public"]["Enums"]["corner"] | null;
+          org_id: string;
+          position?: unknown;
+          position_uncertainty_m?: number | null;
+          province?: string | null;
+          row_azimuth_deg?: number | null;
+          status?: Database["public"]["Enums"]["parcel_status"];
+          village?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          district?: string | null;
+          estimated_area_m2?: number | null;
+          estimated_tree_count?: number | null;
+          id?: string;
+          irrigation?: Database["public"]["Enums"]["irrigation_type"];
+          local_origin?: unknown;
+          local_origin_uncertainty_m?: number | null;
+          name?: string;
+          numbering_origin_corner?: Database["public"]["Enums"]["corner"] | null;
+          org_id?: string;
+          position?: unknown;
+          position_uncertainty_m?: number | null;
+          province?: string | null;
+          row_azimuth_deg?: number | null;
+          status?: Database["public"]["Enums"]["parcel_status"];
+          village?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "parcel_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      parcel_access: {
+        Row: {
+          created_at: string;
+          granted_by: string | null;
+          id: string;
+          org_id: string;
+          parcel_id: string;
+          role: Database["public"]["Enums"]["parcel_role"];
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          granted_by?: string | null;
+          id?: string;
+          org_id: string;
+          parcel_id: string;
+          role: Database["public"]["Enums"]["parcel_role"];
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          granted_by?: string | null;
+          id?: string;
+          org_id?: string;
+          parcel_id?: string;
+          role?: Database["public"]["Enums"]["parcel_role"];
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "parcel_access_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+        ];
+      };
+      rig: {
+        Row: {
+          created_at: string;
+          description: string | null;
+          id: string;
+          name: string;
+          org_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          name: string;
+          org_id: string;
+        };
+        Update: {
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          name?: string;
+          org_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rig_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      rig_sensor: {
+        Row: {
+          created_at: string;
+          mount: NonNullable<Json>;
+          org_id: string;
+          rig_id: string;
+          sensor_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          mount?: NonNullable<Json>;
+          org_id: string;
+          rig_id: string;
+          sensor_id: string;
+        };
+        Update: {
+          created_at?: string;
+          mount?: NonNullable<Json>;
+          org_id?: string;
+          rig_id?: string;
+          sensor_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rig_sensor_rig_id_org_id_fkey";
+            columns: ["rig_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "rig";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "rig_sensor_sensor_id_org_id_fkey";
+            columns: ["sensor_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "sensor";
+            referencedColumns: ["id", "org_id"];
+          },
+        ];
+      };
+      sensor: {
+        Row: {
+          created_at: string;
+          device_id: string;
+          firmware_version: string | null;
+          id: string;
+          kind: Database["public"]["Enums"]["sensor_kind"];
+          manufacturer: string | null;
+          model: string | null;
+          org_id: string;
+          serial_number: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          device_id: string;
+          firmware_version?: string | null;
+          id?: string;
+          kind: Database["public"]["Enums"]["sensor_kind"];
+          manufacturer?: string | null;
+          model?: string | null;
+          org_id: string;
+          serial_number?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          device_id?: string;
+          firmware_version?: string | null;
+          id?: string;
+          kind?: Database["public"]["Enums"]["sensor_kind"];
+          manufacturer?: string | null;
+          model?: string | null;
+          org_id?: string;
+          serial_number?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sensor_device_id_org_id_fkey";
+            columns: ["device_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "device";
+            referencedColumns: ["id", "org_id"];
+          },
+        ];
+      };
+      session: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          ended_at: string | null;
+          id: string;
+          kind: Database["public"]["Enums"]["session_kind"];
+          lead_user_id: string | null;
+          methodology_version: string | null;
+          notes: string | null;
+          org_id: string;
+          parcel_id: string;
+          performer: Database["public"]["Enums"]["performer_kind"];
+          planned_date: string | null;
+          rig_id: string | null;
+          started_at: string | null;
+          status: Database["public"]["Enums"]["session_status"];
+          weather: Json | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          ended_at?: string | null;
+          id?: string;
+          kind: Database["public"]["Enums"]["session_kind"];
+          lead_user_id?: string | null;
+          methodology_version?: string | null;
+          notes?: string | null;
+          org_id: string;
+          parcel_id: string;
+          performer?: Database["public"]["Enums"]["performer_kind"];
+          planned_date?: string | null;
+          rig_id?: string | null;
+          started_at?: string | null;
+          status?: Database["public"]["Enums"]["session_status"];
+          weather?: Json | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          ended_at?: string | null;
+          id?: string;
+          kind?: Database["public"]["Enums"]["session_kind"];
+          lead_user_id?: string | null;
+          methodology_version?: string | null;
+          notes?: string | null;
+          org_id?: string;
+          parcel_id?: string;
+          performer?: Database["public"]["Enums"]["performer_kind"];
+          planned_date?: string | null;
+          rig_id?: string | null;
+          started_at?: string | null;
+          status?: Database["public"]["Enums"]["session_status"];
+          weather?: Json | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "session_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "session_rig_id_org_id_fkey";
+            columns: ["rig_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "rig";
+            referencedColumns: ["id", "org_id"];
+          },
+        ];
+      };
+      slot: {
+        Row: {
+          code: string | null;
+          created_at: string;
+          id: string;
+          kind: Database["public"]["Enums"]["slot_kind"];
+          local_x_m: number | null;
+          local_y_m: number | null;
+          org_id: string;
+          parcel_id: string;
+          position: unknown;
+          position_no: number;
+          position_uncertainty_m: number | null;
+          row_no: number;
+          suffix: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          code?: never;
+          created_at?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["slot_kind"];
+          local_x_m?: number | null;
+          local_y_m?: number | null;
+          org_id: string;
+          parcel_id: string;
+          position?: unknown;
+          position_no: number;
+          position_uncertainty_m?: number | null;
+          row_no: number;
+          suffix?: string | null;
+        };
+        Update: {
+          code?: never;
+          created_at?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["slot_kind"];
+          local_x_m?: number | null;
+          local_y_m?: number | null;
+          org_id?: string;
+          parcel_id?: string;
+          position?: unknown;
+          position_no?: number;
+          position_uncertainty_m?: number | null;
+          row_no?: number;
+          suffix?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "slot_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+        ];
+      };
+      tree: {
+        Row: {
+          age_class: Database["public"]["Enums"]["age_class"];
+          created_at: string;
+          cultivar: string | null;
+          first_seen_at: string | null;
+          first_seen_session_id: string | null;
+          graft: Database["public"]["Enums"]["graft_status"];
+          id: string;
+          lost_at: string | null;
+          org_id: string;
+          parcel_id: string;
+          sex: Database["public"]["Enums"]["tree_sex"];
+          slot_id: string;
+          status: Database["public"]["Enums"]["tree_status"];
+        };
+        ComputedFields: never;
+        Insert: {
+          age_class?: Database["public"]["Enums"]["age_class"];
+          created_at?: string;
+          cultivar?: string | null;
+          first_seen_at?: string | null;
+          first_seen_session_id?: string | null;
+          graft?: Database["public"]["Enums"]["graft_status"];
+          id?: string;
+          lost_at?: string | null;
+          org_id: string;
+          parcel_id: string;
+          sex?: Database["public"]["Enums"]["tree_sex"];
+          slot_id: string;
+          status?: Database["public"]["Enums"]["tree_status"];
+        };
+        Update: {
+          age_class?: Database["public"]["Enums"]["age_class"];
+          created_at?: string;
+          cultivar?: string | null;
+          first_seen_at?: string | null;
+          first_seen_session_id?: string | null;
+          graft?: Database["public"]["Enums"]["graft_status"];
+          id?: string;
+          lost_at?: string | null;
+          org_id?: string;
+          parcel_id?: string;
+          sex?: Database["public"]["Enums"]["tree_sex"];
+          slot_id?: string;
+          status?: Database["public"]["Enums"]["tree_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tree_first_seen_session_id_parcel_id_org_id_fkey";
+            columns: ["first_seen_session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "tree_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "tree_slot_id_parcel_id_org_id_fkey";
+            columns: ["slot_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "slot";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      zone: {
+        Row: {
+          created_at: string;
+          geom: unknown;
+          id: string;
+          kind: Database["public"]["Enums"]["zone_kind"];
+          name: string | null;
+          org_id: string;
+          parcel_id: string;
+          position_uncertainty_m: number | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          geom: unknown;
+          id?: string;
+          kind: Database["public"]["Enums"]["zone_kind"];
+          name?: string | null;
+          org_id: string;
+          parcel_id: string;
+          position_uncertainty_m?: number | null;
+        };
+        Update: {
+          created_at?: string;
+          geom?: unknown;
+          id?: string;
+          kind?: Database["public"]["Enums"]["zone_kind"];
+          name?: string | null;
+          org_id?: string;
+          parcel_id?: string;
+          position_uncertainty_m?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "zone_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+        ];
+      };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      approve_boundary: {
+        Args: { p_boundary_id: string };
+        Returns: {
+          area_m2: number | null;
+          created_at: string;
+          created_by: string | null;
+          geom: unknown;
+          id: string;
+          org_id: string;
+          owner_approved_at: string | null;
+          owner_approved_by: string | null;
+          parcel_id: string;
+          session_id: string | null;
+          source: Database["public"]["Enums"]["boundary_source"];
+          surveyed_at: string | null;
+          version: number;
+          vertex_uncertainty_m: number | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "boundary";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      my_owner_profile: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          contact_preference: string;
+          email: string;
+          full_name: string;
+          kvkk_consent: boolean;
+          kvkk_consent_at: string;
+          org_id: string;
+          phone: string;
+        }[];
+      };
+    };
+    Enums: {
+      age_class: "sapling" | "young" | "productive" | "old" | "unknown";
+      assessment_source: "ai" | "model" | "expert";
+      asset_kind:
+        | "panorama"
+        | "tree_crop"
+        | "trajectory"
+        | "point_cloud"
+        | "tree_point_cloud"
+        | "photo"
+        | "other";
+      boundary_source: "owner_declared" | "field_survey";
+      capture_kind: "video_360" | "mcap" | "gnss_raw" | "photo" | "audio_note" | "other";
+      card_visibility: "shown" | "hidden" | "under_evaluation";
+      corner: "ne" | "nw" | "se" | "sw";
+      device_kind: "human_kit" | "robot" | "phone" | "base_station" | "other";
+      finding_severity: "info" | "low" | "medium" | "high";
+      graft_status: "grafted" | "ungrafted" | "unknown";
+      health_class: "healthy" | "attention" | "problem" | "dead" | "absent";
+      irrigation_type: "irrigated" | "rainfed" | "unknown";
+      measurement_source: "staff" | "algorithm" | "ai" | "expert";
+      measurement_subject: "tree" | "slot" | "zone" | "parcel";
+      metric_value_type: "numeric" | "scale" | "category";
+      operation_kind:
+        | "mowing"
+        | "spraying"
+        | "tillage"
+        | "pruning"
+        | "fertilizing"
+        | "irrigation"
+        | "harvest"
+        | "other";
+      org_kind: "company" | "cooperative" | "insurer" | "service_provider" | "other";
+      org_role: "field_staff" | "expert" | "ops";
+      parcel_role: "owner" | "viewer";
+      parcel_status:
+        "registered" | "inventory_planned" | "inventory_done" | "active_monitoring" | "passive";
+      performer_kind: "crew" | "robot";
+      season: "winter" | "spring" | "summer" | "harvest";
+      sensor_kind: "camera_360" | "lidar" | "gnss" | "thermal" | "phone_camera" | "imu" | "other";
+      session_kind:
+        | "inventory"
+        | "periodic_scan"
+        | "verification"
+        | "mowing"
+        | "spraying"
+        | "tillage"
+        | "manual_entry";
+      session_status:
+        "planned" | "captured" | "processed" | "in_review" | "published" | "cancelled";
+      slot_kind: "row" | "interstitial";
+      tree_sex: "female" | "male" | "unknown";
+      tree_status: "active" | "lost";
+      zone_kind:
+        | "cell"
+        | "no_go"
+        | "entry_point"
+        | "irrigation_line"
+        | "well"
+        | "pool"
+        | "fence"
+        | "gate"
+        | "shed"
+        | "other";
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
+};
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R;
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R;
+      }
+      ? R
+      : never
+    : never;
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I;
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I;
+      }
+      ? I
+      : never
+    : never;
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U;
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U;
+      }
+      ? U
+      : never
+    : never;
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never) = never,
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never;
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never;
+
+export const Constants = {
+  public: {
+    Enums: {
+      age_class: ["sapling", "young", "productive", "old", "unknown"],
+      assessment_source: ["ai", "model", "expert"],
+      asset_kind: [
+        "panorama",
+        "tree_crop",
+        "trajectory",
+        "point_cloud",
+        "tree_point_cloud",
+        "photo",
+        "other",
+      ],
+      boundary_source: ["owner_declared", "field_survey"],
+      capture_kind: ["video_360", "mcap", "gnss_raw", "photo", "audio_note", "other"],
+      card_visibility: ["shown", "hidden", "under_evaluation"],
+      corner: ["ne", "nw", "se", "sw"],
+      device_kind: ["human_kit", "robot", "phone", "base_station", "other"],
+      finding_severity: ["info", "low", "medium", "high"],
+      graft_status: ["grafted", "ungrafted", "unknown"],
+      health_class: ["healthy", "attention", "problem", "dead", "absent"],
+      irrigation_type: ["irrigated", "rainfed", "unknown"],
+      measurement_source: ["staff", "algorithm", "ai", "expert"],
+      measurement_subject: ["tree", "slot", "zone", "parcel"],
+      metric_value_type: ["numeric", "scale", "category"],
+      operation_kind: [
+        "mowing",
+        "spraying",
+        "tillage",
+        "pruning",
+        "fertilizing",
+        "irrigation",
+        "harvest",
+        "other",
+      ],
+      org_kind: ["company", "cooperative", "insurer", "service_provider", "other"],
+      org_role: ["field_staff", "expert", "ops"],
+      parcel_role: ["owner", "viewer"],
+      parcel_status: [
+        "registered",
+        "inventory_planned",
+        "inventory_done",
+        "active_monitoring",
+        "passive",
+      ],
+      performer_kind: ["crew", "robot"],
+      season: ["winter", "spring", "summer", "harvest"],
+      sensor_kind: ["camera_360", "lidar", "gnss", "thermal", "phone_camera", "imu", "other"],
+      session_kind: [
+        "inventory",
+        "periodic_scan",
+        "verification",
+        "mowing",
+        "spraying",
+        "tillage",
+        "manual_entry",
+      ],
+      session_status: ["planned", "captured", "processed", "in_review", "published", "cancelled"],
+      slot_kind: ["row", "interstitial"],
+      tree_sex: ["female", "male", "unknown"],
+      tree_status: ["active", "lost"],
+      zone_kind: [
+        "cell",
+        "no_go",
+        "entry_point",
+        "irrigation_line",
+        "well",
+        "pool",
+        "fence",
+        "gate",
+        "shed",
+        "other",
+      ],
+    },
+  },
+} as const;

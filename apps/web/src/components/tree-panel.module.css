@@ -1,0 +1,29 @@
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+}
+
+.close {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-muted);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.list dt {
+  color: var(--color-muted);
+}
+
+.list dd {
+  margin: 0;
+}
