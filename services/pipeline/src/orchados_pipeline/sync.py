@@ -10,14 +10,24 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
 
 import cv2
 import numpy as np
 
 from .context import RunContext
-from .events import read_events
+from .events import GnssEvent, read_events
+from .gpstime import utc_to_gps_ns
 from .ingest import EVENTS_PATH
-from .models import ClockModel, FileRole, Manifest, QrObservation, Trajectory, write_model
+from .models import (
+    ClockModel,
+    FileRole,
+    Manifest,
+    QrObservation,
+    QrSyncCheck,
+    Trajectory,
+    write_model,
+)
 from .video import VideoPart, iter_frames, layout_parts
 
 # OQ1:<gps_time_ms>[:<session_tag>]
@@ -45,6 +55,27 @@ def decode_qr_payload(text: str) -> tuple[int, str | None] | None:
     if not m:
         return None
     return int(m.group(1)), m.group(2)
+
+
+def decode_event_payload(text: str) -> tuple[int, str | None] | None:
+    """GPS ms (and session tag) from a qr_sync event payload.
+
+    The contract is the QR text itself (OQ1:...). An ISO-8601 UTC time, as in
+    the İP2 README example, is accepted too and converted to GPS time.
+    """
+    decoded = decode_qr_payload(text)
+    if decoded is not None:
+        return decoded
+    t = text.strip()
+    if not re.match(r"^\d{4}-\d{2}-\d{2}T", t):
+        return None
+    try:
+        utc = datetime.fromisoformat(t)
+    except ValueError:
+        return None
+    if utc.tzinfo is None:
+        return None
+    return utc_to_gps_ns(utc) // 1_000_000, None
 
 
 # --- QR scanning ---------------------------------------------------------------------
@@ -136,10 +167,8 @@ def compute_clock(ctx: RunContext, manifest: Manifest) -> ClockModel:
     producer = ctx.producer("sync")
     warnings: list[str] = []
 
-    qr_events = 0
     ev = ctx.session_dir / EVENTS_PATH
-    if ev.is_file():
-        qr_events = sum(e.event_type == "qr_sync" for e in read_events(ev))
+    qr_events = [e for e in read_events(ev) if e.event_type == "qr_sync"] if ev.is_file() else []
 
     n_first = min(first.info.frame_count, round(p.qr_search_s * first.info.fps))
     start_obs = scan_qr(first, 0, n_first, p.qr_frame_stride, "start", p)
@@ -158,6 +187,9 @@ def compute_clock(ctx: RunContext, manifest: Manifest) -> ClockModel:
         obs.append(o)
     start_obs = [o for o in obs if o.cluster == "start"]
     end_obs = [o for o in obs if o.cluster == "end"]
+
+    checks = check_qr_events(qr_events, obs, tag, p)
+    warnings += [c.warning for c in checks if c.warning]
 
     scan_start = max((o.camera_s for o in start_obs), default=0.0)
     scan_end = min((o.camera_s for o in end_obs), default=total_end)
@@ -179,7 +211,8 @@ def compute_clock(ctx: RunContext, manifest: Manifest) -> ClockModel:
             scan_start_camera_s=scan_start,
             scan_end_camera_s=scan_end,
             observations=obs,
-            qr_sync_events=qr_events,
+            qr_sync_events=len(qr_events),
+            qr_sync_checks=checks,
             warnings=warnings + ["manual offset used"],
         )
 
@@ -207,9 +240,64 @@ def compute_clock(ctx: RunContext, manifest: Manifest) -> ClockModel:
         scan_start_camera_s=scan_start,
         scan_end_camera_s=scan_end,
         observations=obs,
-        qr_sync_events=qr_events,
+        qr_sync_events=len(qr_events),
+        qr_sync_checks=checks,
         warnings=warnings,
     )
+
+
+def check_qr_events(
+    events: list[GnssEvent], obs: list[QrObservation], tag: str, params
+) -> list[QrSyncCheck]:
+    """Compare each qr_sync event's QR value with its GPS time and with the video readings.
+
+    Reported only; the clock fit uses the video readings alone.
+    """
+    video_ms = np.array([o.gps_time_ms for o in obs if o.inlier], dtype=np.int64)
+    checks = []
+    for e in events:
+        decoded = decode_event_payload(e.payload)
+        check = QrSyncCheck(
+            line=e.line,
+            payload=e.payload,
+            qr_gps_time_ms=decoded[0] if decoded else None,
+            event_gps_time_ns=e.gps_time_ns,
+            gps_time_derived=e.gps_time_derived,
+        )
+        where = f"qr_sync event (events.csv line {e.line})"
+        problems = []
+        if decoded is None:
+            problems.append(f"payload {e.payload!r} is not a QR time code")
+        else:
+            qr_ms, qr_tag = decoded
+            if qr_tag and qr_tag != tag:
+                problems.append(f"QR session tag {qr_tag!r} does not match {tag!r}")
+            if e.gps_time_ns is None:
+                problems.append("no GPS time (no PPS anchor)")
+            else:
+                diff = (e.gps_time_ns - qr_ms * 1_000_000) / 1e6
+                check.event_minus_qr_ms = diff
+                if abs(diff) > params.qr_event_max_diff_ms:
+                    hint = (
+                        " (phone shows UTC instead of GPS time?)"
+                        if 17_000 < abs(diff) < 19_000
+                        else ""
+                    )
+                    problems.append(
+                        f"event GPS time differs from the QR value by {diff:.0f} ms{hint}"
+                    )
+            if len(video_ms):
+                nearest = video_ms[np.argmin(np.abs(video_ms - qr_ms))]
+                check.nearest_video_qr_ms = float(nearest - qr_ms)
+                if abs(nearest - qr_ms) > params.qr_event_video_max_gap_s * 1000:
+                    problems.append(
+                        f"no QR read from the video within {params.qr_event_video_max_gap_s:g} s "
+                        "of its value"
+                    )
+        if problems:
+            check.warning = f"{where}: " + "; ".join(problems)
+        checks.append(check)
+    return checks
 
 
 def run(ctx: RunContext, manifest: Manifest) -> ClockModel:

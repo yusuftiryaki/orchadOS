@@ -20,6 +20,7 @@ def test_manifest_hashes_and_roles(synthetic_session, tmp_path):
     m = build_manifest(RunContext.create(session, tmp_path / "out"))
     roles = {f.path: f.role for f in m.files}
     assert roles["session.json"] == FileRole.session_meta
+    assert roles["gnss/session.json"] == FileRole.logger_session
     assert roles["gnss/gnss.ubx"] == FileRole.gnss_raw
     assert roles["gnss/events.csv"] == FileRole.gnss_events
     assert roles["video/VID_0001.mp4"] == FileRole.video
@@ -33,6 +34,9 @@ def test_manifest_hashes_and_roles(synthetic_session, tmp_path):
     assert m.event_counts["qr_sync"] == 2
     assert any("bad checksum" in w for w in m.warnings)
     assert m.session.session_id == "synth-0001"
+    assert m.logger is not None and m.logger.session_id == "synth-0001"
+    assert any("recomputed from the PPS anchor for 1 event" in w for w in m.warnings)
+    assert not any("camera_height_m" in w for w in m.warnings)
 
 
 def test_manifest_is_deterministic(synthetic_session, tmp_path):

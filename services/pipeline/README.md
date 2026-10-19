@@ -34,20 +34,30 @@ RTKLIB (`convbin`, `rnx2rtkp`) ve ffmpeg `core` devcontainer'ında kurulu. RTKLI
 
 ## Girdi: oturum klasörü
 
+Oturum klasörünün yapısı, `session.json` (kök, saha uygulaması + operasyon), `gnss/session.json` (ESP32), `gnss/events.csv` (İP2 biçimi, altı sütun) ve QR saat kodu biçimi bileşenler arası sözleşmedir; tek kaynağı **[docs/arayuzler.md](../../docs/arayuzler.md)**.
+
 ```
 <oturum>/
-  session.json        session_id, parcel_id (zorunlu); camera_height_m (vars. 2,0),
-                      camera_yaw_offset_deg, org_id (opsiyonel); diğer alanlar korunur
+  session.json        kök oturum dosyası: session_id, parcel_id (zorunlu); camera_height_m,
+                      camera_yaw_offset_deg, rig_id, calibration_id, ... (opsiyonel)
   gnss/gnss.ubx       ESP32 kaydedicisinden ham UBX (NAV-PVT ve/veya RXM-RAWX/SFRBX)
-  gnss/events.csv     esp_micros, gps_time_ns, event_type, payload (İP2 biçimi)
+  gnss/events.csv     ESP32 olayları, İP2 biçimi
+  gnss/session.json   ESP32 oturum dosyası
   video/*.mp4         equirectangular 360° video (2:1), bir ya da birden çok parça
   base/*              (opsiyonel) baz/CORS RINEX gözlem ve navigasyon dosyaları
   trees.json          (opsiyonel) ağaç konumları; --trees ile başka yerden de verilebilir
 ```
 
+Hattın bu sözleşmeye özgü davranışı (ayrıntı `docs/arayuzler.md`'de):
+
+- `events.csv` başlıklı altı sütunlu biçimde okunur (`events.py`); eski dört sütunlu biçim açık hatayla reddedilir. `gps_time_ns` boş ama PPS çapası doluysa zaman çapadan yeniden hesaplanır ve olay `gps_time_derived` olarak işaretlenir.
+- İki `session.json` ayrı modellerle okunur (`SessionInfo`, `LoggerSession`) ve `manifest.json`'da `session` ve `logger` olarak durur. `session_id` / `parcel_id` uyuşmazlığı (ve `session_start` olayındaki parselin uyuşmazlığı) ingest hatasıdır.
+- `qr_sync` olaylarının payload'ındaki QR değeri olayın GPS zamanıyla ve videodaki QR okumalarıyla karşılaştırılır; sonuç `sync.json`'da `qr_sync_checks` olarak yazılır, büyük farklar uyarı verir.
 - Video parçaları dosya adı sırasıyla, kesintisiz ardışık bölümler olarak kabul edilir; kamera saati parçalar boyunca sürer.
 - `base/` içindeki dosyalar uzantıya değil RINEX başlığına göre (gözlem / navigasyon) sınıflandırılır.
 - `trees.json`: `[{"tree_id", "slot_code", "lat", "lon"}]` ya da `{"trees": [...]}`. İP1'den sonra veritabanından gelecek.
+
+Sözleşme testleri (`tests/test_contract.py`) İP2 README'sindeki örnek `events.csv` ve `session.json` bloklarını `tests/data/ip2_readme_*` kopyalarından okur ve kopyaların README ile birebir aynı kaldığını denetler. Sentetik oturum üretici (`synth`) de bu biçimleri üretir.
 
 ## Aşamalar
 
@@ -85,7 +95,7 @@ Varsayılan çıktı kökü oturum klasörünün yanındaki `<oturum>.processed/
 
 [veri-modeli.md](../../docs/veri-modeli.md)'deki Capture/Asset ayrımını izler:
 
-- `captures`: ham girdiler. `capture_id` dosyanın SHA-256'sı; `kind`: `session_meta`, `gnss_raw`, `gnss_events`, `video`, `base_obs`, `base_nav`.
+- `captures`: ham girdiler. `capture_id` dosyanın SHA-256'sı; `kind`: `session_meta`, `logger_session`, `gnss_raw`, `gnss_events`, `video`, `base_obs`, `base_nav`.
 - `assets`: türetilmiş dosyalar. `asset_id` dosyanın SHA-256'sı; `kind`: `manifest`, `trajectory`, `time_sync`, `frame_selection`, `panorama`, `panorama_preview`, `tree_crop`. Her birinde `file` (yol, hash, boyut, medya türü, piksel boyutu), varsa `sidecar`, `pose` (WGS84, EPSG:4979, yön, yatay belirsizlik, çözüm kalitesi), `gps_time_ns`, `quality_score`, ağaç kesitlerinde `subject` (tree_id, slot_code, yön), `derived_from` (kaynak capture'lar ve üst asset'ler) ve `producer_stage`.
 - `pipeline`: ad, sürüm, parametre hash'i ve parametrelerin kendisi.
 
@@ -113,25 +123,11 @@ Hattaki tüm zamanlar **GPS zamanı, GPS başlangıcından (1980-01-06 00:00:00)
 
 ## QR zaman kodu biçimi
 
-Saha uygulaması (İP6) taramanın başında ve sonunda telefonda, sürekli yenilenen bir QR kod gösterir. İçeriği düz metindir:
+Biçim (`OQ1:<gps_time_ms>[:<oturum_etiketi>]`), yenileme hızı ve saha uygulaması kuralları: [docs/arayuzler.md → QR saat kodu](../../docs/arayuzler.md#qr-saat-kodu). Hattın tarafı:
 
-```
-OQ1:<gps_time_ms>[:<oturum_etiketi>]
-```
-
-| Alan | Anlamı |
-| --- | --- |
-| `OQ1` | Biçim ve sürüm işareti |
-| `gps_time_ms` | QR görüntüsünün ekranda belirdiği an, **GPS zamanı**, GPS başlangıcından bu yana tam sayı milisaniye (UTC değil; telefon UTC kullanıyorsa 18 s ekler) |
-| `oturum_etiketi` | Opsiyonel; `session_id`'nin harf, rakam, `_` ve `-` dışındaki karakterleri atılmış ilk 8 karakteri. Başka oturumun QR'ı yanlışlıkla okunursa elenir |
-
-Örnek: `OQ1:1476435618200:synth-00`
-
-Saha uygulaması için kurallar:
-- QR en az 10 Hz yenilenir (`qr_refresh_ms`, varsayılan 100 ms). Hat, okunan değere yenileme aralığının yarısını ekler; ekranın bilinen bir gecikmesi varsa `qr_display_latency_ms` ile verilir.
-- QR, kayıt başladıktan sonra ilk 20 sn içinde ve kayıt bitmeden önceki son 20 sn içinde kameraya birkaç saniye gösterilir (`qr_search_s`). Telefon kameraya yakın ve düz tutulur.
-- QR gösterildiğinde telefon kaydediciye `qr_sync` olayı gönderir; bu olaylar `sync.json`'da sayılır, hesaplamada kullanılmaz.
+- Okunan değere yenileme aralığının yarısı (`sync.qr_refresh_ms / 2`) ve varsa `sync.qr_display_latency_ms` eklenir. Etiketi başka oturuma ait QR'lar elenir.
 - Hat, okunan her kare için (kamera zamanı, GPS zamanı) çifti çıkarır ve doğrusal uydurma yapar. Başlangıç ve bitişin ikisinde de QR varsa kayma da hesaplanır, yoksa sadece ofset (`qr_offset_only`). Hiç QR okunamazsa hat durur; `sync.manual_offset_ns` parametresiyle elle ofset verilebilir.
+- `qr_sync` olayları uydurmada kullanılmaz, yalnızca çapraz kontrol içindir (`qr_sync_checks`; eşikler `sync.qr_event_max_diff_ms`, `sync.qr_event_video_max_gap_s`).
 
 ## Parametreler
 

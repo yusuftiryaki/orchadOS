@@ -1,9 +1,12 @@
 import numpy as np
 import pytest
 
-from orchados_pipeline.models import FileRole
+from orchados_pipeline.events import GnssEvent
+from orchados_pipeline.models import FileRole, QrObservation
 from orchados_pipeline.params import SyncParams
 from orchados_pipeline.sync import (
+    check_qr_events,
+    decode_event_payload,
     decode_qr_payload,
     encode_qr_payload,
     estimate_lag,
@@ -19,6 +22,50 @@ def test_qr_payload_roundtrip():
     assert decode_qr_payload(text) == (1475000000123, "4f2a9c1e")
     assert decode_qr_payload("OQ1:42") == (42, None)
     assert decode_qr_payload("https://example.com") is None
+
+
+def test_event_payload_formats():
+    assert decode_event_payload("OQ1:1476350122250:S-1") == (1476350122250, "S-1")
+    assert decode_event_payload("2026-10-18T09:15:04.250Z") == (1476350122250, None)
+    assert decode_event_payload("2026-10-18T09:15:04.250") is None  # no time zone
+    assert decode_event_payload("start") is None
+
+
+def _qr_event(gps_ns, payload, line=2):
+    return GnssEvent(line, 0, gps_ns, "qr_sync", payload)
+
+
+def _video_obs(gps_ms):
+    return QrObservation(
+        video="v.mp4",
+        frame_index=0,
+        camera_s=0.0,
+        gps_time_ms=gps_ms,
+        session_tag="S-1",
+        gps_time_ns_est=gps_ms * 1_000_000,
+        cluster="start",
+    )
+
+
+def test_qr_event_checks_warn_on_large_differences():
+    qr_ms = 1476350122200
+    events = [
+        _qr_event(qr_ms * 1_000_000 + 40_000_000, f"OQ1:{qr_ms}:S-1"),  # fine
+        _qr_event(qr_ms * 1_000_000 + 18_000_000_000, f"OQ1:{qr_ms}:S-1", 3),  # UTC on phone
+        _qr_event(None, f"OQ1:{qr_ms}:S-1", 4),
+        _qr_event(qr_ms * 1_000_000, f"OQ1:{qr_ms}:S-2", 5),
+        _qr_event(qr_ms * 1_000_000, "start", 6),
+        _qr_event(qr_ms * 1_000_000 + 60_000_000_000, f"OQ1:{qr_ms + 60_000}", 7),
+    ]
+    checks = check_qr_events(events, [_video_obs(qr_ms + 300)], "S-1", SyncParams())
+    ok, utc, no_gps, other, text, unseen = checks
+    assert ok.warning is None
+    assert ok.event_minus_qr_ms == 40.0 and ok.nearest_video_qr_ms == 300.0
+    assert "18000 ms" in utc.warning and "UTC" in utc.warning
+    assert "no GPS time" in no_gps.warning and no_gps.event_minus_qr_ms is None
+    assert "does not match" in other.warning
+    assert "not a QR time code" in text.warning and text.qr_gps_time_ms is None
+    assert "line 7" in unseen.warning and "no QR read from the video" in unseen.warning
 
 
 def test_fit_clock_offset_and_drift():
@@ -64,6 +111,14 @@ def test_clock_from_synthetic_session(processed_run):
     # Scan window lies between the start and end QR segments.
     assert clock.scan_start_camera_s < 3.0 < clock.scan_end_camera_s
     assert clock.qr_sync_events == 2
+    # qr_sync events carry the QR text; the end one had no PPS and was rebuilt from the anchor.
+    start, end = clock.qr_sync_checks
+    assert [start.gps_time_derived, end.gps_time_derived] == [False, True]
+    for c in (start, end):
+        assert c.event_minus_qr_ms == pytest.approx(30.0)  # synthetic BLE latency
+        assert c.nearest_video_qr_ms is not None and abs(c.nearest_video_qr_ms) < 1000
+        assert c.warning is None
+    assert not any("qr_sync event" in w for w in clock.warnings)
 
 
 @pytest.mark.parametrize("lag_s", [0.0, 0.137, -0.42, 1.25])
