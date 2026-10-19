@@ -6,7 +6,16 @@ import { getParcelMap } from "@/lib/parcels";
 import { createClient } from "@/lib/supabase/server";
 import { ParcelExplorer } from "./parcel-explorer";
 
-export async function ParcelDetail({ section, parcelId }: { section: Section; parcelId: string }) {
+export async function ParcelDetail({
+  section,
+  parcelId,
+  actions,
+}: {
+  section: Section;
+  parcelId: string;
+  // Section-specific links shown under the title (e.g. the office tool).
+  actions?: React.ReactNode;
+}) {
   const supabase = await createClient();
   const data = await getParcelMap(supabase, parcelId);
   // Not visible under RLS looks the same as not existing.
@@ -23,6 +32,7 @@ export async function ParcelDetail({ section, parcelId }: { section: Section; pa
         {" · "}
         {t.parcel.slotCount(data.slots.features.length, data.activeTreeCount)}
       </p>
+      {actions}
       <ParcelExplorer
         boundary={data.boundary?.geometry ?? null}
         slots={data.slots}

@@ -15,6 +15,7 @@ describe("Turkish messages", () => {
     ["age_class", enums.age_class, tr.tree.values.ageClass],
     ["tree_status", enums.tree_status, tr.tree.values.status],
     ["health_class", enums.health_class, tr.tree.values.health],
+    ["session_status", enums.session_status, tr.office.sessionStatus],
   ] as const)("labels every %s value", (_name, values, labels) => {
     for (const value of values) {
       expect(labels[value as keyof typeof labels]).toBeTruthy();
