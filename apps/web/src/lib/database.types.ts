@@ -1550,6 +1550,7 @@ export type Database = {
           overall_class: Database["public"]["Enums"]["health_class"] | null;
           parcel_id: string | null;
           session_id: string | null;
+          session_time: string | null;
           source: Database["public"]["Enums"]["assessment_source"] | null;
           tree_id: string | null;
         };
@@ -1592,6 +1593,7 @@ export type Database = {
           parcel_id: string | null;
           recorded_by: string | null;
           session_id: string | null;
+          session_time: string | null;
           slot_id: string | null;
           source: Database["public"]["Enums"]["measurement_source"] | null;
           subject: Database["public"]["Enums"]["measurement_subject"] | null;

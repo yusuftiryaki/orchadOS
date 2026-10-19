@@ -2,10 +2,11 @@
 -- Seed: owner a0..01, viewer a0..02, field_staff a0..03, expert a0..04; parcel c0..01;
 -- session e0..01 (inventory, in_review). Fixtures add results to that session, a
 -- second unprocessed session e0..02 with a newer expert assessment, and another
--- owner with a parcel of their own.
+-- owner with a parcel of their own. After publication two later visits are added:
+-- e0..03 (published, 2026-11-01) and e0..04 (processed, 2026-12-01).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(37);
+select plan(43);
 
 -- Fixtures (as postgres) -----------------------------------------------------------
 
@@ -141,6 +142,38 @@ select results_eq($$ select count(*) from public.capture $$, array[1::bigint], '
 reset role;
 update public.session set status = 'published' where id = 'e0000000-0000-4000-8000-000000000001';
 
+-- Later visits. S1-5: old expert opinion in the seed session, ai in a later published one.
+-- S1-6: expert and a newer ai in the same later session. S1-7: ai in the later published
+-- session and again in a still later unpublished one.
+insert into public.session (id, org_id, parcel_id, kind, status, started_at)
+values ('e0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001',
+        'c0000000-0000-4000-8000-000000000001', 'periodic_scan', 'published', '2026-11-01 07:00:00+00'),
+       ('e0000000-0000-4000-8000-000000000004', 'b0000000-0000-4000-8000-000000000001',
+        'c0000000-0000-4000-8000-000000000001', 'periodic_scan', 'processed', '2026-12-01 07:00:00+00');
+
+insert into public.assessment (org_id, parcel_id, session_id, tree_id, source, overall_class,
+  model_name, model_version, assessed_at)
+select 'b0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000001',
+       se::uuid, pg_temp.tree(t), s::public.assessment_source, c::public.health_class,
+       'test-model', '1', a::timestamptz
+from (values
+  ('e0000000-0000-4000-8000-000000000001', 'S1-5', 'expert', 'attention', '2026-10-10'),
+  ('e0000000-0000-4000-8000-000000000003', 'S1-5', 'ai', 'healthy', '2026-11-01'),
+  ('e0000000-0000-4000-8000-000000000003', 'S1-6', 'expert', 'problem', '2026-11-02'),
+  ('e0000000-0000-4000-8000-000000000003', 'S1-6', 'ai', 'dead', '2026-11-05'),
+  ('e0000000-0000-4000-8000-000000000003', 'S1-7', 'ai', 'healthy', '2026-11-01'),
+  ('e0000000-0000-4000-8000-000000000004', 'S1-7', 'ai', 'dead', '2026-12-01')
+) as v (se, t, s, c, a);
+
+insert into public.measurement (org_id, parcel_id, tree_id, metric_definition_id, value_scale,
+  uncertainty, method, method_version, source, session_id, measured_at)
+values ('b0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000001',
+        pg_temp.tree('S1-5'), pg_temp.metric('dead_branch_scale'), 0, 0.5, 'test', '1', 'expert',
+        'e0000000-0000-4000-8000-000000000001', '2026-10-10 08:00:00+00'),
+       ('b0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000001',
+        pg_temp.tree('S1-5'), pg_temp.metric('dead_branch_scale'), 3, 0.5, 'test', '1', 'ai',
+        'e0000000-0000-4000-8000-000000000003', '2026-11-01 08:00:00+00');
+
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "a0000000-0000-4000-8000-000000000001", "role": "authenticated"}', true);
 
@@ -155,17 +188,30 @@ select results_eq($$ select count(*) from public.measurement_evidence $$, array[
 select results_eq($$ select count(*) from public.assessment_measurement $$, array[1::bigint], 'owner sees assessment inputs');
 select results_eq($$ select count(*) from public.finding_evidence $$, array[1::bigint], 'owner sees finding evidence');
 
--- Priority rule (as the owner, all fixtures now published) ------------------------------
+-- Priority rule (as the owner): newest visible session first, source within it ----------
 
 select results_eq(
   $$ select overall_class::text from public.tree_latest_assessment where tree_id = md5('orchados-seed:tree:S1-1')::uuid $$,
   array['problem'], 'owner''s latest assessment ignores the unpublished newer one');
 select results_eq(
   $$ select overall_class::text from public.tree_latest_assessment where tree_id = md5('orchados-seed:tree:S1-2')::uuid $$,
-  array['attention'], 'expert beats newer model and ai assessments');
+  array['attention'], 'in the same session the expert beats newer model and ai assessments');
 select results_eq(
   $$ select overall_class::text from public.tree_latest_assessment where tree_id = md5('orchados-seed:tree:S1-3')::uuid $$,
   array['healthy'], 'without an expert, the newest model assessment beats a newer ai one');
+select results_eq(
+  $$ select overall_class::text from public.tree_latest_assessment where tree_id = md5('orchados-seed:tree:S1-5')::uuid $$,
+  array['healthy'], 'an old expert assessment does not shadow the ai result of a newer session');
+select results_eq(
+  $$ select overall_class::text from public.tree_latest_assessment where tree_id = md5('orchados-seed:tree:S1-6')::uuid $$,
+  array['problem'], 'within the newest session the expert beats a newer ai assessment');
+select results_eq(
+  $$ select overall_class::text from public.tree_latest_assessment where tree_id = md5('orchados-seed:tree:S1-7')::uuid $$,
+  array['healthy'], 'owner sees the newest published session, not a newer unpublished one');
+select results_eq(
+  $$ select value_scale from public.tree_latest_measurement
+     where tree_id = md5('orchados-seed:tree:S1-5')::uuid and metric_definition_id = md5('orchados-seed:metric:dead_branch_scale')::uuid $$,
+  array[3::smallint], 'an old expert measurement does not shadow the ai measurement of a newer session');
 select results_eq(
   $$ select count(*) = count(distinct tree_id) from public.tree_latest_assessment $$,
   array[true], 'tree_latest_assessment has one row per tree');
@@ -192,6 +238,14 @@ select results_eq(
 select set_config('request.jwt.claims', '{"sub": "a0000000-0000-4000-8000-000000000002", "role": "authenticated"}', true);
 select ok(exists (select 1 from public.assessment where id = '97000000-0000-4000-8000-000000000004'),
   'viewer sees the published assessment');
+select results_eq(
+  $$ select overall_class::text from public.tree_latest_assessment where tree_id = md5('orchados-seed:tree:S1-7')::uuid $$,
+  array['healthy'], 'viewer also sees the newest published session');
+
+select set_config('request.jwt.claims', '{"sub": "a0000000-0000-4000-8000-000000000004", "role": "authenticated"}', true);
+select results_eq(
+  $$ select overall_class::text from public.tree_latest_assessment where tree_id = md5('orchados-seed:tree:S1-7')::uuid $$,
+  array['dead'], 'expert sees the newest session even when it is not published');
 
 select set_config('request.jwt.claims', '{"sub": "f0000000-0000-4000-8000-000000000009", "role": "authenticated"}', true);
 select is_empty($$ select id from public.assessment $$, 'publication does not open results to owners of other parcels');
