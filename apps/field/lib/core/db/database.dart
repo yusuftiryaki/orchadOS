@@ -93,7 +93,27 @@ class Captures extends Table {
   TextColumn get shotCode => text()();
   DateTimeColumn get capturedAt => dateTime()();
   IntColumn get gpsTimeMs => integer()();
+
+  /// `gps` or `phone`: whether [gpsTimeMs] came from the logger's GPS time
+  /// or from the phone clock alone.
   TextColumn get timeSource => text()();
+
+  /// On-device quality check (schema 2; null on rows from schema 1).
+  /// `accept` or `warn`; rejected photos are never stored.
+  TextColumn get qcVerdict => text().nullable()();
+
+  /// Version of the check and its thresholds (`photo-qc-v1`).
+  TextColumn get qcVersion => text().nullable()();
+
+  /// Variance of the Laplacian, mean luminance (0–255) and clipped pixel
+  /// shares (0–1) on the downscaled photo.
+  RealColumn get qcSharpness => real().nullable()();
+  RealColumn get qcBrightness => real().nullable()();
+  RealColumn get qcDarkRatio => real().nullable()();
+  RealColumn get qcBrightRatio => real().nullable()();
+
+  /// Warnings the crew accepted, e.g. `blurry:warn`; empty when none.
+  TextColumn get qcFindings => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {sha256};
@@ -156,10 +176,22 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase(driftDatabase(name: 'orchados_field'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // Photo quality check (İP6).
+        await m.addColumn(captures, captures.qcVerdict);
+        await m.addColumn(captures, captures.qcVersion);
+        await m.addColumn(captures, captures.qcSharpness);
+        await m.addColumn(captures, captures.qcBrightness);
+        await m.addColumn(captures, captures.qcDarkRatio);
+        await m.addColumn(captures, captures.qcBrightRatio);
+        await m.addColumn(captures, captures.qcFindings);
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },

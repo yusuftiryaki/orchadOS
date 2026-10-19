@@ -6,6 +6,7 @@ import '../core/db/database.dart';
 import '../core/db/field_repository.dart';
 import '../core/media/field_camera.dart';
 import '../core/media/media_store.dart';
+import '../core/quality/photo_quality.dart';
 import '../core/time/clock.dart';
 import '../core/time/gps_clock.dart';
 import '../features/auth/auth_repository.dart';
@@ -27,6 +28,11 @@ final gnssLoggerProvider = Provider<GnssLogger>(
 
 final cameraProvider = Provider<FieldCamera>(
   (ref) => throw UnimplementedError('override cameraProvider'),
+);
+
+/// On-device photo quality check; runs in a separate isolate.
+final photoQualityCheckerProvider = Provider<PhotoQualityChecker>(
+  (ref) => const PhotoQualityChecker(),
 );
 
 final mediaStoreProvider = Provider<MediaStore>(

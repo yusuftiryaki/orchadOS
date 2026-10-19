@@ -4,17 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../core/db/field_repository.dart';
 import '../../core/media/media_store.dart';
+import '../../core/quality/photo_quality.dart';
 import '../../core/ui/widgets.dart';
+import '../camera/capture_screen.dart';
 import '../session/session_controller.dart';
 import '../tasks/field_task.dart';
 import 'closeup_protocol.dart';
 
 /// Photos and yes/no questions for one tree.
 ///
-/// Photos come only from the in-app camera ([FieldCamera]); there is no
-/// gallery option. Each photo is hashed (SHA-256) and written to the
-/// content-addressed store the moment it is taken; the database rows are
-/// written together with the answers when the tree is saved.
+/// Photos come only from the in-app camera ([CaptureScreen]); there is no
+/// gallery option. A photo that passes the quality check and that the crew
+/// chose to use is hashed (SHA-256) and written to the content-addressed
+/// store; the database rows are written together with the answers when the
+/// tree is saved.
 class TreeObservationScreen extends ConsumerStatefulWidget {
   const TreeObservationScreen({super.key, required this.tree});
 
@@ -44,11 +47,21 @@ class _TreeObservationScreenState extends ConsumerState<TreeObservationScreen> {
   Future<void> _take(ShotSpec spec) async {
     setState(() => _capturing = spec.code);
     try {
-      final shot = await ref.read(cameraProvider).takePicture();
-      final hash = sha256Hex(shot.bytes);
-      final time = ref.read(gpsClockProvider).now();
+      final photo = await Navigator.of(context).push<CapturedPhoto>(
+        MaterialPageRoute(
+          builder: (_) => CaptureScreen(
+            title: spec.title,
+            hint: spec.hint,
+            referenceImage: spec.referenceImage,
+          ),
+        ),
+      );
+      // Cancelled, or only rejected photos: nothing is stored.
+      if (photo == null || !photo.quality.canSave) return;
+      final bytes = photo.shot.bytes;
+      final hash = sha256Hex(bytes);
       final store = ref.read(mediaStoreProvider);
-      final path = await store.put(shot.bytes, sha256: hash);
+      final path = await store.put(bytes, sha256: hash);
       final previous = _shots[spec.code];
       // A retake replaces a photo that was never saved; drop its file.
       if (previous != null && previous.sha256 != hash) {
@@ -60,15 +73,16 @@ class _TreeObservationScreenState extends ConsumerState<TreeObservationScreen> {
           shotCode: spec.code,
           sha256: hash,
           localPath: path,
-          mediaType: shot.mediaType,
-          byteSize: shot.bytes.length,
-          capturedAt: ref.read(clockProvider).now(),
-          gpsTimeMs: time.gpsTimeMs,
-          timeSource: time.source,
+          mediaType: photo.shot.mediaType,
+          byteSize: bytes.length,
+          capturedAt: photo.capturedAt,
+          gpsTimeMs: photo.time.gpsTimeMs,
+          timeSource: photo.time.source,
+          quality: photo.quality,
         ),
       );
     } catch (e) {
-      if (mounted) showError(context, 'Fotoğraf çekilemedi: $e');
+      if (mounted) showError(context, 'Fotoğraf kaydedilemedi: $e');
     } finally {
       if (mounted) setState(() => _capturing = null);
     }
@@ -198,7 +212,10 @@ class _ShotCard extends StatelessWidget {
                       Text('Böyle çek: ${spec.hint}'),
                       if (taken)
                         Text(
-                          'Çekildi · ${shot!.sha256.substring(0, 8)}',
+                          shot!.quality.verdict == QualityVerdict.warn
+                              ? 'Çekildi (uyarıyla) · '
+                                    '${shot!.sha256.substring(0, 8)}'
+                              : 'Çekildi · ${shot!.sha256.substring(0, 8)}',
                           style: TextStyle(color: Colors.green.shade700),
                         ),
                     ],
