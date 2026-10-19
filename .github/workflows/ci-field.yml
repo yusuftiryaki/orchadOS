@@ -1,0 +1,64 @@
+name: ci-field
+
+on:
+  pull_request:
+    paths:
+      - "apps/field/**"
+      - ".github/workflows/ci-field.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/field/**"
+      - ".github/workflows/ci-field.yml"
+
+concurrency:
+  group: ci-field-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  field-app:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/field
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+
+      - name: Dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
+
+      - name: Generated code is up to date
+        run: |
+          dart run build_runner build
+          git diff --exit-code
+
+      # The APK is only built on main to save Actions minutes.
+      - name: Build debug APK
+        if: github.ref == 'refs/heads/main'
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchados-saha-debug-apk
+          path: apps/field/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
