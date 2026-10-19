@@ -72,8 +72,17 @@ gantt
 | İP0 | Tamam | Repo iskeleti, `core` ve `mobile` devcontainer'ları, bulut ortamı |
 | İP1 | Tamam (PR #1) | Şema, satır bazlı yetki, 310 yerli ve 302 aktif ağaçlı sentetik bahçe, 101 pgTAP testi. Açık: yayımlanmamış değerlendirmelerin sahipten gizlenmesi (İP8), depolama alanları ve kuralları (İP4 yükleme) |
 | İP2 | Yazılım tamam (PR #2) | 72 birim testi, ESP32 derlemesi. Açık: gerçek donanım testleri (README'deki 12 adım), kit gelince |
-| İP4 | Çekirdek tamam (PR #3) | 54 test, uçtan uca sentetik oturum. Açık: veritabanı ve depolamaya yükleme, gerçek PPK denemesi (İP3) |
-| Entegrasyon | Açık | İP2 `events.csv` 6 sütun yazıyor, İP4 4 sütun bekliyor; `session.json` alan adları eşleşmeli; QR biçimi (`OQ1:<gps_ms>:<etiket>`) İP6'ya aktarılmalı |
+| İP4 | Çekirdek tamam (PR #3, #4) | 76 test, uçtan uca sentetik oturum, İP2 biçimleriyle sözleşme testleri. Açık: veritabanı ve depolamaya yükleme, gerçek PPK denemesi (İP3) |
+| Entegrasyon | Tamam (PR #4) | Sözleşmeler `docs/arayuzler.md` içinde |
+| İP5/İP7/İP8 temeli | Web iskeleti tamam (PR #5) | Rol bazlı bölümler, parsel listesi ve haritası; 37 birim, 21 entegrasyon, 14 tarayıcı testi |
+| İP6 | İskelet tamam (PR #6) | BLE protokolü, QR saat, ekran akışı, çevrimdışı kuyruk; 46 test. Açık: gerçek kamera, senkronizasyon, kapsama haritası, telefonda deneme, APK derlemesi (yerelde) |
+
+**Açık işler (ikinci dalgadan)**
+
+- [ ] **Firmware:** BLE durum mesajına `gps_time_ns` alanı (ofset 31, u64); QR saatinin GPS zamanına göre gösterilmesi buna bağlı. README'deki `qr_sync` örneği `OQ1` biçimine çevrilmeli; örnek satırdaki 20 µs tutarsızlık düzeltilmeli.
+- [ ] **Şema:** Yayımlanmamış değerlendirme ve bulguların sahipten gizlenmesi (İP8'den önce); "ağaç başına son değerlendirme" görünümü; personel evet/hayır cevaplarında belirsizlik alanının zorunluluğu.
+- [ ] **Lisans:** `flutter_blue_plus` ticari kullanımda ücretli. Ticari kullanıma geçmeden lisans ya da paket değişikliği.
+- [ ] **Saha uygulaması:** `flutter build apk` bulutta Maven 429 hatası verdi; yerelde `mobile` devcontainer'ında denenecek.
 
 Toplam yaklaşık 55 gün (İP9 hariç).
 

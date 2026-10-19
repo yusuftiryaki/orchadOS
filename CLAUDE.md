@@ -8,6 +8,7 @@
 - `docs/plan.md`: iş paketleri (İP0–İP11), kilometre taşları, kesme listesi. Hangi İP üzerinde çalışıldığını buradan bul; ilerlemeyi burada güncelle.
 - `docs/MVP.md`: ürün tanımı ve modüller.
 - `docs/veri-modeli.md`: **veri modelinin kaynağı**. Şema değişiklikleri önce burada tartışılır.
+- `docs/arayuzler.md`: **bileşenler arası sözleşmelerin kaynağı**: oturum klasörü, `events.csv`, iki `session.json`, QR saat kodu, zaman tanımı. Bir biçim değişirse önce burası güncellenir.
 
 ## Yapı
 - `apps/web/` — Next.js: sahip portalı, uzman paneli, ofis üçgenleme aracı
@@ -59,3 +60,23 @@ BLE protokolü, dosya biçimleri ve bağlantı tablosu: `firmware/gnss-logger/RE
 | `uv run orchados-pipeline run <oturum>` | Tüm aşamaları sırayla çalıştırır |
 
 Aşamalar, girdi/çıktı biçimleri ve QR saat kodu biçimi: `services/pipeline/README.md`.
+
+### Web uygulaması (`apps/web/`)
+Kökte `pnpm install`. Entegrasyon testleri için yerel Supabase çalışıyor ve sıfırlanmış olmalı (`pnpm db:start && pnpm db:reset`).
+
+| Komut | Ne yapar |
+| --- | --- |
+| `pnpm web:dev` | Geliştirme sunucusu |
+| `pnpm web:lint` | ESLint + Prettier + tip denetimi |
+| `pnpm web:build` | Üretim derlemesi |
+| `pnpm web:test` | Birim (Vitest) + yerel Supabase'e karşı entegrasyon testleri |
+| `pnpm web:e2e` | Playwright tarayıcı testleri (Chromium gerekir) |
+| `pnpm web:typegen` | Veritabanı tiplerini yeniden üretir (`src/lib/database.types.ts`) |
+
+### Saha uygulaması (`apps/field/`, `mobile` devcontainer)
+| Komut | Ne yapar |
+| --- | --- |
+| `flutter analyze` | Statik analiz |
+| `flutter test` | Birim ve arayüz testleri |
+| `dart run build_runner build --delete-conflicting-outputs` | drift kodunu yeniden üretir; üretilen dosyalar commit'lenir |
+| `flutter run --dart-define=FAKE_GNSS=true` | Telefonda, kaydedici olmadan |
