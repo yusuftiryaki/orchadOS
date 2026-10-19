@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { E2E_DATA_DIR } from "./tests/e2e/global-setup";
 import { resolveSupabaseEnv } from "./tests/local-supabase";
 
 // Browser tests against a production build of the app and the local Supabase
@@ -9,6 +10,7 @@ const supabase = resolveSupabaseEnv();
 
 export default defineConfig({
   testDir: "tests/e2e",
+  globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: false,
   workers: 1,
   reporter: [["list"]],
@@ -25,6 +27,10 @@ export default defineConfig({
     env: {
       NEXT_PUBLIC_SUPABASE_URL: supabase.url,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: supabase.anonKey,
+      // Office tool: synthetic panoramas from the global setup. The local
+      // panorama source is development-only; this build allows it explicitly.
+      LOCAL_PANORAMA_DIR: `${E2E_DATA_DIR}/runs`,
+      LOCAL_PANORAMA_ALLOW_PRODUCTION: "1",
     },
   },
 });
