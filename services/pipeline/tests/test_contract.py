@@ -67,9 +67,12 @@ def test_readme_logger_session_parses():
 def test_readme_qr_payload_cross_check():
     # The README example carries the QR value as ISO-8601 UTC; it matches the event time.
     ev = [e for e in read_events(EVENTS) if e.event_type == "qr_sync"]
-    assert decode_event_payload(ev[0].payload) == (1476350122250, None)
+    # Firmware README example: the QR showed 1476350122230 ms; the ESP32 processed the
+    # qr_sync command ~20 ms later (BLE latency), well inside the warning threshold.
+    assert decode_event_payload(ev[0].payload) == (1476350122230, "S-1")
     (check,) = check_qr_events(ev, [], "S-1", SyncParams())
-    assert check.event_minus_qr_ms == 0.0 and check.warning is None
+    assert check.event_minus_qr_ms == pytest.approx(19.98, abs=0.01)
+    assert check.warning is None
 
 
 def _readme_session(synthetic_session, tmp_path) -> Path:
@@ -87,7 +90,7 @@ def _readme_session(synthetic_session, tmp_path) -> Path:
 def test_ingest_accepts_readme_files(synthetic_session, tmp_path):
     s = _readme_session(synthetic_session, tmp_path)
     m = build_manifest(RunContext.create(s, tmp_path / "out"))
-    assert m.logger is not None and m.logger.firmware_version == "0.1.0"
+    assert m.logger is not None and m.logger.firmware_version == "0.2.0"
     assert m.session.session_id == m.logger.session_id == "S-1"
     assert m.event_counts == {"qr_sync": 1, "session_start": 1}
     roles = {f.path: f.role for f in m.files}
