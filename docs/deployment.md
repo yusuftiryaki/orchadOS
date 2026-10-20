@@ -10,7 +10,7 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 | --- | --- | --- | --- |
 | Yerel | `pnpm web:dev` | `pnpm db:start` (Docker) | Elle |
 | PR önizlemesi | Vercel önizleme adresi | Supabase test projesi | Her push'ta (web); migration'lar ancak `main`'e birleşince |
-| Test | Vercel üretim adresi (`main`) | Supabase test projesi (Frankfurt) | `main`'e her birleşmede |
+| Test | Vercel üretim adresi (`main`) | Supabase test projesi (Stockholm) | `main`'e her birleşmede |
 
 **Dikkat:** PR önizlemeleri de test veritabanını kullanır. Bir PR yeni bir migration içeriyorsa, önizlemedeki web uygulaması migration `main`'e birleşene kadar eski şemayla çalışır.
 
@@ -44,7 +44,7 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 - Repo Vercel'e GitHub entegrasyonuyla bağlıdır; ayrı bir iş akışı yoktur.
 - Kök dizin `apps/web`. Kurulum pnpm workspace'i üzerinden yapılır.
 - Ortam değişkenleri: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase'in "publishable" anahtarı ya da eski "anon" anahtarı). Servis anahtarı Vercel'e **konmaz**.
-- Sunucu fonksiyonları Frankfurt'ta (`apps/web/vercel.json`, `fra1`): veritabanına yakın ve veri AB içinde kalıyor.
+- Sunucu fonksiyonları veritabanıyla aynı bölgede: test projesi Stockholm'de (`eu-north-1`), Vercel bölgesi `arn1` (`apps/web/vercel.json`). Üretim projesi Frankfurt'ta açılırsa bölge `fra1` olur.
 - Supabase Auth ayarlarında Site URL olarak Vercel üretim adresi, yönlendirme adreslerinde Vercel önizleme adresleri tanımlıdır.
 
 ## Test projesindeki kullanıcılar
