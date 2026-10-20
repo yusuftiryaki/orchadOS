@@ -183,7 +183,7 @@ Yerelde: `pnpm db:status` adresi ve anahtarı verir; kullanıcı `ops@example.co
 
 - Aynı çalıştırmayı ikinci kez yüklemek hiçbir şey eklemez: var olan nesneler atlanır (klasör listesiyle), `capture` oturum + `content_hash` ile, `asset` oturum + `content_hash` + `pipeline_version` ile bulunur, eksik lineage satırları tamamlanır.
 - Sıra her asset için dosya → satır → lineage'dır; yarıda kesilen yükleme aynı komutla kaldığı yerden tamamlanır. Oturum durumu en sonda değişir.
-- Hat sürümü değişip yeniden işlenince yeni `asset` satırları eklenir, eski sürümün satırları kalır. Bayt bayt aynı dosya depoda tek nesnedir; satırlar onu paylaşır. Bunun için şemada içerik hash'i kurum başına değil, `capture`'da oturum başına, `asset`'te oturum + hat sürümü başına benzersizdir (`supabase/migrations/20261020120100_content_hash_per_session.sql`). Aynı sürümde yalnızca parametreleri farklı bir çalıştırmanın aynı dosyası mevcut satırla eşleşir (satırdaki `params_hash` ilk yüklemeninkidir).
+- Hat sürümü değişip yeniden işlenince yeni `asset` satırları eklenir, eski sürümün satırları kalır. Bayt bayt aynı dosya depoda tek nesnedir; satırlar onu paylaşır. Bunun için şemada içerik hash'i kurum başına değil, `capture`'da oturum başına, `asset`'te oturum + hat sürümü başına benzersizdir (`supabase/migrations/20261020160000_content_hash_per_session.sql`). Aynı sürümde yalnızca parametreleri farklı bir çalıştırmanın aynı dosyası mevcut satırla eşleşir (satırdaki `params_hash` ilk yüklemeninkidir).
 
 ### Ücretsiz katman
 
