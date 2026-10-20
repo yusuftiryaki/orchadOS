@@ -5,12 +5,18 @@ on:
     paths:
       - "services/pipeline/**"
       - "firmware/gnss-logger/README.md" # contract tests compare against it
+      - "supabase/**" # upload integration tests run against the local stack
+      - "package.json"
+      - "pnpm-lock.yaml"
       - ".github/workflows/ci-pipeline.yml"
   push:
     branches: [main]
     paths:
       - "services/pipeline/**"
       - "firmware/gnss-logger/README.md"
+      - "supabase/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
       - ".github/workflows/ci-pipeline.yml"
 
 concurrency:
@@ -20,12 +26,32 @@ concurrency:
 jobs:
   pipeline:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: services/pipeline
     steps:
       - uses: actions/checkout@v4
+
+      # Local Supabase for the upload integration tests (tests/test_upload_supabase.py).
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Supabase CLI
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
+      - name: Start local Supabase
+        working-directory: .
+        run: pnpm db:start
+
+      - name: Apply migrations and seed
+        working-directory: .
+        run: pnpm db:reset
 
       - name: Install RTKLIB
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends rtklib
@@ -42,8 +68,14 @@ jobs:
           uv run ruff check .
           uv run ruff format --check .
 
-      - name: Tests
-        run: uv run pytest -q
+      - name: Tests (integration tests must not be skipped here)
+        run: |
+          set -o pipefail
+          uv run pytest -q -rs | tee "$RUNNER_TEMP/pytest.log"
+          if grep -q "SKIPPED.*Supabase not reachable" "$RUNNER_TEMP/pytest.log"; then
+            echo "::error::Supabase integration tests were skipped"
+            exit 1
+          fi
 
       - name: End-to-end on a synthetic session
         run: |

@@ -1,4 +1,4 @@
-"""Stage 7 – outputs.json and upload.
+"""Stage 7 – outputs.json (uploading is in upload.py).
 
 outputs.json follows the Capture/Asset split of docs/veri-modeli.md: captures
 are the raw input files (by content hash), assets are derived files with their
@@ -9,15 +9,15 @@ and parameter hash.
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Literal
 
 from pydantic import Field
 
 from . import PIPELINE_NAME, __version__
 from .context import RunContext
 from .hashing import sha256_file
+from .imaging import FACE_BLUR
 from .models import (
     CropSet,
     FileRef,
@@ -26,7 +26,6 @@ from .models import (
     Model,
     PanoramaSet,
     Pose,
-    read_model,
     write_model,
 )
 
@@ -62,6 +61,8 @@ class AssetEntry(Model):
     pose: Pose | None = None
     quality_score: float | None = None
     subject: dict[str, str] | None = None  # e.g. {"tree_id": ..., "slot_code": ...}
+    # Image filters the pixels went through (panoramas and crops); see imaging.FACE_BLUR.
+    filters_applied: list[str] | None = None
     derived_from: Lineage
     producer_stage: str
 
@@ -154,6 +155,7 @@ def build_outputs(
             quality_score=rec.quality_score,
             producer_stage="panoramas",
             sidecar=side,
+            filters_applied=list(rec.filters_applied),
         )
         assets.append(
             AssetEntry(
@@ -174,6 +176,7 @@ def build_outputs(
             )
         )
 
+    pano_filters = {p.image.sha256: p.filters_applied for p in pset.panoramas}
     if cset is not None:
         for rec, side in zip(cset.crops, cset.sidecars, strict=True):
             assets.append(
@@ -191,11 +194,12 @@ def build_outputs(
                     },
                     derived_from=Lineage(assets=[rec.panorama_sha256]),
                     producer_stage="crops",
+                    filters_applied=list(pano_filters.get(rec.panorama_sha256, [])),
                 )
             )
 
     warnings = list(manifest.warnings)
-    if pset.panoramas and not pset.panoramas[0].filters_applied:
+    if any(FACE_BLUR not in p.filters_applied for p in pset.panoramas):
         warnings.append("panoramas are not face-blurred; do not publish before blurring")
     return Outputs(
         pipeline=PipelineRef(
@@ -217,73 +221,6 @@ def run(ctx: RunContext, manifest: Manifest, pset: PanoramaSet, cset: CropSet | 
     out = build_outputs(ctx, manifest, pset, cset)
     write_model(out, ctx.outputs_path)
     return out
-
-
-# --- upload --------------------------------------------------------------------------
-
-
-class Uploader(Protocol):
-    """Destination for a finished run (object storage + metadata API, after İP1)."""
-
-    def put_object(self, local_path: Path, sha256: str, media_type: str) -> str:
-        """Store a file under its content hash; return its URI. Must be idempotent."""
-        ...
-
-    def put_metadata(self, outputs: Outputs) -> str:
-        """Register the run's outputs (captures, assets, lineage); return a reference."""
-        ...
-
-
-class ImmutableObjectError(RuntimeError):
-    pass
-
-
-class LocalUploader:
-    """Fake uploader: content-addressed objects and metadata in a local folder."""
-
-    def __init__(self, root: Path):
-        self.root = Path(root)
-
-    def _object_path(self, sha256: str) -> Path:
-        return self.root / "objects" / sha256[:2] / sha256
-
-    def put_object(self, local_path: Path, sha256: str, media_type: str) -> str:
-        dest = self._object_path(sha256)
-        if dest.exists():
-            if sha256_file(dest) != sha256:
-                raise ImmutableObjectError(f"object {sha256} exists with other content")
-        else:
-            if sha256_file(local_path) != sha256:
-                raise ImmutableObjectError(f"{local_path}: content does not match {sha256}")
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            tmp = dest.with_suffix(".tmp")
-            shutil.copyfile(local_path, tmp)
-            tmp.replace(dest)
-        return f"file://{dest.resolve()}"
-
-    def put_metadata(self, outputs: Outputs) -> str:
-        p = outputs.pipeline
-        dest = (
-            self.root
-            / "sessions"
-            / outputs.session_id
-            / f"v{p.version}_{p.params_hash[:12]}"
-            / "outputs.json"
-        )
-        write_model(outputs, dest)
-        return str(dest)
-
-
-def upload_run(run_dir: Path, uploader: Uploader) -> dict:
-    outputs = read_model(Outputs, Path(run_dir) / "outputs.json")
-    uris = {}
-    for a in outputs.assets:
-        for ref in filter(None, (a.file, a.sidecar)):
-            uris[ref.sha256] = uploader.put_object(
-                Path(run_dir) / ref.path, ref.sha256, ref.media_type
-            )
-    meta = uploader.put_metadata(outputs)
-    return {"objects": len(uris), "metadata": meta}
 
 
 def load_outputs(path: Path) -> Outputs:
