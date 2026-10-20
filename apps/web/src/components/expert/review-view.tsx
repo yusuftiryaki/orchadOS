@@ -142,9 +142,7 @@ export function ReviewView({
                     <span className={styles.treeCode}>{tree.code}</span>
                     {/* The expert's class once decided, else the AI suggestion. */}
                     <ClassBadge value={tree.expertClass ?? tree.aiClass} />
-                    {tree.expertClass == null && (
-                      <span className="muted">{confidence(tree)}</span>
-                    )}
+                    {tree.expertClass == null && <span className="muted">{confidence(tree)}</span>}
                     {tree.expertClass && (
                       <span
                         className={styles.check}
