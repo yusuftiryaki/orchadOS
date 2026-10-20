@@ -89,7 +89,7 @@ gantt
 - [ ] **Web:** Medya imzalama iki yerde: `src/lib/media/` (portal) ve `src/lib/expert/media.ts`. Uzman paneli ortak yardımcıya geçmeli; `fetchAll` kopyası da birleştirilmeli.
 - [ ] **Testler:** Ekleme-yalnız tablolar yüzünden web testleri kendi işletmelerini kurup `docker exec ... psql` ile temizliyor. Testler için bir temizlik fonksiyonu daha temiz olur.
 - [ ] **Örnek veri:** `supabase/demo/scans.sql` `pose` alanları `docs/arayuzler.md`'deki sözleşmeye tam uymuyor (`variant`, `gps_time_ns`, `panorama_asset_id` eksik; MIME türü WebP olmalı).
-- [ ] **Karar:** Uzman ölçümleri yayından sonra kilitlensin mi? (Şu an değerlendirme ve bulgular kilitli, ölçümler değil; saha uygulamasının geç gönderimi için.)
+- [x] **Karar (20 Ekim):** Yayından sonra sadece uzman ölçümleri kilitli; saha personelinin geç gelen kayıtları serbest.
 - [ ] **Saha uygulaması:** README ve `GnssStatus` yorumu, firmware 0.2.0'daki GPS zamanı alanını hâlâ "önerilen" diye anlatıyor; evet/hayır cevapları gönderilirken `value_bool` → `value_boolean` eşlemesi.
 - [ ] **Lisans:** `flutter_blue_plus` ticari kullanımda ücretli. Ticari kullanıma geçmeden lisans ya da paket değişikliği.
 - [ ] **Saha uygulaması:** `flutter build apk` CI'da kırık: `permission_handler_android` `compileSdk` 37 istiyor (İP6 senkronizasyon görevinde).
