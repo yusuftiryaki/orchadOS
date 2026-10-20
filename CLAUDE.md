@@ -75,6 +75,7 @@ Kökte `pnpm install`. Entegrasyon testleri için yerel Supabase çalışıyor v
 | `pnpm web:test` | Birim (Vitest) + yerel Supabase'e karşı entegrasyon testleri |
 | `pnpm web:e2e` | Playwright tarayıcı testleri (Chromium gerekir) |
 | `pnpm web:typegen` | Veritabanı tiplerini yeniden üretir (`src/lib/database.types.ts`) |
+| (ofis aracı) | Panoramaları depodan okur; geliştirmede yerel klasör `LOCAL_PANORAMA_DIR` ile seçilir |
 | `cd apps/web && pnpm office:dev-data` | Ofis üçgenleme aracı için sentetik panoramalar ve yeri olmayan bir geliştirme parseli üretir. Testlerden önce `pnpm db:reset` gerekir |
 
 ### Saha uygulaması (`apps/field/`, `mobile` devcontainer)
