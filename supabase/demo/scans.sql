@@ -15,7 +15,7 @@
 begin;
 
 -- Same helper as seed.sql (pg_temp functions do not survive across files).
-create function pg_temp.local_point(x double precision, y double precision)
+create or replace function pg_temp.local_point(x double precision, y double precision)
 returns extensions.geometry
 language sql
 immutable
