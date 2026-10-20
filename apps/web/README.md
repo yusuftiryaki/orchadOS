@@ -4,7 +4,7 @@ Next.js web uygulaması: sahip portalı, uzman paneli ve ofis üçgenleme aracı
 
 İş paketleri: İP5 (ofis üçgenleme aracı), İP7 (uzman paneli), İP8 (sahip portalı). Bkz. [docs/plan.md](../../docs/plan.md).
 
-Şu anki hâli: giriş/çıkış, rol bazlı bölümler, her bölümde parsel listesi ve harita üzerinde parsel detayı (iskelet), `/ofis` altında **ofis üçgenleme aracı** (İP5) ve `/portal` altında **sahip portalı** (İP8); ikisi de aşağıda.
+Şu anki hâli: giriş/çıkış, rol bazlı bölümler, her bölümde parsel listesi ve harita üzerinde parsel detayı (iskelet), `/ofis` altında **ofis üçgenleme aracı** (İP5), `/uzman` altında **uzman paneli** (İP7) ve `/portal` altında **sahip portalı** (İP8); üçü de aşağıda.
 
 ## Kurulum
 
@@ -53,7 +53,8 @@ apps/web/
 │   ├── app/
 │   │   ├── giris/               # giriş sayfası, giriş yöntemleri, server action
 │   │   ├── portal/              # sahip, izleyici: bahçelerim, karne, ağaç karnesi, 360° gezi
-│   │   ├── uzman/               # uzman
+│   │   ├── uzman/               # uzman: ziyaret kuyruğu, server action'lar
+│   │   │   └── ziyaret/[sessionId]/ # ağaç ağaç inceleme; ozet/ özet ve imza
 │   │   ├── ofis/                # saha personeli, operasyon
 │   │   │   ├── parsel/[parcelId]/envanter/  # ofis üçgenleme aracı + kaydetme (server action)
 │   │   │   └── panorama/[setId]/[panoramaId]/[variant]/  # panorama görüntüsü (route handler)
@@ -63,7 +64,8 @@ apps/web/
 │   │   └── page.tsx             # girişten sonra ilk erişilebilir bölüme yönlendirir
 │   ├── components/              # bölüm başlığı, parsel listesi, harita, ağaç paneli
 │   │   ├── office/              # üçgenleme aracı: harita, panorama görünümü, paneller
-│   │   └── portal/              # sahip portalı: karne, sağlık haritası, ağaç karnesi, gezi
+│   │   ├── portal/              # sahip portalı: karne, sağlık haritası, ağaç karnesi, gezi
+│   │   └── expert/              # uzman paneli: kuyruk, inceleme, karar, bulgu, özet, kısayollar
 │   └── lib/
 │       ├── auth/                # roller → bölümler, oturum ve bölüm kontrolü
 │       ├── i18n/tr.ts           # bütün arayüz metinleri
@@ -72,6 +74,7 @@ apps/web/
 │       │                        # panorama kaynağı, envanter kaydı
 │       ├── portal/              # portal sorguları + saf hesaplar (sınıf, değişim, ölçüm, gezi yönleri)
 │       ├── media/               # storage:// adresleri, toplu imzalama ve önbellek
+│       ├── expert/              # mevsim, metrik seçimi, özet (saf TS); sorgular, kararlar, bulgular
 │       ├── supabase/            # sunucu istemcisi ve proxy oturum yenileme
 │       ├── parcels.ts           # parsel sorguları (sadece satır bazlı yetkiyle)
 │       └── database.types.ts    # üretilmiş; elle değiştirilmez
@@ -267,3 +270,72 @@ Geliştirme parseli örnek işletmeye eklendiği için entegrasyon testlerindeki
 - **Yatay üçgenleme:** tıklamanın yükseklik açısı kullanılmıyor (kamera yüksekliğiyle tek panoramadan mesafe tahmini yapılabilirdi).
 - **Izgara varsayımı:** sıralar paralel ve aynı aralıklı ızgarada kabul edilir; şaşırtmalı (üçgen) dikim, eğri sıralar ve tamamen boş bir sıra algılanmaz.
 - **Taslak tarayıcıda:** başka bir bilgisayardan devam edilemez.
+
+## Uzman paneli (İP7)
+
+Uzman (ziraat mühendisi) bir tarama ziyaretini uzaktan inceler, AI ön değerlendirmesini kabul eder ya da düzeltir, bulgu ve öneri yazar, raporu imzalayıp yayımlar (`docs/MVP.md` Modül 4). Yayımlanana kadar sahip ve izleyici ziyaretin hiçbir sonucunu görmez (satır bazlı yetki, `docs/veri-modeli.md` "Yayın").
+
+### Ekranlar
+
+| Adres                          | Ne var                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/uzman`                       | **Ziyaret kuyruğu:** `processed` ve `in_review` durumundaki periyodik tarama ve doğrulama ziyaretleri, en eskisi önce; parsel, tarih, aktif ağaç, incelenen ve kalan sayısı. **Aç** düğmesi `processed` bir ziyareti `in_review`'a alır. Altta işletmenin parselleri.                                                                                                                                                                                                      |
+| `/uzman/ziyaret/<oturum>`      | **Ağaç ağaç inceleme.** Solda sıra/pozisyon koduna göre sıralı ağaç listesi ve filtreler: _İncelenmemiş_, _AI sorunlu dedi_ (AI sınıfı Sorunlu, Kuru ya da Yok), _Düşük güven_ (AI güveni %70'in altında ya da AI önerisi yok). Sağda seçili ağaç (`?agac=`): bu ziyaretin ve önceki yayımlanmış ziyaretin kesitleri yönlere göre yan yana, AI önerisi (sınıf, güven, model, ölçümler), önceki ziyaretin uzman sonucu, ağaç özellikleri, karar paneli ve ağacın bulguları. |
+| `/uzman/ziyaret/<oturum>/ozet` | **Özet ve imza:** uzman sınıflarının dağılımı, önceki ziyarete göre sınıfı değişenler (kötüleşen/iyileşen), AI ile uyum, incelenmemiş ağaçlar, bütün bulgular, parsel bulgusu ekleme ve yayımlama.                                                                                                                                                                                                                                                                         |
+
+**Kesitler** `asset` satırlarından (`kind = tree_crop`, yön `pose.direction`), `media` alanından tek çağrıda imzalanan adreslerle (`createSignedUrls`, 1 saat) gösterilir. Dosya depoda yoksa ya da açılamazsa yerine "Görüntü yok" kutusu çıkar (demo verisinde dosya yok).
+
+**Önceki ziyaret:** aynı parselin, bu ziyaretten önceki en yeni yayımlanmış periyodik tarama ya da doğrulama ziyareti (zaman: `started_at`, yoksa planlanan gün, yoksa kayıt zamanı).
+
+### Karar
+
+- **AI'ı kabul et:** AI satırı değişmez. AI sınıfıyla yeni bir `source = expert` değerlendirmesi yazılır; AI'ın bu ziyaretin metrikleri için verdiği değerler aynı değer ve belirsizlikle uzman ölçümü olarak kopyalanır.
+- **Düzelt:** Uzman sınıfı seçer ve metrikleri girer. Ölçek metrikleri zorunlu, sayı/kategori/evet-hayır metrikleri isteğe bağlı (görüntüden ölçülemeyebilir). Ölçek değerlerinin belirsizliği yarım basamak (0,5); sayı değerlerinde uzman belirsizliği kendisi girer. İsteğe bağlı not.
+- **Hangi metrikler:** `metric_definition` içinden ziyaretin mevsimine uyan (`valid_seasons`), karnede görünen (`card_visibility = shown`) ve ağaçta ölçülebilen metrikler; sınırlar ve birimler de oradan. **Mevsim** ziyaret zamanının ayından (UTC): Aralık–Şubat kış, Mart–Mayıs ilkbahar, Haziran–Temmuz yaz, Ağustos–Ekim hasat, Kasım kış (takvimdeki Mart ve Kasım boşlukları için karar; `src/lib/expert/season.ts`).
+- Kayıt tek işlemde `save_expert_assessment(...)` veritabanı fonksiyonuyla yapılır (kullanıcının yetkisiyle): değerlendirme, ölçümler (`source = expert`, `method = expert_review`, `method_version` = ziyaretin metodoloji sürümü, yoksa `methodology-v0`), ölçüm ile değerlendirme bağı (`assessment_measurement`) ve kanıt olarak ağacın bu ziyaretteki kesitleri (`measurement_evidence`). Ölçek sınırı dışındaki bir değer bütün kararı geri alır.
+- Karar değiştirilirse eski satırlar silinmez, yenisi eklenir; en yenisi geçerlidir (ekranlar ve `tree_latest_assessment` görünümü).
+- Kayıttan sonra listedeki bir sonraki ağaç açılır.
+
+**Klavye kısayolları** (bir form alanı odaktayken çalışmaz): `J` sonraki ağaç, `K` önceki, `A` AI'ı kabul et, `1`–`5` düzeltme formunda sınıf seçimi.
+
+### Bulgu ve öneri
+
+Ağaca (ağaç sayfasında) ya da parsele (özet sayfasında) bağlı bulgu: tür (öneri listesi: kuru dal, kuru ağaç, eksik ağaç, gövde hasarı, budama, zararlı belirtisi, don hasarı, dal kırığı, hırsızlık izi, sulama sızıntısı, diğer), önem, açıklama, öneri. Ağaç bulgusunda kanıt kesitleri seçilir (`finding_evidence`). Ziyaret yayımlanana kadar düzenlenip silinebilir.
+
+### Yayımlama ve veritabanı kuralları
+
+Migration: `supabase/migrations/20261020130000_expert_review_and_publication.sql`, pgTAP: `supabase/tests/11_expert_review.test.sql`.
+
+- `publish_session(p_session_id)`: sadece ziyaretin işletmesinde `expert` rolü olanlar çağırabilir. Ziyaret `processed` ya da `in_review` olmalı. Parseldeki her aktif ağacın bu ziyarette bir uzman değerlendirmesi olmalı; yoksa hata verir, eksik yer kodları hata ayrıntısında (`details: "missing: S1-3, ..."`) gelir ve özet sayfasında listelenir. Başarılıysa: onaysız bulgular ve uzman değerlendirmeleri imzalayan adına onaylanır, `status = published`, `published_at`, `published_by` yazılır.
+- **Kapatılan boşluk:** API kullanıcıları (`authenticated`) bir oturumu `published` olarak ekleyemez ya da durumunu `published`'a güncelleyemez (`session_insert` / `session_update` kuralları); yayımlanmış bir oturum API kullanıcıları için güncellenemez ve silinemez. Yayımlanmış bir oturumun durumu kimse için geri alınamaz (tetikleyici; servis anahtarı dahil). İşleme hattı ve testler (servis anahtarı) bir oturumu doğrudan `published` yazabilir; `published_at` o zaman otomatik dolar.
+- **Yayından sonra donma:** API kullanıcıları yayımlanmış bir ziyaretin değerlendirmelerini, bulgularını ve bunların bağlantı satırlarını ekleyemez, değiştiremez, silemez.
+- Yayından kaldırma bu sürümde yok.
+
+### Demo verisiyle kullanım
+
+```bash
+pnpm db:reset && pnpm db:demo     # repo kökünde; iki tarama ziyareti
+pnpm web:dev                      # expert@example.com / orchados-dev
+```
+
+1. `/uzman`: kuyrukta "Örnek Bahçe 1 · 18 Eki 2026 · İncelemede · 302 ağaç". **Devam et**.
+2. İlk ağaç S1-1 açılır; solda bu ziyaretin (18 Ekim), sağda önceki ziyaretin (14 Ekim) kesitleri (dosya yok, yer tutucu). **AI'ı kabul et** (ya da `A`) → S1-2 açılır.
+3. _AI sorunlu dedi_ filtresiyle sorunlu ağaçlara geçip **Düzelt**: sınıf, "Kuru dal" ölçeği, not → **Düzeltmeyi kaydet**. Ağaç bulgusu: **Bulgu ekle**.
+4. **Özet ve imza**: dağılım, değişenler, incelenmemişler. İmza kutusu + **İmzala ve yayımla**: 302 ağacın hepsi incelenmeden reddedilir ve eksikler listelenir.
+
+Demo verisinin yayımlanmış 14 Ekim ziyareti salt okunur açılır.
+
+### Testler
+
+- Birim (`src/lib/expert/*.test.ts`): mevsim, metrik seçimi (mevsim + görünürlük + konu), form girdisi ve AI değerlerinin kopyalanması, filtreler, özet ve önceki ziyarete göre değişim, adresler, bulgu doğrulama, uzman metinlerinin tamlığı.
+- Entegrasyon (`tests/integration/expert-review.test.ts`): kuyruk ve incelemeye alma; AI'ı kabul (AI satırı değişmez, ölçüm, kanıt, bağ), düzeltme (eski kararlar kalır), bulgu ekleme/düzenleme/silme; eksik değerlendirmeyle yayımlamanın reddi; saha personeli ve operasyonun yayımlayamaması ve durumu doğrudan `published` yapamaması; sahibin sonuçları yayından önce görmemesi, sonra görmesi; yayından sonra donma.
+- Tarayıcı (`tests/e2e/expert-review.spec.ts`): uzman girişi, kuyruktan açma, bir ağacı kabul, birini düzeltme, eksikle yayımlamanın reddi, kısayolla kabul, yayımlama.
+- **Test verisi** (`tests/e2e/expert-fixtures.ts`): ölçümler silinemediği için uzman testleri ayrı bir test işletmesinde (`e7…`) çalışır. Test süresince örnek kullanıcılara orada rol verilir, sonunda geri alınır; yer ve ağaçlar sabit kimliklidir, her çalıştırma yeni oturumlar ekler. Kalan satırlar örnek kullanıcılara görünmez, ama genel satır sayısını sayan pgTAP testleri (`00_schema`) için önce `pnpm db:reset` gerekir.
+
+### Bilinen sınırlar
+
+- **Toplu onay ve kalite örneklemi yok:** Her ağaç tek tek kabul edilir (kesme listesi 5).
+- **Eşik sabit:** Düşük güven eşiği %70 (`LOW_CONFIDENCE`); pilotta ayarlanacak.
+- **Ölçümler donmuyor:** Yayından sonra değerlendirme ve bulgular kilitli; ölçümler (saha uygulamasının geç senkronizasyonu için) kilitli değil.
+- **Bulgu kaydı tek işlem değil:** bulgu ve kanıtları iki ayrı yazma; kanıt yazılamazsa bulgu silinir.
+- **Küçük önizleme yok:** kesit dosyası olduğu gibi gösterilir.
