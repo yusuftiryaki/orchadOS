@@ -185,6 +185,38 @@ Saha fotoğrafları ve işleme hattının ürünleri (panorama, ağaç kesiti vb
 - **Yazma:** Yalnızca servis rolü (işleme hattı) ve operasyon. Operasyon yalnızca kendi kurumunun bir parselinin altına, kurala uyan bir adla yazabilir. Saha uygulaması dosyayı doğrudan yüklemez.
 - **Okuma:** Kurum rolleri kurumlarının bütün nesnelerini okur. Sahip ve izleyici, aynı kurum, parsel ve hash'e sahip bir `asset` ya da `capture` satırını görebiliyorlarsa nesneyi de okur; yani yayımlanmamış oturumların dosyaları onlara kapalıdır (veri-modeli.md, "Yayın").
 
+## Asset `pose` alanı
+
+İşleme hattı (`orchados-pipeline upload`) `asset.pose` JSON alanını aşağıdaki gibi doldurur; web uygulaması bu alanları okur. Konum `asset.position` (WGS84 nokta) ve `asset.position_uncertainty_m` sütunlarındadır; `pose` içinde tekrarlanmaz. Bilinmeyen alanlar okurken yok sayılmalıdır.
+
+**`kind = panorama`** (tam panorama ve önizleme ayrı satırlardır):
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `variant` | `full` \| `preview` | 4K tam panorama ya da 2K önizleme. Yoksa `full` kabul edilir |
+| `heading_deg` | sayı | Panorama orta sütununun azimutu (kuzeyden saat yönünde, derece) |
+| `height_m` | sayı | Kamera yüksekliği, WGS84 elipsoidal (m) |
+| `sd_h_m` | sayı | Yatay konum standart sapması (m); `position_uncertainty_m` ile aynı |
+| `quality` | `fix` \| `float` \| `dgps` \| `single` | GNSS çözüm kalitesi. RTKLIB'in `sbas` çözümü `dgps`, `ppp` çözümü `single` yazılır |
+| `gps_time_ns` | metin | Çekim anı, GPS zamanı ns (bkz. [Zaman](#zaman)). 64 bit tamsayı JavaScript sayısına sığmadığı için metindir |
+| `width_px`, `height_px` | tamsayı | Görüntü boyutu (piksel) |
+
+**`kind = tree_crop`** (`asset.tree_id` slot koduyla eşleşen aktif ağaç; konum, kameranın durduğu yer):
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `direction` | `N` \| `E` \| `S` \| `W` | Kameranın ağacın hangi tarafında olduğu (`N` = kuzeyden bakış) |
+| `slot_code` | metin | Kesitin yükleme anındaki slot kodu (ör. `S5-12a`) |
+| `panorama_asset_id` | uuid \| null | Kesitin alındığı panorama `asset` satırı. Tam panorama yüklenmediyse aynı karenin önizlemesi |
+| `distance_m` | sayı | Kameradan ağaca yatay mesafe (m) |
+| `azimuth_deg` | sayı | Kameradan ağaca azimut (kuzeyden saat yönünde) |
+| `yaw_in_panorama_deg` | sayı | Kesit merkezinin panorama orta sütununa göre açısı (sağa pozitif) |
+| `pitch_deg` | sayı | Kesit merkezinin yataya göre açısı (yukarı pozitif) |
+| `fov_deg` | sayı | Kesitin yatay görüş açısı |
+| `score` | sayı | Kesit seçim skoru (0–1); `quality_score` ile aynı |
+
+`trajectory` satırlarında `pose` ve konum boştur.
+
 ## Açık noktalar
 
 - `trees.json`'un yerini İP1 veritabanı alacak; o zaman bu belgede API sözleşmesi tanımlanacak.

@@ -11,6 +11,10 @@ import numpy as np
 from .hashing import sha256_bytes
 from .models import FileRef
 
+# Name of the face blurring filter. Panoramas and crops without it in filters_applied
+# must not leave the processing station (upload refuses them).
+FACE_BLUR = "face_blur"
+
 
 class ImageFilter(Protocol):
     """Applied to each panorama before it is written (face blurring, later on GPU)."""

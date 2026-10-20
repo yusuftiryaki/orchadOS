@@ -5,6 +5,7 @@ description = "orchadOS processing pipeline: ingest, positioning, time sync, fra
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "httpx>=0.28.1",
     "numpy>=1.26",
     "opencv-python-headless>=4.9",
     "pydantic>=2.6",
@@ -28,6 +29,7 @@ testpaths = ["tests"]
 addopts = "-ra"
 markers = [
     "rtklib: needs RTKLIB command line tools (convbin, rnx2rtkp)",
+    "supabase: needs the local Supabase stack (pnpm db:start && pnpm db:reset); skipped otherwise",
 ]
 
 [tool.ruff]

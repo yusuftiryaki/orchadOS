@@ -1,6 +1,6 @@
 # services/pipeline
 
-İşleme istasyonunda çalışan Python işleme hattı (İP4 çekirdeği). Bir saha oturumunun ham verisinden konumlu panoramalar ve ağaç kesitleri üretir. Veritabanına ve object storage'a yükleme henüz yok; çıktılar yerel bir klasöre ve `outputs.json` manifestine yazılır, yükleme için bir `Uploader` arayüzü vardır.
+İşleme istasyonunda çalışan Python işleme hattı (İP4). Bir saha oturumunun ham verisinden konumlu panoramalar ve ağaç kesitleri üretir, çıktıları yerel bir klasöre ve `outputs.json` manifestine yazar, sonra Supabase'e yükler (kayıtlar veritabanına, dosyalar `media` depolama alanına; bkz. [Yükleme](#yükleme)).
 
 Bkz. [docs/plan.md](../../docs/plan.md), [docs/teknik-mimari.md](../../docs/teknik-mimari.md), [docs/veri-modeli.md](../../docs/veri-modeli.md).
 
@@ -8,13 +8,13 @@ Bkz. [docs/plan.md](../../docs/plan.md), [docs/teknik-mimari.md](../../docs/tekn
 
 ```bash
 cd services/pipeline
-uv sync                                     # bağımlılıklar (numpy, opencv-python-headless, pydantic)
-uv run pytest                               # tüm testler (~2 dk)
+uv sync                                     # bağımlılıklar (numpy, opencv-python-headless, pydantic, httpx)
+uv run pytest                               # tüm testler (~4 dk); Supabase kapalıysa entegrasyon testleri atlanır
 uv run ruff check . && uv run ruff format --check .
 
-uv run orchados-pipeline synth /tmp/ornek   # sentetik oturum klasörü üret
+uv run orchados-pipeline synth /tmp/ornek   # sentetik oturum klasörü üret (--session-id, --parcel-id)
 uv run orchados-pipeline run /tmp/ornek     # tüm aşamalar
-uv run orchados-pipeline upload /tmp/ornek.processed/v0.1.0_<hash> --dest /tmp/kova
+uv run orchados-pipeline upload /tmp/ornek.processed/v0.1.0_<hash> --session-id <uuid>   # Supabase'e
 ```
 
 Her aşama ayrıca tek başına çalışır ve bir önceki aşamanın kaydettiği dosyayı okur:
@@ -28,6 +28,7 @@ uv run orchados-pipeline panoramas <oturum> ...
 uv run orchados-pipeline crops     <oturum> [--trees agaclar.json] ...
 uv run orchados-pipeline outputs   <oturum> ...
 uv run orchados-pipeline params    [--hash]   # varsayılan parametreler
+uv run orchados-pipeline run       <oturum> --upload --session-id <uuid> [yükleme seçenekleri]
 ```
 
 RTKLIB (`convbin`, `rnx2rtkp`) ve ffmpeg `core` devcontainer'ında kurulu. RTKLIB gerektiren test, araç yoksa atlanır.
@@ -96,7 +97,7 @@ Varsayılan çıktı kökü oturum klasörünün yanındaki `<oturum>.processed/
 [veri-modeli.md](../../docs/veri-modeli.md)'deki Capture/Asset ayrımını izler:
 
 - `captures`: ham girdiler. `capture_id` dosyanın SHA-256'sı; `kind`: `session_meta`, `logger_session`, `gnss_raw`, `gnss_events`, `video`, `base_obs`, `base_nav`.
-- `assets`: türetilmiş dosyalar. `asset_id` dosyanın SHA-256'sı; `kind`: `manifest`, `trajectory`, `time_sync`, `frame_selection`, `panorama`, `panorama_preview`, `tree_crop`. Her birinde `file` (yol, hash, boyut, medya türü, piksel boyutu), varsa `sidecar`, `pose` (WGS84, EPSG:4979, yön, yatay belirsizlik, çözüm kalitesi), `gps_time_ns`, `quality_score`, ağaç kesitlerinde `subject` (tree_id, slot_code, yön), `derived_from` (kaynak capture'lar ve üst asset'ler) ve `producer_stage`.
+- `assets`: türetilmiş dosyalar. `asset_id` dosyanın SHA-256'sı; `kind`: `manifest`, `trajectory`, `time_sync`, `frame_selection`, `panorama`, `panorama_preview`, `tree_crop`. Her birinde `file` (yol, hash, boyut, medya türü, piksel boyutu), varsa `sidecar`, `pose` (WGS84, EPSG:4979, yön, yatay belirsizlik, çözüm kalitesi), `gps_time_ns`, `quality_score`, ağaç kesitlerinde `subject` (tree_id, slot_code, yön), panorama ve kesitlerde `filters_applied` (uygulanan görüntü süzgeçleri; yüz bulanıklaştırma `face_blur`), `derived_from` (kaynak capture'lar ve üst asset'ler) ve `producer_stage`.
 - `pipeline`: ad, sürüm, parametre hash'i ve parametrelerin kendisi.
 
 ### Panorama yan dosyası (`pano-<gps_ms>.json`)
@@ -137,11 +138,67 @@ Tüm parametreler `params.py`'de tanımlıdır; `--params dosya.json` ile kısme
 {"frames": {"slice_m": 4.0}, "sync": {"qr_search_s": 30}}
 ```
 
+## Yükleme
+
+`orchados-pipeline upload <çalıştırma klasörü> --session-id <uuid>` bir çalıştırmanın çıktılarını Supabase'e yükler. `--session-id` veritabanındaki `public.session` satırıdır; kurum ve parsel bu satırdan okunur. `outputs.json`'daki `session_id` ve `parcel_id` bu satırla aynı olmalıdır (saha uygulaması `session.json`'a veritabanı kimliğini yazar), değilse hiçbir şey yazılmadan hata verilir. `run --upload --session-id <uuid>` işlemenin ardından aynısını yapar.
+
+### Kimlik
+
+Hat, operasyon (`ops`) rolündeki bir kullanıcının e-posta ve parolasıyla oturum açar ve her istekte o kullanıcının belirtecini gönderir; satır bazlı yetki kuralları ve depolama kuralları geçerlidir. **Servis anahtarı kullanılmaz.** Ortam değişkenleri (değerler repoya girmez; `.env` kök `.gitignore`'da):
+
+```bash
+# services/pipeline/.env (örnek, değersiz)
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+ORCHADOS_EMAIL=
+ORCHADOS_PASSWORD=
+```
+
+```bash
+set -a && . ./.env && set +a
+uv run orchados-pipeline upload ../../data/s.processed/v0.1.0_<hash> --session-id <uuid>
+```
+
+Yerelde: `pnpm db:status` adresi ve anahtarı verir; kullanıcı `ops@example.com`, parola `orchados-dev`.
+
+### Ne yüklenir
+
+| Ne | Nereye | Ayrıntı |
+| --- | --- | --- |
+| Ham kayıtlar: 360° video, UBX, `events.csv`, iki `session.json`, baz RINEX | Sadece `capture` satırı; dosya istasyonda kalır | `uri` = `station://<istasyon>/<mutlak yol>`, ör. `station://ist-01/data/oturumlar/s/video/VID_0001.mp4`. İstasyon adı `--station` (varsayılan: makine adı); oturum klasörü `--session-dir` (varsayılan: `<oturum>.processed` klasörünün yanındaki `<oturum>`). Türler: `video_360`, `gnss_raw` (UBX ve RINEX), diğerleri `other`; dosyanın rolü `metadata.role`'da. `started_at`: video için QR saat modelinden, diğerleri için kaydedicinin başlangıcı |
+| Panorama önizlemesi (2K) | `asset` + `media` alanı | `kind = panorama`, `pose.variant = preview` |
+| Tam panorama (4K) | `asset` + `media` alanı | `kind = panorama`, `pose.variant = full`. **Varsayılan olarak yüklenmez** |
+| Ağaç kesiti | `asset` + `media` alanı | `kind = tree_crop`, `tree_id` slot koduyla bulunur (aşağıda) |
+| Yörünge (`trajectory.json`) | `asset` + `media` alanı | `kind = trajectory` |
+| `manifest.json`, `sync.json`, `frames.json`, yan dosya JSON'ları | Yüklenmez | İç ara çıktılar; içerikleri `capture`/`asset` satırlarına ve `pose` alanına aktarılır |
+
+- **Nesne adı:** `org/<org_id>/parcel/<parcel_id>/<sha256>`, `asset.uri` = `storage://media/` + bu ad ([arayuzler.md → Medya depolama](../../docs/arayuzler.md#medya-depolama)). `pose` alanları: [arayuzler.md → Asset `pose` alanı](../../docs/arayuzler.md#asset-pose-alanı).
+- **Seçim:** `--only preview,tree_crop,trajectory` (varsayılan). Türler: `panorama` (4K), `preview` (2K), `tree_crop`, `trajectory`.
+- **Lineage:** `outputs.json`'daki `derived_from` → `asset_source`. Kaydedilmeyen üst öğeler (iç JSON'lar, seçilmeyen türler) atlanır. Önizleme ← video + yörünge; kesit ← tam panorama, o yüklenmediyse aynı karenin önizlemesi (`pose.panorama_asset_id` de aynı kuralla).
+- **Ağaç eşleme:** Kesitin `slot_code`'u (ör. `S5-12a`) parseldeki `slot.code` ile, slot da aktif `tree` kaydıyla eşleştirilir. `trees.json`'daki `tree_id` kullanılmaz. Eşleşmeyen kesit yüklenmez, raporda uyarı olarak listelenir.
+- **Yüz bulanıklaştırma:** `outputs.json`'da `filters_applied` içinde `face_blur` olmayan bir panorama ya da kesit seçilmişse komut **hiçbir şey yazmadan hata verir**. `--allow-unblurred` bu kuralı kapatır; **sadece sentetik veri içindir**, gerçek saha görüntüsüyle kullanılmaz.
+- **Oturum durumu:** Yükleme tamamlanınca `planned` ya da `captured` olan oturum `processed` olur; `processed`, `in_review`, `published` (ve `cancelled`) değiştirilmez.
+
+### Tekrar çalıştırma
+
+- Aynı çalıştırmayı ikinci kez yüklemek hiçbir şey eklemez: var olan nesneler atlanır (klasör listesiyle), `capture` oturum + `content_hash` ile, `asset` oturum + `content_hash` + `pipeline_version` ile bulunur, eksik lineage satırları tamamlanır.
+- Sıra her asset için dosya → satır → lineage'dır; yarıda kesilen yükleme aynı komutla kaldığı yerden tamamlanır. Oturum durumu en sonda değişir.
+- Hat sürümü değişip yeniden işlenince yeni `asset` satırları eklenir, eski sürümün satırları kalır. Bayt bayt aynı dosya depoda tek nesnedir; satırlar onu paylaşır. Bunun için şemada içerik hash'i kurum başına değil, `capture`'da oturum başına, `asset`'te oturum + hat sürümü başına benzersizdir (`supabase/migrations/20261020160000_content_hash_per_session.sql`). Aynı sürümde yalnızca parametreleri farklı bir çalıştırmanın aynı dosyası mevcut satırla eşleşir (satırdaki `params_hash` ilk yüklemeninkidir).
+
+### Ücretsiz katman
+
+Supabase ücretsiz planda 1 GB dosya alanı var ([docs/deployment.md](../../docs/deployment.md)). 20 dönümlük bir parselde (~300 ağaç, ~2,5 km tarama yolu, 3,5 m'de bir kare ≈ 700 panorama) kaba tahmin: 4K panoramalar ~1,5 GB, 2K önizlemeler ~350 MB, kesitler (300 ağaç × 4 yön) ~250 MB, yörünge birkaç MB. **Varsayılan bu yüzden önizleme + kesit + yörünge (~600 MB):** uzman paneli kesitleri, sahip portalı önizlemeyle panorama gezisini kullanır; 4K panoramalar istasyonda kalır ve gerektiğinde `--only panorama` ile sonradan eklenir. Ücretsiz katman bununla bile yaklaşık bir ziyaret taşır; pilotta Cloudflare R2 ya da Supabase Pro gerekir. Depolama `MediaStore` arayüzünün arkasındadır (`media.py`: `SupabaseMediaStore`, testler için `LocalMediaStore`); R2 için yeni bir uygulama yeterlidir.
+
+### Testler
+
+- `tests/test_upload.py`: Sahte veritabanı (`FakeCatalog`) ve yerel depo ile eşleme, tekrar çalıştırma, yarıda kesilme, bulanıklaştırma kuralı, durum geçişleri, yeni hat sürümü.
+- `tests/test_upload_supabase.py` (`supabase` işareti): Yerel Supabase'e karşı sentetik oturum → `run` → `upload`. Kendi oturumunu seed parselinde açar (sentetik slot kodları S1-1 … S3-4 orada aktif ağaçlı); kayıtların ve dosyaların oluştuğunu, ikinci yüklemenin bir şey eklemediğini, sahibin yayından önce kayıtları ve dosyaları göremediğini, saha personelinin dosya yükleyemediğini denetler. Önce kökte `pnpm install && pnpm db:start && pnpm db:reset`. Supabase'e ulaşılamazsa atlanır. Adres ve anahtar `SUPABASE_URL` / `SUPABASE_ANON_KEY`'den, yoksa `supabase status`'tan okunur.
+
 ## Bilinen sınırlar
 
 - **Stitch yok:** Girdi kameranın masaüstü yazılımından dışa aktarılmış equirectangular MP4'tür; `.insv` işlenmez.
-- **Yüz bulanıklaştırma ve ağaç tespiti yok:** Sadece `ImageFilter` arayüzü var. Bulanıklaştırılmamış panoramalar `outputs.json`'da uyarıyla işaretlenir ve buluta çıkmamalıdır.
-- **Gerçek yükleme yok:** `LocalUploader` dosyaları içerik hash'iyle yerel bir klasöre ve `outputs.json`'ı `sessions/<oturum>/<çalıştırma>/` altına yazar. Gerçek uygulama (R2 + API) İP1 şemasından sonra.
+- **Yüz bulanıklaştırma ve ağaç tespiti yok:** Sadece `ImageFilter` arayüzü var. Panoramalar ve kesitler `outputs.json`'da `filters_applied` ile işaretlenir; `face_blur` filtresi yoksa yükleme reddedilir (bkz. [Yükleme](#yükleme)).
+- **Yükleme sırayla:** Dosyalar ve satırlar tek tek gönderilir; ~1000 asset'lik bir ziyarette istek sayısı yüksektir. Süre pilotta ölçülmeli, gerekirse toplu ekleme ve paralel yükleme eklenir.
 - **Kamera jiroskop verisi okunmuyor:** İnce eşleme fonksiyonu sentetik sinyallerle test edildi; dosyadan okuma sonraya kaldı.
 - **QR ile kayma tahmini kısa kayıtlarda zayıf:** 100 ms yenilemede tek okumanın belirsizliği ~±50 ms; her uçta ~30 okumayla ofset birkaç ms, kayma ancak uzun kayıtlarda (≥10 dk) anlamlı. Sentetik testteki 40 sn'lik videoda kayma ölçülemez; uydurma uzun bir sentetik seriyle ayrıca test edilir.
 - **Video parçaları arasında boşluk yok varsayımı:** Kamera kaydı böldüğünde parçaların kesintisiz olduğu varsayılır. Sabit kare hızı varsayılır.

@@ -7,7 +7,6 @@ from orchados_pipeline import __version__
 from orchados_pipeline.cli import main
 from orchados_pipeline.context import RunContext
 from orchados_pipeline.hashing import sha256_file
-from orchados_pipeline.outputs import LocalUploader, load_outputs, upload_run
 from orchados_pipeline.pipeline import run_all
 
 
@@ -76,21 +75,6 @@ def test_new_params_do_not_overwrite_old_results(processed_run):
     p.frames.slice_m = 5.0
     other = RunContext.create(ctx.session_dir, ctx.out_root, p)
     assert other.run_dir != ctx.run_dir
-
-
-def test_local_uploader_is_content_addressed(processed_run, tmp_path):
-    ctx, out, _ = processed_run
-    dest = tmp_path / "bucket"
-    res = upload_run(ctx.run_dir, LocalUploader(dest))
-    n_files = len({r.sha256 for a in out.assets for r in (a.file, a.sidecar) if r})
-    assert res["objects"] == n_files
-    for a in out.assets:
-        obj = dest / "objects" / a.asset_id[:2] / a.asset_id
-        assert sha256_file(obj) == a.asset_id
-    meta = load_outputs(res["metadata"])
-    assert meta == out
-    # Idempotent: uploading again changes nothing.
-    assert upload_run(ctx.run_dir, LocalUploader(dest))["objects"] == n_files
 
 
 def test_cli_run_and_stages(synthetic_session, tmp_path, capsys):
