@@ -13,6 +13,7 @@ from .models import (
     Manifest,
     PanoramaSet,
     Trajectory,
+    TreeList,
     read_model,
 )
 
@@ -57,15 +58,21 @@ def stage_panoramas(ctx: RunContext) -> PanoramaSet:
     )
 
 
-def stage_crops(ctx: RunContext, trees_path: Path | None) -> CropSet | None:
-    trees_path = trees_path or default_trees_path(ctx)
-    if trees_path is None:
-        return None
+def stage_crops(
+    ctx: RunContext, trees_path: Path | None = None, tree_list: TreeList | None = None
+) -> CropSet | None:
+    """Crops from a tree list (e.g. trees_db.session_tree_list), a trees file, or the
+    session's trees.json; None when there is none of them."""
+    if tree_list is None:
+        trees_path = trees_path or default_trees_path(ctx)
+        if trees_path is None:
+            return None
+        tree_list = crops.load_trees(trees_path)
     return crops.run(
         ctx,
         _load(ctx, Manifest, ctx.manifest_path, "ingest"),
         _load(ctx, PanoramaSet, ctx.panoramas_path, "panoramas"),
-        crops.load_trees(trees_path),
+        tree_list,
     )
 
 
@@ -79,13 +86,15 @@ def stage_outputs(ctx: RunContext) -> outputs.Outputs:
     )
 
 
-def run_all(ctx: RunContext, trees_path: Path | None = None) -> outputs.Outputs:
+def run_all(
+    ctx: RunContext, trees_path: Path | None = None, tree_list: TreeList | None = None
+) -> outputs.Outputs:
     stage_ingest(ctx)
     stage_position(ctx)
     stage_sync(ctx)
     stage_frames(ctx)
     stage_panoramas(ctx)
-    if ctx.crops_path.is_file():
-        ctx.crops_path.unlink()
-    stage_crops(ctx, trees_path)
+    for stale in (ctx.crops_path, ctx.trees_path):
+        stale.unlink(missing_ok=True)
+    stage_crops(ctx, trees_path, tree_list)
     return stage_outputs(ctx)

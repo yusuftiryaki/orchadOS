@@ -20,6 +20,7 @@ from .hashing import sha256_file
 from .imaging import FACE_BLUR
 from .models import (
     CropSet,
+    CropStatus,
     FileRef,
     FileRole,
     Manifest,
@@ -82,6 +83,8 @@ class Outputs(Model):
     org_id: str | None
     captures: list[CaptureEntry]
     assets: list[AssetEntry]
+    # crops.json status (ok, no_tree_positions, inventory_session); null without a tree list.
+    crops_status: CropStatus | None = None
     warnings: list[str] = Field(default_factory=list)
 
     model_config = {"extra": "forbid", "populate_by_name": True}
@@ -199,6 +202,11 @@ def build_outputs(
             )
 
     warnings = list(manifest.warnings)
+    if cset is not None and cset.status == "ok" and cset.unlocated_slots:
+        warnings.append(
+            f"{len(cset.unlocated_slots)} active trees have no position yet, no crops: "
+            + ", ".join(cset.unlocated_slots)
+        )
     if any(FACE_BLUR not in p.filters_applied for p in pset.panoramas):
         warnings.append("panoramas are not face-blurred; do not publish before blurring")
     return Outputs(
@@ -213,6 +221,7 @@ def build_outputs(
         org_id=manifest.session.org_id,
         captures=captures,
         assets=assets,
+        crops_status=None if cset is None else cset.status,
         warnings=warnings,
     )
 

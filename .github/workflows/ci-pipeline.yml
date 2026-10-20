@@ -38,7 +38,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Local Supabase for the upload integration tests (tests/test_upload_supabase.py).
+      # Local Supabase for the integration tests (tests/test_upload_supabase.py,
+      # tests/test_chain_supabase.py).
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
@@ -81,6 +82,12 @@ jobs:
             echo "::error::Supabase integration tests were skipped"
             exit 1
           fi
+
+      # The Supabase tests (upload, scan-to-owner chain) purge their sessions at the
+      # end; the pgTAP tests count seed rows, so they pass only if nothing is left.
+      - name: pgTAP tests after the integration tests
+        working-directory: .
+        run: pnpm db:test
 
       - name: End-to-end on a synthetic session
         run: |

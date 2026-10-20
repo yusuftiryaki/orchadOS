@@ -14,6 +14,7 @@ uv run ruff check . && uv run ruff format --check .
 
 uv run orchados-pipeline synth /tmp/ornek   # sentetik oturum klasörü üret (--session-id, --parcel-id)
 uv run orchados-pipeline run /tmp/ornek     # tüm aşamalar
+uv run orchados-pipeline run /tmp/ornek --trees-from-db   # ağaç konumları veritabanından
 uv run orchados-pipeline upload /tmp/ornek.processed/v0.1.0_<hash> --session-id <uuid>   # Supabase'e
 ```
 
@@ -25,10 +26,11 @@ uv run orchados-pipeline position  <oturum> ...
 uv run orchados-pipeline sync      <oturum> ...
 uv run orchados-pipeline frames    <oturum> ...
 uv run orchados-pipeline panoramas <oturum> ...
-uv run orchados-pipeline crops     <oturum> [--trees agaclar.json] ...
+uv run orchados-pipeline crops     <oturum> [--trees agaclar.json | --trees-from-db [--session-id <uuid>]] ...
 uv run orchados-pipeline outputs   <oturum> ...
 uv run orchados-pipeline params    [--hash]   # varsayılan parametreler
-uv run orchados-pipeline run       <oturum> --upload --session-id <uuid> [yükleme seçenekleri]
+uv run orchados-pipeline run       <oturum> [--trees-from-db] --upload --session-id <uuid> [yükleme seçenekleri]
+uv run orchados-pipeline synth     <klasör> --trees-from-db --parcel-id <uuid> [--rows 1-2] [--positions 1-5]
 ```
 
 RTKLIB (`convbin`, `rnx2rtkp`) ve ffmpeg `core` devcontainer'ında kurulu. RTKLIB gerektiren test, araç yoksa atlanır.
@@ -46,7 +48,8 @@ Oturum klasörünün yapısı, `session.json` (kök, saha uygulaması + operasyo
   gnss/session.json   ESP32 oturum dosyası
   video/*.mp4         equirectangular 360° video (2:1), bir ya da birden çok parça
   base/*              (opsiyonel) baz/CORS RINEX gözlem ve navigasyon dosyaları
-  trees.json          (opsiyonel) ağaç konumları; --trees ile başka yerden de verilebilir
+  trees.json          (opsiyonel) ağaç konumları; --trees ile başka yerden de verilebilir,
+                      --trees-from-db ile veritabanından okunur
 ```
 
 Hattın bu sözleşmeye özgü davranışı (ayrıntı `docs/arayuzler.md`'de):
@@ -56,7 +59,7 @@ Hattın bu sözleşmeye özgü davranışı (ayrıntı `docs/arayuzler.md`'de):
 - `qr_sync` olaylarının payload'ındaki QR değeri olayın GPS zamanıyla ve videodaki QR okumalarıyla karşılaştırılır; sonuç `sync.json`'da `qr_sync_checks` olarak yazılır, büyük farklar uyarı verir.
 - Video parçaları dosya adı sırasıyla, kesintisiz ardışık bölümler olarak kabul edilir; kamera saati parçalar boyunca sürer.
 - `base/` içindeki dosyalar uzantıya değil RINEX başlığına göre (gözlem / navigasyon) sınıflandırılır.
-- `trees.json`: `[{"tree_id", "slot_code", "lat", "lon"}]` ya da `{"trees": [...]}`. İP1'den sonra veritabanından gelecek.
+- `trees.json`: `[{"tree_id", "slot_code", "lat", "lon"}]` ya da `{"trees": [...]}`. Gerçek kullanımda ağaç konumları veritabanından gelir (`--trees-from-db`, bkz. [Ağaç konumları veritabanından](#ağaç-konumları-veritabanından)).
 
 Sözleşme testleri (`tests/test_contract.py`) İP2 README'sindeki örnek `events.csv` ve `session.json` bloklarını `tests/data/ip2_readme_*` kopyalarından okur ve kopyaların README ile birebir aynı kaldığını denetler. Sentetik oturum üretici (`synth`) de bu biçimleri üretir.
 
@@ -69,7 +72,7 @@ Sözleşme testleri (`tests/test_contract.py`) İP2 README'sindeki örnek `event
 | `sync` | Videonun başındaki ve sonundaki QR kodlarını okur, kamera saati → GPS zamanı için ofset ve doğrusal kayma (ppm) hesaplar; aykırı okumaları MAD ile eler. | `sync.json` |
 | `frames` | Aday kareleri (vars. 5 kare/sn) çıkarır; konumu yörüngeden zaman enterpolasyonuyla, yönü hareket yönünden bulur; Laplacian varyansıyla netlik skoru verir; yörünge boyunca her 3,5 m'lik dilimde en net kareyi seçer. Medyanın %35'inden bulanık kareler seçilemez. | `frames.json` |
 | `panoramas` | Seçilen kareleri 4K (3840×1920) ve 2K (1920×960) WebP olarak, her biri için yan dosya JSON'la yazar. | `panoramas/` |
-| `crops` | Her ağaç için yakın panoramalardan (1–12 m) açı ve mesafeyi hesaplar, ağaca bakan gnomonik kesit çıkarır, dört ana yönün her birinden en iyisini 1024×1024 JPEG ve yan dosya JSON olarak yazar. | `crops/` |
+| `crops` | Her ağaç için yakın panoramalardan (1–12 m) açı ve mesafeyi hesaplar, ağaca bakan gnomonik kesit çıkarır, dört ana yönün her birinden en iyisini 1024×1024 JPEG ve yan dosya JSON olarak yazar. Kullandığı ağaç listesini çalıştırma klasörüne `trees.json` olarak kaydeder. Envanter oturumunda ve konumu olmayan parselde kesit üretmez (durum `crops.json`'da). | `crops/`, `trees.json` |
 | `outputs` | Tüm çıktıları türleri, hash'leri, kaynakları (lineage) ve hat sürümüyle listeler. | `outputs.json` |
 
 Hat ayrıca şunları içerir ama sahada henüz kullanmaz:
@@ -84,7 +87,7 @@ Varsayılan çıktı kökü oturum klasörünün yanındaki `<oturum>.processed/
 <kök>/v<hat sürümü>_<parametre hash'inin ilk 12 hanesi>/
   params.json manifest.json trajectory.json sync.json frames.json
   panoramas.json panoramas/pano-<gps_ms>_4k.webp, _2k.webp, .json
-  crops.json crops/<tree_id>_<N|E|S|W>.jpg, .json
+  trees.json crops.json crops/<tree_id>_<N|E|S|W>.jpg, .json
   outputs.json  ppk/ (yalnızca baz verisi varsa)
 ```
 
@@ -99,6 +102,7 @@ Varsayılan çıktı kökü oturum klasörünün yanındaki `<oturum>.processed/
 - `captures`: ham girdiler. `capture_id` dosyanın SHA-256'sı; `kind`: `session_meta`, `logger_session`, `gnss_raw`, `gnss_events`, `video`, `base_obs`, `base_nav`.
 - `assets`: türetilmiş dosyalar. `asset_id` dosyanın SHA-256'sı; `kind`: `manifest`, `trajectory`, `time_sync`, `frame_selection`, `panorama`, `panorama_preview`, `tree_crop`. Her birinde `file` (yol, hash, boyut, medya türü, piksel boyutu), varsa `sidecar`, `pose` (WGS84, EPSG:4979, yön, yatay belirsizlik, çözüm kalitesi), `gps_time_ns`, `quality_score`, ağaç kesitlerinde `subject` (tree_id, slot_code, yön), panorama ve kesitlerde `filters_applied` (uygulanan görüntü süzgeçleri; yüz bulanıklaştırma `face_blur`), `derived_from` (kaynak capture'lar ve üst asset'ler) ve `producer_stage`.
 - `pipeline`: ad, sürüm, parametre hash'i ve parametrelerin kendisi.
+- `crops_status`: `crops.json`'daki durum (`ok`, `no_tree_positions`, `inventory_session`); ağaç listesi verilmediyse `null`.
 
 ### Panorama yan dosyası (`pano-<gps_ms>.json`)
 
@@ -175,7 +179,7 @@ Yerelde: `pnpm db:status` adresi ve anahtarı verir; kullanıcı `ops@example.co
 - **Nesne adı:** `org/<org_id>/parcel/<parcel_id>/<sha256>`, `asset.uri` = `storage://media/` + bu ad ([arayuzler.md → Medya depolama](../../docs/arayuzler.md#medya-depolama)). `pose` alanları: [arayuzler.md → Asset `pose` alanı](../../docs/arayuzler.md#asset-pose-alanı).
 - **Seçim:** `--only preview,tree_crop,trajectory` (varsayılan). Türler: `panorama` (4K), `preview` (2K), `tree_crop`, `trajectory`.
 - **Lineage:** `outputs.json`'daki `derived_from` → `asset_source`. Kaydedilmeyen üst öğeler (iç JSON'lar, seçilmeyen türler) atlanır. Önizleme ← video + yörünge; kesit ← tam panorama, o yüklenmediyse aynı karenin önizlemesi (`pose.panorama_asset_id` de aynı kuralla).
-- **Ağaç eşleme:** Kesitin `slot_code`'u (ör. `S5-12a`) parseldeki `slot.code` ile, slot da aktif `tree` kaydıyla eşleştirilir. `trees.json`'daki `tree_id` kullanılmaz. Eşleşmeyen kesit yüklenmez, raporda uyarı olarak listelenir.
+- **Ağaç eşleme:** Kesitin `slot_code`'u (ör. `S5-12a`) parseldeki `slot.code` ile, slot da aktif `tree` kaydıyla eşleştirilir. Elle verilen `trees.json`'daki `tree_id` kullanılmaz. Kesitler veritabanından okunan ağaçlarla kesildiyse (`crops.json` → `trees_source: database`) kesitteki `tree_id` de slotun bugünkü aktif ağacıyla aynı olmalıdır; işlemeden sonra slota yeni bir ağaç girdiyse kesit yüklenmez ("active tree changed since processing" uyarısı). `upload --trees-from-db` kesitlerin veritabanı ağaçlarıyla kesilmiş olmasını şart koşar; değilse hiçbir şey yazmadan hata verir. Eşleşmeyen kesit yüklenmez, raporda uyarı olarak listelenir.
 - **Yüz bulanıklaştırma:** `outputs.json`'da `filters_applied` içinde `face_blur` olmayan bir panorama ya da kesit seçilmişse komut **hiçbir şey yazmadan hata verir**. `--allow-unblurred` bu kuralı kapatır; **sadece sentetik veri içindir**, gerçek saha görüntüsüyle kullanılmaz.
 - **Oturum durumu:** Yükleme tamamlanınca `planned` ya da `captured` olan oturum `processed` olur; `processed`, `in_review`, `published` (ve `cancelled`) değiştirilmez.
 
@@ -185,6 +189,22 @@ Yerelde: `pnpm db:status` adresi ve anahtarı verir; kullanıcı `ops@example.co
 - Sıra her asset için dosya → satır → lineage'dır; yarıda kesilen yükleme aynı komutla kaldığı yerden tamamlanır. Oturum durumu en sonda değişir.
 - Hat sürümü değişip yeniden işlenince yeni `asset` satırları eklenir, eski sürümün satırları kalır. Bayt bayt aynı dosya depoda tek nesnedir; satırlar onu paylaşır. Bunun için şemada içerik hash'i kurum başına değil, `capture`'da oturum başına, `asset`'te oturum + hat sürümü başına benzersizdir (`supabase/migrations/20261020160000_content_hash_per_session.sql`). Aynı sürümde yalnızca parametreleri farklı bir çalıştırmanın aynı dosyası mevcut satırla eşleşir (satırdaki `params_hash` ilk yüklemeninkidir).
 
+### Ağaç konumları veritabanından
+
+`run --trees-from-db` (ayrıca `crops --trees-from-db`) kesitleri envanterdeki ağaçlara göre keser:
+
+- Kimlik yüklemedekiyle aynıdır: ops kullanıcısıyla oturum açılır (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ORCHADOS_EMAIL`, `ORCHADOS_PASSWORD`); servis anahtarı yok, satır bazlı yetki kuralları geçerli (`trees_db.py`).
+- Oturum `session.json`'daki `session_id` ile (ya da `--session-id`) `public.session`'dan bulunur; parseli `session.json`'daki `parcel_id` ile aynı olmalıdır.
+- Parseldeki **aktif** ağaçlar slotlarıyla okunur: `tree_id` = `tree.id`, `slot_code` = `slot.code`, konum = `slot.position` (WGS84), `position_uncertainty_m`, ayrıca bilgi için `local_x_m` / `local_y_m`. Boş slotlar ve kayıp ağaçlar atlanır. Sıra: sıra no, yer no, ek harf.
+- Kesitlerin `subject` alanında veritabanındaki `tree_id` ve `slot_code` olur. Okunan liste çalıştırma klasörüne `trees.json` (`orchados.trees/1`, `source: database`) olarak yazılır; aynı klasörden `crops` aşaması tekrar çalıştırılabilir.
+- **Kesit üretilmeyen durumlar** hata değildir; sadece panorama üretilir, durum `crops.json`'da `status` ve `outputs.json`'da `crops_status` olarak yazılır, komut özetinde görünür:
+  - `inventory_session`: oturum türü `inventory` (veritabanındaki `session.kind` ya da `session.json`'daki `kind`). Envanter taramasının amacı konumları bulmaktır.
+  - `no_tree_positions`: parselde konumu olan aktif ağaç yok (envanter öncesi).
+- Konumu olmayan tek tek slotlar (`unlocated_slots`) kesit almaz; parselin geri kalanı kesilir ve `outputs.json`'a uyarı düşülür.
+- **Karar:** `slot.position` yokken `local_x_m`/`local_y_m`'den konum türetilmez. Yerel koordinatlar ofis aracında konumla birlikte yazılıyor; ayrıca dönüşüm (parsel başlangıcı + sıra azimutu, UTM ızgara yakınsaması ~1°) parsel ölçeğinde metrelerce hata verebilir ve kesiti yanlış ağaca bağlar.
+
+**Sentetik veriyi parsele uydurma:** `synth --trees-from-db --parcel-id <uuid>` sahneyi parseldeki aktif ağaçların gerçek konumlarıyla kurar (`--trees dosya.json` aynısını dosyadan yapar). `--rows 1-2` ve `--positions 1-5` sürülecek sıraları ve sıra içindeki yerleri seçer (iki uç dahil); yol, seçilen her sıranın iki yanındaki ara yollardan (sıra aralığının yarısı kadar yanından) gidip gelir, böylece her ağaç kuzeyden ve güneyden görülür. Sıra yönü sıradaki ilk ve son ağaçtan, sıra aralığı parseldeki sıraların medyan aralığından bulunur. Yakındaki bütün parsel ağaçları çizilir. Seed parselinde `--rows 1-2 --positions 1-5` 136 m'lik yol ve ~74 sn'lik video verir. `--start-utc` ve `--seed` her koşuya ayrı dosya hash'leri sağlar.
+
 ### Ücretsiz katman
 
 Supabase ücretsiz planda 1 GB dosya alanı var ([docs/deployment.md](../../docs/deployment.md)). 20 dönümlük bir parselde (~300 ağaç, ~2,5 km tarama yolu, 3,5 m'de bir kare ≈ 700 panorama) kaba tahmin: 4K panoramalar ~1,5 GB, 2K önizlemeler ~350 MB, kesitler (300 ağaç × 4 yön) ~250 MB, yörünge birkaç MB. **Varsayılan bu yüzden önizleme + kesit + yörünge (~600 MB):** uzman paneli kesitleri, sahip portalı önizlemeyle panorama gezisini kullanır; 4K panoramalar istasyonda kalır ve gerektiğinde `--only panorama` ile sonradan eklenir. Ücretsiz katman bununla bile yaklaşık bir ziyaret taşır; pilotta Cloudflare R2 ya da Supabase Pro gerekir. Depolama `MediaStore` arayüzünün arkasındadır (`media.py`: `SupabaseMediaStore`, testler için `LocalMediaStore`); R2 için yeni bir uygulama yeterlidir.
@@ -192,7 +212,22 @@ Supabase ücretsiz planda 1 GB dosya alanı var ([docs/deployment.md](../../docs
 ### Testler
 
 - `tests/test_upload.py`: Sahte veritabanı (`FakeCatalog`) ve yerel depo ile eşleme, tekrar çalıştırma, yarıda kesilme, bulanıklaştırma kuralı, durum geçişleri, yeni hat sürümü.
+- `tests/test_trees_db.py`: Sahte istemciyle veritabanından ağaç okuma (aktif ağaç, boş slot, konumsuz slot, sıra), panorama-yalnız durumlar, kesitlerin `tree_id` ile yüklenmesi, sentetik sahnenin parsele uydurulması.
 - `tests/test_upload_supabase.py` (`supabase` işareti): Yerel Supabase'e karşı sentetik oturum → `run` → `upload`. Kendi oturumunu seed parselinde açar (sentetik slot kodları S1-1 … S3-4 orada aktif ağaçlı); kayıtların ve dosyaların oluştuğunu, ikinci yüklemenin bir şey eklemediğini, sahibin yayından önce kayıtları ve dosyaları göremediğini, saha personelinin dosya yükleyemediğini denetler. Önce kökte `pnpm install && pnpm db:start && pnpm db:reset`. Supabase'e ulaşılamazsa atlanır. Adres ve anahtar `SUPABASE_URL` / `SUPABASE_ANON_KEY`'den, yoksa `supabase status`'tan okunur.
+
+### Uçtan uca zincir testi
+
+`tests/test_chain_supabase.py` (`supabase` işareti) taramadan sahibin ekranına kadar zinciri yerel Supabase'e karşı, komut satırı üzerinden koşar:
+
+1. ops, seed parselinde `planned` bir `periodic_scan` oturumu açar;
+2. `synth --trees-from-db --rows 1-2 --positions 1-5` → `run --trees-from-db` → `upload --trees-from-db`; oturum `processed` olur, seçilen her ağacın kuzey ve güney kesiti vardır ve her kesit kesildiği veritabanı ağacına bağlıdır;
+3. uzman oturumu `in_review`'a alır, kesiti olan her ağaç için `save_expert_assessment` (ölçüm + kesitler kanıt olarak) çağırır; eksik ağaçlarla `publish_session`'ın reddedildiğini görür; kalan aktif ağaçlara da değerlendirme yazar ve yayımlar;
+4. sahip, ziyaretin değerlendirmelerini `tree_latest_assessment`'te (her aktif ağaç için, beklenen sınıfla), asset'lerini ve kanıt bağlarını görür; bir kesitin imzalı adresinden inen dosyanın SHA-256'sı yüklenen dosyanınkiyle aynıdır;
+5. yayından önce (yüklemeden sonra ve değerlendirmelerden sonra) sahip ziyaret satırını görür, başka hiçbir şeyi (capture, asset, değerlendirme, ölçüm, imzalı adres) göremez.
+
+Adım süreleri `pytest -s` ile yazdırılır. Yerelde ~65 sn sürer (çoğu `run`).
+
+**Test verisi:** Capture, asset, ölçüm ve bağ tabloları ekleme-yalnızdır, yayımlanmış ziyaret değiştirilemez; API kullanıcıları test verisini silemez. Kalırsa seed satırlarını sayan testler bozulur (`pnpm db:test`'te 02_rls, 04_publication, 05_storage; web testleri de). Bu yüzden Supabase testleri açtıkları oturumları test oturumunun sonunda siler (`tests/supabase_util.py`): veritabanı kapsayıcısında `postgres` olarak, sadece o işlemde tetikleyiciler kapalı (`session_replication_role = replica`), oturum ve ona bağlı bütün satırlar ile artık hiçbir satırın göstermediği `storage.objects` kayıtları. Bu bir test düzeneğidir; hat bunu yapmaz. `ORCHADOS_TEST_KEEP_DATA=1` veriyi bırakır (ör. web uygulamasında bakmak için); docker yoksa ya da silme başarısız olursa pytest uyarı verir, o zaman `pnpm db:test`'ten önce `pnpm db:reset` gerekir. CI'da pytest'ten sonra `pnpm db:test` çalışır ve bunu denetler.
 
 ## Bilinen sınırlar
 

@@ -4,90 +4,36 @@ Skipped when Supabase is not reachable. Each run opens its own session on the
 seed parcel; the synthetic slot codes (S1-1 .. S3-4) all have active trees
 there. The synthetic recording starts at the current time and has its own
 background, so its files never collide with an earlier run on the same
-database. Seed rows are not changed.
+database. Seed rows are not changed; the test session is purged afterwards
+(tests/supabase_util.py).
 """
 
 from __future__ import annotations
 
 import hashlib
-import json
-import os
-import shutil
-import subprocess
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 
-import httpx
 import pytest
 from conftest import fast_params
+from supabase_util import ORG, PARCEL, client, creds
 
 from orchados_pipeline.cli import main
 from orchados_pipeline.context import RunContext
 from orchados_pipeline.media import SupabaseMediaStore, media_key
 from orchados_pipeline.pipeline import run_all
-from orchados_pipeline.supabase import PermissionDenied, SupabaseClient, SupabaseError
+from orchados_pipeline.supabase import PermissionDenied, SupabaseError
 from orchados_pipeline.synthetic import SyntheticConfig, make_session
 from orchados_pipeline.upload import UPLOAD_KINDS, UploadOptions, upload_to_supabase
 
 pytestmark = pytest.mark.supabase
 
-REPO = Path(__file__).resolve().parents[3]
-ORG = "b0000000-0000-4000-8000-000000000001"
-PARCEL = "c0000000-0000-4000-8000-000000000001"
-PASSWORD = "orchados-dev"
-
-
-def _local_env() -> tuple[str, str] | None:
-    url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_ANON_KEY")
-    if not (url and key):
-        exe = shutil.which("supabase") or REPO / "node_modules" / ".bin" / "supabase"
-        try:
-            out = subprocess.run(
-                [str(exe), "status", "-o", "json", "--workdir", str(REPO)],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                check=True,
-            ).stdout
-            status = json.loads(out[out.index("{") :])
-        except (OSError, ValueError, subprocess.SubprocessError):
-            return None
-        url, key = status["API_URL"], status["ANON_KEY"]
-    try:
-        httpx.get(f"{url}/auth/v1/health", headers={"apikey": key}, timeout=5).raise_for_status()
-    except httpx.HTTPError:
-        return None
-    return url, key
-
 
 @pytest.fixture(scope="module")
-def supabase_env():
-    env = _local_env()
-    if env is None:
-        pytest.skip("local Supabase not reachable (pnpm db:start && pnpm db:reset)")
-    return env
-
-
-def _client(env, who: str) -> SupabaseClient:
-    c = SupabaseClient(*env)
-    c.sign_in_with_password(f"{who}@example.com", PASSWORD)
-    return c
-
-
-def _creds(env, who: str = "ops") -> dict[str, str]:
-    return {
-        "SUPABASE_URL": env[0],
-        "SUPABASE_ANON_KEY": env[1],
-        "ORCHADOS_EMAIL": f"{who}@example.com",
-        "ORCHADOS_PASSWORD": PASSWORD,
-    }
-
-
-@pytest.fixture(scope="module")
-def uploaded(supabase_env, tmp_path_factory):
-    ops = _client(supabase_env, "ops")
+def uploaded(supabase_env, test_sessions, tmp_path_factory):
+    ops = client(supabase_env, "ops")
     session_id = str(uuid.uuid4())
+    test_sessions.append(session_id)
     ops.insert(
         "session",
         [
@@ -111,7 +57,7 @@ def uploaded(supabase_env, tmp_path_factory):
         ctx.run_dir,
         session_id,
         UploadOptions(kinds=frozenset(UPLOAD_KINDS), allow_unblurred=True, station="ci"),
-        env=_creds(supabase_env),
+        env=creds(supabase_env),
     )
     yield ops, session_id, ctx, out, report
     ops.close()
@@ -158,7 +104,7 @@ def test_rows_and_objects_are_created(uploaded):
 def test_second_upload_adds_nothing(uploaded, supabase_env, monkeypatch, capsys):
     ops, session_id, ctx, _, _ = uploaded
     count = len(ops.select("asset", {"session_id": f"eq.{session_id}", "select": "id"}))
-    for k, v in _creds(supabase_env).items():
+    for k, v in creds(supabase_env).items():
         monkeypatch.setenv(k, v)
     args = ["upload", str(ctx.run_dir), "--session-id", session_id, "--allow-unblurred"]
     assert main([*args, "--only", ",".join(UPLOAD_KINDS), "--station", "ci"]) == 0
@@ -172,7 +118,7 @@ def test_second_upload_adds_nothing(uploaded, supabase_env, monkeypatch, capsys)
 
 def test_owner_sees_nothing_before_publication(uploaded, supabase_env):
     _, session_id, _, out, _ = uploaded
-    with _client(supabase_env, "owner") as owner:
+    with client(supabase_env, "owner") as owner:
         # The visit itself is visible, its results are not.
         assert owner.select("session", {"id": f"eq.{session_id}", "select": "status"})
         for table in ("capture", "asset"):
@@ -191,6 +137,6 @@ def test_field_staff_cannot_upload_files(supabase_env, tmp_path):
     f = tmp_path / "x.bin"
     f.write_bytes(uuid.uuid4().bytes)
     key = media_key(ORG, PARCEL, hashlib.sha256(f.read_bytes()).hexdigest())
-    with _client(supabase_env, "field") as field:
+    with client(supabase_env, "field") as field:
         with pytest.raises(PermissionDenied):
             SupabaseMediaStore(field).put(key, f, "application/octet-stream")

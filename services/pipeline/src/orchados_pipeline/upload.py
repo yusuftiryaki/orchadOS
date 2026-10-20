@@ -132,6 +132,8 @@ class UploadOptions:
     allow_unblurred: bool = False  # synthetic data only
     station: str = field(default_factory=socket.gethostname)
     session_dir: Path | None = None  # default: <run_dir>/../../<session> for "<session>.processed"
+    # Crops must come from run --trees-from-db (crops.json trees_source = database).
+    require_db_trees: bool = False
 
 
 @dataclass
@@ -233,6 +235,7 @@ class _Run:
     panoramas: dict[str, PanoramaRecord]  # full image sha -> record
     preview_of: dict[str, str]  # full image sha -> preview sha
     crops: dict[str, CropRecord]  # crop image sha -> record
+    trees_source: str | None  # crops.json trees_source; None without crops.json
     clock: ClockModel | None
 
     @classmethod
@@ -251,6 +254,7 @@ class _Run:
             panoramas={p.image.sha256: p for p in pset.panoramas},
             preview_of={p.image.sha256: p.preview.sha256 for p in pset.panoramas},
             crops={c.image.sha256: c for c in cset.crops} if cset else {},
+            trees_source=cset.trees_source if cset else None,
             clock=read_model(ClockModel, spath) if spath.is_file() else None,
         )
 
@@ -329,26 +333,41 @@ def upload_run(
             )
         report.warnings.append(f"{len(unblurred)} images uploaded without face blurring")
 
-    trees = (
-        catalog.active_trees(session.parcel_id)
-        if any(a.kind == "tree_crop" for a in selected)
-        else {}
-    )
+    has_crops = any(a.kind == "tree_crop" for a in selected)
+    from_db = run.trees_source == "database"
+    if options.require_db_trees and has_crops and not from_db:
+        raise UploadError(
+            "the crops were cut from a trees file, not from the database; "
+            "process again with run --trees-from-db"
+        )
+    trees = catalog.active_trees(session.parcel_id) if has_crops else {}
     crop_tree: dict[str, str] = {}
     unmatched: list[str] = []
+    changed: list[str] = []
     for a in selected:
         if a.kind != "tree_crop":
             continue
-        code = (a.subject or {}).get("slot_code", "")
-        if code in trees:
-            crop_tree[a.asset_id] = trees[code]
+        subject = a.subject or {}
+        code = subject.get("slot_code", "")
+        label = f"{code or '?'} ({subject.get('direction', '?')})"
+        if code not in trees:
+            unmatched.append(label)
+        elif from_db and subject.get("tree_id") != trees[code]:
+            # Crops from the database carry the tree id; the slot now holds another tree.
+            changed.append(label)
         else:
-            unmatched.append(f"{code or '?'} ({(a.subject or {}).get('direction', '?')})")
+            crop_tree[a.asset_id] = trees[code]
     if unmatched:
         report.warnings.append(
             f"{len(unmatched)} tree crops not uploaded, no active tree in a slot with that code: "
             + ", ".join(sorted(unmatched))
         )
+    if changed:
+        report.warnings.append(
+            f"{len(changed)} tree crops not uploaded, the slot's active tree changed since "
+            "processing: " + ", ".join(sorted(changed))
+        )
+    if unmatched or changed:
         selected = [a for a in selected if a.kind != "tree_crop" or a.asset_id in crop_tree]
 
     base = {"org_id": session.org_id, "parcel_id": session.parcel_id, "session_id": session.id}

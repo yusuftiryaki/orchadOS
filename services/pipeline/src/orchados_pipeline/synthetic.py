@@ -5,14 +5,15 @@ Builds a complete session folder: an equirectangular MP4 drawn with OpenCV
 and end, deliberately blurred frames), a NAV-PVT UBX log of the same path,
 and the logger's gnss/events.csv and gnss/session.json in the İP2 format (see
 docs/arayuzler.md), the root session.json and trees.json. The ground truth is
-written to synthetic_truth.json.
+written to synthetic_truth.json. The scene is a 3 x 4 tree grid, or a parcel's
+real tree positions (SyntheticConfig.parcel_trees, e.g. from the database).
 """
 
 from __future__ import annotations
 
 import json
 import math
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -22,8 +23,10 @@ import numpy as np
 from .events import format_events
 from .geo import LocalFrame, bearing_deg, wrap180
 from .gpstime import gps_ns_to_iso, utc_to_gps_ns
+from .models import Tree
 from .projection import direction_to_pixel
 from .sync import encode_qr_payload
+from .trees_db import slot_order
 from .ubx import build_frame, encode_nav_pvt
 
 
@@ -56,6 +59,110 @@ class SyntheticConfig:
     seed: int = 7
     # Phone -> logger delay of the qr_sync command (BLE), added to the event time.
     qr_event_latency_ms: int = 30
+    # Fit the scene to a parcel (synth --trees-from-db / --trees): all of its trees
+    # are drawn and the path drives the aisles around the chosen rows and positions
+    # (inclusive ranges; None = all). Without parcel trees, the 3 x 4 grid above.
+    parcel_trees: list[Tree] | None = None
+    rows: tuple[int, int] | None = None
+    positions: tuple[int, int] | None = None
+    aisle_end_margin_m: float = 4.0  # path runs this far past the first and last tree
+    default_row_spacing_m: float = 8.0  # when the parcel has a single row
+
+
+def parse_range(text: str) -> tuple[int, int]:
+    """'1-2' -> (1, 2); '3' -> (3, 3)."""
+    a, _, b = text.partition("-")
+    lo, hi = int(a), int(b or a)
+    if lo < 1 or hi < lo:
+        raise ValueError(f"bad range {text!r}; use e.g. 1-2")
+    return lo, hi
+
+
+def _in(value: int, rng: tuple[int, int] | None) -> bool:
+    return rng is None or rng[0] <= value <= rng[1]
+
+
+def fit_to_parcel(
+    cfg: SyntheticConfig,
+) -> tuple[float, float, list[tuple[float, float]], list[dict]]:
+    """Origin, waypoints and scene trees from the parcel's tree positions.
+
+    Rows come from the slot codes (S<row>-<position>[suffix]). The row direction
+    is the mean direction from the first to the last tree of each chosen row; the
+    path drives the aisles half a row spacing beside each chosen row, back and
+    forth (lawnmower), so every chosen tree is seen from both sides.
+    """
+    trees = cfg.parcel_trees or []
+    coded = []
+    for t in trees:
+        row, pos, _ = slot_order(t.slot_code)
+        coded.append((t, row, pos))
+    chosen = [(t, r, q) for t, r, q in coded if _in(r, cfg.rows) and _in(q, cfg.positions)]
+    if not chosen:
+        raise ValueError(
+            f"no trees in rows {cfg.rows or 'all'}, positions {cfg.positions or 'all'} "
+            f"among {len(trees)} parcel trees"
+        )
+    lat0 = float(np.mean([t.lat for t, _, _ in chosen]))
+    lon0 = float(np.mean([t.lon for t, _, _ in chosen]))
+    frame = LocalFrame(lat0, lon0)
+    en = {t.tree_id: np.array(frame.to_en(t.lat, t.lon), dtype=float) for t in trees}
+
+    axis = np.zeros(2)
+    for row in sorted({r for _, r, _ in chosen}):
+        in_row = sorted((q, t.tree_id) for t, r, q in chosen if r == row)
+        if len(in_row) >= 2:
+            d = en[in_row[-1][1]] - en[in_row[0][1]]
+            axis += d / np.linalg.norm(d)
+    if not axis.any():
+        # A single tree per row: take the direction of the whole parcel row.
+        for row in sorted({r for _, r, _ in chosen}):
+            in_row = sorted((q, t.tree_id) for t, r, q in coded if r == row)
+            if len(in_row) >= 2:
+                d = en[in_row[-1][1]] - en[in_row[0][1]]
+                axis += d / np.linalg.norm(d)
+    axis = axis / np.linalg.norm(axis) if axis.any() else np.array([1.0, 0.0])
+    across = np.array([-axis[1], axis[0]])  # left of the row direction
+
+    def uv(tree_id: str) -> tuple[float, float]:
+        p = en[tree_id]
+        return float(p @ axis), float(p @ across)
+
+    row_v = {}
+    for row in sorted({r for _, r, _ in coded}):
+        row_v[row] = float(np.median([uv(t.tree_id)[1] for t, r, _ in coded if r == row]))
+    ordered = sorted(row_v.values())
+    gaps = [b - a for a, b in zip(ordered, ordered[1:], strict=False) if b - a > 0.5]
+    spacing = float(np.median(gaps)) if gaps else cfg.default_row_spacing_m
+
+    vs = sorted(row_v[r] for r in {r for _, r, _ in chosen})
+    aisles = [vs[0] - spacing / 2] + [(a + b) / 2 for a, b in zip(vs, vs[1:], strict=False)]
+    aisles.append(vs[-1] + spacing / 2)
+    us = [uv(t.tree_id)[0] for t, _, _ in chosen]
+    u0, u1 = min(us) - cfg.aisle_end_margin_m, max(us) + cfg.aisle_end_margin_m
+
+    waypoints = []
+    for k, v in enumerate(aisles):
+        for u in (u0, u1) if k % 2 == 0 else (u1, u0):
+            e, n = u * axis + v * across
+            waypoints.append((float(e), float(n)))
+
+    scene = []
+    for t in trees:
+        u, v = uv(t.tree_id)
+        if u0 - 25 <= u <= u1 + 25 and aisles[0] - 25 <= v <= aisles[-1] + 25:
+            e, n = en[t.tree_id]
+            scene.append(
+                {
+                    "tree_id": t.tree_id,
+                    "slot_code": t.slot_code,
+                    "lat": t.lat,
+                    "lon": t.lon,
+                    "e": float(e),
+                    "n": float(n),
+                }
+            )
+    return lat0, lon0, waypoints, scene
 
 
 class Path2D:
@@ -155,6 +262,10 @@ def make_session(dest: Path, cfg: SyntheticConfig | None = None) -> SyntheticTru
     dest = Path(dest)
     (dest / "gnss").mkdir(parents=True, exist_ok=True)
     (dest / "video").mkdir(parents=True, exist_ok=True)
+    scene_trees = None
+    if cfg.parcel_trees is not None:
+        lat0, lon0, waypoints, scene_trees = fit_to_parcel(cfg)
+        cfg = replace(cfg, lat0=lat0, lon0=lon0, waypoints=waypoints)
     frame = LocalFrame(cfg.lat0, cfg.lon0)
     path = Path2D(cfg.waypoints)
     move_s = path.length / cfg.speed_mps
@@ -174,8 +285,8 @@ def make_session(dest: Path, cfg: SyntheticConfig | None = None) -> SyntheticTru
             window *= 2
         return 0.0
 
-    trees = []
-    for i, e in enumerate(cfg.tree_rows_e):
+    trees = scene_trees or []
+    for i, e in enumerate(cfg.tree_rows_e if scene_trees is None else ()):
         for j, n in enumerate(cfg.tree_cols_n):
             lat, lon = frame.to_latlon(e, n)
             trees.append(
