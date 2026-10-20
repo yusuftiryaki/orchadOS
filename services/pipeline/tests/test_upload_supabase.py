@@ -3,7 +3,8 @@
 Skipped when Supabase is not reachable. Each run opens its own session on the
 seed parcel; the synthetic slot codes (S1-1 .. S3-4) all have active trees
 there. The synthetic recording starts at the current time and has its own
-background, so its files never collide with an earlier run on the same database. Seed rows are not changed.
+background, so its files never collide with an earlier run on the same
+database. Seed rows are not changed.
 """
 
 from __future__ import annotations
