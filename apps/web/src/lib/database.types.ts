@@ -1301,6 +1301,8 @@ export type Database = {
           parcel_id: string;
           performer: Database["public"]["Enums"]["performer_kind"];
           planned_date: string | null;
+          published_at: string | null;
+          published_by: string | null;
           rig_id: string | null;
           started_at: string | null;
           status: Database["public"]["Enums"]["session_status"];
@@ -1320,6 +1322,8 @@ export type Database = {
           parcel_id: string;
           performer?: Database["public"]["Enums"]["performer_kind"];
           planned_date?: string | null;
+          published_at?: string | null;
+          published_by?: string | null;
           rig_id?: string | null;
           started_at?: string | null;
           status?: Database["public"]["Enums"]["session_status"];
@@ -1338,6 +1342,8 @@ export type Database = {
           parcel_id?: string;
           performer?: Database["public"]["Enums"]["performer_kind"];
           planned_date?: string | null;
+          published_at?: string | null;
+          published_by?: string | null;
           rig_id?: string | null;
           started_at?: string | null;
           status?: Database["public"]["Enums"]["session_status"];
@@ -1690,6 +1696,47 @@ export type Database = {
           org_id: string;
           phone: string;
         }[];
+      };
+      publish_session: {
+        Args: { p_session_id: string };
+        Returns: {
+          created_at: string;
+          created_by: string | null;
+          ended_at: string | null;
+          id: string;
+          kind: Database["public"]["Enums"]["session_kind"];
+          lead_user_id: string | null;
+          methodology_version: string | null;
+          notes: string | null;
+          org_id: string;
+          parcel_id: string;
+          performer: Database["public"]["Enums"]["performer_kind"];
+          planned_date: string | null;
+          published_at: string | null;
+          published_by: string | null;
+          rig_id: string | null;
+          started_at: string | null;
+          status: Database["public"]["Enums"]["session_status"];
+          weather: Json | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "session";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      save_expert_assessment: {
+        Args: {
+          p_evidence_asset_ids: string[];
+          p_measurements: Json;
+          p_method_version: string;
+          p_notes?: string;
+          p_overall_class: Database["public"]["Enums"]["health_class"];
+          p_session_id: string;
+          p_tree_id: string;
+        };
+        Returns: string;
       };
     };
     Enums: {

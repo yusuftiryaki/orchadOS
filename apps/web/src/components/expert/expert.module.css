@@ -1,0 +1,318 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.number {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.notice {
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.error {
+  border-left-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* Tree list on the left, the selected tree on the right. */
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sidebar {
+  position: sticky;
+  top: var(--space-3);
+  max-height: calc(100vh - 2 * var(--space-3));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.filter,
+.filterActive {
+  font-size: 13px;
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  text-decoration: none;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.filterActive {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.treeList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  /* Lets the list scroll inside the sticky sidebar instead of growing it. */
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.treeList a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  text-decoration: none;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+.treeList a[aria-current="true"] {
+  background: #eef4e6;
+  font-weight: 600;
+}
+
+.treeCode {
+  min-width: 64px;
+}
+
+.check {
+  margin-left: auto;
+  color: var(--color-accent);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  flex: none;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.detailHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.detailHeader h2 {
+  margin: 0;
+}
+
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.panel h3 {
+  margin-bottom: var(--space-2);
+  font-size: 16px;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+@media (max-width: 1000px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.list dt {
+  color: var(--color-muted);
+}
+
+.list dd {
+  margin: 0;
+}
+
+.crops {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-2);
+}
+
+.crop {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 13px;
+}
+
+.crop img,
+.placeholder {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: #eceee8;
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.field select,
+.field input,
+.field textarea {
+  font: inherit;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.classes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.classes label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+
+.numberInput {
+  width: 7em;
+}
+
+.findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.finding {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+}
+
+.finding p {
+  margin: var(--space-1) 0;
+}
+
+.danger {
+  border-color: var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+}
+
+.hint {
+  font-size: 13px;
+}
+
+.panel > form + form {
+  margin-top: var(--space-3);
+}
