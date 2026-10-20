@@ -65,7 +65,7 @@ gantt
 | İP10 | Operasyon hazırlıkları | P0 | 4 gün + dış süreler | Metodoloji v0 (ölçekler, referans fotoğraflar), KVKK aydınlatma ve rıza metinleri, sözleşme taslağı, uzman anlaşması, pilot sahiplerin onayı |
 | İP11 | İşleme istasyonu | P0 | 1 gün | GPU'lu, büyük diskli bir bilgisayar alınmış ya da ayarlanmış; işleme hattı üzerinde çalışıyor |
 
-**Durum (19 Ekim 2026)**
+**Durum (20 Ekim 2026)**
 
 | İP | Durum | Not |
 | --- | --- | --- |
@@ -76,6 +76,8 @@ gantt
 | Entegrasyon | Tamam (PR #4) | Sözleşmeler `docs/arayuzler.md` içinde |
 | İP5 | v0.1 tamam (PR #9) | Ofis üçgenleme aracı: tıklayarak üçgenleme, sıra oturtma ve kodlama, boş yerler, doğrulama listesi (CSV), kayıt; 12 sentetik ağaç 30 cm içinde. Açık: depolamadan okuyan panorama kaynağı, tek işlemde kayıt, tıklama verisinin saklanması |
 | İP7/İP8 temeli | Web iskeleti tamam (PR #5) | Rol bazlı bölümler, parsel listesi ve haritası. Web toplam: 86 birim, 29 entegrasyon, 16 tarayıcı testi |
+| CI | Tamam (PR #10) | Her PR'da bileşen testleri GitHub Actions'ta; migration'lar `main`'den Supabase test projesine; web Vercel'de. Bkz. `docs/deployment.md` |
+| Dalga 4 | Sürüyor | İP4 yükleme, İP7 uzman paneli, İP8 sahip portalı, İP6 senkronizasyon (`docs/gorevler/`). Örnek tarama verisi: `pnpm db:demo` |
 | İP6 | İskelet + kamera tamam (PR #6, #8) | BLE protokolü, QR saat, ekran akışı, çevrimdışı kuyruk, gerçek kamera ve cihazda kalite kontrolü; 66 test. Açık: senkronizasyon, kapsama haritası, telefonda deneme, APK derlemesi (yerelde) |
 
 **Açık işler**
@@ -85,7 +87,7 @@ gantt
 - [ ] **Web:** Ağaç rengi `tree_latest_assessment` görünümüne bağlanmalı (şu an kaynak gözetmeden en yeni değerlendirme).
 - [ ] **Saha uygulaması:** README ve `GnssStatus` yorumu, firmware 0.2.0'daki GPS zamanı alanını hâlâ "önerilen" diye anlatıyor; evet/hayır cevapları gönderilirken `value_bool` → `value_boolean` eşlemesi.
 - [ ] **Lisans:** `flutter_blue_plus` ticari kullanımda ücretli. Ticari kullanıma geçmeden lisans ya da paket değişikliği.
-- [ ] **Saha uygulaması:** `flutter build apk` bulutta Maven 429 hatası verdi; yerelde `mobile` devcontainer'ında denenecek.
+- [ ] **Saha uygulaması:** `flutter build apk` CI'da kırık: `permission_handler_android` `compileSdk` 37 istiyor (İP6 senkronizasyon görevinde).
 
 Toplam yaklaşık 55 gün (İP9 hariç).
 

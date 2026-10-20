@@ -38,6 +38,7 @@ Kökte bir kez `pnpm install` (Supabase komut satırı aracı; sürümü `packag
 | `pnpm db:stop` | Durdurur |
 | `pnpm db:reset` | Veritabanını sıfırdan kurar: `supabase/migrations/` + `supabase/seed.sql` |
 | `pnpm db:test` | pgTAP testleri (`supabase/tests/`) |
+| `pnpm db:demo` | `db:reset`'ten sonra iki örnek tarama ziyareti yükler (`supabase/demo/scans.sql`): biri yayımlanmış, biri uzman incelemesinde. Görüntü dosyaları yok. Testler buna dayanmaz |
 | `pnpm db:status` | Yerel adresler ve anahtarlar |
 
 Örnek kullanıcılar (sadece yerel): `owner@`, `viewer@`, `field@`, `expert@`, `ops@example.com`, parola `orchados-dev`.

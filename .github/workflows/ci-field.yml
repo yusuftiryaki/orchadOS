@@ -50,11 +50,11 @@ jobs:
           dart run build_runner build
           git diff --exit-code
 
-      # The APK is only built on main to save Actions minutes.
+      # Built on PRs too: Android SDK/plugin mismatches only show up here.
       - name: Build debug APK
-        if: github.ref == 'refs/heads/main'
         run: flutter build apk --debug
 
+      # Kept only from main to save artifact storage.
       - name: Upload APK
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4

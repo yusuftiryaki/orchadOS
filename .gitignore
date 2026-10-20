@@ -40,3 +40,4 @@ local.properties
 # Supabase
 supabase/.temp/
 supabase/.branches/
+.pnpm-store/

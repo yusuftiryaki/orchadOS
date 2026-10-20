@@ -43,7 +43,8 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 
 - Repo Vercel'e GitHub entegrasyonuyla bağlıdır; ayrı bir iş akışı yoktur.
 - Kök dizin `apps/web`. Kurulum pnpm workspace'i üzerinden yapılır.
-- Ortam değişkenleri: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Servis anahtarı Vercel'e **konmaz**.
+- Ortam değişkenleri: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase'in "publishable" anahtarı ya da eski "anon" anahtarı). Servis anahtarı Vercel'e **konmaz**.
+- Sunucu fonksiyonları Frankfurt'ta (`apps/web/vercel.json`, `fra1`): veritabanına yakın ve veri AB içinde kalıyor.
 - Supabase Auth ayarlarında Site URL olarak Vercel üretim adresi, yönlendirme adreslerinde Vercel önizleme adresleri tanımlıdır.
 
 ## Test projesindeki kullanıcılar
