@@ -23,6 +23,11 @@ concurrency:
   group: ci-db-web-${{ github.ref }}
   cancel-in-progress: true
 
+# Anonymous pulls from public.ecr.aws hit its per-IP data limit on shared
+# runners; Docker Hub does not rate-limit GitHub-hosted runners.
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: docker.io
+
 jobs:
   db-web:
     runs-on: ubuntu-24.04
