@@ -6,7 +6,8 @@ import {
   type MeasurementInput,
   type MetricInputError,
 } from "./metrics";
-import { isReviewable, isUuid, loadReview, loadTreeDetail, type ReviewContext } from "./review";
+import { isUuid } from "@/lib/supabase/query";
+import { isReviewable, loadReview, loadTreeDetail, type ReviewContext } from "./review";
 import { HEALTH_CLASSES, type HealthClass } from "./summary";
 
 // Writes of the expert panel, as the signed-in user. Decisions go through the

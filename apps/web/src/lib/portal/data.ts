@@ -13,7 +13,7 @@ import {
 } from "@/lib/map/geo";
 import type { HealthClass, MarkerState } from "@/lib/map/tree-style";
 import { createMediaSigner } from "@/lib/media/signer";
-import { listParcels, type ParcelSummary } from "@/lib/parcels";
+import { fetchLatestAssessments, listParcels, type ParcelSummary } from "@/lib/parcels";
 import type { Client } from "@/lib/supabase/types";
 import {
   approvalOf,
@@ -25,7 +25,7 @@ import {
   type AssessmentRow,
   type Distribution,
 } from "./classes";
-import { fetchAll, UUID_RE } from "./fetch";
+import { fetchAll, UUID_RE } from "@/lib/supabase/query";
 import { representativePoint, sortFindings, type FindingItem } from "./findings";
 import {
   cardMetrics,
@@ -266,16 +266,7 @@ export async function getParcelReport(
       ),
       assessmentsOf(supabase, visitIds),
       // Map colour: tree_latest_assessment (newest session first, then source).
-      visitIds.length === 0
-        ? Promise.resolve([])
-        : fetchAll((from, to) =>
-            supabase
-              .from("tree_latest_assessment")
-              .select("tree_id, session_id, source, overall_class, auto_approved, session_time")
-              .eq("parcel_id", parcelId)
-              .order("tree_id")
-              .range(from, to),
-          ),
+      visitIds.length === 0 ? Promise.resolve([]) : fetchLatestAssessments(supabase, parcelId),
       visitIds.length === 0
         ? Promise.resolve([])
         : fetchAll((from, to) =>

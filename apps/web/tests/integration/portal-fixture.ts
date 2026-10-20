@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { deflateSync } from "node:zlib";
 import type { Client } from "@/lib/supabase/types";
+import { runLocalSql } from "../local-db";
 
 // Owner portal test data, shared by the integration and browser tests. It
 // lives in its own org with its own users, so seed counts and the other
@@ -175,10 +175,9 @@ function check<T extends { error: unknown }>(result: T, what: string): T {
   return result;
 }
 
-const DB_CONTAINER = process.env.SUPABASE_DB_CONTAINER ?? "supabase_db_orchados";
-
 export function purgePortalFixture() {
   const tables = [
+    "trunk_label",
     "finding_evidence",
     "finding",
     "assessment_measurement",
@@ -208,23 +207,7 @@ export function purgePortalFixture() {
     `delete from auth.users where email like 'portal-%@example.test';`,
     "commit;",
   ].join("\n");
-  execFileSync(
-    "docker",
-    [
-      "exec",
-      "-i",
-      DB_CONTAINER,
-      "psql",
-      "-U",
-      "postgres",
-      "-d",
-      "postgres",
-      "-q",
-      "-v",
-      "ON_ERROR_STOP=1",
-    ],
-    { input: sql, stdio: ["pipe", "ignore", "pipe"] },
-  );
+  runLocalSql(sql);
 }
 
 export async function createPortalFixture(admin: Client): Promise<Record<PortalUser, string>> {

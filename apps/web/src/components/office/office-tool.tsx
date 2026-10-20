@@ -4,10 +4,17 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { saveInventoryAction } from "@/app/ofis/parsel/[parcelId]/envanter/actions";
 import { formatNumber, t } from "@/lib/i18n";
-import { saveDraft, loadDraft, clearDraft, type DraftTree } from "@/lib/office/draft";
+import {
+  saveDraft,
+  loadDraft,
+  clearDraft,
+  type DraftRay,
+  type DraftTree,
+} from "@/lib/office/draft";
 import type { SaveInventoryResult } from "@/lib/office/inventory";
 import { bearingDeg, distance, wrap180, type LatLon } from "@/lib/office/local-frame";
 import {
+  initialVariant,
   nearestPair,
   panoramaImageUrl,
   type PanoramaInfo,
@@ -29,6 +36,7 @@ interface PendingRay {
   azimuthDeg: number;
   yawDeg: number;
   pitchDeg: number;
+  clickedAt: string;
 }
 
 interface ViewState {
@@ -43,6 +51,19 @@ const MARKER_RANGE_M = 25;
 
 function fmt(value: number, digits = 2) {
   return formatNumber(value, digits);
+}
+
+// A click of the draft as a trunk label (save_inventory). Drafts written
+// before yaw and click time were kept derive yaw from the panorama heading.
+function trunkLabel(pano: PanoramaInfo, ray: DraftRay) {
+  return {
+    panoramaAssetId: pano.assetId,
+    gpsTimeNs: /^\d+$/.test(pano.gpsTimeNs) ? pano.gpsTimeNs : null,
+    yawDeg: ray.yawDeg ?? wrap180(ray.azimuthDeg - pano.headingDeg),
+    pitchDeg: ray.pitchDeg,
+    azimuthDeg: ray.azimuthDeg,
+    clickedAt: ray.clickedAt ?? null,
+  };
 }
 
 export function OfficeTool({
@@ -184,6 +205,7 @@ export function OfficeTool({
       azimuthDeg: (((pano.headingDeg + yawDeg) % 360) + 360) % 360,
       yawDeg,
       pitchDeg,
+      clickedAt: new Date().toISOString(),
     };
     setRays((current) => [...current.filter((r) => r.panoramaId !== pano.id), ray]);
   };
@@ -202,7 +224,9 @@ export function OfficeTool({
       rays: rays.map((r) => ({
         panoramaId: r.panoramaId,
         azimuthDeg: r.azimuthDeg,
+        yawDeg: r.yawDeg,
         pitchDeg: r.pitchDeg,
+        clickedAt: r.clickedAt,
       })),
     };
     setTrees((current) => [...current, tree]);
@@ -255,6 +279,12 @@ export function OfficeTool({
           lat: tr.lat,
           lon: tr.lon,
           uncertaintyM: tr.uncertaintyM,
+          unsure: tr.unsure,
+          moved: tr.moved,
+          rays: tr.rays.flatMap((r) => {
+            const pano = panoramas[panoIndex.get(r.panoramaId) ?? -1];
+            return pano ? [trunkLabel(pano, r)] : [];
+          }),
         })),
       });
       setSaveResult(result);
@@ -451,7 +481,12 @@ export function OfficeTool({
                         </button>
                       </div>
                       <PanoramaViewer
-                        url={panoramaImageUrl(set.id, pano.id, "2k")}
+                        url={panoramaImageUrl(set.id, pano.id, initialVariant(pano) ?? "2k")}
+                        fullUrl={
+                          initialVariant(pano) === "2k" && pano.variants.includes("4k")
+                            ? panoramaImageUrl(set.id, pano.id, "4k")
+                            : null
+                        }
                         panoramaId={pano.id}
                         lookYawDeg={view.lookYawDeg}
                         lookVersion={lookVersion}
@@ -759,6 +794,7 @@ export function OfficeTool({
                 {saveResult?.ok ? (
                   <p className={styles.success} role="status" data-testid="save-result">
                     {t.office.saved(saveResult.slots, saveResult.trees)}{" "}
+                    {saveResult.labels > 0 && <>{t.office.savedLabels(saveResult.labels)} </>}
                     <Link href={`/ofis/parsel/${parcelId}`}>{t.office.viewParcel}</Link>
                   </p>
                 ) : (

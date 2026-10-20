@@ -1,4 +1,9 @@
 import type { Position } from "@/lib/map/geo";
+import {
+  groupPanoramaVariants,
+  poseField,
+  type PanoramaAssetRow,
+} from "@/lib/media/panorama-variants";
 
 // 360° tour geometry. Panorama convention (services/pipeline/README.md): the
 // centre column looks towards heading_deg and azimuth grows clockwise seen
@@ -145,46 +150,22 @@ export function treeMarkers<T extends { position: Position }>(
   return out.sort((a, b) => a.distanceM - b.distanceM).slice(0, limit);
 }
 
-export interface PanoramaAsset {
-  id: string;
-  position: Position;
-  pose: unknown;
-}
-
-function poseField(pose: unknown, key: string): unknown {
-  return pose && typeof pose === "object" ? (pose as Record<string, unknown>)[key] : undefined;
-}
+export type PanoramaAsset = PanoramaAssetRow;
 
 // Full-resolution and preview images of one panorama are separate asset rows
-// (pose.variant = full | preview; missing means full). They share
-// pose.gps_time_ns; without it, the same position pairs them.
+// (src/lib/media/panorama-variants.ts); the tour shows one stop per frame.
 export function pairPanoramaVariants(assets: PanoramaAsset[]): TourPanorama[] {
-  const groups = new Map<string, { full?: PanoramaAsset; preview?: PanoramaAsset }>();
-  for (const asset of assets) {
-    const time = poseField(asset.pose, "gps_time_ns");
-    const key =
-      typeof time === "string" || typeof time === "number"
-        ? `t:${time}`
-        : `p:${asset.position[0].toFixed(7)},${asset.position[1].toFixed(7)}`;
-    const group = groups.get(key) ?? {};
-    groups.set(key, group);
-    const variant = poseField(asset.pose, "variant") === "preview" ? "preview" : "full";
-    // Two rows of the same variant (reprocessing): keep the first one given.
-    if (!group[variant]) group[variant] = asset;
-  }
-  const out: TourPanorama[] = [];
-  for (const { full, preview } of groups.values()) {
-    const main = full ?? preview!;
+  return groupPanoramaVariants(assets).map(({ full, preview }) => {
+    const main = (full ?? preview)!;
     const heading = Number(
       poseField(main.pose, "heading_deg") ?? poseField(preview?.pose, "heading_deg"),
     );
-    out.push({
+    return {
       id: main.id,
       position: main.position,
       headingDeg: Number.isFinite(heading) ? normalize360(heading) : 0,
       fullAssetId: full?.id ?? null,
       previewAssetId: preview?.id ?? null,
-    });
-  }
-  return out;
+    };
+  });
 }

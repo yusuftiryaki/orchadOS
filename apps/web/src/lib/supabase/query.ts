@@ -1,3 +1,5 @@
+// Query helpers shared by every data module.
+
 // PostgREST caps responses at [api].max_rows (1000); larger results need pages.
 // The query must have a stable order for pages not to overlap.
 const PAGE_SIZE = 1000;
@@ -15,3 +17,6 @@ export async function fetchAll<T>(
 }
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const isUuid = (value: unknown): value is string =>
+  typeof value === "string" && UUID_RE.test(value);

@@ -1,13 +1,22 @@
 import "server-only";
+import type { Client } from "@/lib/supabase/types";
 import { LocalPanoramaSource } from "./local-panorama-source";
 import type { PanoramaSource } from "./panoramas";
+import { StoragePanoramaSource } from "./storage-panorama-source";
 
-// The panorama source of this deployment, or null when none is configured.
-// Only the local folder source exists so far, and it is for development:
-// production builds ignore it unless LOCAL_PANORAMA_ALLOW_PRODUCTION=1 (set by
-// the browser tests, which run a production build). Reading from storage comes
-// with the pipeline's upload step.
-export function panoramaSource(): PanoramaSource | null {
+// Panorama sources of the office tool, as the signed-in user. Storage (the
+// pipeline's uploads) always; the local folder source in addition when
+// LOCAL_PANORAMA_DIR is set, for development. Production builds ignore the
+// local source unless LOCAL_PANORAMA_ALLOW_PRODUCTION=1 (set by the browser
+// tests, which run a production build).
+export function officePanoramaSources(supabase: Client, userId: string): PanoramaSource[] {
+  const sources: PanoramaSource[] = [new StoragePanoramaSource(supabase, userId)];
+  const local = localPanoramaDir();
+  if (local) sources.push(new LocalPanoramaSource(local));
+  return sources;
+}
+
+export function localPanoramaDir(): string | null {
   const dir = process.env.LOCAL_PANORAMA_DIR?.trim();
   if (!dir) return null;
   if (
@@ -16,5 +25,5 @@ export function panoramaSource(): PanoramaSource | null {
   ) {
     return null;
   }
-  return new LocalPanoramaSource(dir);
+  return dir;
 }

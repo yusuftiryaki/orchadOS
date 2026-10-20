@@ -9,7 +9,8 @@ import styles from "./office-tool.module.css";
 
 // One equirectangular panorama in Photo Sphere Viewer. Yaw and pitch are in
 // degrees relative to the panorama's centre column (its heading), yaw growing
-// to the right, as in the pipeline's sidecar convention.
+// to the right, as in the pipeline's sidecar convention. Opens `url` (the
+// preview) and switches to `fullUrl` once the user zooms in.
 
 export interface ViewerMarker {
   id: string;
@@ -19,6 +20,8 @@ export interface ViewerMarker {
 }
 
 const RAD = Math.PI / 180;
+// Zoom level (0-100) above which the full-resolution image is loaded (as in the portal tour).
+const FULL_RES_ZOOM = 55;
 
 function markerHtml(kind: ViewerMarker["kind"]): string {
   return `<div class="${kind === "click" ? styles.clickMarker : styles.treeMarker}"></div>`;
@@ -26,6 +29,7 @@ function markerHtml(kind: ViewerMarker["kind"]): string {
 
 export function PanoramaViewer({
   url,
+  fullUrl,
   panoramaId,
   lookYawDeg,
   lookVersion,
@@ -34,6 +38,7 @@ export function PanoramaViewer({
   label,
 }: {
   url: string;
+  fullUrl: string | null;
   panoramaId: string;
   // Direction to turn to whenever lookVersion changes.
   lookYawDeg: number;
@@ -49,6 +54,8 @@ export function PanoramaViewer({
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const onClickRef = useRef(onClick);
   const initial = useRef({ url, lookYawDeg });
+  // Full-resolution image still to load for the shown panorama, if any.
+  const fullRef = useRef<string | null>(fullUrl);
 
   useEffect(() => {
     onClickRef.current = onClick;
@@ -83,6 +90,18 @@ export function PanoramaViewer({
         if (yaw > 180) yaw -= 360;
         onClickRef.current(yaw, data.pitch / RAD);
       });
+      viewer.addEventListener("zoom-updated", ({ zoomLevel }) => {
+        const v = viewerRef.current;
+        const full = fullRef.current;
+        if (!v || !full || zoomLevel < FULL_RES_ZOOM) return;
+        fullRef.current = null;
+        void v.setPanorama(full, {
+          position: v.getPosition(),
+          zoom: zoomLevel,
+          transition: false,
+          showLoader: false,
+        });
+      });
       viewer.addEventListener("ready", () => setReady(true), { once: true });
       viewer.addEventListener("panorama-loaded", () =>
         setLoadedId(container.dataset.panorama ?? null),
@@ -100,10 +119,12 @@ export function PanoramaViewer({
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!ready || !viewer) return;
-    if (viewer.config.panorama === url) {
+    // Same panorama (preview, or already switched to full resolution): just turn.
+    if (viewer.config.panorama === url || (fullUrl && viewer.config.panorama === fullUrl)) {
       viewer.rotate({ yaw: lookYawDeg * RAD, pitch: -10 * RAD });
       return;
     }
+    fullRef.current = fullUrl;
     setLoadedId(null);
     void viewer.setPanorama(url, {
       position: { yaw: lookYawDeg * RAD, pitch: -10 * RAD },
@@ -111,7 +132,7 @@ export function PanoramaViewer({
       showLoader: true,
     });
     // lookVersion re-runs this when the user clicks the map again.
-  }, [ready, url, lookYawDeg, lookVersion]);
+  }, [ready, url, fullUrl, lookYawDeg, lookVersion]);
 
   useEffect(() => {
     const plugin = markersRef.current;
