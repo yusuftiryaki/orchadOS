@@ -59,6 +59,7 @@ BLE protokolü, dosya biçimleri ve bağlantı tablosu: `firmware/gnss-logger/RE
 | `uv run pytest` | Testler (RTKLIB yoksa ilgili testler atlanır) |
 | `uv run orchados-pipeline synth <klasör>` | Sentetik bir oturum üretir |
 | `uv run orchados-pipeline run <oturum>` | Tüm aşamaları sırayla çalıştırır |
+| `uv run orchados-pipeline upload <çalıştırma> --session-id <uuid>` | Çıktıları Supabase'e yükler (ops kullanıcısıyla; ortam değişkenleri README'de). Entegrasyon testleri yerel Supabase ister |
 
 Aşamalar, girdi/çıktı biçimleri ve QR saat kodu biçimi: `services/pipeline/README.md`.
 
