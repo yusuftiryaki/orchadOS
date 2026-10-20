@@ -1,0 +1,607 @@
+/* Owner portal. Mobile first: most owners look at it on a phone. */
+
+.portal {
+  min-height: 100vh;
+}
+
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.page > * {
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.titleRow h1 {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-3);
+  scroll-margin-top: var(--space-3);
+}
+
+.section h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.notice {
+  background: #fff9db;
+  border: 1px solid #ffe066;
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+/* Class distribution bar ---------------------------------------------------- */
+
+.bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--color-border);
+  min-width: 80px;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tile {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  text-decoration: none;
+  color: inherit;
+}
+
+.tile:hover {
+  border-color: var(--color-accent);
+}
+
+.tileValue {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tileLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 600;
+}
+
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid #333;
+  flex: none;
+}
+
+.small {
+  font-size: 13px;
+}
+
+/* Change ------------------------------------------------------------------- */
+
+.changeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+
+.changeGrid h3 {
+  font-size: 16px;
+  margin: 0 0 var(--space-1);
+}
+
+.worse {
+  color: var(--color-danger);
+}
+
+.better {
+  color: #2b8a3e;
+}
+
+.plainList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* Map + panel ----------------------------------------------------------------- */
+
+.explorer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-3);
+}
+
+.mapColumn {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  min-width: 0;
+}
+
+.map {
+  width: 100%;
+  height: 560px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 2px var(--space-2);
+  background: var(--color-surface);
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.filter[aria-pressed="false"] {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.ring {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 3px solid var(--color-danger);
+}
+
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  align-self: start;
+  display: grid;
+  gap: var(--space-2);
+  scroll-margin-top: var(--space-3);
+}
+
+.panelBody {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Hidden when printing (see the print block at the end). */
+.noPrint {
+  min-width: 0;
+}
+
+.panelHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: var(--space-2);
+}
+
+.panelHeading h2 {
+  margin: 0;
+}
+
+.close {
+  border: none;
+  background: transparent;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-muted);
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--color-muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: 999px;
+  padding: 2px var(--space-2);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.badgeExpert {
+  composes: badge;
+  background: #ebfbee;
+  border-color: #8ce99a;
+  color: #2b8a3e;
+}
+
+.badgeMachine {
+  composes: badge;
+  background: #fff4e6;
+  border-color: #ffc078;
+  color: #a5520d;
+}
+
+.classBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+/* Findings ------------------------------------------------------------------- */
+
+.findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.finding {
+  border: 1px solid var(--color-border);
+  border-left: 6px solid var(--severity, var(--color-border));
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  display: grid;
+  gap: var(--space-1);
+}
+
+.findingHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+.more {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.more summary {
+  cursor: pointer;
+  color: var(--color-accent);
+}
+
+.findingLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.findingLink:hover .finding {
+  border-color: var(--color-accent);
+}
+
+/* Tables --------------------------------------------------------------------- */
+
+.tableWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--color-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.number {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Garden list ---------------------------------------------------------------- */
+
+.gardens {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+
+.garden {
+  display: grid;
+  gap: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.garden h2 {
+  font-size: 18px;
+  margin: 0;
+}
+
+/* Tree card ------------------------------------------------------------------ */
+
+.photoGrid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.photoRow {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.photoCells {
+  display: grid;
+  grid-template-columns: repeat(var(--columns, 2), minmax(0, 240px));
+  gap: var(--space-2);
+}
+
+.photo {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.photo img,
+.placeholder {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  font-size: 13px;
+  background: repeating-linear-gradient(45deg, #f1f3f5, #f1f3f5 8px, #e9ecef 8px, #e9ecef 16px);
+}
+
+.hash {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--color-muted);
+}
+
+/* Tour ----------------------------------------------------------------------- */
+
+.tour {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.viewerWrap {
+  position: relative;
+  min-width: 0;
+}
+
+.viewer {
+  width: 100%;
+  height: 70vh;
+  min-height: 360px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #212529;
+}
+
+.viewerNote {
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  top: var(--space-2);
+  background: rgba(33, 37, 41, 0.8);
+  color: #fff;
+  font-size: 13px;
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+  pointer-events: none;
+}
+
+.tourMap {
+  width: 100%;
+  height: 70vh;
+  min-height: 300px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.arrowMarker {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  border: 2px solid #343a40;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  color: #343a40;
+}
+
+.treeMarker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #343a40;
+  font-size: 12px;
+  font-weight: 600;
+  color: #212529;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.treeDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid #333;
+}
+
+/* Narrow screens ---------------------------------------------------------- */
+
+@media (max-width: 800px) {
+  .page {
+    padding: var(--space-2);
+    gap: var(--space-3);
+  }
+
+  .explorer,
+  .tour {
+    grid-template-columns: 1fr;
+  }
+
+  .map {
+    height: 60vh;
+    min-height: 320px;
+  }
+
+  .viewer {
+    height: 55vh;
+    min-height: 280px;
+  }
+
+  .tourMap {
+    height: 40vh;
+    min-height: 240px;
+  }
+
+  .tileValue {
+    font-size: 20px;
+  }
+
+  .photoCells {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Print: "Yazdır / PDF" saves the report card from the browser. ------------- */
+
+@media print {
+  .portal > header,
+  .noPrint {
+    display: none !important;
+  }
+
+  .page {
+    max-width: none;
+    padding: 0;
+  }
+
+  .section {
+    break-inside: avoid;
+    border: none;
+    padding: 0 0 var(--space-3);
+  }
+
+  .explorer {
+    grid-template-columns: 1fr;
+  }
+
+  .map {
+    height: 420px;
+    break-inside: avoid;
+  }
+
+  .tile,
+  .finding {
+    break-inside: avoid;
+  }
+
+  .page a {
+    color: inherit;
+  }
+}
