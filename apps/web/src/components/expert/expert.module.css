@@ -97,6 +97,8 @@
   margin: 0;
   padding: 0;
   overflow-y: auto;
+  /* Lets the list scroll inside the sticky sidebar instead of growing it. */
+  min-height: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
