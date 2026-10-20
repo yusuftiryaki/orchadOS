@@ -73,6 +73,10 @@ class RunContext:
         return self.path("panoramas.json")
 
     @property
+    def trees_path(self) -> Path:
+        return self.path("trees.json")
+
+    @property
     def crops_path(self) -> Path:
         return self.path("crops.json")
 

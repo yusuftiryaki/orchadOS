@@ -29,7 +29,7 @@ Bir tarama oturumu işleme istasyonuna tek bir klasör olarak gelir. Klasör ad�
     session.json      ESP32
   video/*.mp4         kamera (masaüstü yazılımından dışa aktarılmış equirectangular)
   base/*              operasyon (opsiyonel; baz/CORS RINEX)
-  trees.json          operasyon (opsiyonel; ileride veritabanından)
+  trees.json          operasyon (opsiyonel; normalde veritabanından okunur)
 ```
 
 | Yol | Üreten | Ne zaman | Zorunlu |
@@ -38,7 +38,7 @@ Bir tarama oturumu işleme istasyonuna tek bir klasör olarak gelir. Klasör ad�
 | `gnss/gnss.ubx`, `gnss/events.csv`, `gnss/session.json` | ESP32 GNSS kaydedici | Kayıt sırasında SD karta; operasyon kartın `/sessions/<session_id>/` klasörünü olduğu gibi `gnss/` altına kopyalar | Evet |
 | `video/*.mp4` | 360° kamera → operasyon | Kameranın masaüstü yazılımıyla equirectangular (2:1) dışa aktarılır; birden çok parça dosya adı sırasıyla ardışık kabul edilir | Evet |
 | `base/*` | Operasyon | CORS ya da kendi baz istasyonundan RINEX gözlem + navigasyon | Hayır (yoksa PPK yok) |
-| `trees.json` | Operasyon | Ağaç konumları | Hayır |
+| `trees.json` | Operasyon | Ağaç konumları; `run --trees-from-db` ile gerekmez (aşağıda) | Hayır |
 
 **Karar:** ESP32'nin `session.json`'u adını korur ve `gnss/` altında durur; kökteki `session.json` başka bir dosyadır. Operasyon SD karttaki klasörü yeniden adlandırmadan kopyalar; dosyalar değiştirilmez (içerik hash'leri yakalama kimliğidir).
 
@@ -217,7 +217,19 @@ Saha fotoğrafları ve işleme hattının ürünleri (panorama, ağaç kesiti vb
 
 `trajectory` satırlarında `pose` ve konum boştur.
 
+## Ağaç konumları (veritabanından)
+
+İşleme hattı (`run --trees-from-db`) ağaç konumlarını envanterden, ops kullanıcısının belirteciyle PostgREST üzerinden okur (servis anahtarı yok):
+
+| Okunan | Alanlar | Kural |
+| --- | --- | --- |
+| `public.session` | `id`, `parcel_id`, `kind` | `session.json`'daki `session_id`; parsel `session.json`'daki `parcel_id` ile aynı olmalı |
+| `public.slot` | `id`, `code`, `position`, `position_uncertainty_m`, `local_x_m`, `local_y_m` | Parselin slotları. `position` PostgREST'ten GeoJSON nokta olarak gelir |
+| `public.tree` | `id`, `slot_id` | `status = active` |
+
+- Kesitin `subject.tree_id`'si `tree.id`, `slot_code`'u `slot.code`'dur; yükleme bunu slotun yükleme anındaki aktif ağacıyla yeniden denetler.
+- `slot.position` boşsa ağaç kesit almaz (**karar**: yerel koordinattan konum türetilmez). Parselde konumlu aktif ağaç yoksa ya da oturum `kind = inventory` ise hat sadece panorama üretir; bu hata değil, `outputs.json`'da `crops_status` (`no_tree_positions`, `inventory_session`) olarak raporlanır.
+
 ## Açık noktalar
 
-- `trees.json`'un yerini İP1 veritabanı alacak; o zaman bu belgede API sözleşmesi tanımlanacak.
 - Kamera jiroskop verisi (ince zaman eşleme) henüz sözleşmede yok.

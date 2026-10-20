@@ -307,6 +307,30 @@ class Tree(BaseModel):
     slot_code: str
     lat: float
     lon: float
+    # From the database (public.slot); absent in hand-written trees files.
+    position_uncertainty_m: float | None = None
+    local_x_m: float | None = None
+    local_y_m: float | None = None
+
+
+class TreeList(Model):
+    """Tree positions a crops run used (<run>/trees.json).
+
+    source = database: the parcel's active trees with a slot position, read
+    with the ops user's token (trees_db.py); tree_id is public.tree.id.
+    source = file: a trees.json given by hand or written by `synth`.
+    """
+
+    schema_: Literal["orchados.trees/1"] = Field("orchados.trees/1", alias="schema")
+    source: Literal["file", "database"] = "file"
+    session_id: str | None = None
+    parcel_id: str | None = None
+    session_kind: str | None = None  # public.session.kind
+    trees: list[Tree]
+    # Active trees whose slot has no position yet (before the inventory is done).
+    unlocated_slots: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
 class CropRecord(Model):
@@ -329,8 +353,15 @@ class CropRecord(Model):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
+# Why a crops run has (or has no) crops; not an error either way.
+CropStatus = Literal["ok", "no_tree_positions", "inventory_session"]
+
+
 class CropSet(Model):
     producer: Producer
     crops: list[CropRecord]
     sidecars: list[FileRef]
     trees_without_crops: list[str] = Field(default_factory=list)
+    status: CropStatus = "ok"
+    trees_source: Literal["file", "database"] = "file"
+    unlocated_slots: list[str] = Field(default_factory=list)

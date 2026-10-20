@@ -33,3 +33,34 @@ def processed_run(synthetic_session, tmp_path_factory):
     ctx = RunContext.create(session, tmp_path_factory.mktemp("out"), fast_params())
     outputs = run_all(ctx)
     return ctx, outputs, truth
+
+
+@pytest.fixture(scope="session")
+def supabase_env():
+    from supabase_util import SKIP_REASON, local_env
+
+    env = local_env()
+    if env is None:
+        pytest.skip(SKIP_REASON)
+    return env
+
+
+@pytest.fixture(scope="session")
+def test_sessions(supabase_env):
+    """Ids of sessions a test opened in the local database; purged after the test run."""
+    import os
+    import warnings
+
+    from supabase_util import KEEP_ENV, purge_sessions
+
+    ids: list[str] = []
+    yield ids
+    if os.environ.get(KEEP_ENV):
+        return
+    problem = purge_sessions(ids)
+    if problem:
+        warnings.warn(
+            f"test sessions left in the database ({problem}); run pnpm db:reset before "
+            "pnpm db:test",
+            stacklevel=1,
+        )

@@ -155,6 +155,14 @@ class SupabaseClient:
         _raise_for(resp, f"update {table}")
         return resp.json()
 
+    def rpc(self, function: str, args: dict[str, Any]) -> Any:
+        """Call a database function (POST /rest/v1/rpc/<function>) as the signed-in user."""
+        resp = self.http.post(
+            f"{self.url}/rest/v1/rpc/{function}", headers=self._headers(), json=args
+        )
+        _raise_for(resp, f"rpc {function}")
+        return resp.json() if resp.content else None
+
     # --- Storage ----------------------------------------------------------------
 
     def storage_list(self, bucket: str, prefix: str) -> list[str]:
@@ -195,3 +203,13 @@ class SupabaseClient:
         )
         _raise_for(resp, f"download {bucket}/{key}")
         return resp.content
+
+    def storage_signed_url(self, bucket: str, key: str, expires_in: int = 60) -> str:
+        """A time-limited download address for an object the user may read."""
+        resp = self.http.post(
+            f"{self.url}/storage/v1/object/sign/{bucket}/{key}",
+            headers=self._headers(),
+            json={"expiresIn": expires_in},
+        )
+        _raise_for(resp, f"sign {bucket}/{key}")
+        return f"{self.url}/storage/v1{resp.json()['signedURL']}"
