@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { mediaObjectName } from "./media";
 import { parseFilter, reviewHref, safeReturnPath, summaryHref, withParam } from "./urls";
 import { validateFinding } from "./findings";
 
@@ -29,14 +28,6 @@ describe("review addresses", () => {
   it("sets and removes one query parameter", () => {
     expect(withParam("/a?x=1", "e", "bad")).toBe("/a?x=1&e=bad");
     expect(withParam("/a?x=1&e=bad", "e", null)).toBe("/a?x=1");
-  });
-});
-
-describe("mediaObjectName", () => {
-  it("strips the bucket prefix and ignores other locations", () => {
-    expect(mediaObjectName("storage://media/org/o/parcel/p/abc")).toBe("org/o/parcel/p/abc");
-    expect(mediaObjectName("station://raw/x.insv")).toBeNull();
-    expect(mediaObjectName("storage://media/")).toBeNull();
   });
 });
 

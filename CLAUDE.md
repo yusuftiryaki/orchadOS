@@ -8,6 +8,7 @@
 - `docs/plan.md`: iş paketleri (İP0–İP11), kilometre taşları, kesme listesi. Hangi İP üzerinde çalışıldığını buradan bul; ilerlemeyi burada güncelle.
 - `docs/MVP.md`: ürün tanımı ve modüller.
 - `docs/veri-modeli.md`: **veri modelinin kaynağı**. Şema değişiklikleri önce burada tartışılır.
+- `docs/metodoloji.md`: değerlendirme kuralları (ölçekler, genel sınıf, bulgu türleri); `docs/kullanim-kilavuzu.md`: rol rol uçtan uca akış.
 - `docs/arayuzler.md`: **bileşenler arası sözleşmelerin kaynağı**: oturum klasörü, `events.csv`, iki `session.json`, QR saat kodu, zaman tanımı. Bir biçim değişirse önce burası güncellenir.
 
 ## Yapı
@@ -74,6 +75,7 @@ Kökte `pnpm install`. Entegrasyon testleri için yerel Supabase çalışıyor v
 | `pnpm web:test` | Birim (Vitest) + yerel Supabase'e karşı entegrasyon testleri |
 | `pnpm web:e2e` | Playwright tarayıcı testleri (Chromium gerekir) |
 | `pnpm web:typegen` | Veritabanı tiplerini yeniden üretir (`src/lib/database.types.ts`) |
+| (ofis aracı) | Panoramaları depodan okur; geliştirmede yerel klasör `LOCAL_PANORAMA_DIR` ile seçilir |
 | `cd apps/web && pnpm office:dev-data` | Ofis üçgenleme aracı için sentetik panoramalar ve yeri olmayan bir geliştirme parseli üretir. Testlerden önce `pnpm db:reset` gerekir |
 
 ### Saha uygulaması (`apps/field/`, `mobile` devcontainer)

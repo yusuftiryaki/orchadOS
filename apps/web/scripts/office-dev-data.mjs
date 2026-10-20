@@ -14,7 +14,7 @@
 //     --force            regenerate the panoramas even if they exist
 //     --skip-panoramas   only the database part
 //     --skip-db          only the panoramas
-//     --reset            delete the dev parcel's slots and trees (a saved inventory) first
+//     --reset            delete the dev parcel's labels, slots and trees (a saved inventory) first
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
@@ -134,6 +134,8 @@ export async function makeDatabaseRows({ reset = false } = {}) {
   const admin = createClient(url, key, { auth: { persistSession: false } });
 
   if (reset) {
+    // Labels first: they keep their tree (append-only for API users; the service key may delete).
+    await check(admin.from("trunk_label").delete().eq("parcel_id", DEV.parcel));
     await check(admin.from("tree").delete().eq("parcel_id", DEV.parcel));
     await check(admin.from("slot").delete().eq("parcel_id", DEV.parcel));
     // Numbering is frozen once set; recreate the parcel to choose it again.

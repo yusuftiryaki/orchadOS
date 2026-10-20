@@ -1494,6 +1494,106 @@ export type Database = {
           },
         ];
       };
+      trunk_label: {
+        Row: {
+          azimuth_deg: number;
+          created_at: string;
+          id: string;
+          labelled_at: string;
+          labelled_by: string;
+          method: string;
+          method_version: string | null;
+          moved: boolean;
+          org_id: string;
+          panorama_asset_id: string | null;
+          panorama_gps_time_ns: number | null;
+          parcel_id: string;
+          pitch_deg: number;
+          session_id: string;
+          slot_id: string | null;
+          tree_id: string | null;
+          unsure: boolean;
+          yaw_deg: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          azimuth_deg: number;
+          created_at?: string;
+          id?: string;
+          labelled_at?: string;
+          labelled_by?: string;
+          method?: string;
+          method_version?: string | null;
+          moved?: boolean;
+          org_id: string;
+          panorama_asset_id?: string | null;
+          panorama_gps_time_ns?: number | null;
+          parcel_id: string;
+          pitch_deg: number;
+          session_id: string;
+          slot_id?: string | null;
+          tree_id?: string | null;
+          unsure?: boolean;
+          yaw_deg: number;
+        };
+        Update: {
+          azimuth_deg?: number;
+          created_at?: string;
+          id?: string;
+          labelled_at?: string;
+          labelled_by?: string;
+          method?: string;
+          method_version?: string | null;
+          moved?: boolean;
+          org_id?: string;
+          panorama_asset_id?: string | null;
+          panorama_gps_time_ns?: number | null;
+          parcel_id?: string;
+          pitch_deg?: number;
+          session_id?: string;
+          slot_id?: string | null;
+          tree_id?: string | null;
+          unsure?: boolean;
+          yaw_deg?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "trunk_label_panorama_asset_id_parcel_id_org_id_fkey";
+            columns: ["panorama_asset_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "asset";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "trunk_label_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "trunk_label_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "trunk_label_slot_id_parcel_id_org_id_fkey";
+            columns: ["slot_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "slot";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "trunk_label_tree_id_parcel_id_org_id_fkey";
+            columns: ["tree_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
       zone: {
         Row: {
           created_at: string;
@@ -1737,6 +1837,17 @@ export type Database = {
           p_tree_id: string;
         };
         Returns: string;
+      };
+      save_inventory: {
+        Args: {
+          p_corner: Database["public"]["Enums"]["corner"];
+          p_method_version?: string;
+          p_parcel_id: string;
+          p_row_azimuth_deg: number;
+          p_session_id: string;
+          p_slots: Json;
+        };
+        Returns: Json;
       };
     };
     Enums: {

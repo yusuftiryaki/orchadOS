@@ -73,9 +73,9 @@ apps/web/
 │       ├── office/              # üçgenleme, sıra oturtma, kodlama, doğrulama listesi (saf TS),
 │       │                        # panorama kaynağı, envanter kaydı
 │       ├── portal/              # portal sorguları + saf hesaplar (sınıf, değişim, ölçüm, gezi yönleri)
-│       ├── media/               # storage:// adresleri, toplu imzalama ve önbellek
+│       ├── media/               # storage:// adresleri, toplu imzalama ve önbellek, panorama varyantları
 │       ├── expert/              # mevsim, metrik seçimi, özet (saf TS); sorgular, kararlar, bulgular
-│       ├── supabase/            # sunucu istemcisi ve proxy oturum yenileme
+│       ├── supabase/            # sunucu istemcisi, proxy oturum yenileme, sayfalı sorgu (fetchAll)
 │       ├── parcels.ts           # parsel sorguları (sadece satır bazlı yetkiyle)
 │       └── database.types.ts    # üretilmiş; elle değiştirilmez
 ├── tests/
@@ -124,7 +124,7 @@ MapLibre GL. Parsel detayında son sürüm sınır, yerler ve ağaçlar çizilir
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`   | Anon (publishable) anahtar; tarayıcıya açıktır, her sorgu satır bazlı yetkiyle sınırlıdır |
 | `NEXT_PUBLIC_MAP_STYLE_URL`       | İsteğe bağlı MapLibre stil adresi; boşsa OSM raster                                       |
 | `SUPABASE_SERVICE_ROLE_KEY`       | Sadece entegrasyon testleri; uygulama okumaz. Boşsa `supabase status`'tan alınır          |
-| `LOCAL_PANORAMA_DIR`              | Ofis aracı, sadece geliştirme: işleme hattı çıktılarının klasörü (aşağıda)                |
+| `LOCAL_PANORAMA_DIR`              | Ofis aracı, sadece geliştirme: depoya ek olarak işleme hattı çıktılarının klasörü         |
 | `LOCAL_PANORAMA_ALLOW_PRODUCTION` | `1` ise üretim derlemesi de yerel klasörü okur; sadece tarayıcı testleri kullanır         |
 
 `NEXT_PUBLIC_*` değerleri derleme sırasında koda gömülür; ortam değişince yeniden derlemek gerekir.
@@ -156,7 +156,7 @@ Sahip (`owner`) ve hissedar (`viewer`) için `/portal`. Zincir: **Bahçelerim �
 
 - **Sadece yayımlanmış ziyaretler.** Kural veritabanında (satır bazlı yetki, `media` alanının kuralı). Portal ayrıca bütün sonuç sorgularını parselin `published` ziyaretleriyle sınırlar; bir kullanıcı hem sahip hem kurum rolündeyse de portalda yayımlanmamış sonuç görmez. Entegrasyon testi ikisini birden denetler.
 - **Ziyaretin sınıfı:** aynı ziyarette uzman > model > AI, sonra en yeni satır (`src/lib/portal/classes.ts`). Karnedeki dağılım ve değişim bunu kullanır. Değerlendirmesi olmayan aktif ağaç "Değerlendirilmedi" sayılır.
-- **Harita rengi** `tree_latest_assessment` görünümünden gelir (önce en yeni ziyaret, aynı ziyarette kaynak önceliği). Böylece son denetimde bakılmayan bir ağaç önceki denetimin rengini korur. Ortak harita (`src/lib/parcels.ts`) hâlâ kaynak gözetmeden en yeni değerlendirmeyi kullanıyor; uzman ve ofis tarafı koordinatöre bırakıldı.
+- **Harita rengi** `tree_latest_assessment` görünümünden gelir (önce en yeni ziyaret, aynı ziyarette kaynak önceliği). Böylece son denetimde bakılmayan bir ağaç önceki denetimin rengini korur. Sorgu ortak (`fetchLatestAssessments`, `src/lib/parcels.ts`): uzman, ofis ve operasyondaki parsel haritası da aynı görünümü kullanır; portal ayrıca sadece yayımlanmış ziyaretlerin satırlarını renklendirir.
 - **Değişim:** iki ziyarette de sınıfı olan ağaçlar karşılaştırılır; sıra sağlıklı < dikkat < sorunlu < kurumuş = yok. Kurumuş → yok değişim sayılmaz.
 - **Kimin kararı:** "Uzman onaylı" (yeşil, ✓), "Otomatik onay" (toplu onaylanmış AI), "Yapay zekâ ön değerlendirmesi (uzman onayı yok)". Turuncu rozet uzman onayı olmadığını gösterir.
 - **Ölçümler:** sadece `card_visibility = shown` metrikler. Aynı ziyarette uzman > algoritma > saha ekibi > AI.
@@ -174,7 +174,7 @@ Sahip (`owner`) ve hissedar (`viewer`) için `/portal`. Zincir: **Bahçelerim �
 
 ### Medya (`src/lib/media/`)
 
-Uzman paneli de kullanacak; arayüz bilinçli olarak küçük:
+Portal, uzman paneli (kesitler) ve ofis aracı (depodaki panoramalar) kullanır; arayüz bilinçli olarak küçük:
 
 ```ts
 import { createMediaSigner } from "@/lib/media/signer";
@@ -212,16 +212,28 @@ Envanterde ağaç konumları sahada tek tek alınmaz: ofisteki kişi grid tarama
 
 ### Kullanım
 
-1. **Oturum ve panorama seti:** Parselin envanter oturumu (`session.kind = inventory`) ve panorama kaynağındaki işlenmiş bir set seçilir. Oturum kimliği eşleşen set önce gelir; eşleşmeyenler (sentetik veri) "geliştirme verisi" notuyla listelenir.
-2. **Üçgenleme:** Haritada bir ağacın yakınına tıklayınca en yakın panorama ve ona en az 2 m uzaklıktaki en yakın ikinci panorama sağda açılır, ikisi de tıklanan noktaya döner. Her panoramada gövdeye tıklanır; her tık haritada bir yön çizgisidir. İki çizgiden sonra aday konum, belirsizliği ve kesişme açısı görünür. **Ağacı ekle** (Enter) ağacı ekler, **Temizle** (Esc) çizgileri siler. "Önceki/Sonraki" ile başka panoramaya geçip üçüncü bir çizgi eklenebilir.
+1. **Oturum ve panorama seti:** Oturum listesinde parselin envanter oturumları (`session.kind = inventory`, en yenisi önce) çıkar; envanter oturumu yoksa en yeni tarama oturumu (`periodic_scan`). Panorama seti, işleme hattının depoya yüklediği panoramalardır (aşağıda); oturumla eşleşen set önce gelir. Geliştirmede yerel klasördeki setler de listelenir ("yerel klasör"; oturum kimliği eşleşmeyen sentetik veri "geliştirme verisi" notuyla).
+2. **Üçgenleme:** Haritada bir ağacın yakınına tıklayınca en yakın panorama ve ona en az 2 m uzaklıktaki en yakın ikinci panorama sağda açılır, ikisi de tıklanan noktaya döner. Önce önizleme (2K) yüklenir; yakınlaştırınca (zoom > 55) varsa tam çözünürlüğe (4K) geçilir. Her panoramada gövdeye tıklanır; her tık haritada bir yön çizgisidir. İki çizgiden sonra aday konum, belirsizliği ve kesişme açısı görünür. **Ağacı ekle** (Enter) ağacı ekler, **Temizle** (Esc) çizgileri siler. "Önceki/Sonraki" ile başka panoramaya geçip üçüncü bir çizgi eklenebilir.
    - Uyarılar: belirsizlik 0,5 m'yi aşarsa, çizgiler arasındaki en büyük açı 15°'nin altındaysa, kesişim bir panoramanın arkasında kalıyorsa ya da üç ve daha çok çizgi birbiriyle uyuşmuyorsa. 1°'nin altındaki çizgiler hiç kesiştirilmez.
    - Haritadaki ağaç tıklanınca seçilir: **Emin değilim** işareti, **Sil** (Delete), sürükleyerek elle kaydırma ("elle kaydırıldı" diye işaretlenir).
    - Panoramalarda daha önce eklenmiş ağaçlar yeşil işaretle gösterilir; aynı ağacı iki kez eklememeye yardım eder.
 3. **Kodlama:** Sıra yönü ve başlangıç köşesi parsel kaydındaysa oradan gelir ve değiştirilemez. Yoksa kullanıcı seçer (**Ağaçlardan tahmin et** ve **+90°** yardımcı olur); kaydedince parsele yazılır ve bir daha değişmez (veritabanı tetikleyicisi). Özet (sıra, yer, ağaç, boş yer, ara ağaç), oturtulan sıra yönü, sıra ve ağaç aralığı ve yer tablosu görünür; haritada sıra doğruları kesikli çizgi, boş yerler kırmızı halka.
 4. **Doğrulama listesi:** "Emin değilim" işaretli ağaçlar, belirsizliği 0,5 m'yi aşanlar, üçgenleme uyarısı olanlar, boş yerler, sıra doğrusundan uzak (`sıra dışında`) ve aynı pozisyonda ikinci gövde (`çift gövde`) olanlar. **CSV olarak indir**: UTF-8 (BOM'lu), virgülle ayrılmış; sütunlar `kod,neden,enlem,boylam,belirsizlik_m`.
-5. **Kaydet:** Önizleme onaylanınca yerler (`slot`) ve ağaçlar (`tree`, `first_seen_session_id` = envanter oturumu, `first_seen_at` = oturum başlangıcı) kullanıcının kendi yetkisiyle yazılır; servis anahtarı kullanılmaz. Kodlar sunucuda, tarayıcıdaki önizlemeyle aynı fonksiyonla ağaç konumlarından yeniden hesaplanır. Parselde zaten yer ya da ağaç varsa kaydetme engellenir ve neden gösterilir (mevcut envanteri değiştirme akışı sonra).
+5. **Kaydet:** Önizleme onaylanınca yerler, ağaçlar ve gövde tıklamaları **tek işlemde** `save_inventory(...)` veritabanı fonksiyonuyla, kullanıcının kendi yetkisiyle yazılır (aşağıda); servis anahtarı kullanılmaz. Kodlar sunucuda, tarayıcıdaki önizlemeyle aynı fonksiyonla ağaç konumlarından yeniden hesaplanır. Parselde zaten yer ya da ağaç varsa kaydetme engellenir ve neden gösterilir (mevcut envanteri değiştirme akışı sonra).
 
-Çalışma, kaydedilene kadar tarayıcının `localStorage`'ında parsel + oturum başına taslak olarak tutulur (sayfa yenilenince kaybolmaz). Taslakta her ağacın tıklamaları (panorama, azimut, yükseklik açısı) da durur; gövde tespit modeli için etiketli veri olacak, ama henüz veritabanına yazılmıyor.
+Çalışma, kaydedilene kadar tarayıcının `localStorage`'ında parsel + oturum başına taslak olarak tutulur (sayfa yenilenince kaybolmaz). Taslakta her ağacın tıklamaları (panorama, azimut, yatay ve dikey açı, tıklama zamanı) da durur; kayıtla birlikte gövde etiketi olarak veritabanına geçer.
+
+### Kayıt: `save_inventory`
+
+Migration: `supabase/migrations/20261021120000_inventory_chain.sql`, pgTAP: `supabase/tests/15_inventory_chain.test.sql`.
+
+- **Tek işlem, kullanıcının yetkisiyle** (security invoker): yerler (`slot`), her ağaçlı yer için aktif bir ağaç (`tree`, `first_seen_session_id` = seçilen oturum, `first_seen_at` = oturum başlangıcı) ve ağacın gövde etiketleri (`trunk_label`). Bir satır geçersizse (aynı kod, sınır dışı açı, panorama olmayan bir asset…) hiçbir şey yazılmaz.
+- **Kim:** parselin işletmesinde saha personeli ya da operasyon. Satır bazlı yetki uzmanın da yer ve ağaç yazmasına izin verdiği için fonksiyon rolü ayrıca denetler; uzman ve sahip `forbidden` alır.
+- **Numaralandırma:** parselde kayıtlıysa aynısı olmalı (`numbering_mismatch`); değilse fonksiyon parsele yazar. Parseli sadece operasyon güncelleyebildiği için saha personeli `numbering_forbidden` alır; araç bunu önceden söyler.
+- **Mevcut envanter:** parselde yer ya da ağaç varsa `existing_inventory` (ayrıntı: `yer/ağaç`). Aynı parsele eşzamanlı iki kayıt sırayla çalışır (işlem kilidi), ikincisi bu hatayı alır.
+- Hata nedenleri hata mesajında gelir; web uygulaması bunları Türkçe metne çevirir (`t.office.saveErrors`).
+
+**Gövde etiketleri** (`trunk_label`, `docs/veri-modeli.md` "Etiketli veri"): her tıklama için panorama asset'i (depo kaynağında; yerel kaynakta boş), karenin GPS zamanı, panoramadaki yatay ve dikey açı, mutlak azimut, ağaç ve yer, "emin değilim" ve "elle kaydırıldı" işaretleri, kim ve ne zaman. Ekleme-yalnız; sadece kurum rolleri görür, sahip ve hissedar görmez.
 
 ### Hesaplama (`src/lib/office/`, saf TypeScript, birim testli)
 
@@ -235,10 +247,17 @@ Envanterde ağaç konumları sahada tek tek alınmaz: ofisteki kişi grid tarama
 
 ### Panorama kaynağı
 
-`PanoramaSource` arayüzü (`src/lib/office/panoramas.ts`) bir oturumun panoramalarını (konum, yön, zaman, kalite) ve görüntülerini verir. Görüntüler `/ofis/panorama/<set>/<panorama>/<2k|4k>` route handler'ından, `/ofis` bölümüne girebilen kullanıcılara sunulur; araç 2K önizlemeyi açar.
+`PanoramaSource` arayüzü (`src/lib/office/panoramas.ts`) bir parselin panorama setlerini, bir setin panoramalarını (konum, yön, zaman, kalite, hangi görüntülerin olduğu) ve görüntülerini verir. Görüntüler `/ofis/panorama/<set>/<panorama>/<2k|4k>` route handler'ından, `/ofis` bölümüne girebilen kullanıcılara sunulur (`2k` önizleme, `4k` tam çözünürlük). Set kimliği kaynağın adıyla başlar (`storage-…`, `local-…`).
 
-- **Yerel uygulama** (`local-panorama-source.ts`): `LOCAL_PANORAMA_DIR` altında (4 seviyeye kadar) `panoramas.json` içeren her klasör bir settir (işleme hattının çalıştırma klasörü). Oturum ve parsel kimliği, kamera yüksekliği `manifest.json`'dan okunur. Sadece `panoramas.json`'da listelenen ve çalıştırma klasörünün içinde kalan dosyalar sunulur. **Sadece geliştirmede açık:** üretim derlemesinde `LOCAL_PANORAMA_ALLOW_PRODUCTION=1` olmadıkça devre dışıdır (tarayıcı testleri üretim derlemesine karşı çalıştığı için bunu kullanır).
-- Depolamadan okuyan uygulama, işleme hattının yükleme adımıyla birlikte gelecek.
+- **Depo** (`storage-panorama-source.ts`, her zaman açık): işleme hattının yüklediği `kind = panorama` asset satırları (`orchados-pipeline upload`, `services/pipeline/README.md` "Yükleme"). Oturum + hat sürümü başına bir set; yeniden işleme yeni bir set olarak görünür. Bir karenin tam ve önizleme satırları `pose.gps_time_ns` ile (yoksa konumla) eşlenir; `pose.variant` yoksa `full` sayılır (`src/lib/media/panorama-variants.ts`, portal gezisiyle ortak). Konum `asset.position`, yön `pose.heading_deg`, belirsizlik `position_uncertainty_m`, kalite `pose.quality` ve `quality_score`. Route handler görüntüyü kullanıcı adına imzalanmış 15 dakikalık bir adrese yönlendirir (302, `createMediaSigner`); sorgular ve imzalar satır bazlı yetkiyle çalışır, sahip yayımlanmamış bir oturumun panoramasını göremez. Kamera yüksekliği asset satırında olmadığı için 2,0 m kabul edilir (sadece panoramadaki ağaç işaretçilerinin yüksekliği için).
+- **Yerel klasör** (`local-panorama-source.ts`, geliştirme): `LOCAL_PANORAMA_DIR` verilirse depoya ek olarak listelenir. Bu klasörün altında (4 seviyeye kadar) `panoramas.json` içeren her klasör bir settir (işleme hattının çalıştırma klasörü). Oturum ve parsel kimliği, kamera yüksekliği `manifest.json`'dan okunur. Sadece `panoramas.json`'da listelenen ve çalıştırma klasörünün içinde kalan dosyalar sunulur. **Sadece geliştirmede açık:** üretim derlemesinde `LOCAL_PANORAMA_ALLOW_PRODUCTION=1` olmadıkça devre dışıdır (tarayıcı testleri üretim derlemesine karşı çalıştığı için bunu kullanır). Yerel kaynaktan kaydedilen etiketlerde panorama asset'i boştur, kare GPS zamanıyla tanımlanır.
+
+**Depodan bir oturumla kullanım:**
+
+1. Operasyon parsel için bir envanter oturumu açar; saha ekibi taramayı yapar.
+2. İşleme istasyonunda: `uv run orchados-pipeline run <oturum> --upload --session-id <oturum uuid>` (ya da `upload <çalıştırma> --session-id <uuid>`). Önizlemeler varsayılan olarak yüklenir; tam çözünürlük için `--only preview,panorama,tree_crop,trajectory`.
+3. `/ofis/parsel/<parsel>` → **Envanter üçgenleme aracı**. Oturum ve "v0.1.0_… · N panorama · depo" seti seçili gelir → **Aracı aç**.
+4. Ağaçlar üçgenlenir, kodlanır, doğrulama listesi indirilir; **Kaydet** sekmesinde önizleme onaylanıp **Veritabanına kaydet**. Sonuç: "N yer ve M ağaç kaydedildi. K gövde tıklaması etiket olarak saklandı."
 
 ### Geliştirme verisi
 
@@ -258,18 +277,20 @@ Geliştirme parseli örnek işletmeye eklendiği için entegrasyon testlerindeki
 
 ### Testler
 
-- Birim: `triangulate.test.ts`, `rows.test.ts` (tohumlu pseudo-rastgele gürültü, eksik ve ara ağaçlı ızgaralar; 12 rastgele bahçe), `verification.test.ts`, `plan.test.ts`, `panoramas.test.ts` (yerel kaynak, yol dışına çıkma denemeleri).
-- Entegrasyon (`tests/integration/office-inventory.test.ts`): test kendi parsellerini kurar; saha personeli kaydeder, ikinci kayıt engellenir, operasyon numaralandırmayı parsele yazar, saha personeli yazamaz, parseli gören sahip kaydedemez, erişimi olmayan göremez.
-- Tarayıcı (`tests/e2e/office-tool.spec.ts`): global kurulum sentetik panoramaları `.dev-data/e2e` altına üretir (uv yoksa test atlanır). Test 12 ağacın her birine iki panoramada tıklar, konumları sentetik gerçekle (< 30 cm) ve kodları `synthetic_truth.json`'daki yer kodlarıyla karşılaştırır, bir ağacı "emin değilim" işaretler, CSV'yi indirir, kaydeder ve veritabanını denetler.
+- Birim: `triangulate.test.ts`, `rows.test.ts` (tohumlu pseudo-rastgele gürültü, eksik ve ara ağaçlı ızgaralar; 12 rastgele bahçe), `verification.test.ts`, `plan.test.ts`, `panoramas.test.ts` (yerel kaynak, yol dışına çıkma denemeleri; depo satırlarından panorama eşleme: tam + önizleme, `variant` yoksa `full`, `gps_time_ns` yoksa konum; set kimlikleri; oturum seçimi).
+- Entegrasyon (`tests/integration/office-inventory.test.ts`): test kendi parsellerini kurar, birine iki panorama karesini depoya yükler (biri tam + önizleme, biri sadece önizleme). Saha personeli kaydeder (yer, ağaç, 3 etiket tek çağrıda); etiketler saklanır, uzman görür, sahip görmez, etiket değiştirilemez ve silinemez; hatalı bir etiket satırında hiçbir şey yazılmaz; ikinci kayıt engellenir; operasyon numaralandırmayı parsele yazar, saha personeli yazamaz; uzman ve parseli gören sahip kaydedemez (`forbidden`); erişimi olmayan göremez. Depo kaynağı: setler, kareler, varyantlar, imzalı adresten gelen baytlar; sahip yayımlanmamış oturumun panoramalarını göremez.
+- Tarayıcı (`tests/e2e/office-tool.spec.ts`): global kurulum sentetik panoramaları `.dev-data/e2e` altına üretir (uv yoksa test atlanır). Test aynı panoramaları depoya da yükler (servis anahtarıyla, işleme hattının yazdığı biçimde) ve iki kez çalışır: depo seti ve yerel set. Her seferinde 12 ağacın her birine iki panoramada tıklar, konumları sentetik gerçekle (< 30 cm) ve kodları `synthetic_truth.json`'daki yer kodlarıyla karşılaştırır, önizlemeden yakınlaştırınca tam çözünürlüğe geçişi denetler, bir ağacı "emin değilim" işaretler, CSV'yi indirir, kaydeder ve veritabanını (yerler, numaralandırma, 24 gövde etiketi) denetler. Ayrı bir test görüntü adreslerini denetler: yerel dosya, depoda yönlendirme, sahip için 403.
+- Temizlik: `capture`/`asset`/`trunk_label` API'den silinemediği için test parselleri `tests/local-db.ts` ile yerel veritabanı konteynerinde, tetikleyiciler kapalıyken silinir (`purgeParcels`).
 
 ### Bilinen sınırlar
 
-- **Kayıt tek işlem değil:** yerler ve ağaçlar iki ayrı insert. Ağaç insert'i başarısız olursa yazılan yerler silinmeye çalışılır, ama RLS'te `slot` silme yalnızca operasyonda var. Doğrusu bir veritabanı fonksiyonu (RPC) ile tek işlem; şema değişikliği gerektiği için bu PR'da yok.
-- **Yer–oturum bağı yok:** `slot` tablosunda oturum alanı yok; oturum bağı ağaçların `first_seen_session_id`'si üzerinden.
+- **Yer–oturum bağı yok:** `slot` tablosunda oturum alanı yok; oturum bağı ağaçların `first_seen_session_id`'si ve etiketlerin `session_id`'si üzerinden.
 - **Numaralandırmayı yalnızca operasyon yazabilir** (RLS: `parcel` güncellemesi `ops`). Sıra yönü kayıtlı olmayan parselde saha personeli kaydedemez; araç bunu önceden söyler.
-- **Yatay üçgenleme:** tıklamanın yükseklik açısı kullanılmıyor (kamera yüksekliğiyle tek panoramadan mesafe tahmini yapılabilirdi).
+- **Yatay üçgenleme:** tıklamanın yükseklik açısı kullanılmıyor (kamera yüksekliğiyle tek panoramadan mesafe tahmini yapılabilirdi). Depo kaynağında kamera yüksekliği 2,0 m kabul edilir.
 - **Izgara varsayımı:** sıralar paralel ve aynı aralıklı ızgarada kabul edilir; şaşırtmalı (üçgen) dikim, eğri sıralar ve tamamen boş bir sıra algılanmaz.
 - **Taslak tarayıcıda:** başka bir bilgisayardan devam edilemez.
+- **Set seçimi serbest:** depo setinin oturumu seçilen oturumdan farklı olabilir (uyarıyla listelenir); etiketler kaydın oturumuna bağlanır.
+- **Büyük ziyaret:** set listesi parselin bütün panorama satırlarını sayfa sayfa okur; çok ziyaretli parsellerde bir görünüm ya da sayım fonksiyonu gerekebilir.
 
 ## Uzman paneli (İP7)
 
@@ -283,7 +304,7 @@ Uzman (ziraat mühendisi) bir tarama ziyaretini uzaktan inceler, AI ön değerle
 | `/uzman/ziyaret/<oturum>`      | **Ağaç ağaç inceleme.** Solda sıra/pozisyon koduna göre sıralı ağaç listesi ve filtreler: _İncelenmemiş_, _AI sorunlu dedi_ (AI sınıfı Sorunlu, Kuru ya da Yok), _Düşük güven_ (AI güveni %70'in altında ya da AI önerisi yok). Sağda seçili ağaç (`?agac=`): bu ziyaretin ve önceki yayımlanmış ziyaretin kesitleri yönlere göre yan yana, AI önerisi (sınıf, güven, model, ölçümler), önceki ziyaretin uzman sonucu, ağaç özellikleri, karar paneli ve ağacın bulguları. |
 | `/uzman/ziyaret/<oturum>/ozet` | **Özet ve imza:** uzman sınıflarının dağılımı, önceki ziyarete göre sınıfı değişenler (kötüleşen/iyileşen), AI ile uyum, incelenmemiş ağaçlar, bütün bulgular, parsel bulgusu ekleme ve yayımlama.                                                                                                                                                                                                                                                                         |
 
-**Kesitler** `asset` satırlarından (`kind = tree_crop`, yön `pose.direction`), `media` alanından tek çağrıda imzalanan adreslerle (`createSignedUrls`, 1 saat) gösterilir. Dosya depoda yoksa ya da açılamazsa yerine "Görüntü yok" kutusu çıkar (demo verisinde dosya yok).
+**Kesitler** `asset` satırlarından (`kind = tree_crop`, yön `pose.direction`), ortak medya yardımcısıyla (`src/lib/media/`, 15 dakikalık imzalı adres, kullanıcı başına önbellek) gösterilir. Dosya depoda yoksa ya da açılamazsa yerine "Görüntü yok" kutusu çıkar (demo verisinde dosya yok).
 
 **Önceki ziyaret:** aynı parselin, bu ziyaretten önceki en yeni yayımlanmış periyodik tarama ya da doğrulama ziyareti (zaman: `started_at`, yoksa planlanan gün, yoksa kayıt zamanı).
 

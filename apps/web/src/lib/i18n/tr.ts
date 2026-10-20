@@ -77,10 +77,12 @@ export const tr = {
     back: "Parsel",
     chooseTitle: "Oturum ve panorama seti",
     chooseHint:
-      "Envanter oturumunu ve o oturumun işlenmiş panoramalarını seçin. Konumlar seçilen oturuma bağlanarak kaydedilir.",
+      "Envanter oturumunu ve o oturumun işlenmiş panoramalarını seçin. Konumlar seçilen oturuma bağlanarak kaydedilir. Envanter oturumu yoksa en yeni tarama oturumu listelenir.",
     session: "Envanter oturumu",
-    noSessions: "Bu parselde envanter oturumu yok. Operasyon önce bir envanter oturumu açmalı.",
+    noSessions:
+      "Bu parselde envanter ya da tarama oturumu yok. Operasyon önce bir envanter oturumu açmalı.",
     sessionLabel: (date: string, status: string) => `${date} · ${status}`,
+    scanSessionLabel: (date: string, status: string) => `${date} · ${status} · tarama oturumu`,
     sessionStatus: {
       planned: "Planlandı",
       captured: "Tarandı",
@@ -90,10 +92,10 @@ export const tr = {
       cancelled: "İptal",
     },
     panoramaSet: "Panorama seti",
-    noSource:
-      "Panorama kaynağı yapılandırılmamış. Geliştirmede LOCAL_PANORAMA_DIR ile bir işleme hattı çıktı klasörü verin (README: Ofis üçgenleme aracı).",
-    noSets: "Panorama kaynağında işlenmiş oturum bulunamadı.",
+    noSets:
+      "Bu parsel için yüklenmiş panorama yok. İşleme hattı panoramaları yükleyince burada listelenir (orchados-pipeline upload).",
     setLabel: (label: string, count: number) => `${label} · ${count} panorama`,
+    setSource: { storage: "depo", local: "yerel klasör" },
     setMatches: "oturumla eşleşiyor",
     setMismatch: (sessionId: string) => `oturum kimliği farklı (${sessionId}); geliştirme verisi`,
     open: "Aracı aç",
@@ -187,10 +189,12 @@ export const tr = {
     save: "Veritabanına kaydet",
     saving: "Kaydediliyor…",
     saved: (slots: number, trees: number) => `${slots} yer ve ${trees} ağaç kaydedildi.`,
+    savedLabels: (labels: number) => `${labels} gövde tıklaması etiket olarak saklandı.`,
     viewParcel: "Parsel haritasını aç",
     saveErrors: {
       invalid_input: "Gönderilen veri geçersiz.",
       not_found: "Parsel bulunamadı ya da görme yetkiniz yok.",
+      forbidden: "Envanteri sadece saha personeli ve operasyon kaydedebilir.",
       session_invalid: "Envanter oturumu bu parsele ait değil.",
       existing_inventory: "Parselde zaten yer ve ağaç var; kaydetme engellendi.",
       numbering_mismatch: "Numaralandırma parsel kaydıyla uyuşmuyor; sayfayı yenileyin.",

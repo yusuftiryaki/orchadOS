@@ -12,6 +12,7 @@ import {
   type Position,
 } from "@/lib/map/geo";
 import { markerState, type HealthClass, type MarkerState } from "@/lib/map/tree-style";
+import { fetchAll, UUID_RE } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
 
 // Data access for parcel pages. Every query runs as the signed-in user; which
@@ -70,23 +71,6 @@ export interface ParcelMapData {
   bounds: Bounds | null;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// PostgREST caps responses at [api].max_rows (1000); larger parcels need pages.
-const PAGE_SIZE = 1000;
-
-async function fetchAll<T>(
-  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
-): Promise<T[]> {
-  const rows: T[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await page(from, from + PAGE_SIZE - 1);
-    if (error) throw error;
-    rows.push(...(data ?? []));
-    if (!data || data.length < PAGE_SIZE) return rows;
-  }
-}
-
 // Returns null when the parcel does not exist or the user may not see it.
 export async function getParcelMap(
   supabase: Client,
@@ -124,17 +108,7 @@ export async function getParcelMap(
         .order("code")
         .range(from, to),
     ),
-    // Newest first, so the first row per tree is its latest assessment.
-    fetchAll((from, to) =>
-      supabase
-        .from("assessment")
-        .select("id, tree_id, overall_class, assessed_at")
-        .eq("parcel_id", parcelId)
-        .not("tree_id", "is", null)
-        .order("assessed_at", { ascending: false })
-        .order("id")
-        .range(from, to),
-    ),
+    fetchLatestAssessments(supabase, parcelId),
   ]);
   if (boundaryResult.error) throw boundaryResult.error;
 
@@ -179,12 +153,41 @@ export async function getParcelMap(
   };
 }
 
+export type LatestAssessment = Pick<
+  Database["public"]["Views"]["tree_latest_assessment"]["Row"],
+  "tree_id" | "session_id" | "source" | "overall_class" | "auto_approved" | "session_time"
+>;
+
+// The assessment each tree is shown with: the tree_latest_assessment view
+// (newest session first, then expert > model > AI within it; docs/veri-modeli.md,
+// "Gösterilecek değer"). Row level security applies to the view, so owners and
+// viewers get the newest published session, org roles the newest one overall.
+// Shared by every map: parcel detail (expert, office, ops) and the owner portal.
+export function fetchLatestAssessments(
+  supabase: Client,
+  parcelId: string,
+): Promise<LatestAssessment[]> {
+  return fetchAll((from, to) =>
+    supabase
+      .from("tree_latest_assessment")
+      .select("tree_id, session_id, source, overall_class, auto_approved, session_time")
+      .eq("parcel_id", parcelId)
+      .order("tree_id")
+      .range(from, to),
+  );
+}
+
+// Health class per tree from tree_latest_assessment rows. With
+// `visibleSessionIds`, rows of other sessions count as not assessed.
 export function latestHealthByTree(
-  rows: { tree_id: string | null; overall_class: HealthClass | null }[],
+  rows: Pick<LatestAssessment, "tree_id" | "session_id" | "overall_class">[],
+  visibleSessionIds?: Set<string>,
 ): Map<string, HealthClass | null> {
   const latest = new Map<string, HealthClass | null>();
   for (const row of rows) {
-    if (row.tree_id && !latest.has(row.tree_id)) latest.set(row.tree_id, row.overall_class);
+    if (!row.tree_id || latest.has(row.tree_id)) continue;
+    if (visibleSessionIds && !(row.session_id && visibleSessionIds.has(row.session_id))) continue;
+    latest.set(row.tree_id, row.overall_class);
   }
   return latest;
 }

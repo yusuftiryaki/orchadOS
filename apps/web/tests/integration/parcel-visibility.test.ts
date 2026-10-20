@@ -101,7 +101,7 @@ describe("tree colours", () => {
     await admin.from("session").delete().eq("id", publishedSession);
   });
 
-  it("follow the latest published assessment of each tree", async () => {
+  it("follow tree_latest_assessment: newest session first, then expert over AI", async () => {
     const { data: tree, error } = await admin
       .from("tree")
       .select("id, slot!inner(code)")
@@ -111,12 +111,14 @@ describe("tree colours", () => {
       .single();
     expect(error).toBeNull();
 
+    // Older than the seed session (started 2026-10-10).
     const session = await admin.from("session").insert({
       id: publishedSession,
       org_id: SEED.org,
       parcel_id: SEED.parcel,
       kind: "periodic_scan",
       status: "published",
+      started_at: "2026-10-05T07:00:00Z",
     });
     expect(session.error).toBeNull();
 
@@ -134,12 +136,21 @@ describe("tree colours", () => {
       .insert([
         { ...base, overall_class: "healthy", assessed_at: "2026-10-11T00:00:00Z" },
         { ...base, overall_class: "problem", assessed_at: "2026-10-12T00:00:00Z" },
-        // Newer, but in the unpublished seed session: hidden from the owner.
+        // Older, but the expert's word wins within the session.
+        {
+          ...base,
+          source: "expert",
+          model_name: null,
+          model_version: null,
+          overall_class: "attention",
+          assessed_at: "2026-10-06T00:00:00Z",
+        },
+        // The unpublished seed session is newer: org roles see it, the owner does not.
         {
           ...base,
           session_id: SEED.session,
           overall_class: "dead",
-          assessed_at: "2026-10-13T00:00:00Z",
+          assessed_at: "2026-10-10T08:00:00Z",
         },
       ])
       .select("id");
@@ -149,12 +160,14 @@ describe("tree colours", () => {
     const { client } = await signIn("owner");
     const data = await getParcelMap(client, SEED.parcel);
     const slot = data!.slots.features.find((f) => f.properties.code === treeSlotCode);
-    expect(slot?.properties.state).toBe("problem");
-    expect(slot?.properties.tree?.health).toBe("problem");
+    expect(slot?.properties.state).toBe("attention");
+    expect(slot?.properties.tree?.health).toBe("attention");
 
-    const { client: expert } = await signIn("expert");
-    const expertData = await getParcelMap(expert, SEED.parcel);
-    const expertSlot = expertData!.slots.features.find((f) => f.properties.code === treeSlotCode);
-    expect(expertSlot?.properties.tree?.health).toBe("dead");
+    for (const user of ["expert", "field"] as const) {
+      const { client: org } = await signIn(user);
+      const orgData = await getParcelMap(org, SEED.parcel);
+      const orgSlot = orgData!.slots.features.find((f) => f.properties.code === treeSlotCode);
+      expect(orgSlot?.properties.tree?.health).toBe("dead");
+    }
   });
 });

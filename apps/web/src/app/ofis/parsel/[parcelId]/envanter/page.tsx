@@ -4,7 +4,8 @@ import { OfficeToolLoader } from "@/components/office/office-tool-loader";
 import { requireSection } from "@/lib/auth/session";
 import { formatDate, t } from "@/lib/i18n";
 import { loadInventoryContext } from "@/lib/office/inventory";
-import { panoramaSource } from "@/lib/office/panorama-source";
+import { officePanoramaSources } from "@/lib/office/panorama-source";
+import { sourceOfSet } from "@/lib/office/panoramas";
 import { createClient } from "@/lib/supabase/server";
 import styles from "@/components/office/office-tool.module.css";
 
@@ -24,11 +25,11 @@ export default async function Page({
   const ctx = await loadInventoryContext(supabase, parcelId);
   if (!ctx) notFound();
 
-  const source = panoramaSource();
-  const sets = source ? await source.listSets() : [];
+  const sources = officePanoramaSources(supabase, user.id);
+  const sets = (await Promise.all(sources.map((s) => s.listSets(ctx.parcel.id)))).flat();
   const session = ctx.sessions.find((s) => s.id === query.oturum);
   const set = sets.find((s) => s.id === query.set);
-  const panoramas = source && set ? await source.listPanoramas(set.id) : null;
+  const panoramas = set ? await sourceOfSet(sources, set.id)!.listPanoramas(set.id) : null;
 
   const header = (
     <>
@@ -61,7 +62,7 @@ export default async function Page({
                   const date = s.startedAt ?? s.plannedDate;
                   return (
                     <option key={s.id} value={s.id}>
-                      {t.office.sessionLabel(
+                      {(s.kind === "inventory" ? t.office.sessionLabel : t.office.scanSessionLabel)(
                         date ? formatDate(date) : s.id.slice(0, 8),
                         t.office.sessionStatus[s.status],
                       )}
@@ -71,9 +72,7 @@ export default async function Page({
               </select>
             </label>
           )}
-          {!source ? (
-            <p role="alert">{t.office.noSource}</p>
-          ) : sets.length === 0 ? (
+          {sets.length === 0 ? (
             <p role="alert">{t.office.noSets}</p>
           ) : (
             <label className={styles.field}>
@@ -82,6 +81,8 @@ export default async function Page({
                 {sets.map((s) => (
                   <option key={s.id} value={s.id}>
                     {t.office.setLabel(s.label, s.count)}
+                    {" · "}
+                    {t.office.setSource[s.source]}
                     {" · "}
                     {ctx.sessions.some((x) => x.id === s.sessionId)
                       ? t.office.setMatches
@@ -94,7 +95,7 @@ export default async function Page({
           <button
             className="button"
             type="submit"
-            disabled={!source || sets.length === 0 || ctx.sessions.length === 0}
+            disabled={sets.length === 0 || ctx.sessions.length === 0}
           >
             {t.office.open}
           </button>
