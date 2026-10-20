@@ -1,6 +1,6 @@
 import type { Database } from "@/lib/database.types";
 import type { Client } from "@/lib/supabase/types";
-import { isUuid } from "./review";
+import { isUuid } from "@/lib/supabase/query";
 
 // Findings and recommendations of a visit, on a tree or on the parcel.
 // Editable and deletable until the visit is published (the database freezes

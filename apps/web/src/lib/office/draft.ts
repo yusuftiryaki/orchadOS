@@ -8,7 +8,11 @@ import type { TriangulationWarning } from "./triangulate";
 export interface DraftRay {
   panoramaId: string;
   azimuthDeg: number;
+  // Relative to the panorama's centre column; missing in older drafts.
+  yawDeg?: number;
   pitchDeg: number;
+  // When the trunk was clicked (ISO 8601); missing in older drafts.
+  clickedAt?: string;
 }
 
 export interface DraftTree {
@@ -20,7 +24,8 @@ export interface DraftTree {
   unsure: boolean;
   // Dragged on the map after triangulation.
   moved: boolean;
-  // The clicks behind the position: labelled data for a future trunk detector.
+  // The clicks behind the position, saved with the inventory as trunk labels
+  // (public.trunk_label) for a future trunk detector.
   rays: DraftRay[];
 }
 

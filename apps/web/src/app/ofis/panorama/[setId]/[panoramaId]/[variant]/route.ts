@@ -1,9 +1,11 @@
 import { canAccessSection } from "@/lib/auth/roles";
 import { getSessionUser } from "@/lib/auth/session";
-import { panoramaSource } from "@/lib/office/panorama-source";
-import { isPanoramaVariant } from "@/lib/office/panoramas";
+import { officePanoramaSources } from "@/lib/office/panorama-source";
+import { isPanoramaVariant, sourceOfSet } from "@/lib/office/panoramas";
+import { createClient } from "@/lib/supabase/server";
 
-// Serves one panorama image of the configured source to office users.
+// Serves one panorama image to office users: local files directly, storage
+// files as a redirect to a short-lived URL signed for this user.
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ setId: string; panoramaId: string; variant: string }> },
@@ -12,12 +14,19 @@ export async function GET(
   if (!user) return new Response(null, { status: 401 });
   if (!canAccessSection(user.roles, "ofis")) return new Response(null, { status: 403 });
 
-  const source = panoramaSource();
   const { setId, panoramaId, variant } = await params;
+  const source = sourceOfSet(officePanoramaSources(await createClient(), user.id), setId);
   if (!source || !isPanoramaVariant(variant)) return new Response(null, { status: 404 });
 
   const image = await source.readImage(setId, panoramaId, variant);
   if (!image) return new Response(null, { status: 404 });
+  if (image.kind === "redirect") {
+    return new Response(null, {
+      status: 302,
+      // Shorter than the signed URL's lifetime (15 minutes).
+      headers: { Location: image.url, "Cache-Control": "private, max-age=300" },
+    });
+  }
   return new Response(Buffer.from(image.data), {
     headers: {
       "Content-Type": image.mediaType,

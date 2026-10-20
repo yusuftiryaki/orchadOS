@@ -13,7 +13,7 @@ select tables_are(
     'org', 'membership', 'parcel', 'parcel_access', 'boundary', 'slot', 'tree', 'zone',
     'device', 'sensor', 'rig', 'rig_sensor', 'calibration', 'session', 'capture',
     'asset', 'asset_source', 'metric_definition', 'measurement', 'measurement_evidence',
-    'assessment', 'assessment_measurement', 'finding', 'finding_evidence', 'operation'
+    'assessment', 'assessment_measurement', 'finding', 'finding_evidence', 'operation', 'trunk_label'
   ],
   'public has exactly the MVP tables'
 );

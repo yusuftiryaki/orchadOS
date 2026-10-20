@@ -5,6 +5,7 @@ import { loadReview, loadTreeDetail } from "@/lib/expert/review";
 import { matchesFilter } from "@/lib/expert/summary";
 import { parseFilter } from "@/lib/expert/urls";
 import { t } from "@/lib/i18n";
+import { createMediaSigner } from "@/lib/media/signer";
 import { createClient } from "@/lib/supabase/server";
 
 // Tree-by-tree review of one visit: ?filtre= list filter, ?agac= selected tree.
@@ -15,7 +16,7 @@ export default async function Page({
   params: Promise<{ sessionId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireSection("uzman");
+  const user = await requireSection("uzman");
   const { sessionId } = await params;
   const query = await searchParams;
   const supabase = await createClient();
@@ -27,7 +28,14 @@ export default async function Page({
     ctx.trees.find((tree) => tree.id === query.agac) ??
     ctx.trees.find((tree) => matchesFilter(tree, filter)) ??
     null;
-  const detail = selected ? await loadTreeDetail(supabase, ctx, selected.id) : null;
+  const detail = selected
+    ? await loadTreeDetail(
+        supabase,
+        ctx,
+        selected.id,
+        createMediaSigner(supabase, { scope: user.id }),
+      )
+    : null;
 
   const r = t.expert.review;
   let error: string | null = null;

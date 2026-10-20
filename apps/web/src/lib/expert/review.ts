@@ -1,6 +1,7 @@
 import type { Database } from "@/lib/database.types";
+import type { MediaSigner } from "@/lib/media/signer";
+import { fetchAll, isUuid } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
-import { signMedia } from "./media";
 import {
   METRIC_COLUMNS,
   reviewMetrics,
@@ -22,25 +23,6 @@ export const REVIEW_KINDS: SessionKind[] = ["periodic_scan", "verification"];
 export const QUEUE_STATUSES: SessionStatus[] = ["processed", "in_review"];
 // The methodology version a decision is recorded with when the session names none.
 export const DEFAULT_METHODOLOGY_VERSION = "methodology-v0";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export const isUuid = (value: unknown): value is string =>
-  typeof value === "string" && UUID_RE.test(value);
-
-// PostgREST caps responses at [api].max_rows (1000).
-const PAGE_SIZE = 1000;
-
-export async function fetchAll<T>(
-  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
-): Promise<T[]> {
-  const rows: T[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await page(from, from + PAGE_SIZE - 1);
-    if (error) throw error;
-    rows.push(...(data ?? []));
-    if (!data || data.length < PAGE_SIZE) return rows;
-  }
-}
 
 const SESSION_COLUMNS =
   "id, org_id, parcel_id, kind, status, started_at, planned_date, created_at, methodology_version, published_at, published_by";
@@ -381,10 +363,13 @@ function directionRank(d: string | null): number {
 const VALUE_COLUMNS =
   "id, session_id, metric_definition_id, value_numeric, value_scale, value_category, value_boolean, uncertainty, source, measured_at, created_at";
 
+// Crop images are signed with `signer` (src/lib/media); without one (server
+// actions that only need the crop ids) their URLs stay null.
 export async function loadTreeDetail(
   supabase: Client,
   ctx: Pick<ReviewContext, "session" | "previous">,
   treeId: string,
+  signer?: MediaSigner,
 ): Promise<TreeDetail> {
   const sessionIds = [ctx.session.id, ...(ctx.previous ? [ctx.previous.id] : [])];
   const [crops, assessments, measurements] = await Promise.all([
@@ -409,10 +394,9 @@ export async function loadTreeDetail(
   ]);
   for (const result of [crops, assessments, measurements]) if (result.error) throw result.error;
 
-  const urls = await signMedia(
-    supabase,
-    (crops.data ?? []).map((c) => c.uri),
-  );
+  const urls = signer
+    ? await signer.signUrls((crops.data ?? []).map((c) => c.uri))
+    : new Map<string, string | null>();
   const toCrop = (c: NonNullable<typeof crops.data>[number]): Crop => {
     const pose = (c.pose ?? {}) as { direction?: unknown };
     return {

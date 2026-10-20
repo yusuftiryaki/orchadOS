@@ -1,19 +1,22 @@
 import type { Database } from "@/lib/database.types";
 import { isPoint, isPolygon } from "@/lib/map/geo";
+import { isUuid, UUID_RE } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
 import type { LatLon } from "./local-frame";
 import { parcelLocalXY, planLayout, type ParcelGeometry, type PlanTree } from "./plan";
 import { CORNERS, type Corner, type Numbering } from "./rows";
+import { OFFICE_SESSION_KINDS, officeSessions } from "./sessions";
 
 // Database side of the office tool. Every query runs as the signed-in user:
-// row level security decides who may read the parcel and who may write slots
-// and trees (field staff, expert, ops of the parcel's org).
+// row level security decides who may read the parcel; save_inventory() decides
+// who may write the inventory (field staff and ops of the parcel's org).
 
-type SessionStatus = Database["public"]["Enums"]["session_status"];
+type Enums = Database["public"]["Enums"];
 
 export interface InventorySession {
   id: string;
-  status: SessionStatus;
+  kind: Enums["session_kind"];
+  status: Enums["session_status"];
   plannedDate: string | null;
   startedAt: string | null;
 }
@@ -31,8 +34,6 @@ export interface InventoryContext {
   sessions: InventorySession[];
   existing: { slots: number; trees: number };
 }
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function toLatLon(coords: [number, number]): LatLon {
   return { lat: coords[1], lon: coords[0] };
@@ -62,12 +63,10 @@ export async function loadInventoryContext(
       .maybeSingle(),
     supabase
       .from("session")
-      .select("id, status, planned_date, started_at")
+      .select("id, kind, status, planned_date, started_at, created_at")
       .eq("parcel_id", parcelId)
-      .eq("kind", "inventory")
-      .neq("status", "cancelled")
-      .order("started_at", { ascending: false, nullsFirst: false })
-      .order("planned_date", { ascending: false }),
+      .in("kind", OFFICE_SESSION_KINDS)
+      .neq("status", "cancelled"),
     supabase.from("slot").select("id", { count: "exact", head: true }).eq("parcel_id", parcelId),
     supabase.from("tree").select("id", { count: "exact", head: true }).eq("parcel_id", parcelId),
   ]);
@@ -93,8 +92,9 @@ export async function loadInventoryContext(
       localOrigin: isPoint(origin) ? toLatLon(origin.coordinates) : null,
     },
     boundaryVersion: isPolygon(geom) ? (boundary.data?.version ?? null) : null,
-    sessions: (sessions.data ?? []).map((s) => ({
+    sessions: officeSessions(sessions.data ?? []).map((s) => ({
       id: s.id,
+      kind: s.kind,
       status: s.status,
       plannedDate: s.planned_date,
       startedAt: s.started_at,
@@ -103,16 +103,35 @@ export async function loadInventoryContext(
   };
 }
 
+// One trunk click behind a tree's position: a label for a trunk detector.
+export interface SaveRay {
+  // Panorama asset row (storage source); null for the local development source.
+  panoramaAssetId: string | null;
+  // GPS time of the panorama frame (ns, digits).
+  gpsTimeNs: string | null;
+  yawDeg: number;
+  pitchDeg: number;
+  azimuthDeg: number;
+  clickedAt: string | null;
+}
+
+export interface SaveTree extends PlanTree {
+  unsure: boolean;
+  moved: boolean;
+  rays: SaveRay[];
+}
+
 export interface SaveInventoryInput {
   parcelId: string;
   sessionId: string;
   numbering: Numbering;
-  trees: PlanTree[];
+  trees: SaveTree[];
 }
 
 export type SaveInventoryError =
   | "invalid_input"
   | "not_found"
+  | "forbidden"
   | "session_invalid"
   | "existing_inventory"
   | "numbering_mismatch"
@@ -121,10 +140,47 @@ export type SaveInventoryError =
   | "write_failed";
 
 export type SaveInventoryResult =
-  | { ok: true; slots: number; trees: number; empty: number }
+  | { ok: true; slots: number; trees: number; empty: number; labels: number }
   | { ok: false; error: SaveInventoryError; detail?: string };
 
 const MAX_TREES = 20000;
+const MAX_RAYS = 20;
+// Recorded with every trunk label (trunk_label.method_version).
+export const OFFICE_TOOL_VERSION = "office-tool-0.2";
+
+const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+function parseRay(raw: unknown): SaveRay | null | "skip" {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const assetId = r.panoramaAssetId ?? null;
+  const gps = r.gpsTimeNs ?? null;
+  const clickedAt = r.clickedAt ?? null;
+  if (
+    (assetId !== null && !isUuid(assetId)) ||
+    (gps !== null && !(typeof gps === "string" && /^\d{1,19}$/.test(gps))) ||
+    !finite(r.yawDeg) ||
+    !finite(r.pitchDeg) ||
+    !finite(r.azimuthDeg) ||
+    Math.abs(r.yawDeg) > 180 ||
+    Math.abs(r.pitchDeg) > 90 ||
+    !(r.azimuthDeg >= 0 && r.azimuthDeg < 360) ||
+    (clickedAt !== null &&
+      !(typeof clickedAt === "string" && Number.isFinite(Date.parse(clickedAt))))
+  ) {
+    return null;
+  }
+  // A click that names no panorama cannot be a label.
+  if (assetId === null && gps === null) return "skip";
+  return {
+    panoramaAssetId: assetId,
+    gpsTimeNs: gps,
+    yawDeg: r.yawDeg,
+    pitchDeg: r.pitchDeg,
+    azimuthDeg: r.azimuthDeg,
+    clickedAt,
+  };
+}
 
 // Shape check of data that arrives from the browser.
 export function parseSaveInput(raw: unknown): SaveInventoryInput | null {
@@ -132,22 +188,20 @@ export function parseSaveInput(raw: unknown): SaveInventoryInput | null {
   const r = raw as Record<string, unknown>;
   const numbering = r.numbering as Record<string, unknown> | undefined;
   if (
-    typeof r.parcelId !== "string" ||
-    !UUID_RE.test(r.parcelId) ||
-    typeof r.sessionId !== "string" ||
-    !UUID_RE.test(r.sessionId) ||
+    !isUuid(r.parcelId) ||
+    !isUuid(r.sessionId) ||
     !numbering ||
     !CORNERS.includes(numbering.corner as Corner) ||
-    typeof numbering.rowAzimuthDeg !== "number" ||
-    !Number.isFinite(numbering.rowAzimuthDeg) ||
+    !finite(numbering.rowAzimuthDeg) ||
     !Array.isArray(r.trees) ||
     r.trees.length > MAX_TREES
   ) {
     return null;
   }
-  const trees: PlanTree[] = [];
+  const trees: SaveTree[] = [];
   const ids = new Set<string>();
   for (const t of r.trees as Record<string, unknown>[]) {
+    const rays = t?.rays ?? [];
     if (
       !t ||
       typeof t.id !== "string" ||
@@ -156,12 +210,28 @@ export function parseSaveInput(raw: unknown): SaveInventoryInput | null {
       typeof t.lon !== "number" ||
       typeof t.uncertaintyM !== "number" ||
       !(Math.abs(t.lat) <= 90 && Math.abs(t.lon) <= 180) ||
-      !(t.uncertaintyM >= 0 && t.uncertaintyM < 1000)
+      !(t.uncertaintyM >= 0 && t.uncertaintyM < 1000) ||
+      !Array.isArray(rays) ||
+      rays.length > MAX_RAYS
     ) {
       return null;
     }
+    const parsed: SaveRay[] = [];
+    for (const ray of rays) {
+      const value = parseRay(ray);
+      if (value === null) return null;
+      if (value !== "skip") parsed.push(value);
+    }
     ids.add(t.id);
-    trees.push({ id: t.id, lat: t.lat, lon: t.lon, uncertaintyM: t.uncertaintyM });
+    trees.push({
+      id: t.id,
+      lat: t.lat,
+      lon: t.lon,
+      uncertaintyM: t.uncertaintyM,
+      unsure: t.unsure === true,
+      moved: t.moved === true,
+      rays: parsed,
+    });
   }
   return {
     parcelId: r.parcelId,
@@ -179,42 +249,30 @@ function round(value: number, digits: number): number {
   return Math.round(value * f) / f;
 }
 
-function message(error: unknown): string {
-  return error && typeof error === "object" && "message" in error
-    ? String((error as { message: unknown }).message)
-    : String(error);
-}
+const DB_ERRORS = new Set<SaveInventoryError>([
+  "invalid_input",
+  "not_found",
+  "forbidden",
+  "session_invalid",
+  "existing_inventory",
+  "numbering_mismatch",
+  "numbering_forbidden",
+]);
 
-// Writes the slots and trees of a first inventory, linked to the inventory
-// session. Refuses when the parcel already has slots or trees: changing an
-// existing inventory is a separate flow (later). Codes are recomputed here
+// Writes the slots, trees and trunk labels of a first inventory in one
+// transaction (save_inventory(), as the user). The database refuses when the
+// parcel already has slots or trees (changing an existing inventory is a
+// separate flow, later), when the caller is not field staff or ops, and when
+// the numbering is new but the caller is not ops. Codes are recomputed here
 // from the tree positions with the same function the preview uses.
-//
-// Not atomic: slots and trees are two inserts. If the tree insert fails the
-// slots just written are deleted again, which RLS allows to ops only; see the
-// README for the RPC that would make this one transaction.
 export async function saveInventory(supabase: Client, raw: unknown): Promise<SaveInventoryResult> {
   const input = parseSaveInput(raw);
   if (!input) return { ok: false, error: "invalid_input" };
 
   const ctx = await loadInventoryContext(supabase, input.parcelId);
   if (!ctx) return { ok: false, error: "not_found" };
-  const session = ctx.sessions.find((s) => s.id === input.sessionId);
-  if (!session) return { ok: false, error: "session_invalid" };
-  if (ctx.existing.slots > 0 || ctx.existing.trees > 0) {
-    return {
-      ok: false,
-      error: "existing_inventory",
-      detail: `${ctx.existing.slots}/${ctx.existing.trees}`,
-    };
-  }
-  const recorded = ctx.parcel.numbering;
-  if (
-    recorded &&
-    (recorded.corner !== input.numbering.corner ||
-      Math.abs(recorded.rowAzimuthDeg - input.numbering.rowAzimuthDeg) > 1e-6)
-  ) {
-    return { ok: false, error: "numbering_mismatch" };
+  if (!ctx.sessions.some((s) => s.id === input.sessionId)) {
+    return { ok: false, error: "session_invalid" };
   }
 
   const plan = planLayout(ctx.geometry, input.trees, input.numbering);
@@ -227,68 +285,62 @@ export async function saveInventory(supabase: Client, raw: unknown): Promise<Sav
   }
   const { layout, frame } = plan;
 
-  // Slot numbering is chosen once per parcel (MVP Module 2). Only ops may
-  // update a parcel; RLS hides the row from everyone else.
-  if (!recorded) {
-    const { data, error } = await supabase
-      .from("parcel")
-      .update({
-        numbering_origin_corner: input.numbering.corner,
-        row_azimuth_deg: input.numbering.rowAzimuthDeg,
-      })
-      .eq("id", ctx.parcel.id)
-      .select("id");
-    if (error) return { ok: false, error: "write_failed", detail: message(error) };
-    if (!data || data.length === 0) return { ok: false, error: "numbering_forbidden" };
-  }
-
+  const treeById = new Map(input.trees.map((t) => [t.id, t]));
   const origin = ctx.parcel.localOrigin;
-  const slotRows = layout.slots.map((slot) => {
+  const slots = layout.slots.map((slot) => {
     const p = frame.toLatLon(slot.position);
     const local = origin ? parcelLocalXY(p, origin, input.numbering.rowAzimuthDeg) : null;
+    const tree = slot.treeId ? treeById.get(slot.treeId) : undefined;
     return {
-      org_id: ctx.parcel.orgId,
-      parcel_id: ctx.parcel.id,
       row_no: slot.rowNo,
       position_no: slot.positionNo,
       suffix: slot.suffix,
       kind: slot.kind,
-      position: `SRID=4326;POINT(${p.lon.toFixed(9)} ${p.lat.toFixed(9)})`,
-      position_uncertainty_m: round(slot.uncertaintyM, 3),
+      lon: round(p.lon, 9),
+      lat: round(p.lat, 9),
+      uncertainty_m: round(slot.uncertaintyM, 3),
       local_x_m: local ? round(local.x, 3) : null,
       local_y_m: local ? round(local.y, 3) : null,
+      tree: tree
+        ? {
+            unsure: tree.unsure,
+            moved: tree.moved,
+            labels: tree.rays.map((ray) => ({
+              panorama_asset_id: ray.panoramaAssetId,
+              panorama_gps_time_ns: ray.gpsTimeNs,
+              yaw_deg: ray.yawDeg,
+              pitch_deg: ray.pitchDeg,
+              azimuth_deg: ray.azimuthDeg,
+              labelled_at: ray.clickedAt,
+            })),
+          }
+        : null,
     };
   });
-  const inserted = await supabase.from("slot").insert(slotRows).select("id, code");
-  if (inserted.error) return { ok: false, error: "write_failed", detail: message(inserted.error) };
 
-  const slotIdByCode = new Map(inserted.data.map((s) => [s.code, s.id]));
-  const firstSeenAt = session.startedAt ?? new Date().toISOString();
-  const treeRows = layout.slots
-    .filter((slot) => slot.treeId)
-    .map((slot) => ({
-      org_id: ctx.parcel.orgId,
-      parcel_id: ctx.parcel.id,
-      slot_id: slotIdByCode.get(slot.code)!,
-      first_seen_at: firstSeenAt,
-      first_seen_session_id: session.id,
-    }));
-  const treesInserted = await supabase.from("tree").insert(treeRows);
-  if (treesInserted.error) {
-    await supabase
-      .from("slot")
-      .delete()
-      .in(
-        "id",
-        inserted.data.map((s) => s.id),
-      );
-    return { ok: false, error: "write_failed", detail: message(treesInserted.error) };
+  const { data, error } = await supabase.rpc("save_inventory", {
+    p_parcel_id: ctx.parcel.id,
+    p_session_id: input.sessionId,
+    p_corner: input.numbering.corner,
+    p_row_azimuth_deg: input.numbering.rowAzimuthDeg,
+    p_slots:
+      slots as unknown as Database["public"]["Functions"]["save_inventory"]["Args"]["p_slots"],
+    p_method_version: OFFICE_TOOL_VERSION,
+  });
+  if (error) {
+    // The function raises its reasons as the error message.
+    const reason = error.message as SaveInventoryError;
+    if (!DB_ERRORS.has(reason)) return { ok: false, error: "write_failed", detail: error.message };
+    return reason === "existing_inventory" && error.details
+      ? { ok: false, error: reason, detail: error.details }
+      : { ok: false, error: reason };
   }
-
+  const counts = data as { slots: number; trees: number; labels: number };
   return {
     ok: true,
-    slots: slotRows.length,
-    trees: treeRows.length,
-    empty: slotRows.length - treeRows.length,
+    slots: counts.slots,
+    trees: counts.trees,
+    empty: counts.slots - counts.trees,
+    labels: counts.labels,
   };
 }

@@ -22,17 +22,25 @@ const slot = (id: string, trees: SlotInput["trees"], position: unknown = point):
 const point = { type: "Point", coordinates: [37.45, 37.0] };
 
 describe("latestHealthByTree", () => {
-  it("keeps the first (newest) row per tree", () => {
-    const latest = latestHealthByTree([
-      { tree_id: "t1", overall_class: "problem" },
-      { tree_id: "t1", overall_class: "healthy" },
-      { tree_id: "t2", overall_class: null },
-      { tree_id: null, overall_class: "dead" },
-    ]);
-    expect([...latest]).toEqual([
+  // Rows of the tree_latest_assessment view: one per tree, already chosen by
+  // session time and source.
+  const rows = [
+    { tree_id: "t1", session_id: "s2", overall_class: "problem" as const },
+    { tree_id: "t2", session_id: "s1", overall_class: null },
+    { tree_id: "t3", session_id: null, overall_class: "healthy" as const },
+    { tree_id: null, session_id: "s1", overall_class: "dead" as const },
+  ];
+
+  it("takes the view's row per tree", () => {
+    expect([...latestHealthByTree(rows)]).toEqual([
       ["t1", "problem"],
       ["t2", null],
+      ["t3", "healthy"],
     ]);
+  });
+
+  it("treats rows of other sessions as not assessed", () => {
+    expect([...latestHealthByTree(rows, new Set(["s1"]))]).toEqual([["t2", null]]);
   });
 });
 

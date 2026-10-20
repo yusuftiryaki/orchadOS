@@ -13,12 +13,12 @@ import {
 
 // Reads processed pipeline runs from a folder on disk: every directory below
 // the root (up to MAX_DEPTH levels) that holds a panoramas.json is one set.
-// Development only (see panoramaSource()); production reads from storage.
+// Development only (see officePanoramaSources()); production reads from storage.
 
 const MAX_DEPTH = 4;
 
 function encodeId(relPath: string): string {
-  return Buffer.from(relPath, "utf8").toString("base64url");
+  return `local-${Buffer.from(relPath, "utf8").toString("base64url")}`;
 }
 
 interface RunDir {
@@ -72,6 +72,7 @@ export class LocalPanoramaSource implements PanoramaSource {
     return { raw, manifest };
   }
 
+  // Every run under the root, whatever its parcel (development data).
   async listSets(): Promise<PanoramaSetInfo[]> {
     const sets: PanoramaSetInfo[] = [];
     for (const run of await this.findRuns()) {
@@ -88,6 +89,7 @@ export class LocalPanoramaSource implements PanoramaSource {
               : "";
         sets.push({
           id: run.id,
+          source: "local",
           sessionId,
           parcelId: typeof session.parcel_id === "string" ? session.parcel_id : null,
           label: run.dir.split(sep).slice(-2).join("/"),
@@ -131,6 +133,7 @@ export class LocalPanoramaSource implements PanoramaSource {
     try {
       if (!(await stat(path)).isFile()) return null;
       return {
+        kind: "data",
         data: new Uint8Array(await readFile(path)),
         mediaType: typeof file.media_type === "string" ? file.media_type : "image/webp",
         sha256: typeof file.sha256 === "string" ? file.sha256 : null,
