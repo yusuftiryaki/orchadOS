@@ -1,0 +1,358 @@
+import Link from "next/link";
+import { formatDate, formatNumber, t } from "@/lib/i18n";
+import { MARKER_COLORS, type MarkerState } from "@/lib/map/tree-style";
+import { CLASS_ORDER, distributionTotal, type Distribution } from "@/lib/portal/classes";
+import type { ParcelReport, TreeChange } from "@/lib/portal/data";
+import type { FindingItem } from "@/lib/portal/findings";
+import type { MetricSummaryRow } from "@/lib/portal/metrics";
+import { HealthMap } from "./health-map";
+import { DistributionBar, findingKindLabel, percent } from "./labels";
+import { SEVERITY_COLORS } from "./colors";
+import { PrintButton } from "./print-button";
+import styles from "./portal.module.css";
+
+// Parcel report card: latest published visit, change since the previous one,
+// health map, findings, card metrics and visit history.
+
+const r = t.portal.report;
+
+export function ParcelReportView({
+  report,
+  classFilter,
+  findingId,
+}: {
+  report: ParcelReport;
+  classFilter?: MarkerState[];
+  findingId?: string;
+}) {
+  const base = `/portal/parsel/${report.parcel.id}`;
+  return (
+    <main className={styles.page}>
+      <p className={styles.noPrint}>
+        <Link href="/portal">← {r.back}</Link>
+      </p>
+      <div className={styles.titleRow}>
+        <div>
+          <h1>{report.parcel.name}</h1>
+          <p className="muted">
+            {report.boundary
+              ? t.parcel.boundaryVersion(report.boundary.version)
+              : t.parcel.noBoundary}
+            {" · "}
+            {t.parcel.slotCount(report.slotCount, report.activeTreeCount)}
+          </p>
+        </div>
+        <div className={`${styles.actions} ${styles.noPrint}`}>
+          <Link className="button" href={`${base}/gezi`}>
+            {r.tour}
+          </Link>
+          <PrintButton />
+        </div>
+      </div>
+
+      {report.latest ? (
+        <Summary report={report} base={base} />
+      ) : (
+        <p className={styles.notice} data-testid="no-results">
+          {r.noResults}
+        </p>
+      )}
+
+      <section id="harita" className={styles.section} aria-labelledby="harita-baslik">
+        <h2 id="harita-baslik">{r.mapTitle}</h2>
+        <HealthMap
+          key={classFilter?.join(",") ?? "all"}
+          parcelId={report.parcel.id}
+          boundary={report.boundary?.geometry ?? null}
+          slots={report.slots}
+          findings={report.findings}
+          bounds={report.bounds}
+          initialStates={classFilter}
+          initialFindingId={findingId}
+        />
+      </section>
+
+      {report.latest && (
+        <>
+          <Findings findings={report.findings} base={base} />
+          <Metrics metrics={report.metrics} />
+        </>
+      )}
+      <History report={report} />
+    </main>
+  );
+}
+
+function Summary({ report, base }: { report: ParcelReport; base: string }) {
+  const latest = report.latest!;
+  const total = distributionTotal(latest.distribution);
+  const states: (keyof Distribution)[] = [...CLASS_ORDER, "unassessed"];
+  return (
+    <section className={styles.section} aria-labelledby="karne-baslik" data-testid="report-summary">
+      <div>
+        <h2 id="karne-baslik">{r.summaryTitle}</h2>
+        <p className="muted">
+          {r.visitOf(formatDate(latest.time))}
+          {latest.methodologyVersion && ` · ${r.methodology(latest.methodologyVersion)}`}
+        </p>
+      </div>
+      <p>
+        <strong data-testid="tree-count">{r.treeCount(report.activeTreeCount)}</strong>
+        {" · "}
+        {r.assessedCount(latest.assessedCount, report.activeTreeCount)}
+      </p>
+      <DistributionBar distribution={latest.distribution} />
+      <ul className={styles.tiles}>
+        {states
+          .filter((c) => c !== "unassessed" || latest.distribution.unassessed > 0)
+          .map((c) => (
+            <li key={c}>
+              <Link
+                className={styles.tile}
+                href={`${base}?sinif=${c}#harita`}
+                data-testid={`count-${c}`}
+                title={`${r.showOnMap}: ${t.portal.classes[c]}`}
+              >
+                <span className={styles.tileLabel}>
+                  <span className={styles.swatch} style={{ background: MARKER_COLORS[c] }} />
+                  {t.portal.classes[c]}
+                </span>
+                <span className={styles.tileValue}>{formatNumber(latest.distribution[c])}</span>
+                <span className={`muted ${styles.small}`}>
+                  {r.percent(percent(latest.distribution[c], total))} · {t.portal.classHelp[c]}
+                </span>
+              </Link>
+            </li>
+          ))}
+      </ul>
+      <Change report={report} base={base} />
+    </section>
+  );
+}
+
+const SHOWN_CHANGES = 10;
+// The rest of the findings sit behind "show more"; all of them print.
+const SHOWN_FINDINGS = 8;
+
+function Change({ report, base }: { report: ParcelReport; base: string }) {
+  if (!report.previous || !report.change) {
+    return <p className="muted">{r.changeFirst}</p>;
+  }
+  const { worse, better } = report.change;
+  return (
+    <div data-testid="report-change">
+      <h3>{r.changeTitle}</h3>
+      <p className="muted">{r.changeIntro(formatDate(report.previous.time))}</p>
+      {worse.length === 0 && better.length === 0 ? (
+        <p>{r.unchanged}</p>
+      ) : (
+        <div className={styles.changeGrid}>
+          <ChangeList
+            title={r.worse(worse.length)}
+            className={styles.worse}
+            items={worse}
+            base={base}
+          />
+          <ChangeList
+            title={r.better(better.length)}
+            className={styles.better}
+            items={better}
+            base={base}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChangeList({
+  title,
+  className,
+  items,
+  base,
+}: {
+  title: string;
+  className: string;
+  items: TreeChange[];
+  base: string;
+}) {
+  return (
+    <div>
+      <h3 className={className}>{title}</h3>
+      <ul className={styles.plainList}>
+        {items.slice(0, SHOWN_CHANGES).map((c) => (
+          <li key={c.treeId}>
+            <Link href={`${base}/agac/${c.treeId}`}>{c.code}</Link>{" "}
+            <span className="muted">
+              {r.changeLine(t.portal.classes[c.from], t.portal.classes[c.to])}
+            </span>
+          </li>
+        ))}
+        {items.length > SHOWN_CHANGES && (
+          <li className="muted">{r.moreTrees(items.length - SHOWN_CHANGES)}</li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
+function Findings({ findings, base }: { findings: FindingItem[]; base: string }) {
+  return (
+    <section className={styles.section} aria-labelledby="bulgu-baslik">
+      <h2 id="bulgu-baslik">{r.findingsTitle}</h2>
+      {findings.length === 0 ? (
+        <p className="muted">{r.findingsEmpty}</p>
+      ) : (
+        <div className={styles.more} data-testid="findings">
+          <FindingList findings={findings.slice(0, SHOWN_FINDINGS)} base={base} />
+          {findings.length > SHOWN_FINDINGS && (
+            <details className={styles.more}>
+              <summary>{r.moreFindings(findings.length - SHOWN_FINDINGS)}</summary>
+              <FindingList findings={findings.slice(SHOWN_FINDINGS)} base={base} />
+            </details>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FindingList({ findings, base }: { findings: FindingItem[]; base: string }) {
+  return (
+    <ul className={styles.findings}>
+      {findings.map((f) => {
+        const href = f.treeId
+          ? `${base}/agac/${f.treeId}`
+          : f.point
+            ? `${base}?bulgu=${f.id}#harita`
+            : null;
+        const body = (
+          <div
+            className={styles.finding}
+            style={{ "--severity": SEVERITY_COLORS[f.severity] } as React.CSSProperties}
+          >
+            <div className={styles.findingHead}>
+              <strong style={{ color: SEVERITY_COLORS[f.severity] }}>
+                {t.portal.severity[f.severity]}
+              </strong>
+              <span>{findingKindLabel(f.kind)}</span>
+              <span className="muted">{f.treeCode ?? r.parcelLevel}</span>
+            </div>
+            <span>{f.description}</span>
+            {f.recommendation && (
+              <span>
+                <strong>{r.recommendation}: </strong>
+                {f.recommendation}
+              </span>
+            )}
+          </div>
+        );
+        return (
+          <li key={f.id} data-finding-id={f.id}>
+            {href ? (
+              <Link className={styles.findingLink} href={href}>
+                {body}
+              </Link>
+            ) : (
+              body
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function Metrics({ metrics }: { metrics: MetricSummaryRow[] }) {
+  return (
+    <section className={styles.section} aria-labelledby="olcum-baslik">
+      <h2 id="olcum-baslik">{r.metricsTitle}</h2>
+      {metrics.length === 0 ? (
+        <p className="muted">{r.metricsEmpty}</p>
+      ) : (
+        <div className={styles.tableWrap}>
+          <table className={styles.table} data-testid="metrics">
+            <tbody>
+              {metrics.map((m) => (
+                <tr key={m.code}>
+                  <th scope="row">{m.name}</th>
+                  <td>{r.metricCount(m.count)}</td>
+                  <td>
+                    <MetricSummaryText metric={m} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MetricSummaryText({ metric }: { metric: MetricSummaryRow }) {
+  const s = metric.summary;
+  switch (s.type) {
+    case "numeric": {
+      const unit = s.unit ? ` ${s.unit}` : "";
+      return (
+        <>
+          {r.metricMean(
+            formatNumber(s.mean, 1) + unit,
+            formatNumber(s.min, 1) + unit,
+            formatNumber(s.max, 1) + unit,
+          )}
+        </>
+      );
+    }
+    case "scale":
+    case "category":
+      return (
+        <>
+          {s.counts
+            .filter((c) => c.count > 0)
+            .map((c) => `${c.value}: ${c.count}`)
+            .join(" · ")}
+        </>
+      );
+    case "boolean":
+      return <>{r.metricYesNo(s.yes, s.no)}</>;
+  }
+}
+
+function History({ report }: { report: ParcelReport }) {
+  const c = r.columns;
+  return (
+    <section className={styles.section} aria-labelledby="gecmis-baslik">
+      <h2 id="gecmis-baslik">{r.historyTitle}</h2>
+      {report.visits.length === 0 ? (
+        <p className="muted">{r.historyEmpty}</p>
+      ) : (
+        <div className={styles.tableWrap}>
+          <table className={styles.table} data-testid="visit-history">
+            <thead>
+              <tr>
+                <th>{c.date}</th>
+                <th>{c.kind}</th>
+                <th className={styles.number}>{c.assessed}</th>
+                <th className={styles.number}>{c.findings}</th>
+                <th>{c.methodology}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.visits.map((v) => (
+                <tr key={v.id} data-visit-id={v.id}>
+                  <td>{formatDate(v.time)}</td>
+                  <td>{t.portal.sessionKind[v.kind]}</td>
+                  <td className={styles.number}>{formatNumber(v.assessedCount)}</td>
+                  <td className={styles.number}>{formatNumber(v.findingCount)}</td>
+                  <td>{v.methodologyVersion ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}

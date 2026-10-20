@@ -1,7 +1,10 @@
-import { ParcelList } from "@/components/parcel-list";
+import { GardenList } from "@/components/portal/garden-list";
 import { requireSection } from "@/lib/auth/session";
+import { listPortalParcels } from "@/lib/portal/data";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function Page() {
   await requireSection("portal");
-  return <ParcelList section="portal" />;
+  const supabase = await createClient();
+  return <GardenList parcels={await listPortalParcels(supabase)} />;
 }

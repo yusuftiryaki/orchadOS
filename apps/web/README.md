@@ -4,7 +4,7 @@ Next.js web uygulaması: sahip portalı, uzman paneli ve ofis üçgenleme aracı
 
 İş paketleri: İP5 (ofis üçgenleme aracı), İP7 (uzman paneli), İP8 (sahip portalı). Bkz. [docs/plan.md](../../docs/plan.md).
 
-Şu anki hâli: giriş/çıkış, rol bazlı bölümler, her bölümde parsel listesi ve harita üzerinde parsel detayı (iskelet) ve `/ofis` altında **ofis üçgenleme aracı** (İP5, aşağıda).
+Şu anki hâli: giriş/çıkış, rol bazlı bölümler, her bölümde parsel listesi ve harita üzerinde parsel detayı (iskelet), `/ofis` altında **ofis üçgenleme aracı** (İP5) ve `/portal` altında **sahip portalı** (İP8); ikisi de aşağıda.
 
 ## Kurulum
 
@@ -52,7 +52,7 @@ apps/web/
 │   ├── proxy.ts                 # her istekte oturumu yeniler, girişsizleri /giris'e yollar
 │   ├── app/
 │   │   ├── giris/               # giriş sayfası, giriş yöntemleri, server action
-│   │   ├── portal/              # sahip, izleyici
+│   │   ├── portal/              # sahip, izleyici: bahçelerim, karne, ağaç karnesi, 360° gezi
 │   │   ├── uzman/               # uzman
 │   │   ├── ofis/                # saha personeli, operasyon
 │   │   │   ├── parsel/[parcelId]/envanter/  # ofis üçgenleme aracı + kaydetme (server action)
@@ -62,13 +62,16 @@ apps/web/
 │   │   ├── forbidden.tsx        # 403 sayfası
 │   │   └── page.tsx             # girişten sonra ilk erişilebilir bölüme yönlendirir
 │   ├── components/              # bölüm başlığı, parsel listesi, harita, ağaç paneli
-│   │   └── office/              # üçgenleme aracı: harita, panorama görünümü, paneller
+│   │   ├── office/              # üçgenleme aracı: harita, panorama görünümü, paneller
+│   │   └── portal/              # sahip portalı: karne, sağlık haritası, ağaç karnesi, gezi
 │   └── lib/
 │       ├── auth/                # roller → bölümler, oturum ve bölüm kontrolü
 │       ├── i18n/tr.ts           # bütün arayüz metinleri
 │       ├── map/                 # GeoJSON yardımcıları, altlık, ağaç renkleri
 │       ├── office/              # üçgenleme, sıra oturtma, kodlama, doğrulama listesi (saf TS),
 │       │                        # panorama kaynağı, envanter kaydı
+│       ├── portal/              # portal sorguları + saf hesaplar (sınıf, değişim, ölçüm, gezi yönleri)
+│       ├── media/               # storage:// adresleri, toplu imzalama ve önbellek
 │       ├── supabase/            # sunucu istemcisi ve proxy oturum yenileme
 │       ├── parcels.ts           # parsel sorguları (sadece satır bazlı yetkiyle)
 │       └── database.types.ts    # üretilmiş; elle değiştirilmez
@@ -130,6 +133,75 @@ CSS Modules + `src/app/globals.css` içinde CSS değişkenleri (renk, boşluk, k
 ## Metinler
 
 Bütün arayüz metinleri `src/lib/i18n/tr.ts` içinde; bileşenler `t` üzerinden okur. Başka bir dil, aynı yapıda (`Messages` tipi) ikinci bir dosya ve `src/lib/i18n/index.ts` içinde dil seçimi demek. Bir birim testi, veritabanındaki her enum değerinin (parsel durumu, cinsiyet, aşı, sağlık sınıfı…) Türkçe karşılığı olduğunu denetler.
+
+## Sahip portalı (İP8)
+
+Sahip (`owner`) ve hissedar (`viewer`) için `/portal`. Zincir: **Bahçelerim → parsel karnesi → sağlık haritası → ağaç karnesi → fotoğraf geçmişi → 360° gezi.** Telefon öncelikli: 800 px'in altında her şey tek sütun, harita ve panorama ekranın büyük kısmını alır, haritada ağaca dokununca panel görünür alana kayar.
+
+### Ekranlar
+
+| Adres                                 | Ne gösterir                                                                                                                                                                                                                                                                                         |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/portal`                             | Her parsel: konum, ağaç sayısı, son yayımlanmış denetimin tarihi, sınıf dağılımı çubuğu, acil bulgu sayısı                                                                                                                                                                                          |
+| `/portal/parsel/<parsel>`             | **Karne:** son denetimin özeti (ağaç sayısı; sağlıklı / dikkat / sorunlu / kurumuş / yok / değerlendirilmedi, yüzdeleriyle), önceki denetime göre kötüleşen ve iyileşen ağaçlar, **sağlık haritası**, önem sırasıyla bulgular, karnede gösterilen ölçümlerin özeti, ziyaret geçmişi, "Yazdır / PDF" |
+| `…?sinif=problem,dead#harita`         | Haritayı o sınıflarla açar (karnedeki sınıf kutuları bu bağlantıyı kullanır)                                                                                                                                                                                                                        |
+| `…?bulgu=<bulgu>#harita`              | Parsel düzeyindeki bir bulguyu haritada seçer                                                                                                                                                                                                                                                       |
+| `/portal/parsel/<parsel>/agac/<ağaç>` | **Ağaç karnesi:** kod, yer türü, cinsiyet, aşı, yaş sınıfı, çeşit, envantere giriş; son sınıf ve kimin verdiği; durum geçmişi; ölçüm geçmişi (ziyaret × metrik); fotoğraf geçmişi (satır ziyaret, sütun yön; yakın planlar ayrıca; her fotoğrafın hash'inin ilk 8 hanesi); bulgular ve öneriler     |
+| `/portal/parsel/<parsel>/gezi`        | **360° gezi** (`?agac=<ağaç>`: ağaca en yakın panoramada ağaca dönük açılır; `?panorama=<asset>`)                                                                                                                                                                                                   |
+
+### Kurallar
+
+- **Sadece yayımlanmış ziyaretler.** Kural veritabanında (satır bazlı yetki, `media` alanının kuralı). Portal ayrıca bütün sonuç sorgularını parselin `published` ziyaretleriyle sınırlar; bir kullanıcı hem sahip hem kurum rolündeyse de portalda yayımlanmamış sonuç görmez. Entegrasyon testi ikisini birden denetler.
+- **Ziyaretin sınıfı:** aynı ziyarette uzman > model > AI, sonra en yeni satır (`src/lib/portal/classes.ts`). Karnedeki dağılım ve değişim bunu kullanır. Değerlendirmesi olmayan aktif ağaç "Değerlendirilmedi" sayılır.
+- **Harita rengi** `tree_latest_assessment` görünümünden gelir (önce en yeni ziyaret, aynı ziyarette kaynak önceliği). Böylece son denetimde bakılmayan bir ağaç önceki denetimin rengini korur. Ortak harita (`src/lib/parcels.ts`) hâlâ kaynak gözetmeden en yeni değerlendirmeyi kullanıyor; uzman ve ofis tarafı koordinatöre bırakıldı.
+- **Değişim:** iki ziyarette de sınıfı olan ağaçlar karşılaştırılır; sıra sağlıklı < dikkat < sorunlu < kurumuş = yok. Kurumuş → yok değişim sayılmaz.
+- **Kimin kararı:** "Uzman onaylı" (yeşil, ✓), "Otomatik onay" (toplu onaylanmış AI), "Yapay zekâ ön değerlendirmesi (uzman onayı yok)". Turuncu rozet uzman onayı olmadığını gösterir.
+- **Ölçümler:** sadece `card_visibility = shown` metrikler. Aynı ziyarette uzman > algoritma > saha ekibi > AI.
+- **Bulgular:** önem (acil, önemli, düşük, bilgi), aynı önemde önce bahçe geneli, sonra sıra/pozisyon sırasıyla. Ağaç bulgusu ağaç karnesine, parsel bulgusu haritadaki konumuna gider. Haritada bulgular önem renginde halka; konum sırasıyla bulgunun kendi `location`'ı, ağacı, bölgesi (`zone`).
+- **Sade dil:** sınıflar ve önem dereceleri tek cümlelik açıklamalarla (`t.portal`).
+
+### 360° gezi
+
+- Son yayımlanmış ve panoraması olan ziyaret. Aynı panoramanın tam ve önizleme görüntüsü (`pose.variant`) `pose.gps_time_ns`'ten (yoksa konumdan) eşlenir. Önce önizleme yüklenir, yakınlaştırınca (zoom > 55) tam çözünürlüğe geçilir.
+- Komşu oklar: 8 yön diliminin her birinde 20 m içindeki en yakın panorama. Ok, panoramanın `heading_deg`'ine göre yönü hesaplanmış bir işaretçi; tıklayınca o panoramaya aynı yöne bakarak geçilir.
+- Haritada bir yere dokununca en yakın panorama açılır ve dokunulan noktaya döner.
+- **Ağaç işaretçileri:** 14 m içindeki ağaçlar, sınıf rengiyle. Yön = ağacın azimutu − `heading_deg` (orta sütun `heading_deg`, azimut saat yönünde; `services/pipeline/README.md`). Yükseklik açısı kamera 1,8 m, hedef 1,5 m varsayımıyla. Tıklanınca ağaç karnesi.
+- Görüntü yoksa ya da açılamazsa tarayıcıda üretilen bir yer tutucu panorama gösterilir (gökyüzü, zemin, gerçek yönlerinde K/D/G/B harfleri); oklar ve ağaçlar yine çalışır. Demo verisi bu durumu gösterir.
+- Görüntü adresleri bir server action ile (`gezi/actions.ts`) panorama değiştikçe imzalanır; sadece o parselin yayımlanmış ziyaretlerindeki `panorama` kayıtları imzalanır.
+
+### Medya (`src/lib/media/`)
+
+Uzman paneli de kullanacak; arayüz bilinçli olarak küçük:
+
+```ts
+import { createMediaSigner } from "@/lib/media/signer";
+const signer = createMediaSigner(supabase, { scope: user.id });
+const urls = await signer.signUrls(rows.map((r) => r.uri)); // Map<uri, string | null>
+```
+
+- `parseMediaUri("storage://media/<ad>")` → `{ bucket, path }`; biçimi bozuk, `..` içeren ya da başka şemadaki (`station://`) adresler `null`.
+- Toplu imzalama: bucket başına `createSignedUrls`, 200'lük partiler. İmzalı adres 15 dakika geçerli.
+- **Önbellek:** süreç içinde, 5 dakika, en çok 5000 kayıt; anahtar `scope` (kullanıcı kimliği) + adres, yani bir kullanıcı için imzalanmış adres başkasına verilmez. Reddedilen imzalar önbelleğe alınmaz.
+- Dosya yoksa, imzalama reddedilirse (ör. yayımlanmamış ziyaret) ya da istek başarısız olursa değer `null`; arayüz yer tutucu gösterir.
+
+### PDF
+
+"Yazdır / PDF" düğmesi tarayıcının yazdırma penceresini açar; "PDF olarak kaydet" yeterli. Yazdırma stilleri üst menüyü, düğmeleri, filtreleri ve paneli gizler, katlanmış bulgu listesini açar; harita tuvali yazdırılabilir (`preserveDrawingBuffer`).
+
+### Demo
+
+```bash
+pnpm db:reset && pnpm db:demo     # repo kökünde
+pnpm web:dev                      # owner@example.com / orchados-dev
+```
+
+`/portal` → "Örnek Bahçe 1": 14 Ekim denetimi (302 ağaç; 232 sağlıklı, 40 dikkat, 16 sorunlu, 13 kurumuş, 1 değerlendirilmedi), 30 bulgu, kuru dal ölçek dağılımı. 18 Ekim denetimi incelemede olduğu için görünmez. Görüntü dosyaları demo verisinde yok: fotoğraflar "Görüntü yok", gezi yer tutucu panoramayla açılır.
+
+### Testler
+
+- Birim: `src/lib/portal/portal.test.ts` (ziyaret sınıfı, dağılım, değişim, onay türü, harita durumu, ziyaret zamanı, bulgu sırası ve konumu, ölçüm özeti, panoramada yön ve yükseklik açısı, komşu panoramalar, varyant eşleme), `src/lib/media/media.test.ts` (adres ayrıştırma, toplu imzalama, önbellek).
+- Entegrasyon (`tests/integration/portal.test.ts`) ve tarayıcı (`tests/e2e/portal-owner.spec.ts`) testleri kendi verilerini `tests/integration/portal-fixture.ts` ile kurar: ayrı bir işletme, üç kullanıcı (`portal-owner@`, `portal-viewer@`, `portal-other@example.test`), iki parsel; parsel A'da iki yayımlanmış ve bir incelemedeki ziyaret, depoda gerçek küçük PNG'ler. `capture`/`asset`/`measurement` API'den silinemediği için temizlik, yerel veritabanı konteynerinde (`supabase_db_orchados`, `SUPABASE_DB_CONTAINER` ile değişir) tetikleyiciler kapalıyken SQL ile yapılır; başta da çalışır, yarıda kalan bir koşu sorun çıkarmaz.
+- Tarayıcı: sahip olarak giriş → Bahçelerim → karne → haritada ağaç → ağaç karnesi (fotoğraf yüklenir, eksik fotoğraf yer tutucu); sınıf filtresi ve parsel bulgusu; yayımlanmamış sonucun görünmemesi; gezi (ağaca dönük açılış, önizleme → tam çözünürlük, ok ile geçiş, yer tutucu, ağaç işaretçisinden karneye); 390 px ekranda yatay taşma olmadan karne, harita ve ağaç karnesi.
 
 ## Ofis üçgenleme aracı (İP5)
 
