@@ -8,6 +8,7 @@ import 'package:orchados_field/features/gnss/protocol/gnss_command.dart';
 import 'package:orchados_field/features/gnss/protocol/gnss_status.dart';
 import 'package:orchados_field/features/session/session_controller.dart';
 import 'package:orchados_field/features/session/session_screen.dart';
+import 'package:orchados_field/features/tasks/field_task.dart';
 import 'package:orchados_field/features/tasks/task_repository.dart';
 
 import '../support/test_app.dart';
@@ -232,6 +233,53 @@ void main() {
     await tapVisible(tester, find.byKey(const Key('precheck-continue')));
     await tester.pumpAndSettle();
     expect(find.byType(SessionScreen), findsOneWidget);
+    await h.dispose(tester);
+  });
+
+  testWidgets('a planned visit records under its server id, once', (
+    tester,
+  ) async {
+    const visitId = 'e1900000-0000-4000-8000-000000000001';
+    final task = FieldTask(
+      id: visitId,
+      visitId: visitId,
+      parcelId: periodicTask.parcelId,
+      parcelName: periodicTask.parcelName,
+      village: periodicTask.village,
+      kind: VisitKind.periodic,
+      season: Season.winter,
+      areaDecare: 20,
+    );
+    final h = TestHarness();
+    await h.logger.connect();
+    final controller = h.container.read(sessionControllerProvider.notifier);
+    controller.selectTask(task);
+    await tester.runAsync(controller.start);
+    await settle(tester);
+
+    final state = h.container.read(sessionControllerProvider);
+    expect(state.sessionId, visitId);
+    expect(
+      h.logger.receivedCommands.whereType<StartSession>().single.sessionId,
+      visitId,
+    );
+    final repo = h.container.read(fieldRepositoryProvider);
+    final session = await tester.runAsync(() => repo.session(visitId));
+    expect(session!.taskId, visitId);
+
+    // Stopped and finished, the same visit cannot be recorded again on this
+    // phone (the logger would answer session_exists).
+    await tester.runAsync(controller.stop);
+    await tester.runAsync(controller.finish);
+    controller.selectTask(task);
+    final again = await tester.runAsync(controller.start);
+    expect(again, isFalse);
+    expect(
+      h.container.read(sessionControllerProvider).error,
+      'Bu ziyaret bu telefonda zaten kaydedildi',
+    );
+    expect(h.logger.receivedCommands.whereType<StartSession>(), hasLength(1));
+
     await h.dispose(tester);
   });
 }

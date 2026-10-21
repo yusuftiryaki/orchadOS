@@ -129,7 +129,10 @@ class _TaskCard extends ConsumerWidget {
                       Text(
                         [
                           if (task.plannedDate != null)
-                            _plannedLabel(task.plannedDate!),
+                            _plannedLabel(
+                              task.plannedDate!,
+                              ref.read(clockProvider).now(),
+                            ),
                           if (task.assignedToMe) 'Size atanmış',
                         ].join(' · '),
                       ),
@@ -150,8 +153,8 @@ class _TaskCard extends ConsumerWidget {
   }
 }
 
-String _plannedLabel(DateTime day) {
-  final now = DateTime.now();
+String _plannedLabel(DateTime day, DateTime now) {
+  now = now.toLocal();
   final today = DateTime(now.year, now.month, now.day);
   final d = DateTime(day.year, day.month, day.day);
   final diff = d.difference(today).inDays;

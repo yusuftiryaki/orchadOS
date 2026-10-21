@@ -132,7 +132,9 @@ class SupabaseSyncServer implements SyncServer {
     }
     if (e is PostgrestException) {
       final code = e.code ?? '';
-      final status = int.tryParse(code);
+      // Without a JSON body the code is the HTTP status (3 digits);
+      // otherwise a Postgres SQLSTATE such as 42501.
+      final status = RegExp(r'^\d{3}$').hasMatch(code) ? int.parse(code) : null;
       final transient =
           (status != null && _transientHttp(status)) ||
           // PostgREST cannot reach the database / JWT expired.
