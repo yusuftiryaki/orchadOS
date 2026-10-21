@@ -62,6 +62,18 @@ def _db_tree_list(ctx: RunContext, session_id: str | None):
     return tlist
 
 
+def _boundary(ctx: RunContext, session_id: str | None, write_db: bool = True) -> None:
+    """Boundary stage: corner events from the database -> boundary.json -> boundary version."""
+    from . import boundary
+    from .models import SessionInfo
+    from .supabase import SupabaseClient
+
+    info = SessionInfo.model_validate_json((ctx.session_dir / "session.json").read_bytes())
+    with SupabaseClient.sign_in(Credentials.from_env()) as client:
+        res = boundary.run(ctx, client, session_id or info.session_id, info.parcel_id, write_db)
+    print("\n".join(res.lines()))
+
+
 def _trees_options(p: argparse.ArgumentParser) -> None:
     g = p.add_mutually_exclusive_group()
     g.add_argument("--trees", help="trees JSON (default: <session>/trees.json)")
@@ -130,8 +142,23 @@ def main(argv: list[str] | None = None) -> int:
     _trees_options(crops_p)
     crops_p.add_argument("--session-id", help="public.session id (default: from session.json)")
     stage("outputs", "write outputs.json")
+    bnd = stage(
+        "boundary",
+        "boundary version from the session's corner events (database; env: "
+        + ", ".join(Credentials.ENV)
+        + ")",
+    )
+    bnd.add_argument("--session-id", help="public.session id (default: from session.json)")
+    bnd.add_argument(
+        "--dry-run", action="store_true", help="write boundary.json, do not add a boundary version"
+    )
     run = stage("run", "all stages in order")
     _trees_options(run)
+    run.add_argument(
+        "--boundary",
+        action="store_true",
+        help="also run the boundary stage after the others (database)",
+    )
     run.add_argument("--upload", action="store_true", help="upload the run when it is done")
     upload_options(run, required=False)
 
@@ -196,6 +223,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         if args.command == "run":
             _summary(ctx, pipeline.run_all(ctx, trees, tlist))
+            if args.boundary:
+                _boundary(ctx, args.session_id)
             if args.upload:
                 _upload(args, ctx.run_dir, ctx.session_dir)
         elif args.command == "crops":
@@ -204,6 +233,8 @@ def main(argv: list[str] | None = None) -> int:
                 print("no trees JSON, skipped")
             else:
                 print(f"{len(res.crops)} crops; {CROPS_STATUS[res.status]}")
+        elif args.command == "boundary":
+            _boundary(ctx, args.session_id, write_db=not args.dry_run)
         elif args.command == "outputs":
             _summary(ctx, pipeline.stage_outputs(ctx))
         else:
