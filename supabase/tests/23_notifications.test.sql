@@ -5,7 +5,7 @@
 -- its own visit.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(61);
+select plan(71);
 
 create function pg_temp.as_user(p_id text) returns void language sql
 as $$ select set_config('request.jwt.claims', json_build_object('sub', p_id, 'role', 'authenticated')::text, true) $$;
@@ -200,6 +200,52 @@ select is((select count(*) from public.notification where status = 'failed'), 4:
 select is(private.dispatch_notifications(), null, 'without the function URL in Vault the schedule does nothing');
 select is((select schedule from cron.job where jobname = 'dispatch-notifications'), '* * * * *',
   'the queue is dispatched every minute');
+
+-- Operations list and retry --------------------------------------------------------------
+
+select ok(not has_function_privilege('anon', 'public.ops_notifications(integer, text)', 'EXECUTE')
+  and not has_function_privilege('anon', 'public.ops_retry_notification(uuid)', 'EXECUTE'),
+  'anon has no operations functions');
+select is(
+  (select array_agg(proname::text order by proname) from pg_proc
+   where pronamespace = 'public'::regnamespace and proname in ('ops_notifications', 'ops_retry_notification')
+     and prosecdef),
+  array['ops_notifications', 'ops_retry_notification'], 'both are security definer (private schema)');
+
+set local role authenticated;
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+select is((select count(*) from public.ops_notifications()), 6::bigint, 'ops lists the org''s notifications');
+select is((select count(*) from public.ops_notifications(p_status => 'failed')), 4::bigint, 'filtered by status');
+select results_eq(
+  $$ select distinct recipient_name, recipient_role, recipient_phone from public.ops_notifications()
+     order by recipient_phone $$,
+  $$ values ('Örnek Sahip', 'owner', '+905550000001'), ('Örnek Hissedar', 'viewer', '+905550000002') $$,
+  'with the recipient from the owner profile (masked by the web app)');
+select is(
+  pg_temp.error_of(format($$ select public.ops_retry_notification(%L) $$,
+    (select id from public.notification where status = 'sent' limit 1))),
+  'not_failed', 'only a failed message can be retried');
+
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+select is((select count(*) from public.ops_notifications()), 0::bigint, 'the owner lists nothing');
+select is(
+  pg_temp.error_of(format($$ select public.ops_retry_notification(%L) $$,
+    (select id from public.notification where status = 'failed'
+       and recipient_user_id = 'a0000000-0000-4000-8000-000000000001' limit 1))),
+  'forbidden', 'the owner cannot retry');
+
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+select lives_ok(
+  format($$ select public.ops_retry_notification(%L) $$,
+    (select id from public.notification where status = 'failed' order by id limit 1)),
+  'ops retries a failed message');
+reset role;
+select results_eq(
+  $$ select status::text, attempts, next_attempt_at <= now() from public.notification
+     where id = (select id from public.notification where last_error is not null and status = 'pending'
+                 and attempts = 0) $$,
+  $$ values ('pending', 0, true) $$,
+  'it is due again with a fresh attempt count');
 
 -- Who sees what --------------------------------------------------------------------------
 

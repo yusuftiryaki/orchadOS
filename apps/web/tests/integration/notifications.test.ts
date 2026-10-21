@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import { listNotifications, retryNotification } from "@/lib/notifications/data";
 import type { Client } from "@/lib/supabase/types";
 import { purgeParcels } from "../local-db";
 import { SEED, serviceClient, signIn } from "./fixtures";
@@ -182,5 +183,42 @@ describe("notifications", () => {
     expect(
       (await owner.rpc("message_outbox_list", { p_recipient: OWNER.phone })).error,
     ).not.toBeNull();
+  });
+});
+
+describe("operations list", () => {
+  it("ops sees the queue with masked phones and puts a failed message back", async () => {
+    const failed = (await queue())[0];
+    check(
+      await admin
+        .from("notification")
+        .update({ status: "failed", sent_at: null, last_error: "provider_error:30" })
+        .eq("id", failed.id),
+    );
+
+    const { client: ops } = await signIn("ops");
+    const rows = (await listNotifications(ops, { status: "failed" })).filter(
+      (r) => r.parcelId === PARCEL,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: failed.id,
+      recipientName: "Örnek Sahip",
+      recipientRole: "owner",
+      recipientPhone: "+90 5•• ••• •• 01",
+      lastError: "provider_error:30",
+    });
+    const all = await listNotifications(ops);
+    expect(all.every((r) => !/\d{5}/.test(r.recipientPhone))).toBe(true);
+
+    const { client: owner } = await signIn("owner");
+    expect(await listNotifications(owner)).toEqual([]);
+    expect(await retryNotification(owner, failed.id)).toBe(false);
+
+    expect(await retryNotification(ops, failed.id)).toBe(true);
+    expect(await retryNotification(ops, failed.id)).toBe(false);
+    expect((await dispatch()).status).toBe(200);
+    const after = (await queue()).find((r) => r.id === failed.id);
+    expect(after).toMatchObject({ status: "sent", attempts: 1 });
   });
 });

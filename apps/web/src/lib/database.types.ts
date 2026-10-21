@@ -2216,6 +2216,29 @@ export type Database = {
         Args: { p_email?: string; p_org_id: string; p_phone?: string };
         Returns: string;
       };
+      ops_notifications: {
+        Args: { p_limit?: number; p_status?: string };
+        Returns: {
+          attempts: number;
+          channel: string;
+          created_at: string;
+          id: string;
+          last_error: string;
+          next_attempt_at: string;
+          org_id: string;
+          parcel_id: string;
+          parcel_name: string;
+          recipient_name: string;
+          recipient_phone: string;
+          recipient_role: string;
+          recipient_user_id: string;
+          sent_at: string;
+          sent_via: string;
+          session_id: string;
+          status: string;
+          template: string;
+        }[];
+      };
       ops_org_members: {
         Args: { p_org_id: string };
         Returns: {
@@ -2269,6 +2292,7 @@ export type Database = {
           used_portion_note: string;
         }[];
       };
+      ops_retry_notification: { Args: { p_id: string }; Returns: undefined };
       ops_save_parcel_detail: {
         Args: {
           p_access_note?: string;

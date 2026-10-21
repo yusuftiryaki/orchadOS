@@ -1153,6 +1153,60 @@ export const tr = {
     stink_bug: "Kımıl",
     other: "Diğer",
   } as Record<string, string>,
+  notifications: {
+    nav: "Bildirimler",
+    title: "Bildirimler",
+    intro:
+      "Sahip ve hissedarlara giden SMS / WhatsApp bildirimleri. Başarısız olanlar yeniden kuyruğa alınabilir; bir sonraki gönderimde (dakikada bir) gider.",
+    filters: "Bildirim filtresi",
+    allStatuses: "Bütün durumlar",
+    filter: "Göster",
+    empty: "Bildirim yok.",
+    columns: {
+      created: "Oluşma",
+      parcel: "Parsel",
+      recipient: "Alıcı",
+      template: "Bildirim",
+      channel: "Kanal",
+      status: "Durum",
+      attempts: "Deneme",
+      detail: "Ayrıntı",
+    },
+    status: {
+      pending: "Bekliyor",
+      sent: "Gönderildi",
+      failed: "Başarısız",
+    } as Record<string, string>,
+    template: {
+      report_ready: "Rapor hazır",
+      critical_finding: "Kritik bulgu",
+    } as Record<string, string>,
+    channel: {
+      sms: "SMS",
+      whatsapp: "WhatsApp",
+    } as Record<string, string>,
+    role: {
+      owner: "sahip",
+      viewer: "hissedar",
+    } as Record<string, string>,
+    noProfile: "Sahip kaydı yok",
+    sentAt: (when: string) => `Gönderildi: ${when}`,
+    sentVia: (via: string) => `Yol: ${via}`,
+    nextAttempt: (when: string) => `Sonraki deneme: ${when}`,
+    retry: "Yeniden dene",
+    retried: "Bildirim yeniden kuyruğa alındı.",
+    retryFailed: "Bildirim yeniden kuyruğa alınamadı.",
+    // Reason codes written by the sender (supabase/functions/send-notifications).
+    errors: {
+      no_phone: "Alıcının telefon numarası yok",
+      no_portal_url: "Portal adresi ayarlı değil",
+      invalid_vars: "Bildirim bilgileri eksik",
+      invalid_link: "Bağlantı oluşturulamadı",
+      unknown_template: "Bilinmeyen şablon",
+      provider_unreachable: "Sağlayıcıya ulaşılamadı",
+    } as Record<string, string>,
+    providerError: (code: string) => `Sağlayıcı hatası (${code})`,
+  },
 } as const;
 
 export type Messages = typeof tr;
