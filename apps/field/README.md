@@ -64,7 +64,7 @@ lib/
 
 - **Durum yönetimi:** Riverpod 3. Donanıma dokunan her şey (`GnssLogger`, `FieldCamera`, `MediaStore`, `AuthRepository`, `Clock`, `PhotoQualityChecker`) bir sağlayıcının arkasında; testler sahtelerini verir.
 - **BLE:** Protokol kodu `flutter_blue_plus`'tan bağımsızdır. `GnssLoggerBase` her komuta sıra numarası verir, yazmadan sonra gelen ilk durum mesajında `last_cmd_seq` eşleşince `last_cmd_result`'ı döndürür; 3 sn içinde gelmezse `timeout`. Bağlanınca MTU 247 istenir.
-- **Saat:** `GpsClock`, GPS zamanı taşıyan her durum mesajından `ofset = kaydedici_GPS − telefon_saati(alış anı)` örneği alır; son 15 örneğin medyanını kullanır (geç gelen bildirimleri eler). 10 dakika örnek gelmezse ya da hiç gelmediyse telefon saati + 18 sn kullanılır ve **"Telefon saati"** olarak işaretlenir (ekranda turuncu şerit, veritabanında `time_source = phone`).
+- **Saat:** Firmware 0.2.0'dan beri durum mesajı 39 bayttır ve 31. bayttan itibaren mesajın oluşturulduğu anın GPS zamanını taşır (`gps_time_ns`, u64, 0 = PPS eşlemesi yok; firmware 0.1.0'ın 31 baytlık mesajında alan yoktur). `GpsClock`, GPS zamanı taşıyan her durum mesajından `ofset = kaydedici_GPS − telefon_saati(alış anı)` örneği alır; son 15 örneğin medyanını kullanır (geç gelen bildirimleri eler). 10 dakika örnek gelmezse ya da hiç gelmediyse telefon saati + 18 sn kullanılır ve **"Telefon saati"** olarak işaretlenir (ekranda turuncu şerit, veritabanında `time_source = phone`).
 - **QR:** `OQ1:<gps_ms>:<oturum etiketi>` her 100 ms'de yenilenir. Ekrandaki ilk QR karesi çizilir çizilmez o karedeki değer `mark_event(qr_sync, değer)` ile kaydediciye gönderilir ve yerelde olay olarak saklanır.
 - **Yerel veritabanı (drift / SQLite):** [docs/veri-modeli.md](../../docs/veri-modeli.md) ile uyumlu:
 
@@ -134,7 +134,7 @@ Eşikler bu kümelerin arasına, iki yana pay bırakarak kondu. **Bunlar senteti
 
 `flutter test` (66 test):
 
-- `test/unit/gnss_protocol_test.dart`: firmware README'sindeki üç komut örneği (`01 07 03 53 2D 31 04 50 2D 31 32` vb.) bayt bayt kodlama ve çözme; firmware birim testindeki 31 baytlık durum vektörü; varsayılan durum; kısa/yanlış sürüm mesajları; sona eklenmiş alanlar; geçersiz argümanlar ve firmware'in sonuç kodları.
+- `test/unit/gnss_protocol_test.dart`: firmware README'sindeki üç komut örneği (`01 07 03 53 2D 31 04 50 2D 31 32` vb.) bayt bayt kodlama ve çözme; firmware birim testindeki 31 baytlık durum vektörü ve 0.2.0'ın 39 baytlık `gps_time_ns`'li biçimi; varsayılan durum; kısa/yanlış sürüm mesajları; sona eklenmiş alanlar; geçersiz argümanlar ve firmware'in sonuç kodları.
 - `test/unit/qr_payload_test.dart`: işleme hattı README örneği (`OQ1:1476435618200:synth-00`), etiket kuralları.
 - `test/unit/gps_clock_test.dart`: GPS–UTC dönüşümü (kaydedici `session.json` örneği), saat farkı, medyan, eski örnekler, telefon saatine düşme.
 - `test/unit/outbox_test.dart`: kuyruğa ekleme sırası, `markSent`/`markFailed`, bekleyen sayısı akışı, başarısız işlemde geri alma, veri modeli alanları.
@@ -189,7 +189,6 @@ Sonuçlar eşik ayarı için not edilmeli (ölçümler veritabanında `captures.
 - **Kalite kontrolü süresi:** 1080p JPEG'in saf Dart ile çözülmesi telefonda yaklaşık birkaç yüz ms sürer (ölçülmedi). Daha yüksek çözünürlükte süre artar.
 - **Referans görseller** hâlâ yer tutucu (İP10).
 - **Senkronizasyon yok:** kayıtlar ve kuyruk hazır, yükleyici yok. Fotoğrafın object storage'a, satırların Supabase'e gönderimi İP1 şemasının saha tablolarına bağlı.
-- **Durum mesajında GPS zamanı yok:** firmware'in v1 durum mesajı yalnızca "zaman eşlemesi var" bayrağını taşıyor, zamanın kendisini taşımıyor. Uygulama, durum mesajının sonuna eklenecek `gps_time_ns` (ofset 31, u64, 0 = eşleme yok; mesaj 39 bayt) alanını okuyacak şekilde yazıldı. Firmware bu alanı göndermedikçe QR **telefon saatiyle** gösterilir ve öyle işaretlenir. İşleme hattı QR'daki değeri GPS zamanı kabul eder; telefon saati genelde ağ saatiyle birkaç yüz ms içinde doğrudur ve bu fark hattın kaba eşlemesinde ofset hatası olarak kalır. Firmware değişikliği koordinatöre önerildi (PR açıklaması).
 - **Kapsama haritası, rota ve "dur-çek-yürü" modu yok** (MVP Modül 3; harita altlığı ve parsel sınırı sync'e bağlı).
 - **Görevler sahte:** `FakeTaskRepository` sabit iki görev döndürür.
 - **Sesli not, hava durumu, ekipman seri numaraları** ziyaret kaydına henüz eklenmedi.

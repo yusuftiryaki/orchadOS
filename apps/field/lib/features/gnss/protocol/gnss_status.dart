@@ -53,9 +53,10 @@ enum CarrierSolution {
 
 /// Decoded status characteristic of the GNSS logger (protocol version 1).
 ///
-/// Layout: firmware/gnss-logger/README.md, "Durum (31 bayt)". All multi-byte
-/// fields are little-endian. Longer messages are accepted because the same
-/// version may append fields at the end.
+/// Layout: firmware/gnss-logger/README.md, "Durum (39 bayt)". All
+/// multi-byte fields are little-endian. Firmware 0.1.0 sends 31 bytes, 0.2.0
+/// and later 39 bytes (`gps_time_ns` at offset 31). Longer messages are
+/// accepted because the same version may append fields at the end.
 class GnssStatus {
   const GnssStatus({
     required this.version,
@@ -80,7 +81,8 @@ class GnssStatus {
   static const int protocolVersion = 1;
   static const int minLength = 31;
 
-  /// Length with the proposed trailing `gps_time_ns` field (see [gpsTimeNs]).
+  /// Length since firmware 0.2.0, with the trailing `gps_time_ns` field (see
+  /// [gpsTimeNs]).
   static const int lengthWithGpsTime = 39;
 
   static const int flagSdPresent = 0x01;
@@ -117,9 +119,9 @@ class GnssStatus {
 
   /// GPS time (ns since 1980-01-06) at which the logger built this message.
   ///
-  /// Not part of the v1 layout in the firmware README: it is a proposed field
-  /// appended at offset 31 (u64, 0 = no PPS mapping). Null when the message is
-  /// shorter or the value is 0; the app then falls back to the phone clock.
+  /// Sent by firmware 0.2.0 and later at offset 31 (u64, 0 = no PPS mapping;
+  /// set together with [flagTimeMapped]). Null for a 31-byte message (firmware
+  /// 0.1.0) or a value of 0; the app then falls back to the phone clock.
   final int? gpsTimeNs;
 
   bool get sdPresent => flags & flagSdPresent != 0;
@@ -182,7 +184,8 @@ class GnssStatus {
   }
 
   /// Encodes the status as the firmware would. Used by the fake logger and in
-  /// tests. With [includeGpsTime] the proposed 39-byte form is produced.
+  /// tests. With [includeGpsTime] the 39-byte form of firmware 0.2.0+ is
+  /// produced, otherwise the 31-byte form of 0.1.0.
   Uint8List encode({bool includeGpsTime = false}) {
     final out = Uint8List(includeGpsTime ? lengthWithGpsTime : minLength);
     final b = ByteData.sublistView(out);

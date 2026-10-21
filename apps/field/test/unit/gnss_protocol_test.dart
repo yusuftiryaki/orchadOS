@@ -217,7 +217,7 @@ void main() {
       expect(GnssStatus.decode(longer).numSv, 27);
     });
 
-    test('reads the proposed trailing gps_time_ns', () {
+    test('reads the trailing gps_time_ns of firmware 0.2.0', () {
       const t = 1476350122250000000;
       final s = GnssStatus.decode(vector).copyWith(gpsTimeNs: t);
       final bytes = s.encode(includeGpsTime: true);
