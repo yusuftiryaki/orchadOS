@@ -37,10 +37,12 @@ void main() {
     await tester.tap(find.text('Giriş yap'));
     await settle(tester);
     expect(find.text('Bugünkü görevler'), findsOneWidget);
-    expect(find.text('Kızılburç P-12'), findsOneWidget);
+    // The periodic visit and the verification tour share the parcel.
+    expect(find.text('Kızılburç P-12'), findsNWidgets(2));
     expect(find.text('Envanter · Kış'), findsOneWidget);
+    expect(find.text('Doğrulama turu · Kış'), findsOneWidget);
 
-    await tester.tap(find.text('Kızılburç P-12'));
+    await tester.tap(find.text('Kızılburç P-12').first);
     await settle(tester);
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(PrecheckScreen), findsOneWidget);

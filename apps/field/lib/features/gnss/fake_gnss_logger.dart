@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/geo/geo.dart';
 import '../../core/time/clock.dart';
 import '../../core/time/gps_time.dart';
 import 'gnss_logger.dart';
@@ -20,6 +21,8 @@ class FakeGnssLogger extends GnssLoggerBase {
     this.provideGpsTime = true,
     this.phoneClockErrorMs = 0,
     this.autoTick = false,
+    this.position,
+    this.path,
     GnssStatus? initialStatus,
     super.commandTimeout,
   }) : _status = initialStatus ?? healthyStatus;
@@ -36,6 +39,13 @@ class FakeGnssLogger extends GnssLoggerBase {
   /// Emit a status every second like the firmware. Off in widget tests,
   /// which call [tick] instead.
   final bool autoTick;
+
+  /// Receiver position sent in the status (51-byte form); null sends no
+  /// position block, like firmware 0.2.0.
+  GeoPoint? position;
+
+  /// Moves [position] on every [tick] (demo walk); null keeps it.
+  final GeoPoint? Function(DateTime now)? path;
 
   /// Every command received, in order.
   final List<GnssCommand> receivedCommands = [];
@@ -105,12 +115,25 @@ class FakeGnssLogger extends GnssLoggerBase {
     if (connection != GnssConnection.connected) return;
     final now = clock.now();
     final withTime = provideGpsTime && _status.timeMapped;
+    final walked = path?.call(now);
+    if (walked != null) position = walked;
+    final at = position;
     if (_status.recording) {
       _status = _status.copyWith(bytesWritten: _status.bytesWritten + 6000);
     }
     final gpsNs = (utcToGpsUs(now) + phoneClockErrorMs * 1000) * 1000;
-    final bytes = (withTime ? _status.copyWith(gpsTimeNs: gpsNs) : _status)
-        .encode(includeGpsTime: withTime);
+    var status = withTime ? _status.copyWith(gpsTimeNs: gpsNs) : _status;
+    if (at != null) {
+      status = status.copyWith(
+        latE7: (at.lat * 1e7).round(),
+        lonE7: (at.lon * 1e7).round(),
+        heightMm: 850000,
+      );
+    }
+    final bytes = status.encode(
+      includeGpsTime: withTime,
+      includePosition: at != null,
+    );
     onStatusBytes(bytes, now);
   }
 

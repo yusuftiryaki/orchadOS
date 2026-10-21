@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/db/database.dart';
+import '../../core/geo/geo.dart';
 import '../../core/time/clock.dart';
 import 'closeup_selection.dart';
 import 'field_task.dart';
+import 'sample_parcel.dart';
 
 /// Tasks to show and where they came from.
 class TaskList {
@@ -29,7 +31,10 @@ abstract interface class TaskRepository {
 class FakeTaskRepository implements TaskRepository {
   const FakeTaskRepository();
 
-  static const List<FieldTask> sampleTasks = [
+  /// Periodic visit, inventory and verification tour on synthetic parcels
+  /// (sample_parcel.dart). The periodic and verification parcels have
+  /// located slots and a boundary; the inventory parcel has neither yet.
+  static final List<FieldTask> sampleTasks = [
     FieldTask(
       id: 'task-1',
       parcelId: 'b2c4e6a8-0000-4000-8000-000000000012',
@@ -38,6 +43,8 @@ class FakeTaskRepository implements TaskRepository {
       kind: VisitKind.periodic,
       season: Season.winter,
       areaDecare: 20,
+      slots: _sampleTourSlots,
+      boundary: sampleBoundary(),
       closeupTrees: [
         TreeTarget(
           treeId: 't-0512',
@@ -72,10 +79,48 @@ class FakeTaskRepository implements TaskRepository {
         ),
       ],
     ),
+    FieldTask(
+      id: 'task-3',
+      parcelId: 'b2c4e6a8-0000-4000-8000-000000000012',
+      parcelName: 'Kızılburç P-12',
+      village: 'Kızılburç',
+      kind: VisitKind.verification,
+      season: Season.winter,
+      areaDecare: 20,
+      notes: 'Envanter doğrulaması',
+      slots: _sampleTourSlots,
+      boundary: sampleBoundary(),
+      verificationItems: sortForWalking([
+        VerificationItem(
+          id: 'vi-3',
+          slot: _sampleTourSlots.firstWhere((s) => s.code == 'S5-12'),
+          reasons: const [VerificationReason.multiStem],
+          note: 'Dipte iki gövde mi?',
+          treeId: 't-0512',
+        ),
+        VerificationItem(
+          id: 'vi-1',
+          slot: _sampleTourSlots.firstWhere((s) => s.code == 'S2-4'),
+          reasons: const [
+            VerificationReason.emptySlot,
+            VerificationReason.possibleSapling,
+          ],
+          note: 'Panoramada fidan seçilemedi',
+        ),
+        VerificationItem(
+          id: 'vi-2',
+          slot: _sampleTourSlots.firstWhere((s) => s.code == 'S2-9'),
+          reasons: const [VerificationReason.highUncertainty],
+          treeId: 't-0209',
+        ),
+      ]),
+    ),
   ];
 
+  static final List<SlotPoint> _sampleTourSlots = sampleSlots(idPrefix: 'p12');
+
   @override
-  Future<TaskList> todaysTasks() async => const TaskList(sampleTasks);
+  Future<TaskList> todaysTasks() async => TaskList(sampleTasks);
 }
 
 /// Downloads the planned visits of a user.
@@ -163,7 +208,10 @@ class CachedTaskRepository implements TaskRepository {
 /// or periodic scan, planned up to [daysAhead] days from today (so that the
 /// list is on the phone before the crew leaves for an orchard without
 /// signal). Visits led by the user come first. Periodic visits come with
-/// the parcel's active trees (slot codes) and the close-up list.
+/// the parcel's active trees (slot codes) and the close-up list; every task
+/// carries the parcel's slots with positions and its latest boundary (map
+/// and coverage). Verification tours (`kind = verification`) come with
+/// their open items (docs/arayuzler.md, "Doğrulama kalemleri").
 class SupabaseTaskSource implements TaskSource {
   SupabaseTaskSource(this._client, {this.daysAhead = 7});
 
@@ -182,23 +230,27 @@ class SupabaseTaskSource implements TaskSource {
     final visits = await _client
         .from('session')
         .select(
-          'id, org_id, parcel_id, kind, planned_date, lead_user_id, '
+          'id, org_id, parcel_id, kind, planned_date, lead_user_id, notes, '
           'parcel(name, village, estimated_area_m2)',
         )
         .eq('status', 'planned')
-        .inFilter('kind', ['inventory', 'periodic_scan'])
+        .inFilter('kind', ['inventory', 'periodic_scan', 'verification'])
         .lte('planned_date', _date(until))
         .order('planned_date')
         .order('id');
 
     final treesByParcel = <String, List<ParcelTree>>{};
+    final slotsByParcel = <String, List<SlotPoint>>{};
+    final boundaryByParcel = <String, List<GeoPoint>?>{};
     final tasks = <FieldTask>[];
     for (final v in visits) {
       final id = v['id'] as String;
       final parcelId = v['parcel_id'] as String;
-      final kind = v['kind'] == 'inventory'
-          ? VisitKind.inventory
-          : VisitKind.periodic;
+      final kind = switch (v['kind']) {
+        'inventory' => VisitKind.inventory,
+        'verification' => VisitKind.verification,
+        _ => VisitKind.periodic,
+      };
       final planned = DateTime.parse(v['planned_date'] as String);
       final parcel = (v['parcel'] as Map?)?.cast<String, Object?>() ?? {};
       final area = (parcel['estimated_area_m2'] as num?)?.toDouble() ?? 0;
@@ -207,6 +259,13 @@ class SupabaseTaskSource implements TaskSource {
         final trees = treesByParcel[parcelId] ??= await _trees(parcelId);
         closeups = selectCloseupTrees(trees, visitId: id);
       }
+      final slots = slotsByParcel[parcelId] ??= await _slots(parcelId);
+      if (!boundaryByParcel.containsKey(parcelId)) {
+        boundaryByParcel[parcelId] = await _boundary(parcelId);
+      }
+      final items = kind == VisitKind.verification
+          ? await _verificationItems(id, slots)
+          : const <VerificationItem>[];
       tasks.add(
         FieldTask(
           id: id,
@@ -222,6 +281,10 @@ class SupabaseTaskSource implements TaskSource {
           closeupTrees: closeups,
           plannedDate: planned,
           assignedToMe: v['lead_user_id'] == userId,
+          notes: v['notes'] as String?,
+          slots: slots,
+          boundary: boundaryByParcel[parcelId],
+          verificationItems: items,
         ),
       );
     }
@@ -267,6 +330,72 @@ class SupabaseTaskSource implements TaskSource {
       if (page.length < _pageSize) break;
     }
     return trees;
+  }
+
+  Future<List<SlotPoint>> _slots(String parcelId) async {
+    final slots = <SlotPoint>[];
+    for (var from = 0; ; from += _pageSize) {
+      final page = await _client
+          .from('slot')
+          .select(
+            'id, code, row_no, position_no, position, position_uncertainty_m',
+          )
+          .eq('parcel_id', parcelId)
+          .order('id')
+          .range(from, from + _pageSize - 1);
+      for (final r in page) {
+        slots.add(
+          SlotPoint(
+            id: r['id'] as String,
+            code: r['code'] as String,
+            rowNo: r['row_no'] as int,
+            positionNo: r['position_no'] as int,
+            position: GeoPoint.fromGeoJson(r['position']),
+            uncertaintyM: (r['position_uncertainty_m'] as num?)?.toDouble(),
+          ),
+        );
+      }
+      if (page.length < _pageSize) break;
+    }
+    return slots;
+  }
+
+  /// Outer ring of the newest boundary version; null when there is none.
+  Future<List<GeoPoint>?> _boundary(String parcelId) async {
+    final rows = await _client
+        .from('boundary')
+        .select('geom')
+        .eq('parcel_id', parcelId)
+        .order('version', ascending: false)
+        .limit(1);
+    return rows.isEmpty ? null : polygonFromGeoJson(rows.first['geom']);
+  }
+
+  /// Open items of a tour, in walking order.
+  Future<List<VerificationItem>> _verificationItems(
+    String sessionId,
+    List<SlotPoint> slots,
+  ) async {
+    final bySlot = {for (final s in slots) s.id: s};
+    final rows = await _client
+        .from('verification_item')
+        .select('id, slot_id, tree_id, reasons, note')
+        .eq('session_id', sessionId)
+        .eq('status', 'open');
+    return sortForWalking([
+      for (final r in rows)
+        if (bySlot[r['slot_id']] case final slot?)
+          VerificationItem(
+            id: r['id'] as String,
+            slot: slot,
+            reasons: [
+              for (final c in r['reasons'] as List)
+                VerificationReason.fromCode(c as String),
+            ],
+            note: r['note'] as String?,
+            treeId: r['tree_id'] as String?,
+          ),
+    ]);
   }
 
   static String _date(DateTime d) =>

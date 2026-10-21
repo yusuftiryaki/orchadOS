@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../../../core/geo/geo.dart';
 import 'command_result.dart';
 
 /// Receiver configuration state (`rx_config`).
@@ -57,6 +58,11 @@ enum CarrierSolution {
 /// multi-byte fields are little-endian. Firmware 0.1.0 sends 31 bytes, 0.2.0
 /// and later 39 bytes (`gps_time_ns` at offset 31). Longer messages are
 /// accepted because the same version may append fields at the end.
+///
+/// A 51-byte message also carries the receiver's position (NAV-PVT `lat`,
+/// `lon`, `height` at offsets 39, 43, 47; see [position]). This block is the
+/// app's proposal for the next firmware (docs/arayuzler.md, "Konum");
+/// firmware 0.2.0 does not send it yet.
 class GnssStatus {
   const GnssStatus({
     required this.version,
@@ -76,6 +82,9 @@ class GnssStatus {
     required this.lastCmdSeq,
     required this.lastCmdResult,
     this.gpsTimeNs,
+    this.latE7,
+    this.lonE7,
+    this.heightMm,
   });
 
   static const int protocolVersion = 1;
@@ -84,6 +93,9 @@ class GnssStatus {
   /// Length since firmware 0.2.0, with the trailing `gps_time_ns` field (see
   /// [gpsTimeNs]).
   static const int lengthWithGpsTime = 39;
+
+  /// Length with the trailing position block (see [position]).
+  static const int lengthWithPosition = 51;
 
   static const int flagSdPresent = 0x01;
   static const int flagSdLowSpace = 0x02;
@@ -124,6 +136,26 @@ class GnssStatus {
   /// 0.1.0) or a value of 0; the app then falls back to the phone clock.
   final int? gpsTimeNs;
 
+  /// NAV-PVT latitude and longitude (1e-7 degrees) and height above the
+  /// ellipsoid (mm) at offsets 39, 43 and 47 of a 51-byte message; null when
+  /// the message is shorter.
+  final int? latE7;
+  final int? lonE7;
+  final int? heightMm;
+
+  /// Receiver position, when the message carries one and the receiver has a
+  /// 2D/3D fix (`gnssFixOK`); null otherwise.
+  GeoPoint? get position {
+    final lat = latE7;
+    final lon = lonE7;
+    if (lat == null || lon == null || !gnssFixOk) return null;
+    if (fixType < 2 || fixType > 4) return null;
+    return GeoPoint(lat / 1e7, lon / 1e7);
+  }
+
+  /// Horizontal accuracy in metres, null when unknown.
+  double? get hAccM => hAccMm == null ? null : hAccMm! / 1000;
+
   bool get sdPresent => flags & flagSdPresent != 0;
   bool get sdLowSpace => flags & flagSdLowSpace != 0;
   bool get sdError => flags & flagSdError != 0;
@@ -162,6 +194,14 @@ class GnssStatus {
       final v = b.getUint64(31, Endian.little);
       gpsTimeNs = v == 0 ? null : v;
     }
+    int? latE7;
+    int? lonE7;
+    int? heightMm;
+    if (bytes.length >= lengthWithPosition) {
+      latE7 = b.getInt32(39, Endian.little);
+      lonE7 = b.getInt32(43, Endian.little);
+      heightMm = b.getInt32(47, Endian.little);
+    }
     return GnssStatus(
       version: version,
       recording: b.getUint8(1) != 0,
@@ -180,14 +220,27 @@ class GnssStatus {
       lastCmdSeq: b.getUint8(29),
       lastCmdResult: CommandResult.fromCode(b.getUint8(30)),
       gpsTimeNs: gpsTimeNs,
+      latE7: latE7,
+      lonE7: lonE7,
+      heightMm: heightMm,
     );
   }
 
   /// Encodes the status as the firmware would. Used by the fake logger and in
   /// tests. With [includeGpsTime] the 39-byte form of firmware 0.2.0+ is
-  /// produced, otherwise the 31-byte form of 0.1.0.
-  Uint8List encode({bool includeGpsTime = false}) {
-    final out = Uint8List(includeGpsTime ? lengthWithGpsTime : minLength);
+  /// produced, otherwise the 31-byte form of 0.1.0. With [includePosition]
+  /// the 51-byte form with the position block (implies the GPS time field).
+  Uint8List encode({
+    bool includeGpsTime = false,
+    bool includePosition = false,
+  }) {
+    final out = Uint8List(
+      includePosition
+          ? lengthWithPosition
+          : includeGpsTime
+          ? lengthWithGpsTime
+          : minLength,
+    );
     final b = ByteData.sublistView(out);
     final fw = firmwareVersion.split('.').map(int.parse).toList();
     b
@@ -209,7 +262,15 @@ class GnssStatus {
       ..setUint32(25, droppedBytes, Endian.little)
       ..setUint8(29, lastCmdSeq)
       ..setUint8(30, lastCmdResult.code ?? CommandResult.none.code!);
-    if (includeGpsTime) b.setUint64(31, gpsTimeNs ?? 0, Endian.little);
+    if (includeGpsTime || includePosition) {
+      b.setUint64(31, includeGpsTime ? gpsTimeNs ?? 0 : 0, Endian.little);
+    }
+    if (includePosition) {
+      b
+        ..setInt32(39, latE7 ?? 0, Endian.little)
+        ..setInt32(43, lonE7 ?? 0, Endian.little)
+        ..setInt32(47, heightMm ?? 0, Endian.little);
+    }
     return out;
   }
 
@@ -229,6 +290,9 @@ class GnssStatus {
     int? lastCmdSeq,
     CommandResult? lastCmdResult,
     int? gpsTimeNs,
+    int? latE7,
+    int? lonE7,
+    int? heightMm,
   }) => GnssStatus(
     version: version,
     recording: recording ?? this.recording,
@@ -247,5 +311,8 @@ class GnssStatus {
     lastCmdSeq: lastCmdSeq ?? this.lastCmdSeq,
     lastCmdResult: lastCmdResult ?? this.lastCmdResult,
     gpsTimeNs: gpsTimeNs ?? this.gpsTimeNs,
+    latE7: latE7 ?? this.latE7,
+    lonE7: lonE7 ?? this.lonE7,
+    heightMm: heightMm ?? this.heightMm,
   );
 }

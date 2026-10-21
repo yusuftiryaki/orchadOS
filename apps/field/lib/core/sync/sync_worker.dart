@@ -234,6 +234,8 @@ class SyncWorker {
         return _sendCapture(entry.entityId);
       case OutboxEntity.measurement:
         return _sendMeasurement(entry.entityId);
+      case OutboxEntity.verificationResult:
+        return _sendVerificationResult(entry.entityId);
       default:
         throw SyncError.permanent('unknown_entity', entry.entityType);
     }
@@ -346,5 +348,13 @@ class SyncWorker {
       ),
       onConflict: 'id',
     );
+  }
+
+  Future<void> _sendVerificationResult(String id) async {
+    final r = await (repository.db.select(
+      repository.db.verificationResults,
+    )..where((x) => x.id.equals(id))).getSingleOrNull();
+    if (r == null) throw SyncError.permanent('local_record_missing', id);
+    await server.recordVerificationResult(verificationResultParams(r));
   }
 }

@@ -71,4 +71,8 @@ abstract interface class SyncServer {
 
   /// Whether the media bucket holds [path].
   Future<bool> mediaExists(String path);
+
+  /// Calls `record_verification_result` with [params]. A refusal names its
+  /// reason (`item_closed`, `not_found`, `forbidden`, `invalid_input`).
+  Future<void> recordVerificationResult(Map<String, Object?> params);
 }

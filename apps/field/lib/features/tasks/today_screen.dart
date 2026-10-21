@@ -5,6 +5,7 @@ import '../../app/providers.dart';
 import '../checklist/precheck_screen.dart';
 import '../session/session_controller.dart';
 import '../sync/sync_status_card.dart';
+import '../verification/verification_tour_screen.dart';
 import 'field_task.dart';
 import 'task_repository.dart';
 
@@ -86,13 +87,45 @@ class _TaskCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final icon = task.isInventory ? Icons.map_outlined : Icons.repeat;
+    final icon = switch (task.kind) {
+      VisitKind.inventory => Icons.map_outlined,
+      VisitKind.verification => Icons.fact_check_outlined,
+      VisitKind.periodic => Icons.repeat,
+    };
+    var done = this.done;
+    var detail =
+        '${task.village} · ${task.areaDecare.toStringAsFixed(1)} '
+        'dönüm · ${task.closeupTrees.length} yakın plan ağacı';
+    if (task.isVerification) {
+      // A tour is done when every item has a result on this phone; until
+      // then it can be opened again (no recording, nothing to orphan).
+      final results =
+          ref
+              .watch(verificationResultsProvider(task.visitId ?? task.id))
+              .value ??
+          const {};
+      final total = task.verificationItems.length;
+      final checked = task.verificationItems
+          .where((i) => results.containsKey(i.id))
+          .length;
+      done = total > 0 && checked == total;
+      detail = '${task.village} · $checked / $total kaleme bakıldı';
+    }
     return Card(
+      key: Key('task-${task.id}'),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: done
             ? null
             : () {
+                if (task.isVerification) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => VerificationTourScreen(task: task),
+                    ),
+                  );
+                  return;
+                }
                 ref.read(sessionControllerProvider.notifier).selectTask(task);
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -121,10 +154,7 @@ class _TaskCard extends ConsumerWidget {
                       '${task.kind.label} · ${task.season.label}',
                       style: const TextStyle(fontSize: 18),
                     ),
-                    Text(
-                      '${task.village} · ${task.areaDecare.toStringAsFixed(1)} '
-                      'dönüm · ${task.closeupTrees.length} yakın plan ağacı',
-                    ),
+                    Text(detail),
                     if (task.plannedDate != null || task.assignedToMe)
                       Text(
                         [

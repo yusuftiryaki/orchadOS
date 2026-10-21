@@ -103,6 +103,11 @@ class SupabaseSyncServer implements SyncServer {
   }, timeout: uploadTimeout);
 
   @override
+  Future<void> recordVerificationResult(Map<String, Object?> params) => _guard(
+    () => _client.rpc<void>('record_verification_result', params: params),
+  );
+
+  @override
   Future<bool> mediaExists(String path) =>
       _guard(() => _client.storage.from(bucket).exists(path));
 
@@ -149,6 +154,9 @@ class SupabaseSyncServer implements SyncServer {
           code == '40P01' ||
           _mentions(e.message, 'jwt expired');
       final reason = switch (code) {
+        // Database functions name their refusal in the message
+        // (record_verification_result: item_closed, not_found, ...).
+        _ when functionReasons.contains(e.message) => e.message,
         '42501' => 'forbidden',
         '23503' => 'reference_missing',
         '23505' => 'duplicate',
@@ -177,6 +185,15 @@ class SupabaseSyncServer implements SyncServer {
     }
     return SyncError.permanent('unexpected', '$e');
   }
+
+  /// Refusal reasons raised by the database functions the app calls.
+  static const functionReasons = {
+    'not_found',
+    'forbidden',
+    'item_closed',
+    'item_not_open',
+    'invalid_input',
+  };
 
   static bool _transientHttp(int status) =>
       status >= 500 || status == 408 || status == 429 || status == 401;

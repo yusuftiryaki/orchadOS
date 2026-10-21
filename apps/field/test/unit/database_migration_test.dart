@@ -45,7 +45,7 @@ const _schemaV1 = [
 ];
 
 void main() {
-  test('schema 1 → 3 keeps old rows: quality columns, value_boolean, outbox', () async {
+  test('schema 1 → 4 keeps old rows: quality columns, value_boolean, outbox', () async {
     final db = AppDatabase(
       NativeDatabase.memory(
         setup: (raw) {
@@ -67,6 +67,10 @@ void main() {
               "INSERT INTO measurements VALUES ('m1', 's1', 'tree', 't-1', "
               "'pruned', 1, NULL, NULL, NULL, NULL, 'field_question', "
               "'winter-v0', 'staff', '2026-12-03T08:32:00.000Z', '[\"abc\"]')",
+            )
+            ..execute(
+              "INSERT INTO session_events VALUES ('e1', 's1', 'corner', '1', "
+              "'2026-12-03T08:31:00.000Z', 1000, 'gps', 'ok')",
             )
             ..execute(
               'INSERT INTO outbox_entries (entity_type, entity_id, created_at) '
@@ -91,7 +95,12 @@ void main() {
     expect(entry.failedAt, isNull);
     expect(entry.sentAt, isNull);
     expect(await db.select(db.taskCache).get(), isEmpty);
+    // Schema 4: event details, verification results.
+    final event = await db.select(db.sessionEvents).getSingle();
+    expect(event.eventType, 'corner');
+    expect(event.dataJson, isNull);
+    expect(await db.select(db.verificationResults).get(), isEmpty);
     final version = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(version.read<int>('user_version'), 3);
+    expect(version.read<int>('user_version'), 4);
   });
 }

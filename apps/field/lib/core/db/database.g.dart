@@ -1002,6 +1002,17 @@ class $SessionEventsTable extends SessionEvents
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _dataJsonMeta = const VerificationMeta(
+    'dataJson',
+  );
+  @override
+  late final GeneratedColumn<String> dataJson = GeneratedColumn<String>(
+    'data_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _phoneTimeMeta = const VerificationMeta(
     'phoneTime',
   );
@@ -1052,6 +1063,7 @@ class $SessionEventsTable extends SessionEvents
     sessionId,
     eventType,
     payload,
+    dataJson,
     phoneTime,
     gpsTimeMs,
     timeSource,
@@ -1097,6 +1109,12 @@ class $SessionEventsTable extends SessionEvents
       );
     } else if (isInserting) {
       context.missing(_payloadMeta);
+    }
+    if (data.containsKey('data_json')) {
+      context.handle(
+        _dataJsonMeta,
+        dataJson.isAcceptableOrUnknown(data['data_json']!, _dataJsonMeta),
+      );
     }
     if (data.containsKey('phone_time')) {
       context.handle(
@@ -1158,6 +1176,10 @@ class $SessionEventsTable extends SessionEvents
         DriftSqlType.string,
         data['${effectivePrefix}payload'],
       )!,
+      dataJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data_json'],
+      ),
       phoneTime: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}phone_time'],
@@ -1187,9 +1209,14 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
   final String id;
   final String sessionId;
 
-  /// `session_start`, `session_stop`, `corner`, `qr_sync`.
+  /// `session_start`, `session_stop`, `corner`, `qr_sync`,
+  /// `boundary_corners`, `coverage` (docs/arayuzler.md).
   final String eventType;
   final String payload;
+
+  /// Structured details as a JSON object (`session_event.data`, schema 4):
+  /// corner position and quality, boundary edits, coverage. Null when none.
+  final String? dataJson;
   final DateTime phoneTime;
   final int gpsTimeMs;
 
@@ -1203,6 +1230,7 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
     required this.sessionId,
     required this.eventType,
     required this.payload,
+    this.dataJson,
     required this.phoneTime,
     required this.gpsTimeMs,
     required this.timeSource,
@@ -1215,6 +1243,9 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
     map['session_id'] = Variable<String>(sessionId);
     map['event_type'] = Variable<String>(eventType);
     map['payload'] = Variable<String>(payload);
+    if (!nullToAbsent || dataJson != null) {
+      map['data_json'] = Variable<String>(dataJson);
+    }
     map['phone_time'] = Variable<DateTime>(phoneTime);
     map['gps_time_ms'] = Variable<int>(gpsTimeMs);
     map['time_source'] = Variable<String>(timeSource);
@@ -1228,6 +1259,9 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
       sessionId: Value(sessionId),
       eventType: Value(eventType),
       payload: Value(payload),
+      dataJson: dataJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dataJson),
       phoneTime: Value(phoneTime),
       gpsTimeMs: Value(gpsTimeMs),
       timeSource: Value(timeSource),
@@ -1245,6 +1279,7 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
       sessionId: serializer.fromJson<String>(json['sessionId']),
       eventType: serializer.fromJson<String>(json['eventType']),
       payload: serializer.fromJson<String>(json['payload']),
+      dataJson: serializer.fromJson<String?>(json['dataJson']),
       phoneTime: serializer.fromJson<DateTime>(json['phoneTime']),
       gpsTimeMs: serializer.fromJson<int>(json['gpsTimeMs']),
       timeSource: serializer.fromJson<String>(json['timeSource']),
@@ -1259,6 +1294,7 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
       'sessionId': serializer.toJson<String>(sessionId),
       'eventType': serializer.toJson<String>(eventType),
       'payload': serializer.toJson<String>(payload),
+      'dataJson': serializer.toJson<String?>(dataJson),
       'phoneTime': serializer.toJson<DateTime>(phoneTime),
       'gpsTimeMs': serializer.toJson<int>(gpsTimeMs),
       'timeSource': serializer.toJson<String>(timeSource),
@@ -1271,6 +1307,7 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
     String? sessionId,
     String? eventType,
     String? payload,
+    Value<String?> dataJson = const Value.absent(),
     DateTime? phoneTime,
     int? gpsTimeMs,
     String? timeSource,
@@ -1280,6 +1317,7 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
     sessionId: sessionId ?? this.sessionId,
     eventType: eventType ?? this.eventType,
     payload: payload ?? this.payload,
+    dataJson: dataJson.present ? dataJson.value : this.dataJson,
     phoneTime: phoneTime ?? this.phoneTime,
     gpsTimeMs: gpsTimeMs ?? this.gpsTimeMs,
     timeSource: timeSource ?? this.timeSource,
@@ -1291,6 +1329,7 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
       sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
       eventType: data.eventType.present ? data.eventType.value : this.eventType,
       payload: data.payload.present ? data.payload.value : this.payload,
+      dataJson: data.dataJson.present ? data.dataJson.value : this.dataJson,
       phoneTime: data.phoneTime.present ? data.phoneTime.value : this.phoneTime,
       gpsTimeMs: data.gpsTimeMs.present ? data.gpsTimeMs.value : this.gpsTimeMs,
       timeSource: data.timeSource.present
@@ -1309,6 +1348,7 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
           ..write('sessionId: $sessionId, ')
           ..write('eventType: $eventType, ')
           ..write('payload: $payload, ')
+          ..write('dataJson: $dataJson, ')
           ..write('phoneTime: $phoneTime, ')
           ..write('gpsTimeMs: $gpsTimeMs, ')
           ..write('timeSource: $timeSource, ')
@@ -1323,6 +1363,7 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
     sessionId,
     eventType,
     payload,
+    dataJson,
     phoneTime,
     gpsTimeMs,
     timeSource,
@@ -1336,6 +1377,7 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
           other.sessionId == this.sessionId &&
           other.eventType == this.eventType &&
           other.payload == this.payload &&
+          other.dataJson == this.dataJson &&
           other.phoneTime == this.phoneTime &&
           other.gpsTimeMs == this.gpsTimeMs &&
           other.timeSource == this.timeSource &&
@@ -1347,6 +1389,7 @@ class SessionEventsCompanion extends UpdateCompanion<SessionEventRow> {
   final Value<String> sessionId;
   final Value<String> eventType;
   final Value<String> payload;
+  final Value<String?> dataJson;
   final Value<DateTime> phoneTime;
   final Value<int> gpsTimeMs;
   final Value<String> timeSource;
@@ -1357,6 +1400,7 @@ class SessionEventsCompanion extends UpdateCompanion<SessionEventRow> {
     this.sessionId = const Value.absent(),
     this.eventType = const Value.absent(),
     this.payload = const Value.absent(),
+    this.dataJson = const Value.absent(),
     this.phoneTime = const Value.absent(),
     this.gpsTimeMs = const Value.absent(),
     this.timeSource = const Value.absent(),
@@ -1368,6 +1412,7 @@ class SessionEventsCompanion extends UpdateCompanion<SessionEventRow> {
     required String sessionId,
     required String eventType,
     required String payload,
+    this.dataJson = const Value.absent(),
     required DateTime phoneTime,
     required int gpsTimeMs,
     required String timeSource,
@@ -1386,6 +1431,7 @@ class SessionEventsCompanion extends UpdateCompanion<SessionEventRow> {
     Expression<String>? sessionId,
     Expression<String>? eventType,
     Expression<String>? payload,
+    Expression<String>? dataJson,
     Expression<DateTime>? phoneTime,
     Expression<int>? gpsTimeMs,
     Expression<String>? timeSource,
@@ -1397,6 +1443,7 @@ class SessionEventsCompanion extends UpdateCompanion<SessionEventRow> {
       if (sessionId != null) 'session_id': sessionId,
       if (eventType != null) 'event_type': eventType,
       if (payload != null) 'payload': payload,
+      if (dataJson != null) 'data_json': dataJson,
       if (phoneTime != null) 'phone_time': phoneTime,
       if (gpsTimeMs != null) 'gps_time_ms': gpsTimeMs,
       if (timeSource != null) 'time_source': timeSource,
@@ -1410,6 +1457,7 @@ class SessionEventsCompanion extends UpdateCompanion<SessionEventRow> {
     Value<String>? sessionId,
     Value<String>? eventType,
     Value<String>? payload,
+    Value<String?>? dataJson,
     Value<DateTime>? phoneTime,
     Value<int>? gpsTimeMs,
     Value<String>? timeSource,
@@ -1421,6 +1469,7 @@ class SessionEventsCompanion extends UpdateCompanion<SessionEventRow> {
       sessionId: sessionId ?? this.sessionId,
       eventType: eventType ?? this.eventType,
       payload: payload ?? this.payload,
+      dataJson: dataJson ?? this.dataJson,
       phoneTime: phoneTime ?? this.phoneTime,
       gpsTimeMs: gpsTimeMs ?? this.gpsTimeMs,
       timeSource: timeSource ?? this.timeSource,
@@ -1443,6 +1492,9 @@ class SessionEventsCompanion extends UpdateCompanion<SessionEventRow> {
     }
     if (payload.present) {
       map['payload'] = Variable<String>(payload.value);
+    }
+    if (dataJson.present) {
+      map['data_json'] = Variable<String>(dataJson.value);
     }
     if (phoneTime.present) {
       map['phone_time'] = Variable<DateTime>(phoneTime.value);
@@ -1469,6 +1521,7 @@ class SessionEventsCompanion extends UpdateCompanion<SessionEventRow> {
           ..write('sessionId: $sessionId, ')
           ..write('eventType: $eventType, ')
           ..write('payload: $payload, ')
+          ..write('dataJson: $dataJson, ')
           ..write('phoneTime: $phoneTime, ')
           ..write('gpsTimeMs: $gpsTimeMs, ')
           ..write('timeSource: $timeSource, ')
@@ -3819,7 +3872,8 @@ class $OutboxEntriesTable extends OutboxEntries
 class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
   final int id;
 
-  /// `session`, `session_event`, `capture`, `measurement`.
+  /// `session`, `session_event`, `capture`, `measurement`,
+  /// `verification_result`.
   final String entityType;
   final String entityId;
   final DateTime createdAt;
@@ -4405,6 +4459,538 @@ class TaskCacheCompanion extends UpdateCompanion<TaskCacheRow> {
   }
 }
 
+class $VerificationResultsTable extends VerificationResults
+    with TableInfo<$VerificationResultsTable, VerificationResultRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VerificationResultsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _tourIdMeta = const VerificationMeta('tourId');
+  @override
+  late final GeneratedColumn<String> tourId = GeneratedColumn<String>(
+    'tour_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id)',
+    ),
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _slotCodeMeta = const VerificationMeta(
+    'slotCode',
+  );
+  @override
+  late final GeneratedColumn<String> slotCode = GeneratedColumn<String>(
+    'slot_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _treePresentMeta = const VerificationMeta(
+    'treePresent',
+  );
+  @override
+  late final GeneratedColumn<bool> treePresent = GeneratedColumn<bool>(
+    'tree_present',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("tree_present" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _captureSha256Meta = const VerificationMeta(
+    'captureSha256',
+  );
+  @override
+  late final GeneratedColumn<String> captureSha256 = GeneratedColumn<String>(
+    'capture_sha256',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _recordedAtMeta = const VerificationMeta(
+    'recordedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> recordedAt = GeneratedColumn<DateTime>(
+    'recorded_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    tourId,
+    itemId,
+    slotCode,
+    treePresent,
+    note,
+    captureSha256,
+    recordedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'verification_results';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<VerificationResultRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('tour_id')) {
+      context.handle(
+        _tourIdMeta,
+        tourId.isAcceptableOrUnknown(data['tour_id']!, _tourIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tourIdMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('slot_code')) {
+      context.handle(
+        _slotCodeMeta,
+        slotCode.isAcceptableOrUnknown(data['slot_code']!, _slotCodeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_slotCodeMeta);
+    }
+    if (data.containsKey('tree_present')) {
+      context.handle(
+        _treePresentMeta,
+        treePresent.isAcceptableOrUnknown(
+          data['tree_present']!,
+          _treePresentMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_treePresentMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('capture_sha256')) {
+      context.handle(
+        _captureSha256Meta,
+        captureSha256.isAcceptableOrUnknown(
+          data['capture_sha256']!,
+          _captureSha256Meta,
+        ),
+      );
+    }
+    if (data.containsKey('recorded_at')) {
+      context.handle(
+        _recordedAtMeta,
+        recordedAt.isAcceptableOrUnknown(data['recorded_at']!, _recordedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_recordedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  VerificationResultRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return VerificationResultRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      tourId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tour_id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      slotCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}slot_code'],
+      )!,
+      treePresent: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}tree_present'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      captureSha256: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}capture_sha256'],
+      ),
+      recordedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}recorded_at'],
+      )!,
+    );
+  }
+
+  @override
+  $VerificationResultsTable createAlias(String alias) {
+    return $VerificationResultsTable(attachedDatabase, alias);
+  }
+}
+
+class VerificationResultRow extends DataClass
+    implements Insertable<VerificationResultRow> {
+  final String id;
+
+  /// The tour (`verification` session); also the photo's session.
+  final String tourId;
+  final String itemId;
+  final String slotCode;
+  final bool treePresent;
+  final String? note;
+
+  /// Close-up photo (`captures.sha256`), optional.
+  final String? captureSha256;
+  final DateTime recordedAt;
+  const VerificationResultRow({
+    required this.id,
+    required this.tourId,
+    required this.itemId,
+    required this.slotCode,
+    required this.treePresent,
+    this.note,
+    this.captureSha256,
+    required this.recordedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['tour_id'] = Variable<String>(tourId);
+    map['item_id'] = Variable<String>(itemId);
+    map['slot_code'] = Variable<String>(slotCode);
+    map['tree_present'] = Variable<bool>(treePresent);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || captureSha256 != null) {
+      map['capture_sha256'] = Variable<String>(captureSha256);
+    }
+    map['recorded_at'] = Variable<DateTime>(recordedAt);
+    return map;
+  }
+
+  VerificationResultsCompanion toCompanion(bool nullToAbsent) {
+    return VerificationResultsCompanion(
+      id: Value(id),
+      tourId: Value(tourId),
+      itemId: Value(itemId),
+      slotCode: Value(slotCode),
+      treePresent: Value(treePresent),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      captureSha256: captureSha256 == null && nullToAbsent
+          ? const Value.absent()
+          : Value(captureSha256),
+      recordedAt: Value(recordedAt),
+    );
+  }
+
+  factory VerificationResultRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return VerificationResultRow(
+      id: serializer.fromJson<String>(json['id']),
+      tourId: serializer.fromJson<String>(json['tourId']),
+      itemId: serializer.fromJson<String>(json['itemId']),
+      slotCode: serializer.fromJson<String>(json['slotCode']),
+      treePresent: serializer.fromJson<bool>(json['treePresent']),
+      note: serializer.fromJson<String?>(json['note']),
+      captureSha256: serializer.fromJson<String?>(json['captureSha256']),
+      recordedAt: serializer.fromJson<DateTime>(json['recordedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tourId': serializer.toJson<String>(tourId),
+      'itemId': serializer.toJson<String>(itemId),
+      'slotCode': serializer.toJson<String>(slotCode),
+      'treePresent': serializer.toJson<bool>(treePresent),
+      'note': serializer.toJson<String?>(note),
+      'captureSha256': serializer.toJson<String?>(captureSha256),
+      'recordedAt': serializer.toJson<DateTime>(recordedAt),
+    };
+  }
+
+  VerificationResultRow copyWith({
+    String? id,
+    String? tourId,
+    String? itemId,
+    String? slotCode,
+    bool? treePresent,
+    Value<String?> note = const Value.absent(),
+    Value<String?> captureSha256 = const Value.absent(),
+    DateTime? recordedAt,
+  }) => VerificationResultRow(
+    id: id ?? this.id,
+    tourId: tourId ?? this.tourId,
+    itemId: itemId ?? this.itemId,
+    slotCode: slotCode ?? this.slotCode,
+    treePresent: treePresent ?? this.treePresent,
+    note: note.present ? note.value : this.note,
+    captureSha256: captureSha256.present
+        ? captureSha256.value
+        : this.captureSha256,
+    recordedAt: recordedAt ?? this.recordedAt,
+  );
+  VerificationResultRow copyWithCompanion(VerificationResultsCompanion data) {
+    return VerificationResultRow(
+      id: data.id.present ? data.id.value : this.id,
+      tourId: data.tourId.present ? data.tourId.value : this.tourId,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      slotCode: data.slotCode.present ? data.slotCode.value : this.slotCode,
+      treePresent: data.treePresent.present
+          ? data.treePresent.value
+          : this.treePresent,
+      note: data.note.present ? data.note.value : this.note,
+      captureSha256: data.captureSha256.present
+          ? data.captureSha256.value
+          : this.captureSha256,
+      recordedAt: data.recordedAt.present
+          ? data.recordedAt.value
+          : this.recordedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VerificationResultRow(')
+          ..write('id: $id, ')
+          ..write('tourId: $tourId, ')
+          ..write('itemId: $itemId, ')
+          ..write('slotCode: $slotCode, ')
+          ..write('treePresent: $treePresent, ')
+          ..write('note: $note, ')
+          ..write('captureSha256: $captureSha256, ')
+          ..write('recordedAt: $recordedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    tourId,
+    itemId,
+    slotCode,
+    treePresent,
+    note,
+    captureSha256,
+    recordedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is VerificationResultRow &&
+          other.id == this.id &&
+          other.tourId == this.tourId &&
+          other.itemId == this.itemId &&
+          other.slotCode == this.slotCode &&
+          other.treePresent == this.treePresent &&
+          other.note == this.note &&
+          other.captureSha256 == this.captureSha256 &&
+          other.recordedAt == this.recordedAt);
+}
+
+class VerificationResultsCompanion
+    extends UpdateCompanion<VerificationResultRow> {
+  final Value<String> id;
+  final Value<String> tourId;
+  final Value<String> itemId;
+  final Value<String> slotCode;
+  final Value<bool> treePresent;
+  final Value<String?> note;
+  final Value<String?> captureSha256;
+  final Value<DateTime> recordedAt;
+  final Value<int> rowid;
+  const VerificationResultsCompanion({
+    this.id = const Value.absent(),
+    this.tourId = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.slotCode = const Value.absent(),
+    this.treePresent = const Value.absent(),
+    this.note = const Value.absent(),
+    this.captureSha256 = const Value.absent(),
+    this.recordedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  VerificationResultsCompanion.insert({
+    required String id,
+    required String tourId,
+    required String itemId,
+    required String slotCode,
+    required bool treePresent,
+    this.note = const Value.absent(),
+    this.captureSha256 = const Value.absent(),
+    required DateTime recordedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       tourId = Value(tourId),
+       itemId = Value(itemId),
+       slotCode = Value(slotCode),
+       treePresent = Value(treePresent),
+       recordedAt = Value(recordedAt);
+  static Insertable<VerificationResultRow> custom({
+    Expression<String>? id,
+    Expression<String>? tourId,
+    Expression<String>? itemId,
+    Expression<String>? slotCode,
+    Expression<bool>? treePresent,
+    Expression<String>? note,
+    Expression<String>? captureSha256,
+    Expression<DateTime>? recordedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tourId != null) 'tour_id': tourId,
+      if (itemId != null) 'item_id': itemId,
+      if (slotCode != null) 'slot_code': slotCode,
+      if (treePresent != null) 'tree_present': treePresent,
+      if (note != null) 'note': note,
+      if (captureSha256 != null) 'capture_sha256': captureSha256,
+      if (recordedAt != null) 'recorded_at': recordedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  VerificationResultsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? tourId,
+    Value<String>? itemId,
+    Value<String>? slotCode,
+    Value<bool>? treePresent,
+    Value<String?>? note,
+    Value<String?>? captureSha256,
+    Value<DateTime>? recordedAt,
+    Value<int>? rowid,
+  }) {
+    return VerificationResultsCompanion(
+      id: id ?? this.id,
+      tourId: tourId ?? this.tourId,
+      itemId: itemId ?? this.itemId,
+      slotCode: slotCode ?? this.slotCode,
+      treePresent: treePresent ?? this.treePresent,
+      note: note ?? this.note,
+      captureSha256: captureSha256 ?? this.captureSha256,
+      recordedAt: recordedAt ?? this.recordedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tourId.present) {
+      map['tour_id'] = Variable<String>(tourId.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (slotCode.present) {
+      map['slot_code'] = Variable<String>(slotCode.value);
+    }
+    if (treePresent.present) {
+      map['tree_present'] = Variable<bool>(treePresent.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (captureSha256.present) {
+      map['capture_sha256'] = Variable<String>(captureSha256.value);
+    }
+    if (recordedAt.present) {
+      map['recorded_at'] = Variable<DateTime>(recordedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VerificationResultsCompanion(')
+          ..write('id: $id, ')
+          ..write('tourId: $tourId, ')
+          ..write('itemId: $itemId, ')
+          ..write('slotCode: $slotCode, ')
+          ..write('treePresent: $treePresent, ')
+          ..write('note: $note, ')
+          ..write('captureSha256: $captureSha256, ')
+          ..write('recordedAt: $recordedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4414,6 +5000,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MeasurementsTable measurements = $MeasurementsTable(this);
   late final $OutboxEntriesTable outboxEntries = $OutboxEntriesTable(this);
   late final $TaskCacheTable taskCache = $TaskCacheTable(this);
+  late final $VerificationResultsTable verificationResults =
+      $VerificationResultsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4425,6 +5013,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     measurements,
     outboxEntries,
     taskCache,
+    verificationResults,
   ];
   @override
   DriftDatabaseOptions get options =>
@@ -4523,6 +5112,30 @@ final class $$SessionsTableReferences
     ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_measurementsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $VerificationResultsTable,
+    List<VerificationResultRow>
+  >
+  _verificationResultsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.verificationResults,
+        aliasName: 'sessions__id__verification_results__tour_id',
+      );
+
+  $$VerificationResultsTableProcessedTableManager get verificationResultsRefs {
+    final manager = $$VerificationResultsTableTableManager(
+      $_db,
+      $_db.verificationResults,
+    ).filter((f) => f.tourId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _verificationResultsRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -4684,6 +5297,31 @@ class $$SessionsTableFilterComposer
           }) => $$MeasurementsTableFilterComposer(
             $db: $db,
             $table: $db.measurements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> verificationResultsRefs(
+    Expression<bool> Function($$VerificationResultsTableFilterComposer f) f,
+  ) {
+    final $$VerificationResultsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.verificationResults,
+      getReferencedColumn: (t) => t.tourId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VerificationResultsTableFilterComposer(
+            $db: $db,
+            $table: $db.verificationResults,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -4931,6 +5569,32 @@ class $$SessionsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> verificationResultsRefs<T extends Object>(
+    Expression<T> Function($$VerificationResultsTableAnnotationComposer a) f,
+  ) {
+    final $$VerificationResultsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.verificationResults,
+          getReferencedColumn: (t) => t.tourId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$VerificationResultsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.verificationResults,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$SessionsTableTableManager
@@ -4950,6 +5614,7 @@ class $$SessionsTableTableManager
             bool sessionEventsRefs,
             bool capturesRefs,
             bool measurementsRefs,
+            bool verificationResultsRefs,
           })
         > {
   $$SessionsTableTableManager(_$AppDatabase db, $SessionsTable table)
@@ -5052,6 +5717,7 @@ class $$SessionsTableTableManager
                 sessionEventsRefs = false,
                 capturesRefs = false,
                 measurementsRefs = false,
+                verificationResultsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -5059,6 +5725,7 @@ class $$SessionsTableTableManager
                     if (sessionEventsRefs) db.sessionEvents,
                     if (capturesRefs) db.captures,
                     if (measurementsRefs) db.measurements,
+                    if (verificationResultsRefs) db.verificationResults,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -5126,6 +5793,27 @@ class $$SessionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (verificationResultsRefs)
+                        await $_getPrefetchedData<
+                          SessionRow,
+                          $SessionsTable,
+                          VerificationResultRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SessionsTableReferences
+                              ._verificationResultsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).verificationResultsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.tourId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -5150,6 +5838,7 @@ typedef $$SessionsTableProcessedTableManager =
         bool sessionEventsRefs,
         bool capturesRefs,
         bool measurementsRefs,
+        bool verificationResultsRefs,
       })
     >;
 typedef $$SessionEventsTableCreateCompanionBuilder =
@@ -5158,6 +5847,7 @@ typedef $$SessionEventsTableCreateCompanionBuilder =
       required String sessionId,
       required String eventType,
       required String payload,
+      Value<String?> dataJson,
       required DateTime phoneTime,
       required int gpsTimeMs,
       required String timeSource,
@@ -5170,6 +5860,7 @@ typedef $$SessionEventsTableUpdateCompanionBuilder =
       Value<String> sessionId,
       Value<String> eventType,
       Value<String> payload,
+      Value<String?> dataJson,
       Value<DateTime> phoneTime,
       Value<int> gpsTimeMs,
       Value<String> timeSource,
@@ -5225,6 +5916,11 @@ class $$SessionEventsTableFilterComposer
 
   ColumnFilters<String> get payload => $composableBuilder(
     column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dataJson => $composableBuilder(
+    column: $table.dataJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5296,6 +5992,11 @@ class $$SessionEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get dataJson => $composableBuilder(
+    column: $table.dataJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get phoneTime => $composableBuilder(
     column: $table.phoneTime,
     builder: (column) => ColumnOrderings(column),
@@ -5357,6 +6058,9 @@ class $$SessionEventsTableAnnotationComposer
 
   GeneratedColumn<String> get payload =>
       $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<String> get dataJson =>
+      $composableBuilder(column: $table.dataJson, builder: (column) => column);
 
   GeneratedColumn<DateTime> get phoneTime =>
       $composableBuilder(column: $table.phoneTime, builder: (column) => column);
@@ -5430,6 +6134,7 @@ class $$SessionEventsTableTableManager
                 Value<String> sessionId = const Value.absent(),
                 Value<String> eventType = const Value.absent(),
                 Value<String> payload = const Value.absent(),
+                Value<String?> dataJson = const Value.absent(),
                 Value<DateTime> phoneTime = const Value.absent(),
                 Value<int> gpsTimeMs = const Value.absent(),
                 Value<String> timeSource = const Value.absent(),
@@ -5440,6 +6145,7 @@ class $$SessionEventsTableTableManager
                 sessionId: sessionId,
                 eventType: eventType,
                 payload: payload,
+                dataJson: dataJson,
                 phoneTime: phoneTime,
                 gpsTimeMs: gpsTimeMs,
                 timeSource: timeSource,
@@ -5452,6 +6158,7 @@ class $$SessionEventsTableTableManager
                 required String sessionId,
                 required String eventType,
                 required String payload,
+                Value<String?> dataJson = const Value.absent(),
                 required DateTime phoneTime,
                 required int gpsTimeMs,
                 required String timeSource,
@@ -5462,6 +6169,7 @@ class $$SessionEventsTableTableManager
                 sessionId: sessionId,
                 eventType: eventType,
                 payload: payload,
+                dataJson: dataJson,
                 phoneTime: phoneTime,
                 gpsTimeMs: gpsTimeMs,
                 timeSource: timeSource,
@@ -7137,6 +7845,403 @@ typedef $$TaskCacheTableProcessedTableManager =
       TaskCacheRow,
       PrefetchHooks Function()
     >;
+typedef $$VerificationResultsTableCreateCompanionBuilder =
+    VerificationResultsCompanion Function({
+      required String id,
+      required String tourId,
+      required String itemId,
+      required String slotCode,
+      required bool treePresent,
+      Value<String?> note,
+      Value<String?> captureSha256,
+      required DateTime recordedAt,
+      Value<int> rowid,
+    });
+typedef $$VerificationResultsTableUpdateCompanionBuilder =
+    VerificationResultsCompanion Function({
+      Value<String> id,
+      Value<String> tourId,
+      Value<String> itemId,
+      Value<String> slotCode,
+      Value<bool> treePresent,
+      Value<String?> note,
+      Value<String?> captureSha256,
+      Value<DateTime> recordedAt,
+      Value<int> rowid,
+    });
+
+final class $$VerificationResultsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $VerificationResultsTable,
+          VerificationResultRow
+        > {
+  $$VerificationResultsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SessionsTable _tourIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('verification_results__tour_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager get tourId {
+    final $_column = $_itemColumn<String>('tour_id')!;
+
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_tourIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$VerificationResultsTableFilterComposer
+    extends Composer<_$AppDatabase, $VerificationResultsTable> {
+  $$VerificationResultsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get slotCode => $composableBuilder(
+    column: $table.slotCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get treePresent => $composableBuilder(
+    column: $table.treePresent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get captureSha256 => $composableBuilder(
+    column: $table.captureSha256,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get recordedAt => $composableBuilder(
+    column: $table.recordedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SessionsTableFilterComposer get tourId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.tourId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$VerificationResultsTableOrderingComposer
+    extends Composer<_$AppDatabase, $VerificationResultsTable> {
+  $$VerificationResultsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get slotCode => $composableBuilder(
+    column: $table.slotCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get treePresent => $composableBuilder(
+    column: $table.treePresent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get captureSha256 => $composableBuilder(
+    column: $table.captureSha256,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get recordedAt => $composableBuilder(
+    column: $table.recordedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SessionsTableOrderingComposer get tourId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.tourId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$VerificationResultsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $VerificationResultsTable> {
+  $$VerificationResultsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get slotCode =>
+      $composableBuilder(column: $table.slotCode, builder: (column) => column);
+
+  GeneratedColumn<bool> get treePresent => $composableBuilder(
+    column: $table.treePresent,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get captureSha256 => $composableBuilder(
+    column: $table.captureSha256,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get recordedAt => $composableBuilder(
+    column: $table.recordedAt,
+    builder: (column) => column,
+  );
+
+  $$SessionsTableAnnotationComposer get tourId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.tourId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$VerificationResultsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $VerificationResultsTable,
+          VerificationResultRow,
+          $$VerificationResultsTableFilterComposer,
+          $$VerificationResultsTableOrderingComposer,
+          $$VerificationResultsTableAnnotationComposer,
+          $$VerificationResultsTableCreateCompanionBuilder,
+          $$VerificationResultsTableUpdateCompanionBuilder,
+          (VerificationResultRow, $$VerificationResultsTableReferences),
+          VerificationResultRow,
+          PrefetchHooks Function({bool tourId})
+        > {
+  $$VerificationResultsTableTableManager(
+    _$AppDatabase db,
+    $VerificationResultsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$VerificationResultsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$VerificationResultsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$VerificationResultsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> tourId = const Value.absent(),
+                Value<String> itemId = const Value.absent(),
+                Value<String> slotCode = const Value.absent(),
+                Value<bool> treePresent = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> captureSha256 = const Value.absent(),
+                Value<DateTime> recordedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VerificationResultsCompanion(
+                id: id,
+                tourId: tourId,
+                itemId: itemId,
+                slotCode: slotCode,
+                treePresent: treePresent,
+                note: note,
+                captureSha256: captureSha256,
+                recordedAt: recordedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String tourId,
+                required String itemId,
+                required String slotCode,
+                required bool treePresent,
+                Value<String?> note = const Value.absent(),
+                Value<String?> captureSha256 = const Value.absent(),
+                required DateTime recordedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => VerificationResultsCompanion.insert(
+                id: id,
+                tourId: tourId,
+                itemId: itemId,
+                slotCode: slotCode,
+                treePresent: treePresent,
+                note: note,
+                captureSha256: captureSha256,
+                recordedAt: recordedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$VerificationResultsTable, VerificationResultRow>(
+                    table,
+                  ),
+                  $$VerificationResultsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({tourId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (tourId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.tourId,
+                        referencedTable: $$VerificationResultsTableReferences
+                            ._tourIdTable(db),
+                        referencedColumn: $$VerificationResultsTableReferences
+                            ._tourIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$VerificationResultsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $VerificationResultsTable,
+      VerificationResultRow,
+      $$VerificationResultsTableFilterComposer,
+      $$VerificationResultsTableOrderingComposer,
+      $$VerificationResultsTableAnnotationComposer,
+      $$VerificationResultsTableCreateCompanionBuilder,
+      $$VerificationResultsTableUpdateCompanionBuilder,
+      (VerificationResultRow, $$VerificationResultsTableReferences),
+      VerificationResultRow,
+      PrefetchHooks Function({bool tourId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7153,4 +8258,6 @@ class $AppDatabaseManager {
       $$OutboxEntriesTableTableManager(_db, _db.outboxEntries);
   $$TaskCacheTableTableManager get taskCache =>
       $$TaskCacheTableTableManager(_db, _db.taskCache);
+  $$VerificationResultsTableTableManager get verificationResults =>
+      $$VerificationResultsTableTableManager(_db, _db.verificationResults);
 }
