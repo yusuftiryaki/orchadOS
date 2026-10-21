@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import type { PortalParcel } from "@/lib/portal/data";
-import { DistributionBar } from "./labels";
+import { DistributionBar, ScoreLine } from "./labels";
 import styles from "./portal.module.css";
 
 // "Bahçelerim": every parcel row level security lets the user read, with the
@@ -38,6 +38,7 @@ export function GardenList({ parcels }: { parcels: PortalParcel[] }) {
                       </>
                     )}
                   </p>
+                  <ScoreLine score={parcel.score} change={parcel.scoreChange} />
                   <DistributionBar distribution={parcel.distribution} />
                 </>
               ) : (

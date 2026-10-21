@@ -12,14 +12,21 @@ export function VisitQueue({
   queue,
   inventories,
   parcels,
+  openQuestions = 0,
 }: {
   queue: QueueItem[];
   inventories: InventoryQueueItem[];
   parcels: ParcelSummary[];
+  openQuestions?: number;
 }) {
   const q = t.expert.queue;
   return (
     <main className="page">
+      <p>
+        <Link href="/uzman/sorular" data-testid="questions-link">
+          {t.expert.questions.link(openQuestions)}
+        </Link>
+      </p>
       <h1>{q.title}</h1>
       <p className="muted">{q.hint}</p>
       {queue.length === 0 ? (

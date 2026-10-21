@@ -1,0 +1,184 @@
+import Link from "next/link";
+import { formatDate, t } from "@/lib/i18n";
+import type { QuestionMessage, QuestionThread } from "@/lib/portal/questions";
+import { findingKindLabel } from "./labels";
+import styles from "./portal.module.css";
+
+// Question threads with reply and edit forms. Used by the portal (owner,
+// viewer) and the expert panel; the forms post to the section's own actions.
+
+type Action = (form: FormData) => void | Promise<void>;
+
+const q = t.portal.questions;
+
+function author(m: QuestionMessage): string {
+  return m.mine ? q.authors.mine : q.authors[m.authorRole];
+}
+
+function time(iso: string): string {
+  const d = new Date(iso);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${formatDate(iso)} ${hh}:${mm}`;
+}
+
+export function QuestionThreads({
+  threads,
+  returnPath,
+  replyAction,
+  editAction,
+  treeHref,
+  showContext = false,
+}: {
+  threads: QuestionThread[];
+  returnPath: string;
+  replyAction: Action;
+  editAction: Action;
+  // Link to the tree of a thread (context line), when there is a page for it.
+  treeHref?: (thread: QuestionThread) => string | null;
+  showContext?: boolean;
+}) {
+  if (threads.length === 0) return <p className="muted">{q.empty}</p>;
+  return (
+    <ul className={styles.threads} data-testid="question-threads">
+      {threads.map((thread) => {
+        const href = treeHref?.(thread) ?? null;
+        return (
+          <li
+            key={thread.id}
+            className={styles.thread}
+            data-question-id={thread.id}
+            data-answered={thread.answered ? "1" : "0"}
+          >
+            <div className={styles.threadHead}>
+              <strong className={thread.answered ? styles.better : styles.worse}>
+                {thread.answered ? q.answered : q.open}
+              </strong>
+              {showContext && thread.parcelName && <span>{thread.parcelName}</span>}
+              {thread.treeCode &&
+                (href ? (
+                  <Link href={href}>{q.about.tree(thread.treeCode)}</Link>
+                ) : (
+                  <span>{q.about.tree(thread.treeCode)}</span>
+                ))}
+              {thread.findingKind && (
+                <span className="muted">
+                  {q.about.finding(findingKindLabel(thread.findingKind))}
+                </span>
+              )}
+            </div>
+            <ol className={styles.messages}>
+              {thread.messages.map((m) => (
+                <li key={m.id} className={styles.message} data-testid="question-message">
+                  <div className={`muted ${styles.small}`}>
+                    <strong>{author(m)}</strong> · {time(m.createdAt)}
+                    {m.editedAt && ` · ${q.edited}`}
+                  </div>
+                  <p className={styles.messageBody}>{m.body}</p>
+                  {m.editable && (
+                    <details className={styles.noPrint}>
+                      <summary>{q.edit}</summary>
+                      <form action={editAction} className={styles.questionForm}>
+                        <input type="hidden" name="kind" value={m.kind} />
+                        <input type="hidden" name="id" value={m.id} />
+                        <input type="hidden" name="return" value={returnPath} />
+                        <textarea name="body" defaultValue={m.body} maxLength={2000} required />
+                        <button className="button button-secondary" type="submit">
+                          {q.save}
+                        </button>
+                      </form>
+                    </details>
+                  )}
+                </li>
+              ))}
+            </ol>
+            <form action={replyAction} className={`${styles.questionForm} ${styles.noPrint}`}>
+              <input type="hidden" name="questionId" value={thread.id} />
+              <input type="hidden" name="return" value={returnPath} />
+              <label>
+                {q.reply}
+                <textarea name="body" maxLength={2000} required aria-label={q.replyLabel} />
+              </label>
+              <button className="button button-secondary" type="submit">
+                {q.send}
+              </button>
+            </form>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+export interface QuestionTarget {
+  value: string;
+  label: string;
+}
+
+// New question: on the tree ("tree") or one of the given findings ("finding:<id>").
+export function AskQuestionForm({
+  parcelId,
+  treeId,
+  targets,
+  returnPath,
+  action,
+  title,
+}: {
+  parcelId: string;
+  treeId: string | null;
+  targets: QuestionTarget[];
+  returnPath: string;
+  action: Action;
+  title: string;
+}) {
+  if (targets.length === 0) return null;
+  return (
+    <form
+      action={action}
+      className={`${styles.questionForm} ${styles.noPrint}`}
+      data-testid="ask-question"
+    >
+      <h3>{title}</h3>
+      <input type="hidden" name="parcelId" value={parcelId} />
+      <input type="hidden" name="treeId" value={treeId ?? ""} />
+      <input type="hidden" name="return" value={returnPath} />
+      <label>
+        {q.target}
+        <select name="target" defaultValue={targets[0].value}>
+          {targets.map((target) => (
+            <option key={target.value} value={target.value}>
+              {target.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        {q.body}
+        <textarea name="body" maxLength={2000} required />
+      </label>
+      <p className={`muted ${styles.small}`}>{q.editHint}</p>
+      <button className="button" type="submit">
+        {q.ask}
+      </button>
+    </form>
+  );
+}
+
+// Status line after a question action (?soru=1 / ?soru_hata=…).
+export function QuestionNotice({ sent, error }: { sent: boolean; error: string | null }) {
+  if (error) {
+    return (
+      <p className={`${styles.notice} ${styles.worse}`} role="alert">
+        {q.errors[error] ?? q.errors.write_failed}
+      </p>
+    );
+  }
+  if (sent) {
+    return (
+      <p className={styles.notice} role="status">
+        {q.sent}
+      </p>
+    );
+  }
+  return null;
+}

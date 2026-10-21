@@ -7,8 +7,14 @@ import {
   type MetricInputError,
 } from "./metrics";
 import { isUuid } from "@/lib/supabase/query";
-import { isReviewable, loadReview, loadTreeDetail, type ReviewContext } from "./review";
-import { HEALTH_CLASSES, type HealthClass } from "./summary";
+import {
+  isReviewable,
+  loadBulkInputs,
+  loadReview,
+  loadTreeDetail,
+  type ReviewContext,
+} from "./review";
+import { HEALTH_CLASSES, isBulkEligible, type HealthClass } from "./summary";
 
 // Writes of the expert panel, as the signed-in user. Decisions go through the
 // save_expert_assessment() database function (one transaction: assessment,
@@ -172,4 +178,65 @@ export async function publishSession(supabase: Client, sessionId: string): Promi
     return { ok: false, error: "write_failed" };
   }
   return { ok: true, publishedAt: data.published_at ?? "" };
+}
+
+export type BulkResult =
+  | { ok: true; approved: number }
+  | {
+      ok: false;
+      error:
+        | "not_found"
+        | "not_reviewable"
+        | "forbidden"
+        | "stale"
+        | "empty"
+        | "invalid_metric"
+        | "write_failed";
+    };
+
+// "Kalanları toplu onayla": every undecided tree with an AI suggestion that
+// trips no mandatory rule and is not in the quality sample gets an
+// auto-approved expert assessment with the AI's class and values, in one
+// bulk_approve_trees() call. `expected` is the count the expert was shown;
+// when the list has changed since, nothing is written.
+export async function bulkApprove(
+  supabase: Client,
+  sessionId: string,
+  expected?: number,
+): Promise<BulkResult> {
+  if (!isUuid(sessionId)) return { ok: false, error: "not_found" };
+  const ctx = await loadReview(supabase, sessionId);
+  if (!ctx) return { ok: false, error: "not_found" };
+  if (!isReviewable(ctx.session.status)) return { ok: false, error: "not_reviewable" };
+  const trees = ctx.trees.filter(isBulkEligible);
+  if (expected != null && expected !== trees.length) return { ok: false, error: "stale" };
+  if (trees.length === 0) return { ok: false, error: "empty" };
+
+  const inputs = await loadBulkInputs(
+    supabase,
+    ctx.session.id,
+    trees.map((t) => t.id),
+  );
+  const items = trees.map((t) => {
+    const input = inputs.get(t.id)!;
+    return {
+      tree_id: t.id,
+      measurements: acceptedValues(ctx.metrics, input.aiValues),
+      evidence_asset_ids: input.cropIds,
+    };
+  });
+  const { data, error } = await supabase.rpc("bulk_approve_trees", {
+    p_session_id: ctx.session.id,
+    p_items:
+      items as unknown as Database["public"]["Functions"]["bulk_approve_trees"]["Args"]["p_items"],
+    p_method_version: ctx.session.methodologyVersion,
+  });
+  if (error) {
+    if (error.code === "42501") return { ok: false, error: "forbidden" };
+    if (error.code === "55000") return { ok: false, error: "not_reviewable" };
+    if (error.code === "P0001") return { ok: false, error: "stale" };
+    if (error.code === "23514") return { ok: false, error: "invalid_metric" };
+    return { ok: false, error: "write_failed" };
+  }
+  return { ok: true, approved: data };
 }

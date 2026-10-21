@@ -14,7 +14,8 @@ select tables_are(
     'device', 'sensor', 'rig', 'rig_sensor', 'calibration', 'session', 'capture',
     'asset', 'asset_source', 'metric_definition', 'measurement', 'measurement_evidence',
     'assessment', 'assessment_measurement', 'finding', 'finding_evidence', 'operation', 'trunk_label',
-    'verification_item', 'session_event', 'parcel_route', 'ai_assessment_detail'
+    'verification_item', 'session_event', 'parcel_route', 'ai_assessment_detail',
+    'question', 'question_reply'
   ],
   'public has exactly the MVP tables'
 );
@@ -92,7 +93,9 @@ select set_eq(
         'scaffold_branch_count', 'fractal_dimension', 'canopy_temp_delta',
         -- Field app yes/no questions (20261021230000_field_sync).
         'dead_branch_present', 'trunk_damage_present', 'root_sucker_present', 'pruned', 'frost_damage_present',
-        'pest_sign_present', 'fruit_present', 'drought_stress_sign', 'theft_sign_present'],
+        'pest_sign_present', 'fruit_present', 'drought_stress_sign', 'theft_sign_present',
+        -- Field crew's "Sorun gördüm" mark (20261023130000_bulk_approval).
+        'problem_seen'],
   'migrations register the metrics from docs/metodoloji.md (Ek B), docs/veri-modeli.md and the field questions'
 );
 

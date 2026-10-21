@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { bulkMessages } from "@/components/expert/bulk-approve";
 import { SummaryView } from "@/components/expert/summary-view";
 import { requireSection } from "@/lib/auth/session";
 import { loadReview } from "@/lib/expert/review";
@@ -24,5 +25,12 @@ export default async function Page({
     typeof query.bulgu_hata === "string"
       ? (t.expert.findings.errors[query.bulgu_hata] ?? t.expert.findings.errors.write_failed)
       : null;
-  return <SummaryView ctx={ctx} findingError={findingError} published={query.yayin === "1"} />;
+  return (
+    <SummaryView
+      ctx={ctx}
+      findingError={findingError}
+      published={query.yayin === "1"}
+      bulk={bulkMessages(query)}
+    />
+  );
 }

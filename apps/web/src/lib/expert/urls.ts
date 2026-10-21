@@ -5,6 +5,8 @@ import { FILTERS, type Filter } from "./summary";
 export const FILTER_PARAM: Record<Filter, string> = {
   all: "tum",
   unreviewed: "incelenmemis",
+  mandatory: "zorunlu",
+  sample: "orneklem",
   flagged: "sorunlu",
   low_confidence: "dusuk-guven",
 };

@@ -37,6 +37,13 @@ import {
   type MetricSummaryRow,
   type MetricValue,
 } from "./metrics";
+import {
+  auditConfidence,
+  healthScore,
+  scoreChange,
+  scoreRulesFor,
+  type AuditConfidence,
+} from "./score";
 import { sessionTime, sortVisitsNewestFirst, type VisitRow } from "./sessions";
 import { pairPanoramaVariants, type TourPanorama } from "./tour";
 
@@ -122,6 +129,9 @@ export interface PortalParcel extends ParcelSummary {
   // Latest published visit with tree assessments.
   lastVisit: Visit | null;
   distribution: Distribution | null;
+  // Overall condition score of the last visit and its change since the one before.
+  score: number | null;
+  scoreChange: number | null;
   urgentFindings: number;
 }
 
@@ -143,7 +153,17 @@ export async function listPortalParcels(supabase: Client): Promise<PortalParcel[
         ),
       ]);
       const bySession = assessmentsBySession(assessments);
-      const last = own.find((v) => bySession.has(v.id)) ?? null;
+      const assessed = own.filter((v) => bySession.has(v.id));
+      const last = assessed[0] ?? null;
+      const before = assessed[1] ?? null;
+      const scoreOf = (v: VisitRow | null) =>
+        v
+          ? healthScore(
+              distribution(trees, bySession.get(v.id)!),
+              scoreRulesFor(v.methodology_version),
+            )
+          : null;
+      const score = scoreOf(last);
       let urgentFindings = 0;
       if (last) {
         const { count, error } = await supabase
@@ -159,6 +179,8 @@ export async function listPortalParcels(supabase: Client): Promise<PortalParcel[
         activeTreeCount: trees.length,
         lastVisit: last ? toVisit(last) : null,
         distribution: last ? distribution(trees, bySession.get(last.id)!) : null,
+        score,
+        scoreChange: scoreChange(score, scoreOf(before)),
         urgentFindings,
       };
     }),
@@ -199,6 +221,7 @@ export interface TreeChange {
 export interface VisitSummary extends Visit {
   distribution: Distribution;
   assessedCount: number;
+  score: number | null;
 }
 
 export interface VisitHistoryRow extends Visit {
@@ -216,6 +239,10 @@ export interface ParcelReport {
   latest: VisitSummary | null;
   previous: VisitSummary | null;
   change: { compared: number; worse: TreeChange[]; better: TreeChange[] } | null;
+  // Score change since the previous visit (null without one).
+  scoreChange: number | null;
+  // "Denetim güveni" of the latest visit.
+  audit: AuditConfidence | null;
   // Findings of the latest visit, most severe first.
   findings: FindingItem[];
   metrics: MetricSummaryRow[];
@@ -347,14 +374,16 @@ export async function getParcelReport(
 
   const bySession = assessmentsBySession(assessments);
   const assessedVisits = visits.filter((v) => bySession.has(v.id));
-  const summaryOf = (visit: VisitRow | undefined): VisitSummary | null =>
-    visit
-      ? {
-          ...toVisit(visit),
-          distribution: distribution(active, bySession.get(visit.id)!),
-          assessedCount: bySession.get(visit.id)!.size,
-        }
-      : null;
+  const summaryOf = (visit: VisitRow | undefined): VisitSummary | null => {
+    if (!visit) return null;
+    const counts = distribution(active, bySession.get(visit.id)!);
+    return {
+      ...toVisit(visit),
+      distribution: counts,
+      assessedCount: bySession.get(visit.id)!.size,
+      score: healthScore(counts, scoreRulesFor(visit.methodology_version)),
+    };
+  };
   const latest = summaryOf(assessedVisits[0]);
   const previous = summaryOf(assessedVisits[1]);
 
@@ -394,8 +423,9 @@ export async function getParcelReport(
   }));
 
   let metrics: MetricSummaryRow[] = [];
+  let audit: AuditConfidence | null = null;
   if (latest) {
-    const [defs, rows] = await Promise.all([
+    const [defs, rows, crops] = await Promise.all([
       metricDefinitions(supabase),
       fetchAll<MeasurementRow>((from, to) =>
         supabase
@@ -405,8 +435,32 @@ export async function getParcelReport(
           .order("id")
           .range(from, to),
       ),
+      fetchAll((from, to) =>
+        supabase
+          .from("asset")
+          .select("id, tree_id, pose")
+          .eq("session_id", latest.id)
+          .eq("kind", "tree_crop")
+          .not("tree_id", "is", null)
+          .order("id")
+          .range(from, to),
+      ),
     ]);
     metrics = summarizeMetrics(defs, rows);
+    const directions = new Map<string, Set<string>>();
+    for (const c of crops) {
+      const direction = (c.pose as { direction?: unknown } | null)?.direction;
+      if (typeof direction !== "string") continue;
+      if (!directions.has(c.tree_id!)) directions.set(c.tree_id!, new Set());
+      directions.get(c.tree_id!)!.add(direction.toUpperCase());
+    }
+    audit = auditConfidence(
+      active,
+      directions,
+      bySession.get(latest.id)!,
+      latest.methodologyVersion,
+      scoreRulesFor(latest.methodologyVersion),
+    );
   }
 
   const findingCount = new Map<string, number>();
@@ -427,6 +481,8 @@ export async function getParcelReport(
     latest,
     previous,
     change,
+    scoreChange: scoreChange(latest?.score ?? null, previous?.score ?? null),
+    audit,
     findings: latest ? sortFindings(allFindings.filter((f) => f.sessionId === latest.id)) : [],
     metrics,
     visits: visits.map((v) => ({
