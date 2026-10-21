@@ -15,6 +15,7 @@ import '../core/time/clock.dart';
 import '../core/time/gps_clock.dart';
 import '../features/auth/auth_repository.dart';
 import '../features/gnss/gnss_logger.dart';
+import '../features/route/beeper.dart';
 import '../features/tasks/task_repository.dart';
 
 // Dependencies with platform implementations are overridden in main() and in
@@ -46,6 +47,9 @@ final mediaStoreProvider = Provider<MediaStore>(
 final authRepositoryProvider = Provider<AuthRepository>(
   (ref) => throw UnimplementedError('override authRepositoryProvider'),
 );
+
+/// Beep of the "dur-çek-yürü" mode.
+final beeperProvider = Provider<Beeper>((ref) => const ToneBeeper());
 
 final taskRepositoryProvider = Provider<TaskRepository>(
   (ref) => const FakeTaskRepository(),
