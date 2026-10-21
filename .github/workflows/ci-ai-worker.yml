@@ -1,0 +1,93 @@
+name: ci-ai-worker
+
+on:
+  pull_request:
+    paths:
+      - "services/ai-worker/**"
+      - "supabase/**" # integration tests run against the local stack
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/ci-ai-worker.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/ai-worker/**"
+      - "supabase/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/ci-ai-worker.yml"
+
+concurrency:
+  group: ci-ai-worker-${{ github.ref }}
+  cancel-in-progress: true
+
+# Anonymous pulls from public.ecr.aws hit its per-IP data limit on shared
+# runners; Docker Hub does not rate-limit GitHub-hosted runners.
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: docker.io
+  # No real Claude API calls in CI: the tests use a fake Batches API, and the
+  # live test (-m live) is skipped without a key.
+  ANTHROPIC_API_KEY: ""
+
+jobs:
+  ai-worker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: services/ai-worker
+    steps:
+      - uses: actions/checkout@v4
+
+      # Local Supabase for the integration tests (tests/test_supabase.py).
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Supabase CLI
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
+      - name: Start local Supabase
+        working-directory: .
+        run: pnpm db:start
+
+      - name: Apply migrations and seed
+        working-directory: .
+        run: pnpm db:reset
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint and format
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Tests (integration tests must not be skipped here)
+        run: |
+          set -o pipefail
+          uv run pytest -q -rs | tee "$RUNNER_TEMP/pytest.log"
+          if grep -q "SKIPPED.*Supabase not reachable" "$RUNNER_TEMP/pytest.log"; then
+            echo "::error::Supabase integration tests were skipped"
+            exit 1
+          fi
+
+      # The integration tests purge their sessions at the end; the pgTAP tests
+      # count seed rows, so they pass only if nothing is left.
+      - name: pgTAP tests after the integration tests
+        working-directory: .
+        run: pnpm db:test
+
+      - name: Command line smoke test
+        run: |
+          uv run ai-worker --help
+          uv run ai-worker run --help
+          uv run ai-worker eval --help

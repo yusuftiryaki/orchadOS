@@ -79,12 +79,25 @@ class CropParams(_Section):
     max_fov_deg: float = 110.0
 
 
+class BoundaryParams(_Section):
+    # Corners not positioned from a fixed PPK solution (phone or logger position)
+    # get at least this uncertainty and are flagged in the report.
+    fallback_min_uncertainty_m: float = 5.0
+    # Trajectory gaps longer than this are not interpolated over.
+    trajectory_max_gap_s: float = 2.0
+    # A logger corner row matches a phone corner event with the same number
+    # within this time; the logger's NAV-PVT epoch must be this close to it.
+    logger_match_max_dt_s: float = 10.0
+    logger_nav_pvt_max_dt_s: float = 1.0
+
+
 class PipelineParams(_Section):
     position: PositionParams = Field(default_factory=PositionParams)
     sync: SyncParams = Field(default_factory=SyncParams)
     frames: FrameParams = Field(default_factory=FrameParams)
     panoramas: PanoramaParams = Field(default_factory=PanoramaParams)
     crops: CropParams = Field(default_factory=CropParams)
+    boundary: BoundaryParams = Field(default_factory=BoundaryParams)
 
     def params_hash(self) -> str:
         return hash_object(self.model_dump(mode="json"))

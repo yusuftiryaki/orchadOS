@@ -5,7 +5,10 @@ Builds a complete session folder: an equirectangular MP4 drawn with OpenCV
 and end, deliberately blurred frames), a NAV-PVT UBX log of the same path,
 and the logger's gnss/events.csv and gnss/session.json in the İP2 format (see
 docs/arayuzler.md), the root session.json and trees.json. The ground truth is
-written to synthetic_truth.json. The scene is a 3 x 4 tree grid, or a parcel's
+written to synthetic_truth.json. With boundary_walk, the logger log starts with
+a walk around the scan area before the video: corner rows in events.csv and the
+phone's session events (corner, boundary_corners) in phone_events.json, ready
+to insert into public.session_event. The scene is a 3 x 4 tree grid, or a parcel's
 real tree positions (SyntheticConfig.parcel_trees, e.g. from the database).
 """
 
@@ -13,6 +16,7 @@ from __future__ import annotations
 
 import json
 import math
+import uuid
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -67,6 +71,15 @@ class SyntheticConfig:
     positions: tuple[int, int] | None = None
     aisle_end_margin_m: float = 4.0  # path runs this far past the first and last tree
     default_row_spacing_m: float = 8.0  # when the parcel has a single row
+    # Boundary walk before the scan: a rectangle around the scan path, this far
+    # outside it, walked at walk_speed_mps with a pause at each corner. A corner
+    # pressed by mistake is deleted with a boundary_corners event.
+    boundary_walk: bool = False
+    boundary_margin_m: float = 3.0
+    walk_speed_mps: float = 1.2
+    corner_pause_s: float = 4.0
+    # Phone clock error of the corner with time_source = phone.
+    phone_clock_error_ms: int = 300
 
 
 def parse_range(text: str) -> tuple[int, int]:
@@ -165,6 +178,66 @@ def fit_to_parcel(
     return lat0, lon0, waypoints, scene
 
 
+def boundary_rectangle(cfg: SyntheticConfig) -> list[tuple[float, float]]:
+    """Four corners (local e/n) around the scan path, aligned with its first leg,
+    in walking order (counter-clockwise seen from above)."""
+    pts = np.array(cfg.waypoints, dtype=float)
+    d = pts[1] - pts[0]
+    axis = d / np.linalg.norm(d)
+    across = np.array([-axis[1], axis[0]])
+    u, v = pts @ axis, pts @ across
+    m = cfg.boundary_margin_m
+    u0, u1, v0, v1 = u.min() - m, u.max() + m, v.min() - m, v.max() + m
+    corners = [(u0, v1), (u0, v0), (u1, v0), (u1, v1)]
+    return [tuple(float(x) for x in a * axis + b * across) for a, b in corners]
+
+
+@dataclass
+class BoundaryWalk:
+    """Keyframes (seconds from the walk start, e, n) and the corner presses."""
+
+    keys: list[tuple[float, float, float]]
+    # (corner_no, press time from walk start, e, n, kept in the final list)
+    presses: list[tuple[int, float, float, float, bool]]
+    list_event_s: float  # boundary_corners event, after the mistaken press
+    duration_s: float
+
+
+def plan_boundary_walk(cfg: SyntheticConfig) -> BoundaryWalk:
+    """Corners 1-3, a mistaken corner 4 inside the area (deleted by the list
+    event), the last real corner as 5, then on to the scan start."""
+    rect = boundary_rectangle(cfg)
+    c3, c4 = np.array(rect[2]), np.array(rect[3])
+    centre = np.mean(np.array(rect), axis=0)
+    mid = (c3 + c4) / 2
+    mistake = mid + 3.0 * (centre - mid) / np.linalg.norm(centre - mid)
+    stops = [
+        (1, rect[0], True),
+        (2, rect[1], True),
+        (3, rect[2], True),
+        (4, (float(mistake[0]), float(mistake[1])), False),
+        (5, rect[3], True),
+    ]
+    keys: list[tuple[float, float, float]] = []
+    presses = []
+    t = 0.0
+    here = np.array(rect[0])
+    list_event_s = 0.0
+    for no, (e, n), kept in stops:
+        t += float(np.linalg.norm(np.array((e, n)) - here)) / cfg.walk_speed_mps
+        keys.append((t, e, n))
+        presses.append((no, t + cfg.corner_pause_s / 2, e, n, kept))
+        t += cfg.corner_pause_s
+        keys.append((t, e, n))
+        if no == 4:
+            list_event_s = t + 1.0  # the crew deletes it right after
+        here = np.array((e, n))
+    start = np.array(cfg.waypoints[0])
+    t += float(np.linalg.norm(start - here)) / cfg.walk_speed_mps
+    keys.append((t, float(start[0]), float(start[1])))
+    return BoundaryWalk(keys, presses, list_event_s, t)
+
+
 class Path2D:
     def __init__(self, waypoints: list[tuple[float, float]]):
         self.pts = np.array(waypoints, dtype=float)
@@ -191,6 +264,10 @@ class SyntheticTruth:
     fps: float
     trees: list[dict]
     path_length_m: float
+    # Boundary walk: final corners in walking order (corner_no, lat, lon) and the
+    # local-plane area; empty without boundary_walk.
+    boundary_corners: list[dict] = field(default_factory=list)
+    boundary_area_m2: float | None = None
 
 
 def _render_frame(
@@ -271,8 +348,18 @@ def make_session(dest: Path, cfg: SyntheticConfig | None = None) -> SyntheticTru
     move_s = path.length / cfg.speed_mps
     duration_s = 2 * cfg.still_s + move_s
     t0 = utc_to_gps_ns(cfg.start_utc)  # video start, GPS time
+    walk = plan_boundary_walk(cfg) if cfg.boundary_walk else None
+    # The walk ends one second before the video starts.
+    walk_t0 = t0 - int((walk.duration_s + 1.0) * 1e9) if walk else t0
 
     def pos(gps_ns: int) -> tuple[float, float]:
+        if walk is not None and gps_ns < t0 - 1_000_000_000:
+            tw = (gps_ns - walk_t0) / 1e9
+            kt = [k[0] for k in walk.keys]
+            return (
+                float(np.interp(tw, kt, [k[1] for k in walk.keys])),
+                float(np.interp(tw, kt, [k[2] for k in walk.keys])),
+            )
         tau = (gps_ns - t0) / 1e9 - cfg.still_s
         return path.at(tau * cfg.speed_mps)
 
@@ -330,7 +417,7 @@ def make_session(dest: Path, cfg: SyntheticConfig | None = None) -> SyntheticTru
 
     # GNSS log: NAV-PVT at gnss_rate_hz, with NMEA noise and a corrupt frame mixed in.
     step = int(1e9 / cfg.gnss_rate_hz)
-    first = (t0 - int(cfg.gnss_margin_s * 1e9)) // step * step
+    first = (walk_t0 - int(cfg.gnss_margin_s * 1e9)) // step * step
     last = t0 + int((duration_s + cfg.gnss_margin_s) * 1e9)
     blob = bytearray(b"$GNGGA,dummy*00\r\n")
     for i, g in enumerate(range(first, last, step)):
@@ -377,6 +464,21 @@ def make_session(dest: Path, cfg: SyntheticConfig | None = None) -> SyntheticTru
         row(g_end_qr + 1_200_000_000, "pps_regained", ""),
         row(last, "session_stop", "command"),
     ]
+    boundary_truth: list[dict] = []
+    boundary_area = None
+    if walk is not None:
+        phone_events, boundary_truth, boundary_area = _boundary_events(cfg, walk, walk_t0, frame)
+        for ev in phone_events:
+            if ev["event_type"] == "corner":
+                # The logger marks the corner when the command arrives (BLE latency).
+                g = ev["logger_gps_time_ns"]
+                events.append(row(g, "corner", ev["payload"]))
+        for ev in phone_events:
+            ev.pop("logger_gps_time_ns", None)
+        events.sort(key=lambda r: r[0])
+        (dest / "phone_events.json").write_text(
+            json.dumps(phone_events, indent=2) + "\n", encoding="utf-8"
+        )
     (dest / "gnss" / "events.csv").write_text(format_events(events), encoding="utf-8")
     logger_session = {
         "format_version": 1,
@@ -433,8 +535,99 @@ def make_session(dest: Path, cfg: SyntheticConfig | None = None) -> SyntheticTru
         fps=cfg.fps,
         trees=trees,
         path_length_m=path.length,
+        boundary_corners=boundary_truth,
+        boundary_area_m2=boundary_area,
     )
     (dest / "synthetic_truth.json").write_text(
         json.dumps(asdict(truth), indent=1) + "\n", encoding="utf-8"
     )
     return truth
+
+
+def _boundary_events(
+    cfg: SyntheticConfig, walk: BoundaryWalk, walk_t0: int, frame: LocalFrame
+) -> tuple[list[dict], list[dict], float]:
+    """The phone's session events of the walk (docs/arayuzler.md, "Sınır köşeleri ve
+    kapsama"), the final corners and their area.
+
+    Corner 2 has no logger position on the phone (falls back to the logger's own
+    log); corner 5 is timed by the phone clock, off by phone_clock_error_ms.
+    """
+    ns = uuid.UUID("6f1d0a52-8c4e-4b0e-9a57-2d3c1b0e7f10")
+
+    def event_id(name: str) -> str:
+        return str(uuid.uuid5(ns, f"{cfg.session_id}/{name}"))
+
+    def phone_time(g: int) -> str:
+        return gps_ns_to_iso(g)
+
+    events: list[dict] = []
+    final: list[dict] = []
+    latency = cfg.qr_event_latency_ms * 1_000_000
+    for no, t, e, n, kept in walk.presses:
+        g = walk_t0 + int(round(t * 1e9))
+        lat, lon = frame.to_latlon(e, n)
+        lat, lon = float(lat), float(lon)
+        position = None
+        if no != 2:
+            position = {
+                "lat": lat,
+                "lon": lon,
+                "height_m": cfg.height0_m,
+                "h_acc_m": 0.02,
+                "fix_type": 3,
+                "num_sv": 18,
+                "carr_soln": "fixed",
+                "status_gps_time_ns": str(g - 400_000_000),
+                "age_ms": 400,
+            }
+        phone_clock = no == 5
+        events.append(
+            {
+                "id": event_id(f"corner/{no}"),
+                "event_type": "corner",
+                "payload": str(no),
+                "gps_time_ns": g + (cfg.phone_clock_error_ms * 1_000_000 if phone_clock else 0),
+                "time_source": "phone" if phone_clock else "gps",
+                "phone_time": phone_time(g),
+                "logger_result": "ok",
+                "data": {"corner_no": no, "position": position},
+                "logger_gps_time_ns": g + latency,
+            }
+        )
+        if kept:
+            final.append({"corner_no": no, "lat": lat, "lon": lon, "e": e, "n": n})
+    g_list = walk_t0 + int(round(walk.list_event_s * 1e9))
+    listed = [ev for ev in events if ev["data"]["corner_no"] in (1, 2, 3)]
+    events.append(
+        {
+            "id": event_id("boundary_corners/1"),
+            "event_type": "boundary_corners",
+            "payload": str(len(listed)),
+            "gps_time_ns": g_list,
+            "time_source": "gps",
+            "phone_time": phone_time(g_list),
+            "logger_result": "none",
+            "data": {
+                "version": 1,
+                "corners": [
+                    {
+                        "event_id": ev["id"],
+                        "corner_no": ev["data"]["corner_no"],
+                        "note": "sinir tasi" if ev["data"]["corner_no"] == 1 else None,
+                        "markers": ["stone"] if ev["data"]["corner_no"] == 1 else [],
+                        "photos": [],
+                    }
+                    for ev in listed
+                ],
+            },
+        }
+    )
+    events.sort(key=lambda ev: ev["gps_time_ns"])
+    en = [(c["e"], c["n"]) for c in final]
+    area = 0.5 * abs(
+        sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(en, en[1:] + en[:1], strict=True))
+    )
+    for c in final:
+        del c["e"], c["n"]
+    return events, final, area

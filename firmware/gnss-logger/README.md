@@ -135,7 +135,7 @@ Oturum başında yazılır (`stop: null`), bitişte yeniden yazılır.
   "format_version": 1,
   "session_id": "S-1",
   "parcel_id": "P-12",
-  "firmware_version": "0.2.0",
+  "firmware_version": "0.3.0",
   "receiver": {"model": "ZED-F9P", "port": "UART1", "baud": 460800, "meas_period_ms": 200, "rawx_rate_hz": 1, "nav_pvt_rate_hz": 5, "messages": ["RXM-RAWX", "RXM-SFRBX", "NAV-PVT"], "nmea": false, "timepulse_grid": "GPS", "config_status": "ok", "detected_baud": 38400},
   "gps_utc_leap_seconds": 18,
   "start": {"esp_micros":10500000,"gps_time_ns":1476350120500000000,"utc":"2026-10-18T09:15:02.500Z"},
@@ -158,15 +158,15 @@ Cihaz adı `orchados-gnss-XXXX` (XXXX: BT MAC adresinin son iki baytı). Tüm ç
 | Durum | `cdee0002-a1bf-488e-8eda-a2c084827c6c` | read, notify (saniyede 1 ve her komuttan hemen sonra) |
 | Komut | `cdee0003-a1bf-488e-8eda-a2c084827c6c` | write (yanıtlı yazma önerilir) |
 
-**MTU:** Durum 39 bayt, en uzun komut 204 bayt. Uygulama bağlanınca MTU ≥ 247 istemelidir (Android'de `requestMtu(247)`; iOS kendisi anlaşır). Firmware 247 önerir.
+**MTU:** Durum 51 bayt, en uzun komut 204 bayt. Uygulama bağlanınca MTU ≥ 247 istemelidir (Android'de `requestMtu(247)`; iOS kendisi anlaşır). Firmware 247 önerir.
 
-### Durum (39 bayt, protokol sürümü 1)
+### Durum (51 bayt, protokol sürümü 1)
 
 | Ofset | Tür | Alan | Açıklama |
 | --- | --- | --- | --- |
 | 0 | u8 | `version` | 1 |
 | 1 | u8 | `recording` | 0 boşta, 1 kayıtta |
-| 2 | u8 | `flags` | bit0 SD var, bit1 SD alanı az (< 256 MiB), bit2 SD hatası, bit3 GPS zaman eşlemesi var, bit4 bu oturumda veri atıldı, bit5 `gnssFixOK` |
+| 2 | u8 | `flags` | bit0 SD var, bit1 SD alanı az (< 256 MiB), bit2 SD hatası, bit3 GPS zaman eşlemesi var, bit4 bu oturumda veri atıldı, bit5 `gnssFixOK`, bit6 konum geçerli (ofset 39–50) |
 | 3 | u8 | `rx_config` | 0 bekliyor, 1 tamam, 2 yanıt yok, 3 NAK, 4 geçersiz ayar |
 | 4 | u8 | `pps_state` | 0 hiç görülmedi, 1 kilitli, 2 kayıp |
 | 5 | u8 | `fix_type` | NAV-PVT `fixType`: 0 yok, 2 2D, 3 3D, 4 GNSS+DR, 5 sadece zaman |
@@ -181,10 +181,30 @@ Cihaz adı `orchados-gnss-XXXX` (XXXX: BT MAC adresinin son iki baytı). Tüm ç
 | 29 | u8 | `last_cmd_seq` | Son işlenen komutun sıra numarası |
 | 30 | u8 | `last_cmd_result` | Son komutun sonucu (aşağıda); açılıştan beri komut yoksa `0xFF` |
 | 31 | u64 | `gps_time_ns` | Mesajın oluşturulduğu anın GPS zamanı (GPS dönemi başlangıcından beri ns): `çapa_gps + (şimdi − çapa_micros) × 1000`. PPS eşlemesi yoksa (bit3 = 0) `0` |
+| 39 | i32 | `lat_e7` | Son NAV-PVT'nin enlemi (1e-7 derece). Konum geçerli değilse (bit6 = 0) `0` |
+| 43 | i32 | `lon_e7` | Son NAV-PVT'nin boylamı (1e-7 derece); geçerli değilse `0` |
+| 47 | i32 | `height_mm` | Son NAV-PVT'nin elipsoit üstü yüksekliği (mm); geçerli değilse `0` |
 
-Uygulama alan eklenirse sürüm numarasını kontrol etmeli; aynı sürümde yalnızca sona alan eklenir, bu yüzden 39 bayttan uzun durum mesajları kabul edilmelidir. `gps_time_ns` sonradan eklendi (firmware 0.1.0 31 bayt gönderir, 0.2.0'dan itibaren 39 bayt); 31 baytlık bir mesajda alan yok sayılır ve zaman eşlemesi bilinmiyor kabul edilir.
+Uygulama alan eklenirse sürüm numarasını kontrol etmeli; aynı sürümde yalnızca sona alan eklenir, bu yüzden 51 bayttan uzun durum mesajları kabul edilmelidir. Alanlar sonradan eklendi:
+
+| Firmware | Uzunluk | Eklenen |
+| --- | --- | --- |
+| 0.1.0 | 31 bayt | |
+| 0.2.0 | 39 bayt | `gps_time_ns` |
+| 0.3.0 | 51 bayt | Konum bloğu (`lat_e7`, `lon_e7`, `height_mm`) ve `flags` bit6 |
+
+Kısa bir mesajda eksik alanlar yok sayılır: 31 baytta zaman eşlemesi bilinmiyor kabul edilir; 51 bayttan kısa mesajda konum "yok"tur (bit6 da yok sayılır).
+
+**Konum:** Kaynak, durum mesajı oluşturulurken elimizdeki son NAV-PVT'dir (5 Hz, yani en fazla ~200 ms eski). Konum yalnızca `gnssFixOK` (bit5) ve `fix_type` 2, 3 ya da 4 iken ve NAV-PVT `invalidLlh` bayrağı kalkıkken geçerlidir; o zaman bit6 1 olur. Aksi halde (hiç NAV-PVT gelmedi, fix yok, sadece zaman) üç alan `0`, bit6 `0`'dır. Konum PPK öncesidir (alıcının anlık çözümü); doğruluğu `h_acc_mm`'dedir, RTK durumu `carr_soln`'dadır.
 
 `gps_time_ns`, `bit3` (GPS zaman eşlemesi var) ile aynı hesaptan gelir: ikisi her zaman birlikte doludur ya da boştur. Değer, olaylardaki `gps_time_ns` ile aynı kurala uyar (çapadan en fazla 2 sn uzaklık). Telefon bunu, bildirimin alındığı anla karşılaştırıp kendi saatinin GPS zamanına ofsetini bulur; BLE bildirim gecikmesi (tipik olarak < 50 ms) bu ofsete eklenir.
+
+Örnek (onaltılık, 51 bayt): kayıtta; SD var, zaman eşlemesi var, `gnssFixOK`, konum geçerli (`flags` 0x69); 3D fix, RTK fixed, 27 uydu, 14 mm; firmware 0.3.0; son komut seq 7 `ok`; GPS zamanı 1476350122250000000 ns; 37,0662000° K, 37,3830000° D, 892,340 m:
+
+```
+01 01 69 01 01 03 02 1B  0E 00 00 00  04 03 02 01  30 75 00 00  18 47  00 03 00
+00 00 00 00  07 00  80 D6 D0 38 9D 0C 7D 14  70 DA 17 16  70 31 48 16  B4 9D 0D 00
+```
 
 ### Komutlar
 
@@ -224,7 +244,7 @@ Her komut `[opcode u8][seq u8]` ile başlar. `seq` uygulamanın seçtiği sıra 
 
 ## Testler
 
-`pio test -e native` şu konuları kapsar: UBX çerçeve ayrıştırma (parçalı, gürültülü, bozuk sağlama toplamlı, aşırı büyük ve uzunluğu bozuk çerçeveler), elle hazırlanmış NAV-PVT çerçevesinin alanları ve GPS zamanı, CFG-VALSET mesajlarının bayt bayt doğruluğu (beklenen baytlar Python ile bağımsız üretildi), sahte alıcıyla baud keşfi/ACK/NAK, PPS–GPS eşleme, çapa taşıma, PPS kaybı ve geri gelmesi, olay satırı biçimi ve kaçışlar, BLE komut/durum kodlama-çözme (durumdaki `gps_time_ns` ofseti, çapadan hesabı, eşleme yokken 0 ve 31 baytlık eski mesaj), halka ve çift tampon, sahte SD kartla oturum yaşam döngüsü (kart yok, dolu, yazma hatası, mevcut oturum).
+`pio test -e native` şu konuları kapsar: UBX çerçeve ayrıştırma (parçalı, gürültülü, bozuk sağlama toplamlı, aşırı büyük ve uzunluğu bozuk çerçeveler), elle hazırlanmış NAV-PVT çerçevesinin alanları ve GPS zamanı, CFG-VALSET mesajlarının bayt bayt doğruluğu (beklenen baytlar Python ile bağımsız üretildi), sahte alıcıyla baud keşfi/ACK/NAK, PPS–GPS eşleme, çapa taşıma, PPS kaybı ve geri gelmesi, olay satırı biçimi ve kaçışlar, BLE komut/durum kodlama-çözme (durumdaki `gps_time_ns` ofseti, çapadan hesabı, eşleme yokken 0 ve 31 baytlık eski mesaj; konum bloğunun ofsetleri ve uç değerleri, NAV-PVT'den doldurulması, fix yokken sıfır ve bit6 kapalı, 39 baytlık eski mesajda konum yok; README'deki örnek mesaj), halka ve çift tampon, sahte SD kartla oturum yaşam döngüsü (kart yok, dolu, yazma hatası, mevcut oturum).
 
 ## Bilinen sınırlar
 

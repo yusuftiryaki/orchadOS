@@ -1,7 +1,8 @@
 """End to end against the local Supabase stack: scan -> processing -> upload ->
-expert decision -> publication -> the owner sees it.
+expert decision -> publication -> the owner sees it; and the inventory's
+boundary walk -> boundary version -> owner approval.
 
-One test, run in order (README, "Uçtan uca zincir testi"):
+test_scan_to_owner, run in order (README, "Uçtan uca zincir testi"):
 
 1. ops opens a periodic_scan session (planned) on the seed parcel;
 2. synth fitted to the parcel's trees (rows 1-2, positions 1-5, from the
@@ -12,6 +13,16 @@ One test, run in order (README, "Uçtan uca zincir testi"):
 4. the owner sees the visit's assessments in tree_latest_assessment and its
    assets, and a crop downloaded from its signed address has the uploaded hash;
 5. before publication the owner sees the session row and nothing else.
+
+test_boundary_walk_to_approval:
+
+1. ops opens an inventory session; synth --boundary-walk fitted to the parcel;
+   field staff send the phone's corner events to public.session_event;
+2. run --trees-from-db --boundary: the corners become the parcel's next
+   boundary version (source field_survey, the session, the largest corner
+   uncertainty); the boundary command again adds no version;
+3. field staff cannot approve it; the owner sees and approves it
+   (approve_boundary).
 
 The CLI is driven through main() with the ops credentials in the environment,
 as at the processing station. The session is purged afterwards
@@ -31,6 +42,7 @@ import pytest
 from conftest import fast_params
 from supabase_util import ORG, PARCEL, client, creds
 
+from orchados_pipeline.boundary import BoundarySurvey
 from orchados_pipeline.cli import main
 from orchados_pipeline.context import RunContext
 from orchados_pipeline.media import media_key
@@ -242,3 +254,100 @@ def test_scan_to_owner(supabase_env, test_sessions, tmp_path, monkeypatch):
     for c in (ops, expert, owner):
         c.close()
     print("  " + json.dumps({"session_id": session_id, "trees": len(active)}))
+
+
+def test_boundary_walk_to_approval(supabase_env, test_sessions, tmp_path, monkeypatch):
+    steps = Steps()
+    for k, v in creds(supabase_env, "ops").items():
+        monkeypatch.setenv(k, v)
+    ops, field, owner = (client(supabase_env, who) for who in ("ops", "field", "owner"))
+
+    # 1. Inventory session, boundary walk, the phone's events in the database.
+    session_id = str(uuid.uuid4())
+    test_sessions.append(session_id)
+    start = datetime.now(UTC).replace(microsecond=0)
+    ops.insert(
+        "session",
+        [
+            {
+                "id": session_id,
+                "org_id": ORG,
+                "parcel_id": PARCEL,
+                "kind": "inventory",
+                "status": "planned",
+                "planned_date": start.date().isoformat(),
+                "started_at": start.isoformat(),
+            }
+        ],
+    )
+    session_dir = tmp_path / "session"
+    params = tmp_path / "params.json"
+    params.write_text(fast_params().model_dump_json(), encoding="utf-8")
+    seed = str(uuid.UUID(session_id).int % 100_000)
+    synth = ["synth", str(session_dir), "--trees-from-db", "--parcel-id", PARCEL]
+    synth += ["--session-id", session_id, "--rows", "1-1", "--positions", "1-3"]
+    synth += ["--boundary-walk", "--start-utc", start.isoformat(), "--seed", seed]
+    assert main(synth) == 0
+    truth = json.loads((session_dir / "synthetic_truth.json").read_text(encoding="utf-8"))
+    phone = json.loads((session_dir / "phone_events.json").read_text(encoding="utf-8"))
+    field.insert(
+        "session_event",
+        [{**ev, "org_id": ORG, "parcel_id": PARCEL, "session_id": session_id} for ev in phone],
+    )
+    before = ops.select("boundary", {"parcel_id": f"eq.{PARCEL}", "select": "id,version"})
+    steps.done(f"inventory session, boundary walk, {len(phone)} session events")
+
+    # 2. run + boundary stage: the next boundary version.
+    run = ["run", str(session_dir), "--trees-from-db", "--boundary", "--params", str(params)]
+    assert main(run) == 0
+    run_dir = RunContext.create(session_dir, None, fast_params()).run_dir
+    survey = read_model(BoundarySurvey, run_dir / "boundary.json")
+    assert [c.corner_no for c in survey.corners] == [
+        c["corner_no"] for c in truth["boundary_corners"]
+    ]
+    assert {c.source for c in survey.corners} == {"phone", "logger"}  # no base data: no PPK
+    assert survey.area_m2 == pytest.approx(truth["boundary_area_m2"], rel=1e-3)
+    rec = survey.record
+    assert rec is not None and rec.created
+    assert rec.version == max(b["version"] for b in before) + 1
+    (row,) = ops.select(
+        "boundary",
+        {
+            "id": f"eq.{rec.boundary_id}",
+            "select": "source,session_id,vertex_uncertainty_m,surveyed_at,area_m2,"
+            "owner_approved_at,geom",
+        },
+    )
+    assert (row["source"], row["session_id"]) == ("field_survey", session_id)
+    assert row["vertex_uncertainty_m"] == pytest.approx(survey.vertex_uncertainty_m)
+    assert datetime.fromisoformat(row["surveyed_at"]) == datetime.fromisoformat(
+        survey.surveyed_at.replace("Z", "+00:00")
+    )
+    assert row["area_m2"] == pytest.approx(survey.area_m2, rel=1e-3)
+    assert row["owner_approved_at"] is None
+    assert row["geom"]["coordinates"][0][:-1] == survey.ring()
+    steps.done(f"run --boundary: version {rec.version}, {survey.area_m2:.0f} m2")
+
+    # Same corners again: no new version.
+    assert main(["boundary", str(session_dir), "--params", str(params)]) == 0
+    again = read_model(BoundarySurvey, run_dir / "boundary.json")
+    assert again.record is not None and not again.record.created
+    assert again.record.boundary_id == rec.boundary_id
+    after = ops.select("boundary", {"parcel_id": f"eq.{PARCEL}", "select": "id"})
+    assert len(after) == len(before) + 1
+    steps.done("boundary again: no new version")
+
+    # 3. Owner approval.
+    with pytest.raises(SupabaseError):
+        field.rpc("approve_boundary", {"p_boundary_id": rec.boundary_id})
+    (seen,) = owner.select(
+        "boundary", {"id": f"eq.{rec.boundary_id}", "select": "id,version,source"}
+    )
+    assert seen["version"] == rec.version
+    approved = owner.rpc("approve_boundary", {"p_boundary_id": rec.boundary_id})
+    assert approved["owner_approved_by"] == owner.user_id
+    assert approved["owner_approved_at"] is not None
+    steps.done("owner approved the boundary")
+
+    for c in (ops, field, owner):
+        c.close()

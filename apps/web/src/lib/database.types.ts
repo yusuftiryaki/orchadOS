@@ -3,6 +3,105 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      ai_assessment_detail: {
+        Row: {
+          assessment_id: string;
+          batch_ids: string[];
+          cache_creation_input_tokens: number;
+          cache_read_input_tokens: number;
+          config_key: string;
+          cost_usd: number;
+          created_at: string;
+          final_model: string;
+          final_stage: number;
+          flags: string[];
+          input_tokens: number;
+          models: string[];
+          org_id: string;
+          output_tokens: number;
+          parcel_id: string;
+          prompt_version: string;
+          review_reasons: string[];
+          session_id: string;
+          tree_id: string;
+          tree_visible: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          assessment_id: string;
+          batch_ids?: string[];
+          cache_creation_input_tokens?: number;
+          cache_read_input_tokens?: number;
+          config_key: string;
+          cost_usd?: number;
+          created_at?: string;
+          final_model: string;
+          final_stage: number;
+          flags?: string[];
+          input_tokens?: number;
+          models: string[];
+          org_id: string;
+          output_tokens?: number;
+          parcel_id: string;
+          prompt_version: string;
+          review_reasons?: string[];
+          session_id: string;
+          tree_id: string;
+          tree_visible: string;
+        };
+        Update: {
+          assessment_id?: string;
+          batch_ids?: string[];
+          cache_creation_input_tokens?: number;
+          cache_read_input_tokens?: number;
+          config_key?: string;
+          cost_usd?: number;
+          created_at?: string;
+          final_model?: string;
+          final_stage?: number;
+          flags?: string[];
+          input_tokens?: number;
+          models?: string[];
+          org_id?: string;
+          output_tokens?: number;
+          parcel_id?: string;
+          prompt_version?: string;
+          review_reasons?: string[];
+          session_id?: string;
+          tree_id?: string;
+          tree_visible?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ai_assessment_detail_assessment_id_parcel_id_org_id_fkey";
+            columns: ["assessment_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "assessment";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "ai_assessment_detail_assessment_id_parcel_id_org_id_fkey";
+            columns: ["assessment_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree_latest_assessment";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "ai_assessment_detail_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "ai_assessment_detail_tree_id_parcel_id_org_id_fkey";
+            columns: ["tree_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
       assessment: {
         Row: {
           approved_at: string | null;
@@ -2004,6 +2103,15 @@ export type Database = {
       };
     };
     Functions: {
+      add_field_survey_boundary: {
+        Args: {
+          p_ring: Json;
+          p_session_id: string;
+          p_surveyed_at: string;
+          p_vertex_uncertainty_m: number;
+        };
+        Returns: Json;
+      };
       add_owner_declared_boundary: {
         Args: { p_parcel_id: string; p_ring: Json; p_vertex_uncertainty_m?: number };
         Returns: {
@@ -2392,6 +2500,22 @@ export type Database = {
           p_org_id: string;
           p_owner_user_id?: string;
           p_parcel: Json;
+        };
+        Returns: string;
+      };
+      save_ai_assessment: {
+        Args: {
+          p_confidence: number;
+          p_detail: Json;
+          p_evidence_asset_ids: string[];
+          p_measurements: Json;
+          p_methodology_version: string;
+          p_model_name: string;
+          p_model_version: string;
+          p_notes: string;
+          p_overall_class: Database["public"]["Enums"]["health_class"];
+          p_session_id: string;
+          p_tree_id: string;
         };
         Returns: string;
       };
