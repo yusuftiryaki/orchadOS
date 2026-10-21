@@ -7,6 +7,7 @@
 #include <string>
 
 #include "event_log.h"
+#include "nav_pvt.h"
 #include "time_sync.h"
 
 namespace gl {
@@ -74,11 +75,13 @@ ResultCode decodeCommand(const uint8_t* data, size_t len, Command* out);
 // Returns the length, or 0 if it does not fit or is invalid.
 size_t encodeCommand(const Command& c, uint8_t* out, size_t cap);
 
-// Status length as sent by this firmware. Version 1 started at 31 bytes;
-// fields are only ever appended, so decoders accept anything from
+// Status length as sent by this firmware. Version 1 started at 31 bytes
+// (0.1.0), gps_time_ns made it 39 (0.2.0) and the position block 51 (0.3.0).
+// Fields are only ever appended, so decoders accept anything from
 // kStatusMinLen on and read appended fields when present.
-constexpr size_t kStatusLen = 39;
+constexpr size_t kStatusLen = 51;
 constexpr size_t kStatusMinLen = 31;
+constexpr size_t kStatusGpsTimeLen = 39;
 
 namespace flags {
 constexpr uint8_t kSdPresent = 0x01;
@@ -87,6 +90,7 @@ constexpr uint8_t kSdError = 0x04;
 constexpr uint8_t kTimeMapped = 0x08;
 constexpr uint8_t kDataDropped = 0x10;
 constexpr uint8_t kGnssFixOk = 0x20;
+constexpr uint8_t kPositionValid = 0x40;
 }  // namespace flags
 
 struct Status {
@@ -107,7 +111,20 @@ struct Status {
   uint8_t lastCmdResult = static_cast<uint8_t>(ResultCode::kNone);
   // GPS time (ns since GPS epoch) when the message was built; 0 = no mapping.
   uint64_t gpsTimeNs = 0;
+  // Receiver position from the last NAV-PVT; all 0 unless flags bit6 is set.
+  int32_t latE7 = 0;      // 1e-7 deg
+  int32_t lonE7 = 0;      // 1e-7 deg
+  int32_t heightMm = 0;   // above the ellipsoid
 };
+
+// True when a NAV-PVT position may be sent: gnssFixOK, a 2D/3D/GNSS+DR fix
+// and valid lat/lon/height.
+bool positionValid(const NavPvt& pvt);
+
+// Fills the position block and flags bit6 from the last NAV-PVT (`pvt` may
+// be null when none has arrived). Without a valid fix the fields are 0 and
+// the bit is cleared.
+void setStatusPosition(const NavPvt* pvt, Status* s);
 
 // Status gpsTimeNs for a message built at `nowMicros`:
 // anchor_gps + (now - anchor_micros) * 1000, or 0 without a PPS mapping.
@@ -115,7 +132,9 @@ uint64_t statusGpsTimeNs(const TimeSync& time, int64_t nowMicros);
 
 // Writes kStatusLen bytes.
 void encodeStatus(const Status& s, uint8_t* out);
-// Accepts kStatusMinLen bytes or more; gpsTimeNs is 0 in a 31-byte message.
+// Accepts kStatusMinLen bytes or more. Fields missing from a shorter
+// message (gpsTimeNs below 39 bytes, the position below 51) are 0, and the
+// position bit is cleared when the position block is missing.
 bool decodeStatus(const uint8_t* data, size_t len, Status* out);
 
 }  // namespace ble

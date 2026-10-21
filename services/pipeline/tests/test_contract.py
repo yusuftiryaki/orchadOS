@@ -90,7 +90,7 @@ def _readme_session(synthetic_session, tmp_path) -> Path:
 def test_ingest_accepts_readme_files(synthetic_session, tmp_path):
     s = _readme_session(synthetic_session, tmp_path)
     m = build_manifest(RunContext.create(s, tmp_path / "out"))
-    assert m.logger is not None and m.logger.firmware_version == "0.2.0"
+    assert m.logger is not None and m.logger.firmware_version == "0.3.0"
     assert m.session.session_id == m.logger.session_id == "S-1"
     assert m.event_counts == {"qr_sync": 1, "session_start": 1}
     roles = {f.path: f.role for f in m.files}

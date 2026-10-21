@@ -1,0 +1,207 @@
+"""What the AI is told about the methodology (docs/metodoloji.md, sections 4-6 and Ek B).
+
+The texts here are the prompt's view of the scales: English renderings of the
+methodology document, keyed by the metric codes of the registry
+(public.metric_definition). They are versioned with the prompt
+(prompt.PROMPT_REVISION); a change here is a new prompt version.
+
+Nothing in this module is read from the database at prompt time except which
+codes exist, their value type and range, so a free-text column of the registry
+can never leak into a request.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Literal
+
+Season = Literal["winter", "spring", "summer", "harvest"]
+SEASONS: tuple[Season, ...] = ("winter", "spring", "summer", "harvest")
+HealthClass = Literal["healthy", "attention", "problem", "dead", "absent"]
+HEALTH_CLASSES: tuple[HealthClass, ...] = ("healthy", "attention", "problem", "dead", "absent")
+
+# The methodology versions this prompt knows. The session row names its version
+# (session.methodology_version); a visit without one uses the default, as the
+# expert panel does (apps/web, DEFAULT_METHODOLOGY_VERSION).
+DEFAULT_METHODOLOGY_VERSION = "methodology-v0"
+SUPPORTED_METHODOLOGY_VERSIONS = ("methodology-v0",)
+
+# Visit calendar (docs/MVP.md, Modül 3), same rule as apps/web/src/lib/expert/season.ts:
+# March counts as spring, November as winter. Month in UTC.
+_SEASON_BY_MONTH: tuple[Season, ...] = (
+    "winter",
+    "winter",
+    "spring",
+    "spring",
+    "spring",
+    "summer",
+    "summer",
+    "harvest",
+    "harvest",
+    "harvest",
+    "winter",
+    "winter",
+)
+
+
+def season_of(when: datetime) -> Season:
+    return _SEASON_BY_MONTH[when.month - 1]
+
+
+@dataclass(frozen=True)
+class ScaleText:
+    """Prompt text of one metric: what it is and what each value means."""
+
+    title: str
+    values: tuple[tuple[str, str], ...]
+    how: str = ""
+
+
+# Metric code -> prompt text. Only tree metrics the AI may suggest from crops;
+# parcel metrics (theft_trace), measured quantities (crown_diameter, ...) and the
+# staff's own yes/no questions are not asked of the AI.
+SCALE_TEXTS: dict[str, ScaleText] = {
+    "dead_branch_scale": ScaleText(
+        "Dead branches (share of the visible crown volume that is dead)",
+        (
+            ("0", "no dead branches, or only thin tip shoots"),
+            ("1", "less than 10% of the crown is dead"),
+            ("2", "10-30% of the crown is dead"),
+            ("3", "more than 30% of the crown is dead"),
+        ),
+        "Judge the four directions together; estimate by crown volume, not by branch count. "
+        "In winter, dead wood is ash grey with cracked or peeling bark and no buds at the tips. "
+        "Cut stubs left by pruning are not dead branches.",
+    ),
+    "trunk_base_scale": ScaleText(
+        "Trunk and base (wounds, cavities, bark loss, gummosis, root suckers)",
+        (
+            ("0", "sound trunk, clean base"),
+            ("1", "small wound or a few root suckers"),
+            (
+                "2",
+                "wound or cavity on less than a quarter of the trunk circumference; dense root "
+                "suckers; gummosis",
+            ),
+            (
+                "3",
+                "wound on more than a quarter of the circumference, deep cavity or bark loss",
+            ),
+        ),
+        "Panorama crops often hide the trunk (tall grass, hoses, angle). If the trunk is not "
+        "clearly visible, give no value. Values 2 and 3 need a close-up to confirm, so give them "
+        "only when the damage is unmistakable, and with a moderate confidence.",
+    ),
+    "pruning_status": ScaleText(
+        "Pruning this season (care compliance; does not affect the overall class)",
+        (
+            ("done", "clear pruning traces this season: fresh cuts, opened crown centre"),
+            ("partial", "some main branches pruned, part of the crown not"),
+            ("not_done", "no pruning traces this season"),
+        ),
+        "If it cannot be decided from the images, give no value.",
+    ),
+    "crown_density_scale": ScaleText(
+        "Crown density (leafy period)",
+        (
+            ("0", "normal: little sky visible through the crown"),
+            ("1", "slightly sparse"),
+            ("2", "clearly sparse: sky visible through large parts of the crown"),
+            ("3", "very sparse: leaves only at branch tips or on a few branches"),
+        ),
+        "Compare with a healthy tree of the same size. A general late-summer thinning on rainfed "
+        "orchards is normal and is not a high value for a single tree.",
+    ),
+    "frost_damage_scale": ScaleText(
+        "Frost damage (spring)",
+        (
+            ("0", "no damage"),
+            ("1", "blackening on a few shoots or flower clusters"),
+            ("2", "blackened flowers and shoots on a clear part of the crown"),
+            ("3", "loss of flowers and young shoots on most of the crown"),
+        ),
+    ),
+    "pest_sign_severity": ScaleText(
+        "Visible pest signs (severity). Visible signs only; this is not a diagnosis",
+        (
+            ("none", "no visible pest signs"),
+            ("mild", "signs on a few branches"),
+            ("marked", "signs across the crown or on many branches"),
+        ),
+    ),
+    "pest_sign_type": ScaleText(
+        "Pest suggested by the visible signs (only when the severity is mild or marked)",
+        (
+            (
+                "psylla",
+                "honeydew and shine on leaves, black sooty mould spots, leaf curling and drop",
+            ),
+            ("bud_borer", "drying of shoot tips and buds, dying tip shoots"),
+            ("stink_bug", "feeding spots on fruit, empty kernels (usually needs a close-up)"),
+            ("other", "another or uncertain pest"),
+        ),
+        "If the type is not clear, choose other. Give no value when the severity is none.",
+    ),
+    "fruit_load_scale": ScaleText(
+        "Fruit load (summer; alternate bearing is normal and does not affect the overall class)",
+        (
+            ("0", "no or very few clusters"),
+            ("1", "few: clusters on a small part of the branches"),
+            ("2", "medium"),
+            ("3", "loaded: clusters on most branches"),
+        ),
+    ),
+    "harvest_complete": ScaleText(
+        "Harvest of the tree is complete",
+        (("true", "no clusters left on the tree"), ("false", "clusters still on the tree")),
+    ),
+    "branch_break": ScaleText(
+        "Broken branch",
+        (("true", "a broken branch is visible"), ("false", "no broken branch visible")),
+    ),
+}
+
+# Scales that drive the overall class (docs/metodoloji.md, section 5). Pruning
+# and fruit load do not affect it.
+CLASS_SCALES = (
+    "dead_branch_scale",
+    "trunk_base_scale",
+    "crown_density_scale",
+    "frost_damage_scale",
+)
+
+# Field staff yes/no questions (supabase/migrations/20261021230000_field_sync.sql).
+# Only the code and the answer go into a request; this gloss is ours, so the
+# question wording shown to staff never does.
+STAFF_QUESTIONS: dict[str, str] = {
+    "dead_branch_present": "a dead branch is seen",
+    "trunk_damage_present": "wound, cavity or bark loss on the trunk",
+    "root_sucker_present": "root suckers at the base",
+    "pruned": "the tree was pruned this winter",
+    "frost_damage_present": "blackened flowers or young shoots",
+    "pest_sign_present": "visible pest signs",
+    "fruit_present": "the tree carries fruit clusters",
+    "drought_stress_sign": "signs of drought stress",
+    "theft_sign_present": "signs of early picking or theft at the tree",
+    "harvest_complete": "harvest of the tree is complete",
+    "branch_break": "a broken branch is seen",
+}
+
+
+def expected_class(values: dict[str, object]) -> HealthClass | None:
+    """Overall class from scale values by rules 3-5 (section 5); None if no class scale is set.
+
+    Rules 1 (absent) and 2 (dead) need the images, not the scales; the model decides
+    those. Used to check that a suggestion is consistent with its own scales.
+    """
+    scales = [values.get(code) for code in CLASS_SCALES]
+    given = [v for v in scales if isinstance(v, int)]
+    pest = values.get("pest_sign_severity")
+    if not given and pest is None:
+        return None
+    if any(v == 3 for v in given) or pest == "marked":
+        return "problem"
+    if any(v == 2 for v in given) or pest == "mild":
+        return "attention"
+    return "healthy"

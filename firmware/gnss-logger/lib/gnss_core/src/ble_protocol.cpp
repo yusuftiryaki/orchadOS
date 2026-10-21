@@ -161,6 +161,26 @@ void encodeStatus(const Status& s, uint8_t* out) {
   out[29] = s.lastCmdSeq;
   out[30] = s.lastCmdResult;
   putU8(out + 31, s.gpsTimeNs);
+  putU4(out + 39, static_cast<uint32_t>(s.latE7));
+  putU4(out + 43, static_cast<uint32_t>(s.lonE7));
+  putU4(out + 47, static_cast<uint32_t>(s.heightMm));
+}
+
+bool positionValid(const NavPvt& pvt) {
+  return pvt.gnssFixOk && pvt.fixType >= 2 && pvt.fixType <= 4 &&
+         !pvt.invalidLlh;
+}
+
+void setStatusPosition(const NavPvt* pvt, Status* s) {
+  if (pvt != nullptr && positionValid(*pvt)) {
+    s->latE7 = pvt->latE7;
+    s->lonE7 = pvt->lonE7;
+    s->heightMm = pvt->heightMm;
+    s->flags |= flags::kPositionValid;
+  } else {
+    s->latE7 = s->lonE7 = s->heightMm = 0;
+    s->flags &= static_cast<uint8_t>(~flags::kPositionValid);
+  }
 }
 
 uint64_t statusGpsTimeNs(const TimeSync& time, int64_t nowMicros) {
@@ -189,7 +209,14 @@ bool decodeStatus(const uint8_t* d, size_t len, Status* out) {
   s.droppedBytes = ubx::readU4(d + 25);
   s.lastCmdSeq = d[29];
   s.lastCmdResult = d[30];
-  if (len >= kStatusLen) s.gpsTimeNs = readU8(d + 31);
+  if (len >= kStatusGpsTimeLen) s.gpsTimeNs = readU8(d + 31);
+  if (len >= kStatusLen) {
+    s.latE7 = ubx::readI4(d + 39);
+    s.lonE7 = ubx::readI4(d + 43);
+    s.heightMm = ubx::readI4(d + 47);
+  } else {
+    s.flags &= static_cast<uint8_t>(~flags::kPositionValid);
+  }
   *out = s;
   return true;
 }
