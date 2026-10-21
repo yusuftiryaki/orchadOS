@@ -19,7 +19,7 @@ Değerlendirme kuralları [metodoloji.md](metodoloji.md)'de, ürün tanımı [MV
 | **Hissedar** (izleyici) | Hisseli parselde diğer hissedarlar; sahip ekler | Sahiple aynı ekranları görür, değiştiremez | Web portalı, `/portal` |
 | **Saha personeli** | Eğitimli öğrenci ya da okur yazar tarım işçisi | Sınır yürüyüşü, grid tarama, yakın plan, doğrulama turu; ofiste gövde üçgenleme | Saha uygulaması (Android) + tarama kiti; ofis aracı, `/ofis` |
 | **Uzman** | Ziraat mühendisi, uzaktan çalışır | Ağaçları inceler, kararı verir, bulgu ve öneri yazar, raporu imzalar | Uzman paneli, `/uzman` |
-| **Operasyon** | Başlangıçta kurucu | Sahip ve parsel kaydı, ziyaret planı, işleme hattını çalıştırma, kalite takibi | İşleme istasyonu (`orchados-pipeline`), ofis aracı, `/operasyon`; şimdilik Supabase paneli |
+| **Operasyon** | Başlangıçta kurucu | Sahip ve parsel kaydı, ziyaret planı, işleme hattını çalıştırma, kalite takibi | `/operasyon`, işleme istasyonu (`orchados-pipeline`), ofis aracı |
 
 **Araçlar:**
 
@@ -69,18 +69,22 @@ flowchart TD
 
 ## 1. Kayıt
 
-**Kim:** Operasyon · **Araç:** şimdilik Supabase paneli 🟡
+**Kim:** Operasyon · **Araç:** `/operasyon`
 
 1. Sahiple telefonda ya da yüz yüze görüşülür. Ad, telefon, iletişim tercihi ve KVKK onayı alınır. Kişisel bilgiler ayrı, korumalı bir şemada (`private`) tutulur.
 2. Her parsel için: il/ilçe/köy, kaba konum ve sınır, tahmini alan ve ağaç sayısı, erişim notu, sınırı sahada gösterecek kişi. Tapu bilgisi sadece kayıt içindir.
-3. Sahibe ve varsa hissedarlara portal erişimi verilir (`parcel_access`: sahip `owner`, hissedar `viewer`).
-4. Parsel durumu: kayıt → envanter planlandı.
+3. Kaba sınır haritada çizilir (sınır sürüm 1, kaynağı "sahibin beyanı").
+4. Sahibe ve varsa hissedarlara portal erişimi verilir (`parcel_access`: sahip `owner`, hissedar `viewer`).
+    - Hesap yoksa açılır; tek kullanımlık parola ekranda bir kez gösterilir.
+    - Operasyon parolayı sahibe WhatsApp'la iletir.
+    - Hesabı Supabase'deki `invite-user` fonksiyonu açar; servis anahtarı Vercel'e çıkmaz.
+5. Envanter ziyareti planlanınca parsel durumu "kayıt"tan "envanter planlandı"ya geçer.
 
 | Adım | Durum |
 | --- | --- |
 | Veri modeli, kişisel verinin ayrı tutulması, yetki kuralları | ✅ |
-| Kayıt ekranı (`/operasyon`) | ⬜ Şimdilik Supabase panelinden ya da SQL ile |
-| Sahibe davet linki, telefonla (SMS) giriş | ⬜ Şimdilik e-posta + parola |
+| Sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma (`/operasyon`) | ✅ |
+| Telefonla (SMS) giriş | ⬜ Şimdilik e-posta + tek kullanımlık parola |
 
 ## 2. Envanter
 
@@ -139,7 +143,7 @@ Envanter her parselin dijital haritasını bir kez çıkarır. Sonraki her ziyar
 | Adım | Durum |
 | --- | --- |
 | Üçgenleme, sıra oturtma, kodlama, boş yerler, doğrulama listesi, kayıt | ✅ |
-| Panoramaları depodan okuma; tek işlemde kayıt; tıklamaların etiket olarak saklanması | 🟡 Geliştiriliyor (İP5 v0.2) |
+| Panoramaları depodan okuma; tek işlemde kayıt; tıklamaların etiket olarak saklanması | ✅ |
 | Ağaç özellikleri (yaş, aşı) ve altyapının ofiste işaretlenmesi | ✅ |
 | Ofiste saha sınırı çizimi (sahada köşe işaretleme gelene kadar) | ✅ |
 
@@ -164,13 +168,13 @@ Yılda dört ziyaret: kış, ilkbahar, yaz, hasat. Her ziyarette neye bakıldı�
 
 ### 3.1 Planlama
 
-**Kim:** Operasyon · **Araç:** şimdilik Supabase paneli 🟡
+**Kim:** Operasyon · **Araç:** `/operasyon`
 
 Parsel için `periodic_scan` türünde, `planned` durumda bir ziyaret açılır; tarihi ve sorumlu personeli girilir. Ziyaret, personelin uygulamasında "bugünkü görevler" listesine düşer.
 
 | Adım | Durum |
 | --- | --- |
-| Planlama ekranı (`/operasyon`) | ⬜ |
+| Planlama, tarih ve sorumlu değişikliği, iptal; pano (duruma göre sayılar, yaklaşanlar, gecikenler) | ✅ |
 | Görevlerin telefona inmesi | 🟡 Geliştiriliyor (İP6) |
 
 ### 3.2 Sahada: tarama ve yakın plan
@@ -202,7 +206,7 @@ Envanterle aynı adımlar. Bunlara ek olarak her ağaç için, ağaca en yakın 
 | Adım | Durum |
 | --- | --- |
 | Kesitler, yükleme, `processed` durumu | ✅ Sentetik veriyle |
-| Ağaç konumlarının envanterden (veritabanından) alınması | 🟡 Geliştiriliyor (İP4 v0.2) |
+| Ağaç konumlarının envanterden (veritabanından) alınması | ✅ |
 | Kapsama raporu ve yeniden tarama görevi | ⬜ |
 
 ### 3.4 AI ön değerlendirme
@@ -267,7 +271,7 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 
 | Rol | Bir ziyarette ne yapar | Ekran |
 | --- | --- | --- |
-| Operasyon | Ziyareti planlar, kartları alır, işleme ve yüklemeyi çalıştırır, kaliteyi izler | Supabase paneli (geçici), işleme istasyonu |
+| Operasyon | Ziyareti planlar, kartları alır, işleme ve yüklemeyi çalıştırır, kaliteyi izler | `/operasyon`, işleme istasyonu |
 | Saha personeli | Tarar, yakın plan çeker, soruları cevaplar; envanterde ofiste gövde üçgenler | Saha uygulaması, `/ofis` |
 | Uzman | İnceler, karar verir, bulgu yazar, imzalar | `/uzman` |
 | Sahip, hissedar | Okur, inceler, gezer | `/portal` |
