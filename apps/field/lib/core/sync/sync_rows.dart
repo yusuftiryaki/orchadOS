@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:uuid/uuid.dart';
 
 import '../db/database.dart';
@@ -66,6 +68,7 @@ Map<String, Object?> sessionEventRow(
   'time_source': e.timeSource,
   'phone_time': e.phoneTime.toUtc().toIso8601String(),
   'logger_result': e.loggerResult,
+  if (e.dataJson != null) 'data': jsonDecode(e.dataJson!),
 };
 
 /// `public.capture` row of a close-up photo. Phone-side details without a
@@ -99,6 +102,8 @@ Map<String, Object?> captureRow(
       'sensor': c.sensor,
       'shot_code': c.shotCode,
       'slot_code': c.slotCode,
+      if (c.subjectType == 'slot') 'slot_id': c.subjectId,
+      if (c.subjectType == 'corner') 'corner_event_id': c.subjectId,
       'gps_time_ns': c.gpsTimeMs * 1000000,
       'time_source': c.timeSource,
       'phone_time': c.capturedAt.toUtc().toIso8601String(),
@@ -142,4 +147,15 @@ Map<String, Object?> measurementRow(
   'source': m.source,
   'session_id': m.sessionId,
   'measured_at': m.measuredAt.toUtc().toIso8601String(),
+};
+
+/// Arguments of `record_verification_result` (docs/arayuzler.md,
+/// "Doğrulama kalemleri"). The photo is the capture uploaded before it.
+Map<String, Object?> verificationResultParams(VerificationResultRow r) => {
+  'p_item_id': r.itemId,
+  'p_tree_present': r.treePresent,
+  'p_note': r.note,
+  'p_closeup_capture_id': r.captureSha256 == null
+      ? null
+      : captureId(r.tourId, r.captureSha256!),
 };

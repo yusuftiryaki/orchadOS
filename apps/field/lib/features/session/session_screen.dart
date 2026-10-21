@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../core/ui/widgets.dart';
+import '../boundary/boundary_screen.dart';
 import '../closeup/closeup_list_screen.dart';
+import '../coverage/coverage_card.dart';
 import '../gnss/gnss_panel.dart';
 import '../qr_clock/qr_clock_screen.dart';
 import '../summary/visit_summary_screen.dart';
@@ -33,6 +35,8 @@ class SessionScreen extends ConsumerWidget {
     void openQr(QrMoment m) => Navigator.of(
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => QrClockScreen(moment: m)));
+    void openBoundary() => Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const BoundaryScreen()));
 
     return PopScope(
       // Leaving while recording would orphan the logger session.
@@ -60,8 +64,16 @@ class SessionScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+              if (state.coverage != null) const CoverageCard(),
               const SizedBox(height: 16),
-              ..._actions(context, ref, state, controller, openQr),
+              ..._actions(
+                context,
+                ref,
+                state,
+                controller,
+                openQr,
+                openBoundary,
+              ),
             ],
           ),
         ),
@@ -75,6 +87,7 @@ class SessionScreen extends ConsumerWidget {
     SessionState state,
     SessionController controller,
     void Function(QrMoment) openQr,
+    VoidCallback openBoundary,
   ) {
     const gap = SizedBox(height: 12);
     switch (state.phase) {
@@ -106,16 +119,15 @@ class SessionScreen extends ConsumerWidget {
           if (state.task?.isInventory ?? false) ...[
             gap,
             _Step(
-              done: state.cornerCount > 0,
-              text: '2. Sınır boyunca yürü, her köşede işaretle',
+              done: state.cornerCount >= 3,
+              text: '2. Sınır boyunca yürü, her köşede "Köşe"ye bas',
             ),
             BigButton(
-              key: const Key('session-corner'),
+              key: const Key('session-boundary'),
               icon: Icons.flag,
-              label: 'Köşe işaretle (${state.cornerCount})',
-              busy: state.busy,
+              label: 'Sınır (${state.cornerCount} köşe)',
               color: Colors.indigo,
-              onPressed: state.startQrShown ? controller.markCorner : null,
+              onPressed: state.startQrShown ? openBoundary : null,
             ),
           ],
           gap,
@@ -146,6 +158,21 @@ class SessionScreen extends ConsumerWidget {
             leading: Icon(Icons.check_circle, color: Colors.green, size: 40),
             title: Text('Kayıt durdu. Kameradaki videoyu da durdurun.'),
           ),
+          if (state.task?.isInventory ?? false) ...[
+            gap,
+            OutlinedButton.icon(
+              key: const Key('session-boundary-edit'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(56),
+              ),
+              icon: const Icon(Icons.flag),
+              label: Text(
+                'Sınır köşeleri (${state.cornerCount})',
+                style: const TextStyle(fontSize: 18),
+              ),
+              onPressed: openBoundary,
+            ),
+          ],
           gap,
           BigButton(
             key: const Key('session-next'),

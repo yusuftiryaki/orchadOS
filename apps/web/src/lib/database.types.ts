@@ -1369,6 +1369,7 @@ export type Database = {
       session_event: {
         Row: {
           created_at: string;
+          data: Json | null;
           event_type: string;
           gps_time_ns: number;
           id: string;
@@ -1384,6 +1385,7 @@ export type Database = {
         ComputedFields: never;
         Insert: {
           created_at?: string;
+          data?: Json | null;
           event_type: string;
           gps_time_ns: number;
           id?: string;
@@ -1398,6 +1400,7 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          data?: Json | null;
           event_type?: string;
           gps_time_ns?: number;
           id?: string;

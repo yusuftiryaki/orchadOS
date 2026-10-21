@@ -18,7 +18,9 @@ __pycache__/
 # Web
 .next/
 dist/
-coverage/
+/coverage/
+/apps/*/coverage/
+/services/*/coverage/
 
 # Flutter / Android
 .dart_tool/

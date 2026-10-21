@@ -9,6 +9,7 @@ abstract final class OutboxEntity {
   static const sessionEvent = 'session_event';
   static const capture = 'capture';
   static const measurement = 'measurement';
+  static const verificationResult = 'verification_result';
 }
 
 /// Pending, sent and failed outbox entries.
@@ -104,7 +105,7 @@ class Outbox {
       .distinct();
 
   /// Counts for the records of one session (the session row, its events,
-  /// photos and answers).
+  /// photos, answers and verification results).
   Stream<OutboxCounts> watchSessionCounts(String sessionId) => _db
       .customSelect(
         'SELECT '
@@ -119,13 +120,16 @@ class Outbox {
         "(o.entity_type = 'capture' AND o.entity_id IN "
         '(SELECT sha256 FROM captures WHERE session_id = ?1)) OR '
         "(o.entity_type = 'measurement' AND o.entity_id IN "
-        '(SELECT id FROM measurements WHERE session_id = ?1))',
+        '(SELECT id FROM measurements WHERE session_id = ?1)) OR '
+        "(o.entity_type = 'verification_result' AND o.entity_id IN "
+        '(SELECT id FROM verification_results WHERE tour_id = ?1))',
         variables: [Variable.withString(sessionId)],
         readsFrom: {
           _db.outboxEntries,
           _db.sessionEvents,
           _db.captures,
           _db.measurements,
+          _db.verificationResults,
         },
       )
       .map(_counts)

@@ -20,13 +20,15 @@ import 'features/auth/auth_repository.dart';
 import 'features/gnss/fake_gnss_logger.dart';
 import 'features/gnss/flutter_blue_gnss_logger.dart';
 import 'features/gnss/gnss_logger.dart';
+import 'features/tasks/sample_parcel.dart';
 import 'features/tasks/task_repository.dart';
 
 /// Build-time settings (`--dart-define`):
 /// - `SUPABASE_URL`, `SUPABASE_KEY`: sign in against Supabase, download the
 ///   planned visits and upload the outbox; without them the app uses the
 ///   offline development users and sample tasks, and nothing is uploaded.
-/// - `FAKE_GNSS=true`: simulated logger instead of BLE (emulator, demos).
+/// - `FAKE_GNSS=true`: simulated logger instead of BLE (emulator, demos); it
+///   walks the corridors of the synthetic sample parcel and sends positions.
 /// - `FAKE_CAMERA=true`: synthetic photos instead of the camera (demos).
 const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const _supabaseKey = String.fromEnvironment('SUPABASE_KEY');
@@ -61,7 +63,7 @@ Future<void> main() async {
 
   final docs = await getApplicationDocumentsDirectory();
   final GnssLogger logger = _fakeGnss
-      ? FakeGnssLogger(autoTick: true)
+      ? FakeGnssLogger(autoTick: true, path: sampleWalk(start: DateTime.now()))
       : FlutterBlueGnssLogger();
 
   runApp(

@@ -8,7 +8,9 @@ part 'database.g.dart';
 // Tables follow docs/veri-modeli.md so that sync can map rows one to one:
 // [Sessions] → Session, [Captures] → Capture (close-up photo),
 // [Measurements] → Measurement with source `staff`. [SessionEvents] are the
-// phone-side copy of what was sent to the logger (corner, qr_sync, …).
+// phone-side copy of what was sent to the logger (corner, qr_sync, …) and
+// of the boundary edits and coverage. [VerificationResults] are what the
+// crew found at the items of a verification tour.
 // Every insert is paired with an [OutboxEntries] row in the same transaction;
 // the SyncWorker (core/sync) uploads them in that order.
 
@@ -53,9 +55,14 @@ class SessionEvents extends Table {
   TextColumn get id => text()();
   TextColumn get sessionId => text().references(Sessions, #id)();
 
-  /// `session_start`, `session_stop`, `corner`, `qr_sync`.
+  /// `session_start`, `session_stop`, `corner`, `qr_sync`,
+  /// `boundary_corners`, `coverage` (docs/arayuzler.md).
   TextColumn get eventType => text()();
   TextColumn get payload => text()();
+
+  /// Structured details as a JSON object (`session_event.data`, schema 4):
+  /// corner position and quality, boundary edits, coverage. Null when none.
+  TextColumn get dataJson => text().nullable()();
   DateTimeColumn get phoneTime => dateTime()();
   IntColumn get gpsTimeMs => integer()();
 
@@ -154,12 +161,34 @@ class Measurements extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// What the crew found at a verification item (schema 4). A second result
+/// for the same item is a new row; the newest one sent counts on the server.
+@DataClassName('VerificationResultRow')
+class VerificationResults extends Table {
+  TextColumn get id => text()();
+
+  /// The tour (`verification` session); also the photo's session.
+  TextColumn get tourId => text().references(Sessions, #id)();
+  TextColumn get itemId => text()();
+  TextColumn get slotCode => text()();
+  BoolColumn get treePresent => boolean()();
+  TextColumn get note => text().nullable()();
+
+  /// Close-up photo (`captures.sha256`), optional.
+  TextColumn get captureSha256 => text().nullable()();
+  DateTimeColumn get recordedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Records waiting to be uploaded, oldest first (see Outbox).
 @DataClassName('OutboxEntry')
 class OutboxEntries extends Table {
   IntColumn get id => integer().autoIncrement()();
 
-  /// `session`, `session_event`, `capture`, `measurement`.
+  /// `session`, `session_event`, `capture`, `measurement`,
+  /// `verification_result`.
   TextColumn get entityType => text()();
   TextColumn get entityId => text()();
   DateTimeColumn get createdAt => dateTime()();
@@ -194,6 +223,7 @@ class TaskCache extends Table {
     Measurements,
     OutboxEntries,
     TaskCache,
+    VerificationResults,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -204,7 +234,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase(driftDatabase(name: 'orchados_field'));
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -229,6 +259,12 @@ class AppDatabase extends _$AppDatabase {
         );
         await m.addColumn(outboxEntries, outboxEntries.failedAt);
         await m.createTable(taskCache);
+      }
+      if (from < 4) {
+        // Inventory in the field (İP6): corner and coverage details,
+        // verification tour results.
+        await m.addColumn(sessionEvents, sessionEvents.dataJson);
+        await m.createTable(verificationResults);
       }
     },
     beforeOpen: (details) async {

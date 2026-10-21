@@ -39,6 +39,9 @@ class FakeSyncServer implements SyncServer {
   /// table → conflict key → row.
   final Map<String, Map<String, Map<String, Object?>>> tables = {};
 
+  /// `record_verification_result` calls in order (newest result counts).
+  final List<Map<String, Object?>> verificationResults = [];
+
   /// Media objects by path.
   final Map<String, Uint8List> objects = {};
 
@@ -141,5 +144,13 @@ class FakeSyncServer implements SyncServer {
   Future<bool> mediaExists(String path) async {
     await _call('exists:$path');
     return objects.containsKey(path);
+  }
+
+  @override
+  Future<void> recordVerificationResult(Map<String, Object?> params) async {
+    await _call('rpc:record_verification_result');
+    final reason = refuse?.call('record_verification_result', params);
+    if (reason != null) throw SyncError.permanent(reason, 'refused by test');
+    verificationResults.add(params);
   }
 }

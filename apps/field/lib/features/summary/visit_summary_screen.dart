@@ -1,9 +1,14 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../core/time/gps_clock.dart';
 import '../../core/ui/widgets.dart';
+import '../boundary/boundary_corners.dart';
+import '../boundary/boundary_screen.dart' show areaLabel;
+import '../coverage/coverage.dart';
 import '../session/session_controller.dart';
 import '../sync/sync_status_card.dart';
 
@@ -13,7 +18,9 @@ class VisitSummary {
     required this.startedAt,
     required this.stoppedAt,
     required this.corners,
+    this.boundaryAreaM2,
     required this.qrSyncs,
+    this.coverage,
     required this.qrOnPhoneClock,
     required this.treesDone,
     required this.treesPlanned,
@@ -24,7 +31,13 @@ class VisitSummary {
   final DateTime? startedAt;
   final DateTime? stoppedAt;
   final int corners;
+
+  /// Approximate area from the corners with a position; null below three.
+  final double? boundaryAreaM2;
   final int qrSyncs;
+
+  /// `data` of the recording's `coverage` event; null without positions.
+  final Map<String, Object?>? coverage;
 
   /// QR codes shown with the phone clock (no GPS time from the logger).
   final int qrOnPhoneClock;
@@ -50,11 +63,17 @@ final visitSummaryProvider = FutureProvider.autoDispose<VisitSummary?>((
   final captures = await repo.captures(sessionId);
   final measurements = await repo.measurements(sessionId);
   final qr = events.where((e) => e.eventType == 'qr_sync');
+  final boundary = BoundaryCorners.fromEvents(events);
+  final coverage = events.where((e) => e.eventType == 'coverage').lastOrNull;
   return VisitSummary(
     startedAt: session?.startedAt,
     stoppedAt: session?.stoppedAt,
-    corners: events.where((e) => e.eventType == 'corner').length,
+    corners: boundary.length,
+    boundaryAreaM2: boundary.ring.length >= 3 ? boundary.areaM2 : null,
     qrSyncs: qr.length,
+    coverage: coverage?.dataJson == null
+        ? null
+        : (jsonDecode(coverage!.dataJson!) as Map).cast<String, Object?>(),
     qrOnPhoneClock: qr
         .where((e) => e.timeSource == TimeSource.phone.code)
         .length,
@@ -128,6 +147,15 @@ class VisitSummaryScreen extends ConsumerWidget {
                             value: '${s.corners}',
                             health: s.corners >= 3 ? Health.ok : Health.warn,
                           ),
+                        if ((task?.isInventory ?? false) &&
+                            s.boundaryAreaM2 != null)
+                          StatusLine(
+                            icon: Icons.square_foot,
+                            label: 'Yaklaşık alan',
+                            value: areaLabel(s.boundaryAreaM2!),
+                            health: Health.ok,
+                          ),
+                        ..._coverageLines(s.coverage),
                         StatusLine(
                           icon: Icons.park,
                           label: 'Yakın plan ağaç',
@@ -179,6 +207,62 @@ class VisitSummaryScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// "Kapsama %96 (4 m)" and the sentence; a warning below the threshold.
+  static List<Widget> _coverageLines(Map<String, Object?>? c) {
+    if (c == null) return const [];
+    final total = c['slots_total']! as int;
+    final km = ((c['track_length_m']! as num) / 1000)
+        .toStringAsFixed(2)
+        .replaceAll('.', ',');
+    if (total == 0) {
+      return [
+        StatusLine(
+          icon: Icons.route,
+          label: 'İz',
+          value: '$km km',
+          health: Health.ok,
+        ),
+      ];
+    }
+    final ratio = (c['ratio']! as num).toDouble();
+    final radius = (c['radius_m']! as num).toDouble();
+    final threshold = (c['threshold']! as num).toDouble();
+    final ok = ratio >= threshold;
+    return [
+      StatusLine(
+        icon: Icons.grid_on,
+        label: 'Kapsama',
+        value: '%${(ratio * 100).floor()} (${radius.toStringAsFixed(0)} m)',
+        health: ok ? Health.ok : Health.bad,
+      ),
+      Padding(
+        padding: const EdgeInsets.only(left: 8, bottom: 6),
+        child: Text(
+          '${CoverageSummary.coverageSentence(ratio, radius)}.',
+          key: const Key('summary-coverage'),
+          style: const TextStyle(fontSize: 16),
+        ),
+      ),
+      if (!ok)
+        Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 6),
+          child: Text(
+            'Kapsama %${(threshold * 100).round()} hedefinin altında. '
+            'Kaçırılan yerler: ${_codes(c['uncovered_slot_codes'])}. '
+            'Ofise bildirin; gerekirse yeniden tarama planlanır.',
+            key: const Key('summary-coverage-warning'),
+            style: TextStyle(fontSize: 16, color: Colors.red.shade800),
+          ),
+        ),
+    ];
+  }
+
+  static String _codes(Object? list) {
+    final codes = [for (final c in list as List? ?? const []) '$c'];
+    if (codes.length <= 8) return codes.join(', ');
+    return '${codes.take(8).join(', ')} ve ${codes.length - 8} yer daha';
   }
 
   static String _duration(Duration? d) {

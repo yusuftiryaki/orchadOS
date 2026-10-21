@@ -42,6 +42,17 @@ class PendingShot {
   final QualityResult quality;
 }
 
+/// The newest local result of a verification item and its upload state.
+class LocalVerificationResult {
+  const LocalVerificationResult(this.row, {this.sent = false, this.failure});
+
+  final VerificationResultRow row;
+  final bool sent;
+
+  /// Why the server refused it for good (`item_closed: …`); null otherwise.
+  final String? failure;
+}
+
 /// Writes field records and their outbox entries atomically.
 class FieldRepository {
   FieldRepository(this.db, this._clock) : outbox = Outbox(db, _clock);
@@ -111,12 +122,14 @@ class FieldRepository {
         await outbox.enqueue(OutboxEntity.session, id);
       });
 
+  /// Stores an event. [data] becomes `session_event.data` (a JSON object).
   Future<String> addEvent({
     required String sessionId,
     required String eventType,
     required String payload,
     required GpsTimeReading time,
     required String loggerResult,
+    Map<String, Object?>? data,
   }) async {
     final id = newId();
     await db.transaction(() async {
@@ -132,11 +145,161 @@ class FieldRepository {
               gpsTimeMs: time.gpsTimeMs,
               timeSource: time.source.code,
               loggerResult: loggerResult,
+              dataJson: Value(data == null ? null : jsonEncode(data)),
             ),
           );
       await outbox.enqueue(OutboxEntity.sessionEvent, id);
     });
     return id;
+  }
+
+  /// Local row for a verification tour, so that its photos and results have
+  /// a session. Not queued: the server keeps the tour's status itself
+  /// (docs/arayuzler.md, "Doğrulama kalemleri"). Does nothing when the row
+  /// exists.
+  Future<void> ensureTourSession({
+    required String tourId,
+    required String parcelId,
+    required String taskId,
+    String? operatorId,
+  }) async {
+    await db
+        .into(db.sessions)
+        .insert(
+          SessionsCompanion.insert(
+            id: tourId,
+            parcelId: parcelId,
+            taskId: Value(taskId),
+            sessionType: 'verification',
+            visitKind: 'verification',
+            operatorId: Value(operatorId),
+            methodologyVersion: methodologyVersion,
+            appVersion: appVersion,
+            startedAt: _clock.now(),
+            status: 'tour',
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
+  }
+
+  /// Saves what was found at a verification item, with its optional photo,
+  /// in one transaction (photo first: the result refers to it).
+  Future<String> saveVerificationResult({
+    required String tourId,
+    required String itemId,
+    required String slotId,
+    required String slotCode,
+    required bool treePresent,
+    String? note,
+    PendingShot? photo,
+  }) async {
+    final id = newId();
+    await db.transaction(() async {
+      if (photo != null) {
+        await _insertCapture(
+          photo,
+          sessionId: tourId,
+          kind: 'verification_photo',
+          subjectType: 'slot',
+          subjectId: slotId,
+          slotCode: slotCode,
+        );
+      }
+      final trimmed = note?.trim();
+      await db
+          .into(db.verificationResults)
+          .insert(
+            VerificationResultsCompanion.insert(
+              id: id,
+              tourId: tourId,
+              itemId: itemId,
+              slotCode: slotCode,
+              treePresent: treePresent,
+              note: Value(trimmed == null || trimmed.isEmpty ? null : trimmed),
+              captureSha256: Value(photo?.sha256),
+              recordedAt: _clock.now(),
+            ),
+          );
+      await outbox.enqueue(OutboxEntity.verificationResult, id);
+    });
+    return id;
+  }
+
+  /// The newest result per item of a tour, with the reason when the server
+  /// refused it (e.g. `item_closed`).
+  Stream<Map<String, LocalVerificationResult>> watchVerificationResults(
+    String tourId,
+  ) => db
+      .customSelect(
+        'SELECT r.*, o.failed_at AS o_failed_at, o.last_error AS o_last_error, '
+        'o.sent_at AS o_sent_at '
+        'FROM verification_results r '
+        'LEFT JOIN outbox_entries o ON o.entity_type = ?2 '
+        'AND o.entity_id = r.id '
+        'WHERE r.tour_id = ?1 ORDER BY r.recorded_at, r.rowid',
+        variables: [
+          Variable.withString(tourId),
+          Variable.withString(OutboxEntity.verificationResult),
+        ],
+        readsFrom: {db.verificationResults, db.outboxEntries},
+      )
+      .watch()
+      .map((rows) {
+        final out = <String, LocalVerificationResult>{};
+        for (final r in rows) {
+          final row = db.verificationResults.map(r.data);
+          out[row.itemId] = LocalVerificationResult(
+            row,
+            sent: r.readNullable<DateTime>('o_sent_at') != null,
+            failure: r.readNullable<DateTime>('o_failed_at') != null
+                ? r.readNullable<String>('o_last_error')
+                : null,
+          );
+        }
+        return out;
+      });
+
+  Future<void> _insertCapture(
+    PendingShot s, {
+    required String sessionId,
+    required String kind,
+    required String subjectType,
+    required String subjectId,
+    String? slotCode,
+  }) async {
+    if (!s.quality.canSave) {
+      throw ArgumentError('rejected photo ${s.sha256} cannot be saved');
+    }
+    final q = s.quality.scores;
+    await db
+        .into(db.captures)
+        .insert(
+          CapturesCompanion.insert(
+            sha256: s.sha256,
+            sessionId: sessionId,
+            kind: kind,
+            sensor: 'phone_camera',
+            mediaType: s.mediaType,
+            byteSize: s.byteSize,
+            localPath: s.localPath,
+            subjectType: subjectType,
+            subjectId: subjectId,
+            slotCode: Value(slotCode),
+            shotCode: s.shotCode,
+            capturedAt: s.capturedAt,
+            gpsTimeMs: s.gpsTimeMs,
+            timeSource: s.timeSource.code,
+            qcVerdict: Value(s.quality.verdict.code),
+            qcVersion: Value(s.quality.version),
+            qcSharpness: Value(q?.sharpness),
+            qcBrightness: Value(q?.meanBrightness),
+            qcDarkRatio: Value(q?.darkClippedRatio),
+            qcBrightRatio: Value(q?.brightClippedRatio),
+            qcFindings: Value(s.quality.findings.join(',')),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
+    await outbox.enqueue(OutboxEntity.capture, s.sha256);
   }
 
   /// Saves the photos and answers of one tree in a single transaction.
@@ -149,39 +312,14 @@ class FieldRepository {
     required String methodVersion,
   }) => db.transaction(() async {
     for (final s in shots) {
-      if (!s.quality.canSave) {
-        throw ArgumentError('rejected photo ${s.sha256} cannot be saved');
-      }
-      final q = s.quality.scores;
-      await db
-          .into(db.captures)
-          .insert(
-            CapturesCompanion.insert(
-              sha256: s.sha256,
-              sessionId: sessionId,
-              kind: 'closeup_photo',
-              sensor: 'phone_camera',
-              mediaType: s.mediaType,
-              byteSize: s.byteSize,
-              localPath: s.localPath,
-              subjectType: 'tree',
-              subjectId: treeId,
-              slotCode: Value(slotCode),
-              shotCode: s.shotCode,
-              capturedAt: s.capturedAt,
-              gpsTimeMs: s.gpsTimeMs,
-              timeSource: s.timeSource.code,
-              qcVerdict: Value(s.quality.verdict.code),
-              qcVersion: Value(s.quality.version),
-              qcSharpness: Value(q?.sharpness),
-              qcBrightness: Value(q?.meanBrightness),
-              qcDarkRatio: Value(q?.darkClippedRatio),
-              qcBrightRatio: Value(q?.brightClippedRatio),
-              qcFindings: Value(s.quality.findings.join(',')),
-            ),
-            mode: InsertMode.insertOrIgnore,
-          );
-      await outbox.enqueue(OutboxEntity.capture, s.sha256);
+      await _insertCapture(
+        s,
+        sessionId: sessionId,
+        kind: 'closeup_photo',
+        subjectType: 'tree',
+        subjectId: treeId,
+        slotCode: slotCode,
+      );
     }
     final evidence = jsonEncode([for (final s in shots) s.sha256]);
     final now = _clock.now();
@@ -211,11 +349,43 @@ class FieldRepository {
   Future<SessionRow?> session(String id) =>
       (db.select(db.sessions)..where((s) => s.id.equals(id))).getSingleOrNull();
 
+  /// Events of a session in recording order.
   Future<List<SessionEventRow>> events(String sessionId) =>
       (db.select(db.sessionEvents)
             ..where((e) => e.sessionId.equals(sessionId))
-            ..orderBy([(e) => OrderingTerm.asc(e.phoneTime)]))
+            ..orderBy([
+              (e) => OrderingTerm.asc(e.phoneTime),
+              (e) => OrderingTerm.asc(e.rowId),
+            ]))
           .get();
+
+  /// Saves a corner photo (if any) and the corner list after an edit, in
+  /// one transaction.
+  Future<void> saveBoundaryEdit({
+    required String sessionId,
+    required GpsTimeReading time,
+    required Map<String, Object?> corners,
+    String? photoCornerId,
+    PendingShot? photo,
+  }) => db.transaction(() async {
+    if (photo != null) {
+      await _insertCapture(
+        photo,
+        sessionId: sessionId,
+        kind: 'boundary_photo',
+        subjectType: 'corner',
+        subjectId: photoCornerId!,
+      );
+    }
+    await addEvent(
+      sessionId: sessionId,
+      eventType: 'boundary_corners',
+      payload: '${(corners['corners']! as List).length}',
+      time: time,
+      loggerResult: 'none',
+      data: corners,
+    );
+  });
 
   Future<List<CaptureRow>> captures(String sessionId) =>
       (db.select(db.captures)
@@ -227,11 +397,15 @@ class FieldRepository {
     db.measurements,
   )..where((m) => m.sessionId.equals(sessionId))).get();
 
-  /// Tasks recorded on this phone (any local session with that task id).
+  /// Tasks recorded on this phone (any local recording with that task id;
+  /// a verification tour is done when all its items are, see the tour).
   Stream<Set<String>> watchRecordedTaskIds() {
     final q = db.selectOnly(db.sessions, distinct: true)
       ..addColumns([db.sessions.taskId])
-      ..where(db.sessions.taskId.isNotNull());
+      ..where(
+        db.sessions.taskId.isNotNull() &
+            db.sessions.sessionType.equals('verification').not(),
+      );
     return q
         .map((r) => r.read(db.sessions.taskId)!)
         .watch()
