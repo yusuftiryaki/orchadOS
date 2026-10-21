@@ -1169,6 +1169,64 @@ export type Database = {
           },
         ];
       };
+      parcel_route: {
+        Row: {
+          basis: string;
+          content_hash: string;
+          created_at: string;
+          created_by: string | null;
+          generator: string;
+          id: string;
+          org_id: string;
+          parcel_id: string;
+          route: NonNullable<Json>;
+          session_id: string | null;
+          version: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          basis: string;
+          content_hash: string;
+          created_at?: string;
+          created_by?: string | null;
+          generator: string;
+          id: string;
+          org_id: string;
+          parcel_id: string;
+          route: NonNullable<Json>;
+          session_id?: string | null;
+          version: number;
+        };
+        Update: {
+          basis?: string;
+          content_hash?: string;
+          created_at?: string;
+          created_by?: string | null;
+          generator?: string;
+          id?: string;
+          org_id?: string;
+          parcel_id?: string;
+          route?: NonNullable<Json>;
+          session_id?: string | null;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "parcel_route_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "parcel_route_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
       rig: {
         Row: {
           created_at: string;
@@ -2230,6 +2288,16 @@ export type Database = {
           p_row_azimuth_deg: number;
           p_session_id: string;
           p_slots: Json;
+        };
+        Returns: Json;
+      };
+      save_parcel_route: {
+        Args: {
+          p_content_hash: string;
+          p_id: string;
+          p_parcel_id: string;
+          p_route: Json;
+          p_session_id: string;
         };
         Returns: Json;
       };

@@ -1,4 +1,5 @@
 import '../../core/geo/geo.dart';
+import '../route/route_store.dart';
 
 /// Kind of visit a task asks for (docs/MVP.md, Modül 2 and 3).
 enum VisitKind {
@@ -218,6 +219,7 @@ class FieldTask {
     this.rowAzimuthDeg,
     this.originCorner,
     this.estimatedTreeCount,
+    this.route,
   });
 
   final String id;
@@ -262,6 +264,10 @@ class FieldTask {
   /// `parcel.estimated_tree_count`: row spacing before the inventory.
   final int? estimatedTreeCount;
 
+  /// Latest grid route version of the parcel (`public.parcel_route`); null
+  /// before the first scan.
+  final StoredRoute? route;
+
   bool get isInventory => kind == VisitKind.inventory;
   bool get isVerification => kind == VisitKind.verification;
 
@@ -287,6 +293,7 @@ class FieldTask {
     'row_azimuth_deg': rowAzimuthDeg,
     'origin_corner': originCorner,
     'estimated_tree_count': estimatedTreeCount,
+    'route': route?.toJson(),
   };
 
   factory FieldTask.fromJson(Map<String, Object?> j) => FieldTask(
@@ -325,5 +332,8 @@ class FieldTask {
     rowAzimuthDeg: (j['row_azimuth_deg'] as num?)?.toDouble(),
     originCorner: j['origin_corner'] as String?,
     estimatedTreeCount: j['estimated_tree_count'] as int?,
+    route: j['route'] == null
+        ? null
+        : StoredRoute.fromJson((j['route']! as Map).cast<String, Object?>()),
   );
 }

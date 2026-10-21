@@ -1,6 +1,7 @@
 import '../../core/geo/geo.dart';
 import 'grid_route.dart';
 import 'route_guide.dart';
+import 'route_store.dart';
 
 /// The route on the session screen.
 class RouteView {
@@ -8,6 +9,7 @@ class RouteView {
     this.route,
     this.missing,
     this.committed = false,
+    this.stored,
     this.guidance,
     this.settingDirection = false,
     this.firstTap,
@@ -26,6 +28,9 @@ class RouteView {
   /// The crew follows [route]; before that it is a proposal (direction
   /// guessed from the boundary or set by the crew) to confirm.
   final bool committed;
+
+  /// The parcel's route version this visit follows (once [committed]).
+  final StoredRoute? stored;
   final RouteGuidance? guidance;
 
   /// The crew is tapping the two ends of a row on the map.
@@ -51,6 +56,7 @@ class RouteView {
     GridRoute? Function()? route,
     RouteMissing? Function()? missing,
     bool? committed,
+    StoredRoute? Function()? stored,
     RouteGuidance? Function()? guidance,
     bool? settingDirection,
     GeoPoint? Function()? firstTap,
@@ -62,6 +68,7 @@ class RouteView {
     route: route != null ? route() : this.route,
     missing: missing != null ? missing() : this.missing,
     committed: committed ?? this.committed,
+    stored: stored != null ? stored() : this.stored,
     guidance: guidance != null ? guidance() : this.guidance,
     settingDirection: settingDirection ?? this.settingDirection,
     firstTap: firstTap != null ? firstTap() : this.firstTap,

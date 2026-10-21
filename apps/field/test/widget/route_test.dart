@@ -6,6 +6,7 @@ import 'package:orchados_field/app/providers.dart';
 import 'package:orchados_field/core/geo/geo.dart';
 import 'package:orchados_field/features/map/vector_map.dart';
 import 'package:orchados_field/features/route/grid_route.dart';
+import 'package:orchados_field/features/route/route_store.dart';
 import 'package:orchados_field/features/session/session_controller.dart';
 import 'package:orchados_field/features/session/session_screen.dart';
 import 'package:orchados_field/features/summary/visit_summary_screen.dart';
@@ -262,6 +263,131 @@ void main() {
       h.container.read(sessionControllerProvider).route!.route!.contentHash,
       hash,
     );
+    await h.dispose(tester);
+  });
+
+  /// [task] with [route] as the parcel's stored route.
+  FieldTask withRoute(FieldTask task, StoredRoute route) =>
+      FieldTask.fromJson({...task.toJson(), 'route': route.toJson()});
+
+  Future<List<Map<String, Object?>>> routeEvents(
+    WidgetTester tester,
+    TestHarness h,
+  ) async {
+    final id = h.container.read(sessionControllerProvider).sessionId!;
+    final events = (await tester.runAsync(
+      () => h.container.read(fieldRepositoryProvider).events(id),
+    ))!;
+    return [
+      for (final e in events)
+        if (e.eventType == 'route')
+          (jsonDecode(e.dataJson!) as Map).cast<String, Object?>(),
+    ];
+  }
+
+  testWidgets('the parcel\'s stored route is used as it is', (tester) async {
+    // Stored from an earlier visit: laid out from the north-east corner.
+    final earlier = generateGridRoute(
+      RouteInput.forTask(
+        FieldTask.fromJson({...periodic.toJson(), 'origin_corner': 'ne'}),
+      ),
+    ).route!;
+    final stored = StoredRoute(
+      id: routeId(periodic.parcelId, earlier.contentHash),
+      parcelId: periodic.parcelId,
+      version: 3,
+      route: earlier,
+    );
+    final h = await recording(
+      tester,
+      withRoute(periodic, stored),
+      at: proj.toGeo(const Enu(4, -23.5)),
+    );
+    expect(text(tester, 'route-current'), '1. S9 ile S10 arası');
+    expect(text(tester, 'route-version'), 'Parselin rotası, sürüm 3');
+    final events = await routeEvents(tester, h);
+    expect(events.single['route_id'], stored.id);
+    expect(events.single['route_version'], 3);
+    expect(events.single['new_version'], isFalse);
+    final local = await tester.runAsync(
+      () => h.db.select(h.db.parcelRoutes).get(),
+    );
+    expect(local, isEmpty, reason: 'nothing new to store');
+    await h.dispose(tester);
+  });
+
+  testWidgets(
+    'a first route is stored; the next visit on the phone reuses it',
+    (tester) async {
+      final h = await recording(tester, periodic);
+      final first = h.container.read(sessionControllerProvider).route!.stored!;
+      expect(first.version, 1);
+      expect(text(tester, 'route-version'), 'Parselin rotası, sürüm 1');
+      expect((await routeEvents(tester, h)).single['new_version'], isTrue);
+      final rows = (await tester.runAsync(
+        () => h.db.select(h.db.parcelRoutes).get(),
+      ))!;
+      expect(rows.single.id, first.id);
+      expect(rows.single.version, 1);
+      expect(rows.single.synced, isFalse);
+
+      // Back to the task list without finishing upload: a second visit of the
+      // same parcel (another planned visit) gets the same route.
+      final controller = h.container.read(sessionControllerProvider.notifier);
+      await tester.runAsync(() async {
+        await controller.qrShown(
+          QrMoment.start,
+          'OQ1:1:x',
+          h.container.read(gpsClockProvider).now(),
+        );
+        await controller.qrShown(
+          QrMoment.end,
+          'OQ1:2:x',
+          h.container.read(gpsClockProvider).now(),
+        );
+        await controller.stop();
+        await controller.finish();
+      });
+      controller.selectTask(
+        FieldTask.fromJson({...periodic.toJson(), 'id': 'task-1b'}),
+      );
+      await tester.pumpWidget(h.wrap(const SessionScreen()));
+      await settle(tester);
+      await tapVisible(tester, find.byKey(const Key('session-start')));
+      await settle(tester);
+      final second = h.container.read(sessionControllerProvider).route!.stored!;
+      expect(second.id, first.id);
+      expect(second.version, 1);
+      expect((await routeEvents(tester, h)).single['new_version'], isFalse);
+      expect(
+        await tester.runAsync(() => h.db.select(h.db.parcelRoutes).get()),
+        hasLength(1),
+      );
+      await h.dispose(tester);
+    },
+  );
+
+  testWidgets('a route from before the inventory gives way to the rows', (
+    tester,
+  ) async {
+    final before = generateGridRoute(
+      RouteInput(boundary: periodic.boundary, parcelAzimuthDeg: 0),
+    ).route!;
+    expect(before.basis, RouteBasis.boundary);
+    final stored = StoredRoute(
+      id: routeId(periodic.parcelId, before.contentHash),
+      parcelId: periodic.parcelId,
+      version: 1,
+      route: before,
+    );
+    final h = await recording(tester, withRoute(periodic, stored));
+    final view = h.container.read(sessionControllerProvider).route!;
+    expect(view.route!.basis, RouteBasis.inventory);
+    expect(view.stored!.version, 2);
+    expect(text(tester, 'route-current'), '1. S1 ile S2 arası');
+    final e = (await routeEvents(tester, h)).single;
+    expect(e['new_version'], isTrue);
+    expect(e['basis'], 'inventory');
     await h.dispose(tester);
   });
 }

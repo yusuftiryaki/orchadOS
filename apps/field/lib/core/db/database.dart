@@ -56,7 +56,8 @@ class SessionEvents extends Table {
   TextColumn get sessionId => text().references(Sessions, #id)();
 
   /// `session_start`, `session_stop`, `corner`, `qr_sync`,
-  /// `boundary_corners`, `coverage` (docs/arayuzler.md).
+  /// `boundary_corners`, `coverage`, `route`, `route_progress`
+  /// (docs/arayuzler.md).
   TextColumn get eventType => text()();
   TextColumn get payload => text()();
 
@@ -188,7 +189,7 @@ class OutboxEntries extends Table {
   IntColumn get id => integer().autoIncrement()();
 
   /// `session`, `session_event`, `capture`, `measurement`,
-  /// `verification_result`.
+  /// `verification_result`, `parcel_route`.
   TextColumn get entityType => text()();
   TextColumn get entityId => text()();
   DateTimeColumn get createdAt => dateTime()();
@@ -200,6 +201,37 @@ class OutboxEntries extends Table {
   /// Set when the server refused the record for good (permission,
   /// validation); [lastError] keeps the reason. Not retried automatically.
   DateTimeColumn get failedAt => dateTime().nullable()();
+}
+
+/// Grid routes made on this phone (schema 5), one row per route version
+/// of a parcel (`public.parcel_route`). Kept so that a second visit before
+/// the upload reuses the same route.
+@DataClassName('ParcelRouteRow')
+class ParcelRoutes extends Table {
+  /// uuid v5 of `<parcel>/<content hash>` (route_store.dart).
+  TextColumn get id => text()();
+  TextColumn get parcelId => text()();
+
+  /// Version guessed on the phone; replaced by the server's after upload.
+  IntColumn get version => integer()();
+  TextColumn get contentHash => text()();
+  TextColumn get generator => text()();
+
+  /// `inventory` or `boundary`.
+  TextColumn get basis => text()();
+
+  /// GridRoute.toJson().
+  TextColumn get routeJson => text()();
+
+  /// The visit that first used it.
+  TextColumn get sessionId => text().references(Sessions, #id)();
+  DateTimeColumn get createdAt => dateTime()();
+
+  /// The server stored it (and [version] is the server's).
+  BoolColumn get synced => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
 }
 
 /// Last task list downloaded for a user, for offline use (schema 3).
@@ -224,6 +256,7 @@ class TaskCache extends Table {
     OutboxEntries,
     TaskCache,
     VerificationResults,
+    ParcelRoutes,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -234,7 +267,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase(driftDatabase(name: 'orchados_field'));
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -265,6 +298,10 @@ class AppDatabase extends _$AppDatabase {
         // verification tour results.
         await m.addColumn(sessionEvents, sessionEvents.dataJson);
         await m.createTable(verificationResults);
+      }
+      if (from < 5) {
+        // Grid route (İP6): the routes made on this phone.
+        await m.createTable(parcelRoutes);
       }
     },
     beforeOpen: (details) async {

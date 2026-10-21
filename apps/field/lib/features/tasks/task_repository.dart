@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/db/database.dart';
 import '../../core/geo/geo.dart';
 import '../../core/time/clock.dart';
+import '../route/grid_route.dart';
+import '../route/route_store.dart';
 import 'closeup_selection.dart';
 import 'field_task.dart';
 import 'sample_parcel.dart';
@@ -246,6 +248,7 @@ class SupabaseTaskSource implements TaskSource {
     final treesByParcel = <String, List<ParcelTree>>{};
     final slotsByParcel = <String, List<SlotPoint>>{};
     final boundaryByParcel = <String, List<GeoPoint>?>{};
+    final routeByParcel = <String, StoredRoute?>{};
     final tasks = <FieldTask>[];
     for (final v in visits) {
       final id = v['id'] as String;
@@ -266,6 +269,10 @@ class SupabaseTaskSource implements TaskSource {
       final slots = slotsByParcel[parcelId] ??= await _slots(parcelId);
       if (!boundaryByParcel.containsKey(parcelId)) {
         boundaryByParcel[parcelId] = await _boundary(parcelId);
+      }
+      if (kind != VisitKind.verification &&
+          !routeByParcel.containsKey(parcelId)) {
+        routeByParcel[parcelId] = await _route(parcelId);
       }
       final items = kind == VisitKind.verification
           ? await _verificationItems(id, slots)
@@ -292,6 +299,7 @@ class SupabaseTaskSource implements TaskSource {
           rowAzimuthDeg: (parcel['row_azimuth_deg'] as num?)?.toDouble(),
           originCorner: parcel['numbering_origin_corner'] as String?,
           estimatedTreeCount: parcel['estimated_tree_count'] as int?,
+          route: routeByParcel[parcelId],
         ),
       );
     }
@@ -376,6 +384,24 @@ class SupabaseTaskSource implements TaskSource {
         .order('version', ascending: false)
         .limit(1);
     return rows.isEmpty ? null : polygonFromGeoJson(rows.first['geom']);
+  }
+
+  /// Newest grid route version of the parcel; null when none.
+  Future<StoredRoute?> _route(String parcelId) async {
+    final rows = await _client
+        .from('parcel_route')
+        .select('id, version, route')
+        .eq('parcel_id', parcelId)
+        .order('version', ascending: false)
+        .limit(1);
+    if (rows.isEmpty) return null;
+    final r = rows.first;
+    return StoredRoute(
+      id: r['id'] as String,
+      parcelId: parcelId,
+      version: r['version'] as int,
+      route: GridRoute.fromJson((r['route'] as Map).cast<String, Object?>()),
+    );
   }
 
   /// Open items of a tour, in walking order.

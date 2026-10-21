@@ -108,6 +108,16 @@ class SupabaseSyncServer implements SyncServer {
   );
 
   @override
+  Future<int> saveParcelRoute(Map<String, Object?> params) => _guard(() async {
+    final r = await _client.rpc<Object?>('save_parcel_route', params: params);
+    final version = r is Map ? r['version'] : null;
+    if (version is! int) {
+      throw SyncError.permanent('unexpected', 'save_parcel_route: $r');
+    }
+    return version;
+  });
+
+  @override
   Future<bool> mediaExists(String path) =>
       _guard(() => _client.storage.from(bucket).exists(path));
 
@@ -193,6 +203,7 @@ class SupabaseSyncServer implements SyncServer {
     'item_closed',
     'item_not_open',
     'invalid_input',
+    'session_invalid',
   };
 
   static bool _transientHttp(int status) =>

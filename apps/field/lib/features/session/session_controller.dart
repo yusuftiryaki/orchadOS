@@ -13,6 +13,7 @@ import '../gnss/protocol/command_result.dart';
 import '../gnss/protocol/gnss_command.dart';
 import '../route/grid_route.dart';
 import '../route/route_guide.dart';
+import '../route/route_store.dart';
 import '../route/route_view.dart';
 import '../tasks/field_task.dart';
 
@@ -132,6 +133,9 @@ class SessionController extends Notifier<SessionState> {
   StopGoWalk? _stopGo;
   double? _crewAzimuthDeg;
 
+  /// Newest route of the parcel known on this phone (server or local).
+  StoredRoute? _known;
+
   /// Selects the task the next session belongs to.
   void selectTask(FieldTask task) {
     _stopTrack();
@@ -144,6 +148,7 @@ class SessionController extends Notifier<SessionState> {
     _guide = null;
     _stopGo = null;
     _crewAzimuthDeg = null;
+    _known = null;
   }
 
   /// Follows the logger's positions while recording (coverage map).
@@ -201,13 +206,25 @@ class SessionController extends Notifier<SessionState> {
 
   // --- Route ---------------------------------------------------------------
 
-  /// Lays out the route (or a proposal) from what is known now. Routes
-  /// whose direction came from the slots or the parcel record are used
-  /// right away; a guessed or crew-set direction waits for [useRoute].
-  void _prepareRoute() {
+  /// The route of this visit. The parcel's stored route comes first, so
+  /// that every visit walks the same corridors; otherwise a route (or a
+  /// proposal) is laid out from what is known now. Routes whose direction
+  /// came from the slots or the parcel record are used right away; a
+  /// guessed or crew-set direction waits for [useRoute].
+  Future<void> _prepareRoute() async {
     final task = state.task;
     if (task == null || task.isVerification || !state.isRecording) return;
     if (state.route?.committed ?? false) return;
+    final known = _known;
+    if (known != null && reuseRoute(known, task)) {
+      state = state.copyWith(
+        route: (state.route ?? const RouteView()).copyWith(
+          route: () => known.route,
+          missing: () => null,
+        ),
+      );
+      return _commit(known, isNew: false);
+    }
     final ring = state.boundary.ring;
     final g = generateGridRoute(
       RouteInput.forTask(
@@ -221,25 +238,58 @@ class SessionController extends Notifier<SessionState> {
       missing: () => g.missing,
     );
     state = state.copyWith(route: view);
-    if (g.route != null && !view.needsConfirmation) useRoute();
+    if (g.route != null && !view.needsConfirmation) await useRoute();
   }
 
-  /// The crew follows the route from now on.
-  void useRoute() {
+  /// The crew follows the laid-out route from now on. It is stored as the
+  /// parcel's next route version (sent with the visit).
+  Future<void> useRoute() async {
+    final task = state.task;
     final view = state.route;
     final route = view?.route;
-    if (view == null || route == null || view.committed) return;
-    final guide = _guide = RouteGuide(route);
+    if (task == null || view == null || route == null || view.committed) {
+      return;
+    }
+    final known = _known;
+    final id = routeId(task.parcelId, route.contentHash);
+    if (known != null && known.id == id) return _commit(known, isNew: false);
+    return _commit(
+      StoredRoute(
+        id: id,
+        parcelId: task.parcelId,
+        version: (known?.version ?? 0) + 1,
+        route: route,
+      ),
+      isNew: true,
+    );
+  }
+
+  Future<void> _commit(StoredRoute stored, {required bool isNew}) async {
+    final sessionId = state.sessionId;
+    final view = state.route;
+    if (sessionId == null || view == null || view.committed) return;
+    final guide = _guide = RouteGuide(stored.route);
     final here = ref.read(gnssLoggerProvider).lastStatus?.status.position;
     if (here != null) guide.add(here);
+    _known = stored;
     state = state.copyWith(
       route: view.copyWith(
+        route: () => stored.route,
         committed: true,
+        stored: () => stored,
         settingDirection: false,
         firstTap: () => null,
         guidance: () => guide.guidance,
       ),
     );
+    await ref
+        .read(fieldRepositoryProvider)
+        .saveRouteUse(
+          sessionId: sessionId,
+          route: stored,
+          isNew: isNew,
+          time: _now(),
+        );
   }
 
   /// Starts setting the row direction: two taps on the map along a row.
@@ -260,7 +310,7 @@ class SessionController extends Notifier<SessionState> {
   }
 
   /// A tap on the map while setting the direction.
-  void tapMap(GeoPoint p) {
+  Future<void> tapMap(GeoPoint p) async {
     final view = state.route;
     if (view == null || !view.settingDirection) return;
     final first = view.firstTap;
@@ -274,7 +324,7 @@ class SessionController extends Notifier<SessionState> {
     state = state.copyWith(
       route: view.copyWith(settingDirection: false, firstTap: () => null),
     );
-    _prepareRoute();
+    await _prepareRoute();
   }
 
   /// Leaves the current corridor; it is listed as skipped.
@@ -377,7 +427,9 @@ class SessionController extends Notifier<SessionState> {
       route: const RouteView(),
     );
     _startTrack(task);
-    _prepareRoute();
+    _known = latestRoute(task.route, await repo.localRoute(task.parcelId));
+    if (!ref.mounted) return true;
+    await _prepareRoute();
     return true;
   }
 
@@ -427,7 +479,7 @@ class SessionController extends Notifier<SessionState> {
         ),
       ),
     );
-    _prepareRoute();
+    await _prepareRoute();
     return true;
   }
 
@@ -486,7 +538,7 @@ class SessionController extends Notifier<SessionState> {
         );
     if (!ref.mounted) return;
     state = state.copyWith(boundary: next);
-    _prepareRoute();
+    await _prepareRoute();
   }
 
   /// Called by the QR screen when the first QR frame is on screen: sends

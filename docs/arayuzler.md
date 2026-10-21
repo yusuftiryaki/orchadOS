@@ -289,8 +289,9 @@ Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce tel
 | Telefonda | Sunucuda | Nasıl | Tekrar gönderimde |
 | --- | --- | --- | --- |
 | Oturum | `public.session` (planlanmış ziyaret) | `update`: `started_at`, `methodology_version`; kayıt durunca `status = captured`, `ended_at`. Yalnızca `status` `planned` ya da `captured` iken | Aynı değerler; ziyaret işlendiyse dokunulmaz |
-| Oturum olayı (`session_start`, `qr_sync`, `corner`, `boundary_corners`, `coverage`, `session_stop`) | `public.session_event` (ayrıntılar `data`'da; aşağıda "Sınır köşeleri ve kapsama") | `insert`, kimlik telefondan | `on conflict (id) do nothing` |
+| Oturum olayı (`session_start`, `qr_sync`, `corner`, `boundary_corners`, `route`, `route_progress`, `coverage`, `session_stop`) | `public.session_event` (ayrıntılar `data`'da; aşağıda "Sınır köşeleri ve kapsama") | `insert`, kimlik telefondan | `on conflict (id) do nothing` |
 | Sınır işareti fotoğrafı, doğrulama yakın planı | Yakın plan fotoğrafıyla aynı yol; `capture` satırında `tree_id` yok. `metadata.local_kind` `boundary_photo` (`corner_event_id`) ya da `verification_photo` (`slot_id`) | Yakın plan fotoğrafıyla aynı | Aynı |
+| Grid rotası (parselin yeni rota sürümü) | `save_parcel_route(...)` (aşağıda, "Grid rotası") | Fonksiyon çağrısı; ziyaret satırından sonra, `route` olayından önce | Aynı kimlik aynı sürümü döndürür |
 | Doğrulama sonucu | `record_verification_result(...)` | Fonksiyon çağrısı; fotoğraf varsa önce o | Yeniden çağrılabilir; en yenisi geçerli |
 | Yakın plan fotoğrafı | `media` alanında `org/<org_id>/parcel/<parcel_id>/<sha256>` + `public.capture` (`kind = photo`, `tree_id`, `uri`, `content_hash`, `started_at` = çekimin GPS zamanından UTC) | Önce dosya, sonra satır. `capture.id` = uuid v5(`<oturum>/<sha256>`). Çekim kodu, yer kodu, `gps_time_ns`, zaman kaynağı ve cihazdaki kalite kontrolü `metadata`'da | Var olan nesne yüklenmiş sayılır; `on conflict (session_id, content_hash) do nothing` |
 | Personel cevabı | `public.measurement` (`source = staff`, `method = field_question`, `method_version` = soru seti sürümü) | Evet/hayır → `value_boolean`; `metric_definition_id` metrik kodundan | `on conflict (id) do nothing` |
@@ -352,6 +353,51 @@ Uygulamada gösterilen alan, listedeki konumlu köşelerden (en az 3) yerel düz
 | `track_points`, `track_length_m` | sayı | İzdeki nokta sayısı ve uzunluk (m) |
 
 Bu, sahadaki anlık göstergedir; işleme hattının panorama kalitesine dayalı kapsama haritasının (`docs/MVP.md` Modül 3, kalite kapısı) yerini tutmaz.
+
+## Grid rotası
+
+Saha uygulaması taramada parselin sabit grid rotasını üretir ve personeli yönlendirir (`docs/MVP.md` Modül 3: önce sıra boyunca bütün koridorlar, sonra dik koridorlar, en son kenarlar). Karşılaştırılabilirlik için bir parselde **ilk kullanılan rota bir sürüm olarak saklanır** ve sonraki ziyaretler, hangi telefondan olursa olsun, aynı rotayı kullanır. Üretim kuralları: [apps/field/README.md](../apps/field/README.md), "Rota".
+
+**Karar (yeni tablo):** Rota `public.parcel_route`'ta, parsele bağlı ve sürümlü, ekleme-yalnız satırlar olarak tutulur (`20261023160000_parcel_route.sql`). Gerekçe: (1) `parcel` satırını yalnızca operasyon güncelleyebilir; rotayı ise saha personeli ilk taramada oluşturur. (2) Rota sürümlüdür ve eski sürüm, onu kullanan ziyaretler için değişmeden kalmalı (ölçümler sürümlüdür kuralı); `parcel` üzerinde bir JSON alanı üzerine yazılırdı. (3) `boundary` gibi sürüm numaralı, ayrı tablo deseni zaten var. Rota 1 MB'tan küçük bir JSON'dur; koridorlar ayrı satırlara bölünmez (hep birlikte okunur, sıra önemli).
+
+| Sütun | Tür | Anlamı |
+| --- | --- | --- |
+| `id` | uuid | Telefonda: uuid v5(`7c1e9a42-5b3d-4e8f-a6c0-2d9b4f1e8a37`, `<parcel_id>/<content_hash>`). Aynı parselin aynı rotası her telefonda aynı kimliği alır |
+| `org_id`, `parcel_id` | uuid | Parsel |
+| `version` | int | Parselde 1'den artan; `unique (parcel_id, version)`. **En yüksek sürüm, sonraki ziyaretin rotasıdır** |
+| `route` | jsonb | Rota (aşağıda) |
+| `content_hash` | metin | Rotanın telefondaki kanonik JSON'unun SHA-256'sı (hex); `unique (parcel_id, content_hash)` |
+| `generator` | metin | Üretici sürümü (`grid-route-v1`); kural değişince artar, eski rotalar yeniden üretilmez |
+| `basis` | `inventory` \| `boundary` | Sıraların arasından (envanter sonrası) ya da sınırdan (envanter öncesi) |
+| `session_id` | uuid \| null | Rotayı ilk kullanan ziyaret |
+| `created_by`, `created_at` | | Yazan kullanıcı, sunucu zamanı |
+
+- **Okuma:** kurum rolleri (sahip ve izleyici görmez). Saha uygulaması günün görevleriyle parselin en yüksek sürümlü rotasını indirir (`id`, `version`, `route`) ve çevrimdışı önbellekte tutar.
+- **Yazma:** yalnızca `save_parcel_route(p_id uuid, p_parcel_id uuid, p_session_id uuid, p_route jsonb, p_content_hash text) → {id, version, created}` (saha personeli ve operasyon; tabloya doğrudan yazma izni yok). Bilinen `id` ya da aynı `content_hash` var olan sürümü döndürür (`created = false`); yeni rota parselin sıradaki sürümünü alır. İki telefon çevrimdışıyken farklı rota ürettiyse ikisi de saklanır (sonra gelen bir üst sürüm olur); veri kaybolmaz. Hatalar mesajda: `not_found`, `forbidden`, `session_invalid` (başka parselin ya da iptal edilmiş ziyaret), `invalid_input`.
+- **Yeni sürüm ne zaman:** parselin rotası yoksa; ya da son sürüm `basis = boundary` iken parselde artık konumlu yerler (aynı sırada en az iki) varsa. Bunun dışında son sürüm aynen kullanılır; envanter değişse de rota kendiliğinden değişmez.
+
+**`route` biçimi** (`format = 1`):
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `format` | int | 1 |
+| `generator` | metin | `grid-route-v1` |
+| `basis` | metin | `inventory` \| `boundary` |
+| `azimuth_deg` | sayı | Sıra yönü, kuzeyden saat yönünde, 0–180'e katlanmış |
+| `azimuth_source` | metin | `slots` (yer konumlarına oturtuldu), `parcel` (`parcel.row_azimuth_deg`), `crew` (personel haritada iki dokunuşla belirledi), `boundary` (sınırın en uzun kenarı; personel onayladı) |
+| `row_spacing_m`, `tree_spacing_m` | sayı | Sıra ve ağaç aralığı (envanter öncesi: `sqrt(alan / tahmini ağaç sayısı)`, 4–12 m; bilinmiyorsa 8 m) |
+| `start_corner` | `sw` \| `se` \| `nw` \| `ne` | Başlangıç köşesi (`parcel.numbering_origin_corner`; yoksa `sw`) |
+| `corridors` | dizi | Yürüme sırasıyla koridorlar |
+| `corridors[].no` | int | 1'den sıra numarası |
+| `corridors[].kind` | `along` \| `cross` \| `edge` | Sıra boyunca, dik, kenar |
+| `corridors[].label` | metin | Personele: "S3 ile S4 arası", "5. ile 6. yer arası", "Kenar 2", "Sıra boyunca 4" |
+| `corridors[].points` | `[[lon, lat], …]` | Çizgi (sıra boyu ve dik: 2 nokta; kenar: çoklu çizgi), yürüme yönünde; 1e-7° yuvarlanmış |
+| `corridors[].length_m` | sayı | Uzunluk (m, 0,1) |
+
+**Oturum olayları** (`public.session_event`, `logger_result = none`):
+
+- **`route`** (rota kullanılmaya başlanınca; ziyarette bir kez): `payload` rota sürümü. `data`: `version` (1), `route_id`, `route_version` (telefonun bildiği sürüm; yeni rotada tahmin, kesin sürüm `parcel_route`'ta `route_id` ile), `new_version` (bu ziyarette mi oluşturuldu), `content_hash`, `generator`, `basis`, `azimuth_deg`, `azimuth_source`, `corridors_total`. **Ziyarette hangi rotanın kullanıldığı buradan okunur.**
+- **`route_progress`** (kayıt durdurulurken, `coverage`'dan önce): `payload` `<biten>/<toplam>`. `data`: `version` (1), `corridors_total`, `done`, `skipped`, `pending` (koridor numaraları), `skipped_labels`, `current` (durduğunda sıradaki koridor; bittiyse `null`). Telefondaki yaklaşık takiptir (PPK öncesi konum, koridora 4 m kuralı); kapsamanın yerini tutmaz.
 
 ## Açık noktalar
 

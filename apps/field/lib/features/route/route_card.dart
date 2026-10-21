@@ -153,6 +153,12 @@ class _Guidance extends StatelessWidget {
           '${skipped > 0 ? ' · $skipped atlandı' : ''}',
           key: const Key('route-progress'),
         ),
+        if (view.stored case final stored?)
+          Text(
+            'Parselin rotası, sürüm ${stored.version}',
+            key: const Key('route-version'),
+            style: TextStyle(color: Colors.grey.shade700),
+          ),
         if (i == null)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
