@@ -106,7 +106,7 @@ Envanter her parselin dijital haritasını bir kez çıkarır. Sonraki her ziyar
 | --- | --- |
 | Görevler, ön kontrol, kaydedici bağlantısı, QR saat | ✅ (telefonda henüz denenmedi; kit bekleniyor) |
 | GNSS kaydedici yazılımı | ✅ (gerçek donanımda henüz denenmedi) |
-| Sunucuya gönderim (senkronizasyon) | 🟡 Geliştiriliyor (İP6) |
+| Sunucuya gönderim (senkronizasyon) | ✅ |
 | Köşe işaretleme, rota ve kapsama haritası | ⬜ |
 
 ### 2.2 İşleme istasyonunda
@@ -175,7 +175,7 @@ Parsel için `periodic_scan` türünde, `planned` durumda bir ziyaret açılır;
 | Adım | Durum |
 | --- | --- |
 | Planlama, tarih ve sorumlu değişikliği, iptal; pano (duruma göre sayılar, yaklaşanlar, gecikenler) | ✅ |
-| Görevlerin telefona inmesi | 🟡 Geliştiriliyor (İP6) |
+| Görevlerin telefona inmesi | ✅ |
 
 ### 3.2 Sahada: tarama ve yakın plan
 
@@ -194,7 +194,7 @@ Parsel için `periodic_scan` türünde, `planned` durumda bir ziyaret açılır;
 | Adım | Durum |
 | --- | --- |
 | Yakın plan akışı, kamera, cihazda kalite kontrolü, gözlem soruları | ✅ |
-| Gönderim | 🟡 Geliştiriliyor (İP6) |
+| Gönderim | ✅ |
 | Rota ve kapsama haritası | ⬜ |
 
 ### 3.3 İşleme istasyonunda
