@@ -112,7 +112,7 @@ export function DecisionPanel({
                   return (
                     <label key={m.id} className={styles.field}>
                       {label}
-                      <select name={valueField(m)} defaultValue={d?.value_scale ?? ""} required>
+                      <select name={valueField(m)} defaultValue={d?.value_scale ?? ""}>
                         <option value="">{r.choose}</option>
                         {options.map((v) => (
                           <option key={v} value={v}>
