@@ -193,6 +193,14 @@ const urls = await signer.signUrls(rows.map((r) => r.uri)); // Map<uri, string |
 
 "Yazdır / PDF" düğmesi tarayıcının yazdırma penceresini açar; "PDF olarak kaydet" yeterli. Yazdırma stilleri üst menüyü, düğmeleri, filtreleri ve paneli gizler, katlanmış bulgu listesini açar; harita tuvali yazdırılabilir (`preserveDrawingBuffer`).
 
+### Sınır kartı ve envanter özeti
+
+Karnenin üstünde **Bahçe sınırı** kartı (`src/lib/portal/boundary.ts`, `boundary-card.tsx`): son sınır sürümü haritada, alanı (m² ve dönüm), kaynağı, köşe belirsizliği; sahibin beyan ettiği ilk sınır soluk kesikli çizgiyle. Not her zaman görünür: "Bu sınır, gösterdiğiniz fiili kullanım sınırıdır; tapu ya da mülkiyet sınırı değildir."
+
+- Son sürüm onaylanmamış bir saha ölçümüyse sahip onay kutusunu işaretleyip **Sınırı onaylıyorum** der (`approve_boundary`). Onaylandıysa "Siz / Parsel sahibi … tarihinde onayladı" görünür.
+- Hissedar (`viewer`) onaylayamaz (veritabanı kuralı: sadece `owner`); kartta düğme yerine bu açıklama çıkar.
+- Envanter uzman tarafından onaylandıysa karnede **Envanter** özeti (yer, ağaç, boş yer, ara ağaç, aşısız, yaş dağılımı) ve onay tarihi.
+
 ### Demo
 
 ```bash
@@ -284,6 +292,18 @@ Geliştirme parseli örnek işletmeye eklendiği için entegrasyon testlerindeki
 - Tarayıcı (`tests/e2e/office-tool.spec.ts`): global kurulum sentetik panoramaları `.dev-data/e2e` altına üretir (uv yoksa test atlanır). Test aynı panoramaları depoya da yükler (servis anahtarıyla, işleme hattının yazdığı biçimde) ve iki kez çalışır: depo seti ve yerel set. Her seferinde 12 ağacın her birine iki panoramada tıklar, konumları sentetik gerçekle (< 30 cm) ve kodları `synthetic_truth.json`'daki yer kodlarıyla karşılaştırır, önizlemeden yakınlaştırınca tam çözünürlüğe geçişi denetler, bir ağacı "emin değilim" işaretler, CSV'yi indirir, kaydeder ve veritabanını (yerler, numaralandırma, 24 gövde etiketi) denetler. Ayrı bir test görüntü adreslerini denetler: yerel dosya, depoda yönlendirme, sahip için 403.
 - Temizlik: `capture`/`asset`/`trunk_label` API'den silinemediği için test parselleri `tests/local-db.ts` ile yerel veritabanı konteynerinde, tetikleyiciler kapalıyken silinir (`purgeParcels`).
 
+### Envanter sonrası: özellikler, altyapı, sınır, doğrulama turu
+
+Üçgenleme aracında kayıt yapıldıktan sonra `/ofis/parsel/<parsel>/envanter/duzenle` (parsel sayfasındaki **Özellikler, altyapı, sınır ve doğrulama** düğmesi; aracın kayıt mesajındaki bağlantı doğrulama sekmesini açar). Solda kayıtlı yerler (ağaç, ara ağaç, boş yer), altyapı, son sınır ve tarama izi (envanter oturumunun panorama konumları, çekim sırasıyla); sağda dört sekme (`?sekme=attributes|infrastructure|boundary|verification`):
+
+- **Ağaç özellikleri:** yaş sınıfı ve aşı durumu; karar verilemeyen "Bilinmiyor" kalır. Toplu seçim: sıra seçip "görünenlerin hepsi", haritada tıklama (Shift ile çoklu), tablodan işaretleme. Satır bazlı yetkiyle `tree` güncellemesi (saha personeli, uzman, operasyon).
+- **Altyapı** (`zone`): kuyu, havuz, kapı, kulübe tek tıkla nokta; sulama hattı ve çit köşe köşe çizgi. Silme sadece operasyonda (satır bazlı yetki).
+- **Sınır:** sahada köşe işaretleme gelene kadar tarama izi üzerinde köşeler tıklanır; alan (m², dönüm) ve kesişme denetimi anında (`src/lib/office/boundary.ts`). Kayıt yeni bir `boundary` sürümüdür: kaynak `field_survey`, köşe belirsizliği, envanter oturumu. Eski sürümler kalır; sahip portalda onaylar.
+- **Doğrulama:** liste kayıtlı envanterden yeniden hesaplanır (`src/lib/office/verification-candidates.ts`): "emin değilim" etiketli ağaçlar (`trunk_label.unsure`), belirsizliği 0,5 m'yi aşanlar, boş yerler, başka bir ağaca 1 m'den yakın ara ağaçlar (çok gövdeli). Üçgenleme uyarısı ve "sıra dışında" veritabanında saklanmadığı için bunlar haritada tıklanarak eklenir. Her kaleme "fidan olabilir" / "çok gövdeli" ve not eklenir. **Doğrulama turu oluştur:** `create_verification_tour(...)` `planned` bir `verification` oturumu ve kalemleri açar. Açık kalemi olan yerler yeni listeye girmez.
+- **Kalemleri kapatma** (saha uygulaması gelene kadar, telefonla doğrulama dahil): "Ağaç var / Ağaç yok" + not → **Bakıldı olarak kaydet** (`record_verification_result`; boş yere yeni ağaç ekler ya da ağacı kayıp yapar), ya da notla **Bakmadan kapat** (`close_verification_item`). Bütün kalemlere bakılınca tur `captured` olur.
+
+Yazmalar `src/lib/office/inventory-edits.ts` (girdi denetimi + kullanıcının yetkisi), veri `src/lib/office/inventory-workspace.ts`. Envanter onaylandıktan sonra sayfa bunu bildirir; yer kodu ve konumu değiştiren yazmalar veritabanında reddedilir.
+
 ### Bilinen sınırlar
 
 - **Yer–oturum bağı yok:** `slot` tablosunda oturum alanı yok; oturum bağı ağaçların `first_seen_session_id`'si ve etiketlerin `session_id`'si üzerinden.
@@ -293,6 +313,12 @@ Geliştirme parseli örnek işletmeye eklendiği için entegrasyon testlerindeki
 - **Taslak tarayıcıda:** başka bir bilgisayardan devam edilemez.
 - **Set seçimi serbest:** depo setinin oturumu seçilen oturumdan farklı olabilir (uyarıyla listelenir); etiketler kaydın oturumuna bağlanır.
 - **Büyük ziyaret:** set listesi parselin bütün panorama satırlarını sayfa sayfa okur; çok ziyaretli parsellerde bir görünüm ya da sayım fonksiyonu gerekebilir.
+
+### Envanter onayı testleri
+
+- Birim: `src/lib/expert/inventory-checks.test.ts` (yinelenen kod, atlanan sıra/pozisyon/harf, yakın ağaçlar, envanter özeti), `src/lib/office/boundary.test.ts` (alan, dönüm, kesişme, sürüm, EWKT), `src/lib/office/verification-candidates.test.ts`, `src/lib/office/inventory-messages.test.ts`.
+- Entegrasyon (`tests/integration/inventory-approval.test.ts`): kendi parseliyle; toplu özellik (sahip yazamaz), altyapı (silme sadece operasyon), ofiste sınır sürümü, doğrulama turu (uzman ve sahip oluşturamaz, sahip kalemleri görmez), açık kalemle onayın reddi ve eksik listesi, sonuçların envantere işlenmesi, uzman dışı rollerin onaylayamaması, `inventory_done`, onaydan sonra kod/konumun donması ve özelliklerin değişebilmesi, hissedarın sınırı onaylayamaması, sahibin onayı ve karnedeki özet.
+- Tarayıcı (`tests/e2e/inventory-approval.spec.ts`, veri `inventory-fixtures.ts`): ofiste toplu ve haritadan özellik, doğrulama turu oluşturma ve kalemleri kapatma; uzman olarak kuyruktan açma, düzeltme ve onay; hissedar onaylayamaz, sahip sınırı onaylar.
 
 ## Uzman paneli (İP7)
 
@@ -313,7 +339,7 @@ Uzman (ziraat mühendisi) bir tarama ziyaretini uzaktan inceler, AI ön değerle
 ### Karar
 
 - **AI'ı kabul et:** AI satırı değişmez. AI sınıfıyla yeni bir `source = expert` değerlendirmesi yazılır; AI'ın bu ziyaretin metrikleri için verdiği değerler aynı değer ve belirsizlikle uzman ölçümü olarak kopyalanır.
-- **Düzelt:** Uzman sınıfı seçer ve metrikleri girer. Ölçek metrikleri zorunlu, sayı/kategori/evet-hayır metrikleri isteğe bağlı (görüntüden ölçülemeyebilir). Ölçek değerlerinin belirsizliği yarım basamak (0,5); sayı değerlerinde uzman belirsizliği kendisi girer. İsteğe bağlı not.
+- **Düzelt:** Uzman sınıfı seçer ve metrikleri girer. En az bir ölçek değeri zorunlu; tek tek her metrik boş bırakılabilir (görüntüden karar verilemiyorsa, `docs/metodoloji.md` bölüm 4). Ölçek değerlerinin belirsizliği yarım basamak (0,5); sayı değerlerinde uzman belirsizliği kendisi girer. İsteğe bağlı not.
 - **Hangi metrikler:** `metric_definition` içinden ziyaretin mevsimine uyan (`valid_seasons`), karnede görünen (`card_visibility = shown`) ve ağaçta ölçülebilen metrikler; sınırlar ve birimler de oradan. **Mevsim** ziyaret zamanının ayından (UTC): Aralık–Şubat kış, Mart–Mayıs ilkbahar, Haziran–Temmuz yaz, Ağustos–Ekim hasat, Kasım kış (takvimdeki Mart ve Kasım boşlukları için karar; `src/lib/expert/season.ts`).
 - Kayıt tek işlemde `save_expert_assessment(...)` veritabanı fonksiyonuyla yapılır (kullanıcının yetkisiyle): değerlendirme, ölçümler (`source = expert`, `method = expert_review`, `method_version` = ziyaretin metodoloji sürümü, yoksa `methodology-v0`), ölçüm ile değerlendirme bağı (`assessment_measurement`) ve kanıt olarak ağacın bu ziyaretteki kesitleri (`measurement_evidence`). Ölçek sınırı dışındaki bir değer bütün kararı geri alır.
 - Karar değiştirilirse eski satırlar silinmez, yenisi eklenir; en yenisi geçerlidir (ekranlar ve `tree_latest_assessment` görünümü).
@@ -347,6 +373,19 @@ pnpm web:dev                      # expert@example.com / orchados-dev
 4. **Özet ve imza**: dağılım, değişenler, incelenmemişler. İmza kutusu + **İmzala ve yayımla**: 302 ağacın hepsi incelenmeden reddedilir ve eksikler listelenir.
 
 Demo verisinin yayımlanmış 14 Ekim ziyareti salt okunur açılır.
+
+### Envanter onayı
+
+Kuyruğun altında **Envanter onayı bekleyenler**: `captured`, `processed` ya da `in_review` durumundaki, parselinde yer kaydedilmiş ve parselde henüz onaylı envanteri olmayan envanter ziyaretleri (yer, ağaç ve açık doğrulama kalemi sayısıyla). **İncele** → `/uzman/envanter/<oturum>`:
+
+- **Envanter özeti:** yer, ağaç, boş yer, ara ağaç, aşısız ağaç, yaş dağılımı (`src/lib/expert/inventory-checks.ts`, portal da kullanır).
+- **Kodlama denetimleri:** yinelenen kod, atlanan sıra, sıra içinde atlanan pozisyon (1'den sıranın son pozisyonuna), atlanan ara ağaç harfi, birbirine 1,5 m'den yakın aktif ağaçlar. Sorunlu yerler ve açık kalemler haritada turuncu halkalı.
+- **Kodlu harita** ve **örnek kontrol:** haritada ağaca tıklayınca envanter oturumunun en yakın (25 m içinde) panoraması ağaca dönük açılır (`/uzman/envanter/<oturum>/panorama/...`, ofisteki görüntü yönlendirmesinin uzman bölümündeki eşi).
+- **Ağaç özellikleri tablosu:** uzman yaş, aşı ve cinsiyeti düzeltir (toplu da).
+- **Doğrulama kalemleri:** durum ve sonuçlar; uzman açık bir kalemi notla kapatabilir.
+- **İmza:** onay kutusu + **Envanteri onayla ve imzala** → `approve_inventory(...)`. Açık kalem ya da yer yoksa reddedilir ve eksikler listelenir.
+
+`approve_inventory` (migration `20261021210000_inventory_approval.sql`, pgTAP `18_inventory_approval.test.sql`): sadece işletmenin uzmanı; envanter oturumunu `publish_session` gibi yayımlar (kim, ne zaman; bulgular ve uzman değerlendirmeleri onaylanır) ama ağaç başına uzman değerlendirmesi aramaz; parseli `inventory_done` yapar. Yayından sonra yer kodları ve konumları donar (tetikleyici), ağaç özellikleri değişebilir.
 
 ### Testler
 
@@ -384,7 +423,7 @@ Operasyon (`ops`) sahibi kaydeder, parselini açar, kaba sınırını çizer, po
 - **Kişisel veri** (`private.owner_profile`, `private.parcel_detail`) `private` şemasında kalır; API'ye açılmaz. Operasyon onu sadece `ops_*` veritabanı fonksiyonlarıyla okur ve yazar (`security definer`; her biri çağıranın o işletmede `ops` olduğunu denetler, başkasına boş sonuç ya da `forbidden` döner). Hata mesajları değer içermez, sadece neden kodu ve alan adı taşır (`invalid_input / phone`). Uygulama hiçbir form değerini loglamaz. Sahip kendi kaydını `my_owner_profile()` ile görür.
 - **Bütün yazmalar kullanıcının kendi yetkisiyle yapılır:** parsel kaydı tek işlemde `register_parcel(...)` ile (parsel + özel bilgi + sınır v1 + sahip erişimi; `security invoker`), yeni sınır sürümü `add_owner_declared_boundary(...)` ile, erişim ve ziyaretler doğrudan tablolara (satır bazlı yetki). Uygulamada servis anahtarı yok.
 - **Kaba sınır:** Haritada köşelere sırayla tıklanır. `boundary` tablosuna bir sonraki sürüm (ilk kayıtta 1) olarak `owner_declared` kaynağıyla yazılır. Kendini kesen ya da alanı olmayan sınır reddedilir. Formda "Fiili kullanım sınırıdır, mülkiyet iddiası değildir." notu görünür. Sıra yönü ve başlangıç köşesi boş kalır (envanterde belirlenir). Konum girilmezse parsel sınırın ortasına konur, en uzak köşenin uzaklığı belirsizlik olur.
-- **Ziyaret planı** (`supabase/migrations/20261021200000_operations_screens.sql`): Envanter, periyodik tarama ve doğrulama ziyaretlerini sadece operasyon açar. Saha personeli diğer oturum türlerini (biçme, ilaçlama, elle kayıt) açmaya devam eder. Plan (tür, gün, sorumlu, parsel) sadece `planned` durumdayken ve sadece operasyon tarafından değişir. İptal sadece `planned` bir ziyarette ve operasyonla yapılır; iptal edilen ziyaret bir daha değişmez. Sorumlu, işletmenin saha personeli olmalı. Durum ilerlemesi (tarandı, işlendi, incelemede) bu kurallardan etkilenmez.
+- **Ziyaret planı** (`supabase/migrations/20261021220000_operations_screens.sql`): Envanter, periyodik tarama ve doğrulama ziyaretlerini sadece operasyon açar. Saha personeli diğer oturum türlerini (biçme, ilaçlama, elle kayıt) açmaya devam eder. Plan (tür, gün, sorumlu, parsel) sadece `planned` durumdayken ve sadece operasyon tarafından değişir. İptal sadece `planned` bir ziyarette ve operasyonla yapılır; iptal edilen ziyaret bir daha değişmez. Sorumlu, işletmenin saha personeli olmalı. Durum ilerlemesi (tarandı, işlendi, incelemede) bu kurallardan etkilenmez.
 - **Yaşam döngüsü:** İlk envanter ziyareti planlanınca parsel `registered` → `inventory_planned` olur. Açık son envanter ziyareti iptal edilirse `registered`'a döner. `inventory_done` envanter onayının işidir.
 - **Gecikme:** Tarihi geçmiş `planned` ziyaretler ve 3 günden uzun süredir `captured` (işlenmemiş) ziyaretler. Gün Türkiye saatine göredir (`Europe/Istanbul`). Tarama zamanı bitiş, yoksa başlangıç, yoksa planlanan gündür. Mevsim takvimi uzman paneliyle ortak (`src/lib/expert/season.ts`).
 

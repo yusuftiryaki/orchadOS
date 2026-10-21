@@ -1,5 +1,5 @@
 import { formatValue, type MeasurementValue, type MetricDefinition } from "@/lib/expert/metrics";
-import { t } from "@/lib/i18n";
+import { categoryLabel, t } from "@/lib/i18n";
 import styles from "./expert.module.css";
 
 // Measurement values with the metric's name and unit.
@@ -21,7 +21,7 @@ export function ValuesList({
       {rows.map(({ v, m }) => (
         <div key={m.id} style={{ display: "contents" }} data-metric={m.code}>
           <dt>{m.name}</dt>
-          <dd>{formatValue(m, v, { yes: r.yes, no: r.no })}</dd>
+          <dd>{formatValue(m, v, { yes: r.yes, no: r.no, category: categoryLabel })}</dd>
         </div>
       ))}
     </dl>

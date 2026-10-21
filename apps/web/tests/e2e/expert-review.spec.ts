@@ -68,7 +68,7 @@ test("expert reviews and publishes a visit", async ({ page }) => {
   const correction = page.getByTestId("correction-form");
   await correction.getByLabel("Kuru (4)").check();
   await correction.getByLabel("Kuru dal").selectOption("3");
-  await correction.getByLabel("Not").fill("Taçta canlı sürgün yok.");
+  await correction.getByLabel("Not", { exact: true }).fill("Taçta canlı sürgün yok.");
   await correction.getByRole("button", { name: "Düzeltmeyi kaydet" }).click();
   await expect(review).toHaveAttribute("data-tree-code", "S1-3");
   await expect(page.getByTestId("review-progress")).toHaveText("3 ağaçtan 2 tanesi incelendi");

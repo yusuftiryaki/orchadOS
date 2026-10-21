@@ -1594,6 +1594,100 @@ export type Database = {
           },
         ];
       };
+      verification_item: {
+        Row: {
+          checked_at: string | null;
+          checked_by: string | null;
+          closeup_capture_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          note: string | null;
+          org_id: string;
+          parcel_id: string;
+          reasons: Database["public"]["Enums"]["verification_reason"][];
+          result_note: string | null;
+          session_id: string;
+          slot_id: string;
+          status: Database["public"]["Enums"]["verification_status"];
+          tree_id: string | null;
+          tree_present: boolean | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          checked_at?: string | null;
+          checked_by?: string | null;
+          closeup_capture_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          note?: string | null;
+          org_id: string;
+          parcel_id: string;
+          reasons: Database["public"]["Enums"]["verification_reason"][];
+          result_note?: string | null;
+          session_id: string;
+          slot_id: string;
+          status?: Database["public"]["Enums"]["verification_status"];
+          tree_id?: string | null;
+          tree_present?: boolean | null;
+        };
+        Update: {
+          checked_at?: string | null;
+          checked_by?: string | null;
+          closeup_capture_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          note?: string | null;
+          org_id?: string;
+          parcel_id?: string;
+          reasons?: Database["public"]["Enums"]["verification_reason"][];
+          result_note?: string | null;
+          session_id?: string;
+          slot_id?: string;
+          status?: Database["public"]["Enums"]["verification_status"];
+          tree_id?: string | null;
+          tree_present?: boolean | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "verification_item_closeup_capture_id_parcel_id_org_id_fkey";
+            columns: ["closeup_capture_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "capture";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "verification_item_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "verification_item_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "verification_item_slot_id_parcel_id_org_id_fkey";
+            columns: ["slot_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "slot";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "verification_item_tree_id_parcel_id_org_id_fkey";
+            columns: ["tree_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
       zone: {
         Row: {
           created_at: string;
@@ -1810,6 +1904,66 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      approve_inventory: {
+        Args: { p_session_id: string };
+        Returns: {
+          created_at: string;
+          created_by: string | null;
+          ended_at: string | null;
+          id: string;
+          kind: Database["public"]["Enums"]["session_kind"];
+          lead_user_id: string | null;
+          methodology_version: string | null;
+          notes: string | null;
+          org_id: string;
+          parcel_id: string;
+          performer: Database["public"]["Enums"]["performer_kind"];
+          planned_date: string | null;
+          published_at: string | null;
+          published_by: string | null;
+          rig_id: string | null;
+          started_at: string | null;
+          status: Database["public"]["Enums"]["session_status"];
+          weather: Json | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "session";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      close_verification_item: {
+        Args: { p_item_id: string; p_note: string };
+        Returns: {
+          checked_at: string | null;
+          checked_by: string | null;
+          closeup_capture_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          note: string | null;
+          org_id: string;
+          parcel_id: string;
+          reasons: Database["public"]["Enums"]["verification_reason"][];
+          result_note: string | null;
+          session_id: string;
+          slot_id: string;
+          status: Database["public"]["Enums"]["verification_status"];
+          tree_id: string | null;
+          tree_present: boolean | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "verification_item";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      create_verification_tour: {
+        Args: { p_items: Json; p_notes?: string; p_parcel_id: string; p_planned_date?: string };
+        Returns: Json;
+      };
       my_owner_profile: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -1950,6 +2104,38 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      record_verification_result: {
+        Args: {
+          p_closeup_capture_id?: string;
+          p_item_id: string;
+          p_note?: string;
+          p_tree_present: boolean;
+        };
+        Returns: {
+          checked_at: string | null;
+          checked_by: string | null;
+          closeup_capture_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          note: string | null;
+          org_id: string;
+          parcel_id: string;
+          reasons: Database["public"]["Enums"]["verification_reason"][];
+          result_note: string | null;
+          session_id: string;
+          slot_id: string;
+          status: Database["public"]["Enums"]["verification_status"];
+          tree_id: string | null;
+          tree_present: boolean | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "verification_item";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       register_parcel: {
         Args: {
           p_boundary?: Json;
@@ -2037,6 +2223,16 @@ export type Database = {
       slot_kind: "row" | "interstitial";
       tree_sex: "female" | "male" | "unknown";
       tree_status: "active" | "lost";
+      verification_reason:
+        | "high_uncertainty"
+        | "empty_slot"
+        | "unsure"
+        | "multi_stem"
+        | "possible_sapling"
+        | "off_row"
+        | "triangulation"
+        | "other";
+      verification_status: "open" | "checked" | "closed";
       zone_kind:
         | "cell"
         | "no_go"
@@ -2218,6 +2414,17 @@ export const Constants = {
       slot_kind: ["row", "interstitial"],
       tree_sex: ["female", "male", "unknown"],
       tree_status: ["active", "lost"],
+      verification_reason: [
+        "high_uncertainty",
+        "empty_slot",
+        "unsure",
+        "multi_stem",
+        "possible_sapling",
+        "off_row",
+        "triangulation",
+        "other",
+      ],
+      verification_status: ["open", "checked", "closed"],
       zone_kind: [
         "cell",
         "no_go",

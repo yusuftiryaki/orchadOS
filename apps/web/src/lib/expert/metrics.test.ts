@@ -106,10 +106,10 @@ describe("parseMetricInputs", () => {
     });
   });
 
-  it("requires scale values and checks their range", () => {
+  it("requires at least one scale value and checks their range", () => {
     expect(parseMetricInputs(winter, form({}))).toEqual({
       ok: false,
-      error: { code: "dead_branch_scale", reason: "required" },
+      error: { code: "dead_branch_scale", reason: "scale_required" },
     });
     expect(parseMetricInputs(winter, form({ "metric.dead_branch_scale": "4" }))).toEqual({
       ok: false,

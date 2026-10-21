@@ -8,7 +8,7 @@ import type { DetailInput, OwnerInput, ParcelInput, VisitInput } from "./validat
 // the visit planning trigger and the ops_* functions decide what is allowed.
 //
 // Personal data rule: database error messages are reason codes without
-// values (supabase/migrations/20261021200000_operations_screens.sql); here
+// values (supabase/migrations/20261021220000_operations_screens.sql); here
 // only the code is kept, and nothing is logged.
 
 export type OpsError =

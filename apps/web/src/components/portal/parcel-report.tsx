@@ -1,10 +1,13 @@
 import Link from "next/link";
-import { formatDate, formatNumber, t } from "@/lib/i18n";
+import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
 import { MARKER_COLORS, type MarkerState } from "@/lib/map/tree-style";
 import { CLASS_ORDER, distributionTotal, type Distribution } from "@/lib/portal/classes";
 import type { ParcelReport, TreeChange } from "@/lib/portal/data";
 import type { FindingItem } from "@/lib/portal/findings";
 import type { MetricSummaryRow } from "@/lib/portal/metrics";
+import { InventorySummaryView } from "@/components/office/inventory-summary";
+import type { BoundaryCard } from "@/lib/portal/boundary";
+import { BoundaryCardView } from "./boundary-card";
 import { HealthMap } from "./health-map";
 import { DistributionBar, findingKindLabel, percent } from "./labels";
 import { SEVERITY_COLORS } from "./colors";
@@ -20,10 +23,12 @@ export function ParcelReportView({
   report,
   classFilter,
   findingId,
+  boundaryCard,
 }: {
   report: ParcelReport;
   classFilter?: MarkerState[];
   findingId?: string;
+  boundaryCard?: BoundaryCard | null;
 }) {
   const base = `/portal/parsel/${report.parcel.id}`;
   return (
@@ -49,6 +54,20 @@ export function ParcelReportView({
           <PrintButton />
         </div>
       </div>
+
+      {boundaryCard && <BoundaryCardView parcelId={report.parcel.id} card={boundaryCard} />}
+      {boundaryCard?.inventory && (
+        <div data-testid="portal-inventory">
+          <InventorySummaryView
+            summary={boundaryCard.inventory.summary}
+            title={
+              boundaryCard.inventory.approvedAt
+                ? `${t.inventory.portal.inventoryTitle} · ${t.inventory.portal.inventoryApproved(formatDate(boundaryCard.inventory.approvedAt))}`
+                : t.inventory.portal.inventoryTitle
+            }
+          />
+        </div>
+      )}
 
       {report.latest ? (
         <Summary report={report} base={base} />
@@ -311,7 +330,10 @@ function MetricSummaryText({ metric }: { metric: MetricSummaryRow }) {
         <>
           {s.counts
             .filter((c) => c.count > 0)
-            .map((c) => `${c.value}: ${c.count}`)
+            .map(
+              (c) =>
+                `${s.type === "category" ? categoryLabel(String(c.value)) : c.value}: ${c.count}`,
+            )
             .join(" · ")}
         </>
       );
