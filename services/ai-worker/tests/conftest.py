@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
@@ -28,7 +29,7 @@ def jpeg(color: tuple[int, int, int] = (60, 120, 40), size=(320, 240), mark: str
 # and 20261021230000_field_sync.sql (only the columns the worker reads).
 def _row(code, value_type, seasons, *, smin=None, smax=None, cats=None, subjects=("tree",)):
     return {
-        "id": f"00000000-0000-4000-8000-{abs(hash(code)) % 10**12:012d}",
+        "id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"metric:{code}")),
         "code": code,
         "value_type": value_type,
         "scale_min": smin,
@@ -69,3 +70,34 @@ REGISTRY = [
 @pytest.fixture
 def registry():
     return [dict(r) for r in REGISTRY]
+
+
+@pytest.fixture(scope="session")
+def supabase_env():
+    from supabase_util import SKIP_REASON, local_env
+
+    env = local_env()
+    if env is None:
+        pytest.skip(SKIP_REASON)
+    return env
+
+
+@pytest.fixture(scope="session")
+def test_sessions(supabase_env):
+    """Ids of sessions a test opened in the local database; purged after the test run."""
+    import os
+    import warnings
+
+    from supabase_util import KEEP_ENV, purge_sessions
+
+    ids: list[str] = []
+    yield ids
+    if os.environ.get(KEEP_ENV):
+        return
+    problem = purge_sessions(ids)
+    if problem:
+        warnings.warn(
+            f"test sessions left in the database ({problem}); run pnpm db:reset before "
+            "pnpm db:test",
+            stacklevel=1,
+        )
