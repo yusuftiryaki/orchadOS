@@ -23,7 +23,31 @@ export const tr = {
     missingFields: "E-posta ve parola gerekli.",
     methods: {
       password: "E-posta ve parola",
-      phone: "Telefon (yakında)",
+      phone: "Telefon",
+    },
+    phone: {
+      number: "Cep telefonu",
+      numberHint: "Örnek: 0532 123 45 67",
+      sendCode: "SMS kodu gönder",
+      sending: "Gönderiliyor…",
+      codeSent: (masked: string) =>
+        `${masked} kayıtlıysa SMS ile 6 haneli bir kod gönderdik. Kod birkaç dakika geçerli.`,
+      code: "SMS kodu",
+      verify: "Giriş yap",
+      verifying: "Doğrulanıyor…",
+      resend: "Kodu yeniden gönder",
+      resendIn: (seconds: number) => `Yeniden göndermek için ${seconds} sn`,
+      changeNumber: "Numarayı değiştir",
+      invalidNumber: "Geçerli bir cep telefonu numarası girin.",
+      invalidCode: "Kodu 6 rakam olarak girin.",
+      wrongCode: (left: number) =>
+        left > 0
+          ? `Kod hatalı ya da süresi geçmiş. ${left} deneme hakkınız kaldı.`
+          : "Kod hatalı. Çok fazla hatalı deneme yapıldı; 15 dakika sonra yeniden deneyin.",
+      locked: "Çok fazla hatalı deneme yapıldı. 15 dakika sonra yeniden deneyin.",
+      tooManyCodes: "Bu numaraya çok fazla kod gönderildi. Bir saat sonra yeniden deneyin.",
+      tooSoon: "Yeni bir kod için biraz bekleyin.",
+      sendFailed: "Kod gönderilemedi. Biraz sonra yeniden deneyin.",
     },
   },
   nav: {

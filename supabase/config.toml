@@ -178,7 +178,8 @@ enable_refresh_token_rotation = true
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
-enable_signup = true
+# orchadOS: no sign-ups; portal accounts are opened by ops (invite-user).
+enable_signup = false
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
@@ -223,6 +224,8 @@ web3 = 30
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
+# orchadOS: must stay true, the CLI also uses it to keep e-mail login on. Sign-ups
+# are closed by [auth] enable_signup = false.
 enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
@@ -261,13 +264,18 @@ otp_expiry = 3600
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
-enable_signup = false
+# orchadOS: true because the CLI also uses it to switch the phone provider on
+# (GOTRUE_EXTERNAL_PHONE_ENABLED, with [auth.sms.twilio] below). Sign-ups stay closed: [auth] enable_signup
+# is false and the login page passes shouldCreateUser: false.
+enable_signup = true
 # If enabled, users need to confirm their phone number before signing in.
 enable_confirmations = false
 # Template for sending OTP to users
+# orchadOS: unused; the Send SMS hook (send-sms) writes the message.
 template = "Your code is {{ .Code }}"
 # Controls the minimum amount of time that must pass before sending another sms otp.
-max_frequency = "5s"
+# orchadOS: matches the resend countdown on the login page.
+max_frequency = "60s"
 
 # Use pre-defined map of phone number to OTP for testing.
 # [auth.sms.test_otp]
@@ -280,6 +288,15 @@ max_frequency = "5s"
 # Force log out if the user has been inactive longer than the specified duration.
 # inactivity_timeout = "8h"
 
+# Phone login codes go out through our own provider: Auth calls the send-sms
+# Edge Function (Standard Webhooks signature). The secret below is for the
+# local stack only; the hosted project gets its own in the dashboard
+# (Authentication -> Hooks) and as the function secret SEND_SMS_HOOK_SECRET.
+[auth.hook.send_sms]
+enabled = true
+uri = "http://host.docker.internal:54321/functions/v1/send-sms"
+secrets = "v1,whsec_p0oE1FH7E5tlPpCmuVnDZv5oL5cKXPNnx86jQcdd5HY="
+
 # This hook runs before a new user is created and allows developers to reject the request based on the incoming user object.
 # [auth.hook.before_user_created]
 # enabled = true
@@ -291,12 +308,14 @@ max_frequency = "5s"
 # uri = "pg-functions://<database>/<schema>/<hook_name>"
 
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
+# orchadOS: never used. The CLI turns the phone provider on only when one of
+# these providers is enabled; with the Send SMS hook on, Auth hands every code
+# to the hook and never calls Twilio. Placeholder values, no credentials.
 [auth.sms.twilio]
-enabled = false
-account_sid = ""
-message_service_sid = ""
-# DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
-auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
+enabled = true
+account_sid = "unused-send-sms-hook"
+message_service_sid = "unused-send-sms-hook"
+auth_token = "unused-send-sms-hook"
 
 # Multi-factor-authentication is available to Supabase Pro plan.
 [auth.mfa]
@@ -392,6 +411,8 @@ deno_version = 2
 [edge_runtime.secrets]
 # Portal address for links in notifications (send-notifications).
 PORTAL_BASE_URL = "http://127.0.0.1:3000"
+# Same as [auth.hook.send_sms] secrets (local only).
+SEND_SMS_HOOK_SECRET = "v1,whsec_p0oE1FH7E5tlPpCmuVnDZv5oL5cKXPNnx86jQcdd5HY="
 
 # Portal accounts for the operations screens; see the function's header.
 [functions.invite-user]
@@ -401,6 +422,11 @@ verify_jwt = true
 # role key. See the function's header.
 [functions.send-notifications]
 verify_jwt = true
+
+# Supabase Auth's Send SMS hook (phone login codes). Auth sends no JWT; the
+# function checks the webhook signature instead.
+[functions.send-sms]
+verify_jwt = false
 
 [analytics]
 # Not needed for IP1 (also pulls logflare + vector).

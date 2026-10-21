@@ -2297,6 +2297,9 @@ export type Database = {
         };
         Returns: undefined;
       };
+      phone_login_allowed: { Args: { p_phone: string }; Returns: boolean };
+      phone_login_code_requested: { Args: { p_phone: string }; Returns: string };
+      phone_login_record_failure: { Args: { p_phone: string }; Returns: number };
       publish_session: {
         Args: { p_session_id: string };
         Returns: {

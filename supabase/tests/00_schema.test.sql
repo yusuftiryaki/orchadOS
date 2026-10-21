@@ -18,7 +18,7 @@ select tables_are(
   ],
   'public has exactly the MVP tables'
 );
-select tables_are('private', array['owner_profile', 'parcel_detail', 'message_outbox'], 'private has the personal data tables');
+select tables_are('private', array['owner_profile', 'parcel_detail', 'message_outbox', 'phone_login_attempt'], 'private has the personal data tables');
 
 select is(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace

@@ -5,7 +5,7 @@
 -- its own visit.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(61);
 
 create function pg_temp.as_user(p_id text) returns void language sql
 as $$ select set_config('request.jwt.claims', json_build_object('sub', p_id, 'role', 'authenticated')::text, true) $$;
@@ -232,6 +232,42 @@ reset role;
 delete from auth.users where id = 'a0000000-0000-4000-8000-000000000002';
 select is((select count(*) from public.notification where recipient_user_id = 'a0000000-0000-4000-8000-000000000002'),
   0::bigint, 'deleting an account removes its messages');
+
+-- Phone login limits -------------------------------------------------------------------
+
+-- Start from no attempts (rolled back with the rest).
+delete from private.phone_login_attempt;
+
+select hasnt_column('private', 'phone_login_attempt', 'phone', 'login attempts keep a hash, not the number');
+select ok(has_function_privilege('anon', 'public.phone_login_allowed(text)', 'EXECUTE')
+  and has_function_privilege('anon', 'public.phone_login_record_failure(text)', 'EXECUTE')
+  and not has_function_privilege('anon', 'public.phone_login_code_requested(text)', 'EXECUTE')
+  and not has_function_privilege('authenticated', 'public.phone_login_code_requested(text)', 'EXECUTE'),
+  'the login page checks and reports wrong codes; only the SMS hook counts codes');
+
+set local role service_role;
+select results_eq(
+  $$ select public.phone_login_code_requested(case when i % 2 = 0 then '+905559990001' else '905559990001' end)
+     from generate_series(1, 6) i $$,
+  $$ values ('ok'), ('ok'), ('ok'), ('ok'), ('ok'), ('too_many_codes') $$,
+  'five codes an hour per number, with or without the plus sign');
+select is(public.phone_login_code_requested('+905559990002'), 'ok', 'other numbers are not affected');
+select throws_ok($$ select public.phone_login_code_requested('0532 123') $$, '22023', 'invalid_input',
+  'a malformed number is rejected');
+reset role;
+
+set local role anon;
+select results_eq(
+  $$ select public.phone_login_record_failure('+905559990002') from generate_series(1, 5) $$,
+  $$ values (4), (3), (2), (1), (0) $$,
+  'wrong codes count down the attempts left');
+select is(public.phone_login_allowed('+905559990002'), false, 'after five wrong codes the number is locked');
+select is(public.phone_login_allowed('+905559990003'), true, 'other numbers may still verify');
+reset role;
+set local role service_role;
+select is(public.phone_login_code_requested('+905559990002'), 'locked', 'a locked number gets no new code');
+reset role;
+select is((select count(*) from private.phone_login_attempt), 11::bigint, 'codes sent and wrong codes are counted; refused requests are not');
 
 select * from finish();
 rollback;

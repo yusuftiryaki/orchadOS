@@ -108,7 +108,23 @@ Roller veritabanından okunur: işletme rolleri `membership`, parsel rolleri `pa
 
 ## Giriş
 
-Geliştirmede e-posta + parola. Telefonla (SMS kodu) giriş sonraya kaldı; giriş sayfası yöntem listesiyle (`src/app/giris/login-methods.ts`) kurulu, telefon yöntemi şimdilik pasif. Eklemek için: `phone` için bir form bileşeni ve `signInWithOtp` / `verifyOtp` çağıran bir server action.
+İki yöntem (`src/app/giris/login-methods.ts`): **e-posta + parola** ve **telefon (SMS kodu)**.
+
+**Telefonla giriş:** numara (`0532 123 45 67` de yazılabilir) → **SMS kodu gönder** → 6 haneli kod → **Giriş yap** (`src/app/giris/actions.ts`: `signInWithOtp` / `verifyOtp`, `shouldCreateUser: false`).
+
+- **SMS'i bizim sağlayıcımız gönderir:** Supabase Auth kodu kendisi göndermez, "Send SMS Hook" ile `supabase/functions/send-sms` Edge Function'ına verir. Fonksiyon isteğin imzasını (Standard Webhooks, `SEND_SMS_HOOK_SECRET`) denetler, numara sınırlarını uygular ve mesajı sağlayıcıya verir (bkz. [Bildirimler](#bildirimler), sağlayıcılar). Yerelde ve testlerde **kayıt sağlayıcısı** çalışır: SMS gitmez, kod `private.message_outbox` tablosuna yazılır.
+- **Sadece davetli numaralar:** Dışarıdan üye olma kapalı (`[auth] enable_signup = false`); hesapları operasyon `invite-user` ile açar. Telefonla açılan hesap (e-postasız sahip) doğrudan SMS koduyla girer. Sayfa bir numaranın kayıtlı olup olmadığını söylemez: davetsiz numaraya da "kayıtlıysa kod gönderdik" denir, ama kod gitmez.
+- **Kötüye kullanım sınırları** (veritabanı, `20261023140200_phone_login.sql`): numara başına saatte en çok 5 kod; 15 dakikada 5 hatalı kodda numara 15 dakika kilitlenir (yeni kod da gönderilmez). Numaralar bu sayımda SHA-256 özetiyle tutulur, bir gün sonra silinir. Ayrıca Auth'un kendi sınırları: aynı numaraya 60 saniyede bir kod (`auth.sms.max_frequency`; kod ekranındaki yeniden gönderme sayacı da 60 sn) ve proje genelinde saatlik SMS sınırı.
+- Ekranda numara maskeli görünür (`+90 5•• ••• •• 67`, `src/lib/notifications/phone.ts`). Numara ve kod hiçbir yerde loglanmaz.
+
+**Yerel Supabase ayarı** (`supabase/config.toml`): `[auth.hook.send_sms]` hook'u yerel fonksiyona yönlendirir; imza sırrı sadece yerel içindir ve `[edge_runtime.secrets]`'ta fonksiyona da verilir. CLI telefon sağlayıcısını ancak bir SMS sağlayıcısı açıkken açtığı için `[auth.sms.twilio]` sahte değerlerle açıktır; hook açıkken Twilio hiç çağrılmaz.
+
+**Yerelde denemek:** `pnpm db:reset`; operasyonla e-postasız bir sahip kaydet (ya da Supabase'de telefonlu bir kullanıcı aç), `/giris` → **Telefon**. Kodu oku:
+
+```bash
+docker exec supabase_db_orchados psql -U postgres -c \
+  "select created_at, recipient, body from private.message_outbox order by created_at desc limit 5"
+```
 
 ## Harita
 
