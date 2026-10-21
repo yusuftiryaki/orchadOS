@@ -349,11 +349,43 @@ class FieldRepository {
   Future<SessionRow?> session(String id) =>
       (db.select(db.sessions)..where((s) => s.id.equals(id))).getSingleOrNull();
 
+  /// Events of a session in recording order.
   Future<List<SessionEventRow>> events(String sessionId) =>
       (db.select(db.sessionEvents)
             ..where((e) => e.sessionId.equals(sessionId))
-            ..orderBy([(e) => OrderingTerm.asc(e.phoneTime)]))
+            ..orderBy([
+              (e) => OrderingTerm.asc(e.phoneTime),
+              (e) => OrderingTerm.asc(e.rowId),
+            ]))
           .get();
+
+  /// Saves a corner photo (if any) and the corner list after an edit, in
+  /// one transaction.
+  Future<void> saveBoundaryEdit({
+    required String sessionId,
+    required GpsTimeReading time,
+    required Map<String, Object?> corners,
+    String? photoCornerId,
+    PendingShot? photo,
+  }) => db.transaction(() async {
+    if (photo != null) {
+      await _insertCapture(
+        photo,
+        sessionId: sessionId,
+        kind: 'boundary_photo',
+        subjectType: 'corner',
+        subjectId: photoCornerId!,
+      );
+    }
+    await addEvent(
+      sessionId: sessionId,
+      eventType: 'boundary_corners',
+      payload: '${(corners['corners']! as List).length}',
+      time: time,
+      loggerResult: 'none',
+      data: corners,
+    );
+  });
 
   Future<List<CaptureRow>> captures(String sessionId) =>
       (db.select(db.captures)

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../core/time/gps_clock.dart';
 import '../../core/ui/widgets.dart';
+import '../boundary/boundary_corners.dart';
+import '../boundary/boundary_screen.dart' show areaLabel;
 import '../session/session_controller.dart';
 import '../sync/sync_status_card.dart';
 
@@ -13,6 +15,7 @@ class VisitSummary {
     required this.startedAt,
     required this.stoppedAt,
     required this.corners,
+    this.boundaryAreaM2,
     required this.qrSyncs,
     required this.qrOnPhoneClock,
     required this.treesDone,
@@ -24,6 +27,9 @@ class VisitSummary {
   final DateTime? startedAt;
   final DateTime? stoppedAt;
   final int corners;
+
+  /// Approximate area from the corners with a position; null below three.
+  final double? boundaryAreaM2;
   final int qrSyncs;
 
   /// QR codes shown with the phone clock (no GPS time from the logger).
@@ -50,10 +56,12 @@ final visitSummaryProvider = FutureProvider.autoDispose<VisitSummary?>((
   final captures = await repo.captures(sessionId);
   final measurements = await repo.measurements(sessionId);
   final qr = events.where((e) => e.eventType == 'qr_sync');
+  final boundary = BoundaryCorners.fromEvents(events);
   return VisitSummary(
     startedAt: session?.startedAt,
     stoppedAt: session?.stoppedAt,
-    corners: events.where((e) => e.eventType == 'corner').length,
+    corners: boundary.length,
+    boundaryAreaM2: boundary.ring.length >= 3 ? boundary.areaM2 : null,
     qrSyncs: qr.length,
     qrOnPhoneClock: qr
         .where((e) => e.timeSource == TimeSource.phone.code)
@@ -127,6 +135,14 @@ class VisitSummaryScreen extends ConsumerWidget {
                             label: 'Sınır köşesi',
                             value: '${s.corners}',
                             health: s.corners >= 3 ? Health.ok : Health.warn,
+                          ),
+                        if ((task?.isInventory ?? false) &&
+                            s.boundaryAreaM2 != null)
+                          StatusLine(
+                            icon: Icons.square_foot,
+                            label: 'Yaklaşık alan',
+                            value: areaLabel(s.boundaryAreaM2!),
+                            health: Health.ok,
                           ),
                         StatusLine(
                           icon: Icons.park,

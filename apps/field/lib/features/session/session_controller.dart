@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../core/db/field_repository.dart';
 import '../../core/time/gps_clock.dart';
+import '../boundary/boundary_corners.dart';
 import '../gnss/protocol/command_result.dart';
 import '../gnss/protocol/gnss_command.dart';
 import '../tasks/field_task.dart';
@@ -25,7 +27,7 @@ class SessionState {
     this.startedAt,
     this.startQrShown = false,
     this.endQrShown = false,
-    this.cornerCount = 0,
+    this.boundary = BoundaryCorners.empty,
     this.busy = false,
     this.error,
   });
@@ -36,7 +38,11 @@ class SessionState {
   final DateTime? startedAt;
   final bool startQrShown;
   final bool endQrShown;
-  final int cornerCount;
+
+  /// Corners of the boundary walk (inventory), in walking order.
+  final BoundaryCorners boundary;
+
+  int get cornerCount => boundary.length;
 
   /// A logger command is in flight.
   final bool busy;
@@ -53,7 +59,7 @@ class SessionState {
     DateTime? startedAt,
     bool? startQrShown,
     bool? endQrShown,
-    int? cornerCount,
+    BoundaryCorners? boundary,
     bool? busy,
     String? Function()? error,
   }) => SessionState(
@@ -63,7 +69,7 @@ class SessionState {
     startedAt: startedAt ?? this.startedAt,
     startQrShown: startQrShown ?? this.startQrShown,
     endQrShown: endQrShown ?? this.endQrShown,
-    cornerCount: cornerCount ?? this.cornerCount,
+    boundary: boundary ?? this.boundary,
     busy: busy ?? this.busy,
     error: error != null ? error() : this.error,
   );
@@ -151,16 +157,21 @@ class SessionController extends Notifier<SessionState> {
     return true;
   }
 
-  /// Marks a boundary corner (inventory). The payload is the corner number.
+  /// Marks a boundary corner (inventory): `mark_event(corner, <n>)` on the
+  /// logger and a `corner` event with the GPS time of the press and the
+  /// logger's position and quality from its latest status.
   Future<bool> markCorner() async {
     final sessionId = state.sessionId;
     if (!state.isRecording || sessionId == null || state.busy) return false;
-    final n = state.cornerCount + 1;
+    final n = state.boundary.nextCornerNo;
     state = state.copyWith(busy: true, error: () => null);
     final time = _now();
-    final result = await ref
-        .read(gnssLoggerProvider)
-        .markEvent(MarkType.corner, '$n');
+    final logger = ref.read(gnssLoggerProvider);
+    final fix = CornerFix.fromStatus(
+      logger.lastStatus,
+      ref.read(clockProvider).now(),
+    );
+    final result = await logger.markEvent(MarkType.corner, '$n');
     if (!ref.mounted) return false;
     if (!result.isOk) {
       state = state.copyWith(
@@ -169,7 +180,7 @@ class SessionController extends Notifier<SessionState> {
       );
       return false;
     }
-    await ref
+    final id = await ref
         .read(fieldRepositoryProvider)
         .addEvent(
           sessionId: sessionId,
@@ -177,10 +188,79 @@ class SessionController extends Notifier<SessionState> {
           payload: '$n',
           time: time,
           loggerResult: result.name,
+          data: Corner.eventData(n, fix),
         );
     if (!ref.mounted) return true;
-    state = state.copyWith(busy: false, cornerCount: n);
+    state = state.copyWith(
+      busy: false,
+      boundary: state.boundary.add(
+        Corner(
+          eventId: id,
+          cornerNo: n,
+          gpsTimeMs: time.gpsTimeMs,
+          timeSource: time.source.code,
+          fix: fix,
+        ),
+      ),
+    );
     return true;
+  }
+
+  /// Moves a corner up (−1) or down (+1) in the list.
+  Future<void> moveCorner(int index, int delta) =>
+      _editBoundary(state.boundary.move(index, delta));
+
+  /// Deletes the last corner of the list. The logger keeps its `corner`
+  /// line; the new list leaves the corner out.
+  Future<void> deleteLastCorner() => _editBoundary(state.boundary.removeLast());
+
+  /// Note, boundary markers and an optional new photo for a corner.
+  Future<void> describeCorner(
+    String eventId, {
+    String? note,
+    required List<BoundaryMarker> markers,
+    PendingShot? photo,
+  }) {
+    final trimmed = note?.trim();
+    return _editBoundary(
+      state.boundary.update(
+        eventId,
+        (c) => c.copyWith(
+          note: () => trimmed == null || trimmed.isEmpty ? null : trimmed,
+          markers: markers,
+          photos: photo == null ? null : [...c.photos, photo.sha256],
+        ),
+      ),
+      photo: photo,
+      photoCornerId: eventId,
+    );
+  }
+
+  /// Stores the edited list as a `boundary_corners` event (with the photo
+  /// in the same transaction). Allowed until the visit is finished.
+  Future<void> _editBoundary(
+    BoundaryCorners next, {
+    PendingShot? photo,
+    String? photoCornerId,
+  }) async {
+    final sessionId = state.sessionId;
+    if (sessionId == null ||
+        (state.phase != SessionPhase.recording &&
+            state.phase != SessionPhase.stopped)) {
+      return;
+    }
+    if (identical(next, state.boundary) && photo == null) return;
+    await ref
+        .read(fieldRepositoryProvider)
+        .saveBoundaryEdit(
+          sessionId: sessionId,
+          time: _now(),
+          corners: next.snapshot(sessionId),
+          photo: photo,
+          photoCornerId: photoCornerId,
+        );
+    if (!ref.mounted) return;
+    state = state.copyWith(boundary: next);
   }
 
   /// Called by the QR screen when the first QR frame is on screen: sends

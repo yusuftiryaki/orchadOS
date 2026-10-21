@@ -72,7 +72,7 @@ void main() {
     expect(state.phase, SessionPhase.recording);
     expect(start.sessionId, state.sessionId);
     expect(
-      tester.widget<FilledButton>(button('session-corner')).onPressed,
+      tester.widget<FilledButton>(button('session-boundary')).onPressed,
       isNull,
     );
     expect(
@@ -96,12 +96,17 @@ void main() {
         18000;
     expect(gpsMs - phoneGpsMs, 1500);
 
-    // Two corners.
-    await tapVisible(tester, find.byKey(const Key('session-corner')));
+    // Two corners on the boundary step.
+    await tapVisible(tester, find.byKey(const Key('session-boundary')));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.byKey(const Key('boundary-corner')));
     await settle(tester);
-    await tapVisible(tester, find.byKey(const Key('session-corner')));
+    await tapVisible(tester, find.byKey(const Key('boundary-corner')));
     await settle(tester);
-    expect(find.text('Köşe işaretle (2)'), findsOneWidget);
+    expect(find.text('Köşe (2)'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Sınır (2 köşe)'), findsOneWidget);
     final corners = logger.receivedCommands
         .whereType<MarkEvent>()
         .where((m) => m.type == MarkType.corner)
@@ -153,7 +158,7 @@ void main() {
       inventory: false,
     );
     expect(find.text('Telefon saati'), findsOneWidget);
-    expect(find.byKey(const Key('session-corner')), findsNothing);
+    expect(find.byKey(const Key('session-boundary')), findsNothing);
 
     await tapVisible(tester, find.byKey(const Key('session-start')));
     await settle(tester);

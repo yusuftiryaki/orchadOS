@@ -173,6 +173,15 @@ Kaynak: [firmware/gnss-logger/README.md → BLE protokolü](../firmware/gnss-log
 - Cihaz adı `orchados-gnss-XXXX`; servis `cdee0001-…`, durum `cdee0002-…` (read/notify, 39 bayt, sürüm 1), komut `cdee0003-…` (write). Tüm alanlar little-endian; uygulama MTU ≥ 247 ister.
 - **Durumda GPS zamanı:** Ofset 31'de `gps_time_ns` (u64): mesajın oluşturulduğu anın GPS zamanı, `çapa_gps + (şimdi − çapa_micros) × 1000`; PPS eşlemesi yoksa `0` (bu durumda `flags` bit3 de 0'dır). Firmware 0.2.0'dan itibaren gönderilir; 0.1.0 31 bayt gönderir. Aynı sürümde alanlar yalnızca sona eklendiği için çözücüler 31 bayt ve üzerini kabul eder; 31 baytlık mesajda alan yok sayılır. Saha uygulaması bu değerle telefon saatinin GPS zamanına ofsetini bulur ve QR'ı GPS zamanıyla gösterir; değer yoksa telefon saati + 18 sn kullanır ve bunu işaretler.
 - Komutlar: `start_session(session_id, parcel_id)`, `stop_session`, `mark_event(corner | qr_sync, payload)`. Sonuç durum mesajındaki `last_cmd_seq` / `last_cmd_result` ile izlenir.
+- **Durumda konum (öneri, firmware henüz göndermiyor):** Sınır köşesi, kapsama izi ve doğrulama turunda yere uzaklık için saha uygulaması alıcının konumunu durum mesajından okur. Aynı sürümde alanlar sona eklendiği için 39 baytın ardına 12 bayt önerildi (toplam 51 bayt):
+
+  | Ofset | Tür | Alan | Açıklama |
+  | --- | --- | --- | --- |
+  | 39 | i32 | `lat_e7` | NAV-PVT `lat` (1e-7 derece) |
+  | 43 | i32 | `lon_e7` | NAV-PVT `lon` (1e-7 derece) |
+  | 47 | i32 | `height_mm` | NAV-PVT `height` (elipsoit üstü, mm) |
+
+  Konum yalnızca `gnssFixOK` (bit5) ve `fix_type` 2–4 iken geçerli sayılır; aksi halde alanlar yok sayılır. Firmware NAV-PVT'yi zaten çözüyor (`nav_pvt.h`: `latE7`, `lonE7`, `heightMm`); eklenmesi firmware README'sinde ve İP2'de yapılacak. Saha uygulaması 51 bayttan kısa mesajda konumu "yok" kabul eder: köşe yine GPS zamanıyla kaydedilir, kapsama ve uzaklık gösterilmez.
 - `start_session`'a verilen `session_id` ve `parcel_id`, kök `session.json`'dakilerle aynı olmalıdır (yukarıdaki birleştirme kuralı).
 
 ## Medya depolama
@@ -232,7 +241,7 @@ Saha fotoğrafları ve işleme hattının ürünleri (panorama, ağaç kesiti vb
 
 ## Doğrulama kalemleri
 
-Envanter doğrulama turu (`docs/MVP.md` Modül 2, adım 9) ofiste oluşturulur; saha uygulaması (sonraki sürüm) kalemleri personele görev olarak indirir ve sonuçları yazar. Şema: `docs/veri-modeli.md`, "Doğrulama listesi ve envanter onayı". Saha uygulaması kullanıcının belirteciyle PostgREST üzerinden çalışır (servis anahtarı yok).
+Envanter doğrulama turu (`docs/MVP.md` Modül 2, adım 9) ofiste oluşturulur; saha uygulaması kalemleri personele görev olarak indirir ve sonuçları yazar. Şema: `docs/veri-modeli.md`, "Doğrulama listesi ve envanter onayı". Saha uygulaması kullanıcının belirteciyle PostgREST üzerinden çalışır (servis anahtarı yok).
 
 **Okunan:**
 
@@ -254,6 +263,7 @@ Envanter doğrulama turu (`docs/MVP.md` Modül 2, adım 9) ofiste oluşturulur; 
 - **Hatalar** mesajda neden olarak gelir: `not_found`, `forbidden`, `item_closed`, `item_not_open`, `invalid_input`.
 - **Çevrimdışı:** sonuç kuyrukta bekler; aynı kaleme iki kez gönderilen sonuçta en yenisi geçerlidir. Kapatılmış kaleme gelen sonuç `item_closed` ile reddedilir ve kullanıcıya gösterilir.
 - Turun bütün kalemlerine bakılınca oturum veritabanında `captured` olur; uygulama ayrıca durum yazmaz.
+- **Saha uygulamasında:** Tur kayıt (kaydedici oturumu, QR) gerektirmez. Telefonda turun kimliğiyle yerel bir oturum satırı açılır (fotoğraflar ona bağlanır) ama bu satır kuyruğa girmez: `public.session`'a uygulama yazmaz. Kalemler sıra ve pozisyona göre sıralanır; yer tarifi parselin konumlu yerlerinden çıkar ("S5 sırasında, güneyden 12. yer": pozisyon 1'in sıranın hangi ucunda olduğu). Kuyrukta önce fotoğraf (`capture`), sonra sonuç (`record_verification_result`) gider. `p_closeup_capture_id` = uuid v5(`<tur>/<sha256>`), yani fotoğrafın `capture.id`'si. Fonksiyonun hata nedeni (`item_closed` vb.) kalıcı hatadır; personele sade bir mesajla gösterilir.
 
 ## Saha uygulaması ve veritabanı
 
@@ -263,8 +273,11 @@ Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce tel
 
 | Okunan | Alanlar | Kural |
 | --- | --- | --- |
-| `public.session` | `id`, `org_id`, `parcel_id`, `kind`, `planned_date`, `lead_user_id` | `status = planned`, `kind` `inventory` ya da `periodic_scan`, `planned_date` ≤ bugün + 7 gün. `lead_user_id` kullanıcı olanlar önce |
+| `public.session` | `id`, `org_id`, `parcel_id`, `kind`, `planned_date`, `lead_user_id`, `notes` | `status = planned`, `kind` `inventory`, `periodic_scan` ya da `verification`, `planned_date` ≤ bugün + 7 gün. `lead_user_id` kullanıcı olanlar önce |
 | `public.parcel` | `name`, `village`, `estimated_area_m2` | Ziyaretin parseli |
+| `public.slot` | `id`, `code`, `row_no`, `position_no`, `position`, `position_uncertainty_m` | Parselin bütün yerleri (harita, kapsama, yer tarifi). `position` GeoJSON nokta |
+| `public.boundary` | `geom` | Parselin en yüksek `version`'lı sınırı (haritada çizilir). GeoJSON poligon |
+| `public.verification_item` | `id`, `slot_id`, `tree_id`, `reasons`, `note` | Doğrulama turunda `status = open` kalemler (yukarıda, "Doğrulama kalemleri") |
 | `public.tree` + `public.slot` | `tree.id`, `slot.code`, `slot.row_no`, `slot.position_no` | Periyodik ziyarette parselin `status = active` ağaçları |
 | `public.tree_latest_assessment` | `tree_id`, `overall_class` | Yakın plan listesi: Dikkat, Sorunlu, Kuru olanlar + %10 örneklem (metodoloji bölüm 7) |
 
@@ -276,7 +289,9 @@ Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce tel
 | Telefonda | Sunucuda | Nasıl | Tekrar gönderimde |
 | --- | --- | --- | --- |
 | Oturum | `public.session` (planlanmış ziyaret) | `update`: `started_at`, `methodology_version`; kayıt durunca `status = captured`, `ended_at`. Yalnızca `status` `planned` ya da `captured` iken | Aynı değerler; ziyaret işlendiyse dokunulmaz |
-| Oturum olayı (`session_start`, `qr_sync`, `corner`, `session_stop`) | `public.session_event` | `insert`, kimlik telefondan | `on conflict (id) do nothing` |
+| Oturum olayı (`session_start`, `qr_sync`, `corner`, `boundary_corners`, `coverage`, `session_stop`) | `public.session_event` (ayrıntılar `data`'da; aşağıda "Sınır köşeleri ve kapsama") | `insert`, kimlik telefondan | `on conflict (id) do nothing` |
+| Sınır işareti fotoğrafı, doğrulama yakın planı | Yakın plan fotoğrafıyla aynı yol; `capture` satırında `tree_id` yok. `metadata.local_kind` `boundary_photo` (`corner_event_id`) ya da `verification_photo` (`slot_id`) | Yakın plan fotoğrafıyla aynı | Aynı |
+| Doğrulama sonucu | `record_verification_result(...)` | Fonksiyon çağrısı; fotoğraf varsa önce o | Yeniden çağrılabilir; en yenisi geçerli |
 | Yakın plan fotoğrafı | `media` alanında `org/<org_id>/parcel/<parcel_id>/<sha256>` + `public.capture` (`kind = photo`, `tree_id`, `uri`, `content_hash`, `started_at` = çekimin GPS zamanından UTC) | Önce dosya, sonra satır. `capture.id` = uuid v5(`<oturum>/<sha256>`). Çekim kodu, yer kodu, `gps_time_ns`, zaman kaynağı ve cihazdaki kalite kontrolü `metadata`'da | Var olan nesne yüklenmiş sayılır; `on conflict (session_id, content_hash) do nothing` |
 | Personel cevabı | `public.measurement` (`source = staff`, `method = field_question`, `method_version` = soru seti sürümü) | Evet/hayır → `value_boolean`; `metric_definition_id` metrik kodundan | `on conflict (id) do nothing` |
 
@@ -286,6 +301,42 @@ Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce tel
 - **Hatalar:** Ağ hatası, zaman aşımı, 5xx/429 ve süresi geçmiş giriş geçicidir (kayıt kuyrukta kalır, artan beklemeyle yeniden denenir). Yetki (`42501`), doğrulama (`23xxx`, `22P02`), bilinmeyen ya da iptal edilmiş ziyaret (`visit_not_found`, `visit_cancelled`), kayıtta olmayan metrik (`unknown_metric`) kalıcıdır: kayıt telefonda "başarısız" diye sebebiyle işaretlenir, kuyruk durmaz.
 - **Fotoğraf dosyası** telefondan ancak yükleme, `capture` satırı ve nesnenin varlık kontrolü başarılı olunca silinir.
 - **Açık:** Cevap ile kanıt fotoğrafı arasındaki bağ sunucuda yok (`measurement_evidence` yalnızca `asset`'e bağlanır); ikisi aynı oturum ve ağaçla eşleşir.
+
+## Sınır köşeleri ve kapsama
+
+Saha uygulaması envanterde sınır yürüyüşünü ve taramanın kapsamasını oturum olayı olarak yazar (`public.session_event`, ayrıntılar `data` sütununda, JSON nesnesi; `20261022120000_session_event_data.sql`). Tablo ekleme-yalnızdır: bir düzeltme yeni bir olaydır.
+
+**Karar (köşeler olay olarak):** Köşeler `boundary` taslağı ya da yeni bir tablo yerine olay olarak saklanır. Gerekçe: (1) telefondaki konum PPK öncesidir; asıl konum ham GNSS kaydının PPK ile düzeltilmiş yörüngesinden, köşenin GPS zamanıyla bulunur. Telefonun bilmediği bir konumla `boundary` sürümü açmak sahibin onayına yanlış bir poligon sunar. (2) Kaydedicinin `events.csv`'sindeki `corner` satırlarıyla aynı anı işaretler; iki kaynak karşılaştırılabilir. (3) Sıra düzeltme ve silme, ekleme-yalnız tabloda "en yeni liste geçerli" kuralıyla güvenle ifade edilir. **Sınır sürümünü (`public.boundary`, kaynak `field_survey`) ofis ya da işleme hattı oluşturur;** saha uygulaması `boundary`'ye yazmaz. İşleme hattının bu olayları okuması sonraki iştir.
+
+**`corner`** (her "Köşe" basışı): `payload` kaydediciye giden köşe numarası (`mark_event(corner, "<n>")`), `gps_time_ns` basış anının GPS zamanı (zaman kaynağı `time_source`'ta).
+
+| `data` alanı | Tür | Anlamı |
+| --- | --- | --- |
+| `corner_no` | int | Köşe numarası (`payload` ile aynı). Oturumda tekildir; silinen numara yeniden kullanılmaz. Listedeki sıra değildir |
+| `position` | nesne \| null | Kaydedicinin basıştan önceki son durum mesajındaki konum (yukarıda "BLE protokolü", konum bloğu). Mesaj yoksa, konum taşımıyorsa ya da 5 sn'den eskiyse `null` |
+| `position.lat`, `position.lon` | sayı | WGS84 derece |
+| `position.height_m` | sayı | Elipsoit üstü yükseklik (m) |
+| `position.h_acc_m` | sayı | Alıcının yatay doğruluk tahmini (m) |
+| `position.fix_type`, `position.num_sv` | int | NAV-PVT `fixType`, uydu sayısı |
+| `position.carr_soln` | `none` \| `float` \| `fixed` | RTK durumu |
+| `position.status_gps_time_ns` | metin | Konumun geldiği durum mesajının GPS zamanı (ns, 64 bit olduğu için metin) |
+| `position.age_ms` | int | Durum mesajının basış anındaki yaşı (telefon saatiyle) |
+
+**`boundary_corners`** (köşe listesi her düzenlendiğinde: sıra değişti, son köşe silindi, not, işaret ya da fotoğraf eklendi): `payload` listedeki köşe sayısı, `logger_result = none` (kaydediciye komut gitmez).
+
+| `data` alanı | Tür | Anlamı |
+| --- | --- | --- |
+| `version` | int | 1 |
+| `corners` | dizi | Yürüme sırasıyla köşeler |
+| `corners[].event_id` | uuid | Köşenin `corner` olayı |
+| `corners[].corner_no` | int | Aynı olaydaki numara |
+| `corners[].note` | metin \| null | Personelin notu |
+| `corners[].markers` | metin dizisi | Sınırı belirleyen: `stone` (sınır taşı), `fence` (çit), `wall` (duvar), `road` (yol), `neighbor` (komşu bahçe), `other` |
+| `corners[].photos` | dizi | `{sha256, capture_id}`: köşede çekilen fotoğraflar (`capture`, `metadata.local_kind = boundary_photo`, `metadata.corner_event_id`) |
+
+Okuma kuralı: oturumun **en yeni** `boundary_corners` olayı (sıra: `gps_time_ns`, eşitse `phone_time`) köşe listesidir. Listede olmayan ve o olaydan önce işaretlenmiş köşe silinmiştir; ondan sonra işaretlenen köşeler listenin sonuna eklenir. Hiç `boundary_corners` yoksa liste, `corner` olaylarının sırasıdır. Silinen köşenin `corner` olayı ve kaydedicideki satırı kalır.
+
+Uygulamada gösterilen alan, listedeki konumlu köşelerden (en az 3) yerel düzlemde hesaplanır (m² ve dönüm = m² / 1000). Kesin alan PPK'dan sonra `boundary.area_m2`'dir.
 
 ## Açık noktalar
 
