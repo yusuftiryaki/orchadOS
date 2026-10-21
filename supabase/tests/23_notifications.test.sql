@@ -5,7 +5,7 @@
 -- its own visit.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(33);
+select plan(51);
 
 create function pg_temp.as_user(p_id text) returns void language sql
 as $$ select set_config('request.jwt.claims', json_build_object('sub', p_id, 'role', 'authenticated')::text, true) $$;
@@ -137,6 +137,69 @@ select results_eq(
      where session_id = 'e3000000-0000-4000-8000-000000000003' group by template $$,
   $$ values ('report_ready', 2::bigint) $$,
   'signing the report with it: the report message covers the critical finding');
+
+-- Sending: claim, report, outbox, schedule ------------------------------------------
+
+select ok(not has_function_privilege('authenticated', 'public.notification_claim(integer)', 'EXECUTE')
+  and not has_function_privilege('authenticated', 'public.notification_report(uuid, text, text, timestamptz, text, text)', 'EXECUTE')
+  and not has_function_privilege('authenticated', 'public.message_outbox_list(text, integer)', 'EXECUTE')
+  and not has_function_privilege('anon', 'public.message_outbox_record(text, text, text, text, uuid)', 'EXECUTE'),
+  'only the service role claims, reports and reads the outbox');
+
+set local role service_role;
+create temporary table claimed on commit drop as
+  select * from public.notification_claim(2);
+select is((select count(*) from claimed), 2::bigint, 'the sender claims up to the limit');
+select is(
+  (select array_agg(phone order by phone) from claimed),
+  array['+905550000001', '+905550000002'],
+  'the phone comes from the owner profile at claim time');
+select is((select array_agg(distinct attempts) from claimed), array[1], 'the claim counts the attempt');
+select is((select count(*) from public.notification_claim(100)), 4::bigint, 'held rows are not claimed twice');
+
+select lives_ok(
+  format($$ select public.notification_report(%L, 'sent', p_sent_via => 'record/sms', p_provider_message_id => 'x1') $$,
+    (select id from claimed order by phone limit 1)),
+  'report: sent');
+select throws_ok(
+  format($$ select public.notification_report(%L, 'sent') $$, (select id from claimed order by phone limit 1)),
+  '55000', 'not_pending', 'a sent message cannot be reported again');
+select throws_ok(
+  format($$ select public.notification_report(%L, 'retry', 'provider_error:30') $$,
+    (select id from claimed order by phone desc limit 1)),
+  '22023', 'invalid_input', 'a retry needs a time');
+select lives_ok(
+  format($$ select public.notification_report(%L, 'retry', 'provider_unreachable', now() + interval '1 minute') $$,
+    (select id from claimed order by phone desc limit 1)),
+  'report: retry later');
+select is((select count(*) from public.notification_claim(100)), 0::bigint, 'a message waiting for its retry is not due');
+reset role;
+
+select results_eq(
+  $$ select n.status::text, n.sent_via, n.last_error, n.sent_at is not null, n.locked_until is null
+     from public.notification n join claimed c on c.id = n.id order by c.phone $$,
+  $$ values ('sent', 'record/sms', null::text, true, true),
+            ('pending', null::text, 'provider_unreachable', false, true) $$,
+  'outcomes are written');
+select throws_ok(
+  $$ update public.notification set last_error = 'Numara +905550000001 hatalı' where status = 'pending' $$,
+  '23514', null, 'errors are reason codes, not free text');
+
+set local role service_role;
+select lives_ok(
+  $$ select public.notification_report(id, 'failed', 'no_phone') from public.notification
+     where status = 'pending' and attempts = 1 and last_error is null $$,
+  'report: failed');
+select isnt(public.message_outbox_record('sms', '+905550000009', 'Kod 123456', 'login_code'), null,
+  'the record provider keeps a message');
+select is((select body from public.message_outbox_list('+905550000009')), 'Kod 123456',
+  'and tests read it back');
+reset role;
+select is((select count(*) from public.notification where status = 'failed'), 4::bigint, 'failed messages stay listed');
+
+select is(private.dispatch_notifications(), null, 'without the function URL in Vault the schedule does nothing');
+select is((select schedule from cron.job where jobname = 'dispatch-notifications'), '* * * * *',
+  'the queue is dispatched every minute');
 
 -- Who sees what --------------------------------------------------------------------------
 

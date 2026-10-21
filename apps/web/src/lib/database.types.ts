@@ -2142,6 +2142,28 @@ export type Database = {
         Args: { p_items: Json; p_notes?: string; p_parcel_id: string; p_planned_date?: string };
         Returns: Json;
       };
+      message_outbox_list: {
+        Args: { p_limit?: number; p_recipient: string };
+        Returns: {
+          body: string;
+          channel: string;
+          created_at: string;
+          id: string;
+          notification_id: string;
+          purpose: string;
+          recipient: string;
+        }[];
+      };
+      message_outbox_record: {
+        Args: {
+          p_body: string;
+          p_channel: string;
+          p_notification_id?: string;
+          p_purpose: string;
+          p_recipient: string;
+        };
+        Returns: string;
+      };
       my_owner_profile: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -2153,6 +2175,28 @@ export type Database = {
           org_id: string;
           phone: string;
         }[];
+      };
+      notification_claim: {
+        Args: { p_limit?: number };
+        Returns: {
+          attempts: number;
+          channel: string;
+          id: string;
+          phone: string;
+          template: string;
+          vars: Json;
+        }[];
+      };
+      notification_report: {
+        Args: {
+          p_error?: string;
+          p_id: string;
+          p_outcome: string;
+          p_provider_message_id?: string;
+          p_retry_at?: string;
+          p_sent_via?: string;
+        };
+        Returns: undefined;
       };
       ops_create_owner_profile: {
         Args: {
