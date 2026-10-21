@@ -156,6 +156,24 @@ class AiOutput:
         }
 
 
+def parse_message(message: dict[str, Any], metrics: list[MetricDef]) -> AiOutput:
+    """Validate a Messages API response (as a dict) and return its answer.
+
+    Raises OutputError for a refusal, a truncated answer or an answer that does
+    not match the schema; the triage treats all of them as "no usable answer".
+    """
+    stop = message.get("stop_reason")
+    if stop == "refusal":
+        details = message.get("stop_details") or {}
+        raise OutputError(f"refused ({details.get('category') or 'no category'})")
+    if stop == "max_tokens":
+        raise OutputError("answer truncated at max_tokens")
+    texts = [b.get("text", "") for b in message.get("content", []) if b.get("type") == "text"]
+    if not texts:
+        raise OutputError(f"no text block in the answer (stop_reason {stop})")
+    return validate(texts[0], metrics)
+
+
 def _confidence(x: Any, where: str) -> float:
     if isinstance(x, bool) or not isinstance(x, int | float):
         raise OutputError(f"{where}: confidence must be a number")
