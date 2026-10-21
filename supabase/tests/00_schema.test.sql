@@ -14,7 +14,8 @@ select tables_are(
     'device', 'sensor', 'rig', 'rig_sensor', 'calibration', 'session', 'capture',
     'asset', 'asset_source', 'metric_definition', 'measurement', 'measurement_evidence',
     'assessment', 'assessment_measurement', 'finding', 'finding_evidence', 'operation', 'trunk_label',
-    'verification_item', 'session_event', 'question', 'question_reply'
+    'verification_item', 'session_event', 'parcel_route', 'ai_assessment_detail',
+    'question', 'question_reply'
   ],
   'public has exactly the MVP tables'
 );

@@ -1,5 +1,6 @@
 #include <unity.h>
 
+#include <climits>
 #include <string>
 #include <vector>
 
@@ -124,6 +125,7 @@ void test_invalid_arguments() {
   TEST_ASSERT_FALSE(validPayload(std::string(201, 'a')));
 }
 
+// Same message as the example in README.md.
 void test_status_encoding_bytes() {
   Status s;
   s.recording = 1;
@@ -138,25 +140,32 @@ void test_status_encoding_bytes() {
   s.sdFreeMib = 30000;
   s.batteryMv = 18200;
   s.fwMajor = 0;
-  s.fwMinor = 1;
+  s.fwMinor = 3;
   s.fwPatch = 0;
   s.droppedBytes = 0;
   s.lastCmdSeq = 7;
   s.lastCmdResult = 0;
   s.gpsTimeNs = 1476350122250000000ULL;
+  s.flags |= flags::kPositionValid;
+  s.latE7 = 370662000;    // 37.0662000 N
+  s.lonE7 = 373830000;    // 37.3830000 E
+  s.heightMm = 892340;    // 892.340 m
   uint8_t out[kStatusLen];
   encodeStatus(s, out);
-  TEST_ASSERT_EQUAL(39, kStatusLen);
+  TEST_ASSERT_EQUAL(51, kStatusLen);
   const uint8_t expected[kStatusLen] = {
-      0x01, 0x01, 0x29, 0x01, 0x01, 0x03, 0x02, 0x1B,  // header bytes
+      0x01, 0x01, 0x69, 0x01, 0x01, 0x03, 0x02, 0x1B,  // header bytes
       0x0E, 0x00, 0x00, 0x00,                          // hAcc
       0x04, 0x03, 0x02, 0x01,                          // bytes written
       0x30, 0x75, 0x00, 0x00,                          // SD free MiB
       0x18, 0x47,                                      // battery mV
-      0x00, 0x01, 0x00,                                // firmware
+      0x00, 0x03, 0x00,                                // firmware
       0x00, 0x00, 0x00, 0x00,                          // dropped
       0x07, 0x00,                                      // last command
-      0x80, 0xD6, 0xD0, 0x38, 0x9D, 0x0C, 0x7D, 0x14}; // gps_time_ns
+      0x80, 0xD6, 0xD0, 0x38, 0x9D, 0x0C, 0x7D, 0x14,  // gps_time_ns
+      0x70, 0xDA, 0x17, 0x16,                          // lat_e7
+      0x70, 0x31, 0x48, 0x16,                          // lon_e7
+      0xB4, 0x9D, 0x0D, 0x00};                         // height_mm
   TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, out, kStatusLen);
 
   Status back;
@@ -165,7 +174,124 @@ void test_status_encoding_bytes() {
   TEST_ASSERT_EQUAL(18200, back.batteryMv);
   TEST_ASSERT_EQUAL(27, back.numSv);
   TEST_ASSERT_TRUE(back.gpsTimeNs == 1476350122250000000ULL);
+  TEST_ASSERT_EQUAL_INT32(370662000, back.latE7);
+  TEST_ASSERT_EQUAL_INT32(373830000, back.lonE7);
+  TEST_ASSERT_EQUAL_INT32(892340, back.heightMm);
+  TEST_ASSERT_TRUE(back.flags & flags::kPositionValid);
   TEST_ASSERT_FALSE(decodeStatus(out, kStatusMinLen - 1, &back));
+}
+
+namespace {
+
+gl::NavPvt fixedPvt() {
+  gl::NavPvt pvt{};
+  pvt.gnssFixOk = true;
+  pvt.fixType = 3;
+  pvt.latE7 = 370662000;
+  pvt.lonE7 = 373830000;
+  pvt.heightMm = 892340;
+  return pvt;
+}
+
+}  // namespace
+
+void test_status_position_offsets_and_limits() {
+  Status s;
+  s.flags = flags::kPositionValid;
+  s.latE7 = -900000000;              // south pole
+  s.lonE7 = 1800000000;              // antimeridian
+  s.heightMm = INT32_MIN;            // most negative height
+  uint8_t out[kStatusLen];
+  encodeStatus(s, out);
+  const uint8_t lat[4] = {0x00, 0x17, 0x5B, 0xCA};  // -900000000
+  const uint8_t lon[4] = {0x00, 0xD2, 0x49, 0x6B};  // 1800000000
+  const uint8_t height[4] = {0x00, 0x00, 0x00, 0x80};
+  TEST_ASSERT_EQUAL_HEX8_ARRAY(lat, out + 39, 4);
+  TEST_ASSERT_EQUAL_HEX8_ARRAY(lon, out + 43, 4);
+  TEST_ASSERT_EQUAL_HEX8_ARRAY(height, out + 47, 4);
+  Status back;
+  TEST_ASSERT_TRUE(decodeStatus(out, sizeof(out), &back));
+  TEST_ASSERT_EQUAL_INT32(-900000000, back.latE7);
+  TEST_ASSERT_EQUAL_INT32(1800000000, back.lonE7);
+  TEST_ASSERT_EQUAL_INT32(INT32_MIN, back.heightMm);
+
+  s.latE7 = 900000000;
+  s.lonE7 = -1800000000;
+  s.heightMm = INT32_MAX;
+  encodeStatus(s, out);
+  TEST_ASSERT_TRUE(decodeStatus(out, sizeof(out), &back));
+  TEST_ASSERT_EQUAL_INT32(900000000, back.latE7);
+  TEST_ASSERT_EQUAL_INT32(-1800000000, back.lonE7);
+  TEST_ASSERT_EQUAL_INT32(INT32_MAX, back.heightMm);
+}
+
+void test_status_position_from_nav_pvt() {
+  Status s;
+  s.flags = flags::kGnssFixOk;
+  gl::NavPvt pvt = fixedPvt();
+  setStatusPosition(&pvt, &s);
+  TEST_ASSERT_TRUE(s.flags & flags::kPositionValid);
+  TEST_ASSERT_TRUE(s.flags & flags::kGnssFixOk);  // other bits kept
+  TEST_ASSERT_EQUAL_INT32(370662000, s.latE7);
+  TEST_ASSERT_EQUAL_INT32(373830000, s.lonE7);
+  TEST_ASSERT_EQUAL_INT32(892340, s.heightMm);
+  // 2D and GNSS+DR fixes count as positions.
+  pvt.fixType = 2;
+  TEST_ASSERT_TRUE(positionValid(pvt));
+  pvt.fixType = 4;
+  TEST_ASSERT_TRUE(positionValid(pvt));
+}
+
+void test_status_position_without_fix() {
+  // Every invalid case leaves the block zero and the bit cleared, even when
+  // a previous message carried a position.
+  const uint8_t badFixTypes[] = {0, 1, 5};
+  for (uint8_t fix : badFixTypes) {
+    Status s;
+    s.flags = flags::kPositionValid;
+    s.latE7 = s.lonE7 = s.heightMm = 1;
+    gl::NavPvt pvt = fixedPvt();
+    pvt.fixType = fix;
+    setStatusPosition(&pvt, &s);
+    TEST_ASSERT_FALSE(s.flags & flags::kPositionValid);
+    TEST_ASSERT_EQUAL_INT32(0, s.latE7);
+    TEST_ASSERT_EQUAL_INT32(0, s.lonE7);
+    TEST_ASSERT_EQUAL_INT32(0, s.heightMm);
+  }
+  gl::NavPvt noFixOk = fixedPvt();
+  noFixOk.gnssFixOk = false;
+  TEST_ASSERT_FALSE(positionValid(noFixOk));
+  gl::NavPvt invalidLlh = fixedPvt();
+  invalidLlh.invalidLlh = true;
+  TEST_ASSERT_FALSE(positionValid(invalidLlh));
+
+  // No NAV-PVT yet.
+  Status s;
+  s.flags = flags::kPositionValid | flags::kSdPresent;
+  s.latE7 = 5;
+  setStatusPosition(nullptr, &s);
+  TEST_ASSERT_EQUAL_HEX8(flags::kSdPresent, s.flags);
+  uint8_t out[kStatusLen];
+  encodeStatus(s, out);
+  for (size_t i = 39; i < kStatusLen; ++i) TEST_ASSERT_EQUAL_HEX8(0x00, out[i]);
+}
+
+void test_status_39_byte_message_has_no_position() {
+  // A 0.2.0 message: the position is unknown even if bit6 happened to be set.
+  Status s;
+  s.flags = flags::kPositionValid;
+  s.gpsTimeNs = 42;
+  s.latE7 = 370662000;
+  uint8_t out[kStatusLen];
+  encodeStatus(s, out);
+  Status back;
+  TEST_ASSERT_TRUE(decodeStatus(out, kStatusGpsTimeLen, &back));
+  TEST_ASSERT_TRUE(back.gpsTimeNs == 42);
+  TEST_ASSERT_EQUAL_INT32(0, back.latE7);
+  TEST_ASSERT_FALSE(back.flags & flags::kPositionValid);
+  // 50 bytes: still without the full block.
+  TEST_ASSERT_TRUE(decodeStatus(out, kStatusLen - 1, &back));
+  TEST_ASSERT_EQUAL_INT32(0, back.latE7);
 }
 
 void test_status_gps_time_offset_and_legacy_length() {
@@ -242,6 +368,10 @@ int main() {
   RUN_TEST(test_invalid_arguments);
   RUN_TEST(test_status_encoding_bytes);
   RUN_TEST(test_status_gps_time_offset_and_legacy_length);
+  RUN_TEST(test_status_position_offsets_and_limits);
+  RUN_TEST(test_status_position_from_nav_pvt);
+  RUN_TEST(test_status_position_without_fix);
+  RUN_TEST(test_status_39_byte_message_has_no_position);
   RUN_TEST(test_status_gps_time_from_anchor);
   RUN_TEST(test_default_status);
   return UNITY_END();

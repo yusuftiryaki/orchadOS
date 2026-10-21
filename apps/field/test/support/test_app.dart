@@ -15,6 +15,7 @@ import 'package:orchados_field/core/sync/sync_server.dart';
 import 'package:orchados_field/core/time/clock.dart';
 import 'package:orchados_field/features/auth/auth_repository.dart';
 import 'package:orchados_field/features/gnss/fake_gnss_logger.dart';
+import 'package:orchados_field/features/route/beeper.dart';
 import 'package:orchados_field/features/tasks/task_repository.dart';
 
 /// Everything a widget test needs, with fakes for hardware.
@@ -30,7 +31,8 @@ class TestHarness {
   }) : clock = FakeClock(DateTime.utc(2026, 12, 3, 8, 30)),
        db = AppDatabase(NativeDatabase.memory()),
        camera = FakeFieldCamera(script: photos, openResult: cameraOpenResult),
-       media = MemoryMediaStore() {
+       media = MemoryMediaStore(),
+       beeper = FakeBeeper() {
     // Each test opens its own in-memory database.
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
     logger = FakeGnssLogger(
@@ -45,6 +47,7 @@ class TestHarness {
         gnssLoggerProvider.overrideWithValue(logger),
         cameraProvider.overrideWithValue(camera),
         mediaStoreProvider.overrideWithValue(media),
+        beeperProvider.overrideWithValue(beeper),
         // Same check, on the test isolate so that fake time controls it.
         photoQualityCheckerProvider.overrideWithValue(
           const PhotoQualityChecker(useIsolate: false),
@@ -64,6 +67,7 @@ class TestHarness {
   final AppDatabase db;
   final FakeFieldCamera camera;
   final MemoryMediaStore media;
+  final FakeBeeper beeper;
 
   /// Sync target; null = no server (offline development build).
   final SyncServer? server;
@@ -87,6 +91,14 @@ class TestHarness {
       await db.close();
     });
   }
+}
+
+/// Counts beeps instead of playing them.
+class FakeBeeper implements Beeper {
+  int count = 0;
+
+  @override
+  Future<void> beep() async => count++;
 }
 
 /// Scrolls [finder] into view and taps it.

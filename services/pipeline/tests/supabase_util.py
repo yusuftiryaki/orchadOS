@@ -104,6 +104,8 @@ delete from public.asset_source where asset_id in
   (select id from public.asset where session_id in (select id from purge_session));
 delete from public.asset where session_id in (select id from purge_session);
 delete from public.capture where session_id in (select id from purge_session);
+delete from public.session_event where session_id in (select id from purge_session);
+delete from public.boundary where session_id in (select id from purge_session);
 delete from public.session where id in (select id from purge_session);
 -- Objects that no remaining row points to (the file stays in the storage volume).
 delete from storage.objects o

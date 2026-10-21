@@ -170,18 +170,18 @@ Kurallar:
 
 Kaynak: [firmware/gnss-logger/README.md → BLE protokolü](../firmware/gnss-logger/README.md#ble-protokolü). Özet:
 
-- Cihaz adı `orchados-gnss-XXXX`; servis `cdee0001-…`, durum `cdee0002-…` (read/notify, 39 bayt, sürüm 1), komut `cdee0003-…` (write). Tüm alanlar little-endian; uygulama MTU ≥ 247 ister.
+- Cihaz adı `orchados-gnss-XXXX`; servis `cdee0001-…`, durum `cdee0002-…` (read/notify, 51 bayt, sürüm 1), komut `cdee0003-…` (write). Tüm alanlar little-endian; uygulama MTU ≥ 247 ister.
 - **Durumda GPS zamanı:** Ofset 31'de `gps_time_ns` (u64): mesajın oluşturulduğu anın GPS zamanı, `çapa_gps + (şimdi − çapa_micros) × 1000`; PPS eşlemesi yoksa `0` (bu durumda `flags` bit3 de 0'dır). Firmware 0.2.0'dan itibaren gönderilir; 0.1.0 31 bayt gönderir. Aynı sürümde alanlar yalnızca sona eklendiği için çözücüler 31 bayt ve üzerini kabul eder; 31 baytlık mesajda alan yok sayılır. Saha uygulaması bu değerle telefon saatinin GPS zamanına ofsetini bulur ve QR'ı GPS zamanıyla gösterir; değer yoksa telefon saati + 18 sn kullanır ve bunu işaretler.
 - Komutlar: `start_session(session_id, parcel_id)`, `stop_session`, `mark_event(corner | qr_sync, payload)`. Sonuç durum mesajındaki `last_cmd_seq` / `last_cmd_result` ile izlenir.
-- **Durumda konum (öneri, firmware henüz göndermiyor):** Sınır köşesi, kapsama izi ve doğrulama turunda yere uzaklık için saha uygulaması alıcının konumunu durum mesajından okur. Aynı sürümde alanlar sona eklendiği için 39 baytın ardına 12 bayt önerildi (toplam 51 bayt):
+- **Durumda konum:** Sınır köşesi, kapsama izi ve doğrulama turunda yere uzaklık için saha uygulaması alıcının konumunu durum mesajından okur. Firmware 0.3.0'dan itibaren 39 baytın ardında 12 baytlık konum bloğu var (toplam 51 bayt):
 
   | Ofset | Tür | Alan | Açıklama |
   | --- | --- | --- | --- |
-  | 39 | i32 | `lat_e7` | NAV-PVT `lat` (1e-7 derece) |
-  | 43 | i32 | `lon_e7` | NAV-PVT `lon` (1e-7 derece) |
-  | 47 | i32 | `height_mm` | NAV-PVT `height` (elipsoit üstü, mm) |
+  | 39 | i32 | `lat_e7` | Son NAV-PVT `lat` (1e-7 derece) |
+  | 43 | i32 | `lon_e7` | Son NAV-PVT `lon` (1e-7 derece) |
+  | 47 | i32 | `height_mm` | Son NAV-PVT `height` (elipsoit üstü, mm) |
 
-  Konum yalnızca `gnssFixOK` (bit5) ve `fix_type` 2–4 iken geçerli sayılır; aksi halde alanlar yok sayılır. Firmware NAV-PVT'yi zaten çözüyor (`nav_pvt.h`: `latE7`, `lonE7`, `heightMm`); eklenmesi firmware README'sinde ve İP2'de yapılacak. Saha uygulaması 51 bayttan kısa mesajda konumu "yok" kabul eder: köşe yine GPS zamanıyla kaydedilir, kapsama ve uzaklık gösterilmez.
+  Konum yalnızca `gnssFixOK` (bit5), `fix_type` 2–4 ve NAV-PVT `invalidLlh` kalkıkken geçerlidir; o zaman `flags` bit6 (konum geçerli) 1'dir. Aksi halde üç alan `0`, bit6 `0`'dır; çözücü bit6'ya bakar. Saha uygulaması 51 bayttan kısa mesajda (firmware 0.2.0 ve öncesi) konumu "yok" kabul eder: köşe yine GPS zamanıyla kaydedilir, kapsama ve uzaklık gösterilmez. Konum PPK öncesidir; doğruluğu `h_acc_mm`'dedir.
 - `start_session`'a verilen `session_id` ve `parcel_id`, kök `session.json`'dakilerle aynı olmalıdır (yukarıdaki birleştirme kuralı).
 
 ## Medya depolama
@@ -239,6 +239,53 @@ Saha fotoğrafları ve işleme hattının ürünleri (panorama, ağaç kesiti vb
 - Kesitin `subject.tree_id`'si `tree.id`, `slot_code`'u `slot.code`'dur; yükleme bunu slotun yükleme anındaki aktif ağacıyla yeniden denetler.
 - `slot.position` boşsa ağaç kesit almaz (**karar**: yerel koordinattan konum türetilmez). Parselde konumlu aktif ağaç yoksa ya da oturum `kind = inventory` ise hat sadece panorama üretir; bu hata değil, `outputs.json`'da `crops_status` (`no_tree_positions`, `inventory_session`) olarak raporlanır.
 
+## AI ön değerlendirme satırları
+
+AI worker (`services/ai-worker`, `ai-worker run`) işlenmiş bir tarama ziyaretinin her aktif ağacı için bir öneri yazar. Ops kullanıcısının belirteciyle çalışır (servis anahtarı yok); yazma tek bir veritabanı fonksiyonuyla, tek işlemde yapılır: `save_ai_assessment` (`supabase/migrations/20261023150000_ai_preassessment.sql`). Oturum `processed` ya da `in_review` olmalı.
+
+**Okunan:**
+
+| Tablo | Alanlar | Kural |
+| --- | --- | --- |
+| `public.session` | `status`, `methodology_version`, zaman | Mevsim oturum zamanından çıkar (`started_at`, yoksa `planned_date`, yoksa `created_at`; ay UTC; Mart ilkbahar, Kasım kış) |
+| `public.tree` + `slot.code` | `id`, kod | `status = active` |
+| `public.asset` | `kind = tree_crop`, `tree_id`, `uri`, `content_hash`, `pose.direction`, `pose.filters_applied` | Dosya imzalı adresle indirilir, SHA-256'sı denetlenir. Yön başına en yeni (`produced_at`), sonra en yüksek `quality_score` |
+| `public.measurement` | `source = staff`, `value_boolean` | Personelin evet/hayır cevapları; isteğe sadece metrik kodu ve cevap girer |
+| `public.metric_definition` | `code`, `value_type`, aralık, kategoriler, `valid_seasons` | Mevsimin ağaç ölçekleri. Ad ve açıklama okunmaz |
+
+- **Bulanıklaştırma:** Kesit ancak `pose.filters_applied` dizisinde `face_blur` varsa AI'a gönderilir. Alan yoksa kesit bulanıklaştırılmamış sayılır. İşleme hattı bu alanı `asset.pose`'a henüz yazmıyor (`outputs.json`'da var); yazana kadar AI worker gerçek kesit göndermez. `--allow-unblurred` sadece sentetik veri içindir.
+- **Önceki ziyaret:** Aynı parselin bu ziyaretten önceki en yeni `published` oturumu; o ağacın kesitlerinden ikinci bir mozaik.
+
+**Yazılan** (her ağaç için bir kez):
+
+| Tablo | Alanlar |
+| --- | --- |
+| `assessment` | `source = ai`, `overall_class` (boş olabilir), `confidence` (sınıf güveni, 0–1), `model_name` (son kararı veren model, ör. `claude-sonnet-5-5`), `model_version` (API'nin bildirdiği model kimliği), `methodology_version`, `notes` (kısa Türkçe gerekçe, sadece uzman için) |
+| `measurement` | Değer verilen her ölçek için bir satır: `source = ai`, `method = ai_preassessment`, `method_version` = istem sürümü, `confidence` (0–1), `uncertainty` (sadece 0–3 ölçeklerde: `(1 − güven) × aralık / 2`, ölçek adımı), `params_hash`. Emin olunmayan ölçek yazılmaz |
+| `measurement_evidence` | Her AI ölçümü ↔ isteğe giren kesitler (bu ziyaretin) |
+| `assessment_measurement` | AI değerlendirmesi ↔ AI ölçümleri |
+| `ai_assessment_detail` | Aşağıda |
+
+**`ai_assessment_detail`** (değerlendirme başına bir satır; sadece kurum üyeleri okur, sadece ekleme):
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `assessment_id` | uuid | AI değerlendirmesi |
+| `prompt_version` | metin | `ai-<istem sürümü>/<metodoloji sürümü>`, ör. `ai-v0.1/methodology-v0` |
+| `config_key` | metin | Model kaskadı, ör. `claude-haiku-5-5>claude-sonnet-5-5` |
+| `final_model`, `final_stage` | metin, int | Sonucu veren model ve aşaması (1 = triaj) |
+| `models` | metin dizisi | Bu ağaç için cevap veren modeller, sırayla |
+| `review_reasons` | metin dizisi | Triaj cevabının neden üst modele gittiği: `no_answer`, `no_class`, `low_confidence`, `class_problem`, `class_dead`, `class_absent`, `flag_<bayrak>`, `tree_visible_no`, `tree_visible_unsure`, `class_inconsistent`; üçüncü aşamaya gidenlerde ayrıca `hard_<neden>` |
+| `tree_visible` | `yes` \| `no` \| `unsure` | Konumda ağaç görünüyor mu |
+| `flags` | metin dizisi | `staff_answer_conflict` (personel cevabıyla çelişki), `large_change_from_previous` (önceki ziyarete göre büyük değişim), `poor_image` (kötü görüntü) |
+| `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens` | int | Bu ağacın bütün aşamalarının toplamı |
+| `cost_usd` | sayı | Tahmini maliyet, Batch fiyatıyla |
+| `batch_ids` | metin dizisi | Message Batches kimlikleri |
+
+- **Tekrar çalıştırma:** (`session_id`, `tree_id`, `prompt_version`, `config_key`) benzersizdir. Aynı istem ve kaskadla ikinci çalıştırma yeni satır açmaz; fonksiyon var olan değerlendirmenin kimliğini döner. İstem ya da kaskad değişirse yeni satırlar eklenir; uzman paneli ziyaretin en yeni AI değerlendirmesini gösterir.
+- **Görünürlük:** `source = ai` olan değerlendirme ve ölçümleri sahip ve hissedar hiçbir zaman görmez, yayından sonra da. Uzman kabul ederse ya da toplu onay verilirse sahibe giden ayrı bir `source = expert` satırıdır.
+- **Zorunlu inceleme:** Uzman paneli `confidence`, `overall_class` ve `ai_assessment_detail.flags` ile `tree_visible`'ı okuyabilir. "Personel cevabıyla çelişki" kuralı için `flags` içindeki `staff_answer_conflict` kullanılır.
+
 ## Doğrulama kalemleri
 
 Envanter doğrulama turu (`docs/MVP.md` Modül 2, adım 9) ofiste oluşturulur; saha uygulaması kalemleri personele görev olarak indirir ve sonuçları yazar. Şema: `docs/veri-modeli.md`, "Doğrulama listesi ve envanter onayı". Saha uygulaması kullanıcının belirteciyle PostgREST üzerinden çalışır (servis anahtarı yok).
@@ -289,8 +336,9 @@ Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce tel
 | Telefonda | Sunucuda | Nasıl | Tekrar gönderimde |
 | --- | --- | --- | --- |
 | Oturum | `public.session` (planlanmış ziyaret) | `update`: `started_at`, `methodology_version`; kayıt durunca `status = captured`, `ended_at`. Yalnızca `status` `planned` ya da `captured` iken | Aynı değerler; ziyaret işlendiyse dokunulmaz |
-| Oturum olayı (`session_start`, `qr_sync`, `corner`, `boundary_corners`, `coverage`, `session_stop`) | `public.session_event` (ayrıntılar `data`'da; aşağıda "Sınır köşeleri ve kapsama") | `insert`, kimlik telefondan | `on conflict (id) do nothing` |
+| Oturum olayı (`session_start`, `qr_sync`, `corner`, `boundary_corners`, `route`, `route_progress`, `coverage`, `session_stop`) | `public.session_event` (ayrıntılar `data`'da; aşağıda "Sınır köşeleri ve kapsama") | `insert`, kimlik telefondan | `on conflict (id) do nothing` |
 | Sınır işareti fotoğrafı, doğrulama yakın planı | Yakın plan fotoğrafıyla aynı yol; `capture` satırında `tree_id` yok. `metadata.local_kind` `boundary_photo` (`corner_event_id`) ya da `verification_photo` (`slot_id`) | Yakın plan fotoğrafıyla aynı | Aynı |
+| Grid rotası (parselin yeni rota sürümü) | `save_parcel_route(...)` (aşağıda, "Grid rotası") | Fonksiyon çağrısı; ziyaret satırından sonra, `route` olayından önce | Aynı kimlik aynı sürümü döndürür |
 | Doğrulama sonucu | `record_verification_result(...)` | Fonksiyon çağrısı; fotoğraf varsa önce o | Yeniden çağrılabilir; en yenisi geçerli |
 | Yakın plan fotoğrafı | `media` alanında `org/<org_id>/parcel/<parcel_id>/<sha256>` + `public.capture` (`kind = photo`, `tree_id`, `uri`, `content_hash`, `started_at` = çekimin GPS zamanından UTC) | Önce dosya, sonra satır. `capture.id` = uuid v5(`<oturum>/<sha256>`). Çekim kodu, yer kodu, `gps_time_ns`, zaman kaynağı ve cihazdaki kalite kontrolü `metadata`'da | Var olan nesne yüklenmiş sayılır; `on conflict (session_id, content_hash) do nothing` |
 | Personel cevabı | `public.measurement` (`source = staff`, `method = field_question`, `method_version` = soru seti sürümü) | Evet/hayır → `value_boolean`; `metric_definition_id` metrik kodundan | `on conflict (id) do nothing` |
@@ -306,7 +354,9 @@ Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce tel
 
 Saha uygulaması envanterde sınır yürüyüşünü ve taramanın kapsamasını oturum olayı olarak yazar (`public.session_event`, ayrıntılar `data` sütununda, JSON nesnesi; `20261022120000_session_event_data.sql`). Tablo ekleme-yalnızdır: bir düzeltme yeni bir olaydır.
 
-**Karar (köşeler olay olarak):** Köşeler `boundary` taslağı ya da yeni bir tablo yerine olay olarak saklanır. Gerekçe: (1) telefondaki konum PPK öncesidir; asıl konum ham GNSS kaydının PPK ile düzeltilmiş yörüngesinden, köşenin GPS zamanıyla bulunur. Telefonun bilmediği bir konumla `boundary` sürümü açmak sahibin onayına yanlış bir poligon sunar. (2) Kaydedicinin `events.csv`'sindeki `corner` satırlarıyla aynı anı işaretler; iki kaynak karşılaştırılabilir. (3) Sıra düzeltme ve silme, ekleme-yalnız tabloda "en yeni liste geçerli" kuralıyla güvenle ifade edilir. **Sınır sürümünü (`public.boundary`, kaynak `field_survey`) ofis ya da işleme hattı oluşturur;** saha uygulaması `boundary`'ye yazmaz. İşleme hattının bu olayları okuması sonraki iştir.
+**Karar (köşeler olay olarak):** Köşeler `boundary` taslağı ya da yeni bir tablo yerine olay olarak saklanır. Gerekçe: (1) telefondaki konum PPK öncesidir; asıl konum ham GNSS kaydının PPK ile düzeltilmiş yörüngesinden, köşenin GPS zamanıyla bulunur. Telefonun bilmediği bir konumla `boundary` sürümü açmak sahibin onayına yanlış bir poligon sunar. (2) Kaydedicinin `events.csv`'sindeki `corner` satırlarıyla aynı anı işaretler; iki kaynak karşılaştırılabilir. (3) Sıra düzeltme ve silme, ekleme-yalnız tabloda "en yeni liste geçerli" kuralıyla güvenle ifade edilir. **Sınır sürümünü (`public.boundary`, kaynak `field_survey`) ofis ya da işleme hattı oluşturur;** saha uygulaması `boundary`'ye yazmaz.
+
+**İşleme hattında** (`orchados-pipeline boundary <oturum>` ya da `run --boundary`; ayrıntı [services/pipeline/README.md → Sınır köşelerinden sınır sürümü](../services/pipeline/README.md#sınır-köşelerinden-sınır-sürümü)): köşe listesi aşağıdaki okuma kuralıyla bulunur; her köşe GPS zamanıyla PPK'lı yörüngeden (`fix` iken) konumlanır, belirsizliği yörüngeninkidir. Yörünge PPK değilse ya da o anda `fix` değilse önce olaydaki `position`, o da yoksa kaydedicinin `gnss.ubx`'teki NAV-PVT çözümü (eşleşen `events.csv` `corner` satırının zamanında) kullanılır; belirsizlik en az 5 m yazılır ve raporda işaretlenir. 3'ten az köşe ya da kendini kesen poligon hatadır. Sürüm `add_field_survey_boundary(p_session_id, p_ring, p_vertex_uncertainty_m, p_surveyed_at)` ile yazılır (yalnızca ops; `session_id`, `vertex_uncertainty_m` = köşelerin en büyüğü, `surveyed_at` = son köşenin zamanı). Aynı oturumun en yeni sürümü aynı köşeleri aynı sırayla ve aynı belirsizlikle taşıyorsa yeni sürüm açılmaz. Sahip `approve_boundary` ile onaylar.
 
 **`corner`** (her "Köşe" basışı): `payload` kaydediciye giden köşe numarası (`mark_event(corner, "<n>")`), `gps_time_ns` basış anının GPS zamanı (zaman kaynağı `time_source`'ta).
 
@@ -352,6 +402,51 @@ Uygulamada gösterilen alan, listedeki konumlu köşelerden (en az 3) yerel düz
 | `track_points`, `track_length_m` | sayı | İzdeki nokta sayısı ve uzunluk (m) |
 
 Bu, sahadaki anlık göstergedir; işleme hattının panorama kalitesine dayalı kapsama haritasının (`docs/MVP.md` Modül 3, kalite kapısı) yerini tutmaz.
+
+## Grid rotası
+
+Saha uygulaması taramada parselin sabit grid rotasını üretir ve personeli yönlendirir (`docs/MVP.md` Modül 3: önce sıra boyunca bütün koridorlar, sonra dik koridorlar, en son kenarlar). Karşılaştırılabilirlik için bir parselde **ilk kullanılan rota bir sürüm olarak saklanır** ve sonraki ziyaretler, hangi telefondan olursa olsun, aynı rotayı kullanır. Üretim kuralları: [apps/field/README.md](../apps/field/README.md), "Rota".
+
+**Karar (yeni tablo):** Rota `public.parcel_route`'ta, parsele bağlı ve sürümlü, ekleme-yalnız satırlar olarak tutulur (`20261023160000_parcel_route.sql`). Gerekçe: (1) `parcel` satırını yalnızca operasyon güncelleyebilir; rotayı ise saha personeli ilk taramada oluşturur. (2) Rota sürümlüdür ve eski sürüm, onu kullanan ziyaretler için değişmeden kalmalı (ölçümler sürümlüdür kuralı); `parcel` üzerinde bir JSON alanı üzerine yazılırdı. (3) `boundary` gibi sürüm numaralı, ayrı tablo deseni zaten var. Rota 1 MB'tan küçük bir JSON'dur; koridorlar ayrı satırlara bölünmez (hep birlikte okunur, sıra önemli).
+
+| Sütun | Tür | Anlamı |
+| --- | --- | --- |
+| `id` | uuid | Telefonda: uuid v5(`7c1e9a42-5b3d-4e8f-a6c0-2d9b4f1e8a37`, `<parcel_id>/<content_hash>`). Aynı parselin aynı rotası her telefonda aynı kimliği alır |
+| `org_id`, `parcel_id` | uuid | Parsel |
+| `version` | int | Parselde 1'den artan; `unique (parcel_id, version)`. **En yüksek sürüm, sonraki ziyaretin rotasıdır** |
+| `route` | jsonb | Rota (aşağıda) |
+| `content_hash` | metin | Rotanın telefondaki kanonik JSON'unun SHA-256'sı (hex); `unique (parcel_id, content_hash)` |
+| `generator` | metin | Üretici sürümü (`grid-route-v1`); kural değişince artar, eski rotalar yeniden üretilmez |
+| `basis` | `inventory` \| `boundary` | Sıraların arasından (envanter sonrası) ya da sınırdan (envanter öncesi) |
+| `session_id` | uuid \| null | Rotayı ilk kullanan ziyaret |
+| `created_by`, `created_at` | | Yazan kullanıcı, sunucu zamanı |
+
+- **Okuma:** kurum rolleri (sahip ve izleyici görmez). Saha uygulaması günün görevleriyle parselin en yüksek sürümlü rotasını indirir (`id`, `version`, `route`) ve çevrimdışı önbellekte tutar.
+- **Yazma:** yalnızca `save_parcel_route(p_id uuid, p_parcel_id uuid, p_session_id uuid, p_route jsonb, p_content_hash text) → {id, version, created}` (saha personeli ve operasyon; tabloya doğrudan yazma izni yok). Bilinen `id` ya da aynı `content_hash` var olan sürümü döndürür (`created = false`); yeni rota parselin sıradaki sürümünü alır. İki telefon çevrimdışıyken farklı rota ürettiyse ikisi de saklanır (sonra gelen bir üst sürüm olur); veri kaybolmaz. Hatalar mesajda: `not_found`, `forbidden`, `session_invalid` (başka parselin ya da iptal edilmiş ziyaret), `invalid_input`.
+- **Yeni sürüm ne zaman:** parselin rotası yoksa; ya da son sürüm `basis = boundary` iken parselde artık konumlu yerler (aynı sırada en az iki) varsa. Bunun dışında son sürüm aynen kullanılır; envanter değişse de rota kendiliğinden değişmez.
+
+**`route` biçimi** (`format = 1`):
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `format` | int | 1 |
+| `generator` | metin | `grid-route-v1` |
+| `basis` | metin | `inventory` \| `boundary` |
+| `azimuth_deg` | sayı | Sıra yönü, kuzeyden saat yönünde, 0–180'e katlanmış |
+| `azimuth_source` | metin | `slots` (yer konumlarına oturtuldu), `parcel` (`parcel.row_azimuth_deg`), `crew` (personel haritada iki dokunuşla belirledi), `boundary` (sınırın en uzun kenarı; personel onayladı) |
+| `row_spacing_m`, `tree_spacing_m` | sayı | Sıra ve ağaç aralığı (envanter öncesi: `sqrt(alan / tahmini ağaç sayısı)`, 4–12 m; bilinmiyorsa 8 m) |
+| `start_corner` | `sw` \| `se` \| `nw` \| `ne` | Başlangıç köşesi (`parcel.numbering_origin_corner`; yoksa `sw`) |
+| `corridors` | dizi | Yürüme sırasıyla koridorlar |
+| `corridors[].no` | int | 1'den sıra numarası |
+| `corridors[].kind` | `along` \| `cross` \| `edge` | Sıra boyunca, dik, kenar |
+| `corridors[].label` | metin | Personele: "S3 ile S4 arası", "5. ile 6. yer arası", "Kenar 2", "Sıra boyunca 4" |
+| `corridors[].points` | `[[lon, lat], …]` | Çizgi (sıra boyu ve dik: 2 nokta; kenar: çoklu çizgi), yürüme yönünde; 1e-7° yuvarlanmış |
+| `corridors[].length_m` | sayı | Uzunluk (m, 0,1) |
+
+**Oturum olayları** (`public.session_event`, `logger_result = none`):
+
+- **`route`** (rota kullanılmaya başlanınca; ziyarette bir kez): `payload` rota sürümü. `data`: `version` (1), `route_id`, `route_version` (telefonun bildiği sürüm; yeni rotada tahmin, kesin sürüm `parcel_route`'ta `route_id` ile), `new_version` (bu ziyarette mi oluşturuldu), `content_hash`, `generator`, `basis`, `azimuth_deg`, `azimuth_source`, `corridors_total`. **Ziyarette hangi rotanın kullanıldığı buradan okunur.**
+- **`route_progress`** (kayıt durdurulurken, `coverage`'dan önce): `payload` `<biten>/<toplam>`. `data`: `version` (1), `corridors_total`, `done`, `skipped`, `pending` (koridor numaraları), `skipped_labels`, `current` (durduğunda sıradaki koridor; bittiyse `null`). Telefondaki yaklaşık takiptir (PPK öncesi konum, koridora 4 m kuralı); kapsamanın yerini tutmaz.
 
 ## Açık noktalar
 

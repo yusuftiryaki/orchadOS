@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../features/route/grid_route.dart';
+import '../../features/route/route_store.dart';
 import '../quality/photo_quality.dart';
 import '../time/clock.dart';
 import '../time/gps_clock.dart';
@@ -386,6 +388,89 @@ class FieldRepository {
       data: corners,
     );
   });
+
+  /// The visit follows [route]: a `route` event (route id, version, hash)
+  /// and, when [isNew], the route itself as a new version of the parcel,
+  /// queued before the event. One transaction.
+  Future<void> saveRouteUse({
+    required String sessionId,
+    required StoredRoute route,
+    required bool isNew,
+    required GpsTimeReading time,
+  }) => db.transaction(() async {
+    final r = route.route;
+    final hash = r.contentHash;
+    if (isNew) {
+      await db
+          .into(db.parcelRoutes)
+          .insert(
+            ParcelRoutesCompanion.insert(
+              id: route.id,
+              parcelId: route.parcelId,
+              version: route.version,
+              contentHash: hash,
+              generator: r.generator,
+              basis: r.basis.code,
+              routeJson: jsonEncode(r.toJson()),
+              sessionId: sessionId,
+              createdAt: _clock.now(),
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+      await outbox.enqueue(OutboxEntity.parcelRoute, route.id);
+    }
+    await addEvent(
+      sessionId: sessionId,
+      eventType: 'route',
+      payload: '${route.version}',
+      time: time,
+      loggerResult: 'none',
+      data: {
+        'version': 1,
+        'route_id': route.id,
+        'route_version': route.version,
+        'new_version': isNew,
+        'content_hash': hash,
+        'generator': r.generator,
+        'basis': r.basis.code,
+        'azimuth_deg': r.azimuthDeg,
+        'azimuth_source': r.azimuthSource.code,
+        'corridors_total': r.corridors.length,
+      },
+    );
+  });
+
+  /// Newest route made on this phone for [parcelId]; null when none.
+  Future<StoredRoute?> localRoute(String parcelId) async {
+    final row =
+        await (db.select(db.parcelRoutes)
+              ..where((r) => r.parcelId.equals(parcelId))
+              ..orderBy([(r) => OrderingTerm.desc(r.version)])
+              ..limit(1))
+            .getSingleOrNull();
+    if (row == null) return null;
+    return StoredRoute(
+      id: row.id,
+      parcelId: row.parcelId,
+      version: row.version,
+      route: GridRoute.fromJson(
+        (jsonDecode(row.routeJson) as Map).cast<String, Object?>(),
+      ),
+    );
+  }
+
+  Future<ParcelRouteRow?> routeRow(String id) => (db.select(
+    db.parcelRoutes,
+  )..where((r) => r.id.equals(id))).getSingleOrNull();
+
+  /// The server stored the route as [version].
+  Future<void> markRouteSynced(String id, int version) =>
+      (db.update(db.parcelRoutes)..where((r) => r.id.equals(id))).write(
+        ParcelRoutesCompanion(
+          version: Value(version),
+          synced: const Value(true),
+        ),
+      );
 
   Future<List<CaptureRow>> captures(String sessionId) =>
       (db.select(db.captures)

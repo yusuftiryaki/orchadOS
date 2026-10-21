@@ -62,6 +62,18 @@ def _db_tree_list(ctx: RunContext, session_id: str | None):
     return tlist
 
 
+def _boundary(ctx: RunContext, session_id: str | None, write_db: bool = True) -> None:
+    """Boundary stage: corner events from the database -> boundary.json -> boundary version."""
+    from . import boundary
+    from .models import SessionInfo
+    from .supabase import SupabaseClient
+
+    info = SessionInfo.model_validate_json((ctx.session_dir / "session.json").read_bytes())
+    with SupabaseClient.sign_in(Credentials.from_env()) as client:
+        res = boundary.run(ctx, client, session_id or info.session_id, info.parcel_id, write_db)
+    print("\n".join(res.lines()))
+
+
 def _trees_options(p: argparse.ArgumentParser) -> None:
     g = p.add_mutually_exclusive_group()
     g.add_argument("--trees", help="trees JSON (default: <session>/trees.json)")
@@ -130,8 +142,23 @@ def main(argv: list[str] | None = None) -> int:
     _trees_options(crops_p)
     crops_p.add_argument("--session-id", help="public.session id (default: from session.json)")
     stage("outputs", "write outputs.json")
+    bnd = stage(
+        "boundary",
+        "boundary version from the session's corner events (database; env: "
+        + ", ".join(Credentials.ENV)
+        + ")",
+    )
+    bnd.add_argument("--session-id", help="public.session id (default: from session.json)")
+    bnd.add_argument(
+        "--dry-run", action="store_true", help="write boundary.json, do not add a boundary version"
+    )
     run = stage("run", "all stages in order")
     _trees_options(run)
+    run.add_argument(
+        "--boundary",
+        action="store_true",
+        help="also run the boundary stage after the others (database)",
+    )
     run.add_argument("--upload", action="store_true", help="upload the run when it is done")
     upload_options(run, required=False)
 
@@ -165,6 +192,12 @@ def main(argv: list[str] | None = None) -> int:
         "--start-utc", help="recording start, ISO 8601 UTC (default: 2026-10-18 09:00)"
     )
     syn.add_argument("--seed", type=int, help="background noise seed (different image hashes)")
+    syn.add_argument(
+        "--boundary-walk",
+        action="store_true",
+        help="walk the boundary before the scan: corner rows in events.csv and the "
+        "phone's corner events in phone_events.json",
+    )
 
     pp = sub.add_parser("params", help="print default parameters as JSON")
     pp.add_argument("--hash", action="store_true", help="print only the parameter hash")
@@ -190,6 +223,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         if args.command == "run":
             _summary(ctx, pipeline.run_all(ctx, trees, tlist))
+            if args.boundary:
+                _boundary(ctx, args.session_id)
             if args.upload:
                 _upload(args, ctx.run_dir, ctx.session_dir)
         elif args.command == "crops":
@@ -198,6 +233,8 @@ def main(argv: list[str] | None = None) -> int:
                 print("no trees JSON, skipped")
             else:
                 print(f"{len(res.crops)} crops; {CROPS_STATUS[res.status]}")
+        elif args.command == "boundary":
+            _boundary(ctx, args.session_id, write_db=not args.dry_run)
         elif args.command == "outputs":
             _summary(ctx, pipeline.stage_outputs(ctx))
         else:
@@ -237,10 +274,18 @@ def _synth(args, parser: argparse.ArgumentParser) -> int:
         cfg.seed = args.seed
     cfg.rows = parse_range(args.rows) if args.rows else None
     cfg.positions = parse_range(args.positions) if args.positions else None
+    cfg.boundary_walk = args.boundary_walk
     truth = make_session(Path(args.dest), cfg)
     print(
         f"synthetic session written to {args.dest} ({truth.frame_count} frames, "
-        f"{len(truth.trees)} trees, {truth.path_length_m:.0f} m path)"
+        f"{len(truth.trees)} trees, {truth.path_length_m:.0f} m path"
+        + (
+            f", boundary walk: {len(truth.boundary_corners)} corners, "
+            f"{truth.boundary_area_m2:.0f} m2"
+            if truth.boundary_corners
+            else ""
+        )
+        + ")"
     )
     return 0
 
