@@ -81,6 +81,7 @@ gantt
 | İP10 | Metodoloji v0 taslağı (`docs/metodoloji.md`) | Uzmanla kesinleşecek maddeler bölüm 11'de. Rol rol akış: `docs/kullanim-kilavuzu.md` |
 | Operasyon ekranları | Tamam (PR #19) | `/operasyon`: pano, sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma, ziyaret planlama |
 | Envanter onayı | Tamam (PR #18) | Doğrulama listesi veritabanında (`verification_item`), ofiste ağaç özellikleri, altyapı ve saha sınırı; uzmanın envanter onayı; sahibin sınır onayı. Saha tarafı açık |
+| İP6 v0.3 | Sürüyor | Doğrulama turu ekranı, sahada sınır köşesi, kapsama haritası, test projesine bağlı APK (`docs/gorevler/ip6-envanter-saha.md`) |
 | Dalga 5 | Tamam | İP5 v0.2 (PR #15); İP4 v0.2 (PR #16): ağaç konumları veritabanından, CI'da uçtan uca zincir testi (~70 sn). Önceki not: ağaç konumları ve uçtan uca test |
 | Dalga 4 | İP6 senkronizasyon sürüyor | İP4, İP7, İP8 birleşti. Örnek tarama verisi: `pnpm db:demo`. Test ortamı: https://orchados-orchad-os.vercel.app (Vercel koruması açık) |
 | İP6 | İskelet + kamera + senkronizasyon tamam (PR #6, #8, #20) | BLE protokolü, QR saat, ekran akışı, çevrimdışı kuyruk, gerçek kamera ve cihazda kalite kontrolü; 66 test. Senkronizasyon: sunucudan görevler, sıralı ve tekrar güvenli gönderim, saha personelinin fotoğraf yüklemesi; APK CI'da derleniyor. Açık: doğrulama turu ekranı, sınır köşesi, kapsama haritası, telefonda deneme |
@@ -107,7 +108,7 @@ Toplam yaklaşık 55 gün (İP9 hariç).
 
 Bunlar takvimi bekletebilecek, başkasına bağlı işler. İlk iki hafta içinde başlatılmalı:
 
-- [ ] Kit parçalarının siparişi (ithalat ve gümrükle 2–4 hafta)
+- [ ] Kit parçalarının siparişi (ithalat ve gümrükle 2–4 hafta). Liste: `docs/kit-siparis-listesi.md`
 - [ ] 360° kamera üreticisinin SDK başvurusu
 - [ ] TUSAGA-Aktif (CORS-TR) abonelik başvurusu, ya da kendi baz istasyonu kararı
 - [ ] Uzman (ziraat mühendisi) ile ön görüşme
