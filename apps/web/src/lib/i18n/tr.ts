@@ -314,7 +314,8 @@ export const tr = {
         write_failed: "Veritabanı kaydı reddetti.",
       } as Record<string, string>,
       metricError: {
-        required: (name: string) => `${name}: değer zorunlu.`,
+        scale_required: (name: string) =>
+          `En az bir ölçek girin (ör. ${name}). Emin olunamayan ölçekler boş kalabilir.`,
         invalid: (name: string) => `${name}: geçersiz değer ya da belirsizlik.`,
         out_of_range: (name: string) => `${name}: ölçek dışında.`,
       },
@@ -850,6 +851,19 @@ export const tr = {
       inventoryApproved: (date: string) => `Uzman onayı: ${date}`,
     },
   },
+  // Category values of the metric registry (docs/metodoloji.md, Ek B).
+  metricCategories: {
+    done: "Yapılmış",
+    partial: "Kısmi",
+    not_done: "Yapılmamış",
+    none: "Yok",
+    mild: "Hafif",
+    marked: "Belirgin",
+    psylla: "Psilla",
+    bud_borer: "Göz kurdu",
+    stink_bug: "Kımıl",
+    other: "Diğer",
+  } as Record<string, string>,
 } as const;
 
 export type Messages = typeof tr;

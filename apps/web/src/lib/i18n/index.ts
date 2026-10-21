@@ -5,6 +5,11 @@ import { tr, type Messages } from "./tr";
 export const locale = "tr-TR";
 export const t: Messages = tr;
 
+// Display text of a metric category value; unknown codes are shown as they are.
+export function categoryLabel(code: string): string {
+  return t.metricCategories[code] ?? code;
+}
+
 export function formatNumber(value: number, maximumFractionDigits = 0): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits }).format(value);
 }

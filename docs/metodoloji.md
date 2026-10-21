@@ -373,19 +373,19 @@ Ayrıca saha uygulamasındaki "böyle çek" görselleri: mevsim başına 3 çeki
 
 ## Ek B – Metrik kaydı karşılıkları
 
-Ölçekler veritabanında `metric_definition` kaydıyla tanımlanır. Şu an kayıtlı olanlar örnek verideki metriklerdir. Bu belgedeki ölçeklerin önerilen kodları aşağıda; kayda eklenmeleri ayrı bir iştir.
+Ölçekler veritabanında `metric_definition` kaydıyla tanımlanır. Kayıt migration'la kurulur (`supabase/migrations/20261021180000_metric_registry.sql`); aşağıdaki kodların hepsi kayıtlıdır.
 
 | Ölçek | Önerilen kod | Değer türü | Mevsimler | Kayıtta |
 | --- | --- | --- | --- | --- |
 | Kuru dal | `dead_branch_scale` | Ölçek 0–3 | Tümü | Var |
-| Gövde ve dip | `trunk_base_scale` | Ölçek 0–3 | Tümü | Yok |
-| Budama | `pruning_status` | Kategori: `done`, `partial`, `not_done` | Kış | Yok |
-| Taç doluluğu | `crown_density_scale` | Ölçek 0–3 | İlkbahar, yaz | Yok |
-| Don hasarı | `frost_damage_scale` | Ölçek 0–3 | İlkbahar | Yok |
-| Zararlı belirtisi | `pest_sign_severity` + `pest_sign_type` | Kategori: `none`, `mild`, `marked` · kategori: `psylla`, `bud_borer`, `stink_bug`, `other` | İlkbahar, yaz | Yok |
+| Gövde ve dip | `trunk_base_scale` | Ölçek 0–3 | Tümü | Var |
+| Budama | `pruning_status` | Kategori: `done`, `partial`, `not_done` | Kış | Var |
+| Taç doluluğu | `crown_density_scale` | Ölçek 0–3 | İlkbahar, yaz | Var |
+| Don hasarı | `frost_damage_scale` | Ölçek 0–3 | İlkbahar | Var |
+| Zararlı belirtisi | `pest_sign_severity` + `pest_sign_type` | Kategori: `none`, `mild`, `marked` · kategori: `psylla`, `bud_borer`, `stink_bug`, `other` | İlkbahar, yaz | Var |
 | Meyve yükü | `fruit_load_scale` | Ölçek 0–3 | Yaz | Var |
-| Hasat tamam mı | `harvest_complete` | Evet/hayır | Hasat | Yok |
-| Dal kırığı | `branch_break` | Evet/hayır | Hasat | Yok |
-| Hırsızlık izi | `theft_trace` | Evet/hayır (parsel) | Hasat | Yok |
+| Hasat tamam mı | `harvest_complete` | Evet/hayır | Hasat | Var |
+| Dal kırığı | `branch_break` | Evet/hayır | Hasat | Var |
+| Hırsızlık izi | `theft_trace` | Evet/hayır (parsel) | Hasat | Var |
 
-**Not:** `metric_definition` şu an sadece seed'de, yani örnek veride. Gerçek metrik kaydı bir migration'la (referans veri olarak) kurulmalı; yoksa test ve üretim projelerinde elle yüklenmesi gerekir.
+Uzman panelinde bir düzeltme için mevsimin ölçeklerinden en az birinin girilmesi gerekir; görüntüden karar verilemeyen ölçek boş bırakılır (bölüm 4).

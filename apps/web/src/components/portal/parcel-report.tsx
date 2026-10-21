@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatDate, formatNumber, t } from "@/lib/i18n";
+import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
 import { MARKER_COLORS, type MarkerState } from "@/lib/map/tree-style";
 import { CLASS_ORDER, distributionTotal, type Distribution } from "@/lib/portal/classes";
 import type { ParcelReport, TreeChange } from "@/lib/portal/data";
@@ -330,7 +330,10 @@ function MetricSummaryText({ metric }: { metric: MetricSummaryRow }) {
         <>
           {s.counts
             .filter((c) => c.count > 0)
-            .map((c) => `${c.value}: ${c.count}`)
+            .map(
+              (c) =>
+                `${s.type === "category" ? categoryLabel(String(c.value)) : c.value}: ${c.count}`,
+            )
             .join(" · ")}
         </>
       );
