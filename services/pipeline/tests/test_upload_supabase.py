@@ -133,10 +133,12 @@ def test_owner_sees_nothing_before_publication(uploaded, supabase_env):
         )
 
 
-def test_field_staff_cannot_upload_files(supabase_env, tmp_path):
+def test_owner_cannot_upload_files(supabase_env, tmp_path):
+    # Field staff may add files to their org's paths (field app close-ups,
+    # 20261021230000_field_sync.sql); parcel roles may not.
     f = tmp_path / "x.bin"
     f.write_bytes(uuid.uuid4().bytes)
     key = media_key(ORG, PARCEL, hashlib.sha256(f.read_bytes()).hexdigest())
-    with client(supabase_env, "field") as field:
+    with client(supabase_env, "owner") as owner:
         with pytest.raises(PermissionDenied):
-            SupabaseMediaStore(field).put(key, f, "application/octet-stream")
+            SupabaseMediaStore(owner).put(key, f, "application/octet-stream")
