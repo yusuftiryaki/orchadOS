@@ -8,6 +8,15 @@ import {
   type MeasurementValue,
   type MetricDefinition,
 } from "./metrics";
+import {
+  aiMetricCodes,
+  reviewRulesFor,
+  staffConflicts,
+  staffMetricCodes,
+  triage,
+  type ObservedValue,
+  type ReviewRules,
+} from "./mandatory-review";
 import { seasonOf, sessionTime, type Season } from "./season";
 import { compareSlots, newest, type HealthClass, type ReviewTree } from "./summary";
 
@@ -132,6 +141,8 @@ export interface ReviewTreeRow extends ReviewTree {
   graft: Enums["graft_status"];
   ageClass: Enums["age_class"];
   cultivar: string | null;
+  // Staff questions (metric codes) whose answer contradicts the AI.
+  staffConflicts: string[];
 }
 
 export interface ReviewFinding {
@@ -155,6 +166,8 @@ export interface ReviewContext {
   allMetrics: MetricDefinition[];
   trees: ReviewTreeRow[];
   findings: ReviewFinding[];
+  // Mandatory review rules and quality sample rate of the visit's methodology.
+  rules: ReviewRules;
 }
 
 export function isReviewable(status: SessionStatus): boolean {
@@ -199,7 +212,9 @@ export async function loadReview(
     fetchAll((from, to) =>
       supabase
         .from("assessment")
-        .select("id, tree_id, source, overall_class, confidence, assessed_at, created_at")
+        .select(
+          "id, tree_id, source, overall_class, confidence, auto_approved, assessed_at, created_at",
+        )
         .eq("session_id", s.id)
         .not("tree_id", "is", null)
         .order("id")
@@ -262,16 +277,44 @@ export async function loadReview(
     return out;
   };
 
-  const expert = latestClass(assessments.filter((a) => a.source === "expert"));
+  const methodologyVersion = s.methodology_version ?? DEFAULT_METHODOLOGY_VERSION;
+  const rules = reviewRulesFor(methodologyVersion);
+  const allMetrics = metricRows.data ?? [];
+  const signals = await loadSignals(supabase, s.id, allMetrics, rules);
+
+  const expertRows = assessments.filter((a) => a.source === "expert");
+  const expert = latestClass(expertRows);
+  const expertAuto = new Map(expertRows.map((a) => [a.id, a.auto_approved]));
   const ai = latestClass(assessments.filter((a) => a.source !== "expert"));
   const aiConfidence = new Map(
     assessments.filter((a) => a.source !== "expert").map((a) => [a.id, a.confidence]),
   );
   const prev = latestClass(previousExpert);
 
-  const trees: ReviewTreeRow[] = treeRows
-    .map((t) => {
-      const aiRow = ai.get(t.id);
+  const rows = treeRows.map((t) => {
+    const aiRow = ai.get(t.id);
+    return {
+      t,
+      aiRow,
+      input: {
+        id: t.id,
+        aiClass: aiRow?.overall_class ?? null,
+        aiConfidence: aiRow ? (aiConfidence.get(aiRow.id) ?? null) : null,
+        previousClass: prev.get(t.id)?.overall_class ?? null,
+        staffAnswers: signals.staff.get(t.id),
+        aiValues: signals.ai.get(t.id),
+      },
+    };
+  });
+  const triaged = triage(
+    s.id,
+    rows.map((r) => r.input),
+    rules,
+  );
+
+  const trees: ReviewTreeRow[] = rows
+    .map(({ t, aiRow, input }) => {
+      const expertRow = expert.get(t.id);
       return {
         id: t.id,
         code: t.slot.code ?? "",
@@ -280,17 +323,20 @@ export async function loadReview(
         suffix: t.slot.suffix,
         aiClass: aiRow?.overall_class ?? null,
         aiConfidence: aiRow ? (aiConfidence.get(aiRow.id) ?? null) : null,
-        expertClass: expert.get(t.id)?.overall_class ?? null,
+        expertClass: expertRow?.overall_class ?? null,
+        expertAuto: expertRow ? (expertAuto.get(expertRow.id) ?? false) : false,
         previousClass: prev.get(t.id)?.overall_class ?? null,
+        mandatory: triaged.get(t.id)!.mandatory,
+        sampled: triaged.get(t.id)!.sampled,
         sex: t.sex,
         graft: t.graft,
         ageClass: t.age_class,
         cultivar: t.cultivar,
+        staffConflicts: staffConflicts(input, rules),
       };
     })
     .sort(compareSlots);
 
-  const allMetrics = metricRows.data ?? [];
   const season = seasonOf(time);
   return {
     session: {
@@ -302,9 +348,10 @@ export async function loadReview(
       status: s.status,
       time,
       season,
-      methodologyVersion: s.methodology_version ?? DEFAULT_METHODOLOGY_VERSION,
+      methodologyVersion,
       publishedAt: s.published_at,
     },
+    rules,
     previous,
     metrics: reviewMetrics(allMetrics, season),
     allMetrics,
@@ -321,6 +368,62 @@ export async function loadReview(
       evidenceAssetIds: f.finding_evidence.map((e) => e.asset_id),
     })),
   };
+}
+
+// Staff yes/no answers and AI values the mandatory review rules read: tree id
+// -> metric code -> the newest value of the visit.
+async function loadSignals(
+  supabase: Client,
+  sessionId: string,
+  metrics: MetricDefinition[],
+  rules: ReviewRules,
+): Promise<{
+  staff: Map<string, Record<string, boolean>>;
+  ai: Map<string, Record<string, ObservedValue>>;
+}> {
+  const staffCodes = new Set(staffMetricCodes(rules));
+  const aiCodes = new Set(aiMetricCodes(rules));
+  const codeOf = new Map(metrics.map((m) => [m.id, m.code]));
+  const ids = metrics.filter((m) => staffCodes.has(m.code) || aiCodes.has(m.code)).map((m) => m.id);
+  const staff = new Map<string, Record<string, boolean>>();
+  const ai = new Map<string, Record<string, ObservedValue>>();
+  if (ids.length === 0) return { staff, ai };
+
+  const rows = await fetchAll((from, to) =>
+    supabase
+      .from("measurement")
+      .select(
+        "id, tree_id, metric_definition_id, value_numeric, value_scale, value_category, value_boolean, source, measured_at, created_at",
+      )
+      .eq("session_id", sessionId)
+      .in("source", ["staff", "ai"])
+      .in("metric_definition_id", ids)
+      .not("tree_id", "is", null)
+      .order("id")
+      .range(from, to),
+  );
+  // Newest row per tree, source and metric.
+  const latest = new Map<string, (typeof rows)[number]>();
+  for (const r of rows) {
+    const key = `${r.tree_id}|${r.source}|${r.metric_definition_id}`;
+    const cur = latest.get(key);
+    const winner = newest([
+      ...(cur ? [{ ...cur, time: cur.measured_at }] : []),
+      { ...r, time: r.measured_at },
+    ]);
+    if (winner) latest.set(key, winner);
+  }
+  for (const r of latest.values()) {
+    const code = codeOf.get(r.metric_definition_id)!;
+    const treeId = r.tree_id!;
+    if (r.source === "staff" && staffCodes.has(code) && r.value_boolean != null) {
+      staff.set(treeId, { ...staff.get(treeId), [code]: r.value_boolean });
+    } else if (r.source === "ai" && aiCodes.has(code)) {
+      const value = r.value_scale ?? r.value_category ?? r.value_boolean ?? r.value_numeric;
+      if (value != null) ai.set(treeId, { ...ai.get(treeId), [code]: value });
+    }
+  }
+  return { staff, ai };
 }
 
 // ---------------------------------------------------------------------------

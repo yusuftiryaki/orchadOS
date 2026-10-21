@@ -1,4 +1,5 @@
 import type { Database } from "@/lib/database.types";
+import { DEFAULT_REVIEW_RULES, type MandatoryReason } from "./mandatory-review";
 
 // Review state of a visit's trees: filters for the tree list and the summary
 // shown before signing. Pure.
@@ -8,10 +9,10 @@ export type FindingSeverity = Database["public"]["Enums"]["finding_severity"];
 
 export const HEALTH_CLASSES: HealthClass[] = ["healthy", "attention", "problem", "dead", "absent"];
 
-// AI classes that always go to the expert (docs/MVP.md, Modül 4).
-export const FLAGGED_CLASSES: HealthClass[] = ["problem", "dead", "absent"];
-// AI confidence below this is "low". To be calibrated in the pilot.
-export const LOW_CONFIDENCE = 0.7;
+// AI classes that always go to the expert (docs/MVP.md, Modül 4) and the
+// "low confidence" threshold: from the review rules (mandatory-review.ts).
+export const FLAGGED_CLASSES: HealthClass[] = DEFAULT_REVIEW_RULES.flaggedClasses;
+export const LOW_CONFIDENCE = DEFAULT_REVIEW_RULES.lowConfidence;
 
 export interface ReviewTree {
   id: string;
@@ -26,9 +27,22 @@ export interface ReviewTree {
   expertClass: HealthClass | null;
   // Expert result of the previous published visit.
   previousClass: HealthClass | null;
+  // The newest expert decision is a bulk approval ("otomatik onay").
+  expertAuto?: boolean;
+  // Rules the tree trips (mandatory review); empty or missing: none.
+  mandatory?: MandatoryReason[];
+  // In the 5 % quality sample of the bulk-approvable trees.
+  sampled?: boolean;
 }
 
-export const FILTERS = ["all", "unreviewed", "flagged", "low_confidence"] as const;
+export const FILTERS = [
+  "all",
+  "unreviewed",
+  "mandatory",
+  "sample",
+  "flagged",
+  "low_confidence",
+] as const;
 export type Filter = (typeof FILTERS)[number];
 
 export function isFlagged(tree: Pick<ReviewTree, "aiClass">): boolean {
@@ -40,12 +54,31 @@ export function isLowConfidence(tree: Pick<ReviewTree, "aiClass" | "aiConfidence
   return tree.aiClass == null || (tree.aiConfidence ?? 0) < LOW_CONFIDENCE;
 }
 
+export function isMandatory(tree: Pick<ReviewTree, "mandatory">): boolean {
+  return (tree.mandatory?.length ?? 0) > 0;
+}
+
+// Bulk approval covers undecided trees with an AI suggestion that trip no
+// mandatory rule and are not in the quality sample.
+export function isBulkEligible(tree: ReviewTree): boolean {
+  return tree.aiClass != null && tree.expertClass == null && !isMandatory(tree) && !tree.sampled;
+}
+
+// Decided by the expert one by one (not by bulk approval).
+export function isIndividuallyReviewed(tree: Pick<ReviewTree, "expertClass" | "expertAuto">) {
+  return tree.expertClass != null && !tree.expertAuto;
+}
+
 export function matchesFilter(tree: ReviewTree, filter: Filter): boolean {
   switch (filter) {
     case "all":
       return true;
     case "unreviewed":
       return tree.expertClass == null;
+    case "mandatory":
+      return isMandatory(tree);
+    case "sample":
+      return tree.sampled === true;
     case "flagged":
       return isFlagged(tree);
     case "low_confidence":
@@ -83,10 +116,31 @@ export interface ReviewSummary {
   better: number;
   // Reviewed trees without a previous expert result.
   newlyAssessed: number;
-  // Reviewed trees with an AI suggestion, and how many kept its class.
+  // Trees the expert decided one by one, with an AI suggestion, and how many
+  // kept its class. Bulk approvals agree by definition and are left out.
   aiCompared: number;
   aiAgreed: number;
+  // Decided one by one vs. bulk approved.
+  individuallyReviewed: number;
+  bulkApproved: number;
+  // Trees still open for bulk approval.
+  bulkEligible: number;
+  mandatory: number;
+  mandatoryOpen: number;
+  // Quality sample: size, decided by the expert, and decided differently
+  // from the AI ("örneklem uyuşmazlığı").
+  sample: number;
+  sampleReviewed: number;
+  sampleDisagreed: number;
   findingsBySeverity: Record<FindingSeverity, number>;
+}
+
+// Share of the reviewed sample where the expert differs from the AI; null
+// before any sampled tree is reviewed.
+export function sampleDisagreementRate(
+  summary: Pick<ReviewSummary, "sampleReviewed" | "sampleDisagreed">,
+): number | null {
+  return summary.sampleReviewed > 0 ? summary.sampleDisagreed / summary.sampleReviewed : null;
 }
 
 const SEVERITY: Record<HealthClass, number> = {
@@ -123,15 +177,38 @@ export function summarize(
     newlyAssessed: 0,
     aiCompared: 0,
     aiAgreed: 0,
+    individuallyReviewed: 0,
+    bulkApproved: 0,
+    bulkEligible: 0,
+    mandatory: 0,
+    mandatoryOpen: 0,
+    sample: 0,
+    sampleReviewed: 0,
+    sampleDisagreed: 0,
     findingsBySeverity,
   };
 
   for (const tree of sorted) {
+    const individually = isIndividuallyReviewed(tree);
+    if (isMandatory(tree)) {
+      summary.mandatory += 1;
+      if (tree.expertClass == null) summary.mandatoryOpen += 1;
+    }
+    if (tree.sampled) {
+      summary.sample += 1;
+      if (individually) {
+        summary.sampleReviewed += 1;
+        if (tree.aiClass != null && tree.aiClass !== tree.expertClass) summary.sampleDisagreed += 1;
+      }
+    }
+    if (isBulkEligible(tree)) summary.bulkEligible += 1;
     if (tree.expertClass == null) {
       summary.unreviewed.push(tree.code);
       continue;
     }
     summary.reviewed += 1;
+    if (individually) summary.individuallyReviewed += 1;
+    else summary.bulkApproved += 1;
     distribution[tree.expertClass] += 1;
     if (tree.previousClass == null) {
       summary.newlyAssessed += 1;
@@ -140,7 +217,7 @@ export function summarize(
       if (SEVERITY[tree.expertClass] > SEVERITY[tree.previousClass]) summary.worse += 1;
       else summary.better += 1;
     }
-    if (tree.aiClass != null) {
+    if (tree.aiClass != null && individually) {
       summary.aiCompared += 1;
       if (tree.aiClass === tree.expertClass) summary.aiAgreed += 1;
     }

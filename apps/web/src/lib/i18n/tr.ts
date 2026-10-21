@@ -251,12 +251,40 @@ export const tr = {
       filters: {
         all: "Tümü",
         unreviewed: "İncelenmemiş",
+        mandatory: "Zorunlu inceleme",
+        sample: "Kalite örneklemi",
         flagged: "AI sorunlu dedi",
         low_confidence: "Düşük güven",
       },
       filterCount: (label: string, n: number) => `${label} (${n})`,
       emptyFilter: "Bu filtrede ağaç yok.",
       reviewedMark: "İncelendi",
+      autoMark: "Toplu onaylandı",
+      sampleMark: "Örneklem",
+      mandatoryTitle: "Zorunlu inceleme",
+      mandatoryNone: "Zorunlu inceleme kuralına takılmıyor.",
+      sampleNote:
+        "Kalite örneklemi: zorunlu incelemeye girmediği hâlde rastgele seçildi; toplu onaya girmez, tek tek bakın.",
+      autoNote:
+        "Bu ağaç toplu onaylandı (AI sonucu). İsterseniz yeni bir kararla düzeltebilirsiniz.",
+      reasons: {
+        no_ai: "AI önerisi yok",
+        low_confidence: "AI güveni düşük",
+        ai_flagged: "AI sorunlu, kuru ya da yok dedi",
+        class_changed: "Önceki ziyarete göre sınıf değişmiş",
+        staff_conflict: "Personel cevabı AI ile çelişiyor",
+        staff_problem: 'Personel "Sorun gördüm" dedi',
+      },
+      reasonShort: {
+        no_ai: "AI yok",
+        low_confidence: "düşük güven",
+        ai_flagged: "AI sorunlu",
+        class_changed: "sınıf değişti",
+        staff_conflict: "çelişki",
+        staff_problem: "sorun gördüm",
+      },
+      lowConfidenceDetail: (threshold: number) => `eşik %${Math.round(threshold * 100)}`,
+      conflictDetail: (questions: string) => `soru: ${questions}`,
       selectTree: "İncelemek için listeden bir ağaç seçin.",
       previousTree: "← Önceki",
       nextTree: "Sonraki →",
@@ -377,6 +405,16 @@ export const tr = {
       unreviewedCount: (n: number) => `${n} ağaç incelenmedi; yayımlamadan önce hepsi incelenmeli.`,
       more: (n: number) => `… ve ${n} ağaç daha`,
       findingsBySeverity: "Önemine göre bulgular",
+      review: "İnceleme dağılımı",
+      individually: "Uzmanın tek tek baktığı",
+      bulkApproved: "Toplu onaylanan",
+      mandatory: (open: number, total: number) =>
+        `Zorunlu inceleme: ${total} ağaç${open > 0 ? `, ${open} tanesi bekliyor` : ""}`,
+      sample: (reviewed: number, total: number) =>
+        `Kalite örneklemi: ${total} ağaçtan ${reviewed} tanesine bakıldı`,
+      sampleDisagreement: (rate: string, disagreed: number, reviewed: number) =>
+        `Örneklem uyuşmazlığı: %${rate} (${disagreed}/${reviewed} ağaçta uzman AI'dan farklı karar verdi)`,
+      sampleDisagreementNone: "Örneklem uyuşmazlığı: örneklemdeki ağaçlara henüz bakılmadı.",
       sign: "İmza ve yayımlama",
       signHint:
         "Yayımlayınca sonuçlar sahibe görünür; ziyaretin onaysız bulguları sizin adınıza onaylanır. Yayından kaldırma yok.",
@@ -392,6 +430,23 @@ export const tr = {
         write_failed: "Yayımlama başarısız oldu.",
         confirm: "İmza için onay kutusunu işaretleyin.",
       },
+    },
+    bulk: {
+      title: "Toplu onay",
+      hint: (sample: number) =>
+        `Zorunlu incelemeye girmeyen, AI önerisi olan ve henüz karar verilmemiş ağaçlar AI sonucuyla onaylanır; sahibe "Otomatik onay" olarak görünür. Kalite örneklemindeki ${sample} ağaç bu onaya girmez, tek tek bakılmalı.`,
+      button: (n: number) => `Kalanları toplu onayla (${n} ağaç)`,
+      none: "Toplu onaylanacak ağaç kalmadı.",
+      done: (n: number) => `${n} ağaç toplu onaylandı.`,
+      errors: {
+        stale: "Liste değişti (yeni AI önerisi ya da karar). Sayfayı yenileyip tekrar deneyin.",
+        empty: "Toplu onaylanacak ağaç yok.",
+        not_found: "Ziyaret bulunamadı.",
+        not_reviewable: "Bu ziyaret artık incelenemez (yayımlanmış ya da işlenmemiş).",
+        forbidden: "Toplu onay için uzman rolü gerekiyor.",
+        invalid_metric: "AI değerlerinden biri ölçek dışında; o ağaca tek tek bakın.",
+        write_failed: "Veritabanı kaydı reddetti.",
+      } as Record<string, string>,
     },
   },
   tree: {

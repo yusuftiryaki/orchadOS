@@ -143,11 +143,12 @@ export function ReviewView({
                     {/* The expert's class once decided, else the AI suggestion. */}
                     <ClassBadge value={tree.expertClass ?? tree.aiClass} />
                     {tree.expertClass == null && <span className="muted">{confidence(tree)}</span>}
+                    <TriageTags tree={tree} />
                     {tree.expertClass && (
                       <span
-                        className={styles.check}
-                        title={r.reviewedMark}
-                        aria-label={r.reviewedMark}
+                        className={tree.expertAuto ? styles.checkAuto : styles.check}
+                        title={tree.expertAuto ? r.autoMark : r.reviewedMark}
+                        aria-label={tree.expertAuto ? r.autoMark : r.reviewedMark}
                       >
                         ✓
                       </span>
@@ -183,6 +184,8 @@ export function ReviewView({
                 ) : null}
               </div>
             </div>
+
+            <TriagePanel tree={selected} ctx={ctx} />
 
             <div className={styles.columns}>
               <section className={styles.panel}>
@@ -296,5 +299,73 @@ export function ReviewView({
         )}
       </div>
     </main>
+  );
+}
+
+// Short tags in the tree list: the first mandatory rule (+ how many more) and
+// the quality sample.
+function TriageTags({ tree }: { tree: ReviewTreeRow }) {
+  const r = t.expert.review;
+  const reasons = tree.mandatory ?? [];
+  return (
+    <>
+      {reasons.length > 0 && (
+        <span
+          className={styles.reasonTag}
+          title={reasons.map((reason) => r.reasons[reason]).join(" · ")}
+          data-testid="mandatory-tag"
+        >
+          {r.reasonShort[reasons[0]]}
+          {reasons.length > 1 ? ` +${reasons.length - 1}` : ""}
+        </span>
+      )}
+      {tree.sampled && (
+        <span className={styles.sampleTag} data-testid="sample-tag">
+          {r.sampleMark}
+        </span>
+      )}
+    </>
+  );
+}
+
+// Why the tree is in front of the expert: mandatory rules, quality sample,
+// or a bulk approval that may still be overridden.
+function TriagePanel({ tree, ctx }: { tree: ReviewTreeRow; ctx: ReviewContext }) {
+  const r = t.expert.review;
+  const reasons = tree.mandatory ?? [];
+  const metricName = (code: string) => ctx.allMetrics.find((m) => m.code === code)?.name ?? code;
+  const detail = (reason: (typeof reasons)[number]) => {
+    if (reason === "low_confidence") return r.lowConfidenceDetail(ctx.rules.lowConfidence);
+    if (reason === "staff_conflict" && tree.staffConflicts.length > 0) {
+      return r.conflictDetail(tree.staffConflicts.map(metricName).join(", "));
+    }
+    return null;
+  };
+  return (
+    <section className={styles.panel} data-testid="triage">
+      <h3>{r.mandatoryTitle}</h3>
+      {reasons.length === 0 ? (
+        <p className="muted">{r.mandatoryNone}</p>
+      ) : (
+        <ul className={styles.reasons}>
+          {reasons.map((reason) => (
+            <li key={reason} data-reason={reason}>
+              {r.reasons[reason]}
+              {detail(reason) && <span className="muted"> ({detail(reason)})</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {tree.sampled && (
+        <p className={styles.notice} data-testid="sample-note">
+          {r.sampleNote}
+        </p>
+      )}
+      {tree.expertAuto && (
+        <p className="muted" data-testid="auto-note">
+          {r.autoNote}
+        </p>
+      )}
+    </section>
   );
 }
