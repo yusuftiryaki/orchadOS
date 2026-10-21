@@ -2,9 +2,9 @@
 
 Skipped when Supabase is not reachable (pnpm db:start && pnpm db:reset at the
 repo root). The test opens its own processed visit on the seed parcel, puts
-crops of three seed trees into storage and asset rows (marked face_blur, as
-the pipeline will), runs the worker as the ops user and checks the rows as
-the expert panel and the owner read them. The session is purged afterwards.
+crops of three seed trees into storage and asset rows, runs the worker as the
+ops user and checks the rows as the expert panel and the owner read them. The
+session is purged afterwards.
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ def visit(supabase_env, test_sessions, tmp_path_factory):
                     "byte_size": len(data),
                     "mime_type": "image/jpeg",
                     "quality_score": 0.8,
-                    "pose": {"direction": d, "slot_code": code, "filters_applied": ["face_blur"]},
+                    "pose": {"direction": d, "slot_code": code},
                     "pipeline": "orchados-pipeline",
                     "pipeline_version": "test",
                 }

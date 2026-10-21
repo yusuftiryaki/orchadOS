@@ -187,16 +187,6 @@ def test_no_usable_answer_is_retried_later(tmp_path):
     assert [len(b) for b in api.batches.values()] == [2, 1, 1]
 
 
-def test_unblurred_crops_are_not_sent(tmp_path):
-    cat, api = make_catalog(blurred=False), default_api()
-    report = worker(cat, api, tmp_path).run(cat.session_row.id)
-    assert report.status == "nothing_to_do" and not api.batches
-    assert report.skipped == {"unblurred_crops": 12, "no_crops": 3}
-
-    allowed = worker(cat, api, tmp_path, allow_unblurred=True).run(cat.session_row.id)
-    assert allowed.written == 3
-
-
 def test_published_session_needs_no_write(tmp_path):
     cat, api = make_catalog(status="published"), default_api()
     with pytest.raises(WorkerError, match="--no-write"):

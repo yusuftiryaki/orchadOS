@@ -46,7 +46,7 @@ AI_WORKER_STATE_DIR=
 | `uv run pytest -m live` | İsteğe bağlı gerçek API testi; `ANTHROPIC_API_KEY` gerekir, CI'da koşmaz |
 | `uv run ruff check . && uv run ruff format --check .` | Lint |
 
-`run` seçenekleri: `--config <json>` (yapılandırma), `--with-opus` (üçüncü aşama), `--threshold 0.7` (triaj eşiği), `--limit N` (deneme için en çok N ağaç), `--state-dir`, `--allow-unblurred` (**sadece sentetik veri**), `--json`.
+`run` seçenekleri: `--config <json>` (yapılandırma), `--with-opus` (üçüncü aşama), `--threshold 0.7` (triaj eşiği), `--limit N` (deneme için en çok N ağaç), `--state-dir`, `--json`.
 
 ## Akış
 
@@ -86,7 +86,7 @@ Satırların biçimi: [docs/arayuzler.md, "AI ön değerlendirme satırları"](.
 
 - İsteğe sadece şunlar girer: ağaç (yer) kodu, mevsim, kesit mozaikleri, ölçek tanımları ve personelin evet/hayır cevapları (metrik kodu + cevap).
 - Sahip adı, telefonu, tapu bilgisi, parsel adı, köy ve soru metinleri **gönderilmez**. Worker bunları okumaz bile: katalog arayüzü (`catalog.py`) sadece ağaç kimliği ve kodu, kesitler, cevaplar ve metrik kodlarını okur; metrik kaydının ad ve açıklama alanları istenmez. Testler bunu sahte veriyle ve yerel Supabase'in seed verisiyle denetler (`test_worker.py::test_no_personal_data_in_requests`, `test_supabase.py::test_no_personal_data_left_the_database`).
-- **Görüntüler:** Sadece panorama kesitleri. Yakın plan fotoğraflar v0.1'de gönderilmez (yüz bulanıklaştırma yok). `asset.pose.filters_applied` içinde `face_blur` olmayan kesit de gönderilmez; işleme hattı bu alanı veritabanına henüz yazmadığı için gerçek kesitler şu an gönderilmez (bkz. "Bilinen eksikler").
+- **Görüntüler:** Sadece panorama kesitleri; ziyaretin bütün kesitleri gönderilir. Yakın plan fotoğraflar v0.1'de gönderilmez; bu bir kapsam kararıdır: yakın plan analizi sonraki sürümde.
 - `ANTHROPIC_API_KEY` sadece ortamdan okunur; loglanmaz, iş durumuna yazılmaz. İş durumu klasöründe kişisel veri yoktur.
 
 ## Maliyet notu
@@ -136,16 +136,15 @@ Kış denetiminin uzman kararları setin ilk verisidir. O ziyaretler AI çalış
 ## Testler
 
 - **Birim:** istem kurulumu ve kişisel veri (`test_prompt.py`), şema doğrulama (`test_schema.py`), triaj kuralları (`test_triage.py`), mozaik, cevabın satırlara dönüşmesi (`test_rows.py`), değerlendirme (`test_evaluate.py`), SDK ile batch istemcisi sahte HTTP taşıyıcısıyla (`test_api.py`).
-- **Uçtan uca, sahte API ile** (`test_worker.py`): batch gönder → sonuç → yaz → tekrar çalıştır; `--no-wait` + `resume`; yazma sırasında kesilme; Sonnet reddi; cevapsız ağacın yeniden denenmesi; bulanıklaştırılmamış kesit; yayımlanmış ziyaret; batch bölme; Opus aşaması.
+- **Uçtan uca, sahte API ile** (`test_worker.py`): batch gönder → sonuç → yaz → tekrar çalıştır; `--no-wait` + `resume`; yazma sırasında kesilme; Sonnet reddi; cevapsız ağacın yeniden denenmesi; yayımlanmış ziyaret; batch bölme; Opus aşaması.
 - **Entegrasyon** (`test_supabase.py`, `supabase` işareti): yerel Supabase'te kendi ziyaretini açar, seed parselinin üç ağacına kesit yükler, sahte API ile çalıştırır; satırların yazıldığını, tekrar çalıştırmanın bir şey eklemediğini, sahip ve hissedarın hiçbir AI satırını görmediğini, uzman panelinin sorgularının öneriyi okuduğunu, saha personelinin yazamadığını ve `eval`'ı denetler. Önce kökte `pnpm install && pnpm db:start && pnpm db:reset`. Supabase'e ulaşılamazsa atlanır; CI'da atlanırsa iş başarısız olur. Test oturumları sonunda silinir (`ORCHADOS_TEST_KEEP_DATA=1` ile kalır).
 - **Gerçek API** (`test_live.py`, `-m live`): bir sentetik ağaçla tek istek ve token sayımı. Sadece `ANTHROPIC_API_KEY` varsa ve açıkça istenirse.
 - Veritabanı tarafı: `supabase/tests/24_ai_preassessment.test.sql` (`pnpm db:test`).
 
 ## Bilinen eksikler
 
-- **Bulanıklaştırma işareti:** İşleme hattı `filters_applied`'ı `asset.pose`'a yazmalı (şu an sadece `outputs.json`'da). Yazana kadar gerçek kesitler AI'a gitmez. Yüz bulanıklaştırma ertelendiği için gerçek panoramalar zaten buluta yüklenmiyor.
 - **Referans görseller** (Ek A) yok; önbellekli ön ek sadece metin.
-- **Yakın plan fotoğraflar** gönderilmiyor (yüz bulanıklaştırma gelince).
+- **Yakın plan fotoğraflar** gönderilmiyor; yakın plan analizi sonraki sürümde.
 - **"Sorun gördüm" işareti** veritabanında yok; ne isteğe ne değerlendirmeye giriyor.
 - **Güven kalibrasyonu:** Modelin verdiği güven ham değerdir; eşik (0,70) ve triaj pilotta `eval` ile ayarlanmalı.
 - **Ölçek belirsizliği:** `uncertainty`, güvenden türetilen bir yaklaşık değerdir (`rows.uncertainty`), istatistiksel bir aralık değildir.
