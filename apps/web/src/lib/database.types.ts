@@ -1366,6 +1366,67 @@ export type Database = {
           },
         ];
       };
+      session_event: {
+        Row: {
+          created_at: string;
+          event_type: string;
+          gps_time_ns: number;
+          id: string;
+          logger_result: string | null;
+          org_id: string;
+          parcel_id: string;
+          payload: string;
+          phone_time: string;
+          recorded_by: string | null;
+          session_id: string;
+          time_source: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          event_type: string;
+          gps_time_ns: number;
+          id?: string;
+          logger_result?: string | null;
+          org_id: string;
+          parcel_id: string;
+          payload?: string;
+          phone_time: string;
+          recorded_by?: string | null;
+          session_id: string;
+          time_source: string;
+        };
+        Update: {
+          created_at?: string;
+          event_type?: string;
+          gps_time_ns?: number;
+          id?: string;
+          logger_result?: string | null;
+          org_id?: string;
+          parcel_id?: string;
+          payload?: string;
+          phone_time?: string;
+          recorded_by?: string | null;
+          session_id?: string;
+          time_source?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "session_event_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "session_event_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
       slot: {
         Row: {
           code: string | null;
