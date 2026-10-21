@@ -1,0 +1,40 @@
+[project]
+name = "orchados-ingest"
+version = "0.1.0"
+description = "orchadOS raw data ingest: provider-agnostic raw store (S3, Azure Blob, local) with resumable push/pull of session folders"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "azure-identity>=1.19",
+    "azure-storage-blob>=12.24",
+    "boto3>=1.36",
+]
+
+[project.scripts]
+orchados-ingest = "orchados_ingest.cli:main"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28",
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "minio: needs a MinIO server (ORCHADOS_TEST_MINIO_URL, or docker to start one); skipped otherwise",
+    "azurite: needs an Azurite server (ORCHADOS_TEST_AZURITE_URL, or docker to start one); skipped otherwise",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
