@@ -18,7 +18,11 @@ dependencies:
   image: ^4.12.0
   path: ^1.9.1
   path_provider: ^2.1.6
-  permission_handler: ^13.0.2
+  # 12.x on purpose: permission_handler 13 pulls permission_handler_android 14,
+  # which compiles against Android API 37. That platform ships as
+  # `android-37.0` and AGP 9.1 (Flutter 3.47 default) looks for `android-37`,
+  # so the APK does not build. Move up together with AGP/Flutter.
+  permission_handler: ^12.0.3
   qr_flutter: ^4.1.0
   supabase_flutter: ^2.18.3
   uuid: ^4.6.0
