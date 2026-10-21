@@ -45,6 +45,9 @@ class FakeTaskRepository implements TaskRepository {
       areaDecare: 20,
       slots: _sampleTourSlots,
       boundary: sampleBoundary(),
+      rowAzimuthDeg: 0,
+      originCorner: 'sw',
+      estimatedTreeCount: 220,
       closeupTrees: [
         TreeTarget(
           treeId: 't-0512',
@@ -231,7 +234,8 @@ class SupabaseTaskSource implements TaskSource {
         .from('session')
         .select(
           'id, org_id, parcel_id, kind, planned_date, lead_user_id, notes, '
-          'parcel(name, village, estimated_area_m2)',
+          'parcel(name, village, estimated_area_m2, estimated_tree_count, '
+          'row_azimuth_deg, numbering_origin_corner)',
         )
         .eq('status', 'planned')
         .inFilter('kind', ['inventory', 'periodic_scan', 'verification'])
@@ -285,6 +289,9 @@ class SupabaseTaskSource implements TaskSource {
           slots: slots,
           boundary: boundaryByParcel[parcelId],
           verificationItems: items,
+          rowAzimuthDeg: (parcel['row_azimuth_deg'] as num?)?.toDouble(),
+          originCorner: parcel['numbering_origin_corner'] as String?,
+          estimatedTreeCount: parcel['estimated_tree_count'] as int?,
         ),
       );
     }
