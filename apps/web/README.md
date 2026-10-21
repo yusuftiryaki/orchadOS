@@ -4,7 +4,7 @@ Next.js web uygulaması: sahip portalı, uzman paneli ve ofis üçgenleme aracı
 
 İş paketleri: İP5 (ofis üçgenleme aracı), İP7 (uzman paneli), İP8 (sahip portalı). Bkz. [docs/plan.md](../../docs/plan.md).
 
-Şu anki hâli: giriş/çıkış, rol bazlı bölümler, her bölümde parsel listesi ve harita üzerinde parsel detayı (iskelet), `/ofis` altında **ofis üçgenleme aracı** (İP5), `/uzman` altında **uzman paneli** (İP7) ve `/portal` altında **sahip portalı** (İP8); üçü de aşağıda.
+Şu anki hâli: giriş/çıkış, rol bazlı bölümler, her bölümde parsel listesi ve harita üzerinde parsel detayı (iskelet), `/ofis` altında **ofis üçgenleme aracı** (İP5), `/uzman` altında **uzman paneli** (İP7), `/portal` altında **sahip portalı** (İP8) ve `/operasyon` altında **operasyon ekranları** (kayıt ve ziyaret planlama); hepsi aşağıda.
 
 ## Kurulum
 
@@ -58,14 +58,15 @@ apps/web/
 │   │   ├── ofis/                # saha personeli, operasyon
 │   │   │   ├── parsel/[parcelId]/envanter/  # ofis üçgenleme aracı + kaydetme (server action)
 │   │   │   └── panorama/[setId]/[panoramaId]/[variant]/  # panorama görüntüsü (route handler)
-│   │   ├── operasyon/           # operasyon
+│   │   ├── operasyon/           # operasyon: pano, sahip, parsel, sınır, erişim, ziyaret planı
 │   │   │   └── parsel/[parcelId]/   # her bölümde parsel detayı
 │   │   ├── forbidden.tsx        # 403 sayfası
 │   │   └── page.tsx             # girişten sonra ilk erişilebilir bölüme yönlendirir
 │   ├── components/              # bölüm başlığı, parsel listesi, harita, ağaç paneli
 │   │   ├── office/              # üçgenleme aracı: harita, panorama görünümü, paneller
 │   │   ├── portal/              # sahip portalı: karne, sağlık haritası, ağaç karnesi, gezi
-│   │   └── expert/              # uzman paneli: kuyruk, inceleme, karar, bulgu, özet, kısayollar
+│   │   ├── expert/              # uzman paneli: kuyruk, inceleme, karar, bulgu, özet, kısayollar
+│   │   └── operations/          # operasyon: formlar, sınır çizim haritası, ziyaret tablosu
 │   └── lib/
 │       ├── auth/                # roller → bölümler, oturum ve bölüm kontrolü
 │       ├── i18n/tr.ts           # bütün arayüz metinleri
@@ -75,6 +76,7 @@ apps/web/
 │       ├── portal/              # portal sorguları + saf hesaplar (sınıf, değişim, ölçüm, gezi yönleri)
 │       ├── media/               # storage:// adresleri, toplu imzalama ve önbellek, panorama varyantları
 │       ├── expert/              # mevsim, metrik seçimi, özet (saf TS); sorgular, kararlar, bulgular
+│       ├── operations/          # form doğrulama, sınır geometrisi, gecikme hesabı (saf TS); sorgular, yazmalar
 │       ├── supabase/            # sunucu istemcisi, proxy oturum yenileme, sayfalı sorgu (fetchAll)
 │       ├── parcels.ts           # parsel sorguları (sadece satır bazlı yetkiyle)
 │       └── database.types.ts    # üretilmiş; elle değiştirilmez
@@ -399,3 +401,64 @@ Kuyruğun altında **Envanter onayı bekleyenler**: `captured`, `processed` ya d
 - **Ölçümler donmuyor:** Yayından sonra değerlendirme ve bulgular kilitli; ölçümler (saha uygulamasının geç senkronizasyonu için) kilitli değil.
 - **Bulgu kaydı tek işlem değil:** bulgu ve kanıtları iki ayrı yazma; kanıt yazılamazsa bulgu silinir.
 - **Küçük önizleme yok:** kesit dosyası olduğu gibi gösterilir.
+
+## Operasyon ekranları
+
+Operasyon (`ops`) sahibi kaydeder, parselini açar, kaba sınırını çizer, portal erişimini verir, envanter ve tarama ziyaretlerini planlar ve izler (`docs/MVP.md` Modül 1, `docs/kullanim-kilavuzu.md` 1 ve 3.1). Bunlar önceden Supabase panelinden yapılıyordu.
+
+### Ekranlar
+
+| Adres                                      | Ne var                                                                                                                                                                                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/operasyon`                               | **Pano:** durumlara göre ziyaret sayıları (planlandı → yayımlandı; tıklayınca filtreli liste), yaklaşan ziyaretler (14 gün), geciken işler, parseller ve yaşam döngüsü durumları                                               |
+| `/operasyon/sahip`, `…/yeni`, `…/<profil>` | Sahip ve hissedar listesi; **yeni sahip** (ad soyad, telefon, isteğe bağlı e-posta, iletişim tercihi, KVKK onayı, tarihi ve metin sürümü); profil düzeltme ve kişinin erişimi olan parseller                                   |
+| `/operasyon/parsel/yeni?sahip=<profil>`    | **Parsel kaydı:** ad, il/ilçe/köy, tahmini alan (dönüm ↔ m²), sulu/kıraç, tahmini ağaç, kaba konum; haritada **kaba sınır**; tapu, hisse, rızai taksim, yetki dayanağı, giriş izni, erişim notu, sınırı gösterecek kişi; sahip |
+| `/operasyon/parsel/<parsel>`               | Parsel bilgileri, özel bilgiler, **portal erişimi** (ver / kaldır), parselin ziyaretleri, harita. `…/duzenle` bilgileri düzeltir, `…/sinir` yeni sınır sürümünü çizer                                                          |
+| `/operasyon/ziyaret`                       | Ziyaret listesi; parsel, personel, durum ve türe göre filtre (`?parsel=`, `?personel=`, `?durum=`, `?tur=`)                                                                                                                    |
+| `/operasyon/ziyaret/yeni?parsel=…`         | **Ziyaret planı:** tür (envanter, periyodik tarama, doğrulama), tarih, sorumlu saha personeli, not. Tarama ziyaretinde mevsim tarihten gösterilir (`docs/metodoloji.md` 2)                                                     |
+| `/operasyon/ziyaret/<ziyaret>`             | Ayrıntı. `planned` ise tarih, sorumlu ve not değişir, ziyaret iptal edilir. Taranmış (`captured` ve sonrası) ya da iptal edilmiş ziyaret salt okunur                                                                           |
+
+### Kurallar
+
+- **Kişisel veri** (`private.owner_profile`, `private.parcel_detail`) `private` şemasında kalır; API'ye açılmaz. Operasyon onu sadece `ops_*` veritabanı fonksiyonlarıyla okur ve yazar (`security definer`; her biri çağıranın o işletmede `ops` olduğunu denetler, başkasına boş sonuç ya da `forbidden` döner). Hata mesajları değer içermez, sadece neden kodu ve alan adı taşır (`invalid_input / phone`). Uygulama hiçbir form değerini loglamaz. Sahip kendi kaydını `my_owner_profile()` ile görür.
+- **Bütün yazmalar kullanıcının kendi yetkisiyle yapılır:** parsel kaydı tek işlemde `register_parcel(...)` ile (parsel + özel bilgi + sınır v1 + sahip erişimi; `security invoker`), yeni sınır sürümü `add_owner_declared_boundary(...)` ile, erişim ve ziyaretler doğrudan tablolara (satır bazlı yetki). Uygulamada servis anahtarı yok.
+- **Kaba sınır:** Haritada köşelere sırayla tıklanır. `boundary` tablosuna bir sonraki sürüm (ilk kayıtta 1) olarak `owner_declared` kaynağıyla yazılır. Kendini kesen ya da alanı olmayan sınır reddedilir. Formda "Fiili kullanım sınırıdır, mülkiyet iddiası değildir." notu görünür. Sıra yönü ve başlangıç köşesi boş kalır (envanterde belirlenir). Konum girilmezse parsel sınırın ortasına konur, en uzak köşenin uzaklığı belirsizlik olur.
+- **Ziyaret planı** (`supabase/migrations/20261021220000_operations_screens.sql`): Envanter, periyodik tarama ve doğrulama ziyaretlerini sadece operasyon açar. Saha personeli diğer oturum türlerini (biçme, ilaçlama, elle kayıt) açmaya devam eder. Plan (tür, gün, sorumlu, parsel) sadece `planned` durumdayken ve sadece operasyon tarafından değişir. İptal sadece `planned` bir ziyarette ve operasyonla yapılır; iptal edilen ziyaret bir daha değişmez. Sorumlu, işletmenin saha personeli olmalı. Durum ilerlemesi (tarandı, işlendi, incelemede) bu kurallardan etkilenmez.
+- **Yaşam döngüsü:** İlk envanter ziyareti planlanınca parsel `registered` → `inventory_planned` olur. Açık son envanter ziyareti iptal edilirse `registered`'a döner. `inventory_done` envanter onayının işidir.
+- **Gecikme:** Tarihi geçmiş `planned` ziyaretler ve 3 günden uzun süredir `captured` (işlenmemiş) ziyaretler. Gün Türkiye saatine göredir (`Europe/Istanbul`). Tarama zamanı bitiş, yoksa başlangıç, yoksa planlanan gündür. Mevsim takvimi uzman paneliyle ortak (`src/lib/expert/season.ts`).
+
+### Portal hesabı: `invite-user` Edge Function
+
+Servis anahtarı Vercel'e konmadığı için (`docs/deployment.md`) hesap, Supabase'in kendi ortamında çalışan `supabase/functions/invite-user` ile açılır:
+
+1. Çağıranın JWT'si Auth API'sinden doğrulanır. Kişinin istekteki işletmede `ops` olması gerekir (kendi JWT'siyle `membership`'ten okunur). Değilse 401 / 403.
+2. Bu e-postayla (e-posta yoksa telefonla) bir hesap varsa kimliği döner, hiçbir şey değişmez.
+3. Yoksa hesap servis rolüyle açılır (e-posta ve telefon onaylı). E-posta varsa **tek kullanımlık parola** üretilir ve bir kez döner. Fonksiyonun dış bağımlılığı yok (düz `fetch`); kişisel veri loglanmaz.
+
+**Giriş bilgisi: tek kullanımlık parola, WhatsApp'la iletilir.** Pilot sahipleri e-postadan çok WhatsApp kullanıyor. Davet e-postası ise SMTP kurulumu, gönderim sınırı ve dönüş adresinde parola belirleme sayfası isterdi. Parola ekranda bir kez gösterilir, saklanmaz. **SMS'e geçiş:** Hesap telefon numarasıyla (E.164) açılır. Telefonla giriş açılınca aynı hesap SMS koduyla girer; veri taşınmaz. E-postası olmayan sahibin hesabı bugün telefonla açılır; bu sahip, telefonla giriş gelince girebilir.
+
+**Yedek yol:** Fonksiyona ulaşılamazsa (ör. henüz dağıtılmamışsa) uygulama hesabı `ops_find_user_id` ile e-posta ya da telefonla arar. Operasyon hesabı Supabase panelinden açıp kaydı tekrarlar. Parsel sayfasında mevcut bir hesaba e-postayla erişim de verilebilir. Fonksiyon sadece kimlik döndürür.
+
+Yerelde edge runtime açık (`supabase/config.toml`, `[functions.invite-user] verify_jwt = true`); `pnpm db:start` fonksiyonu sunar. Test projesine `deploy-db` iş akışı `supabase functions deploy` ile dağıtır (secret'lar yoksa adım atlanır).
+
+### Kullanım: yeni sahip → parsel → sınır → erişim → envanter planı
+
+1. `ops@example.com` ile gir → **Operasyon** → **+ Yeni sahip**. Ad, telefon (`0532 123 45 67` yazılabilir), e-posta, iletişim tercihi, KVKK onayı, tarihi ve metin sürümü (`kvkk-v0`) → **Sahibi kaydet**. Tek kullanımlık parolayı giriş e-postasıyla birlikte WhatsApp'tan ilet.
+2. **Bu sahibe parsel ekle**: Parsel bilgilerini gir. Haritada **Sınır** modunda sahibin gösterdiği köşelere sırayla tıkla (alan dönüm ve m² olarak görünür). İstersen **Konum** modunda kaba konumu işaretle. Tapu ve erişim bilgilerini gir → **Parseli kaydet**. Sınır v1 (sahip beyanı) ve sahibin erişimi birlikte yazılır.
+3. Parsel sayfasında **Portal erişimi**: Hissedarı önce "Yeni sahip" ile kaydet, sonra kişiyi seçip **Hissedar (izleyici)** olarak ekle.
+4. **Bu parsel için ziyaret planla**: Tür **Envanter**, tarih, sorumlu personel, not → **Ziyareti planla**. Ziyaret personelin görev listesine düşer, parsel "Envanter planlandı" olur.
+5. Sahip `/giris`'ten e-posta ve parolayla girer; sadece kendi parselini görür.
+
+### Testler
+
+- Birim (`src/lib/operations/operations.test.ts`): telefon ve ondalık sayı ayrıştırma, sahip / parsel / özel bilgi / ziyaret formları, sınır halkası (kendini kesme, alan), dönüm ↔ m², mevsim, Türkiye günü, yaklaşan ve geciken ziyaretler, URL sonuç kodları, veritabanı hatasından neden kodu, Türkçe etiketlerin tamlığı.
+- Entegrasyon (`tests/integration/operations-screens.test.ts`): `invite-user` ile sahip kaydı ve tek kullanımlık parola; aynı kişinin ikinci kaydı; parsel + sınır v1 + özel bilgi + erişim; hissedar erişimi; yeni sahibin parolayla girip sadece kendi parselini ve kendi kaydını görmesi; ziyaret planı, sorumlu kuralı, değiştirme, iptal ve yaşam döngüsü; taranmış ziyaretin değişmemesi; sahip, saha personeli ve uzmanın kayıt ve planlama yapamaması, özel veri okuyamaması; Edge Function'ın yetkisiz çağrıları (401, 403) ve hatalı girdiyi değeri yansıtmadan reddetmesi. Test kendi parsel ve hesaplarını sonunda siler.
+- Tarayıcı (`tests/e2e/operations-registration.spec.ts`): operasyon olarak sahip kaydı (onaysız kayıt reddedilir), parsel kaydı, haritada sınır çizimi (geri alma dahil), envanter ziyareti planlama ve tarih değişikliği, pano; yeni sahibin parolayla girişi. Saha personeline operasyon ekranları 403.
+- pgTAP (`supabase/tests/17_operations.test.sql`): fonksiyon yetkileri, özel verinin sadece operasyona açılması, değer içermeyen hatalar, sınır sürümleri, ziyaret kuralları ve yaşam döngüsü, rol rol yasaklar.
+
+### Bilinen sınırlar
+
+- **İlk girişte parola değiştirme ekranı yok** (giriş sayfası bu işin dışında); sahip parolasını şimdilik değiştiremez. Parola yenileme de yok: Supabase panelinden yapılır.
+- **Takvim görünümü yok:** liste ve filtreler var.
+- Özel veri düzeltmesi eski değeri saklamaz (denetim kaydı yok).
+- `ops_find_user_id`, operasyonun bütün hesaplarda e-postayla arama yapmasına izin verir; sadece kimlik döner.
