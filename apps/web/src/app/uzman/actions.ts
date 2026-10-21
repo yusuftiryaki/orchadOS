@@ -12,6 +12,7 @@ import {
 } from "@/lib/expert/decisions";
 import { createFinding, deleteFinding, updateFinding } from "@/lib/expert/findings";
 import { parseFilter, reviewHref, safeReturnPath, summaryHref, withParam } from "@/lib/expert/urls";
+import { editMessage, replyToQuestion, type QuestionWriteResult } from "@/lib/portal/questions";
 import { createClient } from "@/lib/supabase/server";
 
 // Server actions of the expert panel. They run as the signed-in user: row
@@ -133,4 +134,38 @@ export async function publishAction(_prev: PublishState, form: FormData): Promis
   // Owners see the visit's results from now on, in every section.
   revalidatePath("/", "layout");
   redirect(summaryHref(sessionId, { published: true }));
+}
+
+// Answers to owners' questions (/uzman/sorular).
+function questionsReturn(form: FormData, result: QuestionWriteResult): never {
+  const value = text(form, "return");
+  const back = value.startsWith("/uzman/sorular") ? value : "/uzman/sorular";
+  redirect(
+    withParam(
+      withParam(back, "soru", result.ok ? "1" : null),
+      "soru_hata",
+      result.ok ? null : result.error,
+    ),
+  );
+}
+
+export async function answerQuestionAction(form: FormData) {
+  await requireSection("uzman");
+  const result = await replyToQuestion(
+    await createClient(),
+    text(form, "questionId"),
+    text(form, "body"),
+  );
+  questionsReturn(form, result);
+}
+
+export async function editAnswerAction(form: FormData) {
+  await requireSection("uzman");
+  const result = await editMessage(
+    await createClient(),
+    text(form, "kind") === "question" ? "question" : "reply",
+    text(form, "id"),
+    text(form, "body"),
+  );
+  questionsReturn(form, result);
 }
