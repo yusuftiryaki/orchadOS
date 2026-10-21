@@ -101,3 +101,15 @@ def test_sessions(supabase_env):
             "pnpm db:test",
             stacklevel=1,
         )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Live tests (real Claude API) run only when asked for with -m live and a key is set."""
+    import os
+
+    asked = "live" in (config.option.markexpr or "")
+    has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    reason = "real API tests run only with -m live" if not asked else "ANTHROPIC_API_KEY is not set"
+    for item in items:
+        if "live" in item.keywords and not (asked and has_key):
+            item.add_marker(pytest.mark.skip(reason=reason))
