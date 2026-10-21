@@ -170,18 +170,18 @@ Kurallar:
 
 Kaynak: [firmware/gnss-logger/README.md → BLE protokolü](../firmware/gnss-logger/README.md#ble-protokolü). Özet:
 
-- Cihaz adı `orchados-gnss-XXXX`; servis `cdee0001-…`, durum `cdee0002-…` (read/notify, 39 bayt, sürüm 1), komut `cdee0003-…` (write). Tüm alanlar little-endian; uygulama MTU ≥ 247 ister.
+- Cihaz adı `orchados-gnss-XXXX`; servis `cdee0001-…`, durum `cdee0002-…` (read/notify, 51 bayt, sürüm 1), komut `cdee0003-…` (write). Tüm alanlar little-endian; uygulama MTU ≥ 247 ister.
 - **Durumda GPS zamanı:** Ofset 31'de `gps_time_ns` (u64): mesajın oluşturulduğu anın GPS zamanı, `çapa_gps + (şimdi − çapa_micros) × 1000`; PPS eşlemesi yoksa `0` (bu durumda `flags` bit3 de 0'dır). Firmware 0.2.0'dan itibaren gönderilir; 0.1.0 31 bayt gönderir. Aynı sürümde alanlar yalnızca sona eklendiği için çözücüler 31 bayt ve üzerini kabul eder; 31 baytlık mesajda alan yok sayılır. Saha uygulaması bu değerle telefon saatinin GPS zamanına ofsetini bulur ve QR'ı GPS zamanıyla gösterir; değer yoksa telefon saati + 18 sn kullanır ve bunu işaretler.
 - Komutlar: `start_session(session_id, parcel_id)`, `stop_session`, `mark_event(corner | qr_sync, payload)`. Sonuç durum mesajındaki `last_cmd_seq` / `last_cmd_result` ile izlenir.
-- **Durumda konum (öneri, firmware henüz göndermiyor):** Sınır köşesi, kapsama izi ve doğrulama turunda yere uzaklık için saha uygulaması alıcının konumunu durum mesajından okur. Aynı sürümde alanlar sona eklendiği için 39 baytın ardına 12 bayt önerildi (toplam 51 bayt):
+- **Durumda konum:** Sınır köşesi, kapsama izi ve doğrulama turunda yere uzaklık için saha uygulaması alıcının konumunu durum mesajından okur. Firmware 0.3.0'dan itibaren 39 baytın ardında 12 baytlık konum bloğu var (toplam 51 bayt):
 
   | Ofset | Tür | Alan | Açıklama |
   | --- | --- | --- | --- |
-  | 39 | i32 | `lat_e7` | NAV-PVT `lat` (1e-7 derece) |
-  | 43 | i32 | `lon_e7` | NAV-PVT `lon` (1e-7 derece) |
-  | 47 | i32 | `height_mm` | NAV-PVT `height` (elipsoit üstü, mm) |
+  | 39 | i32 | `lat_e7` | Son NAV-PVT `lat` (1e-7 derece) |
+  | 43 | i32 | `lon_e7` | Son NAV-PVT `lon` (1e-7 derece) |
+  | 47 | i32 | `height_mm` | Son NAV-PVT `height` (elipsoit üstü, mm) |
 
-  Konum yalnızca `gnssFixOK` (bit5) ve `fix_type` 2–4 iken geçerli sayılır; aksi halde alanlar yok sayılır. Firmware NAV-PVT'yi zaten çözüyor (`nav_pvt.h`: `latE7`, `lonE7`, `heightMm`); eklenmesi firmware README'sinde ve İP2'de yapılacak. Saha uygulaması 51 bayttan kısa mesajda konumu "yok" kabul eder: köşe yine GPS zamanıyla kaydedilir, kapsama ve uzaklık gösterilmez.
+  Konum yalnızca `gnssFixOK` (bit5), `fix_type` 2–4 ve NAV-PVT `invalidLlh` kalkıkken geçerlidir; o zaman `flags` bit6 (konum geçerli) 1'dir. Aksi halde üç alan `0`, bit6 `0`'dır; çözücü bit6'ya bakar. Saha uygulaması 51 bayttan kısa mesajda (firmware 0.2.0 ve öncesi) konumu "yok" kabul eder: köşe yine GPS zamanıyla kaydedilir, kapsama ve uzaklık gösterilmez. Konum PPK öncesidir; doğruluğu `h_acc_mm`'dedir.
 - `start_session`'a verilen `session_id` ve `parcel_id`, kök `session.json`'dakilerle aynı olmalıdır (yukarıdaki birleştirme kuralı).
 
 ## Medya depolama

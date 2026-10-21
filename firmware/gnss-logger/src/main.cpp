@@ -285,6 +285,7 @@ void loggerTask(void*) {
         st.numSv = lastPvt.numSv;
         st.hAccMm = lastPvt.hAccMm;
       }
+      ble::setStatusPosition(havePvt ? &lastPvt : nullptr, &st);
       st.bytesWritten = static_cast<uint32_t>(g_recorder.bytesWritten());
       st.sdFreeMib = static_cast<uint32_t>(g_recorder.freeBytes() >> 20);
       st.batteryMv = batteryMv;
