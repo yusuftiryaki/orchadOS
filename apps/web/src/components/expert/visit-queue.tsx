@@ -2,11 +2,21 @@ import Link from "next/link";
 import { openVisitAction } from "@/app/uzman/actions";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import type { ParcelSummary } from "@/lib/parcels";
+import type { InventoryQueueItem } from "@/lib/expert/inventory";
 import type { QueueItem } from "@/lib/expert/review";
 import styles from "./expert.module.css";
 
-// Visits waiting for the expert, then the parcels of the org.
-export function VisitQueue({ queue, parcels }: { queue: QueueItem[]; parcels: ParcelSummary[] }) {
+// Visits waiting for the expert, inventories waiting for approval, then the
+// parcels of the org.
+export function VisitQueue({
+  queue,
+  inventories,
+  parcels,
+}: {
+  queue: QueueItem[];
+  inventories: InventoryQueueItem[];
+  parcels: ParcelSummary[];
+}) {
   const q = t.expert.queue;
   return (
     <main className="page">
@@ -54,6 +64,8 @@ export function VisitQueue({ queue, parcels }: { queue: QueueItem[]; parcels: Pa
         </table>
       )}
 
+      <InventoryQueue items={inventories} />
+
       <h2>{q.parcels}</h2>
       {parcels.length === 0 ? (
         <p className="muted">{t.parcels.empty}</p>
@@ -82,5 +94,49 @@ export function VisitQueue({ queue, parcels }: { queue: QueueItem[]; parcels: Pa
         </table>
       )}
     </main>
+  );
+}
+
+function InventoryQueue({ items }: { items: InventoryQueueItem[] }) {
+  const e = t.inventory.expert;
+  return (
+    <section data-testid="inventory-queue-section">
+      <h2>{e.queueTitle}</h2>
+      <p className="muted">{e.queueHint}</p>
+      {items.length === 0 ? (
+        <p className={styles.notice}>{e.queueEmpty}</p>
+      ) : (
+        <table className={styles.table} data-testid="inventory-queue">
+          <thead>
+            <tr>
+              <th>{e.queueColumns.parcel}</th>
+              <th>{e.queueColumns.date}</th>
+              <th>{e.queueColumns.status}</th>
+              <th className={styles.number}>{e.queueColumns.slots}</th>
+              <th className={styles.number}>{e.queueColumns.trees}</th>
+              <th className={styles.number}>{e.queueColumns.openItems}</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.sessionId} data-session-id={item.sessionId}>
+                <td>{item.parcelName}</td>
+                <td>{formatDate(item.time)}</td>
+                <td>{t.office.sessionStatus[item.status]}</td>
+                <td className={styles.number}>{formatNumber(item.slots)}</td>
+                <td className={styles.number}>{formatNumber(item.trees)}</td>
+                <td className={styles.number}>{formatNumber(item.openItems)}</td>
+                <td>
+                  <Link className="button" href={`/uzman/envanter/${item.sessionId}`}>
+                    {e.open}
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }

@@ -94,6 +94,15 @@ export interface InventoryWorkspace {
   tours: WorkspaceTour[];
 }
 
+// Tabs of the office workspace (/ofis/parsel/<parcel>/envanter/duzenle?sekme=).
+export type WorkspaceTab = "attributes" | "infrastructure" | "boundary" | "verification";
+export const WORKSPACE_TABS: WorkspaceTab[] = [
+  "attributes",
+  "infrastructure",
+  "boundary",
+  "verification",
+];
+
 export const POINT_ZONE_KINDS: Enums["zone_kind"][] = ["well", "pool", "gate", "shed"];
 export const LINE_ZONE_KINDS: Enums["zone_kind"][] = ["irrigation_line", "fence"];
 export const INFRASTRUCTURE_KINDS: Enums["zone_kind"][] = [...POINT_ZONE_KINDS, ...LINE_ZONE_KINDS];

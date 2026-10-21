@@ -795,7 +795,13 @@ export function OfficeTool({
                   <p className={styles.success} role="status" data-testid="save-result">
                     {t.office.saved(saveResult.slots, saveResult.trees)}{" "}
                     {saveResult.labels > 0 && <>{t.office.savedLabels(saveResult.labels)} </>}
-                    <Link href={`/ofis/parsel/${parcelId}`}>{t.office.viewParcel}</Link>
+                    <Link href={`/ofis/parsel/${parcelId}`}>{t.office.viewParcel}</Link>{" "}
+                    <Link
+                      href={`/ofis/parsel/${parcelId}/envanter/duzenle?sekme=verification`}
+                      data-testid="open-workspace"
+                    >
+                      {t.inventory.office.openAfterSave}
+                    </Link>
                   </p>
                 ) : (
                   <>

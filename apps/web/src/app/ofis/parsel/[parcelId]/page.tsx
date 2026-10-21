@@ -14,6 +14,12 @@ export default async function Page({ params }: { params: Promise<{ parcelId: str
         <p>
           <Link className="button" href={`/ofis/parsel/${parcelId}/envanter`}>
             {t.office.openTool}
+          </Link>{" "}
+          <Link
+            className="button button-secondary"
+            href={`/ofis/parsel/${parcelId}/envanter/duzenle`}
+          >
+            {t.inventory.office.open}
           </Link>
         </p>
       }
