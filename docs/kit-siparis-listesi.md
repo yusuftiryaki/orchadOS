@@ -12,7 +12,7 @@ Bu liste, MVP'de kullanılacak **LiDAR'sız** tarama kitinin parça parça sipar
 
 | Karar | Seçenekler | Önerim |
 | --- | --- | --- |
-| **1. 360° kamera modeli** | Insta360 X serisi (X4 / X5), Ricoh Theta X, GoPro Max | **Insta360 X serisinin güncel modeli.** Türkiye'de distribütörü var. Sipariş öncesi iki şeyi doğrula: masaüstü SDK'sı başvuruyla verilebiliyor mu, ve jiroskop verisi dışa aktarılabiliyor mu? |
+| **1. 360° kamera modeli** | Insta360 X serisi (X5) · Ricoh Theta X · GoPro Max 2 | **Insta360 X5**: görüntü kalitesi ağaç değerlendirmesi için önemli. SDK pilot için şart değil: pilotta videolar Insta360 Studio'dan elle birleştirilmiş (equirectangular) olarak dışa aktarılır, SDK (Linux Media SDK, başvuruyla) sonra otomasyon için. **Yedek:** Ricoh Theta X kamerada birleştirip equirectangular MP4 kaydeder, API'si açık belgeli; SDK gerekmez ama sensörü küçük |
 | **2. PPK için baz verisi** | TUSAGA-Aktif (CORS-TR) aboneliği · Kendi baz istasyonu (ikinci bir RTK alıcısı) | **İkinci bir alıcı al.** Pilotta referans sıra ölçümü için zaten gerekiyor ([MVP.md](MVP.md) Modül 2). Aynı alıcı, TUSAGA başvurusu sonuçlanana kadar baz istasyonu olarak da çalışır |
 | **3. Akü sistemi** | Makita, Bosch, DeWalt 18 V | **Türkiye'de en kolay bulunanı.** Bataryalar ve şarj aleti sahada yedeklenebilmeli. Seçilen markanın "akü adaptörü" (akü yuvasından kablo çıkışı) bulunabilmeli |
 
