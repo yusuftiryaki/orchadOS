@@ -612,6 +612,19 @@ export const tr = {
       count: (n: number) => `${n} panorama`,
     },
   },
+  // Category values of the metric registry (docs/metodoloji.md, Ek B).
+  metricCategories: {
+    done: "Yapılmış",
+    partial: "Kısmi",
+    not_done: "Yapılmamış",
+    none: "Yok",
+    mild: "Hafif",
+    marked: "Belirgin",
+    psylla: "Psilla",
+    bud_borer: "Göz kurdu",
+    stink_bug: "Kımıl",
+    other: "Diğer",
+  } as Record<string, string>,
 } as const;
 
 export type Messages = typeof tr;

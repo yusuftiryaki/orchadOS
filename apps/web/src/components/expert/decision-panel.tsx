@@ -8,7 +8,7 @@ import {
 import type { TreeDetail } from "@/lib/expert/review";
 import { HEALTH_CLASSES, type Filter } from "@/lib/expert/summary";
 import { FILTER_PARAM } from "@/lib/expert/urls";
-import { formatDate, t } from "@/lib/i18n";
+import { categoryLabel, formatDate, t } from "@/lib/i18n";
 import { ClassBadge } from "./class-badge";
 import styles from "./expert.module.css";
 
@@ -154,7 +154,7 @@ export function DecisionPanel({
                         <option value="">{r.choose}</option>
                         {(m.categories ?? []).map((c) => (
                           <option key={c} value={c}>
-                            {c}
+                            {categoryLabel(c)}
                           </option>
                         ))}
                       </select>

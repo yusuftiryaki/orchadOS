@@ -163,7 +163,7 @@ export function acceptedValues(
 export function formatValue(
   metric: Pick<MetricDefinition, "unit" | "value_type" | "scale_max">,
   value: Omit<MeasurementValue, "metric_definition_id">,
-  labels: { yes: string; no: string },
+  labels: { yes: string; no: string; category?: (code: string) => string },
 ): string {
   if (value.value_scale != null) return `${value.value_scale}/${metric.scale_max ?? "?"}`;
   if (value.value_numeric != null) {
@@ -176,7 +176,8 @@ export function formatValue(
         : "";
     return metric.unit ? `${n}${u} ${metric.unit}` : `${n}${u}`;
   }
-  if (value.value_category != null) return value.value_category;
+  if (value.value_category != null)
+    return labels.category ? labels.category(value.value_category) : value.value_category;
   if (value.value_boolean != null) return value.value_boolean ? labels.yes : labels.no;
   return "—";
 }
