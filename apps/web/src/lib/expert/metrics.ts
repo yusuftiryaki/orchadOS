@@ -76,10 +76,14 @@ export const valueField = (metric: Pick<MetricDefinition, "code">) => `metric.${
 export const uncertaintyField = (metric: Pick<MetricDefinition, "code">) =>
   `uncertainty.${metric.code}`;
 
-export type MetricInputError = { code: string; reason: "required" | "invalid" | "out_of_range" };
+export type MetricInputError = {
+  code: string;
+  reason: "scale_required" | "invalid" | "out_of_range";
+};
 
-// Reads the correction form. Scale metrics are required (they decide the
-// class); the others may be left empty when they cannot be judged from images.
+// Reads the correction form. At least one scale value is required (scales
+// decide the class); any single metric may be left empty when it cannot be
+// judged from images (docs/metodoloji.md, section 4).
 export function parseMetricInputs(
   metrics: MetricDefinition[],
   read: (name: string) => string | null | undefined,
@@ -87,11 +91,7 @@ export function parseMetricInputs(
   const values: MeasurementInput[] = [];
   for (const m of metrics) {
     const raw = (read(valueField(m)) ?? "").trim();
-    if (raw === "") {
-      if (m.value_type === "scale")
-        return { ok: false, error: { code: m.code, reason: "required" } };
-      continue;
-    }
+    if (raw === "") continue;
     const fail = (reason: MetricInputError["reason"]) =>
       ({ ok: false, error: { code: m.code, reason } }) as const;
 
@@ -131,6 +131,10 @@ export function parseMetricInputs(
         break;
     }
   }
+  const scales = metrics.filter((m) => m.value_type === "scale");
+  const scaleIds = new Set(scales.map((m) => m.id));
+  if (scales.length > 0 && !values.some((v) => scaleIds.has(v.metric_definition_id)))
+    return { ok: false, error: { code: scales[0].code, reason: "scale_required" } };
   return { ok: true, values };
 }
 
@@ -159,7 +163,7 @@ export function acceptedValues(
 export function formatValue(
   metric: Pick<MetricDefinition, "unit" | "value_type" | "scale_max">,
   value: Omit<MeasurementValue, "metric_definition_id">,
-  labels: { yes: string; no: string },
+  labels: { yes: string; no: string; category?: (code: string) => string },
 ): string {
   if (value.value_scale != null) return `${value.value_scale}/${metric.scale_max ?? "?"}`;
   if (value.value_numeric != null) {
@@ -172,7 +176,8 @@ export function formatValue(
         : "";
     return metric.unit ? `${n}${u} ${metric.unit}` : `${n}${u}`;
   }
-  if (value.value_category != null) return value.value_category;
+  if (value.value_category != null)
+    return labels.category ? labels.category(value.value_category) : value.value_category;
   if (value.value_boolean != null) return value.value_boolean ? labels.yes : labels.no;
   return "—";
 }

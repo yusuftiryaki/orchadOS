@@ -84,9 +84,12 @@ select col_not_null('public', 'asset', 'content_hash', 'asset carries a content 
 
 select set_eq(
   'select code from public.metric_definition',
-  array['dead_branch_scale', 'crown_diameter', 'crown_volume', 'trunk_diameter_h30',
-        'scaffold_branch_count', 'fractal_dimension', 'fruit_load_scale', 'canopy_temp_delta'],
-  'seed registers the metrics from docs/veri-modeli.md'
+  array['dead_branch_scale', 'trunk_base_scale', 'pruning_status', 'crown_density_scale',
+        'frost_damage_scale', 'pest_sign_severity', 'pest_sign_type', 'fruit_load_scale',
+        'harvest_complete', 'branch_break', 'theft_trace',
+        'crown_diameter', 'crown_volume', 'trunk_diameter_h30',
+        'scaffold_branch_count', 'fractal_dimension', 'canopy_temp_delta'],
+  'migration registers the metrics from docs/metodoloji.md (Ek B) and docs/veri-modeli.md'
 );
 
 select results_eq(

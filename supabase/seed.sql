@@ -278,31 +278,5 @@ insert into public.zone (id, org_id, parcel_id, kind, name, geom, position_uncer
    'c0000000-0000-4000-8000-000000000001', 'well', 'Kuyu', pg_temp.local_point(134, 140), 0.05);
 
 -- ---------------------------------------------------------------------------
--- Metric registry (docs/veri-modeli.md, "Metrik kaydı örnekleri").
--- Leafy period = spring + summer (MVP Module 4, crown density scale).
+-- Metric registry: reference data, created by migration 20261021180000.
 -- ---------------------------------------------------------------------------
-
-insert into public.metric_definition (
-  id, code, name, description, unit, value_type, scale_min, scale_max, valid_seasons, card_visibility
-)
-select md5('orchados-seed:metric:' || m.code)::uuid, m.code, m.name, m.description, m.unit,
-       m.value_type::public.metric_value_type, m.scale_min, m.scale_max,
-       m.valid_seasons::public.season[], m.card_visibility::public.card_visibility
-from (values
-  ('dead_branch_scale', 'Kuru dal', '0 none, 1 <10%, 2 10-30%, 3 >30%. Staff question, AI image, expert.',
-   null, 'scale', 0::smallint, 3::smallint, '{winter,spring,summer,harvest}', 'shown'),
-  ('crown_diameter', 'Taç çapı', 'LiDAR, photogrammetry.',
-   'm', 'numeric', null, null, '{spring,summer}', 'shown'),
-  ('crown_volume', 'Taç hacmi', 'LiDAR.',
-   'm3', 'numeric', null, null, '{spring,summer}', 'shown'),
-  ('trunk_diameter_h30', 'Gövde çapı (30 cm)', 'Trunk diameter at 30 cm. Tape measure, LiDAR cylinder fit.',
-   'cm', 'numeric', null, null, '{winter,spring,summer,harvest}', 'shown'),
-  ('scaffold_branch_count', 'Ana dal sayısı', 'Expert observation, QSM.',
-   'count', 'numeric', null, null, '{winter}', 'shown'),
-  ('fractal_dimension', 'Fraktal boyut', 'QSM, box counting. Research only.',
-   null, 'numeric', null, null, '{winter}', 'hidden'),
-  ('fruit_load_scale', 'Meyve yükü', '0-3. Staff, AI image, expert.',
-   null, 'scale', 0::smallint, 3::smallint, '{summer}', 'shown'),
-  ('canopy_temp_delta', 'Taç sıcaklık farkı', 'Thermal. Canopy minus air temperature.',
-   'degC', 'numeric', null, null, '{summer}', 'under_evaluation')
-) as m (code, name, description, unit, value_type, scale_min, scale_max, valid_seasons, card_visibility);

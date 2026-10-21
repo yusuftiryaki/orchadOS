@@ -85,7 +85,9 @@ describe("expert review", () => {
     expect(ctx!.session.methodologyVersion).toBe("methodology-test");
     expect(ctx!.previous?.id).toBe(run.previous);
     expect(ctx!.metrics.map((m) => m.code)).toEqual([
+      "trunk_base_scale",
       "dead_branch_scale",
+      "pruning_status",
       "scaffold_branch_count",
       "trunk_diameter_h30",
     ]);
@@ -156,7 +158,7 @@ describe("expert review", () => {
     ).toEqual({ ok: false, error: "invalid_class" });
     expect(
       await correctTree(expert, run.session, T.trees[1], { overallClass: "dead", read: form({}) }),
-    ).toMatchObject({ ok: false, error: "invalid_metric", metric: { code: "dead_branch_scale" } });
+    ).toMatchObject({ ok: false, error: "invalid_metric", metric: { code: "trunk_base_scale" } });
 
     const first = await correctTree(expert, run.session, T.trees[1], {
       overallClass: "dead",

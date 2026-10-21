@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatDate, formatNumber, t } from "@/lib/i18n";
+import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
 import { MARKER_COLORS } from "@/lib/map/tree-style";
 import type { PhotoItem, TreeCard, TreeMetricHistory } from "@/lib/portal/data";
 import { SEVERITY_COLORS } from "./colors";
@@ -200,7 +200,7 @@ function MetricCell({ value }: { value: TreeMetricHistory["values"][number] }) {
     case "category":
       return (
         <>
-          {value.value}
+          {categoryLabel(value.value)}
           {source}
         </>
       );
