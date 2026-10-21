@@ -230,6 +230,31 @@ Saha fotoğrafları ve işleme hattının ürünleri (panorama, ağaç kesiti vb
 - Kesitin `subject.tree_id`'si `tree.id`, `slot_code`'u `slot.code`'dur; yükleme bunu slotun yükleme anındaki aktif ağacıyla yeniden denetler.
 - `slot.position` boşsa ağaç kesit almaz (**karar**: yerel koordinattan konum türetilmez). Parselde konumlu aktif ağaç yoksa ya da oturum `kind = inventory` ise hat sadece panorama üretir; bu hata değil, `outputs.json`'da `crops_status` (`no_tree_positions`, `inventory_session`) olarak raporlanır.
 
+## Doğrulama kalemleri
+
+Envanter doğrulama turu (`docs/MVP.md` Modül 2, adım 9) ofiste oluşturulur; saha uygulaması (sonraki sürüm) kalemleri personele görev olarak indirir ve sonuçları yazar. Şema: `docs/veri-modeli.md`, "Doğrulama listesi ve envanter onayı". Saha uygulaması kullanıcının belirteciyle PostgREST üzerinden çalışır (servis anahtarı yok).
+
+**Okunan:**
+
+| Okunan | Alanlar | Kural |
+| --- | --- | --- |
+| `public.session` | `id`, `parcel_id`, `kind`, `status`, `planned_date`, `notes` | `kind = verification`, `status = planned`; günün görevleri `planned_date` ile |
+| `public.verification_item` | `id`, `session_id`, `slot_id`, `tree_id`, `reasons`, `note`, `status`, `tree_present`, `result_note`, `checked_at` | Turun kalemleri; sadece `status = open` olanlar görev |
+| `public.slot` | `id`, `code`, `row_no`, `position_no`, `position`, `position_uncertainty_m` | Kalemin yeri; personel kod ve sıra sayımıyla bulur. `position` GeoJSON nokta |
+| `public.tree` | `id`, `slot_id`, `status`, `age_class`, `graft` | İsteğe bağlı: yerin şu anki ağacı |
+
+**Yazılan** (yalnızca fonksiyonlarla; tabloya doğrudan yazma izni yok):
+
+| Çağrı | Ne yapar |
+| --- | --- |
+| `record_verification_result(p_item_id uuid, p_tree_present boolean, p_note text default null, p_closeup_capture_id uuid default null)` | Kalemi `checked` yapar; "ağaç var" boş yere yeni ağaç ekler, "ağaç yok" ağacı `lost` yapar. Kapatılmamış kalemde yeniden çağrılabilir. Saha personeli ve operasyon |
+| `close_verification_item(p_item_id uuid, p_note text)` | Açık kalemi bakmadan kapatır; not zorunlu |
+
+- **Yakın plan:** fotoğraf önce `capture` olarak (tür `photo`, aynı parsel, oturum = doğrulama turu) yüklenir, kimliği `p_closeup_capture_id` ile verilir. Dosya yükleme yolu "Medya depolama"daki kuralla aynıdır.
+- **Hatalar** mesajda neden olarak gelir: `not_found`, `forbidden`, `item_closed`, `item_not_open`, `invalid_input`.
+- **Çevrimdışı:** sonuç kuyrukta bekler; aynı kaleme iki kez gönderilen sonuçta en yenisi geçerlidir. Kapatılmış kaleme gelen sonuç `item_closed` ile reddedilir ve kullanıcıya gösterilir.
+- Turun bütün kalemlerine bakılınca oturum veritabanında `captured` olur; uygulama ayrıca durum yazmaz.
+
 ## Açık noktalar
 
 - Kamera jiroskop verisi (ince zaman eşleme) henüz sözleşmede yok.

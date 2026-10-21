@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { ParcelReportView } from "@/components/portal/parcel-report";
 import { requireSection } from "@/lib/auth/session";
 import { MARKER_ORDER, type MarkerState } from "@/lib/map/tree-style";
+import { loadBoundaryCard } from "@/lib/portal/boundary";
 import { getParcelReport } from "@/lib/portal/data";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,10 +15,13 @@ export default async function Page({
   params: Promise<{ parcelId: string }>;
   searchParams: Promise<{ sinif?: string | string[]; bulgu?: string | string[] }>;
 }) {
-  await requireSection("portal");
+  const user = await requireSection("portal");
   const [{ parcelId }, query] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
-  const report = await getParcelReport(supabase, parcelId);
+  const [report, boundaryCard] = await Promise.all([
+    getParcelReport(supabase, parcelId),
+    loadBoundaryCard(supabase, parcelId, user.id),
+  ]);
   // Not visible under RLS looks the same as not existing.
   if (!report) notFound();
 
@@ -26,6 +30,7 @@ export default async function Page({
       report={report}
       classFilter={parseClassFilter(first(query.sinif))}
       findingId={first(query.bulgu)}
+      boundaryCard={boundaryCard}
     />
   );
 }

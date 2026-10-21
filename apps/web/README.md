@@ -191,6 +191,14 @@ const urls = await signer.signUrls(rows.map((r) => r.uri)); // Map<uri, string |
 
 "Yazdır / PDF" düğmesi tarayıcının yazdırma penceresini açar; "PDF olarak kaydet" yeterli. Yazdırma stilleri üst menüyü, düğmeleri, filtreleri ve paneli gizler, katlanmış bulgu listesini açar; harita tuvali yazdırılabilir (`preserveDrawingBuffer`).
 
+### Sınır kartı ve envanter özeti
+
+Karnenin üstünde **Bahçe sınırı** kartı (`src/lib/portal/boundary.ts`, `boundary-card.tsx`): son sınır sürümü haritada, alanı (m² ve dönüm), kaynağı, köşe belirsizliği; sahibin beyan ettiği ilk sınır soluk kesikli çizgiyle. Not her zaman görünür: "Bu sınır, gösterdiğiniz fiili kullanım sınırıdır; tapu ya da mülkiyet sınırı değildir."
+
+- Son sürüm onaylanmamış bir saha ölçümüyse sahip onay kutusunu işaretleyip **Sınırı onaylıyorum** der (`approve_boundary`). Onaylandıysa "Siz / Parsel sahibi … tarihinde onayladı" görünür.
+- Hissedar (`viewer`) onaylayamaz (veritabanı kuralı: sadece `owner`); kartta düğme yerine bu açıklama çıkar.
+- Envanter uzman tarafından onaylandıysa karnede **Envanter** özeti (yer, ağaç, boş yer, ara ağaç, aşısız, yaş dağılımı) ve onay tarihi.
+
 ### Demo
 
 ```bash
@@ -282,6 +290,18 @@ Geliştirme parseli örnek işletmeye eklendiği için entegrasyon testlerindeki
 - Tarayıcı (`tests/e2e/office-tool.spec.ts`): global kurulum sentetik panoramaları `.dev-data/e2e` altına üretir (uv yoksa test atlanır). Test aynı panoramaları depoya da yükler (servis anahtarıyla, işleme hattının yazdığı biçimde) ve iki kez çalışır: depo seti ve yerel set. Her seferinde 12 ağacın her birine iki panoramada tıklar, konumları sentetik gerçekle (< 30 cm) ve kodları `synthetic_truth.json`'daki yer kodlarıyla karşılaştırır, önizlemeden yakınlaştırınca tam çözünürlüğe geçişi denetler, bir ağacı "emin değilim" işaretler, CSV'yi indirir, kaydeder ve veritabanını (yerler, numaralandırma, 24 gövde etiketi) denetler. Ayrı bir test görüntü adreslerini denetler: yerel dosya, depoda yönlendirme, sahip için 403.
 - Temizlik: `capture`/`asset`/`trunk_label` API'den silinemediği için test parselleri `tests/local-db.ts` ile yerel veritabanı konteynerinde, tetikleyiciler kapalıyken silinir (`purgeParcels`).
 
+### Envanter sonrası: özellikler, altyapı, sınır, doğrulama turu
+
+Üçgenleme aracında kayıt yapıldıktan sonra `/ofis/parsel/<parsel>/envanter/duzenle` (parsel sayfasındaki **Özellikler, altyapı, sınır ve doğrulama** düğmesi; aracın kayıt mesajındaki bağlantı doğrulama sekmesini açar). Solda kayıtlı yerler (ağaç, ara ağaç, boş yer), altyapı, son sınır ve tarama izi (envanter oturumunun panorama konumları, çekim sırasıyla); sağda dört sekme (`?sekme=attributes|infrastructure|boundary|verification`):
+
+- **Ağaç özellikleri:** yaş sınıfı ve aşı durumu; karar verilemeyen "Bilinmiyor" kalır. Toplu seçim: sıra seçip "görünenlerin hepsi", haritada tıklama (Shift ile çoklu), tablodan işaretleme. Satır bazlı yetkiyle `tree` güncellemesi (saha personeli, uzman, operasyon).
+- **Altyapı** (`zone`): kuyu, havuz, kapı, kulübe tek tıkla nokta; sulama hattı ve çit köşe köşe çizgi. Silme sadece operasyonda (satır bazlı yetki).
+- **Sınır:** sahada köşe işaretleme gelene kadar tarama izi üzerinde köşeler tıklanır; alan (m², dönüm) ve kesişme denetimi anında (`src/lib/office/boundary.ts`). Kayıt yeni bir `boundary` sürümüdür: kaynak `field_survey`, köşe belirsizliği, envanter oturumu. Eski sürümler kalır; sahip portalda onaylar.
+- **Doğrulama:** liste kayıtlı envanterden yeniden hesaplanır (`src/lib/office/verification-candidates.ts`): "emin değilim" etiketli ağaçlar (`trunk_label.unsure`), belirsizliği 0,5 m'yi aşanlar, boş yerler, başka bir ağaca 1 m'den yakın ara ağaçlar (çok gövdeli). Üçgenleme uyarısı ve "sıra dışında" veritabanında saklanmadığı için bunlar haritada tıklanarak eklenir. Her kaleme "fidan olabilir" / "çok gövdeli" ve not eklenir. **Doğrulama turu oluştur:** `create_verification_tour(...)` `planned` bir `verification` oturumu ve kalemleri açar. Açık kalemi olan yerler yeni listeye girmez.
+- **Kalemleri kapatma** (saha uygulaması gelene kadar, telefonla doğrulama dahil): "Ağaç var / Ağaç yok" + not → **Bakıldı olarak kaydet** (`record_verification_result`; boş yere yeni ağaç ekler ya da ağacı kayıp yapar), ya da notla **Bakmadan kapat** (`close_verification_item`). Bütün kalemlere bakılınca tur `captured` olur.
+
+Yazmalar `src/lib/office/inventory-edits.ts` (girdi denetimi + kullanıcının yetkisi), veri `src/lib/office/inventory-workspace.ts`. Envanter onaylandıktan sonra sayfa bunu bildirir; yer kodu ve konumu değiştiren yazmalar veritabanında reddedilir.
+
 ### Bilinen sınırlar
 
 - **Yer–oturum bağı yok:** `slot` tablosunda oturum alanı yok; oturum bağı ağaçların `first_seen_session_id`'si ve etiketlerin `session_id`'si üzerinden.
@@ -291,6 +311,12 @@ Geliştirme parseli örnek işletmeye eklendiği için entegrasyon testlerindeki
 - **Taslak tarayıcıda:** başka bir bilgisayardan devam edilemez.
 - **Set seçimi serbest:** depo setinin oturumu seçilen oturumdan farklı olabilir (uyarıyla listelenir); etiketler kaydın oturumuna bağlanır.
 - **Büyük ziyaret:** set listesi parselin bütün panorama satırlarını sayfa sayfa okur; çok ziyaretli parsellerde bir görünüm ya da sayım fonksiyonu gerekebilir.
+
+### Envanter onayı testleri
+
+- Birim: `src/lib/expert/inventory-checks.test.ts` (yinelenen kod, atlanan sıra/pozisyon/harf, yakın ağaçlar, envanter özeti), `src/lib/office/boundary.test.ts` (alan, dönüm, kesişme, sürüm, EWKT), `src/lib/office/verification-candidates.test.ts`, `src/lib/office/inventory-messages.test.ts`.
+- Entegrasyon (`tests/integration/inventory-approval.test.ts`): kendi parseliyle; toplu özellik (sahip yazamaz), altyapı (silme sadece operasyon), ofiste sınır sürümü, doğrulama turu (uzman ve sahip oluşturamaz, sahip kalemleri görmez), açık kalemle onayın reddi ve eksik listesi, sonuçların envantere işlenmesi, uzman dışı rollerin onaylayamaması, `inventory_done`, onaydan sonra kod/konumun donması ve özelliklerin değişebilmesi, hissedarın sınırı onaylayamaması, sahibin onayı ve karnedeki özet.
+- Tarayıcı (`tests/e2e/inventory-approval.spec.ts`, veri `inventory-fixtures.ts`): ofiste toplu ve haritadan özellik, doğrulama turu oluşturma ve kalemleri kapatma; uzman olarak kuyruktan açma, düzeltme ve onay; hissedar onaylayamaz, sahip sınırı onaylar.
 
 ## Uzman paneli (İP7)
 
@@ -345,6 +371,19 @@ pnpm web:dev                      # expert@example.com / orchados-dev
 4. **Özet ve imza**: dağılım, değişenler, incelenmemişler. İmza kutusu + **İmzala ve yayımla**: 302 ağacın hepsi incelenmeden reddedilir ve eksikler listelenir.
 
 Demo verisinin yayımlanmış 14 Ekim ziyareti salt okunur açılır.
+
+### Envanter onayı
+
+Kuyruğun altında **Envanter onayı bekleyenler**: `captured`, `processed` ya da `in_review` durumundaki, parselinde yer kaydedilmiş ve parselde henüz onaylı envanteri olmayan envanter ziyaretleri (yer, ağaç ve açık doğrulama kalemi sayısıyla). **İncele** → `/uzman/envanter/<oturum>`:
+
+- **Envanter özeti:** yer, ağaç, boş yer, ara ağaç, aşısız ağaç, yaş dağılımı (`src/lib/expert/inventory-checks.ts`, portal da kullanır).
+- **Kodlama denetimleri:** yinelenen kod, atlanan sıra, sıra içinde atlanan pozisyon (1'den sıranın son pozisyonuna), atlanan ara ağaç harfi, birbirine 1,5 m'den yakın aktif ağaçlar. Sorunlu yerler ve açık kalemler haritada turuncu halkalı.
+- **Kodlu harita** ve **örnek kontrol:** haritada ağaca tıklayınca envanter oturumunun en yakın (25 m içinde) panoraması ağaca dönük açılır (`/uzman/envanter/<oturum>/panorama/...`, ofisteki görüntü yönlendirmesinin uzman bölümündeki eşi).
+- **Ağaç özellikleri tablosu:** uzman yaş, aşı ve cinsiyeti düzeltir (toplu da).
+- **Doğrulama kalemleri:** durum ve sonuçlar; uzman açık bir kalemi notla kapatabilir.
+- **İmza:** onay kutusu + **Envanteri onayla ve imzala** → `approve_inventory(...)`. Açık kalem ya da yer yoksa reddedilir ve eksikler listelenir.
+
+`approve_inventory` (migration `20261021210000_inventory_approval.sql`, pgTAP `18_inventory_approval.test.sql`): sadece işletmenin uzmanı; envanter oturumunu `publish_session` gibi yayımlar (kim, ne zaman; bulgular ve uzman değerlendirmeleri onaylanır) ama ağaç başına uzman değerlendirmesi aramaz; parseli `inventory_done` yapar. Yayından sonra yer kodları ve konumları donar (tetikleyici), ağaç özellikleri değişebilir.
 
 ### Testler
 

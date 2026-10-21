@@ -605,3 +605,9 @@
     color: inherit;
   }
 }
+
+/* Boundary card ---------------------------------------------------------- */
+
+.danger {
+  color: var(--color-danger);
+}
