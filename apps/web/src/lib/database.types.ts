@@ -1918,6 +1918,15 @@ export type Database = {
       };
     };
     Functions: {
+      add_field_survey_boundary: {
+        Args: {
+          p_ring: Json;
+          p_session_id: string;
+          p_surveyed_at: string;
+          p_vertex_uncertainty_m: number;
+        };
+        Returns: Json;
+      };
       add_owner_declared_boundary: {
         Args: { p_parcel_id: string; p_ring: Json; p_vertex_uncertainty_m?: number };
         Returns: {
