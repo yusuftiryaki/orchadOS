@@ -63,7 +63,7 @@ gantt
 | İP8 | Sahip portalı v0.1 | P0 | 8 gün | Giriş; bahçelerim; parsel karnesi; sağlık haritası; ağaç karnesi; işaretçili panorama gezisi; PDF rapor |
 | İP9 | AI worker v0.1 | P1 | 4 gün | Kış etiketlerinden değerlendirme seti; Batch ile ön değerlendirme; uzman paneline öneri olarak düşüyor. İlkbahar denetiminden (15 Nisan) önce |
 | İP10 | Operasyon hazırlıkları | P0 | 4 gün + dış süreler | Metodoloji v0 (ölçekler, referans fotoğraflar), KVKK aydınlatma ve rıza metinleri, sözleşme taslağı, uzman anlaşması, pilot sahiplerin onayı |
-| İP11 | İşleme istasyonu | P0 | 1 gün | GPU'lu, büyük diskli bir bilgisayar alınmış ya da ayarlanmış; işleme hattı üzerinde çalışıyor |
+| İP11 | İşleme istasyonu | P0 | 1 gün | Pilotta bulutta (karar 22 Ekim): ham video ofisten buluttaki depoya yüklenir, GPU'lu sanal makine iş başına açılıp kapanır; işleme hattı orada çalışıyor |
 
 **Durum (20 Ekim 2026)**
 
@@ -119,7 +119,7 @@ Bunlar takvimi bekletebilecek, başkasına bağlı işler. İlk iki hafta içind
 - [ ] Uzman (ziraat mühendisi) ile ön görüşme
 - [ ] 1–4 pilot bahçe sahibinin sözlü onayı; envanter tarihleri
 - [ ] KVKK metinleri için hukukçu görüşü
-- [ ] İşleme istasyonu: satın alma mı, mevcut bir bilgisayar mı?
+- [x] İşleme istasyonu: pilotta bulut (22 Ekim). Ofisin yükleme hızı 99 Mbps; 90 GB'lık bir ziyaret ~2 saatte yüklenir. Bulut hesabı açılacak
 
 ## Geride kalınırsa kesilecekler
 

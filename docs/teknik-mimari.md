@@ -86,6 +86,27 @@ flowchart LR
 
 **Panorama dosya biçimi kararı:** Her panorama karo piramidi yerine **tek dosya** (4K equirectangular, WebP ya da AVIF) olarak saklanır. Karo piramidi panorama başına ~40 dosya yazar. S3 ölçeğinde bu, yalnızca yazma işlemleri için yılda binlerce dolar ödemek demek. Tek dosya ise ziyaret başına ~4.400 nesne yazar ve bu maliyeti ihmal edilebilir seviyeye indirir. Yakın zoom gerekirse karo üretimi sonradan, sadece istenen panoramalar için yapılabilir.
 
+## İşleme pilotta bulutta (karar 22 Ekim 2026)
+
+Pilotta işleme istasyonu satın alınmaz; iş bulutta, iş başına açılıp kapanan GPU'lu bir sanal makinede yapılır.
+
+1. **Ofis:** Kameranın kartı ve kaydedicinin microSD'si bir bilgisayara takılır. Yükleme aracı oturum klasörünü sağlama toplamıyla buluttaki ham veri deposuna gönderir.
+    - Depo: AB bölgesi, S3 uyumlu.
+    - Yükleme kaldığı yerden devam eder.
+    - Ofisin yükleme hızı 99 Mbps; 90 GB'lık bir ziyaret ~2 saat sürer, gece yüklenebilir.
+2. **Bulut:** GPU'lu sanal makine açılır.
+    - Pilotta Windows: Insta360 Studio ile birleştirme, uzak masaüstüyle elle.
+    - SDK gelince Linux: Media SDK ile otomatik.
+3. **İşleme:** Aynı makinede işleme hattı (`run`, `boundary`, `upload`) ve AI worker çalışır. Ürünler Supabase'e gider, makine kapanır.
+4. **Saklama:** Ham veri 30 gün depoda kalır, sonra kendiliğinden silinir.
+
+**Kaba maliyet** (doğrulanmadı):
+- GPU'lu makine saatte ~0,6–1,5 $; ziyaret başına 2–3 saat.
+- Ham veri deposu ayda ~10–20 $.
+- Pilot dönemi ayda ~50–100 $.
+
+**Denenecek:** Insta360 Studio'nun buluttaki Windows GPU makinesinde çalışması. Çalışmazsa birleştirme NVIDIA kartlı yerel bir bilgisayarda yapılır, birleştirilmiş video yüklenir.
+
 ## Veri hacmi
 
 **Varsayımlar:** 20 dönüm ve ~300 ağaç; iki yönlü grid rota ve kenarlar ~5,4 km; ~2 saat video; 5.7K 360° videoda ~100 Mbps bit hızı; ~3,5 m'de bir panorama, yani ~1.500 panorama.
@@ -211,7 +232,7 @@ Bir saha ekibinin günlük maliyeti ve uzman süresi (tahminen ziyaret başına 
 
 | Veri | Nerede | Süre | Sonra |
 | --- | --- | --- | --- |
-| Ham video | İşleme istasyonunun yerel diski / NAS | Kalite kontrolü + 30 gün | Silinir |
+| Ham video | Pilotta buluttaki ham veri deposu (AB, S3 uyumlu); ileride istasyon diski / NAS | Kalite kontrolü + 30 gün | Silinir (depo yaşam döngüsü kuralı) |
 | Ham GNSS kaydı | Object storage (Parquet) | Kalıcı | — |
 | 4K panoramalar | Object storage, sıcak | 2 yıl | Silinir ya da derin arşive taşınır |
 | Önizleme, kesit, yakın plan | Object storage, sıcak | Kalıcı | İkinci sağlayıcıda kopyası tutulur |
