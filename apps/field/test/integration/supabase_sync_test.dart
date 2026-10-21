@@ -6,7 +6,9 @@
 //
 // Skipped when the variables are not set (CI has no Supabase for this job).
 // Every run plans its own visit and photo, so it can run again without a
-// reset; insert-only rows stay behind like real field data.
+// reset; insert-only rows stay behind like real field data. Run
+// `pnpm db:reset` afterwards before `pnpm db:test`: the pgTAP tests count
+// the seed's rows.
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
