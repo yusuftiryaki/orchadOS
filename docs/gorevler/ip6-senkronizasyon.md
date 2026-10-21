@@ -1,10 +1,14 @@
 # İP6 – Çevrimdışı Senkronizasyon ve Açık İşler
 
 - **Klasör:** `apps/field/`. İstisnalar:
-    - **Şema:** Gerekirse `supabase/migrations/20261020150xxx_*.sql` ve `supabase/tests/13_*.test.sql`. Bu ad aralığının dışına çıkma; seed'i değiştirme. Migration eklersen `pnpm web:typegen` ile `apps/web/src/lib/database.types.ts`'yi yeniden üret ve commit'le (web'in başka dosyasına dokunma).
+    - **Şema:** Gerekirse `supabase/migrations/20261021230xxx_*.sql` ve `supabase/tests/19_*.test.sql` (test projesine uygulanmış son migration'dan sonra gelmeli). Bu ad aralığının dışına çıkma; seed'i değiştirme. Migration eklersen `pnpm web:typegen` ile `apps/web/src/lib/database.types.ts`'yi yeniden üret ve commit'le (web'in başka dosyasına dokunma).
     - `docs/arayuzler.md`: Saha uygulaması ile veritabanı arasındaki eşlemeyi anlatan bir bölüm eklenebilir.
 - **Okunacaklar:** `docs/gorevler/README.md` (ortak kurallar), `apps/field/README.md`, `docs/MVP.md` Modül 3, `docs/arayuzler.md`, `docs/veri-modeli.md`, `supabase/migrations/` (özellikle `..._access_control`, `..._media_storage`, `..._boolean_metric_value`)
 - **Ortam:** Flutter kurulu değil; GitHub'dan 3.47.7 (`ci-field.yml` ile aynı) kur. Android SDK için `.devcontainer/mobile/Dockerfile`'a bak.
+
+## Ara gönderimler
+
+Önceki oturum iş bitmeden kapandı ve hiçbir şey kalmadı. Bu yüzden her anlamlı adımdan sonra (ör. her madde bitince) commit'le ve dalı GitHub'a gönder. PR'ı en sonda aç.
 
 ## Amaç
 
