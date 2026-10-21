@@ -165,6 +165,12 @@ def main(argv: list[str] | None = None) -> int:
         "--start-utc", help="recording start, ISO 8601 UTC (default: 2026-10-18 09:00)"
     )
     syn.add_argument("--seed", type=int, help="background noise seed (different image hashes)")
+    syn.add_argument(
+        "--boundary-walk",
+        action="store_true",
+        help="walk the boundary before the scan: corner rows in events.csv and the "
+        "phone's corner events in phone_events.json",
+    )
 
     pp = sub.add_parser("params", help="print default parameters as JSON")
     pp.add_argument("--hash", action="store_true", help="print only the parameter hash")
@@ -237,10 +243,18 @@ def _synth(args, parser: argparse.ArgumentParser) -> int:
         cfg.seed = args.seed
     cfg.rows = parse_range(args.rows) if args.rows else None
     cfg.positions = parse_range(args.positions) if args.positions else None
+    cfg.boundary_walk = args.boundary_walk
     truth = make_session(Path(args.dest), cfg)
     print(
         f"synthetic session written to {args.dest} ({truth.frame_count} frames, "
-        f"{len(truth.trees)} trees, {truth.path_length_m:.0f} m path)"
+        f"{len(truth.trees)} trees, {truth.path_length_m:.0f} m path"
+        + (
+            f", boundary walk: {len(truth.boundary_corners)} corners, "
+            f"{truth.boundary_area_m2:.0f} m2"
+            if truth.boundary_corners
+            else ""
+        )
+        + ")"
     )
     return 0
 
