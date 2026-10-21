@@ -183,7 +183,9 @@ reset role;
 select set_eq(
   $$ select code from public.metric_definition where value_type = 'boolean' and card_visibility = 'hidden' $$,
   array['dead_branch_present', 'trunk_damage_present', 'root_sucker_present', 'pruned', 'frost_damage_present',
-        'pest_sign_present', 'fruit_present', 'drought_stress_sign', 'theft_sign_present'],
+        'pest_sign_present', 'fruit_present', 'drought_stress_sign', 'theft_sign_present',
+        -- "Sorun gördüm" (20261023130000_bulk_approval).
+        'problem_seen'],
   'field question metrics are registered as hidden yes/no metrics');
 select results_eq(
   $$ select count(*) from public.metric_definition
