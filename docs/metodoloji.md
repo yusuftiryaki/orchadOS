@@ -334,7 +334,6 @@ Karne, son yayımlanmış ziyaretin özetidir.
 | Konum kalitesi | İşleme hattı | Panorama başına GNSS çözümü: fix, float, dgps, single. Fix dışındaki panoramalar kalite skorunda düşer |
 | Panorama kalitesi | İşleme hattı | Netlik ve konum katsayısından kalite skoru (0–1) |
 | Kapsama | İşleme hattı | Her aktif ağacın en az iki yönden kesiti olmalı. Eşiğin altındaki parsel için yeniden tarama görevi açılır (ilk eşik: ağaçların %95'i, uzmanla kesinleşecek) |
-| Yüz bulanıklaştırma | İşleme hattı | Bulanıklaştırılmamış görüntü buluta yüklenmez |
 | Uzman | Uzman paneli | Her aktif ağacın uzman kararı olmadan yayın yapılmaz |
 
 ## 11. Uzmanla kesinleşecekler
@@ -354,7 +353,7 @@ Kesinleşen her madde `methodology-v1`'e girer. Sürüm değişikliği o tarihte
 
 ## Ek A – Hazırlanacak referans fotoğraflar
 
-Her ölçek değeri için, panorama kesiti ve yakın plan olmak üzere iki tür referans gerekir. Fotoğraflar pilot bahçelerden ve uzmanın arşivinden seçilir. Referansta görünen kişilerin yüzleri bulanıklaştırılır.
+Her ölçek değeri için, panorama kesiti ve yakın plan olmak üzere iki tür referans gerekir. Fotoğraflar pilot bahçelerden ve uzmanın arşivinden seçilir.
 
 | Ölçek | Değerler | Kış | İlkbahar | Yaz | Hasat |
 | --- | --- | --- | --- | --- | --- |

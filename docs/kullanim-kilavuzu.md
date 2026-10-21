@@ -124,13 +124,11 @@ Envanter her parselin dijital haritasını bir kez çıkarır. Sonraki her ziyar
 3. `orchados-pipeline upload <çalıştırma> --session-id <ziyaret>`:
     - Panoramalar depoya, kayıtlar veritabanına gider.
     - Ham video istasyonda kalır.
-    - Yüzleri bulanıklaştırılmamış görüntü yüklenmez.
 
 | Adım | Durum |
 | --- | --- |
 | PPK, zaman eşleme, kare seçimi, panorama, yükleme | ✅ Sentetik veriyle |
 | Gerçek kamera verisiyle deneme | ⬜ Kit bekleniyor |
-| Yüz bulanıklaştırma | ⬜ |
 
 ### 2.3 Ofiste: gövde üçgenleme
 
@@ -219,7 +217,7 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 
 | Adım | Durum |
 | --- | --- |
-| AI ön değerlendirme (`ai-worker run --session-id ...`, işleme istasyonunda) | ✅ Sentetik veriyle; gerçek kesitler yüz bulanıklaştırma gelince gönderilir. İlk kış denetiminde uzman her ağaca kendisi karar verir |
+| AI ön değerlendirme (`ai-worker run --session-id ...`, işleme istasyonunda) | ✅ Sentetik veriyle; ziyaretin bütün kesitleri gönderilir, yakın planlar v0.1'de gönderilmez. İlk kış denetiminde uzman her ağaca kendisi karar verir |
 
 ### 3.5 Uzman incelemesi ve yayın
 

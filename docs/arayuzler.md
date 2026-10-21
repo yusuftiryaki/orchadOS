@@ -249,11 +249,11 @@ AI worker (`services/ai-worker`, `ai-worker run`) işlenmiş bir tarama ziyareti
 | --- | --- | --- |
 | `public.session` | `status`, `methodology_version`, zaman | Mevsim oturum zamanından çıkar (`started_at`, yoksa `planned_date`, yoksa `created_at`; ay UTC; Mart ilkbahar, Kasım kış) |
 | `public.tree` + `slot.code` | `id`, kod | `status = active` |
-| `public.asset` | `kind = tree_crop`, `tree_id`, `uri`, `content_hash`, `pose.direction`, `pose.filters_applied` | Dosya imzalı adresle indirilir, SHA-256'sı denetlenir. Yön başına en yeni (`produced_at`), sonra en yüksek `quality_score` |
+| `public.asset` | `kind = tree_crop`, `tree_id`, `uri`, `content_hash`, `pose.direction` | Dosya imzalı adresle indirilir, SHA-256'sı denetlenir. Yön başına en yeni (`produced_at`), sonra en yüksek `quality_score` |
 | `public.measurement` | `source = staff`, `value_boolean` | Personelin evet/hayır cevapları; isteğe sadece metrik kodu ve cevap girer |
 | `public.metric_definition` | `code`, `value_type`, aralık, kategoriler, `valid_seasons` | Mevsimin ağaç ölçekleri. Ad ve açıklama okunmaz |
 
-- **Bulanıklaştırma:** Kesit ancak `pose.filters_applied` dizisinde `face_blur` varsa AI'a gönderilir. Alan yoksa kesit bulanıklaştırılmamış sayılır. İşleme hattı bu alanı `asset.pose`'a henüz yazmıyor (`outputs.json`'da var); yazana kadar AI worker gerçek kesit göndermez. `--allow-unblurred` sadece sentetik veri içindir.
+- **Görüntüler:** Ziyaretin bütün kesitleri gönderilir. Yakın plan fotoğraflar v0.1'de gönderilmez (kapsam: yakın plan analizi sonraki sürümde).
 - **Önceki ziyaret:** Aynı parselin bu ziyaretten önceki en yeni `published` oturumu; o ağacın kesitlerinden ikinci bir mozaik.
 
 **Yazılan** (her ağaç için bir kez):
