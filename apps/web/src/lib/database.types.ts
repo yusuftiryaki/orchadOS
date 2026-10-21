@@ -957,6 +957,92 @@ export type Database = {
         };
         Relationships: [];
       };
+      notification: {
+        Row: {
+          attempts: number;
+          channel: Database["public"]["Enums"]["notification_channel"];
+          created_at: string;
+          finding_id: string | null;
+          id: string;
+          last_error: string | null;
+          locked_until: string | null;
+          next_attempt_at: string;
+          org_id: string;
+          parcel_id: string;
+          provider_message_id: string | null;
+          recipient_user_id: string;
+          sent_at: string | null;
+          sent_via: string | null;
+          session_id: string;
+          status: Database["public"]["Enums"]["notification_status"];
+          template: Database["public"]["Enums"]["notification_template"];
+          vars: NonNullable<Json>;
+        };
+        ComputedFields: never;
+        Insert: {
+          attempts?: number;
+          channel: Database["public"]["Enums"]["notification_channel"];
+          created_at?: string;
+          finding_id?: string | null;
+          id?: string;
+          last_error?: string | null;
+          locked_until?: string | null;
+          next_attempt_at?: string;
+          org_id: string;
+          parcel_id: string;
+          provider_message_id?: string | null;
+          recipient_user_id: string;
+          sent_at?: string | null;
+          sent_via?: string | null;
+          session_id: string;
+          status?: Database["public"]["Enums"]["notification_status"];
+          template: Database["public"]["Enums"]["notification_template"];
+          vars?: NonNullable<Json>;
+        };
+        Update: {
+          attempts?: number;
+          channel?: Database["public"]["Enums"]["notification_channel"];
+          created_at?: string;
+          finding_id?: string | null;
+          id?: string;
+          last_error?: string | null;
+          locked_until?: string | null;
+          next_attempt_at?: string;
+          org_id?: string;
+          parcel_id?: string;
+          provider_message_id?: string | null;
+          recipient_user_id?: string;
+          sent_at?: string | null;
+          sent_via?: string | null;
+          session_id?: string;
+          status?: Database["public"]["Enums"]["notification_status"];
+          template?: Database["public"]["Enums"]["notification_template"];
+          vars?: NonNullable<Json>;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notification_finding_id_parcel_id_org_id_fkey";
+            columns: ["finding_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "finding";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "notification_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "notification_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
       operation: {
         Row: {
           area: unknown;
@@ -1968,6 +2054,34 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      approve_finding: {
+        Args: { p_finding_id: string };
+        Returns: {
+          approved_at: string | null;
+          approved_by: string | null;
+          assessment_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          description: string;
+          id: string;
+          kind: string;
+          location: unknown;
+          org_id: string;
+          parcel_id: string;
+          position_uncertainty_m: number | null;
+          recommendation: string | null;
+          session_id: string;
+          severity: Database["public"]["Enums"]["finding_severity"];
+          tree_id: string | null;
+          zone_id: string | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "finding";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       approve_inventory: {
         Args: { p_session_id: string };
         Returns: {
@@ -2257,6 +2371,9 @@ export type Database = {
       measurement_source: "staff" | "algorithm" | "ai" | "expert";
       measurement_subject: "tree" | "slot" | "zone" | "parcel";
       metric_value_type: "numeric" | "scale" | "category" | "boolean";
+      notification_channel: "sms" | "whatsapp";
+      notification_status: "pending" | "sent" | "failed";
+      notification_template: "report_ready" | "critical_finding";
       operation_kind:
         | "mowing"
         | "spraying"
@@ -2442,6 +2559,9 @@ export const Constants = {
       measurement_source: ["staff", "algorithm", "ai", "expert"],
       measurement_subject: ["tree", "slot", "zone", "parcel"],
       metric_value_type: ["numeric", "scale", "category", "boolean"],
+      notification_channel: ["sms", "whatsapp"],
+      notification_status: ["pending", "sent", "failed"],
+      notification_template: ["report_ready", "critical_finding"],
       operation_kind: [
         "mowing",
         "spraying",
