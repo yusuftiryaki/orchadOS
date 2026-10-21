@@ -107,7 +107,8 @@ Envanter her parselin dijital haritasını bir kez çıkarır. Sonraki her ziyar
 | Görevler, ön kontrol, kaydedici bağlantısı, QR saat | ✅ (telefonda henüz denenmedi; kit bekleniyor) |
 | GNSS kaydedici yazılımı | ✅ (gerçek donanımda henüz denenmedi) |
 | Sunucuya gönderim (senkronizasyon) | ✅ |
-| Köşe işaretleme, rota ve kapsama haritası | ⬜ |
+| Köşe işaretleme, kapsama haritası ve oranı | ✅ |
+| Köşelerin PPK'lı yörüngeden yeniden konumlanması (işleme hattı), sabit grid rotası | ⬜ |
 
 ### 2.2 İşleme istasyonunda
 
@@ -160,7 +161,7 @@ Envanter her parselin dijital haritasını bir kez çıkarır. Sonraki her ziyar
 | Sınır onayının veritabanı kuralı (`approve_boundary`) | ✅ |
 | Doğrulama turunun ofiste oluşturulması ve kalemlerin kapatılması (telefonla doğrulama) | ✅ |
 | Uzmanın envanter onayı (`approve_inventory`; parsel "envanter tamam" olur), sahibin sınır onayı (portal) | ✅ |
-| Saha uygulamasında doğrulama turu ekranı | ⬜ (sözleşmesi `docs/arayuzler.md`'de) |
+| Saha uygulamasında doğrulama turu ekranı | ✅ |
 
 ## 3. Periyodik ziyaret
 
@@ -195,7 +196,7 @@ Parsel için `periodic_scan` türünde, `planned` durumda bir ziyaret açılır;
 | --- | --- |
 | Yakın plan akışı, kamera, cihazda kalite kontrolü, gözlem soruları | ✅ |
 | Gönderim | ✅ |
-| Rota ve kapsama haritası | ⬜ |
+| Kapsama haritası | ✅ (sabit grid rotası ⬜) |
 
 ### 3.3 İşleme istasyonunda
 
