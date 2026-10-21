@@ -140,7 +140,8 @@ Envanter her parselin dijital haritasını bir kez çıkarır. Sonraki her ziyar
 | --- | --- |
 | Üçgenleme, sıra oturtma, kodlama, boş yerler, doğrulama listesi, kayıt | ✅ |
 | Panoramaları depodan okuma; tek işlemde kayıt; tıklamaların etiket olarak saklanması | 🟡 Geliştiriliyor (İP5 v0.2) |
-| Ağaç özellikleri (yaş, aşı) ve altyapının ofiste işaretlenmesi | ⬜ |
+| Ağaç özellikleri (yaş, aşı) ve altyapının ofiste işaretlenmesi | ✅ |
+| Ofiste saha sınırı çizimi (sahada köşe işaretleme gelene kadar) | ✅ |
 
 ### 2.4 Doğrulama turu ve onaylar
 
@@ -153,7 +154,9 @@ Envanter her parselin dijital haritasını bir kez çıkarır. Sonraki her ziyar
 | Adım | Durum |
 | --- | --- |
 | Sınır onayının veritabanı kuralı (`approve_boundary`) | ✅ |
-| Doğrulama turu (saha), envanter onayı (uzman), sınır onayı ekranı (portal) | ⬜ |
+| Doğrulama turunun ofiste oluşturulması ve kalemlerin kapatılması (telefonla doğrulama) | ✅ |
+| Uzmanın envanter onayı (`approve_inventory`; parsel "envanter tamam" olur), sahibin sınır onayı (portal) | ✅ |
+| Saha uygulamasında doğrulama turu ekranı | ⬜ (sözleşmesi `docs/arayuzler.md`'de) |
 
 ## 3. Periyodik ziyaret
 
