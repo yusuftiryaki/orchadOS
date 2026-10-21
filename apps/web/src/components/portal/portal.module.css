@@ -611,3 +611,41 @@
 .danger {
   color: var(--color-danger);
 }
+
+/* Overall condition score and audit confidence (v0.2) */
+.score,
+.scoreLarge {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+}
+
+.scoreLarge .scoreValue {
+  font-size: 40px;
+  line-height: 1.1;
+}
+
+.scoreValue {
+  font-size: 18px;
+}
+
+.scoreLabel {
+  font-weight: 600;
+}
+
+.scoreBox {
+  display: grid;
+  gap: 4px;
+}
+
+.audit {
+  border-top: 1px solid var(--color-border);
+  padding-top: 8px;
+}
+
+.audit h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}

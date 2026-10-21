@@ -762,6 +762,34 @@ export const tr = {
       urgent: (n: number) => `${n} acil bulgu`,
       open: "Karneyi aç",
     },
+    score: {
+      label: "Genel durum skoru",
+      outOf: "/ 100",
+      help: "Ağaçların sınıflarına göre ağırlıklı ortalama",
+      weights:
+        "Sağlıklı 100, dikkat 60, sorunlu 20, kurumuş ve yok 0; değerlendirilmeyen ağaçlar hesaba girmez.",
+      none: "Skor yok (değerlendirilmiş ağaç yok)",
+      change: {
+        up: (n: number) => `▲ ${n}`,
+        down: (n: number) => `▼ ${n}`,
+        same: "= değişmedi",
+      },
+      changeTitle: {
+        up: (n: number) => `Önceki denetime göre ${n} puan arttı`,
+        down: (n: number) => `Önceki denetime göre ${n} puan azaldı`,
+        same: "Önceki denetimle aynı",
+      },
+      first: "İlk denetim",
+    },
+    audit: {
+      title: "Denetim güveni",
+      coverage: (pct: string, covered: number, total: number) =>
+        `Kapsanan ağaç: %${pct} (${total} ağacın ${covered} tanesi en az iki yönden görüntülendi)`,
+      expert: (pct: string, n: number) => `Uzmanın tek tek incelediği: %${pct} (${n} ağaç)`,
+      auto: "Kalan ağaçlar yapay zekâ sonucuyla toplu onaylandı; uzman bunların bir örneklemini denetledi.",
+      methodology: (version: string) => `Metodoloji sürümü: ${version}`,
+      noMethodology: "Metodoloji sürümü: belirtilmemiş",
+    },
     report: {
       back: "Bahçelerim",
       tour: "360° gezi",

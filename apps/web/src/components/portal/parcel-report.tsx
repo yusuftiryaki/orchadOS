@@ -9,7 +9,8 @@ import { InventorySummaryView } from "@/components/office/inventory-summary";
 import type { BoundaryCard } from "@/lib/portal/boundary";
 import { BoundaryCardView } from "./boundary-card";
 import { HealthMap } from "./health-map";
-import { DistributionBar, findingKindLabel, percent } from "./labels";
+import { DistributionBar, findingKindLabel, percent, ScoreLine } from "./labels";
+import { share } from "@/lib/portal/score";
 import { SEVERITY_COLORS } from "./colors";
 import { PrintButton } from "./print-button";
 import styles from "./portal.module.css";
@@ -115,11 +116,18 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
           {latest.methodologyVersion && ` · ${r.methodology(latest.methodologyVersion)}`}
         </p>
       </div>
+      <div className={styles.scoreBox} data-testid="score-box">
+        <ScoreLine score={latest.score} change={report.scoreChange} size="large" />
+        <p className={`muted ${styles.small}`}>
+          {t.portal.score.help}. {t.portal.score.weights}
+        </p>
+      </div>
       <p>
         <strong data-testid="tree-count">{r.treeCount(report.activeTreeCount)}</strong>
         {" · "}
         {r.assessedCount(latest.assessedCount, report.activeTreeCount)}
       </p>
+      {report.audit && <Audit audit={report.audit} />}
       <DistributionBar distribution={latest.distribution} />
       <ul className={styles.tiles}>
         {states
@@ -146,6 +154,28 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
       </ul>
       <Change report={report} base={base} />
     </section>
+  );
+}
+
+function Audit({ audit }: { audit: NonNullable<ParcelReport["audit"]> }) {
+  const a = t.portal.audit;
+  const pct = (n: number) => String(share(n, audit.activeTrees) ?? 0);
+  return (
+    <div className={styles.audit} data-testid="audit">
+      <h3>{a.title}</h3>
+      <ul className={styles.plainList}>
+        <li data-testid="audit-coverage">
+          {a.coverage(pct(audit.covered), audit.covered, audit.activeTrees)}
+        </li>
+        <li data-testid="audit-expert">
+          {a.expert(pct(audit.expertReviewed), audit.expertReviewed)}
+        </li>
+        {audit.autoApproved > 0 && <li className="muted">{a.auto}</li>}
+        <li data-testid="audit-methodology">
+          {audit.methodologyVersion ? a.methodology(audit.methodologyVersion) : a.noMethodology}
+        </li>
+      </ul>
+    </div>
   );
 }
 

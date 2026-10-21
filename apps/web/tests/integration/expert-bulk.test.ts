@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { acceptAi, bulkApprove, correctTree, publishSession } from "@/lib/expert/decisions";
 import { loadReview } from "@/lib/expert/review";
 import { isBulkEligible, summarize } from "@/lib/expert/summary";
-import { getTreeCard } from "@/lib/portal/data";
+import { getParcelReport, getTreeCard } from "@/lib/portal/data";
 import type { Client } from "@/lib/supabase/types";
 import {
   BULK_TEST as T,
@@ -213,5 +213,17 @@ describe("bulk approval", () => {
     expect(autoCard.latest?.approval).toBe("auto");
     const manualCard = (await getTreeCard(owner, T.parcel, manual.id, "test"))!;
     expect(manualCard.latest?.approval).toBe("expert");
+
+    // Audit confidence: 7 trees decided one by one, the rest bulk approved;
+    // one crop direction per tree is not "covered".
+    const report = (await getParcelReport(owner, T.parcel))!;
+    expect(report.audit).toEqual({
+      activeTrees: T.trees.length,
+      covered: 0,
+      expertReviewed: 7,
+      autoApproved: T.trees.length - 7,
+      methodologyVersion: "methodology-v0",
+    });
+    expect(report.latest?.score).not.toBeNull();
   });
 });

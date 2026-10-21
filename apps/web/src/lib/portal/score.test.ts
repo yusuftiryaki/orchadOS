@@ -1,0 +1,96 @@
+import { describe, expect, it } from "vitest";
+import {
+  DEFAULT_SCORE_RULES,
+  auditConfidence,
+  healthScore,
+  scoreChange,
+  scoreRulesFor,
+  share,
+  trendOf,
+} from "./score";
+
+describe("healthScore", () => {
+  it("uses the methodology weights", () => {
+    expect(DEFAULT_SCORE_RULES.weights).toEqual({
+      healthy: 100,
+      attention: 60,
+      problem: 20,
+      dead: 0,
+      absent: 0,
+    });
+    expect(scoreRulesFor("methodology-v0")).toBe(DEFAULT_SCORE_RULES);
+    expect(scoreRulesFor("unknown")).toBe(DEFAULT_SCORE_RULES);
+  });
+
+  it("is the weighted mean over the assessed trees", () => {
+    expect(healthScore({ healthy: 10 })).toBe(100);
+    expect(healthScore({ attention: 1 })).toBe(60);
+    expect(healthScore({ problem: 1 })).toBe(20);
+    expect(healthScore({ dead: 3, absent: 1 })).toBe(0);
+    // (2×100 + 1×60 + 1×20) / 4 = 70
+    expect(healthScore({ healthy: 2, attention: 1, problem: 1, dead: 0, absent: 0 })).toBe(70);
+    // Demo visit: (232×100 + 40×60 + 16×20) / 301 = 86.1
+    expect(healthScore({ healthy: 232, attention: 40, problem: 16, dead: 13, absent: 0 })).toBe(86);
+  });
+
+  it("leaves unassessed trees out", () => {
+    expect(healthScore({ healthy: 1, problem: 1, unassessed: 50 })).toBe(60);
+    expect(healthScore({ unassessed: 5 })).toBeNull();
+    expect(healthScore({})).toBeNull();
+  });
+
+  it("rounds to a whole number", () => {
+    // (100 + 60 + 60) / 3 = 73.3
+    expect(healthScore({ healthy: 1, attention: 2 })).toBe(73);
+    // (100 + 60) / 2 = 80
+    expect(healthScore({ healthy: 1, attention: 1 })).toBe(80);
+  });
+});
+
+describe("scoreChange", () => {
+  it("compares the shown scores", () => {
+    expect(scoreChange(82, 78)).toBe(4);
+    expect(scoreChange(70, 75)).toBe(-5);
+    expect(scoreChange(70, 70)).toBe(0);
+    expect(scoreChange(70, null)).toBeNull();
+    expect(scoreChange(null, 70)).toBeNull();
+  });
+
+  it("has a direction", () => {
+    expect(trendOf(4)).toBe("up");
+    expect(trendOf(-1)).toBe("down");
+    expect(trendOf(0)).toBe("same");
+  });
+});
+
+describe("auditConfidence", () => {
+  const dirs = new Map([
+    ["a", new Set(["N", "S"])],
+    ["b", new Set(["N"])],
+    ["c", new Set(["N", "E", "S", "W"])],
+    ["x", new Set(["N", "S"])],
+  ]);
+  const classes = new Map([
+    ["a", { source: "expert", auto_approved: false }],
+    ["b", { source: "expert", auto_approved: true }],
+    ["c", { source: "ai", auto_approved: false }],
+    ["x", { source: "expert", auto_approved: false }],
+  ]);
+
+  it("counts covered trees, expert decisions and bulk approvals among the active trees", () => {
+    expect(auditConfidence(["a", "b", "c", "d"], dirs, classes, "methodology-v0")).toEqual({
+      activeTrees: 4,
+      // a and c have two or more directions; b one; d none. x is not active.
+      covered: 2,
+      expertReviewed: 1,
+      autoApproved: 1,
+      methodologyVersion: "methodology-v0",
+    });
+  });
+
+  it("gives whole percentages", () => {
+    expect(share(1, 3)).toBe(33);
+    expect(share(2, 3)).toBe(67);
+    expect(share(0, 0)).toBeNull();
+  });
+});
