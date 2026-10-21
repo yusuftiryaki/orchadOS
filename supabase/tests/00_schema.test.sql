@@ -15,11 +15,11 @@ select tables_are(
     'asset', 'asset_source', 'metric_definition', 'measurement', 'measurement_evidence',
     'assessment', 'assessment_measurement', 'finding', 'finding_evidence', 'operation', 'trunk_label',
     'verification_item', 'session_event', 'parcel_route', 'ai_assessment_detail',
-    'question', 'question_reply'
+    'question', 'question_reply', 'notification'
   ],
   'public has exactly the MVP tables'
 );
-select tables_are('private', array['owner_profile', 'parcel_detail'], 'private has the personal data tables');
+select tables_are('private', array['owner_profile', 'parcel_detail', 'message_outbox', 'phone_login_attempt'], 'private has the personal data tables');
 
 select is(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace

@@ -125,6 +125,7 @@ class FakeGnssLogger extends GnssLoggerBase {
     var status = withTime ? _status.copyWith(gpsTimeNs: gpsNs) : _status;
     if (at != null) {
       status = status.copyWith(
+        flags: status.flags | GnssStatus.flagPositionValid,
         latE7: (at.lat * 1e7).round(),
         lonE7: (at.lon * 1e7).round(),
         heightMm: 850000,
