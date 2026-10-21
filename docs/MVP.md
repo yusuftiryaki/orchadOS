@@ -69,7 +69,7 @@ Kayıt, sahibin kabaca bildiği bilgilerle başlar. Kesin bilgiler envanter ziya
    - Sahada sınırı gösterecek kişi: sahibin kendisi ya da yetkilendirdiği bir akraba, komşu veya bekçi
 4. **Kaba sınır:** Sahibin haritada çizdiği ya da tarif ettiği alan `kaynak: sahip_beyanı` olarak saklanır. Kesin sınır envanter ziyaretinde çıkarılır. TKGM poligonu, varsa, sadece bahçeyi haritada bulmak için arka plan olarak gösterilir; bahçe sınırı yerine geçmez.
 5. **Yetki ve izin:** Tapu sahibi, vekâlet ya da varis beyanı alınır. Sahip, denetim için bahçeye girilmesine izin verdiğini beyan eder.
-6. **KVKK:** Konum, fotoğraf ve kişisel veriler için aydınlatma metni ve açık rıza alınır. Görüntülerde çıkan kişilerin yüzleri bulanıklaştırılır. Saklama süresi sözleşmede yazılır.
+6. **KVKK:** Konum, fotoğraf ve kişisel veriler için aydınlatma metni ve açık rıza alınır. Görüntülerde kişiler görünebilir; bu, aydınlatma metninde belirtilir. Saklama süresi sözleşmede yazılır.
 7. **Hizmet paketi:** Ziyaret tipleri, fiyat ve ilk envanter tarihi belirlenir.
 8. **Portal daveti:** SMS ya da WhatsApp ile link gönderilir, giriş telefon doğrulamasıyla yapılır. Sahip isterse hissedarları izleyici olarak ekler.
 
@@ -210,7 +210,7 @@ Kural tutan ağaçlar uzmana gider. Diğerleri toplu onaylanır ama örneklemle 
 1. **Stitch:** 360° video birleştirilir. MVP'de bu adım kameranın masaüstü yazılımıyla yapılır; sonra SDK ile otomatikleştirilir.
 2. **Konum:** GPS izi PPK ile düzeltilir ve video ile zaman olarak eşlenir.
 3. **Kare seçimi:** Her 3–4 m'lik dilimde netlik skoru en yüksek kare seçilir ve panorama noktası olur.
-4. **Hazırlık:** Panoramaların yönü düzeltilir, yüzler bulanıklaştırılır, hızlı yükleme için çözünürlük katmanları üretilir.
+4. **Hazırlık:** Panoramaların yönü düzeltilir, hızlı yükleme için çözünürlük katmanları üretilir.
 5. **Ağaç eşleştirme:** Her ağaç için, kameranın ağaca en yakın geçtiği panoramalardan ağaca bakan bir kesit çıkarılır. Grid tarama sayesinde bu kesitler dört yönden gelir. Sıra dizilişi haritayla karşılaştırılır, ağaç var/yok kontrol edilir.
 6. **AI ön değerlendirme:** Aşağıda.
 7. **Uzman incelemesi:** Aşağıda.
@@ -442,7 +442,7 @@ Pilotun asıl sorusu şu: Eşleştirme güvenilir mi ve sahipler bu rapor için 
 | AI'ın yanlış güveni | Hatalı toplu onay | Rastgele %5 uzman kontrolü, eşik ayarı |
 | Personel kalitesi | Eksik ya da yanlış veri | Eğitim ve sertifika, tutarsızlık bayrakları, personel başına uyum skoru |
 | Veri hacmi | Depolama ve aktarım maliyeti | Ham video saklanmaz, panoramalar sıkıştırılır |
-| KVKK ve girme izni | Hukuki risk | Açık rıza, yüz bulanıklaştırma, yazılı giriş izni |
+| KVKK ve girme izni | Hukuki risk | Açık rıza, aydınlatma metni, yazılı giriş izni |
 | Sınırın yanlış gösterilmesi | Komşu bahçenin ağaçları envantere girer ya da sahibinkiler dışarıda kalır | Sınırı sahip portalda onaylar; sınır notu sözleşmede |
 
 **Açık sorular**

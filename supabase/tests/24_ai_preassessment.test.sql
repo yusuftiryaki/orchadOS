@@ -21,7 +21,7 @@ insert into public.asset (id, org_id, parcel_id, session_id, kind, tree_id, uri,
                           pose, pipeline, pipeline_version)
 select v.id::uuid, 'b0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000001',
        'a9000000-0000-4000-8000-000000000001', 'tree_crop', pg_temp.tree(v.code), 'storage://media/x',
-       repeat(v.h, 64), jsonb_build_object('direction', v.dir, 'filters_applied', '["face_blur"]'::jsonb),
+       repeat(v.h, 64), jsonb_build_object('direction', v.dir),
        'orchados-pipeline', '0.1.0'
 from (values
   ('a9000000-0000-4000-8000-0000000000a1', 'S1-1', 'N', '1'),

@@ -39,11 +39,6 @@ def _common(p: argparse.ArgumentParser) -> None:
         action="store_true",
         help="keep the answers in the job state only (e.g. published visits, for eval)",
     )
-    p.add_argument(
-        "--allow-unblurred",
-        action="store_true",
-        help="also send crops not marked face_blur; for synthetic data only",
-    )
     p.add_argument("--limit", type=int, help="assess at most this many new trees")
     p.add_argument("--json", action="store_true", help="print the report as JSON")
 
@@ -117,7 +112,6 @@ def main(argv: list[str] | None = None, *, catalog=None, api=None) -> int:
             options = RunOptions(
                 write=not args.no_write,
                 wait=not args.no_wait,
-                allow_unblurred=args.allow_unblurred,
                 limit=args.limit,
             )
             worker = Worker(

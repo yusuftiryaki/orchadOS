@@ -23,7 +23,6 @@ from typing import Any, Protocol
 
 from .gpstime import gps_ns_to_iso
 from .hashing import sha256_file
-from .imaging import FACE_BLUR
 from .media import MediaStore, media_key, media_uri
 from .models import (
     ClockModel,
@@ -56,7 +55,6 @@ ASSET_KIND = {
     "tree_crop": "tree_crop",
     "trajectory": "trajectory",
 }
-IMAGE_KINDS = {"panorama", "panorama_preview", "tree_crop"}
 
 # outputs.json capture kind (FileRole) -> public.capture_kind, media type
 CAPTURE_KIND = {
@@ -77,10 +75,6 @@ STATUS_BEFORE_PROCESSED = ("planned", "captured")
 
 
 class UploadError(RuntimeError):
-    pass
-
-
-class UnblurredError(UploadError):
     pass
 
 
@@ -129,7 +123,6 @@ class Catalog(Protocol):
 @dataclass
 class UploadOptions:
     kinds: frozenset[str] = DEFAULT_KINDS
-    allow_unblurred: bool = False  # synthetic data only
     station: str = field(default_factory=socket.gethostname)
     session_dir: Path | None = None  # default: <run_dir>/../../<session> for "<session>.processed"
     # Crops must come from run --trees-from-db (crops.json trees_source = database).
@@ -321,17 +314,6 @@ def upload_run(
             selected.append(a)
         else:
             report.skipped_kinds[a.kind] = report.skipped_kinds.get(a.kind, 0) + 1
-
-    unblurred = [
-        a for a in selected if a.kind in IMAGE_KINDS and FACE_BLUR not in (a.filters_applied or [])
-    ]
-    if unblurred:
-        if not options.allow_unblurred:
-            raise UnblurredError(
-                f"{len(unblurred)} images are not face-blurred; nothing was uploaded "
-                "(--allow-unblurred is for synthetic data only)"
-            )
-        report.warnings.append(f"{len(unblurred)} images uploaded without face blurring")
 
     has_crops = any(a.kind == "tree_crop" for a in selected)
     from_db = run.trees_source == "database"

@@ -8,7 +8,7 @@ Bu doküman [MVP.md](MVP.md)'deki ürün tanımını esas alır. Buradaki tüm r
 
 ## Tasarım ilkeleri
 
-- **Ağır iş sahaya yakın:** Ham video buluta çıkmaz. Kare seçimi, stitch, bulanıklaştırma ve kesit üretimi işleme istasyonunda yapılır.
+- **Ağır iş sahaya yakın:** Ham video buluta çıkmaz. Kare seçimi, stitch ve kesit üretimi işleme istasyonunda yapılır.
 - **Tek gerçek kaynak:** Tüm kayıtlar Postgres + PostGIS'te tutulur. Medya object storage'da durur; anahtarı içeriğin hash'idir, bu yüzden değiştirilemez.
 - **Taşınabilirlik:** S3 uyumlu depolama API'si, standart Postgres ve konteynerler kullanılır. Hiçbir sağlayıcıya özgü özellik çekirdeğe girmez; sağlayıcı değiştirmek bir taşıma işi olur, yeniden yazım değil.
 - **Asenkron ve toplu:** İşleme ve AI değerlendirmesi kuyruktaki işlerle yürür. Gecikmeye duyarlı olmadıkları için LLM çağrıları Batch API ile yapılır (%50 indirim).
@@ -40,7 +40,7 @@ flowchart LR
     subgraph Edge["İşleme istasyonu (bölge ofisi)"]
         I["Alım ve kalite kontrol"] --> F["Kare seçimi<br/>PPK konum düzeltme"]
         F --> S["Stitch<br/>sadece seçilen kareler"]
-        S --> B["Yüz bulanıklaştırma<br/>ağaç tespiti"]
+        S --> B["Ağaç tespiti"]
         B --> C["Panorama, önizleme<br/>ve ağaç kesitleri"]
     end
     subgraph Bulut
@@ -65,7 +65,7 @@ flowchart LR
 ```
 
 1. Saha ekibi taramayı yapar. Ham video ve GNSS kaydı SSD ile işleme istasyonuna gelir. Yakın plan fotoğraflar ve gözlemler saha uygulamasından doğrudan API'ye senkronize olur.
-2. İşleme istasyonu panorama, önizleme ve ağaç kesitlerini üretir. Yüzler bu aşamada bulanıklaştırılır, yani **bulanıklaştırılmamış görüntü buluta hiç çıkmaz.** Sonuçlar object storage'a, metadata API'ye yüklenir.
+2. İşleme istasyonu panorama, önizleme ve ağaç kesitlerini üretir. Sonuçlar object storage'a, metadata API'ye yüklenir.
 3. API, ziyaret için AI değerlendirme işlerini kuyruğa atar. AI worker bunları Batch API'ye gönderir ve sonuçları veritabanına yazar.
 4. Uzman paneli ve sahip portalı aynı web uygulamasıdır. Medya CDN üzerinden, imzalı ve süreli linklerle sunulur.
 
@@ -124,7 +124,7 @@ flowchart LR
 | Aday kare çıkarma ve netlik skoru | CPU | 20–30 dk |
 | PPK konum düzeltme ve zaman eşleme | CPU | <5 dk |
 | Sadece seçilen ~1.500 karenin stitch'i | GPU | 15–30 dk |
-| Yüz bulanıklaştırma, ağaç tespiti | GPU | ~10 dk |
+| Ağaç tespiti | GPU | ~10 dk |
 | Panorama, önizleme ve kesit üretimi | CPU/GPU | ~10 dk |
 | Buluta yükleme (4,4 GB, 50 Mbps) | Ağ | ~12 dk |
 | **Toplam** | | **~1–1,5 saat, gözetimsiz** |
@@ -221,7 +221,7 @@ Medya dosyaları içerik hash'iyle adreslenir ve değiştirilemez. Her ziyaret, 
 
 ## Veri konumu, KVKK ve güvenlik
 
-- **Kişisel veri sınırlı tutulur:** Sahip kimliği, telefonu ve parsel konumu kişisel veridir. Bu alanlar ayrı bir şemada tutulur. Görüntülerdeki yüzler buluta çıkmadan bulanıklaştırılır.
+- **Kişisel veri sınırlı tutulur:** Sahip kimliği, telefonu ve parsel konumu kişisel veridir. Bu alanlar ayrı bir şemada tutulur. Görüntülerde kişiler görünebilir; bu, aydınlatma metninde belirtilir.
 - **Yurt dışına aktarım:** Veriler AB'de barındırılırsa, ya da LLM sağlayıcısına görüntü gönderilirse, bu KVKK açısından yurt dışına aktarımdır. 2024 değişikliğinden sonra (KVKK md. 9) aktarım için yeterlilik kararı ya da standart sözleşme gibi uygun güvenceler gerekiyor. **Hukukçu görüşüyle netleştirilmeli.**
 - **Seçenekler:**
     - Her şey AB'de (ör. Frankfurt): Standart sözleşme ve açık rıza ile yürür. Seçenek bolluğu ve maliyet açısından en rahat yol.

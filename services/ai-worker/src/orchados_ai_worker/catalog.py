@@ -18,8 +18,6 @@ from typing import Any, Protocol
 
 from .supabase import SupabaseClient
 
-FACE_BLUR = "face_blur"
-
 
 @dataclass(frozen=True)
 class SessionInfo:
@@ -47,8 +45,6 @@ class Crop:
     content_hash: str
     quality_score: float | None
     produced_at: str
-    # pose.filters_applied names face_blur (docs/arayuzler.md, "AI ön değerlendirme").
-    blurred: bool
 
 
 class Catalog(Protocol):
@@ -93,7 +89,6 @@ def _ts(text: str) -> datetime:
 
 def crop_from_row(row: dict[str, Any]) -> Crop:
     pose = row.get("pose") or {}
-    filters = pose.get("filters_applied")
     return Crop(
         asset_id=row["id"],
         tree_id=row["tree_id"],
@@ -102,7 +97,6 @@ def crop_from_row(row: dict[str, Any]) -> Crop:
         content_hash=row["content_hash"],
         quality_score=row.get("quality_score"),
         produced_at=row.get("produced_at") or "",
-        blurred=isinstance(filters, list) and FACE_BLUR in filters,
     )
 
 

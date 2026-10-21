@@ -72,7 +72,7 @@ gantt
 | İP0 | Tamam | Repo iskeleti, `core` ve `mobile` devcontainer'ları, bulut ortamı |
 | İP1 | Tamam (PR #1, #7) | Şema, satır bazlı yetki, sentetik bahçe; yayımlanmamış sonuçlar sahipten gizli; son değerlendirme/ölçüm görünümleri (önce en yeni oturum, aynı oturumda kaynak önceliği); `media` depolama alanı; 173 pgTAP testi |
 | İP2 | Yazılım tamam (PR #2, #7, #22) | Firmware 0.3.0: BLE durum mesajında GPS zamanı ve konum; 74 birim testi, ESP32 derlemesi. Açık: gerçek donanım testleri (README'deki adımlar), kit gelince |
-| İP4 | Çekirdek + yükleme tamam (PR #3, #4, #11) | 97 test; `upload` komutu: türetilmiş dosyalar `media` alanına, kayıtlar `capture`/`asset`/`asset_source`'a; ham kayıtlar istasyonda kalır; bulanıklaştırılmamış görüntü yüklenmez. Açık: gerçek PPK denemesi (İP3), büyük ziyarette yükleme süresi |
+| İP4 | Çekirdek + yükleme tamam (PR #3, #4, #11) | 97 test; `upload` komutu: türetilmiş dosyalar `media` alanına, kayıtlar `capture`/`asset`/`asset_source`'a; ham kayıtlar istasyonda kalır. Açık: gerçek PPK denemesi (İP3), büyük ziyarette yükleme süresi |
 | Entegrasyon | Tamam (PR #4) | Sözleşmeler `docs/arayuzler.md` içinde |
 | İP5 | v0.2 tamam (PR #9, #15) | Ofis üçgenleme aracı: tıklayarak üçgenleme, sıra oturtma ve kodlama, boş yerler, doğrulama listesi (CSV), kayıt; 12 sentetik ağaç 30 cm içinde. v0.2: panoramalar depodan, `save_inventory` tek işlemde, gövde tıklamaları `trunk_label` tablosunda (etiketli veri) |
 | İP7 | v0.1 tamam (PR #12) | Ziyaret kuyruğu, ağaç ağaç inceleme (bu ve önceki ziyaretin kesitleri), AI'ı kabul/düzelt, bulgular, `publish_session` ile imza ve yayın; yayın sadece uzmanla, geri alınamaz, sonuçlar yayından sonra donar |
@@ -82,11 +82,11 @@ gantt
 | Operasyon ekranları | Tamam (PR #19) | `/operasyon`: pano, sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma, ziyaret planlama |
 | Envanter onayı | Tamam (PR #18) | Doğrulama listesi veritabanında (`verification_item`), ofiste ağaç özellikleri, altyapı ve saha sınırı; uzmanın envanter onayı; sahibin sınır onayı. Saha tarafı açık |
 | İP6 v0.3 | Tamam (PR #21) | Doğrulama turu ekranı, sahada sınır köşesi, kapsama haritası, test projesine bağlı APK (`docs/gorevler/ip6-envanter-saha.md`) |
-| İP9 | v0.1 tamam (PR #23) | `ai-worker`: Haiku triaj → Sonnet, Batch API, önbellekli istem, mozaik, `eval`; kişisel veri ve bulanıklaştırılmamış kesit gönderilmez. Gerçek API ile ilk deneme ve eşik kalibrasyonu açık |
-| Dalga 6 | Tamam | Sınır köşeleri (#22), İP9 (#23), grid rotası (#24), uzman/portal v0.2 (#25), bildirimler ve telefonla giriş (#27; sağlayıcı Netgsm iskeleti, gerçek hesap yok) | Sınır köşeleri (firmware konum + işleme hattında sınır), grid rotası, uzman/portal v0.2 (toplu onay, %5 örneklem, durum skoru, soru), bildirimler ve telefonla giriş, İP9 AI worker. Yüz bulanıklaştırma ertelendi (karar 21 Ekim) |
-| Dalga 5 | Tamam | İP5 v0.2 (PR #15); İP4 v0.2 (PR #16): ağaç konumları veritabanından, CI'da uçtan uca zincir testi (~70 sn). Önceki not: ağaç konumları ve uçtan uca test |
-| Dalga 4 | İP6 senkronizasyon sürüyor | İP4, İP7, İP8 birleşti. Örnek tarama verisi: `pnpm db:demo`. Test ortamı: https://orchados-orchad-os.vercel.app (Vercel koruması açık) |
-| İP6 | İskelet + kamera + senkronizasyon tamam (PR #6, #8, #20) | BLE protokolü, QR saat, ekran akışı, çevrimdışı kuyruk, gerçek kamera ve cihazda kalite kontrolü; 66 test. Senkronizasyon: sunucudan görevler, sıralı ve tekrar güvenli gönderim, saha personelinin fotoğraf yüklemesi; APK CI'da derleniyor. Açık: doğrulama turu ekranı, sınır köşesi, kapsama haritası, telefonda deneme |
+| İP9 | v0.1 tamam (PR #23) | `ai-worker`: Haiku triaj → Sonnet, Batch API, önbellekli istem, mozaik, `eval`; kişisel veri ve yakın plan fotoğrafı gönderilmez. Gerçek API ile ilk deneme ve eşik kalibrasyonu açık |
+| Dalga 6 | Tamam | Sınır köşeleri (#22), İP9 (#23), grid rotası (#24), uzman/portal v0.2 (#25), bildirimler ve telefonla giriş (#27; Netgsm iskeleti, gerçek hesap yok). Yüz bulanıklaştırma üründen kaldırıldı (karar 21 Ekim, #28) |
+| Dalga 5 | Tamam | İP5 v0.2 (PR #15); İP4 v0.2 (PR #16): ağaç konumları veritabanından, CI'da uçtan uca zincir testi (~70 sn) |
+| Dalga 4 | Tamam | İP4 yükleme, İP7, İP8, İP6 senkronizasyon birleşti. Örnek tarama verisi: `pnpm db:demo`. Test ortamı: https://orchados-orchad-os.vercel.app (Vercel koruması açık) |
+| İP6 | v0.3 tamam (PR #6, #8, #20, #21, #24, #26) | BLE protokolü, QR saat, ekran akışı, çevrimdışı kuyruk, gerçek kamera ve cihazda kalite kontrolü; 66 test. Senkronizasyon: sunucudan görevler, sıralı ve tekrar güvenli gönderim, saha personelinin fotoğraf yüklemesi; APK CI'da derleniyor. Envanter sahası: doğrulama turu, sınır köşesi, kapsama; sabit grid rotası ve dur-çek-yürü; test projesine bağlı APK. Açık: telefonda ve gerçek kaydediciyle deneme |
 
 **Açık işler**
 
@@ -94,10 +94,9 @@ gantt
 - [x] **Etiketli veri:** *(PR #15)* Ofis aracındaki gövde tıklamaları (gövde tespit modeli için etiket) şimdilik tarayıcıda; veritabanında saklanmalı.
 - [x] **Web:** Ağaç rengi uzman ve ofis tarafında da *(PR #15)* `tree_latest_assessment` görünümüne bağlanmalı (portalda yapıldı).
 - [x] **Web:** Medya imzalama iki yerde *(PR #15)*: `src/lib/media/` (portal) ve `src/lib/expert/media.ts`. Uzman paneli ortak yardımcıya geçmeli; `fetchAll` kopyası da birleştirilmeli.
-- [ ] **Yüz bulanıklaştırma (ertelendi):** Yapılana kadar gerçek panoramalar buluta yüklenmez (`upload` bulanıklaştırılmamış görüntüyü reddeder) ve yakın planlar AI'a gönderilmez. Pilot verisi yüklenmeden önce yapılmalı.
-- [ ] **İşleme hattı:** Kesit ve panorama `pose`'una `filters_applied` yazılmalı; AI worker sadece `face_blur` işaretli kesitleri gönderiyor (bulanıklaştırma gelince).
 - [ ] **Testler:** Ekleme-yalnız tablolar yüzünden web testleri kendi işletmelerini kurup `docker exec ... psql` ile temizliyor. Testler için bir temizlik fonksiyonu daha temiz olur.
 - [x] *(PR #16)* **Örnek veri:** `supabase/demo/scans.sql` `pose` alanları `docs/arayuzler.md`'deki sözleşmeye tam uymuyor (`variant`, `gps_time_ns`, `panorama_asset_id` eksik; MIME türü WebP olmalı).
+- [x] **Karar (21 Ekim): yüz bulanıklaştırma üründen kaldırıldı.** Ertelenmiş bir iş değil; panoramalar ve kesitler bu şart olmadan yüklenir, kesitler AI'a gönderilir. Görüntülerde kişiler görünebileceği aydınlatma metninde belirtilir.
 - [x] **Karar (20 Ekim):** Yayından sonra sadece uzman ölçümleri kilitli; saha personelinin geç gelen kayıtları serbest.
 - [x] *(PR #20)* **Saha uygulaması:** README ve `GnssStatus` yorumu, firmware 0.2.0'daki GPS zamanı alanını hâlâ "önerilen" diye anlatıyor; evet/hayır cevapları gönderilirken `value_bool` → `value_boolean` eşlemesi.
 - [x] *(PR #17)* **Metrik kaydı:** `metric_definition` sadece seed'de; metodolojideki ölçekler (`docs/metodoloji.md` Ek B) referans veri olarak migration'la kurulmalı.

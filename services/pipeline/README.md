@@ -81,7 +81,6 @@ Sözleşme testleri (`tests/test_contract.py`) İP2 README'sindeki örnek `event
 
 Hat ayrıca şunları içerir ama sahada henüz kullanmaz:
 - `sync.estimate_lag()`: iki açısal hız sinyali (1 boyutlu ya da N×3) arasındaki gecikmeyi FFT ile normalize çapraz korelasyon ve parabolik alt-örnek inceltmeyle bulur (ince zaman eşleme). `sync.heading_rate_signal()` LiDAR'sız kitte referans olarak GNSS izinden yön değişim hızını üretir.
-- `imaging.ImageFilter`: panoramalar yazılmadan önce uygulanacak süzgeçler (yüz bulanıklaştırma vb.) için arayüz.
 
 ## Çıktı klasörü ve sürümleme
 
@@ -105,13 +104,13 @@ Varsayılan çıktı kökü oturum klasörünün yanındaki `<oturum>.processed/
 [veri-modeli.md](../../docs/veri-modeli.md)'deki Capture/Asset ayrımını izler:
 
 - `captures`: ham girdiler. `capture_id` dosyanın SHA-256'sı; `kind`: `session_meta`, `logger_session`, `gnss_raw`, `gnss_events`, `video`, `base_obs`, `base_nav`.
-- `assets`: türetilmiş dosyalar. `asset_id` dosyanın SHA-256'sı; `kind`: `manifest`, `trajectory`, `time_sync`, `frame_selection`, `panorama`, `panorama_preview`, `tree_crop`. Her birinde `file` (yol, hash, boyut, medya türü, piksel boyutu), varsa `sidecar`, `pose` (WGS84, EPSG:4979, yön, yatay belirsizlik, çözüm kalitesi), `gps_time_ns`, `quality_score`, ağaç kesitlerinde `subject` (tree_id, slot_code, yön), panorama ve kesitlerde `filters_applied` (uygulanan görüntü süzgeçleri; yüz bulanıklaştırma `face_blur`), `derived_from` (kaynak capture'lar ve üst asset'ler) ve `producer_stage`.
+- `assets`: türetilmiş dosyalar. `asset_id` dosyanın SHA-256'sı; `kind`: `manifest`, `trajectory`, `time_sync`, `frame_selection`, `panorama`, `panorama_preview`, `tree_crop`. Her birinde `file` (yol, hash, boyut, medya türü, piksel boyutu), varsa `sidecar`, `pose` (WGS84, EPSG:4979, yön, yatay belirsizlik, çözüm kalitesi), `gps_time_ns`, `quality_score`, ağaç kesitlerinde `subject` (tree_id, slot_code, yön), `derived_from` (kaynak capture'lar ve üst asset'ler) ve `producer_stage`.
 - `pipeline`: ad, sürüm, parametre hash'i ve parametrelerin kendisi.
 - `crops_status`: `crops.json`'daki durum (`ok`, `no_tree_positions`, `inventory_session`); ağaç listesi verilmediyse `null`.
 
 ### Panorama yan dosyası (`pano-<gps_ms>.json`)
 
-`panorama_id`, `session_id`, `gps_time_ns`, `utc`, `pose` (lat, lon, height_m elipsoidal, heading_deg, sd_h_m, quality), `quality_score`, `sharpness`, `source_video` + `source_video_sha256`, `frame_index`, `camera_s`, `image` ve `preview` (hash'leriyle), `filters_applied`, `producer` (hat, sürüm, parametre hash'i, aşama).
+`panorama_id`, `session_id`, `gps_time_ns`, `utc`, `pose` (lat, lon, height_m elipsoidal, heading_deg, sd_h_m, quality), `quality_score`, `sharpness`, `source_video` + `source_video_sha256`, `frame_index`, `camera_s`, `image` ve `preview` (hash'leriyle), `producer` (hat, sürüm, parametre hash'i, aşama).
 
 Panorama kuralı: orta sütun `heading_deg` yönüne bakar; azimut sağa doğru (yukarıdan bakınca saat yönünde) artar; üst satır zenit, alt satır nadirdir. `heading_deg` = hareket yönü + `camera_yaw_offset_deg` (kamera önü hareket yönüne hizalı varsayılır; değilse session.json ya da parametreyle düzeltilir).
 
@@ -185,7 +184,6 @@ Yerelde: `pnpm db:status` adresi ve anahtarı verir; kullanıcı `ops@example.co
 - **Seçim:** `--only preview,tree_crop,trajectory` (varsayılan). Türler: `panorama` (4K), `preview` (2K), `tree_crop`, `trajectory`.
 - **Lineage:** `outputs.json`'daki `derived_from` → `asset_source`. Kaydedilmeyen üst öğeler (iç JSON'lar, seçilmeyen türler) atlanır. Önizleme ← video + yörünge; kesit ← tam panorama, o yüklenmediyse aynı karenin önizlemesi (`pose.panorama_asset_id` de aynı kuralla).
 - **Ağaç eşleme:** Kesitin `slot_code`'u (ör. `S5-12a`) parseldeki `slot.code` ile, slot da aktif `tree` kaydıyla eşleştirilir. Elle verilen `trees.json`'daki `tree_id` kullanılmaz. Kesitler veritabanından okunan ağaçlarla kesildiyse (`crops.json` → `trees_source: database`) kesitteki `tree_id` de slotun bugünkü aktif ağacıyla aynı olmalıdır; işlemeden sonra slota yeni bir ağaç girdiyse kesit yüklenmez ("active tree changed since processing" uyarısı). `upload --trees-from-db` kesitlerin veritabanı ağaçlarıyla kesilmiş olmasını şart koşar; değilse hiçbir şey yazmadan hata verir. Eşleşmeyen kesit yüklenmez, raporda uyarı olarak listelenir.
-- **Yüz bulanıklaştırma:** `outputs.json`'da `filters_applied` içinde `face_blur` olmayan bir panorama ya da kesit seçilmişse komut **hiçbir şey yazmadan hata verir**. `--allow-unblurred` bu kuralı kapatır; **sadece sentetik veri içindir**, gerçek saha görüntüsüyle kullanılmaz.
 - **Oturum durumu:** Yükleme tamamlanınca `planned` ya da `captured` olan oturum `processed` olur; `processed`, `in_review`, `published` (ve `cancelled`) değiştirilmez.
 
 ### Tekrar çalıştırma
@@ -246,7 +244,7 @@ Supabase ücretsiz planda 1 GB dosya alanı var ([docs/deployment.md](../../docs
 
 ### Testler
 
-- `tests/test_upload.py`: Sahte veritabanı (`FakeCatalog`) ve yerel depo ile eşleme, tekrar çalıştırma, yarıda kesilme, bulanıklaştırma kuralı, durum geçişleri, yeni hat sürümü.
+- `tests/test_upload.py`: Sahte veritabanı (`FakeCatalog`) ve yerel depo ile eşleme, tekrar çalıştırma, yarıda kesilme, durum geçişleri, yeni hat sürümü.
 - `tests/test_boundary.py`: Köşe listesi kuralları (en yeni liste, silinen ve sonradan eklenen köşe, eşit zamanda `phone_time`), poligon denetimi (az köşe, kendini kesen ve değen kenar, alansız), sentetik yürüyüşte PPK'sız (telefon ve kaydedici yedeği), PPK'lı ve PPK boşluklu konumlama, sahte veritabanıyla kayıt ve tekrar çalıştırma.
 - `tests/test_trees_db.py`: Sahte istemciyle veritabanından ağaç okuma (aktif ağaç, boş slot, konumsuz slot, sıra), panorama-yalnız durumlar, kesitlerin `tree_id` ile yüklenmesi, sentetik sahnenin parsele uydurulması.
 - `tests/test_upload_supabase.py` (`supabase` işareti): Yerel Supabase'e karşı sentetik oturum → `run` → `upload`. Kendi oturumunu seed parselinde açar (sentetik slot kodları S1-1 … S3-4 orada aktif ağaçlı); kayıtların ve dosyaların oluştuğunu, ikinci yüklemenin bir şey eklemediğini, sahibin yayından önce kayıtları ve dosyaları göremediğini, saha personelinin dosya yükleyemediğini denetler. Önce kökte `pnpm install && pnpm db:start && pnpm db:reset`. Supabase'e ulaşılamazsa atlanır. Adres ve anahtar `SUPABASE_URL` / `SUPABASE_ANON_KEY`'den, yoksa `supabase status`'tan okunur.
@@ -270,7 +268,7 @@ Adım süreleri `pytest -s` ile yazdırılır. Yerelde ~65 sn (tarama) ve ~25 sn
 ## Bilinen sınırlar
 
 - **Stitch yok:** Girdi kameranın masaüstü yazılımından dışa aktarılmış equirectangular MP4'tür; `.insv` işlenmez.
-- **Yüz bulanıklaştırma ve ağaç tespiti yok:** Sadece `ImageFilter` arayüzü var. Panoramalar ve kesitler `outputs.json`'da `filters_applied` ile işaretlenir; `face_blur` filtresi yoksa yükleme reddedilir (bkz. [Yükleme](#yükleme)).
+- **Ağaç tespiti yok:** Kesitler ağacın bilinen konumundan geometriyle kesilir; görüntüde ağaç aranmaz.
 - **Yükleme sırayla:** Dosyalar ve satırlar tek tek gönderilir; ~1000 asset'lik bir ziyarette istek sayısı yüksektir. Süre pilotta ölçülmeli, gerekirse toplu ekleme ve paralel yükleme eklenir.
 - **Kamera jiroskop verisi okunmuyor:** İnce eşleme fonksiyonu sentetik sinyallerle test edildi; dosyadan okuma sonraya kaldı.
 - **QR ile kayma tahmini kısa kayıtlarda zayıf:** 100 ms yenilemede tek okumanın belirsizliği ~±50 ms; her uçta ~30 okumayla ofset birkaç ms, kayma ancak uzun kayıtlarda (≥10 dk) anlamlı. Sentetik testteki 40 sn'lik videoda kayma ölçülemez; uydurma uzun bir sentetik seriyle ayrıca test edilir.

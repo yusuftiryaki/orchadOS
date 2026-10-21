@@ -47,7 +47,6 @@ class WorkerError(RuntimeError):
 class RunOptions:
     write: bool = True
     wait: bool = True
-    allow_unblurred: bool = False
     # Only these trees (ids), e.g. for a trial run; None = all.
     tree_ids: frozenset[str] | None = None
     # At most this many new trees per run; None = all.
@@ -76,25 +75,21 @@ class RunReport:
         return asdict(self)
 
 
-def pick_crops(crops: list[Crop], allow_unblurred: bool) -> tuple[dict[str, dict[str, Crop]], int]:
-    """tree id -> direction -> crop to use; and how many crops were left out as unblurred.
+def pick_crops(crops: list[Crop]) -> dict[str, dict[str, Crop]]:
+    """tree id -> direction -> crop to use.
 
     Per direction the newest crop wins (a later pipeline version), then the higher
     quality score, then the asset id.
     """
     out: dict[str, dict[str, Crop]] = {}
-    unblurred = 0
     ordered = sorted(
         crops, key=lambda c: (c.produced_at, c.quality_score or 0.0, c.asset_id), reverse=True
     )
     for c in ordered:
         if c.direction not in DIRECTIONS:
             continue
-        if not c.blurred and not allow_unblurred:
-            unblurred += 1
-            continue
         out.setdefault(c.tree_id, {}).setdefault(c.direction, c)
-    return out, unblurred
+    return out
 
 
 def custom_id(stage: int, tree_id: str) -> str:
@@ -196,13 +191,11 @@ class Worker:
             if self.opts.write
             else set()
         )
-        crops, unblurred = pick_crops(self.catalog.crops(session.id), self.opts.allow_unblurred)
-        if unblurred:
-            report.skipped["unblurred_crops"] = unblurred
+        crops = pick_crops(self.catalog.crops(session.id))
         previous = self.catalog.previous_published_session(session)
         prev_crops: dict[str, dict[str, Crop]] = {}
         if previous is not None:
-            prev_crops, _ = pick_crops(self.catalog.crops(previous.id), self.opts.allow_unblurred)
+            prev_crops = pick_crops(self.catalog.crops(previous.id))
         staff = self.catalog.staff_answers(session.id)
 
         def skip(reason: str) -> None:

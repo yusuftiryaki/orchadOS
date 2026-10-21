@@ -101,7 +101,6 @@ def make_catalog(
     *,
     when=datetime(2027, 1, 12, 9, tzinfo=UTC),
     previous: bool = True,
-    blurred: bool = True,
     status: str = "processed",
 ) -> FakeCatalog:
     session = SessionInfo(
@@ -134,7 +133,6 @@ def make_catalog(
                         hashlib.sha256(data).hexdigest(),
                         0.8,
                         "2027-01-12T10:00:00+00:00",
-                        blurred,
                     )
                 )
     return cat

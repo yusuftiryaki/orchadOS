@@ -95,11 +95,6 @@ def upload_options(p: argparse.ArgumentParser, required: bool) -> None:
         help=f"comma separated kinds to upload: {', '.join(sorted(UPLOAD_KINDS))} "
         f"(default: {','.join(sorted(DEFAULT_KINDS))})",
     )
-    p.add_argument(
-        "--allow-unblurred",
-        action="store_true",
-        help="upload images that are not face-blurred; for synthetic data only",
-    )
     p.add_argument("--station", help="processing station name in station:// uris (default: host)")
 
 
@@ -107,7 +102,6 @@ def _upload(args, run_dir: Path, session_dir: Path | None) -> None:
     from .upload import UploadOptions, parse_kinds, upload_to_supabase
 
     opts = UploadOptions(
-        allow_unblurred=args.allow_unblurred,
         session_dir=session_dir,
         require_db_trees=args.trees_from_db,
     )

@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from .context import RunContext
 from .gpstime import gps_ns_to_iso
-from .imaging import ImageFilter, resize, write_image, write_json_file
+from .imaging import resize, write_image, write_json_file
 from .models import (
     FileRole,
     FrameCandidate,
@@ -44,10 +44,8 @@ def render_panoramas(
     ctx: RunContext,
     manifest: Manifest,
     selection: FrameSelection,
-    filters: list[ImageFilter] | None = None,
 ) -> PanoramaSet:
     p = ctx.params.panoramas
-    filters = filters or []
     video_sha = {f.path: f.sha256 for f in manifest.by_role(FileRole.video)}
     by_video: dict[str, dict[int, FrameCandidate]] = defaultdict(dict)
     for c in selection.selected():
@@ -60,8 +58,6 @@ def render_panoramas(
         wanted = by_video[video]
         for idx, frame in iter_frames(ctx.session_dir / video, set(wanted)):
             c = wanted[idx]
-            for flt in filters:
-                frame = flt.apply(frame)
             pid = panorama_id(c)
             full = write_image(
                 resize(frame, p.full_size),
@@ -96,7 +92,6 @@ def render_panoramas(
                 camera_s=c.camera_s,
                 image=full,
                 preview=preview,
-                filters_applied=[f.name for f in filters],
                 producer=producer,
             )
             records.append(rec)
@@ -119,8 +114,7 @@ def run(
     ctx: RunContext,
     manifest: Manifest,
     selection: FrameSelection,
-    filters: list[ImageFilter] | None = None,
 ) -> PanoramaSet:
-    pset = render_panoramas(ctx, manifest, selection, filters)
+    pset = render_panoramas(ctx, manifest, selection)
     write_model(pset, ctx.panoramas_path)
     return pset

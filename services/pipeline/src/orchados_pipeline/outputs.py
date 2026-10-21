@@ -17,7 +17,6 @@ from pydantic import Field
 from . import PIPELINE_NAME, __version__
 from .context import RunContext
 from .hashing import sha256_file
-from .imaging import FACE_BLUR
 from .models import (
     CropSet,
     CropStatus,
@@ -62,8 +61,6 @@ class AssetEntry(Model):
     pose: Pose | None = None
     quality_score: float | None = None
     subject: dict[str, str] | None = None  # e.g. {"tree_id": ..., "slot_code": ...}
-    # Image filters the pixels went through (panoramas and crops); see imaging.FACE_BLUR.
-    filters_applied: list[str] | None = None
     derived_from: Lineage
     producer_stage: str
 
@@ -158,7 +155,6 @@ def build_outputs(
             quality_score=rec.quality_score,
             producer_stage="panoramas",
             sidecar=side,
-            filters_applied=list(rec.filters_applied),
         )
         assets.append(
             AssetEntry(
@@ -179,7 +175,6 @@ def build_outputs(
             )
         )
 
-    pano_filters = {p.image.sha256: p.filters_applied for p in pset.panoramas}
     if cset is not None:
         for rec, side in zip(cset.crops, cset.sidecars, strict=True):
             assets.append(
@@ -197,7 +192,6 @@ def build_outputs(
                     },
                     derived_from=Lineage(assets=[rec.panorama_sha256]),
                     producer_stage="crops",
-                    filters_applied=list(pano_filters.get(rec.panorama_sha256, [])),
                 )
             )
 
@@ -207,8 +201,6 @@ def build_outputs(
             f"{len(cset.unlocated_slots)} active trees have no position yet, no crops: "
             + ", ".join(cset.unlocated_slots)
         )
-    if any(FACE_BLUR not in p.filters_applied for p in pset.panoramas):
-        warnings.append("panoramas are not face-blurred; do not publish before blurring")
     return Outputs(
         pipeline=PipelineRef(
             name=PIPELINE_NAME,
