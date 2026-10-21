@@ -62,3 +62,31 @@ jobs:
           name: orchados-saha-debug-apk
           path: apps/field/build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 7
+
+      # A second APK from main, wired to the Supabase test project, for trying
+      # the app on a phone with real sign-in, tasks and sync. URL and the
+      # publishable (anon) key come from repository secrets: the key is not
+      # secret, but it stays out of this file.
+      - name: Build test APK (Supabase test project)
+        if: github.ref == 'refs/heads/main'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::SUPABASE_URL and SUPABASE_ANON_KEY secrets are required for the test APK"
+            exit 1
+          fi
+          flutter build apk --debug \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_KEY="$SUPABASE_ANON_KEY"
+          cp build/app/outputs/flutter-apk/app-debug.apk \
+            build/app/outputs/flutter-apk/orchados-saha-test.apk
+
+      - name: Upload test APK
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchados-saha-test-apk
+          path: apps/field/build/app/outputs/flutter-apk/orchados-saha-test.apk
+          retention-days: 7
