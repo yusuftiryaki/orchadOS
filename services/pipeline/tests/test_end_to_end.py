@@ -59,7 +59,6 @@ def test_outputs_manifest(processed_run):
     assert side["producer"]["version"] == __version__
     assert side["image"]["sha256"] == pano.file.sha256
     assert {"lat", "lon", "heading_deg"} <= set(side["pose"])
-    assert any("face-blurred" in w for w in out.warnings)
 
 
 def test_rerun_is_deterministic(processed_run, tmp_path):

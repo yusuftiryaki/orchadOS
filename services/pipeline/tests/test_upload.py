@@ -14,7 +14,6 @@ from orchados_pipeline.hashing import sha256_file
 from orchados_pipeline.media import ImmutableObjectError, LocalMediaStore, media_key
 from orchados_pipeline.upload import (
     SessionRow,
-    UnblurredError,
     UploadError,
     UploadOptions,
     parse_kinds,
@@ -143,7 +142,7 @@ def run(processed_run):
     return (
         ctx.run_dir,
         out,
-        UploadOptions(allow_unblurred=True, station="ist-01", session_dir=ctx.session_dir),
+        UploadOptions(station="ist-01", session_dir=ctx.session_dir),
     )
 
 
@@ -272,34 +271,6 @@ def test_interrupted_upload_resumes(run, tmp_path, where):
     assert sorted(p.name for p in (tmp_path / "bucket").rglob("*") if p.is_file()) == sorted(
         p.name for p in (tmp_path / "ref").rglob("*") if p.is_file()
     )
-
-
-def test_unblurred_images_are_refused(run, tmp_path):
-    run_dir, _, opts = run
-    cat, store = FakeCatalog(), LocalMediaStore(tmp_path / "bucket")
-    opts.allow_unblurred = False
-    with pytest.raises(UnblurredError, match="not face-blurred"):
-        upload_run(run_dir, SESSION, cat, store, opts)
-    assert not cat.capture_rows and not cat.asset_rows and not (tmp_path / "bucket").exists()
-    assert cat.row.status == "captured"
-
-    # The trajectory alone carries no images.
-    opts.kinds = parse_kinds("trajectory")
-    assert upload_run(run_dir, SESSION, cat, store, opts).assets_created == 1
-
-
-def test_blurred_images_need_no_flag(run, tmp_path):
-    run_dir, _, opts = run
-
-    def blur(data):
-        for a in data["assets"]:
-            if a["filters_applied"] is not None:
-                a["filters_applied"] = ["face_blur"]
-
-    copy = _copy_run(run_dir, tmp_path / "run", blur)
-    opts.allow_unblurred = False
-    rep = upload_run(copy, SESSION, FakeCatalog(), LocalMediaStore(tmp_path / "b"), opts)
-    assert rep.assets_created > 0 and not any("blurring" in w for w in rep.warnings)
 
 
 @pytest.mark.parametrize(

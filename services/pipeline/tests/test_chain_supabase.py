@@ -122,7 +122,7 @@ def test_scan_to_owner(supabase_env, test_sessions, tmp_path, monkeypatch):
     steps.done("run --trees-from-db")
 
     upload = ["upload", str(run_dir), "--session-id", session_id, "--trees-from-db"]
-    assert main([*upload, "--allow-unblurred", "--station", "ci"]) == 0
+    assert main([*upload, "--station", "ci"]) == 0
     (row,) = ops.select("session", {"id": f"eq.{session_id}", "select": "status"})
     assert row["status"] == "processed"
     steps.done("upload; session processed")

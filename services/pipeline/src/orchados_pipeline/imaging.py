@@ -1,27 +1,14 @@
-"""Image encoding helpers and the hook for privacy / detection filters."""
+"""Image encoding helpers."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol
 
 import cv2
 import numpy as np
 
 from .hashing import sha256_bytes
 from .models import FileRef
-
-# Name of the face blurring filter. Panoramas and crops without it in filters_applied
-# must not leave the processing station (upload refuses them).
-FACE_BLUR = "face_blur"
-
-
-class ImageFilter(Protocol):
-    """Applied to each panorama before it is written (face blurring, later on GPU)."""
-
-    name: str
-
-    def apply(self, image: np.ndarray) -> np.ndarray: ...
 
 
 def encode(image: np.ndarray, ext: str, quality: int) -> bytes:

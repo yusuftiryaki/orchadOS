@@ -193,9 +193,7 @@ def test_upload_matches_database_crops_by_tree_id(processed_run, tmp_path):
         tmp_path / "run",
         lambda code: "old-tree" if code == "S1-1" else TREES.get(code, "gone"),
     )
-    opts = UploadOptions(
-        allow_unblurred=True, station="ist-01", session_dir=ctx.session_dir, require_db_trees=True
-    )
+    opts = UploadOptions(station="ist-01", session_dir=ctx.session_dir, require_db_trees=True)
     cat = FakeCatalog()
     rep = upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "bucket"), opts)
     crops = [r for r in cat.asset_rows if r["kind"] == "tree_crop"]
@@ -209,7 +207,7 @@ def test_upload_matches_database_crops_by_tree_id(processed_run, tmp_path):
 
 def test_upload_can_require_database_crops(processed_run, tmp_path):
     ctx, _, _ = processed_run
-    opts = UploadOptions(allow_unblurred=True, session_dir=ctx.session_dir, require_db_trees=True)
+    opts = UploadOptions(session_dir=ctx.session_dir, require_db_trees=True)
     cat = FakeCatalog()
     with pytest.raises(UploadError, match="trees-from-db"):
         upload_run(ctx.run_dir, SESSION, cat, LocalMediaStore(tmp_path / "bucket"), opts)

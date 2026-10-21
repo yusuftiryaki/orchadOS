@@ -56,7 +56,7 @@ def uploaded(supabase_env, test_sessions, tmp_path_factory):
     report = upload_to_supabase(
         ctx.run_dir,
         session_id,
-        UploadOptions(kinds=frozenset(UPLOAD_KINDS), allow_unblurred=True, station="ci"),
+        UploadOptions(kinds=frozenset(UPLOAD_KINDS), station="ci"),
         env=creds(supabase_env),
     )
     yield ops, session_id, ctx, out, report
@@ -69,7 +69,7 @@ def test_rows_and_objects_are_created(uploaded):
     assert report.captures_created == len(out.captures)
     assert report.assets_created == len(uploadable)
     assert report.objects_uploaded == len(uploadable)
-    assert not report.warnings[1:]  # only the face blurring note
+    assert not report.warnings
 
     captures = ops.select("capture", {"session_id": f"eq.{session_id}", "select": "id,uri"})
     assets = ops.select(
@@ -106,7 +106,7 @@ def test_second_upload_adds_nothing(uploaded, supabase_env, monkeypatch, capsys)
     count = len(ops.select("asset", {"session_id": f"eq.{session_id}", "select": "id"}))
     for k, v in creds(supabase_env).items():
         monkeypatch.setenv(k, v)
-    args = ["upload", str(ctx.run_dir), "--session-id", session_id, "--allow-unblurred"]
+    args = ["upload", str(ctx.run_dir), "--session-id", session_id]
     assert main([*args, "--only", ",".join(UPLOAD_KINDS), "--station", "ci"]) == 0
     printed = capsys.readouterr().out
     assert "captures: 0 created" in printed

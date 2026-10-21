@@ -288,7 +288,6 @@ class PanoramaRecord(Model):
     camera_s: float
     image: FileRef
     preview: FileRef
-    filters_applied: list[str] = Field(default_factory=list)
     producer: Producer
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
