@@ -109,6 +109,8 @@ describe("class per visit", () => {
 
   it("tells the owner who gave the class", () => {
     expect(approvalOf({ source: "expert", auto_approved: false })).toBe("expert");
+    // Bulk approval: an expert row flagged auto_approved (bulk_approve_trees).
+    expect(approvalOf({ source: "expert", auto_approved: true })).toBe("auto");
     expect(approvalOf({ source: "ai", auto_approved: true })).toBe("auto");
     expect(approvalOf({ source: "ai", auto_approved: false })).toBe("ai");
     expect(approvalOf({ source: "model", auto_approved: null })).toBe("model");

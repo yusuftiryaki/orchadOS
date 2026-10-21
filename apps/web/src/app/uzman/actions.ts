@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireSection } from "@/lib/auth/session";
-import { acceptAi, correctTree, publishSession, startReview } from "@/lib/expert/decisions";
+import {
+  acceptAi,
+  bulkApprove,
+  correctTree,
+  publishSession,
+  startReview,
+} from "@/lib/expert/decisions";
 import { createFinding, deleteFinding, updateFinding } from "@/lib/expert/findings";
 import { parseFilter, reviewHref, safeReturnPath, summaryHref, withParam } from "@/lib/expert/urls";
 import { createClient } from "@/lib/supabase/server";
@@ -87,6 +93,28 @@ export async function deleteFindingAction(form: FormData) {
   const supabase = await createClient();
   const result = await deleteFinding(supabase, sessionId, text(form, "findingId"));
   redirect(withParam(back, "bulgu_hata", result.ok ? null : result.error));
+}
+
+// Bulk approval of the remaining trees; back to the page it came from.
+export async function bulkApproveAction(form: FormData) {
+  await requireSection("uzman");
+  const sessionId = text(form, "sessionId");
+  const back = safeReturnPath(text(form, "return"), sessionId);
+  const raw = text(form, "expected");
+  const expected = raw === "" ? NaN : Number(raw);
+  const supabase = await createClient();
+  const result = await bulkApprove(
+    supabase,
+    sessionId,
+    Number.isInteger(expected) ? expected : undefined,
+  );
+  redirect(
+    withParam(
+      withParam(back, "toplu", result.ok ? String(result.approved) : null),
+      "toplu_hata",
+      result.ok ? null : result.error,
+    ),
+  );
 }
 
 export interface PublishState {

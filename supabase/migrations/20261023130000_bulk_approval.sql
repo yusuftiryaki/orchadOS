@@ -107,12 +107,12 @@ begin
               hint = 'Reload the visit; bulk approval only covers undecided trees.';
     end if;
 
-    -- Newest AI suggestion of the visit: model before ai, then the newest row
-    -- (the order of tree_latest_assessment within a session).
+    -- Newest AI (or model) suggestion of the visit: the one the expert panel
+    -- shows and "Accept AI" takes (newest row, then creation time, then id).
     select a.overall_class into v_class
     from public.assessment a
     where a.session_id = s.id and a.tree_id = v_tree_id and a.source in ('model', 'ai')
-    order by case a.source when 'model' then 0 else 1 end, a.assessed_at desc, a.created_at desc, a.id
+    order by a.assessed_at desc, a.created_at desc, a.id
     limit 1;
     if v_class is null then
       raise exception 'tree % has no AI suggestion in session %', v_code, s.id

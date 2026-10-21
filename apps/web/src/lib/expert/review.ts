@@ -575,3 +575,108 @@ export async function loadTreeDetail(
     previousExpert: ctx.previous ? pick(ctx.previous.id, ["expert"]) : null,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Bulk approval inputs
+// ---------------------------------------------------------------------------
+
+export interface BulkInput {
+  // Values of the newest AI suggestion, as "Accept AI" reads them for one tree.
+  aiValues: MeasurementValue[];
+  // Crops of the visit (evidence).
+  cropIds: string[];
+}
+
+// The same AI values and crops "Accept AI" uses (loadTreeDetail), for many
+// trees at once: whole-visit queries, filtered here.
+export async function loadBulkInputs(
+  supabase: Client,
+  sessionId: string,
+  treeIds: string[],
+): Promise<Map<string, BulkInput>> {
+  const wanted = new Set(treeIds);
+  const out = new Map<string, BulkInput>();
+  for (const id of treeIds) out.set(id, { aiValues: [], cropIds: [] });
+  if (wanted.size === 0) return out;
+
+  const [crops, assessments, measurements] = await Promise.all([
+    fetchAll((from, to) =>
+      supabase
+        .from("asset")
+        .select("id, tree_id")
+        .eq("session_id", sessionId)
+        .eq("kind", "tree_crop")
+        .not("tree_id", "is", null)
+        .order("id")
+        .range(from, to),
+    ),
+    fetchAll((from, to) =>
+      supabase
+        .from("assessment")
+        .select("id, tree_id, assessed_at, created_at, assessment_measurement(measurement_id)")
+        .eq("session_id", sessionId)
+        .in("source", ["ai", "model"])
+        .not("tree_id", "is", null)
+        .order("id")
+        .range(from, to),
+    ),
+    fetchAll((from, to) =>
+      supabase
+        .from("measurement")
+        .select(
+          "id, tree_id, metric_definition_id, value_numeric, value_scale, value_category, value_boolean, uncertainty, measured_at, created_at",
+        )
+        .eq("session_id", sessionId)
+        .in("source", ["ai", "algorithm"])
+        .not("tree_id", "is", null)
+        .order("id")
+        .range(from, to),
+    ),
+  ]);
+
+  for (const c of crops) if (wanted.has(c.tree_id!)) out.get(c.tree_id!)!.cropIds.push(c.id);
+
+  const valuesById = new Map(measurements.map((m) => [m.id, m]));
+  const byTree = <T extends { tree_id: string | null }>(rows: T[]) => {
+    const map = new Map<string, T[]>();
+    for (const r of rows) {
+      if (!r.tree_id || !wanted.has(r.tree_id)) continue;
+      if (!map.has(r.tree_id)) map.set(r.tree_id, []);
+      map.get(r.tree_id)!.push(r);
+    }
+    return map;
+  };
+  const assessmentsByTree = byTree(assessments);
+  const measurementsByTree = byTree(measurements);
+
+  for (const [treeId, input] of out) {
+    // The newest AI or model row of the visit (as loadTreeDetail and bulk_approve_trees).
+    const rows = assessmentsByTree.get(treeId) ?? [];
+    const best = newest(rows.map((r) => ({ ...r, time: r.assessed_at })));
+    if (!best) continue;
+    let values = best.assessment_measurement
+      .map((l) => valuesById.get(l.measurement_id))
+      .filter((m): m is NonNullable<typeof m> => m != null);
+    if (values.length === 0) {
+      const latest = new Map<string, (typeof measurements)[number]>();
+      for (const m of measurementsByTree.get(treeId) ?? []) {
+        const cur = latest.get(m.metric_definition_id);
+        const winner = newest([
+          ...(cur ? [{ ...cur, time: cur.measured_at }] : []),
+          { ...m, time: m.measured_at },
+        ]);
+        if (winner) latest.set(m.metric_definition_id, winner);
+      }
+      values = [...latest.values()];
+    }
+    input.aiValues = values.map((m) => ({
+      metric_definition_id: m.metric_definition_id,
+      value_numeric: m.value_numeric,
+      value_scale: m.value_scale,
+      value_category: m.value_category,
+      value_boolean: m.value_boolean,
+      uncertainty: m.uncertainty,
+    }));
+  }
+  return out;
+}

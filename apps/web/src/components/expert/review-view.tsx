@@ -4,6 +4,7 @@ import { isReviewable } from "@/lib/expert/review";
 import { FILTERS, matchesFilter, type Filter } from "@/lib/expert/summary";
 import { reviewHref, summaryHref } from "@/lib/expert/urls";
 import { formatDate, t } from "@/lib/i18n";
+import { BulkApprovePanel, type BulkMessages } from "./bulk-approve";
 import { ClassBadge } from "./class-badge";
 import { CropGrid } from "./crop-grid";
 import { DecisionPanel } from "./decision-panel";
@@ -17,6 +18,7 @@ export interface ReviewMessages {
   error: string | null;
   findingError: string | null;
   saved: boolean;
+  bulk: BulkMessages;
 }
 
 // Header of both visit pages: parcel, date, state, previous visit.
@@ -109,6 +111,12 @@ export function ReviewView({
           {messages.findingError}
         </p>
       )}
+
+      <BulkApprovePanel
+        ctx={ctx}
+        returnPath={reviewHref(s.id, { filter })}
+        messages={messages.bulk}
+      />
 
       <div className={styles.layout}>
         <aside className={styles.sidebar}>
