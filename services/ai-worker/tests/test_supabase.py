@@ -286,3 +286,39 @@ def test_field_staff_cannot_write_ai_rows(visit, supabase_env):
             )
     finally:
         field.close()
+
+
+def test_eval_against_expert_decisions(visit, supabase_env):
+    """Runs last: the expert accepts S1-1 and corrects S1-2; eval compares."""
+    from orchados_ai_worker.evaluate import evaluate
+
+    ops, session_id, trees, _, _, _ = visit
+    dead = ops.select("metric_definition", {"code": "eq.dead_branch_scale", "select": "id"})[0]
+    expert = client(supabase_env, "expert")
+    try:
+        for code, cls, value in (("S1-1", "healthy", 0), ("S1-2", "attention", 2)):
+            expert.rpc(
+                "save_expert_assessment",
+                {
+                    "p_session_id": session_id,
+                    "p_tree_id": trees[code],
+                    "p_overall_class": cls,
+                    "p_measurements": [
+                        {
+                            "metric_definition_id": dead["id"],
+                            "value_scale": value,
+                            "uncertainty": 0.5,
+                        }
+                    ],
+                    "p_evidence_asset_ids": [],
+                    "p_method_version": "methodology-v0",
+                },
+            )
+        r = evaluate(SupabaseCatalog(expert), session_ids=[session_id])
+    finally:
+        expert.close()
+    assert r["trees"] == 2
+    assert r["confusion"]["healthy"]["healthy"] == 1
+    assert r["confusion"]["problem"]["attention"] == 1
+    assert r["metrics"]["dead_branch_scale"]["exact"] == 1
+    assert r["mandatory_reasons"]["flagged_class"] == 1

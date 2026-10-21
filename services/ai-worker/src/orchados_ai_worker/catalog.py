@@ -227,3 +227,49 @@ class SupabaseCatalog:
 
     def save(self, args: dict[str, Any]) -> str:
         return self.db.rpc("save_ai_assessment", args)
+
+    # --- evaluation (evaluate.EvalSource) ----------------------------------------
+
+    def sessions_of_parcel(self, parcel_id: str) -> list[SessionInfo]:
+        rows = self.db.select(
+            "session",
+            {"parcel_id": f"eq.{parcel_id}", "kind": "neq.inventory", "select": SESSION_COLUMNS},
+        )
+        return sorted((self._session(r) for r in rows), key=lambda s: (s.time, s.id))
+
+    def assessments(self, session_id: str) -> list[dict[str, Any]]:
+        rows = self.db.select(
+            "assessment",
+            {
+                "session_id": f"eq.{session_id}",
+                "tree_id": "not.is.null",
+                "select": "id,tree_id,source,overall_class,confidence,model_name,auto_approved,"
+                "assessed_at,created_at,assessment_measurement(measurement_id)",
+            },
+        )
+        for r in rows:
+            r["links"] = [link["measurement_id"] for link in r.pop("assessment_measurement")]
+        return rows
+
+    def measurements(self, session_id: str) -> dict[str, dict[str, Any]]:
+        rows = self.db.select(
+            "measurement",
+            {
+                "session_id": f"eq.{session_id}",
+                "tree_id": "not.is.null",
+                "select": "id,metric_definition_id,value_numeric,value_scale,value_category,"
+                "value_boolean",
+            },
+        )
+        return {r["id"]: r for r in rows}
+
+    def ai_details(self, session_id: str) -> dict[str, dict[str, Any]]:
+        rows = self.db.select(
+            "ai_assessment_detail",
+            {
+                "session_id": f"eq.{session_id}",
+                "select": "assessment_id,flags,tree_visible,final_model",
+                "order": "assessment_id",
+            },
+        )
+        return {r["assessment_id"]: r for r in rows}
