@@ -236,6 +236,8 @@ class SyncWorker {
         return _sendMeasurement(entry.entityId);
       case OutboxEntity.verificationResult:
         return _sendVerificationResult(entry.entityId);
+      case OutboxEntity.parcelRoute:
+        return _sendParcelRoute(entry.entityId);
       default:
         throw SyncError.permanent('unknown_entity', entry.entityType);
     }
@@ -356,5 +358,12 @@ class SyncWorker {
     )..where((x) => x.id.equals(id))).getSingleOrNull();
     if (r == null) throw SyncError.permanent('local_record_missing', id);
     await server.recordVerificationResult(verificationResultParams(r));
+  }
+
+  Future<void> _sendParcelRoute(String id) async {
+    final r = await repository.routeRow(id);
+    if (r == null) throw SyncError.permanent('local_record_missing', id);
+    final version = await server.saveParcelRoute(parcelRouteParams(r));
+    await repository.markRouteSynced(id, version);
   }
 }

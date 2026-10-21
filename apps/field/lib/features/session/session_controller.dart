@@ -11,6 +11,10 @@ import '../coverage/coverage.dart';
 import '../gnss/gnss_logger.dart';
 import '../gnss/protocol/command_result.dart';
 import '../gnss/protocol/gnss_command.dart';
+import '../route/grid_route.dart';
+import '../route/route_guide.dart';
+import '../route/route_store.dart';
+import '../route/route_view.dart';
 import '../tasks/field_task.dart';
 
 enum SessionPhase { idle, starting, recording, stopping, stopped }
@@ -53,6 +57,7 @@ class SessionState {
     this.endQrShown = false,
     this.boundary = BoundaryCorners.empty,
     this.coverage,
+    this.route,
     this.busy = false,
     this.error,
   });
@@ -72,6 +77,9 @@ class SessionState {
   /// Coverage of the recording so far; null before the start.
   final CoverageView? coverage;
 
+  /// Grid route of the scan; null before the start and on tours.
+  final RouteView? route;
+
   /// A logger command is in flight.
   final bool busy;
 
@@ -89,6 +97,7 @@ class SessionState {
     bool? endQrShown,
     BoundaryCorners? boundary,
     CoverageView? coverage,
+    RouteView? route,
     bool? busy,
     String? Function()? error,
   }) => SessionState(
@@ -100,6 +109,7 @@ class SessionState {
     endQrShown: endQrShown ?? this.endQrShown,
     boundary: boundary ?? this.boundary,
     coverage: coverage ?? this.coverage,
+    route: route ?? this.route,
     busy: busy ?? this.busy,
     error: error != null ? error() : this.error,
   );
@@ -119,12 +129,26 @@ class SessionController extends Notifier<SessionState> {
 
   CoverageTracker? _tracker;
   StreamSubscription<GnssStatusSample>? _track;
+  RouteGuide? _guide;
+  StopGoWalk? _stopGo;
+  double? _crewAzimuthDeg;
+
+  /// Newest route of the parcel known on this phone (server or local).
+  StoredRoute? _known;
 
   /// Selects the task the next session belongs to.
   void selectTask(FieldTask task) {
     _stopTrack();
-    _tracker = null;
+    _resetRoute();
     state = SessionState(task: task);
+  }
+
+  void _resetRoute() {
+    _tracker = null;
+    _guide = null;
+    _stopGo = null;
+    _crewAzimuthDeg = null;
+    _known = null;
   }
 
   /// Follows the logger's positions while recording (coverage map).
@@ -136,7 +160,13 @@ class SessionController extends Notifier<SessionState> {
       final p = s.status.position;
       if (p == null || !ref.mounted) return;
       tracker.add(p, s.receivedAt);
-      state = state.copyWith(coverage: _view(tracker));
+      _guide?.add(p);
+      final beeped = _stopGo?.add(p) ?? false;
+      if (beeped) ref.read(beeperProvider).beep().ignore();
+      state = state.copyWith(
+        coverage: _view(tracker),
+        route: _routeView(beeped: beeped),
+      );
     }
 
     state = state.copyWith(coverage: _view(tracker));
@@ -154,6 +184,179 @@ class SessionController extends Notifier<SessionState> {
     covered: t.coveredCodes,
     here: t.lastPosition,
   );
+
+  /// The route view after a change of the guide or the stop-go counter.
+  RouteView? _routeView({bool beeped = false}) {
+    final view = state.route;
+    if (view == null) return null;
+    final now = ref.read(clockProvider).now();
+    final stop = _stopGo;
+    final until = view.stopUntil;
+    return view.copyWith(
+      guidance: () => _guide?.guidance,
+      beeps: stop?.beeps ?? view.beeps,
+      toNextBeepM: () => stop?.toNextM,
+      stopUntil: () => beeped && stop != null
+          ? now.add(stop.stopFor)
+          : until != null && now.isBefore(until)
+          ? until
+          : null,
+    );
+  }
+
+  // --- Route ---------------------------------------------------------------
+
+  /// The route of this visit. The parcel's stored route comes first, so
+  /// that every visit walks the same corridors; otherwise a route (or a
+  /// proposal) is laid out from what is known now. Routes whose direction
+  /// came from the slots or the parcel record are used right away; a
+  /// guessed or crew-set direction waits for [useRoute].
+  Future<void> _prepareRoute() async {
+    final task = state.task;
+    if (task == null || task.isVerification || !state.isRecording) return;
+    if (state.route?.committed ?? false) return;
+    final known = _known;
+    if (known != null && reuseRoute(known, task)) {
+      state = state.copyWith(
+        route: (state.route ?? const RouteView()).copyWith(
+          route: () => known.route,
+          missing: () => null,
+        ),
+      );
+      return _commit(known, isNew: false);
+    }
+    final ring = state.boundary.ring;
+    final g = generateGridRoute(
+      RouteInput.forTask(
+        task,
+        walkedBoundary: ring.length >= 3 ? ring : null,
+        crewAzimuthDeg: _crewAzimuthDeg,
+      ),
+    );
+    final view = (state.route ?? const RouteView()).copyWith(
+      route: () => g.route,
+      missing: () => g.missing,
+    );
+    state = state.copyWith(route: view);
+    if (g.route != null && !view.needsConfirmation) await useRoute();
+  }
+
+  /// The crew follows the laid-out route from now on. It is stored as the
+  /// parcel's next route version (sent with the visit).
+  Future<void> useRoute() async {
+    final task = state.task;
+    final view = state.route;
+    final route = view?.route;
+    if (task == null || view == null || route == null || view.committed) {
+      return;
+    }
+    final known = _known;
+    final id = routeId(task.parcelId, route.contentHash);
+    if (known != null && known.id == id) return _commit(known, isNew: false);
+    return _commit(
+      StoredRoute(
+        id: id,
+        parcelId: task.parcelId,
+        version: (known?.version ?? 0) + 1,
+        route: route,
+      ),
+      isNew: true,
+    );
+  }
+
+  Future<void> _commit(StoredRoute stored, {required bool isNew}) async {
+    final sessionId = state.sessionId;
+    final view = state.route;
+    if (sessionId == null || view == null || view.committed) return;
+    final guide = _guide = RouteGuide(stored.route);
+    final here = ref.read(gnssLoggerProvider).lastStatus?.status.position;
+    if (here != null) guide.add(here);
+    _known = stored;
+    state = state.copyWith(
+      route: view.copyWith(
+        route: () => stored.route,
+        committed: true,
+        stored: () => stored,
+        settingDirection: false,
+        firstTap: () => null,
+        guidance: () => guide.guidance,
+      ),
+    );
+    await ref
+        .read(fieldRepositoryProvider)
+        .saveRouteUse(
+          sessionId: sessionId,
+          route: stored,
+          isNew: isNew,
+          time: _now(),
+        );
+  }
+
+  /// Starts setting the row direction: two taps on the map along a row.
+  void startDirection() {
+    final view = state.route;
+    if (view == null || view.committed) return;
+    state = state.copyWith(
+      route: view.copyWith(settingDirection: true, firstTap: () => null),
+    );
+  }
+
+  void cancelDirection() {
+    final view = state.route;
+    if (view == null) return;
+    state = state.copyWith(
+      route: view.copyWith(settingDirection: false, firstTap: () => null),
+    );
+  }
+
+  /// A tap on the map while setting the direction.
+  Future<void> tapMap(GeoPoint p) async {
+    final view = state.route;
+    if (view == null || !view.settingDirection) return;
+    final first = view.firstTap;
+    if (first == null) {
+      state = state.copyWith(route: view.copyWith(firstTap: () => p));
+      return;
+    }
+    final az = azimuthFromTaps(first, p);
+    if (az == null) return;
+    _crewAzimuthDeg = az;
+    state = state.copyWith(
+      route: view.copyWith(settingDirection: false, firstTap: () => null),
+    );
+    await _prepareRoute();
+  }
+
+  /// Leaves the current corridor; it is listed as skipped.
+  void skipCorridor() {
+    _guide?.skip();
+    state = state.copyWith(route: _routeView());
+  }
+
+  /// Goes back to the previous corridor.
+  void previousCorridor() {
+    _guide?.back();
+    state = state.copyWith(route: _routeView());
+  }
+
+  /// "Dur-çek-yürü" on or off; counting starts at the current position.
+  void setStopGo(bool on) {
+    final view = state.route;
+    if (view == null) return;
+    final here = ref.read(gnssLoggerProvider).lastStatus?.status.position;
+    if (on) {
+      (_stopGo ??= StopGoWalk()).reset(here);
+    } else {
+      _stopGo = null;
+    }
+    state = state.copyWith(
+      route: view.copyWith(
+        stopGo: on,
+        toNextBeepM: () => _stopGo?.toNextM,
+        stopUntil: () => null,
+      ),
+    );
+  }
 
   void clearError() => state = state.copyWith(error: () => null);
 
@@ -221,8 +424,12 @@ class SessionController extends Notifier<SessionState> {
       sessionId: sessionId,
       startedAt: now,
       busy: false,
+      route: const RouteView(),
     );
     _startTrack(task);
+    _known = latestRoute(task.route, await repo.localRoute(task.parcelId));
+    if (!ref.mounted) return true;
+    await _prepareRoute();
     return true;
   }
 
@@ -272,6 +479,7 @@ class SessionController extends Notifier<SessionState> {
         ),
       ),
     );
+    await _prepareRoute();
     return true;
   }
 
@@ -330,6 +538,7 @@ class SessionController extends Notifier<SessionState> {
         );
     if (!ref.mounted) return;
     state = state.copyWith(boundary: next);
+    await _prepareRoute();
   }
 
   /// Called by the QR screen when the first QR frame is on screen: sends
@@ -390,6 +599,20 @@ class SessionController extends Notifier<SessionState> {
     _stopTrack();
     final repo = ref.read(fieldRepositoryProvider);
     final tracker = _tracker;
+    final guide = _guide;
+    if (guide != null) {
+      final progress = guide.progressJson();
+      await repo.addEvent(
+        sessionId: sessionId,
+        eventType: 'route_progress',
+        payload:
+            '${(progress['done']! as List).length}/'
+            '${progress['corridors_total']}',
+        time: time,
+        loggerResult: 'none',
+        data: progress,
+      );
+    }
     if (tracker != null && tracker.summary.trackPoints > 0) {
       final summary = tracker.summary;
       await repo.addEvent(
@@ -428,7 +651,7 @@ class SessionController extends Notifier<SessionState> {
     if (!ref.mounted) return;
     if (task != null) ref.read(completedTasksProvider.notifier).add(task.id);
     _stopTrack();
-    _tracker = null;
+    _resetRoute();
     state = const SessionState();
     // Send what the visit produced while the crew may still have signal.
     ref.read(syncWorkerProvider)?.syncNow().ignore();

@@ -1,6 +1,6 @@
 # apps/field — orchadOS Saha
 
-Saha personelinin kullandığı, çevrimdışı çalışan Android uygulaması (Flutter). Bu klasördeki sürüm İP6'nın parçasıdır: ekran akışı, BLE protokolü, QR saat, yerel veritabanı, gönderim kuyruğu, uygulama içi kamera, cihazda fotoğraf kalite kontrolü, sunucudan günün görevleri, çevrimdışı senkronizasyon ve envanterin saha tarafı (doğrulama turu, sınır yürüyüşünde köşe işaretleme, taramada kapsama haritası) hazır; rota ve harita altlığı sonraki adımlar.
+Saha personelinin kullandığı, çevrimdışı çalışan Android uygulaması (Flutter). Bu klasördeki sürüm İP6'nın parçasıdır: ekran akışı, BLE protokolü, QR saat, yerel veritabanı, gönderim kuyruğu, uygulama içi kamera, cihazda fotoğraf kalite kontrolü, sunucudan günün görevleri, çevrimdışı senkronizasyon ve envanterin saha tarafı (doğrulama turu, sınır yürüyüşünde köşe işaretleme, taramada kapsama haritası) ve sabit grid rotası (yönlendirme, dur-çek-yürü) hazır; harita altlığı sonraki adım.
 
 Bkz. [docs/plan.md](../../docs/plan.md) (İP6), [docs/MVP.md](../../docs/MVP.md) Modül 2 ve 3, [firmware/gnss-logger/README.md](../../firmware/gnss-logger/README.md) (BLE protokolü), [services/pipeline/README.md](../../services/pipeline/README.md) (QR saat kodu).
 
@@ -68,6 +68,8 @@ lib/
     verification/           Doğrulama turu ve kalem ekranı, yer tarifi (route_hint.dart)
     boundary/               Köşe modeli (boundary_corners.dart), Sınır ve Köşe ekranları
     coverage/               Kapsama hesabı (coverage.dart, saf Dart), kapsama kartı
+    route/                  Grid rotası: üretim (grid_route.dart) ve yönlendirme (route_guide.dart, saf Dart),
+                            saklı rota seçimi (route_store.dart), rota kartı, dur-çek-yürü bip sesi (beeper.dart)
     map/                    Çevrimdışı vektör harita (CustomPainter): sınır, yerler, iz, konum
     closeup/                Yakın plan ağaç listesi, ağaç gözlem formu, mevsimlik çekim/soru seti
     summary/                Ziyaret özeti
@@ -83,27 +85,28 @@ lib/
   | Tablo | Hedef model | Not |
   | --- | --- | --- |
   | `sessions` | Session (`session_type = scan`) | `id` aynı zamanda kaydedicinin `session_id`'si (SD karttaki klasör adı); metodoloji ve uygulama sürümü, kaydedici adı ve firmware sürümü |
-  | `session_events` | — (Session'ın olayları) | `session_start`, `corner`, `boundary_corners`, `qr_sync`, `coverage`, `session_stop`; GPS zamanı, zaman kaynağı, kaydedicinin yanıtı; ayrıntılar `data_json`'da (şema 4) |
+  | `session_events` | — (Session'ın olayları) | `session_start`, `corner`, `boundary_corners`, `qr_sync`, `route`, `route_progress`, `coverage`, `session_stop`; GPS zamanı, zaman kaynağı, kaydedicinin yanıtı; ayrıntılar `data_json`'da (şema 4) |
   | `captures` | Capture (`closeup_photo`, `phone_camera`) | Birincil anahtar dosyanın SHA-256'sı; satır güncellenmez. Çekim zamanı (`gps_time_ms` + `time_source`), kalite kontrolü sonucu ve sürümü (`qc_*`, şema 2) |
   | `measurements` | Measurement (`source = staff`) | Evet/hayır cevabı `value_boolean` (sunucudaki sütunla aynı ad); `method = field_question`, `method_version` soru setinin sürümü; kanıt fotoğrafların hash listesi |
   | `outbox_entries` | — | Gönderilmeyi bekleyenler kuyruğu; her kayıtla aynı işlemde eklenir. `sent_at` (gönderildi), `failed_at` + `last_error` (sunucu kalıcı olarak reddetti), `attempts` |
   | `task_cache` | — | Kullanıcı başına son indirilen görev listesi (JSON; yerler, sınır ve doğrulama kalemleri dahil); çevrimdışı kullanılır |
+  | `parcel_routes` | ParcelRoute (`public.parcel_route`) | Bu telefonda oluşturulan rota sürümleri (şema 5): kimlik, parsel, sürüm (gönderilince sunucununki), içerik hash'i, üretici sürümü, rota JSON'u, ilk kullanan ziyaret, `synced`. Gönderilmeden ikinci bir ziyaret aynı rotayı buradan alır |
   | `verification_results` | `record_verification_result` çağrısı | Doğrulama kalemi sonucu (şema 4): kalem, ağaç var/yok, not, yakın planın hash'i. Aynı kaleme ikinci sonuç yeni satırdır; en yenisi geçerli |
 
   Personel adı ya da telefonu tutulmaz; yalnızca giriş yapan kullanıcının kimliği (`operator_id`).
 - **Fotoğraf:** Sadece uygulama içi kamera (`FieldCamera`) var; galeriden seçim yolu yok. Kalite kontrolünden geçen ve personelin **Kullan** dediği fotoğrafın SHA-256'sı hesaplanır, dosya `media/<sha256>.jpg` olarak bir kez yazılır. Reddedilen fotoğraf hiçbir yere yazılmaz. Veritabanı satırları ağaç kaydedilirken cevaplarla aynı işlemde eklenir; kaydedilmeden yeniden çekilen fotoğrafın dosyası silinir.
-- **Şema sürümü:** 4. Sürüm 1'den geçişte `captures` tablosuna `qc_*` sütunları eklenir (eski satırlarda boş). Sürüm 3'te `measurements.value_bool` → `value_boolean` adını alır, `outbox_entries.failed_at` ve `task_cache` eklenir. Sürüm 4'te `session_events.data_json` ve `verification_results` eklenir.
+- **Şema sürümü:** 5. Sürüm 1'den geçişte `captures` tablosuna `qc_*` sütunları eklenir (eski satırlarda boş). Sürüm 3'te `measurements.value_bool` → `value_boolean` adını alır, `outbox_entries.failed_at` ve `task_cache` eklenir. Sürüm 4'te `session_events.data_json` ve `verification_results` eklenir. Sürüm 5'te `parcel_routes` eklenir.
 
 ## Ekranlar
 
 1. **Giriş:** e-posta + parola (geliştirme).
 2. **Bugünkü görevler:** üstte gönderim kartı (bekleyen, gönderilen, başarısız sayısı, durum satırı, **Şimdi gönder**); altında parsel, köy, alan, envanter, periyodik ziyaret ya da doğrulama turu, mevsim, yakın plan ağaç sayısı (turda "3 / 12 kaleme bakıldı"), planlanan gün ve "Size atanmış". Sunucuya ulaşılamazsa son indirilen liste ve bir not gösterilir; aşağı çekince liste yenilenir. Bu telefonda kaydedilmiş ziyaret "Tamamlandı" görünür; doğrulama turu bütün kalemlerine bakılınca. Doğrulama turu ön kontrolsüz, doğrudan tur ekranına açılır.
 3. **Ön kontrol:** kaydediciye bağlan; batarya, SD kart ve GNSS durumu BLE'den otomatik; lens temizliği ve kamera kaydı personel onayıyla. Hepsi tamam olmadan devam edilemez.
-4. **Oturum:** canlı GNSS paneli (bağlantı, kayıt ve yazılan veri, fix ve uydu, RTK ve doğruluk, PPS, SD, batarya, saat kaynağı) ve kayıt başlayınca **kapsama kartı** (aşağıda). Sıra zorunlu: Kaydı başlat → Başlangıç QR → (envanterde) **Sınır** → Bitiş QR → Kaydı durdur. Kayıt sürerken geri tuşu kapalı. Kaydedici kaydı kendisi durdurursa (SD dolu/hatalı) uyarı çıkar. Envanterde kayıt durduktan sonra da köşeler düzenlenebilir.
+4. **Oturum:** canlı GNSS paneli (bağlantı, kayıt ve yazılan veri, fix ve uydu, RTK ve doğruluk, PPS, SD, batarya, saat kaynağı) ve kayıt başlayınca **rota kartı** ve **kapsama kartı** (aşağıda, "Rota" ve "Kapsama"). Sıra zorunlu: Kaydı başlat → Başlangıç QR → (envanterde) **Sınır** → Bitiş QR → Kaydı durdur. Kayıt sürerken geri tuşu kapalı. Kaydedici kaydı kendisi durdurursa (SD dolu/hatalı) uyarı çıkar. Envanterde kayıt durduktan sonra da köşeler düzenlenebilir.
 5. **QR saat:** tam ekran QR, UTC saat, QR metni, zaman kaynağı şeridi, `qr_sync` gönderim sonucu.
 6. **Yakın plan görevi:** ağaç listesi (yer kodu ve seçilme nedeni). Ağaç formu: 2–3 çekim ("böyle çek" örneği ve referans görsel yeriyle) ve 3–4 evet/hayır sorusu (her biri referans görsel yeriyle). Zorunlu çekimler ve tüm sorular tamamlanmadan kaydedilemez. Uyarıyla kabul edilen fotoğraf "Çekildi (uyarıyla)" diye görünür.
 7. **Çekim ekranı:** üstte referans görsel ve "Böyle çek: …" yönergesi, ortada canlı önizleme (dokunulan yere odak ve pozlama), altta deklanşör. Çekimden sonra fotoğraf, kalite sonucu ve **Kullan** / **Yeniden çek**. Ret durumunda yalnızca **Yeniden çek** var.
-8. **Ziyaret özeti:** kayıt süresi, QR sayısı (telefon saatiyle gösterilenler ayrıca), köşe sayısı ve yaklaşık alan (envanter), kapsama ("Yerlerin %96'sının 4 m yakınından geçildi"; %95'in altında kırmızı uyarı ve kaçırılan yerler), ağaç, fotoğraf, cevap; bu ziyaretin gönderim kartı (hepsi gidince "Bu ziyaretin her şeyi gönderildi"). **Ziyareti bitir** gönderimi başlatır.
+8. **Ziyaret özeti:** kayıt süresi, QR sayısı (telefon saatiyle gösterilenler ayrıca), köşe sayısı ve yaklaşık alan (envanter), rota ("12 / 24 koridor" ve atlanan koridorlar), kapsama ("Yerlerin %96'sının 4 m yakınından geçildi"; %95'in altında kırmızı uyarı ve kaçırılan yerler), ağaç, fotoğraf, cevap; bu ziyaretin gönderim kartı (hepsi gidince "Bu ziyaretin her şeyi gönderildi"). **Ziyareti bitir** gönderimi başlatır.
 9. **Sınır** (envanter): canlı konum kalitesi, büyük **Köşe** düğmesi, köşelerden çizilen yaklaşık poligon ve alan, köşe listesi (yukarı/aşağı, **Son köşeyi sil**). Köşeye dokununca **Köşe** ekranı: sınır işareti (sınır taşı, çit, duvar, yol, komşu bahçe, diğer), fotoğraf, not.
 10. **Doğrulama turu:** "3 / 12 kaleme bakıldı", gönderilemeyenler (kırmızı, sade mesajla), açık kalemler (yürüme sırasıyla; kod, yer tarifi, nedenler, ofisin notu, konum varsa uzaklık ve yön), bakılanlar; turun gönderim kartı ve **Turu bitir**.
 11. **Kalem:** yer tarifi ve canlı uzaklık, nedenler ve ofisin notu, kayıttaki durum (ağaç var / boş yer), **Ağaç var** / **Ağaç yok**, isteğe bağlı yakın plan, not, **Kaydet**.
@@ -136,6 +139,7 @@ Her kayıt yerel veritabanına yazılırken aynı işlemde kuyruğa (`outbox_ent
 | Yakın plan fotoğrafı (`capture`) | Dosya: `media` alanında `org/<org_id>/parcel/<parcel_id>/<sha256>`; satır: `public.capture` (`kind = photo`) | Önce dosya (aynı yol zaten varsa yüklenmiş sayılır), sonra satır: `on conflict (session_id, content_hash) do nothing`. Satır kimliği `uuid v5(oturum/sha256)`. Telefona özgü alanlar `metadata`'da: çekim kodu, yer kodu, GPS zamanı, zaman kaynağı, kalite kontrolü |
 | Personel cevabı (`measurement`) | `public.measurement`, `source = staff` | Kimlik telefondan; `on conflict (id) do nothing`. Evet/hayır → `value_boolean`; `metric_definition_id` koddan bulunur |
 | Sınır işareti fotoğrafı, doğrulama yakın planı (`capture`) | Yakın plan fotoğrafıyla aynı | `tree_id` yok; `metadata.local_kind` `boundary_photo` (`corner_event_id`) ya da `verification_photo` (`slot_id`) |
+| Grid rotası (`parcel_route`) | `save_parcel_route(p_id, p_parcel_id, p_session_id, p_route, p_content_hash)` → `public.parcel_route` | Ziyaret satırından sonra, `route` olayından önce kuyruğa girer. Dönen sürüm telefondaki satıra yazılır (başka telefon önce sakladıysa bir üst sürüm olur). `not_found`, `forbidden`, `session_invalid`, `invalid_input` kalıcı hatadır |
 | Doğrulama sonucu (`verification_result`) | `record_verification_result(p_item_id, p_tree_present, p_note, p_closeup_capture_id)` | Fotoğraf önce gider (aynı işlemde, önce kuyruğa girer). `item_closed`, `not_found`, `forbidden`, `invalid_input` kalıcı hatadır; nedeni turda sade bir mesajla görünür |
 
 - **Tekrar güvenli:** Bütün kimlikler telefonda üretilir; aynı kaydın ikinci gönderimi hata vermez, yeni satır açmaz. Uygulama yazmayla `markSent` arasında kapansa da sunucuda tek kayıt olur.
@@ -195,6 +199,46 @@ Kayıt başlayınca oturum ekranında kapsama kartı açılır:
 - **Kayıt:** kayıt durdurulurken (kaydediciden en az bir konum geldiyse) `coverage` olayı yazılır: oran, biten sıra ve dik koridorlar, kaçırılan yer kodları, iz uzunluğu. Özet ekranı bunu okur. İz noktaları telefonda yalnızca bellekte tutulur (ham GNSS SD kartla gelir).
 - **Harita paketi yok:** çizim `CustomPainter` ile, kuzey yukarı, ölçek çubuğuyla; altlık (uydu/OSM karoları) yok. Böylece internet olmadan aynı çalışır ve lisans gerekmez. Altlık istenirse `flutter_map` (BSD-3) ve çevrimdışı karo paketi eklenebilir; OSM karolarının kullanım koşulları toplu indirmeye izin vermediği için kendi karo kaynağı gerekir.
 
+## Rota
+
+MVP Modül 3: her parselin sabit bir grid rotası vardır; önce sıra boyunca bütün koridorlar, sonra dik koridorlar, en son kenarlar. Biçim ve saklama: [docs/arayuzler.md](../../docs/arayuzler.md), "Grid rotası".
+
+**Üretim** (`lib/features/route/grid_route.dart`, saf Dart, `grid-route-v1`). Hesap, sıra yönüne döndürülmüş yerel düzlemde yapılır (`u` sıra boyunca, `v` sıralara dik).
+
+- **Sıra yönü**, öncelik sırasıyla: konumlu yerler (her sıranın ilk ve son yerinden ortalama yön), `parcel.row_azimuth_deg`, personelin haritada iki dokunuşla belirlediği yön, sınırın en uzun kenarı (tahmin).
+- **Envanter sonrası** (aynı sırada en az iki konumlu yer): her sıranın çizgisi o sıranın yerlerinin medyanından; ara ağaçlar (S5-12a) dışarıda. Sıra aralığı komşu sıra çizgileri arasındaki farkların medyanı, ağaç aralığı pozisyon adımı başına fark (eksik yer iki adım sayılır). Sıra boyu koridorlar iki komşu sıranın tam ortasından (tek sıra varsa iki yanından), uç ağaçların `max(ağaç aralığı / 2, 4 m)` ötesine kadar. Dik koridorlar pozisyon çiftlerinin (1–2, 3–4, …) ortasından: iki pozisyon da kapsama yarıçapında (4 m) kaldıkça bir koridor iki pozisyona yeter, yoksa her aralığa bir koridor; tek kalan son pozisyon son aralığı paylaşır. Eksik ve ara ağaçlar koridorları kaydırmaz.
+- **Envanter öncesi** (ilk tarama): sınır (sunucudaki son sürüm, yoksa bu oturumun köşeleri) ve sıra yönü. Aralık `sqrt(alan / parcel.estimated_tree_count)` (4–12 m), bilinmiyorsa 8 m. Sıra boyu koridorlar kenardan bir aralık içeriden başlayıp her aralıkta bir; dik koridorlar iki aralıkta bir.
+- **Kırpma:** her koridor sınırın içinde kalan en uzun parçasıdır, sınırdan 1,5 m içeride biter; 2 m'den kısa olanlar atılır. Sınır yoksa yerlerin çevresindeki dikdörtgen kullanılır.
+- **Kenarlar:** sınır 1,5 m içeri alınır ve 30°'den keskin dönen köşelerden kenar koridorlarına bölünür (eğri bir sınır çoklu çizgi olur).
+- **Sıra (serpantin):** başlangıç köşesi `parcel.numbering_origin_corner` (yoksa güneybatı). Sıra boyu koridorlar o köşeye yakın taraftan başlar, her koridora bir öncekinin bittiği uca yakın uçtan girilir (gidiş-dönüş); dikler son sıra boyu koridorun bittiği taraftan, kenarlar son dik koridorun bitişine en yakın köşeden ve oradan yakın olan yönde.
+- **Sabitlik:** girdi sırası (yerlerin sırası, sınırın başlangıç köşesi ve yönü) sonucu değiştirmez; koordinatlar 1e-7°'ye, ölçüler 0,01 m'ye yuvarlanır; aynı girdi aynı JSON ve aynı SHA-256'yı verir.
+
+**Hangi rota** (`route_store.dart`): kayıt başlarken parselin en yeni rotası (sunucudan indirilen ya da bu telefonda oluşturulup henüz gönderilmemiş) aynen kullanılır. İstisna: o rota envanterden önce sınırdan üretildiyse ve parselde artık konumlu yerler varsa yeni (envanter) rota üretilir. Rota yoksa üretilir ve bir sonraki sürüm olarak saklanır. Sıra yönü yer konumlarından ya da parsel kaydından geliyorsa rota hemen kullanılır; tahmin ya da personel yönüyse rota kesik çizgiyle **öneri** olarak çizilir, personel **Yönü düzelt** (haritada aynı sıranın iki ucuna dokunur) ve **Rotayı kullan** der. Kullanılmaya başlanan rota `route` olayıyla kaydedilir; ziyaret boyunca değişmez (yeni köşe eklense de).
+
+**Rota kartı** (oturum ekranı):
+
+- Sıradaki koridor ("4. S3 ile S4 arası", türü), "3 / 24 koridor bitti · 1 atlandı", parselin rota sürümü.
+- Koridora girmeden: başlangıcına uzaklık ve yön ("Koridorun başına 38 m, kuzeydoğuda"; 3 m içinde "başındasınız"). Koridorda: yürünen oran. Başladıktan sonra koridordan 6 m'den fazla uzaklaşınca kırmızı uyarı ("Koridordan 9 m saptınız").
+- Kalan koridor sayısı, mesafe (kalan koridorlar ve aralarındaki geçişler) ve süre (1,2 m/sn).
+- **Atla** (koridor "atlandı" olur, sıradakine geçilir) ve **Önceki koridor** (bir öncekine dönülür, o koridor baştan sayılır). Atlananlar ziyaret özetinde listelenir.
+- **Harita:** kapsama haritasının üstünde koridorlar: sıradaki kalın mavi, bitenler soluk yeşil, atlananlar kesik kırmızı, kalanlar ince.
+- **Koridor bitti:** koridorun %95'i, koridora 4 m'den yakın konumlarla (her iki yönde) yüründüyse. 30 m'den büyük sıçramanın arası sayılmaz. Yalnızca sıradaki koridor izlenir.
+- **Dur-çek-yürü** (taşlı bölümler): anahtar açılınca her 4 m yürüyüşte bip (Android `ToneGenerator`, `MainActivity`'deki `orchados/beep` kanalı, ses paketi yok) ve titreşim; kartta 2 sn "DUR", sonra "Yürü · sonraki bip 1,6 m". 0,3 m'den kısa adımlar (yerinde GNSS gürültüsü) sayılmaz. Anahtar kapatılabilir.
+- **Kayıt:** kayıt durdurulurken `route_progress` olayı (biten, atlanan, kalan koridorlar).
+
+### Rotayı telefonda deneme
+
+**Sunucusuz** (`flutter run --dart-define=FAKE_GNSS=true --dart-define=FAKE_CAMERA=true`):
+
+1. "Kızılburç P-12 · Periyodik ziyaret" → ön kontrol → **Kaydı başlat**. Rota kartı "1. S1 ile S2 arası" ve başlangıca uzaklık göstermeli; haritada 9 sıra boyu, 11 dik, 4 kenar koridoru, ilki kalın mavi. Sahte kaydedici koridorlarda yürüdükçe ilk koridor soluklaşmalı, sayaç "1 / 24 koridor bitti" olmalı. (Sahte yürüyüş rotadan farklı bir sıra izler; arada sapma uyarısı görmek normal.)
+2. **Atla** → sıradaki koridor değişir, haritada atlanan kesik kırmızı; **Önceki koridor** → geri döner.
+3. **Dur-çek-yürü**'yü aç: her 4 m'de bip ve "DUR". Kapat: bip durur.
+4. Bitiş QR → durdur → özette "Rota … koridor" ve atlananlar.
+5. Bu telefonda oluşturulan rota `parcel_routes`'ta kalır; aynı parselin sonraki ziyaretleri onu kullanır (sunucusuz ikinci ziyaret için aşağıdaki yerel Supabase adımı).
+6. **Envanter öncesi:** "Yukarıbayır P-31 · Envanter" → başlat → kartta "Rota için parselin sınırı gerekli". Sınır adımında 4 köşe işaretle: rota kesik çizgiyle öneri olarak çıkar. **Yönü düzelt** → haritada bir sıranın iki ucuna dokun → çizgiler döner → **Rotayı kullan**.
+
+**Yerel Supabase'e karşı** (`pnpm db:start && pnpm db:reset`, yukarıda "Telefonda çalıştırma", 5. adım): örnek parsele iki periyodik ziyaret planla. Birincisini yap ve gönder: `parcel_route`'ta sürüm 1 ve `session_event`'te `route` ile `route_progress` satırları olmalı. Listeyi yenile, ikinci ziyareti başlat: aynı rota ("sürüm 1") gelmeli; başka bir telefonda da aynısı.
+
 ## Kamera ve kalite kontrolü
 
 **Kamera** (`PluginFieldCamera`, `camera` paketi): arka kamera, 1080p (`ResolutionPreset.veryHigh`), ses kapalı (mikrofon izni istenmez), **flaş kapalı** (her çekimden önce yeniden kapatılır), otomatik odak ve pozlama. Önizlemeye dokunulan nokta odak ve pozlama noktası olur (telefon desteklemiyorsa sessizce atlanır). Uygulama arka plana geçince kamera bırakılır, dönünce yeniden açılır. Eklentinin önbelleğe yazdığı dosya okunduktan sonra silinir; uygulama yalnızca hash'li kopyayı tutar.
@@ -234,7 +278,7 @@ Eşikler bu kümelerin arasına, iki yana pay bırakarak kondu. **Bunlar senteti
 
 ## Testler
 
-`flutter test` (143 test; iki entegrasyon testi ortam değişkeni yoksa atlanır):
+`flutter test` (186 test; üç entegrasyon testi ortam değişkeni yoksa atlanır):
 
 - `test/unit/gnss_protocol_test.dart`: firmware README'sindeki üç komut örneği (`01 07 03 53 2D 31 04 50 2D 31 32` vb.) bayt bayt kodlama ve çözme; firmware birim testindeki 31 baytlık durum vektörü ve 0.2.0'ın 39 baytlık `gps_time_ns`'li biçimi; varsayılan durum; kısa/yanlış sürüm mesajları; sona eklenmiş alanlar; geçersiz argümanlar ve firmware'in sonuç kodları.
 - `test/unit/qr_payload_test.dart`: işleme hattı README örneği (`OQ1:1476435618200:synth-00`), etiket kuralları.
@@ -262,6 +306,11 @@ Eşikler bu kümelerin arasına, iki yana pay bırakarak kondu. **Bunlar senteti
 - `test/widget/boundary_test.dart`: köşe işaretleme (4 köşe, yanlış sıra → sıfır alan, sıra düzeltme → 1 000 m², beşinci köşeyi silme, sınır işareti + fotoğraf + not, yerel olaylar ve fotoğraf satırı, özet), konum bloğu olmayan kaydediciyle köşe.
 - `test/unit/coverage_test.dart`: kapsama kuralı (bütün sıra koridorları, dik koridorlar, 3,9/4,1 m sınırı, zaman boşluğu ve sıçrama, yerinde durma, yer konumu yokken iz, olay verisi, Türkçe yüzde ekleri).
 - `test/widget/coverage_test.dart`: kapsama göstergesi (harita katmanları, oran cümlesi, uyarı, sıra ve dik koridor sayıları, durduktan sonra iz eklenmemesi, `coverage` olayı, özetteki oran ve kaçırılan yerler), konumsuz kaydedici.
+- `test/unit/grid_route_test.dart`: rota üretimi: dikdörtgen parsel (koridor sırası ve konumları, serpantin, kırpma, kenarlar), döndürülmüş parsel (32°), eksik ve ara ağaçlı sıralar (koridorlar kaymaz), sınırsız envanter, tek sayıda pozisyon, başlangıç köşesi; envanter öncesi (parsel kaydından yön, ağaç sayısından aralık; yön yokken sınırın en uzun kenarı, personelin iki dokunuşu; öncelik sırası; oturumda yürünen sınır; alan yok); sabitlik (aynı girdi aynı JSON ve hash, yer sırası ve sınır başlangıcından bağımsız, JSON gidiş-dönüş).
+- `test/unit/route_guide_test.dart`: başlangıca uzaklık ve yön, kalan mesafe ve süre, koridor bitince sıradaki (serpantin), yürünen oran, sapma uyarısı (5 m yok, 9 m var), ters yönde yürüme, başka koridorda yürüme, atla ve geri (sayaçlar, bitiş, sondan geri), sıçrama; dur-çek-yürü (4 m'de bip, yerinde durma, sıçrama, sıfırlama).
+- `test/unit/route_store_test.dart`: rota kimliği, hangi rotanın kullanılacağı (envanter rotası kalır, sınır rotası envanterden sonra değişir), sunucu/telefon en yenisi, görev önbelleğinde rota; yerel kayıt, `route` olayı, kuyruk sırası, `save_parcel_route` ve sunucunun verdiği sürüm, tekrar gönderim, kalıcı hata.
+- `test/widget/route_test.dart`: rota kartı ve haritadaki koridorlar, koridoru yürüyünce sıradaki, sapma uyarısı, atla/geri, `route_progress` ve özette atlananlar; dur-çek-yürü (bip, "DUR", kapatma); ilk envanter (sınır gelince öneri, iki dokunuşla yön, **Rotayı kullan**, sonra sabit); saklı rotanın aynen kullanılması; ilk rotanın saklanıp aynı telefondaki ikinci ziyarette kullanılması; sınırdan üretilmiş rotanın envanterden sonra yeni sürümle değişmesi.
+- `test/integration/route_supabase_test.dart`: yerel Supabase'de ziyaret, rota saklama (`save_parcel_route`), `route` olayı ve sonraki ziyaretin aynı rotayı indirmesi.
 - `test/integration/verification_supabase_test.dart`: yerel Supabase'de ops bir tur açar; saha kullanıcısı turu indirir (kalemler, nedenler, GeoJSON yer konumları), ofis bir kalemi kapatır, personel üçüne bakar (biri fotoğraflı); iki sonuç ve fotoğraf yazılır, kapatılmış kalem `item_closed` ile reddedilir, tur `captured` olur.
 
 ## Telefonda çalıştırma (yerelde)
@@ -366,7 +415,8 @@ Sonuçlar eşik ayarı için not edilmeli (ölçümler veritabanında `captures.
 - **Kapsama telefonda yaklaşık:** PPK öncesi konum ve basit 4 m kuralı; panoramaların kalitesi ve gerçek görüş hesaba katılmaz. İz noktaları kalıcı değil: uygulama kayıt sırasında kapanırsa kapsama sıfırdan başlar (zaten oturum da yeniden başlatılamıyor).
 - **Doğrulama turunda pusula yok:** yön kuzeye göre yazılır; telefonun baktığı yöne göre ok gösterilmiyor.
 - **Aynı ziyaret aynı telefonda bir kez kaydedilir.** Kayıt yarıda kalırsa (telefon kapandı) yeniden başlatmak için ofisin yeni ziyaret planlaması gerekir.
-- **Rota, harita altlığı ve "dur-çek-yürü" modu yok** (MVP Modül 3). Kapsama haritası vektör çizimdir.
+- **Harita altlığı yok** (MVP Modül 3). Kapsama ve rota haritası vektör çizimdir.
+- **Rota:** sıra yönü ve aralığı envanter öncesi tahmindir; personel yönü düzeltebilir ama aralığı değiştiremez. Sapma ve koridor bitişi PPK öncesi konumla yaklaşıktır. Kenar koridorları sınırı 1,5 m içeriden izler; çit, ağaç ya da kuyu gibi engeller bilinmez. Rota ziyaret ortasında değiştirilemez; yanlış bir rota sürümü ancak ofis yeni bir sürüm eklerse (henüz arayüzü yok) düzelir. Sahte kaydedicinin yürüyüşü rotayı izlemez. Bip sesi `ToneGenerator` ile; cihazda denenmedi.
 - **Sesli not, hava durumu, ekipman seri numaraları** ziyaret kaydına henüz eklenmedi.
 - **Ekran parlaklığı:** QR ekranında parlaklık otomatik artırılmıyor.
 - **flutter_blue_plus lisansı:** paket kişisel, kâr amacı gütmeyen ve eğitim kullanımında ücretsiz; ticari kullanım için ücretli lisans gerekir. Kod `License.nonprofit` ile derleniyor (`flutter_blue_gnss_logger.dart`). Ticari kullanıma geçmeden önce lisans alınmalı ya da BLE paketi değiştirilmeli (yalnızca `FlutterBlueGnssLogger` değişir).

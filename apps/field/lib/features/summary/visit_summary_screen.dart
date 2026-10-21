@@ -21,6 +21,7 @@ class VisitSummary {
     this.boundaryAreaM2,
     required this.qrSyncs,
     this.coverage,
+    this.route,
     required this.qrOnPhoneClock,
     required this.treesDone,
     required this.treesPlanned,
@@ -38,6 +39,9 @@ class VisitSummary {
 
   /// `data` of the recording's `coverage` event; null without positions.
   final Map<String, Object?>? coverage;
+
+  /// `data` of the recording's `route_progress` event; null without a route.
+  final Map<String, Object?>? route;
 
   /// QR codes shown with the phone clock (no GPS time from the logger).
   final int qrOnPhoneClock;
@@ -65,6 +69,7 @@ final visitSummaryProvider = FutureProvider.autoDispose<VisitSummary?>((
   final qr = events.where((e) => e.eventType == 'qr_sync');
   final boundary = BoundaryCorners.fromEvents(events);
   final coverage = events.where((e) => e.eventType == 'coverage').lastOrNull;
+  final route = events.where((e) => e.eventType == 'route_progress').lastOrNull;
   return VisitSummary(
     startedAt: session?.startedAt,
     stoppedAt: session?.stoppedAt,
@@ -74,6 +79,9 @@ final visitSummaryProvider = FutureProvider.autoDispose<VisitSummary?>((
     coverage: coverage?.dataJson == null
         ? null
         : (jsonDecode(coverage!.dataJson!) as Map).cast<String, Object?>(),
+    route: route?.dataJson == null
+        ? null
+        : (jsonDecode(route!.dataJson!) as Map).cast<String, Object?>(),
     qrOnPhoneClock: qr
         .where((e) => e.timeSource == TimeSource.phone.code)
         .length,
@@ -155,6 +163,7 @@ class VisitSummaryScreen extends ConsumerWidget {
                             value: areaLabel(s.boundaryAreaM2!),
                             health: Health.ok,
                           ),
+                        ..._routeLines(s.route),
                         ..._coverageLines(s.coverage),
                         StatusLine(
                           icon: Icons.park,
@@ -207,6 +216,35 @@ class VisitSummaryScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// "Rota 12 / 14 koridor" and the skipped corridors.
+  static List<Widget> _routeLines(Map<String, Object?>? r) {
+    if (r == null) return const [];
+    final total = r['corridors_total']! as int;
+    final done = (r['done']! as List).length;
+    final skipped = [
+      for (final l in r['skipped_labels'] as List? ?? const []) '$l',
+    ];
+    final numbers = [for (final n in r['skipped']! as List) '$n'];
+    return [
+      StatusLine(
+        icon: Icons.alt_route,
+        label: 'Rota',
+        value: '$done / $total koridor',
+        health: done == total ? Health.ok : Health.warn,
+      ),
+      if (skipped.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 6),
+          child: Text(
+            'Atlanan koridorlar: '
+            '${[for (var i = 0; i < skipped.length; i++) '${numbers[i]}. ${skipped[i]}'].join(', ')}.',
+            key: const Key('summary-route-skipped'),
+            style: TextStyle(fontSize: 16, color: Colors.orange.shade900),
+          ),
+        ),
+    ];
   }
 
   /// "Kapsama %96 (4 m)" and the sentence; a warning below the threshold.

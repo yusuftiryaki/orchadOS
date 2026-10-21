@@ -42,6 +42,9 @@ class FakeSyncServer implements SyncServer {
   /// `record_verification_result` calls in order (newest result counts).
   final List<Map<String, Object?>> verificationResults = [];
 
+  /// Stored routes: parcel → versions in order (`save_parcel_route`).
+  final Map<String, List<Map<String, Object?>>> routes = {};
+
   /// Media objects by path.
   final Map<String, Uint8List> objects = {};
 
@@ -152,5 +155,21 @@ class FakeSyncServer implements SyncServer {
     final reason = refuse?.call('record_verification_result', params);
     if (reason != null) throw SyncError.permanent(reason, 'refused by test');
     verificationResults.add(params);
+  }
+
+  /// Same rule as the database function: a known id returns its version,
+  /// a new route gets the parcel's next version.
+  @override
+  Future<int> saveParcelRoute(Map<String, Object?> params) async {
+    await _call('rpc:save_parcel_route');
+    final reason = refuse?.call('save_parcel_route', params);
+    if (reason != null) throw SyncError.permanent(reason, 'refused by test');
+    final list = routes[params['p_parcel_id']! as String] ??= [];
+    for (final r in list) {
+      if (r['p_id'] == params['p_id']) return r['version']! as int;
+    }
+    final version = list.length + 1;
+    list.add({...params, 'version': version});
+    return version;
   }
 }

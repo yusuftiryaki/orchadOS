@@ -19,14 +19,31 @@ class MapDot {
   final String? label;
 }
 
+/// A line to draw under the track (route corridor).
+class MapLine {
+  const MapLine(
+    this.points, {
+    required this.color,
+    this.width = 3,
+    this.dashed = false,
+  });
+
+  final List<GeoPoint> points;
+  final Color color;
+  final double width;
+  final bool dashed;
+}
+
 class VectorMap extends StatelessWidget {
   const VectorMap({
     super.key,
     this.boundary,
     this.draft,
+    this.lines = const [],
     this.dots = const [],
     this.tracks = const [],
     this.here,
+    this.onTap,
     this.height = 280,
   });
 
@@ -35,6 +52,9 @@ class VectorMap extends StatelessWidget {
 
   /// Boundary being walked: corners in order, closed with a dashed edge.
   final List<GeoPoint>? draft;
+
+  /// Route corridors, drawn in list order (last on top).
+  final List<MapLine> lines;
   final List<MapDot> dots;
 
   /// Walked track pieces (gaps are separate pieces).
@@ -42,11 +62,15 @@ class VectorMap extends StatelessWidget {
 
   /// Current receiver position.
   final GeoPoint? here;
+
+  /// Called with the tapped map position (setting the row direction).
+  final void Function(GeoPoint)? onTap;
   final double height;
 
   bool get _hasGeometry =>
       (boundary?.isNotEmpty ?? false) ||
       (draft?.isNotEmpty ?? false) ||
+      lines.any((l) => l.points.isNotEmpty) ||
       dots.isNotEmpty ||
       tracks.any((t) => t.isNotEmpty) ||
       here != null;
@@ -62,7 +86,24 @@ class VectorMap extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: _hasGeometry
-          ? CustomPaint(painter: _MapPainter(this, scheme), size: Size.infinite)
+          ? LayoutBuilder(
+              builder: (context, box) {
+                final paint = CustomPaint(
+                  painter: _MapPainter(this, scheme),
+                  size: Size.infinite,
+                );
+                final tap = onTap;
+                if (tap == null) return paint;
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapUp: (d) {
+                    final frame = _MapFrame.of(this, box.biggest);
+                    if (frame != null) tap(frame.geo(d.localPosition));
+                  },
+                  child: paint,
+                );
+              },
+            )
           : const Center(
               child: Text(
                 'Haritada gösterilecek konum yok',
@@ -73,45 +114,81 @@ class VectorMap extends StatelessWidget {
   }
 }
 
-class _MapPainter extends CustomPainter {
-  _MapPainter(this.map, this.scheme);
-
-  final VectorMap map;
-  final ColorScheme scheme;
+/// Local plane → screen: north up, everything in view, at least 20 m
+/// across.
+class _MapFrame {
+  _MapFrame._(
+    this.proj,
+    this.minE,
+    this.maxN,
+    this.scale,
+    this.offX,
+    this.offY,
+  );
 
   static const double _pad = 16;
 
-  @override
-  void paint(Canvas canvas, Size size) {
+  final LocalProjection proj;
+  final double minE;
+  final double maxN;
+  final double scale;
+  final double offX;
+  final double offY;
+
+  static _MapFrame? of(VectorMap map, Size size) {
     final all = <GeoPoint>[
       ...?map.boundary,
       ...?map.draft,
+      for (final l in map.lines) ...l.points,
       for (final d in map.dots) d.at,
       for (final t in map.tracks) ...t,
       ?map.here,
     ];
-    if (all.isEmpty) return;
+    if (all.isEmpty) return null;
     final proj = LocalProjection(all.first);
     final pts = [for (final p in all) proj.toLocal(p)];
     final loE = pts.map((p) => p.e).reduce(math.min);
     final hiE = pts.map((p) => p.e).reduce(math.max);
     final loN = pts.map((p) => p.n).reduce(math.min);
     final hiN = pts.map((p) => p.n).reduce(math.max);
-    // At least 20 m across, so a single point does not fill the screen.
     final spanE = math.max(hiE - loE, 20.0);
     final spanN = math.max(hiN - loN, 20.0);
-    final minE = (loE + hiE) / 2 - spanE / 2;
-    final maxN = (loN + hiN) / 2 + spanN / 2;
     final scale = math.min(
       (size.width - 2 * _pad) / spanE,
       (size.height - 2 * _pad) / spanN,
     );
-    final offX = (size.width - spanE * scale) / 2;
-    final offY = (size.height - spanN * scale) / 2;
-    Offset xy(GeoPoint g) {
-      final v = proj.toLocal(g);
-      return Offset(offX + (v.e - minE) * scale, offY + (maxN - v.n) * scale);
-    }
+    return _MapFrame._(
+      proj,
+      (loE + hiE) / 2 - spanE / 2,
+      (loN + hiN) / 2 + spanN / 2,
+      scale,
+      (size.width - spanE * scale) / 2,
+      (size.height - spanN * scale) / 2,
+    );
+  }
+
+  Offset xy(GeoPoint g) {
+    final v = proj.toLocal(g);
+    return Offset(offX + (v.e - minE) * scale, offY + (maxN - v.n) * scale);
+  }
+
+  GeoPoint geo(Offset o) => proj.toGeo(
+    Enu((o.dx - offX) / scale + minE, maxN - (o.dy - offY) / scale),
+  );
+}
+
+class _MapPainter extends CustomPainter {
+  _MapPainter(this.map, this.scheme);
+
+  final VectorMap map;
+  final ColorScheme scheme;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final frame = _MapFrame.of(map, size);
+    if (frame == null) return;
+    final xy = frame.xy;
+    final scale = frame.scale;
 
     final boundary = map.boundary;
     if (boundary != null && boundary.length >= 3) {
@@ -147,6 +224,23 @@ class _MapPainter extends CustomPainter {
         canvas.drawLine(p[i - 1], p[i], edge);
       }
       if (p.length >= 3) _dashed(canvas, p.last, p.first, edge);
+    }
+
+    for (final l in map.lines) {
+      if (l.points.length < 2) continue;
+      final paint = Paint()
+        ..color = l.color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = l.width
+        ..strokeCap = StrokeCap.round;
+      final p = [for (final g in l.points) xy(g)];
+      for (var i = 1; i < p.length; i++) {
+        if (l.dashed) {
+          _dashed(canvas, p[i - 1], p[i], paint);
+        } else {
+          canvas.drawLine(p[i - 1], p[i], paint);
+        }
+      }
     }
 
     final trackPaint = Paint()
