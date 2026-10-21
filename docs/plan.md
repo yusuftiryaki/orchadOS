@@ -119,7 +119,7 @@ Bunlar takvimi bekletebilecek, başkasına bağlı işler. İlk iki hafta içind
 - [ ] Uzman (ziraat mühendisi) ile ön görüşme
 - [ ] 1–4 pilot bahçe sahibinin sözlü onayı; envanter tarihleri
 - [ ] KVKK metinleri için hukukçu görüşü
-- [x] İşleme istasyonu: pilotta bulut (22 Ekim). Ofisin yükleme hızı 99 Mbps; 90 GB'lık bir ziyaret ~2 saatte yüklenir. Bulut hesabı açılacak
+- [x] İşleme istasyonu: pilotta bulut (22 Ekim). Ofisin yükleme hızı 99 Mbps; 90 GB'lık bir ziyaret ~2 saatte yüklenir. Sağlayıcı sonra seçilecek; araçlar AWS, Azure ve Google Cloud'u destekleyecek (`docs/gorevler/bulut-isleme.md`)
 
 ## Geride kalınırsa kesilecekler
 

@@ -88,10 +88,10 @@ flowchart LR
 
 ## İşleme pilotta bulutta (karar 22 Ekim 2026)
 
-Pilotta işleme istasyonu satın alınmaz; iş bulutta, iş başına açılıp kapanan GPU'lu bir sanal makinede yapılır.
+Pilotta işleme istasyonu satın alınmaz; iş bulutta, iş başına açılıp kapanan GPU'lu bir sanal makinede yapılır. **Sağlayıcı seçilmedi:** depo ve işlem katmanı sağlayıcıdan bağımsızdır (AWS, Azure, Google Cloud; ya da yerel bilgisayar), seçim yapılandırmayla yapılır.
 
 1. **Ofis:** Kameranın kartı ve kaydedicinin microSD'si bir bilgisayara takılır. Yükleme aracı oturum klasörünü sağlama toplamıyla buluttaki ham veri deposuna gönderir.
-    - Depo: AB bölgesi, S3 uyumlu.
+    - Depo: AB bölgesi; S3 uyumlu ya da Azure Blob.
     - Yükleme kaldığı yerden devam eder.
     - Ofisin yükleme hızı 99 Mbps; 90 GB'lık bir ziyaret ~2 saat sürer, gece yüklenebilir.
 2. **Bulut:** GPU'lu sanal makine açılır.
