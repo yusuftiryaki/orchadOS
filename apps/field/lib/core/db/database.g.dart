@@ -2742,18 +2742,18 @@ class $MeasurementsTable extends Measurements
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _valueBoolMeta = const VerificationMeta(
-    'valueBool',
+  static const VerificationMeta _valueBooleanMeta = const VerificationMeta(
+    'valueBoolean',
   );
   @override
-  late final GeneratedColumn<bool> valueBool = GeneratedColumn<bool>(
-    'value_bool',
+  late final GeneratedColumn<bool> valueBoolean = GeneratedColumn<bool>(
+    'value_boolean',
     aliasedName,
     true,
     type: DriftSqlType.bool,
     requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("value_bool" IN (0, 1))',
+      'CHECK ("value_boolean" IN (0, 1))',
     ),
   );
   static const VerificationMeta _valueNumMeta = const VerificationMeta(
@@ -2856,7 +2856,7 @@ class $MeasurementsTable extends Measurements
     subjectType,
     subjectId,
     metricCode,
-    valueBool,
+    valueBoolean,
     valueNum,
     valueText,
     unit,
@@ -2919,10 +2919,13 @@ class $MeasurementsTable extends Measurements
     } else if (isInserting) {
       context.missing(_metricCodeMeta);
     }
-    if (data.containsKey('value_bool')) {
+    if (data.containsKey('value_boolean')) {
       context.handle(
-        _valueBoolMeta,
-        valueBool.isAcceptableOrUnknown(data['value_bool']!, _valueBoolMeta),
+        _valueBooleanMeta,
+        valueBoolean.isAcceptableOrUnknown(
+          data['value_boolean']!,
+          _valueBooleanMeta,
+        ),
       );
     }
     if (data.containsKey('value_num')) {
@@ -3027,9 +3030,9 @@ class $MeasurementsTable extends Measurements
         DriftSqlType.string,
         data['${effectivePrefix}metric_code'],
       )!,
-      valueBool: attachedDatabase.typeMapping.read(
+      valueBoolean: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
-        data['${effectivePrefix}value_bool'],
+        data['${effectivePrefix}value_boolean'],
       ),
       valueNum: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
@@ -3082,7 +3085,10 @@ class MeasurementRow extends DataClass implements Insertable<MeasurementRow> {
   final String subjectType;
   final String subjectId;
   final String metricCode;
-  final bool? valueBool;
+
+  /// Yes/no answer; `measurement.value_boolean` on the server (schema 3
+  /// renamed it from `value_bool`).
+  final bool? valueBoolean;
   final double? valueNum;
   final String? valueText;
   final String? unit;
@@ -3106,7 +3112,7 @@ class MeasurementRow extends DataClass implements Insertable<MeasurementRow> {
     required this.subjectType,
     required this.subjectId,
     required this.metricCode,
-    this.valueBool,
+    this.valueBoolean,
     this.valueNum,
     this.valueText,
     this.unit,
@@ -3125,8 +3131,8 @@ class MeasurementRow extends DataClass implements Insertable<MeasurementRow> {
     map['subject_type'] = Variable<String>(subjectType);
     map['subject_id'] = Variable<String>(subjectId);
     map['metric_code'] = Variable<String>(metricCode);
-    if (!nullToAbsent || valueBool != null) {
-      map['value_bool'] = Variable<bool>(valueBool);
+    if (!nullToAbsent || valueBoolean != null) {
+      map['value_boolean'] = Variable<bool>(valueBoolean);
     }
     if (!nullToAbsent || valueNum != null) {
       map['value_num'] = Variable<double>(valueNum);
@@ -3155,9 +3161,9 @@ class MeasurementRow extends DataClass implements Insertable<MeasurementRow> {
       subjectType: Value(subjectType),
       subjectId: Value(subjectId),
       metricCode: Value(metricCode),
-      valueBool: valueBool == null && nullToAbsent
+      valueBoolean: valueBoolean == null && nullToAbsent
           ? const Value.absent()
-          : Value(valueBool),
+          : Value(valueBoolean),
       valueNum: valueNum == null && nullToAbsent
           ? const Value.absent()
           : Value(valueNum),
@@ -3187,7 +3193,7 @@ class MeasurementRow extends DataClass implements Insertable<MeasurementRow> {
       subjectType: serializer.fromJson<String>(json['subjectType']),
       subjectId: serializer.fromJson<String>(json['subjectId']),
       metricCode: serializer.fromJson<String>(json['metricCode']),
-      valueBool: serializer.fromJson<bool?>(json['valueBool']),
+      valueBoolean: serializer.fromJson<bool?>(json['valueBoolean']),
       valueNum: serializer.fromJson<double?>(json['valueNum']),
       valueText: serializer.fromJson<String?>(json['valueText']),
       unit: serializer.fromJson<String?>(json['unit']),
@@ -3208,7 +3214,7 @@ class MeasurementRow extends DataClass implements Insertable<MeasurementRow> {
       'subjectType': serializer.toJson<String>(subjectType),
       'subjectId': serializer.toJson<String>(subjectId),
       'metricCode': serializer.toJson<String>(metricCode),
-      'valueBool': serializer.toJson<bool?>(valueBool),
+      'valueBoolean': serializer.toJson<bool?>(valueBoolean),
       'valueNum': serializer.toJson<double?>(valueNum),
       'valueText': serializer.toJson<String?>(valueText),
       'unit': serializer.toJson<String?>(unit),
@@ -3227,7 +3233,7 @@ class MeasurementRow extends DataClass implements Insertable<MeasurementRow> {
     String? subjectType,
     String? subjectId,
     String? metricCode,
-    Value<bool?> valueBool = const Value.absent(),
+    Value<bool?> valueBoolean = const Value.absent(),
     Value<double?> valueNum = const Value.absent(),
     Value<String?> valueText = const Value.absent(),
     Value<String?> unit = const Value.absent(),
@@ -3243,7 +3249,7 @@ class MeasurementRow extends DataClass implements Insertable<MeasurementRow> {
     subjectType: subjectType ?? this.subjectType,
     subjectId: subjectId ?? this.subjectId,
     metricCode: metricCode ?? this.metricCode,
-    valueBool: valueBool.present ? valueBool.value : this.valueBool,
+    valueBoolean: valueBoolean.present ? valueBoolean.value : this.valueBoolean,
     valueNum: valueNum.present ? valueNum.value : this.valueNum,
     valueText: valueText.present ? valueText.value : this.valueText,
     unit: unit.present ? unit.value : this.unit,
@@ -3265,7 +3271,9 @@ class MeasurementRow extends DataClass implements Insertable<MeasurementRow> {
       metricCode: data.metricCode.present
           ? data.metricCode.value
           : this.metricCode,
-      valueBool: data.valueBool.present ? data.valueBool.value : this.valueBool,
+      valueBoolean: data.valueBoolean.present
+          ? data.valueBoolean.value
+          : this.valueBoolean,
       valueNum: data.valueNum.present ? data.valueNum.value : this.valueNum,
       valueText: data.valueText.present ? data.valueText.value : this.valueText,
       unit: data.unit.present ? data.unit.value : this.unit,
@@ -3294,7 +3302,7 @@ class MeasurementRow extends DataClass implements Insertable<MeasurementRow> {
           ..write('subjectType: $subjectType, ')
           ..write('subjectId: $subjectId, ')
           ..write('metricCode: $metricCode, ')
-          ..write('valueBool: $valueBool, ')
+          ..write('valueBoolean: $valueBoolean, ')
           ..write('valueNum: $valueNum, ')
           ..write('valueText: $valueText, ')
           ..write('unit: $unit, ')
@@ -3315,7 +3323,7 @@ class MeasurementRow extends DataClass implements Insertable<MeasurementRow> {
     subjectType,
     subjectId,
     metricCode,
-    valueBool,
+    valueBoolean,
     valueNum,
     valueText,
     unit,
@@ -3335,7 +3343,7 @@ class MeasurementRow extends DataClass implements Insertable<MeasurementRow> {
           other.subjectType == this.subjectType &&
           other.subjectId == this.subjectId &&
           other.metricCode == this.metricCode &&
-          other.valueBool == this.valueBool &&
+          other.valueBoolean == this.valueBoolean &&
           other.valueNum == this.valueNum &&
           other.valueText == this.valueText &&
           other.unit == this.unit &&
@@ -3353,7 +3361,7 @@ class MeasurementsCompanion extends UpdateCompanion<MeasurementRow> {
   final Value<String> subjectType;
   final Value<String> subjectId;
   final Value<String> metricCode;
-  final Value<bool?> valueBool;
+  final Value<bool?> valueBoolean;
   final Value<double?> valueNum;
   final Value<String?> valueText;
   final Value<String?> unit;
@@ -3370,7 +3378,7 @@ class MeasurementsCompanion extends UpdateCompanion<MeasurementRow> {
     this.subjectType = const Value.absent(),
     this.subjectId = const Value.absent(),
     this.metricCode = const Value.absent(),
-    this.valueBool = const Value.absent(),
+    this.valueBoolean = const Value.absent(),
     this.valueNum = const Value.absent(),
     this.valueText = const Value.absent(),
     this.unit = const Value.absent(),
@@ -3388,7 +3396,7 @@ class MeasurementsCompanion extends UpdateCompanion<MeasurementRow> {
     required String subjectType,
     required String subjectId,
     required String metricCode,
-    this.valueBool = const Value.absent(),
+    this.valueBoolean = const Value.absent(),
     this.valueNum = const Value.absent(),
     this.valueText = const Value.absent(),
     this.unit = const Value.absent(),
@@ -3415,7 +3423,7 @@ class MeasurementsCompanion extends UpdateCompanion<MeasurementRow> {
     Expression<String>? subjectType,
     Expression<String>? subjectId,
     Expression<String>? metricCode,
-    Expression<bool>? valueBool,
+    Expression<bool>? valueBoolean,
     Expression<double>? valueNum,
     Expression<String>? valueText,
     Expression<String>? unit,
@@ -3433,7 +3441,7 @@ class MeasurementsCompanion extends UpdateCompanion<MeasurementRow> {
       if (subjectType != null) 'subject_type': subjectType,
       if (subjectId != null) 'subject_id': subjectId,
       if (metricCode != null) 'metric_code': metricCode,
-      if (valueBool != null) 'value_bool': valueBool,
+      if (valueBoolean != null) 'value_boolean': valueBoolean,
       if (valueNum != null) 'value_num': valueNum,
       if (valueText != null) 'value_text': valueText,
       if (unit != null) 'unit': unit,
@@ -3453,7 +3461,7 @@ class MeasurementsCompanion extends UpdateCompanion<MeasurementRow> {
     Value<String>? subjectType,
     Value<String>? subjectId,
     Value<String>? metricCode,
-    Value<bool?>? valueBool,
+    Value<bool?>? valueBoolean,
     Value<double?>? valueNum,
     Value<String?>? valueText,
     Value<String?>? unit,
@@ -3471,7 +3479,7 @@ class MeasurementsCompanion extends UpdateCompanion<MeasurementRow> {
       subjectType: subjectType ?? this.subjectType,
       subjectId: subjectId ?? this.subjectId,
       metricCode: metricCode ?? this.metricCode,
-      valueBool: valueBool ?? this.valueBool,
+      valueBoolean: valueBoolean ?? this.valueBoolean,
       valueNum: valueNum ?? this.valueNum,
       valueText: valueText ?? this.valueText,
       unit: unit ?? this.unit,
@@ -3503,8 +3511,8 @@ class MeasurementsCompanion extends UpdateCompanion<MeasurementRow> {
     if (metricCode.present) {
       map['metric_code'] = Variable<String>(metricCode.value);
     }
-    if (valueBool.present) {
-      map['value_bool'] = Variable<bool>(valueBool.value);
+    if (valueBoolean.present) {
+      map['value_boolean'] = Variable<bool>(valueBoolean.value);
     }
     if (valueNum.present) {
       map['value_num'] = Variable<double>(valueNum.value);
@@ -3547,7 +3555,7 @@ class MeasurementsCompanion extends UpdateCompanion<MeasurementRow> {
           ..write('subjectType: $subjectType, ')
           ..write('subjectId: $subjectId, ')
           ..write('metricCode: $metricCode, ')
-          ..write('valueBool: $valueBool, ')
+          ..write('valueBoolean: $valueBoolean, ')
           ..write('valueNum: $valueNum, ')
           ..write('valueText: $valueText, ')
           ..write('unit: $unit, ')
@@ -3659,6 +3667,17 @@ class $OutboxEntriesTable extends OutboxEntries
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _failedAtMeta = const VerificationMeta(
+    'failedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> failedAt = GeneratedColumn<DateTime>(
+    'failed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3669,6 +3688,7 @@ class $OutboxEntriesTable extends OutboxEntries
     lastError,
     lastAttemptAt,
     sentAt,
+    failedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3736,6 +3756,12 @@ class $OutboxEntriesTable extends OutboxEntries
         sentAt.isAcceptableOrUnknown(data['sent_at']!, _sentAtMeta),
       );
     }
+    if (data.containsKey('failed_at')) {
+      context.handle(
+        _failedAtMeta,
+        failedAt.isAcceptableOrUnknown(data['failed_at']!, _failedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -3777,6 +3803,10 @@ class $OutboxEntriesTable extends OutboxEntries
         DriftSqlType.dateTime,
         data['${effectivePrefix}sent_at'],
       ),
+      failedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}failed_at'],
+      ),
     );
   }
 
@@ -3797,6 +3827,10 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
   final String? lastError;
   final DateTime? lastAttemptAt;
   final DateTime? sentAt;
+
+  /// Set when the server refused the record for good (permission,
+  /// validation); [lastError] keeps the reason. Not retried automatically.
+  final DateTime? failedAt;
   const OutboxEntry({
     required this.id,
     required this.entityType,
@@ -3806,6 +3840,7 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
     this.lastError,
     this.lastAttemptAt,
     this.sentAt,
+    this.failedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3823,6 +3858,9 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
     }
     if (!nullToAbsent || sentAt != null) {
       map['sent_at'] = Variable<DateTime>(sentAt);
+    }
+    if (!nullToAbsent || failedAt != null) {
+      map['failed_at'] = Variable<DateTime>(failedAt);
     }
     return map;
   }
@@ -3843,6 +3881,9 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
       sentAt: sentAt == null && nullToAbsent
           ? const Value.absent()
           : Value(sentAt),
+      failedAt: failedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(failedAt),
     );
   }
 
@@ -3860,6 +3901,7 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
       lastError: serializer.fromJson<String?>(json['lastError']),
       lastAttemptAt: serializer.fromJson<DateTime?>(json['lastAttemptAt']),
       sentAt: serializer.fromJson<DateTime?>(json['sentAt']),
+      failedAt: serializer.fromJson<DateTime?>(json['failedAt']),
     );
   }
   @override
@@ -3874,6 +3916,7 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
       'lastError': serializer.toJson<String?>(lastError),
       'lastAttemptAt': serializer.toJson<DateTime?>(lastAttemptAt),
       'sentAt': serializer.toJson<DateTime?>(sentAt),
+      'failedAt': serializer.toJson<DateTime?>(failedAt),
     };
   }
 
@@ -3886,6 +3929,7 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
     Value<String?> lastError = const Value.absent(),
     Value<DateTime?> lastAttemptAt = const Value.absent(),
     Value<DateTime?> sentAt = const Value.absent(),
+    Value<DateTime?> failedAt = const Value.absent(),
   }) => OutboxEntry(
     id: id ?? this.id,
     entityType: entityType ?? this.entityType,
@@ -3897,6 +3941,7 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
         ? lastAttemptAt.value
         : this.lastAttemptAt,
     sentAt: sentAt.present ? sentAt.value : this.sentAt,
+    failedAt: failedAt.present ? failedAt.value : this.failedAt,
   );
   OutboxEntry copyWithCompanion(OutboxEntriesCompanion data) {
     return OutboxEntry(
@@ -3912,6 +3957,7 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
           ? data.lastAttemptAt.value
           : this.lastAttemptAt,
       sentAt: data.sentAt.present ? data.sentAt.value : this.sentAt,
+      failedAt: data.failedAt.present ? data.failedAt.value : this.failedAt,
     );
   }
 
@@ -3925,7 +3971,8 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
           ..write('attempts: $attempts, ')
           ..write('lastError: $lastError, ')
           ..write('lastAttemptAt: $lastAttemptAt, ')
-          ..write('sentAt: $sentAt')
+          ..write('sentAt: $sentAt, ')
+          ..write('failedAt: $failedAt')
           ..write(')'))
         .toString();
   }
@@ -3940,6 +3987,7 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
     lastError,
     lastAttemptAt,
     sentAt,
+    failedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -3952,7 +4000,8 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
           other.attempts == this.attempts &&
           other.lastError == this.lastError &&
           other.lastAttemptAt == this.lastAttemptAt &&
-          other.sentAt == this.sentAt);
+          other.sentAt == this.sentAt &&
+          other.failedAt == this.failedAt);
 }
 
 class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
@@ -3964,6 +4013,7 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
   final Value<String?> lastError;
   final Value<DateTime?> lastAttemptAt;
   final Value<DateTime?> sentAt;
+  final Value<DateTime?> failedAt;
   const OutboxEntriesCompanion({
     this.id = const Value.absent(),
     this.entityType = const Value.absent(),
@@ -3973,6 +4023,7 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
     this.lastError = const Value.absent(),
     this.lastAttemptAt = const Value.absent(),
     this.sentAt = const Value.absent(),
+    this.failedAt = const Value.absent(),
   });
   OutboxEntriesCompanion.insert({
     this.id = const Value.absent(),
@@ -3983,6 +4034,7 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
     this.lastError = const Value.absent(),
     this.lastAttemptAt = const Value.absent(),
     this.sentAt = const Value.absent(),
+    this.failedAt = const Value.absent(),
   }) : entityType = Value(entityType),
        entityId = Value(entityId),
        createdAt = Value(createdAt);
@@ -3995,6 +4047,7 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
     Expression<String>? lastError,
     Expression<DateTime>? lastAttemptAt,
     Expression<DateTime>? sentAt,
+    Expression<DateTime>? failedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -4005,6 +4058,7 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
       if (lastError != null) 'last_error': lastError,
       if (lastAttemptAt != null) 'last_attempt_at': lastAttemptAt,
       if (sentAt != null) 'sent_at': sentAt,
+      if (failedAt != null) 'failed_at': failedAt,
     });
   }
 
@@ -4017,6 +4071,7 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
     Value<String?>? lastError,
     Value<DateTime?>? lastAttemptAt,
     Value<DateTime?>? sentAt,
+    Value<DateTime?>? failedAt,
   }) {
     return OutboxEntriesCompanion(
       id: id ?? this.id,
@@ -4027,6 +4082,7 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
       lastError: lastError ?? this.lastError,
       lastAttemptAt: lastAttemptAt ?? this.lastAttemptAt,
       sentAt: sentAt ?? this.sentAt,
+      failedAt: failedAt ?? this.failedAt,
     );
   }
 
@@ -4057,6 +4113,9 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
     if (sentAt.present) {
       map['sent_at'] = Variable<DateTime>(sentAt.value);
     }
+    if (failedAt.present) {
+      map['failed_at'] = Variable<DateTime>(failedAt.value);
+    }
     return map;
   }
 
@@ -4070,7 +4129,277 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
           ..write('attempts: $attempts, ')
           ..write('lastError: $lastError, ')
           ..write('lastAttemptAt: $lastAttemptAt, ')
-          ..write('sentAt: $sentAt')
+          ..write('sentAt: $sentAt, ')
+          ..write('failedAt: $failedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TaskCacheTable extends TaskCache
+    with TableInfo<$TaskCacheTable, TaskCacheRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _tasksJsonMeta = const VerificationMeta(
+    'tasksJson',
+  );
+  @override
+  late final GeneratedColumn<String> tasksJson = GeneratedColumn<String>(
+    'tasks_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fetchedAtMeta = const VerificationMeta(
+    'fetchedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> fetchedAt = GeneratedColumn<DateTime>(
+    'fetched_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [userId, tasksJson, fetchedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskCacheRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('tasks_json')) {
+      context.handle(
+        _tasksJsonMeta,
+        tasksJson.isAcceptableOrUnknown(data['tasks_json']!, _tasksJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tasksJsonMeta);
+    }
+    if (data.containsKey('fetched_at')) {
+      context.handle(
+        _fetchedAtMeta,
+        fetchedAt.isAcceptableOrUnknown(data['fetched_at']!, _fetchedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fetchedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userId};
+  @override
+  TaskCacheRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskCacheRow(
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      tasksJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tasks_json'],
+      )!,
+      fetchedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}fetched_at'],
+      )!,
+    );
+  }
+
+  @override
+  $TaskCacheTable createAlias(String alias) {
+    return $TaskCacheTable(attachedDatabase, alias);
+  }
+}
+
+class TaskCacheRow extends DataClass implements Insertable<TaskCacheRow> {
+  final String userId;
+
+  /// JSON array of FieldTask.toJson().
+  final String tasksJson;
+  final DateTime fetchedAt;
+  const TaskCacheRow({
+    required this.userId,
+    required this.tasksJson,
+    required this.fetchedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_id'] = Variable<String>(userId);
+    map['tasks_json'] = Variable<String>(tasksJson);
+    map['fetched_at'] = Variable<DateTime>(fetchedAt);
+    return map;
+  }
+
+  TaskCacheCompanion toCompanion(bool nullToAbsent) {
+    return TaskCacheCompanion(
+      userId: Value(userId),
+      tasksJson: Value(tasksJson),
+      fetchedAt: Value(fetchedAt),
+    );
+  }
+
+  factory TaskCacheRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskCacheRow(
+      userId: serializer.fromJson<String>(json['userId']),
+      tasksJson: serializer.fromJson<String>(json['tasksJson']),
+      fetchedAt: serializer.fromJson<DateTime>(json['fetchedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userId': serializer.toJson<String>(userId),
+      'tasksJson': serializer.toJson<String>(tasksJson),
+      'fetchedAt': serializer.toJson<DateTime>(fetchedAt),
+    };
+  }
+
+  TaskCacheRow copyWith({
+    String? userId,
+    String? tasksJson,
+    DateTime? fetchedAt,
+  }) => TaskCacheRow(
+    userId: userId ?? this.userId,
+    tasksJson: tasksJson ?? this.tasksJson,
+    fetchedAt: fetchedAt ?? this.fetchedAt,
+  );
+  TaskCacheRow copyWithCompanion(TaskCacheCompanion data) {
+    return TaskCacheRow(
+      userId: data.userId.present ? data.userId.value : this.userId,
+      tasksJson: data.tasksJson.present ? data.tasksJson.value : this.tasksJson,
+      fetchedAt: data.fetchedAt.present ? data.fetchedAt.value : this.fetchedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskCacheRow(')
+          ..write('userId: $userId, ')
+          ..write('tasksJson: $tasksJson, ')
+          ..write('fetchedAt: $fetchedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(userId, tasksJson, fetchedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskCacheRow &&
+          other.userId == this.userId &&
+          other.tasksJson == this.tasksJson &&
+          other.fetchedAt == this.fetchedAt);
+}
+
+class TaskCacheCompanion extends UpdateCompanion<TaskCacheRow> {
+  final Value<String> userId;
+  final Value<String> tasksJson;
+  final Value<DateTime> fetchedAt;
+  final Value<int> rowid;
+  const TaskCacheCompanion({
+    this.userId = const Value.absent(),
+    this.tasksJson = const Value.absent(),
+    this.fetchedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TaskCacheCompanion.insert({
+    required String userId,
+    required String tasksJson,
+    required DateTime fetchedAt,
+    this.rowid = const Value.absent(),
+  }) : userId = Value(userId),
+       tasksJson = Value(tasksJson),
+       fetchedAt = Value(fetchedAt);
+  static Insertable<TaskCacheRow> custom({
+    Expression<String>? userId,
+    Expression<String>? tasksJson,
+    Expression<DateTime>? fetchedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (userId != null) 'user_id': userId,
+      if (tasksJson != null) 'tasks_json': tasksJson,
+      if (fetchedAt != null) 'fetched_at': fetchedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TaskCacheCompanion copyWith({
+    Value<String>? userId,
+    Value<String>? tasksJson,
+    Value<DateTime>? fetchedAt,
+    Value<int>? rowid,
+  }) {
+    return TaskCacheCompanion(
+      userId: userId ?? this.userId,
+      tasksJson: tasksJson ?? this.tasksJson,
+      fetchedAt: fetchedAt ?? this.fetchedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (tasksJson.present) {
+      map['tasks_json'] = Variable<String>(tasksJson.value);
+    }
+    if (fetchedAt.present) {
+      map['fetched_at'] = Variable<DateTime>(fetchedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskCacheCompanion(')
+          ..write('userId: $userId, ')
+          ..write('tasksJson: $tasksJson, ')
+          ..write('fetchedAt: $fetchedAt, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -4084,6 +4413,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CapturesTable captures = $CapturesTable(this);
   late final $MeasurementsTable measurements = $MeasurementsTable(this);
   late final $OutboxEntriesTable outboxEntries = $OutboxEntriesTable(this);
+  late final $TaskCacheTable taskCache = $TaskCacheTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4094,6 +4424,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     captures,
     measurements,
     outboxEntries,
+    taskCache,
   ];
   @override
   DriftDatabaseOptions get options =>
@@ -5842,7 +6173,7 @@ typedef $$MeasurementsTableCreateCompanionBuilder =
       required String subjectType,
       required String subjectId,
       required String metricCode,
-      Value<bool?> valueBool,
+      Value<bool?> valueBoolean,
       Value<double?> valueNum,
       Value<String?> valueText,
       Value<String?> unit,
@@ -5861,7 +6192,7 @@ typedef $$MeasurementsTableUpdateCompanionBuilder =
       Value<String> subjectType,
       Value<String> subjectId,
       Value<String> metricCode,
-      Value<bool?> valueBool,
+      Value<bool?> valueBoolean,
       Value<double?> valueNum,
       Value<String?> valueText,
       Value<String?> unit,
@@ -5925,8 +6256,8 @@ class $$MeasurementsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get valueBool => $composableBuilder(
-    column: $table.valueBool,
+  ColumnFilters<bool> get valueBoolean => $composableBuilder(
+    column: $table.valueBoolean,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6028,8 +6359,8 @@ class $$MeasurementsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get valueBool => $composableBuilder(
-    column: $table.valueBool,
+  ColumnOrderings<bool> get valueBoolean => $composableBuilder(
+    column: $table.valueBoolean,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -6127,8 +6458,10 @@ class $$MeasurementsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<bool> get valueBool =>
-      $composableBuilder(column: $table.valueBool, builder: (column) => column);
+  GeneratedColumn<bool> get valueBoolean => $composableBuilder(
+    column: $table.valueBoolean,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get valueNum =>
       $composableBuilder(column: $table.valueNum, builder: (column) => column);
@@ -6222,7 +6555,7 @@ class $$MeasurementsTableTableManager
                 Value<String> subjectType = const Value.absent(),
                 Value<String> subjectId = const Value.absent(),
                 Value<String> metricCode = const Value.absent(),
-                Value<bool?> valueBool = const Value.absent(),
+                Value<bool?> valueBoolean = const Value.absent(),
                 Value<double?> valueNum = const Value.absent(),
                 Value<String?> valueText = const Value.absent(),
                 Value<String?> unit = const Value.absent(),
@@ -6239,7 +6572,7 @@ class $$MeasurementsTableTableManager
                 subjectType: subjectType,
                 subjectId: subjectId,
                 metricCode: metricCode,
-                valueBool: valueBool,
+                valueBoolean: valueBoolean,
                 valueNum: valueNum,
                 valueText: valueText,
                 unit: unit,
@@ -6258,7 +6591,7 @@ class $$MeasurementsTableTableManager
                 required String subjectType,
                 required String subjectId,
                 required String metricCode,
-                Value<bool?> valueBool = const Value.absent(),
+                Value<bool?> valueBoolean = const Value.absent(),
                 Value<double?> valueNum = const Value.absent(),
                 Value<String?> valueText = const Value.absent(),
                 Value<String?> unit = const Value.absent(),
@@ -6275,7 +6608,7 @@ class $$MeasurementsTableTableManager
                 subjectType: subjectType,
                 subjectId: subjectId,
                 metricCode: metricCode,
-                valueBool: valueBool,
+                valueBoolean: valueBoolean,
                 valueNum: valueNum,
                 valueText: valueText,
                 unit: unit,
@@ -6362,6 +6695,7 @@ typedef $$OutboxEntriesTableCreateCompanionBuilder =
       Value<String?> lastError,
       Value<DateTime?> lastAttemptAt,
       Value<DateTime?> sentAt,
+      Value<DateTime?> failedAt,
     });
 typedef $$OutboxEntriesTableUpdateCompanionBuilder =
     OutboxEntriesCompanion Function({
@@ -6373,6 +6707,7 @@ typedef $$OutboxEntriesTableUpdateCompanionBuilder =
       Value<String?> lastError,
       Value<DateTime?> lastAttemptAt,
       Value<DateTime?> sentAt,
+      Value<DateTime?> failedAt,
     });
 
 class $$OutboxEntriesTableFilterComposer
@@ -6421,6 +6756,11 @@ class $$OutboxEntriesTableFilterComposer
 
   ColumnFilters<DateTime> get sentAt => $composableBuilder(
     column: $table.sentAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get failedAt => $composableBuilder(
+    column: $table.failedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6473,6 +6813,11 @@ class $$OutboxEntriesTableOrderingComposer
     column: $table.sentAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get failedAt => $composableBuilder(
+    column: $table.failedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OutboxEntriesTableAnnotationComposer
@@ -6511,6 +6856,9 @@ class $$OutboxEntriesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get sentAt =>
       $composableBuilder(column: $table.sentAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get failedAt =>
+      $composableBuilder(column: $table.failedAt, builder: (column) => column);
 }
 
 class $$OutboxEntriesTableTableManager
@@ -6552,6 +6900,7 @@ class $$OutboxEntriesTableTableManager
                 Value<String?> lastError = const Value.absent(),
                 Value<DateTime?> lastAttemptAt = const Value.absent(),
                 Value<DateTime?> sentAt = const Value.absent(),
+                Value<DateTime?> failedAt = const Value.absent(),
               }) => OutboxEntriesCompanion(
                 id: id,
                 entityType: entityType,
@@ -6561,6 +6910,7 @@ class $$OutboxEntriesTableTableManager
                 lastError: lastError,
                 lastAttemptAt: lastAttemptAt,
                 sentAt: sentAt,
+                failedAt: failedAt,
               ),
           createCompanionCallback:
               ({
@@ -6572,6 +6922,7 @@ class $$OutboxEntriesTableTableManager
                 Value<String?> lastError = const Value.absent(),
                 Value<DateTime?> lastAttemptAt = const Value.absent(),
                 Value<DateTime?> sentAt = const Value.absent(),
+                Value<DateTime?> failedAt = const Value.absent(),
               }) => OutboxEntriesCompanion.insert(
                 id: id,
                 entityType: entityType,
@@ -6581,6 +6932,7 @@ class $$OutboxEntriesTableTableManager
                 lastError: lastError,
                 lastAttemptAt: lastAttemptAt,
                 sentAt: sentAt,
+                failedAt: failedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -6616,6 +6968,175 @@ typedef $$OutboxEntriesTableProcessedTableManager =
       OutboxEntry,
       PrefetchHooks Function()
     >;
+typedef $$TaskCacheTableCreateCompanionBuilder = TaskCacheCompanion Function({
+  required String userId,
+  required String tasksJson,
+  required DateTime fetchedAt,
+  Value<int> rowid,
+});
+typedef $$TaskCacheTableUpdateCompanionBuilder = TaskCacheCompanion Function({
+  Value<String> userId,
+  Value<String> tasksJson,
+  Value<DateTime> fetchedAt,
+  Value<int> rowid,
+});
+
+class $$TaskCacheTableFilterComposer
+    extends Composer<_$AppDatabase, $TaskCacheTable> {
+  $$TaskCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tasksJson => $composableBuilder(
+    column: $table.tasksJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get fetchedAt => $composableBuilder(
+    column: $table.fetchedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TaskCacheTableOrderingComposer
+    extends Composer<_$AppDatabase, $TaskCacheTable> {
+  $$TaskCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tasksJson => $composableBuilder(
+    column: $table.tasksJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get fetchedAt => $composableBuilder(
+    column: $table.fetchedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TaskCacheTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TaskCacheTable> {
+  $$TaskCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get tasksJson =>
+      $composableBuilder(column: $table.tasksJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get fetchedAt =>
+      $composableBuilder(column: $table.fetchedAt, builder: (column) => column);
+}
+
+class $$TaskCacheTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TaskCacheTable,
+          TaskCacheRow,
+          $$TaskCacheTableFilterComposer,
+          $$TaskCacheTableOrderingComposer,
+          $$TaskCacheTableAnnotationComposer,
+          $$TaskCacheTableCreateCompanionBuilder,
+          $$TaskCacheTableUpdateCompanionBuilder,
+          (
+            TaskCacheRow,
+            BaseReferences<_$AppDatabase, $TaskCacheTable, TaskCacheRow>,
+          ),
+          TaskCacheRow,
+          PrefetchHooks Function()
+        > {
+  $$TaskCacheTableTableManager(_$AppDatabase db, $TaskCacheTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TaskCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TaskCacheTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> userId = const Value.absent(),
+                Value<String> tasksJson = const Value.absent(),
+                Value<DateTime> fetchedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskCacheCompanion(
+                userId: userId,
+                tasksJson: tasksJson,
+                fetchedAt: fetchedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String userId,
+                required String tasksJson,
+                required DateTime fetchedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => TaskCacheCompanion.insert(
+                userId: userId,
+                tasksJson: tasksJson,
+                fetchedAt: fetchedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$TaskCacheTable, TaskCacheRow>(table),
+                  BaseReferences<_$AppDatabase, $TaskCacheTable, TaskCacheRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TaskCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TaskCacheTable,
+      TaskCacheRow,
+      $$TaskCacheTableFilterComposer,
+      $$TaskCacheTableOrderingComposer,
+      $$TaskCacheTableAnnotationComposer,
+      $$TaskCacheTableCreateCompanionBuilder,
+      $$TaskCacheTableUpdateCompanionBuilder,
+      (
+        TaskCacheRow,
+        BaseReferences<_$AppDatabase, $TaskCacheTable, TaskCacheRow>,
+      ),
+      TaskCacheRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6630,4 +7151,6 @@ class $AppDatabaseManager {
       $$MeasurementsTableTableManager(_db, _db.measurements);
   $$OutboxEntriesTableTableManager get outboxEntries =>
       $$OutboxEntriesTableTableManager(_db, _db.outboxEntries);
+  $$TaskCacheTableTableManager get taskCache =>
+      $$TaskCacheTableTableManager(_db, _db.taskCache);
 }

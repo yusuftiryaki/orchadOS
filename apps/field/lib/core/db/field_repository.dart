@@ -196,7 +196,7 @@ class FieldRepository {
               subjectType: 'tree',
               subjectId: treeId,
               metricCode: metric,
-              valueBool: Value(answer),
+              valueBoolean: Value(answer),
               method: 'field_question',
               methodVersion: methodVersion,
               source: 'staff',
@@ -226,6 +226,17 @@ class FieldRepository {
   Future<List<MeasurementRow>> measurements(String sessionId) => (db.select(
     db.measurements,
   )..where((m) => m.sessionId.equals(sessionId))).get();
+
+  /// Tasks recorded on this phone (any local session with that task id).
+  Stream<Set<String>> watchRecordedTaskIds() {
+    final q = db.selectOnly(db.sessions, distinct: true)
+      ..addColumns([db.sessions.taskId])
+      ..where(db.sessions.taskId.isNotNull());
+    return q
+        .map((r) => r.read(db.sessions.taskId)!)
+        .watch()
+        .map((l) => l.toSet());
+  }
 
   /// Trees that already have saved observations in this session.
   Stream<Set<String>> watchObservedTrees(String sessionId) {

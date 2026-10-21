@@ -143,10 +143,7 @@ class CloseupProtocol {
           metricCode: 'harvest_complete',
           text: 'Hasat tamamlanmış mı?',
         ),
-        YesNoQuestion(
-          metricCode: 'broken_branch_present',
-          text: 'Kırık dal var mı?',
-        ),
+        YesNoQuestion(metricCode: 'branch_break', text: 'Kırık dal var mı?'),
         YesNoQuestion(
           metricCode: 'theft_sign_present',
           text: 'Hırsızlık izi var mı?',

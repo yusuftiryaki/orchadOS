@@ -91,7 +91,17 @@ class SessionController extends Notifier<SessionState> {
     }
     final repo = ref.read(fieldRepositoryProvider);
     final logger = ref.read(gnssLoggerProvider);
-    final sessionId = repo.newId();
+    // A planned visit keeps its server id on the phone and on the logger
+    // (docs/arayuzler.md); the sync fills in that row.
+    final sessionId = task.visitId ?? repo.newId();
+    if (await repo.session(sessionId) != null) {
+      // The logger refuses an existing session folder (session_exists).
+      state = state.copyWith(
+        error: () => 'Bu ziyaret bu telefonda zaten kaydedildi',
+      );
+      return false;
+    }
+    if (!ref.mounted) return false;
     state = state.copyWith(
       phase: SessionPhase.starting,
       busy: true,
@@ -256,12 +266,20 @@ class SessionController extends Notifier<SessionState> {
     if (!ref.mounted) return;
     if (task != null) ref.read(completedTasksProvider.notifier).add(task.id);
     state = const SessionState();
+    // Send what the visit produced while the crew may still have signal.
+    ref.read(syncWorkerProvider)?.syncNow().ignore();
   }
 
   GpsTimeReading _now() => ref.read(gpsClockProvider).now();
 }
 
-/// Tasks finished on this device today.
+/// Tasks that have a recording on this phone (kept in the local database,
+/// so they stay done after a restart).
+final recordedTasksProvider = StreamProvider<Set<String>>(
+  (ref) => ref.watch(fieldRepositoryProvider).watchRecordedTaskIds(),
+);
+
+/// Tasks finished on this device in this run of the app.
 final completedTasksProvider = NotifierProvider<CompletedTasks, Set<String>>(
   CompletedTasks.new,
 );

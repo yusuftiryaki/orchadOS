@@ -112,7 +112,7 @@ void main() {
     expect(m.subjectType, 'tree');
     expect(m.subjectId, 't-1');
     expect(m.metricCode, 'root_sucker_present');
-    expect(m.valueBool, isTrue);
+    expect(m.valueBoolean, isTrue);
     expect(m.method, 'field_question');
     expect(m.methodVersion, 'winter-v0');
     expect(jsonDecode(m.evidenceJson), [
@@ -176,13 +176,13 @@ void main() {
     expect(await db.select(db.measurements).get(), isEmpty);
   });
 
-  test('markSent and markFailed', () async {
+  test('recordAttempt keeps an entry pending, markSent ends it', () async {
     await createSession('s1');
     await createSession('s2');
     final first = (await repo.outbox.pending()).first;
 
-    await repo.outbox.markFailed(first.id, 'offline');
-    await repo.outbox.markFailed(first.id, 'timeout');
+    await repo.outbox.recordAttempt(first.id, 'offline');
+    await repo.outbox.recordAttempt(first.id, 'timeout');
     final e = (await repo.outbox.pending()).first;
     expect(e.attempts, 2);
     expect(e.lastError, 'timeout');
@@ -197,6 +197,60 @@ void main() {
     )..where((x) => x.id.equals(first.id))).getSingle();
     expect(sent.sentAt, t0.add(const Duration(minutes: 5)));
     expect(sent.lastError, isNull);
+    expect(sent.attempts, 3);
+  });
+
+  test('markFailed takes an entry out of the queue with its reason', () async {
+    await createSession('s1');
+    await createSession('s2');
+    final first = (await repo.outbox.pending()).first;
+
+    await repo.outbox.markFailed(first.id, 'forbidden: row level security');
+    expect((await repo.outbox.pending()).map((e) => e.entityId), ['s2']);
+    final failed = (await repo.outbox.failed()).single;
+    expect(failed.entityId, 's1');
+    expect(failed.failedAt, t0);
+    expect(failed.lastError, 'forbidden: row level security');
+    expect(
+      await repo.outbox.watchCounts().first,
+      const OutboxCounts(pending: 1, sent: 0, failed: 1),
+    );
+
+    expect(await repo.outbox.requeueFailed(), 1);
+    expect((await repo.outbox.pending()).map((e) => e.entityId), ['s1', 's2']);
+  });
+
+  test('session counts cover the session and its records only', () async {
+    await createSession('s1');
+    await createSession('s2');
+    await repo.addEvent(
+      sessionId: 's1',
+      eventType: 'qr_sync',
+      payload: 'OQ1:1:s1',
+      time: const GpsTimeReading(1, TimeSource.gps),
+      loggerResult: 'ok',
+    );
+    await repo.saveTreeObservation(
+      sessionId: 's1',
+      treeId: 't-1',
+      slotCode: 'S1-1',
+      shots: [
+        shot('trunk', [7]),
+      ],
+      answers: {'pruned': true},
+      methodVersion: 'winter-v0',
+    );
+    final entries = await repo.outbox.pending();
+    await repo.outbox.markSent(entries[0].id);
+    await repo.outbox.markFailed(entries[2].id, 'x');
+    expect(
+      await repo.outbox.watchSessionCounts('s1').first,
+      const OutboxCounts(pending: 2, sent: 1, failed: 1),
+    );
+    expect(
+      await repo.outbox.watchSessionCounts('s2').first,
+      const OutboxCounts(pending: 1, sent: 0, failed: 0),
+    );
   });
 
   test('pending count stream follows the queue', () async {

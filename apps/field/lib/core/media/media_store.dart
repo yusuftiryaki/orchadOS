@@ -14,8 +14,16 @@ abstract interface class MediaStore {
   Future<String> put(Uint8List bytes, {required String sha256, String ext});
 
   /// Removes a file that was never registered in the database (a discarded
-  /// retake). Registered media is never deleted by the app.
+  /// retake).
   Future<void> discard(String path);
+
+  /// Bytes of a stored file; null when it is gone.
+  Future<Uint8List?> read(String path);
+
+  /// Removes a registered file after the sync has verified that the server
+  /// holds it (same hash, object present). Nothing else deletes registered
+  /// media.
+  Future<void> release(String path);
 }
 
 class FileMediaStore implements MediaStore {
@@ -44,6 +52,15 @@ class FileMediaStore implements MediaStore {
     final f = File(path);
     if (await f.exists()) await f.delete();
   }
+
+  @override
+  Future<Uint8List?> read(String path) async {
+    final f = File(path);
+    return await f.exists() ? f.readAsBytes() : null;
+  }
+
+  @override
+  Future<void> release(String path) => discard(path);
 }
 
 class MemoryMediaStore implements MediaStore {
@@ -62,4 +79,10 @@ class MemoryMediaStore implements MediaStore {
 
   @override
   Future<void> discard(String path) async => files.remove(path);
+
+  @override
+  Future<Uint8List?> read(String path) async => files[path];
+
+  @override
+  Future<void> release(String path) async => files.remove(path);
 }

@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../checklist/precheck_screen.dart';
 import '../session/session_controller.dart';
+import '../sync/sync_status_card.dart';
 import 'field_task.dart';
+import 'task_repository.dart';
 
-final todaysTasksProvider = FutureProvider<List<FieldTask>>(
+final todaysTasksProvider = FutureProvider<TaskList>(
   (ref) => ref.watch(taskRepositoryProvider).todaysTasks(),
 );
 
@@ -17,7 +19,10 @@ class TodayScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasks = ref.watch(todaysTasksProvider);
-    final done = ref.watch(completedTasksProvider);
+    final done = {
+      ...ref.watch(completedTasksProvider),
+      ...?ref.watch(recordedTasksProvider).value,
+    };
     final pending = ref.watch(pendingUploadsProvider).value ?? 0;
     return Scaffold(
       appBar: AppBar(
@@ -41,18 +46,33 @@ class TodayScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: tasks.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Görevler yüklenemedi: $e')),
-        data: (list) => list.isEmpty
-            ? const Center(child: Text('Bugün görev yok'))
-            : ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: list.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (context, i) =>
-                    _TaskCard(task: list[i], done: done.contains(list[i].id)),
-              ),
+      body: RefreshIndicator(
+        onRefresh: () => ref.refresh(todaysTasksProvider.future),
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const SyncStatusCard(),
+            const SizedBox(height: 12),
+            ...tasks.when(
+              loading: () => const [Center(child: CircularProgressIndicator())],
+              error: (e, _) => [
+                Text('Görevler yüklenemedi: $e', key: const Key('tasks-error')),
+              ],
+              data: (list) => [
+                if (list.fromCache) _OfflineBanner(fetchedAt: list.fetchedAt),
+                if (list.tasks.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: Text('Bugün görev yok')),
+                  ),
+                for (final t in list.tasks) ...[
+                  _TaskCard(task: t, done: done.contains(t.id)),
+                  const SizedBox(height: 12),
+                ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -105,6 +125,14 @@ class _TaskCard extends ConsumerWidget {
                       '${task.village} · ${task.areaDecare.toStringAsFixed(1)} '
                       'dönüm · ${task.closeupTrees.length} yakın plan ağacı',
                     ),
+                    if (task.plannedDate != null || task.assignedToMe)
+                      Text(
+                        [
+                          if (task.plannedDate != null)
+                            _plannedLabel(task.plannedDate!),
+                          if (task.assignedToMe) 'Size atanmış',
+                        ].join(' · '),
+                      ),
                     if (done)
                       const Text(
                         'Tamamlandı',
@@ -117,6 +145,48 @@ class _TaskCard extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+String _plannedLabel(DateTime day) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final d = DateTime(day.year, day.month, day.day);
+  final diff = d.difference(today).inDays;
+  if (diff == 0) return 'Bugün';
+  if (diff == 1) return 'Yarın';
+  final date =
+      '${d.day.toString().padLeft(2, '0')}.'
+      '${d.month.toString().padLeft(2, '0')}.${d.year}';
+  return diff < 0 ? 'Gecikmiş: $date' : 'Planlanan gün: $date';
+}
+
+/// The server could not be reached: the list is the last downloaded one.
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner({this.fetchedAt});
+
+  final DateTime? fetchedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final at = fetchedAt?.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    final when = at == null
+        ? ''
+        : ' (${two(at.day)}.${two(at.month)} ${two(at.hour)}:${two(at.minute)})';
+    return Container(
+      key: const Key('tasks-offline'),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        'Sunucuya ulaşılamadı. Son indirilen liste gösteriliyor$when.',
+        style: const TextStyle(fontSize: 16),
       ),
     );
   }
