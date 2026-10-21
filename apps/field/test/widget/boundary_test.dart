@@ -197,6 +197,7 @@ void main() {
     expect(c.fix, isNull);
     expect(c.timeSource, 'gps');
     await tester.pumpWidget(h.wrap(const SessionScreen()));
+    await settle(tester);
     await tapVisible(tester, find.byKey(const Key('session-boundary')));
     await tester.pumpAndSettle();
     expect(find.text('Kaydediciden konum yok'), findsOneWidget);

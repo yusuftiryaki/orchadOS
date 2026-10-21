@@ -338,6 +338,21 @@ Okuma kuralı: oturumun **en yeni** `boundary_corners` olayı (sıra: `gps_time_
 
 Uygulamada gösterilen alan, listedeki konumlu köşelerden (en az 3) yerel düzlemde hesaplanır (m² ve dönüm = m² / 1000). Kesin alan PPK'dan sonra `boundary.area_m2`'dir.
 
+**`coverage`** (kayıt durdurulurken, kaydediciden en az bir konum geldiyse; `session_stop`'tan hemen önce): taramada telefonun gördüğü kapsama. İz, kaydedicinin durum mesajlarındaki konumlardır (yaklaşık 1 Hz, PPK öncesi); telefonda kalır, sunucuya gönderilmez (ham GNSS SD kartla gelir). Kural basittir: izin bir yerin `radius_m` yakınından geçtiyse yer kapsanmıştır. İzin her parçası sıra doğrultusuna göre sınıflanır (±30° içinde "sıra boyunca", dikmeye ±30° içinde "dik"): bir sıranın yerlerinin en az `threshold` kadarı sıra boyunca geçişle kapsandıysa sıra, bir pozisyon numarasının yerleri dik geçişle kapsandıysa dik koridor bitmiştir. 10 sn'den uzun konum boşluğu ya da 30 m'den büyük sıçrama birleştirilmez. `payload` `<kapsanan>/<toplam>`.
+
+| `data` alanı | Tür | Anlamı |
+| --- | --- | --- |
+| `version` | int | 1 |
+| `radius_m`, `threshold` | sayı | Kural parametreleri (4 m, 0,95) |
+| `max_gap_s`, `max_jump_m`, `direction_tolerance_deg` | sayı | İz birleştirme ve yön sınıflama parametreleri |
+| `slots_total`, `slots_covered`, `ratio` | sayı | Konumlu yerler, kapsananlar, oran |
+| `rows_done`, `rows_total` | int dizisi, int | Sıra boyunca bitmiş sıra numaraları |
+| `cross_done`, `cross_total` | int dizisi, int | Dik geçişle bitmiş pozisyon numaraları |
+| `uncovered_slot_codes` | metin dizisi | Yakınından geçilmeyen yerler, yürüme sırasıyla |
+| `track_points`, `track_length_m` | sayı | İzdeki nokta sayısı ve uzunluk (m) |
+
+Bu, sahadaki anlık göstergedir; işleme hattının panorama kalitesine dayalı kapsama haritasının (`docs/MVP.md` Modül 3, kalite kapısı) yerini tutmaz.
+
 ## Açık noktalar
 
 - Kamera jiroskop verisi (ince zaman eşleme) henüz sözleşmede yok.

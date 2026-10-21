@@ -1,14 +1,38 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../core/db/field_repository.dart';
+import '../../core/geo/geo.dart';
 import '../../core/time/gps_clock.dart';
 import '../boundary/boundary_corners.dart';
+import '../coverage/coverage.dart';
+import '../gnss/gnss_logger.dart';
 import '../gnss/protocol/command_result.dart';
 import '../gnss/protocol/gnss_command.dart';
 import '../tasks/field_task.dart';
 
 enum SessionPhase { idle, starting, recording, stopping, stopped }
+
+/// The walked track and what it covered, for the map and the summary.
+class CoverageView {
+  const CoverageView({
+    required this.summary,
+    required this.tracks,
+    required this.covered,
+    this.here,
+  });
+
+  final CoverageSummary summary;
+  final List<List<GeoPoint>> tracks;
+
+  /// Codes of the covered slots.
+  final Set<String> covered;
+
+  /// Latest receiver position.
+  final GeoPoint? here;
+}
 
 /// Which QR the crew is showing to the camera.
 enum QrMoment {
@@ -28,6 +52,7 @@ class SessionState {
     this.startQrShown = false,
     this.endQrShown = false,
     this.boundary = BoundaryCorners.empty,
+    this.coverage,
     this.busy = false,
     this.error,
   });
@@ -43,6 +68,9 @@ class SessionState {
   final BoundaryCorners boundary;
 
   int get cornerCount => boundary.length;
+
+  /// Coverage of the recording so far; null before the start.
+  final CoverageView? coverage;
 
   /// A logger command is in flight.
   final bool busy;
@@ -60,6 +88,7 @@ class SessionState {
     bool? startQrShown,
     bool? endQrShown,
     BoundaryCorners? boundary,
+    CoverageView? coverage,
     bool? busy,
     String? Function()? error,
   }) => SessionState(
@@ -70,6 +99,7 @@ class SessionState {
     startQrShown: startQrShown ?? this.startQrShown,
     endQrShown: endQrShown ?? this.endQrShown,
     boundary: boundary ?? this.boundary,
+    coverage: coverage ?? this.coverage,
     busy: busy ?? this.busy,
     error: error != null ? error() : this.error,
   );
@@ -82,10 +112,48 @@ final sessionControllerProvider =
 /// required order (start → start QR → [corners] → end QR → stop).
 class SessionController extends Notifier<SessionState> {
   @override
-  SessionState build() => const SessionState();
+  SessionState build() {
+    ref.onDispose(_stopTrack);
+    return const SessionState();
+  }
+
+  CoverageTracker? _tracker;
+  StreamSubscription<GnssStatusSample>? _track;
 
   /// Selects the task the next session belongs to.
-  void selectTask(FieldTask task) => state = SessionState(task: task);
+  void selectTask(FieldTask task) {
+    _stopTrack();
+    _tracker = null;
+    state = SessionState(task: task);
+  }
+
+  /// Follows the logger's positions while recording (coverage map).
+  void _startTrack(FieldTask task) {
+    _stopTrack();
+    final tracker = _tracker = CoverageTracker(task.slots);
+    final logger = ref.read(gnssLoggerProvider);
+    void onStatus(GnssStatusSample s) {
+      final p = s.status.position;
+      if (p == null || !ref.mounted) return;
+      tracker.add(p, s.receivedAt);
+      state = state.copyWith(coverage: _view(tracker));
+    }
+
+    state = state.copyWith(coverage: _view(tracker));
+    _track = logger.statusStream.listen(onStatus);
+  }
+
+  void _stopTrack() {
+    _track?.cancel();
+    _track = null;
+  }
+
+  static CoverageView _view(CoverageTracker t) => CoverageView(
+    summary: t.summary,
+    tracks: t.tracks,
+    covered: t.coveredCodes,
+    here: t.lastPosition,
+  );
 
   void clearError() => state = state.copyWith(error: () => null);
 
@@ -154,6 +222,7 @@ class SessionController extends Notifier<SessionState> {
       startedAt: now,
       busy: false,
     );
+    _startTrack(task);
     return true;
   }
 
@@ -318,7 +387,20 @@ class SessionController extends Notifier<SessionState> {
       );
       return false;
     }
+    _stopTrack();
     final repo = ref.read(fieldRepositoryProvider);
+    final tracker = _tracker;
+    if (tracker != null && tracker.summary.trackPoints > 0) {
+      final summary = tracker.summary;
+      await repo.addEvent(
+        sessionId: sessionId,
+        eventType: 'coverage',
+        payload: '${summary.slotsCovered}/${summary.slotsTotal}',
+        time: time,
+        loggerResult: 'none',
+        data: summary.toJson(),
+      );
+    }
     await repo.addEvent(
       sessionId: sessionId,
       eventType: 'session_stop',
@@ -345,6 +427,8 @@ class SessionController extends Notifier<SessionState> {
     }
     if (!ref.mounted) return;
     if (task != null) ref.read(completedTasksProvider.notifier).add(task.id);
+    _stopTrack();
+    _tracker = null;
     state = const SessionState();
     // Send what the visit produced while the crew may still have signal.
     ref.read(syncWorkerProvider)?.syncNow().ignore();
