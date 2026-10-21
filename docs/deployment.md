@@ -47,6 +47,24 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 - Sunucu fonksiyonları veritabanıyla aynı bölgede: test projesi Stockholm'de (`eu-north-1`), Vercel bölgesi `arn1` (`apps/web/vercel.json`). Üretim projesi Frankfurt'ta açılırsa bölge `fra1` olur.
 - Supabase Auth ayarlarında Site URL olarak Vercel üretim adresi, yönlendirme adreslerinde Vercel önizleme adresleri tanımlıdır.
 
+## Edge Function'lar, bildirimler ve telefonla giriş
+
+`deploy-db` fonksiyonları da dağıtır: `invite-user`, `send-notifications`, `send-sms`. Servis anahtarı sadece Supabase içinde kalır.
+
+**Fonksiyon secret'ları** (`supabase secrets set --project-ref <ref> AD=değer` ya da panel → Edge Functions → Secrets):
+
+| Değişken | Ne için | Test projesinde |
+| --- | --- | --- |
+| `PORTAL_BASE_URL` | Bildirimlerdeki bağlantı | Vercel üretim adresi |
+| `MESSAGE_PROVIDER` | `record`: mesaj gönderilmez, `private.message_outbox`'a yazılır | `record` |
+| `SEND_SMS_HOOK_SECRET` | Supabase Auth'un Send SMS Hook imzası | Ayarlı |
+| `NETGSM_USERCODE`, `NETGSM_PASSWORD`, `NETGSM_MSGHEADER` | Gerçek SMS (Netgsm hesabı açılınca) | Yok |
+
+**Bir kez yapılan ayarlar** (test projesinde yapıldı, 21 Ekim):
+- Authentication → Phone açık, dışarıdan üye olma kapalı. Send SMS Hook → `https://<ref>.supabase.co/functions/v1/send-sms`, aynı secret.
+- Vault: `notifications_dispatch_url` (send-notifications adresi) ve `notifications_service_key`. `pg_cron` dakikada bir kuyruğu işletir; Vault boşsa hiçbir şey yapmaz.
+- Test projesinde giriş kodları ve bildirimler gönderilmez; SQL düzenleyicide `select * from private.message_outbox order by created_at desc` ile okunur.
+
 ## Test projesindeki kullanıcılar
 
 `supabase/seed.sql` sadece yerel geliştirme içindir ve bilinen parolalar içerir; test projesine uygulanmaz. Test projesindeki kullanıcılar Supabase panelinden oluşturulur ve rolleri (`membership`, `parcel_access`) SQL düzenleyiciyle verilir. Sentetik bir bahçe gerekiyorsa seed'in sadece veri kısmı elle çalıştırılabilir.

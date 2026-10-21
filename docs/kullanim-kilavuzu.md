@@ -84,7 +84,7 @@ flowchart TD
 | --- | --- |
 | Veri modeli, kişisel verinin ayrı tutulması, yetki kuralları | ✅ |
 | Sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma (`/operasyon`) | ✅ |
-| Telefonla (SMS) giriş | ⬜ Şimdilik e-posta + tek kullanımlık parola |
+| Telefonla (SMS kodu) giriş | ✅ (gerçek SMS için Netgsm hesabı gerekiyor) |
 
 ## 2. Envanter
 
@@ -243,7 +243,7 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 | Kuyruk, inceleme, kabul/düzelt, bulgu, özet, imza ve yayın, kısayollar | ✅ |
 | Zorunlu inceleme kuralları, toplu onay ve %5 kalite örneklemi | ✅ |
 | Sahibin sorularını cevaplama (`/uzman`, Sorular) | ✅ |
-| Kritik bulgu bildirimi | ⬜ |
+| Kritik bulgu bildirimi | ✅ |
 
 ### 3.6 Sahip raporu okur
 
@@ -269,7 +269,7 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 | Bahçelerim, karne, harita, ağaç karnesi, gezi, yazdırma, telefon görünümü | ✅ |
 | Genel durum skoru (0–100) ve denetim güveni | ✅ (ağırlıklar metodolojide kesinleşecek) |
 | Soru bırakma | ✅ |
-| "Rapor hazır" bildirimi (SMS/WhatsApp) | 🟡 Geliştiriliyor |
+| "Rapor hazır" ve kritik bulgu bildirimleri, operasyonda bildirim listesi | ✅ (gerçek SMS için Netgsm hesabı gerekiyor; o zamana kadar mesajlar kaydediliyor) |
 
 ## Rol rol özet
 
