@@ -58,7 +58,9 @@ jobs:
 
       - name: Push migrations
         if: steps.guard.outputs.ready == 'true'
-        run: pnpm exec supabase db push --password "$SUPABASE_DB_PASSWORD"
+        # --include-all: parallel branches add migrations whose timestamps can be
+        # older than one already applied; they are independent by convention.
+        run: pnpm exec supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
 
       # The functions read SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY
       # from the hosted project itself; the service role key never leaves Supabase.

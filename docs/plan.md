@@ -82,6 +82,7 @@ gantt
 | Operasyon ekranları | Tamam (PR #19) | `/operasyon`: pano, sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma, ziyaret planlama |
 | Envanter onayı | Tamam (PR #18) | Doğrulama listesi veritabanında (`verification_item`), ofiste ağaç özellikleri, altyapı ve saha sınırı; uzmanın envanter onayı; sahibin sınır onayı. Saha tarafı açık |
 | İP6 v0.3 | Tamam (PR #21) | Doğrulama turu ekranı, sahada sınır köşesi, kapsama haritası, test projesine bağlı APK (`docs/gorevler/ip6-envanter-saha.md`) |
+| Dalga 6 | Sürüyor | Sınır köşeleri (firmware konum + işleme hattında sınır), grid rotası, uzman/portal v0.2 (toplu onay, %5 örneklem, durum skoru, soru), bildirimler ve telefonla giriş, İP9 AI worker. Yüz bulanıklaştırma ertelendi (karar 21 Ekim) |
 | Dalga 5 | Tamam | İP5 v0.2 (PR #15); İP4 v0.2 (PR #16): ağaç konumları veritabanından, CI'da uçtan uca zincir testi (~70 sn). Önceki not: ağaç konumları ve uçtan uca test |
 | Dalga 4 | İP6 senkronizasyon sürüyor | İP4, İP7, İP8 birleşti. Örnek tarama verisi: `pnpm db:demo`. Test ortamı: https://orchados-orchad-os.vercel.app (Vercel koruması açık) |
 | İP6 | İskelet + kamera + senkronizasyon tamam (PR #6, #8, #20) | BLE protokolü, QR saat, ekran akışı, çevrimdışı kuyruk, gerçek kamera ve cihazda kalite kontrolü; 66 test. Senkronizasyon: sunucudan görevler, sıralı ve tekrar güvenli gönderim, saha personelinin fotoğraf yüklemesi; APK CI'da derleniyor. Açık: doğrulama turu ekranı, sınır köşesi, kapsama haritası, telefonda deneme |
@@ -92,6 +93,7 @@ gantt
 - [x] **Etiketli veri:** *(PR #15)* Ofis aracındaki gövde tıklamaları (gövde tespit modeli için etiket) şimdilik tarayıcıda; veritabanında saklanmalı.
 - [x] **Web:** Ağaç rengi uzman ve ofis tarafında da *(PR #15)* `tree_latest_assessment` görünümüne bağlanmalı (portalda yapıldı).
 - [x] **Web:** Medya imzalama iki yerde *(PR #15)*: `src/lib/media/` (portal) ve `src/lib/expert/media.ts`. Uzman paneli ortak yardımcıya geçmeli; `fetchAll` kopyası da birleştirilmeli.
+- [ ] **Yüz bulanıklaştırma (ertelendi):** Yapılana kadar gerçek panoramalar buluta yüklenmez (`upload` bulanıklaştırılmamış görüntüyü reddeder) ve yakın planlar AI'a gönderilmez. Pilot verisi yüklenmeden önce yapılmalı.
 - [ ] **Testler:** Ekleme-yalnız tablolar yüzünden web testleri kendi işletmelerini kurup `docker exec ... psql` ile temizliyor. Testler için bir temizlik fonksiyonu daha temiz olur.
 - [x] *(PR #16)* **Örnek veri:** `supabase/demo/scans.sql` `pose` alanları `docs/arayuzler.md`'deki sözleşmeye tam uymuyor (`variant`, `gps_time_ns`, `panorama_asset_id` eksik; MIME türü WebP olmalı).
 - [x] **Karar (20 Ekim):** Yayından sonra sadece uzman ölçümleri kilitli; saha personelinin geç gelen kayıtları serbest.
