@@ -59,10 +59,9 @@ enum CarrierSolution {
 /// and later 39 bytes (`gps_time_ns` at offset 31). Longer messages are
 /// accepted because the same version may append fields at the end.
 ///
-/// A 51-byte message also carries the receiver's position (NAV-PVT `lat`,
-/// `lon`, `height` at offsets 39, 43, 47; see [position]). This block is the
-/// app's proposal for the next firmware (docs/arayuzler.md, "Konum");
-/// firmware 0.2.0 does not send it yet.
+/// Firmware 0.3.0 and later send 51 bytes: the receiver's position (NAV-PVT
+/// `lat`, `lon`, `height` at offsets 39, 43, 47; see [position]), valid when
+/// `flags` bit6 is set.
 class GnssStatus {
   const GnssStatus({
     required this.version,
@@ -103,6 +102,7 @@ class GnssStatus {
   static const int flagTimeMapped = 0x08;
   static const int flagDataDropped = 0x10;
   static const int flagGnssFixOk = 0x20;
+  static const int flagPositionValid = 0x40;
 
   static const int hAccUnknown = 0xFFFFFFFF;
 
@@ -143,12 +143,13 @@ class GnssStatus {
   final int? lonE7;
   final int? heightMm;
 
-  /// Receiver position, when the message carries one and the receiver has a
-  /// 2D/3D fix (`gnssFixOK`); null otherwise.
+  /// Receiver position, when the message carries one, the firmware marks it
+  /// valid (bit6) and the receiver has a 2D/3D fix (`gnssFixOK`); null
+  /// otherwise.
   GeoPoint? get position {
     final lat = latE7;
     final lon = lonE7;
-    if (lat == null || lon == null || !gnssFixOk) return null;
+    if (lat == null || lon == null || !gnssFixOk || !positionValid) return null;
     if (fixType < 2 || fixType > 4) return null;
     return GeoPoint(lat / 1e7, lon / 1e7);
   }
@@ -162,6 +163,7 @@ class GnssStatus {
   bool get timeMapped => flags & flagTimeMapped != 0;
   bool get dataDropped => flags & flagDataDropped != 0;
   bool get gnssFixOk => flags & flagGnssFixOk != 0;
+  bool get positionValid => flags & flagPositionValid != 0;
 
   /// SD card can take a new recording.
   bool get sdReady => sdPresent && !sdLowSpace && !sdError;

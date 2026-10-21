@@ -141,7 +141,12 @@ void main() {
         gpsTimeNs: 1449000000000000000,
       );
       if (position) {
-        s = s.copyWith(latE7: 370662000, lonE7: 373833000, heightMm: 850120);
+        s = s.copyWith(
+          flags: s.flags | GnssStatus.flagPositionValid,
+          latE7: 370662000,
+          lonE7: 373833000,
+          heightMm: 850120,
+        );
       }
       return GnssStatusSample(
         GnssStatus.decode(
@@ -195,6 +200,24 @@ void main() {
       final decoded = GnssStatus.decode(s.encode(includePosition: true));
       expect(decoded.latE7, 1);
       expect(decoded.position, isNull);
+    });
+
+    test('fix but position not marked valid (bit6): no position', () {
+      final s = FakeGnssLogger.healthyStatus.copyWith(
+        flags: GnssStatus.flagSdPresent | GnssStatus.flagGnssFixOk,
+        fixType: 3,
+        latE7: 370662000,
+        lonE7: 373833000,
+      );
+      final decoded = GnssStatus.decode(s.encode(includePosition: true));
+      expect(decoded.positionValid, isFalse);
+      expect(decoded.position, isNull);
+      final valid = GnssStatus.decode(
+        s
+            .copyWith(flags: s.flags | GnssStatus.flagPositionValid)
+            .encode(includePosition: true),
+      );
+      expect(valid.position, isNotNull);
     });
   });
 
