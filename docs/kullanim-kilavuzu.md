@@ -219,7 +219,7 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 
 | Adım | Durum |
 | --- | --- |
-| AI ön değerlendirme (İP9) | ⬜ İlkbahar denetiminden önce. İlk kış denetiminde uzman her ağaca kendisi karar verir |
+| AI ön değerlendirme (`ai-worker run --session-id ...`, işleme istasyonunda) | ✅ Sentetik veriyle; gerçek kesitler yüz bulanıklaştırma gelince gönderilir. İlk kış denetiminde uzman her ağaca kendisi karar verir |
 
 ### 3.5 Uzman incelemesi ve yayın
 

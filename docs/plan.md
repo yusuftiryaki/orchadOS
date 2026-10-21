@@ -82,6 +82,7 @@ gantt
 | Operasyon ekranları | Tamam (PR #19) | `/operasyon`: pano, sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma, ziyaret planlama |
 | Envanter onayı | Tamam (PR #18) | Doğrulama listesi veritabanında (`verification_item`), ofiste ağaç özellikleri, altyapı ve saha sınırı; uzmanın envanter onayı; sahibin sınır onayı. Saha tarafı açık |
 | İP6 v0.3 | Tamam (PR #21) | Doğrulama turu ekranı, sahada sınır köşesi, kapsama haritası, test projesine bağlı APK (`docs/gorevler/ip6-envanter-saha.md`) |
+| İP9 | v0.1 tamam (PR #23) | `ai-worker`: Haiku triaj → Sonnet, Batch API, önbellekli istem, mozaik, `eval`; kişisel veri ve bulanıklaştırılmamış kesit gönderilmez. Gerçek API ile ilk deneme ve eşik kalibrasyonu açık |
 | Dalga 6 | Sürüyor | Sınır köşeleri (firmware konum + işleme hattında sınır), grid rotası, uzman/portal v0.2 (toplu onay, %5 örneklem, durum skoru, soru), bildirimler ve telefonla giriş, İP9 AI worker. Yüz bulanıklaştırma ertelendi (karar 21 Ekim) |
 | Dalga 5 | Tamam | İP5 v0.2 (PR #15); İP4 v0.2 (PR #16): ağaç konumları veritabanından, CI'da uçtan uca zincir testi (~70 sn). Önceki not: ağaç konumları ve uçtan uca test |
 | Dalga 4 | İP6 senkronizasyon sürüyor | İP4, İP7, İP8 birleşti. Örnek tarama verisi: `pnpm db:demo`. Test ortamı: https://orchados-orchad-os.vercel.app (Vercel koruması açık) |
@@ -94,6 +95,7 @@ gantt
 - [x] **Web:** Ağaç rengi uzman ve ofis tarafında da *(PR #15)* `tree_latest_assessment` görünümüne bağlanmalı (portalda yapıldı).
 - [x] **Web:** Medya imzalama iki yerde *(PR #15)*: `src/lib/media/` (portal) ve `src/lib/expert/media.ts`. Uzman paneli ortak yardımcıya geçmeli; `fetchAll` kopyası da birleştirilmeli.
 - [ ] **Yüz bulanıklaştırma (ertelendi):** Yapılana kadar gerçek panoramalar buluta yüklenmez (`upload` bulanıklaştırılmamış görüntüyü reddeder) ve yakın planlar AI'a gönderilmez. Pilot verisi yüklenmeden önce yapılmalı.
+- [ ] **İşleme hattı:** Kesit ve panorama `pose`'una `filters_applied` yazılmalı; AI worker sadece `face_blur` işaretli kesitleri gönderiyor (bulanıklaştırma gelince).
 - [ ] **Testler:** Ekleme-yalnız tablolar yüzünden web testleri kendi işletmelerini kurup `docker exec ... psql` ile temizliyor. Testler için bir temizlik fonksiyonu daha temiz olur.
 - [x] *(PR #16)* **Örnek veri:** `supabase/demo/scans.sql` `pose` alanları `docs/arayuzler.md`'deki sözleşmeye tam uymuyor (`variant`, `gps_time_ns`, `panorama_asset_id` eksik; MIME türü WebP olmalı).
 - [x] **Karar (20 Ekim):** Yayından sonra sadece uzman ölçümleri kilitli; saha personelinin geç gelen kayıtları serbest.
