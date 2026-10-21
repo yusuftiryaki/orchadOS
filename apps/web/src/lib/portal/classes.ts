@@ -117,13 +117,15 @@ export function compareVisits(
 export type Approval = "expert" | "auto" | "model" | "ai";
 
 // How the owner should read a class: signed by an expert, bulk-approved AI
-// result ("otomatik onay"), or a machine opinion nobody has approved.
+// result ("otomatik onay"), or a machine opinion nobody has approved. Bulk
+// approval writes an expert row with auto_approved (bulk_approve_trees), so
+// the flag wins over the source.
 export function approvalOf(row: {
   source: AssessmentSource;
   auto_approved: boolean | null;
 }): Approval {
-  if (row.source === "expert") return "expert";
   if (row.auto_approved) return "auto";
+  if (row.source === "expert") return "expert";
   return row.source;
 }
 

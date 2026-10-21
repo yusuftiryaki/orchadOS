@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   compareSlots,
+  isBulkEligible,
   matchesFilter,
+  sampleDisagreementRate,
   newest,
   summarize,
   type HealthClass,
@@ -130,5 +132,61 @@ describe("newest", () => {
     expect(newest([row("b", "2026-10-02T00:00:00Z"), row("a", "2026-10-02T00:00:00Z")])?.id).toBe(
       "a",
     );
+  });
+});
+
+describe("bulk approval and quality sample", () => {
+  const with_ = (base: ReviewTree, over: Partial<ReviewTree>): ReviewTree => ({ ...base, ...over });
+  const trees = [
+    // Mandatory: never bulk approved.
+    with_(tree("S1-1", "problem", 0.9, null, "problem"), { mandatory: ["ai_flagged"] }),
+    // Sampled: the expert looked, agreed / disagreed.
+    with_(tree("S1-2", "healthy", 0.9, "healthy", "healthy"), { sampled: true }),
+    with_(tree("S1-3", "healthy", 0.9, "attention", "healthy"), { sampled: true }),
+    // Sampled, not looked at yet.
+    with_(tree("S1-4", "healthy", 0.9, null, "healthy"), { sampled: true }),
+    // Bulk approved.
+    with_(tree("S1-5", "healthy", 0.9, "healthy", "healthy"), { expertAuto: true }),
+    with_(tree("S1-6", "attention", 0.9, "attention", "attention"), { expertAuto: true }),
+    // Still open for bulk approval.
+    tree("S1-7", "healthy", 0.9, null, "healthy"),
+    // No AI: not bulk approvable.
+    with_(tree("S1-8", null, null, null, null), { mandatory: ["no_ai"] }),
+  ];
+
+  it("bulk approval covers undecided, non-mandatory, unsampled trees with AI", () => {
+    expect(trees.filter(isBulkEligible).map((t) => t.code)).toEqual(["S1-7"]);
+  });
+
+  it("filters mandatory and sampled trees", () => {
+    expect(trees.filter((t) => matchesFilter(t, "mandatory")).map((t) => t.code)).toEqual([
+      "S1-1",
+      "S1-8",
+    ]);
+    expect(trees.filter((t) => matchesFilter(t, "sample")).map((t) => t.code)).toEqual([
+      "S1-2",
+      "S1-3",
+      "S1-4",
+    ]);
+  });
+
+  it("counts individual and bulk decisions and the sample disagreement", () => {
+    const s = summarize(trees, []);
+    expect(s).toMatchObject({
+      reviewed: 4,
+      individuallyReviewed: 2,
+      bulkApproved: 2,
+      bulkEligible: 1,
+      mandatory: 2,
+      mandatoryOpen: 2,
+      sample: 3,
+      sampleReviewed: 2,
+      sampleDisagreed: 1,
+      // Bulk approvals are not counted as agreement with the AI.
+      aiCompared: 2,
+      aiAgreed: 1,
+    });
+    expect(sampleDisagreementRate(s)).toBe(0.5);
+    expect(sampleDisagreementRate(summarize([], []))).toBeNull();
   });
 });

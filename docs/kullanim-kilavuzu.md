@@ -109,7 +109,7 @@ Envanter her parselin dijital haritasını bir kez çıkarır. Sonraki her ziyar
 | Sunucuya gönderim (senkronizasyon) | ✅ |
 | Köşe işaretleme, kapsama haritası ve oranı | ✅ |
 | Köşelerin PPK'lı yörüngeden konumlanıp sınır sürümünün yazılması (işleme hattı) | ✅ |
-| Sabit grid rotası | 🟡 Geliştiriliyor |
+| Sabit grid rotası, dur-çek-yürü | ✅ |
 
 ### 2.2 İşleme istasyonunda
 
@@ -197,7 +197,7 @@ Parsel için `periodic_scan` türünde, `planned` durumda bir ziyaret açılır;
 | --- | --- |
 | Yakın plan akışı, kamera, cihazda kalite kontrolü, gözlem soruları | ✅ |
 | Gönderim | ✅ |
-| Kapsama haritası | ✅ (sabit grid rotası ⬜) |
+| Kapsama haritası, sabit grid rotası | ✅ |
 
 ### 3.3 İşleme istasyonunda
 
@@ -241,7 +241,8 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 | Adım | Durum |
 | --- | --- |
 | Kuyruk, inceleme, kabul/düzelt, bulgu, özet, imza ve yayın, kısayollar | ✅ |
-| Toplu onay ve %5 kalite örneklemi | ⬜ |
+| Zorunlu inceleme kuralları, toplu onay ve %5 kalite örneklemi | ✅ |
+| Sahibin sorularını cevaplama (`/uzman`, Sorular) | ✅ |
 | Kritik bulgu bildirimi | ⬜ |
 
 ### 3.6 Sahip raporu okur
@@ -266,8 +267,9 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 | Adım | Durum |
 | --- | --- |
 | Bahçelerim, karne, harita, ağaç karnesi, gezi, yazdırma, telefon görünümü | ✅ |
-| Genel durum skoru (0–100) | ⬜ Ağırlıklar metodolojide kesinleşince |
-| "Rapor hazır" bildirimi (SMS/WhatsApp), soru bırakma | ⬜ |
+| Genel durum skoru (0–100) ve denetim güveni | ✅ (ağırlıklar metodolojide kesinleşecek) |
+| Soru bırakma | ✅ |
+| "Rapor hazır" bildirimi (SMS/WhatsApp) | 🟡 Geliştiriliyor |
 
 ## Rol rol özet
 

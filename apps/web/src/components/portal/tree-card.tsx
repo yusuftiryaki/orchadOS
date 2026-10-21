@@ -4,6 +4,13 @@ import { MARKER_COLORS } from "@/lib/map/tree-style";
 import type { PhotoItem, TreeCard, TreeMetricHistory } from "@/lib/portal/data";
 import { SEVERITY_COLORS } from "./colors";
 import { ApprovalBadge, findingKindLabel } from "./labels";
+import {
+  editQuestionAction,
+  askQuestionAction,
+  replyQuestionAction,
+} from "@/app/portal/parsel/[parcelId]/actions";
+import type { QuestionThread } from "@/lib/portal/questions";
+import { AskQuestionForm, QuestionNotice, QuestionThreads } from "./question-threads";
 import styles from "./portal.module.css";
 
 // Tree card: identity, latest class and who gave it, class and measurement
@@ -11,7 +18,13 @@ import styles from "./portal.module.css";
 
 const c = t.portal.tree;
 
-export function TreeCardView({ card }: { card: TreeCard }) {
+export interface QuestionState {
+  threads: QuestionThread[];
+  sent: boolean;
+  error: string | null;
+}
+
+export function TreeCardView({ card, questions }: { card: TreeCard; questions: QuestionState }) {
   const { tree, latest } = card;
   const v = t.tree.values;
   const base = `/portal/parsel/${card.parcel.id}`;
@@ -172,6 +185,35 @@ export function TreeCardView({ card }: { card: TreeCard }) {
             ))}
           </ul>
         )}
+      </section>
+
+      <section id="sorular" className={styles.section} aria-labelledby="soru-baslik">
+        <h2 id="soru-baslik">{t.portal.questions.title}</h2>
+        <p className="muted">{t.portal.questions.treeHint}</p>
+        <QuestionNotice sent={questions.sent} error={questions.error} />
+        <QuestionThreads
+          threads={questions.threads}
+          returnPath={`${base}/agac/${tree.id}`}
+          replyAction={replyQuestionAction}
+          editAction={editQuestionAction}
+        />
+        <AskQuestionForm
+          parcelId={card.parcel.id}
+          treeId={tree.id}
+          returnPath={`${base}/agac/${tree.id}`}
+          action={askQuestionAction}
+          title={t.portal.questions.ask}
+          targets={[
+            { value: "tree", label: t.portal.questions.targetTree },
+            ...card.findings.map((f) => ({
+              value: `finding:${f.id}`,
+              label: t.portal.questions.targetFinding(
+                findingKindLabel(f.kind),
+                formatDate(f.visitTime),
+              ),
+            })),
+          ]}
+        />
       </section>
     </main>
   );

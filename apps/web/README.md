@@ -55,6 +55,7 @@ apps/web/
 │   │   ├── portal/              # sahip, izleyici: bahçelerim, karne, ağaç karnesi, 360° gezi
 │   │   ├── uzman/               # uzman: ziyaret kuyruğu, server action'lar
 │   │   │   └── ziyaret/[sessionId]/ # ağaç ağaç inceleme; ozet/ özet ve imza
+│   │   │   └── sorular/         # sahiplerin soruları ve cevaplar
 │   │   ├── ofis/                # saha personeli, operasyon
 │   │   │   ├── parsel/[parcelId]/envanter/  # ofis üçgenleme aracı + kaydetme (server action)
 │   │   │   └── panorama/[setId]/[panoramaId]/[variant]/  # panorama görüntüsü (route handler)
@@ -163,7 +164,7 @@ Sahip (`owner`) ve hissedar (`viewer`) için `/portal`. Zincir: **Bahçelerim �
 
 | Adres                                 | Ne gösterir                                                                                                                                                                                                                                                                                         |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/portal`                             | Her parsel: konum, ağaç sayısı, son yayımlanmış denetimin tarihi, sınıf dağılımı çubuğu, acil bulgu sayısı                                                                                                                                                                                          |
+| `/portal`                             | Her parsel: konum, ağaç sayısı, son yayımlanmış denetimin tarihi, **genel durum skoru** ve değişimi (▲ ▼), sınıf dağılımı çubuğu, acil bulgu sayısı                                                                                                                                                 |
 | `/portal/parsel/<parsel>`             | **Karne:** son denetimin özeti (ağaç sayısı; sağlıklı / dikkat / sorunlu / kurumuş / yok / değerlendirilmedi, yüzdeleriyle), önceki denetime göre kötüleşen ve iyileşen ağaçlar, **sağlık haritası**, önem sırasıyla bulgular, karnede gösterilen ölçümlerin özeti, ziyaret geçmişi, "Yazdır / PDF" |
 | `…?sinif=problem,dead#harita`         | Haritayı o sınıflarla açar (karnedeki sınıf kutuları bu bağlantıyı kullanır)                                                                                                                                                                                                                        |
 | `…?bulgu=<bulgu>#harita`              | Parsel düzeyindeki bir bulguyu haritada seçer                                                                                                                                                                                                                                                       |
@@ -180,6 +181,27 @@ Sahip (`owner`) ve hissedar (`viewer`) için `/portal`. Zincir: **Bahçelerim �
 - **Ölçümler:** sadece `card_visibility = shown` metrikler. Aynı ziyarette uzman > algoritma > saha ekibi > AI.
 - **Bulgular:** önem (acil, önemli, düşük, bilgi), aynı önemde önce bahçe geneli, sonra sıra/pozisyon sırasıyla. Ağaç bulgusu ağaç karnesine, parsel bulgusu haritadaki konumuna gider. Haritada bulgular önem renginde halka; konum sırasıyla bulgunun kendi `location`'ı, ağacı, bölgesi (`zone`).
 - **Sade dil:** sınıflar ve önem dereceleri tek cümlelik açıklamalarla (`t.portal`).
+- **Otomatik onay:** toplu onay (uzman paneli) `source = expert`, `auto_approved = true` satırı yazar; `approvalOf` önce bayrağa bakar, yani bu ağaçlar "Uzman onaylı" değil "Otomatik onay" rozetiyle görünür.
+
+### Genel durum skoru ve denetim güveni (v0.2)
+
+`src/lib/portal/score.ts` (saf TS, birim testli):
+
+- **Skor (0–100):** ağaç sınıflarının ağırlıklı ortalaması, tam sayıya yuvarlanır. Ağırlıklar `docs/metodoloji.md` bölüm 9: sağlıklı 100, dikkat 60, sorunlu 20, kurumuş 0, yok 0. Değerlendirilmemiş ağaçlar hesaba girmez; hiç değerlendirilmiş ağaç yoksa skor yok.
+- Ağırlıklar metodoloji sürümüne göre tek yapılandırmada (`SCORE_RULES`); bilinmeyen sürüm varsayılanı kullanır.
+- **Değişim:** gösterilen (yuvarlanmış) iki skorun farkı, önceki değerlendirilmiş yayımlanmış ziyarete göre; ▲ arttı, ▼ azaldı, "=" aynı. İlk denetimde "İlk denetim".
+- Bahçelerim listesinde ve karnenin üstünde, yanında "Ağaçların sınıflarına göre ağırlıklı ortalama" açıklaması ve ağırlıklar.
+- **Denetim güveni** (karnede): kapsanan ağaç oranı (bu ziyarette en az iki yönden kesiti olan aktif ağaçlar; `docs/metodoloji.md` bölüm 10), uzmanın tek tek incelediği oran (sınıfı toplu onay olmayan uzman kararından gelen aktif ağaçlar), toplu onay notu ve metodoloji sürümü.
+
+### Soru bırakma (v0.2)
+
+- **Sahip ve hissedar:** ağaç karnesinin altındaki "Sorular" bölümünde ağaca ya da ağacın bir bulgusuna soru yazar; karnede bahçenin bütün soruları listelenir ve bahçe geneli bulgulara soru sorulabilir. Dizide cevap da yazılabilir (takip sorusu).
+- **Uzman (ve operasyon):** `/uzman/sorular`; cevap bekleyenler önce (`?durum=acik` varsayılan, `?durum=tum`). Kuyruk sayfasında "Sorular (N cevap bekliyor)" bağlantısı. Dizinin son mesajı uzman ya da operasyondansa "Cevaplandı".
+- **Düzenleme:** sadece yazan, sadece metni, yazdıktan sonra 15 dakika içinde ("düzenlendi" notu). Silme yok. Gerekçe: yazım hatası düzeltilebilsin, ama cevaplanmış bir soru sonradan değişmesin; kayıt bir denetim belgesi.
+- **Yetki** veritabanında (`question`, `question_reply`; migration `20261023130100_questions.sql`, pgTAP `22_questions.test.sql`): sahip ve hissedar sadece kendi parselinin sorularını görür ve oraya yazar; yayımlanmamış bir bulguya soru soramaz. Uzman ve operasyon kurumun bütün sorularını görür ve cevaplar. Saha personeli görmez. Yazar, rol (`author_role`) ve işletme tetikleyiciyle doldurulur; istemci uyduramaz.
+- **Kişisel veri:** soru metni sahibin serbest metnidir; LLM'e gönderilmez, AI worker bu tabloları okumaz.
+- **Bildirim yeri:** her yeni soru ve cevapta `private.on_question_activity()` tetikleyicisi `pg_notify('question_activity', …)` gönderir (sadece kimlikler, metin yok). Bildirim işi bu fonksiyonun gövdesini kendi kuyruğuna yazacak şekilde değiştirebilir.
+- Kod: `src/lib/portal/questions.ts` (sorgular, yazmalar, saf dizi kurma), `src/lib/expert/questions.ts` (uzman filtresi), `src/components/portal/question-threads.tsx` (iki bölümde ortak).
 
 ### 360° gezi
 
@@ -228,8 +250,8 @@ pnpm web:dev                      # owner@example.com / orchados-dev
 
 ### Testler
 
-- Birim: `src/lib/portal/portal.test.ts` (ziyaret sınıfı, dağılım, değişim, onay türü, harita durumu, ziyaret zamanı, bulgu sırası ve konumu, ölçüm özeti, panoramada yön ve yükseklik açısı, komşu panoramalar, varyant eşleme), `src/lib/media/media.test.ts` (adres ayrıştırma, toplu imzalama, önbellek).
-- Entegrasyon (`tests/integration/portal.test.ts`) ve tarayıcı (`tests/e2e/portal-owner.spec.ts`) testleri kendi verilerini `tests/integration/portal-fixture.ts` ile kurar: ayrı bir işletme, üç kullanıcı (`portal-owner@`, `portal-viewer@`, `portal-other@example.test`), iki parsel; parsel A'da iki yayımlanmış ve bir incelemedeki ziyaret, depoda gerçek küçük PNG'ler. `capture`/`asset`/`measurement` API'den silinemediği için temizlik, yerel veritabanı konteynerinde (`supabase_db_orchados`, `SUPABASE_DB_CONTAINER` ile değişir) tetikleyiciler kapalıyken SQL ile yapılır; başta da çalışır, yarıda kalan bir koşu sorun çıkarmaz.
+- Birim: `src/lib/portal/score.test.ts` (skor, değişim, denetim güveni), `src/lib/portal/questions.test.ts` (metin, düzenleme süresi, dizi sırası ve cevap durumu), `src/lib/portal/portal.test.ts` (ziyaret sınıfı, dağılım, değişim, onay türü, harita durumu, ziyaret zamanı, bulgu sırası ve konumu, ölçüm özeti, panoramada yön ve yükseklik açısı, komşu panoramalar, varyant eşleme), `src/lib/media/media.test.ts` (adres ayrıştırma, toplu imzalama, önbellek).
+- Entegrasyon: `tests/integration/portal-questions.test.ts` (soru ve cevap yetkileri: sahip/hissedar kendi parseli, yayımlanmamış bulgu yok, saha personeli hiçbir şey, uzman başka işletmeyi görmez, sadece yazan ve 15 dakika içinde düzenler). `tests/integration/portal.test.ts` ve tarayıcı (`tests/e2e/portal-owner.spec.ts`) testleri kendi verilerini `tests/integration/portal-fixture.ts` ile kurar: ayrı bir işletme, üç kullanıcı (`portal-owner@`, `portal-viewer@`, `portal-other@example.test`), iki parsel; parsel A'da iki yayımlanmış ve bir incelemedeki ziyaret, depoda gerçek küçük PNG'ler. `capture`/`asset`/`measurement` API'den silinemediği için temizlik, yerel veritabanı konteynerinde (`supabase_db_orchados`, `SUPABASE_DB_CONTAINER` ile değişir) tetikleyiciler kapalıyken SQL ile yapılır; başta da çalışır, yarıda kalan bir koşu sorun çıkarmaz.
 - Tarayıcı: sahip olarak giriş → Bahçelerim → karne → haritada ağaç → ağaç karnesi (fotoğraf yüklenir, eksik fotoğraf yer tutucu); sınıf filtresi ve parsel bulgusu; yayımlanmamış sonucun görünmemesi; gezi (ağaca dönük açılış, önizleme → tam çözünürlük, ok ile geçiş, yer tutucu, ağaç işaretçisinden karneye); 390 px ekranda yatay taşma olmadan karne, harita ve ağaç karnesi.
 
 ## Ofis üçgenleme aracı (İP5)
@@ -342,15 +364,44 @@ Uzman (ziraat mühendisi) bir tarama ziyaretini uzaktan inceler, AI ön değerle
 
 ### Ekranlar
 
-| Adres                          | Ne var                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/uzman`                       | **Ziyaret kuyruğu:** `processed` ve `in_review` durumundaki periyodik tarama ve doğrulama ziyaretleri, en eskisi önce; parsel, tarih, aktif ağaç, incelenen ve kalan sayısı. **Aç** düğmesi `processed` bir ziyareti `in_review`'a alır. Altta işletmenin parselleri.                                                                                                                                                                                                      |
-| `/uzman/ziyaret/<oturum>`      | **Ağaç ağaç inceleme.** Solda sıra/pozisyon koduna göre sıralı ağaç listesi ve filtreler: _İncelenmemiş_, _AI sorunlu dedi_ (AI sınıfı Sorunlu, Kuru ya da Yok), _Düşük güven_ (AI güveni %70'in altında ya da AI önerisi yok). Sağda seçili ağaç (`?agac=`): bu ziyaretin ve önceki yayımlanmış ziyaretin kesitleri yönlere göre yan yana, AI önerisi (sınıf, güven, model, ölçümler), önceki ziyaretin uzman sonucu, ağaç özellikleri, karar paneli ve ağacın bulguları. |
-| `/uzman/ziyaret/<oturum>/ozet` | **Özet ve imza:** uzman sınıflarının dağılımı, önceki ziyarete göre sınıfı değişenler (kötüleşen/iyileşen), AI ile uyum, incelenmemiş ağaçlar, bütün bulgular, parsel bulgusu ekleme ve yayımlama.                                                                                                                                                                                                                                                                         |
+| Adres                          | Ne var                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/uzman`                       | **Ziyaret kuyruğu:** `processed` ve `in_review` durumundaki periyodik tarama ve doğrulama ziyaretleri, en eskisi önce; parsel, tarih, aktif ağaç, incelenen ve kalan sayısı. **Aç** düğmesi `processed` bir ziyareti `in_review`'a alır. Altta işletmenin parselleri.                                                                                                                                                                                                                                              |
+| `/uzman/ziyaret/<oturum>`      | **Ağaç ağaç inceleme.** Solda sıra/pozisyon koduna göre sıralı ağaç listesi ve filtreler: _İncelenmemiş_, _Zorunlu inceleme_, _Kalite örneklemi_, _AI sorunlu dedi_ (AI sınıfı Sorunlu, Kuru ya da Yok), _Düşük güven_ (AI güveni %70'in altında ya da AI önerisi yok). Sağda seçili ağaç (`?agac=`): bu ziyaretin ve önceki yayımlanmış ziyaretin kesitleri yönlere göre yan yana, AI önerisi (sınıf, güven, model, ölçümler), önceki ziyaretin uzman sonucu, ağaç özellikleri, karar paneli ve ağacın bulguları. |
+| `/uzman/ziyaret/<oturum>/ozet` | **Özet ve imza:** uzman sınıflarının dağılımı, tek tek bakılan / toplu onaylanan ağaç sayısı, zorunlu inceleme ve kalite örneklemi sayıları, örneklem uyuşmazlığı, toplu onay, önceki ziyarete göre sınıfı değişenler (kötüleşen/iyileşen), AI ile uyum, incelenmemiş ağaçlar, bütün bulgular, parsel bulgusu ekleme ve yayımlama.                                                                                                                                                                                 |
 
 **Kesitler** `asset` satırlarından (`kind = tree_crop`, yön `pose.direction`), ortak medya yardımcısıyla (`src/lib/media/`, 15 dakikalık imzalı adres, kullanıcı başına önbellek) gösterilir. Dosya depoda yoksa ya da açılamazsa yerine "Görüntü yok" kutusu çıkar (demo verisinde dosya yok).
 
 **Önceki ziyaret:** aynı parselin, bu ziyaretten önceki en yeni yayımlanmış periyodik tarama ya da doğrulama ziyareti (zaman: `started_at`, yoksa planlanan gün, yoksa kayıt zamanı).
+
+### Zorunlu inceleme ve toplu onay (v0.2)
+
+**Kurallar** `src/lib/expert/mandatory-review.ts` (saf TS, birim testli), metodoloji sürümü başına tek yapılandırma (`REVIEW_RULES`; bilinmeyen sürüm varsayılanı kullanır). Bir ağaç şu kurallardan birine takılırsa zorunlu incelemeye girer; listede kısa etiket, ağaç panelinde "Zorunlu inceleme" bölümünde hepsi görünür:
+
+| Kural            | Ne zaman                                                                                                                                                                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no_ai`          | Bu ziyarette AI önerisi yok (toplu onaylanamaz)                                                                                                                                                                                                         |
+| `low_confidence` | AI güveni %70'in altında ya da güven yok                                                                                                                                                                                                                |
+| `ai_flagged`     | AI sorunlu, kuru ya da yok önermiş                                                                                                                                                                                                                      |
+| `class_changed`  | AI sınıfı önceki yayımlanmış ziyaretin uzman sınıfından farklı                                                                                                                                                                                          |
+| `staff_conflict` | Personelin evet/hayır cevabı AI değeriyle çelişiyor: "evet" ama AI değeri yok (ölçek 0, `none`, `not_done`…); "hayır" ama AI değeri belirgin (ölçek 2–3, `marked`, `done`). Eşleşmeler yapılandırmada (ör. `dead_branch_present` ↔ `dead_branch_scale`) |
+| `staff_problem`  | Personel "Sorun gördüm" demiş: `problem_seen` evet/hayır metriği (`source = staff`; migration `20261023130000_bulk_approval.sql`)                                                                                                                       |
+
+Personel cevabı ve AI değeri olarak ziyaretteki en yeni `staff` / `ai` ölçümü okunur.
+
+**Kalite örneklemi:** zorunlu kurala takılmayan ve AI önerisi olan ağaçların `ceil(%5 × n)` tanesi; ağaç kimliğinin ziyaret kimliğiyle birlikte hash'i (FNV-1a) en küçük olanlar. Tohum ziyaret olduğu için sayfa yenilense de aynı kalır; uzman karar verdikçe değişmez (aday kümesi kararlardan bağımsız). Örneklemdeki ağaçlar toplu onaya girmez, panelde "Kalite örneklemi" notuyla uzmanın önüne gelir.
+
+**Toplu onay:** inceleme ve özet sayfasında "Kalanları toplu onayla (N ağaç)". Zorunlu incelemede ve örneklemde olmayan, AI önerisi olan ve uzman kararı olmayan ağaçlar için tek işlemde `bulk_approve_trees(...)` çağrılır:
+
+- Her ağaç için `source = expert`, `auto_approved = true`, sınıfı ziyaretin en yeni AI (ya da model) satırının sınıfı olan bir değerlendirme; AI'ın değerleri "AI'ı kabul et"teki gibi uzman ölçümü olarak kopyalanır (`assessment_measurement`, kesitler kanıt). AI satırı değişmez.
+- Veritabanı reddeder: uzman olmayan çağıran (`42501`), yayımlanmış ya da incelenemez ziyaret (`55000`), AI önerisi olmayan ya da zaten uzman kararı olan ağaç (`P0001`, ayrıntıda `no_ai: S1-6` / `decided: S1-2`). Bir ağaç reddedilirse hiçbiri yazılmaz.
+- Form, uzmanın gördüğü ağaç sayısını da gönderir; o arada liste değiştiyse hiçbir şey yazılmaz ve "Liste değişti" uyarısı çıkar.
+- Toplu onaylı bir ağaç sonradan tek tek düzeltilebilir (yeni karar, en yenisi geçerli).
+- `publish_session` toplu onaylı satırları uzman kararı sayar ve imzalayan adına onaylar (pgTAP ve entegrasyon testinde doğrulandı).
+
+**Özet:** tek tek bakılan ve toplu onaylanan ağaç sayısı, zorunlu inceleme (bekleyen), kalite örnekleminde bakılan ağaç sayısı ve **örneklem uyuşmazlığı** (örneklemde uzmanın AI'dan farklı sınıf verdiği oran). "AI ile uyum" artık sadece tek tek verilen kararları sayar.
+
+**Sorular:** `/uzman/sorular`, bkz. sahip portalı "Soru bırakma".
 
 ### Karar
 
@@ -406,14 +457,18 @@ Kuyruğun altında **Envanter onayı bekleyenler**: `captured`, `processed` ya d
 ### Testler
 
 - Birim (`src/lib/expert/*.test.ts`): mevsim, metrik seçimi (mevsim + görünürlük + konu), form girdisi ve AI değerlerinin kopyalanması, filtreler, özet ve önceki ziyarete göre değişim, adresler, bulgu doğrulama, uzman metinlerinin tamlığı.
+- Birim: `src/lib/expert/mandatory-review.test.ts` (her kural, çelişki eşleşmeleri, örneklemin tekrarlanabilirliği ve boyutu, triyaj); `summary.test.ts` toplu onay uygunluğu ve örneklem sayıları.
+- Entegrasyon (`tests/integration/expert-bulk.test.ts`): triyaj ve örneklem; saha personeli, operasyon ve sahibin toplu onaylayamaması; değişen listeyle reddedilme; doğru ağaçların onaylanması (örneklem ve zorunlular atlanır), kopyalanan değerler ve kanıt; yayımlamanın toplu onayları sayması; yayından sonra reddedilme; sahibin "Otomatik onay" ve denetim güveni görmesi. Test verisi `tests/e2e/expert-bulk-fixtures.ts`: ayrı bir işletme (`e9…`), 24 ağaç, her kural için bir ağaç.
+- Tarayıcı (`tests/e2e/expert-bulk.spec.ts`): uzman toplu onaylar, zorunlu ve örneklem ağaçlarına bakar, özeti kontrol edip yayımlar; sahip skoru, denetim güvenini ve "Otomatik onay"ı görür, soru bırakır; uzman `/uzman/sorular`'da cevaplar, sahip cevabı görür.
 - Entegrasyon (`tests/integration/expert-review.test.ts`): kuyruk ve incelemeye alma; AI'ı kabul (AI satırı değişmez, ölçüm, kanıt, bağ), düzeltme (eski kararlar kalır), bulgu ekleme/düzenleme/silme; eksik değerlendirmeyle yayımlamanın reddi; saha personeli ve operasyonun yayımlayamaması ve durumu doğrudan `published` yapamaması; sahibin sonuçları yayından önce görmemesi, sonra görmesi; yayından sonra donma.
 - Tarayıcı (`tests/e2e/expert-review.spec.ts`): uzman girişi, kuyruktan açma, bir ağacı kabul, birini düzeltme, eksikle yayımlamanın reddi, kısayolla kabul, yayımlama.
 - **Test verisi** (`tests/e2e/expert-fixtures.ts`): ölçümler silinemediği için uzman testleri ayrı bir test işletmesinde (`e7…`) çalışır. Test süresince örnek kullanıcılara orada rol verilir, sonunda geri alınır; yer ve ağaçlar sabit kimliklidir, her çalıştırma yeni oturumlar ekler. Kalan satırlar örnek kullanıcılara görünmez, ama genel satır sayısını sayan pgTAP testleri (`00_schema`) için önce `pnpm db:reset` gerekir.
 
 ### Bilinen sınırlar
 
-- **Toplu onay ve kalite örneklemi yok:** Her ağaç tek tek kabul edilir (kesme listesi 5).
-- **Eşik sabit:** Düşük güven eşiği %70 (`LOW_CONFIDENCE`); pilotta ayarlanacak.
+- **Eşikler sabit:** Düşük güven eşiği %70, örneklem %5 (`REVIEW_RULES`); pilotta ayarlanacak. Henüz tek metodoloji sürümü var.
+- **Örneklem kaydedilmiyor:** Örneklem kurallardan yeniden hesaplanır; kurallar değişirse eski bir ziyaretin özetindeki örneklem de değişebilir. Gerekirse toplu onay anında örneklem bir tabloya yazılabilir.
+- **AI bayrakları okunmuyor:** Personel-AI çelişkisi ölçümlerden hesaplanıyor; AI worker'ın kendi tutarsızlık bayrakları (İP9) veritabanına yazıldığında kurallara eklenebilir.
 - **Ölçümler donmuyor:** Yayından sonra değerlendirme ve bulgular kilitli; ölçümler (saha uygulamasının geç senkronizasyonu için) kilitli değil.
 - **Bulgu kaydı tek işlem değil:** bulgu ve kanıtları iki ayrı yazma; kanıt yazılamazsa bulgu silinir.
 - **Küçük önizleme yok:** kesit dosyası olduğu gibi gösterilir.

@@ -129,6 +129,34 @@
   color: var(--color-accent);
 }
 
+.checkAuto {
+  margin-left: auto;
+  color: var(--color-muted);
+}
+
+.reasonTag,
+.sampleTag {
+  font-size: 0.75rem;
+  padding: 0 0.35rem;
+  border-radius: 0.6rem;
+  white-space: nowrap;
+}
+
+.reasonTag {
+  background: #fde8d7;
+  color: #8a3b00;
+}
+
+.sampleTag {
+  background: #e3ecfb;
+  color: #1d4b8f;
+}
+
+.reasons {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

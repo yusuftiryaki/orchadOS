@@ -75,4 +75,8 @@ abstract interface class SyncServer {
   /// Calls `record_verification_result` with [params]. A refusal names its
   /// reason (`item_closed`, `not_found`, `forbidden`, `invalid_input`).
   Future<void> recordVerificationResult(Map<String, Object?> params);
+
+  /// Calls `save_parcel_route` with [params]; returns the version the
+  /// server gave the route (an existing id returns its version).
+  Future<int> saveParcelRoute(Map<String, Object?> params);
 }

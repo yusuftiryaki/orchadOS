@@ -1354,6 +1354,171 @@ export type Database = {
           },
         ];
       };
+      parcel_route: {
+        Row: {
+          basis: string;
+          content_hash: string;
+          created_at: string;
+          created_by: string | null;
+          generator: string;
+          id: string;
+          org_id: string;
+          parcel_id: string;
+          route: NonNullable<Json>;
+          session_id: string | null;
+          version: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          basis: string;
+          content_hash: string;
+          created_at?: string;
+          created_by?: string | null;
+          generator: string;
+          id: string;
+          org_id: string;
+          parcel_id: string;
+          route: NonNullable<Json>;
+          session_id?: string | null;
+          version: number;
+        };
+        Update: {
+          basis?: string;
+          content_hash?: string;
+          created_at?: string;
+          created_by?: string | null;
+          generator?: string;
+          id?: string;
+          org_id?: string;
+          parcel_id?: string;
+          route?: NonNullable<Json>;
+          session_id?: string | null;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "parcel_route_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "parcel_route_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      question: {
+        Row: {
+          author_role: Database["public"]["Enums"]["question_author_role"];
+          body: string;
+          created_at: string;
+          created_by: string | null;
+          edited_at: string | null;
+          finding_id: string | null;
+          id: string;
+          org_id: string;
+          parcel_id: string;
+          tree_id: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          author_role: Database["public"]["Enums"]["question_author_role"];
+          body: string;
+          created_at?: string;
+          created_by?: string | null;
+          edited_at?: string | null;
+          finding_id?: string | null;
+          id?: string;
+          org_id: string;
+          parcel_id: string;
+          tree_id?: string | null;
+        };
+        Update: {
+          author_role?: Database["public"]["Enums"]["question_author_role"];
+          body?: string;
+          created_at?: string;
+          created_by?: string | null;
+          edited_at?: string | null;
+          finding_id?: string | null;
+          id?: string;
+          org_id?: string;
+          parcel_id?: string;
+          tree_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "question_finding_id_parcel_id_org_id_fkey";
+            columns: ["finding_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "finding";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "question_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "question_tree_id_parcel_id_org_id_fkey";
+            columns: ["tree_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      question_reply: {
+        Row: {
+          author_role: Database["public"]["Enums"]["question_author_role"];
+          body: string;
+          created_at: string;
+          created_by: string | null;
+          edited_at: string | null;
+          id: string;
+          org_id: string;
+          parcel_id: string;
+          question_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          author_role: Database["public"]["Enums"]["question_author_role"];
+          body: string;
+          created_at?: string;
+          created_by?: string | null;
+          edited_at?: string | null;
+          id?: string;
+          org_id: string;
+          parcel_id: string;
+          question_id: string;
+        };
+        Update: {
+          author_role?: Database["public"]["Enums"]["question_author_role"];
+          body?: string;
+          created_at?: string;
+          created_by?: string | null;
+          edited_at?: string | null;
+          id?: string;
+          org_id?: string;
+          parcel_id?: string;
+          question_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "question_reply_question_id_parcel_id_org_id_fkey";
+            columns: ["question_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "question";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
       rig: {
         Row: {
           created_at: string;
@@ -2219,6 +2384,10 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      bulk_approve_trees: {
+        Args: { p_items: Json; p_method_version: string; p_session_id: string };
+        Returns: number;
+      };
       close_verification_item: {
         Args: { p_item_id: string; p_note: string };
         Returns: {
@@ -2542,6 +2711,16 @@ export type Database = {
         };
         Returns: Json;
       };
+      save_parcel_route: {
+        Args: {
+          p_content_hash: string;
+          p_id: string;
+          p_parcel_id: string;
+          p_route: Json;
+          p_session_id: string;
+        };
+        Returns: Json;
+      };
     };
     Enums: {
       age_class: "sapling" | "young" | "productive" | "old" | "unknown";
@@ -2584,6 +2763,7 @@ export type Database = {
       parcel_status:
         "registered" | "inventory_planned" | "inventory_done" | "active_monitoring" | "passive";
       performer_kind: "crew" | "robot";
+      question_author_role: "owner" | "viewer" | "expert" | "ops";
       season: "winter" | "spring" | "summer" | "harvest";
       sensor_kind: "camera_360" | "lidar" | "gnss" | "thermal" | "phone_camera" | "imu" | "other";
       session_kind:
@@ -2778,6 +2958,7 @@ export const Constants = {
         "passive",
       ],
       performer_kind: ["crew", "robot"],
+      question_author_role: ["owner", "viewer", "expert", "ops"],
       season: ["winter", "spring", "summer", "harvest"],
       sensor_kind: ["camera_360", "lidar", "gnss", "thermal", "phone_camera", "imu", "other"],
       session_kind: [

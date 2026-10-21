@@ -4,6 +4,7 @@ import { requireSection } from "@/lib/auth/session";
 import { MARKER_ORDER, type MarkerState } from "@/lib/map/tree-style";
 import { loadBoundaryCard } from "@/lib/portal/boundary";
 import { getParcelReport } from "@/lib/portal/data";
+import { listThreads } from "@/lib/portal/questions";
 import { createClient } from "@/lib/supabase/server";
 
 // ?sinif=problem,dead opens the map filtered to those classes;
@@ -13,14 +14,20 @@ export default async function Page({
   searchParams,
 }: {
   params: Promise<{ parcelId: string }>;
-  searchParams: Promise<{ sinif?: string | string[]; bulgu?: string | string[] }>;
+  searchParams: Promise<{
+    sinif?: string | string[];
+    bulgu?: string | string[];
+    soru?: string | string[];
+    soru_hata?: string | string[];
+  }>;
 }) {
   const user = await requireSection("portal");
   const [{ parcelId }, query] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
-  const [report, boundaryCard] = await Promise.all([
+  const [report, boundaryCard, threads] = await Promise.all([
     getParcelReport(supabase, parcelId),
     loadBoundaryCard(supabase, parcelId, user.id),
+    listThreads(supabase, user.id, { parcelId }),
   ]);
   // Not visible under RLS looks the same as not existing.
   if (!report) notFound();
@@ -31,6 +38,11 @@ export default async function Page({
       classFilter={parseClassFilter(first(query.sinif))}
       findingId={first(query.bulgu)}
       boundaryCard={boundaryCard}
+      questions={{
+        threads,
+        sent: first(query.soru) === "1",
+        error: first(query.soru_hata) ?? null,
+      }}
     />
   );
 }

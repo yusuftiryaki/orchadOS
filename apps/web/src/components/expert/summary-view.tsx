@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { isReviewable, type ReviewContext } from "@/lib/expert/review";
-import { HEALTH_CLASSES, summarize } from "@/lib/expert/summary";
+import { HEALTH_CLASSES, sampleDisagreementRate, summarize } from "@/lib/expert/summary";
 import { reviewHref, summaryHref } from "@/lib/expert/urls";
 import { formatNumber, t } from "@/lib/i18n";
+import { BulkApprovePanel, type BulkMessages } from "./bulk-approve";
 import { ClassBadge } from "./class-badge";
 import styles from "./expert.module.css";
 import { FindingForm } from "./finding-form";
@@ -19,10 +20,12 @@ export function SummaryView({
   ctx,
   findingError,
   published,
+  bulk,
 }: {
   ctx: ReviewContext;
   findingError: string | null;
   published: boolean;
+  bulk: BulkMessages;
 }) {
   const sm = t.expert.summary;
   const s = ctx.session;
@@ -32,6 +35,7 @@ export function SummaryView({
   const idOf = new Map(ctx.trees.map((tree) => [tree.code, tree.id]));
   const returnPath = summaryHref(s.id);
   const health = t.tree.values.health;
+  const disagreement = sampleDisagreementRate(summary);
 
   return (
     <main className="page" data-testid="summary-page">
@@ -74,6 +78,41 @@ export function SummaryView({
           )}
         </section>
 
+        <section className={styles.panel} data-testid="review-breakdown">
+          <h3>{sm.review}</h3>
+          <table className={styles.table}>
+            <tbody>
+              <tr>
+                <th scope="row">{sm.individually}</th>
+                <td className={styles.number} data-testid="count-individually">
+                  {formatNumber(summary.individuallyReviewed)}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">{sm.bulkApproved}</th>
+                <td className={styles.number} data-testid="count-bulk">
+                  {formatNumber(summary.bulkApproved)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="muted" data-testid="mandatory-count">
+            {sm.mandatory(summary.mandatoryOpen, summary.mandatory)}
+          </p>
+          <p className="muted" data-testid="sample-count">
+            {sm.sample(summary.sampleReviewed, summary.sample)}
+          </p>
+          <p data-testid="sample-disagreement">
+            {disagreement == null
+              ? sm.sampleDisagreementNone
+              : sm.sampleDisagreement(
+                  formatNumber(disagreement * 100, 0),
+                  summary.sampleDisagreed,
+                  summary.sampleReviewed,
+                )}
+          </p>
+        </section>
+
         <section className={styles.panel} data-testid="class-changes">
           <h3>{sm.changes}</h3>
           {summary.changes.length === 0 ? (
@@ -96,6 +135,8 @@ export function SummaryView({
           )}
         </section>
       </div>
+
+      <BulkApprovePanel ctx={ctx} returnPath={returnPath} messages={bulk} />
 
       <section className={styles.panel} data-testid="unreviewed">
         <h3>{sm.unreviewed}</h3>

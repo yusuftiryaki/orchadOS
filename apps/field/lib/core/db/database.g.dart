@@ -1210,7 +1210,8 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
   final String sessionId;
 
   /// `session_start`, `session_stop`, `corner`, `qr_sync`,
-  /// `boundary_corners`, `coverage` (docs/arayuzler.md).
+  /// `boundary_corners`, `coverage`, `route`, `route_progress`
+  /// (docs/arayuzler.md).
   final String eventType;
   final String payload;
 
@@ -3873,7 +3874,7 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
   final int id;
 
   /// `session`, `session_event`, `capture`, `measurement`,
-  /// `verification_result`.
+  /// `verification_result`, `parcel_route`.
   final String entityType;
   final String entityId;
   final DateTime createdAt;
@@ -4991,6 +4992,630 @@ class VerificationResultsCompanion
   }
 }
 
+class $ParcelRoutesTable extends ParcelRoutes
+    with TableInfo<$ParcelRoutesTable, ParcelRouteRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ParcelRoutesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _parcelIdMeta = const VerificationMeta(
+    'parcelId',
+  );
+  @override
+  late final GeneratedColumn<String> parcelId = GeneratedColumn<String>(
+    'parcel_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentHashMeta = const VerificationMeta(
+    'contentHash',
+  );
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+    'content_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _generatorMeta = const VerificationMeta(
+    'generator',
+  );
+  @override
+  late final GeneratedColumn<String> generator = GeneratedColumn<String>(
+    'generator',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _basisMeta = const VerificationMeta('basis');
+  @override
+  late final GeneratedColumn<String> basis = GeneratedColumn<String>(
+    'basis',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _routeJsonMeta = const VerificationMeta(
+    'routeJson',
+  );
+  @override
+  late final GeneratedColumn<String> routeJson = GeneratedColumn<String>(
+    'route_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id)',
+    ),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _syncedMeta = const VerificationMeta('synced');
+  @override
+  late final GeneratedColumn<bool> synced = GeneratedColumn<bool>(
+    'synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    parcelId,
+    version,
+    contentHash,
+    generator,
+    basis,
+    routeJson,
+    sessionId,
+    createdAt,
+    synced,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'parcel_routes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ParcelRouteRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('parcel_id')) {
+      context.handle(
+        _parcelIdMeta,
+        parcelId.isAcceptableOrUnknown(data['parcel_id']!, _parcelIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_parcelIdMeta);
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_versionMeta);
+    }
+    if (data.containsKey('content_hash')) {
+      context.handle(
+        _contentHashMeta,
+        contentHash.isAcceptableOrUnknown(
+          data['content_hash']!,
+          _contentHashMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contentHashMeta);
+    }
+    if (data.containsKey('generator')) {
+      context.handle(
+        _generatorMeta,
+        generator.isAcceptableOrUnknown(data['generator']!, _generatorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_generatorMeta);
+    }
+    if (data.containsKey('basis')) {
+      context.handle(
+        _basisMeta,
+        basis.isAcceptableOrUnknown(data['basis']!, _basisMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_basisMeta);
+    }
+    if (data.containsKey('route_json')) {
+      context.handle(
+        _routeJsonMeta,
+        routeJson.isAcceptableOrUnknown(data['route_json']!, _routeJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_routeJsonMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('synced')) {
+      context.handle(
+        _syncedMeta,
+        synced.isAcceptableOrUnknown(data['synced']!, _syncedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ParcelRouteRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ParcelRouteRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      parcelId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parcel_id'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      contentHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_hash'],
+      )!,
+      generator: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}generator'],
+      )!,
+      basis: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}basis'],
+      )!,
+      routeJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}route_json'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      synced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}synced'],
+      )!,
+    );
+  }
+
+  @override
+  $ParcelRoutesTable createAlias(String alias) {
+    return $ParcelRoutesTable(attachedDatabase, alias);
+  }
+}
+
+class ParcelRouteRow extends DataClass implements Insertable<ParcelRouteRow> {
+  /// uuid v5 of `<parcel>/<content hash>` (route_store.dart).
+  final String id;
+  final String parcelId;
+
+  /// Version guessed on the phone; replaced by the server's after upload.
+  final int version;
+  final String contentHash;
+  final String generator;
+
+  /// `inventory` or `boundary`.
+  final String basis;
+
+  /// GridRoute.toJson().
+  final String routeJson;
+
+  /// The visit that first used it.
+  final String sessionId;
+  final DateTime createdAt;
+
+  /// The server stored it (and [version] is the server's).
+  final bool synced;
+  const ParcelRouteRow({
+    required this.id,
+    required this.parcelId,
+    required this.version,
+    required this.contentHash,
+    required this.generator,
+    required this.basis,
+    required this.routeJson,
+    required this.sessionId,
+    required this.createdAt,
+    required this.synced,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['parcel_id'] = Variable<String>(parcelId);
+    map['version'] = Variable<int>(version);
+    map['content_hash'] = Variable<String>(contentHash);
+    map['generator'] = Variable<String>(generator);
+    map['basis'] = Variable<String>(basis);
+    map['route_json'] = Variable<String>(routeJson);
+    map['session_id'] = Variable<String>(sessionId);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['synced'] = Variable<bool>(synced);
+    return map;
+  }
+
+  ParcelRoutesCompanion toCompanion(bool nullToAbsent) {
+    return ParcelRoutesCompanion(
+      id: Value(id),
+      parcelId: Value(parcelId),
+      version: Value(version),
+      contentHash: Value(contentHash),
+      generator: Value(generator),
+      basis: Value(basis),
+      routeJson: Value(routeJson),
+      sessionId: Value(sessionId),
+      createdAt: Value(createdAt),
+      synced: Value(synced),
+    );
+  }
+
+  factory ParcelRouteRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ParcelRouteRow(
+      id: serializer.fromJson<String>(json['id']),
+      parcelId: serializer.fromJson<String>(json['parcelId']),
+      version: serializer.fromJson<int>(json['version']),
+      contentHash: serializer.fromJson<String>(json['contentHash']),
+      generator: serializer.fromJson<String>(json['generator']),
+      basis: serializer.fromJson<String>(json['basis']),
+      routeJson: serializer.fromJson<String>(json['routeJson']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      synced: serializer.fromJson<bool>(json['synced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'parcelId': serializer.toJson<String>(parcelId),
+      'version': serializer.toJson<int>(version),
+      'contentHash': serializer.toJson<String>(contentHash),
+      'generator': serializer.toJson<String>(generator),
+      'basis': serializer.toJson<String>(basis),
+      'routeJson': serializer.toJson<String>(routeJson),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'synced': serializer.toJson<bool>(synced),
+    };
+  }
+
+  ParcelRouteRow copyWith({
+    String? id,
+    String? parcelId,
+    int? version,
+    String? contentHash,
+    String? generator,
+    String? basis,
+    String? routeJson,
+    String? sessionId,
+    DateTime? createdAt,
+    bool? synced,
+  }) => ParcelRouteRow(
+    id: id ?? this.id,
+    parcelId: parcelId ?? this.parcelId,
+    version: version ?? this.version,
+    contentHash: contentHash ?? this.contentHash,
+    generator: generator ?? this.generator,
+    basis: basis ?? this.basis,
+    routeJson: routeJson ?? this.routeJson,
+    sessionId: sessionId ?? this.sessionId,
+    createdAt: createdAt ?? this.createdAt,
+    synced: synced ?? this.synced,
+  );
+  ParcelRouteRow copyWithCompanion(ParcelRoutesCompanion data) {
+    return ParcelRouteRow(
+      id: data.id.present ? data.id.value : this.id,
+      parcelId: data.parcelId.present ? data.parcelId.value : this.parcelId,
+      version: data.version.present ? data.version.value : this.version,
+      contentHash: data.contentHash.present
+          ? data.contentHash.value
+          : this.contentHash,
+      generator: data.generator.present ? data.generator.value : this.generator,
+      basis: data.basis.present ? data.basis.value : this.basis,
+      routeJson: data.routeJson.present ? data.routeJson.value : this.routeJson,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      synced: data.synced.present ? data.synced.value : this.synced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ParcelRouteRow(')
+          ..write('id: $id, ')
+          ..write('parcelId: $parcelId, ')
+          ..write('version: $version, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('generator: $generator, ')
+          ..write('basis: $basis, ')
+          ..write('routeJson: $routeJson, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('synced: $synced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    parcelId,
+    version,
+    contentHash,
+    generator,
+    basis,
+    routeJson,
+    sessionId,
+    createdAt,
+    synced,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ParcelRouteRow &&
+          other.id == this.id &&
+          other.parcelId == this.parcelId &&
+          other.version == this.version &&
+          other.contentHash == this.contentHash &&
+          other.generator == this.generator &&
+          other.basis == this.basis &&
+          other.routeJson == this.routeJson &&
+          other.sessionId == this.sessionId &&
+          other.createdAt == this.createdAt &&
+          other.synced == this.synced);
+}
+
+class ParcelRoutesCompanion extends UpdateCompanion<ParcelRouteRow> {
+  final Value<String> id;
+  final Value<String> parcelId;
+  final Value<int> version;
+  final Value<String> contentHash;
+  final Value<String> generator;
+  final Value<String> basis;
+  final Value<String> routeJson;
+  final Value<String> sessionId;
+  final Value<DateTime> createdAt;
+  final Value<bool> synced;
+  final Value<int> rowid;
+  const ParcelRoutesCompanion({
+    this.id = const Value.absent(),
+    this.parcelId = const Value.absent(),
+    this.version = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.generator = const Value.absent(),
+    this.basis = const Value.absent(),
+    this.routeJson = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ParcelRoutesCompanion.insert({
+    required String id,
+    required String parcelId,
+    required int version,
+    required String contentHash,
+    required String generator,
+    required String basis,
+    required String routeJson,
+    required String sessionId,
+    required DateTime createdAt,
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       parcelId = Value(parcelId),
+       version = Value(version),
+       contentHash = Value(contentHash),
+       generator = Value(generator),
+       basis = Value(basis),
+       routeJson = Value(routeJson),
+       sessionId = Value(sessionId),
+       createdAt = Value(createdAt);
+  static Insertable<ParcelRouteRow> custom({
+    Expression<String>? id,
+    Expression<String>? parcelId,
+    Expression<int>? version,
+    Expression<String>? contentHash,
+    Expression<String>? generator,
+    Expression<String>? basis,
+    Expression<String>? routeJson,
+    Expression<String>? sessionId,
+    Expression<DateTime>? createdAt,
+    Expression<bool>? synced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (parcelId != null) 'parcel_id': parcelId,
+      if (version != null) 'version': version,
+      if (contentHash != null) 'content_hash': contentHash,
+      if (generator != null) 'generator': generator,
+      if (basis != null) 'basis': basis,
+      if (routeJson != null) 'route_json': routeJson,
+      if (sessionId != null) 'session_id': sessionId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (synced != null) 'synced': synced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ParcelRoutesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? parcelId,
+    Value<int>? version,
+    Value<String>? contentHash,
+    Value<String>? generator,
+    Value<String>? basis,
+    Value<String>? routeJson,
+    Value<String>? sessionId,
+    Value<DateTime>? createdAt,
+    Value<bool>? synced,
+    Value<int>? rowid,
+  }) {
+    return ParcelRoutesCompanion(
+      id: id ?? this.id,
+      parcelId: parcelId ?? this.parcelId,
+      version: version ?? this.version,
+      contentHash: contentHash ?? this.contentHash,
+      generator: generator ?? this.generator,
+      basis: basis ?? this.basis,
+      routeJson: routeJson ?? this.routeJson,
+      sessionId: sessionId ?? this.sessionId,
+      createdAt: createdAt ?? this.createdAt,
+      synced: synced ?? this.synced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (parcelId.present) {
+      map['parcel_id'] = Variable<String>(parcelId.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
+    if (generator.present) {
+      map['generator'] = Variable<String>(generator.value);
+    }
+    if (basis.present) {
+      map['basis'] = Variable<String>(basis.value);
+    }
+    if (routeJson.present) {
+      map['route_json'] = Variable<String>(routeJson.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (synced.present) {
+      map['synced'] = Variable<bool>(synced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ParcelRoutesCompanion(')
+          ..write('id: $id, ')
+          ..write('parcelId: $parcelId, ')
+          ..write('version: $version, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('generator: $generator, ')
+          ..write('basis: $basis, ')
+          ..write('routeJson: $routeJson, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('synced: $synced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5002,6 +5627,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TaskCacheTable taskCache = $TaskCacheTable(this);
   late final $VerificationResultsTable verificationResults =
       $VerificationResultsTable(this);
+  late final $ParcelRoutesTable parcelRoutes = $ParcelRoutesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5014,6 +5640,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     outboxEntries,
     taskCache,
     verificationResults,
+    parcelRoutes,
   ];
   @override
   DriftDatabaseOptions get options =>
@@ -5136,6 +5763,24 @@ final class $$SessionsTableReferences
     final cache = $_typedResult.readTableOrNull(
       _verificationResultsRefsTable($_db),
     );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ParcelRoutesTable, List<ParcelRouteRow>>
+  _parcelRoutesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.parcelRoutes,
+    aliasName: 'sessions__id__parcel_routes__session_id',
+  );
+
+  $$ParcelRoutesTableProcessedTableManager get parcelRoutesRefs {
+    final manager = $$ParcelRoutesTableTableManager(
+      $_db,
+      $_db.parcelRoutes,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_parcelRoutesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -5322,6 +5967,31 @@ class $$SessionsTableFilterComposer
           }) => $$VerificationResultsTableFilterComposer(
             $db: $db,
             $table: $db.verificationResults,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> parcelRoutesRefs(
+    Expression<bool> Function($$ParcelRoutesTableFilterComposer f) f,
+  ) {
+    final $$ParcelRoutesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.parcelRoutes,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ParcelRoutesTableFilterComposer(
+            $db: $db,
+            $table: $db.parcelRoutes,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5595,6 +6265,31 @@ class $$SessionsTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> parcelRoutesRefs<T extends Object>(
+    Expression<T> Function($$ParcelRoutesTableAnnotationComposer a) f,
+  ) {
+    final $$ParcelRoutesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.parcelRoutes,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ParcelRoutesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.parcelRoutes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SessionsTableTableManager
@@ -5615,6 +6310,7 @@ class $$SessionsTableTableManager
             bool capturesRefs,
             bool measurementsRefs,
             bool verificationResultsRefs,
+            bool parcelRoutesRefs,
           })
         > {
   $$SessionsTableTableManager(_$AppDatabase db, $SessionsTable table)
@@ -5718,6 +6414,7 @@ class $$SessionsTableTableManager
                 capturesRefs = false,
                 measurementsRefs = false,
                 verificationResultsRefs = false,
+                parcelRoutesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -5726,6 +6423,7 @@ class $$SessionsTableTableManager
                     if (capturesRefs) db.captures,
                     if (measurementsRefs) db.measurements,
                     if (verificationResultsRefs) db.verificationResults,
+                    if (parcelRoutesRefs) db.parcelRoutes,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -5814,6 +6512,27 @@ class $$SessionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (parcelRoutesRefs)
+                        await $_getPrefetchedData<
+                          SessionRow,
+                          $SessionsTable,
+                          ParcelRouteRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SessionsTableReferences
+                              ._parcelRoutesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).parcelRoutesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -5839,6 +6558,7 @@ typedef $$SessionsTableProcessedTableManager =
         bool capturesRefs,
         bool measurementsRefs,
         bool verificationResultsRefs,
+        bool parcelRoutesRefs,
       })
     >;
 typedef $$SessionEventsTableCreateCompanionBuilder =
@@ -8242,6 +8962,418 @@ typedef $$VerificationResultsTableProcessedTableManager =
       VerificationResultRow,
       PrefetchHooks Function({bool tourId})
     >;
+typedef $$ParcelRoutesTableCreateCompanionBuilder =
+    ParcelRoutesCompanion Function({
+      required String id,
+      required String parcelId,
+      required int version,
+      required String contentHash,
+      required String generator,
+      required String basis,
+      required String routeJson,
+      required String sessionId,
+      required DateTime createdAt,
+      Value<bool> synced,
+      Value<int> rowid,
+    });
+typedef $$ParcelRoutesTableUpdateCompanionBuilder =
+    ParcelRoutesCompanion Function({
+      Value<String> id,
+      Value<String> parcelId,
+      Value<int> version,
+      Value<String> contentHash,
+      Value<String> generator,
+      Value<String> basis,
+      Value<String> routeJson,
+      Value<String> sessionId,
+      Value<DateTime> createdAt,
+      Value<bool> synced,
+      Value<int> rowid,
+    });
+
+final class $$ParcelRoutesTableReferences
+    extends BaseReferences<_$AppDatabase, $ParcelRoutesTable, ParcelRouteRow> {
+  $$ParcelRoutesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SessionsTable _sessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('parcel_routes__session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager get sessionId {
+    final $_column = $_itemColumn<String>('session_id')!;
+
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ParcelRoutesTableFilterComposer
+    extends Composer<_$AppDatabase, $ParcelRoutesTable> {
+  $$ParcelRoutesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parcelId => $composableBuilder(
+    column: $table.parcelId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get generator => $composableBuilder(
+    column: $table.generator,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get basis => $composableBuilder(
+    column: $table.basis,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get routeJson => $composableBuilder(
+    column: $table.routeJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SessionsTableFilterComposer get sessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ParcelRoutesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ParcelRoutesTable> {
+  $$ParcelRoutesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parcelId => $composableBuilder(
+    column: $table.parcelId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get generator => $composableBuilder(
+    column: $table.generator,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get basis => $composableBuilder(
+    column: $table.basis,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get routeJson => $composableBuilder(
+    column: $table.routeJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SessionsTableOrderingComposer get sessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ParcelRoutesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ParcelRoutesTable> {
+  $$ParcelRoutesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get parcelId =>
+      $composableBuilder(column: $table.parcelId, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get generator =>
+      $composableBuilder(column: $table.generator, builder: (column) => column);
+
+  GeneratedColumn<String> get basis =>
+      $composableBuilder(column: $table.basis, builder: (column) => column);
+
+  GeneratedColumn<String> get routeJson =>
+      $composableBuilder(column: $table.routeJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get synced =>
+      $composableBuilder(column: $table.synced, builder: (column) => column);
+
+  $$SessionsTableAnnotationComposer get sessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ParcelRoutesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ParcelRoutesTable,
+          ParcelRouteRow,
+          $$ParcelRoutesTableFilterComposer,
+          $$ParcelRoutesTableOrderingComposer,
+          $$ParcelRoutesTableAnnotationComposer,
+          $$ParcelRoutesTableCreateCompanionBuilder,
+          $$ParcelRoutesTableUpdateCompanionBuilder,
+          (ParcelRouteRow, $$ParcelRoutesTableReferences),
+          ParcelRouteRow,
+          PrefetchHooks Function({bool sessionId})
+        > {
+  $$ParcelRoutesTableTableManager(_$AppDatabase db, $ParcelRoutesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ParcelRoutesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ParcelRoutesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ParcelRoutesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> parcelId = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> contentHash = const Value.absent(),
+                Value<String> generator = const Value.absent(),
+                Value<String> basis = const Value.absent(),
+                Value<String> routeJson = const Value.absent(),
+                Value<String> sessionId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ParcelRoutesCompanion(
+                id: id,
+                parcelId: parcelId,
+                version: version,
+                contentHash: contentHash,
+                generator: generator,
+                basis: basis,
+                routeJson: routeJson,
+                sessionId: sessionId,
+                createdAt: createdAt,
+                synced: synced,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String parcelId,
+                required int version,
+                required String contentHash,
+                required String generator,
+                required String basis,
+                required String routeJson,
+                required String sessionId,
+                required DateTime createdAt,
+                Value<bool> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ParcelRoutesCompanion.insert(
+                id: id,
+                parcelId: parcelId,
+                version: version,
+                contentHash: contentHash,
+                generator: generator,
+                basis: basis,
+                routeJson: routeJson,
+                sessionId: sessionId,
+                createdAt: createdAt,
+                synced: synced,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ParcelRoutesTable, ParcelRouteRow>(table),
+                  $$ParcelRoutesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({sessionId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (sessionId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.sessionId,
+                        referencedTable: $$ParcelRoutesTableReferences
+                            ._sessionIdTable(db),
+                        referencedColumn: $$ParcelRoutesTableReferences
+                            ._sessionIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ParcelRoutesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ParcelRoutesTable,
+      ParcelRouteRow,
+      $$ParcelRoutesTableFilterComposer,
+      $$ParcelRoutesTableOrderingComposer,
+      $$ParcelRoutesTableAnnotationComposer,
+      $$ParcelRoutesTableCreateCompanionBuilder,
+      $$ParcelRoutesTableUpdateCompanionBuilder,
+      (ParcelRouteRow, $$ParcelRoutesTableReferences),
+      ParcelRouteRow,
+      PrefetchHooks Function({bool sessionId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8260,4 +9392,6 @@ class $AppDatabaseManager {
       $$TaskCacheTableTableManager(_db, _db.taskCache);
   $$VerificationResultsTableTableManager get verificationResults =>
       $$VerificationResultsTableTableManager(_db, _db.verificationResults);
+  $$ParcelRoutesTableTableManager get parcelRoutes =>
+      $$ParcelRoutesTableTableManager(_db, _db.parcelRoutes);
 }

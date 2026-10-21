@@ -159,3 +159,12 @@ Map<String, Object?> verificationResultParams(VerificationResultRow r) => {
       ? null
       : captureId(r.tourId, r.captureSha256!),
 };
+
+/// Arguments of `save_parcel_route` (docs/arayuzler.md, "Grid rotası").
+Map<String, Object?> parcelRouteParams(ParcelRouteRow r) => {
+  'p_id': r.id,
+  'p_parcel_id': r.parcelId,
+  'p_session_id': r.sessionId,
+  'p_route': jsonDecode(r.routeJson),
+  'p_content_hash': r.contentHash,
+};

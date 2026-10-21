@@ -1,4 +1,5 @@
 import '../../core/geo/geo.dart';
+import '../route/route_store.dart';
 
 /// Kind of visit a task asks for (docs/MVP.md, Modül 2 and 3).
 enum VisitKind {
@@ -215,6 +216,10 @@ class FieldTask {
     this.slots = const [],
     this.boundary,
     this.verificationItems = const [],
+    this.rowAzimuthDeg,
+    this.originCorner,
+    this.estimatedTreeCount,
+    this.route,
   });
 
   final String id;
@@ -250,6 +255,19 @@ class FieldTask {
   /// Open items of a verification tour, in walking order.
   final List<VerificationItem> verificationItems;
 
+  /// Row direction and slot numbering corner of the parcel
+  /// (`parcel.row_azimuth_deg`, `numbering_origin_corner`: `sw`, …); null
+  /// until the inventory fixes them. The grid route starts at that corner.
+  final double? rowAzimuthDeg;
+  final String? originCorner;
+
+  /// `parcel.estimated_tree_count`: row spacing before the inventory.
+  final int? estimatedTreeCount;
+
+  /// Latest grid route version of the parcel (`public.parcel_route`); null
+  /// before the first scan.
+  final StoredRoute? route;
+
   bool get isInventory => kind == VisitKind.inventory;
   bool get isVerification => kind == VisitKind.verification;
 
@@ -272,6 +290,10 @@ class FieldTask {
         ? null
         : [for (final p in boundary!) p.toJson()],
     'verification_items': [for (final v in verificationItems) v.toJson()],
+    'row_azimuth_deg': rowAzimuthDeg,
+    'origin_corner': originCorner,
+    'estimated_tree_count': estimatedTreeCount,
+    'route': route?.toJson(),
   };
 
   factory FieldTask.fromJson(Map<String, Object?> j) => FieldTask(
@@ -307,5 +329,11 @@ class FieldTask {
       for (final v in j['verification_items'] as List? ?? const [])
         VerificationItem.fromJson((v as Map).cast<String, Object?>()),
     ],
+    rowAzimuthDeg: (j['row_azimuth_deg'] as num?)?.toDouble(),
+    originCorner: j['origin_corner'] as String?,
+    estimatedTreeCount: j['estimated_tree_count'] as int?,
+    route: j['route'] == null
+        ? null
+        : StoredRoute.fromJson((j['route']! as Map).cast<String, Object?>()),
   );
 }

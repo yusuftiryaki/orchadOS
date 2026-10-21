@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { bulkMessages } from "@/components/expert/bulk-approve";
 import { ReviewView } from "@/components/expert/review-view";
 import { requireSection } from "@/lib/auth/session";
 import { loadReview, loadTreeDetail } from "@/lib/expert/review";
@@ -59,7 +60,7 @@ export default async function Page({
       filter={filter}
       selected={selected}
       detail={detail}
-      messages={{ error, findingError, saved: query.kayit === "1" }}
+      messages={{ error, findingError, saved: query.kayit === "1", bulk: bulkMessages(query) }}
     />
   );
 }

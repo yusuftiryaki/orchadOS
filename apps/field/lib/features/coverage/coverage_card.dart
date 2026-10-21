@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../map/vector_map.dart';
+import '../route/route_card.dart';
 import '../session/session_controller.dart';
 import 'coverage.dart';
 
@@ -39,6 +40,8 @@ class CoverageCard extends ConsumerWidget {
               key: const Key('coverage-map'),
               boundary: task.boundary,
               draft: task.boundary == null && draft.length >= 2 ? draft : null,
+              lines: routeLines(state.route),
+              onTap: routeMapTap(state.route, ref),
               dots: [
                 for (final sl in located)
                   MapDot(
@@ -48,6 +51,8 @@ class CoverageCard extends ConsumerWidget {
                         : Colors.grey.shade500,
                     radius: 2.5,
                   ),
+                if (state.route?.firstTap case final tap?)
+                  MapDot(tap, color: Colors.indigo, radius: 6, label: '1'),
               ],
               tracks: view.tracks,
               here: view.here,

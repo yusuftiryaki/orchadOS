@@ -46,6 +46,9 @@ describe.each(["owner", "viewer"] as const)("%s", (user) => {
     expect(parcels.map((p) => p.id)).toEqual([PORTAL.parcelA]);
     expect(parcels[0].lastVisit?.id).toBe(PORTAL.visitPub);
     expect(parcels[0].distribution).toEqual(EXPECTED.latest);
+    // (60 + 2×100 + 20) / 4 = 70; the previous visit: (3×100 + 60 + 20) / 5 = 76.
+    expect(parcels[0].score).toBe(70);
+    expect(parcels[0].scoreChange).toBe(-6);
     expect(parcels[0].urgentFindings).toBe(1);
   });
 
@@ -56,6 +59,16 @@ describe.each(["owner", "viewer"] as const)("%s", (user) => {
     expect(report.latest?.id).toBe(PORTAL.visitPub);
     expect(report.previous?.id).toBe(PORTAL.visitOld);
     expect(report.latest?.distribution).toEqual(EXPECTED.latest);
+    expect(report.latest?.score).toBe(70);
+    expect(report.previous?.score).toBe(76);
+    expect(report.scoreChange).toBe(-6);
+    // One tree has crops from two directions (N, S); four expert decisions.
+    expect(report.audit).toMatchObject({
+      activeTrees: 5,
+      covered: 1,
+      expertReviewed: 4,
+      autoApproved: 0,
+    });
     expect(report.change?.worse.map((c) => c.code)).toEqual(EXPECTED.worse);
     expect(report.change?.better.map((c) => c.code)).toEqual(EXPECTED.better);
     expect(report.findings.map((f) => f.id)).toEqual([FINDING.pubTree, FINDING.pubParcel]);

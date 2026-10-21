@@ -8,6 +8,7 @@ import '../closeup/closeup_list_screen.dart';
 import '../coverage/coverage_card.dart';
 import '../gnss/gnss_panel.dart';
 import '../qr_clock/qr_clock_screen.dart';
+import '../route/route_card.dart';
 import '../summary/visit_summary_screen.dart';
 import 'session_controller.dart';
 
@@ -64,6 +65,7 @@ class SessionScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+              if (state.isRecording && state.route != null) const RouteCard(),
               if (state.coverage != null) const CoverageCard(),
               const SizedBox(height: 16),
               ..._actions(
