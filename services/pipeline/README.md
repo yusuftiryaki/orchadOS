@@ -16,6 +16,7 @@ uv run orchados-pipeline synth /tmp/ornek   # sentetik oturum klasörü üret (-
 uv run orchados-pipeline run /tmp/ornek     # tüm aşamalar
 uv run orchados-pipeline run /tmp/ornek --trees-from-db   # ağaç konumları veritabanından
 uv run orchados-pipeline upload /tmp/ornek.processed/v0.1.0_<hash> --session-id <uuid>   # Supabase'e
+uv run orchados-pipeline run /tmp/ornek --boundary          # ayrıca köşelerden sınır sürümü (veritabanı)
 ```
 
 Her aşama ayrıca tek başına çalışır ve bir önceki aşamanın kaydettiği dosyayı okur:
@@ -28,9 +29,11 @@ uv run orchados-pipeline frames    <oturum> ...
 uv run orchados-pipeline panoramas <oturum> ...
 uv run orchados-pipeline crops     <oturum> [--trees agaclar.json | --trees-from-db [--session-id <uuid>]] ...
 uv run orchados-pipeline outputs   <oturum> ...
+uv run orchados-pipeline boundary  <oturum> [--session-id <uuid>] [--dry-run]   # köşelerden sınır
 uv run orchados-pipeline params    [--hash]   # varsayılan parametreler
 uv run orchados-pipeline run       <oturum> [--trees-from-db] --upload --session-id <uuid> [yükleme seçenekleri]
 uv run orchados-pipeline synth     <klasör> --trees-from-db --parcel-id <uuid> [--rows 1-2] [--positions 1-5]
+uv run orchados-pipeline synth     <klasör> --boundary-walk   # taramadan önce sınır yürüyüşü
 ```
 
 RTKLIB (`convbin`, `rnx2rtkp`) ve ffmpeg `core` devcontainer'ında kurulu. RTKLIB gerektiren test, araç yoksa atlanır.
@@ -74,6 +77,7 @@ Sözleşme testleri (`tests/test_contract.py`) İP2 README'sindeki örnek `event
 | `panoramas` | Seçilen kareleri 4K (3840×1920) ve 2K (1920×960) WebP olarak, her biri için yan dosya JSON'la yazar. | `panoramas/` |
 | `crops` | Her ağaç için yakın panoramalardan (1–12 m) açı ve mesafeyi hesaplar, ağaca bakan gnomonik kesit çıkarır, dört ana yönün her birinden en iyisini 1024×1024 JPEG ve yan dosya JSON olarak yazar. Kullandığı ağaç listesini çalıştırma klasörüne `trees.json` olarak kaydeder. Envanter oturumunda ve konumu olmayan parselde kesit üretmez (durum `crops.json`'da). | `crops/`, `trees.json` |
 | `outputs` | Tüm çıktıları türleri, hash'leri, kaynakları (lineage) ve hat sürümüyle listeler. | `outputs.json` |
+| `boundary` | Oturumun köşe olaylarını veritabanından okur, köşeleri yörüngeden konumlar, poligonu denetler ve parselin yeni sınır sürümünü yazar (`run --boundary` ile de çalışır). Ayrıntı: [Sınır köşelerinden sınır sürümü](#sınır-köşelerinden-sınır-sürümü) | `boundary.json` |
 
 Hat ayrıca şunları içerir ama sahada henüz kullanmaz:
 - `sync.estimate_lag()`: iki açısal hız sinyali (1 boyutlu ya da N×3) arasındaki gecikmeyi FFT ile normalize çapraz korelasyon ve parabolik alt-örnek inceltmeyle bulur (ince zaman eşleme). `sync.heading_rate_signal()` LiDAR'sız kitte referans olarak GNSS izinden yön değişim hızını üretir.
@@ -89,6 +93,7 @@ Varsayılan çıktı kökü oturum klasörünün yanındaki `<oturum>.processed/
   panoramas.json panoramas/pano-<gps_ms>_4k.webp, _2k.webp, .json
   trees.json crops.json crops/<tree_id>_<N|E|S|W>.jpg, .json
   outputs.json  ppk/ (yalnızca baz verisi varsa)
+  boundary.json (yalnızca boundary aşaması çalıştıysa)
 ```
 
 - Başka bir sürüm ya da parametreyle yeniden işlemek yeni bir klasör açar; eski sonuçlar silinmez.
@@ -205,6 +210,36 @@ Yerelde: `pnpm db:status` adresi ve anahtarı verir; kullanıcı `ops@example.co
 
 **Sentetik veriyi parsele uydurma:** `synth --trees-from-db --parcel-id <uuid>` sahneyi parseldeki aktif ağaçların gerçek konumlarıyla kurar (`--trees dosya.json` aynısını dosyadan yapar). `--rows 1-2` ve `--positions 1-5` sürülecek sıraları ve sıra içindeki yerleri seçer (iki uç dahil); yol, seçilen her sıranın iki yanındaki ara yollardan (sıra aralığının yarısı kadar yanından) gidip gelir, böylece her ağaç kuzeyden ve güneyden görülür. Sıra yönü sıradaki ilk ve son ağaçtan, sıra aralığı parseldeki sıraların medyan aralığından bulunur. Yakındaki bütün parsel ağaçları çizilir. Seed parselinde `--rows 1-2 --positions 1-5` 136 m'lik yol ve ~74 sn'lik video verir. `--start-utc` ve `--seed` her koşuya ayrı dosya hash'leri sağlar.
 
+## Sınır köşelerinden sınır sürümü
+
+Saha uygulaması envanterde sınır yürüyüşünü oturum olayı olarak yazar (`public.session_event`: `corner` ve `boundary_corners`; biçim [docs/arayuzler.md → Sınır köşeleri ve kapsama](../../docs/arayuzler.md#sınır-köşeleri-ve-kapsama)). `boundary` aşaması (`boundary.py`) bunlardan parselin kesin sınır sürümünü üretir:
+
+```bash
+set -a && . ./.env && set +a
+uv run orchados-pipeline run <oturum> --boundary            # aşamalar + sınır
+uv run orchados-pipeline boundary <oturum>                  # sadece sınır (position aşaması çalışmış olmalı)
+uv run orchados-pipeline boundary <oturum> --dry-run        # boundary.json yazılır, sürüm açılmaz
+```
+
+1. **Köşe listesi:** Oturumun `corner` ve `boundary_corners` olayları ops kullanıcısının belirteciyle okunur (servis anahtarı yok). En yeni `boundary_corners` (sıra `gps_time_ns`, eşitse `phone_time`) listedir; listede olmayan ve ondan önce işaretlenmiş köşe silinmiştir, ondan sonra işaretlenenler sona eklenir. Hiç liste yoksa işaretleme sırası. Listede veritabanında olmayan bir köşe olayı hatadır. Not ve işaretler (`markers`) rapora geçer.
+2. **Köşe zamanı:** Olayın `gps_time_ns`'i. Olay telefon saatiyle zamanlandıysa (`time_source = phone`) ve kaydedicinin `events.csv`'sinde aynı numaralı bir `corner` satırı 10 sn içindeyse o satırın GPS zamanı kullanılır (`time_source = logger`).
+3. **Konum** (köşe başına `source`):
+   - `ppk`: yörünge PPK'lıysa (`trajectory.json`, `ppk_status = ppk`) ve o anda çözüm `fix` ise yörüngeden enterpolasyon; belirsizlik yörüngenin o anki yatay belirsizliği.
+   - `phone`: yoksa olaydaki konum (`data.position`: kaydedicinin durum mesajındaki konum, PPK öncesi).
+   - `logger`: o da yoksa kaydedicinin `gnss.ubx`'teki kendi NAV-PVT çözümü, eşleşen `events.csv` satırının zamanına en yakın (1 sn içinde) dönem.
+   - `phone` ve `logger` konumlarının belirsizliği en az `boundary.fallback_min_uncertainty_m` (5 m) yazılır ve raporda işaretlenir. Hiçbiri yoksa hata.
+4. **Poligon:** Köşeler yürüme sırasıyla. 3'ten az köşe, kendini kesen ya da değen kenar, alansız poligon hatadır. Alan yerel düzlemde (m² ve dönüm = m² / 1000).
+5. **Kayıt:** `add_field_survey_boundary(p_session_id, p_ring, p_vertex_uncertainty_m, p_surveyed_at)` (`supabase/migrations/20261023120000_field_survey_boundary.sql`, yalnızca ops): parselin bir sonraki `public.boundary` sürümü, kaynak `field_survey`, `session_id`, `vertex_uncertainty_m` (köşelerin en büyüğü), `surveyed_at` (son köşenin zamanı). Sahip `approve_boundary` ile onaylar.
+6. **Tekrar çalıştırma:** Aynı oturumun en yeni sürümü aynı köşeleri aynı sırayla ve aynı belirsizlikle taşıyorsa yeni sürüm açılmaz, o satır döner (`created: false`). Köşeler değiştiyse (ör. baz verisi gelip PPK yapıldı) yeni sürüm açılır; eskisi kalır.
+7. **Rapor:** Komut çıktısı ve `boundary.json`: köşe sayısı, alan (m², dönüm), köşe başına kaynak, belirsizlik ve konum, uyarılar, yazılan sürüm (`record`: `boundary_id`, `version`, `created`, veritabanının `area_m2`'si).
+
+**Kararlar:**
+- Kaydedici yedeği için `events.csv` biçimi değişmedi: `corner` satırında konum yok, zaman var. "Kaydedicinin konumu" o satırın zamanındaki NAV-PVT çözümüdür (kaydedici aynı anda `gnss.ubx`'e yazar).
+- PPK olmayan yörünge (`no_ppk`, `ppk_failed`) PPK sayılmaz; NAV-PVT çözümü RTK fixed görünse bile köşe yedek kaynaktan alınır ve işaretlenir.
+- Sürüm yazma tek bir veritabanı fonksiyonunda: sürüm numarası parsel kilidi altında verilir (`add_owner_declared_boundary` ile aynı kilit), tekrar denetimi aynı işlemdedir.
+
+**Sentetik sınır yürüyüşü:** `synth --boundary-walk` taramadan önce tarama yolunun 3 m dışındaki dikdörtgeni yürür (köşede 4 sn durarak): NAV-PVT kaydı yürüyüşü de kapsar, `events.csv`'ye her basış için `corner` satırı, `phone_events.json`'a telefonun oturum olayları yazılır (`public.session_event`'e eklenmeye hazır; `org_id`, `parcel_id`, `session_id` hariç). Yanlışlıkla basılan 4. köşe bir `boundary_corners` olayıyla silinir, 5. köşe listeden sonra eklenir; 2. köşede telefon konumu yoktur (kaydedici yedeği), 5. köşe telefon saatiyle 300 ms hatalı zamanlanır. Doğru köşeler ve alan `synthetic_truth.json`'da (`boundary_corners`, `boundary_area_m2`).
+
 ### Ücretsiz katman
 
 Supabase ücretsiz planda 1 GB dosya alanı var ([docs/deployment.md](../../docs/deployment.md)). 20 dönümlük bir parselde (~300 ağaç, ~2,5 km tarama yolu, 3,5 m'de bir kare ≈ 700 panorama) kaba tahmin: 4K panoramalar ~1,5 GB, 2K önizlemeler ~350 MB, kesitler (300 ağaç × 4 yön) ~250 MB, yörünge birkaç MB. **Varsayılan bu yüzden önizleme + kesit + yörünge (~600 MB):** uzman paneli kesitleri, sahip portalı önizlemeyle panorama gezisini kullanır; 4K panoramalar istasyonda kalır ve gerektiğinde `--only panorama` ile sonradan eklenir. Ücretsiz katman bununla bile yaklaşık bir ziyaret taşır; pilotta Cloudflare R2 ya da Supabase Pro gerekir. Depolama `MediaStore` arayüzünün arkasındadır (`media.py`: `SupabaseMediaStore`, testler için `LocalMediaStore`); R2 için yeni bir uygulama yeterlidir.
@@ -212,6 +247,7 @@ Supabase ücretsiz planda 1 GB dosya alanı var ([docs/deployment.md](../../docs
 ### Testler
 
 - `tests/test_upload.py`: Sahte veritabanı (`FakeCatalog`) ve yerel depo ile eşleme, tekrar çalıştırma, yarıda kesilme, bulanıklaştırma kuralı, durum geçişleri, yeni hat sürümü.
+- `tests/test_boundary.py`: Köşe listesi kuralları (en yeni liste, silinen ve sonradan eklenen köşe, eşit zamanda `phone_time`), poligon denetimi (az köşe, kendini kesen ve değen kenar, alansız), sentetik yürüyüşte PPK'sız (telefon ve kaydedici yedeği), PPK'lı ve PPK boşluklu konumlama, sahte veritabanıyla kayıt ve tekrar çalıştırma.
 - `tests/test_trees_db.py`: Sahte istemciyle veritabanından ağaç okuma (aktif ağaç, boş slot, konumsuz slot, sıra), panorama-yalnız durumlar, kesitlerin `tree_id` ile yüklenmesi, sentetik sahnenin parsele uydurulması.
 - `tests/test_upload_supabase.py` (`supabase` işareti): Yerel Supabase'e karşı sentetik oturum → `run` → `upload`. Kendi oturumunu seed parselinde açar (sentetik slot kodları S1-1 … S3-4 orada aktif ağaçlı); kayıtların ve dosyaların oluştuğunu, ikinci yüklemenin bir şey eklemediğini, sahibin yayından önce kayıtları ve dosyaları göremediğini, saha personelinin dosya yükleyemediğini denetler. Önce kökte `pnpm install && pnpm db:start && pnpm db:reset`. Supabase'e ulaşılamazsa atlanır. Adres ve anahtar `SUPABASE_URL` / `SUPABASE_ANON_KEY`'den, yoksa `supabase status`'tan okunur.
 
@@ -225,9 +261,11 @@ Supabase ücretsiz planda 1 GB dosya alanı var ([docs/deployment.md](../../docs
 4. sahip, ziyaretin değerlendirmelerini `tree_latest_assessment`'te (her aktif ağaç için, beklenen sınıfla), asset'lerini ve kanıt bağlarını görür; bir kesitin imzalı adresinden inen dosyanın SHA-256'sı yüklenen dosyanınkiyle aynıdır;
 5. yayından önce (yüklemeden sonra ve değerlendirmelerden sonra) sahip ziyaret satırını görür, başka hiçbir şeyi (capture, asset, değerlendirme, ölçüm, imzalı adres) göremez.
 
-Adım süreleri `pytest -s` ile yazdırılır. Yerelde ~65 sn sürer (çoğu `run`).
+İkinci test (`test_boundary_walk_to_approval`) envanteri koşar: ops bir `inventory` oturumu açar; `synth --boundary-walk` (parsele uydurulmuş, sıra 1, yer 1–3); saha personeli `phone_events.json`'daki olayları `session_event`'e yazar; `run --trees-from-db --boundary` parselin yeni sınır sürümünü açar (kaynak `field_survey`, oturum, belirsizlik, zaman, köşeler); `boundary` tekrar çalıştırılınca yeni sürüm açılmaz; saha personeli onaylayamaz, sahip sürümü görür ve `approve_boundary` ile onaylar.
 
-**Test verisi:** Capture, asset, ölçüm ve bağ tabloları ekleme-yalnızdır, yayımlanmış ziyaret değiştirilemez; API kullanıcıları test verisini silemez. Kalırsa seed satırlarını sayan testler bozulur (`pnpm db:test`'te 02_rls, 04_publication, 05_storage; web testleri de). Bu yüzden Supabase testleri açtıkları oturumları test oturumunun sonunda siler (`tests/supabase_util.py`): veritabanı kapsayıcısında `postgres` olarak, sadece o işlemde tetikleyiciler kapalı (`session_replication_role = replica`), oturum ve ona bağlı bütün satırlar ile artık hiçbir satırın göstermediği `storage.objects` kayıtları. Bu bir test düzeneğidir; hat bunu yapmaz. `ORCHADOS_TEST_KEEP_DATA=1` veriyi bırakır (ör. web uygulamasında bakmak için); docker yoksa ya da silme başarısız olursa pytest uyarı verir, o zaman `pnpm db:test`'ten önce `pnpm db:reset` gerekir. CI'da pytest'ten sonra `pnpm db:test` çalışır ve bunu denetler.
+Adım süreleri `pytest -s` ile yazdırılır. Yerelde ~65 sn (tarama) ve ~25 sn (sınır) sürer (çoğu `run`).
+
+**Test verisi:** Capture, asset, ölçüm ve bağ tabloları ekleme-yalnızdır, yayımlanmış ziyaret değiştirilemez; API kullanıcıları test verisini silemez. Kalırsa seed satırlarını sayan testler bozulur (`pnpm db:test`'te 02_rls, 04_publication, 05_storage; web testleri de). Bu yüzden Supabase testleri açtıkları oturumları test oturumunun sonunda siler (`tests/supabase_util.py`): veritabanı kapsayıcısında `postgres` olarak, sadece o işlemde tetikleyiciler kapalı (`session_replication_role = replica`), oturum ve ona bağlı bütün satırlar (oturum olayları ve sınır sürümleri dahil) ile artık hiçbir satırın göstermediği `storage.objects` kayıtları. Bu bir test düzeneğidir; hat bunu yapmaz. `ORCHADOS_TEST_KEEP_DATA=1` veriyi bırakır (ör. web uygulamasında bakmak için); docker yoksa ya da silme başarısız olursa pytest uyarı verir, o zaman `pnpm db:test`'ten önce `pnpm db:reset` gerekir. CI'da pytest'ten sonra `pnpm db:test` çalışır ve bunu denetler.
 
 ## Bilinen sınırlar
 
