@@ -103,7 +103,7 @@ gantt
 - [x] *(PR #17)* **Metrik kaydı:** `metric_definition` sadece seed'de; metodolojideki ölçekler (`docs/metodoloji.md` Ek B) referans veri olarak migration'la kurulmalı.
 - [x] *(PR #21)* **Saha uygulaması:** Doğrulama turu ekranı; sahada sınır köşesi işaretleme; kapsama haritası.
 - [x] *(PR #22)* **İşleme hattı:** Sınır köşelerinden `boundary` sürümü; firmware 0.3.0 durum mesajında konum.
-- [ ] **Saha uygulaması:** Firmware 0.3.0'ın konum geçerli bayrağını (`flags` bit6) da kontrol etsin; şu an `gnssFixOK` ve fix türüne bakıyor.
+- [x] *(PR #26)* **Saha uygulaması:** Firmware 0.3.0 konum geçerli bayrağı (bit6) kontrol ediliyor.
 - [x] *(PR #19)* **Operasyon ekranları:** Sahip/parsel kaydı, portal hesabı (`invite-user` Edge Function), ziyaret planlama ve pano.
 - [ ] **Lisans:** `flutter_blue_plus` ticari kullanımda ücretli. Öneri (PR #20): BSD lisanslı `universal_ble`'ye geçiş; değişiklik tek sınıfta (~1 gün), gerçek kaydediciyle denenerek ticari kullanımdan önce.
 - [x] *(PR #20, `permission_handler` 12'ye sabitlendi)* **Saha uygulaması:** `flutter build apk` CI'da kırık: `permission_handler_android` `compileSdk` 37 istiyor (İP6 senkronizasyon görevinde).
