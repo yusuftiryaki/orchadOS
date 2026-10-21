@@ -62,6 +62,7 @@ BLE protokolü, dosya biçimleri ve bağlantı tablosu: `firmware/gnss-logger/RE
 | `uv run orchados-pipeline run <oturum>` | Tüm aşamaları sırayla çalıştırır |
 | `uv run orchados-pipeline run <oturum> --trees-from-db` | Kesitler için ağaç konumlarını veritabanındaki envanterden alır |
 | `uv run orchados-pipeline synth <klasör> --trees-from-db --rows 1-2` | Sentetik sahneyi bir parselin gerçek ağaç konumlarına uydurur |
+| `uv run orchados-pipeline boundary <oturum> [--dry-run]` | Sınır köşelerini (oturum olayları) PPK'lı yörüngeden konumlayıp yeni sınır sürümü yazar; `run --boundary` ile de çalışır. Sentetik sınır yürüyüşü: `synth --boundary-walk` |
 | `uv run orchados-pipeline upload <çalıştırma> --session-id <uuid>` | Çıktıları Supabase'e yükler (ops kullanıcısıyla; ortam değişkenleri README'de). Entegrasyon ve uçtan uca zincir testi (`tests/test_chain_supabase.py`: tarama → yükleme → uzman → yayın → sahip) yerel Supabase ister |
 
 Aşamalar, girdi/çıktı biçimleri ve QR saat kodu biçimi: `services/pipeline/README.md`.

@@ -71,7 +71,7 @@ gantt
 | --- | --- | --- |
 | İP0 | Tamam | Repo iskeleti, `core` ve `mobile` devcontainer'ları, bulut ortamı |
 | İP1 | Tamam (PR #1, #7) | Şema, satır bazlı yetki, sentetik bahçe; yayımlanmamış sonuçlar sahipten gizli; son değerlendirme/ölçüm görünümleri (önce en yeni oturum, aynı oturumda kaynak önceliği); `media` depolama alanı; 173 pgTAP testi |
-| İP2 | Yazılım tamam (PR #2, #7) | Firmware 0.2.0: BLE durum mesajında GPS zamanı; 74 birim testi, ESP32 derlemesi. Açık: gerçek donanım testleri (README'deki adımlar), kit gelince |
+| İP2 | Yazılım tamam (PR #2, #7, #22) | Firmware 0.3.0: BLE durum mesajında GPS zamanı ve konum; 74 birim testi, ESP32 derlemesi. Açık: gerçek donanım testleri (README'deki adımlar), kit gelince |
 | İP4 | Çekirdek + yükleme tamam (PR #3, #4, #11) | 97 test; `upload` komutu: türetilmiş dosyalar `media` alanına, kayıtlar `capture`/`asset`/`asset_source`'a; ham kayıtlar istasyonda kalır; bulanıklaştırılmamış görüntü yüklenmez. Açık: gerçek PPK denemesi (İP3), büyük ziyarette yükleme süresi |
 | Entegrasyon | Tamam (PR #4) | Sözleşmeler `docs/arayuzler.md` içinde |
 | İP5 | v0.2 tamam (PR #9, #15) | Ofis üçgenleme aracı: tıklayarak üçgenleme, sıra oturtma ve kodlama, boş yerler, doğrulama listesi (CSV), kayıt; 12 sentetik ağaç 30 cm içinde. v0.2: panoramalar depodan, `save_inventory` tek işlemde, gövde tıklamaları `trunk_label` tablosunda (etiketli veri) |
@@ -100,7 +100,8 @@ gantt
 - [x] *(PR #20)* **Saha uygulaması:** README ve `GnssStatus` yorumu, firmware 0.2.0'daki GPS zamanı alanını hâlâ "önerilen" diye anlatıyor; evet/hayır cevapları gönderilirken `value_bool` → `value_boolean` eşlemesi.
 - [x] *(PR #17)* **Metrik kaydı:** `metric_definition` sadece seed'de; metodolojideki ölçekler (`docs/metodoloji.md` Ek B) referans veri olarak migration'la kurulmalı.
 - [x] *(PR #21)* **Saha uygulaması:** Doğrulama turu ekranı; sahada sınır köşesi işaretleme; kapsama haritası.
-- [ ] **İşleme hattı:** Sınır köşelerini (`session_event`) PPK'lı yörüngeden yeniden konumlayıp `boundary` sürümü oluşturmak.
+- [x] *(PR #22)* **İşleme hattı:** Sınır köşelerinden `boundary` sürümü; firmware 0.3.0 durum mesajında konum.
+- [ ] **Saha uygulaması:** Firmware 0.3.0'ın konum geçerli bayrağını (`flags` bit6) da kontrol etsin; şu an `gnssFixOK` ve fix türüne bakıyor.
 - [x] *(PR #19)* **Operasyon ekranları:** Sahip/parsel kaydı, portal hesabı (`invite-user` Edge Function), ziyaret planlama ve pano.
 - [ ] **Lisans:** `flutter_blue_plus` ticari kullanımda ücretli. Öneri (PR #20): BSD lisanslı `universal_ble`'ye geçiş; değişiklik tek sınıfta (~1 gün), gerçek kaydediciyle denenerek ticari kullanımdan önce.
 - [x] *(PR #20, `permission_handler` 12'ye sabitlendi)* **Saha uygulaması:** `flutter build apk` CI'da kırık: `permission_handler_android` `compileSdk` 37 istiyor (İP6 senkronizasyon görevinde).

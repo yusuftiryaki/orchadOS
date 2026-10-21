@@ -108,7 +108,8 @@ Envanter her parselin dijital haritasını bir kez çıkarır. Sonraki her ziyar
 | GNSS kaydedici yazılımı | ✅ (gerçek donanımda henüz denenmedi) |
 | Sunucuya gönderim (senkronizasyon) | ✅ |
 | Köşe işaretleme, kapsama haritası ve oranı | ✅ |
-| Köşelerin PPK'lı yörüngeden yeniden konumlanması (işleme hattı), sabit grid rotası | ⬜ |
+| Köşelerin PPK'lı yörüngeden konumlanıp sınır sürümünün yazılması (işleme hattı) | ✅ |
+| Sabit grid rotası | 🟡 Geliştiriliyor |
 
 ### 2.2 İşleme istasyonunda
 
