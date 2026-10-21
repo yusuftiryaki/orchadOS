@@ -239,6 +239,53 @@ Saha fotoğrafları ve işleme hattının ürünleri (panorama, ağaç kesiti vb
 - Kesitin `subject.tree_id`'si `tree.id`, `slot_code`'u `slot.code`'dur; yükleme bunu slotun yükleme anındaki aktif ağacıyla yeniden denetler.
 - `slot.position` boşsa ağaç kesit almaz (**karar**: yerel koordinattan konum türetilmez). Parselde konumlu aktif ağaç yoksa ya da oturum `kind = inventory` ise hat sadece panorama üretir; bu hata değil, `outputs.json`'da `crops_status` (`no_tree_positions`, `inventory_session`) olarak raporlanır.
 
+## AI ön değerlendirme satırları
+
+AI worker (`services/ai-worker`, `ai-worker run`) işlenmiş bir tarama ziyaretinin her aktif ağacı için bir öneri yazar. Ops kullanıcısının belirteciyle çalışır (servis anahtarı yok); yazma tek bir veritabanı fonksiyonuyla, tek işlemde yapılır: `save_ai_assessment` (`supabase/migrations/20261023150000_ai_preassessment.sql`). Oturum `processed` ya da `in_review` olmalı.
+
+**Okunan:**
+
+| Tablo | Alanlar | Kural |
+| --- | --- | --- |
+| `public.session` | `status`, `methodology_version`, zaman | Mevsim oturum zamanından çıkar (`started_at`, yoksa `planned_date`, yoksa `created_at`; ay UTC; Mart ilkbahar, Kasım kış) |
+| `public.tree` + `slot.code` | `id`, kod | `status = active` |
+| `public.asset` | `kind = tree_crop`, `tree_id`, `uri`, `content_hash`, `pose.direction`, `pose.filters_applied` | Dosya imzalı adresle indirilir, SHA-256'sı denetlenir. Yön başına en yeni (`produced_at`), sonra en yüksek `quality_score` |
+| `public.measurement` | `source = staff`, `value_boolean` | Personelin evet/hayır cevapları; isteğe sadece metrik kodu ve cevap girer |
+| `public.metric_definition` | `code`, `value_type`, aralık, kategoriler, `valid_seasons` | Mevsimin ağaç ölçekleri. Ad ve açıklama okunmaz |
+
+- **Bulanıklaştırma:** Kesit ancak `pose.filters_applied` dizisinde `face_blur` varsa AI'a gönderilir. Alan yoksa kesit bulanıklaştırılmamış sayılır. İşleme hattı bu alanı `asset.pose`'a henüz yazmıyor (`outputs.json`'da var); yazana kadar AI worker gerçek kesit göndermez. `--allow-unblurred` sadece sentetik veri içindir.
+- **Önceki ziyaret:** Aynı parselin bu ziyaretten önceki en yeni `published` oturumu; o ağacın kesitlerinden ikinci bir mozaik.
+
+**Yazılan** (her ağaç için bir kez):
+
+| Tablo | Alanlar |
+| --- | --- |
+| `assessment` | `source = ai`, `overall_class` (boş olabilir), `confidence` (sınıf güveni, 0–1), `model_name` (son kararı veren model, ör. `claude-sonnet-5-5`), `model_version` (API'nin bildirdiği model kimliği), `methodology_version`, `notes` (kısa Türkçe gerekçe, sadece uzman için) |
+| `measurement` | Değer verilen her ölçek için bir satır: `source = ai`, `method = ai_preassessment`, `method_version` = istem sürümü, `confidence` (0–1), `uncertainty` (sadece 0–3 ölçeklerde: `(1 − güven) × aralık / 2`, ölçek adımı), `params_hash`. Emin olunmayan ölçek yazılmaz |
+| `measurement_evidence` | Her AI ölçümü ↔ isteğe giren kesitler (bu ziyaretin) |
+| `assessment_measurement` | AI değerlendirmesi ↔ AI ölçümleri |
+| `ai_assessment_detail` | Aşağıda |
+
+**`ai_assessment_detail`** (değerlendirme başına bir satır; sadece kurum üyeleri okur, sadece ekleme):
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `assessment_id` | uuid | AI değerlendirmesi |
+| `prompt_version` | metin | `ai-<istem sürümü>/<metodoloji sürümü>`, ör. `ai-v0.1/methodology-v0` |
+| `config_key` | metin | Model kaskadı, ör. `claude-haiku-5-5>claude-sonnet-5-5` |
+| `final_model`, `final_stage` | metin, int | Sonucu veren model ve aşaması (1 = triaj) |
+| `models` | metin dizisi | Bu ağaç için cevap veren modeller, sırayla |
+| `review_reasons` | metin dizisi | Triaj cevabının neden üst modele gittiği: `no_answer`, `no_class`, `low_confidence`, `class_problem`, `class_dead`, `class_absent`, `flag_<bayrak>`, `tree_visible_no`, `tree_visible_unsure`, `class_inconsistent`; üçüncü aşamaya gidenlerde ayrıca `hard_<neden>` |
+| `tree_visible` | `yes` \| `no` \| `unsure` | Konumda ağaç görünüyor mu |
+| `flags` | metin dizisi | `staff_answer_conflict` (personel cevabıyla çelişki), `large_change_from_previous` (önceki ziyarete göre büyük değişim), `poor_image` (kötü görüntü) |
+| `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens` | int | Bu ağacın bütün aşamalarının toplamı |
+| `cost_usd` | sayı | Tahmini maliyet, Batch fiyatıyla |
+| `batch_ids` | metin dizisi | Message Batches kimlikleri |
+
+- **Tekrar çalıştırma:** (`session_id`, `tree_id`, `prompt_version`, `config_key`) benzersizdir. Aynı istem ve kaskadla ikinci çalıştırma yeni satır açmaz; fonksiyon var olan değerlendirmenin kimliğini döner. İstem ya da kaskad değişirse yeni satırlar eklenir; uzman paneli ziyaretin en yeni AI değerlendirmesini gösterir.
+- **Görünürlük:** `source = ai` olan değerlendirme ve ölçümleri sahip ve hissedar hiçbir zaman görmez, yayından sonra da. Uzman kabul ederse ya da toplu onay verilirse sahibe giden ayrı bir `source = expert` satırıdır.
+- **Zorunlu inceleme:** Uzman paneli `confidence`, `overall_class` ve `ai_assessment_detail.flags` ile `tree_visible`'ı okuyabilir. "Personel cevabıyla çelişki" kuralı için `flags` içindeki `staff_answer_conflict` kullanılır.
+
 ## Doğrulama kalemleri
 
 Envanter doğrulama turu (`docs/MVP.md` Modül 2, adım 9) ofiste oluşturulur; saha uygulaması kalemleri personele görev olarak indirir ve sonuçları yazar. Şema: `docs/veri-modeli.md`, "Doğrulama listesi ve envanter onayı". Saha uygulaması kullanıcının belirteciyle PostgREST üzerinden çalışır (servis anahtarı yok).
