@@ -72,9 +72,12 @@ select is(
   'no API role may change or delete objects');
 
 select set_config('request.jwt.claims', '{"sub": "a0000000-0000-4000-8000-000000000003", "role": "authenticated"}', true);
+-- Field staff may add objects of its own org since 20261021230000_field_sync (see 19_field_sync).
 select throws_ok(
-  $$ insert into storage.objects (bucket_id, name) values ('media', pg_temp.obj('field-upload')) $$,
-  '42501', null, 'field staff cannot add objects (the pipeline uploads)');
+  $$ insert into storage.objects (bucket_id, name)
+     values ('media', 'org/f1000000-0000-4000-8000-000000000005/parcel/f2000000-0000-4000-8000-000000000005/'
+       || encode(sha256('field-upload'::bytea), 'hex')) $$,
+  '42501', null, 'field staff cannot add objects into another org');
 
 select set_config('request.jwt.claims', '{"sub": "a0000000-0000-4000-8000-000000000004", "role": "authenticated"}', true);
 select throws_ok(

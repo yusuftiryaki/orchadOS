@@ -5,6 +5,7 @@ import '../../app/providers.dart';
 import '../../core/time/gps_clock.dart';
 import '../../core/ui/widgets.dart';
 import '../session/session_controller.dart';
+import '../sync/sync_status_card.dart';
 
 /// Numbers shown on the visit summary, read back from the local database.
 class VisitSummary {
@@ -71,7 +72,7 @@ class VisitSummaryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final task = ref.watch(sessionControllerProvider).task;
     final summary = ref.watch(visitSummaryProvider);
-    final pending = ref.watch(pendingUploadsProvider).value;
+    final sessionId = ref.watch(sessionControllerProvider).sessionId;
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -147,16 +148,14 @@ class VisitSummaryScreen extends ConsumerWidget {
                           value: '${s.answers}',
                           health: Health.ok,
                         ),
-                        StatusLine(
-                          icon: Icons.cloud_upload,
-                          label: 'Gönderilmeyi bekleyen',
-                          value: '${pending ?? '…'}',
-                          health: Health.warn,
-                        ),
                       ],
                     ),
                   ),
                 ),
+              if (sessionId != null) ...[
+                const SizedBox(height: 8),
+                SyncStatusCard(sessionId: sessionId),
+              ],
               const SizedBox(height: 8),
               const Text(
                 'Kameranın hafıza kartını ve kaydedicinin SD kartını ofise '

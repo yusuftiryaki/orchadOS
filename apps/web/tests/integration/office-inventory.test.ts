@@ -270,7 +270,9 @@ async function labelsOf(admin: Client, parcelId: string) {
         "panorama_asset_id, panorama_gps_time_ns, yaw_deg, pitch_deg, azimuth_deg, unsure, labelled_by, labelled_at, session_id, method_version, slot(code), tree(id)",
       )
       .eq("parcel_id", parcelId)
-      .order("labelled_at"),
+      // Not labelled_at: a click without a time gets now(), which moves around
+      // the fixed times of the other clicks depending on when the test runs.
+      .order("yaw_deg"),
   ).data!;
 }
 
@@ -328,11 +330,11 @@ describe("saving an office inventory", () => {
     const labels = await labelsOf(admin, IDS.numbered);
     expect(labels).toHaveLength(3);
     expect(labels.map((l) => [l.slot?.code, l.panorama_asset_id, l.yaw_deg, l.unsure])).toEqual([
-      ["S3-1a", null, 5, true],
       ["S1-1", IDS.frame1Full, -30.5, false],
+      ["S3-1a", null, 5, true],
       ["S1-1", IDS.frame2Preview, 40, false],
     ]);
-    expect(labels[1]).toMatchObject({
+    expect(labels[0]).toMatchObject({
       pitch_deg: -12,
       azimuth_deg: 329.5,
       labelled_by: userId,
@@ -341,7 +343,7 @@ describe("saving an office inventory", () => {
       method_version: "office-tool-0.2",
     });
     // bigint comes back as a JSON number: only its leading digits survive.
-    expect(String(labels[1].panorama_gps_time_ns)).toMatch(/^14763492205083/);
+    expect(String(labels[0].panorama_gps_time_ns)).toMatch(/^14763492205083/);
     expect(labels.every((l) => l.tree !== null)).toBe(true);
 
     // Org roles read them; the parcel's owner does not.

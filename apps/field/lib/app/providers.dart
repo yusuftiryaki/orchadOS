@@ -4,9 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/db/database.dart';
 import '../core/db/field_repository.dart';
+import '../core/db/outbox.dart';
 import '../core/media/field_camera.dart';
 import '../core/media/media_store.dart';
 import '../core/quality/photo_quality.dart';
+import '../core/sync/connectivity.dart';
+import '../core/sync/sync_server.dart';
+import '../core/sync/sync_worker.dart';
 import '../core/time/clock.dart';
 import '../core/time/gps_clock.dart';
 import '../features/auth/auth_repository.dart';
@@ -109,3 +113,61 @@ final gpsClockProvider = Provider<GpsClock>((ref) {
 final pendingUploadsProvider = StreamProvider<int>(
   (ref) => ref.watch(fieldRepositoryProvider).outbox.watchPendingCount(),
 );
+
+/// Pending, sent and failed records over the whole queue.
+final outboxCountsProvider = StreamProvider<OutboxCounts>(
+  (ref) => ref.watch(fieldRepositoryProvider).outbox.watchCounts(),
+);
+
+/// The same for the records of one visit (summary screen).
+final sessionOutboxCountsProvider = StreamProvider.family<OutboxCounts, String>(
+  (ref, sessionId) =>
+      ref.watch(fieldRepositoryProvider).outbox.watchSessionCounts(sessionId),
+);
+
+/// Server for the sync; null without Supabase (offline development): the
+/// queue then only fills up.
+final syncServerProvider = Provider<SyncServer?>((ref) => null);
+
+/// Network state changes; null where no plugin is available (tests).
+final connectivityProvider = Provider<ConnectivityMonitor?>((ref) => null);
+
+/// Uploads the outbox. Null when there is no server.
+///
+/// Runs when it is created (the app opens with a signed-in user), when the
+/// network comes back ([connectivityProvider]), when a visit is finished
+/// and on "Şimdi gönder".
+final syncWorkerProvider = Provider<SyncWorker?>((ref) {
+  final server = ref.watch(syncServerProvider);
+  if (server == null) return null;
+  final worker = SyncWorker(
+    repository: ref.watch(fieldRepositoryProvider),
+    server: server,
+    media: ref.watch(mediaStoreProvider),
+    clock: ref.watch(clockProvider),
+  );
+  final online = ref
+      .watch(connectivityProvider)
+      ?.onlineChanges
+      .where((up) => up)
+      .listen((_) => worker.syncNow().ignore());
+  ref.onDispose(() {
+    online?.cancel();
+    worker.dispose();
+  });
+  Future.microtask(() => worker.syncNow().ignore());
+  return worker;
+});
+
+/// What the sync is doing (idle, sending, waiting for the network).
+final syncActivityProvider = StreamProvider<SyncActivity>((ref) {
+  final worker = ref.watch(syncWorkerProvider);
+  if (worker == null) return const Stream.empty();
+  final controller = StreamController<SyncActivity>()..add(worker.current);
+  final sub = worker.activity.listen(controller.add);
+  ref.onDispose(() {
+    sub.cancel();
+    controller.close();
+  });
+  return controller.stream;
+});

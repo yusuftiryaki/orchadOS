@@ -26,7 +26,8 @@ class FakeGnssLogger extends GnssLoggerBase {
 
   final Clock clock;
 
-  /// Append the proposed `gps_time_ns` field to status messages.
+  /// Send the 39-byte status of firmware 0.2.0+ (with `gps_time_ns`); false
+  /// imitates firmware 0.1.0 (31 bytes, no GPS time).
   bool provideGpsTime;
 
   /// How far the simulated phone clock lags true GPS time (ms).

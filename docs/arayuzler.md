@@ -182,7 +182,7 @@ Saha fotoğrafları ve işleme hattının ürünleri (panorama, ağaç kesiti vb
 - **Nesne yolu:** `org/<org_id>/parcel/<parcel_id>/<sha256>`. `sha256` dosya içeriğinin küçük harfli onaltılık SHA-256'sıdır ve ilgili `capture.content_hash` ya da `asset.content_hash` ile aynıdır. Uzantı yoktur; tür satırdaki `mime_type`'tan okunur. Örnek: `org/b0000000-0000-4000-8000-000000000001/parcel/c0000000-0000-4000-8000-000000000001/2d71…4881`.
 - **Satırdaki adres:** Dosya `media` alanındaysa `capture.uri` / `asset.uri` = `storage://media/` + nesne yolu. **Karar:** Ayrı bir depolama anahtarı sütunu eklenmedi; yol, satırdaki `org_id`, `parcel_id` ve `content_hash`'ten türetilir.
 - **Değiştirilemez:** Aynı yola ikinci kez yazılmaz, nesne güncellenmez ya da silinmez (API kullanıcıları için güncelleme/silme kuralı yok). İçerik değişirse hash ve dolayısıyla yol da değişir.
-- **Yazma:** Yalnızca servis rolü (işleme hattı) ve operasyon. Operasyon yalnızca kendi kurumunun bir parselinin altına, kurala uyan bir adla yazabilir. Saha uygulaması dosyayı doğrudan yüklemez.
+- **Yazma:** Servis rolü (işleme hattı), operasyon ve saha personeli (`field_staff`). Operasyon ve saha personeli yalnızca kendi kurumunun bir parselinin altına, kurala uyan bir adla **ekleyebilir**. Saha uygulaması yakın plan fotoğraflarını kendisi yükler (aşağıda, "Saha uygulaması ve veritabanı"; `20261021230000_field_sync.sql`).
 - **Okuma:** Kurum rolleri kurumlarının bütün nesnelerini okur. Sahip ve izleyici, aynı kurum, parsel ve hash'e sahip bir `asset` ya da `capture` satırını görebiliyorlarsa nesneyi de okur; yani yayımlanmamış oturumların dosyaları onlara kapalıdır (veri-modeli.md, "Yayın").
 
 ## Asset `pose` alanı
@@ -254,6 +254,38 @@ Envanter doğrulama turu (`docs/MVP.md` Modül 2, adım 9) ofiste oluşturulur; 
 - **Hatalar** mesajda neden olarak gelir: `not_found`, `forbidden`, `item_closed`, `item_not_open`, `invalid_input`.
 - **Çevrimdışı:** sonuç kuyrukta bekler; aynı kaleme iki kez gönderilen sonuçta en yenisi geçerlidir. Kapatılmış kaleme gelen sonuç `item_closed` ile reddedilir ve kullanıcıya gösterilir.
 - Turun bütün kalemlerine bakılınca oturum veritabanında `captured` olur; uygulama ayrıca durum yazmaz.
+
+## Saha uygulaması ve veritabanı
+
+Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce telefondaki veritabanına ve gönderim kuyruğuna yazar, bağlantı olunca kuyruğu sırayla gönderir (ayrıntı: [apps/field/README.md](../apps/field/README.md), "Senkronizasyon"). Personelin belirteciyle PostgREST ve Storage üzerinden çalışır (servis anahtarı yok).
+
+**Okunan (günün görevleri):**
+
+| Okunan | Alanlar | Kural |
+| --- | --- | --- |
+| `public.session` | `id`, `org_id`, `parcel_id`, `kind`, `planned_date`, `lead_user_id` | `status = planned`, `kind` `inventory` ya da `periodic_scan`, `planned_date` ≤ bugün + 7 gün. `lead_user_id` kullanıcı olanlar önce |
+| `public.parcel` | `name`, `village`, `estimated_area_m2` | Ziyaretin parseli |
+| `public.tree` + `public.slot` | `tree.id`, `slot.code`, `slot.row_no`, `slot.position_no` | Periyodik ziyarette parselin `status = active` ağaçları |
+| `public.tree_latest_assessment` | `tree_id`, `overall_class` | Yakın plan listesi: Dikkat, Sorunlu, Kuru olanlar + %10 örneklem (metodoloji bölüm 7) |
+
+- **Karar:** Ziyaret satırında mevsim yok; uygulama mevsimi `planned_date`'in ayından çıkarır (Aralık–Şubat kış, Mart–Mayıs ilkbahar, Haziran–Temmuz yaz, Ağustos–Kasım hasat).
+- **Karar:** Telefondaki oturumun kimliği planlanmış ziyaretin `session.id`'sidir; kaydediciye (`start_session`) ve kök `session.json`'a da o gider. Saha personeli `inventory` / `periodic_scan` ziyareti ekleyemez (operasyon planlar), yalnızca günceller.
+
+**Yazılan (gönderim kuyruğu):**
+
+| Telefonda | Sunucuda | Nasıl | Tekrar gönderimde |
+| --- | --- | --- | --- |
+| Oturum | `public.session` (planlanmış ziyaret) | `update`: `started_at`, `methodology_version`; kayıt durunca `status = captured`, `ended_at`. Yalnızca `status` `planned` ya da `captured` iken | Aynı değerler; ziyaret işlendiyse dokunulmaz |
+| Oturum olayı (`session_start`, `qr_sync`, `corner`, `session_stop`) | `public.session_event` | `insert`, kimlik telefondan | `on conflict (id) do nothing` |
+| Yakın plan fotoğrafı | `media` alanında `org/<org_id>/parcel/<parcel_id>/<sha256>` + `public.capture` (`kind = photo`, `tree_id`, `uri`, `content_hash`, `started_at` = çekimin GPS zamanından UTC) | Önce dosya, sonra satır. `capture.id` = uuid v5(`<oturum>/<sha256>`). Çekim kodu, yer kodu, `gps_time_ns`, zaman kaynağı ve cihazdaki kalite kontrolü `metadata`'da | Var olan nesne yüklenmiş sayılır; `on conflict (session_id, content_hash) do nothing` |
+| Personel cevabı | `public.measurement` (`source = staff`, `method = field_question`, `method_version` = soru seti sürümü) | Evet/hayır → `value_boolean`; `metric_definition_id` metrik kodundan | `on conflict (id) do nothing` |
+
+- **Zaman:** Sunucudaki zaman damgaları UTC'dir; telefonda tutulan GPS zamanı (`gps_time_ms`) 18 sn düşülerek çevrilir. `session_event.gps_time_ns` GPS zamanıdır (bu belgenin "Zaman" bölümü); `time_source = phone` ise değer telefon saatinden türetilmiştir.
+- **Karar (oturum olayları):** Olaylar için ayrı, ekleme-yalnız bir tablo açıldı (`public.session_event`: `id`, `org_id`, `parcel_id`, `session_id`, `event_type`, `payload`, `gps_time_ns`, `time_source`, `phone_time`, `logger_result`, `recorded_by`). Gerekçe: (1) her olayın telefonda üretilmiş kimliği var, ayrı satır tekrar gönderimi `on conflict do nothing` ile güvenli kılar; `session` üzerinde bir JSON dizisini güncellemek sıraya ve eşzamanlı yazmaya bağımlı olurdu ve yayımlanmış ziyarette mümkün değil; (2) `capture.metadata` bir dosyaya bağlı, olayların dosyası yok; (3) kaydedicinin `events.csv`'si SD kartla ofise gelir, bu satırlar ise ağdan önce gelir ve kaydedicinin kaçırdığı olayları da taşır: işleme hattı QR eşlemesini iki kaynakla karşılaştırabilir. Okuma yalnızca kurum rolleri; sahip ve izleyici görmez.
+- **Karar (metrikler):** Yakın plan sorularının metrikleri kayıtta yoktu; evet/hayır, ağaç, karnede gizli (`card_visibility = hidden`) olarak eklendi: `dead_branch_present`, `trunk_damage_present`, `root_sucker_present`, `pruned`, `frost_damage_present`, `pest_sign_present`, `fruit_present`, `drought_stress_sign`, `theft_sign_present`. Hasat sorularında kayıtlı `harvest_complete` ve `branch_break` kullanılır. Personel cevabı uzmana kanıttır, karnede gösterilmez.
+- **Hatalar:** Ağ hatası, zaman aşımı, 5xx/429 ve süresi geçmiş giriş geçicidir (kayıt kuyrukta kalır, artan beklemeyle yeniden denenir). Yetki (`42501`), doğrulama (`23xxx`, `22P02`), bilinmeyen ya da iptal edilmiş ziyaret (`visit_not_found`, `visit_cancelled`), kayıtta olmayan metrik (`unknown_metric`) kalıcıdır: kayıt telefonda "başarısız" diye sebebiyle işaretlenir, kuyruk durmaz.
+- **Fotoğraf dosyası** telefondan ancak yükleme, `capture` satırı ve nesnenin varlık kontrolü başarılı olunca silinir.
+- **Açık:** Cevap ile kanıt fotoğrafı arasındaki bağ sunucuda yok (`measurement_evidence` yalnızca `asset`'e bağlanır); ikisi aynı oturum ve ağaçla eşleşir.
 
 ## Açık noktalar
 

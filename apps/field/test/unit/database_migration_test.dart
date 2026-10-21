@@ -45,40 +45,53 @@ const _schemaV1 = [
 ];
 
 void main() {
-  test(
-    'schema 1 → 2 adds the quality columns and keeps old captures',
-    () async {
-      final db = AppDatabase(
-        NativeDatabase.memory(
-          setup: (raw) {
-            for (final sql in _schemaV1) {
-              raw.execute(sql);
-            }
-            raw
-              ..execute(
-                "INSERT INTO sessions VALUES ('s1', 'P-1', NULL, 'scan', "
-                "'periodic', 'winter', NULL, 'field-v0', '0.1.0', NULL, NULL, "
-                "'2026-12-03T08:30:00.000Z', 1, NULL, NULL, 'recording')",
-              )
-              ..execute(
-                "INSERT INTO captures VALUES ('abc', 's1', 'closeup_photo', "
-                "'phone_camera', 'image/jpeg', 3, 'mem://abc', 'tree', 't-1', "
-                "'S1-1', 'trunk', '2026-12-03T08:31:00.000Z', 1000, 'phone')",
-              )
-              ..userVersion = 1;
-          },
-        ),
-      );
-      addTearDown(db.close);
+  test('schema 1 → 3 keeps old rows: quality columns, value_boolean, outbox', () async {
+    final db = AppDatabase(
+      NativeDatabase.memory(
+        setup: (raw) {
+          for (final sql in _schemaV1) {
+            raw.execute(sql);
+          }
+          raw
+            ..execute(
+              "INSERT INTO sessions VALUES ('s1', 'P-1', NULL, 'scan', "
+              "'periodic', 'winter', NULL, 'field-v0', '0.1.0', NULL, NULL, "
+              "'2026-12-03T08:30:00.000Z', 1, NULL, NULL, 'recording')",
+            )
+            ..execute(
+              "INSERT INTO captures VALUES ('abc', 's1', 'closeup_photo', "
+              "'phone_camera', 'image/jpeg', 3, 'mem://abc', 'tree', 't-1', "
+              "'S1-1', 'trunk', '2026-12-03T08:31:00.000Z', 1000, 'phone')",
+            )
+            ..execute(
+              "INSERT INTO measurements VALUES ('m1', 's1', 'tree', 't-1', "
+              "'pruned', 1, NULL, NULL, NULL, NULL, 'field_question', "
+              "'winter-v0', 'staff', '2026-12-03T08:32:00.000Z', '[\"abc\"]')",
+            )
+            ..execute(
+              'INSERT INTO outbox_entries (entity_type, entity_id, created_at) '
+              "VALUES ('measurement', 'm1', '2026-12-03T08:32:00.000Z')",
+            )
+            ..userVersion = 1;
+        },
+      ),
+    );
+    addTearDown(db.close);
 
-      final old = await db.select(db.captures).getSingle();
-      expect(old.sha256, 'abc');
-      expect(old.timeSource, 'phone');
-      expect(old.qcVerdict, isNull);
-      expect(old.qcVersion, isNull);
-      expect(old.qcSharpness, isNull);
-      final version = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(version.read<int>('user_version'), 2);
-    },
-  );
+    final old = await db.select(db.captures).getSingle();
+    expect(old.sha256, 'abc');
+    expect(old.timeSource, 'phone');
+    expect(old.qcVerdict, isNull);
+    expect(old.qcVersion, isNull);
+    expect(old.qcSharpness, isNull);
+    // Schema 3: value_bool → value_boolean, failed_at, task cache.
+    final m = await db.select(db.measurements).getSingle();
+    expect(m.valueBoolean, isTrue);
+    final entry = await db.select(db.outboxEntries).getSingle();
+    expect(entry.failedAt, isNull);
+    expect(entry.sentAt, isNull);
+    expect(await db.select(db.taskCache).get(), isEmpty);
+    final version = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(version.read<int>('user_version'), 3);
+  });
 }

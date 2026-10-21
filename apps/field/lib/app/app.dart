@@ -14,6 +14,8 @@ class FieldApp extends ConsumerWidget {
     // Keep the GPS clock alive so it collects samples from app start.
     ref.watch(gpsClockProvider);
     final user = ref.watch(currentUserProvider);
+    // Signed in: start the sync (first pass now, then on network changes).
+    if (user != null) ref.watch(syncWorkerProvider);
     return MaterialApp(
       title: 'orchadOS Saha',
       debugShowCheckedModeBanner: false,

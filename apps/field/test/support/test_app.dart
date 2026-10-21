@@ -10,9 +10,12 @@ import 'package:orchados_field/core/media/field_camera.dart';
 import 'package:orchados_field/core/media/media_store.dart';
 import 'package:orchados_field/core/media/synthetic_photo.dart';
 import 'package:orchados_field/core/quality/photo_quality.dart';
+import 'package:orchados_field/core/sync/connectivity.dart';
+import 'package:orchados_field/core/sync/sync_server.dart';
 import 'package:orchados_field/core/time/clock.dart';
 import 'package:orchados_field/features/auth/auth_repository.dart';
 import 'package:orchados_field/features/gnss/fake_gnss_logger.dart';
+import 'package:orchados_field/features/tasks/task_repository.dart';
 
 /// Everything a widget test needs, with fakes for hardware.
 class TestHarness {
@@ -21,6 +24,9 @@ class TestHarness {
     int phoneClockErrorMs = 0,
     List<SyntheticPhotoKind> photos = const [],
     CameraOpenResult cameraOpenResult = CameraOpenResult.ready,
+    this.server,
+    this.connectivity,
+    TaskRepository Function(TestHarness h)? tasks,
   }) : clock = FakeClock(DateTime.utc(2026, 12, 3, 8, 30)),
        db = AppDatabase(NativeDatabase.memory()),
        camera = FakeFieldCamera(script: photos, openResult: cameraOpenResult),
@@ -44,6 +50,10 @@ class TestHarness {
           const PhotoQualityChecker(useIsolate: false),
         ),
         authRepositoryProvider.overrideWithValue(DevAuthRepository()),
+        syncServerProvider.overrideWithValue(server),
+        connectivityProvider.overrideWithValue(connectivity),
+        if (tasks != null)
+          taskRepositoryProvider.overrideWithValue(tasks(this)),
       ],
     );
     // Start collecting GPS time samples like FieldApp does.
@@ -54,6 +64,10 @@ class TestHarness {
   final AppDatabase db;
   final FakeFieldCamera camera;
   final MemoryMediaStore media;
+
+  /// Sync target; null = no server (offline development build).
+  final SyncServer? server;
+  final ConnectivityMonitor? connectivity;
   late final FakeGnssLogger logger;
   late final ProviderContainer container;
 
@@ -77,6 +91,14 @@ class TestHarness {
 
 /// Scrolls [finder] into view and taps it.
 Future<void> tapVisible(WidgetTester tester, Finder finder) async {
+  if (finder.evaluate().isEmpty) {
+    // Not built yet by a lazy list: scroll the main list until it is.
+    await tester.scrollUntilVisible(
+      finder,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+  }
   await tester.ensureVisible(finder);
   await tester.pump();
   await tester.tap(finder);

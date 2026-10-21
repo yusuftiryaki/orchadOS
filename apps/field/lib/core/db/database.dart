@@ -9,7 +9,8 @@ part 'database.g.dart';
 // [Sessions] → Session, [Captures] → Capture (close-up photo),
 // [Measurements] → Measurement with source `staff`. [SessionEvents] are the
 // phone-side copy of what was sent to the logger (corner, qr_sync, …).
-// Every insert is paired with an [OutboxEntries] row in the same transaction.
+// Every insert is paired with an [OutboxEntries] row in the same transaction;
+// the SyncWorker (core/sync) uploads them in that order.
 
 /// A field session (a "visit" in MVP terms; `session_type = scan`).
 @DataClassName('SessionRow')
@@ -127,7 +128,10 @@ class Measurements extends Table {
   TextColumn get subjectType => text()();
   TextColumn get subjectId => text()();
   TextColumn get metricCode => text()();
-  BoolColumn get valueBool => boolean().nullable()();
+
+  /// Yes/no answer; `measurement.value_boolean` on the server (schema 3
+  /// renamed it from `value_bool`).
+  BoolColumn get valueBoolean => boolean().nullable()();
   RealColumn get valueNum => real().nullable()();
   TextColumn get valueText => text().nullable()();
   TextColumn get unit => text().nullable()();
@@ -150,7 +154,7 @@ class Measurements extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// Records waiting to be uploaded. Sync itself comes later.
+/// Records waiting to be uploaded, oldest first (see Outbox).
 @DataClassName('OutboxEntry')
 class OutboxEntries extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -163,10 +167,34 @@ class OutboxEntries extends Table {
   TextColumn get lastError => text().nullable()();
   DateTimeColumn get lastAttemptAt => dateTime().nullable()();
   DateTimeColumn get sentAt => dateTime().nullable()();
+
+  /// Set when the server refused the record for good (permission,
+  /// validation); [lastError] keeps the reason. Not retried automatically.
+  DateTimeColumn get failedAt => dateTime().nullable()();
+}
+
+/// Last task list downloaded for a user, for offline use (schema 3).
+@DataClassName('TaskCacheRow')
+class TaskCache extends Table {
+  TextColumn get userId => text()();
+
+  /// JSON array of FieldTask.toJson().
+  TextColumn get tasksJson => text()();
+  DateTimeColumn get fetchedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {userId};
 }
 
 @DriftDatabase(
-  tables: [Sessions, SessionEvents, Captures, Measurements, OutboxEntries],
+  tables: [
+    Sessions,
+    SessionEvents,
+    Captures,
+    Measurements,
+    OutboxEntries,
+    TaskCache,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
@@ -176,7 +204,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase(driftDatabase(name: 'orchados_field'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -190,6 +218,17 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(captures, captures.qcDarkRatio);
         await m.addColumn(captures, captures.qcBrightRatio);
         await m.addColumn(captures, captures.qcFindings);
+      }
+      if (from < 3) {
+        // Sync (İP6): same name as the server column, permanent failures,
+        // offline task list.
+        await m.renameColumn(
+          measurements,
+          'value_bool',
+          measurements.valueBoolean,
+        );
+        await m.addColumn(outboxEntries, outboxEntries.failedAt);
+        await m.createTable(taskCache);
       }
     },
     beforeOpen: (details) async {

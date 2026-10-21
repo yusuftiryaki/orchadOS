@@ -113,8 +113,8 @@ void main() {
     expect(measurements, hasLength(protocol.questions.length));
     expect(measurements.every((m) => m.source == 'staff'), isTrue);
     final byMetric = {for (final m in measurements) m.metricCode: m};
-    expect(byMetric['dead_branch_present']!.valueBool, isTrue);
-    expect(byMetric['pruned']!.valueBool, isFalse);
+    expect(byMetric['dead_branch_present']!.valueBoolean, isTrue);
+    expect(byMetric['pruned']!.valueBoolean, isFalse);
     expect(
       jsonDecode(byMetric['pruned']!.evidenceJson),
       unorderedEquals(captures.map((c) => c.sha256)),

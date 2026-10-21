@@ -14,7 +14,7 @@ select tables_are(
     'device', 'sensor', 'rig', 'rig_sensor', 'calibration', 'session', 'capture',
     'asset', 'asset_source', 'metric_definition', 'measurement', 'measurement_evidence',
     'assessment', 'assessment_measurement', 'finding', 'finding_evidence', 'operation', 'trunk_label',
-    'verification_item'
+    'verification_item', 'session_event'
   ],
   'public has exactly the MVP tables'
 );
@@ -89,8 +89,11 @@ select set_eq(
         'frost_damage_scale', 'pest_sign_severity', 'pest_sign_type', 'fruit_load_scale',
         'harvest_complete', 'branch_break', 'theft_trace',
         'crown_diameter', 'crown_volume', 'trunk_diameter_h30',
-        'scaffold_branch_count', 'fractal_dimension', 'canopy_temp_delta'],
-  'migration registers the metrics from docs/metodoloji.md (Ek B) and docs/veri-modeli.md'
+        'scaffold_branch_count', 'fractal_dimension', 'canopy_temp_delta',
+        -- Field app yes/no questions (20261021230000_field_sync).
+        'dead_branch_present', 'trunk_damage_present', 'root_sucker_present', 'pruned', 'frost_damage_present',
+        'pest_sign_present', 'fruit_present', 'drought_stress_sign', 'theft_sign_present'],
+  'migrations register the metrics from docs/metodoloji.md (Ek B), docs/veri-modeli.md and the field questions'
 );
 
 select results_eq(
