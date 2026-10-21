@@ -4,7 +4,7 @@ Next.js web uygulaması: sahip portalı, uzman paneli ve ofis üçgenleme aracı
 
 İş paketleri: İP5 (ofis üçgenleme aracı), İP7 (uzman paneli), İP8 (sahip portalı). Bkz. [docs/plan.md](../../docs/plan.md).
 
-Şu anki hâli: giriş/çıkış, rol bazlı bölümler, her bölümde parsel listesi ve harita üzerinde parsel detayı (iskelet), `/ofis` altında **ofis üçgenleme aracı** (İP5), `/uzman` altında **uzman paneli** (İP7), `/portal` altında **sahip portalı** (İP8) ve `/operasyon` altında **operasyon ekranları** (kayıt ve ziyaret planlama); hepsi aşağıda.
+Şu anki hâli: giriş/çıkış, rol bazlı bölümler, her bölümde parsel listesi ve harita üzerinde parsel detayı (iskelet), `/ofis` altında **ofis üçgenleme aracı** (İP5), `/uzman` altında **uzman paneli** (İP7), `/portal` altında **sahip portalı** (İP8), `/operasyon` altında **operasyon ekranları** (kayıt ve ziyaret planlama), telefonla (SMS kodu) giriş ve SMS / WhatsApp **bildirimleri**; hepsi aşağıda.
 
 ## Kurulum
 
@@ -109,7 +109,23 @@ Roller veritabanından okunur: işletme rolleri `membership`, parsel rolleri `pa
 
 ## Giriş
 
-Geliştirmede e-posta + parola. Telefonla (SMS kodu) giriş sonraya kaldı; giriş sayfası yöntem listesiyle (`src/app/giris/login-methods.ts`) kurulu, telefon yöntemi şimdilik pasif. Eklemek için: `phone` için bir form bileşeni ve `signInWithOtp` / `verifyOtp` çağıran bir server action.
+İki yöntem (`src/app/giris/login-methods.ts`): **e-posta + parola** ve **telefon (SMS kodu)**.
+
+**Telefonla giriş:** numara (`0532 123 45 67` de yazılabilir) → **SMS kodu gönder** → 6 haneli kod → **Giriş yap** (`src/app/giris/actions.ts`: `signInWithOtp` / `verifyOtp`, `shouldCreateUser: false`).
+
+- **SMS'i bizim sağlayıcımız gönderir:** Supabase Auth kodu kendisi göndermez, "Send SMS Hook" ile `supabase/functions/send-sms` Edge Function'ına verir. Fonksiyon isteğin imzasını (Standard Webhooks, `SEND_SMS_HOOK_SECRET`) denetler, numara sınırlarını uygular ve mesajı sağlayıcıya verir (bkz. [Bildirimler](#bildirimler), sağlayıcılar). Yerelde ve testlerde **kayıt sağlayıcısı** çalışır: SMS gitmez, kod `private.message_outbox` tablosuna yazılır.
+- **Sadece davetli numaralar:** Dışarıdan üye olma kapalı (`[auth] enable_signup = false`); hesapları operasyon `invite-user` ile açar. Telefonla açılan hesap (e-postasız sahip) doğrudan SMS koduyla girer. Sayfa bir numaranın kayıtlı olup olmadığını söylemez: davetsiz numaraya da "kayıtlıysa kod gönderdik" denir, ama kod gitmez.
+- **Kötüye kullanım sınırları** (veritabanı, `20261023140200_phone_login.sql`): numara başına saatte en çok 5 kod; 15 dakikada 5 hatalı kodda numara 15 dakika kilitlenir (yeni kod da gönderilmez). Numaralar bu sayımda SHA-256 özetiyle tutulur, bir gün sonra silinir. Ayrıca Auth'un kendi sınırları: aynı numaraya 60 saniyede bir kod (`auth.sms.max_frequency`; kod ekranındaki yeniden gönderme sayacı da 60 sn) ve proje genelinde saatlik SMS sınırı.
+- Ekranda numara maskeli görünür (`+90 5•• ••• •• 67`, `src/lib/notifications/phone.ts`). Numara ve kod hiçbir yerde loglanmaz.
+
+**Yerel Supabase ayarı** (`supabase/config.toml`): `[auth.hook.send_sms]` hook'u yerel fonksiyona yönlendirir; imza sırrı sadece yerel içindir ve `[edge_runtime.secrets]`'ta fonksiyona da verilir. CLI telefon sağlayıcısını ancak bir SMS sağlayıcısı açıkken açtığı için `[auth.sms.twilio]` sahte değerlerle açıktır; hook açıkken Twilio hiç çağrılmaz.
+
+**Yerelde denemek:** `pnpm db:reset`; operasyonla e-postasız bir sahip kaydet (ya da Supabase'de telefonlu bir kullanıcı aç), `/giris` → **Telefon**. Kodu oku:
+
+```bash
+docker exec supabase_db_orchados psql -U postgres -c \
+  "select created_at, recipient, body from private.message_outbox order by created_at desc limit 5"
+```
 
 ## Harita
 
@@ -472,6 +488,7 @@ Operasyon (`ops`) sahibi kaydeder, parselini açar, kaba sınırını çizer, po
 | `/operasyon/ziyaret`                       | Ziyaret listesi; parsel, personel, durum ve türe göre filtre (`?parsel=`, `?personel=`, `?durum=`, `?tur=`)                                                                                                                    |
 | `/operasyon/ziyaret/yeni?parsel=…`         | **Ziyaret planı:** tür (envanter, periyodik tarama, doğrulama), tarih, sorumlu saha personeli, not. Tarama ziyaretinde mevsim tarihten gösterilir (`docs/metodoloji.md` 2)                                                     |
 | `/operasyon/ziyaret/<ziyaret>`             | Ayrıntı. `planned` ise tarih, sorumlu ve not değişir, ziyaret iptal edilir. Taranmış (`captured` ve sonrası) ya da iptal edilmiş ziyaret salt okunur                                                                           |
+| `/operasyon/bildirimler`                   | Sahip ve hissedarlara giden bildirimler, maskeli telefon, başarısızlar için **Yeniden dene** (bkz. [Bildirimler](#bildirimler))                                                                                                |
 
 ### Kurallar
 
@@ -517,3 +534,56 @@ Yerelde edge runtime açık (`supabase/config.toml`, `[functions.invite-user] ve
 - **Takvim görünümü yok:** liste ve filtreler var.
 - Özel veri düzeltmesi eski değeri saklamaz (denetim kaydı yok).
 - `ops_find_user_id`, operasyonun bütün hesaplarda e-postayla arama yapmasına izin verir; sadece kimlik döner.
+
+## Bildirimler
+
+Uzman bir ziyareti yayımlayınca sahip ve hissedarlara **"Rapor hazır"**, önemi `high` olan bir bulgu onaylanınca raporu beklemeden **"Kritik bulgu"** bildirimi gider (`docs/MVP.md` Modül 5, bölüm 7). Kanal sahibin iletişim tercihinden: WhatsApp → WhatsApp; SMS, telefon araması ya da kayıt yoksa → SMS.
+
+```
+yayın / bulgu onayı ──tetikleyici──▶ public.notification (bekliyor)
+pg_cron (dakikada bir) ──pg_net──▶ send-notifications ──▶ sağlayıcı ──▶ gönderildi / yeniden dene / başarısız
+```
+
+### Kuyruk (`public.notification`)
+
+Migration'lar `supabase/migrations/20261023140000_notification_queue.sql` … `140300`, pgTAP `supabase/tests/23_notifications.test.sql`.
+
+- Satır: alıcı (kullanıcı), kanal (`sms` / `whatsapp`), şablon (`report_ready` / `critical_finding`), şablon değişkenleri, durum (`pending` / `sent` / `failed`), deneme sayısı, hata kodu, sonraki deneme, oluşma ve gönderilme zamanı, hangi yoldan gittiği (`record/sms`, `netgsm/sms`).
+- **Kişisel veri:** Telefon numarası kuyrukta yok; gönderici onu gönderim anında `private.owner_profile`'dan okur (`notification_claim`). Şablon değişkenleri sadece parsel adı, ziyaret günü ve portal yolu (veritabanı kısıtı; ad soyad ya da bulgu metni giremez). Hata alanı sadece neden kodu taşır (`no_phone`, `provider_error:30`), serbest metin almaz.
+- **Tetikleyiciler:** periyodik tarama ya da doğrulama ziyareti `published` olunca parselin her sahip ve hissedarına `report_ready`; `high` bir bulgu onaylanınca (`approve_finding(...)` ya da doğrudan `approved_at`) `critical_finding`. Envanter onayı rapor bildirimi değildir. Aynı olay için ikinci satır oluşmaz (alıcı + ziyaret / alıcı + bulgu başına tekil indeks). `publish_session` bulguları da onayladığı için, aynı işlemde onaylanan kritik bulgu ayrıca bildirilmez: rapor bildirimi onu da kapsar.
+- **`approve_finding(p_finding_id)`:** uzman bir bulguyu rapordan önce onaylar. Uzman panelindeki düğme uzman paneli oturumunun işi; veritabanı tarafı hazır.
+- **Kim görür:** alıcı kendi satırlarını, operasyon işletmesinin bütün satırlarını okur. API'den kimse yazamaz; tetikleyiciler ve servis rolü fonksiyonları yazar.
+
+### Gönderici: `send-notifications` Edge Function
+
+- Servis anahtarıyla çağrılır (başka her çağıran 403). Vadesi gelen satırları alır (aynı anda iki çalıştırma aynı satırı almaz), Türkçe şablonu portal bağlantısıyla doldurur, sağlayıcıya verir ve sonucu yazar.
+- **Şablonlar** (`supabase/functions/_shared/messaging.ts`, birim testleri `src/lib/notifications/messaging.test.ts`): "Örnek Bahçe 1 için 14 Ekim denetim raporunuz hazır: <bağlantı>", "Örnek Bahçe 1 için 14 Ekim denetiminde uzmanımız acil bir bulgu onayladı. Ayrıntı: <bağlantı>". Bağlantı `PORTAL_BASE_URL` + `/portal/parsel/<parsel>`.
+- **Yeniden deneme:** geçici hatada 1, 4, 16, 60 dakika sonra; 5. denemeden sonra `failed`. Kalıcı hata (telefon yok, bozuk şablon, sağlayıcının reddettiği numara) hemen `failed`.
+- **Tetikleme:** `pg_cron` dakikada bir `private.dispatch_notifications()` çalıştırır; vadesi gelen satır varsa ve Vault'ta fonksiyon adresi ile servis anahtarı varsa `pg_net` ile fonksiyonu çağırır. Ücretsiz planda çalışır. Yerelde ve CI'da Vault boş olduğu için hiçbir şey yapmaz; testler fonksiyonu doğrudan çağırır. Elle: `curl -X POST <api>/functions/v1/send-notifications -H "Authorization: Bearer <servis anahtarı>"`.
+
+### Sağlayıcılar (`supabase/functions/_shared/providers.ts`)
+
+Tek arayüz (`MessageProvider.send`), iki uygulama:
+
+- **Kayıt sağlayıcısı** (varsayılan): mesajı göndermez, `private.message_outbox` tablosuna yazar (7 gün tutulur). Geliştirme, testler ve test projesi bununla çalışır. Telefonla giriş kodları da buraya düşer.
+- **Netgsm** (iskelet): Türkiye'de yaygın bir SMS sağlayıcısı; REST v2, Basic auth, onaylı gönderici başlığı, Türkçe karakter kodlaması. Sadece `NETGSM_USERCODE`, `NETGSM_PASSWORD` ve `NETGSM_MSGHEADER` üçü de tanımlıysa ve `MESSAGE_PROVIDER=record` değilse devreye girer. WhatsApp yok: WhatsApp tercihli mesajlar SMS olarak gider (`netgsm/sms`). Gerçek hesapla denenmedi.
+
+Seçim gerekçesi: Türkiye'de SMS göndermek için BTK/İYS kurallarına uygun, onaylı bir gönderici başlığı gerekiyor; yerli sağlayıcılar bunu ve OTP paketlerini ucuza veriyor. Twilio hem SMS hem WhatsApp sunar ama Türkiye SMS'i pahalı ve gönderici kaydı uzun. WhatsApp için ayrı bir sağlayıcı (WhatsApp Business API) aynı arayüze eklenir.
+
+### Operasyon: `/operasyon/bildirimler`
+
+Son 100 bildirim (durum filtresi `?durum=`): zaman, parsel, alıcı (ad, sahip/hissedar, **maskeli telefon** `+90 5•• ••• •• 01`), bildirim, kanal, durum, deneme, gönderilme ve hata. Başarısız olanlarda **Yeniden dene** satırı deneme sayısını sıfırlayıp kuyruğa geri koyar (`ops_retry_notification`); bir sonraki çalıştırmada gider. Telefon sunucuda maskelenir (`src/lib/notifications/phone.ts`); tam numara tarayıcıya gelmez.
+
+### Testler
+
+- Birim (`src/lib/notifications/*.test.ts`, `src/app/giris/login-methods.test.ts`): şablonlar ve bağlantı, Türkçe gün, yeniden deneme hesabı, numara maskeleme, hata etiketleri, giriş hata eşlemesi ve yeniden gönderme sayacı.
+- Entegrasyon: `tests/integration/notifications.test.ts` (kritik bulgu onayla bildirim, yayında rapor bildirimi ve kayıt sağlayıcısının "göndermesi", çift bildirim yok, sahip başkasının bildirimini görmez, göndericiyi sadece servis rolü çalıştırır, operasyon listesi ve yeniden deneme), `tests/integration/notifications-phone-login.test.ts` (operasyonun telefonla açtığı hesap koduyla girer, kod kayıttan okunur; 60 sn içinde ikinci kod yok; davetsiz numaraya kod ve hesap yok; 5 hatalı kodda kilit).
+- Tarayıcı: `tests/e2e/notifications-phone-login.spec.ts` (telefonla giriş, hatalı kod, yeniden gönderme sayacı, davetsiz numara), `tests/e2e/notifications-operations.spec.ts` (bildirim listesi, maskeli telefon, yeniden dene).
+- pgTAP: `supabase/tests/23_notifications.test.sql`.
+- Hiçbir test gerçek SMS göndermez: Netgsm değişkenleri yerelde ve CI'da tanımlı değil.
+
+### Bilinen sınırlar
+
+- Kritik bulgu bildirimi portal bağlantısı verir, ama sahip yayımlanmamış ziyaretin bulgusunu portalda henüz göremez (satır bazlı yetki). Onaylanmış kritik bulgunun yayından önce gösterilmesi portal tarafında ayrı bir karar.
+- WhatsApp sağlayıcısı yok; WhatsApp tercihli sahiplere gerçek sağlayıcıyla SMS gider.
+- Bildirim için portal hesabı (parsel erişimi) gerekir; hesabı olmayan hissedar bildirim almaz.

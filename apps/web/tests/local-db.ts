@@ -28,6 +28,7 @@ export function runLocalSql(sql: string) {
 
 // Tables with a parcel_id, children first.
 const PARCEL_TABLES = [
+  "notification",
   "verification_item",
   "trunk_label",
   "finding_evidence",

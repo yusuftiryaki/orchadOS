@@ -1,0 +1,101 @@
+import { describe, expect, it } from "vitest";
+import {
+  MAX_ATTEMPTS,
+  decideRetry,
+  formatDayTr,
+  portalLink,
+  renderLoginCode,
+  renderNotification,
+  retryDelayMs,
+} from "../../../../../supabase/functions/_shared/messaging";
+
+// The Edge Functions' message texts and retry policy (pure TypeScript shared
+// with supabase/functions).
+const BASE = "https://portal.example.test";
+const VARS = { parcel_name: "Örnek Bahçe 1", date: "2026-10-14", path: "/portal/parsel/c0-1" };
+
+describe("templates", () => {
+  it("report ready", () => {
+    expect(renderNotification("report_ready", VARS, BASE)).toEqual({
+      ok: true,
+      body: "Örnek Bahçe 1 için 14 Ekim denetim raporunuz hazır: https://portal.example.test/portal/parsel/c0-1",
+    });
+  });
+
+  it("critical finding", () => {
+    const out = renderNotification("critical_finding", VARS, `${BASE}/`);
+    expect(out).toEqual({
+      ok: true,
+      body:
+        "Örnek Bahçe 1 için 14 Ekim denetiminde uzmanımız acil bir bulgu onayladı. " +
+        "Ayrıntı: https://portal.example.test/portal/parsel/c0-1",
+    });
+  });
+
+  it("fits in two SMS segments with Turkish characters", () => {
+    const longLink = { ...VARS, path: "/portal/parsel/c0000000-0000-4000-8000-000000000001" };
+    for (const template of ["report_ready", "critical_finding"]) {
+      const out = renderNotification(template, longLink, "https://orchados.vercel.app");
+      expect(out.ok && out.body.length).toBeLessThanOrEqual(2 * 153);
+    }
+  });
+
+  it.each([
+    [{ ...VARS, parcel_name: "  " }, "invalid_vars"],
+    [{ ...VARS, date: "14.10.2026" }, "invalid_vars"],
+    [{ ...VARS, date: "2026-13-01" }, "invalid_vars"],
+    [{ ...VARS, path: "https://evil.example/portal" }, "invalid_link"],
+    [{ ...VARS, path: "/uzman/ziyaret/x" }, "invalid_link"],
+    [{ ...VARS, path: "/portal/../uzman" }, "invalid_link"],
+  ])("rejects %j", (vars, error) => {
+    expect(renderNotification("report_ready", vars, BASE)).toEqual({ ok: false, error });
+  });
+
+  it("rejects an unknown template and a bad base URL", () => {
+    expect(renderNotification("welcome", VARS, BASE)).toEqual({
+      ok: false,
+      error: "unknown_template",
+    });
+    expect(renderNotification("report_ready", VARS, "")).toEqual({
+      ok: false,
+      error: "invalid_link",
+    });
+    expect(portalLink("javascript:alert(1)", "/portal/x")).toBeNull();
+  });
+
+  it("formats the day in Turkish", () => {
+    expect(formatDayTr("2026-01-05")).toBe("5 Ocak");
+    expect(formatDayTr("2026-08-31")).toBe("31 Ağustos");
+    expect(formatDayTr("2026-10-14T00:00")).toBeNull();
+  });
+
+  it("login code", () => {
+    expect(renderLoginCode("123456")).toBe(
+      "orchadOS giriş kodunuz: 123456. Kodu kimseyle paylaşmayın.",
+    );
+  });
+});
+
+describe("retry", () => {
+  const now = new Date("2026-10-21T10:00:00Z");
+
+  it("waits 1, 4, 16, 60 minutes", () => {
+    expect([1, 2, 3, 4, 5].map((n) => retryDelayMs(n) / 60_000)).toEqual([1, 4, 16, 60, 60]);
+  });
+
+  it("retries temporary errors until the last attempt", () => {
+    expect(decideRetry(1, false, now)).toEqual({
+      outcome: "retry",
+      retryAt: new Date("2026-10-21T10:01:00Z"),
+    });
+    expect(decideRetry(3, false, now)).toEqual({
+      outcome: "retry",
+      retryAt: new Date("2026-10-21T10:16:00Z"),
+    });
+    expect(decideRetry(MAX_ATTEMPTS, false, now)).toEqual({ outcome: "failed" });
+  });
+
+  it("fails permanent errors at once", () => {
+    expect(decideRetry(1, true, now)).toEqual({ outcome: "failed" });
+  });
+});

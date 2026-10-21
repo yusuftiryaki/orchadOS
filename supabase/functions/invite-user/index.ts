@@ -12,9 +12,9 @@
 //    its id is returned, nothing changes (created: false).
 // 3. Otherwise the user is created with the service role, e-mail and phone
 //    marked as confirmed. With an e-mail it gets a random one-time password,
-//    returned once for operations to pass on (WhatsApp); without one there is
-//    no way to sign in until phone (SMS) login is enabled, and the account is
-//    already keyed by the phone number for that.
+//    returned once for operations to pass on (WhatsApp). Either way the account
+//    signs in with its phone number and an SMS code (send-sms hook); without
+//    an e-mail that is the only way in.
 //
 // Responses: 200 { user_id, created, one_time_password | null }
 //            400 invalid_input · 401 unauthorized · 403 forbidden · 409 conflict · 500 failed
