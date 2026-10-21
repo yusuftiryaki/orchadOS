@@ -1,13 +1,16 @@
 name: deploy-db
 
-# Applies new migrations to the hosted Supabase test project after they land on main.
-# Seed data is NOT pushed automatically (see docs/deployment.md).
+# Applies new migrations to the hosted Supabase test project after they land on main,
+# and deploys the Edge Functions (supabase/functions). Seed data is NOT pushed
+# automatically (see docs/deployment.md).
 
 on:
   push:
     branches: [main]
     paths:
       - "supabase/migrations/**"
+      - "supabase/functions/**"
+      - "supabase/config.toml"
       - ".github/workflows/deploy-db.yml"
   workflow_dispatch:
 
@@ -56,3 +59,10 @@ jobs:
       - name: Push migrations
         if: steps.guard.outputs.ready == 'true'
         run: pnpm exec supabase db push --password "$SUPABASE_DB_PASSWORD"
+
+      # The functions read SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY
+      # from the hosted project itself; the service role key never leaves Supabase.
+      # verify_jwt per function comes from supabase/config.toml.
+      - name: Deploy Edge Functions
+        if: steps.guard.outputs.ready == 'true'
+        run: pnpm exec supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api

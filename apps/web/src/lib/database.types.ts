@@ -1760,6 +1760,31 @@ export type Database = {
       };
     };
     Functions: {
+      add_owner_declared_boundary: {
+        Args: { p_parcel_id: string; p_ring: Json; p_vertex_uncertainty_m?: number };
+        Returns: {
+          area_m2: number | null;
+          created_at: string;
+          created_by: string | null;
+          geom: unknown;
+          id: string;
+          org_id: string;
+          owner_approved_at: string | null;
+          owner_approved_by: string | null;
+          parcel_id: string;
+          session_id: string | null;
+          source: Database["public"]["Enums"]["boundary_source"];
+          surveyed_at: string | null;
+          version: number;
+          vertex_uncertainty_m: number | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "boundary";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       approve_boundary: {
         Args: { p_boundary_id: string };
         Returns: {
@@ -1797,6 +1822,105 @@ export type Database = {
           phone: string;
         }[];
       };
+      ops_create_owner_profile: {
+        Args: {
+          p_contact_preference: string;
+          p_email?: string;
+          p_full_name: string;
+          p_kvkk_consent: boolean;
+          p_kvkk_consent_at?: string;
+          p_kvkk_text_version?: string;
+          p_org_id: string;
+          p_phone?: string;
+          p_user_id: string;
+        };
+        Returns: string;
+      };
+      ops_find_user_id: {
+        Args: { p_email?: string; p_org_id: string; p_phone?: string };
+        Returns: string;
+      };
+      ops_org_members: {
+        Args: { p_org_id: string };
+        Returns: {
+          email: string;
+          role: Database["public"]["Enums"]["org_role"];
+          user_id: string;
+        }[];
+      };
+      ops_owner_profiles: {
+        Args: { p_profile_id?: string };
+        Returns: {
+          contact_preference: string;
+          created_at: string;
+          email: string;
+          full_name: string;
+          id: string;
+          kvkk_consent: boolean;
+          kvkk_consent_at: string;
+          kvkk_text_version: string;
+          org_id: string;
+          phone: string;
+          updated_at: string;
+          user_id: string;
+        }[];
+      };
+      ops_parcel_access: {
+        Args: { p_parcel_id: string };
+        Returns: {
+          created_at: string;
+          email: string;
+          full_name: string;
+          id: string;
+          profile_id: string;
+          role: Database["public"]["Enums"]["parcel_role"];
+          user_id: string;
+        }[];
+      };
+      ops_parcel_detail: {
+        Args: { p_parcel_id: string };
+        Returns: {
+          access_note: string;
+          authorization_basis: string;
+          deed_block: string;
+          deed_parcel: string;
+          entry_permission_at: string;
+          is_shared_deed: boolean;
+          parcel_id: string;
+          site_contact_name: string;
+          site_contact_phone: string;
+          updated_at: string;
+          used_portion_note: string;
+        }[];
+      };
+      ops_save_parcel_detail: {
+        Args: {
+          p_access_note?: string;
+          p_authorization_basis?: string;
+          p_deed_block?: string;
+          p_deed_parcel?: string;
+          p_entry_permission_at?: string;
+          p_is_shared_deed?: boolean;
+          p_parcel_id: string;
+          p_site_contact_name?: string;
+          p_site_contact_phone?: string;
+          p_used_portion_note?: string;
+        };
+        Returns: undefined;
+      };
+      ops_update_owner_profile: {
+        Args: {
+          p_contact_preference: string;
+          p_email?: string;
+          p_full_name: string;
+          p_kvkk_consent: boolean;
+          p_kvkk_consent_at?: string;
+          p_kvkk_text_version?: string;
+          p_phone?: string;
+          p_profile_id: string;
+        };
+        Returns: undefined;
+      };
       publish_session: {
         Args: { p_session_id: string };
         Returns: {
@@ -1825,6 +1949,16 @@ export type Database = {
           isOneToOne: true;
           isSetofReturn: false;
         };
+      };
+      register_parcel: {
+        Args: {
+          p_boundary?: Json;
+          p_detail?: Json;
+          p_org_id: string;
+          p_owner_user_id?: string;
+          p_parcel: Json;
+        };
+        Returns: string;
       };
       save_expert_assessment: {
         Args: {

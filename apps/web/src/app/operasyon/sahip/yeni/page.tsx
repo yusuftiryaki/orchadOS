@@ -1,0 +1,33 @@
+import { FormError } from "@/components/operations/field";
+import { OpsNav } from "@/components/operations/ops-nav";
+import styles from "@/components/operations/operations.module.css";
+import { OwnerForm } from "@/components/operations/owner-form";
+import { requireSection } from "@/lib/auth/session";
+import { t } from "@/lib/i18n";
+import { opsOrgs } from "@/lib/operations/data";
+import { todayIn } from "@/lib/operations/visits";
+import { createClient } from "@/lib/supabase/server";
+
+const T = t.operations;
+
+export default async function Page() {
+  const user = await requireSection("operasyon");
+  const supabase = await createClient();
+  const orgs = await opsOrgs(supabase, user.id);
+
+  return (
+    <main className="page">
+      <OpsNav current="owners" />
+      <h1>{T.owners.newTitle}</h1>
+      <p className="muted">{T.owners.newHint}</p>
+      <p className={styles.privacy}>{T.owners.privacy}</p>
+      {orgs.length === 0 ? (
+        <FormError error={T.errors.no_org} />
+      ) : (
+        <section className={styles.section}>
+          <OwnerForm orgs={orgs} today={todayIn(new Date())} />
+        </section>
+      )}
+    </main>
+  );
+}

@@ -377,8 +377,8 @@ authorization_url_path = "/oauth/consent"
 allow_dynamic_registration = false
 
 [edge_runtime]
-# Not needed for IP1.
-enabled = false
+# Serves supabase/functions locally (invite-user, operations screens).
+enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
 # `per_worker` (default) — enables hot reload during local development.
 # `oneshot` — fallback mode if hot reload causes issues (e.g. in large repos or with symlinks).
@@ -390,6 +390,10 @@ deno_version = 2
 
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
+
+# Portal accounts for the operations screens; see the function's header.
+[functions.invite-user]
+verify_jwt = true
 
 [analytics]
 # Not needed for IP1 (also pulls logflare + vector).
