@@ -1,6 +1,6 @@
 # apps/field — orchadOS Saha
 
-Saha personelinin kullandığı, çevrimdışı çalışan Android uygulaması (Flutter). Bu klasördeki sürüm İP6'nın parçasıdır: ekran akışı, BLE protokolü, QR saat, yerel veritabanı, gönderim kuyruğu, uygulama içi kamera, cihazda fotoğraf kalite kontrolü, sunucudan günün görevleri ve çevrimdışı senkronizasyon hazır; harita ve doğrulama turu sonraki adımlar.
+Saha personelinin kullandığı, çevrimdışı çalışan Android uygulaması (Flutter). Bu klasördeki sürüm İP6'nın parçasıdır: ekran akışı, BLE protokolü, QR saat, yerel veritabanı, gönderim kuyruğu, uygulama içi kamera, cihazda fotoğraf kalite kontrolü, sunucudan günün görevleri, çevrimdışı senkronizasyon ve envanterin saha tarafı (doğrulama turu, sınır yürüyüşünde köşe işaretleme, taramada kapsama haritası) hazır; rota ve harita altlığı sonraki adımlar.
 
 Bkz. [docs/plan.md](../../docs/plan.md) (İP6), [docs/MVP.md](../../docs/MVP.md) Modül 2 ve 3, [firmware/gnss-logger/README.md](../../firmware/gnss-logger/README.md) (BLE protokolü), [services/pipeline/README.md](../../services/pipeline/README.md) (QR saat kodu).
 
@@ -19,7 +19,7 @@ flutter pub get
 | --- | --- |
 | `flutter analyze` | Statik analiz (lint kuralları `analysis_options.yaml`) |
 | `flutter test` | Birim ve arayüz testleri (cihaz ya da Android SDK gerekmez) |
-| `ORCHADOS_TEST_SUPABASE_URL=… ORCHADOS_TEST_SUPABASE_KEY=… flutter test test/integration` | Yerel Supabase'e `field@example.com` ile gerçek gönderim (aşağıda, "Testler"); değişkenler yoksa atlanır |
+| `ORCHADOS_TEST_SUPABASE_URL=… ORCHADOS_TEST_SUPABASE_KEY=… flutter test test/integration` | Yerel Supabase'e `field@example.com` ile gerçek gönderim: ziyaret ve doğrulama turu (aşağıda, "Testler"); değişkenler yoksa atlanır |
 | `dart run build_runner build` | drift kodunu yeniden üretir (`lib/core/db/database.g.dart`); tablo değişince çalıştır ve üretilen dosyayı da commit'le |
 | `flutter run` | Bağlı telefonda çalıştırır (BLE ile gerçek kaydedici) |
 | `flutter run --dart-define=FAKE_GNSS=true` | Sahte kaydediciyle çalıştırır (emülatör, demo) |
@@ -31,7 +31,7 @@ Derleme ayarları (`--dart-define`):
 | Ad | Anlamı |
 | --- | --- |
 | `SUPABASE_URL`, `SUPABASE_KEY` | Verilirse giriş Supabase'e yapılır, görevler sunucudan iner ve kuyruk gönderilir. Verilmezse çevrimdışı geliştirme kullanıcıları (`field@example.com` / `ops@example.com`, parola `orchados-dev`) ve iki örnek görev; gönderim kapalıdır (kayıtlar kuyrukta bekler) |
-| `FAKE_GNSS` | `true` ise BLE yerine sahte kaydedici |
+| `FAKE_GNSS` | `true` ise BLE yerine sahte kaydedici. Sahte kaydedici konum da gönderir: örnek parselin (sentetik, Gaziantep yakını) koridorlarında 1,2 m/sn yürür; kapsama ve köşe ekranları kaydedicisiz denenebilir |
 | `FAKE_CAMERA` | `true` ise kamera yerine sentetik fotoğraf (demo; kalite kontrolü yine çalışır) |
 
 ## Mimari
@@ -42,6 +42,7 @@ lib/
   app/                      Uygulama kökü, tema, Riverpod sağlayıcıları
   core/
     db/                     drift tabloları, FieldRepository (kayıt + kuyruk tek işlemde), Outbox
+    geo/                    Yerel düzlem izdüşümü, uzaklık, yön (8 yön, Türkçe), poligon alanı, GeoJSON
     media/                  FieldCamera arayüzü, gerçek kamera (camera paketi), sahte kamera ve
                             sentetik fotoğraf üreteci, içerik hash'iyle adreslenen MediaStore
     quality/                Fotoğraf kalite kontrolü (saf Dart) ve eşik dosyası quality_config.dart
@@ -51,8 +52,9 @@ lib/
     ui/                     Büyük düğme, referans görsel yeri, durum satırı
   features/
     auth/                   Giriş ekranı, AuthRepository (Supabase / geliştirme)
-    tasks/                  Görev modeli, sunucudan görevler + çevrimdışı önbellek, yakın plan ağacı
-                            seçimi, örnek görevler, "Bugünkü görevler"
+    tasks/                  Görev modeli (yerler, sınır, doğrulama kalemleri), sunucudan görevler +
+                            çevrimdışı önbellek, yakın plan ağacı seçimi, örnek görevler ve sentetik
+                            örnek parsel (sample_parcel.dart), "Bugünkü görevler"
     checklist/              Ön kontrol
     session/                SessionController (komut sırası, yerel kayıt), oturum ekranı
     qr_clock/               QR biçimlendirici, QR saat ekranı
@@ -61,7 +63,12 @@ lib/
       gnss_logger.dart      GnssLogger arayüzü + ortak komut takibi (GnssLoggerBase)
       flutter_blue_gnss_logger.dart   flutter_blue_plus uygulaması
       fake_gnss_logger.dart Sahte kaydedici (aynı baytları çözer, firmware gibi yanıt verir)
-    camera/                 Çekim ekranı: önizleme, referans görsel, odak, kalite kontrolü, Kullan / Yeniden çek
+    camera/                 Çekim ekranı: önizleme, referans görsel, odak, kalite kontrolü, Kullan / Yeniden çek;
+                            takePhoto (çek, hash'le, depoya yaz)
+    verification/           Doğrulama turu ve kalem ekranı, yer tarifi (route_hint.dart)
+    boundary/               Köşe modeli (boundary_corners.dart), Sınır ve Köşe ekranları
+    coverage/               Kapsama hesabı (coverage.dart, saf Dart), kapsama kartı
+    map/                    Çevrimdışı vektör harita (CustomPainter): sınır, yerler, iz, konum
     closeup/                Yakın plan ağaç listesi, ağaç gözlem formu, mevsimlik çekim/soru seti
     summary/                Ziyaret özeti
     sync/                   Gönderim durumu kartı (bekleyen / gönderilen / başarısız, "Şimdi gönder")
@@ -76,26 +83,30 @@ lib/
   | Tablo | Hedef model | Not |
   | --- | --- | --- |
   | `sessions` | Session (`session_type = scan`) | `id` aynı zamanda kaydedicinin `session_id`'si (SD karttaki klasör adı); metodoloji ve uygulama sürümü, kaydedici adı ve firmware sürümü |
-  | `session_events` | — (Session'ın olayları) | `session_start`, `corner`, `qr_sync`, `session_stop`; GPS zamanı, zaman kaynağı, kaydedicinin yanıtı |
+  | `session_events` | — (Session'ın olayları) | `session_start`, `corner`, `boundary_corners`, `qr_sync`, `coverage`, `session_stop`; GPS zamanı, zaman kaynağı, kaydedicinin yanıtı; ayrıntılar `data_json`'da (şema 4) |
   | `captures` | Capture (`closeup_photo`, `phone_camera`) | Birincil anahtar dosyanın SHA-256'sı; satır güncellenmez. Çekim zamanı (`gps_time_ms` + `time_source`), kalite kontrolü sonucu ve sürümü (`qc_*`, şema 2) |
   | `measurements` | Measurement (`source = staff`) | Evet/hayır cevabı `value_boolean` (sunucudaki sütunla aynı ad); `method = field_question`, `method_version` soru setinin sürümü; kanıt fotoğrafların hash listesi |
   | `outbox_entries` | — | Gönderilmeyi bekleyenler kuyruğu; her kayıtla aynı işlemde eklenir. `sent_at` (gönderildi), `failed_at` + `last_error` (sunucu kalıcı olarak reddetti), `attempts` |
-  | `task_cache` | — | Kullanıcı başına son indirilen görev listesi (JSON); çevrimdışı kullanılır |
+  | `task_cache` | — | Kullanıcı başına son indirilen görev listesi (JSON; yerler, sınır ve doğrulama kalemleri dahil); çevrimdışı kullanılır |
+  | `verification_results` | `record_verification_result` çağrısı | Doğrulama kalemi sonucu (şema 4): kalem, ağaç var/yok, not, yakın planın hash'i. Aynı kaleme ikinci sonuç yeni satırdır; en yenisi geçerli |
 
   Personel adı ya da telefonu tutulmaz; yalnızca giriş yapan kullanıcının kimliği (`operator_id`).
 - **Fotoğraf:** Sadece uygulama içi kamera (`FieldCamera`) var; galeriden seçim yolu yok. Kalite kontrolünden geçen ve personelin **Kullan** dediği fotoğrafın SHA-256'sı hesaplanır, dosya `media/<sha256>.jpg` olarak bir kez yazılır. Reddedilen fotoğraf hiçbir yere yazılmaz. Veritabanı satırları ağaç kaydedilirken cevaplarla aynı işlemde eklenir; kaydedilmeden yeniden çekilen fotoğrafın dosyası silinir.
-- **Şema sürümü:** 3. Sürüm 1'den geçişte `captures` tablosuna `qc_*` sütunları eklenir (eski satırlarda boş). Sürüm 3'te `measurements.value_bool` → `value_boolean` adını alır, `outbox_entries.failed_at` ve `task_cache` eklenir.
+- **Şema sürümü:** 4. Sürüm 1'den geçişte `captures` tablosuna `qc_*` sütunları eklenir (eski satırlarda boş). Sürüm 3'te `measurements.value_bool` → `value_boolean` adını alır, `outbox_entries.failed_at` ve `task_cache` eklenir. Sürüm 4'te `session_events.data_json` ve `verification_results` eklenir.
 
 ## Ekranlar
 
 1. **Giriş:** e-posta + parola (geliştirme).
-2. **Bugünkü görevler:** üstte gönderim kartı (bekleyen, gönderilen, başarısız sayısı, durum satırı, **Şimdi gönder**); altında parsel, köy, alan, envanter ya da periyodik ziyaret, mevsim, yakın plan ağaç sayısı, planlanan gün ve "Size atanmış". Sunucuya ulaşılamazsa son indirilen liste ve bir not gösterilir; aşağı çekince liste yenilenir. Bu telefonda kaydedilmiş ziyaret "Tamamlandı" görünür.
+2. **Bugünkü görevler:** üstte gönderim kartı (bekleyen, gönderilen, başarısız sayısı, durum satırı, **Şimdi gönder**); altında parsel, köy, alan, envanter, periyodik ziyaret ya da doğrulama turu, mevsim, yakın plan ağaç sayısı (turda "3 / 12 kaleme bakıldı"), planlanan gün ve "Size atanmış". Sunucuya ulaşılamazsa son indirilen liste ve bir not gösterilir; aşağı çekince liste yenilenir. Bu telefonda kaydedilmiş ziyaret "Tamamlandı" görünür; doğrulama turu bütün kalemlerine bakılınca. Doğrulama turu ön kontrolsüz, doğrudan tur ekranına açılır.
 3. **Ön kontrol:** kaydediciye bağlan; batarya, SD kart ve GNSS durumu BLE'den otomatik; lens temizliği ve kamera kaydı personel onayıyla. Hepsi tamam olmadan devam edilemez.
-4. **Oturum:** canlı GNSS paneli (bağlantı, kayıt ve yazılan veri, fix ve uydu, RTK ve doğruluk, PPS, SD, batarya, saat kaynağı). Sıra zorunlu: Kaydı başlat → Başlangıç QR → (envanterde) Köşe işaretle → Bitiş QR → Kaydı durdur. Kayıt sürerken geri tuşu kapalı. Kaydedici kaydı kendisi durdurursa (SD dolu/hatalı) uyarı çıkar.
+4. **Oturum:** canlı GNSS paneli (bağlantı, kayıt ve yazılan veri, fix ve uydu, RTK ve doğruluk, PPS, SD, batarya, saat kaynağı) ve kayıt başlayınca **kapsama kartı** (aşağıda). Sıra zorunlu: Kaydı başlat → Başlangıç QR → (envanterde) **Sınır** → Bitiş QR → Kaydı durdur. Kayıt sürerken geri tuşu kapalı. Kaydedici kaydı kendisi durdurursa (SD dolu/hatalı) uyarı çıkar. Envanterde kayıt durduktan sonra da köşeler düzenlenebilir.
 5. **QR saat:** tam ekran QR, UTC saat, QR metni, zaman kaynağı şeridi, `qr_sync` gönderim sonucu.
 6. **Yakın plan görevi:** ağaç listesi (yer kodu ve seçilme nedeni). Ağaç formu: 2–3 çekim ("böyle çek" örneği ve referans görsel yeriyle) ve 3–4 evet/hayır sorusu (her biri referans görsel yeriyle). Zorunlu çekimler ve tüm sorular tamamlanmadan kaydedilemez. Uyarıyla kabul edilen fotoğraf "Çekildi (uyarıyla)" diye görünür.
 7. **Çekim ekranı:** üstte referans görsel ve "Böyle çek: …" yönergesi, ortada canlı önizleme (dokunulan yere odak ve pozlama), altta deklanşör. Çekimden sonra fotoğraf, kalite sonucu ve **Kullan** / **Yeniden çek**. Ret durumunda yalnızca **Yeniden çek** var.
-8. **Ziyaret özeti:** kayıt süresi, QR sayısı (telefon saatiyle gösterilenler ayrıca), köşe sayısı, ağaç, fotoğraf, cevap; bu ziyaretin gönderim kartı (hepsi gidince "Bu ziyaretin her şeyi gönderildi"). **Ziyareti bitir** gönderimi başlatır.
+8. **Ziyaret özeti:** kayıt süresi, QR sayısı (telefon saatiyle gösterilenler ayrıca), köşe sayısı ve yaklaşık alan (envanter), kapsama ("Yerlerin %96'sının 4 m yakınından geçildi"; %95'in altında kırmızı uyarı ve kaçırılan yerler), ağaç, fotoğraf, cevap; bu ziyaretin gönderim kartı (hepsi gidince "Bu ziyaretin her şeyi gönderildi"). **Ziyareti bitir** gönderimi başlatır.
+9. **Sınır** (envanter): canlı konum kalitesi, büyük **Köşe** düğmesi, köşelerden çizilen yaklaşık poligon ve alan, köşe listesi (yukarı/aşağı, **Son köşeyi sil**). Köşeye dokununca **Köşe** ekranı: sınır işareti (sınır taşı, çit, duvar, yol, komşu bahçe, diğer), fotoğraf, not.
+10. **Doğrulama turu:** "3 / 12 kaleme bakıldı", gönderilemeyenler (kırmızı, sade mesajla), açık kalemler (yürüme sırasıyla; kod, yer tarifi, nedenler, ofisin notu, konum varsa uzaklık ve yön), bakılanlar; turun gönderim kartı ve **Turu bitir**.
+11. **Kalem:** yer tarifi ve canlı uzaklık, nedenler ve ofisin notu, kayıttaki durum (ağaç var / boş yer), **Ağaç var** / **Ağaç yok**, isteğe bağlı yakın plan, not, **Kaydet**.
 
 Referans görseller henüz yok (İP10, metodoloji). `ShotSpec.referenceImage` / `YesNoQuestion.referenceImage` alanlarına asset yolu verildiğinde yer tutucunun yerine görsel çıkar.
 
@@ -105,12 +116,14 @@ Saha uygulaması sunucuyla yalnızca giriş yapan kullanıcının belirteciyle P
 
 ### Günün görevleri (`SupabaseTaskSource`, `CachedTaskRepository`)
 
-- **Görev = planlanmış ziyaret:** `public.session`, `status = planned`, tür `inventory` ya da `periodic_scan`, `planned_date` bugünden en çok 7 gün sonrası (geçmiş günler dahil: gecikmiş ziyaret). Satır bazlı yetki listeyi kullanıcının kurumuna sınırlar. Ziyaret lideri (`lead_user_id`) giriş yapan kullanıcı olanlar önce gelir ve "Size atanmış" yazar.
+- **Görev = planlanmış ziyaret:** `public.session`, `status = planned`, tür `inventory`, `periodic_scan` ya da `verification`, `planned_date` bugünden en çok 7 gün sonrası (geçmiş günler dahil: gecikmiş ziyaret). Satır bazlı yetki listeyi kullanıcının kurumuna sınırlar. Ziyaret lideri (`lead_user_id`) giriş yapan kullanıcı olanlar önce gelir ve "Size atanmış" yazar.
 - **Parsel bilgisi:** ad, köy, tahmini alan (`estimated_area_m2` / 1000 = dönüm). **Mevsim:** ziyaret satırında mevsim yok; planlanan günün ayından çıkar (Aralık–Şubat kış, Mart–Mayıs ilkbahar, Haziran–Temmuz yaz, Ağustos–Kasım hasat).
 - **Ağaçlar ve yakın plan listesi (periyodik ziyaret):** parselin aktif ağaçları yer kodlarıyla (`tree` + `slot`) ve son genel sınıfları (`tree_latest_assessment`) iner. Liste: önce son sınıfı Dikkat, Sorunlu ya da Kuru olanlar, sonra ağaçların %10'u kadar rastgele örneklem. Örneklem ziyaret ve ağaç kimliğinin hash'iyle seçilir; aynı ziyareti indiren her telefon aynı listeyi görür. Metodolojideki 10×10 m hücre tabakalaması ve "Sorun gördüm" ağaçları henüz yok.
+- **Yerler ve sınır (her görev):** parselin bütün yerleri (`slot`: kod, sıra, pozisyon, GeoJSON konum, belirsizlik; 1000'lik sayfalar) ve en yüksek sürümlü sınırı (`boundary.geom`, GeoJSON poligon). Harita, kapsama ve yer tarifi bunlarla çalışır; ilk envanterde ikisi de boş olabilir.
+- **Doğrulama kalemleri (tur):** `verification_item`, `status = open`; kalemin yeri parselin yer listesinden bulunur. Sıra: sıra numarası, pozisyon, kod.
 - **Çevrimdışı:** her başarılı indirmede liste kullanıcı başına `task_cache`'e yazılır. Sunucuya ulaşılamazsa (20 sn) son liste gösterilir. Başka bir kullanıcı aynı telefonda öbürünün listesini görmez.
 - **Kayıt kimliği:** ziyaretin kimliği (`session.id`) telefondaki oturumun ve kaydedicinin `session_id`'si olur. Aynı ziyaret aynı telefonda ikinci kez başlatılamaz (kaydedici de `session_exists` der).
-- Supabase ayarlı değilse `FakeTaskRepository`'nin iki örnek görevi kullanılır (geliştirme). Bu görevlerin sunucuda karşılığı yoktur; gönderilirse `visit_not_found` ile reddedilir.
+- Supabase ayarlı değilse `FakeTaskRepository`'nin üç örnek görevi kullanılır (geliştirme): periyodik ziyaret ve doğrulama turu sentetik örnek parselde (10 sıra × 22 yer, sınır), envanter yer ve sınır olmadan. Bu görevlerin sunucuda karşılığı yoktur; gönderilirse `visit_not_found` ile reddedilir.
 
 ### Gönderim (`SyncWorker`)
 
@@ -122,6 +135,8 @@ Her kayıt yerel veritabanına yazılırken aynı işlemde kuyruğa (`outbox_ent
 | Oturum olayı (`session_event`) | `public.session_event` (yeni tablo) | Kimlik telefondan; `on conflict (id) do nothing` |
 | Yakın plan fotoğrafı (`capture`) | Dosya: `media` alanında `org/<org_id>/parcel/<parcel_id>/<sha256>`; satır: `public.capture` (`kind = photo`) | Önce dosya (aynı yol zaten varsa yüklenmiş sayılır), sonra satır: `on conflict (session_id, content_hash) do nothing`. Satır kimliği `uuid v5(oturum/sha256)`. Telefona özgü alanlar `metadata`'da: çekim kodu, yer kodu, GPS zamanı, zaman kaynağı, kalite kontrolü |
 | Personel cevabı (`measurement`) | `public.measurement`, `source = staff` | Kimlik telefondan; `on conflict (id) do nothing`. Evet/hayır → `value_boolean`; `metric_definition_id` koddan bulunur |
+| Sınır işareti fotoğrafı, doğrulama yakın planı (`capture`) | Yakın plan fotoğrafıyla aynı | `tree_id` yok; `metadata.local_kind` `boundary_photo` (`corner_event_id`) ya da `verification_photo` (`slot_id`) |
+| Doğrulama sonucu (`verification_result`) | `record_verification_result(p_item_id, p_tree_present, p_note, p_closeup_capture_id)` | Fotoğraf önce gider (aynı işlemde, önce kuyruğa girer). `item_closed`, `not_found`, `forbidden`, `invalid_input` kalıcı hatadır; nedeni turda sade bir mesajla görünür |
 
 - **Tekrar güvenli:** Bütün kimlikler telefonda üretilir; aynı kaydın ikinci gönderimi hata vermez, yeni satır açmaz. Uygulama yazmayla `markSent` arasında kapansa da sunucuda tek kayıt olur.
 - **Hata ve tekrar:** Ağ hatası, zaman aşımı, sunucu 5xx/429 ya da süresi geçmiş giriş *geçicidir*: kayıt kuyrukta kalır (`attempts`, `last_error`), tur durur (sıradaki kayıtlar da aynı sebeple düşer; sıra önemli) ve 2 sn, 4 sn, 8 sn … en çok 5 dk sonra yeniden denenir. Yetki (`42501`), doğrulama (`23xxx`, `22P02`), bilinmeyen ziyaret ya da metrik *kalıcıdır*: kayıt `failed_at` ve sebebiyle işaretlenir, tur sıradakiyle devam eder. Personel "N kayıt sunucuya kabul edilmedi… ofise haber verin" uyarısını görür; **Ayrıntılar**'da sebepler ve **Yeniden dene** (ofis sebebi düzeltince) var.
@@ -141,6 +156,44 @@ Yerel Supabase'e bağlanarak (yukarıda "Telefonda çalıştırma", 5. adım):
 6. **Uçak modunu kapat.** Birkaç saniye içinde kendiliğinden göndermeli; kart "Her şey gönderildi", başarısız 0. (Bağlantı olayı kaçarsa **Şimdi gönder**.)
 7. Sunucuda kontrol (Studio kapalı; `psql` ya da `docker exec -it supabase_db_orchados psql -U postgres`): ziyaret `captured` ve başlangıç/bitiş dolu; `session_event`, `capture` ve `measurement` (`value_boolean`) satırları; `storage.objects`'te `org/…/parcel/…/<sha256>`. Telefonun `media/` klasöründeki gönderilmiş fotoğraflar silinmiş olmalı.
 8. **Kalıcı hata:** Bir ziyaret daha planla, uçak modunda kaydı başlat ve bitir. Bu arada ofiste o ziyareti iptal et. Uçak modunu kapatınca ziyaret kayıtları "Başarısız" sayısına düşmeli (ayrıntıda `visit_cancelled`), uyarı görünmeli ve gönderim takılmadan sürmeli. Olay, fotoğraf ve cevaplar sunucuya yine yazılır: iptal edilen ziyaret satırı silinmez, veri kaybolmaz.
+
+## Kaydediciden konum
+
+Köşe, kapsama izi ve doğrulama turunda yere uzaklık için alıcının konumu gerekir. Firmware 0.2.0'ın durum mesajında (39 bayt) konum yok. Uygulama, durum mesajının sonuna eklenmesi önerilen 12 baytı okur: 39'da `lat_e7`, 43'te `lon_e7`, 47'de `height_mm` (i32, NAV-PVT; toplam 51 bayt, [docs/arayuzler.md](../../docs/arayuzler.md) "BLE protokolü"). Konum yalnızca `gnssFixOK` ve `fix_type` 2–4 iken geçerlidir. Firmware bunu gönderene kadar: köşeler yalnızca GPS zamanıyla kaydedilir ("konum yok"; PPK sonrası ofiste bulunur), kapsama kartı "Kaydediciden konum gelmiyor" der, turda uzaklık yerine "kod ve sıra sayımıyla bulun" yazar. Sahte kaydedici (`FAKE_GNSS`) konumu gönderir.
+
+Telefonun kendi GPS'i kullanılmıyor (bilerek): konum izni, farklı anten ve farklı zaman tabanı demek; tarama kitindeki RTK anteni daha doğru ve PPK ile aynı kaynaktır.
+
+## Doğrulama turu
+
+Ofisin oluşturduğu tur (`kind = verification`) günün görevlerinde ayrı bir tür olarak görünür; kayıt, ön kontrol ve QR yoktur. Sözleşme: [docs/arayuzler.md](../../docs/arayuzler.md), "Doğrulama kalemleri".
+
+- **Sıra:** açık kalemler sıra numarası, pozisyon ve koda göre (S2-4, S2-9, S5-12, S5-12a). Personel bahçede sırayla yürür.
+- **Yer tarifi:** "S5 sırasında, güneyden 12. yer". Yön, o sırada pozisyonu en küçük ve en büyük konumlu iki yerden çıkar: pozisyon 1'in bulunduğu uç (8 yön). Sırada iki konumlu yer yoksa "sıra başından". Ara ağaç (S5-12a): "12. ile 13. yer arasında". Boş yerler de sayılır (yer kodları boş yerde de korunur; personele ayrıca yazılır).
+- **Uzaklık:** kaydedici konum gönderiyorsa yere uzaklık ve yön ("38 m kuzeydoğuda"; 3 m içinde "Buradasınız"). Telefonun pusulası kullanılmaz: yön kuzeye göredir.
+- **Sonuç:** **Ağaç var** / **Ağaç yok** zorunlu; yakın plan isteğe bağlı (aynı kamera ve kalite kontrolü, `verification_closeup`), not isteğe bağlı. Kaydedilince yerel veritabanına ve kuyruğa yazılır, bağlantı varsa hemen gönderilir. Kaydedilmeden çıkılırsa çekilen fotoğrafın dosyası silinir.
+- **Aynı kaleme yeniden bakmak:** bakılan kalem açılıp yeniden kaydedilebilir; yeni sonuç sırayla gönderilir, sunucuda en yenisi geçerlidir.
+- **Kapatılmış kalem:** ofis kalemi bu arada kapattıysa sunucu `item_closed` der. Kayıt "başarısız" olur, tur ekranında "Gönderilemeyenler" altında "Ofis bu kalemi kapatmış; sonucunuz kaydedilmedi. Gerekirse ofise haber verin." görünür. Diğer nedenler (`not_found`, `forbidden`, `invalid_input`) için de sade mesaj var.
+- **Bitiş:** bütün kalemlere bakılınca görev "Tamamlandı" olur; sunucuda tur kendiliğinden `captured` olur (uygulama `session`'a yazmaz). **Turu bitir** gönderimi başlatır.
+- **Telefonda tur oturumu:** fotoğrafların bağlanacağı yerel bir `sessions` satırı (`session_type = verification`) açılır; kuyruğa girmez.
+
+## Sınır yürüyüşü ve köşeler
+
+Envanter oturumunda Başlangıç QR'dan sonra **Sınır** adımı açılır. Biçim: [docs/arayuzler.md](../../docs/arayuzler.md), "Sınır köşeleri ve kapsama".
+
+- **Köşe:** her basışta kaydediciye `mark_event(corner, "<n>")` gider ve yerelde `corner` olayı yazılır: basış anının GPS zamanı (`GpsClock`), kaydedicinin son durum mesajındaki konum ve kalite (RTK durumu, yatay doğruluk, uydu sayısı, mesajın GPS zamanı ve yaşı). Mesaj 5 sn'den eskiyse ya da konum yoksa konum boş kalır; köşe yine kaydedilir. `n` oturumda tekildir (silinen numara yeniden kullanılmaz).
+- **Düzeltme:** köşe sırası yukarı/aşağı oklarla değişir; yalnızca listenin son köşesi silinebilir (onaylı). Her köşeye sınır işareti (sınır taşı, çit, duvar, yol, komşu bahçe, diğer), not ve fotoğraf (`boundary_marker`, kalite kontrollü) eklenebilir.
+- **Kayıt:** her düzenleme `boundary_corners` olayıdır ve listenin tamamını taşır (fotoğraf aynı işlemde). Olay tablosu ekleme-yalnızdır; en yeni liste geçerlidir. Köşelerin kesin konumu işleme hattında PPK yörüngesinden GPS zamanıyla bulunur; sınır sürümünü (`boundary`) ofis ya da hat oluşturur. Uygulama `boundary`'ye yazmaz.
+- **Poligon ve alan:** konumlu köşelerden (en az 3) çizilen yaklaşık poligon ve alanı (m² ve dönüm; yerel düzlemde shoelace). Kesişen poligon (yanlış sıra) küçük ya da sıfır alan verir: sıra düzeltilince alan doğru çıkar. Özet ekranında köşe sayısı ve alan.
+
+## Kapsama
+
+Kayıt başlayınca oturum ekranında kapsama kartı açılır:
+
+- **Harita:** parselin sınırı (sunucudaki son sürüm; yoksa bu oturumun köşeleri), yerler (kapsanan yeşil, diğerleri gri), personelin izi (turuncu) ve son konum (mavi). İz kaydedicinin durum mesajlarındaki konumlardan çizilir (yaklaşık 1 Hz, 0,5 m'den kısa adımlar atlanır, 10 sn'den uzun boşluk ya da 30 m'den büyük sıçrama birleştirilmez).
+- **Kural:** iz bir yerin 4 m yakınından geçtiyse yer kapsanmıştır. İzin her parçası sıra doğrultusuna göre sınıflanır: ±30° içinde "sıra boyunca", dikmeye ±30° içinde "dik". Bir sıranın yerlerinin %95'i sıra boyunca geçişle kapsandıysa sıra, bir pozisyon numarasının yerleri dik geçişle kapsandıysa dik koridor biter. Kartta "Sıra boyunca: 4 / 10 sıra" ve "Dik koridorlar: 3 / 22" ile koridor kutucukları (yeşil bitti, sarı kısmen, gri hiç) görünür.
+- **Oran:** "Yerlerin %62'sinin 4 m yakınından geçildi." %95'in altında uyarı. Yer konumu yoksa yalnızca iz ve uzunluğu.
+- **Kayıt:** kayıt durdurulurken (kaydediciden en az bir konum geldiyse) `coverage` olayı yazılır: oran, biten sıra ve dik koridorlar, kaçırılan yer kodları, iz uzunluğu. Özet ekranı bunu okur. İz noktaları telefonda yalnızca bellekte tutulur (ham GNSS SD kartla gelir).
+- **Harita paketi yok:** çizim `CustomPainter` ile, kuzey yukarı, ölçek çubuğuyla; altlık (uydu/OSM karoları) yok. Böylece internet olmadan aynı çalışır ve lisans gerekmez. Altlık istenirse `flutter_map` (BSD-3) ve çevrimdışı karo paketi eklenebilir; OSM karolarının kullanım koşulları toplu indirmeye izin vermediği için kendi karo kaynağı gerekir.
 
 ## Kamera ve kalite kontrolü
 
@@ -181,7 +234,7 @@ Eşikler bu kümelerin arasına, iki yana pay bırakarak kondu. **Bunlar senteti
 
 ## Testler
 
-`flutter test` (100 test; entegrasyon testi ortam değişkeni yoksa atlanır):
+`flutter test` (143 test; iki entegrasyon testi ortam değişkeni yoksa atlanır):
 
 - `test/unit/gnss_protocol_test.dart`: firmware README'sindeki üç komut örneği (`01 07 03 53 2D 31 04 50 2D 31 32` vb.) bayt bayt kodlama ve çözme; firmware birim testindeki 31 baytlık durum vektörü ve 0.2.0'ın 39 baytlık `gps_time_ns`'li biçimi; varsayılan durum; kısa/yanlış sürüm mesajları; sona eklenmiş alanlar; geçersiz argümanlar ve firmware'in sonuç kodları.
 - `test/unit/qr_payload_test.dart`: işleme hattı README örneği (`OQ1:1476435618200:synth-00`), etiket kuralları.
@@ -202,6 +255,14 @@ Eşikler bu kümelerin arasına, iki yana pay bırakarak kondu. **Bunlar senteti
 - `test/widget/closeup_flow_test.dart`: yakın plan akışı (fotoğraf, yeniden çekim, cevaplar, kayıt, hash doğrulaması, kalite sonucu, kuyruk, özet).
 - `test/unit/outbox_test.dart` ayrıca: fotoğraf satırında kalite alanları ve sürüm; reddedilmiş fotoğrafın kaydedilememesi.
 - `test/widget/login_flow_test.dart`: giriş ve görev listesi.
+- `test/unit/route_hint_test.dart`: yer tarifi (güneyden/kuzeyden/doğudan sayım, ara ağaç, konumsuz sıra), uzaklık ve yön, yürüme sırası, doğrulama görevinin JSON'u.
+- `test/unit/verification_sync_test.dart`: tur oturumunun kuyruğa girmemesi, fotoğraflı sonuçta önce `capture` sonra fonksiyon çağrısı ve `p_closeup_capture_id`, notsuz/fotoğrafsız sonuç, aynı kaleme iki sonuç, `item_closed` kalıcı hatası ve nedeninin tura ulaşması, fonksiyon hatalarının sınıflanması.
+- `test/widget/verification_tour_test.dart`: tur akışı (sıra, tarif, konum gelince uzaklık; ağaç var + fotoğraf + not, ağaç yok, üçüncü kalem, "Bütün kalemlere bakıldı", **Turu bitir**), çevrimdışı bekleme ve kapatılmış kalem mesajı, görev listesinde tur türü.
+- `test/unit/boundary_corners_test.dart`: poligon alanı (dikdörtgen, üçgen, m²/dönüm, etiket), köşe listesi (taşıma, son köşeyi silme, tekil numara), düzenleme olayının JSON'u, durum mesajından köşe konumu (taze, eski, konumsuz, fix yok; 51 baytlık mesaj), olaylardan listeyi yeniden kurma ve sunucu satırı.
+- `test/widget/boundary_test.dart`: köşe işaretleme (4 köşe, yanlış sıra → sıfır alan, sıra düzeltme → 1 000 m², beşinci köşeyi silme, sınır işareti + fotoğraf + not, yerel olaylar ve fotoğraf satırı, özet), konum bloğu olmayan kaydediciyle köşe.
+- `test/unit/coverage_test.dart`: kapsama kuralı (bütün sıra koridorları, dik koridorlar, 3,9/4,1 m sınırı, zaman boşluğu ve sıçrama, yerinde durma, yer konumu yokken iz, olay verisi, Türkçe yüzde ekleri).
+- `test/widget/coverage_test.dart`: kapsama göstergesi (harita katmanları, oran cümlesi, uyarı, sıra ve dik koridor sayıları, durduktan sonra iz eklenmemesi, `coverage` olayı, özetteki oran ve kaçırılan yerler), konumsuz kaydedici.
+- `test/integration/verification_supabase_test.dart`: yerel Supabase'de ops bir tur açar; saha kullanıcısı turu indirir (kalemler, nedenler, GeoJSON yer konumları), ofis bir kalemi kapatır, personel üçüne bakar (biri fotoğraflı); iki sonuç ve fotoğraf yazılır, kapatılmış kalem `item_closed` ile reddedilir, tur `captured` olur.
 
 ## Telefonda çalıştırma (yerelde)
 
@@ -223,7 +284,45 @@ Eşikler bu kümelerin arasına, iki yana pay bırakarak kondu. **Bunlar senteti
 6. İlk açılışta Android Bluetooth (yakındaki cihazlar) izni ister; kamera izni ilk fotoğraf çekiminde istenir. Android 11 ve öncesinde BLE taraması için konum izni gerekir.
 7. Kaydedici açıkken (`orchados-gnss-XXXX`) ön kontrolde **Kaydediciye bağlan**'a bas.
 
-### Kamera ve kalite kontrolünü telefonda deneme
+### Kaydediciden konum
+
+Köşe, kapsama izi ve doğrulama turunda yere uzaklık için alıcının konumu gerekir. Firmware 0.2.0'ın durum mesajında (39 bayt) konum yok. Uygulama, durum mesajının sonuna eklenmesi önerilen 12 baytı okur: 39'da `lat_e7`, 43'te `lon_e7`, 47'de `height_mm` (i32, NAV-PVT; toplam 51 bayt, [docs/arayuzler.md](../../docs/arayuzler.md) "BLE protokolü"). Konum yalnızca `gnssFixOK` ve `fix_type` 2–4 iken geçerlidir. Firmware bunu gönderene kadar: köşeler yalnızca GPS zamanıyla kaydedilir ("konum yok"; PPK sonrası ofiste bulunur), kapsama kartı "Kaydediciden konum gelmiyor" der, turda uzaklık yerine "kod ve sıra sayımıyla bulun" yazar. Sahte kaydedici (`FAKE_GNSS`) konumu gönderir.
+
+Telefonun kendi GPS'i kullanılmıyor (bilerek): konum izni, farklı anten ve farklı zaman tabanı demek; tarama kitindeki RTK anteni daha doğru ve PPK ile aynı kaynaktır.
+
+## Doğrulama turu
+
+Ofisin oluşturduğu tur (`kind = verification`) günün görevlerinde ayrı bir tür olarak görünür; kayıt, ön kontrol ve QR yoktur. Sözleşme: [docs/arayuzler.md](../../docs/arayuzler.md), "Doğrulama kalemleri".
+
+- **Sıra:** açık kalemler sıra numarası, pozisyon ve koda göre (S2-4, S2-9, S5-12, S5-12a). Personel bahçede sırayla yürür.
+- **Yer tarifi:** "S5 sırasında, güneyden 12. yer". Yön, o sırada pozisyonu en küçük ve en büyük konumlu iki yerden çıkar: pozisyon 1'in bulunduğu uç (8 yön). Sırada iki konumlu yer yoksa "sıra başından". Ara ağaç (S5-12a): "12. ile 13. yer arasında". Boş yerler de sayılır (yer kodları boş yerde de korunur; personele ayrıca yazılır).
+- **Uzaklık:** kaydedici konum gönderiyorsa yere uzaklık ve yön ("38 m kuzeydoğuda"; 3 m içinde "Buradasınız"). Telefonun pusulası kullanılmaz: yön kuzeye göredir.
+- **Sonuç:** **Ağaç var** / **Ağaç yok** zorunlu; yakın plan isteğe bağlı (aynı kamera ve kalite kontrolü, `verification_closeup`), not isteğe bağlı. Kaydedilince yerel veritabanına ve kuyruğa yazılır, bağlantı varsa hemen gönderilir. Kaydedilmeden çıkılırsa çekilen fotoğrafın dosyası silinir.
+- **Aynı kaleme yeniden bakmak:** bakılan kalem açılıp yeniden kaydedilebilir; yeni sonuç sırayla gönderilir, sunucuda en yenisi geçerlidir.
+- **Kapatılmış kalem:** ofis kalemi bu arada kapattıysa sunucu `item_closed` der. Kayıt "başarısız" olur, tur ekranında "Gönderilemeyenler" altında "Ofis bu kalemi kapatmış; sonucunuz kaydedilmedi. Gerekirse ofise haber verin." görünür. Diğer nedenler (`not_found`, `forbidden`, `invalid_input`) için de sade mesaj var.
+- **Bitiş:** bütün kalemlere bakılınca görev "Tamamlandı" olur; sunucuda tur kendiliğinden `captured` olur (uygulama `session`'a yazmaz). **Turu bitir** gönderimi başlatır.
+- **Telefonda tur oturumu:** fotoğrafların bağlanacağı yerel bir `sessions` satırı (`session_type = verification`) açılır; kuyruğa girmez.
+
+## Sınır yürüyüşü ve köşeler
+
+Envanter oturumunda Başlangıç QR'dan sonra **Sınır** adımı açılır. Biçim: [docs/arayuzler.md](../../docs/arayuzler.md), "Sınır köşeleri ve kapsama".
+
+- **Köşe:** her basışta kaydediciye `mark_event(corner, "<n>")` gider ve yerelde `corner` olayı yazılır: basış anının GPS zamanı (`GpsClock`), kaydedicinin son durum mesajındaki konum ve kalite (RTK durumu, yatay doğruluk, uydu sayısı, mesajın GPS zamanı ve yaşı). Mesaj 5 sn'den eskiyse ya da konum yoksa konum boş kalır; köşe yine kaydedilir. `n` oturumda tekildir (silinen numara yeniden kullanılmaz).
+- **Düzeltme:** köşe sırası yukarı/aşağı oklarla değişir; yalnızca listenin son köşesi silinebilir (onaylı). Her köşeye sınır işareti (sınır taşı, çit, duvar, yol, komşu bahçe, diğer), not ve fotoğraf (`boundary_marker`, kalite kontrollü) eklenebilir.
+- **Kayıt:** her düzenleme `boundary_corners` olayıdır ve listenin tamamını taşır (fotoğraf aynı işlemde). Olay tablosu ekleme-yalnızdır; en yeni liste geçerlidir. Köşelerin kesin konumu işleme hattında PPK yörüngesinden GPS zamanıyla bulunur; sınır sürümünü (`boundary`) ofis ya da hat oluşturur. Uygulama `boundary`'ye yazmaz.
+- **Poligon ve alan:** konumlu köşelerden (en az 3) çizilen yaklaşık poligon ve alanı (m² ve dönüm; yerel düzlemde shoelace). Kesişen poligon (yanlış sıra) küçük ya da sıfır alan verir: sıra düzeltilince alan doğru çıkar. Özet ekranında köşe sayısı ve alan.
+
+## Kapsama
+
+Kayıt başlayınca oturum ekranında kapsama kartı açılır:
+
+- **Harita:** parselin sınırı (sunucudaki son sürüm; yoksa bu oturumun köşeleri), yerler (kapsanan yeşil, diğerleri gri), personelin izi (turuncu) ve son konum (mavi). İz kaydedicinin durum mesajlarındaki konumlardan çizilir (yaklaşık 1 Hz, 0,5 m'den kısa adımlar atlanır, 10 sn'den uzun boşluk ya da 30 m'den büyük sıçrama birleştirilmez).
+- **Kural:** iz bir yerin 4 m yakınından geçtiyse yer kapsanmıştır. İzin her parçası sıra doğrultusuna göre sınıflanır: ±30° içinde "sıra boyunca", dikmeye ±30° içinde "dik". Bir sıranın yerlerinin %95'i sıra boyunca geçişle kapsandıysa sıra, bir pozisyon numarasının yerleri dik geçişle kapsandıysa dik koridor biter. Kartta "Sıra boyunca: 4 / 10 sıra" ve "Dik koridorlar: 3 / 22" ile koridor kutucukları (yeşil bitti, sarı kısmen, gri hiç) görünür.
+- **Oran:** "Yerlerin %62'sinin 4 m yakınından geçildi." %95'in altında uyarı. Yer konumu yoksa yalnızca iz ve uzunluğu.
+- **Kayıt:** kayıt durdurulurken (kaydediciden en az bir konum geldiyse) `coverage` olayı yazılır: oran, biten sıra ve dik koridorlar, kaçırılan yer kodları, iz uzunluğu. Özet ekranı bunu okur. İz noktaları telefonda yalnızca bellekte tutulur (ham GNSS SD kartla gelir).
+- **Harita paketi yok:** çizim `CustomPainter` ile, kuzey yukarı, ölçek çubuğuyla; altlık (uydu/OSM karoları) yok. Böylece internet olmadan aynı çalışır ve lisans gerekmez. Altlık istenirse `flutter_map` (BSD-3) ve çevrimdışı karo paketi eklenebilir; OSM karolarının kullanım koşulları toplu indirmeye izin vermediği için kendi karo kaynağı gerekir.
+
+## Kamera ve kalite kontrolünü telefonda deneme
 
 `flutter run --dart-define=FAKE_GNSS=true` ile açıp bir yakın plan görevine gir, bir ağaç seç:
 
@@ -238,6 +337,22 @@ Eşikler bu kümelerin arasına, iki yana pay bırakarak kondu. **Bunlar senteti
 
 Sonuçlar eşik ayarı için not edilmeli (ölçümler veritabanında `captures.qc_*`).
 
+### Envanteri telefonda deneme (doğrulama turu, köşeler, kapsama)
+
+**Sunucusuz** (`flutter run --dart-define=FAKE_GNSS=true --dart-define=FAKE_CAMERA=true`): örnek görevlerle.
+
+1. **Doğrulama turu:** "Kızılburç P-12 · Doğrulama turu"na gir. 3 kalem S2-4, S2-9, S5-12 sırasıyla görünmeli; S2-4'te "S2 sırasında, güneyden 4. yer", "Boş yer · Fidan olabilir" ve ofisin notu. **Kaydediciye bağlan**: sahte kaydedici örnek parselde yürür, kalemlerde uzaklık ve yön çıkar, yürüdükçe değişir. S2-4'te **Ağaç var**, yakın plan çek, not yaz, **Kaydet**: kalem "Bakılanlar"a geçer ("gönderilecek": sunucu yok). Diğer ikisini de kaydet: "Bütün kalemlere bakıldı".
+2. **Kapsama:** "Kızılburç P-12 · Periyodik ziyaret" → ön kontrol → **Kaydı başlat**. Kapsama kartında harita, yerler ve büyüyen iz; birkaç dakika sonra ilk sıra "S1" yeşil olmalı. Bitiş QR → durdur → özette "Yerlerin %…'ının 4 m yakınından geçildi" ve %95 altında uyarı.
+3. **Köşeler:** "Yukarıbayır P-31 · Envanter" → başlat → Başlangıç QR → **Sınır**. Sahte kaydedici yürürken 4–5 kez **Köşe**'ye bas (arada birkaç saniye bekle). Poligon ve alan çıkmalı; bir köşeyi yukarı taşı (alan değişir), son köşeyi sil, bir köşeye "Sınır taşı" + fotoğraf + not ekle.
+
+**Yerel Supabase'e karşı** (yukarıda "Telefonda çalıştırma", 5. adım; `pnpm db:start && pnpm db:reset`):
+
+4. Ofis aracında (`/ofis/parsel/<parsel>/envanter`, `ops@example.com`) örnek parsel için doğrulama listesinden bugün tarihli bir tur oluştur ya da `psql` ile: `select create_verification_tour('c0000000-0000-4000-8000-000000000001', '[{"slot_id": "<slot>", "reasons": ["unsure"]}]', current_date);` (ops kullanıcısıyla).
+5. Uygulamada `field@example.com` ile giriş: tur "Doğrulama turu" olarak, kalem sayısıyla görünmeli. **Uçak modunda** bir kaleme bak ve kaydet: "gönderilecek". Bu arada ofiste o kalemi kapat (`close_verification_item`). Uçak modunu kapat: kalem "Gönderilemeyenler" altında "Ofis bu kalemi kapatmış…" mesajıyla görünmeli. Diğer kalemler sunucuda `checked`, yakın plan `closeup_capture_id` dolu; bütün kalemler bakılınca tur `captured`.
+6. Envanter ziyareti planla, köşeleri işaretle, ziyareti bitir: `session_event`'te `corner` (data'da konum ve kalite; firmware konum göndermiyorsa `position: null`), `boundary_corners` ve (konum geldiyse) `coverage` satırları olmalı.
+
+**Test APK'sı:** `main`'deki her derlemede CI, Supabase test projesine bağlı ikinci bir APK üretir (`orchados-saha-test-apk`; adres ve publishable anahtar depo secret'larından: `SUPABASE_URL`, `SUPABASE_ANON_KEY`). Bu APK'da sahte kaydedici yoktur; gerçek kaydediciyle ya da konumsuz denenir.
+
 ## Bilinen eksikler
 
 - **Kalite eşikleri sentetik verilerle ayarlandı;** gerçek fotoğraflarla yeniden ayar gerekir (yukarıda).
@@ -246,9 +361,12 @@ Sonuçlar eşik ayarı için not edilmeli (ölçümler veritabanında `captures.
 - **Referans görseller** hâlâ yer tutucu (İP10).
 - **Senkronizasyon telefonda denenmedi;** sahte sunucu ve yerel Supabase'e karşı testlerle doğrulandı. Büyük ziyarette (yüzlerce fotoğraf) süre ölçülmedi; fotoğraflar tek tek yüklenir.
 - **Cevap–fotoğraf bağı sunucuda yok:** `measurement_evidence` yalnızca `asset`'e bağlanabiliyor; cevap ile fotoğraf sunucuda aynı oturum ve ağaçla eşleşir. Kanıt listesi telefonda (`evidence_json`) kalıyor.
-- **Doğrulama turu** (`kind = verification`) görevleri ve `record_verification_result` henüz yok.
+- **Kaydedici konum göndermiyor (firmware 0.2.0):** köşe konumu, kapsama ve turda uzaklık, durum mesajına önerilen konum bloğu gelene kadar yalnızca sahte kaydedicide çalışır (yukarıda, "Kaydediciden konum").
+- **Köşeleri işleme hattı henüz okumuyor:** `corner` / `boundary_corners` olaylarından PPK konumuyla `boundary` sürümü oluşturmak sonraki iş (İP4 / ofis). O zamana kadar sınır ofiste çizilir.
+- **Kapsama telefonda yaklaşık:** PPK öncesi konum ve basit 4 m kuralı; panoramaların kalitesi ve gerçek görüş hesaba katılmaz. İz noktaları kalıcı değil: uygulama kayıt sırasında kapanırsa kapsama sıfırdan başlar (zaten oturum da yeniden başlatılamıyor).
+- **Doğrulama turunda pusula yok:** yön kuzeye göre yazılır; telefonun baktığı yöne göre ok gösterilmiyor.
 - **Aynı ziyaret aynı telefonda bir kez kaydedilir.** Kayıt yarıda kalırsa (telefon kapandı) yeniden başlatmak için ofisin yeni ziyaret planlaması gerekir.
-- **Kapsama haritası, rota ve "dur-çek-yürü" modu yok** (MVP Modül 3; harita altlığı ve parsel sınırı sync'e bağlı).
+- **Rota, harita altlığı ve "dur-çek-yürü" modu yok** (MVP Modül 3). Kapsama haritası vektör çizimdir.
 - **Sesli not, hava durumu, ekipman seri numaraları** ziyaret kaydına henüz eklenmedi.
 - **Ekran parlaklığı:** QR ekranında parlaklık otomatik artırılmıyor.
 - **flutter_blue_plus lisansı:** paket kişisel, kâr amacı gütmeyen ve eğitim kullanımında ücretsiz; ticari kullanım için ücretli lisans gerekir. Kod `License.nonprofit` ile derleniyor (`flutter_blue_gnss_logger.dart`). Ticari kullanıma geçmeden önce lisans alınmalı ya da BLE paketi değiştirilmeli (yalnızca `FlutterBlueGnssLogger` değişir).
