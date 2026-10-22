@@ -15,6 +15,7 @@ import {
   planVisit,
   registerParcel,
   revokeAccess,
+  setParcelPassive,
   updateOwner,
   updateParcel,
   updateVisit,
@@ -257,4 +258,23 @@ export async function cancelVisitAction(form: FormData) {
   const result = await cancelVisit(supabase, visitId);
   revalidatePath("/operasyon");
   redirect(opsHref.visit(visitId, result.ok ? { notice: "cancelled" } : { error: result.error }));
+}
+
+// ---------------------------------------------------------------------------
+// Parcel life cycle
+// ---------------------------------------------------------------------------
+
+export async function setParcelPassiveAction(form: FormData) {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const parcelId = read("parcel_id");
+  const passive = read("passive") === "1";
+  const result = await setParcelPassive(supabase, parcelId, passive);
+  revalidatePath("/operasyon");
+  redirect(
+    opsHref.parcel(
+      parcelId,
+      result.ok ? { notice: passive ? "passive" : "resumed" } : { error: result.error },
+    ),
+  );
 }

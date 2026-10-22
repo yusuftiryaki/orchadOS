@@ -21,6 +21,8 @@ export type OpsError =
   | "planned_date_required"
   | "visit_not_planned"
   | "visit_cancelled"
+  | "has_planned_visits"
+  | "parcel_passive"
   | "invite_unavailable"
   | "conflict"
   | "write_failed";
@@ -37,6 +39,8 @@ const KNOWN: OpsError[] = [
   "planned_date_required",
   "visit_not_planned",
   "visit_cancelled",
+  "has_planned_visits",
+  "parcel_passive",
 ];
 
 // PostgREST error -> reason. Row level security denials (42501 without one of
@@ -280,6 +284,21 @@ export async function revokeAccess(supabase: Client, accessId: string): Promise<
     .select("id");
   if (error) return fail(reasonOf(error));
   return data.length === 0 ? fail("not_found") : ok(undefined);
+}
+
+// End (passive) or resume monitoring of a parcel (ops_set_parcel_passive).
+// A parcel with planned visits cannot go passive: has_planned_visits.
+export async function setParcelPassive(
+  supabase: Client,
+  parcelId: string,
+  passive: boolean,
+): Promise<OpsResult<string>> {
+  const { data, error } = await supabase.rpc("ops_set_parcel_passive", {
+    p_parcel_id: parcelId,
+    p_passive: passive,
+  });
+  if (error) return fail(reasonOf(error));
+  return ok(data);
 }
 
 // ---------------------------------------------------------------------------

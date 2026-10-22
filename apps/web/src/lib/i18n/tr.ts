@@ -696,6 +696,10 @@ export const tr = {
       registered: "Parsel kaydedildi.",
       edit: "Bilgileri düzelt",
       lifecycle: "Yaşam döngüsü",
+      setPassive: "İzlemeyi bitir (pasif)",
+      resume: "İzlemeyi sürdür",
+      passiveHint:
+        "Pasif parsele ziyaret planlanmaz; planlı ziyaretler önce iptal edilmeli. Kayıtlar ve raporlar silinmez.",
       privateTitle: "Tapu, yetki ve erişim",
       noDetail: "Kayıt yok.",
     },
@@ -765,6 +769,8 @@ export const tr = {
       planned: "Ziyaret planlandı; sorumlu personelin görev listesine düşer.",
       updated: "Plan güncellendi.",
       cancelled: "Ziyaret iptal edildi.",
+      passive: "Parsel pasif: izleme bitti.",
+      resumed: "İzleme sürüyor; parsel ziyaretlerine göre yaşam döngüsüne döndü.",
     },
     errors: {
       forbidden: "Bu işlem için yetkiniz yok.",
@@ -776,6 +782,8 @@ export const tr = {
       planned_date_required: "Planlanan ziyaretin tarihi olmalı.",
       visit_not_planned: "Ziyaret taranmış; plan değiştirilemez, iptal edilemez.",
       visit_cancelled: "Ziyaret iptal edilmiş; yeni bir ziyaret planlayın.",
+      has_planned_visits: "Parselin planlı ziyaretleri var; önce onları iptal edin.",
+      parcel_passive: "Parsel pasif; ziyaret planlamak için önce izlemeyi sürdürün.",
       invite_unavailable:
         "Portal hesabı açılamadı: hesap servisi (invite-user) erişilemiyor. Hesabı Supabase panelinden açıp aynı e-postayla tekrar deneyin.",
       conflict: "E-posta ile telefon farklı hesaplara ait. Bilgileri kontrol edin.",

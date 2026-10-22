@@ -12,6 +12,8 @@ export const NOTICES = [
   "planned",
   "updated",
   "cancelled",
+  "passive",
+  "resumed",
 ] as const;
 export type Notice = (typeof NOTICES)[number];
 
@@ -25,6 +27,8 @@ const ERRORS: OpsError[] = [
   "planned_date_required",
   "visit_not_planned",
   "visit_cancelled",
+  "has_planned_visits",
+  "parcel_passive",
   "invite_unavailable",
   "conflict",
   "write_failed",
