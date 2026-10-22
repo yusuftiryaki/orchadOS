@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { getParcelReport } from "@/lib/portal/data";
+import { getParcelReport, getTour } from "@/lib/portal/data";
 import { changedTrees } from "@/lib/portal/map-layers";
 import { anonClient, serviceClient } from "./fixtures";
 import {
@@ -85,5 +85,14 @@ describe("report card dimensions", () => {
     expect(dims.pests).toBeNull();
     expect(dims.fruitLoad).toBeNull();
     expect(report.latest?.publishedAt).not.toBeNull();
+  });
+});
+
+describe("tour time travel", () => {
+  it("lists published visits with panoramas only", async () => {
+    const tour = (await getTour(await client("owner"), PORTAL.parcelA))!;
+    expect(tour.visits.map((v) => v.visit.id)).toEqual([PORTAL.visitPub]);
+    expect(tour.visits[0].panoramas).toHaveLength(2);
+    expect(tour.visit?.id).toBe(PORTAL.visitPub);
   });
 });

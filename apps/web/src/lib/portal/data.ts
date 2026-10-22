@@ -981,10 +981,18 @@ export interface TourTree {
   state: MarkerState;
 }
 
+export interface TourVisit {
+  visit: Visit;
+  panoramas: TourPanorama[];
+}
+
 export interface TourData {
   parcel: { id: string; name: string };
+  // Newest published visit with panoramas, and its panoramas.
   visit: Visit | null;
   panoramas: TourPanorama[];
+  // Every published visit with panoramas, newest first (time travel).
+  visits: TourVisit[];
   trees: TourTree[];
   boundary: PolygonGeometry | null;
   bounds: Bounds | null;
@@ -995,39 +1003,31 @@ export async function getTour(supabase: Client, parcelId: string): Promise<TourD
   if (!report) return null;
 
   const visits = await publishedVisits(supabase, [parcelId]);
-  // Newest published visit that has panoramas.
-  let visit: VisitRow | null = null;
-  for (const v of visits) {
-    const { count, error } = await supabase
-      .from("asset")
-      .select("id", { count: "exact", head: true })
-      .eq("session_id", v.id)
-      .eq("kind", "panorama");
-    if (error) throw error;
-    if (count) {
-      visit = v;
-      break;
-    }
-  }
-
-  const rows = visit
-    ? await fetchAll((from, to) =>
-        supabase
-          .from("asset")
-          .select("id, position::json, pose")
-          .eq("session_id", visit.id)
-          .eq("kind", "panorama")
-          .order("id")
-          .range(from, to),
-      )
-    : [];
-  const panoramas = pairPanoramaVariants(
-    rows.flatMap((r) =>
-      isPoint(r.position)
-        ? [{ id: r.id, position: cleanPoint(r.position).coordinates, pose: r.pose }]
-        : [],
-    ),
-  );
+  const rows =
+    visits.length === 0
+      ? []
+      : await fetchAll((from, to) =>
+          supabase
+            .from("asset")
+            .select("id, session_id, position::json, pose")
+            .in(
+              "session_id",
+              visits.map((v) => v.id),
+            )
+            .eq("kind", "panorama")
+            .order("id")
+            .range(from, to),
+        );
+  const tourVisits: TourVisit[] = visits.flatMap((v) => {
+    const panoramas = pairPanoramaVariants(
+      rows.flatMap((r) =>
+        r.session_id === v.id && isPoint(r.position)
+          ? [{ id: r.id, position: cleanPoint(r.position).coordinates, pose: r.pose }]
+          : [],
+      ),
+    );
+    return panoramas.length > 0 ? [{ visit: toVisit(v), panoramas }] : [];
+  });
 
   const trees: TourTree[] = report.slots.features
     .filter((f) => f.properties.tree)
@@ -1040,8 +1040,9 @@ export async function getTour(supabase: Client, parcelId: string): Promise<TourD
 
   return {
     parcel: { id: report.parcel.id, name: report.parcel.name },
-    visit: visit ? toVisit(visit) : null,
-    panoramas,
+    visit: tourVisits[0]?.visit ?? null,
+    panoramas: tourVisits[0]?.panoramas ?? [],
+    visits: tourVisits,
     trees,
     boundary: report.boundary?.geometry ?? null,
     bounds: report.bounds,

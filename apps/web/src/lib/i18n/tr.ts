@@ -1223,6 +1223,10 @@ export const tr = {
       viewer: "Panorama",
       arrow: "Bu yöne ilerle",
       treeMarker: (code: string) => `${code}: ağaç karnesini aç`,
+      timeTravel: "Bu noktayı başka bir denetimde gör",
+      noSameSpot: (date: string) =>
+        `${date} denetiminde bu noktada panorama yok; o denetimin en yakın panoraması açıldı.`,
+      viewDirection: "Bakış yönü haritada pembe üçgenle gösterilir.",
       placeholder: "Görüntü yok",
       placeholderNote:
         "Bu panoramanın görüntüsü yok ya da açılamadı; yönler ve ağaçlar yine gösteriliyor.",

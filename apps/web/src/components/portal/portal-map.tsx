@@ -7,6 +7,7 @@ import { basemapStyle } from "@/lib/map/basemap";
 import type { Bounds, Position, PolygonGeometry } from "@/lib/map/geo";
 import { MARKER_COLORS, type MarkerState } from "@/lib/map/tree-style";
 import type { Severity } from "@/lib/portal/findings";
+import { viewWedge } from "@/lib/portal/tour";
 import { SEVERITY_COLORS } from "./colors";
 import styles from "./portal.module.css";
 
@@ -68,6 +69,7 @@ export function PortalMap({
   className,
   cells = null,
   coverage = null,
+  view = null,
 }: {
   boundary: PolygonGeometry | null;
   slots: MapSlot[];
@@ -88,6 +90,8 @@ export function PortalMap({
   // Drawn when given; null hides the layer.
   cells?: MapCell[] | null;
   coverage?: MapCoverage | null;
+  // Tour: where the camera stands and which way it looks.
+  view?: { position: Position; azimuthDeg: number } | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -100,6 +104,7 @@ export function PortalMap({
   const slotsRef = useRef(slots);
   const cellsRef = useRef(cells);
   const coverageRef = useRef(coverage);
+  const viewRef = useRef(view);
 
   useEffect(() => {
     handlers.current = { onSelect, onPointClick };
@@ -200,6 +205,14 @@ export function PortalMap({
           type: "line",
           source: "coverage-trace",
           paint: { "line-color": "#1c7ed6", "line-width": 2, "line-opacity": 0.8 },
+        });
+
+        m.addSource("view", { type: "geojson", data: viewData(viewRef.current) });
+        m.addLayer({
+          id: "view",
+          type: "fill",
+          source: "view",
+          paint: { "fill-color": "#e64980", "fill-opacity": 0.3 },
         });
 
         m.addSource("slots", {
@@ -329,6 +342,11 @@ export function PortalMap({
   }, [cells]);
 
   useEffect(() => {
+    viewRef.current = view;
+    (mapRef.current?.getSource("view") as GeoJSONSource | undefined)?.setData(viewData(view));
+  }, [view]);
+
+  useEffect(() => {
     coverageRef.current = coverage;
     const map = mapRef.current;
     (map?.getSource("coverage-trace") as GeoJSONSource | undefined)?.setData(traceData(coverage));
@@ -389,6 +407,23 @@ function slotsData(slots: MapSlot[]): GeoJSON.FeatureCollection {
         empty: s.state === "empty",
       },
     })),
+  };
+}
+
+function viewData(
+  view: { position: Position; azimuthDeg: number } | null,
+): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: view
+      ? [
+          {
+            type: "Feature",
+            geometry: { type: "Polygon", coordinates: [viewWedge(view.position, view.azimuthDeg)] },
+            properties: { azimuth: view.azimuthDeg },
+          },
+        ]
+      : [],
   };
 }
 
