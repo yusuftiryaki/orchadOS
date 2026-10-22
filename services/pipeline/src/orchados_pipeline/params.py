@@ -103,6 +103,36 @@ class CoverageParams(_Section):
     blind_spot_min_share: float = 0.5
 
 
+class PresenceParams(_Section):
+    """Tree present / missing signal on the crops (presence.py, method crop_greenness)."""
+
+    # Months (UTC) with leaves; outside them greenness says nothing: unsure.
+    leafy_months: list[int] = Field(default_factory=lambda: [4, 5, 6, 7, 8, 9, 10])
+    # Vegetation pixel: excess green of the chromaticity (2g - r - b) above this,
+    # brightest channel at least min_brightness.
+    exg_min: float = 0.10
+    min_brightness: int = 40
+    # Boxes at the tree (heights above the ground, half width), metres.
+    upper_box_m: tuple[float, float] = (2.5, 4.0)
+    whole_box_m: tuple[float, float] = (0.5, 4.0)
+    box_half_width_m: float = 1.5
+    # A view: present when the upper box is this green; absent when the whole box
+    # is at most this green; usable from this crop score and box brightness.
+    present_min_share: float = 0.25
+    absent_max_share: float = 0.03
+    min_view_score: float = 0.2
+    min_mean_brightness: float = 35.0
+    max_mean_brightness: float = 245.0
+    # "no" needs absent views from this many different sides (and none present).
+    min_absent_views: int = 2
+    # Empty slots: a sapling box; "yes" (possible new planting) when green in this
+    # many views.
+    sapling_box_m: tuple[float, float] = (0.2, 2.0)
+    sapling_half_width_m: float = 1.0
+    planted_min_share: float = 0.10
+    min_planted_views: int = 2
+
+
 class BoundaryParams(_Section):
     # Corners not positioned from a fixed PPK solution (phone or logger position)
     # get at least this uncertainty and are flagged in the report.
@@ -122,6 +152,7 @@ class PipelineParams(_Section):
     panoramas: PanoramaParams = Field(default_factory=PanoramaParams)
     crops: CropParams = Field(default_factory=CropParams)
     coverage: CoverageParams = Field(default_factory=CoverageParams)
+    presence: PresenceParams = Field(default_factory=PresenceParams)
     boundary: BoundaryParams = Field(default_factory=BoundaryParams)
 
     def params_hash(self) -> str:

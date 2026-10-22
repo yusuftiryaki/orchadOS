@@ -232,6 +232,25 @@ export const tr = {
     discardConfirm: "Bu oturumun bütün taslak ağaçları silinsin mi?",
   },
   expert: {
+    pipeline: {
+      title: "İşleme hattı",
+      coverage: "Kapsama",
+      coverageLine: (ratio: string, covered: number, total: number, threshold: string) =>
+        `%${ratio} (${covered}/${total} ağaç iki yönden görüldü; eşik %${threshold})`,
+      passed: "Kalite kapısından geçti",
+      failed: "Eşiğin altında",
+      blindSpots: (n: number) => `${n} kör nokta (10×10 m hücre)`,
+      rescan: "Ek ziyaret isteği açıldı (operasyon panosunda).",
+      missing: (n: number, codes: string) => `Eksik ağaçlar (${n}): ${codes}`,
+      noCoverage: "Bu ziyaret için kapsama raporu yok (eski veri ya da işlenmedi).",
+      notVisible: (n: number, codes: string) =>
+        `Ağaç görünmüyor (${n}, zorunlu incelemede): ${codes}`,
+      suggestions: "Yeni dikim olabilir",
+      suggestionsHint:
+        "Envanterde boş olan bu yerlerde kesitlerde bitki sinyali var. Doğruysa bulgu (yeni dikim) yazın ya da doğrulama turu isteyin; envanter kendiliğinden değişmez.",
+      suggestion: (code: string, crops: number) => `${code} (${crops} kesit)`,
+      version: (v: string) => `hat sürümü ${v}`,
+    },
     followups: {
       title: "Takip istekleri",
       treeHint:
@@ -345,6 +364,7 @@ export const tr = {
       autoNote:
         "Bu ağaç toplu onaylandı (AI sonucu). İsterseniz yeni bir kararla düzeltebilirsiniz.",
       reasons: {
+        not_visible: "İşleme hattı bu konumda ağaç göremedi",
         no_ai: "AI önerisi yok",
         low_confidence: "AI güveni düşük",
         ai_flagged: "AI sorunlu, kuru ya da yok dedi",
@@ -353,6 +373,7 @@ export const tr = {
         staff_problem: 'Personel "Sorun gördüm" dedi',
       },
       reasonShort: {
+        not_visible: "ağaç görünmüyor",
         no_ai: "AI yok",
         low_confidence: "düşük güven",
         ai_flagged: "AI sorunlu",
@@ -361,6 +382,13 @@ export const tr = {
         staff_problem: "sorun gördüm",
       },
       lowConfidenceDetail: (threshold: number) => `eşik %${Math.round(threshold * 100)}`,
+      presence: {
+        title: "İşleme hattı: ağaç görünüyor mu?",
+        yes: "Görünüyor",
+        no: "Görünmüyor",
+        unsure: "Belirsiz",
+        note: 'Kesitlerdeki yeşillik sinyali (model değil). "Yok" sınıfını yalnız uzman verir; iki yönden kesitle doğrulayın.',
+      } as { title: string; note: string } & Record<string, string>,
       conflictDetail: (questions: string) => `soru: ${questions}`,
       selectTree: "İncelemek için listeden bir ağaç seçin.",
       previousTree: "← Önceki",

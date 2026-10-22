@@ -99,6 +99,21 @@ describe("mandatoryReasons", () => {
     expect(staffConflicts(tree({ aiValues: { dead_branch_scale: 0 } }), RULES)).toEqual([]);
   });
 
+  it("sends trees the pipeline did not see at their position to the expert", () => {
+    expect(mandatoryReasons(tree({ treeVisible: "no" }), RULES)).toEqual(["not_visible"]);
+    expect(mandatoryReasons(tree({ treeVisible: "yes" }), RULES)).toEqual([]);
+    // Unsure (e.g. winter) is no reason by itself.
+    expect(mandatoryReasons(tree({ treeVisible: "unsure" }), RULES)).toEqual([]);
+    expect(mandatoryReasons(tree({ treeVisible: null }), RULES)).toEqual([]);
+    // First in the list, also without an AI suggestion; never bulk approved.
+    expect(mandatoryReasons(tree({ aiClass: null, treeVisible: "no" }), RULES)).toEqual([
+      "not_visible",
+      "no_ai",
+    ]);
+    const result = triage("visit", [tree({ id: "a", treeVisible: "no" })], RULES);
+    expect(result.get("a")).toEqual({ mandatory: ["not_visible"], sampled: false });
+  });
+
   it('sends trees the crew marked with "Sorun gördüm" to the expert', () => {
     expect(mandatoryReasons(tree({ staffAnswers: { problem_seen: true } }), RULES)).toEqual([
       "staff_problem",

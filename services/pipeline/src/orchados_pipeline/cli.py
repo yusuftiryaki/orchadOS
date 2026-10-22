@@ -9,7 +9,7 @@ from pathlib import Path
 
 from . import __version__
 from .context import RunContext
-from .models import CoverageReport, read_model
+from .models import CoverageReport, PresenceReport, read_model
 from .params import PipelineParams
 from .supabase import Credentials
 
@@ -39,8 +39,25 @@ def _summary(ctx: RunContext, out) -> None:
     print(f"crops: {CROPS_STATUS[out.crops_status]}")
     if ctx.coverage_path.is_file():
         print(_coverage_line(read_model(CoverageReport, ctx.coverage_path)))
+    if ctx.presence_path.is_file():
+        print(_presence_line(read_model(PresenceReport, ctx.presence_path)))
     for w in out.warnings:
         print(f"warning: {w}")
+
+
+def _presence_line(rep: PresenceReport) -> str:
+    def count(results, value):
+        return sum(r.value == value for r in results)
+
+    if rep.status != "ok":
+        return "presence: no crops"
+    season = "" if rep.leafy else " (leafless season: unsure)"
+    return (
+        f"presence ({rep.method} {rep.method_version}){season}: trees visible "
+        f"{count(rep.trees, 'yes')}, not visible {count(rep.trees, 'no')}, unsure "
+        f"{count(rep.trees, 'unsure')}; possible new planting in "
+        f"{count(rep.slots, 'yes')} of {len(rep.slots)} empty slots"
+    )
 
 
 def _coverage_line(rep: CoverageReport) -> str:
@@ -156,6 +173,7 @@ def main(argv: list[str] | None = None) -> int:
     cov_p = stage("coverage", "coverage of the trees: sides seen, parcel share, blind spots")
     _trees_options(cov_p)
     cov_p.add_argument("--session-id", help="public.session id (default: from session.json)")
+    stage("presence", "tree present / missing signal on the crops (and empty slots)")
     stage("outputs", "write outputs.json")
     bnd = stage(
         "boundary",
@@ -251,6 +269,9 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "coverage":
             rep = pipeline.stage_coverage(ctx, trees, tlist)
             print("no trees JSON, skipped" if rep is None else _coverage_line(rep))
+        elif args.command == "presence":
+            rep = pipeline.stage_presence(ctx)
+            print("no crops.json, skipped" if rep is None else _presence_line(rep))
         elif args.command == "boundary":
             _boundary(ctx, args.session_id, write_db=not args.dry_run)
         elif args.command == "outputs":

@@ -16,6 +16,7 @@ from .models import (
     CropRecord,
     CropSet,
     CropStatus,
+    EmptySlot,
     Manifest,
     PanoramaRecord,
     PanoramaSet,
@@ -31,15 +32,20 @@ INVENTORY = "inventory"  # public.session.kind of an inventory visit
 
 
 def load_trees(path: Path) -> TreeList:
-    """Tree positions: a list, or {"trees": [...]}, of {tree_id, slot_code, lat, lon};
-    or a tree list written by a run (schema orchados.trees/1)."""
+    """Tree positions: a list, or {"trees": [...], "empty_slots": [...]}, of
+    {tree_id, slot_code, lat, lon} (empty slots: {slot_code, lat, lon}); or a tree
+    list written by a run (schema orchados.trees/1)."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     if isinstance(data, dict) and "schema" in data:
         tlist = TreeList.model_validate(data)
     else:
+        empty = data.get("empty_slots", []) if isinstance(data, dict) else []
         if isinstance(data, dict):
             data = data.get("trees", [])
-        tlist = TreeList(trees=[Tree.model_validate(t) for t in data])
+        tlist = TreeList(
+            trees=[Tree.model_validate(t) for t in data],
+            empty_slots=[EmptySlot.model_validate(e) for e in empty],
+        )
     check_trees(tlist, str(path))
     return tlist
 
@@ -128,9 +134,14 @@ def make_crops(ctx: RunContext, manifest: Manifest, pset: PanoramaSet, tlist: Tr
         return CropSet(
             crops=[], sidecars=[], trees_without_crops=[t.tree_id for t in trees], **common
         )
+    # Empty slots are viewed like trees (presence check: possible new planting).
+    slot_key = {f"slot:{e.slot_code}": e for e in tlist.empty_slots}
+    targets = trees + [
+        Tree(tree_id=k, slot_code=e.slot_code, lat=e.lat, lon=e.lon) for k, e in slot_key.items()
+    ]
     # Best panorama per (tree, direction).
     plan: dict[tuple[str, str], tuple[float, PanoramaRecord, dict]] = {}
-    for tree, pano, g, score in candidate_views(trees, pset.panoramas, cam_h, p):
+    for tree, pano, g, score in candidate_views(targets, pset.panoramas, cam_h, p):
         key = (tree.tree_id, g["direction"])
         if key not in plan or score > plan[key][0]:
             plan[key] = (score, pano, g)
@@ -138,22 +149,28 @@ def make_crops(ctx: RunContext, manifest: Manifest, pset: PanoramaSet, tlist: Tr
     crops: list[CropRecord] = []
     sidecars = []
     cache: dict[str, object] = {}
-    tree_by_id = {t.tree_id: t for t in trees}
+    by_key = {t.tree_id: t for t in targets}
     # Grouped by panorama so each 4K image is decoded once.
     order = sorted(plan, key=lambda k: (plan[k][1].gps_time_ns, k[0], DIRECTIONS.index(k[1])))
-    for tree_id, direction in order:
-        score, pano, g = plan[(tree_id, direction)]
+    for key, direction in order:
+        score, pano, g = plan[(key, direction)]
         img = cache.get(pano.panorama_id)
         if img is None:
             img = cv2.imread(str(ctx.run_dir / pano.image.path), cv2.IMREAD_COLOR)
             cache = {pano.panorama_id: img}  # keep one decoded 4K image in memory
         crop = gnomonic_crop(img, g["yaw_deg"], g["pitch_deg"], g["fov_deg"], p.size)
-        stem = f"crops/{_safe(tree_id)}_{direction}"
+        slot = slot_key.get(key)
+        stem = (
+            f"crops/slot_{_safe(slot.slot_code)}_{direction}"
+            if slot
+            else (f"crops/{_safe(key)}_{direction}")
+        )
         ref = write_image(crop, ctx.run_dir, f"{stem}.jpg", p.jpeg_quality)
-        tree = tree_by_id[tree_id]
         rec = CropRecord(
-            tree_id=tree_id,
-            slot_code=tree.slot_code,
+            subject="slot" if slot else "tree",
+            tree_id=None if slot else key,
+            slot_id=slot.slot_id if slot else None,
+            slot_code=by_key[key].slot_code,
             direction=direction,
             panorama_id=pano.panorama_id,
             panorama_sha256=pano.image.sha256,
@@ -174,14 +191,22 @@ def make_crops(ctx: RunContext, manifest: Manifest, pset: PanoramaSet, tlist: Tr
             )
         )
     idx = sorted(
-        range(len(crops)), key=lambda i: (crops[i].tree_id, DIRECTIONS.index(crops[i].direction))
+        range(len(crops)),
+        key=lambda i: (
+            crops[i].subject,
+            crops[i].tree_id or crops[i].slot_code,
+            DIRECTIONS.index(crops[i].direction),
+        ),
     )
-    crops, sidecars = [crops[i] for i in idx], [sidecars[i] for i in idx]
-    covered = {c.tree_id for c in crops}
+    tree_idx = [i for i in idx if crops[i].subject == "tree"]
+    slot_idx = [i for i in idx if crops[i].subject == "slot"]
+    covered = {crops[i].tree_id for i in tree_idx}
     return CropSet(
-        crops=crops,
-        sidecars=sidecars,
+        crops=[crops[i] for i in tree_idx],
+        sidecars=[sidecars[i] for i in tree_idx],
         trees_without_crops=[t.tree_id for t in trees if t.tree_id not in covered],
+        slot_crops=[crops[i] for i in slot_idx],
+        slot_sidecars=[sidecars[i] for i in slot_idx],
         **common,
     )
 

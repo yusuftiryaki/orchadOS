@@ -151,6 +151,8 @@ def test_scan_to_owner(supabase_env, test_sessions, tmp_path, monkeypatch):
             "select": "id,tree_id,content_hash,pose",
         },
     )
+    # Views of empty slots (presence check) are crops without a tree.
+    crops = [a for a in crops if a["tree_id"] is not None]
     by_hash = {c.image.sha256: c for c in cset.crops}
     assert sorted(a["content_hash"] for a in crops) == sorted(by_hash)
     assert all(a["tree_id"] == by_hash[a["content_hash"]].tree_id for a in crops)

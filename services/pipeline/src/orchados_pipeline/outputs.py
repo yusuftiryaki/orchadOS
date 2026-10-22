@@ -176,7 +176,15 @@ def build_outputs(
         )
 
     if cset is not None:
-        for rec, side in zip(cset.crops, cset.sidecars, strict=True):
+        pairs = list(zip(cset.crops, cset.sidecars, strict=True))
+        pairs += list(zip(cset.slot_crops, cset.slot_sidecars, strict=True))
+        for rec, side in pairs:
+            if rec.subject == "slot":  # view of an empty slot (presence check)
+                subject = {"subject": "slot", "slot_code": rec.slot_code}
+                if rec.slot_id:
+                    subject["slot_id"] = rec.slot_id
+            else:
+                subject = {"tree_id": rec.tree_id or "", "slot_code": rec.slot_code}
             assets.append(
                 AssetEntry(
                     asset_id=rec.image.sha256,
@@ -185,11 +193,7 @@ def build_outputs(
                     sidecar=side,
                     gps_time_ns=rec.gps_time_ns,
                     quality_score=rec.score,
-                    subject={
-                        "tree_id": rec.tree_id,
-                        "slot_code": rec.slot_code,
-                        "direction": rec.direction,
-                    },
+                    subject={**subject, "direction": rec.direction},
                     derived_from=Lineage(assets=[rec.panorama_sha256]),
                     producer_stage="crops",
                 )

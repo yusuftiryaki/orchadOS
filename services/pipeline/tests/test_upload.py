@@ -44,6 +44,8 @@ class FakeCatalog:
         self.source_rows: list[dict] = []
         self.coverage_rows: list[dict] = []
         self.rescan: dict | None = None
+        self.empty: dict[str, str] = {}
+        self.presence_rows: list[dict] = []
         self.fail_sources_after: int | None = None
 
     def session(self, session_id):
@@ -126,6 +128,29 @@ class FakeCatalog:
 
     def rescan_request(self, session_id):
         return self.rescan
+
+    def empty_slots(self, parcel_id):
+        assert parcel_id == PARCEL
+        return dict(self.empty)
+
+    def record_presence(self, session_id, payload):
+        """record_tree_presence(): one row per subject, method, version and params."""
+        created = existing = 0
+        for item in payload["items"]:
+            key = (
+                session_id,
+                item.get("tree_id"),
+                item.get("slot_id"),
+                payload["method"],
+                payload["method_version"],
+                payload["params_hash"],
+            )
+            if key in {r["key"] for r in self.presence_rows}:
+                existing += 1
+            else:
+                self.presence_rows.append({"key": key, **item})
+                created += 1
+        return {"created": created, "existing": existing}
 
     def snapshot(self):
         """Rows without generated ids, comparable between catalogs."""
@@ -495,3 +520,28 @@ def test_no_coverage_without_tree_positions(run, tmp_path):
     cat = FakeCatalog()
     rep = upload_run(copy, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
     assert cat.coverage_rows == [] and rep.coverage is None
+
+
+def test_presence_measurements_with_crops_as_evidence(run, tmp_path):
+    run_dir, _, opts = run
+    cat = FakeCatalog()
+    rep = upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "bucket"), opts)
+    crops = {r["id"]: r for r in cat.asset_rows if r["kind"] == "tree_crop"}
+    # S2-3 has no active tree in the fake parcel: no crops, no measurement.
+    assert {r["tree_id"] for r in cat.presence_rows} == set(TREES.values())
+    for row in cat.presence_rows:
+        assert row["value"] in ("yes", "unsure") and row["evidence_asset_ids"]
+        assert all(crops[a]["tree_id"] == row["tree_id"] for a in row["evidence_asset_ids"])
+    assert rep.presence == {"created": len(TREES), "existing": 0}
+    assert any("presence results not recorded" in w and "S2-3" in w for w in rep.warnings)
+    rep = upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "bucket"), opts)
+    assert rep.presence == {"created": 0, "existing": len(TREES)}
+
+
+def test_presence_needs_the_crops_as_evidence(run, tmp_path):
+    run_dir, _, opts = run
+    opts.kinds = parse_kinds("preview,trajectory")
+    cat = FakeCatalog()
+    rep = upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "bucket"), opts)
+    assert cat.presence_rows == [] and rep.presence is None
+    assert any("tree crops (evidence) left out" in w for w in rep.warnings)

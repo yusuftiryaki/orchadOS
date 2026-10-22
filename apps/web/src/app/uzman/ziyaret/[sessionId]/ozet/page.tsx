@@ -3,6 +3,7 @@ import { bulkMessages } from "@/components/expert/bulk-approve";
 import { SummaryView } from "@/components/expert/summary-view";
 import { requireSection } from "@/lib/auth/session";
 import { followupMessage, listFollowups } from "@/lib/expert/followups";
+import { loadPipelineChecks } from "@/lib/expert/pipeline-checks";
 import { loadReview } from "@/lib/expert/review";
 import { t } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
@@ -36,6 +37,7 @@ export default async function Page({
         (f) => f.sourceSessionId === sessionId,
       )}
       followupMessage={followupMessage(query)}
+      checks={await loadPipelineChecks(supabase, sessionId)}
     />
   );
 }

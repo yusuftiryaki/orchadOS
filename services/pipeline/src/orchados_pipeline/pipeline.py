@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import coverage, crops, frames, ingest, outputs, panoramas, position, sync
+from . import coverage, crops, frames, ingest, outputs, panoramas, position, presence, sync
 from .context import RunContext
 from .models import (
     ClockModel,
@@ -13,6 +13,7 @@ from .models import (
     FrameSelection,
     Manifest,
     PanoramaSet,
+    PresenceReport,
     Trajectory,
     TreeList,
     read_model,
@@ -96,6 +97,15 @@ def stage_coverage(
     )
 
 
+def stage_presence(ctx: RunContext) -> PresenceReport | None:
+    """Tree present / missing signal on the run's crops; None without crops.json."""
+    if not ctx.crops_path.is_file():
+        return None
+    return presence.run(
+        ctx, _load(ctx, Manifest, ctx.manifest_path, "ingest"), read_model(CropSet, ctx.crops_path)
+    )
+
+
 def stage_outputs(ctx: RunContext) -> outputs.Outputs:
     cset = read_model(CropSet, ctx.crops_path) if ctx.crops_path.is_file() else None
     return outputs.run(
@@ -114,8 +124,9 @@ def run_all(
     stage_sync(ctx)
     stage_frames(ctx)
     stage_panoramas(ctx)
-    for stale in (ctx.crops_path, ctx.trees_path, ctx.coverage_path):
+    for stale in (ctx.crops_path, ctx.trees_path, ctx.coverage_path, ctx.presence_path):
         stale.unlink(missing_ok=True)
     stage_crops(ctx, trees_path, tree_list)
     stage_coverage(ctx, trees_path, tree_list)
+    stage_presence(ctx)
     return stage_outputs(ctx)
