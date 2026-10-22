@@ -43,6 +43,7 @@ class FakeCatalog:
         self.asset_rows: list[dict] = []
         self.source_rows: list[dict] = []
         self.coverage_rows: list[dict] = []
+        self.rescan: dict | None = None
         self.fail_sources_after: int | None = None
 
     def session(self, session_id):
@@ -114,12 +115,17 @@ class FakeCatalog:
             self.coverage_rows.append({**report, "session_id": session_id})
         passed = report["covered_trees"] / report["active_trees"] >= report["threshold"]
         rescan = not passed or report["blind_spots"] > 0
+        if created and rescan and self.rescan is None:  # the database trigger
+            self.rescan = {"id": "req-1", "status": "open"}
         return {
             "report_id": str(len(self.coverage_rows)),
             "created": created,
             "passed": passed,
             "rescan_needed": rescan,
         }
+
+    def rescan_request(self, session_id):
+        return self.rescan
 
     def snapshot(self):
         """Rows without generated ids, comparable between catalogs."""
@@ -473,6 +479,7 @@ def test_coverage_summary_is_recorded_once(run, tmp_path):
     assert row["rule"]["min_directions"] == 2 and row["params_hash"]
     assert rep.coverage["created"] and rep.coverage["rescan_needed"]
     assert any("coverage report: created, below the threshold" in line for line in rep.lines())
+    assert "extra visit request req-1: open" in rep.lines()
     # Again: the same report is found, nothing is added.
     rep = upload_run(run_dir, SESSION, cat, store, opts)
     assert len(cat.coverage_rows) == 1 and not rep.coverage["created"]

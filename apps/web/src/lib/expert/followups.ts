@@ -10,6 +10,9 @@ import type { Client } from "@/lib/supabase/types";
 
 export type FollowupKind = Database["public"]["Enums"]["followup_kind"];
 export type FollowupStatus = Database["public"]["Enums"]["followup_status"];
+// expert: asked in the panel; pipeline: opened by a coverage report below its
+// threshold (20261025120100_pipeline_rescan_request.sql).
+export type FollowupOrigin = Database["public"]["Enums"]["followup_origin"];
 
 export const FOLLOWUP_KINDS: FollowupKind[] = ["closeup", "verification", "extra_visit"];
 export const NOTE_MAX = 2000;
@@ -22,6 +25,7 @@ export interface Followup {
   treeId: string | null;
   note: string | null;
   status: FollowupStatus;
+  origin: FollowupOrigin;
   targetSessionId: string | null;
   createdAt: string;
 }
@@ -59,7 +63,7 @@ export function sortFollowups(items: Followup[]): Followup[] {
 }
 
 const COLUMNS =
-  "id, parcel_id, source_session_id, kind, tree_id, note, status, target_session_id, created_at";
+  "id, parcel_id, source_session_id, kind, tree_id, note, status, origin, target_session_id, created_at";
 
 type Row = {
   id: string;
@@ -69,6 +73,7 @@ type Row = {
   tree_id: string | null;
   note: string | null;
   status: FollowupStatus;
+  origin: FollowupOrigin;
   target_session_id: string | null;
   created_at: string;
 };
@@ -81,6 +86,7 @@ const toFollowup = (r: Row): Followup => ({
   treeId: r.tree_id,
   note: r.note,
   status: r.status,
+  origin: r.origin,
   targetSessionId: r.target_session_id,
   createdAt: r.created_at,
 });

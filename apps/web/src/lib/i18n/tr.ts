@@ -251,6 +251,10 @@ export const tr = {
         done: "Tamamlandı",
         cancelled: "Geri alındı",
       },
+      origin: {
+        expert: "Uzman",
+        pipeline: "İşleme hattı (kapsama)",
+      },
       note: "Not",
       notePlaceholder: "Neye bakılsın? (ör. gövdenin kuzey yüzü, dipte sürgün)",
       submit: "İste",

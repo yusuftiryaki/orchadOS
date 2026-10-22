@@ -17,6 +17,7 @@ const item = (over: Partial<Followup>): Followup => ({
   treeId: TREE,
   note: null,
   status: "open",
+  origin: "expert",
   targetSessionId: null,
   createdAt: "2026-10-22T10:00:00Z",
   ...over,

@@ -130,6 +130,13 @@ begin
     array(select id from public.capture where session_id = any(p_session_ids)),
     array(select id from public.notification where session_id = any(p_session_ids))
   );
+  -- Follow-up requests name their visits in source_session_id / target_session_id.
+  delete from public.followup_request
+    where source_session_id = any(p_session_ids) or target_session_id = any(p_session_ids);
+  get diagnostics n = row_count;
+  if n > 0 then
+    table_name := 'public.followup_request'; deleted := n; return next;
+  end if;
   return query select * from testing._delete_by('session_id', p_session_ids);
   delete from public.session where id = any(p_session_ids);
   get diagnostics n = row_count;

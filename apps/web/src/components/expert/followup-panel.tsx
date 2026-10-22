@@ -39,9 +39,15 @@ export function FollowupPanel({
       ) : (
         <ul className={styles.findings}>
           {followups.map((item) => (
-            <li key={item.id} data-followup-kind={item.kind} data-followup-status={item.status}>
-              <strong>{f.kinds[item.kind]}</strong> · {f.status[item.status]} ·{" "}
-              <span className="muted">{formatDate(item.createdAt)}</span>
+            <li
+              key={item.id}
+              data-followup-kind={item.kind}
+              data-followup-status={item.status}
+              data-followup-origin={item.origin}
+            >
+              <strong>{f.kinds[item.kind]}</strong>
+              {item.origin === "pipeline" && <> · {f.origin.pipeline}</>} · {f.status[item.status]}{" "}
+              · <span className="muted">{formatDate(item.createdAt)}</span>
               {item.note && <p>{item.note}</p>}
               {(item.status === "open" || item.status === "planned") && (
                 <form action={cancelFollowupAction}>

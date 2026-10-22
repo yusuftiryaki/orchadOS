@@ -11,7 +11,9 @@
   registered (internal JSON stages, kinds left out) are skipped; a crop whose
   full panorama is not registered points to that panorama's preview instead.
 - The coverage summary (coverage.json) becomes a coverage_report row through
-  record_coverage_report().
+  record_coverage_report(); the database opens one extra visit request
+  (followup_request, origin pipeline) when the scan is below the threshold or
+  has blind spots.
 - Re-running is safe: objects are written before their rows, existing objects
   and rows are found and skipped (asset by session + content_hash +
   pipeline_version), missing lineage rows are added. A new pipeline version
@@ -130,6 +132,10 @@ class Catalog(Protocol):
         """record_coverage_report(): {report_id, created, passed, rescan_needed}."""
         ...
 
+    def rescan_request(self, session_id: str) -> dict[str, Any] | None:
+        """The extra visit request the database opened for the visit: {id, status, ...}."""
+        ...
+
 
 @dataclass
 class UploadOptions:
@@ -153,6 +159,7 @@ class UploadReport:
     objects_existing: int = 0
     lineage_created: int = 0
     coverage: dict[str, Any] | None = None  # record_coverage_report() result
+    rescan_request: dict[str, Any] | None = None  # pipeline_rescan_request()
     skipped_kinds: dict[str, int] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
@@ -171,6 +178,9 @@ class UploadReport:
                 + ("passed" if c.get("passed") else "below the threshold")
                 + ("; extra visit needed" if c.get("rescan_needed") else "")
             )
+        if self.rescan_request is not None:
+            r = self.rescan_request
+            out.append(f"extra visit request {r['id']}: {r['status']}")
         if self.skipped_kinds:
             skipped = ", ".join(f"{k}={v}" for k, v in sorted(self.skipped_kinds.items()))
             out.append(f"not uploaded: {skipped}")
@@ -519,6 +529,7 @@ def upload_run(
         if run.coverage.session_id != session.id:
             raise UploadError(f"coverage.json is for session {run.coverage.session_id}")
         report.coverage = catalog.record_coverage(session.id, payload)
+        report.rescan_request = catalog.rescan_request(session.id)
 
     report.status_after = catalog.mark_processed(session.id, STATUS_BEFORE_PROCESSED)
     return report
@@ -684,6 +695,9 @@ class SupabaseCatalog:
         return self.client.rpc(
             "record_coverage_report", {"p_session_id": session_id, "p_report": report}
         )
+
+    def rescan_request(self, session_id: str) -> dict[str, Any] | None:
+        return self.client.rpc("pipeline_rescan_request", {"p_session_id": session_id})
 
 
 def upload_to_supabase(
