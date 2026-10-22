@@ -587,3 +587,35 @@ Son 100 bildirim (durum filtresi `?durum=`): zaman, parsel, alıcı (ad, sahip/h
 - Kritik bulgu bildirimi portal bağlantısı verir, ama sahip yayımlanmamış ziyaretin bulgusunu portalda henüz göremez (satır bazlı yetki). Onaylanmış kritik bulgunun yayından önce gösterilmesi portal tarafında ayrı bir karar.
 - WhatsApp sağlayıcısı yok; WhatsApp tercihli sahiplere gerçek sağlayıcıyla SMS gider.
 - Bildirim için portal hesabı (parsel erişimi) gerekir; hesabı olmayan hissedar bildirim almaz.
+
+## MVP denetimi eklemeleri
+
+`docs/mvp-denetimi.md` denetiminde eksik bulunan ve bu uygulamaya eklenen özellikler. Migration'lar `supabase/migrations/20261024120000…120200`, pgTAP `supabase/tests/26_*.test.sql`.
+
+### Portal
+
+- **Karne "Boyut boyut"** (`src/components/portal/dimensions.tsx`, saf hesaplar `src/lib/portal/dimensions.ts`): envanter ve önceki denetime göre kaybolan (kayıp işaretli ya da bu denetimde yeni "yok") ve yeni ağaçlar; bahçe yapısı (1 erkeğe N dişi, 8–10 önerisine göre yorum, aşısız, yaş dağılımı); mekânsal desen; bakım uyumu (budama oranı, hasat); zararlı belirtileri (sayı, tür, sıra); meyve yükü (300–430 gün önceki yayımlanmış ziyaretle karşılaştırma); denetim güveni (panorama ve yakın plan sayısı, imza tarihi).
+- **10×10 m hücreler** (`src/lib/portal/cells.ts`): parselin son sınırının (yoksa yerlerinin) güneybatı köşesinden doğu/kuzey metre; sunucudaki yakın plan örneklemiyle aynı kural (`docs/arayuzler.md`). Isı = hücredeki değerlendirilmiş ağaçlarda sorun ağırlığı (dikkat 0,5; sorunlu, kuru, yok 1). Karnede "sorunların yarısı N hücrenin K'sında".
+- **Sağlık haritası** (`health-map.tsx`, `src/lib/portal/map-layers.ts`): ziyaret seçici (`?ziyaret=`; varsayılan "Son durum"), "Sadece bu ziyarette değişenler" (`?degisen=1`; önceki değerlendirilmiş ziyarete göre bir basamak değişenler, kuru → yok değişim değil), katmanlar `?katman=isi,kapsama`: ısı hücreleri ve kapsama (panoramaların GPS zamanı sırasıyla iz, 30 m'den büyük sıçramada bölünür; ağaçlar iki yön / tek yön / görüntü yok halkasıyla). Harita, veri değişince yeniden kurulmaz; kaynaklar `setData` ile güncellenir.
+- **360° gezi:** bütün yayımlanmış ziyaretlerin panoramaları; "Bu noktayı başka bir denetimde gör" aynı noktanın (15 m içinde) panoramasını aynı yöne bakarak açar, yoksa en yakınını ve bir not. Haritada pembe görüş üçgeni bakış yönünü gösterir (`viewWedge`).
+- **Ağaç karnesi:** renkli sınıf zaman çizelgesi; her fotoğrafta "Kanıt bilgisi": çekim zamanı (kesitte kaynak panoramanın `gps_time_ns`'i, yakın planda `capture.started_at`; Türkiye saatiyle), konum, çeken (kesitte ziyaretin sorumlusu, yakın planda `captured_by`), tam SHA-256 ve **Bütünlüğü doğrula** (dosya tarayıcıda indirilip hash'i kayıttakiyle karşılaştırılır, `src/lib/portal/evidence.ts`). **Karar:** personel adı ya da e-postası sahibe gösterilmez; kullanıcı kimliğinden kısa ve sabit bir kod (`#A1B2`).
+- **Hissedarlar** (sadece sahip; `viewers-card.tsx`, `src/lib/portal/viewers.ts`): ad ve telefonla davet, davet geri alma, hissedarın erişimini kaldırma. Telefon sadece son iki hanesiyle görünür. Davet `private.viewer_invitation`'da durur; operasyon tamamlar. **Karar:** sahip bir numaranın hesabı olup olmadığını öğrenmez.
+
+### Uzman paneli
+
+- **Takip istekleri** (`followup-panel.tsx`, `src/lib/expert/followups.ts`): ağaç panelinde "Sonraki ziyarette yakın plan" ya da "Doğrulama turunda kontrol"; özet sayfasında "Ek ziyaret iste" (not zorunlu). İstekler sonuç değildir: yayından sonra da yapılır, sahip görmez.
+- **Acil bulgu:** onaylanmamış yüksek önemli bulguda "Onayla ve sahibe hemen bildir" (`approve_finding`; bildirim tetikleyicisi).
+- **Kurala göre sınıf** (`src/lib/expert/class-rule.ts`): AI'ın ve önceki uzmanın değerlerinin yanında metodoloji 5'in 3–5. kurallarına göre sınıf (öneri; Yok ve Kuru uzmanın kararı).
+
+### Operasyon
+
+- **Yaşam döngüsü:** parsel sayfasında "İzlemeyi bitir (pasif)" / "İzlemeyi sürdür" (`ops_set_parcel_passive`). İlk yayımlanan periyodik tarama parseli "aktif izleme" yapar (tetikleyici).
+- **Pano:** "Hissedar davetleri" (kişiyi arayıp KVKK onayıyla hesabı telefonla aç ve izleyici ekle, ya da reddet) ve "Uzman istekleri" (doğrulama ve ek ziyaret isteklerini planlı bir ziyarete bağla; doğrulama isteği turun kalemi olur).
+- **Ziyaret sayfası:** periyodik taramada sunucunun ürettiği **yakın plan listesi** (`closeup_list`) nedenleriyle.
+
+### Testler
+
+- Birim: `src/lib/portal/dimensions.test.ts` (hücreler, desen, boyutlar, harita katmanları), `evidence.test.ts`, `tour-time.test.ts`, `viewers.test.ts`, `src/lib/expert/followups.test.ts`, `class-rule.test.ts`.
+- Entegrasyon: `tests/integration/parcel-lifecycle.test.ts`, `viewer-invitations.test.ts`, `followups.test.ts` (yakın plan listesi, istekler, planlama, acil bulgu), `portal-report-layers.test.ts`.
+- Tarayıcı: `tests/e2e/mvp-audit.spec.ts` (boyutlar, ziyaret seçici, değişenler, katmanlar, kanıt ve hash doğrulaması, gezide bakış yönü, hissedar daveti ve reddi, yakın plan listesi).
+- Temizlik: `followup_request` ve `private.viewer_invitation` satırlarını testler kendileri siler (`purgeParcels` bu tabloları bilmiyor; `tests/local-db.ts` başka bir oturumun klasöründe).

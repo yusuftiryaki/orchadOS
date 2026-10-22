@@ -36,6 +36,17 @@ async function call(fn: string, args: Record<string, unknown>) {
   }
 }
 
+// Removes test sessions with everything under them; the parcel stays.
+export async function purgeSessions(sessionIds: string[]) {
+  if (!sessionIds.every((id) => UUID.test(id))) throw new Error("purgeSessions takes uuids");
+  await call("purge_sessions", { p_session_ids: sessionIds });
+}
+
+// Removes co-owner invitations by phone (invitations on the seed parcel).
+export async function purgeViewerInvitations(phones: string[]) {
+  await call("purge_viewer_invitations", { p_phones: phones });
+}
+
 // Removes test parcels with everything under them, including their media objects.
 export async function purgeParcels(parcelIds: string[]) {
   if (!parcelIds.every((id) => UUID.test(id))) throw new Error("purgeParcels takes uuids");

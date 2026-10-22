@@ -169,3 +169,38 @@ export function pairPanoramaVariants(assets: PanoramaAsset[]): TourPanorama[] {
     };
   });
 }
+
+// Time travel: the panorama of another visit at the same spot (within
+// maxDistanceM), turned to keep looking the same way. Null when that visit has
+// no panorama near enough.
+export function sameSpot<T extends TourPanorama>(
+  panoramas: T[],
+  from: Pick<TourPanorama, "position" | "headingDeg">,
+  yawDeg: number,
+  maxDistanceM = 15,
+): { panorama: T; yawDeg: number; distanceM: number } | null {
+  const next = nearestPanorama(panoramas, from.position);
+  if (!next) return null;
+  const d = distanceM(from.position, next.position);
+  if (d > maxDistanceM) return null;
+  const azimuth = from.headingDeg + yawDeg;
+  return { panorama: next, yawDeg: normalize180(azimuth - next.headingDeg), distanceM: d };
+}
+
+// Field of view on the mini map: a wedge from the camera towards `azimuth`.
+export function viewWedge(
+  position: Position,
+  azimuth: number,
+  { lengthM = 14, halfAngleDeg = 30, steps = 6 } = {},
+): Position[] {
+  const [lon, lat] = position;
+  const mPerLat = RAD * EARTH_RADIUS_M;
+  const mPerLon = mPerLat * Math.cos(lat * RAD);
+  const ring: Position[] = [position];
+  for (let i = 0; i <= steps; i++) {
+    const a = (azimuth - halfAngleDeg + (2 * halfAngleDeg * i) / steps) * RAD;
+    ring.push([lon + (Math.sin(a) * lengthM) / mPerLon, lat + (Math.cos(a) * lengthM) / mPerLat]);
+  }
+  ring.push(position);
+  return ring;
+}

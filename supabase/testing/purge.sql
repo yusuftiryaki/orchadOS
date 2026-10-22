@@ -198,7 +198,25 @@ begin
 end;
 $$;
 
+-- Co-owner invitations of the given phones (tests that invite on the seed
+-- parcel, which purge_parcels must not touch).
+create or replace function testing.purge_viewer_invitations(p_phones text[])
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  n bigint;
+begin
+  delete from private.viewer_invitation where phone = any(p_phones);
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
 revoke all on all functions in schema testing from public;
 grant execute on function
-  testing.purge_sessions(uuid[]), testing.purge_parcels(uuid[]), testing.purge_org(uuid)
+  testing.purge_sessions(uuid[]), testing.purge_parcels(uuid[]), testing.purge_org(uuid),
+  testing.purge_viewer_invitations(text[])
   to service_role;

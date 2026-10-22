@@ -1,3 +1,5 @@
+import { FollowupPanel } from "./followup-panel";
+import type { Followup } from "@/lib/expert/followups";
 import Link from "next/link";
 import type { ReviewContext, ReviewTreeRow, TreeDetail } from "@/lib/expert/review";
 import { isReviewable } from "@/lib/expert/review";
@@ -62,12 +64,17 @@ export function ReviewView({
   selected,
   detail,
   messages,
+  followups = [],
+  followupMessage,
 }: {
   ctx: ReviewContext;
   filter: Filter;
   selected: ReviewTreeRow | null;
   detail: TreeDetail | null;
   messages: ReviewMessages;
+  // Follow-up requests of the parcel (filtered to the selected tree here).
+  followups?: Followup[];
+  followupMessage?: { saved: boolean; error: string | null };
 }) {
   const r = t.expert.review;
   const s = ctx.session;
@@ -303,6 +310,14 @@ export function ReviewView({
                 </details>
               )}
             </section>
+
+            <FollowupPanel
+              sessionId={s.id}
+              treeId={selected.id}
+              followups={followups.filter((f) => f.treeId === selected.id)}
+              returnPath={returnPath}
+              message={followupMessage}
+            />
           </section>
         )}
       </div>

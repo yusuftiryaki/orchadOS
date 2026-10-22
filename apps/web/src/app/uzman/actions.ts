@@ -11,6 +11,7 @@ import {
   startReview,
 } from "@/lib/expert/decisions";
 import { createFinding, deleteFinding, updateFinding } from "@/lib/expert/findings";
+import { approveFinding, cancelFollowup, requestFollowup } from "@/lib/expert/followups";
 import { parseFilter, reviewHref, safeReturnPath, summaryHref, withParam } from "@/lib/expert/urls";
 import { editMessage, replyToQuestion, type QuestionWriteResult } from "@/lib/portal/questions";
 import { createClient } from "@/lib/supabase/server";
@@ -168,4 +169,46 @@ export async function editAnswerAction(form: FormData) {
     text(form, "body"),
   );
   questionsReturn(form, result);
+}
+
+// Follow-up requests (close-up, verification, extra visit) and the early
+// approval of a critical finding; back to the page they came from with
+// ?takip=1 or ?takip_hata=<reason>.
+export async function requestFollowupAction(form: FormData) {
+  await requireSection("uzman");
+  const sessionId = text(form, "sessionId");
+  const back = safeReturnPath(text(form, "return"), sessionId);
+  const result = await requestFollowup(await createClient(), {
+    sessionId,
+    kind: text(form, "kind"),
+    treeId: text(form, "treeId") || null,
+    note: text(form, "note"),
+  });
+  revalidatePath("/operasyon");
+  redirect(
+    withParam(
+      withParam(back, "takip", result.ok ? "1" : null),
+      "takip_hata",
+      result.ok ? null : result.error,
+    ),
+  );
+}
+
+export async function cancelFollowupAction(form: FormData) {
+  await requireSection("uzman");
+  const sessionId = text(form, "sessionId");
+  const back = safeReturnPath(text(form, "return"), sessionId);
+  const result = await cancelFollowup(await createClient(), text(form, "id"));
+  revalidatePath("/operasyon");
+  redirect(
+    withParam(withParam(back, "takip", null), "takip_hata", result.ok ? null : result.error),
+  );
+}
+
+export async function approveFindingAction(form: FormData) {
+  await requireSection("uzman");
+  const sessionId = text(form, "sessionId");
+  const back = safeReturnPath(text(form, "return"), sessionId);
+  const result = await approveFinding(await createClient(), text(form, "findingId"));
+  redirect(withParam(back, "bulgu_hata", result.ok ? null : "write_failed"));
 }

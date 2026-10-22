@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { grantAccessAction, revokeAccessAction } from "@/app/operasyon/actions";
+import {
+  grantAccessAction,
+  revokeAccessAction,
+  setParcelPassiveAction,
+} from "@/app/operasyon/actions";
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { ResultNotice } from "@/components/operations/result-notice";
@@ -108,6 +112,14 @@ export default async function Page({
             </dd>
           </dl>
           {boundary && <p className={styles.boundaryNote}>{T.parcel.boundaryNote}</p>}
+          <form action={setParcelPassiveAction} data-testid="parcel-lifecycle">
+            <input type="hidden" name="parcel_id" value={parcel.id} />
+            <input type="hidden" name="passive" value={parcel.status === "passive" ? "0" : "1"} />
+            <button className="button button-secondary" type="submit">
+              {parcel.status === "passive" ? T.parcel.resume : T.parcel.setPassive}
+            </button>
+            <p className="muted">{T.parcel.passiveHint}</p>
+          </form>
         </section>
 
         <section className={styles.section} data-testid="parcel-private">

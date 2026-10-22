@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { cancelVisitAction } from "@/app/operasyon/actions";
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
+import { CloseupList } from "@/components/operations/closeup-list";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { VisitForm } from "@/components/operations/visit-form";
 import { requireSection } from "@/lib/auth/session";
 import { formatDate, t } from "@/lib/i18n";
+import { loadCloseupList } from "@/lib/expert/followups";
 import { getVisit, listStaffByUser, opsOrgs } from "@/lib/operations/data";
 import { opsHref } from "@/lib/operations/urls";
 import { isPlanEditable, todayIn, visitSeason, type VisitKind } from "@/lib/operations/visits";
@@ -31,6 +33,10 @@ export default async function Page({
   const lead = staff.find((s) => s.userId === visit.lead_user_id);
   const season = visitSeason(visit.kind, visit.planned_date);
   const editable = isPlanEditable(visit.status) && orgs.some((o) => o.id === visit.org_id);
+  const closeups =
+    visit.kind === "periodic_scan" && visit.status !== "cancelled"
+      ? await loadCloseupList(supabase, visit.id)
+      : null;
 
   return (
     <main className="page">
@@ -103,6 +109,7 @@ export default async function Page({
           )}
         </section>
       </div>
+      {closeups && <CloseupList items={closeups} />}
     </main>
   );
 }

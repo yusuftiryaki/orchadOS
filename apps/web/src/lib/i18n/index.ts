@@ -19,3 +19,13 @@ export function formatDate(iso: string): string {
     new Date(iso),
   );
 }
+
+// Date and time in Turkey (UTC+3, no daylight saving since 2016), e.g. a photo's
+// capture time on the tree card.
+export function formatDateTime(iso: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Europe/Istanbul",
+  }).format(new Date(iso));
+}

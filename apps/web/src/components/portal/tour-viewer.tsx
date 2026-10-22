@@ -37,6 +37,7 @@ export function TourViewer({
   markers,
   onMarker,
   onLoadError,
+  onViewChange,
   label,
 }: {
   panoramaId: string;
@@ -49,6 +50,8 @@ export function TourViewer({
   markers: TourMarker[];
   onMarker: (id: string) => void;
   onLoadError: (panoramaId: string) => void;
+  // Current yaw (degrees from the centre column), at most every 150 ms.
+  onViewChange?: (yawDeg: number) => void;
   label: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,13 +59,13 @@ export function TourViewer({
   const markersRef = useRef<MarkersPlugin | null>(null);
   const [ready, setReady] = useState(false);
   const [shown, setShown] = useState<{ id: string; kind: ImageKind } | null>(null);
-  const callbacks = useRef({ onMarker, onLoadError });
+  const callbacks = useRef({ onMarker, onLoadError, onViewChange });
   const initial = useRef({ image, lookYawDeg });
   const fullRef = useRef<{ id: string; url: string | null }>({ id: panoramaId, url: fullUrl });
 
   useEffect(() => {
-    callbacks.current = { onMarker, onLoadError };
-  }, [onMarker, onLoadError]);
+    callbacks.current = { onMarker, onLoadError, onViewChange };
+  }, [onMarker, onLoadError, onViewChange]);
 
   useEffect(() => {
     fullRef.current = { id: panoramaId, url: imageKind === "preview" ? fullUrl : null };
@@ -96,6 +99,13 @@ export function TourViewer({
         callbacks.current.onMarker(marker.id);
       });
       viewer.addEventListener("ready", () => setReady(true), { once: true });
+      let lastView = 0;
+      viewer.addEventListener("position-updated", ({ position }) => {
+        const now = Date.now();
+        if (now - lastView < 150) return;
+        lastView = now;
+        callbacks.current.onViewChange?.(position.yaw / RAD);
+      });
       viewer.addEventListener("zoom-updated", ({ zoomLevel }) => {
         const v = viewerRef.current;
         const full = fullRef.current;

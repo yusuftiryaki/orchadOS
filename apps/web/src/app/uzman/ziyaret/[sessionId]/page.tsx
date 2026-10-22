@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { bulkMessages } from "@/components/expert/bulk-approve";
 import { ReviewView } from "@/components/expert/review-view";
 import { requireSection } from "@/lib/auth/session";
+import { followupMessage, listFollowups } from "@/lib/expert/followups";
 import { loadReview, loadTreeDetail } from "@/lib/expert/review";
 import { matchesFilter } from "@/lib/expert/summary";
 import { parseFilter } from "@/lib/expert/urls";
@@ -38,6 +39,8 @@ export default async function Page({
       )
     : null;
 
+  const followups = await listFollowups(supabase, { parcelIds: [ctx.session.parcelId] });
+
   const r = t.expert.review;
   let error: string | null = null;
   if (typeof query.hata === "string") {
@@ -61,6 +64,8 @@ export default async function Page({
       selected={selected}
       detail={detail}
       messages={{ error, findingError, saved: query.kayit === "1", bulk: bulkMessages(query) }}
+      followups={followups}
+      followupMessage={followupMessage(query)}
     />
   );
 }
