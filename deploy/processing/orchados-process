@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# Process one visit end to end inside the processing image:
+#   orchados-ingest pull -> orchados-pipeline run --trees-from-db [--boundary] --upload
+#   -> optionally ai-worker run.
+# Configuration is environment only (docs/bulut-isleme.md, "Container").
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+usage: orchados-process <session-id>
+
+Pulls the session from the raw store, runs the pipeline with tree positions from
+the database, uploads the results to Supabase and optionally runs the AI worker.
+
+Environment (required):
+  ORCHADOS_STORE_*             raw store (services/ingest/README.md) + provider credentials
+  SUPABASE_URL, SUPABASE_ANON_KEY, ORCHADOS_EMAIL, ORCHADOS_PASSWORD   ops user
+
+Environment (optional):
+  PROCESS_BOUNDARY=auto|1|0    boundary stage; auto = inventory sessions or corner events
+  PROCESS_TREES_FROM_DB=1|0    crops from the database inventory (default 1)
+  PROCESS_AI=0|1               run ai-worker after the upload (needs ANTHROPIC_API_KEY)
+  PROCESS_PARAMS=<file>        pipeline parameter overrides (JSON)
+  PROCESS_UPLOAD_ONLY=<kinds>  upload --only (default: pipeline default)
+  PROCESS_STATION=<name>       station name in capture uris (default cloud-<hostname>)
+  PROCESS_PULL_EXCLUDE=<glob>  not pulled (default camera/*: originals for stitching)
+  PROCESS_KEEP_WORK=0|1        keep the work folder afterwards (default 0)
+  ORCHADOS_WORK_DIR=/work      scratch disk
+EOF
+}
+
+case "${1:-}" in
+  -h | --help | "") usage; [ -n "${1:-}" ]; exit $? ;;
+esac
+
+SID="$1"
+if ! [[ "$SID" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
+  echo "error: bad session id: $SID" >&2
+  exit 2
+fi
+for v in SUPABASE_URL SUPABASE_ANON_KEY ORCHADOS_EMAIL ORCHADOS_PASSWORD ORCHADOS_STORE_BACKEND; do
+  if [ -z "${!v:-}" ]; then
+    echo "error: $v is not set" >&2
+    exit 2
+  fi
+done
+
+WORK="${ORCHADOS_WORK_DIR:-/work}/$SID"
+SESSION="$WORK/session"
+OUT="$WORK/out"
+T0=$(date +%s)
+step() { printf '[orchados-process %5ss] %s\n' "$(($(date +%s) - T0))" "$*"; }
+
+cleanup() {
+  if [ "${PROCESS_KEEP_WORK:-0}" != "1" ]; then
+    rm -rf "$WORK"
+  fi
+}
+trap cleanup EXIT
+
+if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
+  step "GPU: $(nvidia-smi -L | head -n 1)"
+else
+  step "no GPU visible; running on the CPU"
+fi
+step "store: $(orchados-ingest config | tail -n 1)"
+
+step "pull $SID"
+orchados-ingest pull "$SID" "$SESSION" --exclude "${PROCESS_PULL_EXCLUDE:-camera/*}" -q
+
+args=(run "$SESSION" --out "$OUT")
+if [ "${PROCESS_TREES_FROM_DB:-1}" = "1" ]; then
+  args+=(--trees-from-db)
+fi
+boundary="${PROCESS_BOUNDARY:-auto}"
+if [ "$boundary" = "auto" ]; then
+  kind=$(jq -r '.kind // ""' "$SESSION/session.json")
+  if [ "$kind" = "inventory" ] || cut -d, -f3 "$SESSION/gnss/events.csv" 2>/dev/null | grep -qx corner; then
+    boundary=1
+  else
+    boundary=0
+  fi
+fi
+if [ "$boundary" = "1" ]; then
+  args+=(--boundary)
+fi
+if [ -n "${PROCESS_PARAMS:-}" ]; then
+  args+=(--params "$PROCESS_PARAMS")
+fi
+args+=(--upload --session-id "$SID" --station "${PROCESS_STATION:-cloud-$(hostname)}")
+if [ -n "${PROCESS_UPLOAD_ONLY:-}" ]; then
+  args+=(--only "$PROCESS_UPLOAD_ONLY")
+fi
+step "orchados-pipeline ${args[*]}"
+orchados-pipeline "${args[@]}"
+
+if [ "${PROCESS_AI:-0}" = "1" ]; then
+  step "ai-worker run --session-id $SID"
+  ai-worker run --session-id "$SID"
+fi
+
+step "done: session $SID processed and uploaded"

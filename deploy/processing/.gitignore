@@ -1,0 +1,3 @@
+# Local machine settings and the job environment (Supabase password, keys).
+machine.env
+process.env
