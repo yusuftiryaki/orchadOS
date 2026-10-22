@@ -107,6 +107,8 @@ Pilotta işleme istasyonu satın alınmaz; iş bulutta, iş başına açılıp k
 
 **Denenecek:** Insta360 Studio'nun buluttaki Windows GPU makinesinde çalışması. Çalışmazsa birleştirme NVIDIA kartlı yerel bir bilgisayarda yapılır, birleştirilmiş video yüklenir.
 
+**Araçlar ve operasyon adımları:** [bulut-isleme.md](bulut-isleme.md): sağlayıcıdan bağımsız yükleme aracı (`orchados-ingest`), işlem imajı, AWS/Azure/GCP makine betikleri, sağlayıcı karşılaştırması ve kota hazırlığı.
+
 ## Veri hacmi
 
 **Varsayımlar:** 20 dönüm ve ~300 ağaç; iki yönlü grid rota ve kenarlar ~5,4 km; ~2 saat video; 5.7K 360° videoda ~100 Mbps bit hızı; ~3,5 m'de bir panorama, yani ~1.500 panorama.
