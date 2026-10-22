@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSection } from "@/lib/auth/session";
-import { approveInventory, type ApproveInventoryResult } from "@/lib/expert/inventory";
+import {
+  approveInventory,
+  waiveCoverage,
+  type ApproveInventoryResult,
+  type WaiveCoverageResult,
+} from "@/lib/expert/inventory";
 import {
   closeVerificationItem,
   setTreeAttributes,
@@ -29,6 +34,17 @@ export async function approveInventoryAction(
 ): Promise<ApproveInventoryResult> {
   await requireSection("uzman");
   const result = await approveInventory(await createClient(), sessionId);
+  if (result.ok) revalidate(parcelId, sessionId);
+  return result;
+}
+
+export async function waiveCoverageAction(
+  parcelId: unknown,
+  sessionId: unknown,
+  note: unknown,
+): Promise<WaiveCoverageResult> {
+  await requireSection("uzman");
+  const result = await waiveCoverage(await createClient(), sessionId, note);
   if (result.ok) revalidate(parcelId, sessionId);
   return result;
 }

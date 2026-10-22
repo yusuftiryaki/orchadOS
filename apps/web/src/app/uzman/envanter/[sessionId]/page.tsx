@@ -14,6 +14,7 @@ import {
 } from "@/lib/expert/inventory-checks";
 import { sessionTime } from "@/lib/expert/season";
 import { formatDate, t } from "@/lib/i18n";
+import { loadCoverage } from "@/lib/expert/pipeline-checks";
 import { loadInventoryWorkspace } from "@/lib/office/inventory-workspace";
 import { officePanoramaSources } from "@/lib/office/panorama-source";
 import { sourceOfSet } from "@/lib/office/panoramas";
@@ -76,6 +77,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
         flaggedSlotIds={flagged}
         panoramaSet={set?.id ?? null}
         panoramas={panoramas}
+        coverage={await loadCoverage(supabase, session.id)}
       />
     </main>
   );

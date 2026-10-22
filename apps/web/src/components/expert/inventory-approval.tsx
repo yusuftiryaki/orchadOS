@@ -6,15 +6,18 @@ import {
   approveInventoryAction,
   closeVerificationItemExpertAction,
   setTreeAttributesExpertAction,
+  waiveCoverageAction,
 } from "@/app/uzman/envanter/actions";
+import { CoverageLine } from "@/components/expert/pipeline-checks";
 import { InventoryMap, type InventoryMapSlot } from "@/components/office/inventory-map";
 import { InventoryMapLegend } from "@/components/office/inventory-summary";
 import { PanoramaViewer } from "@/components/office/panorama-viewer";
 import { TreeAttributeEditor } from "@/components/office/tree-attribute-editor";
 import { VerificationTours } from "@/components/office/verification-panel";
 import styles from "@/components/office/inventory.module.css";
-import type { ApproveInventoryResult } from "@/lib/expert/inventory";
-import { t } from "@/lib/i18n";
+import type { ApproveInventoryResult, WaiveCoverageResult } from "@/lib/expert/inventory";
+import type { CoverageSummary } from "@/lib/expert/pipeline-checks";
+import { formatNumber, t } from "@/lib/i18n";
 import type { InventoryWorkspace } from "@/lib/office/inventory-workspace";
 import { bearingDeg, LocalFrame, wrap180 } from "@/lib/office/local-frame";
 
@@ -41,6 +44,7 @@ export function InventoryApproval({
   flaggedSlotIds,
   panoramaSet,
   panoramas,
+  coverage = null,
 }: {
   ws: InventoryWorkspace;
   sessionId: string;
@@ -48,6 +52,8 @@ export function InventoryApproval({
   flaggedSlotIds: string[];
   panoramaSet: string | null;
   panoramas: ApprovalPanorama[];
+  // Newest coverage report of the inventory scan (null: none yet).
+  coverage?: CoverageSummary | null;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -193,8 +199,68 @@ export function InventoryApproval({
           return result;
         }}
       />
-      {!ws.approved && <ApproveForm parcelId={ws.parcel.id} sessionId={sessionId} ws={ws} />}
+      <section className={styles.panel} data-testid="inventory-coverage">
+        <h2>{e.approve.coverageTitle}</h2>
+        <CoverageLine coverage={coverage} />
+        {coverage?.waivedAt && coverage.waiverNote && (
+          <p data-testid="coverage-waived">{e.approve.waived(coverage.waiverNote)}</p>
+        )}
+        {!ws.approved && coverage && !coverage.passed && !coverage.waivedAt && (
+          <WaiveForm parcelId={ws.parcel.id} sessionId={sessionId} />
+        )}
+      </section>
+      {!ws.approved && (
+        <ApproveForm
+          parcelId={ws.parcel.id}
+          sessionId={sessionId}
+          ws={ws}
+          coverageBlocked={!!coverage && !coverage.passed && !coverage.waivedAt}
+        />
+      )}
     </>
+  );
+}
+
+function WaiveForm({ parcelId, sessionId }: { parcelId: string; sessionId: string }) {
+  const router = useRouter();
+  const [note, setNote] = useState("");
+  const [result, setResult] = useState<WaiveCoverageResult | null>(null);
+  const [pending, startTransition] = useTransition();
+  const a = e.approve;
+  return (
+    <div data-testid="coverage-waiver">
+      <label>
+        {a.waiverLabel}
+        <textarea
+          rows={2}
+          maxLength={2000}
+          value={note}
+          placeholder={a.waiverPlaceholder}
+          onChange={(ev) => setNote(ev.target.value)}
+        />
+      </label>
+      <p>
+        <button
+          type="button"
+          className="button button-secondary"
+          disabled={pending || note.trim() === ""}
+          onClick={() =>
+            startTransition(async () => {
+              const r = await waiveCoverageAction(parcelId, sessionId, note);
+              setResult(r);
+              if (r.ok) router.refresh();
+            })
+          }
+        >
+          {a.waiverSubmit}
+        </button>
+      </p>
+      {result && !result.ok && (
+        <p className={styles.error} role="alert">
+          {a.waiverErrors[result.error] ?? a.waiverErrors.write_failed}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -202,10 +268,12 @@ function ApproveForm({
   parcelId,
   sessionId,
   ws,
+  coverageBlocked,
 }: {
   parcelId: string;
   sessionId: string;
   ws: InventoryWorkspace;
+  coverageBlocked: boolean;
 }) {
   const router = useRouter();
   const [confirmed, setConfirmed] = useState(false);
@@ -221,6 +289,7 @@ function ApproveForm({
     <section className={styles.panel} data-testid="approve-inventory">
       <h2>{a.title}</h2>
       {open > 0 && <p className={styles.notice}>{a.blockedOpen(open)}</p>}
+      {coverageBlocked && <p className={styles.notice}>{a.coverageBlocked}</p>}
       <label className={styles.check}>
         <input
           type="checkbox"
@@ -258,6 +327,14 @@ function ApproveForm({
           {result.noSlots && <p className={styles.error}>{a.noSlots}</p>}
           {result.openItems && result.openItems.length > 0 && (
             <p className={styles.error}>{a.openItems(result.openItems.join(", "))}</p>
+          )}
+          {result.coverage && (
+            <p className={styles.error}>
+              {a.coverageBelow(
+                formatNumber(result.coverage.ratio * 100, 1),
+                formatNumber(result.coverage.threshold * 100, 1),
+              )}
+            </p>
           )}
         </div>
       )}

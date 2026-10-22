@@ -42,7 +42,8 @@ create table public.coverage_report (
   -- The pipeline's coverage parameters (min_view_score, min_directions, ...).
   rule jsonb not null default '{}' check (jsonb_typeof(rule) = 'object'),
   created_by uuid default auth.uid() references auth.users (id) on delete set null,
-  created_at timestamptz not null default now(),
+  -- clock_timestamp(): reports of one transaction still have an order (newest counts).
+  created_at timestamptz not null default clock_timestamp(),
   foreign key (parcel_id, org_id) references public.parcel (id, org_id),
   foreign key (session_id, parcel_id, org_id) references public.session (id, parcel_id, org_id),
   unique (id, parcel_id, org_id),

@@ -638,6 +638,9 @@ export type Database = {
           rule: NonNullable<Json>;
           session_id: string;
           threshold: number;
+          waived_at: string | null;
+          waived_by: string | null;
+          waiver_note: string | null;
         };
         ComputedFields: never;
         Insert: {
@@ -661,6 +664,9 @@ export type Database = {
           rule?: NonNullable<Json>;
           session_id: string;
           threshold: number;
+          waived_at?: string | null;
+          waived_by?: string | null;
+          waiver_note?: string | null;
         };
         Update: {
           active_trees?: number;
@@ -683,6 +689,9 @@ export type Database = {
           rule?: NonNullable<Json>;
           session_id?: string;
           threshold?: number;
+          waived_at?: string | null;
+          waived_by?: string | null;
+          waiver_note?: string | null;
         };
         Relationships: [
           {
@@ -2961,6 +2970,40 @@ export type Database = {
           p_session_id: string;
         };
         Returns: Json;
+      };
+      waive_coverage: {
+        Args: { p_note: string; p_session_id: string };
+        Returns: {
+          active_trees: number;
+          blind_spot_cells: NonNullable<Json>;
+          blind_spots: number;
+          covered_trees: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          missing_slot_codes: string[];
+          missing_trees: number | null;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          passed: boolean | null;
+          pipeline: string;
+          pipeline_version: string;
+          ratio: number | null;
+          rescan_needed: boolean | null;
+          rule: NonNullable<Json>;
+          session_id: string;
+          threshold: number;
+          waived_at: string | null;
+          waived_by: string | null;
+          waiver_note: string | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "coverage_report";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
     };
     Enums: {

@@ -22,6 +22,9 @@ export interface CoverageSummary {
   missingCodes: string[];
   pipelineVersion: string;
   createdAt: string;
+  // The expert accepted the report below its threshold for the inventory approval.
+  waivedAt: string | null;
+  waiverNote: string | null;
 }
 
 export interface PlantingSuggestion {
@@ -47,7 +50,7 @@ export async function loadCoverage(
   const { data, error } = await supabase
     .from("coverage_report")
     .select(
-      "id, ratio, threshold, passed, active_trees, covered_trees, missing_trees, blind_spots, rescan_needed, missing_slot_codes, pipeline_version, created_at",
+      "id, ratio, threshold, passed, active_trees, covered_trees, missing_trees, blind_spots, rescan_needed, missing_slot_codes, pipeline_version, created_at, waived_at, waiver_note",
     )
     .eq("session_id", sessionId)
     .order("created_at", { ascending: false })
@@ -69,6 +72,8 @@ export async function loadCoverage(
     missingCodes: data.missing_slot_codes,
     pipelineVersion: data.pipeline_version,
     createdAt: data.created_at,
+    waivedAt: data.waived_at,
+    waiverNote: data.waiver_note,
   };
 }
 

@@ -1484,6 +1484,22 @@ export const tr = {
         },
         noSlots: "Parselde kayıtlı yer yok.",
         openItems: (codes: string) => `Açık doğrulama kalemleri: ${codes}`,
+        coverageTitle: "Grid tarama kapsaması",
+        coverageBelow: (ratio: string, threshold: string) =>
+          `Kapsama %${ratio}, eşik %${threshold}: kalite kapısından geçmedi. Ek tarama yapılmalı ya da gerekçeyle kabul edilmeli.`,
+        coverageBlocked:
+          "Kapsama eşiğin altında; onay için ek tarama ya da aşağıda gerekçeli kabul gerekir.",
+        waiverLabel: "Kapsamayı gerekçeyle kabul et",
+        waiverPlaceholder:
+          "Neden kabul ediliyor? (ör. doğu koridoru sulama hattı nedeniyle sürülemedi)",
+        waiverSubmit: "Gerekçeyle kabul et",
+        waived: (note: string) => `Kapsama gerekçeyle kabul edildi: ${note}`,
+        waiverErrors: {
+          forbidden: "Kapsamayı sadece işletmenin uzmanı kabul edebilir.",
+          session_invalid: "Bu ziyaretin kapsaması kabul edilemez.",
+          note_required: "Gerekçe yazın (en çok 2000 karakter).",
+          write_failed: "Kabul kaydedilemedi.",
+        } as Record<string, string>,
       },
     },
     portal: {
