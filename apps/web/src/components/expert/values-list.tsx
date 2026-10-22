@@ -1,3 +1,4 @@
+import { ruleClass } from "@/lib/expert/class-rule";
 import { formatValue, type MeasurementValue, type MetricDefinition } from "@/lib/expert/metrics";
 import { categoryLabel, t } from "@/lib/i18n";
 import styles from "./expert.module.css";
@@ -16,8 +17,15 @@ export function ValuesList({
     .filter((x): x is { v: MeasurementValue; m: MetricDefinition } => x.m != null)
     .sort((a, b) => a.m.name.localeCompare(b.m.name, "tr"));
   if (rows.length === 0) return null;
+  const rule = ruleClass(values, metrics);
   return (
     <dl className={styles.list}>
+      {rule && (
+        <div style={{ display: "contents" }} data-testid="rule-class">
+          <dt>{r.ruleClass}</dt>
+          <dd>{t.tree.values.health[rule]}</dd>
+        </div>
+      )}
       {rows.map(({ v, m }) => (
         <div key={m.id} style={{ display: "contents" }} data-metric={m.code}>
           <dt>{m.name}</dt>

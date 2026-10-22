@@ -308,6 +308,7 @@ export const tr = {
     },
     seasons: { winter: "Kış", spring: "İlkbahar", summer: "Yaz", harvest: "Hasat" },
     review: {
+      ruleClass: "Kurala göre sınıf (metodoloji 5)",
       back: "Ziyaret kuyruğu",
       title: (parcel: string, date: string) => `${parcel} · ${date}`,
       season: (season: string) => `Mevsim: ${season}`,
