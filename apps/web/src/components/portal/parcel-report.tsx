@@ -20,6 +20,8 @@ import type { QuestionState } from "./tree-card";
 import { AskQuestionForm, QuestionNotice, QuestionThreads } from "./question-threads";
 import { SEVERITY_COLORS } from "./colors";
 import { PrintButton } from "./print-button";
+import type { ParcelViewers } from "@/lib/portal/viewers";
+import { ViewersCard } from "./viewers-card";
 import styles from "./portal.module.css";
 
 // Parcel report card: latest published visit, change since the previous one,
@@ -33,12 +35,15 @@ export function ParcelReportView({
   findingId,
   boundaryCard,
   questions,
+  viewers,
 }: {
   report: ParcelReport;
   classFilter?: MarkerState[];
   findingId?: string;
   boundaryCard?: BoundaryCard | null;
   questions?: QuestionState;
+  // Co-owners, for the parcel's owner only.
+  viewers?: { data: ParcelViewers; outcome?: string };
 }) {
   const base = `/portal/parsel/${report.parcel.id}`;
   return (
@@ -109,6 +114,9 @@ export function ParcelReportView({
       )}
       {questions && <Questions report={report} base={base} questions={questions} />}
       <History report={report} />
+      {viewers?.data.isOwner && (
+        <ViewersCard parcelId={report.parcel.id} viewers={viewers.data} outcome={viewers.outcome} />
+      )}
     </main>
   );
 }

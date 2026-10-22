@@ -540,6 +540,12 @@ export const tr = {
       },
       parcels: "Parseller ve yaşam döngüsü",
       noParcels: "Henüz parsel yok.",
+      invitations: "Hissedar davetleri",
+      invitationsHint:
+        "Sahiplerin portaldan davet ettiği hissedarlar. Kişiyi arayıp KVKK onayını alın; hesap telefonla açılır ve hissedar parsele izleyici olarak eklenir.",
+      invitedBy: (name: string) => `Davet eden: ${name}`,
+      approve: "Hesabı aç ve hissedar olarak ekle",
+      reject: "Reddet",
     },
     visitKind: {
       inventory: "Envanter",
@@ -771,6 +777,9 @@ export const tr = {
       cancelled: "Ziyaret iptal edildi.",
       passive: "Parsel pasif: izleme bitti.",
       resumed: "İzleme sürüyor; parsel ziyaretlerine göre yaşam döngüsüne döndü.",
+      invitation_approved: "Hissedar eklendi; telefonla (SMS koduyla) portala girebilir.",
+      invitation_rejected: "Davet reddedildi; sahip portalda görür.",
+      followups_planned: "İstekler ziyarete bağlandı.",
     },
     errors: {
       forbidden: "Bu işlem için yetkiniz yok.",
@@ -784,6 +793,7 @@ export const tr = {
       visit_cancelled: "Ziyaret iptal edilmiş; yeni bir ziyaret planlayın.",
       has_planned_visits: "Parselin planlı ziyaretleri var; önce onları iptal edin.",
       parcel_passive: "Parsel pasif; ziyaret planlamak için önce izlemeyi sürdürün.",
+      already_owner: "Bu kişi parselin sahibi; hissedar olarak eklenemez.",
       invite_unavailable:
         "Portal hesabı açılamadı: hesap servisi (invite-user) erişilemiyor. Hesabı Supabase panelinden açıp aynı e-postayla tekrar deneyin.",
       conflict: "E-posta ile telefon farklı hesaplara ait. Bilgileri kontrol edin.",
@@ -828,6 +838,34 @@ export const tr = {
       auto: "Kalan ağaçlar yapay zekâ sonucuyla toplu onaylandı; uzman bunların bir örneklemini denetledi.",
       methodology: (version: string) => `Metodoloji sürümü: ${version}`,
       noMethodology: "Metodoloji sürümü: belirtilmemiş",
+    },
+    viewers: {
+      title: "Hissedarlar",
+      hint: "Hisseli bahçede diğer hissedarlar raporları sizinle aynı görür, değiştiremez. Davetinizi operasyon ekibimiz hissedarı arayıp onayladıktan sonra tamamlar.",
+      empty: "Henüz hissedar eklenmedi.",
+      name: "Ad soyad",
+      phone: "Telefon",
+      invite: "Hissedar davet et",
+      remove: "Erişimi kaldır",
+      cancel: "Daveti geri al",
+      status: {
+        active: "Hissedar",
+        pending: "Davet bekliyor",
+        rejected: "Davet tamamlanamadı",
+      },
+      notices: {
+        invited: "Davetiniz alındı; operasyon ekibimiz hissedarla görüşüp erişimi açacak.",
+        removed: "Hissedarın erişimi kaldırıldı.",
+        cancelled: "Davet geri alındı.",
+      },
+      errors: {
+        forbidden: "Hissedarları sadece parsel sahibi yönetebilir.",
+        invalid_name: "Ad soyad yazın.",
+        invalid_phone: "Telefon numarası geçersiz (ör. 0532 123 45 67).",
+        too_many_invitations: "Bekleyen davet sayısı sınırda; önce bekleyenler tamamlansın.",
+        not_found: "Kayıt bulunamadı.",
+        write_failed: "Kaydedilemedi. Lütfen tekrar deneyin.",
+      },
     },
     questions: {
       title: "Sorular",

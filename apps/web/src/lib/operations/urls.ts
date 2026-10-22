@@ -14,6 +14,9 @@ export const NOTICES = [
   "cancelled",
   "passive",
   "resumed",
+  "invitation_approved",
+  "invitation_rejected",
+  "followups_planned",
 ] as const;
 export type Notice = (typeof NOTICES)[number];
 
@@ -29,6 +32,7 @@ const ERRORS: OpsError[] = [
   "visit_cancelled",
   "has_planned_visits",
   "parcel_passive",
+  "already_owner",
   "invite_unavailable",
   "conflict",
   "write_failed",
@@ -51,7 +55,7 @@ function withResult(path: string, result: Result = {}): string {
 }
 
 export const opsHref = {
-  dashboard: () => "/operasyon",
+  dashboard: (result?: Result) => withResult("/operasyon", result),
   owners: () => "/operasyon/sahip",
   newOwner: () => "/operasyon/sahip/yeni",
   owner: (id: string, { saved }: { saved?: boolean } = {}) =>

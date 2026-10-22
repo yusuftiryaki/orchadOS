@@ -24,14 +24,12 @@ beforeAll(async () => {
   admin = serviceClient();
   [ops, field] = (await Promise.all([signIn("ops"), signIn("field")])).map((s) => s.client);
   purgeParcels(SEED.org, [PARCEL]);
-  const { error } = await admin
-    .from("parcel")
-    .insert({
-      id: PARCEL,
-      org_id: SEED.org,
-      name: "Yaşam döngüsü testi",
-      status: "inventory_done",
-    });
+  const { error } = await admin.from("parcel").insert({
+    id: PARCEL,
+    org_id: SEED.org,
+    name: "Yaşam döngüsü testi",
+    status: "inventory_done",
+  });
   if (error) throw error;
 });
 

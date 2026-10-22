@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { OpsNav } from "@/components/operations/ops-nav";
+import { ResultNotice } from "@/components/operations/result-notice";
+import { ViewerInvitations } from "@/components/operations/viewer-invitations";
 import styles from "@/components/operations/operations.module.css";
 import { VisitTable } from "@/components/operations/visit-table";
 import { requireSection } from "@/lib/auth/session";
 import { formatNumber, t } from "@/lib/i18n";
 import { listFieldStaff, listVisits, opsOrgs } from "@/lib/operations/data";
+import { listViewerInvitations } from "@/lib/operations/invitations";
 import { opsHref } from "@/lib/operations/urls";
 import {
   countByStatus,
@@ -20,8 +23,12 @@ import { createClient } from "@/lib/supabase/server";
 const T = t.operations;
 
 // Operations dashboard: visits by status, upcoming and late work, parcels
-// with their life cycle status.
-export default async function Page() {
+// with their life cycle status; open viewer invitations from owners.
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await requireSection("operasyon");
   const supabase = await createClient();
   const now = new Date();
@@ -30,7 +37,13 @@ export default async function Page() {
     listParcels(supabase),
     opsOrgs(supabase, user.id),
   ]);
-  const staff = await listFieldStaff(supabase, orgs);
+  const [staff, invitations] = await Promise.all([
+    listFieldStaff(supabase, orgs),
+    listViewerInvitations(
+      supabase,
+      orgs.map((o) => o.id),
+    ),
+  ]);
   const leads = new Map(staff.map((s) => [s.userId, s.email]));
 
   const counts = countByStatus(visits);
@@ -44,6 +57,10 @@ export default async function Page() {
     <main className="page">
       <OpsNav current="dashboard" />
       <h1>{T.dashboard.title}</h1>
+      <ResultNotice params={await searchParams} />
+      {invitations.length > 0 && (
+        <ViewerInvitations invitations={invitations} today={todayIn(now)} />
+      )}
 
       <h2>{T.dashboard.counts}</h2>
       <ul className={styles.stats} data-testid="visit-counts">

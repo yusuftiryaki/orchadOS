@@ -11,6 +11,7 @@ import {
   replyToQuestion,
   type QuestionWriteResult,
 } from "@/lib/portal/questions";
+import { cancelInvitation, inviteViewer, removeViewer } from "@/lib/portal/viewers";
 import { isUuid } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
 
@@ -88,4 +89,38 @@ export async function editQuestionAction(form: FormData) {
     text(form, "body"),
   );
   questionReturn(form, result);
+}
+
+// Co-owners (owner only; the database functions refuse anyone else). Back to
+// the parcel page with ?hissedar=<notice or error>#hissedarlar.
+function viewerReturn(parcelId: string, outcome: string): never {
+  const base = isUuid(parcelId) ? `/portal/parsel/${parcelId}` : "/portal";
+  redirect(`${withParam(base, "hissedar", outcome)}#hissedarlar`);
+}
+
+export async function inviteViewerAction(form: FormData) {
+  await requireSection("portal");
+  const parcelId = text(form, "parcelId");
+  const result = await inviteViewer(
+    await createClient(),
+    parcelId,
+    text(form, "name"),
+    text(form, "phone"),
+  );
+  if (result.ok) revalidatePath(`/portal/parsel/${parcelId}`);
+  viewerReturn(parcelId, result.ok ? "invited" : result.error);
+}
+
+export async function cancelInvitationAction(form: FormData) {
+  await requireSection("portal");
+  const parcelId = text(form, "parcelId");
+  const result = await cancelInvitation(await createClient(), text(form, "id"));
+  viewerReturn(parcelId, result.ok ? "cancelled" : result.error);
+}
+
+export async function removeViewerAction(form: FormData) {
+  await requireSection("portal");
+  const parcelId = text(form, "parcelId");
+  const result = await removeViewer(await createClient(), parcelId, text(form, "id"));
+  viewerReturn(parcelId, result.ok ? "removed" : result.error);
 }

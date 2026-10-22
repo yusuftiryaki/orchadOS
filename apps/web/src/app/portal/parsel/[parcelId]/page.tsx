@@ -5,6 +5,7 @@ import { MARKER_ORDER, type MarkerState } from "@/lib/map/tree-style";
 import { loadBoundaryCard } from "@/lib/portal/boundary";
 import { getParcelReport } from "@/lib/portal/data";
 import { listThreads } from "@/lib/portal/questions";
+import { loadParcelViewers } from "@/lib/portal/viewers";
 import { createClient } from "@/lib/supabase/server";
 
 // ?sinif=problem,dead opens the map filtered to those classes;
@@ -19,15 +20,17 @@ export default async function Page({
     bulgu?: string | string[];
     soru?: string | string[];
     soru_hata?: string | string[];
+    hissedar?: string | string[];
   }>;
 }) {
   const user = await requireSection("portal");
   const [{ parcelId }, query] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
-  const [report, boundaryCard, threads] = await Promise.all([
+  const [report, boundaryCard, threads, viewers] = await Promise.all([
     getParcelReport(supabase, parcelId),
     loadBoundaryCard(supabase, parcelId, user.id),
     listThreads(supabase, user.id, { parcelId }),
+    loadParcelViewers(supabase, parcelId, user.id),
   ]);
   // Not visible under RLS looks the same as not existing.
   if (!report) notFound();
@@ -43,6 +46,7 @@ export default async function Page({
         sent: first(query.soru) === "1",
         error: first(query.soru_hata) ?? null,
       }}
+      viewers={{ data: viewers, outcome: first(query.hissedar) }}
     />
   );
 }

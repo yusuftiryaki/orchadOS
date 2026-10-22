@@ -6,6 +6,7 @@ import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 import { getOwnerProfile, opsOrgs } from "@/lib/operations/data";
 import { formValues, type FormState } from "@/lib/operations/form-state";
+import { approveViewerInvitation, rejectViewerInvitation } from "@/lib/operations/invitations";
 import { parseRing, validateRing } from "@/lib/operations/geometry";
 import {
   addBoundary,
@@ -276,5 +277,36 @@ export async function setParcelPassiveAction(form: FormData) {
       parcelId,
       result.ok ? { notice: passive ? "passive" : "resumed" } : { error: result.error },
     ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Viewer invitations from owners
+// ---------------------------------------------------------------------------
+
+export async function approveInvitationAction(form: FormData) {
+  const { supabase, orgs } = await context();
+  const read = formReader(form);
+  const orgId = chooseOrg(orgs, read("org_id"));
+  if (!orgId) redirect(opsHref.dashboard({ error: "forbidden" }));
+  const parsed = parseOwnerForm(read, { requireConsent: true });
+  if (!parsed.ok) redirect(opsHref.dashboard({ error: "invalid_input" }));
+  const result = await approveViewerInvitation(
+    supabase,
+    { id: read("invitation_id"), orgId },
+    parsed.value,
+  );
+  revalidatePath("/operasyon");
+  redirect(
+    opsHref.dashboard(result.ok ? { notice: "invitation_approved" } : { error: result.error }),
+  );
+}
+
+export async function rejectInvitationAction(form: FormData) {
+  const { supabase } = await context();
+  const result = await rejectViewerInvitation(supabase, formReader(form)("invitation_id"));
+  revalidatePath("/operasyon");
+  redirect(
+    opsHref.dashboard(result.ok ? { notice: "invitation_rejected" } : { error: result.error }),
   );
 }

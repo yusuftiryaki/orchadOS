@@ -23,6 +23,7 @@ export type OpsError =
   | "visit_cancelled"
   | "has_planned_visits"
   | "parcel_passive"
+  | "already_owner"
   | "invite_unavailable"
   | "conflict"
   | "write_failed";
@@ -41,6 +42,7 @@ const KNOWN: OpsError[] = [
   "visit_cancelled",
   "has_planned_visits",
   "parcel_passive",
+  "already_owner",
 ];
 
 // PostgREST error -> reason. Row level security denials (42501 without one of
