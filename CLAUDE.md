@@ -42,6 +42,8 @@ Kökte bir kez `pnpm install` (Supabase komut satırı aracı; sürümü `packag
 | `pnpm db:demo` | `db:reset`'ten sonra iki örnek tarama ziyareti yükler (`supabase/demo/scans.sql`): biri yayımlanmış, biri uzman incelemesinde. Görüntü dosyaları yok. Testler buna dayanmaz |
 | `pnpm db:status` | Yerel adresler ve anahtarlar |
 
+Test temizliği `testing` şemasındaki fonksiyonlarla yapılır (`supabase/testing/`; seed'den sonra yüklenir, test ve pilot projelerine gitmez). Bu şemadan önceki eski bir yerel veritabanında `pnpm db:start` PostgREST hatasıyla takılırsa: `pnpm exec supabase stop --no-backup && pnpm db:start`.
+
 Örnek kullanıcılar (sadece yerel): `owner@`, `viewer@`, `field@`, `expert@`, `ops@example.com`, parola `orchados-dev`.
 
 ### GNSS kaydedici (`firmware/gnss-logger/`)
