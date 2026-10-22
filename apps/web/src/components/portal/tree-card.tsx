@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
+import { categoryLabel, formatDate, formatDateTime, formatNumber, t } from "@/lib/i18n";
 import { MARKER_COLORS } from "@/lib/map/tree-style";
 import type { PhotoItem, TreeCard, TreeMetricHistory } from "@/lib/portal/data";
+import { formatPosition } from "@/lib/portal/evidence";
 import { SEVERITY_COLORS } from "./colors";
+import { HashCheck } from "./hash-check";
 import { ApprovalBadge, findingKindLabel } from "./labels";
 import {
   editQuestionAction,
@@ -94,6 +96,18 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
       {card.classHistory.length > 0 && (
         <section className={styles.section} aria-labelledby="gecmis-baslik">
           <h2 id="gecmis-baslik">{c.classHistory}</h2>
+          <ol className={styles.timeline} aria-label={c.timeline} data-testid="class-timeline">
+            {[...card.classHistory].reverse().map((entry) => {
+              const s = entry.overallClass ?? "unassessed";
+              return (
+                <li key={entry.visit.id} title={t.portal.classes[s]}>
+                  <span className={styles.timelineDot} style={{ background: MARKER_COLORS[s] }} />
+                  <span className={styles.small}>{formatDate(entry.visit.time)}</span>
+                  <span className={styles.small}>{t.portal.classes[s]}</span>
+                </li>
+              );
+            })}
+          </ol>
           <div className={styles.tableWrap}>
             <table className={styles.table} data-testid="class-history">
               <tbody>
@@ -322,7 +336,28 @@ function Photo({ photo, label }: { photo: PhotoItem | null; label: string }) {
       <figcaption>
         {label}
         {photo && <span className={styles.hash}> · {c.hash(photo.contentHash.slice(0, 8))}</span>}
+        {photo && <Evidence photo={photo} />}
       </figcaption>
     </figure>
+  );
+}
+
+function Evidence({ photo }: { photo: PhotoItem }) {
+  const e = c.evidence;
+  return (
+    <details className={styles.evidence} data-testid="photo-evidence">
+      <summary>{e.title}</summary>
+      <dl className={styles.facts}>
+        <dt>{e.takenAt}</dt>
+        <dd>{photo.takenAt ? formatDateTime(photo.takenAt) : e.unknown}</dd>
+        <dt>{e.position}</dt>
+        <dd>{formatPosition(photo.position) ?? e.unknown}</dd>
+        <dt>{e.takenBy}</dt>
+        <dd>{photo.takenBy ? e.staff(photo.takenBy) : e.unknown}</dd>
+        <dt>{e.hash}</dt>
+        <dd className={styles.hashFull}>{photo.contentHash}</dd>
+      </dl>
+      {photo.url && <HashCheck url={photo.url} hash={photo.contentHash} />}
+    </details>
   );
 }

@@ -60,6 +60,7 @@ import {
   type PestDimension,
   type StructureDimension,
 } from "./dimensions";
+import { gpsNsToIso, staffCode } from "./evidence";
 import { traceSegments, type MapVisit } from "./map-layers";
 import { sessionTime, sortVisitsNewestFirst, type VisitRow } from "./sessions";
 import { pairPanoramaVariants, type TourPanorama } from "./tour";
@@ -73,7 +74,7 @@ import { pairPanoramaVariants, type TourPanorama } from "./tour";
 type Enums = Database["public"]["Enums"];
 
 const VISIT_COLUMNS =
-  "id, kind, status, planned_date, started_at, created_at, methodology_version, published_at";
+  "id, kind, status, planned_date, started_at, created_at, methodology_version, published_at, lead_user_id";
 const ASSESSMENT_COLUMNS =
   "id, tree_id, session_id, source, overall_class, auto_approved, approved_at, assessed_at, created_at";
 const MEASUREMENT_COLUMNS =
@@ -708,6 +709,10 @@ export interface PhotoItem {
   contentHash: string;
   // Crop direction (N, S, ...) or null for a close-up photo.
   direction: string | null;
+  // Evidence: when (UTC), where the camera stood, who took it (staff code).
+  takenAt: string | null;
+  position: Position | null;
+  takenBy: string | null;
 }
 
 export interface TreeCard {
@@ -791,7 +796,7 @@ export async function getTreeCard(
       : fetchAll((from, to) =>
           supabase
             .from("asset")
-            .select("id, session_id, kind, uri, content_hash, pose")
+            .select("id, session_id, kind, uri, content_hash, pose, position::json")
             .eq("tree_id", treeId)
             .in("session_id", visitIds)
             .in("kind", ["tree_crop", "photo"])
@@ -803,7 +808,7 @@ export async function getTreeCard(
       : fetchAll((from, to) =>
           supabase
             .from("capture")
-            .select("id, session_id, uri, content_hash")
+            .select("id, session_id, uri, content_hash, started_at, position::json, captured_by")
             .eq("tree_id", treeId)
             .in("session_id", visitIds)
             .eq("kind", "photo")
@@ -865,20 +870,34 @@ export async function getTreeCard(
   }
 
   const signer = createMediaSigner(supabase, { scope });
-  const urls = await signer.signUrls([...assets.map((a) => a.uri), ...captures.map((c) => c.uri)]);
+  const [urls, frameTimes] = await Promise.all([
+    signer.signUrls([...assets.map((a) => a.uri), ...captures.map((c) => c.uri)]),
+    panoramaTimes(
+      supabase,
+      assets.map((a) => (a.pose as { panorama_asset_id?: unknown } | null)?.panorama_asset_id),
+    ),
+  ]);
+  const leadOf = new Map(visitRows.map((v) => [v.id, v.lead_user_id]));
+  const pointOf = (p: unknown) => (isPoint(p) ? cleanPoint(p).coordinates : null);
   const photos: Record<string, PhotoItem[]> = {};
   const directions: string[] = [];
   for (const a of assets) {
-    const direction =
-      a.kind === "tree_crop"
-        ? String((a.pose as { direction?: unknown } | null)?.direction ?? "?")
-        : null;
+    const pose = (a.pose ?? {}) as { direction?: unknown; panorama_asset_id?: unknown };
+    const direction = a.kind === "tree_crop" ? String(pose.direction ?? "?") : null;
     if (direction) directions.push(direction);
     (photos[a.session_id] ??= []).push({
       id: a.id,
       url: urls.get(a.uri) ?? null,
       contentHash: a.content_hash,
       direction,
+      // A crop is as old as the panorama frame it was cut from; the crew is
+      // the visit's lead.
+      takenAt:
+        typeof pose.panorama_asset_id === "string"
+          ? (frameTimes.get(pose.panorama_asset_id) ?? null)
+          : null,
+      position: pointOf(a.position),
+      takenBy: staffCode(leadOf.get(a.session_id)),
     });
   }
   for (const c of captures) {
@@ -887,6 +906,9 @@ export async function getTreeCard(
       url: urls.get(c.uri) ?? null,
       contentHash: c.content_hash,
       direction: null,
+      takenAt: c.started_at,
+      position: pointOf(c.position),
+      takenBy: staffCode(c.captured_by),
     });
   }
 
@@ -930,6 +952,22 @@ export async function getTreeCard(
     directions: sortDirections(directions),
     findings,
   };
+}
+
+// Capture time (UTC) of panorama frames, from pose.gps_time_ns.
+async function panoramaTimes(supabase: Client, ids: unknown[]): Promise<Map<string, string>> {
+  const wanted = [
+    ...new Set(ids.filter((id): id is string => typeof id === "string" && UUID_RE.test(id))),
+  ];
+  const out = new Map<string, string>();
+  if (wanted.length === 0) return out;
+  const { data, error } = await supabase.from("asset").select("id, pose").in("id", wanted);
+  if (error) throw error;
+  for (const row of data) {
+    const iso = gpsNsToIso((row.pose as { gps_time_ns?: string } | null)?.gps_time_ns);
+    if (iso) out.set(row.id, iso);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
