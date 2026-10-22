@@ -29,9 +29,11 @@ T="$(mktemp -d)"
 MINIO_NAME="orchados-e2e-minio-$$"
 cleanup() {
   docker rm -f "$MINIO_NAME" >/dev/null 2>&1 || true
-  # Files in $T were written by the image's non-root user.
-  docker run --rm -v "$T:/t" --entrypoint sh "$IMAGE" -c 'rm -rf /t/*' >/dev/null 2>&1 || true
-  rm -rf "$T"
+  # Files in $T were written by the image's user, which may not be ours: remove
+  # them as root inside a container (dotfiles too). Cleanup never fails the test.
+  docker run --rm --user 0 -v "$T:/t" --entrypoint sh "$IMAGE" \
+    -c 'rm -rf /t/* /t/.[!.]* /t/..?*' >/dev/null 2>&1 || true
+  rm -rf "$T" 2>/dev/null || true
 }
 trap cleanup EXIT
 
