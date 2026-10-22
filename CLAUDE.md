@@ -70,6 +70,16 @@ Aşamalar, girdi/çıktı biçimleri ve QR saat kodu biçimi: `services/pipeline
 ### AI worker (`services/ai-worker/`)
 Kurulum ve komutlar: `services/ai-worker/README.md` (`uv sync`, `uv run pytest`, `ai-worker run --session-id <uuid>`, `ai-worker eval`). `ANTHROPIC_API_KEY` ortam değişkeninden; testlerde gerçek API çağrısı yok.
 
+### Yükleme aracı (`services/ingest/`) ve bulutta işleme
+| Komut | Ne yapar |
+| --- | --- |
+| `uv sync` / `uv run pytest` | Bağımlılıklar / testler (MinIO ve Azurite'i docker ile kendisi açar) |
+| `uv run orchados-ingest push <klasör ya da kart> --session-id <uuid>` | Oturumu ham veri deposuna yükler (SHA-256 manifesti, kaldığı yerden devam, `--bwlimit`) |
+| `uv run orchados-ingest pull <session-id> <hedef>` | İndirir ve sağlama toplamlarını doğrular |
+| `uv run orchados-ingest verify\|list\|prune --older-than 30d` | Doğrulama, liste, 30 günlük saklama |
+
+Depo seçimi `ORCHADOS_STORE_*` ya da `~/.config/orchados/ingest.toml` (s3: AWS/R2/GCS/MinIO, azure, local); kimlik bilgileri sağlayıcının standart yolundan. İşlem container'ı ve makine betikleri: `deploy/processing/`; adım adım işletim: `docs/bulut-isleme.md`.
+
 ### Web uygulaması (`apps/web/`)
 Kökte `pnpm install`. Entegrasyon testleri için yerel Supabase çalışıyor ve sıfırlanmış olmalı (`pnpm db:start && pnpm db:reset`).
 
