@@ -10,7 +10,7 @@
 | [acik-riza-metni.md](acik-riza-metni.md) | Açık rıza gerektiren işlemler için ayrı onay | Sahip ve hissedar, isteğe bağlı |
 | [hizmet-sozlesmesi-taslagi.md](hizmet-sozlesmesi-taslagi.md) | Denetim hizmeti sözleşmesi | Sahip ve şirket |
 
-Köşeli parantez içindeki yerler (`[Şirket unvanı]` gibi) doldurulacak.
+Köşeli parantez içindeki yerler doldurulacak. Veri sorumlusu: OBA Bilişim Teknolojileri LTD. (tam unvan ticaret sicilinden kontrol edilmeli).
 
 ## Avukata sorulacaklar
 

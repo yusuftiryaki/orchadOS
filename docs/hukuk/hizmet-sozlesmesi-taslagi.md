@@ -4,7 +4,7 @@
 
 ## Madde 1 – Taraflar
 
-**Hizmet veren:** [Şirket unvanı], [adres], [vergi dairesi/no], [KEP] ("Şirket")
+**Hizmet veren:** OBA Bilişim Teknolojileri LTD. [tam unvan: ticaret sicilindeki gibi], [adres], [vergi dairesi/no], [KEP] ("Şirket")
 
 **Hizmet alan:** [Ad soyad], [T.C. kimlik no], [adres], [telefon] ("Sahip")
 

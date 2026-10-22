@@ -4,11 +4,11 @@
 
 **Sürüm:** kvkk-v1-taslak · [Tarih]
 
-[Şirket unvanı] ("Şirket") olarak, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("Kanun") kapsamında veri sorumlusu sıfatıyla kişisel verilerinizi aşağıda açıklanan şekilde işliyoruz.
+OBA Bilişim Teknolojileri LTD. [tam unvan: ticaret sicilindeki gibi] ("Şirket") olarak, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("Kanun") kapsamında veri sorumlusu sıfatıyla kişisel verilerinizi aşağıda açıklanan şekilde işliyoruz.
 
 ## 1. Veri sorumlusu
 
-- **Unvan:** [Şirket unvanı]
+- **Unvan:** OBA Bilişim Teknolojileri LTD. [tam unvan: ticaret sicilindeki gibi]
 - **Adres:** [Adres]
 - **E-posta:** [kvkk@alanadi]
 - **KEP:** [KEP adresi]
