@@ -83,8 +83,8 @@ jobs:
             exit 1
           fi
 
-      # The Supabase tests (upload, scan-to-owner chain) purge their sessions at the
-      # end; the pgTAP tests count seed rows, so they pass only if nothing is left.
+      # Order independence: the integration tests purge their sessions
+      # (testing.purge_sessions); each pgTAP file also resets to the seed first.
       - name: pgTAP tests after the integration tests
         working-directory: .
         run: pnpm db:test

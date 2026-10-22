@@ -55,7 +55,7 @@ async function outbox(phone: string) {
 
 beforeAll(async () => {
   admin = serviceClient();
-  purgeParcels(SEED.org, [PARCEL]);
+  await purgeParcels([PARCEL]);
   check(
     await admin
       .from("parcel")
@@ -80,9 +80,7 @@ beforeAll(async () => {
   );
 });
 
-afterAll(() => {
-  purgeParcels(SEED.org, [PARCEL]);
-});
+afterAll(() => purgeParcels([PARCEL]));
 
 describe("notifications", () => {
   it("a critical finding is notified when the expert approves it, before the report", async () => {

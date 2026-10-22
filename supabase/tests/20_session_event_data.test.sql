@@ -5,6 +5,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(8);
 
+-- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
+-- removed first; rolled back with the file (supabase/testing/reset.sql).
+select testing.reset_to_seed();
+
 insert into public.session (id, org_id, parcel_id, kind, status, planned_date, lead_user_id)
 values ('e2000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001',
         'c0000000-0000-4000-8000-000000000001', 'inventory', 'planned', '2026-12-10',

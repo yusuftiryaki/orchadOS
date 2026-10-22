@@ -7,7 +7,7 @@ import {
   BULK_TEST as T,
   BULK_USERS,
   grantBulkRoles,
-  removeBulkRoles,
+  purgeBulkTest,
 } from "../e2e/expert-bulk-fixtures";
 import { serviceClient, signIn } from "./fixtures";
 
@@ -116,7 +116,7 @@ describe("questions", () => {
   });
 
   afterAll(async () => {
-    await removeBulkRoles(admin);
+    await purgeBulkTest();
     await cleanupOther();
     check(await admin.from("finding").delete().in("id", [publishedFinding, reviewFinding]));
     check(await admin.from("session").delete().in("id", [published, review]));

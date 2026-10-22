@@ -57,7 +57,7 @@ const userIds = {} as Record<Role, string>;
 
 beforeAll(async () => {
   admin = serviceClient();
-  purgeParcels(SEED.org, [IDS.parcel]);
+  await purgeParcels([IDS.parcel]);
   for (const key of ["field", "expert", "ops", "owner", "viewer"] as const) {
     const signedIn = await signIn(key);
     as[key] = signedIn.client;
@@ -147,9 +147,7 @@ beforeAll(async () => {
   );
 });
 
-afterAll(() => {
-  purgeParcels(SEED.org, [IDS.parcel]);
-});
+afterAll(() => purgeParcels([IDS.parcel]));
 
 describe("office workspace", () => {
   it("loads the saved inventory and lists verification candidates", async () => {

@@ -92,7 +92,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (parcels.length > 0) purgeParcels(SEED.org, parcels);
+  if (parcels.length > 0) await purgeParcels(parcels);
   for (const id of users) await admin.auth.admin.deleteUser(id);
 });
 

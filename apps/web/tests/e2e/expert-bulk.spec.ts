@@ -6,7 +6,7 @@ import {
   BULK_TEST as T,
   createBulkRun,
   grantBulkRoles,
-  removeBulkRoles,
+  purgeBulkTest,
   type BulkRun,
 } from "./expert-bulk-fixtures";
 
@@ -29,7 +29,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await removeBulkRoles(admin);
+  await purgeBulkTest();
 });
 
 async function loginAs(browser: Browser, email: string, next: string): Promise<Page> {

@@ -10,7 +10,7 @@ import {
   METRIC,
   createBulkRun,
   grantBulkRoles,
-  removeBulkRoles,
+  purgeBulkTest,
   type BulkRun,
 } from "../e2e/expert-bulk-fixtures";
 import { serviceClient, signIn } from "./fixtures";
@@ -44,7 +44,7 @@ describe("bulk approval", () => {
   });
 
   afterAll(async () => {
-    await removeBulkRoles(admin);
+    await purgeBulkTest();
   });
 
   async function expertRows() {

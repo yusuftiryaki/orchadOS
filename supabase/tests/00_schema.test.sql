@@ -3,6 +3,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(30);
 
+-- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
+-- removed first; rolled back with the file (supabase/testing/reset.sql).
+select testing.reset_to_seed();
+
 select has_extension('postgis', 'postgis is installed');
 select has_schema('private', 'private schema exists');
 select has_schema('authz', 'authz schema exists');
