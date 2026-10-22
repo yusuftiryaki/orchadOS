@@ -206,3 +206,44 @@ def test_processed_run_sees_every_drawn_tree(processed_run):
     assert all(r.value != "no" for r in rep.trees)
     assert sum(r.value == "yes" for r in rep.trees) >= len(rep.trees) - 1
     assert rep.slots == []  # the default trees file has no empty slots
+
+
+def _run_synthetic(tmp_path, **cfg_kw):
+    from conftest import fast_params
+
+    from orchados_pipeline.context import RunContext
+    from orchados_pipeline.models import PresenceReport, read_model
+    from orchados_pipeline.pipeline import run_all
+    from orchados_pipeline.synthetic import SyntheticConfig, make_session
+
+    make_session(tmp_path / "s", SyntheticConfig(**cfg_kw))
+    ctx = RunContext.create(tmp_path / "s", tmp_path / "out", fast_params())
+    run_all(ctx)
+    return {
+        r.slot_code: r for r in read_model(PresenceReport, ctx.presence_path).trees
+    }, read_model(PresenceReport, ctx.presence_path)
+
+
+def test_synthetic_cut_trees_and_a_planted_slot(tmp_path):
+    # S1-1 and S3-2 stand in the open (outer rows): seen empty from two sides.
+    # S2-3 is cut too, but the trees around it make every side ambiguous.
+    trees, rep = _run_synthetic(tmp_path, missing=("S1-1", "S2-3", "S3-2"), planted=("S2-2",))
+    assert trees["S1-1"].value == "no" and trees["S3-2"].value == "no"
+    assert trees["S2-3"].value == "unsure"
+    assert all(
+        r.value == "yes" for code, r in trees.items() if code not in ("S1-1", "S2-3", "S3-2")
+    )
+    assert "S2-2" not in trees  # an empty slot now
+    (slot,) = rep.slots
+    assert (slot.slot_code, slot.subject, slot.value) == ("S2-2", "slot", "yes")
+
+
+def test_synthetic_winter_scan_is_unsure(tmp_path):
+    from datetime import UTC, datetime
+
+    trees, rep = _run_synthetic(
+        tmp_path, missing=("S1-1",), start_utc=datetime(2027, 1, 15, 9, 0, tzinfo=UTC)
+    )
+    assert not rep.leafy and rep.month == 1
+    assert {r.value for r in trees.values()} == {"unsure"}
+    assert {r.reason for r in trees.values()} == {"leafless_season"}

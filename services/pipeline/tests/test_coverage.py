@@ -213,3 +213,24 @@ def test_processed_run_writes_coverage(processed_run):
     covered = {t.slot_code for t in rep.trees if t.covered}
     assert covered == {f"S2-{j}" for j in range(1, 5)}
     assert rep.summary.rescan_needed and not rep.summary.passed
+
+
+def test_synthetic_scan_skipping_an_aisle(tmp_path):
+    from conftest import fast_params
+
+    from orchados_pipeline.context import RunContext
+    from orchados_pipeline.pipeline import run_all
+    from orchados_pipeline.synthetic import SyntheticConfig, make_session
+
+    # The east aisle (e = 6) is skipped: the middle row is seen from one side only,
+    # the east row from 9 m away.
+    truth = make_session(tmp_path / "s", SyntheticConfig(skip_aisles=(2,)))
+    assert truth.path_length_m == pytest.approx(30.0)
+    ctx = RunContext.create(tmp_path / "s", tmp_path / "out", fast_params())
+    run_all(ctx)
+    rep = read_model(CoverageReport, ctx.coverage_path)
+    assert rep.summary.covered_trees == 0 and rep.summary.rescan_needed
+    east = [t for t in rep.trees if t.slot_code.startswith("S3-")]
+    assert all(t.nearest_panorama_m > 8.5 and not t.sufficient_directions for t in east)
+    blind = {code for c in rep.cells if c.blind_spot for code in c.uncovered_slot_codes}
+    assert {t.slot_code for t in east} <= blind
