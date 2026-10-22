@@ -86,6 +86,11 @@ test("bulk approval, publication, score and a question with its answer", async (
       await expert.getByRole("button", { name: "AI'ı kabul et" }).click();
     }
     await expect(expert.getByRole("status").first()).toContainText("Karar kaydedildi.");
+    // Wait for the next tree before reading the page again: the status line of
+    // the previous decision is still there while the page reloads.
+    await expect(expert.getByTestId("review-progress")).toHaveText(
+      `24 ağaçtan ${25 - i} tanesi incelendi`,
+    );
   }
   await expect(expert.getByTestId("review-progress")).toHaveText("24 ağaçtan 24 tanesi incelendi");
 
