@@ -10,7 +10,10 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 | --- | --- | --- | --- |
 | Yerel | `pnpm web:dev` | `pnpm db:start` (Docker) | Elle |
 | PR önizlemesi | Vercel önizleme adresi | Supabase test projesi | Her push'ta (web); migration'lar ancak `main`'e birleşince |
-| Test | Vercel üretim adresi (`main`) | Supabase test projesi (Stockholm) | `main`'e her birleşmede |
+| Test | Vercel `orchados` projesi, üretim adresi (`main`) | Supabase test projesi (Stockholm) | `main`'e her birleşmede |
+| **Pilot** | Vercel `orchados-pilot` projesi (`release` dalı) | Supabase pilot projesi (Frankfurt) | `main` → `release` PR'ı birleşince |
+
+**Sürüm akışı:** Değişiklikler önce `main`'e birleşir ve test ortamında denenir. Pilota çıkmak için `main`'den `release`'e bir PR açılır. Birleşince `deploy-db-pilot` migration ve fonksiyonları pilot projesine uygular; Vercel `orchados-pilot` projesi `release`'i yayımlar. Pilot projesi başka dallar için önizleme derlemez, pilot veritabanına önizleme bağlanmaz.
 
 **Dikkat:** PR önizlemeleri de test veritabanını kullanır. Bir PR yeni bir migration içeriyorsa, önizlemedeki web uygulaması migration `main`'e birleşene kadar eski şemayla çalışır.
 
@@ -23,6 +26,7 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 | `ci-firmware` | `firmware/` değişince | Native testler, ESP32 derlemesi; `firmware.bin` 14 gün saklanır |
 | `ci-field` | `apps/field/` değişince | analyze, test, üretilmiş kodun güncelliği. `main`'de ayrıca debug APK derlenir ve 7 gün saklanır |
 | `deploy-db` | `main`'de migration değişince ya da elle | `supabase db push` ile test projesine migration uygular. Seed uygulanmaz |
+| `deploy-db-pilot` | `release`'te migration ya da fonksiyon değişince, ya da elle | Aynısını pilot projesine yapar. Seed hiçbir zaman uygulanmaz |
 | `keepalive` | Haftada iki kez | Ücretsiz Supabase projesinin duraklatılmaması için küçük bir istek |
 
 **Dakika bütçesi:** Private repoda ayda 2.000 dakika ücretsiz. İş akışları sadece ilgili klasör değişince koşar. Firmware araç zinciri ve Flutter önbelleğe alınır.
@@ -39,12 +43,14 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 | `SUPABASE_URL` | Proje ayarları → API → Project URL | `keepalive` |
 | `SUPABASE_ANON_KEY` | Proje ayarları → API → anon / publishable key | `keepalive` |
 
+**Pilot projesi** aynı adların `PILOT_` önekli karşılıklarını kullanır: `PILOT_SUPABASE_PROJECT_REF`, `PILOT_SUPABASE_DB_PASSWORD`, `PILOT_SUPABASE_URL`, `PILOT_SUPABASE_ANON_KEY`. `SUPABASE_ACCESS_TOKEN` ikisinde ortak (`deploy-db-pilot`, `keepalive`).
+
 ## Vercel
 
 - Repo Vercel'e GitHub entegrasyonuyla bağlıdır; ayrı bir iş akışı yoktur.
 - Kök dizin `apps/web`. Kurulum pnpm workspace'i üzerinden yapılır.
 - Ortam değişkenleri: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase'in "publishable" anahtarı ya da eski "anon" anahtarı). Servis anahtarı Vercel'e **konmaz**.
-- Sunucu fonksiyonları veritabanıyla aynı bölgede: test projesi Stockholm'de (`eu-north-1`), Vercel bölgesi `arn1` (`apps/web/vercel.json`). Üretim projesi Frankfurt'ta açılırsa bölge `fra1` olur.
+- Sunucu fonksiyonları veritabanıyla aynı bölgede; bölge Vercel proje ayarında: test `arn1` (Stockholm), pilot `fra1` (Frankfurt).
 - Supabase Auth ayarlarında Site URL olarak Vercel üretim adresi, yönlendirme adreslerinde Vercel önizleme adresleri tanımlıdır.
 
 ## Edge Function'lar, bildirimler ve telefonla giriş
