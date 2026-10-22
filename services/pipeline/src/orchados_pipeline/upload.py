@@ -1,7 +1,10 @@
 """Upload a finished run: files to the media bucket, rows to capture / asset / asset_source.
 
-- Raw captures (video, UBX, events, session files, base data) stay on the
-  processing station; their capture rows point there with a station:// uri.
+- Raw captures (video, UBX, events, session files, base data) are not uploaded.
+  A session pulled from the raw store (orchados-ingest pull) points its capture
+  rows at the store objects (s3://, az://, file://, from the location in
+  .orchados/manifest.json); a session processed from a local folder points them
+  at the processing station with a station:// uri.
 - Derived files of the selected kinds go to the media bucket under
   org/<org_id>/parcel/<parcel_id>/<sha256>; asset.uri = storage://media/<key>.
 - derived_from in outputs.json becomes asset_source rows. Parents that are not
@@ -15,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 import socket
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
@@ -178,6 +182,42 @@ def default_session_dir(run_dir: Path) -> Path | None:
 
 def station_uri(station: str, path: Path) -> str:
     return f"station://{station}{path.resolve().as_posix()}"
+
+
+# Manifest copy that orchados-ingest pull leaves in the session folder.
+RAW_MANIFEST = ".orchados/manifest.json"
+RAW_MANIFEST_FORMAT = "orchados.raw-manifest/1"
+
+
+@dataclass(frozen=True)
+class RawLocation:
+    """Where a pulled session lives in the raw store."""
+
+    uri: str  # session prefix, ends with '/': s3://<bucket>/<key>/, az://..., file://...
+    files: dict[str, str]  # path in the session folder -> SHA-256
+
+    def capture_uri(self, path: str, sha256: str) -> str | None:
+        """Store uri of a raw file, if the store holds this content under this path."""
+        return self.uri + path if self.files.get(path) == sha256 else None
+
+
+def raw_location(session_dir: Path, session_id: str) -> RawLocation | None:
+    """Store location from the pulled manifest; None for a folder that was not pulled."""
+    path = session_dir / RAW_MANIFEST
+    if not path.is_file():
+        return None
+    try:
+        d = json.loads(path.read_bytes())
+    except ValueError as exc:
+        raise UploadError(f"{path}: not JSON ({exc})") from exc
+    if d.get("format") != RAW_MANIFEST_FORMAT:
+        raise UploadError(f"{path}: not a raw manifest (format {d.get('format')!r})")
+    if d.get("session_id") != session_id:
+        raise UploadError(f"{path} is for session {d.get('session_id')}, not {session_id}")
+    uri = (d.get("location") or {}).get("uri")
+    if not isinstance(uri, str) or "://" not in uri or not uri.endswith("/"):
+        return None
+    return RawLocation(uri, {f["path"]: f["sha256"] for f in d.get("files", [])})
 
 
 def _point(pose: Pose) -> str:
@@ -354,13 +394,25 @@ def upload_run(
 
     base = {"org_id": session.org_id, "parcel_id": session.parcel_id, "session_id": session.id}
 
-    # --- captures (rows only; the files stay on the station) --------------------------
+    # --- captures (rows only; the files stay in the raw store or on the station) -------
+    location = raw_location(session_dir, session.id)
+    if location is None and (session_dir / RAW_MANIFEST).is_file():
+        report.warnings.append(
+            f"{RAW_MANIFEST} has no store location (pulled by an older orchados-ingest); "
+            "capture uris point to the station"
+        )
+    not_in_store: list[str] = []
     capture_ids = catalog.captures(session.id)
     start = run.session_start(session)
     for c in out.captures:
         if c.capture_id in capture_ids:
             report.captures_existing += 1
             continue
+        uri = location.capture_uri(c.path, c.capture_id) if location else None
+        if uri is None:
+            if location is not None:
+                not_in_store.append(c.path)
+            uri = station_uri(options.station, session_dir / c.path)
         kind, mime = CAPTURE_KIND.get(c.kind, ("other", "application/octet-stream"))
         started_at, ended_at = run.capture_times(c, start)
         capture_ids[c.capture_id] = catalog.insert_capture(
@@ -368,7 +420,7 @@ def upload_run(
                 **base,
                 "kind": kind,
                 "rig_id": session.rig_id,
-                "uri": station_uri(options.station, session_dir / c.path),
+                "uri": uri,
                 "content_hash": c.capture_id,
                 "byte_size": c.size,
                 "mime_type": mime,
@@ -378,6 +430,11 @@ def upload_run(
             }
         )
         report.captures_created += 1
+    if not_in_store:
+        report.warnings.append(
+            f"{len(not_in_store)} raw files are not in the store's manifest with this content, "
+            "their capture uris point to the station: " + ", ".join(sorted(not_in_store))
+        )
 
     # --- assets: object first, then row, then lineage ----------------------------------
     prefix = media_key(session.org_id, session.parcel_id, "").rstrip("/")

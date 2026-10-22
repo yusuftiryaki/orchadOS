@@ -7,7 +7,9 @@ Layout (under the configured prefix):
     raw/_index/<session_id>.json        -> where the session lives
 
 The manifest holds only ids, relative file names, sizes and SHA-256 hashes; no
-personal data. It is written after all files of a push are in the store, so a
+personal data. The copy `pull` leaves next to the session also carries
+`location`: where the session lives in the store (the pipeline writes capture
+uris from it). It is written after all files of a push are in the store, so a
 session without a manifest (or with fewer entries than objects) is incomplete.
 """
 
@@ -83,7 +85,8 @@ class SessionIndex:
     def prefix(self) -> str:
         return session_prefix(self.org_id, self.parcel_id, self.session_id)
 
-    def to_json(self) -> bytes:
+    def to_json(self, location: dict[str, str] | None = None) -> bytes:
+        """The manifest; `location` (store and session uri) only in pull's local copy."""
         body = {"format": INDEX_FORMAT, **self.__dict__, "prefix": self.prefix}
         return json.dumps(body, indent=2).encode()
 
@@ -125,7 +128,8 @@ class Manifest:
         self.updated_at = now_utc()
         return conflicts
 
-    def to_json(self) -> bytes:
+    def to_json(self, location: dict[str, str] | None = None) -> bytes:
+        """The manifest; `location` (store and session uri) only in pull's local copy."""
         body = {
             "format": MANIFEST_FORMAT,
             "session_id": self.session_id,
@@ -141,6 +145,8 @@ class Manifest:
                 for e in sorted(self.files.values(), key=lambda e: e.path)
             ],
         }
+        if location is not None:
+            body["location"] = location
         return json.dumps(body, indent=2).encode()
 
     @classmethod

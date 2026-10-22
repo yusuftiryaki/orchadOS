@@ -284,6 +284,6 @@ Hiçbir testte gerçek bulut hesabı kullanılmaz. Container imajları Docker Hu
 
 - **Studio bulutta:** Windows GPU makinesinde çalışması, lisans/oturum açma ve 2 saatlik ziyaretin dışa aktarma süresi denenmedi.
 - **İşlem süresi:** Gerçek bir ziyarette (`run` ~1.500 panorama) Linux makinesinde ölçülmedi; GPU'suz bir tür yeterli olabilir.
-- **`capture.uri`:** Hat ham kayıtları `station://cloud-<makine>/<yol>` olarak yazıyor; buluttaki makine geçici. Ham dosyaların gerçek yeri depodaki anahtar (`raw/...`); `upload`'un bunu `s3://`/`az://` olarak yazması işleme hattında ayrı bir iş.
+- ~~**`capture.uri`**~~ *(kapandı)*: Depodan çekilen oturumda `upload`, ham kayıtların adresini `pull`'ün bıraktığı manifestten deponun adresi olarak yazar (`s3://`, `az://`, `file://`); `station://cloud-<makine>/...` yalnızca manifestte olmayan dosyalarda kalır. Biçim: [arayuzler.md → Ham kayıtların adresi](arayuzler.md#ham-kayıtların-adresi-captureuri).
 - **Gizli bilgiler:** `process.env` pilotta ofisten kopyalanıyor; sağlayıcı seçilince gizli bilgi servisine taşınmalı.
 - **Fiyatlar ve kotalar:** Hepsi doğrulanmadı.

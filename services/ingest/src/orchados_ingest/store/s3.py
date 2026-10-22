@@ -99,6 +99,9 @@ class S3Store(RawStore):
     def describe(self) -> str:
         return self.label
 
+    def uri(self, key: str) -> str:
+        return f"s3://{self.bucket}/{self._k(key)}"
+
     def _k(self, key: str) -> str:
         return self.prefix + check_key(key)
 

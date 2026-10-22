@@ -11,6 +11,33 @@ from orchados_pipeline.synthetic import SyntheticTruth, make_session
 DATA = Path(__file__).parent / "data"
 
 
+def write_raw_manifest(
+    session_dir: Path, session_id: str, uri: str | None, skip: tuple[str, ...] = ()
+) -> None:
+    """The manifest copy orchados-ingest pull leaves (location.uri = session prefix)."""
+    import hashlib
+    import json
+
+    files = [
+        {
+            "path": p.relative_to(session_dir).as_posix(),
+            "size": p.stat().st_size,
+            "sha256": hashlib.sha256(p.read_bytes()).hexdigest(),
+        }
+        for p in sorted(session_dir.rglob("*"))
+        if p.is_file() and not p.relative_to(session_dir).as_posix().startswith(".")
+    ]
+    body = {
+        "format": "orchados.raw-manifest/1",
+        "session_id": session_id,
+        "files": [f for f in files if f["path"] not in skip],
+    }
+    if uri is not None:
+        body["location"] = {"store": "s3:test", "uri": uri}
+    (session_dir / ".orchados").mkdir(exist_ok=True)
+    (session_dir / ".orchados" / "manifest.json").write_text(json.dumps(body))
+
+
 def fast_params() -> PipelineParams:
     """Defaults, except a shorter QR search window (the synthetic video is ~40 s)."""
     p = PipelineParams()

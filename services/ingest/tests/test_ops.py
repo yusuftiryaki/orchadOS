@@ -71,7 +71,16 @@ def test_push_interrupt_resume_pull_verify(store, tmp_path, monkeypatch):
     assert len(pulled.downloaded) == 5
     for e in man.files.values():
         assert hashlib.sha256((dest / e.path).read_bytes()).hexdigest() == e.sha256
-    assert (dest / ".orchados" / "manifest.json").is_file()
+    local = json.loads((dest / ".orchados" / "manifest.json").read_bytes())
+    assert Manifest.from_json(json.dumps(local).encode()).files == man.files
+    # The local copy says where the session lives (capture uris in the pipeline).
+    assert local["location"]["store"] == store.describe()
+    session_uri = local["location"]["uri"]
+    assert session_uri == store.uri(prefix.rstrip("/")) + "/"
+    scheme = {"local": "file:///", "s3": "s3://", "azure": "az://"}[store.name]
+    assert session_uri.startswith(scheme) and session_uri.endswith(f"/raw/{ORG}/{PARCEL}/{SID}/")
+    if store.name == "local":
+        assert session_uri == (store.root / prefix).resolve().as_uri() + "/"
     assert ops.verify(store, SID).ok
     assert ops.verify(store, SID, deep=True).ok
     assert ops.verify(store, SID, local=dest).ok

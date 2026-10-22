@@ -188,6 +188,22 @@ Kaynak: [firmware/gnss-logger/README.md → BLE protokolü](../firmware/gnss-log
 
 Saha fotoğrafları ve işleme hattının ürünleri (panorama, ağaç kesiti vb.) Supabase Storage'daki **özel** `media` alanında tutulur. Ham video ve MCAP gibi büyük ham kayıtlar işleme istasyonunda kalır (`uri` `station://...`).
 
+### Ham kayıtların adresi (`capture.uri`)
+
+Ham kayıtlar (360° video, UBX, `events.csv`, iki `session.json`, baz RINEX) Supabase'e yüklenmez; `orchados-pipeline upload` yalnızca `capture` satırını açar. `uri` dosyanın gerçek yerini gösterir:
+
+| Oturum nereden işlendi | `capture.uri` | Örnek |
+| --- | --- | --- |
+| Ham veri deposundan (`orchados-ingest pull`) | Depodaki nesnenin adresi: oturum ön eki + oturum klasöründeki göreli yol | `s3://<kova>/[<prefix>/]raw/<org>/<parcel>/<session>/video/VID_0001.mp4` (AWS, R2, GCS, MinIO) · `az://<kapsayıcı>/[<prefix>/]raw/...` (Azure Blob) · `file:///<kök>/raw/...` (yerel arka uç) |
+| Yerel bir klasörden | İşleme istasyonundaki mutlak yol | `station://<istasyon>/<mutlak yol>`, ör. `station://ist-01/data/oturumlar/s/video/VID_0001.mp4` |
+
+- **Kaynak:** `pull`, depodaki manifestin bir kopyasını `<oturum>/.orchados/manifest.json`'a yazar; bu kopyada ek olarak `location` alanı vardır: `{"store": "<depo tanımı>", "uri": "<oturum ön ekinin adresi, / ile biter>"}`. Depodaki asıl manifest değişmez (`orchados.raw-manifest/1`).
+- **Kural:** Satırın adresi, dosya manifestte **aynı yol ve aynı SHA-256** ile varsa `location.uri + yol`'dur. Manifestte olmayan ya da içeriği farklı bir dosya `station://` olarak yazılır ve yükleme raporunda uyarı verilir. Manifest yoksa (yerel klasör) hepsi `station://`'dur. `location`'ı olmayan manifest (eski `orchados-ingest`) uyarıyla `station://`'a düşer. Başka bir oturumun manifesti hatadır.
+- **Kodlama:** Yol, depo anahtarıyla aynıdır; yüzde kodlaması yapılmaz (`file://` için kök `Path.as_uri()` ile yazılır). Adres dosyaya erişim yetkisi vermez; okumak için deponun kimlik bilgileri gerekir (`services/ingest/README.md`).
+- **Değişmez:** `capture` satırları ekleme-yalnızdır. Aynı içerik (`content_hash`) için satır zaten varsa yeniden yüklemede adresi değişmez; ilk yazılan adres kalır.
+- **Saklama:** Ham veri depoda 30 gün tutulur (`prune`). Süre dolunca adres bir nesne göstermez; satır içeriğin kimliği (`content_hash`) ve kaydı olarak kalır.
+- **Web:** `storage://` dışındaki şemalar tarayıcıya sunulmaz (`apps/web/src/lib/media/uri.ts`).
+
 - **Nesne yolu:** `org/<org_id>/parcel/<parcel_id>/<sha256>`. `sha256` dosya içeriğinin küçük harfli onaltılık SHA-256'sıdır ve ilgili `capture.content_hash` ya da `asset.content_hash` ile aynıdır. Uzantı yoktur; tür satırdaki `mime_type`'tan okunur. Örnek: `org/b0000000-0000-4000-8000-000000000001/parcel/c0000000-0000-4000-8000-000000000001/2d71…4881`.
 - **Satırdaki adres:** Dosya `media` alanındaysa `capture.uri` / `asset.uri` = `storage://media/` + nesne yolu. **Karar:** Ayrı bir depolama anahtarı sütunu eklenmedi; yol, satırdaki `org_id`, `parcel_id` ve `content_hash`'ten türetilir.
 - **Değiştirilemez:** Aynı yola ikinci kez yazılmaz, nesne güncellenmez ya da silinmez (API kullanıcıları için güncelleme/silme kuralı yok). İçerik değişirse hash ve dolayısıyla yol da değişir.
