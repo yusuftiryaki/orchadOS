@@ -85,6 +85,8 @@ flowchart TD
 | Veri modeli, kişisel verinin ayrı tutulması, yetki kuralları | ✅ |
 | Sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma (`/operasyon`) | ✅ |
 | Telefonla (SMS kodu) giriş | ✅ (gerçek SMS için Netgsm hesabı gerekiyor) |
+| Sahibin portaldan hissedar davet etmesi, operasyonun tamamlaması | ✅ |
+| Parsel yaşam döngüsü: aktif izleme (ilk yayımlanan tarama) ve pasif (`/operasyon`) | ✅ |
 
 ## 2. Envanter
 
@@ -196,6 +198,7 @@ Parsel için `periodic_scan` türünde, `planned` durumda bir ziyaret açılır;
 | Yakın plan akışı, kamera, cihazda kalite kontrolü, gözlem soruları | ✅ |
 | Gönderim | ✅ |
 | Kapsama haritası, sabit grid rotası | ✅ |
+| Yakın plan listesinin sunucuda üretilmesi (10×10 m tabakalı örneklem, uzman istekleri, "Sorun gördüm") | 🟡 Sunucu ve operasyon ekranı hazır; saha uygulaması listeyi henüz kendisi hesaplıyor, "Sorun gördüm" düğmesi yok |
 
 ### 3.3 İşleme istasyonunda
 
@@ -207,7 +210,7 @@ Envanterle aynı adımlar. Bunlara ek olarak her ağaç için, ağaca en yakın 
 | --- | --- |
 | Kesitler, yükleme, `processed` durumu | ✅ Sentetik veriyle |
 | Ağaç konumlarının envanterden (veritabanından) alınması | ✅ |
-| Kapsama raporu ve yeniden tarama görevi | ⬜ |
+| Kapsama raporu ve yeniden tarama görevi | 🟡 Kapsama haritası portalda (kesitlerden); işleme hattının raporu ve otomatik yeniden tarama görevi yok. Uzman "Ek ziyaret iste" ile isteyebilir |
 
 ### 3.4 AI ön değerlendirme
 
@@ -241,7 +244,9 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 | Kuyruk, inceleme, kabul/düzelt, bulgu, özet, imza ve yayın, kısayollar | ✅ |
 | Zorunlu inceleme kuralları, toplu onay ve %5 kalite örneklemi | ✅ |
 | Sahibin sorularını cevaplama (`/uzman`, Sorular) | ✅ |
-| Kritik bulgu bildirimi | ✅ |
+| Kritik bulgu bildirimi ("Onayla ve sahibe hemen bildir") | ✅ |
+| Ek ziyaret, sonraki ziyarette yakın plan ve doğrulama istekleri; operasyonda planlama | ✅ |
+| Genel sınıf kuralının öneri olarak gösterilmesi | ✅ |
 
 ### 3.6 Sahip raporu okur
 
@@ -267,6 +272,9 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 | Bahçelerim, karne, harita, ağaç karnesi, gezi, yazdırma, telefon görünümü | ✅ |
 | Genel durum skoru (0–100) ve denetim güveni | ✅ (ağırlıklar metodolojide kesinleşecek) |
 | Soru bırakma | ✅ |
+| Karne boyutları (envanter değişimi, bahçe yapısı, mekânsal desen, bakım, zararlı, meyve yükü) | ✅ |
+| Harita: ziyaret seçici, "bu ziyarette değişenler", 10×10 m ısı haritası, kapsama izi | ✅ |
+| Gezide zamanda gezinme ve bakış yönü; ağaç karnesinde kanıt bilgisi ve hash doğrulaması | ✅ |
 | "Rapor hazır" ve kritik bulgu bildirimleri, operasyonda bildirim listesi | ✅ (gerçek SMS için Netgsm hesabı gerekiyor; o zamana kadar mesajlar kaydediliyor) |
 
 ## Rol rol özet
