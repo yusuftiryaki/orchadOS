@@ -66,14 +66,31 @@ def view_geometry(
     pitch = math.degrees(math.atan2(params.target_height_m - camera_height_m, max(dist, 1e-6)))
     half = math.degrees(math.atan2(params.crown_width_m / 2, max(dist, 1e-6)))
     fov = min(max(2 * half * 1.2, params.min_fov_deg), params.max_fov_deg)
+    back = (azimuth + 180.0) % 360.0  # tree -> camera
     return {
         "distance_m": dist,
         "azimuth_deg": azimuth,
         "yaw_deg": yaw,
         "pitch_deg": pitch,
         "fov_deg": fov,
-        "direction": direction_of((azimuth + 180.0) % 360.0),
+        "direction": direction_of(back),
+        "bearing_from_tree_deg": back,
     }
+
+
+def candidate_views(
+    trees: list[Tree], panoramas: list[PanoramaRecord], camera_height_m: float, params: CropParams
+):
+    """(tree, panorama, geometry, score) of every view in the crop distance range."""
+    if not panoramas:
+        return
+    frame = LocalFrame(panoramas[0].pose.lat, panoramas[0].pose.lon)
+    for tree in trees:
+        for pano in panoramas:
+            g = view_geometry(pano, tree, camera_height_m, params, frame)
+            if not params.min_distance_m <= g["distance_m"] <= params.max_distance_m:
+                continue
+            yield tree, pano, g, view_score(g["distance_m"], pano.quality_score, params)
 
 
 def view_score(distance_m: float, quality: float, params: CropParams) -> float:
@@ -111,19 +128,12 @@ def make_crops(ctx: RunContext, manifest: Manifest, pset: PanoramaSet, tlist: Tr
         return CropSet(
             crops=[], sidecars=[], trees_without_crops=[t.tree_id for t in trees], **common
         )
-    frame = LocalFrame(pset.panoramas[0].pose.lat, pset.panoramas[0].pose.lon)
-
     # Best panorama per (tree, direction).
     plan: dict[tuple[str, str], tuple[float, PanoramaRecord, dict]] = {}
-    for tree in trees:
-        for pano in pset.panoramas:
-            g = view_geometry(pano, tree, cam_h, p, frame)
-            if not p.min_distance_m <= g["distance_m"] <= p.max_distance_m:
-                continue
-            score = view_score(g["distance_m"], pano.quality_score, p)
-            key = (tree.tree_id, g["direction"])
-            if key not in plan or score > plan[key][0]:
-                plan[key] = (score, pano, g)
+    for tree, pano, g, score in candidate_views(trees, pset.panoramas, cam_h, p):
+        key = (tree.tree_id, g["direction"])
+        if key not in plan or score > plan[key][0]:
+            plan[key] = (score, pano, g)
 
     crops: list[CropRecord] = []
     sidecars = []

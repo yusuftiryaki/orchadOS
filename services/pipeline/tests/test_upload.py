@@ -42,6 +42,7 @@ class FakeCatalog:
         self.capture_rows: list[dict] = []
         self.asset_rows: list[dict] = []
         self.source_rows: list[dict] = []
+        self.coverage_rows: list[dict] = []
         self.fail_sources_after: int | None = None
 
     def session(self, session_id):
@@ -102,6 +103,23 @@ class FakeCatalog:
         if self.row.status in from_statuses:
             self.row = SessionRow(**{**self.row.__dict__, "status": "processed"})
         return self.row.status
+
+    def record_coverage(self, session_id, report):
+        """record_coverage_report(): the newest identical report is returned, not added."""
+        keys = ("pipeline_version", "params_hash", "active_trees", "covered_trees")
+        keys += ("blind_spots", "missing_slot_codes")
+        last = self.coverage_rows[-1] if self.coverage_rows else None
+        created = last is None or any(last[k] != report[k] for k in keys)
+        if created:
+            self.coverage_rows.append({**report, "session_id": session_id})
+        passed = report["covered_trees"] / report["active_trees"] >= report["threshold"]
+        rescan = not passed or report["blind_spots"] > 0
+        return {
+            "report_id": str(len(self.coverage_rows)),
+            "created": created,
+            "passed": passed,
+            "rescan_needed": rescan,
+        }
 
     def snapshot(self):
         """Rows without generated ids, comparable between catalogs."""
@@ -441,3 +459,32 @@ def test_cli_upload_needs_credentials(run, monkeypatch, capsys):
         monkeypatch.delenv(k, raising=False)
     assert main(["upload", str(run_dir), "--session-id", SESSION]) == 1
     assert "missing environment variables: SUPABASE_URL" in capsys.readouterr().err
+
+
+def test_coverage_summary_is_recorded_once(run, tmp_path):
+    run_dir, _, opts = run
+    cat = FakeCatalog()
+    store = LocalMediaStore(tmp_path / "bucket")
+    rep = upload_run(run_dir, SESSION, cat, store, opts)
+    (row,) = cat.coverage_rows
+    assert (row["active_trees"], row["covered_trees"], row["threshold"]) == (12, 4, 0.95)
+    assert row["missing_slot_codes"] == [f"S{r}-{c}" for r in (1, 3) for c in (1, 2, 3, 4)]
+    assert row["blind_spots"] == len(row["blind_spot_cells"]) > 0
+    assert row["rule"]["min_directions"] == 2 and row["params_hash"]
+    assert rep.coverage["created"] and rep.coverage["rescan_needed"]
+    assert any("coverage report: created, below the threshold" in line for line in rep.lines())
+    # Again: the same report is found, nothing is added.
+    rep = upload_run(run_dir, SESSION, cat, store, opts)
+    assert len(cat.coverage_rows) == 1 and not rep.coverage["created"]
+
+
+def test_no_coverage_without_tree_positions(run, tmp_path):
+    run_dir, _, opts = run
+    copy = tmp_path / "run"
+    shutil.copytree(run_dir, copy)
+    cov = json.loads((copy / "coverage.json").read_text())
+    cov.update(status="no_tree_positions", summary=None, trees=[], cells=[], frame=None)
+    (copy / "coverage.json").write_text(json.dumps(cov))
+    cat = FakeCatalog()
+    rep = upload_run(copy, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    assert cat.coverage_rows == [] and rep.coverage is None

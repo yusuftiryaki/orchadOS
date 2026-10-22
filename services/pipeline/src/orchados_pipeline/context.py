@@ -85,6 +85,10 @@ class RunContext:
         return self.path("crops.json")
 
     @property
+    def coverage_path(self) -> Path:
+        return self.path("coverage.json")
+
+    @property
     def outputs_path(self) -> Path:
         return self.path("outputs.json")
 

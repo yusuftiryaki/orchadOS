@@ -60,6 +60,7 @@ def _tables(slots, trees):
     return {
         "session": [{"id": SESSION, "parcel_id": PARCEL, "kind": "periodic_scan"}],
         "slot": slots,
+        "boundary": [],
         "tree": [
             {"id": tid, "slot_id": f"slot-{code}", "parcel_id": PARCEL, "status": status}
             for code, tid, status in trees

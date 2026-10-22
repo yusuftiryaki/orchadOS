@@ -79,6 +79,30 @@ class CropParams(_Section):
     max_fov_deg: float = 110.0
 
 
+class CoverageParams(_Section):
+    """Coverage quality gate (docs/metodoloji.md, section 10)."""
+
+    # A view is sufficient when its crop score (crops.view_score: closeness to the
+    # ideal distance x panorama quality) is at least this; 0.2 is about 0.2-7.8 m
+    # at quality 1.
+    min_view_score: float = 0.2
+    # A tree is covered when its sufficient views come from at least this many
+    # sides (N, E, S, W) ...
+    min_directions: int = 2
+    # ... and two of them look at it from directions this far apart (tree ->
+    # camera bearings), i.e. from opposite faces. Oblique views from one straight
+    # aisle span at most 2 acos(lateral offset / 7.8 m): 118 degrees for a 4 m
+    # offset (8 m rows), so they never count as two sides.
+    min_view_spread_deg: float = 150.0
+    # Share of the active trees that must be covered for the parcel to pass.
+    parcel_threshold: float = 0.95
+    # Blind spots: 10 x 10 m cells (docs/arayuzler.md, "Yakın plan listesi") with
+    # at least this many uncovered trees, making at least this share of the cell.
+    cell_m: float = 10.0
+    blind_spot_min_trees: int = 2
+    blind_spot_min_share: float = 0.5
+
+
 class BoundaryParams(_Section):
     # Corners not positioned from a fixed PPK solution (phone or logger position)
     # get at least this uncertainty and are flagged in the report.
@@ -97,6 +121,7 @@ class PipelineParams(_Section):
     frames: FrameParams = Field(default_factory=FrameParams)
     panoramas: PanoramaParams = Field(default_factory=PanoramaParams)
     crops: CropParams = Field(default_factory=CropParams)
+    coverage: CoverageParams = Field(default_factory=CoverageParams)
     boundary: BoundaryParams = Field(default_factory=BoundaryParams)
 
     def params_hash(self) -> str:

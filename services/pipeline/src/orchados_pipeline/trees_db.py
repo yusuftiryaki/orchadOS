@@ -39,6 +39,24 @@ def _lon_lat(position: Any, code: str) -> tuple[float, float] | None:
     raise TreesError(f"slot {code}: unexpected position value {position!r}")
 
 
+def _bbox(geom: Any) -> tuple[float, float, float, float] | None:
+    """West, south, east, north of a GeoJSON polygon."""
+    if not isinstance(geom, dict) or geom.get("type") != "Polygon":
+        return None
+    pts = [p for ring in geom["coordinates"] for p in ring]
+    lons, lats = [float(p[0]) for p in pts], [float(p[1]) for p in pts]
+    return min(lons), min(lats), max(lons), max(lats)
+
+
+def boundary_bbox(client, parcel_id: str) -> tuple[float, float, float, float] | None:
+    """Bounding box of the parcel's newest boundary version (the origin of the
+    10 x 10 m cells, as closeup_list() in the database); None without one."""
+    rows = client.select("boundary", {"parcel_id": f"eq.{parcel_id}", "select": "id,version,geom"})
+    if not rows:
+        return None
+    return _bbox(max(rows, key=lambda r: r["version"])["geom"])
+
+
 def parcel_tree_list(
     client, parcel_id: str, session_id: str | None = None, session_kind: str | None = None
 ) -> TreeList:
@@ -83,6 +101,7 @@ def parcel_tree_list(
         session_kind=session_kind,
         trees=trees,
         unlocated_slots=unlocated,
+        boundary_bbox=boundary_bbox(client, parcel_id),
     )
 
 

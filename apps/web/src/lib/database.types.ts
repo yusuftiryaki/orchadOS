@@ -616,6 +616,91 @@ export type Database = {
           },
         ];
       };
+      coverage_report: {
+        Row: {
+          active_trees: number;
+          blind_spot_cells: NonNullable<Json>;
+          blind_spots: number;
+          covered_trees: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          missing_slot_codes: string[];
+          missing_trees: number | null;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          passed: boolean | null;
+          pipeline: string;
+          pipeline_version: string;
+          ratio: number | null;
+          rescan_needed: boolean | null;
+          rule: NonNullable<Json>;
+          session_id: string;
+          threshold: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          active_trees: number;
+          blind_spot_cells?: NonNullable<Json>;
+          blind_spots: number;
+          covered_trees: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          missing_slot_codes?: string[];
+          missing_trees?: never;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          passed?: never;
+          pipeline: string;
+          pipeline_version: string;
+          ratio?: never;
+          rescan_needed?: never;
+          rule?: NonNullable<Json>;
+          session_id: string;
+          threshold: number;
+        };
+        Update: {
+          active_trees?: number;
+          blind_spot_cells?: NonNullable<Json>;
+          blind_spots?: number;
+          covered_trees?: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          missing_slot_codes?: string[];
+          missing_trees?: never;
+          org_id?: string;
+          params_hash?: string;
+          parcel_id?: string;
+          passed?: never;
+          pipeline?: string;
+          pipeline_version?: string;
+          ratio?: never;
+          rescan_needed?: never;
+          rule?: NonNullable<Json>;
+          session_id?: string;
+          threshold?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "coverage_report_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "coverage_report_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
       device: {
         Row: {
           created_at: string;
@@ -2761,6 +2846,7 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      record_coverage_report: { Args: { p_report: Json; p_session_id: string }; Returns: Json };
       record_verification_result: {
         Args: {
           p_closeup_capture_id?: string;

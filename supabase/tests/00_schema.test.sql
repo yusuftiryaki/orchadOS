@@ -19,7 +19,7 @@ select tables_are(
     'asset', 'asset_source', 'metric_definition', 'measurement', 'measurement_evidence',
     'assessment', 'assessment_measurement', 'finding', 'finding_evidence', 'operation', 'trunk_label',
     'verification_item', 'session_event', 'parcel_route', 'ai_assessment_detail',
-    'question', 'question_reply', 'notification', 'followup_request'
+    'question', 'question_reply', 'notification', 'followup_request', 'coverage_report'
   ],
   'public has exactly the MVP tables'
 );

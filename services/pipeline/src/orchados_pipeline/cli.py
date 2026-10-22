@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import __version__
 from .context import RunContext
+from .models import CoverageReport, read_model
 from .params import PipelineParams
 from .supabase import Credentials
 
@@ -36,8 +37,21 @@ def _summary(ctx: RunContext, out) -> None:
     print(f"run directory: {ctx.run_dir}")
     print("assets: " + ", ".join(f"{k}={v}" for k, v in sorted(kinds.items())))
     print(f"crops: {CROPS_STATUS[out.crops_status]}")
+    if ctx.coverage_path.is_file():
+        print(_coverage_line(read_model(CoverageReport, ctx.coverage_path)))
     for w in out.warnings:
         print(f"warning: {w}")
+
+
+def _coverage_line(rep: CoverageReport) -> str:
+    s = rep.summary
+    if s is None:
+        return "coverage: none, the parcel has no tree positions yet"
+    return (
+        f"coverage: {s.covered_trees}/{s.active_trees} trees ({s.ratio:.1%}, threshold "
+        f"{s.threshold:.0%}): {'passed' if s.passed else 'below the threshold'}; "
+        f"{s.blind_spots} blind spots" + ("; an extra visit is needed" if s.rescan_needed else "")
+    )
 
 
 def _db_tree_list(ctx: RunContext, session_id: str | None):
@@ -139,6 +153,9 @@ def main(argv: list[str] | None = None) -> int:
     crops_p = stage("crops", "tree crops")
     _trees_options(crops_p)
     crops_p.add_argument("--session-id", help="public.session id (default: from session.json)")
+    cov_p = stage("coverage", "coverage of the trees: sides seen, parcel share, blind spots")
+    _trees_options(cov_p)
+    cov_p.add_argument("--session-id", help="public.session id (default: from session.json)")
     stage("outputs", "write outputs.json")
     bnd = stage(
         "boundary",
@@ -231,6 +248,9 @@ def main(argv: list[str] | None = None) -> int:
                 print("no trees JSON, skipped")
             else:
                 print(f"{len(res.crops)} crops; {CROPS_STATUS[res.status]}")
+        elif args.command == "coverage":
+            rep = pipeline.stage_coverage(ctx, trees, tlist)
+            print("no trees JSON, skipped" if rep is None else _coverage_line(rep))
         elif args.command == "boundary":
             _boundary(ctx, args.session_id, write_db=not args.dry_run)
         elif args.command == "outputs":

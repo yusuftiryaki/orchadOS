@@ -10,6 +10,8 @@
 - derived_from in outputs.json becomes asset_source rows. Parents that are not
   registered (internal JSON stages, kinds left out) are skipped; a crop whose
   full panorama is not registered points to that panorama's preview instead.
+- The coverage summary (coverage.json) becomes a coverage_report row through
+  record_coverage_report().
 - Re-running is safe: objects are written before their rows, existing objects
   and rows are found and skipped (asset by session + content_hash +
   pipeline_version), missing lineage rows are added. A new pipeline version
@@ -30,6 +32,7 @@ from .hashing import sha256_file
 from .media import MediaStore, media_key, media_uri
 from .models import (
     ClockModel,
+    CoverageReport,
     CropRecord,
     CropSet,
     FileRole,
@@ -123,6 +126,10 @@ class Catalog(Protocol):
         """Set status to 'processed' if it is one of from_statuses; return the status after."""
         ...
 
+    def record_coverage(self, session_id: str, report: dict[str, Any]) -> dict[str, Any]:
+        """record_coverage_report(): {report_id, created, passed, rescan_needed}."""
+        ...
+
 
 @dataclass
 class UploadOptions:
@@ -145,6 +152,7 @@ class UploadReport:
     objects_uploaded: int = 0
     objects_existing: int = 0
     lineage_created: int = 0
+    coverage: dict[str, Any] | None = None  # record_coverage_report() result
     skipped_kinds: dict[str, int] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
@@ -156,6 +164,13 @@ class UploadReport:
             f"objects: {self.objects_uploaded} uploaded, {self.objects_existing} existing",
             f"lineage rows: {self.lineage_created} created",
         ]
+        if self.coverage is not None:
+            c = self.coverage
+            out.append(
+                f"coverage report: {'created' if c.get('created') else 'existing'}, "
+                + ("passed" if c.get("passed") else "below the threshold")
+                + ("; extra visit needed" if c.get("rescan_needed") else "")
+            )
         if self.skipped_kinds:
             skipped = ", ".join(f"{k}={v}" for k, v in sorted(self.skipped_kinds.items()))
             out.append(f"not uploaded: {skipped}")
@@ -270,6 +285,7 @@ class _Run:
     crops: dict[str, CropRecord]  # crop image sha -> record
     trees_source: str | None  # crops.json trees_source; None without crops.json
     clock: ClockModel | None
+    coverage: CoverageReport | None
 
     @classmethod
     def load(cls, run_dir: Path) -> _Run:
@@ -280,6 +296,7 @@ class _Run:
         cpath = run_dir / "crops.json"
         cset = read_model(CropSet, cpath) if cpath.is_file() else None
         spath = run_dir / "sync.json"
+        covpath = run_dir / "coverage.json"
         return cls(
             run_dir=run_dir,
             outputs=load_outputs(run_dir / "outputs.json"),
@@ -289,6 +306,7 @@ class _Run:
             crops={c.image.sha256: c for c in cset.crops} if cset else {},
             trees_source=cset.trees_source if cset else None,
             clock=read_model(ClockModel, spath) if spath.is_file() else None,
+            coverage=read_model(CoverageReport, covpath) if covpath.is_file() else None,
         )
 
     def session_start(self, session: SessionRow) -> str:
@@ -495,8 +513,48 @@ def upload_run(
         if n % 100 == 0:
             log(f"assets: {n}/{len(selected)}")
 
+    # --- coverage summary ------------------------------------------------------------
+    payload = coverage_payload(run.coverage) if run.coverage is not None else None
+    if payload is not None:
+        if run.coverage.session_id != session.id:
+            raise UploadError(f"coverage.json is for session {run.coverage.session_id}")
+        report.coverage = catalog.record_coverage(session.id, payload)
+
     report.status_after = catalog.mark_processed(session.id, STATUS_BEFORE_PROCESSED)
     return report
+
+
+def coverage_payload(rep: CoverageReport) -> dict[str, Any] | None:
+    """record_coverage_report()'s p_report; None when there is nothing to record
+    (no tree positions yet)."""
+    if rep.status != "ok" or rep.summary is None or rep.summary.active_trees == 0:
+        return None
+    s = rep.summary
+    return {
+        "pipeline": rep.producer.pipeline,
+        "pipeline_version": rep.producer.version,
+        "params_hash": rep.producer.params_hash,
+        "active_trees": s.active_trees,
+        "covered_trees": s.covered_trees,
+        "threshold": s.threshold,
+        "blind_spots": s.blind_spots,
+        "missing_slot_codes": [t.slot_code for t in rep.trees if not t.covered],
+        "blind_spot_cells": [
+            {
+                "cell": list(c.cell),
+                "trees": c.trees,
+                "uncovered": c.uncovered,
+                "slot_codes": c.uncovered_slot_codes,
+                "south": c.south,
+                "west": c.west,
+                "north": c.north,
+                "east": c.east,
+            }
+            for c in rep.cells
+            if c.blind_spot
+        ],
+        "rule": rep.rule,
+    }
 
 
 def _asset_row(
@@ -621,6 +679,11 @@ class SupabaseCatalog:
             {"status": "processed"},
         )
         return self.session(session_id).status
+
+    def record_coverage(self, session_id: str, report: dict[str, Any]) -> dict[str, Any]:
+        return self.client.rpc(
+            "record_coverage_report", {"p_session_id": session_id, "p_report": report}
+        )
 
 
 def upload_to_supabase(
