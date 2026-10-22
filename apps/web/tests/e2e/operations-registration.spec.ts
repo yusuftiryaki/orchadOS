@@ -10,7 +10,6 @@ import { resolveSupabaseEnv } from "../local-supabase";
 // only that parcel. The test removes its parcel and account at the end.
 
 const PASSWORD = "orchados-dev";
-const SEED_ORG = "b0000000-0000-4000-8000-000000000001";
 const run = Date.now().toString(36);
 const OWNER_EMAIL = `e2e-owner-${run}@example.test`;
 const PARCEL_NAME = `Tarayıcı Bahçesi ${run}`;
@@ -65,7 +64,7 @@ let parcelId: string | null = null;
 let ownerUserId: string | null = null;
 
 test.afterAll(async () => {
-  if (parcelId) purgeParcels(SEED_ORG, [parcelId]);
+  if (parcelId) await purgeParcels([parcelId]);
   if (ownerUserId) await admin.auth.admin.deleteUser(ownerUserId);
 });
 

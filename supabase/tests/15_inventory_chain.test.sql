@@ -7,6 +7,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(32);
 
+-- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
+-- removed first; rolled back with the file (supabase/testing/reset.sql).
+select testing.reset_to_seed();
+
 create function pg_temp.as_user(p_id text) returns void language sql
 as $$ select set_config('request.jwt.claims', json_build_object('sub', p_id, 'role', 'authenticated')::text, true) $$;
 

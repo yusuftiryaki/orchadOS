@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from conftest import write_raw_manifest
 
 from orchados_pipeline.cli import main
 from orchados_pipeline.hashing import sha256_file
@@ -146,6 +147,83 @@ def run(processed_run):
     )
 
 
+def _pulled_session(ctx, tmp_path, uri, skip=()) -> Path:
+    """The session folder as orchados-ingest pull leaves it (with its manifest copy)."""
+    dest = tmp_path / "pulled"
+    shutil.copytree(ctx.session_dir, dest)
+    write_raw_manifest(dest, SESSION, uri, skip)
+    return dest
+
+
+RAW_URI = f"s3://orchados-raw/raw/{ORG}/{PARCEL}/{SESSION}/"
+
+
+def test_pulled_session_captures_point_to_the_store(processed_run, tmp_path):
+    ctx, out, _ = processed_run
+    session_dir = _pulled_session(ctx, tmp_path, RAW_URI)
+    cat = FakeCatalog()
+    opts = UploadOptions(station="ist-01", session_dir=session_dir)
+    rep = upload_run(ctx.run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    assert not [w for w in rep.warnings if "raw" in w or "station" in w]
+    assert len(cat.capture_rows) == len(out.captures)
+    for row in cat.capture_rows:
+        assert row["uri"] == RAW_URI + row["metadata"]["path"]
+    video = next(r for r in cat.capture_rows if r["kind"] == "video_360")
+    assert video["uri"] == RAW_URI + "video/VID_0001.mp4"
+
+
+@pytest.mark.parametrize(
+    "uri", ["az://raw/raw/o/p/s/", "file:///srv/orchados-raw/raw/o/p/s/"], ids=["azure", "local"]
+)
+def test_store_uri_schemes(processed_run, tmp_path, uri):
+    ctx, _, _ = processed_run
+    cat = FakeCatalog()
+    opts = UploadOptions(session_dir=_pulled_session(ctx, tmp_path, uri))
+    upload_run(ctx.run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    assert all(r["uri"] == uri + r["metadata"]["path"] for r in cat.capture_rows)
+
+
+def test_file_not_in_the_store_falls_back_to_the_station(processed_run, tmp_path):
+    ctx, _, _ = processed_run
+    session_dir = _pulled_session(ctx, tmp_path, RAW_URI, skip=("gnss/events.csv",))
+    # The store holds other content under this path.
+    m = session_dir / ".orchados" / "manifest.json"
+    raw = json.loads(m.read_text())
+    next(f for f in raw["files"] if f["path"] == "session.json")["sha256"] = "0" * 64
+    m.write_text(json.dumps(raw))
+    cat = FakeCatalog()
+    opts = UploadOptions(station="ist-01", session_dir=session_dir)
+    rep = upload_run(ctx.run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    by_path = {r["metadata"]["path"]: r["uri"] for r in cat.capture_rows}
+    assert (
+        by_path["gnss/events.csv"]
+        == f"station://ist-01{(session_dir / 'gnss/events.csv').resolve()}"
+    )
+    assert by_path["session.json"].startswith("station://ist-01/")
+    assert by_path["video/VID_0001.mp4"] == RAW_URI + "video/VID_0001.mp4"
+    (warning,) = [w for w in rep.warnings if "not in the store" in w]
+    assert "events.csv" in warning and "session.json" in warning
+
+
+def test_manifest_without_location_keeps_station_uris(processed_run, tmp_path):
+    ctx, _, _ = processed_run
+    cat = FakeCatalog()
+    opts = UploadOptions(station="ist-01", session_dir=_pulled_session(ctx, tmp_path, None))
+    rep = upload_run(ctx.run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    assert all(r["uri"].startswith("station://ist-01/") for r in cat.capture_rows)
+    assert any("no store location" in w for w in rep.warnings)
+
+
+def test_manifest_of_another_session_is_refused(processed_run, tmp_path):
+    ctx, _, _ = processed_run
+    session_dir = _pulled_session(ctx, tmp_path, RAW_URI)
+    m = session_dir / ".orchados" / "manifest.json"
+    m.write_text(m.read_text().replace(SESSION, str(uuid.uuid4())))
+    opts = UploadOptions(session_dir=session_dir)
+    with pytest.raises(UploadError, match="is for session"):
+        upload_run(ctx.run_dir, SESSION, FakeCatalog(), LocalMediaStore(tmp_path / "b"), opts)
+
+
 def _copy_run(run_dir: Path, dest: Path, edit) -> Path:
     shutil.copytree(run_dir, dest)
     data = json.loads((dest / "outputs.json").read_text())
@@ -180,7 +258,7 @@ def test_upload_creates_rows_objects_and_lineage(run, tmp_path):
         assert row["pipeline"] == out.pipeline.name
         assert row["params_hash"] == out.pipeline.params_hash
 
-    # Raw captures stay on the station.
+    # Raw captures of a local folder (no pulled manifest) stay on the station.
     video = next(r for r in cat.capture_rows if r["kind"] == "video_360")
     assert video["uri"] == f"station://ist-01{(opts.session_dir / 'video/VID_0001.mp4').resolve()}"
     assert video["started_at"].startswith("2026-10-18T09:00") and video["ended_at"]

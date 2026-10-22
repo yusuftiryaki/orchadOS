@@ -82,7 +82,7 @@ const SET_IDS = {
 type SourceKind = keyof typeof SET_IDS;
 
 function removeParcel() {
-  purgeParcels(ORG, [PARCEL]);
+  return purgeParcels([PARCEL]);
 }
 
 // The run's panoramas as the pipeline uploads them (docs/arayuzler.md):
@@ -129,7 +129,7 @@ async function uploadPanoramas() {
 }
 
 async function createParcel() {
-  removeParcel();
+  await removeParcel();
   // Boundary around the synthetic orchard (frame origin 37.06 N 37.38 E).
   const frame = new LocalFrame(37.06, 37.38);
   const ring = [
@@ -382,5 +382,5 @@ test("panorama images are served to office roles only", async ({ page }) => {
   await login(page, "owner@example.com", "/portal");
   expect((await page.request.get(url)).status()).toBe(403);
   expect((await page.request.get(`${stored}/2k`, { maxRedirects: 0 })).status()).toBe(403);
-  removeParcel();
+  await removeParcel();
 });

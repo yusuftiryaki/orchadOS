@@ -173,7 +173,7 @@ function ring(): string {
 }
 
 function removeParcels() {
-  purgeParcels(SEED.org, PARCELS);
+  return purgeParcels(PARCELS);
 }
 
 async function removeInventory(admin: Client) {
@@ -183,7 +183,7 @@ async function removeInventory(admin: Client) {
 }
 
 async function createParcels(admin: Client) {
-  removeParcels();
+  await removeParcels();
   const origin = `SRID=4326;POINT(${ORIGIN.lon} ${ORIGIN.lat})`;
   check(
     await admin.from("parcel").insert([

@@ -26,6 +26,9 @@ class LocalStore(RawStore):
     def describe(self) -> str:
         return f"local:{self.root}"
 
+    def uri(self, key: str) -> str:
+        return self._path(key).resolve().as_uri()
+
     def _path(self, key: str) -> Path:
         return self.root.joinpath(*check_key(key).split("/"))
 
