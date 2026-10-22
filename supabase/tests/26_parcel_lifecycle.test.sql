@@ -14,6 +14,10 @@ as $$ select set_config('request.jwt.claims', json_build_object('sub', p_id, 'ro
 create function pg_temp.status() returns text language sql
 as $$ select status::text from public.parcel where id = 'c0000000-0000-4000-8000-000000000001' $$;
 
+-- Other suites (the pipeline's chain test) may already have published a scan on
+-- the seed parcel; start from the seed's status. Rolled back with the rest.
+update public.parcel set status = 'inventory_done' where id = 'c0000000-0000-4000-8000-000000000001';
+
 select has_function('public', 'ops_set_parcel_passive', array['uuid', 'boolean'], 'ops_set_parcel_passive exists');
 
 -- An unpublished scan changes nothing; publishing the first one does.
