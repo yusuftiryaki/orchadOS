@@ -1,0 +1,16 @@
+# Build context is the repository root; only what the image copies goes in.
+*
+!services/pipeline/pyproject.toml
+!services/pipeline/uv.lock
+!services/pipeline/README.md
+!services/pipeline/src/**
+!services/ai-worker/pyproject.toml
+!services/ai-worker/uv.lock
+!services/ai-worker/README.md
+!services/ai-worker/src/**
+!services/ingest/pyproject.toml
+!services/ingest/uv.lock
+!services/ingest/README.md
+!services/ingest/src/**
+!deploy/processing/orchados-process
+**/__pycache__
