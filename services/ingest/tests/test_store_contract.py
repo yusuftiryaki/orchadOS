@@ -12,8 +12,8 @@ from orchados_ingest.store import StoreError
 from orchados_ingest.transfer import Progress, Transfer
 
 
-class Interrupted(Exception):
-    pass
+class Interrupted(BaseException):
+    """Like Ctrl-C: not an Exception, so SDK retry loops do not swallow it."""
 
 
 class InterruptingProgress(Progress):
@@ -70,9 +70,8 @@ def test_interrupted_upload_resumes(store, tmp_path):
     store.concurrency = 1  # deterministic: part 1 done, cut inside part 2
     p, sha = _file(tmp_path, 3 * PART + 999)
     size = p.stat().st_size
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(Interrupted):
         store.upload(p, "raw/r.bin", sha, Transfer(InterruptingProgress(size, PART + PART // 2)))
-    assert "cut after" in str(exc_info.value) or isinstance(exc_info.value, Interrupted)
     assert store.stat("raw/r.bin") is None  # nothing visible until complete
 
     again = Progress("t", size, quiet=True)
@@ -87,7 +86,7 @@ def test_interrupted_upload_resumes(store, tmp_path):
 def test_changed_file_does_not_reuse_parts(store, tmp_path):
     store.concurrency = 1
     p, sha = _file(tmp_path, 2 * PART + 10, seed=1)
-    with pytest.raises(Exception):  # noqa: B017 - any transport error
+    with pytest.raises(Interrupted):
         store.upload(p, "raw/c.bin", sha, Transfer(InterruptingProgress(p.stat().st_size, PART)))
     p2, sha2 = _file(tmp_path, 2 * PART + 10, seed=2, name="g.bin")
     assert store.upload(p2, "raw/c.bin", sha2) is True
