@@ -99,7 +99,9 @@ select set_eq(
         'dead_branch_present', 'trunk_damage_present', 'root_sucker_present', 'pruned', 'frost_damage_present',
         'pest_sign_present', 'fruit_present', 'drought_stress_sign', 'theft_sign_present',
         -- Field crew's "Sorun gördüm" mark (20261023130000_bulk_approval).
-        'problem_seen'],
+        'problem_seen',
+        -- Pipeline presence check (20261025120200_tree_presence).
+        'tree_visible'],
   'migrations register the metrics from docs/metodoloji.md (Ek B), docs/veri-modeli.md and the field questions'
 );
 

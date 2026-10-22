@@ -27,14 +27,12 @@ beforeAll(async () => {
   [ops, expert] = (await Promise.all([signIn("ops"), signIn("expert")])).map((s) => s.client);
   await purgeParcels([PARCEL]);
   check(
-    await admin
-      .from("parcel")
-      .insert({
-        id: PARCEL,
-        org_id: SEED.org,
-        name: "Kapsama kapısı",
-        status: "inventory_planned",
-      }),
+    await admin.from("parcel").insert({
+      id: PARCEL,
+      org_id: SEED.org,
+      name: "Kapsama kapısı",
+      status: "inventory_planned",
+    }),
   );
   check(
     await admin.from("session").insert({
