@@ -353,3 +353,22 @@ export async function cancelVisit(supabase: Client, visitId: string): Promise<Op
   if (error) return fail(reasonOf(error));
   return data.length === 0 ? fail("not_found") : ok(undefined);
 }
+
+// Links open expert requests (verification, extra visit) to the visit that
+// handles them (ops_plan_followups). Verification trees become items of a
+// verification visit.
+export async function planFollowups(
+  supabase: Client,
+  requestIds: string[],
+  sessionId: string,
+): Promise<OpsResult<number>> {
+  if (!isUuid(sessionId) || requestIds.length === 0 || !requestIds.every(isUuid)) {
+    return fail("invalid_input");
+  }
+  const { data, error } = await supabase.rpc("ops_plan_followups", {
+    p_request_ids: requestIds,
+    p_session_id: sessionId,
+  });
+  if (error) return fail(reasonOf(error));
+  return ok(data);
+}

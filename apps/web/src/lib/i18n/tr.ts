@@ -232,6 +232,54 @@ export const tr = {
     discardConfirm: "Bu oturumun bütün taslak ağaçları silinsin mi?",
   },
   expert: {
+    followups: {
+      title: "Takip istekleri",
+      treeHint:
+        "Bu ağaca bir sonraki ziyarette yakından bakılsın ya da bir doğrulama turunda kontrol edilsin.",
+      parcelTitle: "Ek ziyaret iste",
+      parcelHint:
+        "Parsele ek bir ziyaret gerekiyorsa nedenini yazın; operasyon ziyareti planlar. İstekler sahibe görünmez.",
+      kind: "İstek",
+      kinds: {
+        closeup: "Sonraki ziyarette yakın plan",
+        verification: "Doğrulama turunda kontrol",
+        extra_visit: "Ek ziyaret",
+      },
+      status: {
+        open: "Açık",
+        planned: "Planlandı",
+        done: "Tamamlandı",
+        cancelled: "Geri alındı",
+      },
+      note: "Not",
+      notePlaceholder: "Neye bakılsın? (ör. gövdenin kuzey yüzü, dipte sürgün)",
+      submit: "İste",
+      submitVisit: "Ek ziyaret iste",
+      cancel: "Geri al",
+      none: "İstek yok.",
+      list: "Bu ziyaretten istenenler",
+      saved: "İstek kaydedildi.",
+      errors: {
+        invalid_kind: "İstek türü geçersiz.",
+        note_required: "Ek ziyaret için nedenini yazın.",
+        note_too_long: "Not en çok 2000 karakter olabilir.",
+        forbidden: "Bu işlem için yetkiniz yok.",
+        not_found: "Kayıt bulunamadı.",
+        write_failed: "Kaydedilemedi. Lütfen tekrar deneyin.",
+      } as Record<string, string>,
+    },
+    closeup: {
+      title: "Yakın plan listesi",
+      hint: "Saha ekibinin bu ziyarette yakından fotoğraflayacağı ağaçlar (sunucuda üretilir; metodoloji bölüm 7).",
+      count: (n: number) => `${n} ağaç`,
+      reasons: {
+        previous_class: "Önceki ziyarette dikkat, sorunlu ya da kuru",
+        sample: "Tabakalı örneklem (%10, 10×10 m hücreler)",
+        staff_problem: "Personel: Sorun gördüm",
+        expert_request: "Uzman isteği",
+      },
+      empty: "Listede ağaç yok.",
+    },
     queue: {
       title: "Ziyaret kuyruğu",
       hint: "İşlenmiş ve incelemedeki tarama ziyaretleri, en eskisi önce. Açılan ziyaret incelemeye alınır.",
@@ -389,6 +437,9 @@ export const tr = {
       evidence: "Kanıt kesitleri",
       noEvidence: "Kanıt kesiti yok.",
       approved: "Onaylı",
+      approveNow: "Onayla ve sahibe hemen bildir",
+      approveNowHint:
+        "Acil bulgu raporu beklemeden onaylanır; sahibe SMS ya da WhatsApp ile bildirim gider. Onaylanan bulgu yayından önce de değiştirilemez sayılmalı.",
       tree: "Ağaç",
       parcel: "Parsel",
       kinds: {
@@ -546,6 +597,14 @@ export const tr = {
       invitedBy: (name: string) => `Davet eden: ${name}`,
       approve: "Hesabı aç ve hissedar olarak ekle",
       reject: "Reddet",
+      requests: "Uzman istekleri",
+      requestsHint:
+        "Uzmanın istediği ek ziyaretler ve doğrulamalar. Bir ziyarete bağlanınca planlandı, ziyaret taranınca tamamlandı olur.",
+      closeupAuto: "Sonraki taramanın yakın plan listesine kendiliğinden girer.",
+      linkVisit: "Ziyaret",
+      link: "Ziyarete bağla",
+      planVerification: "Doğrulama ziyareti planla",
+      planVisit: "Ziyaret planla",
     },
     visitKind: {
       inventory: "Envanter",

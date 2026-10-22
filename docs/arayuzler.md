@@ -448,6 +448,42 @@ Saha uygulaması taramada parselin sabit grid rotasını üretir ve personeli y�
 - **`route`** (rota kullanılmaya başlanınca; ziyarette bir kez): `payload` rota sürümü. `data`: `version` (1), `route_id`, `route_version` (telefonun bildiği sürüm; yeni rotada tahmin, kesin sürüm `parcel_route`'ta `route_id` ile), `new_version` (bu ziyarette mi oluşturuldu), `content_hash`, `generator`, `basis`, `azimuth_deg`, `azimuth_source`, `corridors_total`. **Ziyarette hangi rotanın kullanıldığı buradan okunur.**
 - **`route_progress`** (kayıt durdurulurken, `coverage`'dan önce): `payload` `<biten>/<toplam>`. `data`: `version` (1), `corridors_total`, `done`, `skipped`, `pending` (koridor numaraları), `skipped_labels`, `current` (durduğunda sıradaki koridor; bittiyse `null`). Telefondaki yaklaşık takiptir (PPK öncesi konum, koridora 4 m kuralı); kapsamanın yerini tutmaz.
 
+## Yakın plan listesi ve uzman istekleri
+
+Periyodik ziyaretin yakın plan listesi sunucuda üretilir (`docs/metodoloji.md` bölüm 7; `supabase/migrations/20261024120200_followup_requests.sql`). Aynı ziyareti indiren her telefon ve ofis aynı listeyi görür.
+
+**Okunan:** `closeup_list(p_session_id uuid)` (PostgREST: `rpc/closeup_list`), kullanıcının belirteciyle. Kurum rolleri okur; sahip ve izleyici `forbidden` alır, görmediği ziyarette `not_found`.
+
+| Sütun | Tür | Anlamı |
+| --- | --- | --- |
+| `tree_id`, `slot_id` | uuid | Aktif ağaç ve yeri |
+| `slot_code`, `row_no`, `position_no` | metin, int, int | Yer kodu ve sırası; liste bu sırayla gelir |
+| `reasons` | metin dizisi | Bir ya da birkaç neden (aşağıda), alfabetik |
+
+| Neden | Kural |
+| --- | --- |
+| `previous_class` | Bu ziyaretten önceki en yeni yayımlanmış periyodik tarama ya da doğrulama ziyaretinde uzman sınıfı dikkat, sorunlu ya da kuru |
+| `sample` | Tabakalı rastgele örneklem: aktif ağaçların %10'u (yukarı yuvarlanır), 10×10 m hücrelerden dengeli |
+| `staff_problem` | Bu ziyarette personelin "Sorun gördüm" cevabı (`problem_seen` metriği, `source = staff`, en yeni cevap evet) |
+| `expert_request` | Uzmanın açık yakın plan isteği (`followup_request`, `kind = closeup`) |
+
+- **Hücreler:** parselin en yüksek sürümlü sınırının (yoksa yerlerinin) sınır kutusunun güneybatı köşesinden doğu/kuzey metre: `x = Δboylam · π/180 · R · cos(güney enlemi)`, `y = Δenlem · π/180 · R`, `R = 6 371 008,8 m`; hücre `(⌊x/10⌋, ⌊y/10⌋)`. Konumsuz ağaçlar tek hücredir. Portalın hücre ısı haritası (`apps/web/src/lib/portal/cells.ts`) aynı kuralı kullanır.
+- **Örneklem:** hücre içinde ağaçlar `md5('<ziyaret>:<ağaç>')` ile sıralanır; her hücrenin 1. ağacı, sonra 2. ağacı… alınır, hücreler `md5('<ziyaret>:<cx>,<cy>')` sırasıyla. Aynı ziyaret hep aynı örneklemi verir.
+- **"Sorun gördüm" sonradan gelir:** personel taramada işaretledikçe (gönderildikçe) liste büyür. Telefon listeyi tarama bitince yeniden okuyabilir; çevrimdışıyken kendi işaretlediklerini listeye ekler.
+- **Saha uygulaması:** bugün listeyi telefonda kendisi hesaplıyor (`apps/field/README.md`, "Ağaçlar ve yakın plan listesi"). Bu fonksiyona geçiş ve "Sorun gördüm" düğmesi saha uygulamasının sonraki işidir (`docs/mvp-denetimi.md`).
+
+**Uzman istekleri** (`public.followup_request`; okuma kurum rolleri, yazma sadece fonksiyonlarla):
+
+| Çağrı | Kim | Ne yapar |
+| --- | --- | --- |
+| `request_followup(p_session_id, p_kind, p_tree_id, p_note)` | uzman, operasyon | `closeup` (ağaç; sonraki ziyaretin yakın plan listesi), `verification` (ağaç; doğrulama turu), `extra_visit` (parsel; not zorunlu). Aynı ağaç ve tür için açık istek varsa onu döndürür, notu ekler |
+| `cancel_followup(p_request_id)` | uzman, operasyon | Açık ya da planlanmış isteği geri alır |
+| `ops_plan_followups(p_request_ids, p_session_id)` | operasyon | `verification` ve `extra_visit` isteklerini bir ziyarete bağlar (`planned`). Doğrulama isteği doğrulama ziyareti ister; ağaç turun kalemi olur (`reasons = {other}`, not isteğin notu) |
+
+- **Durum:** `open` → `planned` → `done`, ya da `cancelled`. Yakın plan isteği, ağacın sonraki bir ziyaretten yakın plan fotoğrafı (`capture`, `kind = photo`, `tree_id`) gelince `done` olur. Planlanmış istek, ziyareti `captured` (ve sonrası) olunca `done`; ziyaret iptal edilirse yeniden `open`.
+- İstekler sonuç değildir: sahip ve izleyici görmez, yayından sonra da yapılabilir.
+- **Hatalar:** `not_found`, `forbidden`, `invalid_input` (ayrıntıda neden).
+
 ## Açık noktalar
 
 - Kamera jiroskop verisi (ince zaman eşleme) henüz sözleşmede yok.

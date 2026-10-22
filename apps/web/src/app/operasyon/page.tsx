@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { OpsNav } from "@/components/operations/ops-nav";
 import { ResultNotice } from "@/components/operations/result-notice";
+import { ExpertRequests } from "@/components/operations/expert-requests";
 import { ViewerInvitations } from "@/components/operations/viewer-invitations";
+import { listFollowups } from "@/lib/expert/followups";
 import styles from "@/components/operations/operations.module.css";
 import { VisitTable } from "@/components/operations/visit-table";
 import { requireSection } from "@/lib/auth/session";
@@ -37,8 +39,9 @@ export default async function Page({
     listParcels(supabase),
     opsOrgs(supabase, user.id),
   ]);
-  const [staff, invitations] = await Promise.all([
+  const [staff, followups, invitations] = await Promise.all([
     listFieldStaff(supabase, orgs),
+    listFollowups(supabase, { statuses: ["open", "planned"] }),
     listViewerInvitations(
       supabase,
       orgs.map((o) => o.id),
@@ -60,6 +63,13 @@ export default async function Page({
       <ResultNotice params={await searchParams} />
       {invitations.length > 0 && (
         <ViewerInvitations invitations={invitations} today={todayIn(now)} />
+      )}
+      {followups.length > 0 && (
+        <ExpertRequests
+          followups={followups}
+          parcels={new Map(parcels.map((p) => [p.id, p.name]))}
+          visits={visits.filter((v) => v.status === "planned")}
+        />
       )}
 
       <h2>{T.dashboard.counts}</h2>

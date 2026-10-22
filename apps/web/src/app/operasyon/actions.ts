@@ -15,6 +15,7 @@ import {
   grantAccess,
   planVisit,
   registerParcel,
+  planFollowups,
   revokeAccess,
   setParcelPassive,
   updateOwner,
@@ -308,5 +309,15 @@ export async function rejectInvitationAction(form: FormData) {
   revalidatePath("/operasyon");
   redirect(
     opsHref.dashboard(result.ok ? { notice: "invitation_rejected" } : { error: result.error }),
+  );
+}
+
+export async function planFollowupsAction(form: FormData) {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const result = await planFollowups(supabase, [read("request_id")], read("session_id"));
+  revalidatePath("/operasyon");
+  redirect(
+    opsHref.dashboard(result.ok ? { notice: "followups_planned" } : { error: result.error }),
   );
 }
