@@ -1072,6 +1072,80 @@ export const tr = {
       count: (n: number) => `(${n})`,
       finding: "Bulgu",
       findingLegend: "Bulgu konumu",
+      visit: "Ziyaret",
+      latestState: "Son durum (her ağacın en son denetimi)",
+      changedOnly: "Sadece bu ziyarette değişenler",
+      changedCount: (n: number) => `${n} ağaç değişti`,
+      noPrevious: "Önceki denetim yok; değişim gösterilemez.",
+      layers: "Katmanlar",
+      heat: "Isı haritası (10×10 m)",
+      heatLegend: "Sarıdan kırmızıya: hücredeki ağaçlarda sorun oranı",
+      coverage: "Kapsama izi",
+      coverageLegend: {
+        covered: "En az iki yönden görüntülendi",
+        partial: "Tek yönden",
+        none: "Görüntü yok",
+      },
+      coverageNone: "Bu ziyarette tarama izi yok.",
+      trace: "Tarama izi",
+    },
+    dimensions: {
+      title: "Boyut boyut",
+      showOnMap: "Haritada göster",
+      inventory: "Envanter",
+      inventoryLine: (slots: number, trees: number, empty: number, inter: number) =>
+        `${slots} yer, ${trees} ağaç, ${empty} boş yer, ${inter} ara ağaç`,
+      lost: (codes: string) => `Önceki denetime göre kaybolan: ${codes}`,
+      added: (codes: string) => `Yeni: ${codes}`,
+      noChange: "Önceki denetime göre kaybolan ya da yeni ağaç yok.",
+      firstVisit: "İlk denetim: karşılaştırma yok.",
+      structure: "Bahçe yapısı",
+      sexLine: (female: number, male: number, unknown: number) =>
+        `${female} dişi, ${male} erkek, ${unknown} bilinmiyor`,
+      ratio: (n: string) => `1 erkeğe ${n} dişi`,
+      ratioAdvice: {
+        ok: "önerilen aralıkta (8–10)",
+        low_males: "erkek ağaç az (öneri 1 erkeğe 8–10 dişi)",
+        many_males: "erkek ağaç fazla (öneri 1 erkeğe 8–10 dişi)",
+      },
+      ratioUnknown: "Dişi/erkek oranı ilkbahar ziyaretinden sonra (çiçekten) belirlenir.",
+      ungrafted: (n: number) => `${n} aşısız ağaç`,
+      ages: "Yaş dağılımı",
+      health: "Sağlık dağılımı",
+      healthLine: "Beş sınıfın dağılımı ve değişimi yukarıda.",
+      pattern: "Mekânsal desen",
+      patternLine: (issues: number, half: number, cells: number) =>
+        `Dikkat ve üstündeki ${issues} ağacın yarısı ${cells} hücrenin ${half} tanesinde.`,
+      hotCells: (n: number) => `${n} hücrede ağaçların yarısından çoğunda sorun var.`,
+      noIssues: "Sorunlu ağaç yok; kümelenme yok.",
+      care: "Bakım uyumu",
+      pruning: (pct: string, done: number, partial: number, notDone: number) =>
+        `Budanan ağaç oranı %${pct} (${done} yapılmış, ${partial} kısmi, ${notDone} yapılmamış)`,
+      harvest: (pct: string, n: number, total: number) =>
+        `Hasadı tamamlanan: %${pct} (${total} ağacın ${n} tanesi)`,
+      careNone: "Bu ziyarette bakım ölçümü yok (budama kışın, hasat hasat ziyaretinde bakılır).",
+      pests: "Zararlı belirtileri",
+      pestLine: (mild: number, marked: number, assessed: number) =>
+        `${assessed} ağaçtan ${mild} tanesinde hafif, ${marked} tanesinde belirgin belirti`,
+      pestTypes: (types: string) => `Tür: ${types}`,
+      pestRows: (rows: string) => `Sıralar: ${rows}`,
+      pestsNone: "Bu ziyarette zararlı belirtisine bakılmadı (ilkbahar ve yaz).",
+      fruit: "Meyve yükü",
+      fruitLine: (counts: string, mean: string) => `Ölçek dağılımı ${counts}; ortalama ${mean}`,
+      fruitTrend: {
+        higher: (mean: string, date: string) =>
+          `Geçen yılın aynı ziyaretinden (${date}, ortalama ${mean}) yüksek: var yılı görünümü.`,
+        lower: (mean: string, date: string) =>
+          `Geçen yılın aynı ziyaretinden (${date}, ortalama ${mean}) düşük: yok yılı görünümü. Antep fıstığında bu olağandır.`,
+        similar: (mean: string, date: string) =>
+          `Geçen yılın aynı ziyaretine (${date}, ortalama ${mean}) yakın.`,
+      },
+      fruitNone: "Meyve yükü yaz ziyaretinde ölçülür.",
+      audit: "Denetim güveni",
+      auditLine: (panoramas: number, closeUps: number) =>
+        `${panoramas} panorama, ${closeUps} yakın plan fotoğraf`,
+      signed: (date: string) => `Uzman imzası: ${date}`,
+      coverageLink: "Kapsama haritası",
     },
     panel: {
       close: "Kapat",

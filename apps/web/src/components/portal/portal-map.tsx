@@ -1,6 +1,6 @@
 "use client";
 
-import type { Map as MapLibreMap } from "maplibre-gl";
+import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import { basemapStyle } from "@/lib/map/basemap";
@@ -35,6 +35,19 @@ export interface MapPanorama {
 
 export type MapSelection = { kind: "slot" | "finding"; id: string } | null;
 
+// Optional layers of the health map: 10 x 10 m heat cells and the scan's
+// coverage (trace and per-tree coverage rings).
+export interface MapCell {
+  key: string;
+  ring: Position[];
+  color: string;
+}
+
+export interface MapCoverage {
+  trace: Position[][];
+  trees: { id: string; position: Position; color: string }[];
+}
+
 const SLOT_LAYER = "slots";
 const FINDING_LAYER = "findings";
 const PANORAMA_LAYER = "panoramas";
@@ -53,6 +66,8 @@ export function PortalMap({
   onPointClick,
   label,
   className,
+  cells = null,
+  coverage = null,
 }: {
   boundary: PolygonGeometry | null;
   slots: MapSlot[];
@@ -70,6 +85,9 @@ export function PortalMap({
   onPointClick?: (position: Position) => void;
   label: string;
   className?: string;
+  // Drawn when given; null hides the layer.
+  cells?: MapCell[] | null;
+  coverage?: MapCoverage | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -78,6 +96,10 @@ export function PortalMap({
   const currentPanoramaRef = useRef<string | null>(null);
   const visibleRef = useRef(visibleStates);
   const focusRef = useRef(focus);
+  // Slots and layers change without rebuilding the map (visit selector).
+  const slotsRef = useRef(slots);
+  const cellsRef = useRef(cells);
+  const coverageRef = useRef(coverage);
 
   useEffect(() => {
     handlers.current = { onSelect, onPointClick };
@@ -162,22 +184,27 @@ export function PortalMap({
           });
         }
 
+        m.addSource("cells", { type: "geojson", data: cellsData(cellsRef.current) });
+        m.addLayer({
+          id: "cells",
+          type: "fill",
+          source: "cells",
+          paint: { "fill-color": ["get", "color"], "fill-opacity": 0.55 },
+        });
+        m.addSource("coverage-trace", {
+          type: "geojson",
+          data: traceData(coverageRef.current),
+        });
+        m.addLayer({
+          id: "coverage-trace",
+          type: "line",
+          source: "coverage-trace",
+          paint: { "line-color": "#1c7ed6", "line-width": 2, "line-opacity": 0.8 },
+        });
+
         m.addSource("slots", {
           type: "geojson",
-          data: {
-            type: "FeatureCollection",
-            features: slots.map((s) => ({
-              type: "Feature",
-              geometry: { type: "Point", coordinates: s.position },
-              properties: {
-                slotId: s.slotId,
-                code: s.code,
-                state: s.state,
-                color: MARKER_COLORS[s.state],
-                empty: s.state === "empty",
-              },
-            })),
-          },
+          data: slotsData(slotsRef.current),
           promoteId: "slotId",
         });
         m.addLayer({
@@ -204,6 +231,22 @@ export function PortalMap({
           },
         });
         applyFilter(m, visibleRef.current);
+
+        m.addSource("coverage-trees", {
+          type: "geojson",
+          data: coverageTreesData(coverageRef.current),
+        });
+        m.addLayer({
+          id: "coverage-trees",
+          type: "circle",
+          source: "coverage-trees",
+          paint: {
+            "circle-color": "rgba(0,0,0,0)",
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 15, 4, 18, 9, 21, 18],
+            "circle-stroke-color": ["get", "color"],
+            "circle-stroke-width": 2.5,
+          },
+        });
 
         if (findings.length > 0) {
           m.addSource("findings", {
@@ -270,8 +313,29 @@ export function PortalMap({
       map?.remove();
       mapRef.current = null;
     };
-    // Built once per data set; selection and filter are applied below.
-  }, [boundary, slots, findings, panoramas, bounds]);
+    // Built once per data set; slots, layers, selection and filter are applied below.
+  }, [boundary, findings, panoramas, bounds]);
+
+  useEffect(() => {
+    slotsRef.current = slots;
+    const source = mapRef.current?.getSource("slots") as GeoJSONSource | undefined;
+    source?.setData(slotsData(slots));
+  }, [slots]);
+
+  useEffect(() => {
+    cellsRef.current = cells;
+    const source = mapRef.current?.getSource("cells") as GeoJSONSource | undefined;
+    source?.setData(cellsData(cells));
+  }, [cells]);
+
+  useEffect(() => {
+    coverageRef.current = coverage;
+    const map = mapRef.current;
+    (map?.getSource("coverage-trace") as GeoJSONSource | undefined)?.setData(traceData(coverage));
+    (map?.getSource("coverage-trees") as GeoJSONSource | undefined)?.setData(
+      coverageTreesData(coverage),
+    );
+  }, [coverage]);
 
   useEffect(() => {
     visibleRef.current = visibleStates;
@@ -309,6 +373,56 @@ export function PortalMap({
       aria-label={label}
     />
   );
+}
+
+function slotsData(slots: MapSlot[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: slots.map((s) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: s.position },
+      properties: {
+        slotId: s.slotId,
+        code: s.code,
+        state: s.state,
+        color: MARKER_COLORS[s.state],
+        empty: s.state === "empty",
+      },
+    })),
+  };
+}
+
+function cellsData(cells: MapCell[] | null): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: (cells ?? []).map((c) => ({
+      type: "Feature",
+      geometry: { type: "Polygon", coordinates: [c.ring] },
+      properties: { key: c.key, color: c.color },
+    })),
+  };
+}
+
+function traceData(coverage: MapCoverage | null): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: (coverage?.trace ?? []).map((line) => ({
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: line },
+      properties: {},
+    })),
+  };
+}
+
+function coverageTreesData(coverage: MapCoverage | null): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: (coverage?.trees ?? []).map((t) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: t.position },
+      properties: { treeId: t.id, color: t.color },
+    })),
+  };
 }
 
 function applyFilter(map: MapLibreMap, visible: MarkerState[] | undefined) {

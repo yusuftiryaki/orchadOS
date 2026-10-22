@@ -8,7 +8,8 @@ import type { MetricSummaryRow } from "@/lib/portal/metrics";
 import { InventorySummaryView } from "@/components/office/inventory-summary";
 import type { BoundaryCard } from "@/lib/portal/boundary";
 import { BoundaryCardView } from "./boundary-card";
-import { HealthMap } from "./health-map";
+import { Dimensions } from "./dimensions";
+import { HealthMap, type MapLayer } from "./health-map";
 import { DistributionBar, findingKindLabel, percent, ScoreLine } from "./labels";
 import { share } from "@/lib/portal/score";
 import {
@@ -33,6 +34,7 @@ export function ParcelReportView({
   report,
   classFilter,
   findingId,
+  mapOptions,
   boundaryCard,
   questions,
   viewers,
@@ -40,6 +42,8 @@ export function ParcelReportView({
   report: ParcelReport;
   classFilter?: MarkerState[];
   findingId?: string;
+  // ?ziyaret=, ?degisen=1, ?katman=isi|kapsama
+  mapOptions?: { visitId?: string; changed?: boolean; layers?: MapLayer[] };
   boundaryCard?: BoundaryCard | null;
   questions?: QuestionState;
   // Co-owners, for the parcel's owner only.
@@ -85,7 +89,10 @@ export function ParcelReportView({
       )}
 
       {report.latest ? (
-        <Summary report={report} base={base} />
+        <>
+          <Summary report={report} base={base} />
+          <Dimensions report={report} base={base} />
+        </>
       ) : (
         <p className={styles.notice} data-testid="no-results">
           {r.noResults}
@@ -95,7 +102,7 @@ export function ParcelReportView({
       <section id="harita" className={styles.section} aria-labelledby="harita-baslik">
         <h2 id="harita-baslik">{r.mapTitle}</h2>
         <HealthMap
-          key={classFilter?.join(",") ?? "all"}
+          key={`${classFilter?.join(",") ?? "all"}|${mapOptions?.layers?.join(",") ?? ""}|${mapOptions?.visitId ?? ""}|${mapOptions?.changed ?? ""}`}
           parcelId={report.parcel.id}
           boundary={report.boundary?.geometry ?? null}
           slots={report.slots}
@@ -103,6 +110,11 @@ export function ParcelReportView({
           bounds={report.bounds}
           initialStates={classFilter}
           initialFindingId={findingId}
+          visits={report.mapVisits}
+          coverage={report.coverage}
+          initialVisitId={mapOptions?.visitId}
+          initialChanged={mapOptions?.changed}
+          initialLayers={mapOptions?.layers}
         />
       </section>
 

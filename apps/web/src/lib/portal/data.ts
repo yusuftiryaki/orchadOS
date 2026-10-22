@@ -44,6 +44,23 @@ import {
   scoreRulesFor,
   type AuditConfidence,
 } from "./score";
+import { cellFrame, cellStats, spatialPattern, type SpatialPattern } from "./cells";
+import {
+  careDimension,
+  fruitLoadDimension,
+  inventoryDimension,
+  pestDimension,
+  previousYearVisit,
+  structureDimension,
+  valuesByCode,
+  type CareDimension,
+  type DimensionSlot,
+  type FruitLoadDimension,
+  type InventoryDimension,
+  type PestDimension,
+  type StructureDimension,
+} from "./dimensions";
+import { traceSegments, type MapVisit } from "./map-layers";
 import { sessionTime, sortVisitsNewestFirst, type VisitRow } from "./sessions";
 import { pairPanoramaVariants, type TourPanorama } from "./tour";
 
@@ -55,7 +72,8 @@ import { pairPanoramaVariants, type TourPanorama } from "./tour";
 
 type Enums = Database["public"]["Enums"];
 
-const VISIT_COLUMNS = "id, kind, status, planned_date, started_at, created_at, methodology_version";
+const VISIT_COLUMNS =
+  "id, kind, status, planned_date, started_at, created_at, methodology_version, published_at";
 const ASSESSMENT_COLUMNS =
   "id, tree_id, session_id, source, overall_class, auto_approved, approved_at, assessed_at, created_at";
 const MEASUREMENT_COLUMNS =
@@ -68,14 +86,17 @@ export interface Visit {
   time: string;
   kind: Enums["session_kind"];
   methodologyVersion: string | null;
+  // When the expert signed and published the report.
+  publishedAt: string | null;
 }
 
-function toVisit(row: VisitRow): Visit {
+function toVisit(row: VisitRow & { published_at?: string | null }): Visit {
   return {
     id: row.id,
     time: sessionTime(row),
     kind: row.kind,
     methodologyVersion: row.methodology_version,
+    publishedAt: row.published_at ?? null,
   };
 }
 
@@ -247,6 +268,30 @@ export interface ParcelReport {
   findings: FindingItem[];
   metrics: MetricSummaryRow[];
   visits: VisitHistoryRow[];
+  // Assessed published visits, newest first: classes for the map's visit
+  // selector and "changed in this visit".
+  mapVisits: MapVisit[];
+  // Published visits with scan products: the trace and crop directions per tree.
+  coverage: Record<string, VisitCoverage>;
+  // Report card dimensions of the latest visit.
+  dimensions: ReportDimensions | null;
+}
+
+export interface VisitCoverage {
+  trace: Position[][];
+  // Tree id -> number of directions with a crop.
+  directions: Record<string, number>;
+  panoramas: number;
+  closeUps: number;
+}
+
+export interface ReportDimensions {
+  inventory: InventoryDimension;
+  structure: StructureDimension;
+  care: CareDimension;
+  pests: PestDimension | null;
+  fruitLoad: FruitLoadDimension | null;
+  pattern: SpatialPattern;
 }
 
 // Returns null when the parcel does not exist or the user may not see it.
@@ -283,7 +328,7 @@ export async function getParcelReport(
         supabase
           .from("slot")
           .select(
-            "id, code, kind, position::json, tree(id, sex, graft, age_class, cultivar, status, first_seen_at)",
+            "id, code, kind, row_no, position::json, tree(id, sex, graft, age_class, cultivar, status, first_seen_at, lost_at)",
           )
           .eq("parcel_id", parcelId)
           .order("row_no")
@@ -328,11 +373,28 @@ export async function getParcelReport(
 
   const codeByTree = new Map<string, string>();
   const positionByTree = new Map<string, Position>();
+  const rowOfTree = new Map<string, number | null>();
   const active: string[] = [];
   const features: FeatureCollection<PointGeometry, PortalSlot>["features"] = [];
+  const dimensionSlots: DimensionSlot[] = [];
   for (const slot of slotRows) {
     const code = slot.code ?? "";
+    dimensionSlots.push({
+      code,
+      rowNo: slot.row_no,
+      kind: slot.kind,
+      trees: slot.tree.map((t) => ({
+        id: t.id,
+        status: t.status,
+        sex: t.sex,
+        graft: t.graft,
+        ageClass: t.age_class,
+        firstSeenAt: t.first_seen_at,
+        lostAt: t.lost_at,
+      })),
+    });
     const tree = slot.tree.find((t) => t.status === "active") ?? null;
+    if (tree) rowOfTree.set(tree.id, slot.row_no);
     if (tree) {
       active.push(tree.id);
       codeByTree.set(tree.id, code);
@@ -422,45 +484,93 @@ export async function getParcelReport(
       (f.zone_id ? (zonePoints.get(f.zone_id) ?? null) : null),
   }));
 
+  const coverageData = await visitCoverage(supabase, visitIds);
+  const coverage: Record<string, VisitCoverage> = {};
+  for (const [id, c] of coverageData) {
+    coverage[id] = {
+      trace: c.trace,
+      directions: Object.fromEntries([...c.directions].map(([tree, set]) => [tree, set.size])),
+      panoramas: c.panoramas,
+      closeUps: c.closeUps,
+    };
+  }
+
+  const mapVisits: MapVisit[] = assessedVisits.map((visit, i) => ({
+    id: visit.id,
+    time: sessionTime(visit),
+    classes: Object.fromEntries(
+      [...bySession.get(visit.id)!].map(([treeId, row]) => [treeId, row.overall_class]),
+    ),
+    previousId: assessedVisits[i + 1]?.id ?? null,
+  }));
+
   let metrics: MetricSummaryRow[] = [];
   let audit: AuditConfidence | null = null;
+  let dimensions: ReportDimensions | null = null;
   if (latest) {
-    const [defs, rows, crops] = await Promise.all([
-      metricDefinitions(supabase),
+    const yearBefore = previousYearVisit(
+      visits.map((v) => ({ id: v.id, time: sessionTime(v) })),
+      latest.time,
+    );
+    const measurementsOf = (sessionId: string) =>
       fetchAll<MeasurementRow>((from, to) =>
         supabase
           .from("measurement")
           .select(MEASUREMENT_COLUMNS)
-          .eq("session_id", latest.id)
+          .eq("session_id", sessionId)
           .order("id")
           .range(from, to),
-      ),
-      fetchAll((from, to) =>
-        supabase
-          .from("asset")
-          .select("id, tree_id, pose")
-          .eq("session_id", latest.id)
-          .eq("kind", "tree_crop")
-          .not("tree_id", "is", null)
-          .order("id")
-          .range(from, to),
-      ),
+      );
+    const [defs, rows, yearBeforeRows] = await Promise.all([
+      metricDefinitions(supabase),
+      measurementsOf(latest.id),
+      yearBefore ? measurementsOf(yearBefore.id) : Promise.resolve([]),
     ]);
     metrics = summarizeMetrics(defs, rows);
-    const directions = new Map<string, Set<string>>();
-    for (const c of crops) {
-      const direction = (c.pose as { direction?: unknown } | null)?.direction;
-      if (typeof direction !== "string") continue;
-      if (!directions.has(c.tree_id!)) directions.set(c.tree_id!, new Set());
-      directions.get(c.tree_id!)!.add(direction.toUpperCase());
-    }
     audit = auditConfidence(
       active,
-      directions,
+      coverageData.get(latest.id)?.directions ?? new Map(),
       bySession.get(latest.id)!,
       latest.methodologyVersion,
       scoreRulesFor(latest.methodologyVersion),
     );
+
+    const classesOf = (id: string | undefined) =>
+      new Map([...(id ? (bySession.get(id) ?? []) : [])].map(([t, r]) => [t, r.overall_class]));
+    const values = valuesByCode(defs, pickMeasurements(rows));
+    const frame = cellFrame(
+      boundary ? boundary.geometry.coordinates[0] : features.map((f) => f.geometry.coordinates),
+    );
+    const latestClasses = mapVisits[0].classes;
+    dimensions = {
+      inventory: inventoryDimension(
+        dimensionSlots,
+        { time: latest.time, classes: classesOf(latest.id) },
+        previous ? { time: previous.time, classes: classesOf(previous.id) } : null,
+      ),
+      structure: structureDimension(dimensionSlots),
+      care: careDimension(values),
+      pests: pestDimension(values, rowOfTree),
+      fruitLoad: fruitLoadDimension(
+        values,
+        yearBefore
+          ? { time: yearBefore.time, values: valuesByCode(defs, pickMeasurements(yearBeforeRows)) }
+          : null,
+      ),
+      pattern: spatialPattern(
+        frame
+          ? cellStats(
+              frame,
+              features.map((f) => ({
+                position: f.geometry.coordinates,
+                state: f.properties.tree
+                  ? (latestClasses[f.properties.tree.id] ?? "unassessed")
+                  : "empty",
+              })),
+            )
+          : [],
+      ),
+    };
   }
 
   const findingCount = new Map<string, number>();
@@ -490,7 +600,79 @@ export async function getParcelReport(
       assessedCount: bySession.get(v.id)?.size ?? 0,
       findingCount: findingCount.get(v.id) ?? 0,
     })),
+    mapVisits,
+    coverage,
+    dimensions,
   };
+}
+
+// Scan products of the given visits: the panorama trace (one point per frame;
+// full and preview rows of a frame share pose.gps_time_ns), crop directions
+// per tree, panorama and close-up counts.
+async function visitCoverage(supabase: Client, visitIds: string[]) {
+  const out = new Map<
+    string,
+    {
+      trace: Position[][];
+      directions: Map<string, Set<string>>;
+      panoramas: number;
+      closeUps: number;
+    }
+  >();
+  if (visitIds.length === 0) return out;
+  const [assets, captures] = await Promise.all([
+    fetchAll((from, to) =>
+      supabase
+        .from("asset")
+        .select("id, session_id, kind, tree_id, position::json, pose")
+        .in("session_id", visitIds)
+        .in("kind", ["panorama", "tree_crop"])
+        .order("id")
+        .range(from, to),
+    ),
+    fetchAll((from, to) =>
+      supabase
+        .from("capture")
+        .select("id, session_id")
+        .in("session_id", visitIds)
+        .eq("kind", "photo")
+        .not("tree_id", "is", null)
+        .order("id")
+        .range(from, to),
+    ),
+  ]);
+  const frames = new Map<string, Map<string, { position: Position; gpsTimeNs: string | null }>>();
+  const entry = (id: string) => {
+    let e = out.get(id);
+    if (!e) {
+      e = { trace: [], directions: new Map(), panoramas: 0, closeUps: 0 };
+      out.set(id, e);
+    }
+    return e;
+  };
+  for (const a of assets) {
+    const pose = (a.pose ?? {}) as { direction?: unknown; gps_time_ns?: unknown };
+    if (a.kind === "tree_crop") {
+      if (!a.tree_id || typeof pose.direction !== "string") continue;
+      const dirs = entry(a.session_id).directions;
+      if (!dirs.has(a.tree_id)) dirs.set(a.tree_id, new Set());
+      dirs.get(a.tree_id)!.add(pose.direction.toUpperCase());
+    } else if (isPoint(a.position)) {
+      const position = cleanPoint(a.position).coordinates;
+      const gps = typeof pose.gps_time_ns === "string" ? pose.gps_time_ns : null;
+      const key = gps ?? position.join(",");
+      const byFrame = frames.get(a.session_id) ?? new Map();
+      frames.set(a.session_id, byFrame);
+      byFrame.set(key, { position, gpsTimeNs: gps });
+    }
+  }
+  for (const [id, byFrame] of frames) {
+    const e = entry(id);
+    e.panoramas = byFrame.size;
+    e.trace = traceSegments([...byFrame.values()]);
+  }
+  for (const c of captures) entry(c.session_id).closeUps += 1;
+  return out;
 }
 
 async function metricDefinitions(supabase: Client): Promise<MetricDef[]> {

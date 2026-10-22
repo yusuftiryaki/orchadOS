@@ -51,7 +51,15 @@ beforeAll(async () => {
   ).map((s) => s.client);
   cleanup();
   check(await admin.from("parcel").insert({ id: PARCEL, org_id: SEED.org, name: "Takip testi" }));
-  const slots = [];
+  const slots: {
+    id: string;
+    org_id: string;
+    parcel_id: string;
+    row_no: number;
+    position_no: number;
+    position: string;
+    position_uncertainty_m: number;
+  }[] = [];
   for (let row = 1; row <= 4; row++) {
     for (let pos = 1; pos <= 5; pos++) {
       const n = (row - 1) * 5 + pos;

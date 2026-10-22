@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { MapLayer } from "@/components/portal/health-map";
 import { ParcelReportView } from "@/components/portal/parcel-report";
 import { requireSection } from "@/lib/auth/session";
 import { MARKER_ORDER, type MarkerState } from "@/lib/map/tree-style";
@@ -9,7 +10,8 @@ import { loadParcelViewers } from "@/lib/portal/viewers";
 import { createClient } from "@/lib/supabase/server";
 
 // ?sinif=problem,dead opens the map filtered to those classes;
-// ?bulgu=<id> selects a finding on the map.
+// ?bulgu=<id> selects a finding on the map; ?ziyaret=<visit> shows one visit,
+// ?degisen=1 only the trees that changed, ?katman=isi,kapsama the layers.
 export default async function Page({
   params,
   searchParams,
@@ -21,6 +23,9 @@ export default async function Page({
     soru?: string | string[];
     soru_hata?: string | string[];
     hissedar?: string | string[];
+    ziyaret?: string | string[];
+    degisen?: string | string[];
+    katman?: string | string[];
   }>;
 }) {
   const user = await requireSection("portal");
@@ -40,6 +45,11 @@ export default async function Page({
       report={report}
       classFilter={parseClassFilter(first(query.sinif))}
       findingId={first(query.bulgu)}
+      mapOptions={{
+        visitId: first(query.ziyaret),
+        changed: first(query.degisen) === "1",
+        layers: parseLayers(first(query.katman)),
+      }}
       boundaryCard={boundaryCard}
       questions={{
         threads,
@@ -61,4 +71,12 @@ function parseClassFilter(value: string | undefined): MarkerState[] | undefined 
     .split(",")
     .filter((s): s is MarkerState => MARKER_ORDER.includes(s as MarkerState));
   return states.length > 0 ? states : undefined;
+}
+
+function parseLayers(value: string | undefined): MapLayer[] {
+  const names: Record<string, MapLayer> = { isi: "heat", kapsama: "coverage" };
+  return (value ?? "")
+    .split(",")
+    .map((v) => names[v])
+    .filter((v): v is MapLayer => Boolean(v));
 }
