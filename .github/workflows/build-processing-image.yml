@@ -59,7 +59,12 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Lint shell scripts
-        run: shellcheck deploy/processing/orchados-process deploy/processing/tests/e2e.sh
+        run: |
+          cd deploy/processing
+          shellcheck -x orchados-process machine.sh providers/*.sh linux/startup.sh tests/*.sh
+
+      - name: Machine scripts against fake provider CLIs
+        run: deploy/processing/tests/machine-dry-run.sh
 
       - uses: pnpm/action-setup@v4
 
