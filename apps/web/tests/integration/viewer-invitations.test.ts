@@ -11,7 +11,7 @@ import {
   removeViewer,
 } from "@/lib/portal/viewers";
 import type { Client } from "@/lib/supabase/types";
-import { runLocalSql } from "../local-db";
+import { purgeViewerInvitations } from "../local-db";
 import { SEED, serviceClient, signIn } from "./fixtures";
 
 // The owner invites a co-owner from the portal; ops opens the phone account
@@ -30,10 +30,7 @@ let ops: Client;
 let field: Client;
 let createdUser: string | null = null;
 
-const cleanup = () =>
-  runLocalSql(
-    `delete from private.viewer_invitation where phone in ('${PHONE}', '${PHONE_REJECTED}');`,
-  );
+const cleanup = () => purgeViewerInvitations([PHONE, PHONE_REJECTED]);
 
 beforeAll(async () => {
   admin = serviceClient();
@@ -43,11 +40,11 @@ beforeAll(async () => {
   [viewer, ops, field] = (
     await Promise.all([signIn("viewer"), signIn("ops"), signIn("field")])
   ).map((s) => s.client);
-  cleanup();
+  await cleanup();
 });
 
 afterAll(async () => {
-  cleanup();
+  await cleanup();
   if (createdUser) await admin.auth.admin.deleteUser(createdUser);
 });
 

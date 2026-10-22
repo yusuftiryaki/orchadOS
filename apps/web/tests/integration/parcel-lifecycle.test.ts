@@ -23,7 +23,7 @@ const status = async () => (await getParcelOps(ops, PARCEL))?.parcel.status;
 beforeAll(async () => {
   admin = serviceClient();
   [ops, field] = (await Promise.all([signIn("ops"), signIn("field")])).map((s) => s.client);
-  purgeParcels(SEED.org, [PARCEL]);
+  await purgeParcels([PARCEL]);
   const { error } = await admin.from("parcel").insert({
     id: PARCEL,
     org_id: SEED.org,
@@ -33,7 +33,7 @@ beforeAll(async () => {
   if (error) throw error;
 });
 
-afterAll(() => purgeParcels(SEED.org, [PARCEL]));
+afterAll(() => purgeParcels([PARCEL]));
 
 describe("parcel life cycle", () => {
   let planned: string;

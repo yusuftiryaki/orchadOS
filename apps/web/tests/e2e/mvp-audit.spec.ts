@@ -7,7 +7,7 @@ import {
   purgePortalFixture,
   treeId,
 } from "../integration/portal-fixture";
-import { runLocalSql } from "../local-db";
+import { purgeSessions, purgeViewerInvitations } from "../local-db";
 import { resolveSupabaseEnv } from "../local-supabase";
 
 // Features added by the MVP gap audit (docs/mvp-denetimi.md): report card
@@ -22,13 +22,9 @@ const SEED_ORG = "b0000000-0000-4000-8000-000000000001";
 const SCAN = "e2700000-0000-4000-8000-000000000001";
 const PHONE = "+905559876501";
 
-function cleanup() {
-  runLocalSql(
-    [
-      `delete from private.viewer_invitation where phone = '${PHONE}';`,
-      `delete from public.session where id = '${SCAN}';`,
-    ].join("\n"),
-  );
+async function cleanup() {
+  await purgeViewerInvitations([PHONE]);
+  await purgeSessions([SCAN]);
 }
 
 test.beforeAll(async () => {
@@ -36,7 +32,7 @@ test.beforeAll(async () => {
   const admin = createClient(env.url, env.serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  cleanup();
+  await cleanup();
   await createPortalFixture(admin as never);
   const { error } = await admin.from("session").insert({
     id: SCAN,
@@ -48,9 +44,9 @@ test.beforeAll(async () => {
   });
   if (error) throw error;
 });
-test.afterAll(() => {
-  purgePortalFixture();
-  cleanup();
+test.afterAll(async () => {
+  await purgePortalFixture();
+  await cleanup();
 });
 
 const REPORT = `/portal/parsel/${PORTAL.parcelA}`;

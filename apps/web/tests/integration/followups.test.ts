@@ -8,7 +8,7 @@ import {
 } from "@/lib/expert/followups";
 import { planFollowups } from "@/lib/operations/mutations";
 import type { Client } from "@/lib/supabase/types";
-import { purgeParcels, runLocalSql } from "../local-db";
+import { purgeParcels } from "../local-db";
 import { SEED, serviceClient, signIn } from "./fixtures";
 
 // Expert follow-up requests and the server-side close-up list against the
@@ -34,10 +34,8 @@ let field: Client;
 let owner: Client;
 const trees: { id: string; code: string }[] = [];
 
-function cleanup() {
-  runLocalSql(`delete from public.followup_request where parcel_id = '${PARCEL}';`);
-  purgeParcels(SEED.org, [PARCEL]);
-}
+// followup_request has parcel_id, so purge_parcels removes it too.
+const cleanup = () => purgeParcels([PARCEL]);
 
 function check<T extends { error: unknown }>(result: T): T {
   if (result.error) throw result.error;
@@ -49,7 +47,7 @@ beforeAll(async () => {
   [expert, ops, field, owner] = (
     await Promise.all([signIn("expert"), signIn("ops"), signIn("field"), signIn("owner")])
   ).map((s) => s.client);
-  cleanup();
+  await cleanup();
   check(await admin.from("parcel").insert({ id: PARCEL, org_id: SEED.org, name: "Takip testi" }));
   const slots: {
     id: string;
