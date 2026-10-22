@@ -27,7 +27,7 @@ function check<T extends { error: unknown }>(result: T): T {
 }
 
 test.beforeAll(async () => {
-  purgeParcels(SEED_ORG, [PARCEL]);
+  await purgeParcels([PARCEL]);
   check(await admin.from("parcel").insert({ id: PARCEL, org_id: SEED_ORG, name: PARCEL_NAME }));
   check(
     await admin.from("parcel_access").insert([
@@ -55,9 +55,7 @@ test.beforeAll(async () => {
   );
 });
 
-test.afterAll(() => {
-  purgeParcels(SEED_ORG, [PARCEL]);
-});
+test.afterAll(() => purgeParcels([PARCEL]));
 
 test("ops sees the notifications with masked phones and retries a failed one", async ({ page }) => {
   await page.goto("/giris?next=/operasyon");

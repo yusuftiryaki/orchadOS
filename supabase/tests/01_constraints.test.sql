@@ -4,6 +4,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(28);
 
+-- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
+-- removed first; rolled back with the file (supabase/testing/reset.sql).
+select testing.reset_to_seed();
+
 -- Fixtures --------------------------------------------------------------------
 
 insert into public.capture (id, org_id, parcel_id, session_id, kind, uri, content_hash, started_at)

@@ -254,8 +254,14 @@ def pull(
     progress.finish()
     local = dest.joinpath(*MANIFEST_REL.split("/"))
     local.parent.mkdir(parents=True, exist_ok=True)
-    local.write_bytes(man.to_json())
+    location = {"store": store.describe(), "uri": session_uri(store, idx.prefix)}
+    local.write_bytes(man.to_json(location))
     return res
+
+
+def session_uri(store: RawStore, prefix: str) -> str:
+    """Uri of a session prefix ('raw/<org>/<parcel>/<session>/'), ending with '/'."""
+    return store.uri(prefix.rstrip("/")) + "/"
 
 
 # --- verify -------------------------------------------------------------------

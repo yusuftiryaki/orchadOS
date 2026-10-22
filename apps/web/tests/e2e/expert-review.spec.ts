@@ -6,7 +6,7 @@ import {
   EXPERT_TEST as T,
   createExpertRun,
   grantExpertRoles,
-  removeExpertRoles,
+  purgeExpertTest,
   type ExpertRun,
 } from "./expert-fixtures";
 
@@ -27,7 +27,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await removeExpertRoles(admin);
+  await purgeExpertTest();
 });
 
 async function login(page: Page) {

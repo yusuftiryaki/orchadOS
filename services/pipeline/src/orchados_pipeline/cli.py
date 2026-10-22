@@ -95,7 +95,11 @@ def upload_options(p: argparse.ArgumentParser, required: bool) -> None:
         help=f"comma separated kinds to upload: {', '.join(sorted(UPLOAD_KINDS))} "
         f"(default: {','.join(sorted(DEFAULT_KINDS))})",
     )
-    p.add_argument("--station", help="processing station name in station:// uris (default: host)")
+    p.add_argument(
+        "--station",
+        help="processing station name in station:// uris of raw files that were not "
+        "pulled from the raw store (default: host)",
+    )
 
 
 def _upload(args, run_dir: Path, session_dir: Path | None) -> None:

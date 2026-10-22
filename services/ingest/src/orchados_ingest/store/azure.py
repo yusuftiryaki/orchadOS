@@ -75,6 +75,9 @@ class AzureStore(RawStore):
     def describe(self) -> str:
         return self.label
 
+    def uri(self, key: str) -> str:
+        return f"az://{self.cc.container_name}/{self._k(key)}"
+
     def _k(self, key: str) -> str:
         return self.prefix + check_key(key)
 

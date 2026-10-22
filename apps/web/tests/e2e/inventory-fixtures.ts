@@ -51,11 +51,11 @@ function check<T extends { error: unknown }>(result: T): T {
 }
 
 export function purgeInventoryFixture() {
-  purgeParcels(T.org, [T.parcel]);
+  return purgeParcels([T.parcel]);
 }
 
 export async function createInventoryFixture(admin: SupabaseClient<Database>) {
-  purgeInventoryFixture();
+  await purgeInventoryFixture();
   const users = (await admin.auth.admin.listUsers()).data.users;
   const userId = (email: string) => users.find((u) => u.email === email)!.id;
 

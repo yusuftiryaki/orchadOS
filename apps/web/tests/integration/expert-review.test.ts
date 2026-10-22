@@ -10,7 +10,7 @@ import {
   SEED_USERS,
   createExpertRun,
   grantExpertRoles,
-  removeExpertRoles,
+  purgeExpertTest,
   type ExpertRun,
 } from "../e2e/expert-fixtures";
 import { serviceClient, signIn } from "./fixtures";
@@ -46,7 +46,7 @@ describe("expert review", () => {
   });
 
   afterAll(async () => {
-    await removeExpertRoles(admin);
+    await purgeExpertTest();
   });
 
   async function expertRows(treeIndex: number) {

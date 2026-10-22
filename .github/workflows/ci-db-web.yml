@@ -35,6 +35,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # supabase/testing/ (test cleanup) is loaded as a seed, locally and here only;
+      # a migration would send it to the test and production projects (deploy-db).
+      - name: Test cleanup functions stay out of migrations
+        run: |
+          if grep -rniE "schema( if not exists)? +testing|testing\.(purge|reset|seed)" supabase/migrations; then
+            echo "::error::supabase/testing/ is local only; a migration must not create it"
+            exit 1
+          fi
+
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
@@ -68,6 +77,10 @@ jobs:
       - name: Unit and integration tests
         run: pnpm web:test
 
+      # Order independence: rows the web tests leave behind must not break pgTAP.
+      - name: Database tests after the web tests
+        run: pnpm db:test
+
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install --with-deps chromium
 
@@ -75,6 +88,7 @@ jobs:
         run: |
           pnpm db:reset
           pnpm web:e2e
+          pnpm db:test
 
       - name: Upload Playwright report on failure
         if: failure()

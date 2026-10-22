@@ -8,6 +8,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(38);
 
+-- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
+-- removed first; rolled back with the file (supabase/testing/reset.sql).
+select testing.reset_to_seed();
+
 create function pg_temp.tree(p_code text) returns uuid language sql immutable
 as $$ select md5('orchados-seed:tree:' || p_code)::uuid $$;
 create function pg_temp.as_user(p_id text) returns void language sql

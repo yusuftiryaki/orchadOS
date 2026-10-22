@@ -4,6 +4,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(9);
 
+-- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
+-- removed first; rolled back with the file (supabase/testing/reset.sql).
+select testing.reset_to_seed();
+
 insert into public.metric_definition (code, name, unit, value_type, categories, valid_seasons, card_visibility)
 values ('test_bark_colour', 'Test bark colour', null, 'category', '{grey,brown}', '{winter}', 'hidden');
 insert into public.metric_definition (code, name, unit, value_type, valid_seasons, card_visibility)

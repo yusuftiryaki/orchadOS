@@ -15,7 +15,7 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
-from conftest import fast_params
+from conftest import fast_params, write_raw_manifest
 from supabase_util import ORG, PARCEL, client, creds
 
 from orchados_pipeline.cli import main
@@ -27,6 +27,10 @@ from orchados_pipeline.synthetic import SyntheticConfig, make_session
 from orchados_pipeline.upload import UPLOAD_KINDS, UploadOptions, upload_to_supabase
 
 pytestmark = pytest.mark.supabase
+
+
+def raw_uri(session_id: str) -> str:
+    return f"s3://orchados-raw/raw/{ORG}/{PARCEL}/{session_id}/"
 
 
 @pytest.fixture(scope="module")
@@ -53,6 +57,8 @@ def uploaded(supabase_env, test_sessions, tmp_path_factory):
     make_session(session, cfg)
     ctx = RunContext.create(session, None, fast_params())
     out = run_all(ctx)
+    # As orchados-ingest pull leaves it; events.csv stands for a file the store lacks.
+    write_raw_manifest(session, session_id, raw_uri(session_id), skip=("gnss/events.csv",))
     report = upload_to_supabase(
         ctx.run_dir,
         session_id,
@@ -69,15 +75,24 @@ def test_rows_and_objects_are_created(uploaded):
     assert report.captures_created == len(out.captures)
     assert report.assets_created == len(uploadable)
     assert report.objects_uploaded == len(uploadable)
-    assert not report.warnings
+    (warning,) = report.warnings
+    assert "not in the store" in warning and "gnss/events.csv" in warning
 
-    captures = ops.select("capture", {"session_id": f"eq.{session_id}", "select": "id,uri"})
+    captures = ops.select(
+        "capture", {"session_id": f"eq.{session_id}", "select": "id,uri,metadata"}
+    )
     assets = ops.select(
         "asset",
         {"session_id": f"eq.{session_id}", "select": "id,kind,tree_id,content_hash,uri,pose"},
     )
     assert len(captures) == len(out.captures)
-    assert all(c["uri"].startswith("station://ci/") for c in captures)
+    # Pulled from the raw store: the rows point to the store objects.
+    for c in captures:
+        path = c["metadata"]["path"]
+        if path == "gnss/events.csv":
+            assert c["uri"] == f"station://ci{(ctx.session_dir / path).resolve()}"
+        else:
+            assert c["uri"] == raw_uri(session_id) + path
     assert len(assets) == len(uploadable)
     crops = [a for a in assets if a["kind"] == "tree_crop"]
     assert crops and all(a["tree_id"] for a in crops)

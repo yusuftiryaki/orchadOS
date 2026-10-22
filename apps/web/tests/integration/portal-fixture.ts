@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { deflateSync } from "node:zlib";
 import type { Client } from "@/lib/supabase/types";
-import { runLocalSql } from "../local-db";
+import { deleteUsers, purgeOrg } from "../local-db";
 
 // Owner portal test data, shared by the integration and browser tests. It
 // lives in its own org with its own users, so seed counts and the other
@@ -12,8 +12,8 @@ import { runLocalSql } from "../local-db";
 //   parcel B  another owner; one published visit
 //
 // capture/asset/measurement are insert-only (a trigger rejects DELETE even for
-// service_role), so cleanup runs SQL in the local database container with
-// triggers off (session_replication_role = replica). Local stack only.
+// service_role), so cleanup goes through testing.purge_org (tests/local-db.ts;
+// local and CI databases only).
 
 export const PORTAL = {
   org: "f8000000-0000-4000-8000-000000000001",
@@ -175,43 +175,13 @@ function check<T extends { error: unknown }>(result: T, what: string): T {
   return result;
 }
 
-export function purgePortalFixture() {
-  const tables = [
-    "trunk_label",
-    "finding_evidence",
-    "finding",
-    "assessment_measurement",
-    "assessment",
-    "measurement_evidence",
-    "measurement",
-    "asset_source",
-    "asset",
-    "capture",
-    "operation",
-    "tree",
-    "slot",
-    "boundary",
-    "zone",
-    "session",
-    "parcel_access",
-    "membership",
-    "parcel",
-  ];
-  const sql = [
-    "begin;",
-    "set local session_replication_role = replica;",
-    ...tables.map((t) => `delete from public.${t} where org_id = '${PORTAL.org}';`),
-    `delete from public.org where id = '${PORTAL.org}';`,
-    `delete from storage.objects where bucket_id = 'media' and name like 'org/${PORTAL.org}/%';`,
-    "set local session_replication_role = origin;",
-    `delete from auth.users where email like 'portal-%@example.test';`,
-    "commit;",
-  ].join("\n");
-  runLocalSql(sql);
+export async function purgePortalFixture() {
+  await purgeOrg(PORTAL.org);
+  await deleteUsers((email) => /^portal-.*@example\.test$/.test(email));
 }
 
 export async function createPortalFixture(admin: Client): Promise<Record<PortalUser, string>> {
-  purgePortalFixture();
+  await purgePortalFixture();
 
   const userIds = {} as Record<PortalUser, string>;
   for (const [key, email] of Object.entries(PORTAL.users) as [PortalUser, string][]) {

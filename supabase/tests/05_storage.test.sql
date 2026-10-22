@@ -6,6 +6,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(17);
 
+-- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
+-- removed first; rolled back with the file (supabase/testing/reset.sql).
+select testing.reset_to_seed();
+
 -- Fixtures (as postgres) -----------------------------------------------------------
 
 insert into public.org (id, name) values ('f1000000-0000-4000-8000-000000000005', 'Storage test org');
