@@ -341,8 +341,16 @@ Karne, son yayımlanmış ziyaretin özetidir.
 | Yakın plan kalitesi | Saha uygulaması | Netlik ve pozlama denetimi. Ret halinde fotoğraf kaydedilmez |
 | Konum kalitesi | İşleme hattı | Panorama başına GNSS çözümü: fix, float, dgps, single. Fix dışındaki panoramalar kalite skorunda düşer |
 | Panorama kalitesi | İşleme hattı | Netlik ve konum katsayısından kalite skoru (0–1) |
-| Kapsama | İşleme hattı | Her aktif ağacın en az iki yönden kesiti olmalı. Eşiğin altındaki parsel için yeniden tarama görevi açılır (ilk eşik: ağaçların %95'i, uzmanla kesinleşecek) |
+| Kapsama | İşleme hattı | Her aktif ağacın en az iki yönden kesiti olmalı. Eşiğin altındaki parsel için yeniden tarama görevi açılır (ilk eşik: ağaçların %95'i, uzmanla kesinleşecek). Ayrıntı aşağıda |
 | Uzman | Uzman paneli | Her aktif ağacın uzman kararı olmadan yayın yapılmaz |
+
+**Kapsama kapısının ayrıntısı** (işleme hattı, `coverage` aşaması; parametreler hattın parametre dosyasında, raporda saklanır):
+- **Yeterli kesit:** Kesit skoru (ideal 4 m mesafeye yakınlık × panorama kalitesi) en az 0,2; kalite 1'de yaklaşık 0,2–7,8 m.
+- **İki yön:** Yeterli kesitler en az iki farklı yönden (K, D, G, B) gelmeli ve ikisi arasında ağaçtan bakışta en az 150° olmalı, yani ağacın karşı yüzleri görülmeli. Tek bir koridordan eğik bakışlar (8 m sırada en çok 118°) ağacın öbür yüzü sayılmaz.
+- **Parsel:** Kapsanan aktif ağaç oranı eşiği (%95) geçmeli.
+- **Kör nokta:** Kapsanmayan ağaçların toplandığı 10×10 m hücre (en az 2 kapsanmayan ağaç ve hücrenin en az yarısı). Hücre kuralı yakın plan örneklemininkiyle aynıdır (bölüm 7).
+- **Yeniden tarama görevi:** Oran eşiğin altındaysa ya da kör nokta varsa operasyona "ek ziyaret" isteği otomatik açılır (kaynak: işleme hattı; eksik ağaçlar ve hücreler notta). Bir ziyaret için tek istek açılır.
+- **Envanter:** Envanter taramasının kapsaması eşiğin altındaysa uzman envanteri onaylayamaz; ya ek tarama yapılır ya da uzman kapsamayı gerekçesini yazarak kabul eder (gerekçe kayıtta kalır).
 
 ## 11. Uzmanla kesinleşecekler
 
