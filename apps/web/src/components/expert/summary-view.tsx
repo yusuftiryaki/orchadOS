@@ -1,5 +1,6 @@
 import { FollowupPanel } from "./followup-panel";
 import type { Followup } from "@/lib/expert/followups";
+import type { PipelineChecks } from "@/lib/expert/pipeline-checks";
 import Link from "next/link";
 import { isReviewable, type ReviewContext } from "@/lib/expert/review";
 import { HEALTH_CLASSES, sampleDisagreementRate, summarize } from "@/lib/expert/summary";
@@ -10,6 +11,7 @@ import { ClassBadge } from "./class-badge";
 import styles from "./expert.module.css";
 import { FindingForm } from "./finding-form";
 import { FindingList } from "./finding-list";
+import { PipelineChecksPanel } from "./pipeline-checks";
 import { PublishForm } from "./publish-form";
 import { VisitHeader } from "./review-view";
 
@@ -25,6 +27,7 @@ export function SummaryView({
   bulk,
   followups = [],
   followupMessage,
+  checks,
 }: {
   ctx: ReviewContext;
   findingError: string | null;
@@ -33,6 +36,8 @@ export function SummaryView({
   // Follow-up requests made from this visit.
   followups?: Followup[];
   followupMessage?: { saved: boolean; error: string | null };
+  // Coverage and presence check of the processing pipeline.
+  checks?: PipelineChecks;
 }) {
   const sm = t.expert.summary;
   const s = ctx.session;
@@ -84,6 +89,8 @@ export function SummaryView({
             <p className="muted">{sm.aiAgreement(summary.aiAgreed, summary.aiCompared)}</p>
           )}
         </section>
+
+        {checks && <PipelineChecksPanel checks={checks} />}
 
         <section className={styles.panel} data-testid="review-breakdown">
           <h3>{sm.review}</h3>

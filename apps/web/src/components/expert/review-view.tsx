@@ -379,6 +379,13 @@ function TriagePanel({ tree, ctx }: { tree: ReviewTreeRow; ctx: ReviewContext })
           ))}
         </ul>
       )}
+      {tree.treeVisible && (
+        <p data-testid="tree-visible" data-value={tree.treeVisible}>
+          {r.presence.title} <strong>{r.presence[tree.treeVisible] ?? tree.treeVisible}</strong>
+          <br />
+          <span className="muted">{r.presence.note}</span>
+        </p>
+      )}
       {tree.sampled && (
         <p className={styles.notice} data-testid="sample-note">
           {r.sampleNote}

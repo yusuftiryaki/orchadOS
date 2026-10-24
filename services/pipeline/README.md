@@ -9,7 +9,7 @@ Bkz. [docs/plan.md](../../docs/plan.md), [docs/teknik-mimari.md](../../docs/tekn
 ```bash
 cd services/pipeline
 uv sync                                     # bağımlılıklar (numpy, opencv-python-headless, pydantic, httpx)
-uv run pytest                               # tüm testler (~4 dk); Supabase kapalıysa entegrasyon testleri atlanır
+uv run pytest                               # tüm testler (~8 dk); Supabase kapalıysa entegrasyon testleri atlanır
 uv run ruff check . && uv run ruff format --check .
 
 uv run orchados-pipeline synth /tmp/ornek   # sentetik oturum klasörü üret (--session-id, --parcel-id)
@@ -28,12 +28,15 @@ uv run orchados-pipeline sync      <oturum> ...
 uv run orchados-pipeline frames    <oturum> ...
 uv run orchados-pipeline panoramas <oturum> ...
 uv run orchados-pipeline crops     <oturum> [--trees agaclar.json | --trees-from-db [--session-id <uuid>]] ...
+uv run orchados-pipeline coverage  <oturum> [--trees agaclar.json | --trees-from-db [--session-id <uuid>]] ...
+uv run orchados-pipeline presence  <oturum> ...
 uv run orchados-pipeline outputs   <oturum> ...
 uv run orchados-pipeline boundary  <oturum> [--session-id <uuid>] [--dry-run]   # köşelerden sınır
 uv run orchados-pipeline params    [--hash]   # varsayılan parametreler
 uv run orchados-pipeline run       <oturum> [--trees-from-db] --upload --session-id <uuid> [yükleme seçenekleri]
 uv run orchados-pipeline synth     <klasör> --trees-from-db --parcel-id <uuid> [--rows 1-2] [--positions 1-5]
 uv run orchados-pipeline synth     <klasör> --boundary-walk   # taramadan önce sınır yürüyüşü
+uv run orchados-pipeline synth     <klasör> --missing S1-2,S3-4 --planted S2-7 --skip-aisle 1   # kapsama ve var/yok sınaması
 ```
 
 RTKLIB (`convbin`, `rnx2rtkp`) ve ffmpeg `core` devcontainer'ında kurulu. RTKLIB gerektiren test, araç yoksa atlanır.
@@ -62,7 +65,7 @@ Hattın bu sözleşmeye özgü davranışı (ayrıntı `docs/arayuzler.md`'de):
 - `qr_sync` olaylarının payload'ındaki QR değeri olayın GPS zamanıyla ve videodaki QR okumalarıyla karşılaştırılır; sonuç `sync.json`'da `qr_sync_checks` olarak yazılır, büyük farklar uyarı verir.
 - Video parçaları dosya adı sırasıyla, kesintisiz ardışık bölümler olarak kabul edilir; kamera saati parçalar boyunca sürer.
 - `base/` içindeki dosyalar uzantıya değil RINEX başlığına göre (gözlem / navigasyon) sınıflandırılır.
-- `trees.json`: `[{"tree_id", "slot_code", "lat", "lon"}]` ya da `{"trees": [...]}`. Gerçek kullanımda ağaç konumları veritabanından gelir (`--trees-from-db`, bkz. [Ağaç konumları veritabanından](#ağaç-konumları-veritabanından)).
+- `trees.json`: `[{"tree_id", "slot_code", "lat", "lon"}]` ya da `{"trees": [...], "empty_slots": [{"slot_code", "lat", "lon"}]}` (boş yerler isteğe bağlı). Gerçek kullanımda ağaç konumları veritabanından gelir (`--trees-from-db`, bkz. [Ağaç konumları veritabanından](#ağaç-konumları-veritabanından)).
 
 Sözleşme testleri (`tests/test_contract.py`) İP2 README'sindeki örnek `events.csv` ve `session.json` bloklarını `tests/data/ip2_readme_*` kopyalarından okur ve kopyaların README ile birebir aynı kaldığını denetler. Sentetik oturum üretici (`synth`) de bu biçimleri üretir.
 
@@ -75,7 +78,9 @@ Sözleşme testleri (`tests/test_contract.py`) İP2 README'sindeki örnek `event
 | `sync` | Videonun başındaki ve sonundaki QR kodlarını okur, kamera saati → GPS zamanı için ofset ve doğrusal kayma (ppm) hesaplar; aykırı okumaları MAD ile eler. | `sync.json` |
 | `frames` | Aday kareleri (vars. 5 kare/sn) çıkarır; konumu yörüngeden zaman enterpolasyonuyla, yönü hareket yönünden bulur; Laplacian varyansıyla netlik skoru verir; yörünge boyunca her 3,5 m'lik dilimde en net kareyi seçer. Medyanın %35'inden bulanık kareler seçilemez. | `frames.json` |
 | `panoramas` | Seçilen kareleri 4K (3840×1920) ve 2K (1920×960) WebP olarak, her biri için yan dosya JSON'la yazar. | `panoramas/` |
-| `crops` | Her ağaç için yakın panoramalardan (1–12 m) açı ve mesafeyi hesaplar, ağaca bakan gnomonik kesit çıkarır, dört ana yönün her birinden en iyisini 1024×1024 JPEG ve yan dosya JSON olarak yazar. Kullandığı ağaç listesini çalıştırma klasörüne `trees.json` olarak kaydeder. Envanter oturumunda ve konumu olmayan parselde kesit üretmez (durum `crops.json`'da). | `crops/`, `trees.json` |
+| `crops` | Her ağaç için yakın panoramalardan (1–12 m) açı ve mesafeyi hesaplar, ağaca bakan gnomonik kesit çıkarır, dört ana yönün her birinden en iyisini 1024×1024 JPEG ve yan dosya JSON olarak yazar. Konumu olan boş yerler için de aynı kesitleri çıkarır (`crops/slot_<kod>_<yön>.jpg`, `crops.json` → `slot_crops`; var/yok kontrolü için). Kullandığı ağaç listesini çalıştırma klasörüne `trees.json` olarak kaydeder. Envanter oturumunda ve konumu olmayan parselde kesit üretmez (durum `crops.json`'da). | `crops/`, `trees.json` |
+| `coverage` | Kapsama kalite kapısı: her aktif ağaç hangi yönlerden ve ne kadar iyi görüldü, parselde kapsanan ağaç oranı ve eşik, kör nokta hücreleri. Ayrıntı: [Kapsama raporu](#kapsama-raporu) | `coverage.json` |
+| `presence` | Ağaç var/yok: kesitlerde ağaç görünüyor mu (`tree_visible`: evet / hayır / belirsiz), boş yerlerde fidan sinyali. Ayrıntı: [Ağaç var/yok kontrolü](#ağaç-varyok-kontrolü) | `presence.json` |
 | `outputs` | Tüm çıktıları türleri, hash'leri, kaynakları (lineage) ve hat sürümüyle listeler. | `outputs.json` |
 | `boundary` | Oturumun köşe olaylarını veritabanından okur, köşeleri yörüngeden konumlar, poligonu denetler ve parselin yeni sınır sürümünü yazar (`run --boundary` ile de çalışır). Ayrıntı: [Sınır köşelerinden sınır sürümü](#sınır-köşelerinden-sınır-sürümü) | `boundary.json` |
 
@@ -90,7 +95,8 @@ Varsayılan çıktı kökü oturum klasörünün yanındaki `<oturum>.processed/
 <kök>/v<hat sürümü>_<parametre hash'inin ilk 12 hanesi>/
   params.json manifest.json trajectory.json sync.json frames.json
   panoramas.json panoramas/pano-<gps_ms>_4k.webp, _2k.webp, .json
-  trees.json crops.json crops/<tree_id>_<N|E|S|W>.jpg, .json
+  trees.json crops.json crops/<tree_id>_<N|E|S|W>.jpg, .json  crops/slot_<kod>_<yön>.jpg, .json
+  coverage.json presence.json
   outputs.json  ppk/ (yalnızca baz verisi varsa)
   boundary.json (yalnızca boundary aşaması çalıştıysa)
 ```
@@ -177,13 +183,17 @@ Yerelde: `pnpm db:status` adresi ve anahtarı verir; kullanıcı `ops@example.co
 | Panorama önizlemesi (2K) | `asset` + `media` alanı | `kind = panorama`, `pose.variant = preview` |
 | Tam panorama (4K) | `asset` + `media` alanı | `kind = panorama`, `pose.variant = full`. **Varsayılan olarak yüklenmez** |
 | Ağaç kesiti | `asset` + `media` alanı | `kind = tree_crop`, `tree_id` slot koduyla bulunur (aşağıda) |
+| Boş yer kesiti | `asset` + `media` alanı | `kind = tree_crop`, `tree_id` boş, `pose.subject = slot`, `pose.slot_id`, `pose.slot_code`. Yer hâlâ boşsa yüklenir; o arada ağaç girdiyse uyarıyla atlanır |
 | Yörünge (`trajectory.json`) | `asset` + `media` alanı | `kind = trajectory` |
+| Kapsama özeti (`coverage.json`) | `coverage_report` satırı | `record_coverage_report()`; eşiğin altındaysa ya da kör nokta varsa veritabanı bir ek ziyaret isteği açar. [Kapsama raporu](#kapsama-raporu) |
+| Var/yok sonuçları (`presence.json`) | `measurement` (+ `measurement_evidence`) | `record_tree_presence()`: ağaç başına `tree_visible`, kaynak `algorithm`, kesitler kanıt; boş yerde yalnız "evet". Kesitler (`tree_crop`) yüklenmiyorsa yazılmaz |
 | `manifest.json`, `sync.json`, `frames.json`, yan dosya JSON'ları | Yüklenmez | İç ara çıktılar; içerikleri `capture`/`asset` satırlarına ve `pose` alanına aktarılır |
 
 - **Nesne adı:** `org/<org_id>/parcel/<parcel_id>/<sha256>`, `asset.uri` = `storage://media/` + bu ad ([arayuzler.md → Medya depolama](../../docs/arayuzler.md#medya-depolama)). `pose` alanları: [arayuzler.md → Asset `pose` alanı](../../docs/arayuzler.md#asset-pose-alanı).
 - **Seçim:** `--only preview,tree_crop,trajectory` (varsayılan). Türler: `panorama` (4K), `preview` (2K), `tree_crop`, `trajectory`.
 - **Lineage:** `outputs.json`'daki `derived_from` → `asset_source`. Kaydedilmeyen üst öğeler (iç JSON'lar, seçilmeyen türler) atlanır. Önizleme ← video + yörünge; kesit ← tam panorama, o yüklenmediyse aynı karenin önizlemesi (`pose.panorama_asset_id` de aynı kuralla).
 - **Ağaç eşleme:** Kesitin `slot_code`'u (ör. `S5-12a`) parseldeki `slot.code` ile, slot da aktif `tree` kaydıyla eşleştirilir. Elle verilen `trees.json`'daki `tree_id` kullanılmaz. Kesitler veritabanından okunan ağaçlarla kesildiyse (`crops.json` → `trees_source: database`) kesitteki `tree_id` de slotun bugünkü aktif ağacıyla aynı olmalıdır; işlemeden sonra slota yeni bir ağaç girdiyse kesit yüklenmez ("active tree changed since processing" uyarısı). `upload --trees-from-db` kesitlerin veritabanı ağaçlarıyla kesilmiş olmasını şart koşar; değilse hiçbir şey yazmadan hata verir. Eşleşmeyen kesit yüklenmez, raporda uyarı olarak listelenir.
+- **Sıra:** capture → asset (dosya, satır, lineage) → kapsama özeti → var/yok ölçümleri → oturum durumu.
 - **Oturum durumu:** Yükleme tamamlanınca `planned` ya da `captured` olan oturum `processed` olur; `processed`, `in_review`, `published` (ve `cancelled`) değiştirilmez.
 
 ### Tekrar çalıştırma
@@ -207,6 +217,47 @@ Yerelde: `pnpm db:status` adresi ve anahtarı verir; kullanıcı `ops@example.co
 - **Karar:** `slot.position` yokken `local_x_m`/`local_y_m`'den konum türetilmez. Yerel koordinatlar ofis aracında konumla birlikte yazılıyor; ayrıca dönüşüm (parsel başlangıcı + sıra azimutu, UTM ızgara yakınsaması ~1°) parsel ölçeğinde metrelerce hata verebilir ve kesiti yanlış ağaca bağlar.
 
 **Sentetik veriyi parsele uydurma:** `synth --trees-from-db --parcel-id <uuid>` sahneyi parseldeki aktif ağaçların gerçek konumlarıyla kurar (`--trees dosya.json` aynısını dosyadan yapar). `--rows 1-2` ve `--positions 1-5` sürülecek sıraları ve sıra içindeki yerleri seçer (iki uç dahil); yol, seçilen her sıranın iki yanındaki ara yollardan (sıra aralığının yarısı kadar yanından) gidip gelir, böylece her ağaç kuzeyden ve güneyden görülür. Sıra yönü sıradaki ilk ve son ağaçtan, sıra aralığı parseldeki sıraların medyan aralığından bulunur. Yakındaki bütün parsel ağaçları çizilir. Seed parselinde `--rows 1-2 --positions 1-5` 136 m'lik yol ve ~74 sn'lik video verir. `--start-utc` ve `--seed` her koşuya ayrı dosya hash'leri sağlar.
+
+## Kapsama raporu
+
+`coverage` aşaması (`coverage.py`) metodolojinin kapsama kalite kapısını hesaplar ([docs/metodoloji.md](../../docs/metodoloji.md) bölüm 10). Kural ve eşikler `params.coverage`'dadır, dolayısıyla parametre hash'ine girer:
+
+| Parametre | Varsayılan | Anlamı |
+| --- | --- | --- |
+| `min_view_score` | 0,2 | Yeterli bakış: kesit skoru (`crops.view_score`: ideal mesafeye yakınlık × panorama kalitesi) en az bu. Kalite 1'de ~0,2–7,8 m |
+| `min_directions` | 2 | Yeterli bakışlar en az bu kadar farklı yönden (N, E, S, W: kameranın ağaca göre yeri) gelmeli … |
+| `min_view_spread_deg` | 150 | … ve ikisi arasında ağaçtan bakışta en az bu kadar açı olmalı (karşı yüzler). Tek bir düz koridordan eğik bakışların açısı en çok `2·acos(yanal uzaklık / 7,8 m)`: 8 m sırada 118°. Böylece aynı koridordan 45° eğik bakan "E" kesiti ağacın öbür yüzü sayılmaz |
+| `parcel_threshold` | 0,95 | Parselin geçmesi için kapsanan aktif ağaç oranı (uzmanla kesinleşecek) |
+| `cell_m`, `blind_spot_min_trees`, `blind_spot_min_share` | 10 m, 2, 0,5 | Kör nokta: en az 2 kapsanmayan ağacı olan ve ağaçlarının en az yarısı kapsanmayan 10×10 m hücre |
+
+- **Bakışlar** kesit aşamasının aday bakışlarıdır (aynı mesafe aralığı, geometri ve skor, `crops.candidate_views`). Kesit dosyası gerekmediği için envanter taraması da (kesit üretilmez) ağaç konumları olunca aynı şekilde ölçülür.
+- **Hücreler** yakın plan listesiyle aynı kuraldır ([docs/arayuzler.md → Yakın plan listesi](../../docs/arayuzler.md#yakın-plan-listesi-ve-uzman-istekleri)): parselin en yeni sınırının (yoksa ağaçların) sınırlayıcı kutusunun güneybatı köşesinden doğu/kuzey metre, `x = Δboylam · R · cos(güney)`, `y = Δenlem · R`, R = 6 371 008,8 m. Sınır kutusu `--trees-from-db` ile veritabanından okunur.
+- **`coverage.json`:** ağaç başına yönler (kesit skoru ve mesafesi, yeterli mi), yeterli yönler, en iyi kesit skoru, en yakın panorama mesafesi, bakış açısı yayılımı, kapsandı mı, hücresi; parsel özeti (aktif, kapsanan, oran, eşik, sonuç, eksik, kör nokta, ek ziyaret gerekiyor mu); kapsanmayan ağacı olan hücreler (köşeleri, eksik ağaçların yer kodları); kural (parametreler). Konumlu ağaç yoksa `status = no_tree_positions`, özet yok.
+- **Yükleme:** özet `coverage_report` tablosuna yazılır (`record_coverage_report`, yalnız ops; ekleme-yalnız; aynı çalıştırma tekrar yüklenirse yeni satır açılmaz, yeniden işleme yeni rapor ekler). Oran, sonuç ve "ek ziyaret gerekiyor" veritabanında sayılardan hesaplanır. Karar ve alanlar: [docs/veri-modeli.md → Kapsama raporu](../../docs/veri-modeli.md#kapsama-raporu).
+- **Yeniden tarama görevi:** Rapor eşiğin altındaysa ya da kör nokta varsa veritabanı (tetikleyici) mevcut uzman isteği mekanizmasıyla bir **ek ziyaret isteği** açar: `followup_request`, tür `extra_visit`, kaynak (`origin`) `pipeline`, notunda oran, eksik ağaçlar ve kör nokta hücreleri. Operasyon bunu panoda uzman istekleriyle birlikte, kaynağıyla görür ve bir ziyarete bağlar. Bir ziyaret için tek istek açılır: yeniden işleme ikinci istek açmaz (operasyon iptal etmiş olsa bile); daha yeni rapor eşiği geçerse hâlâ açık olan istek kapanır. Yükleme raporu isteği yazar (`extra visit request <id>: open`).
+- **Envanter:** Envanter taramasında kesit yoktur ve ağaç konumları ofis üçgenlemesinden sonra gelir. Envanter kaydedildikten sonra kapsama ayrıca ölçülür ve yüklenir:
+  ```bash
+  uv run orchados-pipeline coverage <oturum> --trees-from-db   # aynı çalıştırma klasörüne coverage.json
+  uv run orchados-pipeline upload <çalıştırma> --session-id <uuid> --trees-from-db
+  ```
+  Uzmanın envanter onayı (`approve_inventory`) bu raporu denetler (aşağıda).
+- **Envanter onayı:** Envanter oturumunun en yeni kapsama raporu eşiğin altındaysa `approve_inventory` reddeder (`inventory_incomplete`, ayrıntı `coverage_below_threshold: <oran>/<eşik>`). Uzman raporu gerekçesiyle kabul edebilir (`waive_coverage`; kim, ne zaman, neden rapora yazılır), o zaman onay geçer. Raporu olmayan oturumda (eski veri) davranış değişmez.
+
+## Ağaç var/yok kontrolü
+
+`presence` aşaması (`presence.py`; yöntem `crop_greenness`, sürüm `0.1.0`) envanterdeki ağaçların hâlâ yerinde olup olmadığını ve boş yerlere dikim yapılıp yapılmadığını kesitlerden basit bir görüntü sinyaliyle denetler (MVP Modül 4, adım 5). Model yok; gövde tespit modeli (`trunk_label` etiketleriyle) ileride bunun yerini alır, o zaman yöntem ve sürüm değişir.
+
+- **Sinyal:** Kesitte bitki örtüsü pikselleri: renklilikte (her kanal / toplam) aşırı yeşil `2g − r − b > 0,10` ve en parlak kanal ≥ 40. Kesit ağacın konumuna bilinen mesafe ve eğimle baktığı için (yan dosya: `distance_m`, `pitch_deg`, `fov_deg`), ağaçta yerden yükseklik ve genişlikle tanımlı kutular piksele izdüşürülür:
+  - **üst taç kutusu** (2,5–4,0 m, ±1,5 m): yetişkin ağacın tacı doldurur; bir sonraki sıranın 6–8 m daha uzaktaki ağacı daha alçak ve küçük görünür, buraya yetişmez;
+  - **bütün kutu** (0,5–4,0 m, ±1,5 m): ağacın yerindeki her yeşil (arkadaki ağaçlar ve ot dahil).
+- **Bakış başına:** üst kutunun ≥ %25'i yeşilse `present`; bütün kutunun ≤ %3'ü yeşilse `absent`; arası `ambiguous`; skoru 0,2'nin altındaki kesit ya da çok karanlık / patlamış kutu `unusable`.
+- **Ağaç başına** (`tree_visible`): bir bakış `present` ise **evet**; hiçbir bakış `present` değilse ve en az iki farklı yönden bakış `absent` ise **hayır** (yerinde duran ağaç her yönden kutuyu doldurur; arkadaki ağaç o yönü yalnız `ambiguous` yapar); diğer her durum **belirsiz**. Yanlış "hayır", "belirsiz"den kötüdür: tacı üst kutuya yetişmeyen genç ağaç ya da arkasında başka sıra olan boşluk belirsiz kalır.
+- **Mevsim:** Yapraklı aylar dışında (`leafy_months`, Nisan–Ekim; ay ziyaretin UTC ayı) yeşillik bir şey söylemez: bütün ağaçlar belirsiz (`leafless_season`).
+- **Boş yerler:** Konumu olan ve aktif ağacı olmayan yerler de kesilir; fidan kutusunda (0,2–2,0 m, ±1,0 m) en az iki yönden ≥ %10 yeşillik **evet** = "yeni dikim olabilir". Uzmana öneri olarak düşer; envanter değişmez.
+- **`presence.json`:** yöntem, sürüm, ay, yapraklı mı; ağaç ve boş yer başına değer, neden (`green_crown:N,S`, `no_vegetation:N,S`, `ambiguous`, `leafless_season`, …) ve bakış başına kutu oranları, parlaklık, durum, kesitin SHA-256'sı. Parametreler `params.presence`'ta.
+- **Yükleme:** `record_tree_presence()` (yalnız ops) her ağaç için bir `tree_visible` ölçümü (kaynak `algorithm`, yöntem + sürüm + parametre hash'i, belirsizlik yok) ve kanıt olarak o ağacın yüklenen kesitlerini yazar; boş yerlerde yalnız "evet" yazılır (yer konulu ölçüm). Aynı çalıştırma tekrar yüklenirse yeni satır açılmaz. Kesitler veritabanı ağaçlarından kesildiyse ağaç kimliği bugünkü aktif ağaçla aynı olmalı; değilse atlanır ve uyarı verilir.
+- **Uzman:** "hayır" ağacı zorunlu incelemeye sokar (uzman panelinde "ağaç görünmüyor"); "Yok" sınıfını yalnız uzman verir. Özet sayfasında "İşleme hattı" bölümü kapsamayı, görünmeyen ağaçları ve yeni dikim önerilerini gösterir.
+- **Bilinen sınırlar:** Yeşil ot, gölge ve arka plandaki ağaçlar sinyali şaşırtabilir; sık dikimli bahçede eksik ağaç çoğunlukla "belirsiz" çıkar (yanlış "evet" olabilir, yanlış "hayır" için iki yönden boş görüntü gerekir). Kuru ama ayakta duran ağaç yapraklı dönemde "hayır" çıkabilir; uzman bunu "Kuru" olarak sınıflar. Kutular düz zemin ve kesit merkezinin ağaç konumunda olduğu varsayımıyla hesaplanır; konum hatası büyükse kutu kayar. Eşikler sentetik görüntülerle seçildi, pilotta gerçek kesitlerle ayarlanmalı.
 
 ## Sınır köşelerinden sınır sürümü
 
@@ -247,6 +298,9 @@ Supabase ücretsiz planda 1 GB dosya alanı var ([docs/deployment.md](../../docs
 - `tests/test_upload.py`: Sahte veritabanı (`FakeCatalog`) ve yerel depo ile eşleme, tekrar çalıştırma, yarıda kesilme, durum geçişleri, yeni hat sürümü.
 - `tests/test_boundary.py`: Köşe listesi kuralları (en yeni liste, silinen ve sonradan eklenen köşe, eşit zamanda `phone_time`), poligon denetimi (az köşe, kendini kesen ve değen kenar, alansız), sentetik yürüyüşte PPK'sız (telefon ve kaydedici yedeği), PPK'lı ve PPK boşluklu konumlama, sahte veritabanıyla kayıt ve tekrar çalıştırma.
 - `tests/test_trees_db.py`: Sahte istemciyle veritabanından ağaç okuma (aktif ağaç, boş slot, konumsuz slot, sıra), panorama-yalnız durumlar, kesitlerin `tree_id` ile yüklenmesi, sentetik sahnenin parsele uydurulması.
+- `tests/test_coverage.py`: Kapsama kuralı (iki koridor, tek koridor ve eğik bakışlar, uzak/zayıf bakış, eşik, atlanan koridor ve kör nokta hücreleri, tek eksik ağaç kör nokta değil), hücre kuralı (veritabanıyla aynı formül), parametre hash'i; sentetik taramada koridor atlama.
+- `tests/test_presence.py`: Kesit geometrisinin izdüşümü, bitki maskesi, net görüntüler (yetişkin ağaç, açıkta boş yer) ve belirsiz durumlar (arkada sıra, genç ağaç, karanlık/patlamış, zayıf kesit), karar tablosu, kış; sentetik taramada kesilmiş ağaçlar, dikilmiş boş yer, kış taraması.
+- `tests/test_checks_supabase.py` (`supabase` işareti): Seed parselinde orta koridoru atlayan tarama → kapsama eşiğin altında → hattın tek ek ziyaret isteği (tekrar yüklemede ve başka parametreyle yeniden işlemede ikinci istek yok); kesilmiş ağaç → `tree_visible = no` ve kesitleri kanıt, dikilmiş boş yer → `yes`, sahip yayından önce görmez.
 - `tests/test_upload_supabase.py` (`supabase` işareti): Yerel Supabase'e karşı sentetik oturum → `run` → `upload`. Kendi oturumunu seed parselinde açar (sentetik slot kodları S1-1 … S3-4 orada aktif ağaçlı); kayıtların ve dosyaların oluştuğunu, ikinci yüklemenin bir şey eklemediğini, sahibin yayından önce kayıtları ve dosyaları göremediğini, saha personelinin dosya yükleyemediğini denetler. Önce kökte `pnpm install && pnpm db:start && pnpm db:reset`. Supabase'e ulaşılamazsa atlanır. Adres ve anahtar `SUPABASE_URL` / `SUPABASE_ANON_KEY`'den, yoksa `supabase status`'tan okunur.
 
 ### Uçtan uca zincir testi
@@ -254,7 +308,7 @@ Supabase ücretsiz planda 1 GB dosya alanı var ([docs/deployment.md](../../docs
 `tests/test_chain_supabase.py` (`supabase` işareti) taramadan sahibin ekranına kadar zinciri yerel Supabase'e karşı, komut satırı üzerinden koşar:
 
 1. ops, seed parselinde `planned` bir `periodic_scan` oturumu açar;
-2. `synth --trees-from-db --rows 1-2 --positions 1-5` → `run --trees-from-db` → `upload --trees-from-db`; oturum `processed` olur, seçilen her ağacın kuzey ve güney kesiti vardır ve her kesit kesildiği veritabanı ağacına bağlıdır;
+2. `synth --trees-from-db --rows 1-2 --positions 1-5` → `run --trees-from-db` → `upload --trees-from-db`; oturum `processed` olur, seçilen her ağacın kuzey ve güney kesiti vardır ve her kesit kesildiği veritabanı ağacına bağlıdır; kapsama özeti yazılır (parselin küçük bir kısmı tarandığı için eşiğin altında) ve hattın ek ziyaret isteği açılır;
 3. uzman oturumu `in_review`'a alır, kesiti olan her ağaç için `save_expert_assessment` (ölçüm + kesitler kanıt olarak) çağırır; eksik ağaçlarla `publish_session`'ın reddedildiğini görür; kalan aktif ağaçlara da değerlendirme yazar ve yayımlar;
 4. sahip, ziyaretin değerlendirmelerini `tree_latest_assessment`'te (her aktif ağaç için, beklenen sınıfla), asset'lerini ve kanıt bağlarını görür; bir kesitin imzalı adresinden inen dosyanın SHA-256'sı yüklenen dosyanınkiyle aynıdır;
 5. yayından önce (yüklemeden sonra ve değerlendirmelerden sonra) sahip ziyaret satırını görür, başka hiçbir şeyi (capture, asset, değerlendirme, ölçüm, imzalı adres) göremez.
@@ -268,7 +322,7 @@ Adım süreleri `pytest -s` ile yazdırılır. Yerelde ~65 sn (tarama) ve ~25 sn
 ## Bilinen sınırlar
 
 - **Stitch yok:** Girdi kameranın masaüstü yazılımından dışa aktarılmış equirectangular MP4'tür; `.insv` işlenmez.
-- **Ağaç tespiti yok:** Kesitler ağacın bilinen konumundan geometriyle kesilir; görüntüde ağaç aranmaz.
+- **Ağaç tespiti yok:** Kesitler ağacın bilinen konumundan geometriyle kesilir; görüntüde ağaç aranmaz. Var/yok kontrolü model değil, basit bir yeşillik sinyalidir ([Ağaç var/yok kontrolü](#ağaç-varyok-kontrolü)).
 - **Yükleme sırayla:** Dosyalar ve satırlar tek tek gönderilir; ~1000 asset'lik bir ziyarette istek sayısı yüksektir. Süre pilotta ölçülmeli, gerekirse toplu ekleme ve paralel yükleme eklenir.
 - **Kamera jiroskop verisi okunmuyor:** İnce eşleme fonksiyonu sentetik sinyallerle test edildi; dosyadan okuma sonraya kaldı.
 - **QR ile kayma tahmini kısa kayıtlarda zayıf:** 100 ms yenilemede tek okumanın belirsizliği ~±50 ms; her uçta ~30 okumayla ofset birkaç ms, kayma ancak uzun kayıtlarda (≥10 dk) anlamlı. Sentetik testteki 40 sn'lik videoda kayma ölçülemez; uydurma uzun bir sentetik seriyle ayrıca test edilir.

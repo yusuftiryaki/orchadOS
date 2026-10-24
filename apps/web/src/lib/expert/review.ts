@@ -143,6 +143,8 @@ export interface ReviewTreeRow extends ReviewTree {
   cultivar: string | null;
   // Staff questions (metric codes) whose answer contradicts the AI.
   staffConflicts: string[];
+  // The pipeline's presence check of the visit: yes / no / unsure (tree_visible).
+  treeVisible: string | null;
 }
 
 export interface ReviewFinding {
@@ -303,6 +305,7 @@ export async function loadReview(
         previousClass: prev.get(t.id)?.overall_class ?? null,
         staffAnswers: signals.staff.get(t.id),
         aiValues: signals.ai.get(t.id),
+        treeVisible: signals.visible.get(t.id) ?? null,
       },
     };
   });
@@ -333,6 +336,7 @@ export async function loadReview(
         ageClass: t.age_class,
         cultivar: t.cultivar,
         staffConflicts: staffConflicts(input, rules),
+        treeVisible: input.treeVisible,
       };
     })
     .sort(compareSlots);
@@ -370,8 +374,8 @@ export async function loadReview(
   };
 }
 
-// Staff yes/no answers and AI values the mandatory review rules read: tree id
-// -> metric code -> the newest value of the visit.
+// Staff yes/no answers, AI values and the pipeline's presence check the
+// mandatory review rules read: tree id -> metric code -> the newest value of the visit.
 async function loadSignals(
   supabase: Client,
   sessionId: string,
@@ -380,14 +384,18 @@ async function loadSignals(
 ): Promise<{
   staff: Map<string, Record<string, boolean>>;
   ai: Map<string, Record<string, ObservedValue>>;
+  visible: Map<string, string>;
 }> {
   const staffCodes = new Set(staffMetricCodes(rules));
   const aiCodes = new Set(aiMetricCodes(rules));
   const codeOf = new Map(metrics.map((m) => [m.id, m.code]));
-  const ids = metrics.filter((m) => staffCodes.has(m.code) || aiCodes.has(m.code)).map((m) => m.id);
+  const ids = metrics
+    .filter((m) => staffCodes.has(m.code) || aiCodes.has(m.code) || m.code === rules.presenceMetric)
+    .map((m) => m.id);
   const staff = new Map<string, Record<string, boolean>>();
   const ai = new Map<string, Record<string, ObservedValue>>();
-  if (ids.length === 0) return { staff, ai };
+  const visible = new Map<string, string>();
+  if (ids.length === 0) return { staff, ai, visible };
 
   const rows = await fetchAll((from, to) =>
     supabase
@@ -396,7 +404,7 @@ async function loadSignals(
         "id, tree_id, metric_definition_id, value_numeric, value_scale, value_category, value_boolean, source, measured_at, created_at",
       )
       .eq("session_id", sessionId)
-      .in("source", ["staff", "ai"])
+      .in("source", ["staff", "ai", "algorithm"])
       .in("metric_definition_id", ids)
       .not("tree_id", "is", null)
       .order("id")
@@ -421,9 +429,11 @@ async function loadSignals(
     } else if (r.source === "ai" && aiCodes.has(code)) {
       const value = r.value_scale ?? r.value_category ?? r.value_boolean ?? r.value_numeric;
       if (value != null) ai.set(treeId, { ...ai.get(treeId), [code]: value });
+    } else if (r.source === "algorithm" && code === rules.presenceMetric && r.value_category) {
+      visible.set(treeId, r.value_category);
     }
   }
-  return { staff, ai };
+  return { staff, ai, visible };
 }
 
 // ---------------------------------------------------------------------------
@@ -464,7 +474,11 @@ function directionRank(d: string | null): number {
 }
 
 const VALUE_COLUMNS =
-  "id, session_id, metric_definition_id, value_numeric, value_scale, value_category, value_boolean, uncertainty, source, measured_at, created_at";
+  "id, session_id, metric_definition_id, value_numeric, value_scale, value_category, value_boolean, uncertainty, source, measured_at, created_at, metric_definition(code)";
+
+// The pipeline's presence check is shown on its own, not as an AI value: the
+// expert's decision must not copy it ("Yok" is the expert's class).
+const NOT_AN_AI_VALUE = new Set(["tree_visible"]);
 
 // Crop images are signed with `signer` (src/lib/media); without one (server
 // actions that only need the crop ids) their URLs stay null.
@@ -537,6 +551,7 @@ export async function loadTreeDetail(
       const latest = new Map<string, (typeof allMeasurements)[number]>();
       for (const m of allMeasurements) {
         if (m.session_id !== sessionId || !measurementSources.includes(m.source)) continue;
+        if (NOT_AN_AI_VALUE.has(m.metric_definition?.code ?? "")) continue;
         const cur = latest.get(m.metric_definition_id);
         const winner = newest([
           ...(cur ? [{ ...cur, time: cur.measured_at }] : []),
@@ -624,7 +639,7 @@ export async function loadBulkInputs(
       supabase
         .from("measurement")
         .select(
-          "id, tree_id, metric_definition_id, value_numeric, value_scale, value_category, value_boolean, uncertainty, measured_at, created_at",
+          "id, tree_id, metric_definition_id, value_numeric, value_scale, value_category, value_boolean, uncertainty, measured_at, created_at, metric_definition(code)",
         )
         .eq("session_id", sessionId)
         .in("source", ["ai", "algorithm"])
@@ -660,6 +675,7 @@ export async function loadBulkInputs(
     if (values.length === 0) {
       const latest = new Map<string, (typeof measurements)[number]>();
       for (const m of measurementsByTree.get(treeId) ?? []) {
+        if (NOT_AN_AI_VALUE.has(m.metric_definition?.code ?? "")) continue;
         const cur = latest.get(m.metric_definition_id);
         const winner = newest([
           ...(cur ? [{ ...cur, time: cur.measured_at }] : []),

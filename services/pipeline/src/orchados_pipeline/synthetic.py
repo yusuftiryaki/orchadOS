@@ -27,7 +27,7 @@ import numpy as np
 from .events import format_events
 from .geo import LocalFrame, bearing_deg, wrap180
 from .gpstime import gps_ns_to_iso, utc_to_gps_ns
-from .models import Tree
+from .models import EmptySlot, Tree
 from .projection import direction_to_pixel
 from .sync import encode_qr_payload
 from .trees_db import slot_order
@@ -80,6 +80,15 @@ class SyntheticConfig:
     corner_pause_s: float = 4.0
     # Phone clock error of the corner with time_source = phone.
     phone_clock_error_ms: int = 300
+    # Coverage and presence checks: trees of the list that are not drawn (cut),
+    # empty slots with a sapling drawn (newly planted; a grid code moves from the
+    # trees to empty_slots), and aisles the path skips (1-based, in driving
+    # order: the default grid has the aisles e = 0 and e = 6).
+    missing: tuple[str, ...] = ()
+    planted: tuple[str, ...] = ()
+    skip_aisles: tuple[int, ...] = ()
+    # Empty slots of the parcel (synth --trees-from-db), for planted.
+    parcel_empty_slots: list[EmptySlot] | None = None
 
 
 def parse_range(text: str) -> tuple[int, int]:
@@ -154,25 +163,37 @@ def fit_to_parcel(
     us = [uv(t.tree_id)[0] for t, _, _ in chosen]
     u0, u1 = min(us) - cfg.aisle_end_margin_m, max(us) + cfg.aisle_end_margin_m
 
+    aisles = [v for k, v in enumerate(aisles, 1) if k not in cfg.skip_aisles]
+    if not aisles:
+        raise ValueError("every aisle is skipped")
     waypoints = []
     for k, v in enumerate(aisles):
         for u in (u0, u1) if k % 2 == 0 else (u1, u0):
             e, n = u * axis + v * across
             waypoints.append((float(e), float(n)))
 
+    planted = [e for e in cfg.parcel_empty_slots or [] if e.slot_code in cfg.planted]
+    unknown = set(cfg.planted) - {e.slot_code for e in planted}
+    if unknown:
+        raise ValueError(f"planted slots are not empty slots of the parcel: {sorted(unknown)}")
+    for e in planted:
+        en[f"slot:{e.slot_code}"] = np.array(frame.to_en(e.lat, e.lon), dtype=float)
+    subjects = [(t.tree_id, t.slot_code, t.lat, t.lon, None) for t in trees]
+    subjects += [(f"slot:{e.slot_code}", e.slot_code, e.lat, e.lon, "sapling") for e in planted]
     scene = []
-    for t in trees:
-        u, v = uv(t.tree_id)
-        if u0 - 25 <= u <= u1 + 25 and aisles[0] - 25 <= v <= aisles[-1] + 25:
-            e, n = en[t.tree_id]
+    for key, code, lat, lon, kind in subjects:
+        u, v = uv(key)
+        if u0 - 25 <= u <= u1 + 25 and min(aisles) - 25 <= v <= max(aisles) + 25:
+            e, n = en[key]
             scene.append(
                 {
-                    "tree_id": t.tree_id,
-                    "slot_code": t.slot_code,
-                    "lat": t.lat,
-                    "lon": t.lon,
+                    "tree_id": None if kind else key,
+                    "slot_code": code,
+                    "lat": lat,
+                    "lon": lon,
                     "e": float(e),
                     "n": float(n),
+                    **({"kind": kind} if kind else {}),
                 }
             )
     return lat0, lon0, waypoints, scene
@@ -268,6 +289,9 @@ class SyntheticTruth:
     # local-plane area; empty without boundary_walk.
     boundary_corners: list[dict] = field(default_factory=list)
     boundary_area_m2: float | None = None
+    # Trees listed but not drawn, and empty slots with a sapling drawn.
+    missing: list[str] = field(default_factory=list)
+    planted: list[str] = field(default_factory=list)
 
 
 def _render_frame(
@@ -277,6 +301,11 @@ def _render_frame(
     h, w = img.shape[:2]
     order = sorted(trees, key=lambda t: -math.hypot(t["e"] - e, t["n"] - n))
     for t in order:
+        if t.get("missing"):
+            continue
+        sapling = t.get("kind") == "sapling"
+        # (trunk top, crown centre, crown half width, half height), metres
+        top, centre, rx, ry = (0.6, 0.9, 0.5, 0.45) if sapling else (1.4, 2.6, 1.4, 1.1)
         de, dn = t["e"] - e, t["n"] - n
         d = math.hypot(de, dn)
         if d < 0.5 or d > 25:
@@ -285,10 +314,10 @@ def _render_frame(
         x, _ = direction_to_pixel(yaw, 0, w, h)
         trunk_half = math.degrees(math.atan2(0.15, d)) / 360 * w
         _, y_ground = direction_to_pixel(0, math.degrees(math.atan2(-cam_h, d)), w, h)
-        _, y_top = direction_to_pixel(0, math.degrees(math.atan2(1.4 - cam_h, d)), w, h)
-        _, y_crown = direction_to_pixel(0, math.degrees(math.atan2(2.6 - cam_h, d)), w, h)
-        r_x = math.degrees(math.atan2(1.4, d)) / 360 * w
-        r_y = math.degrees(math.atan2(1.1, d)) / 180 * h
+        _, y_top = direction_to_pixel(0, math.degrees(math.atan2(top - cam_h, d)), w, h)
+        _, y_crown = direction_to_pixel(0, math.degrees(math.atan2(centre - cam_h, d)), w, h)
+        r_x = math.degrees(math.atan2(rx, d)) / 360 * w
+        r_y = math.degrees(math.atan2(ry, d)) / 180 * h
         for shift in (-w, 0, w):  # wrap around the seam
             xs = x + shift
             cv2.rectangle(
@@ -343,6 +372,17 @@ def make_session(dest: Path, cfg: SyntheticConfig | None = None) -> SyntheticTru
     if cfg.parcel_trees is not None:
         lat0, lon0, waypoints, scene_trees = fit_to_parcel(cfg)
         cfg = replace(cfg, lat0=lat0, lon0=lon0, waypoints=waypoints)
+    elif cfg.skip_aisles:
+        # The default grid's two aisles, minus the skipped ones.
+        aisles = [e for k, e in enumerate((0.0, 6.0), 1) if k not in cfg.skip_aisles]
+        if not aisles:
+            raise ValueError("every aisle is skipped")
+        ends = [cfg.waypoints[0][1], cfg.waypoints[1][1]]
+        waypoints = []
+        for k, e in enumerate(aisles):
+            for n in ends if k % 2 == 0 else ends[::-1]:
+                waypoints.append((e, n))
+        cfg = replace(cfg, waypoints=waypoints)
     frame = LocalFrame(cfg.lat0, cfg.lon0)
     path = Path2D(cfg.waypoints)
     move_s = path.length / cfg.speed_mps
@@ -376,16 +416,26 @@ def make_session(dest: Path, cfg: SyntheticConfig | None = None) -> SyntheticTru
     for i, e in enumerate(cfg.tree_rows_e if scene_trees is None else ()):
         for j, n in enumerate(cfg.tree_cols_n):
             lat, lon = frame.to_latlon(e, n)
+            code = f"S{i + 1}-{j + 1}"
+            planted_here = code in cfg.planted
             trees.append(
                 {
-                    "tree_id": f"T{i + 1}{j + 1:02d}",
-                    "slot_code": f"S{i + 1}-{j + 1}",
+                    "tree_id": None if planted_here else f"T{i + 1}{j + 1:02d}",
+                    "slot_code": code,
                     "lat": float(lat),
                     "lon": float(lon),
                     "e": e,
                     "n": n,
+                    **({"kind": "sapling"} if planted_here else {}),
                 }
             )
+    codes = {t["slot_code"] for t in trees if t["tree_id"] is not None}
+    unknown = set(cfg.missing) - codes
+    if unknown:
+        raise ValueError(f"missing trees are not trees of the scene: {sorted(unknown)}")
+    for t in trees:
+        if t["slot_code"] in cfg.missing:
+            t["missing"] = True
 
     # Video: camera clock runs (1 + drift) slower than GPS -> gps = t0 + cam * (1 + drift).
     height = cfg.width // 2
@@ -521,10 +571,13 @@ def make_session(dest: Path, cfg: SyntheticConfig | None = None) -> SyntheticTru
         "app_version": "synthetic",
     }
     (dest / "session.json").write_text(json.dumps(session, indent=2) + "\n", encoding="utf-8")
-    public_trees = [{k2: t[k2] for k2 in ("tree_id", "slot_code", "lat", "lon")} for t in trees]
-    (dest / "trees.json").write_text(
-        json.dumps({"trees": public_trees}, indent=2) + "\n", encoding="utf-8"
-    )
+    keys = ("tree_id", "slot_code", "lat", "lon")
+    public_trees = [{k2: t[k2] for k2 in keys} for t in trees if t["tree_id"] is not None]
+    empty = [{k2: t[k2] for k2 in keys[1:]} for t in trees if t["tree_id"] is None]
+    listing: dict = {"trees": public_trees}
+    if empty:
+        listing["empty_slots"] = empty
+    (dest / "trees.json").write_text(json.dumps(listing, indent=2) + "\n", encoding="utf-8")
     truth = SyntheticTruth(
         video_start_gps_ns=t0,
         clock_offset_ns=t0,
@@ -537,6 +590,8 @@ def make_session(dest: Path, cfg: SyntheticConfig | None = None) -> SyntheticTru
         path_length_m=path.length,
         boundary_corners=boundary_truth,
         boundary_area_m2=boundary_area,
+        missing=sorted(cfg.missing),
+        planted=sorted(cfg.planted),
     )
     (dest / "synthetic_truth.json").write_text(
         json.dumps(asdict(truth), indent=1) + "\n", encoding="utf-8"

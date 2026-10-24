@@ -6,9 +6,10 @@ import type { Visit } from "@/lib/operations/data";
 import { opsHref } from "@/lib/operations/urls";
 import styles from "./operations.module.css";
 
-// Open follow-up requests of the experts. Verification and extra-visit
-// requests are linked to a visit ops plans; close-up requests ride on the
-// next scan's close-up list by themselves.
+// Open follow-up requests of the experts, and the extra visits the processing
+// pipeline asks for when a scan's coverage is below its threshold. Verification
+// and extra-visit requests are linked to a visit ops plans; close-up requests
+// ride on the next scan's close-up list by themselves.
 
 const f = t.expert.followups;
 const T = t.operations.dashboard;
@@ -36,9 +37,14 @@ export function ExpertRequests({
               (item.kind !== "verification" || v.kind === "verification"),
           );
           return (
-            <li key={item.id} data-followup-kind={item.kind} data-followup-status={item.status}>
+            <li
+              key={item.id}
+              data-followup-kind={item.kind}
+              data-followup-status={item.status}
+              data-followup-origin={item.origin}
+            >
               <p>
-                <strong>{f.kinds[item.kind]}</strong> ·{" "}
+                <strong>{f.kinds[item.kind]}</strong> · {f.origin[item.origin]} ·{" "}
                 <Link href={opsHref.parcel(item.parcelId)}>
                   {parcels.get(item.parcelId) ?? "?"}
                 </Link>{" "}

@@ -616,6 +616,100 @@ export type Database = {
           },
         ];
       };
+      coverage_report: {
+        Row: {
+          active_trees: number;
+          blind_spot_cells: NonNullable<Json>;
+          blind_spots: number;
+          covered_trees: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          missing_slot_codes: string[];
+          missing_trees: number | null;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          passed: boolean | null;
+          pipeline: string;
+          pipeline_version: string;
+          ratio: number | null;
+          rescan_needed: boolean | null;
+          rule: NonNullable<Json>;
+          session_id: string;
+          threshold: number;
+          waived_at: string | null;
+          waived_by: string | null;
+          waiver_note: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          active_trees: number;
+          blind_spot_cells?: NonNullable<Json>;
+          blind_spots: number;
+          covered_trees: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          missing_slot_codes?: string[];
+          missing_trees?: never;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          passed?: never;
+          pipeline: string;
+          pipeline_version: string;
+          ratio?: never;
+          rescan_needed?: never;
+          rule?: NonNullable<Json>;
+          session_id: string;
+          threshold: number;
+          waived_at?: string | null;
+          waived_by?: string | null;
+          waiver_note?: string | null;
+        };
+        Update: {
+          active_trees?: number;
+          blind_spot_cells?: NonNullable<Json>;
+          blind_spots?: number;
+          covered_trees?: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          missing_slot_codes?: string[];
+          missing_trees?: never;
+          org_id?: string;
+          params_hash?: string;
+          parcel_id?: string;
+          passed?: never;
+          pipeline?: string;
+          pipeline_version?: string;
+          ratio?: never;
+          rescan_needed?: never;
+          rule?: NonNullable<Json>;
+          session_id?: string;
+          threshold?: number;
+          waived_at?: string | null;
+          waived_by?: string | null;
+          waiver_note?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "coverage_report_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "coverage_report_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
       device: {
         Row: {
           created_at: string;
@@ -807,11 +901,13 @@ export type Database = {
       };
       followup_request: {
         Row: {
+          coverage_report_id: string | null;
           created_at: string;
           id: string;
           kind: Database["public"]["Enums"]["followup_kind"];
           note: string | null;
           org_id: string;
+          origin: Database["public"]["Enums"]["followup_origin"];
           parcel_id: string;
           requested_by: string | null;
           resolved_at: string | null;
@@ -823,11 +919,13 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          coverage_report_id?: string | null;
           created_at?: string;
           id?: string;
           kind: Database["public"]["Enums"]["followup_kind"];
           note?: string | null;
           org_id: string;
+          origin?: Database["public"]["Enums"]["followup_origin"];
           parcel_id: string;
           requested_by?: string | null;
           resolved_at?: string | null;
@@ -838,11 +936,13 @@ export type Database = {
           tree_id?: string | null;
         };
         Update: {
+          coverage_report_id?: string | null;
           created_at?: string;
           id?: string;
           kind?: Database["public"]["Enums"]["followup_kind"];
           note?: string | null;
           org_id?: string;
+          origin?: Database["public"]["Enums"]["followup_origin"];
           parcel_id?: string;
           requested_by?: string | null;
           resolved_at?: string | null;
@@ -853,6 +953,13 @@ export type Database = {
           tree_id?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "followup_request_coverage_report_id_parcel_id_org_id_fkey";
+            columns: ["coverage_report_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "coverage_report";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
           {
             foreignKeyName: "followup_request_parcel_id_org_id_fkey";
             columns: ["parcel_id", "org_id"];
@@ -2732,6 +2839,7 @@ export type Database = {
       phone_login_allowed: { Args: { p_phone: string }; Returns: boolean };
       phone_login_code_requested: { Args: { p_phone: string }; Returns: string };
       phone_login_record_failure: { Args: { p_phone: string }; Returns: number };
+      pipeline_rescan_request: { Args: { p_session_id: string }; Returns: Json };
       publish_session: {
         Args: { p_session_id: string };
         Returns: {
@@ -2761,6 +2869,8 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      record_coverage_report: { Args: { p_report: Json; p_session_id: string }; Returns: Json };
+      record_tree_presence: { Args: { p_payload: Json; p_session_id: string }; Returns: Json };
       record_verification_result: {
         Args: {
           p_closeup_capture_id?: string;
@@ -2861,6 +2971,40 @@ export type Database = {
         };
         Returns: Json;
       };
+      waive_coverage: {
+        Args: { p_note: string; p_session_id: string };
+        Returns: {
+          active_trees: number;
+          blind_spot_cells: NonNullable<Json>;
+          blind_spots: number;
+          covered_trees: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          missing_slot_codes: string[];
+          missing_trees: number | null;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          passed: boolean | null;
+          pipeline: string;
+          pipeline_version: string;
+          ratio: number | null;
+          rescan_needed: boolean | null;
+          rule: NonNullable<Json>;
+          session_id: string;
+          threshold: number;
+          waived_at: string | null;
+          waived_by: string | null;
+          waiver_note: string | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "coverage_report";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
     };
     Enums: {
       age_class: "sapling" | "young" | "productive" | "old" | "unknown";
@@ -2880,6 +3024,7 @@ export type Database = {
       device_kind: "human_kit" | "robot" | "phone" | "base_station" | "other";
       finding_severity: "info" | "low" | "medium" | "high";
       followup_kind: "closeup" | "verification" | "extra_visit";
+      followup_origin: "expert" | "pipeline";
       followup_status: "open" | "planned" | "done" | "cancelled";
       graft_status: "grafted" | "ungrafted" | "unknown";
       health_class: "healthy" | "attention" | "problem" | "dead" | "absent";
@@ -3071,6 +3216,7 @@ export const Constants = {
       device_kind: ["human_kit", "robot", "phone", "base_station", "other"],
       finding_severity: ["info", "low", "medium", "high"],
       followup_kind: ["closeup", "verification", "extra_visit"],
+      followup_origin: ["expert", "pipeline"],
       followup_status: ["open", "planned", "done", "cancelled"],
       graft_status: ["grafted", "ungrafted", "unknown"],
       health_class: ["healthy", "attention", "problem", "dead", "absent"],

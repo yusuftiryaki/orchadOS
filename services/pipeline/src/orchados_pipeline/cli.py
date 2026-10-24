@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import __version__
 from .context import RunContext
+from .models import CoverageReport, PresenceReport, read_model
 from .params import PipelineParams
 from .supabase import Credentials
 
@@ -36,8 +37,38 @@ def _summary(ctx: RunContext, out) -> None:
     print(f"run directory: {ctx.run_dir}")
     print("assets: " + ", ".join(f"{k}={v}" for k, v in sorted(kinds.items())))
     print(f"crops: {CROPS_STATUS[out.crops_status]}")
+    if ctx.coverage_path.is_file():
+        print(_coverage_line(read_model(CoverageReport, ctx.coverage_path)))
+    if ctx.presence_path.is_file():
+        print(_presence_line(read_model(PresenceReport, ctx.presence_path)))
     for w in out.warnings:
         print(f"warning: {w}")
+
+
+def _presence_line(rep: PresenceReport) -> str:
+    def count(results, value):
+        return sum(r.value == value for r in results)
+
+    if rep.status != "ok":
+        return "presence: no crops"
+    season = "" if rep.leafy else " (leafless season: unsure)"
+    return (
+        f"presence ({rep.method} {rep.method_version}){season}: trees visible "
+        f"{count(rep.trees, 'yes')}, not visible {count(rep.trees, 'no')}, unsure "
+        f"{count(rep.trees, 'unsure')}; possible new planting in "
+        f"{count(rep.slots, 'yes')} of {len(rep.slots)} empty slots"
+    )
+
+
+def _coverage_line(rep: CoverageReport) -> str:
+    s = rep.summary
+    if s is None:
+        return "coverage: none, the parcel has no tree positions yet"
+    return (
+        f"coverage: {s.covered_trees}/{s.active_trees} trees ({s.ratio:.1%}, threshold "
+        f"{s.threshold:.0%}): {'passed' if s.passed else 'below the threshold'}; "
+        f"{s.blind_spots} blind spots" + ("; an extra visit is needed" if s.rescan_needed else "")
+    )
 
 
 def _db_tree_list(ctx: RunContext, session_id: str | None):
@@ -139,6 +170,10 @@ def main(argv: list[str] | None = None) -> int:
     crops_p = stage("crops", "tree crops")
     _trees_options(crops_p)
     crops_p.add_argument("--session-id", help="public.session id (default: from session.json)")
+    cov_p = stage("coverage", "coverage of the trees: sides seen, parcel share, blind spots")
+    _trees_options(cov_p)
+    cov_p.add_argument("--session-id", help="public.session id (default: from session.json)")
+    stage("presence", "tree present / missing signal on the crops (and empty slots)")
     stage("outputs", "write outputs.json")
     bnd = stage(
         "boundary",
@@ -197,6 +232,18 @@ def main(argv: list[str] | None = None) -> int:
         "phone's corner events in phone_events.json",
     )
 
+    syn.add_argument(
+        "--missing", help="slot codes of trees listed but not drawn (cut), e.g. S1-2,S3-4"
+    )
+    syn.add_argument(
+        "--planted",
+        help="empty slots with a sapling drawn (default grid: a grid code moves from the "
+        "trees to empty_slots; --trees-from-db: empty slots of the parcel)",
+    )
+    syn.add_argument(
+        "--skip-aisle", help="aisles the path skips, 1-based in driving order, e.g. 1 or 1,3"
+    )
+
     pp = sub.add_parser("params", help="print default parameters as JSON")
     pp.add_argument("--hash", action="store_true", help="print only the parameter hash")
 
@@ -231,6 +278,12 @@ def main(argv: list[str] | None = None) -> int:
                 print("no trees JSON, skipped")
             else:
                 print(f"{len(res.crops)} crops; {CROPS_STATUS[res.status]}")
+        elif args.command == "coverage":
+            rep = pipeline.stage_coverage(ctx, trees, tlist)
+            print("no trees JSON, skipped" if rep is None else _coverage_line(rep))
+        elif args.command == "presence":
+            rep = pipeline.stage_presence(ctx)
+            print("no crops.json, skipped" if rep is None else _presence_line(rep))
         elif args.command == "boundary":
             _boundary(ctx, args.session_id, write_db=not args.dry_run)
         elif args.command == "outputs":
@@ -258,11 +311,13 @@ def _synth(args, parser: argparse.ArgumentParser) -> int:
         if not args.parcel_id:
             parser.error("--trees-from-db needs --parcel-id")
         with SupabaseClient.sign_in(Credentials.from_env()) as client:
-            cfg.parcel_trees = parcel_tree_list(client, args.parcel_id).trees
+            plist = parcel_tree_list(client, args.parcel_id)
+        cfg.parcel_trees, cfg.parcel_empty_slots = plist.trees, plist.empty_slots
         if not cfg.parcel_trees:
             raise ValueError(f"parcel {args.parcel_id} has no active trees with a position")
     elif args.trees:
-        cfg.parcel_trees = load_trees(Path(args.trees)).trees
+        plist = load_trees(Path(args.trees))
+        cfg.parcel_trees, cfg.parcel_empty_slots = plist.trees, plist.empty_slots
     elif args.rows or args.positions:
         parser.error("--rows and --positions need --trees-from-db or --trees")
     if args.start_utc:
@@ -273,6 +328,12 @@ def _synth(args, parser: argparse.ArgumentParser) -> int:
     cfg.rows = parse_range(args.rows) if args.rows else None
     cfg.positions = parse_range(args.positions) if args.positions else None
     cfg.boundary_walk = args.boundary_walk
+
+    def codes(text: str | None) -> tuple[str, ...]:
+        return tuple(c.strip() for c in (text or "").split(",") if c.strip())
+
+    cfg.missing, cfg.planted = codes(args.missing), codes(args.planted)
+    cfg.skip_aisles = tuple(int(c) for c in codes(args.skip_aisle))
     truth = make_session(Path(args.dest), cfg)
     print(
         f"synthetic session written to {args.dest} ({truth.frame_count} frames, "
@@ -283,6 +344,8 @@ def _synth(args, parser: argparse.ArgumentParser) -> int:
             if truth.boundary_corners
             else ""
         )
+        + (f", missing: {','.join(truth.missing)}" if truth.missing else "")
+        + (f", planted: {','.join(truth.planted)}" if truth.planted else "")
         + ")"
     )
     return 0

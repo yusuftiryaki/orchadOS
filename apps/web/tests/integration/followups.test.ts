@@ -270,3 +270,35 @@ describe("critical finding before the report", () => {
     expect(row.data?.approved_at).not.toBeNull();
   });
 });
+
+describe("rescan request of the pipeline", () => {
+  it("a coverage report below the threshold shows up among the requests, once", async () => {
+    const report = {
+      pipeline: "orchados-pipeline",
+      pipeline_version: "0.1.0",
+      params_hash: "test",
+      active_trees: 20,
+      covered_trees: 16,
+      threshold: 0.95,
+      blind_spots: 0,
+      missing_slot_codes: ["S1-1", "S1-2", "S1-3", "S1-4"],
+      blind_spot_cells: [],
+      rule: {},
+    };
+    for (const r of [report, { ...report, params_hash: "again", covered_trees: 15 }]) {
+      check(await ops.rpc("record_coverage_report", { p_session_id: REVIEW, p_report: r }));
+    }
+    const pipeline = (await listFollowups(ops, { parcelIds: [PARCEL] })).filter(
+      (f) => f.origin === "pipeline",
+    );
+    expect(pipeline).toHaveLength(1);
+    expect(pipeline[0]).toMatchObject({ kind: "extra_visit", status: "open", treeId: null });
+    expect(pipeline[0].note).toContain("Eksik ağaçlar (4): S1-1, S1-2, S1-3, S1-4");
+    // The owner does not see requests; the expert's own stay origin expert.
+    expect(await listFollowups(owner, { parcelIds: [PARCEL] })).toEqual([]);
+    const fromExpert = (await listFollowups(expert, { parcelIds: [PARCEL] })).filter(
+      (f) => f.origin === "expert",
+    );
+    expect(fromExpert.length).toBeGreaterThan(0);
+  });
+});

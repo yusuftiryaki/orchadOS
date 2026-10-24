@@ -10,6 +10,14 @@
 - derived_from in outputs.json becomes asset_source rows. Parents that are not
   registered (internal JSON stages, kinds left out) are skipped; a crop whose
   full panorama is not registered points to that panorama's preview instead.
+- The coverage summary (coverage.json) becomes a coverage_report row through
+  record_coverage_report(); the database opens one extra visit request
+  (followup_request, origin pipeline) when the scan is below the threshold or
+  has blind spots.
+- presence.json becomes tree_visible measurements (source algorithm, method
+  crop_greenness) through record_tree_presence(), the crops as evidence;
+  views of empty slots are tree_crop assets without a tree (pose.subject =
+  slot) and a "yes" on an empty slot a slot measurement (possible new planting).
 - Re-running is safe: objects are written before their rows, existing objects
   and rows are found and skipped (asset by session + content_hash +
   pipeline_version), missing lineage rows are added. A new pipeline version
@@ -30,6 +38,7 @@ from .hashing import sha256_file
 from .media import MediaStore, media_key, media_uri
 from .models import (
     ClockModel,
+    CoverageReport,
     CropRecord,
     CropSet,
     FileRole,
@@ -37,6 +46,7 @@ from .models import (
     PanoramaRecord,
     PanoramaSet,
     Pose,
+    PresenceReport,
     read_model,
 )
 from .outputs import AssetEntry, CaptureEntry, Outputs, load_outputs
@@ -101,6 +111,10 @@ class Catalog(Protocol):
         """slot code -> id of the slot's active tree."""
         ...
 
+    def empty_slots(self, parcel_id: str) -> dict[str, str]:
+        """slot code -> slot id of the slots without an active tree."""
+        ...
+
     def captures(self, session_id: str) -> dict[str, str]:
         """content_hash -> capture id."""
         ...
@@ -121,6 +135,18 @@ class Catalog(Protocol):
 
     def mark_processed(self, session_id: str, from_statuses: Iterable[str]) -> str:
         """Set status to 'processed' if it is one of from_statuses; return the status after."""
+        ...
+
+    def record_coverage(self, session_id: str, report: dict[str, Any]) -> dict[str, Any]:
+        """record_coverage_report(): {report_id, created, passed, rescan_needed}."""
+        ...
+
+    def rescan_request(self, session_id: str) -> dict[str, Any] | None:
+        """The extra visit request the database opened for the visit: {id, status, ...}."""
+        ...
+
+    def record_presence(self, session_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """record_tree_presence(): {created, existing}."""
         ...
 
 
@@ -145,6 +171,9 @@ class UploadReport:
     objects_uploaded: int = 0
     objects_existing: int = 0
     lineage_created: int = 0
+    coverage: dict[str, Any] | None = None  # record_coverage_report() result
+    rescan_request: dict[str, Any] | None = None  # pipeline_rescan_request()
+    presence: dict[str, Any] | None = None  # record_tree_presence() result
     skipped_kinds: dict[str, int] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
@@ -156,6 +185,22 @@ class UploadReport:
             f"objects: {self.objects_uploaded} uploaded, {self.objects_existing} existing",
             f"lineage rows: {self.lineage_created} created",
         ]
+        if self.coverage is not None:
+            c = self.coverage
+            out.append(
+                f"coverage report: {'created' if c.get('created') else 'existing'}, "
+                + ("passed" if c.get("passed") else "below the threshold")
+                + ("; extra visit needed" if c.get("rescan_needed") else "")
+            )
+        if self.rescan_request is not None:
+            r = self.rescan_request
+            out.append(f"extra visit request {r['id']}: {r['status']}")
+        if self.presence is not None:
+            p = self.presence
+            out.append(
+                f"tree_visible measurements: {p.get('created', 0)} created, "
+                f"{p.get('existing', 0)} existing"
+            )
         if self.skipped_kinds:
             skipped = ", ".join(f"{k}={v}" for k, v in sorted(self.skipped_kinds.items()))
             out.append(f"not uploaded: {skipped}")
@@ -270,6 +315,8 @@ class _Run:
     crops: dict[str, CropRecord]  # crop image sha -> record
     trees_source: str | None  # crops.json trees_source; None without crops.json
     clock: ClockModel | None
+    coverage: CoverageReport | None
+    presence: PresenceReport | None
 
     @classmethod
     def load(cls, run_dir: Path) -> _Run:
@@ -280,15 +327,19 @@ class _Run:
         cpath = run_dir / "crops.json"
         cset = read_model(CropSet, cpath) if cpath.is_file() else None
         spath = run_dir / "sync.json"
+        covpath = run_dir / "coverage.json"
+        prespath = run_dir / "presence.json"
         return cls(
             run_dir=run_dir,
             outputs=load_outputs(run_dir / "outputs.json"),
             manifest=read_model(Manifest, run_dir / "manifest.json"),
             panoramas={p.image.sha256: p for p in pset.panoramas},
             preview_of={p.image.sha256: p.preview.sha256 for p in pset.panoramas},
-            crops={c.image.sha256: c for c in cset.crops} if cset else {},
+            crops={c.image.sha256: c for c in cset.crops + cset.slot_crops} if cset else {},
             trees_source=cset.trees_source if cset else None,
             clock=read_model(ClockModel, spath) if spath.is_file() else None,
+            coverage=read_model(CoverageReport, covpath) if covpath.is_file() else None,
+            presence=read_model(PresenceReport, prespath) if prespath.is_file() else None,
         )
 
     def session_start(self, session: SessionRow) -> str:
@@ -363,16 +414,26 @@ def upload_run(
             "process again with run --trees-from-db"
         )
     trees = catalog.active_trees(session.parcel_id) if has_crops else {}
+    has_slot_crops = any(a.kind == "tree_crop" and _is_slot(a) for a in selected)
+    empty = catalog.empty_slots(session.parcel_id) if has_slot_crops else {}
     crop_tree: dict[str, str] = {}
+    crop_slot: dict[str, str] = {}
     unmatched: list[str] = []
     changed: list[str] = []
+    planted: list[str] = []
     for a in selected:
         if a.kind != "tree_crop":
             continue
         subject = a.subject or {}
         code = subject.get("slot_code", "")
         label = f"{code or '?'} ({subject.get('direction', '?')})"
-        if code not in trees:
+        if _is_slot(a):
+            # View of an empty slot: kept while the slot is still empty.
+            if code in empty:
+                crop_slot[a.asset_id] = empty[code]
+            else:
+                planted.append(label)
+        elif code not in trees:
             unmatched.append(label)
         elif from_db and subject.get("tree_id") != trees[code]:
             # Crops from the database carry the tree id; the slot now holds another tree.
@@ -389,8 +450,17 @@ def upload_run(
             f"{len(changed)} tree crops not uploaded, the slot's active tree changed since "
             "processing: " + ", ".join(sorted(changed))
         )
-    if unmatched or changed:
-        selected = [a for a in selected if a.kind != "tree_crop" or a.asset_id in crop_tree]
+    if planted:
+        report.warnings.append(
+            f"{len(planted)} empty slot views not uploaded, the slot is no longer empty: "
+            + ", ".join(sorted(planted))
+        )
+    if unmatched or changed or planted:
+        selected = [
+            a
+            for a in selected
+            if a.kind != "tree_crop" or a.asset_id in crop_tree or a.asset_id in crop_slot
+        ]
 
     base = {"org_id": session.org_id, "parcel_id": session.parcel_id, "session_id": session.id}
 
@@ -469,7 +539,7 @@ def upload_run(
             report.assets_existing += 1
             asset_id = asset_ids[a.asset_id]
         else:
-            row = _asset_row(a, run, base, out, key, crop_tree, parents)
+            row = _asset_row(a, run, base, out, key, crop_tree, crop_slot, parents)
             asset_id = asset_ids[a.asset_id] = catalog.insert_asset(row)
             report.assets_created += 1
 
@@ -495,8 +565,118 @@ def upload_run(
         if n % 100 == 0:
             log(f"assets: {n}/{len(selected)}")
 
+    # --- coverage summary ------------------------------------------------------------
+    payload = coverage_payload(run.coverage) if run.coverage is not None else None
+    if payload is not None:
+        if run.coverage.session_id != session.id:
+            raise UploadError(f"coverage.json is for session {run.coverage.session_id}")
+        report.coverage = catalog.record_coverage(session.id, payload)
+        report.rescan_request = catalog.rescan_request(session.id)
+
+    # --- presence: tree_visible measurements -------------------------------------------
+    if run.presence is not None and run.presence.status == "ok":
+        if run.presence.session_id != session.id:
+            raise UploadError(f"presence.json is for session {run.presence.session_id}")
+        if "tree_crop" not in wanted:
+            report.warnings.append("presence results not recorded: tree crops (evidence) left out")
+        else:
+            if not has_crops:
+                trees = catalog.active_trees(session.parcel_id)
+            if not has_slot_crops:
+                empty = catalog.empty_slots(session.parcel_id)
+            payload, warnings = presence_payload(
+                run.presence, trees, empty, asset_ids, from_db, run.session_start(session)
+            )
+            report.warnings += warnings
+            if payload["items"]:
+                report.presence = catalog.record_presence(session.id, payload)
+
     report.status_after = catalog.mark_processed(session.id, STATUS_BEFORE_PROCESSED)
     return report
+
+
+def _is_slot(a: AssetEntry) -> bool:
+    return (a.subject or {}).get("subject") == "slot"
+
+
+def presence_payload(
+    rep: PresenceReport,
+    trees: dict[str, str],
+    empty: dict[str, str],
+    asset_ids: dict[str, str],
+    from_db: bool,
+    measured_at: str,
+) -> tuple[dict[str, Any], list[str]]:
+    """record_tree_presence()'s p_payload and warnings.
+
+    Trees by slot code (and, for crops cut from the database, the same tree id);
+    empty slots only when the signal says yes (possible new planting). Evidence:
+    the uploaded crops the signal was read from."""
+    items: list[dict[str, Any]] = []
+    skipped: list[str] = []
+    for r in rep.trees:
+        tree_id = trees.get(r.slot_code)
+        if tree_id is None or (from_db and r.tree_id != tree_id):
+            skipped.append(r.slot_code)
+            continue
+        evidence = [asset_ids[v.crop_sha256] for v in r.views if v.crop_sha256 in asset_ids]
+        items.append({"tree_id": tree_id, "value": r.value, "evidence_asset_ids": evidence})
+    for r in rep.slots:
+        if r.value != "yes":
+            continue
+        slot_id = empty.get(r.slot_code)
+        if slot_id is None:
+            skipped.append(r.slot_code)
+            continue
+        evidence = [asset_ids[v.crop_sha256] for v in r.views if v.crop_sha256 in asset_ids]
+        items.append({"slot_id": slot_id, "value": r.value, "evidence_asset_ids": evidence})
+    warnings = []
+    if skipped:
+        warnings.append(
+            f"{len(skipped)} presence results not recorded, the slot's tree changed since "
+            "processing: " + ", ".join(sorted(skipped))
+        )
+    payload = {
+        "method": rep.method,
+        "method_version": rep.method_version,
+        "params_hash": rep.producer.params_hash,
+        "measured_at": measured_at,
+        "items": items,
+    }
+    return payload, warnings
+
+
+def coverage_payload(rep: CoverageReport) -> dict[str, Any] | None:
+    """record_coverage_report()'s p_report; None when there is nothing to record
+    (no tree positions yet)."""
+    if rep.status != "ok" or rep.summary is None or rep.summary.active_trees == 0:
+        return None
+    s = rep.summary
+    return {
+        "pipeline": rep.producer.pipeline,
+        "pipeline_version": rep.producer.version,
+        "params_hash": rep.producer.params_hash,
+        "active_trees": s.active_trees,
+        "covered_trees": s.covered_trees,
+        "threshold": s.threshold,
+        "blind_spots": s.blind_spots,
+        "missing_slot_codes": [t.slot_code for t in rep.trees if not t.covered],
+        "blind_spot_cells": [
+            {
+                "cell": list(c.cell),
+                "trees": c.trees,
+                "uncovered": c.uncovered,
+                "slot_codes": c.uncovered_slot_codes,
+                "south": c.south,
+                "west": c.west,
+                "north": c.north,
+                "east": c.east,
+            }
+            for c in rep.cells
+            if c.blind_spot
+        ],
+        "rule": rep.rule,
+    }
 
 
 def _asset_row(
@@ -506,6 +686,7 @@ def _asset_row(
     out: Outputs,
     key: str,
     crop_tree: dict[str, str],
+    crop_slot: dict[str, str],
     parents: list[str | None],
 ) -> dict[str, Any]:
     row: dict[str, Any] = {
@@ -537,8 +718,12 @@ def _asset_row(
         if pano is not None:  # where the camera stood
             row["position"] = _point(pano.pose)
             row["position_uncertainty_m"] = pano.pose.sd_h_m
-        row["tree_id"] = crop_tree[a.asset_id]
         row["pose"] = crop_pose(rec, next((p for p in parents if p), None))
+        if a.asset_id in crop_slot:
+            # No tree: the slot is named in the pose (docs/arayuzler.md, "Asset pose alanı").
+            row["pose"].update(subject="slot", slot_id=crop_slot[a.asset_id])
+        else:
+            row["tree_id"] = crop_tree[a.asset_id]
     return row
 
 
@@ -574,6 +759,15 @@ class SupabaseCatalog:
         )
         tree_of_slot = {t["slot_id"]: t["id"] for t in trees}
         return {s["code"]: tree_of_slot[s["id"]] for s in slots if s["id"] in tree_of_slot}
+
+    def empty_slots(self, parcel_id: str) -> dict[str, str]:
+        slots = self.client.select("slot", {"parcel_id": f"eq.{parcel_id}", "select": "id,code"})
+        trees = self.client.select(
+            "tree",
+            {"parcel_id": f"eq.{parcel_id}", "status": "eq.active", "select": "id,slot_id"},
+        )
+        taken = {t["slot_id"] for t in trees}
+        return {s["code"]: s["id"] for s in slots if s["id"] not in taken}
 
     def captures(self, session_id: str) -> dict[str, str]:
         rows = self.client.select(
@@ -621,6 +815,19 @@ class SupabaseCatalog:
             {"status": "processed"},
         )
         return self.session(session_id).status
+
+    def record_coverage(self, session_id: str, report: dict[str, Any]) -> dict[str, Any]:
+        return self.client.rpc(
+            "record_coverage_report", {"p_session_id": session_id, "p_report": report}
+        )
+
+    def rescan_request(self, session_id: str) -> dict[str, Any] | None:
+        return self.client.rpc("pipeline_rescan_request", {"p_session_id": session_id})
+
+    def record_presence(self, session_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.client.rpc(
+            "record_tree_presence", {"p_session_id": session_id, "p_payload": payload}
+        )
 
 
 def upload_to_supabase(

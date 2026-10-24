@@ -4,14 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import crops, frames, ingest, outputs, panoramas, position, sync
+from . import coverage, crops, frames, ingest, outputs, panoramas, position, presence, sync
 from .context import RunContext
 from .models import (
     ClockModel,
+    CoverageReport,
     CropSet,
     FrameSelection,
     Manifest,
     PanoramaSet,
+    PresenceReport,
     Trajectory,
     TreeList,
     read_model,
@@ -76,6 +78,34 @@ def stage_crops(
     )
 
 
+def stage_coverage(
+    ctx: RunContext, trees_path: Path | None = None, tree_list: TreeList | None = None
+) -> CoverageReport | None:
+    """Coverage of a tree list (as stage_crops; else the list the crops stage saved in
+    the run folder); None when there is no tree list."""
+    if tree_list is None:
+        trees_path = trees_path or (ctx.trees_path if ctx.trees_path.is_file() else None)
+        trees_path = trees_path or default_trees_path(ctx)
+        if trees_path is None:
+            return None
+        tree_list = crops.load_trees(trees_path)
+    return coverage.run(
+        ctx,
+        _load(ctx, Manifest, ctx.manifest_path, "ingest"),
+        _load(ctx, PanoramaSet, ctx.panoramas_path, "panoramas"),
+        tree_list,
+    )
+
+
+def stage_presence(ctx: RunContext) -> PresenceReport | None:
+    """Tree present / missing signal on the run's crops; None without crops.json."""
+    if not ctx.crops_path.is_file():
+        return None
+    return presence.run(
+        ctx, _load(ctx, Manifest, ctx.manifest_path, "ingest"), read_model(CropSet, ctx.crops_path)
+    )
+
+
 def stage_outputs(ctx: RunContext) -> outputs.Outputs:
     cset = read_model(CropSet, ctx.crops_path) if ctx.crops_path.is_file() else None
     return outputs.run(
@@ -94,7 +124,9 @@ def run_all(
     stage_sync(ctx)
     stage_frames(ctx)
     stage_panoramas(ctx)
-    for stale in (ctx.crops_path, ctx.trees_path):
+    for stale in (ctx.crops_path, ctx.trees_path, ctx.coverage_path, ctx.presence_path):
         stale.unlink(missing_ok=True)
     stage_crops(ctx, trees_path, tree_list)
+    stage_coverage(ctx, trees_path, tree_list)
+    stage_presence(ctx)
     return stage_outputs(ctx)

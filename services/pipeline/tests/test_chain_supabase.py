@@ -7,7 +7,8 @@ test_scan_to_owner, run in order (README, "Uçtan uca zincir testi"):
 1. ops opens a periodic_scan session (planned) on the seed parcel;
 2. synth fitted to the parcel's trees (rows 1-2, positions 1-5, from the
    database) -> run --trees-from-db -> upload --trees-from-db; the session is
-   processed and every crop is bound to the database tree it was cut for;
+   processed, every crop is bound to the database tree it was cut for, and the
+   coverage summary is recorded (far below the threshold: an extra visit request);
 3. the expert takes the session in review, saves a decision for every tree
    with crops (crops as evidence) and for the other active trees, and publishes;
 4. the owner sees the visit's assessments in tree_latest_assessment and its
@@ -125,7 +126,18 @@ def test_scan_to_owner(supabase_env, test_sessions, tmp_path, monkeypatch):
     assert main([*upload, "--station", "ci"]) == 0
     (row,) = ops.select("session", {"id": f"eq.{session_id}", "select": "status"})
     assert row["status"] == "processed"
-    steps.done("upload; session processed")
+    # The coverage summary is written too: rows 1-2, positions 1-5 of a 302-tree
+    # parcel are far below the threshold, so the pipeline asks for an extra visit.
+    (cov,) = ops.select(
+        "coverage_report",
+        {"session_id": f"eq.{session_id}", "select": "active_trees,covered_trees,passed"},
+    )
+    assert cov["active_trees"] > 300 and 0 < cov["covered_trees"] < 20 and not cov["passed"]
+    (req,) = ops.select(
+        "followup_request", {"source_session_id": f"eq.{session_id}", "select": "origin,kind"}
+    )
+    assert req == {"origin": "pipeline", "kind": "extra_visit"}
+    steps.done("upload; session processed, coverage recorded")
 
     tlist = parcel_tree_list(ops, PARCEL)
     active = {t.tree_id: t.slot_code for t in tlist.trees}
@@ -151,6 +163,8 @@ def test_scan_to_owner(supabase_env, test_sessions, tmp_path, monkeypatch):
             "select": "id,tree_id,content_hash,pose",
         },
     )
+    # Views of empty slots (presence check) are crops without a tree.
+    crops = [a for a in crops if a["tree_id"] is not None]
     by_hash = {c.image.sha256: c for c in cset.crops}
     assert sorted(a["content_hash"] for a in crops) == sorted(by_hash)
     assert all(a["tree_id"] == by_hash[a["content_hash"]].tree_id for a in crops)

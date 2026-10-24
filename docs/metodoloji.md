@@ -227,6 +227,14 @@ Ağacın her ziyaretteki genel sınıfı aşağıdaki kurallarla çıkar. Kurall
 - Önceki ziyarete göre sınıfı değişenler.
 - Personel cevabıyla AI önerisi çelişenler.
 - Personelin "Sorun gördüm" dedikleri.
+- İşleme hattının "ağaç görünmüyor" dediği ağaçlar (`tree_visible = no`, aşağıda "Ağaç var/yok kontrolü"). "Yok" sınıfını yine yalnız uzman verir (bölüm 5).
+
+**Ağaç var/yok kontrolü (işleme hattı):** Hat, envanterdeki her aktif ağacın kesitlerinde ağacın görünüp görünmediğini basit bir görüntü sinyaliyle ölçer ve ağaç başına bir `algorithm` ölçümü yazar: `tree_visible` = evet / hayır / belirsiz (yöntem `crop_greenness`, sürümlü).
+- **Sinyal:** Kesitte ağacın konumuna düşen kutulardaki yeşil piksel oranı. Üst taç kutusu (yerden 2,5–4 m, ±1,5 m) dolu ise ağaç görünür: arka sıradaki ağaç daha uzakta olduğu için bu kutuya yetişmez. Bütün kutu (0,5–4 m) neredeyse hiç yeşil değilse o yönden ağaç yoktur; arası belirsizdir. Zayıf kesit (skor < 0,2), karanlık ya da patlamış görüntü kullanılmaz.
+- **Karar:** Bir yönden taç görünüyorsa "evet". "Hayır" için hiçbir yönden taç görünmemeli ve en az iki farklı yönden kesit boş olmalı: yerinde duran ağaç her yönden kutuyu doldurur, arka plandaki ağaç ise o yönü yalnız "belirsiz" yapar. Diğer her durum "belirsiz". Yanlış "yok" demek, "belirsiz" demekten kötüdür; tacı küçük genç ağaç ya da arkada başka ağaç olan boşluk "belirsiz" kalır.
+- **Mevsim:** Yapraksız dönemde (Kasım–Mart) yeşillik bir şey söylemez; bütün ağaçlar "belirsiz" yazılır.
+- **Sınırlar:** Model değildir. Yeşil ot, arka plandaki ağaçlar ve gölge sinyali şaşırtabilir; sık dikimli bahçede eksik ağaç çoğunlukla "belirsiz" çıkar. Gövde tespit modeli (ofis aracındaki `trunk_label` etiketleriyle eğitilecek) bunun yerini alacak; o zaman yöntem ve sürümü değişir, eski ölçümler kalır.
+- **Boş yerler:** Envanterde boş olan bir yerin kesitlerinde (fidan kutusu: yerden 0,2–2 m, ±1 m) en az iki yönden yeşillik varsa yere `tree_visible = evet` yazılır: "yeni dikim olabilir". Uzmana öneri olarak gösterilir; envanter kendiliğinden değişmez. Uzman doğruysa yeni dikim bulgusu yazar ya da doğrulama ister.
 
 **Toplu onay ve kalite örneklemi:** Kalan ağaçlar toplu onaylanabilir; bu ağaçların rastgele %5'i yine uzmana gösterilir.
 - Toplu onaylanan sonuç sahibe "otomatik onay" olarak, uzman incelemesinden ayrı görünür.
@@ -333,8 +341,16 @@ Karne, son yayımlanmış ziyaretin özetidir.
 | Yakın plan kalitesi | Saha uygulaması | Netlik ve pozlama denetimi. Ret halinde fotoğraf kaydedilmez |
 | Konum kalitesi | İşleme hattı | Panorama başına GNSS çözümü: fix, float, dgps, single. Fix dışındaki panoramalar kalite skorunda düşer |
 | Panorama kalitesi | İşleme hattı | Netlik ve konum katsayısından kalite skoru (0–1) |
-| Kapsama | İşleme hattı | Her aktif ağacın en az iki yönden kesiti olmalı. Eşiğin altındaki parsel için yeniden tarama görevi açılır (ilk eşik: ağaçların %95'i, uzmanla kesinleşecek) |
+| Kapsama | İşleme hattı | Her aktif ağacın en az iki yönden kesiti olmalı. Eşiğin altındaki parsel için yeniden tarama görevi açılır (ilk eşik: ağaçların %95'i, uzmanla kesinleşecek). Ayrıntı aşağıda |
 | Uzman | Uzman paneli | Her aktif ağacın uzman kararı olmadan yayın yapılmaz |
+
+**Kapsama kapısının ayrıntısı** (işleme hattı, `coverage` aşaması; parametreler hattın parametre dosyasında, raporda saklanır):
+- **Yeterli kesit:** Kesit skoru (ideal 4 m mesafeye yakınlık × panorama kalitesi) en az 0,2; kalite 1'de yaklaşık 0,2–7,8 m.
+- **İki yön:** Yeterli kesitler en az iki farklı yönden (K, D, G, B) gelmeli ve ikisi arasında ağaçtan bakışta en az 150° olmalı, yani ağacın karşı yüzleri görülmeli. Tek bir koridordan eğik bakışlar (8 m sırada en çok 118°) ağacın öbür yüzü sayılmaz.
+- **Parsel:** Kapsanan aktif ağaç oranı eşiği (%95) geçmeli.
+- **Kör nokta:** Kapsanmayan ağaçların toplandığı 10×10 m hücre (en az 2 kapsanmayan ağaç ve hücrenin en az yarısı). Hücre kuralı yakın plan örneklemininkiyle aynıdır (bölüm 7).
+- **Yeniden tarama görevi:** Oran eşiğin altındaysa ya da kör nokta varsa operasyona "ek ziyaret" isteği otomatik açılır (kaynak: işleme hattı; eksik ağaçlar ve hücreler notta). Bir ziyaret için tek istek açılır.
+- **Envanter:** Envanter taramasının kapsaması eşiğin altındaysa uzman envanteri onaylayamaz; ya ek tarama yapılır ya da uzman kapsamayı gerekçesini yazarak kabul eder (gerekçe kayıtta kalır).
 
 ## 11. Uzmanla kesinleşecekler
 
@@ -386,5 +402,8 @@ Ayrıca saha uygulamasındaki "böyle çek" görselleri: mevsim başına 3 çeki
 | Hasat tamam mı | `harvest_complete` | Evet/hayır | Hasat | Var |
 | Dal kırığı | `branch_break` | Evet/hayır | Hasat | Var |
 | Hırsızlık izi | `theft_trace` | Evet/hayır (parsel) | Hasat | Var |
+| Ağaç görünüyor mu (işleme hattı) | `tree_visible` | Kategori: `yes`, `no`, `unsure` (ağaç ya da boş yer) | Tümü (yapraksız dönemde hep `unsure`) | Var |
 
 Uzman panelinde bir düzeltme için mevsimin ölçeklerinden en az birinin girilmesi gerekir; görüntüden karar verilemeyen ölçek boş bırakılır (bölüm 4).
+
+`tree_visible` bir ölçek değil, kalite ve envanter sinyalidir: kaynağı `algorithm` (işleme hattı, `crop_greenness`), karnede gösterilmez, genel sınıfı doğrudan belirlemez. "Hayır" ağacı zorunlu incelemeye sokar (bölüm 6); boş bir yerde "evet" yeni dikim önerisidir. AI ön değerlendirmesinin kendi "ağaç görünüyor mu" cevabı ayrı tutulur (`ai_assessment_detail.tree_visible`).

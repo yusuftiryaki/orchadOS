@@ -239,6 +239,9 @@ Ham kayıtlar (360° video, UBX, `events.csv`, iki `session.json`, baz RINEX) Su
 | `pitch_deg` | sayı | Kesit merkezinin yataya göre açısı (yukarı pozitif) |
 | `fov_deg` | sayı | Kesitin yatay görüş açısı |
 | `score` | sayı | Kesit seçim skoru (0–1); `quality_score` ile aynı |
+| `subject`, `slot_id` | `slot`, uuid | Yalnız **boş yer kesitlerinde**: `asset.tree_id` boştur, kesit aktif ağacı olmayan bir yere bakar (ağaç var/yok kontrolü, yeni dikim önerisi). Ağaç kesitlerinde bu alanlar yoktur |
+
+Ağaca bağlı kesitleri okuyan ekranlar `tree_id` boş satırları atlar (portal ve uzman paneli zaten `tree_id` ile sorgular).
 
 `trajectory` satırlarında `pose` ve konum boştur.
 
@@ -251,8 +254,10 @@ Ham kayıtlar (360° video, UBX, `events.csv`, iki `session.json`, baz RINEX) Su
 | `public.session` | `id`, `parcel_id`, `kind` | `session.json`'daki `session_id`; parsel `session.json`'daki `parcel_id` ile aynı olmalı |
 | `public.slot` | `id`, `code`, `position`, `position_uncertainty_m`, `local_x_m`, `local_y_m` | Parselin slotları. `position` PostgREST'ten GeoJSON nokta olarak gelir |
 | `public.tree` | `id`, `slot_id` | `status = active` |
+| `public.boundary` | `version`, `geom` | En yüksek sürümün sınır kutusu: kapsama hücrelerinin başlangıcı (aşağıda) |
 
 - Kesitin `subject.tree_id`'si `tree.id`, `slot_code`'u `slot.code`'dur; yükleme bunu slotun yükleme anındaki aktif ağacıyla yeniden denetler.
+- Aktif ağacı olmayan konumlu yerler "boş yer" olarak okunur ve var/yok kontrolü için kesit alır.
 - `slot.position` boşsa ağaç kesit almaz (**karar**: yerel koordinattan konum türetilmez). Parselde konumlu aktif ağaç yoksa ya da oturum `kind = inventory` ise hat sadece panorama üretir; bu hata değil, `outputs.json`'da `crops_status` (`no_tree_positions`, `inventory_session`) olarak raporlanır.
 
 ## AI ön değerlendirme satırları
@@ -498,7 +503,35 @@ Periyodik ziyaretin yakın plan listesi sunucuda üretilir (`docs/metodoloji.md`
 
 - **Durum:** `open` → `planned` → `done`, ya da `cancelled`. Yakın plan isteği, ağacın sonraki bir ziyaretten yakın plan fotoğrafı (`capture`, `kind = photo`, `tree_id`) gelince `done` olur. Planlanmış istek, ziyareti `captured` (ve sonrası) olunca `done`; ziyaret iptal edilirse yeniden `open`.
 - İstekler sonuç değildir: sahip ve izleyici görmez, yayından sonra da yapılabilir.
+- **Kaynak (`origin`):** `expert` (uzman panelinden, `request_followup`) ya da `pipeline` (işleme hattının kapsama raporu; aşağıda). Hattın isteği her zaman `extra_visit`'tir, `coverage_report_id` raporu gösterir; operasyon onu diğer isteklerle aynı şekilde planlar.
 - **Hatalar:** `not_found`, `forbidden`, `invalid_input` (ayrıntıda neden).
+
+## Kapsama raporu ve ağaç var/yok
+
+İşleme hattının kalite kontrolleri (`services/pipeline/README.md` → "Kapsama raporu", "Ağaç var/yok kontrolü"). Hat ops kullanıcısıyla yazar; uzman paneli ve envanter onayı okur.
+
+**`record_coverage_report(p_session_id, p_report)`** (yalnız operasyon) → `{report_id, created, passed, rescan_needed}`. `p_report`:
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `pipeline`, `pipeline_version`, `params_hash` | metin | Raporu üreten hat |
+| `active_trees`, `covered_trees` | int | Konumlu aktif ağaç ve kapsanan ağaç sayısı (`active_trees > 0`) |
+| `threshold` | sayı | Parsel eşiği (0–1] |
+| `blind_spots` | int | Kör nokta hücre sayısı |
+| `missing_slot_codes` | metin dizisi | Kapsanmayan ağaçların yer kodları |
+| `blind_spot_cells` | dizi | `{cell: [cx, cy], trees, uncovered, slot_codes, south, west, north, east}` |
+| `rule` | nesne | Hattın kapsama parametreleri |
+
+- Sonuç (`ratio`, `passed`, `missing_trees`, `rescan_needed`) veritabanında sayılardan hesaplanır. Ziyaretin en yeni raporu geçerlidir; aynı hat sürümü, parametreler ve sayılarla gelen rapor yeni satır açmaz.
+- `rescan_needed` ise veritabanı ziyaret başına bir kez `followup_request` (`extra_visit`, `origin = pipeline`) açar; notunda oran, eksik ağaçlar ve kör nokta hücreleri yazar. `pipeline_rescan_request(p_session_id)` bu isteği (`{id, status, coverage_report_id}`) döndürür. Daha yeni rapor eşiği geçerse hâlâ açık istek `cancelled` olur.
+- **Hücre kuralı** yakın plan listesiyle aynıdır (yukarıda).
+- **Envanter onayı:** `approve_inventory` envanter oturumunun en yeni raporu eşiğin altındaysa ve kabul edilmemişse `inventory_incomplete` verir; ayrıntıda `coverage_below_threshold: <oran>/<eşik>` (dört ondalık, `;` ile diğer eksiklerle). `waive_coverage(p_session_id, p_note)` (uzman) en yeni raporu gerekçeyle kabul eder (`waived_by`, `waived_at`, `waiver_note`).
+
+**`record_tree_presence(p_session_id, p_payload)`** (yalnız operasyon) → `{created, existing}`. `p_payload`: `{method, method_version, params_hash, measured_at, items: [{tree_id | slot_id, value: yes|no|unsure, confidence?, evidence_asset_ids: [...]}]}`.
+
+- Her kalem bir `tree_visible` ölçümüdür (`source = algorithm`, kategori `yes`/`no`/`unsure`, belirsizlik yok); kanıtlar ziyaretin `tree_crop` asset'leri. Ağaç parselin aktif ağacı, yer aktif ağacı olmayan bir yer olmalı. Aynı ziyaret, konu, yöntem, sürüm ve parametre hash'iyle ölçüm varsa kalem atlanır.
+- **Anlamı:** ağaçta `no` → uzman panelinde zorunlu inceleme (`not_visible`); "Yok" sınıfını yalnız uzman verir. Yerde `yes` → "yeni dikim olabilir" önerisi. Hat boş yerlere yalnız `yes` yazar.
+- AI ön değerlendirmesinin `ai_assessment_detail.tree_visible` alanı ayrıdır; ikisi karıştırılmaz.
 
 ## Açık noktalar
 

@@ -4,7 +4,8 @@ Read with the signed-in ops user's token (row level security applies; no
 service key). Only active trees count; a tree's position is its slot's
 position (WGS84) with the slot's position_uncertainty_m. Slots without a
 position (a parcel before its inventory is done) are listed as unlocated and
-get no crops.
+get no crops. Located slots without an active tree are listed as empty slots:
+they get views for the presence check (possible new planting).
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from .models import Tree, TreeList
+from .models import EmptySlot, Tree, TreeList
 
 SLOT_CODE = re.compile(r"^S(\d+)-(\d+)([a-z]?)$")
 
@@ -39,6 +40,24 @@ def _lon_lat(position: Any, code: str) -> tuple[float, float] | None:
     raise TreesError(f"slot {code}: unexpected position value {position!r}")
 
 
+def _bbox(geom: Any) -> tuple[float, float, float, float] | None:
+    """West, south, east, north of a GeoJSON polygon."""
+    if not isinstance(geom, dict) or geom.get("type") != "Polygon":
+        return None
+    pts = [p for ring in geom["coordinates"] for p in ring]
+    lons, lats = [float(p[0]) for p in pts], [float(p[1]) for p in pts]
+    return min(lons), min(lats), max(lons), max(lats)
+
+
+def boundary_bbox(client, parcel_id: str) -> tuple[float, float, float, float] | None:
+    """Bounding box of the parcel's newest boundary version (the origin of the
+    10 x 10 m cells, as closeup_list() in the database); None without one."""
+    rows = client.select("boundary", {"parcel_id": f"eq.{parcel_id}", "select": "id,version,geom"})
+    if not rows:
+        return None
+    return _bbox(max(rows, key=lambda r: r["version"])["geom"])
+
+
 def parcel_tree_list(
     client, parcel_id: str, session_id: str | None = None, session_kind: str | None = None
 ) -> TreeList:
@@ -57,11 +76,15 @@ def parcel_tree_list(
     tree_of_slot = {t["slot_id"]: t["id"] for t in active}
     trees: list[Tree] = []
     unlocated: list[str] = []
+    empty: list[EmptySlot] = []
     for s in sorted(slots, key=lambda s: slot_order(s["code"])):
         tree_id = tree_of_slot.get(s["id"])
-        if tree_id is None:
-            continue  # empty slot
         ll = _lon_lat(s["position"], s["code"])
+        if tree_id is None:
+            # Empty slot: viewed for the presence check (possible new planting).
+            if ll is not None:
+                empty.append(EmptySlot(slot_id=s["id"], slot_code=s["code"], lat=ll[1], lon=ll[0]))
+            continue
         if ll is None:
             unlocated.append(s["code"])
             continue
@@ -83,6 +106,8 @@ def parcel_tree_list(
         session_kind=session_kind,
         trees=trees,
         unlocated_slots=unlocated,
+        empty_slots=empty,
+        boundary_bbox=boundary_bbox(client, parcel_id),
     )
 
 

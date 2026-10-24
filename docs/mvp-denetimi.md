@@ -15,7 +15,7 @@ Bu belge [MVP.md](MVP.md)'deki her özelliğin kodda karşılığı olup olmadı
 ## Özet
 
 - Bu görevde 30'a yakın madde "yok" ya da "kısmen"den "var"a geçti: parsel yaşam döngüsü, hissedar daveti, karne boyutları, 10×10 m ısı haritası, harita ziyaret seçici, değişenler filtresi ve kapsama katmanı, gezide zamanda gezinme ve bakış yönü, kanıt bilgisi ve hash doğrulaması, uzman istekleri (ek ziyaret, yakın plan, doğrulama), kritik bulgunun rapordan önce onayı, genel sınıf kuralı önerisi, sunucuda yakın plan listesi.
-- **Sonraki iş (başka bileşen):** saha uygulamasının `closeup_list`'i indirmesi ve "Sorun gördüm" düğmesi, sesli not, hava ve ekipman kaydı; işleme hattının kapsama raporu ve yeniden tarama görevi. Bunlar `apps/field/` ve `services/pipeline/` klasörlerinde, bu görevin kapsamı dışında.
+- **Sonraki iş (başka bileşen):** saha uygulamasının `closeup_list`'i indirmesi ve "Sorun gördüm" düğmesi, sesli not, hava ve ekipman kaydı; bunlar `apps/field/` klasöründe, bu görevin kapsamı dışında. İşleme hattının kapsama raporu, yeniden tarama görevi ve ağaç var/yok kontrolü sonraki görevde (kapsama görevi) geldi.
 - **Yok kalanlar ve gerekçeleri:** TKGM arka planı (dış hesap ve kullanım koşulu), hizmet paketi (pilotta elle), gövde tespit modelinin öneri yapması (etiketli veri birikmeli), donanım gerektiren maddeler.
 
 Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/` = `services/pipeline/src/orchados_pipeline/`, `mig/` = `supabase/migrations/`, `pgtap/` = `supabase/tests/`.
@@ -59,7 +59,7 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 | Referans sıralarla doğrulama (pilot) | — | donanım | Yazılım dışı ölçüm; ikinci RTK alıcısı ve jalon |
 | Çıktı: envanter özeti (yer, ağaç, boş, ara, aşısız, yaş dağılımı) | `web/lib/expert/inventory-checks.ts`, portal | var | |
 | Çıktı: envanter raporu PDF | Portal karnesi yazdırılabilir | kısmen · sonraki iş | Ayrı bir envanter raporu sayfası yok; karnedeki envanter özeti yazdırılır |
-| Kabul kriteri: kapsamanın kalite kapısından geçmesi | `approve_inventory` | kısmen · sonraki iş | Onay açık kalem ve yer arar; işleme hattının kapsama raporu yok (Modül 3, kalite kapısı) ; kapsama raporu gelince onay ona bakmalı |
+| Kabul kriteri: kapsamanın kalite kapısından geçmesi | `approve_inventory`, `waive_coverage`, `coverage_report` | var (kapsama görevi) | Envanter taramasının en yeni kapsama raporu eşiğin altındaysa onay reddedilir; uzman gerekçeyle kabul edebilir (kayıtta kalır). Raporu olmayan eski veride davranış aynı. Envanter kaydedildikten sonra kapsamayı `orchados-pipeline coverage --trees-from-db` + `upload` ile ölçmek operasyonun adımı (`services/pipeline/README.md`) |
 
 ## Modül 3 – Periyodik tarama
 
@@ -78,7 +78,7 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 | Galeriden yükleme yok | `field/features/camera` | var | |
 | Cihazda kalite kapısı (bulanık/karanlık ret, zorunlu adım) | `field/features/camera` | var | |
 | İşlemeden sonra panorama kalite skoru | `pipeline/panoramas.py` | var | |
-| Kapsama haritası ve yeniden tarama görevi (işleme sonrası) | Portalda kapsama katmanı (kesitlerden); işleme hattında rapor yok | kısmen · sonraki iş | Kapsama haritası portalda ve karnede var (bu görev). İşleme hattının kapsama raporu ve otomatik yeniden tarama görevi sonraki iş (`services/pipeline`, başka oturumun klasörü); uzman bugün "Ek ziyaret iste" ile yeniden tarama isteyebilir |
+| Kapsama haritası ve yeniden tarama görevi (işleme sonrası) | Portalda kapsama katmanı; `pipeline/coverage.py` → `coverage.json`, `coverage_report`; otomatik `followup_request` (`origin = pipeline`) | var (kapsama görevi) | Ağaç başına yönler ve iki yüz kuralı, %95 eşik, 10×10 m kör nokta hücreleri. Eşiğin altında ya da kör noktada ek ziyaret isteği açılır (ziyaret başına bir); operasyon panosunda "İşleme hattı (kapsama)" kaynağıyla. Uzman özetinde "İşleme hattı" bölümü. Portal karnesinin "Denetim güveni" satırı rapordaki oranı henüz okumuyor: sonraki iş |
 | Yükleme: kart ofise, yakın plan senkronizasyonu | `orchados-ingest`, `field/core/sync` | var | |
 | Ziyaret kaydı: personel, tarih, başlangıç/bitiş | `session` | var | |
 | Ziyaret kaydı: hava, ekipman seri numaraları, sahada yaşanan sorunlar | `session.weather` sütunu var | kısmen · sonraki iş | Saha uygulaması doldurmuyor ; saha uygulamasının işi |
@@ -90,7 +90,7 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 | Stitch | Kameranın masaüstü yazılımı | donanım | SDK başvurusu açık |
 | PPK, zaman eşleme, kare seçimi, panorama katmanları | `pipeline` | var · donanım | Sentetik veriyle |
 | Ağaç eşleştirme: dört yönden kesit | `pipeline/crops.py` | var | |
-| Sıra dizilişi karşılaştırması, ağaç var/yok | AI `tree_visible`, uzman "Yok" sınıfı | kısmen · sonraki iş | İşleme hattında otomatik var/yok kontrolü yok ; işleme hattının işi (`services/pipeline/`) |
+| Sıra dizilişi karşılaştırması, ağaç var/yok | `pipeline/presence.py` (`crop_greenness`), `tree_visible` metriği (`algorithm`); AI `tree_visible`; uzman "Yok" sınıfı | var (kapsama görevi) · ilk sürüm | Model yok, kesitlerde yeşillik sinyali: evet / hayır / belirsiz; kışın belirsiz. "Hayır" zorunlu incelemeye girer; boş yerde sinyal "yeni dikim olabilir" önerisi. Gövde tespit modeli (`trunk_label`) sonraki iş; eşikler pilotta gerçek kesitlerle ayarlanmalı |
 | AI ön değerlendirme: ölçek önerisi, güven, "ağaç görünüyor mu", tutarsızlık bayrakları, kaskad | `services/ai-worker`, `save_ai_assessment` | var | Gerçek API ile denenmedi |
 | Zorunlu inceleme kuralları | `web/lib/expert/mandatory-review.ts` | var | |
 | Toplu onay ve %5 kalite örneklemi | `bulk_approve_trees` | var | |
