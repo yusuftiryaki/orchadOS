@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from .context import RunContext
 from .events import KNOWN_TYPES, EventsFormatError, GnssEvent, read_events
 from .hashing import sha256_file
+from .insta360 import INSV, find_tool, is_insv
 from .models import (
     FileRole,
     LoggerSession,
@@ -179,9 +180,15 @@ def build_manifest(ctx: RunContext) -> Manifest:
 
     videos: dict[str, VideoInfo] = {}
     vdir = root / VIDEO_DIR
-    mp4s = sorted(p for p in vdir.glob("*") if p.suffix.lower() == ".mp4") if vdir.is_dir() else []
+    mp4s = (
+        sorted(p for p in vdir.glob("*") if p.suffix.lower() in (".mp4", INSV))
+        if vdir.is_dir()
+        else []
+    )
     if not mp4s:
-        problems.append(f"no {VIDEO_DIR}/*.mp4 files")
+        problems.append(f"no {VIDEO_DIR}/*.mp4 or *.insv files")
+    if any(is_insv(p) for p in mp4s) and find_tool() is None:
+        problems.append(".insv recordings need the Insta360 Media SDK (set ORCHADOS_INSTA360_SDK)")
     for p in mp4s:
         rel = p.relative_to(root).as_posix()
         try:
@@ -189,7 +196,7 @@ def build_manifest(ctx: RunContext) -> Manifest:
         except VideoError as exc:
             problems.append(f"{rel}: {exc}")
             continue
-        if info.width != 2 * info.height:
+        if not is_insv(p) and info.width != 2 * info.height:
             problems.append(
                 f"{rel}: {info.width}x{info.height} is not equirectangular (2:1 expected)"
             )

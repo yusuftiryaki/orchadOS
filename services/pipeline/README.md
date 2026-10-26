@@ -319,6 +319,20 @@ Adım süreleri `pytest -s` ile yazdırılır. Yerelde ~65 sn (tarama) ve ~25 sn
 
 **Test verisi:** Capture, asset, ölçüm ve bağ tabloları ekleme-yalnızdır, yayımlanmış ziyaret değiştirilemez; API kullanıcıları test verisini silemez. Kalırsa seed satırlarını sayan web testleri bozulabilir. Bu yüzden Supabase testleri açtıkları oturumları test oturumunun sonunda siler (`tests/supabase_util.py`): servis rolüyle `testing.purge_sessions` (`supabase/testing/purge.sql`; sadece yerel ve CI veritabanında var, `pnpm db:reset` yükler). Fonksiyon sadece o işlemde tetikleyiciler kapalıyken oturumu ve ona bağlı bütün satırları (oturum olayları, sınır sürümleri, bildirimler dahil) ve artık hiçbir satırın göstermediği `storage.objects` kayıtlarını siler. Bu bir test düzeneğidir; hat bunu yapmaz. `ORCHADOS_TEST_KEEP_DATA=1` veriyi bırakır (ör. web uygulamasında bakmak için); silme başarısız olursa pytest uyarı verir. pgTAP testleri başka takımların bıraktığı satırlardan etkilenmez (her dosya kendi işleminde `testing.reset_to_seed()` çağırır). CI'da pytest'ten sonra `pnpm db:test` çalışır ve bunu denetler.
 
+## Insta360 `.insv` kayıtları
+
+`video/` klasörü equirectangular MP4 yerine kameranın ham `.insv` kaydını da alabilir. Bu durumda Insta360 Studio'da dışa aktarma adımına gerek kalmaz:
+- Kare seçimi (netlik, konum) ham kayıttan yapılır.
+- Sadece seçilen kareler Insta360 **Media SDK**'nın `MediaSDKTest` aracıyla birleştirilir (`-image_sequence_dir` + `-export_frame_index`). Videonun tamamı hiç dışa aktarılmaz.
+
+- **SDK repoda değil.** Lisans dosyası yok; repoya, herkese açık container imajına ve CI'a girmez. Yeri şöyle verilir: `ORCHADOS_INSTA360_SDK=<MediaSDKTest'in klasörü>`. Değişken yoksa SDK'nın `.deb` kurulumunun yeri denenir: `/opt/MediaSDK-3.1.5-linux/bin`. SDK yoksa `.insv` içeren bir oturum `ingest`'te durur.
+- **Parametreler** (`insta360`): `stitch_type` (`template`, `optflow` (varsayılan), `dynamicstitch`, `aistitch`), `output_size`, `cuda`, `model_root_dir`, `timeout_s`. FlowState ve yön kilidi kapalı tutulur, çünkü `heading_deg` kamera önünün hareket yönüne bakmasını varsayar.
+- **Meta veri:** `native/ins_meta_dump/` küçük bir C++ aracıdır; InsMetaData SDK'ya karşı `build.sh` ile derlenir. `.insv`'deki jiroskop, pozlama ve GPS verisini ve kamera seri numarasını JSON olarak verir. İnce zaman eşlemede (jiroskop) kullanılması sonraki iş.
+- **Denenmedi:** Yol, belgedeki komut satırına göre yazıldı; testler sahte bir `MediaSDKTest` ile koşar (`tests/test_insta360.py`). İlk gerçek kayıtta şunlar doğrulanmalı:
+    - dışa aktarılan dosyaların kare sırasına göre adlandırılması;
+    - panorama orta sütununun kamera önüne bakması;
+    - netlik ölçümünün ham çift balıkgözü görüntüde anlamlı olması. Bant maskesi equirectangular için ayarlı.
+
 ## Bilinen sınırlar
 
 - **Stitch yok:** Girdi kameranın masaüstü yazılımından dışa aktarılmış equirectangular MP4'tür; `.insv` işlenmez.
