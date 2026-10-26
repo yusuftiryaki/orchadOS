@@ -616,6 +616,100 @@ export type Database = {
           },
         ];
       };
+      coverage_report: {
+        Row: {
+          active_trees: number;
+          blind_spot_cells: NonNullable<Json>;
+          blind_spots: number;
+          covered_trees: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          missing_slot_codes: string[];
+          missing_trees: number | null;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          passed: boolean | null;
+          pipeline: string;
+          pipeline_version: string;
+          ratio: number | null;
+          rescan_needed: boolean | null;
+          rule: NonNullable<Json>;
+          session_id: string;
+          threshold: number;
+          waived_at: string | null;
+          waived_by: string | null;
+          waiver_note: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          active_trees: number;
+          blind_spot_cells?: NonNullable<Json>;
+          blind_spots: number;
+          covered_trees: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          missing_slot_codes?: string[];
+          missing_trees?: never;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          passed?: never;
+          pipeline: string;
+          pipeline_version: string;
+          ratio?: never;
+          rescan_needed?: never;
+          rule?: NonNullable<Json>;
+          session_id: string;
+          threshold: number;
+          waived_at?: string | null;
+          waived_by?: string | null;
+          waiver_note?: string | null;
+        };
+        Update: {
+          active_trees?: number;
+          blind_spot_cells?: NonNullable<Json>;
+          blind_spots?: number;
+          covered_trees?: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          missing_slot_codes?: string[];
+          missing_trees?: never;
+          org_id?: string;
+          params_hash?: string;
+          parcel_id?: string;
+          passed?: never;
+          pipeline?: string;
+          pipeline_version?: string;
+          ratio?: never;
+          rescan_needed?: never;
+          rule?: NonNullable<Json>;
+          session_id?: string;
+          threshold?: number;
+          waived_at?: string | null;
+          waived_by?: string | null;
+          waiver_note?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "coverage_report_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "coverage_report_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
       device: {
         Row: {
           created_at: string;
@@ -801,6 +895,97 @@ export type Database = {
             columns: ["finding_id", "parcel_id", "org_id"];
             isOneToOne: false;
             referencedRelation: "finding";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      followup_request: {
+        Row: {
+          coverage_report_id: string | null;
+          created_at: string;
+          id: string;
+          kind: Database["public"]["Enums"]["followup_kind"];
+          note: string | null;
+          org_id: string;
+          origin: Database["public"]["Enums"]["followup_origin"];
+          parcel_id: string;
+          requested_by: string | null;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          source_session_id: string;
+          status: Database["public"]["Enums"]["followup_status"];
+          target_session_id: string | null;
+          tree_id: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          coverage_report_id?: string | null;
+          created_at?: string;
+          id?: string;
+          kind: Database["public"]["Enums"]["followup_kind"];
+          note?: string | null;
+          org_id: string;
+          origin?: Database["public"]["Enums"]["followup_origin"];
+          parcel_id: string;
+          requested_by?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          source_session_id: string;
+          status?: Database["public"]["Enums"]["followup_status"];
+          target_session_id?: string | null;
+          tree_id?: string | null;
+        };
+        Update: {
+          coverage_report_id?: string | null;
+          created_at?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["followup_kind"];
+          note?: string | null;
+          org_id?: string;
+          origin?: Database["public"]["Enums"]["followup_origin"];
+          parcel_id?: string;
+          requested_by?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          source_session_id?: string;
+          status?: Database["public"]["Enums"]["followup_status"];
+          target_session_id?: string | null;
+          tree_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "followup_request_coverage_report_id_parcel_id_org_id_fkey";
+            columns: ["coverage_report_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "coverage_report";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "followup_request_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "followup_request_source_session_id_parcel_id_org_id_fkey";
+            columns: ["source_session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "followup_request_target_session_id_parcel_id_org_id_fkey";
+            columns: ["target_session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "followup_request_tree_id_parcel_id_org_id_fkey";
+            columns: ["tree_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "tree";
             referencedColumns: ["id", "parcel_id", "org_id"];
           },
         ];
@@ -2388,6 +2573,7 @@ export type Database = {
         Args: { p_items: Json; p_method_version: string; p_session_id: string };
         Returns: number;
       };
+      cancel_followup: { Args: { p_request_id: string }; Returns: undefined };
       close_verification_item: {
         Args: { p_item_id: string; p_note: string };
         Returns: {
@@ -2414,6 +2600,17 @@ export type Database = {
           isOneToOne: true;
           isSetofReturn: false;
         };
+      };
+      closeup_list: {
+        Args: { p_session_id: string };
+        Returns: {
+          position_no: number;
+          reasons: string[];
+          row_no: number;
+          slot_code: string;
+          slot_id: string;
+          tree_id: string;
+        }[];
       };
       create_verification_tour: {
         Args: { p_items: Json; p_notes?: string; p_parcel_id: string; p_planned_date?: string };
@@ -2569,6 +2766,14 @@ export type Database = {
           used_portion_note: string;
         }[];
       };
+      ops_plan_followups: {
+        Args: { p_request_ids: string[]; p_session_id: string };
+        Returns: number;
+      };
+      ops_resolve_viewer_invitation: {
+        Args: { p_approve: boolean; p_invitation_id: string; p_user_id?: string };
+        Returns: undefined;
+      };
       ops_retry_notification: { Args: { p_id: string }; Returns: undefined };
       ops_save_parcel_detail: {
         Args: {
@@ -2585,6 +2790,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_set_parcel_passive: {
+        Args: { p_parcel_id: string; p_passive: boolean };
+        Returns: Database["public"]["Enums"]["parcel_status"];
+      };
       ops_update_owner_profile: {
         Args: {
           p_contact_preference: string;
@@ -2598,9 +2807,39 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_viewer_invitations: {
+        Args: { p_org_id: string };
+        Returns: {
+          created_at: string;
+          full_name: string;
+          id: string;
+          invited_by_name: string;
+          parcel_id: string;
+          parcel_name: string;
+          phone: string;
+        }[];
+      };
+      owner_cancel_viewer_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
+      owner_invite_viewer: {
+        Args: { p_full_name: string; p_parcel_id: string; p_phone: string };
+        Returns: string;
+      };
+      owner_parcel_viewers: {
+        Args: { p_parcel_id: string };
+        Returns: {
+          created_at: string;
+          full_name: string;
+          id: string;
+          kind: string;
+          phone_last2: string;
+          status: string;
+          user_id: string;
+        }[];
+      };
       phone_login_allowed: { Args: { p_phone: string }; Returns: boolean };
       phone_login_code_requested: { Args: { p_phone: string }; Returns: string };
       phone_login_record_failure: { Args: { p_phone: string }; Returns: number };
+      pipeline_rescan_request: { Args: { p_session_id: string }; Returns: Json };
       publish_session: {
         Args: { p_session_id: string };
         Returns: {
@@ -2630,6 +2869,8 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      record_coverage_report: { Args: { p_report: Json; p_session_id: string }; Returns: Json };
+      record_tree_presence: { Args: { p_payload: Json; p_session_id: string }; Returns: Json };
       record_verification_result: {
         Args: {
           p_closeup_capture_id?: string;
@@ -2669,6 +2910,15 @@ export type Database = {
           p_org_id: string;
           p_owner_user_id?: string;
           p_parcel: Json;
+        };
+        Returns: string;
+      };
+      request_followup: {
+        Args: {
+          p_kind: Database["public"]["Enums"]["followup_kind"];
+          p_note?: string;
+          p_session_id: string;
+          p_tree_id?: string;
         };
         Returns: string;
       };
@@ -2721,6 +2971,40 @@ export type Database = {
         };
         Returns: Json;
       };
+      waive_coverage: {
+        Args: { p_note: string; p_session_id: string };
+        Returns: {
+          active_trees: number;
+          blind_spot_cells: NonNullable<Json>;
+          blind_spots: number;
+          covered_trees: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          missing_slot_codes: string[];
+          missing_trees: number | null;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          passed: boolean | null;
+          pipeline: string;
+          pipeline_version: string;
+          ratio: number | null;
+          rescan_needed: boolean | null;
+          rule: NonNullable<Json>;
+          session_id: string;
+          threshold: number;
+          waived_at: string | null;
+          waived_by: string | null;
+          waiver_note: string | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "coverage_report";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
     };
     Enums: {
       age_class: "sapling" | "young" | "productive" | "old" | "unknown";
@@ -2739,6 +3023,9 @@ export type Database = {
       corner: "ne" | "nw" | "se" | "sw";
       device_kind: "human_kit" | "robot" | "phone" | "base_station" | "other";
       finding_severity: "info" | "low" | "medium" | "high";
+      followup_kind: "closeup" | "verification" | "extra_visit";
+      followup_origin: "expert" | "pipeline";
+      followup_status: "open" | "planned" | "done" | "cancelled";
       graft_status: "grafted" | "ungrafted" | "unknown";
       health_class: "healthy" | "attention" | "problem" | "dead" | "absent";
       irrigation_type: "irrigated" | "rainfed" | "unknown";
@@ -2928,6 +3215,9 @@ export const Constants = {
       corner: ["ne", "nw", "se", "sw"],
       device_kind: ["human_kit", "robot", "phone", "base_station", "other"],
       finding_severity: ["info", "low", "medium", "high"],
+      followup_kind: ["closeup", "verification", "extra_visit"],
+      followup_origin: ["expert", "pipeline"],
+      followup_status: ["open", "planned", "done", "cancelled"],
       graft_status: ["grafted", "ungrafted", "unknown"],
       health_class: ["healthy", "attention", "problem", "dead", "absent"],
       irrigation_type: ["irrigated", "rainfed", "unknown"],

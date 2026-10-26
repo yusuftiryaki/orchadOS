@@ -50,7 +50,7 @@ raw/<org_id>/<parcel_id>/<session_id>/.orchados/manifest.json
 raw/_index/<session_id>.json          oturumun nerede olduğu (pull sadece session-id ile çalışsın diye)
 ```
 
-Yapılandırmadaki `prefix` hepsinin önüne eklenir. Manifest (`orchados.raw-manifest/1`) **sadece kimlikleri, göreli dosya adlarını, boyutları ve SHA-256'ları** taşır; kişisel veri yok. Bir `push`'un bütün dosyaları depoya girdikten sonra yazılır; manifesti olmayan oturum tamamlanmamıştır. Her nesnenin SHA-256'sı ayrıca nesne üst verisinde (`sha256`) durur; `verify` indirmeden boyut ve hash'i denetler, `--deep` indirip yeniden hesaplar. `pull` manifestin bir kopyasını `<hedef>/.orchados/manifest.json`'a yazar; işleme hattı noktalı klasörleri yok sayar.
+Yapılandırmadaki `prefix` hepsinin önüne eklenir. Manifest (`orchados.raw-manifest/1`) **sadece kimlikleri, göreli dosya adlarını, boyutları ve SHA-256'ları** taşır; kişisel veri yok. Bir `push`'un bütün dosyaları depoya girdikten sonra yazılır; manifesti olmayan oturum tamamlanmamıştır. Her nesnenin SHA-256'sı ayrıca nesne üst verisinde (`sha256`) durur; `verify` indirmeden boyut ve hash'i denetler, `--deep` indirip yeniden hesaplar. `pull` manifestin bir kopyasını `<hedef>/.orchados/manifest.json`'a yazar; bu kopyada ayrıca oturumun depodaki adresi durur (`location.uri`, ör. `s3://<kova>/raw/<org>/<parcel>/<oturum>/`, `az://...`, `file://...`). İşleme hattı noktalı klasörleri işlemez; `upload` ham kayıtların `capture.uri`'sini bu adresten yazar ([arayuzler.md](../../docs/arayuzler.md#ham-kayıtların-adresi-captureuri)).
 
 ## Yapılandırma
 

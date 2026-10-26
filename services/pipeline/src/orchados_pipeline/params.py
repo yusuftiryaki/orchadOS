@@ -66,6 +66,17 @@ class PanoramaParams(_Section):
     preview_quality: int = 80
 
 
+class Insta360Params(_Section):
+    # Stitching of .insv recordings with the vendor Media SDK (insta360.py).
+    # template | optflow | dynamicstitch | aistitch (MediaSDKTest -stitch_type).
+    stitch_type: str = "optflow"
+    output_size: tuple[int, int] = (3840, 1920)
+    cuda: bool = True
+    # Empty: the SDK's own models directory next to MediaSDKTest.
+    model_root_dir: str = ""
+    timeout_s: float = 7200.0
+
+
 class CropParams(_Section):
     size: int = 1024
     jpeg_quality: int = 90
@@ -77,6 +88,60 @@ class CropParams(_Section):
     crown_width_m: float = 5.0
     min_fov_deg: float = 50.0
     max_fov_deg: float = 110.0
+
+
+class CoverageParams(_Section):
+    """Coverage quality gate (docs/metodoloji.md, section 10)."""
+
+    # A view is sufficient when its crop score (crops.view_score: closeness to the
+    # ideal distance x panorama quality) is at least this; 0.2 is about 0.2-7.8 m
+    # at quality 1.
+    min_view_score: float = 0.2
+    # A tree is covered when its sufficient views come from at least this many
+    # sides (N, E, S, W) ...
+    min_directions: int = 2
+    # ... and two of them look at it from directions this far apart (tree ->
+    # camera bearings), i.e. from opposite faces. Oblique views from one straight
+    # aisle span at most 2 acos(lateral offset / 7.8 m): 118 degrees for a 4 m
+    # offset (8 m rows), so they never count as two sides.
+    min_view_spread_deg: float = 150.0
+    # Share of the active trees that must be covered for the parcel to pass.
+    parcel_threshold: float = 0.95
+    # Blind spots: 10 x 10 m cells (docs/arayuzler.md, "Yakın plan listesi") with
+    # at least this many uncovered trees, making at least this share of the cell.
+    cell_m: float = 10.0
+    blind_spot_min_trees: int = 2
+    blind_spot_min_share: float = 0.5
+
+
+class PresenceParams(_Section):
+    """Tree present / missing signal on the crops (presence.py, method crop_greenness)."""
+
+    # Months (UTC) with leaves; outside them greenness says nothing: unsure.
+    leafy_months: list[int] = Field(default_factory=lambda: [4, 5, 6, 7, 8, 9, 10])
+    # Vegetation pixel: excess green of the chromaticity (2g - r - b) above this,
+    # brightest channel at least min_brightness.
+    exg_min: float = 0.10
+    min_brightness: int = 40
+    # Boxes at the tree (heights above the ground, half width), metres.
+    upper_box_m: tuple[float, float] = (2.5, 4.0)
+    whole_box_m: tuple[float, float] = (0.5, 4.0)
+    box_half_width_m: float = 1.5
+    # A view: present when the upper box is this green; absent when the whole box
+    # is at most this green; usable from this crop score and box brightness.
+    present_min_share: float = 0.25
+    absent_max_share: float = 0.03
+    min_view_score: float = 0.2
+    min_mean_brightness: float = 35.0
+    max_mean_brightness: float = 245.0
+    # "no" needs absent views from this many different sides (and none present).
+    min_absent_views: int = 2
+    # Empty slots: a sapling box; "yes" (possible new planting) when green in this
+    # many views.
+    sapling_box_m: tuple[float, float] = (0.2, 2.0)
+    sapling_half_width_m: float = 1.0
+    planted_min_share: float = 0.10
+    min_planted_views: int = 2
 
 
 class BoundaryParams(_Section):
@@ -96,7 +161,10 @@ class PipelineParams(_Section):
     sync: SyncParams = Field(default_factory=SyncParams)
     frames: FrameParams = Field(default_factory=FrameParams)
     panoramas: PanoramaParams = Field(default_factory=PanoramaParams)
+    insta360: Insta360Params = Field(default_factory=Insta360Params)
     crops: CropParams = Field(default_factory=CropParams)
+    coverage: CoverageParams = Field(default_factory=CoverageParams)
+    presence: PresenceParams = Field(default_factory=PresenceParams)
     boundary: BoundaryParams = Field(default_factory=BoundaryParams)
 
     def params_hash(self) -> str:

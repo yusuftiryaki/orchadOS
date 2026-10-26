@@ -119,17 +119,30 @@ export type ApproveInventoryResult =
       // inventory_incomplete: what is missing.
       noSlots?: boolean;
       openItems?: string[];
+      // The newest coverage report is below its threshold (and not accepted).
+      coverage?: { ratio: number; threshold: number } | null;
       detail?: string;
     };
 
-// Parses approve_inventory()'s detail: "no_slots; open_items: S1-2, S3-4".
+// Parses approve_inventory()'s detail:
+// "no_slots; open_items: S1-2, S3-4; coverage_below_threshold: 0.7500/0.9500".
 export function parseIncomplete(detail: string | null | undefined): {
   noSlots: boolean;
   openItems: string[];
+  coverage: { ratio: number; threshold: number } | null;
 } {
   const parts = (detail ?? "").split(";").map((p) => p.trim());
   const open = parts.find((p) => p.startsWith("open_items:"));
+  const cov = parts
+    .find((p) => p.startsWith("coverage_below_threshold:"))
+    ?.slice("coverage_below_threshold:".length)
+    .split("/")
+    .map((x) => Number(x.trim()));
   return {
+    coverage:
+      cov && cov.length === 2 && cov.every((x) => Number.isFinite(x))
+        ? { ratio: cov[0], threshold: cov[1] }
+        : null,
     noSlots: parts.includes("no_slots"),
     openItems: open
       ? open
@@ -150,7 +163,8 @@ export async function approveInventory(
   if (error) {
     const reason = error.message as ApproveInventoryError;
     if (reason === "inventory_incomplete") {
-      return { ok: false, error: reason, ...parseIncomplete(error.details) };
+      const { coverage, ...missing } = parseIncomplete(error.details);
+      return { ok: false, error: reason, ...missing, ...(coverage ? { coverage } : {}) };
     }
     if (["forbidden", "session_invalid", "already_published"].includes(reason)) {
       return { ok: false, error: reason };
@@ -158,4 +172,28 @@ export async function approveInventory(
     return { ok: false, error: "write_failed", detail: error.message };
   }
   return { ok: true, publishedAt: data.published_at ?? new Date().toISOString() };
+}
+
+export type WaiveCoverageResult =
+  | { ok: true }
+  | { ok: false; error: "forbidden" | "session_invalid" | "note_required" | "write_failed" };
+
+// The expert accepts the inventory scan's coverage below the threshold, with a
+// reason (waive_coverage); approval then passes the coverage gate.
+export async function waiveCoverage(
+  supabase: Client,
+  sessionId: unknown,
+  note: unknown,
+): Promise<WaiveCoverageResult> {
+  if (!isUuid(sessionId)) return { ok: false, error: "session_invalid" };
+  const text = typeof note === "string" ? note.trim() : "";
+  if (!text || text.length > 2000) return { ok: false, error: "note_required" };
+  const { error } = await supabase.rpc("waive_coverage", {
+    p_session_id: sessionId,
+    p_note: text,
+  });
+  if (!error) return { ok: true };
+  if (error.message === "forbidden") return { ok: false, error: "forbidden" };
+  if (error.message === "session_invalid") return { ok: false, error: "session_invalid" };
+  return { ok: false, error: "write_failed" };
 }

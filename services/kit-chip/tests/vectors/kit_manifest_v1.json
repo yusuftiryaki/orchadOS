@@ -1,0 +1,127 @@
+[
+ {
+  "name": "v1: 360 camera + RTK, camera driven over USB",
+  "manifest": {
+   "kind": "orchados-scan-kit",
+   "schema": 1,
+   "serial": "K001",
+   "hw_rev": [
+    1,
+    0
+   ],
+   "caps": [
+    "cam360",
+    "cam360_ctrl",
+    "gnss_rtk",
+    "pps"
+   ],
+   "gnss_link": "usb",
+   "calib_id": 20261025,
+   "frames": {
+    "kit_cam360": [
+     0.0,
+     0.0,
+     1.8200000524520874,
+     0.0,
+     0.0,
+     1.5707963705062866
+    ],
+    "kit_gnss": [
+     0.0,
+     0.0,
+     1.9199999570846558,
+     0.0,
+     0.0,
+     0.0
+    ]
+   }
+  },
+  "image_hex": "484b49540145014b3030310000000001000f0001a1283501020100000000000000008fc2f53f000000000000000000000000020000000000000000c3f5e83f0000000000000000db0fc93ffca7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+ },
+ {
+  "name": "v1 without camera control (SDK missing)",
+  "manifest": {
+   "kind": "orchados-scan-kit",
+   "schema": 1,
+   "serial": "K002",
+   "hw_rev": [
+    1,
+    1
+   ],
+   "caps": [
+    "cam360",
+    "gnss_rtk",
+    "pps"
+   ],
+   "gnss_link": "usb",
+   "calib_id": 7,
+   "frames": {
+    "kit_cam360": [
+     0.0,
+     0.0,
+     1.8200000524520874,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "kit_gnss": [
+     0.0,
+     0.0,
+     1.9199999570846558,
+     0.0,
+     0.0,
+     0.0
+    ]
+   }
+  },
+  "image_hex": "484b49540145014b30303200000000010107000107000000020100000000000000008fc2f53f000000000000000000000000020000000000000000c3f5e83f0000000000000000000000002f75ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+ },
+ {
+  "name": "v2: + LiDAR, GNSS over ROS",
+  "manifest": {
+   "kind": "orchados-scan-kit",
+   "schema": 1,
+   "serial": "K101",
+   "hw_rev": [
+    2,
+    0
+   ],
+   "caps": [
+    "cam360",
+    "cam360_ctrl",
+    "gnss_rtk",
+    "lidar",
+    "pps"
+   ],
+   "gnss_link": "ros",
+   "calib_id": 4294967295,
+   "frames": {
+    "kit_cam360": [
+     0.0,
+     0.0,
+     1.8200000524520874,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "kit_gnss": [
+     0.0,
+     0.0,
+     1.9199999570846558,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "kit_lidar": [
+     0.05000000074505806,
+     0.0,
+     1.0199999809265137,
+     0.0,
+     0.10000000149011612,
+     0.0
+    ]
+   }
+  },
+  "image_hex": "484b4954015e014b3130310000000002001f0002ffffffff030100000000000000008fc2f53f000000000000000000000000020000000000000000c3f5e83f00000000000000000000000003cdcc4c3d000000005c8f823f00000000cdcccc3d0000000084d7ffffffffffffffffffffffffffffffffffffffffffffffffffff"
+ }
+]

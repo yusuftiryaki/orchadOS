@@ -10,6 +10,7 @@ import '../gnss/gnss_panel.dart';
 import '../qr_clock/qr_clock_screen.dart';
 import '../route/route_card.dart';
 import '../summary/visit_summary_screen.dart';
+import '../tasks/field_task.dart';
 import 'session_controller.dart';
 
 /// Recording screen: start/stop, live GNSS panel, start and end QR, boundary
@@ -132,6 +133,25 @@ class SessionScreen extends ConsumerWidget {
               onPressed: state.startQrShown ? openBoundary : null,
             ),
           ],
+          if (state.task?.kind == VisitKind.periodic &&
+              (state.task?.slots.any((s) => s.treeId != null) ?? false)) ...[
+            gap,
+            OutlinedButton.icon(
+              key: const Key('session-problem'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(56),
+                foregroundColor: Colors.orange.shade900,
+              ),
+              icon: const Icon(Icons.report_problem),
+              label: Text(
+                state.problemTrees.isEmpty
+                    ? 'Sorun gördüm'
+                    : 'Sorun gördüm (${state.problemTrees.length})',
+                style: const TextStyle(fontSize: 18),
+              ),
+              onPressed: () => _pickProblemTree(context, state, controller),
+            ),
+          ],
           gap,
           _Step(
             done: state.endQrShown,
@@ -190,6 +210,54 @@ class SessionScreen extends ConsumerWidget {
           ),
         ];
     }
+  }
+}
+
+/// "Sorun gördüm": the crew picks the tree (nearest first) and the mark goes
+/// on the close-up list of this visit.
+Future<void> _pickProblemTree(
+  BuildContext context,
+  SessionState state,
+  SessionController controller,
+) async {
+  final slots = controller.problemCandidates();
+  final picked = await showModalBottomSheet<SlotPoint>(
+    context: context,
+    builder: (context) => SafeArea(
+      child: ListView(
+        key: const Key('problem-candidates'),
+        shrinkWrap: true,
+        children: [
+          const ListTile(
+            title: Text(
+              'Hangi ağaçta sorun gördünüz?',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              'En yakın ağaçlar üstte. Yakın plan listesine eklenir.',
+            ),
+          ),
+          for (final s in slots)
+            ListTile(
+              key: Key('problem-${s.code}'),
+              leading: Icon(
+                state.problemTrees.contains(s.treeId)
+                    ? Icons.check_circle
+                    : Icons.park,
+              ),
+              title: Text(s.code, style: const TextStyle(fontSize: 20)),
+              onTap: () => Navigator.of(context).pop(s),
+            ),
+        ],
+      ),
+    ),
+  );
+  if (picked == null) return;
+  final ok = await controller.markProblem(picked);
+  if (ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${picked.code} yakın plan listesine eklendi')),
+    );
   }
 }
 

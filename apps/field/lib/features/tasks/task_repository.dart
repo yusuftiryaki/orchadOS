@@ -263,8 +263,12 @@ class SupabaseTaskSource implements TaskSource {
       final area = (parcel['estimated_area_m2'] as num?)?.toDouble() ?? 0;
       var closeups = const <TreeTarget>[];
       if (kind == VisitKind.periodic) {
-        final trees = treesByParcel[parcelId] ??= await _trees(parcelId);
-        closeups = selectCloseupTrees(trees, visitId: id);
+        closeups =
+            await _closeupList(id) ??
+            selectCloseupTrees(
+              treesByParcel[parcelId] ??= await _trees(parcelId),
+              visitId: id,
+            );
       }
       final slots = slotsByParcel[parcelId] ??= await _slots(parcelId);
       if (!boundaryByParcel.containsKey(parcelId)) {
@@ -310,6 +314,23 @@ class SupabaseTaskSource implements TaskSource {
     ];
   }
 
+  /// The server's close-up list (stratified sample, crew marks, expert
+  /// requests); null when the server cannot give it, and the phone falls
+  /// back to its own unstratified selection.
+  Future<List<TreeTarget>?> _closeupList(String visitId) async {
+    try {
+      final rows = await _client.rpc(
+        'closeup_list',
+        params: {'p_session_id': visitId},
+      );
+      return closeupTargetsFromServer([
+        for (final r in rows as List) (r as Map).cast<String, Object?>(),
+      ]);
+    } on Object {
+      return null;
+    }
+  }
+
   Future<List<ParcelTree>> _trees(String parcelId) async {
     final latest = <String, String>{};
     for (final r
@@ -347,13 +368,22 @@ class SupabaseTaskSource implements TaskSource {
     return trees;
   }
 
+  static String? _activeTree(Object? trees) {
+    for (final t in (trees as List?) ?? const []) {
+      final m = (t as Map).cast<String, Object?>();
+      if (m['status'] == 'active') return m['id'] as String?;
+    }
+    return null;
+  }
+
   Future<List<SlotPoint>> _slots(String parcelId) async {
     final slots = <SlotPoint>[];
     for (var from = 0; ; from += _pageSize) {
       final page = await _client
           .from('slot')
           .select(
-            'id, code, row_no, position_no, position, position_uncertainty_m',
+            'id, code, row_no, position_no, position, position_uncertainty_m, '
+            'tree(id, status)',
           )
           .eq('parcel_id', parcelId)
           .order('id')
@@ -367,6 +397,7 @@ class SupabaseTaskSource implements TaskSource {
             positionNo: r['position_no'] as int,
             position: GeoPoint.fromGeoJson(r['position']),
             uncertaintyM: (r['position_uncertainty_m'] as num?)?.toDouble(),
+            treeId: _activeTree(r['tree']),
           ),
         );
       }

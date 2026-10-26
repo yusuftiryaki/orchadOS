@@ -94,7 +94,7 @@ def test_sessions(supabase_env):
     yield ids
     if os.environ.get(KEEP_ENV):
         return
-    problem = purge_sessions(ids)
+    problem = purge_sessions(supabase_env, ids)
     if problem:
         warnings.warn(
             f"test sessions left in the database ({problem}); run pnpm db:reset before "

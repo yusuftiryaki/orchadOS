@@ -232,6 +232,77 @@ export const tr = {
     discardConfirm: "Bu oturumun bütün taslak ağaçları silinsin mi?",
   },
   expert: {
+    pipeline: {
+      title: "İşleme hattı",
+      coverage: "Kapsama",
+      coverageLine: (ratio: string, covered: number, total: number, threshold: string) =>
+        `%${ratio} (${covered}/${total} ağaç iki yönden görüldü; eşik %${threshold})`,
+      passed: "Kalite kapısından geçti",
+      failed: "Eşiğin altında",
+      blindSpots: (n: number) => `${n} kör nokta (10×10 m hücre)`,
+      rescan: "Ek ziyaret isteği açıldı (operasyon panosunda).",
+      missing: (n: number, codes: string) => `Eksik ağaçlar (${n}): ${codes}`,
+      noCoverage: "Bu ziyaret için kapsama raporu yok (eski veri ya da işlenmedi).",
+      notVisible: (n: number, codes: string) =>
+        `Ağaç görünmüyor (${n}, zorunlu incelemede): ${codes}`,
+      suggestions: "Yeni dikim olabilir",
+      suggestionsHint:
+        "Envanterde boş olan bu yerlerde kesitlerde bitki sinyali var. Doğruysa bulgu (yeni dikim) yazın ya da doğrulama turu isteyin; envanter kendiliğinden değişmez.",
+      suggestion: (code: string, crops: number) => `${code} (${crops} kesit)`,
+      version: (v: string) => `hat sürümü ${v}`,
+    },
+    followups: {
+      title: "Takip istekleri",
+      treeHint:
+        "Bu ağaca bir sonraki ziyarette yakından bakılsın ya da bir doğrulama turunda kontrol edilsin.",
+      parcelTitle: "Ek ziyaret iste",
+      parcelHint:
+        "Parsele ek bir ziyaret gerekiyorsa nedenini yazın; operasyon ziyareti planlar. İstekler sahibe görünmez.",
+      kind: "İstek",
+      kinds: {
+        closeup: "Sonraki ziyarette yakın plan",
+        verification: "Doğrulama turunda kontrol",
+        extra_visit: "Ek ziyaret",
+      },
+      status: {
+        open: "Açık",
+        planned: "Planlandı",
+        done: "Tamamlandı",
+        cancelled: "Geri alındı",
+      },
+      origin: {
+        expert: "Uzman",
+        pipeline: "İşleme hattı (kapsama)",
+      },
+      note: "Not",
+      notePlaceholder: "Neye bakılsın? (ör. gövdenin kuzey yüzü, dipte sürgün)",
+      submit: "İste",
+      submitVisit: "Ek ziyaret iste",
+      cancel: "Geri al",
+      none: "İstek yok.",
+      list: "Bu ziyaretten istenenler",
+      saved: "İstek kaydedildi.",
+      errors: {
+        invalid_kind: "İstek türü geçersiz.",
+        note_required: "Ek ziyaret için nedenini yazın.",
+        note_too_long: "Not en çok 2000 karakter olabilir.",
+        forbidden: "Bu işlem için yetkiniz yok.",
+        not_found: "Kayıt bulunamadı.",
+        write_failed: "Kaydedilemedi. Lütfen tekrar deneyin.",
+      } as Record<string, string>,
+    },
+    closeup: {
+      title: "Yakın plan listesi",
+      hint: "Saha ekibinin bu ziyarette yakından fotoğraflayacağı ağaçlar (sunucuda üretilir; metodoloji bölüm 7).",
+      count: (n: number) => `${n} ağaç`,
+      reasons: {
+        previous_class: "Önceki ziyarette dikkat, sorunlu ya da kuru",
+        sample: "Tabakalı örneklem (%10, 10×10 m hücreler)",
+        staff_problem: "Personel: Sorun gördüm",
+        expert_request: "Uzman isteği",
+      },
+      empty: "Listede ağaç yok.",
+    },
     queue: {
       title: "Ziyaret kuyruğu",
       hint: "İşlenmiş ve incelemedeki tarama ziyaretleri, en eskisi önce. Açılan ziyaret incelemeye alınır.",
@@ -260,6 +331,7 @@ export const tr = {
     },
     seasons: { winter: "Kış", spring: "İlkbahar", summer: "Yaz", harvest: "Hasat" },
     review: {
+      ruleClass: "Kurala göre sınıf (metodoloji 5)",
       back: "Ziyaret kuyruğu",
       title: (parcel: string, date: string) => `${parcel} · ${date}`,
       season: (season: string) => `Mevsim: ${season}`,
@@ -292,6 +364,7 @@ export const tr = {
       autoNote:
         "Bu ağaç toplu onaylandı (AI sonucu). İsterseniz yeni bir kararla düzeltebilirsiniz.",
       reasons: {
+        not_visible: "İşleme hattı bu konumda ağaç göremedi",
         no_ai: "AI önerisi yok",
         low_confidence: "AI güveni düşük",
         ai_flagged: "AI sorunlu, kuru ya da yok dedi",
@@ -300,6 +373,7 @@ export const tr = {
         staff_problem: 'Personel "Sorun gördüm" dedi',
       },
       reasonShort: {
+        not_visible: "ağaç görünmüyor",
         no_ai: "AI yok",
         low_confidence: "düşük güven",
         ai_flagged: "AI sorunlu",
@@ -308,6 +382,13 @@ export const tr = {
         staff_problem: "sorun gördüm",
       },
       lowConfidenceDetail: (threshold: number) => `eşik %${Math.round(threshold * 100)}`,
+      presence: {
+        title: "İşleme hattı: ağaç görünüyor mu?",
+        yes: "Görünüyor",
+        no: "Görünmüyor",
+        unsure: "Belirsiz",
+        note: 'Kesitlerdeki yeşillik sinyali (model değil). "Yok" sınıfını yalnız uzman verir; iki yönden kesitle doğrulayın.',
+      } as { title: string; note: string } & Record<string, string>,
       conflictDetail: (questions: string) => `soru: ${questions}`,
       selectTree: "İncelemek için listeden bir ağaç seçin.",
       previousTree: "← Önceki",
@@ -389,6 +470,9 @@ export const tr = {
       evidence: "Kanıt kesitleri",
       noEvidence: "Kanıt kesiti yok.",
       approved: "Onaylı",
+      approveNow: "Onayla ve sahibe hemen bildir",
+      approveNowHint:
+        "Acil bulgu raporu beklemeden onaylanır; sahibe SMS ya da WhatsApp ile bildirim gider. Onaylanan bulgu yayından önce de değiştirilemez sayılmalı.",
       tree: "Ağaç",
       parcel: "Parsel",
       kinds: {
@@ -540,6 +624,20 @@ export const tr = {
       },
       parcels: "Parseller ve yaşam döngüsü",
       noParcels: "Henüz parsel yok.",
+      invitations: "Hissedar davetleri",
+      invitationsHint:
+        "Sahiplerin portaldan davet ettiği hissedarlar. Kişiyi arayıp KVKK onayını alın; hesap telefonla açılır ve hissedar parsele izleyici olarak eklenir.",
+      invitedBy: (name: string) => `Davet eden: ${name}`,
+      approve: "Hesabı aç ve hissedar olarak ekle",
+      reject: "Reddet",
+      requests: "Uzman istekleri",
+      requestsHint:
+        "Uzmanın istediği ek ziyaretler ve doğrulamalar. Bir ziyarete bağlanınca planlandı, ziyaret taranınca tamamlandı olur.",
+      closeupAuto: "Sonraki taramanın yakın plan listesine kendiliğinden girer.",
+      linkVisit: "Ziyaret",
+      link: "Ziyarete bağla",
+      planVerification: "Doğrulama ziyareti planla",
+      planVisit: "Ziyaret planla",
     },
     visitKind: {
       inventory: "Envanter",
@@ -696,6 +794,10 @@ export const tr = {
       registered: "Parsel kaydedildi.",
       edit: "Bilgileri düzelt",
       lifecycle: "Yaşam döngüsü",
+      setPassive: "İzlemeyi bitir (pasif)",
+      resume: "İzlemeyi sürdür",
+      passiveHint:
+        "Pasif parsele ziyaret planlanmaz; planlı ziyaretler önce iptal edilmeli. Kayıtlar ve raporlar silinmez.",
       privateTitle: "Tapu, yetki ve erişim",
       noDetail: "Kayıt yok.",
     },
@@ -765,6 +867,11 @@ export const tr = {
       planned: "Ziyaret planlandı; sorumlu personelin görev listesine düşer.",
       updated: "Plan güncellendi.",
       cancelled: "Ziyaret iptal edildi.",
+      passive: "Parsel pasif: izleme bitti.",
+      resumed: "İzleme sürüyor; parsel ziyaretlerine göre yaşam döngüsüne döndü.",
+      invitation_approved: "Hissedar eklendi; telefonla (SMS koduyla) portala girebilir.",
+      invitation_rejected: "Davet reddedildi; sahip portalda görür.",
+      followups_planned: "İstekler ziyarete bağlandı.",
     },
     errors: {
       forbidden: "Bu işlem için yetkiniz yok.",
@@ -776,6 +883,9 @@ export const tr = {
       planned_date_required: "Planlanan ziyaretin tarihi olmalı.",
       visit_not_planned: "Ziyaret taranmış; plan değiştirilemez, iptal edilemez.",
       visit_cancelled: "Ziyaret iptal edilmiş; yeni bir ziyaret planlayın.",
+      has_planned_visits: "Parselin planlı ziyaretleri var; önce onları iptal edin.",
+      parcel_passive: "Parsel pasif; ziyaret planlamak için önce izlemeyi sürdürün.",
+      already_owner: "Bu kişi parselin sahibi; hissedar olarak eklenemez.",
       invite_unavailable:
         "Portal hesabı açılamadı: hesap servisi (invite-user) erişilemiyor. Hesabı Supabase panelinden açıp aynı e-postayla tekrar deneyin.",
       conflict: "E-posta ile telefon farklı hesaplara ait. Bilgileri kontrol edin.",
@@ -820,6 +930,34 @@ export const tr = {
       auto: "Kalan ağaçlar yapay zekâ sonucuyla toplu onaylandı; uzman bunların bir örneklemini denetledi.",
       methodology: (version: string) => `Metodoloji sürümü: ${version}`,
       noMethodology: "Metodoloji sürümü: belirtilmemiş",
+    },
+    viewers: {
+      title: "Hissedarlar",
+      hint: "Hisseli bahçede diğer hissedarlar raporları sizinle aynı görür, değiştiremez. Davetinizi operasyon ekibimiz hissedarı arayıp onayladıktan sonra tamamlar.",
+      empty: "Henüz hissedar eklenmedi.",
+      name: "Ad soyad",
+      phone: "Telefon",
+      invite: "Hissedar davet et",
+      remove: "Erişimi kaldır",
+      cancel: "Daveti geri al",
+      status: {
+        active: "Hissedar",
+        pending: "Davet bekliyor",
+        rejected: "Davet tamamlanamadı",
+      },
+      notices: {
+        invited: "Davetiniz alındı; operasyon ekibimiz hissedarla görüşüp erişimi açacak.",
+        removed: "Hissedarın erişimi kaldırıldı.",
+        cancelled: "Davet geri alındı.",
+      },
+      errors: {
+        forbidden: "Hissedarları sadece parsel sahibi yönetebilir.",
+        invalid_name: "Ad soyad yazın.",
+        invalid_phone: "Telefon numarası geçersiz (ör. 0532 123 45 67).",
+        too_many_invitations: "Bekleyen davet sayısı sınırda; önce bekleyenler tamamlansın.",
+        not_found: "Kayıt bulunamadı.",
+        write_failed: "Kaydedilemedi. Lütfen tekrar deneyin.",
+      },
     },
     questions: {
       title: "Sorular",
@@ -967,6 +1105,80 @@ export const tr = {
       count: (n: number) => `(${n})`,
       finding: "Bulgu",
       findingLegend: "Bulgu konumu",
+      visit: "Ziyaret",
+      latestState: "Son durum (her ağacın en son denetimi)",
+      changedOnly: "Sadece bu ziyarette değişenler",
+      changedCount: (n: number) => `${n} ağaç değişti`,
+      noPrevious: "Önceki denetim yok; değişim gösterilemez.",
+      layers: "Katmanlar",
+      heat: "Isı haritası (10×10 m)",
+      heatLegend: "Sarıdan kırmızıya: hücredeki ağaçlarda sorun oranı",
+      coverage: "Kapsama izi",
+      coverageLegend: {
+        covered: "En az iki yönden görüntülendi",
+        partial: "Tek yönden",
+        none: "Görüntü yok",
+      },
+      coverageNone: "Bu ziyarette tarama izi yok.",
+      trace: "Tarama izi",
+    },
+    dimensions: {
+      title: "Boyut boyut",
+      showOnMap: "Haritada göster",
+      inventory: "Envanter",
+      inventoryLine: (slots: number, trees: number, empty: number, inter: number) =>
+        `${slots} yer, ${trees} ağaç, ${empty} boş yer, ${inter} ara ağaç`,
+      lost: (codes: string) => `Önceki denetime göre kaybolan: ${codes}`,
+      added: (codes: string) => `Yeni: ${codes}`,
+      noChange: "Önceki denetime göre kaybolan ya da yeni ağaç yok.",
+      firstVisit: "İlk denetim: karşılaştırma yok.",
+      structure: "Bahçe yapısı",
+      sexLine: (female: number, male: number, unknown: number) =>
+        `${female} dişi, ${male} erkek, ${unknown} bilinmiyor`,
+      ratio: (n: string) => `1 erkeğe ${n} dişi`,
+      ratioAdvice: {
+        ok: "önerilen aralıkta (8–10)",
+        low_males: "erkek ağaç az (öneri 1 erkeğe 8–10 dişi)",
+        many_males: "erkek ağaç fazla (öneri 1 erkeğe 8–10 dişi)",
+      },
+      ratioUnknown: "Dişi/erkek oranı ilkbahar ziyaretinden sonra (çiçekten) belirlenir.",
+      ungrafted: (n: number) => `${n} aşısız ağaç`,
+      ages: "Yaş dağılımı",
+      health: "Sağlık dağılımı",
+      healthLine: "Beş sınıfın dağılımı ve değişimi yukarıda.",
+      pattern: "Mekânsal desen",
+      patternLine: (issues: number, half: number, cells: number) =>
+        `Dikkat ve üstündeki ${issues} ağacın yarısı ${cells} hücrenin ${half} tanesinde.`,
+      hotCells: (n: number) => `${n} hücrede ağaçların yarısından çoğunda sorun var.`,
+      noIssues: "Sorunlu ağaç yok; kümelenme yok.",
+      care: "Bakım uyumu",
+      pruning: (pct: string, done: number, partial: number, notDone: number) =>
+        `Budanan ağaç oranı %${pct} (${done} yapılmış, ${partial} kısmi, ${notDone} yapılmamış)`,
+      harvest: (pct: string, n: number, total: number) =>
+        `Hasadı tamamlanan: %${pct} (${total} ağacın ${n} tanesi)`,
+      careNone: "Bu ziyarette bakım ölçümü yok (budama kışın, hasat hasat ziyaretinde bakılır).",
+      pests: "Zararlı belirtileri",
+      pestLine: (mild: number, marked: number, assessed: number) =>
+        `${assessed} ağaçtan ${mild} tanesinde hafif, ${marked} tanesinde belirgin belirti`,
+      pestTypes: (types: string) => `Tür: ${types}`,
+      pestRows: (rows: string) => `Sıralar: ${rows}`,
+      pestsNone: "Bu ziyarette zararlı belirtisine bakılmadı (ilkbahar ve yaz).",
+      fruit: "Meyve yükü",
+      fruitLine: (counts: string, mean: string) => `Ölçek dağılımı ${counts}; ortalama ${mean}`,
+      fruitTrend: {
+        higher: (mean: string, date: string) =>
+          `Geçen yılın aynı ziyaretinden (${date}, ortalama ${mean}) yüksek: var yılı görünümü.`,
+        lower: (mean: string, date: string) =>
+          `Geçen yılın aynı ziyaretinden (${date}, ortalama ${mean}) düşük: yok yılı görünümü. Antep fıstığında bu olağandır.`,
+        similar: (mean: string, date: string) =>
+          `Geçen yılın aynı ziyaretine (${date}, ortalama ${mean}) yakın.`,
+      },
+      fruitNone: "Meyve yükü yaz ziyaretinde ölçülür.",
+      audit: "Denetim güveni",
+      auditLine: (panoramas: number, closeUps: number) =>
+        `${panoramas} panorama, ${closeUps} yakın plan fotoğraf`,
+      signed: (date: string) => `Uzman imzası: ${date}`,
+      coverageLink: "Kapsama haritası",
     },
     panel: {
       close: "Kapat",
@@ -1003,6 +1215,21 @@ export const tr = {
       closeUps: "Yakın plan",
       photoMissing: "Görüntü yok",
       hash: (short: string) => `Parmak izi ${short}`,
+      timeline: "Sınıf zaman çizelgesi",
+      evidence: {
+        title: "Kanıt bilgisi",
+        takenAt: "Çekim",
+        position: "Konum",
+        takenBy: "Çeken",
+        staff: (code: string) => `Saha personeli #${code}`,
+        unknown: "bilinmiyor",
+        hash: "SHA-256",
+        verify: "Bütünlüğü doğrula",
+        checking: "Doğrulanıyor…",
+        match: "✓ Doğrulandı: dosya yüklendiği andaki hâliyle aynı",
+        mismatch: "✗ Uyuşmuyor: dosya kayıttaki parmak iziyle aynı değil",
+        error: "Doğrulanamadı: dosya açılamadı",
+      },
       findings: "Bulgular ve öneriler",
       noFindings: "Bu ağaç için bulgu yok.",
       yes: "Evet",
@@ -1029,6 +1256,10 @@ export const tr = {
       viewer: "Panorama",
       arrow: "Bu yöne ilerle",
       treeMarker: (code: string) => `${code}: ağaç karnesini aç`,
+      timeTravel: "Bu noktayı başka bir denetimde gör",
+      noSameSpot: (date: string) =>
+        `${date} denetiminde bu noktada panorama yok; o denetimin en yakın panoraması açıldı.`,
+      viewDirection: "Bakış yönü haritada pembe üçgenle gösterilir.",
       placeholder: "Görüntü yok",
       placeholderNote:
         "Bu panoramanın görüntüsü yok ya da açılamadı; yönler ve ağaçlar yine gösteriliyor.",
@@ -1253,6 +1484,22 @@ export const tr = {
         },
         noSlots: "Parselde kayıtlı yer yok.",
         openItems: (codes: string) => `Açık doğrulama kalemleri: ${codes}`,
+        coverageTitle: "Grid tarama kapsaması",
+        coverageBelow: (ratio: string, threshold: string) =>
+          `Kapsama %${ratio}, eşik %${threshold}: kalite kapısından geçmedi. Ek tarama yapılmalı ya da gerekçeyle kabul edilmeli.`,
+        coverageBlocked:
+          "Kapsama eşiğin altında; onay için ek tarama ya da aşağıda gerekçeli kabul gerekir.",
+        waiverLabel: "Kapsamayı gerekçeyle kabul et",
+        waiverPlaceholder:
+          "Neden kabul ediliyor? (ör. doğu koridoru sulama hattı nedeniyle sürülemedi)",
+        waiverSubmit: "Gerekçeyle kabul et",
+        waived: (note: string) => `Kapsama gerekçeyle kabul edildi: ${note}`,
+        waiverErrors: {
+          forbidden: "Kapsamayı sadece işletmenin uzmanı kabul edebilir.",
+          session_invalid: "Bu ziyaretin kapsaması kabul edilemez.",
+          note_required: "Gerekçe yazın (en çok 2000 karakter).",
+          write_failed: "Kabul kaydedilemedi.",
+        } as Record<string, string>,
       },
     },
     portal: {

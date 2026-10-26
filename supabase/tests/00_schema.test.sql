@@ -3,6 +3,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(30);
 
+-- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
+-- removed first; rolled back with the file (supabase/testing/reset.sql).
+select testing.reset_to_seed();
+
 select has_extension('postgis', 'postgis is installed');
 select has_schema('private', 'private schema exists');
 select has_schema('authz', 'authz schema exists');
@@ -15,11 +19,11 @@ select tables_are(
     'asset', 'asset_source', 'metric_definition', 'measurement', 'measurement_evidence',
     'assessment', 'assessment_measurement', 'finding', 'finding_evidence', 'operation', 'trunk_label',
     'verification_item', 'session_event', 'parcel_route', 'ai_assessment_detail',
-    'question', 'question_reply', 'notification'
+    'question', 'question_reply', 'notification', 'followup_request', 'coverage_report'
   ],
   'public has exactly the MVP tables'
 );
-select tables_are('private', array['owner_profile', 'parcel_detail', 'message_outbox', 'phone_login_attempt'], 'private has the personal data tables');
+select tables_are('private', array['owner_profile', 'parcel_detail', 'message_outbox', 'phone_login_attempt', 'viewer_invitation'], 'private has the personal data tables');
 
 select is(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
@@ -95,7 +99,9 @@ select set_eq(
         'dead_branch_present', 'trunk_damage_present', 'root_sucker_present', 'pruned', 'frost_damage_present',
         'pest_sign_present', 'fruit_present', 'drought_stress_sign', 'theft_sign_present',
         -- Field crew's "Sorun gördüm" mark (20261023130000_bulk_approval).
-        'problem_seen'],
+        'problem_seen',
+        -- Pipeline presence check (20261025120200_tree_presence).
+        'tree_visible'],
   'migrations register the metrics from docs/metodoloji.md (Ek B), docs/veri-modeli.md and the field questions'
 );
 

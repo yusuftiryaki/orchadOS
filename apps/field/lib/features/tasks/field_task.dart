@@ -53,9 +53,13 @@ class SlotPoint {
     required this.positionNo,
     this.position,
     this.uncertaintyM,
+    this.treeId,
   });
 
   final String id;
+
+  /// The slot's active tree; null for an empty slot.
+  final String? treeId;
 
   /// `S5-12`, `S5-12a`.
   final String code;
@@ -77,6 +81,7 @@ class SlotPoint {
     if (position != null) 'lat': position!.lat,
     if (position != null) 'lon': position!.lon,
     if (uncertaintyM != null) 'uncertainty_m': uncertaintyM,
+    if (treeId != null) 'tree_id': treeId,
   };
 
   factory SlotPoint.fromJson(Map<String, Object?> j) => SlotPoint(
@@ -91,6 +96,7 @@ class SlotPoint {
             (j['lon']! as num).toDouble(),
           ),
     uncertaintyM: (j['uncertainty_m'] as num?)?.toDouble(),
+    treeId: j['tree_id'] as String?,
   );
 }
 
@@ -221,6 +227,30 @@ class FieldTask {
     this.estimatedTreeCount,
     this.route,
   });
+
+  /// The same task with another close-up list ("Sorun gördüm" marks).
+  FieldTask copyWith({List<TreeTarget>? closeupTrees}) => FieldTask(
+    id: id,
+    parcelId: parcelId,
+    parcelName: parcelName,
+    village: village,
+    kind: kind,
+    season: season,
+    areaDecare: areaDecare,
+    closeupTrees: closeupTrees ?? this.closeupTrees,
+    visitId: visitId,
+    orgId: orgId,
+    plannedDate: plannedDate,
+    assignedToMe: assignedToMe,
+    notes: notes,
+    slots: slots,
+    boundary: boundary,
+    verificationItems: verificationItems,
+    rowAzimuthDeg: rowAzimuthDeg,
+    originCorner: originCorner,
+    estimatedTreeCount: estimatedTreeCount,
+    route: route,
+  );
 
   final String id;
   final String parcelId;

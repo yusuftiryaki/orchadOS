@@ -128,6 +128,10 @@ class RawStore(ABC):
     def describe(self) -> str:
         return self.name
 
+    @abstractmethod
+    def uri(self, key: str) -> str:
+        """Address of the object: s3://<bucket>/<key>, az://<container>/<key>, file://..."""
+
     def _already_complete(self, key: str, path: Path, sha256: str) -> bool:
         info = self.stat(key)
         return info is not None and info.size == path.stat().st_size and info.sha256 == sha256

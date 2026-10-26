@@ -6,7 +6,7 @@ import {
   BULK_TEST as T,
   createBulkRun,
   grantBulkRoles,
-  removeBulkRoles,
+  purgeBulkTest,
   type BulkRun,
 } from "./expert-bulk-fixtures";
 
@@ -29,7 +29,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await removeBulkRoles(admin);
+  await purgeBulkTest();
 });
 
 async function loginAs(browser: Browser, email: string, next: string): Promise<Page> {
@@ -67,10 +67,13 @@ test("bulk approval, publication, score and a question with its answer", async (
 
   // The remaining seven one by one: accept the AI, correct the tree without
   // AI and disagree with the AI on the sampled tree.
-  await expert.getByRole("link", { name: "İncelenmemiş (7)" }).click();
   const review = expert.getByTestId("tree-review");
   for (let i = 7; i > 0; i--) {
-    await expect(expert.getByRole("link", { name: `İncelenmemiş (${i})` })).toBeVisible();
+    // Open the first unreviewed tree through the filter every time: after a
+    // decision the panel moves to the next tree in list order, which need not
+    // be an unreviewed one (the sample is random per run).
+    await expert.getByRole("link", { name: `İncelenmemiş (${i})` }).click();
+    await expect(review).toBeVisible();
     const noAi = await expert
       .getByTestId("ai-suggestion")
       .getByText("Bu ağaç için AI önerisi yok.")
@@ -86,6 +89,14 @@ test("bulk approval, publication, score and a question with its answer", async (
       await expert.getByRole("button", { name: "AI'ı kabul et" }).click();
     }
     await expect(expert.getByRole("status").first()).toContainText("Karar kaydedildi.");
+    // Wait for the next tree before reading the page again: the status line of
+    // the previous decision is still there while the page reloads.
+    // A decision re-renders the whole visit; on a busy CI runner this can take
+    // longer than the default 5 s.
+    await expect(expert.getByTestId("review-progress")).toHaveText(
+      `24 ağaçtan ${25 - i} tanesi incelendi`,
+      { timeout: 20_000 },
+    );
   }
   await expect(expert.getByTestId("review-progress")).toHaveText("24 ağaçtan 24 tanesi incelendi");
 

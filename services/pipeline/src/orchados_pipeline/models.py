@@ -312,6 +312,17 @@ class Tree(BaseModel):
     local_y_m: float | None = None
 
 
+class EmptySlot(BaseModel):
+    """A slot with a position and no active tree (presence: possible new planting)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    slot_code: str
+    lat: float
+    lon: float
+    slot_id: str | None = None  # public.slot.id when read from the database
+
+
 class TreeList(Model):
     """Tree positions a crops run used (<run>/trees.json).
 
@@ -328,13 +339,21 @@ class TreeList(Model):
     trees: list[Tree]
     # Active trees whose slot has no position yet (before the inventory is done).
     unlocated_slots: list[str] = Field(default_factory=list)
+    # Located slots without an active tree; they get crops for the presence check.
+    empty_slots: list[EmptySlot] = Field(default_factory=list)
+    # Bounding box of the parcel's newest boundary: west, south, east, north
+    # (degrees). Origin of the 10 x 10 m cells; without it, the trees' box.
+    boundary_bbox: tuple[float, float, float, float] | None = None
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
 class CropRecord(Model):
     schema_: Literal["orchados.tree_crop/1"] = Field("orchados.tree_crop/1", alias="schema")
-    tree_id: str
+    # A tree's crop; or (subject slot) a view of an empty slot, without a tree.
+    subject: Literal["tree", "slot"] = "tree"
+    tree_id: str | None = None
+    slot_id: str | None = None
     slot_code: str
     direction: Literal["N", "E", "S", "W"]  # side of the tree the camera was on
     panorama_id: str
@@ -364,3 +383,136 @@ class CropSet(Model):
     status: CropStatus = "ok"
     trees_source: Literal["file", "database"] = "file"
     unlocated_slots: list[str] = Field(default_factory=list)
+    # Views of the located empty slots (presence: possible new planting).
+    slot_crops: list[CropRecord] = Field(default_factory=list)
+    slot_sidecars: list[FileRef] = Field(default_factory=list)
+
+
+# --- coverage ----------------------------------------------------------------------
+
+
+class DirectionCoverage(Model):
+    direction: Literal["N", "E", "S", "W"]
+    # The view a crop is cut from: best score from this side in the crop range.
+    crop_score: float
+    crop_distance_m: float
+    # crop_score >= CoverageParams.min_view_score
+    sufficient: bool
+
+
+class TreeCoverage(Model):
+    tree_id: str
+    slot_code: str
+    lat: float
+    lon: float
+    # Sides with a crop, and the sides seen well enough to count (CoverageParams).
+    directions: list[DirectionCoverage]
+    crop_directions: list[str]
+    sufficient_directions: list[str]
+    best_crop_score: float | None
+    # Largest angle between two sufficient views (tree -> camera bearings).
+    view_spread_deg: float | None
+    nearest_panorama_m: float | None
+    covered: bool
+    cell: tuple[int, int]
+
+
+class CoverageCell(Model):
+    """A 10 x 10 m cell with at least one uncovered tree."""
+
+    cell: tuple[int, int]
+    trees: int
+    uncovered: int
+    uncovered_slot_codes: list[str]
+    blind_spot: bool
+    # Corners of the cell (degrees).
+    south: float
+    west: float
+    north: float
+    east: float
+
+
+class CoverageSummary(Model):
+    active_trees: int
+    covered_trees: int
+    ratio: float
+    threshold: float
+    passed: bool
+    missing_trees: int
+    blind_spots: int
+    # Below the threshold, or a blind spot: an extra visit is requested on upload.
+    rescan_needed: bool
+
+
+CoverageStatus = Literal["ok", "no_tree_positions"]
+
+
+class CoverageFrame(Model):
+    """Origin of the cells: south-west corner of the boundary's (else the trees') box."""
+
+    source: Literal["boundary", "trees"]
+    west: float
+    south: float
+    cell_m: float
+
+
+class CoverageReport(Model):
+    schema_: Literal["orchados.coverage/1"] = Field("orchados.coverage/1", alias="schema")
+    producer: Producer
+    session_id: str
+    parcel_id: str
+    session_kind: str | None = None
+    status: CoverageStatus
+    trees_source: Literal["file", "database"]
+    rule: dict
+    summary: CoverageSummary | None = None
+    frame: CoverageFrame | None = None
+    trees: list[TreeCoverage] = Field(default_factory=list)
+    cells: list[CoverageCell] = Field(default_factory=list)
+    unlocated_slots: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+
+# --- presence ------------------------------------------------------------------------
+
+
+class ViewSignal(Model):
+    """The presence signal of one crop (presence.py)."""
+
+    direction: Literal["N", "E", "S", "W"]
+    crop_sha256: str
+    score: float
+    # Vegetation share of the boxes; None when a box falls outside the crop.
+    upper_share: float | None = None
+    whole_share: float | None = None
+    sapling_share: float | None = None
+    brightness: float | None = None
+    state: Literal["present", "absent", "ambiguous", "unusable"]
+
+
+class PresenceResult(Model):
+    subject: Literal["tree", "slot"]
+    tree_id: str | None = None
+    slot_id: str | None = None
+    slot_code: str
+    # tree_visible: yes / no / unsure. For an empty slot, yes = possible new planting.
+    value: Literal["yes", "no", "unsure"]
+    reason: str
+    views: list[ViewSignal]
+
+
+class PresenceReport(Model):
+    schema_: Literal["orchados.presence/1"] = Field("orchados.presence/1", alias="schema")
+    producer: Producer
+    method: str
+    method_version: str
+    session_id: str
+    parcel_id: str
+    month: int | None  # UTC month of the visit
+    leafy: bool
+    status: Literal["ok", "no_crops"]
+    trees: list[PresenceResult] = Field(default_factory=list)
+    slots: list[PresenceResult] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)

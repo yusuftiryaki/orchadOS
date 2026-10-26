@@ -5,7 +5,8 @@ type SessionRow = Database["public"]["Tables"]["session"]["Row"];
 export type VisitRow = Pick<
   SessionRow,
   "id" | "kind" | "status" | "planned_date" | "started_at" | "created_at" | "methodology_version"
->;
+> &
+  Partial<Pick<SessionRow, "lead_user_id" | "published_at">>;
 
 // Session time, as in the latest views: started_at, else the planned day
 // (UTC midnight), else the row's creation time.

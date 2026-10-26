@@ -1,3 +1,6 @@
+import { FollowupPanel } from "./followup-panel";
+import type { Followup } from "@/lib/expert/followups";
+import type { PipelineChecks } from "@/lib/expert/pipeline-checks";
 import Link from "next/link";
 import { isReviewable, type ReviewContext } from "@/lib/expert/review";
 import { HEALTH_CLASSES, sampleDisagreementRate, summarize } from "@/lib/expert/summary";
@@ -8,6 +11,7 @@ import { ClassBadge } from "./class-badge";
 import styles from "./expert.module.css";
 import { FindingForm } from "./finding-form";
 import { FindingList } from "./finding-list";
+import { PipelineChecksPanel } from "./pipeline-checks";
 import { PublishForm } from "./publish-form";
 import { VisitHeader } from "./review-view";
 
@@ -21,11 +25,19 @@ export function SummaryView({
   findingError,
   published,
   bulk,
+  followups = [],
+  followupMessage,
+  checks,
 }: {
   ctx: ReviewContext;
   findingError: string | null;
   published: boolean;
   bulk: BulkMessages;
+  // Follow-up requests made from this visit.
+  followups?: Followup[];
+  followupMessage?: { saved: boolean; error: string | null };
+  // Coverage and presence check of the processing pipeline.
+  checks?: PipelineChecks;
 }) {
   const sm = t.expert.summary;
   const s = ctx.session;
@@ -77,6 +89,8 @@ export function SummaryView({
             <p className="muted">{sm.aiAgreement(summary.aiAgreed, summary.aiCompared)}</p>
           )}
         </section>
+
+        {checks && <PipelineChecksPanel checks={checks} />}
 
         <section className={styles.panel} data-testid="review-breakdown">
           <h3>{sm.review}</h3>
@@ -190,6 +204,32 @@ export function SummaryView({
           </details>
         )}
       </section>
+
+      <FollowupPanel
+        sessionId={s.id}
+        treeId={null}
+        followups={followups.filter((f) => f.kind === "extra_visit")}
+        returnPath={returnPath}
+        message={followupMessage}
+      />
+      {followups.some((f) => f.treeId) && (
+        <section className={styles.panel} data-testid="visit-followups">
+          <h3>{t.expert.followups.list}</h3>
+          <ul className={styles.findings}>
+            {followups
+              .filter((f) => f.treeId)
+              .map((f) => (
+                <li key={f.id}>
+                  <Link href={reviewHref(s.id, { tree: f.treeId! })}>
+                    {codeOf.get(f.treeId!) ?? "?"}
+                  </Link>{" "}
+                  · {t.expert.followups.kinds[f.kind]} · {t.expert.followups.status[f.status]}
+                  {f.note && <span className="muted"> · {f.note}</span>}
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
 
       {editable && (
         <section className={styles.panel}>

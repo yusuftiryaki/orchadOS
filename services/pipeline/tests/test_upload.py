@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from conftest import write_raw_manifest
 
 from orchados_pipeline.cli import main
 from orchados_pipeline.hashing import sha256_file
@@ -41,6 +42,10 @@ class FakeCatalog:
         self.capture_rows: list[dict] = []
         self.asset_rows: list[dict] = []
         self.source_rows: list[dict] = []
+        self.coverage_rows: list[dict] = []
+        self.rescan: dict | None = None
+        self.empty: dict[str, str] = {}
+        self.presence_rows: list[dict] = []
         self.fail_sources_after: int | None = None
 
     def session(self, session_id):
@@ -102,6 +107,51 @@ class FakeCatalog:
             self.row = SessionRow(**{**self.row.__dict__, "status": "processed"})
         return self.row.status
 
+    def record_coverage(self, session_id, report):
+        """record_coverage_report(): the newest identical report is returned, not added."""
+        keys = ("pipeline_version", "params_hash", "active_trees", "covered_trees")
+        keys += ("blind_spots", "missing_slot_codes")
+        last = self.coverage_rows[-1] if self.coverage_rows else None
+        created = last is None or any(last[k] != report[k] for k in keys)
+        if created:
+            self.coverage_rows.append({**report, "session_id": session_id})
+        passed = report["covered_trees"] / report["active_trees"] >= report["threshold"]
+        rescan = not passed or report["blind_spots"] > 0
+        if created and rescan and self.rescan is None:  # the database trigger
+            self.rescan = {"id": "req-1", "status": "open"}
+        return {
+            "report_id": str(len(self.coverage_rows)),
+            "created": created,
+            "passed": passed,
+            "rescan_needed": rescan,
+        }
+
+    def rescan_request(self, session_id):
+        return self.rescan
+
+    def empty_slots(self, parcel_id):
+        assert parcel_id == PARCEL
+        return dict(self.empty)
+
+    def record_presence(self, session_id, payload):
+        """record_tree_presence(): one row per subject, method, version and params."""
+        created = existing = 0
+        for item in payload["items"]:
+            key = (
+                session_id,
+                item.get("tree_id"),
+                item.get("slot_id"),
+                payload["method"],
+                payload["method_version"],
+                payload["params_hash"],
+            )
+            if key in {r["key"] for r in self.presence_rows}:
+                existing += 1
+            else:
+                self.presence_rows.append({"key": key, **item})
+                created += 1
+        return {"created": created, "existing": existing}
+
     def snapshot(self):
         """Rows without generated ids, comparable between catalogs."""
         by_id = {r["id"]: r["content_hash"] for r in self.capture_rows + self.asset_rows}
@@ -146,6 +196,83 @@ def run(processed_run):
     )
 
 
+def _pulled_session(ctx, tmp_path, uri, skip=()) -> Path:
+    """The session folder as orchados-ingest pull leaves it (with its manifest copy)."""
+    dest = tmp_path / "pulled"
+    shutil.copytree(ctx.session_dir, dest)
+    write_raw_manifest(dest, SESSION, uri, skip)
+    return dest
+
+
+RAW_URI = f"s3://orchados-raw/raw/{ORG}/{PARCEL}/{SESSION}/"
+
+
+def test_pulled_session_captures_point_to_the_store(processed_run, tmp_path):
+    ctx, out, _ = processed_run
+    session_dir = _pulled_session(ctx, tmp_path, RAW_URI)
+    cat = FakeCatalog()
+    opts = UploadOptions(station="ist-01", session_dir=session_dir)
+    rep = upload_run(ctx.run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    assert not [w for w in rep.warnings if "raw" in w or "station" in w]
+    assert len(cat.capture_rows) == len(out.captures)
+    for row in cat.capture_rows:
+        assert row["uri"] == RAW_URI + row["metadata"]["path"]
+    video = next(r for r in cat.capture_rows if r["kind"] == "video_360")
+    assert video["uri"] == RAW_URI + "video/VID_0001.mp4"
+
+
+@pytest.mark.parametrize(
+    "uri", ["az://raw/raw/o/p/s/", "file:///srv/orchados-raw/raw/o/p/s/"], ids=["azure", "local"]
+)
+def test_store_uri_schemes(processed_run, tmp_path, uri):
+    ctx, _, _ = processed_run
+    cat = FakeCatalog()
+    opts = UploadOptions(session_dir=_pulled_session(ctx, tmp_path, uri))
+    upload_run(ctx.run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    assert all(r["uri"] == uri + r["metadata"]["path"] for r in cat.capture_rows)
+
+
+def test_file_not_in_the_store_falls_back_to_the_station(processed_run, tmp_path):
+    ctx, _, _ = processed_run
+    session_dir = _pulled_session(ctx, tmp_path, RAW_URI, skip=("gnss/events.csv",))
+    # The store holds other content under this path.
+    m = session_dir / ".orchados" / "manifest.json"
+    raw = json.loads(m.read_text())
+    next(f for f in raw["files"] if f["path"] == "session.json")["sha256"] = "0" * 64
+    m.write_text(json.dumps(raw))
+    cat = FakeCatalog()
+    opts = UploadOptions(station="ist-01", session_dir=session_dir)
+    rep = upload_run(ctx.run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    by_path = {r["metadata"]["path"]: r["uri"] for r in cat.capture_rows}
+    assert (
+        by_path["gnss/events.csv"]
+        == f"station://ist-01{(session_dir / 'gnss/events.csv').resolve()}"
+    )
+    assert by_path["session.json"].startswith("station://ist-01/")
+    assert by_path["video/VID_0001.mp4"] == RAW_URI + "video/VID_0001.mp4"
+    (warning,) = [w for w in rep.warnings if "not in the store" in w]
+    assert "events.csv" in warning and "session.json" in warning
+
+
+def test_manifest_without_location_keeps_station_uris(processed_run, tmp_path):
+    ctx, _, _ = processed_run
+    cat = FakeCatalog()
+    opts = UploadOptions(station="ist-01", session_dir=_pulled_session(ctx, tmp_path, None))
+    rep = upload_run(ctx.run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    assert all(r["uri"].startswith("station://ist-01/") for r in cat.capture_rows)
+    assert any("no store location" in w for w in rep.warnings)
+
+
+def test_manifest_of_another_session_is_refused(processed_run, tmp_path):
+    ctx, _, _ = processed_run
+    session_dir = _pulled_session(ctx, tmp_path, RAW_URI)
+    m = session_dir / ".orchados" / "manifest.json"
+    m.write_text(m.read_text().replace(SESSION, str(uuid.uuid4())))
+    opts = UploadOptions(session_dir=session_dir)
+    with pytest.raises(UploadError, match="is for session"):
+        upload_run(ctx.run_dir, SESSION, FakeCatalog(), LocalMediaStore(tmp_path / "b"), opts)
+
+
 def _copy_run(run_dir: Path, dest: Path, edit) -> Path:
     shutil.copytree(run_dir, dest)
     data = json.loads((dest / "outputs.json").read_text())
@@ -180,7 +307,7 @@ def test_upload_creates_rows_objects_and_lineage(run, tmp_path):
         assert row["pipeline"] == out.pipeline.name
         assert row["params_hash"] == out.pipeline.params_hash
 
-    # Raw captures stay on the station.
+    # Raw captures of a local folder (no pulled manifest) stay on the station.
     video = next(r for r in cat.capture_rows if r["kind"] == "video_360")
     assert video["uri"] == f"station://ist-01{(opts.session_dir / 'video/VID_0001.mp4').resolve()}"
     assert video["started_at"].startswith("2026-10-18T09:00") and video["ended_at"]
@@ -363,3 +490,58 @@ def test_cli_upload_needs_credentials(run, monkeypatch, capsys):
         monkeypatch.delenv(k, raising=False)
     assert main(["upload", str(run_dir), "--session-id", SESSION]) == 1
     assert "missing environment variables: SUPABASE_URL" in capsys.readouterr().err
+
+
+def test_coverage_summary_is_recorded_once(run, tmp_path):
+    run_dir, _, opts = run
+    cat = FakeCatalog()
+    store = LocalMediaStore(tmp_path / "bucket")
+    rep = upload_run(run_dir, SESSION, cat, store, opts)
+    (row,) = cat.coverage_rows
+    assert (row["active_trees"], row["covered_trees"], row["threshold"]) == (12, 4, 0.95)
+    assert row["missing_slot_codes"] == [f"S{r}-{c}" for r in (1, 3) for c in (1, 2, 3, 4)]
+    assert row["blind_spots"] == len(row["blind_spot_cells"]) > 0
+    assert row["rule"]["min_directions"] == 2 and row["params_hash"]
+    assert rep.coverage["created"] and rep.coverage["rescan_needed"]
+    assert any("coverage report: created, below the threshold" in line for line in rep.lines())
+    assert "extra visit request req-1: open" in rep.lines()
+    # Again: the same report is found, nothing is added.
+    rep = upload_run(run_dir, SESSION, cat, store, opts)
+    assert len(cat.coverage_rows) == 1 and not rep.coverage["created"]
+
+
+def test_no_coverage_without_tree_positions(run, tmp_path):
+    run_dir, _, opts = run
+    copy = tmp_path / "run"
+    shutil.copytree(run_dir, copy)
+    cov = json.loads((copy / "coverage.json").read_text())
+    cov.update(status="no_tree_positions", summary=None, trees=[], cells=[], frame=None)
+    (copy / "coverage.json").write_text(json.dumps(cov))
+    cat = FakeCatalog()
+    rep = upload_run(copy, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    assert cat.coverage_rows == [] and rep.coverage is None
+
+
+def test_presence_measurements_with_crops_as_evidence(run, tmp_path):
+    run_dir, _, opts = run
+    cat = FakeCatalog()
+    rep = upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "bucket"), opts)
+    crops = {r["id"]: r for r in cat.asset_rows if r["kind"] == "tree_crop"}
+    # S2-3 has no active tree in the fake parcel: no crops, no measurement.
+    assert {r["tree_id"] for r in cat.presence_rows} == set(TREES.values())
+    for row in cat.presence_rows:
+        assert row["value"] in ("yes", "unsure") and row["evidence_asset_ids"]
+        assert all(crops[a]["tree_id"] == row["tree_id"] for a in row["evidence_asset_ids"])
+    assert rep.presence == {"created": len(TREES), "existing": 0}
+    assert any("presence results not recorded" in w and "S2-3" in w for w in rep.warnings)
+    rep = upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "bucket"), opts)
+    assert rep.presence == {"created": 0, "existing": len(TREES)}
+
+
+def test_presence_needs_the_crops_as_evidence(run, tmp_path):
+    run_dir, _, opts = run
+    opts.kinds = parse_kinds("preview,trajectory")
+    cat = FakeCatalog()
+    rep = upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "bucket"), opts)
+    assert cat.presence_rows == [] and rep.presence is None
+    assert any("tree crops (evidence) left out" in w for w in rep.warnings)

@@ -7,6 +7,7 @@ import type { HealthClass } from "./summary";
 // a visit is triaged with the rules of the methodology it is recorded under.
 
 export const MANDATORY_REASONS = [
+  "not_visible",
   "no_ai",
   "low_confidence",
   "ai_flagged",
@@ -39,6 +40,10 @@ export interface ReviewRules {
   staffConflicts: StaffConflictRule[];
   // Share of the bulk-approvable trees the expert still sees.
   sampleRate: number;
+  // The pipeline's presence check (algorithm measurement): these values send the
+  // tree to the expert, who alone gives the class "absent" (methodology, section 5).
+  presenceMetric: string;
+  notVisibleValues: string[];
 }
 
 const METHODOLOGY_V0: ReviewRules = {
@@ -60,6 +65,8 @@ const METHODOLOGY_V0: ReviewRules = {
     { staff: "branch_break", ai: "branch_break", absent: [false], clear: [true] },
   ],
   sampleRate: 0.05,
+  presenceMetric: "tree_visible",
+  notVisibleValues: ["no"],
 };
 
 export const REVIEW_RULES: Record<string, ReviewRules> = {
@@ -91,6 +98,8 @@ export interface TriageInput {
   staffAnswers?: Record<string, boolean>;
   // metric code -> newest AI value of the visit.
   aiValues?: Record<string, ObservedValue>;
+  // Newest presence check of the visit by the pipeline (yes / no / unsure).
+  treeVisible?: string | null;
 }
 
 // Staff questions whose answer contradicts the AI value.
@@ -109,6 +118,9 @@ export function staffConflicts(tree: TriageInput, rules: ReviewRules): string[] 
 // be bulk approved (unless it is in the quality sample).
 export function mandatoryReasons(tree: TriageInput, rules: ReviewRules): MandatoryReason[] {
   const reasons = new Set<MandatoryReason>();
+  if (tree.treeVisible != null && rules.notVisibleValues.includes(tree.treeVisible)) {
+    reasons.add("not_visible");
+  }
   if (tree.aiClass == null) {
     reasons.add("no_ai");
   } else {

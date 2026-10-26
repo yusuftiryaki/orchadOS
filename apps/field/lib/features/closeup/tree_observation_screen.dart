@@ -5,6 +5,7 @@ import '../../app/providers.dart';
 import '../../core/db/field_repository.dart';
 import '../../core/media/media_store.dart';
 import '../../core/quality/photo_quality.dart';
+import '../../core/time/gps_clock.dart';
 import '../../core/ui/widgets.dart';
 import '../camera/capture_screen.dart';
 import '../session/session_controller.dart';
@@ -31,8 +32,54 @@ class TreeObservationScreen extends ConsumerStatefulWidget {
 class _TreeObservationScreenState extends ConsumerState<TreeObservationScreen> {
   final Map<String, PendingShot> _shots = {};
   final Map<String, bool> _answers = {};
+  final List<PendingVoiceNote> _voice = [];
   String? _capturing;
   bool _saving = false;
+  bool _recording = false;
+  GpsTimeReading? _voiceStart;
+  DateTime? _voiceStartedAt;
+
+  /// Starts a voice note, or stops it and keeps it for the save.
+  Future<void> _toggleVoice() async {
+    final recorder = ref.read(voiceRecorderProvider);
+    if (!_recording) {
+      _voiceStart = ref.read(gpsClockProvider).now();
+      _voiceStartedAt = ref.read(clockProvider).now();
+      final ok = await recorder.start();
+      if (!mounted) return;
+      if (!ok) {
+        showError(context, 'Mikrofon izni yok: ayarlardan izin verin.');
+        return;
+      }
+      setState(() => _recording = true);
+      return;
+    }
+    try {
+      final bytes = await recorder.stop();
+      if (bytes == null) return;
+      final hash = sha256Hex(bytes);
+      final path = await ref
+          .read(mediaStoreProvider)
+          .put(bytes, sha256: hash, ext: 'm4a');
+      if (!mounted) return;
+      setState(
+        () => _voice.add(
+          PendingVoiceNote(
+            sha256: hash,
+            localPath: path,
+            byteSize: bytes.length,
+            capturedAt: _voiceStartedAt!,
+            gpsTimeMs: _voiceStart!.gpsTimeMs,
+            timeSource: _voiceStart!.source,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) showError(context, 'Sesli not kaydedilemedi: $e');
+    } finally {
+      if (mounted) setState(() => _recording = false);
+    }
+  }
 
   CloseupProtocol get _protocol => CloseupProtocol.forSeason(
     ref.read(sessionControllerProvider).task?.season ?? Season.winter,
@@ -108,6 +155,7 @@ class _TreeObservationScreenState extends ConsumerState<TreeObservationScreen> {
               q.metricCode: _answers[q.metricCode]!,
           },
           methodVersion: protocol.version,
+          voiceNotes: _voice,
         );
     if (mounted) Navigator.of(context).pop();
   }
@@ -139,13 +187,32 @@ class _TreeObservationScreenState extends ConsumerState<TreeObservationScreen> {
                 answer: _answers[q.metricCode],
                 onAnswer: (v) => setState(() => _answers[q.metricCode] = v),
               ),
+            const SizedBox(height: 16),
+            const _SectionTitle('Sesli not (isteğe bağlı)'),
+            OutlinedButton.icon(
+              key: const Key('tree-voice'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(56),
+                foregroundColor: _recording ? Colors.red : null,
+              ),
+              icon: Icon(_recording ? Icons.stop : Icons.mic),
+              label: Text(
+                _recording
+                    ? 'Durdur'
+                    : _voice.isEmpty
+                    ? 'Sesli not ekle'
+                    : 'Bir sesli not daha (${_voice.length} kayıtlı)',
+                style: const TextStyle(fontSize: 18),
+              ),
+              onPressed: _saving ? null : _toggleVoice,
+            ),
             const SizedBox(height: 24),
             BigButton(
               key: const Key('tree-save'),
               icon: Icons.save,
               label: 'Kaydet',
               busy: _saving,
-              onPressed: _complete ? _save : null,
+              onPressed: _complete && !_recording ? _save : null,
             ),
             const SizedBox(height: 24),
           ],

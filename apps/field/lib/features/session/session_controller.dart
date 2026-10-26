@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../core/db/field_repository.dart';
+import '../../core/db/outbox.dart';
 import '../../core/geo/geo.dart';
 import '../../core/time/gps_clock.dart';
 import '../boundary/boundary_corners.dart';
@@ -15,6 +16,8 @@ import '../route/grid_route.dart';
 import '../route/route_guide.dart';
 import '../route/route_store.dart';
 import '../route/route_view.dart';
+import '../summary/visit_log.dart';
+import '../tasks/closeup_selection.dart';
 import '../tasks/field_task.dart';
 
 enum SessionPhase { idle, starting, recording, stopping, stopped }
@@ -60,9 +63,13 @@ class SessionState {
     this.route,
     this.busy = false,
     this.error,
+    this.problemTrees = const {},
   });
 
   final FieldTask? task;
+
+  /// Trees marked "Sorun gördüm" during this recording.
+  final Set<String> problemTrees;
   final SessionPhase phase;
   final String? sessionId;
   final DateTime? startedAt;
@@ -100,6 +107,7 @@ class SessionState {
     RouteView? route,
     bool? busy,
     String? Function()? error,
+    Set<String>? problemTrees,
   }) => SessionState(
     task: task ?? this.task,
     phase: phase ?? this.phase,
@@ -112,8 +120,12 @@ class SessionState {
     route: route ?? this.route,
     busy: busy ?? this.busy,
     error: error != null ? error() : this.error,
+    problemTrees: problemTrees ?? this.problemTrees,
   );
 }
+
+/// Method version of the "Sorun gördüm" mark (`measurement.method_version`).
+const problemMarkMethodVersion = 'scan-mark-v1';
 
 final sessionControllerProvider =
     NotifierProvider<SessionController, SessionState>(SessionController.new);
@@ -433,6 +445,53 @@ class SessionController extends Notifier<SessionState> {
     return true;
   }
 
+  /// Slots with an active tree, nearest to the receiver first (by code when
+  /// there is no position): the choices for "Sorun gördüm".
+  List<SlotPoint> problemCandidates({int limit = 8}) {
+    final slots = [
+      for (final s in state.task?.slots ?? const <SlotPoint>[])
+        if (s.treeId != null) s,
+    ];
+    final here = ref.read(gnssLoggerProvider).lastStatus?.status.position;
+    int byCode(SlotPoint a, SlotPoint b) {
+      final r = a.rowNo.compareTo(b.rowNo);
+      return r != 0 ? r : a.positionNo.compareTo(b.positionNo);
+    }
+
+    if (here == null) return (slots..sort(byCode)).take(limit).toList();
+    double d(SlotPoint s) =>
+        s.position == null ? double.infinity : distanceM(here, s.position!);
+    slots.sort((a, b) => d(a).compareTo(d(b)));
+    return slots.take(limit).toList();
+  }
+
+  /// "Sorun gördüm": the crew saw something wrong on a tree while scanning.
+  /// Records the mark and puts the tree on this visit's close-up list.
+  Future<bool> markProblem(SlotPoint slot) async {
+    final sessionId = state.sessionId;
+    final task = state.task;
+    final treeId = slot.treeId;
+    if (sessionId == null || task == null || treeId == null) return false;
+    if (state.problemTrees.contains(treeId)) return true;
+    await ref
+        .read(fieldRepositoryProvider)
+        .saveProblemMark(
+          sessionId: sessionId,
+          treeId: treeId,
+          methodVersion: problemMarkMethodVersion,
+        );
+    if (!ref.mounted) return false;
+    state = state.copyWith(
+      problemTrees: {...state.problemTrees, treeId},
+      task: task.copyWith(
+        closeupTrees: withProblemMarks(task.closeupTrees, [
+          TreeTarget(treeId: treeId, slotCode: slot.code, reason: ''),
+        ]),
+      ),
+    );
+    return true;
+  }
+
   /// Marks a boundary corner (inventory): `mark_event(corner, <n>)` on the
   /// logger and a `corner` event with the GPS time of the press and the
   /// logger's position and quality from its latest status.
@@ -539,6 +598,34 @@ class SessionController extends Notifier<SessionState> {
     if (!ref.mounted) return;
     state = state.copyWith(boundary: next);
     await _prepareRoute();
+  }
+
+  /// Saves the visit record (weather, equipment, problems): a `visit_log`
+  /// event, and the visit row is queued again so that the server's
+  /// `session.weather` gets the weather. The newest record counts.
+  Future<void> saveVisitLog(VisitLog log) async {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    final repo = ref.read(fieldRepositoryProvider);
+    final session = await repo.session(sessionId);
+    final full = VisitLog(
+      sky: log.sky,
+      tempC: log.tempC,
+      wind: log.wind,
+      loggerName: session?.loggerName,
+      loggerFirmware: session?.loggerFirmware,
+      cameraSerial: log.cameraSerial,
+      issues: log.issues,
+    );
+    await repo.addEvent(
+      sessionId: sessionId,
+      eventType: 'visit_log',
+      payload: '',
+      time: _now(),
+      loggerResult: 'none',
+      data: full.toJson(),
+    );
+    await repo.outbox.enqueue(OutboxEntity.session, sessionId);
   }
 
   /// Called by the QR screen when the first QR frame is on screen: sends

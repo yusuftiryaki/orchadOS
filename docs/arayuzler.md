@@ -27,7 +27,7 @@ Bir tarama oturumu işleme istasyonuna tek bir klasör olarak gelir. Klasör ad�
     gnss.ubx          ESP32 (SD karttaki /sessions/<session_id>/ klasöründen)
     events.csv        ESP32
     session.json      ESP32
-  video/*.mp4         kamera (masaüstü yazılımından dışa aktarılmış equirectangular)
+  video/*.mp4|*.insv  kamera: equirectangular MP4 ya da kameranın ham .insv kaydı
   base/*              operasyon (opsiyonel; baz/CORS RINEX)
   trees.json          operasyon (opsiyonel; normalde veritabanından okunur)
 ```
@@ -36,7 +36,7 @@ Bir tarama oturumu işleme istasyonuna tek bir klasör olarak gelir. Klasör ad�
 | --- | --- | --- | --- |
 | `session.json` | Saha uygulaması yazar, operasyon tamamlar | Oturum başlatılırken; operasyon işlemeden önce eksik alanları doldurur | Evet |
 | `gnss/gnss.ubx`, `gnss/events.csv`, `gnss/session.json` | ESP32 GNSS kaydedici | Kayıt sırasında SD karta; operasyon kartın `/sessions/<session_id>/` klasörünü olduğu gibi `gnss/` altına kopyalar | Evet |
-| `video/*.mp4` | 360° kamera → operasyon | Kameranın masaüstü yazılımıyla equirectangular (2:1) dışa aktarılır; birden çok parça dosya adı sırasıyla ardışık kabul edilir | Evet |
+| `video/*.mp4` ya da `video/*.insv` | 360° kamera → operasyon | MP4: kameranın masaüstü yazılımıyla equirectangular (2:1) dışa aktarılır. `.insv`: kameranın kartındaki ham kayıt olduğu gibi kopyalanır; işleme hattı sadece seçilen kareleri Insta360 Media SDK ile birleştirir (SDK işleme makinesinde kurulu olmalı, `ORCHADOS_INSTA360_SDK`). Tek dosyalı kayıtlar (X4/X5) desteklenir; iki dosyalı eski kayıtlar henüz değil. Birden çok parça dosya adı sırasıyla ardışık kabul edilir | Evet |
 | `base/*` | Operasyon | CORS ya da kendi baz istasyonundan RINEX gözlem + navigasyon | Hayır (yoksa PPK yok) |
 | `trees.json` | Operasyon | Ağaç konumları; `run --trees-from-db` ile gerekmez (aşağıda) | Hayır |
 
@@ -188,6 +188,22 @@ Kaynak: [firmware/gnss-logger/README.md → BLE protokolü](../firmware/gnss-log
 
 Saha fotoğrafları ve işleme hattının ürünleri (panorama, ağaç kesiti vb.) Supabase Storage'daki **özel** `media` alanında tutulur. Ham video ve MCAP gibi büyük ham kayıtlar işleme istasyonunda kalır (`uri` `station://...`).
 
+### Ham kayıtların adresi (`capture.uri`)
+
+Ham kayıtlar (360° video, UBX, `events.csv`, iki `session.json`, baz RINEX) Supabase'e yüklenmez; `orchados-pipeline upload` yalnızca `capture` satırını açar. `uri` dosyanın gerçek yerini gösterir:
+
+| Oturum nereden işlendi | `capture.uri` | Örnek |
+| --- | --- | --- |
+| Ham veri deposundan (`orchados-ingest pull`) | Depodaki nesnenin adresi: oturum ön eki + oturum klasöründeki göreli yol | `s3://<kova>/[<prefix>/]raw/<org>/<parcel>/<session>/video/VID_0001.mp4` (AWS, R2, GCS, MinIO) · `az://<kapsayıcı>/[<prefix>/]raw/...` (Azure Blob) · `file:///<kök>/raw/...` (yerel arka uç) |
+| Yerel bir klasörden | İşleme istasyonundaki mutlak yol | `station://<istasyon>/<mutlak yol>`, ör. `station://ist-01/data/oturumlar/s/video/VID_0001.mp4` |
+
+- **Kaynak:** `pull`, depodaki manifestin bir kopyasını `<oturum>/.orchados/manifest.json`'a yazar; bu kopyada ek olarak `location` alanı vardır: `{"store": "<depo tanımı>", "uri": "<oturum ön ekinin adresi, / ile biter>"}`. Depodaki asıl manifest değişmez (`orchados.raw-manifest/1`).
+- **Kural:** Satırın adresi, dosya manifestte **aynı yol ve aynı SHA-256** ile varsa `location.uri + yol`'dur. Manifestte olmayan ya da içeriği farklı bir dosya `station://` olarak yazılır ve yükleme raporunda uyarı verilir. Manifest yoksa (yerel klasör) hepsi `station://`'dur. `location`'ı olmayan manifest (eski `orchados-ingest`) uyarıyla `station://`'a düşer. Başka bir oturumun manifesti hatadır.
+- **Kodlama:** Yol, depo anahtarıyla aynıdır; yüzde kodlaması yapılmaz (`file://` için kök `Path.as_uri()` ile yazılır). Adres dosyaya erişim yetkisi vermez; okumak için deponun kimlik bilgileri gerekir (`services/ingest/README.md`).
+- **Değişmez:** `capture` satırları ekleme-yalnızdır. Aynı içerik (`content_hash`) için satır zaten varsa yeniden yüklemede adresi değişmez; ilk yazılan adres kalır.
+- **Saklama:** Ham veri depoda 30 gün tutulur (`prune`). Süre dolunca adres bir nesne göstermez; satır içeriğin kimliği (`content_hash`) ve kaydı olarak kalır.
+- **Web:** `storage://` dışındaki şemalar tarayıcıya sunulmaz (`apps/web/src/lib/media/uri.ts`).
+
 - **Nesne yolu:** `org/<org_id>/parcel/<parcel_id>/<sha256>`. `sha256` dosya içeriğinin küçük harfli onaltılık SHA-256'sıdır ve ilgili `capture.content_hash` ya da `asset.content_hash` ile aynıdır. Uzantı yoktur; tür satırdaki `mime_type`'tan okunur. Örnek: `org/b0000000-0000-4000-8000-000000000001/parcel/c0000000-0000-4000-8000-000000000001/2d71…4881`.
 - **Satırdaki adres:** Dosya `media` alanındaysa `capture.uri` / `asset.uri` = `storage://media/` + nesne yolu. **Karar:** Ayrı bir depolama anahtarı sütunu eklenmedi; yol, satırdaki `org_id`, `parcel_id` ve `content_hash`'ten türetilir.
 - **Değiştirilemez:** Aynı yola ikinci kez yazılmaz, nesne güncellenmez ya da silinmez (API kullanıcıları için güncelleme/silme kuralı yok). İçerik değişirse hash ve dolayısıyla yol da değişir.
@@ -223,6 +239,9 @@ Saha fotoğrafları ve işleme hattının ürünleri (panorama, ağaç kesiti vb
 | `pitch_deg` | sayı | Kesit merkezinin yataya göre açısı (yukarı pozitif) |
 | `fov_deg` | sayı | Kesitin yatay görüş açısı |
 | `score` | sayı | Kesit seçim skoru (0–1); `quality_score` ile aynı |
+| `subject`, `slot_id` | `slot`, uuid | Yalnız **boş yer kesitlerinde**: `asset.tree_id` boştur, kesit aktif ağacı olmayan bir yere bakar (ağaç var/yok kontrolü, yeni dikim önerisi). Ağaç kesitlerinde bu alanlar yoktur |
+
+Ağaca bağlı kesitleri okuyan ekranlar `tree_id` boş satırları atlar (portal ve uzman paneli zaten `tree_id` ile sorgular).
 
 `trajectory` satırlarında `pose` ve konum boştur.
 
@@ -235,8 +254,10 @@ Saha fotoğrafları ve işleme hattının ürünleri (panorama, ağaç kesiti vb
 | `public.session` | `id`, `parcel_id`, `kind` | `session.json`'daki `session_id`; parsel `session.json`'daki `parcel_id` ile aynı olmalı |
 | `public.slot` | `id`, `code`, `position`, `position_uncertainty_m`, `local_x_m`, `local_y_m` | Parselin slotları. `position` PostgREST'ten GeoJSON nokta olarak gelir |
 | `public.tree` | `id`, `slot_id` | `status = active` |
+| `public.boundary` | `version`, `geom` | En yüksek sürümün sınır kutusu: kapsama hücrelerinin başlangıcı (aşağıda) |
 
 - Kesitin `subject.tree_id`'si `tree.id`, `slot_code`'u `slot.code`'dur; yükleme bunu slotun yükleme anındaki aktif ağacıyla yeniden denetler.
+- Aktif ağacı olmayan konumlu yerler "boş yer" olarak okunur ve var/yok kontrolü için kesit alır.
 - `slot.position` boşsa ağaç kesit almaz (**karar**: yerel koordinattan konum türetilmez). Parselde konumlu aktif ağaç yoksa ya da oturum `kind = inventory` ise hat sadece panorama üretir; bu hata değil, `outputs.json`'da `crops_status` (`no_tree_positions`, `inventory_session`) olarak raporlanır.
 
 ## AI ön değerlendirme satırları
@@ -447,6 +468,91 @@ Saha uygulaması taramada parselin sabit grid rotasını üretir ve personeli y�
 
 - **`route`** (rota kullanılmaya başlanınca; ziyarette bir kez): `payload` rota sürümü. `data`: `version` (1), `route_id`, `route_version` (telefonun bildiği sürüm; yeni rotada tahmin, kesin sürüm `parcel_route`'ta `route_id` ile), `new_version` (bu ziyarette mi oluşturuldu), `content_hash`, `generator`, `basis`, `azimuth_deg`, `azimuth_source`, `corridors_total`. **Ziyarette hangi rotanın kullanıldığı buradan okunur.**
 - **`route_progress`** (kayıt durdurulurken, `coverage`'dan önce): `payload` `<biten>/<toplam>`. `data`: `version` (1), `corridors_total`, `done`, `skipped`, `pending` (koridor numaraları), `skipped_labels`, `current` (durduğunda sıradaki koridor; bittiyse `null`). Telefondaki yaklaşık takiptir (PPK öncesi konum, koridora 4 m kuralı); kapsamanın yerini tutmaz.
+
+## Yakın plan listesi ve uzman istekleri
+
+Periyodik ziyaretin yakın plan listesi sunucuda üretilir (`docs/metodoloji.md` bölüm 7; `supabase/migrations/20261024120200_followup_requests.sql`). Aynı ziyareti indiren her telefon ve ofis aynı listeyi görür.
+
+**Okunan:** `closeup_list(p_session_id uuid)` (PostgREST: `rpc/closeup_list`), kullanıcının belirteciyle. Kurum rolleri okur; sahip ve izleyici `forbidden` alır, görmediği ziyarette `not_found`.
+
+| Sütun | Tür | Anlamı |
+| --- | --- | --- |
+| `tree_id`, `slot_id` | uuid | Aktif ağaç ve yeri |
+| `slot_code`, `row_no`, `position_no` | metin, int, int | Yer kodu ve sırası; liste bu sırayla gelir |
+| `reasons` | metin dizisi | Bir ya da birkaç neden (aşağıda), alfabetik |
+
+| Neden | Kural |
+| --- | --- |
+| `previous_class` | Bu ziyaretten önceki en yeni yayımlanmış periyodik tarama ya da doğrulama ziyaretinde uzman sınıfı dikkat, sorunlu ya da kuru |
+| `sample` | Tabakalı rastgele örneklem: aktif ağaçların %10'u (yukarı yuvarlanır), 10×10 m hücrelerden dengeli |
+| `staff_problem` | Bu ziyarette personelin "Sorun gördüm" cevabı (`problem_seen` metriği, `source = staff`, en yeni cevap evet) |
+| `expert_request` | Uzmanın açık yakın plan isteği (`followup_request`, `kind = closeup`) |
+
+- **Hücreler:** parselin en yüksek sürümlü sınırının (yoksa yerlerinin) sınır kutusunun güneybatı köşesinden doğu/kuzey metre: `x = Δboylam · π/180 · R · cos(güney enlemi)`, `y = Δenlem · π/180 · R`, `R = 6 371 008,8 m`; hücre `(⌊x/10⌋, ⌊y/10⌋)`. Konumsuz ağaçlar tek hücredir. Portalın hücre ısı haritası (`apps/web/src/lib/portal/cells.ts`) aynı kuralı kullanır.
+- **Örneklem:** hücre içinde ağaçlar `md5('<ziyaret>:<ağaç>')` ile sıralanır; her hücrenin 1. ağacı, sonra 2. ağacı… alınır, hücreler `md5('<ziyaret>:<cx>,<cy>')` sırasıyla. Aynı ziyaret hep aynı örneklemi verir.
+- **"Sorun gördüm" sonradan gelir:** personel taramada işaretledikçe (gönderildikçe) liste büyür. Telefon listeyi tarama bitince yeniden okuyabilir; çevrimdışıyken kendi işaretlediklerini listeye ekler.
+- **Saha uygulaması** listeyi bu fonksiyondan indirir ve "Sorun gördüm" işaretlerini çevrimdışıyken listeye kendisi ekler (`apps/field/README.md`).
+
+**Uzman istekleri** (`public.followup_request`; okuma kurum rolleri, yazma sadece fonksiyonlarla):
+
+| Çağrı | Kim | Ne yapar |
+| --- | --- | --- |
+| `request_followup(p_session_id, p_kind, p_tree_id, p_note)` | uzman, operasyon | `closeup` (ağaç; sonraki ziyaretin yakın plan listesi), `verification` (ağaç; doğrulama turu), `extra_visit` (parsel; not zorunlu). Aynı ağaç ve tür için açık istek varsa onu döndürür, notu ekler |
+| `cancel_followup(p_request_id)` | uzman, operasyon | Açık ya da planlanmış isteği geri alır |
+| `ops_plan_followups(p_request_ids, p_session_id)` | operasyon | `verification` ve `extra_visit` isteklerini bir ziyarete bağlar (`planned`). Doğrulama isteği doğrulama ziyareti ister; ağaç turun kalemi olur (`reasons = {other}`, not isteğin notu) |
+
+- **Durum:** `open` → `planned` → `done`, ya da `cancelled`. Yakın plan isteği, ağacın sonraki bir ziyaretten yakın plan fotoğrafı (`capture`, `kind = photo`, `tree_id`) gelince `done` olur. Planlanmış istek, ziyareti `captured` (ve sonrası) olunca `done`; ziyaret iptal edilirse yeniden `open`.
+- İstekler sonuç değildir: sahip ve izleyici görmez, yayından sonra da yapılabilir.
+- **Kaynak (`origin`):** `expert` (uzman panelinden, `request_followup`) ya da `pipeline` (işleme hattının kapsama raporu; aşağıda). Hattın isteği her zaman `extra_visit`'tir, `coverage_report_id` raporu gösterir; operasyon onu diğer isteklerle aynı şekilde planlar.
+- **Hatalar:** `not_found`, `forbidden`, `invalid_input` (ayrıntıda neden).
+
+## Kapsama raporu ve ağaç var/yok
+
+İşleme hattının kalite kontrolleri (`services/pipeline/README.md` → "Kapsama raporu", "Ağaç var/yok kontrolü"). Hat ops kullanıcısıyla yazar; uzman paneli ve envanter onayı okur.
+
+**`record_coverage_report(p_session_id, p_report)`** (yalnız operasyon) → `{report_id, created, passed, rescan_needed}`. `p_report`:
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `pipeline`, `pipeline_version`, `params_hash` | metin | Raporu üreten hat |
+| `active_trees`, `covered_trees` | int | Konumlu aktif ağaç ve kapsanan ağaç sayısı (`active_trees > 0`) |
+| `threshold` | sayı | Parsel eşiği (0–1] |
+| `blind_spots` | int | Kör nokta hücre sayısı |
+| `missing_slot_codes` | metin dizisi | Kapsanmayan ağaçların yer kodları |
+| `blind_spot_cells` | dizi | `{cell: [cx, cy], trees, uncovered, slot_codes, south, west, north, east}` |
+| `rule` | nesne | Hattın kapsama parametreleri |
+
+- Sonuç (`ratio`, `passed`, `missing_trees`, `rescan_needed`) veritabanında sayılardan hesaplanır. Ziyaretin en yeni raporu geçerlidir; aynı hat sürümü, parametreler ve sayılarla gelen rapor yeni satır açmaz.
+- `rescan_needed` ise veritabanı ziyaret başına bir kez `followup_request` (`extra_visit`, `origin = pipeline`) açar; notunda oran, eksik ağaçlar ve kör nokta hücreleri yazar. `pipeline_rescan_request(p_session_id)` bu isteği (`{id, status, coverage_report_id}`) döndürür. Daha yeni rapor eşiği geçerse hâlâ açık istek `cancelled` olur.
+- **Hücre kuralı** yakın plan listesiyle aynıdır (yukarıda).
+- **Envanter onayı:** `approve_inventory` envanter oturumunun en yeni raporu eşiğin altındaysa ve kabul edilmemişse `inventory_incomplete` verir; ayrıntıda `coverage_below_threshold: <oran>/<eşik>` (dört ondalık, `;` ile diğer eksiklerle). `waive_coverage(p_session_id, p_note)` (uzman) en yeni raporu gerekçeyle kabul eder (`waived_by`, `waived_at`, `waiver_note`).
+
+**`record_tree_presence(p_session_id, p_payload)`** (yalnız operasyon) → `{created, existing}`. `p_payload`: `{method, method_version, params_hash, measured_at, items: [{tree_id | slot_id, value: yes|no|unsure, confidence?, evidence_asset_ids: [...]}]}`.
+
+- Her kalem bir `tree_visible` ölçümüdür (`source = algorithm`, kategori `yes`/`no`/`unsure`, belirsizlik yok); kanıtlar ziyaretin `tree_crop` asset'leri. Ağaç parselin aktif ağacı, yer aktif ağacı olmayan bir yer olmalı. Aynı ziyaret, konu, yöntem, sürüm ve parametre hash'iyle ölçüm varsa kalem atlanır.
+- **Anlamı:** ağaçta `no` → uzman panelinde zorunlu inceleme (`not_visible`); "Yok" sınıfını yalnız uzman verir. Yerde `yes` → "yeni dikim olabilir" önerisi. Hat boş yerlere yalnız `yes` yazar.
+- AI ön değerlendirmesinin `ai_assessment_detail.tree_visible` alanı ayrıdır; ikisi karıştırılmaz.
+
+## Kit kimlik çipi
+
+Tarama kiti robota (`yusuftiryaki/hoverboard`) bir soket üzerinden takılabilir. Kitin fişindeki **DS2431** (1-Wire EEPROM, 128 bayt) kitin manifestini taşır. Robot bu manifesti okur ve kitin frame'lerini (`kit_gnss`, `kit_cam360`, `kit_lidar`) statik TF olarak yayınlar.
+
+- **Sözleşmenin kaynağı:** [hoverboard/docs/kit-soketi.md](https://github.com/yusuftiryaki/hoverboard/blob/main/docs/kit-soketi.md), "Kimlik çipinin içeriği (manifest)" ve "Repolar arası sözleşme". **Uyulan sürüm: manifest şema 1.** Referans okuyucu `hoverboard/ros2/src/robot_kit/robot_kit/manifest.py`'dir; belgeyle çelişirse dosya geçerlidir.
+- **Yazan taraf:** `services/kit-chip/` (`orchados-kit write|read`).
+- **Test vektörleri:** Robot reposuyla aynı dosya, `services/kit-chip/tests/vectors/kit_manifest_v1.json`. Değiştirilmeden kopyalanmıştır. Format ya da vektörler değişirse iki repo birlikte değişir.
+- **Şema numarası** sadece artar. Robot bilmediği bir şemayı reddeder.
+
+**Kalibrasyon → çip akışı:**
+1. Kit kalibre edilir. Sonuç bir `public.calibration` kaydı olur.
+2. Kayıttaki sensör pozları kitin montaj frame'i `kit_mount` içinde ifade edilir; birimler metre ve radyandır.
+3. `orchados-kit`, takılı donanımla (caps) birlikte manifesti üretir, çipe yazar, geri okuyup doğrular.
+4. Robot kayıtlarına çipteki `calib_id`'yi yazar; böylece her kaydın hangi kalibrasyonla yapıldığı izlenir.
+
+**Açık (henüz yapılmadı):** orchadOS'taki kalibrasyon kaydında iki şey tanımlı değil:
+- `kit_mount` frame'i, yani orijini ve eksen yönleri. Bugünkü `extrinsics` alanı serbest JSON; örnek veride `camera_to_antenna_m` var, açılar yok.
+- `calib_id` için uint32 bir kimlik. Kaydın kimliği uuid.
+
+Bu ikisi netleşene kadar manifest elle (JSON) hazırlanır; 2. ve 4. adımlar o zaman otomatikleşir.
 
 ## Açık noktalar
 

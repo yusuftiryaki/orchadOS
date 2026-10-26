@@ -83,11 +83,22 @@ gantt
 | Envanter onayı | Tamam (PR #18) | Doğrulama listesi veritabanında (`verification_item`), ofiste ağaç özellikleri, altyapı ve saha sınırı; uzmanın envanter onayı; sahibin sınır onayı. Saha tarafı açık |
 | İP6 v0.3 | Tamam (PR #21) | Doğrulama turu ekranı, sahada sınır köşesi, kapsama haritası, test projesine bağlı APK (`docs/gorevler/ip6-envanter-saha.md`) |
 | İP9 | v0.1 tamam (PR #23) | `ai-worker`: Haiku triaj → Sonnet, Batch API, önbellekli istem, mozaik, `eval`; kişisel veri ve yakın plan fotoğrafı gönderilmez. Gerçek API ile ilk deneme ve eşik kalibrasyonu açık |
+| Pilot ortamı | Kuruldu (22 Ekim) | Supabase `orchados-pilot` (Frankfurt, Free): 29 migration, Edge Function'lar, giriş/telefon kancası, bildirim kuyruğu (mesajlar kaydediliyor). Vercel `orchados-pilot` (`release`, Frankfurt, koruma açık): https://orchados-pilot-orchad-os.vercel.app. İşletme: OBA Bilişim Teknolojileri LTD.; ilk operasyon kullanıcısı açıldı. Açık: Vercel Pro, medya deposu (Supabase Pro), alan adı, Netgsm |
+| Kapsama ve ağaç kontrolü | Tamam (PR #32) | Kapsama raporu, eşik altında otomatik ek ziyaret isteği, ağaç var/yok (`tree_visible`), envanter onayında kapsama kapısı |
 | Bulutta işleme | Tamam (PR #29) | Sağlayıcıdan bağımsız: `orchados-ingest` (S3 uyumlu: AWS/R2/GCS/MinIO; Azure Blob; yerel), işlem container'ı (`ghcr.io/yusuftiryaki/orchados-processing`), AWS/Azure/GCP makine betikleri, `docs/bulut-isleme.md`. Sağlayıcı seçimi ve hesap açık |
 | Dalga 6 | Tamam | Sınır köşeleri (#22), İP9 (#23), grid rotası (#24), uzman/portal v0.2 (#25), bildirimler ve telefonla giriş (#27; Netgsm iskeleti, gerçek hesap yok). Yüz bulanıklaştırma üründen kaldırıldı (karar 21 Ekim, #28) |
 | Dalga 5 | Tamam | İP5 v0.2 (PR #15); İP4 v0.2 (PR #16): ağaç konumları veritabanından, CI'da uçtan uca zincir testi (~70 sn) |
 | Dalga 4 | Tamam | İP4 yükleme, İP7, İP8, İP6 senkronizasyon birleşti. Örnek tarama verisi: `pnpm db:demo`. Test ortamı: https://orchados-orchad-os.vercel.app (Vercel koruması açık) |
 | İP6 | v0.3 tamam (PR #6, #8, #20, #21, #24, #26) | BLE protokolü, QR saat, ekran akışı, çevrimdışı kuyruk, gerçek kamera ve cihazda kalite kontrolü; 66 test. Senkronizasyon: sunucudan görevler, sıralı ve tekrar güvenli gönderim, saha personelinin fotoğraf yüklemesi; APK CI'da derleniyor. Envanter sahası: doğrulama turu, sınır köşesi, kapsama; sabit grid rotası ve dur-çek-yürü; test projesine bağlı APK. Açık: telefonda ve gerçek kaydediciyle deneme |
+
+**Sıradaki işler (26 Ekim 2026; çalışma artık yerel makinede, ağır doğrulama CI'da)**
+
+1. ✅ Toparlama: PR #32 sonrası `main` CI yeşil, test projesi güncel.
+2. ✅ **Kit kimlik çipi** (PR #33) (robotla bağlantı; sözleşme `hoverboard/docs/kit-soketi.md`, şema 1): `services/kit-chip/` kodlayıcı, çözücü, ortak test vektörleri, çipe yazma aracı. Açık: kalibrasyon kaydından manifest üretimi; `kit_mount` frame'i ve `calib_id` tanımı bekliyor.
+3. ✅ **Insta360 SDK** (PR #34) (Camera SDK 2.1.8, Media SDK 3.1.5, InsMetaData SDK 2.0.2 geldi; repoya girmez, yerelde `~/.orchados/sdk/insta360/`). Plan: `docs/gorevler/insta360-sdk.md`. İşleme hattı `.insv`'yi doğrudan alıyor, sadece seçilen kareleri `MediaSDKTest` ile birleştiriyor; meta veri aracı (`native/ins_meta_dump`) SDK'ya karşı derlendi. Sahte SDK ile test edildi; doğrulama için gerçek bir `.insv` deneme çekimi gerekiyor. Jiroskopla ince zaman eşleme sonraki iş.
+4. ✅ **Saha uygulaması** (PR #35): yakın plan listesinin sunucudan inmesi (`closeup_list`), "Sorun gördüm", sesli not, hava ve ekipman kaydı (ziyaret kaydı). Yazıldı; sesli not telefonda denenmedi.
+5. **Pilota ilk sürüm:** `main` → `release` PR'ı.
+6. **Bakım:** Test temizliği yeni tabloları sütun adından kendiliğinden kapsıyor (`supabase/testing/purge.sql`). Tarayıcı testlerinde CI'da bir tekrar ve 60 sn süre (kırılgan iki test).
 
 **Açık işler**
 
@@ -119,7 +130,7 @@ Bunlar takvimi bekletebilecek, başkasına bağlı işler. İlk iki hafta içind
 - [ ] TUSAGA-Aktif (CORS-TR) abonelik başvurusu, ya da kendi baz istasyonu kararı
 - [ ] Uzman (ziraat mühendisi) ile ön görüşme
 - [ ] 1–4 pilot bahçe sahibinin sözlü onayı; envanter tarihleri
-- [ ] KVKK metinleri için hukukçu görüşü
+- [ ] KVKK metinleri için hukukçu görüşü. Taslaklar ve avukata sorulacaklar: `docs/hukuk/`
 - [x] İşleme istasyonu: pilotta bulut (22 Ekim). Ofisin yükleme hızı 99 Mbps; 90 GB'lık bir ziyaret ~2 saatte yüklenir. Sağlayıcı sonra seçilecek; araçlar AWS, Azure ve Google Cloud'u destekleyecek (`docs/gorevler/bulut-isleme.md`)
 
 ## Geride kalınırsa kesilecekler

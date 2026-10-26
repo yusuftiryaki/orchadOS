@@ -1,4 +1,4 @@
-import { deleteFindingAction } from "@/app/uzman/actions";
+import { approveFindingAction, deleteFindingAction } from "@/app/uzman/actions";
 import type { Crop, ReviewFinding } from "@/lib/expert/review";
 import { t } from "@/lib/i18n";
 import styles from "./expert.module.css";
@@ -57,6 +57,16 @@ export function FindingList({
                   submitLabel={f.save}
                 />
               </details>
+              {finding.severity === "high" && !finding.approvedAt && (
+                <form action={approveFindingAction} title={f.approveNowHint}>
+                  <input type="hidden" name="sessionId" value={sessionId} />
+                  <input type="hidden" name="findingId" value={finding.id} />
+                  <input type="hidden" name="return" value={returnPath} />
+                  <button className="button" type="submit" data-testid="approve-finding">
+                    {f.approveNow}
+                  </button>
+                </form>
+              )}
               <form action={deleteFindingAction}>
                 <input type="hidden" name="sessionId" value={sessionId} />
                 <input type="hidden" name="findingId" value={finding.id} />

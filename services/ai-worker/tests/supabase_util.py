@@ -3,15 +3,15 @@
 Same approach as services/pipeline/tests/supabase_util.py: the tests sign in
 as the seed users and open their own session on the seed parcel. AI rows,
 assets and measurements are insert-only, so purge_sessions() removes the test
-sessions as the postgres superuser inside the database container (triggers off
-for that transaction only), leaving the database as `pnpm db:reset` made it.
+sessions with testing.purge_sessions (supabase/testing/purge.sql, local and CI
+databases only) as the service role, leaving the database as `pnpm db:reset`
+made it.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import re
 import shutil
 import subprocess
 import uuid
@@ -42,20 +42,27 @@ SEED_PERSONAL = (
 )
 
 
+def _status() -> dict[str, str] | None:
+    """`supabase status` of the local stack, or None when it does not answer."""
+    exe = shutil.which("supabase") or REPO / "node_modules" / ".bin" / "supabase"
+    try:
+        out = subprocess.run(
+            [str(exe), "status", "-o", "json", "--workdir", str(REPO)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=True,
+        ).stdout
+        return json.loads(out[out.index("{") :])
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
 def local_env() -> tuple[str, str] | None:
     url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_ANON_KEY")
     if not (url and key):
-        exe = shutil.which("supabase") or REPO / "node_modules" / ".bin" / "supabase"
-        try:
-            out = subprocess.run(
-                [str(exe), "status", "-o", "json", "--workdir", str(REPO)],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                check=True,
-            ).stdout
-            status = json.loads(out[out.index("{") :])
-        except (OSError, ValueError, subprocess.SubprocessError):
+        status = _status()
+        if status is None:
             return None
         url, key = status["API_URL"], status["ANON_KEY"]
     try:
@@ -71,77 +78,40 @@ def client(env, who: str) -> SupabaseClient:
     return c
 
 
-def db_container() -> str:
-    text = (REPO / "supabase" / "config.toml").read_text(encoding="utf-8")
-    m = re.search(r'^project_id\s*=\s*"([^"]+)"', text, re.M)
-    return f"supabase_db_{m.group(1) if m else REPO.name}"
+def service_role_key() -> str | None:
+    """The local stack's service role key ($SUPABASE_SERVICE_ROLE_KEY or supabase status)."""
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    if key:
+        return key
+    status = _status()
+    return status["SERVICE_ROLE_KEY"] if status else None
 
 
-PURGE_SQL = """
-begin;
-set local session_replication_role = replica; -- insert-only and publication triggers off
-create temp table purge_session on commit drop as
-  select unnest(:'ids'::uuid[]) as id;
-create temp table purge_object on commit drop as
-  select org_id, parcel_id, content_hash from public.asset
-  where session_id in (select id from purge_session);
-delete from public.ai_assessment_detail where session_id in (select id from purge_session);
-delete from public.assessment_measurement where assessment_id in
-  (select id from public.assessment where session_id in (select id from purge_session));
-delete from public.measurement_evidence where measurement_id in
-  (select id from public.measurement where session_id in (select id from purge_session));
-delete from public.measurement_evidence where asset_id in
-  (select id from public.asset where session_id in (select id from purge_session));
-delete from public.assessment where session_id in (select id from purge_session);
-delete from public.measurement where session_id in (select id from purge_session);
-delete from public.asset_source where asset_id in
-  (select id from public.asset where session_id in (select id from purge_session));
-delete from public.asset where session_id in (select id from purge_session);
-delete from public.capture where session_id in (select id from purge_session);
-delete from public.session where id in (select id from purge_session);
-delete from storage.objects o
-using purge_object p
-where o.bucket_id = 'media'
-  and o.name = 'org/' || p.org_id || '/parcel/' || p.parcel_id || '/' || p.content_hash
-  and not exists (select 1 from public.asset a
-                  where a.parcel_id = p.parcel_id and a.content_hash = p.content_hash);
-commit;
-"""
+def purge_sessions(env, session_ids: list[str]) -> str | None:
+    """Delete the sessions and their rows; return why not, if it could not.
 
-
-def purge_sessions(session_ids: list[str]) -> str | None:
-    """Delete the sessions and their rows; return why not, if it could not."""
+    testing.purge_sessions (supabase/testing/purge.sql) with the service role: it
+    exists only in the local and CI databases and deletes with triggers off.
+    """
     if not session_ids:
         return None
-    ids = "{" + ",".join(str(uuid.UUID(s)) for s in session_ids) + "}"
-    docker = shutil.which("docker")
-    if docker is None:
-        return "docker not found"
+    key = service_role_key()
+    if key is None:
+        return "no service role key (SUPABASE_SERVICE_ROLE_KEY or supabase status)"
+    ids = [str(uuid.UUID(s)) for s in session_ids]
     try:
-        subprocess.run(
-            [
-                docker,
-                "exec",
-                "-i",
-                db_container(),
-                "psql",
-                "-U",
-                "postgres",
-                "-d",
-                "postgres",
-                "-q",
-                "-v",
-                "ON_ERROR_STOP=1",
-                "-v",
-                f"ids={ids}",
-            ],
-            input=PURGE_SQL,
-            capture_output=True,
-            text=True,
+        r = httpx.post(
+            f"{env[0]}/rest/v1/rpc/purge_sessions",
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Profile": "testing",
+            },
+            json={"p_session_ids": ids},
             timeout=120,
-            check=True,
         )
-    except (OSError, subprocess.SubprocessError) as exc:
-        detail = getattr(exc, "stderr", "") or str(exc)
-        return f"purge failed: {detail.strip()}"
+    except httpx.HTTPError as exc:
+        return f"purge failed: {exc}"
+    if r.status_code >= 300:
+        return f"purge failed ({r.status_code}): {r.text.strip()}"
     return None

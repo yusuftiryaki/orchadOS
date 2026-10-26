@@ -1,13 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { Database } from "../../src/lib/database.types";
 import type { Client } from "../../src/lib/supabase/types";
+import { purgeOrg } from "../local-db";
 
 // Test data of the expert panel (integration and browser tests), written with
-// the service key. Measurements are insert-only and can never be deleted, so
-// the data lives in an org of its own: the seed users get roles there for the
-// duration of a test and lose them afterwards (removeExpertRoles), which hides
-// what is left from every other test. Parcel, slots and trees have fixed ids
-// and are reused; every run adds new sessions.
+// the service key. The data lives in an org of its own: the seed users get
+// roles there for the duration of a test, and the org is purged afterwards
+// (purgeExpertTest; measurements are insert-only, so through
+// testing.purge_org). Parcel, slots and trees have fixed ids.
 //
 // Visit times lie in January 2099 and grow by 1 ms per wall-clock second
 // (ten years of runs stay in January). A run's previous visit is 1 ms before
@@ -131,9 +131,9 @@ export async function grantExpertRoles(admin: Client) {
   );
 }
 
-export async function removeExpertRoles(admin: Client) {
-  check(await admin.from("membership").delete().eq("org_id", EXPERT_TEST.org));
-  check(await admin.from("parcel_access").delete().eq("parcel_id", EXPERT_TEST.parcel));
+// The whole test org: roles, visits, measurements (testing.purge_org).
+export function purgeExpertTest() {
+  return purgeOrg(EXPERT_TEST.org);
 }
 
 // A published previous visit with expert results, and a processed visit with

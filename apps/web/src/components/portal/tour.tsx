@@ -12,6 +12,8 @@ import {
   nearestPanorama,
   neighbourPanoramas,
   normalize180,
+  normalize360,
+  sameSpot,
   treeMarkers,
   yawInPanorama,
   type TourPanorama,
@@ -37,15 +39,27 @@ function escapeHtml(text: string) {
 
 export function Tour({ data, start }: { data: TourData; start: TourStart }) {
   const router = useRouter();
+  const visits = data.visits;
+  // A ?panorama= of an older visit opens that visit.
+  const startVisit = Math.max(
+    0,
+    visits.findIndex((v) => v.panoramas.some((p) => p.id === start.panoramaId)),
+  );
+  const [visitIndex, setVisitIndex] = useState(startVisit);
+  const panoramas = visits[visitIndex]?.panoramas ?? data.panoramas;
   const first =
-    data.panoramas.find((p) => p.id === start.panoramaId) ??
-    (start.lookAt ? nearestPanorama(data.panoramas, start.lookAt) : null) ??
-    data.panoramas[0];
+    panoramas.find((p) => p.id === start.panoramaId) ??
+    (start.lookAt ? nearestPanorama(panoramas, start.lookAt) : null) ??
+    panoramas[0];
   const [current, setCurrent] = useState<TourPanorama>(first);
   const [look, setLook] = useState({
     yaw: start.lookAt ? yawInPanorama(first, start.lookAt) : 0,
     version: 0,
   });
+  // Where the viewer looks now (yaw from the centre column), for the map
+  // wedge and for time travel.
+  const [viewYaw, setViewYaw] = useState(look.yaw);
+  const [farNote, setFarNote] = useState<string | null>(null);
   // asset id -> signed URL (null: missing or refused). Absent: not asked yet.
   const [urls, setUrls] = useState<Record<string, string | null>>({});
   const [failed, setFailed] = useState<Set<string>>(new Set());
@@ -81,10 +95,7 @@ export function Tour({ data, start }: { data: TourData; start: TourStart }) {
     kind = "placeholder";
   }
 
-  const neighbours = useMemo(
-    () => neighbourPanoramas(data.panoramas, current),
-    [data.panoramas, current],
-  );
+  const neighbours = useMemo(() => neighbourPanoramas(panoramas, current), [panoramas, current]);
   const markers = useMemo<TourMarker[]>(() => {
     const arrows = neighbours.map((n) => ({
       id: `pano:${n.panorama.id}`,
@@ -108,7 +119,27 @@ export function Tour({ data, start }: { data: TourData; start: TourStart }) {
   const goTo = useCallback((next: TourPanorama, yaw: number) => {
     setCurrent(next);
     setLook((l) => ({ yaw, version: l.version + 1 }));
+    setViewYaw(yaw);
+    setFarNote(null);
   }, []);
+
+  // Time travel: the same spot in another visit, looking the same way.
+  const changeVisit = useCallback(
+    (index: number) => {
+      const target = visits[index];
+      if (!target) return;
+      setVisitIndex(index);
+      const same = sameSpot(target.panoramas, current, viewYaw);
+      if (same) {
+        goTo(same.panorama, same.yawDeg);
+        return;
+      }
+      const near = nearestPanorama(target.panoramas, current.position) ?? target.panoramas[0];
+      goTo(near, normalize180(current.headingDeg + viewYaw - near.headingDeg));
+      setFarNote(tt.noSameSpot(formatDate(target.visit.time)));
+    },
+    [visits, current, viewYaw, goTo],
+  );
 
   const onMarker = useCallback(
     (id: string) => {
@@ -126,11 +157,11 @@ export function Tour({ data, start }: { data: TourData; start: TourStart }) {
 
   const onMapClick = useCallback(
     (point: Position) => {
-      const next = nearestPanorama(data.panoramas, point);
+      const next = nearestPanorama(panoramas, point);
       if (!next) return;
       goTo(next, distanceM(next.position, point) > 1 ? yawInPanorama(next, point) : 0);
     },
-    [data.panoramas, goTo],
+    [panoramas, goTo],
   );
 
   const onLoadError = useCallback((id: string) => {
@@ -148,9 +179,14 @@ export function Tour({ data, start }: { data: TourData; start: TourStart }) {
     [data.trees],
   );
   const mapPanoramas = useMemo(
-    () => data.panoramas.map((p) => ({ id: p.id, position: p.position })),
-    [data.panoramas],
+    () => panoramas.map((p) => ({ id: p.id, position: p.position })),
+    [panoramas],
   );
+  const view = useMemo(
+    () => ({ position: current.position, azimuthDeg: normalize360(current.headingDeg + viewYaw) }),
+    [current, viewYaw],
+  );
+  const visit = visits[visitIndex]?.visit ?? data.visit;
 
   return (
     <div className={styles.tour}>
@@ -165,6 +201,7 @@ export function Tour({ data, start }: { data: TourData; start: TourStart }) {
           markers={markers}
           onMarker={onMarker}
           onLoadError={onLoadError}
+          onViewChange={setViewYaw}
           label={tt.viewer}
         />
         {kind === "placeholder" && signedReady && (
@@ -184,11 +221,32 @@ export function Tour({ data, start }: { data: TourData; start: TourStart }) {
           focus={current.position}
           onPointClick={onMapClick}
           label={tt.mapHint}
+          view={view}
         />
+        {visits.length > 1 && (
+          <label className={styles.small}>
+            {tt.timeTravel}{" "}
+            <select
+              value={visitIndex}
+              onChange={(e) => changeVisit(Number(e.target.value))}
+              data-testid="tour-visit"
+            >
+              {visits.map((v, i) => (
+                <option key={v.visit.id} value={i}>
+                  {formatDate(v.visit.time)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {farNote && (
+          <p className={`muted ${styles.small}`} data-testid="tour-far">
+            {farNote}
+          </p>
+        )}
         <p className={`muted ${styles.small}`}>
-          {tt.mapHint}{" "}
-          {data.visit &&
-            `${tt.visit(formatDate(data.visit.time))} · ${tt.count(data.panoramas.length)}`}
+          {tt.mapHint} {tt.viewDirection}{" "}
+          {visit && `${tt.visit(formatDate(visit.time))} · ${tt.count(panoramas.length)}`}
         </p>
       </div>
     </div>

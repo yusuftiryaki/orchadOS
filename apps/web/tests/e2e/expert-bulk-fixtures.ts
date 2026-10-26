@@ -1,14 +1,15 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { Database } from "../../src/lib/database.types";
 import type { Client } from "../../src/lib/supabase/types";
+import { purgeOrg } from "../local-db";
 import { SEED_USERS } from "./expert-fixtures";
 
 // Test data for bulk approval, the quality sample, the owner's score and
 // questions (integration and browser tests), written with the service key.
 // Like the expert panel fixture (expert-fixtures.ts) it lives in an org of its
-// own because measurements can never be deleted: parcel, slots and trees have
-// fixed ids, the seed users get roles there for the duration of a test
-// (grantBulkRoles / removeBulkRoles) and every run adds new visits.
+// own: parcel, slots and trees have fixed ids, the seed users get roles there
+// for the duration of a test (grantBulkRoles) and the org is purged afterwards
+// (purgeBulkTest).
 //
 // 24 trees, S1-1 … S2-12. The run's visit (processed) and the previous
 // published visit, per tree index:
@@ -149,11 +150,9 @@ export async function grantBulkRoles(admin: Client) {
 }
 
 // Questions can be removed by the service role (API users cannot).
-export async function removeBulkRoles(admin: Client) {
-  check(await admin.from("question_reply").delete().eq("org_id", BULK_TEST.org));
-  check(await admin.from("question").delete().eq("org_id", BULK_TEST.org));
-  check(await admin.from("membership").delete().eq("org_id", BULK_TEST.org));
-  check(await admin.from("parcel_access").delete().eq("parcel_id", BULK_TEST.parcel));
+// The whole test org: roles, visits, questions (testing.purge_org).
+export function purgeBulkTest() {
+  return purgeOrg(BULK_TEST.org);
 }
 
 // A published previous visit with expert results, and a processed visit with
