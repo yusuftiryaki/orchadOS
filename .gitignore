@@ -43,3 +43,4 @@ local.properties
 supabase/.temp/
 supabase/.branches/
 .pnpm-store/
+services/pipeline/native/*/build/

@@ -66,6 +66,17 @@ class PanoramaParams(_Section):
     preview_quality: int = 80
 
 
+class Insta360Params(_Section):
+    # Stitching of .insv recordings with the vendor Media SDK (insta360.py).
+    # template | optflow | dynamicstitch | aistitch (MediaSDKTest -stitch_type).
+    stitch_type: str = "optflow"
+    output_size: tuple[int, int] = (3840, 1920)
+    cuda: bool = True
+    # Empty: the SDK's own models directory next to MediaSDKTest.
+    model_root_dir: str = ""
+    timeout_s: float = 7200.0
+
+
 class CropParams(_Section):
     size: int = 1024
     jpeg_quality: int = 90
@@ -150,6 +161,7 @@ class PipelineParams(_Section):
     sync: SyncParams = Field(default_factory=SyncParams)
     frames: FrameParams = Field(default_factory=FrameParams)
     panoramas: PanoramaParams = Field(default_factory=PanoramaParams)
+    insta360: Insta360Params = Field(default_factory=Insta360Params)
     crops: CropParams = Field(default_factory=CropParams)
     coverage: CoverageParams = Field(default_factory=CoverageParams)
     presence: PresenceParams = Field(default_factory=PresenceParams)

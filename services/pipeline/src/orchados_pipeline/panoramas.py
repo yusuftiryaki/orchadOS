@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import shutil
 from collections import defaultdict
+from pathlib import Path
+
+import cv2
 
 from .context import RunContext
 from .gpstime import gps_ns_to_iso
 from .imaging import resize, write_image, write_json_file
+from .insta360 import Insta360Error, export_frames, is_insv
 from .models import (
     FileRole,
     FrameCandidate,
@@ -56,7 +61,7 @@ def render_panoramas(
     sidecars = []
     for video in sorted(by_video):
         wanted = by_video[video]
-        for idx, frame in iter_frames(ctx.session_dir / video, set(wanted)):
+        for idx, frame in _frames(ctx, video, set(wanted)):
             c = wanted[idx]
             pid = panorama_id(c)
             full = write_image(
@@ -108,6 +113,28 @@ def render_panoramas(
         panoramas=[records[i] for i in order],
         sidecars=[sidecars[i] for i in order],
     )
+
+
+def _frames(ctx: RunContext, video: str, wanted: set[int]):
+    """Equirectangular frames: decoded from an MP4, or stitched from an .insv by the SDK."""
+    if not is_insv(video):
+        yield from iter_frames(ctx.session_dir / video, wanted)
+        return
+    out = ctx.run_dir / "tmp" / "stitch" / Path(video).stem
+    try:
+        images = export_frames([ctx.session_dir / video], sorted(wanted), out, ctx.params.insta360)
+        for idx in sorted(images):
+            frame = cv2.imread(str(images[idx]), cv2.IMREAD_COLOR)
+            if frame is None:
+                raise Insta360Error(f"{images[idx].name}: cannot be read")
+            yield idx, frame
+    finally:
+        shutil.rmtree(out, ignore_errors=True)
+        for parent in (out.parent, out.parent.parent):  # tmp/stitch, tmp: only if empty
+            try:
+                parent.rmdir()
+            except OSError:
+                break
 
 
 def run(

@@ -27,7 +27,7 @@ Bir tarama oturumu işleme istasyonuna tek bir klasör olarak gelir. Klasör ad�
     gnss.ubx          ESP32 (SD karttaki /sessions/<session_id>/ klasöründen)
     events.csv        ESP32
     session.json      ESP32
-  video/*.mp4         kamera (masaüstü yazılımından dışa aktarılmış equirectangular)
+  video/*.mp4|*.insv  kamera: equirectangular MP4 ya da kameranın ham .insv kaydı
   base/*              operasyon (opsiyonel; baz/CORS RINEX)
   trees.json          operasyon (opsiyonel; normalde veritabanından okunur)
 ```
@@ -36,7 +36,7 @@ Bir tarama oturumu işleme istasyonuna tek bir klasör olarak gelir. Klasör ad�
 | --- | --- | --- | --- |
 | `session.json` | Saha uygulaması yazar, operasyon tamamlar | Oturum başlatılırken; operasyon işlemeden önce eksik alanları doldurur | Evet |
 | `gnss/gnss.ubx`, `gnss/events.csv`, `gnss/session.json` | ESP32 GNSS kaydedici | Kayıt sırasında SD karta; operasyon kartın `/sessions/<session_id>/` klasörünü olduğu gibi `gnss/` altına kopyalar | Evet |
-| `video/*.mp4` | 360° kamera → operasyon | Kameranın masaüstü yazılımıyla equirectangular (2:1) dışa aktarılır; birden çok parça dosya adı sırasıyla ardışık kabul edilir | Evet |
+| `video/*.mp4` ya da `video/*.insv` | 360° kamera → operasyon | MP4: kameranın masaüstü yazılımıyla equirectangular (2:1) dışa aktarılır. `.insv`: kameranın kartındaki ham kayıt olduğu gibi kopyalanır; işleme hattı sadece seçilen kareleri Insta360 Media SDK ile birleştirir (SDK işleme makinesinde kurulu olmalı, `ORCHADOS_INSTA360_SDK`). Tek dosyalı kayıtlar (X4/X5) desteklenir; iki dosyalı eski kayıtlar henüz değil. Birden çok parça dosya adı sırasıyla ardışık kabul edilir | Evet |
 | `base/*` | Operasyon | CORS ya da kendi baz istasyonundan RINEX gözlem + navigasyon | Hayır (yoksa PPK yok) |
 | `trees.json` | Operasyon | Ağaç konumları; `run --trees-from-db` ile gerekmez (aşağıda) | Hayır |
 
