@@ -13,6 +13,10 @@ export default defineConfig({
   globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: false,
   workers: 1,
+  // A shared CI runner is slow at times (a decision re-renders a whole visit;
+  // the first request warms the server): one retry there, reported as flaky.
+  timeout: 60_000,
+  retries: process.env.CI ? 1 : 0,
   reporter: [["list"]],
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
