@@ -71,17 +71,17 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 | Dur-çek-yürü | `field/features/route/beeper.dart` | var · donanım | |
 | Yakın plan listesi: önceki ziyaretin dikkat/sorunlu/kuru ağaçları | `closeup_list` (`mig/20261024120200`); telefonda da `closeup_selection.dart` | var (bu görev: sunucuda) | |
 | Yakın plan listesi: %10 tabakalı örneklem (10×10 m) | `closeup_list` | var (bu görev) | Hücre başına bir ağaç sırayla, ziyarete göre tekrarlanabilir. Saha uygulaması hâlâ kendi (tabakasız) örneklemini kullanıyor: sonraki iş |
-| Yakın plan listesi: "Sorun gördüm" | `closeup_list` `staff_problem` nedeni; `problem_seen` metriği | kısmen · sonraki iş | Sunucu tarafı hazır. Saha uygulamasında düğme yok: sonraki iş (saha uygulaması bu görevin klasörü dışında) |
-| Listenin sunucuda üretilmesi ve saha uygulamasına inmesi | `closeup_list` RPC; `/operasyon/ziyaret/<z>` "Yakın plan listesi"; sözleşme `docs/arayuzler.md` "Yakın plan listesi ve uzman istekleri" | kısmen · sonraki iş | Sunucu ve sözleşme hazır (`26_followup_requests`, `followups.test.ts`). Saha uygulamasının listeyi bu fonksiyondan indirmesi sonraki iş |
+| Yakın plan listesi: "Sorun gördüm" | `closeup_list` `staff_problem` nedeni; `problem_seen` metriği; saha uygulamasında taramada düğme | var | Saha uygulaması en yakın ağaçlardan seçtirir, çevrimdışıyken de listeye ekler |
+| Listenin sunucuda üretilmesi ve saha uygulamasına inmesi | `closeup_list` RPC; `/operasyon/ziyaret/<z>` "Yakın plan listesi"; sözleşme `docs/arayuzler.md` "Yakın plan listesi ve uzman istekleri" | var | Saha uygulaması listeyi `closeup_list`ten indirir; sunucu veremezse yerel seçime döner |
 | Yakın plan protokolü: 2–3 çekim, "böyle çek", 3–4 soru | `field/features/closeup` | kısmen · sonraki iş | Referans görsellerin yeri var, görseller yok (metodoloji Ek A) |
-| Sesli not | — | yok · sonraki iş | Saha uygulamasının işi (`apps/field/`, bu görevin klasörü dışında; `apps/field/README.md` bilinen sınırlar). Sunucuda `capture.kind = audio_note` hazır |
+| Sesli not | Saha uygulaması yakın plan ekranı; `capture.kind = audio_note` | var | Telefonda (gerçek mikrofonla) henüz denenmedi |
 | Galeriden yükleme yok | `field/features/camera` | var | |
 | Cihazda kalite kapısı (bulanık/karanlık ret, zorunlu adım) | `field/features/camera` | var | |
 | İşlemeden sonra panorama kalite skoru | `pipeline/panoramas.py` | var | |
 | Kapsama haritası ve yeniden tarama görevi (işleme sonrası) | Portalda kapsama katmanı; `pipeline/coverage.py` → `coverage.json`, `coverage_report`; otomatik `followup_request` (`origin = pipeline`) | var (kapsama görevi) | Ağaç başına yönler ve iki yüz kuralı, %95 eşik, 10×10 m kör nokta hücreleri. Eşiğin altında ya da kör noktada ek ziyaret isteği açılır (ziyaret başına bir); operasyon panosunda "İşleme hattı (kapsama)" kaynağıyla. Uzman özetinde "İşleme hattı" bölümü. Portal karnesinin "Denetim güveni" satırı rapordaki oranı henüz okumuyor: sonraki iş |
 | Yükleme: kart ofise, yakın plan senkronizasyonu | `orchados-ingest`, `field/core/sync` | var | |
 | Ziyaret kaydı: personel, tarih, başlangıç/bitiş | `session` | var | |
-| Ziyaret kaydı: hava, ekipman seri numaraları, sahada yaşanan sorunlar | `session.weather` sütunu var | kısmen · sonraki iş | Saha uygulaması doldurmuyor ; saha uygulamasının işi |
+| Ziyaret kaydı: hava, ekipman seri numaraları, sahada yaşanan sorunlar | Ziyaret özetinde form; `visit_log` olayı + `session.weather` | var | Kaydedicinin adı ve sürümü kendiliğinden, kamera seri numarası elle |
 
 ## Modül 4 – Değerlendirme akışı
 
@@ -143,7 +143,7 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 | --- | --- | --- | --- |
 | Owner, Parcel, ParcelAccess, Boundary, Slot, Tree | `mig/20261018120100_subject_layer.sql` | var | |
 | Visit (`session`), Track, Panorama, Media | `session`, `capture`, `asset` | var | Track = `asset.kind = trajectory` |
-| Observation | `measurement` (`source = staff`) | var | Sesli not yok |
+| Observation | `measurement` (`source = staff`), sesli not `capture` | var | |
 | Assessment, Finding, Comment | `assessment`, `finding`, `question` | var | |
 | ParcelScore | Sorgu anında hesaplanıyor | kısmen | Saklanmıyor; skor metodoloji sürümüyle her açılışta yeniden hesaplanır. Karar: ağırlıklar kesinleşene kadar saklanmaz |
 | 10×10 m hücreler tabloda değil, sorgu anında | `web/lib/portal/cells.ts`, `closeup_list` | var (bu görev) | Aynı kural iki yerde (`docs/arayuzler.md`) |

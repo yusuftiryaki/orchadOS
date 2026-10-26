@@ -39,7 +39,11 @@ const visitWritableStatuses = ['planned', 'captured'];
 
 /// Values written to the planned visit (`public.session`). The visit itself
 /// is created by ops; field staff only reports what happened.
-Map<String, Object?> visitUpdate(SessionRow s) => {
+Map<String, Object?> visitUpdate(
+  SessionRow s, {
+  Map<String, Object?>? weather,
+}) => {
+  if (weather != null && weather.isNotEmpty) 'weather': weather,
   'started_at': s.startGpsTimeMs != null
       ? _utc(s.startGpsTimeMs!)
       : s.startedAt.toUtc().toIso8601String(),
@@ -88,7 +92,7 @@ Map<String, Object?> captureRow(
     'org_id': orgId,
     'parcel_id': parcelId,
     'session_id': c.sessionId,
-    'kind': 'photo',
+    'kind': c.kind == 'audio_note' ? 'audio_note' : 'photo',
     if (c.subjectType == 'tree') 'tree_id': c.subjectId,
     'uri': mediaUri(path),
     'content_hash': c.sha256,

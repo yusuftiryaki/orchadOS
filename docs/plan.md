@@ -96,7 +96,7 @@ gantt
 1. ✅ Toparlama: PR #32 sonrası `main` CI yeşil, test projesi güncel.
 2. **Kit kimlik çipi** (robotla bağlantı; sözleşme `hoverboard/docs/kit-soketi.md`, şema 1): `services/kit-chip/` kodlayıcı, çözücü, ortak test vektörleri, çipe yazma aracı. Açık: kalibrasyon kaydından manifest üretimi; `kit_mount` frame'i ve `calib_id` tanımı bekliyor.
 3. **Insta360 SDK** (Camera SDK 2.1.8, Media SDK 3.1.5, InsMetaData SDK 2.0.2 geldi; repoya girmez, yerelde `~/.orchados/sdk/insta360/`). Plan: `docs/gorevler/insta360-sdk.md`. İşleme hattı `.insv`'yi doğrudan alıyor, sadece seçilen kareleri `MediaSDKTest` ile birleştiriyor; meta veri aracı (`native/ins_meta_dump`) SDK'ya karşı derlendi. Sahte SDK ile test edildi; doğrulama için gerçek bir `.insv` deneme çekimi gerekiyor. Jiroskopla ince zaman eşleme sonraki iş.
-4. **Saha uygulaması:** yakın plan listesinin sunucudan inmesi (`closeup_list`), "Sorun gördüm", sesli not, hava ve ekipman kaydı.
+4. **Saha uygulaması:** yakın plan listesinin sunucudan inmesi (`closeup_list`), "Sorun gördüm", sesli not, hava ve ekipman kaydı (ziyaret kaydı). Yazıldı; sesli not telefonda denenmedi.
 5. **Pilota ilk sürüm:** `main` → `release` PR'ı.
 6. **Bakım:** test temizliğine yeni tablolar, CI'daki iki kırılgan tarayıcı testi.
 

@@ -121,7 +121,7 @@ Saha uygulaması sunucuyla yalnızca giriş yapan kullanıcının belirteciyle P
 
 - **Görev = planlanmış ziyaret:** `public.session`, `status = planned`, tür `inventory`, `periodic_scan` ya da `verification`, `planned_date` bugünden en çok 7 gün sonrası (geçmiş günler dahil: gecikmiş ziyaret). Satır bazlı yetki listeyi kullanıcının kurumuna sınırlar. Ziyaret lideri (`lead_user_id`) giriş yapan kullanıcı olanlar önce gelir ve "Size atanmış" yazar.
 - **Parsel bilgisi:** ad, köy, tahmini alan (`estimated_area_m2` / 1000 = dönüm). **Mevsim:** ziyaret satırında mevsim yok; planlanan günün ayından çıkar (Aralık–Şubat kış, Mart–Mayıs ilkbahar, Haziran–Temmuz yaz, Ağustos–Kasım hasat).
-- **Ağaçlar ve yakın plan listesi (periyodik ziyaret):** parselin aktif ağaçları yer kodlarıyla (`tree` + `slot`) ve son genel sınıfları (`tree_latest_assessment`) iner. Liste: önce son sınıfı Dikkat, Sorunlu ya da Kuru olanlar, sonra ağaçların %10'u kadar rastgele örneklem. Örneklem ziyaret ve ağaç kimliğinin hash'iyle seçilir; aynı ziyareti indiren her telefon aynı listeyi görür. Metodolojideki 10×10 m hücre tabakalaması ve "Sorun gördüm" ağaçları henüz yok.
+- **Yakın plan listesi (periyodik ziyaret):** sunucudan iner (`rpc/closeup_list`, `docs/arayuzler.md` "Yakın plan listesi ve uzman istekleri"). İçinde önceki sınıf, 10×10 m hücrelerden tabakalı %10 örneklem, personelin "Sorun gördüm" işaretleri ve uzman istekleri var. Sunucu listeyi veremezse telefon eski, tabakasız yerel seçime döner (ağaçlar ve son sınıfları `tree_latest_assessment`'tan).
 - **Yerler ve sınır (her görev):** parselin bütün yerleri (`slot`: kod, sıra, pozisyon, GeoJSON konum, belirsizlik; 1000'lik sayfalar) ve en yüksek sürümlü sınırı (`boundary.geom`, GeoJSON poligon). Harita, kapsama ve yer tarifi bunlarla çalışır; ilk envanterde ikisi de boş olabilir.
 - **Doğrulama kalemleri (tur):** `verification_item`, `status = open`; kalemin yeri parselin yer listesinden bulunur. Sıra: sıra numarası, pozisyon, kod.
 - **Çevrimdışı:** her başarılı indirmede liste kullanıcı başına `task_cache`'e yazılır. Sunucuya ulaşılamazsa (20 sn) son liste gösterilir. Başka bir kullanıcı aynı telefonda öbürünün listesini görmez.
@@ -160,6 +160,20 @@ Yerel Supabase'e bağlanarak (yukarıda "Telefonda çalıştırma", 5. adım):
 6. **Uçak modunu kapat.** Birkaç saniye içinde kendiliğinden göndermeli; kart "Her şey gönderildi", başarısız 0. (Bağlantı olayı kaçarsa **Şimdi gönder**.)
 7. Sunucuda kontrol (Studio kapalı; `psql` ya da `docker exec -it supabase_db_orchados psql -U postgres`): ziyaret `captured` ve başlangıç/bitiş dolu; `session_event`, `capture` ve `measurement` (`value_boolean`) satırları; `storage.objects`'te `org/…/parcel/…/<sha256>`. Telefonun `media/` klasöründeki gönderilmiş fotoğraflar silinmiş olmalı.
 8. **Kalıcı hata:** Bir ziyaret daha planla, uçak modunda kaydı başlat ve bitir. Bu arada ofiste o ziyareti iptal et. Uçak modunu kapatınca ziyaret kayıtları "Başarısız" sayısına düşmeli (ayrıntıda `visit_cancelled`), uyarı görünmeli ve gönderim takılmadan sürmeli. Olay, fotoğraf ve cevaplar sunucuya yine yazılır: iptal edilen ziyaret satırı silinmez, veri kaybolmaz.
+
+## Sorun gördüm, sesli not, ziyaret kaydı
+
+- **Sorun gördüm:** Periyodik taramada personel bir ağaçta sorun görünce düğmeye basar; en yakın ağaçlar (kaydedicinin konumuna göre, konum yoksa yer koduna göre) listelenir.
+    - Seçilen ağaç için bir `problem_seen = evet` ölçümü yazılır (`source = staff`, yöntem `scan_mark`, sürüm `scan-mark-v1`).
+    - Ağaç bu ziyaretin yakın plan listesinin sonuna eklenir. Çevrimdışıyken de çalışır.
+    - Sunucuda ağaç `closeup_list`'e ve uzmanın zorunlu incelemesine girer.
+- **Sesli not:** Yakın plan ekranında isteğe bağlı. Mikrofonla AAC/MP4 kaydedilir (`record` paketi, MIT); izin `RECORD_AUDIO`.
+    - Kayıt `capture` olarak gider (`kind = audio_note`, `audio/mp4`, ağaca bağlı); dosya fotoğraflarla aynı yoldan yüklenir.
+    - Sesli not LLM'e gönderilmez (AI worker yakın planları almıyor).
+- **Ziyaret kaydı:** Ziyaret özetinde girilir: gökyüzü, sıcaklık, rüzgâr, kamera seri numarası, sahada yaşanan sorunlar. Kaydedicinin adı ve sürümü kendiliğinden eklenir.
+    - Kayıt bir `visit_log` oturum olayıdır.
+    - Hava ayrıca ziyaret satırının `session.weather` alanına yazılır.
+    - En yeni kayıt geçerlidir.
 
 ## Kaydediciden konum
 

@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
+
+import 'package:drift/drift.dart' show BooleanExpressionOperators, OrderingTerm;
 
 import '../db/database.dart';
 import '../db/field_repository.dart';
@@ -271,7 +274,7 @@ class SyncWorker {
     final s = await _session(id);
     final updated = await server.updateVisit(
       id,
-      visitUpdate(s),
+      visitUpdate(s, weather: await _weather(id)),
       whileStatus: visitWritableStatuses,
     );
     if (updated) return;
@@ -280,6 +283,24 @@ class SyncWorker {
     final status = await server.visitStatus(id);
     if (status == null) throw SyncError.permanent('visit_not_found', id);
     if (status == 'cancelled') throw SyncError.permanent('visit_cancelled', id);
+  }
+
+  /// Weather of the newest `visit_log` event of the session, if any.
+  Future<Map<String, Object?>?> _weather(String sessionId) async {
+    final logs =
+        await (repository.db.select(repository.db.sessionEvents)
+              ..where(
+                (e) =>
+                    e.sessionId.equals(sessionId) &
+                    e.eventType.equals('visit_log'),
+              )
+              ..orderBy([(e) => OrderingTerm.desc(e.phoneTime)])
+              ..limit(1))
+            .get();
+    final data = logs.firstOrNull?.dataJson;
+    if (data == null) return null;
+    return ((jsonDecode(data) as Map)['weather'] as Map?)
+        ?.cast<String, Object?>();
   }
 
   Future<void> _sendEvent(String id) async {

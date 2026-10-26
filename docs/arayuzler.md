@@ -491,7 +491,7 @@ Periyodik ziyaretin yakın plan listesi sunucuda üretilir (`docs/metodoloji.md`
 - **Hücreler:** parselin en yüksek sürümlü sınırının (yoksa yerlerinin) sınır kutusunun güneybatı köşesinden doğu/kuzey metre: `x = Δboylam · π/180 · R · cos(güney enlemi)`, `y = Δenlem · π/180 · R`, `R = 6 371 008,8 m`; hücre `(⌊x/10⌋, ⌊y/10⌋)`. Konumsuz ağaçlar tek hücredir. Portalın hücre ısı haritası (`apps/web/src/lib/portal/cells.ts`) aynı kuralı kullanır.
 - **Örneklem:** hücre içinde ağaçlar `md5('<ziyaret>:<ağaç>')` ile sıralanır; her hücrenin 1. ağacı, sonra 2. ağacı… alınır, hücreler `md5('<ziyaret>:<cx>,<cy>')` sırasıyla. Aynı ziyaret hep aynı örneklemi verir.
 - **"Sorun gördüm" sonradan gelir:** personel taramada işaretledikçe (gönderildikçe) liste büyür. Telefon listeyi tarama bitince yeniden okuyabilir; çevrimdışıyken kendi işaretlediklerini listeye ekler.
-- **Saha uygulaması:** bugün listeyi telefonda kendisi hesaplıyor (`apps/field/README.md`, "Ağaçlar ve yakın plan listesi"). Bu fonksiyona geçiş ve "Sorun gördüm" düğmesi saha uygulamasının sonraki işidir (`docs/mvp-denetimi.md`).
+- **Saha uygulaması** listeyi bu fonksiyondan indirir ve "Sorun gördüm" işaretlerini çevrimdışıyken listeye kendisi ekler (`apps/field/README.md`).
 
 **Uzman istekleri** (`public.followup_request`; okuma kurum rolleri, yazma sadece fonksiyonlarla):
 

@@ -11,6 +11,7 @@ import '../boundary/boundary_screen.dart' show areaLabel;
 import '../coverage/coverage.dart';
 import '../session/session_controller.dart';
 import '../sync/sync_status_card.dart';
+import 'visit_log.dart';
 
 /// Numbers shown on the visit summary, read back from the local database.
 class VisitSummary {
@@ -27,7 +28,11 @@ class VisitSummary {
     required this.treesPlanned,
     required this.photos,
     required this.answers,
+    this.visitLog,
   });
+
+  /// Newest visit record (weather, equipment, problems); null until saved.
+  final VisitLog? visitLog;
 
   final DateTime? startedAt;
   final DateTime? stoppedAt;
@@ -70,6 +75,7 @@ final visitSummaryProvider = FutureProvider.autoDispose<VisitSummary?>((
   final boundary = BoundaryCorners.fromEvents(events);
   final coverage = events.where((e) => e.eventType == 'coverage').lastOrNull;
   final route = events.where((e) => e.eventType == 'route_progress').lastOrNull;
+  final log = events.where((e) => e.eventType == 'visit_log').lastOrNull;
   return VisitSummary(
     startedAt: session?.startedAt,
     stoppedAt: session?.stoppedAt,
@@ -89,6 +95,11 @@ final visitSummaryProvider = FutureProvider.autoDispose<VisitSummary?>((
     treesPlanned: state.task?.closeupTrees.length ?? 0,
     photos: captures.length,
     answers: measurements.length,
+    visitLog: log?.dataJson == null
+        ? null
+        : VisitLog.fromJson(
+            (jsonDecode(log!.dataJson!) as Map).cast<String, Object?>(),
+          ),
   );
 });
 
@@ -187,6 +198,37 @@ class VisitSummaryScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
+                  ),
+                ),
+              if (s != null)
+                Card(
+                  child: ListTile(
+                    key: const Key('summary-visit-log'),
+                    leading: Icon(
+                      s.visitLog == null ? Icons.edit_note : Icons.check_circle,
+                      color: s.visitLog == null ? Colors.orange : Colors.green,
+                      size: 36,
+                    ),
+                    title: const Text('Ziyaret kaydı'),
+                    subtitle: Text(
+                      s.visitLog == null
+                          ? 'Hava, kamera seri numarası, sahada yaşanan sorunlar'
+                          : [
+                              VisitLog.skies[s.visitLog!.sky] ?? '',
+                              if (s.visitLog!.tempC != null)
+                                '${s.visitLog!.tempC} °C',
+                              VisitLog.winds[s.visitLog!.wind] ?? '',
+                            ].where((x) => x.isNotEmpty).join(' · '),
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () async {
+                      final saved = await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(
+                          builder: (_) => VisitLogScreen(initial: s.visitLog),
+                        ),
+                      );
+                      if (saved == true) ref.invalidate(visitSummaryProvider);
+                    },
                   ),
                 ),
               if (sessionId != null) ...[

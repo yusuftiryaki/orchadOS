@@ -18,6 +18,28 @@ const String appVersion = '0.1.0';
 const String methodologyVersion = 'field-v0';
 
 /// A photo that has been taken and hashed but not yet saved with its tree.
+/// MIME type of the crew's voice notes (AAC in MP4).
+const voiceNoteMediaType = 'audio/mp4';
+
+/// A recorded voice note, stored in the media store, not yet in the database.
+class PendingVoiceNote {
+  const PendingVoiceNote({
+    required this.sha256,
+    required this.localPath,
+    required this.byteSize,
+    required this.capturedAt,
+    required this.gpsTimeMs,
+    required this.timeSource,
+  });
+
+  final String sha256;
+  final String localPath;
+  final int byteSize;
+  final DateTime capturedAt;
+  final int gpsTimeMs;
+  final TimeSource timeSource;
+}
+
 class PendingShot {
   const PendingShot({
     required this.shotCode,
@@ -304,7 +326,8 @@ class FieldRepository {
     await outbox.enqueue(OutboxEntity.capture, s.sha256);
   }
 
-  /// Saves the photos and answers of one tree in a single transaction.
+  /// Saves the photos, voice notes and answers of one tree in a single
+  /// transaction.
   Future<void> saveTreeObservation({
     required String sessionId,
     required String treeId,
@@ -312,7 +335,32 @@ class FieldRepository {
     required List<PendingShot> shots,
     required Map<String, bool> answers,
     required String methodVersion,
+    List<PendingVoiceNote> voiceNotes = const [],
   }) => db.transaction(() async {
+    for (final (i, v) in voiceNotes.indexed) {
+      await db
+          .into(db.captures)
+          .insert(
+            CapturesCompanion.insert(
+              sha256: v.sha256,
+              sessionId: sessionId,
+              kind: 'audio_note',
+              sensor: 'phone_mic',
+              mediaType: voiceNoteMediaType,
+              byteSize: v.byteSize,
+              localPath: v.localPath,
+              subjectType: 'tree',
+              subjectId: treeId,
+              slotCode: Value(slotCode),
+              shotCode: 'voice_note_${i + 1}',
+              capturedAt: v.capturedAt,
+              gpsTimeMs: v.gpsTimeMs,
+              timeSource: v.timeSource.code,
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+      await outbox.enqueue(OutboxEntity.capture, v.sha256);
+    }
     for (final s in shots) {
       await _insertCapture(
         s,
@@ -346,6 +394,36 @@ class FieldRepository {
           );
       await outbox.enqueue(OutboxEntity.measurement, id);
     }
+  });
+
+  /// "Sorun gördüm" during the scan: a staff `problem_seen` = yes on the tree.
+  /// The server puts the tree on the close-up list (`closeup_list`) and on
+  /// the expert's mandatory review.
+  Future<String> saveProblemMark({
+    required String sessionId,
+    required String treeId,
+    required String methodVersion,
+  }) => db.transaction(() async {
+    final id = newId();
+    await db
+        .into(db.measurements)
+        .insert(
+          MeasurementsCompanion.insert(
+            id: id,
+            sessionId: sessionId,
+            subjectType: 'tree',
+            subjectId: treeId,
+            metricCode: 'problem_seen',
+            valueBoolean: const Value(true),
+            method: 'scan_mark',
+            methodVersion: methodVersion,
+            source: 'staff',
+            measuredAt: _clock.now(),
+            evidenceJson: '[]',
+          ),
+        );
+    await outbox.enqueue(OutboxEntity.measurement, id);
+    return id;
   });
 
   Future<SessionRow?> session(String id) =>
