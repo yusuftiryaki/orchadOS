@@ -67,10 +67,13 @@ test("bulk approval, publication, score and a question with its answer", async (
 
   // The remaining seven one by one: accept the AI, correct the tree without
   // AI and disagree with the AI on the sampled tree.
-  await expert.getByRole("link", { name: "İncelenmemiş (7)" }).click();
   const review = expert.getByTestId("tree-review");
   for (let i = 7; i > 0; i--) {
-    await expect(expert.getByRole("link", { name: `İncelenmemiş (${i})` })).toBeVisible();
+    // Open the first unreviewed tree through the filter every time: after a
+    // decision the panel moves to the next tree in list order, which need not
+    // be an unreviewed one (the sample is random per run).
+    await expert.getByRole("link", { name: `İncelenmemiş (${i})` }).click();
+    await expect(review).toBeVisible();
     const noAi = await expert
       .getByTestId("ai-suggestion")
       .getByText("Bu ağaç için AI önerisi yok.")
