@@ -533,6 +533,27 @@ Periyodik ziyaretin yakın plan listesi sunucuda üretilir (`docs/metodoloji.md`
 - **Anlamı:** ağaçta `no` → uzman panelinde zorunlu inceleme (`not_visible`); "Yok" sınıfını yalnız uzman verir. Yerde `yes` → "yeni dikim olabilir" önerisi. Hat boş yerlere yalnız `yes` yazar.
 - AI ön değerlendirmesinin `ai_assessment_detail.tree_visible` alanı ayrıdır; ikisi karıştırılmaz.
 
+## Kit kimlik çipi
+
+Tarama kiti robota (`yusuftiryaki/hoverboard`) bir soket üzerinden takılabilir. Kitin fişindeki **DS2431** (1-Wire EEPROM, 128 bayt) kitin manifestini taşır. Robot bu manifesti okur ve kitin frame'lerini (`kit_gnss`, `kit_cam360`, `kit_lidar`) statik TF olarak yayınlar.
+
+- **Sözleşmenin kaynağı:** [hoverboard/docs/kit-soketi.md](https://github.com/yusuftiryaki/hoverboard/blob/main/docs/kit-soketi.md), "Kimlik çipinin içeriği (manifest)" ve "Repolar arası sözleşme". **Uyulan sürüm: manifest şema 1.** Referans okuyucu `hoverboard/ros2/src/robot_kit/robot_kit/manifest.py`'dir; belgeyle çelişirse dosya geçerlidir.
+- **Yazan taraf:** `services/kit-chip/` (`orchados-kit write|read`).
+- **Test vektörleri:** Robot reposuyla aynı dosya, `services/kit-chip/tests/vectors/kit_manifest_v1.json`. Değiştirilmeden kopyalanmıştır. Format ya da vektörler değişirse iki repo birlikte değişir.
+- **Şema numarası** sadece artar. Robot bilmediği bir şemayı reddeder.
+
+**Kalibrasyon → çip akışı:**
+1. Kit kalibre edilir. Sonuç bir `public.calibration` kaydı olur.
+2. Kayıttaki sensör pozları kitin montaj frame'i `kit_mount` içinde ifade edilir; birimler metre ve radyandır.
+3. `orchados-kit`, takılı donanımla (caps) birlikte manifesti üretir, çipe yazar, geri okuyup doğrular.
+4. Robot kayıtlarına çipteki `calib_id`'yi yazar; böylece her kaydın hangi kalibrasyonla yapıldığı izlenir.
+
+**Açık (henüz yapılmadı):** orchadOS'taki kalibrasyon kaydında iki şey tanımlı değil:
+- `kit_mount` frame'i, yani orijini ve eksen yönleri. Bugünkü `extrinsics` alanı serbest JSON; örnek veride `camera_to_antenna_m` var, açılar yok.
+- `calib_id` için uint32 bir kimlik. Kaydın kimliği uuid.
+
+Bu ikisi netleşene kadar manifest elle (JSON) hazırlanır; 2. ve 4. adımlar o zaman otomatikleşir.
+
 ## Açık noktalar
 
 - Kamera jiroskop verisi (ince zaman eşleme) henüz sözleşmede yok.
