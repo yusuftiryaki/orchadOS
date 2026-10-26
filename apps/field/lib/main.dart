@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
 import 'app/providers.dart';
+import 'core/audio/voice_recorder.dart';
 import 'core/db/database.dart';
 import 'core/media/field_camera.dart';
 import 'core/media/media_store.dart';
@@ -74,6 +75,8 @@ Future<void> main() async {
         cameraProvider.overrideWithValue(
           _fakeCamera ? FakeFieldCamera() : PluginFieldCamera(),
         ),
+        if (!_fakeCamera)
+          voiceRecorderProvider.overrideWithValue(MicVoiceRecorder()),
         mediaStoreProvider.overrideWithValue(
           FileMediaStore(Directory(p.join(docs.path, 'media'))),
         ),

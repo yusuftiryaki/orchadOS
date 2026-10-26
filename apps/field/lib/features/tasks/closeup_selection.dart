@@ -81,3 +81,45 @@ List<TreeTarget> selectCloseupTrees(
       ),
   ];
 }
+
+/// Crew-facing text of the server's reasons (`closeup_list`, docs/arayuzler.md
+/// "Yakın plan listesi ve uzman istekleri").
+const closeupReasonLabels = {
+  'previous_class': 'Önceki ziyarette dikkat/sorunlu/kuru',
+  'sample': 'Rastgele örneklem',
+  'staff_problem': 'Sorun gördüm',
+  'expert_request': 'Uzman istedi',
+};
+
+/// Close-up list from the rows of `rpc/closeup_list` (already in slot order).
+List<TreeTarget> closeupTargetsFromServer(List<Map<String, Object?>> rows) => [
+  for (final r in rows)
+    if (r['tree_id'] is String)
+      TreeTarget(
+        treeId: r['tree_id']! as String,
+        slotCode: r['slot_code'] as String? ?? '',
+        reason: [
+          for (final reason in (r['reasons'] as List?) ?? const [])
+            closeupReasonLabels[reason] ?? '$reason',
+        ].join(' · '),
+      ),
+];
+
+/// The list with the trees the crew marked "Sorun gördüm" on this phone and
+/// that the server does not know yet (offline marks), appended at the end.
+List<TreeTarget> withProblemMarks(
+  List<TreeTarget> list,
+  Iterable<TreeTarget> marked,
+) {
+  final have = {for (final t in list) t.treeId};
+  return [
+    ...list,
+    for (final t in marked)
+      if (have.add(t.treeId))
+        TreeTarget(
+          treeId: t.treeId,
+          slotCode: t.slotCode,
+          reason: closeupReasonLabels['staff_problem']!,
+        ),
+  ];
+}

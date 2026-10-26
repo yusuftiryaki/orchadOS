@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/audio/voice_recorder.dart';
 import '../core/db/database.dart';
 import '../core/db/field_repository.dart';
 import '../core/db/outbox.dart';
@@ -38,6 +39,11 @@ final cameraProvider = Provider<FieldCamera>(
 /// On-device photo quality check; runs in a separate isolate.
 final photoQualityCheckerProvider = Provider<PhotoQualityChecker>(
   (ref) => const PhotoQualityChecker(),
+);
+
+/// Voice notes on close-up trees; the app overrides it with the microphone.
+final voiceRecorderProvider = Provider<VoiceRecorder>(
+  (ref) => FakeVoiceRecorder(),
 );
 
 final mediaStoreProvider = Provider<MediaStore>(
