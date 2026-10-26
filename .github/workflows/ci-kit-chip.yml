@@ -1,0 +1,42 @@
+name: ci-kit-chip
+
+on:
+  pull_request:
+    paths:
+      - "services/kit-chip/**"
+      - ".github/workflows/ci-kit-chip.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/kit-chip/**"
+      - ".github/workflows/ci-kit-chip.yml"
+
+concurrency:
+  group: ci-kit-chip-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kit-chip:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/kit-chip
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint and format
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      # Includes the shared test vectors copied from the robot repository.
+      - name: Tests
+        run: uv run pytest -q

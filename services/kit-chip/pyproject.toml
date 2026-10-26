@@ -1,0 +1,34 @@
+[project]
+name = "orchados-kit-chip"
+version = "0.1.0"
+description = "Writes the scan kit's identity chip (DS2431): the manifest the robot socket reads"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+orchados-kit = "orchados_kit.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[tool.uv.build-backend]
+module-name = "orchados_kit"
+
+[build-system]
+requires = ["uv_build>=0.8,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
