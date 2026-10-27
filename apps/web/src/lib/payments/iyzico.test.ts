@@ -221,6 +221,16 @@ describe("iyzico confirm", () => {
     });
   });
 
+  it("throws on an HTTP error status even with a JSON body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ status: "failure", errorCode: "1" }, 500)),
+    );
+    await expect(provider().confirm("tok-1", expected)).rejects.toMatchObject({
+      code: "iyzico_http_500",
+    });
+  });
+
   it("throws when the provider cannot be reached", async () => {
     vi.stubGlobal(
       "fetch",

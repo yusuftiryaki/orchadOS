@@ -89,6 +89,8 @@ export interface ConfirmResult {
   card: ConfirmCard | null;
   items: ConfirmItem[];
   fraudStatus: -1 | 0 | 1 | null;
+  // For not_completed: null when the buyer has not finished the form; set
+  // when the provider answered with an error and the state is unknown.
   failureCode: string | null;
   raw: unknown;
 }

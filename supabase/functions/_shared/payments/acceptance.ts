@@ -149,13 +149,14 @@ export function evaluateRetrieve(
   }
 
   if (paymentStatus === null || NOT_COMPLETED.has(paymentStatus) || answer.status !== "success") {
-    // Not paid (yet). A failure without paymentStatus is an API error (e.g. an
-    // unknown or expired token): the code is kept for the event log only.
-    return {
-      ...base,
-      outcome: "not_completed",
-      failureCode: answer.status === "success" ? null : providerErrorCode(answer.errorCode),
-    };
+    // Not paid (yet). failureCode null only for a form the buyer has not
+    // finished; a failure without paymentStatus is an API error (e.g. an
+    // unknown or expired token, a rate limit) and says nothing about the
+    // money, so the callback must not fail the attempt on it.
+    let failureCode: string | null = null;
+    if (answer.status !== "success") failureCode = providerErrorCode(answer.errorCode);
+    else if (paymentStatus === null) failureCode = "payment_status_missing";
+    return { ...base, outcome: "not_completed", failureCode };
   }
 
   // A paymentStatus we do not know: never guess, let ops look.
