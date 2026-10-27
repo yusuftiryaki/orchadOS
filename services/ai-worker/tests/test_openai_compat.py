@@ -125,6 +125,14 @@ def test_rate_limits_are_retried_other_errors_are_not(tmp_path):
     assert next(a.results(bid))["result"]["error"]["type"] == "http_400"
 
 
+def test_unknown_model_or_key_stops_the_run(tmp_path):
+    from orchados_ai_worker.openai_compat import ProviderError
+
+    a = api(tmp_path, Server([404]))
+    with pytest.raises(ProviderError, match="404"):
+        a.create([{"custom_id": "x", "params": params()}])
+
+
 def test_unpriced_models_cost_nothing():
     assert cost_usd(MODEL, {"input_tokens": 10**6, "output_tokens": 10**6}) == 0.0
 

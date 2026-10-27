@@ -29,6 +29,12 @@ from typing import Any
 import httpx
 
 RETRY_STATUS = {408, 409, 429, 500, 502, 503, 504}
+# Wrong key, wrong model name or wrong URL: every request would fail the same way.
+FATAL_STATUS = {401, 403, 404}
+
+
+class ProviderError(ValueError):
+    """The endpoint refuses every request (key, model or URL); stop the run."""
 
 
 def to_chat_request(params: dict[str, Any]) -> dict[str, Any]:
@@ -162,6 +168,11 @@ class OpenAICompatBatchApi:
                 if resp.status_code == 200:
                     return {"type": "succeeded", "message": to_message(resp.json())}
                 err = {"type": f"http_{resp.status_code}", "message": resp.text[:300]}
+                if resp.status_code in FATAL_STATUS:
+                    raise ProviderError(
+                        f"{self.url} answered {resp.status_code} for model {body['model']}: "
+                        f"{resp.text[:200]}"
+                    )
                 if resp.status_code not in RETRY_STATUS:
                     return {"type": "errored", "error": err}
             if attempt < self.max_retries:
