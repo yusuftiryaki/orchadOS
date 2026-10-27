@@ -53,7 +53,9 @@ select has_table('public', 'notification', 'notification table exists');
 select hasnt_column('public', 'notification', 'phone', 'no phone number in the queue');
 select enum_has_labels('public', 'notification_channel', array['sms', 'whatsapp'], 'channels');
 select enum_has_labels('public', 'notification_status', array['pending', 'sent', 'failed'], 'statuses');
-select enum_has_labels('public', 'notification_template', array['report_ready', 'critical_finding'], 'templates');
+select enum_has_labels('public', 'notification_template',
+  array['report_ready', 'critical_finding', 'quote_ready', 'application_rejected', 'payment_received',
+        'refund_completed', 'payment_reminder'], 'templates (reports and account messages)');
 select has_trigger('public', 'session', 'session_notify_published', 'report trigger');
 select has_trigger('public', 'finding', 'finding_notify_critical', 'critical finding trigger');
 select ok(not has_table_privilege('authenticated', 'public.notification', 'INSERT')
