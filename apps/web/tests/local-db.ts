@@ -68,6 +68,12 @@ export async function purgeBillingUsers(userIds: string[]) {
   await call("purge_billing_users", { p_user_ids: userIds });
 }
 
+// Clears the sign-up rate limit rows (hashed IPs and phones), so that the
+// sign-up tests can run again within the hour.
+export async function purgeSignupAttempts() {
+  await call("purge_signup_attempts", {});
+}
+
 // Deletes the auth users whose e-mail matches (test accounts of a fixture).
 export async function deleteUsers(match: (email: string) => boolean) {
   const auth = admin().auth.admin;
