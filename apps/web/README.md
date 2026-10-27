@@ -93,14 +93,14 @@ Birim testleri kaynak dosyaların yanında (`*.test.ts`).
 
 ## Roller ve bölümler
 
-Roller veritabanından okunur: işletme rolleri `membership`, parsel rolleri `parcel_access` tablosundan. Eşleme `src/lib/auth/roles.ts` içinde tek tabloda:
+Roller veritabanından okunur: işletme rolleri `membership`, parsel rolleri `parcel_access` tablosundan; müşteri bayrağı (`UserRoles.customer`) `my_owner_profile()` en az bir satır döndüğünde doğrudur. Eşleme `src/lib/auth/roles.ts` içinde tek tabloda:
 
-| Bölüm        | Kimler girer                                      | Kaynak          |
-| ------------ | ------------------------------------------------- | --------------- |
-| `/portal`    | sahip (`owner`), izleyici (`viewer`)              | `parcel_access` |
-| `/uzman`     | uzman (`expert`)                                  | `membership`    |
-| `/ofis`      | saha personeli (`field_staff`), operasyon (`ops`) | `membership`    |
-| `/operasyon` | operasyon (`ops`)                                 | `membership`    |
+| Bölüm        | Kimler girer                                      | Kaynak                                |
+| ------------ | ------------------------------------------------- | ------------------------------------- |
+| `/portal`    | sahip (`owner`), izleyici (`viewer`), müşteri     | `parcel_access`, `my_owner_profile()` |
+| `/uzman`     | uzman (`expert`)                                  | `membership`                          |
+| `/ofis`      | saha personeli (`field_staff`), operasyon (`ops`) | `membership`                          |
+| `/operasyon` | operasyon (`ops`)                                 | `membership`                          |
 
 - Yetkisi olmayan bölüme giren kullanıcı **403** sayfası görür (`forbidden()`); kontrol hem bölüm düzeninde (layout) hem her sayfada yapılır.
 - Birden çok rolü olan kullanıcı üst menüden bölümler arasında geçer. Girişten sonra yukarıdaki sıradaki ilk erişilebilir bölüme yönlendirilir.
@@ -127,6 +127,28 @@ docker exec supabase_db_orchados psql -U postgres -c \
   "select created_at, recipient, body from private.message_outbox order by created_at desc limit 5"
 ```
 
+## Site ve kayıt
+
+Herkese açık site `src/app/(site)/` altındadır (ortak başlık ve altbilgi: `src/components/site/`). Oturumu olmayan ziyaretçi yalnızca bu yolları açabilir (`src/lib/site/public-paths.ts`, `isPublicPath`); diğer her yol `/giris?next=…`'e gider.
+
+| Yol                                                                                 | Ne                                                                                                                                                                                                                            |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                                                                 | Oturum yoksa tanıtım sayfası; varsa kullanıcının bölümü. Bölümü olmayan kullanıcıda `customer-signup` `complete` çağrılır: `completed` → `/portal`, `phone_not_verified` → doğrulama kartı, diğerleri → "rol atanmamış" kartı |
+| `/nasil-calisir`, `/paketler`, `/sss`, `/iletisim`                                  | Ürün sayfaları. Paketler `loadPublicPackages` ile okunur (İP12-D bağlar); liste boşsa "Fiyatlar teklif ile belirlenir"                                                                                                        |
+| `/kvkk`, `/acik-riza`, `/gizlilik`, `/mesafeli-satis`, `/on-bilgilendirme`, `/iade` | Hukuk metinleri (`src/lib/i18n/messages/legal.ts`, kaynağı `docs/hukuk/`). Sürümler `src/lib/legal/versions.ts`; `-taslak` ile biten sürümde üstte bant                                                                       |
+| `/kayit`                                                                            | Kayıt formu (bayrak kapalıysa "Kayıt yakında"); oturum varsa `/`'a gider                                                                                                                                                      |
+| `/kayit/dogrula`                                                                    | Telefonu doğrulanmamış, oturumu açık self-servis hesap için SMS kodu                                                                                                                                                          |
+| `/robots.txt`, `/sitemap.xml`                                                       | `ORCHADOS_SITE_INDEXABLE=1` olmadıkça her şey `Disallow`, site haritası boş                                                                                                                                                   |
+
+**Kayıt akışı** (`src/app/(site)/kayit/actions.ts`, tasarım: `docs/musteri-yonetimi.md` §7):
+
+1. Form sunucuda `parseSignupForm` ile denetlenir (`src/lib/signup/validation.ts`): ad soyad 2–120 karakter, yalnızca Türkiye cep telefonu (`+905…`), e-posta, en az 8 karakterli ve tekrarı tutan parola, iletişim tercihi (WhatsApp / SMS), zorunlu aydınlatma onayı, isteğe bağlı ve işaretsiz iki açık rıza (hizmetin geliştirilmesi, tanıtım). Yapay zekâ aktarımı için rıza kutusu yoktur (tasarım §2).
+2. `registerCustomer` (`src/lib/signup/client.ts`) `customer-signup` fonksiyonunu `x-orchados-proxy-secret` başlığı ve ziyaretçinin IP'siyle çağırır. 404 ve 5xx "kayıt hizmetine ulaşılamıyor" olarak gösterilir.
+3. `phone_login_allowed`, ardından `signInWithOtp` (`shouldCreateUser: false`) ile SMS kodu gider; 60 saniyede bir yeniden gönderilebilir.
+4. `verifyOtp` (hatada `phone_login_record_failure`), sonra `completeSignup`: `completed` → `/portal`, diğerleri → `/`.
+
+Form değerleri, telefon ve kod loglanmaz, adrese yazılmaz. Turnstile, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` varsa formda görünür; jetonu fonksiyon doğrular. Bayrak kapalıyken davranış birim testleriyle (`renderToStaticMarkup`) denetlenir: başlıkta ve giriş sayfasında kayıt bağlantısı yoktur, `/kayit` "Kayıt yakında" kartıdır. Tarayıcı testleri (`tests/e2e/site-pages.spec.ts`) bayrak açıkken çalışır ve `customer-signup` fonksiyonuna ihtiyaç duymaz.
+
 ## Harita
 
 MapLibre GL. Parsel detayında son sürüm sınır, yerler ve ağaçlar çizilir; ağaçlar son değerlendirmenin genel sınıfına göre renklenir. Örnek veride değerlendirme olmadığı için bütün ağaçlar tek renktir ("Değerlendirilmedi"), boş yerler içi boş daire. Ağaca tıklayınca sağda kod ve özellikler görünür.
@@ -137,16 +159,23 @@ MapLibre GL. Parsel detayında son sürüm sınır, yerler ve ağaçlar çizilir
 
 `.env.example` dosyasını `.env.local` olarak kopyala. Gerçek anahtar repoya girmez.
 
-| Değişken                          | Açıklama                                                                                  |
-| --------------------------------- | ----------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`        | Supabase API adresi (yerelde `http://127.0.0.1:54321`)                                    |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`   | Anon (publishable) anahtar; tarayıcıya açıktır, her sorgu satır bazlı yetkiyle sınırlıdır |
-| `NEXT_PUBLIC_MAP_STYLE_URL`       | İsteğe bağlı MapLibre stil adresi; boşsa OSM raster                                       |
-| `SUPABASE_SERVICE_ROLE_KEY`       | Sadece entegrasyon testleri; uygulama okumaz. Boşsa `supabase status`'tan alınır          |
-| `LOCAL_PANORAMA_DIR`              | Ofis aracı, sadece geliştirme: depoya ek olarak işleme hattı çıktılarının klasörü         |
-| `LOCAL_PANORAMA_ALLOW_PRODUCTION` | `1` ise üretim derlemesi de yerel klasörü okur; sadece tarayıcı testleri kullanır         |
+| Değişken                          | Açıklama                                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`        | Supabase API adresi (yerelde `http://127.0.0.1:54321`)                                                       |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`   | Anon (publishable) anahtar; tarayıcıya açıktır, her sorgu satır bazlı yetkiyle sınırlıdır                    |
+| `NEXT_PUBLIC_MAP_STYLE_URL`       | İsteğe bağlı MapLibre stil adresi; boşsa OSM raster                                                          |
+| `SUPABASE_SERVICE_ROLE_KEY`       | Sadece entegrasyon testleri; uygulama okumaz. Boşsa `supabase status`'tan alınır                             |
+| `LOCAL_PANORAMA_DIR`              | Ofis aracı, sadece geliştirme: depoya ek olarak işleme hattı çıktılarının klasörü                            |
+| `LOCAL_PANORAMA_ALLOW_PRODUCTION` | `1` ise üretim derlemesi de yerel klasörü okur; sadece tarayıcı testleri kullanır                            |
+| `ORCHADOS_SIGNUP_ENABLED`         | `1` ise `/kayit` ve kayıt bağlantıları görünür, `/` yarım kalan kaydı tamamlar. Varsayılan kapalı            |
+| `ORCHADOS_PAYMENTS_ENABLED`       | `1` ise portalda kartla ödeme sunulur (İP12-D). Varsayılan kapalı                                            |
+| `PAYMENT_FAKE_CHECKOUT`           | `1` ise sahte ödeme sayfası kullanılır. Yalnızca yerel, CI ve test projesi; pilotta asla                     |
+| `ORCHADOS_SITE_INDEXABLE`         | `1` ise `robots.txt` dizinlemeye izin verir, site haritası dolar. Yalnızca canlı alan adında                 |
+| `ORCHADOS_SITE_URL`               | Sitenin herkese açık adresi (`robots.txt` ve site haritası için), ör. `https://orchados.com.tr`              |
+| `SIGNUP_PROXY_SECRET`             | `customer-signup` fonksiyonuyla ortak sır; yalnızca sunucu, asla `NEXT_PUBLIC`. Yerelde `signup-proxy-local` |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY`  | Cloudflare Turnstile site anahtarı. Boşsa robot doğrulaması gösterilmez (yerel, CI); pilotta zorunlu         |
 
-`NEXT_PUBLIC_*` değerleri derleme sırasında koda gömülür; ortam değişince yeniden derlemek gerekir.
+`NEXT_PUBLIC_*` değerleri derleme sırasında koda gömülür; ortam değişince yeniden derlemek gerekir. Site bayrakları (`ORCHADOS_*`) ve Turnstile anahtarı sunucuda her istekte okunur (`src/lib/flags.ts`).
 
 ## Stil
 
@@ -154,7 +183,7 @@ CSS Modules + `src/app/globals.css` içinde CSS değişkenleri (renk, boşluk, k
 
 ## Metinler
 
-Bütün arayüz metinleri `src/lib/i18n/tr.ts` içinde; bileşenler `t` üzerinden okur. Başka bir dil, aynı yapıda (`Messages` tipi) ikinci bir dosya ve `src/lib/i18n/index.ts` içinde dil seçimi demek. Bir birim testi, veritabanındaki her enum değerinin (parsel durumu, cinsiyet, aşı, sağlık sınıfı…) Türkçe karşılığı olduğunu denetler.
+Bütün arayüz metinleri `src/lib/i18n/tr.ts` içinde; bileşenler `t` üzerinden okur. İP12'den itibaren yeni alanların metinleri `src/lib/i18n/messages/<alan>.ts` dosyalarında: site ve kayıt `site.ts` (`siteText`), hukuk metinleri `legal.ts`. Başka bir dil, aynı yapıda (`Messages` tipi) ikinci bir dosya ve `src/lib/i18n/index.ts` içinde dil seçimi demek. Bir birim testi, veritabanındaki her enum değerinin (parsel durumu, cinsiyet, aşı, sağlık sınıfı…) Türkçe karşılığı olduğunu denetler.
 
 ## Sahip portalı (İP8)
 

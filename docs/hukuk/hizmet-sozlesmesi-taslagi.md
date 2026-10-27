@@ -2,11 +2,15 @@
 
 > **Taslak:** Avukat incelemesi için. Hukuki görüş değildir. Köşeli parantezler doldurulacak. Pilot dönemi için yazıldı.
 
+**Sürüm:** mesafeli-v1-taslak · [Tarih]
+
+Bu sözleşme iki yolla kurulur: kâğıt üzerinde imzayla ya da portalda, teklifin elektronik ortamda onaylanmasıyla (mesafeli hizmet sözleşmesi, 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği). Portalda kurulduğunda Sahip, onaydan önce [Ön Bilgilendirme Formu](on-bilgilendirme-formu-taslagi.md)'nu okuduğunu ayrıca onaylar. Sitede "Mesafeli hizmet sözleşmesi" adıyla bu metin yayımlanır; ayrı bir sözleşme dosyası yoktur.
+
 ## Madde 1 – Taraflar
 
 **Hizmet veren:** OBA Bilişim Teknolojileri LTD. [tam unvan: ticaret sicilindeki gibi], [adres], [vergi dairesi/no], [KEP] ("Şirket")
 
-**Hizmet alan:** [Ad soyad], [T.C. kimlik no], [adres], [telefon] ("Sahip")
+**Hizmet alan:** [Ad soyad], [T.C. kimlik no: yalnızca ödeme kuruluşu isterse], [adres], [telefon], [e-posta] ("Sahip"). Portalda kurulan sözleşmede bu bilgiler Sahip'in hesabından ve fatura profilinden alınır.
 
 ## Madde 2 – Konu
 
@@ -60,10 +64,32 @@ Bu ibare her raporda yer alır.
 
 ## Madde 8 – Ücret ve ödeme
 
-1. **Yıllık hizmet bedeli:** [Tutar] TL + KDV. Envanter dahil / hariç: [ ].
-2. **Ödeme:** [Peşin / ziyaret başına / taksit]. Fatura [ ] tarihinde düzenlenir.
-3. **Pilot dönemi:** [Ücretsiz / indirimli; süresi ve şartları].
-4. **Hava ve erişim:** Bu nedenlerle yapılamayan bir ziyaret aynı pencere içinde yeniden planlanır. Pencere içinde yapılamazsa bedel [iade edilir / sonraki döneme aktarılır].
+1. **Yıllık hizmet bedeli:** Teklifte yazan tutardır. Yıllık ziyaret sayısı, doğrulanan alan (dönüm) ve paketin dönüm ve ziyaret başı birim fiyatının çarpımıdır; bahçe başına en az ücret ve ilk yıl bir kez envanter ücreti eklenir. KDV ayrıca gösterilir. Teklif, geçerlilik süresi içinde değişmez.
+2. **Ödeme:** Teklif onaylandıktan sonra peşin ve tek çekimdir: kartla (3D Secure, [ödeme kuruluşu: iyzico] üzerinden) ya da havale/EFT ile. Kart bilgileri Şirket'e ulaşmaz. Ödeme sipariş ödeme süresi içinde yapılmazsa sipariş kendiliğinden düşer.
+3. **Belge:** Her ödeme için portalda bir makbuz verilir. Makbuz fatura değildir; fatura [ ] düzenlenir [avukat ve mali müşavir: e-Arşiv zorunluluğu].
+4. **Pilot dönemi:** [Ücretsiz / indirimli; süresi ve şartları].
+5. **Hizmetin başlaması:** Hizmet yılı ödemenin tamamlandığı gün başlar ve bir yıl sürer.
+
+## Madde 8A – Yapılamayan ziyaretler
+
+1. Hava, erişim ya da Şirket'ten kaynaklanan bir nedenle yapılamayan ziyaret, aynı ziyaret penceresi içinde yeniden planlanır.
+2. Pencere içinde yapılamazsa, o ziyaretin bedeli Sahip'e iade edilir. Ziyaret bedeli, yıllık bedelin (envanter ücreti hariç) paketteki yıllık ziyaret sayısına bölünmesiyle bulunur. İade, ödemenin yapıldığı yöntemle ve pencerenin bitiminden sonra en geç [14] gün içinde yapılır. Sahip isterse iade yerine ziyaret bir sonraki pencereye aktarılır.
+3. Sahip'ten kaynaklanan nedenlerle (erişim sağlanmaması, sınırı gösterecek kişinin bulunmaması) yapılamayan ziyaret için iade yapılmaz [avukat: tüketici aleyhine olup olmadığı].
+4. Mücbir sebep halinde Madde 13 uygulanır.
+
+## Madde 8B – Cayma hakkı
+
+1. Sözleşme portalda kurulmuşsa Sahip, sözleşmenin kurulduğu günden (ödemenin tamamlandığı gün) itibaren **14 gün** içinde hiçbir gerekçe göstermeden ve cezai şart ödemeden cayabilir.
+2. Cayma bildirimi portaldan, [e-posta] adresine ya da [KEP] adresine yazılı olarak yapılır. Süre içinde gönderilen bildirim yeterlidir.
+3. Şirket, cayma bildiriminin kendisine ulaştığı günden itibaren en geç **14 gün** içinde tahsil ettiği tutarın tamamını, ödemenin yapıldığı yöntemle ve Sahip'e bir masraf yüklemeden iade eder.
+4. **Hizmete cayma süresi içinde başlanması:** Sahip, envanter ziyaretinin cayma süresi dolmadan yapılmasını açıkça isterse ve ziyaret yapılırsa, cayma halinde yapılan hizmetin bedeli [orantılı olarak] düşülür [avukat: Mesafeli Sözleşmeler Yönetmeliği md. 15/1-ğ ve orantılı bedel; tüketicinin ön onayının biçimi].
+5. Sahip tüketici değilse (tacir ya da şirket) bu madde uygulanmaz [avukat: tarım işletmesi sahibinin tüketici sayılıp sayılmayacağı].
+
+## Madde 8C – Ödeme sonrası iptal ve iade
+
+1. Ödemeden önce Sahip siparişi portaldan iptal edebilir; bir bedel doğmaz.
+2. Cayma süresinden sonra yapılan fesihte Madde 12/2 uygulanır.
+3. İade yöntemi ve süreleri [İptal ve İade Politikası](iptal-iade-politikasi-taslagi.md)'nda yazılıdır.
 
 ## Madde 9 – Kişisel veriler ve gizlilik
 
@@ -89,9 +115,13 @@ Bu ibare her raporda yer alır.
 
 ## Madde 12 – Süre ve fesih
 
-1. Sözleşme imza tarihinden itibaren [1] yıl süreyle geçerlidir. Taraflardan biri süre bitiminden [30] gün önce bildirmezse aynı şartlarla [1] yıl uzar.
-2. Taraflardan her biri [30] gün önceden yazılı bildirimle sözleşmeyi feshedebilir. Kullanılmayan ziyaretlerin bedeli [ ] esasına göre iade edilir.
-3. **Sözleşme sona erdiğinde:**
+1. Sözleşme kurulduğu tarihten (portalda: ödemenin tamamlandığı günden) itibaren [1] yıl süreyle geçerlidir.
+2. **Yenileme:** Hizmet yılı bitmeden en az [45] gün önce Şirket, Sahip'e portalda yenileme teklifi gönderir. Yeni dönemin fiyatı o gün yayımlı fiyat listesine göre hesaplanır.
+    - Sözleşme **kendiliğinden uzamaz ve kart otomatik olarak çekilmez.** Sahip yenileme teklifini onaylayıp ödediğinde yeni hizmet yılı, önceki yılın bitişinin ertesi günü başlar.
+    - Sahip yenileme teklifini onaylamazsa hizmet yılın sonunda biter ve 3. fıkra uygulanır.
+    - [Avukat: kâğıt sözleşmedeki "bildirim yoksa aynı şartlarla uzar" hükmü korunacak mı; portal sözleşmesiyle uyumu.]
+3. Taraflardan her biri [30] gün önceden yazılı bildirimle sözleşmeyi feshedebilir. Kullanılmayan ziyaretlerin bedeli, Madde 8A/2'deki ziyaret bedeli esasına göre iade edilir; yapılmış envanterin ücreti iade edilmez.
+4. **Sözleşme sona erdiğinde:**
     - Sahip, [90] gün boyunca portaldan raporlarını indirebilir.
     - Sonrasında veriler, Aydınlatma Metni'ndeki sürelere göre silinir ya da anonim hale getirilir.
 
@@ -105,11 +135,11 @@ Taraflar, Madde 1'deki adreslerini tebligat adresi olarak kabul eder. Hizmete il
 
 ## Madde 15 – Uyuşmazlıklar
 
-Bu sözleşmeden doğan uyuşmazlıklarda [Gaziantep] mahkemeleri ve icra daireleri yetkilidir. Tüketici işlemi sayılması halinde tüketici hakem heyetleri ve tüketici mahkemelerine başvuru hakkı saklıdır [avukat: tüketici sayılıp sayılmayacağı].
+Bu sözleşmeden doğan uyuşmazlıklarda [Gaziantep] mahkemeleri ve icra daireleri yetkilidir. Tüketici işlemi sayılması halinde Sahip, Ticaret Bakanlığı'nca her yıl ilan edilen parasal sınırlar içinde yerleşim yerindeki ya da işlemin yapıldığı yerdeki tüketici hakem heyetine, sınırların üzerinde tüketici mahkemesine başvurabilir [avukat: tüketici sayılıp sayılmayacağı].
 
 ## Madde 16 – Yürürlük
 
-Bu sözleşme [16] maddeden ve eklerden oluşur. [Tarih]'te iki nüsha olarak imzalanmıştır.
+Bu sözleşme [16] maddeden ve eklerden oluşur. Kâğıt üzerinde [Tarih]'te iki nüsha olarak imzalanmıştır; portalda kurulduğunda teklifin onaylandığı anda yürürlüğe girer ve metni, onaylanan sürümüyle Sahip'in portalında saklanır.
 
 | Şirket | Sahip |
 | --- | --- |
@@ -120,3 +150,5 @@ Bu sözleşme [16] maddeden ve eklerden oluşur. [Tarih]'te iki nüsha olarak im
 - **Ek-2:** Ziyaret pencereleri. Kış: Aralık–Şubat · İlkbahar: Nisan–Mayıs · Yaz: Haziran–Temmuz · Hasat: Ağustos–Ekim.
 - **Ek-3:** Kişisel verilerin işlenmesine ilişkin aydınlatma metni.
 - **Ek-4:** Açık rıza metni (isteğe bağlı).
+- **Ek-5:** Ön bilgilendirme formu (yalnızca portalda kurulan sözleşmede).
+- **Ek-6:** İptal ve iade politikası.
