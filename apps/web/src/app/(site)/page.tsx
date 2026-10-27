@@ -9,11 +9,14 @@ import { t } from "@/lib/i18n";
 import { siteText } from "@/lib/i18n/messages/site";
 import { completeSignup } from "@/lib/signup/client";
 import { createClient } from "@/lib/supabase/server";
+import type { Client } from "@/lib/supabase/types";
 
 // `/` (docs/musteri-yonetimi.md §9): the landing page when signed out; the
 // user's section when they have one. A self-service sign-up that stopped
 // after the SMS code is finished here; one that never verified its phone is
-// sent to /kayit/dogrula.
+// sent to /kayit/dogrula. Only self-service accounts (app_metadata.signup =
+// "self", set by customer-signup) are asked; any other account without a role
+// sees the no-roles card.
 export default async function HomePage() {
   const user = await getSessionUser();
   if (!user) return <Landing signupEnabled={siteFlags().signupEnabled} />;
@@ -22,8 +25,9 @@ export default async function HomePage() {
   if (section) redirect(`/${section}`);
 
   let phoneNotVerified = false;
-  if (siteFlags().signupEnabled) {
-    const result = await completeSignup(await createClient());
+  const supabase = await createClient();
+  if (siteFlags().signupEnabled && (await isSelfSignup(supabase))) {
+    const result = await completeSignup(supabase);
     if (result.ok && result.status === "completed") redirect("/portal");
     phoneNotVerified = !result.ok && result.error === "phone_not_verified";
   }
@@ -51,6 +55,14 @@ export default async function HomePage() {
         </form>
       </div>
     </div>
+  );
+}
+
+async function isSelfSignup(supabase: Client): Promise<boolean> {
+  const { data } = await supabase.auth.getClaims();
+  const meta: unknown = data?.claims?.app_metadata;
+  return Boolean(
+    meta && typeof meta === "object" && (meta as { signup?: unknown }).signup === "self",
   );
 }
 

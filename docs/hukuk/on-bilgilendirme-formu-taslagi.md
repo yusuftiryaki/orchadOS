@@ -21,7 +21,7 @@
 
 ## 3. Fiyat
 
-- Toplam bedel, vergiler dahil olarak teklifte ve sipariş özetinde gösterilir: dönüm başına yıllık fiyat × doğrulanan alan, bahçe başına en az ücret, ilk yıl envanter ücreti, varsa indirim, KDV.
+- Toplam bedel, vergiler dahil olarak teklifte ve sipariş özetinde gösterilir: yıllık ziyaret sayısı × doğrulanan alan × dönüm ve ziyaret başı birim fiyat, bahçe başına en az ücret, ilk yıl envanter ücreti, varsa indirim, KDV.
 - Teklif, üzerinde yazan son geçerlilik tarihine kadar değişmez.
 - Ek masraf yoktur. [Avukat: havale masrafı Sahip'e mi?]
 

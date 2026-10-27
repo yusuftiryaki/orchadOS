@@ -111,10 +111,10 @@ export const siteText = {
   },
   packages: {
     title: "Paketler ve fiyatlar",
-    lead: "Fiyat dönüm başına ve yıllıktır. Paket, yılda kaç periyodik ziyaret yapılacağını belirler.",
+    lead: "Fiyat dönüm ve ziyaret başınadır. Paket, yılda kaç periyodik ziyaret yapılacağını belirler.",
     modelTitle: "Fiyat nasıl hesaplanır?",
     model: [
-      "Yıllık bedel, doğrulanan alan (dönüm) ile paketin dönüm başı fiyatının çarpımıdır.",
+      "Yıllık bedel: yıllık ziyaret sayısı × doğrulanan alan (dönüm) × paketin dönüm ve ziyaret başı birim fiyatı.",
       "Her bahçe için en az ücret uygulanır.",
       "İlk yıl bir kez envanter ücreti eklenir.",
       "Teklifteki fiyat, teklif geçerli olduğu sürece değişmez.",
@@ -125,6 +125,7 @@ export const siteText = {
     visitsPerYear: (n: number) => `Yılda ${n} periyodik ziyaret`,
     includesInventory: "Envanter dahil",
     perDonum: "dönüm başına, yıllık",
+    perVisit: (unit: string) => `Ziyaret başına, dönüm başı ${unit}`,
     minimumFee: "En az ücret",
     inventoryFee: "Envanter ücreti (ilk yıl)",
     vatNote: (rate: string) => `Fiyatlara %${rate} KDV eklenir.`,
