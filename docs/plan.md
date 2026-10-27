@@ -137,7 +137,7 @@ Bunlar takvimi bekletebilecek, başkasına bağlı işler. İlk iki hafta içind
 
 Sıra, ilk kesilecekten sona doğru:
 
-1. **Portalda PDF rapor:** Kış raporu portaldan gösterilir, PDF ilkbahara kalır (~1 gün).
+1. ~~**Portalda PDF rapor**~~ (yapıldı, PR #44): karne ve envanter raporu sunucuda PDF.
 2. **Gezide ağaç işaretçileri:** Panoramalar işaretçisiz gezilir, ağaç karnesine haritadan gidilir (~2 gün).
 3. **Telefon doğrulamasıyla giriş:** Pilot sahiplere kişiye özel link gönderilir (~1 gün).
 4. **Saha uygulamasında kapsama haritası:** Kapsama ofiste işleme sonrası kontrol edilir (~1,5 gün).
