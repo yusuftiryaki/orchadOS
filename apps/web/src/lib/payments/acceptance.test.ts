@@ -136,6 +136,11 @@ describe("evaluateRetrieve", () => {
     expect(r).toMatchObject({ outcome: "not_completed", failureCode: "iyzico_5115" });
   });
 
+  it("a success without paymentStatus is not a finished form", () => {
+    const r = evaluateRetrieve({ status: "success" }, expected, false);
+    expect(r).toMatchObject({ outcome: "not_completed", failureCode: "payment_status_missing" });
+  });
+
   it("drops a malformed card number tail", () => {
     expect(
       evaluateRetrieve({ ...success, lastFourDigits: "55287900" }, expected, true).card?.last4,
