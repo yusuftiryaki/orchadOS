@@ -35,6 +35,7 @@ from typing import Any, Protocol
 
 from .gpstime import gps_ns_to_iso
 from .hashing import sha256_file
+from .ingest import CAMERA_HEIGHT_UNSET
 from .media import MediaStore, media_key, media_uri
 from .models import (
     ClockModel,
@@ -100,6 +101,9 @@ class SessionRow:
     status: str
     started_at: str | None = None
     rig_id: str | None = None
+    # Recorded by the crew at the pre-check (field app sync).
+    scan_platform: str | None = None
+    camera_height_m: float | None = None
 
 
 class Catalog(Protocol):
@@ -135,6 +139,10 @@ class Catalog(Protocol):
 
     def mark_processed(self, session_id: str, from_statuses: Iterable[str]) -> str:
         """Set status to 'processed' if it is one of from_statuses; return the status after."""
+        ...
+
+    def record_scan_setup(self, session_id: str, values: dict[str, Any]) -> None:
+        """Fill scan_platform / camera_height_m of the session."""
         ...
 
     def record_coverage(self, session_id: str, report: dict[str, Any]) -> dict[str, Any]:
@@ -397,6 +405,7 @@ def upload_run(
     session_dir = options.session_dir or default_session_dir(run.run_dir)
     if session_dir is None:
         raise UploadError("cannot infer the session folder from the run folder; give --session-dir")
+    scan_setup = _scan_setup(run.manifest, session, report.warnings)
 
     wanted = {UPLOAD_KINDS[k] for k in options.kinds}
     selected: list[AssetEntry] = []
@@ -591,8 +600,39 @@ def upload_run(
             if payload["items"]:
                 report.presence = catalog.record_presence(session.id, payload)
 
+    if scan_setup:
+        catalog.record_scan_setup(session.id, scan_setup)
     report.status_after = catalog.mark_processed(session.id, STATUS_BEFORE_PROCESSED)
     return report
+
+
+# The crew measures the camera height to the centimetre; more than this between
+# the visit's record and the run means the crops were projected wrongly.
+CAMERA_HEIGHT_TOLERANCE_M = 0.05
+
+
+def _scan_setup(manifest: Manifest, session: SessionRow, warnings: list[str]) -> dict[str, Any]:
+    """Check the run's camera height and platform against the visit's record; return
+    the values to fill where the visit has none."""
+    info = manifest.session
+    height_set = CAMERA_HEIGHT_UNSET not in manifest.warnings
+    if session.camera_height_m is not None:
+        if abs(info.camera_height_m - session.camera_height_m) > CAMERA_HEIGHT_TOLERANCE_M:
+            raise UploadError(
+                f"the visit's recorded camera height is {session.camera_height_m} m, the run used "
+                f"{info.camera_height_m} m; set camera_height_m in session.json and process again"
+            )
+    if session.scan_platform and info.scan_platform and session.scan_platform != info.scan_platform:
+        warnings.append(
+            f"scan platform: the visit says {session.scan_platform}, "
+            f"session.json says {info.scan_platform}; the visit's value is kept"
+        )
+    values: dict[str, Any] = {}
+    if session.camera_height_m is None and height_set:
+        values["camera_height_m"] = round(info.camera_height_m, 2)
+    if session.scan_platform is None and info.scan_platform:
+        values["scan_platform"] = info.scan_platform
+    return values
 
 
 def _is_slot(a: AssetEntry) -> bool:
@@ -745,7 +785,11 @@ class SupabaseCatalog:
     def session(self, session_id: str) -> SessionRow:
         rows = self.client.select(
             "session",
-            {"id": f"eq.{session_id}", "select": "id,org_id,parcel_id,status,started_at,rig_id"},
+            {
+                "id": f"eq.{session_id}",
+                "select": "id,org_id,parcel_id,status,started_at,rig_id,"
+                "scan_platform,camera_height_m",
+            },
         )
         if not rows:
             raise UploadError(f"session {session_id} not found or not visible to this user")
@@ -815,6 +859,9 @@ class SupabaseCatalog:
             {"status": "processed"},
         )
         return self.session(session_id).status
+
+    def record_scan_setup(self, session_id: str, values: dict[str, Any]) -> None:
+        self.client.update("session", {"id": f"eq.{session_id}"}, values)
 
     def record_coverage(self, session_id: str, report: dict[str, Any]) -> dict[str, Any]:
         return self.client.rpc(

@@ -342,6 +342,15 @@ export const tr = {
       methodology: (version: string) => `Metodoloji: ${version}`,
       previous: (date: string) => `Önceki yayımlanmış ziyaret: ${date}`,
       noPrevious: "Önceki yayımlanmış ziyaret yok",
+      scanPlatforms: {
+        walk: "Yürüyerek (sırt direği)",
+        motorcycle: "Motosikletle",
+        robot: "Robotla",
+      },
+      cameraHeight: (m: string) => `Kamera ${m} m`,
+      scanSetupUnknown: "Tarama yöntemi kaydedilmemiş",
+      scanSetupChanged: (previous: string) =>
+        `Önceki ziyaret başka bir yöntem ya da kamera yüksekliğiyle çekildi (${previous}). Kesitleri karşılaştırırken açı ve görünen taç farkını hesaba katın.`,
       progress: (done: number, total: number) => `${total} ağaçtan ${done} tanesi incelendi`,
       summaryLink: "Özet ve imza",
       published: (date: string) =>

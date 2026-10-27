@@ -9,6 +9,7 @@ import '../gnss/gnss_panel.dart';
 import '../gnss/protocol/gnss_status.dart';
 import '../session/session_controller.dart';
 import '../session/session_screen.dart';
+import 'scan_setup.dart';
 
 /// Result of the pre-scan checklist.
 class PrecheckResult {
@@ -18,6 +19,8 @@ class PrecheckResult {
     required this.lensClean,
     required this.cameraRecording,
     required this.spraying,
+    required this.platform,
+    required this.cameraHeightM,
   });
 
   final bool connected;
@@ -28,6 +31,10 @@ class PrecheckResult {
   /// Null until the crew answers. There is no "not passed" answer: then the
   /// crew must not enter the orchard.
   final SprayingCheck? spraying;
+
+  /// Null until chosen / until a valid height (0.50–3.50 m) is typed.
+  final ScanPlatform? platform;
+  final double? cameraHeightM;
 
   bool get batteryOk => status != null && batteryHealth(status!) == Health.ok;
   bool get sdOk => status != null && status!.sdReady;
@@ -41,14 +48,19 @@ class PrecheckResult {
       gnssOk &&
       lensClean &&
       cameraRecording &&
-      spraying != null;
+      spraying != null &&
+      platform != null &&
+      cameraHeightM != null;
 }
 
 /// Mandatory checklist before a scan (docs/MVP.md, Modül 3, "Ön kontrol").
 /// Battery, SD card and GNSS come from the logger over BLE; lens and camera
 /// are confirmed by the crew, and so is spraying: the crew states there was
-/// none, or that the label's waiting period has passed. Only the spraying
-/// answer is recorded (on `session_start`); the others only gate the start.
+/// none, or that the label's waiting period has passed. The crew also picks
+/// the scan platform and types the measured camera height, prefilled from
+/// the parcel's last scan on this phone. Spraying, platform and height are
+/// recorded (on `session_start` and the session); the others only gate the
+/// start.
 class PrecheckScreen extends ConsumerStatefulWidget {
   const PrecheckScreen({super.key});
 
@@ -60,6 +72,38 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
   bool _lensClean = false;
   bool _cameraRecording = false;
   SprayingCheck? _spraying;
+  ScanPlatform? _platform;
+  final _height = TextEditingController();
+
+  /// The parcel's last scan on this phone, if it recorded its setup.
+  ScanSetup? _previous;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrevious();
+  }
+
+  @override
+  void dispose() {
+    _height.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPrevious() async {
+    final parcelId = ref.read(sessionControllerProvider).task?.parcelId;
+    if (parcelId == null) return;
+    final row = await ref.read(fieldRepositoryProvider).lastScanSetup(parcelId);
+    final platform = ScanPlatform.fromCode(row?.scanPlatform);
+    final height = row?.cameraHeightM;
+    if (!mounted || platform == null || height == null) return;
+    setState(() {
+      _previous = ScanSetup(platform: platform, cameraHeightM: height);
+      // Prefill only what the crew has not filled in yet.
+      _platform ??= platform;
+      if (_height.text.isEmpty) _height.text = formatMetres(height);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +116,8 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
       lensClean: _lensClean,
       cameraRecording: _cameraRecording,
       spraying: _spraying,
+      platform: _platform,
+      cameraHeightM: parseCameraHeight(_height.text),
     );
     return Scaffold(
       appBar: AppBar(title: Text(task?.parcelName ?? 'Ön kontrol')),
@@ -123,6 +169,19 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
             value: _spraying,
             onChanged: (v) => setState(() => _spraying = v),
           ),
+          _ScanSetupItem(
+            platform: _platform,
+            onPlatform: (v) => setState(() => _platform = v),
+            height: _height,
+            onHeight: () => setState(() {}),
+            previous: _previous,
+            current: result.platform == null || result.cameraHeightM == null
+                ? null
+                : ScanSetup(
+                    platform: result.platform!,
+                    cameraHeightM: result.cameraHeightM!,
+                  ),
+          ),
           const SizedBox(height: 8),
           const Text(
             'Şafakta, gün batımında, yağmurda ve yoğun tozda tarama yapılmaz.',
@@ -137,7 +196,11 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
                 ? () {
                     ref
                         .read(sessionControllerProvider.notifier)
-                        .confirmPrecheck(spraying: result.spraying!);
+                        .confirmPrecheck(
+                          spraying: result.spraying!,
+                          platform: result.platform!,
+                          cameraHeightM: result.cameraHeightM!,
+                        );
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute<void>(
                         builder: (_) => const SessionScreen(),
@@ -251,4 +314,118 @@ class _SprayingItem extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Scan platform and measured camera height. Both required; a setup that
+/// differs from the parcel's last scan is warned about, not blocked.
+class _ScanSetupItem extends StatelessWidget {
+  const _ScanSetupItem({
+    required this.platform,
+    required this.onPlatform,
+    required this.height,
+    required this.onHeight,
+    required this.previous,
+    required this.current,
+  });
+
+  final ScanPlatform? platform;
+  final ValueChanged<ScanPlatform?> onPlatform;
+  final TextEditingController height;
+  final VoidCallback onHeight;
+  final ScanSetup? previous;
+
+  /// Null until both are valid.
+  final ScanSetup? current;
+
+  @override
+  Widget build(BuildContext context) {
+    final typed = height.text.trim();
+    final invalid = typed.isNotEmpty && parseCameraHeight(typed) == null;
+    final differences = previous == null || current == null
+        ? const <String>[]
+        : current!.differencesFrom(previous!);
+    return Card(
+      key: const Key('check-scan-setup'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ListTile(
+              leading: Icon(Icons.height, size: 36),
+              title: Text(
+                'Tarama şekli ve kamera yüksekliği',
+                style: TextStyle(fontSize: 20),
+              ),
+            ),
+            if (previous != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  'Bu parselde son tarama: ${previous!.label} — aynı '
+                  'yükseklik karşılaştırmayı kolaylaştırır',
+                  key: const Key('scan-setup-previous'),
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+            for (final option in ScanPlatform.values)
+              CheckboxListTile(
+                key: Key('check-platform-${option.code}'),
+                minTileHeight: 60,
+                title: Text(option.label, style: const TextStyle(fontSize: 18)),
+                value: platform == option,
+                onChanged: (v) => onPlatform(v == true ? option : null),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: TextField(
+                key: const Key('check-camera-height'),
+                controller: height,
+                onChanged: (_) => onHeight(),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                style: const TextStyle(fontSize: 20),
+                decoration: InputDecoration(
+                  labelText: 'Kamera yüksekliği',
+                  suffixText: 'm',
+                  helperText:
+                      'Merceğin yerden yüksekliğini metreyle ölçüp yazın',
+                  helperMaxLines: 2,
+                  errorText: invalid
+                      ? '${formatMetres(minCameraHeightM)} ile '
+                            '${formatMetres(maxCameraHeightM)} m arasında '
+                            'bir sayı yazın'
+                      : null,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ),
+            if (differences.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Row(
+                  key: const Key('scan-setup-warning'),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.warning_amber,
+                      color: StatusLine.colorFor(Health.warn),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${differences.join('. ')}. Karşılaştırma zorlaşır; '
+                        'ölçümü kontrol edin.',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

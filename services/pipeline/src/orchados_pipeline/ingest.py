@@ -112,6 +112,22 @@ def _logger_warnings(logger: LoggerSession) -> list[str]:
     return warnings
 
 
+# Valid range of public.session.camera_height_m.
+CAMERA_HEIGHT_RANGE_M = (0.5, 3.5)
+CAMERA_HEIGHT_UNSET = f"{SESSION_JSON}: camera_height_m not set, default 2.0 m used"
+
+
+def _camera_warnings(session: SessionInfo) -> list[str]:
+    if "camera_height_m" not in session.model_fields_set:
+        return [CAMERA_HEIGHT_UNSET]
+    lo, hi = CAMERA_HEIGHT_RANGE_M
+    if not lo <= session.camera_height_m <= hi:
+        return [
+            f"{SESSION_JSON}: camera_height_m {session.camera_height_m} m is outside {lo}-{hi} m"
+        ]
+    return []
+
+
 def _scan_ubx(path: Path) -> ScanStats:
     stats = ScanStats()
     for _ in iter_frames(path.read_bytes(), stats):
@@ -127,8 +143,8 @@ def build_manifest(ctx: RunContext) -> Manifest:
         raise IngestError(root, ["session folder does not exist"])
 
     session = _load_json_model(root, SESSION_JSON, SessionInfo, problems)
-    if session is not None and "camera_height_m" not in session.model_fields_set:
-        warnings.append(f"{SESSION_JSON}: camera_height_m not set, default 2.0 m used")
+    if session is not None:
+        warnings += _camera_warnings(session)
     logger = _load_json_model(root, LOGGER_SESSION_PATH, LoggerSession, problems)
     if session is not None and logger is not None:
         problems += _session_conflicts(session, logger)

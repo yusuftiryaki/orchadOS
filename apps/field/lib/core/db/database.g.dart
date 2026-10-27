@@ -177,6 +177,28 @@ class $SessionsTable extends Sessions
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _scanPlatformMeta = const VerificationMeta(
+    'scanPlatform',
+  );
+  @override
+  late final GeneratedColumn<String> scanPlatform = GeneratedColumn<String>(
+    'scan_platform',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cameraHeightMMeta = const VerificationMeta(
+    'cameraHeightM',
+  );
+  @override
+  late final GeneratedColumn<double> cameraHeightM = GeneratedColumn<double>(
+    'camera_height_m',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -195,6 +217,8 @@ class $SessionsTable extends Sessions
     stoppedAt,
     stopGpsTimeMs,
     status,
+    scanPlatform,
+    cameraHeightM,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -332,6 +356,24 @@ class $SessionsTable extends Sessions
     } else if (isInserting) {
       context.missing(_statusMeta);
     }
+    if (data.containsKey('scan_platform')) {
+      context.handle(
+        _scanPlatformMeta,
+        scanPlatform.isAcceptableOrUnknown(
+          data['scan_platform']!,
+          _scanPlatformMeta,
+        ),
+      );
+    }
+    if (data.containsKey('camera_height_m')) {
+      context.handle(
+        _cameraHeightMMeta,
+        cameraHeightM.isAcceptableOrUnknown(
+          data['camera_height_m']!,
+          _cameraHeightMMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -405,6 +447,14 @@ class $SessionsTable extends Sessions
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
+      scanPlatform: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scan_platform'],
+      ),
+      cameraHeightM: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}camera_height_m'],
+      ),
     );
   }
 
@@ -442,6 +492,15 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
 
   /// `recording`, `stopped` or `closed` (visit summary confirmed).
   final String status;
+
+  /// How the scan was done (schema 6): `walk` (backpack pole),
+  /// `motorcycle` or `robot`; `public.session.scan_platform`. Null on
+  /// verification tours and on rows from before schema 6.
+  final String? scanPlatform;
+
+  /// Measured camera height, lens to ground, in metres (0.50–3.50,
+  /// two decimals); `public.session.camera_height_m`.
+  final double? cameraHeightM;
   const SessionRow({
     required this.id,
     required this.parcelId,
@@ -459,6 +518,8 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
     this.stoppedAt,
     this.stopGpsTimeMs,
     required this.status,
+    this.scanPlatform,
+    this.cameraHeightM,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -495,6 +556,12 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
       map['stop_gps_time_ms'] = Variable<int>(stopGpsTimeMs);
     }
     map['status'] = Variable<String>(status);
+    if (!nullToAbsent || scanPlatform != null) {
+      map['scan_platform'] = Variable<String>(scanPlatform);
+    }
+    if (!nullToAbsent || cameraHeightM != null) {
+      map['camera_height_m'] = Variable<double>(cameraHeightM);
+    }
     return map;
   }
 
@@ -532,6 +599,12 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
           ? const Value.absent()
           : Value(stopGpsTimeMs),
       status: Value(status),
+      scanPlatform: scanPlatform == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scanPlatform),
+      cameraHeightM: cameraHeightM == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cameraHeightM),
     );
   }
 
@@ -559,6 +632,8 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
       stoppedAt: serializer.fromJson<DateTime?>(json['stoppedAt']),
       stopGpsTimeMs: serializer.fromJson<int?>(json['stopGpsTimeMs']),
       status: serializer.fromJson<String>(json['status']),
+      scanPlatform: serializer.fromJson<String?>(json['scanPlatform']),
+      cameraHeightM: serializer.fromJson<double?>(json['cameraHeightM']),
     );
   }
   @override
@@ -581,6 +656,8 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
       'stoppedAt': serializer.toJson<DateTime?>(stoppedAt),
       'stopGpsTimeMs': serializer.toJson<int?>(stopGpsTimeMs),
       'status': serializer.toJson<String>(status),
+      'scanPlatform': serializer.toJson<String?>(scanPlatform),
+      'cameraHeightM': serializer.toJson<double?>(cameraHeightM),
     };
   }
 
@@ -601,6 +678,8 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
     Value<DateTime?> stoppedAt = const Value.absent(),
     Value<int?> stopGpsTimeMs = const Value.absent(),
     String? status,
+    Value<String?> scanPlatform = const Value.absent(),
+    Value<double?> cameraHeightM = const Value.absent(),
   }) => SessionRow(
     id: id ?? this.id,
     parcelId: parcelId ?? this.parcelId,
@@ -624,6 +703,10 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
         ? stopGpsTimeMs.value
         : this.stopGpsTimeMs,
     status: status ?? this.status,
+    scanPlatform: scanPlatform.present ? scanPlatform.value : this.scanPlatform,
+    cameraHeightM: cameraHeightM.present
+        ? cameraHeightM.value
+        : this.cameraHeightM,
   );
   SessionRow copyWithCompanion(SessionsCompanion data) {
     return SessionRow(
@@ -659,6 +742,12 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
           ? data.stopGpsTimeMs.value
           : this.stopGpsTimeMs,
       status: data.status.present ? data.status.value : this.status,
+      scanPlatform: data.scanPlatform.present
+          ? data.scanPlatform.value
+          : this.scanPlatform,
+      cameraHeightM: data.cameraHeightM.present
+          ? data.cameraHeightM.value
+          : this.cameraHeightM,
     );
   }
 
@@ -680,7 +769,9 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
           ..write('startGpsTimeMs: $startGpsTimeMs, ')
           ..write('stoppedAt: $stoppedAt, ')
           ..write('stopGpsTimeMs: $stopGpsTimeMs, ')
-          ..write('status: $status')
+          ..write('status: $status, ')
+          ..write('scanPlatform: $scanPlatform, ')
+          ..write('cameraHeightM: $cameraHeightM')
           ..write(')'))
         .toString();
   }
@@ -703,6 +794,8 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
     stoppedAt,
     stopGpsTimeMs,
     status,
+    scanPlatform,
+    cameraHeightM,
   );
   @override
   bool operator ==(Object other) =>
@@ -723,7 +816,9 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
           other.startGpsTimeMs == this.startGpsTimeMs &&
           other.stoppedAt == this.stoppedAt &&
           other.stopGpsTimeMs == this.stopGpsTimeMs &&
-          other.status == this.status);
+          other.status == this.status &&
+          other.scanPlatform == this.scanPlatform &&
+          other.cameraHeightM == this.cameraHeightM);
 }
 
 class SessionsCompanion extends UpdateCompanion<SessionRow> {
@@ -743,6 +838,8 @@ class SessionsCompanion extends UpdateCompanion<SessionRow> {
   final Value<DateTime?> stoppedAt;
   final Value<int?> stopGpsTimeMs;
   final Value<String> status;
+  final Value<String?> scanPlatform;
+  final Value<double?> cameraHeightM;
   final Value<int> rowid;
   const SessionsCompanion({
     this.id = const Value.absent(),
@@ -761,6 +858,8 @@ class SessionsCompanion extends UpdateCompanion<SessionRow> {
     this.stoppedAt = const Value.absent(),
     this.stopGpsTimeMs = const Value.absent(),
     this.status = const Value.absent(),
+    this.scanPlatform = const Value.absent(),
+    this.cameraHeightM = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionsCompanion.insert({
@@ -780,6 +879,8 @@ class SessionsCompanion extends UpdateCompanion<SessionRow> {
     this.stoppedAt = const Value.absent(),
     this.stopGpsTimeMs = const Value.absent(),
     required String status,
+    this.scanPlatform = const Value.absent(),
+    this.cameraHeightM = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        parcelId = Value(parcelId),
@@ -806,6 +907,8 @@ class SessionsCompanion extends UpdateCompanion<SessionRow> {
     Expression<DateTime>? stoppedAt,
     Expression<int>? stopGpsTimeMs,
     Expression<String>? status,
+    Expression<String>? scanPlatform,
+    Expression<double>? cameraHeightM,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -825,6 +928,8 @@ class SessionsCompanion extends UpdateCompanion<SessionRow> {
       if (stoppedAt != null) 'stopped_at': stoppedAt,
       if (stopGpsTimeMs != null) 'stop_gps_time_ms': stopGpsTimeMs,
       if (status != null) 'status': status,
+      if (scanPlatform != null) 'scan_platform': scanPlatform,
+      if (cameraHeightM != null) 'camera_height_m': cameraHeightM,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -846,6 +951,8 @@ class SessionsCompanion extends UpdateCompanion<SessionRow> {
     Value<DateTime?>? stoppedAt,
     Value<int?>? stopGpsTimeMs,
     Value<String>? status,
+    Value<String?>? scanPlatform,
+    Value<double?>? cameraHeightM,
     Value<int>? rowid,
   }) {
     return SessionsCompanion(
@@ -865,6 +972,8 @@ class SessionsCompanion extends UpdateCompanion<SessionRow> {
       stoppedAt: stoppedAt ?? this.stoppedAt,
       stopGpsTimeMs: stopGpsTimeMs ?? this.stopGpsTimeMs,
       status: status ?? this.status,
+      scanPlatform: scanPlatform ?? this.scanPlatform,
+      cameraHeightM: cameraHeightM ?? this.cameraHeightM,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -920,6 +1029,12 @@ class SessionsCompanion extends UpdateCompanion<SessionRow> {
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (scanPlatform.present) {
+      map['scan_platform'] = Variable<String>(scanPlatform.value);
+    }
+    if (cameraHeightM.present) {
+      map['camera_height_m'] = Variable<double>(cameraHeightM.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -945,6 +1060,8 @@ class SessionsCompanion extends UpdateCompanion<SessionRow> {
           ..write('stoppedAt: $stoppedAt, ')
           ..write('stopGpsTimeMs: $stopGpsTimeMs, ')
           ..write('status: $status, ')
+          ..write('scanPlatform: $scanPlatform, ')
+          ..write('cameraHeightM: $cameraHeightM, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5664,6 +5781,8 @@ typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
   Value<DateTime?> stoppedAt,
   Value<int?> stopGpsTimeMs,
   required String status,
+  Value<String?> scanPlatform,
+  Value<double?> cameraHeightM,
   Value<int> rowid,
 });
 typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
@@ -5683,6 +5802,8 @@ typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
   Value<DateTime?> stoppedAt,
   Value<int?> stopGpsTimeMs,
   Value<String> status,
+  Value<String?> scanPlatform,
+  Value<double?> cameraHeightM,
   Value<int> rowid,
 });
 
@@ -5873,6 +5994,16 @@ class $$SessionsTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
     column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scanPlatform => $composableBuilder(
+    column: $table.scanPlatform,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get cameraHeightM => $composableBuilder(
+    column: $table.cameraHeightM,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6090,6 +6221,16 @@ class $$SessionsTableOrderingComposer
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get scanPlatform => $composableBuilder(
+    column: $table.scanPlatform,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get cameraHeightM => $composableBuilder(
+    column: $table.cameraHeightM,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SessionsTableAnnotationComposer
@@ -6164,6 +6305,16 @@ class $$SessionsTableAnnotationComposer
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get scanPlatform => $composableBuilder(
+    column: $table.scanPlatform,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get cameraHeightM => $composableBuilder(
+    column: $table.cameraHeightM,
+    builder: (column) => column,
+  );
 
   Expression<T> sessionEventsRefs<T extends Object>(
     Expression<T> Function($$SessionEventsTableAnnotationComposer a) f,
@@ -6342,6 +6493,8 @@ class $$SessionsTableTableManager
                 Value<DateTime?> stoppedAt = const Value.absent(),
                 Value<int?> stopGpsTimeMs = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<String?> scanPlatform = const Value.absent(),
+                Value<double?> cameraHeightM = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion(
                 id: id,
@@ -6360,6 +6513,8 @@ class $$SessionsTableTableManager
                 stoppedAt: stoppedAt,
                 stopGpsTimeMs: stopGpsTimeMs,
                 status: status,
+                scanPlatform: scanPlatform,
+                cameraHeightM: cameraHeightM,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6380,6 +6535,8 @@ class $$SessionsTableTableManager
                 Value<DateTime?> stoppedAt = const Value.absent(),
                 Value<int?> stopGpsTimeMs = const Value.absent(),
                 required String status,
+                Value<String?> scanPlatform = const Value.absent(),
+                Value<double?> cameraHeightM = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion.insert(
                 id: id,
@@ -6398,6 +6555,8 @@ class $$SessionsTableTableManager
                 stoppedAt: stoppedAt,
                 stopGpsTimeMs: stopGpsTimeMs,
                 status: status,
+                scanPlatform: scanPlatform,
+                cameraHeightM: cameraHeightM,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

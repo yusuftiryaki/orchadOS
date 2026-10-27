@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 import uuid
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -47,10 +48,15 @@ class FakeCatalog:
         self.empty: dict[str, str] = {}
         self.presence_rows: list[dict] = []
         self.fail_sources_after: int | None = None
+        self.scan_setup: dict = {}
 
     def session(self, session_id):
         assert session_id == self.row.id
         return self.row
+
+    def record_scan_setup(self, session_id, values):
+        assert session_id == self.row.id
+        self.scan_setup.update(values)
 
     def active_trees(self, parcel_id):
         assert parcel_id == PARCEL
@@ -545,3 +551,43 @@ def test_presence_needs_the_crops_as_evidence(run, tmp_path):
     rep = upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "bucket"), opts)
     assert cat.presence_rows == [] and rep.presence is None
     assert any("tree crops (evidence) left out" in w for w in rep.warnings)
+
+
+# --- scan platform and camera height ----------------------------------------------------
+
+
+def test_upload_fills_the_visits_camera_height(run, tmp_path):
+    run_dir, _, opts = run
+    cat = FakeCatalog()
+    upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    assert cat.scan_setup == {"camera_height_m": 2.0}
+
+
+def test_upload_keeps_the_crews_record(run, tmp_path):
+    run_dir, _, opts = run
+    cat = FakeCatalog()
+    cat.row = replace(cat.row, camera_height_m=2.03, scan_platform="motorcycle")
+    rep = upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    assert cat.scan_setup == {}
+    assert rep.status_after == "processed"
+
+
+def test_upload_refuses_a_run_with_another_camera_height(run, tmp_path):
+    run_dir, _, opts = run
+    cat = FakeCatalog()
+    cat.row = replace(cat.row, camera_height_m=1.6)
+    with pytest.raises(UploadError, match="recorded camera height is 1.6 m"):
+        upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    assert not cat.asset_rows and not cat.capture_rows
+
+
+def test_upload_warns_on_another_platform(run, tmp_path):
+    run_dir, _, opts = run
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    manifest["session"]["scan_platform"] = "walk"
+    (run_dir / "manifest.json").write_text(json.dumps(manifest))
+    cat = FakeCatalog()
+    cat.row = replace(cat.row, scan_platform="robot")
+    rep = upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
+    assert any("scan platform" in w for w in rep.warnings)
+    assert "scan_platform" not in cat.scan_setup

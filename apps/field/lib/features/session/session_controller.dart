@@ -8,6 +8,7 @@ import '../../core/db/outbox.dart';
 import '../../core/geo/geo.dart';
 import '../../core/time/gps_clock.dart';
 import '../boundary/boundary_corners.dart';
+import '../checklist/scan_setup.dart';
 import '../coverage/coverage.dart';
 import '../gnss/gnss_logger.dart';
 import '../gnss/protocol/command_result.dart';
@@ -167,6 +168,7 @@ class SessionController extends Notifier<SessionState> {
     _stopTrack();
     _resetRoute();
     _spraying = null;
+    _setup = null;
     state = SessionState(task: task);
   }
 
@@ -390,11 +392,18 @@ class SessionController extends Notifier<SessionState> {
 
   void clearError() => state = state.copyWith(error: () => null);
 
-  /// Spraying answer of the pre-check; goes with the next start.
+  /// Answers of the pre-check that are recorded; go with the next start.
   SprayingCheck? _spraying;
+  ScanSetup? _setup;
 
-  void confirmPrecheck({required SprayingCheck spraying}) =>
-      _spraying = spraying;
+  void confirmPrecheck({
+    required SprayingCheck spraying,
+    required ScanPlatform platform,
+    required double cameraHeightM,
+  }) {
+    _spraying = spraying;
+    _setup = ScanSetup(platform: platform, cameraHeightM: cameraHeightM);
+  }
 
   /// Starts recording on the logger and creates the local session.
   Future<bool> start() async {
@@ -446,20 +455,25 @@ class SessionController extends Notifier<SessionState> {
       loggerFirmware: logger.lastStatus?.status.firmwareVersion,
       startedAt: now,
       startGpsTimeMs: time.gpsTimeMs,
+      scanPlatform: _setup?.platform.code,
+      cameraHeightM: _setup?.cameraHeightM,
     );
     final spraying = _spraying;
+    final setup = _setup;
+    final precheck = {
+      if (spraying != null) 'spraying': spraying.code,
+      if (setup != null) ...{
+        'platform': setup.platform.code,
+        'camera_height_m': setup.cameraHeightM,
+      },
+    };
     await repo.addEvent(
       sessionId: sessionId,
       eventType: 'session_start',
       payload: 'parcel_id=${task.parcelId}',
       time: time,
       loggerResult: result.name,
-      data: spraying == null
-          ? null
-          : {
-              'version': 1,
-              'precheck': {'spraying': spraying.code},
-            },
+      data: precheck.isEmpty ? null : {'version': 1, 'precheck': precheck},
     );
     if (!ref.mounted) return true;
     state = state.copyWith(
