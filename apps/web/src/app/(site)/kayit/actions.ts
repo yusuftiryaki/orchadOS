@@ -2,13 +2,13 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { phoneCodeError } from "@/app/giris/login-methods";
 import { siteFlags } from "@/lib/flags";
 import { t } from "@/lib/i18n";
 import { siteText } from "@/lib/i18n/messages/site";
 import { maskPhone } from "@/lib/notifications/phone";
 import { formReader, normalizePhone } from "@/lib/operations/validation";
 import { completeSignup, registerCustomer } from "@/lib/signup/client";
+import { sendAccountCode } from "@/lib/signup/send-code";
 import {
   parseSignupForm,
   SIGNUP_FIELDS,
@@ -51,17 +51,21 @@ async function clientIp(): Promise<string | null> {
   return forwarded || h.get("x-real-ip") || null;
 }
 
-// Sends an SMS code to an account's phone. Returns an error text or null.
-async function sendCode(supabase: Client, phone: string): Promise<string | null> {
+// Sends an SMS code to the account's phone. Returns an error text or null.
+// `hideUnknown`: a number without an account gets the same answer as one
+// with an account, as on /giris (the resend intent takes the number from the
+// form, so it must not tell whether a number is registered).
+async function sendCode(
+  supabase: Client,
+  phone: string,
+  hideUnknown: boolean,
+): Promise<string | null> {
   const allowed = await supabase.rpc("phone_login_allowed", { p_phone: phone });
   if (allowed.data === false) return t.login.phone.locked;
-  const { error } = await supabase.auth.signInWithOtp({
-    phone,
-    options: { shouldCreateUser: false, channel: "sms" },
-  });
-  const reason = phoneCodeError(error);
+  const reason = await sendAccountCode(supabase, phone);
   if (reason === null) return null;
-  return reason === "not_registered" ? s.errors.failed : t.login.phone[reason];
+  if (reason === "not_registered") return hideUnknown ? null : s.errors.failed;
+  return t.login.phone[reason];
 }
 
 function codeStep(previous: SignupState, phone: string): SignupState {
@@ -109,7 +113,7 @@ async function register(previous: SignupState, form: FormData): Promise<SignupSt
     };
   }
 
-  const error = await sendCode(supabase, parsed.value.phone);
+  const error = await sendCode(supabase, parsed.value.phone, false);
   if (error) return { ...base, fieldErrors: {}, error };
   return codeStep({ ...base, fieldErrors: {} }, parsed.value.phone);
 }
@@ -122,7 +126,7 @@ function codePhone(form: FormData): string | null {
 async function resend(previous: SignupState, form: FormData): Promise<SignupState> {
   const phone = codePhone(form);
   if (!phone) return { ...previous, step: "form", error: s.errors.invalid_input, notice: null };
-  const error = await sendCode(await createClient(), phone);
+  const error = await sendCode(await createClient(), phone, true);
   if (error) return { ...previous, error, notice: null };
   return codeStep(previous, phone);
 }
@@ -150,7 +154,13 @@ async function verify(previous: SignupState, form: FormData): Promise<SignupStat
 }
 
 export async function signupAction(previous: SignupState, form: FormData): Promise<SignupState> {
-  switch (formReader(form)("intent")) {
+  const intent = formReader(form)("intent");
+  // The action stays reachable when sign-up is off (/kayit shows the closed
+  // card); then no intent sends or checks a code.
+  if ((intent === "verify" || intent === "resend") && !siteFlags().signupEnabled) {
+    return { ...previous, step: "form", notice: null, error: s.errors.signup_closed };
+  }
+  switch (intent) {
     case "verify":
       return verify(previous, form);
     case "resend":

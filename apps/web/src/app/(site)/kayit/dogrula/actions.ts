@@ -1,12 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { phoneCodeError } from "@/app/giris/login-methods";
 import { t } from "@/lib/i18n";
 import { siteText } from "@/lib/i18n/messages/site";
 import { maskPhone } from "@/lib/notifications/phone";
 import { formReader } from "@/lib/operations/validation";
 import { completeSignup } from "@/lib/signup/client";
+import { sendAccountCode } from "@/lib/signup/send-code";
 import { createClient } from "@/lib/supabase/server";
 import { accountPhone, type VerifyState } from "./verify-state";
 
@@ -30,11 +30,7 @@ export async function verifyPhoneAction(
   if (allowed.data === false) return { ...previous, error: t.login.phone.locked, notice: null };
 
   if (formReader(form)("intent") !== "verify") {
-    const { error } = await supabase.auth.signInWithOtp({
-      phone,
-      options: { shouldCreateUser: false, channel: "sms" },
-    });
-    const reason = phoneCodeError(error);
+    const reason = await sendAccountCode(supabase, phone);
     if (reason) {
       return {
         ...previous,

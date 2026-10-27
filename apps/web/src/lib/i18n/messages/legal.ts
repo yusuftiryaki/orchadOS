@@ -418,7 +418,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
       {
         kind: "ol",
         items: [
-          "**Yıllık hizmet bedeli:** Teklifte yazan tutardır. Dönüm başına yıllık fiyat ile doğrulanan alanın çarpımıdır; bahçe başına en az ücret ve ilk yıl bir kez envanter ücreti eklenir. KDV ayrıca gösterilir. Teklif, geçerlilik süresi içinde değişmez.",
+          "**Yıllık hizmet bedeli:** Teklifte yazan tutardır. Yıllık ziyaret sayısı, doğrulanan alan (dönüm) ve paketin dönüm ve ziyaret başı birim fiyatının çarpımıdır; bahçe başına en az ücret ve ilk yıl bir kez envanter ücreti eklenir. KDV ayrıca gösterilir. Teklif, geçerlilik süresi içinde değişmez.",
           "**Ödeme:** Teklif onaylandıktan sonra peşin ve tek çekimdir: kartla (3D Secure, [ödeme kuruluşu: iyzico] üzerinden) ya da havale/EFT ile. Kart bilgileri Şirket'e ulaşmaz. Ödeme sipariş ödeme süresi içinde yapılmazsa sipariş kendiliğinden düşer.",
           "**Belge:** Her ödeme için portalda bir makbuz verilir. Makbuz fatura değildir; fatura [ ] düzenlenir.",
           "**Pilot dönemi:** [Ücretsiz / indirimli; süresi ve şartları].",
@@ -578,7 +578,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
       {
         kind: "ul",
         items: [
-          "Toplam bedel, vergiler dahil olarak teklifte ve sipariş özetinde gösterilir: dönüm başına yıllık fiyat × doğrulanan alan, bahçe başına en az ücret, ilk yıl envanter ücreti, varsa indirim, KDV.",
+          "Toplam bedel, vergiler dahil olarak teklifte ve sipariş özetinde gösterilir: yıllık ziyaret sayısı × doğrulanan alan × dönüm ve ziyaret başı birim fiyat, bahçe başına en az ücret, ilk yıl envanter ücreti, varsa indirim, KDV.",
           "Teklif, üzerinde yazan son geçerlilik tarihine kadar değişmez.",
           "Ek masraf yoktur.",
         ],
