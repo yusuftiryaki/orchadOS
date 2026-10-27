@@ -46,9 +46,15 @@ test("explicit consent page lists only the two remaining consents", async ({ pag
   await expect(article).not.toContainText("Anthropic");
 });
 
-test("packages page says prices are set by quote while no list is published", async ({ page }) => {
+test("packages page shows the published prices with a 20-dönüm example", async ({ page }) => {
+  // Seed price list v1 (İP12-D wires public_package_prices; the empty state is
+  // left for a database without a published list).
   await page.goto("/paketler");
-  await expect(page.getByTestId("packages-empty")).toContainText("Fiyatlar teklif ile belirlenir");
+  await expect(page.getByTestId("packages-empty")).toHaveCount(0);
+  const standart = page.getByTestId("package").filter({ hasText: "Standart" });
+  await expect(standart).toBeVisible();
+  // 4 visits × 20 dönüm × 125 ₺ = 10.000 ₺ + 20% VAT (design §6.6).
+  await expect(standart.getByTestId("package-example")).toContainText("12.000");
 });
 
 test("header and footer links work", async ({ page }) => {

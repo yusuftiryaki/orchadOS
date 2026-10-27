@@ -648,3 +648,44 @@ Son 100 bildirim (durum filtresi `?durum=`): zaman, parsel, alıcı (ad, sahip/h
 - Entegrasyon: `tests/integration/parcel-lifecycle.test.ts`, `viewer-invitations.test.ts`, `followups.test.ts` (yakın plan listesi, istekler, planlama, acil bulgu), `portal-report-layers.test.ts`.
 - Tarayıcı: `tests/e2e/mvp-audit.spec.ts` (boyutlar, ziyaret seçici, değişenler, katmanlar, kanıt ve hash doğrulaması, gezide bakış yönü, hissedar daveti ve reddi, yakın plan listesi).
 - Temizlik: `followup_request` ve `private.viewer_invitation` satırlarını testler kendileri siler (`purgeParcels` bu tabloları bilmiyor; `tests/local-db.ts` başka bir oturumun klasöründe).
+
+## Müşteri portalı: başvuru ve ödeme
+
+İP12-D. Tasarım: `docs/musteri-yonetimi.md` §10. Müşteri profili olan her kullanıcı `/portal` altında "Hesap" menüsünü görür (Bahçelerim · Başvurularım · Siparişlerim · Ödemelerim · Hesabım); müşteri profili olmayan hissedar yalnız bahçelerini görür, faturalama sayfaları ona 403 döner.
+
+### Ekranlar
+
+| Yol                                              | İş                                                                                                                                                                            |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/portal`                                        | Bahçeler ve kartlar: açık teklif, ödeme bekleyen sipariş, taslak / incelemedeki başvuru; hiçbiri yoksa "Bahçenizi kaydedin"                                                   |
+| `/portal/basvuru`, `/yeni`, `/[id]`              | Paket seçimi (`public_package_prices` → `customer_create_application`), bahçeler, canlı `price_preview`, gönder, geri çek; gönderildikten sonra salt okunur geçmiş            |
+| `/portal/basvuru/[id]/bahce/yeni`, `/[gardenId]` | Bahçe formu: haritada yer (zorunlu) ve kaba sınır (`BoundaryDrawMap`), alan dönüm olarak, yetki/tapu/erişim bilgileri → `customer_save_application_garden`                    |
+| `/portal/teklif/[id]`                            | Kalemler, indirim, KDV, toplam, geçerlilik, ekibin notu; fatura profili durumu; eksikse aydınlatma onayı; iki sözleşme onayı → `customer_accept_quote`; revize ya da ret      |
+| `/portal/siparis`, `/[id]`                       | "Kartla öde" (yalnız `ORCHADOS_PAYMENTS_ENABLED=1`), havale bilgisi (`customer_payment_instructions`), iptal                                                                  |
+| `/portal/odeme`, `/[id]`                         | Ödeme geçmişi; sonuç sayfası `initiated` / `pending_review` iken 10 sn'de bir yenilenir; `?hata=odeme_bulunamadi` uyarısı                                                     |
+| `/portal/hesap`, `/fatura`, `/izinler`           | İletişim (`customer_update_contact`; telefon değiştirilemez), fatura profili (TCKN yalnız gerekiyorsa; `?geri=` `safeNextPath` ile süzülür), açık rızalar ve aydınlatma onayı |
+| `/makbuz/[paymentId]`                            | Makbuz PDF'i (`receipt_data`; başkasına 404), `private, no-store`                                                                                                             |
+
+`/paketler` artık `public_package_prices` ile yayımlı fiyatları ve her paket için 20 dönümlük örneği (`price_preview`, veritabanının formülü) gösterir.
+
+### Kod
+
+- `src/lib/portal-billing/`: okumalar (`data.ts`, hep `BILLING_COLUMNS`), saf ayrıştırıcılar (`validation.ts`: dönüm → m², Türkçe ondalık, bahçe / fatura / iletişim formları), `tckn.ts`, adresler ve `?bilgi=` / `?hata=` beyaz listeleri (`urls.ts`), kart ödemesi başlatma yardımcıları (`payments.ts`).
+- `src/app/portal/billing-actions.ts`: sunucu eylemleri. Kart ödemesi `payments` Edge Function'ını `{action:'start', order_id, return_origin, client_ip}` ile çağırır, tarayıcıyı sağlayıcının sayfasına yönlendirir; dönüş `payment-callback` → `/portal/odeme/<id>`.
+- Metinler: `src/lib/i18n/messages/portal-billing.ts` (`portalBillingText`), makbuz `receipt.ts`; durum adları ve hata metinleri `billingText`'ten.
+- Form değerleri ve kişisel veri loglanmaz; TCKN tarayıcıya hiç gönderilmez (yalnız maskeli hali).
+
+### Yerelde deneme
+
+`pnpm db:start && pnpm db:reset`, sonra `ORCHADOS_SIGNUP_ENABLED=1 ORCHADOS_PAYMENTS_ENABLED=1 PAYMENT_FAKE_CHECKOUT=1 SIGNUP_PROXY_SECRET=signup-proxy-local pnpm web:dev`. Sahte sağlayıcı yerel Edge secret'larıyla açıktır; `/odeme/sahte` sayfası onay, ret ve inceleme sonucunu callback'e gönderir. Örnek müşteri: `customer@example.com` / `orchados-dev`.
+
+### Testler
+
+- Birim: `src/lib/portal-billing/portal-billing.test.ts` (ayrıştırıcılar, TCKN, `?geri=` için `//evil.com` ve `/\evil.com`, ödeme başlatma hataları), `src/lib/pdf/receipt-pdf.test.ts`, `src/components/portal-billing/order-pay.test.tsx` (bayrak kapalıyken kart düğmesi yok).
+- Entegrasyon: `payments-flow.test.ts` (profil → taslak → bahçe → gönder → ops teklifi → kabul → sahte kart → çerezsiz callback → aktivasyon, tekrar callback, ret, iade, mutabakat, RLS), `customer-billing.test.ts`, `customer-sections.test.ts`.
+- E2E: `tests/e2e/customer-journey.spec.ts` (yeni ziyaretçi kayıttan makbuza; reddedilen kart). Yardımcılar `billing-helpers.ts`.
+
+### Bilinen sınırlar
+
+- Telefon değişikliği portalda yok (giriş telefonu; operasyon üzerinden).
+- Makbuz fatura değildir; e-fatura entegrasyonu kapsam dışı.
