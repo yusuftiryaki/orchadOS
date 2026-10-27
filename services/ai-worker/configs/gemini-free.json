@@ -1,0 +1,11 @@
+{
+  "provider": {
+    "kind": "openai",
+    "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "api_key_env": "GEMINI_API_KEY",
+    "request_interval_s": 7.0,
+    "may_train_on_requests": true
+  },
+  "triage": {"model": "gemini-flash-lite-latest", "max_tokens": 4000},
+  "review": {"model": "gemini-flash-latest", "max_tokens": 8000}
+}
