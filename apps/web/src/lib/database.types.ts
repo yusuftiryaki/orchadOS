@@ -4371,7 +4371,7 @@ export type Database = {
         };
         Returns: Json;
       };
-      signup_complete: { Args: { p_user_id: string }; Returns: string };
+      signup_complete: { Args: { p_code_at: string; p_user_id: string }; Returns: string };
       signup_find_account: {
         Args: { p_email: string; p_phone: string };
         Returns: {
@@ -4379,6 +4379,7 @@ export type Database = {
           phone_confirmed: boolean;
           self_signup: boolean;
           signup_completed: boolean;
+          started_at: string;
           user_id: string;
         }[];
       };
@@ -4395,7 +4396,7 @@ export type Database = {
         Returns: undefined;
       };
       signup_register_attempt: {
-        Args: { p_ip_hash: string; p_phone_hash: string };
+        Args: { p_email_hash: string; p_ip_hash: string; p_phone_hash: string };
         Returns: string;
       };
       waive_coverage: {
