@@ -213,3 +213,12 @@ test.describe("on a phone", () => {
     expect(await overflow()).toBeLessThanOrEqual(0);
   });
 });
+
+test("the report card downloads as a PDF", async ({ page }) => {
+  await login(page, REPORT);
+  await expect(page.getByTestId("report-pdf")).toBeVisible();
+  const pdf = await page.request.get(`${REPORT}/rapor.pdf`);
+  expect(pdf.status()).toBe(200);
+  expect(pdf.headers()["content-disposition"]).toContain(".pdf");
+  expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+});

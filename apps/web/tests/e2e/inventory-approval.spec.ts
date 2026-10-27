@@ -211,3 +211,16 @@ test("a viewer cannot approve the boundary; the owner does", async ({ page }) =>
     .single();
   expect(boundary?.owner_approved_at).toBeTruthy();
 });
+
+test("the owner opens the inventory report and downloads its PDF", async ({ page }) => {
+  await login(page, T.users.owner);
+  await page.goto(`/portal/parsel/${T.parcel}`);
+  await page.getByRole("link", { name: "Envanter raporu" }).click();
+  const report = page.getByTestId("inventory-report");
+  await expect(report.getByTestId("inventory-summary")).toContainText("yerde ağaç var");
+  await expect(report.getByTestId("inventory-map")).toBeVisible();
+  const pdf = await page.request.get(`/portal/parsel/${T.parcel}/envanter/rapor.pdf`);
+  expect(pdf.status()).toBe(200);
+  expect(pdf.headers()["content-type"]).toBe("application/pdf");
+  expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+});
