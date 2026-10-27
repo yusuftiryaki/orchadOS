@@ -7,7 +7,7 @@
 .page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: var(--space-3);
+  padding: var(--space-5) var(--space-4) var(--space-6);
   display: grid;
   gap: var(--space-4);
 }
@@ -26,6 +26,7 @@
 
 .titleRow h1 {
   margin: 0;
+  font-size: 30px;
 }
 
 .actions {
@@ -37,34 +38,38 @@
 .section {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
   display: grid;
   gap: var(--space-3);
-  scroll-margin-top: var(--space-3);
+  scroll-margin-top: calc(var(--header-height) + var(--space-3));
 }
 
 .section h2 {
   margin: 0;
   font-size: 18px;
+  font-weight: 650;
 }
 
 .notice {
-  background: #fff9db;
-  border: 1px solid #ffe066;
+  background: var(--color-warning-soft);
+  border: 1px solid #f3d899;
+  color: #5c3b04;
   border-radius: var(--radius);
-  padding: var(--space-3);
+  padding: 12px 16px;
 }
 
 /* Class distribution bar ---------------------------------------------------- */
 
 .bar {
   display: flex;
-  height: 12px;
-  border-radius: 6px;
+  height: 10px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
-  background: var(--color-border);
+  background: var(--color-surface-3);
   min-width: 80px;
+  gap: 2px;
 }
 
 .bar span {
@@ -83,21 +88,30 @@
 
 .tile {
   display: grid;
-  gap: 2px;
+  gap: 4px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: var(--space-2) var(--space-3);
+  padding: 12px 14px;
   text-decoration: none;
   color: inherit;
+  background: var(--color-surface);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
 }
 
 .tile:hover {
-  border-color: var(--color-accent);
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+  color: inherit;
 }
 
 .tileValue {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -110,10 +124,10 @@
 
 .swatch {
   display: inline-block;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  border: 1px solid #333;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 18%);
   flex: none;
 }
 
@@ -186,13 +200,15 @@
 .filter {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 2px var(--space-2);
+  gap: 6px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
   background: var(--color-surface);
   cursor: pointer;
   min-height: 32px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .filter[aria-pressed="false"] {
@@ -211,12 +227,13 @@
 .panel {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: var(--space-3) var(--space-4);
   align-self: start;
   display: grid;
   gap: var(--space-2);
-  scroll-margin-top: var(--space-3);
+  scroll-margin-top: calc(var(--header-height) + var(--space-3));
 }
 
 .panelBody {
@@ -270,26 +287,26 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  border-radius: 999px;
-  padding: 2px var(--space-2);
-  font-size: 13px;
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  font-size: 12px;
   font-weight: 600;
   border: 1px solid var(--color-border);
-  background: var(--color-bg);
+  background: var(--color-surface-2);
 }
 
 .badgeExpert {
   composes: badge;
-  background: #ebfbee;
-  border-color: #8ce99a;
-  color: #2b8a3e;
+  background: var(--color-accent-soft);
+  border-color: #c5ddb6;
+  color: var(--color-accent);
 }
 
 .badgeMachine {
   composes: badge;
-  background: #fff4e6;
-  border-color: #ffc078;
-  color: #a5520d;
+  background: var(--color-warning-soft);
+  border-color: #f0d49a;
+  color: var(--color-warning);
 }
 
 .classBadge {
@@ -312,11 +329,12 @@
 
 .finding {
   border: 1px solid var(--color-border);
-  border-left: 6px solid var(--severity, var(--color-border));
+  border-left: 4px solid var(--severity, var(--color-border));
   border-radius: var(--radius);
-  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  padding: 12px 16px;
   display: grid;
-  gap: var(--space-1);
+  gap: 4px;
 }
 
 .findingHead {
@@ -361,16 +379,24 @@
 .table th,
 .table td {
   text-align: left;
-  padding: var(--space-1) var(--space-2);
+  padding: 10px 12px;
   border-bottom: 1px solid var(--color-border);
   vertical-align: top;
 }
 
 .table th {
   font-weight: 600;
-  color: var(--color-muted);
+  color: var(--color-text-2);
   font-size: 13px;
   white-space: nowrap;
+}
+
+.table thead th {
+  color: var(--color-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--color-surface-2);
 }
 
 .number {
@@ -394,8 +420,12 @@
   gap: var(--space-2);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4);
+  transition:
+    box-shadow 0.15s,
+    border-color 0.15s;
 }
 
 .garden h2 {
@@ -623,8 +653,9 @@
 }
 
 .scoreLarge .scoreValue {
-  font-size: 40px;
-  line-height: 1.1;
+  font-size: 44px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
 }
 
 .scoreValue {
@@ -638,6 +669,9 @@
 .scoreBox {
   display: grid;
   gap: 4px;
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--color-accent-soft), var(--color-surface-2));
 }
 
 .audit {
@@ -782,4 +816,36 @@
 .hashFull {
   word-break: break-all;
   font-family: ui-monospace, monospace;
+}
+
+.garden:hover {
+  box-shadow: var(--shadow);
+  border-color: var(--color-border-strong);
+}
+
+/* Report card dimensions: label above the text on phones. */
+@media (max-width: 640px) {
+  .dimensions tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .dimensions th,
+  .dimensions td {
+    border-bottom: 0;
+    padding: 2px 0;
+  }
+  .dimensions th {
+    grid-column: 1;
+  }
+  .dimensions td.dimension {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .dimensions td:last-child {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: right;
+  }
 }
