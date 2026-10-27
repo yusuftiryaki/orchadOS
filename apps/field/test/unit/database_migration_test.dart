@@ -45,7 +45,7 @@ const _schemaV1 = [
 ];
 
 void main() {
-  test('schema 1 → 5 keeps old rows: quality columns, value_boolean, outbox', () async {
+  test('schema 1 → 6 keeps old rows: quality columns, value_boolean, outbox', () async {
     final db = AppDatabase(
       NativeDatabase.memory(
         setup: (raw) {
@@ -102,7 +102,11 @@ void main() {
     expect(await db.select(db.verificationResults).get(), isEmpty);
     // Schema 5: routes made on the phone.
     expect(await db.select(db.parcelRoutes).get(), isEmpty);
+    // Schema 6: scan platform and camera height, unknown on old sessions.
+    final session = await db.select(db.sessions).getSingle();
+    expect(session.scanPlatform, isNull);
+    expect(session.cameraHeightM, isNull);
     final version = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(version.read<int>('user_version'), 5);
+    expect(version.read<int>('user_version'), 6);
   });
 }

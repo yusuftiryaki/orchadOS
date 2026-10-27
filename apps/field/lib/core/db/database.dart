@@ -45,6 +45,15 @@ class Sessions extends Table {
   /// `recording`, `stopped` or `closed` (visit summary confirmed).
   TextColumn get status => text()();
 
+  /// How the scan was done (schema 6): `walk` (backpack pole),
+  /// `motorcycle` or `robot`; `public.session.scan_platform`. Null on
+  /// verification tours and on rows from before schema 6.
+  TextColumn get scanPlatform => text().nullable()();
+
+  /// Measured camera height, lens to ground, in metres (0.50–3.50,
+  /// two decimals); `public.session.camera_height_m`.
+  RealColumn get cameraHeightM => real().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -267,7 +276,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase(driftDatabase(name: 'orchados_field'));
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -302,6 +311,11 @@ class AppDatabase extends _$AppDatabase {
       if (from < 5) {
         // Grid route (İP6): the routes made on this phone.
         await m.createTable(parcelRoutes);
+      }
+      if (from < 6) {
+        // Scan platform and camera height from the pre-check.
+        await m.addColumn(sessions, sessions.scanPlatform);
+        await m.addColumn(sessions, sessions.cameraHeightM);
       }
     },
     beforeOpen: (details) async {
