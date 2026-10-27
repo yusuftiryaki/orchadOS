@@ -31,7 +31,7 @@ from .schema import FLAGS, MetricDef, output_schema
 
 # Bump on any change to the texts below, to methodology.SCALE_TEXTS or to the
 # output schema. Stored with every AI row (prompt_version).
-PROMPT_REVISION = "v0.1"
+PROMPT_REVISION = "v0.2"
 
 
 def prompt_version(methodology_version: str | None) -> str:
@@ -125,12 +125,15 @@ Common rule for 0-3 scales: 0 no sign, 1 mild (no care needed or routine care), 
 ## Overall class
 Apply the rules from the top; the first that holds wins.
 1. absent: no tree at the position (the expert confirms this from two directions).
-2. dead: in the leafy period no live shoots or leaves (not in winter, see the season note).
-3. problem: any 0-3 scale above is 3, or pest signs are marked.
-4. attention: any 0-3 scale above is 2, or pest signs are mild.
+2. dead: in the leafy period no live shoots or leaves on the grafted crown and trunk; shoots \
+from the base or the rootstock do not count (not in winter, see the season note).
+3. problem: any 0-3 scale above is 3, pest signs are marked, or dried leaves hang on the \
+branches.
+4. attention: any 0-3 scale above is 2, pest signs are mild, or the dieback pattern is \
+one_sided or top_down.
 5. healthy: all other cases.
-Pruning, fruit load, harvest and broken branch do not affect the class. If no scale can be \
-judged (for example the images do not show the tree), give no class (null).
+Pruning, fruit load, basal sprouts, harvest and broken branch do not affect the class. \
+If no scale can be judged (for example the images do not show the tree), give no class (null).
 
 ## Field staff answers
 Field staff may have answered yes/no questions at the tree. They are given by code:

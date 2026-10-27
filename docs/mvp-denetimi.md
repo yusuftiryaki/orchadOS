@@ -51,7 +51,7 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 | Tıklamaların etiketli veri olması | `trunk_label` | var | |
 | Gövde tespit modelinin konum önermesi | — | yok | Model eğitimi için etiketli veri birikmeli (MVP: "kendi AI modeli yok") |
 | Sıra oturtma, kodlama, boş yer | `web/lib/office/rows.ts` | var | |
-| Ağaç özelliklerinin ilk değerlendirmesi (yaş, aşı, dip sürgünü, kuruma) | `/ofis/.../envanter/duzenle` | kısmen | Yaş ve aşı var; dip sürgünü ve belirgin kuruma doğrulama listesinde "çok gövdeli" nedeniyle; ayrı alan yok |
+| Ağaç özelliklerinin ilk değerlendirmesi (yaş, aşı, dip sürgünü, kuruma) | `/ofis/.../envanter/duzenle`; uzman paneli | var | Yaş, aşı ve gövde yapısı (tek/çok gövdeli) ofiste ağacın özelliği. Dip sürgünü (`basal_sprout_level`) ve kuruma deseni (`dieback_pattern`, `dried_leaves_attached`) ziyaret ölçümü: uzman girer, AI önerir (metodoloji 4.9–4.10). Tanımlar uzman ajan önerisi, pilot uzmanın onayını bekliyor |
 | Altyapı (kuyu, havuz, hat, çit, kapı, kulübe) | `zone`, düzenleme ekranı | var | |
 | Doğrulama listesi | `verification_item`, `create_verification_tour` | var | |
 | Saha doğrulama turu | `field/features/verification` | var · donanım | |

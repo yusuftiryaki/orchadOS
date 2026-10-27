@@ -30,7 +30,12 @@ def tree(**kw) -> TreeInput:
 
 def test_season_metrics_follow_the_registry(registry):
     codes = {s: [m.code for m in season_metrics(registry, s)] for s in SEASONS}
-    assert codes["winter"] == ["dead_branch_scale", "trunk_base_scale", "pruning_status"]
+    assert codes["winter"] == [
+        "dead_branch_scale",
+        "trunk_base_scale",
+        "pruning_status",
+        "basal_sprout_level",
+    ]
     assert codes["spring"] == [
         "dead_branch_scale",
         "trunk_base_scale",
@@ -38,12 +43,18 @@ def test_season_metrics_follow_the_registry(registry):
         "frost_damage_scale",
         "pest_sign_severity",
         "pest_sign_type",
+        "basal_sprout_level",
+        "dieback_pattern",
+        "dried_leaves_attached",
     ]
     assert "fruit_load_scale" in codes["summer"]
     # Parcel metrics, numeric quantities and staff questions are not asked of the AI.
     assert codes["harvest"] == [
         "dead_branch_scale",
         "trunk_base_scale",
+        "basal_sprout_level",
+        "dieback_pattern",
+        "dried_leaves_attached",
         "harvest_complete",
         "branch_break",
     ]
@@ -71,8 +82,8 @@ def test_system_prompt_is_per_season_and_stable(registry):
 
 
 def test_prompt_version_is_bound_to_the_methodology():
-    assert prompt_version(None) == "ai-v0.1/methodology-v0"
-    assert prompt_version("methodology-v0") == "ai-v0.1/methodology-v0"
+    assert prompt_version(None) == "ai-v0.2/methodology-v0"
+    assert prompt_version("methodology-v0") == "ai-v0.2/methodology-v0"
     with pytest.raises(ValueError, match="methodology-v9"):
         prompt_version("methodology-v9")
 

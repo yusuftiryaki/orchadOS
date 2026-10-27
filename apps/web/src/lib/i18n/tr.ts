@@ -571,6 +571,7 @@ export const tr = {
     sex: "Cinsiyet",
     graft: "Aşı",
     ageClass: "Yaş sınıfı",
+    stemForm: "Gövde yapısı",
     cultivar: "Çeşit",
     status: "Durum",
     health: "Son değerlendirme",
@@ -583,6 +584,7 @@ export const tr = {
       slotKind: { row: "Sıra", interstitial: "Ara" },
       sex: { female: "Dişi", male: "Erkek", unknown: "Bilinmiyor" },
       graft: { grafted: "Aşılı", ungrafted: "Aşısız", unknown: "Bilinmiyor" },
+      stemForm: { single: "Tek gövde", multi: "Çok gövdeli", unknown: "Bilinmiyor" },
       ageClass: {
         sapling: "Fidan",
         young: "Genç",
@@ -1156,6 +1158,8 @@ export const tr = {
         `Budanan ağaç oranı %${pct} (${done} yapılmış, ${partial} kısmi, ${notDone} yapılmamış)`,
       harvest: (pct: string, n: number, total: number) =>
         `Hasadı tamamlanan: %${pct} (${total} ağacın ${n} tanesi)`,
+      sprouts: (dense: number, few: number, total: number) =>
+        `Dip sürgünü: ${total} ağaçtan ${dense} tanesinde yoğun, ${few} tanesinde birkaç sürgün. Dip sürgünleri ağacın suyunu ve besinini paylaşır; temizlenmesini bahçıvanınızla konuşabilirsiniz.`,
       careNone: "Bu ziyarette bakım ölçümü yok (budama kışın, hasat hasat ziyaretinde bakılır).",
       pests: "Zararlı belirtileri",
       pestLine: (mild: number, marked: number, assessed: number) =>
@@ -1344,6 +1348,7 @@ export const tr = {
         code: "Kod",
         ageClass: "Yaş sınıfı",
         graft: "Aşı",
+        stemForm: "Gövde yapısı",
         sex: "Cinsiyet",
       },
     },
@@ -1531,8 +1536,14 @@ export const tr = {
     marked: "Belirgin",
     psylla: "Psilla",
     bud_borer: "Göz kurdu",
-    stink_bug: "Kımıl",
+    stink_bug: "Kokarca",
     other: "Diğer",
+    few: "Birkaç",
+    dense: "Yoğun",
+    tip_dieback: "Uçlardan geriye",
+    one_sided: "Tek taraflı",
+    top_down: "Tepeden aşağı",
+    top_dead_base_alive: "Üstü kuru, dibi canlı",
   } as Record<string, string>,
   notifications: {
     nav: "Bildirimler",

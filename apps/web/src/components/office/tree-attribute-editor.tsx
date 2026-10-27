@@ -8,8 +8,8 @@ import type { EditResult, TreeAttributes } from "@/lib/office/inventory-edits";
 import type { WorkspaceSlot } from "@/lib/office/inventory-workspace";
 import styles from "./inventory.module.css";
 
-// Tree attributes of a saved inventory (MVP Module 2, step 6): age class and
-// graft status from the panoramas, "unknown" when the image does not tell.
+// Tree attributes of a saved inventory (MVP Module 2, step 6): age class,
+// graft status and stem form (single / multi trunk) from the panoramas, "unknown" when the image does not tell.
 // Bulk selection: a whole row, everything shown, or trees clicked on the map
 // (the selection is the parent's, shared with the map). The office sets the
 // first values; the expert corrects them (and the sex, later in spring).
@@ -36,6 +36,7 @@ export function TreeAttributeEditor({
   const [row, setRow] = useState<number | "all">("all");
   const [ageClass, setAgeClass] = useState<Enums["age_class"] | "">("");
   const [graft, setGraft] = useState<Enums["graft_status"] | "">("");
+  const [stemForm, setStemForm] = useState<Enums["stem_form"] | "">("");
   const [sex, setSex] = useState<Enums["tree_sex"] | "">("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -59,6 +60,7 @@ export function TreeAttributeEditor({
     const attributes: TreeAttributes = {
       ...(ageClass ? { ageClass } : {}),
       ...(graft ? { graft } : {}),
+      ...(stemForm ? { stemForm } : {}),
       ...(sex ? { sex } : {}),
     };
     setMessage(null);
@@ -77,7 +79,7 @@ export function TreeAttributeEditor({
 
   if (withTrees.length === 0) return <p className="muted">{a.noTrees}</p>;
 
-  const nothingToApply = !ageClass && !graft && !sex;
+  const nothingToApply = !ageClass && !graft && !stemForm && !sex;
   return (
     <div className={styles.panel} data-testid="tree-attributes">
       <h2>{a.title}</h2>
@@ -147,6 +149,21 @@ export function TreeAttributeEditor({
             ))}
           </select>
         </label>
+        <label className={styles.field}>
+          {a.columns.stemForm}
+          <select
+            value={stemForm}
+            onChange={(e) => setStemForm(e.target.value as Enums["stem_form"] | "")}
+            data-testid="bulk-stem"
+          >
+            <option value="">{a.keep}</option>
+            {E.stem_form.map((v) => (
+              <option key={v} value={v}>
+                {values.stemForm[v]}
+              </option>
+            ))}
+          </select>
+        </label>
         {showSex && (
           <label className={styles.field}>
             {a.columns.sex}
@@ -188,6 +205,7 @@ export function TreeAttributeEditor({
               <th>{a.columns.code}</th>
               <th>{a.columns.ageClass}</th>
               <th>{a.columns.graft}</th>
+              <th>{a.columns.stemForm}</th>
               <th>{a.columns.sex}</th>
             </tr>
           </thead>
@@ -205,6 +223,7 @@ export function TreeAttributeEditor({
                 <td>{s.code}</td>
                 <td>{values.ageClass[s.tree!.ageClass]}</td>
                 <td>{values.graft[s.tree!.graft]}</td>
+                <td>{values.stemForm[s.tree!.stemForm]}</td>
                 <td>{values.sex[s.tree!.sex]}</td>
               </tr>
             ))}
