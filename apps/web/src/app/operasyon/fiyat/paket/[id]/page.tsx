@@ -8,7 +8,7 @@ import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { chooseOrg, getPackage } from "@/lib/back-office/data";
-import { boHref } from "@/lib/back-office/urls";
+import { boHref, firstParam } from "@/lib/back-office/urls";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { opsOrgs } from "@/lib/operations/data";
 import { createClient } from "@/lib/supabase/server";
@@ -16,21 +16,30 @@ import { createClient } from "@/lib/supabase/server";
 const B = backOfficeText;
 const T = B.prices;
 
-// A service package, new (/yeni) or existing (ops_save_package).
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+// A service package, new (/yeni, in the org of ?org) or existing
+// (ops_save_package).
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await requireSection("operasyon");
   const { id } = await params;
+  const query = await searchParams;
   const supabase = await createClient();
   const pkg = id === "yeni" ? null : await getPackage(supabase, id);
   if (id !== "yeni" && !pkg) notFound();
-  const orgId = pkg?.org_id ?? chooseOrg(await opsOrgs(supabase, user.id))?.id;
+  const orgId =
+    pkg?.org_id ?? chooseOrg(await opsOrgs(supabase, user.id), firstParam(query.org))?.id;
   if (!orgId) notFound();
 
   return (
     <main className="page">
       <OpsNav current="prices" />
       <p>
-        <Link href={boHref.prices()}>← {T.title}</Link>
+        <Link href={boHref.prices(undefined, orgId)}>← {T.title}</Link>
       </p>
       <h1>{pkg ? T.packageTitle(pkg.name) : T.newPackageTitle}</h1>
       <ActionForm action={savePackageAction} testId="package-form">
@@ -79,7 +88,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </label>
         <div className={styles.actions}>
           <Submit>{B.save}</Submit>
-          <Link href={boHref.prices()}>{B.cancel}</Link>
+          <Link href={boHref.prices(undefined, orgId)}>{B.cancel}</Link>
         </div>
       </ActionForm>
     </main>

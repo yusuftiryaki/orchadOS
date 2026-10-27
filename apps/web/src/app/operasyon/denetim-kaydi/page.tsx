@@ -26,7 +26,8 @@ export default async function Page({
   const entityId = firstParam(query.kayit) ?? "";
   const action = (firstParam(query.eylem) ?? "").trim();
   const supabase = await createClient();
-  const org = chooseOrg(await opsOrgs(supabase, user.id), firstParam(query.org));
+  const orgs = await opsOrgs(supabase, user.id);
+  const org = chooseOrg(orgs, firstParam(query.org));
   const rows = org
     ? await listAudit(supabase, org.id, {
         entityType: ENTITY_TYPES.includes(entityType) ? entityType : null,
@@ -40,6 +41,18 @@ export default async function Page({
       <OpsNav current="audit" />
       <h1>{T.title}</h1>
       <form className={styles.inline} action={boHref.audit()} data-testid="audit-filter">
+        {orgs.length > 1 && org && (
+          <label>
+            {B.org}
+            <select name="org" defaultValue={org.id}>
+              {orgs.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           {T.entityType}
           <select name="tur" defaultValue={entityType}>

@@ -157,6 +157,8 @@ export const backOfficeText = {
   no: "Hayır",
   all: "Tümü",
   filter: "Süz",
+  org: "İşletme",
+  show: "Göster",
   back: "Geri",
   details: "Ayrıntı",
   print: "Yazdır",
@@ -197,6 +199,8 @@ export const backOfficeText = {
     paid: "Ödenen",
     parcels: "Parsel",
     empty: "Aramaya uyan kayıt yok.",
+    truncated:
+      "Bir işletmede 1000'den çok kayıt var; yalnızca en yeni 1000 kayıt gösteriliyor. Daha eskiler için arayın.",
   },
   account: {
     title: "Müşteri hesabı",

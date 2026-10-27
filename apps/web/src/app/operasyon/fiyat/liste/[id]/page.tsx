@@ -57,7 +57,7 @@ export default async function Page({
     <main className="page">
       <OpsNav current="prices" />
       <p>
-        <Link href={boHref.prices()}>← {T.title}</Link>
+        <Link href={boHref.prices(undefined, l.org_id)}>← {T.title}</Link>
       </p>
       <h1>{T.listTitle(l.version)}</h1>
       <BoResultNotice params={await searchParams} />
@@ -164,6 +164,7 @@ export default async function Page({
               <h2>{T.deleteDraft}</h2>
               <ActionForm action={deleteDraftAction} testId="delete-draft-form">
                 <input type="hidden" name="price_list_id" value={l.id} />
+                <input type="hidden" name="org_id" value={l.org_id} />
                 <div className={styles.actions}>
                   <Submit secondary>{T.deleteDraft}</Submit>
                 </div>

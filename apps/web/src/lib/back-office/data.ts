@@ -100,20 +100,35 @@ export async function billingSummary(
   return sum;
 }
 
+// ops_customers' (and PostgREST's) row cap.
+const CUSTOMER_LIMIT = 1000;
+
+export interface CustomerList {
+  rows: CustomerRow[];
+  // Some org has more matching profiles than the cap: the oldest are missing.
+  truncated: boolean;
+}
+
 export async function listCustomers(
   supabase: Client,
   orgs: OpsOrg[],
   query: string | null,
-): Promise<CustomerRow[]> {
-  return eachOrg(orgs, async (orgId) =>
-    check(
-      await supabase.rpc("ops_customers", {
-        p_org_id: orgId,
-        ...(query ? { p_query: query } : {}),
-        p_limit: 1000,
-      }),
+): Promise<CustomerList> {
+  const perOrg = await Promise.all(
+    orgs.map(async (o) =>
+      check(
+        await supabase.rpc("ops_customers", {
+          p_org_id: o.id,
+          ...(query ? { p_query: query } : {}),
+          p_limit: CUSTOMER_LIMIT,
+        }),
+      ),
     ),
   );
+  return {
+    rows: perOrg.flat(),
+    truncated: perOrg.some((rows) => rows.length >= CUSTOMER_LIMIT),
+  };
 }
 
 export interface CustomerAccount {
@@ -125,25 +140,36 @@ export interface CustomerAccount {
 }
 
 // The "Müşteri hesabı" panel of an owner: billing profile (TCKN masked),
-// consent history, applications, orders and payments.
+// consent history, applications, orders and payments. Everything is read by
+// the customer's user id (payments through its orders), so the panel does not
+// depend on where the customer falls in the org-wide lists' 1000 rows.
 export async function customerAccount(
   supabase: Client,
   orgId: string,
   userId: string,
 ): Promise<CustomerAccount> {
-  const [profile, consents, applications, orders, payments] = await Promise.all([
+  const [profile, consents, applications, orders] = await Promise.all([
     supabase.rpc("ops_billing_profile", { p_org_id: orgId, p_user_id: userId }),
     supabase.rpc("ops_customer_consents", { p_org_id: orgId, p_user_id: userId }),
-    supabase.rpc("ops_applications", { p_org_id: orgId, p_limit: 1000 }),
-    supabase.rpc("ops_orders", { p_org_id: orgId, p_customer_user_id: userId }),
-    supabase.rpc("ops_payments", { p_org_id: orgId, p_limit: 1000 }),
+    supabase.rpc("ops_customer_applications", { p_org_id: orgId, p_user_id: userId }),
+    supabase.rpc("ops_orders", { p_org_id: orgId, p_customer_user_id: userId, p_limit: 1000 }),
   ]);
+  const orderRows = check(orders);
+  const payments = await Promise.all(
+    orderRows.map(async (o) =>
+      check(
+        await supabase.rpc("ops_payments", { p_org_id: orgId, p_order_id: o.id, p_limit: 1000 }),
+      ),
+    ),
+  );
   return {
     profile: check(profile)[0] ?? null,
     consents: check(consents),
-    applications: check(applications).filter((a) => a.customer_user_id === userId),
-    orders: check(orders),
-    payments: check(payments).filter((p) => p.customer_user_id === userId),
+    applications: check(applications),
+    orders: orderRows,
+    payments: payments
+      .flat()
+      .sort((x, y) => y.initiated_at.localeCompare(x.initiated_at) || x.id.localeCompare(y.id)),
   };
 }
 
@@ -304,7 +330,7 @@ export async function getQuote(supabase: Client, id: string): Promise<QuoteView 
     await supabase.from("quote").select(BILLING_COLUMNS.quote).eq("id", id).maybeSingle(),
   ) as Quote | null;
   if (!quote) return null;
-  const [items, internal, order, customers] = await Promise.all([
+  const [items, internal, order, customer] = await Promise.all([
     supabase
       .from("quote_item")
       .select(BILLING_COLUMNS.quote_item)
@@ -312,14 +338,13 @@ export async function getQuote(supabase: Client, id: string): Promise<QuoteView 
       .order("line_no"),
     internalOf(supabase, "quote", id),
     supabase.from("service_order").select("id").eq("quote_id", id).maybeSingle(),
-    supabase.rpc("ops_customers", { p_org_id: quote.org_id, p_limit: 1000 }),
+    supabase.rpc("ops_customer", { p_org_id: quote.org_id, p_user_id: quote.customer_user_id }),
   ]);
   return {
     quote,
     items: check(items) as QuoteItem[],
     internal,
-    customerName:
-      check(customers).find((c) => c.user_id === quote.customer_user_id)?.full_name ?? null,
+    customerName: check(customer)[0]?.full_name ?? null,
     orderId: check(order)?.id ?? null,
   };
 }

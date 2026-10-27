@@ -51,8 +51,9 @@ function build(path: string, query: Query = {}, result: BoResult = {}): string {
 }
 
 export const boHref = {
-  customers: (query: { q?: string | null; kaynak?: string | null } = {}) =>
-    build("/operasyon/sahip", query),
+  // No search term here: it is personal data (name, phone, e-mail) and is
+  // posted, never put in a URL.
+  customers: (query: { kaynak?: string | null } = {}) => build("/operasyon/sahip", query),
   customer: (profileId: string, result?: BoResult) =>
     build(`/operasyon/sahip/${profileId}`, {}, result),
   applications: (query: { durum?: string | null } = {}) => build("/operasyon/basvuru", query),
@@ -68,13 +69,21 @@ export const boHref = {
     build("/operasyon/odeme", query),
   payment: (id: string, result?: BoResult) => build(`/operasyon/odeme/${id}`, {}, result),
   refunds: (result?: BoResult) => build("/operasyon/iade", {}, result),
-  prices: (result?: BoResult) => build("/operasyon/fiyat", {}, result),
+  // `org` keeps the org of a multi-org ops user across links and redirects.
+  prices: (result?: BoResult, org?: string | null) => build("/operasyon/fiyat", { org }, result),
   priceList: (id: string, result?: BoResult) => build(`/operasyon/fiyat/liste/${id}`, {}, result),
-  packageForm: (id?: string) =>
-    id ? `/operasyon/fiyat/paket/${id}` : "/operasyon/fiyat/paket/yeni",
-  audit: (query: { tur?: string | null; kayit?: string | null; eylem?: string | null } = {}) =>
-    build("/operasyon/denetim-kaydi", query),
-  settings: (result?: BoResult) => build("/operasyon/ayarlar", {}, result),
+  packageForm: (id?: string, org?: string | null) =>
+    id ? `/operasyon/fiyat/paket/${id}` : build("/operasyon/fiyat/paket/yeni", { org }),
+  audit: (
+    query: {
+      org?: string | null;
+      tur?: string | null;
+      kayit?: string | null;
+      eylem?: string | null;
+    } = {},
+  ) => build("/operasyon/denetim-kaydi", query),
+  settings: (result?: BoResult, org?: string | null) =>
+    build("/operasyon/ayarlar", { org }, result),
   receipt: (paymentId: string) => `/makbuz/${paymentId}`,
 };
 

@@ -1,6 +1,7 @@
 import { FormError, Notice } from "@/components/operations/field";
 import styles from "@/components/operations/operations.module.css";
 import { readBoResult } from "@/lib/back-office/urls";
+import type { OpsOrg } from "@/lib/operations/data";
 import { formatKurus } from "@/lib/billing/money";
 import { formatDate, formatDateTime } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
@@ -49,6 +50,38 @@ export function Warning({ children, testId }: { children: React.ReactNode; testI
     <p className={bo.warning} data-testid={testId}>
       {children}
     </p>
+  );
+}
+
+// The org picker of the screens that work in one org (prices, settings, the
+// audit log), for a user who is ops in more than one. Org ids are not
+// personal data, so the choice goes in the URL (?org=).
+export function OrgPicker({
+  orgs,
+  current,
+  action,
+}: {
+  orgs: OpsOrg[];
+  current: string;
+  action: string;
+}) {
+  if (orgs.length < 2) return null;
+  return (
+    <form className={styles.inline} action={action} data-testid="org-picker">
+      <label>
+        {B.org}
+        <select name="org" defaultValue={current}>
+          {orgs.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button className="button button-secondary" type="submit">
+        {B.show}
+      </button>
+    </form>
   );
 }
 

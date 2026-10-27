@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { customerListView, type CustomerListView } from "@/components/back-office/customer-rows";
 import { requireSection } from "@/lib/auth/session";
-import { refundKinds } from "@/lib/back-office/data";
+import { listCustomers, refundKinds } from "@/lib/back-office/data";
 import type { BoFormState } from "@/lib/back-office/form-state";
 import {
   cancelOrder,
@@ -50,7 +51,7 @@ import {
 } from "@/lib/back-office/validation";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
-import { opsOrgs } from "@/lib/operations/data";
+import { listOwnerProfiles, opsOrgs } from "@/lib/operations/data";
 import { isUuid } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
 
@@ -121,6 +122,24 @@ async function then<T>(
 // ---------------------------------------------------------------------------
 // Customers
 // ---------------------------------------------------------------------------
+
+// The owners list searched by name, phone or e-mail. The term is personal
+// data, so it comes in a POST body and only the masked rows go back; it never
+// reaches a URL, the history or an access log.
+export async function searchCustomersAction(
+  _prev: CustomerListView | null,
+  form: FormData,
+): Promise<CustomerListView> {
+  const { user, supabase } = await context();
+  const read = formReader(form);
+  const query = read("q").slice(0, 100) || null;
+  const orgs = await opsOrgs(supabase, user.id);
+  const [list, profiles] = await Promise.all([
+    listCustomers(supabase, orgs, query),
+    listOwnerProfiles(supabase),
+  ]);
+  return customerListView(list, profiles, read("kaynak") === "self");
+}
 
 // The TCKN once, in this response only; ops_billing_profile writes the audit.
 export async function revealIdentityAction(
@@ -411,7 +430,7 @@ export async function savePackageAction(_prev: BoFormState, form: FormData): Pro
   const parsed = parsedOr(parsePackage(read));
   if ("state" in parsed) return parsed.state;
   return then(savePackage(supabase, orgId, parsed.value), () =>
-    boHref.prices({ notice: "package_saved" }),
+    boHref.prices({ notice: "package_saved" }, orgId),
   );
 }
 
@@ -455,10 +474,12 @@ export async function publishDraftAction(_prev: BoFormState, form: FormData): Pr
 
 export async function deleteDraftAction(_prev: BoFormState, form: FormData): Promise<BoFormState> {
   const { supabase } = await context();
-  const listId = idOf(formReader(form), "price_list_id");
+  const read = formReader(form);
+  const listId = idOf(read, "price_list_id");
   if (!listId) return notFound;
+  const orgId = idOf(read, "org_id");
   return then(deletePriceListDraft(supabase, listId), () =>
-    boHref.prices({ notice: "draft_deleted" }),
+    boHref.prices({ notice: "draft_deleted" }, orgId),
   );
 }
 
@@ -470,6 +491,6 @@ export async function saveSettingsAction(_prev: BoFormState, form: FormData): Pr
   const parsed = parsedOr(parseSettings(read));
   if ("state" in parsed) return parsed.state;
   return then(saveSetting(supabase, orgId, parsed.value), () =>
-    boHref.settings({ notice: "settings_saved" }),
+    boHref.settings({ notice: "settings_saved" }, orgId),
   );
 }

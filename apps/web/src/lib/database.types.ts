@@ -4107,6 +4107,43 @@ export type Database = {
         Args: { p_copy_from_id?: string; p_org_id: string };
         Returns: string;
       };
+      ops_customer: {
+        Args: { p_org_id: string; p_user_id: string };
+        Returns: {
+          application_count: number;
+          created_at: string;
+          email: string;
+          full_name: string;
+          has_billing_profile: boolean;
+          open_order_count: number;
+          paid_kurus: number;
+          parcel_count: number;
+          phone: string;
+          profile_id: string;
+          signup_source: string;
+          user_id: string;
+        }[];
+      };
+      ops_customer_applications: {
+        Args: { p_org_id: string; p_user_id: string };
+        Returns: {
+          created_at: string;
+          customer_name: string;
+          customer_user_id: string;
+          decided_at: string;
+          declared_area_m2: number;
+          garden_count: number;
+          id: string;
+          number: string;
+          open_quote_id: string;
+          package_id: string;
+          package_name: string;
+          rejection_reason: string;
+          status: string;
+          submitted_at: string;
+          verified_garden_count: number;
+        }[];
+      };
       ops_customer_consents: {
         Args: { p_org_id: string; p_user_id: string };
         Returns: {

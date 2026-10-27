@@ -317,6 +317,10 @@ test("the customer's TCKN is masked until ops reveals it", async ({ page }) => {
   await login(page, "ops@example.com", "/operasyon/sahip");
   await page.getByLabel("Ad, telefon ya da e-posta").fill(NAME);
   await page.getByRole("button", { name: "Süz" }).click();
+  // The search is posted: only the matching row, and the term (personal
+  // data) is not in the URL.
+  await expect(page.getByTestId("owner-list").locator("tbody tr")).toHaveCount(1);
+  expect(new URL(page.url()).search).not.toContain("q=");
   await page.getByTestId("owner-list").getByRole("link", { name: NAME }).click();
   const panel = page.getByTestId("customer-account");
   await expect(panel.getByTestId("billing-profile")).toBeVisible();

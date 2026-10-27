@@ -201,11 +201,9 @@ export default async function Page({
             <ActionForm action={resolveReviewAction} testId="review-form">
               <input type="hidden" name="payment_id" value={p.id} />
               <Field label={T.providerRef} optional>
-                <input
-                  name="provider_ref"
-                  maxLength={100}
-                  defaultValue={p.provider_payment_id ?? ""}
-                />
+                {/* Left empty on purpose: ops pastes the id they checked in the
+                    provider panel; a pre-filled value would make it one click. */}
+                <input name="provider_ref" maxLength={100} defaultValue="" />
               </Field>
               <Field label={B.internalNote} optional>
                 <textarea name="note" maxLength={2000} rows={2} />

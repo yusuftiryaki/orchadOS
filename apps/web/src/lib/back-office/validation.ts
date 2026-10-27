@@ -49,6 +49,19 @@ export function percentToBp(input: string): number | null {
   return bp != null && bp <= 10000 ? bp : null;
 }
 
+// What is still to pay on an order, as the database counts it
+// (ops_record_manual_payment, activate_order): the total less the net paid
+// amount (paid − refunded). Only an order awaiting payment owes anything.
+export function outstandingKurus(order: {
+  status: string;
+  total_kurus: number;
+  paid_kurus: number;
+  refunded_kurus: number;
+}): number {
+  if (order.status !== "awaiting_payment") return 0;
+  return Math.max(order.total_kurus - (order.paid_kurus - order.refunded_kurus), 0);
+}
+
 // 1250 → "12,5".
 export function bpToPercent(bp: number): string {
   return new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(bp / 100);
@@ -422,8 +435,8 @@ export function parseSettings(
     const issue = ibanIssue(iban);
     const unchanged = iban === normalizeIban(read("iban_current"));
     if (issue === "format" || (issue === "checksum" && !unchanged)) return bad("iban");
-    settings.iban = iban;
   }
+  settings.iban = iban || null;
   for (const [key, min, max] of [
     ["payment_due_days", 1, 60],
     ["quote_valid_days", 1, 90],

@@ -1,12 +1,12 @@
 import { saveSettingsAction } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
-import { BoResultNotice, Submit, Warning } from "@/components/back-office/parts";
+import { BoResultNotice, OrgPicker, Submit, Warning } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { chooseOrg, getSetting } from "@/lib/back-office/data";
-import { firstParam } from "@/lib/back-office/urls";
+import { boHref, firstParam } from "@/lib/back-office/urls";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { opsOrgs } from "@/lib/operations/data";
 import { createClient } from "@/lib/supabase/server";
@@ -26,13 +26,15 @@ export default async function Page({
   const user = await requireSection("operasyon");
   const query = await searchParams;
   const supabase = await createClient();
-  const org = chooseOrg(await opsOrgs(supabase, user.id), firstParam(query.org));
+  const orgs = await opsOrgs(supabase, user.id);
+  const org = chooseOrg(orgs, firstParam(query.org));
   const s = org ? await getSetting(supabase, org.id) : null;
 
   return (
     <main className="page">
       <OpsNav current="settings" />
       <h1>{T.title}</h1>
+      {org && <OrgPicker orgs={orgs} current={org.id} action={boHref.settings()} />}
       <BoResultNotice params={query} />
       {org && s && (
         <ActionForm action={saveSettingsAction} testId="settings-form">

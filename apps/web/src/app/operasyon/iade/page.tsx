@@ -103,7 +103,11 @@ export default async function Page({
 
 function RowActions({ refund: r, today }: { refund: RefundRow; today: string }) {
   const card = r.kind !== "manual";
-  const canProcess = card && (r.status === "requested" || r.status === "failed");
+  // payment_refund_claim's rule: a failed refund goes again only when retryable
+  // (not after a provider decline that cannot be retried, nor after ops
+  // settled it by hand as failed).
+  const canProcess =
+    card && (r.status === "requested" || (r.status === "failed" && r.retryable !== false));
   const canResolve = card && (r.status === "failed" || r.uncertain);
   // The system's void for a provider mismatch is the only way out of the
   // payment's review: not cancelled from here.

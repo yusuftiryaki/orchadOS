@@ -24,6 +24,7 @@ import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { getOrder } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
+import { outstandingKurus } from "@/lib/back-office/validation";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { opsHref } from "@/lib/operations/urls";
@@ -48,7 +49,7 @@ export default async function Page({
   const view = await getOrder(supabase, id);
   if (!view) notFound();
   const { order: o, summary, items, payments, audit, internal } = view;
-  const outstanding = Math.max(o.total_kurus - o.paid_kurus, 0);
+  const outstanding = outstandingKurus(o);
   const today = todayIn(new Date());
   const awaiting = o.status === "awaiting_payment";
 

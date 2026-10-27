@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { createDraftAction } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
-import { Badge, BoResultNotice, Submit, day, when } from "@/components/back-office/parts";
+import {
+  Badge,
+  BoResultNotice,
+  OrgPicker,
+  Submit,
+  day,
+  when,
+} from "@/components/back-office/parts";
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
@@ -26,7 +33,8 @@ export default async function Page({
   const user = await requireSection("operasyon");
   const query = await searchParams;
   const supabase = await createClient();
-  const org = chooseOrg(await opsOrgs(supabase, user.id), firstParam(query.org));
+  const orgs = await opsOrgs(supabase, user.id);
+  const org = chooseOrg(orgs, firstParam(query.org));
   const today = todayIn(new Date());
   const prices = org ? await getPrices(supabase, org.id, today) : null;
 
@@ -34,12 +42,13 @@ export default async function Page({
     <main className="page">
       <OpsNav current="prices" />
       <h1>{T.title}</h1>
+      {org && <OrgPicker orgs={orgs} current={org.id} action={boHref.prices()} />}
       <BoResultNotice params={query} />
       {org && prices && (
         <>
           <div className={styles.titleRow}>
             <h2>{T.packages}</h2>
-            <Link className="button button-secondary" href={boHref.packageForm()}>
+            <Link className="button button-secondary" href={boHref.packageForm(undefined, org.id)}>
               {T.newPackage}
             </Link>
           </div>

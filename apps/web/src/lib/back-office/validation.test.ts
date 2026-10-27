@@ -6,6 +6,7 @@ import {
   formReader,
   ibanIssue,
   normalizeIban,
+  outstandingKurus,
   parseAmount,
   parseIsoDate,
   parseManualPayment,
@@ -23,6 +24,18 @@ const reader = (values: Record<string, string>) => {
   for (const [k, v] of Object.entries(values)) form.set(k, v);
   return formReader(form);
 };
+
+describe("outstandingKurus", () => {
+  it("counts the net paid amount, as the database does", () => {
+    const order = { total_kurus: 100_000, paid_kurus: 100_000, refunded_kurus: 20_000 };
+    expect(outstandingKurus({ ...order, status: "awaiting_payment" })).toBe(20_000);
+    expect(outstandingKurus({ ...order, status: "awaiting_payment", refunded_kurus: 0 })).toBe(0);
+    expect(outstandingKurus({ ...order, status: "awaiting_payment", paid_kurus: 30_000 })).toBe(
+      90_000,
+    );
+    expect(outstandingKurus({ ...order, status: "active" })).toBe(0);
+  });
+});
 
 describe("units", () => {
   it("TL → kuruş, zero only when allowed", () => {
@@ -248,6 +261,12 @@ describe("forms", () => {
       ok: false,
       field: "iban",
     });
+    // An emptied IBAN field clears the stored IBAN (null), it is not left out.
+    const cleared = parseSettings(
+      reader({ ...base, iban: " ", iban_current: "TR000000000000000000000001" }),
+    );
+    expect(cleared.ok && cleared.value.iban).toBeNull();
+    expect(cleared.ok && "iban" in cleared.value).toBe(true);
     expect(parseSettings(reader({ ...base, renewal_notice_days: "3" }))).toEqual({
       ok: false,
       field: "renewal_notice_days",

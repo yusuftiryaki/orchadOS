@@ -22,6 +22,7 @@ import {
   check,
   createCustomer,
   istanbulToday,
+  orderFor,
   removeCustomers,
   submitApplication,
   type TestCustomer,
@@ -411,29 +412,82 @@ describe("self-dealing", () => {
 });
 
 describe("other roles", () => {
-  // Every ops_* function of IP12 with plausible arguments (seed rows and the
-  // customer's): refused or empty for field@, expert@ and owner@.
-  const calls = (): [string, Record<string, unknown>][] => {
+  // Every ops_* function of IP12, called with real rows ops@ can see (the
+  // test's own customer, application, order, payment, refund and draft, and
+  // seed rows), so that only the role check can refuse it: a missing check
+  // would succeed (no error) or fail with another reason. Writers must raise
+  // forbidden or not_found; a success of a void writer (data null) is not a
+  // refusal. Readers may also answer with no rows (ops_payment_events of a
+  // transfer has none even for ops).
+  let other: TestCustomer;
+  let fresh: { application: string; garden: string };
+  let order: string;
+  let payment: string;
+  let refund: string;
+  let draft: string;
+  let dueDays: number;
+
+  beforeAll(async () => {
+    other = await createCustomer(DOMAIN);
+    fresh = await submitApplication(other);
+    ({ order } = await orderFor(other));
+    const paid = await recordManualPayment(ops, order, {
+      amountKurus: 10_000,
+      valueDate: today,
+      bankReference: "EFT-BO-ROLES",
+      note: null,
+    });
+    if (!paid.ok) throw new Error(paid.error);
+    payment = paid.value;
+    const requested = await requestRefund(ops, payment, {
+      amountKurus: 1_000,
+      reason: "goodwill",
+      note: null,
+      paymentItemId: null,
+    });
+    if (!requested.ok) throw new Error(requested.error);
+    refund = requested.value[0];
+    const created = await createPriceListDraft(ops, SEED.org, null);
+    if (!created.ok) throw new Error(created.error);
+    draft = created.value;
+    dueDays = check(await ops.rpc("ops_billing_setting", { p_org_id: SEED.org }))[0]
+      .payment_due_days;
+  });
+
+  afterAll(async () => {
+    if (draft) await deletePriceListDraft(ops, draft);
+  });
+
+  type Kind = "write" | "read";
+  const calls = (): [string, Kind, Record<string, unknown>][] => {
     const org = SEED.org;
-    const any = "91200000-0000-4000-8000-0000000009ff";
     return [
-      ["ops_billing_summary", { p_org_id: org }],
-      ["ops_customers", { p_org_id: org }],
+      ["ops_billing_summary", "read", { p_org_id: org }],
+      ["ops_customers", "read", { p_org_id: org }],
+      ["ops_customer", "read", { p_org_id: org, p_user_id: other.id }],
+      ["ops_customer_applications", "read", { p_org_id: org, p_user_id: other.id }],
       [
         "ops_billing_internal",
-        { p_entity_type: "application", p_entity_id: BILLING_SEED.application },
+        "read",
+        { p_entity_type: "application", p_entity_id: fresh.application },
       ],
-      ["ops_applications", { p_org_id: org }],
-      ["ops_application_garden_detail", { p_garden_id: BILLING_SEED.garden }],
+      ["ops_applications", "read", { p_org_id: org }],
+      ["ops_application_garden_detail", "read", { p_garden_id: fresh.garden }],
       [
         "ops_verify_application_garden",
-        { p_garden_id: BILLING_SEED.garden, p_verified_area_m2: 15000 },
+        "write",
+        { p_garden_id: fresh.garden, p_verified_area_m2: 15000 },
       ],
-      ["ops_reject_application", { p_application_id: BILLING_SEED.application, p_reason: "other" }],
-      ["ops_preview_quote", { p_application_id: BILLING_SEED.application }],
-      ["ops_issue_quote", { p_application_id: BILLING_SEED.application }],
+      [
+        "ops_reject_application",
+        "write",
+        { p_application_id: fresh.application, p_reason: "other", p_note: "x" },
+      ],
+      ["ops_preview_quote", "read", { p_application_id: fresh.application }],
+      ["ops_issue_quote", "write", { p_application_id: fresh.application }],
       [
         "ops_issue_parcel_quote",
+        "write",
         {
           p_org_id: org,
           p_customer_user_id: CUSTOMER.id,
@@ -443,49 +497,64 @@ describe("other roles", () => {
           p_proposed_service_start: today,
         },
       ],
-      ["ops_orders", { p_org_id: org }],
-      ["ops_cancel_order", { p_order_id: any }],
-      ["ops_extend_payment_due", { p_order_id: any, p_due_on: today }],
-      ["ops_terminate_order", { p_order_id: any, p_note: "x" }],
+      ["ops_orders", "read", { p_org_id: org }],
+      ["ops_cancel_order", "write", { p_order_id: order }],
+      ["ops_extend_payment_due", "write", { p_order_id: order, p_due_on: addDays(today, 5) }],
+      ["ops_terminate_order", "write", { p_order_id: order, p_note: "x" }],
       [
         "ops_record_manual_payment",
-        { p_order_id: any, p_amount_kurus: 1, p_value_date: today, p_bank_reference: "x" },
+        "write",
+        { p_order_id: order, p_amount_kurus: 1, p_value_date: today, p_bank_reference: "x" },
       ],
-      ["ops_payments", { p_org_id: org }],
-      ["ops_payment_events", { p_payment_id: any }],
-      ["ops_void_manual_payment", { p_payment_id: any, p_note: "x" }],
-      ["ops_resolve_payment_review", { p_payment_id: any, p_succeeded: false, p_provider_ref: "" }],
-      ["ops_request_refund", { p_payment_id: any, p_amount_kurus: 1, p_reason: "other" }],
-      ["ops_refunds", { p_org_id: org }],
-      ["ops_can_process_refund", { p_refund_id: any }],
+      ["ops_payments", "read", { p_org_id: org }],
+      ["ops_payment_events", "read", { p_payment_id: payment }],
+      ["ops_void_manual_payment", "write", { p_payment_id: payment, p_note: "x" }],
+      [
+        "ops_resolve_payment_review",
+        "write",
+        { p_payment_id: payment, p_succeeded: false, p_provider_ref: "" },
+      ],
+      [
+        "ops_request_refund",
+        "write",
+        { p_payment_id: payment, p_amount_kurus: 1, p_reason: "goodwill" },
+      ],
+      ["ops_refunds", "read", { p_org_id: org }],
       [
         "ops_complete_manual_refund",
-        { p_refund_id: any, p_bank_reference: "x", p_completed_on: today },
+        "write",
+        { p_refund_id: refund, p_bank_reference: "x", p_completed_on: today },
       ],
-      ["ops_cancel_refund", { p_refund_id: any }],
-      ["ops_resolve_refund", { p_refund_id: any, p_succeeded: false }],
-      ["ops_audit_events", { p_org_id: org }],
-      ["ops_billing_setting", { p_org_id: org }],
-      ["ops_save_billing_setting", { p_org_id: org, p_settings: { payment_due_days: 14 } }],
+      ["ops_cancel_refund", "write", { p_refund_id: refund }],
+      ["ops_resolve_refund", "write", { p_refund_id: refund, p_succeeded: false }],
+      ["ops_audit_events", "read", { p_org_id: org }],
+      ["ops_billing_setting", "read", { p_org_id: org }],
+      [
+        "ops_save_billing_setting",
+        "write",
+        { p_org_id: org, p_settings: { payment_due_days: dueDays } },
+      ],
       [
         "ops_save_package",
+        "write",
         { p_org_id: org, p_package: { code: "yetkisiz", name: "x", periodic_visits_per_year: 1 } },
       ],
-      ["ops_create_price_list_draft", { p_org_id: org }],
+      ["ops_create_price_list_draft", "write", { p_org_id: org }],
       [
         "ops_save_price_list_draft",
+        "write",
         {
-          p_price_list_id: BILLING_SEED.priceListV2,
-          p_valid_from: today,
+          p_price_list_id: draft,
+          p_valid_from: addDays(today, 3650),
           p_vat_rate_bp: 2000,
           p_note: "",
           p_items: [],
         },
       ],
-      ["ops_publish_price_list", { p_price_list_id: BILLING_SEED.priceListV2 }],
-      ["ops_delete_price_list_draft", { p_price_list_id: BILLING_SEED.priceListV2 }],
-      ["ops_billing_profile", { p_org_id: org, p_user_id: CUSTOMER.id, p_reveal: true }],
-      ["ops_customer_consents", { p_org_id: org, p_user_id: CUSTOMER.id }],
+      ["ops_publish_price_list", "write", { p_price_list_id: draft }],
+      ["ops_delete_price_list_draft", "write", { p_price_list_id: draft }],
+      ["ops_billing_profile", "read", { p_org_id: org, p_user_id: other.id, p_reveal: true }],
+      ["ops_customer_consents", "read", { p_org_id: org, p_user_id: other.id }],
     ];
   };
 
@@ -493,25 +562,58 @@ describe("other roles", () => {
     "%s@ gets nothing from the ops functions",
     async (who) => {
       const { client } = await signIn(who);
-      for (const [fn, args] of calls()) {
+      for (const [fn, kind, args] of calls()) {
         const { data, error } = await (
           client.rpc as unknown as (
             f: string,
             a: Record<string, unknown>,
           ) => Promise<{ data: unknown; error: { message: string } | null }>
         )(fn, args);
-        const refused =
-          error !== null ||
-          data === null ||
-          data === false ||
-          (Array.isArray(data) && data.length === 0);
-        expect(refused, `${who}: ${fn}`).toBe(true);
+        const raised = error !== null && ["forbidden", "not_found"].includes(error.message);
+        const empty = kind === "read" && error === null && Array.isArray(data) && data.length === 0;
+        expect(raised || empty, `${who}: ${fn} → ${error?.message ?? JSON.stringify(data)}`).toBe(
+          true,
+        );
       }
-      // The seed draft is untouched.
-      const v2 = check(
-        await admin.from("price_list").select("status").eq("id", BILLING_SEED.priceListV2).single(),
+      // ops_can_process_refund answers false (or not_found) rather than forbidden.
+      const can = await client.rpc("ops_can_process_refund", { p_refund_id: refund });
+      expect(can.error?.message === "not_found" || can.data === false, `${who}: can_process`).toBe(
+        true,
       );
-      expect(v2.status).toBe("draft");
+
+      // Nothing changed.
+      const [o, r, p, a, g, d, v2] = await Promise.all([
+        admin.from("service_order").select("status").eq("id", order).single().then(check),
+        admin.from("refund").select("status").eq("id", refund).single().then(check),
+        admin.from("payment").select("status").eq("id", payment).single().then(check),
+        admin
+          .from("service_application")
+          .select("status")
+          .eq("id", fresh.application)
+          .single()
+          .then(check),
+        admin
+          .from("application_garden")
+          .select("verified_at")
+          .eq("id", fresh.garden)
+          .single()
+          .then(check),
+        admin.from("price_list").select("status, valid_from").eq("id", draft).single().then(check),
+        admin
+          .from("price_list")
+          .select("status")
+          .eq("id", BILLING_SEED.priceListV2)
+          .single()
+          .then(check),
+      ]);
+      expect(o).toEqual({ status: "awaiting_payment" });
+      expect(r).toEqual({ status: "requested" });
+      expect(p).toEqual({ status: "succeeded" });
+      expect(a).toEqual({ status: "submitted" });
+      expect(g).toEqual({ verified_at: null });
+      expect(d.status).toBe("draft");
+      expect(d.valid_from).not.toBe(addDays(today, 3650));
+      expect(v2).toEqual({ status: "draft" });
     },
   );
 });
