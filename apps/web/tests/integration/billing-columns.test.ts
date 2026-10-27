@@ -1,15 +1,26 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 import { BILLING_COLUMNS, type BillingTable } from "@/lib/billing/columns";
+import { selectableColumns } from "../local-db";
 import { signIn, signInCustomer } from "./fixtures";
 
 // BILLING_COLUMNS equals what `authenticated` may select (column grants,
-// docs/musteri-yonetimi.md §6.8): every list is readable, and an internal
-// column or `*` is refused.
+// docs/musteri-yonetimi.md §6.8): the same set of columns per table as the
+// database's privileges, every list is readable, and an internal column or `*`
+// is refused.
 
 const tables = Object.keys(BILLING_COLUMNS) as BillingTable[];
+const listed = (table: BillingTable) =>
+  (BILLING_COLUMNS[table] as string).split(",").map((c) => c.trim());
 
 describe("billing column grants", () => {
+  it("every list is exactly the columns granted to authenticated", async () => {
+    const granted = await selectableColumns("authenticated", tables);
+    for (const table of tables) {
+      expect([...listed(table)].sort(), table).toEqual([...(granted[table] ?? [])].sort());
+    }
+  });
+
   it.each(tables)("ops reads every listed column of %s", async (table) => {
     const { client } = await signIn("ops");
     // Untyped: a union of every table and column list is too deep for tsc.
