@@ -60,6 +60,45 @@ export async function purgeOrg(orgId: string) {
   await call("purge_org", { p_org_id: orgId });
 }
 
+// Removes the billing rows of test customers (applications, quotes, orders,
+// payments, refunds, profiles, consents, pending sign-ups, audit rows). Run it
+// before deleting the auth users: customer_user_id is on delete restrict.
+export async function purgeBillingUsers(userIds: string[]) {
+  if (!userIds.every((id) => UUID.test(id))) throw new Error("purgeBillingUsers takes uuids");
+  await call("purge_billing_users", { p_user_ids: userIds });
+}
+
+// Clears the sign-up rate limit rows (hashed IPs and phones), so that the
+// sign-up tests can run again within the hour.
+export async function purgeSignupAttempts() {
+  await call("purge_signup_attempts", {});
+}
+
+// Moves the pending sign-ups and auth accounts of these users back in time
+// (e.g. past the 30-minute grace period of a stale sign-up).
+export async function ageSignups(userIds: string[], minutes: number) {
+  if (!userIds.every((id) => UUID.test(id))) throw new Error("ageSignups takes uuids");
+  await call("age_signups", { p_user_ids: userIds, p_minutes: minutes });
+}
+
+// The columns of these public tables a role may select, per table.
+export async function selectableColumns(
+  role: string,
+  tables: string[],
+): Promise<Record<string, string[]>> {
+  const { data, error } = await admin().rpc("selectable_columns", {
+    p_role: role,
+    p_tables: tables,
+  });
+  if (error)
+    throw new Error(`testing.selectable_columns: ${error.message} (run \`pnpm db:reset\`)`);
+  const columns: Record<string, string[]> = {};
+  for (const row of (data ?? []) as { table_name: string; column_name: string }[]) {
+    (columns[row.table_name] ??= []).push(row.column_name);
+  }
+  return columns;
+}
+
 // Deletes the auth users whose e-mail matches (test accounts of a fixture).
 export async function deleteUsers(match: (email: string) => boolean) {
   const auth = admin().auth.admin;

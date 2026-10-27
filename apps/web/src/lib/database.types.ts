@@ -102,6 +102,104 @@ export type Database = {
           },
         ];
       };
+      application_garden: {
+        Row: {
+          application_id: string;
+          boundary: unknown;
+          created_at: string;
+          customer_user_id: string;
+          declared_area_m2: number;
+          district: string | null;
+          estimated_tree_count: number | null;
+          id: string;
+          irrigation: Database["public"]["Enums"]["irrigation_type"];
+          name: string;
+          org_id: string;
+          parcel_id: string | null;
+          position: unknown;
+          position_uncertainty_m: number;
+          province: string | null;
+          sort_order: number;
+          updated_at: string;
+          verification_note: string | null;
+          verified_area_m2: number | null;
+          verified_at: string | null;
+          verified_by: string | null;
+          village: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          application_id: string;
+          boundary?: unknown;
+          created_at?: string;
+          customer_user_id: string;
+          declared_area_m2: number;
+          district?: string | null;
+          estimated_tree_count?: number | null;
+          id?: string;
+          irrigation?: Database["public"]["Enums"]["irrigation_type"];
+          name: string;
+          org_id: string;
+          parcel_id?: string | null;
+          position: unknown;
+          position_uncertainty_m?: number;
+          province?: string | null;
+          sort_order?: number;
+          updated_at?: string;
+          verification_note?: string | null;
+          verified_area_m2?: number | null;
+          verified_at?: string | null;
+          verified_by?: string | null;
+          village?: string | null;
+        };
+        Update: {
+          application_id?: string;
+          boundary?: unknown;
+          created_at?: string;
+          customer_user_id?: string;
+          declared_area_m2?: number;
+          district?: string | null;
+          estimated_tree_count?: number | null;
+          id?: string;
+          irrigation?: Database["public"]["Enums"]["irrigation_type"];
+          name?: string;
+          org_id?: string;
+          parcel_id?: string | null;
+          position?: unknown;
+          position_uncertainty_m?: number;
+          province?: string | null;
+          sort_order?: number;
+          updated_at?: string;
+          verification_note?: string | null;
+          verified_area_m2?: number | null;
+          verified_at?: string | null;
+          verified_by?: string | null;
+          village?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "application_garden_application_id_customer_user_id_org_id_fkey";
+            columns: ["application_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_application";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+          {
+            foreignKeyName: "application_garden_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "application_garden_parcel_id_fkey";
+            columns: ["parcel_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       assessment: {
         Row: {
           approved_at: string | null;
@@ -378,6 +476,51 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "capture";
             referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      audit_event: {
+        Row: {
+          action: string;
+          actor_role: string;
+          actor_user_id: string | null;
+          created_at: string;
+          details: NonNullable<Json>;
+          entity_id: string | null;
+          entity_type: string;
+          id: string;
+          org_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          action: string;
+          actor_role: string;
+          actor_user_id?: string | null;
+          created_at?: string;
+          details?: NonNullable<Json>;
+          entity_id?: string | null;
+          entity_type: string;
+          id?: string;
+          org_id: string;
+        };
+        Update: {
+          action?: string;
+          actor_role?: string;
+          actor_user_id?: string | null;
+          created_at?: string;
+          details?: NonNullable<Json>;
+          entity_id?: string | null;
+          entity_type?: string;
+          id?: string;
+          org_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "audit_event_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
           },
         ];
       };
@@ -1434,6 +1577,84 @@ export type Database = {
         };
         Relationships: [];
       };
+      org_billing_setting: {
+        Row: {
+          accepts_signups: boolean;
+          address: string | null;
+          allow_fake_payments: boolean;
+          bank_name: string | null;
+          created_at: string;
+          email: string | null;
+          iban: string | null;
+          iban_holder: string | null;
+          identity_number_required: boolean;
+          legal_name: string | null;
+          mersis_number: string | null;
+          org_id: string;
+          payment_due_days: number;
+          phone: string | null;
+          quote_valid_days: number;
+          renewal_notice_days: number;
+          tax_number: string | null;
+          tax_office: string | null;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          accepts_signups?: boolean;
+          address?: string | null;
+          allow_fake_payments?: boolean;
+          bank_name?: string | null;
+          created_at?: string;
+          email?: string | null;
+          iban?: string | null;
+          iban_holder?: string | null;
+          identity_number_required?: boolean;
+          legal_name?: string | null;
+          mersis_number?: string | null;
+          org_id: string;
+          payment_due_days?: number;
+          phone?: string | null;
+          quote_valid_days?: number;
+          renewal_notice_days?: number;
+          tax_number?: string | null;
+          tax_office?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          accepts_signups?: boolean;
+          address?: string | null;
+          allow_fake_payments?: boolean;
+          bank_name?: string | null;
+          created_at?: string;
+          email?: string | null;
+          iban?: string | null;
+          iban_holder?: string | null;
+          identity_number_required?: boolean;
+          legal_name?: string | null;
+          mersis_number?: string | null;
+          org_id?: string;
+          payment_due_days?: number;
+          phone?: string | null;
+          quote_valid_days?: number;
+          renewal_notice_days?: number;
+          tax_number?: string | null;
+          tax_office?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "org_billing_setting_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: true;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       parcel: {
         Row: {
           created_at: string;
@@ -1600,6 +1821,311 @@ export type Database = {
           },
         ];
       };
+      payment: {
+        Row: {
+          amount_kurus: number;
+          bank_reference: string | null;
+          card_association: string | null;
+          card_family: string | null;
+          card_last4: string | null;
+          created_at: string;
+          currency: string;
+          customer_user_id: string;
+          failed_at: string | null;
+          failure_code: string | null;
+          fraud_status: number | null;
+          id: string;
+          initiated_at: string;
+          installment: number;
+          manual_note: string | null;
+          order_id: string;
+          org_id: string;
+          paid_kurus: number | null;
+          provider: Database["public"]["Enums"]["payment_provider"];
+          provider_amount_kurus: number | null;
+          provider_payment_id: string | null;
+          provider_token: string | null;
+          receipt_number: string | null;
+          recorded_by: string | null;
+          refunded_kurus: number;
+          return_origin: string | null;
+          status: Database["public"]["Enums"]["payment_status"];
+          succeeded_at: string | null;
+          token_expires_at: string | null;
+          updated_at: string;
+          value_date: string | null;
+          voided_at: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_kurus: number;
+          bank_reference?: string | null;
+          card_association?: string | null;
+          card_family?: string | null;
+          card_last4?: string | null;
+          created_at?: string;
+          currency?: string;
+          customer_user_id: string;
+          failed_at?: string | null;
+          failure_code?: string | null;
+          fraud_status?: number | null;
+          id?: string;
+          initiated_at?: string;
+          installment?: number;
+          manual_note?: string | null;
+          order_id: string;
+          org_id: string;
+          paid_kurus?: number | null;
+          provider: Database["public"]["Enums"]["payment_provider"];
+          provider_amount_kurus?: number | null;
+          provider_payment_id?: string | null;
+          provider_token?: string | null;
+          receipt_number?: string | null;
+          recorded_by?: string | null;
+          refunded_kurus?: number;
+          return_origin?: string | null;
+          status?: Database["public"]["Enums"]["payment_status"];
+          succeeded_at?: string | null;
+          token_expires_at?: string | null;
+          updated_at?: string;
+          value_date?: string | null;
+          voided_at?: string | null;
+        };
+        Update: {
+          amount_kurus?: number;
+          bank_reference?: string | null;
+          card_association?: string | null;
+          card_family?: string | null;
+          card_last4?: string | null;
+          created_at?: string;
+          currency?: string;
+          customer_user_id?: string;
+          failed_at?: string | null;
+          failure_code?: string | null;
+          fraud_status?: number | null;
+          id?: string;
+          initiated_at?: string;
+          installment?: number;
+          manual_note?: string | null;
+          order_id?: string;
+          org_id?: string;
+          paid_kurus?: number | null;
+          provider?: Database["public"]["Enums"]["payment_provider"];
+          provider_amount_kurus?: number | null;
+          provider_payment_id?: string | null;
+          provider_token?: string | null;
+          receipt_number?: string | null;
+          recorded_by?: string | null;
+          refunded_kurus?: number;
+          return_origin?: string | null;
+          status?: Database["public"]["Enums"]["payment_status"];
+          succeeded_at?: string | null;
+          token_expires_at?: string | null;
+          updated_at?: string;
+          value_date?: string | null;
+          voided_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_order_id_customer_user_id_org_id_fkey";
+            columns: ["order_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+          {
+            foreignKeyName: "payment_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      payment_item: {
+        Row: {
+          amount_kurus: number;
+          created_at: string;
+          customer_user_id: string;
+          id: string;
+          line_no: number;
+          name: string;
+          order_item_id: string | null;
+          org_id: string;
+          payment_id: string;
+          provider_item_id: string | null;
+          refunded_kurus: number;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_kurus: number;
+          created_at?: string;
+          customer_user_id: string;
+          id?: string;
+          line_no: number;
+          name: string;
+          order_item_id?: string | null;
+          org_id: string;
+          payment_id: string;
+          provider_item_id?: string | null;
+          refunded_kurus?: number;
+          updated_at?: string;
+        };
+        Update: {
+          amount_kurus?: number;
+          created_at?: string;
+          customer_user_id?: string;
+          id?: string;
+          line_no?: number;
+          name?: string;
+          order_item_id?: string | null;
+          org_id?: string;
+          payment_id?: string;
+          provider_item_id?: string | null;
+          refunded_kurus?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_item_order_item_id_fkey";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order_item";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payment_item_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payment_item_payment_id_customer_user_id_org_id_fkey";
+            columns: ["payment_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "payment";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+        ];
+      };
+      price_list: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          id: string;
+          note: string | null;
+          org_id: string;
+          published_at: string | null;
+          published_by: string | null;
+          status: Database["public"]["Enums"]["price_list_status"];
+          updated_at: string;
+          valid_from: string | null;
+          vat_rate_bp: number;
+          version: number | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          currency?: string;
+          id?: string;
+          note?: string | null;
+          org_id: string;
+          published_at?: string | null;
+          published_by?: string | null;
+          status?: Database["public"]["Enums"]["price_list_status"];
+          updated_at?: string;
+          valid_from?: string | null;
+          vat_rate_bp?: number;
+          version?: number | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          currency?: string;
+          id?: string;
+          note?: string | null;
+          org_id?: string;
+          published_at?: string | null;
+          published_by?: string | null;
+          status?: Database["public"]["Enums"]["price_list_status"];
+          updated_at?: string;
+          valid_from?: string | null;
+          vat_rate_bp?: number;
+          version?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "price_list_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      price_list_item: {
+        Row: {
+          created_at: string;
+          id: string;
+          inventory_fee_kurus: number;
+          minimum_fee_kurus: number;
+          org_id: string;
+          package_id: string;
+          price_list_id: string;
+          unit_price_kurus: number;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          id?: string;
+          inventory_fee_kurus?: number;
+          minimum_fee_kurus?: number;
+          org_id: string;
+          package_id: string;
+          price_list_id: string;
+          unit_price_kurus: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          inventory_fee_kurus?: number;
+          minimum_fee_kurus?: number;
+          org_id?: string;
+          package_id?: string;
+          price_list_id?: string;
+          unit_price_kurus?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "price_list_item_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "price_list_item_package_id_org_id_fkey";
+            columns: ["package_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_package";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "price_list_item_price_list_id_org_id_fkey";
+            columns: ["price_list_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "price_list";
+            referencedColumns: ["id", "org_id"];
+          },
+        ];
+      };
       question: {
         Row: {
           author_role: Database["public"]["Enums"]["question_author_role"];
@@ -1704,6 +2230,377 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "question";
             referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      quote: {
+        Row: {
+          application_id: string | null;
+          base_kurus: number;
+          created_at: string;
+          currency: string;
+          customer_user_id: string;
+          decided_at: string | null;
+          decided_by: string | null;
+          discount_bp: number;
+          discount_kurus: number;
+          discount_note: string | null;
+          first_year: boolean;
+          id: string;
+          includes_inventory: boolean;
+          inputs: NonNullable<Json>;
+          issued_at: string;
+          issued_by: string | null;
+          note_to_customer: string | null;
+          number: string;
+          org_id: string;
+          package_code: string;
+          package_id: string;
+          package_name: string;
+          periodic_visits_per_year: number;
+          price_list_id: string;
+          price_list_version: number;
+          proposed_service_start: string | null;
+          renewal_of_order_id: string | null;
+          status: Database["public"]["Enums"]["quote_status"];
+          subtotal_kurus: number;
+          total_kurus: number;
+          updated_at: string;
+          valid_until: string;
+          vat_kurus: number;
+          vat_rate_bp: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          application_id?: string | null;
+          base_kurus: number;
+          created_at?: string;
+          currency?: string;
+          customer_user_id: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          discount_bp?: number;
+          discount_kurus: number;
+          discount_note?: string | null;
+          first_year: boolean;
+          id?: string;
+          includes_inventory: boolean;
+          inputs: NonNullable<Json>;
+          issued_at?: string;
+          issued_by?: string | null;
+          note_to_customer?: string | null;
+          number: string;
+          org_id: string;
+          package_code: string;
+          package_id: string;
+          package_name: string;
+          periodic_visits_per_year: number;
+          price_list_id: string;
+          price_list_version: number;
+          proposed_service_start?: string | null;
+          renewal_of_order_id?: string | null;
+          status?: Database["public"]["Enums"]["quote_status"];
+          subtotal_kurus: number;
+          total_kurus: number;
+          updated_at?: string;
+          valid_until: string;
+          vat_kurus: number;
+          vat_rate_bp: number;
+        };
+        Update: {
+          application_id?: string | null;
+          base_kurus?: number;
+          created_at?: string;
+          currency?: string;
+          customer_user_id?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          discount_bp?: number;
+          discount_kurus?: number;
+          discount_note?: string | null;
+          first_year?: boolean;
+          id?: string;
+          includes_inventory?: boolean;
+          inputs?: NonNullable<Json>;
+          issued_at?: string;
+          issued_by?: string | null;
+          note_to_customer?: string | null;
+          number?: string;
+          org_id?: string;
+          package_code?: string;
+          package_id?: string;
+          package_name?: string;
+          periodic_visits_per_year?: number;
+          price_list_id?: string;
+          price_list_version?: number;
+          proposed_service_start?: string | null;
+          renewal_of_order_id?: string | null;
+          status?: Database["public"]["Enums"]["quote_status"];
+          subtotal_kurus?: number;
+          total_kurus?: number;
+          updated_at?: string;
+          valid_until?: string;
+          vat_kurus?: number;
+          vat_rate_bp?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quote_application_id_customer_user_id_org_id_fkey";
+            columns: ["application_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_application";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+          {
+            foreignKeyName: "quote_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quote_package_id_org_id_fkey";
+            columns: ["package_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_package";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "quote_price_list_id_org_id_fkey";
+            columns: ["price_list_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "price_list";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "quote_renewal_of_order_id_fkey";
+            columns: ["renewal_of_order_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      quote_item: {
+        Row: {
+          application_garden_id: string | null;
+          area_m2: number;
+          billable_area_tenths: number;
+          created_at: string;
+          customer_user_id: string;
+          garden_name: string;
+          id: string;
+          inventory_fee_kurus: number;
+          line_base_kurus: number;
+          line_discount_kurus: number;
+          line_no: number;
+          line_subtotal_kurus: number;
+          line_total_kurus: number;
+          line_vat_kurus: number;
+          minimum_fee_kurus: number;
+          org_id: string;
+          parcel_id: string | null;
+          quote_id: string;
+          unit_price_kurus: number;
+          visit_amount_kurus: number;
+          visits: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          application_garden_id?: string | null;
+          area_m2: number;
+          billable_area_tenths: number;
+          created_at?: string;
+          customer_user_id: string;
+          garden_name: string;
+          id?: string;
+          inventory_fee_kurus: number;
+          line_base_kurus: number;
+          line_discount_kurus: number;
+          line_no: number;
+          line_subtotal_kurus: number;
+          line_total_kurus: number;
+          line_vat_kurus: number;
+          minimum_fee_kurus: number;
+          org_id: string;
+          parcel_id?: string | null;
+          quote_id: string;
+          unit_price_kurus: number;
+          visit_amount_kurus: number;
+          visits: number;
+        };
+        Update: {
+          application_garden_id?: string | null;
+          area_m2?: number;
+          billable_area_tenths?: number;
+          created_at?: string;
+          customer_user_id?: string;
+          garden_name?: string;
+          id?: string;
+          inventory_fee_kurus?: number;
+          line_base_kurus?: number;
+          line_discount_kurus?: number;
+          line_no?: number;
+          line_subtotal_kurus?: number;
+          line_total_kurus?: number;
+          line_vat_kurus?: number;
+          minimum_fee_kurus?: number;
+          org_id?: string;
+          parcel_id?: string | null;
+          quote_id?: string;
+          unit_price_kurus?: number;
+          visit_amount_kurus?: number;
+          visits?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quote_item_application_garden_id_fkey";
+            columns: ["application_garden_id"];
+            isOneToOne: false;
+            referencedRelation: "application_garden";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quote_item_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quote_item_parcel_id_fkey";
+            columns: ["parcel_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quote_item_quote_id_customer_user_id_org_id_fkey";
+            columns: ["quote_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "quote";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+        ];
+      };
+      refund: {
+        Row: {
+          amount_kurus: number;
+          attempts: number;
+          bank_reference: string | null;
+          completed_on: string | null;
+          created_at: string;
+          currency: string;
+          customer_user_id: string;
+          failure_code: string | null;
+          id: string;
+          kind: Database["public"]["Enums"]["refund_kind"];
+          note: string | null;
+          number: string;
+          order_id: string;
+          org_id: string;
+          payment_id: string;
+          payment_item_id: string | null;
+          processed_at: string | null;
+          processing_since: string | null;
+          provider_ref: string | null;
+          reason: Database["public"]["Enums"]["refund_reason"];
+          requested_at: string;
+          requested_by: string | null;
+          retryable: boolean | null;
+          status: Database["public"]["Enums"]["refund_status"];
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_kurus: number;
+          attempts?: number;
+          bank_reference?: string | null;
+          completed_on?: string | null;
+          created_at?: string;
+          currency?: string;
+          customer_user_id: string;
+          failure_code?: string | null;
+          id?: string;
+          kind: Database["public"]["Enums"]["refund_kind"];
+          note?: string | null;
+          number: string;
+          order_id: string;
+          org_id: string;
+          payment_id: string;
+          payment_item_id?: string | null;
+          processed_at?: string | null;
+          processing_since?: string | null;
+          provider_ref?: string | null;
+          reason: Database["public"]["Enums"]["refund_reason"];
+          requested_at?: string;
+          requested_by?: string | null;
+          retryable?: boolean | null;
+          status?: Database["public"]["Enums"]["refund_status"];
+          updated_at?: string;
+        };
+        Update: {
+          amount_kurus?: number;
+          attempts?: number;
+          bank_reference?: string | null;
+          completed_on?: string | null;
+          created_at?: string;
+          currency?: string;
+          customer_user_id?: string;
+          failure_code?: string | null;
+          id?: string;
+          kind?: Database["public"]["Enums"]["refund_kind"];
+          note?: string | null;
+          number?: string;
+          order_id?: string;
+          org_id?: string;
+          payment_id?: string;
+          payment_item_id?: string | null;
+          processed_at?: string | null;
+          processing_since?: string | null;
+          provider_ref?: string | null;
+          reason?: Database["public"]["Enums"]["refund_reason"];
+          requested_at?: string;
+          requested_by?: string | null;
+          retryable?: boolean | null;
+          status?: Database["public"]["Enums"]["refund_status"];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "refund_order_id_customer_user_id_org_id_fkey";
+            columns: ["order_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+          {
+            foreignKeyName: "refund_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "refund_payment_id_customer_user_id_org_id_fkey";
+            columns: ["payment_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "payment";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+          {
+            foreignKeyName: "refund_payment_id_order_id_fkey";
+            columns: ["payment_id", "order_id"];
+            isOneToOne: false;
+            referencedRelation: "payment";
+            referencedColumns: ["id", "order_id"];
+          },
+          {
+            foreignKeyName: "refund_payment_item_id_payment_id_fkey";
+            columns: ["payment_item_id", "payment_id"];
+            isOneToOne: false;
+            referencedRelation: "payment_item";
+            referencedColumns: ["id", "payment_id"];
           },
         ];
       };
@@ -1822,6 +2719,297 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "device";
             referencedColumns: ["id", "org_id"];
+          },
+        ];
+      };
+      service_application: {
+        Row: {
+          created_at: string;
+          customer_note: string | null;
+          customer_user_id: string;
+          decided_at: string | null;
+          decided_by: string | null;
+          id: string;
+          number: string | null;
+          ops_note: string | null;
+          org_id: string;
+          package_id: string | null;
+          rejection_reason: Database["public"]["Enums"]["application_rejection_reason"] | null;
+          status: Database["public"]["Enums"]["application_status"];
+          submitted_at: string | null;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          customer_note?: string | null;
+          customer_user_id: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          id?: string;
+          number?: string | null;
+          ops_note?: string | null;
+          org_id: string;
+          package_id?: string | null;
+          rejection_reason?: Database["public"]["Enums"]["application_rejection_reason"] | null;
+          status?: Database["public"]["Enums"]["application_status"];
+          submitted_at?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          customer_note?: string | null;
+          customer_user_id?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          id?: string;
+          number?: string | null;
+          ops_note?: string | null;
+          org_id?: string;
+          package_id?: string | null;
+          rejection_reason?: Database["public"]["Enums"]["application_rejection_reason"] | null;
+          status?: Database["public"]["Enums"]["application_status"];
+          submitted_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_application_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_application_package_id_org_id_fkey";
+            columns: ["package_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_package";
+            referencedColumns: ["id", "org_id"];
+          },
+        ];
+      };
+      service_order: {
+        Row: {
+          activated_at: string | null;
+          cancel_reason: string | null;
+          cancelled_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+          currency: string;
+          customer_user_id: string;
+          id: string;
+          number: string;
+          org_id: string;
+          paid_kurus: number;
+          payment_due_at: string | null;
+          quote_id: string;
+          refunded_kurus: number;
+          reminder_sent_at: string | null;
+          renewal_of_order_id: string | null;
+          service_end: string | null;
+          service_start: string | null;
+          status: Database["public"]["Enums"]["order_status"];
+          terminated_at: string | null;
+          termination_note: string | null;
+          total_kurus: number;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          activated_at?: string | null;
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          currency?: string;
+          customer_user_id: string;
+          id?: string;
+          number: string;
+          org_id: string;
+          paid_kurus?: number;
+          payment_due_at?: string | null;
+          quote_id: string;
+          refunded_kurus?: number;
+          reminder_sent_at?: string | null;
+          renewal_of_order_id?: string | null;
+          service_end?: string | null;
+          service_start?: string | null;
+          status?: Database["public"]["Enums"]["order_status"];
+          terminated_at?: string | null;
+          termination_note?: string | null;
+          total_kurus: number;
+          updated_at?: string;
+        };
+        Update: {
+          activated_at?: string | null;
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          currency?: string;
+          customer_user_id?: string;
+          id?: string;
+          number?: string;
+          org_id?: string;
+          paid_kurus?: number;
+          payment_due_at?: string | null;
+          quote_id?: string;
+          refunded_kurus?: number;
+          reminder_sent_at?: string | null;
+          renewal_of_order_id?: string | null;
+          service_end?: string | null;
+          service_start?: string | null;
+          status?: Database["public"]["Enums"]["order_status"];
+          terminated_at?: string | null;
+          termination_note?: string | null;
+          total_kurus?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_order_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_order_quote_id_customer_user_id_org_id_fkey";
+            columns: ["quote_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "quote";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+          {
+            foreignKeyName: "service_order_renewal_of_order_id_fkey";
+            columns: ["renewal_of_order_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      service_order_item: {
+        Row: {
+          amount_kurus: number;
+          created_at: string;
+          customer_user_id: string;
+          garden_name: string;
+          id: string;
+          line_no: number;
+          order_id: string;
+          org_id: string;
+          parcel_id: string | null;
+          quote_item_id: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_kurus: number;
+          created_at?: string;
+          customer_user_id: string;
+          garden_name: string;
+          id?: string;
+          line_no: number;
+          order_id: string;
+          org_id: string;
+          parcel_id?: string | null;
+          quote_item_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          amount_kurus?: number;
+          created_at?: string;
+          customer_user_id?: string;
+          garden_name?: string;
+          id?: string;
+          line_no?: number;
+          order_id?: string;
+          org_id?: string;
+          parcel_id?: string | null;
+          quote_item_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_order_item_order_id_customer_user_id_org_id_fkey";
+            columns: ["order_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+          {
+            foreignKeyName: "service_order_item_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_order_item_parcel_id_fkey";
+            columns: ["parcel_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_order_item_quote_item_id_fkey";
+            columns: ["quote_item_id"];
+            isOneToOne: true;
+            referencedRelation: "quote_item";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      service_package: {
+        Row: {
+          active: boolean;
+          code: string;
+          created_at: string;
+          description: string | null;
+          id: string;
+          includes_inventory: boolean;
+          name: string;
+          org_id: string;
+          periodic_visits_per_year: number;
+          sort_order: number;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          active?: boolean;
+          code: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          includes_inventory?: boolean;
+          name: string;
+          org_id: string;
+          periodic_visits_per_year: number;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          code?: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          includes_inventory?: boolean;
+          name?: string;
+          org_id?: string;
+          periodic_visits_per_year?: number;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_package_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
           },
         ];
       };
@@ -2631,6 +3819,43 @@ export type Database = {
         Args: { p_items: Json; p_notes?: string; p_parcel_id: string; p_planned_date?: string };
         Returns: Json;
       };
+      customer_application_garden_detail: {
+        Args: { p_garden_id: string };
+        Returns: {
+          access_note: string;
+          application_garden_id: string;
+          authorization_basis: string;
+          deed_block: string;
+          deed_parcel: string;
+          entry_permission_at: string;
+          is_shared_deed: boolean;
+          site_contact_name: string;
+          site_contact_phone: string;
+          updated_at: string;
+          used_portion_note: string;
+        }[];
+      };
+      customer_create_application: { Args: { p_package_id?: string }; Returns: string };
+      customer_remove_application_garden: { Args: { p_garden_id: string }; Returns: undefined };
+      customer_save_application_garden: {
+        Args: { p_application_id: string; p_detail: Json; p_garden: Json; p_garden_id?: string };
+        Returns: string;
+      };
+      customer_save_billing_profile: { Args: { p_profile: Json }; Returns: undefined };
+      customer_set_application_package: {
+        Args: { p_application_id: string; p_customer_note?: string; p_package_id: string };
+        Returns: undefined;
+      };
+      customer_set_consent: {
+        Args: { p_granted: boolean; p_kind: string; p_text_version: string };
+        Returns: undefined;
+      };
+      customer_submit_application: { Args: { p_application_id: string }; Returns: string };
+      customer_update_contact: {
+        Args: { p_contact_preference: string; p_email: string; p_full_name: string };
+        Returns: undefined;
+      };
+      customer_withdraw_application: { Args: { p_application_id: string }; Returns: undefined };
       message_outbox_list: {
         Args: { p_limit?: number; p_recipient: string };
         Returns: {
@@ -2652,6 +3877,39 @@ export type Database = {
           p_recipient: string;
         };
         Returns: string;
+      };
+      my_billing_profile: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          address: string;
+          city: string;
+          company_title: string;
+          country: string;
+          district: string;
+          email: string;
+          first_name: string;
+          has_profile: boolean;
+          identity_number_masked: string;
+          identity_number_required: boolean;
+          kind: string;
+          last_name: string;
+          org_id: string;
+          postal_code: string;
+          tax_number: string;
+          tax_office: string;
+          updated_at: string;
+        }[];
+      };
+      my_consents: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          granted: boolean;
+          kind: string;
+          org_id: string;
+          recorded_at: string;
+          source: string;
+          text_version: string;
+        }[];
       };
       my_owner_profile: {
         Args: Record<PropertyKey, never>;
@@ -2687,6 +3945,94 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_application_garden_detail: {
+        Args: { p_garden_id: string };
+        Returns: {
+          access_note: string;
+          application_garden_id: string;
+          authorization_basis: string;
+          deed_block: string;
+          deed_parcel: string;
+          entry_permission_at: string;
+          is_shared_deed: boolean;
+          site_contact_name: string;
+          site_contact_phone: string;
+          updated_at: string;
+          used_portion_note: string;
+        }[];
+      };
+      ops_applications: {
+        Args: { p_limit?: number; p_org_id: string; p_status?: string };
+        Returns: {
+          created_at: string;
+          customer_name: string;
+          customer_user_id: string;
+          decided_at: string;
+          declared_area_m2: number;
+          garden_count: number;
+          id: string;
+          number: string;
+          open_quote_id: string;
+          package_id: string;
+          package_name: string;
+          rejection_reason: string;
+          status: string;
+          submitted_at: string;
+          verified_garden_count: number;
+        }[];
+      };
+      ops_billing_profile: {
+        Args: { p_org_id: string; p_reveal?: boolean; p_user_id: string };
+        Returns: {
+          address: string;
+          city: string;
+          company_title: string;
+          country: string;
+          district: string;
+          email: string;
+          first_name: string;
+          identity_number: string;
+          identity_number_masked: string;
+          kind: string;
+          last_name: string;
+          postal_code: string;
+          tax_number: string;
+          tax_office: string;
+          updated_at: string;
+          user_id: string;
+        }[];
+      };
+      ops_billing_setting: {
+        Args: { p_org_id: string };
+        Returns: {
+          accepts_signups: boolean;
+          address: string | null;
+          allow_fake_payments: boolean;
+          bank_name: string | null;
+          created_at: string;
+          email: string | null;
+          iban: string | null;
+          iban_holder: string | null;
+          identity_number_required: boolean;
+          legal_name: string | null;
+          mersis_number: string | null;
+          org_id: string;
+          payment_due_days: number;
+          phone: string | null;
+          quote_valid_days: number;
+          renewal_notice_days: number;
+          tax_number: string | null;
+          tax_office: string | null;
+          updated_at: string;
+          updated_by: string | null;
+        }[];
+        SetofOptions: {
+          from: "*";
+          to: "org_billing_setting";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
       ops_create_owner_profile: {
         Args: {
           p_contact_preference: string;
@@ -2701,6 +4047,24 @@ export type Database = {
         };
         Returns: string;
       };
+      ops_create_price_list_draft: {
+        Args: { p_copy_from_id?: string; p_org_id: string };
+        Returns: string;
+      };
+      ops_customer_consents: {
+        Args: { p_org_id: string; p_user_id: string };
+        Returns: {
+          granted: boolean;
+          id: string;
+          kind: string;
+          order_id: string;
+          quote_id: string;
+          recorded_at: string;
+          source: string;
+          text_version: string;
+        }[];
+      };
+      ops_delete_price_list_draft: { Args: { p_price_list_id: string }; Returns: undefined };
       ops_find_user_id: {
         Args: { p_email?: string; p_org_id: string; p_phone?: string };
         Returns: string;
@@ -2785,11 +4149,21 @@ export type Database = {
         Args: { p_request_ids: string[]; p_session_id: string };
         Returns: number;
       };
+      ops_publish_price_list: { Args: { p_price_list_id: string }; Returns: number };
+      ops_reject_application: {
+        Args: { p_application_id: string; p_note?: string; p_reason: string };
+        Returns: undefined;
+      };
       ops_resolve_viewer_invitation: {
         Args: { p_approve: boolean; p_invitation_id: string; p_user_id?: string };
         Returns: undefined;
       };
       ops_retry_notification: { Args: { p_id: string }; Returns: undefined };
+      ops_save_billing_setting: {
+        Args: { p_org_id: string; p_settings: Json };
+        Returns: undefined;
+      };
+      ops_save_package: { Args: { p_org_id: string; p_package: Json }; Returns: string };
       ops_save_parcel_detail: {
         Args: {
           p_access_note?: string;
@@ -2802,6 +4176,16 @@ export type Database = {
           p_site_contact_name?: string;
           p_site_contact_phone?: string;
           p_used_portion_note?: string;
+        };
+        Returns: undefined;
+      };
+      ops_save_price_list_draft: {
+        Args: {
+          p_items: Json;
+          p_note: string;
+          p_price_list_id: string;
+          p_valid_from: string;
+          p_vat_rate_bp: number;
         };
         Returns: undefined;
       };
@@ -2819,6 +4203,15 @@ export type Database = {
           p_kvkk_text_version?: string;
           p_phone?: string;
           p_profile_id: string;
+        };
+        Returns: undefined;
+      };
+      ops_verify_application_garden: {
+        Args: {
+          p_boundary?: Json;
+          p_garden_id: string;
+          p_note?: string;
+          p_verified_area_m2: number;
         };
         Returns: undefined;
       };
@@ -2988,6 +4381,34 @@ export type Database = {
         };
         Returns: Json;
       };
+      signup_complete: { Args: { p_code_at: string; p_user_id: string }; Returns: string };
+      signup_find_account: {
+        Args: { p_email: string; p_phone: string };
+        Returns: {
+          matched_by: string;
+          phone_confirmed: boolean;
+          self_signup: boolean;
+          signup_completed: boolean;
+          started_at: string;
+          user_id: string;
+        }[];
+      };
+      signup_prepare: {
+        Args: {
+          p_consents: Json;
+          p_contact_preference: string;
+          p_email: string;
+          p_full_name: string;
+          p_ip_hash: string;
+          p_phone: string;
+          p_user_id: string;
+        };
+        Returns: undefined;
+      };
+      signup_register_attempt: {
+        Args: { p_email_hash: string; p_ip_hash: string; p_phone_hash: string };
+        Returns: string;
+      };
       waive_coverage: {
         Args: { p_note: string; p_session_id: string };
         Returns: {
@@ -3025,6 +4446,14 @@ export type Database = {
     };
     Enums: {
       age_class: "sapling" | "young" | "productive" | "old" | "unknown";
+      application_rejection_reason:
+        | "out_of_service_area"
+        | "area_mismatch"
+        | "not_authorized"
+        | "duplicate"
+        | "capacity"
+        | "other";
+      application_status: "draft" | "submitted" | "quoted" | "accepted" | "rejected" | "withdrawn";
       assessment_source: "ai" | "model" | "expert";
       asset_kind:
         | "panorama"
@@ -3034,9 +4463,17 @@ export type Database = {
         | "tree_point_cloud"
         | "photo"
         | "other";
+      billing_party_kind: "individual" | "company";
       boundary_source: "owner_declared" | "field_survey";
       capture_kind: "video_360" | "mcap" | "gnss_raw" | "photo" | "audio_note" | "other";
       card_visibility: "shown" | "hidden" | "under_evaluation";
+      consent_kind:
+        | "kvkk_notice"
+        | "explicit_service_improvement"
+        | "explicit_marketing"
+        | "distance_sales"
+        | "pre_information";
+      consent_source: "signup" | "portal" | "quote_acceptance" | "ops";
       corner: "ne" | "nw" | "se" | "sw";
       device_kind: "human_kit" | "robot" | "phone" | "base_station" | "other";
       finding_severity: "info" | "low" | "medium" | "high";
@@ -3061,13 +4498,30 @@ export type Database = {
         | "irrigation"
         | "harvest"
         | "other";
+      order_status: "awaiting_payment" | "active" | "completed" | "cancelled" | "terminated";
       org_kind: "company" | "cooperative" | "insurer" | "service_provider" | "other";
       org_role: "field_staff" | "expert" | "ops";
       parcel_role: "owner" | "viewer";
       parcel_status:
         "registered" | "inventory_planned" | "inventory_done" | "active_monitoring" | "passive";
+      payment_provider: "iyzico" | "manual" | "fake";
+      payment_status:
+        "initiated" | "pending_review" | "succeeded" | "failed" | "expired" | "voided";
       performer_kind: "crew" | "robot";
+      price_list_status: "draft" | "published";
       question_author_role: "owner" | "viewer" | "expert" | "ops";
+      quote_status: "issued" | "accepted" | "declined" | "superseded" | "expired" | "cancelled";
+      refund_kind: "void" | "refund" | "manual";
+      refund_reason:
+        | "withdrawal"
+        | "missed_visit"
+        | "termination"
+        | "overpayment"
+        | "order_closed"
+        | "provider_mismatch"
+        | "goodwill"
+        | "other";
+      refund_status: "requested" | "processing" | "succeeded" | "failed" | "cancelled";
       season: "winter" | "spring" | "summer" | "harvest";
       sensor_kind: "camera_360" | "lidar" | "gnss" | "thermal" | "phone_camera" | "imu" | "other";
       session_kind:
@@ -3217,6 +4671,15 @@ export const Constants = {
   public: {
     Enums: {
       age_class: ["sapling", "young", "productive", "old", "unknown"],
+      application_rejection_reason: [
+        "out_of_service_area",
+        "area_mismatch",
+        "not_authorized",
+        "duplicate",
+        "capacity",
+        "other",
+      ],
+      application_status: ["draft", "submitted", "quoted", "accepted", "rejected", "withdrawn"],
       assessment_source: ["ai", "model", "expert"],
       asset_kind: [
         "panorama",
@@ -3227,9 +4690,18 @@ export const Constants = {
         "photo",
         "other",
       ],
+      billing_party_kind: ["individual", "company"],
       boundary_source: ["owner_declared", "field_survey"],
       capture_kind: ["video_360", "mcap", "gnss_raw", "photo", "audio_note", "other"],
       card_visibility: ["shown", "hidden", "under_evaluation"],
+      consent_kind: [
+        "kvkk_notice",
+        "explicit_service_improvement",
+        "explicit_marketing",
+        "distance_sales",
+        "pre_information",
+      ],
+      consent_source: ["signup", "portal", "quote_acceptance", "ops"],
       corner: ["ne", "nw", "se", "sw"],
       device_kind: ["human_kit", "robot", "phone", "base_station", "other"],
       finding_severity: ["info", "low", "medium", "high"],
@@ -3255,6 +4727,7 @@ export const Constants = {
         "harvest",
         "other",
       ],
+      order_status: ["awaiting_payment", "active", "completed", "cancelled", "terminated"],
       org_kind: ["company", "cooperative", "insurer", "service_provider", "other"],
       org_role: ["field_staff", "expert", "ops"],
       parcel_role: ["owner", "viewer"],
@@ -3265,8 +4738,24 @@ export const Constants = {
         "active_monitoring",
         "passive",
       ],
+      payment_provider: ["iyzico", "manual", "fake"],
+      payment_status: ["initiated", "pending_review", "succeeded", "failed", "expired", "voided"],
       performer_kind: ["crew", "robot"],
+      price_list_status: ["draft", "published"],
       question_author_role: ["owner", "viewer", "expert", "ops"],
+      quote_status: ["issued", "accepted", "declined", "superseded", "expired", "cancelled"],
+      refund_kind: ["void", "refund", "manual"],
+      refund_reason: [
+        "withdrawal",
+        "missed_visit",
+        "termination",
+        "overpayment",
+        "order_closed",
+        "provider_mismatch",
+        "goodwill",
+        "other",
+      ],
+      refund_status: ["requested", "processing", "succeeded", "failed", "cancelled"],
       season: ["winter", "spring", "summer", "harvest"],
       sensor_kind: ["camera_360", "lidar", "gnss", "thermal", "phone_camera", "imu", "other"],
       session_kind: [

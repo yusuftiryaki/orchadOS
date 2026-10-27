@@ -222,8 +222,113 @@ begin
 end;
 $$;
 
+-- Customers of the billing tests (IP12): every row with their id in
+-- customer_user_id, user_id or subject_id (applications, quotes, orders,
+-- payments, refunds, profiles, consents, pending sign-ups, memberships, parcel
+-- access), the rows reached through those (garden details, payment snapshots
+-- and events) and the audit rows about them. Run before deleting the auth
+-- users: customer_user_id is on delete restrict. Parcels opened for them stay
+-- (purge_parcels).
+create or replace function testing.purge_billing_users(p_user_ids uuid[])
+returns table (table_name text, deleted bigint)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_entities uuid[];
+  n bigint;
+begin
+  set local session_replication_role = replica;
+  v_entities := p_user_ids || array(
+    select id from public.service_application where customer_user_id = any(p_user_ids)
+    union all select id from public.application_garden where customer_user_id = any(p_user_ids)
+    union all select id from public.quote where customer_user_id = any(p_user_ids)
+    union all select id from public.service_order where customer_user_id = any(p_user_ids)
+    union all select id from public.payment where customer_user_id = any(p_user_ids)
+    union all select id from public.refund where customer_user_id = any(p_user_ids)
+    union all select id from private.owner_profile where user_id = any(p_user_ids));
+  delete from private.application_garden_detail where application_garden_id = any(v_entities);
+  get diagnostics n = row_count;
+  if n > 0 then table_name := 'private.application_garden_detail'; deleted := n; return next; end if;
+  delete from private.payment_billing_snapshot where payment_id = any(v_entities);
+  get diagnostics n = row_count;
+  if n > 0 then table_name := 'private.payment_billing_snapshot'; deleted := n; return next; end if;
+  delete from private.payment_event where payment_id = any(v_entities) or refund_id = any(v_entities);
+  get diagnostics n = row_count;
+  if n > 0 then table_name := 'private.payment_event'; deleted := n; return next; end if;
+  delete from public.audit_event where actor_user_id = any(p_user_ids) or entity_id = any(v_entities);
+  get diagnostics n = row_count;
+  if n > 0 then table_name := 'public.audit_event'; deleted := n; return next; end if;
+  return query select * from testing._delete_by('customer_user_id', p_user_ids);
+  return query select * from testing._delete_by('user_id', p_user_ids);
+  return query select * from testing._delete_by('subject_id', p_user_ids);
+  set local session_replication_role = origin;
+end;
+$$;
+
+-- Sign-up attempts (rate limit rows; hashed IPs and phones), so that the
+-- sign-up integration tests can run again within the hour.
+create or replace function testing.purge_signup_attempts()
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  n bigint;
+begin
+  delete from private.signup_attempt where true;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+-- Moves the pending sign-ups (and the auth accounts) of these users back in
+-- time, so that the sign-up tests can reach the stale-account grace period
+-- without waiting.
+create or replace function testing.age_signups(p_user_ids uuid[], p_minutes integer)
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  n bigint;
+begin
+  update private.customer_signup
+  set created_at = created_at - make_interval(mins => p_minutes)
+  where user_id = any(p_user_ids);
+  get diagnostics n = row_count;
+  update auth.users
+  set created_at = created_at - make_interval(mins => p_minutes)
+  where id = any(p_user_ids);
+  return n;
+end;
+$$;
+
+-- The columns of these public tables a role may select (column or table
+-- grants): the web test compares them with BILLING_COLUMNS.
+create or replace function testing.selectable_columns(p_role text, p_tables text[])
+returns table (table_name text, column_name text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select c.relname::text, a.attname::text
+  from pg_catalog.pg_class c
+  join pg_catalog.pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
+  join pg_catalog.pg_attribute a on a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+  where c.relname = any(p_tables)
+    and has_column_privilege(p_role, c.oid, a.attnum, 'SELECT')
+  order by 1, a.attnum;
+$$;
+
 revoke all on all functions in schema testing from public;
 grant execute on function
   testing.purge_sessions(uuid[]), testing.purge_parcels(uuid[]), testing.purge_org(uuid),
-  testing.purge_viewer_invitations(text[])
+  testing.purge_viewer_invitations(text[]), testing.purge_billing_users(uuid[]),
+  testing.purge_signup_attempts(), testing.age_signups(uuid[], integer),
+  testing.selectable_columns(text, text[])
   to service_role;

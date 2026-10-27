@@ -26,7 +26,7 @@ MVP, kayıttan rapora kadar tek bir uçtan uca döngüyü kapsar. Havadan ve sen
 
 | Bileşen | MVP'de | Not |
 | --- | --- | --- |
-| Sahip kaydı ve parsel tanımı | Var | Kaydı operasyon açar, self-servis kayıt yok |
+| Sahip kaydı ve parsel tanımı | Var | Kaydı operasyon açar. İP12: müşteri siteden kendisi de kaydolur (SMS doğrulaması) ve başvurur; bayrakla açılır ([musteri-yonetimi.md](musteri-yonetimi.md)) |
 | Envanter: sınır, ağaç haritası, kodlama | Var | Grid taramadan üçgenlemeyle, parsel başına bir kez |
 | Periyodik grid 360° tarama | Var | Her ziyarette iki yönde |
 | Yakın plan örneklem fotoğrafı | Var | Sorunlu ağaçlar ve tabakalı örneklem |
@@ -39,7 +39,7 @@ MVP, kayıttan rapora kadar tek bir uçtan uca döngüyü kapsar. Havadan ve sen
 | Drone, uydu, IoT sensör | Hayır | v2 ve sonrası |
 | Gerçek 3D model | Hayır | Gezi, Street View tarzı panoramalarla |
 | Kendi AI modeli | Hayır | Uzman kararları etiketli veri olarak birikir |
-| Ödeme altyapısı | Hayır | Pilotta faturalandırma elle |
+| Ödeme altyapısı | İP12 | Dönüm başına yıllık fiyat, teklif, kartla ödeme (iyzico, 3DS) ve havale; bayraklar kapalıyken birleşir. Açılana kadar faturalandırma elle |
 
 ## Roller
 
@@ -55,6 +55,8 @@ Dört rol var ve her rolün kendi arayüzü bulunuyor. Değerlendirme yetkisi sa
 ## Modül 1 – Arazi sahibi kaydı
 
 Kayıt, sahibin kabaca bildiği bilgilerle başlar. Kesin bilgiler envanter ziyaretinde sahada çıkarılır. MVP'de kaydı operasyon yöneticisi, sahiple telefonda ya da yüz yüze görüşerek açar.
+
+**Self-servis kayıt (İP12):** Müşteri siteden ad, cep telefonu, e-posta ve parolayla kaydolur; telefon SMS koduyla doğrulanınca profili ve rıza kayıtları oluşur. Bahçelerini (konum, kaba sınır, alan, yetki, giriş izni) ve paketini seçip başvurur. Operasyon alanı doğrulayıp teklif verir; ödeme tamamlanınca bahçe aşağıdaki döngüye `registered` olarak girer. Ayrıntı: [musteri-yonetimi.md](musteri-yonetimi.md).
 
 **Akış**
 
@@ -447,7 +449,7 @@ Pilotun asıl sorusu şu: Eşleştirme güvenilir mi ve sahipler bu rapor için 
 
 **Açık sorular**
 
-- [ ] Paket ve fiyat: Yılda kaç periyodik ziyaret olacak? Fiyat dönüm başına mı, ağaç başına mı?
+- [ ] Paket ve fiyat: Yılda kaç periyodik ziyaret olacak? *(İP12 kararı: fiyat dönüm başına ve yıllık, paket yıllık ziyaret sayısıdır, minimum ücret var. Gerçek rakamlar açık.)*
 - [ ] Uzman kim olacak ve nasıl ücretlendirilecek?
 - [ ] TUSAGA-Aktif aboneliğinin koşulları ve maliyeti ne?
 - [ ] Seçilecek 360° kameranın SDK erişimi var mı?

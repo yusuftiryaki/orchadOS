@@ -7,6 +7,8 @@
 --   field@example.com        org field_staff
 --   expert@example.com       org expert
 --   ops@example.com          org ops
+--   customer@example.com     self sign-up customer (IP12): profile, billing
+--                            profile, consents, a submitted application
 --
 -- Parcel: ~20 donum (136 m x 144 m = 19,584 m2) near Gaziantep, rows on an
 -- 8 x 8 m grid rotated 15 degrees: 18 rows x 17 positions = 306 row slots,
@@ -280,3 +282,126 @@ insert into public.zone (id, org_id, parcel_id, kind, name, geom, position_uncer
 -- ---------------------------------------------------------------------------
 -- Metric registry: reference data, created by migration 20261021180000.
 -- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- Customers and billing (IP12, docs/musteri-yonetimi.md §6.12). Local only:
+-- fake payments are allowed here and the IBAN and tax numbers are made up.
+-- ---------------------------------------------------------------------------
+
+insert into public.org_billing_setting (
+  org_id, accepts_signups, allow_fake_payments, identity_number_required, legal_name, tax_office,
+  tax_number, mersis_number, address, phone, email, bank_name, iban, iban_holder, updated_by
+) values (
+  'b0000000-0000-4000-8000-000000000001', true, true, false, 'orchadOS Denetim Hizmetleri A.Ş. (örnek)',
+  'Şahinbey', '1234567890', '0123456789012345', 'Örnek Mah. Fıstık Cad. No: 1, Şahinbey, Gaziantep',
+  '+905550000100', 'destek@example.com', 'Örnek Bankası', 'TR000000000000000000000001',
+  'orchadOS Denetim Hizmetleri A.Ş.', 'a0000000-0000-4000-8000-000000000005'
+);
+
+insert into public.service_package (id, org_id, code, name, description, periodic_visits_per_year, includes_inventory, sort_order) values
+  ('91200000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'standart', 'Standart',
+   'Yılda dört periyodik ziyaret; ilk yıl ağaç envanteri dahil.', 4, true, 1),
+  ('91200000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000001', 'ekonomik', 'Ekonomik',
+   'Yılda üç periyodik ziyaret; ilk yıl ağaç envanteri dahil.', 3, true, 2);
+
+-- v1: written as a draft with its items, then published (price_list_item_guard).
+insert into public.price_list (id, org_id, status, valid_from, vat_rate_bp, note, created_by) values
+  ('91200000-0000-4000-8000-000000000101', 'b0000000-0000-4000-8000-000000000001', 'draft', '2026-10-01', 2000,
+   'Örnek fiyatlar', 'a0000000-0000-4000-8000-000000000005'),
+  ('91200000-0000-4000-8000-000000000102', 'b0000000-0000-4000-8000-000000000001', 'draft', '2027-01-01', 2000,
+   'Taslak (örnek)', 'a0000000-0000-4000-8000-000000000005');
+insert into public.price_list_item (id, org_id, price_list_id, package_id, unit_price_kurus, minimum_fee_kurus, inventory_fee_kurus) values
+  ('91200000-0000-4000-8000-000000000201', 'b0000000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000101', '91200000-0000-4000-8000-000000000001', 12500, 500000, 0),
+  ('91200000-0000-4000-8000-000000000202', 'b0000000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000101', '91200000-0000-4000-8000-000000000002', 13000, 450000, 0),
+  ('91200000-0000-4000-8000-000000000203', 'b0000000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000102', '91200000-0000-4000-8000-000000000001', 13500, 500000, 0),
+  ('91200000-0000-4000-8000-000000000204', 'b0000000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000102', '91200000-0000-4000-8000-000000000002', 14000, 450000, 0);
+update public.price_list
+set status = 'published', version = 1, published_at = '2026-10-01 06:00:00+00',
+    published_by = 'a0000000-0000-4000-8000-000000000005'
+where id = '91200000-0000-4000-8000-000000000101';
+
+-- The customer signed up by themself: e-mail and password, phone verified.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, phone, phone_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+) values (
+  '00000000-0000-0000-0000-000000000000', 'a0000000-0000-4000-8000-000000000006', 'authenticated',
+  'authenticated', 'customer@example.com', extensions.crypt('orchados-dev', extensions.gen_salt('bf')),
+  '2026-10-20 09:00:00+00', '905550000006', '2026-10-20 09:02:00+00',
+  '{"provider": "email", "providers": ["email", "phone"], "signup": "self"}'::jsonb,
+  '{"display_name": "Customer"}'::jsonb, '2026-10-20 09:00:00+00', '2026-10-20 09:02:00+00', '', '', '', ''
+);
+insert into auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+values (
+  'a0000000-0000-4000-8000-000000000006', 'a0000000-0000-4000-8000-000000000006',
+  'a0000000-0000-4000-8000-000000000006',
+  jsonb_build_object('sub', 'a0000000-0000-4000-8000-000000000006', 'email', 'customer@example.com', 'email_verified', true),
+  'email', '2026-10-20 09:00:00+00', '2026-10-20 09:00:00+00', '2026-10-20 09:00:00+00'
+);
+
+insert into private.customer_signup (
+  user_id, org_id, full_name, email, phone, contact_preference, consents, created_at, completed_at
+) values (
+  'a0000000-0000-4000-8000-000000000006', 'b0000000-0000-4000-8000-000000000001', 'Örnek Müşteri',
+  'customer@example.com', '+905550000006', 'whatsapp',
+  '{"kvkk_notice_version": "kvkk-v1-taslak", "explicit_text_version": "riza-v1-taslak",
+    "explicit_service_improvement": true, "explicit_marketing": false}'::jsonb,
+  '2026-10-20 09:00:00+00', '2026-10-20 09:02:00+00'
+);
+insert into private.owner_profile (
+  org_id, user_id, full_name, phone, email, contact_preference, kvkk_consent, kvkk_consent_at, kvkk_text_version,
+  created_at, updated_at
+) values (
+  'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000006', 'Örnek Müşteri',
+  '+905550000006', 'customer@example.com', 'whatsapp', true, '2026-10-20 09:02:00+00', 'kvkk-v1-taslak',
+  '2026-10-20 09:02:00+00', '2026-10-20 09:02:00+00'
+);
+insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source, recorded_at) values
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000006',
+   'a0000000-0000-4000-8000-000000000006', 'kvkk_notice', true, 'kvkk-v1-taslak', 'signup', '2026-10-20 09:02:00+00'),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000006',
+   'a0000000-0000-4000-8000-000000000006', 'explicit_service_improvement', true, 'riza-v1-taslak', 'signup',
+   '2026-10-20 09:02:00+00'),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000006',
+   'a0000000-0000-4000-8000-000000000006', 'explicit_marketing', false, 'riza-v1-taslak', 'signup',
+   '2026-10-20 09:02:00+00');
+-- The KVKK notice of the profiles above (owner, viewer), as the migration does on
+-- a database with profiles.
+select private.backfill_kvkk_consents();
+
+insert into private.billing_profile (org_id, user_id, kind, first_name, last_name, address, district, city, postal_code)
+values (
+  'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000006', 'individual',
+  'Örnek', 'Müşteri', 'Örnek Mah. 1. Sok. No: 1', 'Nizip', 'Gaziantep', '27700'
+);
+
+-- A submitted application with one garden in Nizip, waiting for ops review.
+insert into public.service_application (
+  id, org_id, customer_user_id, number, status, package_id, customer_note, submitted_at, created_at
+) values (
+  '91200000-0000-4000-8000-000000000301', 'b0000000-0000-4000-8000-000000000001',
+  'a0000000-0000-4000-8000-000000000006', 'B-2026-000001', 'submitted', '91200000-0000-4000-8000-000000000001',
+  'Hasat sonrası başlanabilir.', '2026-10-21 08:00:00+00', '2026-10-21 07:30:00+00'
+);
+insert into public.application_garden (
+  id, org_id, application_id, customer_user_id, sort_order, name, province, district, village,
+  declared_area_m2, irrigation, estimated_tree_count, position, position_uncertainty_m
+) values (
+  '91200000-0000-4000-8000-000000000401', 'b0000000-0000-4000-8000-000000000001',
+  '91200000-0000-4000-8000-000000000301', 'a0000000-0000-4000-8000-000000000006', 1, 'Nizip Bahçesi',
+  'Gaziantep', 'Nizip', 'Örnek Köyü', 15000, 'rainfed', 220,
+  extensions.st_setsrid(extensions.st_makepoint(37.79, 37.01), 4326), 50
+);
+insert into private.application_garden_detail (
+  application_garden_id, org_id, authorization_basis, deed_block, deed_parcel, is_shared_deed, entry_permission_at
+) values (
+  '91200000-0000-4000-8000-000000000401', 'b0000000-0000-4000-8000-000000000001', 'title_holder', '204', '12',
+  false, '2026-10-21 07:45:00+00'
+);
+insert into private.document_sequence (org_id, kind, year, last_value)
+values ('b0000000-0000-4000-8000-000000000001', 'B', 2026, 1);

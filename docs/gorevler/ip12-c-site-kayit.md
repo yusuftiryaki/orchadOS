@@ -81,7 +81,7 @@ Do not depend on anything that is not on main, except calling `customer-signup` 
      - Map statuses to `SignupError = 'invalid_input' | 'captcha_failed' | 'email_taken' | 'phone_registered' | 'too_many_attempts' | 'signup_closed' | 'signup_unavailable' | 'phone_not_verified' | 'failed'`.
    - `/kayit`: signed in → `/`; flag off → 'Kayıt yakında'. Otherwise a two-step form in one `useActionState`, like the login phone method.
      - Step 1: the fields, links to `/kvkk` and `/acik-riza`, the versions from `src/lib/legal/versions.ts`, and the Turnstile widget when a site key is set (script `https://challenges.cloudflare.com/turnstile/v0/api.js`).
-     - On success: `rpc('phone_login_allowed')` and `signInWithOtp({ phone, options: { shouldCreateUser: false, channel: 'sms' } })`.
+     - On success: `rpc('phone_login_allowed')` and `requestSignupCode(supabase.auth, phone)` from `@/lib/billing/signup-code` (A1). Do not call `signInWithOtp` alone: for a freshly registered phone GoTrue answers 422 `signup_disabled` and sends no SMS; the helper then falls back to `auth.resend({ type: 'sms', phone })` (design §7, web flow step 2). Use the same helper for 'Resend'.
      - Step 2: a 6-digit code → `verifyOtp` (on failure, `phone_login_record_failure`) → `completeSignup` → `/portal` (or `/`).
      - Step 2 text: 'Bu numarayla hesabınız varsa giriş yapmış olursunuz; izin tercihlerinizi Hesabım › İzinler'den değiştirebilirsiniz.'
      - `phone_registered` message: 'Bu numara kayıtlı. Giriş sayfasından girin; giremiyorsanız bize yazın.'
