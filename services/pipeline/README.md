@@ -48,7 +48,8 @@ Oturum klasörünün yapısı, `session.json` (kök, saha uygulaması + operasyo
 ```
 <oturum>/
   session.json        kök oturum dosyası: session_id, parcel_id (zorunlu); camera_height_m,
-                      camera_yaw_offset_deg, rig_id, calibration_id, ... (opsiyonel)
+                      scan_platform, camera_yaw_offset_deg, rig_id, calibration_id, ...
+                      (opsiyonel)
   gnss/gnss.ubx       ESP32 kaydedicisinden ham UBX (NAV-PVT ve/veya RXM-RAWX/SFRBX)
   gnss/events.csv     ESP32 olayları, İP2 biçimi
   gnss/session.json   ESP32 oturum dosyası
@@ -155,6 +156,8 @@ Tüm parametreler `params.py`'de tanımlıdır; `--params dosya.json` ile kısme
 ## Yükleme
 
 `orchados-pipeline upload <çalıştırma klasörü> --session-id <uuid>` bir çalıştırmanın çıktılarını Supabase'e yükler. `--session-id` veritabanındaki `public.session` satırıdır; kurum ve parsel bu satırdan okunur. `outputs.json`'daki `session_id` ve `parcel_id` bu satırla aynı olmalıdır (saha uygulaması `session.json`'a veritabanı kimliğini yazar), değilse hiçbir şey yazılmadan hata verilir. `run --upload --session-id <uuid>` işlemenin ardından aynısını yapar.
+
+Kamera yüksekliği ayarlanabilir; personel ön kontrolde ölçüp girer (`public.session.camera_height_m`, yöntem `scan_platform`). Ziyarette bir yükseklik kayıtlıysa ve çalıştırmanın kullandığı `camera_height_m` ondan 5 cm'den fazla farklıysa yükleme hiçbir şey yazmadan reddedilir: kesitler ve var/yok kutuları yanlış yükseklikle izdüşürülmüştür, `session.json`'a ziyaretin değeri yazılıp yeniden işlenir. Ziyarette kayıt yoksa `session.json`'daki değerler ziyarete yazılır (yükseklik yalnızca açıkça verildiyse). Yöntem farkı yalnızca uyarıdır.
 
 ### Kimlik
 

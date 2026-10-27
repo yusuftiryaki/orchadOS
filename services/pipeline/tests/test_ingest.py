@@ -86,3 +86,32 @@ def test_base_rinex_classified(synthetic_session, tmp_path):
     m = build_manifest(RunContext.create(s, tmp_path / "out"))
     assert [f.path for f in m.by_role(FileRole.base_obs)] == ["base/base.obs"]
     assert [f.path for f in m.by_role(FileRole.base_nav)] == ["base/base.nav"]
+
+
+@pytest.mark.parametrize(
+    ("change", "warning"),
+    [
+        ({"camera_height_m": None}, "camera_height_m not set"),
+        ({"camera_height_m": 4.2}, "outside 0.5-3.5 m"),
+    ],
+    ids=["unset", "out-of-range"],
+)
+def test_camera_height_warnings(synthetic_session, tmp_path, change, warning):
+    s = _copy(synthetic_session[0], tmp_path)
+    info = json.loads((s / "session.json").read_text())
+    for key, value in change.items():
+        if value is None:
+            info.pop(key)
+        else:
+            info[key] = value
+    (s / "session.json").write_text(json.dumps(info))
+    m = build_manifest(RunContext.create(s, tmp_path / "out"))
+    assert any(warning in w for w in m.warnings)
+
+
+def test_scan_platform_is_validated(synthetic_session, tmp_path):
+    s = _copy(synthetic_session[0], tmp_path)
+    info = json.loads((s / "session.json").read_text())
+    (s / "session.json").write_text(json.dumps({**info, "scan_platform": "tractor"}))
+    with pytest.raises(IngestError, match="scan_platform"):
+        build_manifest(RunContext.create(s, tmp_path / "out"))

@@ -1827,6 +1827,7 @@ export type Database = {
       };
       session: {
         Row: {
+          camera_height_m: number | null;
           created_at: string;
           created_by: string | null;
           ended_at: string | null;
@@ -1842,12 +1843,14 @@ export type Database = {
           published_at: string | null;
           published_by: string | null;
           rig_id: string | null;
+          scan_platform: string | null;
           started_at: string | null;
           status: Database["public"]["Enums"]["session_status"];
           weather: Json | null;
         };
         ComputedFields: never;
         Insert: {
+          camera_height_m?: number | null;
           created_at?: string;
           created_by?: string | null;
           ended_at?: string | null;
@@ -1863,11 +1866,13 @@ export type Database = {
           published_at?: string | null;
           published_by?: string | null;
           rig_id?: string | null;
+          scan_platform?: string | null;
           started_at?: string | null;
           status?: Database["public"]["Enums"]["session_status"];
           weather?: Json | null;
         };
         Update: {
+          camera_height_m?: number | null;
           created_at?: string;
           created_by?: string | null;
           ended_at?: string | null;
@@ -1883,6 +1888,7 @@ export type Database = {
           published_at?: string | null;
           published_by?: string | null;
           rig_id?: string | null;
+          scan_platform?: string | null;
           started_at?: string | null;
           status?: Database["public"]["Enums"]["session_status"];
           weather?: Json | null;
@@ -2549,6 +2555,7 @@ export type Database = {
       approve_inventory: {
         Args: { p_session_id: string };
         Returns: {
+          camera_height_m: number | null;
           created_at: string;
           created_by: string | null;
           ended_at: string | null;
@@ -2564,6 +2571,7 @@ export type Database = {
           published_at: string | null;
           published_by: string | null;
           rig_id: string | null;
+          scan_platform: string | null;
           started_at: string | null;
           status: Database["public"]["Enums"]["session_status"];
           weather: Json | null;
@@ -2850,6 +2858,7 @@ export type Database = {
       publish_session: {
         Args: { p_session_id: string };
         Returns: {
+          camera_height_m: number | null;
           created_at: string;
           created_by: string | null;
           ended_at: string | null;
@@ -2865,6 +2874,7 @@ export type Database = {
           published_at: string | null;
           published_by: string | null;
           rig_id: string | null;
+          scan_platform: string | null;
           started_at: string | null;
           status: Database["public"]["Enums"]["session_status"];
           weather: Json | null;

@@ -56,7 +56,7 @@ erDiagram
 
 | Varlık | Temel alanlar |
 | --- | --- |
-| Session | Bahçede yapılan bir oturum (MVP'deki ziyaret); tür (tarama / biçme / ilaçlama / elle kayıt), yapan (ekip ya da robot), tarih, metodoloji sürümü |
+| Session | Bahçede yapılan bir oturum (MVP'deki ziyaret); tür (tarama / biçme / ilaçlama / elle kayıt), yapan (ekip ya da robot), tarih, metodoloji sürümü; taramada yöntem (yürüyüş, motosiklet, robot) ve ölçülen kamera yüksekliği |
 | Device | Üretici, model, seri no, yazılım sürümü; insan kiti ya da robot |
 | Sensor | Bir cihaza bağlı sensör: 360° kamera, LiDAR, GNSS, termal, telefon kamerası |
 | Rig | Bir oturumda birlikte kullanılan sensörlerin düzeni |
