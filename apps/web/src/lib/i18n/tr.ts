@@ -1008,7 +1008,10 @@ export const tr = {
     report: {
       back: "Bahçelerim",
       tour: "360° gezi",
-      print: "Yazdır / PDF",
+      print: "Yazdır",
+      pdf: "PDF indir",
+      pdfKicker: "Bahçe karnesi",
+      inventoryReport: "Envanter raporu",
       noResults:
         "Bu bahçe için henüz yayımlanmış bir denetim sonucu yok. Uzman raporu imzalayınca sonuçlar burada görünür.",
       summaryTitle: "Son denetim",
@@ -1525,6 +1528,104 @@ export const tr = {
       inventoryTitle: "Envanter",
       inventoryApproved: (date: string) => `Uzman onayı: ${date}`,
     },
+  },
+  // Inventory report for the owner (src/lib/portal/inventory-report.ts).
+  inventoryReport: {
+    title: "Envanter raporu",
+    open: "Envanter raporu",
+    pdf: "PDF indir",
+    back: "Bahçe karnesi",
+    draft: "Taslak: sınır onayınızı bekliyor",
+    notApproved:
+      "Envanter henüz uzman onayından geçmedi. Onaylandığında sayım ve harita bu sayfada görünür.",
+    subtitle: (date: string) => `${date} tarihli ilk sayım`,
+    approvedOn: (date: string) => `Uzman onayı: ${date}`,
+    disclaimer:
+      "Bu bir sayım ve harita raporudur; ağaçların sağlığını değerlendirmez. Sağlık ilk periyodik ziyarette değerlendirilir.",
+    summaryTitle: "Kısa özet",
+    summary: (slots: number, trees: number, empty: number, inter: number) =>
+      `Bahçenizde ${slots} yer saydık. ${trees} yerde ağaç var${inter > 0 ? `, bunların ${inter} tanesi sıraların arasında` : ""}; ${empty} yer boş.`,
+    estimateLine: (declared: number, diff: string) =>
+      `Sizin tahmininiz ${declared} ağaçtı (fark: ${diff}).`,
+    terms: "Yer: bir ağacın durduğu ya da durması gereken nokta. Boş yer: ağacı olmayan yer.",
+    boundaryTitle: "Kullanım sınırı",
+    boundaryArea: (area: string) => `Ölçülen alan: ${area}`,
+    boundaryDeclared: (area: string, diff: string) =>
+      `Beyan ettiğiniz alan: ${area} (fark: ${diff})`,
+    boundaryNote:
+      "Haritadaki sınır, sizin ya da yetkilendirdiğiniz kişinin gösterdiği kullanım sınırıdır; tapu sınırı değildir.",
+    boundaryApproved: (date: string) => `Sınırı ${date} tarihinde onayladınız.`,
+    boundaryAwaiting:
+      "Sınır onayınızı bekliyor. Bahçe karnesindeki sınır kartından onaylayabilirsiniz.",
+    noBoundary: "Henüz ölçülmüş bir sınır yok.",
+    mapTitle: "Ağaç haritası ve kodlar",
+    mapHint:
+      "Her yerin bir kodu var: S5-12, 5. sıranın 12. yeri demek. Kodlar bundan sonraki bütün raporlarda aynı kalır; bahçıvanınızla konuşurken kullanabilirsiniz.",
+    legend: {
+      slots: "Yer",
+      tree: "Ağaç",
+      interstitial: "Sıra arası ağaç",
+      empty: "Boş yer",
+      uncertain: "Belirsiz",
+    } as Record<string, string>,
+    mapScale: (m: string) => `Genişlik ~${m} m`,
+    emptyTitle: "Boş yerler",
+    emptyLine: (n: number, pct: string) => `${n} boş yer (yerlerin %${pct}'i).`,
+    structureTitle: "Bahçe yapısı",
+    ages: "Büyüklük sınıfı",
+    graft: "Aşı",
+    stem: "Gövde yapısı",
+    cultivars: "Beyan edilen çeşitler",
+    sexNote: "Erkek ve dişi ağaçları ilkbahar ziyaretinde çiçeklerden belirleyeceğiz.",
+    observationsTitle: "İlk gözlemler",
+    observationsNote:
+      "Bu bir sağlık değerlendirmesi değildir; ilk sayımda göze çarpanı gösterir. İlk periyodik ziyarette yeniden bakılacak.",
+    observations: {
+      deadLooking: (n: number) => `${n} ağaç kuru görünüyor (ilkbaharda doğrulanacak)`,
+      dieback: (n: number) => `${n} ağaçta belirgin kuruma deseni görüldü`,
+      denseSprouts: (n: number) => `${n} ağacın dibinde yoğun dip sürgünü görüldü`,
+      trunkDamage: (n: number) => `${n} ağacın gövdesinde görünür yara ya da oyuk var`,
+    },
+    observationsNone: "İlk sayımda göze çarpan bir durum işaretlenmedi.",
+    infrastructureTitle: "Altyapı",
+    infrastructureNone: "Altyapı işaretlenmedi.",
+    infrastructureLine: (label: string, count: number, length: string | null) =>
+      length ? `${label}: ${count} (toplam ${length})` : `${label}: ${count}`,
+    confidenceTitle: "Denetim güveni",
+    coverage: (pct: string, threshold: string) =>
+      `Kapsama: ağaçların %${pct}'i en az iki yönden görüntülendi (eşik %${threshold}).`,
+    coverageNone: "Kapsama ölçümü yok.",
+    panoramas: (n: number) => `${n} panorama`,
+    uncertain: (n: number) =>
+      `${n} ağacı görüntüden kesin belirleyemedik; ilk ziyarette yerinde bakılacak.`,
+    nextTitle: "Sırada ne var",
+    next: "Sıradaki ziyaret periyodik denetimdir: her ağacın sağlığına bakılır ve bahçe karnesi ilk kez oluşur.",
+    youTitle: "Sizden beklenenler",
+    you: "Haritada yanlış gördüğünüz bir yer varsa bahçe karnesinde o ağaca dokunup soru bırakın. Sınır onayı bekliyorsa onaylayın.",
+    warningsTitle: "Dikkat edilecekler",
+    warnings: {
+      count_differs:
+        "Sayım tahmininizden belirgin farklı. Haritaya bakıp eksik ya da fazla gördüğünüz bir bölge varsa bize yazın.",
+      area_differs: "Ölçülen alan beyan ettiğiniz alandan belirgin farklı.",
+      many_empty:
+        "Bahçede kayda değer sayıda boş yer var. Yeniden dikim isterseniz uzmanımız uygun yerleri gösterebilir.",
+      ungrafted:
+        "Bazı ağaçlar aşısız görünüyor. Aşısız ağaçlar fıstık vermez; aşılatmak isteyip istemediğinizi düşünebilirsiniz.",
+      uncertain_trees:
+        "Bazı ağaçlar görüntüden kesin belirlenemedi; ilk ziyarette yerinde bakılacak.",
+      coverage_below_threshold: "Kapsama eşiğin altında kaldı; uzman sayımı bu haliyle kabul etti.",
+      boundary_unapproved: "Sınır henüz onaylanmadı.",
+    } as Record<string, string>,
+    zoneKinds: {
+      well: "Kuyu",
+      pool: "Havuz",
+      irrigation_line: "Sulama hattı",
+      fence: "Çit",
+      gate: "Kapı",
+      shed: "Kulübe",
+    } as Record<string, string>,
+    generated: (date: string) => `Oluşturma: ${date}`,
+    page: (n: number, total: number) => `Sayfa ${n} / ${total}`,
   },
   // Category values of the metric registry (docs/metodoloji.md, Ek B).
   metricCategories: {
