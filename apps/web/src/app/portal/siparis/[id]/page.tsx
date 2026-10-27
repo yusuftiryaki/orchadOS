@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cancelOrderAction } from "@/app/portal/billing-actions";
-import { PayButton } from "@/components/portal-billing/pay-button";
+import { OrderPay } from "@/components/portal-billing/order-pay";
 import { PaymentTable } from "@/components/portal-billing/payment-table";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import local from "@/components/portal-billing/portal-billing.module.css";
@@ -108,33 +108,11 @@ export default async function OrderPage({
       {awaiting && (
         <section className={styles.section} data-testid="order-pay">
           <h2>{O.payTitle}</h2>
-          {paymentsEnabled ? (
-            <PayButton orderId={order.id} />
-          ) : (
-            <p className="muted" data-testid="card-off">
-              {O.cardOff}
-            </p>
-          )}
-          <h3>{O.transferTitle}</h3>
-          {instructions?.iban ? (
-            <>
-              <p>{O.transferBody}</p>
-              <dl className={local.bank} data-testid="bank-transfer">
-                <dt>{O.bank}</dt>
-                <dd>{instructions.bankName ?? P.none}</dd>
-                <dt>{O.holder}</dt>
-                <dd>{instructions.ibanHolder ?? P.none}</dd>
-                <dt>{O.iban}</dt>
-                <dd>{instructions.iban}</dd>
-                <dt>{O.reference}</dt>
-                <dd data-testid="bank-reference">{instructions.reference}</dd>
-                <dt>{O.amount}</dt>
-                <dd>{formatKurus(instructions.outstandingKurus, instructions.currency)}</dd>
-              </dl>
-            </>
-          ) : (
-            <p className="muted">{O.noBank}</p>
-          )}
+          <OrderPay
+            orderId={order.id}
+            paymentsEnabled={paymentsEnabled}
+            instructions={instructions}
+          />
         </section>
       )}
 

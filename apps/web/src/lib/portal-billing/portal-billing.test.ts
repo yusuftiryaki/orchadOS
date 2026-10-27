@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { clientIpOf, paymentStartError, returnOriginOf } from "./payments";
 import { isValidTckn } from "./tckn";
 import { portalHref, readPortalResult, safeBackPath } from "./urls";
 import {
@@ -294,5 +295,48 @@ describe("portal addresses", () => {
     ]) {
       expect(safeBackPath(evil), String(evil)).toBeNull();
     }
+  });
+});
+
+describe("payment start helpers", () => {
+  const headers = (values: Record<string, string>) => new Headers(values);
+
+  it("derives the return origin from the request", () => {
+    expect(returnOriginOf(headers({ host: "127.0.0.1:3100" }))).toBe("http://127.0.0.1:3100");
+    expect(
+      returnOriginOf(
+        headers({
+          host: "internal:3000",
+          "x-forwarded-host": "app.example.com",
+          "x-forwarded-proto": "https",
+        }),
+      ),
+    ).toBe("https://app.example.com");
+    expect(returnOriginOf(headers({ host: "evil.com/x" }))).toBeNull();
+    expect(returnOriginOf(headers({}))).toBeNull();
+  });
+
+  it("takes the first forwarded client IP, else loopback", () => {
+    expect(clientIpOf(headers({ "x-forwarded-for": "203.0.113.5, 10.0.0.1" }))).toBe("203.0.113.5");
+    expect(clientIpOf(headers({ "x-forwarded-for": "<script>" }))).toBe("127.0.0.1");
+    expect(clientIpOf(headers({}))).toBe("127.0.0.1");
+  });
+
+  it("maps the payments function's error codes", async () => {
+    const err = (status: number, body: unknown) => ({
+      context: new Response(JSON.stringify(body), { status }),
+    });
+    expect(await paymentStartError(err(409, { error: "order_not_payable" }))).toBe(
+      "order_not_payable",
+    );
+    expect(await paymentStartError(err(409, { error: "billing_profile_incomplete" }))).toBe(
+      "billing_profile_incomplete",
+    );
+    expect(await paymentStartError(err(503, { error: "payments_disabled" }))).toBe(
+      "payments_disabled",
+    );
+    expect(await paymentStartError(err(502, "x"))).toBe("provider_error");
+    expect(await paymentStartError(err(500, { error: "failed" }))).toBe("write_failed");
+    expect(await paymentStartError(new Error("network"))).toBe("write_failed");
   });
 });
