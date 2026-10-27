@@ -13,7 +13,7 @@ import { siteFlags } from "@/lib/flags";
 import { formatDate, formatDateTime } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
-import { getOrder, getPaymentInstructions } from "@/lib/portal-billing/data";
+import { getOrder, getPaymentInstructions, outstandingKurus } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
@@ -39,7 +39,7 @@ export default async function OrderPage({
   const instructions = awaiting ? await getPaymentInstructions(supabase, order.id) : null;
   const { paymentsEnabled } = siteFlags();
   const currency = order.currency;
-  const outstanding = Math.max(0, order.total_kurus - order.paid_kurus);
+  const outstanding = outstandingKurus(order);
 
   return (
     <main className={styles.page} data-testid="order" data-status={order.status}>

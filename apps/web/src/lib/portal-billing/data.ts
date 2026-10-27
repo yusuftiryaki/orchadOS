@@ -550,3 +550,11 @@ export async function getCustomerSummary(
     hasAnything: applications.length + orders.length > 0,
   };
 }
+
+// What is still to pay on an order: the money kept counts (paid minus
+// refunded), as in the database's order arithmetic.
+export function outstandingKurus(
+  order: Pick<ServiceOrder, "total_kurus" | "paid_kurus" | "refunded_kurus">,
+): number {
+  return Math.max(0, order.total_kurus - (order.paid_kurus - order.refunded_kurus));
+}
