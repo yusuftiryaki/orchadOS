@@ -53,13 +53,19 @@ function ReportDocument({ report, now }: { report: ParcelReport; now: Date }) {
               </Text>
               <Text style={pdf.statLabel}>
                 {report.scoreChange == null
-                  ? sc.first
-                  : report.scoreChange === 0
-                    ? sc.change.same
-                    : report.scoreChange > 0
-                      ? sc.change.up(report.scoreChange)
-                      : sc.change.down(-report.scoreChange)}
+                  ? report.scoreBasis === "no_same_season"
+                    ? sc.noSameSeason
+                    : sc.first
+                  : (report.scoreChange === 0
+                      ? sc.change.same
+                      : report.scoreChange > 0
+                        ? sc.change.up(report.scoreChange)
+                        : sc.change.down(-report.scoreChange)) +
+                    (report.scoreBasis === "same_season" ? ` · ${sc.sameSeasonNote}` : "")}
               </Text>
+              {report.scoreUnassessedPct != null && (
+                <Text style={pdf.statLabel}>{sc.unassessed(report.scoreUnassessedPct)}</Text>
+              )}
             </View>
             <View style={pdf.stat}>
               <Text style={pdf.statLabel}>{r.treeCount(report.activeTreeCount)}</Text>
@@ -71,7 +77,7 @@ function ReportDocument({ report, now }: { report: ParcelReport; now: Date }) {
           </View>
           <Text
             style={pdf.muted}
-          >{`${sc.help}. ${sc.weights(scoreRulesFor(latest.methodologyVersion).weights)}`}</Text>
+          >{`${sc.help}. ${sc.weights(scoreRulesFor(latest.methodologyVersion))}`}</Text>
 
           <DistributionBarPdf distribution={latest.distribution} />
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 4 }}>

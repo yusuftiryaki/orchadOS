@@ -38,7 +38,11 @@ export function GardenList({ parcels }: { parcels: PortalParcel[] }) {
                       </>
                     )}
                   </p>
-                  <ScoreLine score={parcel.score} change={parcel.scoreChange} />
+                  <ScoreLine
+                    score={parcel.score}
+                    change={parcel.scoreChange}
+                    basis={parcel.scoreBasis}
+                  />
                   <DistributionBar distribution={parcel.distribution} />
                 </>
               ) : (

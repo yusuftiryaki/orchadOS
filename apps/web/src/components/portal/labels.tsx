@@ -1,7 +1,7 @@
 import { formatNumber, t } from "@/lib/i18n";
 import { MARKER_COLORS } from "@/lib/map/tree-style";
 import { distributionTotal, type Approval, type Distribution } from "@/lib/portal/classes";
-import { trendOf } from "@/lib/portal/score";
+import { trendOf, type ScoreBasis } from "@/lib/portal/score";
 import styles from "./portal.module.css";
 
 // Small shared pieces of the portal: who gave a class, finding kinds, the
@@ -54,10 +54,14 @@ export function DistributionBar({ distribution }: { distribution: Distribution }
 export function ScoreLine({
   score,
   change,
+  basis = "previous",
+  unassessedPct = null,
   size = "small",
 }: {
   score: number | null;
   change: number | null;
+  basis?: ScoreBasis;
+  unassessedPct?: number | null;
   size?: "small" | "large";
 }) {
   const sc = t.portal.score;
@@ -69,6 +73,7 @@ export function ScoreLine({
     );
   }
   const trend = change == null ? null : trendOf(change);
+  const titles = basis === "same_season" ? sc.changeTitleSameSeason : sc.changeTitle;
   return (
     <p className={size === "large" ? styles.scoreLarge : styles.score}>
       <span className={styles.scoreLabel}>{sc.label}</span>{" "}
@@ -78,16 +83,23 @@ export function ScoreLine({
       <span className="muted"> {sc.outOf}</span>{" "}
       {trend == null ? (
         <span className={`muted ${styles.small}`} data-testid="score-change">
-          {sc.first}
+          {basis === "no_same_season" ? sc.noSameSeason : sc.first}
         </span>
       ) : (
         <span
           className={trend === "up" ? styles.better : trend === "down" ? styles.worse : "muted"}
-          title={trend === "same" ? sc.changeTitle.same : sc.changeTitle[trend](Math.abs(change!))}
+          title={trend === "same" ? titles.same : titles[trend](Math.abs(change!))}
           data-testid="score-change"
           data-trend={trend}
         >
           {trend === "same" ? sc.change.same : sc.change[trend](Math.abs(change!))}
+          {basis === "same_season" && ` · ${sc.sameSeasonNote}`}
+        </span>
+      )}
+      {unassessedPct != null && (
+        <span className={`${styles.small} ${styles.worse}`} data-testid="score-unassessed">
+          {" "}
+          · {sc.unassessed(unassessedPct)}
         </span>
       )}
     </p>

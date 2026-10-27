@@ -25,7 +25,7 @@ export function BulkApprovePanel({
   const eligible = ctx.trees.filter(isBulkEligible).length;
   const sample = ctx.trees.filter((tree) => tree.sampled).length;
   const editable = isReviewable(ctx.session.status);
-  const gate = bulkGate(ctx.trees, ctx.rules);
+  const gate = bulkGate(ctx.trees, ctx.rules, ctx.firstOfSeason);
   if (!editable && messages.approved == null) return null;
   return (
     <section className={styles.panel} data-testid="bulk-approve">
@@ -49,9 +49,11 @@ export function BulkApprovePanel({
             </p>
           ) : !gate.open ? (
             <p className={styles.notice} data-testid="bulk-gate">
-              {gate.reason === "sample_open"
-                ? b.sampleOpen(gate.remaining)
-                : b.sampleDisagreement(Math.round(gate.agreement * 100))}
+              {gate.reason === "first_of_season"
+                ? b.firstOfSeason
+                : gate.reason === "sample_open"
+                  ? b.sampleOpen(gate.remaining)
+                  : b.sampleDisagreement(Math.round(gate.agreement * 100))}
             </p>
           ) : (
             <form action={bulkApproveAction}>

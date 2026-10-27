@@ -103,7 +103,12 @@ select set_eq(
         -- Pipeline presence check (20261025120200_tree_presence).
         'tree_visible',
         -- Dieback pattern and basal sprouts (20261027130000_tree_stem_dieback_sprouts).
-        'basal_sprout_level', 'dieback_pattern', 'dried_leaves_attached'],
+        'basal_sprout_level', 'dieback_pattern', 'dried_leaves_attached',
+        -- Close-up questions of methodology v0.1 (20261028120000_closeup_protocol_v01).
+        'fresh_cut_present', 'dead_scaffold_present', 'gum_present', 'dead_test_no_buds',
+        'dead_test_snaps', 'dead_test_brown_cambium', 'flower_cluster_present', 'pollen_present',
+        'shoot_tip_dieback_present', 'honeydew_present', 'sooty_mould_present', 'white_flakes_present',
+        'green_fruit_drop_present', 'debris_under_tree_present', 'dry_weeds_present'],
   'migrations register the metrics from docs/metodoloji.md (Ek B), docs/veri-modeli.md and the field questions'
 );
 

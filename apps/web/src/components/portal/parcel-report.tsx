@@ -157,10 +157,15 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
         </p>
       </div>
       <div className={styles.scoreBox} data-testid="score-box">
-        <ScoreLine score={latest.score} change={report.scoreChange} size="large" />
+        <ScoreLine
+          score={latest.score}
+          change={report.scoreChange}
+          basis={report.scoreBasis}
+          unassessedPct={report.scoreUnassessedPct}
+          size="large"
+        />
         <p className={`muted ${styles.small}`}>
-          {t.portal.score.help}.{" "}
-          {t.portal.score.weights(scoreRulesFor(latest.methodologyVersion).weights)}
+          {t.portal.score.help}. {t.portal.score.weights(scoreRulesFor(latest.methodologyVersion))}
         </p>
       </div>
       <p>

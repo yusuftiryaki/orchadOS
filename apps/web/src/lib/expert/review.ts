@@ -172,6 +172,9 @@ export interface ReviewContext {
   findings: ReviewFinding[];
   // Mandatory review rules and quality sample rate of the visit's methodology.
   rules: ReviewRules;
+  // No visit of this season under the visit's methodology is published yet, in
+  // any parcel the expert sees (bulk approval may stay closed).
+  firstOfSeason: boolean;
 }
 
 export function isReviewable(status: SessionStatus): boolean {
@@ -283,6 +286,7 @@ export async function loadReview(
 
   const methodologyVersion = s.methodology_version ?? DEFAULT_METHODOLOGY_VERSION;
   const rules = reviewRulesFor(methodologyVersion);
+  const firstOfSeason = await isFirstOfSeason(supabase, s.id, time, methodologyVersion);
   const allMetrics = metricRows.data ?? [];
   const signals = await loadSignals(supabase, s.id, allMetrics, rules);
 
@@ -358,6 +362,7 @@ export async function loadReview(
       publishedAt: s.published_at,
     },
     rules,
+    firstOfSeason,
     previous,
     metrics: reviewMetrics(allMetrics, season),
     allMetrics,
@@ -374,6 +379,32 @@ export async function loadReview(
       evidenceAssetIds: f.finding_evidence.map((e) => e.asset_id),
     })),
   };
+}
+
+// Whether no other visit of the same season and methodology has been
+// published before this one.
+async function isFirstOfSeason(
+  supabase: Client,
+  sessionId: string,
+  time: string,
+  methodologyVersion: string,
+): Promise<boolean> {
+  let query = supabase
+    .from("session")
+    .select("id, started_at, planned_date, created_at")
+    .eq("status", "published")
+    .in("kind", REVIEW_KINDS)
+    .neq("id", sessionId);
+  query =
+    methodologyVersion === DEFAULT_METHODOLOGY_VERSION
+      ? query.or(`methodology_version.is.null,methodology_version.eq.${methodologyVersion}`)
+      : query.eq("methodology_version", methodologyVersion);
+  const { data, error } = await query;
+  if (error) throw error;
+  const season = seasonOf(time);
+  return !(data ?? []).some(
+    (v) => seasonOf(sessionTime(v)) === season && Date.parse(sessionTime(v)) < Date.parse(time),
+  );
 }
 
 // Staff yes/no answers, AI values and the pipeline's presence check the

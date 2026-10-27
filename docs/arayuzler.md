@@ -296,9 +296,9 @@ AI worker (`services/ai-worker`, `ai-worker run`) işlenmiş bir tarama ziyareti
 | `config_key` | metin | Model kaskadı, ör. `claude-haiku-5-5>claude-sonnet-5-5` |
 | `final_model`, `final_stage` | metin, int | Sonucu veren model ve aşaması (1 = triaj) |
 | `models` | metin dizisi | Bu ağaç için cevap veren modeller, sırayla |
-| `review_reasons` | metin dizisi | Triaj cevabının neden üst modele gittiği: `no_answer`, `no_class`, `low_confidence`, `class_problem`, `class_dead`, `class_absent`, `flag_<bayrak>`, `tree_visible_no`, `tree_visible_unsure`, `class_inconsistent`; üçüncü aşamaya gidenlerde ayrıca `hard_<neden>` |
+| `review_reasons` | metin dizisi | Triaj cevabının neden üst modele gittiği: `no_answer`, `no_class`, `low_confidence`, `class_problem`, `class_dead`, `class_absent`, `flag_<bayrak>`, `tree_visible_no`, `tree_visible_unsure`, `class_inconsistent`, `hard_scale_dead_branch_scale`, `hard_scale_trunk_base_scale` (v0.1: kuru dal ya da gövde 2 ve üstü); üçüncü aşamaya gidenlerde ayrıca `hard_<neden>` |
 | `tree_visible` | `yes` \| `no` \| `unsure` | Konumda ağaç görünüyor mu |
-| `flags` | metin dizisi | `staff_answer_conflict` (personel cevabıyla çelişki), `large_change_from_previous` (önceki ziyarete göre büyük değişim), `poor_image` (kötü görüntü) |
+| `flags` | metin dizisi | `staff_answer_conflict` (personel cevabıyla çelişki), `large_change_from_previous` (önceki ziyarete göre büyük değişim), `poor_image` (kötü görüntü). Worker ekler (v0.1): `winter_dead_downgraded`, kışın kuru cevabı Sorunlu ve kuru dal 3 yapıldı |
 | `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens` | int | Bu ağacın bütün aşamalarının toplamı |
 | `cost_usd` | sayı | Tahmini maliyet, Batch fiyatıyla |
 | `batch_ids` | metin dizisi | Message Batches kimlikleri |

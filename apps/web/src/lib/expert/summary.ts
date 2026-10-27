@@ -66,12 +66,19 @@ export function isBulkEligible(tree: ReviewTree): boolean {
 
 export type BulkGate =
   | { open: true; agreement: number | null }
+  | { open: false; reason: "first_of_season" }
   | { open: false; reason: "sample_open"; remaining: number }
   | { open: false; reason: "sample_disagreement"; agreement: number };
 
 // Whether bulk approval may run (ReviewRules.bulkGate): the whole quality sample
-// is decided one by one, and expert and AI agree on enough of it.
-export function bulkGate(trees: ReviewTree[], rules: Pick<ReviewRules, "bulkGate">): BulkGate {
+// is decided one by one, and expert and AI agree on enough of it. With
+// `firstOfSeason` (no published visit of this season under the methodology
+// yet) it may stay closed altogether.
+export function bulkGate(
+  trees: ReviewTree[],
+  rules: Pick<ReviewRules, "bulkGate">,
+  firstOfSeason = false,
+): BulkGate {
   const sample = trees.filter((t) => t.sampled);
   const decided = sample.filter(isIndividuallyReviewed);
   const compared = decided.filter((t) => t.aiClass != null);
@@ -80,6 +87,9 @@ export function bulkGate(trees: ReviewTree[], rules: Pick<ReviewRules, "bulkGate
       ? compared.filter((t) => t.aiClass === t.expertClass).length / compared.length
       : null;
   if (!rules.bulkGate) return { open: true, agreement };
+  if (firstOfSeason && rules.bulkGate.firstOfSeasonClosed) {
+    return { open: false, reason: "first_of_season" };
+  }
   if (decided.length < sample.length) {
     return { open: false, reason: "sample_open", remaining: sample.length - decided.length };
   }

@@ -189,7 +189,12 @@ select set_eq(
   array['dead_branch_present', 'trunk_damage_present', 'root_sucker_present', 'pruned', 'frost_damage_present',
         'pest_sign_present', 'fruit_present', 'drought_stress_sign', 'theft_sign_present',
         -- "Sorun gördüm" (20261023130000_bulk_approval).
-        'problem_seen'],
+        'problem_seen',
+        -- Close-up protocol v0.1 (20261028120000_closeup_protocol_v01).
+        'fresh_cut_present', 'dead_scaffold_present', 'gum_present', 'dead_test_no_buds',
+        'dead_test_snaps', 'dead_test_brown_cambium', 'flower_cluster_present', 'pollen_present',
+        'shoot_tip_dieback_present', 'honeydew_present', 'sooty_mould_present', 'white_flakes_present',
+        'green_fruit_drop_present', 'debris_under_tree_present', 'dry_weeds_present'],
   'field question metrics are registered as hidden yes/no metrics');
 select results_eq(
   $$ select count(*) from public.metric_definition
