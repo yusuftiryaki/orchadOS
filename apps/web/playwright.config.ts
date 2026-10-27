@@ -35,6 +35,12 @@ export default defineConfig({
       // panorama source is development-only; this build allows it explicitly.
       LOCAL_PANORAMA_DIR: `${E2E_DATA_DIR}/runs`,
       LOCAL_PANORAMA_ALLOW_PRODUCTION: "1",
+      // Public site and sign-up (İP12): flags on; the secret matches the local
+      // customer-signup function (supabase/config.toml).
+      ORCHADOS_SIGNUP_ENABLED: "1",
+      ORCHADOS_PAYMENTS_ENABLED: "1",
+      PAYMENT_FAKE_CHECKOUT: "1",
+      SIGNUP_PROXY_SECRET: "signup-proxy-local",
     },
   },
 });
