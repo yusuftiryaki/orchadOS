@@ -40,6 +40,12 @@ def _common(p: argparse.ArgumentParser) -> None:
         help="keep the answers in the job state only (e.g. published visits, for eval)",
     )
     p.add_argument("--limit", type=int, help="assess at most this many new trees")
+    p.add_argument(
+        "--test-data-only",
+        action="store_true",
+        help="confirm the visit holds test data only (required by providers that may "
+        "train on requests, e.g. free hosted tiers)",
+    )
     p.add_argument("--json", action="store_true", help="print the report as JSON")
 
 
@@ -78,10 +84,26 @@ def _catalog():
     return SupabaseCatalog(SupabaseClient.sign_in(Credentials.from_env()))
 
 
-def _api():
-    from .api import AnthropicBatchApi
+def _api(cfg: WorkerConfig, state_dir: Path, test_data_only: bool):
+    p = cfg.provider
+    if p.kind == "anthropic":
+        from .api import AnthropicBatchApi
 
-    return AnthropicBatchApi()
+        return AnthropicBatchApi()
+    if p.may_train_on_requests and not test_data_only:
+        raise ValueError(
+            f"{p.base_url} may use the requests to train its models: run it only on test "
+            "data and confirm with --test-data-only (real orchard images stay with providers "
+            "that do not train on them)"
+        )
+    from .openai_compat import OpenAICompatBatchApi
+
+    return OpenAICompatBatchApi.from_env(
+        p.base_url,
+        p.api_key_env,
+        state_dir / "openai-results",
+        request_interval_s=p.request_interval_s,
+    )
 
 
 def format_report(r: RunReport) -> str:
@@ -114,11 +136,13 @@ def main(argv: list[str] | None = None, *, catalog=None, api=None) -> int:
                 wait=not args.no_wait,
                 limit=args.limit,
             )
+            cfg = _config(args)
+            state_dir = args.state_dir or default_state_dir()
             worker = Worker(
                 catalog or _catalog(),
-                api if api is not None else _api(),
-                _config(args),
-                args.state_dir or default_state_dir(),
+                api if api is not None else _api(cfg, state_dir, args.test_data_only),
+                cfg,
+                state_dir,
                 options,
             )
             report = worker.run(args.session_id, resume_only=args.command == "resume")

@@ -21,8 +21,14 @@ def usage_of(message: dict[str, Any] | None) -> dict[str, int]:
 
 
 def cost_usd(model: str, usage: dict[str, int]) -> float:
-    """Estimated cost of one batch request in US dollars."""
-    p = PRICES[model]
+    """Estimated cost of one batch request in US dollars; 0 for models without a price.
+
+    Only Anthropic models are priced (config.PRICES); others ran on a local
+    server or a free tier.
+    """
+    p = PRICES.get(model)
+    if p is None:
+        return 0.0
     total = (
         usage.get("input_tokens", 0) * p.input
         + usage.get("output_tokens", 0) * p.output

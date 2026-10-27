@@ -3,7 +3,9 @@
 Defaults follow docs/teknik-mimari.md ("AI ve LLM maliyeti", strategy C):
 Claude Haiku 5.5 triages every tree, uncertain cases go to Claude Sonnet 5.5.
 Claude Opus 5.5 is available as a third stage for the hardest cases but off by
-default. A JSON file (--config) can override any field.
+default. A JSON file (--config) can override any field; `provider` switches to
+an OpenAI-compatible endpoint (openai_compat.py, e.g. local Ollama or a free
+hosted tier), see configs/.
 """
 
 from __future__ import annotations
@@ -26,6 +28,30 @@ class StageConfig:
     # counts toward max_tokens.
     effort: str = "low"
     max_tokens: int = 8000
+
+
+@dataclass(frozen=True)
+class ProviderConfig:
+    """Where the requests go. `anthropic`: Message Batches API (ANTHROPIC_API_KEY).
+
+    `openai`: an OpenAI-compatible chat completions endpoint at base_url, one
+    request at a time. Its models need no entry in PRICES (cost reported as 0).
+    """
+
+    kind: str = "anthropic"
+    base_url: str | None = None
+    # Environment variable holding the key; None for a keyless local server.
+    api_key_env: str | None = None
+    # Seconds between requests (free tiers limit requests per minute).
+    request_interval_s: float = 0.0
+    # True for free tiers whose terms let them use the requests: test data only.
+    may_train_on_requests: bool = False
+
+    def __post_init__(self) -> None:
+        if self.kind not in ("anthropic", "openai"):
+            raise ValueError(f"unknown provider kind {self.kind!r}")
+        if self.kind == "openai" and not self.base_url:
+            raise ValueError("provider kind 'openai' needs base_url")
 
 
 @dataclass(frozen=True)
@@ -63,6 +89,7 @@ class WorkerConfig:
     mosaic_size: int = 1024
     # Seconds between batch status checks.
     poll_interval_s: float = 30.0
+    provider: ProviderConfig = field(default_factory=ProviderConfig)
 
     @property
     def stages(self) -> list[StageConfig]:
@@ -78,7 +105,10 @@ class WorkerConfig:
 
     def params_hash(self) -> str:
         """Hash of everything that shapes a request or the triage; stored as params_hash."""
-        text = json.dumps(asdict(self), sort_keys=True, default=str)
+        data = asdict(self)
+        if self.provider == ProviderConfig():
+            del data["provider"]  # keeps the hash of Anthropic runs as before
+        text = json.dumps(data, sort_keys=True, default=str)
         return hashlib.sha256(text.encode()).hexdigest()[:16]
 
     @classmethod
@@ -93,10 +123,14 @@ class WorkerConfig:
             for key in ("triage", "review", "hard"):
                 if key in data and data[key] is not None:
                     data[key] = StageConfig(**data[key])
+            if "provider" in data:
+                data["provider"] = ProviderConfig(**data["provider"])
             cfg = replace(cfg, **data)
         if with_hard and cfg.hard is None:
             cfg = replace(cfg, hard=StageConfig(HARD_MODEL, "medium", 16000))
+        if with_hard and cfg.provider.kind != "anthropic":
+            raise ValueError("--with-opus needs the anthropic provider")
         for s in cfg.stages:
-            if s.model not in PRICES:
+            if cfg.provider.kind == "anthropic" and s.model not in PRICES:
                 raise ValueError(f"no price for model {s.model}; add it to config.PRICES")
         return cfg
