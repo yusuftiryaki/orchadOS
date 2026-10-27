@@ -102,86 +102,88 @@ export function DecisionPanel({
 
             <h3>{r.metricsTitle}</h3>
             {metrics.length === 0 && <p className="muted">{r.noMetrics}</p>}
-            {metrics.map((m) => {
-              const d = defaults.get(m.id);
-              const label = m.unit ? `${m.name} (${m.unit})` : m.name;
-              switch (m.value_type) {
-                case "scale": {
-                  const options = [];
-                  for (let v = m.scale_min ?? 0; v <= (m.scale_max ?? 0); v++) options.push(v);
-                  return (
-                    <label key={m.id} className={styles.field}>
-                      {label}
-                      <select name={valueField(m)} defaultValue={d?.value_scale ?? ""}>
-                        <option value="">{r.choose}</option>
-                        {options.map((v) => (
-                          <option key={v} value={v}>
-                            {v}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  );
-                }
-                case "numeric":
-                  return (
-                    <div key={m.id} className={styles.inline}>
-                      <label className={styles.field}>
+            <div className={styles.metricGrid}>
+              {metrics.map((m) => {
+                const d = defaults.get(m.id);
+                const label = m.unit ? `${m.name} (${m.unit})` : m.name;
+                switch (m.value_type) {
+                  case "scale": {
+                    const options = [];
+                    for (let v = m.scale_min ?? 0; v <= (m.scale_max ?? 0); v++) options.push(v);
+                    return (
+                      <label key={m.id} className={styles.field}>
                         {label}
-                        <input
-                          className={styles.numberInput}
+                        <select name={valueField(m)} defaultValue={d?.value_scale ?? ""}>
+                          <option value="">{r.choose}</option>
+                          {options.map((v) => (
+                            <option key={v} value={v}>
+                              {v}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    );
+                  }
+                  case "numeric":
+                    return (
+                      <div key={m.id} className={styles.inline}>
+                        <label className={styles.field}>
+                          {label}
+                          <input
+                            className={styles.numberInput}
+                            name={valueField(m)}
+                            inputMode="decimal"
+                            defaultValue={d?.value_numeric ?? ""}
+                          />
+                        </label>
+                        <label className={styles.field}>
+                          {r.uncertainty}
+                          <input
+                            className={styles.numberInput}
+                            name={uncertaintyField(m)}
+                            inputMode="decimal"
+                            defaultValue={d?.value_numeric != null ? (d.uncertainty ?? "") : ""}
+                          />
+                        </label>
+                      </div>
+                    );
+                  case "category":
+                    return (
+                      <label key={m.id} className={styles.field}>
+                        {label}
+                        <select name={valueField(m)} defaultValue={d?.value_category ?? ""}>
+                          <option value="">{r.choose}</option>
+                          {(m.categories ?? []).map((c) => (
+                            <option key={c} value={c}>
+                              {categoryLabel(c)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    );
+                  case "boolean":
+                    return (
+                      <label key={m.id} className={styles.field}>
+                        {label}
+                        <select
                           name={valueField(m)}
-                          inputMode="decimal"
-                          defaultValue={d?.value_numeric ?? ""}
-                        />
+                          defaultValue={d?.value_boolean == null ? "" : String(d.value_boolean)}
+                        >
+                          <option value="">{r.choose}</option>
+                          <option value="true">{r.yes}</option>
+                          <option value="false">{r.no}</option>
+                        </select>
                       </label>
-                      <label className={styles.field}>
-                        {r.uncertainty}
-                        <input
-                          className={styles.numberInput}
-                          name={uncertaintyField(m)}
-                          inputMode="decimal"
-                          defaultValue={d?.value_numeric != null ? (d.uncertainty ?? "") : ""}
-                        />
-                      </label>
-                    </div>
-                  );
-                case "category":
-                  return (
-                    <label key={m.id} className={styles.field}>
-                      {label}
-                      <select name={valueField(m)} defaultValue={d?.value_category ?? ""}>
-                        <option value="">{r.choose}</option>
-                        {(m.categories ?? []).map((c) => (
-                          <option key={c} value={c}>
-                            {categoryLabel(c)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  );
-                case "boolean":
-                  return (
-                    <label key={m.id} className={styles.field}>
-                      {label}
-                      <select
-                        name={valueField(m)}
-                        defaultValue={d?.value_boolean == null ? "" : String(d.value_boolean)}
-                      >
-                        <option value="">{r.choose}</option>
-                        <option value="true">{r.yes}</option>
-                        <option value="false">{r.no}</option>
-                      </select>
-                    </label>
-                  );
-              }
-            })}
+                    );
+                }
+              })}
+            </div>
             <label className={styles.field}>
               {r.notes}
               <textarea name="notes" rows={2} />
             </label>
             <div>
-              <button className="button button-secondary" type="submit">
+              <button className="button" type="submit">
                 {r.saveCorrection}
               </button>
             </div>

@@ -23,7 +23,7 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
     <section className={styles.section} aria-labelledby="boyut-baslik" data-testid="dimensions">
       <h2 id="boyut-baslik">{d.title}</h2>
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.dimensions}`}>
           <tbody>
             <Row label={d.inventory} id="inventory">
               <p>
