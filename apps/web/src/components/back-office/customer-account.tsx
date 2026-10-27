@@ -1,0 +1,134 @@
+import Link from "next/link";
+import styles from "@/components/operations/operations.module.css";
+import type { CustomerAccount } from "@/lib/back-office/data";
+import { boHref } from "@/lib/back-office/urls";
+import { backOfficeText } from "@/lib/i18n/messages/back-office";
+import { billingText } from "@/lib/i18n/messages/billing";
+import { Badge, Facts, day, money, when } from "./parts";
+import { RevealIdentity } from "./reveal-identity";
+
+const T = backOfficeText.account;
+
+// "Müşteri hesabı" panel of an owner's page: billing profile (TCKN masked,
+// shown on request), consent history, applications, orders and payments.
+export function CustomerAccountPanel({
+  orgId,
+  userId,
+  profileId,
+  account,
+}: {
+  orgId: string;
+  userId: string;
+  profileId: string;
+  account: CustomerAccount;
+}) {
+  const p = account.profile;
+  return (
+    <section className={styles.section} data-testid="customer-account">
+      <div className={styles.titleRow}>
+        <h2>{T.title}</h2>
+        <Link className="button" href={boHref.newQuote({ sahip: profileId })}>
+          {T.parcelQuote}
+        </Link>
+      </div>
+
+      <h3>{T.billingProfile}</h3>
+      {!p ? (
+        <p className="muted">{T.noBillingProfile}</p>
+      ) : (
+        <Facts
+          testId="billing-profile"
+          rows={[
+            [T.kind, billingText.billingPartyKind[p.kind as "individual" | "company"] ?? p.kind],
+            [T.name, `${p.first_name} ${p.last_name}`],
+            ...(p.kind === "company"
+              ? ([
+                  [T.company, p.company_title],
+                  [T.taxOffice, p.tax_office],
+                  [T.taxNumber, p.tax_number],
+                ] as [string, string][])
+              : []),
+            ...(p.identity_number_masked
+              ? ([
+                  [
+                    T.identityNumber,
+                    <RevealIdentity
+                      key="tckn"
+                      orgId={orgId}
+                      userId={userId}
+                      masked={p.identity_number_masked}
+                    />,
+                  ],
+                ] as [string, React.ReactNode][])
+              : []),
+            [T.address, [p.address, p.district, p.city, p.postal_code].filter(Boolean).join(", ")],
+            [T.email, p.email],
+          ]}
+        />
+      )}
+
+      <h3>{T.consents}</h3>
+      {account.consents.length === 0 ? (
+        <p className="muted">{T.noConsents}</p>
+      ) : (
+        <ul className={styles.plainList} data-testid="consent-history">
+          {account.consents.map((c) => (
+            <li key={c.id}>
+              {when(c.recorded_at)} ·{" "}
+              {billingText.consentKind[c.kind as keyof typeof billingText.consentKind] ?? c.kind} ·{" "}
+              {c.granted ? T.granted : T.withdrawn} · {c.text_version} ·{" "}
+              {billingText.consentSource[c.source as keyof typeof billingText.consentSource] ??
+                c.source}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h3>{T.applications}</h3>
+      {account.applications.length === 0 ? (
+        <p className="muted">{T.none}</p>
+      ) : (
+        <ul className={styles.plainList}>
+          {account.applications.map((a) => (
+            <li key={a.id}>
+              <Link href={boHref.application(a.id)}>{a.number ?? a.id.slice(0, 8)}</Link> ·{" "}
+              <Badge labels={billingText.applicationStatus} value={a.status} /> ·{" "}
+              {day(a.submitted_at)}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h3>{T.orders}</h3>
+      {account.orders.length === 0 ? (
+        <p className="muted">{T.none}</p>
+      ) : (
+        <ul className={styles.plainList} data-testid="customer-orders">
+          {account.orders.map((o) => (
+            <li key={o.id}>
+              <Link href={boHref.order(o.id)}>{o.number}</Link> ·{" "}
+              <Badge labels={billingText.orderStatus} value={o.status} /> · {money(o.paid_kurus)} /{" "}
+              {money(o.total_kurus)}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h3>{T.payments}</h3>
+      {account.payments.length === 0 ? (
+        <p className="muted">{T.none}</p>
+      ) : (
+        <ul className={styles.plainList}>
+          {account.payments.map((p) => (
+            <li key={p.id}>
+              <Link href={boHref.payment(p.id)}>{p.receipt_number ?? p.id.slice(0, 8)}</Link> ·{" "}
+              {billingText.paymentProvider[p.provider as keyof typeof billingText.paymentProvider]}{" "}
+              · <Badge labels={billingText.paymentStatus} value={p.status} /> ·{" "}
+              {money(p.amount_kurus)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

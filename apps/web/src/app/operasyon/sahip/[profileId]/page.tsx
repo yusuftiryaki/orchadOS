@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
+import { CustomerAccountPanel } from "@/components/back-office/customer-account";
 import { OwnerForm } from "@/components/operations/owner-form";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
+import { customerAccount } from "@/lib/back-office/data";
 import { accessOfUser, getOwnerProfile, opsOrgs } from "@/lib/operations/data";
 import { opsHref } from "@/lib/operations/urls";
 import { todayIn } from "@/lib/operations/visits";
@@ -26,9 +28,10 @@ export default async function Page({
   const profile = await getOwnerProfile(supabase, profileId);
   // Not an ops of the profile's org looks the same as not existing.
   if (!profile) notFound();
-  const [orgs, access] = await Promise.all([
+  const [orgs, access, account] = await Promise.all([
     opsOrgs(supabase, user.id),
     accessOfUser(supabase, profile.user_id),
+    customerAccount(supabase, profile.org_id, profile.user_id),
   ]);
 
   return (
@@ -77,6 +80,12 @@ export default async function Page({
           />
         </section>
       </div>
+      <CustomerAccountPanel
+        orgId={profile.org_id}
+        userId={profile.user_id}
+        profileId={profile.id}
+        account={account}
+      />
     </main>
   );
 }
