@@ -427,6 +427,7 @@ export async function listPayments(
 export interface PaymentView {
   payment: Payment;
   summary: PaymentRow | null;
+  orderStatus: string | null;
   items: PaymentItem[];
   events: PaymentEvent[];
   refunds: RefundRow[];
@@ -439,7 +440,7 @@ export async function getPayment(supabase: Client, id: string): Promise<PaymentV
     await supabase.from("payment").select(BILLING_COLUMNS.payment).eq("id", id).maybeSingle(),
   ) as Payment | null;
   if (!payment) return null;
-  const [items, events, refunds, internal, list] = await Promise.all([
+  const [items, events, refunds, internal, list, order] = await Promise.all([
     supabase
       .from("payment_item")
       .select(BILLING_COLUMNS.payment_item)
@@ -449,10 +450,12 @@ export async function getPayment(supabase: Client, id: string): Promise<PaymentV
     supabase.rpc("ops_refunds", { p_org_id: payment.org_id, p_payment_id: id }),
     internalOf(supabase, "payment", id),
     supabase.rpc("ops_payments", { p_org_id: payment.org_id, p_order_id: payment.order_id }),
+    supabase.from("service_order").select("status").eq("id", payment.order_id).maybeSingle(),
   ]);
   return {
     payment,
     summary: check(list).find((p) => p.id === id) ?? null,
+    orderStatus: (check(order) as { status: string } | null)?.status ?? null,
     items: check(items) as PaymentItem[],
     events: check(events),
     refunds: check(refunds),

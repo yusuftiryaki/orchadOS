@@ -53,6 +53,12 @@ export default async function Page({
   const mismatch = p.status === "pending_review" && MISMATCH.includes(p.failure_code ?? "");
   const review = p.status === "pending_review" && !mismatch;
   const refundable = summary?.refundable_kurus ?? 0;
+  // A transfer on an order still awaiting payment is corrected by voiding it,
+  // not refunded (a refund there leaves the order unpayable and uncancellable).
+  const refundOpen =
+    p.status === "succeeded" &&
+    refundable > 0 &&
+    !(manual && view.orderStatus === "awaiting_payment");
 
   return (
     <main className="page">
@@ -215,7 +221,7 @@ export default async function Page({
             </ActionForm>
           </section>
         )}
-        {p.status === "succeeded" && refundable > 0 && (
+        {refundOpen && (
           <section className={styles.section}>
             <h2>{T.refundTitle}</h2>
             <p className="muted">{T.refundHint}</p>

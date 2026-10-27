@@ -105,7 +105,10 @@ function RowActions({ refund: r, today }: { refund: RefundRow; today: string }) 
   const card = r.kind !== "manual";
   const canProcess = card && (r.status === "requested" || r.status === "failed");
   const canResolve = card && (r.status === "failed" || r.uncertain);
-  if (!canProcess && !canResolve && r.status !== "requested") return null;
+  // The system's void for a provider mismatch is the only way out of the
+  // payment's review: not cancelled from here.
+  const canCancel = r.status === "requested" && !(r.by_system && r.reason === "provider_mismatch");
+  if (!canProcess && !canResolve && !canCancel && r.status !== "requested") return null;
   return (
     <div className={bo.rowActions}>
       {canProcess && (
@@ -153,7 +156,7 @@ function RowActions({ refund: r, today }: { refund: RefundRow; today: string }) 
           </ActionForm>
         </details>
       )}
-      {r.status === "requested" && (
+      {canCancel && (
         <details>
           <summary>{T.cancel}</summary>
           <ActionForm action={cancelRefundAction} testId="cancel-refund">
