@@ -204,6 +204,7 @@ declare
   v_subtotal bigint;
   v_vat bigint;
   v_total bigint;
+  v_on date;
 begin
   select * into pkg from public.service_package where id = p_package_id and org_id = p_org_id;
   if not found then
@@ -212,12 +213,17 @@ begin
   select array_agg((x ->> 'area_m2')::numeric order by o) into v_areas
   from jsonb_array_elements(p_lines) with ordinality t(x, o);
 
+  -- Header and lines are priced three times: the price_list lock keeps a
+  -- publish out until this transaction ends and v_on keeps the day fixed, so
+  -- every call sees the same list.
+  perform pg_advisory_xact_lock(hashtextextended('price_list:' || p_org_id::text, 0));
+  v_on := private.istanbul_today();
   select * into v_first
-  from private.price_lines(p_org_id, p_package_id, v_areas, p_first_year, p_discount_bp) limit 1;
+  from private.price_lines(p_org_id, p_package_id, v_areas, p_first_year, p_discount_bp, v_on) limit 1;
   select sum(l.line_base_kurus), sum(l.line_discount_kurus), sum(l.line_subtotal_kurus), sum(l.line_vat_kurus),
          sum(l.line_total_kurus)
   into v_base, v_discount, v_subtotal, v_vat, v_total
-  from private.price_lines(p_org_id, p_package_id, v_areas, p_first_year, p_discount_bp) l;
+  from private.price_lines(p_org_id, p_package_id, v_areas, p_first_year, p_discount_bp, v_on) l;
 
   v_number := private.next_document_number(p_org_id, 'T');
   insert into public.quote (
@@ -265,7 +271,7 @@ begin
          p_lines -> (l.line_no - 1) ->> 'garden_name', l.area_m2, l.billable_area_tenths, l.visits,
          l.unit_price_kurus, l.minimum_fee_kurus, l.inventory_fee_kurus, l.visit_amount_kurus, l.line_base_kurus,
          l.line_discount_kurus, l.line_subtotal_kurus, l.line_vat_kurus, l.line_total_kurus
-  from private.price_lines(p_org_id, p_package_id, v_areas, p_first_year, p_discount_bp) l;
+  from private.price_lines(p_org_id, p_package_id, v_areas, p_first_year, p_discount_bp, v_on) l;
 
   perform private.audit(p_org_id, (select auth.uid()), 'ops', 'quote.issued', 'quote', v_id,
     jsonb_build_object('number', v_number, 'application_id', p_application_id,
@@ -635,8 +641,8 @@ $$;
 comment on function public.customer_decline_quote(uuid, boolean, text) is
   'Customer: declines an open quote, asking for a revision (application back to review) or withdrawing.';
 
--- awaiting_payment → cancelled, with no succeeded payment and no live card
--- attempt. Shared by the customer and ops (order locked by the caller).
+-- awaiting_payment → cancelled, with no money kept (paid_kurus minus
+-- refunded_kurus) and no live card attempt. Shared by the customer and ops (order locked by the caller).
 create function private.cancel_order(o public.service_order, p_actor uuid, p_role text, p_reason text, p_note text)
 returns void
 language plpgsql
@@ -650,7 +656,8 @@ begin
   if o.status <> 'awaiting_payment' then
     raise exception 'order_not_payable' using errcode = 'P0001';
   end if;
-  if o.paid_kurus > 0 or exists (select 1 from public.payment p where p.order_id = o.id and p.status = 'succeeded') then
+  -- Money kept: paid and not refunded back (a refund still open counts as kept).
+  if o.paid_kurus > o.refunded_kurus then
     raise exception 'has_payments' using errcode = 'P0001';
   end if;
   if private.live_payment_attempt(o.id) then
@@ -702,7 +709,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select s.bank_name, s.iban, s.iban_holder, o.number, greatest(o.total_kurus - o.paid_kurus, 0), o.currency,
+  select s.bank_name, s.iban, s.iban_holder, o.number, greatest(o.total_kurus - (o.paid_kurus - o.refunded_kurus), 0), o.currency,
          o.payment_due_at
   from public.service_order o
   left join public.org_billing_setting s on s.org_id = o.org_id

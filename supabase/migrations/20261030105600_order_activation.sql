@@ -87,7 +87,7 @@ declare
   v_start date;
 begin
   select * into o from public.service_order where id = p_order_id for update;
-  if not found or o.status <> 'awaiting_payment' or o.paid_kurus < o.total_kurus then
+  if not found or o.status <> 'awaiting_payment' or o.paid_kurus - o.refunded_kurus < o.total_kurus then
     return false;
   end if;
   select * into q from public.quote where id = o.quote_id;

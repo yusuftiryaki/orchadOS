@@ -8,7 +8,7 @@
 -- The whole file is one transaction, so now() is constant.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(54);
+select plan(56);
 
 select testing.reset_to_seed();
 
@@ -208,6 +208,9 @@ select is((select status::text || '/' || provider_ref from public.refund where i
 
 select public.payment_refund_claim(pg_temp.id('c'));
 select pg_temp.ops();
+select is(pg_temp.error_of($$ select public.ops_resolve_refund(pg_temp.id('c'), false) $$), 'refund_not_open',
+  'a refund whose provider call may still be in flight (< 15 minutes) is not resolved');
+update public.refund set processing_since = now() - interval '16 minutes' where id = pg_temp.id('c');
 select is(pg_temp.error_of($$ select public.ops_resolve_refund(pg_temp.id('c'), true) $$),
   'invalid_input / provider_ref', 'a card refund needs the provider''s reference to succeed');
 select lives_ok($$ select public.ops_resolve_refund(pg_temp.id('c'), true, 'iyz-c', 'panelde görüldü') $$,
@@ -224,6 +227,10 @@ select is(pg_temp.error_of($$ select public.ops_resolve_refund(pg_temp.id('a'), 
   'refund_exceeds_payment', 'resolving the failed one as succeeded would exceed the payment');
 select lives_ok($$ select public.ops_resolve_refund(pg_temp.id('a'), false) $$, 'resolved as failed');
 select is((select retryable from public.refund where id = pg_temp.id('a')), false, 'and not retried');
+reset role;
+select is(pg_temp.error_of($$ select public.payment_refund_claim(pg_temp.id('a')) $$), 'refund_not_open',
+  'a failed refund marked not retryable is never sent to the provider again');
+select pg_temp.ops();
 
 -- Manual refunds -------------------------------------------------------------------------
 
@@ -242,7 +249,10 @@ select is(pg_temp.error_of($$ select public.ops_resolve_refund(pg_temp.id('manua
 -- Void -------------------------------------------------------------------------------------
 
 update public.payment set succeeded_at = now() where id = pg_temp.id('p3');
-insert into ids select 'void3', (public.ops_request_refund(pg_temp.id('p3'), 900000, 'withdrawal'))[1];
+-- The line given (as the back office may always do) does not turn the
+-- same-day full amount into a line refund.
+insert into ids select 'void3', (public.ops_request_refund(pg_temp.id('p3'), 900000, 'withdrawal', null,
+  (select id from public.payment_item where payment_id = pg_temp.id('p3'))))[1];
 reset role;
 select is((select c ->> 'kind' from (select public.payment_refund_claim(pg_temp.id('void3')) c) x), 'void', 'a void is claimed');
 select lives_ok($$ select public.payment_refund_report(pg_temp.id('void3'), 'succeeded', 'void', 'iyz-v3') $$, 'voided at the provider');
