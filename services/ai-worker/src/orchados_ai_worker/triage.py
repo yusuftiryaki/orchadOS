@@ -7,7 +7,9 @@ Sonnet 5.5) when (docs/MVP.md, Modül 4; docs/metodoloji.md, section 6):
 - the suggested class is problem, dead or absent,
 - the answer carries a flag,
 - the tree is not clearly visible,
-- the class does not follow from the answer's own scales.
+- the class does not follow from the answer's own scales,
+- (methodology-v0.1) a scale that is hard to judge from images, dead branches or
+  trunk and root collar, is 2 or more (docs/uzman-ajan-onerileri.md, section 1.8).
 Stage 3 (Claude Opus 5.5, off by default) takes stage 2 cases that still have no
 usable answer or a confidence below the hard threshold.
 
@@ -19,7 +21,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .methodology import DEFAULT_METHODOLOGY_VERSION, expected_class
+from .methodology import (
+    DEFAULT_METHODOLOGY_VERSION,
+    HARD_SCALE_MIN,
+    HARD_SCALES,
+    expected_class,
+)
 from .schema import AiOutput
 
 ESCALATED_CLASSES = ("problem", "dead", "absent")
@@ -41,7 +48,12 @@ def review_reasons(
     reasons += [f"flag_{f}" for f in out.flags]
     if out.tree_visible != "yes":
         reasons.append(f"tree_visible_{out.tree_visible}")
-    expected = expected_class(out.given(), methodology_version)
+    given = out.given()
+    for code in HARD_SCALES.get(methodology_version, ()):
+        v = given.get(code)
+        if isinstance(v, int) and not isinstance(v, bool) and v >= HARD_SCALE_MIN:
+            reasons.append(f"hard_scale_{code}")
+    expected = expected_class(given, methodology_version)
     if (
         out.overall_class in ("healthy", "attention", "problem")
         and expected is not None

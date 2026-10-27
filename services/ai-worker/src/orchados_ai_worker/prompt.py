@@ -21,18 +21,23 @@ from typing import Any
 
 from .config import StageConfig
 from .methodology import (
+    COMMON_RULES,
     DEFAULT_METHODOLOGY_VERSION,
+    NO_AI_DEAD_IN_SEASON,
     PEST_CLASS_LEVELS,
-    SCALE_TEXTS,
     STAFF_QUESTIONS,
     SUPPORTED_METHODOLOGY_VERSIONS,
     Season,
+    scale_texts,
 )
 from .schema import FLAGS, MetricDef, output_schema
 
-# Bump on any change to the texts below, to methodology.SCALE_TEXTS or to the
-# output schema. Stored with every AI row (prompt_version).
-PROMPT_REVISION = "v0.2"
+# Bump on any change to the texts below, to the scale texts in methodology.py or
+# to the output schema. Stored with every AI row (prompt_version).
+# v0.3: methodology-v0.1 visible criteria per scale value, borderline rule, winter
+# dead rule enforced by the worker; methodology-v0 prompts unchanged but for the
+# revision.
+PROMPT_REVISION = "v0.3"
 
 
 def prompt_version(methodology_version: str | None) -> str:
@@ -75,9 +80,26 @@ _SEASON_NOTES: dict[str, str] = {
     "harvest": "Harvest visit: late summer to autumn, during or after the harvest.",
 }
 
+# Seasons of methodology.NO_AI_DEAD_IN_SEASON: the rule is enforced on the answer
+# (schema.apply_worker_rules), so the model is told what happens.
+_NO_DEAD_NOTE = (
+    "Winter visit: the trees are leafless. Dead wood is told from live wood by colour, bark "
+    "and buds. In winter only the expert may call a tree dead, after close-up tests at the "
+    "tree: do not suggest the class 'dead' in winter. If the tree looks lifeless, give "
+    "dead_branch_scale 3 and the class 'problem', and say in the rationale that it looks "
+    "lifeless. An answer with the class 'dead' in winter is changed to 'problem' with "
+    "dead_branch_scale 3 and marked winter_dead_downgraded for the expert."
+)
 
-def _metric_block(m: MetricDef) -> str:
-    text = SCALE_TEXTS[m.code]
+
+def _season_note(season: Season, methodology_version: str) -> str:
+    if season == "winter" and season in NO_AI_DEAD_IN_SEASON.get(methodology_version, ()):
+        return _NO_DEAD_NOTE
+    return _SEASON_NOTES[season]
+
+
+def _metric_block(m: MetricDef, methodology_version: str) -> str:
+    text = scale_texts(methodology_version)[m.code]
     lines = [f"### {m.code}: {text.title}"]
     lines += [f"- {value}: {meaning}" for value, meaning in text.values]
     if text.how:
@@ -106,8 +128,12 @@ def _class_rules(methodology_version: str) -> str:
 
 def system_prompt(season: Season, metrics: list[MetricDef], methodology_version: str) -> str:
     """The cached prefix. Same for every tree of a season and methodology version."""
-    scales = "\n\n".join(_metric_block(m) for m in metrics)
+    scales = "\n\n".join(_metric_block(m, methodology_version) for m in metrics)
     flags = ", ".join(FLAGS)
+    extra = "".join(
+        f"\n{n}. {rule}"
+        for n, rule in enumerate(COMMON_RULES.get(methodology_version, ()), start=5)
+    )
     return f"""\
 You assist an agricultural expert who audits pistachio (Pistacia vera) orchards in Turkey. \
 For one tree at a time you get images and suggest values on the audit scales. The expert \
@@ -121,7 +147,8 @@ or recommend a treatment.
 than a guess; never give a lower value instead.
 3. Confidence is your probability (0 to 1) that the expert will agree with the value or the \
 class. For a null value, give the confidence that the value cannot be judged from these images.
-4. Judge the four directions together. One direction may be blocked or blurred; use the others.
+4. Judge the four directions together. One direction may be blocked or blurred; \
+use the others.{extra}
 
 ## Images
 - Image 1 is a mosaic of four crops of this visit, each looking at the tree from one side: \
@@ -134,7 +161,7 @@ blurred, dark, partly blocked, or show a neighbouring tree. The target tree is n
 centre of each crop.
 
 ## Season
-{_SEASON_NOTES[season]}
+{_season_note(season, methodology_version)}
 
 ## Scales of this visit
 Common rule for 0-3 scales: 0 no sign, 1 mild (no care needed or routine care), 2 clear \

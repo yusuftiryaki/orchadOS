@@ -3,7 +3,9 @@
 The texts here are the prompt's view of the scales: English renderings of the
 methodology document, keyed by the metric codes of the registry
 (public.metric_definition). They are versioned with the prompt
-(prompt.PROMPT_REVISION); a change here is a new prompt version.
+(prompt.PROMPT_REVISION); a change here is a new prompt version. Rules and
+texts that differ between methodology versions are keyed by the version, so a
+visit planned with an older version is assessed by its own rules.
 
 Nothing in this module is read from the database at prompt time except which
 codes exist, their value type and range, so a free-text column of the registry
@@ -209,6 +211,214 @@ SCALE_TEXTS: dict[str, ScaleText] = {
         (("true", "a broken branch is visible"), ("false", "no broken branch visible")),
     ),
 }
+
+# methodology-v0.1 scale texts (expert agent decisions, docs/uzman-ajan-onerileri.md,
+# section 1.1; awaiting the pilot expert): visible criteria per value. Codes not
+# listed here keep the shared text above, so methodology-v0 visits are asked
+# exactly as before.
+_SCALE_TEXTS_V01: dict[str, ScaleText] = {
+    "dead_branch_scale": ScaleText(
+        "Dead branches (share of the visible crown that is dead; dead scaffold branches count "
+        "on their own)",
+        (
+            ("0", "no dead branches; only a few dead tip shoots thinner than a pencil"),
+            (
+                "1",
+                "less than about 10% of the crown is dead, typically 1-3 side branches or "
+                "scattered dead tips; no scaffold branch is dead",
+            ),
+            ("2", "10-30% of the crown is dead, or one scaffold branch is entirely dead"),
+            (
+                "3",
+                "more than 30% of the crown is dead, or two or more scaffold branches are "
+                "entirely dead",
+            ),
+        ),
+        "A scaffold branch (Turkish: ana kol) is a thick framework branch growing from the "
+        "trunk. One entirely dead scaffold branch means at least 2, two or more mean 3, whatever "
+        "the share of the crown. Judge the four directions together; estimate the share by "
+        "crown volume, not by branch count. Cut stubs left by pruning are not dead branches. "
+        "In winter, live pistachio bark is reddish brown to grey with plump buds at the tips; "
+        "dead wood is ash grey with cracked or peeling bark and shrivelled or no buds. "
+        "Common mistakes: shaded inner branches and wet branches look dark in winter but are "
+        "not dead; branches of the tree behind (next row) overlap the crown but are not part "
+        "of it.",
+    ),
+    "trunk_base_scale": ScaleText(
+        "Trunk and root collar (wounds, cavities, bark loss, gummosis); root suckers are not in "
+        "this scale, they are basal_sprout_level",
+        (
+            ("0", "sound trunk and root collar; old pruning wounds closed over by bark are fine"),
+            (
+                "1",
+                "an open, shallow wound smaller than a palm (about 10 cm), or a few small spots "
+                "of gum (amber coloured, hardened drops)",
+            ),
+            (
+                "2",
+                "a wound larger than a palm but around less than a quarter of the trunk "
+                "circumference, a shallow cavity, gum at several places, or darkened, sunken "
+                "bark at the root collar",
+            ),
+            (
+                "3",
+                "a wound or bark loss around more than a quarter of the circumference, a cavity "
+                "deep enough to put a hand in, or dead bark all around the root collar",
+            ),
+        ),
+        "Tractor and hoe wounds count here. Panorama crops often hide the trunk (tall grass, "
+        "hoses, angle). If the trunk is not clearly visible, give no value. Values 2 and 3 need "
+        "a close-up to confirm, so give them only when the damage is unmistakable, and with a "
+        "moderate confidence.",
+    ),
+    "pruning_status": ScaleText(
+        "Pruning this season (care compliance; does not affect the overall class)",
+        SCALE_TEXTS["pruning_status"].values,
+        "A fresh cut is light cream, not yet grey, and the bark has not started to close over "
+        "it; last year's cuts are grey and closing from the edges. If it cannot be decided "
+        "from the images, give no value.",
+    ),
+    "crown_density_scale": ScaleText(
+        "Crown density (leafy period)",
+        (
+            (
+                "0",
+                "normal: as full as good trees of the same size in the parcel; sky shows only "
+                "through small gaps",
+            ),
+            (
+                "1",
+                "slightly sparse: noticeably more open than the comparison trees; sky shows "
+                "through many scattered gaps",
+            ),
+            (
+                "2",
+                "clearly sparse: sky shows through roughly half of the crown area, or clearly "
+                "fewer leaves on one side",
+            ),
+            (
+                "3",
+                "very sparse: leaves only at branch tips or on a few branches; the crown is "
+                "mostly bare branches",
+            ),
+        ),
+        "Compare with good trees of the same size in the same parcel (neighbouring trees in the "
+        "images); compare male trees and young saplings with their own group only. A heavily "
+        "loaded tree in an on year can look less leafy next to its fruit; that is not "
+        "sparseness. A general late-summer thinning on rainfed orchards is normal and is not a "
+        "high value for a single tree.",
+    ),
+    "frost_damage_scale": ScaleText(
+        "Frost damage (spring)",
+        (
+            ("0", "no blackened flowers or shoots"),
+            (
+                "1",
+                "blackening or shrivelling on less than about 10% of the flower clusters and "
+                "young shoots",
+            ),
+            ("2", "blackening on 10-50% of them, often more in the lower crown or on one side"),
+            (
+                "3",
+                "flowers and young shoots lost on more than half; clusters brown or black, "
+                "dried and drooping",
+            ),
+        ),
+        "Late frost usually hits the lower crown; the top may stay sound. Say in the rationale "
+        "where the damage is. Shoot tips dried by a pest or blighted clusters can look the "
+        "same; report the visible sign, do not name its cause.",
+    ),
+    "pest_sign_severity": ScaleText(
+        "Visible pest signs (severity). Visible signs only; this is not a diagnosis",
+        SCALE_TEXTS["pest_sign_severity"].values,
+        "Mild signs do not change the overall class; marked signs mean at least attention.",
+    ),
+    "pest_sign_type": ScaleText(
+        "Pest suggested by the visible signs (only when the severity is mild or marked)",
+        (
+            (
+                "psylla",
+                "shine and stickiness (honeydew) on leaves; white, sugar-grain or flake-like "
+                "secretion on leaves or on the ground under the tree; black sooty mould on it; "
+                "in heavy cases yellowing leaves and leaf drop in midsummer",
+            ),
+            (
+                "bud_borer",
+                "dried shoot tips or buds, sometimes a small hole in the dried tip shoot",
+            ),
+            (
+                "stink_bug",
+                "stink bugs (Turkish: kokarca, not kımıl): small dark feeding spots on the "
+                "hull, green fruit dropped early on the ground; the kernel damage shows only "
+                "when the nut is cracked",
+            ),
+            ("other", "another or uncertain pest; describe the sign in the rationale"),
+        ),
+        "Psylla is most common from late spring to the end of summer (June-August), bud borer "
+        "in spring and early summer, stink bugs in summer with traces at harvest. If the type "
+        "is not clear, choose other. Give no value when the severity is none.",
+    ),
+    "fruit_load_scale": ScaleText(
+        "Fruit load (summer; alternate bearing is normal and does not affect the overall class)",
+        (
+            ("0", "no clusters, or only a few"),
+            ("1", "few: clusters on less than about a third of the branches"),
+            ("2", "medium: clusters on a third to two thirds of the branches"),
+            (
+                "3",
+                "loaded: clusters on more than two thirds of the branches; branches may bend "
+                "under the load",
+            ),
+        ),
+        "Male trees bear no fruit and are not on this scale: for a tree that is clearly male, "
+        "give no value.",
+    ),
+    "harvest_complete": ScaleText(
+        SCALE_TEXTS["harvest_complete"].title,
+        SCALE_TEXTS["harvest_complete"].values,
+        "Judge by the clusters left on the tree. Leaves, stalks and broken twigs under the tree "
+        "are normal after a legitimate harvest.",
+    ),
+}
+
+_SCALE_TEXTS_BY_VERSION: dict[str, dict[str, ScaleText]] = {
+    "methodology-v0": SCALE_TEXTS,
+    "methodology-v0.1": {**SCALE_TEXTS, **_SCALE_TEXTS_V01},
+}
+
+
+def scale_texts(methodology_version: str = DEFAULT_METHODOLOGY_VERSION) -> dict[str, ScaleText]:
+    """Prompt texts of the scales for a methodology version (same codes in every version)."""
+    return _SCALE_TEXTS_BY_VERSION.get(methodology_version, SCALE_TEXTS)
+
+
+# Extra common rules for the 0-3 scales, per methodology version (v0.1: expert agent,
+# section 1.1). Numbered after the prompt's own rules.
+COMMON_RULES: dict[str, tuple[str, ...]] = {
+    "methodology-v0": (),
+    "methodology-v0.1": (
+        "Borderline values: if a value lies between two steps and the evidence is good, give "
+        "the upper one; if the evidence is weak, give no value.",
+    ),
+}
+
+# Seasons in which the AI may never suggest the class dead, per methodology version.
+# v0.1 (expert agent, section 1.4): in the leafless winter only the expert calls a
+# tree dead, from close-up tests. An answer that says dead anyway is turned into
+# problem with dead_branch_scale 3 and the flag winter_dead_downgraded
+# (schema.apply_worker_rules). v0 visits keep the answer as it came.
+NO_AI_DEAD_IN_SEASON: dict[str, tuple[Season, ...]] = {
+    "methodology-v0": (),
+    "methodology-v0.1": ("winter",),
+}
+
+# Scales that are hardest to judge from images (expert agent, section 1.8): from this
+# value up, a triage answer goes to stage 2 whatever its confidence.
+HARD_SCALES: dict[str, tuple[str, ...]] = {
+    "methodology-v0": (),
+    "methodology-v0.1": ("dead_branch_scale", "trunk_base_scale"),
+}
+HARD_SCALE_MIN = 2
 
 # Scales that drive the overall class (docs/metodoloji.md, section 5). Pruning
 # and fruit load do not affect it.

@@ -102,9 +102,16 @@ def make_catalog(
     when=datetime(2027, 1, 12, 9, tzinfo=UTC),
     previous: bool = True,
     status: str = "processed",
+    methodology: str | None = None,
 ) -> FakeCatalog:
     session = SessionInfo(
-        "11111111-1111-4111-8111-111111111111", ORG, PARCEL, status, "periodic_scan", None, when
+        "11111111-1111-4111-8111-111111111111",
+        ORG,
+        PARCEL,
+        status,
+        "periodic_scan",
+        methodology,
+        when,
     )
     prev = SessionInfo(
         "22222222-2222-4222-8222-222222222222",
