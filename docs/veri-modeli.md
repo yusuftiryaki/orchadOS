@@ -47,7 +47,7 @@ erDiagram
 | Parcel | Sahibin kullandığı bahçe bölümü; tapu referansı opsiyonel |
 | Boundary | Poligon, kaynak, sürüm, sahip onayı |
 | Slot (yer) | Kod (S5-12, S5-12a), konum, sıra, pozisyon |
-| Tree | Kalıcı kimlik, bağlı olduğu yer, cinsiyet, aşı, çeşit, ilk görülme, durum |
+| Tree | Kalıcı kimlik, bağlı olduğu yer, cinsiyet, aşı, gövde yapısı (tek/çok gövdeli), çeşit, ilk görülme, durum |
 | Zone | Ağaç dışı alanlar: hücre, geçilmez bölge, giriş noktası, sulama hattı |
 
 `Tree` kimliği hiç değişmez. Ağaç kurursa durumu değişir; yerine yeni ağaç dikilirse aynı yere yeni bir `Tree` kaydı bağlanır.

@@ -31,6 +31,8 @@ export function TreePanel({ slot, onClose }: { slot: SlotProperties; onClose: ()
             <dd>{v.graft[tree.graft]}</dd>
             <dt>{t.tree.ageClass}</dt>
             <dd>{v.ageClass[tree.ageClass]}</dd>
+            <dt>{t.tree.stemForm}</dt>
+            <dd>{v.stemForm[tree.stemForm]}</dd>
             <dt>{t.tree.cultivar}</dt>
             <dd>{tree.cultivar ?? t.tree.unknown}</dd>
             <dt>{t.tree.firstSeen}</dt>

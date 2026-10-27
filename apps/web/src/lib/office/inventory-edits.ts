@@ -94,12 +94,14 @@ async function orgOf(supabase: Client, parcelId: string): Promise<string | null>
 export interface TreeAttributes {
   ageClass?: Enums["age_class"];
   graft?: Enums["graft_status"];
+  stemForm?: Enums["stem_form"];
   sex?: Enums["tree_sex"];
 }
 
 const AGE: Enums["age_class"][] = ["sapling", "young", "productive", "old", "unknown"];
 const GRAFT: Enums["graft_status"][] = ["grafted", "ungrafted", "unknown"];
 const SEX: Enums["tree_sex"][] = ["female", "male", "unknown"];
+const STEM: Enums["stem_form"][] = ["single", "multi", "unknown"];
 
 export async function setTreeAttributes(
   supabase: Client,
@@ -116,6 +118,10 @@ export async function setTreeAttributes(
   if (attrs.graft !== undefined) {
     if (!GRAFT.includes(attrs.graft as Enums["graft_status"])) return fail("invalid_input");
     patch.graft = attrs.graft as Enums["graft_status"];
+  }
+  if (attrs.stemForm !== undefined) {
+    if (!STEM.includes(attrs.stemForm as Enums["stem_form"])) return fail("invalid_input");
+    patch.stem_form = attrs.stemForm as Enums["stem_form"];
   }
   if (attrs.sex !== undefined) {
     if (!SEX.includes(attrs.sex as Enums["tree_sex"])) return fail("invalid_input");

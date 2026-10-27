@@ -102,7 +102,12 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
                   )}
                 </p>
               )}
-              {!care.pruning && !care.harvest && <p className="muted">{d.careNone}</p>}
+              {care.sprouts && (
+                <p>{d.sprouts(care.sprouts.dense, care.sprouts.few, care.sprouts.total)}</p>
+              )}
+              {!care.pruning && !care.harvest && !care.sprouts && (
+                <p className="muted">{d.careNone}</p>
+              )}
             </Row>
             <Row label={d.pests} id="pests">
               {pests ? (

@@ -23,6 +23,7 @@ def answer(**kw):
             "dead_branch_scale": {"value": 2, "confidence": 0.8},
             "trunk_base_scale": {"value": None, "confidence": 0.6},
             "pruning_status": {"value": "done", "confidence": 0.9},
+            "basal_sprout_level": {"value": "few", "confidence": 0.7},
         },
         "overall_class": "attention",
         "class_confidence": 0.75,
@@ -40,7 +41,11 @@ def winter(registry):
 def test_valid_answer(winter):
     out = validate(json.dumps(answer()), winter)
     assert out.overall_class == "attention" and out.class_confidence == 0.75
-    assert out.given() == {"dead_branch_scale": 2, "pruning_status": "done"}
+    assert out.given() == {
+        "dead_branch_scale": 2,
+        "pruning_status": "done",
+        "basal_sprout_level": "few",
+    }
     assert out.values["trunk_base_scale"].confidence == 0.6
     assert validate(out.to_json(), winter).to_json() == out.to_json()
 
@@ -121,3 +126,21 @@ def test_parse_message(winter):
         parse_message({**msg, "stop_reason": "max_tokens"}, winter)
     with pytest.raises(OutputError, match="no text block"):
         parse_message({"stop_reason": "end_turn", "content": []}, winter)
+
+
+def test_dieback_pattern_is_not_asked_in_winter(registry):
+    from orchados_ai_worker.schema import season_metrics
+
+    winter = {m.code for m in season_metrics(registry, "winter")}
+    summer = {m.code for m in season_metrics(registry, "summer")}
+    assert "basal_sprout_level" in winter and "dieback_pattern" not in winter
+    assert {"dieback_pattern", "dried_leaves_attached", "basal_sprout_level"} <= summer
+
+
+def test_dieback_and_dried_leaves_raise_the_class():
+    from orchados_ai_worker.methodology import expected_class
+
+    assert expected_class({"dead_branch_scale": 1, "dieback_pattern": "one_sided"}) == "attention"
+    assert expected_class({"dead_branch_scale": 1, "dieback_pattern": "tip_dieback"}) == "healthy"
+    assert expected_class({"dead_branch_scale": 1, "dried_leaves_attached": True}) == "problem"
+    assert expected_class({"basal_sprout_level": "dense"}) is None
