@@ -169,7 +169,7 @@ def test_ai_rows_are_written(visit):
             "value_category,measurement_evidence(asset_id)",
         },
     )
-    assert len(ms) == 9  # three winter scales per tree
+    assert len(ms) == 12  # four winter metrics per tree
     assert {(m["method"], m["method_version"]) for m in ms} == {
         ("ai_preassessment", "ai-v0.2/methodology-v0")
     }
