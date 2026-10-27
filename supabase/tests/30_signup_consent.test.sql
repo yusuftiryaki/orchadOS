@@ -5,7 +5,7 @@
 -- ops a0..05, customer a0..06 (+905550000006, completed sign-up).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(68);
+select plan(77);
 
 select testing.reset_to_seed();
 
@@ -38,24 +38,30 @@ values ('00000000-0000-0000-0000-000000000000', 'a3000000-0000-4000-8000-0000000
 
 -- Rate limits ----------------------------------------------------------------------
 
-select is(pg_temp.error_of($$ select public.signup_register_attempt('nothex', 'x') $$),
+select is(pg_temp.error_of($$ select public.signup_register_attempt('nothex', 'x', 'y') $$),
   '22023 invalid_input / ip_hash', 'hashes are hex');
-select is(public.signup_register_attempt(pg_temp.h('ip-1'), pg_temp.h('phone-1')), 'ok', 'an attempt is counted');
-select is(public.signup_register_attempt(pg_temp.h('ip-2'), pg_temp.h('phone-1')), 'ok', 'a second for the phone');
-select is(public.signup_register_attempt(pg_temp.h('ip-3'), pg_temp.h('phone-1')), 'ok', 'a third for the phone');
-select is(public.signup_register_attempt(pg_temp.h('ip-4'), pg_temp.h('phone-1')), 'too_many',
+select is(public.signup_register_attempt(pg_temp.h('ip-1'), pg_temp.h('phone-1'), pg_temp.h('mail-1')), 'ok', 'an attempt is counted');
+select is(public.signup_register_attempt(pg_temp.h('ip-2'), pg_temp.h('phone-1'), pg_temp.h('mail-2')), 'ok', 'a second for the phone');
+select is(public.signup_register_attempt(pg_temp.h('ip-3'), pg_temp.h('phone-1'), pg_temp.h('mail-3')), 'ok', 'a third for the phone');
+select is(public.signup_register_attempt(pg_temp.h('ip-4'), pg_temp.h('phone-1'), pg_temp.h('mail-4')), 'too_many',
   'the fourth for a phone within a day is refused');
 select is(
-  (select array_agg(public.signup_register_attempt(pg_temp.h('ip-5'), pg_temp.h('phone-x' || i)) order by i)
+  (select array_agg(public.signup_register_attempt(pg_temp.h('ip-5'), pg_temp.h('phone-x' || i), pg_temp.h('mail-x' || i)) order by i)
    from generate_series(1, 11) i),
   array['ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'too_many'],
   'ten per IP an hour');
+select is(
+  (select array_agg(public.signup_register_attempt(pg_temp.h('ip-m' || i), pg_temp.h('phone-m' || i), pg_temp.h('mail-m'))
+     order by i)
+   from generate_series(1, 6) i),
+  array['ok', 'ok', 'ok', 'ok', 'ok', 'too_many'],
+  'five per e-mail a day, whatever the phone');
 select is((select count(*) from private.signup_attempt where ip_hash = pg_temp.h('ip-5')), 10::bigint,
   'refused attempts are not counted');
 update private.signup_attempt set created_at = now() - interval '3 days' where ip_hash = pg_temp.h('ip-5');
 select is((private.signup_housekeeping() ->> 'attempts_deleted')::int, 10, 'housekeeping drops attempts after two days');
 update public.org_billing_setting set accepts_signups = false;
-select is(public.signup_register_attempt(pg_temp.h('ip-6'), pg_temp.h('phone-6')), 'closed', 'closed sign-ups');
+select is(public.signup_register_attempt(pg_temp.h('ip-6'), pg_temp.h('phone-6'), pg_temp.h('mail-6')), 'closed', 'closed sign-ups');
 select is(pg_temp.error_of($$ select public.signup_prepare('a3000000-0000-4000-8000-000000000001', 'Ad Soyad',
   'pgtap-signup@example.test', '+905559990001', 'sms', pg_temp.consents(), null) $$),
   'P0001 signup_closed', 'no pending sign-up while closed');
@@ -105,11 +111,26 @@ select results_eq(
      where user_id = 'a3000000-0000-4000-8000-000000000001' $$,
   $$ values ('Ayşe  Kaya', 'pgtap-signup@example.test', true) $$,
   'trimmed and with a lower-case e-mail, not completed');
-select is(public.signup_complete('a3000000-0000-4000-8000-000000000099'), 'no_pending', 'no pending sign-up');
+select is(public.signup_complete('a3000000-0000-4000-8000-000000000099', now()), 'no_pending', 'no pending sign-up');
 
 -- Completing -----------------------------------------------------------------------
 
-select is(public.signup_complete('a3000000-0000-4000-8000-000000000001'), 'completed', 'the sign-up completes');
+select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', now()), 'phone_mismatch',
+  'not before the phone is confirmed');
+update auth.users set phone = '905559990009', phone_confirmed_at = now()
+where id = 'a3000000-0000-4000-8000-000000000001';
+select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', now()), 'phone_mismatch',
+  'not when the confirmed phone is another number than the pending one');
+update auth.users set phone = '905559990001' where id = 'a3000000-0000-4000-8000-000000000001';
+select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', now() - interval '1 minute'), 'phone_mismatch',
+  'not with a phone code older than the pending sign-up');
+select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', null), 'phone_mismatch',
+  'not without a phone code');
+update auth.users set raw_app_meta_data = '{}' where id = 'a3000000-0000-4000-8000-000000000001';
+select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', now()), 'phone_mismatch',
+  'only for a self sign-up account');
+update auth.users set raw_app_meta_data = '{"signup": "self"}' where id = 'a3000000-0000-4000-8000-000000000001';
+select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', now()), 'completed', 'the sign-up completes');
 select results_eq(
   $$ select full_name, phone, contact_preference::text, kvkk_consent, kvkk_text_version
      from private.owner_profile where user_id = 'a3000000-0000-4000-8000-000000000001' $$,
@@ -127,11 +148,30 @@ select results_eq(
      where actor_user_id = 'a3000000-0000-4000-8000-000000000001' $$,
   $$ values ('customer', 'signup.completed', '{"explicit_marketing": false, "explicit_service_improvement": true}'::jsonb) $$,
   'one audit row, without personal data');
-select is(public.signup_complete('a3000000-0000-4000-8000-000000000001'), 'already_completed', 'completing twice');
+select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', now()), 'already_completed', 'completing twice');
 select is(pg_temp.error_of($$ select public.signup_prepare('a3000000-0000-4000-8000-000000000001', 'Ad Soyad',
   'pgtap-signup@example.test', '+905559990001', 'sms', pg_temp.consents(), null) $$),
   '23505 exists', 'a completed sign-up is not replaced');
 select is((private.signup_housekeeping() ->> 'signups_deleted')::int, 0, 'completed sign-ups stay');
+-- Two pending sign-ups older than a day: one verified its phone, one did not.
+insert into auth.users (instance_id, id, aud, role, email, phone, phone_confirmed_at, raw_app_meta_data, created_at, updated_at)
+values ('00000000-0000-0000-0000-000000000000', 'a3000000-0000-4000-8000-000000000004', 'authenticated',
+        'authenticated', 'pgtap-verified@example.test', '905559990004', now(), '{"signup": "self"}', now(), now()),
+       ('00000000-0000-0000-0000-000000000000', 'a3000000-0000-4000-8000-000000000005', 'authenticated',
+        'authenticated', 'pgtap-unverified@example.test', '905559990005', null, '{"signup": "self"}', now(), now());
+select public.signup_prepare('a3000000-0000-4000-8000-000000000004', 'Ad Soyad', 'pgtap-verified@example.test',
+  '+905559990004', 'sms', pg_temp.consents(), null);
+select public.signup_prepare('a3000000-0000-4000-8000-000000000005', 'Ad Soyad', 'pgtap-unverified@example.test',
+  '+905559990005', 'sms', pg_temp.consents(), null);
+update private.customer_signup set created_at = now() - interval '2 days'
+where user_id in ('a3000000-0000-4000-8000-000000000004', 'a3000000-0000-4000-8000-000000000005');
+select is((private.signup_housekeeping() ->> 'signups_deleted')::int, 1,
+  'housekeeping drops an old pending sign-up whose phone was never verified');
+select is(
+  (select array_agg(user_id) from private.customer_signup
+   where user_id in ('a3000000-0000-4000-8000-000000000004', 'a3000000-0000-4000-8000-000000000005')),
+  array['a3000000-0000-4000-8000-000000000004'::uuid],
+  'a verified phone keeps its pending sign-up, so it can still complete');
 
 -- KVKK notice backfill ---------------------------------------------------------------
 
@@ -279,6 +319,10 @@ select results_eq(
      where subject_id = 'a3000000-0000-4000-8000-000000000003' order by recorded_at, granted desc $$,
   $$ values ('kvkk_notice', true, 'kvkk-v1', 'ops'), ('kvkk_notice', false, 'kvkk-v1', 'ops') $$,
   'both changes are consent records');
+select is(
+  (select count(*) from private.consent_record
+   where subject_id = 'a3000000-0000-4000-8000-000000000003' and recorded_at <> now()),
+  0::bigint, 'ops consent records carry the time they were written, not the declared consent date');
 select results_eq(
   $$ select action, details from public.audit_event
      where entity_type = 'owner_profile' and actor_user_id = 'a0000000-0000-4000-8000-000000000005' order by created_at, action $$,

@@ -15,6 +15,8 @@
 6. **Time.** Run only the test suites that matter for your stream. Do not run the Python pipeline suite (11 min). Run commands longer than 10 min in the background.
 7. **Final message.** Give the branch, the PR URL, the commits, each test command with its pass/fail counts, any departure from the design doc contracts, and open follow-ups.
 
+8. **Merge note (PR #55 review).** İP12-A1 adds placeholder `supabase/functions/{payments,payment-callback,payment-webhook}/index.ts` files that answer 501, so that `config.toml` can keep B's functions enabled. When you merge #54 after #55, these three files conflict (add/add): take B's version. `config.toml` needs no change.
+
 ---
 
 BRANCH = `claude/ip12-siparis-odeme-db`. Wave 2. İP12-A1 (all tables, grants, sign-up, catalog and application functions, `config.toml`), İP12-B (payment Edge Functions and `_shared/payments/db.ts`) and İP12-C (site) are merged on main.

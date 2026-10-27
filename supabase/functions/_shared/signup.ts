@@ -117,7 +117,8 @@ function toHex(bytes: ArrayBuffer): string {
   return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-// hex(HMAC-SHA256(secret, value)): the ip_hash and phone_hash of the database.
+// hex(HMAC-SHA256(secret, value)): the ip_hash, phone_hash and email_hash of
+// the database.
 export async function hmacHex(secret: string, value: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -162,6 +163,8 @@ export interface AccountMatch {
   self_signup: boolean;
   phone_confirmed: boolean;
   signup_completed: boolean;
+  // When the pending sign-up was written (else when the account was created).
+  started_at: string;
 }
 
 export type MatchOutcome =
@@ -173,19 +176,31 @@ export type MatchOutcome =
   | "phone_registered";
 
 export interface MatchDecision {
-  // Self sign-ups never verified nor completed: deleted before going on.
+  // Stale self sign-ups past the grace period: deleted before going on.
   staleUserIds: string[];
   outcome: MatchOutcome;
 }
 
+// A stale sign-up younger than this still belongs to whoever is entering its
+// code: a register with the same e-mail or phone is refused, not a takeover.
+export const STALE_GRACE_MS = 30 * 60 * 1000;
+
 export const isStale = (m: AccountMatch) =>
   m.self_signup && !m.phone_confirmed && !m.signup_completed;
 
-// §7.1 step 5, in order: stale accounts go; a verified phone owner whose
-// e-mail is not someone else's continues to the code; a phone in another
-// customer's profile, a taken e-mail or a taken (unverified) phone is refused.
-export function decideMatches(matches: AccountMatch[]): MatchDecision {
-  const stale = [...new Set(matches.filter(isStale).map((m) => m.user_id))];
+const pastGrace = (m: AccountMatch, nowMs: number) => {
+  const started = Date.parse(m.started_at);
+  return Number.isFinite(started) && nowMs - started > STALE_GRACE_MS;
+};
+
+// §7.1 step 5, in order: stale accounts past the grace period go; a verified
+// phone owner whose e-mail is not someone else's continues to the code; a
+// phone in another customer's profile, a taken e-mail or a taken (unverified,
+// or stale but recent) phone is refused.
+export function decideMatches(matches: AccountMatch[], nowMs: number): MatchDecision {
+  const stale = [
+    ...new Set(matches.filter((m) => isStale(m) && pastGrace(m, nowMs)).map((m) => m.user_id)),
+  ];
   const live = matches.filter((m) => !stale.includes(m.user_id));
   const byPhone = live.find((m) => m.matched_by === "phone");
   const byEmail = live.find((m) => m.matched_by === "email");
@@ -219,21 +234,21 @@ export function jwtClaims(token: string): Record<string, unknown> | null {
   }
 }
 
-// §7.2: the session was opened with a phone code (amr method otp or sms)
-// after the account was created (the pending sign-up is written right after).
-export function hasPhoneCodeSince(claims: Record<string, unknown> | null, sinceMs: number): boolean {
+// §7.2: when the session was last opened with a phone code (amr method otp or
+// sms), in epoch seconds, or null. signup_complete requires it to be after
+// the pending sign-up was written.
+export function latestPhoneCodeAt(claims: Record<string, unknown> | null): number | null {
   const amr = claims?.amr;
-  if (!Array.isArray(amr)) return false;
-  const since = Math.floor(sinceMs / 1000);
-  return amr.some(
-    (entry) =>
-      entry &&
-      typeof entry === "object" &&
-      ((entry as { method?: unknown }).method === "otp" ||
-        (entry as { method?: unknown }).method === "sms") &&
-      typeof (entry as { timestamp?: unknown }).timestamp === "number" &&
-      (entry as { timestamp: number }).timestamp >= since,
-  );
+  if (!Array.isArray(amr)) return null;
+  let latest: number | null = null;
+  for (const entry of amr) {
+    if (!entry || typeof entry !== "object") continue;
+    const { method, timestamp } = entry as { method?: unknown; timestamp?: unknown };
+    if ((method !== "otp" && method !== "sms") || typeof timestamp !== "number") continue;
+    if (!Number.isFinite(timestamp)) continue;
+    if (latest === null || timestamp > latest) latest = timestamp;
+  }
+  return latest;
 }
 
 // §7.3: self sign-up accounts whose phone was not verified within 24 hours.

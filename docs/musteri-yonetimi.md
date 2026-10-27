@@ -108,7 +108,7 @@ flowchart LR
 2. **Kayıt (§7).**
     - **Form alanları:** ad soyad, cep telefonu (`+905…`), e-posta, parola (en az 8 karakter), iletişim tercihi.
     - **Onaylar:** zorunlu aydınlatma onayı; isteğe bağlı ve işaretsiz iki açık rıza (hizmetin geliştirilmesi, tanıtım iletileri); Turnstile.
-    - **Akış:** `register` çağrılır, ardından `signInWithOtp` ile kod gönderilir. Kod `verifyOtp` ile doğrulanır, sonra `complete` çağrılır ve kullanıcı `/portal`'a gider.
+    - **Akış:** `register` çağrılır, ardından kod gönderilir (`requestSignupCode`: `signInWithOtp`, yeni hesapta `signup_disabled` gelirse `auth.resend({type: "sms"})`; §7 web akışı). Kod `verifyOtp` ile doğrulanır, sonra `complete` çağrılır ve kullanıcı `/portal`'a gider.
 3. **Başvuru.**
     - Müşteri başına org'da tek açık taslak olur.
     - Bahçe başına: ad, il, ilçe, köy, haritadan konum (zorunlu), isteğe bağlı kaba sınır, alan, sulama, ağaç sayısı, yetki dayanağı, isteğe bağlı tapu, giriş izni (zorunlu), erişim notu, saha kişisi.
@@ -388,7 +388,7 @@ private.consent_record (id, org_id, subject_id uuid not null (kullanıcı kimli�
   source, quote_id, order_id, ip_hash, recorded_at)    -- ekleme-yalnız; kullanıcı silinse de kanıt kalır
 private.customer_signup (user_id pk → auth.users cascade, org_id, full_name, email, phone ~'^\+905[0-9]{9}$',
   contact_preference private.contact_preference, consents jsonb, ip_hash, created_at, completed_at)
-private.signup_attempt (id, ip_hash, phone_hash, created_at)          -- 2 gün saklanır
+private.signup_attempt (id, ip_hash, phone_hash, email_hash, created_at)   -- 2 gün saklanır
 private.application_garden_detail (application_garden_id pk, org_id, authorization_basis private.authorization_basis,
   deed_block, deed_parcel, is_shared_deed, used_portion_note, entry_permission_at not null, access_note,
   site_contact_name, site_contact_phone)
@@ -400,7 +400,7 @@ private.document_sequence (org_id, kind in ('B','T','S','M','I'), year, last_val
 
 **A1 migration'ının yaptığı veri işleri:**
 - `kvkk_consent = true` olan her `owner_profile` için `consent_record` yazar: `kvkk_notice`, `source = 'ops'`, `text_version` ve zaman profilden.
-- `ops_create_owner_profile` ve `ops_update_owner_profile` aynı imzayla yeniden yazılır. KVKK onayı verildiğinde ya da değiştiğinde `consent_record` ve denetim kaydı yazarlar (denetim yalnızca alan adlarını taşır).
+- `ops_create_owner_profile` ve `ops_update_owner_profile` aynı imzayla yeniden yazılır. KVKK onayı verildiğinde ya da değiştiğinde `consent_record` ve denetim kaydı yazarlar (denetim yalnızca alan adlarını taşır). Bu kayıtların `recorded_at` değeri yazıldığı andır (`now()`); beyan edilen onay tarihi profilde (`kvkk_consent_at`) kalır. Böylece "en son kayıt geçerlidir" kuralı geriye tarihli bir onayla bozulmaz. Profildeki tarih yalnızca tek seferlik geri doldurmada kullanılır.
 
 **`00_schema.test.sql` (A1):** `tables_are` listesine 14 `public` ve 8 `private` tablo eklenir; ekleme-yalnız tetikleyiciler `has_trigger` ile denetlenir.
 
@@ -496,7 +496,7 @@ Adlar, parametreler ve dönüşler sözleşmedir. Sütun ayrıntıları A1/A2'ni
 - `open_system_refund(p_payment_id, p_amount_kurus, p_reason)`: Tutar tam ve ödeme aynı gün ise `void` açar. Değilse son kalemden geriye doğru kalem bazında `refund` satırları açar.
 - `enqueue_billing_notification`
 - `billing_housekeeping() returns jsonb` (A2): teklif süre dolumu, hatırlatma, `completed`, 7 günden eski ve `payment_id` taşımayan `payment_event` satırlarının silinmesi.
-- `signup_housekeeping() returns jsonb` (A1): 24 saati geçen, tamamlanmamış `customer_signup` ve 2 günden eski `signup_attempt` satırlarını siler.
+- `signup_housekeeping() returns jsonb` (A1): 24 saati geçen, tamamlanmamış ve hesabının telefonu doğrulanmamış `customer_signup` satırlarını ve 2 günden eski `signup_attempt` satırlarını siler. Telefonu doğrulanmış ama `complete` çağrısı yarım kalmış kayıt silinmez: kullanıcı telefon koduyla girip `complete`'i yeniden çağırabilir.
 - `dispatch_signup_cleanup()`, `dispatch_payment_reconcile()`: Vault'tan adres ve `orchados_cron_secret` okur; ikisi de varsa pg_net ile POST eder, yoksa hiçbir şey yapmaz.
 
 **Herkese açık (`anon` ve `authenticated`, A2):**
@@ -504,13 +504,15 @@ Adlar, parametreler ve dönüşler sözleşmedir. Sütun ayrıntıları A1/A2'ni
 - `price_preview(p_package_id uuid, p_areas_m2 numeric[], p_first_year boolean default true)` → satırlar ve `price_list_id`/`version`. Hatalar: `invalid_input`, `not_found`, `package_not_priced`.
 
 **Kayıt (`service_role`, A1):**
-- `signup_register_attempt(p_ip_hash text, p_phone_hash text) returns text`: `ok`, `too_many` ya da `closed`.
-    - Sınırlar: IP başına 10/saat, telefon başına 3/24 saat.
+- `signup_register_attempt(p_ip_hash text, p_phone_hash text, p_email_hash text) returns text`: `ok`, `too_many` ya da `closed`.
+    - Sınırlar: IP başına 10/saat, telefon başına 3/24 saat, e-posta başına 5/24 saat.
     - Org genelinde sert sınır yoktur. Sayı `ops_billing_summary.signup_attempts_24h` alanında görünür; 300'ü aşınca panoda uyarı çıkar.
-- `signup_find_account(p_email text, p_phone text)` → `table (user_id uuid, matched_by text, self_signup boolean, phone_confirmed boolean, signup_completed boolean)`.
+- `signup_find_account(p_email text, p_phone text)` → `table (user_id uuid, matched_by text, self_signup boolean, phone_confirmed boolean, signup_completed boolean, started_at timestamptz)`.
+    - `started_at`: bekleyen kaydın yazıldığı an (yoksa hesabın açıldığı an); bayat hesabın bekleme süresi buna göre hesaplanır (§7.1).
     - `matched_by` değerleri `email`, `phone` (Auth, `+` olmadan) ya da `profile_phone` (kayıt org'unda başka kullanıcının `owner_profile` telefonu).
 - `signup_prepare(p_user_id, p_full_name, p_email, p_phone, p_contact_preference, p_consents jsonb, p_ip_hash) returns void`: `invalid_input` (detail alan).
-- `signup_complete(p_user_id) returns text`: `completed`, `already_completed` ya da `no_pending`.
+- `signup_complete(p_user_id uuid, p_code_at timestamptz) returns text`: `completed`, `already_completed`, `no_pending` ya da `phone_mismatch`.
+    - `p_code_at`: oturumu açan telefon kodunun zamanı (JWT `amr`). Bekleyen kayıt satırı kilitlenir; hesap self-servis değilse, telefonu doğrulanmamışsa, Auth telefonu bekleyen kayıttaki telefon değilse ya da kod bekleyen kayıttan eskiyse `phone_mismatch` döner ve hiçbir şey yazılmaz.
     - Oluşturduğu kayıtlar: `owner_profile` (KVKK alanlarıyla), üç `consent_record` (`kvkk_notice` ve iki `explicit_*`), denetim kaydı.
 
 **Müşteri (`authenticated`):**
@@ -670,9 +672,9 @@ x-orchados-proxy-secret: <SIGNUP_PROXY_SECRET>   (yalnızca Next sunucusu; varsa
 1. **Doğrulama.** Ad 2–120 karakter, telefon `^\+905[0-9]{9}$`, e-posta, parola en az 8 karakter, sürüm biçimleri.
 2. **Turnstile.** `TURNSTILE_SECRET_KEY` varsa `captcha_token` siteverify ile doğrulanır; yoksa adım atlanır (yerel ve CI).
 3. **IP.** Proxy sırrı tutarsa (sabit zamanlı karşılaştırma) gövdedeki `client_ip` kullanılır. Tutmazsa `cf-connecting-ip`, o da yoksa `x-forwarded-for`'un ilk değeri.
-4. **Oran sınırı.** `ip_hash` ve `phone_hash` = hex(HMAC-SHA256(`SIGNUP_HASH_SECRET`, değer)). Ardından `signup_register_attempt` çağrılır.
+4. **Oran sınırı.** `ip_hash`, `phone_hash` ve `email_hash` (küçük harfli e-posta) = hex(HMAC-SHA256(`SIGNUP_HASH_SECRET`, değer)). Ardından `signup_register_attempt` çağrılır.
 5. **Eşleşmeler.** `signup_find_account` sonucuna göre:
-    1. Self-servis, telefonu doğrulanmamış ve kaydı tamamlanmamış eşleşmeler Admin API ile silinir.
+    1. Self-servis, telefonu doğrulanmamış ve kaydı tamamlanmamış eşleşmeler, kayıt 30 dakikadan eskiyse (`started_at`) Admin API ile silinir. Daha yeni olanlar hâlâ kodunu girmekte olan birine aittir: silinmez, alınmış sayılır (e-postayla eşleşen 409 `email_taken`, telefonla eşleşen 409 `phone_registered`). Böylece kimliği doğrulanmamış bir `register` başkasının süren kaydını silemez ya da telefonunu kendi hesabına taşıyamaz.
     2. Telefonu doğrulanmış bir hesap telefonla eşleşir ve e-posta başka bir hesapta değilse 200 döner ve hiçbir şey değişmez. Kullanıcı kodla kendi hesabına girer. Kod adımında şu yazar: "Bu numarayla hesabınız varsa giriş yapmış olursunuz; izin tercihlerinizi Hesabım › İzinler'den değiştirebilirsiniz."
     3. `profile_phone` eşleşmesi 409 `phone_registered` döner.
     4. E-posta başka bir hesaptaysa 409 `email_taken` döner.
@@ -682,8 +684,8 @@ x-orchados-proxy-secret: <SIGNUP_PROXY_SECRET>   (yalnızca Next sunucusu; varsa
 ### 7.2 `complete`
 
 1. Kullanıcı `/auth/v1/user` üzerinden okunur.
-2. JWT `amr` dizisinde `otp` ya da `sms` yöntemli, bekleyen kayıttan sonraki zamanı taşıyan bir öğe aranır; `phone_confirmed_at` dolu olmalıdır. Yoksa 403.
-3. `signup_complete` çağrılır.
+2. JWT `amr` dizisinde `otp` ya da `sms` yöntemli öğe aranır; `phone_confirmed_at` dolu olmalıdır. Yoksa 403.
+3. `signup_complete(p_user_id, p_code_at)` en yeni kod zamanıyla çağrılır. Kodun bekleyen kayıttan sonra alındığını ve Auth'taki doğrulanmış telefonun bekleyen kayıttaki telefon olduğunu o denetler; `phone_mismatch` dönerse 403 `phone_not_verified`.
 
 ### 7.3 `cleanup`
 
@@ -698,7 +700,7 @@ Saatlik çalışır. 24 saati geçmiş, telefonu doğrulanmamış self-servis he
 
 **Web akışı (C):**
 1. Server action `register` çağırır; proxy sırrı başlığı ve `x-forwarded-for` bilgisi gönderilir.
-2. `phone_login_allowed`, ardından `signInWithOtp({phone, options: {shouldCreateUser: false, channel: "sms"}})`.
+2. `phone_login_allowed`, ardından `requestSignupCode(supabase.auth, phone)` (`apps/web/src/lib/billing/signup-code.ts`, A1). Önce `signInWithOtp({phone, options: {shouldCreateUser: false, channel: "sms"}})` dener. Yeni açılan hesabın telefonu henüz doğrulanmadığı için GoTrue bunu kayıt sayar ve `signup_disabled` (422) döner; o zaman `auth.resend({type: "sms", phone})` telefon doğrulama kodunu gönderir. Telefonu doğrulanmış hesapta (numaranın sahibi yeniden kaydoluyor) `signInWithOtp` kodu gönderir. Yalnız `signInWithOtp` çağırmak yeni kayıtta hiç SMS göndermez. Yeniden gönderme düğmesi de aynı yardımcıyı kullanır.
 3. `verifyOtp` (başarısızlıkta `phone_login_record_failure`).
 4. `complete` çağrılır. `completed` gelirse `/portal`'a, diğer durumlarda `/`'a gidilir.
 
@@ -935,7 +937,7 @@ Alıcı yalnızca müşteridir. Tutar ve red nedeni SMS'e yazılmaz.
 | `IYZICO_*`, `PAYMENT_CALLBACK_URL`, `PAYMENT_RETURN_ORIGINS`, `FAKE_WEBHOOK_SECRET`, `PORTAL_BASE_URL` | Edge | §8 |
 | `payments_reconcile_url`, `signup_cleanup_url` | Vault | |
 
-Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasındadır; dosyanın sahibi A1'dir. Yerelde `[auth.rate_limit] sms_sent = 300` olur (yorumuyla).
+Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasındadır; dosyanın sahibi A1'dir. B'nin üç fonksiyonu (`payments`, `payment-callback`, `payment-webhook`) orada etkindir. Supabase CLI `index.ts`'si olmayan fonksiyonla başlamadığı için A1 bu üç klasöre 501 dönen yer tutucu `index.ts` koyar; #54 ve #55 birleşirken bu dosyalarda add/add çakışması çıkarsa B'nin sürümü alınır (birleştiren: A2). Yerelde `[auth.rate_limit] sms_sent = 300` olur (yorumuyla).
 
 ## 14. Test stratejisi
 

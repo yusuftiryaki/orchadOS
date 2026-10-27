@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
-import { purgeBillingUsers, purgeSignupAttempts } from "../local-db";
+import { requestSignupCode } from "@/lib/billing/signup-code";
+import { ageSignups, purgeBillingUsers, purgeSignupAttempts } from "../local-db";
 import { anonClient, serviceClient } from "./fixtures";
 
 // Self sign-up against the local stack (docs/musteri-yonetimi.md §7): the
@@ -63,16 +64,9 @@ async function latestCode(phone: string): Promise<string | null> {
   return /\b(\d{6})\b/.exec(text)?.[1] ?? null;
 }
 
-// The code step of the web flow. GoTrue treats a code request for a phone
-// that is not confirmed yet as a sign-up (refused: signup_disabled), so a new
-// account asks with resend (phone confirmation); a verified account signs in.
+// The code step of the web flow, through the helper the sign-up page uses.
 async function sendCode(client: ReturnType<typeof anonClient>, phone: string) {
-  const signIn = await client.auth.signInWithOtp({
-    phone,
-    options: { shouldCreateUser: false, channel: "sms" },
-  });
-  if (signIn.error?.code !== "signup_disabled") return signIn.error;
-  return (await client.auth.resend({ type: "sms", phone })).error;
+  return requestSignupCode(client.auth, phone);
 }
 
 async function usersByEmail(emails: string[]) {
@@ -182,11 +176,12 @@ describe("customer-signup", () => {
     expect(anonymous).toEqual({ status: 401, json: { error: "unauthorized" } });
   });
 
-  it("a stale unverified sign-up with the same e-mail is replaced", async () => {
+  it("a stale unverified sign-up with the same e-mail is replaced after the grace period", async () => {
     const email = randomEmail("bayat");
     const first = body({ email });
     expect((await signup(first, "203.0.113.3")).status).toBe(200);
     const [stale] = await usersByEmail([email]);
+    await ageSignups([stale.id], 31);
 
     const second = body({ email });
     expect(await signup(second, "203.0.113.3")).toEqual({
@@ -198,6 +193,35 @@ describe("customer-signup", () => {
     expect(fresh.phone).toBe(String(second.phone).slice(1));
     const gone = await serviceClient().auth.admin.getUserById(stale.id);
     expect(gone.data.user).toBeNull();
+  });
+
+  it("a sign-up in progress is not replaced by the same e-mail or phone", async () => {
+    const victim = body({ email: randomEmail("surmekte") });
+    expect((await signup(victim, "203.0.113.8")).status).toBe(200);
+    const [account] = await usersByEmail([String(victim.email)]);
+
+    const sameEmail = await signup(body({ email: victim.email }), "203.0.113.8");
+    expect(sameEmail).toEqual({ status: 409, json: { error: "email_taken" } });
+    const samePhone = await signup(
+      body({ phone: victim.phone, email: randomEmail("saldirgan") }),
+      "203.0.113.8",
+    );
+    expect(samePhone).toEqual({ status: 409, json: { error: "phone_registered" } });
+
+    const kept = await serviceClient().auth.admin.getUserById(account.id);
+    expect(kept.data.user?.id).toBe(account.id);
+    expect(kept.data.user?.phone).toBe(String(victim.phone).slice(1));
+  });
+
+  it("limits attempts per e-mail", async () => {
+    const email = randomEmail("deneme-siniri");
+    const statuses: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      // A fresh phone and IP each time: only the e-mail repeats.
+      const res = await signup(body({ email }), `203.0.113.${100 + i}`);
+      statuses.push(res.status);
+    }
+    expect(statuses).toEqual([200, 409, 409, 409, 409, 429]);
   });
 
   it("an e-mail of another account is taken", async () => {
@@ -230,8 +254,8 @@ describe("customer-signup", () => {
   it("limits attempts per IP", async () => {
     const statuses: number[] = [];
     for (let i = 0; i < 11; i++) {
-      // Taken e-mail: every attempt is counted and then refused, nothing is created.
-      const res = await signup(body({ email: "owner@example.com" }), "203.0.113.250");
+      // A fresh phone and e-mail each time: only the IP repeats.
+      const res = await signup(body(), "203.0.113.250");
       statuses.push(res.status);
       if (res.status === 429) {
         expect(res.json).toEqual({ error: "too_many_attempts" });
@@ -239,7 +263,7 @@ describe("customer-signup", () => {
       }
     }
     expect(statuses.at(-1)).toBe(429);
-    expect(statuses.filter((s) => s === 409).length).toBeLessThanOrEqual(10);
+    expect(statuses.filter((s) => s === 200).length).toBeLessThanOrEqual(10);
   });
 
   it("cleanup needs the cron secret and keeps fresh sign-ups", async () => {

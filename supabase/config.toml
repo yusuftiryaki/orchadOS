@@ -451,7 +451,9 @@ verify_jwt = false
 verify_jwt = false
 
 # Card payments (IP12-B): start (customer token), refund (ops token) and
-# reconcile (cron secret), each checked in code.
+# reconcile (cron secret), each checked in code. The three payment functions
+# stay enabled: until B's code is merged their index.ts is a 501 placeholder
+# (the CLI refuses to start without one); on merge B's version replaces it.
 [functions.payments]
 verify_jwt = false
 
