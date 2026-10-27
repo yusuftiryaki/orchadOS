@@ -25,7 +25,8 @@ OBA Bilişim Teknolojileri LTD. [tam unvan: ticaret sicilindeki gibi] ("Şirket"
 | Görsel kayıt | Bahçenizin 360° panoramaları, ağaç ve yakın plan fotoğrafları. **Bu görüntülerde bahçede bulunan kişiler görünebilir** |
 | Portal kullanımı | Giriş kayıtları, portalda bıraktığınız sorular ve uzman cevapları |
 | İşlem güvenliği | Giriş zamanı, IP adresi, giriş doğrulama kodlarının gönderim kaydı (7 gün) |
-| Finans | Fatura bilgileri [ödeme yöntemine göre] |
+| Finans | Fatura profili (ad soyad ya da unvan, adres; şirkette vergi dairesi ve VKN); ödeme ve iade kayıtları (tutar, tarih, yöntem, makbuz numarası, ödeme kuruluşunun işlem numarası, kartın yalnızca son dört hanesi ve kart tipi); havale bilgisi. Kart numarasının tamamı Şirket'e ulaşmaz. TCKN yalnızca ödeme kuruluşu isterse alınır |
+| Kayıt güvenliği | Kayıt denemelerinde IP adresinin ve telefonun tek yönlü özeti; robot doğrulaması sonucu |
 
 Bahçenize ait ölçümler, ağaç değerlendirmeleri ve bulgular kişisel veri değildir. Ancak size ait bir bahçeyle ilişkilendirildikleri için aynı özenle korunur.
 
@@ -54,6 +55,8 @@ Açık rızanıza dayanan işlemler ayrı bir metinle, isteğe bağlı olarak so
 **Yurt içi:**
 - Hizmeti birlikte yürüttüğümüz uzman (ziraat mühendisi) ve saha personeli. Yalnızca görev için gerekli bilgiler.
 - SMS hizmet sağlayıcısı: [Netgsm], yalnızca telefon numarası ve mesaj metni.
+- Ödeme kuruluşu: [iyzico Ödeme Hizmetleri A.Ş.], kartla ödemede. Aktarılan: ad, soyad, telefon, e-posta, fatura adresi, IP adresi, sipariş tutarı ve kalemleri. T.C. kimlik numarası yalnızca ödeme kuruluşu zorunlu tutarsa aktarılır. Kart bilgilerini doğrudan ödeme kuruluşuna girersiniz.
+- Bankalar: kart ödemesinde kartı veren banka (3D Secure doğrulaması, ödeme kuruluşu aracılığıyla); havale/EFT'de ödemenin geldiği ve iadenin gönderildiği bankalar. Aktarılan: ad soyad, tutar, açıklama (referans numarası), iadede IBAN.
 - Mali müşavir. Kanunen yetkili kamu kurumları, talep halinde.
 
 **Yurt dışı:** Hizmetin altyapısı yurt dışında yerleşik sağlayıcılarla çalışır.
@@ -80,6 +83,9 @@ Yurt dışına aktarım, Kanun'un 9. maddesine uygun şekilde yapılır: [standa
 | Ham video ve konum kayıtları | İşlenip kalite kontrolünden geçtikten sonra en fazla 30 gün |
 | Panoramalar, ağaç görüntüleri, raporlar | Sözleşme süresince ve sona ermesinden sonra [X] yıl |
 | Kimlik, iletişim, sözleşme ve fatura bilgileri | Sözleşme süresince ve ilgili mevzuattaki süreler boyunca (ör. vergi mevzuatı için [10] yıl) |
+| Ödeme ve iade kayıtları, makbuzlar, mesafeli sözleşme ve ön bilgilendirme onayları | İşlem tarihinden itibaren [10] yıl (vergi ve ticaret mevzuatı; mesafeli sözleşmelerde Yönetmelik'teki saklama yükümlülüğü) [avukat ve mali müşavir] |
+| Tamamlanmamış kayıtlar (telefonu doğrulanmamış hesap) | 24 saat; sonra silinir |
+| Kayıt denemesi özetleri (IP ve telefon özeti) | [30] gün |
 | Giriş doğrulama kodlarının kaydı | 7 gün |
 | Bildirim kayıtları | [X] ay |
 
