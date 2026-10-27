@@ -1398,12 +1398,13 @@ export type Database = {
           locked_until: string | null;
           next_attempt_at: string;
           org_id: string;
-          parcel_id: string;
+          parcel_id: string | null;
           provider_message_id: string | null;
           recipient_user_id: string;
+          ref_id: string | null;
           sent_at: string | null;
           sent_via: string | null;
-          session_id: string;
+          session_id: string | null;
           status: Database["public"]["Enums"]["notification_status"];
           template: Database["public"]["Enums"]["notification_template"];
           vars: NonNullable<Json>;
@@ -1419,12 +1420,13 @@ export type Database = {
           locked_until?: string | null;
           next_attempt_at?: string;
           org_id: string;
-          parcel_id: string;
+          parcel_id?: string | null;
           provider_message_id?: string | null;
           recipient_user_id: string;
+          ref_id?: string | null;
           sent_at?: string | null;
           sent_via?: string | null;
-          session_id: string;
+          session_id?: string | null;
           status?: Database["public"]["Enums"]["notification_status"];
           template: Database["public"]["Enums"]["notification_template"];
           vars?: NonNullable<Json>;
@@ -1439,12 +1441,13 @@ export type Database = {
           locked_until?: string | null;
           next_attempt_at?: string;
           org_id?: string;
-          parcel_id?: string;
+          parcel_id?: string | null;
           provider_message_id?: string | null;
           recipient_user_id?: string;
+          ref_id?: string | null;
           sent_at?: string | null;
           sent_via?: string | null;
-          session_id?: string;
+          session_id?: string | null;
           status?: Database["public"]["Enums"]["notification_status"];
           template?: Database["public"]["Enums"]["notification_template"];
           vars?: NonNullable<Json>;
@@ -3811,6 +3814,7 @@ export type Database = {
         Args: { p_items: Json; p_notes?: string; p_parcel_id: string; p_planned_date?: string };
         Returns: Json;
       };
+      customer_accept_quote: { Args: { p_consents: Json; p_quote_id: string }; Returns: string };
       customer_application_garden_detail: {
         Args: { p_garden_id: string };
         Returns: {
@@ -3827,7 +3831,24 @@ export type Database = {
           used_portion_note: string;
         }[];
       };
+      customer_cancel_order: { Args: { p_order_id: string }; Returns: undefined };
       customer_create_application: { Args: { p_package_id?: string }; Returns: string };
+      customer_decline_quote: {
+        Args: { p_note?: string; p_quote_id: string; p_request_revision?: boolean };
+        Returns: undefined;
+      };
+      customer_payment_instructions: {
+        Args: { p_order_id: string };
+        Returns: {
+          bank_name: string;
+          currency: string;
+          iban: string;
+          iban_holder: string;
+          outstanding_kurus: number;
+          payment_due_at: string;
+          reference: string;
+        }[];
+      };
       customer_remove_application_garden: { Args: { p_garden_id: string }; Returns: undefined };
       customer_save_application_garden: {
         Args: { p_application_id: string; p_detail: Json; p_garden: Json; p_garden_id?: string };
@@ -3973,6 +3994,27 @@ export type Database = {
           verified_garden_count: number;
         }[];
       };
+      ops_audit_events: {
+        Args: {
+          p_action_prefix?: string;
+          p_entity_id?: string;
+          p_entity_type?: string;
+          p_limit?: number;
+          p_org_id: string;
+        };
+        Returns: {
+          action: string;
+          actor_name: string;
+          actor_role: string;
+          actor_user_id: string;
+          created_at: string;
+          details: Json;
+          entity_id: string;
+          entity_type: string;
+          id: string;
+        }[];
+      };
+      ops_billing_internal: { Args: { p_entity_id: string; p_entity_type: string }; Returns: Json };
       ops_billing_profile: {
         Args: { p_org_id: string; p_reveal?: boolean; p_user_id: string };
         Returns: {
@@ -4025,6 +4067,28 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      ops_billing_summary: {
+        Args: { p_org_id: string };
+        Returns: {
+          applications_submitted: number;
+          orders_awaiting_payment: number;
+          orders_overdue: number;
+          parcels_awaiting_inventory: number;
+          payments_pending_review: number;
+          quotes_open: number;
+          refunds_failed: number;
+          refunds_open: number;
+          renewals_due: number;
+          signup_attempts_24h: number;
+        }[];
+      };
+      ops_can_process_refund: { Args: { p_refund_id: string }; Returns: boolean };
+      ops_cancel_order: { Args: { p_note?: string; p_order_id: string }; Returns: undefined };
+      ops_cancel_refund: { Args: { p_note?: string; p_refund_id: string }; Returns: undefined };
+      ops_complete_manual_refund: {
+        Args: { p_bank_reference: string; p_completed_on: string; p_refund_id: string };
+        Returns: undefined;
+      };
       ops_create_owner_profile: {
         Args: {
           p_contact_preference: string;
@@ -4056,9 +4120,57 @@ export type Database = {
           text_version: string;
         }[];
       };
+      ops_customers: {
+        Args: { p_limit?: number; p_org_id: string; p_query?: string };
+        Returns: {
+          application_count: number;
+          created_at: string;
+          email: string;
+          full_name: string;
+          has_billing_profile: boolean;
+          open_order_count: number;
+          paid_kurus: number;
+          parcel_count: number;
+          phone: string;
+          profile_id: string;
+          signup_source: string;
+          user_id: string;
+        }[];
+      };
       ops_delete_price_list_draft: { Args: { p_price_list_id: string }; Returns: undefined };
+      ops_extend_payment_due: {
+        Args: { p_due_on: string; p_order_id: string };
+        Returns: undefined;
+      };
       ops_find_user_id: {
         Args: { p_email?: string; p_org_id: string; p_phone?: string };
+        Returns: string;
+      };
+      ops_issue_parcel_quote: {
+        Args: {
+          p_customer_user_id: string;
+          p_discount_bp?: number;
+          p_discount_note?: string;
+          p_first_year: boolean;
+          p_note_to_customer?: string;
+          p_org_id: string;
+          p_package_id: string;
+          p_parcel_ids: string[];
+          p_proposed_service_start: string;
+          p_renewal_of_order_id?: string;
+          p_valid_days?: number;
+        };
+        Returns: string;
+      };
+      ops_issue_quote: {
+        Args: {
+          p_application_id: string;
+          p_discount_bp?: number;
+          p_discount_note?: string;
+          p_note_to_customer?: string;
+          p_proposed_service_start?: string;
+          p_valid_days?: number;
+        };
         Returns: string;
       };
       ops_notifications: {
@@ -4077,11 +4189,48 @@ export type Database = {
           recipient_phone: string;
           recipient_role: string;
           recipient_user_id: string;
+          ref: string;
           sent_at: string;
           sent_via: string;
           session_id: string;
           status: string;
           template: string;
+        }[];
+      };
+      ops_orders: {
+        Args: {
+          p_customer_user_id?: string;
+          p_limit?: number;
+          p_org_id: string;
+          p_status?: string;
+        };
+        Returns: {
+          activated_at: string;
+          application_id: string;
+          cancel_reason: string;
+          cancelled_at: string;
+          completed_at: string;
+          created_at: string;
+          currency: string;
+          customer_name: string;
+          customer_user_id: string;
+          id: string;
+          live_payment: boolean;
+          number: string;
+          overdue: boolean;
+          package_name: string;
+          paid_kurus: number;
+          payment_due_at: string;
+          quote_id: string;
+          quote_number: string;
+          refunded_kurus: number;
+          renewal_due: boolean;
+          renewal_of_order_id: string;
+          service_end: string;
+          service_start: string;
+          status: string;
+          terminated_at: string;
+          total_kurus: number;
         }[];
       };
       ops_org_members: {
@@ -4137,13 +4286,151 @@ export type Database = {
           used_portion_note: string;
         }[];
       };
+      ops_payment_events: {
+        Args: { p_payment_id: string };
+        Returns: {
+          dedup_key: string;
+          event_type: string;
+          http_status: number;
+          id: string;
+          outcome: string;
+          payload: Json;
+          provider: string;
+          received_at: string;
+          refund_id: string;
+          signature_valid: boolean;
+        }[];
+      };
+      ops_payments: {
+        Args: { p_limit?: number; p_order_id?: string; p_org_id: string; p_status?: string };
+        Returns: {
+          amount_kurus: number;
+          bank_reference: string;
+          card_association: string;
+          card_last4: string;
+          currency: string;
+          customer_name: string;
+          customer_user_id: string;
+          failed_at: string;
+          failure_code: string;
+          fraud_status: number;
+          id: string;
+          initiated_at: string;
+          installment: number;
+          order_id: string;
+          order_number: string;
+          paid_kurus: number;
+          provider: string;
+          provider_amount_kurus: number;
+          receipt_number: string;
+          refundable_kurus: number;
+          refunded_kurus: number;
+          status: string;
+          succeeded_at: string;
+          token_expires_at: string;
+          value_date: string;
+          voided_at: string;
+        }[];
+      };
       ops_plan_followups: {
         Args: { p_request_ids: string[]; p_session_id: string };
         Returns: number;
       };
+      ops_preview_quote: {
+        Args: { p_application_id: string; p_discount_bp?: number };
+        Returns: {
+          application_garden_id: string;
+          area_m2: number;
+          area_source: string;
+          billable_area_tenths: number;
+          garden_name: string;
+          inventory_fee_kurus: number;
+          line_base_kurus: number;
+          line_discount_kurus: number;
+          line_no: number;
+          line_subtotal_kurus: number;
+          line_total_kurus: number;
+          line_vat_kurus: number;
+          minimum_fee_kurus: number;
+          price_list_id: string;
+          price_list_version: number;
+          unit_price_kurus: number;
+          vat_rate_bp: number;
+          visit_amount_kurus: number;
+          visits: number;
+        }[];
+      };
       ops_publish_price_list: { Args: { p_price_list_id: string }; Returns: number };
+      ops_record_manual_payment: {
+        Args: {
+          p_amount_kurus: number;
+          p_bank_reference: string;
+          p_note?: string;
+          p_order_id: string;
+          p_value_date: string;
+        };
+        Returns: string;
+      };
+      ops_refunds: {
+        Args: { p_limit?: number; p_org_id: string; p_payment_id?: string; p_status?: string };
+        Returns: {
+          amount_kurus: number;
+          attempts: number;
+          bank_reference: string;
+          by_system: boolean;
+          completed_on: string;
+          currency: string;
+          customer_name: string;
+          customer_user_id: string;
+          failure_code: string;
+          id: string;
+          kind: string;
+          number: string;
+          order_id: string;
+          order_number: string;
+          payment_id: string;
+          payment_item_id: string;
+          processed_at: string;
+          processing_since: string;
+          provider: string;
+          provider_ref: string;
+          reason: string;
+          requested_at: string;
+          retryable: boolean;
+          status: string;
+          uncertain: boolean;
+        }[];
+      };
       ops_reject_application: {
         Args: { p_application_id: string; p_note?: string; p_reason: string };
+        Returns: undefined;
+      };
+      ops_request_refund: {
+        Args: {
+          p_amount_kurus: number;
+          p_note?: string;
+          p_payment_id: string;
+          p_payment_item_id?: string;
+          p_reason: string;
+        };
+        Returns: string[];
+      };
+      ops_resolve_payment_review: {
+        Args: {
+          p_note?: string;
+          p_payment_id: string;
+          p_provider_ref: string;
+          p_succeeded: boolean;
+        };
+        Returns: undefined;
+      };
+      ops_resolve_refund: {
+        Args: {
+          p_note?: string;
+          p_provider_ref?: string;
+          p_refund_id: string;
+          p_succeeded: boolean;
+        };
         Returns: undefined;
       };
       ops_resolve_viewer_invitation: {
@@ -4185,6 +4472,7 @@ export type Database = {
         Args: { p_parcel_id: string; p_passive: boolean };
         Returns: Database["public"]["Enums"]["parcel_status"];
       };
+      ops_terminate_order: { Args: { p_note: string; p_order_id: string }; Returns: undefined };
       ops_update_owner_profile: {
         Args: {
           p_contact_preference: string;
@@ -4219,6 +4507,10 @@ export type Database = {
           phone: string;
         }[];
       };
+      ops_void_manual_payment: {
+        Args: { p_note: string; p_payment_id: string };
+        Returns: undefined;
+      };
       owner_cancel_viewer_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
       owner_invite_viewer: {
         Args: { p_full_name: string; p_parcel_id: string; p_phone: string };
@@ -4236,10 +4528,119 @@ export type Database = {
           user_id: string;
         }[];
       };
+      payment_attach_token: {
+        Args: { p_expires_at: string; p_payment_id: string; p_token: string };
+        Returns: undefined;
+      };
+      payment_attempts_to_reconcile: {
+        Args: { p_limit?: number };
+        Returns: {
+          amount_kurus: number;
+          currency: string;
+          id: string;
+          order_id: string;
+          provider: string;
+          provider_token: string;
+          status: string;
+          token_expires_at: string;
+        }[];
+      };
+      payment_begin: {
+        Args: {
+          p_order_id: string;
+          p_provider: string;
+          p_return_origin: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      payment_by_token: {
+        Args: { p_token: string };
+        Returns: {
+          amount_kurus: number;
+          currency: string;
+          id: string;
+          order_id: string;
+          provider: string;
+          return_origin: string;
+          status: string;
+          token_expires_at: string;
+        }[];
+      };
+      payment_finalize: {
+        Args: { p_outcome: string; p_payment_id: string; p_result: Json };
+        Returns: string;
+      };
+      payment_record_event: {
+        Args: {
+          p_dedup_key: string;
+          p_event_type: string;
+          p_http_status: number;
+          p_outcome: string;
+          p_payload: Json;
+          p_payment_id: string;
+          p_provider: string;
+          p_refund_id: string;
+          p_signature_valid: boolean;
+        };
+        Returns: boolean;
+      };
+      payment_refund_claim: { Args: { p_refund_id: string }; Returns: Json };
+      payment_refund_report: {
+        Args: {
+          p_failure_code?: string;
+          p_kind: string;
+          p_outcome: string;
+          p_provider_ref?: string;
+          p_refund_id: string;
+          p_retryable?: boolean;
+        };
+        Returns: undefined;
+      };
       phone_login_allowed: { Args: { p_phone: string }; Returns: boolean };
       phone_login_code_requested: { Args: { p_phone: string }; Returns: string };
       phone_login_record_failure: { Args: { p_phone: string }; Returns: number };
       pipeline_rescan_request: { Args: { p_session_id: string }; Returns: Json };
+      price_preview: {
+        Args: { p_areas_m2: number[]; p_first_year?: boolean; p_package_id: string };
+        Returns: {
+          area_m2: number;
+          billable_area_tenths: number;
+          inventory_fee_kurus: number;
+          line_base_kurus: number;
+          line_discount_kurus: number;
+          line_no: number;
+          line_subtotal_kurus: number;
+          line_total_kurus: number;
+          line_vat_kurus: number;
+          minimum_fee_kurus: number;
+          price_list_id: string;
+          price_list_version: number;
+          unit_price_kurus: number;
+          valid_from: string;
+          vat_rate_bp: number;
+          visit_amount_kurus: number;
+          visits: number;
+        }[];
+      };
+      public_package_prices: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          code: string;
+          currency: string;
+          description: string;
+          includes_inventory: boolean;
+          inventory_fee_kurus: number;
+          minimum_fee_kurus: number;
+          name: string;
+          package_id: string;
+          periodic_visits_per_year: number;
+          price_list_version: number;
+          unit_price_kurus: number;
+          valid_from: string;
+          vat_rate_bp: number;
+        }[];
+      };
       publish_session: {
         Args: { p_session_id: string };
         Returns: {
@@ -4269,6 +4670,7 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      receipt_data: { Args: { p_payment_id: string }; Returns: Json };
       record_coverage_report: { Args: { p_report: Json; p_session_id: string }; Returns: Json };
       record_tree_presence: { Args: { p_payload: Json; p_session_id: string }; Returns: Json };
       record_verification_result: {
@@ -4477,7 +4879,14 @@ export type Database = {
       metric_value_type: "numeric" | "scale" | "category" | "boolean";
       notification_channel: "sms" | "whatsapp";
       notification_status: "pending" | "sent" | "failed";
-      notification_template: "report_ready" | "critical_finding";
+      notification_template:
+        | "report_ready"
+        | "critical_finding"
+        | "quote_ready"
+        | "application_rejected"
+        | "payment_received"
+        | "refund_completed"
+        | "payment_reminder";
       operation_kind:
         | "mowing"
         | "spraying"
@@ -4705,7 +5114,15 @@ export const Constants = {
       metric_value_type: ["numeric", "scale", "category", "boolean"],
       notification_channel: ["sms", "whatsapp"],
       notification_status: ["pending", "sent", "failed"],
-      notification_template: ["report_ready", "critical_finding"],
+      notification_template: [
+        "report_ready",
+        "critical_finding",
+        "quote_ready",
+        "application_rejected",
+        "payment_received",
+        "refund_completed",
+        "payment_reminder",
+      ],
       operation_kind: [
         "mowing",
         "spraying",

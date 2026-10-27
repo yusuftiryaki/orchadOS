@@ -453,24 +453,15 @@ verify_jwt = false
 # Card payments (IP12-B): start (customer token), refund (ops token) and
 # reconcile (cron secret), each checked in code.
 [functions.payments]
-# Off until IP12-B's function lands (the CLI refuses to start without its
-# index.ts); B removes this line.
-enabled = false
 verify_jwt = false
 
 # The provider's browser return (cross-site POST, no session); the result is
 # always queried from the provider again.
 [functions.payment-callback]
-# Off until IP12-B's function lands (the CLI refuses to start without its
-# index.ts); B removes this line.
-enabled = false
 verify_jwt = false
 
 # Provider notifications; the signature is checked in code.
 [functions.payment-webhook]
-# Off until IP12-B's function lands (the CLI refuses to start without its
-# index.ts); B removes this line.
-enabled = false
 verify_jwt = false
 
 [analytics]

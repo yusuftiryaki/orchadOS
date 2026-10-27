@@ -76,6 +76,73 @@ describe("templates", () => {
   });
 });
 
+describe("account templates", () => {
+  const ID = "c0000000-0000-4000-8000-000000000001";
+  const cases = [
+    [
+      "quote_ready",
+      "T-2026-000123",
+      `/portal/teklif/${ID}`,
+      `orchadOS teklifiniz (T-2026-000123) hazır. İnceleyip onaylayabilirsiniz: ${BASE}/portal/teklif/${ID}`,
+    ],
+    [
+      "application_rejected",
+      "B-2026-000123",
+      `/portal/basvuru/${ID}`,
+      `B-2026-000123 numaralı başvurunuz sonuçlandı. Ayrıntı: ${BASE}/portal/basvuru/${ID}`,
+    ],
+    [
+      "payment_received",
+      "M-2026-000123",
+      `/portal/odeme/${ID}`,
+      `M-2026-000123 numaralı ödemeniz alındı, teşekkür ederiz. Makbuz: ${BASE}/portal/odeme/${ID}`,
+    ],
+    [
+      "refund_completed",
+      "I-2026-000123",
+      `/portal/odeme/${ID}`,
+      "I-2026-000123 numaralı iadeniz yapıldı; hesabınıza yansıması bankanıza göre birkaç gün " +
+        `sürebilir: ${BASE}/portal/odeme/${ID}`,
+    ],
+    [
+      "payment_reminder",
+      "S-2026-000123",
+      `/portal/siparis/${ID}`,
+      `S-2026-000123 numaralı siparişinizin ödemesi bekleniyor: ${BASE}/portal/siparis/${ID}`,
+    ],
+  ] as const;
+
+  it.each(cases)("%s", (template, ref, path, body) => {
+    expect(renderNotification(template, { ref, path }, BASE)).toEqual({ ok: true, body });
+  });
+
+  it("fit in two SMS segments", () => {
+    for (const [template, ref, path] of cases) {
+      const out = renderNotification(template, { ref, path }, "https://orchados.vercel.app");
+      expect(out.ok && out.body.length).toBeLessThanOrEqual(2 * 153);
+    }
+  });
+
+  it.each([
+    [{ ref: "S-2026-000123", path: `/portal/teklif/${ID}` }, "invalid_vars"],
+    [{ ref: "T-26-1", path: `/portal/teklif/${ID}` }, "invalid_vars"],
+    [{ path: `/portal/teklif/${ID}` }, "invalid_vars"],
+    [{ ref: "T-2026-000123", path: "https://evil.example/portal" }, "invalid_link"],
+    [{ ref: "T-2026-000123" }, "invalid_link"],
+  ])("rejects %j", (vars, error) => {
+    expect(renderNotification("quote_ready", vars, BASE)).toEqual({ ok: false, error });
+  });
+
+  it("report templates still need the parcel and the day", () => {
+    expect(
+      renderNotification("report_ready", { ref: "T-2026-000123", path: "/portal/x" }, BASE),
+    ).toEqual({
+      ok: false,
+      error: "invalid_vars",
+    });
+  });
+});
+
 describe("retry", () => {
   const now = new Date("2026-10-21T10:00:00Z");
 

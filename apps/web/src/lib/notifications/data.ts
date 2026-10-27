@@ -4,15 +4,17 @@ import { maskPhone } from "./phone";
 
 // Operations screen of the notification queue. Rows come from
 // ops_notifications() (ops only); the phone number is masked here, on the
-// server, so the full number never reaches the browser.
+// server, so the full number never reaches the browser. Account messages
+// (quote, payment, refund…) name no parcel but a document number (ref).
 
 export type NotificationStatus = Database["public"]["Enums"]["notification_status"];
 export const NOTIFICATION_STATUSES: readonly NotificationStatus[] = ["pending", "sent", "failed"];
 
 export interface NotificationRow {
   id: string;
-  parcelId: string;
-  parcelName: string;
+  parcelId: string | null;
+  parcelName: string | null;
+  ref: string | null;
   template: string;
   channel: string;
   status: NotificationStatus;
@@ -40,6 +42,7 @@ export async function listNotifications(
     id: r.id,
     parcelId: r.parcel_id,
     parcelName: r.parcel_name,
+    ref: r.ref,
     template: r.template,
     channel: r.channel,
     status: r.status as NotificationStatus,
