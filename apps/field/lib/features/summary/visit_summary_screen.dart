@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../core/db/field_repository.dart';
 import '../../core/time/gps_clock.dart';
 import '../../core/ui/widgets.dart';
 import '../boundary/boundary_corners.dart';
@@ -76,6 +77,8 @@ final visitSummaryProvider = FutureProvider.autoDispose<VisitSummary?>((
   final coverage = events.where((e) => e.eventType == 'coverage').lastOrNull;
   final route = events.where((e) => e.eventType == 'route_progress').lastOrNull;
   final log = events.where((e) => e.eventType == 'visit_log').lastOrNull;
+  final answers = measurements.where((m) => m.method == closeupQuestionMethod);
+  final unseen = events.where((e) => e.eventType == closeupUnseenEvent);
   return VisitSummary(
     startedAt: session?.startedAt,
     stoppedAt: session?.stoppedAt,
@@ -91,10 +94,22 @@ final visitSummaryProvider = FutureProvider.autoDispose<VisitSummary?>((
     qrOnPhoneClock: qr
         .where((e) => e.timeSource == TimeSource.phone.code)
         .length,
-    treesDone: measurements.map((m) => m.subjectId).toSet().length,
+    treesDone: {
+      for (final m in answers) m.subjectId,
+      for (final c in captures)
+        if (c.kind == 'closeup_photo') c.subjectId,
+    }.length,
     treesPlanned: state.task?.closeupTrees.length ?? 0,
     photos: captures.length,
-    answers: measurements.length,
+    // "Göremedim" counts as an answer.
+    answers:
+        answers.length +
+        unseen.fold(
+          0,
+          (n, e) =>
+              n +
+              ((jsonDecode(e.dataJson!) as Map)['metric_codes'] as List).length,
+        ),
     visitLog: log?.dataJson == null
         ? null
         : VisitLog.fromJson(

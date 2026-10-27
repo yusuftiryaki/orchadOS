@@ -47,9 +47,11 @@ void main() {
     return h;
   }
 
+  /// Takes the last required photo, answers "Göremedim" everywhere, saves.
   Future<void> saveTree(WidgetTester tester) async {
+    await shootAndUse(tester, 'K3');
     for (final q in protocol.questions) {
-      await tapVisible(tester, find.byKey(Key('q-${q.metricCode}-false')));
+      await tapVisible(tester, find.byKey(Key('q-${q.metricCode}-unseen')));
       await tester.pump();
     }
     await tapVisible(tester, find.byKey(const Key('tree-save')));
@@ -57,17 +59,21 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('camera screen: reference slot, hint, focus tap, flash-free', (
+  testWidgets('camera screen: reference drawing, hint, focus tap, flash-free', (
     tester,
   ) async {
     final h = await treeForm(tester);
-    await tapVisible(tester, find.byKey(const Key('shot-trunk')));
+    await tapVisible(tester, find.byKey(const Key('shot-T')));
     await tester.pumpAndSettle();
 
     expect(find.byType(CaptureScreen), findsOneWidget);
     expect(h.camera.isOpen, isTrue);
     expect(find.byKey(const Key('fake-camera-preview')), findsOneWidget);
-    expect(find.byKey(const Key('reference-placeholder')), findsOneWidget);
+    // The "böyle çek" drawing of the shot is shown.
+    expect(
+      find.byKey(const Key('reference-drawing:assets/reference/T.svg')),
+      findsOneWidget,
+    );
     expect(
       find.text('Böyle çek: ${protocol.shots.first.hint}'),
       findsOneWidget,
@@ -101,7 +107,7 @@ void main() {
       tester,
       photos: [SyntheticPhotoKind.blurry, SyntheticPhotoKind.dark],
     );
-    await shoot(tester, 'trunk');
+    await shoot(tester, 'T');
     expect(find.byKey(const Key('review-verdict-reject')), findsOneWidget);
     expect(
       find.text('Fotoğraf bulanık. Telefonu sabit tutup tekrar çekin.'),
@@ -145,7 +151,7 @@ void main() {
       photos: [SyntheticPhotoKind.soft, SyntheticPhotoKind.dim],
       gpsTime: false,
     );
-    await shoot(tester, 'trunk');
+    await shoot(tester, 'T');
     expect(find.byKey(const Key('review-verdict-warn')), findsOneWidget);
     expect(find.textContaining('biraz bulanık'), findsOneWidget);
     await tester.tap(find.byKey(const Key('review-use')));
@@ -153,7 +159,7 @@ void main() {
     await settle(tester);
     expect(find.textContaining('Çekildi (uyarıyla)'), findsOneWidget);
 
-    await shoot(tester, 'cuts');
+    await shoot(tester, 'K2');
     expect(find.byKey(const Key('review-verdict-warn')), findsOneWidget);
     expect(find.textContaining('biraz karanlık'), findsOneWidget);
     await tester.tap(find.byKey(const Key('review-use')));
@@ -165,7 +171,7 @@ void main() {
     final sessionId = h.container.read(sessionControllerProvider).sessionId!;
     final captures = (await tester.runAsync(() => repo.captures(sessionId)))!;
     final byShot = {for (final c in captures) c.shotCode: c};
-    final trunk = byShot['trunk']!;
+    final trunk = byShot['T']!;
     expect(trunk.qcVerdict, 'warn');
     expect(trunk.qcFindings, 'blurry:warn');
     expect(trunk.qcVersion, photoQualityCheckVersion);
@@ -174,19 +180,19 @@ void main() {
     expect(trunk.sha256, sha256Hex(h.media.files[trunk.localPath]!));
     // No GPS time from the logger: the phone clock is used and marked.
     expect(trunk.timeSource, 'phone');
-    expect(byShot['cuts']!.qcFindings, startsWith('tooDark:warn'));
+    expect(byShot['K2']!.qcFindings, startsWith('tooDark:warn'));
     await h.dispose(tester);
   });
 
   testWidgets('capture time comes from the GPS clock', (tester) async {
     final h = await treeForm(tester);
-    await shootAndUse(tester, 'trunk');
-    await shootAndUse(tester, 'cuts');
+    await shootAndUse(tester, 'T');
+    await shootAndUse(tester, 'K2');
     await saveTree(tester);
     final repo = h.container.read(fieldRepositoryProvider);
     final sessionId = h.container.read(sessionControllerProvider).sessionId!;
     final captures = (await tester.runAsync(() => repo.captures(sessionId)))!;
-    expect(captures, hasLength(2));
+    expect(captures, hasLength(3));
     for (final c in captures) {
       expect(c.timeSource, 'gps');
       expect(c.qcVerdict, 'accept');
@@ -198,7 +204,7 @@ void main() {
 
   testWidgets('permission denied, then granted on retry', (tester) async {
     final h = await treeForm(tester, open: CameraOpenResult.permissionDenied);
-    await tapVisible(tester, find.byKey(const Key('shot-trunk')));
+    await tapVisible(tester, find.byKey(const Key('shot-T')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('camera-unavailable')), findsOneWidget);
     expect(find.textContaining('kamera izni gerekli'), findsOneWidget);
@@ -215,7 +221,7 @@ void main() {
 
   testWidgets('permission blocked: directs to the settings', (tester) async {
     final h = await treeForm(tester, open: CameraOpenResult.permissionBlocked);
-    await tapVisible(tester, find.byKey(const Key('shot-trunk')));
+    await tapVisible(tester, find.byKey(const Key('shot-T')));
     await tester.pumpAndSettle();
     expect(find.textContaining('Ayarlar → İzinler → Kamera'), findsOneWidget);
     await tester.tap(find.byKey(const Key('camera-settings')));

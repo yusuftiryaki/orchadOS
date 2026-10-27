@@ -76,7 +76,10 @@ void main() {
         shot('trunk', [1, 2, 3]),
         shot('cuts', [4, 5]),
       ],
-      answers: {'dead_branch_present': true, 'pruned': false},
+      answers: {
+        'dead_branch_present': const YesNoAnswer(true),
+        'pruned': const YesNoAnswer(false),
+      },
       methodVersion: 'winter-v0',
     );
     await repo.stopSession('s1', stoppedAt: clock.now(), stopGpsTimeMs: 2);
@@ -104,7 +107,7 @@ void main() {
       shots: [
         shot('trunk', [9]),
       ],
-      answers: {'root_sucker_present': true},
+      answers: {'root_sucker_present': const YesNoAnswer(true)},
       methodVersion: 'winter-v0',
     );
     final m = (await repo.measurements('s1')).single;
@@ -138,7 +141,7 @@ void main() {
         shot('trunk', [1]),
         shot('cuts', [2], q: quality(sharpness: 120)),
       ],
-      answers: {'pruned': true},
+      answers: {'pruned': const YesNoAnswer(true)},
       methodVersion: 'winter-v0',
     );
     final byShot = {for (final c in await repo.captures('s1')) c.shotCode: c};
@@ -167,7 +170,7 @@ void main() {
         shots: [
           shot('trunk', [1], q: quality(sharpness: 5)),
         ],
-        answers: {'pruned': true},
+        answers: {'pruned': const YesNoAnswer(true)},
         methodVersion: 'winter-v0',
       ),
       throwsArgumentError,
@@ -237,7 +240,7 @@ void main() {
       shots: [
         shot('trunk', [7]),
       ],
-      answers: {'pruned': true},
+      answers: {'pruned': const YesNoAnswer(true)},
       methodVersion: 'winter-v0',
     );
     final entries = await repo.outbox.pending();
@@ -275,7 +278,7 @@ void main() {
         shots: [
           shot('trunk', [1]),
         ],
-        answers: {'pruned': true},
+        answers: {'pruned': const YesNoAnswer(true)},
         methodVersion: 'winter-v0',
       ),
       throwsA(isA<SqliteException>()),

@@ -8,6 +8,7 @@ import '../../features/route/route_store.dart';
 import '../quality/photo_quality.dart';
 import '../time/clock.dart';
 import '../time/gps_clock.dart';
+import '../time/gps_time.dart';
 import 'database.dart';
 import 'outbox.dart';
 
@@ -17,7 +18,13 @@ const String appVersion = '0.1.0';
 /// checklist). Stored on every session.
 const String methodologyVersion = 'field-v0';
 
-/// A photo that has been taken and hashed but not yet saved with its tree.
+/// `measurement.method` of a close-up answer.
+const closeupQuestionMethod = 'field_question';
+
+/// Event type of the "Göremedim" answers of one tree (data: `tree_id`,
+/// `slot_code`, `method_version`, `metric_codes`, `evidence`).
+const closeupUnseenEvent = 'closeup_unseen';
+
 /// MIME type of the crew's voice notes (AAC in MP4).
 const voiceNoteMediaType = 'audio/mp4';
 
@@ -40,6 +47,51 @@ class PendingVoiceNote {
   final TimeSource timeSource;
 }
 
+/// The crew's answer to one close-up question.
+sealed class StaffAnswer {
+  const StaffAnswer();
+}
+
+/// Yes or no; stored in `value_boolean`.
+final class YesNoAnswer extends StaffAnswer {
+  const YesNoAnswer(this.value);
+  final bool value;
+
+  @override
+  bool operator ==(Object other) =>
+      other is YesNoAnswer && other.value == value;
+
+  @override
+  int get hashCode => Object.hash(YesNoAnswer, value);
+}
+
+/// One category code; stored in `value_category` (local `value_text`).
+final class CategoryAnswer extends StaffAnswer {
+  const CategoryAnswer(this.code);
+  final String code;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CategoryAnswer && other.code == code;
+
+  @override
+  int get hashCode => Object.hash(CategoryAnswer, code);
+}
+
+/// "Göremedim": the crew could not see it. Counts as an answer but writes no
+/// measurement (a measurement carries exactly one value); it is recorded as
+/// a `closeup_unseen` session event instead.
+final class UnseenAnswer extends StaffAnswer {
+  const UnseenAnswer();
+
+  @override
+  bool operator ==(Object other) => other is UnseenAnswer;
+
+  @override
+  int get hashCode => (UnseenAnswer).hashCode;
+}
+
+/// A photo that has been taken and hashed but not yet saved with its tree.
 class PendingShot {
   const PendingShot({
     required this.shotCode,
@@ -327,15 +379,18 @@ class FieldRepository {
   }
 
   /// Saves the photos, voice notes and answers of one tree in a single
-  /// transaction.
+  /// transaction. Seen answers become staff measurements; "Göremedim"
+  /// answers go together into one `closeup_unseen` event at [time] (the
+  /// phone clock when null).
   Future<void> saveTreeObservation({
     required String sessionId,
     required String treeId,
     required String slotCode,
     required List<PendingShot> shots,
-    required Map<String, bool> answers,
+    required Map<String, StaffAnswer> answers,
     required String methodVersion,
     List<PendingVoiceNote> voiceNotes = const [],
+    GpsTimeReading? time,
   }) => db.transaction(() async {
     for (final (i, v) in voiceNotes.indexed) {
       await db
@@ -373,7 +428,17 @@ class FieldRepository {
     }
     final evidence = jsonEncode([for (final s in shots) s.sha256]);
     final now = _clock.now();
+    final unseen = <String>[];
     for (final MapEntry(key: metric, value: answer) in answers.entries) {
+      final (bool? yesNo, String? category) = switch (answer) {
+        YesNoAnswer(:final value) => (value, null),
+        CategoryAnswer(:final code) => (null, code),
+        UnseenAnswer() => (null, null),
+      };
+      if (answer is UnseenAnswer) {
+        unseen.add(metric);
+        continue;
+      }
       final id = newId();
       await db
           .into(db.measurements)
@@ -384,8 +449,9 @@ class FieldRepository {
               subjectType: 'tree',
               subjectId: treeId,
               metricCode: metric,
-              valueBoolean: Value(answer),
-              method: 'field_question',
+              valueBoolean: Value(yesNo),
+              valueText: Value(category),
+              method: closeupQuestionMethod,
               methodVersion: methodVersion,
               source: 'staff',
               measuredAt: now,
@@ -393,6 +459,23 @@ class FieldRepository {
             ),
           );
       await outbox.enqueue(OutboxEntity.measurement, id);
+    }
+    if (unseen.isNotEmpty) {
+      await addEvent(
+        sessionId: sessionId,
+        eventType: closeupUnseenEvent,
+        payload: slotCode,
+        time: time ?? GpsTimeReading(utcToGpsMs(now), TimeSource.phone),
+        loggerResult: 'none',
+        data: {
+          'version': 1,
+          'tree_id': treeId,
+          'slot_code': slotCode,
+          'method_version': methodVersion,
+          'metric_codes': unseen,
+          'evidence': [for (final s in shots) s.sha256],
+        },
+      );
     }
   });
 
@@ -575,14 +658,22 @@ class FieldRepository {
         .map((l) => l.toSet());
   }
 
-  /// Trees that already have saved observations in this session.
-  Stream<Set<String>> watchObservedTrees(String sessionId) {
-    final q = db.selectOnly(db.measurements, distinct: true)
-      ..addColumns([db.measurements.subjectId])
-      ..where(db.measurements.sessionId.equals(sessionId));
-    return q
-        .map((r) => r.read(db.measurements.subjectId)!)
-        .watch()
-        .map((l) => l.toSet());
-  }
+  /// Trees whose close-up observation is saved in this session: a close-up
+  /// photo or a close-up answer (a "Sorun gördüm" mark does not count).
+  Stream<Set<String>> watchObservedTrees(String sessionId) => db
+      .customSelect(
+        'SELECT subject_id FROM measurements '
+        'WHERE session_id = ?1 AND subject_type = ?2 AND method = ?3 '
+        'UNION SELECT subject_id FROM captures '
+        'WHERE session_id = ?1 AND subject_type = ?2 AND kind = ?4',
+        variables: [
+          Variable.withString(sessionId),
+          Variable.withString('tree'),
+          Variable.withString(closeupQuestionMethod),
+          Variable.withString('closeup_photo'),
+        ],
+        readsFrom: {db.measurements, db.captures},
+      )
+      .watch()
+      .map((rows) => {for (final r in rows) r.read<String>('subject_id')});
 }
