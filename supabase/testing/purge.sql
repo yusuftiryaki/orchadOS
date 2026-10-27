@@ -284,9 +284,51 @@ begin
 end;
 $$;
 
+-- Moves the pending sign-ups (and the auth accounts) of these users back in
+-- time, so that the sign-up tests can reach the stale-account grace period
+-- without waiting.
+create or replace function testing.age_signups(p_user_ids uuid[], p_minutes integer)
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  n bigint;
+begin
+  update private.customer_signup
+  set created_at = created_at - make_interval(mins => p_minutes)
+  where user_id = any(p_user_ids);
+  get diagnostics n = row_count;
+  update auth.users
+  set created_at = created_at - make_interval(mins => p_minutes)
+  where id = any(p_user_ids);
+  return n;
+end;
+$$;
+
+-- The columns of these public tables a role may select (column or table
+-- grants): the web test compares them with BILLING_COLUMNS.
+create or replace function testing.selectable_columns(p_role text, p_tables text[])
+returns table (table_name text, column_name text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select c.relname::text, a.attname::text
+  from pg_catalog.pg_class c
+  join pg_catalog.pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
+  join pg_catalog.pg_attribute a on a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+  where c.relname = any(p_tables)
+    and has_column_privilege(p_role, c.oid, a.attnum, 'SELECT')
+  order by 1, a.attnum;
+$$;
+
 revoke all on all functions in schema testing from public;
 grant execute on function
   testing.purge_sessions(uuid[]), testing.purge_parcels(uuid[]), testing.purge_org(uuid),
   testing.purge_viewer_invitations(text[]), testing.purge_billing_users(uuid[]),
-  testing.purge_signup_attempts()
+  testing.purge_signup_attempts(), testing.age_signups(uuid[], integer),
+  testing.selectable_columns(text, text[])
   to service_role;

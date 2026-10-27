@@ -7,14 +7,16 @@
 -- 3. Sign-up (service role, called by the customer-signup Edge Function):
 --    signup_register_attempt (rate limits), signup_find_account (who already
 --    holds the e-mail or phone), signup_prepare (pending sign-up),
---    signup_complete (owner profile, three consent records, audit row).
+--    signup_complete (owner profile, three consent records, audit row; only
+--    for the account's own confirmed phone).
 -- 4. Customer: my_consents, customer_set_consent, my_billing_profile,
 --    customer_save_billing_profile, customer_update_contact.
 -- 5. Ops: ops_billing_profile (TCKN shown only on request, audited),
 --    ops_customer_consents; ops_create_owner_profile and
 --    ops_update_owner_profile rewritten with the same signatures to record the
 --    KVKK consent and an audit row.
--- 6. Housekeeping: stale pending sign-ups and old attempts (hourly), and the
+-- 6. Housekeeping: stale pending sign-ups (phone never verified) and old
+--    attempts (hourly), and the
 --    call to customer-signup's cleanup action (Vault: signup_cleanup_url +
 --    orchados_cron_secret; nothing happens while either is missing).
 --
@@ -146,7 +148,7 @@ select private.backfill_kvkk_consents();
 
 -- ok, too_many (10 per IP an hour, 3 per phone a day) or closed. Hashes are
 -- HMAC-SHA256 hex made by the Edge Function; an attempt is counted when ok.
-create function public.signup_register_attempt(p_ip_hash text, p_phone_hash text)
+create function public.signup_register_attempt(p_ip_hash text, p_phone_hash text, p_email_hash text)
 returns text
 language plpgsql
 security definer
@@ -159,6 +161,9 @@ begin
   if p_phone_hash is null or p_phone_hash !~ '^[0-9a-f]{64}$' then
     raise exception 'invalid_input' using errcode = '22023', detail = 'phone_hash';
   end if;
+  if p_email_hash is null or p_email_hash !~ '^[0-9a-f]{64}$' then
+    raise exception 'invalid_input' using errcode = '22023', detail = 'email_hash';
+  end if;
   if private.signup_org_id() is null then
     return 'closed';
   end if;
@@ -167,26 +172,31 @@ begin
   if (select count(*) from private.signup_attempt a
       where a.ip_hash = p_ip_hash and a.created_at > now() - interval '1 hour') >= 10
      or (select count(*) from private.signup_attempt a
-         where a.phone_hash = p_phone_hash and a.created_at > now() - interval '24 hours') >= 3 then
+         where a.phone_hash = p_phone_hash and a.created_at > now() - interval '24 hours') >= 3
+     -- Per e-mail too: rotating phones must not reach someone's pending sign-up.
+     or (select count(*) from private.signup_attempt a
+         where a.email_hash = p_email_hash and a.created_at > now() - interval '24 hours') >= 5 then
     return 'too_many';
   end if;
-  insert into private.signup_attempt (ip_hash, phone_hash) values (p_ip_hash, p_phone_hash);
+  insert into private.signup_attempt (ip_hash, phone_hash, email_hash) values (p_ip_hash, p_phone_hash, p_email_hash);
   return 'ok';
 end;
 $$;
-comment on function public.signup_register_attempt(text, text) is
-  'customer-signup (service role): ok, too_many (10 per IP an hour, 3 per phone a day) or closed; counts the attempt.';
+comment on function public.signup_register_attempt(text, text, text) is
+  'customer-signup (service role): ok, too_many (10 per IP an hour, 3 per phone and 5 per e-mail a day) or closed; counts the attempt.';
 
 -- Accounts that already hold the e-mail or the phone: email / phone (Auth;
 -- the phone without '+'), or profile_phone (another user's owner profile in
--- the sign-up org carries the phone).
+-- the sign-up org carries the phone). started_at: when the pending sign-up was
+-- written (else when the account was created).
 create function public.signup_find_account(p_email text, p_phone text)
 returns table (
   user_id uuid,
   matched_by text,
   self_signup boolean,
   phone_confirmed boolean,
-  signup_completed boolean
+  signup_completed boolean,
+  started_at timestamptz
 )
 language sql
 stable
@@ -209,13 +219,14 @@ as $$
   select m.id, m.matched_by,
          coalesce(u.raw_app_meta_data ->> 'signup', '') = 'self',
          u.phone_confirmed_at is not null,
-         exists (select 1 from private.customer_signup s where s.user_id = m.id and s.completed_at is not null)
+         exists (select 1 from private.customer_signup s where s.user_id = m.id and s.completed_at is not null),
+         coalesce((select s.created_at from private.customer_signup s where s.user_id = m.id), u.created_at)
   from matched m
   join auth.users u on u.id = m.id
   order by m.matched_by, m.id;
 $$;
 comment on function public.signup_find_account(text, text) is
-  'customer-signup (service role): accounts matching the e-mail or phone, with how they matched and their sign-up state.';
+  'customer-signup (service role): accounts matching the e-mail or phone, with how they matched, their sign-up state and when the sign-up started.';
 
 -- The pending sign-up of a new account (replaced while not completed).
 -- Errors: signup_closed, invalid_input (detail: field), exists (completed).
@@ -302,9 +313,12 @@ $$;
 comment on function public.signup_prepare(uuid, text, text, text, text, jsonb, text) is
   'customer-signup (service role): stores the pending sign-up of a new account until its phone is verified.';
 
--- completed (owner profile, consent records, audit row), already_completed or
--- no_pending.
-create function public.signup_complete(p_user_id uuid)
+-- completed (owner profile, consent records, audit row), already_completed,
+-- no_pending or phone_mismatch. p_code_at is when the session's phone code was
+-- verified (JWT amr). The profile only takes the pending phone when that is the
+-- self sign-up account's own confirmed phone and the code came after the
+-- pending sign-up was written (§7.2); otherwise phone_mismatch.
+create function public.signup_complete(p_user_id uuid, p_code_at timestamptz)
 returns text
 language plpgsql
 security definer
@@ -319,6 +333,18 @@ begin
   end if;
   if s.completed_at is not null then
     return 'already_completed';
+  end if;
+  -- amr timestamps are whole seconds.
+  if p_code_at is null
+     or p_code_at < date_trunc('second', s.created_at)
+     or not exists (
+       select 1 from auth.users u
+       where u.id = s.user_id
+         and u.raw_app_meta_data ->> 'signup' = 'self'
+         and u.phone_confirmed_at is not null
+         and u.phone = ltrim(s.phone, '+')
+     ) then
+    return 'phone_mismatch';
   end if;
 
   begin
@@ -359,8 +385,8 @@ begin
   return 'completed';
 end;
 $$;
-comment on function public.signup_complete(uuid) is
-  'customer-signup (service role), after the phone code: creates the owner profile and the three consent records.';
+comment on function public.signup_complete(uuid, timestamptz) is
+  'customer-signup (service role), after the phone code: creates the owner profile and the three consent records when the confirmed phone is the pending one.';
 
 -- ---------------------------------------------------------------------------
 -- 4. Customer
@@ -766,10 +792,11 @@ begin
       raise exception 'invalid_input' using errcode = '22023';
   end;
 
+  -- recorded_at is when the record is written (now()), never the declared
+  -- consent date, which stays in the profile: the latest record must win.
   if coalesce(p_kvkk_consent, false) then
-    insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source, recorded_at)
-    values (p_org_id, p_user_id, p_user_id, 'kvkk_notice', true, private.normalize_text_version(v_version), 'ops',
-            p_kvkk_consent_at);
+    insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source)
+    values (p_org_id, p_user_id, p_user_id, 'kvkk_notice', true, private.normalize_text_version(v_version), 'ops');
   end if;
   v_fields := array_remove(array[
     'full_name', 'contact_preference',
@@ -848,10 +875,10 @@ begin
   end;
 
   if 'kvkk_consent' = any (v_fields) and (v_consent or p.kvkk_consent) then
-    insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source, recorded_at)
+    -- recorded_at = now(), not the declared date (see ops_create_owner_profile).
+    insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source)
     values (p.org_id, p.user_id, p.user_id, 'kvkk_notice', v_consent,
-            private.normalize_text_version(coalesce(v_version, p.kvkk_text_version)), 'ops',
-            coalesce(p_kvkk_consent_at, now()));
+            private.normalize_text_version(coalesce(v_version, p.kvkk_text_version)), 'ops');
   end if;
   if cardinality(v_fields) > 0 then
     perform private.audit(p.org_id, (select auth.uid()), 'ops', 'owner_profile.updated', 'owner_profile', p.id,
@@ -876,8 +903,11 @@ declare
   v_signups integer;
   v_attempts integer;
 begin
-  delete from private.customer_signup
-  where completed_at is null and created_at < now() - interval '24 hours';
+  -- A verified phone keeps its pending sign-up: cleanup no longer removes that
+  -- account, and complete (after a phone code login) still needs the row.
+  delete from private.customer_signup s
+  where s.completed_at is null and s.created_at < now() - interval '24 hours'
+    and not exists (select 1 from auth.users u where u.id = s.user_id and u.phone_confirmed_at is not null);
   get diagnostics v_signups = row_count;
   delete from private.signup_attempt where created_at < now() - interval '2 days';
   get diagnostics v_attempts = row_count;
@@ -885,7 +915,7 @@ begin
 end;
 $$;
 comment on function private.signup_housekeeping() is
-  'Hourly (pg_cron): drops pending sign-ups older than 24 hours and sign-up attempts older than two days.';
+  'Hourly (pg_cron): drops pending sign-ups older than 24 hours whose phone was never verified, and sign-up attempts older than two days.';
 
 -- Asks customer-signup to delete self sign-up accounts whose phone was never
 -- verified within 24 hours (Admin API). Needs Vault's signup_cleanup_url and
@@ -932,10 +962,10 @@ revoke all on function private.mask_identity_number(text) from public;
 revoke all on function private.signup_housekeeping() from public;
 revoke all on function private.dispatch_signup_cleanup() from public;
 
-revoke all on function public.signup_register_attempt(text, text) from public, anon, authenticated;
+revoke all on function public.signup_register_attempt(text, text, text) from public, anon, authenticated;
 revoke all on function public.signup_find_account(text, text) from public, anon, authenticated;
 revoke all on function public.signup_prepare(uuid, text, text, text, text, jsonb, text) from public, anon, authenticated;
-revoke all on function public.signup_complete(uuid) from public, anon, authenticated;
+revoke all on function public.signup_complete(uuid, timestamptz) from public, anon, authenticated;
 revoke all on function public.my_consents() from public, anon, authenticated;
 revoke all on function public.customer_set_consent(text, boolean, text) from public, anon, authenticated;
 revoke all on function public.my_billing_profile() from public, anon, authenticated;
@@ -944,10 +974,10 @@ revoke all on function public.customer_update_contact(text, text, text) from pub
 revoke all on function public.ops_billing_profile(uuid, uuid, boolean) from public, anon, authenticated;
 revoke all on function public.ops_customer_consents(uuid, uuid) from public, anon, authenticated;
 
-grant execute on function public.signup_register_attempt(text, text) to service_role;
+grant execute on function public.signup_register_attempt(text, text, text) to service_role;
 grant execute on function public.signup_find_account(text, text) to service_role;
 grant execute on function public.signup_prepare(uuid, text, text, text, text, jsonb, text) to service_role;
-grant execute on function public.signup_complete(uuid) to service_role;
+grant execute on function public.signup_complete(uuid, timestamptz) to service_role;
 grant execute on function public.my_consents() to authenticated;
 grant execute on function public.customer_set_consent(text, boolean, text) to authenticated;
 grant execute on function public.my_billing_profile() to authenticated;

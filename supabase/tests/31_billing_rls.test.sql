@@ -116,8 +116,8 @@ select is(
 
 select is(
   (select array_agg(f order by f) from unnest(array[
-     'signup_register_attempt(text,text)', 'signup_find_account(text,text)',
-     'signup_prepare(uuid,text,text,text,text,jsonb,text)', 'signup_complete(uuid)',
+     'signup_register_attempt(text,text,text)', 'signup_find_account(text,text)',
+     'signup_prepare(uuid,text,text,text,text,jsonb,text)', 'signup_complete(uuid,timestamptz)',
      'my_consents()', 'customer_set_consent(text,boolean,text)', 'my_billing_profile()',
      'customer_save_billing_profile(jsonb)', 'customer_update_contact(text,text,text)',
      'ops_billing_profile(uuid,uuid,boolean)', 'ops_customer_consents(uuid,uuid)',
@@ -136,8 +136,8 @@ select is(
   null, 'anon executes none of the IP12 functions of A1');
 select is(
   (select array_agg(f order by f) from unnest(array[
-     'signup_register_attempt(text,text)', 'signup_find_account(text,text)',
-     'signup_prepare(uuid,text,text,text,text,jsonb,text)', 'signup_complete(uuid)'
+     'signup_register_attempt(text,text,text)', 'signup_find_account(text,text)',
+     'signup_prepare(uuid,text,text,text,text,jsonb,text)', 'signup_complete(uuid,timestamptz)'
    ]) f where has_function_privilege('authenticated', 'public.' || f, 'EXECUTE')
           or not has_function_privilege('service_role', 'public.' || f, 'EXECUTE')),
   null, 'signup_* is for the service role only');

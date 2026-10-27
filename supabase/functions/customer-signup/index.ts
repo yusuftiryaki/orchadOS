@@ -14,11 +14,13 @@
 //   client_ip is trusted, otherwise cf-connecting-ip / x-forwarded-for)
 //   1. Validation; Turnstile when TURNSTILE_SECRET_KEY is set.
 //   2. Rate limits: signup_register_attempt with HMAC-SHA256 (SIGNUP_HASH_SECRET)
-//      of the IP and the phone (10 per IP an hour, 3 per phone a day).
+//      of the IP, the phone and the e-mail (10 per IP an hour, 3 per phone and
+//      5 per e-mail a day).
 //   3. Accounts holding the e-mail or phone (signup_find_account): stale self
-//      sign-ups (phone never verified) are deleted; the verified owner of the
-//      phone continues to the code step and nothing changes; another
-//      customer's phone or a taken e-mail is refused.
+//      sign-ups (phone never verified) started more than 30 minutes ago are
+//      deleted, younger ones count as taken; the verified owner of the phone
+//      continues to the code step and nothing changes; another customer's
+//      phone or a taken e-mail is refused.
 //   4. Admin API: the account, e-mail confirmed (password login needs it),
 //      phone not confirmed, app_metadata.signup = "self".
 //   5. signup_prepare stores the pending sign-up; on failure the account goes.
@@ -28,8 +30,9 @@
 //
 // { "action": "complete" }   Authorization: Bearer <the user's access token>
 //   After verifyOtp: the session must come from a phone code (amr otp/sms)
-//   newer than the account, with the phone confirmed; then signup_complete
-//   writes the owner profile and the consent records.
+//   with the phone confirmed; signup_complete then checks that the confirmed
+//   phone is the pending one and the code is newer than the pending sign-up
+//   (else 403) and writes the owner profile and the consent records.
 //   200 {status: "completed" | "already_completed" | "no_pending"}
 //   · 401 {error: "unauthorized"} · 403 {error: "phone_not_verified"}
 //
@@ -43,10 +46,10 @@ import {
   type AccountMatch,
   clientIp,
   decideMatches,
-  hasPhoneCodeSince,
   hmacHex,
   isExpiredUnverified,
   jwtClaims,
+  latestPhoneCodeAt,
   parseRegister,
   type RegisterInput,
   timingSafeEqual,
@@ -145,6 +148,7 @@ async function register(req: Request, body: unknown): Promise<Response> {
   const attempt = await rpc<string>("signup_register_attempt", {
     p_ip_hash: await hmacHex(HASH_SECRET, ip ?? "unknown"),
     p_phone_hash: await hmacHex(HASH_SECRET, input.phone),
+    p_email_hash: await hmacHex(HASH_SECRET, input.email),
   });
   if (attempt === "closed") return error("signup_closed", 503);
   if (attempt === "too_many") return error("too_many_attempts", 429);
@@ -157,7 +161,7 @@ async function register(req: Request, body: unknown): Promise<Response> {
       p_email: input.email,
       p_phone: input.phone,
     });
-    const decision = decideMatches(matches);
+    const decision = decideMatches(matches, Date.now());
     for (const id of decision.staleUserIds) await deleteUser(id);
     if (decision.outcome === "existing_account") return json({ next: "verify_phone" });
     if (decision.outcome === "email_taken" || decision.outcome === "phone_registered") {
@@ -196,15 +200,15 @@ async function complete(req: Request): Promise<Response> {
   const user = await res.json();
   if (typeof user?.id !== "string") return error("unauthorized", 401);
 
-  const createdMs = Date.parse(user.created_at ?? "");
-  if (
-    !user.phone_confirmed_at ||
-    !Number.isFinite(createdMs) ||
-    !hasPhoneCodeSince(jwtClaims(token), createdMs)
-  ) {
-    return error("phone_not_verified", 403);
-  }
-  const status = await rpc<string>("signup_complete", { p_user_id: user.id });
+  const codeAt = latestPhoneCodeAt(jwtClaims(token));
+  if (!user.phone_confirmed_at || codeAt === null) return error("phone_not_verified", 403);
+  // signup_complete checks the rest in one transaction: a self sign-up whose
+  // confirmed phone is the pending one, and a code newer than the pending row.
+  const status = await rpc<string>("signup_complete", {
+    p_user_id: user.id,
+    p_code_at: new Date(codeAt * 1000).toISOString(),
+  });
+  if (status === "phone_mismatch") return error("phone_not_verified", 403);
   return json({ status });
 }
 

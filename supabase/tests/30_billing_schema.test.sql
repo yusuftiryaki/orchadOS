@@ -4,7 +4,7 @@
 -- and 9120..0102 (draft), customer a0..06 with application 9120..0301.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(45);
+select plan(51);
 
 select testing.reset_to_seed();
 
@@ -201,6 +201,43 @@ select throws_ok(
   $$ insert into public.audit_event (org_id, actor_role, action, entity_type, details)
      values ('b0000000-0000-4000-8000-000000000001', 'system', 'x.y', 'order', jsonb_build_object('x', repeat('a', 5000))) $$,
   '23514', null, 'audit details stay under 4 KB');
+
+-- Deleting a staff account clears its user columns (FK set null) -----------------
+
+insert into auth.users (instance_id, id, aud, role, email)
+values ('00000000-0000-0000-0000-000000000000', pg_temp.id(20), 'authenticated', 'authenticated',
+        'gone-staff@example.com');
+insert into public.price_list (id, org_id, version, status, valid_from, created_by, published_by, published_at)
+values (pg_temp.id(21), 'b0000000-0000-4000-8000-000000000001', 90, 'published', current_date,
+        pg_temp.id(20), pg_temp.id(20), now());
+insert into public.quote (id, org_id, customer_user_id, application_id, number, price_list_id, price_list_version,
+  package_id, package_code, package_name, periodic_visits_per_year, includes_inventory, first_year, vat_rate_bp,
+  base_kurus, discount_kurus, subtotal_kurus, vat_kurus, total_kurus, inputs, valid_until,
+  status, issued_by, decided_at, decided_by)
+values (pg_temp.id(22), 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000006',
+  '91200000-0000-4000-8000-000000000301', 'T-2026-900003', '91200000-0000-4000-8000-000000000101', 1,
+  '91200000-0000-4000-8000-000000000001', 'standart', 'Standart', 4, true, true, 2000,
+  750000, 0, 750000, 150000, 900000, '{"formula": "pricing-v1"}', current_date + 30,
+  'cancelled', pg_temp.id(20), now(), pg_temp.id(20));
+
+select throws_ok(
+  format($$ update public.price_list set published_by = null, note = 'x' where id = %L $$, pg_temp.id(21)),
+  'P0001', 'price_list_not_draft', 'clearing a user column does not open a published list to other changes');
+select throws_ok(
+  format($$ update public.quote set issued_by = 'a0000000-0000-4000-8000-000000000005' where id = %L $$, pg_temp.id(22)),
+  'P0001', 'quote_frozen', 'a quote''s issuer is only ever cleared, never replaced');
+select throws_ok(
+  format($$ update public.quote set decided_by = null, total_kurus = 1 where id = %L $$, pg_temp.id(22)),
+  'P0001', 'quote_frozen', 'clearing a user column does not unfreeze a quote');
+select lives_ok(
+  format($$ delete from auth.users where id = %L $$, pg_temp.id(20)),
+  'a staff account that published a list and issued and decided a quote can be deleted');
+select is(
+  (select array[created_by, published_by] from public.price_list where id = pg_temp.id(21)),
+  array[null, null]::uuid[], 'the published list loses its creator and publisher');
+select is(
+  (select array[issued_by, decided_by] from public.quote where id = pg_temp.id(22)),
+  array[null, null]::uuid[], 'the decided quote loses its issuer and decider');
 
 select * from finish();
 rollback;
