@@ -5,7 +5,8 @@ import type { ReviewContext, ReviewTreeRow, TreeDetail } from "@/lib/expert/revi
 import { isReviewable } from "@/lib/expert/review";
 import { FILTERS, matchesFilter, type Filter } from "@/lib/expert/summary";
 import { reviewHref, summaryHref } from "@/lib/expert/urls";
-import { formatDate, t } from "@/lib/i18n";
+import { scanSetupDiffers, type ScanSetup } from "@/lib/expert/scan-setup";
+import { formatDate, formatNumber, t } from "@/lib/i18n";
 import { BulkApprovePanel, type BulkMessages } from "./bulk-approve";
 import { ClassBadge } from "./class-badge";
 import { CropGrid } from "./crop-grid";
@@ -23,7 +24,16 @@ export interface ReviewMessages {
   bulk: BulkMessages;
 }
 
-// Header of both visit pages: parcel, date, state, previous visit.
+function scanSetupText(setup: ScanSetup): string | null {
+  const r = t.expert.review;
+  const parts = [
+    setup.scanPlatform ? r.scanPlatforms[setup.scanPlatform] : null,
+    setup.cameraHeightM != null ? r.cameraHeight(formatNumber(setup.cameraHeightM, 2)) : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(", ") : null;
+}
+
+// Header of both visit pages: parcel, date, state, previous visit, scan setup.
 export function VisitHeader({ ctx }: { ctx: ReviewContext }) {
   const r = t.expert.review;
   const s = ctx.session;
@@ -39,7 +49,13 @@ export function VisitHeader({ ctx }: { ctx: ReviewContext }) {
         <span>{r.season(t.expert.seasons[s.season])}</span>
         <span>{r.methodology(s.methodologyVersion)}</span>
         <span>{ctx.previous ? r.previous(formatDate(ctx.previous.time)) : r.noPrevious}</span>
+        <span data-testid="scan-setup">{scanSetupText(s) ?? r.scanSetupUnknown}</span>
       </p>
+      {ctx.previous && scanSetupDiffers(s, ctx.previous) && (
+        <p className={styles.notice} role="status" data-testid="scan-setup-changed">
+          {r.scanSetupChanged(scanSetupText(ctx.previous) ?? r.scanSetupUnknown)}
+        </p>
+      )}
       {s.status === "published" && (
         <p className={styles.notice} role="status">
           {r.published(formatDate(s.publishedAt ?? s.time))}

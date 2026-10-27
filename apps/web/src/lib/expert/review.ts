@@ -17,6 +17,7 @@ import {
   type ObservedValue,
   type ReviewRules,
 } from "./mandatory-review";
+import { scanPlatform, type ScanSetup } from "./scan-setup";
 import { seasonOf, sessionTime, type Season } from "./season";
 import { compareSlots, newest, type HealthClass, type ReviewTree } from "./summary";
 import { LEGACY_METHODOLOGY_VERSION } from "@/lib/methodology";
@@ -36,7 +37,7 @@ export const QUEUE_STATUSES: SessionStatus[] = ["processed", "in_review"];
 export const DEFAULT_METHODOLOGY_VERSION = LEGACY_METHODOLOGY_VERSION;
 
 const SESSION_COLUMNS =
-  "id, org_id, parcel_id, kind, status, started_at, planned_date, created_at, methodology_version, published_at, published_by";
+  "id, org_id, parcel_id, kind, status, started_at, planned_date, created_at, methodology_version, published_at, published_by, scan_platform, camera_height_m";
 
 // ---------------------------------------------------------------------------
 // Queue
@@ -125,7 +126,7 @@ export async function listQueue(supabase: Client): Promise<QueueItem[]> {
 // One visit
 // ---------------------------------------------------------------------------
 
-export interface ReviewSession {
+export interface ReviewSession extends ScanSetup {
   id: string;
   orgId: string;
   parcelId: string;
@@ -163,7 +164,7 @@ export interface ReviewFinding {
 
 export interface ReviewContext {
   session: ReviewSession;
-  previous: { id: string; time: string } | null;
+  previous: ({ id: string; time: string } & ScanSetup) | null;
   // Metrics the expert enters for this visit (season + report card).
   metrics: MetricDefinition[];
   // Every metric, to label any stored measurement.
@@ -201,7 +202,7 @@ export async function loadReview(
     supabase.from("parcel").select("name").eq("id", s.parcel_id).single(),
     supabase
       .from("session")
-      .select("id, started_at, planned_date, created_at")
+      .select("id, started_at, planned_date, created_at, scan_platform, camera_height_m")
       .eq("parcel_id", s.parcel_id)
       .eq("status", "published")
       .in("kind", REVIEW_KINDS)
@@ -243,7 +244,12 @@ export async function loadReview(
 
   // Previous visit: the newest published one before this visit.
   const before = (published.data ?? [])
-    .map((p) => ({ id: p.id, time: sessionTime(p) }))
+    .map((p) => ({
+      id: p.id,
+      time: sessionTime(p),
+      scanPlatform: scanPlatform(p.scan_platform),
+      cameraHeightM: p.camera_height_m,
+    }))
     .filter((p) => Date.parse(p.time) < Date.parse(time))
     .sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
   const previous = before[0] ?? null;
@@ -360,6 +366,8 @@ export async function loadReview(
       season,
       methodologyVersion,
       publishedAt: s.published_at,
+      scanPlatform: scanPlatform(s.scan_platform),
+      cameraHeightM: s.camera_height_m,
     },
     rules,
     firstOfSeason,

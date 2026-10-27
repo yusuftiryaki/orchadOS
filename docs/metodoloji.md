@@ -32,7 +32,7 @@ Her ölçüm, değerlendirme ve rapor üretildiği metodoloji sürümünü taş�
 2. **Görüneni söyler, teşhis koymaz.** Denetim "taçta %10–30 kuru dal var" der; "kök çürüklüğü var" demez. Teşhis ve ilaç önerisi uzmanın ayrıca yazdığı öneride, açıkça uzman görüşü olarak yer alır.
 3. **Kaynaklar karışmaz.** Personel cevabı, AI önerisi ve uzman kararı ayrı kayıtlardır. Birinin üzerine yazılmaz. Sahip sadece uzmanın onayladığı sonucu görür.
 4. **Belirsizlik saklanmaz.** Görüntüden karar verilemeyen bir şey "belirsiz" kalır. Tahminle doldurulmaz.
-5. **Karşılaştırılabilir.** Rota, kamera yüksekliği ve yöntem parsel başına sabittir. Böylece bir ağacın bu kışki görüntüsü geçen kışkiyle yan yana konabilir.
+5. **Karşılaştırılabilir.** Rota parsel başına sabittir. Tarama üç yolla yapılabilir: yürüyerek (sırt direği), motosikletle ya da robotla; kamera yüksekliği ayarlanabilir. Bu yüzden yöntem ve ölçülen kamera yüksekliği her ziyarette ön kontrolde kaydedilir. Bir parselde mümkün olduğunca aynı yöntem ve yükseklik kullanılır; böylece bir ağacın bu kışki görüntüsü geçen kışkiyle yan yana konabilir. Farklıysa uzman paneli bunu gösterir (bölüm 11).
 6. **Sınır iddiası yoktur.** Haritadaki sınır, sahibin gösterdiği fiili kullanım sınırıdır; tapu ya da mülkiyet sınırı değildir. Bu ibare her raporda yer alır.
 
 ## 2. Ziyaretler ve mevsimler
@@ -444,10 +444,11 @@ Karne, son yayımlanmış ziyaretin özetidir.
 - [x] Genel durum skoru (bölüm 9) — 100 / 70 / 25 / 0, "yok" yalnız kaybolduğu ziyarette, aynı mevsimle trend
 - [x] AI güven eşiği ve kalite örneklemi (bölüm 6) — %70 eşik pilotta ayarlanacak; %10 / en az 20, %85 durdurma, mevsimin ilk ziyaretinde toplu onay kapalı, zor ölçekler zorunlu inceleme
 - [x] Kapsama eşiği (bölüm 10) — periyodik %95, envanter %98, geniş aralıkta 20×20 m hücre
+- [x] Tarama yöntemi ve kamera yüksekliği (bölüm 1) — 27 Ekim 2026, işletme kararı: üç yöntem de kullanılır (yürüyüş/sırt direği, motosiklet, robot); kamera yüksekliği ayarlanabilir, sabit bir sayı yok. Personel ön kontrolde yöntemi seçer ve merceğin yerden yüksekliğini ölçüp girer (0,50–3,50 m); telefon parseldeki son taramanın değerlerini önerir, yöntem farklıysa ya da yükseklik 25 cm'den fazla değiştiyse uyarır. İşleme hattı kesitleri ve ağaç var/yok kutularını (yerden 2,5–4 m) bu ölçülen yükseklikle izdüşürür; kutular yerden yükseklikle tanımlı; kamera yükselip alçaldıkça görüntüdeki yerleri değişir ama ağacın hep aynı bölümüne bakarlar. Uzman paneli, önceki ziyaret başka yöntemle ya da 25 cm'den fazla farklı yükseklikle çekildiyse uyarır. Robotta yükseklik kitin kalibrasyonundan (`kit_mount`) okunabilir; şimdilik o da elle girilir
 - [x] Referans fotoğrafların seçim ölçütleri (Ek A) — fotoğrafların kendisi henüz yok
 
 **Açık kalanlar:**
-- **Tarama yöntemi ve kamera yüksekliği:** Yürüyüş (sırt direği) mi, motosiklet mi, robot mu; parsel başına sabit kamera yüksekliği bir sayı olarak buraya yazılmalı. Ağaç var/yok sinyalinin kutuları (yerden 2,5–4 m) buna bağlı.
+- **Yönteme göre ayar:** Motosikletin titreşimi ve hızı ile robotun alçak montajı kesit kalitesini ve var/yok sinyalini nasıl etkiliyor, pilotta yöntem başına ölçülecek. Gerekirse yönteme göre ayrı eşikler gelir.
 - **Yabani ot ve toprak işleme:** Bakım uyumu satırı için `weed_cover` (az / orta / yoğun) ölçümü önerildi; henüz yok.
 - **Ofis kişisinin kaynağı:** Envanterde ofiste girilen özellikler şimdilik `staff` kaynağıyla yazılıyor; ayrı bir `office` kaynağı gerekip gerekmediği açık.
 - **Gövde ölçeğinin anlamı değişti:** v0.1'de dip sürgünü `trunk_base_scale`'den çıktı; kod adı aynı kaldı. Ağaç karnesinde v0 ve v0.1 değerleri sürümüyle okunmalı.
