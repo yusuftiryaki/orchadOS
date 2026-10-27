@@ -88,6 +88,8 @@ describe("expert review", () => {
       "trunk_base_scale",
       "dead_branch_scale",
       "pruning_status",
+      "basal_sprout_level",
+      "dieback_pattern",
       "scaffold_branch_count",
       "trunk_diameter_h30",
     ]);

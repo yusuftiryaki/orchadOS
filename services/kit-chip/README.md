@@ -19,6 +19,7 @@ uv run orchados-kit write manifest.json --dry-run       # imajı hex olarak bas
 sudo uv run orchados-kit write manifest.json            # bus'taki tek DS2431'e yaz
 uv run orchados-kit read                                # çipteki manifesti göster
 uv run orchados-kit read --image kit.bin                # bir imaj dosyasını göster
+uv run orchados-kit from-calibration <uuid> --hw-rev 1.0 --gnss-link usb   # kalibrasyon kaydından (aşağıda)
 ```
 
 `manifest.json`, ortak test vektörlerindeki `manifest` biçimindedir (`tests/vectors/kit_manifest_v1.json`).
@@ -43,8 +44,15 @@ uv run orchados-kit read --image kit.bin                # bir imaj dosyasını g
 
 ## Kalibrasyondan manifest
 
-Henüz yok. Açık sorular `docs/arayuzler.md`'de ("Kit kimlik çipi"):
-- orchadOS'taki kalibrasyon kaydında `kit_mount` frame'i ve eksen yönleri tanımlı değil;
-- `calib_id` için uint32 bir kimlik yok.
+```bash
+export SUPABASE_URL=… SUPABASE_ANON_KEY=… ORCHADOS_EMAIL=… ORCHADOS_PASSWORD=…
+uv run orchados-kit from-calibration <kalibrasyon uuid> --hw-rev 1.0 --gnss-link usb --cap pps --dry-run
+sudo -E uv run orchados-kit from-calibration <kalibrasyon uuid> --hw-rev 1.0 --gnss-link usb --cap pps
+```
 
-Bu sorular netleşene kadar manifest elle (JSON) yazılır.
+- **Ne okunur:** `public.calibration` kaydı, saha (`field_staff`) ya da operasyon (`ops`) kullanıcısıyla. Servis anahtarı kullanılmaz, satır bazlı yetki geçerli. Değerler repoya girmez.
+- **Nereden gelir:** `calib_id` kaydın `chip_id`'sinden, pozlar `extrinsics.kit_mount`'tan, seri numarası rig'deki kit cihazından. `caps`, kalibre edilmiş frame'lerden çıkar. `pps` ve `cam360_ctrl` kablolamaya bağlı olduğu için `--cap` ile verilir. Ayrıntılı eşleme: [docs/arayuzler.md](../../docs/arayuzler.md#kit-kimlik-çipi).
+- **Ne reddedilir:** pozu olmayan, süresi dolmuş, rig'inde o sensör olmayan ya da tek bir kit cihazına bağlanamayan kayıt; robotun reddedeceği her manifest.
+- **Çıktı:** Manifest JSON olarak basılır (`--save-manifest` ile dosyaya da). Sonra `write` ile aynı yol izlenir: `--out`, `--dry-run` ya da çipe yazıp geri okuma.
+
+Testler Supabase'i yerel bir sahte HTTP sunucusuyla taklit eder (`tests/test_calibration.py`). Yerel Supabase'e karşı elle denendi: seed rig'ine `kit_mount`'lu bir kayıt eklenip `--dry-run` çalıştırıldı, çıkan imaj robotun `manifest.py`'siyle çözüldü.

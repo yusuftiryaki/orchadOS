@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/theme.dart';
+import '../../core/ui/widgets.dart';
 import '../checklist/precheck_screen.dart';
 import '../session/session_controller.dart';
 import '../sync/sync_status_card.dart';
@@ -137,7 +139,10 @@ class _TaskCard extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(done ? Icons.check_circle : icon, size: 48),
+              IconBadge(
+                icon: done ? Icons.check_circle : icon,
+                color: done ? Brand.ok : null,
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -147,40 +152,62 @@ class _TaskCard extends ConsumerWidget {
                       task.parcelName,
                       style: const TextStyle(
                         fontSize: 22,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       '${task.kind.label} · ${task.season.label}',
-                      style: const TextStyle(fontSize: 18),
-                    ),
-                    Text(detail),
-                    if (task.plannedDate != null || task.assignedToMe)
-                      Text(
-                        [
-                          if (task.plannedDate != null)
-                            _plannedLabel(
-                              task.plannedDate!,
-                              ref.read(clockProvider).now(),
-                            ),
-                          if (task.assignedToMe) 'Size atanmış',
-                        ].join(' · '),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
                       ),
-                    if (done)
-                      const Text(
-                        'Tamamlandı',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      detail,
+                      style: const TextStyle(fontSize: 16, color: Brand.muted),
+                    ),
+                    if (task.plannedDate != null || task.assignedToMe || done)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            if (task.plannedDate != null)
+                              _plannedPill(
+                                task.plannedDate!,
+                                ref.read(clockProvider).now(),
+                              ),
+                            if (task.assignedToMe)
+                              const Pill(
+                                label: 'Size atanmış',
+                                color: Brand.green,
+                              ),
+                            if (done)
+                              const Pill(label: 'Tamamlandı', color: Brand.ok),
+                          ],
+                        ),
                       ),
                   ],
                 ),
               ),
-              if (!done) const Icon(Icons.chevron_right, size: 32),
+              if (!done)
+                const Icon(Icons.chevron_right, size: 32, color: Brand.muted),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+Widget _plannedPill(DateTime day, DateTime now) {
+  final label = _plannedLabel(day, now);
+  final late = label.startsWith('Gecikmiş');
+  return Pill(label: label, color: late ? Brand.bad : Brand.muted);
 }
 
 String _plannedLabel(DateTime day, DateTime now) {
@@ -214,7 +241,8 @@ class _OfflineBanner extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer,
+        color: const Color(0xFFFFF4DC),
+        border: Border.all(color: const Color(0xFFF3D899)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

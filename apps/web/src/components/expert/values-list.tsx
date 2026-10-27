@@ -1,4 +1,5 @@
 import { ruleClass } from "@/lib/expert/class-rule";
+import { DEFAULT_REVIEW_RULES, type ClassRuleConfig } from "@/lib/expert/mandatory-review";
 import { formatValue, type MeasurementValue, type MetricDefinition } from "@/lib/expert/metrics";
 import { categoryLabel, t } from "@/lib/i18n";
 import styles from "./expert.module.css";
@@ -7,9 +8,12 @@ import styles from "./expert.module.css";
 export function ValuesList({
   values,
   metrics,
+  classRule = DEFAULT_REVIEW_RULES.classRule,
 }: {
   values: MeasurementValue[];
   metrics: MetricDefinition[];
+  // The general class rule of the visit's methodology version.
+  classRule?: ClassRuleConfig;
 }) {
   const r = t.expert.review;
   const rows = values
@@ -17,7 +21,7 @@ export function ValuesList({
     .filter((x): x is { v: MeasurementValue; m: MetricDefinition } => x.m != null)
     .sort((a, b) => a.m.name.localeCompare(b.m.name, "tr"));
   if (rows.length === 0) return null;
-  const rule = ruleClass(values, metrics);
+  const rule = ruleClass(values, metrics, classRule);
   return (
     <dl className={styles.list}>
       {rule && (

@@ -542,17 +542,27 @@ Tarama kiti robota (`yusuftiryaki/hoverboard`) bir soket üzerinden takılabilir
 - **Test vektörleri:** Robot reposuyla aynı dosya, `services/kit-chip/tests/vectors/kit_manifest_v1.json`. Değiştirilmeden kopyalanmıştır. Format ya da vektörler değişirse iki repo birlikte değişir.
 - **Şema numarası** sadece artar. Robot bilmediği bir şemayı reddeder.
 
+**`kit_mount` frame'i** robot tarafında tanımlı (`kit-soketi.md`, "Soket — mekanik" ve URDF); aşağıdaki kabuller robot tarafınca doğrulandı (2026-10-27):
+- Robotun montaj plakasının üst yüzeyi: `base_link`'e göre x = 0,11 m, z = 0,1825 m, dönüşsüz.
+- Eksenler `base_link`'inkiyle aynı: x ileri, y sola, z yukarı. Açılar roll, pitch, yaw, radyan.
+
+**Kalibrasyon kaydındaki karşılığı** (`public.calibration`, migration `20261027120000_calibration_kit_mount`):
+
+| Manifest alanı | Kaynak |
+| --- | --- |
+| `calib_id` | `chip_id`: veritabanının verdiği, artan uint32 (1 … 4 294 967 295). Elle seçilemez, değişmez |
+| `frames` | `extrinsics.kit_mount`: `{"kit_gnss": [x, y, z, roll, pitch, yaw], "kit_cam360": [...], "kit_lidar": [...]}`. Veritabanı biçimi denetler (bilinen frame adları, altı sayı) |
+| `serial` | Kaydın rig'indeki `human_kit` cihazının `serial_number`'ı (tek olmalı, en fazla 8 ASCII karakter) |
+| `caps` | Kalibre edilmiş frame'lerden (`kit_gnss` → `gnss_rtk`, `kit_cam360` → `cam360`, `kit_lidar` → `lidar`), artı yazan kişinin verdiği `pps`, `cam360_ctrl` |
+| `hw_rev`, `gnss_link` | Veritabanında yok; yazan kişi verir (`--hw-rev 1.0 --gnss-link usb`) |
+| `kind` | Her zaman `orchados-scan-kit` |
+
+Robot şimdilik çipi her takılışta okuyor; ileride frame'leri `(serial, calib_id)` anahtarıyla önbelleğe alabilir. Bu yüzden `kit_mount` pozları ve `chip_id` kayıt yazıldıktan sonra değiştirilemez (tetikleyici); yeniden kalibrasyon yeni bir kayıttır, yeni bir `chip_id` alır.
+
 **Kalibrasyon → çip akışı:**
-1. Kit kalibre edilir. Sonuç bir `public.calibration` kaydı olur.
-2. Kayıttaki sensör pozları kitin montaj frame'i `kit_mount` içinde ifade edilir; birimler metre ve radyandır.
-3. `orchados-kit`, takılı donanımla (caps) birlikte manifesti üretir, çipe yazar, geri okuyup doğrular.
-4. Robot kayıtlarına çipteki `calib_id`'yi yazar; böylece her kaydın hangi kalibrasyonla yapıldığı izlenir.
-
-**Açık (henüz yapılmadı):** orchadOS'taki kalibrasyon kaydında iki şey tanımlı değil:
-- `kit_mount` frame'i, yani orijini ve eksen yönleri. Bugünkü `extrinsics` alanı serbest JSON; örnek veride `camera_to_antenna_m` var, açılar yok.
-- `calib_id` için uint32 bir kimlik. Kaydın kimliği uuid.
-
-Bu ikisi netleşene kadar manifest elle (JSON) hazırlanır; 2. ve 4. adımlar o zaman otomatikleşir.
+1. Kit kalibre edilir, ölçümler `public.calibration` kaydına girilir ([tarama-kiti.md](tarama-kiti.md#robota-takılan-kit-için-ölçüm)).
+2. `orchados-kit from-calibration <kayıt id> --hw-rev … --gnss-link …` kaydı okur (saha ya da ops kullanıcısıyla, satır bazlı yetki geçerli), manifesti üretir, çipe yazar, geri okuyup doğrular. Süresi dolmuş (`valid_to` geçmiş) ya da pozu olmayan kayıt reddedilir.
+3. Robot kayıtlarına çipteki `calib_id`'yi yazar; `chip_id` üzerinden hangi kalibrasyonla yapıldığı izlenir.
 
 ## Açık noktalar
 

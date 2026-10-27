@@ -52,15 +52,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            const SizedBox(height: 32),
-            const Icon(Icons.park, size: 72),
-            const SizedBox(height: 8),
+            const SizedBox(height: 40),
+            const Center(child: BrandMark(size: 72)),
+            const SizedBox(height: 16),
             Text(
               'orchadOS Saha',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 4),
+            Text(
+              'Bahçe ziyaretleri ve yakın plan çekimleri',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 40),
             TextField(
               key: const Key('login-email'),
               controller: _email,
@@ -90,7 +99,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Text(
                   _error!,
-                  style: TextStyle(color: Colors.red.shade700, fontSize: 18),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 18,
+                  ),
                 ),
               ),
             BigButton(

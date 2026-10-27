@@ -23,7 +23,7 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
     <section className={styles.section} aria-labelledby="boyut-baslik" data-testid="dimensions">
       <h2 id="boyut-baslik">{d.title}</h2>
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.dimensions}`}>
           <tbody>
             <Row label={d.inventory} id="inventory">
               <p>
@@ -102,7 +102,12 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
                   )}
                 </p>
               )}
-              {!care.pruning && !care.harvest && <p className="muted">{d.careNone}</p>}
+              {care.sprouts && (
+                <p>{d.sprouts(care.sprouts.dense, care.sprouts.few, care.sprouts.total)}</p>
+              )}
+              {!care.pruning && !care.harvest && !care.sprouts && (
+                <p className="muted">{d.careNone}</p>
+              )}
             </Row>
             <Row label={d.pests} id="pests">
               {pests ? (

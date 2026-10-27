@@ -43,6 +43,7 @@ AI_WORKER_STATE_DIR=
 | `uv run ai-worker eval --session-id <uuid> [--session-id ...]` | AI önerisini uzman kararıyla karşılaştırır |
 | `uv run ai-worker eval --parcel-id <uuid> [--from-state]` | Parselin bütün ziyaretleri; `--from-state` ile `--no-write` cevapları da |
 | `uv run pytest` | Testler (yerel Supabase yoksa entegrasyon testleri atlanır) |
+| `uv run ai-worker run --session-id <uuid> --config configs/ollama-gemma3.json` | Yerel ücretsiz modelle (aşağıda, "Ücretsiz sağlayıcılar") |
 | `uv run pytest -m live` | İsteğe bağlı gerçek API testi; `ANTHROPIC_API_KEY` gerekir, CI'da koşmaz |
 | `uv run ruff check . && uv run ruff format --check .` | Lint |
 
@@ -73,6 +74,29 @@ Satırların biçimi: [docs/arayuzler.md, "AI ön değerlendirme satırları"](.
 - Aynı istem sürümü ve model kaskadıyla tekrar çalıştırma yeni satır açmaz ve istek göndermez: veritabanında sonucu olan ağaçlar atlanır (başka bir istasyondan çalıştırılsa da); veritabanı fonksiyonu da aynı anahtarla ikinci kez yazmaz.
 - Cevap alınamayan ağaçlar bir sonraki `run`'da yeniden denenir.
 - İstem ya da kaskad değişince (`prompt_version`, `config_key`) yeni satırlar eklenir; eskiler kalır.
+
+## Ücretsiz sağlayıcılar (akışı denemek için)
+
+Anthropic anahtarı olmadan da akış uçtan uca çalışır. `provider.kind = "openai"` olan bir yapılandırma, istekleri OpenAI uyumlu bir sohbet ucuna gönderir (`openai_compat.py`). İstemler ve çıktı şeması aynıdır; cevaplar Messages API biçimine çevrilir, yazma ve `eval` değişmez. Batch yoktur: istekler tek tek gider, cevaplar `<state dir>/openai-results/` altında saklanır, `resume` onları bulur. Fiyat tablosunda olmayan modellerin maliyeti 0 raporlanır.
+
+| Yapılandırma | Ne | Veri nereye gider | Ne zaman |
+| --- | --- | --- | --- |
+| `configs/ollama-gemma3.json` | Yerel [Ollama](https://ollama.com), `gemma3:4b` (görsel destekli, ~3,3 GB) | Makineden çıkmaz | Akış denemesi, gerçek kesitlerle de kullanılabilir |
+| `configs/gemini-free.json` | Google Gemini ücretsiz katmanı, OpenAI uyumlu uç (`GEMINI_API_KEY`) | Google'a; ücretsiz katmanda istekler ürün geliştirmede kullanılabilir | **Sadece test verisi:** `--test-data-only` olmadan çalışmaz |
+
+```bash
+# Yerel Ollama (CPU'da da çalışır; 8 GB RAM'li dizüstünde ağaç başına ~2 dk)
+docker run -d --name orchados-ollama -p 127.0.0.1:11434:11434 -v orchados-ollama:/root/.ollama ollama/ollama
+docker exec orchados-ollama ollama pull gemma3:4b
+uv run ai-worker run --session-id <uuid> --config configs/ollama-gemma3.json --limit 3
+
+# Gemini ücretsiz katmanı, sadece sentetik/test ziyareti
+GEMINI_API_KEY=… uv run ai-worker run --session-id <uuid> --config configs/gemini-free.json --test-data-only
+```
+
+- **Model kalitesi:** Küçük yerel modelin cevapları uzmanla karşılaştırma için değil, akışı (istem → şema → satırlar → uzman paneli) çalıştırmak içindir. Ollama yapılandırmasında ikinci aşama kapalıdır (`"review": null`): aynı küçük modele ikinci kez sormak bir şey katmaz.
+- **Gemini model adları** sık değişir; yapılandırma `gemini-flash-lite-latest` / `gemini-flash-latest` takma adlarını kullanır. Güncel liste: `curl -H "Authorization: Bearer $GEMINI_API_KEY" https://generativelanguage.googleapis.com/v1beta/openai/models`. Ücretsiz katmanın dakika sınırı için istekler arası `request_interval_s` (7 sn) beklenir; 429 ve 5xx cevapları geri çekilerek yeniden denenir.
+- **Kişisel veri kuralı** burada da aynıdır: istekte yalnızca ağaç kodu, mevsim, mozaikler, ölçek tanımları ve evet/hayır cevapları vardır (`tests/test_openai_compat.py` denetler). Gerçek bahçe görüntüleri, istekleri eğitimde kullanmayan sağlayıcıya gider (yerel model ya da ücretli API).
 
 ## İstem
 

@@ -1,0 +1,106 @@
+/* Owner's inventory report (inventory-report.tsx). */
+
+.eyebrow {
+  margin: 0 0 var(--space-1);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.lead {
+  font-size: 17px;
+  margin: 0;
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-2);
+}
+
+.stat {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+
+.statValue {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.statLabel {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.warningList {
+  margin: 0;
+  padding-left: 1.2em;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.columns h3 {
+  font-size: 15px;
+  margin-bottom: var(--space-1);
+}
+
+.compactTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.compactTable th,
+.compactTable td {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-border);
+  text-align: right;
+}
+
+.compactTable th {
+  text-align: left;
+  font-weight: 500;
+}
+
+.slotMap {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.slotMap svg {
+  width: 100%;
+  max-height: 70vh;
+  height: auto;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: 13px;
+}
+
+.legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: -1px;
+}

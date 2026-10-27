@@ -8,14 +8,13 @@ environment:
 
 dependencies:
   camera: ^0.12.1
-  # 7.3.2 needs dbus 0.8, flutter_blue_plus_linux pins bluez < 0.9 (dbus 0.7).
+  # 7.3.2 needs dbus 0.8; held at 7.3.1 since the BLE swap (check before bumping).
   connectivity_plus: ^7.3.1
   crypto: ^3.0.7
   drift: ^2.35.2
   drift_flutter: ^0.3.1
   flutter:
     sdk: flutter
-  flutter_blue_plus: ^2.3.14
   flutter_riverpod: ^3.4.3
   http: ^1.6.0
   image: ^4.12.0
@@ -31,6 +30,7 @@ dependencies:
   qr_flutter: ^4.1.0
   supabase_flutter: ^2.18.3
   uuid: ^4.6.0
+  universal_ble: ^3.1.2
 
 dev_dependencies:
   flutter_test:

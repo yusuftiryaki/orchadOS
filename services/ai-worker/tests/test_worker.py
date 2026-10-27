@@ -70,7 +70,7 @@ def test_submit_results_write(tmp_path):
 
     # Row contents: method version is the prompt version; evidence = the 4 crops.
     assert s12["p_methodology_version"] == "methodology-v0"
-    assert s12["p_detail"]["prompt_version"] == "ai-v0.1/methodology-v0"
+    assert s12["p_detail"]["prompt_version"] == "ai-v0.2/methodology-v0"
     assert s12["p_detail"]["config_key"] == f"{HAIKU}>{SONNET}"
     assert len(s12["p_evidence_asset_ids"]) == 4
     assert s12["p_notes"] == "Ağaç sağlıklı görünüyor."
@@ -213,7 +213,7 @@ def test_spring_visit_uses_spring_scales(tmp_path):
     assert "crown_density_scale" in schema["properties"]["values"]["properties"]
     (row,) = cat.saved
     # pest_sign_type was null: not written.
-    assert len(row["p_measurements"]) == 5
+    assert len(row["p_measurements"]) == 8
 
 
 def test_hard_stage(tmp_path):

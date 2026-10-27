@@ -47,7 +47,7 @@ erDiagram
 | Parcel | Sahibin kullandığı bahçe bölümü; tapu referansı opsiyonel |
 | Boundary | Poligon, kaynak, sürüm, sahip onayı |
 | Slot (yer) | Kod (S5-12, S5-12a), konum, sıra, pozisyon |
-| Tree | Kalıcı kimlik, bağlı olduğu yer, cinsiyet, aşı, çeşit, ilk görülme, durum |
+| Tree | Kalıcı kimlik, bağlı olduğu yer, cinsiyet, aşı, gövde yapısı (tek/çok gövdeli), çeşit, ilk görülme, durum |
 | Zone | Ağaç dışı alanlar: hücre, geçilmez bölge, giriş noktası, sulama hattı |
 
 `Tree` kimliği hiç değişmez. Ağaç kurursa durumu değişir; yerine yeni ağaç dikilirse aynı yere yeni bir `Tree` kaydı bağlanır.
@@ -60,7 +60,7 @@ erDiagram
 | Device | Üretici, model, seri no, yazılım sürümü; insan kiti ya da robot |
 | Sensor | Bir cihaza bağlı sensör: 360° kamera, LiDAR, GNSS, termal, telefon kamerası |
 | Rig | Bir oturumda birlikte kullanılan sensörlerin düzeni |
-| Calibration | Sensörlerin iç parametreleri ve birbirlerine göre konumları; geçerlilik tarihleri |
+| Calibration | Sensörlerin iç parametreleri ve birbirlerine göre konumları; geçerlilik tarihleri. Kit robota takılacaksa `extrinsics.kit_mount` sensör pozlarını robotun `kit_mount` frame'inde tutar; `chip_id` kitin kimlik çipine yazılan numaradır. İkisi de yazıldıktan sonra değişmez, yeniden kalibrasyon yeni kayıttır ([arayuzler.md](arayuzler.md#kit-kimlik-çipi)) |
 | Capture | Ham kayıt: dosya, zaman aralığı, rig, kalibrasyon sürümü (video, MCAP, GNSS ham, fotoğraf) |
 
 ### 3. Ürün: ham veriden ne ürettik

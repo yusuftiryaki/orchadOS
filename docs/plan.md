@@ -82,7 +82,7 @@ gantt
 | Operasyon ekranları | Tamam (PR #19) | `/operasyon`: pano, sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma, ziyaret planlama |
 | Envanter onayı | Tamam (PR #18) | Doğrulama listesi veritabanında (`verification_item`), ofiste ağaç özellikleri, altyapı ve saha sınırı; uzmanın envanter onayı; sahibin sınır onayı. Saha tarafı açık |
 | İP6 v0.3 | Tamam (PR #21) | Doğrulama turu ekranı, sahada sınır köşesi, kapsama haritası, test projesine bağlı APK (`docs/gorevler/ip6-envanter-saha.md`) |
-| İP9 | v0.1 tamam (PR #23) | `ai-worker`: Haiku triaj → Sonnet, Batch API, önbellekli istem, mozaik, `eval`; kişisel veri ve yakın plan fotoğrafı gönderilmez. Gerçek API ile ilk deneme ve eşik kalibrasyonu açık |
+| İP9 | v0.1 tamam (PR #23) | `ai-worker`: Haiku triaj → Sonnet, Batch API, önbellekli istem, mozaik, `eval`; kişisel veri ve yakın plan fotoğrafı gönderilmez. Ücretsiz sağlayıcılar (PR #43): yerel Ollama ile uçtan uca denendi. Gerçek Claude API ile ilk deneme ve eşik kalibrasyonu açık |
 | Pilot ortamı | Kuruldu (22 Ekim) | Supabase `orchados-pilot` (Frankfurt, Free): 29 migration, Edge Function'lar, giriş/telefon kancası, bildirim kuyruğu (mesajlar kaydediliyor). Vercel `orchados-pilot` (`release`, Frankfurt, koruma açık): https://orchados-pilot-orchad-os.vercel.app. İşletme: OBA Bilişim Teknolojileri LTD.; ilk operasyon kullanıcısı açıldı. Açık: Vercel Pro, medya deposu (Supabase Pro), alan adı, Netgsm |
 | Kapsama ve ağaç kontrolü | Tamam (PR #32) | Kapsama raporu, eşik altında otomatik ek ziyaret isteği, ağaç var/yok (`tree_visible`), envanter onayında kapsama kapısı |
 | Bulutta işleme | Tamam (PR #29) | Sağlayıcıdan bağımsız: `orchados-ingest` (S3 uyumlu: AWS/R2/GCS/MinIO; Azure Blob; yerel), işlem container'ı (`ghcr.io/yusuftiryaki/orchados-processing`), AWS/Azure/GCP makine betikleri, `docs/bulut-isleme.md`. Sağlayıcı seçimi ve hesap açık |
@@ -94,11 +94,13 @@ gantt
 **Sıradaki işler (26 Ekim 2026; çalışma artık yerel makinede, ağır doğrulama CI'da)**
 
 1. ✅ Toparlama: PR #32 sonrası `main` CI yeşil, test projesi güncel.
-2. ✅ **Kit kimlik çipi** (PR #33) (robotla bağlantı; sözleşme `hoverboard/docs/kit-soketi.md`, şema 1): `services/kit-chip/` kodlayıcı, çözücü, ortak test vektörleri, çipe yazma aracı. Açık: kalibrasyon kaydından manifest üretimi; `kit_mount` frame'i ve `calib_id` tanımı bekliyor.
+2. ✅ **Kit kimlik çipi** (PR #33) (robotla bağlantı; sözleşme `hoverboard/docs/kit-soketi.md`, şema 1): `services/kit-chip/` kodlayıcı, çözücü, ortak test vektörleri, çipe yazma aracı. Kalibrasyon kaydından manifest (`orchados-kit from-calibration`, `calibration.chip_id` + `extrinsics.kit_mount`) PR #39. Açık: kit yapılınca gerçek ölçümler ve gerçek DS2431'e ilk yazma.
 3. ✅ **Insta360 SDK** (PR #34) (Camera SDK 2.1.8, Media SDK 3.1.5, InsMetaData SDK 2.0.2 geldi; repoya girmez, yerelde `~/.orchados/sdk/insta360/`). Plan: `docs/gorevler/insta360-sdk.md`. İşleme hattı `.insv`'yi doğrudan alıyor, sadece seçilen kareleri `MediaSDKTest` ile birleştiriyor; meta veri aracı (`native/ins_meta_dump`) SDK'ya karşı derlendi. Sahte SDK ile test edildi; doğrulama için gerçek bir `.insv` deneme çekimi gerekiyor. Jiroskopla ince zaman eşleme sonraki iş.
 4. ✅ **Saha uygulaması** (PR #35): yakın plan listesinin sunucudan inmesi (`closeup_list`), "Sorun gördüm", sesli not, hava ve ekipman kaydı (ziyaret kaydı). Yazıldı; sesli not telefonda denenmedi.
-5. **Pilota ilk sürüm:** `main` → `release` PR'ı.
-6. **Bakım:** Test temizliği yeni tabloları sütun adından kendiliğinden kapsıyor (`supabase/testing/purge.sql`). Tarayıcı testlerinde CI'da bir tekrar ve 60 sn süre (kırılgan iki test).
+5. ✅ **Pilota ilk sürüm** (PR #36, 27 Ekim): 37 migration ve Edge Function'lar pilot projesinde, `orchados-pilot` yayında.
+6. ✅ **Bakım** (PR #37, #38): Test temizliği yeni tabloları sütun adından kendiliğinden kapsıyor (`supabase/testing/purge.sql`). Tarayıcı testlerinde CI'da bir tekrar ve 60 sn süre; toplu onay testindeki asıl hata (rastgele örneklemde incelenmiş ağaca karar) düzeltildi.
+
+7. ✅ **27 Ekim işleri:** BLE paketi `universal_ble` (PR #41); dip sürgünü, kuruma deseni, gövde yapısı (PR #42); ücretsiz AI sağlayıcıları: yerel Ollama `gemma3:4b` ile uçtan uca denendi, Gemini ücretsiz katmanı yalnız test verisi (PR #43); envanter raporu ve sunucuda PDF (PR #44); web ve saha arayüzlerinde tasarım yenilemesi (PR #45, #46); **metodoloji v0.1**: uzman ajan kararları (PR #47, `docs/uzman-ajan-onerileri.md`; pilot uzmanın onayını bekliyor).
 
 **Açık işler**
 
@@ -106,7 +108,7 @@ gantt
 - [x] **Etiketli veri:** *(PR #15)* Ofis aracındaki gövde tıklamaları (gövde tespit modeli için etiket) şimdilik tarayıcıda; veritabanında saklanmalı.
 - [x] **Web:** Ağaç rengi uzman ve ofis tarafında da *(PR #15)* `tree_latest_assessment` görünümüne bağlanmalı (portalda yapıldı).
 - [x] **Web:** Medya imzalama iki yerde *(PR #15)*: `src/lib/media/` (portal) ve `src/lib/expert/media.ts`. Uzman paneli ortak yardımcıya geçmeli; `fetchAll` kopyası da birleştirilmeli.
-- [ ] **Testler:** Ekleme-yalnız tablolar yüzünden web testleri kendi işletmelerini kurup `docker exec ... psql` ile temizliyor. Testler için bir temizlik fonksiyonu daha temiz olur.
+- [x] *(PR #30, #37)* **Testler:** Ekleme-yalnız tablolar yüzünden web testleri kendi işletmelerini kurup `docker exec ... psql` ile temizliyor. Testler için bir temizlik fonksiyonu daha temiz olur.
 - [x] *(PR #16)* **Örnek veri:** `supabase/demo/scans.sql` `pose` alanları `docs/arayuzler.md`'deki sözleşmeye tam uymuyor (`variant`, `gps_time_ns`, `panorama_asset_id` eksik; MIME türü WebP olmalı).
 - [x] **Karar (21 Ekim): yüz bulanıklaştırma üründen kaldırıldı.** Ertelenmiş bir iş değil; panoramalar ve kesitler bu şart olmadan yüklenir, kesitler AI'a gönderilir. Görüntülerde kişiler görünebileceği aydınlatma metninde belirtilir.
 - [x] **Karar (20 Ekim):** Yayından sonra sadece uzman ölçümleri kilitli; saha personelinin geç gelen kayıtları serbest.
@@ -116,7 +118,7 @@ gantt
 - [x] *(PR #22)* **İşleme hattı:** Sınır köşelerinden `boundary` sürümü; firmware 0.3.0 durum mesajında konum.
 - [x] *(PR #26)* **Saha uygulaması:** Firmware 0.3.0 konum geçerli bayrağı (bit6) kontrol ediliyor.
 - [x] *(PR #19)* **Operasyon ekranları:** Sahip/parsel kaydı, portal hesabı (`invite-user` Edge Function), ziyaret planlama ve pano.
-- [ ] **Lisans:** `flutter_blue_plus` ticari kullanımda ücretli. Öneri (PR #20): BSD lisanslı `universal_ble`'ye geçiş; değişiklik tek sınıfta (~1 gün), gerçek kaydediciyle denenerek ticari kullanımdan önce.
+- [x] *(PR #41)* **Lisans:** `flutter_blue_plus` (ticari kullanımda ücretli) yerine BSD lisanslı `universal_ble`. Gerçek kaydediciyle telefonda denenmesi kit gelince.
 - [x] *(PR #20, `permission_handler` 12'ye sabitlendi)* **Saha uygulaması:** `flutter build apk` CI'da kırık: `permission_handler_android` `compileSdk` 37 istiyor (İP6 senkronizasyon görevinde).
 
 Toplam yaklaşık 55 gün (İP9 hariç).
@@ -137,7 +139,7 @@ Bunlar takvimi bekletebilecek, başkasına bağlı işler. İlk iki hafta içind
 
 Sıra, ilk kesilecekten sona doğru:
 
-1. **Portalda PDF rapor:** Kış raporu portaldan gösterilir, PDF ilkbahara kalır (~1 gün).
+1. ~~**Portalda PDF rapor**~~ (yapıldı, PR #44): karne ve envanter raporu sunucuda PDF.
 2. **Gezide ağaç işaretçileri:** Panoramalar işaretçisiz gezilir, ağaç karnesine haritadan gidilir (~2 gün).
 3. **Telefon doğrulamasıyla giriş:** Pilot sahiplere kişiye özel link gönderilir (~1 gün).
 4. **Saha uygulamasında kapsama haritası:** Kapsama ofiste işleme sonrası kontrol edilir (~1,5 gün).

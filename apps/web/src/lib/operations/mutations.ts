@@ -3,6 +3,7 @@ import type { Position } from "@/lib/map/geo";
 import { isUuid } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
 import type { DetailInput, OwnerInput, ParcelInput, VisitInput } from "./validation";
+import { CURRENT_METHODOLOGY_VERSION } from "@/lib/methodology";
 
 // Writes of the operations screens, as the signed-in user: row level security,
 // the visit planning trigger and the ops_* functions decide what is allowed.
@@ -323,6 +324,8 @@ export async function planVisit(
       planned_date: visit.plannedDate,
       lead_user_id: visit.leadUserId,
       notes: visit.notes,
+      // New visits follow the current methodology; existing ones keep theirs.
+      methodology_version: CURRENT_METHODOLOGY_VERSION,
     })
     .select("id")
     .single();

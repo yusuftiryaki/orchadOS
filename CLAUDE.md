@@ -70,7 +70,7 @@ BLE protokolü, dosya biçimleri ve bağlantı tablosu: `firmware/gnss-logger/RE
 Aşamalar, girdi/çıktı biçimleri ve QR saat kodu biçimi: `services/pipeline/README.md`.
 
 ### AI worker (`services/ai-worker/`)
-Kurulum ve komutlar: `services/ai-worker/README.md` (`uv sync`, `uv run pytest`, `ai-worker run --session-id <uuid>`, `ai-worker eval`). `ANTHROPIC_API_KEY` ortam değişkeninden; testlerde gerçek API çağrısı yok.
+Kurulum ve komutlar: `services/ai-worker/README.md` (`uv sync`, `uv run pytest`, `ai-worker run --session-id <uuid>`, `ai-worker eval`). `ANTHROPIC_API_KEY` ortam değişkeninden; testlerde gerçek API çağrısı yok. Anahtarsız deneme: `--config configs/ollama-gemma3.json` (yerel Ollama, veri makineden çıkmaz) ya da `configs/gemini-free.json` (yalnız test verisi, `--test-data-only`).
 
 ### Yükleme aracı (`services/ingest/`) ve bulutta işleme
 | Komut | Ne yapar |
@@ -81,6 +81,15 @@ Kurulum ve komutlar: `services/ai-worker/README.md` (`uv sync`, `uv run pytest`,
 | `uv run orchados-ingest verify\|list\|prune --older-than 30d` | Doğrulama, liste, 30 günlük saklama |
 
 Depo seçimi `ORCHADOS_STORE_*` ya da `~/.config/orchados/ingest.toml` (s3: AWS/R2/GCS/MinIO, azure, local); kimlik bilgileri sağlayıcının standart yolundan. İşlem container'ı ve makine betikleri: `deploy/processing/`; adım adım işletim: `docs/bulut-isleme.md`.
+
+### Kit kimlik çipi (`services/kit-chip/`)
+| Komut | Ne yapar |
+| --- | --- |
+| `uv sync` / `uv run pytest` | Bağımlılıklar / testler (robotla ortak test vektörleri, sahte sysfs, sahte Supabase) |
+| `uv run orchados-kit write <manifest.json> [--out kit.bin \| --dry-run]` | Manifesti kodlar, tek DS2431'e yazar ve geri okuyup doğrular |
+| `uv run orchados-kit from-calibration <uuid> --hw-rev 1.0 --gnss-link usb` | Manifesti `public.calibration` kaydından üretir (`chip_id`, `extrinsics.kit_mount`) |
+
+Sözleşme robot reposunda (`hoverboard/docs/kit-soketi.md`, şema 1); test vektörleri tek taraflı değiştirilmez.
 
 ### Web uygulaması (`apps/web/`)
 Kökte `pnpm install`. Entegrasyon testleri için yerel Supabase çalışıyor ve sıfırlanmış olmalı (`pnpm db:start && pnpm db:reset`).

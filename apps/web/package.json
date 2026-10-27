@@ -21,6 +21,7 @@
   "dependencies": {
     "@photo-sphere-viewer/core": "5.15.1",
     "@photo-sphere-viewer/markers-plugin": "5.15.1",
+    "@react-pdf/renderer": "4.9.0",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.118.0",
     "maplibre-gl": "6.15.0",

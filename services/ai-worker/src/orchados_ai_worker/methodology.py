@@ -25,7 +25,16 @@ HEALTH_CLASSES: tuple[HealthClass, ...] = ("healthy", "attention", "problem", "d
 # (session.methodology_version); a visit without one uses the default, as the
 # expert panel does (apps/web, DEFAULT_METHODOLOGY_VERSION).
 DEFAULT_METHODOLOGY_VERSION = "methodology-v0"
-SUPPORTED_METHODOLOGY_VERSIONS = ("methodology-v0",)
+SUPPORTED_METHODOLOGY_VERSIONS = ("methodology-v0", "methodology-v0.1")
+
+# How far pest signs raise the general class, per methodology version (same as
+# apps/web/src/lib/expert/mandatory-review.ts, classRule): 0 not at all,
+# 1 attention, 2 problem. v0.1 (expert agent decision, awaiting the pilot
+# expert): mild signs no longer change the class, marked ones mean attention.
+PEST_CLASS_LEVELS: dict[str, tuple[int, int]] = {
+    "methodology-v0": (1, 2),
+    "methodology-v0.1": (0, 1),
+}
 
 # Visit calendar (docs/MVP.md, Modül 3), same rule as apps/web/src/lib/expert/season.ts:
 # March counts as spring, November as winter. Month in UTC.
@@ -75,14 +84,14 @@ SCALE_TEXTS: dict[str, ScaleText] = {
         "Cut stubs left by pruning are not dead branches.",
     ),
     "trunk_base_scale": ScaleText(
-        "Trunk and base (wounds, cavities, bark loss, gummosis, root suckers)",
+        "Trunk and base (wounds, cavities, bark loss, gummosis, root collar); root suckers are "
+        "basal_sprout_level",
         (
             ("0", "sound trunk, clean base"),
-            ("1", "small wound or a few root suckers"),
+            ("1", "small wound"),
             (
                 "2",
-                "wound or cavity on less than a quarter of the trunk circumference; dense root "
-                "suckers; gummosis",
+                "wound or cavity on less than a quarter of the trunk circumference; gummosis",
             ),
             (
                 "3",
@@ -152,6 +161,45 @@ SCALE_TEXTS: dict[str, ScaleText] = {
             ("3", "loaded: clusters on most branches"),
         ),
     ),
+    "basal_sprout_level": ScaleText(
+        "Basal sprouts: thin shoots from the trunk base or the roots (care; does not affect the "
+        "overall class)",
+        (
+            ("none", "no thin shoots at the base or on the ground under the crown"),
+            ("few", "1-5 thin shoots (pencil thick or thinner), below knee height"),
+            (
+                "dense",
+                "more than 5 shoots, a cluster around the base, or shoots above waist height or "
+                "wrist thick",
+            ),
+        ),
+        "The base is often hidden by grass or the angle; then give no value. Leafless winter "
+        "shoots are hard to see in panorama crops.",
+    ),
+    "dieback_pattern": ScaleText(
+        "Dieback pattern: how the dead wood is spread over the crown (the amount is "
+        "dead_branch_scale)",
+        (
+            ("none", "no dead wood, or scattered without a pattern"),
+            ("tip_dieback", "many branches dead at the tips, dying back; branch bases alive"),
+            ("one_sided", "one side of the crown or one main branch entirely dead, the rest alive"),
+            ("top_down", "the upper crown dead or sparse, the lower crown alive"),
+            (
+                "top_dead_base_alive",
+                "the grafted crown and upper trunk dead, live shoots from the base",
+            ),
+        ),
+        "Give it only together with dead_branch_scale; if dead_branch_scale is 0 the pattern is "
+        "none. one_sided and top_down raise the overall class to at least attention.",
+    ),
+    "dried_leaves_attached": ScaleText(
+        "Dried brown leaves still hanging on the branches (sudden wilting)",
+        (
+            ("true", "dried brown leaves hang on branches instead of falling"),
+            ("false", "no hanging dried leaves"),
+        ),
+        "Only in the leafy period. true raises the overall class to at least problem.",
+    ),
     "harvest_complete": ScaleText(
         "Harvest of the tree is complete",
         (("true", "no clusters left on the tree"), ("false", "clusters still on the tree")),
@@ -171,6 +219,11 @@ CLASS_SCALES = (
     "frost_damage_scale",
 )
 
+# Metrics the AI is not asked about in a season although the registry allows
+# them: in winter the dieback pattern needs close-up evidence, so only the expert
+# enters it (docs/metodoloji.md, section 4.10).
+AI_SKIP_IN_SEASON: dict[str, tuple[Season, ...]] = {"dieback_pattern": ("winter",)}
+
 # Field staff yes/no questions (supabase/migrations/20261021230000_field_sync.sql).
 # Only the code and the answer go into a request; this gloss is ours, so the
 # question wording shown to staff never does.
@@ -189,19 +242,27 @@ STAFF_QUESTIONS: dict[str, str] = {
 }
 
 
-def expected_class(values: dict[str, object]) -> HealthClass | None:
-    """Overall class from scale values by rules 3-5 (section 5); None if no class scale is set.
+def expected_class(
+    values: dict[str, object], methodology_version: str = DEFAULT_METHODOLOGY_VERSION
+) -> HealthClass | None:
+    """Overall class from scale values by rules 3-5 (section 5); None if nothing to judge by.
+
+    The dieback pattern and hanging dried leaves raise the class (section 4.10).
 
     Rules 1 (absent) and 2 (dead) need the images, not the scales; the model decides
     those. Used to check that a suggestion is consistent with its own scales.
     """
     scales = [values.get(code) for code in CLASS_SCALES]
-    given = [v for v in scales if isinstance(v, int)]
+    given = [v for v in scales if isinstance(v, int) and not isinstance(v, bool)]
     pest = values.get("pest_sign_severity")
-    if not given and pest is None:
+    pattern = values.get("dieback_pattern")
+    leaves = values.get("dried_leaves_attached")
+    if not given and pest is None and pattern is None and leaves is None:
         return None
-    if any(v == 3 for v in given) or pest == "marked":
+    mild, marked = PEST_CLASS_LEVELS.get(methodology_version, PEST_CLASS_LEVELS["methodology-v0"])
+    pest_level = marked if pest == "marked" else mild if pest == "mild" else 0
+    if any(v == 3 for v in given) or pest_level == 2 or leaves is True:
         return "problem"
-    if any(v == 2 for v in given) or pest == "mild":
+    if any(v == 2 for v in given) or pest_level == 1 or pattern in ("one_sided", "top_down"):
         return "attention"
     return "healthy"

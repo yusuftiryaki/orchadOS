@@ -48,6 +48,7 @@ export interface TreeInfo {
   sex: Enums["tree_sex"];
   graft: Enums["graft_status"];
   ageClass: Enums["age_class"];
+  stemForm: Enums["stem_form"];
   cultivar: string | null;
   status: Enums["tree_status"];
   firstSeenAt: string | null;
@@ -100,7 +101,7 @@ export async function getParcelMap(
       supabase
         .from("slot")
         .select(
-          "id, code, kind, position::json, tree(id, sex, graft, age_class, cultivar, status, first_seen_at)",
+          "id, code, kind, position::json, tree(id, sex, graft, age_class, stem_form, cultivar, status, first_seen_at)",
         )
         .eq("parcel_id", parcelId)
         .order("row_no")
@@ -132,6 +133,7 @@ export async function getParcelMap(
         sex: tree.sex,
         graft: tree.graft,
         ageClass: tree.age_class,
+        stemForm: tree.stem_form,
         cultivar: tree.cultivar,
         status: tree.status,
         firstSeenAt: tree.first_seen_at,

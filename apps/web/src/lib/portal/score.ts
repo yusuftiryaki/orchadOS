@@ -21,8 +21,18 @@ const METHODOLOGY_V0: ScoreRules = {
   coverageDirections: 2,
 };
 
+// Expert agent decision of 27 October 2026 (docs/uzman-ajan-onerileri.md),
+// awaiting the pilot expert: "attention" means care is advised this season and
+// is mostly reversible, so it weighs 70.
+const METHODOLOGY_V0_1: ScoreRules = {
+  methodologyVersion: "methodology-v0.1",
+  weights: { healthy: 100, attention: 70, problem: 25, dead: 0, absent: 0 },
+  coverageDirections: 2,
+};
+
 export const SCORE_RULES: Record<string, ScoreRules> = {
   [METHODOLOGY_V0.methodologyVersion]: METHODOLOGY_V0,
+  [METHODOLOGY_V0_1.methodologyVersion]: METHODOLOGY_V0_1,
 };
 export const DEFAULT_SCORE_RULES = METHODOLOGY_V0;
 

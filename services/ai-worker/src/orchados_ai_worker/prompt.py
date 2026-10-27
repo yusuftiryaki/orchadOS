@@ -22,6 +22,7 @@ from typing import Any
 from .config import StageConfig
 from .methodology import (
     DEFAULT_METHODOLOGY_VERSION,
+    PEST_CLASS_LEVELS,
     SCALE_TEXTS,
     STAFF_QUESTIONS,
     SUPPORTED_METHODOLOGY_VERSIONS,
@@ -31,7 +32,7 @@ from .schema import FLAGS, MetricDef, output_schema
 
 # Bump on any change to the texts below, to methodology.SCALE_TEXTS or to the
 # output schema. Stored with every AI row (prompt_version).
-PROMPT_REVISION = "v0.1"
+PROMPT_REVISION = "v0.2"
 
 
 def prompt_version(methodology_version: str | None) -> str:
@@ -84,6 +85,25 @@ def _metric_block(m: MetricDef) -> str:
     return "\n".join(lines)
 
 
+def _class_rules(methodology_version: str) -> str:
+    """Rules 3 and 4 of the general class; pest signs weigh as the version says."""
+    mild, marked = PEST_CLASS_LEVELS.get(methodology_version, PEST_CLASS_LEVELS["methodology-v0"])
+    problem = ["any 0-3 scale above is 3"]
+    attention = ["any 0-3 scale above is 2"]
+    for level, name in ((marked, "marked"), (mild, "mild")):
+        if level == 2:
+            problem.append(f"pest signs are {name}")
+        elif level == 1:
+            attention.append(f"pest signs are {name}")
+    problem.append("dried leaves hang on the branches")
+    attention.append("the dieback pattern is one_sided or top_down")
+    note = "\nMild pest signs do not change the class." if mild == 0 else ""
+    return (
+        f"3. problem: {', '.join(problem[:-1])}, or {problem[-1]}.\n"
+        f"4. attention: {', '.join(attention[:-1])}, or {attention[-1]}.{note}"
+    )
+
+
 def system_prompt(season: Season, metrics: list[MetricDef], methodology_version: str) -> str:
     """The cached prefix. Same for every tree of a season and methodology version."""
     scales = "\n\n".join(_metric_block(m) for m in metrics)
@@ -125,12 +145,12 @@ Common rule for 0-3 scales: 0 no sign, 1 mild (no care needed or routine care), 
 ## Overall class
 Apply the rules from the top; the first that holds wins.
 1. absent: no tree at the position (the expert confirms this from two directions).
-2. dead: in the leafy period no live shoots or leaves (not in winter, see the season note).
-3. problem: any 0-3 scale above is 3, or pest signs are marked.
-4. attention: any 0-3 scale above is 2, or pest signs are mild.
+2. dead: in the leafy period no live shoots or leaves on the grafted crown and trunk; shoots \
+from the base or the rootstock do not count (not in winter, see the season note).
+{_class_rules(methodology_version)}
 5. healthy: all other cases.
-Pruning, fruit load, harvest and broken branch do not affect the class. If no scale can be \
-judged (for example the images do not show the tree), give no class (null).
+Pruning, fruit load, basal sprouts, harvest and broken branch do not affect the class. \
+If no scale can be judged (for example the images do not show the tree), give no class (null).
 
 ## Field staff answers
 Field staff may have answered yes/no questions at the tree. They are given by code:

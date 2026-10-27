@@ -6,6 +6,7 @@ const tree = (id: string, status: "active" | "lost" = "active") => ({
   sex: "female" as const,
   graft: "grafted" as const,
   ageClass: "productive" as const,
+  stemForm: "single" as const,
   cultivar: "Kırmızı",
   status,
   firstSeenAt: "2026-10-10T07:00:00+00:00",

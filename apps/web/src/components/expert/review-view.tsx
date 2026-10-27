@@ -244,7 +244,13 @@ export function ReviewView({
                 ) : (
                   <p className="muted">{r.noAi}</p>
                 )}
-                {detail.ai && <ValuesList values={detail.ai.values} metrics={ctx.allMetrics} />}
+                {detail.ai && (
+                  <ValuesList
+                    values={detail.ai.values}
+                    metrics={ctx.allMetrics}
+                    classRule={ctx.rules.classRule}
+                  />
+                )}
               </section>
               <section className={styles.panel} data-testid="previous-expert">
                 <h3>{r.previousExpert}</h3>
@@ -253,7 +259,11 @@ export function ReviewView({
                     <p>
                       <ClassBadge value={detail.previousExpert.overallClass} />
                     </p>
-                    <ValuesList values={detail.previousExpert.values} metrics={ctx.allMetrics} />
+                    <ValuesList
+                      values={detail.previousExpert.values}
+                      metrics={ctx.allMetrics}
+                      classRule={ctx.rules.classRule}
+                    />
                     {detail.previousExpert.notes && (
                       <p className="muted">{detail.previousExpert.notes}</p>
                     )}
