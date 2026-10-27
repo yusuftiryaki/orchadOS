@@ -22,4 +22,5 @@ Gaziantep'teki Antep fıstığı bahçe sahipleri için bağımsız, kanıta day
 - [Teknik mimari ve maliyet fizibilitesi](docs/teknik-mimari.md): Ölçeklenebilir mimari, veri hacmi, depolama, veritabanı, işlem gücü, LLM maliyeti, KVKK.
 - [Hedef veri modeli](docs/veri-modeli.md): Sensörden bağımsız model; konu, toplama, ürün ve bulgu katmanları, metrik kaydı, MVP'den geçiş.
 - [Tarama kiti](docs/tarama-kiti.md): RTK + 360° kamera + LiDAR + Raspberry Pi 5 kitinin bileşenleri, montajı, zaman senkronizasyonu, sahadan merkeze iş akışı ve maliyeti.
+- [Müşteri edinme ve yönetimi (İP12)](docs/musteri-yonetimi.md): Tanıtım sitesi, self-servis kayıt, başvuru → teklif → ödeme (iyzico, havale), müşteri portalı ve back office tasarımı.
 - [Uzun vadeli vizyon](docs/vizyon.md): Robotik saha operasyonu, ML değerlendirme, detaylı ağaç ölçümleri, birleşik tarama kiti (RTK + 360° + LiDAR), çok üreticili robot filosu.
