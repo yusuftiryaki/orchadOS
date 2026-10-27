@@ -157,7 +157,7 @@ def test_ai_rows_are_written(visit):
     d12 = next(d for d in details if d["tree_id"] == trees["S1-2"])
     assert d12["models"] == [HAIKU, SONNET] and d12["final_model"] == SONNET
     assert "class_problem" in d12["review_reasons"]
-    assert d12["prompt_version"] == "ai-v0.1/methodology-v0"
+    assert d12["prompt_version"] == "ai-v0.2/methodology-v0"
     assert float(d12["cost_usd"]) > 0 and d12["batch_ids"] == ["msgbatch_001", "msgbatch_002"]
 
     ms = ops.select(
@@ -169,9 +169,9 @@ def test_ai_rows_are_written(visit):
             "value_category,measurement_evidence(asset_id)",
         },
     )
-    assert len(ms) == 9  # three winter scales per tree
+    assert len(ms) == 12  # four winter metrics per tree
     assert {(m["method"], m["method_version"]) for m in ms} == {
-        ("ai_preassessment", "ai-v0.1/methodology-v0")
+        ("ai_preassessment", "ai-v0.2/methodology-v0")
     }
     assert all(len(m["measurement_evidence"]) == 4 for m in ms)
 

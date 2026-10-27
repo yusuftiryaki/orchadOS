@@ -19,6 +19,7 @@ export interface WorkspaceTree {
   sex: Enums["tree_sex"];
   graft: Enums["graft_status"];
   ageClass: Enums["age_class"];
+  stemForm: Enums["stem_form"];
   cultivar: string | null;
 }
 
@@ -123,7 +124,7 @@ function sessionTime(s: {
 }
 
 const SLOT_COLUMNS =
-  "id, code, row_no, position_no, suffix, kind, position::json, position_uncertainty_m, tree(id, sex, graft, age_class, cultivar, status)";
+  "id, code, row_no, position_no, suffix, kind, position::json, position_uncertainty_m, tree(id, sex, graft, age_class, stem_form, cultivar, status)";
 
 // Null when the parcel does not exist or the user may not see it.
 export async function loadInventoryWorkspace(
@@ -216,6 +217,7 @@ export async function loadInventoryWorkspace(
             sex: tree.sex,
             graft: tree.graft,
             ageClass: tree.age_class,
+            stemForm: tree.stem_form,
             cultivar: tree.cultivar,
           }
         : null,

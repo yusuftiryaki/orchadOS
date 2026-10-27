@@ -2040,6 +2040,7 @@ export type Database = {
           sex: Database["public"]["Enums"]["tree_sex"];
           slot_id: string;
           status: Database["public"]["Enums"]["tree_status"];
+          stem_form: Database["public"]["Enums"]["stem_form"];
         };
         ComputedFields: never;
         Insert: {
@@ -2056,6 +2057,7 @@ export type Database = {
           sex?: Database["public"]["Enums"]["tree_sex"];
           slot_id: string;
           status?: Database["public"]["Enums"]["tree_status"];
+          stem_form?: Database["public"]["Enums"]["stem_form"];
         };
         Update: {
           age_class?: Database["public"]["Enums"]["age_class"];
@@ -2071,6 +2073,7 @@ export type Database = {
           sex?: Database["public"]["Enums"]["tree_sex"];
           slot_id?: string;
           status?: Database["public"]["Enums"]["tree_status"];
+          stem_form?: Database["public"]["Enums"]["stem_form"];
         };
         Relationships: [
           {
@@ -3068,6 +3071,7 @@ export type Database = {
       session_status:
         "planned" | "captured" | "processed" | "in_review" | "published" | "cancelled";
       slot_kind: "row" | "interstitial";
+      stem_form: "single" | "multi" | "unknown";
       tree_sex: "female" | "male" | "unknown";
       tree_status: "active" | "lost";
       verification_reason:
@@ -3266,6 +3270,7 @@ export const Constants = {
       ],
       session_status: ["planned", "captured", "processed", "in_review", "published", "cancelled"],
       slot_kind: ["row", "interstitial"],
+      stem_form: ["single", "multi", "unknown"],
       tree_sex: ["female", "male", "unknown"],
       tree_status: ["active", "lost"],
       verification_reason: [

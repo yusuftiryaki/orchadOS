@@ -181,6 +181,7 @@ const DEFS = [
   "pest_sign_severity",
   "pest_sign_type",
   "fruit_load_scale",
+  "basal_sprout_level",
 ].map((code) => def(code, code));
 let n = 0;
 const m = (code: string, treeId: string, value: Partial<MeasurementRow>): MeasurementRow => ({
@@ -208,12 +209,16 @@ describe("measured dimensions", () => {
       m("pruning_status", "d", { value_category: "done" }),
       m("harvest_complete", "a", { value_boolean: true }),
       m("harvest_complete", "b", { value_boolean: false }),
+      m("basal_sprout_level", "a", { value_category: "dense" }),
+      m("basal_sprout_level", "b", { value_category: "few" }),
+      m("basal_sprout_level", "c", { value_category: "none" }),
     ]);
     expect(careDimension(values)).toEqual({
       pruning: { total: 4, done: 2, partial: 1, notDone: 1 },
       harvest: { total: 2, complete: 1 },
+      sprouts: { total: 3, few: 1, dense: 1 },
     });
-    expect(careDimension(new Map())).toEqual({ pruning: null, harvest: null });
+    expect(careDimension(new Map())).toEqual({ pruning: null, harvest: null, sprouts: null });
   });
 
   it("pests: severity, types of the signed trees, rows", () => {

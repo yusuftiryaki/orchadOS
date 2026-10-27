@@ -101,7 +101,9 @@ select set_eq(
         -- Field crew's "Sorun gördüm" mark (20261023130000_bulk_approval).
         'problem_seen',
         -- Pipeline presence check (20261025120200_tree_presence).
-        'tree_visible'],
+        'tree_visible',
+        -- Dieback pattern and basal sprouts (20261027130000_tree_stem_dieback_sprouts).
+        'basal_sprout_level', 'dieback_pattern', 'dried_leaves_attached'],
   'migrations register the metrics from docs/metodoloji.md (Ek B), docs/veri-modeli.md and the field questions'
 );
 

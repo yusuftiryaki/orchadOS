@@ -158,6 +158,8 @@ export interface CareDimension {
   pruning: { total: number; done: number; partial: number; notDone: number } | null;
   // Harvest: trees with a value and those completed.
   harvest: { total: number; complete: number } | null;
+  // Basal sprouts: trees with a value, and those with few / dense sprouts.
+  sprouts: { total: number; few: number; dense: number } | null;
 }
 
 export function careDimension(values: Map<string, MeasurementRow[]>): CareDimension {
@@ -165,7 +167,11 @@ export function careDimension(values: Map<string, MeasurementRow[]>): CareDimens
   const harvestRows = (values.get("harvest_complete") ?? []).filter(
     (r) => r.tree_id && r.value_boolean !== null,
   );
+  const sproutRows = (values.get("basal_sprout_level") ?? []).filter(
+    (r) => r.tree_id && r.value_category,
+  );
   const count = (v: string) => pruningRows.filter((r) => r.value_category === v).length;
+  const sprouts = (v: string) => sproutRows.filter((r) => r.value_category === v).length;
   return {
     pruning:
       pruningRows.length > 0
@@ -182,6 +188,10 @@ export function careDimension(values: Map<string, MeasurementRow[]>): CareDimens
             total: harvestRows.length,
             complete: harvestRows.filter((r) => r.value_boolean).length,
           }
+        : null,
+    sprouts:
+      sproutRows.length > 0
+        ? { total: sproutRows.length, few: sprouts("few"), dense: sprouts("dense") }
         : null,
   };
 }

@@ -149,6 +149,7 @@ def answer(
             "dead_branch_scale": 0,
             "trunk_base_scale": 0,
             "pruning_status": "done",
+            "basal_sprout_level": "none",
         },
         "spring": {
             "dead_branch_scale": 0,
@@ -157,6 +158,9 @@ def answer(
             "frost_damage_scale": 0,
             "pest_sign_severity": "none",
             "pest_sign_type": None,
+            "basal_sprout_level": "none",
+            "dieback_pattern": "none",
+            "dried_leaves_attached": False,
         },
     }[season]
     v = {**defaults, **(values or {})}

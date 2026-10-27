@@ -11,7 +11,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from .methodology import HEALTH_CLASSES, SCALE_TEXTS, HealthClass, Season
+from .methodology import AI_SKIP_IN_SEASON, HEALTH_CLASSES, SCALE_TEXTS, HealthClass, Season
 
 TreeVisible = Literal["yes", "no", "unsure"]
 TREE_VISIBLE: tuple[TreeVisible, ...] = ("yes", "no", "unsure")
@@ -54,6 +54,8 @@ def season_metrics(registry: list[dict[str, Any]], season: Season) -> list[Metri
     for code in SCALE_TEXTS:
         r = by_code.get(code)
         if r is None or season not in r["valid_seasons"] or "tree" not in r["subject_kinds"]:
+            continue
+        if season in AI_SKIP_IN_SEASON.get(code, ()):
             continue
         if r["value_type"] not in ("scale", "category", "boolean"):
             continue
