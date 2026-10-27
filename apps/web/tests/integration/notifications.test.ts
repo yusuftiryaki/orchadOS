@@ -15,6 +15,9 @@ const PARCEL = "f6000000-0000-4000-8000-000000000001";
 const SESSION = "f6100000-0000-4000-8000-000000000001";
 const FINDING = "f6200000-0000-4000-8000-000000000001";
 const OWNER = { id: "a0000000-0000-4000-8000-000000000001", phone: "+905550000001" };
+// The seed's self sign-up customer (WhatsApp) gets an account message.
+const CUSTOMER = { id: "a0000000-0000-4000-8000-000000000006", phone: "+905550000006" };
+const REF_ID = "f6300000-0000-4000-8000-000000000001";
 const VIEWER = { id: "a0000000-0000-4000-8000-000000000002", phone: "+905550000002" };
 
 let admin: Client;
@@ -80,7 +83,10 @@ beforeAll(async () => {
   );
 });
 
-afterAll(() => purgeParcels([PARCEL]));
+afterAll(async () => {
+  await admin.from("notification").delete().eq("ref_id", REF_ID);
+  await purgeParcels([PARCEL]);
+});
 
 describe("notifications", () => {
   it("a critical finding is notified when the expert approves it, before the report", async () => {
@@ -218,5 +224,66 @@ describe("operations list", () => {
     expect((await dispatch()).status).toBe(200);
     const after = (await queue()).find((r) => r.id === failed.id);
     expect(after).toMatchObject({ status: "sent", attempts: 1 });
+  });
+});
+
+describe("account messages", () => {
+  it("carry a document number instead of a parcel and are sent with the account text", async () => {
+    await admin.from("notification").delete().eq("ref_id", REF_ID);
+    const path = `/portal/odeme/${REF_ID}`;
+    // An account message names no visit.
+    const wrong = await admin.from("notification").insert({
+      org_id: SEED.org,
+      parcel_id: PARCEL,
+      session_id: SESSION,
+      recipient_user_id: CUSTOMER.id,
+      channel: "whatsapp",
+      template: "payment_received",
+      vars: { ref: "M-2026-999999", path },
+      ref_id: REF_ID,
+    });
+    expect(wrong.error?.code).toBe("23514");
+
+    const { data } = check(
+      await admin
+        .from("notification")
+        .insert({
+          org_id: SEED.org,
+          recipient_user_id: CUSTOMER.id,
+          channel: "whatsapp",
+          template: "payment_received",
+          vars: { ref: "M-2026-999999", path },
+          ref_id: REF_ID,
+        })
+        .select("id")
+        .single(),
+    );
+    const twice = await admin.from("notification").insert({
+      org_id: SEED.org,
+      recipient_user_id: CUSTOMER.id,
+      channel: "whatsapp",
+      template: "payment_received",
+      vars: { ref: "M-2026-999999", path },
+      ref_id: REF_ID,
+    });
+    expect(twice.error?.code).toBe("23505");
+
+    const { client: ops } = await signIn("ops");
+    const listed = (await listNotifications(ops)).find((r) => r.id === data.id);
+    expect(listed).toMatchObject({
+      parcelId: null,
+      parcelName: null,
+      ref: "M-2026-999999",
+      template: "payment_received",
+      recipientName: "Örnek Müşteri",
+      recipientRole: null,
+    });
+
+    expect((await dispatch()).status).toBe(200);
+    const sent = (await outbox(CUSTOMER.phone)).find((m) => m.notification_id === data.id);
+    expect(sent).toMatchObject({
+      channel: "whatsapp",
+      body: `M-2026-999999 numaralı ödemeniz alındı, teşekkür ederiz. Makbuz: http://127.0.0.1:3000${path}`,
+    });
   });
 });

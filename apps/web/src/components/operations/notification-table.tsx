@@ -8,8 +8,9 @@ import styles from "./operations.module.css";
 
 const T = t.notifications;
 
-// Notification queue for operations: when, parcel, who (masked phone), what,
-// how, state; failed rows get "Yeniden dene".
+// Notification queue for operations: when, parcel (or the document number of
+// an account message), who (masked phone), what, how, state; failed rows get
+// "Yeniden dene".
 export function NotificationTable({ rows, status }: { rows: NotificationRow[]; status: string }) {
   return (
     <div className={styles.tableWrap}>
@@ -31,7 +32,11 @@ export function NotificationTable({ rows, status }: { rows: NotificationRow[]; s
             <tr key={n.id} data-notification-id={n.id}>
               <td>{formatDateTime(n.createdAt)}</td>
               <td>
-                <Link href={opsHref.parcel(n.parcelId)}>{n.parcelName}</Link>
+                {n.parcelId ? (
+                  <Link href={opsHref.parcel(n.parcelId)}>{n.parcelName}</Link>
+                ) : (
+                  <span data-testid="notification-ref">{n.ref ?? "—"}</span>
+                )}
               </td>
               <td>
                 {n.recipientName ?? T.noProfile}
