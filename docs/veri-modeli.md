@@ -214,6 +214,29 @@ Kurallar:
 - **Hesap eşleştirme:** Self-servis hesap (`app_metadata.signup = 'self'`) e-postayla hiç eşleştirilmez; telefonla eşleşme doğrulanmış telefon ve tamamlanmış kayıt ister (`ops_find_user_id`).
 - **Geçiş:** İP12 öncesindeki her KVKK onaylı `owner_profile` için bir `kvkk_notice` rıza kaydı yazıldı (kaynak `ops`, metin sürümü profilden).
 
+### Fonksiyonlar (İP12-A2)
+
+Hepsi `security definer`, `search_path = ''`; hatalar kısa koddur, `detail` yalnızca alan adını taşır. İmzalar [musteri-yonetimi.md](musteri-yonetimi.md) §6.9'da.
+
+| Grup | Fonksiyonlar | Kim |
+| --- | --- | --- |
+| Fiyat | `public_package_prices`, `price_preview` (kayda açık org, yayımlı liste); `ops_preview_quote`. Hesap tek yerde: `private.price_lines` (`pricing-v1`) | anon + authenticated; ops |
+| Teklif | `ops_issue_quote` (doğrulanmış alanlar; açık teklif `superseded`), `ops_issue_parcel_quote` (mevcut parseller: ilk yıl ya da yenileme, yenilemede başlangıç eski bitiş + 1 gün) | ops |
+| Müşteri | `customer_accept_quote` (fatura profili, son KVKK aydınlatma kaydı, mesafeli satış ve ön bilgilendirme onayı; toplam 0 ise sipariş hemen aktif), `customer_decline_quote`, `customer_cancel_order`, `customer_payment_instructions`, `receipt_data` | müşteri (makbuz: müşteri ya da ops) |
+| Sipariş | `ops_cancel_order`, `ops_extend_payment_due`, `ops_terminate_order` | ops |
+| Ödeme | `payment_begin`, `payment_attach_token`, `payment_by_token`, `payment_record_event`, `payment_finalize`, `payment_attempts_to_reconcile` (Edge sözleşmesi `supabase/functions/_shared/payments/db.ts`) | service_role |
+| Havale ve inceleme | `ops_record_manual_payment`, `ops_void_manual_payment`, `ops_resolve_payment_review` | ops |
+| İade | `ops_request_refund`, `ops_can_process_refund`, `ops_complete_manual_refund`, `ops_cancel_refund`, `ops_resolve_refund`; `payment_refund_claim`, `payment_refund_report` | ops; service_role |
+| Back office | `ops_billing_summary`, `ops_customers`, `ops_billing_internal` (iç sütunlar), `ops_orders`, `ops_payments`, `ops_payment_events`, `ops_refunds`, `ops_audit_events` | ops |
+| Yardımcı ve zamanlanmış | `private.activate_order`, `private.create_customer_parcel`, `private.open_system_refund`, `private.enqueue_billing_notification`, `private.billing_housekeeping` (her gece), `private.dispatch_payment_reconcile` (10 dakikada bir) | — |
+
+- **Tutulan para:** Siparişin kalan borcu, aktivasyon ve iptal `paid_kurus - refunded_kurus` ile hesaplanır; iade edilmiş havale ödenmiş sayılmaz, tamamı iade edilen sipariş iptal edilebilir.
+- **Aktivasyon:** `paid_kurus - refunded_kurus >= total_kurus` olunca tek işlemde her bahçe için `registered` parsel, ayrıntısı, kaba sınırı (v1 `owner_declared`) ve sahip erişimi açılır; hizmet dönemi bir yıldır. Fonksiyon idempotenttir.
+- **`payment_finalize`:** Sağlayıcının tutarı ödeme satırıyla karşılaştırılır. Uyuşmazlıkta sonuç `pending_review` olur ve `provider_mismatch` nedenli bir `void` iadesi açılır. Kapalı siparişe düşen başarılı ödeme tam tutarla (`order_closed`), toplamı aşan kısım `overpayment` nedeniyle iade edilir. `succeeded`/`voided` satıra yinelenen çağrı hiçbir şey değiştirmez. `failed` satır yalnızca sağlayıcı paranın çekildiğini bildirirse (geç başarı, `payment.late_success` denetim kaydı) değişir; ops'un reddettiği inceleme (`review_rejected`) değişmez. Uyuşmazlık incelemesindeki satır (`amount_mismatch`, `reference_mismatch`) yalnızca void iadesiyle `voided` olur; o void ops tarafından iptal edilemez. Mutabakat önce `initiated`, sonra token süresinden 10 dakika sonrasına kadar `expired` ve `not_completed` ile `failed`, en son dolandırıcılık incelemesindeki denemeleri listeler; sahte ödeme `allow_fake_payments` kapalıyken başarılı yazılmaz.
+- **Canlı deneme:** `pending_review`, ya da süresi dolmamış token'lı `initiated`/`expired` kart denemesi. Token'ı henüz eklenmemiş `initiated` deneme 15 dakika canlı sayılır. Canlı deneme varken sipariş iptal edilmez ve havale kaydedilmez (`payment_in_progress`).
+- **İade tavanı:** `tutar + Σ(requested, processing, succeeded)` ödemenin (`coalesce(provider_amount_kurus, amount_kurus)`) ve kalemin tutarını aşamaz; başarısız iadenin yeniden denenmesinde yeniden denetlenir. `retryable = false` iade yeniden gönderilmez; ops `processing` iadeyi ancak sağlayıcı çağrısından 15 dakika sonra elle sonuçlandırır. `refunded_kurus` alanları yalnızca `succeeded`'a geçişte, bir kez artar.
+- **Bildirimler:** `notification` artık hesap mesajlarını da taşır (`ref_id` belge kimliği, `vars.ref` belge numarası; parsel ve ziyaret boş). Şablonlar `quote_ready`, `application_rejected`, `payment_received`, `refund_completed`, `payment_reminder`; alıcı başına, şablon ve belge başına bir mesaj (`notification_ref_once`).
+
 ## MVP tablolarından geçiş
 
 | MVP | Hedef |

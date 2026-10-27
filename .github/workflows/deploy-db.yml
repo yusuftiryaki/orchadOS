@@ -62,6 +62,8 @@ jobs:
         # older than one already applied; they are independent by convention.
         run: pnpm exec supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
 
+      # Without a name every function under supabase/functions is deployed
+      # (payments, payment-callback, payment-webhook included).
       # The functions read SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY
       # from the hosted project itself; the service role key never leaves Supabase.
       # verify_jwt per function comes from supabase/config.toml.

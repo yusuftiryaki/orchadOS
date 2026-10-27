@@ -1,16 +1,17 @@
-// payment-webhook: placeholder until IP12-B's function lands (PR #54). The Supabase CLI
-// refuses to start when a function in config.toml has no index.ts, and
-// config.toml (owned by IP12-A1) keeps the entry enabled so the function
-// is served as soon as B's code is merged.
+// payment-webhook: iyzico webhook V3 notifications (header x-iyz-signature-v3),
+// or signed fake notifications (x-fake-signature) when the fake provider is
+// unlocked. verify_jwt is off; the signature is the authentication.
 //
-// Merge note: when this file conflicts with IP12-B's payment-webhook/index.ts
-// (add/add), take B's version and drop this placeholder.
+// POST /functions/v1/payment-webhook
+//   -> 200 {ok:true}
+//   -> 401 {error:"invalid_signature"}: only the reason code is logged and
+//      nothing is written to the database.
 //
-// Every request: 501 {"error": "not_implemented"}.
+// A valid notification is recorded once (dedup key); a new one is confirmed
+// with the provider and written with payment_finalize.
+//
+// Logic: ../_shared/payments/handlers.ts.
 
-Deno.serve(() =>
-  new Response(JSON.stringify({ error: "not_implemented" }), {
-    status: 501,
-    headers: { "content-type": "application/json; charset=utf-8" },
-  })
-);
+import { envFrom, handleWebhook } from "../_shared/payments/handlers.ts";
+
+Deno.serve((req) => handleWebhook(req, { env: envFrom((key) => Deno.env.get(key)) }));

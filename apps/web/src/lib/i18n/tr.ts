@@ -1725,6 +1725,11 @@ export const tr = {
     template: {
       report_ready: "Rapor hazır",
       critical_finding: "Kritik bulgu",
+      quote_ready: "Teklif hazır",
+      application_rejected: "Başvuru sonucu",
+      payment_received: "Ödeme alındı",
+      refund_completed: "İade yapıldı",
+      payment_reminder: "Ödeme hatırlatma",
     } as Record<string, string>,
     channel: {
       sms: "SMS",
