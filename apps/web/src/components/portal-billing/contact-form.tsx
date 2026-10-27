@@ -27,7 +27,13 @@ export function ContactForm({
   const v = (name: keyof typeof initial) => (failed ? (state.values[name] ?? "") : initial[name]);
   const err = (name: string) => state.fieldErrors[name];
   return (
-    <form action={action} className={ops.form} data-testid="contact-form">
+    <form
+      action={action}
+      className={ops.form}
+      data-testid="contact-form"
+      // Remounted after a failed save so that the select keeps the typed value.
+      key={failed ? JSON.stringify(state.values) : "initial"}
+    >
       <div className={ops.grid}>
         <Field label={A.fullName} error={err("full_name")}>
           <input name="full_name" defaultValue={v("full_name")} required autoComplete="name" />

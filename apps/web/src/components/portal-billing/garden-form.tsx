@@ -65,7 +65,15 @@ export function GardenForm({
   const area = ring.length >= 3 && !problem ? ringAreaM2(ring) : null;
 
   return (
-    <form action={action} className={ops.form} data-testid="garden-form">
+    <form
+      action={action}
+      className={ops.form}
+      data-testid="garden-form"
+      // After a failed save React resets the form; a select keeps only the
+      // default it was mounted with, so the form is remounted with the typed
+      // values as defaults.
+      key={failed ? JSON.stringify(state.values) : "initial"}
+    >
       <input type="hidden" name="application_id" value={applicationId} />
       {gardenId && <input type="hidden" name="garden_id" value={gardenId} />}
 
@@ -143,7 +151,12 @@ export function GardenForm({
             {G.points(ring.length)}
           </span>
         </div>
+        {/* Remounted per mode: BoundaryDrawMap re-renders its className on a
+            mode change, which drops the class MapLibre adds to the container
+            (maplibregl-map, position: relative) and leaves the canvas off the
+            map. The new map fits the ring and location already drawn. */}
         <BoundaryDrawMap
+          key={mode}
           ring={ring}
           position={position}
           mode={mode}
@@ -177,9 +190,9 @@ export function GardenForm({
         <h2>{G.legal}</h2>
         <p className={ops.privacy}>{G.privacy}</p>
         <div className={ops.grid}>
-          <Field label={G.authorizationBasis} error={err("authorization_basis")} optional>
-            <select name="authorization_basis" defaultValue={v("authorization_basis")}>
-              <option value="">{P.unknown}</option>
+          <Field label={G.authorizationBasis} error={err("authorization_basis")}>
+            <select name="authorization_basis" defaultValue={v("authorization_basis")} required>
+              <option value="">{P.choose}</option>
               {AUTHORIZATION_BASES.map((b) => (
                 <option key={b} value={b}>
                   {G.authorizationValues[b]}

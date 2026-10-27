@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BILLING_COLUMNS } from "@/lib/billing/columns";
+import type { Json } from "@/lib/database.types";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import {
   check,
@@ -168,7 +169,7 @@ describe("application gardens", () => {
     );
   });
 
-  const save = (garden: Record<string, unknown>, detail: Record<string, unknown> = GARDEN_DETAIL) =>
+  const save = (garden: Json, detail: Json = GARDEN_DETAIL) =>
     customer.client.rpc("customer_save_application_garden", {
       p_application_id: application,
       p_garden: garden,

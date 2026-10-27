@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { BILLING_COLUMNS } from "@/lib/billing/columns";
 import type { Client } from "@/lib/supabase/types";
@@ -442,9 +442,11 @@ describe("customer portal payment flow", () => {
         ["service_order", state.order],
         ["payment", state.payment],
       ] as const) {
-        const { data, error } = await client
+        // Untyped: the union of four tables is too deep for the query types.
+        const columns: string = BILLING_COLUMNS[table];
+        const { data, error } = await (client as unknown as SupabaseClient)
           .from(table)
-          .select(BILLING_COLUMNS[table])
+          .select(columns)
           .eq("id", id);
         expect(error, table).toBeNull();
         expect(data, table).toEqual([]);

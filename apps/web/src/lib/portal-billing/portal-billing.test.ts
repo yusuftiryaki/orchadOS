@@ -130,6 +130,7 @@ describe("garden form", () => {
         name: "required",
         area_donum: "required",
         position: "required",
+        authorization_basis: "required",
         entry_permission: "required",
       },
     });
@@ -264,11 +265,17 @@ describe("portal addresses", () => {
     expect(readPortalResult({ bilgi: "basvuru_gonderildi", hata: "quote_expired" })).toEqual({
       notice: "basvuru_gonderildi",
       error: "quote_expired",
+      missing: null,
     });
-    expect(readPortalResult({ bilgi: "<script>", hata: ["odeme_bulunamadi"] })).toEqual({
-      notice: null,
-      error: "odeme_bulunamadi",
-    });
+    expect(readPortalResult({ bilgi: "<script>", hata: ["odeme_bulunamadi"], eksik: "x" })).toEqual(
+      { notice: null, error: "odeme_bulunamadi", missing: null },
+    );
+    expect(portalHref.application("a", { hata: "application_incomplete", eksik: "gardens" })).toBe(
+      "/portal/basvuru/a?hata=application_incomplete&eksik=gardens",
+    );
+    expect(portalHref.application("a", { hata: "application_incomplete", eksik: "<x>" })).toBe(
+      "/portal/basvuru/a?hata=application_incomplete",
+    );
   });
 
   it("adds the return address to the billing profile link", () => {

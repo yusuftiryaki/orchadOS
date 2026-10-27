@@ -36,12 +36,18 @@ export const PORTAL_ERRORS = [
 export type PortalError =
   BillingError | "payments_disabled" | "provider_error" | "odeme_bulunamadi" | "onay_eksik";
 
-type Result = { bilgi?: PortalNotice; hata?: PortalError };
+type Result = { bilgi?: PortalNotice; hata?: PortalError; eksik?: string };
+
+// What customer_submit_application found missing (its error detail).
+export const INCOMPLETE_FIELDS = ["package_id", "gardens", "authorization_basis"] as const;
 
 function withResult(path: string, result?: Result): string {
   const params = new URLSearchParams();
   if (result?.bilgi) params.set("bilgi", result.bilgi);
   if (result?.hata) params.set("hata", result.hata);
+  if (result?.eksik && (INCOMPLETE_FIELDS as readonly string[]).includes(result.eksik)) {
+    params.set("eksik", result.eksik);
+  }
   const query = params.toString();
   return query ? `${path}?${query}` : path;
 }
@@ -77,10 +83,15 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 export function readPortalResult(params: Params): {
   notice: PortalNotice | null;
   error: PortalError | null;
+  missing: (typeof INCOMPLETE_FIELDS)[number] | null;
 } {
   const notice = first(params.bilgi);
   const error = first(params.hata);
+  const missing = first(params.eksik);
   return {
+    missing: (INCOMPLETE_FIELDS as readonly string[]).includes(missing ?? "")
+      ? (missing as (typeof INCOMPLETE_FIELDS)[number])
+      : null,
     notice: (PORTAL_NOTICES as readonly string[]).includes(notice ?? "")
       ? (notice as PortalNotice)
       : null,

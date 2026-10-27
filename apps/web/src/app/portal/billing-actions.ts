@@ -153,7 +153,11 @@ export async function submitApplicationAction(form: FormData) {
   const { error } = await supabase.rpc("customer_submit_application", {
     p_application_id: applicationId,
   });
-  if (error) redirect(portalHref.application(applicationId, { hata: billingReasonOf(error) }));
+  if (error) {
+    const reason = billingReasonOf(error);
+    const missing = reason === "application_incomplete" ? billingFieldOf(error) : undefined;
+    redirect(portalHref.application(applicationId, { hata: reason, eksik: missing }));
+  }
   revalidatePath("/portal", "layout");
   redirect(portalHref.application(applicationId, { bilgi: "basvuru_gonderildi" }));
 }

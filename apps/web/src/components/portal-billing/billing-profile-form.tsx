@@ -34,7 +34,13 @@ export function BillingProfileForm({
   const [kind, setKind] = useState(v("kind") || "individual");
 
   return (
-    <form action={action} className={ops.form} data-testid="billing-form">
+    <form
+      action={action}
+      className={ops.form}
+      data-testid="billing-form"
+      // Remounted after a failed save so that every field shows the typed value.
+      key={failed ? JSON.stringify(state.values) : "initial"}
+    >
       {back && <input type="hidden" name="geri" value={back} />}
       <fieldset className={ops.fieldset}>
         <legend>{B.kind}</legend>

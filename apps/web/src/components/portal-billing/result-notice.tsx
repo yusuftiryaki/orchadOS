@@ -10,7 +10,15 @@ export function PortalResult({ params }: { params: Params }) {
   return (
     <>
       {result.notice && <Notice>{P.notices[result.notice]}</Notice>}
-      <FormError error={result.error ? P.errors[result.error] : null} />
+      <FormError
+        error={
+          result.error === "application_incomplete" && result.missing
+            ? P.application.incomplete(P.application.incompleteFields[result.missing])
+            : result.error
+              ? P.errors[result.error]
+              : null
+        }
+      />
     </>
   );
 }

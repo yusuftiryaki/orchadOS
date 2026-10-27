@@ -115,7 +115,7 @@ export interface GardenInput {
     boundary: Position[] | null;
   };
   detail: {
-    authorization_basis: AuthorizationBasis | null;
+    authorization_basis: AuthorizationBasis;
     deed_block: string | null;
     deed_parcel: string | null;
     is_shared_deed: boolean | null;
@@ -179,7 +179,8 @@ export function parseGardenForm(read: Read): Parsed<GardenInput> {
     else boundary = ring;
   }
 
-  const basis = choice(errs, read, "authorization_basis", AUTHORIZATION_BASES, false);
+  // Required by customer_submit_application; asked when the garden is saved.
+  const basis = choice(errs, read, "authorization_basis", AUTHORIZATION_BASES, true);
   const deedBlock = text(errs, read, "deed_block", 50);
   const deedParcel = text(errs, read, "deed_parcel", 50);
   const shared = read("is_shared_deed").trim();
@@ -209,7 +210,7 @@ export function parseGardenForm(read: Read): Parsed<GardenInput> {
         boundary,
       },
       detail: {
-        authorization_basis: basis,
+        authorization_basis: basis!,
         deed_block: deedBlock,
         deed_parcel: deedParcel,
         is_shared_deed: shared === "" ? null : shared === "yes",

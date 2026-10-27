@@ -105,6 +105,7 @@ export const portalBillingText = {
   yes: "Evet",
   no: "Hayır",
   unknown: "Bilinmiyor",
+  choose: "Seçin",
   none: "—",
   donum: (text: string) => `${text} dönüm`,
 
@@ -195,9 +196,9 @@ export const portalBillingText = {
     openQuote: "Teklifi aç",
     incomplete: (field: string) => `Başvuruda eksik bilgi var: ${field}.`,
     incompleteFields: {
-      package: "paket seçilmedi",
+      package_id: "paket seçilmedi",
       gardens: "bahçe eklenmedi",
-      garden: "bir bahçenin bilgileri eksik",
+      authorization_basis: "bir bahçede yetki dayanağı seçilmedi",
     } as Record<string, string>,
   },
 
