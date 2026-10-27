@@ -206,7 +206,9 @@ password_requirements = ""
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
 email_sent = 2
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
-sms_sent = 30
+# orchadOS: 300 locally, so that the sign-up and phone login integration tests
+# (every test sends codes) stay under it; the hosted project sets its own.
+sms_sent = 300
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
 anonymous_users = 30
 # Number of sessions that can be refreshed in a 5 minute interval per IP address.
@@ -415,6 +417,18 @@ deno_version = 2
 PORTAL_BASE_URL = "http://127.0.0.1:3000"
 # Same as [auth.hook.send_sms] secrets (local only).
 SEND_SMS_HOOK_SECRET = "v1,whsec_p0oE1FH7E5tlPpCmuVnDZv5oL5cKXPNnx86jQcdd5HY="
+# IP12 (docs/musteri-yonetimi.md §13). Self sign-up: HMAC key of the IP and
+# phone hashes; the header secret that lets the Next server pass the client IP.
+SIGNUP_HASH_SECRET = "signup-hash-local"
+SIGNUP_PROXY_SECRET = "signup-proxy-local"
+# pg_cron calls (signup cleanup, payment reconcile); Vault orchados_cron_secret.
+ORCHADOS_CRON_SECRET = "cron-local"
+# Payments: the fake provider, allowed locally only (never on the pilot).
+PAYMENT_PROVIDER = "fake"
+PAYMENT_FAKE_ALLOWED = "1"
+PAYMENT_CALLBACK_URL = "http://127.0.0.1:54321/functions/v1/payment-callback"
+PAYMENT_RETURN_ORIGINS = "http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:3100,http://localhost:3100"
+FAKE_WEBHOOK_SECRET = "fake-webhook-local"
 
 # Portal accounts for the operations screens; see the function's header.
 [functions.invite-user]
@@ -428,6 +442,35 @@ verify_jwt = true
 # Supabase Auth's Send SMS hook (phone login codes). Auth sends no JWT; the
 # function checks the webhook signature instead.
 [functions.send-sms]
+verify_jwt = false
+
+# Self sign-up (IP12): register, complete, cleanup. register is called before
+# there is an account; complete checks the user's token and cleanup the cron
+# secret in code. See the function's header.
+[functions.customer-signup]
+verify_jwt = false
+
+# Card payments (IP12-B): start (customer token), refund (ops token) and
+# reconcile (cron secret), each checked in code.
+[functions.payments]
+# Off until IP12-B's function lands (the CLI refuses to start without its
+# index.ts); B removes this line.
+enabled = false
+verify_jwt = false
+
+# The provider's browser return (cross-site POST, no session); the result is
+# always queried from the provider again.
+[functions.payment-callback]
+# Off until IP12-B's function lands (the CLI refuses to start without its
+# index.ts); B removes this line.
+enabled = false
+verify_jwt = false
+
+# Provider notifications; the signature is checked in code.
+[functions.payment-webhook]
+# Off until IP12-B's function lands (the CLI refuses to start without its
+# index.ts); B removes this line.
+enabled = false
 verify_jwt = false
 
 [analytics]

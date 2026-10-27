@@ -9,7 +9,14 @@
 // 1. The caller is read from the JWT (Auth API) and must hold the `ops` role in
 //    `org_id` (membership, read with the caller's own JWT under RLS).
 // 2. A user with that e-mail (or, without e-mail, that phone) already exists:
-//    its id is returned, nothing changes (created: false).
+//    its id is returned, nothing changes (created: false). ops_find_user_id
+//    decides what "exists" means: a self sign-up account (customer-signup,
+//    app_metadata.signup = "self") is never matched by e-mail, since nobody
+//    verified that e-mail; a phone matches only when it was confirmed with an
+//    SMS code, and a self sign-up only after its sign-up was completed.
+//    Otherwise step 3 runs, Auth refuses the taken e-mail or phone (422) and
+//    the answer is 409 conflict: an account someone opened with another
+//    person's e-mail is never linked to that person's parcels.
 // 3. Otherwise the user is created with the service role, e-mail and phone
 //    marked as confirmed. With an e-mail it gets a random one-time password,
 //    returned once for operations to pass on (WhatsApp). Either way the account

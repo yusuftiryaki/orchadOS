@@ -215,7 +215,7 @@ select throws_ok($$ select * from public.my_owner_profile() $$, '42501', null, '
 reset role;
 set local role service_role;
 
-select results_eq($$ select count(*) from private.owner_profile $$, array[2::bigint],
+select results_eq($$ select count(*) from private.owner_profile $$, array[3::bigint],
   'service_role (backend) reads private data');
 
 reset role;
