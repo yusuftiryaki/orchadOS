@@ -60,6 +60,14 @@ export async function purgeOrg(orgId: string) {
   await call("purge_org", { p_org_id: orgId });
 }
 
+// Removes the billing rows of test customers (applications, quotes, orders,
+// payments, refunds, profiles, consents, pending sign-ups, audit rows). Run it
+// before deleting the auth users: customer_user_id is on delete restrict.
+export async function purgeBillingUsers(userIds: string[]) {
+  if (!userIds.every((id) => UUID.test(id))) throw new Error("purgeBillingUsers takes uuids");
+  await call("purge_billing_users", { p_user_ids: userIds });
+}
+
 // Deletes the auth users whose e-mail matches (test accounts of a fixture).
 export async function deleteUsers(match: (email: string) => boolean) {
   const auth = admin().auth.admin;

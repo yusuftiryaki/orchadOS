@@ -4,7 +4,7 @@
 -- f7..12 of the seed org; a test session f7..22 on the seed parcel.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(41);
 
 -- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
 -- removed first; rolled back with the file (supabase/testing/reset.sql).
@@ -29,7 +29,8 @@ select ok(not has_schema_privilege('authenticated', 'testing', 'usage'),
   'signed-in users cannot use the testing schema');
 select ok(has_function_privilege('service_role', 'testing.purge_sessions(uuid[])', 'execute')
       and has_function_privilege('service_role', 'testing.purge_parcels(uuid[])', 'execute')
-      and has_function_privilege('service_role', 'testing.purge_org(uuid)', 'execute'),
+      and has_function_privilege('service_role', 'testing.purge_org(uuid)', 'execute')
+      and has_function_privilege('service_role', 'testing.purge_billing_users(uuid[])', 'execute'),
   'the service role purges (web and Python tests)');
 select ok(not has_function_privilege('service_role', 'testing.reset_to_seed()', 'execute'),
   'reset_to_seed is for pgTAP only');
@@ -178,6 +179,50 @@ select is((select count(*) from storage.objects where (storage.foldername(name))
   0::bigint, 'and its media objects');
 select is((select count(*) from public.membership where org_id = 'b0000000-0000-4000-8000-000000000001'), 3::bigint,
   'the seed memberships stay');
+
+-- purge_billing_users ------------------------------------------------------------
+
+-- A customer f7..61 with a profile, consents, a billing profile, a submitted
+-- application with a garden and its private detail, and audit rows.
+insert into auth.users (instance_id, id, aud, role, email, created_at, updated_at)
+values ('00000000-0000-0000-0000-000000000000', pg_temp.id(61), 'authenticated', 'authenticated',
+        'purge-customer@example.test', now(), now());
+insert into private.owner_profile (org_id, user_id, full_name, contact_preference)
+values ('b0000000-0000-4000-8000-000000000001', pg_temp.id(61), 'Purge Customer', 'sms');
+insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source)
+values ('b0000000-0000-4000-8000-000000000001', pg_temp.id(61), pg_temp.id(61), 'kvkk_notice', true, 'kvkk-v1', 'signup');
+insert into private.billing_profile (org_id, user_id, kind, first_name, last_name, address, city)
+values ('b0000000-0000-4000-8000-000000000001', pg_temp.id(61), 'individual', 'P', 'C', 'Adres', 'Gaziantep');
+insert into public.service_application (id, org_id, customer_user_id, number, status, package_id, submitted_at)
+values (pg_temp.id(62), 'b0000000-0000-4000-8000-000000000001', pg_temp.id(61), 'B-2026-999901', 'submitted',
+        '91200000-0000-4000-8000-000000000001', now());
+insert into public.application_garden (id, org_id, application_id, customer_user_id, name, declared_area_m2, position)
+values (pg_temp.id(63), 'b0000000-0000-4000-8000-000000000001', pg_temp.id(62), pg_temp.id(61), 'Purge garden', 1000,
+        extensions.st_setsrid(extensions.st_makepoint(37.5, 37.0), 4326));
+insert into private.application_garden_detail (application_garden_id, org_id, entry_permission_at)
+values (pg_temp.id(63), 'b0000000-0000-4000-8000-000000000001', now());
+insert into public.audit_event (org_id, actor_user_id, actor_role, action, entity_type, entity_id) values
+  ('b0000000-0000-4000-8000-000000000001', pg_temp.id(61), 'customer', 'application.submitted', 'application', pg_temp.id(62)),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000005', 'ops',
+   'application_garden.verified', 'application_garden', pg_temp.id(63));
+
+select throws_ok(format($$ delete from auth.users where id = %L $$, pg_temp.id(61)), '23503', null,
+  'a customer with an application cannot be deleted before the purge');
+select lives_ok($$ select testing.purge_billing_users(array[pg_temp.id(61)]) $$, 'purge_billing_users runs');
+select is((select count(*) from public.service_application where customer_user_id = pg_temp.id(61))
+          + (select count(*) from public.application_garden where customer_user_id = pg_temp.id(61))
+          + (select count(*) from private.application_garden_detail where application_garden_id = pg_temp.id(63)),
+  0::bigint, 'the application, its garden and the garden detail are gone');
+select is((select count(*) from private.owner_profile where user_id = pg_temp.id(61))
+          + (select count(*) from private.billing_profile where user_id = pg_temp.id(61))
+          + (select count(*) from private.consent_record where subject_id = pg_temp.id(61)),
+  0::bigint, 'the profiles and consent records are gone');
+select is((select count(*) from public.audit_event where actor_user_id = pg_temp.id(61) or entity_id = pg_temp.id(63)),
+  0::bigint, 'the audit rows by and about the customer are gone');
+select lives_ok(format($$ delete from auth.users where id = %L $$, pg_temp.id(61)), 'the account can be deleted then');
+select is((select count(*) from public.service_application where id = '91200000-0000-4000-8000-000000000301')
+          + (select count(*) from private.consent_record where subject_id = 'a0000000-0000-4000-8000-000000000006'),
+  4::bigint, 'the seed customer''s application and consents stay');
 
 -- reset_to_seed ------------------------------------------------------------------
 

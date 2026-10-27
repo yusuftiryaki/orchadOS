@@ -19,6 +19,7 @@ Ekleme-yalnız tablolar (`capture`, `asset`, `measurement`, `session_event`, `tr
 | `testing.purge_sessions(uuid[])` | `service_role` | Oturumlar ve onlara bağlı her şey: `session_id` sütunu olan bütün tablolar (capture, asset, ölçüm, değerlendirme, bulgu, oturum olayı, sınır, bildirim, AI satırları …), sadece bir üst kimlikle bağlı olanlar (lineage, kanıt, değerlendirme girdileri, bulgunun soruları ve cevapları, bildirimin giden mesajları) ve artık hiçbir satırın göstermediği `media` nesneleri. Parsel, yerler ve başka oturumların ağaçları kalır |
 | `testing.purge_parcels(uuid[])` | `service_role` | Parseller ve altındaki her şey: `parcel_id` sütunu olan bütün tablolar (`public` ve `private`), parsel satırı, `org/<org>/parcel/<parsel>/` altındaki `media` nesneleri |
 | `testing.purge_org(uuid)` | `service_role` | İşletme: önce parselleri (yukarıdaki gibi), sonra `org_id` sütunu olan bütün tablolar (üyelikler, cihazlar, düzenekler, sahip profilleri …), işletme satırı, `org/<org>/` altındaki nesneler. Auth kullanıcıları silinmez (testler Admin API ile siler) |
+| `testing.purge_billing_users(uuid[])` | `service_role` | Faturalama testlerinin müşterileri (İP12): `customer_user_id`, `user_id` ya da `subject_id` sütununda bu kimlikler olan her satır (başvuru, teklif, sipariş, ödeme, iade, profiller, rızalar, bekleyen kayıtlar, üyelik ve parsel erişimi), bunlara bağlı bahçe ayrıntıları, ödeme anlık görüntüleri ve olayları, haklarındaki denetim kayıtları. Auth kullanıcısını silmeden önce çağrılır (`customer_user_id` silmeyi engeller) |
 | `testing.reset_to_seed()` | `postgres` (pgTAP) | Seed'de olmayan her satırı siler (aşağıda) |
 
 Üçü de silinen tabloları ve satır sayılarını döner. Tablolar sütun adıyla bulunduğu için yeni bir tablo bu dosya değişmeden kapsanır; sadece bir üst kimlikle bağlı yeni bir tablo eklenirse `_delete_children`'a yazılmalıdır (pgTAP: `27_testing_purge.test.sql`).
@@ -29,6 +30,6 @@ Ekleme-yalnız tablolar (`capture`, `asset`, `measurement`, `session_event`, `tr
 
 ## Kullananlar
 
-- Web testleri: `apps/web/tests/local-db.ts` (`purgeParcels`, `purgeOrg`, `deleteUsers`), servis rolüyle.
+- Web testleri: `apps/web/tests/local-db.ts` (`purgeParcels`, `purgeOrg`, `purgeBillingUsers`, `deleteUsers`), servis rolüyle.
 - İşleme hattı ve AI worker: `services/*/tests/supabase_util.py` → `purge_sessions(env, ids)`, servis rolüyle (`SUPABASE_SERVICE_ROLE_KEY` ya da `supabase status`).
 - pgTAP: `supabase/tests/*.test.sql` başında `testing.reset_to_seed()`.
