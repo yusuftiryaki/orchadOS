@@ -93,14 +93,14 @@ Birim testleri kaynak dosyaların yanında (`*.test.ts`).
 
 ## Roller ve bölümler
 
-Roller veritabanından okunur: işletme rolleri `membership`, parsel rolleri `parcel_access` tablosundan. Eşleme `src/lib/auth/roles.ts` içinde tek tabloda:
+Roller veritabanından okunur: işletme rolleri `membership`, parsel rolleri `parcel_access` tablosundan; müşteri bayrağı (`UserRoles.customer`) `my_owner_profile()` en az bir satır döndüğünde doğrudur. Eşleme `src/lib/auth/roles.ts` içinde tek tabloda:
 
-| Bölüm        | Kimler girer                                      | Kaynak          |
-| ------------ | ------------------------------------------------- | --------------- |
-| `/portal`    | sahip (`owner`), izleyici (`viewer`)              | `parcel_access` |
-| `/uzman`     | uzman (`expert`)                                  | `membership`    |
-| `/ofis`      | saha personeli (`field_staff`), operasyon (`ops`) | `membership`    |
-| `/operasyon` | operasyon (`ops`)                                 | `membership`    |
+| Bölüm        | Kimler girer                                      | Kaynak                                |
+| ------------ | ------------------------------------------------- | ------------------------------------- |
+| `/portal`    | sahip (`owner`), izleyici (`viewer`), müşteri     | `parcel_access`, `my_owner_profile()` |
+| `/uzman`     | uzman (`expert`)                                  | `membership`                          |
+| `/ofis`      | saha personeli (`field_staff`), operasyon (`ops`) | `membership`                          |
+| `/operasyon` | operasyon (`ops`)                                 | `membership`                          |
 
 - Yetkisi olmayan bölüme giren kullanıcı **403** sayfası görür (`forbidden()`); kontrol hem bölüm düzeninde (layout) hem her sayfada yapılır.
 - Birden çok rolü olan kullanıcı üst menüden bölümler arasında geçer. Girişten sonra yukarıdaki sıradaki ilk erişilebilir bölüme yönlendirilir.
@@ -127,6 +127,28 @@ docker exec supabase_db_orchados psql -U postgres -c \
   "select created_at, recipient, body from private.message_outbox order by created_at desc limit 5"
 ```
 
+## Site ve kayıt
+
+Herkese açık site `src/app/(site)/` altındadır (ortak başlık ve altbilgi: `src/components/site/`). Oturumu olmayan ziyaretçi yalnızca bu yolları açabilir (`src/lib/site/public-paths.ts`, `isPublicPath`); diğer her yol `/giris?next=…`'e gider.
+
+| Yol                                                                                 | Ne                                                                                                                                                                                                                            |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                                                                 | Oturum yoksa tanıtım sayfası; varsa kullanıcının bölümü. Bölümü olmayan kullanıcıda `customer-signup` `complete` çağrılır: `completed` → `/portal`, `phone_not_verified` → doğrulama kartı, diğerleri → "rol atanmamış" kartı |
+| `/nasil-calisir`, `/paketler`, `/sss`, `/iletisim`                                  | Ürün sayfaları. Paketler `loadPublicPackages` ile okunur (İP12-D bağlar); liste boşsa "Fiyatlar teklif ile belirlenir"                                                                                                        |
+| `/kvkk`, `/acik-riza`, `/gizlilik`, `/mesafeli-satis`, `/on-bilgilendirme`, `/iade` | Hukuk metinleri (`src/lib/i18n/messages/legal.ts`, kaynağı `docs/hukuk/`). Sürümler `src/lib/legal/versions.ts`; `-taslak` ile biten sürümde üstte bant                                                                       |
+| `/kayit`                                                                            | Kayıt formu (bayrak kapalıysa "Kayıt yakında"); oturum varsa `/`'a gider                                                                                                                                                      |
+| `/kayit/dogrula`                                                                    | Telefonu doğrulanmamış, oturumu açık self-servis hesap için SMS kodu                                                                                                                                                          |
+| `/robots.txt`, `/sitemap.xml`                                                       | `ORCHADOS_SITE_INDEXABLE=1` olmadıkça her şey `Disallow`, site haritası boş                                                                                                                                                   |
+
+**Kayıt akışı** (`src/app/(site)/kayit/actions.ts`, tasarım: `docs/musteri-yonetimi.md` §7):
+
+1. Form sunucuda `parseSignupForm` ile denetlenir (`src/lib/signup/validation.ts`): ad soyad 2–120 karakter, yalnızca Türkiye cep telefonu (`+905…`), e-posta, en az 8 karakterli ve tekrarı tutan parola, iletişim tercihi (WhatsApp / SMS), zorunlu aydınlatma onayı, isteğe bağlı ve işaretsiz iki açık rıza (hizmetin geliştirilmesi, tanıtım). Yapay zekâ aktarımı için rıza kutusu yoktur (tasarım §2).
+2. `registerCustomer` (`src/lib/signup/client.ts`) `customer-signup` fonksiyonunu `x-orchados-proxy-secret` başlığı ve ziyaretçinin IP'siyle çağırır. 404 ve 5xx "kayıt hizmetine ulaşılamıyor" olarak gösterilir.
+3. `phone_login_allowed`, ardından `signInWithOtp` (`shouldCreateUser: false`) ile SMS kodu gider; 60 saniyede bir yeniden gönderilebilir.
+4. `verifyOtp` (hatada `phone_login_record_failure`), sonra `completeSignup`: `completed` → `/portal`, diğerleri → `/`.
+
+Form değerleri, telefon ve kod loglanmaz, adrese yazılmaz. Turnstile, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` varsa formda görünür; jetonu fonksiyon doğrular. Bayrak kapalıyken davranış birim testleriyle (`renderToStaticMarkup`) denetlenir: başlıkta ve giriş sayfasında kayıt bağlantısı yoktur, `/kayit` "Kayıt yakında" kartıdır. Tarayıcı testleri (`tests/e2e/site-pages.spec.ts`) bayrak açıkken çalışır ve `customer-signup` fonksiyonuna ihtiyaç duymaz.
+
 ## Harita
 
 MapLibre GL. Parsel detayında son sürüm sınır, yerler ve ağaçlar çizilir; ağaçlar son değerlendirmenin genel sınıfına göre renklenir. Örnek veride değerlendirme olmadığı için bütün ağaçlar tek renktir ("Değerlendirilmedi"), boş yerler içi boş daire. Ağaca tıklayınca sağda kod ve özellikler görünür.
@@ -137,16 +159,23 @@ MapLibre GL. Parsel detayında son sürüm sınır, yerler ve ağaçlar çizilir
 
 `.env.example` dosyasını `.env.local` olarak kopyala. Gerçek anahtar repoya girmez.
 
-| Değişken                          | Açıklama                                                                                  |
-| --------------------------------- | ----------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`        | Supabase API adresi (yerelde `http://127.0.0.1:54321`)                                    |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`   | Anon (publishable) anahtar; tarayıcıya açıktır, her sorgu satır bazlı yetkiyle sınırlıdır |
-| `NEXT_PUBLIC_MAP_STYLE_URL`       | İsteğe bağlı MapLibre stil adresi; boşsa OSM raster                                       |
-| `SUPABASE_SERVICE_ROLE_KEY`       | Sadece entegrasyon testleri; uygulama okumaz. Boşsa `supabase status`'tan alınır          |
-| `LOCAL_PANORAMA_DIR`              | Ofis aracı, sadece geliştirme: depoya ek olarak işleme hattı çıktılarının klasörü         |
-| `LOCAL_PANORAMA_ALLOW_PRODUCTION` | `1` ise üretim derlemesi de yerel klasörü okur; sadece tarayıcı testleri kullanır         |
+| Değişken                          | Açıklama                                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`        | Supabase API adresi (yerelde `http://127.0.0.1:54321`)                                                       |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`   | Anon (publishable) anahtar; tarayıcıya açıktır, her sorgu satır bazlı yetkiyle sınırlıdır                    |
+| `NEXT_PUBLIC_MAP_STYLE_URL`       | İsteğe bağlı MapLibre stil adresi; boşsa OSM raster                                                          |
+| `SUPABASE_SERVICE_ROLE_KEY`       | Sadece entegrasyon testleri; uygulama okumaz. Boşsa `supabase status`'tan alınır                             |
+| `LOCAL_PANORAMA_DIR`              | Ofis aracı, sadece geliştirme: depoya ek olarak işleme hattı çıktılarının klasörü                            |
+| `LOCAL_PANORAMA_ALLOW_PRODUCTION` | `1` ise üretim derlemesi de yerel klasörü okur; sadece tarayıcı testleri kullanır                            |
+| `ORCHADOS_SIGNUP_ENABLED`         | `1` ise `/kayit` ve kayıt bağlantıları görünür, `/` yarım kalan kaydı tamamlar. Varsayılan kapalı            |
+| `ORCHADOS_PAYMENTS_ENABLED`       | `1` ise portalda kartla ödeme sunulur (İP12-D). Varsayılan kapalı                                            |
+| `PAYMENT_FAKE_CHECKOUT`           | `1` ise sahte ödeme sayfası kullanılır. Yalnızca yerel, CI ve test projesi; pilotta asla                     |
+| `ORCHADOS_SITE_INDEXABLE`         | `1` ise `robots.txt` dizinlemeye izin verir, site haritası dolar. Yalnızca canlı alan adında                 |
+| `ORCHADOS_SITE_URL`               | Sitenin herkese açık adresi (`robots.txt` ve site haritası için), ör. `https://orchados.com.tr`              |
+| `SIGNUP_PROXY_SECRET`             | `customer-signup` fonksiyonuyla ortak sır; yalnızca sunucu, asla `NEXT_PUBLIC`. Yerelde `signup-proxy-local` |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY`  | Cloudflare Turnstile site anahtarı. Boşsa robot doğrulaması gösterilmez (yerel, CI); pilotta zorunlu         |
 
-`NEXT_PUBLIC_*` değerleri derleme sırasında koda gömülür; ortam değişince yeniden derlemek gerekir.
+`NEXT_PUBLIC_*` değerleri derleme sırasında koda gömülür; ortam değişince yeniden derlemek gerekir. Site bayrakları (`ORCHADOS_*`) ve Turnstile anahtarı sunucuda her istekte okunur (`src/lib/flags.ts`).
 
 ## Stil
 
@@ -154,7 +183,7 @@ CSS Modules + `src/app/globals.css` içinde CSS değişkenleri (renk, boşluk, k
 
 ## Metinler
 
-Bütün arayüz metinleri `src/lib/i18n/tr.ts` içinde; bileşenler `t` üzerinden okur. Başka bir dil, aynı yapıda (`Messages` tipi) ikinci bir dosya ve `src/lib/i18n/index.ts` içinde dil seçimi demek. Bir birim testi, veritabanındaki her enum değerinin (parsel durumu, cinsiyet, aşı, sağlık sınıfı…) Türkçe karşılığı olduğunu denetler.
+Bütün arayüz metinleri `src/lib/i18n/tr.ts` içinde; bileşenler `t` üzerinden okur. İP12'den itibaren yeni alanların metinleri `src/lib/i18n/messages/<alan>.ts` dosyalarında: site ve kayıt `site.ts` (`siteText`), hukuk metinleri `legal.ts`. Başka bir dil, aynı yapıda (`Messages` tipi) ikinci bir dosya ve `src/lib/i18n/index.ts` içinde dil seçimi demek. Bir birim testi, veritabanındaki her enum değerinin (parsel durumu, cinsiyet, aşı, sağlık sınıfı…) Türkçe karşılığı olduğunu denetler.
 
 ## Sahip portalı (İP8)
 
@@ -297,7 +326,7 @@ Migration: `supabase/migrations/20261021120000_inventory_chain.sql`, pgTAP: `sup
 
 `PanoramaSource` arayüzü (`src/lib/office/panoramas.ts`) bir parselin panorama setlerini, bir setin panoramalarını (konum, yön, zaman, kalite, hangi görüntülerin olduğu) ve görüntülerini verir. Görüntüler `/ofis/panorama/<set>/<panorama>/<2k|4k>` route handler'ından, `/ofis` bölümüne girebilen kullanıcılara sunulur (`2k` önizleme, `4k` tam çözünürlük). Set kimliği kaynağın adıyla başlar (`storage-…`, `local-…`).
 
-- **Depo** (`storage-panorama-source.ts`, her zaman açık): işleme hattının yüklediği `kind = panorama` asset satırları (`orchados-pipeline upload`, `services/pipeline/README.md` "Yükleme"). Oturum + hat sürümü başına bir set; yeniden işleme yeni bir set olarak görünür. Bir karenin tam ve önizleme satırları `pose.gps_time_ns` ile (yoksa konumla) eşlenir; `pose.variant` yoksa `full` sayılır (`src/lib/media/panorama-variants.ts`, portal gezisiyle ortak). Konum `asset.position`, yön `pose.heading_deg`, belirsizlik `position_uncertainty_m`, kalite `pose.quality` ve `quality_score`. Route handler görüntüyü kullanıcı adına imzalanmış 15 dakikalık bir adrese yönlendirir (302, `createMediaSigner`); sorgular ve imzalar satır bazlı yetkiyle çalışır, sahip yayımlanmamış bir oturumun panoramasını göremez. Kamera yüksekliği asset satırında olmadığı için 2,0 m kabul edilir (sadece panoramadaki ağaç işaretçilerinin yüksekliği için).
+- **Depo** (`storage-panorama-source.ts`, her zaman açık): işleme hattının yüklediği `kind = panorama` asset satırları (`orchados-pipeline upload`, `services/pipeline/README.md` "Yükleme"). Oturum + hat sürümü başına bir set; yeniden işleme yeni bir set olarak görünür. Bir karenin tam ve önizleme satırları `pose.gps_time_ns` ile (yoksa konumla) eşlenir; `pose.variant` yoksa `full` sayılır (`src/lib/media/panorama-variants.ts`, portal gezisiyle ortak). Konum `asset.position`, yön `pose.heading_deg`, belirsizlik `position_uncertainty_m`, kalite `pose.quality` ve `quality_score`. Route handler görüntüyü kullanıcı adına imzalanmış 15 dakikalık bir adrese yönlendirir (302, `createMediaSigner`); sorgular ve imzalar satır bazlı yetkiyle çalışır, sahip yayımlanmamış bir oturumun panoramasını göremez. Kamera yüksekliği ziyaretin kaydından gelir (`session.camera_height_m`, ön kontrolde personel ölçüp girer); kayıt yoksa 2,0 m kabul edilir (sadece panoramadaki ağaç işaretçilerinin yüksekliği için).
 - **Yerel klasör** (`local-panorama-source.ts`, geliştirme): `LOCAL_PANORAMA_DIR` verilirse depoya ek olarak listelenir. Bu klasörün altında (4 seviyeye kadar) `panoramas.json` içeren her klasör bir settir (işleme hattının çalıştırma klasörü). Oturum ve parsel kimliği, kamera yüksekliği `manifest.json`'dan okunur. Sadece `panoramas.json`'da listelenen ve çalıştırma klasörünün içinde kalan dosyalar sunulur. **Sadece geliştirmede açık:** üretim derlemesinde `LOCAL_PANORAMA_ALLOW_PRODUCTION=1` olmadıkça devre dışıdır (tarayıcı testleri üretim derlemesine karşı çalıştığı için bunu kullanır). Yerel kaynaktan kaydedilen etiketlerde panorama asset'i boştur, kare GPS zamanıyla tanımlanır.
 
 **Depodan bir oturumla kullanım:**
@@ -619,3 +648,44 @@ Son 100 bildirim (durum filtresi `?durum=`): zaman, parsel, alıcı (ad, sahip/h
 - Entegrasyon: `tests/integration/parcel-lifecycle.test.ts`, `viewer-invitations.test.ts`, `followups.test.ts` (yakın plan listesi, istekler, planlama, acil bulgu), `portal-report-layers.test.ts`.
 - Tarayıcı: `tests/e2e/mvp-audit.spec.ts` (boyutlar, ziyaret seçici, değişenler, katmanlar, kanıt ve hash doğrulaması, gezide bakış yönü, hissedar daveti ve reddi, yakın plan listesi).
 - Temizlik: `followup_request` ve `private.viewer_invitation` satırlarını testler kendileri siler (`purgeParcels` bu tabloları bilmiyor; `tests/local-db.ts` başka bir oturumun klasöründe).
+
+## Müşteri portalı: başvuru ve ödeme
+
+İP12-D. Tasarım: `docs/musteri-yonetimi.md` §10. Müşteri profili olan her kullanıcı `/portal` altında "Hesap" menüsünü görür (Bahçelerim · Başvurularım · Siparişlerim · Ödemelerim · Hesabım); müşteri profili olmayan hissedar yalnız bahçelerini görür, faturalama sayfaları ona 403 döner.
+
+### Ekranlar
+
+| Yol                                              | İş                                                                                                                                                                            |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/portal`                                        | Bahçeler ve kartlar: açık teklif, ödeme bekleyen sipariş, taslak / incelemedeki başvuru; hiçbiri yoksa "Bahçenizi kaydedin"                                                   |
+| `/portal/basvuru`, `/yeni`, `/[id]`              | Paket seçimi (`public_package_prices` → `customer_create_application`), bahçeler, canlı `price_preview`, gönder, geri çek; gönderildikten sonra salt okunur geçmiş            |
+| `/portal/basvuru/[id]/bahce/yeni`, `/[gardenId]` | Bahçe formu: haritada yer (zorunlu) ve kaba sınır (`BoundaryDrawMap`), alan dönüm olarak, yetki/tapu/erişim bilgileri → `customer_save_application_garden`                    |
+| `/portal/teklif/[id]`                            | Kalemler, indirim, KDV, toplam, geçerlilik, ekibin notu; fatura profili durumu; eksikse aydınlatma onayı; iki sözleşme onayı → `customer_accept_quote`; revize ya da ret      |
+| `/portal/siparis`, `/[id]`                       | "Kartla öde" (yalnız `ORCHADOS_PAYMENTS_ENABLED=1`), havale bilgisi (`customer_payment_instructions`), iptal                                                                  |
+| `/portal/odeme`, `/[id]`                         | Ödeme geçmişi; sonuç sayfası `initiated` / `pending_review` iken 10 sn'de bir yenilenir; `?hata=odeme_bulunamadi` uyarısı                                                     |
+| `/portal/hesap`, `/fatura`, `/izinler`           | İletişim (`customer_update_contact`; telefon değiştirilemez), fatura profili (TCKN yalnız gerekiyorsa; `?geri=` `safeNextPath` ile süzülür), açık rızalar ve aydınlatma onayı |
+| `/makbuz/[paymentId]`                            | Makbuz PDF'i (`receipt_data`; başkasına 404), `private, no-store`                                                                                                             |
+
+`/paketler` artık `public_package_prices` ile yayımlı fiyatları ve her paket için 20 dönümlük örneği (`price_preview`, veritabanının formülü) gösterir.
+
+### Kod
+
+- `src/lib/portal-billing/`: okumalar (`data.ts`, hep `BILLING_COLUMNS`), saf ayrıştırıcılar (`validation.ts`: dönüm → m², Türkçe ondalık, bahçe / fatura / iletişim formları), `tckn.ts`, adresler ve `?bilgi=` / `?hata=` beyaz listeleri (`urls.ts`), kart ödemesi başlatma yardımcıları (`payments.ts`).
+- `src/app/portal/billing-actions.ts`: sunucu eylemleri. Kart ödemesi `payments` Edge Function'ını `{action:'start', order_id, return_origin, client_ip}` ile çağırır, tarayıcıyı sağlayıcının sayfasına yönlendirir; dönüş `payment-callback` → `/portal/odeme/<id>`.
+- Metinler: `src/lib/i18n/messages/portal-billing.ts` (`portalBillingText`), makbuz `receipt.ts`; durum adları ve hata metinleri `billingText`'ten.
+- Form değerleri ve kişisel veri loglanmaz; TCKN tarayıcıya hiç gönderilmez (yalnız maskeli hali).
+
+### Yerelde deneme
+
+`pnpm db:start && pnpm db:reset`, sonra `ORCHADOS_SIGNUP_ENABLED=1 ORCHADOS_PAYMENTS_ENABLED=1 PAYMENT_FAKE_CHECKOUT=1 SIGNUP_PROXY_SECRET=signup-proxy-local pnpm web:dev`. Sahte sağlayıcı yerel Edge secret'larıyla açıktır; `/odeme/sahte` sayfası onay, ret ve inceleme sonucunu callback'e gönderir. Örnek müşteri: `customer@example.com` / `orchados-dev`.
+
+### Testler
+
+- Birim: `src/lib/portal-billing/portal-billing.test.ts` (ayrıştırıcılar, TCKN, `?geri=` için `//evil.com` ve `/\evil.com`, ödeme başlatma hataları), `src/lib/pdf/receipt-pdf.test.ts`, `src/components/portal-billing/order-pay.test.tsx` (bayrak kapalıyken kart düğmesi yok).
+- Entegrasyon: `payments-flow.test.ts` (profil → taslak → bahçe → gönder → ops teklifi → kabul → sahte kart → çerezsiz callback → aktivasyon, tekrar callback, ret, iade, mutabakat, RLS), `customer-billing.test.ts`, `customer-sections.test.ts`.
+- E2E: `tests/e2e/customer-journey.spec.ts` (yeni ziyaretçi kayıttan makbuza; reddedilen kart). Yardımcılar `billing-helpers.ts`.
+
+### Bilinen sınırlar
+
+- Telefon değişikliği portalda yok (giriş telefonu; operasyon üzerinden).
+- Makbuz fatura değildir; e-fatura entegrasyonu kapsam dışı.

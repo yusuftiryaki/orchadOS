@@ -62,6 +62,7 @@ AI_WORKER_STATE_DIR=
     - herhangi bir bayrak
     - ağaç net görünmüyor
     - sınıf, cevabın kendi ölçeklerinden çıkmıyor (genel sınıf kuralı 3–5)
+    - (`methodology-v0.1`) kuru dal ya da gövde ve kök boğazı ölçeği 2 ya da üstü: görüntüden en zor değerlendirilen iki ölçek, güven ne olursa olsun Sonnet'e gider (`hard_scale_dead_branch_scale`, `hard_scale_trunk_base_scale`; `docs/uzman-ajan-onerileri.md` 1.8)
 6. **Aşama 2:** Sonnet. (`--with-opus` ile: Sonnet'in de cevap veremediği ya da güveni 0,50'nin altında kalan vakalar Opus'a.)
 7. **Yazma:** Her ağacın son kullanılabilir cevabı `save_ai_assessment` ile tek işlemde yazılır. Sonraki aşama başarısız olursa önceki cevap geçerlidir. Hiç cevap alınamayan ağaç yazılmaz; uzman sıfırdan bakar (panelde "düşük güven").
 
@@ -100,11 +101,16 @@ GEMINI_API_KEY=… uv run ai-worker run --session-id <uuid> --config configs/gem
 
 ## İstem
 
-- **Sürüm:** `prompt_version = ai-<PROMPT_REVISION>/<metodoloji sürümü>`, ör. `ai-v0.1/methodology-v0`. İstem metni, ölçek tanımları (`methodology.py`) ya da çıktı şeması değişirse `prompt.PROMPT_REVISION` artar. Bilinmeyen bir metodoloji sürümü hata verir.
-- **Sistem istemi** (önbellekli ön ek): mevsimin ölçek tanımları (`metric_definition` + `docs/metodoloji.md` bölüm 4), 0–3 ortak kuralı, genel sınıf kuralı, "teşhis koyma, görünür belirtiyi söyle" ve "emin değilsen değer verme" kuralları, personel sorularının kod sözlüğü, çıktı tanımı. Mevsim ve metodoloji sürümüne göre sabittir; ziyaretin bütün ağaçlarında aynıdır. Referans görseller (`docs/metodoloji.md` Ek A) henüz yok; eklenince bu ön eke girer ve istem sürümü artar.
+- **Sürüm:** `prompt_version = ai-<PROMPT_REVISION>/<metodoloji sürümü>`, ör. `ai-v0.3/methodology-v0.1`. İstem metni, ölçek tanımları (`methodology.py`) ya da çıktı şeması değişirse `prompt.PROMPT_REVISION` artar. Bilinmeyen bir metodoloji sürümü hata verir.
+- **Metodoloji sürümüne bağlı kurallar** (`methodology.py`): metodoloji sürümleri arasında değişen her kural ve metin sürüm anahtarlı tutulur; `methodology-v0` ile planlanmış ziyaret kendi kurallarıyla değerlendirilir. `methodology-v0.1`'de (uzman ajan kararları, `docs/uzman-ajan-onerileri.md` 1.1, 1.4, 1.8):
+    - Ölçek değerleri için görünür ölçütler: kuru dalda "ana kol" kuralı (bir ana kol tümüyle kuru ⇒ en az 2, iki ve fazlası ⇒ 3) ve sık hatalar (gölgedeki iç dallar, kışın ıslak koyu dallar, arka sıradaki ağacın dalları); gövde ve kök boğazında avuç içi ölçüsü, dip sürgünü bu ölçekte değil; taç doluluğunda gökyüzü boşlukları, parsel içi karşılaştırma, erkek ağaç ve fidan kendi grubuyla, yüklü ağaç seyrek sayılmaz; don hasarında %10 / %50; zararlıda görünür belirti tablosu (kokarca dahil), hafif belirti sınıfı değiştirmez; meyve yükünde dalların üçte biri / üçte ikisi, erkek ağaç ölçeğe girmez; budamada taze kesim rengi; hasatta ağaç altı artığı tek başına bir şey söylemez (`_SCALE_TEXTS_V01`).
+    - Ortak kural: iki değer arasında kalınırsa kanıt iyiyse üst değer, zayıfsa değer yok (`COMMON_RULES`).
+    - Kışın kuru (`NO_AI_DEAD_IN_SEASON`): AI kışın `dead` sınıfı vermez; istem bunu söyler. Cevap yine de `dead` derse worker cevabı toplarken (`schema.apply_worker_rules`) sınıfı `problem` yapar, `dead_branch_scale` 3 olur (model 3 vermediyse sınıf güveniyle), cevaba `winter_dead_downgraded` bayrağı ve gerekçeye Türkçe bir not eklenir. Bayrak triajda `flag_winter_dead_downgraded` olarak cevabı Sonnet'e de gönderir. `methodology-v0` ziyaretlerinde cevap olduğu gibi kalır.
+    - Zor ölçekler (`HARD_SCALES`): bkz. "Akış", triaj.
+- **Sistem istemi** (önbellekli ön ek): mevsimin ölçek tanımları (`metric_definition` + `docs/metodoloji.md` bölüm 4, metodoloji sürümünün metinleriyle), 0–3 ortak kuralı ve sürümün ek ortak kuralları, genel sınıf kuralı, "teşhis koyma, görünür belirtiyi söyle" ve "emin değilsen değer verme" kuralları, personel sorularının kod sözlüğü, çıktı tanımı. Mevsim ve metodoloji sürümüne göre sabittir; ziyaretin bütün ağaçlarında aynıdır. Referans görseller (`docs/metodoloji.md` Ek A) henüz yok; eklenince bu ön eke girer ve istem sürümü artar.
 - **Kullanıcı mesajı:** ağaç kodu ve mevsim, bu ziyaretin mozaiği, varsa önceki yayımlanmış ziyaretin mozaiği, varsa personelin evet/hayır cevapları (`kod: yes/no`).
-- **Çıktı:** yapılandırılmış JSON (`output_config.format`, şema `schema.py`); yerelde ayrıca metrik kaydına göre doğrulanır (aralık, kategori, 0–1 güven). Ölçek başına değer ya da boş + güven, sınıf + güven, `tree_visible` (yes/no/unsure), bayraklar (`staff_answer_conflict`, `large_change_from_previous`, `poor_image`), Türkçe kısa gerekçe.
-- Kışın "kuru" sınıfını sadece uzman verir; istem AI'a kışın `dead` önermemesini söyler.
+- **Çıktı:** yapılandırılmış JSON (`output_config.format`, şema `schema.py`); yerelde ayrıca metrik kaydına göre doğrulanır (aralık, kategori, 0–1 güven). Ölçek başına değer ya da boş + güven, sınıf + güven, `tree_visible` (yes/no/unsure), bayraklar (`staff_answer_conflict`, `large_change_from_previous`, `poor_image`), Türkçe kısa gerekçe. Worker'ın kendi bayrağı (`winter_dead_downgraded`) şemada modele sunulmaz; model cevabında gelirse atılır.
+- Kışın "kuru" sınıfını sadece uzman verir; istem AI'a kışın `dead` önermemesini söyler, `methodology-v0.1`'de worker bunu cevapta da uygular (yukarıda).
 
 ## Kişisel veri kuralı
 
@@ -143,9 +149,9 @@ Kış denetiminin uzman kararları setin ilk verisidir. O ziyaretler AI çalış
 
 | Dosya | İçerik |
 | --- | --- |
-| `methodology.py` | Ölçeklerin istemdeki metinleri, mevsim takvimi, genel sınıf kuralı, personel soru kodları |
+| `methodology.py` | Ölçeklerin istemdeki metinleri, mevsim takvimi, genel sınıf kuralı, personel soru kodları; metodoloji sürümüne bağlı kurallar |
 | `prompt.py` | Sistem istemi, kullanıcı mesajı, istek parametreleri, istem sürümü |
-| `schema.py` | Çıktı JSON şeması ve doğrulama |
+| `schema.py` | Çıktı JSON şeması, doğrulama, worker'ın cevaba uyguladığı kurallar (kışın kuru) |
 | `mosaic.py` | Dört yön mozaiği |
 | `triage.py` | Triaj kuralları, son cevabın seçimi |
 | `config.py` | Modeller, eşikler, fiyatlar; `--config` JSON'u bu alanları değiştirir |
@@ -159,8 +165,8 @@ Kış denetiminin uzman kararları setin ilk verisidir. O ziyaretler AI çalış
 
 ## Testler
 
-- **Birim:** istem kurulumu ve kişisel veri (`test_prompt.py`), şema doğrulama (`test_schema.py`), triaj kuralları (`test_triage.py`), mozaik, cevabın satırlara dönüşmesi (`test_rows.py`), değerlendirme (`test_evaluate.py`), SDK ile batch istemcisi sahte HTTP taşıyıcısıyla (`test_api.py`).
-- **Uçtan uca, sahte API ile** (`test_worker.py`): batch gönder → sonuç → yaz → tekrar çalıştır; `--no-wait` + `resume`; yazma sırasında kesilme; Sonnet reddi; cevapsız ağacın yeniden denenmesi; yayımlanmış ziyaret; batch bölme; Opus aşaması.
+- **Birim:** istem kurulumu, sürüme göre ölçek metinleri ve kişisel veri (`test_prompt.py`), şema doğrulama ve kışın kuru kuralı (`test_schema.py`), triaj kuralları (`test_triage.py`), mozaik, cevabın satırlara dönüşmesi (`test_rows.py`), değerlendirme (`test_evaluate.py`), SDK ile batch istemcisi sahte HTTP taşıyıcısıyla (`test_api.py`).
+- **Uçtan uca, sahte API ile** (`test_worker.py`): batch gönder → sonuç → yaz → tekrar çalıştır; `--no-wait` + `resume`; yazma sırasında kesilme; Sonnet reddi; cevapsız ağacın yeniden denenmesi; yayımlanmış ziyaret; batch bölme; Opus aşaması; `methodology-v0.1` kış ziyaretinde kuru cevabın sorunluya çevrilmesi ve zor ölçeklerin Sonnet'e gitmesi.
 - **Entegrasyon** (`test_supabase.py`, `supabase` işareti): yerel Supabase'te kendi ziyaretini açar, seed parselinin üç ağacına kesit yükler, sahte API ile çalıştırır; satırların yazıldığını, tekrar çalıştırmanın bir şey eklemediğini, sahip ve hissedarın hiçbir AI satırını görmediğini, uzman panelinin sorgularının öneriyi okuduğunu, saha personelinin yazamadığını ve `eval`'ı denetler. Önce kökte `pnpm install && pnpm db:start && pnpm db:reset`. Supabase'e ulaşılamazsa atlanır; CI'da atlanırsa iş başarısız olur. Test oturumları sonunda silinir (`ORCHADOS_TEST_KEEP_DATA=1` ile kalır).
 - **Gerçek API** (`test_live.py`, `-m live`): bir sentetik ağaçla tek istek ve token sayımı. Sadece `ANTHROPIC_API_KEY` varsa ve açıkça istenirse.
 - Veritabanı tarafı: `supabase/tests/24_ai_preassessment.test.sql` (`pnpm db:test`).
@@ -173,4 +179,5 @@ Kış denetiminin uzman kararları setin ilk verisidir. O ziyaretler AI çalış
 - **Güven kalibrasyonu:** Modelin verdiği güven ham değerdir; eşik (0,70) ve triaj pilotta `eval` ile ayarlanmalı.
 - **Ölçek belirsizliği:** `uncertainty`, güvenden türetilen bir yaklaşık değerdir (`rows.uncertainty`), istatistiksel bir aralık değildir.
 - **Retler:** Batch API sunucu tarafı model yedeğini (`fallbacks`) desteklemiyor; reddedilen istek bir sonraki aşamaya ya da sonraki `run`'a kalır.
+- **Zor ölçekler `eval`'da:** `methodology-v0.1`'in "kuru dal ve gövde 2+ zorunlu inceleme" kuralı (uzman ajan 1.8) şimdilik yalnız triajda; `eval`'ın zorunlu inceleme oranı uzman panelinin kurallarını izler ve bunu saymaz. `winter_dead_downgraded` bayrağı orada "diğer bayrak" sayılır.
 - **Kuyruk:** v0.1'de iş elle başlatılır (`run`). Ziyaret `processed` olunca kendiliğinden başlatan bir tetikleyici yok.

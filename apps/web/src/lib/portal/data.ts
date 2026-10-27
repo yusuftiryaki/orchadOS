@@ -40,9 +40,14 @@ import {
 import {
   auditConfidence,
   healthScore,
+  scoreBasis,
   scoreChange,
+  scoreCounts,
   scoreRulesFor,
+  trendBase,
+  unassessedWarning,
   type AuditConfidence,
+  type ScoreBasis,
 } from "./score";
 import { cellFrame, cellStats, spatialPattern, type SpatialPattern } from "./cells";
 import {
@@ -142,6 +147,40 @@ async function activeTreeIds(supabase: Client, parcelId: string): Promise<string
   return rows.map((r) => r.id);
 }
 
+// Score of each assessed visit (newest first) under its own methodology, and
+// the latest one's trend against its base (docs/metodoloji.md, section 9).
+function visitScores(
+  activeIds: string[],
+  bySession: Map<string, Map<string, AssessmentRow>>,
+  assessed: VisitRow[],
+) {
+  const scoreAt = (i: number): number | null => {
+    const visit = assessed[i];
+    if (!visit) return null;
+    const rules = scoreRulesFor(visit.methodology_version);
+    const now = bySession.get(visit.id)!;
+    const before = assessed[i + 1] ? bySession.get(assessed[i + 1].id) : null;
+    return healthScore(
+      scoreCounts(distribution(activeIds, now), activeIds, now, before, rules),
+      rules,
+    );
+  };
+  const latest = assessed[0];
+  if (!latest)
+    return { score: null, change: null, basis: "first" as ScoreBasis, unassessedPct: null };
+  const rules = scoreRulesFor(latest.methodology_version);
+  const timed = assessed.map((v, i) => ({ id: v.id, time: sessionTime(v), i }));
+  const base = trendBase(timed, timed[0], rules);
+  const score = scoreAt(0);
+  const counts = distribution(activeIds, bySession.get(latest.id)!);
+  return {
+    score,
+    change: base ? scoreChange(score, scoreAt(base.i)) : null,
+    basis: scoreBasis(assessed.length > 1, base, rules),
+    unassessedPct: unassessedWarning(counts.unassessed, activeIds.length, rules),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Bahçelerim
 // ---------------------------------------------------------------------------
@@ -151,9 +190,11 @@ export interface PortalParcel extends ParcelSummary {
   // Latest published visit with tree assessments.
   lastVisit: Visit | null;
   distribution: Distribution | null;
-  // Overall condition score of the last visit and its change since the one before.
+  // Overall condition score of the last visit and its change since the visit
+  // its methodology compares with (`scoreBasis`).
   score: number | null;
   scoreChange: number | null;
+  scoreBasis: ScoreBasis;
   urgentFindings: number;
 }
 
@@ -177,15 +218,7 @@ export async function listPortalParcels(supabase: Client): Promise<PortalParcel[
       const bySession = assessmentsBySession(assessments);
       const assessed = own.filter((v) => bySession.has(v.id));
       const last = assessed[0] ?? null;
-      const before = assessed[1] ?? null;
-      const scoreOf = (v: VisitRow | null) =>
-        v
-          ? healthScore(
-              distribution(trees, bySession.get(v.id)!),
-              scoreRulesFor(v.methodology_version),
-            )
-          : null;
-      const score = scoreOf(last);
+      const scores = visitScores(trees, bySession, assessed);
       let urgentFindings = 0;
       if (last) {
         const { count, error } = await supabase
@@ -201,8 +234,9 @@ export async function listPortalParcels(supabase: Client): Promise<PortalParcel[
         activeTreeCount: trees.length,
         lastVisit: last ? toVisit(last) : null,
         distribution: last ? distribution(trees, bySession.get(last.id)!) : null,
-        score,
-        scoreChange: scoreChange(score, scoreOf(before)),
+        score: scores.score,
+        scoreChange: scores.change,
+        scoreBasis: scores.basis,
         urgentFindings,
       };
     }),
@@ -261,8 +295,12 @@ export interface ParcelReport {
   latest: VisitSummary | null;
   previous: VisitSummary | null;
   change: { compared: number; worse: TreeChange[]; better: TreeChange[] } | null;
-  // Score change since the previous visit (null without one).
+  // Score change against the visit the methodology compares with (null
+  // without one), how to read it, and the share of unassessed trees when it is
+  // high enough to warn.
   scoreChange: number | null;
+  scoreBasis: ScoreBasis;
+  scoreUnassessedPct: number | null;
   // "Denetim güveni" of the latest visit.
   audit: AuditConfidence | null;
   // Findings of the latest visit, most severe first.
@@ -437,18 +475,23 @@ export async function getParcelReport(
 
   const bySession = assessmentsBySession(assessments);
   const assessedVisits = visits.filter((v) => bySession.has(v.id));
-  const summaryOf = (visit: VisitRow | undefined): VisitSummary | null => {
+  const summaryOf = (i: number): VisitSummary | null => {
+    const visit = assessedVisits[i];
     if (!visit) return null;
-    const counts = distribution(active, bySession.get(visit.id)!);
+    const rules = scoreRulesFor(visit.methodology_version);
+    const now = bySession.get(visit.id)!;
+    const before = assessedVisits[i + 1] ? bySession.get(assessedVisits[i + 1].id) : null;
+    const counts = distribution(active, now);
     return {
       ...toVisit(visit),
       distribution: counts,
-      assessedCount: bySession.get(visit.id)!.size,
-      score: healthScore(counts, scoreRulesFor(visit.methodology_version)),
+      assessedCount: now.size,
+      score: healthScore(scoreCounts(counts, active, now, before, rules), rules),
     };
   };
-  const latest = summaryOf(assessedVisits[0]);
-  const previous = summaryOf(assessedVisits[1]);
+  const latest = summaryOf(0);
+  const previous = summaryOf(1);
+  const scores = visitScores(active, bySession, assessedVisits);
 
   let change: ParcelReport["change"] = null;
   if (latest && previous) {
@@ -592,7 +635,9 @@ export async function getParcelReport(
     latest,
     previous,
     change,
-    scoreChange: scoreChange(latest?.score ?? null, previous?.score ?? null),
+    scoreChange: scores.change,
+    scoreBasis: scores.basis,
+    scoreUnassessedPct: scores.unassessedPct,
     audit,
     findings: latest ? sortFindings(allFindings.filter((f) => f.sessionId === latest.id)) : [],
     metrics,

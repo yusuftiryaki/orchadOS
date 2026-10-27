@@ -2,16 +2,54 @@
 // send-sms. Pure TypeScript without imports or Deno APIs: the web app's unit
 // tests (apps/web/src/lib/notifications/messaging.test.ts) import this file.
 //
-// Template variables are limited to the parcel name, the visit day and the
-// portal path (KVKK: no names, no finding text; the database checks the keys).
+// Template variables are limited to the parcel name, the visit day, the
+// portal path and a document number (KVKK: no names, no finding text, no
+// amounts or reasons; the database checks the keys).
 
 export type Channel = "sms" | "whatsapp";
-export type Template = "report_ready" | "critical_finding";
+export type ReportTemplate = "report_ready" | "critical_finding";
+// Customer account messages (docs/musteri-yonetimi.md §12): ref is the
+// document number (T-…, B-…, M-…, I-…, S-…).
+export type AccountTemplate =
+  | "quote_ready"
+  | "application_rejected"
+  | "payment_received"
+  | "refund_completed"
+  | "payment_reminder";
+export type Template = ReportTemplate | AccountTemplate;
 
 export interface TemplateVars {
   parcel_name?: unknown;
   date?: unknown;
   path?: unknown;
+  ref?: unknown;
+}
+
+// Document number prefix each account template refers to.
+const ACCOUNT_REF_PREFIX: Record<AccountTemplate, string> = {
+  quote_ready: "T",
+  application_rejected: "B",
+  payment_received: "M",
+  refund_completed: "I",
+  payment_reminder: "S",
+};
+
+const isAccountTemplate = (template: string): template is AccountTemplate =>
+  Object.prototype.hasOwnProperty.call(ACCOUNT_REF_PREFIX, template);
+
+function renderAccount(template: AccountTemplate, ref: string, link: string): string {
+  switch (template) {
+    case "quote_ready":
+      return `orchadOS teklifiniz (${ref}) hazır. İnceleyip onaylayabilirsiniz: ${link}`;
+    case "application_rejected":
+      return `${ref} numaralı başvurunuz sonuçlandı. Ayrıntı: ${link}`;
+    case "payment_received":
+      return `${ref} numaralı ödemeniz alındı, teşekkür ederiz. Makbuz: ${link}`;
+    case "refund_completed":
+      return `${ref} numaralı iadeniz yapıldı; hesabınıza yansıması bankanıza göre birkaç gün sürebilir: ${link}`;
+    case "payment_reminder":
+      return `${ref} numaralı siparişinizin ödemesi bekleniyor: ${link}`;
+  }
 }
 
 const MONTHS_TR = [
@@ -59,6 +97,15 @@ export function renderNotification(
   vars: TemplateVars,
   portalBaseUrl: string,
 ): RenderResult {
+  if (isAccountTemplate(template)) {
+    const ref = typeof vars.ref === "string" ? vars.ref.trim() : "";
+    const refOk = new RegExp(`^${ACCOUNT_REF_PREFIX[template]}-\\d{4}-\\d{6}$`).test(ref);
+    const link = typeof vars.path === "string" ? portalLink(portalBaseUrl, vars.path) : null;
+    if (!refOk) return { ok: false, error: "invalid_vars" };
+    if (!link) return { ok: false, error: "invalid_link" };
+    return { ok: true, body: renderAccount(template, ref, link) };
+  }
+
   const parcel = typeof vars.parcel_name === "string" ? vars.parcel_name.trim() : "";
   const day = typeof vars.date === "string" ? formatDayTr(vars.date) : null;
   const link = typeof vars.path === "string" ? portalLink(portalBaseUrl, vars.path) : null;

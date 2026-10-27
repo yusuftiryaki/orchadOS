@@ -25,13 +25,14 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 | Özellik | Nerede | Durum | Not |
 | --- | --- | --- | --- |
 | Kaydı operasyon açar, self-servis kayıt yok | `/operasyon/sahip/yeni`; `[auth] enable_signup = false` | var | `operations-screens.test.ts`, `operations-registration.spec.ts` |
+| Self-servis kayıt (İP12): SMS doğrulaması, KVKK onayı ve iki açık rıza | `supabase/functions/customer-signup`, `signup_*`, `private.customer_signup`, `private.consent_record` (`mig/20261030100300`) | kısmen (İP12-A1) | Veritabanı ve Edge Function hazır; site ve kayıt ekranı İP12-C. Auth'ta dışarıdan kayıt kapalı kalır. Self-servis hesap e-postayla hiç, telefonla yalnızca doğrulanmış telefon ve tamamlanmış kayıtla eşleştirilir (`ops_find_user_id`). `30_signup_consent`, `31_billing_rls`, `customer-signup.test.ts`, `account-takeover.test.ts` |
 | Sahip bilgileri: ad, telefon, e-posta, iletişim tercihi | `web/components/operations/owner-form.tsx`, `private.owner_profile` | var | Kişisel veri `private` şemasında; `17_operations.test.sql` |
 | Parsel bilgileri: il/ilçe/köy, tapu (ada/parsel, hisse, rızai taksim), alan, sulu/kıraç, tahmini ağaç, erişim notu, sınırı gösterecek kişi | `/operasyon/parsel/yeni`, `register_parcel`, `private.parcel_detail` | var | |
 | Kaba sınır (`owner_declared`, sürüm 1) | `boundary-draw-map.tsx`, `add_owner_declared_boundary` | var | |
 | TKGM poligonu arka plan olarak | — | yok | TKGM servisi için hesap ve kullanım koşulu kararı gerekiyor (dış iş). Harita altlığı `NEXT_PUBLIC_MAP_STYLE_URL` ile değiştirilebilir; TKGM katmanı bir stil katmanı olarak eklenebilir |
 | Yetki ve giriş izni (tapu sahibi, vekâlet, varis; giriş izni tarihi) | `parcel_detail.authorization_basis`, `entry_permission_at` | var | |
 | KVKK onayı, tarihi, metin sürümü | `owner_profile.kvkk_*` | var | Metnin kendisi hukuk görüşüne bağlı (İP10) |
-| Hizmet paketi (ziyaret tipleri, fiyat) | — | yok | Pilotta faturalandırma elle (MVP kapsam tablosu: ödeme altyapısı yok). Paket ve fiyat açık soru |
+| Hizmet paketi (ziyaret tipleri, fiyat) | `service_package`, `price_list` (`mig/20261030100100`, `100400`), `ops_save_package`, `ops_*price_list*` | kısmen (İP12-A1) | Paket, sürümlü fiyat listesi, başvuru ve ops incelemesi veritabanında; teklif, sipariş ve ödeme İP12-A2, ekranlar İP12-D/E. Gerçek fiyatlar açık soru. `30_billing_schema`, `31_billing_rls` |
 | Portal daveti; telefonla giriş | `invite-user` Edge Function, `/giris` telefon | var | Gerçek SMS için Netgsm hesabı gerekiyor |
 | Sahibin hissedarı izleyici olarak eklemesi | Portal karnesi "Hissedarlar" (`viewers-card.tsx`), `/operasyon` "Hissedar davetleri"; `owner_invite_viewer`, `ops_resolve_viewer_invitation` (`mig/20261024120100`) | var (bu görev) | Sahip ad ve telefonla davet eder, operasyon hissedarı arayıp KVKK onayını alır, hesabı telefonla açar; sahip hissedarı kaldırabilir. Karar: sahip bir numaranın hesabı olup olmadığını öğrenmez, her davet operasyondan geçer. `26_viewer_invitations`, `viewer-invitations.test.ts`, `mvp-audit.spec.ts` |
 | Parsel yaşam döngüsü: kayıt → envanter planlandı | `private.sync_parcel_inventory_status` | var | `17_operations.test.sql` |
@@ -51,14 +52,14 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 | Tıklamaların etiketli veri olması | `trunk_label` | var | |
 | Gövde tespit modelinin konum önermesi | — | yok | Model eğitimi için etiketli veri birikmeli (MVP: "kendi AI modeli yok") |
 | Sıra oturtma, kodlama, boş yer | `web/lib/office/rows.ts` | var | |
-| Ağaç özelliklerinin ilk değerlendirmesi (yaş, aşı, dip sürgünü, kuruma) | `/ofis/.../envanter/duzenle`; uzman paneli | var | Yaş, aşı ve gövde yapısı (tek/çok gövdeli) ofiste ağacın özelliği. Dip sürgünü (`basal_sprout_level`) ve kuruma deseni (`dieback_pattern`, `dried_leaves_attached`) ziyaret ölçümü: uzman girer, AI önerir (metodoloji 4.9–4.10). Tanımlar uzman ajan önerisi, pilot uzmanın onayını bekliyor |
+| Ağaç özelliklerinin ilk değerlendirmesi (yaş, aşı, dip sürgünü, kuruma) | `/ofis/.../envanter/duzenle`; uzman paneli | var | Yaş, aşı ve gövde yapısı (tek/çok gövdeli) ofiste ağacın özelliği. Dip sürgünü (`basal_sprout_level`) ve kuruma deseni (`dieback_pattern`, `dried_leaves_attached`) ziyaret ölçümü: uzman girer, AI önerir (metodoloji 4.9–4.10). Tanımlar uzman ajan önerisi, metodoloji v0.1 olarak kabul edildi |
 | Altyapı (kuyu, havuz, hat, çit, kapı, kulübe) | `zone`, düzenleme ekranı | var | |
 | Doğrulama listesi | `verification_item`, `create_verification_tour` | var | |
 | Saha doğrulama turu | `field/features/verification` | var · donanım | |
 | Uzmanın envanter onayı, sahibin sınır onayı | `approve_inventory`, `approve_boundary` | var | |
 | Referans sıralarla doğrulama (pilot) | — | donanım | Yazılım dışı ölçüm; ikinci RTK alıcısı ve jalon |
 | Çıktı: envanter özeti (yer, ağaç, boş, ara, aşısız, yaş dağılımı) | `web/lib/expert/inventory-checks.ts`, portal | var | |
-| Çıktı: envanter raporu PDF | `/portal/parsel/<id>/envanter`, `…/envanter/rapor.pdf` | var | Sayım ve harita raporu: kısa özet, uyarılar, kodlu yer haritası, sınır, boş yerler, bahçe yapısı (büyüklük, aşı, gövde yapısı, çeşit), ilk gözlemler (sayı olarak), altyapı, denetim güveni, sıradaki adımlar. Sağlık sınıfı ve skor yok. İçerik uzman ajan önerisi, pilot uzmanın onayını bekliyor |
+| Çıktı: envanter raporu PDF | `/portal/parsel/<id>/envanter`, `…/envanter/rapor.pdf` | var | Sayım ve harita raporu: kısa özet, uyarılar, kodlu yer haritası, sınır, boş yerler, bahçe yapısı (büyüklük, aşı, gövde yapısı, çeşit), ilk gözlemler (sayı olarak), altyapı, denetim güveni, sıradaki adımlar. Sağlık sınıfı ve skor yok. İçerik uzman ajan önerisi, metodoloji v0.1 olarak kabul edildi |
 | Kabul kriteri: kapsamanın kalite kapısından geçmesi | `approve_inventory`, `waive_coverage`, `coverage_report` | var (kapsama görevi) | Envanter taramasının en yeni kapsama raporu eşiğin altındaysa onay reddedilir; uzman gerekçeyle kabul edebilir (kayıtta kalır). Raporu olmayan eski veride davranış aynı. Envanter kaydedildikten sonra kapsamayı `orchados-pipeline coverage --trees-from-db` + `upload` ile ölçmek operasyonun adımı (`services/pipeline/README.md`) |
 
 ## Modül 3 – Periyodik tarama

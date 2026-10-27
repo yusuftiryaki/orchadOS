@@ -12,6 +12,7 @@ from orchados_pipeline.coverage import (
     cell_frame,
     cell_of,
     compute_coverage,
+    median_spacing_m,
     view_spread,
 )
 from orchados_pipeline.geo import LocalFrame
@@ -70,8 +71,8 @@ def row_trees(e: float, row: int, n_trees: int = 5, spacing: float = 8.0) -> lis
     return [tree(f"S{row}-{j + 1}", e, 4.0 + j * spacing) for j in range(n_trees)]
 
 
-def cover(trees, panoramas, p: CoverageParams | None = None, bbox=None):
-    tlist = TreeList(trees=trees, boundary_bbox=bbox)
+def cover(trees, panoramas, p: CoverageParams | None = None, bbox=None, kind=None):
+    tlist = TreeList(trees=trees, boundary_bbox=bbox, session_kind=kind)
     res = compute_coverage(
         tlist,
         PanoramaSet(producer=PRODUCER, panoramas=panoramas, sidecars=[]),
@@ -174,6 +175,33 @@ def test_single_uncovered_tree_is_not_a_blind_spot():
         trees, panos, CoverageParams(blind_spot_min_trees=1, blind_spot_min_share=0.1)
     )
     assert summary.blind_spots == 1 and cells[0].blind_spot
+
+
+def test_inventory_needs_98_percent():
+    # 20 trees in two rows, both aisles; one tree's east views removed: 95 %.
+    trees = row_trees(0, 1, n_trees=10) + row_trees(-8, 2, n_trees=10)
+    panos = aisle(-12, -4, 84) + aisle(-4, -4, 84) + aisle(4, -4, 84)
+    panos = [
+        q
+        for q in panos
+        if not (q.pose.lon > LON0 and abs(FRAME.to_en(q.pose.lat, q.pose.lon)[1] - 20) < 9)
+    ]
+    _, periodic, _, _ = cover(trees, panos, kind="periodic_scan")
+    assert periodic.ratio == pytest.approx(0.95) and periodic.threshold == 0.95
+    assert periodic.passed
+    _, inventory, _, _ = cover(trees, panos, kind="inventory")
+    assert inventory.threshold == 0.98 and not inventory.passed
+
+
+def test_wide_spacing_uses_20_m_cells():
+    assert median_spacing_m(TreeList(trees=[tree("S1-1", 0, 0)])) is None
+    narrow = row_trees(0, 1, spacing=8.0)
+    wide = row_trees(0, 1, spacing=10.0)
+    assert median_spacing_m(TreeList(trees=narrow)) == pytest.approx(8.0, abs=0.01)
+    _, _, _, frame = cover(narrow, aisle(-4, -4, 44) + aisle(4, -4, 44))
+    assert frame.cell_m == 10.0
+    _, _, _, frame = cover(wide, aisle(-4, -4, 60) + aisle(4, -4, 60))
+    assert frame.cell_m == 20.0
 
 
 def test_cells_follow_the_database_rule():

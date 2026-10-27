@@ -206,7 +206,11 @@ describe("methodology v0.1 sample", () => {
   it("is 10 % with at least 20 trees", async () => {
     const { reviewRulesFor } = await import("./mandatory-review");
     const r = reviewRulesFor("methodology-v0.1");
-    expect([r.sampleRate, r.sampleMin, r.bulkGate]).toEqual([0.1, 20, { minAgreement: 0.85 }]);
+    expect([r.sampleRate, r.sampleMin, r.bulkGate]).toEqual([
+      0.1,
+      20,
+      { minAgreement: 0.85, firstOfSeasonClosed: true },
+    ]);
     const ids = Array.from({ length: 100 }, (_, i) => `t${i}`);
     expect(qualitySample("v", ids, r.sampleRate, r.sampleMin).size).toBe(20);
     expect(qualitySample("v", ids.slice(0, 12), r.sampleRate, r.sampleMin).size).toBe(12);
@@ -214,5 +218,64 @@ describe("methodology v0.1 sample", () => {
       qualitySample("v", [...ids, ...ids.map((i) => i + "b"), ...ids.map((i) => i + "c")], 0.1, 20)
         .size,
     ).toBe(30);
+  });
+});
+
+describe("methodology v0.1 review rules", () => {
+  it("sends dead branch and trunk values of 2 or more to the expert", async () => {
+    const { reviewRulesFor } = await import("./mandatory-review");
+    const r = reviewRulesFor("methodology-v0.1");
+    const base = {
+      id: "t",
+      aiClass: "attention" as const,
+      aiConfidence: 0.95,
+      previousClass: null,
+    };
+    expect(mandatoryReasons({ ...base, aiValues: { dead_branch_scale: 1 } }, r)).toEqual([]);
+    expect(mandatoryReasons({ ...base, aiValues: { dead_branch_scale: 2 } }, r)).toEqual([
+      "hard_scale",
+    ]);
+    expect(mandatoryReasons({ ...base, aiValues: { trunk_base_scale: 3 } }, r)).toEqual([
+      "hard_scale",
+    ]);
+    // v0 has no such rule.
+    expect(
+      mandatoryReasons(
+        { ...base, aiValues: { dead_branch_scale: 3 } },
+        reviewRulesFor("methodology-v0"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("reads the v0.1 close-up answers", async () => {
+    const { reviewRulesFor } = await import("./mandatory-review");
+    const r = reviewRulesFor("methodology-v0.1");
+    // A dead scaffold branch makes the scale at least 2.
+    expect(
+      staffConflicts(
+        {
+          id: "t",
+          aiClass: null,
+          aiConfidence: null,
+          previousClass: null,
+          staffAnswers: { dead_scaffold_present: true },
+          aiValues: { dead_branch_scale: 1 },
+        },
+        r,
+      ),
+    ).toEqual(["dead_scaffold_present"]);
+    expect(
+      staffConflicts(
+        {
+          id: "t",
+          aiClass: null,
+          aiConfidence: null,
+          previousClass: null,
+          staffAnswers: { honeydew_present: false },
+          aiValues: { pest_sign_severity: "marked" },
+        },
+        r,
+      ),
+    ).toEqual(["honeydew_present"]);
   });
 });

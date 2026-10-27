@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { OpsNav } from "@/components/operations/ops-nav";
 import { ResultNotice } from "@/components/operations/result-notice";
+import { BillingCard } from "@/components/back-office/billing-card";
 import { ExpertRequests } from "@/components/operations/expert-requests";
 import { ViewerInvitations } from "@/components/operations/viewer-invitations";
 import { listFollowups } from "@/lib/expert/followups";
@@ -8,6 +9,7 @@ import styles from "@/components/operations/operations.module.css";
 import { VisitTable } from "@/components/operations/visit-table";
 import { requireSection } from "@/lib/auth/session";
 import { formatNumber, t } from "@/lib/i18n";
+import { billingSummary } from "@/lib/back-office/data";
 import { listFieldStaff, listVisits, opsOrgs } from "@/lib/operations/data";
 import { listViewerInvitations } from "@/lib/operations/invitations";
 import { opsHref } from "@/lib/operations/urls";
@@ -39,13 +41,14 @@ export default async function Page({
     listParcels(supabase),
     opsOrgs(supabase, user.id),
   ]);
-  const [staff, followups, invitations] = await Promise.all([
+  const [staff, followups, invitations, billing] = await Promise.all([
     listFieldStaff(supabase, orgs),
     listFollowups(supabase, { statuses: ["open", "planned"] }),
     listViewerInvitations(
       supabase,
       orgs.map((o) => o.id),
     ),
+    billingSummary(supabase, orgs),
   ]);
   const leads = new Map(staff.map((s) => [s.userId, s.email]));
 
@@ -61,6 +64,7 @@ export default async function Page({
       <OpsNav current="dashboard" />
       <h1>{T.dashboard.title}</h1>
       <ResultNotice params={await searchParams} />
+      {billing && <BillingCard summary={billing} />}
       {invitations.length > 0 && (
         <ViewerInvitations invitations={invitations} today={todayIn(now)} />
       )}

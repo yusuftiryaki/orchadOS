@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../app/theme.dart';
 
@@ -48,36 +49,101 @@ class BigButton extends StatelessWidget {
   }
 }
 
-/// Place for a reference picture ("böyle çek" / question example). Shows a
-/// placeholder until the methodology delivers the images.
+/// Place for a reference picture ("böyle çek" / question example). An SVG
+/// drawing shows its top as a thumbnail and opens in full on tap; other
+/// assets show as they are; without one, a placeholder.
 class ReferenceImage extends StatelessWidget {
   const ReferenceImage({super.key, this.assetPath, this.size = 96});
 
   final String? assetPath;
   final double size;
 
+  static bool isDrawing(String? path) => path != null && path.endsWith('.svg');
+
+  /// Shows the whole drawing over the current screen.
+  static Future<void> open(BuildContext context, String path) => showDialog(
+    context: context,
+    builder: (context) => Dialog(
+      key: const Key('reference-full'),
+      insetPadding: const EdgeInsets.all(8),
+      backgroundColor: Colors.white,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Flexible(
+            child: InteractiveViewer(
+              maxScale: 4,
+              child: SvgPicture.asset(path, fit: BoxFit.contain),
+            ),
+          ),
+          TextButton.icon(
+            key: const Key('reference-close'),
+            style: TextButton.styleFrom(
+              minimumSize: const Size.fromHeight(56),
+              textStyle: const TextStyle(fontSize: 20),
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close),
+            label: const Text('Kapat'),
+          ),
+        ],
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final path = assetPath;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: SizedBox.square(
-        dimension: size,
-        child: path != null
-            ? Image.asset(path, fit: BoxFit.cover)
-            : ColoredBox(
-                key: const Key('reference-placeholder'),
-                color: scheme.surfaceContainerHighest,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.image_outlined, size: size / 3),
-                    const Text('Örnek görsel', style: TextStyle(fontSize: 12)),
-                  ],
+    final Widget child;
+    if (path == null) {
+      child = ColoredBox(
+        key: const Key('reference-placeholder'),
+        color: scheme.surfaceContainerHighest,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.image_outlined, size: size / 3),
+            const Text('Örnek görsel', style: TextStyle(fontSize: 12)),
+          ],
+        ),
+      );
+    } else if (isDrawing(path)) {
+      child = Material(
+        color: Colors.white,
+        child: InkWell(
+          key: Key('reference-drawing:$path'),
+          onTap: () => open(context, path),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              SvgPicture.asset(
+                path,
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+              ),
+              const Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: EdgeInsets.all(4),
+                  child: CircleAvatar(
+                    radius: 14,
+                    backgroundColor: Colors.black54,
+                    child: Icon(Icons.zoom_in, size: 20, color: Colors.white),
+                  ),
                 ),
               ),
-      ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      child = Image.asset(path, fit: BoxFit.cover);
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox.square(dimension: size, child: child),
     );
   }
 }

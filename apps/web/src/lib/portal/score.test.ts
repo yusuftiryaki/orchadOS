@@ -3,10 +3,14 @@ import {
   DEFAULT_SCORE_RULES,
   auditConfidence,
   healthScore,
+  scoreBasis,
   scoreChange,
+  scoreCounts,
   scoreRulesFor,
   share,
+  trendBase,
   trendOf,
+  unassessedWarning,
 } from "./score";
 
 describe("healthScore", () => {
@@ -92,5 +96,53 @@ describe("auditConfidence", () => {
     expect(share(1, 3)).toBe(33);
     expect(share(2, 3)).toBe(67);
     expect(share(0, 0)).toBeNull();
+  });
+});
+
+describe("methodology v0.1 score", () => {
+  const v01 = scoreRulesFor("methodology-v0.1");
+  const cls = (entries: [string, string][]) =>
+    new Map(entries.map(([id, c]) => [id, { overall_class: c as "absent" }]));
+
+  it("counts an absent tree only in the visit it went missing", () => {
+    const now = cls([
+      ["a", "absent"],
+      ["b", "absent"],
+      ["c", "healthy"],
+    ]);
+    const before = cls([
+      ["a", "absent"],
+      ["b", "healthy"],
+      ["c", "healthy"],
+    ]);
+    const counts = { healthy: 1, absent: 2 };
+    expect(scoreCounts(counts, ["a", "b", "c"], now, before, v01)).toEqual({
+      healthy: 1,
+      absent: 1,
+    });
+    expect(scoreCounts(counts, ["a", "b", "c"], now, null, v01)).toEqual(counts);
+    expect(scoreCounts(counts, ["a", "b", "c"], now, before, DEFAULT_SCORE_RULES)).toEqual(counts);
+  });
+
+  it("compares with the same season a year before", () => {
+    const visits = [
+      { id: "jul26", time: "2026-07-10T08:00:00Z" },
+      { id: "feb26", time: "2026-02-10T08:00:00Z" },
+      { id: "jul25", time: "2025-07-05T08:00:00Z" },
+      { id: "jun25", time: "2025-06-02T08:00:00Z" },
+    ];
+    expect(trendBase(visits, visits[0], v01)?.id).toBe("jul25");
+    expect(trendBase(visits, visits[0], DEFAULT_SCORE_RULES)?.id).toBe("feb26");
+    expect(trendBase(visits.slice(0, 2), visits[0], v01)).toBeNull();
+    expect(scoreBasis(true, null, v01)).toBe("no_same_season");
+    expect(scoreBasis(true, visits[2], v01)).toBe("same_season");
+    expect(scoreBasis(false, null, v01)).toBe("first");
+    expect(scoreBasis(true, visits[1], DEFAULT_SCORE_RULES)).toBe("previous");
+  });
+
+  it("warns above 5 % unassessed trees", () => {
+    expect(unassessedWarning(5, 100, v01)).toBeNull();
+    expect(unassessedWarning(12, 100, v01)).toBe(12);
+    expect(unassessedWarning(12, 100, DEFAULT_SCORE_RULES)).toBeNull();
   });
 });

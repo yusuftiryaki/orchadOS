@@ -144,7 +144,10 @@ void main() {
             ),
           ),
         ],
-        answers: {'dead_branch_present': true, 'pruned': false},
+        answers: {
+          'dead_branch_present': const YesNoAnswer(true),
+          'pruned': const YesNoAnswer(false),
+        },
         methodVersion: 'winter-v0',
       );
       clock.advance(const Duration(minutes: 30));

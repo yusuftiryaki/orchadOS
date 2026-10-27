@@ -1,6 +1,6 @@
 # Uzman ajan önerileri: metodoloji v0 → v1 taslak kararları
 
-**Durum:** Bu belgedeki her karar bir **AI uzman ajanın** (ziraat mühendisi rolünde çalıştırılan bir dil modeli) **önerisidir ve gerçek uzmanın onayını bekliyor.** Bir ziraat mühendisinin görüşü değildir; kaynak ya da saha ölçümüne dayanmaz. Hangi önerilerin uygulandığı: [metodoloji.md](metodoloji.md), bölüm 11.
+**Durum:** Bu belgedeki her karar bir **AI uzman ajanın** (ziraat mühendisi rolünde çalıştırılan bir dil modeli) önerisidir. **27 Ekim 2026'da işletme kararıyla `methodology-v0.1` olarak kabul edildi.** Bir ziraat mühendisinin görüşü değildir; kaynak ya da saha ölçümüne dayanmaz. Pilotta uzman düzeltmeleri ve AI uyum ölçümü bu kararları sınar. Kabul edilen kurallar ve açık kalanlar: [metodoloji.md](metodoloji.md), bölüm 11. Bölüm 6'daki sorular pilot uzmanla görüşülürse diye duruyor; kabul için şart değil.
 **Tarih:** 27 Ekim 2026 · **Dayanak:** `docs/metodoloji.md` (methodology-v0), `docs/MVP.md`, `docs/mvp-denetimi.md`
 
 **Nasıl okunur:**
@@ -601,7 +601,7 @@ Aşağıdaki her satır bir SVG'ye dönüşür. "Mesafe" ağacın gövdesine ola
 
 ## 6. Gerçek uzmana sorulacak soruların toplu listesi
 
-Pilot uzmanla ilk görüşme için, öncelik sırasıyla:
+İsteğe bağlı: pilot uzmanla görüşülürse, öncelik sırasıyla:
 
 1. Pilot bahçelerin dikim aralıkları, ağaç yaşları, aşı yüksekliği ve anaçları (menengiç, buttum, P. khinjuk) neler? Yerinde aşılanmış yaşlı anaçlar ne kadar yaygın?
 2. Aşılı kısmı kurumuş ama dipten canlı ağaca sahibe "kuru" mu, "sorunlu" mu dersiniz?

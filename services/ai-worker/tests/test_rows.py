@@ -112,7 +112,7 @@ def test_save_args(spring):
         session_id="s",
         tree_id="t",
         methodology_version="methodology-v0",
-        prompt_version="ai-v0.2/methodology-v0",
+        prompt_version="ai-v0.3/methodology-v0",
         config_key="claude-haiku-5-5>claude-sonnet-5-5",
         params_hash="h",
         metrics=spring,

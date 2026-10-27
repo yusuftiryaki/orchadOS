@@ -1,20 +1,37 @@
 import Link from "next/link";
+import { CustomerList } from "@/components/back-office/customer-list";
+import { customerListView } from "@/components/back-office/customer-rows";
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
-import { formatDate, t } from "@/lib/i18n";
-import { listOwnerProfiles } from "@/lib/operations/data";
+import { listCustomers } from "@/lib/back-office/data";
+import { firstParam } from "@/lib/back-office/urls";
+import { t } from "@/lib/i18n";
+import { listOwnerProfiles, opsOrgs } from "@/lib/operations/data";
 import { opsHref } from "@/lib/operations/urls";
 import { createClient } from "@/lib/supabase/server";
 
 const T = t.operations;
 
-// Owners and co-owners registered by ops (private.owner_profile, through
-// ops_owner_profiles). Personal data: this section is ops only.
-export default async function Page() {
-  await requireSection("operasyon");
+// Owners, co-owners and self-service customers (private.owner_profile, through
+// ops_customers): contact preference, sign-up source, open orders and the net
+// paid amount; a search and a "self-service only" filter. Personal data: ops
+// only, phones masked, and the search term is posted (searchCustomersAction),
+// never put in the URL.
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const user = await requireSection("operasyon");
+  const params = await searchParams;
+  const selfOnly = firstParam(params.kaynak) === "self";
   const supabase = await createClient();
-  const profiles = await listOwnerProfiles(supabase);
+  const orgs = await opsOrgs(supabase, user.id);
+  const [customers, profiles] = await Promise.all([
+    listCustomers(supabase, orgs, null),
+    listOwnerProfiles(supabase),
+  ]);
 
   return (
     <main className="page">
@@ -26,43 +43,7 @@ export default async function Page() {
         </Link>
       </div>
       <p className={styles.privacy}>{T.owners.privacy}</p>
-      {profiles.length === 0 ? (
-        <p className="muted">{T.owners.empty}</p>
-      ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table} data-testid="owner-list">
-            <thead>
-              <tr>
-                <th>{T.columns.name}</th>
-                <th>{T.columns.phone}</th>
-                <th>{T.columns.contact}</th>
-                <th>{T.columns.kvkk}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {profiles.map((p) => (
-                <tr key={p.id} data-profile-id={p.id}>
-                  <td>
-                    <Link href={opsHref.owner(p.id)}>{p.full_name}</Link>
-                  </td>
-                  <td>{p.phone}</td>
-                  <td>
-                    {T.contactPreference[p.contact_preference as keyof typeof T.contactPreference]}
-                  </td>
-                  <td>
-                    {p.kvkk_consent && p.kvkk_consent_at
-                      ? T.owners.consentYes(
-                          formatDate(p.kvkk_consent_at),
-                          p.kvkk_text_version ?? "",
-                        )
-                      : T.owners.consentNo}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <CustomerList initial={customerListView(customers, profiles, selfOnly)} selfOnly={selfOnly} />
     </main>
   );
 }

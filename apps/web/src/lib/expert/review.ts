@@ -17,6 +17,7 @@ import {
   type ObservedValue,
   type ReviewRules,
 } from "./mandatory-review";
+import { scanPlatform, type ScanSetup } from "./scan-setup";
 import { seasonOf, sessionTime, type Season } from "./season";
 import { compareSlots, newest, type HealthClass, type ReviewTree } from "./summary";
 import { LEGACY_METHODOLOGY_VERSION } from "@/lib/methodology";
@@ -36,7 +37,7 @@ export const QUEUE_STATUSES: SessionStatus[] = ["processed", "in_review"];
 export const DEFAULT_METHODOLOGY_VERSION = LEGACY_METHODOLOGY_VERSION;
 
 const SESSION_COLUMNS =
-  "id, org_id, parcel_id, kind, status, started_at, planned_date, created_at, methodology_version, published_at, published_by";
+  "id, org_id, parcel_id, kind, status, started_at, planned_date, created_at, methodology_version, published_at, published_by, scan_platform, camera_height_m";
 
 // ---------------------------------------------------------------------------
 // Queue
@@ -125,7 +126,7 @@ export async function listQueue(supabase: Client): Promise<QueueItem[]> {
 // One visit
 // ---------------------------------------------------------------------------
 
-export interface ReviewSession {
+export interface ReviewSession extends ScanSetup {
   id: string;
   orgId: string;
   parcelId: string;
@@ -163,7 +164,7 @@ export interface ReviewFinding {
 
 export interface ReviewContext {
   session: ReviewSession;
-  previous: { id: string; time: string } | null;
+  previous: ({ id: string; time: string } & ScanSetup) | null;
   // Metrics the expert enters for this visit (season + report card).
   metrics: MetricDefinition[];
   // Every metric, to label any stored measurement.
@@ -172,6 +173,9 @@ export interface ReviewContext {
   findings: ReviewFinding[];
   // Mandatory review rules and quality sample rate of the visit's methodology.
   rules: ReviewRules;
+  // No visit of this season under the visit's methodology is published yet, in
+  // any parcel the expert sees (bulk approval may stay closed).
+  firstOfSeason: boolean;
 }
 
 export function isReviewable(status: SessionStatus): boolean {
@@ -198,7 +202,7 @@ export async function loadReview(
     supabase.from("parcel").select("name").eq("id", s.parcel_id).single(),
     supabase
       .from("session")
-      .select("id, started_at, planned_date, created_at")
+      .select("id, started_at, planned_date, created_at, scan_platform, camera_height_m")
       .eq("parcel_id", s.parcel_id)
       .eq("status", "published")
       .in("kind", REVIEW_KINDS)
@@ -240,7 +244,12 @@ export async function loadReview(
 
   // Previous visit: the newest published one before this visit.
   const before = (published.data ?? [])
-    .map((p) => ({ id: p.id, time: sessionTime(p) }))
+    .map((p) => ({
+      id: p.id,
+      time: sessionTime(p),
+      scanPlatform: scanPlatform(p.scan_platform),
+      cameraHeightM: p.camera_height_m,
+    }))
     .filter((p) => Date.parse(p.time) < Date.parse(time))
     .sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
   const previous = before[0] ?? null;
@@ -283,6 +292,7 @@ export async function loadReview(
 
   const methodologyVersion = s.methodology_version ?? DEFAULT_METHODOLOGY_VERSION;
   const rules = reviewRulesFor(methodologyVersion);
+  const firstOfSeason = await isFirstOfSeason(supabase, s.id, time, methodologyVersion);
   const allMetrics = metricRows.data ?? [];
   const signals = await loadSignals(supabase, s.id, allMetrics, rules);
 
@@ -356,8 +366,11 @@ export async function loadReview(
       season,
       methodologyVersion,
       publishedAt: s.published_at,
+      scanPlatform: scanPlatform(s.scan_platform),
+      cameraHeightM: s.camera_height_m,
     },
     rules,
+    firstOfSeason,
     previous,
     metrics: reviewMetrics(allMetrics, season),
     allMetrics,
@@ -374,6 +387,32 @@ export async function loadReview(
       evidenceAssetIds: f.finding_evidence.map((e) => e.asset_id),
     })),
   };
+}
+
+// Whether no other visit of the same season and methodology has been
+// published before this one.
+async function isFirstOfSeason(
+  supabase: Client,
+  sessionId: string,
+  time: string,
+  methodologyVersion: string,
+): Promise<boolean> {
+  let query = supabase
+    .from("session")
+    .select("id, started_at, planned_date, created_at")
+    .eq("status", "published")
+    .in("kind", REVIEW_KINDS)
+    .neq("id", sessionId);
+  query =
+    methodologyVersion === DEFAULT_METHODOLOGY_VERSION
+      ? query.or(`methodology_version.is.null,methodology_version.eq.${methodologyVersion}`)
+      : query.eq("methodology_version", methodologyVersion);
+  const { data, error } = await query;
+  if (error) throw error;
+  const season = seasonOf(time);
+  return !(data ?? []).some(
+    (v) => seasonOf(sessionTime(v)) === season && Date.parse(sessionTime(v)) < Date.parse(time),
+  );
 }
 
 // Staff yes/no answers, AI values and the pipeline's presence check the

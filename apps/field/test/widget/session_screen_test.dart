@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orchados_field/app/providers.dart';
@@ -201,7 +203,8 @@ void main() {
   testWidgets('pre-check needs the logger checks and both confirmations', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    // Tall enough for the whole list: every item stays built.
+    tester.view.physicalSize = const Size(1080, 6000);
     tester.view.devicePixelRatio = 2.5;
     addTearDown(tester.view.reset);
     final h = TestHarness();
@@ -225,7 +228,38 @@ void main() {
 
     await tapVisible(tester, find.byKey(const Key('gnss-connect')));
     await settle(tester);
+    // No earlier scan of the parcel: nothing prefilled.
+    expect(find.byKey(const Key('scan-setup-previous')), findsNothing);
+    await tapVisible(tester, find.byKey(const Key('check-platform-walk')));
+    await tester.enterText(
+      find.byKey(const Key('check-camera-height')),
+      '1,85',
+    );
+    await tester.pump();
+    expect(cont().onPressed, isNull, reason: 'spraying not confirmed');
+
+    // Spraying: "none" and "waiting period passed" exclude each other;
+    // either one lets the crew in.
+    await tapVisible(tester, find.byKey(const Key('check-spraying-none')));
+    await tester.pump();
     expect(cont().onPressed, isNotNull);
+    await tapVisible(
+      tester,
+      find.byKey(const Key('check-spraying-waiting_period_passed')),
+    );
+    await tester.pump();
+    expect(cont().onPressed, isNotNull);
+    await tapVisible(
+      tester,
+      find.byKey(const Key('check-spraying-waiting_period_passed')),
+    );
+    await tester.pump();
+    expect(cont().onPressed, isNull, reason: 'answer taken back');
+    await tapVisible(
+      tester,
+      find.byKey(const Key('check-spraying-waiting_period_passed')),
+    );
+    await tester.pump();
 
     // Low battery blocks the scan.
     h.logger.status = FakeGnssLogger.healthyStatus.copyWith(batteryMv: 15800);
@@ -238,6 +272,180 @@ void main() {
     await tapVisible(tester, find.byKey(const Key('precheck-continue')));
     await tester.pumpAndSettle();
     expect(find.byType(SessionScreen), findsOneWidget);
+
+    // The spraying answer, platform and height go with the session start.
+    final controller = h.container.read(sessionControllerProvider.notifier);
+    expect(await tester.runAsync(controller.start), isTrue);
+    final repo = h.container.read(fieldRepositoryProvider);
+    final sessionId = h.container.read(sessionControllerProvider).sessionId!;
+    final events = (await tester.runAsync(() => repo.events(sessionId)))!;
+    final start = events.firstWhere((e) => e.eventType == 'session_start');
+    expect(jsonDecode(start.dataJson!), {
+      'version': 1,
+      'precheck': {
+        'spraying': 'waiting_period_passed',
+        'platform': 'walk',
+        'camera_height_m': 1.85,
+      },
+    });
+    final row = (await tester.runAsync(() => repo.session(sessionId)))!;
+    expect(row.scanPlatform, 'walk');
+    expect(row.cameraHeightM, 1.85);
+    await tester.pump(const Duration(seconds: 5));
+    await h.dispose(tester);
+  });
+
+  testWidgets('pre-check: platform and camera height, prefilled from the '
+      'last scan of the parcel, with a warning when they differ', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 6000);
+    tester.view.devicePixelRatio = 2.5;
+    addTearDown(tester.view.reset);
+    final h = TestHarness();
+    final repo = h.container.read(fieldRepositoryProvider);
+    final parcelId = periodicTask.parcelId;
+    await tester.runAsync(() async {
+      // Older scan, the newest one with a setup, a newer one recorded
+      // before the pre-check asked, and another parcel.
+      await repo.createSession(
+        id: 'old',
+        parcelId: parcelId,
+        visitKind: 'periodic',
+        startedAt: DateTime.utc(2026, 5, 1),
+        scanPlatform: 'robot',
+        cameraHeightM: 1.2,
+      );
+      await repo.createSession(
+        id: 'last',
+        parcelId: parcelId,
+        visitKind: 'periodic',
+        startedAt: DateTime.utc(2026, 9, 1),
+        scanPlatform: 'motorcycle',
+        cameraHeightM: 2.1,
+      );
+      await repo.createSession(
+        id: 'unset',
+        parcelId: parcelId,
+        visitKind: 'periodic',
+        startedAt: DateTime.utc(2026, 10, 1),
+      );
+      await repo.createSession(
+        id: 'other',
+        parcelId: 'other-parcel',
+        visitKind: 'periodic',
+        startedAt: DateTime.utc(2026, 11, 1),
+        scanPlatform: 'walk',
+        cameraHeightM: 1.5,
+      );
+    });
+    h.container
+        .read(sessionControllerProvider.notifier)
+        .selectTask(periodicTask);
+    await h.logger.connect();
+    await tester.pumpWidget(h.wrap(const PrecheckScreen()));
+    await settle(tester);
+
+    FilledButton cont() => tester.widget<FilledButton>(
+      find.descendant(
+        of: find.byKey(const Key('precheck-continue')),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    bool platformTicked(String code) => tester
+        .widget<CheckboxListTile>(find.byKey(Key('check-platform-$code')))
+        .value!;
+    final height = find.byKey(const Key('check-camera-height'));
+    final warning = find.byKey(const Key('scan-setup-warning'));
+    Future<void> typeHeight(String text) async {
+      await tester.enterText(height, text);
+      await tester.pump();
+    }
+
+    // Prefilled from the newest scan of this parcel that has a setup.
+    expect(
+      find.text(
+        'Bu parselde son tarama: Motosikletle, 2,10 m — aynı yükseklik '
+        'karşılaştırmayı kolaylaştırır',
+      ),
+      findsOneWidget,
+    );
+    expect(platformTicked('motorcycle'), isTrue);
+    expect(platformTicked('walk'), isFalse);
+    expect(tester.widget<TextField>(height).controller!.text, '2,10');
+    expect(
+      find.text('Merceğin yerden yüksekliğini metreyle ölçüp yazın'),
+      findsOneWidget,
+    );
+    expect(warning, findsNothing);
+
+    await tapVisible(tester, find.byKey(const Key('check-lens')));
+    await tapVisible(tester, find.byKey(const Key('check-camera')));
+    await tapVisible(tester, find.byKey(const Key('check-spraying-none')));
+    await tester.pump();
+    expect(cont().onPressed, isNotNull);
+
+    // Up to 0,25 m from the last scan is comparable.
+    await typeHeight('2,35');
+    expect(warning, findsNothing);
+    await typeHeight('1.85');
+    expect(warning, findsNothing);
+    // More is warned about, but does not block.
+    await typeHeight('2,40');
+    expect(warning, findsOneWidget);
+    expect(
+      find.textContaining('Kamera yüksekliği son taramadan 0,30 m farklı'),
+      findsOneWidget,
+    );
+    expect(cont().onPressed, isNotNull);
+
+    // Out of range or not a number: blocked, with the reason.
+    for (final bad in ['3,6', '0,4', 'abc', '2,1,0']) {
+      await typeHeight(bad);
+      expect(cont().onPressed, isNull, reason: bad);
+      expect(
+        find.text('0,50 ile 3,50 m arasında bir sayı yazın'),
+        findsOneWidget,
+        reason: bad,
+      );
+      expect(warning, findsNothing);
+    }
+    await typeHeight('');
+    expect(cont().onPressed, isNull, reason: 'height required');
+    expect(find.text('0,50 ile 3,50 m arasında bir sayı yazın'), findsNothing);
+    await typeHeight('3.50');
+    expect(cont().onPressed, isNotNull);
+    await typeHeight('2,1');
+
+    // Another platform is warned about too.
+    await tapVisible(tester, find.byKey(const Key('check-platform-robot')));
+    await tester.pump();
+    expect(platformTicked('robot'), isTrue);
+    expect(platformTicked('motorcycle'), isFalse);
+    expect(
+      find.textContaining('Platform son taramadan farklı (Motosikletle)'),
+      findsOneWidget,
+    );
+    expect(cont().onPressed, isNotNull);
+    await tapVisible(tester, find.byKey(const Key('check-platform-robot')));
+    await tester.pump();
+    expect(cont().onPressed, isNull, reason: 'platform required');
+    await tapVisible(tester, find.byKey(const Key('check-platform-walk')));
+    await typeHeight('0,5');
+
+    await tapVisible(tester, find.byKey(const Key('precheck-continue')));
+    await tester.pumpAndSettle();
+    final controller = h.container.read(sessionControllerProvider.notifier);
+    expect(await tester.runAsync(controller.start), isTrue);
+    final sessionId = h.container.read(sessionControllerProvider).sessionId!;
+    final events = (await tester.runAsync(() => repo.events(sessionId)))!;
+    final start = events.firstWhere((e) => e.eventType == 'session_start');
+    expect((jsonDecode(start.dataJson!) as Map)['precheck'], {
+      'spraying': 'none',
+      'platform': 'walk',
+      'camera_height_m': 0.5,
+    });
+    await tester.pump(const Duration(seconds: 5));
     await h.dispose(tester);
   });
 

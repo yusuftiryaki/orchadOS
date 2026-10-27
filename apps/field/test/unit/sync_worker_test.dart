@@ -145,7 +145,10 @@ void main() {
         await photo('trunk', [1, 2, 3]),
         await photo('cuts', [4, 5]),
       ],
-      answers: {'dead_branch_present': true, 'pruned': false},
+      answers: {
+        'dead_branch_present': const YesNoAnswer(true),
+        'pruned': const YesNoAnswer(false),
+      },
       methodVersion: 'winter-v0',
     );
     await repo.stopSession(
@@ -400,10 +403,44 @@ void main() {
     );
     await worker().syncNow();
     expect(server.visits[visitId], 'planned');
-    expect(server.visitValues[visitId], {
-      'started_at': t0.toIso8601String(),
-    });
+    expect(server.visitValues[visitId], {'started_at': t0.toIso8601String()});
   });
+
+  test(
+    'the visit gets the platform and camera height of the pre-check',
+    () async {
+      await repo.createSession(
+        id: visitId,
+        parcelId: parcelId,
+        visitKind: 'periodic',
+        startedAt: t0,
+        startGpsTimeMs: gps0,
+        scanPlatform: 'motorcycle',
+        cameraHeightM: 2.1,
+      );
+      await worker().syncNow();
+      expect(server.visitValues[visitId], {
+        'started_at': t0.toIso8601String(),
+        'scan_platform': 'motorcycle',
+        'camera_height_m': 2.1,
+      });
+
+      await repo.stopSession(
+        visitId,
+        stoppedAt: t0.add(const Duration(minutes: 30)),
+        stopGpsTimeMs: gps0 + 30 * 60000,
+      );
+      await worker().syncNow();
+      expect(server.visits[visitId], 'captured');
+      expect(server.visitValues[visitId], {
+        'started_at': t0.toIso8601String(),
+        'scan_platform': 'motorcycle',
+        'camera_height_m': 2.1,
+        'status': 'captured',
+        'ended_at': t0.add(const Duration(minutes: 30)).toIso8601String(),
+      });
+    },
+  );
 
   test('the photo stays on the phone until the upload is verified', () async {
     await recordVisit();

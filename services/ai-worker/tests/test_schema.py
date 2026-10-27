@@ -167,3 +167,57 @@ def test_prompt_class_rules_follow_the_version(registry):
     assert "pest signs are marked, or dried leaves" in v0
     assert "Mild pest signs do not change the class." in v01
     assert "4. attention: any 0-3 scale above is 2, pest signs are marked" in v01
+
+
+def winter_dead(**kw):
+    return answer(
+        overall_class="dead",
+        class_confidence=0.6,
+        rationale="Ağaç cansız görünüyor.",
+        **kw,
+    )
+
+
+def test_winter_dead_becomes_problem_in_v01(winter):
+    from orchados_ai_worker.schema import WINTER_DEAD_NOTE, apply_worker_rules
+
+    out = apply_worker_rules(validate(winter_dead(), winter), "winter", "methodology-v0.1")
+    assert out.overall_class == "problem" and out.class_confidence == 0.6
+    assert out.values["dead_branch_scale"].value == 3
+    assert out.values["dead_branch_scale"].confidence == 0.6
+    assert out.flags == ["winter_dead_downgraded"]
+    assert out.rationale == f"Ağaç cansız görünüyor. {WINTER_DEAD_NOTE}"
+    # Stored with the worker flag, read back as is; applying again changes nothing.
+    again = validate(out.to_json(), winter)
+    assert again.to_json() == out.to_json()
+    assert apply_worker_rules(again, "winter", "methodology-v0.1").to_json() == out.to_json()
+
+    # A 3 the model gave keeps its own confidence.
+    values = copy.deepcopy(answer()["values"])
+    values["dead_branch_scale"] = {"value": 3, "confidence": 0.9}
+    kept = apply_worker_rules(
+        validate(winter_dead(values=values), winter), "winter", "methodology-v0.1"
+    )
+    assert kept.values["dead_branch_scale"].confidence == 0.9
+
+
+def test_winter_dead_rule_only_for_v01_winter(winter, registry):
+    from orchados_ai_worker.schema import apply_worker_rules
+
+    v0 = apply_worker_rules(validate(winter_dead(), winter), "winter", "methodology-v0")
+    assert v0.overall_class == "dead" and v0.flags == []
+    assert v0.values["dead_branch_scale"].value == 2
+    spring = season_metrics(registry, "spring")
+    values = {m.code: {"value": None, "confidence": 0.5} for m in spring}
+    leafy = validate(answer(values=values, overall_class="dead"), spring)
+    assert apply_worker_rules(leafy, "spring", "methodology-v0.1").overall_class == "dead"
+
+
+def test_model_cannot_set_worker_flags(winter):
+    msg = {
+        "stop_reason": "end_turn",
+        "content": [
+            {"type": "text", "text": json.dumps(answer(flags=["winter_dead_downgraded"]))},
+        ],
+    }
+    assert parse_message(msg, winter).flags == []

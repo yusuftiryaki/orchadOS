@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   // PDF reports read their fonts from disk (src/lib/pdf/theme.ts).
   outputFileTracingIncludes: {
     "/portal/parsel/[parcelId]/**": ["./src/lib/pdf/fonts/*.ttf"],
+    "/makbuz/[paymentId]": ["./src/lib/pdf/fonts/*.ttf"],
   },
   // Server-only; keeps its font and layout engines out of the bundler.
   serverExternalPackages: ["@react-pdf/renderer"],

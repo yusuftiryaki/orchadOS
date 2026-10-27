@@ -17,7 +17,7 @@ import {
 // Every query and every signed URL runs as the signed-in user, so row level
 // security decides what is listed and served.
 
-// Not in the asset rows yet (docs/arayuzler.md); the pipeline's default.
+// When the visit has no recorded camera height: the pipeline's default.
 const DEFAULT_CAMERA_HEIGHT_M = 2.0;
 
 const PANORAMA_COLUMNS = "id, position::json, position_uncertainty_m, pose, quality_score";
@@ -73,6 +73,7 @@ export class StoragePanoramaSource implements PanoramaSource {
         .order("id")
         .range(from, to),
     );
+    const heights = await this.cameraHeights([...new Set(rows.map((r) => r.session_id))]);
     const sets = new Map<string, PanoramaSetInfo & { frames: Set<string> }>();
     for (const row of rows) {
       const id = encodeStorageSetId({
@@ -87,7 +88,7 @@ export class StoragePanoramaSource implements PanoramaSource {
         label: `v${row.pipeline_version}${row.params_hash ? `_${row.params_hash.slice(0, 8)}` : ""}`,
         pipelineVersion: row.pipeline_version,
         paramsHash: row.params_hash,
-        cameraHeightM: DEFAULT_CAMERA_HEIGHT_M,
+        cameraHeightM: heights.get(row.session_id) ?? DEFAULT_CAMERA_HEIGHT_M,
         count: 0,
         frames: new Set<string>(),
       };
@@ -97,6 +98,19 @@ export class StoragePanoramaSource implements PanoramaSource {
     return [...sets.values()]
       .map(({ frames, ...set }) => ({ ...set, count: frames.size }))
       .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  // Camera height the crew recorded for each visit (public.session.camera_height_m).
+  private async cameraHeights(sessionIds: string[]): Promise<Map<string, number>> {
+    if (sessionIds.length === 0) return new Map();
+    const { data, error } = await this.supabase
+      .from("session")
+      .select("id, camera_height_m")
+      .in("id", sessionIds);
+    if (error) throw error;
+    return new Map(
+      (data ?? []).flatMap((s) => (s.camera_height_m == null ? [] : [[s.id, s.camera_height_m]])),
+    );
   }
 
   async listPanoramas(setId: string): Promise<PanoramaInfo[] | null> {

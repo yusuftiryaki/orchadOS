@@ -1,7 +1,7 @@
 -- Schema shape: schemas, tables, enums, geometry SRIDs, RLS switched on, triggers, seed basics.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(37);
 
 -- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
 -- removed first; rolled back with the file (supabase/testing/reset.sql).
@@ -19,11 +19,17 @@ select tables_are(
     'asset', 'asset_source', 'metric_definition', 'measurement', 'measurement_evidence',
     'assessment', 'assessment_measurement', 'finding', 'finding_evidence', 'operation', 'trunk_label',
     'verification_item', 'session_event', 'parcel_route', 'ai_assessment_detail',
-    'question', 'question_reply', 'notification', 'followup_request', 'coverage_report'
+    'question', 'question_reply', 'notification', 'followup_request', 'coverage_report',
+    -- Customers and billing (IP12, docs/musteri-yonetimi.md §6.3).
+    'org_billing_setting', 'service_package', 'price_list', 'price_list_item', 'service_application',
+    'application_garden', 'quote', 'quote_item', 'service_order', 'service_order_item', 'payment',
+    'payment_item', 'refund', 'audit_event'
   ],
   'public has exactly the MVP tables'
 );
-select tables_are('private', array['owner_profile', 'parcel_detail', 'message_outbox', 'phone_login_attempt', 'viewer_invitation'], 'private has the personal data tables');
+select tables_are('private', array['owner_profile', 'parcel_detail', 'message_outbox', 'phone_login_attempt', 'viewer_invitation',
+  'billing_profile', 'payment_billing_snapshot', 'consent_record', 'customer_signup', 'signup_attempt',
+  'application_garden_detail', 'payment_event', 'document_sequence'], 'private has the personal data tables');
 
 select is(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
@@ -82,6 +88,14 @@ select is(
 select has_trigger('public', 'capture', 'capture_insert_only', 'capture is insert-only');
 select has_trigger('public', 'asset', 'asset_insert_only', 'asset is insert-only');
 select has_trigger('public', 'measurement', 'measurement_insert_only', 'measurement is insert-only');
+select has_trigger('public', 'quote_item', 'quote_item_insert_only', 'quote_item is insert-only');
+select has_trigger('public', 'audit_event', 'audit_event_insert_only', 'audit_event is insert-only');
+select has_trigger('private', 'consent_record', 'consent_record_insert_only', 'consent_record is insert-only');
+select has_trigger('private', 'payment_event', 'payment_event_insert_only', 'payment_event is insert-only');
+select has_trigger('private', 'payment_billing_snapshot', 'payment_billing_snapshot_insert_only',
+  'payment_billing_snapshot is insert-only');
+select has_trigger('public', 'quote', 'quote_guard', 'quotes are frozen');
+select has_trigger('public', 'price_list', 'price_list_guard', 'published price lists are frozen');
 
 select has_index('public', 'measurement', 'measurement_tree_metric_time_idx', 'measurement (tree, metric, time) index');
 
@@ -103,7 +117,12 @@ select set_eq(
         -- Pipeline presence check (20261025120200_tree_presence).
         'tree_visible',
         -- Dieback pattern and basal sprouts (20261027130000_tree_stem_dieback_sprouts).
-        'basal_sprout_level', 'dieback_pattern', 'dried_leaves_attached'],
+        'basal_sprout_level', 'dieback_pattern', 'dried_leaves_attached',
+        -- Close-up questions of methodology v0.1 (20261028120000_closeup_protocol_v01).
+        'fresh_cut_present', 'dead_scaffold_present', 'gum_present', 'dead_test_no_buds',
+        'dead_test_snaps', 'dead_test_brown_cambium', 'flower_cluster_present', 'pollen_present',
+        'shoot_tip_dieback_present', 'honeydew_present', 'sooty_mould_present', 'white_flakes_present',
+        'green_fruit_drop_present', 'debris_under_tree_present', 'dry_weeds_present'],
   'migrations register the metrics from docs/metodoloji.md (Ek B), docs/veri-modeli.md and the field questions'
 );
 

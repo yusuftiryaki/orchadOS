@@ -105,11 +105,19 @@ class CoverageParams(_Section):
     # aisle span at most 2 acos(lateral offset / 7.8 m): 118 degrees for a 4 m
     # offset (8 m rows), so they never count as two sides.
     min_view_spread_deg: float = 150.0
-    # Share of the active trees that must be covered for the parcel to pass.
+    # Share of the active trees that must be covered for the parcel to pass; an
+    # inventory needs more, since a tree it misses stays missing in every later
+    # visit (methodology v0.1).
     parcel_threshold: float = 0.95
+    inventory_threshold: float = 0.98
     # Blind spots: 10 x 10 m cells (docs/arayuzler.md, "Yakın plan listesi") with
     # at least this many uncovered trees, making at least this share of the cell.
+    # Where trees stand wider apart than `wide_spacing_m` (median distance to the
+    # nearest tree) a 10 m cell holds one or two trees, so the cells are
+    # `wide_cell_m` instead.
     cell_m: float = 10.0
+    wide_spacing_m: float = 8.0
+    wide_cell_m: float = 20.0
     blind_spot_min_trees: int = 2
     blind_spot_min_share: float = 0.5
 

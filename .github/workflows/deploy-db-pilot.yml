@@ -59,12 +59,54 @@ jobs:
         if: steps.guard.outputs.ready == 'true'
         run: pnpm exec supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
+      # Payment locks (docs/musteri-yonetimi.md §15, docs/deployment.md "Ödeme (İP12)"):
+      # the pilot never runs the fake payment provider, and self-service signup
+      # is never open without Turnstile. Read through the Management API with
+      # the access token: secret names (values are not returned in clear) and
+      # one read-only query. org_billing_setting may not exist yet (to_regclass).
+      - name: Check payment and signup locks
+        if: steps.guard.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          api="https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF"
+          auth="Authorization: Bearer $SUPABASE_ACCESS_TOKEN"
+          secrets=$(curl -fsS -H "$auth" "$api/secrets" | jq -r '.[].name')
+          sql="select
+            case when to_regclass('public.org_billing_setting') is null then 0
+              else (xpath('/row/n/text()', query_to_xml(
+                'select count(*) as n from public.org_billing_setting where allow_fake_payments', false, true, '')))[1]::text::int
+            end as fake_orgs,
+            case when to_regclass('public.org_billing_setting') is null then 0
+              else (xpath('/row/n/text()', query_to_xml(
+                'select count(*) as n from public.org_billing_setting where accepts_signups', false, true, '')))[1]::text::int
+            end as signup_orgs"
+          counts=$(curl -fsS -X POST -H "$auth" -H "Content-Type: application/json" \
+            -d "$(jq -n --arg q "$sql" '{query: $q}')" "$api/database/query")
+          fake_orgs=$(echo "$counts" | jq -r '.[0].fake_orgs')
+          signup_orgs=$(echo "$counts" | jq -r '.[0].signup_orgs')
+          failed=0
+          if echo "$secrets" | grep -qx 'PAYMENT_FAKE_ALLOWED'; then
+            echo "::error::PAYMENT_FAKE_ALLOWED is set on the pilot project; remove it (supabase secrets unset PAYMENT_FAKE_ALLOWED)."
+            failed=1
+          fi
+          if [ "$fake_orgs" != "0" ]; then
+            echo "::error::$fake_orgs org(s) have org_billing_setting.allow_fake_payments = true on the pilot project."
+            failed=1
+          fi
+          if [ "$signup_orgs" != "0" ] && ! echo "$secrets" | grep -qx 'TURNSTILE_SECRET_KEY'; then
+            echo "::error::accepts_signups is on but the TURNSTILE_SECRET_KEY secret is missing on the pilot project."
+            failed=1
+          fi
+          exit "$failed"
+
       - name: Push migrations
         if: steps.guard.outputs.ready == 'true'
         # --include-all: parallel branches add migrations whose timestamps can be
         # older than one already applied; they are independent by convention.
         run: pnpm exec supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
 
+      # Without a name every function under supabase/functions is deployed
+      # (payments, payment-callback, payment-webhook included).
       # The functions read SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY
       # from the hosted project itself; the service role key never leaves Supabase.
       # verify_jwt per function comes from supabase/config.toml.

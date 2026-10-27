@@ -70,7 +70,7 @@ def test_submit_results_write(tmp_path):
 
     # Row contents: method version is the prompt version; evidence = the 4 crops.
     assert s12["p_methodology_version"] == "methodology-v0"
-    assert s12["p_detail"]["prompt_version"] == "ai-v0.2/methodology-v0"
+    assert s12["p_detail"]["prompt_version"] == "ai-v0.3/methodology-v0"
     assert s12["p_detail"]["config_key"] == f"{HAIKU}>{SONNET}"
     assert len(s12["p_evidence_asset_ids"]) == 4
     assert s12["p_notes"] == "Ağaç sağlıklı görünüyor."
@@ -249,3 +249,60 @@ def test_limit(tmp_path):
     assert report.sent == 1 and report.skipped == {"over_limit": 2}
     report = worker(cat, api, tmp_path).run(cat.session_row.id)
     assert report.sent == 2 and len(cat.saved) == 3
+
+
+def test_v01_winter_dead_and_hard_scales(tmp_path):
+    cat = make_catalog(methodology="methodology-v0.1")
+    api = FakeBatchApi(
+        scripted(
+            {
+                HAIKU: {
+                    "S1-2": answer("dead", 0.8, {"dead_branch_scale": 2}),
+                    "S1-3": answer("attention", 0.9, {"trunk_base_scale": 2}),
+                },
+                SONNET: {
+                    "S1-2": answer("dead", 0.7, {"dead_branch_scale": None}),
+                    "S1-3": answer("attention", 0.9, {"trunk_base_scale": 2}),
+                },
+            }
+        )
+    )
+    report = worker(cat, api, tmp_path).run(cat.session_row.id)
+    assert report.prompt_version == "ai-v0.3/methodology-v0.1"
+    system = api.requests[0]["params"]["system"][0]["text"]
+    assert "winter_dead_downgraded" in system and "scaffold" in system
+
+    rows = {a["p_tree_id"]: a for a in cat.saved}
+    s12, s13 = rows[tid("S1-2")], rows[tid("S1-3")]
+    # Haiku said dead: changed to problem, flagged, and still sent to Sonnet.
+    assert s12["p_detail"]["review_reasons"] == [
+        "class_problem",
+        "flag_winter_dead_downgraded",
+        "hard_scale_dead_branch_scale",
+    ]
+    # Sonnet said dead too, without a dead branch value: problem with dead_branch_scale 3.
+    assert (s12["p_overall_class"], s12["p_model_name"]) == ("problem", SONNET)
+    assert s12["p_detail"]["flags"] == ["winter_dead_downgraded"]
+    assert "yalnız uzman verir" in s12["p_notes"]
+    dead = next(r for r in cat.registry if r["code"] == "dead_branch_scale")["id"]
+    values = {m["metric_definition_id"]: m for m in s12["p_measurements"]}
+    assert values[dead]["value_scale"] == 3 and values[dead]["confidence"] == 0.7
+    # Confident attention with trunk 2: reviewed because the trunk scale is hard.
+    assert s13["p_detail"]["review_reasons"] == ["hard_scale_trunk_base_scale"]
+    assert s13["p_model_name"] == SONNET
+
+
+def test_v0_winter_dead_is_kept(tmp_path):
+    cat = make_catalog(("S1-1",))
+    api = FakeBatchApi(
+        scripted(
+            {
+                HAIKU: {"S1-1": answer("dead", 0.8, {"dead_branch_scale": 2})},
+                SONNET: {"S1-1": answer("dead", 0.8, {"dead_branch_scale": 2})},
+            }
+        )
+    )
+    worker(cat, api, tmp_path).run(cat.session_row.id)
+    (row,) = cat.saved
+    assert row["p_overall_class"] == "dead" and row["p_detail"]["flags"] == []
+    assert row["p_detail"]["review_reasons"] == ["class_dead"]

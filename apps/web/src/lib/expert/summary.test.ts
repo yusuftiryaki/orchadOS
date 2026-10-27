@@ -209,7 +209,7 @@ describe("bulk approval gate (methodology v0.1)", () => {
       sampled: false,
       ...over,
     }) as ReviewTree;
-  const gate = { bulkGate: { minAgreement: 0.85 } };
+  const gate = { bulkGate: { minAgreement: 0.85, firstOfSeasonClosed: false } };
 
   it("waits for the whole sample, then needs 85 % agreement", () => {
     const sample = Array.from({ length: 10 }, (_, i) =>
@@ -226,5 +226,14 @@ describe("bulk approval gate (methodology v0.1)", () => {
       agreement: 0.8,
     });
     expect(bulkGate(sample, { bulkGate: null }).open).toBe(true);
+  });
+
+  it("stays closed on the first visit of a season when the rules say so", () => {
+    const decided = [tree("s0", { sampled: true, expertClass: "healthy" })];
+    const closing = { bulkGate: { minAgreement: 0.85, firstOfSeasonClosed: true } };
+    expect(bulkGate(decided, closing, true)).toEqual({ open: false, reason: "first_of_season" });
+    expect(bulkGate(decided, closing, false).open).toBe(true);
+    expect(bulkGate(decided, gate, true).open).toBe(true);
+    expect(bulkGate(decided, { bulkGate: null }, true).open).toBe(true);
   });
 });

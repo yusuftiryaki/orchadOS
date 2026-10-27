@@ -30,7 +30,14 @@ from .methodology import DEFAULT_METHODOLOGY_VERSION, season_of
 from .mosaic import DIRECTIONS, build_mosaic
 from .prompt import TreeInput, prompt_version, request_params
 from .rows import save_args
-from .schema import MetricDef, OutputError, parse_message, season_metrics, validate
+from .schema import (
+    MetricDef,
+    OutputError,
+    apply_worker_rules,
+    parse_message,
+    season_metrics,
+    validate,
+)
 from .state import JobState, job_dir
 from .triage import StageOutcome, final_outcome, hard_reasons, review_reasons
 
@@ -413,7 +420,11 @@ class Worker:
                 error = f"{result.get('type', 'unknown')}: {err.get('type', '') or err}"
             else:
                 try:
-                    output = parse_message(message, metrics).to_json()
+                    output = apply_worker_rules(
+                        parse_message(message, metrics),
+                        state.data["season"],
+                        state.data["methodology_version"],
+                    ).to_json()
                 except OutputError as exc:
                     error = f"invalid answer: {exc}"
             self._record(state, tid, st, batch_id, output, error, message)

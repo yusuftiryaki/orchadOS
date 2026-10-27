@@ -44,6 +44,8 @@ gantt
     section Operasyon
     İP10 Uzman, pilot sahipler, KVKK   :ip10, 2026-10-20, 2027-01-15
     İP11 İşleme istasyonu              :ip11, 2026-12-15, 2027-01-10
+    section Müşteri
+    İP12 Müşteri edinme ve ödeme       :ip12, 2026-10-28, 2026-11-20
 ```
 
 **Kritik yol:** Kit parçalarının teslim süresi → teknik denemeler → işleme hattı → pilot envanterleri → kış denetimi. Kit siparişi gecikirse her şey kayar; bu yüzden ilk hafta verilmeli.
@@ -64,6 +66,7 @@ gantt
 | İP9 | AI worker v0.1 | P1 | 4 gün | Kış etiketlerinden değerlendirme seti; Batch ile ön değerlendirme; uzman paneline öneri olarak düşüyor. İlkbahar denetiminden (15 Nisan) önce |
 | İP10 | Operasyon hazırlıkları | P0 | 4 gün + dış süreler | Metodoloji v0 (ölçekler, referans fotoğraflar), KVKK aydınlatma ve rıza metinleri, sözleşme taslağı, uzman anlaşması, pilot sahiplerin onayı |
 | İP11 | İşleme istasyonu | P0 | 1 gün | Pilotta bulutta (karar 22 Ekim): ham video ofisten buluttaki depoya yüklenir, GPU'lu sanal makine iş başına açılıp kapanır; işleme hattı orada çalışıyor |
+| İP12 | Müşteri edinme ve yönetimi | P1 | 12 gün | Site, self-servis kayıt (SMS doğrulaması, rızalar), başvuru, teklif, kartla (iyzico) ve havaleyle ödeme, makbuz, iade, back office; bayraklar kapalıyken birleşir. Tasarım: `docs/musteri-yonetimi.md` |
 
 **Durum (20 Ekim 2026)**
 
@@ -79,6 +82,7 @@ gantt
 | İP8 | v0.1 tamam (PR #13) | Bahçelerim, parsel karnesi, sağlık haritası, ağaç karnesi ve fotoğraf geçmişi, işaretçili 360° gezi, yazdırma/PDF, telefon görünümü |
 | CI | Tamam (PR #10) | Her PR'da bileşen testleri GitHub Actions'ta; migration'lar `main`'den Supabase test projesine; web Vercel'de. Bkz. `docs/deployment.md` |
 | İP10 | Metodoloji v0 taslağı (`docs/metodoloji.md`) | Uzmanla kesinleşecek maddeler bölüm 11'de. Rol rol akış: `docs/kullanim-kilavuzu.md` |
+| İP12-A1 | Veri modeli ve kayıt (27 Ekim, PR açık) | Bütün faturalama tabloları (14 `public`, 8 `private`), sütun yetkileri, kayıt ve rıza fonksiyonları, `customer-signup` Edge Function, katalog ve başvuru fonksiyonları, `ops_find_user_id` sertleştirmesi, örnek müşteri (`customer@example.com`). Teklif, sipariş, ödeme İP12-A2 |
 | Operasyon ekranları | Tamam (PR #19) | `/operasyon`: pano, sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma, ziyaret planlama |
 | Envanter onayı | Tamam (PR #18) | Doğrulama listesi veritabanında (`verification_item`), ofiste ağaç özellikleri, altyapı ve saha sınırı; uzmanın envanter onayı; sahibin sınır onayı. Saha tarafı açık |
 | İP6 v0.3 | Tamam (PR #21) | Doğrulama turu ekranı, sahada sınır köşesi, kapsama haritası, test projesine bağlı APK (`docs/gorevler/ip6-envanter-saha.md`) |
@@ -100,10 +104,13 @@ gantt
 5. ✅ **Pilota ilk sürüm** (PR #36, 27 Ekim): 37 migration ve Edge Function'lar pilot projesinde, `orchados-pilot` yayında.
 6. ✅ **Bakım** (PR #37, #38): Test temizliği yeni tabloları sütun adından kendiliğinden kapsıyor (`supabase/testing/purge.sql`). Tarayıcı testlerinde CI'da bir tekrar ve 60 sn süre; toplu onay testindeki asıl hata (rastgele örneklemde incelenmiş ağaca karar) düzeltildi.
 
-7. ✅ **27 Ekim işleri:** BLE paketi `universal_ble` (PR #41); dip sürgünü, kuruma deseni, gövde yapısı (PR #42); ücretsiz AI sağlayıcıları: yerel Ollama `gemma3:4b` ile uçtan uca denendi, Gemini ücretsiz katmanı yalnız test verisi (PR #43); envanter raporu ve sunucuda PDF (PR #44); web ve saha arayüzlerinde tasarım yenilemesi (PR #45, #46); **metodoloji v0.1**: uzman ajan kararları (PR #47, `docs/uzman-ajan-onerileri.md`; pilot uzmanın onayını bekliyor).
+7. ✅ **27 Ekim işleri:** BLE paketi `universal_ble` (PR #41); dip sürgünü, kuruma deseni, gövde yapısı (PR #42); ücretsiz AI sağlayıcıları: yerel Ollama `gemma3:4b` ile uçtan uca denendi, Gemini ücretsiz katmanı yalnız test verisi (PR #43); envanter raporu ve sunucuda PDF (PR #44); web ve saha arayüzlerinde tasarım yenilemesi (PR #45, #46); **metodoloji v0.1**: uzman ajan kararları (PR #47, `docs/uzman-ajan-onerileri.md`), 27 Ekim'de işletme kararıyla kabul edildi; kalan kurallar kodda (zor ölçekler, mevsimin ilk ziyaretinde toplu onay kapalı, "yok" bir kez, aynı mevsimle trend, envanterde %98 ve 20×20 m kör nokta, AI istemi v0.3, yakın plan protokolü v0.1).
+
+8. **İP12 Müşteri edinme ve yönetimi** (27 Ekim): geliştirme bulut oturumlarında; üç dalgada altı akış (`docs/gorevler/ip12-*.md`, tasarım `docs/musteri-yonetimi.md` §17). Dalga 1: A1 veri modeli ve kayıt, B ödeme sağlayıcı, C site ve kayıt arayüzü; dalga 2: A2 teklif, sipariş, ödeme fonksiyonları; dalga 3: D müşteri portalı, E back office.
 
 **Açık işler**
 
+- [x] **Karar (27 Ekim, İP12):** Akış başvuru → operasyon onayı → ödeme. Fiyat dönüm başına ve yıllık; paket yıllık periyodik ziyaret sayısı, minimum ücret var; fiyat listesi sürümlü, yayımlanan değişmez. Kartla ödeme iyzico ile (3DS, sağlayıcıdan bağımsız arayüzün arkasında), havaleyi operasyon kaydeder. Ayrıntı: `docs/musteri-yonetimi.md` §2.
 - [x] **Envanter kaydı tek işlemde:** *(PR #15)* Yer ve ağaç kaydı şu an iki ayrı ekleme; `save_inventory(...)` adlı, kullanıcının yetkisiyle çalışan tek işlemlik bir veritabanı fonksiyonu.
 - [x] **Etiketli veri:** *(PR #15)* Ofis aracındaki gövde tıklamaları (gövde tespit modeli için etiket) şimdilik tarayıcıda; veritabanında saklanmalı.
 - [x] **Web:** Ağaç rengi uzman ve ofis tarafında da *(PR #15)* `tree_latest_assessment` görünümüne bağlanmalı (portalda yapıldı).
