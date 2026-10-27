@@ -1,0 +1,450 @@
+import { parseTlToKurus } from "@/lib/billing/money";
+
+// Pure parsers of the back office forms (docs/musteri-yonetimi.md §11): what
+// ops types (Turkish lira, percent, dönüm, dates, IBAN) → the units of the
+// billing functions (kuruş, basis points, m², ISO dates). No floating point
+// for money or rates; nothing is logged.
+
+export type Parsed<T> = { ok: true; value: T } | { ok: false; field: string };
+
+const ok = <T>(value: T): Parsed<T> => ({ ok: true, value });
+const bad = (field: string): Parsed<never> => ({ ok: false, field });
+
+// Reads one text field of a form; missing fields read as "".
+export type Reader = (name: string) => string;
+
+export function formReader(form: FormData): Reader {
+  return (name) => {
+    const value = form.get(name);
+    return typeof value === "string" ? value.trim() : "";
+  };
+}
+
+// "12.000,50" → 1200050 kuruş; zero only when allowed.
+export function parseAmount(input: string, { allowZero = false } = {}): number | null {
+  const kurus = parseTlToKurus(input);
+  if (kurus == null || kurus > 1e12) return null;
+  if (kurus === 0 && !allowZero) return null;
+  return kurus;
+}
+
+const DECIMAL_RE = /^(\d{1,6})(?:[.,](\d+))?$/;
+
+// A decimal with at most `scale` fractional digits, as an integer scaled by
+// 10^scale ("12,5" with scale 2 → 1250). Comma or dot as separator; no
+// thousands grouping.
+function parseScaled(input: string, scale: number): number | null {
+  const match = DECIMAL_RE.exec(input.replace(/\s+/g, ""));
+  if (!match) return null;
+  const fraction = match[2] ?? "";
+  if (fraction.length > scale) return null;
+  return Number(match[1]) * 10 ** scale + Number(fraction.padEnd(scale, "0") || "0");
+}
+
+// Percent → basis points: "12,5" → 1250; 0..100 with two decimals at most.
+export function percentToBp(input: string): number | null {
+  const text = input.replace(/%/g, "");
+  if (text.trim() === "") return 0;
+  const bp = parseScaled(text, 2);
+  return bp != null && bp <= 10000 ? bp : null;
+}
+
+// What is still to pay on an order, as the database counts it
+// (ops_record_manual_payment, activate_order): the total less the net paid
+// amount (paid − refunded). Only an order awaiting payment owes anything.
+export function outstandingKurus(order: {
+  status: string;
+  total_kurus: number;
+  paid_kurus: number;
+  refunded_kurus: number;
+}): number {
+  if (order.status !== "awaiting_payment") return 0;
+  return Math.max(order.total_kurus - (order.paid_kurus - order.refunded_kurus), 0);
+}
+
+// 1250 → "12,5".
+export function bpToPercent(bp: number): string {
+  return new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(bp / 100);
+}
+
+// Dönüm → m²: "20,1" → 20100. Three decimals at most (1 m²); above zero and
+// at most 10.000 dönüm (the database's limit is 10 km²).
+export function donumToM2(input: string): number | null {
+  const m2 = parseScaled(input, 3);
+  return m2 != null && m2 > 0 && m2 <= 10_000_000 ? m2 : null;
+}
+
+const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+// A calendar day as YYYY-MM-DD (the value of <input type="date">).
+export function parseIsoDate(input: string): string | null {
+  const match = ISO_DATE_RE.exec(input);
+  if (!match) return null;
+  const [y, m, d] = match.slice(1).map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) {
+    return null;
+  }
+  return input;
+}
+
+// YYYY-MM-DD plus whole days.
+export function addDays(isoDate: string, days: number): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+export function parseIntInRange(input: string, min: number, max: number): number | null {
+  if (!/^-?\d{1,9}$/.test(input)) return null;
+  const n = Number(input);
+  return n >= min && n <= max ? n : null;
+}
+
+// "tr12 0006 ..." → "TR120006...".
+export function normalizeIban(input: string): string {
+  return input.replace(/\s+/g, "").toUpperCase();
+}
+
+// Turkish IBAN: TR, two check digits, 22 more digits (the database's rule)
+// and the ISO 13616 mod-97 check.
+export function ibanIssue(iban: string): "format" | "checksum" | null {
+  if (!/^TR\d{24}$/.test(iban)) return "format";
+  const rearranged = iban.slice(4) + iban.slice(0, 4);
+  const digits = rearranged.replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
+  let remainder = 0;
+  for (const ch of digits) remainder = (remainder * 10 + Number(ch)) % 97;
+  return remainder === 1 ? null : "checksum";
+}
+
+const text = (read: Reader, name: string, max: number, required = false): Parsed<string | null> => {
+  const value = read(name);
+  if (!value) return required ? bad(name) : ok(null);
+  return value.length <= max ? ok(value) : bad(name);
+};
+
+const checked = (read: Reader, name: string) => read(name) === "on" || read(name) === "true";
+
+// ---------------------------------------------------------------------------
+// Applications and quotes
+// ---------------------------------------------------------------------------
+
+export interface QuoteTermsInput {
+  proposedServiceStart: string | null;
+  validDays: number | null;
+  discountBp: number;
+  discountNote: string | null;
+  noteToCustomer: string | null;
+}
+
+// Common terms of a quote: start day, validity, discount (with its reason),
+// note to the customer.
+export function parseQuoteTerms(read: Reader): Parsed<QuoteTermsInput> {
+  const startText = read("proposed_service_start");
+  const proposedServiceStart = startText ? parseIsoDate(startText) : null;
+  if (startText && !proposedServiceStart) return bad("proposed_service_start");
+  const daysText = read("valid_days");
+  const validDays = daysText ? parseIntInRange(daysText, 1, 90) : null;
+  if (daysText && validDays == null) return bad("valid_days");
+  const discountBp = percentToBp(read("discount_percent"));
+  if (discountBp == null) return bad("discount_percent");
+  const discountNote = text(read, "discount_note", 500);
+  if (!discountNote.ok) return discountNote;
+  if (discountBp > 0 && !discountNote.value) return bad("discount_note");
+  const noteToCustomer = text(read, "note_to_customer", 1000);
+  if (!noteToCustomer.ok) return noteToCustomer;
+  return ok({
+    proposedServiceStart,
+    validDays,
+    discountBp,
+    discountNote: discountNote.value,
+    noteToCustomer: noteToCustomer.value,
+  });
+}
+
+export interface ParcelQuoteInput extends QuoteTermsInput {
+  packageId: string;
+  parcelIds: string[];
+  firstYear: boolean;
+  proposedServiceStart: string;
+}
+
+export function parseParcelQuote(read: Reader, form: FormData): Parsed<ParcelQuoteInput> {
+  const terms = parseQuoteTerms(read);
+  if (!terms.ok) return terms;
+  if (!terms.value.proposedServiceStart) return bad("proposed_service_start");
+  const packageId = read("package_id");
+  if (!packageId) return bad("package_id");
+  const parcelIds = form.getAll("parcel_ids").filter((v): v is string => typeof v === "string");
+  if (parcelIds.length === 0) return bad("parcel_ids");
+  return ok({
+    ...terms.value,
+    proposedServiceStart: terms.value.proposedServiceStart,
+    packageId,
+    parcelIds,
+    firstYear: checked(read, "first_year"),
+  });
+}
+
+export interface VerifyInput {
+  verifiedAreaM2: number;
+  boundary: [number, number][] | null;
+  note: string | null;
+}
+
+// Garden verification: the verified area in dönüm, an optional redrawn ring
+// (JSON [[lon, lat], …] from the map) and an internal note.
+export function parseVerify(read: Reader): Parsed<VerifyInput> {
+  const area = donumToM2(read("verified_area_donum"));
+  if (area == null) return bad("verified_area_donum");
+  let boundary: [number, number][] | null = null;
+  const ring = read("boundary");
+  if (ring) {
+    try {
+      const parsed: unknown = JSON.parse(ring);
+      if (
+        !Array.isArray(parsed) ||
+        parsed.length < 3 ||
+        parsed.length > 500 ||
+        !parsed.every(
+          (p) =>
+            Array.isArray(p) &&
+            p.length === 2 &&
+            p.every((n) => typeof n === "number" && Number.isFinite(n)),
+        )
+      ) {
+        return bad("boundary");
+      }
+      boundary = parsed as [number, number][];
+    } catch {
+      return bad("boundary");
+    }
+  }
+  const note = text(read, "note", 2000);
+  if (!note.ok) return note;
+  return ok({ verifiedAreaM2: area, boundary, note: note.value });
+}
+
+export function parseReject(read: Reader): Parsed<{ reason: string; note: string | null }> {
+  const reason = read("reason");
+  if (!reason) return bad("reason");
+  const note = text(read, "note", 2000);
+  if (!note.ok) return note;
+  return ok({ reason, note: note.value });
+}
+
+// ---------------------------------------------------------------------------
+// Orders, payments and refunds
+// ---------------------------------------------------------------------------
+
+export interface ManualPaymentInput {
+  amountKurus: number;
+  valueDate: string;
+  bankReference: string;
+  note: string | null;
+}
+
+export function parseManualPayment(read: Reader): Parsed<ManualPaymentInput> {
+  const amountKurus = parseAmount(read("amount"));
+  if (amountKurus == null) return bad("amount");
+  const valueDate = parseIsoDate(read("value_date"));
+  if (!valueDate) return bad("value_date");
+  const bankReference = text(read, "bank_reference", 100, true);
+  if (!bankReference.ok) return bankReference;
+  const note = text(read, "note", 2000);
+  if (!note.ok) return note;
+  return ok({ amountKurus, valueDate, bankReference: bankReference.value!, note: note.value });
+}
+
+export interface RefundInput {
+  amountKurus: number;
+  reason: string;
+  note: string | null;
+  paymentItemId: string | null;
+}
+
+export function parseRefund(read: Reader): Parsed<RefundInput> {
+  const amountKurus = parseAmount(read("amount"));
+  if (amountKurus == null) return bad("amount");
+  const reason = read("reason");
+  if (!reason) return bad("reason");
+  const note = text(read, "note", 2000);
+  if (!note.ok) return note;
+  return ok({
+    amountKurus,
+    reason,
+    note: note.value,
+    paymentItemId: read("payment_item_id") || null,
+  });
+}
+
+export function parseManualRefund(
+  read: Reader,
+): Parsed<{ bankReference: string; completedOn: string }> {
+  const bankReference = text(read, "bank_reference", 100, true);
+  if (!bankReference.ok) return bankReference;
+  const completedOn = parseIsoDate(read("completed_on"));
+  if (!completedOn) return bad("completed_on");
+  return ok({ bankReference: bankReference.value!, completedOn });
+}
+
+// Accepting a card result (payment review, uncertain refund) needs the
+// provider's reference; rejecting it does not.
+export function parseResolution(
+  read: Reader,
+): Parsed<{ succeeded: boolean; providerRef: string | null; note: string | null }> {
+  const outcome = read("outcome");
+  if (outcome !== "succeeded" && outcome !== "failed") return bad("outcome");
+  const providerRef = text(read, "provider_ref", 100);
+  if (!providerRef.ok) return providerRef;
+  if (outcome === "succeeded" && !providerRef.value) return bad("provider_ref");
+  const note = text(read, "note", 2000);
+  if (!note.ok) return note;
+  return ok({
+    succeeded: outcome === "succeeded",
+    providerRef: providerRef.value,
+    note: note.value,
+  });
+}
+
+export function parseNote(read: Reader, required: boolean): Parsed<string | null> {
+  return text(read, "note", 2000, required);
+}
+
+// ---------------------------------------------------------------------------
+// Prices and settings
+// ---------------------------------------------------------------------------
+
+export interface PackageInput {
+  id?: string;
+  code: string;
+  name: string;
+  description: string | null;
+  periodic_visits_per_year: number;
+  includes_inventory: boolean;
+  active: boolean;
+  sort_order: number;
+}
+
+export function parsePackage(read: Reader): Parsed<PackageInput> {
+  const code = read("code").toLowerCase();
+  if (!/^[a-z][a-z0-9_-]{1,31}$/.test(code)) return bad("code");
+  const name = text(read, "name", 100, true);
+  if (!name.ok) return name;
+  const description = text(read, "description", 2000);
+  if (!description.ok) return description;
+  const visits = parseIntInRange(read("periodic_visits_per_year"), 1, 12);
+  if (visits == null) return bad("periodic_visits_per_year");
+  const sortText = read("sort_order");
+  const sort = sortText ? parseIntInRange(sortText, -1_000_000, 1_000_000) : 0;
+  if (sort == null) return bad("sort_order");
+  const id = read("id");
+  return ok({
+    ...(id ? { id } : {}),
+    code,
+    name: name.value!,
+    description: description.value,
+    periodic_visits_per_year: visits,
+    includes_inventory: checked(read, "includes_inventory"),
+    active: checked(read, "active"),
+    sort_order: sort,
+  });
+}
+
+export interface PriceListDraftInput {
+  validFrom: string | null;
+  vatRateBp: number;
+  note: string;
+  items: {
+    package_id: string;
+    unit_price_kurus: number;
+    minimum_fee_kurus: number;
+    inventory_fee_kurus: number;
+  }[];
+}
+
+// The draft editor has one row per package (`unit_<id>`, `min_<id>`,
+// `inv_<id>`); a package without a unit price is left out of the list.
+export function parsePriceListDraft(
+  read: Reader,
+  packageIds: string[],
+): Parsed<PriceListDraftInput> {
+  const fromText = read("valid_from");
+  const validFrom = fromText ? parseIsoDate(fromText) : null;
+  if (fromText && !validFrom) return bad("valid_from");
+  const vatRateBp = percentToBp(read("vat_percent"));
+  if (vatRateBp == null) return bad("vat_percent");
+  const note = text(read, "note", 1000);
+  if (!note.ok) return note;
+  const items: PriceListDraftInput["items"] = [];
+  for (const id of packageIds) {
+    const unitText = read(`unit_${id}`);
+    if (!unitText) continue;
+    const unit = parseAmount(unitText);
+    if (unit == null) return bad(`unit_${id}`);
+    const min = parseAmount(read(`min_${id}`) || "0", { allowZero: true });
+    if (min == null) return bad(`min_${id}`);
+    const inv = parseAmount(read(`inv_${id}`) || "0", { allowZero: true });
+    if (inv == null) return bad(`inv_${id}`);
+    items.push({
+      package_id: id,
+      unit_price_kurus: unit,
+      minimum_fee_kurus: min,
+      inventory_fee_kurus: inv,
+    });
+  }
+  return ok({ validFrom, vatRateBp, note: note.value ?? "", items });
+}
+
+const SETTING_TEXTS = [
+  ["legal_name", 200],
+  ["tax_office", 100],
+  ["address", 500],
+  ["bank_name", 100],
+  ["iban_holder", 200],
+] as const;
+
+// Settings → the p_settings object of ops_save_billing_setting. Every key is
+// sent (an empty text clears it); allow_fake_payments never is. A stored IBAN
+// that fails the checksum (a seed placeholder) may be kept as it is.
+export function parseSettings(
+  read: Reader,
+): Parsed<Record<string, string | number | boolean | null>> {
+  const settings: Record<string, string | number | boolean | null> = {
+    accepts_signups: checked(read, "accepts_signups"),
+    identity_number_required: checked(read, "identity_number_required"),
+  };
+  for (const [key, max] of SETTING_TEXTS) {
+    const value = text(read, key, max);
+    if (!value.ok) return value;
+    settings[key] = value.value;
+  }
+  const taxNumber = read("tax_number");
+  if (taxNumber && !/^\d{10}$/.test(taxNumber)) return bad("tax_number");
+  settings.tax_number = taxNumber || null;
+  const mersis = read("mersis_number");
+  if (mersis && !/^\d{16}$/.test(mersis)) return bad("mersis_number");
+  settings.mersis_number = mersis || null;
+  const phone = read("phone").replace(/\s+/g, "");
+  if (phone && !/^\+[1-9]\d{6,14}$/.test(phone)) return bad("phone");
+  settings.phone = phone || null;
+  const email = read("email").toLowerCase();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad("email");
+  settings.email = email || null;
+  const iban = normalizeIban(read("iban"));
+  if (iban) {
+    const issue = ibanIssue(iban);
+    const unchanged = iban === normalizeIban(read("iban_current"));
+    if (issue === "format" || (issue === "checksum" && !unchanged)) return bad("iban");
+  }
+  settings.iban = iban || null;
+  for (const [key, min, max] of [
+    ["payment_due_days", 1, 60],
+    ["quote_valid_days", 1, 90],
+    ["renewal_notice_days", 7, 120],
+  ] as const) {
+    const n = parseIntInRange(read(key), min, max);
+    if (n == null) return bad(key);
+    settings[key] = n;
+  }
+  return ok(settings);
+}
