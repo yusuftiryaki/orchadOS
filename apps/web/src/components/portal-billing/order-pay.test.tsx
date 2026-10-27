@@ -34,4 +34,15 @@ describe("order payment box", () => {
     expect(html).toContain('data-testid="pay-card"');
     expect(html).toContain(P.order.noBank);
   });
+
+  it("links to the live attempt instead of offering a second card payment", () => {
+    const html = renderToStaticMarkup(
+      <OrderPay orderId="o" paymentsEnabled instructions={INSTRUCTIONS} liveAttemptId="p1" />,
+    );
+    expect(html).not.toContain('data-testid="pay-card"');
+    expect(html).not.toContain("<form");
+    expect(html).toContain('data-testid="card-in-progress"');
+    expect(html).toContain('href="/portal/odeme/p1"');
+    expect(html).toContain('data-testid="bank-transfer"');
+  });
 });

@@ -66,7 +66,8 @@ function choice<T extends string>(
 // 10^-scale units (exact; no floating point): "12,5" → 12500 for scale 3.
 // Accepts a comma decimal ("12,5"), dot thousands ("1.250,5") and a dot
 // decimal with one or two digits ("12.5"); "1.250" is one thousand two hundred
-// fifty, as in Turkish. Null when empty, "invalid" otherwise.
+// fifty, as in Turkish. A thousands group never starts with 0, so "0.750" is a
+// dot decimal (three quarters), not 750. Null when empty, "invalid" otherwise.
 export function parseScaledDecimal(input: string, scale: number): number | null | "invalid" {
   const raw = input.replace(/\s/g, "");
   if (raw === "") return null;
@@ -76,10 +77,10 @@ export function parseScaledDecimal(input: string, scale: number): number | null 
   if ((m = /^(\d+)(?:,(\d+))?$/.exec(raw))) {
     whole = m[1];
     fraction = m[2] ?? "";
-  } else if ((m = /^(\d{1,3}(?:\.\d{3})+)(?:,(\d+))?$/.exec(raw))) {
+  } else if ((m = /^([1-9]\d{0,2}(?:\.\d{3})+)(?:,(\d+))?$/.exec(raw))) {
     whole = m[1].replace(/\./g, "");
     fraction = m[2] ?? "";
-  } else if ((m = /^(\d+)\.(\d{1,2})$/.exec(raw))) {
+  } else if ((m = /^(\d+)\.(\d{1,2})$/.exec(raw) ?? /^(0)\.(\d+)$/.exec(raw))) {
     whole = m[1];
     fraction = m[2];
   } else {

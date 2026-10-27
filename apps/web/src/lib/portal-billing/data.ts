@@ -429,6 +429,9 @@ export async function getPayment(
 // --------------------------------------------------------------------------
 
 export interface BillingProfileView {
+  // The customer's org (private.customer_org_id): where the profile and the
+  // portal's consent records (customer_set_consent) are written.
+  orgId: string;
   hasProfile: boolean;
   identityNumberRequired: boolean;
   kind: "individual" | "company" | null;
@@ -454,6 +457,7 @@ export async function getBillingProfile(supabase: Client): Promise<BillingProfil
   if (!row) return null;
   const kind = row.kind === "individual" || row.kind === "company" ? row.kind : null;
   return {
+    orgId: row.org_id,
     hasProfile: row.has_profile,
     identityNumberRequired: row.identity_number_required,
     kind,
@@ -473,6 +477,7 @@ export async function getBillingProfile(supabase: Client): Promise<BillingProfil
 }
 
 export interface ConsentView {
+  orgId: string;
   kind: string;
   granted: boolean;
   textVersion: string;
@@ -480,14 +485,35 @@ export interface ConsentView {
   recordedAt: string;
 }
 
-// The latest record per consent kind (my_consents).
-export async function getConsents(supabase: Client): Promise<Map<string, ConsentView>> {
+// The latest record per consent kind of one org (my_consents returns one row
+// per org and kind). Consents are per org: customer_accept_quote checks the
+// quote's org, so records of another org must not count.
+export async function getConsents(
+  supabase: Client,
+  orgId: string | null,
+): Promise<Map<string, ConsentView>> {
   const rows = check(await supabase.rpc("my_consents")) ?? [];
+  return latestConsents(rows, orgId);
+}
+
+export function latestConsents(
+  rows: readonly {
+    org_id: string;
+    kind: string;
+    granted: boolean;
+    text_version: string;
+    source: string;
+    recorded_at: string;
+  }[],
+  orgId: string | null,
+): Map<string, ConsentView> {
   const latest = new Map<string, ConsentView>();
   for (const r of rows) {
+    if (r.org_id !== orgId) continue;
     const current = latest.get(r.kind);
     if (!current || current.recordedAt < r.recorded_at) {
       latest.set(r.kind, {
+        orgId: r.org_id,
         kind: r.kind,
         granted: r.granted,
         textVersion: r.text_version,
@@ -530,7 +556,6 @@ export interface CustomerSummary {
   awaitingOrders: ServiceOrder[];
   draft: ServiceApplication | null;
   openApplications: ServiceApplication[];
-  hasAnything: boolean;
 }
 
 export async function getCustomerSummary(
@@ -547,7 +572,6 @@ export async function getCustomerSummary(
     awaitingOrders: orders.filter((o) => o.status === "awaiting_payment"),
     draft: applications.find((a) => a.status === "draft") ?? null,
     openApplications: applications.filter((a) => a.status === "submitted"),
-    hasAnything: applications.length + orders.length > 0,
   };
 }
 
@@ -557,4 +581,23 @@ export function outstandingKurus(
   order: Pick<ServiceOrder, "total_kurus" | "paid_kurus" | "refunded_kurus">,
 ): number {
   return Math.max(0, order.total_kurus - (order.paid_kurus - order.refunded_kurus));
+}
+
+// The card attempt of an order that may still turn into money, as
+// private.live_payment_attempt (§5.3): pending review, or initiated / expired
+// with a token that is still valid; an initiated attempt without a token yet
+// counts for 15 minutes. While one exists no new card attempt is offered, or
+// the customer could be charged twice.
+export function liveCardAttempt<
+  T extends Pick<Payment, "provider" | "status" | "token_expires_at" | "initiated_at">,
+>(payments: readonly T[], now: number = Date.now()): T | null {
+  return (
+    payments.find((p) => {
+      if (p.provider === "manual") return false;
+      if (p.status === "pending_review") return true;
+      if (p.status !== "initiated" && p.status !== "expired") return false;
+      if (p.token_expires_at) return Date.parse(p.token_expires_at) > now;
+      return p.status === "initiated" && Date.parse(p.initiated_at) > now - 15 * 60_000;
+    }) ?? null
+  );
 }

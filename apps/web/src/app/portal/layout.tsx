@@ -9,8 +9,10 @@ export default async function Layout({ children }: { children: React.ReactNode }
     // The wrapper lets the portal's print styles hide the shared header.
     <div className={styles.portal}>
       <SectionShell user={user} section="portal">
-        {/* Applications, orders and the account exist for customers only;
-            a co-owner (viewer) without a customer profile sees the gardens. */}
+        {/* Applications, orders and the account exist for users with an owner
+            profile (customer), including pilot owners and co-owners ops gave
+            one: they may apply for more gardens. A co-owner (viewer) without
+            a profile sees only the gardens. */}
         {user.roles.customer && <PortalNav />}
         {children}
       </SectionShell>

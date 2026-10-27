@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hasKvkkNotice, latestConsents, liveCardAttempt } from "./data";
 import { clientIpOf, paymentStartError, returnOriginOf } from "./payments";
 import { isValidTckn } from "./tckn";
 import { portalHref, readPortalResult, safeBackPath } from "./urls";
@@ -23,6 +24,10 @@ describe("dönüm and Turkish decimals", () => {
     ["1.250,5", 1250500],
     [" 3 ", 3000],
     ["2,125", 2125],
+    // A thousands group never starts with 0: a dot decimal, not ×1000.
+    ["0.750", 750],
+    ["0.500", 500],
+    ["0.5", 500],
   ])("%s dönüm → %d m²", (input, m2) => {
     expect(parseDonumToM2(input)).toBe(m2);
   });
@@ -31,9 +36,12 @@ describe("dönüm and Turkish decimals", () => {
     expect(parseDonumToM2(input)).toBeNull();
   });
 
-  it.each(["abc", "-5", "1,2345", "1e3", "12,", "1.25.0"])("%j is invalid", (input) => {
-    expect(parseDonumToM2(input)).toBe("invalid");
-  });
+  it.each(["abc", "-5", "1,2345", "1e3", "12,", "1.25.0", "0.7500", "0.750.000", "01.250"])(
+    "%j is invalid",
+    (input) => {
+      expect(parseDonumToM2(input)).toBe("invalid");
+    },
+  );
 
   it("scales exactly without floating point", () => {
     expect(parseScaledDecimal("0,1", 3)).toBe(100);
@@ -345,5 +353,68 @@ describe("payment start helpers", () => {
     expect(await paymentStartError(err(502, "x"))).toBe("provider_error");
     expect(await paymentStartError(err(500, { error: "failed" }))).toBe("write_failed");
     expect(await paymentStartError(new Error("network"))).toBe("write_failed");
+  });
+});
+
+describe("live card attempt", () => {
+  const NOW = Date.parse("2026-10-27T12:00:00Z");
+  const at = (minutes: number) => new Date(NOW + minutes * 60_000).toISOString();
+  const attempt = (
+    status: string,
+    token_expires_at: string | null,
+    provider = "fake",
+    initiated_at = at(-1),
+  ) => ({ id: status, provider, status, token_expires_at, initiated_at }) as never;
+
+  it("is an attempt in review, whatever its token", () => {
+    expect(liveCardAttempt([attempt("pending_review", at(-60))], NOW)).not.toBeNull();
+  });
+
+  it("is an initiated or superseded attempt with a valid token", () => {
+    expect(liveCardAttempt([attempt("initiated", at(10))], NOW)).not.toBeNull();
+    expect(liveCardAttempt([attempt("expired", at(10))], NOW)).not.toBeNull();
+    expect(
+      liveCardAttempt([attempt("initiated", at(-1)), attempt("expired", at(-1))], NOW),
+    ).toBeNull();
+  });
+
+  it("counts an initiated attempt without a token for 15 minutes", () => {
+    expect(liveCardAttempt([attempt("initiated", null, "fake", at(-14))], NOW)).not.toBeNull();
+    expect(liveCardAttempt([attempt("initiated", null, "fake", at(-16))], NOW)).toBeNull();
+    expect(liveCardAttempt([attempt("expired", null, "fake", at(-1))], NOW)).toBeNull();
+  });
+
+  it("ignores bank transfers and settled attempts", () => {
+    expect(liveCardAttempt([attempt("pending_review", null, "manual")], NOW)).toBeNull();
+    for (const status of ["succeeded", "failed", "voided"])
+      expect(liveCardAttempt([attempt(status, at(10))], NOW)).toBeNull();
+  });
+});
+
+describe("consents per org", () => {
+  const row = (org_id: string, kind: string, granted: boolean, recorded_at: string) => ({
+    org_id,
+    kind,
+    granted,
+    text_version: "kvkk-v1-taslak",
+    source: "portal",
+    recorded_at,
+  });
+  const ROWS = [
+    row("signup", "kvkk_notice", true, "2026-10-01T10:00:00Z"),
+    row("ops", "explicit_marketing", true, "2026-09-01T10:00:00Z"),
+    row("ops", "explicit_marketing", false, "2026-09-02T10:00:00Z"),
+  ];
+
+  it("does not count another org's KVKK notice", () => {
+    // A pilot owner (ops org, no notice) who later signed up (signup org):
+    // a quote of the ops org still needs the notice.
+    expect(hasKvkkNotice(latestConsents(ROWS, "signup"))).toBe(true);
+    expect(hasKvkkNotice(latestConsents(ROWS, "ops"))).toBe(false);
+    expect(latestConsents(ROWS, null).size).toBe(0);
+  });
+
+  it("keeps the latest record per kind", () => {
+    expect(latestConsents(ROWS, "ops").get("explicit_marketing")?.granted).toBe(false);
   });
 });

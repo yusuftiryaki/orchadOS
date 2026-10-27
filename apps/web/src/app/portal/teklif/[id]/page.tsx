@@ -36,16 +36,18 @@ export default async function QuotePage({
   const user = assertCustomer(await requireSection("portal"));
   const { id } = await params;
   const supabase = await createClient();
-  const [view, profile, consents] = await Promise.all([
+  const [view, profile] = await Promise.all([
     getQuote(supabase, user.id, id),
     getBillingProfile(supabase),
-    getConsents(supabase),
   ]);
   if (!view) notFound();
   const { quote, items, orderId } = view;
   const open = quote.status === "issued";
   const here = portalHref.quote(quote.id);
-  const kvkk = hasKvkkNotice(consents);
+  // customer_accept_quote checks the notice in the quote's org; the portal can
+  // record it only in the customer's org (customer_set_consent).
+  const kvkk = hasKvkkNotice(await getConsents(supabase, quote.org_id));
+  const kvkkRecordable = profile?.orgId === quote.org_id;
   const currency = quote.currency;
 
   return (
@@ -169,7 +171,14 @@ export default async function QuotePage({
             )}
           </section>
 
-          {!kvkk && (
+          {!kvkk && !kvkkRecordable && (
+            <section className={styles.section} data-testid="quote-kvkk">
+              <h2>{Q.kvkkTitle}</h2>
+              <p className={ops.notice}>{Q.kvkkOtherOrg}</p>
+            </section>
+          )}
+
+          {!kvkk && kvkkRecordable && (
             <section className={styles.section} data-testid="quote-kvkk">
               <h2>{Q.kvkkTitle}</h2>
               <p>

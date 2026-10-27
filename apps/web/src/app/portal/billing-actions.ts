@@ -10,7 +10,9 @@ import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { formValues, type FormState } from "@/lib/operations/form-state";
 import { formReader } from "@/lib/operations/validation";
-import { getBillingProfile } from "@/lib/portal-billing/data";
+import { BILLING_COLUMNS } from "@/lib/billing/columns";
+import type { Payment } from "@/lib/billing/types";
+import { getBillingProfile, liveCardAttempt } from "@/lib/portal-billing/data";
 import { paymentStartError, returnOriginOf, clientIpOf } from "@/lib/portal-billing/payments";
 import { portalHref, safeBackPath, type PortalError } from "@/lib/portal-billing/urls";
 import {
@@ -248,6 +250,16 @@ export async function startPaymentAction(form: FormData) {
   if (!orderId) redirect(portalHref.orders({ hata: "not_found" }));
   if (!siteFlags().paymentsEnabled)
     redirect(portalHref.order(orderId, { hata: "payments_disabled" }));
+
+  // A live card attempt (another tab, or one in fraud review) must settle
+  // first: a second attempt could charge the customer twice.
+  const { data: attempts, error: attemptsError } = await supabase
+    .from("payment")
+    .select(BILLING_COLUMNS.payment)
+    .eq("order_id", orderId);
+  if (attemptsError) redirect(portalHref.order(orderId, { hata: "write_failed" }));
+  const live = liveCardAttempt((attempts ?? []) as Payment[]);
+  if (live) redirect(portalHref.payment(live.id, { hata: "payment_in_progress" }));
 
   const h = await headers();
   const returnOrigin = returnOriginOf(h);

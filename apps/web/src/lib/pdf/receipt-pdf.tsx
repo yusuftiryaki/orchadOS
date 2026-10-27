@@ -51,6 +51,24 @@ export interface ReceiptData {
   refunds: { number: string; amount_kurus: number; processed_at: string | null }[];
 }
 
+// The money rows under the items: the total is the items' sum (amount_kurus).
+// The provider's charge (paid_kurus) differs only with installment interest
+// and then gets its own rows; with refunds a net row closes the receipt.
+export function receiptTotals(receipt: ReceiptData): {
+  rows: { label: string; kurus: number; strong?: boolean }[];
+  netKurus: number | null;
+} {
+  const rows: { label: string; kurus: number; strong?: boolean }[] = [
+    { label: R.total, kurus: receipt.amount_kurus, strong: true },
+  ];
+  if (receipt.paid_kurus !== receipt.amount_kurus) {
+    rows.push({ label: R.installmentFee, kurus: receipt.paid_kurus - receipt.amount_kurus });
+    rows.push({ label: R.charged, kurus: receipt.paid_kurus, strong: true });
+  }
+  const netKurus = receipt.refunds.length > 0 ? receipt.paid_kurus - receipt.refunded_kurus : null;
+  return { rows, netKurus };
+}
+
 export async function receiptPdf(receipt: ReceiptData, now = new Date()): Promise<Buffer> {
   registerFonts();
   return renderToBuffer(<ReceiptDocument receipt={receipt} now={now} />);
@@ -72,6 +90,7 @@ function ReceiptDocument({ receipt, now }: { receipt: ReceiptData; now: Date }) 
   const money = (k: number) => formatKurus(k, receipt.currency);
   const b = receipt.buyer;
   const s = receipt.seller;
+  const totals = receiptTotals(receipt);
   const method =
     receipt.provider === "manual"
       ? billingText.paymentProvider.manual
@@ -152,10 +171,12 @@ function ReceiptDocument({ receipt, now }: { receipt: ReceiptData; now: Date }) 
               <Text>{money(item.amount_kurus)}</Text>
             </View>
           ))}
-          <View style={pdf.row}>
-            <Text style={pdf.h3}>{R.total}</Text>
-            <Text style={pdf.h3}>{money(receipt.paid_kurus)}</Text>
-          </View>
+          {totals.rows.map((row) => (
+            <View key={row.label} style={pdf.row}>
+              <Text style={row.strong ? pdf.h3 : pdf.muted}>{row.label}</Text>
+              <Text style={row.strong ? pdf.h3 : undefined}>{money(row.kurus)}</Text>
+            </View>
+          ))}
           <Text style={pdf.muted}>{R.vatIncluded}</Text>
         </View>
 
@@ -168,6 +189,12 @@ function ReceiptDocument({ receipt, now }: { receipt: ReceiptData; now: Date }) 
                 <Text>{money(-r.amount_kurus)}</Text>
               </View>
             ))}
+            {totals.netKurus !== null ? (
+              <View style={pdf.row}>
+                <Text style={pdf.h3}>{R.net}</Text>
+                <Text style={pdf.h3}>{money(totals.netKurus)}</Text>
+              </View>
+            ) : null}
           </View>
         ) : null}
 

@@ -8,7 +8,7 @@ import { formatDate } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
-import { getConsents, hasKvkkNotice } from "@/lib/portal-billing/data";
+import { getBillingProfile, getConsents, hasKvkkNotice } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
@@ -24,7 +24,10 @@ export default async function ConsentsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   assertCustomer(await requireSection("portal"));
-  const consents = await getConsents(await createClient());
+  const supabase = await createClient();
+  // The consents of the customer's org: the one the forms below write to.
+  const profile = await getBillingProfile(supabase);
+  const consents = await getConsents(supabase, profile?.orgId ?? null);
   const kvkk = consents.get("kvkk_notice");
   return (
     <main className={styles.page}>

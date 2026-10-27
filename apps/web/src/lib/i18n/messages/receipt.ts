@@ -19,7 +19,10 @@ export const receiptText = {
   bankReference: "Banka referansı",
   valueDate: "Valör",
   items: "Kalemler",
-  total: "Ödenen tutar",
+  total: "Toplam",
+  installmentFee: "Taksit farkı",
+  charged: "Karttan çekilen",
+  net: "İadeler sonrası net",
   vatIncluded: "Tutarlara KDV dahildir.",
   refunds: "İadeler",
   notInvoice:

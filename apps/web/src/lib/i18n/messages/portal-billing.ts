@@ -284,6 +284,8 @@ export const portalBillingText = {
     kvkkLink: "Aydınlatma metnini okuyun",
     kvkkCheck: "KVKK aydınlatma metnini okudum.",
     kvkkSubmit: "Onayla",
+    kvkkOtherOrg:
+      "Bu teklif için aydınlatma metni onayınız kayıtlı değil ve buradan kaydedilemiyor. Lütfen bizimle iletişime geçin.",
     acceptTitle: "Kabul",
     preInformation: "Ön Bilgilendirme Formu",
     distanceSales: "Mesafeli Hizmet Sözleşmesi",
@@ -331,6 +333,9 @@ export const portalBillingText = {
       "Ödeme sayfası iyzico güvencesiyle açılır; kart bilgileriniz bize ulaşmaz. Ödemeden sonra bu sayfaya dönersiniz.",
     cardPending: "Ödeme sayfası açılıyor…",
     cardOff: "Kartla ödeme şu anda kapalı; havale ile ödeyebilirsiniz.",
+    cardInProgress:
+      "Süren bir kart ödemeniz var; sonuçlanmadan yeni bir kart ödemesi başlatılamaz. Ödeme sayfası açık kalmadıysa birkaç dakika içinde yeniden deneyebilirsiniz.",
+    cardInProgressLink: "Ödemenin durumunu görün",
     transferTitle: "Havale / EFT",
     transferBody:
       "Aşağıdaki hesaba gönderin ve açıklamaya referansı mutlaka yazın. Ödemeniz ekibimizce kaydedildiğinde sipariş aktifleşir; kısmi ödeme kabul edilir.",

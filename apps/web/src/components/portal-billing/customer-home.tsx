@@ -9,8 +9,11 @@ import styles from "./portal-billing.module.css";
 const H = P.home;
 
 // Cards on the portal home (§10): an open quote, an order awaiting payment, a
-// draft or submitted application; with nothing yet, the call to register a
-// garden.
+// draft or submitted application. The call to register a garden only when
+// there is nothing yet: no open card above and no garden. An owner or co-owner
+// with gardens (also one whose order just activated) never gets it; a
+// customer whose application was withdrawn or order cancelled does, so the
+// page is never empty.
 export function CustomerHome({
   summary,
   hasParcels,
@@ -75,7 +78,7 @@ export function CustomerHome({
       </li>,
     );
   }
-  if (!summary.draft && summary.openApplications.length === 0 && summary.openQuotes.length === 0) {
+  if (cards.length === 0 && !hasParcels) {
     cards.push(
       <li key="cta" className={styles.cta} data-testid="home-cta">
         <h2>{H.ctaTitle}</h2>
