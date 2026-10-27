@@ -85,7 +85,7 @@ Anthropic anahtarı olmadan da akış uçtan uca çalışır. `provider.kind = "
 | `configs/gemini-free.json` | Google Gemini ücretsiz katmanı, OpenAI uyumlu uç (`GEMINI_API_KEY`) | Google'a; ücretsiz katmanda istekler ürün geliştirmede kullanılabilir | **Sadece test verisi:** `--test-data-only` olmadan çalışmaz |
 
 ```bash
-# Yerel Ollama (CPU'da da çalışır; 8 GB RAM'li dizüstünde ağaç başına ~1–3 dk)
+# Yerel Ollama (CPU'da da çalışır; 8 GB RAM'li dizüstünde ağaç başına ~2 dk)
 docker run -d --name orchados-ollama -p 127.0.0.1:11434:11434 -v orchados-ollama:/root/.ollama ollama/ollama
 docker exec orchados-ollama ollama pull gemma3:4b
 uv run ai-worker run --session-id <uuid> --config configs/ollama-gemma3.json --limit 3
@@ -94,7 +94,7 @@ uv run ai-worker run --session-id <uuid> --config configs/ollama-gemma3.json --l
 GEMINI_API_KEY=… uv run ai-worker run --session-id <uuid> --config configs/gemini-free.json --test-data-only
 ```
 
-- **Model kalitesi:** Küçük yerel modelin cevapları uzmanla karşılaştırma için değil, akışı (istem → şema → satırlar → uzman paneli) çalıştırmak içindir. Ollama yapılandırmasında ikinci aşama kapalıdır (`confidence_threshold: 0`): aynı modele ikinci kez sormak bir şey katmaz.
+- **Model kalitesi:** Küçük yerel modelin cevapları uzmanla karşılaştırma için değil, akışı (istem → şema → satırlar → uzman paneli) çalıştırmak içindir. Ollama yapılandırmasında ikinci aşama kapalıdır (`"review": null`): aynı küçük modele ikinci kez sormak bir şey katmaz.
 - **Gemini model adları** sık değişir; yapılandırma `gemini-flash-lite-latest` / `gemini-flash-latest` takma adlarını kullanır. Güncel liste: `curl -H "Authorization: Bearer $GEMINI_API_KEY" https://generativelanguage.googleapis.com/v1beta/openai/models`. Ücretsiz katmanın dakika sınırı için istekler arası `request_interval_s` (7 sn) beklenir; 429 ve 5xx cevapları geri çekilerek yeniden denenir.
 - **Kişisel veri kuralı** burada da aynıdır: istekte yalnızca ağaç kodu, mevsim, mozaikler, ölçek tanımları ve evet/hayır cevapları vardır (`tests/test_openai_compat.py` denetler). Gerçek bahçe görüntüleri, istekleri eğitimde kullanmayan sağlayıcıya gider (yerel model ya da ücretli API).
 

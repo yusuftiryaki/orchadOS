@@ -79,7 +79,11 @@ BATCH_DISCOUNT = 0.5
 @dataclass(frozen=True)
 class WorkerConfig:
     triage: StageConfig = field(default_factory=lambda: StageConfig(TRIAGE_MODEL, "low", 8000))
-    review: StageConfig = field(default_factory=lambda: StageConfig(REVIEW_MODEL, "medium", 16000))
+    # Second stage for uncertain cases; None = one stage only (e.g. a small local model,
+    # where asking the same model again adds nothing).
+    review: StageConfig | None = field(
+        default_factory=lambda: StageConfig(REVIEW_MODEL, "medium", 16000)
+    )
     # Third stage for the hardest cases; None = off.
     hard: StageConfig | None = None
     # Below this the triage result goes to review (docs/metodoloji.md, section 6: 70%).
@@ -93,6 +97,8 @@ class WorkerConfig:
 
     @property
     def stages(self) -> list[StageConfig]:
+        if self.review is None:
+            return [self.triage]
         return [self.triage, self.review] + ([self.hard] if self.hard else [])
 
     @property
@@ -128,6 +134,8 @@ class WorkerConfig:
             cfg = replace(cfg, **data)
         if with_hard and cfg.hard is None:
             cfg = replace(cfg, hard=StageConfig(HARD_MODEL, "medium", 16000))
+        if cfg.hard is not None and cfg.review is None:
+            raise ValueError("a hard stage needs a review stage")
         if with_hard and cfg.provider.kind != "anthropic":
             raise ValueError("--with-opus needs the anthropic provider")
         for s in cfg.stages:

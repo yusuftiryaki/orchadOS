@@ -140,8 +140,7 @@ def test_unpriced_models_cost_nothing():
 def ollama_cfg(**provider) -> WorkerConfig:
     return WorkerConfig(
         triage=StageConfig(MODEL),
-        review=StageConfig(MODEL),
-        confidence_threshold=0.0,
+        review=None,
         poll_interval_s=0,
         provider=ProviderConfig(kind="openai", base_url="http://llm.test/v1", **provider),
     )
@@ -160,7 +159,8 @@ def test_whole_run_through_the_compatible_api(tmp_path):
     )
     report = w.run(cat.session_row.id)
     assert report.status == "done" and report.written == 3
-    assert len(server.bodies) == 3  # confident healthy answers: no review stage
+    assert len(server.bodies) == 3  # one stage only
+    assert report.config_key == MODEL
     sent = json.dumps(server.bodies)
     for value in PERSONAL.values():
         assert value not in sent
@@ -208,3 +208,12 @@ def test_training_tiers_need_the_test_data_flag(tmp_path, capsys, monkeypatch):
     assert "--test-data-only" in capsys.readouterr().err
     assert main([*args, "--test-data-only"], catalog=make_catalog()) == 1
     assert "FREE_KEY" in capsys.readouterr().err
+
+
+def test_shipped_configs_load():
+    from pathlib import Path
+
+    for path in sorted(Path("configs").glob("*.json")):
+        cfg = WorkerConfig.load(path)
+        assert cfg.provider.kind == "openai"
+    assert WorkerConfig.load(Path("configs/ollama-gemma3.json")).stages[0].model == MODEL

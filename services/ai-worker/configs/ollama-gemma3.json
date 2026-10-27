@@ -1,7 +1,12 @@
 {
-  "provider": {"kind": "openai", "base_url": "http://localhost:11434/v1"},
-  "triage": {"model": "gemma3:4b", "max_tokens": 2000},
-  "review": {"model": "gemma3:4b", "max_tokens": 2000},
-  "confidence_threshold": 0.0,
+  "provider": {
+    "kind": "openai",
+    "base_url": "http://localhost:11434/v1"
+  },
+  "triage": {
+    "model": "gemma3:4b",
+    "max_tokens": 2000
+  },
+  "review": null,
   "mosaic_size": 768
 }
