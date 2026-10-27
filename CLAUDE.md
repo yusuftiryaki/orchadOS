@@ -70,7 +70,7 @@ BLE protokolü, dosya biçimleri ve bağlantı tablosu: `firmware/gnss-logger/RE
 Aşamalar, girdi/çıktı biçimleri ve QR saat kodu biçimi: `services/pipeline/README.md`.
 
 ### AI worker (`services/ai-worker/`)
-Kurulum ve komutlar: `services/ai-worker/README.md` (`uv sync`, `uv run pytest`, `ai-worker run --session-id <uuid>`, `ai-worker eval`). `ANTHROPIC_API_KEY` ortam değişkeninden; testlerde gerçek API çağrısı yok.
+Kurulum ve komutlar: `services/ai-worker/README.md` (`uv sync`, `uv run pytest`, `ai-worker run --session-id <uuid>`, `ai-worker eval`). `ANTHROPIC_API_KEY` ortam değişkeninden; testlerde gerçek API çağrısı yok. Anahtarsız deneme: `--config configs/ollama-gemma3.json` (yerel Ollama, veri makineden çıkmaz) ya da `configs/gemini-free.json` (yalnız test verisi, `--test-data-only`).
 
 ### Yükleme aracı (`services/ingest/`) ve bulutta işleme
 | Komut | Ne yapar |
