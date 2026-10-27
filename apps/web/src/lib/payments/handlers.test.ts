@@ -164,6 +164,36 @@ describe("reconcile", () => {
     },
   );
 
+  it("ends a token-less initiated attempt as failed (start_incomplete)", async () => {
+    const rows = [
+      { ...row(), provider_token: null, token_expires_at: null },
+      // Manual payments have no token and are left to ops.
+      {
+        ...row({ id: "a0000000-0000-4000-8000-000000000009", provider: "manual" }),
+        provider_token: null,
+        token_expires_at: null,
+      },
+    ];
+    const s = setup(IYZICO_ENV, {
+      "/rpc/payment_attempts_to_reconcile": () => jsonResponse(rows),
+      "/rpc/payment_finalize": () => jsonResponse("ok"),
+    });
+    const res = await handlePayments(
+      paymentsRequest({ action: "reconcile" }, { "x-orchados-cron-secret": "cron-local" }),
+      s.deps,
+    );
+    expect(await res.json()).toEqual({ checked: 0, finalized: 1 });
+    const fin = s.rpcCalls("payment_finalize").map((c) => c.body);
+    expect(fin).toEqual([
+      expect.objectContaining({
+        p_payment_id: PAYMENT_ID,
+        p_outcome: "failed",
+        p_result: expect.objectContaining({ failure_code: "start_incomplete" }),
+      }),
+    ]);
+    expect(s.calls.some((c) => c.url.includes("iyzipay"))).toBe(false);
+  });
+
   it("confirms open attempts and expires old unfinished ones", async () => {
     const rows = [
       // Paid: finalized as succeeded.
@@ -297,6 +327,18 @@ describe("webhook", () => {
     });
   });
 
+  it("a pending_review payment confirmed as pending_review again is not re-finalized", async () => {
+    const s = setup(IYZICO_ENV, {
+      "/rpc/payment_by_token": () => jsonResponse([row({ status: "pending_review" })]),
+      "/rpc/payment_record_event": () => jsonResponse(true),
+      "/rpc/payment_finalize": () => jsonResponse("ok"),
+      [IYZICO_PATHS.retrieve]: () => jsonResponse(signedRetrieve({ fraudStatus: 0 })),
+    });
+    const res = await handleWebhook(webhook(raw, { "x-iyz-signature-v3": sig }), s.deps);
+    expect(res.status).toBe(200);
+    expect(s.rpcCalls("payment_finalize")).toHaveLength(0);
+  });
+
   it("a duplicate notification is acknowledged without processing", async () => {
     const s = setup(IYZICO_ENV, {
       "/rpc/payment_by_token": () => jsonResponse([row()]),
@@ -409,6 +451,46 @@ describe("callback", () => {
       p_result: { failure_code: string };
     };
     expect(fin).toMatchObject({ p_outcome: "failed", p_result: { failure_code: "not_completed" } });
+  });
+
+  it.each<[string, () => Response]>([
+    [
+      "an HTTP 500 with a JSON failure body",
+      () => jsonResponse({ status: "failure", errorCode: "1" }, 500),
+    ],
+    [
+      "an API error answered with HTTP 200",
+      () => jsonResponse({ status: "failure", errorCode: "5115" }),
+    ],
+    ["a success without paymentStatus", () => jsonResponse({ status: "success", token: "tok-1" })],
+  ])("%s on the callback leaves the attempt open", async (_name, answer) => {
+    const s = setup(IYZICO_ENV, {
+      "/rpc/payment_by_token": () => jsonResponse([row()]),
+      "/rpc/payment_record_event": () => jsonResponse(true),
+      "/rpc/payment_finalize": () => jsonResponse("ok"),
+      [IYZICO_PATHS.retrieve]: answer,
+    });
+    const res = await handleCallback(callback({ token: "tok-1" }), s.deps);
+    expect(res.headers.get("location")).toBe(
+      `https://orchados.vercel.app/portal/odeme/${PAYMENT_ID}`,
+    );
+    expect(s.rpcCalls("payment_finalize")).toHaveLength(0);
+  });
+
+  it("a pending_review payment is neither asked again nor finalized", async () => {
+    const s = setup(IYZICO_ENV, {
+      "/rpc/payment_by_token": () => jsonResponse([row({ status: "pending_review" })]),
+      [IYZICO_PATHS.retrieve]: () =>
+        jsonResponse({ status: "success", paymentStatus: "INIT_THREEDS", token: "tok-1" }),
+    });
+    for (let i = 0; i < 3; i++) {
+      const res = await handleCallback(callback({ token: "tok-1" }), s.deps);
+      expect(res.headers.get("location")).toBe(
+        `https://orchados.vercel.app/portal/odeme/${PAYMENT_ID}`,
+      );
+    }
+    expect(s.calls.every((c) => c.url.endsWith("/rpc/payment_by_token"))).toBe(true);
+    expect(s.writes()).toHaveLength(0);
   });
 
   it("an already final payment is not asked again", async () => {
