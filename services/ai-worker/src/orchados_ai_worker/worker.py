@@ -297,7 +297,9 @@ class Worker:
             )
             parsed = self._output(answer.get("output") if answer else None, metrics)
             if k == 2:
-                reasons = review_reasons(parsed, self.cfg.confidence_threshold)
+                reasons = review_reasons(
+                    parsed, self.cfg.confidence_threshold, state.data["methodology_version"]
+                )
                 state.trees[tid]["review_reasons"] = reasons
             else:
                 reasons = hard_reasons(parsed, self.cfg.hard_threshold)

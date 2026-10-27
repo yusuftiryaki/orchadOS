@@ -197,7 +197,6 @@ void main() {
     expect(server.visits[visitId], 'captured');
     expect(server.visitValues[visitId], {
       'started_at': t0.toIso8601String(),
-      'methodology_version': methodologyVersion,
       'status': 'captured',
       'ended_at': t0.add(const Duration(minutes: 90)).toIso8601String(),
     });
@@ -403,7 +402,6 @@ void main() {
     expect(server.visits[visitId], 'planned');
     expect(server.visitValues[visitId], {
       'started_at': t0.toIso8601String(),
-      'methodology_version': methodologyVersion,
     });
   });
 

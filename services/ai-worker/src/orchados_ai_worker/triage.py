@@ -19,13 +19,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .methodology import expected_class
+from .methodology import DEFAULT_METHODOLOGY_VERSION, expected_class
 from .schema import AiOutput
 
 ESCALATED_CLASSES = ("problem", "dead", "absent")
 
 
-def review_reasons(out: AiOutput | None, threshold: float) -> list[str]:
+def review_reasons(
+    out: AiOutput | None, threshold: float, methodology_version: str = DEFAULT_METHODOLOGY_VERSION
+) -> list[str]:
     """Why a stage 1 answer goes to review; empty = it stands."""
     if out is None:
         return ["no_answer"]
@@ -39,7 +41,7 @@ def review_reasons(out: AiOutput | None, threshold: float) -> list[str]:
     reasons += [f"flag_{f}" for f in out.flags]
     if out.tree_visible != "yes":
         reasons.append(f"tree_visible_{out.tree_visible}")
-    expected = expected_class(out.given())
+    expected = expected_class(out.given(), methodology_version)
     if (
         out.overall_class in ("healthy", "attention", "problem")
         and expected is not None

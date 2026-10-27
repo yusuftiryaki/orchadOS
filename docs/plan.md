@@ -100,6 +100,8 @@ gantt
 5. ✅ **Pilota ilk sürüm** (PR #36, 27 Ekim): 37 migration ve Edge Function'lar pilot projesinde, `orchados-pilot` yayında.
 6. ✅ **Bakım** (PR #37, #38): Test temizliği yeni tabloları sütun adından kendiliğinden kapsıyor (`supabase/testing/purge.sql`). Tarayıcı testlerinde CI'da bir tekrar ve 60 sn süre; toplu onay testindeki asıl hata (rastgele örneklemde incelenmiş ağaca karar) düzeltildi.
 
+7. ✅ **27 Ekim işleri:** BLE paketi `universal_ble` (PR #41); dip sürgünü, kuruma deseni, gövde yapısı (PR #42); ücretsiz AI sağlayıcıları: yerel Ollama `gemma3:4b` ile uçtan uca denendi, Gemini ücretsiz katmanı yalnız test verisi (PR #43); envanter raporu ve sunucuda PDF (PR #44); web ve saha arayüzlerinde tasarım yenilemesi (PR #45, #46); **metodoloji v0.1**: uzman ajan kararları (PR #47, `docs/uzman-ajan-onerileri.md`; pilot uzmanın onayını bekliyor).
+
 **Açık işler**
 
 - [x] **Envanter kaydı tek işlemde:** *(PR #15)* Yer ve ağaç kaydı şu an iki ayrı ekleme; `save_inventory(...)` adlı, kullanıcının yetkisiyle çalışan tek işlemlik bir veritabanı fonksiyonu.

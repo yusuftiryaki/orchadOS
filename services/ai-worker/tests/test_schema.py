@@ -144,3 +144,26 @@ def test_dieback_and_dried_leaves_raise_the_class():
     assert expected_class({"dead_branch_scale": 1, "dieback_pattern": "tip_dieback"}) == "healthy"
     assert expected_class({"dead_branch_scale": 1, "dried_leaves_attached": True}) == "problem"
     assert expected_class({"basal_sprout_level": "dense"}) is None
+
+
+def test_methodology_v01_pest_signs():
+    from orchados_ai_worker.methodology import expected_class
+
+    v0, v01 = "methodology-v0", "methodology-v0.1"
+    assert expected_class({"dead_branch_scale": 0, "pest_sign_severity": "mild"}, v0) == "attention"
+    assert expected_class({"dead_branch_scale": 0, "pest_sign_severity": "mild"}, v01) == "healthy"
+    assert expected_class({"dead_branch_scale": 0, "pest_sign_severity": "marked"}, v0) == "problem"
+    assert (
+        expected_class({"dead_branch_scale": 0, "pest_sign_severity": "marked"}, v01) == "attention"
+    )
+
+
+def test_prompt_class_rules_follow_the_version(registry):
+    from orchados_ai_worker.prompt import system_prompt
+
+    spring = season_metrics(registry, "spring")
+    v0 = system_prompt("spring", spring, "methodology-v0")
+    v01 = system_prompt("spring", spring, "methodology-v0.1")
+    assert "pest signs are marked, or dried leaves" in v0
+    assert "Mild pest signs do not change the class." in v01
+    assert "4. attention: any 0-3 scale above is 2, pest signs are marked" in v01

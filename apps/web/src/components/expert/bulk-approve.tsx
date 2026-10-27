@@ -1,6 +1,6 @@
 import { bulkApproveAction } from "@/app/uzman/actions";
 import { isReviewable, type ReviewContext } from "@/lib/expert/review";
-import { isBulkEligible } from "@/lib/expert/summary";
+import { bulkGate, isBulkEligible } from "@/lib/expert/summary";
 import { t } from "@/lib/i18n";
 import styles from "./expert.module.css";
 
@@ -25,6 +25,7 @@ export function BulkApprovePanel({
   const eligible = ctx.trees.filter(isBulkEligible).length;
   const sample = ctx.trees.filter((tree) => tree.sampled).length;
   const editable = isReviewable(ctx.session.status);
+  const gate = bulkGate(ctx.trees, ctx.rules);
   if (!editable && messages.approved == null) return null;
   return (
     <section className={styles.panel} data-testid="bulk-approve">
@@ -45,6 +46,12 @@ export function BulkApprovePanel({
           {eligible === 0 ? (
             <p className="muted" data-testid="bulk-none">
               {b.none}
+            </p>
+          ) : !gate.open ? (
+            <p className={styles.notice} data-testid="bulk-gate">
+              {gate.reason === "sample_open"
+                ? b.sampleOpen(gate.remaining)
+                : b.sampleDisagreement(Math.round(gate.agreement * 100))}
             </p>
           ) : (
             <form action={bulkApproveAction}>

@@ -21,6 +21,13 @@ export const FINDING_KINDS = [
   "broken_branch",
   "theft_trace",
   "irrigation_leak",
+  // Expert agent proposal of 27 October 2026 (docs/uzman-ajan-onerileri.md).
+  "canopy_dieback",
+  "basal_sprouts",
+  "regraft_candidate",
+  "ungrafted_tree",
+  "pollinizer_ratio",
+  "animal_damage",
   "other",
 ] as const;
 

@@ -38,7 +38,9 @@ const _recordedStatuses = {'stopped', 'closed'};
 const visitWritableStatuses = ['planned', 'captured'];
 
 /// Values written to the planned visit (`public.session`). The visit itself
-/// is created by ops; field staff only reports what happened.
+/// is created by ops; field staff only reports what happened. The visit's
+/// audit methodology is set by ops too: the app's own protocol version
+/// (`field-v0`) goes with each measurement (`method_version`), never here.
 Map<String, Object?> visitUpdate(
   SessionRow s, {
   Map<String, Object?>? weather,
@@ -47,7 +49,6 @@ Map<String, Object?> visitUpdate(
   'started_at': s.startGpsTimeMs != null
       ? _utc(s.startGpsTimeMs!)
       : s.startedAt.toUtc().toIso8601String(),
-  'methodology_version': s.methodologyVersion,
   if (_recordedStatuses.contains(s.status)) ...{
     'status': 'captured',
     'ended_at': s.stopGpsTimeMs != null

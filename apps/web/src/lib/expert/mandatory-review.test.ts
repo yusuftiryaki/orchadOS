@@ -201,3 +201,18 @@ describe("triage", () => {
     expect(sampled.every((r) => r.mandatory.length === 0)).toBe(true);
   });
 });
+
+describe("methodology v0.1 sample", () => {
+  it("is 10 % with at least 20 trees", async () => {
+    const { reviewRulesFor } = await import("./mandatory-review");
+    const r = reviewRulesFor("methodology-v0.1");
+    expect([r.sampleRate, r.sampleMin, r.bulkGate]).toEqual([0.1, 20, { minAgreement: 0.85 }]);
+    const ids = Array.from({ length: 100 }, (_, i) => `t${i}`);
+    expect(qualitySample("v", ids, r.sampleRate, r.sampleMin).size).toBe(20);
+    expect(qualitySample("v", ids.slice(0, 12), r.sampleRate, r.sampleMin).size).toBe(12);
+    expect(
+      qualitySample("v", [...ids, ...ids.map((i) => i + "b"), ...ids.map((i) => i + "c")], 0.1, 20)
+        .size,
+    ).toBe(30);
+  });
+});
