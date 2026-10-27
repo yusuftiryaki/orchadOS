@@ -8,6 +8,7 @@ import {
   publishPriceList,
   recordManualPayment,
   requestRefund,
+  revealIdentityNumber,
   savePriceListDraft,
   verifyGarden,
 } from "@/lib/back-office/mutations";
@@ -272,6 +273,63 @@ describe("application to active order, then a transfer refund", () => {
       await ops.rpc("ops_audit_events", { p_org_id: SEED.org, p_action_prefix: "refund." }),
     ).filter((a) => a.entity_id === requested.value[0]);
     expect(audit.map((a) => a.action).sort()).toEqual(["refund.requested", "refund.succeeded"]);
+  });
+});
+
+describe("TCKN", () => {
+  // A valid test number (checksum digits), never a real person's.
+  const TCKN = "10000000146";
+
+  it("is masked, and shown in full only on an audited reveal", async () => {
+    check(
+      await ops.rpc("ops_save_billing_setting", {
+        p_org_id: SEED.org,
+        p_settings: { identity_number_required: true },
+      }),
+    );
+    try {
+      check(
+        await customer.client.rpc("customer_save_billing_profile", {
+          p_profile: {
+            kind: "individual",
+            first_name: "Test",
+            last_name: "Müşteri",
+            identity_number: TCKN,
+            address: "Test Mah. 1. Sok. No: 2",
+            district: "Nizip",
+            city: "Gaziantep",
+            postal_code: "27700",
+          },
+        }),
+      );
+    } finally {
+      check(
+        await ops.rpc("ops_save_billing_setting", {
+          p_org_id: SEED.org,
+          p_settings: { identity_number_required: false },
+        }),
+      );
+    }
+    const [masked] = check(
+      await ops.rpc("ops_billing_profile", { p_org_id: SEED.org, p_user_id: customer.id }),
+    );
+    expect(masked.identity_number).toBeNull();
+    expect(masked.identity_number_masked).toMatch(/46$/);
+    expect(masked.identity_number_masked).not.toContain(TCKN);
+
+    expect(await revealIdentityNumber(ops, SEED.org, customer.id)).toEqual({
+      ok: true,
+      value: TCKN,
+    });
+    const audit = check(
+      await ops.rpc("ops_audit_events", {
+        p_org_id: SEED.org,
+        p_entity_type: "billing_profile",
+        p_entity_id: customer.id,
+      }),
+    );
+    expect(audit.map((a) => a.action)).toContain("billing_profile.revealed");
+    expect(JSON.stringify(audit)).not.toContain(TCKN);
   });
 });
 
