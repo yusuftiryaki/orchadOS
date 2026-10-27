@@ -7,6 +7,9 @@
 [Kişisel Verilerin İşlenmesine İlişkin Aydınlatma Metni](kvkk-aydinlatma-metni.md)'ni okudum. Aşağıdaki işlemler için, her birini ayrı ayrı işaretleyerek açık rızamı veriyorum. Rıza vermemem hizmeti almama engel değildir. Rızamı istediğim zaman portaldan ya da [kvkk@alanadi] adresine yazarak geri alabilirim.
 
 **1. Yapay zekâ ön değerlendirmesi için yurt dışına aktarım**
+
+> **İP12'de sorulmaz; hukuki dayanak avukat kararı (README soru 2).** Kayıt formunda, portalda ve sitedeki `/acik-riza` sayfasında bu madde yoktur; site yalnızca 2. ve 3. maddeleri gösterir. Avukat açık rıza derse önce ai-worker'a rıza denetimi eklenir, madde ondan sonra açılır.
+
 ☐ Bahçeme ait ağaç görüntülerinin, uzman incelemesinden önce ön değerlendirme yapılması amacıyla Amerika Birleşik Devletleri'nde yerleşik yapay zekâ hizmet sağlayıcısına [Anthropic PBC] aktarılmasına rıza veriyorum.
 - Bu görüntülerde bahçede bulunan kişiler görünebilir.
 - Adım, telefonum, parsel adı ve köy aktarılmaz.

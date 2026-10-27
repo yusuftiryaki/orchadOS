@@ -6,6 +6,15 @@ import { signIn, type UserKey } from "./fixtures";
 // Roles are read from membership / parcel_access in the database, then mapped
 // to sections exactly as the section layouts do.
 
+// Owner and viewer both have a seed owner_profile; field and expert do not.
+const EXPECTED_CUSTOMER: Record<UserKey, boolean> = {
+  owner: true,
+  viewer: true,
+  field: false,
+  expert: false,
+  ops: false,
+};
+
 const EXPECTED_SECTIONS: Record<UserKey, Section[]> = {
   owner: ["portal"],
   viewer: ["portal"],
@@ -21,6 +30,7 @@ describe("section access from database roles", () => {
       const { client, userId } = await signIn(user);
       const roles = await loadUserRoles(client, userId);
       expect(accessibleSections(roles)).toEqual(expected);
+      expect(roles.customer).toBe(EXPECTED_CUSTOMER[user]);
       for (const section of SECTIONS.filter((s) => !expected.includes(s))) {
         expect(canAccessSection(roles, section)).toBe(false);
       }
@@ -33,6 +43,10 @@ describe("section access from database roles", () => {
     const { client, userId } = await signIn("ops");
     const all = await client.from("membership").select("user_id");
     expect(new Set(all.data?.map((r) => r.user_id)).size).toBeGreaterThan(1);
-    expect(await loadUserRoles(client, userId)).toEqual({ orgRoles: ["ops"], parcelRoles: [] });
+    expect(await loadUserRoles(client, userId)).toEqual({
+      orgRoles: ["ops"],
+      parcelRoles: [],
+      customer: false,
+    });
   });
 });
