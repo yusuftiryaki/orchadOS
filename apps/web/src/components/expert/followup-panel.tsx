@@ -68,7 +68,7 @@ export function FollowupPanel({
         <input type="hidden" name="treeId" value={treeId ?? ""} />
         <input type="hidden" name="return" value={returnPath} />
         {kinds.length > 1 ? (
-          <label>
+          <label className={styles.field}>
             {f.kind}
             <select name="kind" defaultValue={kinds[0]}>
               {kinds.map((k) => (
@@ -81,7 +81,7 @@ export function FollowupPanel({
         ) : (
           <input type="hidden" name="kind" value={kinds[0]} />
         )}
-        <label>
+        <label className={styles.field}>
           {f.note}
           <textarea
             name="note"

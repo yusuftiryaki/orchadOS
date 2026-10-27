@@ -15,6 +15,10 @@ export const tr = {
   },
   login: {
     title: "Giriş",
+    subtitle: "Hesabınızla devam edin.",
+    pitch:
+      "Her ağacın kalıcı kimliği, uzman imzalı ziyaret raporları ve 360° bahçe gezisi. Bahçenizin durumunu tarafsız bir gözle, ağaç ağaç izleyin.",
+    footer: "Hesaplar operasyon ekibi tarafından açılır.",
     email: "E-posta",
     password: "Parola",
     submit: "Giriş yap",

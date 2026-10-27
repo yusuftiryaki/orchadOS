@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
+import { LogoMark } from "@/components/brand/logo";
 import { LoginForm } from "./login-form";
 import { safeNextPath } from "./login-methods";
 import styles from "./login.module.css";
@@ -15,13 +16,29 @@ export default async function LoginPage({
   if (await getSessionUser()) redirect(target);
 
   return (
-    <main className="centered">
-      <div className={`card ${styles.card}`}>
-        <h1>{t.app.name}</h1>
-        <p className="muted">{t.app.tagline}</p>
-        <h2>{t.login.title}</h2>
-        <LoginForm next={target} />
-      </div>
+    <main className={styles.screen}>
+      <section className={styles.brandPanel} aria-hidden>
+        <div className={styles.brandTop}>
+          <LogoMark size={36} />
+          <span>{t.app.name}</span>
+        </div>
+        <div>
+          <p className={styles.brandLead}>{t.app.tagline}</p>
+          <p className={styles.brandText}>{t.login.pitch}</p>
+        </div>
+        <p className={styles.brandFoot}>{t.login.footer}</p>
+      </section>
+      <section className={styles.formPanel}>
+        <div className={styles.card}>
+          <div className={styles.mobileBrand}>
+            <LogoMark size={32} />
+            <span>{t.app.name}</span>
+          </div>
+          <h1>{t.login.title}</h1>
+          <p className="muted">{t.login.subtitle}</p>
+          <LoginForm next={target} />
+        </div>
+      </section>
     </main>
   );
 }
