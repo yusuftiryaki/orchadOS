@@ -557,7 +557,20 @@ async function reconcile(ctx: Ctx, req: Request): Promise<Response> {
   let checked = 0;
   let finalized = 0;
   for (const row of rows) {
-    if (row.provider === "manual" || !row.provider_token) continue;
+    if (row.provider === "manual") continue;
+    if (!row.provider_token) {
+      // Start died between payment_begin and payment_attach_token (and its
+      // compensating finalize did not land). The buyer never got a checkout
+      // URL, and the RPC lists initiated rows only after 2 minutes, well past
+      // the provider timeout, so the attempt is over: end it.
+      if (
+        row.status === "initiated" &&
+        (await finalize(ctx, row.id, "failed", failedResult("start_incomplete")))
+      ) {
+        finalized++;
+      }
+      continue;
+    }
     const provider = choosePaymentProvider(row.provider, ctx.env, ctx.fetchImpl);
     if (!provider) continue;
     checked++;
@@ -642,18 +655,27 @@ export async function handleCallback(req: Request, deps: HandlerDeps): Promise<R
   // outcome); everything else comes from the provider.
   if (provider.readCallback(form).providerToken !== token) return notFoundRedirect(ctx.env);
 
-  if (FINAL_STATUSES.has(row.status)) return resultRedirect(ctx.env, row);
+  // pending_review: money may have moved; the signed webhook, reconciliation
+  // or ops settle it. The unauthenticated callback does not ask again.
+  if (FINAL_STATUSES.has(row.status) || row.status === "pending_review") {
+    return resultRedirect(ctx.env, row);
+  }
 
   const result = await confirmAndRecord(ctx, provider, "callback", token, row);
-  if (result) {
-    if (result.outcome === "not_completed") {
+  if (result?.outcome === "not_completed") {
+    // Only a form the buyer did not finish is failed here. A provider error
+    // (failureCode set) says nothing about the money: leave the row for the
+    // webhook or reconciliation.
+    if (result.failureCode === null) {
       await finalize(ctx, row.id, "failed", {
         ...finalizeResult(result),
         failure_code: "not_completed",
       });
     } else {
-      await finalize(ctx, row.id, result.outcome, finalizeResult(result));
+      ctx.log("callback_unconfirmed");
     }
+  } else if (result && result.outcome !== row.status) {
+    await finalize(ctx, row.id, result.outcome, finalizeResult(result));
   }
   // Without an answer the result page waits; reconciliation finishes it.
   return resultRedirect(ctx.env, row);
@@ -703,7 +725,7 @@ export async function handleWebhook(req: Request, deps: HandlerDeps): Promise<Re
   if (!isNew || !row || FINAL_STATUSES.has(row.status)) return json({ ok: true });
 
   const result = await confirmAndRecord(ctx, provider, "retrieve", token, row);
-  if (result && result.outcome !== "not_completed") {
+  if (result && result.outcome !== "not_completed" && result.outcome !== row.status) {
     await finalize(ctx, row.id, result.outcome, finalizeResult(result));
   }
   return json({ ok: true });

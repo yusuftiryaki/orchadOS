@@ -187,6 +187,10 @@ export function iyzicoProvider(config: IyzicoConfig, fetchImpl: FetchLike): Paym
         token,
       });
       if (call.kind !== "ok") throw new ProviderUnavailableError(callError(call));
+      // A 4xx/5xx with a JSON body is a provider error, not an answer about
+      // the payment: retried later like a timeout.
+      if (call.httpStatus < 200 || call.httpStatus > 299)
+        throw new ProviderUnavailableError(`iyzico_http_${call.httpStatus}`);
       const r = call.body as RetrieveAnswer & Json;
       const signatureValid = await verifyRetrieveSignature(secret, r);
       return evaluateRetrieve(r, expected, signatureValid);
