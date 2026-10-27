@@ -82,6 +82,21 @@ Bağlantılar `firmware/gnss-logger/README.md`'deki tabloya göre. Her kalemden 
 | 5.3 | Şerit metre (5 m) ve çelik metre | 1 | Kalibrasyon ve gövde çapı ölçümü | 10–20 $ |
 | 5.4 | Lens temizleme kiti | 1 | Kamera lensleri için | 5–10 $ |
 
+## 6. Robot soketi (kit tarafı; sadece kit robota takılacaksa)
+
+Kit, `yusuftiryaki/hoverboard` robotuna bir soketle takılabilir. Sözleşme robot reposunda: [kit-soketi.md](https://github.com/yusuftiryaki/hoverboard/blob/main/docs/kit-soketi.md). Pin numaraları orada hâlâ başlangıç önerisi; donanım gelince robotun bağlantı haritasına işlenip multimetreyle doğrulanacak.
+
+| # | Parça | Adet | Özellik | Yaklaşık fiyat |
+| --- | --- | --- | --- | --- |
+| 6.1 | **Kimlik çipi DS2431+** | 2 | TO-92 kılıf, fişin içine sığar. Bacaklar: veri → `KIT_ID` (pin 3), GND → pin 1. **Kit tarafına pull-up direnci konmaz**, pull-up robotta. Biri yedek | 2–4 $ / adet |
+| 6.2 | Kendi beslemeli USB hub | 1 | F9P ve kamera robota bunun üzerinden bağlanır. Tek şart: upstream VBUS'a geri besleme yapmamalı. Sokette VBUS (pin 7) bağlanmaz, kit kendi aküsüyle çalışır | 15–30 $ |
+| 6.3 | PPS seri direnci | 1 paket | F9P TIMEPULSE (3,3 V) hattına, F9P'ye yakın. 100, 220 ve 330 Ω; kesin değer robotla ilk denemede ölçülerek seçilecek. 2.5'teki paketle birlikte alınabilir | 1–2 $ |
+| 6.4 | Fiş kablosu | 1 | En fazla 1 m; USB çifti bükümlü. `KIT_PRESENT`: fişin içinde pin 2 ile pin 1 (GND) arası tel köprü, ayrı parça yok | 5–10 $ |
+
+**Konnektör bu listede yok.** M16, 12 pinli, IP67, vidalı kilitli dairesel konnektörün iki yarısı (robotta dişi soket, kitte erkek fiş) aynı üreticiden ve aynı seriden, mümkünse aynı siparişte alınacak; farklı markaların M16 parçaları pin düzeni ve kodlamada her zaman uyuşmuyor. Seçimi robot tarafı yapıp `kit-soketi.md`'ye yazacak. GX16 10 pinde kaldığı için yetmez.
+
+**Kit tabanı:** Robotun montaj plakasında kitin tabanını tek yönde ve ortalanmış oturtan bir anahtar (pim ya da asimetrik delik deseni) olacak. Biçimi plaka ile birlikte kesinleşecek; kit tabanı tasarlanırken buna yer bırakılır.
+
 ## Toplam
 
 | Grup | Yaklaşık |
@@ -92,6 +107,7 @@ Bağlantılar `firmware/gnss-logger/README.md`'deki tabloya göre. Her kalemden 
 | 4. Mekanik | 160–370 $ |
 | 5. Telefon ve diğer | 30–60 $ (telefon hariç) |
 | **Toplam (telefon hariç)** | **~1.700–2.900 $** |
+| 6. Robot soketi (isteğe bağlı, konnektör hariç) | 25–50 $ |
 
 Kit tek başına, yani ikinci alıcı, anteni, baz kaydedicisi, üçüncü akü ve jalon olmadan, ~1.250–2.100 $ tutar. Bu, belirlenen 2.000 $ hedefinin içinde. Aradaki ~450–800 $, baz istasyonu ve pilot referans ölçümünün maliyeti.
 

@@ -145,7 +145,7 @@ Tüm sensörlerin zamanı GPS zamanına bağlanır:
 ### Robota takılan kit için ölçüm
 
 Robot, kitin sensörlerinin nerede olduğunu kitin kimlik çipinden okur ([arayuzler.md](arayuzler.md#kit-kimlik-çipi)). Ölçümler robotun `kit_mount` frame'inde yapılır:
-- **Orijin:** Kitin robotun montaj plakasına oturan taban yüzeyinin ortası.
+- **Orijin:** Kitin robotun montaj plakasına oturan taban yüzeyinin ortası. Plakada kiti tek yönde oturtan bir anahtar olacak ([kit-siparis-listesi.md](kit-siparis-listesi.md#6-robot-soketi-kit-tarafı-sadece-kit-robota-takılacaksa)). O yokken ölçümler tabanın ortası ve **ileri yönü işaretlenerek** alınır; işaretsiz alınan ölçüm yeniden yapılmak zorunda kalır.
 - **Eksenler:** Robotunkiyle aynı. x robotun ilerisi, y solu, z yukarısı.
 - **Birim:** Metre ve radyan. Açılar roll, pitch, yaw sırasıyla, x, y, z eksenleri etrafında.
 

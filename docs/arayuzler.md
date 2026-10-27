@@ -542,7 +542,7 @@ Tarama kiti robota (`yusuftiryaki/hoverboard`) bir soket üzerinden takılabilir
 - **Test vektörleri:** Robot reposuyla aynı dosya, `services/kit-chip/tests/vectors/kit_manifest_v1.json`. Değiştirilmeden kopyalanmıştır. Format ya da vektörler değişirse iki repo birlikte değişir.
 - **Şema numarası** sadece artar. Robot bilmediği bir şemayı reddeder.
 
-**`kit_mount` frame'i** robot tarafında tanımlı (`kit-soketi.md`, "Soket — mekanik" ve URDF):
+**`kit_mount` frame'i** robot tarafında tanımlı (`kit-soketi.md`, "Soket — mekanik" ve URDF); aşağıdaki kabuller robot tarafınca doğrulandı (2026-10-27):
 - Robotun montaj plakasının üst yüzeyi: `base_link`'e göre x = 0,11 m, z = 0,1825 m, dönüşsüz.
 - Eksenler `base_link`'inkiyle aynı: x ileri, y sola, z yukarı. Açılar roll, pitch, yaw, radyan.
 
@@ -557,7 +557,7 @@ Tarama kiti robota (`yusuftiryaki/hoverboard`) bir soket üzerinden takılabilir
 | `hw_rev`, `gnss_link` | Veritabanında yok; yazan kişi verir (`--hw-rev 1.0 --gnss-link usb`) |
 | `kind` | Her zaman `orchados-scan-kit` |
 
-Robot kitin frame'lerini `(serial, calib_id)` anahtarıyla önbelleğe alır. Bu yüzden `kit_mount` pozları ve `chip_id` kayıt yazıldıktan sonra değiştirilemez (tetikleyici); yeniden kalibrasyon yeni bir kayıttır, yeni bir `chip_id` alır.
+Robot şimdilik çipi her takılışta okuyor; ileride frame'leri `(serial, calib_id)` anahtarıyla önbelleğe alabilir. Bu yüzden `kit_mount` pozları ve `chip_id` kayıt yazıldıktan sonra değiştirilemez (tetikleyici); yeniden kalibrasyon yeni bir kayıttır, yeni bir `chip_id` alır.
 
 **Kalibrasyon → çip akışı:**
 1. Kit kalibre edilir, ölçümler `public.calibration` kaydına girilir ([tarama-kiti.md](tarama-kiti.md#robota-takılan-kit-için-ölçüm)).
