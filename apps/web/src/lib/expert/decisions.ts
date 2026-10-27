@@ -192,6 +192,7 @@ export type BulkResult =
         | "empty"
         | "invalid_metric"
         | "write_failed"
+        | "first_of_season"
         | "sample_open"
         | "sample_disagreement";
     };
