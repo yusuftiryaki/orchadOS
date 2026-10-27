@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import styles from "@/components/site/site.module.css";
 import { formatDate } from "@/lib/i18n";
+import { packageExampleText as E } from "@/lib/i18n/messages/portal-billing";
 import { siteText } from "@/lib/i18n/messages/site";
 import { formatTry, formatVatRate } from "@/lib/site/format";
-import { loadPublicPackages } from "@/lib/site/packages";
+import { loadPackageExample, loadPublicPackages } from "@/lib/site/packages";
 import { createClient } from "@/lib/supabase/server";
 
 const p = siteText.packages;
@@ -11,8 +12,12 @@ const p = siteText.packages;
 export const metadata: Metadata = { title: p.title, description: p.lead };
 
 export default async function PackagesPage() {
-  const packages = await loadPublicPackages(await createClient());
+  const supabase = await createClient();
+  const packages = await loadPublicPackages(supabase);
   const first = packages[0];
+  const examples = await Promise.all(
+    packages.map((pkg) => loadPackageExample(supabase, pkg.packageId, E.areaM2)),
+  );
 
   return (
     <div className={styles.container}>
@@ -29,8 +34,8 @@ export default async function PackagesPage() {
       ) : (
         <>
           <div className={`${styles.grid} ${styles.grid3}`}>
-            {packages.map((pkg) => (
-              <article key={pkg.packageId} className={styles.tile}>
+            {packages.map((pkg, i) => (
+              <article key={pkg.packageId} className={styles.tile} data-testid="package">
                 <h2>{pkg.name}</h2>
                 {pkg.description && <p>{pkg.description}</p>}
                 <p className={styles.price}>{formatTry(pkg.unitPriceKurus)}</p>
@@ -45,6 +50,16 @@ export default async function PackagesPage() {
                   <dt>{p.inventoryFee}</dt>
                   <dd>{formatTry(pkg.inventoryFeeKurus)}</dd>
                 </dl>
+                {examples[i] && (
+                  <p data-testid="package-example">
+                    <strong>{E.title}:</strong>{" "}
+                    {E.body(
+                      formatTry(examples[i].subtotalKurus),
+                      formatTry(examples[i].vatKurus),
+                      formatTry(examples[i].totalKurus),
+                    )}
+                  </p>
+                )}
               </article>
             ))}
           </div>
