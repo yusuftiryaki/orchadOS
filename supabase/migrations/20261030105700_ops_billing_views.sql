@@ -320,6 +320,8 @@ comment on function public.ops_payments(uuid, text, uuid, integer) is
   'Ops: payments of the org (card attempts and transfers) with what is still refundable.';
 
 -- Provider events of a payment and of its refunds (allow-listed payloads).
+-- dedup_key with the provider token cut out (retrieve:<token>:…,
+-- wh:fake:<token>:…): the token alone lets anyone post the payment callback.
 create function public.ops_payment_events(p_payment_id uuid)
 returns table (
   id uuid,
@@ -338,7 +340,8 @@ stable
 security definer
 set search_path = ''
 as $$
-  select e.id, e.provider::text, e.event_type, e.dedup_key, e.refund_id, e.signature_valid, e.http_status, e.outcome,
+  select e.id, e.provider::text, e.event_type,
+         regexp_replace(e.dedup_key, '^(retrieve|wh:fake):[^:]+', '\1:…'), e.refund_id, e.signature_valid, e.http_status, e.outcome,
          e.payload, e.received_at
   from public.payment p
   join private.payment_event e

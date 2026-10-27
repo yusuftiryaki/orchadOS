@@ -25,7 +25,8 @@
 -- ---------------------------------------------------------------------------
 
 -- Payment lines for an amount of an order: one per order line when the whole
--- total is paid at once, otherwise one balance line (no order line).
+-- total is paid at once, otherwise one balance line (no order line). Order
+-- amounts count the money kept: paid_kurus - refunded_kurus.
 create function private.write_payment_items(o public.service_order, p_payment_id uuid, p_amount_kurus bigint)
 returns void
 language plpgsql
@@ -33,7 +34,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if o.paid_kurus = 0 and p_amount_kurus = o.total_kurus then
+  if o.paid_kurus = o.refunded_kurus and p_amount_kurus = o.total_kurus then
     insert into public.payment_item (org_id, payment_id, customer_user_id, line_no, order_item_id, name, amount_kurus)
     select o.org_id, p_payment_id, o.customer_user_id, row_number() over (order by i.line_no), i.id,
            left(i.garden_name, 200), i.amount_kurus
@@ -95,7 +96,7 @@ declare
 begin
   update public.service_order set paid_kurus = paid_kurus + p.amount_kurus
   where id = o.id
-  returning paid_kurus, total_kurus into v_paid, v_total;
+  returning paid_kurus - refunded_kurus, total_kurus into v_paid, v_total;
   perform private.audit(p.org_id, p_actor, p_role, p_action, 'payment', p.id,
     jsonb_build_object('order_id', o.id, 'receipt_number', p.receipt_number, 'provider', p.provider,
       'amount_kurus', p.amount_kurus, 'paid_kurus', p.paid_kurus));
@@ -218,7 +219,7 @@ begin
   if not found then
     raise exception 'not_found' using errcode = 'P0002';
   end if;
-  v_amount := o.total_kurus - o.paid_kurus;
+  v_amount := o.total_kurus - (o.paid_kurus - o.refunded_kurus);
   if o.status <> 'awaiting_payment' or v_amount <= 0 then
     raise exception 'order_not_payable' using errcode = 'P0001';
   end if;
@@ -414,7 +415,14 @@ comment on function public.payment_record_event(text, text, text, uuid, uuid, bo
 -- card_association, card_family, card_last4, fraud_status, failure_code,
 -- items [{payment_item_id, provider_item_id}]}. Returns the payment's status
 -- afterwards.
--- - A final row (succeeded, failed, voided) does not change.
+-- - A succeeded or voided row does not change.
+-- - A failed row changes only for a provider report that money moved
+--   (succeeded or pending_review), never after ops rejected a review
+--   (review_rejected): a capture reported after the attempt was failed is
+--   written as any success (receipt, activation, or an order_closed /
+--   overpayment refund), so it is never kept without a record.
+-- - A row in review for amount_mismatch / reference_mismatch does not change:
+--   it leaves review only through its void refund (→ voided).
 -- - Success with a provider amount other than the payment row's amount, or a
 --   review for amount_mismatch / reference_mismatch: pending_review and a
 --   system void refund of the provider amount (provider_mismatch); never
@@ -443,6 +451,7 @@ declare
   v_code text;
   v_last4 text;
   v_mismatch boolean;
+  v_was_failed boolean;
   v_item jsonb;
 begin
   if p_outcome is null or p_outcome not in ('succeeded', 'failed', 'pending_review', 'expired') then
@@ -457,11 +466,15 @@ begin
     raise exception 'payment_not_open' using errcode = '55000';
   end if;
   -- Repeated calls (callback, webhook, reconciliation) change nothing.
-  if p.status in ('succeeded', 'failed', 'voided')
-     or (p.status = 'pending_review' and p_outcome in ('pending_review', 'expired'))
+  if p.status in ('succeeded', 'voided')
+     or (p.status = 'failed'
+         and (p_outcome in ('failed', 'expired') or p.failure_code is not distinct from 'review_rejected'))
+     or (p.status = 'pending_review'
+         and (p_outcome in ('pending_review', 'expired') or p.failure_code in ('amount_mismatch', 'reference_mismatch')))
      or (p.status = 'expired' and p_outcome = 'expired') then
     return p.status::text;
   end if;
+  v_was_failed := p.status = 'failed';
 
   v_provider_payment_id := private.input_text(r, 'provider_payment_id', 1, 100);
   v_provider_amount := private.input_number(r, 'provider_amount_kurus');
@@ -530,6 +543,10 @@ begin
     if not found then
       raise exception 'state_changed' using errcode = 'P0001';
     end if;
+    if v_was_failed then
+      perform private.audit(p.org_id, null, 'provider', 'payment.late_success', 'payment', p.id,
+        jsonb_build_object('order_id', o.id, 'order_status', o.status));
+    end if;
     perform private.complete_payment(o, p, null, 'provider', 'payment.succeeded');
   elsif p_outcome in ('succeeded', 'pending_review') then
     update public.payment set status = 'pending_review', failure_code = v_code
@@ -569,8 +586,11 @@ comment on function public.payment_finalize(uuid, text, jsonb) is
   'Service role: writes the confirmed outcome of a card attempt (idempotent; mismatch → review and void; activation).';
 
 -- Card attempts to ask the provider about: initiated for more than two
--- minutes, every pending review, and expired ones until ten minutes after the
--- token ran out (late approvals).
+-- minutes, pending fraud reviews, and expired or failed-unfinished
+-- (not_completed) ones until ten minutes after the token ran out (late
+-- approvals). Mismatch reviews are left out: only their void settles them.
+-- Order: initiated first, then the late-approval window, then reviews; oldest
+-- first within each, so long-lived reviews never crowd out new attempts.
 create function public.payment_attempts_to_reconcile(p_limit integer default 50)
 returns table (
   id uuid,
@@ -592,13 +612,17 @@ as $$
   from public.payment p
   where p.provider <> 'manual'
     and ((p.status = 'initiated' and p.initiated_at < now() - interval '2 minutes')
-         or p.status = 'pending_review'
-         or (p.status = 'expired' and p.token_expires_at + interval '10 minutes' > now()))
-  order by p.initiated_at, p.id
+         or (p.status = 'pending_review'
+             and p.failure_code is distinct from 'amount_mismatch'
+             and p.failure_code is distinct from 'reference_mismatch')
+         or (p.status = 'expired' and p.token_expires_at + interval '10 minutes' > now())
+         or (p.status = 'failed' and p.failure_code = 'not_completed' and p.provider_token is not null
+             and p.token_expires_at + interval '10 minutes' > now()))
+  order by case p.status when 'initiated' then 0 when 'pending_review' then 2 else 1 end, p.initiated_at, p.id
   limit greatest(1, least(coalesce(p_limit, 50), 500));
 $$;
 comment on function public.payment_attempts_to_reconcile(integer) is
-  'Service role: card attempts for reconciliation (initiated > 2 min, pending review, expired within 10 min of the token).';
+  'Service role: card attempts for reconciliation (initiated > 2 min, fraud review, expired or not_completed within 10 min of the token).';
 
 -- ---------------------------------------------------------------------------
 -- 3. Ops
@@ -637,7 +661,7 @@ begin
   if p_amount_kurus is null or p_amount_kurus <= 0 then
     raise exception 'invalid_input' using errcode = '22023', detail = 'amount_kurus';
   end if;
-  if p_amount_kurus > o.total_kurus - o.paid_kurus then
+  if p_amount_kurus > o.total_kurus - (o.paid_kurus - o.refunded_kurus) then
     raise exception 'amount_exceeds_balance' using errcode = 'P0001';
   end if;
   if p_value_date is null or p_value_date > private.istanbul_today() or p_value_date < private.istanbul_today() - 366 then
@@ -668,10 +692,11 @@ $$;
 comment on function public.ops_record_manual_payment(uuid, bigint, date, text, text) is
   'Ops: records a bank transfer (partial allowed) with a receipt; activates the order when paid in full.';
 
--- Corrects a wrongly recorded transfer of an order not yet active: voided,
--- and taken off the order's paid amount. Errors: not_found, forbidden,
--- payment_not_open (not a succeeded transfer, or refunds on it),
--- order_active, invalid_input (note).
+-- Corrects a wrongly recorded transfer of an order still awaiting payment:
+-- voided, and taken off the order's paid amount. Errors: not_found,
+-- forbidden, payment_not_open (not a succeeded transfer, or refunds on it, or
+-- the order's refunds would exceed what stays paid), order_active (active),
+-- order_not_payable (cancelled, terminated, completed), invalid_input (note).
 create function public.ops_void_manual_payment(p_payment_id uuid, p_note text)
 returns void
 language plpgsql
@@ -692,6 +717,12 @@ begin
   if o.status = 'active' then
     raise exception 'order_active' using errcode = 'P0001';
   end if;
+  if o.status <> 'awaiting_payment' then
+    raise exception 'order_not_payable' using errcode = 'P0001';
+  end if;
+  if o.paid_kurus - p.amount_kurus < o.refunded_kurus then
+    raise exception 'payment_not_open' using errcode = '55000';
+  end if;
   if v_note is null or length(v_note) > 2000 then
     raise exception 'invalid_input' using errcode = '22023', detail = 'note';
   end if;
@@ -706,7 +737,7 @@ begin
 end;
 $$;
 comment on function public.ops_void_manual_payment(uuid, text) is
-  'Ops: voids a wrongly recorded bank transfer of an order that is not active (note required).';
+  'Ops: voids a wrongly recorded bank transfer of an order awaiting payment (note required).';
 
 -- Fraud review only (a payment in review for a mismatch waits for its void
 -- refund). p_provider_ref: the provider's payment id ops checked, required to

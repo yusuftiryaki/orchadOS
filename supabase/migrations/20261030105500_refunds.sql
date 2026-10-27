@@ -216,8 +216,8 @@ comment on function private.open_system_refund(uuid, bigint, public.refund_reaso
 -- 3. Ops
 -- ---------------------------------------------------------------------------
 
--- Kind: transfer → manual; card with the full amount on the day → void; a
--- line given → that line; the whole remainder → every line's remainder; a
+-- Kind: transfer → manual; card with the full amount on the day → void (even
+-- when a line is given); a line given → that line; the whole remainder → every line's remainder; a
 -- part with a single line → that line; otherwise item_required. Errors:
 -- not_found, forbidden, payment_not_open, invalid_input (amount_kurus, reason,
 -- note, payment_item_id), refund_exceeds_payment, item_required.
@@ -271,11 +271,11 @@ begin
   if p.provider = 'manual' then
     return array[private.insert_refund(p, 'manual', p_payment_item_id, p_amount_kurus, v_reason, v_note, v_actor, 'ops')];
   end if;
-  if p_payment_item_id is not null then
-    return array[private.insert_refund(p, 'refund', p_payment_item_id, p_amount_kurus, v_reason, v_note, v_actor, 'ops')];
-  end if;
   if p_amount_kurus = v_base and v_room = v_base and private.same_istanbul_day(p.succeeded_at) then
     return array[private.insert_refund(p, 'void', null, p_amount_kurus, v_reason, v_note, v_actor, 'ops')];
+  end if;
+  if p_payment_item_id is not null then
+    return array[private.insert_refund(p, 'refund', p_payment_item_id, p_amount_kurus, v_reason, v_note, v_actor, 'ops')];
   end if;
   if p_amount_kurus = v_room then
     if (select coalesce(sum(greatest(private.refund_room(p, i.id), 0)), 0) from public.payment_item i
@@ -367,8 +367,9 @@ $$;
 comment on function public.ops_complete_manual_refund(uuid, text, date) is
   'Ops: records that a transfer refund was paid back (bank reference and day).';
 
--- requested → cancelled (internal note). Errors: not_found, forbidden,
--- refund_not_open, invalid_input (note).
+-- requested → cancelled (internal note). Not the system void of a payment in
+-- review for a mismatch: it is that payment's only way out. Errors:
+-- not_found, forbidden, refund_not_open, invalid_input (note).
 create function public.ops_cancel_refund(p_refund_id uuid, p_note text default null)
 returns void
 language plpgsql
@@ -383,7 +384,9 @@ begin
   if r.customer_user_id = (select auth.uid()) then
     raise exception 'forbidden' using errcode = '42501';
   end if;
-  if r.status <> 'requested' then
+  if r.status <> 'requested'
+     or (r.reason = 'provider_mismatch'
+         and exists (select 1 from public.payment p where p.id = r.payment_id and p.status = 'pending_review')) then
     raise exception 'refund_not_open' using errcode = 'P0001';
   end if;
   if length(v_note) > 2000 then
@@ -401,9 +404,11 @@ $$;
 comment on function public.ops_cancel_refund(uuid, text) is 'Ops: cancels a requested refund.';
 
 -- processing or failed → succeeded / failed, after ops checked the provider
--- (an uncertain card refund). A card refund needs the provider's reference to
--- succeed. Errors: not_found, forbidden, refund_not_open, invalid_input
--- (succeeded, provider_ref, note), refund_exceeds_payment.
+-- (an uncertain card refund: processing only once the provider call has been
+-- out for 15 minutes, so an answer still in flight is not overwritten). A
+-- card refund needs the provider's reference to succeed. Errors: not_found,
+-- forbidden, refund_not_open, invalid_input (succeeded, provider_ref, note),
+-- refund_exceeds_payment.
 create function public.ops_resolve_refund(
   p_refund_id uuid,
   p_succeeded boolean,
@@ -426,7 +431,8 @@ begin
   if r.customer_user_id = (select auth.uid()) then
     raise exception 'forbidden' using errcode = '42501';
   end if;
-  if r.kind = 'manual' or r.status not in ('processing', 'failed') then
+  if r.kind = 'manual' or r.status not in ('processing', 'failed')
+     or (r.status = 'processing' and r.processing_since >= now() - interval '15 minutes') then
     raise exception 'refund_not_open' using errcode = 'P0001';
   end if;
   if p_succeeded is null then
@@ -477,7 +483,8 @@ comment on function public.ops_resolve_refund(uuid, boolean, text, text) is
 -- ---------------------------------------------------------------------------
 
 -- requested / failed → processing for a card refund (never manual); a retry
--- checks the ceiling again. Errors: not_found, refund_not_open,
+-- checks the ceiling again, and a failed refund marked not retryable (by the
+-- provider or ops) is never sent again. Errors: not_found, refund_not_open,
 -- refund_exceeds_payment.
 create function public.payment_refund_claim(p_refund_id uuid)
 returns jsonb
@@ -492,7 +499,8 @@ declare
 begin
   r := private.lock_refund(p_refund_id);
   select * into p from public.payment where id = r.payment_id;
-  if r.kind = 'manual' or r.status not in ('requested', 'failed') or p.status not in ('succeeded', 'pending_review') then
+  if r.kind = 'manual' or r.status not in ('requested', 'failed') or p.status not in ('succeeded', 'pending_review')
+     or (r.status = 'failed' and r.retryable is not distinct from false) then
     raise exception 'refund_not_open' using errcode = 'P0001';
   end if;
   if r.status = 'failed' and (
