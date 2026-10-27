@@ -5,10 +5,11 @@
 - Dokümanlar (`docs/`) Türkçe. Kod, tanımlayıcılar, commit mesajları ve kod yorumları İngilizce.
 
 ## Önce oku
-- `docs/plan.md`: iş paketleri (İP0–İP11), kilometre taşları, kesme listesi. Hangi İP üzerinde çalışıldığını buradan bul; ilerlemeyi burada güncelle.
+- `docs/plan.md`: iş paketleri (İP0–İP12), kilometre taşları, kesme listesi. Hangi İP üzerinde çalışıldığını buradan bul; ilerlemeyi burada güncelle.
 - `docs/MVP.md`: ürün tanımı ve modüller.
 - `docs/veri-modeli.md`: **veri modelinin kaynağı**. Şema değişiklikleri önce burada tartışılır.
 - `docs/metodoloji.md`: değerlendirme kuralları (ölçekler, genel sınıf, bulgu türleri); `docs/kullanim-kilavuzu.md`: rol rol uçtan uca akış.
+- `docs/musteri-yonetimi.md`: müşteri edinme ve yönetimi (İP12): self-servis kayıt, başvuru, teklif, ödeme, back office; faturalama tablolarının, fonksiyonlarının ve hata kodlarının sözleşmesi.
 - `docs/arayuzler.md`: **bileşenler arası sözleşmelerin kaynağı**: oturum klasörü, `events.csv`, iki `session.json`, QR saat kodu, zaman tanımı. Bir biçim değişirse önce burası güncellenir.
 
 ## Yapı
@@ -44,7 +45,7 @@ Kökte bir kez `pnpm install` (Supabase komut satırı aracı; sürümü `packag
 
 Test temizliği `testing` şemasındaki fonksiyonlarla yapılır (`supabase/testing/`; seed'den sonra yüklenir, test ve pilot projelerine gitmez). Bu şemadan önceki eski bir yerel veritabanında `pnpm db:start` PostgREST hatasıyla takılırsa: `pnpm exec supabase stop --no-backup && pnpm db:start`.
 
-Örnek kullanıcılar (sadece yerel): `owner@`, `viewer@`, `field@`, `expert@`, `ops@example.com`, parola `orchados-dev`.
+Örnek kullanıcılar (sadece yerel): `owner@`, `viewer@`, `field@`, `expert@`, `ops@example.com`, ayrıca self-servis müşteri `customer@example.com` (İP12; başvurusu incelemede), parola `orchados-dev`. Yerelde kayıt açık ve sahte ödemeye izin var (`org_billing_setting`).
 
 ### GNSS kaydedici (`firmware/gnss-logger/`)
 | Komut | Ne yapar |

@@ -24,6 +24,29 @@ export const USERS = {
 } as const;
 export type UserKey = keyof typeof USERS;
 
+// The self sign-up customer of the seed (IP12). Not in USERS: tests that map
+// every UserKey (sections, parcel visibility) cover the parcel and org roles.
+export const CUSTOMER = {
+  email: "customer@example.com",
+  id: "a0000000-0000-4000-8000-000000000006",
+  phone: "+905550000006",
+} as const;
+
+// IP12 seed (supabase/seed.sql, docs/musteri-yonetimi.md §6.12).
+export const BILLING_SEED = {
+  packages: {
+    standart: "91200000-0000-4000-8000-000000000001",
+    ekonomik: "91200000-0000-4000-8000-000000000002",
+  },
+  // v1 published (valid from 2026-10-01, VAT 2000 bp), v2 a draft.
+  priceListV1: "91200000-0000-4000-8000-000000000101",
+  priceListV2: "91200000-0000-4000-8000-000000000102",
+  application: "91200000-0000-4000-8000-000000000301",
+  applicationNumber: "B-2026-000001",
+  garden: "91200000-0000-4000-8000-000000000401",
+  gardenAreaM2: 15000,
+} as const;
+
 // Created by the tests themselves (supabase/ seed stays unchanged):
 //   OTHER_ORG_PARCEL  a parcel of another org: nobody from the seed org sees it
 //   SAME_ORG_PARCEL   a second parcel of the seed org without parcel_access for
@@ -51,6 +74,16 @@ export async function signIn(user: UserKey): Promise<{ client: Client; userId: s
   const client = anonClient();
   const { data, error } = await client.auth.signInWithPassword({
     email: USERS[user],
+    password: PASSWORD,
+  });
+  if (error) throw error;
+  return { client, userId: data.user.id };
+}
+
+export async function signInCustomer(): Promise<{ client: Client; userId: string }> {
+  const client = anonClient();
+  const { data, error } = await client.auth.signInWithPassword({
+    email: CUSTOMER.email,
     password: PASSWORD,
   });
   if (error) throw error;

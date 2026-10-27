@@ -33,10 +33,11 @@ create function pg_temp.ring() returns jsonb language sql immutable
 as $$ select '[[37.400, 37.020], [37.401, 37.020], [37.401, 37.021], [37.400, 37.021]]'::jsonb $$;
 grant execute on all functions in schema pg_temp to authenticated;
 
-insert into auth.users (instance_id, id, aud, role, email, phone, encrypted_password, email_confirmed_at,
-  raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+-- The phone is confirmed: ops_find_user_id matches confirmed phones only (IP12).
+insert into auth.users (instance_id, id, aud, role, email, phone, phone_confirmed_at, encrypted_password,
+  email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values ('00000000-0000-0000-0000-000000000000', 'ad000000-0000-4000-8000-000000000001', 'authenticated',
-  'authenticated', 'pgtap-owner@example.test', '905551230001', '', now(), '{}', '{}', now(), now());
+  'authenticated', 'pgtap-owner@example.test', '905551230001', now(), '', now(), '{}', '{}', now(), now());
 
 create temporary table ids (name text primary key, id uuid) on commit drop;
 grant all on ids to authenticated;
@@ -67,7 +68,8 @@ select has_trigger('public', 'session', 'session_sync_parcel_inventory_status', 
 set local role authenticated;
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 
-select is((select count(*) from public.ops_owner_profiles()), 2::bigint, 'ops lists the owner profiles of its org');
+-- Seed: owner, viewer and the IP12 customer.
+select is((select count(*) from public.ops_owner_profiles()), 3::bigint, 'ops lists the owner profiles of its org');
 select is(
   public.ops_find_user_id('b0000000-0000-4000-8000-000000000001', 'OWNER@example.com'),
   'a0000000-0000-4000-8000-000000000001'::uuid, 'ops finds an account by e-mail (case-insensitive)');
