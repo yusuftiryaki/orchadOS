@@ -114,6 +114,7 @@ Kit tek başına, yani ikinci alıcı, anteni, baz kaydedicisi, üçüncü akü 
     - Yarım saatlik ham kayıt ve PPK denemesi (İP3).
 5. **Mekanik:**
     - Motosiklete montaj ve kalibrasyon ölçümü.
+    - Kit robota da takılacaksa: kit tabanına göre sensör konumlarının ölçümü ([tarama-kiti.md](tarama-kiti.md#robota-takılan-kit-için-ölçüm)) ve kimlik çipinin yazılması.
     - Kendi bahçende tek koridor taraması (Kapı 1 denemesi).
 
 ## Doğrulanacaklar
