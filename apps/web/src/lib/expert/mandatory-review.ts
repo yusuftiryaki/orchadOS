@@ -14,6 +14,7 @@ export const MANDATORY_REASONS = [
   "class_changed",
   "staff_conflict",
   "staff_problem",
+  "hard_scale",
 ] as const;
 export type MandatoryReason = (typeof MANDATORY_REASONS)[number];
 
@@ -50,7 +51,13 @@ export interface ReviewRules {
   // Bulk approval only after the expert has decided the whole quality sample,
   // and only while the sample agrees with the AI at least this often (expert
   // class = AI class). Null: no gate.
-  bulkGate: { minAgreement: number } | null;
+  // `firstOfSeasonClosed`: no bulk approval at all on the first visit of a
+  // season under this methodology, while the AI's success in that season is
+  // unknown.
+  bulkGate: { minAgreement: number; firstOfSeasonClosed: boolean } | null;
+  // AI values at or above `min` on these scales always go to the expert: the
+  // scales hardest to judge from images.
+  hardScales: { metric: string; min: number }[];
   // General class rule (docs/metodoloji.md, section 5): the level that mild and
   // marked pest signs raise the class to (0 none, 1 attention, 2 problem).
   classRule: ClassRuleConfig;
@@ -81,21 +88,43 @@ const METHODOLOGY_V0: ReviewRules = {
   sampleRate: 0.05,
   sampleMin: 0,
   bulkGate: null,
+  hardScales: [],
   classRule: { pestMild: 1, pestMarked: 2 },
   presenceMetric: "tree_visible",
   notVisibleValues: ["no"],
 };
 
 // Expert agent decisions of 27 October 2026 (docs/uzman-ajan-onerileri.md),
-// awaiting the pilot expert: a 10 % sample of at least 20 trees, decided
-// before bulk approval, which stops below 85 % agreement; mild pest signs no
-// longer change the class, marked ones raise it to attention.
+// accepted by the business on the same day: a 10 % sample of at least 20
+// trees, decided before bulk approval, which stops below 85 % agreement and
+// stays closed on the first visit of a season; dead branch and trunk values of
+// 2 or more always go to the expert; mild pest signs no longer change the
+// class, marked ones raise it to attention. The close-up questions are the
+// v0.1 protocol (apps/field, closeup_protocol.dart).
 const METHODOLOGY_V0_1: ReviewRules = {
   ...METHODOLOGY_V0,
   methodologyVersion: "methodology-v0.1",
+  staffConflicts: [
+    // A dead scaffold branch alone makes the scale at least 2.
+    { staff: "dead_scaffold_present", ai: "dead_branch_scale", absent: [0, 1], clear: [3] },
+    { staff: "trunk_damage_present", ai: "trunk_base_scale", absent: [0], clear: [2, 3] },
+    { staff: "frost_damage_present", ai: "frost_damage_scale", absent: [0], clear: [2, 3] },
+    { staff: "honeydew_present", ai: "pest_sign_severity", absent: [], clear: ["marked"] },
+    { staff: "white_flakes_present", ai: "pest_sign_severity", absent: [], clear: ["marked"] },
+    { staff: "fruit_present", ai: "fruit_load_scale", absent: [0], clear: [2, 3] },
+    { staff: "fresh_cut_present", ai: "pruning_status", absent: ["not_done"], clear: ["done"] },
+    { staff: "branch_break", ai: "branch_break", absent: [false], clear: [true] },
+    { staff: "dried_leaves_attached", ai: "dried_leaves_attached", absent: [false], clear: [true] },
+    // Answers of visits recorded with the v0 protocol.
+    ...METHODOLOGY_V0.staffConflicts,
+  ],
   sampleRate: 0.1,
   sampleMin: 20,
-  bulkGate: { minAgreement: 0.85 },
+  bulkGate: { minAgreement: 0.85, firstOfSeasonClosed: true },
+  hardScales: [
+    { metric: "dead_branch_scale", min: 2 },
+    { metric: "trunk_base_scale", min: 2 },
+  ],
   classRule: { pestMild: 0, pestMarked: 1 },
 };
 
@@ -115,7 +144,12 @@ export function staffMetricCodes(rules: ReviewRules): string[] {
   return [...new Set([rules.staffProblemMetric, ...rules.staffConflicts.map((c) => c.staff)])];
 }
 export function aiMetricCodes(rules: ReviewRules): string[] {
-  return [...new Set(rules.staffConflicts.map((c) => c.ai))];
+  return [
+    ...new Set([
+      ...rules.staffConflicts.map((c) => c.ai),
+      ...rules.hardScales.map((h) => h.metric),
+    ]),
+  ];
 }
 
 export interface TriageInput {
@@ -163,6 +197,10 @@ export function mandatoryReasons(tree: TriageInput, rules: ReviewRules): Mandato
       reasons.add("class_changed");
     }
     if (staffConflicts(tree, rules).length > 0) reasons.add("staff_conflict");
+  }
+  for (const { metric, min } of rules.hardScales) {
+    const value = tree.aiValues?.[metric];
+    if (typeof value === "number" && value >= min) reasons.add("hard_scale");
   }
   if (tree.staffAnswers?.[rules.staffProblemMetric] === true) reasons.add("staff_problem");
   return MANDATORY_REASONS.filter((r) => reasons.has(r));

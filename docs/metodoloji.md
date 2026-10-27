@@ -1,14 +1,14 @@
 # Denetim Metodolojisi
 
-**Sürüm:** `methodology-v0.1` (taslak) · 27 Ekim 2026 · önceki: `methodology-v0` (21 Ekim 2026)
+**Sürüm:** `methodology-v0.1` · 27 Ekim 2026 (işletme kararıyla kabul edildi) · önceki: `methodology-v0` (21 Ekim 2026)
 
 Bu belge, orchadOS denetimlerinde bir ağacın ve bir parselin **nasıl değerlendirildiğini** tanımlar: hangi ziyarette neye bakılır, ölçekler ne anlama gelir, ağacın genel sınıfı nasıl çıkar, bulgular nasıl yazılır, sahibe ne gösterilir. Uzman (ziraat mühendisi), saha personeli eğitmeni ve operasyon aynı kuralları buradan okur.
 
 Her ölçüm, değerlendirme ve rapor üretildiği metodoloji sürümünü taşır (veritabanında `methodology_version`). Kurallar değişince yeni sürüm açılır. Eski raporlar kendi sürümleriyle kalır ve yeniden hesaplanmaz.
 
-> **v0.1 değişiklikleri (27 Ekim 2026):** Gerçek uzman gelene kadar kararlar bir **uzman ajanla** (AI) verildi; öneriler, gerekçeleri, güvenleri ve pilot uzmana sorulacak sorular [uzman-ajan-onerileri.md](uzman-ajan-onerileri.md)'de. Bu sürüme girenler: dip sürgünü ve kuruma deseni (4.9–4.10), hafif zararlı belirtisinin sınıfı değiştirmemesi (5), %10 / en az 20 ağaçlık kalite örneklemi ve toplu onay durdurma kuralı (6), yeni bulgu türleri (8), skor ağırlıkları 100 / 70 / 25 / 0 (9). Yeni ziyaretler `methodology-v0.1` ile planlanır; eski ziyaretler `methodology-v0` kurallarıyla kalır. Hepsi **pilot uzmanın onayını bekliyor.**
+> **v0.1 değişiklikleri (27 Ekim 2026):** Gerçek uzman gelene kadar kararlar bir **uzman ajanla** (AI) verildi; öneriler, gerekçeleri, güvenleri ve pilot uzmanla görüşülürse sorulacak sorular [uzman-ajan-onerileri.md](uzman-ajan-onerileri.md)'de. Bu sürüme girenler: ölçeklerin görünür ölçütleri (4), büyüklük sınıfı eşikleri (3), dip sürgünü ve kuruma deseni (4.9–4.10), hafif zararlı belirtisinin sınıfı değiştirmemesi ve kışın kuru kanıt kuralı (5), %10 / en az 20 ağaçlık kalite örneklemi, toplu onay durdurma kuralı, mevsimin ilk ziyaretinde toplu onayın kapalı olması ve zor ölçeklerin zorunlu incelemesi (6), yakın plan çekimleri ve soruları (7), yeni bulgu türleri (8), skor kuralları (9), envanterde %98 kapsama ve geniş aralıklı bahçede 20×20 m kör nokta hücresi (10). Yeni ziyaretler `methodology-v0.1` ile planlanır; eski ziyaretler `methodology-v0` kurallarıyla kalır.
 >
-> **Taslak durumu:** Bu sürüm, uzmanla ön görüşmeden önce yazıldı. "Uzmanla kesinleşecek" diye işaretli her nokta, pilot uzmanın onayıyla `methodology-v1`'e dönüşür. Referans fotoğrafların hiçbiri henüz yok; listesi [Ek A](#ek-a--hazırlanacak-referans-fotoğraflar)'da.
+> **Kabul (27 Ekim 2026):** İşletme, uzman ajanın önerilerini pilot için yeterli buldu ve bu sürümü kabul etti. Öneriler **bir ziraat mühendisi tarafından doğrulanmadı**; kaynak ya da saha ölçümüne dayanmıyor. Pilotta uzmanın düzeltmeleri, AI ile uyum ölçümü ve sahiplerin geri bildirimi bu kuralları sınar; değişiklikler yeni bir sürümle (`methodology-v0.2` ya da `v1`) gelir. Referans fotoğrafların hiçbiri henüz yok; listesi [Ek A](#ek-a--hazırlanacak-referans-fotoğraflar)'da.
 
 ## İçindekiler
 
@@ -22,7 +22,7 @@ Her ölçüm, değerlendirme ve rapor üretildiği metodoloji sürümünü taş�
 8. [Bulgular ve öneriler](#8-bulgular-ve-öneriler)
 9. [Parsel karnesi](#9-parsel-karnesi)
 10. [Kalite kapıları](#10-kalite-kapıları)
-11. [Uzmanla kesinleşecekler](#11-uzmanla-kesinleşecekler)
+11. [Kararların durumu](#11-kararların-durumu)
 - [Ek A – Hazırlanacak referans fotoğraflar](#ek-a--hazırlanacak-referans-fotoğraflar)
 - [Ek B – Metrik kaydı karşılıkları](#ek-b--metrik-kaydı-karşılıkları)
 
@@ -69,20 +69,24 @@ Ziyaretin mevsimi, taramanın yapıldığı aydan çıkar. Hangi ölçeğin giri
 
 | Özellik | Değerler | Nasıl karar verilir |
 | --- | --- | --- |
-| Yaş sınıfı | Fidan · Genç · Verimli · Yaşlı · Belirsiz | Taç çapı ve gövde kalınlığına göre (aşağıdaki tablo) |
+| Büyüklük sınıfı (kodda `age_class`) | Fidan · Genç · Verimli · Yaşlı · Belirsiz | Taç çapı ve gövde kalınlığına göre (aşağıdaki tablo). Gerçek yaş görüntüden bilinemez; yerinde aşılanmış yaşlı menengiç ya da buttumlarda gövde yaşı abartır |
 | Aşı durumu | Aşılı · Aşısız · Belirsiz | Gövdede aşı yeri ya da aşı izi görülüyorsa aşılı. Sıra arasındaki ve dipten çıkan genç ağaçlar çoğunlukla aşısızdır |
 | Gövde yapısı | Tek gövde · Çok gövdeli · Belirsiz | Dipten ya da yerden iki ya da daha fazla kalın gövde çıkıyorsa çok gövdeli. Sabit bir özelliktir; dip sürgünü (4.9) ayrı ve her ziyarette yeniden bakılır |
-| Cinsiyet | Dişi · Erkek · Bilinmiyor | Kışın ayırt edilmez; envanterde "bilinmiyor" başlar. İlkbaharda çiçekten belirlenir: erkek çiçek salkımları daha iri ve sıktır. Yazın meyve salkımı olan dişidir |
+| Cinsiyet | Dişi · Erkek · Bilinmiyor | Kışın ayırt edilmez; envanterde "bilinmiyor" başlar. İlkbaharda çiçekten belirlenir: salkıma dokununca ele sarı polen tozu bulaşıyorsa erkektir (personel sorusu, bölüm 7). Yazın meyve salkımı olan dişidir; salkım olmaması erkek olduğunu göstermez (yok yılında dişi de salkımsız olabilir) |
 | Çeşit | Kırmızı, Uzun, Siirt, … · boş | Sahibin beyanı. Denetim çeşidi görüntüden belirlemez |
 
-Yaş sınıfı için ilk eşikler (uzmanla kesinleşecek):
+Büyüklük sınıfı eşikleri (v0.1). Gövde çapı **aşı yerinin üstünde, yerden yaklaşık 50 cm'de** ölçülür (aşı yeri görünmüyorsa 50 cm'de):
 
-| Sınıf | Taç çapı | Gövde çapı (30 cm'de) |
-| --- | --- | --- |
-| Fidan | < 1 m | < 5 cm |
-| Genç | 1–3 m | 5–15 cm |
-| Verimli | 3–7 m | 15–40 cm |
-| Yaşlı | > 7 m ya da belirgin yaşlılık (oyuk, büyük kesimler) | > 40 cm |
+| Sınıf | Gövde çapı | Taç çapı | Görünür ölçüt |
+| --- | --- | --- | --- |
+| Fidan | < 5 cm (bilekten ince) | < 1,5 m | Boy çoğunlukla insan boyundan kısa; destek kazığı, koruma kabı ya da torba; birkaç dal |
+| Genç | 5–12 cm | 1,5–3 m | Boy insan boyu civarı; ana kollar bilek kalınlığında; tacın arkasından sıra görünüyor |
+| Verimli | 12–35 cm | 3–6 m | Taç komşu ağaca yaklaşıyor; ana kollar kol kalınlığında ya da daha kalın |
+| Yaşlı | > 35 cm ya da yaşlılık izi | > 6 m ya da gençleştirilmiş taç | Gövde bel kalınlığında; ya da oyuk, büyük eski kesimler; ya da kalın kesilmiş kolların üstünde ince yeni kollar |
+| Belirsiz | — | — | Gövde görünmüyor ya da ölçütler çelişiyor |
+
+- **Çelişki:** Gövde ve taç farklı sınıfa düşerse **taç** kazanır ve not yazılır ("kalın anaç, genç taç"): verimi ve bakım ihtiyacını taç belirler.
+- Sahibe "büyüklük sınıfı" adıyla gösterilir.
 
 ## 4. Ölçekler
 
@@ -94,29 +98,31 @@ Her ölçeğin bir tanımı, mevsimi ve referans fotoğrafı vardır. 0–3 öl�
 
 Emin olunamayan durumda bir alt değer değil, **değer girilmez** ve not yazılır.
 
+**Sınırdaki vaka (v0.1):** İki değer arasında kalınırsa ve kanıt iyiyse **üst değer** seçilir; kanıt zayıfsa değer girilmez. Denetimin amacı sahibi uyarmaktır; sınırdaki vakayı alta yuvarlamak sorunu bir ziyaret geciktirir.
+
 ### 4.1 Kuru dal (tüm ziyaretler)
 
 | Değer | Tanım |
 | --- | --- |
-| 0 | Kuru dal yok, ya da sadece ince uç sürgünler |
-| 1 | Tacın %10'undan azı kuru |
-| 2 | Tacın %10–30'u kuru |
-| 3 | Tacın %30'undan fazlası kuru |
+| 0 | Kuru dal yok. Sadece kalem kalınlığından ince, tek tük kuru uç sürgün var. Budama kesik uçları sayılmaz |
+| 1 | Tacın yaklaşık %10'undan azı kuru: 1–3 yan dal ya da dağınık kuru uçlar. Hiçbir **ana kol** (gövdeden çıkan kalın iskelet dalı) kuru değil |
+| 2 | Tacın %10–30'u kuru **ya da** bir ana kol tümüyle kuru |
+| 3 | Tacın %30'undan fazlası kuru **ya da** iki ve daha fazla ana kol tümüyle kuru |
 
-- **Nasıl bakılır:** Dört yönün kesitleri birlikte değerlendirilir. Oran, tacın görünen hacmine göre tahmin edilir; dal sayısına göre değil.
-- **Kışın:** Yapraklar olmadığı için kuru dal canlı daldan renk ve kabukla ayrılır. Kuru dal kül grisidir, kabuğu çatlak ya da soyulmuştur, ucunda tomurcuk yoktur. Kışın verilen 3, ilkbaharda yeniden kontrol edilir.
-- **Sık hata:** Budamadan kalan kesik dal uçları kuru dal sayılmaz.
+- **Nasıl bakılır:** Dört yönün kesitleri birlikte değerlendirilir. Oran, tacın görünen hacmine göre tahmin edilir; dal sayısına göre değil. Bir ana kolun kuruması yüzde ne olursa olsun en az 2'dir: o koldaki meyve dalları gider ve ağacın bir tarafı yıllarca boş kalır.
+- **Kışın:** Kuru dal kül grisidir, kabuğu çatlak ya da soyulmuştur, ucunda tomurcuk yoktur ya da büzüşmüştür; ince dalı bükülünce esnemeden "çıt" diye kırılır. Canlı dalın kabuğu kızıl kahve ile gri arasındadır, ucunda dolgun tomurcuk vardır. Kışın verilen 3, ilkbaharda yeniden kontrol edilir.
+- **Sık hata:** Budamadan kalan kesik dal uçları; gölgede kalan iç dallar; kışın koyu görünen ıslak dallar; üst üste binen arka sıra ağacının dalları.
 
 ### 4.2 Gövde ve dip (tüm ziyaretler)
 
-Yara, oyuk, kabuk soyulması, zamklanma ve kök boğazı birlikte değerlendirilir. Dip sürgünü bu ölçekte değil, ayrı bir göstergede tutulur (4.9).
+v0.1'de adı **"Gövde ve kök boğazı"**. Yara, oyuk, kabuk soyulması, zamklanma ve kök boğazı birlikte değerlendirilir. Dip sürgünü bu ölçekte değil, ayrı bir göstergede tutulur (4.9). Traktör ve çapa yaraları da bu ölçeğe girer. Teşhis konmaz, görünür belirti yazılır.
 
 | Değer | Tanım |
 | --- | --- |
-| 0 | Gövde sağlam, dip temiz |
-| 1 | Küçük yara |
-| 2 | Gövde çevresinin dörtte birinden azını saran yara ya da oyuk; zamklanma |
-| 3 | Gövde çevresinin dörtte birinden fazlasını saran yara, derin oyuk ya da kabuk soyulması |
+| 0 | Gövde ve kök boğazı sağlam. Eski, kabukla kapanmış budama yaraları olabilir |
+| 1 | Avuç içinden küçük (yaklaşık 10 cm'den kısa), yüzeysel, açık yara; ya da tek tük küçük zamk (kehribar renkli, sertleşmiş damla) noktası |
+| 2 | Avuçtan büyük ama gövde çevresinin dörtte birinden azını saran yara; ya da sığ oyuk; ya da birden çok yerde zamklanma; ya da kök boğazında koyulaşmış, çökmüş kabuk |
+| 3 | Gövde çevresinin dörtte birinden fazlasını saran yara ya da kabuk soyulması; ya da içine el girecek kadar derin oyuk; ya da kök boğazını çepeçevre saran kabuk ölümü |
 
 - **Nasıl bakılır:** Panorama kesitleri gövdeyi her zaman göstermez; uzun ot, sulama hortumu ya da açı gövdeyi kapatabilir.
 - **2 ve üstü yakın planla doğrulanmalı.** Doğrulanamazsa değer girilmez ve ağaç bir sonraki ziyaretin yakın plan listesine alınır.
@@ -132,55 +138,64 @@ Yara, oyuk, kabuk soyulması, zamklanma ve kök boğazı birlikte değerlendiril
 
 Budama bir ölçek değil, bakım uyumu göstergesidir. Genel sınıfı etkilemez, parsel karnesinde "bakım uyumu" satırına girer.
 
+- **Taze kesim:** Kesim yüzeyi açık krem rengindedir, henüz grileşmemiştir ve kenarından kabuk kapanmaya başlamamıştır. Geçen yılın kesimi grileşmiş ve kenarından kapanmaya başlamıştır.
+- Antep fıstığında her yıl ağır budama yaygın değildir; çok üretici var yılı hasadından sonra ya da birkaç yılda bir budar. "Yapılmamış" sahibe olumsuz bir bulgu gibi sunulmaz; karnede "bu sezon budama izi görülen ağaç oranı" olarak durur.
+
 ### 4.4 Taç doluluğu (ilkbahar, yaz)
 
 | Değer | Tanım |
 | --- | --- |
-| 0 | Normal: taçtan gökyüzü az görünür |
-| 1 | Hafif seyrek |
-| 2 | Belirgin seyrek: taçtan gökyüzü geniş alanlarda görünür |
-| 3 | Çok seyrek: yaprak sadece dal uçlarında ya da birkaç dalda |
+| 0 | Normal: aynı parselde aynı büyüklükteki iyi ağaçlar kadar dolu; gökyüzü sadece küçük boşluklarda görünür |
+| 1 | Hafif seyrek: karşılaştırma ağacından fark edilir derecede açık; gökyüzü dağınık ama çok sayıda boşluktan görünür |
+| 2 | Belirgin seyrek: taç alanının kabaca yarısına yakın kısmından gökyüzü görünür; ya da yaprak bir yönde belirgin biçimde az |
+| 3 | Çok seyrek: yaprak sadece dal uçlarında ya da birkaç dalda; taç çoğunlukla çıplak dal |
 
-- **Nasıl bakılır:** Aynı parseldeki aynı yaş sınıfından sağlıklı ağaçlarla karşılaştırılır.
+- **Nasıl bakılır:** Aynı parseldeki aynı büyüklük sınıfından sağlıklı ağaçlarla karşılaştırılır. Erkek ağaçlar ve fidanlar kendi gruplarıyla karşılaştırılır.
+- Var yılında çok yüklü ağaçta yaprak meyveye göre az görünebilir; bu taç doluluğuna yansıtılmaz.
 - Kıraç bahçelerde yaz sonunda genel bir seyrelme olağandır. Bu durumda parsel karnesinde "kuraklık stresi" bulgusu yazılır; ağaç ağaç yüksek değer verilmez.
 
 ### 4.5 Don hasarı (ilkbahar)
 
 | Değer | Tanım |
 | --- | --- |
-| 0 | Hasar yok |
-| 1 | Birkaç sürgünde ya da çiçek salkımında kararma |
-| 2 | Tacın belirgin bir kısmında kararmış çiçek ve sürgün |
-| 3 | Tacın büyük kısmında çiçek ve genç sürgün kaybı |
+| 0 | Kararmış çiçek ya da sürgün yok |
+| 1 | Salkım ve genç sürgünlerin yaklaşık %10'undan azında kararma ya da büzüşme |
+| 2 | %10–50'sinde kararma; genellikle tacın alt kısmında ya da bir yönde daha yoğun |
+| 3 | Yarısından fazlasında çiçek ve genç sürgün kaybı; salkımlar kahverengi ya da siyah, kurumuş ve sarkık |
 
-Geç don genelde bahçenin çukur kısımlarında kümelenir. Parsel karnesindeki mekânsal desen bunu gösterir.
+- Geç don genelde bahçenin çukur kısımlarında ve tacın alt kısmında kümelenir. Parsel karnesindeki mekânsal desen bunu gösterir.
+- Don belirtisi birkaç gün içinde görünür, iki üç hafta sonra kararmış salkımlar dökülür. Sahipten ya da bölgeden "don oldu" haberi gelirse operasyon 3–10 gün içinde taç ve salkım odaklı kısa bir **ek ziyaret** planlar.
+- Göz kurdunun kuruttuğu sürgün ucu ve mantar kaynaklı salkım yanıklığı dondan ayırt edilemeyebilir; ayrımı uzman yapar.
 
 ### 4.6 Zararlı belirtisi (ilkbahar, yaz)
 
 İki parça olarak kaydedilir: şiddet (yok / hafif / belirgin) ve tür.
 
-| Tür | Görünür belirti (görüntüden) |
-| --- | --- |
-| Psilla | Yapraklarda bal çiği ve parlaklık, üzerinde fumajin (siyah küf) lekeleri, yaprak kıvrılması ve dökümü |
-| Göz kurdu | Sürgün uçlarında ve gözlerde kuruma, uç sürgünlerde ölme |
-| Kokarca | Meyvelerde emgi lekeleri, iç boşalması (yakın planda) |
-| Diğer | Uzman not olarak belirtir |
+| Tür | Ne zaman | Görünür belirti (görüntüden) | Personelin görebileceği |
+| --- | --- | --- | --- |
+| Psilla (`psylla`) | İlkbahar sonu, yaz (en yoğun Haziran–Ağustos), hasat başı | Yaprakta parlaklık ve yapışkanlık (bal çiği); yaprakta ya da ağaç altında beyaz, şeker tanesi gibi pul; üstünde siyah küf (fumajin); ağır durumda sararma ve yaz ortasında yaprak dökümü | Yapışkanlık, beyaz pul, siyah is |
+| Göz kurdu (`bud_borer`) | İlkbahar, yaz başı | Sürgün ucunda ya da tomurcukta kuruma; kurumuş uçta küçük delik; sürgünün kolayca kırılması | Ucu kurumuş sürgün |
+| Kokarca (`stink_bug`; "kımıl" değil) | Yaz; izleri hasatta | Meyve kabuğunda küçük koyu emgi noktaları; yere erken dökülmüş yeşil meyve. Boş ya da lekeli iç ancak meyve kırılınca görülür | Yerde yeşil meyve |
+| Diğer (`other`) | Tümü | Uzman notla yazar (yaprak lekesi, kabuklu bit, gövde kurdu gibi) | — |
 
 - **Şiddet:** "Hafif", birkaç dalda belirti demektir. "Belirgin", tacın genelinde ya da çok sayıda dalda.
 - Tür kesin değilse "diğer" seçilir ve not yazılır.
-- Bu tablo **uzmanla kesinleşecek.** Denetim teşhis koymaz (ilke 2). Türün yanında "görünür belirti" ibaresi yer alır.
+- Denetim teşhis koymaz (ilke 2). Türün yanında "görünür belirti" ibaresi yer alır.
+- Zararlı belirtisi hasat ziyaretinde de girilebilir (Ağustos başında psilla hâlâ etkilidir).
 
 ### 4.7 Meyve yükü (yaz)
 
 | Değer | Tanım |
 | --- | --- |
-| 0 | Salkım yok ya da çok az |
-| 1 | Az: dalların küçük bir kısmında salkım |
-| 2 | Orta |
-| 3 | Yüklü: dalların çoğunda salkım |
+| 0 | Salkım yok ya da tek tük |
+| 1 | Az: dalların kabaca üçte birinden azında salkım |
+| 2 | Orta: dalların üçte biri ile üçte ikisi arasında salkım |
+| 3 | Yüklü: dalların üçte ikisinden fazlasında salkım; dallar yükten eğilmiş olabilir |
 
 - Antep fıstığında var yılı / yok yılı (periyodisite) olağandır. Düşük meyve yükü tek başına bir sorun değildir ve genel sınıfı etkilemez.
-- Parsel karnesinde dağılım olarak gösterilir. Önceki yılın aynı ziyaretiyle karşılaştırılır.
+- **Erkek ağaçlar** bu ölçeğe girmez ve karne dağılımına katılmaz.
+- Parsel karnesinde dağılım olarak gösterilir. Önceki yılın aynı ziyaretiyle karşılaştırılır; var/yok yılları birbirini izlediği için yorum **iki yıl önceki** aynı ziyaretle yapılır (öneri; karnede şimdilik yalnız önceki yıl gösteriliyor).
+- Yaz ziyareti için Temmuz uygundur; Haziran'da meyve dökümü sürüyor olabilir.
 
 ### 4.8 Hasat sonrası (hasat)
 
@@ -190,7 +205,10 @@ Geç don genelde bahçenin çukur kısımlarında kümelenir. Parsel karnesindek
 | Dal kırığı | Var / Yok |
 | Hırsızlık izi | Var / Yok: hasat zamanından önce toplanmış salkımlar, kırılmış dallar, ağaç altında yaprak ve sap yığını |
 
-Dal kırığı "var" ise ağaç için bir bulgu yazılır. Hırsızlık izi parsel düzeyinde bulgudur ve kritik bulgu bildirimiyle sahibe gider (bkz. [8](#8-bulgular-ve-öneriler)).
+Dal kırığı "var" ise ağaç için bir bulgu yazılır. Hırsızlık izi parsel düzeyinde bulgudur (bkz. [8](#8-bulgular-ve-öneriler)).
+
+- **Zamanlama (v0.1):** Paket dört ziyarette kalır; hasat ziyareti **hasattan sonra** (Eylül sonu–Ekim) yapılır. Hırsızlık hasattan önce olduğu için bu ziyarette yalnız "olası iz" görülebilir; bulgu **orta** önemle gider, uzman en az iki ölçütle emin olursa yüksek.
+- **Hırsızlık izi ölçütleri:** Ağaç altındaki yaprak, sap ve kırık dal yığını tek başına iz sayılmaz (meşru hasattan da kalır). En az biri gerekir: hasat zamanından önce boşaltılmış salkım sapları; komşu ağaçlar dolu iken tek tük boşaltılmış ağaçlar; tel ya da çitte yeni açılmış geçit.
 
 ### 4.9 Dip sürgünü (tüm ziyaretler)
 
@@ -202,7 +220,8 @@ Gövde dibinden ya da kökten çıkan ince sürgünler. Bakım göstergesidir; *
 | Birkaç | `few` | 1–5 ince sürgün (kalem kalınlığında ya da daha ince), boyu diz hizasını geçmiyor |
 | Yoğun | `dense` | 5'ten fazla sürgün, dibi saran bir öbek, ya da bel hizasını geçen ya da bilek kalınlığına ulaşmış sürgün |
 
-- **Nasıl bakılır:** En iyi hasat ziyaretinde görülür (yaprak var, ot kurumuş). Kışın yapraksız ince sürgünler panoramada zor seçilir. Dip görünmüyorsa değer girilmez.
+- **Nasıl bakılır:** En iyi hasat ziyaretinde görülür (yaprak var, ot kurumuş). Kışın yapraksız ince sürgünler panoramada zor seçilir; yakın plan sorusuyla desteklenir. Dip görünmüyorsa değer girilmez.
+- **Aşı altı:** Sürgün aşı yerinin altından (anaçtan) çıkıyorsa uzman notta yazar; bırakılırsa aşısız ikinci bir gövdeye dönüşebilir.
 - **Sahibe:** "14 ağacın dibinde yoğun dip sürgünü görüldü. Dip sürgünleri ağacın suyunu ve besinini paylaşır; temizlenmesini bahçıvanınızla konuşabilirsiniz."
 
 ### 4.10 Kuruma deseni (tüm ziyaretler; kışın sadece uzman)
@@ -232,12 +251,19 @@ Ağacın her ziyaretteki genel sınıfı aşağıdaki kurallarla çıkar. Kurall
 | 2 | **Kuru** | Yapraklı dönemde aşılı kısımda (taç ve gövde) canlı sürgün ya da yaprak yok; dipten ya da anaçtan çıkan sürgünler ağacı canlı saymaz. Veya uzman kuru beyan etmiş |
 | 3 | **Sorunlu** | Herhangi bir 0–3 ölçek 3; ya da dalda asılı kuru yaprak |
 | 4 | **Dikkat** | Herhangi bir 0–3 ölçek 2; zararlı belirtisi belirgin; ya da kuruma deseni tek taraflı veya tepeden aşağı |
-
-**Zararlı belirtisi (v0.1):** Hafif belirti ağacın sınıfını değiştirmez; parsel ya da bölge düzeyinde `pest_sign` bulgusu olarak yazılır. Yaz ziyaretinde hafif psilla neredeyse her ağaçta görülebildiği için, aksi halde parselin çoğu Dikkat olurdu. `methodology-v0`'da hafif belirti Dikkat, belirgin belirti Sorunlu sayılıyordu; o sürümle planlanmış ziyaretler o kuralla kalır.
 | 5 | **Sağlıklı** | Diğer bütün durumlar |
 
+**Zararlı belirtisi (v0.1):** Hafif belirti ağacın sınıfını değiştirmez; parsel ya da bölge düzeyinde `pest_sign` bulgusu olarak yazılır. Yaz ziyaretinde hafif psilla neredeyse her ağaçta görülebildiği için, aksi halde parselin çoğu Dikkat olurdu. Belirgin belirti yaprak dökümü ya da sürgün kaybıyla birlikteyse uzman ağacı Sorunlu yapabilir. `methodology-v0`'da hafif belirti Dikkat, belirgin belirti Sorunlu sayılıyordu; o sürümle planlanmış ziyaretler o kuralla kalır.
+
 **Kenar durumlar:**
-- **Kışın kuru kararı:** Yapraksız dönemde canlıyla kuru ayrımı zordur. Kışın "kuru" sınıfını sadece uzman verir. Kanıt olarak gövde ve ana dallarda yaşam belirtisi olmadığı (tomurcuk yok, kabuk soyulmuş) not edilir. Bu ağaçlar ilkbahar ziyaretinin yakın plan listesine otomatik girer.
+- **Kışın kuru kararı (v0.1):** Yapraksız dönemde canlıyla kuru ayrımı zordur. Kışın "kuru" sınıfını **sadece uzman** verir; AI kışın kuru önermez (önerirse Sorunlu ve kuru dal 3'e çevrilir ve işaretlenir).
+  1. **Kanıt:** Gövde ve dip yakın planı, artı farklı yönlerden **en az üç dal ucunun** yakın planı.
+  2. **Personel testleri** (her dal için): dolgun tomurcuk var mı; kalem kalınlığındaki dal bükülünce esniyor mu, "çıt" diye kırılıyor mu; kabuk 1 cm kazınınca altı yeşil ve nemli mi, kahverengi ve kuru mu (kazınan yer çekilir).
+  3. **Karar:** Üç dalın hepsinde tomurcuk yok, dal kırılıyor ve kabuk altı kahverengiyse, gövdede de canlı belirti yoksa uzman Kuru verebilir. Bulgu ve notta "kış gözlemi; ilkbaharda doğrulanacak" yazılır.
+  4. **Dip sürgünü istisnası:** Aşılı kısım kuru, anaçtan canlı sürgün varsa sınıf Kuru, desen `top_dead_base_alive`, not "anaç canlı"; `regraft_candidate` bilgi bulgusu yazılabilir.
+  5. **Kanıt eksikse:** Kışın Kuru verilmez; ağaç kuru dal 3 ile Sorunlu olur, not düşülür ve ilkbahar yakın plan listesine girer.
+  6. **Ani değişim:** Önceki yapraklı ziyarette yapraklı olan ağaç şimdi kuru görünüyorsa zorunlu incelemeye girer ve bulgu yüksek önemle değerlendirilir.
+  - Kazıma ağaçta küçük bir yara açar; yalnız kuru şüphesi olan ağaçta yapılır ve giriş izni beyanında "canlılık kontrolü için küçük kabuk kazıması" yazılır.
 - **Kuru → Yok:** Bir sonraki ziyarette sökülmüş bulunan kuru ağaç "yok" olur. Bu bir kötüleşme sayılmaz.
 - **Yok → yeni ağaç:** Boş yere fidan dikildiyse yere yeni bir ağaç kaydı açılır. Eski kaydın durumu "kayıp" kalır.
 - **Ölçek girilmediyse:** Sınıf, girilen ölçeklerden çıkar. Hiçbir ölçek girilemediyse (ör. görüntü yok) sınıf verilmez ve ağaç "değerlendirilmedi" olarak görünür. Yayından önce uzman bu ağaçlar için ya sınıf girer ya da ek ziyaret ister.
@@ -254,7 +280,7 @@ Ağacın her ziyaretteki genel sınıfı aşağıdaki kurallarla çıkar. Kurall
 | AI (`ai`) | AI ön değerlendirme | Ölçek önerisi, 0–1 güven skoru, tutarsızlık bayrağı | Hayır. Sadece uzmanın gördüğü bir öneridir |
 | Uzman (`expert`) | Ziraat mühendisi | Ölçek ve sınıf kararı, bulgu, öneri, imza | Evet |
 
-**Aynı ziyarette birden çok sonuç varsa:** Uzman > model > AI önceliği geçerlidir. Ziyaretler arasında en yeni ziyaret geçerlidir.
+**Aynı ziyarette birden çok sonuç varsa:** Uzman > algoritma > AI önceliği geçerlidir. Ziyaretler arasında en yeni ziyaret geçerlidir.
 
 **Zorunlu inceleme:** Aşağıdaki ağaçlar mutlaka uzmanın önüne gelir.
 - AI güveni eşiğin altında olanlar. İlk eşik %70; uzman panelinde "düşük güven" filtresi bununla çalışıyor.
@@ -262,6 +288,7 @@ Ağacın her ziyaretteki genel sınıfı aşağıdaki kurallarla çıkar. Kurall
 - Önceki ziyarete göre sınıfı değişenler.
 - Personel cevabıyla AI önerisi çelişenler.
 - Personelin "Sorun gördüm" dedikleri.
+- AI'ın kuru dal ya da gövde ölçeğine **2 ve üstü** verdiği ağaçlar (v0.1): görüntüden en zor değerlendirilen ölçekler. AI tarafında bu ağaçlar ayrıca güçlü modele gider.
 - İşleme hattının "ağaç görünmüyor" dediği ağaçlar (`tree_visible = no`, aşağıda "Ağaç var/yok kontrolü"). "Yok" sınıfını yine yalnız uzman verir (bölüm 5).
 
 **Ağaç var/yok kontrolü (işleme hattı):** Hat, envanterdeki her aktif ağacın kesitlerinde ağacın görünüp görünmediğini basit bir görüntü sinyaliyle ölçer ve ağaç başına bir `algorithm` ölçümü yazar: `tree_visible` = evet / hayır / belirsiz (yöntem `crop_greenness`, sürümlü).
@@ -274,9 +301,9 @@ Ağacın her ziyaretteki genel sınıfı aşağıdaki kurallarla çıkar. Kurall
 **Toplu onay ve kalite örneklemi:** Kalan ağaçlar toplu onaylanabilir; bu ağaçların rastgele **%10'u, en az 20 ağaç** yine uzmana gösterilir (v0'da %5).
 - **Önce örneklem:** Toplu onay, örneklemdeki bütün ağaçlara tek tek bakıldıktan sonra açılır.
 - **Durdurma kuralı:** Örneklemde uzman ile AI'ın sınıfı %85'ten az uyuşuyorsa o ziyarette toplu onay kapanır; kalan ağaçlara tek tek bakılır. Eşik, MVP başarı ölçütündeki "gözlem uyumu %85" ile aynıdır.
-- **Açık:** Her mevsimin ilk ziyaretinde toplu onayın kapalı olması (uzman ajan önerisi) henüz uygulanmadı.
+- **Mevsimin ilk ziyareti:** Bu metodoloji sürümüyle o mevsimden yayımlanmış bir ziyaret yoksa toplu onay kapalıdır; her mevsimin görüntüsü farklıdır ve AI'ın o mevsimdeki başarısı bilinmez.
+- **Güven eşiği:** %70 başlangıç değeridir; pilotta uzman kararlarıyla AI'ın güven aralıkları eşleştirilip uyumun %90'ı geçtiği aralığın altına konur. Aynı mevsimde art arda iki ziyarette örneklem uyumu %90'ı geçerse örneklem %5'e inebilir (henüz uygulanmadı; elle karar).
 - Toplu onaylanan sonuç sahibe "otomatik onay" olarak, uzman incelemesinden ayrı görünür.
-- *v0.1 uzman panelinde toplu onay yok; her ağaç tek tek kabul edilir ya da düzeltilir.*
 
 **İmza ve yayın:**
 - Uzman ziyaret özetini görür ve raporu imzalar. Yayın ancak ziyaretteki her aktif ağacın bir uzman kararı varsa yapılabilir.
@@ -296,18 +323,22 @@ Ağacın her ziyaretteki genel sınıfı aşağıdaki kurallarla çıkar. Kurall
 **Çekim kuralları:**
 - Fotoğraflar sadece uygulama içinden çekilir; galeriden yükleme yoktur.
 - Bulanık ya da karanlık fotoğraf cihazda reddedilir.
-- Her çekimde ekranda "böyle çek" referans görseli durur.
+- Her çekimde ekranda "böyle çek" referans çizimi durur: yandan görünüş (mesafe, telefon yüksekliği, bakış, güneş arkada) ve ekranda ne görünmeli, yanında sık yapılan hatanın küçük resmi. Tarifler: [uzman-ajan-onerileri.md](uzman-ajan-onerileri.md), bölüm 4.
+- **Sıra:** Önce uzak (taç), sonra orta (gövde), en son yakın; personel ağaca yaklaşırken çeker.
+- **Yön:** Gövde ve taç ağacın **güney tarafından, kuzeye bakarak** çekilir; güneş arkada kalır ve her ziyaret aynı yüzü gösterir. Sıra düzeni izin vermezse en yakın koridor kullanılır.
 
-**Mevsime göre çekimler ve sorular** (uzmanla kesinleşecek):
+**Mevsime göre çekimler ve sorular** (v0.1, saha uygulaması `*-v0.1` protokolleri). Her soruda **"Göremedim"** seçeneği vardır; o zaman ölçüm yazılmaz, cevap kayıtta "görülemedi" olarak kalır. Sorular personelin gördüğünü ya da dokunduğunu sorar, ziraat terimi içermez.
 
-| Mevsim | Çekimler | Evet/hayır soruları |
+| Mevsim | Çekimler | Sorular (metrik kodu) |
 | --- | --- | --- |
-| Kış | 1. Gövde ve dip, 1 m'den · 2. Taç, ağacın tamamı · 3. Varsa yara ya da kesim yeri, yakından | Gövdede yara ya da oyuk var mı? · Dipte sürgün var mı? · Bu sezon budanmış mı? · Kurumuş ana dal var mı? |
-| İlkbahar | 1. Taç · 2. Çiçek ya da sürgün salkımı, yakından · 3. Yaprak, yakından | Çiçek var mı? · Çiçekler erkek mi (iri, sık salkım)? · Kararmış çiçek ya da sürgün var mı? · Yapraklarda yapışkanlık ya da siyah leke var mı? |
-| Yaz | 1. Taç · 2. Meyve salkımı, yakından · 3. Yaprak, yakından | Salkım var mı? · Kuruyan sürgün ucu var mı? · Yapraklarda yapışkanlık ya da siyah leke var mı? |
-| Hasat | 1. Taç · 2. Varsa kırık dal · 3. Ağaç altı | Hasat yapılmış mı? · Kırık dal var mı? · Ağaç altında yaprak ve sap yığını var mı? |
+| Kış | 1. Taç, 6–8 m · 2. Gövde ve dip, 1–1,5 m, diz hizasından · 3. Varsa yara, oyuk ya da zamk; yoksa bir dal ucu ve tomurcuğu, 30–50 cm, yanında el · (4. Kuru şüphesinde: üç dal ucu ve kazıma yeri) | Gövdede yara, oyuk ya da kabuğu kalkmış yer var mı? (`trunk_damage_present`) · Gövdenin dibinden ya da topraktan ince dallar çıkıyor mu; yok / birkaç / çok (`basal_sprout_level`) · Açık renkli, yeni kesilmiş dal yeri var mı? (`fresh_cut_present`) · Kuru görünen kalın dal (kol) var mı? (`dead_scaffold_present`) · Gövdede ya da dipte reçine gibi sertleşmiş damla var mı? (`gum_present`) · Kuru şüphesinde: `dead_test_no_buds`, `dead_test_snaps`, `dead_test_brown_cambium` |
+| İlkbahar (Nisan ortası–Mayıs ortası) | 1. Taç · 2. Çiçek ya da sürgün salkımı, 20–30 cm, arkasında avuç · 3. Yaprak, 20–30 cm, alt yüzü dahil | Çiçek salkımı var mı? (`flower_cluster_present`) · Salkıma dokununca eline sarı toz bulaşıyor mu? (`pollen_present`) · Kararmış ya da kurumuş salkım veya sürgün var mı? (`frost_damage_present`) · Ucu kurumuş genç sürgün var mı? (`shoot_tip_dieback_present`) · Yapraklar yapışkan ya da parlak mı? (`honeydew_present`) · Yaprakta siyah is var mı? (`sooty_mould_present`) |
+| Yaz (Temmuz) | 1. Taç · 2. Meyve salkımı, 30 cm, dış kısımdan ilk salkım · 3. Yaprak, üst ve alt yüz | Meyve salkımı var mı? (`fruit_present`) · Yapraklar yapışkan ya da parlak mı? · Beyaz, şeker tanesi gibi pul var mı? (`white_flakes_present`) · Siyah is var mı? · Ağaç altında çok sayıda yeşil meyve var mı? (`green_fruit_drop_present`) · Dallarda kurumuş yaprak asılı mı? (`dried_leaves_attached`) |
+| Hasat (hasattan sonra) | 1. Taç · 2. Varsa kırık dal, bağlantı yeriyle 1–2 m · 3. Ağaç altı, 2–3 m, 45° aşağı | Salkımların hepsi toplanmış mı? (`harvest_complete`) · Kırık ya da yarılmış dal var mı? (`branch_break`) · Ağaç altında yaprak, sap ya da kopmuş dal yığını var mı? (`debris_under_tree_present`) · Çevrede diz boyunu aşan kuru ot ya da yığın var mı? (`dry_weeds_present`) |
 
-Sorular sade Türkçe ve referans görselli olmalı; personel ziraat bilgisi beklemeden cevaplayabilmeli. Personel isterse sesli not bırakır.
+Personel isterse sesli not bırakır. `methodology-v0` ziyaretlerinin eski soru kodları (`dead_branch_present`, `root_sucker_present`, `pruned`, `pest_sign_present`, `drought_stress_sign`, `theft_sign_present`) kayıtta kalır.
+
+**Ön kontrol (v0.1):** Saha personeli taramaya başlamadan "son günlerde ilaçlama yapıldıysa ilacın bekleme süresi geçti" ya da "ilaçlama yapılmadı" diye onaylar. Köpek, yılan ve sıcak çarpması eğitim konusudur.
 
 ## 8. Bulgular ve öneriler
 
@@ -360,8 +391,10 @@ Karne, son yayımlanmış ziyaretin özetidir.
 **Genel durum skoru** (0–100):
 - Önerilen yöntem: ağaç sınıflarının ağırlıklı ortalaması.
 - Ağırlıklar (v0.1): sağlıklı 100, dikkat **70**, sorunlu **25**, kuru 0, yok 0. Değerlendirilmemiş ağaçlar hesaba girmez. (v0: 100 / 60 / 20 / 0.) Gerekçe: Dikkat "bu sezon müdahale önerilir" demek ve çoğunlukla geri döndürülebilir; hepsi Dikkat olan bir parselin 60 alması başarısızlık gibi okunur.
-- **Açık (uzman ajan önerisi):** "Yok" sınıfının yalnız kaybolduğu ziyarette sayılması ve trendin aynı mevsimin önceki yılıyla karşılaştırılması henüz uygulanmadı.
-- v0.1 portalında skor yok. Ağırlıklar bu belgede kesinleşince eklenecek.
+- **"Yok" sınıfı (v0.1):** Yalnız ağacın kaybolduğu ziyarette 0 ile hesaba girer; önceki değerlendirilmiş ziyarette de "yok" olan ağaç skora girmez. Yıllar önce kaybolmuş bir ağaç her karnede skoru düşürmez; boş yerler envanter boyutunda zaten görünür.
+- **Trend (v0.1):** Skor değişimi **geçen yılın aynı mevsimindeki** ziyaretle (10–14 ay önce) karşılaştırılır; kış skoru yaz skorundan daha az ölçeğe dayandığı için farklı mevsimler karşılaştırılmaz. Böyle bir ziyaret yoksa ok gösterilmez, "karşılaştırma geçen yılın aynı mevsimiyle yapılır" yazılır. (v0: önceki ziyaret.)
+- **Değerlendirilemeyen ağaçlar:** Oranları %5'i geçerse skorun yanında uyarı çıkar.
+- Erkek ağaçlar, fidanlar ve yaşlı ağaçlar ayrıca ağırlıklandırılmaz.
 
 **Boyutlar:**
 
@@ -386,33 +419,40 @@ Karne, son yayımlanmış ziyaretin özetidir.
 | Yakın plan kalitesi | Saha uygulaması | Netlik ve pozlama denetimi. Ret halinde fotoğraf kaydedilmez |
 | Konum kalitesi | İşleme hattı | Panorama başına GNSS çözümü: fix, float, dgps, single. Fix dışındaki panoramalar kalite skorunda düşer |
 | Panorama kalitesi | İşleme hattı | Netlik ve konum katsayısından kalite skoru (0–1) |
-| Kapsama | İşleme hattı | Her aktif ağacın en az iki yönden kesiti olmalı. Eşiğin altındaki parsel için yeniden tarama görevi açılır (ilk eşik: ağaçların %95'i, uzmanla kesinleşecek). Ayrıntı aşağıda |
+| Kapsama | İşleme hattı | Her aktif ağacın en az iki yönden kesiti olmalı. Eşiğin altındaki parsel için yeniden tarama görevi açılır (periyodik ziyarette ağaçların %95'i, envanterde %98'i). Ayrıntı aşağıda |
 | Uzman | Uzman paneli | Her aktif ağacın uzman kararı olmadan yayın yapılmaz |
 
 **Kapsama kapısının ayrıntısı** (işleme hattı, `coverage` aşaması; parametreler hattın parametre dosyasında, raporda saklanır):
 - **Yeterli kesit:** Kesit skoru (ideal 4 m mesafeye yakınlık × panorama kalitesi) en az 0,2; kalite 1'de yaklaşık 0,2–7,8 m.
 - **İki yön:** Yeterli kesitler en az iki farklı yönden (K, D, G, B) gelmeli ve ikisi arasında ağaçtan bakışta en az 150° olmalı, yani ağacın karşı yüzleri görülmeli. Tek bir koridordan eğik bakışlar (8 m sırada en çok 118°) ağacın öbür yüzü sayılmaz.
-- **Parsel:** Kapsanan aktif ağaç oranı eşiği (%95) geçmeli.
-- **Kör nokta:** Kapsanmayan ağaçların toplandığı 10×10 m hücre (en az 2 kapsanmayan ağaç ve hücrenin en az yarısı). Hücre kuralı yakın plan örneklemininkiyle aynıdır (bölüm 7).
+- **Parsel:** Kapsanan aktif ağaç oranı eşiği geçmeli: periyodik ziyarette %95, envanterde **%98** (envanterde kaçırılan ağaç sonraki bütün ziyaretlere eksik taşınır).
+- **Kör nokta:** Kapsanmayan ağaçların toplandığı hücre (en az 2 kapsanmayan ağaç ve hücrenin en az yarısı). Hücre 10×10 m'dir, yakın plan örneklemininkiyle aynı (bölüm 7). Ağaçlar arası ortanca en yakın komşu mesafesi **8 m'yi aşıyorsa** hücre **20×20 m** olur: geniş aralıklı bahçede 10 m'lik hücreye 1–2 ağaç düşer ve kural kör noktayı yakalamaz. Hücre boyu raporda saklanır.
+- **Fidanlar:** Envanterde kapsanmayan her fidan ya da boş yer doğrulama turuna girer.
 - **Yeniden tarama görevi:** Oran eşiğin altındaysa ya da kör nokta varsa operasyona "ek ziyaret" isteği otomatik açılır (kaynak: işleme hattı; eksik ağaçlar ve hücreler notta). Bir ziyaret için tek istek açılır.
 - **Envanter:** Envanter taramasının kapsaması eşiğin altındaysa uzman envanteri onaylayamaz; ya ek tarama yapılır ya da uzman kapsamayı gerekçesini yazarak kabul eder (gerekçe kayıtta kalır).
 
-## 11. Uzmanla kesinleşecekler
+## 11. Kararların durumu
 
-Her maddenin **uzman ajan önerisi** [uzman-ajan-onerileri.md](uzman-ajan-onerileri.md)'de (öneri, gerekçe, güven, pilot uzmana soru). "v0.1'de" yazanlar bu sürüme girdi; diğerleri öneri olarak bekliyor. Hiçbiri pilot uzman tarafından onaylanmadı.
+27 Ekim 2026'da işletme, uzman ajanın önerilerini ([uzman-ajan-onerileri.md](uzman-ajan-onerileri.md); öneri, gerekçe, güven) bu sürüm için kabul etti. Bir ziraat mühendisi tarafından doğrulanmadılar; pilot uzmanın düzeltmeleri yeni sürüme girer.
 
-- [ ] Ölçek tanımları ve sınır değerleri (bölüm 4), özellikle kuru dal yüzdeleri ve gövde ölçeği — dip sürgünü gövde ölçeğinden çıktı (v0.1'de)
-- [ ] Zararlı belirtisi türleri ve görünür belirtileri (4.6) — "Kokarca" adı ve hafif belirtinin sınıfı değiştirmemesi v0.1'de
-- [ ] Yaş sınıfı eşikleri (bölüm 3)
-- [ ] Kışın kuru kararının kanıt kuralı (bölüm 5)
-- [ ] Yakın plan çekimleri ve soruları (bölüm 7)
-- [ ] Bulgu türleri listesi ve tipik önemleri (bölüm 8) — v0.1'de
-- [ ] Genel durum skoru ağırlıkları (bölüm 9) — 100 / 70 / 25 / 0 v0.1'de
-- [ ] AI güven eşiği ve kalite örneklemi oranı (bölüm 6) — %70 eşik kaldı; %10 / en az 20 örneklem ve %85 durdurma kuralı v0.1'de
-- [ ] Kapsama eşiği (bölüm 10) — öneri: periyodikte %95, envanterde %98; geniş aralıklı bahçede 20×20 m kör nokta hücresi (uygulanmadı)
-- [ ] Referans fotoğrafların seçimi (Ek A)
+- [x] Ölçek tanımları ve sınır değerleri (bölüm 4) — ana kol kuralı, avuç ölçüsü, oranlar, sınırdaki vakada üst değer
+- [x] Zararlı belirtisi türleri ve görünür belirtileri (4.6) — "Kokarca", hafif belirti sınıfı değiştirmez
+- [x] Büyüklük sınıfı eşikleri (bölüm 3)
+- [x] Kışın kuru kararının kanıt kuralı (bölüm 5) — üç dal, tomurcuk, bükme, kazıma
+- [x] Yakın plan çekimleri ve soruları (bölüm 7) — "Göremedim" seçeneği, güneyden çekim, "böyle çek" çizimleri
+- [x] Bulgu türleri listesi ve tipik önemleri (bölüm 8)
+- [x] Genel durum skoru (bölüm 9) — 100 / 70 / 25 / 0, "yok" yalnız kaybolduğu ziyarette, aynı mevsimle trend
+- [x] AI güven eşiği ve kalite örneklemi (bölüm 6) — %70 eşik pilotta ayarlanacak; %10 / en az 20, %85 durdurma, mevsimin ilk ziyaretinde toplu onay kapalı, zor ölçekler zorunlu inceleme
+- [x] Kapsama eşiği (bölüm 10) — periyodik %95, envanter %98, geniş aralıkta 20×20 m hücre
+- [x] Referans fotoğrafların seçim ölçütleri (Ek A) — fotoğrafların kendisi henüz yok
 
-Kesinleşen her madde `methodology-v1`'e girer. Sürüm değişikliği o tarihten sonraki ziyaretlerde geçerli olur.
+**Açık kalanlar:**
+- **Tarama yöntemi ve kamera yüksekliği:** Yürüyüş (sırt direği) mi, motosiklet mi, robot mu; parsel başına sabit kamera yüksekliği bir sayı olarak buraya yazılmalı. Ağaç var/yok sinyalinin kutuları (yerden 2,5–4 m) buna bağlı.
+- **Yabani ot ve toprak işleme:** Bakım uyumu satırı için `weed_cover` (az / orta / yoğun) ölçümü önerildi; henüz yok.
+- **Ofis kişisinin kaynağı:** Envanterde ofiste girilen özellikler şimdilik `staff` kaynağıyla yazılıyor; ayrı bir `office` kaynağı gerekip gerekmediği açık.
+- **Gövde ölçeğinin anlamı değişti:** v0.1'de dip sürgünü `trunk_base_scale`'den çıktı; kod adı aynı kaldı. Ağaç karnesinde v0 ve v0.1 değerleri sürümüyle okunmalı.
+- **Örneklemin %5'e inmesi** ve **meyve yükünün iki yıl önceyle yorumlanması** henüz kodda yok.
+- **Referans fotoğraflar:** Pilot bahçelerden toplanacak (Ek A).
 
 ## Ek A – Hazırlanacak referans fotoğraflar
 

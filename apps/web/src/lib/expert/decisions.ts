@@ -192,6 +192,7 @@ export type BulkResult =
         | "empty"
         | "invalid_metric"
         | "write_failed"
+        | "first_of_season"
         | "sample_open"
         | "sample_disagreement";
     };
@@ -210,7 +211,7 @@ export async function bulkApprove(
   const ctx = await loadReview(supabase, sessionId);
   if (!ctx) return { ok: false, error: "not_found" };
   if (!isReviewable(ctx.session.status)) return { ok: false, error: "not_reviewable" };
-  const gate = bulkGate(ctx.trees, ctx.rules);
+  const gate = bulkGate(ctx.trees, ctx.rules, ctx.firstOfSeason);
   if (!gate.open) return { ok: false, error: gate.reason };
   const trees = ctx.trees.filter(isBulkEligible);
   if (expected != null && expected !== trees.length) return { ok: false, error: "stale" };

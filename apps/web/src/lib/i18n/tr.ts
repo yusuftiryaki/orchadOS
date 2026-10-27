@@ -243,7 +243,7 @@ export const tr = {
         `%${ratio} (${covered}/${total} ağaç iki yönden görüldü; eşik %${threshold})`,
       passed: "Kalite kapısından geçti",
       failed: "Eşiğin altında",
-      blindSpots: (n: number) => `${n} kör nokta (10×10 m hücre)`,
+      blindSpots: (n: number) => `${n} kör nokta (ağaç aralığına göre 10×10 ya da 20×20 m hücre)`,
       rescan: "Ek ziyaret isteği açıldı (operasyon panosunda).",
       missing: (n: number, codes: string) => `Eksik ağaçlar (${n}): ${codes}`,
       noCoverage: "Bu ziyaret için kapsama raporu yok (eski veri ya da işlenmedi).",
@@ -375,6 +375,7 @@ export const tr = {
         class_changed: "Önceki ziyarete göre sınıf değişmiş",
         staff_conflict: "Personel cevabı AI ile çelişiyor",
         staff_problem: 'Personel "Sorun gördüm" dedi',
+        hard_scale: "AI kuru dal ya da gövdeye 2 ve üstü verdi",
       },
       reasonShort: {
         not_visible: "ağaç görünmüyor",
@@ -384,6 +385,7 @@ export const tr = {
         class_changed: "sınıf değişti",
         staff_conflict: "çelişki",
         staff_problem: "sorun gördüm",
+        hard_scale: "zor ölçek",
       },
       lowConfidenceDetail: (threshold: number) => `eşik %${Math.round(threshold * 100)}`,
       presence: {
@@ -562,6 +564,8 @@ export const tr = {
         `Zorunlu incelemeye girmeyen, AI önerisi olan ve henüz karar verilmemiş ağaçlar AI sonucuyla onaylanır; sahibe "Otomatik onay" olarak görünür. Kalite örneklemindeki ${sample} ağaç bu onaya girmez, tek tek bakılmalı.`,
       button: (n: number) => `Kalanları toplu onayla (${n} ağaç)`,
       none: "Toplu onaylanacak ağaç kalmadı.",
+      firstOfSeason:
+        "Bu mevsimin ilk ziyareti: AI'ın bu mevsimdeki başarısı henüz bilinmediği için toplu onay kapalı. Ağaçlara tek tek bakın.",
       sampleOpen: (n: number) =>
         `Toplu onay, kalite örneklemindeki ağaçların hepsine tek tek bakıldıktan sonra açılır. Kalan: ${n} ağaç.`,
       sampleDisagreement: (pct: number) =>
@@ -575,6 +579,7 @@ export const tr = {
         forbidden: "Toplu onay için uzman rolü gerekiyor.",
         invalid_metric: "AI değerlerinden biri ölçek dışında; o ağaca tek tek bakın.",
         write_failed: "Veritabanı kaydı reddetti.",
+        first_of_season: "Bu mevsimin ilk ziyaretinde toplu onay kapalı.",
         sample_open: "Önce kalite örneklemindeki ağaçların hepsine tek tek bakın.",
         sample_disagreement: "Örneklemde AI ile uyum %85'in altında; toplu onay kapalı.",
       } as Record<string, string>,
@@ -586,7 +591,7 @@ export const tr = {
     slotKind: "Yer türü",
     sex: "Cinsiyet",
     graft: "Aşı",
-    ageClass: "Yaş sınıfı",
+    ageClass: "Büyüklük sınıfı",
     stemForm: "Gövde yapısı",
     cultivar: "Çeşit",
     status: "Durum",
@@ -925,8 +930,15 @@ export const tr = {
       label: "Genel durum skoru",
       outOf: "/ 100",
       help: "Ağaçların sınıflarına göre ağırlıklı ortalama",
-      weights: (w: { healthy: number; attention: number; problem: number }) =>
-        `Sağlıklı ${w.healthy}, dikkat ${w.attention}, sorunlu ${w.problem}, kurumuş ve yok 0; değerlendirilmeyen ağaçlar hesaba girmez.`,
+      weights: ({
+        weights: w,
+        absentOnlyOnce,
+      }: {
+        weights: { healthy: number; attention: number; problem: number };
+        absentOnlyOnce: boolean;
+      }) =>
+        `Sağlıklı ${w.healthy}, dikkat ${w.attention}, sorunlu ${w.problem}, kurumuş ve yok 0; değerlendirilmeyen ağaçlar hesaba girmez.` +
+        (absentOnlyOnce ? " Yok sınıfı yalnız ağacın kaybolduğu ziyarette sayılır." : ""),
       none: "Skor yok (değerlendirilmiş ağaç yok)",
       change: {
         up: (n: number) => `▲ ${n}`,
@@ -938,7 +950,15 @@ export const tr = {
         down: (n: number) => `Önceki denetime göre ${n} puan azaldı`,
         same: "Önceki denetimle aynı",
       },
+      changeTitleSameSeason: {
+        up: (n: number) => `Geçen yılın aynı mevsimine göre ${n} puan arttı`,
+        down: (n: number) => `Geçen yılın aynı mevsimine göre ${n} puan azaldı`,
+        same: "Geçen yılın aynı mevsimiyle aynı",
+      },
       first: "İlk denetim",
+      noSameSeason: "Karşılaştırma geçen yılın aynı mevsimiyle yapılır",
+      sameSeasonNote: "geçen yılın aynı mevsimine göre",
+      unassessed: (pct: number) => `Değerlendirilemeyen ağaç: %${pct}`,
     },
     audit: {
       title: "Denetim güveni",
@@ -1171,7 +1191,7 @@ export const tr = {
       },
       ratioUnknown: "Dişi/erkek oranı ilkbahar ziyaretinden sonra (çiçekten) belirlenir.",
       ungrafted: (n: number) => `${n} aşısız ağaç`,
-      ages: "Yaş dağılımı",
+      ages: "Büyüklük dağılımı",
       health: "Sağlık dağılımı",
       healthLine: "Beş sınıfın dağılımı ve değişimi yukarıda.",
       pattern: "Mekânsal desen",
@@ -1217,7 +1237,7 @@ export const tr = {
       visit: "Denetim",
       sex: "Cinsiyet",
       graft: "Aşı",
-      ageClass: "Yaş sınıfı",
+      ageClass: "Büyüklük sınıfı",
       cultivar: "Çeşit",
       findings: "Bu ağaçtaki bulgular",
       openCard: "Ağaç karnesini aç",
@@ -1342,7 +1362,7 @@ export const tr = {
       emptySlots: "Boş yer",
       interstitialTrees: "Ara ağaç",
       ungrafted: "Aşısız ağaç",
-      ageDistribution: "Yaş dağılımı",
+      ageDistribution: "Büyüklük dağılımı",
     },
     errors: {
       invalid_input: "Girdi geçersiz.",
@@ -1358,7 +1378,7 @@ export const tr = {
     } as Record<string, string>,
     attributes: {
       title: "Ağaç özellikleri",
-      hint: "Panoramalardan yaş sınıfı ve aşı durumu. Karar verilemeyenler “Bilinmiyor” (belirsiz) kalır. Haritada ağaca tıklayın (Shift ile çoklu seçim) ya da tablodan seçin.",
+      hint: "Panoramalardan büyüklük sınıfı (gövde aşı yerinin üstünde ~50 cm, taç çapı; çelişirse taç kazanır) ve aşı durumu. Karar verilemeyenler “Bilinmiyor” (belirsiz) kalır. Haritada ağaca tıklayın (Shift ile çoklu seçim) ya da tablodan seçin.",
       selected: (n: number) => `${n} ağaç seçili`,
       selectRow: "Sırayı seç",
       row: (n: number) => `${n}. sıra`,
@@ -1372,7 +1392,7 @@ export const tr = {
       columns: {
         select: "Seç",
         code: "Kod",
-        ageClass: "Yaş sınıfı",
+        ageClass: "Büyüklük sınıfı",
         graft: "Aşı",
         stemForm: "Gövde yapısı",
         sex: "Cinsiyet",

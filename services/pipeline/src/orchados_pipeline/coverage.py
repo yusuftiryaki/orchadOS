@@ -1,7 +1,8 @@
 """Stage – coverage: was every active tree seen well enough on this visit?
 
 Quality gate of docs/metodoloji.md, section 10: every active tree is seen from at
-least two sides; the parcel passes when a share of its trees (0.95) is covered.
+least two sides; the parcel passes when a share of its trees (0.95; 0.98 for an
+inventory) is covered.
 
 A view is sufficient when its crop score is at least `min_view_score`. The views
 are the crop stage's candidate views (crops.candidate_views: same distance range,
@@ -17,7 +18,9 @@ Blind spots: uncovered trees grouped in the 10 x 10 m cells of docs/arayuzler.md
 corner of the bounding box of the parcel's newest boundary (else of the trees),
 x = dlon * R * cos(south), y = dlat * R, R = 6 371 008.8 m, cell = floor(x / 10),
 floor(y / 10). A cell is a blind spot when it has at least `blind_spot_min_trees`
-uncovered trees making at least `blind_spot_min_share` of its trees.
+uncovered trees making at least `blind_spot_min_share` of its trees. Where the
+median distance between neighbouring trees is above `wide_spacing_m` (8 m), the
+cells are `wide_cell_m` (20 m) instead; the report's frame carries the size.
 """
 
 from __future__ import annotations
@@ -93,15 +96,39 @@ def rule_of(p: CoverageParams) -> dict:
     return p.model_dump(mode="json")
 
 
+def median_spacing_m(tlist: TreeList) -> float | None:
+    """Median distance from each tree to its nearest neighbour; None below 2 trees."""
+    if len(tlist.trees) < 2:
+        return None
+    lf = LocalFrame(tlist.trees[0].lat, tlist.trees[0].lon)
+    e, n = lf.to_en([t.lat for t in tlist.trees], [t.lon for t in tlist.trees])
+    pts = np.column_stack([np.asarray(e, dtype=float), np.asarray(n, dtype=float)])
+    d = np.hypot(pts[:, None, 0] - pts[None, :, 0], pts[:, None, 1] - pts[None, :, 1])
+    np.fill_diagonal(d, np.inf)
+    return float(np.median(d.min(axis=1)))
+
+
+def cell_size_m(tlist: TreeList, p: CoverageParams) -> float:
+    spacing = median_spacing_m(tlist)
+    # Rounded to 10 cm: an 8 m layout measured as 8.0000001 m stays narrow.
+    wide = spacing is not None and round(spacing, 1) > p.wide_spacing_m
+    return p.wide_cell_m if wide else p.cell_m
+
+
+def threshold_for(session_kind: str | None, p: CoverageParams) -> float:
+    return p.inventory_threshold if session_kind == "inventory" else p.parcel_threshold
+
+
 def compute_coverage(
     tlist: TreeList,
     pset: PanoramaSet,
     camera_height_m: float,
     crop_params: CropParams,
     p: CoverageParams,
+    session_kind: str | None = None,
 ) -> tuple[list[TreeCoverage], CoverageSummary, list[CoverageCell], CoverageFrame] | None:
     """Per-tree coverage, parcel summary and cells; None without tree positions."""
-    frame = cell_frame(tlist, p.cell_m)
+    frame = cell_frame(tlist, cell_size_m(tlist, p))
     if frame is None or not tlist.trees:
         return None
 
@@ -194,12 +221,13 @@ def compute_coverage(
     covered = sum(t.covered for t in trees)
     ratio = covered / len(trees)
     blind_spots = sum(c.blind_spot for c in cells)
-    passed = ratio >= p.parcel_threshold
+    threshold = threshold_for(session_kind or tlist.session_kind, p)
+    passed = ratio >= threshold
     summary = CoverageSummary(
         active_trees=len(trees),
         covered_trees=covered,
         ratio=round(ratio, 4),
-        threshold=p.parcel_threshold,
+        threshold=threshold,
         passed=passed,
         missing_trees=len(trees) - covered,
         blind_spots=blind_spots,
@@ -221,7 +249,12 @@ def make_report(
         "unlocated_slots": tlist.unlocated_slots,
     }
     res = compute_coverage(
-        tlist, pset, manifest.session.camera_height_m, ctx.params.crops, ctx.params.coverage
+        tlist,
+        pset,
+        manifest.session.camera_height_m,
+        ctx.params.crops,
+        ctx.params.coverage,
+        common["session_kind"],
     )
     if res is None:
         return CoverageReport(status="no_tree_positions", **common)

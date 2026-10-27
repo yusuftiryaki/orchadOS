@@ -51,14 +51,14 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 | Tıklamaların etiketli veri olması | `trunk_label` | var | |
 | Gövde tespit modelinin konum önermesi | — | yok | Model eğitimi için etiketli veri birikmeli (MVP: "kendi AI modeli yok") |
 | Sıra oturtma, kodlama, boş yer | `web/lib/office/rows.ts` | var | |
-| Ağaç özelliklerinin ilk değerlendirmesi (yaş, aşı, dip sürgünü, kuruma) | `/ofis/.../envanter/duzenle`; uzman paneli | var | Yaş, aşı ve gövde yapısı (tek/çok gövdeli) ofiste ağacın özelliği. Dip sürgünü (`basal_sprout_level`) ve kuruma deseni (`dieback_pattern`, `dried_leaves_attached`) ziyaret ölçümü: uzman girer, AI önerir (metodoloji 4.9–4.10). Tanımlar uzman ajan önerisi, pilot uzmanın onayını bekliyor |
+| Ağaç özelliklerinin ilk değerlendirmesi (yaş, aşı, dip sürgünü, kuruma) | `/ofis/.../envanter/duzenle`; uzman paneli | var | Yaş, aşı ve gövde yapısı (tek/çok gövdeli) ofiste ağacın özelliği. Dip sürgünü (`basal_sprout_level`) ve kuruma deseni (`dieback_pattern`, `dried_leaves_attached`) ziyaret ölçümü: uzman girer, AI önerir (metodoloji 4.9–4.10). Tanımlar uzman ajan önerisi, metodoloji v0.1 olarak kabul edildi |
 | Altyapı (kuyu, havuz, hat, çit, kapı, kulübe) | `zone`, düzenleme ekranı | var | |
 | Doğrulama listesi | `verification_item`, `create_verification_tour` | var | |
 | Saha doğrulama turu | `field/features/verification` | var · donanım | |
 | Uzmanın envanter onayı, sahibin sınır onayı | `approve_inventory`, `approve_boundary` | var | |
 | Referans sıralarla doğrulama (pilot) | — | donanım | Yazılım dışı ölçüm; ikinci RTK alıcısı ve jalon |
 | Çıktı: envanter özeti (yer, ağaç, boş, ara, aşısız, yaş dağılımı) | `web/lib/expert/inventory-checks.ts`, portal | var | |
-| Çıktı: envanter raporu PDF | `/portal/parsel/<id>/envanter`, `…/envanter/rapor.pdf` | var | Sayım ve harita raporu: kısa özet, uyarılar, kodlu yer haritası, sınır, boş yerler, bahçe yapısı (büyüklük, aşı, gövde yapısı, çeşit), ilk gözlemler (sayı olarak), altyapı, denetim güveni, sıradaki adımlar. Sağlık sınıfı ve skor yok. İçerik uzman ajan önerisi, pilot uzmanın onayını bekliyor |
+| Çıktı: envanter raporu PDF | `/portal/parsel/<id>/envanter`, `…/envanter/rapor.pdf` | var | Sayım ve harita raporu: kısa özet, uyarılar, kodlu yer haritası, sınır, boş yerler, bahçe yapısı (büyüklük, aşı, gövde yapısı, çeşit), ilk gözlemler (sayı olarak), altyapı, denetim güveni, sıradaki adımlar. Sağlık sınıfı ve skor yok. İçerik uzman ajan önerisi, metodoloji v0.1 olarak kabul edildi |
 | Kabul kriteri: kapsamanın kalite kapısından geçmesi | `approve_inventory`, `waive_coverage`, `coverage_report` | var (kapsama görevi) | Envanter taramasının en yeni kapsama raporu eşiğin altındaysa onay reddedilir; uzman gerekçeyle kabul edebilir (kayıtta kalır). Raporu olmayan eski veride davranış aynı. Envanter kaydedildikten sonra kapsamayı `orchados-pipeline coverage --trees-from-db` + `upload` ile ölçmek operasyonun adımı (`services/pipeline/README.md`) |
 
 ## Modül 3 – Periyodik tarama
