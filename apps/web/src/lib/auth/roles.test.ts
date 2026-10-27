@@ -4,14 +4,16 @@ import {
   canAccessSection,
   defaultSection,
   isSection,
+  SECTION_ACCESS,
   SECTIONS,
   type UserRoles,
 } from "./roles";
 
-const roles = (orgRoles: UserRoles["orgRoles"], parcelRoles: UserRoles["parcelRoles"] = []) => ({
-  orgRoles,
-  parcelRoles,
-});
+const roles = (
+  orgRoles: UserRoles["orgRoles"],
+  parcelRoles: UserRoles["parcelRoles"] = [],
+  customer = false,
+): UserRoles => ({ orgRoles, parcelRoles, customer });
 
 describe("section access", () => {
   it.each([
@@ -21,6 +23,8 @@ describe("section access", () => {
     ["expert", roles(["expert"]), ["uzman"]],
     ["ops", roles(["ops"]), ["ofis", "operasyon"]],
     ["expert + owner", roles(["expert"], ["owner"]), ["portal", "uzman"]],
+    ["customer without parcels", roles([], [], true), ["portal"]],
+    ["ops + customer", roles(["ops"], [], true), ["portal", "ofis", "operasyon"]],
     ["no roles", roles([]), []],
   ])("%s opens %j", (_label, userRoles, expected) => {
     expect(accessibleSections(userRoles)).toEqual(expected);
@@ -33,6 +37,13 @@ describe("section access", () => {
     expect(defaultSection(roles(["ops"]))).toBe("ofis");
     expect(defaultSection(roles(["expert"], ["viewer"]))).toBe("portal");
     expect(defaultSection(roles([]))).toBeNull();
+    expect(defaultSection(roles([], [], true))).toBe("portal");
+  });
+
+  it("opens only the portal for the customer flag", () => {
+    for (const section of SECTIONS) {
+      expect(Boolean(SECTION_ACCESS[section].customer)).toBe(section === "portal");
+    }
   });
 
   it("recognises section slugs", () => {
