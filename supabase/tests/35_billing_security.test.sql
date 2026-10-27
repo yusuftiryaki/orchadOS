@@ -36,10 +36,10 @@ grant execute on all functions in schema pg_temp to authenticated, anon;
 create temporary table ip12_fn (sig text primary key, grantee text not null);
 insert into ip12_fn values
   -- IP12-A1
-  ('public.signup_register_attempt(text,text)', 'service_role'),
+  ('public.signup_register_attempt(text,text,text)', 'service_role'),
   ('public.signup_find_account(text,text)', 'service_role'),
   ('public.signup_prepare(uuid,text,text,text,text,jsonb,text)', 'service_role'),
-  ('public.signup_complete(uuid)', 'service_role'),
+  ('public.signup_complete(uuid,timestamptz)', 'service_role'),
   ('public.my_consents()', 'authenticated'),
   ('public.customer_set_consent(text,boolean,text)', 'authenticated'),
   ('public.my_billing_profile()', 'authenticated'),
