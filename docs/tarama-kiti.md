@@ -139,7 +139,22 @@ Tüm sensörlerin zamanı GPS zamanına bağlanır:
     - Kameranın iç parametreleri
     - Kamera–LiDAR arasındaki konum ve açı (baskılı bir kalibrasyon hedefiyle)
     - LiDAR–GNSS anteni arasındaki mesafe (şerit metreyle, milimetre hassasiyetinde)
+    - Kit robota takılacaksa: anten, kamera ve LiDAR'ın kit tabanına göre konumu ve kameranın ön yüzünün yönü (aşağıda)
 - **Nereye yazılır:** Sürüm numaralı bir kalibrasyon dosyasına. Her kayıt, hangi kalibrasyon sürümüyle yapıldığını taşır ([veri-modeli.md](veri-modeli.md) dosyasındaki Calibration varlığı).
+
+### Robota takılan kit için ölçüm
+
+Robot, kitin sensörlerinin nerede olduğunu kitin kimlik çipinden okur ([arayuzler.md](arayuzler.md#kit-kimlik-çipi)). Ölçümler robotun `kit_mount` frame'inde yapılır:
+- **Orijin:** Kitin robotun montaj plakasına oturan taban yüzeyinin ortası.
+- **Eksenler:** Robotunkiyle aynı. x robotun ilerisi, y solu, z yukarısı.
+- **Birim:** Metre ve radyan. Açılar roll, pitch, yaw sırasıyla, x, y, z eksenleri etrafında.
+
+Ölçülecekler, sensör başına `[x, y, z, roll, pitch, yaw]`:
+1. **GNSS anteni (`kit_gnss`):** Anten faz merkezinin (yaklaşık anten tabanının ortası) tabana göre yüksekliği ve varsa ileri/yan kayması. Açılar 0.
+2. **360° kamera (`kit_cam360`):** İki lensin ortasındaki noktanın konumu. Kameranın ön lensi robotun ilerisine bakmıyorsa, ne kadar döndüğü `yaw` olarak yazılır (sola dönükse pozitif).
+3. **LiDAR (`kit_lidar`):** Takılıysa, LiDAR'ın kendi koordinat merkezinin konumu ve açıları.
+
+Değerler `public.calibration` kaydının `extrinsics.kit_mount` alanına girilir, sonra çip `orchados-kit from-calibration` ile yazılır ([services/kit-chip/README.md](../services/kit-chip/README.md)). Kayıt yazıldıktan sonra bu pozlar değiştirilemez; yanlış ölçüm yeni bir kalibrasyon sürümüyle düzeltilir ve çip yeniden yazılır.
 
 ## Maliyet
 

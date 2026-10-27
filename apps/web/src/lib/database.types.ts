@@ -450,6 +450,7 @@ export type Database = {
       };
       calibration: {
         Row: {
+          chip_id: number;
           created_at: string;
           extrinsics: Json | null;
           id: string;
@@ -463,6 +464,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          chip_id?: never;
           created_at?: string;
           extrinsics?: Json | null;
           id?: string;
@@ -475,6 +477,7 @@ export type Database = {
           version: string;
         };
         Update: {
+          chip_id?: never;
           created_at?: string;
           extrinsics?: Json | null;
           id?: string;
@@ -2573,6 +2576,7 @@ export type Database = {
         Args: { p_items: Json; p_method_version: string; p_session_id: string };
         Returns: number;
       };
+      calibration_kit_mount_valid: { Args: { p_extrinsics: Json }; Returns: boolean };
       cancel_followup: { Args: { p_request_id: string }; Returns: undefined };
       close_verification_item: {
         Args: { p_item_id: string; p_note: string };
