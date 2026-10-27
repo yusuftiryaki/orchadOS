@@ -61,7 +61,7 @@ lib/
     gnss/
       protocol/             Saf Dart BLE protokolü: durum çözme, komut kodlama/çözme, UUID'ler
       gnss_logger.dart      GnssLogger arayüzü + ortak komut takibi (GnssLoggerBase)
-      flutter_blue_gnss_logger.dart   flutter_blue_plus uygulaması
+      ble_gnss_logger.dart            universal_ble uygulaması
       fake_gnss_logger.dart Sahte kaydedici (aynı baytları çözer, firmware gibi yanıt verir)
     camera/                 Çekim ekranı: önizleme, referans görsel, odak, kalite kontrolü, Kullan / Yeniden çek;
                             takePhoto (çek, hash'le, depoya yaz)
@@ -77,7 +77,7 @@ lib/
 ```
 
 - **Durum yönetimi:** Riverpod 3. Donanıma dokunan her şey (`GnssLogger`, `FieldCamera`, `MediaStore`, `AuthRepository`, `Clock`, `PhotoQualityChecker`) bir sağlayıcının arkasında; testler sahtelerini verir.
-- **BLE:** Protokol kodu `flutter_blue_plus`'tan bağımsızdır. `GnssLoggerBase` her komuta sıra numarası verir, yazmadan sonra gelen ilk durum mesajında `last_cmd_seq` eşleşince `last_cmd_result`'ı döndürür; 3 sn içinde gelmezse `timeout`. Bağlanınca MTU 247 istenir.
+- **BLE:** Protokol kodu BLE paketinden (`universal_ble`) bağımsızdır. `GnssLoggerBase` her komuta sıra numarası verir, yazmadan sonra gelen ilk durum mesajında `last_cmd_seq` eşleşince `last_cmd_result`'ı döndürür; 3 sn içinde gelmezse `timeout`. Bağlanınca MTU 247 istenir.
 - **Saat:** Firmware 0.2.0'dan beri durum mesajı 39 bayttır ve 31. bayttan itibaren mesajın oluşturulduğu anın GPS zamanını taşır (`gps_time_ns`, u64, 0 = PPS eşlemesi yok; firmware 0.1.0'ın 31 baytlık mesajında alan yoktur). `GpsClock`, GPS zamanı taşıyan her durum mesajından `ofset = kaydedici_GPS − telefon_saati(alış anı)` örneği alır; son 15 örneğin medyanını kullanır (geç gelen bildirimleri eler). 10 dakika örnek gelmezse ya da hiç gelmediyse telefon saati + 18 sn kullanılır ve **"Telefon saati"** olarak işaretlenir (ekranda turuncu şerit, veritabanında `time_source = phone`).
 - **QR:** `OQ1:<gps_ms>:<oturum etiketi>` her 100 ms'de yenilenir. Ekrandaki ilk QR karesi çizilir çizilmez o karedeki değer `mark_event(qr_sync, değer)` ile kaydediciye gönderilir ve yerelde olay olarak saklanır.
 - **Yerel veritabanı (drift / SQLite):** [docs/veri-modeli.md](../../docs/veri-modeli.md) ile uyumlu:
@@ -433,5 +433,5 @@ Sonuçlar eşik ayarı için not edilmeli (ölçümler veritabanında `captures.
 - **Rota:** sıra yönü ve aralığı envanter öncesi tahmindir; personel yönü düzeltebilir ama aralığı değiştiremez. Sapma ve koridor bitişi PPK öncesi konumla yaklaşıktır. Kenar koridorları sınırı 1,5 m içeriden izler; çit, ağaç ya da kuyu gibi engeller bilinmez. Rota ziyaret ortasında değiştirilemez; yanlış bir rota sürümü ancak ofis yeni bir sürüm eklerse (henüz arayüzü yok) düzelir. Sahte kaydedicinin yürüyüşü rotayı izlemez. Bip sesi `ToneGenerator` ile; cihazda denenmedi.
 - **Sesli not, hava durumu, ekipman seri numaraları** ziyaret kaydına henüz eklenmedi.
 - **Ekran parlaklığı:** QR ekranında parlaklık otomatik artırılmıyor.
-- **flutter_blue_plus lisansı:** paket kişisel, kâr amacı gütmeyen ve eğitim kullanımında ücretsiz; ticari kullanım için ücretli lisans gerekir. Kod `License.nonprofit` ile derleniyor (`flutter_blue_gnss_logger.dart`). Ticari kullanıma geçmeden önce lisans alınmalı ya da BLE paketi değiştirilmeli (yalnızca `FlutterBlueGnssLogger` değişir).
+- **BLE paketi ve lisansı:** `universal_ble` (BSD-3-Clause, ticari kullanımda ücretsiz). Önceki `flutter_blue_plus` ticari kullanımda ücretliydi; geçiş yalnızca `BleGnssLogger`'ı değiştirdi. **Gerçek kaydediciyle henüz denenmedi:** tarama, bağlanma, MTU 247 ve bildirimler kit gelince telefonda denenmeli.
 - Gerçek BLE uygulaması (`FlutterBlueGnssLogger`) testlerle kapsanmıyor; cihazla denenmedi. Bağlantı koparsa otomatik yeniden bağlanma yok, personel tekrar **Bağlan**'a basar (kaydedici kayda devam eder).
