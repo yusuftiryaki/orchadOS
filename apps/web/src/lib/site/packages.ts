@@ -70,3 +70,12 @@ export async function loadPackageExample(
     totalKurus: line.line_total_kurus,
   };
 }
+
+// unit_price_kurus is per dönüm and per visit (design §6.6: visit_amount =
+// visits × tenths × unit_price / 10). The annual price of one dönüm, before
+// the minimum fee and the inventory fee.
+export function annualPerDonumKurus(
+  pkg: Pick<PublicPackage, "unitPriceKurus" | "periodicVisitsPerYear">,
+): number {
+  return pkg.unitPriceKurus * pkg.periodicVisitsPerYear;
+}

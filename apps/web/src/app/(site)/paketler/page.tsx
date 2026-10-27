@@ -4,7 +4,7 @@ import { formatDate } from "@/lib/i18n";
 import { packageExampleText as E } from "@/lib/i18n/messages/portal-billing";
 import { siteText } from "@/lib/i18n/messages/site";
 import { formatTry, formatVatRate } from "@/lib/site/format";
-import { loadPackageExample, loadPublicPackages } from "@/lib/site/packages";
+import { annualPerDonumKurus, loadPackageExample, loadPublicPackages } from "@/lib/site/packages";
 import { createClient } from "@/lib/supabase/server";
 
 const p = siteText.packages;
@@ -38,8 +38,9 @@ export default async function PackagesPage() {
               <article key={pkg.packageId} className={styles.tile} data-testid="package">
                 <h2>{pkg.name}</h2>
                 {pkg.description && <p>{pkg.description}</p>}
-                <p className={styles.price}>{formatTry(pkg.unitPriceKurus)}</p>
+                <p className={styles.price}>{formatTry(annualPerDonumKurus(pkg))}</p>
                 <p className={styles.priceUnit}>{p.perDonum}</p>
+                <p className={styles.priceUnit}>{p.perVisit(formatTry(pkg.unitPriceKurus))}</p>
                 <p>
                   {p.visitsPerYear(pkg.periodicVisitsPerYear)}
                   {pkg.includesInventory && ` · ${p.includesInventory}`}

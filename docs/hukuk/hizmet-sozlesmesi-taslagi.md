@@ -64,7 +64,7 @@ Bu ibare her raporda yer alır.
 
 ## Madde 8 – Ücret ve ödeme
 
-1. **Yıllık hizmet bedeli:** Teklifte yazan tutardır. Dönüm başına yıllık fiyat ile doğrulanan alanın çarpımıdır; bahçe başına en az ücret ve ilk yıl bir kez envanter ücreti eklenir. KDV ayrıca gösterilir. Teklif, geçerlilik süresi içinde değişmez.
+1. **Yıllık hizmet bedeli:** Teklifte yazan tutardır. Yıllık ziyaret sayısı, doğrulanan alan (dönüm) ve paketin dönüm ve ziyaret başı birim fiyatının çarpımıdır; bahçe başına en az ücret ve ilk yıl bir kez envanter ücreti eklenir. KDV ayrıca gösterilir. Teklif, geçerlilik süresi içinde değişmez.
 2. **Ödeme:** Teklif onaylandıktan sonra peşin ve tek çekimdir: kartla (3D Secure, [ödeme kuruluşu: iyzico] üzerinden) ya da havale/EFT ile. Kart bilgileri Şirket'e ulaşmaz. Ödeme sipariş ödeme süresi içinde yapılmazsa sipariş kendiliğinden düşer.
 3. **Belge:** Her ödeme için portalda bir makbuz verilir. Makbuz fatura değildir; fatura [ ] düzenlenir [avukat ve mali müşavir: e-Arşiv zorunluluğu].
 4. **Pilot dönemi:** [Ücretsiz / indirimli; süresi ve şartları].
