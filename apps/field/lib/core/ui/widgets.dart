@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme.dart';
+
 /// Full-width button with an icon, sized for gloved hands and sunlight.
 class BigButton extends StatelessWidget {
   const BigButton({
@@ -27,10 +29,11 @@ class BigButton extends StatelessWidget {
       child: FilledButton.icon(
         style: FilledButton.styleFrom(
           backgroundColor: bg,
-          textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
+          elevation: 0,
         ),
         onPressed: busy ? null : onPressed,
         icon: busy
@@ -97,9 +100,9 @@ class StatusLine extends StatelessWidget {
   final Health health;
 
   static Color colorFor(Health h) => switch (h) {
-    Health.ok => Colors.green.shade700,
-    Health.warn => Colors.orange.shade800,
-    Health.bad => Colors.red.shade700,
+    Health.ok => Brand.ok,
+    Health.warn => Brand.warn,
+    Health.bad => Brand.bad,
   };
 
   @override
@@ -135,7 +138,74 @@ void showError(BuildContext context, String message) {
     ..showSnackBar(
       SnackBar(
         content: Text(message, style: const TextStyle(fontSize: 18)),
-        backgroundColor: Colors.red.shade700,
+        backgroundColor: Brand.bad,
       ),
     );
+}
+
+/// The orchadOS mark: a pistachio leaf in a rounded square.
+class BrandMark extends StatelessWidget {
+  const BrandMark({super.key, this.size = 56});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Brand.green,
+        borderRadius: BorderRadius.circular(size * 0.28),
+      ),
+      child: Icon(Icons.eco, color: Brand.leaf, size: size * 0.6),
+    );
+  }
+}
+
+/// Icon in a tinted rounded square, for list rows and cards.
+class IconBadge extends StatelessWidget {
+  const IconBadge({super.key, required this.icon, this.color, this.size = 56});
+
+  final IconData icon;
+  final Color? color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? Theme.of(context).colorScheme.primary;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(icon, color: c, size: size * 0.55),
+    );
+  }
+}
+
+/// Small rounded label: "Tamamlandı", "Bugün", "Size atanmış".
+class Pill extends StatelessWidget {
+  const Pill({super.key, required this.label, this.color});
+
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? Brand.muted;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c),
+      ),
+    );
+  }
 }

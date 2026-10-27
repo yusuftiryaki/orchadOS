@@ -51,7 +51,7 @@ void main() {
 
     expect(find.text('Örnek P-1'), findsOneWidget);
     expect(find.textContaining('Size atanmış'), findsOneWidget);
-    expect(find.text('Bugün · Size atanmış'), findsOneWidget);
+    expect(find.text('Bugün'), findsOneWidget);
     expect(find.byKey(const Key('tasks-offline')), findsNothing);
 
     // No signal: pull to refresh shows the kept list with a note.
