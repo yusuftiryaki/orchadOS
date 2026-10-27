@@ -146,6 +146,31 @@ void main() {
     expect(t.summary.slotsCovered, 2);
   });
 
+  test('coverage target: 98 % for an inventory, 95 % otherwise', () {
+    expect(CoverageConfig.forVisit(VisitKind.inventory).threshold, 0.98);
+    expect(CoverageConfig.forVisit(VisitKind.periodic).threshold, 0.95);
+    expect(const CoverageConfig().threshold, 0.95);
+    // 23 of 24 slots (95.8 %) is enough for a periodic visit only.
+    final walked = [const Enu(-4, -3), const Enu(-4, 38)];
+    for (final x in [4.0, 12.0]) {
+      walked.addAll([Enu(x, 38), Enu(x, -3)]);
+    }
+    walked.addAll([const Enu(20, -3), const Enu(20, 30)]);
+    final inventory = CoverageTracker(
+      slots,
+      config: CoverageConfig.forVisit(VisitKind.inventory),
+    );
+    final periodic = CoverageTracker(
+      slots,
+      config: CoverageConfig.forVisit(VisitKind.periodic),
+    );
+    walk(inventory, walked);
+    walk(periodic, walked);
+    expect(periodic.summary.slotsCovered, 23);
+    expect(periodic.summary.belowThreshold, isFalse);
+    expect(inventory.summary.belowThreshold, isTrue);
+  });
+
   test('event data', () {
     final t = CoverageTracker(slots);
     walk(t, [const Enu(-4, -3), const Enu(-4, 38)]);

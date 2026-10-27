@@ -17,6 +17,7 @@ class PrecheckResult {
     required this.status,
     required this.lensClean,
     required this.cameraRecording,
+    required this.spraying,
   });
 
   final bool connected;
@@ -24,18 +25,30 @@ class PrecheckResult {
   final bool lensClean;
   final bool cameraRecording;
 
+  /// Null until the crew answers. There is no "not passed" answer: then the
+  /// crew must not enter the orchard.
+  final SprayingCheck? spraying;
+
   bool get batteryOk => status != null && batteryHealth(status!) == Health.ok;
   bool get sdOk => status != null && status!.sdReady;
   bool get gnssOk => status != null && gnssReady(status!);
 
   /// Every item must pass; the crew cannot skip the checklist.
   bool get allOk =>
-      connected && batteryOk && sdOk && gnssOk && lensClean && cameraRecording;
+      connected &&
+      batteryOk &&
+      sdOk &&
+      gnssOk &&
+      lensClean &&
+      cameraRecording &&
+      spraying != null;
 }
 
 /// Mandatory checklist before a scan (docs/MVP.md, Modül 3, "Ön kontrol").
 /// Battery, SD card and GNSS come from the logger over BLE; lens and camera
-/// are confirmed by the crew.
+/// are confirmed by the crew, and so is spraying: the crew states there was
+/// none, or that the label's waiting period has passed. Only the spraying
+/// answer is recorded (on `session_start`); the others only gate the start.
 class PrecheckScreen extends ConsumerStatefulWidget {
   const PrecheckScreen({super.key});
 
@@ -46,6 +59,7 @@ class PrecheckScreen extends ConsumerStatefulWidget {
 class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
   bool _lensClean = false;
   bool _cameraRecording = false;
+  SprayingCheck? _spraying;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +71,7 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
       status: status,
       lensClean: _lensClean,
       cameraRecording: _cameraRecording,
+      spraying: _spraying,
     );
     return Scaffold(
       appBar: AppBar(title: Text(task?.parcelName ?? 'Ön kontrol')),
@@ -104,6 +119,10 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
             value: _cameraRecording,
             onChanged: (v) => setState(() => _cameraRecording = v),
           ),
+          _SprayingItem(
+            value: _spraying,
+            onChanged: (v) => setState(() => _spraying = v),
+          ),
           const SizedBox(height: 8),
           const Text(
             'Şafakta, gün batımında, yağmurda ve yoğun tozda tarama yapılmaz.',
@@ -115,11 +134,16 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
             icon: Icons.arrow_forward,
             label: 'Devam',
             onPressed: result.allOk
-                ? () => Navigator.of(context).pushReplacement(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const SessionScreen(),
-                    ),
-                  )
+                ? () {
+                    ref
+                        .read(sessionControllerProvider.notifier)
+                        .confirmPrecheck(spraying: result.spraying!);
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SessionScreen(),
+                      ),
+                    );
+                  }
                 : null,
           ),
         ],
@@ -183,6 +207,48 @@ class _ManualItem extends StatelessWidget {
       title: Text(title, style: const TextStyle(fontSize: 20)),
       value: value,
       onChanged: (v) => onChanged(v ?? false),
+    ),
+  );
+}
+
+/// "Son günlerde ilaçlama yapıldıysa ilacın bekleme süresi geçti", with the
+/// way to say there was no spraying. Either answer passes.
+class _SprayingItem extends StatelessWidget {
+  const _SprayingItem({required this.value, required this.onChanged});
+
+  final SprayingCheck? value;
+  final ValueChanged<SprayingCheck?> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    key: const Key('check-spraying'),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const ListTile(
+            leading: Icon(Icons.sanitizer, size: 36),
+            title: Text(
+              'Son günlerde ilaçlama yapıldıysa ilacın bekleme süresi geçti',
+              style: TextStyle(fontSize: 20),
+            ),
+            subtitle: Text(
+              'Bilmiyorsan bahçe sahibine sor. Bekleme süresi geçmediyse '
+              'bahçeye girme.',
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+          for (final option in SprayingCheck.values)
+            CheckboxListTile(
+              key: Key('check-spraying-${option.code}'),
+              minTileHeight: 60,
+              title: Text(option.label, style: const TextStyle(fontSize: 18)),
+              value: value == option,
+              onChanged: (v) => onChanged(v == true ? option : null),
+            ),
+        ],
+      ),
     ),
   );
 }

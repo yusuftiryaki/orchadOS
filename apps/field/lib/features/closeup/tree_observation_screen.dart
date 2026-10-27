@@ -12,7 +12,9 @@ import '../session/session_controller.dart';
 import '../tasks/field_task.dart';
 import 'closeup_protocol.dart';
 
-/// Photos and yes/no questions for one tree.
+/// Photos and questions for one tree. Every question can also be answered
+/// "Göremedim"; the tree is complete when every required photo is taken and
+/// every question has an answer.
 ///
 /// Photos come only from the in-app camera ([CaptureScreen]); there is no
 /// gallery option. A photo that passes the quality check and that the crew
@@ -31,7 +33,10 @@ class TreeObservationScreen extends ConsumerStatefulWidget {
 
 class _TreeObservationScreenState extends ConsumerState<TreeObservationScreen> {
   final Map<String, PendingShot> _shots = {};
-  final Map<String, bool> _answers = {};
+  final Map<String, StaffAnswer> _answers = {};
+
+  /// The protocol's optional block (winter "kuru şüphesi") is open.
+  bool _extraOpen = false;
   final List<PendingVoiceNote> _voice = [];
   String? _capturing;
   bool _saving = false;
@@ -86,10 +91,30 @@ class _TreeObservationScreenState extends ConsumerState<TreeObservationScreen> {
   );
 
   bool get _complete =>
-      _protocol.shots
+      _protocol
+          .shotsWith(extraOpen: _extraOpen)
           .where((s) => s.required)
           .every((s) => _shots.containsKey(s.code)) &&
-      _protocol.questions.every((q) => _answers.containsKey(q.metricCode));
+      _protocol
+          .questionsWith(extraOpen: _extraOpen)
+          .every((q) => _answers.containsKey(q.metricCode));
+
+  /// Closing the block drops its photos and answers: they are not saved.
+  Future<void> _setExtraOpen(bool open) async {
+    final extra = _protocol.extra;
+    if (extra == null) return;
+    if (!open) {
+      final store = ref.read(mediaStoreProvider);
+      for (final spec in extra.shots) {
+        final shot = _shots.remove(spec.code);
+        if (shot != null) await store.discard(shot.localPath);
+      }
+      for (final q in extra.questions) {
+        _answers.remove(q.metricCode);
+      }
+    }
+    if (mounted) setState(() => _extraOpen = open);
+  }
 
   Future<void> _take(ShotSpec spec) async {
     setState(() => _capturing = spec.code);
@@ -147,22 +172,37 @@ class _TreeObservationScreenState extends ConsumerState<TreeObservationScreen> {
           treeId: widget.tree.treeId,
           slotCode: widget.tree.slotCode,
           shots: [
-            for (final s in protocol.shots)
+            for (final s in protocol.shotsWith(extraOpen: _extraOpen))
               if (_shots[s.code] != null) _shots[s.code]!,
           ],
           answers: {
-            for (final q in protocol.questions)
+            for (final q in protocol.questionsWith(extraOpen: _extraOpen))
               q.metricCode: _answers[q.metricCode]!,
           },
           methodVersion: protocol.version,
           voiceNotes: _voice,
+          time: ref.read(gpsClockProvider).now(),
         );
     if (mounted) Navigator.of(context).pop();
   }
 
+  Widget _shotCard(ShotSpec spec) => _ShotCard(
+    spec: spec,
+    shot: _shots[spec.code],
+    busy: _capturing == spec.code,
+    onTake: _capturing == null ? () => _take(spec) : null,
+  );
+
+  Widget _questionCard(CloseupQuestion q) => _QuestionCard(
+    question: q,
+    answer: _answers[q.metricCode],
+    onAnswer: (v) => setState(() => _answers[q.metricCode] = v),
+  );
+
   @override
   Widget build(BuildContext context) {
     final protocol = _protocol;
+    final extra = protocol.extra;
     return Scaffold(
       appBar: AppBar(title: Text('Ağaç ${widget.tree.slotCode}')),
       // Not lazy: the form is short and every field must stay mounted.
@@ -172,21 +212,33 @@ class _TreeObservationScreenState extends ConsumerState<TreeObservationScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const _SectionTitle('Fotoğraflar'),
-            for (final spec in protocol.shots)
-              _ShotCard(
-                spec: spec,
-                shot: _shots[spec.code],
-                busy: _capturing == spec.code,
-                onTake: _capturing == null ? () => _take(spec) : null,
-              ),
+            for (final spec in protocol.shots) _shotCard(spec),
             const SizedBox(height: 16),
             const _SectionTitle('Sorular'),
-            for (final q in protocol.questions)
-              _QuestionCard(
-                question: q,
-                answer: _answers[q.metricCode],
-                onAnswer: (v) => setState(() => _answers[q.metricCode] = v),
+            for (final q in protocol.questions) _questionCard(q),
+            if (extra != null) ...[
+              const SizedBox(height: 16),
+              Card(
+                child: SwitchListTile(
+                  key: Key('extra-${extra.code}'),
+                  minTileHeight: 72,
+                  title: Text(
+                    extra.label,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: _extraOpen ? Text(extra.detail) : null,
+                  value: _extraOpen,
+                  onChanged: _capturing == null ? _setExtraOpen : null,
+                ),
               ),
+              if (_extraOpen) ...[
+                for (final spec in extra.shots) _shotCard(spec),
+                for (final q in extra.questions) _questionCard(q),
+              ],
+            ],
             const SizedBox(height: 16),
             const _SectionTitle('Sesli not (isteğe bağlı)'),
             OutlinedButton.icon(
@@ -329,44 +381,72 @@ class _QuestionCard extends StatelessWidget {
     required this.onAnswer,
   });
 
-  final YesNoQuestion question;
-  final bool? answer;
-  final ValueChanged<bool> onAnswer;
+  final CloseupQuestion question;
+  final StaffAnswer? answer;
+  final ValueChanged<StaffAnswer> onAnswer;
+
+  static String _keyOf(StaffAnswer a) => switch (a) {
+    YesNoAnswer(:final value) => '$value',
+    CategoryAnswer(:final code) => code,
+    UnseenAnswer() => 'unseen',
+  };
+
+  static IconData? _iconOf(StaffAnswer a) => switch (a) {
+    YesNoAnswer(value: true) => Icons.check,
+    YesNoAnswer(value: false) => Icons.close,
+    CategoryAnswer() => null,
+    UnseenAnswer() => Icons.visibility_off,
+  };
+
+  Widget _choice(StaffAnswer value, String label, {double height = 60}) {
+    final selected = answer == value;
+    final key = Key('q-${question.metricCode}-${_keyOf(value)}');
+    final size = Size.fromHeight(height);
+    const text = TextStyle(fontSize: 20);
+    final icon = _iconOf(value);
+    final child = Text(label);
+    if (selected) {
+      final style = FilledButton.styleFrom(minimumSize: size, textStyle: text);
+      return icon == null
+          ? FilledButton(
+              key: key,
+              style: style,
+              onPressed: () => onAnswer(value),
+              child: child,
+            )
+          : FilledButton.icon(
+              key: key,
+              style: style,
+              onPressed: () => onAnswer(value),
+              icon: Icon(icon),
+              label: child,
+            );
+    }
+    final style = OutlinedButton.styleFrom(minimumSize: size, textStyle: text);
+    return icon == null
+        ? OutlinedButton(
+            key: key,
+            style: style,
+            onPressed: () => onAnswer(value),
+            child: child,
+          )
+        : OutlinedButton.icon(
+            key: key,
+            style: style,
+            onPressed: () => onAnswer(value),
+            icon: Icon(icon),
+            label: child,
+          );
+  }
 
   @override
   Widget build(BuildContext context) {
-    Widget choice(bool value, String label, IconData icon) {
-      final selected = answer == value;
-      final style = FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(60),
-        textStyle: const TextStyle(fontSize: 20),
-      );
-      return Expanded(
-        child: selected
-            ? FilledButton.icon(
-                key: Key('q-${question.metricCode}-$value'),
-                style: style,
-                onPressed: () => onAnswer(value),
-                icon: Icon(icon),
-                label: Text(label),
-              )
-            : OutlinedButton.icon(
-                key: Key('q-${question.metricCode}-$value'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(60),
-                  textStyle: const TextStyle(fontSize: 20),
-                ),
-                onPressed: () => onAnswer(value),
-                icon: Icon(icon),
-                label: Text(label),
-              ),
-      );
-    }
-
+    final choices = question.choices;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
@@ -383,11 +463,14 @@ class _QuestionCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                choice(true, 'Evet', Icons.check),
-                const SizedBox(width: 12),
-                choice(false, 'Hayır', Icons.close),
+                for (final (i, (value, label)) in choices.indexed) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  Expanded(child: _choice(value, label)),
+                ],
               ],
             ),
+            const SizedBox(height: 8),
+            _choice(const UnseenAnswer(), 'Göremedim', height: 52),
           ],
         ),
       ),

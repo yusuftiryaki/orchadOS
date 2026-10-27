@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orchados_field/app/providers.dart';
@@ -201,7 +203,8 @@ void main() {
   testWidgets('pre-check needs the logger checks and both confirmations', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    // Tall enough for the whole list: every item stays built.
+    tester.view.physicalSize = const Size(1080, 4000);
     tester.view.devicePixelRatio = 2.5;
     addTearDown(tester.view.reset);
     final h = TestHarness();
@@ -225,7 +228,30 @@ void main() {
 
     await tapVisible(tester, find.byKey(const Key('gnss-connect')));
     await settle(tester);
+    expect(cont().onPressed, isNull, reason: 'spraying not confirmed');
+
+    // Spraying: "none" and "waiting period passed" exclude each other;
+    // either one lets the crew in.
+    await tapVisible(tester, find.byKey(const Key('check-spraying-none')));
+    await tester.pump();
     expect(cont().onPressed, isNotNull);
+    await tapVisible(
+      tester,
+      find.byKey(const Key('check-spraying-waiting_period_passed')),
+    );
+    await tester.pump();
+    expect(cont().onPressed, isNotNull);
+    await tapVisible(
+      tester,
+      find.byKey(const Key('check-spraying-waiting_period_passed')),
+    );
+    await tester.pump();
+    expect(cont().onPressed, isNull, reason: 'answer taken back');
+    await tapVisible(
+      tester,
+      find.byKey(const Key('check-spraying-waiting_period_passed')),
+    );
+    await tester.pump();
 
     // Low battery blocks the scan.
     h.logger.status = FakeGnssLogger.healthyStatus.copyWith(batteryMv: 15800);
@@ -238,6 +264,19 @@ void main() {
     await tapVisible(tester, find.byKey(const Key('precheck-continue')));
     await tester.pumpAndSettle();
     expect(find.byType(SessionScreen), findsOneWidget);
+
+    // The spraying answer goes with the session start.
+    final controller = h.container.read(sessionControllerProvider.notifier);
+    expect(await tester.runAsync(controller.start), isTrue);
+    final repo = h.container.read(fieldRepositoryProvider);
+    final sessionId = h.container.read(sessionControllerProvider).sessionId!;
+    final events = (await tester.runAsync(() => repo.events(sessionId)))!;
+    final start = events.firstWhere((e) => e.eventType == 'session_start');
+    expect(jsonDecode(start.dataJson!), {
+      'version': 1,
+      'precheck': {'spraying': 'waiting_period_passed'},
+    });
+    await tester.pump(const Duration(seconds: 5));
     await h.dispose(tester);
   });
 

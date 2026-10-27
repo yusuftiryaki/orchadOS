@@ -145,7 +145,10 @@ void main() {
         await photo('trunk', [1, 2, 3]),
         await photo('cuts', [4, 5]),
       ],
-      answers: {'dead_branch_present': true, 'pruned': false},
+      answers: {
+        'dead_branch_present': const YesNoAnswer(true),
+        'pruned': const YesNoAnswer(false),
+      },
       methodVersion: 'winter-v0',
     );
     await repo.stopSession(
@@ -400,9 +403,7 @@ void main() {
     );
     await worker().syncNow();
     expect(server.visits[visitId], 'planned');
-    expect(server.visitValues[visitId], {
-      'started_at': t0.toIso8601String(),
-    });
+    expect(server.visitValues[visitId], {'started_at': t0.toIso8601String()});
   });
 
   test('the photo stays on the phone until the upload is verified', () async {

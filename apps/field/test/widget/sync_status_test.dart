@@ -69,7 +69,10 @@ Future<void> recordVisit(WidgetTester tester, TestHarness h) =>
             ),
           ),
         ],
-        answers: {'dead_branch_present': true, 'pruned': false},
+        answers: {
+          'dead_branch_present': const YesNoAnswer(true),
+          'pruned': const YesNoAnswer(false),
+        },
         methodVersion: 'winter-v0',
       );
       await repo.stopSession(visitId, stoppedAt: now, stopGpsTimeMs: 3);

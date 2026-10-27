@@ -13,7 +13,7 @@ import '../tasks/field_task.dart';
 class CoverageConfig {
   const CoverageConfig({
     this.radiusM = 4,
-    this.threshold = 0.95,
+    this.threshold = periodicThreshold,
     this.maxGap = const Duration(seconds: 10),
     this.maxJumpM = 30,
     this.minStepM = 0.5,
@@ -23,8 +23,20 @@ class CoverageConfig {
   /// A slot this close to the track is covered.
   final double radiusM;
 
+  /// Coverage target of [kind] (methodology v0.1, docs/uzman-ajan-onerileri.md
+  /// 1.9): 98 % for an inventory, whose missed trees stay missing on every
+  /// later visit; 95 % otherwise.
+  factory CoverageConfig.forVisit(VisitKind kind) => CoverageConfig(
+    threshold: kind == VisitKind.inventory
+        ? inventoryThreshold
+        : periodicThreshold,
+  );
+
+  static const double periodicThreshold = 0.95;
+  static const double inventoryThreshold = 0.98;
+
   /// Share of slots (and of a corridor's slots) that counts as done; below
-  /// it the summary warns. MVP target: 95 % (docs/MVP.md, success criteria).
+  /// it the summary warns.
   final double threshold;
 
   /// Points further apart in time or space are not joined (lost fix,
