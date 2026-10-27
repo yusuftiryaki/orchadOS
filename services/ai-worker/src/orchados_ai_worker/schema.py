@@ -11,14 +11,30 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from .methodology import AI_SKIP_IN_SEASON, HEALTH_CLASSES, SCALE_TEXTS, HealthClass, Season
+from .methodology import (
+    AI_SKIP_IN_SEASON,
+    DEFAULT_METHODOLOGY_VERSION,
+    HEALTH_CLASSES,
+    NO_AI_DEAD_IN_SEASON,
+    SCALE_TEXTS,
+    HealthClass,
+    Season,
+)
 
 TreeVisible = Literal["yes", "no", "unsure"]
 TREE_VISIBLE: tuple[TreeVisible, ...] = ("yes", "no", "unsure")
 
-# Inconsistency flags (docs/MVP.md, Modül 4). The worker adds no flags of its own;
-# these are the model's.
+# Inconsistency flags (docs/MVP.md, Modül 4) the model may set; the output schema
+# offers only these.
 FLAGS = ("staff_answer_conflict", "large_change_from_previous", "poor_image")
+# Flags only the worker sets (apply_worker_rules), never the model:
+# - winter_dead_downgraded: the answer said dead in a season where only the expert
+#   may (methodology.NO_AI_DEAD_IN_SEASON); the worker made it problem.
+WORKER_FLAGS = ("winter_dead_downgraded",)
+WINTER_DEAD_NOTE = (
+    "Not: AI kışın 'kuru' önerdi; kışın kuru kararını yalnız uzman verir. "
+    "Sınıf 'sorunlu', kuru dal 3 yapıldı."
+)
 
 
 @dataclass(frozen=True)
@@ -173,7 +189,7 @@ def parse_message(message: dict[str, Any], metrics: list[MetricDef]) -> AiOutput
     texts = [b.get("text", "") for b in message.get("content", []) if b.get("type") == "text"]
     if not texts:
         raise OutputError(f"no text block in the answer (stop_reason {stop})")
-    return validate(texts[0], metrics)
+    return validate(texts[0], metrics, model_answer=True)
 
 
 def _confidence(x: Any, where: str) -> float:
@@ -184,8 +200,12 @@ def _confidence(x: Any, where: str) -> float:
     return float(x)
 
 
-def validate(data: Any, metrics: list[MetricDef]) -> AiOutput:
-    """Check a decoded answer against the season's metrics; raise OutputError if invalid."""
+def validate(data: Any, metrics: list[MetricDef], *, model_answer: bool = False) -> AiOutput:
+    """Check a decoded answer against the season's metrics; raise OutputError if invalid.
+
+    A stored answer may carry the worker's own flags (WORKER_FLAGS); a model answer
+    (model_answer=True) may not, and any such flag in it is dropped.
+    """
     if isinstance(data, str | bytes):
         try:
             data = json.loads(data)
@@ -211,8 +231,10 @@ def validate(data: Any, metrics: list[MetricDef]) -> AiOutput:
     if oc is not None and oc not in HEALTH_CLASSES:
         raise OutputError(f"unknown overall_class {oc!r}")
     flags = data["flags"]
-    if not isinstance(flags, list) or any(f not in FLAGS for f in flags):
+    if not isinstance(flags, list) or any(f not in FLAGS + WORKER_FLAGS for f in flags):
         raise OutputError(f"flags must be a list of {FLAGS}")
+    if model_answer:
+        flags = [f for f in flags if f in FLAGS]
 
     raw = data["values"]
     if not isinstance(raw, dict) or set(raw) != {m.code for m in metrics}:
@@ -247,3 +269,31 @@ def validate(data: Any, metrics: list[MetricDef]) -> AiOutput:
         class_confidence=_confidence(data["class_confidence"], "class"),
         flags=list(dict.fromkeys(flags)),
     )
+
+
+def apply_worker_rules(
+    out: AiOutput,
+    season: Season,
+    methodology_version: str = DEFAULT_METHODOLOGY_VERSION,
+) -> AiOutput:
+    """Methodology rules the worker enforces on a model answer, whatever the model said.
+
+    Winter dead (methodology-v0.1, docs/uzman-ajan-onerileri.md section 1.4): in a
+    season of NO_AI_DEAD_IN_SEASON the class dead becomes problem with
+    dead_branch_scale 3, as the expert would enter it without close-up evidence, and
+    the answer gets the flag winter_dead_downgraded and a note in the rationale so
+    the expert sees what the model suggested. Idempotent.
+    """
+    if out.overall_class != "dead" or season not in NO_AI_DEAD_IN_SEASON.get(
+        methodology_version, ()
+    ):
+        return out
+    out.overall_class = "problem"
+    dead = out.values.get("dead_branch_scale")
+    if dead is not None and dead.value != 3:
+        dead.value = 3
+        dead.confidence = out.class_confidence
+    if "winter_dead_downgraded" not in out.flags:
+        out.flags.append("winter_dead_downgraded")
+    out.rationale = f"{out.rationale} {WINTER_DEAD_NOTE}".strip()
+    return out

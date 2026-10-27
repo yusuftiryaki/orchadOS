@@ -18,7 +18,7 @@ from orchados_ai_worker.prompt import (
     system_prompt,
     user_content,
 )
-from orchados_ai_worker.schema import season_metrics
+from orchados_ai_worker.schema import FLAGS, output_schema, season_metrics
 
 
 def tree(**kw) -> TreeInput:
@@ -82,8 +82,8 @@ def test_system_prompt_is_per_season_and_stable(registry):
 
 
 def test_prompt_version_is_bound_to_the_methodology():
-    assert prompt_version(None) == "ai-v0.2/methodology-v0"
-    assert prompt_version("methodology-v0") == "ai-v0.2/methodology-v0"
+    assert prompt_version(None) == "ai-v0.3/methodology-v0"
+    assert prompt_version("methodology-v0") == "ai-v0.3/methodology-v0"
     with pytest.raises(ValueError, match="methodology-v9"):
         prompt_version("methodology-v9")
 
@@ -154,3 +154,41 @@ def test_mosaic_layout():
     assert near(px[256, 768], (128, 128, 128))
     with pytest.raises(ValueError):
         build_mosaic({"NE": jpeg()})
+
+
+def test_v01_scale_criteria_and_common_rules(registry):
+    winter, summer = season_metrics(registry, "winter"), season_metrics(registry, "summer")
+    v0 = system_prompt("winter", winter, "methodology-v0")
+    v01 = system_prompt("winter", winter, "methodology-v0.1")
+    # methodology-v0 visits keep their texts.
+    assert "scaffold" not in v0 and "Borderline" not in v0 and "palm" not in v0
+    assert "do not suggest the class 'dead' in winter" in v0
+    assert "winter_dead_downgraded" not in v0
+    # Dead branches: the scaffold branch rule and the common mistakes.
+    assert "one scaffold branch is entirely dead" in v01
+    assert "two or more scaffold branches are entirely dead" in v01
+    assert "One entirely dead scaffold branch means at least 2, two or more mean 3" in v01
+    assert "shaded inner branches" in v01 and "wet branches" in v01 and "tree behind" in v01
+    # Trunk and root collar: palm-size measure; root suckers are another field.
+    assert "smaller than a palm" in v01 and "root collar" in v01
+    assert "root suckers are not in this scale" in v01
+    # Common rule: borderline up with good evidence, no value with weak evidence.
+    assert "5. Borderline values" in v01 and "give the upper one" in v01
+    # Winter dead rule, as the worker enforces it.
+    assert "do not suggest the class 'dead' in winter" in v01
+    assert "dead_branch_scale 3 and the class 'problem'" in v01
+    assert "winter_dead_downgraded" in v01
+    # The model cannot set the worker's flag.
+    schema = output_schema(winter)
+    assert schema["properties"]["flags"]["items"]["enum"] == list(FLAGS)
+
+    s01 = system_prompt("summer", summer, "methodology-v0.1")
+    assert "compare male trees and young saplings with their own group" in s01
+    assert "not sparseness" in s01
+    assert "kokarca" in s01 and "Mild signs do not change the overall class" in s01
+    assert "less than about a third of the branches" in s01 and "clearly male" in s01
+    assert "kokarca" not in system_prompt("summer", summer, "methodology-v0")
+    spring01 = system_prompt("spring", season_metrics(registry, "spring"), "methodology-v0.1")
+    assert "10-50%" in spring01
+    # The winter note is a winter thing.
+    assert "winter_dead_downgraded" not in spring01

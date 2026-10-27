@@ -62,3 +62,17 @@ def test_final_outcome_is_the_last_usable_stage():
     assert final_outcome([a, b]) is b
     assert final_outcome([a, failed]) is a
     assert final_outcome([StageOutcome(1, "claude-haiku-5-5", None, error="x")]) is None
+
+
+@pytest.mark.parametrize("code", ["dead_branch_scale", "trunk_base_scale"])
+def test_hard_scales_go_to_review_in_v01(code):
+    v0, v01 = "methodology-v0", "methodology-v0.1"
+    base = {"dead_branch_scale": 0, "trunk_base_scale": 0}
+    two = out("attention", **{**base, code: 2})
+    assert review_reasons(two, 0.7, v01) == [f"hard_scale_{code}"]
+    assert review_reasons(two, 0.7, v0) == []
+    three = out("problem", **{**base, code: 3})
+    assert f"hard_scale_{code}" in review_reasons(three, 0.7, v01)
+    assert review_reasons(out("healthy", **{**base, code: 1}), 0.7, v01) == []
+    # No value given: nothing to escalate on.
+    assert review_reasons(out("healthy", **{**base, code: None}), 0.7, v01) == []
