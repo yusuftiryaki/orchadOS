@@ -70,6 +70,16 @@ export function ParcelReportView({
           <Link className="button" href={`${base}/gezi`}>
             {r.tour}
           </Link>
+          {report.latest && (
+            <a className="button" href={`${base}/rapor.pdf`} data-testid="report-pdf">
+              {r.pdf}
+            </a>
+          )}
+          {boundaryCard?.inventory && (
+            <Link className="button button-secondary" href={`${base}/envanter`}>
+              {r.inventoryReport}
+            </Link>
+          )}
           <PrintButton />
         </div>
       </div>

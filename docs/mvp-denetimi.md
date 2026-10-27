@@ -58,7 +58,7 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 | Uzmanın envanter onayı, sahibin sınır onayı | `approve_inventory`, `approve_boundary` | var | |
 | Referans sıralarla doğrulama (pilot) | — | donanım | Yazılım dışı ölçüm; ikinci RTK alıcısı ve jalon |
 | Çıktı: envanter özeti (yer, ağaç, boş, ara, aşısız, yaş dağılımı) | `web/lib/expert/inventory-checks.ts`, portal | var | |
-| Çıktı: envanter raporu PDF | Portal karnesi yazdırılabilir | kısmen · sonraki iş | Ayrı bir envanter raporu sayfası yok; karnedeki envanter özeti yazdırılır |
+| Çıktı: envanter raporu PDF | `/portal/parsel/<id>/envanter`, `…/envanter/rapor.pdf` | var | Sayım ve harita raporu: kısa özet, uyarılar, kodlu yer haritası, sınır, boş yerler, bahçe yapısı (büyüklük, aşı, gövde yapısı, çeşit), ilk gözlemler (sayı olarak), altyapı, denetim güveni, sıradaki adımlar. Sağlık sınıfı ve skor yok. İçerik uzman ajan önerisi, pilot uzmanın onayını bekliyor |
 | Kabul kriteri: kapsamanın kalite kapısından geçmesi | `approve_inventory`, `waive_coverage`, `coverage_report` | var (kapsama görevi) | Envanter taramasının en yeni kapsama raporu eşiğin altındaysa onay reddedilir; uzman gerekçeyle kabul edebilir (kayıtta kalır). Raporu olmayan eski veride davranış aynı. Envanter kaydedildikten sonra kapsamayı `orchados-pipeline coverage --trees-from-db` + `upload` ile ölçmek operasyonun adımı (`services/pipeline/README.md`) |
 
 ## Modül 3 – Periyodik tarama
@@ -132,7 +132,7 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 | Ağaç karnesi: kanıt bilgisi (tarih, saat, konum, çeken, hash doğrulaması) | "Kanıt bilgisi" (`tree-card.tsx`, `hash-check.tsx`, `web/lib/portal/evidence.ts`) | var (bu görev) | Kesitte zaman kaynak panoramanın GPS zamanından, çeken ziyaretin sorumlusu. Karar: personel adı yerine kısa kod (`#A1B2`) |
 | Ziyaret raporu: önem sırasıyla bulgular, ağaç karnesine bağlantı | Karne | var | |
 | Ziyaret raporu: kapsama haritası | Karnede "Kapsama haritası" bağlantısı → kapsama katmanı | var (bu görev) | |
-| Ziyaret raporu: uzman imzası, PDF | Karne, yazdırma | kısmen | İmza tarihi eklendi (bu görev); PDF tarayıcının yazdırmasıyla |
+| Ziyaret raporu: uzman imzası, PDF | Karne, `…/rapor.pdf` | var | Sunucuda üretilen PDF (@react-pdf, Noto Sans): skor, sınıf dağılımı, denetim güveni, değişim, sağlık haritası, bulgular, ölçümler. Tarayıcıdan yazdırma da duruyor |
 | Bildirim: "Rapor hazır" | `notification` tetikleyicisi | var | |
 | Bildirim: kritik bulgu, raporu beklemeden | `approve_finding`; uzman panelinde "Onayla ve sahibe hemen bildir" | var (bu görev) | Sahip yayımlanmamış ziyaretin bulgusunu portalda henüz göremez (bilinen sınır) |
 | Soru bırakma | `question`, `/uzman/sorular` | var | |
@@ -152,7 +152,7 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 
 | Madde | Durum | Not |
 | --- | --- | --- |
-| Portalda PDF rapor | kısmen | Tarayıcının yazdırma penceresiyle PDF; kesme listesinin ilk maddesi, ayrı PDF üretimi ilkbahara kalabilir |
+| Portalda PDF rapor | var | Karne ve envanter raporu sunucuda PDF olarak üretiliyor (kullanıcının yetkisiyle, saklanmadan) |
 | Gezide ağaç işaretçileri | var | |
 | Telefon doğrulamasıyla giriş | var | |
 | Saha uygulamasında kapsama haritası | var | |

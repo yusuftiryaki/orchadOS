@@ -265,7 +265,8 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
     - Ziyaret ziyaret aynı yönden fotoğraflar.
     - Bulgular ve öneriler.
 5. **360° gezi:** Haritada bir noktaya dokununca o noktanın panoraması açılır. Oklarla komşu noktalara geçilir; ağaç işaretçisine dokununca ağaç karnesi açılır.
-6. **Yazdır / PDF:** Karne tarayıcıdan PDF olarak kaydedilir.
+6. **PDF indir:** Karne sunucuda PDF olarak hazırlanır ve indirilir. İsteyen "Yazdır" ile tarayıcıdan da yazdırabilir.
+7. **Envanter raporu:** Envanter onaylandıysa karnenin üstündeki "Envanter raporu" düğmesi ilk sayımın raporunu açar: kaç yer, kaç ağaç, kodlu harita, sınır, bahçe yapısı, ilk gözlemler. Bu rapor da PDF olarak indirilebilir.
 
 | Adım | Durum |
 | --- | --- |

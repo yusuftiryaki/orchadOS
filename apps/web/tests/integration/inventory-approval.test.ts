@@ -12,7 +12,9 @@ import {
 import { loadInventoryWorkspace, slotsWithOpenItems } from "@/lib/office/inventory-workspace";
 import { LocalFrame } from "@/lib/office/local-frame";
 import { verificationCandidates } from "@/lib/office/verification-candidates";
+import { inventoryPdf } from "@/lib/pdf/inventory-pdf";
 import { approveBoundary, loadBoundaryCard } from "@/lib/portal/boundary";
+import { loadInventoryReport } from "@/lib/portal/inventory-report";
 import type { Client } from "@/lib/supabase/types";
 import { purgeParcels } from "../local-db";
 import { SEED, serviceClient, signIn } from "./fixtures";
@@ -447,4 +449,16 @@ describe("owner's boundary card", () => {
       sapling: 1,
     });
   });
+
+  it("the owner's inventory report and its PDF", async () => {
+    const report = (await loadInventoryReport(as.owner, IDS.parcel))!;
+    expect(report.inventory?.sessionId).toBe(IDS.session);
+    expect(report.counts).toMatchObject({ slots: 6, trees: 5, emptySlots: 1 });
+    expect(report.boundary?.approvedAt).toBeTruthy();
+    expect(report.warnings).toContain("ungrafted");
+    expect(report.warnings).not.toContain("boundary_unapproved");
+    expect(report.map?.points).toHaveLength(6);
+    const pdf = await inventoryPdf(report);
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+  }, 30_000);
 });

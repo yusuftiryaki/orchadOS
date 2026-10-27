@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { reportPdf } from "@/lib/pdf/report-pdf";
 import { getParcelReport, getTour } from "@/lib/portal/data";
 import { changedTrees } from "@/lib/portal/map-layers";
 import { anonClient, serviceClient } from "./fixtures";
@@ -95,4 +96,13 @@ describe("tour time travel", () => {
     expect(tour.visits[0].panoramas).toHaveLength(2);
     expect(tour.visit?.id).toBe(PORTAL.visitPub);
   });
+});
+
+describe("report card PDF", () => {
+  it("renders the latest published visit", async () => {
+    const report = (await getParcelReport(await client("owner"), PORTAL.parcelA))!;
+    const pdf = await reportPdf(report);
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(pdf.length).toBeGreaterThan(10_000);
+  }, 30_000);
 });
