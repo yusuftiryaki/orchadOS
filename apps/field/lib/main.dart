@@ -18,8 +18,8 @@ import 'core/sync/connectivity.dart';
 import 'core/sync/supabase_sync_server.dart';
 import 'core/time/clock.dart';
 import 'features/auth/auth_repository.dart';
+import 'features/gnss/ble_gnss_logger.dart';
 import 'features/gnss/fake_gnss_logger.dart';
-import 'features/gnss/flutter_blue_gnss_logger.dart';
 import 'features/gnss/gnss_logger.dart';
 import 'features/tasks/sample_parcel.dart';
 import 'features/tasks/task_repository.dart';
@@ -65,7 +65,7 @@ Future<void> main() async {
   final docs = await getApplicationDocumentsDirectory();
   final GnssLogger logger = _fakeGnss
       ? FakeGnssLogger(autoTick: true, path: sampleWalk(start: DateTime.now()))
-      : FlutterBlueGnssLogger();
+      : BleGnssLogger();
 
   runApp(
     ProviderScope(

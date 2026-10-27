@@ -106,7 +106,7 @@ gantt
 - [x] **Etiketli veri:** *(PR #15)* Ofis aracındaki gövde tıklamaları (gövde tespit modeli için etiket) şimdilik tarayıcıda; veritabanında saklanmalı.
 - [x] **Web:** Ağaç rengi uzman ve ofis tarafında da *(PR #15)* `tree_latest_assessment` görünümüne bağlanmalı (portalda yapıldı).
 - [x] **Web:** Medya imzalama iki yerde *(PR #15)*: `src/lib/media/` (portal) ve `src/lib/expert/media.ts`. Uzman paneli ortak yardımcıya geçmeli; `fetchAll` kopyası da birleştirilmeli.
-- [ ] **Testler:** Ekleme-yalnız tablolar yüzünden web testleri kendi işletmelerini kurup `docker exec ... psql` ile temizliyor. Testler için bir temizlik fonksiyonu daha temiz olur.
+- [x] *(PR #30, #37)* **Testler:** Ekleme-yalnız tablolar yüzünden web testleri kendi işletmelerini kurup `docker exec ... psql` ile temizliyor. Testler için bir temizlik fonksiyonu daha temiz olur.
 - [x] *(PR #16)* **Örnek veri:** `supabase/demo/scans.sql` `pose` alanları `docs/arayuzler.md`'deki sözleşmeye tam uymuyor (`variant`, `gps_time_ns`, `panorama_asset_id` eksik; MIME türü WebP olmalı).
 - [x] **Karar (21 Ekim): yüz bulanıklaştırma üründen kaldırıldı.** Ertelenmiş bir iş değil; panoramalar ve kesitler bu şart olmadan yüklenir, kesitler AI'a gönderilir. Görüntülerde kişiler görünebileceği aydınlatma metninde belirtilir.
 - [x] **Karar (20 Ekim):** Yayından sonra sadece uzman ölçümleri kilitli; saha personelinin geç gelen kayıtları serbest.
@@ -116,7 +116,7 @@ gantt
 - [x] *(PR #22)* **İşleme hattı:** Sınır köşelerinden `boundary` sürümü; firmware 0.3.0 durum mesajında konum.
 - [x] *(PR #26)* **Saha uygulaması:** Firmware 0.3.0 konum geçerli bayrağı (bit6) kontrol ediliyor.
 - [x] *(PR #19)* **Operasyon ekranları:** Sahip/parsel kaydı, portal hesabı (`invite-user` Edge Function), ziyaret planlama ve pano.
-- [ ] **Lisans:** `flutter_blue_plus` ticari kullanımda ücretli. Öneri (PR #20): BSD lisanslı `universal_ble`'ye geçiş; değişiklik tek sınıfta (~1 gün), gerçek kaydediciyle denenerek ticari kullanımdan önce.
+- [x] *(PR #41)* **Lisans:** `flutter_blue_plus` (ticari kullanımda ücretli) yerine BSD lisanslı `universal_ble`. Gerçek kaydediciyle telefonda denenmesi kit gelince.
 - [x] *(PR #20, `permission_handler` 12'ye sabitlendi)* **Saha uygulaması:** `flutter build apk` CI'da kırık: `permission_handler_android` `compileSdk` 37 istiyor (İP6 senkronizasyon görevinde).
 
 Toplam yaklaşık 55 gün (İP9 hariç).
