@@ -41,6 +41,8 @@ const visitWritableStatuses = ['planned', 'captured'];
 /// is created by ops; field staff only reports what happened. The visit's
 /// audit methodology is set by ops too: the app's own protocol version
 /// (`field-v0`) goes with each measurement (`method_version`), never here.
+/// Platform and camera height come from the pre-check; sessions recorded
+/// before it asked for them send neither.
 Map<String, Object?> visitUpdate(
   SessionRow s, {
   Map<String, Object?>? weather,
@@ -49,6 +51,8 @@ Map<String, Object?> visitUpdate(
   'started_at': s.startGpsTimeMs != null
       ? _utc(s.startGpsTimeMs!)
       : s.startedAt.toUtc().toIso8601String(),
+  if (s.scanPlatform != null) 'scan_platform': s.scanPlatform,
+  if (s.cameraHeightM != null) 'camera_height_m': s.cameraHeightM,
   if (_recordedStatuses.contains(s.status)) ...{
     'status': 'captured',
     'ended_at': s.stopGpsTimeMs != null

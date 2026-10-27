@@ -151,6 +151,8 @@ class FieldRepository {
     String? loggerFirmware,
     required DateTime startedAt,
     int? startGpsTimeMs,
+    String? scanPlatform,
+    double? cameraHeightM,
   }) => db.transaction(() async {
     await db
         .into(db.sessions)
@@ -170,6 +172,8 @@ class FieldRepository {
             startedAt: startedAt,
             startGpsTimeMs: Value(startGpsTimeMs),
             status: 'recording',
+            scanPlatform: Value(scanPlatform),
+            cameraHeightM: Value(cameraHeightM),
           ),
         );
     await outbox.enqueue(OutboxEntity.session, id);
@@ -511,6 +515,21 @@ class FieldRepository {
 
   Future<SessionRow?> session(String id) =>
       (db.select(db.sessions)..where((s) => s.id.equals(id))).getSingleOrNull();
+
+  /// Newest scan of [parcelId] on this phone that recorded its platform
+  /// and camera height (pre-check prefill), or null.
+  Future<SessionRow?> lastScanSetup(String parcelId) =>
+      (db.select(db.sessions)
+            ..where(
+              (s) =>
+                  s.parcelId.equals(parcelId) &
+                  s.sessionType.equals('scan') &
+                  s.scanPlatform.isNotNull() &
+                  s.cameraHeightM.isNotNull(),
+            )
+            ..orderBy([(s) => OrderingTerm.desc(s.startedAt)])
+            ..limit(1))
+          .getSingleOrNull();
 
   /// Events of a session in recording order.
   Future<List<SessionEventRow>> events(String sessionId) =>
