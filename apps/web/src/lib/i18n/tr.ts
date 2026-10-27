@@ -490,6 +490,12 @@ export const tr = {
         broken_branch: "Dal kırığı",
         theft_trace: "Hırsızlık izi",
         irrigation_leak: "Sulama sızıntısı",
+        canopy_dieback: "Belirgin kuruma",
+        basal_sprouts: "Dip sürgünü",
+        regraft_candidate: "Yeniden aşılanabilir",
+        ungrafted_tree: "Aşısız ağaç",
+        pollinizer_ratio: "Erkek ağaç oranı",
+        animal_damage: "Hayvan zararı",
         other: "Diğer",
       } as Record<string, string>,
       severities: { info: "Bilgi", low: "Düşük", medium: "Orta", high: "Yüksek" },
@@ -556,6 +562,10 @@ export const tr = {
         `Zorunlu incelemeye girmeyen, AI önerisi olan ve henüz karar verilmemiş ağaçlar AI sonucuyla onaylanır; sahibe "Otomatik onay" olarak görünür. Kalite örneklemindeki ${sample} ağaç bu onaya girmez, tek tek bakılmalı.`,
       button: (n: number) => `Kalanları toplu onayla (${n} ağaç)`,
       none: "Toplu onaylanacak ağaç kalmadı.",
+      sampleOpen: (n: number) =>
+        `Toplu onay, kalite örneklemindeki ağaçların hepsine tek tek bakıldıktan sonra açılır. Kalan: ${n} ağaç.`,
+      sampleDisagreement: (pct: number) =>
+        `Örneklemde AI ile uyum %${pct}; %85'in altında olduğu için bu ziyarette toplu onay kapalı. Kalan ağaçlara tek tek bakın.`,
       done: (n: number) => `${n} ağaç toplu onaylandı.`,
       errors: {
         stale: "Liste değişti (yeni AI önerisi ya da karar). Sayfayı yenileyip tekrar deneyin.",
@@ -565,6 +575,8 @@ export const tr = {
         forbidden: "Toplu onay için uzman rolü gerekiyor.",
         invalid_metric: "AI değerlerinden biri ölçek dışında; o ağaca tek tek bakın.",
         write_failed: "Veritabanı kaydı reddetti.",
+        sample_open: "Önce kalite örneklemindeki ağaçların hepsine tek tek bakın.",
+        sample_disagreement: "Örneklemde AI ile uyum %85'in altında; toplu onay kapalı.",
       } as Record<string, string>,
     },
   },
@@ -913,8 +925,8 @@ export const tr = {
       label: "Genel durum skoru",
       outOf: "/ 100",
       help: "Ağaçların sınıflarına göre ağırlıklı ortalama",
-      weights:
-        "Sağlıklı 100, dikkat 60, sorunlu 20, kurumuş ve yok 0; değerlendirilmeyen ağaçlar hesaba girmez.",
+      weights: (w: { healthy: number; attention: number; problem: number }) =>
+        `Sağlıklı ${w.healthy}, dikkat ${w.attention}, sorunlu ${w.problem}, kurumuş ve yok 0; değerlendirilmeyen ağaçlar hesaba girmez.`,
       none: "Skor yok (değerlendirilmiş ağaç yok)",
       change: {
         up: (n: number) => `▲ ${n}`,
@@ -1096,6 +1108,13 @@ export const tr = {
       theft_trace: "Hırsızlık izi",
       weeds: "Yabani ot",
       pruning: "Budama",
+      broken_branch: "Dal kırığı",
+      canopy_dieback: "Belirgin kuruma",
+      basal_sprouts: "Dip sürgünü",
+      regraft_candidate: "Yeniden aşılanabilir",
+      ungrafted_tree: "Aşısız ağaç",
+      pollinizer_ratio: "Erkek ağaç oranı",
+      animal_damage: "Hayvan zararı",
     } as Record<string, string>,
     sessionKind: {
       inventory: "Envanter",

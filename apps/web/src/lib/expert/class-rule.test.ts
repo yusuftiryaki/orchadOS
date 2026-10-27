@@ -44,3 +44,13 @@ describe("general class rule (methodology 5)", () => {
     expect(ruleClass([v("db", 0), v("bs", "dense")], metrics)).toBe("healthy");
   });
 });
+
+describe("methodology v0.1 pest rule", () => {
+  it("mild signs do not count, marked ones mean attention", async () => {
+    const { reviewRulesFor } = await import("./mandatory-review");
+    const rule = reviewRulesFor("methodology-v0.1").classRule;
+    expect(ruleClass([v("db", 0), v("ps", "mild")], metrics, rule)).toBe("healthy");
+    expect(ruleClass([v("db", 0), v("ps", "marked")], metrics, rule)).toBe("attention");
+    expect(ruleClass([v("db", 3), v("ps", "mild")], metrics, rule)).toBe("problem");
+  });
+});

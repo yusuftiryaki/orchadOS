@@ -6,7 +6,7 @@ import { LocalFrame } from "@/lib/office/local-frame";
 import { CLASS_ORDER, distributionTotal, type Distribution } from "@/lib/portal/classes";
 import type { ParcelReport } from "@/lib/portal/data";
 import type { MetricSummaryRow } from "@/lib/portal/metrics";
-import { share } from "@/lib/portal/score";
+import { scoreRulesFor, share } from "@/lib/portal/score";
 import { Bullets, Footer, Header } from "./parts";
 import { COLORS, pdf, registerFonts } from "./theme";
 
@@ -69,7 +69,9 @@ function ReportDocument({ report, now }: { report: ParcelReport; now: Date }) {
               </Text>
             </View>
           </View>
-          <Text style={pdf.muted}>{`${sc.help}. ${sc.weights}`}</Text>
+          <Text
+            style={pdf.muted}
+          >{`${sc.help}. ${sc.weights(scoreRulesFor(latest.methodologyVersion).weights)}`}</Text>
 
           <DistributionBarPdf distribution={latest.distribution} />
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 4 }}>

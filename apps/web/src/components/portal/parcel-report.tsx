@@ -11,7 +11,7 @@ import { BoundaryCardView } from "./boundary-card";
 import { Dimensions } from "./dimensions";
 import { HealthMap, type MapLayer } from "./health-map";
 import { DistributionBar, findingKindLabel, percent, ScoreLine } from "./labels";
-import { share } from "@/lib/portal/score";
+import { scoreRulesFor, share } from "@/lib/portal/score";
 import {
   askQuestionAction,
   editQuestionAction,
@@ -159,7 +159,8 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
       <div className={styles.scoreBox} data-testid="score-box">
         <ScoreLine score={latest.score} change={report.scoreChange} size="large" />
         <p className={`muted ${styles.small}`}>
-          {t.portal.score.help}. {t.portal.score.weights}
+          {t.portal.score.help}.{" "}
+          {t.portal.score.weights(scoreRulesFor(latest.methodologyVersion).weights)}
         </p>
       </div>
       <p>

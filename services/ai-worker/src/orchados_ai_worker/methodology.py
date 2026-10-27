@@ -25,7 +25,16 @@ HEALTH_CLASSES: tuple[HealthClass, ...] = ("healthy", "attention", "problem", "d
 # (session.methodology_version); a visit without one uses the default, as the
 # expert panel does (apps/web, DEFAULT_METHODOLOGY_VERSION).
 DEFAULT_METHODOLOGY_VERSION = "methodology-v0"
-SUPPORTED_METHODOLOGY_VERSIONS = ("methodology-v0",)
+SUPPORTED_METHODOLOGY_VERSIONS = ("methodology-v0", "methodology-v0.1")
+
+# How far pest signs raise the general class, per methodology version (same as
+# apps/web/src/lib/expert/mandatory-review.ts, classRule): 0 not at all,
+# 1 attention, 2 problem. v0.1 (expert agent decision, awaiting the pilot
+# expert): mild signs no longer change the class, marked ones mean attention.
+PEST_CLASS_LEVELS: dict[str, tuple[int, int]] = {
+    "methodology-v0": (1, 2),
+    "methodology-v0.1": (0, 1),
+}
 
 # Visit calendar (docs/MVP.md, Modül 3), same rule as apps/web/src/lib/expert/season.ts:
 # March counts as spring, November as winter. Month in UTC.
@@ -233,7 +242,9 @@ STAFF_QUESTIONS: dict[str, str] = {
 }
 
 
-def expected_class(values: dict[str, object]) -> HealthClass | None:
+def expected_class(
+    values: dict[str, object], methodology_version: str = DEFAULT_METHODOLOGY_VERSION
+) -> HealthClass | None:
     """Overall class from scale values by rules 3-5 (section 5); None if nothing to judge by.
 
     The dieback pattern and hanging dried leaves raise the class (section 4.10).
@@ -248,8 +259,10 @@ def expected_class(values: dict[str, object]) -> HealthClass | None:
     leaves = values.get("dried_leaves_attached")
     if not given and pest is None and pattern is None and leaves is None:
         return None
-    if any(v == 3 for v in given) or pest == "marked" or leaves is True:
+    mild, marked = PEST_CLASS_LEVELS.get(methodology_version, PEST_CLASS_LEVELS["methodology-v0"])
+    pest_level = marked if pest == "marked" else mild if pest == "mild" else 0
+    if any(v == 3 for v in given) or pest_level == 2 or leaves is True:
         return "problem"
-    if any(v == 2 for v in given) or pest == "mild" or pattern in ("one_sided", "top_down"):
+    if any(v == 2 for v in given) or pest_level == 1 or pattern in ("one_sided", "top_down"):
         return "attention"
     return "healthy"

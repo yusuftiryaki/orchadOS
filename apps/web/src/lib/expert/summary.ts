@@ -1,5 +1,5 @@
 import type { Database } from "@/lib/database.types";
-import { DEFAULT_REVIEW_RULES, type MandatoryReason } from "./mandatory-review";
+import { DEFAULT_REVIEW_RULES, type MandatoryReason, type ReviewRules } from "./mandatory-review";
 
 // Review state of a visit's trees: filters for the tree list and the summary
 // shown before signing. Pure.
@@ -31,7 +31,7 @@ export interface ReviewTree {
   expertAuto?: boolean;
   // Rules the tree trips (mandatory review); empty or missing: none.
   mandatory?: MandatoryReason[];
-  // In the 5 % quality sample of the bulk-approvable trees.
+  // In the quality sample of the bulk-approvable trees (ReviewRules.sampleRate).
   sampled?: boolean;
 }
 
@@ -62,6 +62,31 @@ export function isMandatory(tree: Pick<ReviewTree, "mandatory">): boolean {
 // mandatory rule and are not in the quality sample.
 export function isBulkEligible(tree: ReviewTree): boolean {
   return tree.aiClass != null && tree.expertClass == null && !isMandatory(tree) && !tree.sampled;
+}
+
+export type BulkGate =
+  | { open: true; agreement: number | null }
+  | { open: false; reason: "sample_open"; remaining: number }
+  | { open: false; reason: "sample_disagreement"; agreement: number };
+
+// Whether bulk approval may run (ReviewRules.bulkGate): the whole quality sample
+// is decided one by one, and expert and AI agree on enough of it.
+export function bulkGate(trees: ReviewTree[], rules: Pick<ReviewRules, "bulkGate">): BulkGate {
+  const sample = trees.filter((t) => t.sampled);
+  const decided = sample.filter(isIndividuallyReviewed);
+  const compared = decided.filter((t) => t.aiClass != null);
+  const agreement =
+    compared.length > 0
+      ? compared.filter((t) => t.aiClass === t.expertClass).length / compared.length
+      : null;
+  if (!rules.bulkGate) return { open: true, agreement };
+  if (decided.length < sample.length) {
+    return { open: false, reason: "sample_open", remaining: sample.length - decided.length };
+  }
+  if (agreement !== null && agreement < rules.bulkGate.minAgreement) {
+    return { open: false, reason: "sample_disagreement", agreement };
+  }
+  return { open: true, agreement };
 }
 
 // Decided by the expert one by one (not by bulk approval).

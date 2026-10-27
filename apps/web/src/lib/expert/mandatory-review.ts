@@ -20,6 +20,11 @@ export type MandatoryReason = (typeof MANDATORY_REASONS)[number];
 // A stored value of a measurement: scale, number, category or yes/no.
 export type ObservedValue = number | string | boolean;
 
+export interface ClassRuleConfig {
+  pestMild: 0 | 1 | 2;
+  pestMarked: 0 | 1 | 2;
+}
+
 // A field crew yes/no question and the AI metric it can contradict. "yes"
 // contradicts an AI value in `absent`; "no" contradicts one in `clear`.
 export interface StaffConflictRule {
@@ -38,8 +43,17 @@ export interface ReviewRules {
   // The field crew's "Sorun gördüm" mark (yes/no staff measurement).
   staffProblemMetric: string;
   staffConflicts: StaffConflictRule[];
-  // Share of the bulk-approvable trees the expert still sees.
+  // Share of the bulk-approvable trees the expert still sees, and at least this
+  // many of them (all when there are fewer).
   sampleRate: number;
+  sampleMin: number;
+  // Bulk approval only after the expert has decided the whole quality sample,
+  // and only while the sample agrees with the AI at least this often (expert
+  // class = AI class). Null: no gate.
+  bulkGate: { minAgreement: number } | null;
+  // General class rule (docs/metodoloji.md, section 5): the level that mild and
+  // marked pest signs raise the class to (0 none, 1 attention, 2 problem).
+  classRule: ClassRuleConfig;
   // The pipeline's presence check (algorithm measurement): these values send the
   // tree to the expert, who alone gives the class "absent" (methodology, section 5).
   presenceMetric: string;
@@ -65,12 +79,29 @@ const METHODOLOGY_V0: ReviewRules = {
     { staff: "branch_break", ai: "branch_break", absent: [false], clear: [true] },
   ],
   sampleRate: 0.05,
+  sampleMin: 0,
+  bulkGate: null,
+  classRule: { pestMild: 1, pestMarked: 2 },
   presenceMetric: "tree_visible",
   notVisibleValues: ["no"],
 };
 
+// Expert agent decisions of 27 October 2026 (docs/uzman-ajan-onerileri.md),
+// awaiting the pilot expert: a 10 % sample of at least 20 trees, decided
+// before bulk approval, which stops below 85 % agreement; mild pest signs no
+// longer change the class, marked ones raise it to attention.
+const METHODOLOGY_V0_1: ReviewRules = {
+  ...METHODOLOGY_V0,
+  methodologyVersion: "methodology-v0.1",
+  sampleRate: 0.1,
+  sampleMin: 20,
+  bulkGate: { minAgreement: 0.85 },
+  classRule: { pestMild: 0, pestMarked: 1 },
+};
+
 export const REVIEW_RULES: Record<string, ReviewRules> = {
   [METHODOLOGY_V0.methodologyVersion]: METHODOLOGY_V0,
+  [METHODOLOGY_V0_1.methodologyVersion]: METHODOLOGY_V0_1,
 };
 export const DEFAULT_REVIEW_RULES = METHODOLOGY_V0;
 
@@ -151,8 +182,13 @@ export function hash32(text: string): number {
 // smallest hash of seed + id. The seed is the visit id, so the sample stays
 // the same across page loads and processes, and a tree keeps its place when
 // others join or leave the candidates.
-export function qualitySample(seed: string, candidateIds: string[], rate: number): Set<string> {
-  const size = Math.min(candidateIds.length, Math.ceil(candidateIds.length * rate));
+export function qualitySample(
+  seed: string,
+  candidateIds: string[],
+  rate: number,
+  min = 0,
+): Set<string> {
+  const size = Math.min(candidateIds.length, Math.max(min, Math.ceil(candidateIds.length * rate)));
   const ranked = [...new Set(candidateIds)]
     .map((id) => ({ id, h: hash32(`${seed}:${id}`) }))
     .sort((a, b) => a.h - b.h || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -179,7 +215,7 @@ export function triage(
     out.set(tree.id, { mandatory, sampled: false });
     if (mandatory.length === 0) candidates.push(tree.id);
   }
-  for (const id of qualitySample(sessionId, candidates, rules.sampleRate)) {
+  for (const id of qualitySample(sessionId, candidates, rules.sampleRate, rules.sampleMin)) {
     out.get(id)!.sampled = true;
   }
   return out;

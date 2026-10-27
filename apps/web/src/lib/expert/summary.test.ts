@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bulkGate,
   compareSlots,
   isBulkEligible,
   matchesFilter,
@@ -188,5 +189,42 @@ describe("bulk approval and quality sample", () => {
     });
     expect(sampleDisagreementRate(s)).toBe(0.5);
     expect(sampleDisagreementRate(summarize([], []))).toBeNull();
+  });
+});
+
+describe("bulk approval gate (methodology v0.1)", () => {
+  const tree = (id: string, over: Partial<ReviewTree>): ReviewTree =>
+    ({
+      id,
+      code: id,
+      rowNo: 1,
+      positionNo: 1,
+      suffix: null,
+      aiClass: "healthy",
+      aiConfidence: 0.9,
+      expertClass: null,
+      expertAuto: false,
+      previousClass: null,
+      mandatory: [],
+      sampled: false,
+      ...over,
+    }) as ReviewTree;
+  const gate = { bulkGate: { minAgreement: 0.85 } };
+
+  it("waits for the whole sample, then needs 85 % agreement", () => {
+    const sample = Array.from({ length: 10 }, (_, i) =>
+      tree(`s${i}`, { sampled: true, expertClass: i < 9 ? "healthy" : null }),
+    );
+    expect(bulkGate(sample, gate)).toEqual({ open: false, reason: "sample_open", remaining: 1 });
+    sample[9] = tree("s9", { sampled: true, expertClass: "healthy" });
+    expect(bulkGate(sample, gate)).toEqual({ open: true, agreement: 1 });
+    sample[8] = tree("s8", { sampled: true, expertClass: "attention" });
+    sample[7] = tree("s7", { sampled: true, expertClass: "problem" });
+    expect(bulkGate(sample, gate)).toEqual({
+      open: false,
+      reason: "sample_disagreement",
+      agreement: 0.8,
+    });
+    expect(bulkGate(sample, { bulkGate: null }).open).toBe(true);
   });
 });

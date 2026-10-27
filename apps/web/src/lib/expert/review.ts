@@ -19,6 +19,7 @@ import {
 } from "./mandatory-review";
 import { seasonOf, sessionTime, type Season } from "./season";
 import { compareSlots, newest, type HealthClass, type ReviewTree } from "./summary";
+import { LEGACY_METHODOLOGY_VERSION } from "@/lib/methodology";
 
 // Data access of the expert panel. Every query runs as the signed-in user;
 // row level security decides what the expert sees (their org's sessions).
@@ -31,7 +32,8 @@ export type SessionKind = Enums["session_kind"];
 export const REVIEW_KINDS: SessionKind[] = ["periodic_scan", "verification"];
 export const QUEUE_STATUSES: SessionStatus[] = ["processed", "in_review"];
 // The methodology version a decision is recorded with when the session names none.
-export const DEFAULT_METHODOLOGY_VERSION = "methodology-v0";
+// Visits without a recorded version (lib/methodology.ts).
+export const DEFAULT_METHODOLOGY_VERSION = LEGACY_METHODOLOGY_VERSION;
 
 const SESSION_COLUMNS =
   "id, org_id, parcel_id, kind, status, started_at, planned_date, created_at, methodology_version, published_at, published_by";
