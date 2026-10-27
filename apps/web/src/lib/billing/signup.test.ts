@@ -3,10 +3,10 @@ import {
   type AccountMatch,
   clientIp,
   decideMatches,
-  hasPhoneCodeSince,
   hmacHex,
   isExpiredUnverified,
   jwtClaims,
+  latestPhoneCodeAt,
   parseRegister,
   timingSafeEqual,
 } from "../../../../../supabase/functions/_shared/signup";
@@ -122,28 +122,54 @@ describe("hashes and secrets", () => {
   });
 });
 
+const NOW = Date.parse("2026-10-27T12:00:00Z");
+const OLD = "2026-10-27T11:00:00Z";
+const RECENT = "2026-10-27T11:50:00Z";
+
 const match = (m: Partial<AccountMatch> & Pick<AccountMatch, "user_id" | "matched_by">) => ({
   self_signup: false,
   phone_confirmed: false,
   signup_completed: false,
+  started_at: OLD,
   ...m,
 });
 
 describe("decideMatches", () => {
   it("creates the account when nothing matches", () => {
-    expect(decideMatches([])).toEqual({ staleUserIds: [], outcome: "create" });
+    expect(decideMatches([], NOW)).toEqual({ staleUserIds: [], outcome: "create" });
   });
 
   it("deletes stale self sign-ups and goes on", () => {
     const stale = match({ user_id: "a", matched_by: "email", self_signup: true });
     const stalePhone = { ...stale, matched_by: "phone" as const };
-    expect(decideMatches([stale, stalePhone])).toEqual({ staleUserIds: ["a"], outcome: "create" });
+    expect(decideMatches([stale, stalePhone], NOW)).toEqual({
+      staleUserIds: ["a"],
+      outcome: "create",
+    });
+  });
+
+  it("keeps a stale sign-up inside the grace period: the same e-mail or phone is refused", () => {
+    const recent = match({
+      user_id: "a",
+      matched_by: "email",
+      self_signup: true,
+      started_at: RECENT,
+    });
+    expect(decideMatches([recent], NOW)).toEqual({ staleUserIds: [], outcome: "email_taken" });
+    expect(decideMatches([{ ...recent, matched_by: "phone" }], NOW)).toEqual({
+      staleUserIds: [],
+      outcome: "phone_registered",
+    });
+    // Past the grace period it goes.
+    const old = { ...recent, started_at: OLD };
+    expect(decideMatches([old], NOW)).toEqual({ staleUserIds: ["a"], outcome: "create" });
+    expect(decideMatches([{ ...recent, started_at: "not a date" }], NOW).staleUserIds).toEqual([]);
   });
 
   it("sends the verified owner of the phone to the code step", () => {
     const owner = match({ user_id: "a", matched_by: "phone", phone_confirmed: true });
-    expect(decideMatches([owner]).outcome).toBe("existing_account");
-    expect(decideMatches([owner, { ...owner, matched_by: "email" }]).outcome).toBe(
+    expect(decideMatches([owner], NOW).outcome).toBe("existing_account");
+    expect(decideMatches([owner, { ...owner, matched_by: "email" }], NOW).outcome).toBe(
       "existing_account",
     );
   });
@@ -151,24 +177,25 @@ describe("decideMatches", () => {
   it("refuses a verified phone whose e-mail is someone else's", () => {
     const owner = match({ user_id: "a", matched_by: "phone", phone_confirmed: true });
     const other = match({ user_id: "b", matched_by: "email" });
-    expect(decideMatches([owner, other]).outcome).toBe("email_taken");
+    expect(decideMatches([owner, other], NOW).outcome).toBe("email_taken");
   });
 
   it("refuses another customer's profile phone, a taken e-mail and an unverified phone", () => {
-    expect(decideMatches([match({ user_id: "a", matched_by: "profile_phone" })]).outcome).toBe(
+    expect(decideMatches([match({ user_id: "a", matched_by: "profile_phone" })], NOW).outcome).toBe(
       "phone_registered",
     );
-    expect(decideMatches([match({ user_id: "a", matched_by: "email" })]).outcome).toBe(
+    expect(decideMatches([match({ user_id: "a", matched_by: "email" })], NOW).outcome).toBe(
       "email_taken",
     );
-    expect(decideMatches([match({ user_id: "a", matched_by: "phone" })]).outcome).toBe(
+    expect(decideMatches([match({ user_id: "a", matched_by: "phone" })], NOW).outcome).toBe(
       "phone_registered",
     );
     // A completed self sign-up is not stale even with an unconfirmed phone.
     expect(
-      decideMatches([
-        match({ user_id: "a", matched_by: "email", self_signup: true, signup_completed: true }),
-      ]),
+      decideMatches(
+        [match({ user_id: "a", matched_by: "email", self_signup: true, signup_completed: true })],
+        NOW,
+      ),
     ).toEqual({ staleUserIds: [], outcome: "email_taken" });
   });
 });
@@ -179,36 +206,27 @@ function token(claims: unknown): string {
 }
 
 describe("complete: phone code check", () => {
-  const created = Date.parse("2026-10-27T10:00:00Z");
   const at = (iso: string) => Math.floor(Date.parse(iso) / 1000);
 
-  it("needs an otp or sms login after the account was created", () => {
+  it("gives the latest otp or sms login", () => {
     const claims = jwtClaims(
-      token({ amr: [{ method: "otp", timestamp: at("2026-10-27T10:01:00Z") }] }),
+      token({
+        amr: [
+          { method: "otp", timestamp: at("2026-10-27T10:01:00Z") },
+          { method: "sms", timestamp: at("2026-10-27T10:03:00Z") },
+          { method: "password", timestamp: at("2026-10-27T10:05:00Z") },
+        ],
+      }),
     );
-    expect(hasPhoneCodeSince(claims, created)).toBe(true);
-    expect(
-      hasPhoneCodeSince(
-        { amr: [{ method: "sms", timestamp: at("2026-10-27T10:00:00Z") }] },
-        created,
-      ),
-    ).toBe(true);
+    expect(latestPhoneCodeAt(claims)).toBe(at("2026-10-27T10:03:00Z"));
   });
 
-  it("refuses a password login or an older code", () => {
+  it("gives null for a password login or no claims", () => {
     expect(
-      hasPhoneCodeSince(
-        { amr: [{ method: "password", timestamp: at("2026-10-27T10:05:00Z") }] },
-        created,
-      ),
-    ).toBe(false);
-    expect(
-      hasPhoneCodeSince(
-        { amr: [{ method: "otp", timestamp: at("2026-10-27T09:59:00Z") }] },
-        created,
-      ),
-    ).toBe(false);
-    expect(hasPhoneCodeSince(null, created)).toBe(false);
+      latestPhoneCodeAt({ amr: [{ method: "password", timestamp: at("2026-10-27T10:05:00Z") }] }),
+    ).toBeNull();
+    expect(latestPhoneCodeAt({ amr: [{ method: "otp" }] })).toBeNull();
+    expect(latestPhoneCodeAt(null)).toBeNull();
     expect(jwtClaims("not-a-token")).toBeNull();
   });
 });

@@ -605,11 +605,14 @@ create table private.signup_attempt (
   id uuid primary key default gen_random_uuid(),
   ip_hash text not null check (ip_hash ~ '^[0-9a-f]{64}$'),
   phone_hash text not null check (phone_hash ~ '^[0-9a-f]{64}$'),
+  email_hash text not null check (email_hash ~ '^[0-9a-f]{64}$'),
   created_at timestamptz not null default now()
 );
-comment on table private.signup_attempt is 'Sign-up attempts (HMAC of IP and phone) for the rate limits. Kept two days.';
+comment on table private.signup_attempt is
+  'Sign-up attempts (HMAC of IP, phone and e-mail) for the rate limits. Kept two days.';
 create index signup_attempt_ip_idx on private.signup_attempt (ip_hash, created_at desc);
 create index signup_attempt_phone_idx on private.signup_attempt (phone_hash, created_at desc);
+create index signup_attempt_email_idx on private.signup_attempt (email_hash, created_at desc);
 create index signup_attempt_time_idx on private.signup_attempt (created_at);
 
 create table private.application_garden_detail (
@@ -743,13 +746,36 @@ grant execute on function private.signup_org_id() to service_role;
 -- 4. Triggers
 -- ---------------------------------------------------------------------------
 
--- A published price list never changes and is never deleted.
+-- True when the update only clears some of the given user columns: the
+-- UPDATE Postgres runs for an `on delete set null` FK when that user is
+-- deleted. Guards let it through so deleting a staff account never fails.
+create function private.only_unlinks_users(p_old jsonb, p_new jsonb, p_columns text[])
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select p_new is distinct from p_old
+     and (p_new - p_columns - 'updated_at') = (p_old - p_columns - 'updated_at')
+     and not exists (
+       select 1 from unnest(p_columns) c
+       where p_new -> c is distinct from p_old -> c and p_new -> c <> 'null'::jsonb
+     );
+$$;
+revoke all on function private.only_unlinks_users(jsonb, jsonb, text[]) from public;
+
+-- A published price list never changes and is never deleted (its user
+-- columns are only cleared when that user is deleted).
 create function private.price_list_guard()
 returns trigger
 language plpgsql
 set search_path = ''
 as $$
 begin
+  if tg_op = 'UPDATE'
+     and private.only_unlinks_users(to_jsonb(old), to_jsonb(new), array['created_by', 'published_by']) then
+    return new;
+  end if;
   if old.status = 'published' then
     raise exception 'price_list_not_draft' using errcode = 'P0001',
       hint = 'A published price list is final; create a new draft.';
@@ -779,7 +805,8 @@ end;
 $$;
 
 -- Lines and amounts never change; only an issued quote moves (once) to a final
--- status with its decision time and decider.
+-- status with its decision time and decider. issued_by and decided_by are
+-- cleared when that user is deleted (FK set null).
 create function private.quote_guard()
 returns trigger
 language plpgsql
@@ -788,6 +815,9 @@ as $$
 begin
   if tg_op = 'DELETE' then
     raise exception 'DELETE on public.quote is not allowed' using errcode = 'P0001';
+  end if;
+  if private.only_unlinks_users(to_jsonb(old), to_jsonb(new), array['issued_by', 'decided_by']) then
+    return new;
   end if;
   if (to_jsonb(new) - array['status', 'decided_at', 'decided_by', 'updated_at'])
      is distinct from (to_jsonb(old) - array['status', 'decided_at', 'decided_by', 'updated_at']) then
