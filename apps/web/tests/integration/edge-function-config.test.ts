@@ -43,6 +43,9 @@ describe("Edge Function configuration", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: "{}",
+      // payment-callback answers with a 303 to the portal, which is not
+      // running here: the status itself is what is checked.
+      redirect: "manual",
     });
     await res.body?.cancel();
     expect(res.status).not.toBe(404);
