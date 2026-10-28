@@ -490,7 +490,9 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
   final DateTime? stoppedAt;
   final int? stopGpsTimeMs;
 
-  /// `recording`, `stopped` or `closed` (visit summary confirmed).
+  /// `recording`, `stopped` or `closed` (visit summary confirmed); `blocked`
+  /// when the visit could not be done and nothing was recorded (local only,
+  /// never sent as a visit update).
   final String status;
 
   /// How the scan was done (schema 6): `walk` (backpack pole),
@@ -1327,8 +1329,9 @@ class SessionEventRow extends DataClass implements Insertable<SessionEventRow> {
   final String sessionId;
 
   /// `session_start`, `session_stop`, `corner`, `qr_sync`,
-  /// `boundary_corners`, `coverage`, `route`, `route_progress`
-  /// (docs/arayuzler.md).
+  /// `boundary_corners`, `coverage`, `route`, `route_progress`, the legal
+  /// field records `field_notice_*`, `visit_blocked`, `boundary_pointer`
+  /// (docs/arayuzler.md, "Saha olayları").
   final String eventType;
   final String payload;
 
@@ -2194,7 +2197,8 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
   final String sha256;
   final String sessionId;
 
-  /// `closeup_photo`.
+  /// `closeup_photo`, `audio_note`, `boundary_photo`, `verification_photo`,
+  /// `blocked_visit_photo`.
   final String kind;
 
   /// `phone_camera`.
@@ -2204,6 +2208,7 @@ class CaptureRow extends DataClass implements Insertable<CaptureRow> {
   final String localPath;
 
   /// Subject: `tree` and the tree id; slot code kept for the field crew.
+  /// Also `slot`, `corner` (its event) and `event` (a `visit_blocked`).
   final String subjectType;
   final String subjectId;
   final String? slotCode;
