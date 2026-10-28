@@ -41,6 +41,7 @@ function valuesOf(form: FormData): SignupValues {
     phone: read("phone"),
     email: read("email"),
     contact_preference: read("contact_preference") || INITIAL_VALUES.contact_preference,
+    kvkk_notice: read("kvkk_notice") === "on",
     explicit_service_improvement: read("explicit_service_improvement") === "on",
     explicit_marketing: read("explicit_marketing") === "on",
   };

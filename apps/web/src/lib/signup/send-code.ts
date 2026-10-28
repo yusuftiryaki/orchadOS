@@ -1,4 +1,4 @@
-import { phoneCodeError, type PhoneCodeError } from "@/app/giris/login-methods";
+import { phoneCodeError, type PhoneCodeError } from "@/app/(site)/giris/login-methods";
 import { sendSignupCode } from "@/lib/signup/client";
 import type { Client } from "@/lib/supabase/types";
 
