@@ -42,7 +42,7 @@ Temel: `main` ≥ `8ce1252` (#66 ve #67 birleşti). En yeni migration `202611011
 
 **Kapsam dışı:**
 - Bir üyelikte farklı paketler. Dönemin paketi temel siparişin paketidir; paket yenilemede değişir.
-- Yenilenmeyen üyelikte erişimin otomatik kapanması, yani Md. 12/4'ün dönem sonunda uygulanması. Bugünkü gibi kalır; avukat onayından sonra ayrı iş olarak ele alınır (§19).
+- Yenilenmeyen üyelikte erişimin otomatik kapanması, yani Md. 12/4'ün dönem sonunda uygulanması. Karara bağlandı: 12/4 bütün sona erme hallerine uygulanır; T08 ilk dönem bitişinden önce ([hukuk/kararlar.md](hukuk/kararlar.md) H23). Bu İP'de yapılmaz (§19).
 - Bahçenin başka müşteriye tek adımda devri. Devir, eski sahipte çıkarma ve yeni sahipte yeni başvurudur (§13).
 - Ziyaret penceresi (Ek-2) modeli ve ziyaret planlamasının siparişe bağlanması. Envanteri ve ziyaretleri ops bugünkü gibi elle planlar.
 - Hissedarın kendi adına çıkarma talebi; erişimi kalkan hissedara SMS.
@@ -54,7 +54,7 @@ Temel: `main` ≥ `8ce1252` (#66 ve #67 birleşti). En yeni migration `202611011
 - **Kullanıcı kararı (28 Ekim):** "Müşterinin birden fazla bahçesi olabilir ve üyeliği boyunca bahçe ekleyip çıkarabilmeli hesabına." Açık seçimlerde önerilen seçenek uygulanır.
 - **Kullanıcı kararları (28 Ekim, açık sorulara yanıt):**
     - **Fiyat:** Bahçe fiyatı minimum ücret ve dönüm başına ücretle hesaplanır; hangisi büyükse o alınır (`max(dönüm × birim fiyat, minimum ücret)`, İP12'deki gibi). Ek bahçeye özel bir fark uygulanmaz: aynı formül kalan ziyaret hakkına göre orantılanır. Minimum ücret de orantılanır (§6). Envanter ücreti tam alınır.
-    - **Cayma:** Çok bahçeli bir siparişte tek bir bahçe için cayma hakkı kullanılabilir. Envanter sayımı yapıldıysa envanter ücreti iade edilmez. Yapılmış periyodik ziyaretlerin bedeli de düşülür (md. 15/1-ğ). Müşterinin tacir olup olmadığı ve cayma süresinin hangi gün başladığı avukata sorulacak.
+    - **Cayma:** Çok bahçeli bir siparişte tek bir bahçe için cayma hakkı kullanılabilir. Envanter sayımı yapıldıysa envanter ücreti iade edilmez. Yapılmış periyodik ziyaretlerin bedeli de düşülür (md. 15/1-(h)). Karar: tacir Sahip'e de cayma sözleşmeyle tanınır (hukuk/kararlar.md H10); düşme yalnızca hizmete erken başlama onayı varsa uygulanır (H11, T03).
     - **Erişim:** Çıkarılan bahçede 90 gün salt okunur erişim yeterli.
 - **Hedef: müşterinin tek bir üyelik dönemi vardır ve bütün bahçeleri aynı gün biter.**
     - Müşteri tek bir bitiş tarihi ve tek bir yenileme teklifi görür (Md. 12/2: yenileme teklifi bitimden 45 gün önce verilir).
@@ -78,8 +78,9 @@ Temel: `main` ≥ `8ce1252` (#66 ve #67 birleşti). En yeni migration `202611011
         - "30 gün sonra" (varsayılan): bugün + `removal_notice_days` (30; Md. 12/3) ile satırın dönem sonunun ertesi gününden hangisi önce geliyorsa o gün.
         - "Dönem sonunda": satırın dönem sonunun ertesi günü.
         - "Cayma hakkımı kullanıyorum": yalnızca cayma süresinde gösterilir. Çıkış bugündür.
+        - Karar: "hemen" seçeneği (çıkış yarın) eklenecek, varsayılan kalkacak (hukuk/kararlar.md H20, T05).
     - **Cayma, bir zamanlama seçiminden çıkarılmaz.** Tüketicinin kullandığı bir haktır, bu yüzden ayrı bir seçenektir.
-    - **Cayma süresi:** talep günü (İstanbul) ≤ `withdrawal_until` olmalı. `withdrawal_until` = siparişin `activated_at` günü + 14 (`private.withdrawal_until`). Sürenin kabul gününden mi başlayacağına avukat karar verir.
+    - **Cayma süresi:** talep günü (İstanbul) ≤ `withdrawal_until` olmalı. `withdrawal_until` = siparişin `activated_at` günü + 14 (`private.withdrawal_until`). Karar: süre etkinleşme gününden sayılmaya devam eder (Sahip lehine uzatma; hukuk/kararlar.md H13).
     - Talep ops onayı beklemez; çıkış günü gelince kendiliğinden işler. Md. 12/3 fesih hakkını iki tarafa da veriyor; ops onayı bir hak değil, operasyonel bir kontroldür. Ops tarihi müşteriyle anlaşarak değiştirebilir; müşteriye SMS gider.
     - **Ödeme bekleyen bir siparişte bulunan bahçe için çıkarma talebi alınmaz** (`parcel_order_pending`). Önce o sipariş iptal edilir ya da düzeltilir; ödenmiş bir yenilemenin satırı ise çıkarmaya dahil edilir.
 - **İade (varsayılan, ayarlanabilir):**
@@ -87,11 +88,11 @@ Temel: `main` ≥ `8ce1252` (#66 ve #67 birleşti). En yeni migration `202611011
     - **Kullanılmayan ziyaret × satırın ziyaret bedeli.** Envanter payı yalnızca envanter yapıldıysa tutulur, yapılmadıysa iade edilir (Md. 12/3, 8A/2).
     - **Önceki iadeler düşülür:** iade = max(0, hesap − satıra daha önce açılmış ya da yapılmış iadeler). Md. 8A kaçırılmış ziyaret iadeleri de buna dahildir; böylece bir ziyaret iki kez ödenmez. Satıra bağlanamayan kalemsiz iade (çok satırlı siparişte havale ya da `void`) varsa sistem iade satırı açmaz, yalnızca hesabı gösterir; ops karar verir.
     - **Dönemi biten satır:** Dönemi çıkış gününden önce biten satır çıkarma iadesine girmez. O dönemin kaçırılmış ziyaretleri yalnızca Md. 8A süreciyle iade edilir.
-    - **Cayma:** Satırın tamamı iade edilir. Yapılmış envanterin payı ve yapılmış periyodik ziyaretlerin bedeli düşülür (Md. 8B; Mesafeli Sözleşmeler Yönetmeliği md. 15/1-ğ; avukat kararı).
+    - **Cayma:** Satırın tamamı iade edilir. Yapılmış envanterin payı ve yapılmış periyodik ziyaretlerin bedeli düşülür (Md. 8B; Mesafeli Sözleşmeler Yönetmeliği md. 15/1-(h); hukuk/kararlar.md H11: kesinti yalnızca erken başlama onayı varsa, T03).
     - **Mükerrer kayıt** (ops'un hatası, neden `duplicate`): Satırın tamamı iade edilir, yalnızca yapılmış ziyaretler düşülür.
     - **İade satırları:** Sistemce `requested` durumunda açılır; ops bugünkü iade ekranından işler. `removal_refund_mode = 'manual'` iken ya da satıra bağlanamayan iade varken tutar yalnızca hesaplanıp gösterilir.
     - Bu varsayılan muhafazakârdır: sözleşme taslağıyla uyumludur, para ops işlemeden çıkmaz, hesap dondurulmuş teklif satırından yapılır ve her satırın KDV payı ayrıca yazılır.
-- **Veri silinmez.**
+- **Veri silinmez.** Kural, KVKK gereği "sözleşme, erişim ve saklama süresi içinde silinmez; süre dolunca silinir ya da anonim hale getirilir" olarak okunur (hukuk/kararlar.md H25).
     - Parsel `passive` olur. Medya, ölçüm ve raporlar kalır (CLAUDE.md).
     - Erişim süresi `removal_access_days` (90; Md. 12/4) gündür. Bu süre boyunca parsel salt okunurdur: soru sorulamaz, hissedar davet edilemez.
     - **Süre bitince kaldırılan erişim:**
@@ -127,7 +128,7 @@ Temel: `main` ≥ `8ce1252` (#66 ve #67 birleşti). En yeni migration `202611011
 | Kavram | Tanım |
 | --- | --- |
 | Temel sipariş | `addon_of_order_id is null` olan sipariş: başvurudan gelen ilk sipariş, parsel teklifi ya da yenileme. Üyelik dönemini (`service_start`–`service_end`) ve paketi belirler |
-| Ek sipariş | `addon_of_order_id = <temel sipariş>` olan sipariş. Kendi teklifi, ödemesi, makbuzu ve cayma süresi vardır; ayrı bir mesafeli sözleşme olup olmadığına avukat karar verir (§19). Bitişi temel siparişin bitişidir |
+| Ek sipariş | `addon_of_order_id = <temel sipariş>` olan sipariş. Kendi teklifi, ödemesi, makbuzu ve cayma süresi vardır; karar: ayrı bir mesafeli sözleşmedir (hukuk/kararlar.md H13). Bitişi temel siparişin bitişidir |
 | Üyelik dönemi | Bugünü kapsayan aktif temel sipariş ve ona bağlı aktif ek siparişler. Ödenmiş bir yenileme "sonraki dönem"dir |
 | Ana dönem | Müşterinin birden çok dönemi varsa portalın ve ek teklifin kullandığı dönem (`is_primary`, §4.4) |
 | Son ek günü | `addon_last_day = service_end − addon_min_days + 1`: ek teklifin kabul edilebileceği ve ödenebileceği son gün |
@@ -1171,7 +1172,7 @@ Metinler `messages/back-office.ts` içindedir. Durum etiketleri ve hata metinler
     - erişim günü 0 ile çıkarma ve ertesi housekeeping'de erişimin kalkması,
     - yenileme ekranının ön seçimi.
 3. **Pilot kapıları:**
-    - avukatın onayladığı metinler: sözleşme, iade, ön bilgilendirme (§16),
+    - hukuki metinlerin [yayın şartları](hukuk/kararlar.md#yayin) ile T05 ve T18: sözleşme, iade, ön bilgilendirme (§16),
     - fiyat kararları (§19).
 
     Bunlar tamamlanınca anahtar açılır.
@@ -1181,7 +1182,7 @@ Metinler `messages/back-office.ts` içindedir. Durum etiketleri ve hata metinler
 
 | Kim | Ne |
 | --- | --- |
-| Avukat | Çoğul bahçe ve bahçe listesi (Md. 2, Ek-1); ek siparişin hukuki niteliği ve cayma süresinin başlangıcı (aktivasyon mu kabul mü); dönem içi orantılı fiyat maddesi ve ön bilgilendirme; bahçe bazında kısmi fesih (12/3); 8A iadelerinin çıkarma iadesinden düşülmesi; çıkarılan bahçeye 12/4; tek bahçe için açık cayma, yapılmış ziyaret ve envanter payının düşülmesi (md. 15/1-ğ); 90 gün salt okunur erişim ve KVKK saklama süresi; hissedarların ve diğer sahiplerin erişimi |
+| Avukat | Karara bağlandı: [hukuk/kararlar.md](hukuk/kararlar.md) (H13, H18–H23). Anahtarı açmadan önce [yayın şartları](hukuk/kararlar.md#yayin), T05 ve T18 |
 | Yusuf | Minimum ücretin orantılanması, envanter ücreti ve geçerlilik süresi, `addon_min_days`, bildirim süresi, iade modu, hesap başına bahçe sınırı; pilotta anahtarı açma kararı |
 | Ops | Kuyruk, engelli kayıtlar ve iade işleme rutini (`kullanim-kilavuzu.md`) |
 
@@ -1238,17 +1239,17 @@ Metinler `messages/back-office.ts` içindedir. Durum etiketleri ve hata metinler
 
 ## 19. Açık sorular ve kabul edilen riskler
 
-- ~~Ek bahçede minimum ücretin orantılanması ve envanter ücretinin tam alınması~~: kullanıcı onayladı (§2). Açık kalan: envanterin yeniden kullanımda kaç yıl geçerli sayılacağı.
-- Orantı birimi ve yuvarlama (yarım yukarı, en az 1 ziyaret), `addon_min_days = 30` ve son ek günü kuralı.
-- Ek siparişin hukuki niteliği (ayrı sözleşme ya da ek) ve cayma süresinin başlangıcı (aktivasyon günü ya da kabul günü).
-- Bahçe bazında fesih: 30 gün bildirim, "dönem sonunda" seçeneği, kaçırılmış ziyaretlerin iade hesabına girmesi ve 8A iadelerinin düşülmesi.
-- ~~Çok bahçeli siparişte tek bahçe için açık cayma; cayma süresinde yapılmış envanter ve ziyaretlerin düşülmesi~~: kullanıcı onayladı (§2). Avukata kalan: müşteri tacirse cayma hakkının uygulanmaması ve md. 15/1-ğ metni.
-- 90 gün salt okunur erişim (kullanıcı onayladı, §2); hissedarların ve diğer sahiplerin erişimi, devirde 0 gün; KVKK saklama süresi [X] ile ilişkisi.
+- ~~Ek bahçede minimum ücretin orantılanması ve envanter ücretinin tam alınması~~: kullanıcı onayladı (§2). Envanterin yeniden kullanımda geçerliliği: 24 ay (hukuk/kararlar.md H19, T18).
+- ~~Orantı birimi ve yuvarlama (yarım yukarı, en az 1 ziyaret), `addon_min_days = 30` ve son ek günü kuralı~~: karara bağlandı; ek teklif hesabı rakamla gösterir ve başlangıç günü kalan pencereleri aşmaz (hukuk/kararlar.md H19, T18).
+- ~~Ek siparişin hukuki niteliği (ayrı sözleşme ya da ek) ve cayma süresinin başlangıcı (aktivasyon günü ya da kabul günü)~~: karara bağlandı; ayrı mesafeli sözleşme, süre etkinleşme gününden (H13).
+- ~~Bahçe bazında fesih: 30 gün bildirim, "dönem sonunda" seçeneği, kaçırılmış ziyaretlerin iade hesabına girmesi ve 8A iadelerinin düşülmesi~~: karara bağlandı; Sahip dilediği zaman fesheder ("hemen" eklenir, varsayılan kalkar), iade "kalan" yöntemiyle, Şirket yalnızca haklı sebeplerle çıkarır (H20, T05); dönem sonunda yapılamayan ziyaretler kendiliğinden iade edilir (H21, T06).
+- ~~Çok bahçeli siparişte tek bahçe için açık cayma; cayma süresinde yapılmış envanter ve ziyaretlerin düşülmesi~~: kullanıcı onayladı (§2). Karara bağlandı: tacire de cayma tanınır (H10); md. 15/1-(h) için ayrı isteğe bağlı erken başlama kutusu (H11, T03).
+- ~~90 gün salt okunur erişim (kullanıcı onayladı, §2); hissedarların ve diğer sahiplerin erişimi, devirde 0 gün; KVKK saklama süresi [X] ile ilişkisi~~: karara bağlandı; erişim saklama değildir, KVKK metni §7'ye satır girdi (hukuk/kararlar.md H22).
 - İade modu varsayılanı (`unused_visits`; ops işleyene kadar para çıkmaz).
 - Ek teklifin teklif günündeki listeyle fiyatlanması; üyeliğin eski listesiyle değil.
 - Hesap başına 50 bahçe sınırı.
 - **Kabul edilen riskler:**
-    - **Yenilenmeyen üyelik:** Erişim süresiz kalır; çıkarılan bahçede ise 90 gün sonra kalkar. Md. 12/4'ün dönem sonunda otomatik uygulanması avukat onayından sonra ayrı iştir.
+    - **Yenilenmeyen üyelik:** Erişim süresiz kalır; çıkarılan bahçede ise 90 gün sonra kalkar. Karara bağlandı: 12/4 bütün sona erme hallerine uygulanır; T08 ilk dönem bitişinden önce (hukuk/kararlar.md H23). O zamana kadar `ops_terminate_order` gerçek müşteride kullanılmaz.
     - **Zaman orantısı:** Ziyaret hakkı zaman orantısıyla hesaplanır. Envanterin geç yapılabildiği bahçede hak, yapılabilecek ziyareti aşabilir. Ops başlangıcı öteleyerek bunu önler; kalan fark Md. 8A ile iade edilir ve çıkarmada düşülür.
     - **Ayrı dönem:** `ops_issue_quote` (ayrı dönem) üyeliği olan müşteriye de verilebilir ve ikinci bir dönem açar. Arayüz ek teklifi varsayılan yapar ve ayrı dönemi açık onaya bağlar; veritabanı engellemez. Çoklu dönem §4.4'teki kurallarla okunur.
     - **Pilot parselleri:** Ops'un elle pasife aldığı pilot parselleri salt okunur olmaz; koruma yalnızca çıkarılmış parsellere uygulanır.

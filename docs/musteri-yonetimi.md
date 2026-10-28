@@ -20,7 +20,7 @@ Bağlam: [MVP.md](MVP.md), [veri-modeli.md](veri-modeli.md), [deployment.md](dep
 | Alan | İP12'de |
 | --- | --- |
 | Site | `/`, nasıl çalışır, paketler ve fiyatlar, SSS, iletişim, hukuk sayfaları |
-| Kayıt ve giriş | Ad soyad, Türkiye cep telefonu (SMS ile doğrulanır), e-posta ve parola, Turnstile. KVKK aydınlatma onayı ve iki açık rıza, sürümüyle |
+| Kayıt ve giriş | Ad soyad, Türkiye cep telefonu (SMS ile doğrulanır), e-posta ve parola, Turnstile. KVKK aydınlatma teyidi (okundu) ve isteğe bağlı açık rızalar, sürümüyle (bugün sorulan yok; hukuk/kararlar.md H06, H31) |
 | Başvuru | 1–10 bahçe: konum, beyan edilen alan (dönüm), sulama, yetki dayanağı ve giriş izni. Paket seçimi ve fiyat önizleme |
 | Teklif | Doğrulanmış alan ve yayımlı fiyat listesiyle hesaplanır. Girdileri dondurulur, geçerlilik süresi ve indirim içerir |
 | Sipariş ve ödeme | Checkout Form (3DS, tek çekim), havale kaydı, makbuz (PDF), ödeme geçmişi, iade ve iptal, mutabakat |
@@ -62,13 +62,11 @@ Bağlam: [MVP.md](MVP.md), [veri-modeli.md](veri-modeli.md), [deployment.md](dep
 - **Para kuruş cinsinden `bigint` tutulur, yanında `currency = 'TRY'`.** KDV satır bazında hesaplanır.
 - **TCKN varsayılan olarak toplanmaz** (KVKK md.4, veri en aza indirme).
     - iyzico'ya `identityNumber = "11111111111"` gönderilir. Bu, iyzico'dan yazılı teyit bekleyen bir pilot kapısıdır (§15).
-    - iyzico gerçek numara isterse `org_billing_setting.identity_number_required = true` yapılır. TCKN o zaman yalnızca `private.billing_profile` içinde durur. Ödeme anlık görüntüsüne yalnızca son 4 hane yazılır. Pilottan önce şifreleme ya da yazılı risk kabulü gerekir (§19).
+    - iyzico gerçek numara isterse `org_billing_setting.identity_number_required = true` yapılır. TCKN o zaman yalnızca `private.billing_profile` içinde durur. Ödeme anlık görüntüsüne yalnızca son 4 hane yazılır. Bayrak açılmadan önce TCKN'nin saklanmadan iletilmesi ya da şifreli saklanması gerekir; yazılı risk kabulü yeterli değildir (hukuk/kararlar.md H16, T13).
     - Şirket müşteride unvan, vergi dairesi ve VKN istenir.
-- **Yapay zekâ için yurt dışı aktarımı İP12'de rızaya bağlanmaz.**
-    - Hukuki dayanak avukatın kararıdır (hukuk/README soru 2).
+- **Yapay zekâ için yurt dışı aktarım rızaya bağlanmaz.** Dayanak, sağlayıcıyla imzalanıp Kurum'a bildirilen standart sözleşmedir (hukuk/kararlar.md H02). ai-worker, standart sözleşme kaydı tanımlı değilse gerçek veriyle yurt dışındaki sağlayıcıyı çağırmaz.
     - Kayıt formunda ve portalda bu konuda bir kutu yoktur. Aktarım aydınlatma metninde anlatılır.
-    - Avukat açık rıza derse ayrı bir iş açılır: önce ai-worker'a rıza denetimi eklenir, kutu ondan sonra açılır. İşlevi olmayan bir rıza düğmesi yayımlanmaz.
-    - "Hizmetin geliştirilmesi" ve "tanıtım" rızaları kaydedilir. Bugün bu amaçlarla hiçbir işlem yapılmıyor; ileride yapacak her iş `my_consents` sonucunu denetlemek zorundadır.
+    - Hizmetin geliştirilmesi rızası sorulmaz; Şirket içi geliştirme meşru menfaate dayanır (hukuk/kararlar.md H31). Tanıtım onayı İYS'den sonra sorulur (H06). Eski kayıtlar silinmez, dayanak olarak kullanılmaz. İşlevi olmayan bir rıza düğmesi yayımlanmaz (`MARKETING_CONSENT_ENABLED`, `apps/web/src/lib/legal/consents.ts`).
 - **Kişisel veri `private` şemada tutulur.** Müşterinin görebildiği `public` tablolarda iç sütunlar **sütun yetkisiyle** gizlenir (§6.8).
 - **Denetim kaydı `public.audit_event`, ekleme-yalnız.** Aktör ve rolü her fonksiyon açıkça verir.
 - **Bildirimler mevcut `public.notification` kuyruğundan gider.**
@@ -107,7 +105,7 @@ flowchart LR
 1. **Site.** `/` oturum yoksa landing sayfasıdır, oturum varsa kullanıcıyı kendi bölümüne yönlendirir (§9.2). Kayıt bağlantıları `ORCHADOS_SIGNUP_ENABLED=1` olunca görünür.
 2. **Kayıt (§7).**
     - **Form alanları:** ad soyad, cep telefonu (`+905…`), e-posta, parola (en az 8 karakter), iletişim tercihi.
-    - **Onaylar:** zorunlu aydınlatma onayı; isteğe bağlı ve işaretsiz iki açık rıza (hizmetin geliştirilmesi, tanıtım iletileri); Turnstile.
+    - **Onaylar:** zorunlu aydınlatma teyidi (okundu); isteğe bağlı ve işaretsiz tanıtım onayı yalnızca İYS'den sonra (hukuk/kararlar.md H06; hizmetin geliştirilmesi rızası sorulmaz, H31); Turnstile.
     - **Akış:** `register` çağrılır, ardından kod gönderilir (`requestSignupCode`: `signInWithOtp`, yeni hesapta `signup_disabled` gelirse `auth.resend({type: "sms"})`; §7 web akışı). Kod `verifyOtp` ile doğrulanır, sonra `complete` çağrılır ve kullanıcı `/portal`'a gider.
 3. **Başvuru.**
     - Müşteri başına org'da tek açık taslak olur.
@@ -117,7 +115,7 @@ flowchart LR
 5. **Ops incelemesi.** Ops her bahçenin alanını doğrular (gerekirse sınırı yeniden çizer). Sonra teklifi önizler ve verir: girdiler kopyalanır, geçerlilik varsayılan 30 gündür, isteğe bağlı indirim için açıklama zorunludur. Müşteriye `quote_ready` ya da `application_rejected` gider.
 6. **Teklif onayı.** Üç koşul gerekir:
     - fatura profili tam olmalı,
-    - aydınlatma onayı kayıtlı olmalı,
+    - aydınlatma teyidi kayıtlı olmalı,
     - Ön Bilgilendirme ve Mesafeli Hizmet Sözleşmesi onayları verilmeli.
 
     Kabulde sipariş `S-2026-000123` açılır. Toplam 0 ise sipariş hemen aktifleşir.
@@ -893,7 +891,7 @@ POST /functions/v1/payment-webhook  → 200 {ok:true} | 401 {error:"invalid_sign
 | `/portal/odeme`, `/[id]` | Geçmiş; sonuç sayfası 10 sn'de bir yenilenir |
 | `/portal/hesap` | İletişim formu (`customer_update_contact`), özetler |
 | `/portal/hesap/fatura` | Fatura profili. `?geri=` değeri `safeNextPath` (`src/app/giris/login-methods.ts`) ile süzülür |
-| `/portal/hesap/izinler` | İki açık rıza; eksikse aydınlatma onayı |
+| `/portal/hesap/izinler` | Sorulan isteğe bağlı izinler (bugün yok); daha önce verilmiş olanlar yalnızca geri alınabilir; eksikse aydınlatma teyidi |
 | `/makbuz/[paymentId]` | PDF (`@react-pdf/renderer`), `private, no-store` |
 
 Tablo okumaları `BILLING_COLUMNS` ile yapılır.
@@ -976,7 +974,7 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
     - Turnstile test anahtarları.
 3. **Test projesi, iyzico sandbox:** `PAYMENT_PROVIDER=iyzico`; sahte sağlayıcı kilitleri kapatılır.
 4. **Pilot kapıları:**
-    - avukat onaylı metinler
+    - hukuki metinlerin [yayın şartları](hukuk/kararlar.md#yayin) (sürümlerde "-taslak" eki kalkar)
     - iyzico canlı hesap ve placeholder `identityNumber` için yazılı teyit
     - **Turnstile canlı anahtarları** (zorunlu)
     - Netgsm
@@ -993,7 +991,7 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
 | Kim | Ne |
 | --- | --- |
 | Yusuf | iyzico sandbox ve canlı hesap, V3 webhook, Checkout Form içindeki havalenin kapatılması, `identityNumber` teyidi |
-| Avukat | Mesafeli hizmet sözleşmesi, ön bilgilendirme, iade, gizlilik metinleri; yapay zekâ aktarımının hukuki dayanağı; cayma hakkı |
+| Avukat | Karara bağlandı: [hukuk/kararlar.md](hukuk/kararlar.md). Kalan şirket eylemleri T01, T22 |
 | Şirket | Unvan, VKN, MERSİS, IBAN, İYS |
 | Yusuf | Fiyatlar, Vercel Pro, alan adı, Netgsm, Turnstile hesabı |
 
@@ -1042,12 +1040,12 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
 - Hizmet bölgesi.
 - Süreler.
 - Taksit.
-- iyzico placeholder `identityNumber` teyidi. Gerçek TCKN gerekirse şifreleme ya da yazılı risk kabulü.
-- Yapay zekâ aktarımının hukuki dayanağı.
-- E-posta doğrulanmıyor: `email_taken` ve `phone_registered` hesap varlığını açığa çıkarır; kabul edildi.
+- iyzico placeholder `identityNumber` teyidi. Gerçek TCKN gerekirse TCKN'nin saklanmadan iletilmesi ya da şifreli saklanması; yazılı risk kabulü yeterli değildir (hukuk/kararlar.md H16).
+- ~~Yapay zekâ aktarımının hukuki dayanağı~~: karara bağlandı, standart sözleşme (hukuk/kararlar.md H02, T01).
+- E-posta doğrulanmıyor: `email_taken` ve `phone_registered` hesap varlığını açığa çıkarır; kabul edildi. Hukuki değerlendirme (hukuk/kararlar.md H33): pilotta kabul edilebilir; genel lansmandan önce düzeltilir (T19).
 - Barındırılan projede GoTrue'nun saatlik SMS sınırı, kötüye kullanımda telefonla girişi herkes için durdurabilir. Turnstile ve telefon başına sınır bunu azaltır.
 - Önizleme adresi kalıbı test projesinde bir yönlendirme riski taşır; yalnızca iç test kullanıcıları içindir.
-- **Yenilenmeyen üyelikte erişim:** Dönemi biten ve yenilenmeyen müşterinin parsel erişimi bugün kapanmaz. İP14'te yalnızca hizmetten çıkarılan bahçede erişim 90 gün sonra kalkar. Md. 12/4'ün dönem sonunda da uygulanması avukat onayından sonra ayrı iştir ([bahce-yonetimi.md](bahce-yonetimi.md) §1, §19; [hukuk/README.md](hukuk/README.md) soru 22).
+- **Yenilenmeyen üyelikte erişim:** Dönemi biten ve yenilenmeyen müşterinin parsel erişimi bugün kapanmaz. İP14'te yalnızca hizmetten çıkarılan bahçede erişim 90 gün sonra kalkar. Karara bağlandı: 12/4 bütün sona erme hallerine uygulanır; T08 ilk dönem bitişinden önce ([hukuk/kararlar.md](hukuk/kararlar.md) H23; [bahce-yonetimi.md](bahce-yonetimi.md) §1, §19).
 - Pilot sonrası işler:
     - eşik üstü havale ve iadelerde dört göz onayı
     - ayrı `finance` rolü

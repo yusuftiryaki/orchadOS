@@ -105,7 +105,8 @@ gantt
 | İP14-B | PR açık (`claude/ip14-hukuk-dokumanlar`) | Hukuk taslakları v2 (`mesafeli-v2-taslak`, `iade-v2-taslak`, `onbilgi-v2-taslak`), site metinleri, avukat soruları (`docs/hukuk/README.md` 15–23), doküman güncellemeleri |
 | İP14-C | Sürüyor (`claude/ip14-portal`) | Müşteri portalı: üyelik kartı, bahçe ekleme, ek teklif, bahçe çıkarma formu, salt okunur bant |
 | İP14-D | Sürüyor (`claude/ip14-back-office`) | Back office: çıkarma kuyruğu, ek teklif, üyelik ve bahçeler paneli, yenileme ön seçimi, ayarlar |
-| İP14 yayına alma | Açık (insan eylemi) | Barındırılan projelerde `garden_changes_enabled` kapalı. Avukat onayı (`docs/hukuk/README.md` 15–22) ve fiyat kararları ([bahce-yonetimi.md](bahce-yonetimi.md) §16, §19) gelince test projesinde duman testi, sonra anahtar açılır (`docs/deployment.md` › Bahçe ekleme ve çıkarma) |
+| Hukuki kararlar | PR açık (`claude/hukuk-kararlar-uygula`) | [hukuk/kararlar.md](hukuk/kararlar.md) H01–H34 metinlere uygulandı: `kvkk-v2-taslak`, `riza-v2-taslak`, `gizlilik-v2-taslak`, `mesafeli-v3-taslak`, `onbilgi-v3-taslak`, `iade-v3-taslak`, yeni `bahcede-v1-taslak` (`/bahcede-bulunanlar`) ve iç belgeler; isteğe bağlı rıza kutuları kapalı (`MARKETING_CONSENT_ENABLED`). Migration yok. Takip işleri T01–T26 açık (kod: T03–T13, T15–T21, T26; ai-worker kapısı ve tasarım/kılavuz metinleri ayrı PR) |
+| İP14 yayına alma | Açık (insan eylemi) | Barındırılan projelerde `garden_changes_enabled` kapalı. [Yayın şartları](hukuk/kararlar.md#yayin), T05, T18 ve fiyat kararları ([bahce-yonetimi.md](bahce-yonetimi.md) §16, §19) gelince test projesinde duman testi, sonra anahtar açılır (`docs/deployment.md` › Bahçe ekleme ve çıkarma) |
 | Operasyon ekranları | Tamam (PR #19) | `/operasyon`: pano, sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma, ziyaret planlama |
 | Envanter onayı | Tamam (PR #18) | Doğrulama listesi veritabanında (`verification_item`), ofiste ağaç özellikleri, altyapı ve saha sınırı; uzmanın envanter onayı; sahibin sınır onayı. Saha tarafı açık |
 | İP6 v0.3 | Tamam (PR #21) | Doğrulama turu ekranı, sahada sınır köşesi, kapsama haritası, test projesine bağlı APK (`docs/gorevler/ip6-envanter-saha.md`) |
@@ -167,7 +168,7 @@ Bunlar takvimi bekletebilecek, başkasına bağlı işler. İlk iki hafta içind
 - [ ] TUSAGA-Aktif (CORS-TR) abonelik başvurusu, ya da kendi baz istasyonu kararı
 - [ ] Uzman (ziraat mühendisi) ile ön görüşme
 - [ ] 1–4 pilot bahçe sahibinin sözlü onayı; envanter tarihleri
-- [ ] KVKK metinleri için hukukçu görüşü. Taslaklar ve avukata sorulacaklar: `docs/hukuk/`
+- [x] KVKK metinleri için hukuki kararlar (28 Ekim, hukuk uzmanı ajan; kullanıcı talimatıyla nihai): `docs/hukuk/kararlar.md`. Kalan şirket eylemleri T01 ve T22 (standart sözleşmeler, şirket bilgileri, ETBİS, İYS)
 - [x] İşleme istasyonu: pilotta bulut (22 Ekim). Ofisin yükleme hızı 99 Mbps; 90 GB'lık bir ziyaret ~2 saatte yüklenir. Sağlayıcı sonra seçilecek; araçlar AWS, Azure ve Google Cloud'u destekleyecek (`docs/gorevler/bulut-isleme.md`)
 
 ## Geride kalınırsa kesilecekler
