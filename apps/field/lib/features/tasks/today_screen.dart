@@ -5,6 +5,7 @@ import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../core/ui/widgets.dart';
 import '../checklist/precheck_screen.dart';
+import '../notice/blocked_visit_screen.dart';
 import '../session/session_controller.dart';
 import '../sync/sync_status_card.dart';
 import '../verification/verification_tour_screen.dart';
@@ -27,6 +28,7 @@ class TodayScreen extends ConsumerWidget {
       ...?ref.watch(recordedTasksProvider).value,
     };
     final pending = ref.watch(pendingUploadsProvider).value ?? 0;
+    final blocked = ref.watch(blockedTasksProvider).value ?? const {};
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bugünkü görevler'),
@@ -69,7 +71,11 @@ class TodayScreen extends ConsumerWidget {
                     child: Center(child: Text('Bugün görev yok')),
                   ),
                 for (final t in list.tasks) ...[
-                  _TaskCard(task: t, done: done.contains(t.id)),
+                  _TaskCard(
+                    task: t,
+                    done: done.contains(t.id),
+                    blocked: blocked.contains(t.id),
+                  ),
                   const SizedBox(height: 12),
                 ],
               ],
@@ -82,10 +88,17 @@ class TodayScreen extends ConsumerWidget {
 }
 
 class _TaskCard extends ConsumerWidget {
-  const _TaskCard({required this.task, required this.done});
+  const _TaskCard({
+    required this.task,
+    required this.done,
+    this.blocked = false,
+  });
 
   final FieldTask task;
   final bool done;
+
+  /// Recorded as "Ziyaret yapılamadı" on this phone; can still be scanned.
+  final bool blocked;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -169,7 +182,10 @@ class _TaskCard extends ConsumerWidget {
                       detail,
                       style: const TextStyle(fontSize: 16, color: Brand.muted),
                     ),
-                    if (task.plannedDate != null || task.assignedToMe || done)
+                    if (task.plannedDate != null ||
+                        task.assignedToMe ||
+                        done ||
+                        blocked)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Wrap(
@@ -188,7 +204,48 @@ class _TaskCard extends ConsumerWidget {
                               ),
                             if (done)
                               const Pill(label: 'Tamamlandı', color: Brand.ok),
+                            if (blocked && !done)
+                              const Pill(
+                                key: Key('task-blocked'),
+                                label: 'Yapılamadı kaydedildi',
+                                color: Brand.bad,
+                              ),
                           ],
+                        ),
+                      ),
+                    if (!done && canRecordBlocked(task))
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          key: Key('task-blocked-${task.id}'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Brand.bad,
+                            minimumSize: const Size(48, 48),
+                            padding: EdgeInsets.zero,
+                          ),
+                          icon: const Icon(Icons.block),
+                          label: const Text(
+                            'Ziyaret yapılamadı',
+                            style: TextStyle(fontSize: 17),
+                          ),
+                          onPressed: () async {
+                            final saved = await Navigator.of(context)
+                                .push<bool>(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        BlockedVisitScreen(task: task),
+                                  ),
+                                );
+                            if (saved == true && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Kaydedildi. İnternet olunca gönderilecek.',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
                         ),
                       ),
                   ],

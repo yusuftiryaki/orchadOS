@@ -28,6 +28,7 @@ Ekleme-yalnız tablolar (`capture`, `asset`, `measurement`, `session_event`, `tr
 | `testing.run_demo_housekeeping()` | `service_role` | 5 dakikalık `private.demo_housekeeping()` işini hemen çalıştırır |
 | `testing.selectable_columns(text, text[])` | `service_role` | Silmez: bir rolün verilen `public` tablolarında seçebildiği sütunlar (sütun ya da tablo yetkisi); `billing-columns` testi `BILLING_COLUMNS` ile karşılaştırır |
 | `testing.reset_to_seed()` | `postgres` (pgTAP) | Seed'de olmayan her satırı siler (aşağıda) |
+| `testing.use_round_prices()` | `postgres` (pgTAP) | Silmez: seed org'una, çağıranın işlemi içinde, seed listesinin gününden geçerli yuvarlak fiyatlı yeni bir liste yayımlar (standart 12 500 / 500 000, envanter yok; `prices.sql`). Sipariş, ödeme ve çıkarma mekaniğini sınayan dosyalar (46, 48, 49) lansman fiyat listesinin revizyonlarından etkilenmez |
 
 Üçü de silinen tabloları ve satır sayılarını döner. Tablolar sütun adıyla bulunduğu için yeni bir tablo bu dosya değişmeden kapsanır; sadece bir üst kimlikle bağlı yeni bir tablo eklenirse `_delete_children`'a yazılmalıdır (pgTAP: `27_testing_purge.test.sql`).
 

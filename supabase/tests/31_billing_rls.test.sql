@@ -214,7 +214,7 @@ select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 select is(pg_temp.n($$ select count(*) from public.service_application $$), 3::bigint, 'ops sees the org''s applications');
 select is(pg_temp.n($$ select count(*) from public.price_list $$)
           + pg_temp.n($$ select count(*) from public.service_package $$)
-          + pg_temp.n($$ select count(*) from public.org_billing_setting $$), 5::bigint,
+          + pg_temp.n($$ select count(*) from public.org_billing_setting $$), 6::bigint,
   'and its price lists, packages and settings');
 select throws_ok($$ select ops_note from public.service_application $$, '42501', null,
   'ops reads internal columns only through functions');
@@ -384,8 +384,8 @@ insert into public.quote (id, org_id, customer_user_id, application_id, number, 
   base_kurus, discount_kurus, subtotal_kurus, vat_kurus, total_kurus, inputs, valid_until)
 values ('f3100000-0000-4000-8000-000000000005', 'b0000000-0000-4000-8000-000000000001',
   'a3100000-0000-4000-8000-000000000001', 'f3100000-0000-4000-8000-000000000001', 'T-2026-990001',
-  '91200000-0000-4000-8000-000000000101', 1, '91200000-0000-4000-8000-000000000002', 'ekonomik', 'Ekonomik', 3,
-  true, true, 2000, 450000, 0, 450000, 90000, 540000, '{}', current_date + 30);
+  '91200000-0000-4000-8000-000000000101', 1, '91200000-0000-4000-8000-000000000002', 'temel', 'Temel', 2,
+  true, true, 2000, 1160000, 0, 1160000, 232000, 1392000, '{}', current_date + 30);
 set local role authenticated;
 select is(pg_temp.error_of($$ select public.ops_reject_application('f3100000-0000-4000-8000-000000000001', 'bogus') $$),
   '22023 invalid_input / reason', 'a rejection needs a known reason');
@@ -441,7 +441,7 @@ select is(pg_temp.error_of($$ select public.ops_save_package('b0000000-0000-4000
 insert into ids values ('list', public.ops_create_price_list_draft('b0000000-0000-4000-8000-000000000001',
   '91200000-0000-4000-8000-000000000101'));
 select is(pg_temp.n(format($$ select count(*) from public.price_list_item where price_list_id = %L $$,
-  (select id from ids where name = 'list'))), 2::bigint, 'a draft copies the items');
+  (select id from ids where name = 'list'))), 3::bigint, 'a draft copies the items');
 select is(pg_temp.error_of(format($$ select public.ops_publish_price_list(%L) $$, (select id from ids where name = 'list'))),
   'P0001 valid_from_in_past', 'a copied draft needs a new validity date');
 select lives_ok(format($$ select public.ops_save_price_list_draft(%L, current_date + 1, 2000, null, %L) $$,

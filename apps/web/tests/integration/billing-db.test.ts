@@ -34,9 +34,9 @@ beforeAll(async () => {
 afterAll(() => removeCustomers(DOMAIN));
 
 describe("prices", () => {
-  it("anyone sees the packages and a preview; 20 dönüm standard is 12.000 TL", async () => {
+  it("anyone sees the packages and a preview; 20 dönüm standard, first year, is 24.480 TL", async () => {
     const prices = check(await anonClient().rpc("public_package_prices"));
-    expect(prices.map((p) => p.code)).toEqual(expect.arrayContaining(["standart", "ekonomik"]));
+    expect(prices.map((p) => p.code)).toEqual(["temel", "standart", "kapsamli"]);
     const { client } = await signInCustomer();
     const lines = check(
       await client.rpc("price_preview", {
@@ -47,7 +47,8 @@ describe("prices", () => {
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatchObject({
       billable_area_tenths: 200,
-      line_total_kurus: 1200000,
+      inventory_fee_kurus: 600000,
+      line_total_kurus: 2448000,
       price_list_version: 1,
     });
   });
@@ -67,7 +68,7 @@ describe("application to active order", () => {
         .eq("id", order)
         .single(),
     );
-    expect(row).toMatchObject({ status: "awaiting_payment", total_kurus: 1200000, paid_kurus: 0 });
+    expect(row).toMatchObject({ status: "awaiting_payment", total_kurus: 2448000, paid_kurus: 0 });
     expect(row.number).toMatch(/^S-\d{4}-\d{6}$/);
 
     const again = await customer.client.rpc("customer_accept_quote", {
@@ -79,7 +80,7 @@ describe("application to active order", () => {
     const instructions = check(
       await customer.client.rpc("customer_payment_instructions", { p_order_id: order }),
     );
-    expect(instructions[0]).toMatchObject({ reference: row.number, outstanding_kurus: 1200000 });
+    expect(instructions[0]).toMatchObject({ reference: row.number, outstanding_kurus: 2448000 });
   });
 
   it("the customer cannot read internal columns", async () => {
@@ -90,7 +91,7 @@ describe("application to active order", () => {
   it("a partial transfer keeps the order waiting, the rest activates it with a parcel", async () => {
     const tooMuch = await ops.rpc("ops_record_manual_payment", {
       p_order_id: order,
-      p_amount_kurus: 1200001,
+      p_amount_kurus: 2448001,
       p_value_date: istanbulToday(),
       p_bank_reference: "EFT-1",
     });
@@ -113,7 +114,7 @@ describe("application to active order", () => {
     payment = check(
       await ops.rpc("ops_record_manual_payment", {
         p_order_id: order,
-        p_amount_kurus: 1000000,
+        p_amount_kurus: 2248000,
         p_value_date: today,
         p_bank_reference: "EFT-2",
       }),
@@ -121,7 +122,7 @@ describe("application to active order", () => {
     row = check(
       await admin.from("service_order").select("status, paid_kurus").eq("id", order).single(),
     );
-    expect(row).toEqual({ status: "active", paid_kurus: 1200000 });
+    expect(row).toEqual({ status: "active", paid_kurus: 2448000 });
 
     const items = check(
       await customer.client.from("service_order_item").select("parcel_id").eq("order_id", order),
@@ -144,7 +145,7 @@ describe("application to active order", () => {
       await customer.client.rpc("receipt_data", { p_payment_id: payment }),
     ) as Record<string, unknown>;
     expect(receipt).toMatchObject({
-      amount_kurus: 1000000,
+      amount_kurus: 2248000,
       provider: "manual",
       bank_reference: "EFT-2",
     });
@@ -176,7 +177,7 @@ describe("application to active order", () => {
 
     const tooMuch = await ops.rpc("ops_request_refund", {
       p_payment_id: payment,
-      p_amount_kurus: 950001,
+      p_amount_kurus: 2198001,
       p_reason: "goodwill",
     });
     expect(tooMuch.error?.message).toBe("refund_exceeds_payment");

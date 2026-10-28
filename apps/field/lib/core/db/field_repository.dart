@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../features/notice/field_records.dart';
 import '../../features/route/grid_route.dart';
 import '../../features/route/route_store.dart';
 import '../quality/photo_quality.dart';
@@ -154,28 +155,32 @@ class FieldRepository {
     String? scanPlatform,
     double? cameraHeightM,
   }) => db.transaction(() async {
-    await db
-        .into(db.sessions)
-        .insert(
-          SessionsCompanion.insert(
-            id: id,
-            parcelId: parcelId,
-            taskId: Value(taskId),
-            sessionType: 'scan',
-            visitKind: visitKind,
-            season: Value(season),
-            operatorId: Value(operatorId),
-            methodologyVersion: methodologyVersion,
-            appVersion: appVersion,
-            loggerName: Value(loggerName),
-            loggerFirmware: Value(loggerFirmware),
-            startedAt: startedAt,
-            startGpsTimeMs: Value(startGpsTimeMs),
-            status: 'recording',
-            scanPlatform: Value(scanPlatform),
-            cameraHeightM: Value(cameraHeightM),
-          ),
-        );
+    final row = SessionsCompanion.insert(
+      id: id,
+      parcelId: parcelId,
+      taskId: Value(taskId),
+      sessionType: 'scan',
+      visitKind: visitKind,
+      season: Value(season),
+      operatorId: Value(operatorId),
+      methodologyVersion: methodologyVersion,
+      appVersion: appVersion,
+      loggerName: Value(loggerName),
+      loggerFirmware: Value(loggerFirmware),
+      startedAt: startedAt,
+      startGpsTimeMs: Value(startGpsTimeMs),
+      status: 'recording',
+      scanPlatform: Value(scanPlatform),
+      cameraHeightM: Value(cameraHeightM),
+    );
+    // A visit first recorded as blocked may be scanned later the same day:
+    // its local row (never sent as a visit update) becomes the recording.
+    final blocked =
+        await (db.update(db.sessions)..where(
+              (s) => s.id.equals(id) & s.status.equals(blockedSessionStatus),
+            ))
+            .write(row);
+    if (blocked == 0) await db.into(db.sessions).insert(row);
     await outbox.enqueue(OutboxEntity.session, id);
   });
 
@@ -203,7 +208,9 @@ class FieldRepository {
       });
 
   /// Stores an event. [data] becomes `session_event.data` (a JSON object).
+  /// [id] is generated unless given (a photo may refer to it first).
   Future<String> addEvent({
+    String? id,
     required String sessionId,
     required String eventType,
     required String payload,
@@ -211,13 +218,14 @@ class FieldRepository {
     required String loggerResult,
     Map<String, Object?>? data,
   }) async {
-    final id = newId();
+    id ??= newId();
+    final eventId = id;
     await db.transaction(() async {
       await db
           .into(db.sessionEvents)
           .insert(
             SessionEventsCompanion.insert(
-              id: id,
+              id: eventId,
               sessionId: sessionId,
               eventType: eventType,
               payload: payload,
@@ -228,10 +236,84 @@ class FieldRepository {
               dataJson: Value(data == null ? null : jsonEncode(data)),
             ),
           );
-      await outbox.enqueue(OutboxEntity.sessionEvent, id);
+      await outbox.enqueue(OutboxEntity.sessionEvent, eventId);
     });
-    return id;
+    return eventId;
   }
+
+  /// A phone-side record of the legal follow-ups (field_records.dart):
+  /// [payload] is its JSON object, no logger command is sent.
+  Future<String> addFieldRecord({
+    required String sessionId,
+    required String eventType,
+    required String payload,
+    required GpsTimeReading time,
+  }) => addEvent(
+    sessionId: sessionId,
+    eventType: eventType,
+    payload: payload,
+    time: time,
+    loggerResult: 'none',
+  );
+
+  /// "Ziyaret yapılamadı": the photos and the `visit_blocked` event of a
+  /// planned visit in one transaction. The visit gets a local row with
+  /// status `blocked` when it has none; it is not queued, so the server's
+  /// visit stays as it is (only the event and the photos go up). Photos are
+  /// captures without a tree, linked by `metadata.event_id`.
+  Future<String> saveBlockedVisit({
+    required String visitId,
+    required String parcelId,
+    required String taskId,
+    required String visitKind,
+    String? season,
+    String? operatorId,
+    required BlockedDetail detail,
+    String? note,
+    required List<PendingShot> photos,
+    required GpsTimeReading time,
+  }) => db.transaction(() async {
+    await db
+        .into(db.sessions)
+        .insert(
+          SessionsCompanion.insert(
+            id: visitId,
+            parcelId: parcelId,
+            taskId: Value(taskId),
+            sessionType: 'scan',
+            visitKind: visitKind,
+            season: Value(season),
+            operatorId: Value(operatorId),
+            methodologyVersion: methodologyVersion,
+            appVersion: appVersion,
+            startedAt: _clock.now(),
+            status: blockedSessionStatus,
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
+    final id = newId();
+    for (final p in photos) {
+      await _insertCapture(
+        p,
+        sessionId: visitId,
+        kind: blockedVisitPhotoKind,
+        subjectType: 'event',
+        subjectId: id,
+      );
+    }
+    return addEvent(
+      id: id,
+      sessionId: visitId,
+      eventType: FieldRecordEvent.visitBlocked,
+      payload: blockedVisitPayload(
+        detail,
+        note: note,
+        photoCount: photos.length,
+      ),
+      time: time,
+      loggerResult: 'none',
+    );
+  });
 
   /// Local row for a verification tour, so that its photos and results have
   /// a session. Not queued: the server keeps the tour's status itself
@@ -669,7 +751,23 @@ class FieldRepository {
       ..addColumns([db.sessions.taskId])
       ..where(
         db.sessions.taskId.isNotNull() &
-            db.sessions.sessionType.equals('verification').not(),
+            db.sessions.sessionType.equals('verification').not() &
+            db.sessions.status.equals(blockedSessionStatus).not(),
+      );
+    return q
+        .map((r) => r.read(db.sessions.taskId)!)
+        .watch()
+        .map((l) => l.toSet());
+  }
+
+  /// Tasks recorded on this phone as "Ziyaret yapılamadı" and not scanned
+  /// since.
+  Stream<Set<String>> watchBlockedTaskIds() {
+    final q = db.selectOnly(db.sessions, distinct: true)
+      ..addColumns([db.sessions.taskId])
+      ..where(
+        db.sessions.taskId.isNotNull() &
+            db.sessions.status.equals(blockedSessionStatus),
       );
     return q
         .map((r) => r.read(db.sessions.taskId)!)
