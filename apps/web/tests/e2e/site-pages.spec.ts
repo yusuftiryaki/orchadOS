@@ -189,3 +189,16 @@ test("the demo is linked from the landing page, the login page and 'Nasıl çal�
   await page.goto("/gizlilik");
   await expect(page.getByRole("heading", { name: "Demo turu" })).toBeVisible();
 });
+
+test("phone size: the public pages fit without horizontal scroll", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 360, height: 800 } });
+  const page = await context.newPage();
+  for (const path of ["/", "/demo", "/nasil-calisir", "/giris"]) {
+    await page.goto(path);
+    const fits = await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    );
+    expect(fits, path).toBe(true);
+  }
+  await context.close();
+});

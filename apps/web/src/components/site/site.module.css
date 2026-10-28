@@ -107,6 +107,18 @@
   padding: 6px var(--space-1);
 }
 
+/* Header links that do not fit next to the others on a phone (the demo link:
+   the landing page carries it there). */
+.wideOnly {
+  display: none;
+}
+
+@media (min-width: 600px) {
+  .wideOnly {
+    display: inline;
+  }
+}
+
 @media (min-width: 860px) {
   .headerInner {
     grid-template-columns: auto 1fr auto;

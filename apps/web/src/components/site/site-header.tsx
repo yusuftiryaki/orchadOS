@@ -69,7 +69,11 @@ export function SiteHeader({
                 {s.login}
               </Link>
               {demoUrl && (
-                <Link href={demoUrl} className={styles.actionLink} data-testid="header-demo">
+                <Link
+                  href={demoUrl}
+                  className={`${styles.actionLink} ${styles.wideOnly}`}
+                  data-testid="header-demo"
+                >
                   {s.demo}
                 </Link>
               )}
