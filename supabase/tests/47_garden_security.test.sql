@@ -67,7 +67,7 @@ insert into ip14_fn values
   ('public.ops_issue_parcel_quote(uuid,uuid,uuid,uuid[],boolean,date,uuid,integer,integer,text,text)'),
   ('public.customer_accept_quote(uuid,jsonb)'),
   ('public.ops_extend_payment_due(uuid,date)'),
-  ('public.ops_record_manual_payment(uuid,bigint,date,text,text)'),
+  ('public.ops_record_manual_payment(uuid,bigint,date,text,text,uuid)'),
   ('public.ops_verify_application_garden(uuid,numeric,jsonb,text)'),
   ('public.ops_preview_quote(uuid,integer)'),
   ('public.ops_billing_setting(uuid)'),
@@ -139,7 +139,7 @@ insert into ids select 'q', public.ops_issue_parcel_quote('b0000000-0000-4000-80
   array['c0000000-0000-4000-8000-000000000001'::uuid], true, null);
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 insert into ids select 'o', public.customer_accept_quote(pg_temp.id('q'),
-  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
+  '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 select pg_temp.ops();
 select public.ops_record_manual_payment(pg_temp.id('o'), (select total_kurus from public.service_order where id = pg_temp.id('o')),
   current_date, 'EFT-47');

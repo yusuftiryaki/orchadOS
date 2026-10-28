@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cancelOrderAction, reviseOrderAction } from "@/app/portal/billing-actions";
 import { ContractDocumentTable } from "@/components/contracts/document-list";
+import { InstallmentPlan } from "@/components/portal-billing/installment-plan";
 import { OrderPay } from "@/components/portal-billing/order-pay";
 import { PaymentTable } from "@/components/portal-billing/payment-table";
 import { PortalResult } from "@/components/portal-billing/result-notice";
@@ -9,6 +10,7 @@ import local from "@/components/portal-billing/portal-billing.module.css";
 import ops from "@/components/operations/operations.module.css";
 import styles from "@/components/portal/portal.module.css";
 import { requireSection } from "@/lib/auth/session";
+import { installmentLabel, nextOpen, openKurus } from "@/lib/billing/installments";
 import { formatKurus } from "@/lib/billing/money";
 import {
   accessTokenOf,
@@ -22,22 +24,19 @@ import { formatDate, formatDateTime } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { contractsText as C } from "@/lib/i18n/messages/contracts";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
-import {
-  getOrder,
-  getPaymentInstructions,
-  liveCardAttempt,
-  outstandingKurus,
-} from "@/lib/portal-billing/data";
+import { getOrder, getPaymentInstructions, liveCardAttempt } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
 
 const O = P.order;
 
-// An order: totals, lines, and while it awaits payment the card button (only
-// with the payments flag), the bank transfer details and the cancel button;
-// its contract documents (T04), retried after the response when missing
-// (after a failed generation at the acceptance, and the withdrawal
+// An order: totals, lines, its payment plan (installments-v1, H35) and, while
+// a payment is open (awaiting payment, or an active order with an open
+// installment), the card button for the next payment (only with the payments
+// flag) and the bank transfer details; the cancel button before the first
+// payment; its contract documents (T04), retried after the response when
+// missing (after a failed generation at the acceptance, and the withdrawal
 // confirmation once the order is active), or the manual-copy note.
 export default async function OrderPage({
   params,
@@ -51,13 +50,14 @@ export default async function OrderPage({
   const supabase = await createClient();
   const view = await getOrder(supabase, user.id, id);
   if (!view) notFound();
-  const { order, items, payments, quote } = view;
+  const { order, items, payments, quote, plan } = view;
   const awaiting = order.status === "awaiting_payment";
-  const instructions = awaiting ? await getPaymentInstructions(supabase, order.id) : null;
+  const next = nextOpen(plan);
+  const payable = (awaiting || order.status === "active") && next !== null;
+  const instructions = payable ? await getPaymentInstructions(supabase, order.id) : null;
   const { paymentsEnabled } = siteFlags();
   const currency = order.currency;
-  const outstanding = outstandingKurus(order);
-  const liveAttempt = awaiting ? liveCardAttempt(payments) : null;
+  const liveAttempt = payable ? liveCardAttempt(payments) : null;
   const documents = order.quote_id
     ? (await customerDocuments(supabase)).filter((d) => d.order_id === order.id)
     : [];
@@ -110,16 +110,20 @@ export default async function OrderPage({
               <dd>{formatKurus(order.refunded_kurus, currency)}</dd>
             </>
           )}
-          {awaiting && (
+          {next && (
             <>
-              <dt>{O.outstanding}</dt>
-              <dd>{formatKurus(outstanding, currency)}</dd>
-              {order.payment_due_at && (
-                <>
-                  <dt>{O.due}</dt>
-                  <dd>{formatDateTime(order.payment_due_at)}</dd>
-                </>
-              )}
+              <dt>{O.nextPayment}</dt>
+              <dd data-testid="order-next-payment">
+                {`${installmentLabel(next)} · ${formatKurus(openKurus(next), currency)}`}
+              </dd>
+              <dt>{O.due}</dt>
+              <dd>{formatDate(next.dueOn)}</dd>
+            </>
+          )}
+          {!next && awaiting && order.payment_due_at && (
+            <>
+              <dt>{O.due}</dt>
+              <dd>{formatDateTime(order.payment_due_at)}</dd>
             </>
           )}
           {order.service_start && order.service_end && (
@@ -143,9 +147,19 @@ export default async function OrderPage({
         </dl>
       </section>
 
-      {awaiting && (
+      {plan.length > 0 && (
+        <section className={styles.section} data-testid="order-plan">
+          <h2>{billingText.plan.title}</h2>
+          <InstallmentPlan rows={plan} currency={currency} withStatus />
+        </section>
+      )}
+
+      {payable && (
         <section className={styles.section} data-testid="order-pay">
           <h2>{O.payTitle}</h2>
+          {next && (
+            <p>{O.payNext(installmentLabel(next), formatKurus(openKurus(next), currency))}</p>
+          )}
           <OrderPay
             orderId={order.id}
             paymentsEnabled={paymentsEnabled}

@@ -4,6 +4,8 @@ import { billingReasonOf, type BillingError } from "@/lib/billing/errors";
 import type {
   ApplicationGarden,
   GardenRemoval,
+  OpsOrderInstallment,
+  OpsOverdueInstallment,
   PriceList,
   PriceListItem,
   Quote,
@@ -392,6 +394,8 @@ export interface OrderView {
   // IP14: the add-on orders of a base order, or the base of an add-on.
   addons: { id: string; number: string; status: string; activated_at: string | null }[];
   base: { id: string; number: string; service_end: string | null } | null;
+  // The payment plan with the internal override columns (installments-v1).
+  plan: OpsOrderInstallment[];
 }
 
 export async function getOrder(supabase: Client, id: string): Promise<OrderView | null> {
@@ -404,7 +408,7 @@ export async function getOrder(supabase: Client, id: string): Promise<OrderView 
       .maybeSingle(),
   ) as ServiceOrder | null;
   if (!order) return null;
-  const [items, payments, audit, internal, list] = await Promise.all([
+  const [items, payments, audit, internal, list, plan] = await Promise.all([
     supabase
       .from("service_order_item")
       .select(BILLING_COLUMNS.service_order_item)
@@ -421,6 +425,7 @@ export async function getOrder(supabase: Client, id: string): Promise<OrderView 
       p_org_id: order.org_id,
       p_customer_user_id: order.customer_user_id,
     }),
+    supabase.rpc("ops_order_installments", { p_order_id: id }),
   ]);
   const rows = check(items) as ServiceOrderItem[];
   const parcelIds = rows.map((r) => r.parcel_id).filter((p): p is string => !!p);
@@ -456,7 +461,20 @@ export async function getOrder(supabase: Client, id: string): Promise<OrderView 
     internal,
     addons: check(addons),
     base: (base.error ? null : base.data) as OrderView["base"],
+    plan: check(plan),
   };
+}
+
+// Open installments 30 or more days past their due day (ops_overdue_installments):
+// no automatic termination, ops decide (docs/hukuk/kararlar.md H35 (c)).
+export async function listOverdueInstallments(
+  supabase: Client,
+  orgs: OpsOrg[],
+): Promise<OpsOverdueInstallment[]> {
+  const rows = await eachOrg(orgs, async (orgId) =>
+    check(await supabase.rpc("ops_overdue_installments", { p_org_id: orgId })),
+  );
+  return rows.sort((a, b) => a.due_on.localeCompare(b.due_on));
 }
 
 // The lines of a base order's period: its own and those of its active or

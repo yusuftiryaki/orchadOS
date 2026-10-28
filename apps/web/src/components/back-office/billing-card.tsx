@@ -28,6 +28,8 @@ export function BillingCard({ summary }: { summary: BillingSummary }) {
     ["removalsRequested", summary.garden_removals_requested, boHref.removals()],
     ["removalsDue", summary.garden_removals_due, boHref.removals()],
     ["removalsBlocked", summary.garden_removals_blocked, boHref.removals()],
+    // The payment plan: open installments 30+ days past due (H35 (c)).
+    ["installmentsOverdue", summary.installments_overdue, boHref.orders()],
   ];
   const labels: Record<string, string> = {
     applications: T.applicationsSubmitted,
@@ -42,6 +44,7 @@ export function BillingCard({ summary }: { summary: BillingSummary }) {
     removalsRequested: T.removalsRequested,
     removalsDue: T.removalsDue,
     removalsBlocked: T.removalsBlocked,
+    installmentsOverdue: T.installmentsOverdue,
   };
   return (
     <section className={styles.section} data-testid="billing-card">

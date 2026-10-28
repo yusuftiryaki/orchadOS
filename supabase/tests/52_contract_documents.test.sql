@@ -67,9 +67,9 @@ begin
   from public.application_garden x where x.application_id = a;
   q := public.ops_issue_quote(a);
   perform pg_temp.as_user(p_user);
-  return public.customer_accept_quote(q, jsonb_build_object('distance_sales', 'mesafeli-v4-taslak',
-    'pre_information', 'onbilgi-v4-taslak')
-    || case when p_early then '{"early_performance": "mesafeli-v4-taslak"}'::jsonb else '{}'::jsonb end);
+  return public.customer_accept_quote(q, jsonb_build_object('distance_sales', 'mesafeli-v5-taslak',
+    'pre_information', 'onbilgi-v5-taslak')
+    || case when p_early then '{"early_performance": "mesafeli-v5-taslak"}'::jsonb else '{}'::jsonb end);
 end;
 $$;
 
@@ -93,7 +93,7 @@ create function pg_temp.register(p_order uuid, p_kind text, p_sha text default r
 returns uuid language sql
 as $$
   select public.service_register_contract_document(p_order, p_kind,
-    case p_kind when 'pre_information' then 'onbilgi-v4-taslak' else 'mesafeli-v4-taslak' end,
+    case p_kind when 'pre_information' then 'onbilgi-v5-taslak' else 'mesafeli-v5-taslak' end,
     pg_temp.text_hash(case p_kind when 'pre_information' then 'pre_information' else 'distance_sales' end),
     pg_temp.path(p_order, p_kind), p_sha, p_size, 'web@test');
 $$;
@@ -118,7 +118,7 @@ select is((select count(*)::integer from private.demo_guard_drift()), 0, 'no dem
 set local role authenticated;
 select pg_temp.ops();
 select is(pg_temp.error_of(format($$ select public.service_register_contract_document(%L, 'distance_sales',
-  'mesafeli-v4-taslak', repeat('f', 64), 'x', repeat('f', 64), 1, 'web@test') $$, pg_temp.id('o1'))),
+  'mesafeli-v5-taslak', repeat('f', 64), 'x', repeat('f', 64), 1, 'web@test') $$, pg_temp.id('o1'))),
   '42501 permission denied for function service_register_contract_document', 'ops cannot register');
 reset role;
 set local role service_role;
@@ -128,16 +128,16 @@ reset role;
 select pg_temp.upload(pg_temp.id('o1'), 'distance_sales');
 select pg_temp.upload(pg_temp.id('o1'), 'pre_information');
 set local role service_role;
-select is(pg_temp.error_of(format($$ select public.service_register_contract_document(%L, 'contract', 'mesafeli-v4-taslak',
+select is(pg_temp.error_of(format($$ select public.service_register_contract_document(%L, 'contract', 'mesafeli-v5-taslak',
   %L, %L, repeat('f', 64), 1234, 'web@test') $$, pg_temp.id('o1'), pg_temp.text_hash('distance_sales'),
   pg_temp.path(pg_temp.id('o1'), 'distance_sales'))), '22023 invalid_input / kind', 'only the three kinds');
 select is(pg_temp.error_of(format($$ select public.service_register_contract_document(%L, 'distance_sales', 'mesafeli-v9',
   %L, %L, repeat('f', 64), 1234, 'web@test') $$, pg_temp.id('o1'), pg_temp.text_hash('distance_sales'),
   pg_temp.path(pg_temp.id('o1'), 'distance_sales'))), '22023 invalid_input / text_version', 'a registered version');
-select is(pg_temp.error_of(format($$ select public.service_register_contract_document(%L, 'distance_sales', 'mesafeli-v4-taslak',
+select is(pg_temp.error_of(format($$ select public.service_register_contract_document(%L, 'distance_sales', 'mesafeli-v5-taslak',
   %L, %L, repeat('f', 64), 1234, 'web@test') $$, pg_temp.id('o1'), repeat('0', 64),
   pg_temp.path(pg_temp.id('o1'), 'distance_sales'))), '22023 invalid_input / text_sha256', 'with its template hash');
-select is(pg_temp.error_of(format($$ select public.service_register_contract_document(%L, 'distance_sales', 'mesafeli-v4-taslak',
+select is(pg_temp.error_of(format($$ select public.service_register_contract_document(%L, 'distance_sales', 'mesafeli-v5-taslak',
   %L, 'x/y/distance_sales.pdf', repeat('f', 64), 1234, 'web@test') $$, pg_temp.id('o1'), pg_temp.text_hash('distance_sales'))),
   '22023 invalid_input / storage_path', 'the path is {org}/{order}/{kind}.pdf');
 select is(pg_temp.error_of(format($$ select pg_temp.register(%L, 'distance_sales', repeat('f', 64), 999) $$, pg_temp.id('o1'))),
@@ -152,7 +152,7 @@ reset role;
 select results_eq(
   $$ select kind, text_version, storage_path = pg_temp.path(pg_temp.id('o1'), 'distance_sales'), size_bytes,
             cardinality(consent_ids) from private.contract_document where id = pg_temp.id('d1') $$,
-  $$ values ('distance_sales', 'mesafeli-v4-taslak', true, 1234::bigint, 2) $$,
+  $$ values ('distance_sales', 'mesafeli-v5-taslak', true, 1234::bigint, 2) $$,
   'the row links the distance_sales and early_performance consents');
 select is((select count(*)::integer from public.notification where ref_id = pg_temp.id('o1') and template = 'contract_ready'), 0,
   'no message before both acceptance documents exist');
@@ -210,6 +210,9 @@ select results_eq(
   $$ values (pg_temp.id('o2'), array['pre_information', 'distance_sales']) $$,
   'the missing-documents reader lists the order without documents');
 -- Paid: o1 now needs its withdrawal confirmation.
+reset role;
+select testing.use_single_installment(pg_temp.id('o1'));
+set local role authenticated;
 select public.ops_record_manual_payment(pg_temp.id('o1'),
   (select total_kurus from public.service_order where id = pg_temp.id('o1')), current_date, 'EFT-52-1');
 select results_eq(

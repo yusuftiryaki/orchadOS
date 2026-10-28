@@ -46,6 +46,11 @@ export default async function NewApplicationPage({
       <PortalResult params={await searchParams} />
       {primary && !closed && <MemberBand period={primary} parcels={parcels} />}
       {!closed && <p>{primary ? N.memberLead : N.lead}</p>}
+      {!closed && !primary && (
+        <p className="muted" data-testid="application-location-note">
+          {N.locationNote}
+        </p>
+      )}
       {draft && (
         <p className={ops.notice}>
           {N.existingDraft}{" "}

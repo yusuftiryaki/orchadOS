@@ -109,7 +109,7 @@ describe("account templates", () => {
       "payment_reminder",
       "S-2026-000123",
       `/portal/siparis/${ID}`,
-      `S-2026-000123 numaralı siparişinizin ödemesi bekleniyor: ${BASE}/portal/siparis/${ID}`,
+      `orchadOS: S-2026-000123 numaralı siparişinizde bir ödemenin son günü yaklaştı. Tarih ve tutar portalınızda: ${BASE}/portal/siparis/${ID} Ödeme yapılmadan ilgili hizmet planlanmaz; faiz ya da ek ücret alınmaz.`,
     ],
     [
       "contract_ready",

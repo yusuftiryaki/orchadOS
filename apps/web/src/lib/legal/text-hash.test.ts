@@ -16,7 +16,8 @@ import { LEGAL_TEXT_VERSIONS, type LegalText } from "./versions";
 const repo = (path: string) => new URL(`../../../../../${path}`, import.meta.url);
 const ALL = Object.keys(LEGAL_TEXT_VERSIONS) as LegalText[];
 
-// The registry (supabase/migrations/20261103100100_legal_text_registry.sql)
+// The registry (supabase/migrations/20261103100100_legal_text_registry.sql,
+// 20261104101100_legal_texts_v5.sql)
 // holds these hashes; a text change or a version bump needs a new registry
 // migration, and then this record changes with it (the integration test
 // legal-followups.test.ts compares the database too).
@@ -34,23 +35,23 @@ const CURRENT: Record<RegisteredText, { version: string; sha256: string }> = {
     sha256: "94c793947e1ab06819958b19dee39962be914a2821892e0cb13866c311770ad9",
   },
   distance_sales: {
-    version: "mesafeli-v4-taslak",
-    sha256: "7edaa9ffa577d0538c1930fcf71a1faf561c282802af76ff9c2b59b6db4b7222",
+    version: "mesafeli-v5-taslak",
+    sha256: "89285c71262fcdc421c5710a5644af93057625765202921ffd570372ea414eb9",
   },
   pre_information: {
-    version: "onbilgi-v4-taslak",
-    sha256: "1a77ee0dda45f72f68d1f628603ecff5d2e2ceb9f83adaa0fc9b5ee6da4c1e33",
+    version: "onbilgi-v5-taslak",
+    sha256: "b892a7ce0e8234987da13ecf69c1874257ba237719b1c811c4662af619a2d101",
   },
   refund_policy: {
-    version: "iade-v4-taslak",
-    sha256: "67f4e8a122b12dac851dfd8a95f43698263b8d7f231c25c8be9d2f45613b722b",
+    version: "iade-v5-taslak",
+    sha256: "82e3a856a06da8513a8fab49f3031fa72a2025e2d04bc44b45114551dcf239c3",
   },
   field_notice: {
     version: "bahcede-v1-taslak",
     sha256: "e993ff6d5a947596108d3246f678b040159f6bd81bb9cb2d11755a1234255a47",
   },
   early_performance: {
-    version: "mesafeli-v4-taslak",
+    version: "mesafeli-v5-taslak",
     sha256: "3745a7686d1205ffcd0af3081d3891b345a297c6fdfbdbf37c7028c09b1c5bb2",
   },
 };
@@ -67,12 +68,16 @@ const ARCHIVE: Record<string, string> = {
     "6164a2d7a156a343bb0c390831282518758d62e824e47a582df9dc973f1fe0e1",
   "hizmet-sozlesmesi-taslagi-v3.md":
     "51cc663e3f223bb743523cfbccb49067e31f97610eb06329002e71b6611214e9",
+  "hizmet-sozlesmesi-taslagi-v4.md":
+    "48251be2c553484d71e3f54b770189671f431655e4b3d057066ce1150d2be78d",
   "iptal-iade-politikasi-taslagi-v1.md":
     "0a583ba857faa07857372efa68b7cacc2460707b2d530562c786f6cb5497eac9",
   "iptal-iade-politikasi-taslagi-v2.md":
     "11451b66e8f72f83269625cd53a0d61acd6ac3fcb3b3154f76ddbc6dbf0a48d7",
   "iptal-iade-politikasi-taslagi-v3.md":
     "654bd080b8870c1b46553b5015a8baada57cb2ee5222c5b424edfede69542c90",
+  "iptal-iade-politikasi-taslagi-v4.md":
+    "4aa8d119f07492112c54e1a6fa9ae3a3f30158d4c6fbf24b74a4562a84ab0006",
   "kvkk-aydinlatma-metni-v1.md": "53d8c352b0de6e7628d634ae702cb884595e30ffb18d88c444d800e4755c0c55",
   "on-bilgilendirme-formu-taslagi-v1.md":
     "6c6d8170b98d0f85109728b61db9dcabe13e4b2ed8328b884a19b8981917d852",
@@ -80,6 +85,8 @@ const ARCHIVE: Record<string, string> = {
     "daa86c3f6332c8d6faadfa8710471c3cad086af921be0cabe61e6c049206d998",
   "on-bilgilendirme-formu-taslagi-v3.md":
     "68fd142eb9b67b8e982b229eed123caa8da2821d2da7b1184443d74665081abb",
+  "on-bilgilendirme-formu-taslagi-v4.md":
+    "9fb8e7e0c13c8a8a46846f4058ef3c635a7ec6a4d5787ce2f484e446597970c3",
 };
 
 describe("canonical serialisation", () => {

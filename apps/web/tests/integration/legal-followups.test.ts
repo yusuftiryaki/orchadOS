@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { legalTextHash, currentLegalTexts, type RegisteredText } from "@/lib/legal/text-hash";
+import { PACKAGE_VISIT_WINDOWS } from "@/lib/billing/installments";
 import { VISIT_WINDOWS } from "@/lib/billing/visit-windows";
 import { registerLegalText } from "../local-db";
 import {
@@ -54,13 +55,17 @@ describe("legal-text registry (T21)", () => {
       "iade-v1-taslak",
       "iade-v2-taslak",
       "iade-v3-taslak",
+      "iade-v4-taslak",
       "kvkk-v1-taslak",
       "mesafeli-v1-taslak",
       "mesafeli-v2-taslak",
       "mesafeli-v3-taslak",
+      "mesafeli-v4-taslak",
+      "mesafeli-v4-taslak",
       "onbilgi-v1-taslak",
       "onbilgi-v2-taslak",
       "onbilgi-v3-taslak",
+      "onbilgi-v4-taslak",
       "riza-v1-taslak",
     ]);
     expect(archived.every((r) => r.sha256 === null && !r.is_final)).toBe(true);
@@ -86,6 +91,27 @@ describe("legal-text registry (T21)", () => {
         endMonth: r.end_month,
       })),
     ).toEqual(VISIT_WINDOWS.map((w) => ({ ...w })));
+  });
+
+  it("mirrors the package visit windows of the payment plan (H35, Ek-2 v5)", async () => {
+    for (const visits of [2, 4, 6]) {
+      const rows = check(
+        await anonClient().rpc("package_visit_windows", { p_year_visits: visits }),
+      );
+      expect(
+        rows.map((r) => ({
+          code: r.code,
+          start: [r.start_month, r.start_day],
+          end: [r.end_month, r.end_day],
+        })),
+      ).toEqual(
+        PACKAGE_VISIT_WINDOWS.filter((w) => w.packages.some((p) => p === visits)).map((w) => ({
+          code: w.code,
+          start: [...w.start],
+          end: [...w.end],
+        })),
+      );
+    }
   });
 });
 

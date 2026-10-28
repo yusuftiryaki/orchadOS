@@ -16,14 +16,14 @@ import {
 import type { LegalBlock, LegalListItem } from "@/lib/i18n/messages/legal";
 
 // A final (non-draft) version has no template yet: these tests render the
-// "-v5" names with today's "-v4-taslak" templates (templates.test.ts covers
+// "-v5" names with today's "-v5-taslak" templates (templates.test.ts covers
 // the real lookup).
 vi.mock("./templates", async (importOriginal) => {
   const real = await importOriginal<typeof import("./templates")>();
   return {
     ...real,
     contractTemplate: (kind: "pre_information" | "distance_sales", version: string) =>
-      real.contractTemplate(kind, version.replace(/-v5$/, "-v4-taslak")),
+      real.contractTemplate(kind, version.replace(/-v5$/, "-v5-taslak")),
   };
 });
 
@@ -70,8 +70,8 @@ describe("filled pre-information and contract (H12, H13 (c))", () => {
       "**KDV (%20):** 2.700,00",
       "**Toplam bedel (KDV dahil):** 16.200,00",
       "**Cayma süresi:** ödemenin tamamlandığı",
-      "onbilgi-v4-taslak",
-      "mesafeli-v4-taslak",
+      "onbilgi-v5-taslak",
+      "mesafeli-v5-taslak",
       "Şahinbey Ğ bahçesi | Gaziantep / Nizip / Test | 20 dönüm | 4",
       // The template follows.
       "Hizmetin temel nitelikleri",
@@ -198,12 +198,12 @@ describe("the object form sent at acceptance (§20.2)", () => {
     const contract = distanceContractDocument(initialInput());
     expect(acceptanceConsents(pre, contract, null)).toEqual({
       pre_information: {
-        version: "onbilgi-v4-taslak",
+        version: "onbilgi-v5-taslak",
         sha256: legalTextHash("pre_information"),
         display_sha256: displaySha256(pre),
       },
       distance_sales: {
-        version: "mesafeli-v4-taslak",
+        version: "mesafeli-v5-taslak",
         sha256: legalTextHash("distance_sales"),
         display_sha256: displaySha256(contract),
       },

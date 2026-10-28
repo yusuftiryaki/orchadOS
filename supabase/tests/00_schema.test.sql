@@ -23,7 +23,7 @@ select tables_are(
     -- Customers and billing (IP12, docs/musteri-yonetimi.md §6.3).
     'org_billing_setting', 'service_package', 'price_list', 'price_list_item', 'service_application',
     'application_garden', 'quote', 'quote_item', 'service_order', 'service_order_item', 'payment',
-    'payment_item', 'refund', 'audit_event', 'garden_removal'
+    'payment_item', 'refund', 'audit_event', 'garden_removal', 'order_installment', 'order_installment_item'
   ],
   'public has exactly the MVP tables'
 );

@@ -1,6 +1,7 @@
 import { legalText, type LegalDocument } from "@/lib/i18n/messages/legal";
 import { blocksHash } from "@/lib/legal/text-hash";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
+import { MESAFELI_V4, ONBILGI_V4 } from "./templates-archive";
 
 // The contract templates by version (docs/musteri-yonetimi.md "Sözleşme
 // belgeleri (T04)"): an order's documents are rendered with the versions the
@@ -21,10 +22,10 @@ export type TemplateKind = "pre_information" | "distance_sales";
 export type ContractTemplate = Pick<LegalDocument, "title" | "blocks">;
 
 // Frozen earlier versions: { [version]: { title, blocks } }, copied verbatim
-// from legal.ts when the version was replaced.
+// from legal.ts when the version was replaced (templates-archive.ts).
 const ARCHIVED: Record<TemplateKind, Record<string, ContractTemplate>> = {
-  pre_information: {},
-  distance_sales: {},
+  pre_information: { "onbilgi-v4-taslak": ONBILGI_V4 },
+  distance_sales: { "mesafeli-v4-taslak": MESAFELI_V4 },
 };
 
 export function contractTemplate(kind: TemplateKind, version: string): ContractTemplate | null {

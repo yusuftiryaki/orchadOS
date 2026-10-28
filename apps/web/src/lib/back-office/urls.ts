@@ -9,6 +9,7 @@ export const BO_NOTICES = [
   "quote_issued",
   "application_rejected",
   "payment_recorded",
+  "unpaid_visit_allowed",
   "due_extended",
   "order_cancelled",
   "order_terminated",

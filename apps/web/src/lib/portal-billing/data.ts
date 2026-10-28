@@ -4,6 +4,7 @@ import {
   type ApplicationGarden,
   type CustomerGarden,
   type LegalGateReason,
+  type OrderInstallment,
   type ParcelServiceStatus,
   type Payment,
   type PaymentItem,
@@ -16,6 +17,7 @@ import {
   type ServicePeriod,
 } from "@/lib/billing/types";
 import { billingReasonOf, type BillingError } from "@/lib/billing/errors";
+import { planRowOf, type PlanRow } from "@/lib/billing/installments";
 import type { Position } from "@/lib/map/geo";
 import type { RemovalTimingChoice } from "@/lib/portal-billing/validation";
 import { isUuid } from "@/lib/supabase/query";
@@ -513,6 +515,15 @@ export async function getQuote(
   };
 }
 
+// The payment plan of a quote as if accepted today (quote_installment_plan;
+// H35 (b)). Empty when the function returns no row (a zero total), or cannot
+// be read (not deployed yet: the page then shows the totals only).
+export async function getQuotePlan(supabase: Client, quoteId: string): Promise<PlanRow[]> {
+  const { data, error } = await supabase.rpc("quote_installment_plan", { p_quote_id: quoteId });
+  if (error || !data) return [];
+  return data.map(planRowOf);
+}
+
 export async function listOrders(supabase: Client, userId: string): Promise<ServiceOrder[]> {
   return check(
     await supabase
@@ -528,6 +539,7 @@ export interface OrderView {
   items: ServiceOrderItem[];
   payments: Payment[];
   quote: Pick<Quote, "id" | "number" | "package_name" | "application_id"> | null;
+  plan: PlanRow[];
 }
 
 export async function getOrder(
@@ -545,7 +557,7 @@ export async function getOrder(
       .maybeSingle(),
   ) as ServiceOrder | null;
   if (!order) return null;
-  const [items, payments, quote] = await Promise.all([
+  const [items, payments, quote, plan] = await Promise.all([
     supabase
       .from("service_order_item")
       .select(BILLING_COLUMNS.service_order_item)
@@ -561,12 +573,18 @@ export async function getOrder(
       .select("id, number, package_name, application_id")
       .eq("id", order.quote_id)
       .maybeSingle(),
+    supabase
+      .from("order_installment")
+      .select(BILLING_COLUMNS.order_installment)
+      .eq("order_id", id)
+      .order("seq"),
   ]);
   return {
     order,
     items: check(items) as ServiceOrderItem[],
     payments: check(payments) as Payment[],
     quote: check(quote) as OrderView["quote"],
+    plan: (check(plan) as OrderInstallment[]).map(planRowOf),
   };
 }
 
@@ -630,6 +648,8 @@ export interface PaymentView {
   items: PaymentItem[];
   refunds: Refund[];
   order: Pick<ServiceOrder, "id" | "number" | "status"> | null;
+  // The installment the payment paid and the plan's size (installments-v1).
+  planInstallment: { row: PlanRow; count: number } | null;
 }
 
 export async function getPayment(
@@ -647,7 +667,7 @@ export async function getPayment(
       .maybeSingle(),
   ) as Payment | null;
   if (!payment) return null;
-  const [items, refunds, order] = await Promise.all([
+  const [items, refunds, order, plan] = await Promise.all([
     supabase
       .from("payment_item")
       .select(BILLING_COLUMNS.payment_item)
@@ -663,12 +683,20 @@ export async function getPayment(
       .select("id, number, status")
       .eq("id", payment.order_id)
       .maybeSingle(),
+    supabase
+      .from("order_installment")
+      .select(BILLING_COLUMNS.order_installment)
+      .eq("order_id", payment.order_id)
+      .order("seq"),
   ]);
+  const rows = (check(plan) as OrderInstallment[]).map((r) => ({ id: r.id, row: planRowOf(r) }));
+  const paid = rows.find((r) => r.id === payment.order_installment_id);
   return {
     payment,
     items: check(items) as PaymentItem[],
     refunds: check(refunds) as Refund[],
     order: check(order) as PaymentView["order"],
+    planInstallment: paid ? { row: paid.row, count: rows.length } : null,
   };
 }
 

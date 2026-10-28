@@ -80,7 +80,19 @@ describe("application to active order", () => {
     const instructions = check(
       await customer.client.rpc("customer_payment_instructions", { p_order_id: order }),
     );
-    expect(instructions[0]).toMatchObject({ reference: row.number, outstanding_kurus: 2448000 });
+    // The payment plan (installments-v1): the first payment is the inventory.
+    expect(instructions[0]).toMatchObject({ reference: row.number, outstanding_kurus: 720000 });
+    const plan = check(
+      await customer.client
+        .from("order_installment")
+        .select("seq, kind, amount_kurus")
+        .eq("order_id", order)
+        .order("seq"),
+    );
+    expect(plan).toEqual([
+      { seq: 1, kind: "inventory", amount_kurus: 720000 },
+      ...[2, 3, 4, 5].map((seq) => ({ seq, kind: "visit", amount_kurus: 432000 })),
+    ]);
   });
 
   it("the customer cannot read internal columns", async () => {
@@ -144,10 +156,13 @@ describe("application to active order", () => {
     const receipt = check(
       await customer.client.rpc("receipt_data", { p_payment_id: payment }),
     ) as Record<string, unknown>;
+    // A transfer for several installments is one payment per installment;
+    // the first one is the rest of the inventory.
     expect(receipt).toMatchObject({
-      amount_kurus: 2248000,
+      amount_kurus: 520000,
       provider: "manual",
       bank_reference: "EFT-2",
+      plan_installment: { seq: 1, count: 5, kind: "inventory" },
     });
     expect(String(receipt.receipt_number)).toMatch(/^M-\d{4}-\d{6}$/);
     const { client: other } = await signInCustomer();
@@ -210,7 +225,8 @@ describe("application to active order", () => {
 
 describe("concurrency", () => {
   // A card attempt whose token has run out (no longer live, so a transfer may
-  // be recorded) is approved late while ops records the transfer.
+  // be recorded) is approved late while ops records the transfer for the same
+  // installment (installments-v1: a payment pays exactly one installment).
   async function race() {
     const { order } = await orderFor(customer, 20000);
     const begun = check(
@@ -221,6 +237,14 @@ describe("concurrency", () => {
         p_return_origin: "http://127.0.0.1:3100",
       }),
     ) as { payment_id: string; amount_kurus: number };
+    const first = check(
+      await admin
+        .from("order_installment")
+        .select("id")
+        .eq("order_id", order)
+        .eq("seq", 1)
+        .single(),
+    );
     check(
       await admin.rpc("payment_attach_token", {
         p_payment_id: begun.payment_id,
@@ -250,6 +274,7 @@ describe("concurrency", () => {
         p_amount_kurus: begun.amount_kurus,
         p_value_date: istanbulToday(),
         p_bank_reference: "EFT-YARIS",
+        p_installment_id: first.id,
       }),
     ]);
     return { order, card, transfer, cardPayment: begun.payment_id };
@@ -260,7 +285,7 @@ describe("concurrency", () => {
       const { order, card, transfer, cardPayment } = await race();
       expect(card.error).toBeNull();
       expect(card.data).toBe("succeeded");
-      if (transfer.error) expect(transfer.error.message).toBe("order_not_payable");
+      if (transfer.error) expect(transfer.error.message).toBe("installment_not_open");
 
       const row = check(
         await admin
@@ -294,16 +319,30 @@ describe("concurrency", () => {
       const refunds = check(
         await admin.from("refund").select("payment_id, reason, amount_kurus").eq("order_id", order),
       );
+      const installment = check(
+        await admin
+          .from("order_installment")
+          .select("status, paid_kurus, amount_kurus")
+          .eq("order_id", order)
+          .eq("seq", 1)
+          .single(),
+      );
+      expect(installment.status).toBe("paid");
+      expect(installment.paid_kurus).toBe(installment.amount_kurus);
       if (transfer.error) {
         expect(payments).toHaveLength(1);
-        expect(row.paid_kurus).toBe(row.total_kurus);
+        expect(row.paid_kurus).toBe(installment.amount_kurus);
         expect(refunds).toEqual([]);
       } else {
         expect(payments).toHaveLength(2);
-        expect(row.paid_kurus).toBe(2 * row.total_kurus);
+        expect(row.paid_kurus).toBe(2 * installment.amount_kurus);
         // The card success came last: its whole amount is the excess.
         expect(refunds).toEqual([
-          { payment_id: cardPayment, reason: "overpayment", amount_kurus: row.total_kurus },
+          {
+            payment_id: cardPayment,
+            reason: "overpayment",
+            amount_kurus: installment.amount_kurus,
+          },
         ]);
       }
     }

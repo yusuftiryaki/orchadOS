@@ -4,7 +4,7 @@
 -- and 9120..0102 (draft), customer a0..06 with application 9120..0301.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(53);
+select plan(57);
 
 select testing.reset_to_seed();
 
@@ -182,12 +182,33 @@ select throws_ok(
   format($$ update public.service_order_item set parcel_id = null where id = %L $$, pg_temp.id(5)),
   'P0001', null, 'and keeps it');
 
+-- Payment plan (installments-v1) -------------------------------------------------
+
+insert into public.order_installment (id, org_id, order_id, customer_user_id, seq, kind, amount_kurus, vat_kurus, due_on)
+values (pg_temp.id(6), 'b0000000-0000-4000-8000-000000000001', pg_temp.id(4), 'a0000000-0000-4000-8000-000000000006',
+        1, 'single', 2064000, 344000, current_date);
+select throws_ok(
+  format($$ update public.order_installment set amount_kurus = 1 where id = %L $$, pg_temp.id(6)),
+  'P0001', 'installment_frozen', 'an installment keeps its amount');
+select throws_ok(
+  format($$ update public.order_installment set paid_kurus = 2064000 where id = %L $$, pg_temp.id(6)),
+  '23514', null, 'a fully paid installment is not left pending');
+select throws_ok(
+  format($$ delete from public.order_installment where id = %L $$, pg_temp.id(6)),
+  'P0001', null, 'an installment is never deleted');
+select throws_ok(
+  $$ insert into public.order_installment (org_id, order_id, customer_user_id, seq, kind, amount_kurus, vat_kurus, due_on)
+     values ('b0000000-0000-4000-8000-000000000001', (select id from public.service_order where number = 'S-2026-900001'),
+             'a0000000-0000-4000-8000-000000000006', 2, 'visit', 1, 0, current_date) $$,
+  '23514', null, 'a visit installment names its visit');
+
 -- Payments ----------------------------------------------------------------------
 
 select throws_ok(
-  format($$ insert into public.payment (org_id, order_id, customer_user_id, provider, status, amount_kurus)
+  format($$ insert into public.payment (org_id, order_id, customer_user_id, provider, status, amount_kurus,
+              order_installment_id)
             values ('b0000000-0000-4000-8000-000000000001', %L, 'a0000000-0000-4000-8000-000000000006',
-                    'manual', 'succeeded', 2064000) $$, pg_temp.id(4)),
+                    'manual', 'succeeded', 2064000, %L) $$, pg_temp.id(4), pg_temp.id(6)),
   '23514', null, 'a manual payment needs its bank reference, value date and recorder (and a receipt)');
 
 -- Insert-only private tables and the audit log ------------------------------------

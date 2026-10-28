@@ -74,10 +74,11 @@ begin
   from public.application_garden x where x.application_id = a;
   q := public.ops_issue_quote(a);
   perform pg_temp.as_user(p_user);
-  o := public.customer_accept_quote(q, jsonb_build_object('distance_sales', 'mesafeli-v4-taslak',
-    'pre_information', 'onbilgi-v4-taslak')
-    || case when p_early then '{"early_performance": "mesafeli-v4-taslak"}'::jsonb else '{}'::jsonb end);
+  o := public.customer_accept_quote(q, jsonb_build_object('distance_sales', 'mesafeli-v5-taslak',
+    'pre_information', 'onbilgi-v5-taslak')
+    || case when p_early then '{"early_performance": "mesafeli-v5-taslak"}'::jsonb else '{}'::jsonb end);
   perform pg_temp.ops();
+  perform testing.use_single_installment(o);
   perform public.ops_record_manual_payment(o, (select total_kurus from public.service_order where id = o), current_date,
     'EFT-53-' || left(o::text, 8));
   perform testing.set_order_period(o, pg_temp.today() - 2, pg_temp.today() + 362);
@@ -166,12 +167,15 @@ insert into ids select 'rq', public.ops_issue_parcel_quote('b0000000-0000-4000-8
   '91200000-0000-4000-8000-000000000001', array[pg_temp.id('p3')], false, pg_temp.today() + 6, pg_temp.id('o3'));
 select pg_temp.as_user(pg_temp.id('c3'));
 insert into ids select 'o4', public.customer_accept_quote(pg_temp.id('rq'),
-  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
+  '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 select pg_temp.ops();
 select is(pg_temp.error_of(pg_temp.plan_sql(pg_temp.id('p3'), 'periodic_scan', pg_temp.today() + 7)),
   'P0001 withdrawal_period_open', 'an unpaid renewal: no service before the contract is paid');
 select is(pg_temp.error_of(pg_temp.plan_sql(pg_temp.id('p3'), 'periodic_scan', pg_temp.today() + 2)), null,
   'the running order decides its own days');
+reset role;
+select testing.use_single_installment(pg_temp.id('o4'));
+set local role authenticated;
 select public.ops_record_manual_payment(pg_temp.id('o4'), (select total_kurus from public.service_order where id = pg_temp.id('o4')),
   current_date, 'EFT-53-renewal');
 select is(pg_temp.error_of(pg_temp.plan_sql(pg_temp.id('p3'), 'periodic_scan', pg_temp.today() + 3)), null,

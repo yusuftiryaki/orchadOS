@@ -935,6 +935,8 @@ export const tr = {
         "Bahçe hizmetten çıkarıldı; sürdürülemez. Yeniden eklemek için ek teklif verin.",
       withdrawal_period_open:
         "Siparişin cayma süresi sürüyor ve sahip erken başlama talep etmedi; envanteri ve ziyaretleri cayma süresinin bitiminden sonraya planlayın.",
+      installment_unpaid:
+        "Bu ziyaretin ödemesi yapılmadı; ziyaret ödemeden sonra planlanır. Sahip yazılı olarak isterse siparişin ödeme planından not yazarak ödemesiz ziyarete izin verebilirsiniz.",
       boundary_dispute_open:
         "Bu bahçede açık bir sınır itirazı var; itiraz kapatılmadan envanter ya da periyodik tarama planlanamaz.",
       already_owner: "Bu kişi parselin sahibi; hissedar olarak eklenemez.",

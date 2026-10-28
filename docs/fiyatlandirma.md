@@ -49,6 +49,29 @@ Tutarlar KDV hariçtir; üstüne %20 KDV eklenir. Birim fiyat **dönüm başına
 - En az ücretin devreden çıktığı alan: Temel ~13,5 dönüm, Standart ~15,6 dönüm, Kapsamlı ~15,9 dönüm. Bunun altındaki bahçe en az ücreti öder.
 - Komşu bahçe indirimiyle (%10) Standart, 20 dönüm, ilk yıl: 20.400 − 2.040 = 18.360 → 22.032 TL.
 
+## 2a. Ödeme planı
+
+> **Karar (28 Ekim 2026, ürün sahibi):** İlk yıl envanter ücreti teklif onayında **tek çekimle önden** ödenir. Yıllık tutarın geri kalanı (en az ücret ve indirim uygulanmış ziyaret tutarı, KDV dahil) paketteki **periyodik ziyaret sayısı kadar** ödemeye bölünür: Temel 2, Standart 4, Kapsamlı 6. Bu bir ziyaret başına ödeme planıdır, **kart taksiti değildir**; her ödeme ayrı bir tek çekim kart işlemi ya da havaledir. Faiz, vade farkı ya da ücret yoktur; ödemelerin toplamı peşin fiyata eşittir. Kart taksiti kapsam dışı kalır. Hukuki çerçeve: [hukuk/kararlar.md](hukuk/kararlar.md) H35 (yapay zekâ ajanlarının kararı).
+
+Formül `installments-v1`'dir ([musteri-yonetimi.md](musteri-yonetimi.md) §5.6; tek kaynak `private.installment_schedule`):
+- Envanter ödemesi = envanter ücreti − indirim payı + KDV.
+- Kalan tutar ziyaret sayısına eşit bölünür; kuruş farkı son ödemeye eklenir (çok bahçeli siparişte satır satır).
+- Ziyaret ödemesinin son günü, ziyaretin penceresinin başlangıcından 14 gün öncesidir; bu gün geçmişse onay günüdür. Pencereler §1'deki takvimdir (Temel: Kış, Hasat; Standart: Kış, İlkbahar, Yaz, Hasat; Kapsamlı: altısı).
+- Ödenmemiş ziyaret ödemesinin ziyareti yapılmaz; pencere ödemesiz biterse o ziyaret düşer ve ödemesi istenmez.
+
+**Örnekler** (yerel veritabanında `private.installment_schedule` ile hesaplandı; teklif onayı 1 Kasım 2026, ödeme süresi 14 gün; KDV dahil):
+
+| Sipariş | Ödemeler | Toplam |
+| --- | --- | --- |
+| 20 dönüm, Standart, ilk yıl | Envanter 7.200,00 (15 Kas 2026) + 4 × 4.320,00 (Kış 1 Ara 2026, İlkbahar 1 Nis 2027, Yaz 17 Haz 2027, Hasat 1 Eyl 2027) | 24.480,00 |
+| 20 dönüm, Temel, yıllık | 2 × 4.992,00 (Kış 1 Ara 2026, Hasat 1 Eyl 2027) | 9.984,00 |
+| 20 dönüm, Kapsamlı, yıllık | 6 × 4.032,00 (Kış 1 Ara 2026, Uyanma 24 Şub, İlkbahar 1 Nis, Yaz 17 Haz, Hasat öncesi 18 Tem, Hasat sonrası 1 Eyl 2027) | 24.192,00 |
+| 10 dönüm, Standart, yıllık (en az ücret) | 4 × 3.360,00 | 13.440,00 |
+| Ek bahçe, 15 dönüm, Standart, 1 Nisan 2027'den (2 ziyaret) | Envanter 7.200,00 + 2 × 3.360,00 (İlkbahar, Yaz) | 13.920,00 |
+
+- İndirimli siparişte envanter ödemesi de indirimlidir (%10 indirimle 6.480,00 TL).
+- Ödeme payı: her ödeme ayrı bir kart işlemi olduğundan iyzico'nun işlem başına sabit ücreti (0,25 TL) ödeme sayısı kadar alınır; Standart 20 dönümde ilk yıl 5 işlem.
+
 ## 3. Pazar
 
 - **Yayımlanmış rakip yok:** Türkiye'de bağımsız ve periyodik bahçe denetimi için fiyatı yayımlanmış bir hizmet bulunamadı. Karşılaştırma ikame hizmetlerle yapıldı.

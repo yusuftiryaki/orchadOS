@@ -196,7 +196,8 @@ Kurallar:
 | `service_application`, `application_garden` | public | Başvuru (`B-YYYY-NNNNNN`) ve bahçeleri: konum, kaba sınır, beyan ve doğrulanmış alan. Parsel, ödeme tamamlanınca açılır |
 | `quote`, `quote_item` | public | Teklif: girdiler ve tutarlar dondurulur (`quote_guard`, satırlar ekleme-yalnız) |
 | `service_order`, `service_order_item` | public | Sipariş, hizmet dönemi, ödenen ve iade edilen tutar |
-| `payment`, `payment_item`, `refund` | public | Kart denemesi ya da havale, makbuz numarası, kalem bazında iade |
+| `order_installment`, `order_installment_item` | public | Ödeme planı (`installments-v1`): envanter ödemesi ve ziyaret ödemeleri, son günleri, ödenen ve iptal edilen tutar; satır payları. Silinmez, tutarı değişmez ([musteri-yonetimi.md](musteri-yonetimi.md) §5.6, §6.14) |
+| `payment`, `payment_item`, `refund` | public | Kart denemesi ya da havale, makbuz numarası, kalem bazında iade. Her ödeme tam olarak bir plan ödemesini öder (`order_installment_id`) |
 | `audit_event` | public | Denetim kaydı: aktör ve rolü açıkça verilir, ayrıntıda kişisel veri yok. Ekleme-yalnız |
 | `billing_profile`, `payment_billing_snapshot` | private | Fatura bilgisi; TCKN yalnızca gerekirse, anlık görüntüde maskeli |
 | `consent_record` | private | KVKK aydınlatma ve açık rızalar, metin sürümüyle. Ekleme-yalnız; hesap silinse de `subject_id` ile kalır |
@@ -225,7 +226,8 @@ Hepsi `security definer`, `search_path = ''`; hatalar kısa koddur, `detail` yal
 | Müşteri | `customer_accept_quote` (fatura profili, son KVKK aydınlatma kaydı, mesafeli satış ve ön bilgilendirme onayı; toplam 0 ise sipariş hemen aktif), `customer_decline_quote`, `customer_cancel_order`, `customer_payment_instructions`, `receipt_data` | müşteri (makbuz: müşteri ya da ops) |
 | Sipariş | `ops_cancel_order`, `ops_extend_payment_due`, `ops_terminate_order` | ops |
 | Ödeme | `payment_begin`, `payment_attach_token`, `payment_by_token`, `payment_record_event`, `payment_finalize`, `payment_attempts_to_reconcile` (Edge sözleşmesi `supabase/functions/_shared/payments/db.ts`) | service_role |
-| Havale ve inceleme | `ops_record_manual_payment`, `ops_void_manual_payment`, `ops_resolve_payment_review` | ops |
+| Havale ve inceleme | `ops_record_manual_payment` (bir plan ödemesine ya da açık ödemelere sırayla), `ops_void_manual_payment`, `ops_resolve_payment_review` | ops |
+| Ödeme planı | `quote_installment_plan` (teklif sayfası), `package_visit_windows` (herkese açık); `ops_order_installments`, `ops_overdue_installments`, `ops_allow_unpaid_visit` | müşteri ya da ops; ops |
 | İade | `ops_request_refund`, `ops_can_process_refund`, `ops_complete_manual_refund`, `ops_cancel_refund`, `ops_resolve_refund`; `payment_refund_claim`, `payment_refund_report` | ops; service_role |
 | Back office | `ops_billing_summary`, `ops_customers`, `ops_billing_internal` (iç sütunlar), `ops_orders`, `ops_payments`, `ops_payment_events`, `ops_refunds`, `ops_audit_events` | ops |
 | Yardımcı ve zamanlanmış | `private.activate_order`, `private.create_customer_parcel`, `private.open_system_refund`, `private.enqueue_billing_notification`, `private.billing_housekeeping` (her gece), `private.dispatch_payment_reconcile` (10 dakikada bir) | — |
