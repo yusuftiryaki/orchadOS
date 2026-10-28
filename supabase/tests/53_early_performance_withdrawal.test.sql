@@ -4,9 +4,9 @@
 -- while garden changes are off and its supersede, ops_record_withdrawal by
 -- notice day and channel, the notice columns and the withdrawal_received
 -- messages.
--- Seed: org b0..01, ops a0..05, package standart 9120..0001 (V = 4); round
--- test prices (testing.use_round_prices, no inventory fee): 20 dönüm cost
--- 1 200 000 kuruş a year (one visit 300 000). One transaction.
+-- Seed: org b0..01, ops a0..05, package standart 9120..0001 (V = 4). Round test
+-- prices (testing.use_round_prices, no inventory fee): 20 dönüm cost 1 200 000
+-- kuruş a year (one visit 300 000). One transaction.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(41);

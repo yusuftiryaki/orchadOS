@@ -36,16 +36,15 @@ select results_eq(
 select is((select count(*)::integer from private.legal_text_version where is_current and sha256 ~ '^[0-9a-f]{64}$'), 8,
   'every current version carries its template hash');
 select results_eq(
-  $$ select kind, version, sha256 is not null from private.legal_text_version where not is_current
-     order by kind, version $$,
-  $$ values ('distance_sales', 'mesafeli-v1-taslak', false), ('distance_sales', 'mesafeli-v2-taslak', false),
-            ('distance_sales', 'mesafeli-v3-taslak', true), ('early_performance', 'mesafeli-v3-taslak', true),
-            ('explicit_consent', 'riza-v1-taslak', false), ('kvkk_notice', 'kvkk-v1-taslak', false),
-            ('pre_information', 'onbilgi-v1-taslak', false), ('pre_information', 'onbilgi-v2-taslak', false),
-            ('pre_information', 'onbilgi-v3-taslak', true), ('privacy', 'gizlilik-v1-taslak', false),
-            ('refund_policy', 'iade-v1-taslak', false), ('refund_policy', 'iade-v2-taslak', false),
-            ('refund_policy', 'iade-v3-taslak', true) $$,
-  'versions archived before the registry have no hash; v3 (registered, then superseded) keeps its own');
+  $$ select kind, version from private.legal_text_version where not is_current order by kind, version $$,
+  $$ values ('distance_sales', 'mesafeli-v1-taslak'), ('distance_sales', 'mesafeli-v2-taslak'),
+            ('distance_sales', 'mesafeli-v3-taslak'),
+            ('explicit_consent', 'riza-v1-taslak'), ('kvkk_notice', 'kvkk-v1-taslak'),
+            ('pre_information', 'onbilgi-v1-taslak'), ('pre_information', 'onbilgi-v2-taslak'),
+            ('pre_information', 'onbilgi-v3-taslak'),
+            ('privacy', 'gizlilik-v1-taslak'), ('refund_policy', 'iade-v1-taslak'),
+            ('refund_policy', 'iade-v2-taslak'), ('refund_policy', 'iade-v3-taslak') $$,
+  'the archived versions are registered without a hash');
 select ok(not exists (select 1 from private.legal_text_version where is_final), 'every registered version is a draft today');
 select throws_ok($$ insert into private.legal_text_version (kind, version, sha256, is_current)
   values ('kvkk_notice', 'kvkk-v3', repeat('b', 64), true) $$, '23505', null, 'a second current row per kind is refused');
@@ -64,7 +63,7 @@ select results_eq(
 rollback to savepoint reg;
 
 set local role anon;
-select is((select count(*)::integer from public.registered_legal_text_versions()), 21, 'anyone reads the registered versions');
+select is((select count(*)::integer from public.registered_legal_text_versions()), 20, 'anyone reads the registered versions');
 select throws_ok($$ select * from private.legal_text_version $$, '42501', null, 'the table itself is closed');
 reset role;
 

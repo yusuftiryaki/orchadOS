@@ -544,7 +544,7 @@ A1'de:
 A2'de:
 - `customer_accept_quote(p_quote_id, p_consents jsonb) returns uuid`
     - `p_consents`, `distance_sales`, `pre_information` ve isteğe bağlı `early_performance` (T03) için iki biçimden birini alır (bir sürüm boyunca ikisi de geçerli; web önce eski biçimi gönderir):
-        - `{"distance_sales": "mesafeli-v3-taslak", …}`: sunucu kayıtlı şablon özetini yazar.
+        - `{"distance_sales": "mesafeli-v4-taslak", …}`: sunucu kayıtlı şablon özetini yazar.
         - `{"distance_sales": {"version": "…", "sha256": "<64 hex>", "display_sha256": "<64 hex>"}, …}`: `sha256` kayıtlı özete eşit olmalıdır; `display_sha256` isteğe bağlıdır, biçimi denetlenir ve olduğu gibi saklanır (§20).
     - Sürüm kayıtlı güncel sürüm değilse ya da özet tutmazsa `legal_text_outdated` (P0001, detail tür). Biçimsiz ya da eksik zorunlu tür `consent_required`.
     - `early_performance` hiçbir zaman zorunlu değildir; yoksa, `null` ya da `false` ise satır yazılmaz. Varsa ayrı bir `consent_record` (granted, `quote_acceptance`, teklif ve sipariş kimliği, `text_sha256`) yazılır; sürümü yanında gösterilen `distance_sales` sürümüdür.

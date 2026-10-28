@@ -46,39 +46,24 @@ describe("legal-text registry (T21)", () => {
     }
   });
 
-  it("keeps the archived versions, with a hash only once registered", async () => {
+  it("keeps the archived versions without a hash", async () => {
     const rows = check(await anonClient().rpc("registered_legal_text_versions"));
     const archived = rows.filter((r) => !r.is_current);
-    // Archived before the registry: no hash.
-    expect(
-      archived
-        .filter((r) => r.sha256 === null)
-        .map((r) => r.version)
-        .sort(),
-    ).toEqual([
+    expect(archived.map((r) => r.version).sort()).toEqual([
       "gizlilik-v1-taslak",
       "iade-v1-taslak",
       "iade-v2-taslak",
+      "iade-v3-taslak",
       "kvkk-v1-taslak",
       "mesafeli-v1-taslak",
       "mesafeli-v2-taslak",
+      "mesafeli-v3-taslak",
       "onbilgi-v1-taslak",
       "onbilgi-v2-taslak",
+      "onbilgi-v3-taslak",
       "riza-v1-taslak",
     ]);
-    // Registered, then superseded by v4 (launch prices): the hash stays.
-    expect(
-      archived
-        .filter((r) => r.sha256 !== null)
-        .map((r) => `${r.kind}:${r.version}`)
-        .sort(),
-    ).toEqual([
-      "distance_sales:mesafeli-v3-taslak",
-      "early_performance:mesafeli-v3-taslak",
-      "pre_information:onbilgi-v3-taslak",
-      "refund_policy:iade-v3-taslak",
-    ]);
-    expect(archived.every((r) => !r.is_final)).toBe(true);
+    expect(archived.every((r) => r.sha256 === null && !r.is_final)).toBe(true);
   });
 
   it("publishes the seller's company information to anyone", async () => {

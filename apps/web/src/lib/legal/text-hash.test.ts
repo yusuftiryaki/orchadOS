@@ -16,10 +16,10 @@ import { LEGAL_TEXT_VERSIONS, type LegalText } from "./versions";
 const repo = (path: string) => new URL(`../../../../../${path}`, import.meta.url);
 const ALL = Object.keys(LEGAL_TEXT_VERSIONS) as LegalText[];
 
-// The registry (supabase/migrations/20261103100100_legal_text_registry.sql,
-// 20261103100800_legal_texts_v4.sql) holds these hashes; a text change or a version bump needs a new registry
+// The registry (supabase/migrations/20261103100100_legal_text_registry.sql)
+// holds these hashes; a text change or a version bump needs a new registry
 // migration, and then this record changes with it (the integration test
-// legal-registry.test.ts compares the database too).
+// legal-followups.test.ts compares the database too).
 const CURRENT: Record<RegisteredText, { version: string; sha256: string }> = {
   kvkk_notice: {
     version: "kvkk-v2-taslak",
