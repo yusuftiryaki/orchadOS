@@ -18,7 +18,7 @@ import {
   type OrderView,
 } from "@/lib/back-office/data";
 import { boHref, firstParam } from "@/lib/back-office/urls";
-import { addDays, parseIsoDate } from "@/lib/back-office/validation";
+import { addDays, bpToPercent, parseIsoDate, percentToBp } from "@/lib/back-office/validation";
 import { BILLING_ERRORS, type BillingError } from "@/lib/billing/errors";
 import { formatDonum } from "@/lib/billing/money";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
@@ -203,15 +203,25 @@ function ParcelBoxes({ legend, parcels }: { legend: string; parcels: ParcelChoic
   );
 }
 
-function TermFields({ validDays }: { validDays: number }) {
+// discountBp: the discount of the preview, sent as is (an add-on quote is
+// issued with the terms ops previewed).
+function TermFields({ validDays, discountBp }: { validDays: number; discountBp?: number }) {
   return (
     <>
       <Field label={B.fields.valid_days} hint={T.validDaysHint(validDays)} optional>
         <input name="valid_days" inputMode="numeric" />
       </Field>
-      <Field label={B.fields.discount_percent} hint={T.discountHint} optional>
-        <input name="discount_percent" inputMode="decimal" />
-      </Field>
+      {discountBp == null ? (
+        <Field label={B.fields.discount_percent} hint={T.discountHint} optional>
+          <input name="discount_percent" inputMode="decimal" />
+        </Field>
+      ) : (
+        <input
+          type="hidden"
+          name="discount_percent"
+          value={discountBp ? bpToPercent(discountBp) : ""}
+        />
+      )}
       <Field label={T.discountNote} optional>
         <input name="discount_note" maxLength={500} />
       </Field>
@@ -317,7 +327,6 @@ async function AddonQuote({
     getSetting(supabase, o.org_id),
   ]);
   const parcels = owned.filter((p) => p.orgId === o.org_id);
-  const period = membership.periods.find((p) => p.base_order_id === o.id);
   const fromParcels = from
     ? membership.gardens
         .filter((g) => g.base_order_id === from.order.id && g.state === "in_service")
@@ -327,11 +336,20 @@ async function AddonQuote({
   const selected = asked.length ? asked : fromParcels;
   const startParam = parseIsoDate(firstParam(query.baslangic) ?? "");
   const start = startParam ?? (from?.order.service_end ? addDays(from.order.service_end, 1) : null);
+  const discountBp = percentToBp(firstParam(query.indirim) ?? "") ?? 0;
   const preview =
     isBase && selected.length
-      ? await previewAddonQuote(supabase, { baseOrderId: o.id, parcelIds: selected, start })
+      ? await previewAddonQuote(supabase, {
+          baseOrderId: o.id,
+          parcelIds: selected,
+          start,
+          discountBp,
+        })
       : null;
-  const addonUntil = period?.addon_base_order_id ? period.addon_until : null;
+  // This order's last add-on day (private.addon_last_day), not the
+  // customer-wide add-on base's: in a merge the page's order may be another.
+  const addonUntil =
+    o.service_end && setting ? addDays(o.service_end, 1 - setting.addon_min_days) : null;
 
   return (
     <main className="page">
@@ -383,6 +401,9 @@ async function AddonQuote({
             <Field label={T.start} optional>
               <input type="date" name="baslangic" defaultValue={start ?? ""} />
             </Field>
+            <Field label={B.fields.discount_percent} hint={T.discountHint} optional>
+              <input name="indirim" inputMode="decimal" defaultValue={bpToPercent(discountBp)} />
+            </Field>
             <div className={styles.actions}>
               <button className="button button-secondary" type="submit">
                 {A.previewButton}
@@ -414,7 +435,8 @@ async function AddonQuote({
                   <input key={id} type="hidden" name="parcel_ids" value={id} />
                 ))}
                 {start && <input type="hidden" name="proposed_service_start" value={start} />}
-                <TermFields validDays={setting?.quote_valid_days ?? 30} />
+                <p className="muted">{A.termsFromPreview}</p>
+                <TermFields validDays={setting?.quote_valid_days ?? 30} discountBp={discountBp} />
                 <div className={styles.actions}>
                   <Submit>{A.submit}</Submit>
                 </div>

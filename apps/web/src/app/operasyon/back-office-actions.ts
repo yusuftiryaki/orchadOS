@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { customerListView, type CustomerListView } from "@/components/back-office/customer-rows";
 import { requireSection } from "@/lib/auth/session";
-import { listCustomers, membershipOf, refundKinds } from "@/lib/back-office/data";
+import {
+  applicationCustomer,
+  listCustomers,
+  readMembership,
+  refundKinds,
+  removalLastEffective,
+} from "@/lib/back-office/data";
 import type { BoFormState } from "@/lib/back-office/form-state";
 import {
   cancelGardenRemoval,
@@ -40,7 +46,6 @@ import {
 } from "@/lib/back-office/mutations";
 import { boHref, type BoError } from "@/lib/back-office/urls";
 import {
-  addDays,
   formReader,
   parseAddonQuote,
   parseIntInRange,
@@ -59,8 +64,10 @@ import {
   parseResolution,
   parseSettings,
   parseVerify,
+  planRemoveAll,
   type Parsed,
 } from "@/lib/back-office/validation";
+import { formatDate } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { listOwnerProfiles, opsOrgs } from "@/lib/operations/data";
@@ -194,8 +201,14 @@ export async function issueQuoteAction(_prev: BoFormState, form: FormData): Prom
   const read = formReader(form);
   const applicationId = idOf(read, "application_id");
   if (!applicationId) return notFound;
-  // A member gets a separate period only with the explicit checkbox (IP14 §4.4).
-  if (read("member") === "1" && read("separate_period") !== "on") {
+  // A member gets a separate period only with the explicit checkbox (IP14
+  // §4.4). Membership is read here, never taken from the form: the page may
+  // be stale, and the database allows the second period (§19).
+  const customer = await applicationCustomer(supabase, applicationId).catch(() => null);
+  if (!customer) return notFound;
+  const membership = await readMembership(supabase, customer.orgId, customer.userId);
+  if ("error" in membership) return failed(membership);
+  if (membership.membership.periods.length > 0 && read("separate_period") !== "on") {
     return invalidField("separate_period");
   }
   const parsed = parsedOr(parseQuoteTerms(read));
@@ -316,8 +329,9 @@ export async function requestRemovalAction(
   );
 }
 
-// "Tüm bahçeleri çıkar": one removal per garden in service, same day, reason
-// and note; the result of each line is reported (no redirect).
+// "Tüm bahçeleri çıkar": one removal per garden with an open line (in
+// service, or not started yet: a paid renewal, a later add-on), same day,
+// reason and note; the result of each garden is reported (no redirect).
 export async function removeAllGardensAction(
   _prev: BoFormState,
   form: FormData,
@@ -331,29 +345,42 @@ export async function removeAllGardensAction(
     parseRemovalRequest(read, { today: todayIn(new Date()), lastDay: null }, settingDays(read)),
   );
   if ("state" in parsed) return parsed.state;
-  let gardens;
+  const membership = await readMembership(supabase, orgId, userId);
+  if ("error" in membership) return failed(membership);
+  const { gardens } = membership.membership;
+  let lastDays: Map<string, string>;
   try {
-    ({ gardens } = await membershipOf(supabase, orgId, userId));
+    lastDays = await removalLastEffective(
+      supabase,
+      userId,
+      gardens.map((g) => g.parcel_id),
+    );
   } catch {
-    return { error: billingText.errors.forbidden };
+    return { error: billingText.errors.write_failed };
   }
-  const inService = gardens.filter((g) => g.state === "in_service" && g.order_item_id);
-  if (inService.length === 0) return { error: B.membership.removeAllNone };
+  const steps = planRemoveAll(gardens, parsed.value.effectiveOn, lastDays);
+  if (steps.length === 0) return { error: B.membership.removeAllNone };
   const lines: NonNullable<BoFormState["lines"]> = [];
-  for (const g of inService) {
-    // A line ending before the day leaves on its own end (removal_last_effective).
-    const effectiveOn =
-      g.service_end && parsed.value.effectiveOn > g.service_end
-        ? addDays(g.service_end, 1)
-        : parsed.value.effectiveOn;
+  for (const step of steps) {
+    const g = step.garden;
+    if ("skipped" in step) {
+      lines.push({ label: g.garden_name, ok: false, text: B.membership.lineSkipped });
+      continue;
+    }
     const r = await requestGardenRemoval(supabase, g.order_item_id, {
       ...parsed.value,
-      effectiveOn,
+      effectiveOn: step.effectiveOn,
     });
     lines.push(
-      r.ok
-        ? { label: g.garden_name, ok: true, text: B.membership.lineDone(g.order_number) }
-        : { label: g.garden_name, ok: false, text: failed(r).error! },
+      !r.ok
+        ? { label: g.garden_name, ok: false, text: failed(r).error! }
+        : {
+            label: g.garden_name,
+            ok: true,
+            text: step.moved
+              ? B.membership.lineMoved(g.order_number, formatDate(step.effectiveOn))
+              : B.membership.lineDone(g.order_number),
+          },
     );
   }
   revalidatePath("/operasyon", "layout");

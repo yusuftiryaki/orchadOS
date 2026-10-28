@@ -625,6 +625,8 @@ export const backOfficeText = {
     blocked: "Engelli",
     withdrawal: "Cayma",
     atPeriodEnd: "Dönem sonunda",
+    truncated:
+      "Liste 1000 kayıtla sınırlı ve en erken çıkış günleri önce geliyor; en yeni kayıtlar listede yok. Bir kaydı numarasıyla açmak için müşteri ya da parsel sayfasını kullanın.",
   },
   removal: {
     title: (number: string) => `Bahçe çıkarma ${number}`,
@@ -685,6 +687,13 @@ export const backOfficeText = {
     scheduleTitle: "Tarihi teyit et / değiştir",
     scheduleHint:
       "Tarih istenen günden farklıysa not zorunlu. Tarih değişirse müşteriye SMS gider.",
+    confirmHint:
+      "Teyit edince müşteriye SMS gider (tarih aynı kalsa da). Tarih istenen günden farklıysa not zorunlu.",
+    unknown: "Okunamadı",
+    revokeAllUnknown:
+      "Kayıttaki seçim okunamadı: kutu boş bırakılırsa mevcut seçim korunur, işaretlenirse herkesin erişimi kaldırılır.",
+    accessDaysHint: (days: number) =>
+      `Boş bırakılırsa ${days} gün; nedeni devir ise 0 gün (satıcının erişimi kalmaz).`,
     shortAccessRule: (days: number) =>
       `Erişim süresi ${days} günden kısaysa neden devir ya da mükerrer olmalı ya da not yazılmalı.`,
     schedule: "Tarihi kaydet",
@@ -734,11 +743,14 @@ export const backOfficeText = {
     addonQuote: "Ek teklif ver",
     removeAll: "Tüm bahçeleri çıkar",
     removeAllHint:
-      "Hizmetteki her bahçe için aynı tarihle çıkarma açılır; müşteriye her bahçe için SMS gider. Üyeliği sonlandırmanın önerilen yolu budur.",
+      "Hizmetteki ve hizmeti başlamamış (ödenmiş yenileme, ek sipariş) her bahçe için aynı tarihle çıkarma açılır; müşteriye her bahçe için SMS gider. Hizmeti seçilen günden önce biten bahçe kendi son gününün ertesinde çıkar. Üyeliği sonlandırmanın önerilen yolu budur.",
     removeAllSubmit: "Tüm bahçeler için çıkarma aç",
     removeAllResult: "Sonuç",
     removeAllNone: "Hizmette bahçe yok.",
     lineDone: (number: string) => `açıldı (${number})`,
+    lineMoved: (number: string, date: string) =>
+      `açıldı (${number}); çıkış günü bahçenin son hizmet gününün ertesine, ${date} tarihine alındı`,
+    lineSkipped: "zaten açık bir çıkarması var; atlandı",
   },
   addon: {
     title: "Ek teklif",
@@ -761,6 +773,9 @@ export const backOfficeText = {
       `Dönem birleştirme: ${order} siparişinin bahçeleri bu döneme taşınır; başlangıç onun bitişinin ertesi günü.`,
     noMembership: "Bu sipariş bir üyeliğin temel siparişi değil ya da aktif değil.",
     previewButton: "Önizlemeyi güncelle",
+    termsFromPreview:
+      "Başlangıç ve indirim yukarıdaki önizlemeden alınır; değiştirmek için önizlemeyi güncelleyin.",
+    issueBlocked: "Üyelik okunamadığı için teklif verilemez; sayfayı yenileyin.",
     info: "Ek teklif bilgisi",
     period: "Üyelik dönemi",
     visitsLine: (visits: number, perYear: number) => `${visits} ziyaret (yılda ${perYear})`,
@@ -770,6 +785,10 @@ export const backOfficeText = {
   overlaps: {
     title: "Mükerrer kontrolü",
     none: "Konumu içeren, sınırı kesişen ya da 200 m içinde parsel yok.",
+    failed: (reason: string) => `Mükerrer kontrolü yapılamadı (${reason}). Sayfayı yenileyin.`,
+    issueBlocked: "Mükerrer kontrolü her bahçe için yapılamadan teklif verilemez.",
+    membershipFailed: (reason: string) =>
+      `Müşterinin üyeliği okunamadı (${reason}); ek teklif mi ayrı dönem mi verileceği bilinemiyor. Sayfayı yenileyin.`,
     parcel: "Parsel",
     status: "Durum",
     relation: "İlişki",

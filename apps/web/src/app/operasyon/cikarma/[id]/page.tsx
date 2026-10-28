@@ -53,6 +53,9 @@ export default async function Page({
   const view = await getRemoval(supabase, id);
   if (!view) notFound();
   const { removal: r, row, preview, refunds, setting } = view;
+  // Past the list's limit the internal note and the revoke-all choice are
+  // unknown: shown as such, and the stored choice is kept on save.
+  const unknown = row ? null : T.unknown;
   const today = todayIn(new Date());
   const open = r.status === "requested" || r.status === "scheduled";
   const effectiveOn = r.effective_on ?? r.requested_effective_on;
@@ -67,7 +70,7 @@ export default async function Page({
       </p>
       <h1>{T.title(r.number)}</h1>
       <BoResultNotice params={await searchParams} />
-      {row?.blocked_reason && <Warning testId="removal-blocked">{T.blocked}</Warning>}
+      {view.blockedReason && <Warning testId="removal-blocked">{T.blocked}</Warning>}
 
       <section className={styles.section}>
         <h2>{T.details}</h2>
@@ -82,10 +85,10 @@ export default async function Page({
               B.removals.customer,
               view.profileId ? (
                 <Link key="c" href={boHref.customer(view.profileId)}>
-                  {row?.customer_name ?? B.details}
+                  {view.customerName ?? B.details}
                 </Link>
               ) : (
-                (row?.customer_name ?? B.none)
+                (view.customerName ?? B.none)
               ),
             ],
             [
@@ -98,7 +101,7 @@ export default async function Page({
               B.removals.order,
               r.order_id ? (
                 <Link key="o" href={boHref.order(r.order_id)}>
-                  {row?.order_number ?? B.details}
+                  {view.orderNumber ?? B.details}
                 </Link>
               ) : (
                 B.none
@@ -111,12 +114,12 @@ export default async function Page({
               r.withdrawal ? B.yes : r.at_period_end ? B.removals.atPeriodEnd : B.no,
             ],
             [T.customerNote, r.customer_note],
-            [T.opsNote, row?.ops_note ?? null],
+            [T.opsNote, row ? row.ops_note : unknown],
             [T.requestedOn, day(r.requested_effective_on)],
             [T.effectiveOn, day(r.effective_on)],
             [T.accessDays, T.days(r.access_days)],
             [T.accessUntil, day(r.access_until ?? preview?.access_until)],
-            [T.revokeAll, row?.revoke_all_access ? B.yes : B.no],
+            [T.revokeAll, row ? (row.revoke_all_access ? B.yes : B.no) : unknown],
             [T.requestedAt, when(r.requested_at)],
             [T.scheduledAt, when(r.scheduled_at)],
             ...(r.completed_at
@@ -154,7 +157,9 @@ export default async function Page({
         <div className={styles.columns}>
           <section className={styles.section}>
             <h2>{T.scheduleTitle}</h2>
-            <p className="muted">{T.scheduleHint}</p>
+            <p className="muted" data-testid="schedule-hint">
+              {r.status === "requested" ? T.confirmHint : T.scheduleHint}
+            </p>
             <p className="muted">{T.shortAccessRule(settingAccessDays)}</p>
             <ActionForm action={scheduleRemovalAction} testId="schedule-removal-form">
               <input type="hidden" name="removal_id" value={r.id} />
@@ -162,6 +167,7 @@ export default async function Page({
               <input type="hidden" name="removal_reason" value={r.reason} />
               <input type="hidden" name="current_access_days" value={r.access_days} />
               <input type="hidden" name="setting_access_days" value={settingAccessDays} />
+              {row && <input type="hidden" name="revoke_known" value="1" />}
               <Field label={B.fields.effective_on}>
                 <input
                   type="date"
@@ -189,6 +195,7 @@ export default async function Page({
                 />
                 {B.fields.revoke_all_access}
               </label>
+              {!row && <p className={styles.hint}>{T.revokeAllUnknown}</p>}
               <p className={styles.hint}>{T.revokeAllHint}</p>
               <Field label={B.internalNote} optional>
                 <textarea name="note" maxLength={2000} rows={2} />

@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   addonBase,
+  applicationCustomer,
   gardenOverlaps,
+  gardenOverlapsOf,
   getOrder,
   getRemoval,
   listRemovals,
@@ -9,6 +11,8 @@ import {
   membershipOrEmpty,
   parcelService,
   previewAddonQuote,
+  readMembership,
+  removalLastEffective,
 } from "@/lib/back-office/data";
 import {
   cancelGardenRemoval,
@@ -19,16 +23,18 @@ import {
   scheduleGardenRemoval,
   withdrawApplicationGarden,
 } from "@/lib/back-office/mutations";
-import { addDays } from "@/lib/back-office/validation";
+import { addDays, planRemoveAll } from "@/lib/back-office/validation";
 import type { OpsOrg } from "@/lib/operations/data";
 import type { Client } from "@/lib/supabase/types";
 import {
+  CONSENTS,
   GARDEN_DETAIL,
   activeOrderFor,
   addonOrderFor,
   check,
   createCustomer,
   istanbulToday,
+  payByTransfer,
   removeCustomers,
   type TestCustomer,
 } from "./billing-fixture";
@@ -163,7 +169,8 @@ describe("a member's period, gardens and orders", () => {
     expect(fail(again)).toBe("garden_removal_open");
 
     const open = await listRemovals(ops, ORGS, null);
-    expect(open.find((r) => r.id === removal)).toMatchObject({
+    expect(open.truncated).toBe(false);
+    expect(open.rows.find((r) => r.id === removal)).toMatchObject({
       status: "scheduled",
       initiated_by: "ops",
       effective_on: later,
@@ -173,6 +180,10 @@ describe("a member's period, gardens and orders", () => {
 
     const view = await getRemoval(ops, removal);
     expect(view?.row?.number).toMatch(/^C-\d{4}-\d{6}$/);
+    // Read without the list row too (past the list's limit).
+    expect(view?.customerName).toBe("Test Müşteri");
+    expect(view?.orderNumber).toBe(view?.row?.order_number);
+    expect(view?.blockedReason).toBeNull();
     expect(view?.preview?.formula).toBe("removal-v1");
     expect(view?.preview?.lines.map((l) => l.order_id)).toEqual([addon]);
     expect(view?.preview?.access_scope.customer_owner).toBe(1);
@@ -200,7 +211,9 @@ describe("a member's period, gardens and orders", () => {
     expect(done?.removal.refund_kurus).toBeGreaterThan(0);
     expect(done?.refunds.length).toBeGreaterThan(0);
     expect(done?.refunds.every((r) => r.garden_removal_id === removal)).toBe(true);
-    expect((await listRemovals(ops, ORGS, "completed")).some((r) => r.id === removal)).toBe(true);
+    expect((await listRemovals(ops, ORGS, "completed")).rows.some((r) => r.id === removal)).toBe(
+      true,
+    );
 
     const item = (await getOrder(ops, addon))!.items[0];
     expect(item.removed_on).toBe(today);
@@ -229,22 +242,182 @@ describe("a member's period, gardens and orders", () => {
     expect(service.openRemoval?.id).toBe(opened.value);
     expect(fail(await cancelGardenRemoval(ops, opened.value, "Müşteri vazgeçti"))).toBeNull();
     expect((await getRemoval(ops, opened.value))?.removal.status).toBe("cancelled");
-    expect((await listRemovals(ops, ORGS, "cancelled")).some((r) => r.id === opened.value)).toBe(
-      true,
-    );
+    expect(
+      (await listRemovals(ops, ORGS, "cancelled")).rows.some((r) => r.id === opened.value),
+    ).toBe(true);
   });
 
   it("the reads are refused on ops' own record; the safe read is empty", async () => {
     await expect(membershipOf(ops, SEED.org, opsId)).rejects.toMatchObject({ code: "42501" });
     expect(await membershipOrEmpty(ops, SEED.org, opsId)).toEqual({ periods: [], gardens: [] });
-    const own = await requestGardenRemoval(ops, "00000000-0000-4000-8000-000000000000", {
+    // The read that decides add-on or separate period reports the refusal.
+    expect(await readMembership(ops, SEED.org, opsId)).toEqual({ error: "forbidden" });
+    const read = await readMembership(ops, SEED.org, customer.id);
+    expect("membership" in read && read.membership.periods.map((p) => p.base_order_id)).toEqual([
+      base,
+    ]);
+  });
+
+  it("a missing order line is not found", async () => {
+    const missing = await requestGardenRemoval(ops, "00000000-0000-4000-8000-000000000000", {
       reason: "other",
       effectiveOn: today,
       accessDays: null,
       revokeAllAccess: false,
       note: null,
     });
-    expect(fail(own)).toBe("not_found");
+    expect(fail(missing)).toBe("not_found");
+  });
+});
+
+// Ops who is also a customer of the org: the writes on their own order lines
+// and base order are refused (private.require_ops_customer), not just absent.
+describe("the writes are refused on ops' own record", () => {
+  let customer: TestCustomer;
+  let base: string;
+  let line: string;
+  let parcel: string;
+
+  beforeAll(async () => {
+    customer = await createCustomer(DOMAIN);
+    ({
+      order: base,
+      parcels: [parcel],
+    } = await activeOrderFor(customer));
+    line = (await getOrder(ops, base))!.items[0].id;
+    // The customer becomes ops of the org (removed with the account).
+    check(
+      await admin
+        .from("membership")
+        .insert({ org_id: SEED.org, user_id: customer.id, role: "ops" }),
+    );
+  });
+
+  it("removal, add-on quote and the reads are forbidden on the caller's own record", async () => {
+    const self = customer.client;
+    const removal = await requestGardenRemoval(self, line, {
+      reason: "other",
+      effectiveOn: today,
+      accessDays: null,
+      revokeAllAccess: false,
+      note: null,
+    });
+    expect(fail(removal)).toBe("forbidden");
+    const addon = await issueAddonQuote(self, base, null, {
+      proposedServiceStart: null,
+      validDays: null,
+      discountBp: 0,
+      discountNote: null,
+      noteToCustomer: null,
+      parcelIds: [parcel],
+    });
+    expect(fail(addon)).toBe("forbidden");
+    expect(await readMembership(self, SEED.org, customer.id)).toEqual({ error: "forbidden" });
+
+    // The same line through another ops is allowed: the refusal is the own-record rule.
+    const opened = await requestGardenRemoval(ops, line, {
+      reason: "other",
+      effectiveOn: addDays(today, 5),
+      accessDays: null,
+      revokeAllAccess: false,
+      note: null,
+    });
+    if (!opened.ok) throw new Error(opened.error);
+    for (const r of [
+      await scheduleGardenRemoval(self, opened.value, {
+        effectiveOn: addDays(today, 5),
+        accessDays: null,
+        revokeAllAccess: null,
+        note: null,
+      }),
+      await cancelGardenRemoval(self, opened.value, "kendi kaydım"),
+      await completeGardenRemoval(self, opened.value),
+    ]) {
+      expect(fail(r)).toBe("forbidden");
+    }
+    expect(fail(await cancelGardenRemoval(ops, opened.value, "test: geri alındı"))).toBeNull();
+  });
+});
+
+// "Tüm bahçeleri çıkar" with a paid renewal (§5.2): the day may fall inside
+// the renewal, and a parcel only in the renewal is removed too.
+describe("removing every garden of a member with a paid renewal", () => {
+  let customer: TestCustomer;
+  let base: string;
+  let baseParcel: string;
+  let renewalOnly: string;
+  let renewalEnd: string;
+
+  beforeAll(async () => {
+    customer = await createCustomer(DOMAIN);
+    // An earlier order ended: its parcel joins only the renewal.
+    const earlier = await activeOrderFor(customer, [18000]);
+    renewalOnly = earlier.parcels[0];
+    check(
+      await ops.rpc("ops_terminate_order", { p_order_id: earlier.order, p_note: "test: bitti" }),
+    );
+    const first = await activeOrderFor(customer);
+    base = first.order;
+    baseParcel = first.parcels[0];
+    const baseEnd = check(
+      await ops.from("service_order").select("service_end").eq("id", base).single(),
+    ).service_end!;
+    const quote = check(
+      await ops.rpc("ops_issue_parcel_quote", {
+        p_org_id: SEED.org,
+        p_customer_user_id: customer.id,
+        p_package_id: BILLING_SEED.packages.standart,
+        p_parcel_ids: [baseParcel, renewalOnly],
+        p_first_year: false,
+        p_proposed_service_start: addDays(baseEnd, 1),
+        p_renewal_of_order_id: base,
+      }),
+    );
+    const renewal = check(
+      await customer.client.rpc("customer_accept_quote", {
+        p_quote_id: quote,
+        p_consents: CONSENTS,
+      }),
+    );
+    await payByTransfer(renewal);
+    renewalEnd = check(
+      await ops.from("service_order").select("service_end").eq("id", renewal).single(),
+    ).service_end!;
+  });
+
+  it("the last day is the renewal's; no garden is moved or left out", async () => {
+    const { gardens } = await membershipOf(ops, SEED.org, customer.id);
+    expect(gardens.map((g) => [g.parcel_id, g.state]).sort()).toEqual(
+      [
+        [baseParcel, "in_service"],
+        [renewalOnly, "upcoming"],
+      ].sort(),
+    );
+    const lastDays = await removalLastEffective(
+      ops,
+      customer.id,
+      gardens.map((g) => g.parcel_id),
+    );
+    expect(lastDays.get(baseParcel)).toBe(addDays(renewalEnd, 1));
+    expect(lastDays.get(renewalOnly)).toBe(addDays(renewalEnd, 1));
+
+    // A day inside the paid renewal.
+    const day = addDays(renewalEnd, -30);
+    const steps = planRemoveAll(gardens, day, lastDays);
+    expect(steps).toHaveLength(2);
+    for (const step of steps) {
+      if ("skipped" in step) throw new Error("skipped");
+      expect(step).toMatchObject({ effectiveOn: day, moved: false });
+      const opened = await requestGardenRemoval(ops, step.garden.order_item_id, {
+        reason: "not_needed",
+        effectiveOn: step.effectiveOn,
+        accessDays: null,
+        revokeAllAccess: false,
+        note: null,
+      });
+      if (!opened.ok) throw new Error(opened.error);
+      expect((await getRemoval(ops, opened.value))?.removal.effective_on).toBe(day);
+    }
   });
 });
 
@@ -271,6 +444,22 @@ describe("an add-on application: duplicate checks, linking, withdrawing, the add
     const rows = await gardenOverlaps(ops, gardens[0]);
     const hit = rows.find((r) => r.parcel_id === idle);
     expect(hit).toMatchObject({ same_customer: true, in_service: false });
+  });
+
+  it("a failed overlap check is reported, never read as no overlap", async () => {
+    const missing = "00000000-0000-4000-8000-000000000000";
+    const checks = await gardenOverlapsOf(ops, [gardens[0], missing]);
+    const found = checks.get(gardens[0]);
+    expect(Array.isArray(found) && found.some((r) => r.parcel_id === idle)).toBe(true);
+    expect(checks.get(missing)).toMatchObject({ error: expect.any(String) });
+  });
+
+  it("the application's customer is read on the server", async () => {
+    expect(await applicationCustomer(ops, application)).toEqual({
+      orgId: SEED.org,
+      userId: customer.id,
+    });
+    expect(await applicationCustomer(ops, "00000000-0000-4000-8000-000000000000")).toBeNull();
   });
 
   it("links the garden to the earlier parcel and unlinks it; a parcel in service is refused", async () => {

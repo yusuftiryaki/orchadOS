@@ -1,4 +1,6 @@
+import { addDays } from "@/lib/back-office/validation";
 import { BILLING_COLUMNS } from "@/lib/billing/columns";
+import { billingReasonOf, type BillingError } from "@/lib/billing/errors";
 import type {
   ApplicationGarden,
   GardenRemoval,
@@ -706,6 +708,75 @@ export async function membershipOf(
   return { periods: check(periods), gardens: check(gardens) };
 }
 
+// The same, or the reason code when the reads fail: a screen that decides
+// between an add-on and a separate period must not take a failed read for
+// "no membership" (IP14 §4.4).
+export async function readMembership(
+  supabase: Client,
+  orgId: string,
+  userId: string,
+): Promise<{ membership: Membership } | { error: BillingError }> {
+  try {
+    return { membership: await membershipOf(supabase, orgId, userId) };
+  } catch (error) {
+    return { error: billingReasonOf(error as { code?: string; message?: string }) };
+  }
+}
+
+// The customer of an application (the server-side membership check).
+export async function applicationCustomer(
+  supabase: Client,
+  id: string,
+): Promise<{ orgId: string; userId: string } | null> {
+  if (!isUuid(id)) return null;
+  const row = check(
+    await supabase
+      .from("service_application")
+      .select("org_id, customer_user_id")
+      .eq("id", id)
+      .maybeSingle(),
+  ) as { org_id: string; customer_user_id: string } | null;
+  return row ? { orgId: row.org_id, userId: row.customer_user_id } : null;
+}
+
+// The last day a removal of each parcel can take effect, as
+// private.removal_last_effective: the day after the latest end of the
+// customer's active, not removed lines of the parcel (a paid renewal
+// included). Parcels without such a line are missing.
+export async function removalLastEffective(
+  supabase: Client,
+  userId: string,
+  parcelIds: string[],
+): Promise<Map<string, string>> {
+  const last = new Map<string, string>();
+  if (parcelIds.length === 0) return last;
+  const items = check(
+    await supabase
+      .from("service_order_item")
+      .select("parcel_id, order_id")
+      .eq("customer_user_id", userId)
+      .in("parcel_id", parcelIds)
+      .is("removed_on", null),
+  );
+  const orderIds = [...new Set(items.map((i) => i.order_id))];
+  if (orderIds.length === 0) return last;
+  const orders = check(
+    await supabase
+      .from("service_order")
+      .select("id, service_end")
+      .in("id", orderIds)
+      .eq("status", "active"),
+  );
+  const ends = new Map(orders.map((o) => [o.id, o.service_end]));
+  for (const i of items) {
+    const end = ends.get(i.order_id);
+    if (!i.parcel_id || !end) continue;
+    const day = addDays(end, 1);
+    if (day > (last.get(i.parcel_id) ?? "")) last.set(i.parcel_id, day);
+  }
+  return last;
+}
+
 // The same, empty when the reads are refused (the caller's own record).
 export async function membershipOrEmpty(
   supabase: Client,
@@ -730,6 +801,21 @@ export function addonBase(
 
 export async function gardenOverlaps(supabase: Client, gardenId: string): Promise<OverlapRow[]> {
   return check(await supabase.rpc("ops_garden_overlaps", { p_garden_id: gardenId }));
+}
+
+// The duplicate check of each garden; a failed check is reported as such,
+// never as "no overlap".
+export async function gardenOverlapsOf(
+  supabase: Client,
+  gardenIds: string[],
+): Promise<Map<string, OverlapRow[] | { error: BillingError }>> {
+  const rows = await Promise.all(
+    gardenIds.map(async (id) => {
+      const { data, error } = await supabase.rpc("ops_garden_overlaps", { p_garden_id: id });
+      return [id, error ? { error: billingReasonOf(error) } : data] as const;
+    }),
+  );
+  return new Map(rows);
 }
 
 // The add-on quote ops would issue now (pricing-v2); the reason code when it
@@ -795,23 +881,31 @@ export async function parcelShapes(supabase: Client, parcelIds: string[]): Promi
 export const REMOVAL_FILTERS = ["completed", "cancelled", "all"] as const;
 export type RemovalFilter = (typeof REMOVAL_FILTERS)[number];
 
+// ops_garden_removals returns at most this many rows of an org, the earliest
+// effective days first: past it the latest removals are missing.
+export const REMOVAL_LIST_LIMIT = 1000;
+
 export async function listRemovals(
   supabase: Client,
   orgs: OpsOrg[],
   filter: RemovalFilter | null,
-): Promise<RemovalRow[]> {
-  const rows = await eachOrg(orgs, async (orgId) =>
-    check(
+): Promise<{ rows: RemovalRow[]; truncated: boolean }> {
+  let truncated = false;
+  const rows = await eachOrg(orgs, async (orgId) => {
+    const list = check(
       await supabase.rpc("ops_garden_removals", {
         p_org_id: orgId,
         ...(filter ? { p_status: filter } : {}),
-        p_limit: 1000,
+        p_limit: REMOVAL_LIST_LIMIT,
       }),
-    ),
-  );
+    );
+    if (list.length >= REMOVAL_LIST_LIMIT) truncated = true;
+    return list;
+  });
   // By the effective day, as the function orders one org.
   const dayOf = (r: RemovalRow) => r.effective_on ?? r.requested_effective_on ?? "";
-  return rows.sort((a, b) => dayOf(a).localeCompare(dayOf(b)) || a.number.localeCompare(b.number));
+  rows.sort((a, b) => dayOf(a).localeCompare(dayOf(b)) || a.number.localeCompare(b.number));
+  return { rows, truncated };
 }
 
 // ops_garden_removal_preview (removal-v1 calculation and its context).
@@ -866,8 +960,13 @@ export interface RemovalPreview {
 
 export interface RemovalView {
   removal: GardenRemoval;
-  // The ops row (internal note, blocked reason, revoke-all choice, names).
+  // The ops row (internal note, blocked reason, revoke-all choice, names);
+  // null when it is past the list's limit (REMOVAL_LIST_LIMIT), then the
+  // internal note and the revoke-all choice are unknown.
   row: RemovalRow | null;
+  customerName: string | null;
+  orderNumber: string | null;
+  blockedReason: string | null;
   preview: RemovalPreview | null;
   refunds: Refund[];
   profileId: string | null;
@@ -884,11 +983,11 @@ export async function getRemoval(supabase: Client, id: string): Promise<RemovalV
       .maybeSingle(),
   ) as GardenRemoval | null;
   if (!removal) return null;
-  const [rows, preview, refunds, customer, setting] = await Promise.all([
+  const [rows, preview, refunds, customer, setting, order] = await Promise.all([
     supabase.rpc("ops_garden_removals", {
       p_org_id: removal.org_id,
       p_status: removal.status,
-      p_limit: 1000,
+      p_limit: REMOVAL_LIST_LIMIT,
     }),
     supabase.rpc("ops_garden_removal_preview", { p_removal_id: id }),
     supabase
@@ -898,14 +997,24 @@ export async function getRemoval(supabase: Client, id: string): Promise<RemovalV
       .order("requested_at"),
     supabase.rpc("ops_customer", { p_org_id: removal.org_id, p_user_id: removal.customer_user_id }),
     getSetting(supabase, removal.org_id),
+    removal.order_id
+      ? supabase.from("service_order").select("number").eq("id", removal.order_id).maybeSingle()
+      : null,
   ]);
+  const row = check(rows).find((r) => r.id === id) ?? null;
+  // The calculation is refused on the caller's own record (forbidden).
+  const calc = preview.error ? null : (preview.data as unknown as RemovalPreview);
+  const person = check(customer)[0];
   return {
     removal,
-    row: check(rows).find((r) => r.id === id) ?? null,
-    // The calculation is refused on the caller's own record (forbidden).
-    preview: preview.error ? null : (preview.data as unknown as RemovalPreview),
+    row,
+    // From the other reads when the row is past the list's limit.
+    customerName: row?.customer_name ?? person?.full_name ?? null,
+    orderNumber: row?.order_number ?? order?.data?.number ?? null,
+    blockedReason: row?.blocked_reason ?? calc?.blocked_reason ?? null,
+    preview: calc,
     refunds: check(refunds) as unknown as Refund[],
-    profileId: check(customer)[0]?.profile_id ?? null,
+    profileId: person?.profile_id ?? null,
     setting,
   };
 }

@@ -368,16 +368,18 @@ function parseEffectiveOn(read: Reader, days: RemovalDays): Parsed<string> {
 }
 
 // Days of read-only access, 0..365; empty keeps the setting (a request) or the
-// current value (a schedule). Below the setting only for a transfer or a
+// current value (a schedule), except that a new transfer gets 0 (§2, §5.2:
+// the seller keeps no access). Below the setting only for a transfer or a
 // duplicate, or with a note (private.check_access_days).
 function parseAccessDays(
   read: Reader,
   settingDays: number,
   reason: string,
   note: string | null,
+  emptyTransferIsZero = false,
 ): Parsed<number | null> {
   const input = read("access_days");
-  if (!input) return ok(null);
+  if (!input) return ok(emptyTransferIsZero && reason === "transfer" ? 0 : null);
   const days = parseIntInRange(input, 0, 365);
   if (days == null) return bad("access_days");
   if (days < settingDays && !SHORT_ACCESS_REASONS.includes(reason as RemovalReason) && !note) {
@@ -406,7 +408,7 @@ export function parseRemovalRequest(
   if (!effectiveOn.ok) return effectiveOn;
   const note = parseNote(read, false);
   if (!note.ok) return note;
-  const accessDays = parseAccessDays(read, settingAccessDays, reason, note.value);
+  const accessDays = parseAccessDays(read, settingAccessDays, reason, note.value, true);
   if (!accessDays.ok) return accessDays;
   return ok({
     reason: reason as RemovalReason,
@@ -417,10 +419,37 @@ export function parseRemovalRequest(
   });
 }
 
+// One garden of "Tüm bahçeleri çıkar" (§5.2): a removal on its line, on the
+// chosen day or, when the garden's service ends before it, on the day after
+// its last line ends (lastDay, private.removal_last_effective); a garden
+// already leaving is skipped and reported.
+export type RemoveAllStep<G> =
+  { garden: G; effectiveOn: string; moved: boolean } | { garden: G; skipped: true };
+
+export function planRemoveAll<
+  G extends { state: string; order_item_id: string | null; parcel_id: string },
+>(gardens: G[], day: string, lastDays: Map<string, string>): RemoveAllStep<G>[] {
+  const steps: RemoveAllStep<G>[] = [];
+  for (const garden of gardens) {
+    if (garden.state === "leaving") {
+      steps.push({ garden, skipped: true });
+    } else if (
+      (garden.state === "in_service" || garden.state === "upcoming") &&
+      garden.order_item_id
+    ) {
+      const last = lastDays.get(garden.parcel_id);
+      const effectiveOn = last && day > last ? last : day;
+      steps.push({ garden, effectiveOn, moved: effectiveOn !== day });
+    }
+  }
+  return steps;
+}
+
 export interface RemovalScheduleInput {
   effectiveOn: string;
   accessDays: number | null;
-  revokeAllAccess: boolean;
+  // null keeps the stored choice (the form did not know it).
+  revokeAllAccess: boolean | null;
   note: string | null;
 }
 
@@ -449,10 +478,13 @@ export function parseRemovalSchedule(
     ? ok(null)
     : parseAccessDays(read, removal.settingAccessDays, removal.reason, note.value);
   if (!accessDays.ok) return accessDays;
+  // An unchecked box clears the choice only when the form showed the stored
+  // one (revoke_known); otherwise it keeps it.
+  const revoke = checked(read, "revoke_all_access");
   return ok({
     effectiveOn: effectiveOn.value,
     accessDays: accessDays.value,
-    revokeAllAccess: checked(read, "revoke_all_access"),
+    revokeAllAccess: revoke || read("revoke_known") === "1" ? revoke : null,
     note: note.value,
   });
 }

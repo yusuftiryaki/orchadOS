@@ -16,6 +16,7 @@ import {
   parseQuoteTerms,
   parseRemovalRequest,
   parseRemovalSchedule,
+  planRemoveAll,
   parseResolution,
   parseSettings,
   parseVerify,
@@ -392,6 +393,17 @@ describe("IP14 garden membership forms", () => {
       const short = parseRemovalRequest(reader({ ...base, reason, access_days: "0" }), days, 90);
       expect(short.ok && short.value.accessDays).toBe(0);
     }
+    // An empty field is 0 days for a transfer (§2), the setting otherwise.
+    const transfer = parseRemovalRequest(reader({ ...base, reason: "transfer" }), days, 90);
+    expect(transfer.ok && transfer.value.accessDays).toBe(0);
+    const keptTransfer = parseRemovalRequest(
+      reader({ ...base, reason: "transfer", access_days: "30" }),
+      days,
+      90,
+    );
+    expect(keptTransfer.ok && keptTransfer.value.accessDays).toBe(30);
+    const duplicate = parseRemovalRequest(reader({ ...base, reason: "duplicate" }), days, 90);
+    expect(duplicate.ok && duplicate.value.accessDays).toBeNull();
     const longer = parseRemovalRequest(reader({ ...base, access_days: "365" }), days, 90);
     expect(longer.ok && longer.value.accessDays).toBe(365);
     expect(parseRemovalRequest(reader({ ...base, note: "x".repeat(2001) }), days, 90)).toEqual({
@@ -407,7 +419,7 @@ describe("IP14 garden membership forms", () => {
       accessDays: 90,
       settingAccessDays: 90,
     };
-    const same = { effective_on: "2027-03-31", access_days: "90" };
+    const same = { effective_on: "2027-03-31", access_days: "90", revoke_known: "1" };
     expect(parseRemovalSchedule(reader(same), days, removal)).toEqual({
       ok: true,
       value: { effectiveOn: "2027-03-31", accessDays: null, revokeAllAccess: false, note: null },
@@ -449,6 +461,64 @@ describe("IP14 garden membership forms", () => {
       removal,
     );
     expect(revoke.ok && revoke.value.revokeAllAccess).toBe(true);
+  });
+
+  it("remove all: gardens in service and not yet started, the database's last day, leaving ones skipped", () => {
+    const g = (parcel_id: string, state: string) => ({
+      parcel_id,
+      state,
+      order_item_id: `item-${parcel_id}`,
+    });
+    // The current line ends 2026-12-31; a paid renewal runs through 2027.
+    const lastDays = new Map([
+      ["renewed", "2028-01-01"],
+      ["ending", "2027-01-01"],
+      ["renewal-only", "2028-01-01"],
+    ]);
+    const steps = planRemoveAll(
+      [
+        g("renewed", "in_service"),
+        g("ending", "in_service"),
+        g("renewal-only", "upcoming"),
+        g("leaving", "leaving"),
+        g("gone", "removed"),
+      ],
+      "2027-03-01",
+      lastDays,
+    );
+    expect(
+      steps.map((s) =>
+        "skipped" in s
+          ? [s.garden.parcel_id, "skipped"]
+          : [s.garden.parcel_id, s.effectiveOn, s.moved],
+      ),
+    ).toEqual([
+      // A day inside the paid renewal is kept, not moved to the renewal's start.
+      ["renewed", "2027-03-01", false],
+      // A garden whose service ends before the day leaves the day after; reported.
+      ["ending", "2027-01-01", true],
+      // A garden only in the paid renewal is removed too.
+      ["renewal-only", "2027-03-01", false],
+      ["leaving", "skipped"],
+    ]);
+  });
+
+  it("a schedule keeps the stored revoke-all choice when the form did not know it", () => {
+    const removal = {
+      requestedOn: "2027-03-31",
+      reason: "not_needed",
+      accessDays: 90,
+      settingAccessDays: 90,
+    };
+    const unknown = { effective_on: "2027-03-31", access_days: "90" };
+    const kept = parseRemovalSchedule(reader(unknown), days, removal);
+    expect(kept.ok && kept.value.revokeAllAccess).toBeNull();
+    const set = parseRemovalSchedule(
+      reader({ ...unknown, revoke_all_access: "on" }),
+      days,
+      removal,
+    );
+    expect(set.ok && set.value.revokeAllAccess).toBe(true);
   });
 
   it("settings carry the five IP14 keys with their ranges", () => {

@@ -151,6 +151,12 @@ test("an add-on application: period panel, overlap check, verification, Ek tekli
   await expect(page.getByText("Bahçe alanı doğrulandı.")).toBeVisible();
 
   await expect(page.getByTestId("addon-preview")).toBeVisible();
+  // The quote is issued with the start and discount of the preview: the
+  // issue form has no fields of its own for them.
+  await expect(page.getByTestId("addon-preview-form")).toBeVisible();
+  await expect(
+    page.getByTestId("addon-quote-form").locator('input[name="discount_percent"]'),
+  ).toHaveAttribute("type", "hidden");
   await page.getByTestId("addon-quote-form").getByRole("button", { name: "Ek teklif ver" }).click();
   await expect(page.getByText("Teklif verildi; müşteriye bildirim gidecek.")).toBeVisible();
   const addon = page.getByTestId("quote-addon");
@@ -213,6 +219,8 @@ test("a removal in the queue: confirmed for today, completed now, refund queued"
   await expect(page.getByTestId("removal-lines")).toBeVisible();
   await expect(page.getByTestId("removal-access-scope")).toBeVisible();
   await expect(page.getByTestId("removal-not-due")).toBeVisible();
+  // The first confirmation of a customer's request always sends an SMS.
+  await expect(page.getByTestId("schedule-hint")).toContainText("Teyit edince müşteriye SMS gider");
 
   const schedule = page.getByTestId("schedule-removal-form");
   await schedule.getByLabel("Çıkış günü").fill(istanbulToday());

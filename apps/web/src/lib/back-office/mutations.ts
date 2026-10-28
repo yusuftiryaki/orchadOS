@@ -210,7 +210,7 @@ export async function scheduleGardenRemoval(
       p_effective_on: input.effectiveOn,
       ...(input.note ? { p_note: input.note } : {}),
       ...(input.accessDays != null ? { p_access_days: input.accessDays } : {}),
-      p_revoke_all_access: input.revokeAllAccess,
+      ...(input.revokeAllAccess != null ? { p_revoke_all_access: input.revokeAllAccess } : {}),
     }),
   );
 }

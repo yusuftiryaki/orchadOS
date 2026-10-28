@@ -1,6 +1,6 @@
 import Link from "next/link";
 import bo from "@/components/back-office/back-office.module.css";
-import { Badge, day, money } from "@/components/back-office/parts";
+import { Badge, Warning, day, money } from "@/components/back-office/parts";
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
@@ -25,7 +25,11 @@ export default async function Page({
   const user = await requireSection("operasyon");
   const filter = pick((await searchParams).durum, REMOVAL_FILTERS);
   const supabase = await createClient();
-  const rows = await listRemovals(supabase, await opsOrgs(supabase, user.id), filter);
+  const { rows, truncated } = await listRemovals(
+    supabase,
+    await opsOrgs(supabase, user.id),
+    filter,
+  );
   const filters = [
     [null, T.open],
     ["completed", billingText.gardenRemovalStatus.completed],
@@ -49,6 +53,7 @@ export default async function Page({
           </Link>
         ))}
       </nav>
+      {truncated && <Warning testId="removal-list-truncated">{T.truncated}</Warning>}
       {rows.length === 0 ? (
         <p className="muted">{T.empty}</p>
       ) : (

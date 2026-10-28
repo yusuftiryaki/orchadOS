@@ -27,18 +27,17 @@ import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import {
   addonBase,
-  gardenOverlaps,
+  gardenOverlapsOf,
   getApplication,
   getSetting,
-  membershipOrEmpty,
   parcelShapes,
   previewAddonQuote,
   previewQuote,
+  readMembership,
   userName,
-  type OverlapRow,
 } from "@/lib/back-office/data";
 import { boHref, firstParam } from "@/lib/back-office/urls";
-import { bpToPercent, percentToBp } from "@/lib/back-office/validation";
+import { bpToPercent, parseIsoDate, percentToBp } from "@/lib/back-office/validation";
 import { BILLING_ERRORS, type BillingError } from "@/lib/billing/errors";
 import { formatDonum } from "@/lib/billing/money";
 import { formatNumber, t } from "@/lib/i18n";
@@ -85,7 +84,14 @@ export default async function Page({
   const gardens = allGardens.filter((g) => !g.withdrawn_at);
   const allVerified = gardens.length > 0 && gardens.every((g) => g.verified_at);
   const discountBp = percentToBp(firstParam(query.indirim) ?? "") ?? 0;
-  const membership = await membershipOrEmpty(supabase, a.org_id, a.customer_user_id);
+  // The add-on's start as previewed; the issue form sends the same.
+  const addonStart = parseIsoDate(firstParam(query.baslangic) ?? "");
+  // A failed read is shown as such, never taken for "not a member" (§4.4):
+  // then no quote can be issued from this page.
+  const membershipRead = await readMembership(supabase, a.org_id, a.customer_user_id);
+  const membershipError = "error" in membershipRead ? errorText(membershipRead.error) : null;
+  const membership =
+    "membership" in membershipRead ? membershipRead.membership : { periods: [], gardens: [] };
   const member = membership.periods.length > 0;
   const base = addonBase(membership.periods);
   const basePeriod = membership.periods.find((p) => p.base_order_id === base?.baseOrderId);
@@ -95,14 +101,14 @@ export default async function Page({
       ? previewAddonQuote(supabase, {
           baseOrderId: base.baseOrderId,
           applicationId: a.id,
+          start: addonStart,
           discountBp,
         })
       : null,
-    Promise.all(
-      gardens.map(
-        async (g) => [g.id, await gardenOverlaps(supabase, g.id).catch(() => [])] as const,
-      ),
-    ).then((rows) => new Map<string, OverlapRow[]>(rows)),
+    gardenOverlapsOf(
+      supabase,
+      gardens.map((g) => g.id),
+    ),
     parcelShapes(
       supabase,
       membership.gardens.map((g) => g.parcel_id),
@@ -114,8 +120,13 @@ export default async function Page({
   const packageDiffers = basePeriod && a.package_id && basePeriod.package_id !== a.package_id;
   const linkedNames = new Map([
     ...existing.map((p) => [p.id, p.name] as const),
-    ...[...overlaps.values()].flat().map((o) => [o.parcel_id, o.parcel_name] as const),
+    ...[...overlaps.values()]
+      .flatMap((rows) => ("error" in rows ? [] : rows))
+      .map((o) => [o.parcel_id, o.parcel_name] as const),
   ]);
+  // Quotes wait for the duplicate check of every garden (§4.1).
+  const overlapsFailed = [...overlaps.values()].some((rows) => "error" in rows);
+  const canIssue = !membershipError && !overlapsFailed;
 
   return (
     <main className="page">
@@ -155,6 +166,10 @@ export default async function Page({
           ]}
         />
       </section>
+
+      {membershipError && (
+        <Warning testId="membership-error">{O.membershipFailed(membershipError)}</Warning>
+      )}
 
       {member && (
         <section className={styles.section}>
@@ -222,7 +237,8 @@ export default async function Page({
       <section className={styles.section} data-testid="garden-overlaps">
         <h2>{O.title}</h2>
         {gardens.map((g) => {
-          const rows = overlaps.get(g.id) ?? [];
+          const result = overlaps.get(g.id) ?? [];
+          const rows = "error" in result ? [] : result;
           return (
             <div key={g.id} data-garden-id={g.id} data-testid="garden-overlap">
               <h3>{g.name}</h3>
@@ -241,7 +257,9 @@ export default async function Page({
                   )}
                 </div>
               )}
-              {rows.length === 0 ? (
+              {"error" in result ? (
+                <Warning testId="garden-overlap-error">{O.failed(errorText(result.error))}</Warning>
+              ) : rows.length === 0 ? (
                 <p className="muted">{O.none}</p>
               ) : (
                 <div className={styles.tableWrap}>
@@ -351,36 +369,60 @@ export default async function Page({
               vatRateBp={addonPreview.lines[0]?.vat_rate_bp ?? 0}
             />
           ) : null}
-          <ActionForm action={issueAddonQuoteAction} testId="addon-quote-form">
-            <input type="hidden" name="base_order_id" value={base.baseOrderId} />
-            <input type="hidden" name="application_id" value={a.id} />
-            <Field label={B.quote.start} optional>
-              <input type="date" name="proposed_service_start" max={base.until ?? undefined} />
-            </Field>
-            <Field
-              label={B.fields.valid_days}
-              hint={B.quote.validDaysHint(setting?.quote_valid_days ?? 30)}
-              optional
-            >
-              <input name="valid_days" inputMode="numeric" />
-            </Field>
-            <Field label={B.fields.discount_percent} hint={B.quote.discountHint} optional>
+          <form
+            className={styles.inline}
+            action={boHref.application(a.id)}
+            data-testid="addon-preview-form"
+          >
+            <label>
+              {B.quote.start}
               <input
-                name="discount_percent"
-                inputMode="decimal"
-                defaultValue={discountBp ? bpToPercent(discountBp) : ""}
+                type="date"
+                name="baslangic"
+                defaultValue={addonStart ?? ""}
+                max={base.until ?? undefined}
               />
-            </Field>
-            <Field label={B.quote.discountNote} optional>
-              <input name="discount_note" maxLength={500} />
-            </Field>
-            <Field label={B.quote.noteToCustomer} optional>
-              <textarea name="note_to_customer" maxLength={1000} rows={3} />
-            </Field>
-            <div className={styles.actions}>
-              <Submit>{A.submit}</Submit>
-            </div>
-          </ActionForm>
+            </label>
+            <label>
+              {B.fields.discount_percent}
+              <input name="indirim" defaultValue={bpToPercent(discountBp)} inputMode="decimal" />
+            </label>
+            <button className="button button-secondary" type="submit">
+              {A.previewButton}
+            </button>
+          </form>
+          {canIssue && addonPreview && "lines" in addonPreview && (
+            <ActionForm action={issueAddonQuoteAction} testId="addon-quote-form">
+              <input type="hidden" name="base_order_id" value={base.baseOrderId} />
+              <input type="hidden" name="application_id" value={a.id} />
+              {/* The start and the discount of the preview above (§4.1). */}
+              {addonStart && (
+                <input type="hidden" name="proposed_service_start" value={addonStart} />
+              )}
+              <input
+                type="hidden"
+                name="discount_percent"
+                value={discountBp ? bpToPercent(discountBp) : ""}
+              />
+              <p className="muted">{A.termsFromPreview}</p>
+              <Field
+                label={B.fields.valid_days}
+                hint={B.quote.validDaysHint(setting?.quote_valid_days ?? 30)}
+                optional
+              >
+                <input name="valid_days" inputMode="numeric" />
+              </Field>
+              <Field label={B.quote.discountNote} optional>
+                <input name="discount_note" maxLength={500} />
+              </Field>
+              <Field label={B.quote.noteToCustomer} optional>
+                <textarea name="note_to_customer" maxLength={1000} rows={3} />
+              </Field>
+              <div className={styles.actions}>
+                <Submit>{A.submit}</Submit>
+              </div>
+            </ActionForm>
+          )}
         </section>
       )}
 
@@ -426,40 +468,43 @@ export default async function Page({
           <section className={styles.section}>
             <h2>{member ? A.separateTitle : T.issueQuote}</h2>
             <p className="muted">{member ? A.separateHint : T.issueHint}</p>
-            <ActionForm action={issueQuoteAction} testId="issue-quote-form">
-              <input type="hidden" name="application_id" value={a.id} />
-              {member && (
-                <>
-                  <input type="hidden" name="member" value="1" />
+            {!canIssue ? (
+              <p className="muted" data-testid="issue-blocked">
+                {overlapsFailed ? O.issueBlocked : B.addon.issueBlocked}
+              </p>
+            ) : (
+              <ActionForm action={issueQuoteAction} testId="issue-quote-form">
+                <input type="hidden" name="application_id" value={a.id} />
+                {member && (
                   <label className={styles.check}>
                     <input type="checkbox" name="separate_period" required />
                     {A.separateConfirm}
                   </label>
-                </>
-              )}
-              <Field label={B.quote.start} optional>
-                <input type="date" name="proposed_service_start" />
-              </Field>
-              <Field label={B.fields.valid_days} optional>
-                <input name="valid_days" inputMode="numeric" />
-              </Field>
-              <Field label={B.fields.discount_percent} hint={B.quote.discountHint} optional>
-                <input
-                  name="discount_percent"
-                  inputMode="decimal"
-                  defaultValue={discountBp ? bpToPercent(discountBp) : ""}
-                />
-              </Field>
-              <Field label={B.quote.discountNote} optional>
-                <input name="discount_note" maxLength={500} />
-              </Field>
-              <Field label={B.quote.noteToCustomer} optional>
-                <textarea name="note_to_customer" maxLength={1000} rows={3} />
-              </Field>
-              <div className={styles.actions}>
-                <Submit secondary={member}>{member ? A.separateTitle : T.issueQuote}</Submit>
-              </div>
-            </ActionForm>
+                )}
+                <Field label={B.quote.start} optional>
+                  <input type="date" name="proposed_service_start" />
+                </Field>
+                <Field label={B.fields.valid_days} optional>
+                  <input name="valid_days" inputMode="numeric" />
+                </Field>
+                <Field label={B.fields.discount_percent} hint={B.quote.discountHint} optional>
+                  <input
+                    name="discount_percent"
+                    inputMode="decimal"
+                    defaultValue={discountBp ? bpToPercent(discountBp) : ""}
+                  />
+                </Field>
+                <Field label={B.quote.discountNote} optional>
+                  <input name="discount_note" maxLength={500} />
+                </Field>
+                <Field label={B.quote.noteToCustomer} optional>
+                  <textarea name="note_to_customer" maxLength={1000} rows={3} />
+                </Field>
+                <div className={styles.actions}>
+                  <Submit secondary={member}>{member ? A.separateTitle : T.issueQuote}</Submit>
+                </div>
+              </ActionForm>
+            )}
           </section>
           <section className={styles.section}>
             <h2>{T.reject}</h2>

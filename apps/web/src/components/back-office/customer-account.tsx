@@ -38,7 +38,11 @@ export function CustomerAccountPanel({
 }) {
   const p = account.profile;
   const base = addonBase(membership.periods);
-  const inService = membership.gardens.filter((g) => g.state === "in_service");
+  // Gardens in service or not yet started (a paid renewal, a later add-on):
+  // "Tüm bahçeleri çıkar" opens a removal for each (§5.2).
+  const removable = membership.gardens.filter(
+    (g) => g.state === "in_service" || g.state === "upcoming",
+  );
   return (
     <section className={styles.section} data-testid="customer-account">
       <div className={styles.titleRow}>
@@ -63,7 +67,7 @@ export function CustomerAccountPanel({
 
       <h3>{M.gardensTitle}</h3>
       <CustomerGardens gardens={membership.gardens} />
-      {inService.length > 0 && (
+      {removable.length > 0 && (
         <details data-testid="remove-all-gardens">
           <summary>{M.removeAll}</summary>
           <p className="muted">{M.removeAllHint}</p>
@@ -85,6 +89,19 @@ export function CustomerAccountPanel({
             </Field>
             <Field label={B.fields.effective_on}>
               <input type="date" name="effective_on" min={today} required />
+            </Field>
+            <Field
+              label={B.fields.access_days}
+              hint={B.removal.accessDaysHint(settingAccessDays)}
+              optional
+            >
+              <input
+                name="access_days"
+                type="number"
+                min={0}
+                max={365}
+                placeholder={String(settingAccessDays)}
+              />
             </Field>
             <Field label={B.internalNote} optional>
               <textarea name="note" maxLength={2000} rows={2} />

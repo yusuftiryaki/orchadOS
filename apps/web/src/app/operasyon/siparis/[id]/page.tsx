@@ -241,7 +241,11 @@ export default async function Page({
                     required
                   />
                 </Field>
-                <Field label={B.fields.access_days} optional>
+                <Field
+                  label={B.fields.access_days}
+                  hint={B.removal.accessDaysHint(setting?.removal_access_days ?? 90)}
+                  optional
+                >
                   <input
                     name="access_days"
                     type="number"
