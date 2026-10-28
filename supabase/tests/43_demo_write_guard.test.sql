@@ -113,7 +113,7 @@ select throws_ok(
   $$ select public.approve_boundary('d1340000-0000-4000-8000-000000000011') $$,
   '42501', 'demo_read_only', 'nor approve the boundary');
 select throws_ok(
-  $$ select public.owner_invite_viewer('d1310000-0000-4000-8000-000000000011', 'Hisse', '+905550043001') $$,
+  $$ select public.owner_invite_viewer('d1310000-0000-4000-8000-000000000011', 'Hisse', '+905550043001', true) $$,
   '42501', 'demo_read_only', 'nor invite a co-owner');
 select throws_ok(
   $$ select public.owner_cancel_viewer_invitation(gen_random_uuid()) $$,
@@ -213,14 +213,14 @@ select lives_ok(
   $$ update public.question set body = 'Gerçek soru, düzeltilmiş' where id = 'd1350000-0000-4000-8000-000000000011' $$,
   'and edit one');
 select isa_ok(
-  public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Hisse', '+905550043003'),
+  public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Hisse', '+905550043003', true),
   'uuid', 'and invite a co-owner');
 reset role;
 
 -- Service role only (no demo_read_only expected: authenticated cannot call them).
 select is(
   (select coalesce(array_agg(f order by f), '{}') from unnest(array[
-     'public.payment_begin(uuid, uuid, text, text)', 'public.payment_attach_token(uuid, text, timestamptz)',
+     'public.payment_begin(uuid, uuid, text, text)', 'public.payment_attach_token(uuid, text, timestamptz, text)',
      'public.payment_finalize(uuid, text, jsonb)', 'public.payment_refund_claim(uuid)',
      'public.signup_prepare(uuid, text, text, text, text, jsonb, text)', 'public.signup_complete(uuid, timestamptz)',
      'public.signup_find_account(text, text)', 'public.demo_admit(text)', 'public.demo_start(uuid, text)']) f

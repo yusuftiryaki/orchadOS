@@ -68,6 +68,7 @@ export const BILLING_ERRORS = [
   "legal_text_outdated",
   "legal_texts_not_final",
   "withdrawal_period_open",
+  "boundary_dispute_open",
   "order_not_active",
   "contract_document_immutable",
   // P0001, per-visit payment plan (docs/musteri-yonetimi.md §5.6, H35)

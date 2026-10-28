@@ -23,10 +23,14 @@ export default async function SignupPage() {
     );
   }
   if (user) redirect("/");
-  const { signupEnabled, turnstileSiteKey } = siteFlags();
+  const { signupEnabled, turnstileSiteKey, captchaProvider } = siteFlags();
   return (
     <div className={styles.screen}>
-      <SignupView signupEnabled={signupEnabled} turnstileSiteKey={turnstileSiteKey} />
+      <SignupView
+        signupEnabled={signupEnabled}
+        turnstileSiteKey={turnstileSiteKey}
+        captchaProvider={captchaProvider}
+      />
     </div>
   );
 }

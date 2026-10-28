@@ -80,7 +80,7 @@ insert into ip12_fn values
   ('public.ops_extend_payment_due(uuid,date)', 'authenticated'),
   ('public.ops_terminate_order(uuid,text)', 'authenticated'),
   ('public.payment_begin(uuid,uuid,text,text)', 'service_role'),
-  ('public.payment_attach_token(uuid,text,timestamp with time zone)', 'service_role'),
+  ('public.payment_attach_token(uuid,text,timestamp with time zone,text)', 'service_role'),
   ('public.payment_by_token(text)', 'service_role'),
   ('public.payment_record_event(text,text,text,uuid,uuid,boolean,integer,text,jsonb)', 'service_role'),
   ('public.payment_finalize(uuid,text,jsonb)', 'service_role'),

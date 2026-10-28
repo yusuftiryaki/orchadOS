@@ -127,8 +127,8 @@ select is(
   array['application_garden', 'garden_removal', 'membership', 'notification', 'order_installment',
         'order_installment_item', 'parcel_access', 'payment', 'payment_item',
         'private.billing_profile', 'private.consent_record', 'private.consent_record', 'private.contract_document',
-        'private.customer_signup',
-        'private.owner_profile', 'private.viewer_invitation', 'quote', 'quote_item', 'refund',
+        'private.customer_signup', 'private.kvkk_request',
+        'private.owner_profile', 'private.staff_profile', 'private.viewer_invitation', 'quote', 'quote_item', 'refund',
         'service_application', 'service_order', 'service_order_item'],
   'the tables with an account scope guard');
 

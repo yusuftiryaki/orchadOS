@@ -10,6 +10,13 @@
 //    minutes are rejected.
 // 1a. A demo account (user.app_metadata.demo) gets no code: 403
 //     demo_read_only, before any limit, provider or outbox call.
+// 1b. A phone confirmation code of an unfinished self sign-up (Auth's public
+//     /auth/v1/resend, a phone change) goes out only when the registration
+//     flow asked for it: signup_sms_allowed() consumes the short-lived marker
+//     that the web's code step left with the register's ticket
+//     (signup_code_grant, docs/musteri-yonetimi.md §7.5). Without it the hook
+//     answers 200 {} and sends nothing, so the caller cannot tell the number
+//     apart from any other (docs/hukuk/kararlar.md H33).
 // 2. phone_login_code_requested() applies the limits per number (5 codes an
 //    hour; locked after 5 wrong codes in 15 minutes) and counts the code.
 // 3. The code goes out through the message provider (../_shared/providers.ts):
@@ -97,6 +104,7 @@ async function handle(req: Request): Promise<Response> {
 
   let phone: string;
   let otp: string;
+  let userId: string;
   try {
     const payload = JSON.parse(body);
     // Extra layer (docs/demo-turu.md §6.5): no code for a demo account, which
@@ -104,14 +112,24 @@ async function handle(req: Request): Promise<Response> {
     if (payload?.user?.app_metadata?.demo === true) return hookError(403, "demo_read_only");
     phone = `+${String(payload?.user?.phone ?? "").replace(/^\+/, "")}`;
     otp = String(payload?.sms?.otp ?? "");
+    userId = String(payload?.user?.id ?? "");
   } catch {
     return json({ error: "invalid_input" }, 400);
   }
   if (!/^\+[1-9][0-9]{6,14}$/.test(phone) || !/^[0-9]{4,10}$/.test(otp)) {
     return json({ error: "invalid_input" }, 400);
   }
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) return json({ error: "invalid_input" }, 400);
 
   try {
+    const own = await fetch(`${SUPABASE_URL}/rest/v1/rpc/signup_sms_allowed`, {
+      method: "POST",
+      headers: { ...serviceHeaders(), "content-type": "application/json" },
+      body: JSON.stringify({ p_user_id: userId }),
+    });
+    if (!own.ok) throw new Error(`signup_sms_allowed failed with ${own.status}`);
+    if ((await own.json()) !== true) return json({});
+
     const limit = await fetch(`${SUPABASE_URL}/rest/v1/rpc/phone_login_code_requested`, {
       method: "POST",
       headers: { ...serviceHeaders(), "content-type": "application/json" },

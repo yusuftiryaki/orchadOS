@@ -281,7 +281,7 @@ describe("TCKN", () => {
   // A valid test number (checksum digits), never a real person's.
   const TCKN = "10000000146";
 
-  it("is masked, and shown in full only on an audited reveal", async () => {
+  it("is never stored, so ops has nothing to mask or reveal (T13)", async () => {
     check(
       await ops.rpc("ops_save_billing_setting", {
         p_org_id: SEED.org,
@@ -314,13 +314,12 @@ describe("TCKN", () => {
     const [masked] = check(
       await ops.rpc("ops_billing_profile", { p_org_id: SEED.org, p_user_id: customer.id }),
     );
+    // T13 (H16): the TCKN is never stored, so there is nothing to mask or reveal.
     expect(masked.identity_number).toBeNull();
-    expect(masked.identity_number_masked).toMatch(/46$/);
-    expect(masked.identity_number_masked).not.toContain(TCKN);
-
+    expect(masked.identity_number_masked).toBeNull();
     expect(await revealIdentityNumber(ops, SEED.org, customer.id)).toEqual({
       ok: true,
-      value: TCKN,
+      value: null,
     });
     const audit = check(
       await ops.rpc("ops_audit_events", {
@@ -329,7 +328,6 @@ describe("TCKN", () => {
         p_entity_id: customer.id,
       }),
     );
-    expect(audit.map((a) => a.action)).toContain("billing_profile.revealed");
     expect(JSON.stringify(audit)).not.toContain(TCKN);
   });
 });

@@ -311,6 +311,33 @@ Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) "Takip işleri"; sözleşmeler 
 - **Erken başlama (T03):** Onay yoksa cayma süresi bitmeden envanter ve periyodik ziyaret planlanmaz (`withdrawal_period_open`); caymada kesinti yapılmaz.
 - **Ek teklif (T18):** Döküm `quote.inputs.addon` içinde saklanır; envanter ücreti son envanterden 24 ay içinde yeniden eklenen bahçeden alınmaz.
 
+## Hukuk takip işleri, dalga 2 (T23, T09, T20, T15, T16, T13, T11)
+
+Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) H01, H05, H07, H16, H22, H25, H26, H27, H30, H32. Migration'lar `20261104100000`–`20261104100700`.
+
+| Tablo / sütun | Ne tutar |
+| --- | --- |
+| `org_billing_setting` | `coowner_notice_flow_enabled` (T15), `boundary_declaration_required` (T16), `kvkk_request_form_enabled` (T11). Yalnızca SQL; barındırılan projelerde `false`, `seed.sql`'de `true`. Kapalıyken bugünkü davranış değişmez |
+| `private.staff_profile` | Personelin kurum başına görünen adı ve unvanı (`(org_id, user_id)`; o kurumun ops'u `/operasyon/personel`'de düzenler; başka kurumun ops'u değiştiremez). Raporu onaylayan uzmanın adı ve unvanı raporda ve PDF'lerde (H05); demo org'unda gösterilmez (`visit_approver`) |
+| `private.media_suppression` | Görüntü gizleme (T20, H01): hedef (`asset` ya da `capture`), `hide`/`unhide`, neden (`kvkk_objection`, `third_party`, `other`), not, yapan, zaman. Ekleme-yalnız (hesap silinince yalnız `created_by` boşalır, `insert_only_unlink_user`); bir hedefin en yeni kaydı geçerlidir. Medya satırı ve dosya değişmez |
+| `private.boundary_approval` | Sınır onayındaki beyan (T16, Md. 6/2): sınır, kullanıcı, kayıtlı `distance_sales` sürümü, metin özeti, zaman. Ekleme-yalnız; hesap silinince yalnız `user_id` boşalır, kayıt kalır |
+| `private.boundary_pointer` | Sınırı gösteren kişinin adı ve rolü (T16, H07); `boundary_pointer` olaylarından `session_event` üzerindeki tetikleyiciyle kopyalanır. Yalnız personel okur, telefon tutulmaz. Ekleme-yalnız |
+| `private.boundary_dispute` | Sınır itirazı / askı (T16, Md. 6/4): `open`/`close` satırları ve not; ekleme-yalnız (hesap silinince yalnız `created_by` boşalır). Açıkken yeni envanter ve periyodik ziyaret planlanmaz (`boundary_dispute_open`) |
+| `private.viewer_invitation.declared_at`, `declaration_version`, `declaration_sha256` | Sahibin hissedar davetindeki beyanı (T15): "Bu kişinin bahçede hakkı var ve numarasını vermeye yetkiliyim." |
+| `private.kvkk_request` | Portaldan KVKK başvurusu (T11): tür, metin, durum, `due_at` (+30 gün), sonuçlanma. `answered` ve `rejected` kesindir: durum bir daha değişmez, `settled_at` (10 yıllık saklamanın başlangıcı) bir kez yazılır. Başvuru defteri kaydı; sonuçlandıktan sonra 10 yıl |
+| `private.billing_profile.identity_number` | T13: her zaman boş (kısıt). TCKN ödeme anında alınır, yalnızca ödeme kuruluşuna gider; `payment_billing_snapshot.identity_number_last4` tek izdir |
+| `notification_template` | `viewer_invited` (hissedar davet SMS'i; değişkenler: bahçe adı, portal yolu) |
+| `audit_event.entity_type` | `staff_profile`, `media_suppression`, `boundary`, `boundary_dispute`, `viewer_invitation`, `kvkk_request` |
+
+**Görünürlük (T23):**
+- **Soru-cevap:** Sahip ve hissedar yalnız kendi başlattığı dizileri ve cevaplarını okur (`question.created_by`); aynı bahçenin diğer sahibinin ya da hissedarının sorularını görmez, çıkan sahibin soruları kalan sahibe açılmaz (H22, H32). Uzman ve ops org'un bütün dizilerini görür. Demo turunun kurgusal dizileri demo ziyaretçilerine açıktır. Soru bildirimi bugün yoktur; eklenecek bildirim aynı kurala uyar.
+- **Personel izi (H05):** Parsel okuyucuları (sahip, hissedar, izleyici, demo ziyaretçisi) zamanı taşıyan satırları okumaz. `asset`'ten yalnız kesit ve fotoğraf satırlarını okur (kesitin `pose`'unda yön, açı ve panorama kimliği vardır, zaman yoktur). Panoramaları `public.portal_panorama_frames` verir: kare başına bir satır, tam ve önizleme kimliği sunucuda eşlenmiş, konum ve yön ile; `pose.gps_time_ns`, kare anahtarı ve çekim sırası dışarı çıkmaz. `capture` satırlarını (`started_at`, konum, `metadata.gps_time_ns`/`phone_time`) hiç okumaz; ağaca bağlı yakın planları `public.portal_closeups` verir: kimlik, ziyaret, ağaç, dosya ve çeken personel. Medya kovası bu dosyaları `authz.parcel_reader_media_object` ile imzalatır. Ham GNSS kaydı, MCAP, 360° video, ses notu, yörünge ve nokta bulutu yalnız personele açıktır (dosyaları da). `session_event` yalnız personel (saha, uzman, ops) içindir. Personel (kurum üyeleri) iki tabloyu eskisi gibi okur: ofis aracı, uzman paneli, işleme hattı, AI worker ve saha uygulaması değişmez. Portal tarama izini göstermez; turdaki panoramalar zaman damgası ve aralarında çizgi olmadan ayrık noktalardır. Ağaç karnesindeki fotoğraf kanıtı çekim saati yerine ziyaret gününü gösterir; konum kesitte kameranın durduğu ayrık nokta, yakın planda boştur. Sahip, hissedar ve demo ziyaretçisinin `pose->>'gps_time_ns'` okuyamadığı pgTAP ile denetlenir (`60_`, `42_`).
+- **Gizlenen görüntü (T20):** Kısıtlayıcı politikalar gizli satırları ops ve saha personeli dışında herkesten saklar; medya kovası politikası dosyayı da kapatır (imzalı adres verilmez). Gizlenen panoramayla karenin öteki çözünürlüğü ve ondan kesilen ağaç kesitleri de gizlenir. Daha önce verilmiş imzalı adres en fazla 15 dakika geçerli kalır. Demo org'unun dosyalarının herkese açık `demo-media` kovasında aynı adla birer kopyası vardır ve bu kopyayı politikalar kapatmaz. Demo verisi bugün sentetiktir, ama vitrin veri kümesi (`showcase`, H28) gerçek bir bahçe olabilir. Bu yüzden kopyası duran bir demo dosyası gizlenmez (`demo_mirror_public`): ops önce kopyayı kovadan kaldırır, sonra gizler.
+
+**`session_event` kabul edilen sapma (T16):** Sınırı gösteren kişinin adı ve rolü saha uygulamasının `boundary_pointer` olayının `payload`'ında taşınır ve orada kalır (ekleme-yalnız taşıma kaydı); asıl okuma yeri `private.boundary_pointer`'dır. `session_event` T23'ten beri yalnız personele açıktır ve KVKK betikleri her iki yeri de takma ada çevirir (`scripts/kvkk/README.md`). Geçersiz bir yük (bozuk JSON, eksik ad, bilinmeyen rol) sessizce atlanır; saha uygulamasının yazması hiçbir zaman başarısız olmaz.
+
+**Kısa saklama işleri (T09):** `notification-purge` (12 ay), `auth-session-purge` (sona erdikten 30 gün sonra), `auth-audit-log-purge` (30 gün, H27); ayrıntı [hukuk/saklama-imha-politikasi.md](hukuk/saklama-imha-politikasi.md) §5.
+
 ## MVP tablolarından geçiş
 
 | MVP | Hedef |

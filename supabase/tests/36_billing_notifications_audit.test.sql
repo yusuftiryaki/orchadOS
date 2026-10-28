@@ -129,7 +129,8 @@ create temporary table begin1 as
 insert into ids select 'p', (b ->> 'payment_id')::uuid from begin1;
 
 select is((select pg_temp.keys(b) from begin1),
-  pg_temp.sorted(array['payment_id', 'order_id', 'order_number', 'amount_kurus', 'currency', 'items', 'buyer', 'billing']),
+  pg_temp.sorted(array['payment_id', 'order_id', 'order_number', 'amount_kurus', 'currency', 'items', 'buyer',
+    'identity_number_required', 'billing']),
   'payment_begin keys = PAYMENT_BEGIN_KEYS');
 select is((select pg_temp.keys(b -> 'items' -> 0) from begin1),
   pg_temp.sorted(array['payment_item_id', 'line_no', 'name', 'amount_kurus']), 'item keys = PAYMENT_BEGIN_ITEM_KEYS');
@@ -161,16 +162,15 @@ select is((select pg_temp.keys(to_jsonb(t)) from public.payment_attempts_to_reco
 
 -- With the TCKN required: the real number goes to the provider, the snapshot keeps four digits.
 update public.org_billing_setting set identity_number_required = true where org_id = 'b0000000-0000-4000-8000-000000000001';
-update private.billing_profile set identity_number = '10000000146'
-where user_id = 'a0000000-0000-4000-8000-000000000006';
 create temporary table begin2 as
   select public.payment_begin(pg_temp.id('o'), 'a0000000-0000-4000-8000-000000000006', 'fake',
     'http://127.0.0.1:3100') as b;
 insert into ids select 'p2', (b ->> 'payment_id')::uuid from begin2;
-select is((select b -> 'buyer' ->> 'identity_number' from begin2), '10000000146', 'the real TCKN when required');
+select is((select b -> 'buyer' ->> 'identity_number' from begin2), '11111111111',
+  'T13: no stored TCKN even when required (the payments function adds the typed one)');
 select is((select status::text || '/' || failure_code from public.payment where id = pg_temp.id('p')),
   'expired/superseded', 'the earlier live attempt is superseded');
-select public.payment_attach_token(pg_temp.id('p2'), 'fake_36_token_2', now() + interval '30 minutes');
+select public.payment_attach_token(pg_temp.id('p2'), 'fake_36_token_2', now() + interval '30 minutes', '0146');
 select is((select identity_number_last4 from private.payment_billing_snapshot where payment_id = pg_temp.id('p2')),
   '0146', 'the snapshot keeps the last four digits only');
 
@@ -250,7 +250,7 @@ select is(pg_temp.error_of($$ select public.ops_record_manual_payment(pg_temp.id
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 select is(pg_temp.error_of($$ select public.customer_save_billing_profile('{"kind": "individual", "first_name": "A",
   "last_name": "B", "identity_number": "12345678901", "address": "Sok. 1", "city": "Gaziantep"}') $$),
-  'invalid_input / identity_number', 'an invalid TCKN is named, never echoed');
+  null, 'T13: a TCKN given with the profile is ignored, never stored or echoed');
 select is(pg_temp.error_of($$ select public.customer_accept_quote(pg_temp.id('q2'), '{}') $$), 'quote_not_open',
   'an expired quote cannot be accepted');
 select is(pg_temp.error_of($$ select public.payment_finalize(pg_temp.id('p2'), 'won', '{}') $$),

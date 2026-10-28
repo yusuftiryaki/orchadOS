@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { siteText } from "@/lib/i18n/messages/site";
+import type { WebCaptchaProvider } from "@/lib/site/captcha";
 import { SignupForm } from "./signup-form";
 import styles from "./signup.module.css";
 
@@ -10,9 +11,11 @@ const s = siteText.signup;
 export function SignupView({
   signupEnabled,
   turnstileSiteKey,
+  captchaProvider,
 }: {
   signupEnabled: boolean;
   turnstileSiteKey: string | null;
+  captchaProvider?: WebCaptchaProvider;
 }) {
   if (!signupEnabled) {
     return (
@@ -30,7 +33,7 @@ export function SignupView({
       <h1>{s.title}</h1>
       <p className="muted">{s.subtitle}</p>
       <p className="muted">{s.locationNote}</p>
-      <SignupForm turnstileSiteKey={turnstileSiteKey} />
+      <SignupForm turnstileSiteKey={turnstileSiteKey} captchaProvider={captchaProvider} />
       <p className={styles.footnote}>
         {s.haveAccount} <Link href="/giris">{s.login}</Link>
       </p>

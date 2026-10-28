@@ -446,7 +446,7 @@ Lansman fiyatlarıyla ([fiyatlandirma.md](fiyatlandirma.md)); hukuk metinlerinde
     - ziyaret bedeli yine 432.000,
     - envanter yapılmadıysa iade 1.296.000 + 720.000 = 2.016.000.
 - **İşleme hattının yeniden taraması** (`extra_visit` isteğine bağlı) yapılmış ziyaret sayılmaz; iadeyi azaltmaz.
-- **Ödeme planıyla (installments-v1, H36):** Temel örnekteki satır ziyaret başına ödeniyor (4 × 432.000) ve iki ödeme yapılmış (864.000), biri yapılmış ziyaret. Hesap 1.296.000; ödenmemiş 864.000 kesilir (son iki ziyaret ödemesi iptal), iade 1.296.000 − 864.000 = **432.000**. Müşterinin cebinden çıkan 432.000, yani yapılmış tek ziyaretin bedeli (`57_visit_installments`).
+- **Ödeme planıyla (installments-v1, H36):** Temel örnekteki satır ziyaret başına ödeniyor (4 × 432.000) ve iki ödeme yapılmış (864.000), biri yapılmış ziyaret. Hesap 1.296.000; ödenmemiş 864.000 kesilir (son iki ziyaret ödemesi iptal), iade 1.296.000 − 864.000 = **432.000**. Müşterinin cebinden çıkan 432.000, yani yapılmış tek ziyaretin bedeli (`58_visit_installments`).
 - **Cayma, ödeme planıyla:** İlk yıl satırı 2.448.000 (envanter 720.000 + 4 × 432.000), yalnızca envanter ödemesi yapılmış, envanter yapılmamış. Hesap 2.448.000; ödenmemiş 1.728.000 kesilir, iade 720.000.
 
 ### 7.2 `calculation` (kayıtta ve önizlemede)

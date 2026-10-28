@@ -82,6 +82,15 @@ test.beforeAll(async () => {
     }),
   );
   customer = await signedIn(EMAIL);
+  // T15: the customer records the KVKK notice in the portal (an ops-opened
+  // owner is otherwise stopped by the first-login notice screen).
+  check(
+    await customer.rpc("customer_set_consent", {
+      p_kind: "kvkk_notice",
+      p_granted: true,
+      p_text_version: "kvkk-v2-taslak",
+    }),
+  );
   check(
     await customer.rpc("customer_save_billing_profile", {
       p_profile: {
@@ -289,7 +298,7 @@ test("ops publishes a price list from a copy and saves the settings", async ({ p
   ).toBeVisible();
 });
 
-test("the customer's TCKN is masked until ops reveals it", async ({ page }) => {
+test("the customer's TCKN is never stored, so ops sees none (T13)", async ({ page }) => {
   // A valid test number (checksum digits), never a real person's. Required
   // only for the moment the customer saves it; the setting is put back.
   const TCKN = "10000000146";
@@ -329,15 +338,8 @@ test("the customer's TCKN is masked until ops reveals it", async ({ page }) => {
   await page.getByTestId("owner-list").getByRole("link", { name: NAME }).click();
   const panel = page.getByTestId("customer-account");
   await expect(panel.getByTestId("billing-profile")).toBeVisible();
-  await expect(panel.getByTestId("identity-number")).not.toContainText(TCKN);
+  // T13 (H16): the TCKN that came with the profile was not stored: nothing to
+  // mask or reveal.
   await expect(page.locator("body")).not.toContainText(TCKN);
-  await panel.getByRole("button", { name: "TCKN'yi göster" }).click();
-  await expect(panel.getByTestId("identity-number")).toContainText(TCKN);
-
-  // Gone after a reload; the reveal is in the audit log.
-  await page.reload();
-  await expect(page.locator("body")).not.toContainText(TCKN);
-  await page.goto("/operasyon/denetim-kaydi?tur=billing_profile");
-  await expect(page.getByTestId("audit-log").getByText("TCKN görüntülendi").first()).toBeVisible();
-  await expect(page.getByTestId("audit-log")).not.toContainText(TCKN);
+  await expect(panel.getByRole("button", { name: "TCKN'yi göster" })).toHaveCount(0);
 });

@@ -7,7 +7,7 @@
 -- in-test (Edge's Admin API is not involved here).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(82);
+select plan(83);
 
 -- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
 -- removed first; rolled back with the file (supabase/testing/reset.sql).
@@ -44,13 +44,16 @@ insert into public.session (id, org_id, parcel_id, kind, status, started_at) val
    'd1310000-0000-4000-8000-000000000001', 'periodic_scan', 'published', '2026-07-14 07:00:00+00'),
   ('d1320000-0000-4000-8000-000000000002', 'd1300000-0000-4000-8000-000000000001',
    'd1310000-0000-4000-8000-000000000001', 'periodic_scan', 'in_review', '2026-07-20 07:00:00+00');
-insert into public.asset (id, org_id, parcel_id, session_id, kind, uri, content_hash, pipeline, pipeline_version) values
+insert into public.asset (id, org_id, parcel_id, session_id, kind, uri, content_hash, pipeline, pipeline_version,
+                          position, position_uncertainty_m, pose) values
   ('d1330000-0000-4000-8000-000000000001', 'd1300000-0000-4000-8000-000000000001',
    'd1310000-0000-4000-8000-000000000001', 'd1320000-0000-4000-8000-000000000001', 'panorama',
-   'storage://media/x', encode(sha256('demo-pub'::bytea), 'hex'), 'pipeline', '0.1.0'),
+   'storage://media/x', encode(sha256('demo-pub'::bytea), 'hex'), 'pipeline', '0.1.0',
+   'SRID=4326;POINT(37.38 37.07)', 0.1, '{"heading_deg": 90, "gps_time_ns": "1449000000123456789"}'),
   ('d1330000-0000-4000-8000-000000000002', 'd1300000-0000-4000-8000-000000000001',
    'd1310000-0000-4000-8000-000000000001', 'd1320000-0000-4000-8000-000000000002', 'panorama',
-   'storage://media/y', encode(sha256('demo-rev'::bytea), 'hex'), 'pipeline', '0.1.0');
+   'storage://media/y', encode(sha256('demo-rev'::bytea), 'hex'), 'pipeline', '0.1.0',
+   'SRID=4326;POINT(37.38 37.07)', 0.1, null);
 insert into storage.objects (bucket_id, name) values
   ('media', 'org/d1300000-0000-4000-8000-000000000001/parcel/d1310000-0000-4000-8000-000000000001/'
             || encode(sha256('demo-pub'::bytea), 'hex')),
@@ -224,9 +227,13 @@ select is((select count(*)::int from public.session where id = 'd1320000-0000-40
 select pg_temp.as_user('d13a0000-0000-4000-8000-000000000001');
 select is((select count(*)::int from public.session), 2, 'the same parcel role without the demo claim sees both visits');
 select pg_temp.as_demo('d13a0000-0000-4000-8000-000000000001');
-select results_eq($$ select id from public.asset $$,
+-- T23 (H05): panoramas reach a visitor as viewpoints only (no row, no capture time).
+select results_eq($$ select full_asset_id from public.portal_panorama_frames(
+                       array['d1320000-0000-4000-8000-000000000001', 'd1320000-0000-4000-8000-000000000002']::uuid[]) $$,
   $$ values ('d1330000-0000-4000-8000-000000000001'::uuid) $$,
-  'and only the published visit''s assets');
+  'and only the published visit''s panoramas');
+select is_empty($$ select a.pose ->> 'gps_time_ns' from public.asset a where a.pose ? 'gps_time_ns' $$,
+  'the visitor cannot read pose->>gps_time_ns');
 select results_eq($$ select storage.filename(name) from storage.objects where bucket_id = 'media' $$,
   $$ values (encode(sha256('demo-pub'::bytea), 'hex')) $$,
   'and only the published media object');

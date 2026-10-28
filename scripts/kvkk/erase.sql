@@ -32,8 +32,17 @@ begin
   if exists (
     select 1 from public.session_event e
     join kvkk_parcel k on k.parcel_id = e.parcel_id
-    where e.event_type in ('field_notice_verbal', 'field_notice_objection', 'visit_blocked')
+    where e.event_type in ('field_notice_sign', 'field_notice_verbal', 'field_notice_objection', 'visit_blocked')
       and pg_temp.kvkk_payload_has_match(e.payload)
+  ) or exists (
+    -- Ops notes of hidden images and boundary disputes (T20, T16).
+    select 1 from private.media_suppression m
+    join kvkk_parcel k on k.parcel_id = m.parcel_id
+    where pg_temp.kvkk_has_match(m.note)
+  ) or exists (
+    select 1 from private.boundary_dispute d
+    join kvkk_parcel k on k.parcel_id = d.parcel_id
+    where pg_temp.kvkk_has_match(d.note)
   ) then
     if p.apply then
       raise exception 'kvkk_notes_pending: field notes still name the subject; read them (inventory) and run "pseudonymize --include-notes --apply" for request % before "erase --apply"', p.request;

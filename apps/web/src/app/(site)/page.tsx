@@ -7,7 +7,8 @@ import { getSessionUser } from "@/lib/auth/session";
 import { siteFlags } from "@/lib/flags";
 import { t } from "@/lib/i18n";
 import { siteText } from "@/lib/i18n/messages/site";
-import { completeSignup } from "@/lib/signup/client";
+import { completeSignup, SIGNUP_REFUSED_PATH } from "@/lib/signup/client";
+import { readTicket } from "@/lib/signup/ticket";
 import { createClient } from "@/lib/supabase/server";
 import type { Client } from "@/lib/supabase/types";
 
@@ -16,7 +17,9 @@ import type { Client } from "@/lib/supabase/types";
 // after the SMS code is finished here; one that never verified its phone is
 // sent to /kayit/dogrula. Only self-service accounts (app_metadata.signup =
 // "self", set by customer-signup) are asked; any other account without a role
-// sees the no-roles card.
+// sees the no-roles card. Completion carries this browser's sign-up ticket:
+// a session that cannot prove the registrant (a phone code without the
+// ticket) is refused, signed out and told how to finish (SIGNUP_REFUSED_PATH).
 export default async function HomePage() {
   const user = await getSessionUser();
   const { signupEnabled, demoUrl } = siteFlags();
@@ -31,8 +34,9 @@ export default async function HomePage() {
   let phoneNotVerified = false;
   const supabase = await createClient();
   if (signupEnabled && (await isSelfSignup(supabase))) {
-    const result = await completeSignup(supabase);
+    const result = await completeSignup(supabase, (await readTicket())?.ticket ?? null);
     if (result.ok && result.status === "completed") redirect("/portal");
+    if (!result.ok && result.error === "signup_mismatch") redirect(SIGNUP_REFUSED_PATH);
     phoneNotVerified = !result.ok && result.error === "phone_not_verified";
   }
 

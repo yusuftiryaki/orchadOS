@@ -68,6 +68,8 @@ const errors: Record<BillingError, string> = {
     "Teklif şu anda onaylanamıyor: sözleşme metinleri ya da şirket bilgileri henüz son hâlinde değil. Lütfen daha sonra yeniden deneyin.",
   withdrawal_period_open:
     "Siparişin cayma süresi sürüyor ve erken başlama talebi yok; envanter ve ziyaretler cayma süresinden sonra planlanır.",
+  boundary_dispute_open:
+    "Bu bahçede açık bir sınır itirazı var; itiraz kapatılmadan tarama planlanamaz.",
   order_not_active: "Sipariş henüz etkin değil.",
   contract_document_immutable: "Sözleşme belgeleri değiştirilemez ve silinemez.",
   installment_unpaid:

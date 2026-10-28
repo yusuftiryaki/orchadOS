@@ -247,6 +247,14 @@ export const siteText = {
     submitting: "Gönderiliyor…",
     codeTitle: "SMS kodu",
     codeSent: (masked: string) => `${masked} numarasına 6 haneli bir kod gönderdik.`,
+    // The /kayit code step: the same text whether the number is new, has an
+    // account or cannot get a code at all (docs/hukuk/kararlar.md H33).
+    codeRequested: (masked: string) =>
+      `${masked} numarasına SMS ile 6 haneli bir kod gönderiyoruz. Kod birkaç dakika geçerli.`,
+    codeMissing:
+      "Kod gelmezse bu numarayla zaten bir hesabınız olabilir; e-posta adresiniz ve parolanızla giriş yapın.",
+    codeMissingLogin: "E-posta ile giriş yap",
+    registerAgain: "Kod adımının süresi doldu. Bilgilerinizi girip yeniden kayıt olun.",
     codeExisting:
       "Bu numarayla hesabınız varsa giriş yapmış olursunuz; izin tercihlerinizi Hesabım › İzinler'den değiştirebilirsiniz.",
     code: "SMS kodu",
@@ -256,6 +264,7 @@ export const siteText = {
     resendIn: (seconds: number) => `Yeniden göndermek için ${seconds} sn`,
     restart: "Bilgileri değiştir",
     captchaMissing: "Robot olmadığınızı doğrulayın.",
+    notCompletedLogin: "Telefonla giriş yap",
     fieldErrors: {
       required: "Bu alan gerekli.",
       invalid: "Geçerli bir değer girin.",
@@ -273,12 +282,19 @@ export const siteText = {
     errors: {
       invalid_input: "Bilgilerden biri geçersiz. Alanları kontrol edin.",
       captcha_failed: "Robot doğrulaması başarısız oldu. Yeniden deneyin.",
-      email_taken: "Bu e-posta adresi başka bir hesapta kayıtlı. Giriş yapmayı deneyin.",
-      phone_registered: "Bu numara kayıtlı. Giriş sayfasından girin; giremiyorsanız bize yazın.",
+      // docs/hukuk/kararlar.md H33: never says which detail is registered.
+      not_completed:
+        "Kayıt tamamlanamadı; bu bilgilerle hesabınız varsa telefonunuzla giriş yapın.",
       too_many_attempts: "Çok fazla kayıt denemesi yapıldı. Bir süre sonra yeniden deneyin.",
       signup_closed: "Kayıt şu anda kapalı.",
       signup_unavailable: "Kayıt hizmetine şu anda ulaşılamıyor. Biraz sonra yeniden deneyin.",
       phone_not_verified: "Telefonunuz henüz doğrulanmadı.",
+      // Never "register again": a registrant whose phone is already confirmed
+      // would loop. They finish with their e-mail and password (/kayit/dogrula).
+      signup_mismatch:
+        "Kayıt tamamlanamadı; güvenliğiniz için oturum açılmadı. Bu numarayla kaydı siz başlattıysanız kayıtta kullandığınız e-posta ve parolayla giriş yapın; telefon doğrulamasını oradan tamamlarsınız.",
+      password_required:
+        "Telefon doğrulamasını yalnızca e-posta ve parolanızla açtığınız oturumda tamamlayabilirsiniz. Çıkış yapıp e-posta ve parolanızla giriş yapın.",
       failed: "Kayıt tamamlanamadı. Biraz sonra yeniden deneyin.",
     },
     verifyPage: {
@@ -290,7 +306,18 @@ export const siteText = {
       continue: "Devam et",
     },
   },
+  // Self-hosted robot check (docs/hukuk/kararlar.md H03, T12).
+  captcha: {
+    solving: "Robot doğrulaması yapılıyor…",
+    done: "Robot doğrulaması tamam.",
+    failed: "Robot doğrulaması başlatılamadı.",
+    retry: "Yeniden dene",
+  },
   login: {
+    // /giris?kayit=yarim: a sign-up completion was refused and the session
+    // closed (customer-signup signup_mismatch).
+    signupUnfinished:
+      "Kaydınız tamamlanamadı ve güvenliğiniz için oturumunuz kapatıldı. Bu numarayla kaydı siz başlattıysanız kayıtta kullandığınız e-posta ve parolayla giriş yapın; telefonunuzu oradan doğrularsınız. Giriş yapamıyorsanız yeniden kayıt olabilirsiniz.",
     noAccount: "Hesabınız yok mu?",
     signup: "Kayıt olun",
     tryDemo: "Hesap açmadan örnek bir bahçede demoyu deneyin",

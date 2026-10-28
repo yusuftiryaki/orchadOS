@@ -35,6 +35,7 @@ import {
   parseContactForm,
   parseGardenForm,
   parseNote,
+  parsePaymentIdentity,
   type PortalFieldError,
 } from "@/lib/portal-billing/validation";
 import { isUuid } from "@/lib/supabase/query";
@@ -307,6 +308,14 @@ export async function startPaymentAction(form: FormData) {
   const h = await headers();
   const returnOrigin = returnOriginOf(h);
   if (!returnOrigin) redirect(portalHref.order(orderId, { hata: "invalid_input" }));
+  // T13 (H16): the TCKN typed in for this payment goes to the payments
+  // function in the request body only; it is never logged, stored or put in
+  // a URL. The function refuses a missing one when the org needs it.
+  const identityInput = form.get("identity_number");
+  const identity = identityInput === null ? null : parsePaymentIdentity(identityInput);
+  if (identityInput !== null && !identity) {
+    redirect(portalHref.order(orderId, { hata: "identity_number_invalid" }));
+  }
   const { data, error } = await supabase.functions.invoke<{
     payment_id: string;
     redirect_url: string;
@@ -316,6 +325,7 @@ export async function startPaymentAction(form: FormData) {
       order_id: orderId,
       return_origin: returnOrigin,
       client_ip: clientIpOf(h),
+      ...(identity ? { identity_number: identity } : {}),
     },
   });
   if (error || !data?.redirect_url) {
@@ -363,8 +373,6 @@ export async function saveBillingProfileAction(
   const current = await getBillingProfile(supabase);
   if (!current) return { error: P.errors.not_customer, fieldErrors: {}, values: {} };
   const parsed = parseBillingProfileForm(formReader(form), {
-    identityRequired: current.identityNumberRequired,
-    hasIdentity: !!current.identityNumberMasked,
     emailRequired: !(await hasFallbackEmail(supabase, user.email)),
   });
   // The TCKN is never sent back to the browser, not even after an error.

@@ -57,6 +57,13 @@ insert into public.membership (org_id, user_id, role) values
   ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000004', 'expert'),
   ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000005', 'ops');
 
+-- Staff display names and titles (T23, H05: the report names the approving
+-- expert). The field staff member has no title: ops sees the warning.
+insert into private.staff_profile (org_id, user_id, full_name, title) values
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 'Örnek Saha Personeli', null),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000004', 'Örnek Uzman', 'Ziraat Mühendisi'),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000005', 'Örnek Operasyon', 'Operasyon Sorumlusu');
+
 -- ---------------------------------------------------------------------------
 -- Parcel geometry helper: parcel-local metres -> WGS84.
 -- Local origin at 37.00 N, 37.45 E (south-west corner), x along rows.
@@ -291,7 +298,8 @@ insert into public.zone (id, org_id, parcel_id, kind, name, geom, position_uncer
 insert into public.org_billing_setting (
   org_id, accepts_signups, allow_fake_payments, identity_number_required, legal_name, tax_office,
   tax_number, mersis_number, address, phone, email, bank_name, iban, iban_holder, updated_by,
-  garden_changes_enabled, kep_address, site_domain
+  garden_changes_enabled, kep_address, site_domain,
+  coowner_notice_flow_enabled, boundary_declaration_required, kvkk_request_form_enabled
 ) values (
   'b0000000-0000-4000-8000-000000000001', true, true, false, 'orchadOS Denetim Hizmetleri A.Ş. (örnek)',
   'Şahinbey', '1234567890', '0123456789012345', 'Örnek Mah. Fıstık Cad. No: 1, Şahinbey, Gaziantep',
@@ -302,7 +310,10 @@ insert into public.org_billing_setting (
   -- T21: complete company information (footer and legal texts show it). The
   -- gate is inactive here (allow_fake_payments); marketing_consent_enabled
   -- stays false (T27).
-  'orchados@hs01.kep.example', 'orchados.example'
+  'orchados@hs01.kep.example', 'orchados.example',
+  -- Legal follow-ups wave 2 (T15, T16, T11): on locally so tests exercise
+  -- them; off on hosted projects until switched on in SQL.
+  true, true, true
 );
 
 -- Launch price list (docs/fiyatlandirma.md, decided 28 October 2026). The
@@ -391,6 +402,13 @@ insert into private.consent_record (org_id, subject_id, user_id, kind, granted, 
 -- The KVKK notice of the profiles above (owner, viewer), as the migration does on
 -- a database with profiles.
 select private.backfill_kvkk_consents();
+-- T15 (H30): the seed owner and viewer acknowledged the notice in the portal
+-- themselves, so the first-login notice screen (on here) does not stop them.
+insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source, recorded_at) values
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001',
+   'a0000000-0000-4000-8000-000000000001', 'kvkk_notice', true, 'kvkk-v2-taslak', 'portal', '2026-10-03 09:00:00+00'),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002',
+   'a0000000-0000-4000-8000-000000000002', 'kvkk_notice', true, 'kvkk-v2-taslak', 'portal', '2026-10-03 09:00:00+00');
 
 insert into private.billing_profile (org_id, user_id, kind, first_name, last_name, address, district, city, postal_code)
 values (

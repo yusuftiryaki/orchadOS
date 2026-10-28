@@ -7,7 +7,7 @@ import { DemoNotice } from "@/components/demo/demo-notice";
 import { formatDate, t } from "@/lib/i18n";
 import { demoText } from "@/lib/i18n/messages/demo";
 import { portalBillingText } from "@/lib/i18n/messages/portal-billing";
-import type { ParcelViewers } from "@/lib/portal/viewers";
+import { VIEWER_DECLARATION, type ParcelViewers } from "@/lib/portal/viewers";
 import styles from "./portal.module.css";
 
 // Co-owners of the parcel, for its owner: viewers, open invitations and a
@@ -109,6 +109,11 @@ export function ViewersCard({
             {v.phone}
             <input name="phone" type="tel" required maxLength={20} autoComplete="off" />
           </label>
+          {viewers.declarationRequired && (
+            <label data-testid="viewer-declaration">
+              <input type="checkbox" name="declared" required /> {VIEWER_DECLARATION}
+            </label>
+          )}
           <button className="button" type="submit">
             {v.invite}
           </button>

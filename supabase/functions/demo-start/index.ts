@@ -12,11 +12,15 @@
 //   Each of TURNSTILE_SECRET_KEY, SIGNUP_HASH_SECRET and SIGNUP_PROXY_SECRET
 //   is read from its DEMO_-prefixed name first (_shared/demo.ts demoSecrets):
 //   the demo shares the test project with the test site's sign-up for now.
-//   0. ORCHADOS_DEMO_MODE (with the Turnstile secret, _shared/demo.ts
+//   0. ORCHADOS_DEMO_MODE (with the robot check's settings, _shared/demo.ts
 //      demoMode): unset or unknown → 503 demo_closed; "public" needs a live
-//      Turnstile secret (not one of Cloudflare's test keys); "dev" verifies
-//      Turnstile only when a secret is set.
-//   1. Turnstile, when required.
+//      key of the chosen provider (DEMO_CAPTCHA_PROVIDER alone, unset is
+//      Turnstile: the test site's CAPTCHA_PROVIDER never switches the demo;
+//      Turnstile, not one of Cloudflare's test keys, or ALTCHA_HMAC_KEY, DEMO_
+//      name first); "dev" checks only when a key is set. An unknown provider
+//      keeps it closed.
+//   1. The robot check (_shared/captcha.ts), when required: Turnstile, or the
+//      self-hosted proof of work (no request to Cloudflare).
 //   2. ip_hash = HMAC-SHA256(SIGNUP_HASH_SECRET, "demo:" + IP bucket): the
 //      IPv4 address, or the /64 of an IPv6 address ("unknown" without an IP).
 //      demo_admit checks the per-IP and total limits and counts the request.
@@ -29,6 +33,12 @@
 //   200 {token_hash, verification_type, expires_at, next}
 //   · 400 {error: "invalid_input" | "captcha_failed"} · 429 {error: "rate_limited"}
 //   · 503 {error: "demo_closed" | "demo_capacity"} · 500 {error: "failed"}
+//
+// { "action": "challenge" }   DEMO_CAPTCHA_PROVIDER=altcha only
+//   A signed proof-of-work challenge for the start page (10 minutes; the Next
+//   server asks for it). 200 {algorithm, challenge, maxnumber, salt,
+//   signature} · 400 {error: "invalid_input"} with another provider
+//   · 503 {error: "demo_closed"} while start is closed
 //
 // { "action": "cleanup" }   x-orchados-cron-secret: ORCHADOS_CRON_SECRET
 //   Every 15 minutes (pg_cron, private.dispatch_demo_cleanup): deletes the
@@ -51,17 +61,30 @@ import {
   parseDemoRequest,
   statusFor,
 } from "../_shared/demo.ts";
+import {
+  captchaEnv,
+  createAltchaChallenge,
+  databaseSpent,
+  verifyCaptcha,
+} from "../_shared/captcha.ts";
 import { clientIp, hmacHex, timingSafeEqual } from "../_shared/signup.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const {
-  hashSecret: HASH_SECRET,
-  proxySecret: PROXY_SECRET,
-  turnstileSecret: TURNSTILE_SECRET,
-} = demoSecrets((name) => Deno.env.get(name));
+const { hashSecret: HASH_SECRET, proxySecret: PROXY_SECRET } = demoSecrets((name) =>
+  Deno.env.get(name),
+);
+// The DEMO_ keys win here too (shared hosting on the test project); the
+// provider is DEMO_CAPTCHA_PROVIDER alone (unset: Turnstile), never the test
+// site's CAPTCHA_PROVIDER.
+const CAPTCHA_ENV = captchaEnv((name) => Deno.env.get(name), "DEMO_");
 const CRON_SECRET = Deno.env.get("ORCHADOS_CRON_SECRET") ?? "";
-const MODE = demoMode({ mode: Deno.env.get("ORCHADOS_DEMO_MODE"), turnstileSecret: TURNSTILE_SECRET });
+const MODE = demoMode({
+  mode: Deno.env.get("ORCHADOS_DEMO_MODE"),
+  turnstileSecret: CAPTCHA_ENV.turnstileSecret,
+  provider: CAPTCHA_ENV.provider ?? "unknown",
+  altchaKey: CAPTCHA_ENV.altchaKey,
+});
 
 const CLEANUP_BATCH = 200;
 const CLEANUP_ROUNDS = 10;
@@ -113,6 +136,9 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   return (text ? JSON.parse(text) : null) as T;
 }
 
+// Solved self-hosted challenges, in the database for every instance.
+const spentChallenges = databaseSpent(rpc, "demo");
+
 async function deleteUser(id: string): Promise<void> {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${id}`, {
     method: "DELETE",
@@ -123,16 +149,20 @@ async function deleteUser(id: string): Promise<void> {
 }
 
 async function captchaPassed(token: string | null, ip: string | null): Promise<boolean> {
-  if (!token) return false;
-  const form = new URLSearchParams({ secret: TURNSTILE_SECRET, response: token });
-  if (ip) form.set("remoteip", ip);
-  const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-    method: "POST",
-    body: form,
+  if (MODE.captcha === "off" || (MODE.captcha === "if_sent" && !token)) return true;
+  return verifyCaptcha(CAPTCHA_ENV, token, {
+    purpose: "demo",
+    ip,
+    nowMs: Date.now(),
+    spent: spentChallenges,
   });
-  if (!res.ok) return false;
-  const result = await res.json();
-  return result?.success === true;
+}
+
+async function challenge(): Promise<Response> {
+  if (CAPTCHA_ENV.provider !== "altcha")
+    return json({ error: "invalid_input", field: "action" }, 400);
+  if (!MODE.open || MODE.captcha === "off") return fail("demo_closed");
+  return json(await createAltchaChallenge(CAPTCHA_ENV.altchaKey, "demo", Date.now()));
 }
 
 type Admit =
@@ -195,7 +225,7 @@ async function start(req: Request, clientIpBody: string | null, captchaToken: st
   if (!HASH_SECRET) throw new Failure("SIGNUP_HASH_SECRET (or DEMO_SIGNUP_HASH_SECRET) is not set");
 
   const ip = clientIp(req.headers, clientIpBody, PROXY_SECRET);
-  if (MODE.requireTurnstile && !(await captchaPassed(captchaToken, ip))) return fail("captcha_failed");
+  if (!(await captchaPassed(captchaToken, ip))) return fail("captcha_failed");
 
   const ipHash = await hmacHex(HASH_SECRET, `demo:${ipBucket(ip) ?? "unknown"}`);
   const admit = await rpc<Admit>("demo_admit", { p_ip_hash: ipHash });
@@ -213,7 +243,9 @@ async function start(req: Request, clientIpBody: string | null, captchaToken: st
     result = await rpc<StartResult>("demo_start", { p_user_id: userId, p_ip_hash: ipHash });
     link = await magicLink(email);
   } catch (cause) {
-    await deleteUser(userId).catch(() => console.error("demo-start: delete after failed start failed"));
+    await deleteUser(userId).catch(() =>
+      console.error("demo-start: delete after failed start failed"),
+    );
     if (cause instanceof RpcError && START_ERRORS.has(cause.code)) {
       return fail(cause.code as DemoErrorCode);
     }
@@ -278,6 +310,7 @@ async function handle(req: Request): Promise<Response> {
   if (!parsed.ok) return json({ error: "invalid_input", field: parsed.field }, 400);
   try {
     if (parsed.value.action === "cleanup") return await cleanup(req);
+    if (parsed.value.action === "challenge") return await challenge();
     return await start(req, parsed.value.clientIp, parsed.value.captchaToken);
   } catch (cause) {
     // Status codes only; never the request body.

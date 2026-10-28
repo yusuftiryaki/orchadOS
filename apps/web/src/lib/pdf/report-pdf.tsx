@@ -4,6 +4,7 @@ import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
 import { MARKER_COLORS, type MarkerState } from "@/lib/map/tree-style";
 import { LocalFrame } from "@/lib/office/local-frame";
 import { CLASS_ORDER, distributionTotal, type Distribution } from "@/lib/portal/classes";
+import { approverLine } from "@/lib/portal/approver";
 import type { ParcelReport } from "@/lib/portal/data";
 import type { MetricSummaryRow } from "@/lib/portal/metrics";
 import { scoreRulesFor, share } from "@/lib/portal/score";
@@ -53,6 +54,7 @@ export function ReportDocument({
   const subtitle = [
     r.visitOf(formatDate(latest.time)),
     latest.methodologyVersion ? r.methodology(latest.methodologyVersion) : null,
+    report.approver ? approverLine(report.approver) : null,
   ]
     .filter(Boolean)
     .join(" · ");

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { LOGIN_METHODS, phoneCodeError, resendWaitSeconds, safeNextPath } from "./login-methods";
+import {
+  LOGIN_METHODS,
+  loginMethodParam,
+  phoneCodeError,
+  resendWaitSeconds,
+  safeNextPath,
+} from "./login-methods";
 
 describe("login", () => {
   it("offers password and phone sign-in", () => {
@@ -37,5 +43,14 @@ describe("phone code", () => {
     expect(resendWaitSeconds(sentAt, sentAt)).toBe(60);
     expect(resendWaitSeconds(sentAt, sentAt + 59_001)).toBe(1);
     expect(resendWaitSeconds(sentAt, sentAt + 60_000)).toBe(0);
+  });
+});
+
+describe("login method parameter", () => {
+  it("opens the phone tab only for yontem=telefon", () => {
+    expect(loginMethodParam("telefon")).toBe("phone");
+    for (const value of [undefined, "", "phone", ["telefon"], "parola"]) {
+      expect(loginMethodParam(value)).toBe("password");
+    }
   });
 });

@@ -47,14 +47,14 @@ describe("health map layers", () => {
     expect([...changedTrees(pub, old)].sort()).toEqual([treeId("S1-1"), treeId("S1-2")].sort());
   });
 
-  it("coverage: trace, panorama count and crop directions of published visits only", async () => {
+  it("coverage: panorama count and crop directions of published visits only, no trace (H05)", async () => {
     const report = (await getParcelReport(await client("owner"), PORTAL.parcelA))!;
     expect(Object.keys(report.coverage).sort()).toEqual([PORTAL.visitOld, PORTAL.visitPub].sort());
     const pub = report.coverage[PORTAL.visitPub];
     // Full and preview of one frame count once; the two frames are 8 m apart.
     expect(pub.panoramas).toBe(2);
-    expect(pub.trace).toHaveLength(1);
-    expect(pub.trace[0]).toHaveLength(2);
+    // The crew's path is never sent to the owner (T23).
+    expect(pub).not.toHaveProperty("trace");
     expect(pub.directions).toEqual({ [treeId("S1-1")]: 2 });
     expect(report.coverage[PORTAL.visitOld].directions).toEqual({ [treeId("S1-1")]: 1 });
     expect(report.coverage[PORTAL.visitReview]).toBeUndefined();

@@ -41,7 +41,7 @@ Her komuttan önce: `export KVKK_PSEUDONYM_KEY=…` (parola yöneticisinden).
 | `--subject` | Hesabı olan kişi (sahip, hissedar, self-servis müşteri): Auth kullanıcı kimliği. Ops ekranındaki kullanıcı kimliği ya da `select id from auth.users where email = …` |
 | `--person-name` + `--parcel` | Hesabı olmayan kişi: sınırı gösteren kişi, sahadaki iletişim kişisi, davet edilip hesabı açılmamış hissedar. Tam ad verilir: en az iki sözcük, her sözcük en az iki harf (tek sözcük başka kişilere de uyar, reddedilir). Ad, boşluk ve büyük-küçük harf farkı (Türkçe I/ı, İ/i dahil) gözetmeden karşılaştırılır. Ad, parselde hesabı olan birinin (sahip, hissedar, siparişi ya da başvurusu olan müşteri) adıyla aynıysa betik durur (`kvkk_ambiguous_person`): kişi hesap sahibiyse `--subject` kullanılır, değilse kim olduğu elle belirlenir |
 | `--request` | Başvuru defteri numarası (`K-yyyy-nnn`) |
-| `--include-notes` | `pseudonymize`: saha notlarındaki (`field_notice_verbal`, `field_notice_objection`, `visit_blocked`) ad ve telefon geçişlerini de değiştirir. Önce `inventory`'nin listelediği notlar okunur |
+| `--include-notes` | `pseudonymize`: saha notlarındaki (`field_notice_sign`, `field_notice_verbal`, `field_notice_objection`, `visit_blocked`) ve operasyon notlarındaki (görüntü gizleme, sınır itirazı) ad ve telefon geçişlerini de değiştirir. Önce `inventory`'nin listelediği notlar okunur |
 | `--apply` | Değişiklikleri kalıcı yapar; yoksa kuru çalıştırma |
 | `--force-active --reason` | Süren sözleşme denetimini gerekçeyle geçer (yalnız `--subject`) |
 | `--hosted` | Barındırılan veritabanı; adres `KVKK_DB_URL` ortam değişkeninden (oturum havuzu adresi, `postgres` kullanıcısı); terminalde onay ister |
@@ -116,7 +116,9 @@ H26 maddeleri: 1 saklama yükümlülüğü, 2 ekleme-yalnız kayıtlar, 3 süren
 | `public.parcel_access` | sil | 4, 6 | Kişinin sahip ve izleyici erişimi. Hesap Admin API ile ayrıca silinir ya da kapatılır |
 | `private.message_outbox` (`purpose = login_code`) | sil | 4 | Kişinin telefonuna giden giriş kodları |
 | `public.session_event` `boundary_pointer` `payload.name` | takma ad | 2 | Ekleme-yalnız. `--subject`: kişinin parsellerinde kişinin tam adına eşit adlar; `--person-name`: o parselde eşit adlar. Rol kalır (H07 ispatı için kaydın kendisi kalır, H25). Eşleşmeyenler (farklı yazım, yalnız ad, başka kişi) `inventory`'de kimlikleriyle `review` |
-| `public.session_event` notları (`field_notice_verbal`, `field_notice_objection`, `visit_blocked`) | takma ad (`--include-notes`) | 2 | Ekleme-yalnız serbest metin; JSON metin değerlerinde kişinin tam adı ve telefonu (Türk numarasında boşluk, `0`/`+90` farkı gözetmeden) değişir. Yalnız ad, lakap gibi eşleşmeyen geçişler için `inventory` bütün not kimliklerini listeler; elle bakılır |
+| `private.boundary_pointer` `name` | takma ad | 2 | `boundary_pointer` olaylarının kopyası (T16; ad ve rol, telefon yok). Olayla aynı kural: yalnız kişinin tam adına eşit ad değişir; rol kalır. Ekleme-yalnız. Diğer adlar `inventory`'de kimlikleriyle `review` |
+| `private.media_suppression` `note`, `private.boundary_dispute` `note` | takma ad (`--include-notes`) | 2 | Görüntü gizleme (T20) ve sınır itirazı (T16) kayıtlarındaki operasyon notları; ekleme-yalnız. Kapsamdaki parsellerde kişinin tam adı ve telefonu değişir; diğer notlar `review` olarak listelenir. Bekleyen not varken `erase --apply` durur (`kvkk_notes_pending`) |
+| `public.session_event` notları (`field_notice_sign`, `field_notice_verbal`, `field_notice_objection`, `visit_blocked`) | takma ad (`--include-notes`) | 2 | Ekleme-yalnız serbest metin; JSON metin değerlerinde kişinin tam adı ve telefonu (Türk numarasında boşluk, `0`/`+90` farkı gözetmeden) değişir. Yalnız ad, lakap gibi eşleşmeyen geçişler için `inventory` bütün not kimliklerini listeler; elle bakılır |
 | `public.audit_event` `details` | takma ad | 2 | Ekleme-yalnız; `details`'e kişisel veri yazılmaz, yine de kişiye bağlı satırlarda (yukarıda "Eşleştirme kuralları") metin değerlerinde geçen ad, telefon ve e-posta değiştirilir. Org'un diğer satırlarındaki eşleşmeler değişmez, `review` olarak listelenir. Satırlar 10 yıl kalır |
 | `auth.users` | Admin API (yukarıda) | 4, 5, 6 | Faturalama satırı ya da aydınlatma teyidi varsa silinmez, kapatılır (sahip profili zincirleme silinmesin) |
 
@@ -125,10 +127,14 @@ H26 maddeleri: 1 saklama yükümlülüğü, 2 ekleme-yalnız kayıtlar, 3 süren
 | Tablo | Neden |
 | --- | --- |
 | `private.billing_profile`, `private.payment_billing_snapshot`, `private.payment_event`, `public.payment`, `public.payment_item`, `public.refund` | Fatura, ödeme ve iade kayıtları; VUK md. 253, TTK md. 82: takvim yılı sonundan itibaren 10 yıl (H26 madde 1) |
-| `public.quote`, `public.quote_item`, `public.service_order`, `public.service_order_item`, `public.garden_removal` | Mesafeli sözleşme, sipariş ve iade dayanağı (H26 madde 1); 10 yıl |
-| `private.consent_record` | Aydınlatma teyidi ve rıza kayıtları, onaydan itibaren 10 yıl (H26 madde 1–2). Ad, telefon ya da e-posta taşımaz (kimlik ve IP özeti) |
+| `public.quote`, `public.quote_item`, `public.service_order`, `public.service_order_item`, `public.garden_removal` | Mesafeli sözleşme, sipariş ve iade dayanağı (H26 madde 1); 10 yıl. `garden_removal`'ın `customer_note`, `ops_note`, `notice_channel`, `notice_received_on` sütunları kayıtla birlikte kalır |
+| `private.consent_record` | Aydınlatma teyidi ve rıza kayıtları, onaydan itibaren 10 yıl (H26 madde 1–2). Ad, telefon ya da e-posta taşımaz (kimlik ve IP özeti). Portalın ilk giriş teyidi (T15, `source = portal`) ve metin özetleri (`text_sha256`, `display_sha256`) de buradadır |
+| `private.contract_document` (+ `contract-documents` kovasındaki PDF'ler) | Sözleşme belgeleri (alıcının adı, adresi, iletişim bilgisi): onaydan itibaren 10 yıl (H12, H25). Süre dolunca satır ve nesne birlikte, denetimli istisnayla silinir (T10) |
+| `private.boundary_approval` | Sınır beyanı (T16, H07): kullanıcı kimliği, metin sürümü ve özeti; sözleşmeyle birlikte 10 yıl |
+| `private.kvkk_request` | Portal KVKK başvuruları (T11): başvuru defteri kaydı, sonuçlandırılmasından itibaren 10 yıl (saklama ve imha politikası §2.2). Talep metni burada kalır |
+| `private.viewer_invitation` `declared_at`, `declaration_version`, `declaration_sha256` | Sahibin davet beyanı (T15): kişisel veri değil; davet satırının kuralına uyar |
 | `private.message_outbox` (`purpose = notification`), `public.notification` | Bildirim kayıtları 12 ay (hizmetin ispatı); T09 temizler |
-| `public.membership` | Personel rolleri (ops, uzman, saha); çalışan başvurusu bu betiklerle değil elle ele alınır |
+| `public.membership`, `private.staff_profile` | Personel rolleri ve rapordaki ad ve unvan (T23, H05); çalışan başvurusu bu betiklerle değil elle ele alınır |
 | Bahçe verileri (parsel, ağaç, ölçüm, değerlendirme, bulgu, rapor, sınır) | Kişisel veri değil ya da raporla 10 yıl saklanır; diğer sahibin hizmetine aittir (H26 madde 5) |
 | Görüntüler (panorama, kesit, yakın plan) | Görüntüdeki kişiler H01 gizlemesiyle (T20) karşılanır, bu betiklerle değil (H26 madde 7) |
 | `private.signup_attempt`, `private.phone_login_attempt` | Yalnız tek yönlü özet; 2 gün / 1 gün içinde kendiliğinden silinir |

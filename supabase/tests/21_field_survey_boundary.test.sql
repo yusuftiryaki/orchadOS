@@ -102,7 +102,7 @@ select is(
   (select max(version) from public.boundary where parcel_id = 'c0000000-0000-4000-8000-000000000001'),
   4, 'owner sees the new version');
 select lives_ok(
-  $$ select public.approve_boundary((select (v ->> 'id')::uuid from result where k = 'moved')) $$,
+  $$ select public.approve_boundary((select (v ->> 'id')::uuid from result where k = 'moved'), true) $$,
   'owner approves the survey boundary');
 
 -- An approved version is still found as the same version on a re-run.

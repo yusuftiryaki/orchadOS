@@ -12,7 +12,7 @@
 -- the user's JWT claims; grants are in 35_billing_security.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(106);
+select plan(109);
 
 select testing.reset_to_seed();
 
@@ -109,20 +109,26 @@ select is((select count(*)::integer from public.audit_event where action = 'paym
            and entity_id = pg_temp.id('p1') and actor_role = 'customer'), 1, 'the attempt is audited as the customer');
 
 update public.org_billing_setting set identity_number_required = true where org_id = 'b0000000-0000-4000-8000-000000000001';
-update private.billing_profile set identity_number = '10000000146'
-where org_id = 'b0000000-0000-4000-8000-000000000001' and user_id = 'a0000000-0000-4000-8000-000000000006';
 insert into begun values (2, public.payment_begin(pg_temp.id('o1'), 'a0000000-0000-4000-8000-000000000006', 'fake',
   'http://127.0.0.1:3100'));
 insert into ids select 'p2', ((select r from begun where n = 2) ->> 'payment_id')::uuid;
-select is((select r -> 'buyer' ->> 'identity_number' from begun where n = 2), '10000000146',
-  'the real TCKN only while the org requires it');
+select is((select r -> 'buyer' ->> 'identity_number' from begun where n = 2), '11111111111',
+  'T13: the database has no TCKN; the payments function adds the typed one');
+select is((select (r ->> 'identity_number_required')::boolean from begun where n = 2), true,
+  'and payment_begin says it is required');
 select results_eq(
   $$ select status::text, failure_code from public.payment where id = pg_temp.id('p1') $$,
   $$ values ('expired'::text, 'superseded'::text) $$, 'a new attempt supersedes the live one');
 select is(
   pg_temp.error_of($$ select public.payment_attach_token(pg_temp.id('p1'), 'fake_tok_33_old', now() + interval '30 minutes') $$),
   '55000 payment_not_open', 'a superseded attempt takes no token');
-select public.payment_attach_token(pg_temp.id('p2'), 'fake_tok_33_a', now() + interval '30 minutes');
+select is(
+  pg_temp.error_of($$ select public.payment_attach_token(pg_temp.id('p2'), 'fake_tok_33_a', now() + interval '30 minutes') $$),
+  '22023 invalid_input / identity_number_last4', 'T13: while required, the last four digits must come with the token');
+select is(
+  pg_temp.error_of($$ select public.payment_attach_token(pg_temp.id('p2'), 'fake_tok_33_a', now() + interval '30 minutes', '10000000146') $$),
+  '22023 invalid_input / identity_number_last4', 'T13: never more than the last four digits');
+select public.payment_attach_token(pg_temp.id('p2'), 'fake_tok_33_a', now() + interval '30 minutes', '0146');
 select results_eq(
   $$ select identity_number_last4, first_name, phone from private.payment_billing_snapshot where payment_id = pg_temp.id('p2') $$,
   $$ values ('0146'::text, 'Örnek'::text, '+905550000006'::text) $$,

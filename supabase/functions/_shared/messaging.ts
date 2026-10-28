@@ -31,7 +31,10 @@ export type AccountTemplate =
   | "contract_ready"
   | "addon_order_closed"
   | GardenTemplate;
-export type Template = ReportTemplate | AccountTemplate;
+// The co-owner invitation (kararlar.md T15, H32): parcel name and portal path
+// only; the KVKK notice link is the site's fixed /kvkk page.
+export type InviteTemplate = "viewer_invited";
+export type Template = ReportTemplate | AccountTemplate | InviteTemplate;
 
 export interface TemplateVars {
   parcel_name?: unknown;
@@ -134,6 +137,18 @@ export function portalLink(baseUrl: string, path: string): string | null {
   return base.origin + base.pathname.replace(/\/+$/, "") + path;
 }
 
+// Base URL + a fixed site path (the KVKK notice), same origin as the portal.
+export function siteLink(baseUrl: string, path: "/kvkk"): string | null {
+  let base: URL;
+  try {
+    base = new URL(baseUrl);
+  } catch {
+    return null;
+  }
+  if (base.protocol !== "https:" && base.protocol !== "http:") return null;
+  return base.origin + path;
+}
+
 export type RenderResult = { ok: true; body: string } | { ok: false; error: string };
 
 export function renderNotification(
@@ -141,6 +156,17 @@ export function renderNotification(
   vars: TemplateVars,
   portalBaseUrl: string,
 ): RenderResult {
+  if (template === "viewer_invited") {
+    const parcel = typeof vars.parcel_name === "string" ? vars.parcel_name.trim() : "";
+    const link = typeof vars.path === "string" ? portalLink(portalBaseUrl, vars.path) : null;
+    const notice = siteLink(portalBaseUrl, "/kvkk");
+    if (!parcel) return { ok: false, error: "invalid_vars" };
+    if (!link || !notice) return { ok: false, error: "invalid_link" };
+    return {
+      ok: true,
+      body: `orchadOS: ${parcel} bahçesinin sahibi sizi raporları görmeniz için davet etti; numaranızı bize o verdi. Kişisel verileriniz: ${notice} Giriş: ${link}`,
+    };
+  }
   if (isAccountTemplate(template)) {
     const ref = typeof vars.ref === "string" ? vars.ref.trim() : "";
     const refOk = new RegExp(`^${ACCOUNT_REF_PREFIX[template]}-\\d{4}-\\d{6}$`).test(ref);

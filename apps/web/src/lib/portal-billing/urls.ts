@@ -42,6 +42,9 @@ export const PORTAL_ERRORS = [
   "demo_read_only",
   // An optional consent that is not asked (docs/hukuk/kararlar.md H06, H31).
   "consent_unavailable",
+  // T13: the card payment needs a (valid) TCKN.
+  "identity_number_required",
+  "identity_number_invalid",
 ] as const;
 export type PortalError =
   | BillingError
@@ -51,7 +54,9 @@ export type PortalError =
   | "onay_eksik"
   | "fatura_eposta_eksik"
   | "demo_read_only"
-  | "consent_unavailable";
+  | "consent_unavailable"
+  | "identity_number_required"
+  | "identity_number_invalid";
 
 type Result = { bilgi?: PortalNotice; hata?: PortalError; eksik?: string };
 

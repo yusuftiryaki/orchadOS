@@ -27,7 +27,7 @@
 --
 -- Orders that end (cancelled, terminated, completed) cancel their unpaid
 -- installments, except those whose visit ops let go ahead unpaid
--- (20261104100100_installment_visits_removals.sql).
+-- (20261104101000_installment_visits_removals.sql).
 
 -- ---------------------------------------------------------------------------
 -- 1. Setting
@@ -38,7 +38,7 @@ alter table public.org_billing_setting
 comment on column public.org_billing_setting.installment_lead_days is
   'SQL only: a visit installment is due this many days before its visit window starts (installments-v1; changing it changes the contract text and its version). New quotes freeze it in inputs.installments.';
 
--- As in 20261103100100_legal_text_registry.sql, with the default of
+-- As in 20261104100100_staff_profile_settings.sql, with the default of
 -- installment_lead_days.
 create or replace function private.billing_setting(p_org_id uuid)
 returns public.org_billing_setting
@@ -66,6 +66,10 @@ begin
     r.removal_refund_mode := 'unused_visits';
     r.marketing_consent_enabled := false;
     r.inventory_reuse_months := 24;
+    r.legal_gate_enforced := false;
+    r.coowner_notice_flow_enabled := false;
+    r.boundary_declaration_required := false;
+    r.kvkk_request_form_enabled := false;
     r.installment_lead_days := 14;
   end if;
   return r;
@@ -852,7 +856,7 @@ begin
 end;
 $$;
 
--- As in 20261102120200_garden_addons.sql, for the earliest open installment:
+-- As in 20261104100600_tckn_passthrough.sql, for the earliest open installment:
 -- the attempt carries it and charges its open amount. Payable: an order
 -- awaiting payment or active with an open installment (order_not_payable
 -- otherwise). The add-on period check applies while the order awaits
@@ -946,8 +950,9 @@ begin
       'id', p_user_id,
       'first_name', b.first_name,
       'last_name', b.last_name,
-      'identity_number', case when v_required and b.identity_number is not null then b.identity_number
-                              else '11111111111' end,
+      -- The database holds no TCKN (T13): the payments function puts the one
+      -- the customer typed in for this payment when identity_number_required.
+      'identity_number', '11111111111',
       'email', v_email,
       'phone', coalesce(op.phone, case when u.phone is not null and u.phone <> '' then '+' || u.phone end),
       'address', b.address,
@@ -957,6 +962,7 @@ begin
       'postal_code', b.postal_code,
       'registered_at', coalesce(u.created_at, op.created_at)
     ),
+    'identity_number_required', v_required,
     'billing', jsonb_build_object(
       'contact_name', case when b.kind = 'company' then b.company_title else b.first_name || ' ' || b.last_name end,
       'address', b.address,

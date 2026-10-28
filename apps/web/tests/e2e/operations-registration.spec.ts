@@ -190,6 +190,12 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   // 4. The owner signs in with the one-time password and sees only their parcel.
   await page.getByRole("button", { name: "Çıkış" }).click();
   await login(page, OWNER_EMAIL, oneTimePassword, "/portal");
+  // T15 (H30): an owner opened by ops first records the KVKK notice ("okudum",
+  // "Kaydet"); the seed org has the co-owner flow on.
+  const gate = page.getByTestId("notice-gate");
+  await gate.getByLabel("Aydınlatma metnini okudum.").check();
+  await gate.getByRole("button", { name: "Kaydet" }).click();
+  await expect(page.getByTestId("notice-gate")).toHaveCount(0);
   await expect(page.getByText(PARCEL_NAME)).toBeVisible();
   await expect(page.getByText("Örnek Bahçe 1")).toHaveCount(0);
 });

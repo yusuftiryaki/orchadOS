@@ -45,7 +45,7 @@ revoke all on function testing.use_round_prices() from public;
 
 -- Orders before the payment plan (installments-v1) have one 'single'
 -- installment of their total (the backfill in
--- 20261104100000_visit_installments.sql). The pgTAP files that check the
+-- 20261104100900_visit_installments.sql). The pgTAP files that check the
 -- mechanics of a fully paid order (removal refunds, add-ons, withdrawal) turn
 -- a new order without payments into such an order inside their transaction:
 -- its plan is replaced by one single installment due today, a line share per

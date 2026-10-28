@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { InventoryApproval, type ApprovalPanorama } from "@/components/expert/inventory-approval";
 import { InventorySummaryView } from "@/components/office/inventory-summary";
+import { BoundaryPointers } from "@/components/operations/boundary-pointers";
 import styles from "@/components/office/inventory.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { getInventorySession } from "@/lib/expert/inventory";
@@ -16,6 +17,7 @@ import { sessionTime } from "@/lib/expert/season";
 import { formatDate, t } from "@/lib/i18n";
 import { loadCoverage } from "@/lib/expert/pipeline-checks";
 import { loadInventoryWorkspace } from "@/lib/office/inventory-workspace";
+import { listBoundaryPointers } from "@/lib/operations/legal";
 import { officePanoramaSources } from "@/lib/office/panorama-source";
 import { sourceOfSet } from "@/lib/office/panoramas";
 import { createClient } from "@/lib/supabase/server";
@@ -70,6 +72,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
         </p>
       )}
       <InventorySummaryView summary={summary} />
+      <BoundaryPointers pointers={await listBoundaryPointers(supabase, session.parcel_id)} />
       <Checks checks={checks} />
       <InventoryApproval
         ws={ws}

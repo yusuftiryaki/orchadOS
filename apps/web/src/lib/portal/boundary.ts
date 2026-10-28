@@ -4,6 +4,7 @@ import type { LatLon } from "@/lib/office/local-frame";
 import { loadInventoryWorkspace } from "@/lib/office/inventory-workspace";
 import { isUuid } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
+import { parcelLegalFlags } from "./legal-flags";
 
 // Boundary card of the owner's report card (MVP Module 2, step 10): the
 // latest boundary version, the owner's first declaration, the approval, and
@@ -32,6 +33,27 @@ export interface BoundaryCard {
   // Waiting for an owner's approval (shown to viewers as well).
   awaitingApproval: boolean;
   inventory: { approvedAt: string | null; summary: InventorySummary } | null;
+  // T16 (H07): approval shows and requires the boundary declaration.
+  declarationRequired?: boolean;
+  // T16 (contract Md. 6/4): an open boundary dispute suspends the evaluation.
+  disputeOpen?: boolean;
+}
+
+// The owner's declaration on boundary approval, as the database records it
+// (private.boundary_declaration(), contract Md. 6/2): shown verbatim.
+export const BOUNDARY_DECLARATION =
+  "Gösterdiğim sınırın fiilen kullandığım alan olduğunu ve ekibinizin bu alana girmesine izin vermeye yetkili olduğumu beyan ederim.";
+
+// Whether a boundary dispute is open on the parcel (public.boundary_dispute_status);
+// false on an older database without it.
+export async function boundaryDisputeOpen(supabase: Client, parcelId: string): Promise<boolean> {
+  if (!isUuid(parcelId)) return false;
+  const { data, error } = await supabase.rpc("boundary_dispute_status", { p_parcel_id: parcelId });
+  if (error) {
+    if (error.code === "PGRST202") return false;
+    throw error;
+  }
+  return (data as { open?: unknown } | null)?.open === true;
 }
 
 export async function loadBoundaryCard(
@@ -39,7 +61,7 @@ export async function loadBoundaryCard(
   parcelId: string,
   userId: string,
 ): Promise<BoundaryCard | null> {
-  const [ws, access] = await Promise.all([
+  const [ws, access, flags, disputeOpen] = await Promise.all([
     loadInventoryWorkspace(supabase, parcelId),
     supabase
       .from("parcel_access")
@@ -47,6 +69,8 @@ export async function loadBoundaryCard(
       .eq("parcel_id", parcelId)
       .eq("user_id", userId)
       .maybeSingle(),
+    parcelLegalFlags(supabase, parcelId),
+    boundaryDisputeOpen(supabase, parcelId),
   ]);
   if (!ws) return null;
   if (access.error) throw access.error;
@@ -74,6 +98,8 @@ export async function loadBoundaryCard(
     role,
     canApprove: awaitingApproval && role === "owner",
     awaitingApproval,
+    declarationRequired: flags.boundaryDeclaration,
+    disputeOpen,
     inventory: ws.approved
       ? {
           approvedAt: ws.inventorySession?.publishedAt ?? null,
@@ -84,19 +110,30 @@ export async function loadBoundaryCard(
 }
 
 export type ApproveBoundaryResult =
-  { ok: true } | { ok: false; error: "forbidden" | "invalid_input" | "demo_read_only" };
+  | { ok: true }
+  | {
+      ok: false;
+      error: "forbidden" | "invalid_input" | "demo_read_only" | "declaration_required";
+    };
 
 // approve_boundary() refuses everyone but an owner of the parcel, and an
 // already approved version.
 export async function approveBoundary(
   supabase: Client,
   boundaryId: unknown,
+  // T16: the owner ticked the declaration (required while the switch is on).
+  declared = false,
 ): Promise<ApproveBoundaryResult> {
   if (!isUuid(boundaryId)) return { ok: false, error: "invalid_input" };
-  const { error } = await supabase.rpc("approve_boundary", { p_boundary_id: boundaryId });
+  const { error } = await supabase.rpc("approve_boundary", {
+    p_boundary_id: boundaryId,
+    ...(declared ? { p_declared: true } : {}),
+  });
   if (error) {
     // A demo visitor (docs/demo-turu.md §6.3).
     if (error.message === "demo_read_only") return { ok: false, error: "demo_read_only" };
+    if (error.message === "declaration_required")
+      return { ok: false, error: "declaration_required" };
     return { ok: false, error: "forbidden" };
   }
   return { ok: true };

@@ -17,7 +17,7 @@ const repo = (path: string) => new URL(`../../../../../${path}`, import.meta.url
 const ALL = Object.keys(LEGAL_TEXT_VERSIONS) as LegalText[];
 
 // The registry (supabase/migrations/20261103100100_legal_text_registry.sql,
-// 20261104100200_legal_texts_v5.sql)
+// 20261104101100_legal_texts_v5.sql)
 // holds these hashes; a text change or a version bump needs a new registry
 // migration, and then this record changes with it (the integration test
 // legal-followups.test.ts compares the database too).

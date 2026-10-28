@@ -173,7 +173,7 @@ def test_scan_to_owner(supabase_env, test_sessions, tmp_path, monkeypatch):
         crop_assets.setdefault(a["tree_id"], []).append(a["id"])
     sample = crops[0]
     sample_key = media_key(ORG, PARCEL, sample["content_hash"])
-    uploaded = ops.select("asset", {"session_id": f"eq.{session_id}", "select": "id"})
+    uploaded = ops.select("asset", {"session_id": f"eq.{session_id}", "select": "id,kind"})
     print(
         f"  {len(cset.crops)} crops of {len(crop_assets)} trees, "
         f"{len(uploaded)} asset rows; {len(active)} active trees on the parcel"
@@ -246,7 +246,18 @@ def test_scan_to_owner(supabase_env, test_sessions, tmp_path, monkeypatch):
     assert {r["source"] for r in mine.values()} == {"expert"}
 
     seen = owner.select("asset", {"session_id": f"eq.{session_id}", "select": "id,kind"})
-    assert len(seen) == len(uploaded)
+    # T23 (kararlar.md H05: "Sahiplere personel izi gösterilmez"): the owner
+    # reads crops and photos; panoramas only as viewpoints without capture time
+    # (portal_panorama_frames); the trajectory (the crew's GNSS track) and point
+    # clouds are staff only. So the owner sees fewer rows than were uploaded.
+    owner_kinds = {"tree_crop", "photo"}
+    assert len(seen) == sum(a["kind"] in owner_kinds for a in uploaded)
+    assert {a["kind"] for a in seen} <= owner_kinds
+    frames = owner.rpc("portal_panorama_frames", {"p_session_ids": [session_id]})
+    panoramas = {a["id"] for a in uploaded if a["kind"] == "panorama"}
+    paired = {f[k] for f in frames for k in ("full_asset_id", "preview_asset_id") if f[k]}
+    assert paired == panoramas
+    assert all("gps_time_ns" not in json.dumps(f) for f in frames)
     assert sum(a["kind"] == "tree_crop" for a in seen) == len(crops)
     evidence = owner.select(
         "measurement_evidence",
@@ -358,7 +369,11 @@ def test_boundary_walk_to_approval(supabase_env, test_sessions, tmp_path, monkey
         "boundary", {"id": f"eq.{rec.boundary_id}", "select": "id,version,source"}
     )
     assert seen["version"] == rec.version
-    approved = owner.rpc("approve_boundary", {"p_boundary_id": rec.boundary_id})
+    # T16: the seed org requires the boundary declaration (contract Md. 6/2);
+    # approving without it is refused, with it the approval is recorded.
+    with pytest.raises(SupabaseError, match="declaration_required"):
+        owner.rpc("approve_boundary", {"p_boundary_id": rec.boundary_id})
+    approved = owner.rpc("approve_boundary", {"p_boundary_id": rec.boundary_id, "p_declared": True})
     assert approved["owner_approved_by"] == owner.user_id
     assert approved["owner_approved_at"] is not None
     steps.done("owner approved the boundary")

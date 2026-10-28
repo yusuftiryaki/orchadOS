@@ -596,18 +596,22 @@ export interface PaymentInstructions {
   outstandingKurus: number;
   currency: string;
   paymentDueAt: string | null;
+  // T13 (H16): the card payment asks for the TCKN (never stored).
+  identityNumberRequired?: boolean;
 }
 
 export async function getPaymentInstructions(
   supabase: Client,
   orderId: string,
 ): Promise<PaymentInstructions | null> {
-  const { data, error } = await supabase.rpc("customer_payment_instructions", {
-    p_order_id: orderId,
-  });
+  const [{ data, error }, profile] = await Promise.all([
+    supabase.rpc("customer_payment_instructions", { p_order_id: orderId }),
+    supabase.rpc("my_billing_profile"),
+  ]);
   const row = error ? undefined : data?.[0];
   if (!row) return null;
   return {
+    identityNumberRequired: profile.data?.[0]?.identity_number_required === true,
     bankName: row.bank_name ?? null,
     iban: row.iban ?? null,
     ibanHolder: row.iban_holder ?? null,
@@ -744,7 +748,8 @@ export async function getBillingProfile(supabase: Client): Promise<BillingProfil
     city: row.city ?? null,
     postalCode: row.postal_code ?? null,
     email: row.email ?? null,
-    complete: row.has_profile && (!row.identity_number_required || !!row.identity_number_masked),
+    // T13: the TCKN is asked at payment time, never stored with the profile.
+    complete: row.has_profile,
   };
 }
 

@@ -28,29 +28,26 @@ def verify_sql(ds: Dataset) -> str:
 select json_build_object(
   'published_scans_a', (select count(*) from public.session where parcel_id = {lit(A)} and kind = 'periodic_scan' and status = 'published'),
   'published_scans_b', (select count(*) from public.session where parcel_id = {lit(B)} and kind = 'periodic_scan' and status = 'published'),
-  'full_panoramas_a26', (select count(*) from public.asset where session_id = {lit(ids.A_SCAN_2026)} and kind = 'panorama' and pose ->> 'variant' = 'full'),
+  -- T23 (H05): the owner reads panoramas and close-ups only through the
+  -- portal readers, which carry no capture time.
+  'full_panoramas_a26', (select count(*) from public.portal_panorama_frames(array[{lit(ids.A_SCAN_2026)}]::uuid[]) where full_asset_id is not null),
   'paired_panoramas_a26', (
-    select count(*) from public.asset f
-    where f.session_id = {lit(ids.A_SCAN_2026)} and f.kind = 'panorama' and f.pose ->> 'variant' = 'full'
-      and exists (select 1 from public.asset p where p.session_id = f.session_id and p.kind = 'panorama'
-                  and p.pose ->> 'variant' = 'preview' and p.pose ->> 'gps_time_ns' = f.pose ->> 'gps_time_ns')),
-  'previews_a25', (select count(*) from public.asset where session_id = {lit(ids.A_SCAN_2025)} and kind = 'panorama' and pose ->> 'variant' = 'preview'),
+    select count(*) from public.portal_panorama_frames(array[{lit(ids.A_SCAN_2026)}]::uuid[])
+    where full_asset_id is not null and preview_asset_id is not null),
+  'previews_a25', (select count(*) from public.portal_panorama_frames(array[{lit(ids.A_SCAN_2025)}]::uuid[]) where preview_asset_id is not null),
   'trees_without_crop', (
     select count(*) from public.session s
     join public.tree t on t.parcel_id = s.parcel_id and t.status = 'active'
     where s.org_id = {lit(ORG)} and s.kind = 'periodic_scan' and s.status = 'published'
       and not exists (select 1 from public.asset a where a.session_id = s.id and a.tree_id = t.id and a.kind = 'tree_crop')),
-  'featured_closeups', (select count(*) from public.capture where tree_id = {lit(featured)} and kind = 'photo'),
+  'featured_closeups', (select count(*) from public.portal_closeups(array(select id from public.session), {lit(featured)})),
   'findings_a26', (select count(*) from public.finding where session_id = {lit(ids.A_SCAN_2026)}),
-  'findings_without_evidence', (
-    select count(*) from public.finding f where f.org_id = {lit(ORG)}
-      and not exists (select 1 from public.finding_evidence e where e.finding_id = f.id)),
   'answered_questions', (
     select count(*) from public.question q where q.parcel_id = {lit(A)}
       and exists (select 1 from public.question_reply r where r.question_id = q.id and r.author_role = 'expert')),
   'approved_inventories', (
     select count(*) from public.session s where s.org_id = {lit(ORG)} and s.kind = 'inventory' and s.status = 'published'
-      and exists (select 1 from public.asset a where a.session_id = s.id and a.kind = 'panorama')
+      and exists (select 1 from public.portal_panorama_frames(array[s.id]))
       and exists (select 1 from public.coverage_report c where c.session_id = s.id and c.passed)),
   'approved_boundaries', (
     select count(distinct parcel_id) from public.boundary where parcel_id in ({lit(A)}, {lit(B)}) and owner_approved_at is not null),
@@ -76,6 +73,10 @@ select json_build_object(
     where r.uri like 'storage://media/%'
       and not exists (select 1 from storage.objects o where o.bucket_id = 'media'
                       and o.name = 'org/' || r.org_id || '/parcel/' || r.parcel_id || '/' || r.content_hash)),
+  -- Evidence may be a panorama, which the owner does not read (T23): counted here.
+  'findings_without_evidence', (
+    select count(*) from public.finding f where f.org_id = {lit(ORG)}
+      and not exists (select 1 from public.finding_evidence e where e.finding_id = f.id)),
   'mirror', (select count(*) > 0 from storage.buckets where id = 'demo-media'),
   'missing_mirror', (
     select case when not exists (select 1 from storage.buckets where id = 'demo-media') then 0 else (
@@ -136,7 +137,7 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
     )
     need(owner["featured_closeups"] >= 2, "featured tree: fewer than 2 close-ups")
     need(owner["findings_a26"] >= 10, f"A 2026: {owner['findings_a26']} findings")
-    need(owner["findings_without_evidence"] == 0, "findings without evidence")
+    need(admin["findings_without_evidence"] == 0, "findings without evidence")
     need(
         owner["answered_questions"] >= 2,
         f"{owner['answered_questions']} answered questions, expected 2",

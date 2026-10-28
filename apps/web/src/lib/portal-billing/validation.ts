@@ -241,9 +241,6 @@ export interface BillingProfileInput {
   kind: BillingKind;
   first_name: string;
   last_name: string;
-  // Present only when the org needs it and the customer typed one; an omitted
-  // number keeps the stored one (customer_save_billing_profile).
-  identity_number?: string;
   company_title: string | null;
   tax_office: string | null;
   tax_number: string | null;
@@ -255,17 +252,12 @@ export interface BillingProfileInput {
 }
 
 // The billing profile form → p_profile of customer_save_billing_profile.
-// identityRequired: the org needs a TCKN (my_billing_profile);
-// hasIdentity: one is already stored, so the field may stay empty;
 // emailRequired: the customer has no contact or account e-mail, and card
-// payments need one (payment_begin refuses without it).
+// payments need one (payment_begin refuses without it). No TCKN: it is asked
+// at payment time and never stored (T13, parsePaymentIdentity).
 export function parseBillingProfileForm(
   read: Read,
-  {
-    identityRequired,
-    hasIdentity,
-    emailRequired = false,
-  }: { identityRequired: boolean; hasIdentity: boolean; emailRequired?: boolean },
+  { emailRequired = false }: { emailRequired?: boolean } = {},
 ): Parsed<BillingProfileInput> {
   const errs = new Errors();
   const kind = choice(errs, read, "kind", BILLING_KINDS, true);
@@ -289,18 +281,6 @@ export function parseBillingProfileForm(
     if (taxNumber && !/^[0-9]{10}$/.test(taxNumber)) errs.set("tax_number", "invalid");
   }
 
-  let identity: string | undefined;
-  if (identityRequired) {
-    const raw = read("identity_number").replace(/\s/g, "");
-    if (raw === "") {
-      if (!hasIdentity) errs.set("identity_number", "required");
-    } else if (!isValidTckn(raw)) {
-      errs.set("identity_number", "invalid");
-    } else {
-      identity = raw;
-    }
-  }
-
   if (errs.any) return { ok: false, errors: errs.errors };
   return {
     ok: true,
@@ -308,7 +288,6 @@ export function parseBillingProfileForm(
       kind: kind!,
       first_name: first!,
       last_name: last!,
-      ...(identity ? { identity_number: identity } : {}),
       company_title: company,
       tax_office: taxOffice,
       tax_number: taxNumber,
@@ -387,4 +366,11 @@ export function parseRemovalForm(
       withdrawal: timing === "withdrawal",
     },
   };
+}
+
+// T13 (H16): the TCKN typed in at card payment, spaces removed; null when it
+// is not a well-formed number. It is passed on to the payment provider only.
+export function parsePaymentIdentity(value: unknown): string | null {
+  const raw = typeof value === "string" ? value.replace(/\s/g, "") : "";
+  return isValidTckn(raw) ? raw : null;
 }

@@ -8,7 +8,7 @@ import { formatDate } from "@/lib/i18n";
 
 // The visit windows of each package (contract Ek-2 from mesafeli-v5-taslak),
 // mirrored from public.package_visit_windows()
-// (supabase/migrations/20261104100000_visit_installments.sql): first and last
+// (supabase/migrations/20261104100900_visit_installments.sql): first and last
 // day of each window; Kış ends in the next year.
 export const PACKAGE_VISIT_WINDOWS = [
   { code: "winter", name: "Kış", start: [12, 15], end: [2, 15], packages: [2, 4, 6] },

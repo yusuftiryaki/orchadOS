@@ -5,8 +5,9 @@ import type { Client } from "@/lib/supabase/types";
 // Questions on a tree or a finding: the owner (or viewer) asks, the expert
 // answers, either side may follow up. Every query runs as the signed-in user,
 // so row level security decides which threads come back: owners and viewers
-// their parcels, expert and ops their org, field staff none
-// (supabase/migrations/20261023130100_questions.sql).
+// only the threads they started (and their replies; demo tour threads to demo
+// visitors), expert and ops their org, field staff none
+// (supabase/migrations/20261104100000_qa_gnss_visibility.sql, T23, H22, H32).
 //
 // The text is the owner's free text: it is shown to the people in the thread
 // and never sent anywhere else (no LLM, no AI worker table).

@@ -28,6 +28,7 @@ import {
 } from "./db.ts";
 import { timingSafeEqual } from "./iyzico-signatures.ts";
 import { isDemoClaims, jwtClaims } from "../signup.ts";
+import { PLACEHOLDER_TCKN, readTckn } from "./identity.ts";
 import { isAllowedReturnOrigin } from "./origins.ts";
 import { safePayload } from "./payload.ts";
 import { choosePaymentProvider, enabledInstallments } from "./provider.ts";
@@ -271,6 +272,8 @@ function checkoutInput(
   env: Env,
   clientIp: string,
   returnOrigin: string,
+  // T13: the TCKN typed in for this payment (placeholder when not required).
+  identityNumber: string,
 ): StartCheckoutInput {
   const { buyer, billing } = begin;
   return {
@@ -287,7 +290,7 @@ function checkoutInput(
       id: buyer.id,
       name: buyer.first_name,
       surname: buyer.last_name,
-      identityNumber: buyer.identity_number,
+      identityNumber,
       email: buyer.email ?? "",
       gsmNumber: buyer.phone,
       registrationAddress: [buyer.address, buyer.district].filter(Boolean).join(", "),
@@ -322,6 +325,9 @@ async function start(ctx: Ctx, req: Request, body: Record<string, unknown>): Pro
   }
 
   const { order_id: orderId, return_origin: returnOrigin, client_ip: clientIp } = body;
+  // T13 (H16): never logged, stored or echoed; checked before any write.
+  const tckn = readTckn(body);
+  if (tckn === "invalid") return fail("invalid_input", 400, { field: "identity_number" });
   if (
     typeof orderId !== "string" ||
     !UUID_RE.test(orderId) ||
@@ -369,9 +375,17 @@ async function start(ctx: Ctx, req: Request, body: Record<string, unknown>): Pro
     ctx.log("begin_buyer_email_missing");
     return fail("billing_profile_incomplete", 409, { field: "email" });
   }
+  // T13: the org needs the TCKN and the start carried none. The attempt is
+  // closed as failed (a new start opens another).
+  const identityRequired = begin.identity_number_required === true;
+  if (identityRequired && tckn === "absent") {
+    await finalize(ctx, begin.payment_id, "failed", failedResult("identity_number_required"));
+    return fail("identity_number_required", 409);
+  }
+  const identityNumber = identityRequired && tckn !== "absent" ? tckn : PLACEHOLDER_TCKN;
 
   const result = await provider
-    .startCheckout(checkoutInput(begin, ctx.env, clientIp, returnOrigin))
+    .startCheckout(checkoutInput(begin, ctx.env, clientIp, returnOrigin, identityNumber))
     .catch(() => ({ ok: false as const, error: "provider_error", raw: null }));
   // begin (with the buyer's personal data) is not used past this point.
   const paymentId = begin.payment_id;
@@ -393,7 +407,13 @@ async function start(ctx: Ctx, req: Request, body: Record<string, unknown>): Pro
   }
 
   try {
-    await paymentAttachToken(ctx.db, paymentId, result.providerToken, result.expiresAt);
+    await paymentAttachToken(
+      ctx.db,
+      paymentId,
+      result.providerToken,
+      result.expiresAt,
+      identityRequired ? identityNumber.slice(-4) : null,
+    );
   } catch (err) {
     ctx.log(`attach_${err instanceof DbError ? err.code : "error"}`);
     await finalize(ctx, paymentId, "failed", failedResult("attach_failed"));
