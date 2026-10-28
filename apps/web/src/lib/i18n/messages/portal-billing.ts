@@ -197,9 +197,11 @@ export const portalBillingText = {
       "Bahçenin seçtiğim tarihte hizmetten çıkacağını ve planlı ziyaretlerinin iptal edileceğini anladım.",
     submit: "Bahçeyi hizmetten çıkar (raporlarınız silinmez)",
     openTitle: (number: string) => `Çıkarma talebiniz: ${number}`,
+    openTitleOps: (number: string) => `Bahçenin hizmetten çıkarılması: ${number}`,
     status: "Durum",
     cancel: "Talebi geri al",
     cancelHint: "Talebi çıkış tarihine kadar geri alabilirsiniz; bahçeniz hizmette kalır.",
+    byOps: "Bu çıkarmayı ekibimiz başlattı; değişiklik için bize ulaşın.",
     closed: "Bahçe çıkarmak için bize ulaşın.",
     pending:
       "Bu bahçe ödeme bekleyen bir siparişte. Çıkarmak için önce o siparişi iptal edin ya da bahçe listesini değiştirin.",

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  addonQuoting,
   bpToPercent,
   donumToM2,
   formReader,
@@ -287,6 +288,13 @@ describe("forms", () => {
 });
 
 describe("IP14 garden membership forms", () => {
+  it("quotes a member's application as an add-on only while garden changes are open", () => {
+    expect(addonQuoting([])).toBe(false);
+    expect(addonQuoting([{ garden_changes_enabled: true }])).toBe(true);
+    // Switch off (§2, rollback): the IP12 quote and preview, no checkbox.
+    expect(addonQuoting([{ garden_changes_enabled: false }])).toBe(false);
+  });
+
   const form = (values: Record<string, string | string[]>) => {
     const f = new FormData();
     for (const [k, v] of Object.entries(values)) {

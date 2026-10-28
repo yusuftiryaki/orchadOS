@@ -635,3 +635,10 @@ export function parseSettings(
   settings.removal_refund_mode = refundMode;
   return ok(settings);
 }
+
+// A member's application is quoted as an add-on, with the separate period
+// only behind an explicit checkbox, while garden changes are open (§2,
+// §4.1); with them closed (or for anyone without a period) it gets the IP12
+// quote and preview as before.
+export const addonQuoting = (periods: { garden_changes_enabled: boolean }[]): boolean =>
+  periods.some((p) => p.garden_changes_enabled);

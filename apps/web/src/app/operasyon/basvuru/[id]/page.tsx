@@ -37,7 +37,7 @@ import {
   userName,
 } from "@/lib/back-office/data";
 import { boHref, firstParam } from "@/lib/back-office/urls";
-import { bpToPercent, parseIsoDate, percentToBp } from "@/lib/back-office/validation";
+import { addonQuoting, bpToPercent, parseIsoDate, percentToBp } from "@/lib/back-office/validation";
 import { BILLING_ERRORS, type BillingError } from "@/lib/billing/errors";
 import { formatDonum } from "@/lib/billing/money";
 import { formatNumber, t } from "@/lib/i18n";
@@ -65,7 +65,8 @@ const errorText = (error: string) =>
 // §12): the service period, the customer's parcels on the map, duplicate
 // checks per garden with linking to an earlier parcel, withdrawing a garden,
 // and the add-on quote as the primary action (a separate period only with
-// an explicit checkbox).
+// an explicit checkbox) while garden changes are open; closed, the IP12
+// preview and quote as for anyone.
 export default async function Page({
   params,
   searchParams,
@@ -93,10 +94,13 @@ export default async function Page({
   const membership =
     "membership" in membershipRead ? membershipRead.membership : { periods: [], gardens: [] };
   const member = membership.periods.length > 0;
-  const base = addonBase(membership.periods);
+  // With garden changes closed (§2) a member's application gets the IP12
+  // quote as before: no add-on section, the regular preview and issue form.
+  const addonMode = addonQuoting(membership.periods);
+  const base = addonMode ? addonBase(membership.periods) : null;
   const basePeriod = membership.periods.find((p) => p.base_order_id === base?.baseOrderId);
   const [preview, addonPreview, overlaps, existing, setting] = await Promise.all([
-    open && allVerified && !member ? previewQuote(supabase, a.id, discountBp) : null,
+    open && allVerified && !addonMode ? previewQuote(supabase, a.id, discountBp) : null,
     open && base
       ? previewAddonQuote(supabase, {
           baseOrderId: base.baseOrderId,
@@ -426,12 +430,12 @@ export default async function Page({
         </section>
       )}
 
-      {open && member && !base && (
+      {open && addonMode && !base && (
         <Warning testId="addon-too-short">{billingText.errors.addon_period_too_short}</Warning>
       )}
 
-      {open && !member && (
-        <section className={styles.section}>
+      {open && !addonMode && (
+        <section className={styles.section} data-testid="quote-preview-section">
           <h2>{T.preview}</h2>
           {!allVerified ? (
             <p className="muted">{T.previewNeedsVerification}</p>
@@ -466,8 +470,8 @@ export default async function Page({
       {open ? (
         <div className={styles.columns}>
           <section className={styles.section}>
-            <h2>{member ? A.separateTitle : T.issueQuote}</h2>
-            <p className="muted">{member ? A.separateHint : T.issueHint}</p>
+            <h2>{addonMode ? A.separateTitle : T.issueQuote}</h2>
+            <p className="muted">{addonMode ? A.separateHint : T.issueHint}</p>
             {!canIssue ? (
               <p className="muted" data-testid="issue-blocked">
                 {overlapsFailed ? O.issueBlocked : B.addon.issueBlocked}
@@ -475,7 +479,7 @@ export default async function Page({
             ) : (
               <ActionForm action={issueQuoteAction} testId="issue-quote-form">
                 <input type="hidden" name="application_id" value={a.id} />
-                {member && (
+                {addonMode && (
                   <label className={styles.check}>
                     <input type="checkbox" name="separate_period" required />
                     {A.separateConfirm}
@@ -501,7 +505,9 @@ export default async function Page({
                   <textarea name="note_to_customer" maxLength={1000} rows={3} />
                 </Field>
                 <div className={styles.actions}>
-                  <Submit secondary={member}>{member ? A.separateTitle : T.issueQuote}</Submit>
+                  <Submit secondary={addonMode}>
+                    {addonMode ? A.separateTitle : T.issueQuote}
+                  </Submit>
                 </div>
               </ActionForm>
             )}

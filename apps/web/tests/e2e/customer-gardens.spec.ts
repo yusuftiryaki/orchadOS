@@ -19,7 +19,8 @@ import {
 // garden from the home card (locked package, membership band, prorated
 // preview); ops issues the add-on quote through the API; the customer
 // accepts and pays with the fake card and sees two gardens. Then a removal
-// from "Hesabım › Bahçelerim" with the three timings, undone; and a removal
+// from "Hesabım › Bahçelerim" with the three timings, undone; a removal ops
+// opened, which the customer cannot undo; and a removal
 // completed by ops, after which the parcel is read-only. Test accounts are
 // removed at the end.
 
@@ -251,6 +252,26 @@ test("the customer asks to remove a garden from the account page and undoes it",
   await expect(page).toHaveURL(`/portal/parsel/${parcelId}?bilgi=cikarma_geri_alindi`);
   await expect(card.getByTestId("removal-form")).toBeVisible();
   await expect(card.getByTestId("service-state")).toHaveText("Hizmette");
+});
+
+test("a removal ops opened offers no undo to the customer", async ({ page }) => {
+  const parcelId = member.parcelIds[0];
+  const removalId = await removalFor(EMAIL, PASSWORD, parcelId, { byOps: true });
+  await login(page, EMAIL, `/portal/parsel/${parcelId}`);
+  const card = page.getByTestId("service-card");
+  await expect(card.getByTestId("removal-open")).toContainText("Planlandı");
+  await expect(card.getByTestId("removal-by-ops")).toHaveText(
+    "Bu çıkarmayı ekibimiz başlattı; değişiklik için bize ulaşın.",
+  );
+  await expect(card.getByRole("button", { name: "Talebi geri al" })).toHaveCount(0);
+  // Ops withdraws it again, so the next test starts from a garden in service.
+  const ops = createClient<Database>(env.url, env.anonKey, options);
+  await ops.auth.signInWithPassword({ email: "ops@example.com", password: PASSWORD });
+  const cancelled = await ops.rpc("ops_cancel_garden_removal", {
+    p_removal_id: removalId,
+    p_note: "E2E: geri alındı",
+  });
+  if (cancelled.error) throw cancelled.error;
 });
 
 test("a removed garden shows the band and read-only questions and viewers", async ({ page }) => {
