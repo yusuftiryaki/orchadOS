@@ -237,6 +237,34 @@ Hepsi `security definer`, `search_path = ''`; hatalar kısa koddur, `detail` yal
 - **İade tavanı:** `tutar + Σ(requested, processing, succeeded)` ödemenin (`coalesce(provider_amount_kurus, amount_kurus)`) ve kalemin tutarını aşamaz; başarısız iadenin yeniden denenmesinde yeniden denetlenir. `retryable = false` iade yeniden gönderilmez; ops `processing` iadeyi ancak sağlayıcı çağrısından 15 dakika sonra elle sonuçlandırır. `refunded_kurus` alanları yalnızca `succeeded`'a geçişte, bir kez artar.
 - **Bildirimler:** `notification` artık hesap mesajlarını da taşır (`ref_id` belge kimliği, `vars.ref` belge numarası; parsel ve ziyaret boş). Şablonlar `quote_ready`, `application_rejected`, `payment_received`, `refund_completed`, `payment_reminder`; alıcı başına, şablon ve belge başına bir mesaj (`notification_ref_once`).
 
+## Demo turu (İP13)
+
+Olası müşteriye kısa ömürlü, salt okunur bir demo hesabı açılır; hesap tek bir demo org'unun etkin parsellerine `owner` erişimi alır. Tasarım, sözleşmeler ve hata kodları [demo-turu.md](demo-turu.md) §5–§7'de. Migration'lar `20261101120000`–`120200`. Herkese açık demo yalnızca kendi projesinde çalışır; nesneler her projeye gider ve demo org'u yoksa etkisizdir.
+
+| Tablo | Şema | Ne tutar |
+| --- | --- | --- |
+| `demo_org` | private | Demo org'u ve turun sınırları: süre (`session_ttl`, 15 dk–24 sa), IP başına saatlik ve günlük başlatma, aynı anda etkin oturum, günlük toplam, oturum başı görüntü eşleme ve PDF, ziyaretçi e-posta alan adı, tur hedefleri (`tour`), veri sürümü, `loaded_at`. En fazla biri `enabled`; etkin satırın `loaded_at` değeri dolu |
+| `demo_parcel` | private | Demo org'unun ziyaretçiye açılan parselleri, sırası ve etkinliği. Parsel aynı org'a ait olmalı (tetikleyici) |
+| `demo_session` | private | Ziyaretçi hesabı başına bir satır: bitiş, kapanış, IP özeti, sayaçlar (`sign_calls`, `pdf_renders`) |
+| `demo_attempt` | private | Başlatma sayacı: IP kovası özeti, sonuç (`admitted`, `rate_limited`, `capacity`, `closed`) ve dakika başına tek satır. Sınırlar yalnızca kabul edilenleri sayar; 48 saat tutulur |
+
+Dördüne de `anon` ve `authenticated` için yetki yoktur; RLS açık, politika yok. Ziyaretçi yalnızca `demo_info`, `demo_end`, `demo_hit` fonksiyonlarını çağırır; Edge `demo_admit`, `demo_start` ve temizlik fonksiyonlarını servis rolüyle çağırır.
+
+**Yazma kilidi:**
+- `zz_demo_read_only`, `public` ve `private` şemalarındaki her temel tabloda bir `BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ... FOR EACH STATEMENT` tetikleyicisidir. İstekte `app_metadata.demo` claim'i varsa (`authz.is_demo_user()`) `demo_read_only` (42501) yükseltir. Security definer fonksiyonların içindeki yazmaları da yakalar.
+- İstisnalar eklenti tabloları ve `private.demo_session`'dır (`demo_end`, `demo_hit`).
+- Ayrıca kısıtlayıcı politikalar (`parcel_access`, `question`, `question_reply`, `storage.objects`) ve `approve_boundary`, `owner_invite_viewer`, `owner_cancel_viewer_invitation` başında `assert_not_demo` vardır.
+- **Zorunluluk:** Tablo ekleyen her migration `select private.attach_demo_guard('<tablo>');` çağırır. pgTAP `43_demo_write_guard` eksik tabloyu bulur.
+- Bildirimler (`enqueue_notifications`, `enqueue_billing_notification`) demo org'larını ve demo hesaplarını atlar; `save_ai_assessment` demo org'unun ziyaretini `demo_org_no_ai` ile reddeder; demo org'unda `org_billing_setting` kayıt ya da sahte ödeme açamaz (`demo_billing_forbidden`).
+
+**Hesap kilidi ve erişim kapsamı:**
+- **Hesap kilidi:** `auth.users` üzerindeki `demo_account_freeze` tetikleyicisi, demo hesabının e-postasını, telefonunu, bekleyen e-posta ve telefon değişikliğini, parolasını ve kullanıcı metaverisini değiştirmez (`demo_account_locked`). GoTrue'nun kendi tuttuğu `email_verified`, `phone_verified`, `email`, `sub` anahtarları, oturum açma ve token sütunları serbesttir. Parolanın boşaltılmasına izin verilir: `demo_start`, Admin API'nin koyduğu rastgele parola özetini siler. Barındırılan proje tetikleyiciye izin vermezse migration uyarıyla geçer; o durumda housekeeping, bilgileri değişen demo hesabının oturumunu bitirir.
+- **Erişim kapsamı:** `demo_account_scope_<sütun>` satır tetikleyicileri servis rolü dahil her çağıranda çalışır. Demo hesabı yalnızca demo org'unda `parcel_access` alır; `membership`, `owner_profile`, `billing_profile`, `consent_record` (`user_id` ve `subject_id`), `customer_signup`, `viewer_invitation`, `notification` (alıcı) ve `customer_user_id` taşıyan faturalama tablolarında (`service_application`, `application_garden`, `quote`, `quote_item`, `service_order`, `service_order_item`, `payment`, `payment_item`, `refund`) hiç satırı olmaz (`demo_account_scope`).
+- **Zorunluluk:** Kullanıcıya erişim veren ya da kimliğini tutan yeni bir tablo ayrıca `select private.attach_demo_account_guard('<tablo>', '<kullanıcı sütunu>');` çağırır.
+- `ops_find_user_id` ve `signup_find_account` demo hesabını hiç döndürmez.
+
+**`demo-media` kovası:** Herkese açık kova; demo org'unun dosyaları `org/<demo org>/parcel/<parsel>/<sha256>` yolunda, `media` ile aynı baytlarla durur ve `/object/public` üzerinden imzasız sunulur. Yalnızca demo org'unun `ops` üyesi yükler (demo claim'i olmadan); güncelleme ve silme politikası yoktur.
+
 ## MVP tablolarından geçiş
 
 | MVP | Hedef |
