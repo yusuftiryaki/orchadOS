@@ -71,6 +71,20 @@ describe("billingReasonOf", () => {
     }
   });
 
+  it("keeps the IP14 codes, demo_read_only (42501) included", () => {
+    expect(billingReasonOf({ code: "42501", message: "demo_read_only" })).toBe("demo_read_only");
+    for (const code of [
+      "account_garden_limit",
+      "garden_removal_open",
+      "parcel_order_pending",
+      "addon_base_closed",
+      "parcel_read_only",
+      "parcel_removed",
+    ]) {
+      expect(billingReasonOf({ code: "P0001", message: code })).toBe(code);
+    }
+  });
+
   it("maps privilege and unique errors without one of our messages", () => {
     expect(
       billingReasonOf({ code: "42501", message: "permission denied for column ops_note" }),

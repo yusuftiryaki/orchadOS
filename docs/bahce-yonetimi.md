@@ -271,7 +271,7 @@ flowchart LR
         - yalnızca `withdrawal_until ≥ bugün` iken: "Cayma hakkımı kullanıyorum: bahçe bugün hizmetten çıkar, ödediğiniz tutar iade edilir (yapılmış envanter ve ziyaretler hariç)."
     - Önizleme çıkış gününü, tahmini iadeyi ("en fazla") ve erişim sonunu gösterir.
     - Zorunlu onay kutusu.
-3. **Talep.** `customer_request_garden_removal(…, p_at_period_end, p_withdrawal)` bir `C-…` numarası verir ve kaydı `requested` olarak yazar. SMS gönderilmez; durum kartta görünür. Müşteri talebi tamamlanana kadar geri alabilir (`customer_cancel_garden_removal`).
+3. **Talep.** `customer_request_garden_removal(…, p_at_period_end, p_withdrawal)` bir `C-…` numarası verir ve kaydı `requested` olarak yazar. SMS gönderilmez; durum kartta görünür. Müşteri kendi talebini tamamlanana kadar geri alabilir (`customer_cancel_garden_removal`). Ops'un açtığı çıkarmayı (`initiated_by = 'ops'`: devir, mükerrer kayıt, ops'un açtığı tarih) müşteri geri alamaz (`removal_not_open`); onu yalnızca ops iptal eder.
 4. **Engeller.**
     - **Ödeme bekleyen sipariş:** Bahçe ödeme bekleyen bir siparişteyse (örneğin kabul edilmiş ama ödenmemiş yenileme) talep `parcel_order_pending` döner. Portal o siparişe yönlendirir: "Siparişi iptal et" ya da, başvurudan geliyorsa, "Bahçe listesini değiştir".
     - **Cayma süresi:** Süre geçtiyse cayma seçeneği `withdrawal_expired` döner. Süre sınırında (14. gün kabul, 15. gün ret) test edilir.
@@ -314,10 +314,10 @@ Gece çalışan `garden-removal-housekeeping` ya da ops'un "hemen tamamla" eylem
 3. **Satırlar.**
     - **Etkilenen satırlar:** müşterinin bu parseldeki, `active` ya da `completed` siparişlerdeki, `removed_on` boş ve `service_end ≥ effective_on` olan satırları. Buna ödenmiş yenilemenin satırı da girer.
     - Her etkilenen satıra `removed_on = max(effective_on, service_start)` ve `garden_removal_id` yazılır.
-    - Dönemi çıkış gününden önce biten satıra dokunulmaz.
+    - Dönemi çıkış gününden önce biten satıra dokunulmaz. Tek istisna talep edilen satırdır: dönemi çıkış gününden bir gün önce bitiyorsa ("Dönem sonunda", ya da 30 günden az kalmışken "30 gün sonra") ona `removed_on = effective_on` (= `service_end + 1`, hizmet verilmeyen ilk gün) ve `garden_removal_id` yazılır. İadeye girmez; bahçe erişim süresi boyunca `my_gardens`'ta `removed` görünür.
     - **Etkilenen satır yoksa:**
         - Talep edilen satırın siparişi `terminated` ya da `cancelled` ise kayıt sistemce iptal edilir (iç not `order_terminated`).
-        - Aksi halde kayıt satırsız tamamlanır: dönem sonunda çıkış, yenileme yok, iade 0.
+        - Aksi halde kayıt iadesiz tamamlanır (`none`): dönem sonunda çıkış, yenileme yok, iade 0. Talep edilen satır yukarıdaki istisnayla işaretlenir.
 4. **İade hesabı.** §7'ye göre yapılır ve `calculation`, `refund_mode`, `refund_kurus` alanlarına yazılır.
 5. **Operasyon tarafı.** Parsel `effective_on` gününde başka bir aktif satırla hizmette değilse:
     - türü `inventory`, `periodic_scan` ya da `verification` olan **bütün** `planned` ziyaretler tarihten bağımsız olarak `cancelled` yapılır. Tarihi geçmiş planlı ziyaret yapılmamıştır ve zaten kullanılmamış sayılır.
@@ -373,7 +373,7 @@ Gece çalışan `garden-removal-housekeeping` ya da ops'un "hemen tamamla" eylem
 | Dönem | `period_start`, `period_end`: temel siparişin `service_start` ve `service_end` değerleri. `period_days = period_end − period_start + 1` |
 | Başlangıç | `start = max(önerilen gün ya da bugün, bugün, period_start)` |
 | Kalan gün | `remaining_days = period_end − start + 1`. `addon_min_days` değerinden azsa, yani `start > addon_last_day` ise `addon_period_too_short` |
-| Ziyaret hakkı | `visits = min(V, max(1, round(V × remaining_days / period_days)))` (`private.addon_visits`); V = paketin yıllık ziyareti |
+| Ziyaret hakkı | `visits = min(V, max(1, round(V × remaining_days / period_days)))` (`private.addon_visits`); V = üyeliğin yıllık ziyareti, temel siparişin teklifinde dondurulmuş `quote.periodic_visits_per_year` (paketin bugünkü değeri değil; önizleme, verilen teklif ve çıkarmadaki ziyaret bedeli aynı V'yi kullanır) |
 | Faturalanan alan | `tenths = ceil(area_m2 / 100)` (v1 ile aynı) |
 | Ziyaret tutarı | `visit_amount = round(visits × tenths × unit_price / 10)` |
 | Minimum | `minimum = round(minimum_fee × visits / V)` |
@@ -411,14 +411,14 @@ Gece çalışan `garden-removal-housekeeping` ya da ops'un "hemen tamamla" eylem
 | Envanter payı | `inventory_share = line_base > 0 ? round(amount × inventory_fee / line_base) : 0` (`quote_item`'dan) |
 | Hizmet payı | `service_amount = amount − inventory_share` |
 | Ziyaret hakkı | `entitled = quote_item.visits` |
-| Faturalanan yapılmış ziyaret | `used`: parseldeki `periodic_scan` ziyaretlerinden durumu `captured`, `processed`, `in_review` ya da `published` olanlar. Ziyaret günü satırın `service_start` günü ile `removed_on − 1` arasında olmalı. Bir `extra_visit` takip isteğinin (`planned` ya da `done`, kaynağı ne olursa olsun) `target_session_id`'si olan ziyaretler sayılmaz (`visits_excluded`). Aynı İstanbul günündeki ziyaretler bir sayılır. Sonuç en çok `entitled` olur |
-| Envanter yapıldı | `inventory_done`: aynı aralıkta parselde `captured` ya da sonraki durumda bir `inventory` ziyareti var |
+| Faturalanan yapılmış ziyaret | `used`: parseldeki `periodic_scan` ziyaretlerinden durumu `captured`, `processed`, `in_review` ya da `published` olanlar. Ziyaret günü satırın `service_start` günü ile `max(removed_on − 1, min(hesap günü, service_end))` arasında olmalı: tamamlama çıkış günü ya da sonrasında yapıldığında çıkış günü (ve tamamlama gününe kadar) çekilmiş ziyaretler de yapılmış sayılır. Yapılmış envanter ve ziyaret hiçbir zaman iade edilmez (§2, cayma dahil). Önizlemede (çıkış günü ileride) aralık `removed_on − 1`'de biter. Bir `extra_visit` takip isteğinin (`planned` ya da `done`, kaynağı ne olursa olsun) `target_session_id`'si olan ziyaretler sayılmaz (`visits_excluded`). Aynı İstanbul günündeki ziyaretler bir sayılır. Sonuç en çok `entitled` olur |
+| Envanter yapıldı | `inventory_done`: aynı aralıkta (hesap günü dahil) parselde `captured` ya da sonraki durumda bir `inventory` ziyareti var |
 | Kullanılmayan | `unused = entitled − used` |
 | Ziyaret bedeli | `visit_fee = floor(service_amount / entitled)` |
 | Hesap, `unused_visits` | `(unused = entitled ? service_amount : unused × visit_fee) + (inventory_done ? 0 : inventory_share)` |
 | Hesap, `withdrawal` | `amount − (inventory_done ? inventory_share : 0) − used × visit_fee` |
 | Hesap, `duplicate` | `amount − used × visit_fee` |
-| Önceki iadeler | `already_refunded`: (a) ödeme kalemi bu satır olan (`payment_item.order_item_id = satır`) ve durumu `requested`, `processing` ya da `succeeded` olan iadeler; (b) siparişin ödemelerindeki kalemsiz iadeler (`payment_item_id` boş ya da bakiye kalemi), `overpayment` ve `provider_mismatch` hariç. Tek satırlı siparişte (b)'nin tamamı satıra yazılır. Çok satırlı siparişte orantılı pay (`round(Σ × amount / order.total_kurus)`) yazılır ve satır `unattributed` işaretlenir |
+| Önceki iadeler | `already_refunded`: (a) ödeme kalemi bu satır olan (`payment_item.order_item_id = satır`) ya da bu satırı çıkaran bir çıkarmanın açtığı (`refund.garden_removal_id`, satır o kaydın `calculation.lines`'ında) ve durumu `requested`, `processing`, `succeeded` ya da `failed` olan iadeler; (b) siparişin ödemelerindeki kalemsiz iadeler (`payment_item_id` boş ya da bakiye kalemi), `overpayment`, `provider_mismatch` ve başka çıkarmaların açtığı iadeler (`garden_removal_id` dolu) hariç, aynı durumlarla. `failed` iade sayılır, çünkü İP12'de yeniden denenebilir (`payment_refund_claim`) ya da ops tarafından başarılı kapatılabilir (`ops_resolve_refund`); sayılmasaydı toplam iade hakkı aşabilirdi. Kesin olarak bırakılan iade `cancelled` olur ve sayılmaz. Tek satırlı siparişte (b)'nin tamamı satıra yazılır. Çok satırlı siparişte orantılı pay (`round(Σ × amount / order.total_kurus)`) yazılır ve satır `unattributed` işaretlenir |
 | İade | `refund = max(0, hesap − already_refunded)` |
 | KDV payı | `refund_vat = round(refund × vat_rate_bp / (10000 + vat_rate_bp))`; oran dondurulmuş `quote.vat_rate_bp` |
 
@@ -703,8 +703,9 @@ Herkese açık (`public`) adlar, parametreler, dönüş sütunları ve hata kodl
 
 **Yardımcılar (`private`):**
 - `addon_visits(p_visits_per_year smallint, p_start date, p_period_start date, p_period_end date) returns smallint`: immutable, §6.
-- `price_lines_v2(p_org_id uuid, p_package_id uuid, p_areas_m2 numeric[], p_inventory boolean[], p_visits smallint, p_discount_bp integer default 0, p_on date default null)`:
+- `price_lines_v2(p_org_id uuid, p_package_id uuid, p_areas_m2 numeric[], p_inventory boolean[], p_visits smallint, p_discount_bp integer default 0, p_on date default null, p_year_visits smallint default null)`:
     - `price_lines` ile aynı sütunları döner.
+    - `p_year_visits`: orantının V'si (üyeliğin dondurulmuş V'si); boşsa paketin bugünkü V'si. Ek teklif yolları hep üyeliğin V'sini verir.
     - Hatalar: `invalid_input` (detail `areas`, `inventory`, `visits` ya da `discount_bp`), `no_price_list`, `package_not_priced`.
 - `parcel_served_on(p_parcel_id uuid, p_day date) returns boolean`: aktif bir siparişte `service_start ≤ p_day ≤ service_end` ve `removed_on` boş ya da `> p_day` olan satır.
 - `parcel_in_service(p_parcel_id uuid, p_from date, p_to date, p_exclude_order_id uuid default null) returns boolean`. Şunlardan biri varsa `true` döner:
@@ -728,7 +729,7 @@ Herkese açık (`public`) adlar, parametreler, dönüş sütunları ve hata kodl
 - `removal_calculation(p_removal_id uuid, p_effective_on date) returns jsonb`: §7.2. Yazmaz.
 - `open_removal_refunds(p_removal_id uuid) returns integer`: §7.3.
 - `complete_garden_removal(p_removal_id uuid, p_actor uuid, p_role text) returns boolean`: §5.3. Bu çağrıyla tamamlandıysa `true` döner.
-- `garden_removal_housekeeping() returns jsonb`: dönüş `{scheduled, completed, blocked, cancelled, access_notices, access_revoked, access_resumed}`.
+- `garden_removal_housekeeping() returns jsonb`: dönüş `{scheduled, completed, blocked, cancelled, access_notices, access_revoked, access_resumed, failed}`. Kayıtlar parsel sırasıyla işlenir (çok parselli çağıranların kilit sırası). Her tamamlama ve her erişim sonu kendi alt işleminde çalışır: hata yalnızca o kaydı geri alır, `garden_removal.housekeeping_failed {step, sqlstate, message}` denetlenir, `failed` sayılır ve ertesi gece yeniden denenir.
 - `enqueue_garden_notification(p_template public.notification_template, p_org_id uuid, p_user_id uuid, p_ref_id uuid, p_ref text, p_path text, p_parcel_id uuid) returns integer`:
     - `enqueue_billing_notification`'ın kardeşidir; o fonksiyon değişmez.
     - Değişkenler `{ref, path, parcel_name}`; `notification.parcel_id` doldurulur.
@@ -953,6 +954,7 @@ Herkese açık (`public`) adlar, parametreler, dönüş sütunları ve hata kodl
 | `20261102120100_garden_membership_schema.sql` | Enum'lar, §9.3 sütunları ve kısıtları, `garden_removal`, FK'ler, korumalar, RLS ve yetkiler, demo korumaları, belge türü `C`, denetim türü |
 | `20261102120200_garden_addons.sql` | `pricing-v2`, kapsama ve dönem yardımcıları, üyelik okumaları, ek teklif, bağlama, mükerrer araması; (yapılabilirse) bahçe geri çekme ve `customer_revise_order`; §9.6'daki teklif, kabul, ödeme, vade ve aktivasyon fonksiyonlarının yeniden yazılması; `ops_orders` |
 | `20261102120300_garden_removals.sql` | Çıkarma fonksiyonları, iade, tamamlama, housekeeping ve cron, salt okunur ve ziyaret korumaları, `ops_terminate_order`, `ops_set_parcel_passive`, `ops_billing_summary`, ayarlar, bildirim fonksiyonu, drift |
+| `20261102120400_garden_review_fixes.sql` | PR #71 inceleme düzeltmeleri (§20): `failed` iadeler, müşterinin ops çıkarmasını geri alamaması, çıkış günü ziyaretleri, ek teklifte üyeliğin V'si, housekeeping alt işlemleri, çıkarma iadelerinin satıra bağlanması, dönem sonunda satır işareti |
 
 Gerekirse aralık içinde (`…120400` ve sonrası) ileriye dönük ek dosyalar açılabilir. Main'deki dosyalara dokunulmaz.
 
@@ -1253,3 +1255,44 @@ Metinler `messages/back-office.ts` içindedir. Durum etiketleri ve hata metinler
     - **Security definer yolları:** `create_verification_tour` gibi yollar, bugünkü pasif parsel korumasında olduğu gibi ziyaret korumasını aşar. Yalnızca ops ve saha ekibi çağırabilir; çıkışta planlı her ziyaret yine iptal edilir.
     - **Ekstra ziyaret bağlantısı:** Ops bir `extra_visit` isteğini olağan bir periyodik ziyarete bağlarsa o ziyaret faturalanan ziyaret sayılmaz. Bu, müşteri lehine bir hatadır.
     - **Kalemsiz iade:** Çok satırlı siparişte kalemsiz iadeler satıra bağlanamaz. Kayıt `manual` olur ve ops karar verir.
+
+## 20. Uygulama notları
+
+Akış A (`claude/ip14-veri-modeli`) bu dokümanın §6, §7, §9 ve §10'daki sözleşmelerini uyguladı. Herkese açık adlar, imzalar, dönüş sütunları, hata kodları ve bildirim metinleri dokümandaki gibidir. Aşağıdakiler dokümanın bıraktığı seçimler ve küçük sapmalardır.
+
+**Migration dosyaları:** `20261102120000_garden_notification_enum_values.sql`, `20261102120100_garden_membership_schema.sql`, `20261102120200_garden_addons.sql`, `20261102120300_garden_removals.sql`. **Son dosya `20261102120400_garden_review_fixes.sql`** (PR #71 incelemesinin ileriye dönük düzeltmeleri). CLAUDE.md'deki "şu an" işaretçisi `20261102120400` olur.
+
+**İnceleme düzeltmeleri (PR #71, `20261102120400`):** Adlar, imzalar, JSON alanları ve hata kodları korunur. Eklenenler: `garden_removal_housekeeping` dönüşüne `failed` anahtarı; `private.price_lines_v2`'ye son sırada `p_year_visits smallint default null` (private, eski çağrılar aynen çalışır); denetim eylemi `garden_removal.housekeeping_failed`. Davranış değişiklikleri: `customer_cancel_garden_removal` ops'un açtığı kayıtta `removal_not_open` döner (§5.1); `removal-v1` `failed` iadeleri ve çıkış günü ziyaretlerini sayar, çıkarma iadelerini kendi satırına bağlar (§7.1); ek teklif üyeliğin dondurulmuş V'siyle fiyatlanır (§6); dönem sonunda çıkarmada talep edilen satır işaretlenir (§5.3).
+
+**Teslim edilmeyenler:** Yok. "Yapılabilirse" maddeleri de teslim edildi: `customer_withdraw_application_garden`, `ops_withdraw_application_garden`, `customer_revise_order` ve getirdikleri `quoted/accepted → submitted` geçişleri; `ops_garden_overlaps`'in 200 m yakınlık araması (`distance_m` dolu döner).
+
+**`private` yardımcıları** (§9.6'da önerilenlere ek olarak):
+- Ayar ve kapsama: `billing_setting` (kayıt yoksa varsayılanlarla ayarlar; `ops_billing_setting` de bunu döner), `coverage_lines` (aktif ve ödeme bekleyen satırların kapsadığı günler), `lock_customer_gardens`, `order_line_parcels`, `quote_line_parcels`, `has_open_removal`, `parcel_transferred`, `addon_base_open`, `parcel_has_inventory`.
+- Okumalar: `service_periods` (`my_service_period` ve `ops_customer_service_period`), `customer_gardens` (`my_gardens` ve `ops_customer_gardens`), `billed_visits` (§7.1'in faturalanan ziyaret sayısı; `my_gardens.visits_used` ve iade hesabı aynı fonksiyonu kullanır), `require_ops_customer`.
+- Ek teklif: `addon_lines`, `addon_start`, `addon_base_for_ops`, `check_addon_parcels`, `write_addon_quote`.
+- Çıkarma: `removal_calc` (hesabın kendisi; `removal_calculation(p_removal_id, p_effective_on)` kaydı okuyup onu çağırır, müşteri önizlemesi doğrudan çağırır), `removal_access_scope` (erişim kapsamı; önizlemenin sayıları ve erişimin kaldırılması aynı kuralı okur), `terminate_emptied_order`, `close_base_addons`, `removal_target`, `customer_removal_plan`, `removal_for_ops`, `check_access_days`, `removal_last_effective`, `withdraw_application_garden`.
+- `authz.parcel_read_only(uuid)` ve `authz.parcel_open_removal_from(uuid)`: korumalar API kullanıcısı olarak çalışır ve `private` şemasını kullanamaz; `authz.is_demo_org` kalıbıyla security definer sarmalayıcılar. `anon` çalıştıramaz.
+
+**Kararlar ve küçük sapmalar:**
+- **Korumalarda "API kullanıcısı":** `zz_parcel_read_only` (soru, yanıt, `parcel_access`) ve `session_guard_removal`, mevcut pasif parsel koruması gibi `current_user in ('authenticated', 'anon')` ile karar verir. Security definer yollar (`activate_order`, `ops_resolve_viewer_invitation`, `create_verification_tour`) bu yüzden korumaya takılmaz. `private.viewer_invitation` için koruma her rolde çalışır (§9.8).
+- **Geri eklemede sıra:** `activate_order`, salt okunur korumasına takılmamak için önce aynı müşterinin açık erişim penceresini kapatır (`garden_removal.access_closed`, `resumed`), sonra sahip erişimini ekler.
+- **Temel siparişin başlangıcı:** `activate_order`'da `greatest(…, bugün)` yalnızca ek siparişe uygulanır; temel sipariş (yenileme dahil) main'deki gibi `coalesce(önerilen başlangıç, bugün)` ile başlar.
+- **İade satırının kalemi:** Havale iadesi (`manual`) satırın ödeme kalemine ya da bakiye kalemine yazılır; böylece aynı siparişin başka bir bahçesi çıkarıldığında önceki iade satıra bağlanabilir ve kayıt gereksiz yere `manual` olmaz. Yalnızca `void` kalemsizdir (bugünkü `ops_request_refund` kuralı). Görev tanımındaki "manual iadeler kalem taşımaz" ifadesinden bu noktada ayrılındı.
+- **İade satırları kayıt açıkken açılır:** `garden_removal_guard` tamamlanmış kayıtta `calculation`'ı değiştirmeye izin vermediği için `open_removal_refunds` kayıt `scheduled` iken çalışır (`unallocated_kurus` yazılır), sonra kayıt `completed` olur.
+- **`ops_complete_garden_removal`:** Siparişi bu arada sona ermiş ve satırı kalmamış kaydı sistem bu çağrıda iptal ettiyse hata vermeden döner (iptal geri alınmasın diye). Başka bir yol kaydı tamamladıysa ya da iptal ettiyse `state_changed`.
+- **Tamamlamada planlama:** `requested` kayıt tamamlanırken `requested_effective_on` ile planlanır ve `garden_removal.scheduled` (çağıranın aktörü ve rolüyle, `change_id: null`) denetlenir; SMS gitmez. Housekeeping'in `scheduled` sayısı bu kayıtları sayar.
+- **Erişim süresi kuralı:** Kısa erişim süresi neden ya da not olmadan verilirse hata `invalid_input` (`access_days`) olur. `ops_schedule_garden_removal` kuralı yalnızca erişim süresi değiştiğinde yeniden denetler.
+- **Müşteri talebi:** Parselde müşterinin `owner` satırı olmalıdır (`not_found`). Yalnızca ödenmiş yenileme satırı varsa çıkış günü o satırın başlangıcıdır; cayma seçildiyse bugündür.
+- **`parcel_service_status`:** `leaving` parseldeki herhangi bir açık çıkarmaya bakar; `removed` en son tamamlanan çıkarmanın açık penceresine bakar.
+- **`my_gardens.removal_*`:** Seçilen satırı kapatan çıkarma, yoksa açık çıkarma, yoksa en son çıkarma.
+- **`ops_withdraw_application_garden`:** Zorunlu not bahçenin `verification_note` sütununa (iç sütun) yazılır; denetim kaydına serbest metin yazılmaz.
+- **`ops_garden_removal_preview.captured_unpublished`:** Yalnızca envanter, periyodik tarama ve doğrulama ziyaretlerini sayar.
+- **`account_garden_count`:** Ödeme bekleyen siparişlerdeki bağlanmamış yeni bahçeler pencereden bağımsız sayılır.
+- **Bildirim bağlantısı:** Erişim süresi 0 olan tamamlamada yol `/portal`'dır; `_shared/messaging.ts` içindeki `portalLink` artık `/portal` yolunu da kabul eder (önceden yalnızca `/portal/...`).
+- **`ops_billing_summary` ve `ops_orders`:** `drop` ve yeniden `create` edildi; yetkiler yeniden verildi. `renewals_due` ve `renewal_due` `private.renewal_due` ile hesaplanır.
+
+**Akış C ve D için test yardımcıları:**
+- `supabase/testing/purge.sql`: `testing.run_garden_removal_housekeeping()`, `testing.set_order_period(p_order_id, p_start, p_end)`; `purge_billing_users` çıkarma kayıtlarını ve onların denetim satırlarını da siler.
+- `apps/web/tests/local-db.ts`: `runGardenRemovalHousekeeping()`, `setOrderPeriod(orderId, start, end)`.
+- `apps/web/tests/integration/billing-fixture.ts`: `activeOrderFor(customer, areasM2?)`, `addonOrderFor(customer, baseOrderId, areasM2?)`, ayrıca `submitGardens`, `payByTransfer`, `addDays`. `removeCustomers` sipariş satırlarındaki parselleri de temizler.
+- `apps/web/tests/e2e/billing-helpers.ts`: `activeMember(email, password?)`, `opsAddonQuote(applicationId, baseOrderId)`, `removalFor(email, password, parcelId, opts?)`, `istanbulToday()`.

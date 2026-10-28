@@ -4,7 +4,7 @@
 -- f7..12 of the seed org; a test session f7..22 on the seed parcel.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(44);
 
 -- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
 -- removed first; rolled back with the file (supabase/testing/reset.sql).
@@ -32,6 +32,10 @@ select ok(has_function_privilege('service_role', 'testing.purge_sessions(uuid[])
       and has_function_privilege('service_role', 'testing.purge_org(uuid)', 'execute')
       and has_function_privilege('service_role', 'testing.purge_billing_users(uuid[])', 'execute'),
   'the service role purges (web and Python tests)');
+select ok(has_function_privilege('service_role', 'testing.run_garden_removal_housekeeping()', 'execute')
+      and has_function_privilege('service_role', 'testing.set_order_period(uuid, date, date)', 'execute')
+      and not has_function_privilege('authenticated', 'testing.set_order_period(uuid, date, date)', 'execute'),
+  'the garden removal helpers are for the service role (IP14)');
 select ok(not has_function_privilege('service_role', 'testing.reset_to_seed()', 'execute'),
   'reset_to_seed is for pgTAP only');
 
@@ -206,6 +210,18 @@ insert into public.audit_event (org_id, actor_user_id, actor_role, action, entit
   ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000005', 'ops',
    'application_garden.verified', 'application_garden', pg_temp.id(63));
 
+-- A garden removal of the customer (IP14) with a system audit row about it;
+-- written with triggers off (no order behind it).
+set local session_replication_role = replica;
+insert into public.garden_removal (id, org_id, customer_user_id, number, parcel_id, order_id, order_item_id,
+  garden_name, initiated_by, reason, requested_effective_on, access_days)
+values (pg_temp.id(64), 'b0000000-0000-4000-8000-000000000001', pg_temp.id(61), 'C-2026-999901',
+        'c0000000-0000-4000-8000-000000000001', pg_temp.id(65), pg_temp.id(66), 'Purge garden', 'customer', 'sold',
+        current_date, 90);
+set local session_replication_role = origin;
+insert into public.audit_event (org_id, actor_user_id, actor_role, action, entity_type, entity_id) values
+  ('b0000000-0000-4000-8000-000000000001', null, 'system', 'garden_removal.completed', 'garden_removal', pg_temp.id(64));
+
 select throws_ok(format($$ delete from auth.users where id = %L $$, pg_temp.id(61)), '23503', null,
   'a customer with an application cannot be deleted before the purge');
 select lives_ok($$ select testing.purge_billing_users(array[pg_temp.id(61)]) $$, 'purge_billing_users runs');
@@ -219,6 +235,10 @@ select is((select count(*) from private.owner_profile where user_id = pg_temp.id
   0::bigint, 'the profiles and consent records are gone');
 select is((select count(*) from public.audit_event where actor_user_id = pg_temp.id(61) or entity_id = pg_temp.id(63)),
   0::bigint, 'the audit rows by and about the customer are gone');
+select is((select count(*) from public.garden_removal where customer_user_id = pg_temp.id(61)), 0::bigint,
+  'the garden removal is gone');
+select is((select count(*) from public.audit_event where entity_type = 'garden_removal' and entity_id = pg_temp.id(64)),
+  0::bigint, 'the system audit rows about the garden removal are gone');
 select lives_ok(format($$ delete from auth.users where id = %L $$, pg_temp.id(61)), 'the account can be deleted then');
 select is((select count(*) from public.service_application where id = '91200000-0000-4000-8000-000000000301')
           + (select count(*) from private.consent_record where subject_id = 'a0000000-0000-4000-8000-000000000006'),

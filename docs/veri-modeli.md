@@ -267,6 +267,27 @@ Dördüne de `anon` ve `authenticated` için yetki yoktur; RLS açık, politika 
 
 **`demo-media` kovası:** Herkese açık kova; demo org'unun dosyaları `org/<demo org>/parcel/<parsel>/<sha256>` yolunda, `media` ile aynı baytlarla durur ve `/object/public` üzerinden imzasız sunulur. Yalnızca demo org'unun `ops` üyesi yükler (demo claim'i olmadan); güncelleme ve silme politikası yoktur.
 
+## Üyelik boyunca bahçe ekleme ve çıkarma (İP14)
+
+Tasarım: [bahce-yonetimi.md](bahce-yonetimi.md). Yeni üyelik tablosu yoktur; üyelik dönemi **temel sipariştir** (`addon_of_order_id` boş). Migration'lar `20261102120000`–`20261102120400`.
+
+| Tablo / sütun | Ne tutar |
+| --- | --- |
+| `quote.addon_of_order_id`, `service_order.addon_of_order_id` | Ek teklif ve ek sipariş: bağlandığı temel sipariş. Ek sipariş temel siparişle aynı gün biter; yenileme hedefi olamaz |
+| `application_garden.withdrawn_at` | Gönderilmiş ya da teklif verilmiş başvurudan geri çekilen bahçe; ön izlemeye, teklife ve doğrulamaya girmez |
+| `service_order_item.removed_on`, `garden_removal_id` | Satırın hizmetten çıktığı ilk gün ve çıkarma kaydı; ikisi birlikte, bir kez yazılır (`service_order_item_guard`) |
+| `refund.garden_removal_id` | Çıkarmanın açtığı sistem iadesi |
+| `org_billing_setting` | `garden_changes_enabled` (anahtar, varsayılan kapalı), `addon_min_days` (30), `removal_notice_days` (30), `removal_access_days` (90), `removal_refund_mode` (`unused_visits` ya da `manual`) |
+| `garden_removal` | Bir parselin bir müşteri için hizmetten çıkışı (`C-YYYY-NNNNNN`): `requested` → `scheduled` → `completed` ya da `cancelled`; çıkış günü (`effective_on`), salt okunur erişim sonu (`access_until`), iade hesabı (`calculation`, `removal-v1`), iade modu ve tutarı. Silinmez; tamamlanmış kayıtta yalnızca erişim bildirimi ve erişimin kaldırılması yazılır. Parsel ve müşteri başına tek açık kayıt (`garden_removal_open_uq`) |
+
+**Kurallar:**
+- **Fiyat:** Ek teklif `pricing-v2` ile fiyatlanır (`private.price_lines_v2`): ziyaret hakkı kalan güne göre orantılanır (`private.addon_visits`), minimum ücret aynı oranla, envanter ücreti satır bazında. `pricing-v1` artık teklif başına 50 alan alır.
+- **Çift kapsama yok:** Bir parsel dönemleri çakışan iki siparişte bulunamaz (`private.parcel_in_service`); teklifte, bağlamada ve kabulde `parcel_coverage:<parsel>` danışma kilidi altında denetlenir. Hesap başına en çok 50 bahçe (`account_garden_limit`).
+- **Çıkarma:** Çıkış gününde satırlar `removed_on` alır, parselin bütün planlı ziyaretleri, açık takip istekleri ve bekleyen davetleri iptal edilir, parsel `passive` olur, iade satırları `requested` açılır, boşalan siparişler `terminated` olur. Veri silinmez.
+- **Salt okunur dönem:** `access_until` gününe kadar sahip ve hissedar soru yazamaz, hissedar davet edilemez (`parcel_read_only`); ops parseli sürdüremez (`parcel_removed`); çıkış günü ve sonrasına ziyaret planlanamaz (`parcel_removal_scheduled`). Süre bitince müşterinin sahip satırı ve davet ettiği hissedarlar kaldırılır (`private.garden_removal_housekeeping`, her gece 00:30).
+- **Yetki:** Müşteri kendi çıkarma kayıtlarını iç sütunlar (`ops_note`, `requested_by`, `decided_by`, `blocked_reason`, `revoke_all_access`) olmadan okur; ops org'unun kayıtlarını. API'den yazma yoktur; bütün geçişler fonksiyonlarla yapılır (`bahce-yonetimi.md` §9.6).
+- **Demo:** `garden_removal` yazma kilidini ve hesap kilidini taşır; yeni müşteri yazma fonksiyonları `assert_not_demo` ile başlar; `enqueue_garden_notification` demo org'unu ve demo hesabını atlar.
+
 ## MVP tablolarından geçiş
 
 | MVP | Hedef |

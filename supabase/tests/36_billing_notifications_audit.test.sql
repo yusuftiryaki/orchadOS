@@ -203,13 +203,20 @@ select is((select array_agg(x order by x) from (
   'every action carries its actor and role explicitly');
 
 -- Housekeeping: a quote past its validity, a reminder three days before the due time.
+-- Both on a pilot parcel of the customer: the served parcel would be refused
+-- (IP14, parcel_in_service).
+insert into public.parcel (id, org_id, name, estimated_area_m2)
+values ('f3600000-0000-4000-8000-000000000011', 'b0000000-0000-4000-8000-000000000001', 'Pilot 36', 15000);
+insert into public.parcel_access (org_id, parcel_id, user_id, role, granted_by)
+values ('b0000000-0000-4000-8000-000000000001', 'f3600000-0000-4000-8000-000000000011',
+  'a0000000-0000-4000-8000-000000000006', 'owner', null);
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 insert into ids select 'q2', public.ops_issue_parcel_quote('b0000000-0000-4000-8000-000000000001',
   'a0000000-0000-4000-8000-000000000006', '91200000-0000-4000-8000-000000000001',
-  array[(select parcel_id from public.application_garden where id = '91200000-0000-4000-8000-000000000401')], false, null);
+  array['f3600000-0000-4000-8000-000000000011'::uuid], false, null);
 insert into ids select 'q3', public.ops_issue_parcel_quote('b0000000-0000-4000-8000-000000000001',
   'a0000000-0000-4000-8000-000000000006', '91200000-0000-4000-8000-000000000001',
-  array[(select parcel_id from public.application_garden where id = '91200000-0000-4000-8000-000000000401')], false, null);
+  array['f3600000-0000-4000-8000-000000000011'::uuid], false, null);
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 insert into ids select 'o3', public.customer_accept_quote(pg_temp.id('q3'),
   '{"distance_sales": "mesafeli-v1-taslak", "pre_information": "onbilgi-v1-taslak"}');

@@ -547,6 +547,8 @@ describe("start", () => {
     ["order_not_payable", 409, "order_not_payable"],
     ["billing_profile_incomplete", 409, "billing_profile_incomplete"],
     ["payment_in_progress", 409, "payment_in_progress"],
+    ["garden_removal_open", 409, "garden_removal_open"],
+    ["addon_base_closed", 409, "addon_base_closed"],
     ["not_found", 404, "not_found"],
     ["fake_payments_disabled", 503, "payments_disabled"],
   ])("payment_begin %s -> %d", async (code, status, error) => {

@@ -250,6 +250,9 @@ const BEGIN_STATUS: Record<string, [string, number]> = {
   order_not_payable: ["order_not_payable", 409],
   billing_profile_incomplete: ["billing_profile_incomplete", 409],
   payment_in_progress: ["payment_in_progress", 409],
+  // IP14: an open removal of a garden on the order, an add-on whose period closed.
+  garden_removal_open: ["garden_removal_open", 409],
+  addon_base_closed: ["addon_base_closed", 409],
   fake_payments_disabled: ["payments_disabled", 503],
 };
 
