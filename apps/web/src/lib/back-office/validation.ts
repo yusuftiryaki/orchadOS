@@ -230,6 +230,8 @@ export function parseReject(read: Reader): Parsed<{ reason: string; note: string
   if (!reason) return bad("reason");
   const note = text(read, "note", 2000);
   if (!note.ok) return note;
+  // A rejection by location names the written criterion it applied (H36 (b)).
+  if (reason === "out_of_service_area" && !note.value) return bad("note");
   return ok({ reason, note: note.value });
 }
 
@@ -369,7 +371,7 @@ export function parseAddonQuote(
   return ok({ ...terms.value, parcelIds, newInventory: newInventory.value });
 }
 
-// Every reason of garden_removal_reason; transfer and duplicate are ops'.
+// Every reason of garden_removal_reason (lists and filters).
 export const REMOVAL_REASONS = [
   "sold",
   "not_needed",
@@ -378,8 +380,51 @@ export const REMOVAL_REASONS = [
   "transfer",
   "duplicate",
   "other",
+  "location_misdeclared",
+  "owner_breach",
+  "no_authority",
+  "third_party_objection",
+  "staff_safety",
+  "payment_default",
+  "service_withdrawn_district",
+  "by_agreement",
+  "period_ended",
+  "order_terminated",
+  "pilot_ended",
 ] as const;
 export type RemovalReason = (typeof REMOVAL_REASONS)[number];
+
+// The just causes of a removal by ops (contract 12/3, kararlar.md H20 (c) as
+// changed by H36); the database refuses any other (removal_reason_not_allowed).
+export const OPS_REMOVAL_REASONS = [
+  "location_misdeclared",
+  "owner_breach",
+  "no_authority",
+  "third_party_objection",
+  "staff_safety",
+  "transfer",
+  "duplicate",
+  "payment_default",
+  "service_withdrawn_district",
+  "by_agreement",
+] as const satisfies readonly RemovalReason[];
+export type OpsRemovalReason = (typeof OPS_REMOVAL_REASONS)[number];
+
+// Causes without the 30-day notice (12/3: safety, duplicate, authority or
+// objection; an agreement sets its own day; a payment default had the Md. 8/6
+// warning, T30). The others need the notice, or the owner's recorded consent
+// to an earlier day. A district withdrawal needs 60 days (H36); the database
+// also keeps it after the paid window of today (removal_window_not_ended).
+export const NO_NOTICE_REASONS: readonly OpsRemovalReason[] = [
+  "staff_safety",
+  "duplicate",
+  "no_authority",
+  "third_party_objection",
+  "by_agreement",
+  "payment_default",
+];
+export const OPS_REMOVAL_NOTICE_DAYS = 30;
+export const DISTRICT_NOTICE_DAYS = 60;
 
 // Reasons that allow a read-only window shorter than the setting without a
 // note (§5.2: a transfer suggests 0).
@@ -422,11 +467,14 @@ function parseAccessDays(
 }
 
 export interface RemovalRequestInput {
-  reason: RemovalReason;
+  reason: OpsRemovalReason;
   effectiveOn: string;
   accessDays: number | null;
   revokeAllAccess: boolean;
   note: string | null;
+  // The owner's written consent (by_agreement, or an earlier day than the
+  // notice allows).
+  ownerConsentNote?: string | null;
 }
 
 // A withdrawal received by e-mail, KEP or post (ops_record_withdrawal, T03;
@@ -456,26 +504,43 @@ export function parseWithdrawalRecord(
   return ok({ orderItemIds: ids, noticeReceivedOn: received, channel, note: note.value });
 }
 
-// "Bahçeyi çıkar" (ops_request_garden_removal).
+// "Bahçeyi çıkar" (ops_request_garden_removal): a just cause only; the day
+// at least 30 days ahead (or the period's last day + 1 when sooner) unless
+// the cause needs no notice or the owner's consent is recorded.
 export function parseRemovalRequest(
   read: Reader,
   days: RemovalDays,
   settingAccessDays: number,
 ): Parsed<RemovalRequestInput> {
   const reason = read("reason");
-  if (!(REMOVAL_REASONS as readonly string[]).includes(reason)) return bad("reason");
+  if (!(OPS_REMOVAL_REASONS as readonly string[]).includes(reason)) return bad("reason");
+  const cause = reason as OpsRemovalReason;
   const effectiveOn = parseEffectiveOn(read, days);
   if (!effectiveOn.ok) return effectiveOn;
   const note = parseNote(read, false);
   if (!note.ok) return note;
+  const consent = read("owner_consent_note").trim();
+  if (consent.length > 2000) return bad("owner_consent_note");
+  if (cause === "by_agreement" && !consent) return bad("owner_consent_note");
+  // A payment default records the Md. 8/6 warning in the note (H35, T30).
+  if (cause === "payment_default" && !note.value) return bad("note");
+  const noticeDay = addDays(
+    days.today,
+    cause === "service_withdrawn_district" ? DISTRICT_NOTICE_DAYS : OPS_REMOVAL_NOTICE_DAYS,
+  );
+  const earliest = days.lastDay && days.lastDay < noticeDay ? days.lastDay : noticeDay;
+  if (!NO_NOTICE_REASONS.includes(cause) && effectiveOn.value < earliest && !consent) {
+    return bad("owner_consent_note");
+  }
   const accessDays = parseAccessDays(read, settingAccessDays, reason, note.value, true);
   if (!accessDays.ok) return accessDays;
   return ok({
-    reason: reason as RemovalReason,
+    reason: cause,
     effectiveOn: effectiveOn.value,
     accessDays: accessDays.value,
     revokeAllAccess: checked(read, "revoke_all_access"),
     note: note.value,
+    ownerConsentNote: consent || null,
   });
 }
 

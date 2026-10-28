@@ -22,7 +22,12 @@ select enum_has_labels('public', 'payment_status',
 select enum_has_labels('public', 'garden_removal_status',
   array['requested', 'scheduled', 'completed', 'cancelled'], 'garden removal statuses (IP14)');
 select enum_has_labels('public', 'garden_removal_reason',
-  array['sold', 'not_needed', 'dissatisfied', 'cost', 'transfer', 'duplicate', 'other'], 'garden removal reasons (IP14)');
+  array['sold', 'not_needed', 'dissatisfied', 'cost', 'transfer', 'duplicate', 'other',
+        -- T05: just causes of an ops removal (H20 (c), H36); T08: system rows.
+        'location_misdeclared', 'owner_breach', 'no_authority', 'third_party_objection', 'staff_safety',
+        'payment_default', 'service_withdrawn_district', 'by_agreement', 'period_ended', 'order_terminated',
+        'pilot_ended'],
+  'garden removal reasons (IP14, T05, T08)');
 select enum_has_labels('public', 'consent_kind',
   array['kvkk_notice', 'explicit_service_improvement', 'explicit_marketing', 'distance_sales', 'pre_information',
         'early_performance'],

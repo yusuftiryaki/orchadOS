@@ -118,14 +118,24 @@ function Body({
   }
   if (data.previewError === "parcel_order_pending") {
     return (
-      <p className={styles.notice} data-testid="removal-pending-order">
-        {R.pending}{" "}
-        <Link
-          href={data.pendingOrderId ? portalHref.order(data.pendingOrderId) : portalHref.orders()}
-        >
-          {R.pendingLink}
-        </Link>
-      </p>
+      <>
+        <p className={styles.notice} data-testid="removal-pending-order">
+          {R.pending}{" "}
+          <Link
+            href={data.pendingOrderId ? portalHref.order(data.pendingOrderId) : portalHref.orders()}
+          >
+            {R.pendingLink}
+          </Link>
+        </p>
+        {data.pendingOrderId && data.changesEnabled && (
+          <PendingRemovalForm
+            data={data}
+            parcelId={parcelId}
+            orderId={data.pendingOrderId}
+            withdrawalOpen={withdrawalOpen}
+          />
+        )}
+      </>
     );
   }
   if (data.previewError) {
@@ -212,38 +222,120 @@ function RemovalForm({
         <span className="muted">{R.noteHint}</span>
         <fieldset className={billing.options} data-testid="removal-options">
           <legend>{R.timing}</legend>
-          {removalChoices(data.options, data.garden.state, data.today).map(
-            ({ option, label }, i) => (
-              <label key={option.timing} data-timing={option.timing}>
-                <input
-                  type="radio"
-                  name="timing"
-                  value={option.timing}
-                  defaultChecked={i === 0}
-                  required
-                />
-                <span>
-                  <strong>{label}</strong>
-                  <span data-testid="removal-option-date">
-                    {R.effectiveOn(formatDate(option.effectiveOn))}
-                  </span>
-                  <span className="muted">
-                    {R.refund(formatKurus(option.refundEstimateKurus))}
-                    {" · "}
-                    {R.accessUntil(formatDate(option.accessUntil))}
-                  </span>
-                  {/* H11 (c): another timing inside the period is no withdrawal. */}
-                  {withdrawalOpen && option.timing !== "withdrawal" && (
-                    <span className={styles.notice} data-testid="not-withdrawal-warning">
-                      {R.notWithdrawal}
-                    </span>
-                  )}
+          {removalChoices(data.options, data.garden.state, data.today).map(({ option, label }) => (
+            <label key={option.timing} data-timing={option.timing}>
+              {/* No default (contract 12/3, H20): the owner chooses. */}
+              <input type="radio" name="timing" value={option.timing} required />
+              <span>
+                <strong>{label}</strong>
+                <span data-testid="removal-option-date">
+                  {R.effectiveOn(formatDate(option.effectiveOn))}
                 </span>
-              </label>
-            ),
-          )}
+                <span className="muted">
+                  {R.refund(formatKurus(option.refundEstimateKurus))}
+                  {" · "}
+                  {R.accessUntil(formatDate(option.accessUntil))}
+                </span>
+                {/* H11 (c): another timing inside the period is no withdrawal. */}
+                {withdrawalOpen && option.timing !== "withdrawal" && (
+                  <span className={styles.notice} data-testid="not-withdrawal-warning">
+                    {R.notWithdrawal}
+                  </span>
+                )}
+              </span>
+            </label>
+          ))}
         </fieldset>
         <p className="muted">{R.refundNote}</p>
+        <label>
+          <input type="checkbox" name="confirm" required />
+          <span>{R.confirm}</span>
+        </label>
+        <p>
+          <button className="button" type="submit">
+            {R.submit}
+          </button>
+        </p>
+      </form>
+    </details>
+  );
+}
+
+// The garden is on an order awaiting payment (12/3): the same form with the
+// timings only (no preview is possible yet) and the required "cancel the
+// pending order and continue" box; the database cancels the order and
+// records the request in one transaction.
+function PendingRemovalForm({
+  data,
+  parcelId,
+  orderId,
+  withdrawalOpen,
+}: {
+  data: ServiceCardData;
+  parcelId: string;
+  orderId: string;
+  withdrawalOpen: boolean;
+}) {
+  const timings = (
+    data.garden.state === "upcoming"
+      ? (["notice"] as const)
+      : withdrawalOpen
+        ? (["immediate", "notice", "period_end", "withdrawal"] as const)
+        : (["immediate", "notice", "period_end"] as const)
+  ).map((timing) => ({
+    timing,
+    label:
+      timing === "notice"
+        ? data.garden.state === "upcoming"
+          ? R.timings.beforeStart
+          : R.timings.notice(30)
+        : R.timings[timing],
+  }));
+  return (
+    <details className={styles.noPrint} data-testid="removal-form-pending">
+      <summary>{R.formTitle}</summary>
+      <form action={requestGardenRemovalAction} className={billing.checks}>
+        <input type="hidden" name="parcel_id" value={parcelId} />
+        <input type="hidden" name="withdrawal_open" value={withdrawalOpen ? "1" : "0"} />
+        <input type="hidden" name="cancel_order_id" value={orderId} />
+        <p className="muted">{R.formLead}</p>
+        <label htmlFor="fp-reason">{R.reason}</label>
+        <select id="fp-reason" name="reason" required defaultValue="">
+          <option value="" disabled>
+            {P.choose}
+          </option>
+          {REMOVAL_REASONS.map((reason) => (
+            <option key={reason} value={reason}>
+              {billingText.gardenRemovalReason[reason]}
+            </option>
+          ))}
+        </select>
+        <fieldset className={billing.options} data-testid="removal-options">
+          <legend>{R.timing}</legend>
+          {timings.map(({ timing, label }) => (
+            <label key={timing} data-timing={timing}>
+              <input type="radio" name="timing" value={timing} required />
+              <span>
+                <strong>{label}</strong>
+                {withdrawalOpen && timing !== "withdrawal" && (
+                  <span className={styles.notice} data-testid="not-withdrawal-warning">
+                    {R.notWithdrawal}
+                  </span>
+                )}
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <p className="muted">{R.pendingDates}</p>
+        <label>
+          <input
+            type="checkbox"
+            name="cancel_pending"
+            required
+            data-testid="removal-cancel-pending"
+          />
+          <span>{R.pendingCancel}</span>
+        </label>
         <label>
           <input type="checkbox" name="confirm" required />
           <span>{R.confirm}</span>

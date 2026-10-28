@@ -79,6 +79,8 @@ Bu politika, Şirket'in işlediği kişisel verilerin ne kadar saklanacağını,
 | `demo-housekeeping`, `demo-cleanup` | Demo turu: IP özetleri, süresi biten demo hesapları ve denetim kayıtları | 48 saat / oturum sonu | 5 ve 15 dakikada bir |
 
   Üç yeni iş ilk kurulumda bir kez de çalışır; süresi geçmiş kayıt bırakmaz. Barındırılan projede veritabanı rolünün `auth` şemasında silme yetkisi yoksa iş durmaz, uyarı yazar ve `null` döner; o durumda yayına alma kontrolü (`cron.job_run_details`) bunu gösterir ve silme Supabase panelinden ya da yetkili rolle yapılır. İşlerin çıktısı (`cron.job_run_details`) imha tutanağına eklenir.
+- **Erişim sonunda** (T09, H25): Bahçenin salt okunur erişim süresi bitince (çıkarma ya da hizmet sonu) ve bahçeye artık hiçbir sözleşme hizmet vermiyorsa sahadaki iletişim kişisinin (sınırı gösteren kişi, bekçi) telefonu otomatik silinir; adı kalır. Denetim kaydı `parcel.site_contact_phone_cleared`.
+- **Sona erme tarihleri** (T09): Her bahçe çıkarmasında ve sözleşmenin sona ermesinde, parsel ve sahip bazında son hizmet günü kaydedilir (`private.contract_end`). Sözleşmenin sona ermesine bağlı süreler (2 ve 10 yıl) bu tarihten sayılır.
 - 2 ve 10 yıllık imha ve anonimleştirme (T10), ilk vade olan 2029'dan önce kurulur.
 
 ## 6. Talep üzerine silme

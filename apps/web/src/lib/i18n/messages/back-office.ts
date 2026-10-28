@@ -101,6 +101,7 @@ const fields: Record<string, string> = {
   effective_on: "Çıkış günü",
   access_days: "Erişim süresi (gün)",
   revoke_all_access: "Herkesin erişimini kaldır",
+  owner_consent_note: "Sahip'in yazılı onayı",
   garden_changes_enabled: "Bahçe ekleme ve çıkarma",
   addon_min_days: "Ek teklif için en az kalan gün",
   removal_notice_days: "Çıkarma bildirim süresi (gün)",
@@ -678,6 +679,22 @@ export const backOfficeText = {
     parcel: "Parsel",
     reason: "Neden",
     initiatedBy: "Açan",
+    // T05 (contract 12/3).
+    timing: "Müşterinin seçtiği zaman",
+    timings: {
+      immediate: "Hemen (ertesi gün)",
+      notice: "30 gün sonra",
+      period_end: "Dönem sonunda",
+      withdrawal: "Cayma",
+    } as Record<string, string>,
+    noticeRule: "Bildirim kuralı",
+    noticeRules: {
+      notice: "En az 30 gün (ya da Sahip'in yazılı onayı)",
+      no_notice: "Bildirim süresi aranmaz",
+      district: "En az 60 gün; ödenmiş ve içinde bulunulan pencere bitmeden çıkış yok",
+      payment_warning: "Madde 8/6 uyarısının süresi (uyarı notta yazılı)",
+    } as Record<string, string>,
+    ownerConsent: "Sahip'in yazılı onayı",
     customerNote: "Müşterinin notu",
     opsNote: "İç not",
     requestedOn: "İstenen çıkış günü",
@@ -736,6 +753,11 @@ export const backOfficeText = {
     unknown: "Okunamadı",
     revokeAllUnknown:
       "Kayıttaki seçim okunamadı: kutu boş bırakılırsa mevcut seçim korunur, işaretlenirse herkesin erişimi kaldırılır.",
+    // T05 (contract 12/3, kararlar.md H20 (c)).
+    reasonHint:
+      "Şirket yalnızca sözleşmede sayılan haklı sebeplerle çıkarabilir. Bildirim en az 30 gündür; güvenlik tehdidi, mükerrer kayıt, yetkisizlik ve üçüncü kişi itirazında süre aranmaz. Kullanılmayan bütün ziyaretlerin bedeli iade edilir.",
+    consentHint:
+      "Anlaşmayla çıkarmada ve 30 günden erken bir tarihte zorunlu: Sahip'in onayının nasıl ve ne zaman alındığı (ör. e-posta, tarih). İç kayıttır.",
     accessDaysHint: (days: number) =>
       `Boş bırakılırsa ${days} gün; nedeni devir ise 0 gün (satıcının erişimi kalmaz).`,
     shortAccessRule: (days: number) =>

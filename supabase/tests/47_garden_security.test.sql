@@ -42,8 +42,8 @@ insert into ip14_fn values
   ('public.customer_addon_preview(numeric[])'),
   ('public.customer_withdraw_application_garden(uuid)'),
   ('public.customer_revise_order(uuid,text)'),
-  ('public.customer_garden_removal_preview(uuid,boolean,boolean)'),
-  ('public.customer_request_garden_removal(uuid,text,text,boolean,boolean)'),
+  ('public.customer_garden_removal_preview(uuid,text)'),
+  ('public.customer_request_garden_removal(uuid,text,text,text,uuid)'),
   ('public.customer_cancel_garden_removal(uuid)'),
   ('public.ops_customer_service_period(uuid,uuid)'),
   ('public.ops_customer_gardens(uuid,uuid)'),
@@ -54,7 +54,7 @@ insert into ip14_fn values
   ('public.ops_issue_addon_quote(uuid,uuid,uuid[],date,integer,integer,text,text,jsonb)'),
   ('public.ops_garden_removals(uuid,text,integer)'),
   ('public.ops_garden_removal_preview(uuid,date)'),
-  ('public.ops_request_garden_removal(uuid,text,date,text,integer,boolean)'),
+  ('public.ops_request_garden_removal(uuid,text,date,text,integer,boolean,text)'),
   ('public.ops_schedule_garden_removal(uuid,date,text,integer,boolean)'),
   ('public.ops_cancel_garden_removal(uuid,text)'),
   ('public.ops_complete_garden_removal(uuid)'),
@@ -144,7 +144,7 @@ select pg_temp.ops();
 select public.ops_record_manual_payment(pg_temp.id('o'), (select total_kurus from public.service_order where id = pg_temp.id('o')),
   current_date, 'EFT-47');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
-insert into ids select 'r', public.customer_request_garden_removal('c0000000-0000-4000-8000-000000000001', 'other',
+insert into ids select 'r', public.customer_request_garden_removal('c0000000-0000-4000-8000-000000000001', 'other', 'notice',
   'Telefonum 05550000001, adım Örnek Sahip');
 select pg_temp.ops();
 select public.ops_schedule_garden_removal(pg_temp.id('r'), private.istanbul_today(), 'bugün, müşteri Örnek Sahip istedi');
@@ -193,7 +193,7 @@ insert into auth.users (instance_id, id, aud, role, email, encrypted_password, e
 values ('00000000-0000-0000-0000-000000000000', 'd1470000-0000-4000-8000-000000000001', 'authenticated', 'authenticated',
         'ziyaretci-47@demo.orchados.invalid', '', '', '', '{"demo": true}', '{"email_verified": true}', now(), now());
 select pg_temp.as_demo('d1470000-0000-4000-8000-000000000001');
-select is(pg_temp.error_of($$ select public.customer_request_garden_removal('c0000000-0000-4000-8000-000000000001', 'sold') $$),
+select is(pg_temp.error_of($$ select public.customer_request_garden_removal('c0000000-0000-4000-8000-000000000001', 'sold', 'notice') $$),
   '42501 demo_read_only', 'a demo visitor requests no removal');
 select is(pg_temp.error_of($$ select public.customer_cancel_garden_removal(pg_temp.id('r')) $$),
   '42501 demo_read_only', 'nor cancels one');

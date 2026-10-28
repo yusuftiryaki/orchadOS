@@ -37,7 +37,10 @@ select tables_are('private', array['owner_profile', 'parcel_detail', 'message_ou
   'legal_text_version', 'contract_document', 'captcha_spent',
   -- Legal follow-ups wave 2 (T23, T20, T16, T11).
   'staff_profile', 'media_suppression', 'boundary_approval', 'boundary_pointer', 'boundary_dispute',
-  'kvkk_request'], 'private has the personal data tables');
+  'kvkk_request',
+  -- Wave 3 (T07, T06, T09, T04 sweep).
+  'visit_notice', 'visit_postponement', 'missed_visit', 'visit_reconciliation', 'contract_end',
+  'contract_sweep_ticket'], 'private has the personal data tables');
 
 select is(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace

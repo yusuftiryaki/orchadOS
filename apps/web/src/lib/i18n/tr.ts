@@ -916,6 +916,11 @@ export const tr = {
       invitation_approved: "Hissedar eklendi; telefonla (SMS koduyla) portala girebilir.",
       invitation_rejected: "Davet reddedildi; sahip portalda görür.",
       followups_planned: "İstekler ziyarete bağlandı.",
+      phone_notice_saved: "Telefonla bildirim kaydedildi.",
+      postponement_saved: "Erteleme kaydedildi; ziyareti aynı pencerede yeni bir tarihe planlayın.",
+      missed_visit_saved: "Yapılamayan ziyaret kaydedildi.",
+      missed_outcome_saved: "Sonuç kaydedildi.",
+      reconciliation_resolved: "Görev kapatıldı.",
     },
     errors: {
       forbidden: "Bu işlem için yetkiniz yok.",
@@ -940,6 +945,15 @@ export const tr = {
       boundary_dispute_open:
         "Bu bahçede açık bir sınır itirazı var; itiraz kapatılmadan envanter ya da periyodik tarama planlanamaz.",
       already_owner: "Bu kişi parselin sahibi; hissedar olarak eklenemez.",
+      postponement_not_allowed:
+        "Erteleme yalnızca bir kez ve ziyaretten en geç bir gün önce istenebilir.",
+      proposed_date_outside_window: "Önerilen tarih aynı ziyaret penceresinin içinde olmalı.",
+      deemed_done_not_allowed:
+        "Yapılmış sayma yalnızca Sahip kaynaklı ikinci başarısız denemede, önerilen tarihte olur (8A/3).",
+      carry_over_not_allowed:
+        "Aktarma yalnızca aynı dönemin sonraki bir penceresine yapılabilir (8A/2).",
+      missed_visit_frozen: "Bu kaydın sonucu zaten girilmiş.",
+      reconciliation_frozen: "Bu görev zaten kapatılmış.",
       invite_unavailable:
         "Portal hesabı açılamadı: hesap servisi (invite-user) erişilemiyor. Hesabı Supabase panelinden açıp aynı e-postayla tekrar deneyin.",
       conflict: "E-posta ile telefon farklı hesaplara ait. Bilgileri kontrol edin.",
@@ -1756,6 +1770,8 @@ export const tr = {
       garden_removal_completed: "Bahçe hizmetten çıkarıldı",
       garden_access_ending: "Rapor erişimi bitiyor",
       withdrawal_received: "Cayma bildirimi alındı",
+      visit_scheduled: "Ziyaret tarihi bildirimi",
+      garden_transfer_reports: "Devir: raporlarınızı indirin",
       contract_ready: "Sözleşme belgeleri hazır",
       addon_order_closed: "Ek sipariş iptal edildi",
       viewer_invited: "Hissedar daveti",

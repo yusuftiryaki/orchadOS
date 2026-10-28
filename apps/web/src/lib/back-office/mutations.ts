@@ -197,6 +197,7 @@ export async function requestGardenRemoval(
       ...(input.note ? { p_note: input.note } : {}),
       ...(input.accessDays != null ? { p_access_days: input.accessDays } : {}),
       p_revoke_all_access: input.revokeAllAccess,
+      ...(input.ownerConsentNote ? { p_owner_consent_note: input.ownerConsentNote } : {}),
     }),
   );
 }

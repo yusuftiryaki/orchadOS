@@ -41,6 +41,7 @@ export function gardenBadge(
     CustomerGarden,
     "state" | "service_start" | "service_end" | "removal_effective_on" | "access_until"
   >,
+  today: string = istanbulToday(),
 ): string {
   switch (garden.state) {
     case "leaving":
@@ -48,6 +49,10 @@ export function gardenBadge(
         ? G.leaving(formatDate(garden.removal_effective_on))
         : G.inService;
     case "removed":
+      // T23: listed after the access ended too, with the exit day.
+      if (accessEnded(garden, today)) {
+        return G.exited(formatDate(garden.removal_effective_on ?? garden.service_end));
+      }
       return garden.access_until ? G.removed(formatDate(garden.access_until)) : G.inService;
     case "upcoming":
       return G.upcoming(formatDate(garden.service_start));
@@ -55,6 +60,12 @@ export function gardenBadge(
       return G.inService;
   }
 }
+
+// A removed garden whose read-only access is over: no link to its page.
+export const accessEnded = (
+  garden: Pick<CustomerGarden, "state" | "access_until">,
+  today: string = istanbulToday(),
+): boolean => garden.state === "removed" && !!garden.access_until && garden.access_until < today;
 
 // The open removal of a garden row, if any.
 export const openRemoval = (
@@ -135,15 +146,22 @@ export function removalChoices<T extends { timing: RemovalTiming; effectiveOn: s
   const end = options.find((o) => o.timing === "period_end");
   const same = !!notice && !!end && notice.effectiveOn === end.effectiveOn;
   const upcoming = state === "upcoming";
-  return options
-    .filter((o) => !same || o.timing !== (upcoming ? "period_end" : "notice"))
-    .map((option) => ({
-      option,
-      label:
-        option.timing === "notice"
-          ? upcoming
-            ? R.timings.beforeStart
-            : R.timings.notice(daysBetween(today, option.effectiveOn))
-          : R.timings[option.timing],
-    }));
+  const immediate = options.find((o) => o.timing === "immediate");
+  return (
+    options
+      .filter((o) => !same || o.timing !== (upcoming ? "period_end" : "notice"))
+      // Before the start every timing leaves on the start: one choice.
+      .filter((o) => !upcoming || o.timing !== "immediate")
+      // "Hemen" and "30 gün sonra" on the same day (the period ends tomorrow).
+      .filter((o) => !(o.timing === "notice" && immediate?.effectiveOn === o.effectiveOn))
+      .map((option) => ({
+        option,
+        label:
+          option.timing === "notice"
+            ? upcoming
+              ? R.timings.beforeStart
+              : R.timings.notice(daysBetween(today, option.effectiveOn))
+            : R.timings[option.timing],
+      }))
+  );
 }

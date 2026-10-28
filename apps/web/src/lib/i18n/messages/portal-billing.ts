@@ -29,6 +29,8 @@ const notices: Record<PortalNotice, string> = {
     "Çıkarma talebiniz alındı. Bahçe çıkış tarihinde kendiliğinden hizmetten çıkar; o güne kadar talebi geri alabilirsiniz.",
   cikarma_geri_alindi: "Çıkarma talebiniz geri alındı; bahçeniz hizmette kalıyor.",
   bahce_basvurudan_cikarildi: "Bahçe başvurudan çıkarıldı.",
+  ziyaret_ertelendi:
+    "Erteleme isteğiniz alındı. Ekibimiz ziyareti aynı ziyaret penceresi içinde yeni bir tarihe planlayıp size bildirecek.",
   siparis_duzeltmeye_acildi:
     "Sipariş iptal edildi ve başvurunuz düzeltmeye açıldı. Bahçe listesini değiştirin; ekibimiz yeni bir teklif hazırlayacak.",
 };
@@ -164,6 +166,7 @@ export const portalBillingText = {
     serviceEnd: (date: string) => `Hizmet bitişi: ${date}`,
     leaving: (date: string) => `Çıkış tarihi: ${date}`,
     removed: (date: string) => `Hizmet dışı · raporlar şu tarihe kadar açık: ${date}`,
+    exited: (date: string) => `Hizmetten çıkış: ${date} · raporlara erişim kapandı`,
     upcoming: (date: string) => `Sonraki dönemde başlıyor: ${date}`,
     pilotTitle: "Siparişsiz bahçeler",
     pilotContact: "Bu bahçeyi çıkarmak için bize ulaşın",
@@ -186,6 +189,8 @@ export const portalBillingText = {
     timings: {
       // The days to the effective day (removal_notice_days, 30 by default).
       notice: (days: number) => (days <= 0 ? "Bugün" : `${days} gün sonra`),
+      // Contract 12/3: "çıkış günü talep gününün ertesi günüdür".
+      immediate: "Hemen: bahçe yarın hizmetten çıkar",
       beforeStart: "Hizmet başlamadan",
       period_end: "Dönem sonunda",
       withdrawal:
@@ -214,6 +219,11 @@ export const portalBillingText = {
     pending:
       "Bu bahçe ödeme bekleyen bir siparişte. Çıkarmak için önce o siparişi iptal edin ya da bahçe listesini değiştirin.",
     pendingLink: "Siparişe gidin",
+    // 12/3: "Portal, aynı işlemde bekleyen siparişi iptal etme seçeneği sunar."
+    pendingCancel:
+      "Bekleyen siparişi iptal et ve devam et: sipariş bedelsiz iptal edilir, ödeme alınmaz.",
+    pendingDates:
+      "Çıkış tarihi ve tahmini iade, sipariş iptal edildikten sonra bahçenin sayfasında görünür.",
     removed: (number: string) => `Bahçe hizmetten çıkarıldı (${number}).`,
     removedBand: (date: string) =>
       `Bu bahçe hizmetten çıkarıldı. Raporlar şu tarihe kadar açık: ${date}`,
@@ -223,6 +233,7 @@ export const portalBillingText = {
       reason: "Bir neden seçin.",
       timing: "Bir çıkış zamanı seçin.",
       confirm: "Devam etmek için onay kutusunu işaretleyin.",
+      cancel_pending: "Bekleyen siparişi iptal etmeyi onaylayın.",
       note: "Not en fazla 1000 karakter olabilir.",
     } as Record<string, string>,
   },

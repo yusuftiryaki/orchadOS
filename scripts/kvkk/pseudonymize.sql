@@ -95,6 +95,32 @@ with changed as (
 )
 select pg_temp.kvkk_count('private.boundary_dispute', 'note text', count(*)::integer) from changed;
 
+-- ===== private.missed_visit / private.visit_reconciliation notes ===========
+-- (H26 item 2; T07, T06) The note of a missed-visit record (8A/3 evidence)
+-- and the resolution note of an 8A task on the parcels in scope: only with
+-- --include-notes, whole names and phones of the subject. The records stay.
+with changed as (
+  update private.missed_visit m
+  set note = pg_temp.kvkk_mask(m.note, p.pseudonym)
+  from kvkk_param p, kvkk_parcel k
+  where p.include_notes
+    and k.parcel_id = m.parcel_id
+    and pg_temp.kvkk_has_match(m.note)
+  returning 1
+)
+select pg_temp.kvkk_count('private.missed_visit', 'note text', count(*)::integer) from changed;
+
+with changed as (
+  update private.visit_reconciliation v
+  set resolution_note = pg_temp.kvkk_mask(v.resolution_note, p.pseudonym)
+  from kvkk_param p, kvkk_parcel k
+  where p.include_notes
+    and k.parcel_id = v.parcel_id
+    and pg_temp.kvkk_has_match(v.resolution_note)
+  returning 1
+)
+select pg_temp.kvkk_count('private.visit_reconciliation', 'note text', count(*)::integer) from changed;
+
 -- ===== public.audit_event (H26 item 2) =====================================
 -- details must never hold personal data; a match is replaced all the same,
 -- but only in rows tied to the subject (kvkk_audit_scope: actor, entity or

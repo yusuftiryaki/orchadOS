@@ -71,6 +71,18 @@ export const BILLING_ERRORS = [
   "boundary_dispute_open",
   "order_not_active",
   "contract_document_immutable",
+  // P0001, wave 3 (docs/hukuk/kararlar.md T05, T07, T06)
+  "removal_reason_not_allowed",
+  "removal_notice_too_short",
+  "postponement_not_allowed",
+  "visit_not_planned",
+  "proposed_date_outside_window",
+  "deemed_done_not_allowed",
+  "carry_over_not_allowed",
+  "missed_visit_frozen",
+  "reconciliation_frozen",
+  "removal_window_not_ended",
+  "payment_default_not_due",
   // P0001, per-visit payment plan (docs/musteri-yonetimi.md §5.6, H35)
   "installment_unpaid",
   "installment_not_open",

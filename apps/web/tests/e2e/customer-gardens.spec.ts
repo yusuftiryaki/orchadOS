@@ -19,7 +19,7 @@ import {
 // garden from the home card (locked package, membership band, prorated
 // preview); ops issues the add-on quote through the API; the customer
 // accepts and pays with the fake card and sees two gardens. Then a removal
-// from "Hesabım › Bahçelerim" with the three timings, undone; a removal ops
+// from "Hesabım › Bahçelerim" with the four timings (none preselected), undone; a removal ops
 // opened, which the customer cannot undo; and a removal
 // completed by ops, after which the parcel is read-only. Test accounts are
 // removed at the end.
@@ -244,7 +244,10 @@ test("the customer asks to remove a garden from the account page and undoes it",
   await expect(card).toContainText("Cayma hakkının son günü:");
   await card.getByText("Bahçeyi hizmetten çıkar", { exact: true }).click();
   const options = card.getByTestId("removal-options");
-  await expect(options.locator("label")).toHaveCount(3);
+  await expect(options.locator("label")).toHaveCount(4);
+  // No default (contract 12/3, H20): nothing is checked until the owner chooses.
+  await expect(options.locator('input[type="radio"]:checked')).toHaveCount(0);
+  await expect(options.locator('label[data-timing="immediate"]')).toContainText("Hemen");
   await expect(options.locator('label[data-timing="notice"]')).toContainText("30 gün sonra");
   await expect(options.locator('label[data-timing="period_end"]')).toContainText("Dönem sonunda");
   await expect(options.locator('label[data-timing="withdrawal"]')).toContainText(
@@ -260,6 +263,7 @@ test("the customer asks to remove a garden from the account page and undoes it",
     .textContent();
 
   await card.getByLabel("Neden").selectOption("not_needed");
+  await options.locator('label[data-timing="notice"] input').check();
   await card.getByLabel(/hizmetten çıkacağını/).check();
   await card
     .getByRole("button", { name: "Bahçeyi hizmetten çıkar (raporlarınız silinmez)" })

@@ -72,6 +72,23 @@ const errors: Record<BillingError, string> = {
     "Bu bahçede açık bir sınır itirazı var; itiraz kapatılmadan tarama planlanamaz.",
   order_not_active: "Sipariş henüz etkin değil.",
   contract_document_immutable: "Sözleşme belgeleri değiştirilemez ve silinemez.",
+  removal_reason_not_allowed:
+    "Şirket bir bahçeyi yalnızca sözleşmede sayılan haklı sebeplerle hizmetten çıkarabilir.",
+  removal_notice_too_short:
+    "Bu sebeple çıkarmada en az 30 gün (ilçedeki hizmetin sona ermesinde 60 gün) önceden bildirim gerekir; daha erken bir tarih yalnızca Sahip'in yazılı onayıyla verilir.",
+  postponement_not_allowed:
+    "Bu ziyaret ertelenemez: erteleme ziyaretten en geç bir gün önce ve bir kez istenebilir.",
+  visit_not_planned: "Bu ziyaret planlı değil.",
+  proposed_date_outside_window: "Önerilen tarih aynı ziyaret penceresinin içinde olmalı.",
+  deemed_done_not_allowed:
+    "Ziyaret yalnızca Sahip kaynaklı ikinci başarısız denemede, önerilen tarihte yapılmış sayılır.",
+  carry_over_not_allowed: "Ziyaret yalnızca aynı dönemin sonraki bir penceresine aktarılabilir.",
+  missed_visit_frozen: "Bu kaydın sonucu zaten girildi; kayıt değiştirilemez.",
+  reconciliation_frozen: "Bu görev zaten kapatıldı.",
+  removal_window_not_ended:
+    "İlçedeki hizmetin sona ermesinde çıkış günü, bugünün içinde bulunduğu ve ödenmiş ziyaret penceresinin bitiminden önce olamaz.",
+  payment_default_not_due:
+    "Ödeme nedeniyle çıkarma için siparişin bir ödemesinin son gününden itibaren en az 30 gün geçmiş ve ödenmemiş olması gerekir.",
   installment_unpaid:
     "Bu ziyaretin ödemesi yapılmadı; ziyaret ödemeden sonra planlanır. Sahip yazılı olarak isterse sipariş sayfasından not yazarak ödemesiz ziyarete izin verebilirsiniz.",
   installment_not_open: "Bu ödeme artık açık değil.",
@@ -178,6 +195,21 @@ export const billingText = {
     other: "Diğer",
     transfer: "Devir (yeni sahibe geçti)",
     duplicate: "Mükerrer kayıt",
+    // Ops just causes (contract 12/3, H20 (c) as changed by H36).
+    location_misdeclared:
+      "Bahçenin gerçek konumunun başvuruda bildirilenden esaslı biçimde farklı olması",
+    owner_breach: "Sahip'in Madde 5 yükümlülüklerini esaslı ya da tekrar tekrar ihlali",
+    no_authority: "Sahip'in yetkisinin bulunmaması",
+    third_party_objection: "Üçüncü kişi itirazı (Madde 6/4)",
+    staff_safety: "Personelin güvenliğini tehdit eden durum",
+    payment_default: "Madde 8/6'daki uyarıya rağmen bir ödemenin yapılmaması",
+    service_withdrawn_district:
+      "İlçedeki saha hizmetinin o ilçedeki bütün sahipler için aynı tarihte sona erdirilmesi",
+    by_agreement: "Sahip'le anlaşarak (yazılı onay)",
+    // The access flow of every contract end (T08, contract 12/4).
+    period_ended: "Hizmet dönemi sona erdi",
+    order_terminated: "Sözleşme Şirket tarafından feshedildi",
+    pilot_ended: "Pilot hizmet sona erdi",
   },
   removalRefundMode: {
     unused_visits: "Yapılmayan ziyaretler",
@@ -189,6 +221,8 @@ export const billingText = {
   removalInitiatedBy: {
     customer: "Müşteri",
     ops: "Operasyon",
+    // T08: the access window when a contract ends (period end, termination, pilot).
+    system: "Sistem (hizmet sonu)",
   },
   // T18 (docs/hukuk/kararlar.md H19, contract 8D/2–8D/3): the add-on
   // breakdown (lib/billing/addon-breakdown.ts).

@@ -54,6 +54,9 @@ const ev = {
   noteNamesake: randomUUID(),
   noteOther: randomUUID(),
   demoPointer: randomUUID(),
+  // Wave 3 (T07): missed-visit records with notes.
+  missedA: randomUUID(),
+  missedLonger: randomUUID(),
 };
 const audit = {
   leak: randomUUID(),
@@ -88,7 +91,8 @@ function untouchable(): string {
     'events', (select json_agg(e.payload order by e.id) from public.session_event e
                where e.id in ('${ev.pointerLonger}', '${ev.pointerEce}', '${ev.noteNamesake}', '${ev.noteOther}')),
     'audit', (select json_agg(x.details order by x.id) from public.audit_event x
-              where x.id in ('${audit.namesake}', '${audit.kemalOut}'))
+              where x.id in ('${audit.namesake}', '${audit.kemalOut}')),
+    'missed', (select json_agg(m.note order by m.id) from private.missed_visit m where m.id = '${ev.missedLonger}')
   )::jsonb::text`);
 }
 
@@ -209,6 +213,19 @@ beforeAll(async () => {
     insert into private.boundary_dispute (org_id, parcel_id, action, note, created_at)
     values ('${orgId}', '${parcel}', 'open', ${lit(`${NAME} sınıra itiraz etti`)}, now() - interval '1 minute'),
            ('${orgId}', '${parcel}', 'close', ${lit(`${LONGER} ile çözüldü`)}, now());
+
+    -- Wave 3 (T07): missed-visit notes on PA, one naming A, one a longer namesake.
+    insert into private.missed_visit (id, org_id, parcel_id, session_id, occurred_on, reason, note)
+    values ('${ev.missedA}', '${orgId}', '${parcel}', '${session}', current_date - 3, 'weather',
+            ${lit(`Yol kapalıydı; ${NAME} aradı, tel ${aPhone}`)}),
+           ('${ev.missedLonger}', '${orgId}', '${parcel}', '${session}', current_date - 2, 'company',
+            ${lit(`${LONGER} haber verdi`)});
+    -- A's visit notice and postponement (kept with the contract).
+    insert into private.visit_notice (org_id, parcel_id, session_id, planned_date, channel, notified_at,
+      notification_id, recipient_user_id)
+    values ('${orgId}', '${parcel}', '${session}', current_date + 5, 'message', now(), '${randomUUID()}', '${a.id}');
+    insert into private.visit_postponement (org_id, parcel_id, session_id, original_date, requested_at, channel, requested_by)
+    values ('${orgId}', '${parcel}', '${session}', current_date + 5, now(), 'portal', '${a.id}');
 
     insert into public.audit_event (id, org_id, actor_role, action, entity_type, entity_id, details)
     values
@@ -338,12 +355,17 @@ describe("scripts/kvkk/run.sh", () => {
       "private.boundary_pointer",
       "private.media_suppression (notes mentioning the subject)",
       "private.boundary_dispute (notes mentioning the subject)",
+      "private.missed_visit (notes mentioning the subject)",
       "ops notes without an exact match (review)",
       "public.audit_event (details mention the subject)",
       "public.audit_event (match in rows not tied to the subject, review)",
       "private.consent_record",
       "public.payment",
       "public.service_order",
+      // Wave 3: kept with their retention reason.
+      "private.visit_notice",
+      "private.visit_postponement",
+      "private.missed_visit (parcels in scope)",
     ]) {
       expect(run.stdout).toMatch(new RegExp(`\\n ${table.replace(/[()]/g, "\\$&")}\\s+\\|`));
     }
@@ -527,6 +549,7 @@ describe("scripts/kvkk/run.sh", () => {
     // The copy of A's pointer event (T16) changes with it; ops notes wait for --include-notes.
     expect(printed(first, "private.boundary_pointer", "name")).toBe(1);
     expect(printed(first, "private.media_suppression", "note text")).toBe(0);
+    expect(printed(first, "private.missed_visit", "note text")).toBe(0);
     expect(printed(first, "public.audit_event", "details text")).toBe(2);
     const early = kvkk(["erase", "--subject", a.id, "--request", requests.subject, "--apply"]);
     expect(early.status).toBe(3);
@@ -545,6 +568,11 @@ describe("scripts/kvkk/run.sh", () => {
     expect(printed(pseudo, "public.session_event", "note text")).toBe(1);
     expect(printed(pseudo, "private.media_suppression", "note text")).toBe(1);
     expect(printed(pseudo, "private.boundary_dispute", "note text")).toBe(1);
+    // T07: the missed-visit note naming A; the longer namesake stays (untouchable).
+    expect(printed(pseudo, "private.missed_visit", "note text")).toBe(1);
+    expect(value(`select note from private.missed_visit where id = '${ev.missedA}'`)).toBe(
+      `Yol kapalıydı; ${ps} aradı, tel ${ps}`,
+    );
     expect(
       value(`select name from private.boundary_pointer where source_event_id = '${ev.pointerA}'`),
     ).toBe(ps);

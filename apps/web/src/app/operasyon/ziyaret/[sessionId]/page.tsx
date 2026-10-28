@@ -8,6 +8,7 @@ import { LegalNotice } from "@/components/operations/legal-notice";
 import { MediaSuppression } from "@/components/operations/media-suppression";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { VisitForm } from "@/components/operations/visit-form";
+import { VisitRecords } from "@/components/operations/visit-records";
 import { requireSection } from "@/lib/auth/session";
 import { formatDate, t } from "@/lib/i18n";
 import { loadCloseupList } from "@/lib/expert/followups";
@@ -15,6 +16,7 @@ import { createMediaSigner } from "@/lib/media/signer";
 import { getVisit, listStaffByUser, opsOrgs } from "@/lib/operations/data";
 import { listSuppressions, listVisitMedia, type MediaTab } from "@/lib/operations/legal";
 import { opsHref } from "@/lib/operations/urls";
+import { loadVisitRecords } from "@/lib/operations/visit-records";
 import { isPlanEditable, todayIn, visitSeason, type VisitKind } from "@/lib/operations/visits";
 import { createClient } from "@/lib/supabase/server";
 
@@ -49,6 +51,11 @@ export default async function Page({
   const tab: MediaTab = tabParam === "tree_crop" || tabParam === "closeup" ? tabParam : "panorama";
   const pageNo = Math.max(0, Math.min(999, Number.parseInt(one(query.sayfa) ?? "0", 10) || 0));
   const isOps = orgs.some((o) => o.id === visit.org_id);
+  // T07: notices, postponement, missed visits and field notices (ops only).
+  const legal =
+    isOps && (visit.kind === "inventory" || visit.kind === "periodic_scan")
+      ? await loadVisitRecords(supabase, visit.id)
+      : null;
   const scanned =
     visit.kind !== "verification" && ["processed", "in_review", "published"].includes(visit.status);
   const mediaHref = (tabName: MediaTab, page: number) =>
@@ -141,6 +148,20 @@ export default async function Page({
           )}
         </section>
       </div>
+      {legal && (
+        <VisitRecords
+          visit={{
+            id: visit.id,
+            status: visit.status,
+            kind: visit.kind,
+            plannedDate: visit.planned_date,
+          }}
+          records={legal.records}
+          blocked={legal.blocked}
+          fieldNotices={legal.fieldNotices}
+          today={todayIn(new Date())}
+        />
+      )}
       {closeups && <CloseupList items={closeups} />}
       {media && (
         <div id="gorseller">

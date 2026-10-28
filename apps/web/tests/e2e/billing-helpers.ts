@@ -238,8 +238,7 @@ export async function removalFor(
         await client.rpc("customer_request_garden_removal", {
           p_parcel_id: parcelId,
           p_reason: "not_needed",
-          p_at_period_end: opts.atPeriodEnd ?? false,
-          p_withdrawal: opts.withdrawal ?? false,
+          p_timing: opts.withdrawal ? "withdrawal" : opts.atPeriodEnd ? "period_end" : "notice",
         }),
       );
   if (opts.complete) {
@@ -287,6 +286,8 @@ async function opsRemoval(userId: string, parcelId: string): Promise<string> {
       p_reason: "transfer",
       p_effective_on: day.toISOString().slice(0, 10),
       p_note: "E2E: devir",
+      // An earlier day than the 30-day notice: by agreement (contract 12/3).
+      p_owner_consent_note: "E2E: Sahip yazılı onay verdi",
       p_access_days: 0,
     }),
   );

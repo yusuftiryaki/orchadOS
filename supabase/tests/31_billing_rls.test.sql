@@ -137,7 +137,7 @@ select is(
      'ops_create_owner_profile(uuid,uuid,text,text,boolean,text,text,timestamptz,text)',
      'ops_update_owner_profile(uuid,text,text,boolean,text,text,timestamptz,text)',
      -- IP14 (docs/bahce-yonetimi.md §9.6); the full list is in 47_garden_security.
-     'my_service_period()', 'my_gardens()', 'customer_request_garden_removal(uuid,text,text,boolean,boolean)',
+     'my_service_period()', 'my_gardens()', 'customer_request_garden_removal(uuid,text,text,text,uuid)',
      'ops_issue_addon_quote(uuid,uuid,uuid[],date,integer,integer,text,text,jsonb)'
    ]) f where has_function_privilege('anon', 'public.' || f, 'EXECUTE')),
   null, 'anon executes none of the IP12 functions of A1 (nor the IP14 ones)');

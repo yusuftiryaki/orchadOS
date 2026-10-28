@@ -220,11 +220,6 @@ export interface RemovalPreview {
   visitsUsed: number;
 }
 
-export const removalFlags = (timing: RemovalTiming) => ({
-  p_at_period_end: timing === "period_end",
-  p_withdrawal: timing === "withdrawal",
-});
-
 // One customer_garden_removal_preview call per timing option (§5.1); the
 // first refusal (parcel_order_pending, garden_removal_open, …) stops it.
 export async function previewGardenRemoval(
@@ -236,7 +231,7 @@ export async function previewGardenRemoval(
     timings.map((timing) =>
       supabase.rpc("customer_garden_removal_preview", {
         p_parcel_id: parcelId,
-        ...removalFlags(timing),
+        p_timing: timing,
       }),
     ),
   );

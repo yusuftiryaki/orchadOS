@@ -706,7 +706,7 @@ Mesaj kısa bir koddur. `detail` yalnızca alan adını taşır, değeri taşım
 
 ### 6.14 Ödeme planı tabloları ve fonksiyonları (`installments-v1`)
 
-Migration'lar: `20261104100900_visit_installments.sql`, `20261104101000_installment_visits_removals.sql`. Kurallar §5.6'da.
+Migration'lar: `20261104100950_visit_installments.sql`, `20261104101000_installment_visits_removals.sql`. Kurallar §5.6'da.
 
 ```sql
 public.installment_kind  = ('inventory', 'visit', 'single')
@@ -1055,8 +1055,10 @@ Yeni bölüm ya da rol açılmaz; ops rolü kullanılır.
 | `contract_ready` (T04) | Siparişin iki kabul belgesi kaydedilince, sipariş başına bir kez | S-… | `/portal/hesap/sozlesmeler` | `orchadOS: {ref} numaralı siparişinizin sözleşmesi ve ön bilgilendirme formu portalınızda: {link}` |
 | `addon_order_closed` (T18) | Para tutan ek sipariş dönemi kapandığı için iptal edilince | S-… | `/portal/siparis/<id>` | `orchadOS: {ref} numaralı ek siparişiniz, hizmet dönemi kapandığı için iptal edildi. Ödediğiniz tutar 14 gün içinde aynı yöntemle, masrafsız iade edilir: {link}` |
 | `withdrawal_received` (T03) | Cayma kaydedilince (portal ya da ops) | C-… | `/portal/parsel/<id>` | [bahce-yonetimi.md](bahce-yonetimi.md) §10 |
+| `garden_transfer_reports` (T23, H22) | Neden devir olan çıkarma açılınca (çıkış gününden önce) | C-… | `/portal/parsel/<id>` | `orchadOS: {bahçenizin} devir nedeniyle hizmetten çıkışı planlandı ({ref}). Raporlara erişim çıkış gününde kapanır; o güne kadar raporlarınızı indirebilirsiniz, sonrasında kopyası talebiniz üzerine verilir: {link}` |
+| `visit_scheduled` (T07, H15, H01) | Envanter ya da periyodik ziyaret en az 3 gün sonrasına planlanınca ya da taşınınca; parselin bütün sahiplerine, ziyaret ve gün başına bir kez (`visit_notice_sms_enabled`) | — (ziyaret) | `/portal/parsel/<id>` | `orchadOS: {bahçenizin} denetim ziyareti {gün} günü yapılacak. Bahçede çalışan ya da bulunacak kişilere görüntü alınacağını iletmenizi rica ederiz; bilgi: {site}/bahcede-bulunanlar Erteleme ve ayrıntı: {link}` |
 
-Alıcı yalnızca müşteridir. Tutar ve red nedeni SMS'e yazılmaz.
+Alıcı yalnızca müşteridir (`visit_scheduled`: parselin sahipleri). Tutar ve red nedeni SMS'e yazılmaz. Hepsi hizmet iletisidir, tanıtım içermez (H06; `messaging.test.ts`). `visit_scheduled` rapor şablonları gibi parsel ve ziyareti taşır (`session_id`, değişkenler `date`, `path`, `parcel_name`); gönderimler `private.visit_notice`'a da yazılır.
 
 ## 13. Ortam değişkenleri
 
@@ -1259,17 +1261,29 @@ Bu bölüm, siparişe özel sözleşme belgelerinin veri katmanının sözleşme
 | --- | --- | --- |
 | Müşteri | Siparişin müşterisinin erişim belirteci | Siparişi kendi belirteciyle okur (`service_order` satır kuralı), mevcut belgeler `my_contract_documents` |
 | Ops | Org'un ops kullanıcısının erişim belirteci | Aynı okuma, mevcut belgeler `ops_contract_documents` (ops değilse reddedilir) |
-| Sistem | Kullanıcı belirteci yok (anon anahtarı) + `x-orchados-sweep: 1` | Yalnızca eksik ve kaydedilebilir belgeler (aşağıdaki ön denetim `ops_orders_missing_contract_documents` kuralıdır). Dalga 3'ün otomatik taramasına ayrılmıştır; şimdilik onu çağıran yok, entegrasyon testi dener |
+| Sistem | Kullanıcı belirteci yok (anon anahtarı) + `x-orchados-sweep: 1` | Yalnızca eksik ve kaydedilebilir belgeler (aşağıdaki ön denetim `ops_orders_missing_contract_documents` kuralıdır). Dalga 3'ün otomatik taraması kullanır (§20.8) |
 
 Gövdede `op` varsa işlev PDF yerine JSON nesnesi saklar: `op: "snapshot"` (kabul anlık görüntüsü; yalnızca siparişin müşterisi, kullanıcı türünde, kabulden en geç 15 dakika sonra; varsa mevcut olan döner, `snapshot_too_late` 409) ve `op: "manual_copy"` (elle kopya işareti; müşteri, org'un ops'u ya da sistem; `reason` sabit listeden). Yanıt `200 {status, object: {name}}`.
 
 Her türde: demo claim'i 403 `demo_read_only`; aynı tür belge varsa olduğu gibi döner (`existing`); PDF'in SHA-256'sı işlevde hesaplanır; nesne hizmet rolüyle upsert olmadan `{org_id}/{order_id}/{kind}.pdf` yoluna yüklenir; sonra `service_register_contract_document` kaydeder ve iki kabul belgesi tamamlanınca `contract_ready` SMS'ini kuyruğa koyar (sipariş başına bir kez). Yüklemeden önce kayıt bir kez boyut 0 ile ön denetim olarak çağrılır: geçerli sipariş, tür, sürüm ve özetle nesne yoksa `invalid_input/storage_path` döner ve ancak o zaman yüklenir; boyut 0 hiçbir zaman kaydedilmez. Kaydı başarısız olmuş önceki bir yüklemenin bıraktığı nesne (`invalid_input/size_bytes`) indirilip özetlenir ve olduğu gibi kaydedilir, asla değiştirilmez. Yanıtlar: 200 `created`/`existing`, 400 `invalid_input`, 401, 403 `demo_read_only`/`forbidden`, 404, 409 `order_not_active`/`version_mismatch`, 500. Yanıtlar ve günlükler kişisel veri ya da PDF taşımaz.
 
-**Ne zaman, yeniden deneme.** `acceptQuoteAction`, `customer_accept_quote` başarılı olunca müşteriyi hemen sipariş sayfasına yönlendirir; anlık görüntüyü saklamak ve iki kabul belgesini üretmek yanıttan sonra arka planda (`next/server` `after()`) müşterinin belirteciyle olur. Kabul hiçbir zaman belge üretimini beklemez; her Edge çağrısında `AbortSignal.timeout` (20 sn) vardır ve zaman aşımı geçici hata sayılır. Başarısız olursa kabul geçerli kalır; sipariş sayfası ve Sözleşmelerim "Belgeler hazırlanıyor" der ve eksik belgeleri yanıttan sonra anlık görüntüden yeniden dener (Sözleşmelerim ziyaret başına en fazla 3 sipariş; elle kopya bekleyenler hiç denenmez). Sipariş etkinleşince (ödeme) cayma bildirimi sipariş sayfasının ya da Sözleşmelerim'in bir sonraki ziyaretinde, ya da ops listesinden üretilir. Kimsenin ziyaret etmediği siparişlerin belgelerini üretecek otomatik tarama (sistem türü) dalga 3'tedir.
+**Ne zaman, yeniden deneme.** `acceptQuoteAction`, `customer_accept_quote` başarılı olunca müşteriyi hemen sipariş sayfasına yönlendirir; anlık görüntüyü saklamak ve iki kabul belgesini üretmek yanıttan sonra arka planda (`next/server` `after()`) müşterinin belirteciyle olur. Kabul hiçbir zaman belge üretimini beklemez; her Edge çağrısında `AbortSignal.timeout` (20 sn) vardır ve zaman aşımı geçici hata sayılır. Başarısız olursa kabul geçerli kalır; sipariş sayfası ve Sözleşmelerim "Belgeler hazırlanıyor" der ve eksik belgeleri yanıttan sonra anlık görüntüden yeniden dener (Sözleşmelerim ziyaret başına en fazla 3 sipariş; elle kopya bekleyenler hiç denenmez). Sipariş etkinleşince (ödeme) cayma bildirimi sipariş sayfasının ya da Sözleşmelerim'in bir sonraki ziyaretinde, ya da ops listesinden üretilir. Kimsenin ziyaret etmediği siparişlerin belgelerini otomatik tarama üretir (§20.8).
 
 **Sözleşmelerim.** `/portal/hesap/sozlesmeler`: `my_contract_documents()` sipariş sipariş; Hesabım'dan, portal menüsünden ve sipariş sayfasından bağlantı. İndirme `/portal/hesap/sozlesmeler/[id]`: müşterinin kendi oturumuyla özel kovadan okunur, kayıtlı SHA-256 ile denetlenir, `Cache-Control: private, no-store`, dosya adı `mesafeli-sozlesme-S-….pdf` gibi.
 
 **Ops.** `/operasyon/siparis` üstte "Sözleşme belgesi eksik siparişler"i (`ops_orders_missing_contract_documents()`) sipariş başına ve toplu "Belgeleri üret" ile gösterir (toplu: tıklama başına en fazla 5 sipariş ve 25 saniyelik bütçe, elle kopya bekleyenler hariç; kalanlar listede kalır); altında ayrı bir "Elle kopya gereken siparişler" bölümü vardır; üretim Next sunucusunda, ops kullanıcısının kendi belirteciyle (ops türü). Sipariş sayfası belgeleri (`ops_contract_documents`) üreten kod sürümüyle listeler ve `/operasyon/siparis/[id]/belge/[docId]` ile indirir (aynı denetimler). Portal erişimi sona ermiş müşteriye talep halinde verilen kopya buradan indirilir (H12).
 
 **SMS.** `contract_ready` bağlantısı `/portal/hesap/sozlesmeler`'dir; kabul belgelerinin ikincisi kaydedilince bir kez gider. E-posta kanalı yoktur (H12).
+
+
+### 20.8 Otomatik tarama (dalga 3)
+
+H12: kabul edilmiş ya da etkinleşmiş her sipariş belgeleriyle biter; kimsenin açmadığı siparişler de (özellikle ödemeden sonra cayma bildirimi). Migration `20261105100500_contract_document_sweep.sql`, rota `src/app/sistem/sozlesme-tarama/route.ts`, kod `src/lib/contracts/sweep.ts`.
+
+1. **pg_cron** `contract-document-sweep` (30 dakikada bir) `private.dispatch_contract_document_sweep()`'i çağırır. Vault'ta `contract_documents_sweep_url` ve `orchados_cron_secret` yoksa hiçbir şey yapmaz. Varsa en çok 5 sipariş seçer (`private.contract_sweep_candidates`): demo dışı, kabulden en az 15 dakika geçmiş, kaydedilebilir eksik belgesi olan (`ops_orders_missing_contract_documents` kuralı), anlık görüntüsü bulunan ve elle kopya işareti olmayan. Rastgele bir bilet üretir, yalnızca SHA-256'sını ve sipariş kimliklerini 10 dakikalığına `private.contract_sweep_ticket`'a yazar ve `pg_net` ile rotaya `{ticket}` gövdesi ve `x-orchados-cron-secret` başlığıyla POST eder.
+2. **Rota** genel yoldur (`src/lib/site/public-paths.ts`; oturum yok). Sırrı `ORCHADOS_CRON_SECRET` ile sabit zamanlı karşılaştırır (yoksa 503, tutmazsa 401). Next sunucusunda servis anahtarı yoktur (deployment.md): rota anon anahtarı ve `x-orchados-sweep-ticket` başlığıyla okur. `public.sweep_contract_orders()` biletin siparişlerini (kimlik, numara, kabul ve etkinleşme anı, dönem, eksik ve mevcut türler; kişisel veri yok) döner; `contract_documents_sweep_select` Storage kuralı yalnızca o siparişlerin anlık görüntüsünü ve elle kopya işaretini okutur (PDF'leri değil). Süresi dolmuş ya da bilinmeyen bilet hiçbir şey açmaz.
+3. Her sipariş `ensureOrderDocuments` ile anlık görüntüden basılır ve Edge Function'ın **sistem** kipiyle yüklenir (her belgeyi yeniden denetler; var olanı döner). Süre bütçesi 35 sn; kalan siparişler bir sonraki çalışmaya kalır. Elle kopya kuralları (§20.7) aynen uygulanır.
+4. Yanıt ve günlükler yalnızca sayıları taşır (`orders`, `created`, `existing`, `failed`, `manualCopy`, `skipped`); kişisel veri ya da sipariş kimliği yazılmaz.
+5. **Testler:** pgTAP `74_contract_document_sweep` (aday seçimi, bilet, kuralın yalnızca biletin anlık görüntüsünü açması, sırlar olmadan no-op); web `tests/integration/contract-sweep.test.ts` (ödemeden sonra kimsenin açmadığı siparişin cayma bildirimi taramayla üretilir, ikinci tarama bir şey üretmez, rota sırrı denetler).
+6. **Barındırılan kurulum** (insan eylemi): Vercel'de `ORCHADOS_CRON_SECRET` (Vault `orchados_cron_secret` ile aynı değer), Vault'ta `contract_documents_sweep_url` = `https://<site>/sistem/sozlesme-tarama` ([deployment.md](deployment.md)).
 

@@ -1163,9 +1163,10 @@ export type Database = {
           notice_received_on: string | null;
           number: string;
           ops_note: string | null;
-          order_id: string;
-          order_item_id: string;
+          order_id: string | null;
+          order_item_id: string | null;
           org_id: string;
+          owner_consent_note: string | null;
           parcel_id: string;
           reason: Database["public"]["Enums"]["garden_removal_reason"];
           refund_kurus: number | null;
@@ -1176,6 +1177,7 @@ export type Database = {
           revoke_all_access: boolean;
           scheduled_at: string | null;
           status: Database["public"]["Enums"]["garden_removal_status"];
+          timing: string | null;
           updated_at: string;
           withdrawal: boolean;
         };
@@ -1203,9 +1205,10 @@ export type Database = {
           notice_received_on?: string | null;
           number: string;
           ops_note?: string | null;
-          order_id: string;
-          order_item_id: string;
+          order_id?: string | null;
+          order_item_id?: string | null;
           org_id: string;
+          owner_consent_note?: string | null;
           parcel_id: string;
           reason: Database["public"]["Enums"]["garden_removal_reason"];
           refund_kurus?: number | null;
@@ -1216,6 +1219,7 @@ export type Database = {
           revoke_all_access?: boolean;
           scheduled_at?: string | null;
           status?: Database["public"]["Enums"]["garden_removal_status"];
+          timing?: string | null;
           updated_at?: string;
           withdrawal?: boolean;
         };
@@ -1242,9 +1246,10 @@ export type Database = {
           notice_received_on?: string | null;
           number?: string;
           ops_note?: string | null;
-          order_id?: string;
-          order_item_id?: string;
+          order_id?: string | null;
+          order_item_id?: string | null;
           org_id?: string;
+          owner_consent_note?: string | null;
           parcel_id?: string;
           reason?: Database["public"]["Enums"]["garden_removal_reason"];
           refund_kurus?: number | null;
@@ -1255,6 +1260,7 @@ export type Database = {
           revoke_all_access?: boolean;
           scheduled_at?: string | null;
           status?: Database["public"]["Enums"]["garden_removal_status"];
+          timing?: string | null;
           updated_at?: string;
           withdrawal?: boolean;
         };
@@ -1942,11 +1948,13 @@ export type Database = {
           removal_notice_days: number;
           removal_refund_mode: string;
           renewal_notice_days: number;
+          service_end_access_flow_enabled: boolean;
           site_domain: string | null;
           tax_number: string | null;
           tax_office: string | null;
           updated_at: string;
           updated_by: string | null;
+          visit_notice_sms_enabled: boolean;
         };
         ComputedFields: never;
         Insert: {
@@ -1980,11 +1988,13 @@ export type Database = {
           removal_notice_days?: number;
           removal_refund_mode?: string;
           renewal_notice_days?: number;
+          service_end_access_flow_enabled?: boolean;
           site_domain?: string | null;
           tax_number?: string | null;
           tax_office?: string | null;
           updated_at?: string;
           updated_by?: string | null;
+          visit_notice_sms_enabled?: boolean;
         };
         Update: {
           accepts_signups?: boolean;
@@ -2017,11 +2027,13 @@ export type Database = {
           removal_notice_days?: number;
           removal_refund_mode?: string;
           renewal_notice_days?: number;
+          service_end_access_flow_enabled?: boolean;
           site_domain?: string | null;
           tax_number?: string | null;
           tax_office?: string | null;
           updated_at?: string;
           updated_by?: string | null;
+          visit_notice_sms_enabled?: boolean;
         };
         Relationships: [
           {
@@ -4252,6 +4264,7 @@ export type Database = {
           tree_id: string;
         }[];
       };
+      contract_sweep_ticket_orders: { Args: Record<PropertyKey, never>; Returns: string[] };
       contract_visit_windows: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -4321,13 +4334,14 @@ export type Database = {
         Returns: undefined;
       };
       customer_garden_removal_preview: {
-        Args: { p_at_period_end?: boolean; p_parcel_id: string; p_withdrawal?: boolean };
+        Args: { p_parcel_id: string; p_timing: string };
         Returns: {
           access_until: string;
           effective_on: string;
           line_count: number;
           order_item_id: string;
           refund_estimate_kurus: number;
+          timing: string;
           visits_entitled: number;
           visits_used: number;
           withdrawal: boolean;
@@ -4349,14 +4363,15 @@ export type Database = {
       customer_remove_application_garden: { Args: { p_garden_id: string }; Returns: undefined };
       customer_request_garden_removal: {
         Args: {
-          p_at_period_end?: boolean;
+          p_cancel_order_id?: string;
           p_note?: string;
           p_parcel_id: string;
           p_reason: string;
-          p_withdrawal?: boolean;
+          p_timing: string;
         };
         Returns: string;
       };
+      customer_request_visit_postponement: { Args: { p_session_id: string }; Returns: string };
       customer_revise_order: { Args: { p_note?: string; p_order_id: string }; Returns: string };
       customer_save_application_garden: {
         Args: { p_application_id: string; p_detail: Json; p_garden: Json; p_garden_id?: string };
@@ -4519,6 +4534,16 @@ export type Database = {
           phone: string;
         }[];
       };
+      my_parcel_visits: {
+        Args: { p_parcel_id: string };
+        Returns: {
+          can_postpone: boolean;
+          kind: Database["public"]["Enums"]["session_kind"];
+          planned_date: string;
+          postponed: boolean;
+          session_id: string;
+        }[];
+      };
       my_service_period: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -4679,11 +4704,13 @@ export type Database = {
           removal_notice_days: number;
           removal_refund_mode: string;
           renewal_notice_days: number;
+          service_end_access_flow_enabled: boolean;
           site_domain: string | null;
           tax_number: string | null;
           tax_office: string | null;
           updated_at: string;
           updated_by: string | null;
+          visit_notice_sms_enabled: boolean;
         }[];
         SetofOptions: {
           from: "*";
@@ -4903,6 +4930,14 @@ export type Database = {
       ops_garden_removal_preview: {
         Args: { p_effective_on?: string; p_removal_id: string };
         Returns: Json;
+      };
+      ops_garden_removal_terms: {
+        Args: { p_removal_id: string };
+        Returns: {
+          notice_rule: string;
+          owner_consent_note: string;
+          timing: string;
+        }[];
       };
       ops_garden_removals: {
         Args: { p_limit?: number; p_org_id: string; p_status?: string };
@@ -5330,6 +5365,36 @@ export type Database = {
         };
         Returns: string;
       };
+      ops_record_missed_visit: {
+        Args: {
+          p_carried_to_window_start?: string;
+          p_carry_over_channel?: string;
+          p_customer_notified_channel?: string;
+          p_customer_notified_on?: string;
+          p_detail?: string;
+          p_evidence_capture_ids?: string[];
+          p_evidence_paths?: string[];
+          p_no_date_in_window?: boolean;
+          p_note?: string;
+          p_occurred_on: string;
+          p_outcome?: string;
+          p_proposed_date?: string;
+          p_reason: string;
+          p_refund_id?: string;
+          p_report_lost?: boolean;
+          p_session_id: string;
+          p_source_event_id?: string;
+        };
+        Returns: string;
+      };
+      ops_record_visit_phone_notice: {
+        Args: { p_notified_at: string; p_session_id: string };
+        Returns: string;
+      };
+      ops_record_visit_postponement: {
+        Args: { p_channel: string; p_requested_at: string; p_session_id: string };
+        Returns: string;
+      };
       ops_record_withdrawal: {
         Args: {
           p_channel: string;
@@ -5379,6 +5444,7 @@ export type Database = {
           p_effective_on: string;
           p_note?: string;
           p_order_item_id: string;
+          p_owner_consent_note?: string;
           p_reason: string;
           p_revoke_all_access?: boolean;
         };
@@ -5414,6 +5480,10 @@ export type Database = {
       };
       ops_resolve_viewer_invitation: {
         Args: { p_approve: boolean; p_invitation_id: string; p_user_id?: string };
+        Returns: undefined;
+      };
+      ops_resolve_visit_reconciliation: {
+        Args: { p_id: string; p_note?: string; p_refund_id?: string; p_resolution: string };
         Returns: undefined;
       };
       ops_retry_notification: { Args: { p_id: string }; Returns: undefined };
@@ -5463,6 +5533,16 @@ export type Database = {
       };
       ops_set_kvkk_request_status: {
         Args: { p_request_id: string; p_status: string };
+        Returns: undefined;
+      };
+      ops_set_missed_visit_outcome: {
+        Args: {
+          p_carried_to_window_start?: string;
+          p_carry_over_channel?: string;
+          p_missed_visit_id: string;
+          p_outcome: string;
+          p_refund_id?: string;
+        };
         Returns: undefined;
       };
       ops_set_parcel_passive: {
@@ -5516,6 +5596,74 @@ export type Database = {
           phone: string;
         }[];
       };
+      ops_visit_blocked_events: {
+        Args: { p_session_id: string };
+        Returns: {
+          detail: string;
+          event_id: string;
+          note: string;
+          photo_capture_ids: string[];
+          reason: string;
+          recorded_at: string;
+        }[];
+      };
+      ops_visit_field_notices: {
+        Args: { p_session_id: string };
+        Returns: {
+          event_id: string;
+          event_type: string;
+          payload: Json;
+          recorded_at: string;
+        }[];
+      };
+      ops_visit_notice_flags: {
+        Args: { p_org_id: string };
+        Returns: {
+          missed_count: number;
+          notice_missing: boolean;
+          postponed: boolean;
+          session_id: string;
+        }[];
+      };
+      ops_visit_reconciliation_counts: {
+        Args: { p_org_id: string };
+        Returns: {
+          open: number;
+          overdue: number;
+        }[];
+      };
+      ops_visit_reconciliations: {
+        Args: { p_org_id: string; p_status?: string };
+        Returns: {
+          customer_name: string;
+          customer_user_id: string;
+          detected_on: string;
+          due_on: string;
+          id: string;
+          order_id: string;
+          order_item_id: string;
+          order_number: string;
+          overdue: boolean;
+          parcel_id: string;
+          parcel_name: string;
+          refund_id: string;
+          resolution: string;
+          resolution_note: string;
+          resolved_at: string;
+          scope_end: string;
+          shortfall: number;
+          status: string;
+          trigger: string;
+          visit_fee_kurus: number;
+          visits_carried: number;
+          visits_entitled: number;
+          visits_refunded: number;
+          visits_used: number;
+          window_label: string;
+          windows_ahead: number;
+        }[];
+      };
+      ops_visit_records: { Args: { p_session_id: string }; Returns: Json };
       ops_void_manual_payment: {
         Args: { p_note: string; p_payment_id: string };
         Returns: undefined;
@@ -5946,6 +6094,21 @@ export type Database = {
           session_id: string;
         }[];
       };
+      sweep_contract_orders: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          accepted_at: string;
+          activated_at: string;
+          customer_user_id: string;
+          existing: string[];
+          missing: string[];
+          order_id: string;
+          order_number: string;
+          org_id: string;
+          service_end: string;
+          service_start: string;
+        }[];
+      };
       visit_approver: { Args: { p_session_id: string }; Returns: Json };
       waive_coverage: {
         Args: { p_note: string; p_session_id: string };
@@ -6020,7 +6183,24 @@ export type Database = {
       followup_origin: "expert" | "pipeline";
       followup_status: "open" | "planned" | "done" | "cancelled";
       garden_removal_reason:
-        "sold" | "not_needed" | "dissatisfied" | "cost" | "transfer" | "duplicate" | "other";
+        | "sold"
+        | "not_needed"
+        | "dissatisfied"
+        | "cost"
+        | "transfer"
+        | "duplicate"
+        | "other"
+        | "location_misdeclared"
+        | "owner_breach"
+        | "no_authority"
+        | "third_party_objection"
+        | "staff_safety"
+        | "payment_default"
+        | "service_withdrawn_district"
+        | "by_agreement"
+        | "period_ended"
+        | "order_terminated"
+        | "pilot_ended";
       garden_removal_status: "requested" | "scheduled" | "completed" | "cancelled";
       graft_status: "grafted" | "ungrafted" | "unknown";
       health_class: "healthy" | "attention" | "problem" | "dead" | "absent";
@@ -6048,7 +6228,9 @@ export type Database = {
         | "contract_ready"
         | "withdrawal_received"
         | "addon_order_closed"
-        | "viewer_invited";
+        | "viewer_invited"
+        | "visit_scheduled"
+        | "garden_transfer_reports";
       operation_kind:
         | "mowing"
         | "spraying"
@@ -6277,6 +6459,17 @@ export const Constants = {
         "transfer",
         "duplicate",
         "other",
+        "location_misdeclared",
+        "owner_breach",
+        "no_authority",
+        "third_party_objection",
+        "staff_safety",
+        "payment_default",
+        "service_withdrawn_district",
+        "by_agreement",
+        "period_ended",
+        "order_terminated",
+        "pilot_ended",
       ],
       garden_removal_status: ["requested", "scheduled", "completed", "cancelled"],
       graft_status: ["grafted", "ungrafted", "unknown"],
@@ -6306,6 +6499,8 @@ export const Constants = {
         "withdrawal_received",
         "addon_order_closed",
         "viewer_invited",
+        "visit_scheduled",
+        "garden_transfer_reports",
       ],
       operation_kind: [
         "mowing",

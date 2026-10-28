@@ -17,6 +17,8 @@ const PUBLIC_PREFIXES = [
   "/bahcede-bulunanlar",
   // The demo start page and its exit route (docs/demo-turu.md §11.1).
   "/demo",
+  // T04: the contract-document sweep (pg_cron; the cron secret, no session).
+  "/sistem/sozlesme-tarama",
   "/robots.txt",
   "/sitemap.xml",
 ] as const;

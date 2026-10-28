@@ -299,7 +299,8 @@ insert into public.org_billing_setting (
   org_id, accepts_signups, allow_fake_payments, identity_number_required, legal_name, tax_office,
   tax_number, mersis_number, address, phone, email, bank_name, iban, iban_holder, updated_by,
   garden_changes_enabled, kep_address, site_domain,
-  coowner_notice_flow_enabled, boundary_declaration_required, kvkk_request_form_enabled
+  coowner_notice_flow_enabled, boundary_declaration_required, kvkk_request_form_enabled,
+  visit_notice_sms_enabled, service_end_access_flow_enabled
 ) values (
   'b0000000-0000-4000-8000-000000000001', true, true, false, 'orchadOS Denetim Hizmetleri A.Ş. (örnek)',
   'Şahinbey', '1234567890', '0123456789012345', 'Örnek Mah. Fıstık Cad. No: 1, Şahinbey, Gaziantep',
@@ -313,7 +314,10 @@ insert into public.org_billing_setting (
   'orchados@hs01.kep.example', 'orchados.example',
   -- Legal follow-ups wave 2 (T15, T16, T11): on locally so tests exercise
   -- them; off on hosted projects until switched on in SQL.
-  true, true, true
+  true, true, true,
+  -- Wave 3 (T07 visit_scheduled message, T08 service-end access flow): on
+  -- locally; off on hosted projects until switched on in SQL.
+  true, true
 );
 
 -- Launch price list (docs/fiyatlandirma.md, decided 28 October 2026). The

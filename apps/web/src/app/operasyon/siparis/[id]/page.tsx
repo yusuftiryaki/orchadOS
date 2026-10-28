@@ -31,7 +31,7 @@ import { requireSection } from "@/lib/auth/session";
 import { getOrder, getSetting, type OrderView } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
 import { OPS_WITHDRAWAL_CHANNELS } from "@/lib/billing/types";
-import { REMOVAL_REASONS, addDays } from "@/lib/back-office/validation";
+import { OPS_REMOVAL_REASONS, addDays } from "@/lib/back-office/validation";
 import { installmentLabel, openKurus, planRowOf } from "@/lib/billing/installments";
 import {
   documentState,
@@ -359,17 +359,20 @@ export default async function Page({
                   name="setting_access_days"
                   value={setting?.removal_access_days ?? 90}
                 />
-                <Field label={B.fields.reason}>
+                <Field label={B.fields.reason} hint={B.removal.reasonHint}>
                   <select name="reason" defaultValue="" required>
                     <option value="" disabled>
                       —
                     </option>
-                    {REMOVAL_REASONS.map((r) => (
+                    {OPS_REMOVAL_REASONS.map((r) => (
                       <option key={r} value={r}>
                         {billingText.gardenRemovalReason[r]}
                       </option>
                     ))}
                   </select>
+                </Field>
+                <Field label={B.fields.owner_consent_note} hint={B.removal.consentHint} optional>
+                  <textarea name="owner_consent_note" maxLength={2000} rows={2} />
                 </Field>
                 <Field label={B.fields.effective_on}>
                   <input

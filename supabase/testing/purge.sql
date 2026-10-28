@@ -167,7 +167,9 @@ begin
   get diagnostics n = row_count;
   table_name := 'public.parcel'; deleted := n; return next;
   delete from storage.objects
-    where bucket_id in ('media', 'demo-media') and (storage.foldername(name))[4] = any(p_parcel_ids::text[]);
+    where (bucket_id in ('media', 'demo-media') and (storage.foldername(name))[4] = any(p_parcel_ids::text[]))
+       -- Missed-visit evidence (T07): <org>/<parcel>/<file>.
+       or (bucket_id = 'visit-evidence' and (storage.foldername(name))[2] = any(p_parcel_ids::text[]));
   get diagnostics n = row_count;
   table_name := 'storage.objects'; deleted := n; return next;
   set local session_replication_role = origin;
@@ -200,7 +202,7 @@ begin
   table_name := 'public.org'; deleted := n; return next;
   delete from storage.objects
     where (bucket_id in ('media', 'demo-media') and (storage.foldername(name))[2] = p_org_id::text)
-       or (bucket_id = 'contract-documents' and (storage.foldername(name))[1] = p_org_id::text);
+       or (bucket_id in ('contract-documents', 'visit-evidence') and (storage.foldername(name))[1] = p_org_id::text);
   get diagnostics n = row_count;
   table_name := 'storage.objects'; deleted := n; return next;
   set local session_replication_role = origin;
@@ -434,6 +436,72 @@ as $$
   select review_reason from private.customer_signup where user_id = p_user_id;
 $$;
 
+-- Wave 3 (T04 sweep): a ticket for given orders (the token is returned, its
+-- hash stored, as private.dispatch_contract_document_sweep does), the orders
+-- the dispatcher would pick, the dispatcher itself, an order's acceptance
+-- moved back in time, and the removal of every ticket.
+create or replace function testing.issue_contract_sweep_ticket(p_order_ids uuid[])
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_token text := encode(extensions.gen_random_bytes(32), 'hex');
+begin
+  insert into private.contract_sweep_ticket (token_sha256, order_ids, expires_at)
+  values (encode(extensions.digest(v_token, 'sha256'), 'hex'), p_order_ids, now() + interval '10 minutes');
+  return v_token;
+end;
+$$;
+
+create or replace function testing.contract_sweep_candidates()
+returns uuid[]
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select private.contract_sweep_candidates(20);
+$$;
+
+create or replace function testing.dispatch_contract_document_sweep()
+returns bigint
+language sql
+security definer
+set search_path = ''
+as $$
+  select private.dispatch_contract_document_sweep();
+$$;
+
+create or replace function testing.age_order_acceptance(p_order_id uuid, p_minutes integer)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  set local session_replication_role = replica;
+  update public.service_order set created_at = created_at - make_interval(mins => p_minutes) where id = p_order_id;
+  set local session_replication_role = origin;
+end;
+$$;
+
+create or replace function testing.purge_contract_sweep_tickets()
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  n bigint;
+begin
+  delete from private.contract_sweep_ticket where true;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
 -- Auth hardening tests: takes the self sign-up flag off an account (or puts
 -- it back), so a test can open an e-mail code session on it as a project
 -- without customer_account_guard (insufficient privilege) would.
@@ -468,5 +536,8 @@ grant execute on function
   testing.acknowledge_kvkk_notice(uuid),
   testing.legacy_signup(uuid), testing.age_phone_confirmation(uuid, integer),
   testing.signup_review(uuid), testing.set_self_signup(uuid, boolean),
-  testing.run_signup_housekeeping()
+  testing.run_signup_housekeeping(),
+  testing.issue_contract_sweep_ticket(uuid[]), testing.contract_sweep_candidates(),
+  testing.dispatch_contract_document_sweep(), testing.age_order_acceptance(uuid, integer),
+  testing.purge_contract_sweep_tickets()
   to service_role;

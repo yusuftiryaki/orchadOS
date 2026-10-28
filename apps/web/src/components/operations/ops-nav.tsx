@@ -3,6 +3,7 @@ import { boHref } from "@/lib/back-office/urls";
 import { t } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { notificationsHref } from "@/lib/notifications/urls";
+import { visitsText } from "@/lib/i18n/messages/visits";
 import { opsHref } from "@/lib/operations/urls";
 import bo from "@/components/back-office/back-office.module.css";
 import styles from "./operations.module.css";
@@ -20,6 +21,7 @@ export type OpsNavItem =
   | "payments"
   | "refunds"
   | "removals"
+  | "reconciliation"
   | "prices"
   | "audit"
   | "settings"
@@ -44,6 +46,8 @@ export function OpsNav({ current }: { current: OpsNavItem }) {
     ["payments", boHref.payments(), B.payments],
     ["refunds", boHref.refunds(), B.refunds],
     ["removals", boHref.removals(), B.removals],
+    // T06 (contract 8A/6): the 8A reconciliation tasks.
+    ["reconciliation", opsHref.reconciliation(), visitsText.reconciliation.nav],
     ["prices", boHref.prices(), B.prices],
     ["audit", boHref.audit(), B.audit],
     ["settings", boHref.settings(), B.settings],

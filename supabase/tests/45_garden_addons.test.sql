@@ -15,6 +15,8 @@ create extension if not exists pgtap with schema extensions;
 select plan(101);
 
 select testing.reset_to_seed();
+-- IP14 behaviour with the hosted default of T08 (no service-end window).
+update public.org_billing_setting set service_end_access_flow_enabled = false;
 
 create function pg_temp.as_user(p_id uuid) returns void language sql
 as $$ select set_config('request.jwt.claims', json_build_object('sub', p_id, 'role', 'authenticated')::text, true) $$;
@@ -415,7 +417,7 @@ insert into ids select 'c4', pg_temp.new_customer(4);
 insert into ids select 'g0', pg_temp.new_order(pg_temp.id('c4'), array[20000], 37.90);
 select testing.set_order_period(pg_temp.id('g0'), pg_temp.today() - 300, pg_temp.today() + 64);
 select pg_temp.as_user(pg_temp.id('c4'));
-insert into ids select 'rm4', public.customer_request_garden_removal((pg_temp.parcels_of(pg_temp.id('g0')))[1], 'sold');
+insert into ids select 'rm4', public.customer_request_garden_removal((pg_temp.parcels_of(pg_temp.id('g0')))[1], 'sold', 'notice');
 select pg_temp.ops();
 select is(pg_temp.error_of(format($$ select public.ops_issue_parcel_quote('b0000000-0000-4000-8000-000000000001',
   %L, '91200000-0000-4000-8000-000000000001', %L, false, null, %L) $$,
@@ -428,7 +430,7 @@ select pg_temp.ops();
 insert into ids select 'rq4', public.ops_issue_parcel_quote('b0000000-0000-4000-8000-000000000001', pg_temp.id('c4'),
   '91200000-0000-4000-8000-000000000001', pg_temp.parcels_of(pg_temp.id('g0')), false, null, pg_temp.id('g0'));
 select pg_temp.as_user(pg_temp.id('c4'));
-insert into ids select 'rm4b', public.customer_request_garden_removal((pg_temp.parcels_of(pg_temp.id('g0')))[1], 'sold');
+insert into ids select 'rm4b', public.customer_request_garden_removal((pg_temp.parcels_of(pg_temp.id('g0')))[1], 'sold', 'notice');
 select is(pg_temp.error_of($$ select pg_temp.accept(pg_temp.id('c4'), pg_temp.id('rq4')) $$),
   'P0001 garden_removal_open / parcel_ids', 'a removal requested after the renewal quote blocks its acceptance');
 
@@ -480,7 +482,7 @@ insert into ids select 't2', pg_temp.accept(pg_temp.id('c6'), pg_temp.id('tq2'))
 select pg_temp.ops();
 insert into ids select 'tq3', public.ops_issue_addon_quote(pg_temp.id('t0'), pg_temp.new_app(pg_temp.id('c6'), array[15000], 38.30));
 select pg_temp.as_user(pg_temp.id('c6'));
-insert into ids select 'trm', public.customer_request_garden_removal((pg_temp.parcels_of(pg_temp.id('t1')))[1], 'cost');
+insert into ids select 'trm', public.customer_request_garden_removal((pg_temp.parcels_of(pg_temp.id('t1')))[1], 'cost', 'notice');
 select pg_temp.ops();
 select lives_ok($$ select public.ops_terminate_order(pg_temp.id('t0'), 'idari fesih') $$, 'the base order is terminated');
 select results_eq(

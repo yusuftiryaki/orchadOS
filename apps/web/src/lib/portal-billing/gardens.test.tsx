@@ -4,7 +4,7 @@ import { MembershipCard } from "@/components/portal-billing/membership-card";
 import { MyGardens } from "@/components/portal-billing/my-gardens";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
-import { lineParcelOf, removalFlags } from "./data";
+import { lineParcelOf } from "./data";
 import { garden, period } from "./garden-fixtures";
 import {
   addDays,
@@ -29,20 +29,38 @@ const SUFFIX_AFTER_DATE = /\d{4}\s*['’]/;
 describe("removal form", () => {
   const base = { reason: "sold", timing: "notice", confirm: "on" };
 
-  it("maps each of the three timings to the database flags", () => {
-    const flags = (timing: string) => {
+  it("passes each of the four timings as chosen (no default, contract 12/3)", () => {
+    for (const timing of REMOVAL_TIMINGS) {
       const r = parseRemovalForm(reader({ ...base, timing }), { withdrawalOpen: true });
       if (!r.ok) throw new Error(JSON.stringify(r.errors));
-      return [r.value.atPeriodEnd, r.value.withdrawal];
-    };
-    expect(flags("notice")).toEqual([false, false]);
-    expect(flags("period_end")).toEqual([true, false]);
-    expect(flags("withdrawal")).toEqual([false, true]);
-    // The preview calls use the same mapping; never both flags.
-    for (const timing of REMOVAL_TIMINGS) {
-      const f = removalFlags(timing);
-      expect(f.p_at_period_end && f.p_withdrawal).toBe(false);
+      expect(r.value.timing).toBe(timing);
     }
+    expect(REMOVAL_TIMINGS).toEqual(["immediate", "notice", "period_end", "withdrawal"]);
+    // Without a choice the form is refused.
+    expect(parseRemovalForm(reader({ ...base, timing: "" }), { withdrawalOpen: true })).toEqual({
+      ok: false,
+      errors: { timing: "required" },
+    });
+  });
+
+  it("cancels the pending order only with its box", () => {
+    const order = "5d1c0000-0000-4000-8000-000000000001";
+    expect(
+      parseRemovalForm(reader({ ...base, cancel_order_id: order, cancel_pending: "on" }), {
+        withdrawalOpen: false,
+      }),
+    ).toEqual({
+      ok: true,
+      value: { reason: "sold", note: null, timing: "notice", cancelOrderId: order },
+    });
+    expect(
+      parseRemovalForm(reader({ ...base, cancel_order_id: order }), { withdrawalOpen: false }),
+    ).toEqual({ ok: false, errors: { cancel_pending: "required" } });
+    expect(
+      parseRemovalForm(reader({ ...base, cancel_order_id: "x", cancel_pending: "on" }), {
+        withdrawalOpen: false,
+      }),
+    ).toEqual({ ok: false, errors: { cancel_pending: "required" } });
   });
 
   it("refuses both flags at once and anything not offered", () => {
@@ -78,7 +96,7 @@ describe("removal form", () => {
       parseRemovalForm(reader({ ...base, note: "  satıldı  " }), { withdrawalOpen: false }),
     ).toEqual({
       ok: true,
-      value: { reason: "sold", note: "satıldı", atPeriodEnd: false, withdrawal: false },
+      value: { reason: "sold", note: "satıldı", timing: "notice", cancelOrderId: null },
     });
   });
 });

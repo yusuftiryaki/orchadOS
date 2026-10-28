@@ -78,7 +78,7 @@ Temel: `main` ≥ `8ce1252` (#66 ve #67 birleşti). En yeni migration `202611011
         - "30 gün sonra" (varsayılan): bugün + `removal_notice_days` (30; Md. 12/3) ile satırın dönem sonunun ertesi gününden hangisi önce geliyorsa o gün.
         - "Dönem sonunda": satırın dönem sonunun ertesi günü.
         - "Cayma hakkımı kullanıyorum": yalnızca cayma süresinde gösterilir. Çıkış bugündür.
-        - Karar: "hemen" seçeneği (çıkış yarın) eklenecek, varsayılan kalkacak (hukuk/kararlar.md H20, T05).
+        - Karar: "hemen" seçeneği (çıkış yarın) eklenecek, varsayılan kalkacak (hukuk/kararlar.md H20, T05). Uygulandı: dört seçenek, varsayılan yok (§22.1).
     - **Cayma, bir zamanlama seçiminden çıkarılmaz.** Tüketicinin kullandığı bir haktır, bu yüzden ayrı bir seçenektir.
     - **Cayma süresi:** talep günü (İstanbul) ≤ `withdrawal_until` olmalı. `withdrawal_until` = siparişin `activated_at` günü + 14 (`private.withdrawal_until`). Karar: süre etkinleşme gününden sayılmaya devam eder (Sahip lehine uzatma; hukuk/kararlar.md H13).
     - Talep ops onayı beklemez; çıkış günü gelince kendiliğinden işler. Md. 12/3 fesih hakkını iki tarafa da veriyor; ops onayı bir hak değil, operasyonel bir kontroldür. Ops tarihi müşteriyle anlaşarak değiştirebilir; müşteriye SMS gider.
@@ -267,12 +267,14 @@ flowchart LR
     - Neden: `sold`, `not_needed`, `dissatisfied`, `cost` ya da `other`.
     - İsteğe bağlı not (en çok 1000 karakter).
     - **Zaman:** her seçenek kendi tarihiyle ve kendi tahmini iadesiyle gösterilir. Her seçenek için `customer_garden_removal_preview` ayrı çağrılır.
-        - "30 gün sonra" (varsayılan),
+        - "Hemen" (çıkış yarın; §22.1),
+        - "30 gün sonra",
         - "Dönem sonunda",
         - yalnızca `withdrawal_until ≥ bugün` iken: "Cayma hakkımı kullanıyorum: bahçe bugün hizmetten çıkar, ödediğiniz tutar iade edilir (yapılmış envanter ve ziyaretler hariç)."
     - Önizleme çıkış gününü, tahmini iadeyi ("en fazla") ve erişim sonunu gösterir.
+    - Hiçbir seçenek önceden işaretli değildir (§22.1).
     - Zorunlu onay kutusu.
-3. **Talep.** `customer_request_garden_removal(…, p_at_period_end, p_withdrawal)` bir `C-…` numarası verir ve kaydı `requested` olarak yazar. SMS gönderilmez; durum kartta görünür. Müşteri kendi talebini tamamlanana kadar geri alabilir (`customer_cancel_garden_removal`). Ops'un açtığı çıkarmayı (`initiated_by = 'ops'`: devir, mükerrer kayıt, ops'un açtığı tarih) müşteri geri alamaz (`removal_not_open`); onu yalnızca ops iptal eder. `my_gardens.removal_initiated_by` bunu portala taşır: ops'un açtığı kayıtta "Talebi geri al" yerine "Bu çıkarmayı ekibimiz başlattı; değişiklik için bize ulaşın." görünür.
+3. **Talep.** `customer_request_garden_removal(p_parcel_id, p_reason, p_timing, p_note, p_cancel_order_id)` (§22.1) bir `C-…` numarası verir ve kaydı `requested` olarak yazar. SMS gönderilmez; durum kartta görünür. Müşteri kendi talebini tamamlanana kadar geri alabilir (`customer_cancel_garden_removal`). Ops'un açtığı çıkarmayı (`initiated_by = 'ops'`: devir, mükerrer kayıt, ops'un açtığı tarih) müşteri geri alamaz (`removal_not_open`); onu yalnızca ops iptal eder. `my_gardens.removal_initiated_by` bunu portala taşır: ops'un açtığı kayıtta "Talebi geri al" yerine "Bu çıkarmayı ekibimiz başlattı; değişiklik için bize ulaşın." görünür.
 4. **Engeller.**
     - **Ödeme bekleyen sipariş:** Bahçe ödeme bekleyen bir siparişteyse (örneğin kabul edilmiş ama ödenmemiş yenileme) talep `parcel_order_pending` döner. Portal o siparişe yönlendirir: "Siparişi iptal et" ya da, başvurudan geliyorsa, "Bahçe listesini değiştir".
     - **Cayma süresi:** Süre geçtiyse cayma seçeneği `withdrawal_expired` döner. Süre sınırında (14. gün kabul, 15. gün ret) test edilir.
@@ -405,6 +407,8 @@ Gece çalışan `garden-removal-housekeeping` ya da ops'un "hemen tamamla" eylem
 - **Ödeme planı (installments-v1, [musteri-yonetimi.md](musteri-yonetimi.md) §5.6):** Ek sipariş de envanter ödemesi ve ziyaret başına ödemelerle ödenir: envanter (KDV dahil 720.000) kabulde, 2 ziyaret ödemesi (her biri 336.000 = 672.000 / 2) kalan dönemin ilk iki ziyaret penceresine (ilkbahar, yaz), pencere başından `installment_lead_days` gün önce. Ek sipariş envanter ödemesiyle etkinleşir. Envanteri olmayan ek siparişte ilk ziyaret ödemesi etkinleştirir. Ziyaret ödemesi sayısı satırın ziyaret hakkıdır (en az 1). Kalan dönemde yeterli pencere yoksa eksik ziyaret ödemeleri başa, kabul gününe konur.
 
 ## 7. Çıkarmada iade (`removal-v1`)
+
+> T05'ten sonra açılan çıkarmalar `removal-v2` ile hesaplanır (§22.2); kaydedilmiş `removal-v1` hesapları değişmez.
 
 ### 7.1 Satır hesabı
 
@@ -1263,10 +1267,10 @@ Metinler `messages/back-office.ts` içindedir. Durum etiketleri ve hata metinler
 - Ek teklifin teklif günündeki listeyle fiyatlanması; üyeliğin eski listesiyle değil.
 - Hesap başına 50 bahçe sınırı.
 - **Kabul edilen riskler:**
-    - **Yenilenmeyen üyelik:** Erişim süresiz kalır; çıkarılan bahçede ise 90 gün sonra kalkar. Karara bağlandı: 12/4 bütün sona erme hallerine uygulanır; T08 ilk dönem bitişinden önce (hukuk/kararlar.md H23). O zamana kadar `ops_terminate_order` gerçek müşteride kullanılmaz.
+    - **Yenilenmeyen üyelik:** Erişim süresiz kalır; çıkarılan bahçede ise 90 gün sonra kalkar. Karara bağlandı: 12/4 bütün sona erme hallerine uygulanır; T08 ilk dönem bitişinden önce (hukuk/kararlar.md H23). Uygulandı (§22.4), `service_end_access_flow_enabled` anahtarının arkasında; anahtar açılana kadar `ops_terminate_order` gerçek müşteride kullanılmaz.
     - **Zaman orantısı:** Ziyaret hakkı zaman orantısıyla hesaplanır. Envanterin geç yapılabildiği bahçede hak, yapılabilecek ziyareti aşabilir. Ops başlangıcı öteleyerek bunu önler; kalan fark Md. 8A ile iade edilir ve çıkarmada düşülür.
     - **Ayrı dönem:** `ops_issue_quote` (ayrı dönem) üyeliği olan müşteriye de verilebilir ve ikinci bir dönem açar. Arayüz ek teklifi varsayılan yapar ve ayrı dönemi açık onaya bağlar; veritabanı engellemez. Çoklu dönem §4.4'teki kurallarla okunur.
-    - **Pilot parselleri:** Ops'un elle pasife aldığı pilot parselleri salt okunur olmaz; koruma yalnızca çıkarılmış parsellere uygulanır.
+    - **Pilot parselleri:** Ops'un elle pasife aldığı pilot parselleri salt okunur olmaz; koruma yalnızca çıkarılmış parsellere uygulanır. T08 ile (§22.4) anahtar açıkken pilot parsellerine de aynı erişim akışı uygulanır.
     - **Security definer yolları:** `create_verification_tour` gibi yollar, bugünkü pasif parsel korumasında olduğu gibi ziyaret korumasını aşar. Yalnızca ops ve saha ekibi çağırabilir; çıkışta planlı her ziyaret yine iptal edilir.
     - **Ekstra ziyaret bağlantısı:** Ops bir `extra_visit` isteğini olağan bir periyodik ziyarete bağlarsa o ziyaret faturalanan ziyaret sayılmaz. Bu, müşteri lehine bir hatadır.
     - **Kalemsiz iade:** Çok satırlı siparişte kalemsiz iadeler satıra bağlanamaz. Kayıt `manual` olur ve ops karar verir.
@@ -1346,3 +1350,83 @@ Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) H10, H11, H13, H19; migration'l
 - **Envanterin yeniden kullanımı (8D/3):** `org_billing_setting.inventory_reuse_months` (varsayılan 24, yalnızca SQL; değişmesi sözleşme metnini ve sürümünü değiştirir). `private.addon_lines` parselin son yayımlanmış envanteri ek teklifin başlangıcından bu kadar ay içindeyse envanter ücreti almaz (`inventory_reused`); değilse ücret gerekçesiyle ayrı satırdır (`new_garden`, `no_inventory`, `inventory_expired`). Ops parsel yolunda bir bahçeyi gerekçesiyle "yeni envanter gerekli" diye işaretler (`p_new_inventory jsonb`: `{parcel_id ya da application_garden_id: gerekçe}`, `ops_required`). `parcel_has_inventory` diğer çağıranları için değişmez.
 - **`addon_order_closed`:** Para tutan ödeme bekleyen bir ek sipariş dönemi kapandığı için iptal edilince (`service_order_addon_closed_notice` tetikleyicisi) bir kez SMS gider (§10). İade kuralları değişmez (14 gün, aynı yöntem, masrafsız).
 
+
+## 22. Hukuk takip işleri, dalga 3: çıkarma, ziyaretler, dönem sonu ve hizmet sonunda erişim (T05, T06, T07, T08, T09, T23)
+
+Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) H01, H15, H20, H21, H22, H23, H25; sözleşme `mesafeli-v4-taslak` Md. 8A, 12/3, 12/4. Migration'lar `20261105100000_wave3_enum_values.sql` … `20261105100500_contract_document_sweep.sql`; pgTAP `70_`–`74_`. Bu bölüm yukarıdaki bölümlerin ilgili kurallarını değiştirir. §2'deki kullanıcı kararları (fiyat formülü ve orantı, tek bahçe için cayma ve kesintiler, 90 gün salt okunur erişim) değişmedi.
+
+### 22.1 Çıkış zamanı: dört seçenek, varsayılan yok (T05, H20 (a))
+
+- **Seçenekler** (`garden_removal.timing`, kaydın kimliğindendir):
+    - `immediate` ("Hemen"): çıkış günü talep gününün ertesi günüdür (satırın dönem sonunun ertesi gününü geçmez);
+    - `notice` ("30 gün sonra"): bugün + `removal_notice_days` ile dönem sonunun ertesi gününden önce geleni;
+    - `period_end` ("Dönem sonunda"): dönem sonunun ertesi günü;
+    - `withdrawal` ("Cayma hakkımı kullanıyorum"): yalnızca cayma süresinde, bugün.
+  Henüz başlamamış ödenmiş siparişte her zamanlama siparişin başlangıcında işler (bugünkü kural).
+- **Varsayılan yok:** `customer_request_garden_removal(p_parcel_id, p_reason, p_timing, p_note default null, p_cancel_order_id default null)` ve `customer_garden_removal_preview(p_parcel_id, p_timing)` zamanlamayı zorunlu ister (`invalid_input`/`timing`); eski boolean imzalar kaldırıldı. Portal formunda hiçbir seçenek önceden işaretli değildir.
+- **Cayma uyarısı:** Cayma süresinde cayma olmayan her seçeneğin ("hemen" dahil) altında "Bu seçim cayma bildirimi değildir; cayma hakkınız sürüyor." yazar. Cayma yolu anahtar kapalıyken de çalışır ve açık bir çıkarmanın yerine geçer (§21.2, değişmedi).
+- **Bekleyen sipariş aynı akışta (12/3):** Bahçe ödeme bekleyen bir siparişteyse hizmet kartı, uyarıyla birlikte, zamanlama seçenekleri ve zorunlu "Bekleyen siparişi iptal et ve devam et" kutusuyla aynı formu gösterir (tahmini iade sipariş iptal edilince görünür). `p_cancel_order_id` müşterinin parseli tutan ödeme bekleyen siparişi olmalıdır; aynı işlemde `customer_cancel_order` sonra çıkarma talebi işler. Süren bir kart denemesi varsa iptal reddedilir ve hiçbir şey yazılmaz.
+
+### 22.2 `removal-v2`: "kalan" yöntemi (T05, H20 (b), H21)
+
+`calculation.formula = 'removal-v2'`. Yalnızca hesap satırı değişti; önceki iadeler, modlar ve iade satırları §7 gibidir.
+
+| Adım | Formül |
+| --- | --- |
+| Ziyaret bedeli | `visit_fee = floor((amount − inventory_share) / entitled)` (kuruşa aşağı) |
+| Hesap, `unused_visits` (müşteri ve ops çıkarması) | `amount − (inventory_done ? inventory_share : 0) − used × visit_fee` |
+| Hesap, `withdrawal` | erken başlama onayı varsa aynısı, yoksa `amount` (T03) |
+| Hesap, `duplicate` | `amount − used × visit_fee` |
+| İade | `max(0, hesap − already_refunded)` |
+
+- Kuruş yuvarlamasından kalan fark Sahip lehine iadeye girer (ör. 10.000,01 TL, 3 ziyaret, 1 yapılmış: removal-v1 6.666,66, removal-v2 6.666,68 TL). Hiç ziyaret yapılmadıysa envanter payı dışındaki tamamı, envanter de yapılmadıysa satırın tamamı iade edilir.
+- **Kullanılmış ziyaret** (`private.visit_usage`, `private.billed_visits` aynı kuralı okur): §7.1'deki faturalanan ziyaretler, artı 8A/3'e göre yapılmış sayılan ziyaretler (`private.missed_visit.outcome = 'deemed_done'`, ayrı gün), eksi raporu yayımlanamayan ziyaretler (`report_lost`, §22.3). Raporu kaybolan envanter yapılmış sayılmaz. `calculation.lines[]` ek olarak `visits_deemed_done` ve `visits_report_lost` taşır. Raporu yayımlanamayan ziyaretin farkı Şirket'çe ayrıca iade edilir (8A, elle).
+- **Sözleşme örnekleri** (pgTAP `70_garden_removal_v2`): v3 12.000,00 TL / 4 ziyaret / 1 yapılmış → 9.000,00 TL; 3.000,00 TL 8A iadesiyle 6.000,00 TL. v4 17.280,00 TL → 12.960,00 TL; 4.320,00 TL 8A iadesiyle 8.640,00 TL. `private.removal_v2_gross` formülün kendisidir.
+- **Eski kayıtlar:** Tamamlanmış `removal-v1` hesapları yeniden yazılmaz (tablo koruması); açık talepler tamamlanırken removal-v2 ile hesaplanır.
+
+### 22.3 Şirket'in çıkarması: yalnızca haklı sebepler (T05, H20 (c), H36)
+
+- **Nedenler** (`ops_request_garden_removal`; başka neden `removal_reason_not_allowed`, tablo da `garden_removal_ops_reason_check` ile reddeder):
+
+| Neden | Etiket | Bildirim |
+| --- | --- | --- |
+| `location_misdeclared` | Gerçek konumun başvuruda bildirilenden esaslı biçimde farklı olması (H36) | 30 gün |
+| `owner_breach` | Md. 5'in esaslı ya da tekrarlanan ihlali (ör. iki pencere boyunca erişim yok) | 30 gün |
+| `no_authority` | Sahip'in yetkisizliği | yok |
+| `third_party_objection` | Md. 6/4'teki üçüncü kişi itirazı | yok |
+| `staff_safety` | Personel güvenliğini tehdit eden durum | yok |
+| `transfer` | Devir (satış) | 30 gün |
+| `duplicate` | Mükerrer kayıt | yok |
+| `payment_default` | Md. 8/6 uyarısına rağmen bir ödemenin yapılmaması (H35) | uyarının süresi; ek bildirim yok |
+| `service_withdrawn_district` | İlçedeki saha hizmetinin o ilçedeki bütün sahipler için aynı tarihte sona erdirilmesi (H36) | 60 gün ve ödenmiş pencere kuralı |
+| `by_agreement` | Sahip'le anlaşarak | yok; Sahip'in yazılı onayı zorunlu |
+
+- "Hizmet bölgesi dışında" nedeni yoktur (H36). Başvurunun konuma göre reddi (`out_of_service_area`) not ister (`ops_reject_application`, `invalid_input` / `note`): uygulanan yazılı iç ölçüt.
+- **İlçede hizmetin sona ermesi:** Çıkış günü en erken `min(bugün + 60, dönem sonu + 1)`'dir; Sahip'in yazılı onayı bu süreyi kısaltabilir. Ayrıca bugünün içinde bulunduğu ziyaret penceresi ödenmişse (o pencerenin ziyaret ödemesi `paid`; ödeme planı olmayan siparişte her pencere ödenmiş sayılır) çıkış günü pencere bitiminin ertesi gününden önce olamaz (`private.district_withdrawal_earliest`, `removal_window_not_ended`); bu kural onayla da aşılmaz.
+- **Ödeme nedeniyle çıkarma:** Siparişin `pending` bir ödemesinin son gününün üzerinden en az 30 gün geçmiş olmalıdır (`payment_default_not_due`) ve not zorunludur (Md. 8/6 uyarısının tarihi ve kanalı). Uyarı kaydı, SMS'i ve uyarı süresinin denetimi T30'dadır; o zamana kadar kılavuz kuralı uygulanır.
+- **Bildirim:** 30 günlük nedenlerde çıkış günü en erken `min(bugün + 30, dönem sonu + 1)`'dir (`removal_notice_too_short`). Daha erken bir gün yalnızca Sahip'in yazılı onayı kaydedilince verilir (12/3: tarih anlaşmayla değişir). Onay `garden_removal.owner_consent_note`'a yazılır (iç kayıt, kaydın kimliğindendir); `by_agreement`'ta her zaman zorunludur.
+- **İade:** removal-v2 `unused_visits`: kullanılmayan bütün ziyaretler; bildirim süresinde yapılmayan ziyaretler kullanılmamış sayılır (yapılmış ziyaretler sayılır, başka kesinti yoktur). Ödeme planında (installments-v1, H35 (d)) önce satırın ödenmemiş tutarı iptal edilir, kalanı ödenenden iade edilir (`installments_cut_kurus`).
+- **Devir mesajı (T23, H22):** Neden `transfer` olan çıkarma açılınca `garden_removal_scheduled`'ın yanında `garden_transfer_reports` ("raporlarınızı indirin"; çıkışta erişim kapanır, sonrasında kopya talep üzerine) gider.
+- Müşterinin kendi çıkarma nedenleri (`sold`, `not_needed`, `dissatisfied`, `cost`, `other`) değişmedi. Sistem nedenleri (`period_ended`, `order_terminated`, `pilot_ended`) yalnızca §22.4'tedir.
+
+### 22.4 Sözleşme bir bahçe için nasıl sona ererse ersin erişim (T08, H23)
+
+- **Anahtar:** `org_billing_setting.service_end_access_flow_enabled` (yalnızca SQL; barındırılan projelerde `false`, `seed.sql`'de `true`). Kapalıyken bugünkü davranış sürer. İlk `service_end`'den **en az 30 gün önce** açılır ([deployment.md](deployment.md)).
+- **Tetikler:** Billing housekeeping siparişi `completed` yapınca (çıkış günü dönem sonunun ertesi günü), `ops_terminate_order` (bugün; açık çıkarmalar iptal edildikten sonra) ve `ops_set_parcel_passive(true)` (pilot parseli, hiçbir satır hizmet vermiyorken; parselin her sahibi için).
+- **Akış:** Müşterinin başka etkin siparişinin hizmet vermediği, açık çıkarması ya da açık erişim penceresi olmayan her parsel için sistem, `garden_removal`'a `initiated_by = 'system'`, neden `period_ended` / `order_terminated` / `pilot_ended`, durumu `completed`, iadesi `none` olan bir satır yazar (`calculation.formula = 'service-end-v1'`; pilot satırında sipariş yoktur). Böylece çıkarmanın bütün erişim akışı yeniden kullanılır: parsel pasif, planlı ziyaretler, takip istekleri ve bekleyen davetler iptal; salt okunur pencere (soru ve hissedar daveti kapalı, `parcel_read_only`); süre ≥ 14 gün ise bitişten 7 gün önce `garden_access_ending`; `access_until`'de §5.4'teki erişimler kalkar. Çıkış SMS'i (`garden_removal_completed`) gitmez. Veri silinmez (KVKK metni §7).
+- **Yeniden açılma:** Pencere içinde yenileme ödenince `private.activate_order` pencereyi kapatır (`resumed`), sahip erişimini verir ve parseli pasiften çıkarır (bugünkü geri ekleme yolu). Pilot parseli yeniden etkin yapılınca (`ops_set_parcel_passive(false)`) `pilot_ended` pencereleri kapanır; başka bir çıkarmanın penceresi varsa `parcel_removed` kalır.
+- **Bahçelerim (T23):** Çıkarılan bahçe, erişimi bittikten sonra da `my_gardens`'ta `removed` olarak çıkış günüyle listelenir (bağlantısız, "Hizmetten çıkış: … · raporlara erişim kapandı"); hizmet sonu penceresindeki bahçe de `removed`'dır.
+
+### 22.5 Saklama: sona erme tarihi ve saha kişisinin telefonu (T09, H25)
+
+- `private.contract_end` (ekleme-yalnız): her tamamlanan çıkarma ya da hizmet sonu penceresi için parsel, kullanıcı, son hizmet günü (çıkış günü − 1) ve neden (`removal`, `withdrawal`, `period_ended`, `order_terminated`, `pilot_ended`). Mevcut tamamlanmış çıkarmalar migration'da dolduruldu. `private.parcel_contract_end(parsel)` ve `private.owner_contract_end(kullanıcı)` hizmet sürmüyorken son tarihi verir; uzun vadeli saklama (T10) buradan başlar.
+- Bir erişim penceresi kapanınca (`access_revoked_at`) ve parsele artık hiçbir satır hizmet vermiyorsa `private.parcel_detail.site_contact_phone` ve müşterinin başvuru kopyasındaki telefon silinir; ad ve erişim notu kalır. Denetim: `parcel.site_contact_phone_cleared`. Çıkarmalarda her zaman, hizmet sonunda T08 anahtarıyla birlikte çalışır.
+
+### 22.6 Ziyaret tarihi, erteleme, yapılamayan ziyaret ve dönem sonu (T07, T06)
+
+Ayrıntı ve kılavuz: [kullanim-kilavuzu.md](kullanim-kilavuzu.md) 3.1–3.2 ve 6; veri modeli: [veri-modeli.md](veri-modeli.md). Kısaca:
+
+- **`visit_scheduled`:** Envanter ya da periyodik ziyaret en az 3 gün sonrasına planlanınca (ya da taşınınca) parselin sahiplerine SMS/WhatsApp gider: gün, bahçede çalışanlar için kısa not, `/bahcede-bulunanlar` ve portal bağlantısı. `org_billing_setting.visit_notice_sms_enabled` (barındırılanda `false`, seed'de `true`). Daha yakın tarih ops formunda telefonla bildirim saatini zorunlu ister (`ops_record_visit_phone_notice`). Bildirimler `private.visit_notice`'tadır.
+- **Erteleme:** Sahip ziyaretten en geç bir gün önce bir kez erteleyebilir (portal "Planlı ziyaretler" kartı ya da ops kaydı); ops aynı pencerede yeniden planlar.
+- **Yapılamayan ziyaret:** `private.missed_visit`; Sahip kaynaklı nedende not, fotoğraf, aynı gün bildirim ve pencere içinde yeni tarih (ya da "pencerede tarih yok") zorunlu; önerilen tarihte aynı nedenle yine yapılamazsa `deemed_done` (kullanılmış ziyaret, §22.2). Sonuç bir kez girilir: `rescheduled`, `deemed_done`, `refunded`, `carried_over` (yalnız Sahip'in portal ya da yazılı talebiyle, dönemin sonraki bir penceresine).
+- **Dönem sonu mutabakatı (T06, 8A/6):** Sipariş `completed` olunca, "dönem sonunda" çıkış tamamlanınca ve her sözleşme penceresinin bitiminin ertesi günü (`visit-reconciliation` pg_cron işi) eksik ziyaret için ops görevi açılır (`private.visit_reconciliation`, son gün dönem/pencere sonu + 14, gecikme işareti). İade açma elle kalır (iade nedeni `missed_visit`); 8A iadeleri sonraki çıkarmada düşülür (§7.1).

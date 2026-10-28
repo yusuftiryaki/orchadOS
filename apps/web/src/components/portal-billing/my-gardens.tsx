@@ -4,7 +4,7 @@ import portal from "@/components/portal/portal.module.css";
 import type { CustomerGarden } from "@/lib/billing/types";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
-import { gardenBadge, removable } from "@/lib/portal-billing/gardens";
+import { accessEnded, gardenBadge, removable } from "@/lib/portal-billing/gardens";
 import { portalHref } from "@/lib/portal-billing/urls";
 import styles from "./portal-billing.module.css";
 
@@ -47,13 +47,17 @@ export function MyGardens({
               {gardens.map((g) => (
                 <tr key={g.order_item_id} data-parcel-id={g.parcel_id ?? undefined}>
                   <td>
-                    {g.parcel_id ? (
+                    {g.parcel_id && !accessEnded(g) ? (
                       <Link href={portalHref.parcel(g.parcel_id)}>{g.garden_name}</Link>
                     ) : (
                       g.garden_name
                     )}
                     <br />
-                    <span className="muted">{G.serviceEnd(formatDate(g.service_end))}</span>
+                    <span className="muted">
+                      {g.state === "removed" && g.removal_effective_on
+                        ? G.leaving(formatDate(g.removal_effective_on))
+                        : G.serviceEnd(formatDate(g.service_end))}
+                    </span>
                   </td>
                   <td>
                     <span className={styles.state} data-state={g.state} data-testid="garden-state">

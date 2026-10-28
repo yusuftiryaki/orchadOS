@@ -140,7 +140,8 @@ declare
   v uuid;
 begin
   perform pg_temp.ops();
-  v := public.ops_request_garden_removal(pg_temp.item_of(p_order), p_reason, pg_temp.today(), p_note, p_access);
+  v := public.ops_request_garden_removal(pg_temp.item_of(p_order), case p_reason when 'sold' then 'staff_safety' else p_reason end, pg_temp.today(), p_note, p_access,
+    p_owner_consent_note => case when p_reason = 'transfer' then 'Sahip yazılı onay verdi' end);
   perform public.ops_complete_garden_removal(v);
   return v;
 end;
@@ -159,35 +160,35 @@ insert into ids select 'p1', pg_temp.parcel_of(pg_temp.id('o1'));
 select pg_temp.as_user(pg_temp.id('c1'));
 select results_eq(
   $$ select order_item_id, effective_on, withdrawal, access_until, visits_entitled, visits_used, refund_estimate_kurus, line_count
-     from public.customer_garden_removal_preview(pg_temp.id('p1')) $$,
+     from public.customer_garden_removal_preview(pg_temp.id('p1'), 'notice') $$,
   $$ select pg_temp.item_of(pg_temp.id('o1')), pg_temp.today() + 30, false, pg_temp.today() + 120, 4::smallint, 0,
             1200000::bigint, 1 $$,
   'preview, in 30 days: the date, access end, at most the whole amount (no visit yet)');
-select is((select effective_on from public.customer_garden_removal_preview(pg_temp.id('p1'), true)),
+select is((select effective_on from public.customer_garden_removal_preview(pg_temp.id('p1'), 'period_end')),
   pg_temp.today() + 265, 'at the period end: the day after the line ends');
-select is(pg_temp.error_of($$ select * from public.customer_garden_removal_preview(pg_temp.id('p1'), true, true) $$),
-  '22023 invalid_input / withdrawal', 'not both choices');
+select is(pg_temp.error_of($$ select * from public.customer_garden_removal_preview(pg_temp.id('p1'), 'bogus') $$),
+  '22023 invalid_input / timing', 'an explicit, known timing');
 update public.service_order set activated_at = now() - interval '20 days' where id = pg_temp.id('o1');
-select is(pg_temp.error_of($$ select * from public.customer_garden_removal_preview(pg_temp.id('p1'), false, true) $$),
+select is(pg_temp.error_of($$ select * from public.customer_garden_removal_preview(pg_temp.id('p1'), 'withdrawal') $$),
   'P0001 withdrawal_expired', 'withdrawal only within 14 days of activation');
 update public.service_order set activated_at = now() - interval '14 days' where id = pg_temp.id('o1');
 select results_eq(
-  $$ select effective_on, withdrawal, withdrawal_until from public.customer_garden_removal_preview(pg_temp.id('p1'), false, true) $$,
+  $$ select effective_on, withdrawal, withdrawal_until from public.customer_garden_removal_preview(pg_temp.id('p1'), 'withdrawal') $$,
   $$ select pg_temp.today(), true, pg_temp.today() $$, 'day 14 of the withdrawal period: accepted, effective today');
 update public.service_order set activated_at = now() - interval '15 days' where id = pg_temp.id('o1');
-select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.id('p1'), 'sold', null, false, true) $$),
+select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.id('p1'), 'sold', 'withdrawal') $$),
   'P0001 withdrawal_expired', 'day 15: refused');
-select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.id('p1'), 'transfer') $$),
+select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.id('p1'), 'transfer', 'notice') $$),
   '22023 invalid_input / reason', 'transfer and duplicate are ops'' reasons');
-select is(pg_temp.error_of(format($$ select public.customer_request_garden_removal(%L, 'other', %L) $$,
+select is(pg_temp.error_of(format($$ select public.customer_request_garden_removal(%L, 'other', 'notice', %L) $$,
   pg_temp.id('p1'), repeat('x', 1001))), '22023 invalid_input / note', 'a note of at most 1000 characters');
-select is(pg_temp.error_of($$ select public.customer_request_garden_removal('c0000000-0000-4000-8000-000000000001', 'sold') $$),
+select is(pg_temp.error_of($$ select public.customer_request_garden_removal('c0000000-0000-4000-8000-000000000001', 'sold', 'notice') $$),
   'P0002 not_found', 'only an owned parcel');
 update public.org_billing_setting set garden_changes_enabled = false where org_id = 'b0000000-0000-4000-8000-000000000001';
-select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.id('p1'), 'sold') $$),
+select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.id('p1'), 'sold', 'notice') $$),
   'P0001 garden_changes_closed', 'no request while the switch is off');
 update public.org_billing_setting set garden_changes_enabled = true where org_id = 'b0000000-0000-4000-8000-000000000001';
-insert into ids select 'r1', public.customer_request_garden_removal(pg_temp.id('p1'), 'not_needed', 'Bahçeyi kiraya verdim');
+insert into ids select 'r1', public.customer_request_garden_removal(pg_temp.id('p1'), 'not_needed', 'notice', 'Bahçeyi kiraya verdim');
 select results_eq(
   $$ select status::text, initiated_by, number ~ '^C-[0-9]{4}-[0-9]{6}$', requested_effective_on, effective_on,
             access_days, withdrawal, at_period_end, order_item_id
@@ -199,7 +200,7 @@ select is((select count(*)::integer from public.notification where ref_id = pg_t
   'no message for the customer''s own request');
 select is((select details ->> 'access_days' from public.audit_event where action = 'garden_removal.requested'
            and entity_id = pg_temp.id('r1') and actor_role = 'customer'), '90', 'garden_removal.requested by the customer');
-select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.id('p1'), 'sold') $$),
+select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.id('p1'), 'sold', 'notice') $$),
   'P0001 garden_removal_open', 'one open removal per garden');
 select is((select state from public.my_gardens() where parcel_id = pg_temp.id('p1')), 'leaving', 'my_gardens: leaving');
 select results_eq(
@@ -212,7 +213,7 @@ select is(pg_temp.error_of($$ select public.customer_cancel_garden_removal(pg_te
 -- 2. Ops: schedule, messages, access rule, cancel -----------------------------------------
 
 select pg_temp.as_user(pg_temp.id('c1'));
-insert into ids select 'r2', public.customer_request_garden_removal(pg_temp.id('p1'), 'cost');
+insert into ids select 'r2', public.customer_request_garden_removal(pg_temp.id('p1'), 'cost', 'notice');
 select pg_temp.ops();
 select is(pg_temp.error_of($$ select public.ops_schedule_garden_removal(pg_temp.id('r2'), pg_temp.today() + 10) $$),
   '22023 invalid_input / note', 'another day than requested needs a note');
@@ -253,12 +254,12 @@ select is((select count(*)::integer from public.notification where template = 'g
            and ref_id = pg_temp.id('r2')), 1, 'garden_removal_cancelled is sent');
 select is(pg_temp.error_of($$ select public.ops_cancel_garden_removal(pg_temp.id('r2'), 'x') $$),
   'P0001 removal_not_open', 'a cancelled removal is final');
-select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'sold', %L, null, 0) $$,
+select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'staff_safety', %L, null, 0) $$,
   pg_temp.item_of(pg_temp.id('o1')), pg_temp.today())), '22023 invalid_input / access_days',
   'ops: no access shortening without a reason');
-select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'sold', %L) $$,
+select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'staff_safety', %L) $$,
   pg_temp.item_of(pg_temp.id('o1')), pg_temp.today() - 1)), '22023 invalid_input / effective_on', 'not in the past');
-insert into ids select 'r3', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o1')), 'sold',
+insert into ids select 'r3', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o1')), 'staff_safety',
   pg_temp.today() + 5, 'satış', 0);
 select is(pg_temp.error_of($$ select public.ops_complete_garden_removal(pg_temp.id('r3')) $$),
   'P0001 removal_not_due', 'not completed before its day');
@@ -294,7 +295,7 @@ values ('b0000000-0000-4000-8000-000000000001', pg_temp.id('p1'), pg_temp.id('s1
 insert into private.viewer_invitation (org_id, parcel_id, full_name, phone, invited_by)
 values ('b0000000-0000-4000-8000-000000000001', pg_temp.id('p1'), 'Hissedar Bir', '+905550004601', pg_temp.id('c1'));
 select pg_temp.ops();
-insert into ids select 'r4', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o1')), 'sold', pg_temp.today());
+insert into ids select 'r4', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o1')), 'staff_safety', pg_temp.today());
 select results_eq(
   $$ select x ->> 'mode', (x ->> 'refund_kurus')::bigint, (x -> 'lines' -> 0 ->> 'visits_used')::integer,
             (x -> 'lines' -> 0 ->> 'already_refunded_kurus')::bigint, (x ->> 'pending_orders')
@@ -312,7 +313,7 @@ select results_eq(
   $$ select status::text, refund_mode, refund_kurus, (calculation ->> 'refund_vat_kurus')::bigint,
             calculation ->> 'formula', (calculation ->> 'unallocated_kurus')::bigint
      from public.garden_removal where id = pg_temp.id('r4') $$,
-  $$ values ('completed'::text, 'unused_visits'::text, 600000::bigint, 100000::bigint, 'removal-v1'::text, 0::bigint) $$,
+  $$ values ('completed'::text, 'unused_visits'::text, 600000::bigint, 100000::bigint, 'removal-v2'::text, 0::bigint) $$,
   'Md. 8A (doc §7 example at round prices): 3 × 300 000 − 300 000 = 600 000, VAT share 100 000');
 select results_eq(
   $$ select (l ->> 'amount_kurus')::bigint, (l ->> 'visits_entitled')::integer, (l ->> 'visits_used')::integer,
@@ -405,7 +406,7 @@ reset role;
 insert into ids select 'qq', id from public.question where body = 'Bu ağaçta ne var? (46)';
 select pg_temp.ops();
 -- Visit guard while the removal is open: on or after its day.
-insert into ids select 'oqr', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('oo')), 'sold',
+insert into ids select 'oqr', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('oo')), 'staff_safety',
   pg_temp.today() + 10);
 insert into ids select 'ps', pg_temp.visit('c0000000-0000-4000-8000-000000000001', 'periodic_scan', 'planned', pg_temp.today() + 5);
 set local role authenticated;
@@ -495,7 +496,8 @@ insert into public.parcel_access (org_id, parcel_id, user_id, role, granted_by) 
   ('b0000000-0000-4000-8000-000000000001', pg_temp.id('p3'), pg_temp.id('u_owner'), 'owner', null);
 select pg_temp.ops();
 insert into ids select 'r7', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o3')), 'transfer',
-  pg_temp.today(), null, 0, true);
+  pg_temp.today(), null, 0, true,
+    p_owner_consent_note => 'Sahip yazılı onay verdi');
 select public.ops_complete_garden_removal(pg_temp.id('r7'));
 select results_eq(
   $$ select access_days, access_until, refund_mode from public.garden_removal where id = pg_temp.id('r7') $$,
@@ -546,8 +548,7 @@ insert into ids select 'o10', pg_temp.new_order(pg_temp.id('c8'), array[20000], 
 update public.service_order set activated_at = now() - interval '3 days' where id = pg_temp.id('o10');
 select pg_temp.visit(pg_temp.parcel_of(pg_temp.id('o10')), 'periodic_scan', 'captured', pg_temp.today() - 2);
 select pg_temp.as_user(pg_temp.id('c8'));
-insert into ids select 'r10', public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o10')), 'dissatisfied',
-  null, false, true);
+insert into ids select 'r10', public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o10')), 'dissatisfied', 'withdrawal');
 select pg_temp.ops();
 select public.ops_complete_garden_removal(pg_temp.id('r10'));
 select results_eq(
@@ -640,11 +641,11 @@ insert into ids select 'q17', public.ops_issue_parcel_quote('b0000000-0000-4000-
   '91200000-0000-4000-8000-000000000001', array[pg_temp.parcel_of(pg_temp.id('o16'))], false, null, pg_temp.id('o16'));
 insert into ids select 'o17', pg_temp.accept(pg_temp.id('c14'), pg_temp.id('q17'));
 select pg_temp.as_user(pg_temp.id('c14'));
-select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o16')), 'cost') $$),
+select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o16')), 'cost', 'notice') $$),
   'P0001 parcel_order_pending', 'a garden on an unpaid renewal: cancel or fix that order first');
 select pg_temp.pay(pg_temp.id('o17'));
 select pg_temp.as_user(pg_temp.id('c14'));
-insert into ids select 'r17', public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o16')), 'cost', null, true);
+insert into ids select 'r17', public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o16')), 'cost', 'period_end');
 select is((select requested_effective_on from public.garden_removal where id = pg_temp.id('r17')), pg_temp.today() + 5,
   'at the period end: the renewal''s first day');
 select testing.set_order_period(pg_temp.id('o16'), pg_temp.today() - 365, pg_temp.today() - 1);
@@ -674,7 +675,7 @@ insert into ids select 'o19', pg_temp.accept(pg_temp.id('c15'), public.ops_issue
 insert into public.garden_removal (org_id, customer_user_id, number, parcel_id, order_id, order_item_id, garden_name,
   status, initiated_by, reason, requested_effective_on, effective_on, access_days, access_until, scheduled_at)
 select 'b0000000-0000-4000-8000-000000000001', pg_temp.id('c15'), 'C-2026-946001', i.parcel_id, i.order_id, i.id,
-       i.garden_name, 'scheduled', 'ops', 'sold', pg_temp.today(), pg_temp.today(), 90, pg_temp.today() + 90, now()
+       i.garden_name, 'scheduled', 'ops', 'staff_safety', pg_temp.today(), pg_temp.today(), 90, pg_temp.today() + 90, now()
 from public.service_order_item i where i.order_id = pg_temp.id('o18');
 insert into ids select 'r19', id from public.garden_removal where number = 'C-2026-946001';
 select is(pg_temp.error_of($$ select public.payment_begin(pg_temp.id('o19'), pg_temp.id('c15'), 'fake', 'http://127.0.0.1:3100') $$),
@@ -722,7 +723,7 @@ select is((select garden_removals_blocked from public.ops_billing_summary('b0000
 insert into ids select 'c17', pg_temp.new_customer(17);
 insert into ids select 'o22', pg_temp.new_order(pg_temp.id('c17'), array[20000], 38.70);
 select pg_temp.as_user(pg_temp.id('c17'));
-insert into ids select 'r22', public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o22')), 'sold');
+insert into ids select 'r22', public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o22')), 'sold', 'notice');
 set local session_replication_role = replica;
 update public.garden_removal set requested_effective_on = pg_temp.today() where id = pg_temp.id('r22');
 set local session_replication_role = origin;
@@ -739,7 +740,7 @@ select is((select actor_role from public.audit_event where action = 'garden_remo
 insert into ids select 'c18', pg_temp.new_customer(18);
 insert into ids select 'o23', pg_temp.new_order(pg_temp.id('c18'), array[20000], 38.80);
 select pg_temp.ops();
-insert into ids select 'r23', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o23')), 'sold', pg_temp.today());
+insert into ids select 'r23', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o23')), 'staff_safety', pg_temp.today());
 update public.service_order set status = 'terminated', terminated_at = now() where id = pg_temp.id('o23');
 select lives_ok($$ select public.ops_complete_garden_removal(pg_temp.id('r23')) $$,
   'completing a removal whose order ended meanwhile');

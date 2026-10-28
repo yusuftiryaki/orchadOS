@@ -11,6 +11,7 @@ import {
   type Irrigation,
   type Read,
 } from "@/lib/operations/validation";
+import { isUuid } from "@/lib/supabase/query";
 import { isValidTckn } from "./tckn";
 
 // Form parsing of the customer portal (pure, unit tested). Each parser takes a
@@ -333,16 +334,19 @@ export function parseNote(input: string, max = 1000): string | null | "too_long"
 export const REMOVAL_REASONS = CUSTOMER_REMOVAL_REASONS;
 export type RemovalReason = (typeof REMOVAL_REASONS)[number];
 
-// The customer picks exactly one timing: one radio, so the two database flags
-// (p_at_period_end, p_withdrawal) are never both set.
-export const REMOVAL_TIMINGS = ["notice", "period_end", "withdrawal"] as const;
+// The customer picks exactly one timing, explicitly (contract 12/3, H20:
+// "varsayılan seçenek yoktur"): immediate ("hemen", the next day), notice
+// (30 days), the period end or, inside the withdrawal period, withdrawal.
+export const REMOVAL_TIMINGS = ["immediate", "notice", "period_end", "withdrawal"] as const;
 export type RemovalTimingChoice = (typeof REMOVAL_TIMINGS)[number];
 
 export interface RemovalForm {
   reason: RemovalReason;
   note: string | null;
-  atPeriodEnd: boolean;
-  withdrawal: boolean;
+  timing: RemovalTimingChoice;
+  // "Bekleyen siparişi iptal et ve devam et" (12/3): the order awaiting
+  // payment that holds the garden, cancelled in the same request.
+  cancelOrderId: string | null;
 }
 
 export function parseRemovalForm(
@@ -356,16 +360,12 @@ export function parseRemovalForm(
   // The withdrawal option is offered only inside the withdrawal window.
   if (timing === "withdrawal" && !opts.withdrawalOpen) errs.set("timing", "invalid");
   if (read("confirm") !== "on") errs.set("confirm", "required");
+  const cancelOrderId = read("cancel_order_id");
+  if (cancelOrderId && (!isUuid(cancelOrderId) || read("cancel_pending") !== "on")) {
+    errs.set("cancel_pending", "required");
+  }
   if (errs.any || !reason || !timing) return { ok: false, errors: errs.errors };
-  return {
-    ok: true,
-    value: {
-      reason,
-      note,
-      atPeriodEnd: timing === "period_end",
-      withdrawal: timing === "withdrawal",
-    },
-  };
+  return { ok: true, value: { reason, note, timing, cancelOrderId: cancelOrderId || null } };
 }
 
 // T13 (H16): the TCKN typed in at card payment, spaces removed; null when it

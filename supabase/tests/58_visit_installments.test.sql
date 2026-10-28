@@ -370,7 +370,7 @@ insert into public.session (org_id, parcel_id, kind, status, planned_date, start
 values ('b0000000-0000-4000-8000-000000000001', pg_temp.parcel_of(pg_temp.id('o3')), 'periodic_scan', 'captured',
         pg_temp.today(), now());
 select pg_temp.ops();
-insert into ids select 'r3', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o3')), 'sold', pg_temp.today());
+insert into ids select 'r3', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o3')), 'staff_safety', pg_temp.today(), 'Tehdit');
 select public.ops_complete_garden_removal(pg_temp.id('r3'));
 select results_eq(
   $$ select (calculation -> 'lines' -> 0 ->> 'gross_kurus')::bigint, (calculation -> 'lines' -> 0 ->> 'unpaid_kurus')::bigint,
@@ -391,7 +391,7 @@ insert into ids select 'o5', public.customer_accept_quote(pg_temp.id('q5'),
   '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 select pg_temp.card_pay(pg_temp.id('c5'), pg_temp.id('o5'));
 select pg_temp.as_user(pg_temp.id('c5'));
-insert into ids select 'r5', public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o5')), 'not_needed', null, false, true);
+insert into ids select 'r5', public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o5')), 'not_needed', 'withdrawal');
 select pg_temp.ops();
 select public.ops_complete_garden_removal(pg_temp.id('r5'));
 select results_eq(
