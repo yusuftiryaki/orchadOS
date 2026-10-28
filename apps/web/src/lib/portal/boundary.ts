@@ -132,7 +132,8 @@ export async function approveBoundary(
   if (error) {
     // A demo visitor (docs/demo-turu.md §6.3).
     if (error.message === "demo_read_only") return { ok: false, error: "demo_read_only" };
-    if (error.message === "declaration_required") return { ok: false, error: "declaration_required" };
+    if (error.message === "declaration_required")
+      return { ok: false, error: "declaration_required" };
     return { ok: false, error: "forbidden" };
   }
   return { ok: true };

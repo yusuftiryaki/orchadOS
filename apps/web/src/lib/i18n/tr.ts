@@ -1818,7 +1818,10 @@ export const tr = {
       missingName: "Ad girilmemiş: bu kişinin onayladığı raporlarda uzman adı görünmez.",
       missingTitle: "Unvan girilmemiş: raporda yalnızca ad görünür.",
       empty: "Bu kuruluşta personel yok.",
-      roleNames: { field_staff: "Saha", expert: "Uzman", ops: "Operasyon" } as Record<string, string>,
+      roleNames: { field_staff: "Saha", expert: "Uzman", ops: "Operasyon" } as Record<
+        string,
+        string
+      >,
     },
     notice: {
       title: "Kişisel verileriniz hakkında bilgilendirme",
@@ -1858,7 +1861,8 @@ export const tr = {
       back: "İzinler",
       title: "KVKK başvurusu",
       link: "KVKK başvurusu yapın",
-      linkHint: "Kişisel verilerinize ilişkin haklarınızı (KVKK md. 11) buradan kullanabilirsiniz; 30 gün içinde cevaplanır.",
+      linkHint:
+        "Kişisel verilerinize ilişkin haklarınızı (KVKK md. 11) buradan kullanabilirsiniz; 30 gün içinde cevaplanır.",
       lead: "Kişisel verilerinizle ilgili bilgi isteyebilir, düzeltme, silme ya da itiraz talep edebilirsiniz. Portal hesabınızla yaptığınız başvuruda kimliğiniz doğrulanmış sayılır. Başvurunuz en geç 30 gün içinde ücretsiz olarak sonuçlandırılır.",
       type: "Başvuru konusu",
       types: {
@@ -1906,11 +1910,16 @@ export const tr = {
     },
     media: {
       title: "Görüntü gizleme (KVKK itirazı)",
-      hint: "Bir kişinin itirazında (KVKK md. 11) o kişinin göründüğü panorama, kesit ya da yakın plan gizlenir. Gizlenen görüntüyü sahip, hissedar, demo ziyaretçisi ve uzman görmez; operasyon \"Gizlendi\" işaretiyle görür. Dosya ve kayıt silinmez; gizleme kaldırılabilir. Bir panorama gizlenince karenin öteki çözünürlüğü ve ondan kesilen ağaç kesitleri de gizlenir. Yüz bulanıklaştırma yapılmaz.",
-      tabs: { panorama: "Panoramalar", tree_crop: "Ağaç kesitleri", closeup: "Yakın planlar" } as Record<string, string>,
+      hint: 'Bir kişinin itirazında (KVKK md. 11) o kişinin göründüğü panorama, kesit ya da yakın plan gizlenir. Gizlenen görüntüyü sahip, hissedar, demo ziyaretçisi ve uzman görmez; operasyon "Gizlendi" işaretiyle görür. Dosya ve kayıt silinmez; gizleme kaldırılabilir. Bir panorama gizlenince karenin öteki çözünürlüğü ve ondan kesilen ağaç kesitleri de gizlenir. Yüz bulanıklaştırma yapılmaz.',
+      tabs: {
+        panorama: "Panoramalar",
+        tree_crop: "Ağaç kesitleri",
+        closeup: "Yakın planlar",
+      } as Record<string, string>,
       byId: "Kimlikle gizle",
       idLabel: "Görüntü kimliği",
-      idHint: "Panorama kimliği turdaki adreste (?panorama=…), kesit ve yakın plan kimliği ağaç karnesinde yazar.",
+      idHint:
+        "Panorama kimliği turdaki adreste (?panorama=…), kesit ve yakın plan kimliği ağaç karnesinde yazar.",
       reason: "Neden",
       reasons: {
         kvkk_objection: "KVKK itirazı (md. 11)",

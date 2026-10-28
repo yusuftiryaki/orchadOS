@@ -46,11 +46,11 @@ export default async function Page({
   const query = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
   const tabParam = one(query.gorsel);
-  const tab: MediaTab =
-    tabParam === "tree_crop" || tabParam === "closeup" ? tabParam : "panorama";
+  const tab: MediaTab = tabParam === "tree_crop" || tabParam === "closeup" ? tabParam : "panorama";
   const pageNo = Math.max(0, Math.min(999, Number.parseInt(one(query.sayfa) ?? "0", 10) || 0));
   const isOps = orgs.some((o) => o.id === visit.org_id);
-  const scanned = visit.kind !== "verification" && ["processed", "in_review", "published"].includes(visit.status);
+  const scanned =
+    visit.kind !== "verification" && ["processed", "in_review", "published"].includes(visit.status);
   const mediaHref = (tabName: MediaTab, page: number) =>
     `${opsHref.visit(visit.id)}?gorsel=${tabName}&sayfa=${page}#gorseller`;
   const media =

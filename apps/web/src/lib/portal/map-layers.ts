@@ -1,7 +1,5 @@
-import type { Position } from "@/lib/map/geo";
 import { markerState, type HealthClass, type MarkerState } from "@/lib/map/tree-style";
 import { CLASS_RANK } from "./classes";
-import { distanceM } from "./tour";
 
 // Health map layers of the owner portal (docs/MVP.md Module 5, "Sağlık
 // haritası"): a visit selector, "changed in this visit", and the coverage
@@ -52,4 +50,3 @@ export const COVERAGE_COLORS: Record<CoverageState, string> = {
   partial: "#e3b505",
   none: "#c92a2a",
 };
-

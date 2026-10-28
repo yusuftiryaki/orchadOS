@@ -10,12 +10,7 @@ import {
   valuesByCode,
   type DimensionSlot,
 } from "./dimensions";
-import {
-  changedTrees,
-  coverageState,
-  stateInVisit,
-  type MapVisit,
-} from "./map-layers";
+import { changedTrees, coverageState, stateInVisit, type MapVisit } from "./map-layers";
 import type { MeasurementRow, MetricDef } from "./metrics";
 
 // About 37.07 N: 1e-4 degrees is ~8.9 m east, ~11.1 m north.
@@ -306,5 +301,4 @@ describe("map layers", () => {
   it("coverage needs two directions", () => {
     expect([0, 1, 2, 4].map(coverageState)).toEqual(["none", "partial", "covered", "covered"]);
   });
-
 });

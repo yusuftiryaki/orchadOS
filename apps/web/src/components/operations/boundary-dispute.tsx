@@ -20,7 +20,12 @@ export function BoundaryDispute({ parcelId, status }: { parcelId: string; status
           </p>
           <form action={closeDisputeAction} className={styles.inline}>
             <input type="hidden" name="parcel_id" value={parcelId} />
-            <input name="note" aria-label={T.closeNote} placeholder={T.closeNote} maxLength={1000} />
+            <input
+              name="note"
+              aria-label={T.closeNote}
+              placeholder={T.closeNote}
+              maxLength={1000}
+            />
             <button className="button button-secondary" type="submit">
               {T.closeButton}
             </button>

@@ -15,7 +15,10 @@ export function parseApprover(value: unknown): Approver | null {
   if (!value || typeof value !== "object") return null;
   const { name, title } = value as { name?: unknown; title?: unknown };
   if (typeof name !== "string" || name.trim() === "") return null;
-  return { name: name.trim(), title: typeof title === "string" && title.trim() ? title.trim() : null };
+  return {
+    name: name.trim(),
+    title: typeof title === "string" && title.trim() ? title.trim() : null,
+  };
 }
 
 export function approverLine(approver: Approver): string {

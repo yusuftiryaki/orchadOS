@@ -29,11 +29,7 @@ import {
   opsOrgs,
 } from "@/lib/operations/data";
 import { m2ToDonum } from "@/lib/operations/geometry";
-import {
-  disputeStatus,
-  listBoundaryPointers,
-  listSuppressions,
-} from "@/lib/operations/legal";
+import { disputeStatus, listBoundaryPointers, listSuppressions } from "@/lib/operations/legal";
 import { createMediaSigner } from "@/lib/media/signer";
 import { opsHref } from "@/lib/operations/urls";
 import { createClient } from "@/lib/supabase/server";

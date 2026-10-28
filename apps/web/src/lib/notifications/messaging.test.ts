@@ -325,8 +325,8 @@ describe("co-owner invitation (T15, H32)", () => {
       ok: false,
       error: "invalid_vars",
     });
-    expect(
-      renderNotification("viewer_invited", { parcel_name: "X", path: "/kvkk" }, BASE),
-    ).toEqual({ ok: false, error: "invalid_link" });
+    expect(renderNotification("viewer_invited", { parcel_name: "X", path: "/kvkk" }, BASE)).toEqual(
+      { ok: false, error: "invalid_link" },
+    );
   });
 });

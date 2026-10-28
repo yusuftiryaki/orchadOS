@@ -43,7 +43,11 @@ export default async function Page({
           {T.errors[error] ?? T.errors.failed}
         </p>
       )}
-      <form action={fileKvkkRequestAction} className={styles.section} data-testid="kvkk-request-form">
+      <form
+        action={fileKvkkRequestAction}
+        className={styles.section}
+        data-testid="kvkk-request-form"
+      >
         <label>
           {T.type}
           <br />
@@ -75,7 +79,8 @@ export default async function Page({
           <ul>
             {requests.map((r) => (
               <li key={r.id}>
-                {T.types[r.type] ?? r.type} · {formatDate(r.createdAt)} · {T.status[r.status] ?? r.status}
+                {T.types[r.type] ?? r.type} · {formatDate(r.createdAt)} ·{" "}
+                {T.status[r.status] ?? r.status}
                 {!r.settledAt && <span className="muted"> · {T.due(formatDate(r.dueAt))}</span>}
               </li>
             ))}

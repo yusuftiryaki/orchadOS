@@ -41,7 +41,7 @@ const noValue = (error: { message?: string; details?: string | null } | null, va
 };
 
 describe("billing profile", () => {
-  it("is read masked; the TCKN is stored only while the org needs it", async () => {
+  it("never stores a TCKN, also while the org needs one (T13)", async () => {
     const c = customer.client;
     const before = check(await c.rpc("my_billing_profile"))[0];
     expect(before).toMatchObject({
@@ -66,32 +66,17 @@ describe("billing profile", () => {
       address: "Test Mah. 1. Sok. No: 2",
       city: "Gaziantep",
     };
-    // A wrong number: refused with the field name only.
-    const wrong = await c.rpc("customer_save_billing_profile", {
-      p_profile: { ...profile, identity_number: "10000000147" },
-    });
-    expect(wrong.error).toMatchObject({ message: "invalid_input", details: "identity_number" });
-    noValue(wrong.error, "10000000147");
-    // Missing while required.
-    const missing = await c.rpc("customer_save_billing_profile", { p_profile: profile });
-    expect(missing.error).toMatchObject({ message: "invalid_input", details: "identity_number" });
-
+    // T13 (H16): the profile never takes a TCKN, also while it is required:
+    // a number that comes along is ignored and nothing is stored or shown.
+    check(await c.rpc("customer_save_billing_profile", { p_profile: profile }));
     check(
       await c.rpc("customer_save_billing_profile", {
         p_profile: { ...profile, identity_number: TCKN },
       }),
     );
-    const masked = check(await c.rpc("my_billing_profile"))[0];
-    expect(masked.identity_number_masked).toBe("*******0146");
-    expect(JSON.stringify(masked)).not.toContain(TCKN);
-    // An omitted number keeps the stored one.
-    check(
-      await c.rpc("customer_save_billing_profile", { p_profile: { ...profile, city: "Nizip" } }),
-    );
-    expect(check(await c.rpc("my_billing_profile"))[0]).toMatchObject({
-      city: "Nizip",
-      identity_number_masked: "*******0146",
-    });
+    const after = check(await c.rpc("my_billing_profile"))[0];
+    expect(after.identity_number_masked).toBeNull();
+    expect(JSON.stringify(after)).not.toContain(TCKN);
     check(
       await serviceClient()
         .from("org_billing_setting")

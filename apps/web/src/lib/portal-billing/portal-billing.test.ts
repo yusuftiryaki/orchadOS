@@ -184,7 +184,10 @@ const PROFILE = {
 
 describe("billing profile form", () => {
   it("leaves the TCKN out when the org does not need it", () => {
-    const parsed = parseBillingProfileForm(reader({ ...PROFILE, identity_number: "10000000146" }), {});
+    const parsed = parseBillingProfileForm(
+      reader({ ...PROFILE, identity_number: "10000000146" }),
+      {},
+    );
     expect(parsed.ok && "identity_number" in parsed.value).toBe(false);
   });
 

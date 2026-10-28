@@ -69,7 +69,10 @@ export default async function Page({
                     {r.settledAt ? (
                       <span className="muted">{formatDate(r.settledAt)}</span>
                     ) : r.overdue ? (
-                      <span className={`${styles.badge} ${styles.badgeLate}`} data-testid="kvkk-overdue">
+                      <span
+                        className={`${styles.badge} ${styles.badgeLate}`}
+                        data-testid="kvkk-overdue"
+                      >
                         {O.overdue}
                       </span>
                     ) : (

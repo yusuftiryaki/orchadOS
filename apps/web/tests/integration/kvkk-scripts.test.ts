@@ -553,7 +553,9 @@ describe("scripts/kvkk/run.sh", () => {
     );
     // The longer namesake in the closing note is another person.
     expect(
-      sql(`select action, note from private.boundary_dispute where parcel_id = '${parcel}' order by created_at`),
+      sql(
+        `select action, note from private.boundary_dispute where parcel_id = '${parcel}' order by created_at`,
+      ),
     ).toEqual([
       ["open", `${ps} sınıra itiraz etti`],
       ["close", `${LONGER} ile çözüldü`],

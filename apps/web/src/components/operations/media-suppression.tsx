@@ -165,6 +165,10 @@ function HideForm({ back, id }: { back: string; id?: string }) {
 }
 
 function Thumb({ url }: { url: string | null }) {
-  // eslint-disable-next-line @next/next/no-img-element -- signed, short-lived URLs
-  return url ? <img src={url} alt="" width={120} height={60} loading="lazy" /> : <span className="muted">{T.noImage}</span>;
+  return url ? (
+    // eslint-disable-next-line @next/next/no-img-element -- signed, short-lived URLs
+    <img src={url} alt="" width={120} height={60} loading="lazy" />
+  ) : (
+    <span className="muted">{T.noImage}</span>
+  );
 }
