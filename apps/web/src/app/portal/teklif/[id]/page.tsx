@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { acknowledgeKvkkAction } from "@/app/portal/billing-actions";
 import { acceptQuoteAction, declineQuoteAction } from "./actions";
+import { InstallmentPlan } from "@/components/portal-billing/installment-plan";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import local from "@/components/portal-billing/portal-billing.module.css";
 import ops from "@/components/operations/operations.module.css";
@@ -19,6 +20,7 @@ import {
   getConsents,
   getLegalGate,
   getQuote,
+  getQuotePlan,
   hasKvkkNotice,
 } from "@/lib/portal-billing/data";
 import { addonInputsOf, quoteServiceEnd } from "@/lib/portal-billing/gardens";
@@ -33,7 +35,8 @@ const percent = (bp: number) => String(bp / 100).replace(".", ",");
 // then the conditions of the acceptance (§4.6): a complete billing profile,
 // the KVKK notice, the two contract texts, the optional early-performance box
 // (T03) and, where the production gate is active, final texts and company
-// information (T21; legal_gate_status, unknown when it cannot be read).
+// information (T21; legal_gate_status, unknown when it cannot be read). An
+// open quote shows its payment plan before the acceptance (H35 (b)).
 export default async function QuotePage({
   params,
   searchParams,
@@ -54,9 +57,10 @@ export default async function QuotePage({
   const here = portalHref.quote(quote.id);
   // customer_accept_quote checks the notice in the quote's org; the portal can
   // record it only in the customer's org (customer_set_consent).
-  const [consents, gate] = await Promise.all([
+  const [consents, gate, plan] = await Promise.all([
     getConsents(supabase, quote.org_id),
     open ? getLegalGate(supabase, quote.org_id) : Promise.resolve(null),
+    open ? getQuotePlan(supabase, quote.id) : Promise.resolve([]),
   ]);
   const kvkk = hasKvkkNotice(consents);
   const kvkkRecordable = profile?.orgId === quote.org_id;
@@ -227,6 +231,14 @@ export default async function QuotePage({
           </p>
         )}
       </section>
+
+      {open && plan.length > 0 && (
+        <section className={styles.section} data-testid="quote-plan">
+          <h2>{billingText.plan.title}</h2>
+          <p className="muted">{billingText.plan.quoteHint}</p>
+          <InstallmentPlan rows={plan} currency={currency} />
+        </section>
+      )}
 
       {open && (
         <>

@@ -70,6 +70,9 @@ export const BILLING_ERRORS = [
   "withdrawal_period_open",
   "order_not_active",
   "contract_document_immutable",
+  // P0001, per-visit payment plan (docs/musteri-yonetimi.md §5.6, H35)
+  "installment_unpaid",
+  "installment_not_open",
   // 55000
   "payment_not_open",
   // Anything else (network, unexpected database error).

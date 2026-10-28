@@ -10,7 +10,7 @@
 -- first year 2 448 000 kuruş: inventory 720 000 + 4 × 432 000). One transaction.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(61);
+select plan(63);
 
 select testing.reset_to_seed();
 update public.org_billing_setting set garden_changes_enabled = true where org_id = 'b0000000-0000-4000-8000-000000000001';
@@ -246,6 +246,8 @@ select is(pg_temp.error_of(format($$ select public.ops_record_manual_payment(%L,
     pg_temp.id('o1'), (pg_temp.inst(pg_temp.id('o1'), 1)).id)),
   'P0001 amount_exceeds_balance', 'a transfer for one installment is at most its open amount');
 select is(pg_temp.error_of(format($$ select public.ops_record_manual_payment(%L, 100, current_date, 'EFT-56-x', null, %L) $$,
+    pg_temp.id('ot'), (pg_temp.inst(pg_temp.id('ot'), 1)).id)), null, 'a transfer for part of an installment');
+select is(pg_temp.error_of(format($$ select public.ops_record_manual_payment(%L, 100, current_date, 'EFT-56-x', null, %L) $$,
     pg_temp.id('o1'), (pg_temp.inst(pg_temp.id('ot'), 1)).id)),
   '22023 invalid_input / installment_id', 'an installment of another order is refused');
 insert into ids select 'pay1', pg_temp.card_pay(pg_temp.id('c1'), pg_temp.id('o1'));
@@ -258,6 +260,10 @@ select is(public.payment_finalize(pg_temp.id('pay1'), 'succeeded', jsonb_build_o
     'fp56_' || pg_temp.id('pay1'), 'provider_amount_kurus', 720000, 'paid_kurus', 720000, 'fraud_status', 1)),
   'succeeded', 'a repeated report changes nothing');
 select is((pg_temp.inst(pg_temp.id('o1'), 1)).paid_kurus, 720000::bigint, 'the installment is credited once');
+select pg_temp.ops();
+select is(pg_temp.error_of(format($$ select public.ops_record_manual_payment(%L, 100, current_date, 'EFT-56-y', null, %L) $$,
+    pg_temp.id('o1'), (pg_temp.inst(pg_temp.id('o1'), 1)).id)),
+  'P0001 installment_not_open', 'a transfer for a paid installment is refused');
 insert into ids select 'pay2', pg_temp.card_pay(pg_temp.id('c1'), pg_temp.id('o1'));
 select results_eq(
   $$ select amount_kurus, order_installment_id = (pg_temp.inst(order_id, 2)).id from public.payment where id = pg_temp.id('pay2') $$,

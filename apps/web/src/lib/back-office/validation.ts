@@ -242,6 +242,8 @@ export interface ManualPaymentInput {
   valueDate: string;
   bankReference: string;
   note: string | null;
+  // One installment, or null: spread over the open ones in order.
+  installmentId?: string | null;
 }
 
 export function parseManualPayment(read: Reader): Parsed<ManualPaymentInput> {
@@ -253,7 +255,15 @@ export function parseManualPayment(read: Reader): Parsed<ManualPaymentInput> {
   if (!bankReference.ok) return bankReference;
   const note = text(read, "note", 2000);
   if (!note.ok) return note;
-  return ok({ amountKurus, valueDate, bankReference: bankReference.value!, note: note.value });
+  const installment = read("installment_id");
+  if (installment && !isUuid(installment)) return bad("installment_id");
+  return ok({
+    amountKurus,
+    valueDate,
+    bankReference: bankReference.value!,
+    note: note.value,
+    installmentId: installment || null,
+  });
 }
 
 export interface RefundInput {

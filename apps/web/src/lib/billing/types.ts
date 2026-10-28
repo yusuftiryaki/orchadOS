@@ -18,6 +18,12 @@ export type Payment = Omit<
   "provider_token" | "return_origin" | "recorded_by" | "manual_note"
 >;
 export type PaymentItem = Tables<"payment_item">;
+// The payment plan (installments-v1, docs/musteri-yonetimi.md §6.13).
+export type OrderInstallment = Omit<
+  Tables<"order_installment">,
+  "visit_override_by" | "visit_override_note"
+>;
+export type OrderInstallmentItem = Tables<"order_installment_item">;
 export type Refund = Omit<Tables<"refund">, "note" | "requested_by">;
 // IP14: a garden leaving the service (docs/bahce-yonetimi.md §9.4).
 export type GardenRemoval = Omit<
@@ -55,6 +61,9 @@ export type ServicePeriod = Functions["my_service_period"]["Returns"][number];
 export type CustomerGarden = Functions["my_gardens"]["Returns"][number];
 export type ParcelServiceStatus = Functions["parcel_service_status"]["Returns"][number];
 export type OpsGardenRemoval = Functions["ops_garden_removals"]["Returns"][number];
+export type QuotePlanRow = Functions["quote_installment_plan"]["Returns"][number];
+export type OpsOrderInstallment = Functions["ops_order_installments"]["Returns"][number];
+export type OpsOverdueInstallment = Functions["ops_overdue_installments"]["Returns"][number];
 
 // Legal follow-ups (docs/musteri-yonetimi.md "Sözleşme belgeleri (T04)", §9.3,
 // §9.4; docs/bahce-yonetimi.md §9).

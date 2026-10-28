@@ -241,7 +241,8 @@ export const portalBillingText = {
       `${n} numaralı teklif: ${total}. Son geçerlilik ${until}.`,
     quoteButton: "Teklifi inceleyin",
     orderTitle: "Ödeme bekleyen sipariş",
-    orderBody: (n: string, amount: string) => `${n} numaralı sipariş: ${amount} ödenecek.`,
+    orderBody: (n: string) =>
+      `${n} numaralı siparişin ilk ödemesi bekleniyor; ödeme planı sipariş sayfasında.`,
     orderButton: "Ödemeye geçin",
   },
 
@@ -271,6 +272,9 @@ export const portalBillingText = {
     memberLead:
       "Yeni bahçeniz üyeliğinize eklenir. Bahçelerinizi sonraki adımda eklersiniz; ekibimiz inceleyip size ek bahçe teklifi gönderir.",
     memberSubmit: "Devam edin",
+    // docs/hukuk/kararlar.md H36: no service region is stated.
+    locationNote:
+      "Başvurunuzu bahçenizin konumuna ve ekibimizin kapasitesine göre değerlendiririz; her konuma hizmet veremeyebiliriz. Başvuru ve fiyat önizlemesi ücretsizdir; hizmet veremeyeceksek başvurunuzu kapatır ve size bildiririz.",
   },
 
   application: {
@@ -421,7 +425,7 @@ export const portalBillingText = {
     version: (v: string) => `sürüm ${v}`,
     accept: "Teklifi kabul et (ödeme yükümlülüğü doğar)",
     acceptHint:
-      "Kabulle sözleşme kurulur ve ödeme adımına geçersiniz. Ödeme süresi içinde ödemezseniz siparişi iptal edebilir ya da ödeme sürenizi uzatabiliriz; sizden bir bedel istenmez.",
+      "Kabulle sözleşme kurulur ve ilk ödeme adımına geçersiniz. Diğer ödemelerin son günleri yukarıdaki plandadır. Bir ziyaret ödemesini yapmazsanız o ziyaret yapılmaz; sizden faiz ya da ek bedel istenmez. İlk ödemeyi süresi içinde yapmazsanız siparişi iptal edebilir ya da sürenizi uzatabiliriz.",
     declineTitle: "Değişiklik ya da ret",
     revisionNote: "Ne değişsin?",
     revisionHint: "Ör. bir bahçenin alanı, paket ya da başlangıç tarihi.",
@@ -480,6 +484,9 @@ export const portalBillingText = {
     refunded: "İade edilen",
     outstanding: "Kalan",
     due: "Son ödeme tarihi",
+    nextPayment: "Sıradaki ödeme",
+    payNext: (what: string, amount: string) =>
+      `Sıradaki ödemeniz: ${what}, ${amount}. Kartla her işlemde sıradaki açık ödeme ödenir; havale ile birden fazla ödemeyi birlikte gönderebilirsiniz.`,
     service: "Hizmet dönemi",
     items: "Kalemler",
     payTitle: "Ödeme",
@@ -493,15 +500,15 @@ export const portalBillingText = {
     cardInProgressLink: "Ödemenin durumunu görün",
     transferTitle: "Havale / EFT",
     transferBody:
-      "Aşağıdaki hesaba gönderin ve açıklamaya referansı mutlaka yazın. Ödemeniz ekibimizce kaydedildiğinde sipariş aktifleşir; kısmi ödeme kabul edilir. Bankanızın alabileceği gönderim ücreti size aittir; Şirket ek ücret almaz.",
+      "Aşağıdaki hesaba gönderin ve açıklamaya referansı mutlaka yazın. Ödemeniz ekibimizce kaydedilir; sipariş ilk ödemeyle aktifleşir. Kısmi ödeme kabul edilir; sonraki ödemeleri birlikte de gönderebilirsiniz. Bankanızın alabileceği gönderim ücreti size aittir; Şirket ek ücret almaz.",
     bank: "Banka",
     iban: "IBAN",
     holder: "Alıcı",
     reference: "Açıklama (referans)",
-    amount: "Gönderilecek tutar",
+    amount: "Sıradaki ödemenin tutarı",
     noBank: "Havale bilgileri henüz tanımlanmadı; lütfen bizimle iletişime geçin.",
     cancelTitle: "Siparişi iptal et",
-    cancelBody: "Ödeme yapılmadıysa siparişi iptal edebilirsiniz.",
+    cancelBody: "İlk ödeme yapılmadıysa siparişi iptal edebilirsiniz.",
     cancel: "Siparişi iptal et",
     payments: "Ödemeler",
     noPayments: "Bu sipariş için ödeme yok.",
@@ -536,7 +543,9 @@ export const portalBillingText = {
     card: "Kart",
     cardText: (association: string | null, last4: string | null) =>
       [association, last4 ? `•••• ${last4}` : null].filter(Boolean).join(" "),
-    installment: "Taksit",
+    installment: "Kart taksiti",
+    planInstallment: "Ödeme",
+    planInstallmentText: (seq: number, count: number, what: string) => `${seq}/${count} · ${what}`,
     bankReference: "Banka referansı",
     valueDate: "Valör",
     date: "Tarih",

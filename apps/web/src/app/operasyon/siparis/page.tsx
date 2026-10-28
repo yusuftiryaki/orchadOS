@@ -4,7 +4,7 @@ import { Badge, day, money } from "@/components/back-office/parts";
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
-import { listOrders } from "@/lib/back-office/data";
+import { listOrders, listOverdueInstallments } from "@/lib/back-office/data";
 import { boHref, pick } from "@/lib/back-office/urls";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { billingText } from "@/lib/i18n/messages/billing";
@@ -14,7 +14,8 @@ import { createClient } from "@/lib/supabase/server";
 const T = backOfficeText.orders;
 const STATUSES = ["awaiting_payment", "active", "completed", "cancelled", "terminated"] as const;
 
-// Orders (ops_orders); overdue payments are highlighted.
+// Orders (ops_orders); overdue payments are highlighted, and installments 30
+// or more days past due are listed first (ops_overdue_installments, H35 (c)).
 export default async function Page({
   searchParams,
 }: {
@@ -23,7 +24,11 @@ export default async function Page({
   const user = await requireSection("operasyon");
   const status = pick((await searchParams).durum, STATUSES);
   const supabase = await createClient();
-  const rows = await listOrders(supabase, await opsOrgs(supabase, user.id), status);
+  const orgs = await opsOrgs(supabase, user.id);
+  const [rows, overdue] = await Promise.all([
+    listOrders(supabase, orgs, status),
+    listOverdueInstallments(supabase, orgs),
+  ]);
 
   return (
     <main className="page">
@@ -43,6 +48,40 @@ export default async function Page({
           </Link>
         ))}
       </nav>
+      {overdue.length > 0 && (
+        <section className={styles.section} data-testid="overdue-installments">
+          <h2>{T.overdueInstallments}</h2>
+          <p className="muted">{T.overdueInstallmentsHint}</p>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>{T.number}</th>
+                  <th>{T.customer}</th>
+                  <th className={styles.number}>{T.installmentSeq}</th>
+                  <th>{T.due}</th>
+                  <th className={styles.number}>{T.daysOverdue}</th>
+                  <th className={styles.number}>{T.open}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overdue.map((r) => (
+                  <tr key={r.installment_id}>
+                    <td>
+                      <Link href={boHref.order(r.order_id)}>{r.order_number}</Link>
+                    </td>
+                    <td>{r.customer_name}</td>
+                    <td className={styles.number}>{r.seq}</td>
+                    <td>{day(r.due_on)}</td>
+                    <td className={styles.number}>{r.days_overdue}</td>
+                    <td className={styles.number}>{money(r.open_kurus, "TRY")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
       {rows.length === 0 ? (
         <p className="muted">{T.empty}</p>
       ) : (

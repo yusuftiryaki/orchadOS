@@ -40,6 +40,7 @@ import {
   saveSetting,
   scheduleGardenRemoval,
   terminateOrder,
+  allowUnpaidVisit,
   verifyGarden,
   voidManualPayment,
   withdrawApplicationGarden,
@@ -518,6 +519,22 @@ export async function terminateOrderAction(
   if ("state" in note) return note.state;
   return then(terminateOrder(supabase, orderId, note.value!), () =>
     boHref.order(orderId, { notice: "order_terminated" }),
+  );
+}
+
+export async function allowUnpaidVisitAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const orderId = idOf(read, "order_id");
+  const installmentId = idOf(read, "installment_id");
+  if (!orderId || !installmentId) return notFound;
+  const note = parsedOr(parseNote(read, true));
+  if ("state" in note) return note.state;
+  return then(allowUnpaidVisit(supabase, installmentId, note.value!), () =>
+    boHref.order(orderId, { notice: "unpaid_visit_allowed" }),
   );
 }
 

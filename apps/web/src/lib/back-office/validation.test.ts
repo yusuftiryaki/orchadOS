@@ -160,12 +160,29 @@ describe("forms", () => {
         valueDate: "2026-10-27",
         bankReference: "EFT-1",
         note: null,
+        installmentId: null,
       },
     });
     expect(parseManualPayment(reader({ amount: "1", value_date: "2026-10-27" }))).toEqual({
       ok: false,
       field: "bank_reference",
     });
+    // The payment plan (installments-v1): one installment, or spread.
+    expect(
+      parseManualPayment(
+        reader({
+          amount: "1",
+          value_date: "2026-10-27",
+          bank_reference: "EFT-2",
+          installment_id: "f0000000-0000-4000-8000-000000000001",
+        }),
+      ),
+    ).toMatchObject({ ok: true, value: { installmentId: "f0000000-0000-4000-8000-000000000001" } });
+    expect(
+      parseManualPayment(
+        reader({ amount: "1", value_date: "2026-10-27", bank_reference: "x", installment_id: "1" }),
+      ),
+    ).toEqual({ ok: false, field: "installment_id" });
   });
 
   it("a card result needs the provider reference to succeed", () => {

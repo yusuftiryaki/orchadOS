@@ -35,6 +35,7 @@ const ERRORS: OpsError[] = [
   "parcel_removal_scheduled",
   "parcel_removed",
   "withdrawal_period_open",
+  "installment_unpaid",
   "already_owner",
   "invite_unavailable",
   "conflict",

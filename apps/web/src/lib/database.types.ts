@@ -1711,6 +1711,183 @@ export type Database = {
           },
         ];
       };
+      order_installment: {
+        Row: {
+          amount_kurus: number;
+          cancel_reason: string | null;
+          cancelled_at: string | null;
+          cancelled_kurus: number;
+          created_at: string;
+          currency: string;
+          customer_user_id: string;
+          due_on: string;
+          due_reminder_sent_at: string | null;
+          id: string;
+          kind: Database["public"]["Enums"]["installment_kind"];
+          order_id: string;
+          org_id: string;
+          paid_at: string | null;
+          paid_kurus: number;
+          reminder_sent_at: string | null;
+          seq: number;
+          status: Database["public"]["Enums"]["installment_status"];
+          updated_at: string;
+          vat_kurus: number;
+          visit_no: number | null;
+          visit_override_at: string | null;
+          visit_override_by: string | null;
+          visit_override_note: string | null;
+          window_code: string | null;
+          window_end: string | null;
+          window_name: string | null;
+          window_start: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_kurus: number;
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
+          cancelled_kurus?: number;
+          created_at?: string;
+          currency?: string;
+          customer_user_id: string;
+          due_on: string;
+          due_reminder_sent_at?: string | null;
+          id?: string;
+          kind: Database["public"]["Enums"]["installment_kind"];
+          order_id: string;
+          org_id: string;
+          paid_at?: string | null;
+          paid_kurus?: number;
+          reminder_sent_at?: string | null;
+          seq: number;
+          status?: Database["public"]["Enums"]["installment_status"];
+          updated_at?: string;
+          vat_kurus: number;
+          visit_no?: number | null;
+          visit_override_at?: string | null;
+          visit_override_by?: string | null;
+          visit_override_note?: string | null;
+          window_code?: string | null;
+          window_end?: string | null;
+          window_name?: string | null;
+          window_start?: string | null;
+        };
+        Update: {
+          amount_kurus?: number;
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
+          cancelled_kurus?: number;
+          created_at?: string;
+          currency?: string;
+          customer_user_id?: string;
+          due_on?: string;
+          due_reminder_sent_at?: string | null;
+          id?: string;
+          kind?: Database["public"]["Enums"]["installment_kind"];
+          order_id?: string;
+          org_id?: string;
+          paid_at?: string | null;
+          paid_kurus?: number;
+          reminder_sent_at?: string | null;
+          seq?: number;
+          status?: Database["public"]["Enums"]["installment_status"];
+          updated_at?: string;
+          vat_kurus?: number;
+          visit_no?: number | null;
+          visit_override_at?: string | null;
+          visit_override_by?: string | null;
+          visit_override_note?: string | null;
+          window_code?: string | null;
+          window_end?: string | null;
+          window_name?: string | null;
+          window_start?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_installment_order_id_customer_user_id_org_id_fkey";
+            columns: ["order_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+          {
+            foreignKeyName: "order_installment_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      order_installment_item: {
+        Row: {
+          amount_kurus: number;
+          cancelled_kurus: number;
+          created_at: string;
+          customer_user_id: string;
+          id: string;
+          installment_id: string;
+          order_id: string;
+          order_item_id: string;
+          org_id: string;
+          paid_kurus: number;
+          updated_at: string;
+          vat_kurus: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_kurus: number;
+          cancelled_kurus?: number;
+          created_at?: string;
+          customer_user_id: string;
+          id?: string;
+          installment_id: string;
+          order_id: string;
+          order_item_id: string;
+          org_id: string;
+          paid_kurus?: number;
+          updated_at?: string;
+          vat_kurus: number;
+        };
+        Update: {
+          amount_kurus?: number;
+          cancelled_kurus?: number;
+          created_at?: string;
+          customer_user_id?: string;
+          id?: string;
+          installment_id?: string;
+          order_id?: string;
+          order_item_id?: string;
+          org_id?: string;
+          paid_kurus?: number;
+          updated_at?: string;
+          vat_kurus?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_installment_item_installment_id_order_id_fkey";
+            columns: ["installment_id", "order_id"];
+            isOneToOne: false;
+            referencedRelation: "order_installment";
+            referencedColumns: ["id", "order_id"];
+          },
+          {
+            foreignKeyName: "order_installment_item_order_item_id_fkey";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order_item";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_installment_item_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       org: {
         Row: {
           created_at: string;
@@ -1746,6 +1923,7 @@ export type Database = {
           iban: string | null;
           iban_holder: string | null;
           identity_number_required: boolean;
+          installment_lead_days: number;
           inventory_reuse_months: number;
           kep_address: string | null;
           kvkk_email: string | null;
@@ -1780,6 +1958,7 @@ export type Database = {
           iban?: string | null;
           iban_holder?: string | null;
           identity_number_required?: boolean;
+          installment_lead_days?: number;
           inventory_reuse_months?: number;
           kep_address?: string | null;
           kvkk_email?: string | null;
@@ -1813,6 +1992,7 @@ export type Database = {
           iban?: string | null;
           iban_holder?: string | null;
           identity_number_required?: boolean;
+          installment_lead_days?: number;
           inventory_reuse_months?: number;
           kep_address?: string | null;
           kvkk_email?: string | null;
@@ -2028,6 +2208,7 @@ export type Database = {
           installment: number;
           manual_note: string | null;
           order_id: string;
+          order_installment_id: string;
           org_id: string;
           paid_kurus: number | null;
           provider: Database["public"]["Enums"]["payment_provider"];
@@ -2063,6 +2244,7 @@ export type Database = {
           installment?: number;
           manual_note?: string | null;
           order_id: string;
+          order_installment_id: string;
           org_id: string;
           paid_kurus?: number | null;
           provider: Database["public"]["Enums"]["payment_provider"];
@@ -2097,6 +2279,7 @@ export type Database = {
           installment?: number;
           manual_note?: string | null;
           order_id?: string;
+          order_installment_id?: string;
           org_id?: string;
           paid_kurus?: number | null;
           provider?: Database["public"]["Enums"]["payment_provider"];
@@ -2115,6 +2298,13 @@ export type Database = {
           voided_at?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "payment_installment_fk";
+            columns: ["order_installment_id", "order_id"];
+            isOneToOne: false;
+            referencedRelation: "order_installment";
+            referencedColumns: ["id", "order_id"];
+          },
           {
             foreignKeyName: "payment_order_id_customer_user_id_org_id_fkey";
             columns: ["order_id", "customer_user_id", "org_id"];
@@ -4348,6 +4538,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_allow_unpaid_visit: {
+        Args: { p_installment_id: string; p_note: string };
+        Returns: undefined;
+      };
       ops_application_garden_detail: {
         Args: { p_garden_id: string };
         Returns: {
@@ -4440,6 +4634,7 @@ export type Database = {
           iban: string | null;
           iban_holder: string | null;
           identity_number_required: boolean;
+          installment_lead_days: number;
           inventory_reuse_months: number;
           kep_address: string | null;
           kvkk_email: string | null;
@@ -4475,6 +4670,7 @@ export type Database = {
           garden_removals_blocked: number;
           garden_removals_due: number;
           garden_removals_requested: number;
+          installments_overdue: number;
           orders_awaiting_payment: number;
           orders_overdue: number;
           parcels_awaiting_inventory: number;
@@ -4780,6 +4976,35 @@ export type Database = {
           template: string;
         }[];
       };
+      ops_order_installments: {
+        Args: { p_order_id: string };
+        Returns: {
+          amount_kurus: number;
+          cancel_reason: string;
+          cancelled_at: string;
+          cancelled_kurus: number;
+          days_overdue: number;
+          due_on: string;
+          due_reminder_sent_at: string;
+          id: string;
+          kind: string;
+          open_kurus: number;
+          paid_at: string;
+          paid_kurus: number;
+          reminder_sent_at: string;
+          seq: number;
+          status: string;
+          vat_kurus: number;
+          visit_no: number;
+          visit_override_at: string;
+          visit_override_by: Json;
+          visit_override_note: string;
+          window_code: string;
+          window_end: string;
+          window_name: string;
+          window_start: string;
+        }[];
+      };
       ops_orders: {
         Args: {
           p_customer_user_id?: string;
@@ -4836,6 +5061,25 @@ export type Database = {
           email: string;
           role: Database["public"]["Enums"]["org_role"];
           user_id: string;
+        }[];
+      };
+      ops_overdue_installments: {
+        Args: { p_limit?: number; p_min_days?: number; p_org_id: string };
+        Returns: {
+          customer_name: string;
+          customer_user_id: string;
+          days_overdue: number;
+          due_on: string;
+          installment_id: string;
+          kind: string;
+          open_kurus: number;
+          order_id: string;
+          order_number: string;
+          order_status: string;
+          seq: number;
+          visit_allowed: boolean;
+          visit_no: number;
+          window_name: string;
         }[];
       };
       ops_owner_profiles: {
@@ -5006,6 +5250,7 @@ export type Database = {
         Args: {
           p_amount_kurus: number;
           p_bank_reference: string;
+          p_installment_id?: string;
           p_note?: string;
           p_order_id: string;
           p_value_date: string;
@@ -5203,6 +5448,17 @@ export type Database = {
           user_id: string;
         }[];
       };
+      package_visit_windows: {
+        Args: { p_year_visits: number };
+        Returns: {
+          code: string;
+          end_day: number;
+          end_month: number;
+          name: string;
+          start_day: number;
+          start_month: number;
+        }[];
+      };
       parcel_service_status: {
         Args: { p_parcel_id: string };
         Returns: {
@@ -5371,6 +5627,22 @@ export type Database = {
           isOneToOne: true;
           isSetofReturn: false;
         };
+      };
+      quote_installment_plan: {
+        Args: { p_quote_id: string };
+        Returns: {
+          amount_kurus: number;
+          due_on: string;
+          due_rule: string;
+          kind: string;
+          seq: number;
+          vat_kurus: number;
+          visit_no: number;
+          window_code: string;
+          window_end: string;
+          window_name: string;
+          window_start: string;
+        }[];
       };
       receipt_data: { Args: { p_payment_id: string }; Returns: Json };
       record_coverage_report: { Args: { p_report: Json; p_session_id: string }; Returns: Json };
@@ -5603,6 +5875,8 @@ export type Database = {
       garden_removal_status: "requested" | "scheduled" | "completed" | "cancelled";
       graft_status: "grafted" | "ungrafted" | "unknown";
       health_class: "healthy" | "attention" | "problem" | "dead" | "absent";
+      installment_kind: "inventory" | "visit" | "single";
+      installment_status: "pending" | "paid" | "cancelled";
       irrigation_type: "irrigated" | "rainfed" | "unknown";
       measurement_source: "staff" | "algorithm" | "ai" | "expert";
       measurement_subject: "tree" | "slot" | "zone" | "parcel";
@@ -5857,6 +6131,8 @@ export const Constants = {
       garden_removal_status: ["requested", "scheduled", "completed", "cancelled"],
       graft_status: ["grafted", "ungrafted", "unknown"],
       health_class: ["healthy", "attention", "problem", "dead", "absent"],
+      installment_kind: ["inventory", "visit", "single"],
+      installment_status: ["pending", "paid", "cancelled"],
       irrigation_type: ["irrigated", "rainfed", "unknown"],
       measurement_source: ["staff", "algorithm", "ai", "expert"],
       measurement_subject: ["tree", "slot", "zone", "parcel"],

@@ -973,7 +973,8 @@ $$;
 -- installments in order, one payment row (and receipt) per installment, the
 -- last one possibly partial; returns the first payment. Payable: an order
 -- with an open installment that is not cancelled. Errors: as before, and
--- invalid_input (installment_id).
+-- invalid_input (installment_id: not one of the order's), installment_not_open
+-- (paid or cancelled meanwhile).
 drop function public.ops_record_manual_payment(uuid, bigint, date, text, text);
 create function public.ops_record_manual_payment(
   p_order_id uuid,
@@ -1015,10 +1016,12 @@ begin
     raise exception 'invalid_input' using errcode = '22023', detail = 'amount_kurus';
   end if;
   if p_installment_id is not null then
-    select * into i from public.order_installment x
-    where x.id = p_installment_id and x.order_id = o.id and x.status = 'pending';
+    select * into i from public.order_installment x where x.id = p_installment_id and x.order_id = o.id;
     if not found then
       raise exception 'invalid_input' using errcode = '22023', detail = 'installment_id';
+    end if;
+    if i.status <> 'pending' then
+      raise exception 'installment_not_open' using errcode = 'P0001';
     end if;
     v_open := private.installment_due(i);
   else

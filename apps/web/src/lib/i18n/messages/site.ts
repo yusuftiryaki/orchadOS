@@ -134,6 +134,8 @@ export const siteText = {
       "Yıllık bedel: yıllık ziyaret sayısı × doğrulanan alan (dönüm) × paketin dönüm ve ziyaret başı birim fiyatı.",
       "Her bahçe için yıllık en az ücret uygulanır.",
       "İlk yıl bahçe başına bir kez envanter ücreti eklenir.",
+      "Ödeme planı: ilk yıl envanter ödemesi teklif onayından sonra tek seferde; kalan tutar paketteki ziyaret sayısı kadar eşit ziyaret ödemesiyle, her biri o ziyaretin penceresinden 14 gün önce. Kart taksiti değildir; faiz ya da ek ücret yoktur.",
+      "Başvuruları bahçenin konumuna ve ekip kapasitesine göre değerlendiririz; her konuma hizmet veremeyebiliriz.",
       "Aynı köyde komşu bahçeler birlikte başvurursa teklifte indirim yapılabilir.",
       "Teklifteki fiyat, teklif geçerli olduğu sürece değişmez.",
     ],
@@ -211,6 +213,8 @@ export const siteText = {
   signup: {
     title: "Kayıt ol",
     subtitle: "Bahçeniz için hesap açın. Telefonunuzu SMS koduyla doğrulayacağız.",
+    locationNote:
+      "Başvurunuzu bahçenizin konumuna ve ekibimizin kapasitesine göre değerlendiririz; her konuma hizmet veremeyebiliriz. Kayıt, başvuru ve fiyat önizlemesi ücretsizdir.",
     closedTitle: "Kayıt yakında",
     closedBody:
       "Kendi hesabınızı açma özelliği yakında açılacak. Şimdilik kayıt için bizimle iletişime geçin.",

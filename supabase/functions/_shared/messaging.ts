@@ -74,7 +74,8 @@ function renderAccount(template: AccountTemplate, ref: string, link: string, par
     case "refund_completed":
       return `${ref} numaralı iadeniz yapıldı; hesabınıza yansıması bankanıza göre birkaç gün sürebilir: ${link}`;
     case "payment_reminder":
-      return `${ref} numaralı siparişinizin ödemesi bekleniyor: ${link}`;
+      // docs/hukuk/kararlar.md H35 (f): no amount, no pressure.
+      return `orchadOS: ${ref} numaralı siparişinizde bir ödemenin son günü yaklaştı. Tarih ve tutar portalınızda: ${link} Ödeme yapılmadan ilgili hizmet planlanmaz; faiz ya da ek ücret alınmaz.`;
     case "contract_ready":
       return `orchadOS: ${ref} numaralı siparişinizin sözleşmesi ve ön bilgilendirme formu portalınızda: ${link}`;
     case "addon_order_closed":

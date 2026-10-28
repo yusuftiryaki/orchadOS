@@ -107,9 +107,10 @@ describe("membership: an add-on garden and a removal", () => {
         .select("amount_kurus, kind, status")
         .eq("garden_removal_id", removal),
     );
-    expect(refunds).toEqual([
-      { amount_kurus: row.refund_kurus, kind: "manual", status: "requested" },
-    ]);
+    // Paid by one transfer spread over the payment plan (one payment per
+    // installment): the refund comes from the payments, latest first.
+    expect(refunds.reduce((sum, r) => sum + r.amount_kurus, 0)).toBe(row.refund_kurus);
+    expect(refunds.every((r) => r.kind === "manual" && r.status === "requested")).toBe(true);
     const addonOrder = check(
       await admin.from("service_order").select("status").eq("id", addon).single(),
     );
@@ -160,8 +161,14 @@ describe("concurrency", () => {
         .eq("action", "garden_removal.completed"),
     );
     expect(audits).toHaveLength(1);
-    const refunds = check(await admin.from("refund").select("id").eq("garden_removal_id", removal));
-    expect(refunds).toHaveLength(1);
+    // One set of refund rows (one per paid installment payment it draws on).
+    const refunds = check(
+      await admin.from("refund").select("amount_kurus").eq("garden_removal_id", removal),
+    );
+    const done = check(
+      await admin.from("garden_removal").select("refund_kurus").eq("id", removal).single(),
+    );
+    expect(refunds.reduce((sum, r) => sum + r.amount_kurus, 0)).toBe(done.refund_kurus);
     const messages = check(
       await admin
         .from("notification")

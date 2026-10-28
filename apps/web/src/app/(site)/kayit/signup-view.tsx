@@ -29,6 +29,7 @@ export function SignupView({
     <div className={styles.card}>
       <h1>{s.title}</h1>
       <p className="muted">{s.subtitle}</p>
+      <p className="muted">{s.locationNote}</p>
       <SignupForm turnstileSiteKey={turnstileSiteKey} />
       <p className={styles.footnote}>
         {s.haveAccount} <Link href="/giris">{s.login}</Link>

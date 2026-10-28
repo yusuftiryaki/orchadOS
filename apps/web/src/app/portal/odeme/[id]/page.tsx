@@ -8,6 +8,7 @@ import { formatKurus } from "@/lib/billing/money";
 import { formatDate, formatDateTime } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
+import { installmentLabel } from "@/lib/billing/installments";
 import { getPayment } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
@@ -31,7 +32,7 @@ export default async function PaymentPage({
   const { id } = await params;
   const view = await getPayment(await createClient(), user.id, id);
   if (!view) notFound();
-  const { payment, items, refunds, order } = view;
+  const { payment, items, refunds, order, planInstallment } = view;
   const waiting = WAITING.has(payment.status);
   const failed = payment.status === "failed" || payment.status === "expired";
   const currency = payment.currency;
@@ -61,6 +62,18 @@ export default async function PaymentPage({
               <dt>{T.order}</dt>
               <dd>
                 <Link href={portalHref.order(order.id)}>{order.number}</Link>
+              </dd>
+            </>
+          )}
+          {planInstallment && (
+            <>
+              <dt>{T.planInstallment}</dt>
+              <dd data-testid="payment-installment">
+                {T.planInstallmentText(
+                  planInstallment.row.seq,
+                  planInstallment.count,
+                  installmentLabel(planInstallment.row),
+                )}
               </dd>
             </>
           )}

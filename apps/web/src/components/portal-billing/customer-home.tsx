@@ -2,7 +2,7 @@ import Link from "next/link";
 import { formatKurus } from "@/lib/billing/money";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
-import { outstandingKurus, type CustomerSummary } from "@/lib/portal-billing/data";
+import type { CustomerSummary } from "@/lib/portal-billing/data";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { MembershipCard } from "./membership-card";
 import styles from "./portal-billing.module.css";
@@ -52,7 +52,7 @@ export function CustomerHome({
     cards.push(
       <li key={`o-${order.id}`} className={styles.card} data-testid="home-order">
         <h2>{H.orderTitle}</h2>
-        <p>{H.orderBody(order.number, formatKurus(outstandingKurus(order), order.currency))}</p>
+        <p>{H.orderBody(order.number)}</p>
         <p>
           <Link className="button" href={portalHref.order(order.id)}>
             {H.orderButton}
