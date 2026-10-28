@@ -17,6 +17,7 @@ describe("isPublicPath", () => {
     "/mesafeli-satis",
     "/on-bilgilendirme",
     "/iade",
+    "/bahcede-bulunanlar",
     "/robots.txt",
     "/sitemap.xml",
     "/demo",

@@ -1,9 +1,8 @@
 // Turkish text of the demo tour (İP13, docs/demo-turu.md §11): the /demo start
 // page, the demo shell and banner, the guided tour, the closed write paths,
-// the sample PDFs and the privacy paragraph. The data is synthetic and says
-// so; nothing here claims a real garden.
-
-import type { LegalBlock } from "./legal";
+// the sample PDFs and the short privacy notice of the start page (the full
+// text is section 5 of the privacy policy in legal.ts). The data is synthetic
+// and says so; nothing here claims a real garden.
 
 export type DemoStartError =
   | "invalid_input"
@@ -43,9 +42,9 @@ export const demoText = {
     privacyTitle: "Gizlilik",
     privacy: [
       "Sizden kişisel veri (ad, telefon, e-posta) istenmez. Oturumu açık tutmak için zorunlu bir oturum çerezi kullanılır.",
-      "Kötüye kullanımı önlemek için IP adresinizin takma adlandırılmış bir özeti 48 saat tutulur (IPv6'da /64 öneki).",
-      "Ham IP adresi oturum kaydında ve altyapı loglarında kısa süre kalır.",
-      "Robot doğrulaması (Turnstile) Cloudflare tarafından sağlanır.",
+      "Kötüye kullanımı önlemek için IP adresinizin takma adlandırılmış (anonim olmayan) bir özeti 48 saat tutulur (IPv6'da /64 öneki).",
+      "Ham IP adresi, oturum süresi bitince en geç 20 dakika içinde demo hesabıyla birlikte silinir; altyapı kayıtlarında en fazla 30 gün kalır.",
+      "Robot doğrulaması (Turnstile) Cloudflare Inc. (ABD) tarafından sağlanır; aktarım KVKK md. 9'a uygun standart sözleşmeyle yapılır.",
     ],
     privacyLink: "Ayrıntılar: [Gizlilik ve çerez politikası](/gizlilik)",
     button: "Demoyu başlat",
@@ -166,21 +165,6 @@ export const demoText = {
       },
     },
   },
-  // Paragraph of the privacy policy (§12), awaiting the lawyer like the rest
-  // of the draft text (gizlilik-v1-taslak).
-  privacy: [
-    { kind: "h2", text: "Demo turu" },
-    {
-      kind: "ul",
-      items: [
-        "Demo turunda sizden kişisel veri (ad, telefon, e-posta) istenmez. Demo, birkaç saat sonra silinen geçici bir hesapla açılır; hesabın e-posta adresi rastgeledir ve teslim edilemez.",
-        "Kötüye kullanımı önlemek için IP adresinizin takma adlandırılmış bir özeti (IPv6'da /64 önekinin özeti) 48 saat tutulur. Bu özet, anahtarına sahip olan tarafından adresle eşleştirilebileceği için kişisel veri sayılır.",
-        "Ham IP adresi ve tarayıcı bilgisi, oturum kaydında hesap silinene kadar, altyapı loglarında ise sağlayıcının saklama süresi boyunca ([X] gün) kalır.",
-        "Robot doğrulaması için [Cloudflare Turnstile], barındırma için [Supabase] (AB bölgesi) ve [Vercel] kullanılır; bu hizmetler verinin yurt dışına aktarılmasını içerir.",
-        "Demoda yalnızca zorunlu oturum çerezleri kullanılır.",
-      ],
-    },
-  ] satisfies LegalBlock[],
 };
 
 export type DemoTourStepId = keyof typeof demoText.tour.steps;

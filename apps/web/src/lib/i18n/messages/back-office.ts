@@ -298,7 +298,7 @@ export const backOfficeText = {
     previewWithDiscount: "Önizlemeyi indirimle hesapla",
     issueQuote: "Teklif ver",
     issueHint:
-      "Girdiler teklifte dondurulur. Açık bir teklif varsa yenisiyle değişir; müşteriye SMS ya da WhatsApp gider.",
+      "Girdiler teklifte dondurulur. Açık bir teklif varsa yenisiyle değişir; müşteriye SMS gider.",
     reject: "Başvuruyu reddet",
     rejectHint: "Neden müşteriye gösterilir; not yalnızca operasyon içindir.",
     quotes: "Teklif geçmişi",

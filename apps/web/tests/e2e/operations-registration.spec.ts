@@ -91,8 +91,8 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   await expect(ownerForm.getByRole("alert").first()).toBeVisible();
   await expect(ownerForm.getByText("Gerekli.")).toBeVisible();
 
-  await ownerForm.getByLabel("Aydınlatma metni okundu, açık rıza alındı").check();
-  await ownerForm.getByLabel("Onaylanan metin sürümü").fill("kvkk-v0");
+  await ownerForm.getByLabel("Aydınlatma metni verildi (okundu teyidi)").check();
+  await ownerForm.getByLabel("Aydınlatma metni sürümü").fill("kvkk-v0");
   await ownerForm.getByRole("button", { name: "Sahibi kaydet" }).click();
 
   const created = page.getByTestId("owner-created");

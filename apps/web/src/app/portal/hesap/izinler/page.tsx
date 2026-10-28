@@ -7,6 +7,7 @@ import { requireSection } from "@/lib/auth/session";
 import { formatDate } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
+import { EXPLICIT_CONSENT_KINDS, isExplicitConsentAsked } from "@/lib/legal/consents";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { getBillingProfile, getConsents, hasKvkkNotice } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
@@ -14,10 +15,11 @@ import { portalHref } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
 
 const C = P.consents;
-const EXPLICIT = ["explicit_service_improvement", "explicit_marketing"] as const;
 
-// The two optional explicit consents (give or withdraw at any time) and, when
-// it is missing, the KVKK notice acknowledgement.
+// The optional explicit consents that are asked (give or withdraw at any
+// time), any earlier grant of one that is no longer asked (withdraw only;
+// docs/hukuk/kararlar.md H06, H31) and, when it is missing, the KVKK notice
+// acknowledgement.
 export default async function ConsentsPage({
   searchParams,
 }: {
@@ -29,6 +31,9 @@ export default async function ConsentsPage({
   const profile = await getBillingProfile(supabase);
   const consents = await getConsents(supabase, profile?.orgId ?? null);
   const kvkk = consents.get("kvkk_notice");
+  const shown = EXPLICIT_CONSENT_KINDS.filter(
+    (kind) => isExplicitConsentAsked(kind) || consents.get(kind)?.granted === true,
+  );
   return (
     <main className={styles.page}>
       <h1>{C.title}</h1>
@@ -36,10 +41,14 @@ export default async function ConsentsPage({
       <p>
         {C.lead} <Link href="/acik-riza">{C.explicitLink}</Link>
       </p>
+      {!EXPLICIT_CONSENT_KINDS.some(isExplicitConsentAsked) && (
+        <p data-testid="consent-none-asked">{C.noneAsked}</p>
+      )}
 
-      {EXPLICIT.map((kind) => {
+      {shown.map((kind) => {
         const record = consents.get(kind);
         const granted = record?.granted === true;
+        const asked = isExplicitConsentAsked(kind);
         return (
           <section key={kind} className={styles.section} data-testid={`consent-${kind}`}>
             <h2>{billingText.consentKind[kind]}</h2>
@@ -52,6 +61,7 @@ export default async function ConsentsPage({
                 </span>
               )}
             </p>
+            {!asked && <p className="muted">{C.noLongerAsked}</p>}
             <form action={setConsentAction}>
               <input type="hidden" name="kind" value={kind} />
               <input type="hidden" name="granted" value={granted ? "false" : "true"} />

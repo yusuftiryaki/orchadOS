@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Landing } from "@/app/(site)/page";
 import { SignupView } from "@/app/(site)/kayit/signup-view";
 import { siteText } from "@/lib/i18n/messages/site";
+import { MARKETING_CONSENT_ENABLED } from "@/lib/legal/consents";
 import { DemoLink } from "./demo-link";
 import { SignupLink } from "./signup-link";
 import { SiteHeader } from "./site-header";
@@ -62,11 +63,14 @@ describe("sign-up flag on", () => {
     expect(html).toContain(siteText.login.noAccount);
   });
 
-  it("/kayit renders the form with unchecked optional consents and no AI consent", () => {
+  // docs/hukuk/kararlar.md H06, H31: no optional consent box until İYS.
+  it("/kayit renders the form without optional consent boxes and no AI consent", () => {
     const html = renderToStaticMarkup(<SignupView signupEnabled turnstileSiteKey={null} />);
     expect(html).toContain('name="kvkk_notice"');
-    expect(html).toMatch(/name="explicit_service_improvement"(?![^>]*checked)/);
-    expect(html).toMatch(/name="explicit_marketing"(?![^>]*checked)/);
+    expect(html).not.toContain('name="explicit_service_improvement"');
+    expect(MARKETING_CONSENT_ENABLED).toBe(false);
+    expect(html).not.toContain('name="explicit_marketing"');
+    expect(html).toContain(siteText.signup.contactPreferenceHint);
     expect(html).not.toMatch(/ai_transfer|yurt dışı/i);
     expect(html).not.toContain('data-testid="turnstile"');
   });

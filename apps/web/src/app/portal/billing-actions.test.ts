@@ -154,3 +154,35 @@ describe("a customer without a membership", () => {
     expect(state.calls[0].args).toEqual({ p_package_id: OTHER_PACKAGE });
   });
 });
+
+// docs/hukuk/kararlar.md H06, H31: no optional consent may be newly given
+// while it is not asked; an earlier grant can always be withdrawn.
+describe("setConsentAction", () => {
+  it.each(["explicit_service_improvement", "explicit_marketing"])(
+    "refuses to grant %s while it is not asked",
+    async (kind) => {
+      expect(await run(actions.setConsentAction, { kind, granted: "true" })).toBe(
+        "redirect /portal/hesap/izinler?hata=consent_unavailable",
+      );
+      expect(state.calls).toEqual([]);
+    },
+  );
+
+  it.each(["explicit_service_improvement", "explicit_marketing"])("withdraws %s", async (kind) => {
+    expect(await run(actions.setConsentAction, { kind, granted: "false" })).toBe(
+      "redirect /portal/hesap/izinler?bilgi=izin_kaydedildi",
+    );
+    expect(state.calls).toEqual([
+      {
+        fn: "customer_set_consent",
+        args: { p_kind: kind, p_granted: false, p_text_version: "riza-v2-taslak" },
+      },
+    ]);
+  });
+
+  it("rejects a kind that is not an optional consent", async () => {
+    expect(await run(actions.setConsentAction, { kind: "kvkk_notice", granted: "false" })).toBe(
+      "redirect /portal/hesap/izinler?hata=invalid_input",
+    );
+  });
+});

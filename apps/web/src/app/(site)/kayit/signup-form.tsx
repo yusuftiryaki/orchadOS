@@ -5,6 +5,7 @@ import { cloneElement, useActionState, useEffect, useState } from "react";
 import { resendWaitSeconds } from "@/app/giris/login-methods";
 import { Turnstile } from "@/components/site/turnstile";
 import { siteText } from "@/lib/i18n/messages/site";
+import { isExplicitConsentAsked } from "@/lib/legal/consents";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import type { SignupField } from "@/lib/signup/validation";
 import { signupAction } from "./actions";
@@ -175,6 +176,7 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey: string | nu
             </label>
           ))}
         </div>
+        <p className={styles.hint}>{s.contactPreferenceHint}</p>
         <FieldError state={state} field="contact_preference" />
       </fieldset>
 
@@ -195,24 +197,26 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey: string | nu
           </span>
         </label>
         <FieldError state={state} field="kvkk_notice" />
-        <p className={styles.hint}>
-          {s.explicitIntro}{" "}
-          <Link href="/acik-riza" target="_blank">
-            {s.explicitLink}
-          </Link>
-        </p>
-        <label className={styles.choice}>
-          <input
-            type="checkbox"
-            name="explicit_service_improvement"
-            defaultChecked={v.explicit_service_improvement}
-          />
-          <span>{s.explicitServiceImprovement}</span>
-        </label>
-        <label className={styles.choice}>
-          <input type="checkbox" name="explicit_marketing" defaultChecked={v.explicit_marketing} />
-          <span>{s.explicitMarketing}</span>
-        </label>
+        {/* The service-improvement consent is never asked and marketing only
+            after İYS (docs/hukuk/kararlar.md H06, H31). */}
+        {isExplicitConsentAsked("explicit_marketing") && (
+          <>
+            <p className={styles.hint}>
+              {s.explicitIntro}{" "}
+              <Link href="/acik-riza" target="_blank">
+                {s.explicitLink}
+              </Link>
+            </p>
+            <label className={styles.choice}>
+              <input
+                type="checkbox"
+                name="explicit_marketing"
+                defaultChecked={v.explicit_marketing}
+              />
+              <span>{s.explicitMarketing}</span>
+            </label>
+          </>
+        )}
         <p className={styles.hint}>
           {s.versions(LEGAL_TEXT_VERSIONS.kvkk_notice, LEGAL_TEXT_VERSIONS.explicit_consent)}
         </p>

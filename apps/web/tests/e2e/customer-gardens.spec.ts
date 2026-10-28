@@ -169,7 +169,11 @@ test("a member adds a garden, accepts the add-on quote and pays by card", async 
   await clickOnMap(map, [POSITION]);
   await expect(page.getByTestId("position-state")).toHaveText("Yer işaretlendi.");
   await clickOnMap(map, RING);
-  await page.getByLabel("Ekibimizin ziyaret günlerinde bahçeye girmesine izin veriyorum.").check();
+  await page
+    .getByLabel(
+      "Bu bahçeyi seçtiğim dayanakla fiilen kullanıyorum. Ekibinizin envanter ve ziyaretler için bahçeye girmesine izin veriyorum ve buna yetkiliyim.",
+    )
+    .check();
   await page.getByRole("button", { name: "Bahçeyi kaydet" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Bahçe kaydedildi." })).toBeVisible();
   await expect(page.getByTestId("addon-preview")).toContainText("ziyaret hakkı");

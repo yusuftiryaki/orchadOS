@@ -12,11 +12,12 @@ const PUBLIC_PAGES: [string, string][] = [
   ["/sss", "Sık sorulan sorular"],
   ["/iletisim", "İletişim"],
   ["/kvkk", "Kişisel Verilerin İşlenmesine İlişkin Aydınlatma Metni"],
-  ["/acik-riza", "Açık Rıza Metni"],
+  ["/acik-riza", "Açık Rıza ve Ticari Elektronik İleti Onayı Metni"],
   ["/gizlilik", "Gizlilik ve Çerez Politikası"],
   ["/mesafeli-satis", "Mesafeli Hizmet Sözleşmesi"],
   ["/on-bilgilendirme", "Ön Bilgilendirme Formu"],
   ["/iade", "İptal ve İade Politikası"],
+  ["/bahcede-bulunanlar", "Bahçede Bulunan Kişiler İçin Aydınlatma Metni"],
   ["/kayit", "Kayıt ol"],
   ["/giris", "Giriş"],
   // Demo tour (İP13): the build serves /demo (ORCHADOS_DEMO_ENABLED=1).
@@ -35,17 +36,30 @@ for (const [path, heading] of PUBLIC_PAGES) {
 test("legal drafts show the draft banner and their version", async ({ page }) => {
   await page.goto("/kvkk");
   await expect(page.getByTestId("draft-banner")).toBeVisible();
-  await expect(page.getByText("Sürüm: kvkk-v1-taslak")).toBeVisible();
+  await expect(page.getByText("Sürüm: kvkk-v2-taslak")).toBeVisible();
 });
 
-test("explicit consent page lists only the two remaining consents", async ({ page }) => {
+// docs/hukuk/kararlar.md H02, H06, H31: one optional box, marketing only.
+test("explicit consent page asks only the marketing consent", async ({ page }) => {
   await page.goto("/acik-riza");
   const article = page.locator("article");
-  await expect(article.getByRole("heading", { level: 2 })).toHaveText([
-    "1. Hizmetin geliştirilmesi",
-    "2. Tanıtım ve bilgilendirme mesajları",
-  ]);
+  await expect(article).toContainText("Tanıtım iletileri");
+  await expect(article).toContainText("İYS");
+  await expect(article).not.toContainText("Hizmetin geliştirilmesi");
   await expect(article).not.toContainText("Anthropic");
+});
+
+test("privacy policy has the demo tour section (H27)", async ({ page }) => {
+  await page.goto("/gizlilik");
+  await expect(page.getByRole("heading", { level: 2, name: "5. Demo turu" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "6. Haklarınız" })).toBeVisible();
+});
+
+test("sign-up asks no optional consent while İYS is not in place (H06, H31)", async ({ page }) => {
+  await page.goto("/kayit");
+  await expect(page.locator('input[name="kvkk_notice"]')).toBeVisible();
+  await expect(page.locator('input[name="explicit_marketing"]')).toHaveCount(0);
+  await expect(page.locator('input[name="explicit_service_improvement"]')).toHaveCount(0);
 });
 
 test("packages page shows the published prices with a 20-dönüm example", async ({ page }) => {
@@ -88,6 +102,7 @@ test("header and footer links work", async ({ page }) => {
     ["Mesafeli hizmet sözleşmesi", "/mesafeli-satis"],
     ["Ön bilgilendirme formu", "/on-bilgilendirme"],
     ["İptal ve iade politikası", "/iade"],
+    ["Bahçede bulunanlar için aydınlatma", "/bahcede-bulunanlar"],
   ]) {
     await footer.getByRole("link", { name }).click();
     await expect(page).toHaveURL(path);
@@ -140,7 +155,7 @@ test("sign-up requires the KVKK box and keeps the typed values", async ({ page }
   await page.getByRole("button", { name: "Kayıt ol ve kod gönder" }).click();
 
   await expect(page.getByTestId("error-kvkk_notice")).toHaveText(
-    "Devam etmek için aydınlatma metnini okuduğunuzu onaylayın.",
+    "Devam etmek için aydınlatma metnini okuduğunuzu işaretleyin.",
   );
   for (const field of ["full_name", "phone", "email", "password"]) {
     await expect(page.getByTestId(`error-${field}`)).toHaveCount(0);

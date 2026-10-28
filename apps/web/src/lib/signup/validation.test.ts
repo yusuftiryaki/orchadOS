@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MARKETING_CONSENT_ENABLED } from "@/lib/legal/consents";
 import { parseSignupForm } from "./validation";
 
 const VALID: Record<string, string> = {
@@ -48,10 +49,12 @@ describe("parseSignupForm", () => {
     });
   });
 
-  it("reads the two optional consents", () => {
+  // docs/hukuk/kararlar.md H06, H31: a consent the form does not ask is never
+  // recorded as given, whatever the request carries.
+  it("records a consent that is not asked as not given", () => {
     const result = parse({ explicit_service_improvement: "on", explicit_marketing: "on" });
-    expect(result.ok && result.value.explicitServiceImprovement).toBe(true);
-    expect(result.ok && result.value.explicitMarketing).toBe(true);
+    expect(result.ok && result.value.explicitServiceImprovement).toBe(false);
+    expect(result.ok && result.value.explicitMarketing).toBe(MARKETING_CONSENT_ENABLED);
   });
 
   it("has no AI-transfer consent", () => {

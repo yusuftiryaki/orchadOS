@@ -43,9 +43,7 @@ function ListItem({ item }: { item: LegalListItem }) {
       <InlineText text={item.text} />
       <ul>
         {item.children.map((child, i) => (
-          <li key={i}>
-            <InlineText text={child} />
-          </li>
+          <ListItem key={i} item={child} />
         ))}
       </ul>
     </li>

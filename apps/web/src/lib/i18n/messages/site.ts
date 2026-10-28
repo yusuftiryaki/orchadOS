@@ -28,6 +28,7 @@ export const siteText = {
       distanceSales: "Mesafeli hizmet sözleşmesi",
       preInformation: "Ön bilgilendirme formu",
       refund: "İptal ve iade politikası",
+      fieldNotice: "Bahçede bulunanlar için aydınlatma",
     },
     note: "Hukuki metinler taslaktır; avukat onayından sonra yayımlanır.",
   },
@@ -65,7 +66,7 @@ export const siteText = {
       "Ağaç ağaç sağlık haritası",
       "Street View tarzı 360° bahçe gezisi",
       "Her ağacın karnesi ve fotoğrafları",
-      "PDF ziyaret raporu; rapor hazır olunca SMS ya da WhatsApp ile bağlantı",
+      "PDF ziyaret raporu; rapor hazır olunca SMS ile bağlantı",
     ],
     honestTitle: "Neyi iddia etmiyoruz?",
     honest: [
@@ -176,7 +177,7 @@ export const siteText = {
     title: "İletişim",
     lead: "Sorularınız için bize yazabilir ya da arayabilirsiniz.",
     items: [
-      { label: "Telefon ve WhatsApp", value: "[Telefon]" },
+      { label: "Telefon", value: "[Telefon]" },
       { label: "E-posta", value: "[E-posta]" },
       { label: "Adres", value: "[Adres]" },
       { label: "KVKK başvuruları", value: "[kvkk@alanadi]" },
@@ -211,17 +212,18 @@ export const siteText = {
     passwordRepeat: "Parola (tekrar)",
     contactPreference: "Size nasıl ulaşalım?",
     contactPreferences: { whatsapp: "WhatsApp", sms: "SMS" },
+    contactPreferenceHint: "WhatsApp seçseniz de mesajlar şimdilik SMS olarak gönderilir.",
     kvkk: {
       before: "",
       link: "KVKK aydınlatma metnini",
       after: " okudum.",
     },
-    explicitIntro: "İsteğe bağlı açık rızalar (vermemeniz hizmeti almanıza engel değildir):",
+    explicitIntro: "İsteğe bağlı izin (vermemeniz hizmeti almanıza engel değildir):",
     explicitLink: "Açık rıza metni",
-    explicitServiceImprovement:
-      "Bahçemin görüntülerinin ve uzman değerlendirmelerinin, kimliğimle ilişkilendirilmeden yöntemlerin geliştirilmesinde kullanılmasına rıza veriyorum.",
+    // The box of docs/hukuk/acik-riza-metni.md (riza-v2-taslak); shown only
+    // when MARKETING_CONSENT_ENABLED.
     explicitMarketing:
-      "Hizmetle ilgili yeniliklerin ve kampanyaların bana SMS / WhatsApp ile gönderilmesine rıza veriyorum.",
+      "OBA Bilişim Teknolojileri LTD.'nin orchadOS hizmetine ilişkin yenilik, kampanya ve tanıtımlarını bana kısa mesajla (SMS) göndermesine ticari elektronik ileti onayı veriyorum ve bu amaçla adımın ve telefon numaramın işlenmesine açık rıza veriyorum. Onayım İleti Yönetim Sistemi'ne (İYS) kaydedilir.",
     versions: (kvkk: string, explicit: string) => `Metin sürümleri: ${kvkk}, ${explicit}`,
     submit: "Kayıt ol ve kod gönder",
     submitting: "Gönderiliyor…",
@@ -247,7 +249,7 @@ export const siteText = {
       phone: { invalid: "Türkiye cep telefonu girin (05xx xxx xx xx)." },
       email: { invalid: "Geçerli bir e-posta adresi girin." },
       password: { too_short: "Parola en az 8 karakter olmalı." },
-      kvkk_notice: { required: "Devam etmek için aydınlatma metnini okuduğunuzu onaylayın." },
+      kvkk_notice: { required: "Devam etmek için aydınlatma metnini okuduğunuzu işaretleyin." },
     } as Record<string, Record<string, string>>,
     formErrors: "Formda düzeltilmesi gereken alanlar var.",
     errors: {
