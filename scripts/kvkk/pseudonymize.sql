@@ -48,11 +48,52 @@ with changed as (
   from kvkk_param p, kvkk_parcel k
   where p.include_notes
     and k.parcel_id = e.parcel_id
-    and e.event_type in ('field_notice_verbal', 'field_notice_objection', 'visit_blocked')
+    and e.event_type in ('field_notice_sign', 'field_notice_verbal', 'field_notice_objection', 'visit_blocked')
     and pg_temp.kvkk_payload_has_match(e.payload)
   returning 1
 )
 select pg_temp.kvkk_count('public.session_event', 'note text', count(*)::integer) from changed;
+
+-- ===== private.boundary_pointer (H26 item 2; H07, T16) ====================
+-- The copy of the boundary_pointer events (name, role). Same rule as the
+-- events: the name is replaced only when it equals one of the subject's
+-- multi-word names exactly, on the parcels in scope. Insert-only (its guard
+-- trigger is off in this replica-mode transaction).
+with changed as (
+  update private.boundary_pointer b
+  set name = p.pseudonym
+  from kvkk_param p, kvkk_parcel k
+  where k.parcel_id = b.parcel_id
+    and pg_temp.kvkk_norm(b.name) in (select name from kvkk_name)
+  returning 1
+)
+select pg_temp.kvkk_count('private.boundary_pointer', 'name', count(*)::integer) from changed;
+
+-- ===== private.media_suppression / private.boundary_dispute notes ===========
+-- (H26 item 2; T20, T16) Ops notes of hidden images and boundary disputes
+-- on the parcels in scope: only with --include-notes, whole names and phones
+-- of the subject. Append-only records; the inventory lists every note id.
+with changed as (
+  update private.media_suppression m
+  set note = pg_temp.kvkk_mask(m.note, p.pseudonym)
+  from kvkk_param p, kvkk_parcel k
+  where p.include_notes
+    and k.parcel_id = m.parcel_id
+    and pg_temp.kvkk_has_match(m.note)
+  returning 1
+)
+select pg_temp.kvkk_count('private.media_suppression', 'note text', count(*)::integer) from changed;
+
+with changed as (
+  update private.boundary_dispute d
+  set note = pg_temp.kvkk_mask(d.note, p.pseudonym)
+  from kvkk_param p, kvkk_parcel k
+  where p.include_notes
+    and k.parcel_id = d.parcel_id
+    and pg_temp.kvkk_has_match(d.note)
+  returning 1
+)
+select pg_temp.kvkk_count('private.boundary_dispute', 'note text', count(*)::integer) from changed;
 
 -- ===== public.audit_event (H26 item 2) =====================================
 -- details must never hold personal data; a match is replaced all the same,

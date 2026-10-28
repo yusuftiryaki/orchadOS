@@ -202,6 +202,14 @@ beforeAll(async () => {
       )},
       ${event(ev.noteOther, "visit_blocked", { note: "Kapı kilitliydi" }, 8)};
 
+    -- Wave 2 (T20, T16): ops notes of a hidden image and boundary disputes on PA.
+    insert into private.media_suppression (org_id, parcel_id, session_id, target_table, target_id, action, reason, note)
+    values ('${orgId}', '${parcel}', '${session}', 'asset', '${randomUUID()}', 'hide', 'kvkk_objection',
+            ${lit(`${NAME} panoramada görünüyor, tel ${aPhone}`)});
+    insert into private.boundary_dispute (org_id, parcel_id, action, note, created_at)
+    values ('${orgId}', '${parcel}', 'open', ${lit(`${NAME} sınıra itiraz etti`)}, now() - interval '1 minute'),
+           ('${orgId}', '${parcel}', 'close', ${lit(`${LONGER} ile çözüldü`)}, now());
+
     insert into public.audit_event (id, org_id, actor_role, action, entity_type, entity_id, details)
     values
       -- Tied to A (A's owner profile, A's order): A's phone and name are replaced, nothing else.
@@ -327,6 +335,10 @@ describe("scripts/kvkk/run.sh", () => {
       "public.session_event (boundary_pointer)",
       "public.session_event (other boundary pointers, review)",
       "public.session_event (notes mentioning the subject)",
+      "private.boundary_pointer",
+      "private.media_suppression (notes mentioning the subject)",
+      "private.boundary_dispute (notes mentioning the subject)",
+      "ops notes without an exact match (review)",
       "public.audit_event (details mention the subject)",
       "public.audit_event (match in rows not tied to the subject, review)",
       "private.consent_record",
@@ -512,6 +524,9 @@ describe("scripts/kvkk/run.sh", () => {
     expect(first.status, first.stderr).toBe(0);
     expect(printed(first, "public.session_event", "boundary_pointer name")).toBe(1);
     expect(printed(first, "public.session_event", "note text")).toBe(0);
+    // The copy of A's pointer event (T16) changes with it; ops notes wait for --include-notes.
+    expect(printed(first, "private.boundary_pointer", "name")).toBe(1);
+    expect(printed(first, "private.media_suppression", "note text")).toBe(0);
     expect(printed(first, "public.audit_event", "details text")).toBe(2);
     const early = kvkk(["erase", "--subject", a.id, "--request", requests.subject, "--apply"]);
     expect(early.status).toBe(3);
@@ -528,6 +543,21 @@ describe("scripts/kvkk/run.sh", () => {
     ]);
     expect(pseudo.status, pseudo.stderr).toBe(0);
     expect(printed(pseudo, "public.session_event", "note text")).toBe(1);
+    expect(printed(pseudo, "private.media_suppression", "note text")).toBe(1);
+    expect(printed(pseudo, "private.boundary_dispute", "note text")).toBe(1);
+    expect(
+      value(`select name from private.boundary_pointer where source_event_id = '${ev.pointerA}'`),
+    ).toBe(ps);
+    expect(value(`select note from private.media_suppression where parcel_id = '${parcel}'`)).toBe(
+      `${ps} panoramada görünüyor, tel ${ps}`,
+    );
+    // The longer namesake in the closing note is another person.
+    expect(
+      sql(`select action, note from private.boundary_dispute where parcel_id = '${parcel}' order by created_at`),
+    ).toEqual([
+      ["open", `${ps} sınıra itiraz etti`],
+      ["close", `${LONGER} ile çözüldü`],
+    ]);
     expect(JSON.parse(eventPayload(ev.pointerA))).toEqual({ name: ps, role: "owner" });
     expect(JSON.parse(eventPayload(ev.noteA)).note).toBe(`${ps} sözlü bilgilendirildi, tel ${ps}`);
     expect(auditDetails(audit.leak)).toEqual({ phone: ps });

@@ -180,15 +180,51 @@ select pg_temp.kvkk_inv('public.session_event (notes mentioning the subject)', c
   'pseudonymize (--include-notes)', '2', 'append-only free text; ids listed below')
 from public.session_event e
 join kvkk_parcel k on k.parcel_id = e.parcel_id
-where e.event_type in ('field_notice_verbal', 'field_notice_objection', 'visit_blocked')
+where e.event_type in ('field_notice_sign', 'field_notice_verbal', 'field_notice_objection', 'visit_blocked')
   and pg_temp.kvkk_payload_has_match(e.payload);
 
 select pg_temp.kvkk_inv('public.session_event (other notes, review)', count(*), 'review', '2',
   'notes on the parcels in scope with no exact match; read them (ids below)')
 from public.session_event e
 join kvkk_parcel k on k.parcel_id = e.parcel_id
-where e.event_type in ('field_notice_verbal', 'field_notice_objection', 'visit_blocked')
+where e.event_type in ('field_notice_sign', 'field_notice_verbal', 'field_notice_objection', 'visit_blocked')
   and not pg_temp.kvkk_payload_has_match(e.payload);
+
+-- ===== private.boundary_pointer ============================================
+select pg_temp.kvkk_inv('private.boundary_pointer', count(*), 'pseudonymize', '2',
+  'append-only copy of the boundary pointer (name, role; T16); name -> pseudonym (exact whole name only)')
+from private.boundary_pointer b
+join kvkk_parcel k on k.parcel_id = b.parcel_id
+where pg_temp.kvkk_norm(b.name) in (select name from kvkk_name);
+
+select pg_temp.kvkk_inv('private.boundary_pointer (other names, review)', count(*), 'review', '2',
+  'pointers on the parcels in scope with another name; read them (ids below)')
+from private.boundary_pointer b
+join kvkk_parcel k on k.parcel_id = b.parcel_id
+where pg_temp.kvkk_norm(b.name) not in (select name from kvkk_name)
+  and b.name not like 'kvkk-%';
+
+-- ===== private.media_suppression, private.boundary_dispute (ops notes) =====
+select pg_temp.kvkk_inv('private.media_suppression (notes mentioning the subject)', count(*),
+  'pseudonymize (--include-notes)', '2', 'append-only ops notes of hidden images (T20); ids below')
+from private.media_suppression m
+join kvkk_parcel k on k.parcel_id = m.parcel_id
+where pg_temp.kvkk_has_match(m.note);
+
+select pg_temp.kvkk_inv('private.boundary_dispute (notes mentioning the subject)', count(*),
+  'pseudonymize (--include-notes)', '2', 'append-only ops notes of boundary disputes (T16); ids below')
+from private.boundary_dispute d
+join kvkk_parcel k on k.parcel_id = d.parcel_id
+where pg_temp.kvkk_has_match(d.note);
+
+select pg_temp.kvkk_inv('ops notes without an exact match (review)', count(*), 'review', '2',
+  'image-hiding and dispute notes on the parcels in scope; read them (ids below)')
+from (
+  select m.note from private.media_suppression m join kvkk_parcel k on k.parcel_id = m.parcel_id
+  union all
+  select d.note from private.boundary_dispute d join kvkk_parcel k on k.parcel_id = d.parcel_id
+) n
+where n.note is not null and not pg_temp.kvkk_has_match(n.note);
 
 -- ===== public.audit_event ==================================================
 select pg_temp.kvkk_inv('public.audit_event (details mention the subject)', count(*), 'pseudonymize', '2',
@@ -244,8 +280,22 @@ select pg_temp.kvkk_inv('public.refund', count(*), 'keep', '1', 'iade kaydı (VU
 from public.refund r, kvkk_param p where r.customer_user_id = p.subject_id;
 
 select pg_temp.kvkk_inv('public.garden_removal', count(*), 'keep', '1',
-  'bahçe çıkarma ve iade dayanağı (10 years)')
+  'bahçe çıkarma ve iade dayanağı (10 years); customer_note, ops_note, notice channel and day stay with it')
 from public.garden_removal g, kvkk_param p where g.customer_user_id = p.subject_id;
+
+select pg_temp.kvkk_inv('private.contract_document', count(*), 'keep', '1',
+  'sözleşme belgeleri (PDF: ad, adres, iletişim): 10 years from the acceptance (H12, H25); bucket contract-documents')
+from private.contract_document c
+join public.service_order o on o.id = c.order_id
+cross join kvkk_param p where o.customer_user_id = p.subject_id;
+
+select pg_temp.kvkk_inv('private.boundary_approval', count(*), 'keep', '1, 2',
+  'sınır beyanı (T16, H07): user id, text version and hash only; 10 years with the contract')
+from private.boundary_approval b, kvkk_param p where b.user_id = p.subject_id;
+
+select pg_temp.kvkk_inv('private.kvkk_request', count(*), 'keep', '1',
+  'KVKK başvuru defteri (T11): 10 years after the request is settled (saklama-imha-politikasi §2.2)')
+from private.kvkk_request r, kvkk_param p where r.subject_id = p.subject_id;
 
 \o
 
@@ -259,8 +309,19 @@ select e.id as session_event_id, e.event_type, e.parcel_id,
             else pg_temp.kvkk_payload_has_match(e.payload) end as mentions_subject
 from public.session_event e
 join kvkk_parcel k on k.parcel_id = e.parcel_id
-where e.event_type in ('boundary_pointer', 'field_notice_verbal', 'field_notice_objection', 'visit_blocked')
+where e.event_type in ('boundary_pointer', 'field_notice_sign', 'field_notice_verbal', 'field_notice_objection', 'visit_blocked')
 order by e.created_at;
+
+-- Boundary pointer copies and ops notes for a manual look (ids only).
+select 'private.boundary_pointer' as tbl, b.id, b.parcel_id,
+       pg_temp.kvkk_norm(b.name) in (select name from kvkk_name) as mentions_subject
+from private.boundary_pointer b join kvkk_parcel k on k.parcel_id = b.parcel_id
+union all
+select 'private.media_suppression', m.id, m.parcel_id, pg_temp.kvkk_has_match(m.note)
+from private.media_suppression m join kvkk_parcel k on k.parcel_id = m.parcel_id where m.note is not null
+union all
+select 'private.boundary_dispute', d.id, d.parcel_id, pg_temp.kvkk_has_match(d.note)
+from private.boundary_dispute d join kvkk_parcel k on k.parcel_id = d.parcel_id where d.note is not null;
 
 -- Audit rows of the org that match but are not tied to the subject (ids only).
 select a.id as audit_event_id, a.action, a.entity_type
