@@ -7,10 +7,12 @@ import { cookies } from "next/headers";
 // to a session opened with the account's password (/kayit/dogrula). It stays
 // on the server side of the browser: an httpOnly, SameSite=Lax cookie, never
 // shown in a page or a URL. With it
-//   - the web lets Auth send a phone confirmation code only for the pending
-//     sign-up this browser's register wrote (signup_code_grant; the Send SMS
-//     hook refuses any other), never for an account someone else opened with
-//     that phone;
+//   - the web asks for a phone confirmation code only for the pending
+//     sign-up this browser's register wrote (customer-signup send_code with
+//     signup_code_grant; the Send SMS hook refuses any other), never for an
+//     account someone else opened with that phone;
+//   - a wrong code entered with it does not count toward the phone login
+//     lock (phone_login_record_failure);
 //   - every complete (/kayit, /kayit/dogrula, `/`) sends it, and
 //     customer-signup refuses a pending sign-up whose ticket this browser
 //     does not hold, so the phone's owner is never signed in to someone

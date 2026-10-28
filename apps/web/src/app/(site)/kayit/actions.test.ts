@@ -14,12 +14,12 @@ const auth = vi.hoisted(() => ({
   signOut: vi.fn(),
 }));
 const rpc = vi.hoisted(() => vi.fn());
-// signup_code_grant: the ticket is the pending sign-up's of this phone.
-const db = vi.hoisted(() => ({ codeAllowed: true }));
 // The ticket cookie: {ticket, phone} or null.
 const cookie = vi.hoisted(() => ({ value: null as { ticket: string; phone: string } | null }));
 const registerCustomer = vi.hoisted(() => vi.fn());
 const completeSignup = vi.hoisted(() => vi.fn());
+// customer-signup send_code (grants with the ticket and asks Auth itself).
+const sendSignupCode = vi.hoisted(() => vi.fn());
 const waitAtLeast = vi.hoisted(() => vi.fn(async () => {}));
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
@@ -35,6 +35,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ auth, rpc
 vi.mock("@/lib/signup/client", () => ({
   registerCustomer,
   completeSignup,
+  sendSignupCode,
   SIGNUP_REFUSED_LOGIN: "/giris?kayit=yarim",
 }));
 vi.mock("@/lib/signup/timing", () => ({ CODE_STEP_MIN_MS: 2000, waitAtLeast }));
@@ -66,12 +67,9 @@ function form(fields: Record<string, string>): FormData {
 beforeEach(() => {
   flags.signupEnabled = true;
   vi.clearAllMocks();
-  db.codeAllowed = true;
   cookie.value = null;
-  rpc.mockImplementation(async (fn: string) => ({
-    data: fn === "signup_code_grant" ? db.codeAllowed : true,
-    error: null,
-  }));
+  rpc.mockImplementation(async () => ({ data: true, error: null }));
+  sendSignupCode.mockResolvedValue(true);
   registerCustomer.mockResolvedValue({ ok: true, ticket: TICKET });
   completeSignup.mockResolvedValue({ ok: true, status: "completed" });
   auth.signOut.mockResolvedValue({ error: null });
@@ -146,7 +144,7 @@ describe("signupAction resend", () => {
 });
 
 describe("signupAction register", () => {
-  it("sends the first code of a new account (unconfirmed phone) through resend", async () => {
+  it("sends the first code of a new account (unconfirmed phone) through send_code", async () => {
     auth.signInWithOtp.mockResolvedValue({
       data: {},
       error: { code: "signup_disabled", message: "Signups not allowed for this instance" },
@@ -166,15 +164,18 @@ describe("signupAction register", () => {
     expect(state.error).toBeNull();
     expect(state.step).toBe("code");
     expect(state.phone).toBe(UNKNOWN);
-    expect(rpc).toHaveBeenCalledWith("signup_code_grant", { p_phone: UNKNOWN, p_ticket: TICKET });
-    expect(auth.resend).toHaveBeenCalledWith({ type: "sms", phone: UNKNOWN });
+    expect(sendSignupCode).toHaveBeenCalledWith(expect.anything(), UNKNOWN, TICKET);
+    // Never Auth's public resend, and no grant from the browser's session:
+    // signup_code_grant is service role only (auth hardening, item 3).
+    expect(auth.resend).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalledWith("signup_code_grant", expect.anything());
     expect(cookie.value).toEqual({ ticket: TICKET, phone: UNKNOWN });
   });
 
-  // Review of PR #93, finding 1: an unconfirmed account someone else opened
-  // with this phone never gets its confirmation code sent to the phone.
-  it("asks no confirmation code for an account this browser did not open", async () => {
-    db.codeAllowed = false;
+  // Review of PR #93, finding 1: without a ticket (a function deployed before
+  // tickets) no confirmation code is asked for; with one, send_code decides.
+  it("asks no confirmation code without a ticket", async () => {
+    registerCustomer.mockResolvedValue({ ok: true, ticket: null });
     auth.signInWithOtp.mockResolvedValue({
       data: {},
       error: { code: "signup_disabled", message: "Signups not allowed for this instance" },
@@ -186,6 +187,7 @@ describe("signupAction register", () => {
     expect(state.error).toBeNull();
     expect(state.step).toBe("code");
     expect(auth.resend).not.toHaveBeenCalled();
+    expect(sendSignupCode).not.toHaveBeenCalled();
   });
 
   it("sends the previous ticket with a new register and keeps the new one", async () => {
@@ -262,6 +264,24 @@ describe("signupAction register hides registered numbers", () => {
 });
 
 describe("signupAction verify", () => {
+  // Auth hardening, item 6: Auth's public resend can replace the code of a
+  // pending sign-up without sending one; the registrant's wrong codes (with
+  // their ticket) do not count toward the lock, everyone else's do.
+  it("passes the ticket with a wrong code", async () => {
+    auth.verifyOtp.mockResolvedValue({ data: {}, error: { code: "otp_expired", message: "x" } });
+    rpc.mockImplementation(async () => ({ data: 5, error: null }));
+    cookie.value = { ticket: TICKET, phone: UNKNOWN };
+    const codeState = { ...INITIAL_SIGNUP_STATE, step: "code" as const, phone: UNKNOWN };
+    await signupAction(codeState, form({ intent: "verify", phone: UNKNOWN, code: "123456" }));
+    expect(rpc).toHaveBeenCalledWith("phone_login_record_failure", {
+      p_phone: UNKNOWN,
+      p_ticket: TICKET,
+    });
+    cookie.value = null;
+    await signupAction(codeState, form({ intent: "verify", phone: UNKNOWN, code: "123456" }));
+    expect(rpc).toHaveBeenLastCalledWith("phone_login_record_failure", { p_phone: UNKNOWN });
+  });
+
   it.each([
     ["completed", "/portal"],
     ["already_completed", "/portal"],

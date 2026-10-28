@@ -38,8 +38,8 @@
 //   5. signup_prepare stores the pending sign-up and signup_set_ticket the
 //      SHA-256 of the new ticket; on failure the account goes.
 //   Every 200 carries a fresh `ticket` (an unstored one for a registered
-//   phone): the web keeps it in an httpOnly cookie and sends it with the code
-//   step and complete, which binds them to this register.
+//   phone): the web keeps it in an httpOnly cookie and sends it with
+//   send_code and complete, which binds them to this register.
 //   Every answer after the rate limits (200 or 409) waits until
 //   REGISTER_MIN_MS has passed since the request came in, so a new account
 //   and a registered phone or e-mail take the same time (H33).
@@ -53,18 +53,31 @@
 //   signature} · 400 {error: "invalid_input", field: "action"} with another
 //   provider · 503 {error: "signup_closed"} without ALTCHA_HMAC_KEY
 //
+// { "action": "send_code", phone, ticket }   (the web's code step, server side)
+//   The phone confirmation code of the pending self sign-up this ticket's
+//   register wrote: signup_code_grant (service role; one a minute, six per
+//   sign-up) leaves a 30-second marker, this request asks Auth for the code
+//   (/auth/v1/resend), the Send SMS hook sends it and consumes the marker,
+//   and signup_code_release drops whatever is left once Auth answered. So
+//   the marker only ever covers this one server-initiated send. Always 200 {}
+//   after at least SEND_CODE_MIN_MS (granted or not, sent or not: H33);
+//   400 invalid_input for a malformed phone or ticket.
+//
 // { "action": "complete", ticket? }   Authorization: Bearer <the user's access token>
-//   After verifyOtp: the session must come from a phone code (amr otp/sms)
-//   with the phone confirmed. Every complete of a pending sign-up proves the
-//   registrant (signup_owner_check; no ticket never skips it): the `ticket`
-//   of the register that wrote it (the web's cookie; `claim` for a password
+//   After verifyOtp: the session must come from a phone code (amr otp/sms
+//   whose timestamp matches the phone_confirmed_at that code stamped; an
+//   e-mail code is "otp" too: latestPhoneCodeAt) with the phone confirmed.
+//   Every complete of a pending sign-up proves the registrant
+//   (signup_owner_check; no ticket never skips it): the `ticket` of the
+//   register that wrote it (the web's cookie; `claim` for a password
 //   session), or a session opened with the account's password. Otherwise 403
 //   signup_mismatch and the phone is never left confirmed on that account:
-//   an unfinished self sign-up with a confirmed phone is deleted (if the
-//   delete fails: signup_quarantine clears the phone confirmation, ends its
-//   sessions and flags it for review); one written before tickets is
-//   quarantined by the check itself, and its registrant finishes with their
-//   password.
+//   the check itself quarantines an unfinished self sign-up with a confirmed
+//   phone (phone confirmation cleared, sessions ended, row flagged
+//   delete_failed) and then the account is deleted; if the delete fails
+//   twice the quarantine stays and an ALERT line goes to the log. One written
+//   before tickets is quarantined the same way, not deleted, and its
+//   registrant finishes with their password.
 //   signup_complete then checks that the confirmed phone is the pending one
 //   and the code is newer than the pending sign-up (else 403) and writes the
 //   owner profile and the consent records.
@@ -85,7 +98,8 @@
 //
 // { "action": "cleanup" }   x-orchados-cron-secret: ORCHADOS_CRON_SECRET
 //   Hourly (pg_cron, private.dispatch_signup_cleanup): deletes self sign-up
-//   accounts whose phone was not verified within 24 hours. 200 {deleted: n} · 401
+//   accounts whose phone was not verified within 24 hours, except those whose
+//   sign-up is under ops review (signup_review_user_ids). 200 {deleted: n} · 401
 //
 // No response and no log line carries a phone number, e-mail or password.
 
@@ -113,6 +127,8 @@ import {
   registerDelayMs,
   ticketHash,
   newTicket,
+  PHONE_TR_RE,
+  TICKET_RE,
   timingSafeEqual,
 } from "../_shared/signup.ts";
 
@@ -164,6 +180,10 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
 
 // Solved self-hosted challenges, in the database for every instance.
 const spentChallenges = databaseSpent(rpc, "signup");
+
+// The send_code answer takes at least this long, whether a code went out or
+// not (H33).
+const SEND_CODE_MIN_MS = 1500;
 
 async function deleteUser(id: string): Promise<void> {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${id}`, {
@@ -297,6 +317,36 @@ async function register(req: Request, body: unknown): Promise<Response> {
   throw new Failure("account conflict did not resolve");
 }
 
+async function sendCode(body: unknown): Promise<Response> {
+  const startedMs = Date.now();
+  const b = body as { phone?: unknown; ticket?: unknown };
+  const phone = typeof b.phone === "string" ? b.phone : "";
+  const ticket = typeof b.ticket === "string" ? b.ticket : "";
+  if (!PHONE_TR_RE.test(phone)) return error("invalid_input", 400, { field: "phone" });
+  if (!TICKET_RE.test(ticket)) return error("invalid_input", 400, { field: "ticket" });
+  try {
+    const grant = await rpc<string>("signup_code_grant", { p_phone: phone, p_ticket: ticket });
+    if (grant === "granted") {
+      try {
+        // Auth's answer is not passed on: a limit or a failed send gets the
+        // same 200 as a number without a pending sign-up.
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/resend`, {
+          method: "POST",
+          headers: { apikey: ANON_KEY, "content-type": "application/json" },
+          body: JSON.stringify({ type: "sms", phone }),
+        });
+        if (!res.ok) console.error("customer-signup: send_code resend failed with", res.status);
+      } finally {
+        await rpc("signup_code_release", { p_phone: phone });
+      }
+    }
+  } catch (cause) {
+    console.error("customer-signup: send_code:", cause instanceof Error ? cause.message : "unknown error");
+  }
+  await sleep(registerDelayMs(startedMs, Date.now(), SEND_CODE_MIN_MS));
+  return json({});
+}
+
 interface SessionUser {
   user: { id: string; phone_confirmed_at?: string | null };
   claims: Record<string, unknown> | null;
@@ -325,7 +375,7 @@ async function complete(req: Request, body: unknown): Promise<Response> {
   if (session instanceof Response) return session;
   const { user, claims } = session;
 
-  const codeAt = latestPhoneCodeAt(claims);
+  const codeAt = latestPhoneCodeAt(claims, user.phone_confirmed_at);
   if (!user.phone_confirmed_at || codeAt === null) return error("phone_not_verified", 403);
   const codeAtIso = new Date(codeAt * 1000).toISOString();
 
@@ -337,17 +387,23 @@ async function complete(req: Request, body: unknown): Promise<Response> {
     p_password: hasPasswordAmr(claims),
   });
   if (check === "mismatch") {
-    // Someone else's unfinished sign-up with this phone: it goes, and with it
-    // the session the code just opened. If it cannot go, the phone
-    // confirmation does (fail closed) and ops reviews the row.
-    try {
-      await deleteUser(user.id);
-    } catch (cause) {
-      console.error(
-        "customer-signup: hijack candidate not deleted, quarantined:",
-        cause instanceof Error ? cause.message : "unknown error",
-      );
-      await rpc("signup_quarantine", { p_user_id: user.id });
+    // Someone else's unfinished sign-up with this phone. The check already
+    // quarantined it (phone confirmation cleared, sessions ended, flagged
+    // delete_failed); now it goes. If it cannot go, the quarantine stays for
+    // ops and the log carries an alert.
+    let deleted = false;
+    for (let round = 0; round < 2 && !deleted; round++) {
+      try {
+        await deleteUser(user.id);
+        deleted = true;
+      } catch (cause) {
+        if (round === 1) {
+          console.error(
+            "ALERT customer-signup: hijack candidate quarantined but not deleted (delete_failed):",
+            cause instanceof Error ? cause.message : "unknown error",
+          );
+        }
+      }
     }
     return error("signup_mismatch", 403);
   }
@@ -389,6 +445,7 @@ async function cleanup(req: Request): Promise<Response> {
     return error("unauthorized", 401);
   }
   const now = Date.now();
+  const underReview = new Set(await rpc<string[]>("signup_review_user_ids", {}));
   const expired: string[] = [];
   for (let page = 1; ; page++) {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=${page}&per_page=1000`, {
@@ -397,7 +454,8 @@ async function cleanup(req: Request): Promise<Response> {
     if (!res.ok) throw new Failure(`list users failed with ${res.status}`);
     const users = ((await res.json())?.users ?? []) as Parameters<typeof isExpiredUnverified>[0][];
     for (const user of users) {
-      if (isExpiredUnverified(user, now)) expired.push(String((user as { id: unknown }).id));
+      const id = String((user as { id: unknown }).id);
+      if (isExpiredUnverified(user, now) && !underReview.has(id)) expired.push(id);
     }
     if (users.length < 1000) break;
   }
@@ -416,6 +474,7 @@ async function handle(req: Request): Promise<Response> {
   const action = body && typeof body === "object" ? (body as { action?: unknown }).action : null;
   try {
     if (action === "register") return await register(req, body);
+    if (action === "send_code") return await sendCode(body);
     if (action === "complete") return await complete(req, body);
     if (action === "claim") return await claim(req);
     if (action === "cleanup") return await cleanup(req);

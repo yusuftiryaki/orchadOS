@@ -159,9 +159,9 @@ export function timingSafeEqual(a: string, b: string): boolean {
 // unstored one, so the answer looks the same. `claim` stores a new one for a
 // session opened with the account's password (/kayit/dogrula). The ticket
 // binds the code step to the registrant: Auth sends a phone confirmation code
-// only after the web granted it with the ticket (signup_code_grant, checked
-// by the Send SMS hook), and every complete of a pending sign-up must carry
-// it (signup_owner_check).
+// only when `send_code` granted it with the ticket and asked for it in the
+// same request (signup_code_grant, checked by the Send SMS hook), and every
+// complete of a pending sign-up must carry it (signup_owner_check).
 
 export const TICKET_RE = /^[A-Za-z0-9_-]{43}$/;
 
@@ -321,12 +321,28 @@ export function isDemoClaims(claims: Record<string, unknown> | null): boolean {
   return !!meta && typeof meta === "object" && (meta as { demo?: unknown }).demo === true;
 }
 
-// §7.2: when the session was last opened with a phone code (amr method otp or
-// sms), in epoch seconds, or null. signup_complete requires it to be after
-// the pending sign-up was written.
-export function latestPhoneCodeAt(claims: Record<string, unknown> | null): number | null {
+// Auth stamps phone_confirmed_at with every phone code it accepts; a code
+// opened the session only if that stamp is this close to the amr timestamp
+// (whole seconds).
+export const PHONE_CODE_SKEW_S = 2;
+
+// §7.2: when the session was last opened with a phone code, in epoch seconds,
+// or null. GoTrue (v2.197) records a phone code and an e-mail code (login
+// code, magic link) both as amr method "otp", so the method alone is no phone
+// proof: an "otp" (or "sms") entry counts only when the phone's confirmation
+// (`phoneConfirmedAt`, the user's phone_confirmed_at) was stamped by that
+// same code, which an e-mail code never does. Self sign-up accounts get no
+// e-mail code at all (customer_account_guard, docs/musteri-yonetimi.md §7.5).
+// signup_complete requires the result to be after the pending sign-up was
+// written.
+export function latestPhoneCodeAt(
+  claims: Record<string, unknown> | null,
+  phoneConfirmedAt: string | null | undefined,
+): number | null {
   const amr = claims?.amr;
-  if (!Array.isArray(amr)) return null;
+  if (!Array.isArray(amr) || !phoneConfirmedAt) return null;
+  const confirmedS = Date.parse(phoneConfirmedAt) / 1000;
+  if (!Number.isFinite(confirmedS)) return null;
   let latest: number | null = null;
   for (const entry of amr) {
     if (!entry || typeof entry !== "object") continue;
@@ -335,7 +351,7 @@ export function latestPhoneCodeAt(claims: Record<string, unknown> | null): numbe
       timestamp?: unknown;
     };
     if ((method !== "otp" && method !== "sms") || typeof timestamp !== "number") continue;
-    if (!Number.isFinite(timestamp)) continue;
+    if (!Number.isFinite(timestamp) || Math.abs(timestamp - confirmedS) > PHONE_CODE_SKEW_S) continue;
     if (latest === null || timestamp > latest) latest = timestamp;
   }
   return latest;

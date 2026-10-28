@@ -276,11 +276,11 @@ describe("customer-signup", () => {
       expect(victim).toEqual(VERIFY);
       expect(await usersByEmail([victimEmail])).toHaveLength(0);
 
-      // The code step: no grant with the victim's ticket, so only a login code
-      // is asked for, which an unconfirmed phone does not get.
+      // The code step: send_code grants nothing with the victim's (unstored)
+      // ticket and answers as for any number; the login code is not sent to
+      // an unconfirmed phone either.
       const client = anonClient();
-      const sent = await sendCode(client, attack.phone, String(victim.json.ticket));
-      expect(sent?.code).toBe("signup_disabled");
+      expect(await sendCode(client, attack.phone, String(victim.json.ticket))).toBeNull();
       expect(await codes(attack.phone)).toEqual([]);
       expect((await userById(attack.id))?.phone_confirmed_at ?? null).toBeNull();
     });
@@ -343,12 +343,9 @@ describe("customer-signup", () => {
       expect(victim).toEqual(VERIFY);
       expect(await userById(attack.id)).toBeNull();
       const [own] = await usersByEmail([victimEmail]);
-      // The attacker's ticket no longer grants a code; the victim's does.
-      const stale = await anonClient().rpc("signup_code_grant", {
-        p_phone: attack.phone,
-        p_ticket: attack.ticket,
-      });
-      expect(stale.data).toBe(false);
+      // The attacker's ticket no longer gets a code; the victim's does.
+      expect(await sendCode(anonClient(), attack.phone, attack.ticket)).toBeNull();
+      expect(await codes(attack.phone)).toEqual([]);
       expect(await sendCode(anonClient(), attack.phone, String(victim.json.ticket))).toBeNull();
       const session = await enterLatestCode(attack.phone);
       expect(session.userId).toBe(own.id);
@@ -360,25 +357,21 @@ describe("customer-signup", () => {
 
     it("(iv) two registers of one phone at once: one account, and the other ticket cannot finish it", async () => {
       const phone = randomPhone();
+      const emails = [randomEmail("yaris-a"), randomEmail("yaris-b")];
       const [a, b] = await Promise.all([
-        signup(body({ phone, email: randomEmail("yaris-a") }), "203.0.113.77"),
-        signup(body({ phone, email: randomEmail("yaris-b") }), "203.0.113.78"),
+        signup(body({ phone, email: emails[0] }), "203.0.113.77"),
+        signup(body({ phone, email: emails[1] }), "203.0.113.78"),
       ]);
       expect([a.status, b.status]).toEqual([200, 200]);
-      const grants = await Promise.all(
-        [a, b].map(
-          async (r) =>
-            (
-              await anonClient().rpc("signup_code_grant", {
-                p_phone: phone,
-                p_ticket: String(r.json.ticket),
-              })
-            ).data,
-        ),
-      );
-      expect(grants.filter(Boolean)).toHaveLength(1);
-      const [winner, loser] = grants[0] ? [a, b] : [b, a];
-      expect(await requestCode(phone)).toBe(true);
+      // Both browsers ask for the code: only the account's own ticket gets
+      // one.
+      for (const r of [a, b]) {
+        expect(await sendCode(anonClient(), phone, String(r.json.ticket))).toBeNull();
+      }
+      expect(await codes(phone)).toHaveLength(1);
+      const accounts = await usersByEmail(emails);
+      expect(accounts).toHaveLength(1);
+      const [winner, loser] = accounts[0].email === emails[0] ? [a, b] : [b, a];
       const session = await enterLatestCode(phone);
       expect(await complete(session.token, String(loser.json.ticket))).toEqual({
         status: 403,
@@ -387,13 +380,6 @@ describe("customer-signup", () => {
       expect(await userById(session.userId)).toBeNull();
       expect(winner.json.ticket).not.toBe(loser.json.ticket);
     }, 30_000);
-
-    // Asks Auth for the phone's confirmation code after a grant consumed by
-    // nothing else (the grant above left the marker on the winner's row).
-    async function requestCode(phone: string) {
-      const { error } = await anonClient().auth.resend({ type: "sms", phone });
-      return error === null && (await codes(phone)).length === 1;
-    }
   });
 
   // Review of PR #93, round 2, item 4: a registrant whose completion was

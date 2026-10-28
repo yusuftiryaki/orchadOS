@@ -16,7 +16,7 @@ import { accountPhone, type VerifyState } from "./verify-state";
 // server; the browser never sends it. The session must have been opened with
 // the account's password: `claim` turns it into a sign-up ticket (the code
 // opens a new session without the password, review of PR #93), the ticket
-// grants the phone code (signup_code_grant) and goes with complete.
+// asks for the phone code (customer-signup send_code) and goes with complete.
 
 const s = siteText.signup;
 
@@ -36,17 +36,10 @@ export async function verifyPhoneAction(
   if (formReader(form)("intent") !== "verify") {
     const claim = await claimSignupTicket(supabase);
     if (!claim.ok) return { ...previous, error: s.errors[claim.error], notice: null };
-    // No pending sign-up: whatever the account is, the Send SMS hook decides.
-    let confirm = true;
-    if (claim.ticket) {
-      await storeTicket(claim.ticket, phone);
-      const grant = await supabase.rpc("signup_code_grant", {
-        p_phone: phone,
-        p_ticket: claim.ticket,
-      });
-      confirm = grant.data === true;
-    }
-    const reason = await sendAccountCode(supabase, phone, { confirm });
+    // No pending sign-up: a confirmed phone still gets its login code, an
+    // unconfirmed one nothing (there is no sign-up left to complete).
+    if (claim.ticket) await storeTicket(claim.ticket, phone);
+    const reason = await sendAccountCode(supabase, phone, { ticket: claim.ticket });
     if (reason) {
       return {
         ...previous,
@@ -66,13 +59,18 @@ export async function verifyPhoneAction(
   if (!/^[0-9]{6}$/.test(token)) {
     return { ...previous, error: t.login.phone.invalidCode, notice: null };
   }
+  const ticket = (await readTicket())?.ticket ?? null;
   const { error } = await supabase.auth.verifyOtp({ phone, token, type: "sms" });
   if (error) {
-    const left = await supabase.rpc("phone_login_record_failure", { p_phone: phone });
+    // As on /kayit: not counted with the ticket of this phone's pending sign-up.
+    const left = await supabase.rpc("phone_login_record_failure", {
+      p_phone: phone,
+      ...(ticket ? { p_ticket: ticket } : {}),
+    });
     return { ...previous, error: t.login.phone.wrongCode(left.data ?? 0), notice: null };
   }
 
-  const completed = await completeSignup(supabase, (await readTicket())?.ticket ?? null);
+  const completed = await completeSignup(supabase, ticket);
   if (!completed.ok && completed.error === "signup_mismatch") {
     await supabase.auth.signOut();
     redirect(SIGNUP_REFUSED_LOGIN);

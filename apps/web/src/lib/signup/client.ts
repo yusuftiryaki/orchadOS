@@ -179,3 +179,23 @@ export async function claimSignupTicket(supabase: Client): Promise<ClaimResult> 
     return { ok: false, error: "signup_unavailable" };
   }
 }
+
+// The code step's phone confirmation code (customer-signup `send_code`): the
+// function grants it with the ticket and asks Auth for it itself. True once
+// the function answered; it answers the same whether a code went out or not
+// (H33), so false only means it could not be reached.
+export async function sendSignupCode(
+  supabase: Client,
+  phone: string,
+  ticket: string,
+): Promise<boolean> {
+  try {
+    const { error } = await supabase.functions.invoke(FUNCTION, {
+      body: { action: "send_code", phone, ticket },
+      headers: proxyHeaders(),
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}

@@ -59,9 +59,12 @@ select lives_ok(
   $$ update auth.users set raw_user_meta_data = '{"email_verified": false, "sub": "s", "email": "e"}'
      where id = 'd13a0000-0000-4000-8000-000000000021' $$,
   'GoTrue''s own metadata keys change');
+-- (The phone itself changes only through ops: customer_account_guard.)
+select set_config('orchados.account_phone_change', 'on', true);
 select lives_ok($$ update auth.users set email = 'other-44@example.test', phone = '905550044002',
                    raw_user_meta_data = '{"x": 1}' where id = 'd13c0000-0000-4000-8000-000000000021' $$,
   'other accounts are unaffected');
+select set_config('orchados.account_phone_change', '', true);
 select lives_ok($$ delete from auth.users where id = 'd13a0000-0000-4000-8000-000000000022' $$,
   'a demo account can be deleted');
 

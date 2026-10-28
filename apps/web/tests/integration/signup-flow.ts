@@ -1,12 +1,11 @@
 import { expect, inject } from "vitest";
-import { requestSignupCode } from "@/lib/billing/signup-code";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { anonClient, serviceClient } from "./fixtures";
 
 // The self sign-up flow against the local stack (docs/musteri-yonetimi.md §7),
 // step by step as the web runs it: customer-signup register, the code step
-// (signup_code_grant with the register's ticket, then the code), verifyOtp,
-// complete. Codes are read from the outbox of the send-sms hook's record
+// (a login code, or customer-signup send_code with the register's ticket),
+// verifyOtp, complete. Codes are read from the outbox of the send-sms hook's record
 // provider. Every register carries the proxy secret and a TEST-NET client IP
 // (203.0.113.x) of the caller's choosing for the per-IP limit.
 
@@ -77,15 +76,24 @@ export async function latestCode(phone: string): Promise<string | null> {
 
 type AnonClient = ReturnType<typeof anonClient>;
 
-// The web's code step (kayit/actions.ts sendCode): the phone confirmation
-// code only after signup_code_grant accepted the register's ticket.
+// The web's code step (lib/signup/send-code.ts): a login code for a
+// confirmed phone; for an unconfirmed one, only with a ticket, customer-signup
+// send_code (signup_code_grant with the ticket, then Auth's resend, server
+// side). Resolves to the login code's error when no confirmation code was
+// asked for, else null: send_code answers 200 {} whether a code went out or
+// not (H33), so callers check the outbox.
 export async function sendCode(client: AnonClient, phone: string, ticket?: string | null) {
-  const own = ticket
-    ? await client.rpc("signup_code_grant", { p_phone: phone, p_ticket: ticket })
-    : { data: false, error: null };
-  expect(own.error).toBeNull();
-  return requestSignupCode(client.auth, phone, { confirm: own.data === true });
+  const signIn = await client.auth.signInWithOtp({
+    phone,
+    options: { shouldCreateUser: false, channel: "sms" },
+  });
+  if (signIn.error?.code !== "signup_disabled" || !ticket) return signIn.error;
+  expect(await sendConfirmation(phone, ticket)).toEqual({ status: 200, json: {} });
+  return null;
 }
+
+export const sendConfirmation = (phone: string, ticket: string, ip = "203.0.113.201") =>
+  signupCall({ action: "send_code", phone, ticket }, ip);
 
 // Enters the phone's latest code (verifyOtp, as /kayit, /giris and
 // /kayit/dogrula do) in a fresh browser; returns its client and access token.
