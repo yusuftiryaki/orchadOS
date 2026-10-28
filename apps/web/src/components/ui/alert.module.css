@@ -1,0 +1,77 @@
+.alert {
+  display: grid;
+  grid-template-columns: 4px 1fr;
+  gap: 0 var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-neutral-soft);
+  color: var(--color-text);
+  max-width: var(--measure);
+}
+
+.alert::before {
+  content: "";
+  grid-row: 1 / span 2;
+  border-radius: 2px;
+  background: var(--tone, var(--color-neutral));
+}
+
+.title {
+  font-weight: 700;
+  margin: 0 0 2px;
+  color: var(--tone, var(--color-neutral));
+}
+
+.body {
+  grid-column: 2;
+}
+
+.body > :last-child {
+  margin-bottom: 0;
+}
+
+.success {
+  --tone: var(--color-success);
+  background: var(--color-success-soft);
+}
+
+.warning {
+  --tone: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+.danger {
+  --tone: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.info {
+  --tone: var(--color-info);
+  background: var(--color-info-soft);
+}
+
+.toast {
+  position: fixed;
+  z-index: 100;
+  left: 50%;
+  bottom: var(--space-4);
+  transform: translateX(-50%);
+  width: min(480px, calc(100vw - 32px));
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: start;
+  gap: var(--space-3);
+  animation: toastIn var(--duration) var(--ease);
+}
+
+.toast > :first-child {
+  flex: 1;
+  max-width: none;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}

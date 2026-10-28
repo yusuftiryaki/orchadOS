@@ -44,6 +44,7 @@ export function SiteFooter({ company }: { company?: CompanyFields | null }) {
           )}
         </div>
         <nav aria-label={siteText.nav.label} className={styles.footerLinks}>
+          <p className={styles.footerHeading}>{f.siteHeading}</p>
           {SITE_NAV.map((item) => (
             <Link key={item.href} href={item.href}>
               {item.label}
@@ -51,6 +52,7 @@ export function SiteFooter({ company }: { company?: CompanyFields | null }) {
           ))}
         </nav>
         <nav aria-label={f.legalLabel} className={styles.footerLinks}>
+          <p className={styles.footerHeading}>{f.legalLabel}</p>
           {LEGAL_LINKS.map((item) => (
             <Link key={item.href} href={item.href}>
               {item.label}
@@ -58,7 +60,7 @@ export function SiteFooter({ company }: { company?: CompanyFields | null }) {
           ))}
         </nav>
       </div>
-      <p className={`${styles.footerInner} ${styles.footerSmall}`}>{f.note}</p>
+      <p className={`${styles.footerNote} ${styles.footerSmall}`}>{f.note}</p>
     </footer>
   );
 }

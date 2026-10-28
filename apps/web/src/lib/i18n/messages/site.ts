@@ -15,10 +15,12 @@ export const siteText = {
     account: "Hesabım",
     logout: "Çıkış",
     menu: "Menü",
+    menuClose: "Kapat",
     demo: "Demoyu dene",
   },
   footer: {
     legalLabel: "Hukuki metinler",
+    siteHeading: "Hizmet",
     // Placeholders until the company information is complete (T21; filled
     // from public_company_info()).
     company: "[Şirket unvanı] · [Adres] · [MERSİS no]",
@@ -45,41 +47,88 @@ export const siteText = {
     note: "Hukuki metinler taslaktır; yayın şartları tamamlanınca yürürlüğe girer.",
   },
   landing: {
-    eyebrow: "Antep fıstığı bahçeleri için",
     title: "Bahçenize gitmeden, ağaç ağaç görün.",
-    lead: "orchadOS bağımsız bir bahçe denetim hizmetidir. Kendi saha ekibimiz bahçenizi düzenli aralıklarla 360° kamera ve uydu konumlamayla tarar; bir ziraat mühendisi değerlendirir ve raporu imzalar. Siz sonucu portalda, kanıtıyla birlikte görürsünüz.",
+    lead: "orchadOS, Antep fıstığı bahçeleri için bağımsız bir denetim hizmetidir. Saha ekibimiz bahçenizi 360° kamerayla sıra sıra tarar; bir ziraat mühendisi her ağacı değerlendirir ve raporu imzalar. Siz sonucu telefonunuzdan, fotoğrafıyla birlikte görürsünüz.",
     ctaSignup: "Kayıt olun",
+    signupNote:
+      "Hesap açmak ücretsizdir. Ödemeyi, ekibimizin alanı doğruladığı teklifi onaylayınca yaparsınız.",
+    ctaDemo: "Demoyu deneyin",
+    demoNote: "Hesap açmadan, örnek bahçelerde sahip portalını rehberli turla gezin.",
     ctaHow: "Nasıl çalışır?",
     ctaLogin: "Hesabınız varsa giriş yapın",
-    ctaDemo: "Demoyu dene",
-    demoFoot: "Bunları örnek bir bahçede hesap açmadan görün: demoyu deneyin",
-    pillarsTitle: "Neden orchadOS?",
-    pillars: [
+    plate: {
+      title: "Örnek bahçe, kış ziyareti",
+      caption:
+        "Her nokta bir ağaç; rengi, uzmanın o ziyarette verdiği sınıf. Satır başındaki kodlar sıraları gösterir. Bu çizim örnektir.",
+      tree: "S5-12",
+      treeLabel: "Seçili ağaç",
+      rows: [
+        ["Sınıf", "Dikkat"],
+        ["Neden", "Kuru dal 2 (0–3 ölçeğinde)"],
+        ["Karar", "Uzman onaylı"],
+        ["Kanıt", "4 yönden fotoğraf, 1 yakın plan"],
+      ],
+      rowLabel: (n: number) => `S${n}`,
+    },
+    readTitle: "Bir ziyaretin sonunda ne bilirsiniz?",
+    readLead:
+      "Rapor her ağaç için aynı soruyu cevaplar: bu ağaç ne durumda? Cevap aşağıdaki sınıflardan biridir ve haritada bu renklerle görünür.",
+    classesLabel: "Ağaç sınıfları",
+    reportTitle: "Parsel karnesinde ayrıca",
+    report: [
+      "0–100 arası genel durum skoru ve geçen yılın aynı mevsimine göre değişimi",
+      "Kötüleşen ve iyileşen ağaç sayısı; kaybolan ve yeni dikilen ağaçlar",
+      "Sorunların bahçenin neresinde toplandığı",
+      "Önem sırasıyla bulgular ve uzmanın önerileri",
+      "Denetim güveni: kaç ağaca bakıldığı, kaç fotoğraf çekildiği, uzmanın imzası",
+    ],
+    evidenceTitle: "Her bulgunun kanıtı var",
+    evidenceLead:
+      "Raporda okuduğunuz her şeyin arkasına inebilirsiniz. Bir bulgudan başlayıp o fotoğrafın ne zaman ve nerede çekildiğine kadar gidersiniz.",
+    evidence: [
       {
-        title: "Bağımsız",
-        body: "Veriyi kendi eğitimli personelimiz toplar. Bahçedeki işçiler ya da bekçi veri girmez.",
+        title: "Bulgu",
+        body: "Örneğin \u201cS5-12'de kuru dal\u201d. Bulgular önem sırasıyla listelenir.",
       },
+      { title: "Ağaç karnesi", body: "Ağacın kalıcı kodu, sınıfı ve ziyaret ziyaret geçmişi." },
+      { title: "Fotoğraf", body: "Dört yönden, aynı açıdan; ziyaretler yan yana." },
       {
-        title: "Uzman imzalı",
-        body: "Her rapor, değerlendirmeyi yapan ziraat mühendisinin imzasını taşır. Yapay zekâ yalnızca ön değerlendirme yapar.",
-      },
-      {
-        title: "Kanıtıyla",
-        body: "Her bulgudan ağaca, ağaçtan fotoğrafa, fotoğraftan çekim zamanına ve konumuna inebilirsiniz.",
-      },
-      {
-        title: "Ağaç ağaç",
-        body: "Her ağacın kalıcı bir kodu ve karnesi olur. Ziyaretler arasındaki değişimi aynı ağaç üzerinde izlersiniz.",
+        title: "Zaman ve konum",
+        body: "Her fotoğrafın tarihi, saati, konumu ve değiştirilmediğinin doğrulaması.",
       },
     ],
-    getTitle: "Portalda ne görürsünüz?",
-    get: [
-      "Parsel karnesi ve uzman özeti",
-      "Ağaç ağaç sağlık haritası",
-      "Street View tarzı 360° bahçe gezisi",
-      "Her ağacın karnesi ve fotoğrafları",
-      "PDF ziyaret raporu; rapor hazır olunca SMS ile bağlantı",
+    independence:
+      "Veriyi bahçenizdeki işçiler ya da bekçi değil, kendi eğitimli personelimiz toplar. Yapay zekâ yalnızca ön değerlendirme yapar; kararı ve imzayı ziraat mühendisi verir.",
+    stepsTitle: "Nasıl başlar?",
+    steps: [
+      {
+        title: "Kayıt ve başvuru",
+        body: "Hesap açın, bahçenizi haritada kabaca işaretleyin ve paketinizi seçin. Kesin sınırı ve ağaç sayısını bilmeniz gerekmez.",
+      },
+      {
+        title: "Teklif ve ödeme",
+        body: "Ekibimiz konumu ve alanı doğrular, size teklif gönderir. Onaylarsanız kartla ya da havaleyle ödersiniz.",
+      },
+      {
+        title: "İlk ziyaret",
+        body: "Sınırı gösteren kişiyle birlikte sınır yürünür ve bahçe taranır. Her ağaca kalıcı bir kod verilir.",
+      },
+      {
+        title: "Periyodik ziyaretler",
+        body: "Her ziyarette bahçe yeniden taranır. Rapor hazır olunca size SMS ile bağlantı gelir.",
+      },
     ],
+    stepsMore: "Adımların ayrıntısı",
+    calendarTitle: "Yılda kaç ziyaret?",
+    calendarLead:
+      "Paketler ziyaret sayısıyla ayrılır. Ziyaretler fıstığın yılına göre planlanır: budama, uyanma, meyve tutumu, hasat.",
+    calendarLabel: "Paketlerin ziyaret takvimi",
+    visitsPerYear: (n: number) => `Yılda ${n} ziyaret`,
+    perDonum: (price: string) => `Dönüm başına yıllık ${price}, KDV dahil`,
+    calendarNote:
+      "İlk yıl bahçe başına bir kez envanter ücreti eklenir. Küçük bahçelerde en az ücret uygulanır.",
+    calendarMore: "Fiyatlar ve örnek hesap",
+    months: ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"],
     honestTitle: "Neyi iddia etmiyoruz?",
     honest: [
       "Yapay zekâ hastalık teşhisi koymaz. Görüntüde görülen belirtileri işaretler, kararı uzman verir.",
@@ -87,6 +136,10 @@ export const siteText = {
       "Haritadaki sınır, sizin ya da yetkilendirdiğiniz kişinin gösterdiği fiili kullanım sınırıdır. Tapu sınırı, kadastro ölçümü, mülkiyet ya da kullanım hakkı tespiti değildir; resmi bir sınır belirlemez. Sınır ve mülkiyet uyuşmazlıklarında kanıt olarak sunulmak üzere hazırlanmamıştır.",
       "Verim ya da gelir tahmini ve garantisi vermeyiz.",
     ],
+    closingTitle: "Önce bir örnek bahçeyi gezin",
+    closingBody:
+      "Demoda karneyi, sağlık haritasını, 360° gezintiyi ve ağaç karnesini sahibin gördüğü gibi görürsünüz. Hesap açmanız gerekmez.",
+    demoFoot: "Demoyu deneyin",
   },
   how: {
     title: "Nasıl çalışır?",

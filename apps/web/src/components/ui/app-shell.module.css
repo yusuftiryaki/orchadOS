@@ -1,0 +1,123 @@
+/* App chrome for the signed-in sections. Portal: owners, phone first.
+   Staff: wide, dense desktop screens. */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.inner {
+  margin: 0 auto;
+  max-width: var(--shell-width, 1120px);
+  padding: 0 var(--space-3);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "brand account"
+    "nav nav";
+  align-items: center;
+  column-gap: var(--space-4);
+}
+
+.staff {
+  --shell-width: 1440px;
+}
+
+.brand {
+  grid-area: brand;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  font-weight: 800;
+  font-size: 17px;
+  text-decoration: none;
+  color: var(--color-text);
+}
+
+.brand:hover {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.nav {
+  grid-area: nav;
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 calc(-1 * var(--space-3));
+  padding: 0 var(--space-3);
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-bottom: 3px solid transparent;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  color: var(--color-text-2);
+}
+
+.link:hover {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+  text-decoration: none;
+}
+
+.link[aria-current="page"] {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  font-weight: 700;
+}
+
+.link:focus-visible {
+  outline-offset: -3px;
+}
+
+.account {
+  grid-area: account;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.main {
+  min-width: 0;
+}
+
+@media (min-width: 860px) {
+  .inner {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "brand nav account";
+    min-height: var(--header-height);
+    padding: 0 var(--space-4);
+  }
+  .nav {
+    margin: 0;
+    padding: 0;
+    align-self: stretch;
+  }
+  .link {
+    min-height: 100%;
+  }
+}
+
+@media print {
+  .header {
+    display: none;
+  }
+}
