@@ -41,7 +41,7 @@ export default async function Page({
   const fieldError = error === "invalid_type" || error === "invalid_message";
 
   return (
-    <main className={layout.narrow}>
+    <main className={`${layout.page} ${layout.reading}`}>
       <PageHeader
         title={T.title}
         lead={T.lead}

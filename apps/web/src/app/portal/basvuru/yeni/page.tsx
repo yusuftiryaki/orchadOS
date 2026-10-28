@@ -44,7 +44,7 @@ export default async function NewApplicationPage({
     : null;
   const shown = primary ? (memberPackage ? [memberPackage] : []) : packages;
   return (
-    <main className={`${layout.page} ${s.doc}`}>
+    <main className={`${layout.page} ${layout.reading}`}>
       <PageHeader
         title={primary ? M.addTitle : N.title}
         lead={closed ? undefined : primary ? N.memberLead : N.lead}

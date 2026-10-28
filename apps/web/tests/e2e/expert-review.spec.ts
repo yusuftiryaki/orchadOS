@@ -45,7 +45,7 @@ test("expert reviews and publishes a visit", async ({ page }) => {
   const row = page.locator(`[data-session-id="${run.session}"]`);
   await expect(row).toContainText("Uzman testi bahçesi");
   await expect(row).toContainText("İşlendi");
-  await row.getByRole("button", { name: "Aç" }).click();
+  await row.getByRole("button", { name: "İncele" }).click();
   await expect(page).toHaveURL(`/uzman/ziyaret/${run.session}`);
   await expect(page.getByTestId("visit-status")).toHaveText("İncelemede");
 

@@ -7,6 +7,16 @@ export const tr = {
     name: "orchadOS",
     tagline: "Antep fıstığı bahçeleri için bağımsız denetim",
   },
+  // Shared design system components (src/components/ui).
+  ui: {
+    pagination: {
+      label: "Sayfalar",
+      range: (from: number, to: number, total: number) =>
+        `${from.toLocaleString("tr-TR")}–${to.toLocaleString("tr-TR")} / ${total.toLocaleString("tr-TR")}`,
+      prev: "Önceki",
+      next: "Sonraki",
+    },
+  },
   // Boundary notice (docs/hukuk/kararlar.md H07, T16; contract Md. 6/1): the
   // long form on every owner report page and every PDF page, the short form
   // on every owner-facing map. The wording is binding; do not edit it alone.
@@ -139,7 +149,7 @@ export const tr = {
     slotCount: (slots: number, trees: number) => `${slots} yer, ${trees} aktif ağaç`,
     noSlots: "Henüz yer yok",
     legend: "Gösterim",
-    selectHint: "Ayrıntı için haritada bir ağaca tıklayın.",
+    selectHint: "Ayrıntı için haritada bir ağaç seçin.",
     selectHintTitle: "Ağaç seçilmedi",
     mapTitle: "Ağaç haritası",
     legendCount: (count: string) => `(${count})`,
@@ -175,7 +185,7 @@ export const tr = {
     },
   },
   office: {
-    openTool: "Envanter üçgenleme aracı",
+    openTool: "Üçgenleme aracını aç",
     title: "Envanter üçgenleme",
     back: "Parsel",
     chooseTitle: "Oturum ve panorama seti",
@@ -202,7 +212,7 @@ export const tr = {
     setMismatch: "başka oturumun seti",
     setHint:
       "Set listede kaynağına göre gruplanır. “Başka oturumun seti” yalnız geliştirme verisinde görülür; konumlar yine yukarıda seçilen oturuma kaydedilir.",
-    open: "Aracı aç",
+    open: "Üçgenleme aracını aç",
     existingInventory: (slots: number, trees: number) =>
       `Bu parselde zaten ${slots} yer ve ${trees} ağaç kayıtlı. Kaydetme kapalı; mevcut envanteri değiştirme akışı henüz yok.`,
     tabs: {
@@ -428,8 +438,7 @@ export const tr = {
         remaining: "Kalan",
         action: "İşlem",
       },
-      open: "Aç",
-      continue: "Devam et",
+      open: "İncele",
       parcels: "Parseller",
     },
     kinds: {
@@ -444,7 +453,7 @@ export const tr = {
     seasons: { winter: "Kış", spring: "İlkbahar", summer: "Yaz", harvest: "Hasat" },
     review: {
       ruleClass: "Kurala göre sınıf (metodoloji 5)",
-      back: "Ziyaret kuyruğu",
+      back: "Uzman paneli",
       title: (parcel: string, date: string) => `${parcel}, ${date}`,
       facts: {
         label: "Ziyaret bilgileri",
@@ -788,7 +797,7 @@ export const tr = {
   operations: {
     nav: {
       dashboard: "Pano",
-      owners: "Sahipler",
+      owners: "Sahipler ve hissedarlar",
       visits: "Ziyaretler",
       newOwner: "Yeni sahip",
       newParcel: "Yeni parsel",
@@ -1341,7 +1350,7 @@ export const tr = {
       changeLine: (from: string, to: string) => `${from} → ${to}`,
       moreTrees: (n: number) => `ve ${n} ağaç daha`,
       mapTitle: "Sağlık haritası",
-      mapHint: "Ayrıntıları görmek için haritada bir ağaca dokunun.",
+      mapHint: "Ayrıntı için haritada bir ağaç seçin.",
       findingsTitle: "Bulgular",
       findingsEmpty: "Bu denetimde bulgu yok.",
       moreFindings: (n: number) => `${n} bulgu daha`,
@@ -1728,8 +1737,8 @@ export const tr = {
         "“Ağaç var” boş bir yere yeni ağaç ekler; “Ağaç yok” yerdeki ağacı kayıp yapar. Yer kodu korunur.",
     },
     office: {
-      open: "Özellikler, altyapı, sınır ve doğrulama",
-      openAfterSave: "Özellikleri ve doğrulama turunu aç",
+      open: "Envanteri düzenle",
+      openAfterSave: "Envanteri düzenle",
       title: "Envanter düzenleme",
       lead: "Ağaç özellikleri, altyapı, saha sınırı ve doğrulama turu. Haritaya tıklamanın ne yaptığı açık sekmeye göre değişir.",
       noInventoryTitle: "Bu parselde kayıtlı yer yok",
@@ -1807,7 +1816,7 @@ export const tr = {
       },
       open: "İncele",
       title: (parcel: string) => `${parcel}: envanter onayı`,
-      back: "Ziyaret kuyruğu",
+      back: "Uzman paneli",
       session: (date: string) => `Envanter ziyareti ${date}`,
       gate: {
         title: "Onay kontrolleri",
@@ -1874,7 +1883,7 @@ export const tr = {
         },
         noSlots: "Parselde kayıtlı yer yok.",
         openItems: (codes: string) => `Açık doğrulama kalemleri: ${codes}`,
-        coverageTitle: "Grid tarama kapsaması",
+        coverageTitle: "Tarama kapsaması",
         coverageBelow: (ratio: string, threshold: string) =>
           `Kapsama %${ratio}, eşik %${threshold}: kalite kapısından geçmedi. Ek tarama yapılmalı ya da gerekçeyle kabul edilmeli.`,
         coverageBlocked:
@@ -2218,7 +2227,7 @@ export const tr = {
         failed: "Başvuru gönderilemedi. Lütfen tekrar deneyin.",
       } as Record<string, string>,
       ops: {
-        nav: "KVKK talepleri",
+        nav: "KVKK başvuruları",
         title: "KVKK başvuruları",
         hint: "Portaldan gelen başvurular. Cevap süresi başvurudan itibaren 30 gündür (KVKK md. 13). Silme ve takma ad işlemleri scripts/kvkk betikleriyle yapılır; başvuru defterine işlenir.",
         none: "Henüz KVKK başvurusu yok",

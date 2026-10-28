@@ -24,8 +24,9 @@ const groups: { label: string; items: Item[] }[] = [
   {
     label: B.groupField,
     items: [
-      { href: opsHref.dashboard(), label: T.dashboard, also: ["/operasyon/parsel"] },
-      { href: opsHref.owners(), label: T.owners },
+      { href: opsHref.dashboard(), label: T.dashboard },
+      // A parcel belongs to its owner's record; the dashboard only lists them.
+      { href: opsHref.owners(), label: T.owners, also: ["/operasyon/parsel"] },
       { href: opsHref.visits(), label: T.visits },
       { href: notificationsHref(), label: t.notifications.nav },
     ],

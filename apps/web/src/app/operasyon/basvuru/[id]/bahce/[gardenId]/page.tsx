@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { Facts, when } from "@/components/back-office/parts";
 import { VerifyGardenForm } from "@/components/back-office/verify-garden-form";
-import { Panel, Split } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
+import { Split } from "@/components/ui/layout";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";

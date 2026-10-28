@@ -35,6 +35,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Field, Input, Select } from "@/components/ui/field";
+import { Facts, factsClass } from "@/components/ui/facts";
+import { Kbd } from "@/components/ui/kbd";
 import { cell, Table } from "@/components/ui/table";
 import { OfficeMap, type MapRay } from "./office-map";
 import { PanoramaViewer, type ViewerMarker } from "./panorama-viewer";
@@ -644,13 +646,17 @@ export function OfficeTool({
                   )}
                   {candidate.ok ? (
                     <>
-                      <dl className={styles.facts}>
-                        <dt>{t.office.uncertainty}</dt>
-                        <dd data-testid="candidate-uncertainty">
-                          {t.office.meters(fmt(candidate.uncertaintyM))}
-                        </dd>
-                        <dt>{t.office.angle}</dt>
-                        <dd>{t.office.degrees(fmt(candidate.maxAngleDeg, 0))}</dd>
+                      <dl className={factsClass.list}>
+                        <div className={factsClass.fact}>
+                          <dt>{t.office.uncertainty}</dt>
+                          <dd data-testid="candidate-uncertainty">
+                            {t.office.meters(fmt(candidate.uncertaintyM))}
+                          </dd>
+                        </div>
+                        <div className={factsClass.fact}>
+                          <dt>{t.office.angle}</dt>
+                          <dd>{t.office.degrees(fmt(candidate.maxAngleDeg, 0))}</dd>
+                        </div>
                       </dl>
                       {candidate.warnings.length > 0 && (
                         <Alert tone="warning" role="status">
@@ -702,10 +708,7 @@ export function OfficeTool({
                       )}
                       {selected.moved && <Badge>{t.office.moved}</Badge>}
                     </div>
-                    <dl className={styles.facts}>
-                      <dt>{t.office.uncertainty}</dt>
-                      <dd>{t.office.meters(fmt(selected.uncertaintyM))}</dd>
-                    </dl>
+                    <Facts rows={[[t.office.uncertainty, t.office.meters(fmt(selected.uncertaintyM))]]} />
                     {selected.warnings.length > 0 && (
                       <Alert tone="warning">
                         <ul className={styles.warnings}>
@@ -811,16 +814,16 @@ export function OfficeTool({
               {layout && summary ? (
                 <section className={styles.card}>
                   {summaryList("layout-summary", true)}
-                  <dl className={styles.facts}>
-                    <dt>{t.office.fittedAzimuth}</dt>
-                    <dd>{t.office.degrees(fmt(layout.rowAzimuthDeg))}</dd>
-                    <dt>{t.office.rowSpacing}</dt>
-                    <dd>
-                      {layout.rowSpacingM ? t.office.meters(fmt(layout.rowSpacingM, 1)) : "—"}
-                    </dd>
-                    <dt>{t.office.treeSpacing}</dt>
-                    <dd>{t.office.meters(fmt(layout.treeSpacingM, 1))}</dd>
-                  </dl>
+                  <Facts
+                    rows={[
+                      [t.office.fittedAzimuth, t.office.degrees(fmt(layout.rowAzimuthDeg))],
+                      [
+                        t.office.rowSpacing,
+                        layout.rowSpacingM ? t.office.meters(fmt(layout.rowSpacingM, 1)) : null,
+                      ],
+                      [t.office.treeSpacing, t.office.meters(fmt(layout.treeSpacingM, 1))],
+                    ]}
+                  />
                   <div className={styles.scroll}>
                     <Table data-testid="slot-table" aria-label={t.office.slotList}>
                       <thead>
@@ -977,19 +980,19 @@ function Shortcuts() {
       <dl>
         <div>
           <dt>
-            <kbd>{k.enter}</kbd>
+            <Kbd>{k.enter}</Kbd>
           </dt>
           <dd>{s.add}</dd>
         </div>
         <div>
           <dt>
-            <kbd>{k.escape}</kbd>
+            <Kbd>{k.escape}</Kbd>
           </dt>
           <dd>{s.clear}</dd>
         </div>
         <div>
           <dt>
-            <kbd>{k.delete}</kbd>
+            <Kbd>{k.delete}</Kbd>
           </dt>
           <dd>{s.remove}</dd>
         </div>

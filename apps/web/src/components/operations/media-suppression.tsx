@@ -12,7 +12,7 @@ import {
   type VisitMediaItem,
 } from "@/lib/operations/legal";
 import { Field } from "./field";
-import { Panel } from "./ops-ui";
+import { Panel } from "@/components/ui/panel";
 import styles from "./media-suppression.module.css";
 
 const T = t.legal.media;

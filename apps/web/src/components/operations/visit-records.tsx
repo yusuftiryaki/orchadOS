@@ -4,7 +4,7 @@ import {
   recordPostponementAction,
   setMissedOutcomeAction,
 } from "@/app/operasyon/visit-record-actions";
-import { statusTone } from "@/components/back-office/status-tone";
+import { statusTone } from "@/components/ui/status";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,19 +21,14 @@ import {
   type VisitRecords as Records,
 } from "@/lib/operations/visit-records";
 import { Field } from "./field";
-import { Facts, Panel } from "./ops-ui";
+import { Facts } from "@/components/ui/facts";
+import { Panel } from "@/components/ui/panel";
 import styles from "./operations.module.css";
 
 const V = visitsText.ops;
 const T_YES = t.operations.yes;
 
 // Message states of a date notice, in the shared status tones.
-const NOTICE_CODE: Record<string, string> = {
-  pending: "processing",
-  sent: "succeeded",
-  failed: "failed",
-};
-
 // The legal records of a visit (T07; contract 8A/1–4; kararlar.md H01, H15):
 // date notices and the phone notice, the owner's postponement, missed-visit
 // records with their outcome, and the field app's sign, verbal notice and
@@ -77,7 +72,7 @@ export function VisitRecords({
                   <td className={cell.num}>{formatDateTime(n.notified_at)}</td>
                   <td>
                     {n.status ? (
-                      <Badge tone={statusTone(NOTICE_CODE[n.status] ?? n.status)}>
+                      <Badge tone={statusTone(n.status)}>
                         {V.status[n.status] ?? n.status}
                       </Badge>
                     ) : (

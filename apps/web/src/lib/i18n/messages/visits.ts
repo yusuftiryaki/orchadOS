@@ -117,8 +117,8 @@ export const visitsText = {
     badgeMissed: (n: number) => `${n} yapılamadı kaydı`,
   },
   reconciliation: {
-    title: "Ziyaret mutabakatı (8A)",
-    nav: "Mutabakat",
+    title: "Ziyaret mutabakatı",
+    nav: "Ziyaret mutabakatı",
     lead: "Sözleşme 8A/6: her ziyaret penceresinin ve hizmet döneminin sonunda yapılamayan ziyaretler kendiliğinden tespit edilir; bedeli pencerenin bitiminden sonra en geç 14 gün içinde iade edilir ya da Sahip isterse aktarılır. İadeyi İadeler ekranından açın (neden: yapılamayan ziyaret).",
     empty: "Açık görev yok",
     all: "Tümü",

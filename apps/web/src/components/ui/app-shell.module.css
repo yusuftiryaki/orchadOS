@@ -57,6 +57,14 @@
   display: none;
 }
 
+/* On a phone the links scroll sideways: while more are past the edge the
+   last visible one fades, so it reads as "more this way". */
+@media (max-width: 859px) {
+  .nav[data-more] {
+    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  }
+}
+
 .link {
   display: inline-flex;
   align-items: center;

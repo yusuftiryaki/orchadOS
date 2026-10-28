@@ -9,7 +9,8 @@ import { ActionForm } from "@/components/back-office/action-form";
 import { Badge, BoResultNotice, Facts, day, money, when } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
 import styles from "@/components/operations/operations.module.css";
-import { opsCell, Panel, Split } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
+import { Split } from "@/components/ui/layout";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/field";
@@ -99,7 +100,7 @@ export default async function Page({
                         <td>
                           <input type="hidden" name="package_ids" value={p.id} />
                           <span className={prices.badges}>
-                            <span className={opsCell.nowrap}>{p.name}</span>
+                            <span className={cell.nowrap}>{p.name}</span>
                             {!p.active && <UiBadge>{T.passive}</UiBadge>}
                           </span>
                         </td>
@@ -211,14 +212,14 @@ export default async function Page({
                   const p = packages.find((x) => x.id === i.package_id);
                   return (
                     <tr key={i.id}>
-                      <td className={opsCell.nowrap}>{p?.name ?? T.packageMissing}</td>
-                      <td className={`${cell.num} ${opsCell.nowrap}`}>
+                      <td className={cell.nowrap}>{p?.name ?? T.packageMissing}</td>
+                      <td className={`${cell.num} ${cell.nowrap}`}>
                         {money(i.unit_price_kurus)}
                       </td>
-                      <td className={`${cell.num} ${opsCell.nowrap}`}>
+                      <td className={`${cell.num} ${cell.nowrap}`}>
                         {money(i.minimum_fee_kurus)}
                       </td>
-                      <td className={`${cell.num} ${opsCell.nowrap}`}>
+                      <td className={`${cell.num} ${cell.nowrap}`}>
                         {money(i.inventory_fee_kurus)}
                       </td>
                     </tr>

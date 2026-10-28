@@ -135,7 +135,7 @@ export default async function ApplicationPage({
 
   return (
     <main
-      className={`${layout.page} ${s.doc}`}
+      className={`${layout.page} ${layout.reading}`}
       data-testid="application"
       data-status={application.status}
     >

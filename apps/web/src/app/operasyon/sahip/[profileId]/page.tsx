@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CustomerAccountPanel, RemoveAllGardens } from "@/components/back-office/customer-account";
-import { Panel, Split, opsCell } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
+import { Split } from "@/components/ui/layout";
 import { OwnerForm } from "@/components/operations/owner-form";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { ButtonLink } from "@/components/ui/button";
-import { Table } from "@/components/ui/table";
+import { Table, cell } from "@/components/ui/table";
 import { requireSection } from "@/lib/auth/session";
 import { customerAccount, getSetting, membershipOrEmpty } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
@@ -104,7 +105,7 @@ export default async function Page({
               <tbody>
                 {access.map((a) => (
                   <tr key={a.parcelId}>
-                    <td className={opsCell.nowrap}>
+                    <td className={cell.nowrap}>
                       <Link href={opsHref.parcel(a.parcelId)}>{a.parcelName}</Link>
                     </td>
                     <td>{T.parcelRole[a.role]}</td>

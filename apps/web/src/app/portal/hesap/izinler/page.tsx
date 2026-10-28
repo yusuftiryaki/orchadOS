@@ -47,7 +47,7 @@ export default async function ConsentsPage({
     (kind) => isExplicitConsentAsked(kind) || consents.get(kind)?.granted === true,
   );
   return (
-    <main className={layout.narrow}>
+    <main className={`${layout.page} ${layout.reading}`}>
       <PageHeader
         title={C.title}
         back={{ href: portalHref.account(), label: P.nav.account }}

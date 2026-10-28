@@ -1,4 +1,6 @@
-import { FilterTabs, Pagination, Toolbar, pageOf } from "@/components/operations/ops-ui";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Toolbar } from "@/components/ui/layout";
 import { VisitTable } from "@/components/operations/visit-table";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";

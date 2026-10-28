@@ -19,7 +19,7 @@ export default async function NewGardenPage({ params }: { params: Promise<{ id: 
     redirect(portalHref.application(id, { hata: "application_not_draft" }));
   }
   return (
-    <main className={`${layout.page} ${s.doc}`}>
+    <main className={`${layout.page} ${layout.reading}`}>
       <PageHeader
         title={P.garden.newTitle}
         back={{ href: portalHref.application(id), label: P.garden.backToApplication }}

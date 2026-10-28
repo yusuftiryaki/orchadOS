@@ -9,7 +9,7 @@ import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { accessEnded, gardenBadge, removable } from "@/lib/portal-billing/gardens";
 import { portalHref } from "@/lib/portal-billing/urls";
 import styles from "./account.module.css";
-import { gardenTone } from "./status-badge";
+import { statusTone } from "@/components/ui/status";
 
 const G = P.gardens;
 
@@ -81,7 +81,7 @@ export function MyGardens({
                     )}
                   </div>
                   <div className={styles.rowSide}>
-                    <Badge tone={gardenTone(g.state)} testId="garden-state">
+                    <Badge tone={statusTone(g.state, "garden")} testId="garden-state">
                       {gardenBadge(g)}
                     </Badge>
                     {g.parcel_id && changesEnabled && removable(g) && (

@@ -27,7 +27,7 @@ export default async function BillingProfilePage({
   if (!profile) forbidden();
   const back = safeBackPath(params.geri);
   return (
-    <main className={layout.narrow}>
+    <main className={`${layout.page} ${layout.reading}`}>
       <PageHeader
         title={P.billing.title}
         lead={P.billing.lead}

@@ -54,7 +54,7 @@ export default async function EditGardenPage({
     entry_permission: "on",
   };
   return (
-    <main className={`${layout.page} ${s.doc}`}>
+    <main className={`${layout.page} ${layout.reading}`}>
       <PageHeader
         title={P.garden.editTitle(garden.name)}
         back={{ href: portalHref.application(id), label: P.garden.backToApplication }}

@@ -183,9 +183,9 @@ export const backOfficeText = {
     orders: "Siparişler",
     payments: "Ödemeler",
     refunds: "İadeler",
-    prices: "Fiyatlar",
+    prices: "Paketler ve fiyatlar",
     audit: "Denetim kaydı",
-    settings: "Ayarlar",
+    settings: "Faturalama ayarları",
     removals: "Bahçe çıkarma",
   },
   notices,
@@ -204,9 +204,9 @@ export const backOfficeText = {
   yes: "Evet",
   no: "Hayır",
   all: "Tümü",
-  filter: "Süz",
+  // Submit of a list filter or the org picker (same verb on every screen).
+  apply: "Uygula",
   org: "İşletme",
-  show: "Göster",
   back: "Geri",
   details: "Ayrıntı",
   print: "Yazdır",
@@ -514,7 +514,7 @@ export const backOfficeText = {
   },
   payments: {
     title: "Ödemeler",
-    empty: "Süzgece uyan ödeme yok.",
+    empty: "Bu filtrelere uyan ödeme yok",
     status: "Durum",
     method: "Yöntem",
     receipt: "Makbuz",
@@ -526,10 +526,10 @@ export const backOfficeText = {
     filterStatus: "Ödeme durumu",
     filterMethod: "Ödeme yöntemi",
     count: (n: number) => `${n} ödeme`,
-    emptyTitle: "Bu süzgece uyan ödeme yok",
+    emptyTitle: "Bu filtrelere uyan ödeme yok",
     emptyHint:
       "Kart ödemeleri müşteri ödeyince, havaleler sipariş sayfasından kaydedilince burada görünür.",
-    clear: "Süzgeci temizle",
+    clear: "Filtreleri temizle",
   },
   payment: {
     title: (ref: string) => `Ödeme ${ref}`,
@@ -694,13 +694,13 @@ export const backOfficeText = {
     actionHint: "ör. refund. ya da payment.manual",
     lead: "Faturalama kayıtlarındaki her değişiklik, en yenisi başta. Ayrıntılarda kişisel veri tutulmaz.",
     entityIdHint: "Kimliğin tamamı (36 karakter).",
-    clear: "Süzgeci temizle",
+    clear: "Filtreleri temizle",
     count: (n: number) => `${n.toLocaleString("tr-TR")} kayıt`,
     limited: (n: number) =>
-      `Son ${n.toLocaleString("tr-TR")} kayıt gösteriliyor; daraltmak için süzün.`,
-    noRows: "Bu süzgece uyan kayıt yok",
+      `Son ${n.toLocaleString("tr-TR")} kayıt gösteriliyor; daraltmak için filtre uygulayın.`,
+    noRows: "Bu filtrelere uyan kayıt yok",
     nothing: "Henüz denetim kaydı yok",
-    noRowsBody: "Kayıt türünü ya da eylem önekini değiştirin veya süzgeci temizleyin.",
+    noRowsBody: "Kayıt türünü ya da eylem önekini değiştirin veya filtreleri temizleyin.",
     when: "Zaman",
     actor: "Kim",
     what: "Eylem",
@@ -789,7 +789,7 @@ export const backOfficeText = {
     title: "Bahçe çıkarma",
     hint: "Çıkış gününe göre sıralı. Talepler çıkış gününde kendiliğinden işler; engelli kayıtlar ödeme bekleyen bir sipariş yüzünden tamamlanamadı.",
     open: "Açık",
-    empty: "Bu süzgece uyan çıkarma yok.",
+    empty: "Bu filtrelere uyan çıkarma yok",
     emptyOpen: "Açık çıkarma yok",
     emptyOpenHint:
       "Müşteri bahçesini portaldan çıkarınca ya da siz müşteri sayfasından çıkarma açınca burada görünür.",
@@ -1096,11 +1096,4 @@ export const backOfficeText = {
 // Shared pieces of the dense operations screens (components/operations/ops-ui).
 export const opsUiText = {
   queuesEmpty: (label: string) => `${label}: boş olanlar`,
-  pagination: {
-    label: "Sayfalar",
-    range: (from: number, to: number, total: number) =>
-      `${from.toLocaleString("tr-TR")}–${to.toLocaleString("tr-TR")} / ${total.toLocaleString("tr-TR")}`,
-    prev: "Önceki",
-    next: "Sonraki",
-  },
 };

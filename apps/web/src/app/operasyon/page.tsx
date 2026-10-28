@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { BillingCard } from "@/components/back-office/billing-card";
-import { statusTone } from "@/components/back-office/status-tone";
+import { statusTone } from "@/components/ui/status";
 import { ExpertRequests } from "@/components/operations/expert-requests";
-import { opsCell, Pagination, Panel, QueueList, pageOf } from "@/components/operations/ops-ui";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Panel } from "@/components/ui/panel";
+import { QueueList } from "@/components/operations/queue-list";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { ViewerInvitations } from "@/components/operations/viewer-invitations";
 import { VisitTable } from "@/components/operations/visit-table";
@@ -170,7 +172,7 @@ export default async function Page({
               <tbody>
                 {parcelPage.rows.map((parcel) => (
                   <tr key={parcel.id} data-parcel-id={parcel.id}>
-                    <td className={opsCell.nowrap}>
+                    <td className={cell.nowrap}>
                       <Link href={opsHref.parcel(parcel.id)}>{parcel.name}</Link>
                     </td>
                     <td>

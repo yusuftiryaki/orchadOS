@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { retryNotificationAction } from "@/app/operasyon/bildirimler/actions";
-import { statusTone } from "@/components/back-office/status-tone";
+import { statusTone } from "@/components/ui/status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, cell } from "@/components/ui/table";
@@ -13,12 +13,6 @@ import styles from "./notification-table.module.css";
 const T = t.notifications;
 
 // Notification states in the shared status tones (status-tone.ts).
-const TONE_CODE: Record<string, string> = {
-  pending: "processing",
-  sent: "succeeded",
-  failed: "failed",
-};
-
 // Notification queue for operations: when, parcel (or the document number of
 // an account message), who (masked phone), what, how, state; failed rows get
 // "Yeniden kuyruğa al".
@@ -66,7 +60,7 @@ export function NotificationTable({ rows, status }: { rows: NotificationRow[]; s
             <td className={styles.nowrap}>{T.template[n.template] ?? n.template}</td>
             <td className={styles.nowrap}>{T.channel[n.channel] ?? n.channel}</td>
             <td>
-              <Badge tone={statusTone(TONE_CODE[n.status] ?? n.status)}>
+              <Badge tone={statusTone(n.status)}>
                 {T.status[n.status] ?? n.status}
               </Badge>
             </td>

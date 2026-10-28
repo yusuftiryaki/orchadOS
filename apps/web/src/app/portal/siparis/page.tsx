@@ -30,7 +30,7 @@ export default async function OrdersPage({
     searchParams,
   ]);
   return (
-    <main className={`${layout.page} ${s.doc}`}>
+    <main className={layout.page}>
       <PageHeader title={O.title} />
       <PortalResult params={params} />
       {orders.length === 0 ? (

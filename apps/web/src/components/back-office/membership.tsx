@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Facts as FactList, Panel } from "@/components/operations/ops-ui";
+import { Facts as FactList } from "@/components/ui/facts";
+import { Panel } from "@/components/ui/panel";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Table, cell } from "@/components/ui/table";
 import type { CustomerGardenRow, ServicePeriodRow } from "@/lib/back-office/data";
@@ -166,7 +167,7 @@ export function CustomerGardens({ gardens }: { gardens: CustomerGardenRow[] }) {
                 {g.removal_status && (
                   <>
                     {" "}
-                    <Badge labels={billingText.gardenRemovalStatus} value={g.removal_status} />
+                    <Badge labels={billingText.gardenRemovalStatus} value={g.removal_status} kind="removal" />
                   </>
                 )}
               </td>

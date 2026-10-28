@@ -5,6 +5,7 @@ import {
   InventoryApproval,
   type ApprovalPanorama,
 } from "@/components/expert/inventory-approval";
+import { SessionStatusBadge } from "@/components/expert/status";
 import { InventorySummaryView } from "@/components/office/inventory-summary";
 import { BoundaryPointers } from "@/components/operations/boundary-pointers";
 import styles from "@/components/office/inventory.module.css";
@@ -85,9 +86,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
         title={e.title(ws.parcel.name)}
         meta={
           <>
-            <Badge tone={STATUS_TONE[session.status] ?? "neutral"}>
-              {t.office.sessionStatus[session.status]}
-            </Badge>
+            <SessionStatusBadge status={session.status} />
             <span className={styles.hint}>{e.session(formatDate(sessionTime(session)))}</span>
           </>
         }
@@ -140,13 +139,6 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
     </main>
   );
 }
-
-const STATUS_TONE: Partial<Record<string, BadgeTone>> = {
-  in_review: "info",
-  processed: "info",
-  published: "success",
-  cancelled: "danger",
-};
 
 function flaggedSlots(slots: { id: string; code: string }[], checks: CodingChecks): string[] {
   const codes = new Set([

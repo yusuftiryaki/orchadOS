@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useActionState, useRef, useState, useTransition } from "react";
 import { searchCustomersAction } from "@/app/operasyon/back-office-actions";
-import { FilterTabs, Pagination, Toolbar, opsCell, pageOf } from "@/components/operations/ops-ui";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Toolbar } from "@/components/ui/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -165,18 +167,18 @@ export function CustomerList({
             <tbody>
               {shown.rows.map((c) => (
                 <tr key={c.profileId} data-profile-id={c.profileId}>
-                  <td className={opsCell.nowrap}>
+                  <td className={cell.nowrap}>
                     <Link href={opsHref.owner(c.profileId)}>{c.name}</Link>
                   </td>
-                  <td className={opsCell.nowrap}>{c.phone}</td>
+                  <td className={cell.nowrap}>{c.phone}</td>
                   <td>{c.contact}</td>
                   <td data-source={c.self ? "self" : "ops"}>
                     {c.self ? C.sourceSelf : C.sourceOps}
                   </td>
                   <td className={cell.num}>{c.parcels}</td>
                   <td className={cell.num}>{c.openOrders}</td>
-                  <td className={`${cell.num} ${opsCell.nowrap}`}>{c.paid}</td>
-                  <td className={opsCell.nowrap}>
+                  <td className={`${cell.num} ${cell.nowrap}`}>{c.paid}</td>
+                  <td className={cell.nowrap}>
                     {c.kvkkOk ? c.kvkk : <Badge tone="warning">{c.kvkk}</Badge>}
                   </td>
                 </tr>

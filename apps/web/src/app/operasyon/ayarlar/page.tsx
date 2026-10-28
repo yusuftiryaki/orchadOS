@@ -4,7 +4,7 @@ import { ActionForm } from "@/components/back-office/action-form";
 import { BoResultNotice, Facts, OrgPicker, Warning } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
 import styles from "@/components/operations/operations.module.css";
-import { Panel } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

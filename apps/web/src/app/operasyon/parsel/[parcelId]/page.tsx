@@ -6,14 +6,15 @@ import {
   setParcelPassiveAction,
 } from "@/app/operasyon/actions";
 import { Badge, Facts, day } from "@/components/back-office/parts";
-import { statusTone } from "@/components/back-office/status-tone";
+import { statusTone } from "@/components/ui/status";
 import { BoundaryDispute } from "@/components/operations/boundary-dispute";
 import { BoundaryPointers } from "@/components/operations/boundary-pointers";
 import { Field } from "@/components/operations/field";
 import { LegalNotice } from "@/components/operations/legal-notice";
 import { MediaSuppression } from "@/components/operations/media-suppression";
 import styles from "@/components/operations/operations.module.css";
-import { Panel, Split } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
+import { Split } from "@/components/ui/layout";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { VisitTable } from "@/components/operations/visit-table";
 import { ParcelDetail } from "@/components/parcel-detail";

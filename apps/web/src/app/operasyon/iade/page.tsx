@@ -8,7 +8,9 @@ import {
 import { ActionForm } from "@/components/back-office/action-form";
 import { Badges, Sub, moneyUi } from "@/components/back-office/money-ui";
 import { Badge, BoResultNotice, money, when } from "@/components/back-office/parts";
-import { FilterTabs, Pagination, Toolbar, opsCell, pageOf } from "@/components/operations/ops-ui";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Toolbar } from "@/components/ui/layout";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -109,11 +111,11 @@ export default async function Page({
                 {page.rows.map((r) => (
                   <tr key={r.id} data-refund-id={r.id} data-status={r.status}>
                     <td className={cell.code}>{r.number}</td>
-                    <td className={opsCell.nowrap}>
+                    <td className={cell.nowrap}>
                       <Link href={boHref.payment(r.payment_id)}>{r.order_number}</Link>
                       <Sub>{r.customer_name ?? B.none}</Sub>
                     </td>
-                    <td className={opsCell.nowrap}>
+                    <td className={cell.nowrap}>
                       {billingText.refundKind[r.kind as keyof typeof billingText.refundKind]}
                     </td>
                     <td className={cell.num}>{money(r.amount_kurus, r.currency)}</td>

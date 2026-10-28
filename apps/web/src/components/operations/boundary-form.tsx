@@ -8,7 +8,7 @@ import { EMPTY_FORM, type FormState } from "@/lib/operations/form-state";
 import { opsHref } from "@/lib/operations/urls";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { BoundaryEditor } from "./boundary-editor";
-import { Panel } from "./ops-ui";
+import { Panel } from "@/components/ui/panel";
 import { FormError } from "./field";
 import styles from "./operations.module.css";
 

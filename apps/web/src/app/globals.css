@@ -34,6 +34,8 @@
   --color-accent: var(--palette-fistik);
   --color-accent-hover: var(--palette-fistik-dark);
   --color-accent-soft: var(--palette-taze-soft);
+  /* Table row under the pointer: the selection green, faint. */
+  --color-row-hover: rgb(233 240 220 / 45%);
   --color-accent-contrast: #ffffff;
   --color-highlight: var(--palette-kabuk);
   --color-highlight-soft: var(--palette-kabuk-soft);

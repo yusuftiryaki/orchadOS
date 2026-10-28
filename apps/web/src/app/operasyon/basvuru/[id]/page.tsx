@@ -23,7 +23,8 @@ import {
 import q from "@/components/back-office/quote.module.css";
 import { QuoteLines, type QuoteLine } from "@/components/back-office/quote-lines";
 import { Field } from "@/components/operations/field";
-import { Panel, Split } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
+import { Split } from "@/components/ui/layout";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/field";

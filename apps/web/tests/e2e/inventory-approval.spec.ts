@@ -55,7 +55,7 @@ async function clickSlot(page: Page, testId: string, code: string, shift = false
 test("office sets tree attributes and runs the verification tour", async ({ page }) => {
   await login(page, T.users.field);
   await page.goto(`/ofis/parsel/${T.parcel}`);
-  await page.getByRole("link", { name: "Özellikler, altyapı, sınır ve doğrulama" }).click();
+  await page.getByRole("link", { name: "Envanteri düzenle" }).click();
   await expect(page).toHaveURL(WORKSPACE);
 
   // Attributes: row 1 in bulk, then S2-3 picked on the map.

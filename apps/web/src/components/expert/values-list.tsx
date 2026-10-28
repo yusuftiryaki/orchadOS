@@ -2,7 +2,7 @@ import { ruleClass } from "@/lib/expert/class-rule";
 import { DEFAULT_REVIEW_RULES, type ClassRuleConfig } from "@/lib/expert/mandatory-review";
 import { formatValue, type MeasurementValue, type MetricDefinition } from "@/lib/expert/metrics";
 import { categoryLabel, t } from "@/lib/i18n";
-import styles from "./expert.module.css";
+import { factsClass } from "@/components/ui/facts";
 
 // Measurement values with the metric's name and unit.
 export function ValuesList({
@@ -23,15 +23,15 @@ export function ValuesList({
   if (rows.length === 0) return null;
   const rule = ruleClass(values, metrics, classRule);
   return (
-    <dl className={styles.list}>
+    <dl className={factsClass.list}>
       {rule && (
-        <div className={styles.contents} data-testid="rule-class">
+        <div className={factsClass.fact} data-testid="rule-class">
           <dt>{r.ruleClass}</dt>
           <dd>{t.tree.values.health[rule]}</dd>
         </div>
       )}
       {rows.map(({ v, m }) => (
-        <div key={m.id} className={styles.contents} data-metric={m.code}>
+        <div key={m.id} className={factsClass.fact} data-metric={m.code}>
           <dt>{m.name}</dt>
           <dd>{formatValue(m, v, { yes: r.yes, no: r.no, category: categoryLabel })}</dd>
         </div>

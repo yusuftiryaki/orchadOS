@@ -1,7 +1,7 @@
 import { Table, cell } from "@/components/ui/table";
 import { formatDateTime, t } from "@/lib/i18n";
 import type { BoundaryPointer } from "@/lib/operations/legal";
-import { Panel } from "./ops-ui";
+import { Panel } from "@/components/ui/panel";
 
 const T = t.legal.pointer;
 const C = t.operations.columns;

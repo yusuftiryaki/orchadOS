@@ -1,4 +1,3 @@
-import { opsCell } from "@/components/operations/ops-ui";
 import { Table, cell } from "@/components/ui/table";
 import type { AuditRow } from "@/lib/back-office/data";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
@@ -27,13 +26,13 @@ export function AuditTable({ rows, testId }: { rows: AuditRow[]; testId?: string
       <tbody>
         {rows.map((r) => (
           <tr key={r.id} data-action={r.action}>
-            <td className={`${cell.num} ${opsCell.nowrap}`}>{when(r.created_at)}</td>
+            <td className={`${cell.num} ${cell.nowrap}`}>{when(r.created_at)}</td>
             <td>
               {B.actorRole[r.actor_role] ?? r.actor_role}
               {r.actor_name && <Sub>{r.actor_name}</Sub>}
             </td>
             <td>{auditLabel(r.action)}</td>
-            <td className={opsCell.nowrap}>
+            <td className={cell.nowrap}>
               {B.audit.entityTypes[r.entity_type] ?? r.entity_type}
               {r.entity_id && <Sub code>{r.entity_id.slice(0, 8)}</Sub>}
             </td>

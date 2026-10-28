@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { removeAllGardensAction } from "@/app/operasyon/back-office-actions";
 import { Field } from "@/components/operations/field";
-import { Panel, opsCell } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
 import styles from "@/components/operations/operations.module.css";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -116,7 +116,7 @@ export function CustomerAccountPanel({
             <tbody>
               {account.consents.map((c) => (
                 <tr key={c.id}>
-                  <td className={`${cell.num} ${opsCell.nowrap}`}>{when(c.recorded_at)}</td>
+                  <td className={`${cell.num} ${cell.nowrap}`}>{when(c.recorded_at)}</td>
                   <td>
                     {billingText.consentKind[c.kind as keyof typeof billingText.consentKind] ??
                       c.kind}
@@ -126,7 +126,7 @@ export function CustomerAccountPanel({
                       {c.granted ? T.granted : T.withdrawn}
                     </UiBadge>
                   </td>
-                  <td className={opsCell.nowrap}>{c.text_version}</td>
+                  <td className={cell.nowrap}>{c.text_version}</td>
                   <td>
                     {billingText.consentSource[
                       c.source as keyof typeof billingText.consentSource
@@ -154,13 +154,13 @@ export function CustomerAccountPanel({
             <tbody>
               {account.applications.map((a) => (
                 <tr key={a.id}>
-                  <td className={`${cell.code} ${opsCell.nowrap}`}>
+                  <td className={`${cell.code} ${cell.nowrap}`}>
                     <Link href={boHref.application(a.id)}>{a.number ?? a.id.slice(0, 8)}</Link>
                   </td>
                   <td>
                     <Badge labels={billingText.applicationStatus} value={a.status} />
                   </td>
-                  <td className={`${cell.num} ${opsCell.nowrap}`}>{day(a.submitted_at)}</td>
+                  <td className={`${cell.num} ${cell.nowrap}`}>{day(a.submitted_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -184,14 +184,14 @@ export function CustomerAccountPanel({
             <tbody>
               {account.orders.map((o) => (
                 <tr key={o.id}>
-                  <td className={`${cell.code} ${opsCell.nowrap}`}>
+                  <td className={`${cell.code} ${cell.nowrap}`}>
                     <Link href={boHref.order(o.id)}>{o.number}</Link>
                   </td>
                   <td>
-                    <Badge labels={billingText.orderStatus} value={o.status} />
+                    <Badge labels={billingText.orderStatus} value={o.status} kind="order" />
                   </td>
-                  <td className={`${cell.num} ${opsCell.nowrap}`}>{money(o.paid_kurus)}</td>
-                  <td className={`${cell.num} ${opsCell.nowrap}`}>{money(o.total_kurus)}</td>
+                  <td className={`${cell.num} ${cell.nowrap}`}>{money(o.paid_kurus)}</td>
+                  <td className={`${cell.num} ${cell.nowrap}`}>{money(o.total_kurus)}</td>
                 </tr>
               ))}
             </tbody>
@@ -215,7 +215,7 @@ export function CustomerAccountPanel({
             <tbody>
               {account.payments.map((x) => (
                 <tr key={x.id}>
-                  <td className={`${cell.code} ${opsCell.nowrap}`}>
+                  <td className={`${cell.code} ${cell.nowrap}`}>
                     <Link href={boHref.payment(x.id)}>{x.receipt_number ?? x.id.slice(0, 8)}</Link>
                   </td>
                   <td>
@@ -228,7 +228,7 @@ export function CustomerAccountPanel({
                   <td>
                     <Badge labels={billingText.paymentStatus} value={x.status} />
                   </td>
-                  <td className={`${cell.num} ${opsCell.nowrap}`}>{money(x.amount_kurus)}</td>
+                  <td className={`${cell.num} ${cell.nowrap}`}>{money(x.amount_kurus)}</td>
                 </tr>
               ))}
             </tbody>

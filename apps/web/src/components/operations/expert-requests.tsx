@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { planFollowupsAction } from "@/app/operasyon/actions";
-import { statusTone } from "@/components/back-office/status-tone";
+import { statusTone } from "@/components/ui/status";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Table, cell } from "@/components/ui/table";
@@ -8,7 +8,7 @@ import type { Followup } from "@/lib/expert/followups";
 import { formatDate, t } from "@/lib/i18n";
 import type { Visit } from "@/lib/operations/data";
 import { opsHref } from "@/lib/operations/urls";
-import { Panel } from "./ops-ui";
+import { Panel } from "@/components/ui/panel";
 import styles from "./operations.module.css";
 
 // Open follow-up requests of the experts, and the extra visits the processing

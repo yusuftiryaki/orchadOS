@@ -34,7 +34,7 @@ export default async function ApplicationsPage({
   const canStart = !primary || primary.garden_changes_enabled;
   const newButton = canStart && <ButtonLink href={portalHref.newApplication()}>{A.new}</ButtonLink>;
   return (
-    <main className={`${layout.page} ${s.doc}`}>
+    <main className={layout.page}>
       <PageHeader title={A.title} actions={applications.length > 0 && newButton} />
       <PortalResult params={params} />
       {applications.length === 0 ? (

@@ -2,14 +2,10 @@ import Link from "next/link";
 import { GenerateResult } from "@/components/contracts/ops-parts";
 import { Badges, Sub, moneyUi } from "@/components/back-office/money-ui";
 import { Badge, day, money } from "@/components/back-office/parts";
-import {
-  FilterTabs,
-  Pagination,
-  Panel,
-  Toolbar,
-  opsCell,
-  pageOf,
-} from "@/components/operations/ops-ui";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Panel } from "@/components/ui/panel";
+import { Toolbar } from "@/components/ui/layout";
 import { Alert } from "@/components/ui/alert";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -134,7 +130,7 @@ export default async function Page({
                         </Sub>
                       )}
                     </td>
-                    <td className={opsCell.nowrap}>{o.customer_name ?? backOfficeText.none}</td>
+                    <td className={cell.nowrap}>{o.customer_name ?? backOfficeText.none}</td>
                     <td>{o.package_name}</td>
                     <td className={cell.num}>{money(o.total_kurus, o.currency)}</td>
                     <td className={cell.num}>
@@ -152,7 +148,7 @@ export default async function Page({
                     </td>
                     <td>
                       <Badges>
-                        <Badge labels={billingText.orderStatus} value={o.status} />
+                        <Badge labels={billingText.orderStatus} value={o.status} kind="order" />
                         {o.overdue && <UiBadge tone="danger">{T.overdue}</UiBadge>}
                         {o.renewal_due && !o.addon_of_order_id && (
                           <UiBadge tone="warning">{T.renewalDue}</UiBadge>
@@ -194,7 +190,7 @@ export default async function Page({
                   <td className={cell.code}>
                     <Link href={boHref.order(r.order_id)}>{r.order_number}</Link>
                   </td>
-                  <td className={opsCell.nowrap}>{r.customer_name}</td>
+                  <td className={cell.nowrap}>{r.customer_name}</td>
                   <td className={cell.num}>{r.seq}</td>
                   <td className={cell.num}>{day(r.due_on)}</td>
                   <td className={cell.num}>{formatNumber(r.days_overdue)}</td>
@@ -258,7 +254,7 @@ function MissingTable({ rows, action }: { rows: MissingOrder[]; action: string }
               <Link href={boHref.order(m.order_id)}>{m.order_number}</Link>
             </td>
             <td>
-              <Badge labels={billingText.orderStatus} value={m.status} />
+              <Badge labels={billingText.orderStatus} value={m.status} kind="order" />
             </td>
             <td className={cell.num}>{day(m.accepted_at)}</td>
             <td className={moneyUi.wide}>

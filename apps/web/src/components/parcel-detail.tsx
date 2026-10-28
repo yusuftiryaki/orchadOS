@@ -6,7 +6,7 @@ import { t } from "@/lib/i18n";
 import { getParcelMap } from "@/lib/parcels";
 import { createClient } from "@/lib/supabase/server";
 import { ParcelExplorer } from "./parcel-explorer";
-import { PARCEL_STATUS_TONE } from "./parcel-list";
+import { statusTone } from "@/components/ui/status";
 import styles from "./parcel-detail.module.css";
 
 export async function ParcelDetail({
@@ -35,7 +35,7 @@ export async function ParcelDetail({
         title={data.parcel.name}
         meta={
           <>
-            <Badge tone={PARCEL_STATUS_TONE[data.parcel.status]}>
+            <Badge tone={statusTone(data.parcel.status, "parcel")}>
               {t.parcels.status[data.parcel.status]}
             </Badge>
             <Badge tone={data.boundary ? "neutral" : "warning"}>

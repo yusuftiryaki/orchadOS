@@ -18,7 +18,8 @@ import {
 } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
 import ops from "@/components/operations/operations.module.css";
-import { Panel, Split, Stack, opsCell } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
+import { Split, Stack } from "@/components/ui/layout";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/field";
@@ -216,7 +217,7 @@ export default async function Page({
               <tbody>
                 {refunds.map((x) => (
                   <tr key={x.id}>
-                    <td className={`${cell.code} ${opsCell.nowrap}`}>
+                    <td className={`${cell.code} ${cell.nowrap}`}>
                       <Link href={x.payment_id ? boHref.payment(x.payment_id) : boHref.refunds()}>
                         {x.number}
                       </Link>
@@ -224,7 +225,7 @@ export default async function Page({
                     <td>
                       <Badge labels={billingText.refundStatus} value={x.status} />
                     </td>
-                    <td className={`${cell.num} ${opsCell.nowrap}`}>
+                    <td className={`${cell.num} ${cell.nowrap}`}>
                       {money(x.amount_kurus, x.currency)}
                     </td>
                   </tr>
@@ -352,7 +353,7 @@ export default async function Page({
         back={{ href: boHref.removals(), label: B.removals.title }}
         meta={
           <>
-            <Badge labels={billingText.gardenRemovalStatus} value={r.status} />
+            <Badge labels={billingText.gardenRemovalStatus} value={r.status} kind="removal" />
             {view.blockedReason && <UiBadge tone="danger">{B.removals.blocked}</UiBadge>}
             {r.withdrawal && <UiBadge>{B.removals.withdrawal}</UiBadge>}
             {r.at_period_end && <UiBadge>{B.removals.atPeriodEnd}</UiBadge>}
@@ -415,32 +416,32 @@ function RemovalCalculation({
                   {label(billingText.removalRefundMode, l.mode)}
                 </span>
               </td>
-              <td className={`${cell.num} ${opsCell.nowrap}`}>{money(l.amount_kurus)}</td>
-              <td className={`${cell.num} ${opsCell.nowrap}`}>
+              <td className={`${cell.num} ${cell.nowrap}`}>{money(l.amount_kurus)}</td>
+              <td className={`${cell.num} ${cell.nowrap}`}>
                 {formatNumber(l.visits_entitled)} / {formatNumber(l.visits_used)} /{" "}
                 {formatNumber(l.visits_excluded)}
               </td>
-              <td className={`${cell.num} ${opsCell.nowrap}`}>{money(l.visit_fee_kurus)}</td>
-              <td className={`${cell.num} ${opsCell.nowrap}`}>
+              <td className={`${cell.num} ${cell.nowrap}`}>{money(l.visit_fee_kurus)}</td>
+              <td className={`${cell.num} ${cell.nowrap}`}>
                 {money(l.inventory_share_kurus)}
                 {l.inventory_done && <span className="muted"> ({T.inventoryDone})</span>}
               </td>
-              <td className={`${cell.num} ${opsCell.nowrap}`}>{money(l.gross_kurus)}</td>
-              <td className={`${cell.num} ${opsCell.nowrap}`}>
+              <td className={`${cell.num} ${cell.nowrap}`}>{money(l.gross_kurus)}</td>
+              <td className={`${cell.num} ${cell.nowrap}`}>
                 {money(-l.already_refunded_kurus)}
               </td>
-              <td className={`${cell.num} ${opsCell.nowrap}`}>{money(l.refund_kurus)}</td>
-              <td className={`${cell.num} ${opsCell.nowrap}`}>{money(l.refund_vat_kurus)}</td>
+              <td className={`${cell.num} ${cell.nowrap}`}>{money(l.refund_kurus)}</td>
+              <td className={`${cell.num} ${cell.nowrap}`}>{money(l.refund_vat_kurus)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className={bo.totals}>
             <td colSpan={7}>{T.total}</td>
-            <td className={`${cell.num} ${opsCell.nowrap}`} data-testid="removal-refund-total">
+            <td className={`${cell.num} ${cell.nowrap}`} data-testid="removal-refund-total">
               {money(p.refund_kurus)}
             </td>
-            <td className={`${cell.num} ${opsCell.nowrap}`}>{money(p.refund_vat_kurus)}</td>
+            <td className={`${cell.num} ${cell.nowrap}`}>{money(p.refund_vat_kurus)}</td>
           </tr>
         </tfoot>
       </Table>

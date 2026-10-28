@@ -1,7 +1,9 @@
 import Link from "next/link";
 import bo from "@/components/back-office/back-office.module.css";
 import { Badge, Warning, day, money } from "@/components/back-office/parts";
-import { FilterTabs, Pagination, Toolbar, opsCell, pageOf } from "@/components/operations/ops-ui";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Toolbar } from "@/components/ui/layout";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -107,7 +109,7 @@ export default async function Page({
                       data-blocked={r.blocked_reason ? true : undefined}
                       className={r.blocked_reason ? bo.highlight : undefined}
                     >
-                      <td className={`${cell.num} ${opsCell.nowrap}`}>
+                      <td className={`${cell.num} ${cell.nowrap}`}>
                         <span className={styles.date}>{day(effective)}</span>
                         {open && effective && (
                           <span className={styles.relative}>
@@ -115,27 +117,27 @@ export default async function Page({
                           </span>
                         )}
                       </td>
-                      <td className={`${cell.code} ${opsCell.nowrap}`}>
+                      <td className={`${cell.code} ${cell.nowrap}`}>
                         <Link href={boHref.removal(r.id)}>{r.number}</Link>
                       </td>
                       <td>
                         <span className={styles.badges}>
-                          <Badge labels={billingText.gardenRemovalStatus} value={r.status} />
+                          <Badge labels={billingText.gardenRemovalStatus} value={r.status} kind="removal" />
                           {r.blocked_reason && <UiBadge tone="danger">{T.blocked}</UiBadge>}
                           {r.withdrawal && <UiBadge>{T.withdrawal}</UiBadge>}
                           {r.at_period_end && <UiBadge>{T.atPeriodEnd}</UiBadge>}
                         </span>
                       </td>
-                      <td className={opsCell.nowrap}>{r.customer_name ?? B.none}</td>
-                      <td className={opsCell.nowrap}>{r.garden_name}</td>
-                      <td className={`${cell.code} ${opsCell.nowrap}`}>
+                      <td className={cell.nowrap}>{r.customer_name ?? B.none}</td>
+                      <td className={cell.nowrap}>{r.garden_name}</td>
+                      <td className={`${cell.code} ${cell.nowrap}`}>
                         {r.order_id ? (
                           <Link href={boHref.order(r.order_id)}>{r.order_number}</Link>
                         ) : (
                           B.none
                         )}
                       </td>
-                      <td className={`${cell.num} ${opsCell.nowrap}`}>
+                      <td className={`${cell.num} ${cell.nowrap}`}>
                         {r.refund_mode ? money(r.refund_kurus) : B.none}
                       </td>
                       <td>

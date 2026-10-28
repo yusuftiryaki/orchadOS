@@ -7,11 +7,9 @@ import {
 } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
 import {
-  ActionDisclosure,
-  Amount,
-  Consequence,
   EventDetails,
 } from "@/components/back-office/money-ui";
+import { Consequence, Disclosure } from "@/components/ui/disclosure";
 import {
   Badge,
   BoResultNotice,
@@ -22,9 +20,10 @@ import {
   money,
   when,
 } from "@/components/back-office/parts";
-import { statusTone } from "@/components/back-office/status-tone";
+import { statusTone } from "@/components/ui/status";
 import { Field } from "@/components/operations/field";
-import { Panel, Split, opsCell } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
+import { Split } from "@/components/ui/layout";
 import styles from "@/components/operations/operations.module.css";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button, buttonClass } from "@/components/ui/button";
@@ -110,7 +109,7 @@ export default async function Page({
   if (p.failure_code) {
     facts.push([
       T.failure,
-      <span key="f" className={opsCell.nowrap}>
+      <span key="f" className={cell.nowrap}>
         {p.failure_code}
       </span>,
     ]);
@@ -121,7 +120,7 @@ export default async function Page({
       {review && (
         <Panel title={T.reviewTitle} description={T.reviewHint}>
           <Consequence>
-            {B.payments.amount}: <Amount>{money(p.amount_kurus, p.currency)}</Amount>
+            {B.payments.amount}: <strong>{money(p.amount_kurus, p.currency)}</strong>
           </Consequence>
           <ActionForm action={resolveReviewAction} testId="review-form">
             <input type="hidden" name="payment_id" value={p.id} />
@@ -147,7 +146,7 @@ export default async function Page({
       {refundOpen && (
         <Panel title={T.refundTitle} description={T.refundHint}>
           <Consequence>
-            {B.payments.refundable}: <Amount>{money(refundable, p.currency)}</Amount>
+            {B.payments.refundable}: <strong>{money(refundable, p.currency)}</strong>
           </Consequence>
           <ActionForm action={requestRefundAction} testId="refund-form">
             <input type="hidden" name="payment_id" value={p.id} />
@@ -188,10 +187,10 @@ export default async function Page({
         </Panel>
       )}
       {manual && p.status === "succeeded" && (
-        <ActionDisclosure title={T.voidTitle}>
+        <Disclosure title={T.voidTitle}>
           <Consequence>{T.voidHint}</Consequence>
           <Consequence>
-            {B.payments.amount}: <Amount>{money(p.amount_kurus, p.currency)}</Amount>
+            {B.payments.amount}: <strong>{money(p.amount_kurus, p.currency)}</strong>
           </Consequence>
           <ActionForm action={voidManualPaymentAction} testId="void-form">
             <input type="hidden" name="payment_id" value={p.id} />
@@ -204,7 +203,7 @@ export default async function Page({
               </Button>
             </div>
           </ActionForm>
-        </ActionDisclosure>
+        </Disclosure>
       )}
       {!review && !refundOpen && !(manual && p.status === "succeeded") && (
         <Panel title={B.order.actions}>
@@ -310,7 +309,7 @@ export default async function Page({
                 {refunds.map((r) => (
                   <tr key={r.id} data-refund-id={r.id} data-status={r.status}>
                     <td className={cell.code}>{r.number}</td>
-                    <td className={opsCell.nowrap}>
+                    <td className={cell.nowrap}>
                       {billingText.refundKind[r.kind as keyof typeof billingText.refundKind]}
                     </td>
                     <td className={cell.num}>{money(r.amount_kurus, r.currency)}</td>
@@ -347,7 +346,7 @@ export default async function Page({
               <tbody>
                 {events.map((e) => (
                   <tr key={e.id}>
-                    <td className={`${cell.num} ${opsCell.nowrap}`}>{when(e.received_at)}</td>
+                    <td className={`${cell.num} ${cell.nowrap}`}>{when(e.received_at)}</td>
                     <td className={cell.code}>{e.event_type}</td>
                     <td>{e.outcome ?? B.none}</td>
                     <td className={cell.num}>{e.http_status ?? B.none}</td>

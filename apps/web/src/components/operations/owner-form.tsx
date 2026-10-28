@@ -11,7 +11,7 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/field";
 import { Field, FormError } from "./field";
 import { KvkkVersionSelect } from "./kvkk-version-select";
-import { Panel } from "./ops-ui";
+import { Panel } from "@/components/ui/panel";
 import local from "./owner-form.module.css";
 import styles from "./operations.module.css";
 

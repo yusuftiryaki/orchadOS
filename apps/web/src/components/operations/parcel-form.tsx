@@ -12,7 +12,7 @@ import type { DrawMode } from "./boundary-draw-map";
 import { BoundaryEditor } from "./boundary-editor";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, FormError } from "./field";
-import { Panel } from "./ops-ui";
+import { Panel } from "@/components/ui/panel";
 import styles from "./operations.module.css";
 
 const T = t.operations;

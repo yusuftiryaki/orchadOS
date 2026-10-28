@@ -2,6 +2,7 @@ import { decideAction } from "@/app/uzman/actions";
 import { ClassDot } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { Kbd } from "@/components/ui/kbd";
 import type { ClassRuleConfig } from "@/lib/expert/mandatory-review";
 import {
   uncertaintyField,
@@ -37,7 +38,7 @@ export function ShortcutLegend({ editable }: { editable: boolean }) {
         {rows.map(([key, label]) => (
           <div key={key}>
             <dt>
-              <kbd className={styles.kbd}>{key}</kbd>
+              <Kbd>{key}</Kbd>
             </dt>
             <dd>{label}</dd>
           </div>
@@ -138,9 +139,9 @@ export function DecisionPanel({
               disabled={!detail.ai?.overallClass}
             >
               {r.accept}
-              <kbd className={styles.kbdOnAccent} aria-hidden>
+              <Kbd onAccent hidden>
                 A
-              </kbd>
+              </Kbd>
             </Button>
             <p className={styles.small}>{r.acceptHint}</p>
           </form>
@@ -165,9 +166,7 @@ export function DecisionPanel({
                   />
                   <ClassDot value={c} />
                   <span>{health[c]}</span>
-                  <kbd className={styles.kbd} aria-hidden>
-                    {i + 1}
-                  </kbd>
+                  <Kbd hidden>{i + 1}</Kbd>
                 </label>
               ))}
             </fieldset>

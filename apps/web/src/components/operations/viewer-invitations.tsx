@@ -6,7 +6,8 @@ import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import type { ViewerInvitation } from "@/lib/operations/invitations";
 import { Field } from "./field";
 import { KvkkVersionSelect } from "./kvkk-version-select";
-import { Facts, Panel } from "./ops-ui";
+import { Facts } from "@/components/ui/facts";
+import { Panel } from "@/components/ui/panel";
 import styles from "./operations.module.css";
 
 // Open viewer invitations on the dashboard: ops calls the co-owner, records the

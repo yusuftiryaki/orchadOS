@@ -13,8 +13,9 @@ import { ActionForm } from "@/components/back-office/action-form";
 import { ContractDocumentTable } from "@/components/contracts/document-list";
 import { GenerateResult } from "@/components/contracts/ops-parts";
 import { AuditTable } from "@/components/back-office/audit-table";
-import { statusTone } from "@/components/back-office/status-tone";
-import { ActionDisclosure, Amount, Badges, Consequence } from "@/components/back-office/money-ui";
+import { statusTone } from "@/components/ui/status";
+import { Badges } from "@/components/back-office/money-ui";
+import { Consequence, Disclosure } from "@/components/ui/disclosure";
 import {
   Badge,
   BoResultNotice,
@@ -26,7 +27,8 @@ import {
   when,
 } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
-import { Panel, Split, opsCell } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
+import { Split } from "@/components/ui/layout";
 import { InstallmentPlan } from "@/components/portal-billing/installment-plan";
 import styles from "@/components/operations/operations.module.css";
 import { Alert } from "@/components/ui/alert";
@@ -190,11 +192,11 @@ export default async function Page({
   if (view.addons.length) {
     facts.push([
       B.orderLinks.addons,
-      <span key="a" data-testid="order-addons" className={opsCell.nowrap}>
+      <span key="a" data-testid="order-addons" className={cell.nowrap}>
         {view.addons.map((a) => (
           <Badges key={a.id}>
             <Link href={boHref.order(a.id)}>{a.number}</Link>
-            <Badge labels={billingText.orderStatus} value={a.status} />
+            <Badge labels={billingText.orderStatus} value={a.status} kind="order" />
           </Badges>
         ))}
       </span>,
@@ -209,7 +211,7 @@ export default async function Page({
       {canRecord && (
         <Panel title={T.manualTitle} description={T.manualHint}>
           <Consequence>
-            {T.outstandingNow}: <Amount>{money(outstanding, o.currency)}</Amount>
+            {T.outstandingNow}: <strong>{money(outstanding, o.currency)}</strong>
           </Consequence>
           <ActionForm action={recordManualPaymentAction} testId="manual-payment-form">
             <input type="hidden" name="order_id" value={o.id} />
@@ -245,7 +247,7 @@ export default async function Page({
       )}
 
       {awaiting && (
-        <ActionDisclosure title={T.extendTitle}>
+        <Disclosure title={T.extendTitle}>
           <Consequence>{T.extendHint(when(o.payment_due_at))}</Consequence>
           <ActionForm action={extendDueAction} testId="extend-due-form">
             <input type="hidden" name="order_id" value={o.id} />
@@ -265,11 +267,11 @@ export default async function Page({
               <Submit secondary>{T.extend}</Submit>
             </div>
           </ActionForm>
-        </ActionDisclosure>
+        </Disclosure>
       )}
 
       {withdrawable.length > 0 && (
-        <ActionDisclosure title={B.withdrawal.title} testId="record-withdrawal">
+        <Disclosure title={B.withdrawal.title} testId="record-withdrawal">
           <Consequence>
             {withdrawalUntil
               ? B.withdrawal.hint(day(withdrawalUntil))
@@ -308,11 +310,11 @@ export default async function Page({
               <Submit secondary>{B.withdrawal.submit}</Submit>
             </div>
           </ActionForm>
-        </ActionDisclosure>
+        </Disclosure>
       )}
 
       {removable.length > 0 && (
-        <ActionDisclosure title={L.removeTitle} testId="remove-gardens">
+        <Disclosure title={L.removeTitle} testId="remove-gardens">
           <Consequence>{L.removeHint}</Consequence>
           <Consequence>{B.removal.shortAccessRule(accessDays)}</Consequence>
           <ActionForm action={requestRemovalAction} testId="remove-garden-form">
@@ -387,11 +389,11 @@ export default async function Page({
               <Submit secondary>{L.removeSubmit}</Submit>
             </div>
           </ActionForm>
-        </ActionDisclosure>
+        </Disclosure>
       )}
 
       {awaiting && (
-        <ActionDisclosure title={T.cancelTitle}>
+        <Disclosure title={T.cancelTitle}>
           <Consequence>{T.cancelHint}</Consequence>
           <ActionForm action={cancelOrderAction} testId="cancel-order-form">
             <input type="hidden" name="order_id" value={o.id} />
@@ -404,11 +406,11 @@ export default async function Page({
               </Button>
             </div>
           </ActionForm>
-        </ActionDisclosure>
+        </Disclosure>
       )}
 
       {active && (
-        <ActionDisclosure title={T.terminateTitle}>
+        <Disclosure title={T.terminateTitle}>
           <Consequence>{T.terminateHint}</Consequence>
           {!o.addon_of_order_id && (
             <Consequence testId="terminate-addon-hint">
@@ -430,7 +432,7 @@ export default async function Page({
               </Button>
             </div>
           </ActionForm>
-        </ActionDisclosure>
+        </Disclosure>
       )}
     </>
   );
@@ -442,7 +444,7 @@ export default async function Page({
         back={{ href: boHref.orders(), label: B.orders.title }}
         meta={
           <Badges>
-            <UiBadge tone={statusTone(o.status)} testId="order-status">
+            <UiBadge tone={statusTone(o.status, "order")} testId="order-status">
               {billingText.orderStatus[o.status as keyof typeof billingText.orderStatus] ??
                 o.status}
             </UiBadge>
@@ -488,9 +490,8 @@ export default async function Page({
                 }
                 if (row.kind !== "visit" || row.status !== "pending" || !active) return null;
                 return (
-                  <details>
-                    <summary>{T.allowVisit}</summary>
-                    <p className="muted">{T.allowVisitHint}</p>
+                  <Disclosure title={T.allowVisit}>
+                    <Consequence>{T.allowVisitHint}</Consequence>
                     <ActionForm
                       action={allowUnpaidVisitAction}
                       testId={`allow-visit-form-${row.seq}`}
@@ -506,7 +507,7 @@ export default async function Page({
                         </Button>
                       </div>
                     </ActionForm>
-                  </details>
+                  </Disclosure>
                 );
               }}
             />
@@ -568,7 +569,7 @@ export default async function Page({
                         {p.receipt_number ?? p.id.slice(0, 8)}
                       </Link>
                     </td>
-                    <td className={opsCell.nowrap}>
+                    <td className={cell.nowrap}>
                       {
                         billingText.paymentProvider[
                           p.provider as keyof typeof billingText.paymentProvider

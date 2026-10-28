@@ -2,8 +2,9 @@ import Link from "next/link";
 import { resolveReconciliationAction } from "@/app/operasyon/mutabakat/actions";
 import { Badges, Sub, moneyUi } from "@/components/back-office/money-ui";
 import { day, money } from "@/components/back-office/parts";
-import { statusTone } from "@/components/back-office/status-tone";
-import { FilterTabs, Toolbar, opsCell } from "@/components/operations/ops-ui";
+import { statusTone } from "@/components/ui/status";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { Toolbar } from "@/components/ui/layout";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,12 +85,12 @@ export default async function Page({
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} data-reconciliation-id={r.id} data-overdue={r.overdue || undefined}>
-                  <td className={opsCell.nowrap}>{r.customer_name ?? "—"}</td>
-                  <td className={opsCell.nowrap}>{r.parcel_name}</td>
+                  <td className={cell.nowrap}>{r.customer_name ?? "—"}</td>
+                  <td className={cell.nowrap}>{r.parcel_name}</td>
                   <td className={cell.code}>
                     <Link href={boHref.order(r.order_id)}>{r.order_number}</Link>
                   </td>
-                  <td className={opsCell.nowrap}>
+                  <td className={cell.nowrap}>
                     {T.trigger[r.trigger] ?? r.trigger}
                     <Sub>{r.window_label ?? day(r.scope_end)}</Sub>
                   </td>

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { gardenTone } from "@/components/portal-billing/status-badge";
+import { statusTone } from "@/components/ui/status";
 import { Badge, ClassDot } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -66,7 +66,7 @@ function GardenRow({ parcel, badge }: { parcel: PortalParcel; badge?: GardenBadg
         <p className={`${layout.muted} ${layout.small}`}>{size}</p>
         {badge && (
           <p>
-            <Badge tone={gardenTone(badge.state)} testId="garden-state">
+            <Badge tone={statusTone(badge.state, "garden")} testId="garden-state">
               {badge.text}
             </Badge>
           </p>

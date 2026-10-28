@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { statusTone } from "@/components/ui/status";
 import { cell, Table } from "@/components/ui/table";
 import type { Followup } from "@/lib/expert/followups";
 import type { PipelineChecks } from "@/lib/expert/pipeline-checks";
@@ -13,7 +14,7 @@ import { ClassBadge } from "./class-badge";
 import styles from "./expert.module.css";
 import { FindingForm } from "./finding-form";
 import { FindingList, SEVERITY_TONE } from "./finding-list";
-import { FOLLOWUP_STATUS_TONE, FollowupPanel } from "./followup-panel";
+import { FollowupPanel } from "./followup-panel";
 import { PipelineChecksPanel } from "./pipeline-checks";
 import { PublishForm } from "./publish-form";
 import { VisitHeader } from "./review-view";
@@ -253,7 +254,7 @@ export function SummaryView({
                         {codeOf.get(f.treeId!) ?? "?"}
                       </Link>
                       <span>{t.expert.followups.kinds[f.kind]}</span>
-                      <Badge tone={FOLLOWUP_STATUS_TONE[f.status]}>
+                      <Badge tone={statusTone(f.status)}>
                         {t.expert.followups.status[f.status]}
                       </Badge>
                     </div>

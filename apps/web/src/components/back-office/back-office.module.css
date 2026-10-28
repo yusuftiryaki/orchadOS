@@ -1,4 +1,12 @@
-/* Back office (IP12-E) additions to operations.module.css. */
+/* Back office (IP12-E) pieces that the ui primitives do not cover. */
+
+/* The org picker (parts.tsx): the field and its button on one line. */
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
 
 .bare {
   display: contents;

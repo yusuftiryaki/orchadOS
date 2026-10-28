@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Badge, day } from "@/components/back-office/parts";
-import { FilterTabs, Pagination, Toolbar, opsCell, pageOf } from "@/components/operations/ops-ui";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Toolbar } from "@/components/ui/layout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, cell } from "@/components/ui/table";
@@ -94,7 +96,7 @@ export default async function Page({
                   <td>
                     <Badge labels={billingText.applicationStatus} value={a.status} />
                   </td>
-                  <td className={opsCell.nowrap}>{a.customer_name ?? backOfficeText.none}</td>
+                  <td className={cell.nowrap}>{a.customer_name ?? backOfficeText.none}</td>
                   <td>{a.package_name ?? backOfficeText.none}</td>
                   <td className={cell.num}>{a.garden_count}</td>
                   <td className={cell.num}>{formatDonum(Number(a.declared_area_m2))}</td>

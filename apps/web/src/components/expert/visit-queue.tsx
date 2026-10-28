@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { openVisitAction } from "@/app/uzman/actions";
-import { PARCEL_STATUS_TONE } from "@/components/parcel-list";
+import { statusTone } from "@/components/ui/status";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -76,7 +76,7 @@ export function VisitQueue({
                     <form action={openVisitAction}>
                       <input type="hidden" name="sessionId" value={item.sessionId} />
                       <Button variant="secondary" size="sm" type="submit">
-                        {item.status === "processed" ? q.open : q.continue}
+                        {q.open}
                       </Button>
                     </form>
                   </td>
@@ -112,7 +112,7 @@ export function VisitQueue({
                     {[parcel.village, parcel.district, parcel.province].filter(Boolean).join(", ")}
                   </td>
                   <td>
-                    <Badge tone={PARCEL_STATUS_TONE[parcel.status]}>
+                    <Badge tone={statusTone(parcel.status, "parcel")}>
                       {t.parcels.status[parcel.status]}
                     </Badge>
                   </td>

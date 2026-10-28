@@ -1,4 +1,4 @@
-import { Panel } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
 import { VisitForm } from "@/components/operations/visit-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";

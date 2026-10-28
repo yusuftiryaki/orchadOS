@@ -1,12 +1,12 @@
 import { closeDisputeAction, openDisputeAction } from "@/app/operasyon/legal-actions";
-import { statusTone } from "@/components/back-office/status-tone";
+import { statusTone } from "@/components/ui/status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, cell } from "@/components/ui/table";
 import { formatDate, formatDateTime, t } from "@/lib/i18n";
 import type { DisputeStatus } from "@/lib/operations/legal";
 import { Field } from "./field";
-import { Panel } from "./ops-ui";
+import { Panel } from "@/components/ui/panel";
 import styles from "./operations.module.css";
 
 const T = t.legal.dispute;

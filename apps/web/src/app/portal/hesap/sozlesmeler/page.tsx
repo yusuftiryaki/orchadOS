@@ -67,7 +67,7 @@ export default async function ContractsPage() {
   });
 
   return (
-    <main className={layout.narrow} data-testid="contracts">
+    <main className={`${layout.page} ${layout.reading}`} data-testid="contracts">
       <PageHeader title={L.title} lead={L.intro} />
       {orders.length === 0 && (
         <EmptyState title={L.empty}>

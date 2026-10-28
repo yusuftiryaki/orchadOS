@@ -1,6 +1,8 @@
 import { FormError, Notice } from "@/components/operations/field";
 import { NotificationTable } from "@/components/operations/notification-table";
-import { FilterTabs, Pagination, Toolbar, pageOf } from "@/components/operations/ops-ui";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Toolbar } from "@/components/ui/layout";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
