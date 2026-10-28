@@ -3877,6 +3877,17 @@ export type Database = {
         Returns: undefined;
       };
       customer_withdraw_application: { Args: { p_application_id: string }; Returns: undefined };
+      demo_admit: { Args: { p_ip_hash: string }; Returns: Json };
+      demo_end: { Args: Record<PropertyKey, never>; Returns: undefined };
+      demo_expired_accounts: {
+        Args: { p_exclude?: string[]; p_limit?: number };
+        Returns: string[];
+      };
+      demo_hit: { Args: { p_kind: string }; Returns: boolean };
+      demo_info: { Args: Record<PropertyKey, never>; Returns: Json };
+      demo_purge_audit_log: { Args: { p_user_ids: string[] }; Returns: number };
+      demo_start: { Args: { p_ip_hash: string; p_user_id: string }; Returns: Json };
+      demo_undeletable_count: { Args: Record<PropertyKey, never>; Returns: number };
       message_outbox_list: {
         Args: { p_limit?: number; p_recipient: string };
         Returns: {

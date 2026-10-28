@@ -253,6 +253,12 @@ Medya dosyaları içerik hash'iyle adreslenir ve değiştirilemez. Her ziyaret, 
   Mimari, kişisel veri şemasını ayrı tuttuğu için ikinci seçeneğe sonradan geçebilir.
 - **LLM'e giden veri:** Sadece ağaç görselleri ve takma ağaç kimlikleri gönderilir. Ad, telefon ya da konum gönderilmez.
 - **Erişim:** Kiracı ve parsel bazında satır seviyesinde yetki; medyaya sadece imzalı, süreli linklerle erişilir; uzman ve personel işlemleri denetim kaydına yazılır.
+- **Demo turu (İP13, [demo-turu.md](demo-turu.md) §12):**
+    - **Kişisel veri yok:** Ziyaretçiden ad, telefon ya da e-posta istenmez. Demo hesabının e-postası rastgele ve teslim edilemez bir adrestir (`ziyaretci-<uuid>@demo.orchados.invalid`); telefonu ve parolası yoktur, sahip ya da fatura profili, rıza ve kayıt satırı hiç oluşmaz. Demo verisindeki kişiler kurgusaldır, görüntüler sentetiktir ve LLM'e hiçbir şey gitmez.
+    - **IP özeti takma adlandırılmış kişisel veridir:** Oran sınırı için IP'nin HMAC-SHA256 özeti (`SIGNUP_HASH_SECRET`, `demo:` önekiyle; IPv6'da /64 önekinden) `private.demo_attempt` ve `private.demo_session` tablolarında tutulur. Sayaçlar 48 saat sonra silinir, oturum satırı hesapla birlikte gider. Anahtara sahip biri IPv4 uzayını tarayarak özeti geri bulabilir; anahtar yalnızca Edge'dedir.
+    - **Ham IP:** GoTrue oturum satırında (`auth.sessions.ip`, `user_agent`) hesap silinene kadar, Supabase, Vercel ve Edge altyapı loglarında sağlayıcının saklama süresince kalır. Kodumuz hiçbir log satırına IP, e-posta ya da token yazmaz.
+    - **Denetim kayıtları:** Silinen demo hesaplarının GoTrue denetim kayıtları (`auth.audit_log_entries`, IP içerir) temizlikte en iyi çabayla silinir (`demo_purge_audit_log`); yetki yoksa Supabase'in saklama süresi geçerlidir.
+    - **Süre:** Hesap oturum süresi (varsayılan 3 saat) dolunca en geç 5 dakikada erişimini kaybeder, en geç 15 dakika sonra silinir.
 
 ## Ölçeklenme eşikleri
 

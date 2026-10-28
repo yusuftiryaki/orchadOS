@@ -167,7 +167,7 @@ begin
   get diagnostics n = row_count;
   table_name := 'public.parcel'; deleted := n; return next;
   delete from storage.objects
-    where bucket_id = 'media' and (storage.foldername(name))[4] = any(p_parcel_ids::text[]);
+    where bucket_id in ('media', 'demo-media') and (storage.foldername(name))[4] = any(p_parcel_ids::text[]);
   get diagnostics n = row_count;
   table_name := 'storage.objects'; deleted := n; return next;
   set local session_replication_role = origin;
@@ -175,7 +175,8 @@ end;
 $$;
 
 -- A test organisation: its parcels (as purge_parcels), then devices, rigs,
--- memberships, owner profiles, its notifications and media, the org row.
+-- memberships, owner profiles, demo registry rows (demo_org, demo_parcel,
+-- demo_session), its notifications and media (media and demo-media), the org row.
 -- Auth users are not deleted (the tests remove theirs with the admin API).
 create or replace function testing.purge_org(p_org_id uuid)
 returns table (table_name text, deleted bigint)
@@ -198,7 +199,7 @@ begin
   get diagnostics n = row_count;
   table_name := 'public.org'; deleted := n; return next;
   delete from storage.objects
-    where bucket_id = 'media' and (storage.foldername(name))[2] = p_org_id::text;
+    where bucket_id in ('media', 'demo-media') and (storage.foldername(name))[2] = p_org_id::text;
   get diagnostics n = row_count;
   table_name := 'storage.objects'; deleted := n; return next;
   set local session_replication_role = origin;

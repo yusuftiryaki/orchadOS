@@ -3,7 +3,7 @@ import { describe, expect, inject, it } from "vitest";
 
 // Every Edge Function in supabase/config.toml is enabled and has its index.ts,
 // so the local stack and CI serve it (IP12: the payment functions of IP12-B
-// must not stay switched off once their code lands).
+// must not stay switched off once their code lands; IP13: demo-start).
 
 const root = new URL("../../../../supabase/", import.meta.url);
 const config = readFileSync(new URL("config.toml", root), "utf8");
@@ -30,24 +30,44 @@ describe("Edge Function configuration", () => {
     expect(existsSync(new URL(`functions/${name}/index.ts`, root))).toBe(true);
   });
 
-  it("the IP12 functions check their callers in code", () => {
-    for (const name of ["customer-signup", "payments", "payment-callback", "payment-webhook"]) {
+  it("lists the IP13 demo-start function", () => {
+    expect(functions.map((f) => f.name)).toContain("demo-start");
+  });
+
+  it("the IP12 and IP13 functions check their callers in code", () => {
+    for (const name of [
+      "customer-signup",
+      "payments",
+      "payment-callback",
+      "payment-webhook",
+      "demo-start",
+    ]) {
       expect(functions.find((f) => f.name === name)?.section, name).toMatch(
         /^verify_jwt = false$/m,
       );
     }
   });
 
-  it.each(["payments", "payment-callback", "payment-webhook"])("%s is served", async (name) => {
-    const res = await fetch(`${inject("supabase").url}/functions/v1/${name}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: "{}",
-      // payment-callback answers with a redirect to the portal, which is not
-      // running here: the redirect itself shows the function is served.
-      redirect: "manual",
-    });
-    await res.body?.cancel();
-    expect(res.status).not.toBe(404);
+  it("the local stack opens demo-start (ORCHADOS_DEMO_MODE) and keeps Auth sign-ups closed", () => {
+    expect(config).toMatch(/^ORCHADOS_DEMO_MODE = "dev"$/m);
+    expect(config).toMatch(/^enable_signup = false$/m);
+    expect(config).toMatch(/^enable_anonymous_sign_ins = false$/m);
+    expect(config).toMatch(/^enable_manual_linking = false$/m);
   });
+
+  it.each(["payments", "payment-callback", "payment-webhook", "demo-start"])(
+    "%s is served",
+    async (name) => {
+      const res = await fetch(`${inject("supabase").url}/functions/v1/${name}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+        // payment-callback answers with a redirect to the portal, which is not
+        // running here: the redirect itself shows the function is served.
+        redirect: "manual",
+      });
+      await res.body?.cancel();
+      expect(res.status).not.toBe(404);
+    },
+  );
 });

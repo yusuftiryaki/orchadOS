@@ -81,6 +81,47 @@ export async function ageSignups(userIds: string[], minutes: number) {
   await call("age_signups", { p_user_ids: userIds, p_minutes: minutes });
 }
 
+// Registers a demo org with these parcels (in tour order) as loaded now
+// (docs/demo-turu.md §5.1); by default enabled, which disables every other
+// demo org. Returns the demo org that was enabled before, or null: tests
+// register it again in afterAll with `registerDemoOrg(previous, null)`, which
+// keeps its parcels and tour.
+export async function registerDemoOrg(
+  orgId: string,
+  parcelIds: string[] | null,
+  opts: { enabled?: boolean; tour?: Record<string, string> } = {},
+): Promise<string | null> {
+  if (![orgId, ...(parcelIds ?? [])].every((id) => UUID.test(id))) {
+    throw new Error("registerDemoOrg takes uuids");
+  }
+  const { data, error } = await admin().rpc("register_demo_org", {
+    p_org_id: orgId,
+    p_parcel_ids: parcelIds,
+    p_enabled: opts.enabled ?? true,
+    p_tour: opts.tour ?? (parcelIds === null ? null : {}),
+  });
+  if (error) throw new Error(`testing.register_demo_org: ${error.message} (run \`pnpm db:reset\`)`);
+  return (data as string | null) ?? null;
+}
+
+// Moves the demo sessions of these users back in time (created_at and
+// expires_at), e.g. past their end.
+export async function ageDemoSessions(userIds: string[], minutes: number) {
+  if (!userIds.every((id) => UUID.test(id))) throw new Error("ageDemoSessions takes uuids");
+  await call("age_demo_sessions", { p_user_ids: userIds, p_minutes: minutes });
+}
+
+// Clears the demo start counters (rate limits), so that demo tests can run
+// again within the hour.
+export async function purgeDemoAttempts() {
+  await call("purge_demo_attempts", {});
+}
+
+// Runs the 5-minute demo housekeeping job now.
+export async function runDemoHousekeeping() {
+  await call("run_demo_housekeeping", {});
+}
+
 // The columns of these public tables a role may select, per table.
 export async function selectableColumns(
   role: string,

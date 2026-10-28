@@ -37,8 +37,10 @@
 //   with the phone confirmed; signup_complete then checks that the confirmed
 //   phone is the pending one and the code is newer than the pending sign-up
 //   (else 403) and writes the owner profile and the consent records.
+//   A demo visitor's token (app_metadata.demo) is refused before any service
+//   role call (docs/demo-turu.md §6.3).
 //   200 {status: "completed" | "already_completed" | "no_pending"}
-//   · 401 {error: "unauthorized"} · 403 {error: "phone_not_verified"}
+//   · 401 {error: "unauthorized"} · 403 {error: "phone_not_verified" | "demo_read_only"}
 //
 // { "action": "cleanup" }   x-orchados-cron-secret: ORCHADOS_CRON_SECRET
 //   Hourly (pg_cron, private.dispatch_signup_cleanup): deletes self sign-up
@@ -52,6 +54,7 @@ import {
   clientIp,
   decideMatches,
   hmacHex,
+  isDemoClaims,
   isExpiredUnverified,
   jwtClaims,
   latestPhoneCodeAt,
@@ -210,8 +213,12 @@ async function complete(req: Request): Promise<Response> {
   if (!res.ok) return error("unauthorized", 401);
   const user = await res.json();
   if (typeof user?.id !== "string") return error("unauthorized", 401);
+  const claims = jwtClaims(token);
+  // A demo visitor (docs/demo-turu.md §6.3): the service role below would not
+  // carry its claim past the database's write guard.
+  if (isDemoClaims(claims)) return error("demo_read_only", 403);
 
-  const codeAt = latestPhoneCodeAt(jwtClaims(token));
+  const codeAt = latestPhoneCodeAt(claims);
   if (!user.phone_confirmed_at || codeAt === null) return error("phone_not_verified", 403);
   // signup_complete checks the rest in one transaction: a self sign-up whose
   // confirmed phone is the pending one, and a code newer than the pending row.
