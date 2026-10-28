@@ -293,7 +293,7 @@ begin
   where au.id = p_user_id
     and coalesce(au.raw_app_meta_data ->> 'demo', '') = 'true'
     and au.created_at > now() - interval '10 minutes'
-    and au.phone is null
+    and nullif(au.phone, '') is null
     and lower(coalesce(au.email, '')) like '%@' || d.visitor_email_domain
     and coalesce(au.encrypted_password, '') <> ''
     and not exists (select 1 from private.demo_session x where x.user_id = au.id);
@@ -302,7 +302,7 @@ begin
   if not found
      or coalesce(u.raw_app_meta_data ->> 'demo', '') <> 'true'
      or u.created_at <= now() - interval '10 minutes'
-     or u.phone is not null
+     or nullif(u.phone, '') is not null
      or lower(coalesce(u.email, '')) not like '%@' || d.visitor_email_domain
      or coalesce(u.encrypted_password, '') <> ''
      or exists (select 1 from public.membership m where m.user_id = u.id)
@@ -367,7 +367,7 @@ as $$
       or (
         u.created_at < now() - interval '1 day'
         and not exists (select 1 from private.demo_session s where s.user_id = u.id)
-        and u.phone is null
+        and nullif(u.phone, '') is null
         and exists (
           select 1 from private.demo_org d
           where lower(coalesce(u.email, '')) like 'ziyaretci-%@' || d.visitor_email_domain)

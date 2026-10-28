@@ -305,7 +305,7 @@ begin
           not exists (
             select 1 from private.demo_org d
             where lower(coalesce(u.email, '')) like 'ziyaretci-%@' || d.visitor_email_domain)
-          or u.phone is not null
+          or nullif(u.phone, '') is not null
           or coalesce(u.phone_change, '') <> ''
           or coalesce(u.email_change, '') <> ''
           or coalesce(u.encrypted_password, '') <> ''
