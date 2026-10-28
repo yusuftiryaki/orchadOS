@@ -28,21 +28,24 @@ grant execute on all functions in schema pg_temp to authenticated, anon;
 
 select results_eq(
   $$ select kind, version from private.legal_text_version where is_current order by kind $$,
-  $$ values ('distance_sales', 'mesafeli-v3-taslak'), ('early_performance', 'mesafeli-v3-taslak'),
+  $$ values ('distance_sales', 'mesafeli-v4-taslak'), ('early_performance', 'mesafeli-v4-taslak'),
             ('explicit_consent', 'riza-v2-taslak'), ('field_notice', 'bahcede-v1-taslak'),
-            ('kvkk_notice', 'kvkk-v2-taslak'), ('pre_information', 'onbilgi-v3-taslak'),
-            ('privacy', 'gizlilik-v2-taslak'), ('refund_policy', 'iade-v3-taslak') $$,
+            ('kvkk_notice', 'kvkk-v2-taslak'), ('pre_information', 'onbilgi-v4-taslak'),
+            ('privacy', 'gizlilik-v2-taslak'), ('refund_policy', 'iade-v4-taslak') $$,
   'one current version per kind, equal to LEGAL_TEXT_VERSIONS');
 select is((select count(*)::integer from private.legal_text_version where is_current and sha256 ~ '^[0-9a-f]{64}$'), 8,
   'every current version carries its template hash');
 select results_eq(
-  $$ select kind, version from private.legal_text_version where not is_current order by kind, version $$,
-  $$ values ('distance_sales', 'mesafeli-v1-taslak'), ('distance_sales', 'mesafeli-v2-taslak'),
-            ('explicit_consent', 'riza-v1-taslak'), ('kvkk_notice', 'kvkk-v1-taslak'),
-            ('pre_information', 'onbilgi-v1-taslak'), ('pre_information', 'onbilgi-v2-taslak'),
-            ('privacy', 'gizlilik-v1-taslak'), ('refund_policy', 'iade-v1-taslak'),
-            ('refund_policy', 'iade-v2-taslak') $$,
-  'the archived versions are registered without a hash');
+  $$ select kind, version, sha256 is not null from private.legal_text_version where not is_current
+     order by kind, version $$,
+  $$ values ('distance_sales', 'mesafeli-v1-taslak', false), ('distance_sales', 'mesafeli-v2-taslak', false),
+            ('distance_sales', 'mesafeli-v3-taslak', true), ('early_performance', 'mesafeli-v3-taslak', true),
+            ('explicit_consent', 'riza-v1-taslak', false), ('kvkk_notice', 'kvkk-v1-taslak', false),
+            ('pre_information', 'onbilgi-v1-taslak', false), ('pre_information', 'onbilgi-v2-taslak', false),
+            ('pre_information', 'onbilgi-v3-taslak', true), ('privacy', 'gizlilik-v1-taslak', false),
+            ('refund_policy', 'iade-v1-taslak', false), ('refund_policy', 'iade-v2-taslak', false),
+            ('refund_policy', 'iade-v3-taslak', true) $$,
+  'versions archived before the registry have no hash; v3 (registered, then superseded) keeps its own');
 select ok(not exists (select 1 from private.legal_text_version where is_final), 'every registered version is a draft today');
 select throws_ok($$ insert into private.legal_text_version (kind, version, sha256, is_current)
   values ('kvkk_notice', 'kvkk-v3', repeat('b', 64), true) $$, '23505', null, 'a second current row per kind is refused');
@@ -61,7 +64,7 @@ select results_eq(
 rollback to savepoint reg;
 
 set local role anon;
-select is((select count(*)::integer from public.registered_legal_text_versions()), 17, 'anyone reads the registered versions');
+select is((select count(*)::integer from public.registered_legal_text_versions()), 21, 'anyone reads the registered versions');
 select throws_ok($$ select * from private.legal_text_version $$, '42501', null, 'the table itself is closed');
 reset role;
 
@@ -156,8 +159,8 @@ select results_eq($$ select active, reasons from public.legal_gate_status('d1500
   $$ values (false, array[]::text[]) $$, 'an org without the caller''s quotes tells nothing');
 reset role;
 -- Launch: final texts registered, the customer acknowledges the final notice.
-select private.register_legal_text('distance_sales', 'mesafeli-v3', repeat('1', 64));
-select private.register_legal_text('pre_information', 'onbilgi-v3', repeat('2', 64));
+select private.register_legal_text('distance_sales', 'mesafeli-v4', repeat('1', 64));
+select private.register_legal_text('pre_information', 'onbilgi-v4', repeat('2', 64));
 select private.register_legal_text('kvkk_notice', 'kvkk-v2', repeat('3', 64));
 set local role authenticated;
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');

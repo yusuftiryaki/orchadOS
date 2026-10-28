@@ -33,7 +33,7 @@ $$;
 create function pg_temp.detail() returns jsonb language sql immutable
 as $$ select '{"authorization_basis": "title_holder", "entry_permission": true}'::jsonb $$;
 create function pg_temp.consents() returns jsonb language sql immutable
-as $$ select '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak"}'::jsonb $$;
+as $$ select '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}'::jsonb $$;
 -- A submitted application of the customer with one verified garden.
 create function pg_temp.verified_application(p_area numeric) returns uuid language plpgsql
 as $$
@@ -187,11 +187,11 @@ select is(
   'P0002 not_found', 'only the quote''s customer accepts it');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 select is(
-  pg_temp.error_of(format($$ select public.customer_accept_quote(%L, '{"pre_information": "onbilgi-v3-taslak"}') $$,
+  pg_temp.error_of(format($$ select public.customer_accept_quote(%L, '{"pre_information": "onbilgi-v4-taslak"}') $$,
     (select id from ids where name = 'q2'))),
   '22023 consent_required / distance_sales', 'the distance sales text is required');
 select is(
-  pg_temp.error_of(format($$ select public.customer_accept_quote(%L, '{"distance_sales": "mesafeli-v3-taslak"}') $$,
+  pg_temp.error_of(format($$ select public.customer_accept_quote(%L, '{"distance_sales": "mesafeli-v4-taslak"}') $$,
     (select id from ids where name = 'q2'))),
   '22023 consent_required / pre_information', 'the pre-information text is required');
 select is(
@@ -249,8 +249,8 @@ select results_eq(
   $$ select kind::text, text_version, source::text from private.consent_record
      where order_id = (select id from ids where name = 'o1') and quote_id = (select id from ids where name = 'q2')
      order by kind $$,
-  $$ values ('distance_sales'::text, 'mesafeli-v3-taslak'::text, 'quote_acceptance'::text),
-            ('pre_information', 'onbilgi-v3-taslak', 'quote_acceptance') $$,
+  $$ values ('distance_sales'::text, 'mesafeli-v4-taslak'::text, 'quote_acceptance'::text),
+            ('pre_information', 'onbilgi-v4-taslak', 'quote_acceptance') $$,
   'both texts are recorded with the quote and the order');
 select is(
   (select count(*)::integer from public.audit_event

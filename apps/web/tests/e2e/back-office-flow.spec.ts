@@ -172,7 +172,7 @@ test("ops takes an application to an active order and refunds part of the transf
   const orderId = check(
     await customer.rpc("customer_accept_quote", {
       p_quote_id: quoteId,
-      p_consents: { distance_sales: "mesafeli-v3-taslak", pre_information: "onbilgi-v3-taslak" },
+      p_consents: { distance_sales: "mesafeli-v4-taslak", pre_information: "onbilgi-v4-taslak" },
     }),
   );
   await page.goto(`/operasyon/siparis/${orderId}`);

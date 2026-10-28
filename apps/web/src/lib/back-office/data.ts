@@ -1,5 +1,5 @@
 import { addDays } from "@/lib/back-office/validation";
-import { BILLING_COLUMNS } from "@/lib/billing/columns";
+import { BILLING_COLUMNS, GARDEN_REMOVAL_READ } from "@/lib/billing/columns";
 import { billingReasonOf, type BillingError } from "@/lib/billing/errors";
 import type {
   ApplicationGarden,
@@ -1012,11 +1012,7 @@ export interface RemovalView {
 export async function getRemoval(supabase: Client, id: string): Promise<RemovalView | null> {
   if (!isUuid(id)) return null;
   const removal = check(
-    await supabase
-      .from("garden_removal")
-      .select(BILLING_COLUMNS.garden_removal)
-      .eq("id", id)
-      .maybeSingle(),
+    await supabase.from("garden_removal").select(GARDEN_REMOVAL_READ).eq("id", id).maybeSingle(),
   ) as GardenRemoval | null;
   if (!removal) return null;
   const [rows, preview, refunds, customer, setting, order] = await Promise.all([
@@ -1065,7 +1061,7 @@ export async function openRemovals(
   return check(
     await supabase
       .from("garden_removal")
-      .select(BILLING_COLUMNS.garden_removal)
+      .select(GARDEN_REMOVAL_READ)
       .eq("customer_user_id", userId)
       .in("parcel_id", parcelIds)
       .in("status", ["requested", "scheduled"]),
@@ -1094,7 +1090,7 @@ export async function parcelService(
     supabase.from("service_order_item").select("customer_user_id").eq("parcel_id", parcelId),
     supabase
       .from("garden_removal")
-      .select(BILLING_COLUMNS.garden_removal)
+      .select(GARDEN_REMOVAL_READ)
       .eq("parcel_id", parcelId)
       .order("requested_at", { ascending: false }),
   ]);

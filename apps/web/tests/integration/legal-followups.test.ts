@@ -46,10 +46,16 @@ describe("legal-text registry (T21)", () => {
     }
   });
 
-  it("keeps the archived versions without a hash", async () => {
+  it("keeps the archived versions, with a hash only once registered", async () => {
     const rows = check(await anonClient().rpc("registered_legal_text_versions"));
     const archived = rows.filter((r) => !r.is_current);
-    expect(archived.map((r) => r.version).sort()).toEqual([
+    // Archived before the registry: no hash.
+    expect(
+      archived
+        .filter((r) => r.sha256 === null)
+        .map((r) => r.version)
+        .sort(),
+    ).toEqual([
       "gizlilik-v1-taslak",
       "iade-v1-taslak",
       "iade-v2-taslak",
@@ -60,7 +66,19 @@ describe("legal-text registry (T21)", () => {
       "onbilgi-v2-taslak",
       "riza-v1-taslak",
     ]);
-    expect(archived.every((r) => r.sha256 === null && !r.is_final)).toBe(true);
+    // Registered, then superseded by v4 (launch prices): the hash stays.
+    expect(
+      archived
+        .filter((r) => r.sha256 !== null)
+        .map((r) => `${r.kind}:${r.version}`)
+        .sort(),
+    ).toEqual([
+      "distance_sales:mesafeli-v3-taslak",
+      "early_performance:mesafeli-v3-taslak",
+      "pre_information:onbilgi-v3-taslak",
+      "refund_policy:iade-v3-taslak",
+    ]);
+    expect(archived.every((r) => !r.is_final)).toBe(true);
   });
 
   it("publishes the seller's company information to anyone", async () => {
@@ -88,22 +106,22 @@ describe("legal-text registry (T21)", () => {
 
 describe("production gate and the KVKK re-acknowledgement (T21)", () => {
   const LAUNCH: [RegisteredText, string][] = [
-    ["distance_sales", "mesafeli-v3"],
-    ["pre_information", "onbilgi-v3"],
+    ["distance_sales", "mesafeli-v4"],
+    ["pre_information", "onbilgi-v4"],
     ["kvkk_notice", "kvkk-v2"],
   ];
 
-  const setFakePayments = async (on: boolean) =>
+  const setGate = async (on: boolean) =>
     check(
       await admin
         .from("org_billing_setting")
-        .update({ allow_fake_payments: on })
+        .update({ legal_gate_enforced: on })
         .eq("org_id", SEED.org)
         .select("org_id"),
     );
 
   afterAll(async () => {
-    await setFakePayments(true);
+    await setGate(false);
     for (const [kind] of LAUNCH) {
       const draft = currentLegalTexts()[kind];
       await registerLegalText(kind, draft.version, draft.sha256);
@@ -112,7 +130,7 @@ describe("production gate and the KVKK re-acknowledgement (T21)", () => {
 
   it("refuses acceptance until the texts are final and the notice is re-acknowledged", async () => {
     const { quote } = await quoteFor(customer);
-    await setFakePayments(false);
+    await setGate(true);
     const c = customer.client;
 
     // Drafts: the gate names every reason; the old web's string form fails.
@@ -132,7 +150,7 @@ describe("production gate and the KVKK re-acknowledgement (T21)", () => {
 
     // Launch: final versions registered (a registry migration on real projects).
     for (const [kind, version] of LAUNCH) await registerLegalText(kind, version, "0".repeat(64));
-    const final = { distance_sales: "mesafeli-v3", pre_information: "onbilgi-v3" };
+    const final = { distance_sales: "mesafeli-v4", pre_information: "onbilgi-v4" };
     const stale = await c.rpc("customer_accept_quote", { p_quote_id: quote, p_consents: CONSENTS });
     expect(stale.error).toMatchObject({
       message: "legal_text_outdated",

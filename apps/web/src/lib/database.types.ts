@@ -1749,6 +1749,7 @@ export type Database = {
           inventory_reuse_months: number;
           kep_address: string | null;
           kvkk_email: string | null;
+          legal_gate_enforced: boolean;
           legal_name: string | null;
           marketing_consent_enabled: boolean;
           mersis_number: string | null;
@@ -1782,6 +1783,7 @@ export type Database = {
           inventory_reuse_months?: number;
           kep_address?: string | null;
           kvkk_email?: string | null;
+          legal_gate_enforced?: boolean;
           legal_name?: string | null;
           marketing_consent_enabled?: boolean;
           mersis_number?: string | null;
@@ -1814,6 +1816,7 @@ export type Database = {
           inventory_reuse_months?: number;
           kep_address?: string | null;
           kvkk_email?: string | null;
+          legal_gate_enforced?: boolean;
           legal_name?: string | null;
           marketing_consent_enabled?: boolean;
           mersis_number?: string | null;
@@ -4440,6 +4443,7 @@ export type Database = {
           inventory_reuse_months: number;
           kep_address: string | null;
           kvkk_email: string | null;
+          legal_gate_enforced: boolean;
           legal_name: string | null;
           marketing_consent_enabled: boolean;
           mersis_number: string | null;

@@ -442,12 +442,36 @@ export async function deletePriceListDraft(supabase: Client, priceListId: string
   );
 }
 
+// T21 settings a database without 20261103100100 refuses as unknown keys.
+const T21_SETTING_KEYS = ["kep_address", "site_domain", "kvkk_email"];
+
 export async function saveSetting(
   supabase: Client,
   orgId: string,
   settings: Record<string, string | number | boolean | null>,
 ) {
-  return result(
-    await supabase.rpc("ops_save_billing_setting", { p_org_id: orgId, p_settings: settings }),
-  );
+  const saved = await supabase.rpc("ops_save_billing_setting", {
+    p_org_id: orgId,
+    p_settings: settings,
+  });
+  // The web may run ahead of the database (PR previews, the deploy gap): an
+  // unknown T21 key is saved without the T21 keys, so the other settings (the
+  // sign-up switch among them) stay savable. Only when the database lacks the
+  // registry (public_company_info); a bad value on a current one stays an
+  // error.
+  if (
+    saved.error?.message === "invalid_input" &&
+    T21_SETTING_KEYS.includes(saved.error.details ?? "")
+  ) {
+    const probe = await supabase.rpc("public_company_info");
+    if (probe.error?.code === "PGRST202") {
+      const rest = Object.fromEntries(
+        Object.entries(settings).filter(([key]) => !T21_SETTING_KEYS.includes(key)),
+      );
+      return result(
+        await supabase.rpc("ops_save_billing_setting", { p_org_id: orgId, p_settings: rest }),
+      );
+    }
+  }
+  return result(saved);
 }
