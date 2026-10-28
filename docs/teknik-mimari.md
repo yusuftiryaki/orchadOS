@@ -247,11 +247,12 @@ Medya dosyaları içerik hash'iyle adreslenir ve değiştirilemez. Her ziyaret, 
 - **Kişisel veri sınırlı tutulur:** Sahip kimliği, telefonu ve parsel konumu kişisel veridir. Bu alanlar ayrı bir şemada tutulur. Görüntülerde kişiler görünebilir; bu, aydınlatma metninde belirtilir.
 - **Yurt dışına aktarım:** Veriler AB'de barındırılırsa, ya da LLM sağlayıcısına görüntü gönderilirse, bu KVKK açısından yurt dışına aktarımdır. 2024 değişikliğinden sonra (KVKK md. 9) aktarım için yeterlilik kararı ya da standart sözleşme gibi uygun güvenceler gerekiyor. **Hukukçu görüşüyle netleştirilmeli.**
 - **Seçenekler:**
-    - Her şey AB'de (ör. Frankfurt): Standart sözleşme ve açık rıza ile yürür. Seçenek bolluğu ve maliyet açısından en rahat yol.
+    - Her şey AB'de (ör. Frankfurt): Standart sözleşme ile (açık rıza kullanılmaz) yürür. Seçenek bolluğu ve maliyet açısından en rahat yol.
     - Kişisel veriler Türkiye'de, medya ve iş yükü AB'de: Daha karmaşık ama sıkı bir hukuki yorumda daha güvenli.
 
   Mimari, kişisel veri şemasını ayrı tuttuğu için ikinci seçeneğe sonradan geçebilir.
 - **LLM'e giden veri:** Sadece ağaç görselleri ve takma ağaç kimlikleri gönderilir. Ad, telefon ya da konum gönderilmez.
+- **ai-worker yurt dışı aktarım kapısı (H02):** Kapı varsayılan olarak kapalıdır. Yurt dışındaki bir sağlayıcıya (`anthropic` her zaman; yerel olmayan her sağlayıcı) gerçek bahçe verisi ancak `ORCHADOS_AI_TRANSFER_SAFEGUARD` o sağlayıcının standart sözleşme kaydının referansını taşıyorsa gider; değişken, sözleşme imzalanıp Kurum'a bildirilmeden tanımlanmaz. Değişken yoksa yalnızca yerel model (Ollama) ya da `--test-data-only` ile test verisi çalışır; kapı `run --no-write` çalıştırmalarını da kapsar. Ayrıntı: [services/ai-worker/README.md › Yurt dışı aktarım kapısı](../services/ai-worker/README.md#yurt-dışı-aktarım-kapısı), karar [hukuk/kararlar.md](hukuk/kararlar.md) H02.
 - **Erişim:** Kiracı ve parsel bazında satır seviyesinde yetki; medyaya sadece imzalı, süreli linklerle erişilir; uzman ve personel işlemleri denetim kaydına yazılır.
 - **Demo turu (İP13, [demo-turu.md](demo-turu.md) §12):**
     - **Kişisel veri yok:** Ziyaretçiden ad, telefon ya da e-posta istenmez. Demo hesabının e-postası rastgele ve teslim edilemez bir adrestir (`ziyaretci-<uuid>@demo.orchados.invalid`); telefonu ve parolası yoktur, sahip ya da fatura profili, rıza ve kayıt satırı hiç oluşmaz. Demo verisindeki kişiler kurgusaldır, görüntüler sentetiktir ve LLM'e hiçbir şey gitmez.

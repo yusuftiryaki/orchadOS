@@ -229,6 +229,12 @@ gcloud storage buckets update gs://orchados-raw-eu --lifecycle-file=lifecycle.js
 
 Fiyatlar **doğrulanmadı**: liste fiyatlarından kabaca, isteğe bağlı (on-demand), vergisiz, Ekim 2026 öncesi bilgiyle. Seçimden önce her sağlayıcının fiyat hesaplayıcısıyla güncellenmeli.
 
+**Seçim ölçütleri** (karar: [hukuk/kararlar.md](hukuk/kararlar.md) H02, takip işi T01):
+1. KVKK standart sözleşmesini değiştirmeden imzalaması (birinci ölçüt). Kurul'un ilan ettiği “veri sorumlusundan veri işleyene” modülü değiştirilmeden imzalanır ve imzadan itibaren 5 iş günü içinde Kurum'a bildirilir ([yurt-disi-aktarim-kaydi.md](hukuk/yurt-disi-aktarim-kaydi.md)). İmzalamayan sağlayıcı seçilmez.
+2. GPU kotasının ne kadar hızlı açıldığı, kredi programları, fiyat ve Windows GPU kolaylığı (aşağıdaki tablo ve değerlendirme).
+
+**Ham video, seçilen sağlayıcıyla standart sözleşme imzalanıp Kurum'a bildirilmeden yüklenmez.** O zamana kadar buluttaki depoya yalnızca sentetik ya da test verisi yüklenir.
+
 | | AWS | Azure | Google Cloud | Cloudflare R2 (sadece depo) |
 | --- | --- | --- | --- | --- |
 | AB bölgesi | Frankfurt, İrlanda, Stockholm ... | Batı Avrupa (Hollanda), Almanya Batı-Orta ... | Hollanda, Frankfurt, Belçika ... | Otomatik; "EU jurisdiction" seçeneği |
@@ -244,7 +250,7 @@ Fiyatlar **doğrulanmadı**: liste fiyatlarından kabaca, isteğe bağlı (on-de
 
 **Ziyaret başına kaba hesap** (doğrulanmadı): 2–3 saat Linux GPU (~2 $) + Windows birleştirme 2–3 saat (~3 $) + 90 GB × 30 gün depo (~2 $) + Supabase'e ~1 GB çıkış (~0,1 $) → **~7 $**. Ham video buluttan dışarı çıkmadığı için çıkış ücreti küçük; depo ve makine aynı bölgede olmalı.
 
-**Değerlendirme:** Üçü de bu iş için yeterli. Windows GPU makinesinde sürücü kurulumu Azure'da en kolay, AWS'de Linux tarafı en olgun ve Frankfurt'ta, GCP'de L4 fiyat/performansı iyi. Belirleyici olan çoğunlukla **GPU kotasının ne kadar hızlı açıldığı** ve kredi programları olacak. R2, depo için sağlayıcıdan bağımsız ve çıkış ücretsiz bir seçenek; ama işlem makinesi başka buluttaysa veri internet üzerinden çekilir (R2 çıkış ücretsiz, makine tarafı giriş ücretsiz), aynı bölge avantajı yok.
+**Değerlendirme:** Üçü de bu iş için yeterli. Windows GPU makinesinde sürücü kurulumu Azure'da en kolay, AWS'de Linux tarafı en olgun ve Frankfurt'ta, GCP'de L4 fiyat/performansı iyi. Standart sözleşmeyi imzalayanlar arasında belirleyici olan çoğunlukla **GPU kotasının ne kadar hızlı açıldığı** ve kredi programları olacak. R2, depo için sağlayıcıdan bağımsız ve çıkış ücretsiz bir seçenek; ama işlem makinesi başka buluttaysa veri internet üzerinden çekilir (R2 çıkış ücretsiz, makine tarafı giriş ücretsiz), aynı bölge avantajı yok.
 
 ## Hesap ve kota hazırlığı
 
