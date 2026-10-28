@@ -73,15 +73,21 @@ Bu politika, Şirket'in işlediği kişisel verilerin ne kadar saklanacağını,
 
 Kişinin talebiyle silme [KVKK Başvuru Prosedürü](kvkk-basvuru-proseduru.md)'ne göre yapılır. Talep en geç 30 gün içinde sonuçlandırılır. Saklama yükümlülüğü olan veriler talep üzerine silinmez; erişimleri sınırlanır.
 
-Silme ve takma ada çevirme, gözden geçirilmiş betiklerle yapılır (T11, [scripts/kvkk/README.md](../../scripts/kvkk/README.md)); prosedürün 7. bölümündeki sırayla:
+Silme ve takma ada çevirme, gözden geçirilmiş betiklerle yapılır (T11, [scripts/kvkk/README.md](../../scripts/kvkk/README.md)); prosedürün 7. bölümündeki sırayla. `--apply`'lı komutlar ancak kuru çalıştırmanın sayıları ve envanter ikinci bir kişi tarafından kontrol edildikten sonra çalıştırılır:
 
 ```bash
+# 1. Envanter (deftere yazılır; saha notları ve "review" satırları elle okunur)
 scripts/kvkk/run.sh inventory    --subject <kullanıcı uuid> --request K-yyyy-nnn
+# 2. Kuru çalıştırma (hiçbir şeyi değiştirmez)
+scripts/kvkk/run.sh pseudonymize --subject <kullanıcı uuid> --request K-yyyy-nnn --include-notes
+scripts/kvkk/run.sh erase        --subject <kullanıcı uuid> --request K-yyyy-nnn
+# 3. İkinci kişinin kontrolü: sayılar ve envanter deftere yazılır, onaylanır
+# 4. Uygulama: önce takma ad, sonra silme
 scripts/kvkk/run.sh pseudonymize --subject <kullanıcı uuid> --request K-yyyy-nnn --include-notes --apply
 scripts/kvkk/run.sh erase        --subject <kullanıcı uuid> --request K-yyyy-nnn --apply
 ```
 
-Hesabı olmayan kişi için `--subject` yerine `--person-name "<ad soyad>" --parcel <parsel uuid>` verilir. `--apply` olmadan betik kuru çalışır ve hiçbir şeyi değiştirmez. Betik saklama yükümlülüğü olan kayıtlara dokunmaz, süren sözleşmede durur ve her uygulamada denetim kaydı yazar. Auth hesabı ayrıca Admin API ya da panelden silinir ya da kapatılır.
+Hesabı olmayan kişi için `--subject` yerine `--person-name "<ad soyad>" --parcel <parsel uuid>` verilir (tam ad, en az iki sözcük). `--apply` olmadan betik kuru çalışır ve hiçbir şeyi değiştirmez. Betik saklama yükümlülüğü olan kayıtlara dokunmaz, süren sözleşmede durur ve her uygulamada denetim kaydı yazar. Auth hesabı ayrıca Admin API ya da panelden silinir ya da kapatılır.
 
 ## 7. Kayıt
 

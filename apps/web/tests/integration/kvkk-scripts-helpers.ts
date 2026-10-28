@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const CONTAINER = process.env.KVKK_DB_CONTAINER ?? "supabase_db_orchados";
+// Pseudonym HMAC key of the tests (synthetic; production keys never live in the repo).
+export const KEY = "kvkk-integration-test-key-0123456789abcdef";
 
 // Rows of a query as arrays of strings (psql unaligned, tab separated).
 export function sql(query: string): string[][] {
@@ -52,11 +54,11 @@ export interface KvkkRun {
   stderr: string;
 }
 
-export function kvkk(args: string[]): KvkkRun {
+export function kvkk(args: string[], env: Record<string, string> = {}): KvkkRun {
   const result = spawnSync(`${ROOT}scripts/kvkk/run.sh`, args, {
     cwd: ROOT,
     encoding: "utf8",
-    env: { ...process.env, KVKK_DB_CONTAINER: CONTAINER },
+    env: { ...process.env, KVKK_DB_CONTAINER: CONTAINER, KVKK_PSEUDONYM_KEY: KEY, ...env },
   });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }

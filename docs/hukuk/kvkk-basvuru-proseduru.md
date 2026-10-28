@@ -75,17 +75,17 @@ Bilgi isteme, düzeltme ve itiraz talepleri doğrudan karşılanır. Meşru menf
 ## 7. Elle silme ve takma ad adımları
 
 1. Karar deftere yazılır ve ikinci bir kişi (Şirket yetkilisi ya da geliştirici) kontrol eder.
-2. Gözden geçirilmiş betik çalıştırılır (T11, [scripts/kvkk/README.md](../../scripts/kvkk/README.md)): `owner_profile`, `parcel_detail` iletişim bilgileri, sorular ve hissedar davetleri için silme; ekleme-yalnız tablolarda takma ada çevirme. Betik varsayılan olarak kuru çalışır ve değişmeden geri alınır; değişiklik yalnızca `--apply` ile kalıcı olur. Barındırılan veritabanında `--db-url` ve terminalde onay gerekir. Sıra:
+2. Gözden geçirilmiş betik çalıştırılır (T11, [scripts/kvkk/README.md](../../scripts/kvkk/README.md)): `owner_profile`, `parcel_detail` iletişim bilgileri, sorular ve hissedar davetleri için silme; ekleme-yalnız tablolarda takma ada çevirme. Betik varsayılan olarak kuru çalışır ve değişmeden geri alınır; değişiklik yalnızca `--apply` ile kalıcı olur. Takma ad anahtarı `KVKK_PSEUDONYM_KEY` ortam değişkeninden okunur (parola yöneticisinde saklanır). Barındırılan veritabanında `--hosted` (adres `KVKK_DB_URL` ortam değişkeninde) ve terminalde onay gerekir. Sıra:
    1. Envanter (deftere yazılır; serbest metinli saha notları elle okunur):
       `scripts/kvkk/run.sh inventory --subject <kullanıcı uuid> --request K-yyyy-nnn`
-   2. Kuru çalıştırma ve ikinci kişinin kontrolü:
+   2. Kuru çalıştırma ve ikinci kişinin kontrolü (sayılar ve envanterin "review" satırları birlikte okunur; kişiye bağlı olmayan eşleşmeler adaş olabilir, betik onları değiştirmez):
       `scripts/kvkk/run.sh pseudonymize --subject <kullanıcı uuid> --request K-yyyy-nnn --include-notes`
       `scripts/kvkk/run.sh erase --subject <kullanıcı uuid> --request K-yyyy-nnn`
    3. Uygulama, önce takma ad, sonra silme:
       `scripts/kvkk/run.sh pseudonymize --subject <kullanıcı uuid> --request K-yyyy-nnn --include-notes --apply`
       `scripts/kvkk/run.sh erase --subject <kullanıcı uuid> --request K-yyyy-nnn --apply`
-   4. Hesabı olmayan kişi (sınırı gösteren kişi, sahadaki iletişim kişisi): aynı komutlar `--subject` yerine `--person-name "<ad soyad>" --parcel <parsel uuid>` ile.
-   5. Auth hesabı Admin API ya da panelden silinir; faturalama kaydı varsa silinemez, kapatılır ve iletişim bilgileri kaldırılır (README, "Auth hesabı").
+   4. Hesabı olmayan kişi (sınırı gösteren kişi, sahadaki iletişim kişisi): aynı komutlar `--subject` yerine `--person-name "<ad soyad>" --parcel <parsel uuid>` ile. Ad tam yazılır (en az iki sözcük); tek sözcük ya da parselde hesabı olan birinin adı verilirse betik durur, kişi elle belirlenir.
+   5. Auth hesabı Admin API ya da panelden silinir; faturalama kaydı ya da aydınlatma teyidi varsa silinmez, kapatılır ve iletişim bilgileri kaldırılır (README, "Auth hesabı"; envanterin `auth.users` satırı hangisi olduğunu yazar).
 
    Betik, saklama yükümlülüğü olan kayıtlara (fatura, ödeme, iade, sipariş, teklif, onay ve rıza kayıtları) dokunmaz (5. bölüm, 1. madde). Kişinin süren bir sözleşmesi varsa durur (3. madde); yalnızca deftere gerekçesi yazılmış bir istisnada `--force-active --reason "<gerekçe>"` ile çalıştırılır. Betikte olmayan bir veri için işlem geliştirici eliyle, aynı kurallarla yapılır ve betiğe eklenir.
 3. İşlem denetim kaydına (`audit_event`) yazılır: betik her `--apply`'da `kvkk.pseudonymized` ya da `kvkk.erased` kaydını başvuru numarasıyla kendisi yazar; kayıt numarası deftere işlenir.

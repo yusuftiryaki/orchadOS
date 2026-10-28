@@ -27,6 +27,19 @@ begin
   ) then
     raise exception 'kvkk_pseudonymize_first: run "pseudonymize --apply" for request % before "erase --apply"', p.request;
   end if;
+  -- Notes still naming the subject: once erase has removed the names, a
+  -- later "pseudonymize --include-notes" finds nothing to replace.
+  if exists (
+    select 1 from public.session_event e
+    join kvkk_parcel k on k.parcel_id = e.parcel_id
+    where e.event_type in ('field_notice_verbal', 'field_notice_objection', 'visit_blocked')
+      and pg_temp.kvkk_payload_has_match(e.payload)
+  ) then
+    if p.apply then
+      raise exception 'kvkk_notes_pending: field notes still name the subject; read them (inventory) and run "pseudonymize --include-notes --apply" for request % before "erase --apply"', p.request;
+    end if;
+    raise notice 'kvkk: field notes still name the subject; "erase --apply" will refuse until "pseudonymize --include-notes --apply" has run';
+  end if;
 end;
 $$;
 
@@ -56,31 +69,32 @@ with gone as (
 select pg_temp.kvkk_count('private.customer_signup', 'delete', count(*)::integer) from gone;
 
 -- ===== private.parcel_detail (H26 items 4, 5) ==============================
--- No other party on the parcel: site contact and access note cleared (for a
--- --subject; for a --person-name only when the contact is that person).
--- Another party continues: only the subject's own contact entry, and the
--- subject's name and phone inside the access note. Deed and authorisation
+-- The subject is or was the parcel's owner and no other party continues:
+-- site contact and access note cleared. Otherwise (another party continues,
+-- or the subject only reached the parcel as a viewer or invitee, or a
+-- --person-name): only the subject's own contact entry, and the subject's
+-- whole name and phone inside the access note. Deed and authorisation
 -- fields stay (H09 proof).
 with changed as (
   update private.parcel_detail d
   set site_contact_name = case
-        when (p.subject_id is not null and not k.other_party)
+        when (p.subject_id is not null and k.subject_owner and not k.other_party)
           or pg_temp.kvkk_norm(d.site_contact_name) in (select name from kvkk_name)
           or pg_temp.kvkk_has_match(d.site_contact_phone)
         then null else d.site_contact_name end,
       site_contact_phone = case
-        when (p.subject_id is not null and not k.other_party)
+        when (p.subject_id is not null and k.subject_owner and not k.other_party)
           or pg_temp.kvkk_norm(d.site_contact_name) in (select name from kvkk_name)
           or pg_temp.kvkk_has_match(d.site_contact_phone)
         then null else d.site_contact_phone end,
       access_note = case
-        when p.subject_id is not null and not k.other_party then null
+        when p.subject_id is not null and k.subject_owner and not k.other_party then null
         else pg_temp.kvkk_mask(d.access_note, p.pseudonym) end,
       updated_at = now()
   from kvkk_param p, kvkk_parcel k
   where k.parcel_id = d.parcel_id
     and (
-      (p.subject_id is not null and not k.other_party
+      (p.subject_id is not null and k.subject_owner and not k.other_party
         and (d.site_contact_name is not null or d.site_contact_phone is not null or d.access_note is not null))
       or pg_temp.kvkk_norm(d.site_contact_name) in (select name from kvkk_name)
       or pg_temp.kvkk_has_match(d.site_contact_phone)
@@ -133,12 +147,15 @@ select pg_temp.kvkk_count('public.service_application', 'clear customer_note', c
 
 -- ===== public.question, public.question_reply (H26 item 5) =================
 -- Cleared, not deleted: replies of experts and other owners hang off the
--- question (foreign key) and belong to the other party's service.
+-- question (foreign key) and belong to the other party's service. Only what
+-- the subject wrote as a customer (owner, viewer): answers written as staff
+-- (expert, ops) belong to other customers' service records (kept, H25).
 with changed as (
   update public.question q
   set body = '[KVKK başvurusu üzerine silindi]', created_by = null, edited_at = now()
   from kvkk_param p
   where q.created_by = p.subject_id and q.org_id in (select org_id from kvkk_org)
+    and q.author_role in ('owner', 'viewer')
   returning 1
 )
 select pg_temp.kvkk_count('public.question', 'clear body and author', count(*)::integer) from changed;
@@ -148,24 +165,41 @@ with changed as (
   set body = '[KVKK başvurusu üzerine silindi]', created_by = null, edited_at = now()
   from kvkk_param p
   where r.created_by = p.subject_id and r.org_id in (select org_id from kvkk_org)
+    and r.author_role in ('owner', 'viewer')
   returning 1
 )
 select pg_temp.kvkk_count('public.question_reply', 'clear body and author', count(*)::integer) from changed;
 
--- ===== private.viewer_invitation (H26 item 6) ==============================
--- Invitations sent by the subject, for the subject's account or phone, and
--- for a --person-name the invitations on that parcel naming the person.
+-- ===== private.viewer_invitation (H26 items 5, 6) ==========================
+-- Invitations for the subject's account or phone, invitations the subject
+-- sent that no other account accepted, and for a --person-name the
+-- invitations on that parcel naming the person that no account accepted.
+-- An invitation the subject sent and another account accepted is that
+-- co-owner's access record: it stays, only the link to the subject goes.
 with gone as (
   delete from private.viewer_invitation v
   using kvkk_param p
   where v.org_id not in (select org_id from private.demo_org)
-    and (v.invited_by = p.subject_id or v.user_id = p.subject_id
-         or (p.subject_id is not null and v.phone in (select value from kvkk_ident where kind = 'phone'))
-         or (p.person_name is not null and v.parcel_id = p.parcel_id
+    and (v.user_id = p.subject_id
+         or (v.invited_by = p.subject_id and v.user_id is null)
+         or (p.subject_id is not null and v.user_id is null
+             and v.phone in (select value from kvkk_ident where kind = 'phone'))
+         or (p.person_name is not null and v.parcel_id = p.parcel_id and v.user_id is null
              and pg_temp.kvkk_norm(v.full_name) in (select name from kvkk_name)))
   returning 1
 )
 select pg_temp.kvkk_count('private.viewer_invitation', 'delete', count(*)::integer) from gone;
+
+with changed as (
+  update private.viewer_invitation v
+  set invited_by = null
+  from kvkk_param p
+  where v.org_id not in (select org_id from private.demo_org)
+    and v.invited_by = p.subject_id
+    and v.user_id is not null and v.user_id <> p.subject_id
+  returning 1
+)
+select pg_temp.kvkk_count('private.viewer_invitation', 'clear invited_by (accepted by another account)', count(*)::integer) from changed;
 
 -- ===== public.parcel_access (H26 items 4, 6) ===============================
 -- The account loses its gardens; the Auth account itself is deleted or

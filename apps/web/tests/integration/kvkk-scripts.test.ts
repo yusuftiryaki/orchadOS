@@ -8,17 +8,22 @@ import {
   type TestCustomer,
 } from "./billing-fixture";
 import { PASSWORD, serviceClient } from "./fixtures";
-import { kvkk, lit, printed, sql, value } from "./kvkk-scripts-helpers";
+import { KEY, kvkk, lit, printed, sql, value } from "./kvkk-scripts-helpers";
 
 // T11 (docs/hukuk/kararlar.md H26): scripts/kvkk/run.sh against a synthetic
 // customer A with an active order (parcel PA, payment, consents), a co-owner
-// viewer V invited by A, A's question with an expert reply, a site contact
-// ("Kemal Bekçi", the boundary pointer) and field events on PA, an audit row
-// that wrongly holds A's phone, and a demo org holding look-alike data.
+// viewer V invited by A (single-word name "Ece"), A's question with an expert
+// reply, a site contact ("Kemal Bekçi", the boundary pointer) and field
+// events on PA, audit rows tied to A and to nobody, and a demo org holding
+// look-alike data. Namesakes ("Kemal Bekçioğlu", "Test Müşterisi"), words
+// containing a name ("gece") and uuids containing a name or a phone number
+// are never changed.
 
 const DOMAIN = "kvkk-scripts.test";
 const NAME = "Test Müşteri"; // createCustomer's owner profile name
 const POINTER = "Kemal Bekçi";
+const LONGER = "Kemal Bekçioğlu"; // another person
+const VIEWER_NAME = "Ece"; // single word: never matched
 const POINTER_PHONE = `+90532${String(Math.floor(1_000_000 + Math.random() * 8_999_999))}`;
 const REQ = (n: number) => `K-1999-${String(Math.floor(Math.random() * 900) + 100)}${n}`;
 const REDACTED = "[KVKK başvurusu üzerine silindi]";
@@ -31,24 +36,60 @@ let viewerId: string;
 let viewerPhone: string;
 let question: string;
 let expertReply: string;
+let staffReplyByA: string;
 let session: string;
 let orgId: string;
+let accessNote: string;
+let uuidWithPhone: string;
+const uuidWithName = "11111111-4ece-4ece-8ece-0000000ece00";
 const demoOrg = randomUUID();
 const demoParcel = randomUUID();
 const ev = {
   pointerA: randomUUID(),
   pointerKemal: randomUUID(),
+  pointerLonger: randomUUID(),
+  pointerEce: randomUUID(),
   noteA: randomUUID(),
+  noteKemal: randomUUID(),
+  noteNamesake: randomUUID(),
   noteOther: randomUUID(),
   demoPointer: randomUUID(),
 };
+const audit = {
+  leak: randomUUID(),
+  inScope: randomUUID(),
+  namesake: randomUUID(),
+  kemalIn: randomUUID(),
+  kemalOut: randomUUID(),
+};
 const requests = { viewer: REQ(1), person: REQ(2), subject: REQ(3) };
 
-const pseudonym = (key: string) =>
-  value(`select 'kvkk-' || left(encode(sha256(convert_to(${lit(key)}, 'UTF8')), 'hex'), 8)`);
+const pseudonym = (input: string) =>
+  value(`select 'kvkk-' || left(encode(extensions.hmac(convert_to(${lit(input)}, 'UTF8'),
+    convert_to(${lit(KEY)}, 'UTF8'), 'sha256'), 'hex'), 8)`);
 
 function eventPayload(id: string): string {
   return value(`select payload from public.session_event where id = '${id}'`);
+}
+
+function auditDetails(id: string): Record<string, unknown> {
+  return JSON.parse(value(`select details::text from public.audit_event where id = '${id}'`));
+}
+
+function detailRow(): string {
+  return value(
+    `select row_to_json(d)::text from private.parcel_detail d where d.parcel_id = '${parcel}'`,
+  );
+}
+
+// Rows no command may ever change: namesakes, substrings, uuids.
+function untouchable(): string {
+  return value(`select json_build_object(
+    'events', (select json_agg(e.payload order by e.id) from public.session_event e
+               where e.id in ('${ev.pointerLonger}', '${ev.pointerEce}', '${ev.noteNamesake}', '${ev.noteOther}')),
+    'audit', (select json_agg(x.details order by x.id) from public.audit_event x
+              where x.id in ('${audit.namesake}', '${audit.kemalOut}'))
+  )::jsonb::text`);
 }
 
 // Everything the scripts may change, for the dry-run comparison.
@@ -61,7 +102,7 @@ function snapshot(): string {
     'invitations', (select json_agg(v order by v.id) from private.viewer_invitation v where v.parcel_id = '${parcel}'),
     'access', (select json_agg(x order by x.id) from public.parcel_access x where x.parcel_id = '${parcel}'),
     'events', (select json_agg(e order by e.id) from public.session_event e where e.parcel_id = '${parcel}'),
-    'audit', (select count(*) from public.audit_event where org_id = '${orgId}')
+    'audit', (select json_agg(x.details order by x.id) from public.audit_event x where x.org_id = '${orgId}')
   )::jsonb::text`);
 }
 
@@ -99,6 +140,10 @@ beforeAll(async () => {
   } = await activeOrderFor(a));
   aPhone = value(`select phone from private.owner_profile where user_id = '${a.id}'`);
   orgId = value(`select org_id from public.parcel where id = '${parcel}'`);
+  const ownerProfile = value(`select id from private.owner_profile where user_id = '${a.id}'`);
+  // A uuid whose last group is A's phone number without "+".
+  uuidWithPhone = `00000000-0000-4000-8000-${aPhone.slice(1)}`;
+  accessNote = `Anahtar ${NAME} kişisinde, tel ${aPhone}; ${LONGER} da bilir; gece ${VIEWER_NAME} gelir`;
 
   // Co-owner V: an account with viewer access, invited by A (approved).
   viewerPhone = `+90556${String(Math.floor(1_000_000 + Math.random() * 8_999_999))}`;
@@ -114,18 +159,20 @@ beforeAll(async () => {
   viewerId = created.data.user.id;
   const expert = value(`select id from auth.users where email = 'expert@example.com'`);
   session = randomUUID();
+  const event = (id: string, type: string, payload: unknown, n: number) =>
+    `('${id}', '${orgId}', '${parcel}', '${session}', '${type}', ${lit(JSON.stringify(payload))}, ${n}, 'phone', now())`;
 
   sql(`
     insert into public.parcel_access (org_id, parcel_id, user_id, role)
     values ('${orgId}', '${parcel}', '${viewerId}', 'viewer');
     insert into private.viewer_invitation (org_id, parcel_id, full_name, phone, invited_by, status, user_id, resolved_at)
-    values ('${orgId}', '${parcel}', ${lit("Ayşe Hissedar")}, '${viewerPhone}', '${a.id}', 'approved', '${viewerId}', now());
+    values ('${orgId}', '${parcel}', ${lit(VIEWER_NAME)}, '${viewerPhone}', '${a.id}', 'approved', '${viewerId}', now());
 
     insert into private.parcel_detail (parcel_id, org_id) values ('${parcel}', '${orgId}')
       on conflict (parcel_id) do nothing;
     update private.parcel_detail
     set site_contact_name = ${lit(POINTER)}, site_contact_phone = '${POINTER_PHONE}',
-        access_note = ${lit(`Anahtar ${NAME} kişisinde, tel ${aPhone}`)}
+        access_note = ${lit(accessNote)}
     where parcel_id = '${parcel}';
 
     with s as (
@@ -137,17 +184,41 @@ beforeAll(async () => {
     insert into public.session (id, org_id, parcel_id, kind) values ('${session}', '${orgId}', '${parcel}', 'inventory');
     insert into public.session_event (id, org_id, parcel_id, session_id, event_type, payload, gps_time_ns, time_source, phone_time)
     values
-      ('${ev.pointerA}', '${orgId}', '${parcel}', '${session}', 'boundary_pointer',
-       ${lit(JSON.stringify({ name: NAME, role: "owner" }))}, 1, 'phone', now()),
-      ('${ev.pointerKemal}', '${orgId}', '${parcel}', '${session}', 'boundary_pointer',
-       ${lit(JSON.stringify({ name: POINTER, role: "guard" }))}, 2, 'phone', now()),
-      ('${ev.noteA}', '${orgId}', '${parcel}', '${session}', 'field_notice_verbal',
-       ${lit(JSON.stringify({ note: `${NAME} sözlü bilgilendirildi, tel ${aPhone}` }))}, 3, 'phone', now()),
-      ('${ev.noteOther}', '${orgId}', '${parcel}', '${session}', 'visit_blocked',
-       ${lit(JSON.stringify({ note: "Kapı kilitliydi" }))}, 4, 'phone', now());
+      ${event(ev.pointerA, "boundary_pointer", { name: NAME, role: "owner" }, 1)},
+      ${event(ev.pointerKemal, "boundary_pointer", { name: POINTER, role: "guard" }, 2)},
+      ${event(ev.pointerLonger, "boundary_pointer", { name: LONGER, role: "guard" }, 3)},
+      ${event(ev.pointerEce, "boundary_pointer", { name: VIEWER_NAME, role: "co_owner" }, 4)},
+      ${event(ev.noteA, "field_notice_verbal", { note: `${NAME} sözlü bilgilendirildi, tel ${aPhone}` }, 5)},
+      ${event(ev.noteKemal, "field_notice_verbal", { note: `${POINTER} sınırı gösterdi` }, 6)},
+      ${event(
+        ev.noteNamesake,
+        "field_notice_objection",
+        {
+          note: `gece ${VIEWER_NAME} geldi; Test Müşterisi ve ${LONGER} itiraz etti, tel ${aPhone}0`,
+          visit_id: uuidWithName,
+          ref: uuidWithPhone,
+        },
+        7,
+      )},
+      ${event(ev.noteOther, "visit_blocked", { note: "Kapı kilitliydi" }, 8)};
 
-    insert into public.audit_event (org_id, actor_role, action, entity_type, details)
-    values ('${orgId}', 'system', 'test.kvkk_leak', 'owner_profile', jsonb_build_object('phone', '${aPhone}'));
+    insert into public.audit_event (id, org_id, actor_role, action, entity_type, entity_id, details)
+    values
+      -- Tied to A (A's owner profile, A's order): A's phone and name are replaced, nothing else.
+      ('${audit.leak}', '${orgId}', 'system', 'test.kvkk_leak', 'owner_profile', '${ownerProfile}',
+       jsonb_build_object('phone', '${aPhone}')),
+      ('${audit.inScope}', '${orgId}', 'system', 'test.kvkk_scope', 'order', '${order}',
+       jsonb_build_object('order_ref', '${uuidWithPhone}', 'phone', '${aPhone}',
+         'reason', ${lit("Test Müşterisi ile görüşüldü")}, 'note', ${lit(`${NAME} aradı`)}, ${lit(NAME)}, 'anahtar')),
+      -- Same name, not tied to A: a namesake until someone checks.
+      ('${audit.namesake}', '${orgId}', 'ops', 'test.kvkk_namesake', 'order', '${randomUUID()}',
+       jsonb_build_object('reason', ${lit(`${NAME} adlı başka müşteri, tel ${aPhone}`)})),
+      -- About PA, naming the pointer and a longer namesake.
+      ('${audit.kemalIn}', '${orgId}', 'ops', 'test.kvkk_parcel', 'owner_profile', null,
+       jsonb_build_object('parcel_id', '${parcel}', 'note', ${lit(`${POINTER} aradı`)}, 'contact', ${lit(LONGER)})),
+      -- Another parcel of the org: out of the --person-name scope.
+      ('${audit.kemalOut}', '${orgId}', 'ops', 'test.kvkk_parcel', 'owner_profile', null,
+       jsonb_build_object('parcel_id', '${randomUUID()}', 'note', ${lit(`${POINTER} aradı`)}));
 
     -- A demo org with look-alike data: never in scope.
     insert into public.org (id, name) values ('${demoOrg}', 'KVKK demo test');
@@ -172,12 +243,16 @@ beforeAll(async () => {
     values ('${orgId}', '${parcel}', '${question}', 'Su stresi.', 'expert', '${expert}') returning id`);
   sql(`insert into public.question_reply (org_id, parcel_id, question_id, body, author_role, created_by)
     values ('${orgId}', '${parcel}', '${question}', 'Teşekkürler', 'owner', '${a.id}')`);
+  // A also answered as staff (an owner who is also an expert answers as expert).
+  staffReplyByA =
+    value(`insert into public.question_reply (org_id, parcel_id, question_id, body, author_role, created_by)
+    values ('${orgId}', '${parcel}', '${question}', 'Uzman notu: sulama artırılmalı.', 'expert', '${a.id}') returning id`);
 }, 120_000);
 
 afterAll(async () => {
   // Audit rows of these requests (insert-only: removed with triggers off).
   sql(`begin; set local session_replication_role = replica;
-    delete from public.audit_event where details ->> 'request' like 'K-1999-%' or action = 'test.kvkk_leak';
+    delete from public.audit_event where details ->> 'request' like 'K-1999-%' or action like 'test.kvkk_%';
     commit;`);
   await purgeOrg(demoOrg);
   await removeCustomers(DOMAIN);
@@ -194,6 +269,48 @@ describe("scripts/kvkk/run.sh", () => {
     expect(
       kvkk(["erase", "--subject", a.id, "--request", "K-1999-001", "--force-active"]).status,
     ).toBe(2);
+    // A single word or a one-letter word matches other people.
+    for (const name of ["Ece", "Halil", "Ali C"]) {
+      const run = kvkk([
+        "erase",
+        "--person-name",
+        name,
+        "--parcel",
+        parcel,
+        "--request",
+        "K-1999-001",
+      ]);
+      expect(run.status, name).toBe(2);
+    }
+    // No pseudonym key: nothing runs.
+    expect(
+      kvkk(["inventory", "--subject", a.id, "--request", "K-1999-001"], { KVKK_PSEUDONYM_KEY: "" })
+        .status,
+    ).toBe(2);
+    // A hosted URL that is not a strict URI is refused without echoing it.
+    const dsn = kvkk([
+      "inventory",
+      "--subject",
+      a.id,
+      "--request",
+      "K-1999-001",
+      "--db-url",
+      "host=db.example.invalid user=postgres password=S3cretDsn",
+    ]);
+    expect(dsn.status).toBe(2);
+    expect(dsn.stderr).not.toContain("S3cretDsn");
+    const slash = kvkk([
+      "inventory",
+      "--subject",
+      a.id,
+      "--request",
+      "K-1999-001",
+      "--db-url",
+      "postgresql://postgres:ab/cdS3cret@db.example.invalid/postgres",
+    ]);
+    expect(slash.status).toBe(2);
+    expect(slash.stderr).not.toContain("S3cret");
+    expect(slash.stderr).not.toContain("postgres:ab");
   });
 
   it("inventory lists the subject's data and the retention-bound rows, without personal data", () => {
@@ -204,19 +321,47 @@ describe("scripts/kvkk/run.sh", () => {
       "private.parcel_detail",
       "public.question",
       "public.question_reply",
-      "private.viewer_invitation",
+      "public.question_reply (written as staff)",
+      "private.viewer_invitation (accepted by another account)",
       "public.parcel_access",
       "public.session_event (boundary_pointer)",
+      "public.session_event (other boundary pointers, review)",
       "public.session_event (notes mentioning the subject)",
+      "public.audit_event (details mention the subject)",
+      "public.audit_event (match in rows not tied to the subject, review)",
       "private.consent_record",
       "public.payment",
       "public.service_order",
     ]) {
       expect(run.stdout).toMatch(new RegExp(`\\n ${table.replace(/[()]/g, "\\$&")}\\s+\\|`));
     }
-    expect(run.stdout).toContain(ev.noteOther);
+    expect(run.stdout).toContain("BAN and scrub");
+    for (const id of [ev.noteOther, ev.noteNamesake, ev.pointerLonger, audit.namesake]) {
+      expect(run.stdout).toContain(id);
+    }
+    expect(run.stdout).not.toContain(audit.inScope);
     expect(run.stdout).not.toContain(NAME);
     expect(run.stdout).not.toContain(aPhone);
+  });
+
+  it("refuses a --person-name that is the name of an account holder of the parcel", () => {
+    const before = snapshot();
+    for (const command of ["inventory", "pseudonymize", "erase"]) {
+      // The owner's name, typed differently.
+      const run = kvkk([
+        command,
+        "--person-name",
+        " test  MÜŞTERİ ",
+        "--parcel",
+        parcel,
+        "--request",
+        requests.person,
+        ...(command === "inventory" ? [] : ["--apply"]),
+      ]);
+      expect(run.status, command).toBe(3);
+      expect(run.stderr).toContain("kvkk_ambiguous_person");
+    }
+    expect(snapshot()).toBe(before);
   });
 
   it("refuses erase and pseudonymize while the contract runs", () => {
@@ -224,6 +369,29 @@ describe("scripts/kvkk/run.sh", () => {
       const run = kvkk([command, "--subject", a.id, "--request", requests.subject, "--apply"]);
       expect(run.status).toBe(3);
       expect(run.stderr).toContain("kvkk_active_contract");
+    }
+  });
+
+  it("counts owner access to a live garden after a cancelled online order as a running contract", () => {
+    const [status, parcelStatus] = sql(`select o.status::text, p.status::text
+      from public.service_order o, public.parcel p where o.id = '${order}' and p.id = '${parcel}'`)[0];
+    sql(`begin; set local session_replication_role = replica;
+      update public.service_order set status = 'cancelled' where id = '${order}';
+      update public.parcel set status = 'active_monitoring' where id = '${parcel}';
+      commit;`);
+    try {
+      expect(
+        value(`select count(*) from public.parcel_access
+        where user_id = '${a.id}' and parcel_id = '${parcel}' and role = 'owner'`),
+      ).toBe("1");
+      const run = kvkk(["erase", "--subject", a.id, "--request", requests.subject, "--apply"]);
+      expect(run.status).toBe(3);
+      expect(run.stderr).toContain("kvkk_active_contract");
+    } finally {
+      sql(`begin; set local session_replication_role = replica;
+        update public.service_order set status = '${status}' where id = '${order}';
+        update public.parcel set status = '${parcelStatus}' where id = '${parcel}';
+        commit;`);
     }
   });
 
@@ -274,62 +442,53 @@ describe("scripts/kvkk/run.sh", () => {
     expect(run.stderr).toContain("kvkk_pseudonymize_first");
   });
 
-  it("co-owner request (H26 item 6): the viewer's account access and invitation go, A's data stays", () => {
-    const ownerBefore = value(
-      `select row_to_json(o)::text from private.owner_profile o where o.user_id = '${a.id}'`,
-    );
-    const detailBefore = value(
-      `select row_to_json(d)::text from private.parcel_detail d where d.parcel_id = '${parcel}'`,
-    );
-    for (const command of ["pseudonymize", "erase"]) {
-      const run = kvkk([command, "--subject", viewerId, "--request", requests.viewer, "--apply"]);
-      expect(run.status, run.stderr).toBe(0);
-    }
-    expect(value(`select count(*) from public.parcel_access where user_id = '${viewerId}'`)).toBe(
-      "0",
-    );
-    expect(
-      value(`select count(*) from private.viewer_invitation where user_id = '${viewerId}'`),
-    ).toBe("0");
-    expect(value(`select count(*) from public.parcel_access where user_id = '${a.id}'`)).toBe("1");
-    expect(
-      value(`select row_to_json(o)::text from private.owner_profile o where o.user_id = '${a.id}'`),
-    ).toBe(ownerBefore);
-    expect(
-      value(
-        `select row_to_json(d)::text from private.parcel_detail d where d.parcel_id = '${parcel}'`,
-      ),
-    ).toBe(detailBefore);
-  });
-
-  it("person without an account (--person-name): the boundary pointer is pseudonymised and the site contact cleared", () => {
+  it("person without an account (--person-name): only the exact whole name on that parcel changes", () => {
     const demoBefore = demoData();
+    const keep = untouchable();
+    const kemalOut = auditDetails(audit.kemalOut);
     // The name as the operator types it (spacing differs).
     const args = ["--person-name", "  Kemal   Bekçi ", "--parcel", parcel];
     for (const command of ["pseudonymize", "erase"]) {
-      const run = kvkk([command, ...args, "--request", requests.person, "--apply"]);
+      const run = kvkk([
+        command,
+        ...args,
+        "--request",
+        requests.person,
+        "--include-notes",
+        "--apply",
+      ]);
       expect(run.status, run.stderr).toBe(0);
     }
     const expected = pseudonym(`kemal bekçi${parcel}`);
     expect(JSON.parse(eventPayload(ev.pointerKemal))).toEqual({ name: expected, role: "guard" });
+    expect(JSON.parse(eventPayload(ev.noteKemal))).toEqual({ note: `${expected} sınırı gösterdi` });
     expect(JSON.parse(eventPayload(ev.pointerA)).name).toBe(NAME);
+    // The longer namesake stays everywhere.
+    expect(JSON.parse(eventPayload(ev.pointerLonger)).name).toBe(LONGER);
+    expect(auditDetails(audit.kemalIn)).toMatchObject({
+      note: `${expected} aradı`,
+      contact: LONGER,
+    });
+    // Same name on another parcel of the org: not this person's record.
+    expect(auditDetails(audit.kemalOut)).toEqual(kemalOut);
     const [contactName, contactPhone, note] = sql(
       `select coalesce(site_contact_name, '-'), coalesce(site_contact_phone, '-'), access_note
        from private.parcel_detail where parcel_id = '${parcel}'`,
     )[0];
     expect([contactName, contactPhone]).toEqual(["-", "-"]);
-    expect(note).toContain(NAME); // the owner's data is not the person's
+    expect(note).toBe(accessNote); // the owner's data and the longer namesake are not the person's
+    expect(untouchable()).toBe(keep);
     expect(demoData()).toBe(demoBefore);
-    const audit = sql(`select action, details::text from public.audit_event
+    const rows = sql(`select action, details::text from public.audit_event
       where details ->> 'request' = '${requests.person}' order by created_at`);
-    expect(audit.map((r) => r[0])).toEqual(["kvkk.pseudonymized", "kvkk.erased"]);
-    for (const [, details] of audit) {
+    expect(rows.map((r) => r[0])).toEqual(["kvkk.pseudonymized", "kvkk.erased"]);
+    for (const [, details] of rows) {
       expect(details).not.toContain("Kemal");
       expect(details).toContain(expected);
     }
   });
 
-  it("subject after the contract ended: pseudonymize and erase apply, retention-bound rows stay", () => {
+  it("subject after the contract ended, co-owner still on the parcel: only A's own data changes", () => {
     sql(
       `update public.service_order set status = 'completed', completed_at = now() where id = '${order}'`,
     );
@@ -337,7 +496,26 @@ describe("scripts/kvkk/run.sh", () => {
     const keep = retained();
     const demoBefore = demoData();
     const seedBefore = seedOwner();
+    const namesakeRows = untouchable();
     const ps = pseudonym(a.id);
+
+    // Without --include-notes first: erase must then refuse (the notes would
+    // lose the name it needs).
+    const first = kvkk([
+      "pseudonymize",
+      "--subject",
+      a.id,
+      "--request",
+      requests.subject,
+      "--apply",
+    ]);
+    expect(first.status, first.stderr).toBe(0);
+    expect(printed(first, "public.session_event", "boundary_pointer name")).toBe(1);
+    expect(printed(first, "public.session_event", "note text")).toBe(0);
+    expect(printed(first, "public.audit_event", "details text")).toBe(2);
+    const early = kvkk(["erase", "--subject", a.id, "--request", requests.subject, "--apply"]);
+    expect(early.status).toBe(3);
+    expect(early.stderr).toContain("kvkk_notes_pending");
 
     const pseudo = kvkk([
       "pseudonymize",
@@ -349,18 +527,19 @@ describe("scripts/kvkk/run.sh", () => {
       "--apply",
     ]);
     expect(pseudo.status, pseudo.stderr).toBe(0);
-    expect(printed(pseudo, "public.session_event", "boundary_pointer name")).toBe(1);
     expect(printed(pseudo, "public.session_event", "note text")).toBe(1);
-    expect(printed(pseudo, "public.audit_event", "details text")).toBe(1);
     expect(JSON.parse(eventPayload(ev.pointerA))).toEqual({ name: ps, role: "owner" });
-    const note = JSON.parse(eventPayload(ev.noteA)).note as string;
-    expect(note).toBe(`${ps} sözlü bilgilendirildi, tel ${ps}`);
-    expect(JSON.parse(eventPayload(ev.noteOther))).toEqual({ note: "Kapı kilitliydi" });
-    expect(
-      value(
-        `select details ->> 'phone' from public.audit_event where action = 'test.kvkk_leak' and org_id = '${orgId}'`,
-      ),
-    ).toBe(ps);
+    expect(JSON.parse(eventPayload(ev.noteA)).note).toBe(`${ps} sözlü bilgilendirildi, tel ${ps}`);
+    expect(auditDetails(audit.leak)).toEqual({ phone: ps });
+    // Only string values of A's rows; the uuid holding A's phone digits, the
+    // longer word and the key stay.
+    expect(auditDetails(audit.inScope)).toEqual({
+      order_ref: uuidWithPhone,
+      phone: ps,
+      reason: "Test Müşterisi ile görüşüldü",
+      note: `${ps} aradı`,
+      [NAME]: "anahtar",
+    });
 
     const erase = kvkk(["erase", "--subject", a.id, "--request", requests.subject, "--apply"]);
     expect(erase.status, erase.stderr).toBe(0);
@@ -370,11 +549,19 @@ describe("scripts/kvkk/run.sh", () => {
        from private.owner_profile where user_id = '${a.id}'`,
     )[0];
     expect([fullName, phone, email, consent]).toEqual([ps, "-", "-", "true"]);
-    // No other party left on PA: contact and access note cleared.
+    // V still holds access (H26 item 5): the access note keeps everything but
+    // A's own name and phone.
     expect(
-      sql(`select coalesce(site_contact_name, '-'), coalesce(access_note, '-')
-           from private.parcel_detail where parcel_id = '${parcel}'`)[0],
-    ).toEqual(["-", "-"]);
+      value(`select access_note from private.parcel_detail where parcel_id = '${parcel}'`),
+    ).toBe(`Anahtar ${ps} kişisinde, tel ${ps}; ${LONGER} da bilir; gece ${VIEWER_NAME} gelir`);
+    expect(value(`select count(*) from public.parcel_access where user_id = '${viewerId}'`)).toBe(
+      "1",
+    );
+    // V's invitation is V's access record: kept, only A's link goes.
+    expect(
+      sql(`select coalesce(invited_by::text, '-'), full_name from private.viewer_invitation
+           where user_id = '${viewerId}'`),
+    ).toEqual([["-", VIEWER_NAME]]);
     expect(
       sql(
         `select body, coalesce(created_by::text, '-') from public.question where id = '${question}'`,
@@ -383,37 +570,82 @@ describe("scripts/kvkk/run.sh", () => {
     expect(value(`select body from public.question_reply where id = '${expertReply}'`)).toBe(
       "Su stresi.",
     );
+    // What A wrote as staff belongs to the service record (H25).
+    expect(
+      sql(
+        `select body, created_by::text from public.question_reply where id = '${staffReplyByA}'`,
+      )[0],
+    ).toEqual(["Uzman notu: sulama artırılmalı.", a.id]);
     expect(
       value(
         `select count(*) from public.question_reply where parcel_id = '${parcel}' and body = ${lit(REDACTED)}`,
       ),
     ).toBe("1");
     expect(value(`select count(*) from public.parcel_access where user_id = '${a.id}'`)).toBe("0");
-    expect(
-      value(`select count(*) from private.viewer_invitation where invited_by = '${a.id}'`),
-    ).toBe("0");
 
+    expect(untouchable()).toBe(namesakeRows);
     expect(retained()).toBe(keep);
     expect(demoData()).toBe(demoBefore);
     expect(seedOwner()).toBe(seedBefore);
 
-    const audit =
+    const rows =
       sql(`select action, coalesce(actor_user_id::text, '-'), details::text from public.audit_event
       where details ->> 'request' = '${requests.subject}' order by created_at`);
-    expect(audit.map((r) => r[0])).toEqual(["kvkk.pseudonymized", "kvkk.erased"]);
-    for (const [, actor, details] of audit) {
+    expect(rows.map((r) => r[0])).toEqual([
+      "kvkk.pseudonymized",
+      "kvkk.pseudonymized",
+      "kvkk.erased",
+    ]);
+    for (const [, actor, details] of rows) {
       expect(actor).toBe("-");
       expect(details).not.toContain(NAME);
       expect(details).not.toContain(aPhone);
       expect(JSON.parse(details)).toMatchObject({ subject_kind: "user", subject_ref: ps });
     }
-    expect(JSON.parse(audit[1][2]).counts["private.owner_profile:clear name, phone, email"]).toBe(
-      1,
-    );
+    expect(JSON.parse(rows[2][2]).counts["private.owner_profile:clear name, phone, email"]).toBe(1);
 
     // A second run finds nothing left to change.
     const again = kvkk(["erase", "--subject", a.id, "--request", requests.subject]);
     expect(again.status, again.stderr).toBe(0);
     expect(printed(again, "private.owner_profile", "clear name, phone, email")).toBe(0);
+  });
+
+  it("co-owner request after the owner's access lapsed (H26 item 6): the owner's parcel data stays", () => {
+    // The owner's retained parcel data (H25), the owner holding no access any more.
+    sql(`update private.parcel_detail
+      set site_contact_name = ${lit("Hasan Usta")}, site_contact_phone = '${POINTER_PHONE}',
+          access_note = ${lit("Anahtar kapının yanında")}
+      where parcel_id = '${parcel}'`);
+    const detailBefore = detailRow();
+    const namesakeRows = untouchable();
+    const pointerEce = eventPayload(ev.pointerEce);
+
+    const inv = kvkk(["inventory", "--subject", viewerId, "--request", requests.viewer]);
+    expect(inv.status, inv.stderr).toBe(0);
+    expect(inv.stdout).toMatch(/\n single-word names of the subject\s+\|\s+1\s+\| review/);
+    expect(inv.stdout).not.toContain(VIEWER_NAME);
+
+    for (const command of ["pseudonymize", "erase"]) {
+      const run = kvkk([
+        command,
+        "--subject",
+        viewerId,
+        "--request",
+        requests.viewer,
+        "--include-notes",
+        "--apply",
+      ]);
+      expect(run.status, run.stderr).toBe(0);
+    }
+    expect(value(`select count(*) from public.parcel_access where user_id = '${viewerId}'`)).toBe(
+      "0",
+    );
+    expect(
+      value(`select count(*) from private.viewer_invitation where user_id = '${viewerId}'`),
+    ).toBe("0");
+    expect(detailRow()).toBe(detailBefore);
+    // "Ece" is a single word: "gece", the uuid groups and the pointer stay.
+    expect(eventPayload(ev.pointerEce)).toBe(pointerEce);
+    expect(untouchable()).toBe(namesakeRows);
   });
 });

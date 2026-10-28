@@ -20,8 +20,10 @@ set local session_replication_role = replica;
 
 -- ===== public.session_event: boundary_pointer (H26 item 2; H07, H32) =======
 -- payload is JSON text {"name": ..., "role": ...} (docs/arayuzler.md). The
--- name is replaced when it equals one of the subject's names (--subject: on
--- the subject's parcels; --person-name: on that parcel). Role and the other
+-- name is replaced when it equals one of the subject's multi-word names
+-- exactly (normalised; --subject: on the subject's parcels; --person-name:
+-- on that parcel). A longer or partial name is a different person and stays
+-- (inventory lists every pointer with a matched flag). Role and the other
 -- keys stay.
 with changed as (
   update public.session_event e
@@ -37,33 +39,33 @@ select pg_temp.kvkk_count('public.session_event', 'boundary_pointer name', count
 -- ===== public.session_event: free-text notes (H26 item 2; H01, H15) ========
 -- Only with --include-notes, after the inventory's list was read: every
 -- match of the subject's names and phones in the note events of the parcels
--- in scope. A note that names the person differently (first name only, a
+-- in scope, as whole names and numbers in JSON string values (never keys or
+-- uuids). A note that names the person differently (first name only, a
 -- nickname) is not matched; the inventory lists all note ids for review.
 with changed as (
   update public.session_event e
-  set payload = pg_temp.kvkk_mask(e.payload, p.pseudonym)
+  set payload = pg_temp.kvkk_mask_payload(e.payload, p.pseudonym)
   from kvkk_param p, kvkk_parcel k
   where p.include_notes
     and k.parcel_id = e.parcel_id
     and e.event_type in ('field_notice_verbal', 'field_notice_objection', 'visit_blocked')
-    and pg_temp.kvkk_has_match(e.payload)
-    -- A JSON payload must stay JSON.
-    and (pg_temp.kvkk_json(e.payload) is null
-         or pg_temp.kvkk_json(pg_temp.kvkk_mask(e.payload, p.pseudonym)) is not null)
+    and pg_temp.kvkk_payload_has_match(e.payload)
   returning 1
 )
 select pg_temp.kvkk_count('public.session_event', 'note text', count(*)::integer) from changed;
 
 -- ===== public.audit_event (H26 item 2) =====================================
--- details must never hold personal data; any match in the subject's orgs is
--- replaced all the same.
+-- details must never hold personal data; a match is replaced all the same,
+-- but only in rows tied to the subject (kvkk_audit_scope: actor, entity or
+-- the subject's records; --person-name: the parcel) and only in string
+-- values, never keys or uuids. Matches in other rows of the org may be
+-- namesakes: inventory lists their ids for a manual decision.
 with changed as (
   update public.audit_event a
-  set details = pg_temp.kvkk_mask(a.details::text, p.pseudonym)::jsonb
+  set details = pg_temp.kvkk_mask_jsonb(a.details, p.pseudonym)
   from kvkk_param p
-  where a.org_id in (select org_id from kvkk_org)
-    and pg_temp.kvkk_has_match(a.details::text)
-    and pg_temp.kvkk_json(pg_temp.kvkk_mask(a.details::text, p.pseudonym)) is not null
+  where a.id in (select id from kvkk_audit_scope)
+    and pg_temp.kvkk_mask_jsonb(a.details, p.pseudonym) is distinct from a.details
   returning 1
 )
 select pg_temp.kvkk_count('public.audit_event', 'details text', count(*)::integer) from changed;
