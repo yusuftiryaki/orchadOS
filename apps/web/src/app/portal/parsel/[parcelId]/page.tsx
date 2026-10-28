@@ -12,12 +12,13 @@ import { loadParcelViewers } from "@/lib/portal/viewers";
 import {
   getParcelServiceStatus,
   getServicePeriods,
+  latestWithdrawal,
   listMyGardens,
   pendingOrderOfParcel,
   previewGardenRemoval,
   type RemovalTiming,
 } from "@/lib/portal-billing/data";
-import { istanbulToday, removable } from "@/lib/portal-billing/gardens";
+import { istanbulToday, openRemoval, removable } from "@/lib/portal-billing/gardens";
 import type { Client } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -99,7 +100,10 @@ export default async function Page({
 
 // The paying owner's service card: their my_gardens row of the parcel and,
 // while it may be removed, one preview per timing (§5.1). Null for a
-// co-owner or a parcel without an order line (pilot).
+// co-owner or a parcel without an order line (pilot). Withdrawal (T03, H10):
+// offered inside the withdrawal period also while garden changes are off
+// (then alone) and over an open removal of another kind (it supersedes it);
+// a recorded withdrawal is confirmed on the card.
 async function loadServiceCard(
   supabase: Client,
   userId: string,
@@ -113,6 +117,8 @@ async function loadServiceCard(
   if (!garden) return null;
   const today = istanbulToday();
   const changesEnabled = periods.some((p) => p.garden_changes_enabled);
+  const withdrawalOpen = !!garden.withdrawal_until && garden.withdrawal_until >= today;
+  const withdrawal = await latestWithdrawal(supabase, userId, parcelId);
   const data: ServiceCardData = {
     garden,
     changesEnabled,
@@ -120,10 +126,22 @@ async function loadServiceCard(
     previewError: null,
     pendingOrderId: null,
     today,
+    withdrawal,
   };
-  if (!changesEnabled || !removable(garden)) return data;
-  const timings: RemovalTiming[] = ["notice", "period_end"];
-  if (garden.withdrawal_until && garden.withdrawal_until >= today) timings.push("withdrawal");
+  const open = openRemoval(garden);
+  const openWithdrawal = open && withdrawal?.number === garden.removal_number;
+  let timings: RemovalTiming[];
+  if (removable(garden) && changesEnabled) {
+    timings = withdrawalOpen ? ["notice", "period_end", "withdrawal"] : ["notice", "period_end"];
+  } else if (
+    withdrawalOpen &&
+    !openWithdrawal &&
+    (removable(garden) || (open && garden.state !== "removed"))
+  ) {
+    timings = ["withdrawal"];
+  } else {
+    return data;
+  }
   const preview = await previewGardenRemoval(supabase, parcelId, timings);
   if (preview.ok) {
     data.options = preview.options;

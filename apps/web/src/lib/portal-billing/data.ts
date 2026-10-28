@@ -885,3 +885,36 @@ export function liveCardAttempt<
     }) ?? null
   );
 }
+
+// The latest withdrawal of the customer's garden (T03): its number, how and
+// when the notice arrived; the service card confirms it (H11 (c)).
+export interface WithdrawalNotice {
+  number: string;
+  status: string;
+  channel: string | null;
+  receivedOn: string | null;
+}
+
+export async function latestWithdrawal(
+  supabase: Client,
+  userId: string,
+  parcelId: string,
+): Promise<WithdrawalNotice | null> {
+  const { data } = await supabase
+    .from("garden_removal")
+    .select("number, status, notice_channel, notice_received_on, requested_at")
+    .eq("parcel_id", parcelId)
+    .eq("customer_user_id", userId)
+    .eq("withdrawal", true)
+    .neq("status", "cancelled")
+    .order("requested_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    number: data.number,
+    status: data.status,
+    channel: data.notice_channel,
+    receivedOn: data.notice_received_on,
+  };
+}

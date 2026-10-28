@@ -187,7 +187,7 @@ export const portalBillingText = {
       beforeStart: "Hizmet başlamadan",
       period_end: "Dönem sonunda",
       withdrawal:
-        "Cayma hakkımı kullanıyorum: bahçe bugün hizmetten çıkar, ödediğiniz tutar iade edilir (yapılmış envanter ve ziyaretler hariç)",
+        "Cayma hakkımı kullanıyorum: bahçe bugün hizmetten çıkar, ödediğiniz tutar iade edilir (hizmete erken başlanmasını talep ettiyseniz yapılmış envanter ve ziyaretler hariç)",
     },
     effectiveOn: (date: string) => `Çıkış tarihi: ${date}`,
     refund: (amount: string) => `Tahmini iade: en fazla ${amount}`,
@@ -204,6 +204,11 @@ export const portalBillingText = {
     cancelHint: "Talebi çıkış tarihine kadar geri alabilirsiniz; bahçeniz hizmette kalır.",
     byOps: "Bu çıkarmayı ekibimiz başlattı; değişiklik için bize ulaşın.",
     closed: "Bahçe çıkarmak için bize ulaşın.",
+    // T03 (docs/hukuk/kararlar.md H10, H11 (c)).
+    withdrawalFormTitle: "Cayma hakkını kullan",
+    notWithdrawal: "Bu seçim cayma bildirimi değildir; cayma hakkınız sürüyor.",
+    withdrawalReceived: (number: string, date: string) =>
+      `Cayma bildiriminiz ${date ? `${date} tarihinde ` : ""}alındı (${number}). Teyit SMS ile de gönderildi.`,
     pending:
       "Bu bahçe ödeme bekleyen bir siparişte. Çıkarmak için önce o siparişi iptal edin ya da bahçe listesini değiştirin.",
     pendingLink: "Siparişe gidin",
