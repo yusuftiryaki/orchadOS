@@ -61,9 +61,9 @@ const fieldErrors: Record<PortalFieldError, string> = {
 // siteText.packages).
 export const packageExampleText = {
   areaM2: 20_000,
-  title: "Örnek: 20 dönüm, ilk yıl",
-  body: (subtotal: string, vat: string, total: string) =>
-    `${subtotal} + KDV ${vat} = ${total}. Kesin tutar, alan doğrulandıktan sonra teklifte yer alır.`,
+  title: "Örnek: 20 dönüm",
+  body: (yearly: string, firstYear: string) =>
+    `Yıllık ${yearly}, ilk yıl envanterle birlikte ${firstYear} (KDV dahil). Kesin tutar, alan doğrulandıktan sonra teklifte yer alır.`,
 } as const;
 
 export const portalBillingText = {

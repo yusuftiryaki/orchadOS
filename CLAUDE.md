@@ -10,6 +10,7 @@
 - `docs/veri-modeli.md`: **veri modelinin kaynağı**. Şema değişiklikleri önce burada tartışılır.
 - `docs/metodoloji.md`: değerlendirme kuralları (ölçekler, genel sınıf, bulgu türleri); `docs/kullanim-kilavuzu.md`: rol rol uçtan uca akış.
 - `docs/musteri-yonetimi.md`: müşteri edinme ve yönetimi (İP12): self-servis kayıt, başvuru, teklif, ödeme, back office; faturalama tablolarının, fonksiyonlarının ve hata kodlarının sözleşmesi.
+- `docs/fiyatlandirma.md`: lansman fiyat listesi (Temel, Standart, Kapsamlı) ve gerekçesi: pazar, bahçe ekonomisi, maliyet modeli, revizyon takvimi. Formül `docs/musteri-yonetimi.md` §6.6'da.
 - `docs/bahce-yonetimi.md`: üyelik boyunca bahçe ekleme ve çıkarma (İP14): tek üyelik dönemi, ek sipariş ve orantılı fiyat (`pricing-v2`), bahçe bazında çıkarma, iade (`removal-v1`), salt okunur erişim süresi, `garden_changes_enabled` anahtarı.
 - `docs/demo-turu.md`: demo turu (İP13): ayrı demo projesi, geçici demo hesabı, yazma ve hesap kilitleri, sentetik demo verisi ve yükleyicisi, `demo-data` iş akışı.
 - `docs/hukuk/kararlar.md`: hukuki kararlar (H01–H34), yayın şartları ve takip işleri (T01–T26). Hukuk metinleri `docs/hukuk/`'tadır; sitedeki kopyaları `apps/web/src/lib/i18n/messages/legal.ts` (taslakla eşitliği testle denetlenir).

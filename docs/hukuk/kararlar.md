@@ -81,6 +81,8 @@ Aşağıdakilerin hepsi tamamlanmadan hiçbir metinden “-taslak” eki kaldır
 | Çalışan ve saha ekibi aydınlatma metni (yeni; iç) | — | personel-v1-taslak | — |
 | Demo vitrini görsel ve veri kullanım izni (yeni; iç) | — | vitrin-v1-taslak | — |
 
+**Lansman fiyat listesi (28 Ekim 2026):** Sözleşme (Md. 8D/4, 12/3), ön bilgilendirme (3) ve iade politikasındaki (5) örnek tutarlar [fiyatlandirma.md](../fiyatlandirma.md)'deki listeyle yeniden hesaplandı; hüküm değişmedi. README'deki kural ("metin değişince sürüm artırılır") örnek değişikliğini ayırmadığı için sürümler artırıldı: `mesafeli-v4-taslak`, `onbilgi-v4-taslak`, `iade-v4-taslak`; önceki metinler `arsiv/*-v3.md`. H20 kararındaki "örnekler aynı sonuçları verir" notu v3 içindir; v4'te örnekler 12.960,00 TL ve 8.640,00 TL'dir.
+
 Sürümsüz yeni iç belgeler: [kvkk-basvuru-proseduru.md](kvkk-basvuru-proseduru.md), [saklama-imha-politikasi.md](saklama-imha-politikasi.md), [yurt-disi-aktarim-kaydi.md](yurt-disi-aktarim-kaydi.md).
 
 ---

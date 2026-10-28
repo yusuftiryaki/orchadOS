@@ -5,13 +5,15 @@
 -- does not roll back the housekeeping; 6. a removal's own refund is not an
 -- unattributed refund of the next removal; 7. a removal at the period end
 -- marks the line, and my_gardens shows the garden as removed.
--- Seed: org b0..01, ops a0..05, package standart 9120..0001 (V = 4): 20 dönüm
--- cost 1 200 000 kuruş a year. One transaction: now() is constant.
+-- Seed: org b0..01, ops a0..05, package standart 9120..0001 (V = 4). Round
+-- test prices (testing.use_round_prices, no inventory fee): 20 dönüm cost
+-- 1 200 000 kuruş a year. One transaction: now() is constant.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(26);
 
 select testing.reset_to_seed();
+select testing.use_round_prices();
 
 create function pg_temp.as_user(p_id uuid) returns void language sql
 as $$ select set_config('request.jwt.claims', json_build_object('sub', p_id, 'role', 'authenticated')::text, true) $$;

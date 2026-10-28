@@ -358,8 +358,8 @@ Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce tel
 | Telefonda | Sunucuda | Nasıl | Tekrar gönderimde |
 | --- | --- | --- | --- |
 | Oturum | `public.session` (planlanmış ziyaret) | `update`: `started_at`, ön kontrolde girildiyse `scan_platform` ve `camera_height_m`; kayıt durunca `status = captured`, `ended_at`. Yalnızca `status` `planned` ya da `captured` iken | Aynı değerler; ziyaret işlendiyse dokunulmaz |
-| Oturum olayı (`session_start`, `qr_sync`, `corner`, `boundary_corners`, `route`, `route_progress`, `coverage`, `closeup_unseen`, `session_stop`) | `public.session_event` (ayrıntılar `data`'da; aşağıda "Sınır köşeleri ve kapsama") | `insert`, kimlik telefondan | `on conflict (id) do nothing` |
-| Sınır işareti fotoğrafı, doğrulama yakın planı | Yakın plan fotoğrafıyla aynı yol; `capture` satırında `tree_id` yok. `metadata.local_kind` `boundary_photo` (`corner_event_id`) ya da `verification_photo` (`slot_id`) | Yakın plan fotoğrafıyla aynı | Aynı |
+| Oturum olayı (bütün türler: aşağıda "Saha olayları (session_event)") | `public.session_event` (ayrıntılar `data`'da ya da hukuki saha kayıtlarında `payload`'da) | `insert`, kimlik telefondan | `on conflict (id) do nothing` |
+| Sınır işareti fotoğrafı, doğrulama yakın planı, yapılamayan ziyaretin fotoğrafı | Yakın plan fotoğrafıyla aynı yol; `capture` satırında `tree_id` yok. `metadata.local_kind` `boundary_photo` (`corner_event_id`), `verification_photo` (`slot_id`) ya da `blocked_visit_photo` (`event_id`: `visit_blocked` olayı) | Yakın plan fotoğrafıyla aynı | Aynı |
 | Grid rotası (parselin yeni rota sürümü) | `save_parcel_route(...)` (aşağıda, "Grid rotası") | Fonksiyon çağrısı; ziyaret satırından sonra, `route` olayından önce | Aynı kimlik aynı sürümü döndürür |
 | Doğrulama sonucu | `record_verification_result(...)` | Fonksiyon çağrısı; fotoğraf varsa önce o | Yeniden çağrılabilir; en yenisi geçerli |
 | Yakın plan fotoğrafı | `media` alanında `org/<org_id>/parcel/<parcel_id>/<sha256>` + `public.capture` (`kind = photo`, `tree_id`, `uri`, `content_hash`, `started_at` = çekimin GPS zamanından UTC) | Önce dosya, sonra satır. `capture.id` = uuid v5(`<oturum>/<sha256>`). Çekim kodu, yer kodu, `gps_time_ns`, zaman kaynağı ve cihazdaki kalite kontrolü `metadata`'da | Var olan nesne yüklenmiş sayılır; `on conflict (session_id, content_hash) do nothing` |
@@ -372,6 +372,62 @@ Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce tel
 - **v0.1 soruları ve olaylar:** Yakın plan protokolü `*-v0.1` (metodoloji bölüm 7; metrikler `20261028120000_closeup_protocol_v01`). Bir ağacın "Göremedim" cevapları tek bir `closeup_unseen` olayında: `payload` yer kodu, `data` = `{version, tree_id, slot_code, method_version, metric_codes[], evidence[]}`. Ön kontroldeki ilaçlama onayı `session_start` olayının `data.precheck.spraying` alanında (`none` ya da `waiting_period_passed`). Tarama yöntemi ve ölçülen kamera yüksekliği aynı yerde: `data.precheck.platform` (`walk`, `motorcycle`, `robot`) ve `data.precheck.camera_height_m` (metre, iki ondalık); ikisi ziyaret satırına da yazılır. `methodology_version`'ı telefon göndermez, operasyon belirler.
 - **Fotoğraf dosyası** telefondan ancak yükleme, `capture` satırı ve nesnenin varlık kontrolü başarılı olunca silinir.
 - **Açık:** Cevap ile kanıt fotoğrafı arasındaki bağ sunucuda yok (`measurement_evidence` yalnızca `asset`'e bağlanır); ikisi aynı oturum ve ağaçla eşleşir.
+
+### Saha olayları (session_event)
+
+Saha uygulamasının `public.session_event`'e yazdığı **bütün** olay türleri. Tablo ekleme-yalnızdır, `event_type` açık bir kümedir (`^[a-z][a-z0-9_]*$`); okuyan her bileşen tanımadığı türü atlar (işleme hattı türü süzerek okur: `boundary.py`, `EVENT_TYPES`). Ortak sütunlar:
+
+| Sütun | Anlamı |
+| --- | --- |
+| `id` | Telefonda üretilen uuid v4; tekrar gönderimde aynı kalır (`on conflict (id) do nothing`) |
+| `session_id`, `parcel_id`, `org_id` | Planlanmış ziyaret (`public.session.id`), parseli ve kurumu |
+| `gps_time_ns` | Olay anının GPS zamanı (ns). `time_source = phone` ise telefon saatinden türetilmiştir |
+| `phone_time` | Telefon saati (UTC) |
+| `logger_result` | Kaydediciye komut gittiyse cevabı (`ok`, `timeout`, `not_recording`, …); komut gitmediyse `none` (telefondaki sütun boş olamaz; sunucuda da `none` yazılır, `null` değil) |
+| `payload` | Metin (aşağıda türe göre) |
+| `data` | JSON nesnesi ya da `null` (aşağıda türe göre) |
+| `recorded_by` | Yazan kullanıcı (sunucu doldurur) |
+
+**Kaydediciyle ilgili ve ölçüm olayları** (ayrıntı `data`'da):
+
+| Tür | Ne zaman | `payload` | `data` | Kaydediciye komut |
+| --- | --- | --- | --- | --- |
+| `session_start` | Kayıt başlarken | `parcel_id=<uuid>` | `{version: 1, precheck: {spraying, platform, camera_height_m, notice?}}` (bu bölümün "v0.1 soruları ve olaylar" maddesi); `notice`, aşağıdaki `field_notice_sign` ile aynı nesnedir (`{sign, badge, reason?}`; uygulama başlangıçla levha kaydı arasında kapanırsa cevap kaybolmasın diye); ön kontrol yoksa `null` | `start_session` |
+| `qr_sync` | QR ekranda ilk göründüğünde (başlangıç ve bitiş) | QR metni (`OQ1:<gps_ms>:<etiket>`) | `null` | `mark_event(qr_sync)` |
+| `corner` | Her "Köşe" basışı | Köşe numarası | Aşağıda "Sınır köşeleri ve kapsama" | `mark_event(corner)` |
+| `boundary_corners` | Köşe listesi her düzenlendiğinde | Listedeki köşe sayısı | Aynı yerde; `corners[].note` **kişisel veri olabilir** | yok |
+| `route` | Rota kullanılmaya başlanınca | Rota sürümü | Aşağıda "Grid rotası" | yok |
+| `route_progress` | Kayıt dururken | `<biten>/<toplam>` | Aynı yerde | yok |
+| `coverage` | Kayıt dururken (konum geldiyse) | `<kapsanan>/<toplam>` | Aşağıda "Sınır köşeleri ve kapsama" | yok |
+| `closeup_unseen` | Bir ağaçta "Göremedim" cevabı varsa | Yer kodu | `{version, tree_id, slot_code, method_version, metric_codes[], evidence[]}` | yok |
+| `visit_log` | Ziyaret kaydı (özet ekranı) her kaydedildiğinde; en yenisi geçerli | boş | `{weather: {sky, temp_c, wind}, equipment: {logger_name, logger_firmware, camera_serial}, issues?}`; `issues` serbest metin, **kişisel veri olabilir** | yok |
+| `session_stop` | Kayıt dururken | `command` | `null` | `stop_session` |
+
+**Hukuki saha kayıtları** (H01, H07, H15, H32; takip işleri T07, T16; `apps/field/lib/features/notice/`). Kaydediciye hiç gitmez (`logger_result = none`). Ayrıntı **`payload`'da tek satırlık JSON nesnesi** olarak durur (`payload::jsonb` ile okunur), `data` her zaman `null`'dır. Anahtarlar aşağıdakilerdir; isteğe bağlı anahtar boşsa hiç yazılmaz. Konum yoktur (H05: yeni konum toplanmaz); telefon numarası hiçbir alanda yazılmaz: uygulama, tarih (`28.10.2026`, `28/10/26`, `2026-10-28`) ve saat (`09:30`, `08.30-10.15`) çıkarıldıktan sonra yalnızca boşluk ya da noktalamayla (`. , / _ - ( ) + :`) ayrılmış **en az 10 rakamlık** bir dizi içeren metni telefon numarası sayar ve kaydetmez (`0532 123 45 67`, `0532/123/45/67`, `+90 532 123 4567`). Bu bir sezgisel denetimdir; 7 haneli alan kodsuz numaraları yakalamaz. Denetim bu bölümdeki bütün serbest metin alanlarına uygulanır: aşağıdaki `reason`/`note`/`name` alanları, `boundary_corners` `data.corners[].note` ve `visit_log` `data.issues`. Aynı türden birden çok kayıt olabilir; "en yenisi geçerli" denen türlerde sıra `gps_time_ns`, eşitse `phone_time`'dır.
+
+| Tür | Ne zaman | `payload` JSON şeması | Kişisel veri |
+| --- | --- | --- | --- |
+| `field_notice_sign` | Kayıt başlarken, `session_start`'tan hemen sonra (ön kontrolde iki soru cevaplanmadan tarama başlamaz). Ziyarette bir kez. Cevaplar `session_start` `data.precheck.notice`'ta da durur; iki olay ayrı yazıldığından uygulama arada kapanırsa yalnızca o vardır. Okuyan `field_notice_sign` yoksa `precheck.notice`'u kullanır; ikisi de yoksa ön kontrol bu sürümden eskidir | `{"sign": bool, "badge": bool, "reason"?: string (1–200)}`. `sign`: QR'lı bilgilendirme levhası bahçe girişine kondu; `badge`: tanıtım kartı görünür. `reason` yalnızca ikisinden biri `false` iken vardır ve o zaman zorunludur | `reason` (serbest metin) |
+| `field_notice_verbal` | Ziyaret özetinde, "Ziyareti bitir"den önce zorunlu; değiştirilebilir, en yenisi geçerli | `{"answer": "given" \| "nobody" \| "not_given", "note"?: string (1–500)}`. `given`: rastlanan kişilere sözlü bilgi verildi; `nobody`: bahçede kimse yoktu; `not_given`: verilemedi, `note` zorunlu | `note` |
+| `field_notice_objection` | Taramada ya da kayıt durduktan sonra "Bir kişi itiraz etti"; her itiraz ayrı kayıt | `{"note": string (1–500)}`: nerede, ne oldu. O bölüm daha sonra taranır (H01 saha talimatı) | `note` |
+| `visit_blocked` | Görev listesinde "Ziyaret yapılamadı" (yalnızca `inventory` / `periodic_scan` planlanmış ziyaret); her kayıt ayrı | `{"reason": "customer" \| "company" \| "weather" \| "force_majeure", "detail": string, "note"?: string (1–500), "photo_count": int}` | `note` |
+| `boundary_pointer` | Envanterde sınır ekranında ya da ziyaret özetinde, sınırı gösteren kişi kaydedilince; en yenisi geçerli. Envanter bu kayıt olmadan bitirilemez ("Ziyareti bitir" kapalı); bu uygulama sürümünden önce kaydedilmiş envanterlerde olmayabilir | `{"name": string (1–120), "role": "owner" \| "owner_relative" \| "worker" \| "neighbor" \| "other"}` (sahip, sahibin yakını, işçi/bekçi, komşu, diğer). **Telefon yok** | `name` (üçüncü kişinin adı) |
+
+`visit_blocked.detail` ve `reason` eşlemesi (8A/2: yol, sel ve resmi yasak sahipten kaynaklı sayılmaz):
+
+| `detail` | Personele | `reason` |
+| --- | --- | --- |
+| `gate_closed`, `no_key`, `no_guard`, `no_boundary_pointer` | Kapı kapalı, anahtar yok, bekçi yok, sınırı gösterecek kişi yok | `customer` |
+| `rain`, `dust_wind`, `weather_other` | Yağmur, yoğun toz ya da rüzgâr, başka bir hava koşulu | `weather` |
+| `flood` | Sel ("yol, sel ya da resmi yasak" grubunda) | `weather` |
+| `road_closed`, `official_ban` | Yol kapandı, resmi yasak (aynı grupta) | `force_majeure` |
+| `equipment`, `staff` | Ekipman arızası, personel gelemedi | `company` |
+| `force_majeure_other` | Başka bir mücbir sebep | `force_majeure` |
+
+- **Kanıt (H15, 8A/3):** `reason = customer` iken en az bir fotoğraf ve not zorunludur; `weather_other` ve `force_majeure_other` not ister. Fotoğraflar zaman damgalıdır: `capture` satırı (`kind = photo`, `tree_id` yok, `started_at` çekimin GPS zamanından), `metadata.local_kind = blocked_visit_photo`, `metadata.event_id` = olayın `id`'si; telefonda önce fotoğraflar, sonra olay kuyruğa girer. `photo_count` bu fotoğrafların sayısıdır.
+- **Ziyaretin durumu değişmez:** `visit_blocked` yalnızca olay ve fotoğraf yazar; `public.session` güncellenmez (planlanmış kalır), uygun bir durum geçişi yok. Telefonda ziyaretin yerel satırı `blocked` durumunda tutulur ve gönderilmez; engel kalkarsa aynı ziyaret aynı gün taranabilir, o zaman satır normal kayda döner. Bir ziyarette `visit_blocked`'tan sonra `session_start` da olabilir. Sahibe aynı gün bildirim ve kaçırılan ziyaret kaydı bu olaylardan ilerideki veritabanı işinde üretilir.
+- **Okuma kuralı (`visit_blocked`):** Sunucu bu olayı denetlemez: `session_event` ekleme politikası yalnızca kurumu (`org_id`) denetler, ziyaretin durumuna bakmaz; telefon da yalnızca kendi kaydettiği ziyarette düğmeyi gizler (başka telefonun taraması ya da eski görev listesi bilinmez). Bu yüzden okuyan (dalga 3: kaçırılan ziyaret, iade kararı) bir `visit_blocked` olayını **yok sayar**: (a) ziyaretin `public.session` satırı bir kayıt gösteriyorsa (`status` `planned` değilse) ya da aynı ziyarette herhangi bir zamanda bir `session_start` olayı varsa (ziyaret yapılmıştır; kayıt, `visit_blocked`'a göre önceliklidir), (b) `recorded_by` ziyaretin kurumunda `field_staff` ya da `ops` rolü taşımıyorsa. Yalnızca bu ikisinden geçen olay "ziyaret yapılamadı" sayılır; `reason = customer` ise 8A/3 sonucu (ziyaret yapılmış sayılır, iade edilmez) ancak o zaman uygulanır. Sunucu tarafında denetim (doğrudan ekleme yerine RPC ya da tetikleyici) dalga 3 veritabanı işinin takibidir.
+- **Kişisel veri (kabul edilen sapma):** `boundary_pointer.name` üçüncü bir kişinin adıdır; bütün `reason`/`note` alanları, `boundary_corners` `data.corners[].note` ve `visit_log` `data.issues` serbest metindir ve kişi adı içerebilir. Repodaki kural kişisel verinin `private` şemasında durmasıdır; burada mevcut, ekleme-yalnız taşıma tablosu `public.session_event` kullanılır. Bugün tabloyu yalnızca kurum üyeleri (`membership`: saha personeli, uzman, operasyon) okur; sahip ve izleyici (`parcel_access`) okuyamaz. Dalga 2 tabloyu personele daraltır ve ad ile rolü `private` şemasındaki bir tabloya kopyalar; KVKK betikleri (`scripts/kvkk`) istek üzerine bu alanları takma adla değiştirir. Uygulama bu alanların hepsinin (köşe notu ve ziyaret kaydındaki sorunlar dahil) altında telefon numarası ve başka kişilerin adının yazılmamasını hatırlatır ve yukarıdaki kurala göre telefon numarasına benzeyen metni kaydetmez. Kural sezgiseldir; bu sürümden önce kaydedilmiş köşe notlarında ve `issues` alanında denetim yoktu, KVKK betikleri bu alanları da tarar. H25: sınırı gösteren kişinin telefonu bu olaylarda hiç yoktur; ad ve rol raporla birlikte saklanır.
 
 ## Sınır köşeleri ve kapsama
 

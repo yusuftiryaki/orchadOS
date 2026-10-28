@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../notice/field_records.dart';
 import '../session/session_controller.dart';
 
 /// Visit record (docs/MVP.md, Module 3, "Ziyaret kaydı"): weather, equipment
@@ -160,6 +161,7 @@ class _VisitLogScreenState extends ConsumerState<VisitLogScreen> {
       ),
     );
 
+    final issuesError = textError(_issues.text, maxLength: maxNoteLength);
     return Scaffold(
       appBar: AppBar(title: const Text('Ziyaret kaydı')),
       body: ListView(
@@ -187,15 +189,21 @@ class _VisitLogScreenState extends ConsumerState<VisitLogScreen> {
             key: const Key('visit-log-issues'),
             controller: _issues,
             maxLines: 3,
-            decoration: const InputDecoration(
+            maxLength: maxNoteLength,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
               labelText: 'Sahada yaşanan sorunlar',
-              helperText: 'İsim ve telefon yazmayın',
+              helperText: noteHint,
+              helperMaxLines: 3,
+              errorText: issuesError,
+              errorMaxLines: 3,
             ),
           ),
           const SizedBox(height: 24),
           FilledButton(
             key: const Key('visit-log-save'),
-            onPressed: _saving ? null : _save,
+            // The issues go to session_event: no phone numbers.
+            onPressed: _saving || issuesError != null ? null : _save,
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(56),
             ),
