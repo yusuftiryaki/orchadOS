@@ -5,11 +5,12 @@
 - Dokümanlar (`docs/`) Türkçe. Kod, tanımlayıcılar, commit mesajları ve kod yorumları İngilizce.
 
 ## Önce oku
-- `docs/plan.md`: iş paketleri (İP0–İP12), kilometre taşları, kesme listesi. Hangi İP üzerinde çalışıldığını buradan bul; ilerlemeyi burada güncelle.
+- `docs/plan.md`: iş paketleri (İP0–İP14), kilometre taşları, kesme listesi. Hangi İP üzerinde çalışıldığını buradan bul; ilerlemeyi burada güncelle.
 - `docs/MVP.md`: ürün tanımı ve modüller.
 - `docs/veri-modeli.md`: **veri modelinin kaynağı**. Şema değişiklikleri önce burada tartışılır.
 - `docs/metodoloji.md`: değerlendirme kuralları (ölçekler, genel sınıf, bulgu türleri); `docs/kullanim-kilavuzu.md`: rol rol uçtan uca akış.
 - `docs/musteri-yonetimi.md`: müşteri edinme ve yönetimi (İP12): self-servis kayıt, başvuru, teklif, ödeme, back office; faturalama tablolarının, fonksiyonlarının ve hata kodlarının sözleşmesi.
+- `docs/bahce-yonetimi.md`: üyelik boyunca bahçe ekleme ve çıkarma (İP14): tek üyelik dönemi, ek sipariş ve orantılı fiyat (`pricing-v2`), bahçe bazında çıkarma, iade (`removal-v1`), salt okunur erişim süresi, `garden_changes_enabled` anahtarı.
 - `docs/demo-turu.md`: demo turu (İP13): ayrı demo projesi, geçici demo hesabı, yazma ve hesap kilitleri, sentetik demo verisi ve yükleyicisi, `demo-data` iş akışı.
 - `docs/arayuzler.md`: **bileşenler arası sözleşmelerin kaynağı**: oturum klasörü, `events.csv`, iki `session.json`, QR saat kodu, zaman tanımı. Bir biçim değişirse önce burası güncellenir.
 
@@ -28,7 +29,7 @@
 - **Medya değiştirilemez:** Dosyalar içerik hash'iyle adreslenir; mevcut bir medya kaydı güncellenmez, yenisi eklenir.
 - **Ölçümler sürümlüdür:** Her ölçüm ve ürün, onu üreten yöntem ya da hat sürümünü taşır. Yeniden işleme eski sonuçları silmez.
 - Gizli bilgiler (`.env`, API anahtarları) repoya girmez.
-- **Migration'lar:** Yeni tablo ekleyen migration `select private.attach_demo_guard('<tablo>')` çağırır; kullanıcıya erişim ya da kimlik veren tablo ayrıca `private.attach_demo_account_guard(...)` çağırır (docs/demo-turu.md §6.1–6.2). Servis rolüyle yazan yeni Edge yolları demo claim'ini reddeder. Yeni migration'ın zaman damgası `supabase/migrations/`'taki en yenisinden (şu an `20261101120300`) **sonra** gelir: `supabase migration new` bugünün tarihini verir ve gelecek tarihli mevcut migration'lardan önce sıralanabilir; o zaman dosya adı elle ileri alınır. CI (`scripts/check-migration-order.sh`) daha eski damgalı yeni migration'ı reddeder.
+- **Migration'lar:** Yeni tablo ekleyen migration `select private.attach_demo_guard('<tablo>')` çağırır; kullanıcıya erişim ya da kimlik veren tablo ayrıca `private.attach_demo_account_guard(...)` çağırır (docs/demo-turu.md §6.1–6.2). Servis rolüyle yazan yeni Edge yolları demo claim'ini reddeder. Yeni migration'ın zaman damgası `supabase/migrations/`'taki en yenisinden (şu an `20261102120300`) **sonra** gelir: `supabase migration new` bugünün tarihini verir ve gelecek tarihli mevcut migration'lardan önce sıralanabilir; o zaman dosya adı elle ileri alınır. CI (`scripts/check-migration-order.sh`) daha eski damgalı yeni migration'ı reddeder.
 
 ## Komutlar
 İş paketleri ilerledikçe buraya eklenecek (her bileşenin build ve test komutu).
