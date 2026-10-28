@@ -11,6 +11,8 @@ on:
       - "pnpm-workspace.yaml"
       - ".github/workflows/ci-db-web.yml"
       - "scripts/check-migration-order.sh"
+      - "scripts/demo-lock-check.sh"
+      - "scripts/test-demo-lock-sql.sh"
   push:
     branches: [main]
     paths:
@@ -22,6 +24,8 @@ on:
       - "pnpm-workspace.yaml"
       - ".github/workflows/ci-db-web.yml"
       - "scripts/check-migration-order.sh"
+      - "scripts/demo-lock-check.sh"
+      - "scripts/test-demo-lock-sql.sh"
 
 concurrency:
   group: ci-db-web-${{ github.ref }}
@@ -77,6 +81,11 @@ jobs:
 
       - name: Database tests (pgTAP)
         run: pnpm db:test
+
+      # The demo lock query (scripts/demo-lock-check.sh) on crafted rows; the
+      # ci-scripts mock only returns canned counts.
+      - name: Demo lock query against the database
+        run: scripts/test-demo-lock-sql.sh
 
       - name: Generated database types are up to date
         run: |

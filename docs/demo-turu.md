@@ -158,6 +158,7 @@ Medya                 →  https://<demo ref>.supabase.co/storage/v1/object/publ
 - **Somut örnek:** Hesap değiştirme açığı (§6.2), bir demo hesabının gerçek bir org'un parseline bağlanabileceğini gösterdi. Ayrı projede bağlanacak gerçek bir parsel yoktur.
 - **Bedeli:** Bir Supabase projesi, bir Vercel projesi ve migration'ları o projeye taşıyan bir iş akışı (`deploy-db-demo`). Kod ve migration'lar aynıdır.
 - **Test projesi:** Yalnızca kısa, ekip içi bir duman testi için kullanılır (§15). Orada gerçek müşteri yoktur, ama ekip hesapları vardır.
+- **Geçici istisna:** Supabase organizasyonu Pro'ya geçene kadar herkese açık demo test projesinde çalışır (§15.1). Ayrı proje hedefi değişmez; geçiş aynı iş akışıyla yapılır.
 
 ## 4. Demo oturumunun yaşam döngüsü
 
@@ -707,7 +708,7 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
 - `reuse_build_run_id`: isteğe bağlı; önceki bir çalıştırmanın derleme artefaktı. Yalnızca bu iş akışının, bu repoda `main` üzerinde `workflow_dispatch` ile başlatılmış bir çalıştırması kabul edilir; başka bir çalıştırmanın (dal, PR) artefaktı reddedilir.
 
 Koruma:
-- İş yalnızca `main`'den çalışır ve projenin adını taşıyan GitHub Environment'ında koşar (`environment: ${{ inputs.project }}`).
+- İş yalnızca `main`'den çalışır ve projenin adını taşıyan GitHub Environment'ında koşar (`test` ya da `demo`; `DEMO_HOST=test` iken `project=demo` da `test`, aşağıda).
 - Tek model: bir projenin veritabanı secret'larına dokunan **her** iş o projenin ortamında koşar: `deploy-db` ve `demo-data project=test` → `test`, `deploy-db-demo` ve `demo-data project=demo` → `demo`, `deploy-db-pilot` → `pilot`. `test` ve `demo` ortamlarında dağıtım dalı kuralı yalnızca `main`, `pilot`'ta yalnızca `release`'tir; `demo` ve `pilot`'ta zorunlu onaylayıcı vardır. Secret'lar bu ortamlara taşınır ve repo düzeyindeki kopyaları silinir; repo düzeyinde yalnızca herkese açık adres ve anon anahtarları kalır (`keepalive`, `ci-field`). Ayrıntı ve geçiş adımları: deployment.md › GitHub secret'ları ve ortamları.
 - Eksik secret işi başarısız kılar, atlanıp yeşil bitmez. Tek istisna kurulmadan önceki test projesidir ve açıkça seçilir (repo değişkeni `SUPABASE_TEST_PENDING=1`; `demo-data` için bile geçerli değildir).
 - Secret'lar yalnızca onlara ihtiyaç duyan adımlara verilir (denetim, `supabase link`, yükleme ve komut adımları); kurulum adımları ve üçüncü taraf eylemler görmez.
@@ -728,7 +729,9 @@ Secret'lar:
 - `test` ortamında: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
 - `demo` ortamında: `SUPABASE_ACCESS_TOKEN`, `DEMO_SUPABASE_PROJECT_REF`, `DEMO_SUPABASE_DB_PASSWORD`, `DEMO_SUPABASE_URL`, `DEMO_SUPABASE_ANON_KEY`. Erişim token'ı her ortama ayrı girilir (aynı değer).
 
-Eşzamanlılık grubu `demo-data-<project>`'tir.
+Eşzamanlılık grubu, gerçekten yazılan veritabanına göre `demo-data-test` ya da `demo-data-demo`'dur.
+
+**Ortak barındırma (§15.1):** Repo değişkeni `DEMO_HOST=test` iken `project=demo` test projesine çözülür: iş `test` ortamında, test projesinin secret'larıyla koşar ve `--demo-only` verilmez (test sitesinin org'ları da oradadır). Değişken yoksa ya da başka bir değerdeyse eksik bir `DEMO_` secret'ı yine test projesine düşmez, iş başarısız olur.
 
 ### 10.5 Gerçek vitrin bahçesine geçiş (ileride)
 
@@ -909,11 +912,13 @@ Görüntü durumu için `tour-viewer` öğesinde zaten bulunan nitelikler kullan
 | `SIGNUP_PROXY_SECRET` | Web (sunucu) + Edge | Var olan. `demo-start` da istemci IP'sine bununla güvenir |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Web / Edge | Var olan. Demo projesinde canlı anahtar zorunludur |
 | `SIGNUP_HASH_SECRET` | Edge | Var olan. IP özeti, `demo:` önekiyle |
+| `DEMO_TURNSTILE_SECRET_KEY`, `DEMO_SIGNUP_HASH_SECRET`, `DEMO_SIGNUP_PROXY_SECRET` | Edge (`DEMO_SIGNUP_PROXY_SECRET` ayrıca Web sunucusu) | **Yeni.** Ortak barındırma (§15.1). Tanımlıysa `demo-start` (ve web'de `/demo` başlatması) öneksiz adın yerine bunu kullanır; boşsa öneksiz ada düşer. Test sitesinin `TURNSTILE_SECRET_KEY`, `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET` değerleri böylece değişmez |
 | `ORCHADOS_CRON_SECRET` | Edge + Vault `orchados_cron_secret` | Var olan. `cleanup` eylemi için |
 | `ORCHADOS_DEMO_MODE` | Edge | **Yeni.** `dev` ya da `public`; tanımsızsa başlatma kapalıdır. Pilotta tanımlanmaz (`deploy-db-pilot` denetler) |
 | `demo_cleanup_url` | Vault | **Yeni.** `https://<ref>.supabase.co/functions/v1/demo-start` |
 | `DEMO_SUPABASE_PROJECT_REF`, `DEMO_SUPABASE_DB_PASSWORD`, `DEMO_SUPABASE_URL`, `DEMO_SUPABASE_ANON_KEY` | GitHub | **Yeni.** `deploy-db-demo` ve `demo-data`; `DEMO_SUPABASE_DB_PASSWORD` ayrıca `provision-demo` (yeni projenin parolası) |
 | `VERCEL_TOKEN`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | GitHub | **Yeni.** `provision-demo`; Turnstile ikisi birlikte, yoksa demo kapalı kalır |
+| `DEMO_HOST` | GitHub (repo değişkeni) | **Yeni.** `test`: demo test projesinde (§15.1); `deploy-db-demo`, `demo-data project=demo` ve `deploy-db`'nin demo kilitleri buna göre davranır. Tanımsız ya da başka bir değer: ayrı demo projesi |
 | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` | GitHub | Var olan. Test projesi |
 
 Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırındadır: `enabled`, süre, sınırlar, ziyaretçi alan adı. Yerel Edge secret'ları `config.toml` içindedir; `TURNSTILE_SECRET_KEY` yerelde tanımsız kalır.
@@ -1008,7 +1013,7 @@ Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırınd
         - pilot projesine `deploy-db-pilot` ile, elle
         - demo projesine `deploy-db-demo` ile; demo projesi açılana kadar iş akışı GitHub'da devre dışıdır (secret'lar eksikse iş başarısız olur, atlanmaz)
     - Hiçbir projede `ORCHADOS_DEMO_MODE` yoktur, bu yüzden başlatma `demo_closed` döner.
-2. **Test projesi (kısa, ekip içi duman testi):**
+2. **Test projesi (kısa, ekip içi duman testi):** *Ortak barındırmada (`DEMO_HOST=test`, §15.1) bu adım geçersizdir:* duman testi demo adresinde yapılır, test sitesinin `/demo`'su kullanılmaz (`demo-start` `DEMO_*` secret'larını tercih eder; test sitesinden başlatma `captcha_failed` ya da tek IP kovası olur). `ORCHADOS_DEMO_MODE=dev` yazılmaz; `action=disable` ve `ORCHADOS_DEMO_MODE`'un silinmesi herkese açık demoyu kapatır (yalnızca kapatma ya da §15.1'deki ayrı projeye geçiş için). Alt adımlar yalnızca demo test projesinde barındırılmıyorken geçerlidir:
     1. Auth'ta "Confirm phone", "Confirm email" ve "Secure email change" açılır (deployment.md).
     2. Edge secret `ORCHADOS_DEMO_MODE=dev`, Vault `demo_cleanup_url` ve `orchados_cron_secret` eklenir (biri yoksa süresi dolan hesaplar silinmez).
     3. `demo-data` çalıştırılır: önce `project=test action=load`, sonra `action=enable`.
@@ -1050,11 +1055,45 @@ Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırınd
     - Açık oturumları hemen bitirmek için: `update private.demo_session set expires_at = now();`. Oturum kapısı bu ziyaretçileri bir sonraki istekte `/demo/bitti`'ye gönderir.
     - Gerekirse `ORCHADOS_DEMO_MODE` kaldırılır.
 
+### 15.1 Geçici ortak barındırma (test projesi)
+
+**Neden:** `provision-demo` ayrı `orchados-demo` Supabase projesini açamadı: ücretsiz planda organizasyon başına iki proje sınırı var ve iki yer de test ile pilot projelerinde. Karar (28 Ekim): Supabase organizasyonu Pro'ya geçene kadar herkese açık demo **test projesinde** çalışır. Test projesinde gerçek müşteri verisi yoktur. Vercel tarafı ayrı kalır (`orchados-demo`, https://orchados-demo.vercel.app). **Pilot projesi demoyu hiçbir zaman barındırmaz;** `deploy-db-pilot`'taki kilit olduğu gibi kalır, `provision-demo` pilotu (adından ya da `PILOT_SUPABASE_URL`'den tanıyarak) reddeder; `host=test`'te `PILOT_SUPABASE_URL` ve test projesinin `SUPABASE_PROJECT_REF`'i zorunludur, ref `SUPABASE_URL`'dekiyle aynı olmalıdır.
+
+**Kurulum:** `provision-demo` `host=test` ile (şimdilik varsayılan) çalıştırılır ve repo değişkeni `DEMO_HOST=test` yapılır (`gh variable set DEMO_HOST --body test`). İş akışı test projesinde yalnızca şunlara dokunur:
+- Auth: demo adresi (`<demo_url>/**`) ek yönlendirme adreslerine eklenir. Site URL, kayıt ve onay ayarları test sitesinindir, değişmez.
+- Edge secret'ları: yalnızca demoya özgü olanlar: `ORCHADOS_DEMO_MODE=public` ve `DEMO_TURNSTILE_SECRET_KEY` (ikisi de yalnızca canlı Turnstile anahtarları GitHub'dayken), `DEMO_SIGNUP_HASH_SECRET`, `DEMO_SIGNUP_PROXY_SECRET` (eksikse üretilir). Turnstile anahtarları yokken `public` olmayan bir `ORCHADOS_DEMO_MODE` (eski duman testinin `dev`'i) silinir; önceki çalıştırmanın `public`'i korunur. `MESSAGE_PROVIDER`, `PORTAL_BASE_URL`, `SIGNUP_*`, `TURNSTILE_SECRET_KEY`, `ORCHADOS_CRON_SECRET` ve ödeme secret'larına dokunulmaz.
+- Vault: yalnızca `demo_cleanup_url`. Var olan `orchados_cron_secret` kullanılır; Edge ya da Vault tarafı eksikse iş uyarır, üretmez (test projesinin öteki cron'ları da bu değeri kullanır).
+- Vercel `orchados-demo`: `NEXT_PUBLIC_SUPABASE_URL` ve `NEXT_PUBLIC_SUPABASE_ANON_KEY` test projesinin değerleri (repo düzeyindeki herkese açık `SUPABASE_URL`, `SUPABASE_ANON_KEY`; anon anahtarın projeye ait olduğu denetlenir), `DEMO_SIGNUP_PROXY_SECRET` Edge'dekiyle aynı.
+
+`demo-start`, Turnstile, IP özeti ve proxy secret'ını önce `DEMO_` önekli addan okur (`_shared/demo.ts` `demoSecrets`); web sunucusu da `/demo` başlatmasında `DEMO_SIGNUP_PROXY_SECRET`'ı tercih eder. Canlı Turnstile anahtarı demo alan adına bağlı olduğu için test sitesinin `TURNSTILE_SECRET_KEY`'i değiştirilmez. `public` kipte canlı anahtar kuralı aynıdır: hangi addan gelirse gelsin Cloudflare'in test anahtarı demoyu açmaz.
+
+**İş akışları (`DEMO_HOST=test`):**
+- `deploy-db` test projesine migration ve fonksiyonları her zamanki gibi uygular; sonunda ortak demo kilitlerini denetler (`scripts/demo-lock-check.sh shared`). Açık bir demo org'u kabul edilir; şu durumlarda iş başarısız olur: açık demo için `ORCHADOS_DEMO_MODE`, `DEMO_TURNSTILE_SECRET_KEY`, `DEMO_SIGNUP_HASH_SECRET`, `DEMO_SIGNUP_PROXY_SECRET`, `ORCHADOS_CRON_SECRET`, Vault `demo_cleanup_url` ya da `orchados_cron_secret` eksik (test sitesinin öneksiz secret'ları demonun yerine sayılmaz); `ORCHADOS_DEMO_MODE` tam olarak `public` değil ya da Turnstile secret'ı Cloudflare'in sahte anahtarı (secrets API'nin sha256 özetiyle denetlenir); bir demo org'u kayıt ya da sahte ödeme kabul ediyor; bir demo hesabının üyeliği ya da demo dışı bir org'da parsel erişimi var. Test sitesinin org'ları, kaydı ve sahte ödemesi kilit değildir. Denetim migration'lardan sonra çalışır; başarısız bir demo kilidi test projesinin migration'larını durdurmaz.
+- `deploy-db-demo` `test` ortamında koşar, yalnızca aynı ortak kilitleri denetler; migration ve fonksiyonları ikinci kez uygulamaz.
+- `demo-data project=demo` test projesine yazar (`test` ortamı, `--demo-only` olmadan); `project=test` ile aynı veritabanıdır.
+
+**Ne paylaşılır:** veritabanı (`auth.users` dahil), Auth'un IP sınırları ve MAU kotası, depolama ve egress kotası, harcama tavanı, Edge Function'lar, Vault ve loglar. Demo ziyaretçileri test projesinin aylık etkin kullanıcısına sayılır.
+
+**Yalıtım katmanları değişmez:** yazma kilidi, hesap kilidi, erişim kapsamı tetikleyicileri ve `demo_guard_drift` demo hesabını demo org'unda tutar (§6). `demo_start` yalnızca demo bayraklı, temiz bir hesabı kabul eder; temizlik (`demo_expired_accounts`) yalnızca demo bayraklı, üyeliği, profili, onayı ve kaydı olmayan hesapları siler. pgTAP `49_demo_shared_host` test sitesinin org'u, personeli ve self-servis müşterisi yanındayken bunu sınar: ziyaretçi yalnızca demo parselini görür, ikinci başlatma ve housekeeping'den sonra seed kullanıcılarının üyelik ve erişim satırları satır satır aynıdır, en kötü durumda bile (süresi dolmuş demo oturumu, demo bayrağı taşıyan bir personel) temizlik yalnızca ziyaretçiyi seçer.
+
+**Kabul edilen riskler:**
+- §3.4'teki saldırı yüzeyi geçici olarak geri gelir: Turnstile'ı geçen herkes test projesinde gerçek bir JWT alır. Test projesinde gerçek müşteri verisi olmadığı için bu kabul edilmiştir; ekip ve seed hesapları vardır.
+- Kötüye kullanım (kapasite saldırısı, egress, MAU) test projesinin kotasını tüketir ve test sitesini de kısıtlayabilir. Önlem: harcama tavanı ve %80 uyarısı test projesinde; gerekirse `private.demo_org.max_daily_starts` düşürülür ya da `demo-data action=disable`.
+- Test projesinin log saklama süresi (Free: 1 gün) demo için de geçerlidir.
+- Test projesindeki duman testi ve geliştirme denemeleri herkese açık demoyu etkileyebilir (ör. `demo-data project=test action=disable` demoyu kapatır, `load` veri kümesini yeniler).
+
+**Ayrı projeye geçiş (Pro'dan sonra):**
+1. `provision-demo` `host=separate` ile çalıştırılır: `orchados-demo` projesi açılır, Auth, Edge secret'ları ve Vault kurulur, Vercel değişkenleri yeni projeye çevrilir.
+2. Vercel `orchados-demo`'dan `DEMO_SIGNUP_PROXY_SECRET` silinir (ayrı projede `SIGNUP_PROXY_SECRET`'ın önüne geçerdi; `host=separate` bu değişkeni görünce özeti yazdıktan sonra başarısız olur), iş yeniden çalıştırılır.
+3. Özetteki değerler `demo` ortamına girilir (`DEMO_SUPABASE_*`), ardından `gh variable set DEMO_HOST --body separate` (ya da değişken silinir). `deploy-db-demo` ve `demo-data` (`project=demo`, `--demo-only`) artık ayrı projeye gider; §15 adım 3'ün kalanı izlenir.
+4. Test projesinde demo kapatılır ve temizlenir: `demo-data project=test action=disable`; Edge'den `ORCHADOS_DEMO_MODE`, `DEMO_TURNSTILE_SECRET_KEY`, `DEMO_SIGNUP_HASH_SECRET`, `DEMO_SIGNUP_PROXY_SECRET` kaldırılır; Auth yönlendirme listesinden demo adresi çıkarılır. Açık oturumlar en geç oturum süresi sonunda biter, hesaplar temizlikle silinir.
+
 ## 16. İnsan eylemi
 
 | Kim | Ne |
 | --- | --- |
 | Yusuf | GitHub Environment'ları `test`, `demo`, `pilot` (dal kuralları, onaylayıcılar), secret'ların ortamlara taşınması ve repo düzeyindeki veritabanı secret'larının silinmesi; demo projesi açılana kadar `gh workflow disable deploy-db-demo` (deployment.md › GitHub secret'ları ve ortamları) |
+| Yusuf | Ortak barındırma (§15.1): `provision-demo` `host=test`, repo değişkeni `DEMO_HOST=test`; test projesinde harcama tavanı ve %80 uyarısı; Pro'dan sonra ayrı projeye geçiş |
 | Yusuf | Demo projesi: `provision-demo` iş akışını çalıştırmak (Supabase ve Vercel projeleri, Auth, Edge secret'ları, Vault, Vercel değişkenleri; §15); özetteki değerlerle `demo` ortamına `DEMO_` secret'ları; DNS `demo.<alan adı>`; harcama tavanı ve kullanım uyarısı |
 | Yusuf | Test, demo ve pilot projelerinde Auth onaylarını açmak (Confirm phone, Confirm email, Secure email change) |
 | Yusuf | Demo alan adı için canlı Turnstile anahtarları |
@@ -1145,6 +1184,7 @@ Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırınd
 - **Yeni yazma yolları:**
     - Portala eklenecek her yazma yolu tetikleyiciyle kendiliğinden korunur. Yeni tabloları ve yan etkili fonksiyonları pgTAP `43_demo_write_guard` yakalar.
     - Servis rolüyle yazan yeni bir Edge yolunu pgTAP göremez. Bu kural CLAUDE.md'de yazılıdır.
+- **Ortak barındırma:** Pro'ya geçilene kadar demo test projesindedir; riskleri ve geçiş: §15.1.
 - **Üç proje:** Migration'lar üç projeye gider. `deploy-db-demo` `main`'e her birleşmede `demo` ortamında çalışır; secret'lar eksikse başarısız olur. `db push` yarıda kalsa da demo koruması denetimi çalışır.
 - **Harita altlığı:** OSM tile sunucusu yoğun ve ticari trafiğe uygun değildir. Bir harita sağlayıcısı seçimi insan kararıdır (§16).
 - **Temizlik:**

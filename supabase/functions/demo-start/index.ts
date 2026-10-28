@@ -9,7 +9,10 @@
 // { "action": "start", client_ip?, captcha_token? }
 //   x-orchados-proxy-secret: SIGNUP_PROXY_SECRET (Next server only; then
 //   client_ip is trusted, otherwise cf-connecting-ip / x-forwarded-for)
-//   0. ORCHADOS_DEMO_MODE (with TURNSTILE_SECRET_KEY, _shared/demo.ts
+//   Each of TURNSTILE_SECRET_KEY, SIGNUP_HASH_SECRET and SIGNUP_PROXY_SECRET
+//   is read from its DEMO_-prefixed name first (_shared/demo.ts demoSecrets):
+//   the demo shares the test project with the test site's sign-up for now.
+//   0. ORCHADOS_DEMO_MODE (with the Turnstile secret, _shared/demo.ts
 //      demoMode): unset or unknown → 503 demo_closed; "public" needs a live
 //      Turnstile secret (not one of Cloudflare's test keys); "dev" verifies
 //      Turnstile only when a secret is set.
@@ -43,6 +46,7 @@ import {
   type DemoStartResponse,
   demoEmail,
   demoMode,
+  demoSecrets,
   ipBucket,
   parseDemoRequest,
   statusFor,
@@ -51,10 +55,12 @@ import { clientIp, hmacHex, timingSafeEqual } from "../_shared/signup.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const HASH_SECRET = Deno.env.get("SIGNUP_HASH_SECRET") ?? "";
-const PROXY_SECRET = Deno.env.get("SIGNUP_PROXY_SECRET") ?? "";
+const {
+  hashSecret: HASH_SECRET,
+  proxySecret: PROXY_SECRET,
+  turnstileSecret: TURNSTILE_SECRET,
+} = demoSecrets((name) => Deno.env.get(name));
 const CRON_SECRET = Deno.env.get("ORCHADOS_CRON_SECRET") ?? "";
-const TURNSTILE_SECRET = Deno.env.get("TURNSTILE_SECRET_KEY") ?? "";
 const MODE = demoMode({ mode: Deno.env.get("ORCHADOS_DEMO_MODE"), turnstileSecret: TURNSTILE_SECRET });
 
 const CLEANUP_BATCH = 200;
@@ -186,7 +192,7 @@ async function start(req: Request, clientIpBody: string | null, captchaToken: st
     console.log("demo-start: demo_mode_closed");
     return fail("demo_closed");
   }
-  if (!HASH_SECRET) throw new Failure("SIGNUP_HASH_SECRET is not set");
+  if (!HASH_SECRET) throw new Failure("SIGNUP_HASH_SECRET (or DEMO_SIGNUP_HASH_SECRET) is not set");
 
   const ip = clientIp(req.headers, clientIpBody, PROXY_SECRET);
   if (MODE.requireTurnstile && !(await captchaPassed(captchaToken, ip))) return fail("captcha_failed");

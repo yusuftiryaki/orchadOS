@@ -3,6 +3,7 @@ import {
   DEFAULT_DEMO_EMAIL_DOMAIN,
   demoEmail,
   demoMode,
+  demoSecrets,
   ipBucket,
   parseDemoRequest,
   statusFor,
@@ -170,5 +171,73 @@ describe("demoMode", () => {
       open: true,
       requireTurnstile: true,
     });
+  });
+});
+
+describe("demoSecrets", () => {
+  const env =
+    (values: Record<string, string>) =>
+    (name: string): string | undefined =>
+      values[name];
+
+  it("prefers the DEMO_ names (shared hosting on the test project)", () => {
+    const get = env({
+      TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
+      DEMO_TURNSTILE_SECRET_KEY: "0x4AAAAAAAdemolive",
+      SIGNUP_HASH_SECRET: "test-hash",
+      DEMO_SIGNUP_HASH_SECRET: "demo-hash",
+      SIGNUP_PROXY_SECRET: "test-proxy",
+      DEMO_SIGNUP_PROXY_SECRET: "demo-proxy",
+    });
+    expect(demoSecrets(get)).toEqual({
+      turnstileSecret: "0x4AAAAAAAdemolive",
+      hashSecret: "demo-hash",
+      proxySecret: "demo-proxy",
+    });
+  });
+
+  it("falls back to the shared names (a separate demo project, local, CI)", () => {
+    const get = env({
+      TURNSTILE_SECRET_KEY: "0x4AAAAAAAlive",
+      SIGNUP_HASH_SECRET: "hash",
+      SIGNUP_PROXY_SECRET: "proxy",
+      DEMO_SIGNUP_PROXY_SECRET: "",
+    });
+    expect(demoSecrets(get)).toEqual({
+      turnstileSecret: "0x4AAAAAAAlive",
+      hashSecret: "hash",
+      proxySecret: "proxy",
+    });
+  });
+
+  it("is empty when neither is set", () => {
+    expect(demoSecrets(env({}))).toEqual({ turnstileSecret: "", hashSecret: "", proxySecret: "" });
+  });
+
+  it("public mode opens with the demo's live key over the test project's test key", () => {
+    const { turnstileSecret } = demoSecrets(
+      env({
+        TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
+        DEMO_TURNSTILE_SECRET_KEY: "0x4AAAAAAAdemolive",
+      }),
+    );
+    expect(demoMode({ mode: "public", turnstileSecret }).open).toBe(true);
+  });
+
+  it("public mode keeps refusing a test key that comes from the fallback", () => {
+    const { turnstileSecret } = demoSecrets(
+      env({ TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA" }),
+    );
+    expect(demoMode({ mode: "public", turnstileSecret }).open).toBe(false);
+  });
+
+  it("public mode refuses a DEMO_ test key even when the shared key is live", () => {
+    const { turnstileSecret } = demoSecrets(
+      env({
+        TURNSTILE_SECRET_KEY: "0x4AAAAAAAlive",
+        DEMO_TURNSTILE_SECRET_KEY: "2x0000000000000000000000000000000AA",
+      }),
+    );
+    expect(demoMode({ mode: "public", turnstileSecret }).open).toBe(false);
   });
 });

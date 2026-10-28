@@ -18,9 +18,30 @@ SB_TOKEN = "sb-token-SECRET"
 VC_TOKEN = "vc-token-SECRET"
 TEST_REF = "testref000000000000"
 DEMO_REF = "demoref000000000000"
+PILOT_REF = "pilotref00000000000"
 ORG = "org-test"
 SERVICE_ROLE = "service-role-SECRET-key"
 ANON = "anon-public-key"
+TEST_ANON = "test-anon-public-key"
+
+
+def test_project_state():
+    # What the test site relies on (docs/demo-turu.md §15.1): never overwritten.
+    return {
+        "auth": {"site_url": "https://orchados.vercel.app",
+                 "uri_allow_list": "https://orchados.vercel.app/**,http://localhost:3000/**",
+                 "disable_signup": True, "mailer_autoconfirm": False, "sms_autoconfirm": False,
+                 "external_phone_enabled": True},
+        "secrets": {"MESSAGE_PROVIDER": "record", "PORTAL_BASE_URL": "https://orchados.vercel.app",
+                    "SIGNUP_HASH_SECRET": "test-hash-SECRET", "SIGNUP_PROXY_SECRET": "test-proxy-SECRET",
+                    "ORCHADOS_CRON_SECRET": "test-cron-SECRET",
+                    "TURNSTILE_SECRET_KEY": "1x0000000000000000000000000000000AA",
+                    "PAYMENT_PROVIDER": "fake", "PAYMENT_FAKE_ALLOWED": "1"},
+        "vault": {"orchados_cron_secret": "test-cron-SECRET",
+                  "send_notifications_url": "https://testref000000000000.supabase.co/functions/v1/send-notifications"},
+        # Demo lock query answer (scripts/demo-lock-check.sh).
+        "locks": {},
+    }
 
 
 def fresh_state():
@@ -28,6 +49,8 @@ def fresh_state():
         "projects": {
             TEST_REF: {"id": TEST_REF, "name": "orchados", "organization_id": ORG,
                        "region": "eu-north-1", "status": "ACTIVE_HEALTHY"},
+            PILOT_REF: {"id": PILOT_REF, "name": "orchados-pilot", "organization_id": ORG,
+                        "region": "eu-central-1", "status": "ACTIVE_HEALTHY"},
             # Same name in another organization: must be ignored.
             "otherorg00000000000": {"id": "otherorg00000000000", "name": "orchados-demo",
                                     "organization_id": "org-other", "region": "us-east-1",
@@ -40,6 +63,8 @@ def fresh_state():
                  "mailer_autoconfirm": True, "sms_autoconfirm": True},
         "secrets": {},
         "vault": {},
+        "locks": {},
+        "test": test_project_state(),
         "vercel": None,
         "vercel_env": [],
         "deployments": [],
@@ -76,6 +101,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PATCH(self):
         self.route("PATCH")
+
+    def do_DELETE(self):
+        self.route("DELETE")
 
     def route(self, method):
         url = urlparse(self.path)
@@ -114,8 +142,19 @@ class Handler(BaseHTTPRequestHandler):
         elif op == "add-org":
             STATE["orgs"].append(body["id"])
         elif op == "drop-secret":
-            STATE["secrets"].pop(body["name"], None)
+            self.store(body.get("ref", DEMO_REF))["secrets"].pop(body["name"], None)
+        elif op == "drop-vault":
+            self.store(body.get("ref", DEMO_REF))["vault"].pop(body["name"], None)
+        elif op == "set-locks":
+            self.store(body.get("ref", DEMO_REF))["locks"] = body["locks"]
+        elif op == "set-secret":
+            self.store(body.get("ref", DEMO_REF))["secrets"][body["name"]] = body["value"]
         return self.reply(200, STATE)
+
+    # Per-project state: the demo project at the top level, the test project under "test".
+    @staticmethod
+    def store(ref):
+        return STATE["test"] if ref == TEST_REF else STATE
 
     # --- Supabase -------------------------------------------------------------
     def supabase(self, method, path, body):
@@ -143,36 +182,57 @@ class Handler(BaseHTTPRequestHandler):
                 if STATE["coming_up_polls"] < 0:
                     p["status"] = "ACTIVE_HEALTHY"
             return self.reply(200, p)
-        if ref != DEMO_REF:
-            return self.reply(403, {"message": "only the demo project may be changed"})
+        if ref not in (DEMO_REF, TEST_REF):
+            return self.reply(403, {"message": "the pilot is never touched"})
         if p["status"] != "ACTIVE_HEALTHY":
             return self.reply(503, {"message": "project not ready"})
+        st = self.store(ref)
         if rest == "/api-keys":
-            return self.reply(200, [{"name": "anon", "api_key": ANON, "type": "legacy"},
+            anon = TEST_ANON if ref == TEST_REF else ANON
+            return self.reply(200, [{"name": "anon", "api_key": anon, "type": "legacy"},
                                     {"name": "service_role", "api_key": SERVICE_ROLE, "type": "legacy"}])
         if rest == "/config/auth" and method == "GET":
-            return self.reply(200, STATE["auth"])
+            return self.reply(200, st["auth"])
         if rest == "/config/auth" and method == "PATCH":
-            STATE["auth"].update(body)
-            return self.reply(200, STATE["auth"])
+            st["auth"].update(body)
+            return self.reply(200, st["auth"])
         if rest == "/secrets" and method == "GET":
             return self.reply(200, [{"name": k, "value": hashlib.sha256(v.encode()).hexdigest()}
-                                    for k, v in STATE["secrets"].items()])
+                                    for k, v in st["secrets"].items()])
         if rest == "/secrets" and method == "POST":
             for s in body:
                 if not s.get("value"):
                     return self.reply(400, {"message": f"empty value for {s.get('name')}"})
-                STATE["secrets"][s["name"]] = s["value"]
+                st["secrets"][s["name"]] = s["value"]
             return self.reply(201)
+        if rest == "/secrets" and method == "DELETE":
+            if not isinstance(body, list) or not all(isinstance(n, str) for n in body):
+                return self.reply(400, {"message": "expected a list of names"})
+            for n in body:
+                st["secrets"].pop(n, None)
+            return self.reply(200)
         if rest == "/database/query" and method == "POST":
             q = body["query"]
             if q.startswith("select name from vault.secrets"):
-                return self.reply(200, [{"name": n} for n in STATE["vault"]])
-            ups = re.findall(r"perform vault\.create_secret\('([^']*)', '([^']*)'\)", q)
+                return self.reply(200, [{"name": n} for n in st["vault"]])
+            if "as real_orgs" in q:
+                counts = {"real_orgs": 0, "enabled_demo_orgs": 0, "cleanup_url": 0, "cron_secret": 0,
+                          "billing_orgs": 0, "demo_billing_orgs": 0, "demo_users_outside": 0}
+                counts.update(st["locks"])
+                return self.reply(201, [counts])
+            # scripts/provision-demo.sh vault_upsert: update when the name exists, else create.
+            ups = re.findall(
+                r"if exists \(select 1 from vault\.secrets where name = '([^']*)'\) then\s*"
+                r"perform vault\.update_secret\(\(select id from vault\.secrets where name = '([^']*)'\), '([^']*)'\);\s*"
+                r"else\s*perform vault\.create_secret\('([^']*)', '([^']*)'\);", q)
             if not ups:
                 return self.reply(400, {"message": "unexpected query"})
-            for value, name in ups:
-                STATE["vault"][name] = value
+            for name, uname, uvalue, cvalue, cname in ups:
+                if not (name == uname == cname and uvalue == cvalue):
+                    return self.reply(400, {"message": "inconsistent upsert"})
+                if name in st["vault"]:
+                    st.setdefault("vault_updates", []).append(name)
+                st["vault"][name] = cvalue
             return self.reply(201, [])
         return self.reply(404, {"message": "no route"})
 

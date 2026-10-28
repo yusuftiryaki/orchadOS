@@ -197,7 +197,9 @@ def test_reset_and_dry_run_exclude_each_other(monkeypatch):
 
 def test_workflow_runs_in_the_project_environment_on_main():
     text = WORKFLOW.read_text(encoding="utf-8")
-    assert "    environment: ${{ inputs.project }}\n" in text
+    # project=demo is the test project only while it hosts the demo (DEMO_HOST=test).
+    separate = "(inputs.project == 'demo' && vars.DEMO_HOST != 'test')"
+    assert f"    environment: ${{{{ {separate} && 'demo' || 'test' }}}}\n" in text
     assert "    if: github.ref == 'refs/heads/main'\n" in text
 
 
@@ -206,9 +208,13 @@ def test_workflow_secrets_are_step_scoped():
     job_env = text.split("    env:\n", 1)[1].split("    steps:\n", 1)[0]
     assert "secrets." not in job_env and "secrets[" not in job_env
     assert "GITHUB_ENV" not in text.split("id: guard", 1)[1].split("- uses:", 1)[0]
-    # A missing demo secret is empty, never the test one: names are literals.
-    for m in re.finditer(r"secrets\[(.*?)\]", text):
-        assert re.fullmatch(r"inputs\.project == 'demo' && 'DEMO_\w+' \|\| '\w+'", m.group(1))
+    # A missing demo secret is empty, never the test one: names are literals, and
+    # each picks the DEMO_ name exactly when the job runs in the demo environment.
+    found = re.findall(r"secrets\[(.*?)\]", text)
+    assert found
+    for expr in found:
+        separate = r"\(inputs\.project == 'demo' && vars\.DEMO_HOST != 'test'\)"
+        assert re.fullmatch(separate + r" && 'DEMO_(\w+)' \|\| '\1'", expr), expr
 
 
 def test_workflow_reuses_only_main_runs_of_itself():

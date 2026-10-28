@@ -165,3 +165,23 @@ export function demoMode(env: DemoModeEnv): { open: boolean; requireTurnstile: b
   }
   return { open: false, requireTurnstile: true };
 }
+
+export interface DemoSecrets {
+  turnstileSecret: string;
+  hashSecret: string;
+  proxySecret: string;
+}
+
+// The secrets demo-start uses. A DEMO_* name wins over the shared one, so the
+// demo can live on a project whose sign-up already holds the shared names
+// (shared hosting on the test project, docs/demo-turu.md §15.1): its live
+// Turnstile secret is bound to the demo hostname, and its proxy secret is the
+// demo Vercel project's, not the test site's. An empty value counts as unset.
+export function demoSecrets(get: (name: string) => string | undefined): DemoSecrets {
+  const pick = (name: string) => get(`DEMO_${name}`) || get(name) || "";
+  return {
+    turnstileSecret: pick("TURNSTILE_SECRET_KEY"),
+    hashSecret: pick("SIGNUP_HASH_SECRET"),
+    proxySecret: pick("SIGNUP_PROXY_SECRET"),
+  };
+}

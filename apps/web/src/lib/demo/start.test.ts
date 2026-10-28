@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { demoStartErrorOf } from "./start";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { demoProxySecret, demoStartErrorOf } from "./start";
 
 describe("demoStartErrorOf", () => {
   it.each([
@@ -13,5 +13,27 @@ describe("demoStartErrorOf", () => {
     [401, { error: "unauthorized" }, "failed"],
   ] as const)("%s %j → %s", (status, body, code) => {
     expect(demoStartErrorOf(status, body)).toBe(code);
+  });
+});
+
+describe("demoProxySecret", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("prefers DEMO_SIGNUP_PROXY_SECRET (shared hosting on the test project)", () => {
+    vi.stubEnv("SIGNUP_PROXY_SECRET", "test-site");
+    vi.stubEnv("DEMO_SIGNUP_PROXY_SECRET", "demo");
+    expect(demoProxySecret()).toBe("demo");
+  });
+
+  it("falls back to SIGNUP_PROXY_SECRET", () => {
+    vi.stubEnv("SIGNUP_PROXY_SECRET", "shared");
+    vi.stubEnv("DEMO_SIGNUP_PROXY_SECRET", "");
+    expect(demoProxySecret()).toBe("shared");
+  });
+
+  it("is undefined when neither is set", () => {
+    vi.stubEnv("SIGNUP_PROXY_SECRET", "");
+    vi.stubEnv("DEMO_SIGNUP_PROXY_SECRET", "");
+    expect(demoProxySecret()).toBeUndefined();
   });
 });
