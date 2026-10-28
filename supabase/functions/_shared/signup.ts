@@ -245,6 +245,13 @@ export function jwtClaims(token: string): Record<string, unknown> | null {
   }
 }
 
+// The claims belong to a demo visitor (app_metadata.demo, docs/demo-turu.md
+// §7): Edge paths that write with the service role refuse them.
+export function isDemoClaims(claims: Record<string, unknown> | null): boolean {
+  const meta = claims?.app_metadata;
+  return !!meta && typeof meta === "object" && (meta as { demo?: unknown }).demo === true;
+}
+
 // §7.2: when the session was last opened with a phone code (amr method otp or
 // sms), in epoch seconds, or null. signup_complete requires it to be after
 // the pending sign-up was written.

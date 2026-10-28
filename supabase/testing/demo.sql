@@ -10,8 +10,9 @@ revoke all on schema testing from public;
 grant usage on schema testing to service_role;
 
 -- Registers (or updates) a demo org with these parcels, in this order, as
--- loaded now. With p_enabled every other demo org is disabled first. Returns
--- the demo org that was enabled before the call, or null.
+-- loaded now. With p_enabled every other demo org is disabled first. A null
+-- p_parcel_ids or p_tour keeps what the org has (restoring a registry a test
+-- found). Returns the demo org that was enabled before the call, or null.
 create or replace function testing.register_demo_org(
   p_org_id uuid,
   p_parcel_ids uuid[],
@@ -33,12 +34,17 @@ begin
   insert into private.demo_org (org_id, enabled, tour, loaded_at)
   values (p_org_id, p_enabled, coalesce(p_tour, '{}'), now())
   on conflict (org_id) do update
-    set enabled = excluded.enabled, tour = excluded.tour, loaded_at = excluded.loaded_at;
+    set enabled = excluded.enabled,
+        tour = case when p_tour is null then private.demo_org.tour else excluded.tour end,
+        loaded_at = excluded.loaded_at;
+  if p_parcel_ids is null then
+    return v_previous;
+  end if;
   delete from private.demo_parcel
-  where org_id = p_org_id and not (parcel_id = any(coalesce(p_parcel_ids, '{}')));
+  where org_id = p_org_id and not (parcel_id = any(p_parcel_ids));
   insert into private.demo_parcel (parcel_id, org_id, sort_order, active)
   select p.id, p_org_id, p.ord::integer, true
-  from unnest(coalesce(p_parcel_ids, '{}')) with ordinality as p(id, ord)
+  from unnest(p_parcel_ids) with ordinality as p(id, ord)
   on conflict (parcel_id) do update
     set org_id = excluded.org_id, sort_order = excluded.sort_order, active = true;
   return v_previous;
