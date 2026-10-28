@@ -7,6 +7,8 @@ import {
 } from "@/app/operasyon/actions";
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
+import { LegalNotice } from "@/components/operations/legal-notice";
+import { MediaSuppression } from "@/components/operations/media-suppression";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { VisitTable } from "@/components/operations/visit-table";
 import { Badge, Facts, day } from "@/components/back-office/parts";
@@ -25,6 +27,8 @@ import {
   opsOrgs,
 } from "@/lib/operations/data";
 import { m2ToDonum } from "@/lib/operations/geometry";
+import { listSuppressions } from "@/lib/operations/legal";
+import { createMediaSigner } from "@/lib/media/signer";
 import { opsHref } from "@/lib/operations/urls";
 import { createClient } from "@/lib/supabase/server";
 
@@ -52,6 +56,13 @@ export default async function Page({
     parcelService(supabase, parcel.org_id, parcelId),
   ]);
   const covering = service.garden;
+  const query = await searchParams;
+  // Legal follow-ups (T20): hidden images of the parcel's visits.
+  const isOps = orgs.some((o) => o.id === parcel.org_id);
+  const suppressions = isOps ? await listSuppressions(supabase, { parcelId }) : [];
+  const suppressionUrls = await createMediaSigner(supabase, { scope: user.id }).signUrls(
+    suppressions.map((r) => r.uri),
+  );
   const staff = await listFieldStaff(supabase, orgs);
   const leads = new Map(staff.map((s) => [s.userId, s.email]));
   const withAccess = new Set(access.map((a) => a.user_id));
@@ -64,7 +75,8 @@ export default async function Page({
   const actions = (
     <>
       <OpsNav current={null} />
-      <ResultNotice params={await searchParams} />
+      <ResultNotice params={query} />
+      <LegalNotice params={query} />
       <div className={styles.actions}>
         <Link className="button" href={opsHref.newVisit(parcel.id)}>
           {T.visits.planForParcel}
@@ -322,6 +334,14 @@ export default async function Page({
           <VisitTable visits={visits} leads={leads} showParcel={false} />
         )}
       </section>
+
+      {isOps && (
+        <MediaSuppression
+          back={opsHref.parcel(parcel.id)}
+          records={suppressions}
+          urls={suppressionUrls}
+        />
+      )}
     </>
   );
 

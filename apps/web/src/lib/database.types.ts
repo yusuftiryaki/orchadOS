@@ -4723,6 +4723,10 @@ export type Database = {
           withdrawal: boolean;
         }[];
       };
+      ops_hide_media: {
+        Args: { p_id: string; p_note?: string; p_reason: string };
+        Returns: string;
+      };
       ops_issue_addon_quote: {
         Args: {
           p_application_id?: string;
@@ -4767,6 +4771,25 @@ export type Database = {
       ops_link_application_garden_parcel: {
         Args: { p_garden_id: string; p_parcel_id: string };
         Returns: undefined;
+      };
+      ops_media_suppressions: {
+        Args: { p_parcel_id?: string; p_session_id?: string };
+        Returns: {
+          action: string;
+          actor_email: string;
+          created_at: string;
+          hidden_now: boolean;
+          id: string;
+          kind: string;
+          note: string;
+          org_id: string;
+          parcel_id: string;
+          reason: string;
+          session_id: string;
+          target_id: string;
+          target_table: string;
+          uri: string;
+        }[];
       };
       ops_notifications: {
         Args: { p_limit?: number; p_status?: string };
@@ -5171,6 +5194,7 @@ export type Database = {
         }[];
       };
       ops_terminate_order: { Args: { p_note: string; p_order_id: string }; Returns: undefined };
+      ops_unhide_media: { Args: { p_id: string; p_note?: string }; Returns: string };
       ops_update_owner_profile: {
         Args: {
           p_contact_preference: string;

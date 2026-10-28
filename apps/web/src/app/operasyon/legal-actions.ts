@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireSection } from "@/lib/auth/session";
-import { saveStaffProfile, type LegalResult } from "@/lib/operations/legal";
+import {
+  hideMedia,
+  saveStaffProfile,
+  unhideMedia,
+  type LegalResult,
+} from "@/lib/operations/legal";
 import { isUuid } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,4 +52,24 @@ export async function saveStaffAction(form: FormData) {
     title: text(form, "title"),
   });
   finish(back, result, "staff_saved");
+}
+
+export async function hideMediaAction(form: FormData) {
+  const supabase = await context();
+  const id = text(form, "id").toLowerCase();
+  const back = text(form, "back");
+  if (!isUuid(id)) finish(back, { ok: false, error: "invalid_input" }, "");
+  finish(
+    back,
+    await hideMedia(supabase, { id, reason: text(form, "reason"), note: text(form, "note") }),
+    "media_hidden",
+  );
+}
+
+export async function unhideMediaAction(form: FormData) {
+  const supabase = await context();
+  const id = text(form, "id").toLowerCase();
+  const back = text(form, "back");
+  if (!isUuid(id)) finish(back, { ok: false, error: "invalid_input" }, "");
+  finish(back, await unhideMedia(supabase, { id, note: text(form, "note") }), "media_unhidden");
 }
