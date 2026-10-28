@@ -10,8 +10,8 @@ import type { SignupInput } from "./validation";
 export const SIGNUP_ERRORS = [
   "invalid_input",
   "captcha_failed",
-  "email_taken",
-  "phone_registered",
+  // A taken e-mail; never says which detail is registered (H33).
+  "not_completed",
   "too_many_attempts",
   "signup_closed",
   "signup_unavailable",
@@ -38,12 +38,19 @@ function proxyHeaders(): Record<string, string> {
 const isSignupError = (value: unknown): value is SignupError =>
   typeof value === "string" && (SIGNUP_ERRORS as readonly string[]).includes(value);
 
+// Codes of a function deployed before H33 (docs/hukuk/kararlar.md): shown
+// as the generic not_completed, never told apart.
+const LEGACY_CONFLICTS = new Set(["email_taken", "phone_registered"]);
+
 // Maps an HTTP status and body of the function to an error code. A missing
 // function (404) or a server error (5xx) is "signup_unavailable", except for
 // the function's own 503 signup_closed and 500 failed.
 export function signupErrorFromResponse(status: number, body: unknown): SignupError {
   const code =
     body && typeof body === "object" && "error" in body ? (body as { error: unknown }).error : null;
+  if (status === 409 && typeof code === "string" && LEGACY_CONFLICTS.has(code)) {
+    return "not_completed";
+  }
   if (status === 503 && code === "signup_closed") return "signup_closed";
   if (status === 500 && code === "failed") return "failed";
   if (status === 404 || status >= 500) return "signup_unavailable";

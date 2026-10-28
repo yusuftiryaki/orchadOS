@@ -204,15 +204,19 @@ describe("customer-signup", () => {
     const [account] = await usersByEmail([String(victim.email)]);
 
     const sameEmail = await signup(body({ email: victim.email }), "203.0.113.8");
-    expect(sameEmail).toEqual({ status: 409, json: { error: "email_taken" } });
+    expect(sameEmail).toEqual({ status: 409, json: { error: "not_completed" } });
+    // H33: the same phone answers like a new sign-up, and nothing is created.
+    const attackerEmail = randomEmail("saldirgan");
     const samePhone = await signup(
-      body({ phone: victim.phone, email: randomEmail("saldirgan") }),
+      body({ phone: victim.phone, email: attackerEmail }),
       "203.0.113.8",
     );
-    expect(samePhone).toEqual({ status: 409, json: { error: "phone_registered" } });
+    expect(samePhone).toEqual({ status: 200, json: { next: "verify_phone" } });
+    expect(await usersByEmail([attackerEmail])).toHaveLength(0);
 
     const kept = await serviceClient().auth.admin.getUserById(account.id);
     expect(kept.data.user?.id).toBe(account.id);
+    expect(kept.data.user?.email).toBe(String(victim.email));
     expect(kept.data.user?.phone).toBe(String(victim.phone).slice(1));
   });
 
@@ -225,17 +229,100 @@ describe("customer-signup", () => {
       statuses.push(res.status);
     }
     expect(statuses).toEqual([200, 409, 409, 409, 409, 429]);
+  }, 40_000);
+
+  // docs/hukuk/kararlar.md H33: nothing in the answer tells which detail is
+  // registered.
+  it("an e-mail of another account gets the generic error only", async () => {
+    const res = await fetch(`${inject("supabase").url}/functions/v1/customer-signup`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-orchados-proxy-secret": PROXY_SECRET },
+      body: JSON.stringify({ ...body({ email: "owner@example.com" }), client_ip: "203.0.113.4" }),
+    });
+    expect(res.status).toBe(409);
+    const text = await res.text();
+    expect(JSON.parse(text)).toEqual({ error: "not_completed" });
+    expect(text).not.toMatch(/email|phone|owner/);
+    const headers = [...res.headers].map(([k, v]) => `${k}: ${v}`).join("\n");
+    expect(headers).not.toMatch(/email|phone|taken|registered/i);
   });
 
-  it("an e-mail of another account is taken", async () => {
-    const res = await signup(body({ email: "owner@example.com" }), "203.0.113.4");
-    expect(res).toEqual({ status: 409, json: { error: "email_taken" } });
-  });
-
-  it("a phone in another customer's profile is registered", async () => {
+  it("a phone in another customer's profile answers like a new sign-up and creates nothing", async () => {
     // The seed owner's profile phone; the owner signs in with e-mail.
-    const res = await signup(body({ phone: "+905550000001" }), "203.0.113.5");
-    expect(res).toEqual({ status: 409, json: { error: "phone_registered" } });
+    const email = randomEmail("profil-telefon");
+    const res = await signup(body({ phone: "+905550000001", email }), "203.0.113.5");
+    expect(res).toEqual({ status: 200, json: { next: "verify_phone" } });
+    expect(await usersByEmail([email])).toHaveLength(0);
+  });
+
+  it("the verified owner of a registered phone gets in with the code; nothing of the new form sticks", async () => {
+    // The owner of the number: an account with a verified phone (one SMS code
+    // a minute per number, so it is made directly).
+    const owner = body({ email: randomEmail("sahip") });
+    const phone = String(owner.phone);
+    const made = await serviceClient().auth.admin.createUser({
+      email: String(owner.email),
+      password: PASSWORD,
+      phone,
+      email_confirm: true,
+      phone_confirm: true,
+    });
+    expect(made.error).toBeNull();
+    const account = made.data.user!;
+
+    // Someone registers the same number with another e-mail and password.
+    const otherEmail = randomEmail("baska");
+    const again = await signup(
+      body({ phone, email: otherEmail, password: "baska-parola-1" }),
+      "203.0.113.31",
+    );
+    expect(again).toEqual({ status: 200, json: { next: "verify_phone" } });
+    expect(await usersByEmail([otherEmail])).toHaveLength(0);
+
+    // The code goes to the number's owner, who lands in their own account.
+    const client = anonClient();
+    expect(await sendCode(client, phone)).toBeNull();
+    const code = await latestCode(phone);
+    expect(code).toMatch(/^\d{6}$/);
+    const login = await client.auth.verifyOtp({ phone, token: code!, type: "sms" });
+    expect(login.error).toBeNull();
+    expect(login.data.user?.id).toBe(account.id);
+    expect(
+      await signup({ action: "complete" }, "203.0.113.31", {
+        authorization: `Bearer ${login.data.session!.access_token}`,
+      }),
+    ).toEqual({ status: 200, json: { status: "no_pending" } });
+
+    // The account keeps its e-mail and password; the new ones do not work.
+    const kept = await serviceClient().auth.admin.getUserById(account.id);
+    expect(kept.data.user?.email).toBe(String(owner.email));
+    const otherPassword = await anonClient().auth.signInWithPassword({
+      email: String(owner.email),
+      password: "baska-parola-1",
+    });
+    expect(otherPassword.error).not.toBeNull();
+    const ownPassword = await anonClient().auth.signInWithPassword({
+      email: String(owner.email),
+      password: PASSWORD,
+    });
+    expect(ownPassword.error).toBeNull();
+  }, 40_000);
+
+  it("a new sign-up, a registered phone and a taken e-mail take about the same time", async () => {
+    const timed = async (payload: Record<string, unknown>, ip: string) => {
+      const started = performance.now();
+      const res = await signup(payload, ip);
+      return { status: res.status, ms: performance.now() - started };
+    };
+    const created = await timed(body({ email: randomEmail("sure-yeni") }), "203.0.113.40");
+    const registered = await timed(body({ phone: "+905550000001" }), "203.0.113.41");
+    const taken = await timed(body({ email: "owner@example.com" }), "203.0.113.42");
+    expect([created.status, registered.status, taken.status]).toEqual([200, 200, 409]);
+    // REGISTER_MIN_MS (1500) is the floor of each; they stay within 400 ms.
+    for (const { ms } of [created, registered, taken]) expect(ms).toBeGreaterThanOrEqual(1450);
+    const spread =
+      Math.max(created.ms, registered.ms, taken.ms) - Math.min(created.ms, registered.ms, taken.ms);
+    expect(spread).toBeLessThan(400);
   });
 
   // The rollback switch (docs/musteri-yonetimi.md §15.5): the function itself
@@ -298,7 +385,7 @@ describe("customer-signup", () => {
     }
     expect(statuses.at(-1)).toBe(429);
     expect(statuses.filter((s) => s === 200).length).toBeLessThanOrEqual(10);
-  });
+  }, 40_000);
 
   it("cleanup needs the cron secret and keeps fresh sign-ups", async () => {
     const input = body({ email: randomEmail("temizlik") });

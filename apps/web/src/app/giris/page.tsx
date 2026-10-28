@@ -7,15 +7,15 @@ import { DemoLink } from "@/components/site/demo-link";
 import { SignupLink } from "@/components/site/signup-link";
 import { siteFlags } from "@/lib/flags";
 import { LoginForm } from "./login-form";
-import { safeNextPath } from "./login-methods";
+import { loginMethodParam, safeNextPath } from "./login-methods";
 import styles from "./login.module.css";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string | string[] }>;
+  searchParams: Promise<{ next?: string | string[]; yontem?: string | string[] }>;
 }) {
-  const { next } = await searchParams;
+  const { next, yontem } = await searchParams;
   const target = safeNextPath(next);
   const user = await getSessionUser();
   if (user && !user.demo) redirect(target);
@@ -46,7 +46,7 @@ export default async function LoginPage({
             <DemoContinue next="/giris" />
           ) : (
             <>
-              <LoginForm next={target} />
+              <LoginForm next={target} initialMethod={loginMethodParam(yontem)} />
               <div className={styles.signup}>
                 <SignupLink signupEnabled={flags.signupEnabled} />
                 <DemoLink demoUrl={flags.demoUrl} />

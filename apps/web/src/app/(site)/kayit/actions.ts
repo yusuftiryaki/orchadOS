@@ -9,6 +9,7 @@ import { clientIp } from "@/lib/site/client-ip";
 import { formReader, normalizePhone } from "@/lib/operations/validation";
 import { completeSignup, registerCustomer } from "@/lib/signup/client";
 import { sendAccountCode } from "@/lib/signup/send-code";
+import { CODE_STEP_MIN_MS, waitAtLeast } from "@/lib/signup/timing";
 import {
   parseSignupForm,
   SIGNUP_FIELDS,
@@ -44,20 +45,22 @@ function valuesOf(form: FormData): SignupValues {
 }
 
 // Sends an SMS code to the account's phone. Returns an error text or null.
-// `hideUnknown`: a number without an account gets the same answer as one
-// with an account, as on /giris (the resend intent takes the number from the
-// form, so it must not tell whether a number is registered).
-async function sendCode(
-  supabase: Client,
-  phone: string,
-  hideUnknown: boolean,
-): Promise<string | null> {
-  const allowed = await supabase.rpc("phone_login_allowed", { p_phone: phone });
-  if (allowed.data === false) return t.login.phone.locked;
-  const reason = await sendAccountCode(supabase, phone);
-  if (reason === null) return null;
-  if (reason === "not_registered") return hideUnknown ? null : s.errors.failed;
-  return t.login.phone[reason];
+// A number without a login gets the same answer as one with an account, as
+// on /giris: register answers a registered phone like a new one and the code
+// goes only to the phone's owner (docs/hukuk/kararlar.md H33), and resend
+// takes the number from the form. Every answer takes at least
+// CODE_STEP_MIN_MS, so the time does not tell either.
+async function sendCode(supabase: Client, phone: string): Promise<string | null> {
+  const started = Date.now();
+  try {
+    const allowed = await supabase.rpc("phone_login_allowed", { p_phone: phone });
+    if (allowed.data === false) return t.login.phone.locked;
+    const reason = await sendAccountCode(supabase, phone);
+    if (reason === null || reason === "not_registered") return null;
+    return t.login.phone[reason];
+  } finally {
+    await waitAtLeast(started, CODE_STEP_MIN_MS);
+  }
 }
 
 function codeStep(previous: SignupState, phone: string): SignupState {
@@ -105,7 +108,7 @@ async function register(previous: SignupState, form: FormData): Promise<SignupSt
     };
   }
 
-  const error = await sendCode(supabase, parsed.value.phone, false);
+  const error = await sendCode(supabase, parsed.value.phone);
   if (error) return { ...base, fieldErrors: {}, error };
   return codeStep({ ...base, fieldErrors: {} }, parsed.value.phone);
 }
@@ -118,7 +121,7 @@ function codePhone(form: FormData): string | null {
 async function resend(previous: SignupState, form: FormData): Promise<SignupState> {
   const phone = codePhone(form);
   if (!phone) return { ...previous, step: "form", error: s.errors.invalid_input, notice: null };
-  const error = await sendCode(await createClient(), phone, true);
+  const error = await sendCode(await createClient(), phone);
   if (error) return { ...previous, error, notice: null };
   return codeStep(previous, phone);
 }
@@ -141,8 +144,14 @@ async function verify(previous: SignupState, form: FormData): Promise<SignupStat
     return { ...previous, error: t.login.phone.wrongCode(left.data ?? 0), notice: null };
   }
 
+  // A registered phone's owner is now signed in to their own account
+  // (already_completed or no_pending): "/" takes them to their section.
   const completed = await completeSignup(supabase);
-  redirect(completed.ok && completed.status === "completed" ? "/portal" : "/");
+  redirect(
+    completed.ok && (completed.status === "completed" || completed.status === "already_completed")
+      ? "/portal"
+      : "/",
+  );
 }
 
 export async function signupAction(previous: SignupState, form: FormData): Promise<SignupState> {

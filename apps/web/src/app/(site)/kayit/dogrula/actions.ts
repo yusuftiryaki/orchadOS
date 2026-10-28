@@ -57,5 +57,9 @@ export async function verifyPhoneAction(
   }
 
   const completed = await completeSignup(supabase);
-  redirect(completed.ok && completed.status === "completed" ? "/portal" : "/");
+  redirect(
+    completed.ok && (completed.status === "completed" || completed.status === "already_completed")
+      ? "/portal"
+      : "/",
+  );
 }

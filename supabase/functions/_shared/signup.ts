@@ -46,7 +46,8 @@ function str(v: unknown): string | null {
 
 // The `register` body. Field names in errors are the request's keys.
 export function parseRegister(body: unknown): Parsed<RegisterInput> {
-  if (!body || typeof body !== "object" || Array.isArray(body)) return invalid("body");
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    return invalid("body");
   const b = body as Record<string, unknown>;
 
   const fullName = (str(b.full_name) ?? "").trim().replace(/\s+/g, " ");
@@ -59,7 +60,10 @@ export function parseRegister(body: unknown): Parsed<RegisterInput> {
   if (email.length > 254 || !EMAIL_RE.test(email)) return invalid("email");
 
   const password = str(b.password) ?? "";
-  if (password.length < PASSWORD_MIN || new TextEncoder().encode(password).length > PASSWORD_MAX) {
+  if (
+    password.length < PASSWORD_MIN ||
+    new TextEncoder().encode(password).length > PASSWORD_MAX
+  ) {
     return invalid("password");
   }
 
@@ -69,16 +73,20 @@ export function parseRegister(body: unknown): Parsed<RegisterInput> {
   }
 
   const c = b.consents;
-  if (!c || typeof c !== "object" || Array.isArray(c)) return invalid("consents");
+  if (!c || typeof c !== "object" || Array.isArray(c))
+    return invalid("consents");
   const consents = c as Record<string, unknown>;
   const kvkk = str(consents.kvkk_notice_version);
-  if (!kvkk || !TEXT_VERSION_RE.test(kvkk)) return invalid("kvkk_notice_version");
+  if (!kvkk || !TEXT_VERSION_RE.test(kvkk))
+    return invalid("kvkk_notice_version");
   const explicit = str(consents.explicit_text_version);
-  if (!explicit || !TEXT_VERSION_RE.test(explicit)) return invalid("explicit_text_version");
+  if (!explicit || !TEXT_VERSION_RE.test(explicit))
+    return invalid("explicit_text_version");
   if (typeof consents.explicit_service_improvement !== "boolean") {
     return invalid("explicit_service_improvement");
   }
-  if (typeof consents.explicit_marketing !== "boolean") return invalid("explicit_marketing");
+  if (typeof consents.explicit_marketing !== "boolean")
+    return invalid("explicit_marketing");
 
   let clientIp: string | null = null;
   if (b.client_ip !== undefined && b.client_ip !== null) {
@@ -88,7 +96,8 @@ export function parseRegister(body: unknown): Parsed<RegisterInput> {
   let captchaToken: string | null = null;
   if (b.captcha_token !== undefined && b.captcha_token !== null) {
     captchaToken = str(b.captcha_token);
-    if (!captchaToken || captchaToken.length > 4096) return invalid("captcha_token");
+    if (!captchaToken || captchaToken.length > 4096)
+      return invalid("captcha_token");
   }
 
   return {
@@ -118,7 +127,9 @@ export function parseRegister(body: unknown): Parsed<RegisterInput> {
 const encoder = new TextEncoder();
 
 function toHex(bytes: ArrayBuffer): string {
-  return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(bytes), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
 }
 
 // hex(HMAC-SHA256(secret, value)): the ip_hash, phone_hash and email_hash of
@@ -150,7 +161,10 @@ export function timingSafeEqual(a: string, b: string): boolean {
 // (supabase/config.toml), never a hosted project.
 export type CaptchaMode = "verify" | "skip" | "unconfigured";
 
-export function captchaMode(secret: string, disabledFlag: string | undefined): CaptchaMode {
+export function captchaMode(
+  secret: string,
+  disabledFlag: string | undefined,
+): CaptchaMode {
   if (secret) return "verify";
   return disabledFlag === "1" ? "skip" : "unconfigured";
 }
@@ -164,7 +178,13 @@ export function clientIp(
   proxySecret: string,
 ): string | null {
   const sent = headers.get("x-orchados-proxy-secret");
-  if (proxySecret && sent !== null && timingSafeEqual(sent, proxySecret) && bodyIp) return bodyIp;
+  if (
+    proxySecret &&
+    sent !== null &&
+    timingSafeEqual(sent, proxySecret) &&
+    bodyIp
+  )
+    return bodyIp;
   const cf = headers.get("cf-connecting-ip")?.trim();
   if (cf) return cf;
   const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
@@ -185,10 +205,14 @@ export interface AccountMatch {
 export type MatchOutcome =
   // Open the account.
   | "create"
-  // The verified owner of this phone: send them to the code step, change nothing.
-  | "existing_account"
-  | "email_taken"
-  | "phone_registered";
+  // The phone belongs to an account (its verified owner, a sign-up in
+  // progress or another customer's profile): answer as for a new sign-up and
+  // change nothing; the code step sends a login code that only reaches the
+  // phone's owner (docs/hukuk/kararlar.md H33).
+  | "send_code"
+  // The e-mail belongs to another account and the phone to none: the generic
+  // "not_completed" error, never told apart from other conflicts (H33).
+  | "conflict";
 
 export interface MatchDecision {
   // Stale self sign-ups past the grace period: deleted before going on.
@@ -197,7 +221,7 @@ export interface MatchDecision {
 }
 
 // A stale sign-up younger than this still belongs to whoever is entering its
-// code: a register with the same e-mail or phone is refused, not a takeover.
+// code: a register with the same e-mail or phone does not replace it.
 export const STALE_GRACE_MS = 30 * 60 * 1000;
 
 export const isStale = (m: AccountMatch) =>
@@ -208,30 +232,48 @@ const pastGrace = (m: AccountMatch, nowMs: number) => {
   return Number.isFinite(started) && nowMs - started > STALE_GRACE_MS;
 };
 
-// §7.1 step 5, in order: stale accounts past the grace period go; a verified
-// phone owner whose e-mail is not someone else's continues to the code; a
-// phone in another customer's profile, a taken e-mail or a taken (unverified,
-// or stale but recent) phone is refused.
-export function decideMatches(matches: AccountMatch[], nowMs: number): MatchDecision {
+// §7.1 step 5, in order: stale accounts past the grace period go; a phone
+// that still belongs to an account (by the account's phone or a customer
+// profile) goes to the code step without changes, whoever holds the e-mail; a
+// taken e-mail with a free phone is a conflict. Nothing here attaches the new
+// e-mail or password to an existing account.
+export function decideMatches(
+  matches: AccountMatch[],
+  nowMs: number,
+): MatchDecision {
   const stale = [
-    ...new Set(matches.filter((m) => isStale(m) && pastGrace(m, nowMs)).map((m) => m.user_id)),
+    ...new Set(
+      matches
+        .filter((m) => isStale(m) && pastGrace(m, nowMs))
+        .map((m) => m.user_id),
+    ),
   ];
   const live = matches.filter((m) => !stale.includes(m.user_id));
-  const byPhone = live.find((m) => m.matched_by === "phone");
-  const byEmail = live.find((m) => m.matched_by === "email");
-  const byProfile = live.find((m) => m.matched_by === "profile_phone");
-
   let outcome: MatchOutcome = "create";
-  if (byPhone?.phone_confirmed && (!byEmail || byEmail.user_id === byPhone.user_id)) {
-    outcome = "existing_account";
-  } else if (byProfile) {
-    outcome = "phone_registered";
-  } else if (byEmail) {
-    outcome = "email_taken";
-  } else if (byPhone) {
-    outcome = "phone_registered";
+  if (
+    live.some(
+      (m) => m.matched_by === "phone" || m.matched_by === "profile_phone",
+    )
+  ) {
+    outcome = "send_code";
+  } else if (live.some((m) => m.matched_by === "email")) {
+    outcome = "conflict";
   }
   return { staleUserIds: stale, outcome };
+}
+
+// H33: every register answer after the rate limits takes at least this long,
+// so a new account (Auth hashes the password, the pending row is written) and
+// a registered phone or e-mail (no writes) cannot be told apart by timing.
+export const REGISTER_MIN_MS = 1500;
+
+// How long to wait before answering a register that started at `startedMs`.
+export function registerDelayMs(
+  startedMs: number,
+  nowMs: number,
+  minMs = REGISTER_MIN_MS,
+): number {
+  return Math.max(0, startedMs + minMs - nowMs);
 }
 
 // The claims of a JWT (already verified by the Auth API), or null.
@@ -241,7 +283,9 @@ export function jwtClaims(token: string): Record<string, unknown> | null {
   try {
     const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
     const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-    const json = new TextDecoder().decode(Uint8Array.from(atob(padded), (ch) => ch.charCodeAt(0)));
+    const json = new TextDecoder().decode(
+      Uint8Array.from(atob(padded), (ch) => ch.charCodeAt(0)),
+    );
     const claims = JSON.parse(json);
     return claims && typeof claims === "object" ? claims : null;
   } catch {
@@ -253,20 +297,30 @@ export function jwtClaims(token: string): Record<string, unknown> | null {
 // §7): Edge paths that write with the service role refuse them.
 export function isDemoClaims(claims: Record<string, unknown> | null): boolean {
   const meta = claims?.app_metadata;
-  return !!meta && typeof meta === "object" && (meta as { demo?: unknown }).demo === true;
+  return (
+    !!meta &&
+    typeof meta === "object" &&
+    (meta as { demo?: unknown }).demo === true
+  );
 }
 
 // §7.2: when the session was last opened with a phone code (amr method otp or
 // sms), in epoch seconds, or null. signup_complete requires it to be after
 // the pending sign-up was written.
-export function latestPhoneCodeAt(claims: Record<string, unknown> | null): number | null {
+export function latestPhoneCodeAt(
+  claims: Record<string, unknown> | null,
+): number | null {
   const amr = claims?.amr;
   if (!Array.isArray(amr)) return null;
   let latest: number | null = null;
   for (const entry of amr) {
     if (!entry || typeof entry !== "object") continue;
-    const { method, timestamp } = entry as { method?: unknown; timestamp?: unknown };
-    if ((method !== "otp" && method !== "sms") || typeof timestamp !== "number") continue;
+    const { method, timestamp } = entry as {
+      method?: unknown;
+      timestamp?: unknown;
+    };
+    if ((method !== "otp" && method !== "sms") || typeof timestamp !== "number")
+      continue;
     if (!Number.isFinite(timestamp)) continue;
     if (latest === null || timestamp > latest) latest = timestamp;
   }
@@ -282,7 +336,8 @@ export function isExpiredUnverified(
   },
   nowMs: number,
 ): boolean {
-  if (user.app_metadata?.signup !== "self" || user.phone_confirmed_at) return false;
+  if (user.app_metadata?.signup !== "self" || user.phone_confirmed_at)
+    return false;
   const created = user.created_at ? Date.parse(user.created_at) : NaN;
   return Number.isFinite(created) && nowMs - created > 24 * 60 * 60 * 1000;
 }

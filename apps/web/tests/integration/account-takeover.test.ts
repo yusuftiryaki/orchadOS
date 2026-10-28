@@ -88,4 +88,32 @@ describe("account takeover through self sign-up", () => {
     const res = await invite({ phone });
     expect(res).toEqual({ status: 409, json: { error: "conflict" } });
   });
+
+  // docs/hukuk/kararlar.md H33: signing up with someone's verified phone or
+  // e-mail answers like any sign-up and attaches nothing to their account.
+  it("a sign-up with an existing account's phone or e-mail attaches nothing", async () => {
+    const admin = serviceClient();
+    const victimEmail = `sahip-${randomDigits(8)}@${EMAIL_DOMAIN}`;
+    const victimPhone = `+90555${randomDigits(7)}`;
+    const made = await admin.auth.admin.createUser({
+      email: victimEmail,
+      password: "kurban-parola-1",
+      phone: victimPhone,
+      email_confirm: true,
+      phone_confirm: true,
+    });
+    expect(made.error).toBeNull();
+    const attackerEmail = `saldirgan-${randomDigits(8)}@${EMAIL_DOMAIN}`;
+
+    expect(await selfSignup(attackerEmail, victimPhone, "203.0.113.22")).toBe(200);
+    expect(await selfSignup(victimEmail, `+90555${randomDigits(7)}`, "203.0.113.23")).toBe(409);
+
+    const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    expect(error).toBeNull();
+    expect(data.users.filter((u) => u.email === attackerEmail)).toHaveLength(0);
+    const victim = data.users.find((u) => u.id === made.data.user!.id);
+    expect(victim?.email).toBe(victimEmail);
+    expect(victim?.phone).toBe(victimPhone.slice(1));
+    expect(victim?.app_metadata.signup).toBeUndefined();
+  });
 });

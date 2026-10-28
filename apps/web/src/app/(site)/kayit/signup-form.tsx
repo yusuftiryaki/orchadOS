@@ -227,6 +227,12 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey: string | nu
       {state.error && (
         <p role="alert" className={styles.error} data-testid="signup-error">
           {state.error}
+          {state.error === s.errors.not_completed && (
+            <>
+              {" "}
+              <Link href="/giris?yontem=telefon">{s.notCompletedLogin}</Link>
+            </>
+          )}
         </p>
       )}
       <button className="button" type="submit" disabled={pending}>

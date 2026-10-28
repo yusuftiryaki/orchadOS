@@ -46,7 +46,9 @@ describe("tile proxy route", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     expect((await call("1", "1", "0.png")).status).toBe(200);
-    expect(fetchMock.mock.calls[0][0]).toBe("https://tiles.orchados.example/osm/1/1/0.png");
+    expect((fetchMock.mock.calls[0] as unknown as [string])[0]).toBe(
+      "https://tiles.orchados.example/osm/1/1/0.png",
+    );
   });
 
   it("refuses bad coordinates without asking the upstream", async () => {

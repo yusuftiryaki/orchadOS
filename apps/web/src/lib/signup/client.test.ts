@@ -53,8 +53,10 @@ describe("signupErrorFromResponse", () => {
   it.each<[number, unknown, SignupError]>([
     [400, { error: "invalid_input", field: "phone" }, "invalid_input"],
     [400, { error: "captcha_failed" }, "captcha_failed"],
-    [409, { error: "email_taken" }, "email_taken"],
-    [409, { error: "phone_registered" }, "phone_registered"],
+    [409, { error: "not_completed" }, "not_completed"],
+    // A function deployed before H33: the same generic error.
+    [409, { error: "email_taken" }, "not_completed"],
+    [409, { error: "phone_registered" }, "not_completed"],
     [429, { error: "too_many_attempts" }, "too_many_attempts"],
     [503, { error: "signup_closed" }, "signup_closed"],
     [500, { error: "failed" }, "failed"],
@@ -119,10 +121,10 @@ describe("registerCustomer", () => {
       error: "invalid_input",
       field: "email",
     });
-    const taken = fakeClient({ error: httpError(409, { error: "phone_registered" }) });
+    const taken = fakeClient({ error: httpError(409, { error: "not_completed" }) });
     expect(await registerCustomer(taken.client, INPUT, null, null)).toEqual({
       ok: false,
-      error: "phone_registered",
+      error: "not_completed",
     });
   });
 

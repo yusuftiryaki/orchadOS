@@ -252,6 +252,7 @@ export const siteText = {
     resendIn: (seconds: number) => `Yeniden göndermek için ${seconds} sn`,
     restart: "Bilgileri değiştir",
     captchaMissing: "Robot olmadığınızı doğrulayın.",
+    notCompletedLogin: "Telefonla giriş yap",
     fieldErrors: {
       required: "Bu alan gerekli.",
       invalid: "Geçerli bir değer girin.",
@@ -269,8 +270,9 @@ export const siteText = {
     errors: {
       invalid_input: "Bilgilerden biri geçersiz. Alanları kontrol edin.",
       captcha_failed: "Robot doğrulaması başarısız oldu. Yeniden deneyin.",
-      email_taken: "Bu e-posta adresi başka bir hesapta kayıtlı. Giriş yapmayı deneyin.",
-      phone_registered: "Bu numara kayıtlı. Giriş sayfasından girin; giremiyorsanız bize yazın.",
+      // docs/hukuk/kararlar.md H33: never says which detail is registered.
+      not_completed:
+        "Kayıt tamamlanamadı; bu bilgilerle hesabınız varsa telefonunuzla giriş yapın.",
       too_many_attempts: "Çok fazla kayıt denemesi yapıldı. Bir süre sonra yeniden deneyin.",
       signup_closed: "Kayıt şu anda kapalı.",
       signup_unavailable: "Kayıt hizmetine şu anda ulaşılamıyor. Biraz sonra yeniden deneyin.",

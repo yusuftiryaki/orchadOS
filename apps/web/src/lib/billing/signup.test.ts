@@ -9,6 +9,8 @@ import {
   jwtClaims,
   latestPhoneCodeAt,
   parseRegister,
+  REGISTER_MIN_MS,
+  registerDelayMs,
   timingSafeEqual,
 } from "../../../../../supabase/functions/_shared/signup";
 
@@ -163,17 +165,18 @@ describe("decideMatches", () => {
     });
   });
 
-  it("keeps a stale sign-up inside the grace period: the same e-mail or phone is refused", () => {
+  it("keeps a stale sign-up inside the grace period: nothing replaces it", () => {
     const recent = match({
       user_id: "a",
       matched_by: "email",
       self_signup: true,
       started_at: RECENT,
     });
-    expect(decideMatches([recent], NOW)).toEqual({ staleUserIds: [], outcome: "email_taken" });
+    expect(decideMatches([recent], NOW)).toEqual({ staleUserIds: [], outcome: "conflict" });
+    // Its phone: the code goes to that phone, nothing is created.
     expect(decideMatches([{ ...recent, matched_by: "phone" }], NOW)).toEqual({
       staleUserIds: [],
-      outcome: "phone_registered",
+      outcome: "send_code",
     });
     // Past the grace period it goes.
     const old = { ...recent, started_at: OLD };
@@ -181,29 +184,26 @@ describe("decideMatches", () => {
     expect(decideMatches([{ ...recent, started_at: "not a date" }], NOW).staleUserIds).toEqual([]);
   });
 
-  it("sends the verified owner of the phone to the code step", () => {
-    const owner = match({ user_id: "a", matched_by: "phone", phone_confirmed: true });
-    expect(decideMatches([owner], NOW).outcome).toBe("existing_account");
-    expect(decideMatches([owner, { ...owner, matched_by: "email" }], NOW).outcome).toBe(
-      "existing_account",
-    );
-  });
-
-  it("refuses a verified phone whose e-mail is someone else's", () => {
+  // H33: a registered phone answers like a new sign-up; only the phone's
+  // owner gets the code.
+  it("sends any registered phone to the code step, whoever holds the e-mail", () => {
     const owner = match({ user_id: "a", matched_by: "phone", phone_confirmed: true });
     const other = match({ user_id: "b", matched_by: "email" });
-    expect(decideMatches([owner, other], NOW).outcome).toBe("email_taken");
+    for (const matches of [
+      [owner],
+      [owner, { ...owner, matched_by: "email" as const }],
+      [owner, other],
+      [match({ user_id: "a", matched_by: "phone" })],
+      [match({ user_id: "a", matched_by: "profile_phone" })],
+      [match({ user_id: "a", matched_by: "profile_phone" }), other],
+    ]) {
+      expect(decideMatches(matches, NOW)).toEqual({ staleUserIds: [], outcome: "send_code" });
+    }
   });
 
-  it("refuses another customer's profile phone, a taken e-mail and an unverified phone", () => {
-    expect(decideMatches([match({ user_id: "a", matched_by: "profile_phone" })], NOW).outcome).toBe(
-      "phone_registered",
-    );
+  it("answers a taken e-mail with a free phone as a conflict", () => {
     expect(decideMatches([match({ user_id: "a", matched_by: "email" })], NOW).outcome).toBe(
-      "email_taken",
-    );
-    expect(decideMatches([match({ user_id: "a", matched_by: "phone" })], NOW).outcome).toBe(
-      "phone_registered",
+      "conflict",
     );
     // A completed self sign-up is not stale even with an unconfirmed phone.
     expect(
@@ -211,7 +211,38 @@ describe("decideMatches", () => {
         [match({ user_id: "a", matched_by: "email", self_signup: true, signup_completed: true })],
         NOW,
       ),
-    ).toEqual({ staleUserIds: [], outcome: "email_taken" });
+    ).toEqual({ staleUserIds: [], outcome: "conflict" });
+  });
+
+  it("has only three outcomes, none naming what is registered", () => {
+    const outcomes = new Set<string>();
+    const kinds = ["email", "phone", "profile_phone"] as const;
+    for (const a of kinds) {
+      for (const b of kinds) {
+        for (const confirmed of [false, true]) {
+          outcomes.add(
+            decideMatches(
+              [
+                match({ user_id: "a", matched_by: a, phone_confirmed: confirmed }),
+                match({ user_id: "b", matched_by: b }),
+              ],
+              NOW,
+            ).outcome,
+          );
+        }
+      }
+    }
+    expect([...outcomes].sort()).toEqual(["conflict", "send_code"]);
+  });
+});
+
+describe("register timing", () => {
+  it("pads every answer to the same minimum", () => {
+    expect(REGISTER_MIN_MS).toBeGreaterThanOrEqual(1000);
+    expect(registerDelayMs(1000, 1000)).toBe(REGISTER_MIN_MS);
+    expect(registerDelayMs(1000, 1000 + 400)).toBe(REGISTER_MIN_MS - 400);
+    expect(registerDelayMs(1000, 1000 + REGISTER_MIN_MS + 5)).toBe(0);
+    expect(registerDelayMs(0, 50, 200)).toBe(150);
   });
 });
 

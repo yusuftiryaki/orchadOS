@@ -12,8 +12,14 @@ import {
 import { LOGIN_METHODS, resendWaitSeconds, type LoginMethod } from "./login-methods";
 import styles from "./login.module.css";
 
-export function LoginForm({ next }: { next: string }) {
-  const [method, setMethod] = useState<LoginMethod>("password");
+export function LoginForm({
+  next,
+  initialMethod = "password",
+}: {
+  next: string;
+  initialMethod?: LoginMethod;
+}) {
+  const [method, setMethod] = useState<LoginMethod>(initialMethod);
 
   return (
     <div>

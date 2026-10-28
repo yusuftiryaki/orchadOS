@@ -22,14 +22,20 @@
 //      5 per e-mail a day).
 //   3. Accounts holding the e-mail or phone (signup_find_account): stale self
 //      sign-ups (phone never verified) started more than 30 minutes ago are
-//      deleted, younger ones count as taken; the verified owner of the phone
-//      continues to the code step and nothing changes; another customer's
-//      phone or a taken e-mail is refused.
+//      deleted, younger ones count as taken. A phone that belongs to an account
+//      (its verified owner, a sign-up in progress, another customer's profile)
+//      gets the same 200 as a new sign-up and nothing changes: the web's code
+//      step then sends a login code that only reaches the phone's owner. A
+//      taken e-mail with a free phone gets the generic 409 not_completed
+//      (docs/hukuk/kararlar.md H33: no answer tells which one is registered).
 //   4. Admin API: the account, e-mail confirmed (password login needs it),
 //      phone not confirmed, app_metadata.signup = "self".
 //   5. signup_prepare stores the pending sign-up; on failure the account goes.
+//   Every answer after the rate limits (200 or 409) waits until
+//   REGISTER_MIN_MS has passed since the request came in, so a new account
+//   and a registered phone or e-mail take the same time (H33).
 //   200 {next: "verify_phone"} · 400 {error: "invalid_input", field} |
-//   {error: "captcha_failed"} · 409 {error: "email_taken" | "phone_registered"}
+//   {error: "captcha_failed"} · 409 {error: "not_completed"}
 //   · 429 {error: "too_many_attempts"} · 503 {error: "signup_closed"} · 500 {error: "failed"}
 //
 // { "action": "complete" }   Authorization: Bearer <the user's access token>
@@ -60,6 +66,7 @@ import {
   latestPhoneCodeAt,
   parseRegister,
   type RegisterInput,
+  registerDelayMs,
   timingSafeEqual,
 } from "../_shared/signup.ts";
 
@@ -70,7 +77,10 @@ const HASH_SECRET = Deno.env.get("SIGNUP_HASH_SECRET") ?? "";
 const PROXY_SECRET = Deno.env.get("SIGNUP_PROXY_SECRET") ?? "";
 const CRON_SECRET = Deno.env.get("ORCHADOS_CRON_SECRET") ?? "";
 const TURNSTILE_SECRET = Deno.env.get("TURNSTILE_SECRET_KEY") ?? "";
-const CAPTCHA = captchaMode(TURNSTILE_SECRET, Deno.env.get("SIGNUP_TURNSTILE_DISABLED"));
+const CAPTCHA = captchaMode(
+  TURNSTILE_SECRET,
+  Deno.env.get("SIGNUP_TURNSTILE_DISABLED"),
+);
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -79,8 +89,11 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-const error = (code: string, status: number, extra: Record<string, string> = {}) =>
-  json({ error: code, ...extra }, status);
+const error = (
+  code: string,
+  status: number,
+  extra: Record<string, string> = {},
+) => json({ error: code, ...extra }, status);
 
 const serviceHeaders = {
   apikey: SERVICE_ROLE_KEY,
@@ -107,18 +120,28 @@ async function deleteUser(id: string): Promise<void> {
     method: "DELETE",
     headers: serviceHeaders,
   });
-  if (!res.ok && res.status !== 404) throw new Failure(`delete user failed with ${res.status}`);
+  if (!res.ok && res.status !== 404)
+    throw new Failure(`delete user failed with ${res.status}`);
 }
 
-async function captchaPassed(token: string | null, ip: string | null): Promise<boolean> {
+async function captchaPassed(
+  token: string | null,
+  ip: string | null,
+): Promise<boolean> {
   if (CAPTCHA === "skip") return true;
   if (!token) return false;
-  const form = new URLSearchParams({ secret: TURNSTILE_SECRET, response: token });
-  if (ip) form.set("remoteip", ip);
-  const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-    method: "POST",
-    body: form,
+  const form = new URLSearchParams({
+    secret: TURNSTILE_SECRET,
+    response: token,
   });
+  if (ip) form.set("remoteip", ip);
+  const res = await fetch(
+    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+    {
+      method: "POST",
+      body: form,
+    },
+  );
   if (!res.ok) return false;
   const result = await res.json();
   return result?.success === true;
@@ -145,19 +168,25 @@ async function createAccount(input: RegisterInput): Promise<CreateResult> {
   return { kind: "created", id: String(user.id) };
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function register(req: Request, body: unknown): Promise<Response> {
+  const startedMs = Date.now();
   const parsed = parseRegister(body);
   if (!parsed.ok) return error("invalid_input", 400, { field: parsed.field });
   const input = parsed.value;
   if (!HASH_SECRET) throw new Failure("SIGNUP_HASH_SECRET is not set");
   if (CAPTCHA === "unconfigured") {
     // Fail closed: no sign-up without a captcha on a hosted project.
-    console.error("customer-signup: TURNSTILE_SECRET_KEY is not set; sign-ups refused");
+    console.error(
+      "customer-signup: TURNSTILE_SECRET_KEY is not set; sign-ups refused",
+    );
     return error("signup_closed", 503);
   }
 
   const ip = clientIp(req.headers, input.clientIp, PROXY_SECRET);
-  if (!(await captchaPassed(input.captchaToken, ip))) return error("captcha_failed", 400);
+  if (!(await captchaPassed(input.captchaToken, ip)))
+    return error("captcha_failed", 400);
 
   const attempt = await rpc<string>("signup_register_attempt", {
     p_ip_hash: await hmacHex(HASH_SECRET, ip ?? "unknown"),
@@ -168,6 +197,13 @@ async function register(req: Request, body: unknown): Promise<Response> {
   if (attempt === "too_many") return error("too_many_attempts", 429);
   if (attempt !== "ok") throw new Failure("unexpected attempt result");
 
+  // From here on the answer depends on who holds the phone or e-mail: same
+  // time for every outcome (H33).
+  const answer = async (response: Response) => {
+    await sleep(registerDelayMs(startedMs, Date.now()));
+    return response;
+  };
+
   // A 422 from Auth means someone took the e-mail or phone meanwhile: the
   // matches are read again once.
   for (let round = 0; round < 2; round++) {
@@ -177,10 +213,10 @@ async function register(req: Request, body: unknown): Promise<Response> {
     });
     const decision = decideMatches(matches, Date.now());
     for (const id of decision.staleUserIds) await deleteUser(id);
-    if (decision.outcome === "existing_account") return json({ next: "verify_phone" });
-    if (decision.outcome === "email_taken" || decision.outcome === "phone_registered") {
-      return error(decision.outcome, 409);
-    }
+    if (decision.outcome === "send_code")
+      return answer(json({ next: "verify_phone" }));
+    if (decision.outcome === "conflict")
+      return answer(error("not_completed", 409));
 
     const created = await createAccount(input);
     if (created.kind === "conflict") continue;
@@ -198,7 +234,7 @@ async function register(req: Request, body: unknown): Promise<Response> {
       await deleteUser(created.id);
       throw cause;
     }
-    return json({ next: "verify_phone" });
+    return answer(json({ next: "verify_phone" }));
   }
   throw new Failure("account conflict did not resolve");
 }
@@ -219,7 +255,8 @@ async function complete(req: Request): Promise<Response> {
   if (isDemoClaims(claims)) return error("demo_read_only", 403);
 
   const codeAt = latestPhoneCodeAt(claims);
-  if (!user.phone_confirmed_at || codeAt === null) return error("phone_not_verified", 403);
+  if (!user.phone_confirmed_at || codeAt === null)
+    return error("phone_not_verified", 403);
   // signup_complete checks the rest in one transaction: a self sign-up whose
   // confirmed phone is the pending one, and a code newer than the pending row.
   const status = await rpc<string>("signup_complete", {
@@ -238,13 +275,19 @@ async function cleanup(req: Request): Promise<Response> {
   const now = Date.now();
   const expired: string[] = [];
   for (let page = 1; ; page++) {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=${page}&per_page=1000`, {
-      headers: serviceHeaders,
-    });
+    const res = await fetch(
+      `${SUPABASE_URL}/auth/v1/admin/users?page=${page}&per_page=1000`,
+      {
+        headers: serviceHeaders,
+      },
+    );
     if (!res.ok) throw new Failure(`list users failed with ${res.status}`);
-    const users = ((await res.json())?.users ?? []) as Parameters<typeof isExpiredUnverified>[0][];
+    const users = ((await res.json())?.users ?? []) as Parameters<
+      typeof isExpiredUnverified
+    >[0][];
     for (const user of users) {
-      if (isExpiredUnverified(user, now)) expired.push(String((user as { id: unknown }).id));
+      if (isExpiredUnverified(user, now))
+        expired.push(String((user as { id: unknown }).id));
     }
     if (users.length < 1000) break;
   }
@@ -260,7 +303,10 @@ async function handle(req: Request): Promise<Response> {
   } catch {
     return error("invalid_input", 400, { field: "body" });
   }
-  const action = body && typeof body === "object" ? (body as { action?: unknown }).action : null;
+  const action =
+    body && typeof body === "object"
+      ? (body as { action?: unknown }).action
+      : null;
   try {
     if (action === "register") return await register(req, body);
     if (action === "complete") return await complete(req);
@@ -268,7 +314,10 @@ async function handle(req: Request): Promise<Response> {
     return error("invalid_input", 400, { field: "action" });
   } catch (cause) {
     // Status codes only; never the request body.
-    console.error("customer-signup:", cause instanceof Error ? cause.message : "unknown error");
+    console.error(
+      "customer-signup:",
+      cause instanceof Error ? cause.message : "unknown error",
+    );
     return error("failed", 500);
   }
 }
