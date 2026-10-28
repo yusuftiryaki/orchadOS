@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { statusTone } from "@/components/back-office/status-tone";
+import { opsCell } from "@/components/operations/ops-ui";
 import { Badge } from "@/components/ui/badge";
 import { Table, cell } from "@/components/ui/table";
 import { formatDate, t } from "@/lib/i18n";
@@ -53,7 +54,7 @@ export function VisitTable({
                 </td>
               )}
               {showParcel && (
-                <td>
+                <td className={opsCell.nowrap}>
                   <Link href={opsHref.parcel(v.parcel_id)}>{v.parcel_name}</Link>
                 </td>
               )}
