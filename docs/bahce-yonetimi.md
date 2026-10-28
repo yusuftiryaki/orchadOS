@@ -52,6 +52,10 @@ Temel: `main` ≥ `8ce1252` (#66 ve #67 birleşti). En yeni migration `202611011
 ## 2. Kararlar
 
 - **Kullanıcı kararı (28 Ekim):** "Müşterinin birden fazla bahçesi olabilir ve üyeliği boyunca bahçe ekleyip çıkarabilmeli hesabına." Açık seçimlerde önerilen seçenek uygulanır.
+- **Kullanıcı kararları (28 Ekim, açık sorulara yanıt):**
+    - **Fiyat:** Bahçe fiyatı minimum ücret ve dönüm başına ücretle hesaplanır; hangisi büyükse o alınır (`max(dönüm × birim fiyat, minimum ücret)`, İP12'deki gibi). Ek bahçeye özel bir fark uygulanmaz: aynı formül kalan ziyaret hakkına göre orantılanır. Minimum ücret de orantılanır (§6). Envanter ücreti tam alınır.
+    - **Cayma:** Çok bahçeli bir siparişte tek bir bahçe için cayma hakkı kullanılabilir. Envanter sayımı yapıldıysa envanter ücreti iade edilmez. Yapılmış periyodik ziyaretlerin bedeli de düşülür (md. 15/1-ğ). Müşterinin tacir olup olmadığı ve cayma süresinin hangi gün başladığı avukata sorulacak.
+    - **Erişim:** Çıkarılan bahçede 90 gün salt okunur erişim yeterli.
 - **Hedef: müşterinin tek bir üyelik dönemi vardır ve bütün bahçeleri aynı gün biter.**
     - Müşteri tek bir bitiş tarihi ve tek bir yenileme teklifi görür (Md. 12/2: yenileme teklifi bitimden 45 gün önce verilir).
     - İP12 tablolarında en az kırılma budur. Yeni üyelik tablosu açılmaz; `service_order` ve `quote` tablolarına boş bırakılabilir tek bir sütun eklenir (`addon_of_order_id`). Mevcut fonksiyonların imzaları değişmez.
@@ -1232,12 +1236,12 @@ Metinler `messages/back-office.ts` içindedir. Durum etiketleri ve hata metinler
 
 ## 19. Açık sorular ve kabul edilen riskler
 
-- Ek bahçede minimum ücretin orantılanması, envanter ücretinin tam alınması ve envanterin yeniden kullanımda kaç yıl geçerli sayılacağı.
+- ~~Ek bahçede minimum ücretin orantılanması ve envanter ücretinin tam alınması~~: kullanıcı onayladı (§2). Açık kalan: envanterin yeniden kullanımda kaç yıl geçerli sayılacağı.
 - Orantı birimi ve yuvarlama (yarım yukarı, en az 1 ziyaret), `addon_min_days = 30` ve son ek günü kuralı.
 - Ek siparişin hukuki niteliği (ayrı sözleşme ya da ek) ve cayma süresinin başlangıcı (aktivasyon günü ya da kabul günü).
 - Bahçe bazında fesih: 30 gün bildirim, "dönem sonunda" seçeneği, kaçırılmış ziyaretlerin iade hesabına girmesi ve 8A iadelerinin düşülmesi.
-- Çok bahçeli siparişte tek bahçe için açık cayma; cayma süresinde yapılmış envanter ve ziyaretlerin düşülmesi (md. 15/1-ğ).
-- 90 gün salt okunur erişim, hissedarların ve diğer sahiplerin erişimi, devirde 0 gün; KVKK saklama süresi [X] ile ilişkisi.
+- ~~Çok bahçeli siparişte tek bahçe için açık cayma; cayma süresinde yapılmış envanter ve ziyaretlerin düşülmesi~~: kullanıcı onayladı (§2). Avukata kalan: müşteri tacirse cayma hakkının uygulanmaması ve md. 15/1-ğ metni.
+- 90 gün salt okunur erişim (kullanıcı onayladı, §2); hissedarların ve diğer sahiplerin erişimi, devirde 0 gün; KVKK saklama süresi [X] ile ilişkisi.
 - İade modu varsayılanı (`unused_visits`; ops işleyene kadar para çıkmaz).
 - Ek teklifin teklif günündeki listeyle fiyatlanması; üyeliğin eski listesiyle değil.
 - Hesap başına 50 bahçe sınırı.
