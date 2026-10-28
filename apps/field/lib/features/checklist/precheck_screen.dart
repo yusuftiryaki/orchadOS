@@ -7,6 +7,7 @@ import '../gnss/gnss_health.dart';
 import '../gnss/gnss_logger.dart';
 import '../gnss/gnss_panel.dart';
 import '../gnss/protocol/gnss_status.dart';
+import '../notice/field_records.dart';
 import '../session/session_controller.dart';
 import '../session/session_screen.dart';
 import 'scan_setup.dart';
@@ -21,6 +22,7 @@ class PrecheckResult {
     required this.spraying,
     required this.platform,
     required this.cameraHeightM,
+    this.notice,
   });
 
   final bool connected;
@@ -36,6 +38,9 @@ class PrecheckResult {
   final ScanPlatform? platform;
   final double? cameraHeightM;
 
+  /// Sign and badge answers (H01); null until both are answered.
+  final NoticeSign? notice;
+
   bool get batteryOk => status != null && batteryHealth(status!) == Health.ok;
   bool get sdOk => status != null && status!.sdReady;
   bool get gnssOk => status != null && gnssReady(status!);
@@ -50,7 +55,9 @@ class PrecheckResult {
       cameraRecording &&
       spraying != null &&
       platform != null &&
-      cameraHeightM != null;
+      cameraHeightM != null &&
+      notice != null &&
+      notice!.isValid;
 }
 
 /// Mandatory checklist before a scan (docs/MVP.md, Modül 3, "Ön kontrol").
@@ -60,7 +67,9 @@ class PrecheckResult {
 /// the scan platform and types the measured camera height, prefilled from
 /// the parcel's last scan on this phone. Spraying, platform and height are
 /// recorded (on `session_start` and the session); the others only gate the
-/// start.
+/// start. The crew also answers whether the QR information sign is at the
+/// entrance and the badge is visible (H01); a "no" needs a reason. That goes
+/// into a `field_notice_sign` event.
 class PrecheckScreen extends ConsumerStatefulWidget {
   const PrecheckScreen({super.key});
 
@@ -74,6 +83,9 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
   SprayingCheck? _spraying;
   ScanPlatform? _platform;
   final _height = TextEditingController();
+  bool? _sign;
+  bool? _badge;
+  final _noticeReason = TextEditingController();
 
   /// The parcel's last scan on this phone, if it recorded its setup.
   ScanSetup? _previous;
@@ -87,6 +99,7 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
   @override
   void dispose() {
     _height.dispose();
+    _noticeReason.dispose();
     super.dispose();
   }
 
@@ -118,6 +131,13 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
       spraying: _spraying,
       platform: _platform,
       cameraHeightM: parseCameraHeight(_height.text),
+      notice: _sign == null || _badge == null
+          ? null
+          : NoticeSign(
+              sign: _sign!,
+              badge: _badge!,
+              reason: _noticeReason.text,
+            ),
     );
     return Scaffold(
       appBar: AppBar(title: Text(task?.parcelName ?? 'Ön kontrol')),
@@ -182,6 +202,14 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
                     cameraHeightM: result.cameraHeightM!,
                   ),
           ),
+          _NoticeItem(
+            sign: _sign,
+            badge: _badge,
+            onSign: (v) => setState(() => _sign = v),
+            onBadge: (v) => setState(() => _badge = v),
+            reason: _noticeReason,
+            onReason: () => setState(() {}),
+          ),
           const SizedBox(height: 8),
           const Text(
             'Şafakta, gün batımında, yağmurda ve yoğun tozda tarama yapılmaz.',
@@ -200,6 +228,7 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
                           spraying: result.spraying!,
                           platform: result.platform!,
                           cameraHeightM: result.cameraHeightM!,
+                          notice: result.notice!,
                         );
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute<void>(
@@ -428,4 +457,122 @@ class _ScanSetupItem extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Information sign and badge (H01 (b) 1): two explicit yes/no answers; a
+/// "no" needs a short reason.
+class _NoticeItem extends StatelessWidget {
+  const _NoticeItem({
+    required this.sign,
+    required this.badge,
+    required this.onSign,
+    required this.onBadge,
+    required this.reason,
+    required this.onReason,
+  });
+
+  final bool? sign;
+  final bool? badge;
+  final ValueChanged<bool?> onSign;
+  final ValueChanged<bool?> onBadge;
+  final TextEditingController reason;
+  final VoidCallback onReason;
+
+  @override
+  Widget build(BuildContext context) {
+    final needsReason = sign == false || badge == false;
+    final typed = reason.text.trim();
+    final error = typed.isEmpty
+        ? null
+        : textError(typed, maxLength: maxReasonLength);
+    return Card(
+      key: const Key('check-notice'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ListTile(
+              leading: Icon(Icons.badge_outlined, size: 36),
+              title: Text('Bilgilendirme', style: TextStyle(fontSize: 20)),
+              subtitle: Text(
+                'Bahçede rastladığınız kişilere kısa sözlü bilgi verin.',
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+            _YesNo(
+              code: 'sign',
+              question: 'Bilgilendirme levhası (QR\'lı) bahçe girişine kondu',
+              value: sign,
+              onChanged: onSign,
+            ),
+            _YesNo(
+              code: 'badge',
+              question: 'Tanıtım kartım görünür',
+              value: badge,
+              onChanged: onBadge,
+            ),
+            if (needsReason)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: TextField(
+                  key: const Key('check-notice-reason'),
+                  controller: reason,
+                  onChanged: (_) => onReason(),
+                  maxLength: maxReasonLength,
+                  style: const TextStyle(fontSize: 18),
+                  decoration: InputDecoration(
+                    labelText: 'Neden? (kısa)',
+                    helperText: noteHint,
+                    helperMaxLines: 3,
+                    errorText: error,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One question with "Evet" and "Hayır"; tapping the chosen one again
+/// takes the answer back.
+class _YesNo extends StatelessWidget {
+  const _YesNo({
+    required this.code,
+    required this.question,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String code;
+  final String question;
+  final bool? value;
+  final ValueChanged<bool?> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(question, style: const TextStyle(fontSize: 18)),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final (answer, label) in [(true, 'Evet'), (false, 'Hayır')])
+              ChoiceChip(
+                key: Key('check-notice-$code-${answer ? 'yes' : 'no'}'),
+                label: Text(label, style: const TextStyle(fontSize: 18)),
+                selected: value == answer,
+                onSelected: (on) => onChanged(on ? answer : null),
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
 }

@@ -42,7 +42,9 @@ class Sessions extends Table {
   DateTimeColumn get stoppedAt => dateTime().nullable()();
   IntColumn get stopGpsTimeMs => integer().nullable()();
 
-  /// `recording`, `stopped` or `closed` (visit summary confirmed).
+  /// `recording`, `stopped` or `closed` (visit summary confirmed); `blocked`
+  /// when the visit could not be done and nothing was recorded (local only,
+  /// never sent as a visit update).
   TextColumn get status => text()();
 
   /// How the scan was done (schema 6): `walk` (backpack pole),
@@ -65,8 +67,9 @@ class SessionEvents extends Table {
   TextColumn get sessionId => text().references(Sessions, #id)();
 
   /// `session_start`, `session_stop`, `corner`, `qr_sync`,
-  /// `boundary_corners`, `coverage`, `route`, `route_progress`
-  /// (docs/arayuzler.md).
+  /// `boundary_corners`, `coverage`, `route`, `route_progress`, the legal
+  /// field records `field_notice_*`, `visit_blocked`, `boundary_pointer`
+  /// (docs/arayuzler.md, "Saha olayları").
   TextColumn get eventType => text()();
   TextColumn get payload => text()();
 
@@ -93,7 +96,8 @@ class Captures extends Table {
   TextColumn get sha256 => text()();
   TextColumn get sessionId => text().references(Sessions, #id)();
 
-  /// `closeup_photo`.
+  /// `closeup_photo`, `audio_note`, `boundary_photo`, `verification_photo`,
+  /// `blocked_visit_photo`.
   TextColumn get kind => text()();
 
   /// `phone_camera`.
@@ -103,6 +107,7 @@ class Captures extends Table {
   TextColumn get localPath => text()();
 
   /// Subject: `tree` and the tree id; slot code kept for the field crew.
+  /// Also `slot`, `corner` (its event) and `event` (a `visit_blocked`).
   TextColumn get subjectType => text()();
   TextColumn get subjectId => text()();
   TextColumn get slotCode => text().nullable()();

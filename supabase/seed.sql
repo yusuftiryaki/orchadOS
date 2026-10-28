@@ -301,27 +301,38 @@ insert into public.org_billing_setting (
   true
 );
 
+-- Launch price list (docs/fiyatlandirma.md, decided 28 October 2026). The
+-- packages include the first-year inventory visit (informational, frozen into
+-- quote and order); price_lines charges inventory_fee whenever first_year.
 insert into public.service_package (id, org_id, code, name, description, periodic_visits_per_year, includes_inventory, sort_order) values
+  ('91200000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000001', 'temel', 'Temel',
+   'Yılda iki periyodik ziyaret: kış ve hasat. İlk yıl ağaç envanteri dahil.', 2, true, 1),
   ('91200000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'standart', 'Standart',
-   'Yılda dört periyodik ziyaret; ilk yıl ağaç envanteri dahil.', 4, true, 1),
-  ('91200000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000001', 'ekonomik', 'Ekonomik',
-   'Yılda üç periyodik ziyaret; ilk yıl ağaç envanteri dahil.', 3, true, 2);
+   'Yılda dört periyodik ziyaret: kış, ilkbahar, yaz ve hasat. İlk yıl ağaç envanteri dahil.', 4, true, 2),
+  ('91200000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001', 'kapsamli', 'Kapsamlı',
+   'Yılda altı periyodik ziyaret: kış, uyanma (mart sonu), ilkbahar, yaz, hasat öncesi (ağustos başı) ve hasat sonrası. İlk yıl ağaç envanteri dahil.',
+   6, true, 3);
 
 -- v1: written as a draft with its items, then published (price_list_item_guard).
+-- v2 is an unpublished draft for 1 January 2027 (about +15 %, six-month CPI).
 insert into public.price_list (id, org_id, status, valid_from, vat_rate_bp, note, created_by) values
   ('91200000-0000-4000-8000-000000000101', 'b0000000-0000-4000-8000-000000000001', 'draft', '2026-10-01', 2000,
-   'Örnek fiyatlar', 'a0000000-0000-4000-8000-000000000005'),
+   'Lansman fiyat listesi', 'a0000000-0000-4000-8000-000000000005'),
   ('91200000-0000-4000-8000-000000000102', 'b0000000-0000-4000-8000-000000000001', 'draft', '2027-01-01', 2000,
-   'Taslak (örnek)', 'a0000000-0000-4000-8000-000000000005');
+   'Taslak: 1 Ocak 2027 revizyonu (örnek)', 'a0000000-0000-4000-8000-000000000005');
 insert into public.price_list_item (id, org_id, price_list_id, package_id, unit_price_kurus, minimum_fee_kurus, inventory_fee_kurus) values
   ('91200000-0000-4000-8000-000000000201', 'b0000000-0000-4000-8000-000000000001',
-   '91200000-0000-4000-8000-000000000101', '91200000-0000-4000-8000-000000000001', 12500, 500000, 0),
+   '91200000-0000-4000-8000-000000000101', '91200000-0000-4000-8000-000000000001', 18000, 1120000, 600000),
   ('91200000-0000-4000-8000-000000000202', 'b0000000-0000-4000-8000-000000000001',
-   '91200000-0000-4000-8000-000000000101', '91200000-0000-4000-8000-000000000002', 13000, 450000, 0),
+   '91200000-0000-4000-8000-000000000101', '91200000-0000-4000-8000-000000000002', 20800, 560000, 600000),
+  ('91200000-0000-4000-8000-000000000205', 'b0000000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000101', '91200000-0000-4000-8000-000000000003', 16800, 1600000, 600000),
   ('91200000-0000-4000-8000-000000000203', 'b0000000-0000-4000-8000-000000000001',
-   '91200000-0000-4000-8000-000000000102', '91200000-0000-4000-8000-000000000001', 13500, 500000, 0),
+   '91200000-0000-4000-8000-000000000102', '91200000-0000-4000-8000-000000000001', 20700, 1288000, 690000),
   ('91200000-0000-4000-8000-000000000204', 'b0000000-0000-4000-8000-000000000001',
-   '91200000-0000-4000-8000-000000000102', '91200000-0000-4000-8000-000000000002', 14000, 450000, 0);
+   '91200000-0000-4000-8000-000000000102', '91200000-0000-4000-8000-000000000002', 23900, 644000, 690000),
+  ('91200000-0000-4000-8000-000000000206', 'b0000000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000102', '91200000-0000-4000-8000-000000000003', 19300, 1840000, 690000);
 update public.price_list
 set status = 'published', version = 1, published_at = '2026-10-01 06:00:00+00',
     published_by = 'a0000000-0000-4000-8000-000000000005'

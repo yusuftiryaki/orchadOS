@@ -158,9 +158,9 @@ Sıra yönü ve numaralandırmanın başladığı köşe parsel başına bir kez
 
 ## Modül 3 – Periyodik tarama
 
-Her ziyarette parsel iki yönde, yani grid şeklinde, 360° kamera ve GPS ile taranır. Ardından seçilen ağaçlarda yakın plan fotoğraf çekilir. MVP paketi yılda 4 periyodik ziyaret içerir.
+Her ziyarette parsel iki yönde, yani grid şeklinde, 360° kamera ve GPS ile taranır. Ardından seçilen ağaçlarda yakın plan fotoğraf çekilir. Lansman paketleri ([fiyatlandirma.md](fiyatlandirma.md)): **Standart** yılda 4 periyodik ziyaret (aşağıdaki takvim), **Temel** 2 ziyaret (kış ve hasat), **Kapsamlı** 6 ziyaret (Standart'ın dört ziyareti ile mart sonu uyanma ve ağustos başı hasat öncesi ziyaretleri; takvim [fiyatlandirma.md](fiyatlandirma.md) §1).
 
-> **Açık soru:** Pakette yılda 4 ziyaret varsayıldı. Maliyeti düşürmek için yaz ve hasat birleştirilip 3'e mi insin?
+> **Karar (28 Ekim):** Ziyaret sayısı paketle seçilir; 3 ziyaretlik paket yok. Kapsamlı paketin altı ziyaretlik takvimi [fiyatlandirma.md](fiyatlandirma.md) §1'de; ayların mevsimlere eşlenmesi [metodoloji.md](metodoloji.md)'de ayrı bir değişiklikle güncellenecek.
 
 **Ziyaret takvimi**
 
@@ -452,7 +452,7 @@ Pilotun asıl sorusu şu: Eşleştirme güvenilir mi ve sahipler bu rapor için 
 
 **Açık sorular**
 
-- [ ] Paket ve fiyat: Yılda kaç periyodik ziyaret olacak? *(İP12 kararı: fiyat dönüm başına ve yıllık, paket yıllık ziyaret sayısıdır, minimum ücret var. Gerçek rakamlar açık.)*
+- [x] Paket ve fiyat: Yılda kaç periyodik ziyaret olacak? *(İP12 kararı: fiyat dönüm başına ve yıllık, paket yıllık ziyaret sayısıdır, minimum ücret var. 28 Ekim: lansman fiyat listesi, Temel 2, Standart 4, Kapsamlı 6 ziyaret; [fiyatlandirma.md](fiyatlandirma.md).)*
 - [ ] Uzman kim olacak ve nasıl ücretlendirilecek?
 - [ ] TUSAGA-Aktif aboneliğinin koşulları ve maliyeti ne?
 - [ ] Seçilecek 360° kameranın SDK erişimi var mı?

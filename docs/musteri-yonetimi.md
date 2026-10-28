@@ -442,7 +442,7 @@ private.document_sequence (org_id, kind in ('B','T','S','M','I'), year, last_val
 - `round` numeric üzerinde yarımı yukarı yuvarlar.
 - Geçerli liste: `status = 'published'` ve `valid_from <= d` olanların en büyük sürümü.
 - Paketin listede kalemi yoksa `package_not_priced`.
-- **Örnek (seed fiyatları):** 20 dönüm, standart paket. 4 × 200 × 12.500 / 10 = 1.000.000 kuruş. KDV %20 ile toplam **1.200.000 kuruş** (12.000,00 TL).
+- **Örnek (lansman fiyatları, seed; [fiyatlandirma.md](fiyatlandirma.md)):** 20 dönüm, standart paket. 4 × 200 × 18.000 / 10 = 1.440.000 kuruş; en az ücret 1.120.000'i geçer. İlk yıl envanter 600.000 eklenir: taban 2.040.000, KDV %20 ile toplam **2.448.000 kuruş** (24.480,00 TL). Sonraki yıllarda envanter yoktur: 1.728.000 kuruş (17.280,00 TL). 10 dönümde ziyaret tutarı 720.000 en az ücretin altında kalır; yıllık 1.120.000, KDV dahil 1.344.000 kuruş.
 - `quote.inputs` dondurulan girdileri saklar: `price_list_id`, `version`, `valid_from`, paket alanları, her bahçenin alanı ve alanın kaynağı (`verified` / `boundary` / `estimated`), `formula = 'pricing-v1'`.
 
 ### 6.7 Belge numaraları
@@ -632,10 +632,11 @@ Mesaj kısa bir koddur. `detail` yalnızca alan adını taşır, değeri taşım
 ### 6.12 Seed (A1, yalnızca yerel)
 
 - **Ayarlar:** `org_billing_setting` için `accepts_signups = true`, `allow_fake_payments = true`, `identity_number_required = false`, örnek unvan ve sahte IBAN.
-- **Paketler:** `standart` (`91200000-0000-4000-8000-000000000001`, 4 ziyaret) ve `ekonomik` (`…0002`, 3 ziyaret).
+- **Paketler** (lansman listesi, [fiyatlandirma.md](fiyatlandirma.md)): `temel` (`…0002`, 2 ziyaret, sıra 1), `standart` (`91200000-0000-4000-8000-000000000001`, 4 ziyaret, sıra 2), `kapsamli` (`…0003`, 6 ziyaret, sıra 3). Üçünde `includes_inventory = true`.
 - **Fiyat listeleri:**
-    - v1 (`…0101`): yayımlı, `valid_from = 2026-10-01`, KDV 2000 bp. Kalemler: standart birim 12500, minimum 500000; ekonomik birim 13000, minimum 450000; envanter 0. Önce taslak olarak yazılır, kalemler eklenir, sonra yayımlanır.
-    - v2 (`…0102`): taslak.
+    - v1 (`…0101`): yayımlı, `valid_from = 2026-10-01`, KDV 2000 bp. Kalemler (birim / minimum / envanter, kuruş): temel 20800 / 560000 / 600000, standart 18000 / 1120000 / 600000, kapsamli 16800 / 1600000 / 600000. Önce taslak olarak yazılır, kalemler eklenir, sonra yayımlanır.
+    - v2 (`…0102`): taslak, `valid_from = 2027-01-01`, ~%15 artış (örnek): temel 23900 / 644000, standart 20700 / 1288000, kapsamli 19300 / 1840000; envanter 690000.
+    - Sipariş, ödeme ve çıkarma mekaniğini sınayan pgTAP dosyaları (46, 48, 49) lansman fiyatlarına bağlı değildir: `testing.use_round_prices()` işlem içinde yuvarlak fiyatlı bir liste yayımlar (standart 12500 / 500000 / 0).
 - **Müşteri kullanıcısı:** `customer@example.com` (`a0000000-0000-4000-8000-000000000006`), parola `orchados-dev`.
     - Bu kullanıcı `USERS` listesine **eklenmez**; `fixtures.ts`'de ayrı bir `CUSTOMER` sabiti ve `signInCustomer()` olur.
     - Profili: telefon `+905550000006`, whatsapp, `kvkk-v1-taslak`. Bireysel fatura profili (TCKN yok). Üç rıza kaydı.
@@ -860,11 +861,12 @@ POST /functions/v1/payment-webhook  → 200 {ok:true} | 401 {error:"invalid_sign
 ## 9. Site (C)
 
 - **Yollar:** `src/app/(site)/` altında `/`, `/nasil-calisir`, `/paketler`, `/sss`, `/iletisim`, `/kvkk`, `/acik-riza`, `/gizlilik`, `/mesafeli-satis`, `/on-bilgilendirme`, `/iade`, `/bahcede-bulunanlar`, `/kayit`, `/kayit/dogrula`. Ayrıca `robots` ve `sitemap`; `ORCHADOS_SITE_INDEXABLE=1` olmadıkça her şey `Disallow`.
+- **`/paketler`:** `public_package_prices()` ile yürürlükteki listenin paketlerini gösterir. Tutarlar tüketiciye **KDV dahil** gösterilir (yıllık dönüm başı, ziyaret başı birim, en az ücret, ilk yıl envanter ücreti). Her pakette 20 dönüm örneği `price_preview` ile hesaplanır: yıllık ve ilk yıl (envanterle) toplam.
 - **Hukuk metinleri:** `src/lib/legal/` altında; sürüm adı `-taslak` ile bitiyorsa üstte bant görünür.
 
   ```ts
   LEGAL_TEXT_VERSIONS = { kvkk_notice: "kvkk-v2-taslak", explicit_consent: "riza-v2-taslak", privacy: "gizlilik-v2-taslak",
-    distance_sales: "mesafeli-v3-taslak", pre_information: "onbilgi-v3-taslak", refund_policy: "iade-v3-taslak",
+    distance_sales: "mesafeli-v4-taslak", pre_information: "onbilgi-v4-taslak", refund_policy: "iade-v4-taslak",
     field_notice: "bahcede-v1-taslak" }
   ```
 
@@ -980,7 +982,7 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
     - **Turnstile canlı anahtarları** (zorunlu)
     - Netgsm
     - Vercel Pro ve alan adı
-    - gerçek fiyatlar ve IBAN
+    - IBAN; lansman fiyat listesi back office'te girilip yayımlanır ([deployment.md](deployment.md) › Lansman fiyat listesi)
 
     `deploy-db-pilot` iki durumda başarısız olur: `PAYMENT_FAKE_ALLOWED` secret'ı varsa ya da `allow_fake_payments` açık bir org varsa. `accepts_signups` açıkken `TURNSTILE_SECRET_KEY`, `SIGNUP_HASH_SECRET` ya da `SIGNUP_PROXY_SECRET` yoksa ya da `SIGNUP_TURNSTILE_DISABLED` tanımlıysa da başarısız olur. Bu denetim yalnızca dağıtımda çalışır; `accepts_signups` sonradan açılsa bile `customer-signup` Turnstile secret'ı olmadan kayıt almaz.
 5. **Geri alma:**
@@ -994,7 +996,7 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
 | Yusuf | iyzico sandbox ve canlı hesap, V3 webhook, Checkout Form içindeki havalenin kapatılması, `identityNumber` teyidi |
 | Avukat | Karara bağlandı: [hukuk/kararlar.md](hukuk/kararlar.md). Kalan şirket eylemleri T01, T22 |
 | Şirket | Unvan, VKN, MERSİS, IBAN, İYS |
-| Yusuf | Fiyatlar, Vercel Pro, alan adı, Netgsm, Turnstile hesabı |
+| Yusuf | Vercel Pro, alan adı, Netgsm, Turnstile hesabı. Fiyatlar karara bağlandı ([fiyatlandirma.md](fiyatlandirma.md)) |
 
 ## 17. Paralel geliştirme planı
 
@@ -1037,7 +1039,7 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
 
 ## 19. Açık sorular ve kabul edilen riskler
 
-- Gerçek fiyatlar, envanter ücreti, ziyaret sayısı.
+- ~~Gerçek fiyatlar, envanter ücreti, ziyaret sayısı~~: karara bağlandı (28 Ekim), lansman fiyat listesi [fiyatlandirma.md](fiyatlandirma.md). Kapsamlı paketin altı ziyaretlik takvimi de [fiyatlandirma.md](fiyatlandirma.md) §1'de.
 - Hizmet bölgesi.
 - Süreler.
 - Taksit.

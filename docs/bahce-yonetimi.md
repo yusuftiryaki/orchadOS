@@ -397,10 +397,10 @@ Gece çalışan `garden-removal-housekeeping` ya da ops'un "hemen tamamla" eylem
 - **Paket:** Temel siparişin teklifindeki paket kullanılır. Başvurudaki paket farklıysa yok sayılır ve ops ekranı bunu uyarı olarak gösterir. Paketin güncel listede fiyatı yoksa `package_not_priced`.
 - **Sınır:** `price_lines_v2` ve `price_lines` en çok 50 alan alır. v1'in sınırı 10'du; `price_preview` de 50'ye çıkar.
 
-**Örnek (seed fiyatları):**
-- **Dönem ve paket:** 1 Kasım 2026–31 Ekim 2027 (365 gün), standart paket: V = 4, birim 12.500, minimum 500.000, envanter 0, KDV %20. Son ek günü 2 Ekim 2027.
+**Örnek (lansman fiyatları, seed; [fiyatlandirma.md](fiyatlandirma.md)):**
+- **Dönem ve paket:** 1 Kasım 2026–31 Ekim 2027 (365 gün), standart paket: V = 4, birim 18.000, minimum 1.120.000, envanter 600.000, KDV %20. Son ek günü 2 Ekim 2027.
 - **Ziyaret hakkı:** 15 dönümlük ek bahçe 1 Nisan 2027'de başlıyor. Kalan 214 gün, 4 × 214 / 365 = 2,35 → 2 ziyaret.
-- **Fiyat:** 2 × 150 × 12.500 / 10 = 375.000 kuruş. Minimum 250.000 olduğu için 375.000 geçerli. KDV dahil **450.000 kuruş** (4.500,00 TL). Tam yıl 900.000 kuruş olurdu.
+- **Fiyat:** 2 × 150 × 18.000 / 10 = 540.000 kuruş. Orantılı minimum 1.120.000 × 2 / 4 = 560.000 daha büyük olduğu için 560.000 geçerli. Yeni bahçe olduğu için envanter 600.000 eklenir: taban 1.160.000. KDV dahil **1.392.000 kuruş** (13.920,00 TL). Envanterle tam yıl 2.064.000 kuruş olurdu.
 - **Ek-2 ile karşılaştırma:** Nisan–Ekim arasında ilkbahar, yaz ve hasat pencereleri kalır. Önce envanter yapılacağı için 2 periyodik ziyaret gerçekçidir.
 
 ## 7. Çıkarmada iade (`removal-v1`)
@@ -434,13 +434,14 @@ Gece çalışan `garden-removal-housekeeping` ya da ops'un "hemen tamamla" eylem
 Kaydın `refund_mode` değeri `manual` ya da `none` değilse, talep edilen satırın modudur.
 
 **Örnekler:**
-- **Temel örnek:** 20 dönüm, 1.200.000 kuruş (KDV dahil), 4 ziyaret hakkı, 1 yapılmış. Ziyaret bedeli 300.000, iade **900.000**. KDV payı 150.000.
-- **Md. 8A ile:** Aynı satırda 1 ziyaret yapılmış, 1 ziyaret kaçırılmış ve Md. 8A ile 300.000 iade edilmiş. Hesap 3 × 300.000 = 900.000; önceki iadeler 300.000; iade **600.000**. Toplam iade 900.000'dir, yani yapılmamış üç ziyaretin bedeli.
-- **Envanter ücreti 100.000 olsaydı:**
-    - taban 1.100.000, satır tutarı 1.320.000,
-    - envanter payı 120.000, hizmet payı 1.200.000,
-    - ziyaret bedeli yine 300.000,
-    - envanter yapılmadıysa iade 900.000 + 120.000 = 1.020.000.
+Lansman fiyatlarıyla ([fiyatlandirma.md](fiyatlandirma.md)); hukuk metinlerindeki örnekler (sözleşme Md. 12/3, iade politikası §5) aynı rakamları kullanır. pgTAP'te ilk iki örnek yuvarlak test fiyatlarıyla (1.200.000 kuruşluk satır, `testing.use_round_prices`), üçüncüsü bu rakamlarla sınanır (`46_garden_removals`).
+- **Temel örnek:** 20 dönüm, standart paketin yenileme yılı (envanter yok), 1.728.000 kuruş (KDV dahil), 4 ziyaret hakkı, 1 yapılmış. Ziyaret bedeli 432.000, iade **1.296.000**. KDV payı 216.000.
+- **Md. 8A ile:** Aynı satırda 1 ziyaret yapılmış, 1 ziyaret kaçırılmış ve Md. 8A ile 432.000 iade edilmiş. Hesap 3 × 432.000 = 1.296.000; önceki iadeler 432.000; iade **864.000**. Toplam iade 1.296.000'dir, yani yapılmamış üç ziyaretin bedeli.
+- **İlk yıl, envanter ücreti 600.000:**
+    - taban 2.040.000, satır tutarı 2.448.000,
+    - envanter payı 720.000, hizmet payı 1.728.000,
+    - ziyaret bedeli yine 432.000,
+    - envanter yapılmadıysa iade 1.296.000 + 720.000 = 2.016.000.
 - **İşleme hattının yeniden taraması** (`extra_visit` isteğine bağlı) yapılmış ziyaret sayılmaz; iadeyi azaltmaz.
 
 ### 7.2 `calculation` (kayıtta ve önizlemede)
@@ -451,16 +452,16 @@ Kaydın `refund_mode` değeri `manual` ya da `none` değilse, talep edilen satı
   "as_of": "2027-03-01",
   "effective_on": "2027-03-01",
   "mode": "unused_visits",
-  "refund_kurus": 600000,
-  "refund_vat_kurus": 100000,
+  "refund_kurus": 864000,
+  "refund_vat_kurus": 144000,
   "unallocated_kurus": 0,
   "unattributed_refunds": false,
   "lines": [
     {"order_item_id": "…", "order_id": "…", "order_number": "S-2026-000012", "removed_on": "2027-03-01",
-     "amount_kurus": 1200000, "vat_rate_bp": 2000, "inventory_share_kurus": 0, "inventory_done": false,
-     "visits_entitled": 4, "visits_used": 1, "visits_excluded": 1, "visit_fee_kurus": 300000,
-     "gross_kurus": 900000, "already_refunded_kurus": 300000, "unattributed": false,
-     "refund_kurus": 600000, "refund_vat_kurus": 100000, "mode": "unused_visits"}
+     "amount_kurus": 1728000, "vat_rate_bp": 2000, "inventory_share_kurus": 0, "inventory_done": false,
+     "visits_entitled": 4, "visits_used": 1, "visits_excluded": 1, "visit_fee_kurus": 432000,
+     "gross_kurus": 1296000, "already_refunded_kurus": 432000, "unattributed": false,
+     "refund_kurus": 864000, "refund_vat_kurus": 144000, "mode": "unused_visits"}
   ]
 }
 ```

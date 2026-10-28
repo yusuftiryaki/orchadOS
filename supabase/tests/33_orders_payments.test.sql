@@ -3,8 +3,8 @@
 -- parcel, idempotency, mismatch, closed order, overpayment, live attempts,
 -- bank transfers, review, reconciliation and the fake provider locks.
 -- Seed: ops a0..05, customer a0..06 (owner and billing profile, whatsapp),
--- package standart 9120..0001, price list v1: an order of 20 dönüm totals
--- 1 200 000 kuruş. The whole file is one transaction (now() is constant), so
+-- package standart 9120..0001, price list v1: an order of 20 dönüm (first year)
+-- totals 2 448 000 kuruş. The whole file is one transaction (now() is constant), so
 -- times are set explicitly where they matter. Functions run as postgres with
 -- the user's JWT claims; grants are in 35_billing_security.
 begin;
@@ -94,8 +94,8 @@ select results_eq(
             r -> 'buyer' ->> 'first_name', r -> 'billing' ->> 'contact_name', jsonb_array_length(r -> 'items'),
             r -> 'items' -> 0 ->> 'amount_kurus'
      from begun where n = 1 $$,
-  $$ values ('1200000'::text, 'TRY'::text, '11111111111'::text, '+905550000006'::text, 'Örnek'::text,
-             'Örnek Müşteri'::text, 1, '1200000'::text) $$,
+  $$ values ('2448000'::text, 'TRY'::text, '11111111111'::text, '+905550000006'::text, 'Örnek'::text,
+             'Örnek Müşteri'::text, 1, '2448000'::text) $$,
   'the attempt: outstanding amount, one line per order line, placeholder TCKN, the buyer');
 select ok(not exists (select 1 from private.payment_billing_snapshot where payment_id = pg_temp.id('p1')),
   'payment_begin writes no snapshot');
@@ -150,14 +150,14 @@ select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 select is(pg_temp.error_of($$ select public.ops_cancel_order(pg_temp.id('o1')) $$), 'P0001 payment_in_progress',
   'nor can ops');
 select is(
-  pg_temp.error_of($$ select public.ops_record_manual_payment(pg_temp.id('o1'), 1200000, current_date, 'EFT-1') $$),
+  pg_temp.error_of($$ select public.ops_record_manual_payment(pg_temp.id('o1'), 2448000, current_date, 'EFT-1') $$),
   'P0001 payment_in_progress', 'no transfer is recorded while a card payment is in progress');
 
 -- Success, idempotency, activation ------------------------------------------------
 
-select is(public.payment_finalize(pg_temp.id('p2'), 'succeeded', pg_temp.ok(1200000, 'fake_pay_33_2')), 'succeeded',
+select is(public.payment_finalize(pg_temp.id('p2'), 'succeeded', pg_temp.ok(2448000, 'fake_pay_33_2')), 'succeeded',
   'the attempt succeeds');
-select is(public.payment_finalize(pg_temp.id('p2'), 'succeeded', pg_temp.ok(1200000, 'fake_pay_33_2')), 'succeeded',
+select is(public.payment_finalize(pg_temp.id('p2'), 'succeeded', pg_temp.ok(2448000, 'fake_pay_33_2')), 'succeeded',
   'again: unchanged');
 select is(public.payment_finalize(pg_temp.id('p2'), 'failed', '{"failure_code": "card_declined"}'), 'succeeded',
   'a later failure does not change a final row');
@@ -173,7 +173,7 @@ select results_eq(
   $$ select status::text, paid_kurus, service_start = (now() at time zone 'Europe/Istanbul')::date,
             service_end = (service_start + interval '1 year' - interval '1 day')::date, activated_at is not null
      from public.service_order where id = pg_temp.id('o1') $$,
-  $$ values ('active'::text, 1200000::bigint, true, true, true) $$,
+  $$ values ('active'::text, 2448000::bigint, true, true, true) $$,
   'paid in full: the order is active for one year, the amount counted once');
 select is((select count(*)::integer from public.audit_event where action = 'order.activated' and entity_id = pg_temp.id('o1')),
   1, 'one activation');
@@ -220,7 +220,7 @@ select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 
 insert into ids select 'o3', pg_temp.new_order();
 select is(
-  pg_temp.error_of($$ select public.ops_record_manual_payment(pg_temp.id('o3'), 1200001, current_date, 'EFT-2') $$),
+  pg_temp.error_of($$ select public.ops_record_manual_payment(pg_temp.id('o3'), 2448001, current_date, 'EFT-2') $$),
   'P0001 amount_exceeds_balance', 'a transfer beyond the balance is refused');
 select is(
   pg_temp.error_of($$ select public.ops_record_manual_payment(pg_temp.id('o3'), 100, current_date, ' ') $$),
@@ -242,11 +242,11 @@ select ok(exists (select 1 from private.payment_billing_snapshot where payment_i
 select is(
   (select r -> 'amount_kurus' from (select public.payment_begin(pg_temp.id('o3'), 'a0000000-0000-4000-8000-000000000006',
     'fake', 'http://127.0.0.1:3100') r) x)::text,
-  '1000000', 'a card attempt takes the remaining balance');
+  '2248000', 'a card attempt takes the remaining balance');
 -- Give the attempt up (its token ran out), then pay the rest by transfer.
 update public.payment set status = 'expired', token_expires_at = now() - interval '1 hour'
 where order_id = pg_temp.id('o3') and provider = 'fake';
-insert into ids select 'm2', public.ops_record_manual_payment(pg_temp.id('o3'), 1000000, current_date, 'EFT-3');
+insert into ids select 'm2', public.ops_record_manual_payment(pg_temp.id('o3'), 2248000, current_date, 'EFT-3');
 select is((select status::text from public.service_order where id = pg_temp.id('o3')), 'active',
   'the rest by transfer activates the order');
 select is(pg_temp.error_of($$ select public.ops_void_manual_payment(pg_temp.id('m2'), 'Yanlış kayıt') $$),
@@ -294,7 +294,7 @@ select is(pg_temp.error_of($$ select public.ops_resolve_payment_review(pg_temp.i
 -- A mismatch row leaves review only through its void (review finding 2, 6).
 select is(public.payment_finalize(pg_temp.id('p4'), 'failed', '{"failure_code": "not_completed"}'), 'pending_review',
   'a later failed report does not touch a mismatch in review');
-select is(public.payment_finalize(pg_temp.id('p4'), 'succeeded', pg_temp.ok(1200000, 'fake_pay_33_4')), 'pending_review',
+select is(public.payment_finalize(pg_temp.id('p4'), 'succeeded', pg_temp.ok(2448000, 'fake_pay_33_4')), 'pending_review',
   'nor does a later success with the right amount');
 select results_eq(
   $$ select p.status::text, p.failure_code, o.status::text, o.paid_kurus
@@ -307,12 +307,12 @@ select is((select status::text from public.refund where payment_id = pg_temp.id(
 
 insert into ids select 'p4b', pg_temp.begin_card(pg_temp.id('o4'));
 select is(public.payment_finalize(pg_temp.id('p4b'), 'pending_review',
-  pg_temp.ok(1200000, 'fake_pay_33_4b') || '{"failure_code": "reference_mismatch"}'), 'pending_review',
+  pg_temp.ok(2448000, 'fake_pay_33_4b') || '{"failure_code": "reference_mismatch"}'), 'pending_review',
   'a reference mismatch goes to review');
 select results_eq(
   $$ select r.kind::text, r.reason::text, r.amount_kurus, p.failure_code
      from public.refund r join public.payment p on p.id = r.payment_id where r.payment_id = pg_temp.id('p4b') $$,
-  $$ values ('void'::text, 'provider_mismatch'::text, 1200000::bigint, 'reference_mismatch'::text) $$,
+  $$ values ('void'::text, 'provider_mismatch'::text, 2448000::bigint, 'reference_mismatch'::text) $$,
   'and gets a void too');
 
 -- Fraud review --------------------------------------------------------------------
@@ -320,7 +320,7 @@ select results_eq(
 insert into ids select 'o5', pg_temp.new_order();
 insert into ids select 'p5', pg_temp.begin_card(pg_temp.id('o5'));
 select is(public.payment_finalize(pg_temp.id('p5'), 'pending_review',
-  pg_temp.ok(1200000, 'fake_pay_33_5') || '{"fraud_status": 0, "failure_code": "fraud_review"}'), 'pending_review',
+  pg_temp.ok(2448000, 'fake_pay_33_5') || '{"fraud_status": 0, "failure_code": "fraud_review"}'), 'pending_review',
   'a fraud review');
 select is((select count(*)::integer from public.refund where payment_id = pg_temp.id('p5')), 0, 'no refund for a review');
 select is(pg_temp.error_of($$ select public.ops_resolve_payment_review(pg_temp.id('p5'), true, null) $$),
@@ -341,29 +341,29 @@ select public.payment_attach_token(pg_temp.id('p6'), 'fake_tok_33_6', now() - in
 select public.ops_cancel_order(pg_temp.id('o6'), 'Müşteri aradı');
 select is((select status::text from public.service_order where id = pg_temp.id('o6')), 'cancelled',
   'an order with only a dead attempt is cancelled');
-select is(public.payment_finalize(pg_temp.id('p6'), 'succeeded', pg_temp.ok(1200000, 'fake_pay_33_6')), 'succeeded',
+select is(public.payment_finalize(pg_temp.id('p6'), 'succeeded', pg_temp.ok(2448000, 'fake_pay_33_6')), 'succeeded',
   'a late success on the cancelled order');
 select results_eq(
   $$ select reason::text, amount_kurus, kind::text from public.refund where payment_id = pg_temp.id('p6') $$,
-  $$ values ('order_closed'::text, 1200000::bigint, 'void'::text) $$, 'is refunded in full (void on the same day)');
+  $$ values ('order_closed'::text, 2448000::bigint, 'void'::text) $$, 'is refunded in full (void on the same day)');
 select results_eq(
   $$ select status::text, paid_kurus from public.service_order where id = pg_temp.id('o6') $$,
-  $$ values ('cancelled'::text, 1200000::bigint) $$, 'the order stays cancelled');
+  $$ values ('cancelled'::text, 2448000::bigint) $$, 'the order stays cancelled');
 
 -- Overpayment --------------------------------------------------------------------
 
 insert into ids select 'o7', pg_temp.new_order();
 insert into ids select 'p7', pg_temp.begin_card(pg_temp.id('o7'));
 select public.payment_attach_token(pg_temp.id('p7'), 'fake_tok_33_7', now() - interval '1 hour');
-select public.ops_record_manual_payment(pg_temp.id('o7'), 1200000, current_date, 'EFT-7');
-select is(public.payment_finalize(pg_temp.id('p7'), 'succeeded', pg_temp.ok(1200000, 'fake_pay_33_7')), 'succeeded',
+select public.ops_record_manual_payment(pg_temp.id('o7'), 2448000, current_date, 'EFT-7');
+select is(public.payment_finalize(pg_temp.id('p7'), 'succeeded', pg_temp.ok(2448000, 'fake_pay_33_7')), 'succeeded',
   'a late card success after the transfer');
 select results_eq(
   $$ select reason::text, amount_kurus from public.refund where payment_id = pg_temp.id('p7') $$,
-  $$ values ('overpayment'::text, 1200000::bigint) $$, 'the excess is refunded');
+  $$ values ('overpayment'::text, 2448000::bigint) $$, 'the excess is refunded');
 select results_eq(
   $$ select status::text, paid_kurus from public.service_order where id = pg_temp.id('o7') $$,
-  $$ values ('active'::text, 2400000::bigint) $$, 'both payments are counted');
+  $$ values ('active'::text, 4896000::bigint) $$, 'both payments are counted');
 select is((select count(*)::integer from public.audit_event where action = 'order.activated' and entity_id = pg_temp.id('o7')),
   1, 'activated once');
 
@@ -372,7 +372,7 @@ select is((select count(*)::integer from public.audit_event where action = 'orde
 insert into ids select 'o9', pg_temp.new_order();
 insert into ids select 'p9', pg_temp.begin_card(pg_temp.id('o9'));
 update public.org_billing_setting set allow_fake_payments = false where org_id = 'b0000000-0000-4000-8000-000000000001';
-select is(pg_temp.error_of($$ select public.payment_finalize(pg_temp.id('p9'), 'succeeded', pg_temp.ok(1200000, 'fake_pay_33_9')) $$),
+select is(pg_temp.error_of($$ select public.payment_finalize(pg_temp.id('p9'), 'succeeded', pg_temp.ok(2448000, 'fake_pay_33_9')) $$),
   'P0001 fake_payments_disabled', 'a fake success is refused while fake payments are off');
 select is((select status::text from public.payment where id = pg_temp.id('p9')), 'initiated', 'nothing was written');
 update public.org_billing_setting set allow_fake_payments = true where org_id = 'b0000000-0000-4000-8000-000000000001';
@@ -394,12 +394,12 @@ select is(public.payment_finalize(pg_temp.id('p10'), 'failed', '{"failure_code":
   'an unfinished form is failed');
 select is(public.payment_finalize(pg_temp.id('p10'), 'failed', '{"failure_code": "card_declined"}'), 'failed',
   'a failed row stays failed on another failed report');
-select is(public.payment_finalize(pg_temp.id('p10'), 'succeeded', pg_temp.ok(1200000, 'fake_pay_33_10')), 'succeeded',
+select is(public.payment_finalize(pg_temp.id('p10'), 'succeeded', pg_temp.ok(2448000, 'fake_pay_33_10')), 'succeeded',
   'a capture reported after the failure is written as a success');
 select results_eq(
   $$ select p.receipt_number is not null, p.failure_code, o.status::text, o.paid_kurus
      from public.payment p join public.service_order o on o.id = p.order_id where p.id = pg_temp.id('p10') $$,
-  $$ values (true, null::text, 'active'::text, 1200000::bigint) $$, 'with a receipt, and the order is activated');
+  $$ values (true, null::text, 'active'::text, 2448000::bigint) $$, 'with a receipt, and the order is activated');
 select is((select count(*)::integer from public.audit_event where action = 'payment.late_success' and entity_id = pg_temp.id('p10')),
   1, 'the late success is audited');
 select public.payment_record_event('fake', 'retrieve', 'retrieve:fake_tok_33_10:succeeded', pg_temp.id('p10'), null,
@@ -407,7 +407,7 @@ select public.payment_record_event('fake', 'retrieve', 'retrieve:fake_tok_33_10:
 select is((select array_agg(dedup_key) from public.ops_payment_events(pg_temp.id('p10')) where event_type = 'retrieve'),
   array['retrieve:…:succeeded'], 'ops see event keys without the provider token (review finding 5)');
 update public.payment set failure_code = 'review_rejected' where id = pg_temp.id('p9');
-select is(public.payment_finalize(pg_temp.id('p9'), 'succeeded', pg_temp.ok(1200000, 'fake_pay_33_9')), 'failed',
+select is(public.payment_finalize(pg_temp.id('p9'), 'succeeded', pg_temp.ok(2448000, 'fake_pay_33_9')), 'failed',
   'a review ops rejected is not reopened by a provider report');
 
 -- Refunded money is not paid (review finding 7) -----------------------------------
@@ -420,10 +420,10 @@ select results_eq(
   $$ select paid_kurus, refunded_kurus from public.service_order where id = pg_temp.id('o12') $$,
   $$ values (200000::bigint, 200000::bigint) $$, 'setup: a transfer refunded in full');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
-select is((select outstanding_kurus from public.customer_payment_instructions(pg_temp.id('o12'))), 1200000::bigint,
+select is((select outstanding_kurus from public.customer_payment_instructions(pg_temp.id('o12'))), 2448000::bigint,
   'the refunded transfer is outstanding again');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
-insert into ids select 'm12b', public.ops_record_manual_payment(pg_temp.id('o12'), 1000000, current_date, 'EFT-12b');
+insert into ids select 'm12b', public.ops_record_manual_payment(pg_temp.id('o12'), 2248000, current_date, 'EFT-12b');
 select is((select status::text from public.service_order where id = pg_temp.id('o12')), 'awaiting_payment',
   'a refunded transfer does not count toward activation');
 select is(
@@ -454,7 +454,7 @@ insert into ids select 'o8', pg_temp.new_order();
 insert into public.payment (id, org_id, order_id, customer_user_id, provider, status, amount_kurus, initiated_at,
   token_expires_at, bank_reference, value_date, recorded_by)
 select x.id, 'b0000000-0000-4000-8000-000000000001', pg_temp.id('o8'), 'a0000000-0000-4000-8000-000000000006',
-       x.provider::public.payment_provider, x.status::public.payment_status, 1200000, x.initiated_at, x.expires,
+       x.provider::public.payment_provider, x.status::public.payment_status, 2448000, x.initiated_at, x.expires,
        x.ref, x.vd, x.rec
 from (values
   ('93300000-0000-4000-8000-000000000001'::uuid, 'fake', 'initiated', now() - interval '5 minutes', now() + interval '25 minutes', null, null::date, null::uuid),
