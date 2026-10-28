@@ -11,7 +11,13 @@ import { formatNumber } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import type { Position } from "@/lib/map/geo";
 import { EMPTY_FORM, type FormState } from "@/lib/operations/form-state";
-import { m2ToDonum, ringAreaM2, validateRing } from "@/lib/operations/geometry";
+import {
+  deleteVertex,
+  m2ToDonum,
+  moveVertex,
+  ringAreaM2,
+  validateRing,
+} from "@/lib/operations/geometry";
 import { AUTHORIZATION_BASES, IRRIGATION } from "@/lib/operations/validation";
 import { portalHref } from "@/lib/portal-billing/urls";
 import s from "./billing.module.css";
@@ -57,6 +63,8 @@ export function GardenForm({
       : null;
   });
   const addVertex = useCallback((p: Position) => setRing((r) => [...r, p]), []);
+  const move = useCallback((i: number, p: Position) => setRing((r) => moveVertex(r, i, p)), []);
+  const remove = useCallback((i: number) => setRing((r) => deleteVertex(r, i)), []);
   const setPosition = useCallback((p: Position) => {
     setPositionState(p);
     // After the location the next clicks draw the boundary.
@@ -163,17 +171,15 @@ export function GardenForm({
             {G.points(ring.length)}
           </span>
         </div>
-        {/* Remounted per mode: BoundaryDrawMap re-renders its className on a
-            mode change, which drops the class MapLibre adds to the container
-            (maplibregl-map, position: relative) and leaves the canvas off the
-            map. The new map fits the ring and location already drawn. */}
         <BoundaryDrawMap
-          key={mode}
           ring={ring}
           position={position}
           mode={mode}
           onAddVertex={addVertex}
           onSetPosition={setPosition}
+          onMoveVertex={move}
+          onDeleteVertex={remove}
+          label={G.mapSection}
         />
         <input type="hidden" name="lon" value={position ? String(position[0]) : ""} />
         <input type="hidden" name="lat" value={position ? String(position[1]) : ""} />

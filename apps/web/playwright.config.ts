@@ -44,6 +44,9 @@ export default defineConfig({
       // Demo tour (İP13): this build serves /demo; not a demo host (no
       // ORCHADOS_MAIN_SITE_URL), so the site and the demo run side by side.
       ORCHADOS_DEMO_ENABLED: "1",
+      // Map tests (tests/e2e/maps.spec.ts): window.__orchadMaps counts live
+      // map instances (src/lib/map/maplibre.ts).
+      NEXT_PUBLIC_MAP_TEST_HOOKS: "1",
     },
   },
 });

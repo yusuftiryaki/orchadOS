@@ -101,7 +101,7 @@ function GardenRow({ parcel, badge }: { parcel: PortalParcel; badge?: GardenBadg
           href={`/portal/parsel/${parcel.id}`}
           className={styles.open}
         >
-          {visited ? g.open : g.openEmpty}
+          {g.open}
         </ButtonLink>
       </div>
     </li>

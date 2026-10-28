@@ -204,6 +204,8 @@ export function HealthMap({
           cells={cells}
           coverage={coverageLayer}
           className={styles.map}
+          // "Changed only" may leave nothing to draw; that is not an empty parcel.
+          emptyText={slots.features.length === 0 ? t.map.noTrees : null}
         />
       </div>
       <div className={styles.legendArea}>
