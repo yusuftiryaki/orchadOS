@@ -8,7 +8,7 @@
 -- of org b0..01, self-service customer a0..06.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(12);
 
 select testing.reset_to_seed();
 
@@ -17,8 +17,10 @@ as $$ select set_config('request.jwt.claims', json_build_object('sub', p_id, 'ro
        'app_metadata', json_build_object('demo', true))::text, true) $$;
 grant execute on all functions in schema pg_temp to authenticated;
 
--- The test project's people before the demo arrives.
-create temp table seed_user as select id from auth.users;
+-- The test project's people before the demo arrives: every account without the
+-- demo flag (visitor accounts other suites left behind are not theirs).
+create temp table seed_user as
+  select id from auth.users where coalesce(raw_app_meta_data ->> 'demo', '') <> 'true';
 create temp table seed_access as
   select 'm' as kind, user_id, org_id, null::uuid as parcel_id, role::text from public.membership
   union all
@@ -83,9 +85,8 @@ update private.demo_session set expires_at = now() - interval '1 minute'
 where user_id = 'd14a0000-0000-4000-8000-000000000001';
 set local session_replication_role = origin;
 
-select results_eq($$ select * from public.demo_expired_accounts() $$,
-  $$ values ('d14a0000-0000-4000-8000-000000000001'::uuid) $$,
-  'cleanup names the expired visitor only');
+select ok('d14a0000-0000-4000-8000-000000000001'::uuid in (select public.demo_expired_accounts(2147483647, '{}')),
+  'cleanup names the expired visitor');
 select is(
   (select count(*)::int from public.demo_expired_accounts(2147483647, '{}') e
    where e in (select id from seed_user) or e = 'd14b0000-0000-4000-8000-000000000001'),
@@ -93,7 +94,13 @@ select is(
 select ok(
   'a0000000-0000-4000-8000-000000000005'::uuid not in (select public.demo_expired_accounts(2147483647, '{}')),
   'a flagged staff member with a membership is kept');
-select is(public.demo_undeletable_count(), 1, 'the flagged staff member is counted for a human to look at');
+select ok('a0000000-0000-4000-8000-000000000005'::uuid in (
+    select u.id from auth.users u
+    where u.id not in (select public.demo_expired_accounts(2147483647, '{}'))
+      and exists (select 1 from private.demo_session s where s.user_id = u.id and s.expires_at <= now())
+      and u.raw_app_meta_data ->> 'demo' = 'true'),
+  'the flagged staff member is among the due accounts the rules keep');
+select ok(public.demo_undeletable_count() >= 1, 'demo_undeletable_count reports it for a human to look at');
 
 select * from finish();
 rollback;
