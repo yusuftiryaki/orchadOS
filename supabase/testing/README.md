@@ -18,10 +18,14 @@ Ekleme-yalnız tablolar (`capture`, `asset`, `measurement`, `session_event`, `tr
 | --- | --- | --- |
 | `testing.purge_sessions(uuid[])` | `service_role` | Oturumlar ve onlara bağlı her şey: `session_id` sütunu olan bütün tablolar (capture, asset, ölçüm, değerlendirme, bulgu, oturum olayı, sınır, bildirim, AI satırları …), sadece bir üst kimlikle bağlı olanlar (lineage, kanıt, değerlendirme girdileri, bulgunun soruları ve cevapları, bildirimin giden mesajları) ve artık hiçbir satırın göstermediği `media` nesneleri. Parsel, yerler ve başka oturumların ağaçları kalır |
 | `testing.purge_parcels(uuid[])` | `service_role` | Parseller ve altındaki her şey: `parcel_id` sütunu olan bütün tablolar (`public` ve `private`), parsel satırı, `org/<org>/parcel/<parsel>/` altındaki `media` nesneleri |
-| `testing.purge_org(uuid)` | `service_role` | İşletme: önce parselleri (yukarıdaki gibi), sonra `org_id` sütunu olan bütün tablolar (üyelikler, cihazlar, düzenekler, sahip profilleri …), işletme satırı, `org/<org>/` altındaki nesneler. Auth kullanıcıları silinmez (testler Admin API ile siler) |
+| `testing.purge_org(uuid)` | `service_role` | İşletme: önce parselleri (yukarıdaki gibi), sonra `org_id` sütunu olan bütün tablolar (üyelikler, cihazlar, düzenekler, sahip profilleri, demo kaydı `demo_org`/`demo_parcel`/`demo_session` …), işletme satırı, `media` ve `demo-media` kovalarında `org/<org>/` altındaki nesneler. Auth kullanıcıları silinmez (testler Admin API ile siler) |
 | `testing.purge_billing_users(uuid[])` | `service_role` | Faturalama testlerinin müşterileri (İP12): `customer_user_id`, `user_id` ya da `subject_id` sütununda bu kimlikler olan her satır (başvuru, teklif, sipariş, ödeme, iade, profiller, rızalar, bekleyen kayıtlar, üyelik ve parsel erişimi), bunlara bağlı bahçe ayrıntıları, ödeme anlık görüntüleri ve olayları, haklarındaki denetim kayıtları. Auth kullanıcısını silmeden önce çağrılır (`customer_user_id` silmeyi engeller) |
 | `testing.purge_signup_attempts()` | `service_role` | Kayıt denemesi satırları (oran sınırı), kayıt testleri aynı saat içinde yeniden koşabilsin diye |
 | `testing.age_signups(uuid[], integer)` | `service_role` | Silmez: bu kullanıcıların bekleyen kayıtlarını ve Auth hesaplarını verilen dakika kadar geriye alır; kayıt testleri bayat hesap bekleme süresini (30 dk) beklemeden geçer |
+| `testing.register_demo_org(uuid, uuid[], boolean, jsonb)` | `service_role` | Silmez: bir org'u demo org'u olarak kaydeder (İP13, `docs/demo-turu.md`): `loaded_at = now()`, parseller verilen sırayla etkin `demo_parcel`; `p_enabled` ile öteki demo org'ları kapatılır. Önceden etkin olan demo org'unu (ya da null) döner; test `afterAll`'da onu yeniden kaydeder (`demo.sql`) |
+| `testing.age_demo_sessions(uuid[], integer)` | `service_role` | Silmez: bu kullanıcıların `demo_session` satırlarını (`created_at`, `expires_at`) verilen dakika kadar geriye alır |
+| `testing.purge_demo_attempts()` | `service_role` | Demo başlatma sayaçları (`demo_attempt`, oran sınırı), demo testleri aynı saat içinde yeniden koşabilsin diye |
+| `testing.run_demo_housekeeping()` | `service_role` | 5 dakikalık `private.demo_housekeeping()` işini hemen çalıştırır |
 | `testing.selectable_columns(text, text[])` | `service_role` | Silmez: bir rolün verilen `public` tablolarında seçebildiği sütunlar (sütun ya da tablo yetkisi); `billing-columns` testi `BILLING_COLUMNS` ile karşılaştırır |
 | `testing.reset_to_seed()` | `postgres` (pgTAP) | Seed'de olmayan her satırı siler (aşağıda) |
 
@@ -33,6 +37,6 @@ Ekleme-yalnız tablolar (`capture`, `asset`, `measurement`, `session_event`, `tr
 
 ## Kullananlar
 
-- Web testleri: `apps/web/tests/local-db.ts` (`purgeParcels`, `purgeOrg`, `purgeBillingUsers`, `purgeSignupAttempts`, `ageSignups`, `deleteUsers`), servis rolüyle.
+- Web testleri: `apps/web/tests/local-db.ts` (`purgeParcels`, `purgeOrg`, `purgeBillingUsers`, `purgeSignupAttempts`, `ageSignups`, `registerDemoOrg`, `ageDemoSessions`, `purgeDemoAttempts`, `runDemoHousekeeping`, `deleteUsers`), servis rolüyle.
 - İşleme hattı ve AI worker: `services/*/tests/supabase_util.py` → `purge_sessions(env, ids)`, servis rolüyle (`SUPABASE_SERVICE_ROLE_KEY` ya da `supabase status`).
 - pgTAP: `supabase/tests/*.test.sql` başında `testing.reset_to_seed()`.
