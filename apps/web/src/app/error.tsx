@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition } from "react";
+import { StatusPage } from "@/components/site/status-page";
+import { Button } from "@/components/ui/button";
 import { t } from "@/lib/i18n";
 
 // A request that failed for a transient reason (for example demo_info could
@@ -15,14 +17,12 @@ export default function ErrorPage({ reset }: { error: Error; reset: () => void }
       reset();
     });
   return (
-    <main className="centered">
-      <div className="card" data-testid="error-page">
-        <h1>{t.error.title}</h1>
-        <p className="muted">{t.error.body}</p>
-        <button type="button" className="button" onClick={retry}>
-          {t.error.retry}
-        </button>
-      </div>
-    </main>
+    <StatusPage
+      title={t.error.title}
+      testId="error-page"
+      action={<Button onClick={retry}>{t.error.retry}</Button>}
+    >
+      <p>{t.error.body}</p>
+    </StatusPage>
   );
 }
