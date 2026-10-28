@@ -1,4 +1,3 @@
-import { NextResponse, type NextRequest } from "next/server";
 import { isDemoClaims } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -6,10 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 // expired visitors here. Only a demo session is ended (demo_end, sign out),
 // then /demo?bitti=1. Anyone else goes to /demo with their session untouched,
 // so an <img>, a link or a prefetch from another page cannot sign them out.
-export async function GET(request: NextRequest) {
+// The Location is relative: behind a proxy the server's own host name is not
+// the one the browser used.
+export async function GET() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
-  const target = new URL("/demo", request.url);
+  let target = "/demo";
   if (isDemoClaims(data?.claims)) {
     try {
       await supabase.rpc("demo_end");
@@ -17,9 +18,10 @@ export async function GET(request: NextRequest) {
       // Signing out ends the session anyway.
     }
     await supabase.auth.signOut();
-    target.searchParams.set("bitti", "1");
+    target = "/demo?bitti=1";
   }
-  const response = NextResponse.redirect(target, 303);
-  response.headers.set("Cache-Control", "private, no-store");
-  return response;
+  return new Response(null, {
+    status: 303,
+    headers: { Location: target, "Cache-Control": "private, no-store" },
+  });
 }

@@ -1,4 +1,3 @@
-import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // /demo/bitti and exitDemoAction end only a demo session (docs/demo-turu.md
@@ -58,22 +57,22 @@ beforeEach(() => {
 describe("/demo/bitti", () => {
   it("ends a demo session and shows /demo?bitti=1", async () => {
     state.claims = DEMO;
-    const res = await GET(new NextRequest("http://localhost/demo/bitti"));
-    expect(res.headers.get("location")).toBe("http://localhost/demo?bitti=1");
+    const res = await GET();
+    expect(res.headers.get("location")).toBe("/demo?bitti=1");
     expect(state.calls).toEqual(["demo_end", "signOut"]);
   });
 
   it("leaves a real user signed in", async () => {
     state.claims = REAL;
-    const res = await GET(new NextRequest("http://localhost/demo/bitti"));
-    expect(res.headers.get("location")).toBe("http://localhost/demo");
+    const res = await GET();
+    expect(res.headers.get("location")).toBe("/demo");
     expect(state.calls).toEqual([]);
   });
 
   it("does nothing for a signed-out visitor", async () => {
     state.claims = null;
-    const res = await GET(new NextRequest("http://localhost/demo/bitti"));
-    expect(res.headers.get("location")).toBe("http://localhost/demo");
+    const res = await GET();
+    expect(res.headers.get("location")).toBe("/demo");
     expect(state.calls).toEqual([]);
   });
 });

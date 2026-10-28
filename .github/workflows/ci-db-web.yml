@@ -5,6 +5,7 @@ on:
     paths:
       - "supabase/**"
       - "apps/web/**"
+      - "services/pipeline/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -14,6 +15,7 @@ on:
     paths:
       - "supabase/**"
       - "apps/web/**"
+      - "services/pipeline/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -31,7 +33,7 @@ env:
 jobs:
   db-web:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -73,6 +75,35 @@ jobs:
 
       - name: Build
         run: pnpm web:build
+
+      # The demo tour dataset (IP13, docs/demo-turu.md §10) and the office
+      # tool's synthetic panoramas are built by services/pipeline: with uv here,
+      # demo-dataset.test.ts, demo-tour.spec.ts and office-tool.spec.ts run.
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: services/pipeline/uv.lock
+
+      - name: Install pipeline dependencies
+        working-directory: services/pipeline
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends rtklib
+          uv sync --locked
+
+      - name: Cache the demo tour build
+        uses: actions/cache@v4
+        with:
+          path: services/pipeline/.demo-build
+          key: demo-build-${{ hashFiles('services/pipeline/src/orchados_pipeline/demo/**', 'services/pipeline/uv.lock') }}
+
+      - name: Cache the office tool's synthetic panoramas
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.dev-data/e2e
+          key: office-e2e-${{ hashFiles('services/pipeline/src/**', 'services/pipeline/uv.lock', 'apps/web/scripts/office-dev-data.mjs') }}
+
+      - name: Load the demo tour dataset
+        run: pnpm db:demo-tour --profile test --reset-local
 
       - name: Unit and integration tests
         run: pnpm web:test

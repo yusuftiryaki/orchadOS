@@ -1143,3 +1143,26 @@ Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırınd
     - Hesapları silen cron Vault'a bağlıdır. Vault eksikse hesaplar silinmez.
     - Yine de `demo-housekeeping` (yalnızca SQL) süresi dolan oturumların erişimini 5 dakika içinde kaldırır.
     - Oturum kapısı süresi dolan oturumu her istekte kapatır.
+
+## 20. Uygulama notları
+
+Akışların birleşen koddaki sapmaları; yukarıdaki bölümler tasarım olarak kalır.
+
+**A (erişim, PR #63):**
+- Tasarımdaki üç migration'a dördüncüsü eklendi: `20261101120300_demo_guard_drift.sql` (`private.attach_demo_guards()`, `private.demo_guard_drift()`) ve `scripts/demo-guard-check.sh`; her `deploy-db*.yml` `db push`'tan sonra çalıştırır (§6.1 "Migration sırası").
+- `demo_info()` veri sürümü döndürmez; `tour` alanı `private.demo_org.tour`'dur (B yazar). Süresi dolmuş ya da bitirilmiş oturumda da satır döner; bitişi web'deki kapı `expires_at` ile denetler.
+- `demo_hit` etkin oturum yoksa `false` döner (kapıdan sonra çağrıldığı için web'de 429'a dönüşmez).
+
+**B (veri, PR #64):**
+- Ad ve kimlikler §8.1'deki gibi. Öne çıkan ağaç `S3-6` turda `tour.tree_id` olarak gelir. `pnpm db:demo-tour --profile test --reset-local` yerelde ~1 dakika sürer (önbellekli derlemeyle).
+
+**C (arayüz):**
+- **Demo sunucusu:** `demoHostRedirect(pathname, mainSiteUrl, search)` (`src/lib/site/demo-host.ts`) bir karar döner: `pass`, `local` (`/` → `/demo`) ya da `main` (asıl sitede aynı yol ve sorgu, 307). Uygulamada auth geri dönüş rotası yoktur; geçen yollar `/demo/**`, `/portal/**`, `/_next/**`, `robots.txt`, `favicon.ico`, `sitemap.xml` ve statik dosya uzantılarıdır. Demo sunucusunda `/giris` de asıl siteye gider; oturumsuz portal isteği `/demo`'ya döner.
+- **Çıkış hedefleri:** `exitDemoAction`'ın kabul ettiği `next` listesi `/`, `/kayit`, `/giris`'e ek olarak `/iletisim` (kayıt kapalıyken "Gerçek hesap aç" yerine "Bize ulaşın") ve `/paketler`'i içerir. Demo sunucusunda bütün hedefler asıl siteye gider (yalnızca `/` ve `/kayit` değil), çünkü öteki sayfalar da orada.
+- **`/demo/bitti`:** 303 ile yönlendirir ve `Cache-Control: private, no-store` taşır. `/kayit` ve `/giris` demo kullanıcısına "Demodan çıkıp devam et" kartını gösterir; düğme `exitDemoAction` ile o sayfaya gider.
+- **PDF önbelleği:** `demo_info()` veri sürümü vermediği için anahtar tür, parsel, PDF'in gösterdiği yayımlanmış oturum (karnede son ziyaret, envanterde envanter oturumu) ve bir düzen sürümüdür (`LAYOUT_VERSION`). Yeni bir veri sürümü yeni oturum eklediği için anahtar yine değişir. Sıra `src/lib/pdf/serve.ts`'de tek yerde ve birim testlidir. Bitmiş oturumda PDF rotası 302 `/demo/bitti` döner.
+- **Görüntü sınırı:** `signTourImagesAction` sınır aşılınca boş nesne yerine her kimlik için `null` döner; boş nesne gezi bileşeninde aynı görüntüleri sonsuza dek yeniden isterdi. Görüntüler yer tutucuyla açılır; ayrı bir not gösterilmez.
+- **Bant:** Telefonda tek satır kalsın diye "Turu başlat" yalnızca 720 px ve üstünde bantta görünür; telefonda tur kartı açılışta zaten açıktır. Yazdırmada bandın metni basılır, düğmeleri basılmaz.
+- **Rehberli tur:** Masaüstünde kart, hedefin sağında ya da solunda yer varsa yanına, yoksa sağ alta yerleşir; mobilde alt sayfadır. Hedefler 8 saniye içinde bulunamazsa adım, gidiş yönünde atlanır. Kapatınca `?tur` adresten kaldırılır; yeni bir demo başlatılınca "kapatıldı" bilgisi silinir.
+- **Gizlilik metni:** Demo paragrafı (`demoText.privacy`) `/gizlilik` sayfasında "5. Haklarınız"dan önce "Demo turu" başlığıyla eklenir. `docs/hukuk/` kaynağına henüz girmedi; metin `gizlilik-v1-taslak` taslağının parçasıdır ve avukat onayını bekler.
+- **E2E:** `demo-tour.spec.ts`, global kurulumun `ORCHADOS_E2E_DEMO_TOUR` ortam değişkeniyle çalışır; veri yüklenemezse yerelde atlanır, CI'da kurulum başarısız olur.
