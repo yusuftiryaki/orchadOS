@@ -1,0 +1,58 @@
+/* Shared look of the MapLibre maps (docs/haritalar.md). Applied next to each
+   map's own class on the container; every colour is a design-system token with
+   a fallback, so the design system can theme the maps later. */
+
+.base {
+  position: relative;
+  background: var(--map-bg, var(--color-surface-2, #f1f3ed));
+}
+
+.base :global(.maplibregl-canvas):focus-visible {
+  outline: 3px solid var(--map-focus, var(--color-focus, #4c8f3f));
+  outline-offset: -3px;
+}
+
+.base :global(.maplibregl-ctrl-group) {
+  background: var(--map-control-bg, var(--color-surface, #ffffff));
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgb(23 32 26 / 6%));
+}
+
+.base :global(.maplibregl-ctrl-group button) {
+  width: 36px;
+  height: 36px;
+}
+
+.base :global(.maplibregl-ctrl-group button:focus-visible),
+.base :global(.maplibregl-ctrl-attrib-button:focus-visible) {
+  outline: 3px solid var(--map-focus, var(--color-focus, #4c8f3f));
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+.base :global(.maplibregl-ctrl-scale) {
+  color: var(--map-text, var(--color-text, #17201a));
+  border-color: var(--map-text, var(--color-text, #17201a));
+}
+
+/* Touch screens: finger-sized buttons (WCAG 2.5.5). */
+@media (pointer: coarse), (max-width: 640px) {
+  .base :global(.maplibregl-ctrl-group button) {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* Under the map: a degraded basemap, a browser without WebGL, an empty map. */
+.status {
+  margin: var(--space-2, 8px) 0 0;
+  padding: var(--space-2, 8px) var(--space-3, 16px);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--map-status-bg, var(--color-warning-soft, #fff4dc));
+  color: var(--map-status-text, var(--color-text, #17201a));
+  font-size: 0.9rem;
+}
+
+.info {
+  background: var(--map-info-bg, var(--color-info-soft, #e7f0fb));
+}

@@ -106,6 +106,29 @@ export const tr = {
       passive: "Pasif",
     },
   },
+  // Shared map texts (src/lib/map/maplibre.ts, docs/haritalar.md).
+  map: {
+    zoomIn: "Yakınlaştır",
+    zoomOut: "Uzaklaştır",
+    resetBearing: "Kuzeyi yukarı al",
+    attribution: "Harita kaynaklarını göster",
+    fullscreenEnter: "Tam ekran",
+    fullscreenExit: "Tam ekrandan çık",
+    loading: "Harita yükleniyor…",
+    basemapFailed:
+      "Altlık harita yüklenemedi (bağlantı ya da harita sunucusu). Sınır ve ağaçlar yine de gösteriliyor.",
+    unsupported:
+      "Harita bu tarayıcıda açılamadı (WebGL gerekli). Sayfanın geri kalanı kullanılabilir.",
+    noTrees: "Bu bahçede henüz ağaç kaydı yok. Envanter tamamlanınca ağaçlar haritada görünür.",
+    noFeatures: "Haritada gösterilecek konum yok.",
+    // Drawing map (boundary corners, location).
+    drawKeys:
+      "Klavye: haritaya odaklanıp oklarla kaydırın, + ve - ile yakınlaştırın; Enter ortadaki artıya nokta koyar, Delete seçili köşeyi siler, Esc seçimi kaldırır.",
+    vertexSelected: (n: number, total: number) =>
+      `${n}. köşe seçili (${total} köşeden). Sürükleyerek taşıyın ya da silin.`,
+    deleteVertex: "Seçili köşeyi sil",
+    deselectVertex: "Seçimi kaldır",
+  },
   parcel: {
     back: "Parsel listesi",
     boundaryVersion: (version: number) => `Sınır v${version}`,
@@ -118,6 +141,7 @@ export const tr = {
     mapTitle: "Ağaç haritası",
     legendCount: (count: string) => `(${count})`,
     emptySlot: "Boş yer",
+    mapLabel: "Parsel haritası: ağaç yerleri ve sınır",
   },
   office: {
     openTool: "Envanter üçgenleme aracı",
