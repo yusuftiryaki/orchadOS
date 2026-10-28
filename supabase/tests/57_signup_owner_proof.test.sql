@@ -3,7 +3,7 @@
 -- confirmation code of an unfinished self sign-up, the owner check of every
 -- complete, the quarantine of an account that cannot be deleted, and the
 -- housekeeping flag. The functions run as the service role (here: postgres).
--- Auth hardening (58_auth_hardening) made signup_code_grant service role only
+-- Auth hardening (69_auth_hardening) made signup_code_grant service role only
 -- and the hook only peek at the marker.
 begin;
 create extension if not exists pgtap with schema extensions;
