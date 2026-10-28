@@ -111,6 +111,34 @@ export const tr = {
     selectHint: "Ayrıntı için haritada bir ağaca tıklayın.",
     emptySlot: "Boş yer",
   },
+  // Photo Sphere Viewer, as used by the office tool and the portal tour.
+  panorama: {
+    loading: "Panorama yükleniyor…",
+    unsupported:
+      "Bu tarayıcı 360° görüntüyü gösteremiyor (WebGL kapalı ya da desteklenmiyor). Harita ve ağaç karneleri çalışmaya devam eder.",
+    loadError: "Panorama görüntüsü açılamadı.",
+    keyboardHint:
+      "Sürükleyerek ya da ok tuşlarıyla çevirin; + ve − ile yakınlaştırın. Tam ekran düğmesi araç çubuğunda.",
+    lang: {
+      zoom: "Yakınlaştırma",
+      zoomOut: "Uzaklaştır",
+      zoomIn: "Yakınlaştır",
+      moveUp: "Yukarı bak",
+      moveDown: "Aşağı bak",
+      moveLeft: "Sola dön",
+      moveRight: "Sağa dön",
+      description: "Açıklama",
+      download: "İndir",
+      fullscreen: "Tam ekran",
+      loading: "Yükleniyor…",
+      menu: "Menü",
+      close: "Kapat",
+      twoFingers: "Gezinmek için iki parmak kullanın",
+      ctrlZoom: "Yakınlaştırmak için Ctrl ile kaydırın",
+      loadError: "Panorama görüntüsü açılamadı.",
+      webglError: "Bu tarayıcı WebGL desteklemiyor.",
+    },
+  },
   office: {
     openTool: "Envanter üçgenleme aracı",
     title: "Envanter üçgenleme",
@@ -1360,6 +1388,20 @@ export const tr = {
       placeholderNote:
         "Bu panoramanın görüntüsü yok ya da açılamadı; yönler ve ağaçlar yine gösteriliyor.",
       count: (n: number) => `${n} panorama`,
+      steps: "Yürü",
+      // Buttons to the neighbouring panoramas (the arrows, for keyboard and
+      // screen readers): "Kuzeydoğuya, 8 m".
+      step: (direction: string, distanceM: number) => `${direction}, ${distanceM} m`,
+      compass: {
+        N: "Kuzeye",
+        NE: "Kuzeydoğuya",
+        E: "Doğuya",
+        SE: "Güneydoğuya",
+        S: "Güneye",
+        SW: "Güneybatıya",
+        W: "Batıya",
+        NW: "Kuzeybatıya",
+      } as Record<string, string>,
     },
   },
   // After triangulation: office workspace (attributes, infrastructure,
