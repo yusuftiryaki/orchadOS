@@ -5,8 +5,10 @@
 > **v2 (İP14, 28 Ekim 2026):** Ek bahçe fiyatı (kalan döneme göre orantı), ek teklifin gösterdiği bilgiler, ek siparişin cayma süresi ve bahçe bazında açık cayma.
 >
 > **v3 (28 Ekim 2026):** Hukuki kararlar uygulandı. Değişen bölümler: başlık notu, 2, 3, 4, 5, 6, onay cümlesi ve örnek cayma formu (yeni).
+>
+> **v4 (28 Ekim 2026):** Lansman fiyat listesi ([docs/fiyatlandirma.md](../fiyatlandirma.md)): 3. bölümdeki örnek tutarlar güncellendi. Hüküm değişmedi.
 
-**Sürüm:** onbilgi-v3-taslak · [Tarih]
+**Sürüm:** onbilgi-v4-taslak · [Tarih]
 
 Bu form her teklifin (ilk, ek ve yenileme) onayından önce o teklifin bilgileriyle gösterilir ve ayrıca onaylanır.
 
@@ -34,7 +36,7 @@ Bu form her teklifin (ilk, ek ve yenileme) onayından önce o teklifin bilgileri
     - Ziyaret tutarı ziyaret hakkıyla hesaplanır. Bahçe başına en az ücret aynı oranla orantılanır. Envanter ücreti, envanter tek seferlik bir iş olduğu için tam alınır. Daha önce hizmetten çıkarılıp, son yayımlanmış envanterinin tarihinden itibaren 24 ay içinde yeniden eklenen ve sınırı ile ağaç düzeni esaslı biçimde değişmemiş bahçeden envanter ücreti alınmaz; bu süre geçmişse ya da yeni envanter gerekiyorsa envanter ücreti ek teklifte gerekçesiyle ayrı satır olarak gösterilir.
     - Ek teklif hizmet dönemini (başlangıç ve üyeliğinizle ortak bitiş günü), ziyaret hakkını (ör. "2/4 ziyaret"), bahçe bazında envanteri ve son geçerlilik gününü gösterir. Son geçerlilik günü, dönemin bitişine en az 30 gün kalan son günü geçmez; ek teklif en geç o gün onaylanır ve ödenir.
     - Ek teklif hesabı rakamla gösterir (kalan gün, ziyaret hakkı ve yuvarlama, ziyaret tutarı, orantılı en az ücret, envanter, KDV, toplam) ve dönemde kalan ziyaret pencerelerini yazar. Yuvarlamada 2,5 ve üstü yukarı, altı aşağı yuvarlanır. Bağlayıcı olan teklifteki toplamdır.
-    - Örnek (deneme fiyatlarıyla): 1 Kasım 2026–31 Ekim 2027 döneminde, yılda 4 ziyaretli pakette 1 Nisan 2027'de başlayan 15 dönümlük bahçe için 2 ziyaret ve KDV dahil 4.500,00 TL; tam yıl 9.000,00 TL olurdu.
+    - Örnek (lansman fiyat listesi, Standart paket): 1 Kasım 2026–31 Ekim 2027 döneminde, yılda 4 ziyaretli pakette 1 Nisan 2027'de başlayan 15 dönümlük bahçe için 2 ziyaret ve envanter ücretiyle birlikte KDV dahil 13.920,00 TL; envanterle tam yıl 20.640,00 TL olurdu.
 - Teklifte yazan toplam bedel dışında Şirket'e ödeyeceğiniz başka bir ücret yoktur. Kartla ödemede ek ücret alınmaz. Havale ya da EFT ile ödemede kendi bankanızın alabileceği gönderim ücreti size aittir.
 
 ## 4. Ödeme ve ifa

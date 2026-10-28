@@ -4,7 +4,12 @@ import { formatDate } from "@/lib/i18n";
 import { packageExampleText as E } from "@/lib/i18n/messages/portal-billing";
 import { siteText } from "@/lib/i18n/messages/site";
 import { formatTry, formatVatRate } from "@/lib/site/format";
-import { annualPerDonumKurus, loadPackageExample, loadPublicPackages } from "@/lib/site/packages";
+import {
+  annualPerDonumKurus,
+  loadPackageExample,
+  loadPublicPackages,
+  withVatKurus,
+} from "@/lib/site/packages";
 import { createClient } from "@/lib/supabase/server";
 
 const p = siteText.packages;
@@ -15,8 +20,16 @@ export default async function PackagesPage() {
   const supabase = await createClient();
   const packages = await loadPublicPackages(supabase);
   const first = packages[0];
+  // Consumer prices are shown with VAT; the 20-dönüm example comes from the
+  // database's formula for a later year and for the first year.
   const examples = await Promise.all(
-    packages.map((pkg) => loadPackageExample(supabase, pkg.packageId, E.areaM2)),
+    packages.map(async (pkg) => {
+      const [yearly, firstYear] = await Promise.all([
+        loadPackageExample(supabase, pkg.packageId, E.areaM2, false),
+        loadPackageExample(supabase, pkg.packageId, E.areaM2, true),
+      ]);
+      return yearly && firstYear ? { yearly, firstYear } : null;
+    }),
   );
 
   return (
@@ -38,26 +51,29 @@ export default async function PackagesPage() {
               <article key={pkg.packageId} className={styles.tile} data-testid="package">
                 <h2>{pkg.name}</h2>
                 {pkg.description && <p>{pkg.description}</p>}
-                <p className={styles.price}>{formatTry(annualPerDonumKurus(pkg))}</p>
+                <p className={styles.price}>
+                  {formatTry(withVatKurus(annualPerDonumKurus(pkg), pkg.vatRateBp))}
+                </p>
                 <p className={styles.priceUnit}>{p.perDonum}</p>
-                <p className={styles.priceUnit}>{p.perVisit(formatTry(pkg.unitPriceKurus))}</p>
+                <p className={styles.priceUnit}>
+                  {p.perVisit(formatTry(withVatKurus(pkg.unitPriceKurus, pkg.vatRateBp)))}
+                </p>
                 <p>
                   {p.visitsPerYear(pkg.periodicVisitsPerYear)}
                   {pkg.includesInventory && ` · ${p.includesInventory}`}
                 </p>
                 <dl className={styles.dl}>
                   <dt>{p.minimumFee}</dt>
-                  <dd>{formatTry(pkg.minimumFeeKurus)}</dd>
+                  <dd>{formatTry(withVatKurus(pkg.minimumFeeKurus, pkg.vatRateBp))}</dd>
                   <dt>{p.inventoryFee}</dt>
-                  <dd>{formatTry(pkg.inventoryFeeKurus)}</dd>
+                  <dd>{formatTry(withVatKurus(pkg.inventoryFeeKurus, pkg.vatRateBp))}</dd>
                 </dl>
                 {examples[i] && (
                   <p data-testid="package-example">
                     <strong>{E.title}:</strong>{" "}
                     {E.body(
-                      formatTry(examples[i].subtotalKurus),
-                      formatTry(examples[i].vatKurus),
-                      formatTry(examples[i].totalKurus),
+                      formatTry(examples[i].yearly.totalKurus),
+                      formatTry(examples[i].firstYear.totalKurus),
                     )}
                   </p>
                 )}

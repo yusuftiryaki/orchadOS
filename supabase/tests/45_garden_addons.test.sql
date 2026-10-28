@@ -6,8 +6,9 @@
 -- (parcel_in_service, garden_removal_open, account_garden_limit,
 -- parcel_not_reusable), renewal flags, the ops_terminate_order chain,
 -- withdrawn gardens, order revision and the duplicate search.
--- Seed: org b0..01, ops a0..05, package standart 9120..0001 (V = 4, 12 500 a
--- visit and dönüm, minimum 500 000, VAT 20 %). Customers are created here.
+-- Seed: org b0..01, ops a0..05, package standart 9120..0001 (V = 4, 18 000 a
+-- visit and dönüm, minimum 1 120 000, inventory 600 000, VAT 20 %); from
+-- section 1 on a list of this file is in force. Customers are created here.
 -- The whole file is one transaction: now() and the Istanbul day are constant.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -136,15 +137,15 @@ select results_eq(
   $$ select * from private.price_lines('b0000000-0000-4000-8000-000000000001', '91200000-0000-4000-8000-000000000002',
        array[5000, 30000], false, 0) $$,
   $$ select * from private.price_lines_v2('b0000000-0000-4000-8000-000000000001', '91200000-0000-4000-8000-000000000002',
-       array[5000, 30000], array[false, false], 3::smallint, 0) $$,
+       array[5000, 30000], array[false, false], 2::smallint, 0) $$,
   'parity for a renewal of the other package too');
 select results_eq(
   $$ select visits, minimum_fee_kurus, visit_amount_kurus, line_base_kurus, line_total_kurus
      from private.price_lines_v2('b0000000-0000-4000-8000-000000000001', '91200000-0000-4000-8000-000000000001',
        array[15000, 5000], array[true, true], 2::smallint) order by line_no $$,
-  $$ values (2::smallint, 250000::bigint, 375000::bigint, 375000::bigint, 450000::bigint),
-            (2::smallint, 250000::bigint, 125000::bigint, 250000::bigint, 300000::bigint) $$,
-  'doc §6: 15 dönüm with 2 visits is 450 000 kuruş; the minimum is prorated to 250 000');
+  $$ values (2::smallint, 560000::bigint, 540000::bigint, 1160000::bigint, 1392000::bigint),
+            (2::smallint, 560000::bigint, 180000::bigint, 1160000::bigint, 1392000::bigint) $$,
+  'doc §6: 15 dönüm with 2 visits is 1 392 000 kuruş; the minimum is prorated to 560 000, plus the inventory fee');
 select is(pg_temp.error_of($$ select * from private.price_lines_v2('b0000000-0000-4000-8000-000000000001',
   '91200000-0000-4000-8000-000000000001', array[15000], array[true, false], 2::smallint) $$),
   '22023 invalid_input / inventory', 'one inventory flag per area');

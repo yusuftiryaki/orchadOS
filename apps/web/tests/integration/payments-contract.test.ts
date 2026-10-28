@@ -58,7 +58,7 @@ describe("payments Edge Functions with the A2 database functions", () => {
     const paymentId = started.body.payment_id;
     const redirect = new URL(started.body.redirect_url);
     expect(redirect.origin + redirect.pathname).toBe(`${RETURN_ORIGIN}/odeme/sahte`);
-    expect(redirect.searchParams.get("tutar")).toBe("12000.00");
+    expect(redirect.searchParams.get("tutar")).toBe("24480.00");
     const token = redirect.searchParams.get("token")!;
     expect(token).toMatch(new RegExp(`^fake_${paymentId}_`));
 
@@ -93,7 +93,7 @@ describe("payments Edge Functions with the A2 database functions", () => {
     const row = check(
       await admin.from("service_order").select("status, paid_kurus").eq("id", order).single(),
     );
-    expect(row).toEqual({ status: "active", paid_kurus: 1200000 });
+    expect(row).toEqual({ status: "active", paid_kurus: 2448000 });
 
     // The callback again (browser back button): nothing changes.
     const again = await callback({ token, outcome: "success" });

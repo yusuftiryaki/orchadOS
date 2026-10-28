@@ -5,8 +5,10 @@
 > **v2 (İP14, 28 Ekim 2026):** Ek bahçe siparişi, tek bahçe için cayma ve yeni "Bahçe çıkarma" bölümü (5). Kuralların kaynağı: [docs/bahce-yonetimi.md](../bahce-yonetimi.md).
 >
 > **v3 (28 Ekim 2026):** Hukuki kararlar uygulandı. Değişen bölümler: 1, 2, 3, 4, 5 ve 6.
+>
+> **v4 (28 Ekim 2026):** Lansman fiyat listesi ([docs/fiyatlandirma.md](../fiyatlandirma.md)): 5. bölümdeki örnek tutarlar güncellendi. Hüküm değişmedi.
 
-**Sürüm:** iade-v3-taslak · [Tarih]
+**Sürüm:** iade-v4-taslak · [Tarih]
 
 ## 1. Ödemeden önce
 
@@ -70,8 +72,8 @@ Ekibimiz çıkış tarihini teyit eder. Tarih yalnızca sizinle anlaşarak deği
 - Her iadede KDV payı ayrıca gösterilir.
 
 **Örnekler** (KDV dahil, envanter ücreti yok):
-- 12.000,00 TL'lik bahçe, 4 ziyaret hakkı, 1 ziyaret yapılmış: ziyaret bedeli 3.000,00 TL, iade 12.000,00 − 3.000,00 = **9.000,00 TL** (KDV payı 1.500,00 TL).
-- Aynı bahçede 1 ziyaret yapılmış, 1 ziyaret yapılamamış ve 3.000,00 TL daha önce iade edilmiş: hesap 9.000,00 TL, önceki iade düşülür, iade **6.000,00 TL**. Toplamda yapılmamış üç ziyaretin bedeli, 9.000,00 TL iade edilmiş olur.
+- 17.280,00 TL'lik bahçe, 4 ziyaret hakkı, 1 ziyaret yapılmış: ziyaret bedeli 4.320,00 TL, iade 17.280,00 − 4.320,00 = **12.960,00 TL** (KDV payı 2.160,00 TL).
+- Aynı bahçede 1 ziyaret yapılmış, 1 ziyaret yapılamamış ve 4.320,00 TL daha önce iade edilmiş: hesap 12.960,00 TL, önceki iade düşülür, iade **8.640,00 TL**. Toplamda yapılmamış üç ziyaretin bedeli, 12.960,00 TL iade edilmiş olur.
 
 **İade nasıl ödenir?** İade hesabı çıkış gününde yapılır. İade, 6. bölümdeki gibi ödemenin yapıldığı yöntemle, çıkış gününden itibaren en geç 14 gün içinde ödenir. Tutarın bir kısmı birden fazla bahçeye ayrılamıyorsa (örneğin bahçe ayrımı olmadan yapılmış bir önceki iade) iadeyi ekibimiz elle inceler; bu durumda da süre aynıdır.
 
