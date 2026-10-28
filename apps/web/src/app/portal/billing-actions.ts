@@ -12,7 +12,7 @@ import { formValues, type FormState } from "@/lib/operations/form-state";
 import { formReader } from "@/lib/operations/validation";
 import { BILLING_COLUMNS } from "@/lib/billing/columns";
 import type { Payment } from "@/lib/billing/types";
-import { getBillingProfile, liveCardAttempt } from "@/lib/portal-billing/data";
+import { getBillingProfile, hasFallbackEmail, liveCardAttempt } from "@/lib/portal-billing/data";
 import { paymentStartError, returnOriginOf, clientIpOf } from "@/lib/portal-billing/payments";
 import { portalHref, safeBackPath, type PortalError } from "@/lib/portal-billing/urls";
 import {
@@ -299,12 +299,14 @@ export async function saveBillingProfileAction(
   _prev: FormState,
   form: FormData,
 ): Promise<FormState> {
-  const supabase = await context();
+  const user = await requireSection("portal");
+  const supabase = await createClient();
   const current = await getBillingProfile(supabase);
   if (!current) return { error: P.errors.not_customer, fieldErrors: {}, values: {} };
   const parsed = parseBillingProfileForm(formReader(form), {
     identityRequired: current.identityNumberRequired,
     hasIdentity: !!current.identityNumberMasked,
+    emailRequired: !(await hasFallbackEmail(supabase, user.email)),
   });
   // The TCKN is never sent back to the browser, not even after an error.
   const keep = (state: FormState): FormState => ({

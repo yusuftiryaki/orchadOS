@@ -189,6 +189,22 @@ describe("billing profile form", () => {
     expect(parsed.ok && "identity_number" in parsed.value).toBe(false);
   });
 
+  it("requires the e-mail only when there is no contact or account e-mail", () => {
+    const opts = { identityRequired: false, hasIdentity: false };
+    const optional = parseBillingProfileForm(reader({ ...PROFILE, email: "" }), opts);
+    expect(optional.ok && optional.value.email).toBeNull();
+    const missing = parseBillingProfileForm(reader({ ...PROFILE, email: " " }), {
+      ...opts,
+      emailRequired: true,
+    });
+    expect(missing.ok ? null : missing.errors.email).toBe("required");
+    const given = parseBillingProfileForm(reader({ ...PROFILE, email: "Fatura@Example.com" }), {
+      ...opts,
+      emailRequired: true,
+    });
+    expect(given.ok && given.value.email).toBe("fatura@example.com");
+  });
+
   it("asks for a valid TCKN only when it is required", () => {
     const missing = parseBillingProfileForm(reader(PROFILE), {
       identityRequired: true,
@@ -346,6 +362,12 @@ describe("payment start helpers", () => {
     );
     expect(await paymentStartError(err(409, { error: "billing_profile_incomplete" }))).toBe(
       "billing_profile_incomplete",
+    );
+    expect(
+      await paymentStartError(err(409, { error: "billing_profile_incomplete", field: "email" })),
+    ).toBe("fatura_eposta_eksik");
+    expect(await paymentStartError(err(409, { error: "payment_in_progress" }))).toBe(
+      "payment_in_progress",
     );
     expect(await paymentStartError(err(503, { error: "payments_disabled" }))).toBe(
       "payments_disabled",

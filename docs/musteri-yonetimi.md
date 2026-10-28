@@ -582,7 +582,8 @@ A2'de:
 
 **Ödeme (`service_role`, A2; Edge sözleşmesi B'nin `_shared/payments/db.ts` dosyasında):**
 - `payment_begin(p_order_id, p_user_id, p_provider, p_return_origin) returns jsonb`
-    - Hatalar: `not_found`, `order_not_payable`, `billing_profile_incomplete`, `fake_payments_disabled`.
+    - Hatalar: `not_found`, `order_not_payable`, `payment_in_progress` (incelemede bir kart denemesi var), `billing_profile_incomplete`, `fake_payments_disabled`.
+    - Alıcının kullanılabilir bir e-postası yoksa (sırayla fatura profili, iletişim, hesap e-postası; boş metin yok sayılır) `billing_profile_incomplete`, detail `email` döner ve deneme yazılmaz: sağlayıcı `buyer.email` ister. Yalnızca telefonla kayıtlı müşteri kartla ödemek için fatura bilgilerine e-posta ekler; portal formu bu durumda e-postayı zorunlu gösterir. Havale etkilenmez.
     - Süresi dolmamış `initiated` denemeleri `expired` yapar (`superseded`).
     - Döner: `{payment_id, order_id, order_number, amount_kurus, currency, items[{payment_item_id, line_no, name, amount_kurus}], buyer{id, first_name, last_name, identity_number, email, phone, address, district, city, country, postal_code, registered_at}, billing{contact_name, address, city, country, postal_code}}`
     - `identity_number` gerçek değer ya da `"11111111111"` olur. Anlık görüntü yazılmaz.
@@ -670,7 +671,7 @@ x-orchados-proxy-secret: <SIGNUP_PROXY_SECRET>   (yalnızca Next sunucusu; varsa
 ### 7.1 `register`
 
 1. **Doğrulama.** Ad 2–120 karakter, telefon `^\+905[0-9]{9}$`, e-posta, parola en az 8 karakter, sürüm biçimleri.
-2. **Turnstile.** `TURNSTILE_SECRET_KEY` varsa `captcha_token` siteverify ile doğrulanır; yoksa adım atlanır (yerel ve CI).
+2. **Turnstile.** `TURNSTILE_SECRET_KEY` varsa `captcha_token` siteverify ile doğrulanır. Yoksa kayıt kapalıdır (503 `signup_closed`, fail closed); yalnızca yerel yığın ve CI `SIGNUP_TURNSTILE_DISABLED=1` ile adımı atlar (`supabase/config.toml`). Barındırılan projede bu değişken asla tanımlanmaz.
 3. **IP.** Proxy sırrı tutarsa (sabit zamanlı karşılaştırma) gövdedeki `client_ip` kullanılır. Tutmazsa `cf-connecting-ip`, o da yoksa `x-forwarded-for`'un ilk değeri.
 4. **Oran sınırı.** `ip_hash`, `phone_hash` ve `email_hash` (küçük harfli e-posta) = hex(HMAC-SHA256(`SIGNUP_HASH_SECRET`, değer)). Ardından `signup_register_attempt` çağrılır.
 5. **Eşleşmeler.** `signup_find_account` sonucuna göre:
@@ -772,7 +773,7 @@ export function choosePaymentProvider(id, env, fetchImpl?): PaymentProvider | nu
 ```
 POST /functions/v1/payments
 {action:"start", order_id, return_origin, client_ip}  (müşteri JWT)
-  → 200 {payment_id, redirect_url} | 400 invalid_input | 401 | 404 | 409 order_not_payable|billing_profile_incomplete | 502 provider_error | 503 payments_disabled
+  → 200 {payment_id, redirect_url} | 400 invalid_input | 401 | 404 | 409 order_not_payable|payment_in_progress|billing_profile_incomplete (e-posta eksikse field:"email") | 502 provider_error | 503 payments_disabled
 {action:"refund", refund_id}  (ops JWT)
   → 200 {status:"succeeded"|"failed", kind, failure_code?, retryable?} | 403 | 404 | 409 refund_not_open | 503
 {action:"reconcile"}  x-orchados-cron-secret  → 200 {checked, finalized} | 401
@@ -928,7 +929,8 @@ Alıcı yalnızca müşteridir. Tutar ve red nedeni SMS'e yazılmaz.
 | `ORCHADOS_SIGNUP_ENABLED`, `ORCHADOS_PAYMENTS_ENABLED`, `ORCHADOS_SITE_INDEXABLE`, `ORCHADOS_SITE_URL` | Web | Bayraklar |
 | `PAYMENT_FAKE_CHECKOUT` | Web | Yalnızca yerel, CI ve test projesi |
 | `SIGNUP_PROXY_SECRET` | Web (sunucu) + Edge | Yerelde `signup-proxy-local`. Asla `NEXT_PUBLIC` olmaz |
-| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Web / Edge | Pilotta zorunlu |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Web / Edge | Pilotta zorunlu. Edge secret'ı yoksa `customer-signup` kayıt almaz |
+| `SIGNUP_TURNSTILE_DISABLED` | Edge | `1` yalnızca yerel ve CI (`config.toml`); barındırılan projede **asla** |
 | `SIGNUP_HASH_SECRET` | Edge | IP ve telefon özeti; yerelde `signup-hash-local` |
 | `ORCHADOS_CRON_SECRET` | Edge + Vault `orchados_cron_secret` | Reconcile ve cleanup; yerelde `cron-local` |
 | `PAYMENT_PROVIDER` | Edge | `fake` ya da `iyzico`; boşsa 503 |
@@ -974,8 +976,10 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
     - Vercel Pro ve alan adı
     - gerçek fiyatlar ve IBAN
 
-    `deploy-db-pilot` iki durumda başarısız olur: `PAYMENT_FAKE_ALLOWED` secret'ı varsa ya da `allow_fake_payments` açık bir org varsa. `accepts_signups` açıkken `TURNSTILE_SECRET_KEY` yoksa da başarısız olur.
-5. **Geri alma:** Bayrağı kapatmak ya da `accepts_signups = false` yapmak yeterlidir.
+    `deploy-db-pilot` iki durumda başarısız olur: `PAYMENT_FAKE_ALLOWED` secret'ı varsa ya da `allow_fake_payments` açık bir org varsa. `accepts_signups` açıkken `TURNSTILE_SECRET_KEY`, `SIGNUP_HASH_SECRET` ya da `SIGNUP_PROXY_SECRET` yoksa ya da `SIGNUP_TURNSTILE_DISABLED` tanımlıysa da başarısız olur. Bu denetim yalnızca dağıtımda çalışır; `accepts_signups` sonradan açılsa bile `customer-signup` Turnstile secret'ı olmadan kayıt almaz.
+5. **Geri alma:**
+    - Kayıt: `accepts_signups = false` (`/operasyon/ayarlar` › Dışarıdan kayıt). Sunucu tarafındaki anahtar budur; `customer-signup` herkese açık olduğu için doğrudan istekler de `signup_closed` alır. `ORCHADOS_SIGNUP_ENABLED` bayrağını kapatmak yalnızca `/kayit` arayüzünü gizler, kaydı kapatmaz.
+    - Kart ödemesi: `ORCHADOS_PAYMENTS_ENABLED` kapatılır ya da Edge'de `PAYMENT_PROVIDER` silinir (`payments` 503 döner).
 
 ## 16. İnsan eylemi
 

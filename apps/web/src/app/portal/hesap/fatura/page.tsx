@@ -3,7 +3,7 @@ import { PortalResult } from "@/components/portal-billing/result-notice";
 import styles from "@/components/portal/portal.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
-import { getBillingProfile } from "@/lib/portal-billing/data";
+import { getBillingProfile, hasFallbackEmail } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { safeBackPath } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
@@ -16,10 +16,13 @@ export default async function BillingProfilePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  assertCustomer(await requireSection("portal"));
+  const user = await requireSection("portal");
+  assertCustomer(user);
   const params = await searchParams;
-  const profile = await getBillingProfile(await createClient());
+  const supabase = await createClient();
+  const profile = await getBillingProfile(supabase);
   if (!profile) forbidden();
+  const emailRequired = !(await hasFallbackEmail(supabase, user.email));
   const back = safeBackPath(params.geri);
   return (
     <main className={styles.page}>
@@ -29,6 +32,7 @@ export default async function BillingProfilePage({
       <BillingProfileForm
         back={back}
         identityRequired={profile.identityNumberRequired}
+        emailRequired={emailRequired}
         identityMasked={profile.identityNumberMasked}
         initial={{
           kind: profile.kind ?? "individual",

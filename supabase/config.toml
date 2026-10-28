@@ -421,6 +421,9 @@ SEND_SMS_HOOK_SECRET = "v1,whsec_p0oE1FH7E5tlPpCmuVnDZv5oL5cKXPNnx86jQcdd5HY="
 # phone hashes; the header secret that lets the Next server pass the client IP.
 SIGNUP_HASH_SECRET = "signup-hash-local"
 SIGNUP_PROXY_SECRET = "signup-proxy-local"
+# No Turnstile locally and in CI: without TURNSTILE_SECRET_KEY customer-signup
+# refuses every sign-up unless this is "1". Never set on a hosted project.
+SIGNUP_TURNSTILE_DISABLED = "1"
 # pg_cron calls (signup cleanup, payment reconcile); Vault orchados_cron_secret.
 ORCHADOS_CRON_SECRET = "cron-local"
 # Payments: the fake provider, allowed locally only (never on the pilot).
@@ -451,9 +454,7 @@ verify_jwt = false
 verify_jwt = false
 
 # Card payments (IP12-B): start (customer token), refund (ops token) and
-# reconcile (cron secret), each checked in code. The three payment functions
-# stay enabled: until B's code is merged their index.ts is a 501 placeholder
-# (the CLI refuses to start without one); on merge B's version replaces it.
+# reconcile (cron secret), each checked in code. See the function's header.
 [functions.payments]
 verify_jwt = false
 

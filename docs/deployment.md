@@ -25,8 +25,8 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 | `ci-pipeline` | `services/pipeline/` değişince | ruff, pytest, sentetik oturumla uçtan uca çalıştırma |
 | `ci-firmware` | `firmware/` değişince | Native testler, ESP32 derlemesi; `firmware.bin` 14 gün saklanır |
 | `ci-field` | `apps/field/` değişince | analyze, test, üretilmiş kodun güncelliği. `main`'de ayrıca debug APK derlenir ve 7 gün saklanır |
-| `deploy-db` | `main`'de migration değişince ya da elle | `supabase db push` ile test projesine migration uygular. Seed uygulanmaz |
-| `deploy-db-pilot` | `release`'te migration ya da fonksiyon değişince, ya da elle | Aynısını pilot projesine yapar. Seed hiçbir zaman uygulanmaz. Önce ödeme ve kayıt kilitlerini denetler (aşağıda, Ödeme) |
+| `deploy-db` | `main`'de `supabase/migrations/`, `supabase/functions/` ya da `supabase/config.toml` değişince, ya da elle | `supabase db push` ile test projesine migration uygular ve bütün Edge Function'ları dağıtır. Seed uygulanmaz |
+| `deploy-db-pilot` | `release`'te aynı yollar değişince, ya da elle | Aynısını pilot projesine yapar. Seed hiçbir zaman uygulanmaz. Önce ödeme ve kayıt kilitlerini denetler (aşağıda, Ödeme) |
 | `keepalive` | Haftada iki kez | Ücretsiz Supabase projesinin duraklatılmaması için küçük bir istek |
 
 **Dakika bütçesi:** Private repoda ayda 2.000 dakika ücretsiz. İş akışları sadece ilgili klasör değişince koşar. Firmware araç zinciri ve Flutter önbelleğe alınır.
@@ -49,13 +49,26 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 
 - Repo Vercel'e GitHub entegrasyonuyla bağlıdır; ayrı bir iş akışı yoktur.
 - Kök dizin `apps/web`. Kurulum pnpm workspace'i üzerinden yapılır.
-- Ortam değişkenleri: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase'in "publishable" anahtarı ya da eski "anon" anahtarı). Servis anahtarı Vercel'e **konmaz**.
+- Ortam değişkenleri aşağıdaki tabloda. Servis anahtarı Vercel'e **konmaz**.
+| Değişken | Ne için | Test (`orchados`) | Pilot (`orchados-pilot`) |
+| --- | --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase adresi ve "publishable" (ya da eski "anon") anahtarı | Test projesi | Pilot projesi |
+| `ORCHADOS_SIGNUP_ENABLED` | `1`: `/kayit` ve kayıt bağlantıları görünür. Yalnızca arayüz; kaydı sunucuda `accepts_signups` açar ve kapatır (Ödeme › Geri alma) | Kayıt denenirken `1` | Turnstile kapısı geçilene kadar boş |
+| `ORCHADOS_PAYMENTS_ENABLED` | `1`: portalda "Kartla öde" | Ödeme denenirken `1` | iyzico canlı hesabı ve sandbox listesi tamamlanınca `1` |
+| `PAYMENT_FAKE_CHECKOUT` | `1`: `/odeme/sahte` sayfası (sahte sağlayıcı) | Sahte ödeme denenirken `1` | **Asla tanımlanmaz** |
+| `ORCHADOS_SITE_INDEXABLE` | `1`: `robots.txt` dizinlemeye izin verir, site haritası dolar | Boş | Alan adı bağlanınca `1` |
+| `ORCHADOS_SITE_URL` | `robots.txt` ve site haritasındaki adres (sonda `/` yok). Boşsa `http://localhost:3000` | `https://orchados-orchad-os.vercel.app` | Pilot adresi, alan adı gelince o |
+| `SIGNUP_PROXY_SECRET` | `customer-signup` ile ortak sır; Next sunucusu ziyaretçi IP'sini bununla iletir. Edge'deki değerle **aynı**; yalnızca sunucu, asla `NEXT_PUBLIC` | Rastgele | Rastgele (test projesinden farklı) |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Kayıt formundaki Turnstile widget'ı | Cloudflare test site anahtarı | **Zorunlu**, canlı site anahtarı |
+
+`NEXT_PUBLIC_*` değerleri derlemeye gömülür; değişince yeniden dağıtılır. Değişkenlerin ayrıntısı: `apps/web/README.md`.
+
 - Sunucu fonksiyonları veritabanıyla aynı bölgede; bölge Vercel proje ayarında: test `arn1` (Stockholm), pilot `fra1` (Frankfurt).
 - Supabase Auth ayarlarında Site URL olarak Vercel üretim adresi, yönlendirme adreslerinde Vercel önizleme adresleri tanımlıdır.
 
 ## Edge Function'lar, bildirimler ve telefonla giriş
 
-`deploy-db` fonksiyonları da dağıtır: `invite-user`, `send-notifications`, `send-sms`. Servis anahtarı sadece Supabase içinde kalır.
+`deploy-db` ve `deploy-db-pilot` `supabase/functions` altındaki yedi fonksiyonun hepsini dağıtır: `invite-user`, `send-notifications`, `send-sms`, `customer-signup` (İP12 kayıt), `payments`, `payment-callback`, `payment-webhook` (İP12 ödeme). `verify_jwt` ayarı `supabase/config.toml`'dan gelir. Servis anahtarı sadece Supabase içinde kalır.
 
 **Fonksiyon secret'ları** (`supabase secrets set --project-ref <ref> AD=değer` ya da panel → Edge Functions → Secrets):
 
@@ -71,9 +84,9 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 - Vault: `notifications_dispatch_url` (send-notifications adresi) ve `notifications_service_key`. `pg_cron` dakikada bir kuyruğu işletir; Vault boşsa hiçbir şey yapmaz.
 - Test projesinde giriş kodları ve bildirimler gönderilmez; SQL düzenleyicide `select * from private.message_outbox order by created_at desc` ile okunur.
 
-## Ödeme (İP12)
+## Ödeme ve kayıt (İP12)
 
-Tasarım: [musteri-yonetimi.md](musteri-yonetimi.md) §8, §13–§15. Kart ödemesi iyzico Checkout Form ile, üç Edge Function üzerinden yürür: `payments` (başlatma, iade, mutabakat), `payment-callback` (iyzico'nun tarayıcıyı geri gönderdiği adres) ve `payment-webhook`. Üçünde de `verify_jwt = false`; kimlik kodda doğrulanır (müşteri ve ops JWT'si `/auth/v1/user` ile, mutabakat `x-orchados-cron-secret` başlığıyla, webhook imzayla). `deploy-db` ve `deploy-db-pilot` `supabase/functions` altındaki bütün fonksiyonları dağıtır. Kart verisi sistemimize hiç gelmez; alıcı bilgisi yalnızca iyzico isteği sırasında bellekte durur, loglanmaz ve olay kayıtlarına yazılmaz.
+Tasarım: [musteri-yonetimi.md](musteri-yonetimi.md) §7, §8, §13–§15. Kart ödemesi iyzico Checkout Form ile, üç Edge Function üzerinden yürür: `payments` (başlatma, iade, mutabakat), `payment-callback` (iyzico'nun tarayıcıyı geri gönderdiği adres) ve `payment-webhook`. Üçünde de `verify_jwt = false`; kimlik kodda doğrulanır (müşteri ve ops JWT'si `/auth/v1/user` ile, mutabakat `x-orchados-cron-secret` başlığıyla, webhook imzayla). `deploy-db` ve `deploy-db-pilot` `supabase/functions` altındaki bütün fonksiyonları dağıtır. Kart verisi sistemimize hiç gelmez; alıcı bilgisi yalnızca iyzico isteği sırasında bellekte durur, loglanmaz ve olay kayıtlarına yazılmaz.
 
 **Fonksiyon secret'ları** (`supabase secrets set --project-ref <ref> AD=değer`):
 
@@ -89,8 +102,11 @@ Tasarım: [musteri-yonetimi.md](musteri-yonetimi.md) §8, §13–§15. Kart öde
 | `PAYMENT_RETURN_ORIGINS` | İzinli dönüş adresleri, virgülle; tam origin (`https://alan.adı`, sonda `/` yok) | Vercel üretim adresi + önizleme kalıbı | Yalnızca pilot adresi |
 | `PAYMENT_ALLOW_PREVIEW_ORIGINS` | `1`: `PAYMENT_RETURN_ORIGINS` içindeki `*` kalıpları kabul edilir (`*` yalnızca `[a-z0-9-]+`, nokta değil) | `1` | **Yok** |
 | `PORTAL_BASE_URL` | Bilinmeyen token'da `/portal/odeme?hata=odeme_bulunamadi` yönlendirmesi | Vercel üretim adresi | Pilot adresi |
-| `ORCHADOS_CRON_SECRET` | Mutabakat (ve kayıt temizliği) çağrısının başlığı | Rastgele | Rastgele |
-| `TURNSTILE_SECRET_KEY` | Kayıt formu (İP12-A1) | Turnstile test anahtarı | **Zorunlu**, canlı anahtar |
+| `ORCHADOS_CRON_SECRET` | Mutabakat ve kayıt temizliği çağrılarının başlığı (Vault `orchados_cron_secret` ile aynı) | Rastgele | Rastgele |
+| `TURNSTILE_SECRET_KEY` | Kayıt formu (`customer-signup`). **Yoksa kayıt kapalıdır** (503 `signup_closed`) | Cloudflare test gizli anahtarı | **Zorunlu**, canlı anahtar |
+| `SIGNUP_HASH_SECRET` | Kayıt oran sınırları için IP, telefon ve e-posta özetlerinin HMAC anahtarı. Yoksa her kayıt 500 döner | Rastgele | Rastgele (test projesinden farklı) |
+| `SIGNUP_PROXY_SECRET` | Next sunucusunun ziyaretçi IP'sini ilettiği başlığın sırrı; Vercel'deki değerle **aynı**. Yoksa ya da tutmazsa bütün ziyaretçiler Vercel'in IP'sini paylaşır ve saatte 10 kayıttan sonra herkes `too_many_attempts` alır | Rastgele | Rastgele |
+| `SIGNUP_TURNSTILE_DISABLED` | `1`: Turnstile olmadan kayıt. Yalnızca yerel yığın ve CI (`supabase/config.toml`) | **Asla tanımlanmaz** | **Asla tanımlanmaz** |
 
 Örnek (test projesi, sahte ödeme):
 
@@ -102,14 +118,26 @@ supabase secrets set --project-ref <ref> PAYMENT_PROVIDER=fake PAYMENT_FAKE_ALLO
   PAYMENT_ALLOW_PREVIEW_ORIGINS=1 PORTAL_BASE_URL=https://orchados.vercel.app
 ```
 
-**Vault** (SQL düzenleyici; `pg_cron` işi `reconcile-payments` 10 dakikada bir çağırır, ikisi de yoksa hiçbir şey yapmaz):
+Kayıt (test projesi; `SIGNUP_PROXY_SECRET` aynı değerle Vercel'e de girilir):
+
+```bash
+SIGNUP_PROXY_SECRET=$(openssl rand -hex 32)
+supabase secrets set --project-ref <ref> SIGNUP_HASH_SECRET=$(openssl rand -hex 32) \
+  SIGNUP_PROXY_SECRET=$SIGNUP_PROXY_SECRET TURNSTILE_SECRET_KEY=<Turnstile gizli anahtarı>
+echo "$SIGNUP_PROXY_SECRET"   # Vercel → Settings → Environment Variables → SIGNUP_PROXY_SECRET
+```
+
+**Vault** (SQL düzenleyici). İki `pg_cron` işi aynı `orchados_cron_secret`'ı kullanır: `reconcile-payments` 10 dakikada bir `payments_reconcile_url`'i, kayıt temizliği saatte bir `signup_cleanup_url`'i çağırır. Adresi ya da sır yoksa iş sessizce hiçbir şey yapmaz; `signup_cleanup_url` olmadan telefonunu 24 saatte doğrulamayan self-servis hesaplar (e-posta, telefon, parola özeti) `auth.users`'ta kalır (KVKK saklama süresi):
 
 ```sql
 select vault.create_secret('https://<ref>.supabase.co/functions/v1/payments', 'payments_reconcile_url');
+select vault.create_secret('https://<ref>.supabase.co/functions/v1/customer-signup', 'signup_cleanup_url');
 select vault.create_secret('<ORCHADOS_CRON_SECRET ile aynı değer>', 'orchados_cron_secret');
 ```
 
-**Web (Vercel):** `ORCHADOS_PAYMENTS_ENABLED` kart ödemesi düğmesini açar. `PAYMENT_FAKE_CHECKOUT=1` yalnızca yerel, CI ve test projesinde; o zaman `/odeme/sahte` sayfası açılır (yoksa 404). Pilot Vercel projesinde tanımlanmaz.
+**Web (Vercel):** değişkenler yukarıda, Vercel bölümünde. `ORCHADOS_PAYMENTS_ENABLED` kart ödemesi düğmesini açar. `PAYMENT_FAKE_CHECKOUT=1` yalnızca yerel, CI ve test projesinde; o zaman `/odeme/sahte` sayfası açılır (yoksa 404). Pilot Vercel projesinde tanımlanmaz.
+
+**Alıcı e-postası:** iyzico `buyer.email` ister. `payment_begin` sırayla fatura profili, iletişim ve hesap e-postasına bakar; hiçbiri yoksa (yalnızca telefonla kaydedilmiş sahip) kart denemesi açılmaz, `payments` 409 `billing_profile_incomplete` (`field: "email"`) döner ve portal fatura bilgilerine e-posta eklemesini söyler. Havale etkilenmez.
 
 **iyzico paneli** (Yusuf; sandbox ve canlı hesap ayrı ayrı):
 - Callback adresi Checkout Form isteğiyle gönderilir (`PAYMENT_CALLBACK_URL`); panelde ayrı bir ayar gerekmez.
@@ -125,9 +153,24 @@ select vault.create_secret('<ORCHADOS_CRON_SECRET ile aynı değer>', 'orchados_
    update public.org_billing_setting set allow_fake_payments = true where org_id = '<org>';
    ```
 
-Pilotta hiçbiri açılmaz. `deploy-db-pilot` migration'dan önce Management API ile denetler ve şu durumlarda başarısız olur: `PAYMENT_FAKE_ALLOWED` secret'ı tanımlı; `allow_fake_payments` açık bir org var; `accepts_signups` açık bir org var ama `TURNSTILE_SECRET_KEY` tanımlı değil. Denetim `SUPABASE_ACCESS_TOKEN`'ı kullanır, değerleri okumaz (secret listesi yalnızca adları verir).
+Pilotta hiçbiri açılmaz. `deploy-db-pilot` migration'dan önce Management API ile denetler ve şu durumlarda başarısız olur:
+- `PAYMENT_FAKE_ALLOWED` secret'ı tanımlı;
+- `allow_fake_payments` açık bir org var;
+- `SIGNUP_TURNSTILE_DISABLED` secret'ı tanımlı;
+- `accepts_signups` açık bir org var ama `TURNSTILE_SECRET_KEY`, `SIGNUP_HASH_SECRET` ya da `SIGNUP_PROXY_SECRET` tanımlı değil.
 
-**Turnstile kapısı:** Kayıt (`accepts_signups`) bir org'da açılmadan önce `TURNSTILE_SECRET_KEY` (Edge) ve `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (Vercel) canlı anahtarlarla girilir. Test projesinde Cloudflare'in test anahtarları kullanılır.
+Denetim `SUPABASE_ACCESS_TOKEN`'ı kullanır, değerleri okumaz (secret listesi yalnızca adları verir). Vercel'deki `SIGNUP_PROXY_SECRET`'ı ve Vault girdilerini göremez; onlar aşağıdaki kapıda elle denetlenir.
+
+**Kayıt kapısı:** Kayıt (`accepts_signups`) bir org'da açılmadan önce:
+- Edge: `TURNSTILE_SECRET_KEY` (canlı), `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET`, `ORCHADOS_CRON_SECRET`;
+- Vercel: `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (canlı), Edge'dekiyle aynı `SIGNUP_PROXY_SECRET`;
+- Vault: `signup_cleanup_url`, `orchados_cron_secret`.
+
+Test projesinde Cloudflare'in test anahtarları kullanılır. `accepts_signups` dağıtımdan sonra `/operasyon/ayarlar`'dan açılabildiği için dağıtım denetimi tek başına yetmez: `customer-signup` `TURNSTILE_SECRET_KEY` olmadan kayıt almaz (fail closed).
+
+**Geri alma:**
+- Kayıt: `accepts_signups = false` (`/operasyon/ayarlar` › Dışarıdan kayıt, ya da SQL). Sunucu tarafındaki anahtar budur: `customer-signup` herkese açıktır (`verify_jwt = false`), doğrudan gelen istekler de 503 `signup_closed` alır. `ORCHADOS_SIGNUP_ENABLED` bayrağını kapatmak yalnızca `/kayit` arayüzünü gizler, kaydı **kapatmaz**.
+- Kart ödemesi: `ORCHADOS_PAYMENTS_ENABLED` kapatılır; Edge'de `PAYMENT_PROVIDER` silinirse `payments` da 503 döner.
 
 **Sandbox kontrol listesi** (CI dışında, elle; test projesinde `PAYMENT_PROVIDER=iyzico`, sahte kilitler kapalı):
 - [ ] Başarılı ödeme (3DS'li sandbox kartı): sonuç sayfası `succeeded`, makbuz numarası var, olay kayıtlarında `initialize` ve `callback` satırları.

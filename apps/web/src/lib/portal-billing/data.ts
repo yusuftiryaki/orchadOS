@@ -536,6 +536,17 @@ export interface ContactView {
   contactPreference: string;
 }
 
+// Whether payment_begin finds an e-mail without the billing profile's: the
+// contact e-mail (owner profile) or the account's. Without one, the billing
+// e-mail is required for card payments.
+export async function hasFallbackEmail(
+  supabase: Client,
+  accountEmail: string | null,
+): Promise<boolean> {
+  if (accountEmail?.trim()) return true;
+  return !!(await getContact(supabase))?.email?.trim();
+}
+
 export async function getContact(supabase: Client): Promise<ContactView | null> {
   const row = check(await supabase.rpc("my_owner_profile"))?.[0];
   if (!row) return null;

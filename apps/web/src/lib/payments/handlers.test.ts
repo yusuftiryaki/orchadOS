@@ -546,6 +546,7 @@ describe("start", () => {
   it.each([
     ["order_not_payable", 409, "order_not_payable"],
     ["billing_profile_incomplete", 409, "billing_profile_incomplete"],
+    ["payment_in_progress", 409, "payment_in_progress"],
     ["not_found", 404, "not_found"],
     ["fake_payments_disabled", 503, "payments_disabled"],
   ])("payment_begin %s -> %d", async (code, status, error) => {
@@ -556,6 +557,32 @@ describe("start", () => {
     const res = await handlePayments(paymentsRequest(startBody, auth), s.deps);
     expect(res.status).toBe(status);
     expect(await res.json()).toEqual({ error: error });
+  });
+
+  it("payment_begin billing_profile_incomplete with detail email -> 409 with the field", async () => {
+    const s = setup(FAKE_ENV, {
+      ...userRoute,
+      "/rpc/payment_begin": () =>
+        jsonResponse(
+          { code: "P0001", message: "billing_profile_incomplete", details: "email" },
+          400,
+        ),
+    });
+    const res = await handlePayments(paymentsRequest(startBody, auth), s.deps);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "billing_profile_incomplete", field: "email" });
+  });
+
+  it("never sends a buyer without an e-mail to the provider", async () => {
+    const s = setup(IYZICO_ENV, {
+      ...userRoute,
+      "/rpc/payment_begin": () =>
+        jsonResponse({ ...BEGIN, buyer: { ...BEGIN.buyer, email: null } }),
+    });
+    const res = await handlePayments(paymentsRequest(startBody, auth), s.deps);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "billing_profile_incomplete", field: "email" });
+    expect(s.calls.some((c) => c.url.includes(IYZICO_PATHS.initialize))).toBe(false);
   });
 
   it("starts a fake checkout", async () => {

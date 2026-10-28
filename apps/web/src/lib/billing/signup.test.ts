@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type AccountMatch,
+  captchaMode,
   clientIp,
   decideMatches,
   hmacHex,
@@ -245,5 +246,19 @@ describe("cleanup", () => {
       false,
     );
     expect(isExpiredUnverified({ ...old, app_metadata: {} }, now)).toBe(false);
+  });
+});
+
+describe("captcha mode", () => {
+  it("verifies whenever the Turnstile secret is set", () => {
+    expect(captchaMode("secret", undefined)).toBe("verify");
+    expect(captchaMode("secret", "1")).toBe("verify");
+  });
+
+  it("fails closed without the secret unless the local switch is on", () => {
+    expect(captchaMode("", undefined)).toBe("unconfigured");
+    expect(captchaMode("", "")).toBe("unconfigured");
+    expect(captchaMode("", "true")).toBe("unconfigured");
+    expect(captchaMode("", "1")).toBe("skip");
   });
 });
