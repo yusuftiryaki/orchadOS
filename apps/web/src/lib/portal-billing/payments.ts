@@ -40,6 +40,8 @@ const START_ERRORS: Record<string, PortalError> = {
   // IP14 (docs/bahce-yonetimi.md §9.6, payment_begin).
   garden_removal_open: "garden_removal_open",
   addon_base_closed: "addon_base_closed",
+  // T13: the org needs a TCKN and none (or a malformed one) came with the start.
+  identity_number_required: "identity_number_required",
 };
 
 // The reason of a failed `payments` start: the function answers

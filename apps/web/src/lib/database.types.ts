@@ -5271,7 +5271,12 @@ export type Database = {
         }[];
       };
       payment_attach_token: {
-        Args: { p_expires_at: string; p_payment_id: string; p_token: string };
+        Args: {
+          p_expires_at: string;
+          p_identity_number_last4?: string;
+          p_payment_id: string;
+          p_token: string;
+        };
         Returns: undefined;
       };
       payment_attempts_to_reconcile: {

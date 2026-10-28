@@ -274,20 +274,21 @@ select is((select identity_number from private.billing_profile where user_id = '
   null, 'the TCKN is not stored unless the org needs it');
 update public.org_billing_setting set identity_number_required = true;
 set local role authenticated;
+-- T13 (H16): the TCKN is asked at payment time; the profile never holds it.
 select is(pg_temp.error_of($$ select public.customer_save_billing_profile('{"kind": "individual", "first_name": "Örnek",
   "last_name": "Müşteri", "address": "Yeni adres 2", "city": "Gaziantep"}') $$),
-  '22023 invalid_input / identity_number', 'a required TCKN is missing');
+  null, 'T13: no TCKN is needed in the profile, also while the org requires one');
 select is(pg_temp.error_of($$ select public.customer_save_billing_profile('{"kind": "individual", "first_name": "Örnek",
   "last_name": "Müşteri", "address": "Yeni adres 2", "city": "Gaziantep", "identity_number": "10000000147"}') $$),
-  '22023 invalid_input / identity_number', 'a wrong TCKN is refused without its value');
+  null, 'T13: an identity_number key is ignored');
 select is(pg_temp.error_of($$ select public.customer_save_billing_profile('{"kind": "company", "first_name": "Örnek",
   "last_name": "Müşteri", "address": "Yeni adres 2", "city": "Gaziantep", "identity_number": "10000000146"}') $$),
   '22023 invalid_input / company_title', 'a company needs its title, tax office and number');
 select lives_ok($$ select public.customer_save_billing_profile('{"kind": "individual", "first_name": "Örnek",
   "last_name": "Müşteri", "address": "Yeni adres 2", "city": "Gaziantep", "identity_number": "10000000146"}') $$,
-  'a valid TCKN is saved');
-select is((select identity_number_masked from public.my_billing_profile()), '*******0146',
-  'the customer sees it masked');
+  'the profile is saved');
+select is((select identity_number_masked from public.my_billing_profile()), null,
+  'T13: no TCKN is stored, so none is shown');
 select lives_ok($$ select public.customer_save_billing_profile('{"kind": "individual", "first_name": "Örnek",
   "last_name": "Müşteri", "address": "Yeni adres 3", "city": "Gaziantep"}') $$,
   'a saved TCKN is kept when the form leaves it out');
@@ -303,16 +304,16 @@ select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 select results_eq(
   $$ select identity_number_masked, identity_number, address from public.ops_billing_profile(
        'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000006') $$,
-  $$ values ('*******0146', null::text, 'Yeni adres 3') $$,
-  'ops reads the profile with the TCKN masked');
+  $$ values (null::text, null::text, 'Yeni adres 3') $$,
+  'ops reads the profile; there is no TCKN in it (T13)');
 select is(
   (select identity_number from public.ops_billing_profile('b0000000-0000-4000-8000-000000000001',
      'a0000000-0000-4000-8000-000000000006', true)),
-  '10000000146', 'and reveals it on request');
+  null, 'T13: there is nothing to reveal');
 select is((select count(*) from public.ops_customer_consents('b0000000-0000-4000-8000-000000000001',
   'a0000000-0000-4000-8000-000000000006')), 6::bigint, 'ops reads the consent history');
-select is((select count(*) from public.audit_event where action = 'billing_profile.revealed'), 1::bigint,
-  'revealing the TCKN is audited');
+select is((select count(*) from public.audit_event where action = 'billing_profile.revealed'), 0::bigint,
+  'T13: no reveal is recorded without a stored TCKN');
 
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000004');
 select is(pg_temp.error_of($$ select * from public.ops_billing_profile('b0000000-0000-4000-8000-000000000001',

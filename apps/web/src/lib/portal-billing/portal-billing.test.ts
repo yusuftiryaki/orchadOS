@@ -7,6 +7,7 @@ import { portalHref, readPortalResult, safeBackPath } from "./urls";
 import {
   m2ToDonumText,
   parseBillingProfileForm,
+  parsePaymentIdentity,
   parseContactForm,
   parseDonumToM2,
   parseGardenForm,
@@ -183,15 +184,12 @@ const PROFILE = {
 
 describe("billing profile form", () => {
   it("leaves the TCKN out when the org does not need it", () => {
-    const parsed = parseBillingProfileForm(reader({ ...PROFILE, identity_number: "10000000146" }), {
-      identityRequired: false,
-      hasIdentity: false,
-    });
+    const parsed = parseBillingProfileForm(reader({ ...PROFILE, identity_number: "10000000146" }), {});
     expect(parsed.ok && "identity_number" in parsed.value).toBe(false);
   });
 
   it("requires the e-mail only when there is no contact or account e-mail", () => {
-    const opts = { identityRequired: false, hasIdentity: false };
+    const opts = {};
     const optional = parseBillingProfileForm(reader({ ...PROFILE, email: "" }), opts);
     expect(optional.ok && optional.value.email).toBeNull();
     const missing = parseBillingProfileForm(reader({ ...PROFILE, email: " " }), {
@@ -206,37 +204,19 @@ describe("billing profile form", () => {
     expect(given.ok && given.value.email).toBe("fatura@example.com");
   });
 
-  it("asks for a valid TCKN only when it is required", () => {
-    const missing = parseBillingProfileForm(reader(PROFILE), {
-      identityRequired: true,
-      hasIdentity: false,
-    });
-    expect(missing.ok ? null : missing.errors.identity_number).toBe("required");
-    const kept = parseBillingProfileForm(reader(PROFILE), {
-      identityRequired: true,
-      hasIdentity: true,
-    });
-    expect(kept.ok && "identity_number" in kept.value).toBe(false);
-    const wrong = parseBillingProfileForm(reader({ ...PROFILE, identity_number: "10000000147" }), {
-      identityRequired: true,
-      hasIdentity: false,
-    });
-    expect(wrong.ok ? null : wrong.errors.identity_number).toBe("invalid");
-    const good = parseBillingProfileForm(
-      reader({ ...PROFILE, identity_number: "100 000 001 46" }),
-      {
-        identityRequired: true,
-        hasIdentity: false,
-      },
+  it("never takes a TCKN with the profile; the card payment parses it (T13)", () => {
+    const withNumber = parseBillingProfileForm(
+      reader({ ...PROFILE, identity_number: "10000000146" }),
     );
-    expect(good.ok && good.value.identity_number).toBe("10000000146");
+    expect(withNumber.ok && "identity_number" in withNumber.value).toBe(false);
+    expect(parsePaymentIdentity("100 000 001 46")).toBe("10000000146");
+    expect(parsePaymentIdentity("10000000147")).toBeNull();
+    expect(parsePaymentIdentity("")).toBeNull();
+    expect(parsePaymentIdentity(null)).toBeNull();
   });
 
   it("requires the company fields for a company", () => {
-    const parsed = parseBillingProfileForm(reader({ ...PROFILE, kind: "company" }), {
-      identityRequired: false,
-      hasIdentity: false,
-    });
+    const parsed = parseBillingProfileForm(reader({ ...PROFILE, kind: "company" }), {});
     expect(parsed.ok ? null : parsed.errors).toEqual({
       company_title: "required",
       tax_office: "required",
@@ -250,7 +230,7 @@ describe("billing profile form", () => {
         tax_office: "Nizip",
         tax_number: "12345",
       }),
-      { identityRequired: false, hasIdentity: false },
+      {},
     );
     expect(bad.ok ? null : bad.errors).toEqual({ tax_number: "invalid" });
   });
@@ -258,7 +238,7 @@ describe("billing profile form", () => {
   it("rejects a malformed postal code and e-mail", () => {
     const parsed = parseBillingProfileForm(
       reader({ ...PROFILE, postal_code: "277", email: "x@" }),
-      { identityRequired: false, hasIdentity: false },
+      {},
     );
     expect(parsed.ok ? null : parsed.errors).toEqual({ postal_code: "invalid", email: "invalid" });
   });

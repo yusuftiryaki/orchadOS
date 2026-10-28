@@ -10,9 +10,9 @@ import { BILLING_KINDS } from "@/lib/portal-billing/validation";
 
 const B = P.billing;
 
-// The billing profile (customer_save_billing_profile): individual or company;
-// the TCKN only when the org needs it. The stored TCKN is never sent to the
-// browser: only its masked form is shown.
+// The billing profile (customer_save_billing_profile): individual or company.
+// No TCKN (T13, H16): when the org needs one it is asked at card payment and
+// sent to the payment provider only; the form says so.
 export function BillingProfileForm({
   initial,
   identityRequired,
@@ -78,23 +78,10 @@ export function BillingProfileForm({
           />
         </Field>
         {identityRequired && (
-          <Field
-            label={B.identityNumber}
-            hint={
-              identityMasked
-                ? `${B.identityStored(identityMasked)} · ${B.identityHint}`
-                : B.identityHint
-            }
-            error={err("identity_number")}
-          >
-            <input
-              name="identity_number"
-              inputMode="numeric"
-              autoComplete="off"
-              maxLength={14}
-              required={!identityMasked}
-            />
-          </Field>
+          <p className="muted" data-testid="identity-at-payment">
+            {B.identityHint}
+            {identityMasked && ` ${B.identityStored(identityMasked)}`}
+          </p>
         )}
         {kind === "company" && (
           <>

@@ -31,7 +31,7 @@ export function OrderPay({
           <Link href={portalHref.payment(liveAttemptId)}>{O.cardInProgressLink}</Link>
         </p>
       ) : paymentsEnabled ? (
-        <PayButton orderId={orderId} />
+        <PayButton orderId={orderId} identityRequired={instructions?.identityNumberRequired} />
       ) : (
         <p className="muted" data-testid="card-off">
           {O.cardOff}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { TCKN_PATTERN } from "../../../../../supabase/functions/_shared/payments/identity.ts";
 import { safePayload } from "../../../../../supabase/functions/_shared/payments/payload.ts";
 
 describe("safePayload", () => {
@@ -68,5 +69,22 @@ describe("safePayload", () => {
     expect(safePayload(null)).toEqual({});
     expect(safePayload("text")).toEqual({});
     expect(safePayload([1, 2])).toEqual({});
+  });
+
+  it("never keeps a TCKN-shaped value, wherever the provider puts it (T13, H16)", () => {
+    const raw = {
+      status: "failure",
+      errorCode: "10000000146",
+      errorMessage: "Kimlik 10000000146 geçersiz",
+      buyer: { identityNumber: "10000000146" },
+      identityNumber: "10000000146",
+      reason: "buyer 10000000146",
+      itemTransactions: [{ itemId: "10000000146", price: 1 }],
+    };
+    const out = JSON.stringify(safePayload(raw));
+    expect(out).not.toMatch(TCKN_PATTERN);
+    // Our uuids stay intact even when a group holds eleven digits.
+    const id = "0a1b2c3d-0000-4000-8000-a12345678901";
+    expect(safePayload({ conversationId: id })).toEqual({ conversationId: id });
   });
 });

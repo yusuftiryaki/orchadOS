@@ -220,7 +220,7 @@ reset role;
 -- Service role only (no demo_read_only expected: authenticated cannot call them).
 select is(
   (select coalesce(array_agg(f order by f), '{}') from unnest(array[
-     'public.payment_begin(uuid, uuid, text, text)', 'public.payment_attach_token(uuid, text, timestamptz)',
+     'public.payment_begin(uuid, uuid, text, text)', 'public.payment_attach_token(uuid, text, timestamptz, text)',
      'public.payment_finalize(uuid, text, jsonb)', 'public.payment_refund_claim(uuid)',
      'public.signup_prepare(uuid, text, text, text, text, jsonb, text)', 'public.signup_complete(uuid, timestamptz)',
      'public.signup_find_account(text, text)', 'public.demo_admit(text)', 'public.demo_start(uuid, text)']) f
