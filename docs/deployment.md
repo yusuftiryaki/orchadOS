@@ -266,7 +266,9 @@ select vault.create_secret('<ORCHADOS_CRON_SECRET ile aynı değer>', 'orchados_
 | `project` | `test` \| `demo` | Pilot seçeneği yoktur. Her proje yalnızca kendi secret'larını kullanır; eksik bir `DEMO_` secret'ı test projesine düşmez, iş uyarıyla atlanır |
 | `action` | `load` (varsayılan) \| `enable` \| `disable` | Önce `load`, doğrulama geçince ayrı bir çalıştırmayla `enable`. `enable`/`disable` yalnızca kayıt anahtarını değiştirir, derleme yapmaz |
 | `dry_run` | `false` (varsayılan) | `load`: SQL çalışır ve geri alınır, hiçbir şey yazılmaz |
-| `reuse_build_run_id` | Boş ya da önceki bir çalıştırmanın kimliği | `load`: o çalıştırmanın `demo-build-full` artefaktını kullanır (yarım kalmış yüklemeyi aynı baytlarla tamamlamak için) |
+| `reuse_build_run_id` | Boş ya da önceki bir çalıştırmanın kimliği | `load`: o çalıştırmanın `demo-build-full` artefaktını kullanır (yarım kalmış yüklemeyi aynı baytlarla tamamlamak için). Yalnızca bu iş akışının `main` üzerinde elle başlatılmış bir çalıştırması kabul edilir |
+
+**Koruma:** İş yalnızca `main`'den çalışır ve projenin adını taşıyan GitHub Environment'ında koşar (`environment: test` ya da `demo`). Bu iki ortam GitHub'da elle açılır: zorunlu onaylayıcı ve yalnızca `main`'e izin veren dağıtım dalı kuralı. İş akışının secret'ları ortam secret'ı olarak oraya taşınır; ortam secret'ı aynı adlı repo secret'ını geçersiz kılar. Secret'lar yalnızca onlara ihtiyaç duyan adımlara verilir.
 
 `load` adımları: `supabase link`, oturum havuzu adresi (5432; GitHub runner'larında IPv6 yok), `uv sync --locked`, `orchados-pipeline demo build --profile full` ya da artefaktın indirilmesi, 150 MB boyut sınırı, artefaktın yüklenmesi (30 gün), `orchados-pipeline demo load --target remote --profile full --verify` (demo projesinde ayrıca `--demo-only`: başka bir org varsa reddedilir). SQL veritabanı parolasıyla psql üzerinden, medya Storage API'sine demo org'unun operasyon kişisiyle (o çalıştırmaya özel geçici parola) gider; servis anahtarı kullanılmaz. Özet (satır sayıları, dosyalar) iş özetine yazılır.
 
