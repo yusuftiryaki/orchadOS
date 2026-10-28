@@ -912,7 +912,8 @@ Görüntü durumu için `tour-viewer` öğesinde zaten bulunan nitelikler kullan
 | `ORCHADOS_CRON_SECRET` | Edge + Vault `orchados_cron_secret` | Var olan. `cleanup` eylemi için |
 | `ORCHADOS_DEMO_MODE` | Edge | **Yeni.** `dev` ya da `public`; tanımsızsa başlatma kapalıdır. Pilotta tanımlanmaz (`deploy-db-pilot` denetler) |
 | `demo_cleanup_url` | Vault | **Yeni.** `https://<ref>.supabase.co/functions/v1/demo-start` |
-| `DEMO_SUPABASE_PROJECT_REF`, `DEMO_SUPABASE_DB_PASSWORD`, `DEMO_SUPABASE_URL`, `DEMO_SUPABASE_ANON_KEY` | GitHub | **Yeni.** `deploy-db-demo` ve `demo-data` |
+| `DEMO_SUPABASE_PROJECT_REF`, `DEMO_SUPABASE_DB_PASSWORD`, `DEMO_SUPABASE_URL`, `DEMO_SUPABASE_ANON_KEY` | GitHub | **Yeni.** `deploy-db-demo` ve `demo-data`; `DEMO_SUPABASE_DB_PASSWORD` ayrıca `provision-demo` (yeni projenin parolası) |
+| `VERCEL_TOKEN`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | GitHub | **Yeni.** `provision-demo`; Turnstile ikisi birlikte, yoksa demo kapalı kalır |
 | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` | GitHub | Var olan. Test projesi |
 
 Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırındadır: `enabled`, süre, sınırlar, ziyaretçi alan adı. Yerel Edge secret'ları `config.toml` içindedir; `TURNSTILE_SECRET_KEY` yerelde tanımsız kalır.
@@ -1022,24 +1023,20 @@ Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırınd
         - `message_outbox` ve `notification` tablolarında demo satırı yoktur.
         - 3 saat sonra `private.demo_session` boşalmıştır.
     6. Bitince `action=disable` çalıştırılır, bayrak kapatılır ve `ORCHADOS_DEMO_MODE` kaldırılır.
-3. **Demo projesi:**
-    1. Supabase projesi `orchados-demo` (AB bölgesi) açılır. `DEMO_` secret'ları ve `SUPABASE_ACCESS_TOKEN` GitHub `demo` ortamına girilir (§10.4), `gh workflow enable deploy-db-demo` ile iş akışı açılır ve `deploy-db-demo` çalıştırılır.
-    2. Auth ayarlanır:
-        - dışarıdan kayıt ve anonim giriş kapalı
-        - "Confirm phone", "Confirm email", "Secure email change" açık
-        - site adresi ve yönlendirme adresleri demo alan adı
-    3. Edge secret'ları: `TURNSTILE_SECRET_KEY` (canlı), `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET`, `ORCHADOS_CRON_SECRET`, `ORCHADOS_DEMO_MODE=public`. Vault: `demo_cleanup_url`, `orchados_cron_secret`.
-    4. Harcama tavanı açılır ve %80 kullanım uyarısı kurulur.
-    5. `demo-data` çalıştırılır: önce `project=demo action=load`, sonra `action=enable`.
-    6. Vercel `orchados-demo` projesi kurulur (aynı repo, `main`). Değişkenler:
-        - `NEXT_PUBLIC_SUPABASE_*`
-        - `SIGNUP_PROXY_SECRET`
-        - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (canlı)
-        - `ORCHADOS_DEMO_ENABLED=1`
-        - `ORCHADOS_MAIN_SITE_URL`, `ORCHADOS_SITE_URL`
-
-       Değişkenler yalnızca **Production** kapsamına girilir. Önizleme derlemeleri kapatılır (Vercel → Settings → Git → Ignored Build Step: `[ "$VERCEL_ENV" != production ]`); birleşmemiş dal kodu herkese açık demo veritabanına bağlanmaz. Dağıtım indekslenmez. DNS'te `demo.<alan adı>` tanımlanır.
-    7. Yukarıdaki duman listesi demo adresinde tekrarlanır.
+3. **Demo projesi:** Kurulum elle değil `provision-demo` iş akışıyla yapılır (`.github/workflows/provision-demo.yml`, mantık `scripts/provision-demo.sh`; ayrıntı ve girdiler: deployment.md › Demo turu › Kurulum). Elle başlatılır, yalnızca `main`'den ve `demo` ortamında koşar; tekrar çalıştırmak güvenlidir.
+    1. `provision-demo` çalıştırılır (önce `dry_run=true` ile). İş akışı:
+        - Supabase `orchados-demo` projesini test projesinin organizasyonunda (AB bölgesi, varsayılan `eu-central-1`) `DEMO_SUPABASE_DB_PASSWORD` ile açar ya da var olanı kullanır ve sağlıklı olmasını bekler.
+        - Auth'u ayarlar: dışarıdan kayıt ve anonim giriş kapalı; "Confirm phone", "Confirm email", "Secure email change" açık; site adresi ve yönlendirme adresleri demo adresi.
+        - Edge secret'larını yazar: `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET`, `ORCHADOS_CRON_SECRET` (iş içinde üretilir, eksik olmadıkça yenilenmez), `MESSAGE_PROVIDER=record`, `PORTAL_BASE_URL`. `TURNSTILE_SECRET_KEY` (canlı) ve `ORCHADOS_DEMO_MODE=public` yalnızca Turnstile secret'ları GitHub'da varsa yazılır; yoksa demo kapalı kalır (§5) ve iş özeti bunu söyler.
+        - Vault: `demo_cleanup_url`, `orchados_cron_secret` (Edge'dekiyle aynı değer).
+        - Vercel `orchados-demo` projesini açar ya da kullanır (aynı repo, `main`, kök `apps/web`). Değişkenler yalnızca **Production** kapsamına girer: `NEXT_PUBLIC_SUPABASE_*`, `SIGNUP_PROXY_SECRET` (Edge'dekiyle aynı), `ORCHADOS_DEMO_ENABLED=1`, `ORCHADOS_MAIN_SITE_URL`, `ORCHADOS_SITE_URL`, Turnstile varsa `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (canlı). Önizleme derlemeleri kapalıdır (Ignored Build Step: `[ "$VERCEL_ENV" != production ]`); birleşmemiş dal kodu herkese açık demo veritabanına bağlanmaz. Dağıtım indekslenmez. `main` yalnızca bir şey değiştiyse dağıtılır.
+        - Özete proje ref'ini, Supabase adresini, anon anahtarını, Vercel proje kimliğini ve demo adresini yazar; hiçbir secret değeri yazılmaz. Migration ve demo verisi bu iş akışında yoktur.
+    2. Özetteki değerler GitHub `demo` ortamına girilir: `DEMO_SUPABASE_PROJECT_REF`, `DEMO_SUPABASE_URL`, `DEMO_SUPABASE_ANON_KEY` (§10.4). `gh workflow enable deploy-db-demo` ile iş akışı açılır ve `deploy-db-demo` çalıştırılır.
+    3. Harcama tavanı açılır ve %80 kullanım uyarısı kurulur (panelden).
+    4. `demo-data` çalıştırılır: `project=demo action=load`.
+    5. Canlı Turnstile anahtarları `demo` ortamına girilir ve `provision-demo` yeniden çalıştırılır. Anahtarlar gelmeden `action=enable` çalıştırılmaz: `deploy-db-demo` açık ama secret'ları eksik demoda başarısız olur.
+    6. `demo-data` `action=enable`; ardından `deploy-db-demo` bir kez daha çalıştırılır.
+    7. DNS'te `demo.<alan adı>` tanımlanır ve `provision-demo` `demo_url` girdisiyle yeniden çalıştırılır. Yukarıdaki duman listesi demo adresinde tekrarlanır.
 4. **Pilot sitesi:**
     - İP12 sitesi herkese açıldığında Vercel pilot projesine `ORCHADOS_DEMO_URL` eklenir.
     - Pilot Supabase'e hiçbir demo ayarı girmez.
@@ -1058,7 +1055,7 @@ Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırınd
 | Kim | Ne |
 | --- | --- |
 | Yusuf | GitHub Environment'ları `test`, `demo`, `pilot` (dal kuralları, onaylayıcılar), secret'ların ortamlara taşınması ve repo düzeyindeki veritabanı secret'larının silinmesi; demo projesi açılana kadar `gh workflow disable deploy-db-demo` (deployment.md › GitHub secret'ları ve ortamları) |
-| Yusuf | Demo projesi: Supabase ve Vercel projelerini açmak (Vercel'de önizlemeler kapalı, değişkenler yalnızca Production); `demo` ortamına `DEMO_` secret'ları; DNS `demo.<alan adı>`; Edge secret'ları; Vault (`demo_cleanup_url`, `orchados_cron_secret`); Auth ayarları; harcama tavanı ve kullanım uyarısı |
+| Yusuf | Demo projesi: `provision-demo` iş akışını çalıştırmak (Supabase ve Vercel projeleri, Auth, Edge secret'ları, Vault, Vercel değişkenleri; §15); özetteki değerlerle `demo` ortamına `DEMO_` secret'ları; DNS `demo.<alan adı>`; harcama tavanı ve kullanım uyarısı |
 | Yusuf | Test, demo ve pilot projelerinde Auth onaylarını açmak (Confirm phone, Confirm email, Secure email change) |
 | Yusuf | Demo alan adı için canlı Turnstile anahtarları |
 | Yusuf | Ziyaretçi alan adı barındırılan GoTrue'da reddedilirse null MX kayıtlı bir alt alan adı ve `visitor_email_domain` güncellemesi |
