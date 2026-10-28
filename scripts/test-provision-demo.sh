@@ -9,7 +9,9 @@
 # removed, and the move to a separate project
 # catches a leftover. Then scripts/demo-lock-check.sh in both modes. Every
 # run's output and job summary is checked for secret values.
-# Needs bash, curl, jq, openssl and python3; no network.
+# Every SQL text sent is then run on Postgres when DB_URL is set
+# (scripts/test-script-sql.sh).
+# Needs bash, curl, jq, openssl and python3 (psql with DB_URL); no network.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -390,6 +392,19 @@ sec $D TURNSTILE_SECRET_KEY 1x0000000000000000000000000000000AA
 if lock l12 separate $D; then bad "lock separate: a dummy Turnstile key fails"; else
   check "lock separate: a dummy Turnstile key fails" grep -q 'TURNSTILE_SECRET_KEY on .* is a Cloudflare test key' "$work/l12.lock"; fi
 check "lock: no secret value in the output" bash -c "! grep -qE 'sb-token-SECRET|(test|demo)-(hash|proxy|cron)-SECRET|live-demo-SECRET' '$work'/l*.lock"
+
+# Every SQL text the scripts sent; the mock answered them blindly. Each kind
+# must be there, then they run on a real Postgres when DB_URL is set
+# (scripts/test-script-sql.sh; CI sets it).
+ctl queries >"$work/queries.json"
+check "sql: Vault name lookup, Vault upsert and lock query were sent" jq -e '
+  any(.[]; startswith("select name from vault.secrets")) and any(.[]; test("perform vault\\.create_secret"))
+  and any(.[]; test("as real_orgs"))' "$work/queries.json" >/dev/null
+if [ -n "${DB_URL:-}" ]; then
+  check "sql: every query runs on Postgres" bash "$here/test-script-sql.sh" "$work/queries.json"
+else
+  echo "skip - sql: DB_URL not set, queries not run on Postgres"
+fi
 
 echo
 if [ "$failures" -gt 0 ]; then

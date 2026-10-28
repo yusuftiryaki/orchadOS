@@ -3,7 +3,9 @@ name: ci-scripts
 # The demo provisioning scripts and workflows (provision-demo, the demo lock
 # check, the deploy and demo-data workflows that use them): shellcheck,
 # actionlint and the tests against mocked Supabase and Vercel APIs (no
-# network, no secrets).
+# network, no secrets). Every SQL text the scripts send to the mock then runs
+# on a plain Postgres (scripts/test-script-sql.sh), since the mock answers any
+# SQL with canned rows.
 
 on:
   pull_request:
@@ -12,6 +14,7 @@ on:
       - "scripts/test-provision-demo.sh"
       - "scripts/demo-lock-check.sh"
       - "scripts/test-demo-lock-sql.sh"
+      - "scripts/test-script-sql.sh"
       - "scripts/tests/**"
       - ".github/workflows/provision-demo.yml"
       - ".github/workflows/deploy-db.yml"
@@ -25,6 +28,7 @@ on:
       - "scripts/test-provision-demo.sh"
       - "scripts/demo-lock-check.sh"
       - "scripts/test-demo-lock-sql.sh"
+      - "scripts/test-script-sql.sh"
       - "scripts/tests/**"
       - ".github/workflows/provision-demo.yml"
       - ".github/workflows/deploy-db.yml"
@@ -43,11 +47,22 @@ jobs:
   provision-demo:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@v4
 
       - name: shellcheck
-        run: shellcheck scripts/provision-demo.sh scripts/test-provision-demo.sh scripts/demo-lock-check.sh scripts/test-demo-lock-sql.sh
+        run: |
+          shellcheck scripts/provision-demo.sh scripts/test-provision-demo.sh scripts/demo-lock-check.sh \
+            scripts/test-demo-lock-sql.sh scripts/test-script-sql.sh
 
       - name: actionlint
         run: |
@@ -55,5 +70,7 @@ jobs:
           ./actionlint -color .github/workflows/provision-demo.yml .github/workflows/ci-scripts.yml \
             .github/workflows/deploy-db.yml .github/workflows/deploy-db-demo.yml .github/workflows/demo-data.yml
 
-      - name: Tests (mocked APIs)
+      - name: Tests (mocked APIs, SQL on Postgres)
+        env:
+          DB_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
         run: scripts/test-provision-demo.sh
