@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { signTourImagesAction } from "@/app/portal/parsel/[parcelId]/gezi/actions";
+import { DemoNotice } from "@/components/demo/demo-notice";
 import { formatDate, t } from "@/lib/i18n";
+import { demoText } from "@/lib/i18n/messages/demo";
 import type { Position } from "@/lib/map/geo";
 import { MARKER_COLORS } from "@/lib/map/tree-style";
 import type { TourData } from "@/lib/portal/data";
@@ -63,6 +65,8 @@ export function Tour({ data, start }: { data: TourData; start: TourStart }) {
   // asset id -> signed URL (null: missing or refused). Absent: not asked yet.
   const [urls, setUrls] = useState<Record<string, string | null>>({});
   const [failed, setFailed] = useState<Set<string>>(new Set());
+  // A demo session reached its image cap (docs/demo-turu.md §5.3).
+  const [capped, setCapped] = useState(false);
 
   const wanted = useMemo(
     () => [current.previewAssetId, current.fullAssetId].filter((id): id is string => Boolean(id)),
@@ -73,9 +77,11 @@ export function Tour({ data, start }: { data: TourData; start: TourStart }) {
     if (missing.length === 0) return;
     let cancelled = false;
     signTourImagesAction(data.parcel.id, missing)
-      .catch(() => Object.fromEntries(missing.map((id) => [id, null])))
+      .catch(() => ({ urls: Object.fromEntries(missing.map((id) => [id, null])), capped: false }))
       .then((signed) => {
-        if (!cancelled) setUrls((u) => ({ ...u, ...signed }));
+        if (cancelled) return;
+        setUrls((u) => ({ ...u, ...signed.urls }));
+        if (signed.capped) setCapped(true);
       });
     return () => {
       cancelled = true;
@@ -189,67 +195,70 @@ export function Tour({ data, start }: { data: TourData; start: TourStart }) {
   const visit = visits[visitIndex]?.visit ?? data.visit;
 
   return (
-    <div className={styles.tour}>
-      <div className={styles.viewerWrap}>
-        <TourViewer
-          panoramaId={current.id}
-          image={image}
-          imageKind={kind}
-          fullUrl={kind === "preview" ? (fullUrl ?? null) : null}
-          lookYawDeg={look.yaw}
-          lookVersion={look.version}
-          markers={markers}
-          onMarker={onMarker}
-          onLoadError={onLoadError}
-          onViewChange={setViewYaw}
-          label={tt.viewer}
-        />
-        {kind === "placeholder" && signedReady && (
-          <p className={styles.viewerNote} data-testid="tour-placeholder">
-            {tt.placeholderNote}
+    <>
+      {capped && <DemoNotice text={demoText.closed.images} />}
+      <div className={styles.tour}>
+        <div className={styles.viewerWrap}>
+          <TourViewer
+            panoramaId={current.id}
+            image={image}
+            imageKind={kind}
+            fullUrl={kind === "preview" ? (fullUrl ?? null) : null}
+            lookYawDeg={look.yaw}
+            lookVersion={look.version}
+            markers={markers}
+            onMarker={onMarker}
+            onLoadError={onLoadError}
+            onViewChange={setViewYaw}
+            label={tt.viewer}
+          />
+          {kind === "placeholder" && signedReady && (
+            <p className={styles.viewerNote} data-testid="tour-placeholder">
+              {tt.placeholderNote}
+            </p>
+          )}
+        </div>
+        <div className={styles.mapColumn}>
+          <PortalMap
+            className={styles.tourMap}
+            boundary={data.boundary}
+            slots={mapSlots}
+            panoramas={mapPanoramas}
+            bounds={data.bounds}
+            currentPanoramaId={current.id}
+            focus={current.position}
+            onPointClick={onMapClick}
+            label={tt.mapHint}
+            view={view}
+          />
+          {visits.length > 1 && (
+            <label className={styles.small}>
+              {tt.timeTravel}{" "}
+              <select
+                value={visitIndex}
+                onChange={(e) => changeVisit(Number(e.target.value))}
+                data-testid="tour-visit"
+              >
+                {visits.map((v, i) => (
+                  <option key={v.visit.id} value={i}>
+                    {formatDate(v.visit.time)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {farNote && (
+            <p className={`muted ${styles.small}`} data-testid="tour-far">
+              {farNote}
+            </p>
+          )}
+          <p className={`muted ${styles.small}`}>
+            {tt.mapHint} {tt.viewDirection}{" "}
+            {visit && `${tt.visit(formatDate(visit.time))} · ${tt.count(panoramas.length)}`}
           </p>
-        )}
+        </div>
       </div>
-      <div className={styles.mapColumn}>
-        <PortalMap
-          className={styles.tourMap}
-          boundary={data.boundary}
-          slots={mapSlots}
-          panoramas={mapPanoramas}
-          bounds={data.bounds}
-          currentPanoramaId={current.id}
-          focus={current.position}
-          onPointClick={onMapClick}
-          label={tt.mapHint}
-          view={view}
-        />
-        {visits.length > 1 && (
-          <label className={styles.small}>
-            {tt.timeTravel}{" "}
-            <select
-              value={visitIndex}
-              onChange={(e) => changeVisit(Number(e.target.value))}
-              data-testid="tour-visit"
-            >
-              {visits.map((v, i) => (
-                <option key={v.visit.id} value={i}>
-                  {formatDate(v.visit.time)}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {farNote && (
-          <p className={`muted ${styles.small}`} data-testid="tour-far">
-            {farNote}
-          </p>
-        )}
-        <p className={`muted ${styles.small}`}>
-          {tt.mapHint} {tt.viewDirection}{" "}
-          {visit && `${tt.visit(formatDate(visit.time))} · ${tt.count(panoramas.length)}`}
-        </p>
-      </div>
-    </div>
+    </>
   );
 }
 

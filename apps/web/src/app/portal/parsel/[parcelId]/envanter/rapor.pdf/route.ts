@@ -18,6 +18,7 @@ export async function GET(
   return servePdf(pdfDeps, {
     kind: "inventory",
     parcelId,
+    page: `/portal/parsel/${parcelId}/envanter`,
     load: async () => {
       const report = await loadInventoryReport(await createClient(), parcelId);
       return report?.inventory ? report : null;

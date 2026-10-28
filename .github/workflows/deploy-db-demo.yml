@@ -6,6 +6,11 @@ name: deploy-db-demo
 # the check step refuses to deploy when it finds a real org, an open demo
 # without its secrets, or billing switches. Seed data is never pushed here;
 # the demo data comes from the demo-data workflow.
+#
+# The job runs in the `demo` GitHub Environment, which holds the demo project's
+# secrets (deployment branch rule: main only), and only from main. Missing
+# secrets fail the job; until the demo project exists the workflow is disabled
+# in GitHub (gh workflow disable deploy-db-demo; docs/deployment.md).
 
 on:
   push:
@@ -24,40 +29,37 @@ concurrency:
 
 jobs:
   push-migrations:
+    # A dispatch from another branch would run that branch's workflow and
+    # migrations with the demo project's postgres password.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    environment: demo
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.DEMO_SUPABASE_DB_PASSWORD }}
       SUPABASE_PROJECT_REF: ${{ secrets.DEMO_SUPABASE_PROJECT_REF }}
     steps:
-      - name: Skip when demo Supabase secrets are not configured yet
-        id: guard
+      - name: Check the demo project's secrets
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_DB_PASSWORD" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
-            echo "::warning::Demo Supabase secrets are not set; skipping demo deploy (see docs/demo-turu.md §15)."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "::error::SUPABASE_ACCESS_TOKEN, DEMO_SUPABASE_DB_PASSWORD or DEMO_SUPABASE_PROJECT_REF is missing in the demo environment (docs/demo-turu.md §15)."
+            exit 1
           fi
 
       - uses: actions/checkout@v4
-        if: steps.guard.outputs.ready == 'true'
 
       - uses: pnpm/action-setup@v4
-        if: steps.guard.outputs.ready == 'true'
 
       - uses: actions/setup-node@v4
-        if: steps.guard.outputs.ready == 'true'
         with:
           node-version: 22
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-        if: steps.guard.outputs.ready == 'true'
 
       - name: Link project
-        if: steps.guard.outputs.ready == 'true'
+        id: link
         run: pnpm exec supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
       # Demo project locks, read through the Management API with the access
@@ -67,10 +69,12 @@ jobs:
       #   - an org is not a demo org (real data never lives here),
       #   - a demo org is enabled while a secret demo-start needs is missing
       #     (TURNSTILE_SECRET_KEY, ORCHADOS_DEMO_MODE, SIGNUP_HASH_SECRET,
-      #     SIGNUP_PROXY_SECRET, ORCHADOS_CRON_SECRET; Vault demo_cleanup_url),
+      #     SIGNUP_PROXY_SECRET, ORCHADOS_CRON_SECRET; Vault demo_cleanup_url and
+      #     orchados_cron_secret, without which dispatch_demo_cleanup() silently
+      #     never deletes expired visitor accounts),
       #   - any org accepts sign-ups or fake payments, or PAYMENT_FAKE_ALLOWED is set.
       - name: Check demo project locks
-        if: steps.guard.outputs.ready == 'true'
+        id: locks
         run: |
           set -euo pipefail
           api="https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF"
@@ -92,6 +96,10 @@ jobs:
               else (xpath('/row/n/text()', query_to_xml(
                 'select count(*) as n from vault.secrets where name = ''demo_cleanup_url''', false, true, '')))[1]::text::int
             end as cleanup_url,
+            case when to_regclass('vault.secrets') is null then 0
+              else (xpath('/row/n/text()', query_to_xml(
+                'select count(*) as n from vault.secrets where name = ''orchados_cron_secret''', false, true, '')))[1]::text::int
+            end as cron_secret,
             case when to_regclass('public.org_billing_setting') is null then 0
               else (xpath('/row/n/text()', query_to_xml(
                 'select count(*) as n from public.org_billing_setting where accepts_signups or allow_fake_payments',
@@ -102,6 +110,7 @@ jobs:
           real_orgs=$(echo "$counts" | jq -r '.[0].real_orgs')
           enabled_demo_orgs=$(echo "$counts" | jq -r '.[0].enabled_demo_orgs')
           cleanup_url=$(echo "$counts" | jq -r '.[0].cleanup_url')
+          cron_secret=$(echo "$counts" | jq -r '.[0].cron_secret')
           billing_orgs=$(echo "$counts" | jq -r '.[0].billing_orgs')
           failed=0
           if [ "$real_orgs" != "0" ]; then
@@ -119,6 +128,10 @@ jobs:
               echo "::error::A demo org is enabled but Vault has no demo_cleanup_url on the demo project."
               failed=1
             fi
+            if [ "$cron_secret" = "0" ]; then
+              echo "::error::A demo org is enabled but Vault has no orchados_cron_secret on the demo project; expired visitor accounts would never be deleted."
+              failed=1
+            fi
           fi
           if [ "$billing_orgs" != "0" ]; then
             echo "::error::$billing_orgs org(s) accept sign-ups or fake payments on the demo project."
@@ -131,16 +144,17 @@ jobs:
           exit "$failed"
 
       - name: Push migrations
-        if: steps.guard.outputs.ready == 'true'
         # --include-all: parallel branches add migrations whose timestamps can be
         # older than one already applied; they are independent by convention.
         run: pnpm exec supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
 
       # A late-merged migration with an older timestamp lands after the IP13-A
       # ones here (but before them on a fresh CI database): re-attach the demo
-      # write guard and fail on any demo guard lost to migration order.
+      # write guard and fail on any demo guard lost to migration order. Runs
+      # even when the push failed: each migration file commits on its own, so
+      # tables from the files applied before the failure need the guard too.
       - name: Check demo guards
-        if: steps.guard.outputs.ready == 'true'
+        if: ${{ !cancelled() && steps.link.outcome == 'success' && steps.locks.outcome == 'success' }}
         run: scripts/demo-guard-check.sh
 
       # Without a name every function under supabase/functions is deployed
@@ -149,5 +163,4 @@ jobs:
       # itself; the service role key never leaves Supabase. verify_jwt per
       # function comes from supabase/config.toml.
       - name: Deploy Edge Functions
-        if: steps.guard.outputs.ready == 'true'
         run: pnpm exec supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api

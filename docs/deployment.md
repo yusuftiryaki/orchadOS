@@ -26,29 +26,44 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 | `ci-pipeline` | `services/pipeline/` değişince | ruff, pytest, sentetik oturumla uçtan uca çalıştırma |
 | `ci-firmware` | `firmware/` değişince | Native testler, ESP32 derlemesi; `firmware.bin` 14 gün saklanır |
 | `ci-field` | `apps/field/` değişince | analyze, test, üretilmiş kodun güncelliği. `main`'de ayrıca debug APK derlenir ve 7 gün saklanır |
-| `deploy-db` | `main`'de `supabase/migrations/`, `supabase/functions/` ya da `supabase/config.toml` değişince, ya da elle | `supabase db push` ile test projesine migration uygular ve bütün Edge Function'ları dağıtır. Seed uygulanmaz |
-| `deploy-db-pilot` | `release`'te aynı yollar değişince, ya da elle | Aynısını pilot projesine yapar. Seed hiçbir zaman uygulanmaz. Önce ödeme, kayıt ve demo kilitlerini denetler (aşağıda, Ödeme ve Demo turu) |
-| `deploy-db-demo` | `main`'de aynı yollar değişince, ya da elle | Aynısını demo projesine yapar; `DEMO_` secret'ları yoksa uyarıyla atlanır. Önce demo projesinin kilitlerini denetler (aşağıda, Demo turu) |
-| `demo-data` | Yalnızca elle (`workflow_dispatch`) | Demo turu verisini test ya da demo projesine yükler, açar ya da kapatır (aşağıda, Demo turu) |
-| `keepalive` | Haftada iki kez | Ücretsiz Supabase projesinin duraklatılmaması için küçük bir istek |
+| `deploy-db` | `main`'de `supabase/migrations/`, `supabase/functions/` ya da `supabase/config.toml` değişince, ya da elle (yalnızca `main`'den) | `test` ortamında koşar. `supabase db push` ile test projesine migration uygular ve bütün Edge Function'ları dağıtır. Seed uygulanmaz |
+| `deploy-db-pilot` | `release`'te aynı yollar değişince, ya da elle (yalnızca `release`'ten) | `pilot` ortamında koşar; aynısını pilot projesine yapar. Seed hiçbir zaman uygulanmaz. Önce ödeme, kayıt ve demo kilitlerini denetler (aşağıda, Ödeme ve Demo turu) |
+| `deploy-db-demo` | `main`'de aynı yollar değişince, ya da elle (yalnızca `main`'den) | `demo` ortamında koşar; aynısını demo projesine yapar. Önce demo projesinin kilitlerini denetler (aşağıda, Demo turu). Demo projesi açılana kadar iş akışı GitHub'da devre dışıdır |
+| `demo-data` | Yalnızca elle (`workflow_dispatch`, yalnızca `main`'den) | `test` ya da `demo` ortamında koşar. Demo turu verisini test ya da demo projesine yükler, açar ya da kapatır (aşağıda, Demo turu) |
+| `keepalive` | Haftada iki kez | Ücretsiz Supabase projelerinin (test, pilot) duraklatılmaması için küçük bir istek. Test adresi yoksa ya da yanıt gelmezse (`000`) başarısız olur |
 
 **Dakika bütçesi:** Private repoda ayda 2.000 dakika ücretsiz. İş akışları sadece ilgili klasör değişince koşar. Firmware araç zinciri ve Flutter önbelleğe alınır.
 
-## GitHub secret'ları
+## GitHub secret'ları ve ortamları
 
-`gh secret set <AD>` ile ayarlanır; komut değeri gizli olarak sorar.
+Bir projenin veritabanına dokunan her iş, o projenin **GitHub Environment**'ında koşar ve secret'larını yalnızca oradan okur. Repo düzeyinde veritabanı secret'ı kalmaz; böylece bir daldaki iş akışı ya da başka bir daldan `workflow_dispatch` bu secret'lara ulaşamaz. İşler ayrıca kendi dalına bağlıdır (`if: github.ref == ...`).
 
-| Secret | Nereden | Kullanan |
-| --- | --- | --- |
-| `SUPABASE_ACCESS_TOKEN` | supabase.com → Account → Access Tokens | `deploy-db` |
-| `SUPABASE_DB_PASSWORD` | Proje oluşturulurken belirlenen veritabanı parolası | `deploy-db` |
-| `SUPABASE_PROJECT_REF` | Proje ayarları → General → Project ID | `deploy-db` |
-| `SUPABASE_URL` | Proje ayarları → API → Project URL | `keepalive` |
-| `SUPABASE_ANON_KEY` | Proje ayarları → API → anon / publishable key | `keepalive` |
+| Ortam | Dağıtım dalı kuralı | Zorunlu onaylayıcı | İşler | Secret'lar |
+| --- | --- | --- | --- | --- |
+| `test` | Yalnızca `main` | İsteğe bağlı (açılırsa her `deploy-db` bir onay bekler) | `deploy-db`, `demo-data` (`project=test`) | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` |
+| `demo` | Yalnızca `main` | Evet (her `deploy-db-demo` ve `demo-data` bir onay bekler) | `deploy-db-demo`, `demo-data` (`project=demo`) | `SUPABASE_ACCESS_TOKEN`, `DEMO_SUPABASE_PROJECT_REF`, `DEMO_SUPABASE_DB_PASSWORD`, `DEMO_SUPABASE_URL`, `DEMO_SUPABASE_ANON_KEY` |
+| `pilot` | Yalnızca `release` | Evet | `deploy-db-pilot` | `SUPABASE_ACCESS_TOKEN`, `PILOT_SUPABASE_PROJECT_REF`, `PILOT_SUPABASE_DB_PASSWORD` |
 
-**Pilot projesi** aynı adların `PILOT_` önekli karşılıklarını kullanır: `PILOT_SUPABASE_PROJECT_REF`, `PILOT_SUPABASE_DB_PASSWORD`, `PILOT_SUPABASE_URL`, `PILOT_SUPABASE_ANON_KEY`. `SUPABASE_ACCESS_TOKEN` ikisinde ortak (`deploy-db-pilot`, `keepalive`).
+**Eksik secret işi başarısız kılar;** uyarıyla atlanıp yeşil bitmez. Tek istisna kurulmadan önceki test projesidir ve açıkça seçilir: repo değişkeni `SUPABASE_TEST_PENDING=1` (`gh variable set SUPABASE_TEST_PENDING --body 1`) varken `deploy-db` ve `keepalive`'ın test isteği uyarıyla atlanır. Henüz açılmamış bir demo ya da pilot projesinin iş akışı devre dışı bırakılır (`gh workflow disable deploy-db-demo`), proje açılınca yeniden açılır (`gh workflow enable deploy-db-demo`).
 
-**Demo projesi** (İP13) `DEMO_` önekini kullanır: `DEMO_SUPABASE_PROJECT_REF`, `DEMO_SUPABASE_DB_PASSWORD`, `DEMO_SUPABASE_URL`, `DEMO_SUPABASE_ANON_KEY` (`deploy-db-demo`, `demo-data`). Erişim token'ı yine ortaktır.
+**Repo düzeyinde kalanlar** yalnızca herkese açık değerlerdir: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (`keepalive`, `ci-field`'ın APK derlemesi), `PILOT_SUPABASE_URL`, `PILOT_SUPABASE_ANON_KEY` (`keepalive`). anon anahtarı zaten her web derlemesinde bulunur. Zamanlanmış `keepalive` bu yüzden onay beklemez. `test` ortamındaki `SUPABASE_URL`/`SUPABASE_ANON_KEY` aynı değerlerin kopyasıdır (`demo-data` için).
+
+| Secret | Nereden |
+| --- | --- |
+| `SUPABASE_ACCESS_TOKEN` | supabase.com → Account → Access Tokens (üç ortamda aynı token) |
+| `*_SUPABASE_DB_PASSWORD` | Proje oluşturulurken belirlenen veritabanı parolası |
+| `*_SUPABASE_PROJECT_REF` | Proje ayarları → General → Project ID |
+| `*_SUPABASE_URL` | Proje ayarları → API → Project URL |
+| `*_SUPABASE_ANON_KEY` | Proje ayarları → API → anon / publishable key |
+
+Test projesi öneksiz adları, pilot `PILOT_`, demo (İP13) `DEMO_` önekini kullanır. Ortam secret'ı `gh secret set <AD> --env <ortam>` ile, repo secret'ı `gh secret set <AD>` ile ayarlanır; komut değeri gizli olarak sorar.
+
+**Geçiş (insan eylemi, bir kez):**
+1. GitHub → Settings → Environments: `test`, `demo`, `pilot` ortamlarını yukarıdaki dal kurallarıyla (Deployment branches → Selected branches) ve onaylayıcılarla açmak.
+2. Secret'ları tablodaki ortamlara girmek (`gh secret set SUPABASE_DB_PASSWORD --env test` vb.).
+3. Repo düzeyindeki veritabanı secret'larını silmek: `gh secret delete SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`, `PILOT_SUPABASE_DB_PASSWORD`, `PILOT_SUPABASE_PROJECT_REF` ve bütün `DEMO_*`. Herkese açık dört değer (yukarıda) repo düzeyinde kalır.
+4. Demo projesi henüz yoksa: `gh workflow disable deploy-db-demo`.
+5. `deploy-db`'yi `main`'de, `deploy-db-pilot`'u `release`'te elle çalıştırıp yeşil bittiğini görmek.
 
 ## Vercel
 
@@ -201,6 +216,7 @@ Tasarım: [demo-turu.md](demo-turu.md) §3.4, §4, §7, §11–§16. Bahçe sahi
 
 - **Supabase:** `orchados-demo`, AB bölgesi. Yalnızca sentetik demo org'u; seed uygulanmaz, veri `demo-data` ile gelir. Gerçek müşteri verisi hiçbir zaman buraya girmez (`deploy-db-demo` denetler).
 - **Vercel:** `orchados-demo` projesi; aynı repo, üretim dalı `main`, kök dizin `apps/web`. Adres `demo.<alan adı>` (DNS'te CNAME, Vercel → Domains). Supabase Auth'ta Site URL ve yönlendirme adresleri demo alan adıdır.
+- **Önizleme yok:** Pilot gibi demo projesi de başka dallar için önizleme derlemez. Vercel → Settings → Git → Ignored Build Step: `[ "$VERCEL_ENV" != production ]` komutu (çıkış kodu 0 derlemeyi atlar), ya da önizleme dağıtımları kapatılır. Aşağıdaki değişkenlerin hepsi yalnızca **Production** kapsamına girilir; birleşmemiş kod herkese açık demo veritabanına, `SIGNUP_PROXY_SECRET` ile ve henüz uygulanmamış bir şemayla hiç bağlanmaz.
 
 | Değişken | Demo (`orchados-demo`) | Not |
 | --- | --- | --- |
@@ -248,31 +264,31 @@ select vault.create_secret('<ORCHADOS_CRON_SECRET ile aynı değer>', 'orchados_
 
 ### İş akışları
 
-**`deploy-db-demo`:** `main`'de `supabase/migrations/`, `supabase/functions/`, `supabase/config.toml`, iş akışının kendisi ya da `scripts/demo-guard-check.sh` değişince, ya da elle çalışır. `SUPABASE_ACCESS_TOKEN`, `DEMO_SUPABASE_DB_PASSWORD` ya da `DEMO_SUPABASE_PROJECT_REF` yoksa uyarıyla atlanır; o zaman demo projesi eski şemada kalır. Adımlar:
+**`deploy-db-demo`:** `main`'de `supabase/migrations/`, `supabase/functions/`, `supabase/config.toml`, iş akışının kendisi ya da `scripts/demo-guard-check.sh` değişince, ya da elle (yalnızca `main`'den) çalışır. `demo` ortamında koşar (yukarıda, GitHub secret'ları ve ortamları). `SUPABASE_ACCESS_TOKEN`, `DEMO_SUPABASE_DB_PASSWORD` ya da `DEMO_SUPABASE_PROJECT_REF` yoksa **başarısız olur**; demo projesi açılana kadar iş akışı devre dışı bırakılır. Adımlar:
 1. `supabase link`.
 2. **Demo kilitleri** (Management API; secret listesi yalnızca adları verir, sorgu salt okunur). Şu durumlarda başarısız olur:
     - `private.demo_org`'a kayıtlı olmayan bir org var (demo projesinde gerçek veri olmaz);
-    - açık (`enabled`) bir demo org'u var ama `TURNSTILE_SECRET_KEY`, `ORCHADOS_DEMO_MODE`, `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET`, `ORCHADOS_CRON_SECRET` secret'larından biri ya da Vault `demo_cleanup_url` eksik;
+    - açık (`enabled`) bir demo org'u var ama `TURNSTILE_SECRET_KEY`, `ORCHADOS_DEMO_MODE`, `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET`, `ORCHADOS_CRON_SECRET` secret'larından biri ya da Vault `demo_cleanup_url` veya `orchados_cron_secret` eksik (ikisi olmadan `demo-cleanup` süresi dolan ziyaretçi hesaplarını sessizce hiç silmez);
     - bir org'da `accepts_signups` ya da `allow_fake_payments` açık;
     - `PAYMENT_FAKE_ALLOWED` secret'ı tanımlı.
 3. `supabase db push --include-all`.
-4. **Demo koruması denetimi** (`scripts/demo-guard-check.sh`): `private.attach_demo_guards()` eksik kalmış `zz_demo_read_only` tetikleyicilerini yeniden takar (uyarı yazar), `private.demo_guard_drift()` bir sapma bulursa iş başarısız olur. Sebep: `--include-all` geç birleşen, eski zaman damgalı bir migration'ı İP13-A migration'larından sonra uygular. Düzeltme yeni bir migration'la yapılır. Aynı denetim `deploy-db` ve `deploy-db-pilot`'ta da `db push`'tan sonra çalışır.
+4. **Demo koruması denetimi** (`scripts/demo-guard-check.sh`): `private.attach_demo_guards()` eksik kalmış `zz_demo_read_only` tetikleyicilerini yeniden takar (uyarı yazar), `private.demo_guard_drift()` bir sapma bulursa iş başarısız olur. Sebep: `--include-all` geç birleşen, eski zaman damgalı bir migration'ı İP13-A migration'larından sonra uygular. `db push` yarıda başarısız olsa da çalışır (her migration dosyası ayrı işlemde uygulanır; başarısızlıktan önce uygulananların tabloları da korumayı almalı). Düzeltme yeni bir migration'la yapılır; zaman damgası mevcut en yeni migration'dan sonra gelir (CLAUDE.md; CI `scripts/check-migration-order.sh` ile denetler). Aynı denetim `deploy-db` ve `deploy-db-pilot`'ta da `db push`'tan sonra çalışır.
 5. Bütün Edge Function'ların dağıtımı (`demo-start` dahil).
 
 **`demo-data`:** Yalnızca elle (`workflow_dispatch`); eşzamanlılık grubu `demo-data-<project>`. Girdiler:
 
 | Girdi | Değerler | Not |
 | --- | --- | --- |
-| `project` | `test` \| `demo` | Pilot seçeneği yoktur. Her proje yalnızca kendi secret'larını kullanır; eksik bir `DEMO_` secret'ı test projesine düşmez, iş uyarıyla atlanır |
+| `project` | `test` \| `demo` | Pilot seçeneği yoktur. Her proje yalnızca kendi ortamının secret'larını kullanır; eksik bir `DEMO_` secret'ı test projesine düşmez, iş başarısız olur |
 | `action` | `load` (varsayılan) \| `enable` \| `disable` | Önce `load`, doğrulama geçince ayrı bir çalıştırmayla `enable`. `enable`/`disable` yalnızca kayıt anahtarını değiştirir, derleme yapmaz |
 | `dry_run` | `false` (varsayılan) | `load`: SQL çalışır ve geri alınır, hiçbir şey yazılmaz |
 | `reuse_build_run_id` | Boş ya da önceki bir çalıştırmanın kimliği | `load`: o çalıştırmanın `demo-build-full` artefaktını kullanır (yarım kalmış yüklemeyi aynı baytlarla tamamlamak için). Yalnızca bu iş akışının `main` üzerinde elle başlatılmış bir çalıştırması kabul edilir |
 
-**Koruma:** İş yalnızca `main`'den çalışır ve projenin adını taşıyan GitHub Environment'ında koşar (`environment: test` ya da `demo`). Bu iki ortam GitHub'da elle açılır: zorunlu onaylayıcı ve yalnızca `main`'e izin veren dağıtım dalı kuralı. İş akışının secret'ları ortam secret'ı olarak oraya taşınır; ortam secret'ı aynı adlı repo secret'ını geçersiz kılar. Secret'lar yalnızca onlara ihtiyaç duyan adımlara verilir.
+**Koruma:** İş yalnızca `main`'den çalışır ve projenin adını taşıyan GitHub Environment'ında koşar (`environment: test` ya da `demo`), `deploy-db` ve `deploy-db-demo` ile aynı ortamlarda (yukarıda, GitHub secret'ları ve ortamları). Projenin veritabanı secret'ları yalnızca o ortamdadır; repo düzeyinde kopyası kalmaz. Secret'lar yalnızca onlara ihtiyaç duyan adımlara verilir.
 
 `load` adımları: `supabase link`, oturum havuzu adresi (5432; GitHub runner'larında IPv6 yok), `uv sync --locked`, `orchados-pipeline demo build --profile full` ya da artefaktın indirilmesi, 150 MB boyut sınırı, artefaktın yüklenmesi (30 gün), `orchados-pipeline demo load --target remote --profile full --verify` (demo projesinde ayrıca `--demo-only`: başka bir org varsa reddedilir). SQL veritabanı parolasıyla psql üzerinden, medya Storage API'sine demo org'unun operasyon kişisiyle (o çalıştırmaya özel geçici parola) gider; servis anahtarı kullanılmaz. Özet (satır sayıları, dosyalar) iş özetine yazılır.
 
-GitHub secret'ları: test için var olanlar (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`); demo için `DEMO_SUPABASE_PROJECT_REF`, `DEMO_SUPABASE_DB_PASSWORD`, `DEMO_SUPABASE_URL`, `DEMO_SUPABASE_ANON_KEY`.
+GitHub secret'ları: `test` ortamında `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`; `demo` ortamında `SUPABASE_ACCESS_TOKEN`, `DEMO_SUPABASE_PROJECT_REF`, `DEMO_SUPABASE_DB_PASSWORD`, `DEMO_SUPABASE_URL`, `DEMO_SUPABASE_ANON_KEY`.
 
 ### Pilot denetimleri
 
@@ -301,15 +317,15 @@ Plan değişince (ör. demo projesi Pro'ya geçerse) süre de değişir; gizlili
 
 ### Yayına alma sırası
 
-1. **Birleştirme:** Bütün anahtarlar kapalı. Migration'lar ve fonksiyonlar test (`deploy-db`), pilot (`deploy-db-pilot`, `release` ile) ve demo (`deploy-db-demo`; secret'lar yoksa atlanır) projelerine gider. Hiçbir projede `ORCHADOS_DEMO_MODE` yoktur, başlatma `demo_closed` döner.
+1. **Birleştirme:** Bütün anahtarlar kapalı. Migration'lar ve fonksiyonlar test (`deploy-db`), pilot (`deploy-db-pilot`, `release` ile) ve demo (`deploy-db-demo`; demo projesi açılana kadar iş akışı devre dışı) projelerine gider. Önce GitHub ortamları ve secret geçişi (yukarıda, GitHub secret'ları ve ortamları). Hiçbir projede `ORCHADOS_DEMO_MODE` yoktur, başlatma `demo_closed` döner.
 2. **Test projesi (kısa, ekip içi duman testi):**
     1. Auth onayları açılır (yukarıda).
-    2. Edge `ORCHADOS_DEMO_MODE=dev`; Vault `demo_cleanup_url` (ve `orchados_cron_secret`).
+    2. Edge `ORCHADOS_DEMO_MODE=dev`; Vault `demo_cleanup_url` ve `orchados_cron_secret` (ikisi de gerekli; biri yoksa süresi dolan hesaplar silinmez).
     3. `demo-data`: `project=test action=load`, sonra `action=enable`.
     4. Vercel `orchados` projesinde yalnızca duman süresince `ORCHADOS_DEMO_ENABLED=1`.
     5. Duman listesi (aşağıda).
     6. Bitince `action=disable`, bayrak kaldırılır, `ORCHADOS_DEMO_MODE` silinir.
-3. **Demo projesi:** Supabase `orchados-demo` açılır; GitHub'a `DEMO_` secret'ları girilir, `deploy-db-demo` elle çalıştırılır. Auth (kayıt ve anonim giriş kapalı, üç onay açık, Site URL demo alan adı), Edge secret'ları, Vault, harcama tavanı ve %80 uyarısı. `demo-data`: `project=demo action=load`, sonra `action=enable`. Vercel `orchados-demo` ve DNS. Duman listesi demo adresinde tekrarlanır.
+3. **Demo projesi:** Supabase `orchados-demo` açılır; `DEMO_` secret'ları `demo` ortamına girilir, `gh workflow enable deploy-db-demo` ve `deploy-db-demo` elle çalıştırılır. Auth (kayıt ve anonim giriş kapalı, üç onay açık, Site URL demo alan adı), Edge secret'ları, Vault (`demo_cleanup_url`, `orchados_cron_secret`), harcama tavanı ve %80 uyarısı. `demo-data`: `project=demo action=load`, sonra `action=enable`; ardından `deploy-db-demo` bir kez daha elle çalıştırılır (açık demo için kilitler). Vercel `orchados-demo` (önizlemeler kapalı, değişkenler yalnızca Production) ve DNS. Duman listesi demo adresinde tekrarlanır.
 4. **Pilot sitesi:** İP12 sitesi herkese açılınca `orchados-pilot`'a `ORCHADOS_DEMO_URL`.
 
 **Duman listesi** (test projesinde ve demo adresinde, elle):

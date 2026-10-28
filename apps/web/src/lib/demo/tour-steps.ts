@@ -41,7 +41,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     "ziyaret",
     (ctx) =>
       ctx.previous_session_id ? parcel(ctx, `?ziyaret=${ctx.previous_session_id}`) : parcel(ctx),
-    ["visit-select", "report-summary"],
+    ["visit-select", "parcel-map"],
   ),
   step("envanter", (ctx) => parcel(ctx, "/envanter"), ["inventory-report"]),
   step("pdf", (ctx) => parcel(ctx), ["report-pdf"]),

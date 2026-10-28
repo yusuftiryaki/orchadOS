@@ -3,6 +3,7 @@ import type { MapLayer } from "@/components/portal/health-map";
 import { ParcelReportView } from "@/components/portal/parcel-report";
 import { requireSection } from "@/lib/auth/session";
 import { MARKER_ORDER, type MarkerState } from "@/lib/map/tree-style";
+import { DEMO_PDF_LIMIT } from "@/lib/pdf/serve";
 import { loadBoundaryCard } from "@/lib/portal/boundary";
 import { getParcelReport } from "@/lib/portal/data";
 import { listThreads } from "@/lib/portal/questions";
@@ -11,7 +12,8 @@ import { createClient } from "@/lib/supabase/server";
 
 // ?sinif=problem,dead opens the map filtered to those classes;
 // ?bulgu=<id> selects a finding on the map; ?ziyaret=<visit> shows one visit,
-// ?degisen=1 only the trees that changed, ?katman=isi,kapsama the layers.
+// ?degisen=1 only the trees that changed, ?katman=isi,kapsama the layers;
+// ?hata=demo_pdf_limit after a demo session's PDF cap (servePdf).
 export default async function Page({
   params,
   searchParams,
@@ -26,6 +28,7 @@ export default async function Page({
     ziyaret?: string | string[];
     degisen?: string | string[];
     katman?: string | string[];
+    hata?: string | string[];
   }>;
 }) {
   const user = await requireSection("portal");
@@ -59,6 +62,7 @@ export default async function Page({
       }}
       viewers={{ data: viewers, outcome: first(query.hissedar) }}
       demo={user.demo}
+      pdfLimit={user.demo && first(query.hata) === DEMO_PDF_LIMIT}
     />
   );
 }

@@ -332,9 +332,9 @@ Aday, ücretli bir sahibin gördüğü portalı sentetik verilerle dener. Ekranl
 
 1. **Giriş.** Sitedeki "Demoyu dene" (landing, üst menü, `/giris`) `demo.<alan adı>/demo`'ya gider. Sayfa ne görüleceğini ve hangi teknik verinin tutulduğunu anlatır (kişisel veri istenmez; IP'nin takma adlandırılmış özeti 48 saat).
 2. **Başlatma.** Turnstile doğrulamasından sonra "Demoyu başlat". Ziyaretçiye 3 saatlik geçici bir demo hesabı açılır ve sahip portalına girilir: iki örnek bahçe, "Örnek Bahçe – Kuzey" ve "Örnek Bahçe – Dere".
-3. **Bant.** Her sayfanın üstünde: "Örnek bahçe · veriler ve görüntüler sentetik, konum temsilî · oturum HH:MM'ye kadar" ve üç düğme:
+3. **Bant.** Her sayfanın üstünde: "Örnek bahçe · veriler ve görüntüler sentetik, konum temsilî · oturum bitişi HH:MM" ve üç düğme:
     - "Turu başlat": rehberli turu açar.
-    - "Gerçek hesap aç": demodan çıkarıp asıl sitenin kayıt sayfasına götürür.
+    - "Gerçek hesap aç": demodan çıkarıp asıl sitenin kayıt sayfasına götürür (kayıt kapalı bir dağıtımda "Bize ulaşın" ve iletişim sayfası; turun kapanış kartı da aynı etiketi taşır).
     - "Demodan çık": oturumu kapatır.
 4. **Rehberli tur (10 adım).** Ekranları sırayla gezdirir; "Geri / İleri / Turu kapat", Esc ve ok tuşları çalışır:
     1. Bahçeler
@@ -343,10 +343,11 @@ Aday, ücretli bir sahibin gördüğü portalı sentetik verilerle dener. Ekranl
     4. Karne: sağlık puanı ve boyutlar
     5. Bulgular ve uzman önerileri
     6. Ağaç karnesi: fotoğraf kanıtı ve hash doğrulaması
-    7. Ziyaret seçimi: bir yıl önceki ziyaret
+    7. Ziyaret seçimi: harita bir yıl önceki ziyareti gösterir (karne son ziyareti özetler)
     8. Envanter raporu
     9. PDF
     10. Kapanış: "Gerçek hesap aç", "Paketleri gör"
+Oturum sınırları: PDF sınırı dolunca (30) PDF düğmesi sayfaya "PDF sınırına ulaşıldı" notuyla döner; görüntü sınırı dolunca (600) gezi gri yer tutucuyu ve bir not gösterir.
 5. **Bitiş.** Süre dolunca ya da "Demodan çık"tan sonra ziyaretçi `/demo?bitti=1`'e döner; hesap kısa süre sonra silinir. Yeniden başlatmak serbesttir (IP başına saatlik sınır var).
 
 **Demoda kapalı olanlar** (formların yerinde "Demoda kapalı" notu görünür; okuma görünümü aynıdır):

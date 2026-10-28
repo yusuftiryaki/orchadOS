@@ -310,7 +310,7 @@ Anahtar eksikse rehberli tur o adımı atlar.
 | `demo_billing_forbidden` | 23514 | `org_billing_setting`, `demo_org` | Demo org'unda kayıt ya da ödeme ayarı açılamaz |
 | `captcha_failed`, `invalid_input`, `failed`, `unauthorized` | 400 / 400 / 500 / 401 | Edge | |
 
-`demo_hit` hata vermez, `false` döner. Web bu durumda PDF rotasında 429 döner; görüntü eşlemede boş sonuç ve bir not gösterir.
+`demo_hit` hata vermez, `false` döner. Web bu durumda PDF rotasından bağlantının bulunduğu sayfaya `303` ile `?hata=demo_pdf_limit` döner ve sayfa `closed.pdfLimit` notunu gösterir (PDF düğmesi düz bir bağlantıdır; çıplak bir 429 ziyaretçiyi açıklamasız bir hata sayfasına götürürdü). Görüntü eşleme boş sonuçla birlikte `capped` bayrağını döner; gezi görüntüleyicinin üstünde `closed.images` notunu gösterir.
 
 ### 5.4 Cron
 
@@ -650,7 +650,7 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
 ### 10.2 Adımlar
 
 1. **Derleme:** Önbellekte yoksa derlenir. Manifestin kanonik JSON'unun SHA-256'sı `dataset_sha256` olur.
-    - `--build` ile verilen klasör (ör. indirilmiş artefakt) önbellekteki gibi denetlenir: sürüm bilinen bir tam sayı, profil istenen profil, `generator_hash` bu kodunki, `dataset_sha256` manifestin kendisiyle tutarlı, her dosya var ve baytları adındaki hash'e eşit. Biri tutmazsa hiçbir şey yazılmadan durulur.
+    - `--build` ile verilen klasör (ör. indirilmiş artefakt) önbellekteki gibi denetlenir: sürüm bilinen bir tam sayı, profil istenen profil, `generator_hash` bu kodunki (bütün `orchados_pipeline` kaynağı ve `PipelineParams` varsayılanları; yalnızca `demo/` değil, çünkü derleme çekirdek hattı kullanır ve yükleyici çıktıyı `upload` ile okur), `dataset_sha256` manifestin kendisiyle tutarlı, her dosya var ve baytları adındaki hash'e eşit. Biri tutmazsa hiçbir şey yazılmadan durulur.
     - Kayıt satırına manifestteki sürüm değil, kodun `DATASET_VERSION`'ı yazılır.
 2. **Ön kontrol (sürüme göre):**
     - Sürüm v kayıtlı, `loaded_at` dolu ve doğrulama geçiyorsa: "zaten yüklü" yazılır ve çıkış kodu 0'dır. Baytlar karşılaştırılmaz.
@@ -707,11 +707,13 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
 - `reuse_build_run_id`: isteğe bağlı; önceki bir çalıştırmanın derleme artefaktı. Yalnızca bu iş akışının, bu repoda `main` üzerinde `workflow_dispatch` ile başlatılmış bir çalıştırması kabul edilir; başka bir çalıştırmanın (dal, PR) artefaktı reddedilir.
 
 Koruma:
-- İş yalnızca `main`'den çalışır ve projenin adını taşıyan GitHub Environment'ında koşar (`environment: ${{ inputs.project }}`). `test` ve `demo` ortamları zorunlu onaylayıcılarla ve yalnızca `main`'e izin veren dağıtım dalı kuralıyla elle oluşturulur; bu iş akışının secret'ları oraya taşınır (ortam secret'ı aynı adlı repo secret'ını geçersiz kılar).
+- İş yalnızca `main`'den çalışır ve projenin adını taşıyan GitHub Environment'ında koşar (`environment: ${{ inputs.project }}`).
+- Tek model: bir projenin veritabanı secret'larına dokunan **her** iş o projenin ortamında koşar: `deploy-db` ve `demo-data project=test` → `test`, `deploy-db-demo` ve `demo-data project=demo` → `demo`, `deploy-db-pilot` → `pilot`. `test` ve `demo` ortamlarında dağıtım dalı kuralı yalnızca `main`, `pilot`'ta yalnızca `release`'tir; `demo` ve `pilot`'ta zorunlu onaylayıcı vardır. Secret'lar bu ortamlara taşınır ve repo düzeyindeki kopyaları silinir; repo düzeyinde yalnızca herkese açık adres ve anon anahtarları kalır (`keepalive`, `ci-field`). Ayrıntı ve geçiş adımları: deployment.md › GitHub secret'ları ve ortamları.
+- Eksik secret işi başarısız kılar, atlanıp yeşil bitmez. Tek istisna kurulmadan önceki test projesidir ve açıkça seçilir (repo değişkeni `SUPABASE_TEST_PENDING=1`; `demo-data` için bile geçerli değildir).
 - Secret'lar yalnızca onlara ihtiyaç duyan adımlara verilir (denetim, `supabase link`, yükleme ve komut adımları); kurulum adımları ve üçüncü taraf eylemler görmez.
 
 Adımlar:
-1. Secret'ların varlığı denetlenir.
+1. Secret'ların varlığı denetlenir; eksikse iş başarısız olur.
 2. `supabase link` yapılır ve havuz adresi kurulur.
 3. `load` için:
     1. `uv sync --locked`
@@ -723,8 +725,8 @@ Adımlar:
 5. Özet `$GITHUB_STEP_SUMMARY`'ye yazılır: satır sayıları, dosyalar, MB.
 
 Secret'lar:
-- `test` için var olanlar: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
-- `demo` için yeni olanlar: `DEMO_SUPABASE_PROJECT_REF`, `DEMO_SUPABASE_DB_PASSWORD`, `DEMO_SUPABASE_URL`, `DEMO_SUPABASE_ANON_KEY`. Erişim token'ı ortaktır.
+- `test` ortamında: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
+- `demo` ortamında: `SUPABASE_ACCESS_TOKEN`, `DEMO_SUPABASE_PROJECT_REF`, `DEMO_SUPABASE_DB_PASSWORD`, `DEMO_SUPABASE_URL`, `DEMO_SUPABASE_ANON_KEY`. Erişim token'ı her ortama ayrı girilir (aynı değer).
 
 Eşzamanlılık grubu `demo-data-<project>`'tir.
 
@@ -810,7 +812,7 @@ Gerçek bir bahçe demo parseli olarak doğrudan **kaydedilmez**. Kaydedilseydi 
 - **`app/portal/layout.tsx`:** Yalnızca kabuğu seçer. `user.demo` ise `SectionShell` ve `PortalNav` yerine `components/demo/demo-shell.tsx` çizilir.
 - **Kabuk:** Marka, "Bahçelerim (örnek)" ve bant bulunur. E-posta ve avatar gösterilmez.
 - **Bant (`demo-banner`):**
-    - Metin: "Örnek bahçe · veriler ve görüntüler sentetik, konum temsilî · oturum HH:MM'ye kadar".
+    - Metin: "Örnek bahçe · veriler ve görüntüler sentetik, konum temsilî · oturum bitişi HH:MM". Saatten sonra ek yoktur: Türkçe yönelme eki saatin okunuşuna göre değişir (15:30'a, 18:00'e, 16:00'ya).
     - Düğmeler: "Turu başlat", "Gerçek hesap aç" (`demo-signup`), "Demodan çık" (`demo-exit`).
     - "Gerçek hesap aç" önce demodan çıkarır. Sonra demo sunucusunda asıl sitenin `/kayit`'ına, aksi halde kayıt açıksa `/kayit`'a, kapalıysa `/iletisim`'e gider.
     - Görünüm: `--color-info-soft`; sticky; z-index 55; 16 px kenar boşluğu; mobilde tek satır. Yazdırmada da görünür (`.noPrint` değil).
@@ -838,10 +840,10 @@ Gerçek bir bahçe demo parseli olarak doğrudan **kaydedilmez**. Kaydedilseydi 
 | 4 | `karne` | `/portal/parsel/{A}` | `health-score`, `dimensions` |
 | 5 | `bulgular` | `/portal/parsel/{A}` | `findings` (uzman açıklaması ve önerisi) |
 | 6 | `agac` | `/portal/parsel/{A}/agac/{tree}` | `tree-card`, `photo-evidence`, `hash-check` |
-| 7 | `ziyaret` | `/portal/parsel/{A}?ziyaret={previous_session}` | `visit-select`, `report-summary` |
+| 7 | `ziyaret` | `/portal/parsel/{A}?ziyaret={previous_session}` | `visit-select`, `parcel-map` (yalnızca harita seçilen ziyareti izler; karne son ziyareti gösterir) |
 | 8 | `envanter` | `/portal/parsel/{A}/envanter` | `inventory-report` |
 | 9 | `pdf` | `/portal/parsel/{A}` | `report-pdf` |
-| 10 | `son` | Herhangi bir sayfa | Kapanış kartı: "Gerçek hesap aç", "Paketleri gör" |
+| 10 | `son` | Herhangi bir sayfa | Kapanış kartı: "Gerçek hesap aç" (bantla aynı kural: hedef `/iletisim` ise "Bize ulaşın"), "Paketleri gör" |
 
 Yeni test kimlikleri:
 - `demo-banner`, `demo-start`, `demo-exit`, `demo-signup`, `demo-notice`
@@ -867,7 +869,7 @@ Görüntü durumu için `tour-viewer` öğesinde zaten bulunan nitelikler kullan
 - **Önbellek:**
     - Next veri önbelleği (`unstable_cache`) kullanılır. Anahtar: tür, parsel, son yayımlanmış oturum, veri sürümü. Örnekler arasında paylaşılır.
     - Önbelleğe yalnızca rapor kullanıcının RLS'iyle okunduktan sonra ve parsel `demo_info().parcels` içindeyse bakılır ve yazılır.
-    - Her istek `demo_hit('pdf')` sayacını artırır; sınırda 429 döner.
+    - Her istek `demo_hit('pdf')` sayacını artırır; sınırda bağlantının sayfasına `?hata=demo_pdf_limit` ile döner (§5.3).
     - `Cache-Control: private, max-age=600`.
     - Gerçek kullanıcının PDF'leri değişmez (`no-store`, önbellek yok).
 - **Medya:**
@@ -1003,11 +1005,11 @@ Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırınd
     - Migration'lar ve Edge Function'lar üç projeye gider:
         - test projesine `deploy-db` ile
         - pilot projesine `deploy-db-pilot` ile, elle
-        - demo projesine `deploy-db-demo` ile; secret'lar yoksa atlanır
+        - demo projesine `deploy-db-demo` ile; demo projesi açılana kadar iş akışı GitHub'da devre dışıdır (secret'lar eksikse iş başarısız olur, atlanmaz)
     - Hiçbir projede `ORCHADOS_DEMO_MODE` yoktur, bu yüzden başlatma `demo_closed` döner.
 2. **Test projesi (kısa, ekip içi duman testi):**
     1. Auth'ta "Confirm phone", "Confirm email" ve "Secure email change" açılır (deployment.md).
-    2. Edge secret `ORCHADOS_DEMO_MODE=dev` ve Vault `demo_cleanup_url` eklenir.
+    2. Edge secret `ORCHADOS_DEMO_MODE=dev`, Vault `demo_cleanup_url` ve `orchados_cron_secret` eklenir (biri yoksa süresi dolan hesaplar silinmez).
     3. `demo-data` çalıştırılır: önce `project=test action=load`, sonra `action=enable`.
     4. Vercel test projesinde `ORCHADOS_DEMO_ENABLED=1` yapılır, yalnızca duman süresince.
     5. Duman listesi:
@@ -1021,7 +1023,7 @@ Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırınd
         - 3 saat sonra `private.demo_session` boşalmıştır.
     6. Bitince `action=disable` çalıştırılır, bayrak kapatılır ve `ORCHADOS_DEMO_MODE` kaldırılır.
 3. **Demo projesi:**
-    1. Supabase projesi `orchados-demo` (AB bölgesi) açılır. GitHub'a `DEMO_` secret'ları girilir ve `deploy-db-demo` çalıştırılır.
+    1. Supabase projesi `orchados-demo` (AB bölgesi) açılır. `DEMO_` secret'ları ve `SUPABASE_ACCESS_TOKEN` GitHub `demo` ortamına girilir (§10.4), `gh workflow enable deploy-db-demo` ile iş akışı açılır ve `deploy-db-demo` çalıştırılır.
     2. Auth ayarlanır:
         - dışarıdan kayıt ve anonim giriş kapalı
         - "Confirm phone", "Confirm email", "Secure email change" açık
@@ -1036,7 +1038,7 @@ Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırınd
         - `ORCHADOS_DEMO_ENABLED=1`
         - `ORCHADOS_MAIN_SITE_URL`, `ORCHADOS_SITE_URL`
 
-       Dağıtım indekslenmez. DNS'te `demo.<alan adı>` tanımlanır.
+       Değişkenler yalnızca **Production** kapsamına girilir. Önizleme derlemeleri kapatılır (Vercel → Settings → Git → Ignored Build Step: `[ "$VERCEL_ENV" != production ]`); birleşmemiş dal kodu herkese açık demo veritabanına bağlanmaz. Dağıtım indekslenmez. DNS'te `demo.<alan adı>` tanımlanır.
     7. Yukarıdaki duman listesi demo adresinde tekrarlanır.
 4. **Pilot sitesi:**
     - İP12 sitesi herkese açıldığında Vercel pilot projesine `ORCHADOS_DEMO_URL` eklenir.
@@ -1055,7 +1057,8 @@ Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırınd
 
 | Kim | Ne |
 | --- | --- |
-| Yusuf | Demo projesi: Supabase ve Vercel projelerini açmak; GitHub `DEMO_` secret'ları; DNS `demo.<alan adı>`; Edge secret'ları; Vault; Auth ayarları; harcama tavanı ve kullanım uyarısı |
+| Yusuf | GitHub Environment'ları `test`, `demo`, `pilot` (dal kuralları, onaylayıcılar), secret'ların ortamlara taşınması ve repo düzeyindeki veritabanı secret'larının silinmesi; demo projesi açılana kadar `gh workflow disable deploy-db-demo` (deployment.md › GitHub secret'ları ve ortamları) |
+| Yusuf | Demo projesi: Supabase ve Vercel projelerini açmak (Vercel'de önizlemeler kapalı, değişkenler yalnızca Production); `demo` ortamına `DEMO_` secret'ları; DNS `demo.<alan adı>`; Edge secret'ları; Vault (`demo_cleanup_url`, `orchados_cron_secret`); Auth ayarları; harcama tavanı ve kullanım uyarısı |
 | Yusuf | Test, demo ve pilot projelerinde Auth onaylarını açmak (Confirm phone, Confirm email, Secure email change) |
 | Yusuf | Demo alan adı için canlı Turnstile anahtarları |
 | Yusuf | Ziyaretçi alan adı barındırılan GoTrue'da reddedilirse null MX kayıtlı bir alt alan adı ve `visitor_email_domain` güncellemesi |
@@ -1145,7 +1148,7 @@ Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırınd
 - **Yeni yazma yolları:**
     - Portala eklenecek her yazma yolu tetikleyiciyle kendiliğinden korunur. Yeni tabloları ve yan etkili fonksiyonları pgTAP `43_demo_write_guard` yakalar.
     - Servis rolüyle yazan yeni bir Edge yolunu pgTAP göremez. Bu kural CLAUDE.md'de yazılıdır.
-- **Üç proje:** Migration'lar üç projeye gider. `deploy-db-demo` `main`'e her birleşmede çalışır; secret'lar eksikse uyarıyla atlanır ve demo eski şemada kalır.
+- **Üç proje:** Migration'lar üç projeye gider. `deploy-db-demo` `main`'e her birleşmede `demo` ortamında çalışır; secret'lar eksikse başarısız olur. `db push` yarıda kalsa da demo koruması denetimi çalışır.
 - **Harita altlığı:** OSM tile sunucusu yoğun ve ticari trafiğe uygun değildir. Bir harita sağlayıcısı seçimi insan kararıdır (§16).
 - **Temizlik:**
     - Hesapları silen cron Vault'a bağlıdır. Vault eksikse hesaplar silinmez.

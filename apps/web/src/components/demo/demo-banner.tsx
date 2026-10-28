@@ -2,7 +2,7 @@
 
 import { exitDemoAction } from "@/app/(site)/demo/actions";
 import type { DemoTour } from "@/lib/demo/info";
-import { demoText } from "@/lib/i18n/messages/demo";
+import { demoSignupLabel, demoText } from "@/lib/i18n/messages/demo";
 import { TourStartButton } from "./guided-tour";
 import styles from "./demo.module.css";
 
@@ -42,7 +42,7 @@ export function DemoBanner({
               className={`${styles.bannerButton} ${styles.bannerPrimary}`}
               data-testid="demo-signup"
             >
-              {signupNext === "/iletisim" ? B.contact : B.signup}
+              {demoSignupLabel(signupNext)}
             </button>
           </form>
           <form action={exitDemoAction}>

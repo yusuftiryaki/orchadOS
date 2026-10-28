@@ -10,6 +10,7 @@ on:
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/ci-db-web.yml"
+      - "scripts/check-migration-order.sh"
   push:
     branches: [main]
     paths:
@@ -20,6 +21,7 @@ on:
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/ci-db-web.yml"
+      - "scripts/check-migration-order.sh"
 
 concurrency:
   group: ci-db-web-${{ github.ref }}
@@ -45,6 +47,17 @@ jobs:
             echo "::error::supabase/testing/ is local only; a migration must not create it"
             exit 1
           fi
+
+      # New migrations sort after the newest one on the base branch (CLAUDE.md):
+      # `supabase migration new` can stamp a date before already merged,
+      # future-dated migrations, whose functions it would then run without.
+      - name: New migrations sort after the base branch's
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          scripts/check-migration-order.sh FETCH_HEAD
 
       - uses: pnpm/action-setup@v4
 
@@ -94,7 +107,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: services/pipeline/.demo-build
-          key: demo-build-${{ hashFiles('services/pipeline/src/orchados_pipeline/demo/**', 'services/pipeline/uv.lock') }}
+          key: demo-build-${{ hashFiles('services/pipeline/src/**', 'services/pipeline/uv.lock') }}
 
       - name: Cache the office tool's synthetic panoramas
         uses: actions/cache@v4

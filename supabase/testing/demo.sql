@@ -98,11 +98,34 @@ as $$
   select private.demo_housekeeping();
 $$;
 
+-- Uses up the image signing and PDF caps of these users' demo sessions, so the
+-- next demo_hit() returns false.
+create or replace function testing.exhaust_demo_caps(p_user_ids uuid[])
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  n bigint;
+begin
+  update private.demo_session s
+  set sign_calls = d.max_sign_calls,
+      pdf_renders = d.max_pdf_renders
+  from private.demo_org d
+  where d.org_id = s.org_id and s.user_id = any(p_user_ids);
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
 revoke all on function testing.register_demo_org(uuid, uuid[], boolean, jsonb) from public;
+revoke all on function testing.exhaust_demo_caps(uuid[]) from public;
 revoke all on function testing.age_demo_sessions(uuid[], integer) from public;
 revoke all on function testing.purge_demo_attempts() from public;
 revoke all on function testing.run_demo_housekeeping() from public;
 grant execute on function
   testing.register_demo_org(uuid, uuid[], boolean, jsonb), testing.age_demo_sessions(uuid[], integer),
-  testing.purge_demo_attempts(), testing.run_demo_housekeeping()
+  testing.purge_demo_attempts(), testing.run_demo_housekeeping(),
+  testing.exhaust_demo_caps(uuid[])
   to service_role;

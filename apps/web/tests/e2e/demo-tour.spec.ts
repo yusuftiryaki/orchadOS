@@ -1,6 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import { ageDemoSessions, purgeDemoAttempts, runDemoHousekeeping } from "../local-db";
+import {
+  ageDemoSessions,
+  exhaustDemoCaps,
+  purgeDemoAttempts,
+  runDemoHousekeeping,
+} from "../local-db";
 import { resolveSupabaseEnv } from "../local-supabase";
 import { DEMO_TOUR_READY } from "./global-setup";
 
@@ -69,7 +74,7 @@ const STEPS: [string, string[]][] = [
   ["karne", ["health-score", "dimensions"]],
   ["bulgular", ["findings"]],
   ["agac", ["tree-card", "photo-evidence", "hash-check"]],
-  ["ziyaret", ["visit-select", "report-summary"]],
+  ["ziyaret", ["visit-select", "parcel-map"]],
   ["envanter", ["inventory-report"]],
   ["pdf", ["report-pdf"]],
   ["son", ["demo-banner"]],
@@ -157,7 +162,7 @@ test("a visitor starts the demo from the landing page and takes the guided tour"
   await page.getByTestId("tour-next").click();
 
   // 7 ziyaret: the 2025 visit
-  await expectStep(page, "ziyaret", 7, ["visit-select", "report-summary"]);
+  await expectStep(page, "ziyaret", 7, ["visit-select", "parcel-map"]);
   await expect(page).toHaveURL(new RegExp(`${REPORT}\\?ziyaret=[0-9a-f-]{36}&tur=ziyaret$`));
   await page.getByTestId("tour-next").click();
 
@@ -213,6 +218,20 @@ test("a visitor starts the demo from the landing page and takes the guided tour"
   // Billing pages send a visitor back to the gardens.
   await page.goto("/portal/basvuru");
   await expect(page).toHaveURL("/portal");
+
+  // Over the session's caps (demo_hit false): the PDF link goes back to its
+  // page with a notice, and the tour shows the placeholder with a notice.
+  await exhaustDemoCaps([await newestVisitor()]);
+  const capped = await pdf(page.request, `${REPORT}/rapor.pdf`);
+  expect(capped.res.status()).toBe(303);
+  expect(capped.res.headers()["location"]).toBe(`${REPORT}?hata=demo_pdf_limit`);
+  await page.goto(`${REPORT}/envanter/rapor.pdf`);
+  await expect(page).toHaveURL(`${REPORT}/envanter?hata=demo_pdf_limit`);
+  await expect(page.getByTestId("demo-notice")).toContainText("PDF sınırına ulaşıldı");
+  await expect(page.getByTestId("demo-banner")).toBeVisible();
+  await page.goto(`${REPORT}/gezi`);
+  await expect(page.getByTestId("demo-notice")).toContainText("görüntü sınırına ulaşıldı");
+  await expect(page.getByTestId("tour-viewer")).toHaveAttribute("data-image", "placeholder");
 
   // Expiry: past its end and after housekeeping, the PDF route and the pages
   // end the session (never a 403).

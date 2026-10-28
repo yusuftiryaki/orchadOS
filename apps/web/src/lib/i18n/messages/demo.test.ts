@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TOUR_STEPS } from "@/lib/demo/tour-steps";
 import { isPublicPath } from "@/lib/site/public-paths";
-import { demoText } from "./demo";
+import { demoSignupLabel, demoText } from "./demo";
 
 describe("demo messages", () => {
   it("explains every start error", () => {
@@ -20,7 +20,7 @@ describe("demo messages", () => {
 
   it("says the data is synthetic and the IP digest is pseudonymised", () => {
     expect(demoText.banner.text("12:30")).toBe(
-      "Örnek bahçe · veriler ve görüntüler sentetik, konum temsilî · oturum 12:30'ye kadar",
+      "Örnek bahçe · veriler ve görüntüler sentetik, konum temsilî · oturum bitişi 12:30",
     );
     const start = [...demoText.start.data, ...demoText.start.privacy].join("\n");
     expect(start).toContain("sentetik");
@@ -29,6 +29,19 @@ describe("demo messages", () => {
     expect(start).toContain("Cloudflare");
     expect(start).toContain("3 saat");
     expect(start).not.toMatch(/geri döndürülemez|irreversible/i);
+  });
+
+  it("shows the session end without a case suffix", () => {
+    // 15:30'a, 18:00'e, 16:00'ya: a fixed suffix is wrong for most times.
+    for (const until of ["15:30", "18:00", "16:00", "14:45"]) {
+      expect(demoText.banner.text(until)).toMatch(new RegExp(`${until}$`));
+      expect(demoText.banner.short(until)).toMatch(new RegExp(`${until}$`));
+    }
+  });
+
+  it("labels the banner's and the closing card's sign-up the same way", () => {
+    expect(demoSignupLabel("/kayit")).toBe("Gerçek hesap aç");
+    expect(demoSignupLabel("/iletisim")).toBe("Bize ulaşın");
   });
 
   it("keeps the PDF marker ASCII and links only to public pages", () => {
