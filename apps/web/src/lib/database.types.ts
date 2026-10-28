@@ -5380,9 +5380,32 @@ export type Database = {
       phone_login_record_failure: { Args: { p_phone: string }; Returns: number };
       pipeline_rescan_request: { Args: { p_session_id: string }; Returns: Json };
       portal_acknowledge_kvkk_notice: { Args: { p_text_version: string }; Returns: number };
+      portal_closeups: {
+        Args: { p_session_ids: string[]; p_tree_id?: string };
+        Returns: {
+          captured_by: string;
+          content_hash: string;
+          id: string;
+          session_id: string;
+          tree_id: string;
+          uri: string;
+        }[];
+      };
       portal_file_kvkk_request: { Args: { p_message: string; p_type: string }; Returns: string };
       portal_kvkk_form_enabled: { Args: Record<PropertyKey, never>; Returns: boolean };
       portal_notice_status: { Args: Record<PropertyKey, never>; Returns: Json };
+      portal_panorama_frames: {
+        Args: { p_session_ids: string[] };
+        Returns: {
+          full_asset_id: string;
+          full_uri: string;
+          heading_deg: number;
+          preview_asset_id: string;
+          preview_uri: string;
+          session_id: string;
+          viewpoint: Json;
+        }[];
+      };
       price_preview: {
         Args: { p_areas_m2: number[]; p_first_year?: boolean; p_package_id: string };
         Returns: {

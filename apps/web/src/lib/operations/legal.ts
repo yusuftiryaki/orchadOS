@@ -15,6 +15,7 @@ export type LegalError =
   | "not_hidden"
   | "dispute_open"
   | "no_open_dispute"
+  | "demo_mirror_public"
   | "failed";
 
 const KNOWN: LegalError[] = [
@@ -26,6 +27,7 @@ const KNOWN: LegalError[] = [
   "not_hidden",
   "dispute_open",
   "no_open_dispute",
+  "demo_mirror_public",
 ];
 
 export type LegalResult = { ok: true } | { ok: false; error: LegalError };

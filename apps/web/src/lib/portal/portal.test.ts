@@ -20,7 +20,6 @@ import {
   neighbourPanoramas,
   normalize180,
   offsetM,
-  pairPanoramaVariants,
   pitchTowards,
   treeMarkers,
   yawInPanorama,
@@ -430,33 +429,5 @@ describe("tour geometry", () => {
     expect(markers.map((m) => m.tree.id)).toEqual(["near", "right"]);
     expect(markers[0].yawDeg).toBeCloseTo(-90, 3);
     expect(markers[1].yawDeg).toBeCloseTo(0, 3);
-  });
-
-  it("pairs full and preview variants", () => {
-    const panos = pairPanoramaVariants([
-      {
-        id: "f1",
-        position: at(0, 0),
-        pose: { heading_deg: 75, gps_time_ns: "1", variant: "full" },
-      },
-      {
-        id: "p1",
-        position: at(0, 0),
-        pose: { heading_deg: 75, gps_time_ns: "1", variant: "preview" },
-      },
-      {
-        id: "p2",
-        position: at(8, 0),
-        pose: { heading_deg: 255, gps_time_ns: "2", variant: "preview" },
-      },
-      { id: "f3", position: at(16, 0), pose: { heading_deg: -10 } },
-      { id: "x", position: at(24, 0), pose: null },
-    ]);
-    expect(panos).toEqual([
-      { id: "f1", position: at(0, 0), headingDeg: 75, fullAssetId: "f1", previewAssetId: "p1" },
-      { id: "p2", position: at(8, 0), headingDeg: 255, fullAssetId: null, previewAssetId: "p2" },
-      { id: "f3", position: at(16, 0), headingDeg: 350, fullAssetId: "f3", previewAssetId: null },
-      { id: "x", position: at(24, 0), headingDeg: 0, fullAssetId: "x", previewAssetId: null },
-    ]);
   });
 });

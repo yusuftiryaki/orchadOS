@@ -8,6 +8,7 @@ import {
 import { fetchAll } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
 import { visitApprover, type Approver } from "./approver";
+import { panoramaFrames } from "./panorama-frames";
 
 // Inventory report for the owner (docs/metodoloji.md section 9, "Envanter
 // raporu"; contents from the expert agent's proposal of 27 October 2026,
@@ -367,13 +368,9 @@ export async function loadInventoryReport(
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      supabase
-        .from("asset")
-        .select("id", { count: "exact", head: true })
-        .eq("session_id", session.id)
-        .eq("kind", "panorama"),
+      panoramaFrames(supabase, [session.id]),
     ]);
-    for (const r of [dead, cov, pano]) if (r.error) throw r.error;
+    for (const r of [dead, cov]) if (r.error) throw r.error;
     measurements = rows.map((r) => ({
       treeId: r.tree_id!,
       code: r.metric_definition.code,
@@ -385,7 +382,7 @@ export async function loadInventoryReport(
     coverage = cov.data
       ? { ratio: cov.data.ratio ?? 0, threshold: cov.data.threshold, passed: !!cov.data.passed }
       : null;
-    panoramas = pano.count ?? 0;
+    panoramas = pano.length;
   }
 
   const newest = ws.boundaries[0] ?? null;

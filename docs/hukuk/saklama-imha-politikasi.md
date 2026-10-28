@@ -71,7 +71,7 @@ Bu politika, Şirket'in işlediği kişisel verilerin ne kadar saklanacağını,
 | İş | Ne siler | Süre | Sıklık |
 | --- | --- | --- | --- |
 | `notification-purge` | Bildirim kayıtları (`public.notification`) ve varsa gönderim kuyruğundaki satırları | 12 ay | Her gün |
-| `auth-session-purge` | Giriş sisteminin sona ermiş oturumları (`auth.sessions`; IP ve tarayıcı bilgisi). Süresi dolmuş ya da 30 gündür yenilenmemiş oturum sona ermiş sayılır; çıkış yapınca oturum zaten silinir | Sona erdikten sonra 30 gün | Her gün |
+| `auth-session-purge` | Giriş sisteminin sona ermiş oturumları (`auth.sessions`; IP ve tarayıcı bilgisi). Süresi dolmuş oturum (`not_after`) sona ermiş sayılır; boşta kalan oturum silinmez, kullanıcının oturumu kapanmaz. Çıkış yapınca oturum zaten silinir | Sona erdikten sonra 30 gün | Her gün |
 | `auth-audit-log-purge` | Giriş sisteminin denetim kayıtları (`auth.audit_log_entries`; IP adresi). Bütün projelerde; ortak test projesindeki demo hesaplarını da kapsar | 30 gün | Her gün |
 | `signup-housekeeping` | Tamamlanmamış kayıtlar (24 saat), kayıt denemesi özetleri (2 gün) | 24 saat / 2 gün | Saatte bir |
 | `signup-cleanup` | Telefonu doğrulanmamış hesaplar (Auth, Edge Function üzerinden) | 24 saat | Saatte bir |

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { categoryLabel, formatDate, formatDateTime, formatNumber, t } from "@/lib/i18n";
+import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
 import { MARKER_COLORS } from "@/lib/map/tree-style";
 import type { PhotoItem, TreeCard, TreeMetricHistory } from "@/lib/portal/data";
 import { formatPosition } from "@/lib/portal/evidence";
@@ -357,7 +357,7 @@ function Evidence({ photo }: { photo: PhotoItem }) {
       <summary>{e.title}</summary>
       <dl className={styles.facts}>
         <dt>{e.takenAt}</dt>
-        <dd>{photo.takenAt ? formatDateTime(photo.takenAt) : e.unknown}</dd>
+        <dd>{photo.visitTime ? formatDate(photo.visitTime) : e.unknown}</dd>
         <dt>{e.position}</dt>
         <dd>{formatPosition(photo.position) ?? e.unknown}</dd>
         <dt>{e.takenBy}</dt>

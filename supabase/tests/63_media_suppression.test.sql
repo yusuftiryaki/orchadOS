@@ -23,6 +23,16 @@ $$;
 create function pg_temp.obj(p text) returns text language sql immutable
 as $$ select 'org/b0000000-0000-4000-8000-000000000001/parcel/c0000000-0000-4000-8000-000000000001/'
              || encode(sha256(p::bytea), 'hex') $$;
+-- What a parcel reader sees of the visit: crop and photo rows, panoramas as
+-- viewpoints (T23: portal_panorama_frames).
+create function pg_temp.reader_ids() returns setof uuid language sql
+as $$
+  select id from public.asset where session_id = '63000000-0000-4000-8000-000000000001'
+  union
+  select x from public.portal_panorama_frames(array['63000000-0000-4000-8000-000000000001']::uuid[]) f,
+         unnest(array[f.full_asset_id, f.preview_asset_id]) x
+  where x is not null
+$$;
 grant execute on all functions in schema pg_temp to authenticated;
 
 insert into public.session (id, org_id, parcel_id, kind, status, started_at)
@@ -52,7 +62,7 @@ select ok(not has_table_privilege('authenticated', 'private.media_suppression', 
 
 set local role authenticated;
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
-select is((select count(*)::int from public.asset where session_id = '63000000-0000-4000-8000-000000000001'), 4,
+select is((select count(*)::int from pg_temp.reader_ids()), 4,
   'before hiding the owner sees the four assets');
 
 -- Who may hide
@@ -79,14 +89,14 @@ select is((select count(*)::int from public.ops_media_suppressions(null, '630000
 
 -- Owners, viewers, experts
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
-select set_eq($$ select id from public.asset where session_id = '63000000-0000-4000-8000-000000000001' $$,
+select set_eq($$ select * from pg_temp.reader_ids() $$,
   array['63000000-0000-4000-8000-000000000014'::uuid], 'the owner loses the frame''s both variants and its crop');
-select is_empty($$ select id from public.capture where id = '63000000-0000-4000-8000-000000000021' $$,
+select is_empty($$ select id from public.portal_closeups(array['63000000-0000-4000-8000-000000000001']::uuid[]) $$,
   'and the hidden close-up');
 select is_empty(format($$ select name from storage.objects where name in (%L, %L) $$, pg_temp.obj('a63-11'), pg_temp.obj('c63-21')),
   'their files cannot be signed');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000002');
-select is((select count(*)::int from public.asset where session_id = '63000000-0000-4000-8000-000000000001'), 1,
+select is((select count(*)::int from pg_temp.reader_ids()), 1,
   'the viewer sees only the other frame');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000004');
 select is((select count(*)::int from public.asset where session_id = '63000000-0000-4000-8000-000000000001'), 1,
@@ -102,13 +112,13 @@ select lives_ok($$ select public.ops_unhide_media('63000000-0000-4000-8000-00000
 select is(pg_temp.error_of($$ select public.ops_unhide_media('63000000-0000-4000-8000-000000000011') $$),
   'P0001 not_hidden', 'lifting twice is refused');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
-select is((select count(*)::int from public.asset where session_id = '63000000-0000-4000-8000-000000000001'), 4,
+select is((select count(*)::int from pg_temp.reader_ids()), 4,
   'the owner sees the frame again');
 
 reset role;
 select is((select count(*)::int from private.media_suppression where target_id = '63000000-0000-4000-8000-000000000011'), 2,
   'both records stay');
-select throws_ok($$ delete from private.media_suppression $$, '42501', null, 'records cannot be deleted');
+select throws_ok($$ delete from private.media_suppression $$, 'P0001', null, 'records cannot be deleted');
 select is((select count(*)::int from public.audit_event where action like 'media_suppression.%' and details::text like '%Ali%'), 0,
   'the audit rows do not carry the note');
 

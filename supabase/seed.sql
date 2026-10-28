@@ -59,10 +59,10 @@ insert into public.membership (org_id, user_id, role) values
 
 -- Staff display names and titles (T23, H05: the report names the approving
 -- expert). The field staff member has no title: ops sees the warning.
-insert into private.staff_profile (user_id, full_name, title) values
-  ('a0000000-0000-4000-8000-000000000003', 'Örnek Saha Personeli', null),
-  ('a0000000-0000-4000-8000-000000000004', 'Örnek Uzman', 'Ziraat Mühendisi'),
-  ('a0000000-0000-4000-8000-000000000005', 'Örnek Operasyon', 'Operasyon Sorumlusu');
+insert into private.staff_profile (org_id, user_id, full_name, title) values
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 'Örnek Saha Personeli', null),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000004', 'Örnek Uzman', 'Ziraat Mühendisi'),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000005', 'Örnek Operasyon', 'Operasyon Sorumlusu');
 
 -- ---------------------------------------------------------------------------
 -- Parcel geometry helper: parcel-local metres -> WGS84.
@@ -311,11 +311,9 @@ insert into public.org_billing_setting (
   -- gate is inactive here (allow_fake_payments); marketing_consent_enabled
   -- stays false (T27).
   'orchados@hs01.kep.example', 'orchados.example',
-  -- Legal follow-ups wave 2 (T15, T11): on locally so tests exercise them;
-  -- off on hosted projects until switched on in SQL. T16's boundary
-  -- declaration stays off here: the pipeline's chain test approves a boundary
-  -- without it; the tests that need it switch it on themselves.
-  true, false, true
+  -- Legal follow-ups wave 2 (T15, T16, T11): on locally so tests exercise
+  -- them; off on hosted projects until switched on in SQL.
+  true, true, true
 );
 
 -- Launch price list (docs/fiyatlandirma.md, decided 28 October 2026). The

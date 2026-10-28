@@ -2,8 +2,8 @@ import type { Position } from "@/lib/map/geo";
 
 // Panorama asset rows (docs/arayuzler.md, "Asset `pose` alanı"): the full
 // resolution image and its preview are separate rows, pose.variant = full |
-// preview (missing means full). Shared by the owner portal's tour and the
-// office tool's storage source.
+// preview (missing means full). Used by the office tool's storage source; the
+// owner portal gets frames already paired (portal_panorama_frames, H05).
 
 export type PanoramaAssetVariant = "full" | "preview";
 

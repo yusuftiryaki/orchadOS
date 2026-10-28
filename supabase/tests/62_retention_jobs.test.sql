@@ -39,7 +39,8 @@ select set_eq($$ select id from public.notification where id::text like '6200000
 select is((select count(*)::int from private.message_outbox where notification_id::text like '62000000%'), 1,
   'the old one''s outbox row is gone, the newer one''s stays');
 
--- Auth sessions: expired long ago, idle 40 days, active.
+-- Auth sessions: ended 45 days ago, idle 40 days (not ended: stays, T09),
+-- active, ended 10 days ago.
 insert into auth.sessions (id, user_id, created_at, updated_at, not_after, refreshed_at) values
   ('62000000-0000-4000-8000-000000000021', 'a0000000-0000-4000-8000-000000000001',
    now() - interval '90 days', now() - interval '90 days', now() - interval '45 days', null),
@@ -49,10 +50,11 @@ insert into auth.sessions (id, user_id, created_at, updated_at, not_after, refre
    now() - interval '60 days', now() - interval '2 days', null, (now() - interval '2 days') at time zone 'UTC'),
   ('62000000-0000-4000-8000-000000000024', 'a0000000-0000-4000-8000-000000000001',
    now() - interval '20 days', now() - interval '20 days', now() - interval '10 days', null);
-select is(private.purge_auth_sessions(), 2, 'two sessions ended more than 30 days ago');
+select is(private.purge_auth_sessions(), 1, 'one session ended more than 30 days ago');
 select set_eq($$ select id from auth.sessions where id::text like '62000000%' $$,
-  array['62000000-0000-4000-8000-000000000023'::uuid, '62000000-0000-4000-8000-000000000024'::uuid],
-  'an active session and one ended 10 days ago stay');
+  array['62000000-0000-4000-8000-000000000022'::uuid, '62000000-0000-4000-8000-000000000023'::uuid,
+        '62000000-0000-4000-8000-000000000024'::uuid],
+  'an idle session, an active one and one ended 10 days ago stay');
 
 -- Auth audit log: 31 and 29 days.
 insert into auth.audit_log_entries (instance_id, id, payload, created_at, ip_address) values

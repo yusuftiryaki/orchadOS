@@ -1298,7 +1298,7 @@ export const tr = {
       timeline: "Sınıf zaman çizelgesi",
       evidence: {
         title: "Kanıt bilgisi",
-        takenAt: "Çekim",
+        takenAt: "Çekim günü",
         position: "Konum",
         takenBy: "Çeken",
         staff: (code: string) => `Saha personeli #${code}`,
@@ -1803,6 +1803,8 @@ export const tr = {
       not_hidden: "Bu görüntü gizli değil.",
       dispute_open: "Bu bahçede zaten açık bir sınır itirazı var.",
       no_open_dispute: "Bu bahçede açık bir sınır itirazı yok.",
+      demo_mirror_public:
+        "Bu demo görüntüsünün herkese açık kopyası (demo-media) duruyor. Önce o kopyayı kaldırın, sonra gizleyin.",
       failed: "İşlem tamamlanamadı. Tekrar deneyin.",
     } as Record<string, string>,
     staff: {
@@ -1906,6 +1908,7 @@ export const tr = {
         overdue: "Süresi geçti",
         status: "Durum",
         save: "Kaydet",
+        final: "Sonuçlandı; durum artık değişmez (başvuru defteri kaydı).",
       },
     },
     media: {

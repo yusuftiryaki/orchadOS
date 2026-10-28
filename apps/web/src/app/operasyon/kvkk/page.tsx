@@ -80,20 +80,26 @@ export default async function Page({
                     )}
                   </td>
                   <td>
-                    <form action={setKvkkStatusAction} className={styles.inline}>
-                      <input type="hidden" name="id" value={r.id} />
-                      <input type="hidden" name="org_id" value={org!.id} />
-                      <select name="status" defaultValue={r.status} aria-label={O.status}>
-                        {KVKK_STATUSES.map((s) => (
-                          <option key={s} value={s}>
-                            {T.status[s]}
-                          </option>
-                        ))}
-                      </select>
-                      <button className="button button-secondary" type="submit">
-                        {O.save}
-                      </button>
-                    </form>
+                    {r.settledAt ? (
+                      <span data-testid="kvkk-final" title={O.final}>
+                        {T.status[r.status]}
+                      </span>
+                    ) : (
+                      <form action={setKvkkStatusAction} className={styles.inline}>
+                        <input type="hidden" name="id" value={r.id} />
+                        <input type="hidden" name="org_id" value={org!.id} />
+                        <select name="status" defaultValue={r.status} aria-label={O.status}>
+                          {KVKK_STATUSES.map((s) => (
+                            <option key={s} value={s}>
+                              {T.status[s]}
+                            </option>
+                          ))}
+                        </select>
+                        <button className="button button-secondary" type="submit">
+                          {O.save}
+                        </button>
+                      </form>
+                    )}
                   </td>
                 </tr>
               ))}
