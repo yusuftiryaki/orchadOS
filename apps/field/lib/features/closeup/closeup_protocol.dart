@@ -139,6 +139,7 @@ class CloseupProtocol {
     required this.shots,
     required this.questions,
     this.extra,
+    this.parcelQuestions = const [],
   });
 
   /// Stored as `method_version` on every measurement.
@@ -148,6 +149,11 @@ class CloseupProtocol {
 
   /// Block the crew may open for one tree; null when the season has none.
   final OptionalBlock? extra;
+
+  /// Questions about the whole parcel, answered once per visit on the
+  /// close-up list (methodology v0.2). A seen answer is a staff measurement
+  /// without a tree (subject parcel).
+  final List<YesNoQuestion> parcelQuestions;
 
   /// Shots to take with [extra] open or closed.
   List<ShotSpec> shotsWith({required bool extraOpen}) => [
@@ -169,7 +175,7 @@ class CloseupProtocol {
   };
 
   static const winter = CloseupProtocol(
-    version: 'winter-v0.1',
+    version: 'winter-v0.2',
     shots: [
       _crown,
       ShotSpec(
@@ -222,7 +228,8 @@ class CloseupProtocol {
       label: 'Bu ağaç kuru görünüyor',
       detail:
           'Farklı yönlerden kalem kalınlığında üç dal seç. Her dalda '
-          'tomurcuğa bak, dalı bük, kabuğu tırnağınla 1 cm kazı.',
+          'tomurcuğa bak, dalı bük, kabuğu tırnağınla 1 cm kazı. Dolgun ya '
+          'da kabaran tomurcuk dalın canlı olduğunu gösterir.',
       shots: [
         ShotSpec(
           code: 'K4_1',
@@ -244,9 +251,13 @@ class CloseupProtocol {
         ),
       ],
       questions: [
+        // winter-v0.2: asked the positive way (winter-v0.1 asked
+        // `dead_test_no_buds`, "... hiçbirinde dolgun tomurcuk yok mu?").
         YesNoQuestion(
-          metricCode: 'dead_test_no_buds',
-          text: 'Baktığın üç dal ucunun hiçbirinde dolgun tomurcuk yok mu?',
+          metricCode: 'dead_test_live_bud',
+          text:
+              'Baktığın üç dal ucundan herhangi birinde dolgun ya da kabaran '
+              'tomurcuk var mı?',
         ),
         YesNoQuestion(
           metricCode: 'dead_test_snaps',
@@ -304,7 +315,7 @@ class CloseupProtocol {
   );
 
   static const summer = CloseupProtocol(
-    version: 'summer-v0.1',
+    version: 'summer-v0.2',
     shots: [
       _crown,
       ShotSpec(
@@ -351,6 +362,17 @@ class CloseupProtocol {
       YesNoQuestion(
         metricCode: 'dried_leaves_attached',
         text: 'Dallarda kurumuş, kahverengi yapraklar asılı mı?',
+      ),
+      // summer-v0.2: theft before the harvest (pre-harvest visit, August).
+      YesNoQuestion(
+        metricCode: 'early_emptied_cluster_present',
+        text: 'Dalda erken boşaltılmış salkım sapı var mı?',
+      ),
+    ],
+    parcelQuestions: [
+      YesNoQuestion(
+        metricCode: 'fence_breach_present',
+        text: 'Tel ya da çitte yeni açılmış geçit var mı?',
       ),
     ],
   );

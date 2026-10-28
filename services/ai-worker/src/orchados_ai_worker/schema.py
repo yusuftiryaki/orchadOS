@@ -17,6 +17,8 @@ from .methodology import (
     HEALTH_CLASSES,
     NO_AI_DEAD_IN_SEASON,
     SCALE_TEXTS,
+    V0_2_SEASON_EXTRAS,
+    V0_2_VERSIONS,
     HealthClass,
     Season,
 )
@@ -58,7 +60,9 @@ class MetricDef:
         return (True, False)
 
 
-def season_metrics(registry: list[dict[str, Any]], season: Season) -> list[MetricDef]:
+def season_metrics(
+    registry: list[dict[str, Any]], season: Season, methodology_version: str | None = None
+) -> list[MetricDef]:
     """Metrics of the season the AI is asked about, in prompt order.
 
     registry: metric_definition rows (code, value_type, scale_min, scale_max,
@@ -72,6 +76,8 @@ def season_metrics(registry: list[dict[str, Any]], season: Season) -> list[Metri
         if r is None or season not in r["valid_seasons"] or "tree" not in r["subject_kinds"]:
             continue
         if season in AI_SKIP_IN_SEASON.get(code, ()):
+            continue
+        if methodology_version not in V0_2_VERSIONS and season in V0_2_SEASON_EXTRAS.get(code, ()):
             continue
         if r["value_type"] not in ("scale", "category", "boolean"):
             continue

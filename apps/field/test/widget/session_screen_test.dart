@@ -211,7 +211,7 @@ void main() {
     tester,
   ) async {
     // Tall enough for the whole list: every item stays built.
-    tester.view.physicalSize = const Size(1080, 6000);
+    tester.view.physicalSize = const Size(1080, 8000);
     tester.view.devicePixelRatio = 2.5;
     addTearDown(tester.view.reset);
     final h = TestHarness();

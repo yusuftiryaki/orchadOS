@@ -58,11 +58,16 @@ export function isIsoDate(value: string): boolean {
 }
 
 // The season a scan visit is evaluated in, from its day (docs/metodoloji.md
-// section 2; same calendar as the expert panel). Inventory visits have none.
-export function visitSeason(kind: SessionKind, plannedDate: string | null): Season | null {
+// section 2; same calendar as the expert panel) and its methodology version
+// (a new visit: the current one). Inventory visits have none.
+export function visitSeason(
+  kind: SessionKind,
+  plannedDate: string | null,
+  methodologyVersion: string | null,
+): Season | null {
   if (!plannedDate || !isIsoDate(plannedDate)) return null;
   if (kind !== "periodic_scan" && kind !== "verification") return null;
-  return seasonOf(`${plannedDate}T12:00:00Z`);
+  return seasonOf(`${plannedDate}T12:00:00Z`, methodologyVersion);
 }
 
 // The plan (day, lead, notes) changes and the visit is cancelled only before

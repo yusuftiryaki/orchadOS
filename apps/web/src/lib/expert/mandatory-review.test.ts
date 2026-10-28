@@ -279,3 +279,12 @@ describe("methodology v0.1 review rules", () => {
     ).toEqual(["honeydew_present"]);
   });
 });
+
+describe("methodology v0.2 rules", () => {
+  it("keep the v0.1 review rules", () => {
+    const { methodologyVersion, ...v02 } = reviewRulesFor("methodology-v0.2");
+    const { methodologyVersion: v01Version, ...v01 } = reviewRulesFor("methodology-v0.1");
+    expect([methodologyVersion, v01Version]).toEqual(["methodology-v0.2", "methodology-v0.1"]);
+    expect(v02).toEqual(v01);
+  });
+});

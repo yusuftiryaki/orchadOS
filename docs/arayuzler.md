@@ -269,7 +269,7 @@ AI worker (`services/ai-worker`, `ai-worker run`) işlenmiş bir tarama ziyareti
 
 | Tablo | Alanlar | Kural |
 | --- | --- | --- |
-| `public.session` | `status`, `methodology_version`, zaman | Mevsim oturum zamanından çıkar (`started_at`, yoksa `planned_date`, yoksa `created_at`; ay UTC; Mart ilkbahar, Kasım kış) |
+| `public.session` | `status`, `methodology_version`, zaman | Mevsim oturum zamanından çıkar (`started_at`, yoksa `planned_date`, yoksa `created_at`; ay UTC) ve `methodology_version`'dan: v0.2 kış Kasım–Mart, ilkbahar Nisan–Mayıs, yaz Haziran–Ağustos, hasat Eylül–Ekim; eski sürümler Mart ilkbahar, Ağustos hasat, Kasım kış ([metodoloji.md](metodoloji.md) bölüm 2) |
 | `public.tree` + `slot.code` | `id`, kod | `status = active` |
 | `public.asset` | `kind = tree_crop`, `tree_id`, `uri`, `content_hash`, `pose.direction` | Dosya imzalı adresle indirilir, SHA-256'sı denetlenir. Yön başına en yeni (`produced_at`), sonra en yüksek `quality_score` |
 | `public.measurement` | `source = staff`, `value_boolean` | Personelin evet/hayır cevapları; isteğe sadece metrik kodu ve cevap girer |
@@ -350,7 +350,7 @@ Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce tel
 | `public.tree` + `public.slot` | `tree.id`, `slot.code`, `slot.row_no`, `slot.position_no` | Periyodik ziyarette parselin `status = active` ağaçları |
 | `public.tree_latest_assessment` | `tree_id`, `overall_class` | Yakın plan listesi: Dikkat, Sorunlu, Kuru olanlar + %10 örneklem (metodoloji bölüm 7) |
 
-- **Karar:** Ziyaret satırında mevsim yok; uygulama mevsimi `planned_date`'in ayından çıkarır (Aralık–Şubat kış, Mart–Mayıs ilkbahar, Haziran–Temmuz yaz, Ağustos–Kasım hasat).
+- **Karar:** Ziyaret satırında mevsim yok; uygulama mevsimi `planned_date`'in ayından ve ziyaretin `methodology_version`'ından çıkarır; kural uzman paneli ve AI ile aynı ([metodoloji.md](metodoloji.md) bölüm 2, ortak vektörler `test-vectors/season.json`).
 - **Karar:** Telefondaki oturumun kimliği planlanmış ziyaretin `session.id`'sidir; kaydediciye (`start_session`) ve kök `session.json`'a da o gider. Saha personeli `inventory` / `periodic_scan` ziyareti ekleyemez (operasyon planlar), yalnızca günceller.
 
 **Yazılan (gönderim kuyruğu):**
@@ -370,6 +370,7 @@ Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce tel
 - **Karar (metrikler):** Yakın plan sorularının metrikleri kayıtta yoktu; evet/hayır, ağaç, karnede gizli (`card_visibility = hidden`) olarak eklendi: `dead_branch_present`, `trunk_damage_present`, `root_sucker_present`, `pruned`, `frost_damage_present`, `pest_sign_present`, `fruit_present`, `drought_stress_sign`, `theft_sign_present`. Hasat sorularında kayıtlı `harvest_complete` ve `branch_break` kullanılır. Personel cevabı uzmana kanıttır, karnede gösterilmez.
 - **Hatalar:** Ağ hatası, zaman aşımı, 5xx/429 ve süresi geçmiş giriş geçicidir (kayıt kuyrukta kalır, artan beklemeyle yeniden denenir). Yetki (`42501`), doğrulama (`23xxx`, `22P02`), bilinmeyen ya da iptal edilmiş ziyaret (`visit_not_found`, `visit_cancelled`), kayıtta olmayan metrik (`unknown_metric`) kalıcıdır: kayıt telefonda "başarısız" diye sebebiyle işaretlenir, kuyruk durmaz.
 - **v0.1 soruları ve olaylar:** Yakın plan protokolü `*-v0.1` (metodoloji bölüm 7; metrikler `20261028120000_closeup_protocol_v01`). Bir ağacın "Göremedim" cevapları tek bir `closeup_unseen` olayında: `payload` yer kodu, `data` = `{version, tree_id, slot_code, method_version, metric_codes[], evidence[]}`. Ön kontroldeki ilaçlama onayı `session_start` olayının `data.precheck.spraying` alanında (`none` ya da `waiting_period_passed`). Tarama yöntemi ve ölçülen kamera yüksekliği aynı yerde: `data.precheck.platform` (`walk`, `motorcycle`, `robot`) ve `data.precheck.camera_height_m` (metre, iki ondalık); ikisi ziyaret satırına da yazılır. `methodology_version`'ı telefon göndermez, operasyon belirler.
+- **v0.2 soruları (methodology-v0.2):** Protokoller `winter-v0.2` (kuru testinde `dead_test_live_bud`) ve `summer-v0.2` (`early_emptied_cluster_present`; metrikler `20261103100800_methodology_v02`). **Parsel sorusu** (`fence_breach_present`): yakın plan listesinde ziyarette bir kez sorulur; cevap `tree_id`'siz bir `measurement` satırıdır (konu `parcel`; telefonda `subject_type = parcel`, `subject_id` = parsel kimliği). Parsel sorusunun "Göremedim"i ayrı bir `closeup_unseen` olayıdır: `payload` `parcel`, `data` = `{version, parcel_id, method_version, metric_codes[], evidence: []}` (`tree_id` ve `slot_code` yok). Hasat mevsimindeki taramanın ön kontrolünde hasat cevabı `session_start` olayının `data.precheck.harvest` alanında: `gleaning_done`, `gleaning_ongoing` ya da `no_gleaning` (hasat sürüyorsa cevap yoktur, tarama başlamaz). Ziyaretin mevsimini telefon `session.methodology_version` ile ay'dan çıkarır ([metodoloji.md](metodoloji.md) bölüm 2).
 - **Fotoğraf dosyası** telefondan ancak yükleme, `capture` satırı ve nesnenin varlık kontrolü başarılı olunca silinir.
 - **Açık:** Cevap ile kanıt fotoğrafı arasındaki bağ sunucuda yok (`measurement_evidence` yalnızca `asset`'e bağlanır); ikisi aynı oturum ve ağaçla eşleşir.
 

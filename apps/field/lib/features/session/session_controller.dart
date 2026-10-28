@@ -30,10 +30,26 @@ enum SprayingCheck {
   none('none', 'Son günlerde ilaçlama yapılmadı'),
   waitingPassed(
     'waiting_period_passed',
-    'İlaçlama yapıldı, bekleme süresi geçti',
+    'İlaçlama yapıldı, tekrar giriş süresi geçti',
   );
 
   const SprayingCheck(this.code, this.label);
+  final String code;
+  final String label;
+}
+
+/// Pre-check answer on the harvest, asked on harvest-season scans
+/// (methodology v0.2, docs/metodoloji.md section 2): the crew does not enter
+/// while the harvest is under way, so there is no such answer. Gleaning
+/// (çöpleme: picking up the nuts left on the ground and on the trees) may
+/// still go on; the expert reads leftover clusters and heaps with it.
+/// Recorded on the `session_start` event (`data.precheck.harvest`).
+enum HarvestCheck {
+  gleaningDone('gleaning_done', 'Hasat bitti, çöpleme de bitti'),
+  gleaningOngoing('gleaning_ongoing', 'Hasat bitti, çöpleme sürüyor'),
+  noGleaning('no_gleaning', 'Hasat bitti, çöpleme yapılmayacak');
+
+  const HarvestCheck(this.code, this.label);
   final String code;
   final String label;
 }
@@ -191,6 +207,7 @@ class SessionController extends Notifier<SessionState> {
     _stopTrack();
     _resetRoute();
     _spraying = null;
+    _harvest = null;
     _setup = null;
     _notice = null;
     state = SessionState(task: task);
@@ -418,6 +435,7 @@ class SessionController extends Notifier<SessionState> {
 
   /// Answers of the pre-check that are recorded; go with the next start.
   SprayingCheck? _spraying;
+  HarvestCheck? _harvest;
   ScanSetup? _setup;
   NoticeSign? _notice;
 
@@ -426,8 +444,10 @@ class SessionController extends Notifier<SessionState> {
     required ScanPlatform platform,
     required double cameraHeightM,
     required NoticeSign notice,
+    HarvestCheck? harvest,
   }) {
     _spraying = spraying;
+    _harvest = harvest;
     _setup = ScanSetup(platform: platform, cameraHeightM: cameraHeightM);
     _notice = notice;
   }
@@ -488,10 +508,12 @@ class SessionController extends Notifier<SessionState> {
       cameraHeightM: _setup?.cameraHeightM,
     );
     final spraying = _spraying;
+    final harvest = _harvest;
     final setup = _setup;
     final notice = _notice;
     final precheck = {
       if (spraying != null) 'spraying': spraying.code,
+      if (harvest != null) 'harvest': harvest.code,
       if (setup != null) ...{
         'platform': setup.platform.code,
         'camera_height_m': setup.cameraHeightM,

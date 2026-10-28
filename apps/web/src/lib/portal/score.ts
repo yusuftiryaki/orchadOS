@@ -46,9 +46,16 @@ const METHODOLOGY_V0_1: ScoreRules = {
   unassessedWarning: 0.05,
 };
 
+// methodology-v0.2 changed the visit calendar and the protocol, not the score.
+const METHODOLOGY_V0_2: ScoreRules = {
+  ...METHODOLOGY_V0_1,
+  methodologyVersion: "methodology-v0.2",
+};
+
 export const SCORE_RULES: Record<string, ScoreRules> = {
   [METHODOLOGY_V0.methodologyVersion]: METHODOLOGY_V0,
   [METHODOLOGY_V0_1.methodologyVersion]: METHODOLOGY_V0_1,
+  [METHODOLOGY_V0_2.methodologyVersion]: METHODOLOGY_V0_2,
 };
 export const DEFAULT_SCORE_RULES = METHODOLOGY_V0;
 
@@ -96,22 +103,21 @@ export function scoreCounts<T extends Partial<Record<HealthClass | "unassessed",
 
 // What the score trend compares with: the previous assessed visit, or with
 // `sameSeasonTrend` the visit of the same season 10–14 months earlier
-// (closest to a year). `visits` newest first, the current one included.
-export function trendBase<T extends { id: string; time: string }>(
-  visits: T[],
-  current: T,
-  rules: ScoreRules,
-): T | null {
+// (closest to a year). Each visit's season is read with its own methodology
+// version. `visits` newest first, the current one included.
+export function trendBase<
+  T extends { id: string; time: string; methodologyVersion: string | null },
+>(visits: T[], current: T, rules: ScoreRules): T | null {
   const older = visits.filter(
     (v) => v.id !== current.id && Date.parse(v.time) < Date.parse(current.time),
   );
   if (!rules.sameSeasonTrend) return older[0] ?? null;
   const t = Date.parse(current.time);
   const day = 86_400_000;
-  const season = seasonOf(current.time);
+  const season = seasonOf(current.time, current.methodologyVersion);
   const candidates = older.filter((v) => {
     const d = (t - Date.parse(v.time)) / day;
-    return d >= 300 && d <= 430 && seasonOf(v.time) === season;
+    return d >= 300 && d <= 430 && seasonOf(v.time, v.methodologyVersion) === season;
   });
   candidates.sort(
     (a, b) =>

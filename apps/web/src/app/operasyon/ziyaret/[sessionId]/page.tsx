@@ -35,7 +35,7 @@ export default async function Page({
   const orgs = await opsOrgs(supabase, user.id);
   const staff = await listStaffByUser(supabase, orgs);
   const lead = staff.find((s) => s.userId === visit.lead_user_id);
-  const season = visitSeason(visit.kind, visit.planned_date);
+  const season = visitSeason(visit.kind, visit.planned_date, visit.methodology_version);
   const editable = isPlanEditable(visit.status) && orgs.some((o) => o.id === visit.org_id);
   const closeups =
     visit.kind === "periodic_scan" && visit.status !== "cancelled"
@@ -123,6 +123,7 @@ export default async function Page({
                   plannedDate: visit.planned_date ?? "",
                   leadUserId: visit.lead_user_id,
                   notes: visit.notes,
+                  methodologyVersion: visit.methodology_version,
                 }}
               />
               <form action={cancelVisitAction} className={styles.actions}>

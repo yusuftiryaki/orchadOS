@@ -196,7 +196,9 @@ select set_eq(
         'fresh_cut_present', 'dead_scaffold_present', 'gum_present', 'dead_test_no_buds',
         'dead_test_snaps', 'dead_test_brown_cambium', 'flower_cluster_present', 'pollen_present',
         'shoot_tip_dieback_present', 'honeydew_present', 'sooty_mould_present', 'white_flakes_present',
-        'green_fruit_drop_present', 'debris_under_tree_present', 'dry_weeds_present'],
+        'green_fruit_drop_present', 'debris_under_tree_present', 'dry_weeds_present',
+        -- Close-up protocol of methodology v0.2 (20261103100800_methodology_v02).
+        'dead_test_live_bud', 'early_emptied_cluster_present', 'fence_breach_present'],
   'field question metrics are registered as hidden yes/no metrics');
 select results_eq(
   $$ select count(*) from public.metric_definition

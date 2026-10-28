@@ -361,14 +361,21 @@ describe("visits", () => {
     expect(isIsoDate("2028-02-29")).toBe(true);
   });
 
-  it("season of scan visits from their day; none for inventory", () => {
-    expect(visitSeason("periodic_scan", "2027-01-20")).toBe("winter");
-    expect(visitSeason("verification", "2027-04-10")).toBe("spring");
-    expect(visitSeason("periodic_scan", "2027-07-01")).toBe("summer");
-    expect(visitSeason("periodic_scan", "2026-10-31")).toBe("harvest");
-    expect(visitSeason("periodic_scan", "2026-11-30")).toBe("winter");
-    expect(visitSeason("inventory", "2027-01-20")).toBeNull();
-    expect(visitSeason("periodic_scan", null)).toBeNull();
+  it("season of scan visits from their day and methodology; none for inventory", () => {
+    const v02 = "methodology-v0.2";
+    expect(visitSeason("periodic_scan", "2027-01-20", v02)).toBe("winter");
+    expect(visitSeason("periodic_scan", "2027-03-28", v02)).toBe("winter");
+    expect(visitSeason("verification", "2027-04-10", v02)).toBe("spring");
+    expect(visitSeason("periodic_scan", "2027-07-01", v02)).toBe("summer");
+    expect(visitSeason("periodic_scan", "2027-08-10", v02)).toBe("summer");
+    expect(visitSeason("periodic_scan", "2026-10-31", v02)).toBe("harvest");
+    expect(visitSeason("periodic_scan", "2026-11-30", v02)).toBe("winter");
+    // Visits planned before v0.2 keep their season.
+    expect(visitSeason("periodic_scan", "2027-03-28", "methodology-v0.1")).toBe("spring");
+    expect(visitSeason("periodic_scan", "2027-08-10", "methodology-v0.1")).toBe("harvest");
+    expect(visitSeason("periodic_scan", "2027-08-10", null)).toBe("harvest");
+    expect(visitSeason("inventory", "2027-01-20", v02)).toBeNull();
+    expect(visitSeason("periodic_scan", null, v02)).toBeNull();
   });
 
   it("counts visits by status", () => {
