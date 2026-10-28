@@ -14,6 +14,7 @@ import {
   getSetting,
   membershipOrEmpty,
   ownerParcels,
+  periodItems,
   previewAddonQuote,
   type OrderView,
 } from "@/lib/back-office/data";
@@ -232,8 +233,9 @@ function TermFields({ validDays, discountBp }: { validDays: number; discountBp?:
   );
 }
 
-// The parcels of a renewal (IP14 §4.1 step 8, §12): those in service in the
-// period (base order and its add-ons) checked, those with an open removal
+// The parcels of a renewal (IP14 §4.1 step 8, §12): those in service or
+// starting later in the period (base order and its add-ons; for a period
+// already over, the lines of both) checked, those with an open removal
 // unchecked and labelled, the customer's other owner parcels unchecked; a
 // warning when gardens joined after the open renewal quote; and a later
 // period to merge into.
@@ -248,7 +250,7 @@ async function renewalChoices(supabase: Client, view: OrderView) {
   const leaving = (g: (typeof ofPeriod)[number]) =>
     g.state === "leaving" || g.removal_status === "requested" || g.removal_status === "scheduled";
   let parcels: ParcelChoice[] = ofPeriod
-    .filter((g) => g.state === "in_service" || g.state === "leaving")
+    .filter((g) => g.state === "in_service" || g.state === "leaving" || g.state === "upcoming")
     .map((g) => ({
       id: g.parcel_id,
       name: g.garden_name,
@@ -257,9 +259,11 @@ async function renewalChoices(supabase: Client, view: OrderView) {
       note: leaving(g) ? R.openRemoval(day(g.removal_effective_on)) : undefined,
     }));
   if (parcels.length === 0) {
-    // A period already over: the old order's lines, as before IP14.
-    parcels = view.items
-      .filter((i) => i.parcel_id && !i.removed_on)
+    // A period already over: the lines of the old order and of its add-ons,
+    // one choice per parcel.
+    const items = (await periodItems(supabase, view)).filter((i) => i.parcel_id && !i.removed_on);
+    parcels = items
+      .filter((i, n) => items.findIndex((x) => x.parcel_id === i.parcel_id) === n)
       .map((i) => ({
         id: i.parcel_id!,
         name: i.parcelName ?? i.garden_name,

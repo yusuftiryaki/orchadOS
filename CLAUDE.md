@@ -29,7 +29,7 @@
 - **Medya değiştirilemez:** Dosyalar içerik hash'iyle adreslenir; mevcut bir medya kaydı güncellenmez, yenisi eklenir.
 - **Ölçümler sürümlüdür:** Her ölçüm ve ürün, onu üreten yöntem ya da hat sürümünü taşır. Yeniden işleme eski sonuçları silmez.
 - Gizli bilgiler (`.env`, API anahtarları) repoya girmez.
-- **Migration'lar:** Yeni tablo ekleyen migration `select private.attach_demo_guard('<tablo>')` çağırır; kullanıcıya erişim ya da kimlik veren tablo ayrıca `private.attach_demo_account_guard(...)` çağırır (docs/demo-turu.md §6.1–6.2). Servis rolüyle yazan yeni Edge yolları demo claim'ini reddeder. Yeni migration'ın zaman damgası `supabase/migrations/`'taki en yenisinden (şu an `20261102120400`) **sonra** gelir: `supabase migration new` bugünün tarihini verir ve gelecek tarihli mevcut migration'lardan önce sıralanabilir; o zaman dosya adı elle ileri alınır. CI (`scripts/check-migration-order.sh`) daha eski damgalı yeni migration'ı reddeder.
+- **Migration'lar:** Yeni tablo ekleyen migration `select private.attach_demo_guard('<tablo>')` çağırır; kullanıcıya erişim ya da kimlik veren tablo ayrıca `private.attach_demo_account_guard(...)` çağırır (docs/demo-turu.md §6.1–6.2). Servis rolüyle yazan yeni Edge yolları demo claim'ini reddeder. Yeni migration'ın zaman damgası `supabase/migrations/`'taki en yenisinden (şu an `20261102120500`) **sonra** gelir: `supabase migration new` bugünün tarihini verir ve gelecek tarihli mevcut migration'lardan önce sıralanabilir; o zaman dosya adı elle ileri alınır. CI (`scripts/check-migration-order.sh`) daha eski damgalı yeni migration'ı reddeder.
 
 ## Komutlar
 İş paketleri ilerledikçe buraya eklenecek (her bileşenin build ve test komutu).

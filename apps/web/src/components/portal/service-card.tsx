@@ -35,7 +35,7 @@ export interface ServiceCardData {
 // "Hizmet" on the parcel page (docs/bahce-yonetimi.md §5.1), for the paying
 // owner only (a my_gardens row): the period, the visits, the withdrawal
 // window, and the removal: the form with its three timings, the open request
-// with its undo, or the removed state. Co-owners and demo visitors never get
+// with its undo (the customer's own request only), or the removed state. Co-owners and demo visitors never get
 // it; the page decides.
 export function ServiceCard({
   data,
@@ -92,7 +92,11 @@ function Body({
     return (
       <div data-testid="removal-open">
         <p>
-          <strong>{R.openTitle(garden.removal_number ?? "")}</strong>
+          <strong>
+            {(garden.removal_initiated_by === "customer" ? R.openTitle : R.openTitleOps)(
+              garden.removal_number ?? "",
+            )}
+          </strong>
           {" · "}
           {`${R.status}: ${billingText.gardenRemovalStatus[garden.removal_status!]}`}
         </p>
@@ -101,14 +105,22 @@ function Body({
             {R.effectiveOn(formatDate(garden.removal_effective_on))}
           </p>
         )}
-        <form action={cancelGardenRemovalAction}>
-          <input type="hidden" name="parcel_id" value={parcelId} />
-          <input type="hidden" name="removal_id" value={garden.removal_id!} />
-          <p className="muted">{R.cancelHint}</p>
-          <button className="button button-secondary" type="submit">
-            {R.cancel}
-          </button>
-        </form>
+        {/* Only the customer's own request can be withdrawn; one ops opened
+            (transfer, duplicate, all gardens) is ops' to change (§5.1). */}
+        {garden.removal_initiated_by === "customer" ? (
+          <form action={cancelGardenRemovalAction}>
+            <input type="hidden" name="parcel_id" value={parcelId} />
+            <input type="hidden" name="removal_id" value={garden.removal_id!} />
+            <p className="muted">{R.cancelHint}</p>
+            <button className="button button-secondary" type="submit">
+              {R.cancel}
+            </button>
+          </form>
+        ) : (
+          <p className="muted" data-testid="removal-by-ops">
+            {R.byOps}
+          </p>
+        )}
       </div>
     );
   }

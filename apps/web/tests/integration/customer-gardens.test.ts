@@ -3,13 +3,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, inject, it, vi } fro
 import type { Client } from "@/lib/supabase/types";
 import {
   activeOrderFor,
+  addDays,
   check,
   createCustomer,
   istanbulToday,
   removeCustomers,
   type TestCustomer,
 } from "./billing-fixture";
-import { PASSWORD, serviceClient } from "./fixtures";
+import { PASSWORD, serviceClient, signIn } from "./fixtures";
 
 // The portal's membership and garden reads and the removal actions (IP14-C,
 // docs/bahce-yonetimi.md §5.1, §11) against the local stack: the loaders of
@@ -146,6 +147,7 @@ describe("member reads", () => {
         state: "leaving",
         removal_status: "requested",
         removal_effective_on: preview.options[0].effectiveOn,
+        removal_initiated_by: "customer",
       });
       expect(await data.getParcelServiceStatus(customer.client, parcel)).toMatchObject({
         status: "leaving",
@@ -213,6 +215,40 @@ describe("member reads", () => {
     });
     expect(asked).toMatch(new RegExp(`^redirect /portal/parsel/${parcel}\\?hata=`));
     expect(asked).not.toContain("bilgi=");
+  });
+});
+
+describe("a removal ops opened", () => {
+  it("reads as the team's, and the customer cannot withdraw it", async () => {
+    const customer = await createCustomer(DOMAIN);
+    const { order, parcels } = await activeOrderFor(customer);
+    const { client: ops } = await signIn("ops");
+    const item = check(
+      await admin.from("service_order_item").select("id").eq("order_id", order).single(),
+    );
+    const removal = check(
+      await ops.rpc("ops_request_garden_removal", {
+        p_order_item_id: item.id,
+        p_reason: "transfer",
+        p_effective_on: addDays(istanbulToday(), 5),
+        p_note: "Devir",
+        p_access_days: 0,
+      }),
+    );
+    const [row] = await data.listMyGardens(customer.client);
+    expect(row).toMatchObject({
+      state: "leaving",
+      removal_id: removal,
+      removal_status: "scheduled",
+      removal_initiated_by: "ops",
+    });
+
+    actAs(customer);
+    const undone = await run(actions.cancelGardenRemovalAction, {
+      parcel_id: parcels[0],
+      removal_id: removal,
+    });
+    expect(undone).toBe(`redirect /portal/parsel/${parcels[0]}?hata=removal_not_open`);
   });
 });
 

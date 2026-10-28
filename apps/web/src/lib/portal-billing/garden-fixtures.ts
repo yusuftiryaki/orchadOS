@@ -26,6 +26,7 @@ export const garden = (over: Partial<CustomerGarden> = {}): CustomerGarden => ({
   removal_status: null as unknown as CustomerGarden["removal_status"],
   removal_effective_on: null as unknown as string,
   access_until: null as unknown as string,
+  removal_initiated_by: null as unknown as string,
   ...over,
 });
 
