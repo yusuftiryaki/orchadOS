@@ -85,6 +85,10 @@ export const tr = {
   parcels: {
     title: "Parseller",
     empty: "Görebileceğiniz parsel yok.",
+    emptyHint:
+      "Parseller operasyon ekibi tarafından açılır. Bir parseli görmeniz gerekiyorsa operasyondan size erişim vermesini isteyin.",
+    lead: (count: number) =>
+      `${count} parsel. Haritasını ve ağaçlarını görmek için parsel adını açın.`,
     loadError: "Parseller yüklenemedi.",
     columns: {
       name: "Ad",
@@ -107,8 +111,12 @@ export const tr = {
     boundaryVersion: (version: number) => `Sınır v${version}`,
     noBoundary: "Sınır yok",
     slotCount: (slots: number, trees: number) => `${slots} yer, ${trees} aktif ağaç`,
+    noSlots: "Henüz yer yok",
     legend: "Gösterim",
     selectHint: "Ayrıntı için haritada bir ağaca tıklayın.",
+    selectHintTitle: "Ağaç seçilmedi",
+    mapTitle: "Ağaç haritası",
+    legendCount: (count: string) => `(${count})`,
     emptySlot: "Boş yer",
   },
   office: {
