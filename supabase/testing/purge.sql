@@ -419,6 +419,10 @@ as $$
       recovery_sent_at = recovery_sent_at - make_interval(mins => p_minutes),
       phone_change_sent_at = phone_change_sent_at - make_interval(mins => p_minutes)
   where id = p_user_id;
+  -- customer-signup send_code's one-a-minute limit (signup_code_grant).
+  update private.customer_signup
+  set code_granted_at = code_granted_at - make_interval(mins => p_minutes)
+  where user_id = p_user_id;
 $$;
 
 create or replace function testing.signup_review(p_user_id uuid)
@@ -430,6 +434,30 @@ as $$
   select review_reason from private.customer_signup where user_id = p_user_id;
 $$;
 
+-- Auth hardening tests: takes the self sign-up flag off an account (or puts
+-- it back), so a test can open an e-mail code session on it as a project
+-- without customer_account_guard (insufficient privilege) would.
+create or replace function testing.set_self_signup(p_user_id uuid, p_self boolean)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  update auth.users
+  set raw_app_meta_data = case when p_self then coalesce(raw_app_meta_data, '{}') || '{"signup": "self"}'
+                               else coalesce(raw_app_meta_data, '{}') - 'signup' end
+  where id = p_user_id;
+$$;
+
+create or replace function testing.run_signup_housekeeping()
+returns jsonb
+language sql
+security definer
+set search_path = ''
+as $$
+  select private.signup_housekeeping();
+$$;
+
 revoke all on all functions in schema testing from public;
 grant execute on function
   testing.purge_sessions(uuid[]), testing.purge_parcels(uuid[]), testing.purge_org(uuid),
@@ -439,5 +467,6 @@ grant execute on function
   testing.set_order_period(uuid, date, date), testing.register_legal_text(text, text, text),
   testing.acknowledge_kvkk_notice(uuid),
   testing.legacy_signup(uuid), testing.age_phone_confirmation(uuid, integer),
-  testing.signup_review(uuid)
+  testing.signup_review(uuid), testing.set_self_signup(uuid, boolean),
+  testing.run_signup_housekeeping()
   to service_role;

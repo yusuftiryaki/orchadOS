@@ -288,7 +288,7 @@ function token(claims: unknown): string {
 describe("complete: phone code check", () => {
   const at = (iso: string) => Math.floor(Date.parse(iso) / 1000);
 
-  it("gives the latest otp or sms login", () => {
+  it("gives the latest otp or sms code that stamped the phone confirmation", () => {
     const claims = jwtClaims(
       token({
         amr: [
@@ -298,15 +298,31 @@ describe("complete: phone code check", () => {
         ],
       }),
     );
-    expect(latestPhoneCodeAt(claims)).toBe(at("2026-10-27T10:03:00Z"));
+    expect(latestPhoneCodeAt(claims, "2026-10-27T10:03:00.4Z")).toBe(at("2026-10-27T10:03:00Z"));
+    expect(latestPhoneCodeAt(claims, "2026-10-27T10:01:02Z")).toBe(at("2026-10-27T10:01:00Z"));
+  });
+
+  // Auth hardening, item 2: GoTrue records an e-mail code or magic link as
+  // amr "otp" too. Such a session did not stamp phone_confirmed_at, so it is
+  // no phone proof, whether the phone was confirmed before or after it.
+  it("gives null for an otp entry the phone confirmation does not match", () => {
+    const claims = { amr: [{ method: "otp", timestamp: at("2026-10-27T10:10:00Z") }] };
+    expect(latestPhoneCodeAt(claims, "2026-10-27T10:09:00Z")).toBeNull();
+    expect(latestPhoneCodeAt(claims, "2026-10-27T10:10:30Z")).toBeNull();
+    expect(latestPhoneCodeAt(claims, null)).toBeNull();
+    expect(latestPhoneCodeAt(claims, "not a date")).toBeNull();
   });
 
   it("gives null for a password login or no claims", () => {
+    const confirmed = "2026-10-27T10:05:00Z";
     expect(
-      latestPhoneCodeAt({ amr: [{ method: "password", timestamp: at("2026-10-27T10:05:00Z") }] }),
+      latestPhoneCodeAt(
+        { amr: [{ method: "password", timestamp: at("2026-10-27T10:05:00Z") }] },
+        confirmed,
+      ),
     ).toBeNull();
-    expect(latestPhoneCodeAt({ amr: [{ method: "otp" }] })).toBeNull();
-    expect(latestPhoneCodeAt(null)).toBeNull();
+    expect(latestPhoneCodeAt({ amr: [{ method: "otp" }] }, confirmed)).toBeNull();
+    expect(latestPhoneCodeAt(null, confirmed)).toBeNull();
     expect(jwtClaims("not-a-token")).toBeNull();
   });
 });

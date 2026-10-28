@@ -295,7 +295,7 @@ delete from private.phone_login_attempt;
 
 select hasnt_column('private', 'phone_login_attempt', 'phone', 'login attempts keep a hash, not the number');
 select ok(has_function_privilege('anon', 'public.phone_login_allowed(text)', 'EXECUTE')
-  and has_function_privilege('anon', 'public.phone_login_record_failure(text)', 'EXECUTE')
+  and has_function_privilege('anon', 'public.phone_login_record_failure(text, text)', 'EXECUTE')
   and not has_function_privilege('anon', 'public.phone_login_code_requested(text)', 'EXECUTE')
   and not has_function_privilege('authenticated', 'public.phone_login_code_requested(text)', 'EXECUTE'),
   'the login page checks and reports wrong codes; only the SMS hook counts codes');

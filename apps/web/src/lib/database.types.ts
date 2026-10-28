@@ -3894,6 +3894,7 @@ export type Database = {
       };
     };
     Functions: {
+      account_phone_change_allowed: { Args: { p_user_id: string }; Returns: boolean };
       add_field_survey_boundary: {
         Args: {
           p_ring: Json;
@@ -5381,7 +5382,7 @@ export type Database = {
       };
       phone_login_allowed: { Args: { p_phone: string }; Returns: boolean };
       phone_login_code_requested: { Args: { p_phone: string }; Returns: string };
-      phone_login_record_failure: { Args: { p_phone: string }; Returns: number };
+      phone_login_record_failure: { Args: { p_phone: string; p_ticket?: string }; Returns: number };
       pipeline_rescan_request: { Args: { p_session_id: string }; Returns: Json };
       portal_acknowledge_kvkk_notice: { Args: { p_text_version: string }; Returns: number };
       portal_closeups: {
@@ -5623,7 +5624,8 @@ export type Database = {
         };
         Returns: string;
       };
-      signup_code_grant: { Args: { p_phone: string; p_ticket: string }; Returns: boolean };
+      signup_code_grant: { Args: { p_phone: string; p_ticket: string }; Returns: string };
+      signup_code_release: { Args: { p_phone: string }; Returns: undefined };
       signup_complete: { Args: { p_code_at: string; p_user_id: string }; Returns: string };
       signup_find_account: {
         Args: { p_email: string; p_phone: string };
@@ -5657,8 +5659,10 @@ export type Database = {
         Args: { p_email_hash: string; p_ip_hash: string; p_phone_hash: string };
         Returns: string;
       };
+      signup_review_user_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       signup_set_ticket: { Args: { p_ticket_hash: string; p_user_id: string }; Returns: undefined };
       signup_sms_allowed: { Args: { p_user_id: string }; Returns: boolean };
+      signup_sms_sent: { Args: { p_user_id: string }; Returns: undefined };
       signup_ticket_users: { Args: { p_ticket_hash: string }; Returns: string[] };
       staff_boundary_pointers: {
         Args: { p_parcel_id: string };

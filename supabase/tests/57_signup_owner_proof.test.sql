@@ -2,11 +2,12 @@
 -- §7.2, §7.5): the send marker Auth's Send SMS hook needs for a phone
 -- confirmation code of an unfinished self sign-up, the owner check of every
 -- complete, the quarantine of an account that cannot be deleted, and the
--- housekeeping flag. The functions run as the service role (here: postgres)
--- except signup_code_grant, which anon calls.
+-- housekeeping flag. The functions run as the service role (here: postgres).
+-- Auth hardening (69_auth_hardening) made signup_code_grant service role only
+-- and the hook only peek at the marker.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(33);
 
 select testing.reset_to_seed();
 
@@ -38,11 +39,11 @@ values ('a5700000-0000-4000-8000-0000000000f2', 'a5700000-0000-4000-8000-0000000
 
 select is(public.signup_sms_allowed('a5700000-0000-4000-8000-000000000001'), false,
   'no confirmation code for an unfinished self sign-up without a grant (Auth''s public resend)');
+select is(public.signup_code_grant('+905557000001', repeat('x', 43)), 'refused', 'a wrong ticket grants nothing');
+select is(public.signup_code_grant('+905557000009', repeat('a', 43)), 'refused', 'the right ticket for another phone grants nothing');
+select is(public.signup_code_grant('+905557000001', null), 'refused', 'no ticket grants nothing');
+select is(public.signup_code_grant('+905557000001', repeat('a', 43)), 'granted', 'the register''s ticket grants one code');
 set local role anon;
-select is(public.signup_code_grant('+905557000001', repeat('x', 43)), false, 'a wrong ticket grants nothing');
-select is(public.signup_code_grant('+905557000009', repeat('a', 43)), false, 'the right ticket for another phone grants nothing');
-select is(public.signup_code_grant('+905557000001', null), false, 'no ticket grants nothing');
-select is(public.signup_code_grant('+905557000001', repeat('a', 43)), true, 'the register''s ticket grants one code');
 select throws_ok($$ select public.signup_sms_allowed('a5700000-0000-4000-8000-000000000001') $$, '42501',
   null, 'anon cannot ask the hook''s question');
 select throws_ok($$ select public.signup_owner_check('a5700000-0000-4000-8000-000000000001', null, false) $$, '42501',
@@ -50,20 +51,23 @@ select throws_ok($$ select public.signup_owner_check('a5700000-0000-4000-8000-00
 select throws_ok($$ select public.signup_quarantine('a5700000-0000-4000-8000-000000000001') $$, '42501',
   null, 'anon cannot quarantine');
 reset role;
-select ok((select code_send_until between now() + interval '1 minute' and now() + interval '2 minutes'
+select ok((select code_send_until between now() + interval '20 seconds' and now() + interval '30 seconds'
            from private.customer_signup where user_id = 'a5700000-0000-4000-8000-000000000001'),
-  'the grant lasts two minutes');
+  'the grant lasts 30 seconds');
 select is(public.signup_sms_allowed('a5700000-0000-4000-8000-000000000001'), true, 'the hook sends the granted code');
-select is(public.signup_sms_allowed('a5700000-0000-4000-8000-000000000001'), false, 'once: the marker is consumed');
+select public.signup_sms_sent('a5700000-0000-4000-8000-000000000001');
+select is(public.signup_sms_allowed('a5700000-0000-4000-8000-000000000001'), false, 'once: the marker is consumed after the send');
 update private.customer_signup set code_send_until = now() - interval '1 second'
 where user_id = 'a5700000-0000-4000-8000-000000000001';
 select is(public.signup_sms_allowed('a5700000-0000-4000-8000-000000000001'), false, 'an expired marker sends nothing');
 select is(public.signup_sms_allowed('a5700000-0000-4000-8000-000000000002'), true,
   'a confirmed phone gets its login code without a marker');
+select set_config('orchados.account_phone_change', 'on', true);
 update auth.users set phone_change = '905557000099' where id = 'a5700000-0000-4000-8000-000000000002';
 select is(public.signup_sms_allowed('a5700000-0000-4000-8000-000000000002'), false,
   'a phone change of an unfinished self sign-up needs a marker too');
 update auth.users set phone_change = '' where id = 'a5700000-0000-4000-8000-000000000002';
+select set_config('orchados.account_phone_change', '', true);
 select is(public.signup_sms_allowed('a0000000-0000-4000-8000-000000000001'), true, 'invited accounts are not affected');
 select is(public.signup_sms_allowed('a0000000-0000-4000-8000-000000000006'), true, 'a completed self sign-up is not affected');
 
@@ -79,10 +83,20 @@ select is(public.signup_owner_check('a0000000-0000-4000-8000-000000000006', null
   'a completed sign-up: no proof needed');
 select is(public.signup_owner_check('a5700000-0000-4000-8000-000000000001', null, false), 'refused',
   'no ticket never skips the check: an unconfirmed phone is refused');
-select is(public.signup_owner_check('a5700000-0000-4000-8000-000000000002', pg_temp.h(repeat('a', 43)), false), 'mismatch',
-  'another ticket on a confirmed phone: the caller deletes the account');
 select is(public.signup_owner_check('a5700000-0000-4000-8000-000000000002', null, false), 'mismatch',
-  'no ticket on a confirmed phone: the same');
+  'no ticket on a confirmed phone: the caller deletes the account');
+-- Auth hardening, item 4: quarantined in the same transaction, before the
+-- caller's delete.
+select results_eq(
+  $$ select u.phone_confirmed_at is null, s.review_reason,
+            (select count(*) from auth.sessions x where x.user_id = u.id)
+     from auth.users u join private.customer_signup s on s.user_id = u.id
+     where u.id = 'a5700000-0000-4000-8000-000000000002' $$,
+  $$ values (true, 'delete_failed', 0::bigint) $$,
+  '... after quarantining it first: phone confirmation cleared, flagged, sessions ended');
+update auth.users set phone_confirmed_at = now() where id = 'a5700000-0000-4000-8000-000000000002';
+select is(public.signup_owner_check('a5700000-0000-4000-8000-000000000002', pg_temp.h(repeat('a', 43)), false), 'mismatch',
+  'another ticket on a confirmed phone: the same');
 
 select is(public.signup_owner_check('a5700000-0000-4000-8000-000000000003', null, false), 'refused',
   'a row written before tickets is refused');

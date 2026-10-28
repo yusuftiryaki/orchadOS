@@ -70,13 +70,20 @@ async function register(phone: string, email: string, password: string, ip: stri
   return ((await res.json()) as { ticket: string }).ticket;
 }
 
-// The code step with the register's ticket: the phone's code goes out.
+// The code step with the register's ticket (customer-signup send_code, as
+// the web's server action calls it): the phone's code goes out.
 async function sendCode(phone: string, ticket: string) {
-  const client = createClient<Database>(env.url, env.anonKey, opts);
-  const grant = await client.rpc("signup_code_grant", { p_phone: phone, p_ticket: ticket });
-  expect(grant.data).toBe(true);
-  expect((await client.auth.resend({ type: "sms", phone })).error).toBeNull();
-  return client;
+  const res = await fetch(`${env.url}/functions/v1/customer-signup`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-orchados-proxy-secret": "signup-proxy-local",
+    },
+    body: JSON.stringify({ action: "send_code", phone, ticket }),
+  });
+  expect(res.status).toBe(200);
+  expect(await latestCode(phone)).toMatch(/^\d{6}$/);
+  return createClient<Database>(env.url, env.anonKey, opts);
 }
 
 test.beforeAll(async () => {
