@@ -103,7 +103,16 @@ export default async function Page({
 
       {billing && <BillingCard summary={billing} />}
 
-      <Panel title={T.dashboard.counts}>
+      <Panel
+        title={T.dashboard.counts}
+        actions={
+          overdue.length === 0 ? (
+            <Badge tone="success">{T.dashboard.noOverdue}</Badge>
+          ) : (
+            <Badge tone="danger">{T.dashboard.overdueCount(overdue.length)}</Badge>
+          )
+        }
+      >
         <QueueList
           testId="visit-counts"
           label={T.dashboard.counts}
@@ -132,12 +141,7 @@ export default async function Page({
         />
       )}
 
-      <Panel
-        plain
-        title={T.dashboard.upcoming(UPCOMING_DAYS)}
-        id="upcoming"
-        description={overdue.length === 0 ? T.dashboard.noOverdue : undefined}
-      >
+      <Panel plain title={T.dashboard.upcoming(UPCOMING_DAYS)} id="upcoming">
         {upcoming.length === 0 ? (
           <p className="muted">{T.dashboard.noUpcoming}</p>
         ) : (

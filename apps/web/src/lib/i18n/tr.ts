@@ -661,7 +661,8 @@ export const tr = {
       upcoming: (days: number) => `Yaklaşan ziyaretler (${days} gün)`,
       noUpcoming: "Önümüzdeki günlerde planlanmış ziyaret yok.",
       overdue: "Geciken işler",
-      noOverdue: "Geciken iş yok.",
+      noOverdue: "Geciken iş yok",
+      overdueCount: (n: number) => `${n} geciken iş`,
       overdueReason: {
         past_due: (days: number) => `Tarihi ${days} gün önce geçti, hâlâ planlandı`,
         waiting_processing: (days: number) => `${days} gündür işlenmeyi bekliyor`,
