@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import styles from "@/components/site/auth.module.css";
+import { ButtonLink } from "@/components/ui/button";
 import { siteText } from "@/lib/i18n/messages/site";
 import { completeSignup, SIGNUP_REFUSED_PATH } from "@/lib/signup/client";
 import { readTicket } from "@/lib/signup/ticket";
 import { createClient } from "@/lib/supabase/server";
-import styles from "../signup.module.css";
 import { VerifyForm } from "./verify-form";
 import { accountPhone } from "./verify-state";
 
@@ -34,25 +34,22 @@ export default async function VerifyPhonePage() {
   }
 
   return (
-    <div className={styles.screen}>
-      <div className={styles.card}>
-        <h1>{v.title}</h1>
-        {!hasPhone ? (
-          <p className="muted">{v.noPhone}</p>
-        ) : needsCode ? (
-          <>
-            <p className="muted">{v.subtitle}</p>
-            <VerifyForm />
-          </>
-        ) : (
-          <>
-            <p className="muted">{v.done}</p>
-            <Link href="/" className="button">
-              {v.continue}
-            </Link>
-          </>
-        )}
-      </div>
+    <div className={styles.page}>
+      <header className={styles.head}>
+        <h1 className={styles.title}>{v.title}</h1>
+        <p className={styles.lead}>{!hasPhone ? v.noPhone : needsCode ? v.subtitle : v.done}</p>
+      </header>
+      {hasPhone && (
+        <div className={styles.main}>
+          {needsCode ? (
+            <div className={styles.sheet}>
+              <VerifyForm />
+            </div>
+          ) : (
+            <ButtonLink href="/">{v.continue}</ButtonLink>
+          )}
+        </div>
+      )}
     </div>
   );
 }

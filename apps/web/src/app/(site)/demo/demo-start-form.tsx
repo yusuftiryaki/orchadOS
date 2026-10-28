@@ -2,7 +2,9 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { CaptchaWidget } from "@/components/site/turnstile";
-import styles from "@/components/demo/demo.module.css";
+import styles from "@/components/site/pages.module.css";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { demoText, type DemoStartError } from "@/lib/i18n/messages/demo";
 import type { WebCaptchaProvider } from "@/lib/site/captcha";
 import { createClient } from "@/lib/supabase/browser";
@@ -66,13 +68,13 @@ export function DemoStartForm({
         resetKey={state}
       />
       {error && (
-        <p className="error" role="alert" data-testid="demo-start-error">
+        <Alert tone="danger" role="alert" testId="demo-start-error">
           {d.errors[error]}
-        </p>
+        </Alert>
       )}
-      <button className="button" type="submit" disabled={busy} data-testid="demo-start">
+      <Button type="submit" block disabled={busy} data-testid="demo-start">
         {opening ? d.opening : pending ? d.starting : label}
-      </button>
+      </Button>
     </form>
   );
 }

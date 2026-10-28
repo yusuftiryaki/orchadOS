@@ -1,4 +1,4 @@
-import { safeNextPath } from "@/app/giris/login-methods";
+import { safeNextPath } from "@/app/(site)/giris/login-methods";
 import { BILLING_ERRORS, billingReasonOf, type BillingError } from "@/lib/billing/errors";
 
 // Addresses of the customer portal (docs/musteri-yonetimi.md §10) and the

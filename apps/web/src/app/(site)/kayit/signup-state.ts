@@ -9,6 +9,8 @@ export interface SignupValues {
   phone: string;
   email: string;
   contact_preference: string;
+  // The KVKK box as ticked; shown ticked again after another field's error.
+  kvkk_notice: boolean;
   explicit_service_improvement: boolean;
   explicit_marketing: boolean;
 }
@@ -30,6 +32,7 @@ export const INITIAL_VALUES: SignupValues = {
   phone: "",
   email: "",
   contact_preference: "whatsapp",
+  kvkk_notice: false,
   explicit_service_improvement: false,
   explicit_marketing: false,
 };

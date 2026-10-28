@@ -146,31 +146,36 @@ export const siteText = {
     lead: "Kayıttan ilk rapora kadar adımlar. Kesin bilgiler ilk ziyarette sahada çıkarılır; başlangıçta kabaca bildikleriniz yeterlidir.",
     steps: [
       {
-        title: "1. Kayıt",
+        title: "Kayıt",
         body: "Ad soyad, cep telefonu ve e-postanızla hesap açarsınız. Telefonunuzu SMS koduyla doğrularsınız.",
       },
       {
-        title: "2. Başvuru",
+        title: "Başvuru",
         body: "Bahçelerinizi haritada işaretler, tahmini alanı ve sulama durumunu yazar, paketinizi seçersiniz. Bahçeye girilmesine izin verdiğinizi ve bahçe üzerinde yetkinizi beyan edersiniz.",
       },
       {
-        title: "3. Teklif",
+        title: "Teklif",
         body: "Operasyon ekibimiz bahçenin konumunu ve alanını doğrular, size bir teklif gönderir. Fiyat doğrulanan alana göre hesaplanır.",
       },
       {
-        title: "4. Ödeme",
+        title: "Ödeme",
         body: "Teklifi onaylayınca kartla (3D Secure) ya da havale/EFT ile ödersiniz. Kart bilgileriniz bize gelmez.",
       },
       {
-        title: "5. Envanter",
+        title: "Envanter",
         body: "İlk ziyarette sınırı gösterdiğiniz kişiyle birlikte kullanım sınırı yürünür, bahçe taranır. Her ağaca kalıcı bir kod verilir.",
       },
       {
-        title: "6. Periyodik ziyaretler ve raporlar",
+        title: "Periyodik ziyaretler ve raporlar",
         body: "Paketinizdeki her ziyarette bahçe yeniden taranır. Uzman değerlendirir ve imzalar; rapor hazır olunca size bağlantı gelir.",
       },
     ],
+    stepsTitle: "Kayıttan ilk rapora",
     scopeTitle: "Hizmetin kapsamında olmayanlar",
+    closingTitle: "Bahçeniz için başvurun",
+    closingBody:
+      "Hesap açmak ücretsizdir. Ödemeyi, ekibimiz alanı doğrulayıp teklif gönderdikten sonra, teklifi onaylarsanız yaparsınız.",
+    ctaSignup: "Kayıt olun",
     outOfScope: [
       "Bakım, ilaçlama, budama gibi bahçe işleri",
       "Hastalık teşhisi ve laboratuvar analizi",
@@ -183,6 +188,13 @@ export const siteText = {
     title: "Paketler ve fiyatlar",
     lead: "Fiyat dönüm ve ziyaret başınadır. Paket, yılda kaç periyodik ziyaret yapılacağını belirler.",
     modelTitle: "Fiyat nasıl hesaplanır?",
+    visitsLabel: "Ziyaretler",
+    exampleTitle: (area: string) => `Örnek: ${area}`,
+    ctaTitle: "Paketinizi başvuruda seçersiniz",
+    ctaBody:
+      "Kayıt olduktan sonra bahçenizi haritada işaretler ve paketi seçersiniz. Kesin fiyat, ekibimiz alanı doğruladıktan sonra teklifte yazar.",
+    ctaSignup: "Kayıt olun",
+    ctaDemo: "Demoyu deneyin",
     model: [
       "Yıllık bedel: yıllık ziyaret sayısı × doğrulanan alan (dönüm) × paketin dönüm ve ziyaret başı birim fiyatı.",
       "Her bahçe için yıllık en az ücret uygulanır.",
@@ -207,6 +219,10 @@ export const siteText = {
   },
   faq: {
     title: "Sık sorulan sorular",
+    lead: "Sınır, rapor, ödeme ve kişisel veriler hakkında en çok sorulanlar.",
+    moreTitle: "Sorunuzun cevabı burada yok mu?",
+    moreBody: "Bize telefonla ya da e-postayla ulaşın.",
+    moreLink: "İletişim bilgileri",
     items: [
       {
         q: "Bahçemin sınırını bilmiyorum, sorun olur mu?",
@@ -244,19 +260,25 @@ export const siteText = {
   },
   contact: {
     title: "İletişim",
-    lead: "Sorularınız için bize yazabilir ya da arayabilirsiniz.",
-    items: [
-      { label: "Telefon", value: "[Telefon]" },
-      { label: "E-posta", value: "[E-posta]" },
-      { label: "Adres", value: "[Adres]" },
-      { label: "KVKK başvuruları", value: "[kvkk@alanadi]" },
-    ],
-    hours: "Hafta içi [09.00–18.00]",
+    lead: "Sorularınız için bizi arayabilir ya da e-posta gönderebilirsiniz.",
+    phone: "Telefon",
+    email: "E-posta",
+    kvkk: "Kişisel veri başvuruları",
+    kep: "KEP adresi",
+    address: "Adres",
+    company: "Şirket",
+    // Until the company information is complete (T21; public_company_info).
+    pendingTitle: "İletişim bilgilerimiz yakında burada",
+    pendingBody:
+      "Şirket bilgilerimiz yayımlanınca telefon, e-posta ve adresimiz bu sayfada yer alacak.",
+    faqLink: "Sık sorulan sorulara bakın",
   },
   legal: {
     draftBanner:
       "Bu metin taslaktır ve avukat incelemesinden geçmemiştir. Yayına alınmadan önce değişebilir.",
     version: (v: string) => `Sürüm: ${v}`,
+    contents: "Bu sayfada",
+    toTop: "Başa dön",
   },
   home: {
     verifyTitle: "Telefonunuzu doğrulayın",
@@ -265,7 +287,25 @@ export const siteText = {
   },
   signup: {
     title: "Kayıt ol",
-    subtitle: "Bahçeniz için hesap açın. Telefonunuzu SMS koduyla doğrulayacağız.",
+    subtitle:
+      "Hesap açmak ücretsizdir. Bilgilerinizi girin; telefonunuza bir doğrulama kodu göndereceğiz.",
+    stepForm: "Adım 1 / 2: Bilgileriniz",
+    stepCode: "Adım 2 / 2: Telefon doğrulaması",
+    asideTitle: "Kayıttan sonra",
+    asideSteps: [
+      {
+        title: "Başvuru",
+        body: "Bahçenizi haritada kabaca işaretler, paketinizi seçersiniz.",
+      },
+      {
+        title: "Teklif",
+        body: "Ekibimiz konumu ve alanı doğrular, size teklif gönderir.",
+      },
+      {
+        title: "Ödeme ve ilk ziyaret",
+        body: "Teklifi onaylayınca ödersiniz. İlk ziyarette bahçeniz taranır.",
+      },
+    ],
     locationNote:
       "Başvurunuzu bahçenizin konumuna ve ekibimizin kapasitesine göre değerlendiririz; her konuma hizmet veremeyebiliriz. Kayıt, başvuru ve fiyat önizlemesi ücretsizdir.",
     closedTitle: "Kayıt yakında",
@@ -276,8 +316,9 @@ export const siteText = {
     login: "Giriş yapın",
     fullName: "Ad soyad",
     phone: "Cep telefonu",
-    phoneHint: "Örnek: 0532 123 45 67",
+    phoneHint: "05xx xxx xx xx biçiminde. Doğrulama kodu bu numaraya gelir.",
     email: "E-posta",
+    emailHint: "Giriş yaparken bu adresi kullanırsınız.",
     password: "Parola",
     passwordHint: "En az 8 karakter",
     passwordRepeat: "Parola (tekrar)",
@@ -295,10 +336,9 @@ export const siteText = {
     // when MARKETING_CONSENT_ENABLED.
     explicitMarketing:
       "OBA Bilişim Teknolojileri LTD.'nin orchadOS hizmetine ilişkin yenilik, kampanya ve tanıtımlarını bana kısa mesajla (SMS) göndermesine ticari elektronik ileti onayı veriyorum ve bu amaçla adımın ve telefon numaramın işlenmesine açık rıza veriyorum. Onayım İleti Yönetim Sistemi'ne (İYS) kaydedilir.",
-    versions: (kvkk: string, explicit: string) => `Metin sürümleri: ${kvkk}, ${explicit}`,
     submit: "Kayıt ol ve kod gönder",
     submitting: "Gönderiliyor…",
-    codeTitle: "SMS kodu",
+    codeTitle: "SMS kodunu girin",
     codeSent: (masked: string) => `${masked} numarasına 6 haneli bir kod gönderdik.`,
     // The /kayit code step: the same text whether the number is new, has an
     // account or cannot get a code at all (docs/hukuk/kararlar.md H33).
@@ -356,7 +396,7 @@ export const siteText = {
       noPhone: "Hesabınızda doğrulanacak bir telefon numarası yok. Lütfen bizimle iletişime geçin.",
       sendCode: "SMS kodu gönder",
       done: "Telefonunuz zaten doğrulanmış.",
-      continue: "Devam et",
+      continue: "Hesabıma git",
     },
   },
   // Self-hosted robot check (docs/hukuk/kararlar.md H03, T12).
@@ -371,9 +411,13 @@ export const siteText = {
     // closed (customer-signup signup_mismatch).
     signupUnfinished:
       "Kaydınız tamamlanamadı ve güvenliğiniz için oturumunuz kapatıldı. Bu numarayla kaydı siz başlattıysanız kayıtta kullandığınız e-posta ve parolayla giriş yapın; telefonunuzu oradan doğrularsınız. Giriş yapamıyorsanız yeniden kayıt olabilirsiniz.",
+    asideLabel: "Hesabı olmayanlar için",
     noAccount: "Hesabınız yok mu?",
+    signupBody:
+      "Kayıt ücretsizdir. Hesap açtıktan sonra bahçenizi haritada işaretleyip başvurursunuz; ödemeyi teklifi onaylayınca yaparsınız.",
     signup: "Kayıt olun",
-    tryDemo: "Hesap açmadan örnek bir bahçede demoyu deneyin",
+    demoBefore: "Önce görmek ister misiniz?",
+    tryDemo: "Örnek bir bahçede demoyu deneyin",
   },
 } as const;
 
