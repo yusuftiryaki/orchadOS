@@ -1,13 +1,15 @@
-import Link from "next/link";
+import { StatusPage } from "@/components/site/status-page";
+import { ButtonLink } from "@/components/ui/button";
 import { t } from "@/lib/i18n";
 
 export default function NotFound() {
   return (
-    <main className="centered">
-      <div className="card">
-        <h1>{t.notFound.title}</h1>
-        <Link href="/">{t.notFound.back}</Link>
-      </div>
-    </main>
+    <StatusPage
+      code="404"
+      title={t.notFound.title}
+      action={<ButtonLink href="/">{t.notFound.back}</ButtonLink>}
+    >
+      <p>{t.notFound.body}</p>
+    </StatusPage>
   );
 }

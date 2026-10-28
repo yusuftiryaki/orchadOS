@@ -47,6 +47,9 @@ export const demoText = {
       "Robot doğrulaması (Turnstile) Cloudflare Inc. (ABD) tarafından sağlanır; aktarım KVKK md. 9'a uygun standart sözleşmeyle yapılır.",
     ],
     privacyLink: "Ayrıntılar: [Gizlilik ve çerez politikası](/gizlilik)",
+    panelTitle: "Hesap açmadan, 3 saat",
+    panelBody:
+      "Ad, telefon ya da e-posta istemeyiz. Başlattığınızda örnek bahçelerin portalı açılır.",
     button: "Demoyu başlat",
     starting: "Demo hazırlanıyor…",
     opening: "Portal açılıyor…",
@@ -110,9 +113,9 @@ export const demoText = {
     keywords: "orchadOS ornek rapor (sentetik demo verisi)",
   },
   howTile: {
-    title: "Kendiniz görün",
+    title: "Önce bir örnek bahçeyi gezin",
     body: "Örnek bir bahçenin portalını hesap açmadan gezin: 360° gezi, sağlık haritası, karne ve raporlar. Veriler sentetiktir.",
-    cta: "Demoyu dene",
+    cta: "Demoyu deneyin",
   },
   tour: {
     label: "Rehberli tur",

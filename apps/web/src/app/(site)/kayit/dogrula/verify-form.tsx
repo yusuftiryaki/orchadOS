@@ -1,9 +1,13 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { resendWaitSeconds } from "@/app/giris/login-methods";
+import { resendWaitSeconds } from "@/app/(site)/giris/login-methods";
+import styles from "@/components/site/auth.module.css";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field, Input } from "@/components/ui/field";
+import { t } from "@/lib/i18n";
 import { siteText } from "@/lib/i18n/messages/site";
-import styles from "../signup.module.css";
 import { verifyPhoneAction } from "./actions";
 import { INITIAL_VERIFY_STATE } from "./verify-state";
 
@@ -20,9 +24,9 @@ export function VerifyForm() {
   const wait = resendWaitSeconds(state.sentAt, Math.max(now, state.sentAt ?? 0));
 
   const error = state.error && (
-    <p role="alert" className={styles.error}>
+    <Alert tone="danger" role="alert">
       {state.error}
-    </p>
+    </Alert>
   );
 
   if (state.step === "send") {
@@ -30,9 +34,9 @@ export function VerifyForm() {
       <form action={action} className={styles.form}>
         <input type="hidden" name="intent" value="send" />
         {error}
-        <button className="button" type="submit" disabled={pending}>
+        <Button type="submit" block disabled={pending}>
           {pending ? s.submitting : s.verifyPage.sendCode}
-        </button>
+        </Button>
       </form>
     );
   }
@@ -40,32 +44,33 @@ export function VerifyForm() {
   return (
     <div className={styles.form}>
       {state.notice && (
-        <p role="status" className={styles.notice}>
+        <Alert tone="info" role="status">
           {state.notice}
-        </p>
+        </Alert>
       )}
       <form action={action} className={styles.form}>
         <input type="hidden" name="intent" value="verify" />
-        <label className={styles.field}>
-          <span>{s.code}</span>
-          <input
+        <Field id="verify-code" label={s.code} hint={t.login.phone.codeHint}>
+          <Input
             name="code"
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
             pattern="[0-9]{6}"
             maxLength={6}
+            className={styles.code}
             required
+            autoFocus
           />
-        </label>
+        </Field>
         {error}
-        <button className="button" type="submit" disabled={pending}>
+        <Button type="submit" block disabled={pending}>
           {pending ? s.verifying : s.verify}
-        </button>
+        </Button>
       </form>
-      <form action={action}>
+      <form action={action} className={styles.secondary}>
         <input type="hidden" name="intent" value="send" />
-        <button type="submit" className={styles.link} disabled={wait > 0 || pending}>
+        <button type="submit" className={styles.textButton} disabled={wait > 0 || pending}>
           {wait > 0 ? s.resendIn(wait) : s.resend}
         </button>
       </form>

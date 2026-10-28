@@ -22,28 +22,30 @@ export const tr = {
   },
   login: {
     title: "Giriş",
-    subtitle: "Hesabınızla devam edin.",
-    pitch:
-      "Her ağacın kalıcı kimliği, uzman imzalı ziyaret raporları ve 360° bahçe gezisi. Bahçenizin durumunu tarafsız bir gözle, ağaç ağaç izleyin.",
-    footer: "Hesaplar operasyon ekibi tarafından açılır.",
+    subtitle: "Bahçelerinizin raporlarına ve hesabınıza buradan ulaşırsınız.",
     email: "E-posta",
     password: "Parola",
     submit: "Giriş yap",
     submitting: "Giriş yapılıyor…",
-    invalidCredentials: "E-posta ya da parola hatalı.",
+    invalidCredentials: "E-posta ya da parola hatalı. Yazımı kontrol edip yeniden deneyin.",
     missingFields: "E-posta ve parola gerekli.",
     methods: {
+      label: "Giriş yöntemi",
       password: "E-posta ve parola",
-      phone: "Telefon",
+      phone: "Telefon ve SMS",
     },
+    forgot:
+      "Parolanızı mı unuttunuz? Hesabınızdaki cep telefonuna gelen kodla giriş yapabilirsiniz.",
+    forgotAction: "SMS koduyla girin",
     phone: {
       number: "Cep telefonu",
-      numberHint: "Örnek: 0532 123 45 67",
+      numberHint: "Hesabınızdaki numara, örneğin 0532 123 45 67",
       sendCode: "SMS kodu gönder",
       sending: "Gönderiliyor…",
       codeSent: (masked: string) =>
         `${masked} kayıtlıysa SMS ile 6 haneli bir kod gönderdik. Kod birkaç dakika geçerli.`,
       code: "SMS kodu",
+      codeHint: "SMS ile gelen 6 haneli kod",
       verify: "Giriş yap",
       verifying: "Doğrulanıyor…",
       resend: "Kodu yeniden gönder",
@@ -70,7 +72,7 @@ export const tr = {
   },
   forbidden: {
     title: "Bu bölüme erişiminiz yok",
-    body: "Hesabınızın rolleri bu sayfayı açmaya izin vermiyor.",
+    body: "Bu sayfa hesabınızın rolüne açık değil. Erişmeniz gerekiyorsa operasyon ekibine yazın; başka bir hesapla girmek için önce çıkış yapın.",
     back: "Ana sayfaya dön",
   },
   error: {
@@ -80,6 +82,7 @@ export const tr = {
   },
   notFound: {
     title: "Sayfa bulunamadı",
+    body: "Adres yanlış yazılmış ya da sayfa kaldırılmış olabilir. Ana sayfadan aradığınız yere gidebilirsiniz.",
     back: "Ana sayfaya dön",
   },
   parcels: {

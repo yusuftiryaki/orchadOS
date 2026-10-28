@@ -205,7 +205,9 @@ test("the demo is linked from the landing page, the login page and 'Nasıl çal�
   await page.goto("/giris");
   await expect(page.getByTestId("login-demo").getByRole("link")).toHaveAttribute("href", "/demo");
   await page.goto("/nasil-calisir");
-  await expect(page.getByTestId("how-demo").getByRole("link")).toHaveAttribute("href", "/demo");
+  await expect(
+    page.getByTestId("how-demo").getByRole("link", { name: "Demoyu deneyin" }),
+  ).toHaveAttribute("href", "/demo");
   await page.goto("/gizlilik");
   await expect(page.getByRole("heading", { name: "Demo turu" })).toBeVisible();
 });

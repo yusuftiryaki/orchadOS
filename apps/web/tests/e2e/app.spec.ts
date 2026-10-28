@@ -21,7 +21,9 @@ test("wrong password shows an error", async ({ page }) => {
   await page.getByLabel("Parola").fill("wrong");
   await page.getByRole("button", { name: "Giriş yap" }).click();
   // Scoped to the form: Next.js adds its own (empty) route announcer alert.
-  await expect(page.locator("form").getByRole("alert")).toHaveText("E-posta ya da parola hatalı.");
+  await expect(page.locator("form").getByRole("alert")).toHaveText(
+    "E-posta ya da parola hatalı. Yazımı kontrol edip yeniden deneyin.",
+  );
 });
 
 const LANDING: [string, string, string[]][] = [
