@@ -82,10 +82,19 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ORCHADOS_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
             echo "::error::SUPABASE_URL and SUPABASE_ANON_KEY secrets are required for the test APK"
             exit 1
+          fi
+          # The fixed key lets a newer test APK install over the older one.
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/orchados.p12"
+            export ORCHADOS_ANDROID_KEYSTORE="$RUNNER_TEMP/orchados.p12"
+          else
+            echo "::warning::ANDROID_KEYSTORE_BASE64 not set; the test APK is signed with this runner's debug key"
           fi
           flutter build apk --debug \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
