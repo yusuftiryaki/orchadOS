@@ -244,6 +244,10 @@ def main(argv: list[str] | None = None) -> int:
         "--skip-aisle", help="aisles the path skips, 1-based in driving order, e.g. 1 or 1,3"
     )
 
+    from .demo.cli import add_parser as add_demo_parser
+
+    add_demo_parser(sub)
+
     pp = sub.add_parser("params", help="print default parameters as JSON")
     pp.add_argument("--hash", action="store_true", help="print only the parameter hash")
 
@@ -251,6 +255,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "synth":
             return _synth(args, parser)
+        if args.command == "demo":
+            from .demo.cli import run as run_demo
+
+            return run_demo(args)
         if args.command == "params":
             p = PipelineParams()
             print(p.params_hash() if args.hash else p.model_dump_json(indent=2))
