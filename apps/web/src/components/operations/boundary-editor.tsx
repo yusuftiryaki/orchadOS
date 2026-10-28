@@ -3,7 +3,13 @@
 import { useCallback } from "react";
 import { formatNumber, t } from "@/lib/i18n";
 import type { Position } from "@/lib/map/geo";
-import { m2ToDonum, ringAreaM2, validateRing } from "@/lib/operations/geometry";
+import {
+  deleteVertex,
+  m2ToDonum,
+  moveVertex,
+  ringAreaM2,
+  validateRing,
+} from "@/lib/operations/geometry";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { BoundaryDrawMap, type DrawMode } from "./boundary-draw-map";
@@ -34,6 +40,14 @@ export function BoundaryEditor({
 }) {
   const addVertex = useCallback((p: Position) => onRingChange([...ring, p]), [ring, onRingChange]);
   const setPosition = useCallback((p: Position) => onPositionChange?.(p), [onPositionChange]);
+  const move = useCallback(
+    (i: number, p: Position) => onRingChange(moveVertex(ring, i, p)),
+    [ring, onRingChange],
+  );
+  const remove = useCallback(
+    (i: number) => onRingChange(deleteVertex(ring, i)),
+    [ring, onRingChange],
+  );
   const problem = ring.length > 0 ? validateRing(ring) : null;
   const area = ring.length >= 3 && !problem ? ringAreaM2(ring) : null;
 
@@ -85,6 +99,8 @@ export function BoundaryEditor({
         mode={mode}
         onAddVertex={addVertex}
         onSetPosition={setPosition}
+        onMoveVertex={move}
+        onDeleteVertex={remove}
         context={context}
       />
       <input type="hidden" name="boundary" value={ring.length > 0 ? JSON.stringify(ring) : ""} />
