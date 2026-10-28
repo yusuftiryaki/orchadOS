@@ -5,7 +5,9 @@ name: provision-demo
 #   host=test (default for now, docs/demo-turu.md §15.1): the test project
 #     hosts the demo; only demo-specific settings are added there (the demo
 #     origin in the Auth redirect list, ORCHADOS_DEMO_MODE and DEMO_* Edge
-#     secrets, Vault demo_cleanup_url). With the repository variable
+#     secrets, Vault demo_cleanup_url). The test project's shared cron secret
+#     (Edge ORCHADOS_CRON_SECRET, Vault orchados_cron_secret) is created only
+#     with init_cron_secret=true and only when both are missing. With the repository variable
 #     DEMO_HOST=test, deploy-db-demo and demo-data (project=demo) use the test
 #     project's secrets.
 #   host=separate: the Supabase project orchados-demo in the test project's
@@ -54,6 +56,10 @@ on:
         description: "Deploy main on Vercel even when nothing changed"
         type: boolean
         default: false
+      init_cron_secret:
+        description: "host=test: create ORCHADOS_CRON_SECRET and Vault orchados_cron_secret (one random value) when both are missing; fails if only one exists"
+        type: boolean
+        default: false
 
 concurrency:
   group: provision-demo
@@ -95,4 +101,5 @@ jobs:
           DEMO_URL: ${{ inputs.demo_url }}
           MAIN_SITE_URL: ${{ inputs.main_site_url }}
           REDEPLOY: ${{ inputs.redeploy }}
+          INIT_CRON_SECRET: ${{ inputs.init_cron_secret }}
         run: scripts/provision-demo.sh
