@@ -25,13 +25,14 @@ from pathlib import Path
 
 import httpx
 
-from ..hashing import sha256_bytes
+from ..hashing import sha256_bytes, sha256_file
 from ..media import SupabaseMediaStore, media_key
 from ..supabase import Conflict, SupabaseClient
 from . import ids
-from .build import PIPELINE_ROOT
+from .build import PIPELINE_ROOT, generator_hash, manifest_sha
 from .dataset import DATASET_VERSION, Dataset, load
-from .sources import build_source
+from .render import PROFILES
+from .sources import SOURCES, build_source
 from .sqlgen import BANNED_UNTIL, Metric, generate, lit
 from .verify import problems, verify_sql
 
@@ -39,11 +40,75 @@ REPO = PIPELINE_ROOT.parents[1]
 CONTAINER = os.environ.get("DEMO_DB_CONTAINER", "supabase_db_orchados")
 MIRROR = "demo-media"
 CACHE_CONTROL = "max-age=31536000"
-VERSIONS = (1,)  # dataset versions, applied in order up to the target
+# Dataset versions. Applying several in order (docs/demo-turu.md §10.3) needs a
+# per-version dataset and build; until v2 exists only DATASET_VERSION is loaded.
+VERSIONS = (1,)
+assert VERSIONS == (DATASET_VERSION,), "multi-version loading is not implemented"
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
+UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+KEY = re.compile(rf"^org/{UUID}/parcel/{UUID}/[0-9a-f]{{64}}$")
 
 
 class LoadError(RuntimeError):
     pass
+
+
+# ---------------------------------------------------------------------------------------
+# Build check
+# ---------------------------------------------------------------------------------------
+
+
+def check_file(build: Path, f: dict) -> tuple[str, Path]:
+    """The object key and local path of a manifest file whose bytes hash to its name."""
+    sha = f.get("sha256")
+    if not isinstance(sha, str) or not SHA256.match(sha):
+        raise LoadError(f"manifest file with a bad sha256: {sha!r}")
+    if f.get("org") != ids.ORG_ID:
+        raise LoadError(f"manifest file {sha} belongs to another org: {f.get('org')!r}")
+    key = media_key(f["org"], str(f.get("parcel")), sha)
+    if not KEY.match(key):
+        raise LoadError(f"manifest file {sha}: bad object key {key!r}")
+    path = Path(build) / "files" / sha
+    if not path.is_file():
+        raise LoadError(f"build file missing: {path}")
+    if sha256_file(path) != sha:
+        raise LoadError(f"build file {path}: bytes do not hash to its name")
+    return key, path
+
+
+def check_manifest(manifest: object, profile: str, build: Path) -> dict:
+    """Refuse a build that is not the one this code makes (docs/demo-turu.md §10.3).
+
+    A downloaded build (workflow input reuse_build_run_id) is checked like a cached
+    one: known version, the requested profile, this generator, a valid self-hash and
+    every file present with bytes that hash to its name.
+    """
+    if not isinstance(manifest, dict):
+        raise LoadError("manifest.json is not an object")
+    version = manifest.get("version")
+    if type(version) is not int or version not in VERSIONS:
+        raise LoadError(f"manifest version {version!r} is not one of {VERSIONS}")
+    if profile not in PROFILES or manifest.get("profile") != profile:
+        raise LoadError(f"build is profile {manifest.get('profile')!r}, not {profile}")
+    if manifest.get("source", "synthetic") not in SOURCES:
+        raise LoadError(f"unknown build source {manifest.get('source')!r}")
+    if manifest.get("generator_hash") != generator_hash():
+        raise LoadError(
+            "build was made by other generator code (generator_hash differs); rebuild it"
+        )
+    sha = manifest.get("dataset_sha256")
+    if not isinstance(sha, str) or sha != manifest_sha(manifest):
+        raise LoadError("manifest dataset_sha256 does not match its contents")
+    files = manifest.get("files")
+    if not isinstance(files, list) or not files:
+        raise LoadError("manifest has no files")
+    for f in files:
+        if not isinstance(f, dict):
+            raise LoadError("manifest file entry is not an object")
+        check_file(build, f)
+        if type(f.get("bytes")) is not int:
+            raise LoadError(f"manifest file {f['sha256']}: bytes is not an int")
+    return manifest
 
 
 # ---------------------------------------------------------------------------------------
@@ -213,6 +278,7 @@ def metrics(db: Psql) -> dict[str, Metric]:
 
 def verify(db: Psql, ds: Dataset | None = None, log: Callable[[str], None] = print) -> list[str]:
     ds = ds or load()
+    relock_ops(db)
     rows = db.query(verify_sql(ds))
     owner, admin = (json.loads(r) for r in rows if r.startswith("{"))
     found = problems(owner, admin, ds)
@@ -304,6 +370,20 @@ def reset_local(env: dict[str, str], log: Callable[[str], None]) -> None:
     log(f"reset-local: removed the demo org ({deleted} rows); personas kept")
 
 
+def relock_ops(db: Psql) -> None:
+    """Take the ops persona's password away again; idempotent, run on every load.
+
+    The lock is also restored in upload_media's `finally`, but a runner killed after
+    the upload never gets there, so every load, verify and enable re-locks first.
+    """
+    db.run(
+        f"update auth.users set encrypted_password = '', banned_until = {lit(BANNED_UNTIL)}, "
+        f"updated_at = now() where id = {lit(ids.OPS)} "
+        "and (coalesce(encrypted_password, '') <> '' or banned_until is null "
+        "or banned_until <= now());\n"
+    )
+
+
 def upload_media(
     db: Psql,
     env: dict[str, str],
@@ -332,18 +412,20 @@ def upload_media(
         return
     password = secrets.token_urlsafe(24)
     email = ids.persona_email(next(p[2] for p in ids.PERSONAS if p[0] == ids.OPS))
+    # Checked again right before the upload: the objects can never be replaced.
+    checked = [(f, *check_file(build, f)) for f in todo]
     try:
+        # updated_at = now(): stream A's housekeeping leaves a persona changed in the
+        # last hour alone, so it cannot re-ban it between this and the sign-in.
         db.run(
             "update auth.users set encrypted_password = extensions.crypt("
-            f"{lit(password)}, extensions.gen_salt('bf')), banned_until = null where id = "
-            f"{lit(ids.OPS)};\n"
+            f"{lit(password)}, extensions.gen_salt('bf')), banned_until = null, "
+            f"updated_at = now() where id = {lit(ids.OPS)};\n"
         )
         with SupabaseClient(env["SUPABASE_URL"], env["SUPABASE_ANON_KEY"]) as client:
             client.sign_in_with_password(email, password)
             store = SupabaseMediaStore(client)
-            for n, f in enumerate(todo, 1):
-                path = build / "files" / f["sha256"]
-                key = _key(f)
+            for n, (f, key, path) in enumerate(checked, 1):
                 if f"media:{key}" not in existing:
                     if store.put(key, path, f["mime"]):
                         report.uploaded += 1
@@ -354,10 +436,7 @@ def upload_media(
                     log(f"media: {n}/{len(todo)}")
             _read_back(client, build, files, mirror)
     finally:
-        db.run(
-            f"update auth.users set encrypted_password = '', banned_until = {lit(BANNED_UNTIL)} "
-            f"where id = {lit(ids.OPS)};\n"
-        )
+        relock_ops(db)
 
 
 def _key(f: dict) -> str:
@@ -404,9 +483,9 @@ def finish_registry(db: Psql, ds: Dataset, manifest: dict) -> None:
     db.run(
         f"""
 update private.demo_org
-set loaded_at = coalesce(loaded_at, now()), dataset_version = {manifest["version"]},
+set loaded_at = coalesce(loaded_at, now()), dataset_version = {lit(DATASET_VERSION)},
     dataset_sha256 = {lit(manifest["dataset_sha256"])},
-      dataset_source = {lit(manifest.get("source", "synthetic"))},
+    dataset_source = {lit(manifest.get("source", "synthetic"))},
     tour = {lit(ds.tour())}, updated_at = now()
 where org_id = {lit(ids.ORG_ID)};
 insert into private.demo_parcel (parcel_id, org_id, sort_order, active) values
@@ -433,6 +512,8 @@ def load_demo(
         raise LoadError("--reset-local works only with --target local")
     if do_enable and dry_run:
         raise LoadError("--enable and --dry-run exclude each other")
+    if reset and dry_run:
+        raise LoadError("--reset-local and --dry-run exclude each other (a dry run writes nothing)")
     db = Psql(target)
     env = api_env(target)
     report = LoadReport()
@@ -454,32 +535,51 @@ def load_demo(
             "steps skipped"
         )
 
-    build, manifest = (
-        (
-            Path(build_dir),
-            json.loads((Path(build_dir) / "manifest.json").read_text(encoding="utf-8")),
-        )
-        if build_dir and not force_build and (Path(build_dir) / "manifest.json").is_file()
-        else build_source(
+    if build_dir and not force_build and (Path(build_dir) / "manifest.json").is_file():
+        build = Path(build_dir)
+        try:
+            manifest = json.loads((build / "manifest.json").read_text(encoding="utf-8"))
+        except ValueError as e:
+            raise LoadError(f"{build}/manifest.json is not valid JSON: {e}") from e
+    else:
+        build, manifest = build_source(
             "synthetic", profile, Path(build_dir) if build_dir else None, force_build, log
         )
-    )
-    if manifest["profile"] != profile and not build_dir:
-        raise LoadError(f"build is profile {manifest['profile']}, not {profile}")
+    check_manifest(manifest, profile, build)
     report.files = len(manifest["files"])
     report.megabytes = sum(f["bytes"] for f in manifest["files"]) / 1e6
     ds = load()
+    hint = "pnpm db:reset or --reset-local" if target == "local" else "a new dataset version"
+    other_bytes = LoadError(
+        f"the target holds demo media of another profile or build; use {hint} "
+        f"(this build: profile {profile})"
+    )
+    hashes = {f["sha256"] for f in manifest["files"]}
 
+    if not dry_run:
+        relock_ops(db)  # a run killed after the upload left it open
     if reset:
         reset_local(env, log)
         st = state(db)
 
-    # --- pre-check, by version ---------------------------------------------------------
+    # --- pre-check ----------------------------------------------------------------------
     row = st.row
-    if row and row.get("dataset_version") and row["dataset_version"] >= manifest["version"]:
+    # Locally a different profile or build is a mismatch even when the registry says
+    # "loaded"; hosted projects compare versions only (§10.3).
+    if target == "local" and st.asset_hashes and not st.asset_hashes <= hashes:
+        raise other_bytes
+    if row and row.get("dataset_version") is not None:
+        if type(row["dataset_version"]) is not int:
+            raise LoadError(f"registry dataset_version {row['dataset_version']!r} is not an int")
+        if row["dataset_version"] > DATASET_VERSION:
+            raise LoadError(
+                f"the target has dataset version {row['dataset_version']}, newer than this code "
+                f"({DATASET_VERSION})"
+            )
+    if row and row.get("dataset_version") == DATASET_VERSION:
         if row.get("loaded_at"):
             if not verify(db, ds, log):
-                report.status = f"already loaded (version {row['dataset_version']})"
+                report.status = f"already loaded (version {DATASET_VERSION})"
                 log(report.status)
                 if do_enable:
                     enable(db, log)
@@ -492,31 +592,21 @@ def load_demo(
             )
         else:
             log("resuming a partial load with the same build")
-    if st.asset_hashes and not st.asset_hashes <= {f["sha256"] for f in manifest["files"]}:
-        hint = "pnpm db:reset or --reset-local" if target == "local" else "a new dataset version"
-        raise LoadError(
-            f"the target holds demo media of another profile or build; use {hint} "
-            f"(this build: profile {manifest['profile']})"
-        )
+    if st.asset_hashes and not st.asset_hashes <= hashes:
+        raise other_bytes
     mirror = st.mirror and st.registry
 
-    # --- SQL --------------------------------------------------------------------------
-    m = metrics(db)
-    for version in VERSIONS:
-        if version > DATASET_VERSION:
-            break
-        sql = generate(ds, build, manifest, m).sql(
-            f"-- orchados demo dataset v{version} ({manifest['profile']})"
-        )
-        if dry_run:
-            out = db.run(sql + "rollback;\n")
-            report.inserted = insert_counts(out)
-            report.status = "dry run: rolled back, nothing written"
-            log("\n".join(report.lines()))
-            return report
-        out = db.run(sql)
-        for t, n in insert_counts(out).items():
-            report.inserted[t] = report.inserted.get(t, 0) + n
+    # --- SQL (one version: see VERSIONS) ------------------------------------------------
+    sql = generate(ds, build, manifest, metrics(db)).sql(
+        f"-- orchados demo dataset v{DATASET_VERSION} ({profile})"
+    )
+    if dry_run:
+        out = db.run(sql + "rollback;\n")
+        report.inserted = insert_counts(out)
+        report.status = "dry run: rolled back, nothing written"
+        log("\n".join(report.lines()))
+        return report
+    report.inserted = insert_counts(db.run(sql))
     log(f"sql: {sum(report.inserted.values())} rows inserted")
 
     # --- media, registry ----------------------------------------------------------------

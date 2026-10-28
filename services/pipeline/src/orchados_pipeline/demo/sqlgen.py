@@ -38,6 +38,7 @@ from . import ids
 from .build import frame_pose
 from .dataset import (
     CAMERA_HEIGHT_M,
+    DATASET_VERSION,
     METHODOLOGY,
     QUESTIONS,
     UNSURE_LABELS,
@@ -1150,6 +1151,8 @@ def questions(script: Script, ds: Dataset) -> None:
 
 def registry(script: Script, ds: Dataset, version: int, dataset_sha256: str, source: str) -> None:
     """The registry row with loaded_at null, only where stream A's table exists."""
+    if type(version) is not int:
+        raise ValueError(f"dataset version must be an int, not {version!r}")
     script.raw["registry"].append(
         "do $$\nbegin\n"
         "  if to_regclass('private.demo_org') is null then\n"
@@ -1158,7 +1161,7 @@ def registry(script: Script, ds: Dataset, version: int, dataset_sha256: str, sou
         "  end if;\n"
         "  insert into private.demo_org (org_id, dataset_version, dataset_sha256, "
         "dataset_source, tour)\n"
-        f"  values ({lit(ids.ORG_ID)}, {version}, {lit(dataset_sha256)}, {lit(source)}, "
+        f"  values ({lit(ids.ORG_ID)}, {lit(version)}, {lit(dataset_sha256)}, {lit(source)}, "
         f"{lit(ds.tour())})\n"
         "  on conflict (org_id) do nothing;\n"
         "end\n$$;\n"
@@ -1184,7 +1187,7 @@ def generate(ds: Dataset, build: Path, manifest: dict, metrics: dict[str, Metric
     registry(
         script,
         ds,
-        manifest["version"],
+        DATASET_VERSION,
         manifest["dataset_sha256"],
         manifest.get("source", "synthetic"),
     )

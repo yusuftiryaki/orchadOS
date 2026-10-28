@@ -1,8 +1,10 @@
 """The demo loader against the local Supabase stack (pnpm db:start && pnpm db:reset).
 
-Loads the test profile with --reset-local, reloads (nothing new), verifies, reads
-media back as a temporary owner and through the public mirror, and checks the
-personas through GoTrue's admin API. Skipped when the local stack does not answer.
+Checks that --dry-run and a refused --demo-only write nothing, loads the test
+profile with --reset-local, reloads (registry shortcut, then forced through the SQL
+path), verifies, reads media back as a temporary owner and through the public
+mirror, and checks the personas through GoTrue's admin API. Skipped when the local
+stack does not answer.
 """
 
 from __future__ import annotations
@@ -32,13 +34,45 @@ def _admin(key: str) -> dict[str, str]:
     return {"apikey": key, "Authorization": f"Bearer {key}"}
 
 
+def _quiet(_m: str) -> None:
+    pass
+
+
+def _demo_rows(db: loader.Psql) -> int:
+    return int(
+        db.query(
+            f"select (select count(*) from public.org where id = '{ORG}') "
+            f"+ (select count(*) from public.asset where org_id = '{ORG}') "
+            f"+ (select count(*) from public.measurement where org_id = '{ORG}');"
+        )[0]
+    )
+
+
 @pytest.fixture(scope="module")
-def loaded():
+def guards():
+    """Before loading: a dry run and a refused --demo-only leave no demo rows."""
+    db = loader.Psql("local")
+    loader.reset_local(loader.api_env("local"), _quiet)
+    dry = loader.load_demo("local", profile="test", dry_run=True, log=_quiet)
+    after_dry = _demo_rows(db)
+    with pytest.raises(loader.LoadError, match="--demo-only"):
+        loader.load_demo("local", profile="test", demo_only=True, log=_quiet)
+    return dry, after_dry, _demo_rows(db)
+
+
+@pytest.fixture(scope="module")
+def loaded(guards):
     logs: list[str] = []
     first = loader.load_demo("local", profile="test", reset=True, do_verify=True, log=logs.append)
     again: list[str] = []
     second = loader.load_demo("local", profile="test", do_verify=True, log=again.append)
     return first, second, again
+
+
+def test_dry_run_and_demo_only_write_nothing(guards):
+    dry, after_dry, after_demo_only = guards
+    assert dry.inserted["public.asset"] > 0 and dry.uploaded == 0
+    assert after_dry == 0 and after_demo_only == 0
 
 
 def test_first_load_writes_rows_and_media(loaded):
@@ -53,6 +87,73 @@ def test_reload_is_a_no_op(loaded):
     assert second.uploaded == 0 and second.mirrored == 0
     text = "\n".join(again)
     assert "already loaded" in text or "rows inserted: 0 (nothing new)" in text
+
+
+def test_reload_through_the_sql_path_inserts_nothing(loaded):
+    """With the registry shortcut off (loaded_at null) the whole SQL runs again."""
+    db = loader.Psql("local")
+    if not loader.state(db).registry:
+        pytest.skip("private.demo_org does not exist yet (stream A)")
+    db.run(f"update private.demo_org set loaded_at = null where org_id = '{ORG}';")
+    logs: list[str] = []
+    third = loader.load_demo("local", profile="test", do_verify=True, log=logs.append)
+    assert "resuming a partial load with the same build" in logs
+    assert third.inserted and all(n == 0 for n in third.inserted.values()), third.inserted
+    assert third.uploaded == 0 and third.mirrored == 0
+    assert loader.state(db).row["loaded_at"]
+
+
+def test_partial_load_of_another_build_is_refused(loaded):
+    db = loader.Psql("local")
+    if not loader.state(db).registry:
+        pytest.skip("private.demo_org does not exist yet (stream A)")
+    row = loader.state(db).row
+    db.run(
+        "update private.demo_org set loaded_at = null, dataset_sha256 = repeat('0', 64) "
+        f"where org_id = '{ORG}';"
+    )
+    try:
+        with pytest.raises(loader.LoadError, match="reuse_build_run_id"):
+            loader.load_demo("local", profile="test", log=_quiet)
+    finally:
+        db.run(
+            f"update private.demo_org set loaded_at = {loader.lit(row['loaded_at'])}, "
+            f"dataset_sha256 = {loader.lit(row['dataset_sha256'])} where org_id = '{ORG}';"
+        )
+
+
+def test_other_bytes_locally_are_reported_before_already_loaded(loaded, monkeypatch):
+    """A local target with another profile's media gets the db:reset hint, even when
+    the registry says loaded (here: the build is a different set of files)."""
+    db = loader.Psql("local")
+    if not loader.state(db).registry:
+        pytest.skip("private.demo_org does not exist yet (stream A)")
+    real = loader.check_manifest
+
+    def fewer_files(manifest, profile, build):
+        real(manifest, profile, build)
+        manifest["files"] = manifest["files"][1:]
+
+    monkeypatch.setattr(loader, "check_manifest", fewer_files)
+    with pytest.raises(loader.LoadError, match="db:reset or --reset-local"):
+        loader.load_demo("local", profile="test", log=_quiet)
+
+
+def test_an_open_persona_is_locked_again_by_the_next_run(loaded):
+    """A run killed after the upload leaves the ops persona open; the next one, with
+    nothing left to upload, locks it again."""
+    db = loader.Psql("local")
+    db.run(
+        "update auth.users set encrypted_password = extensions.crypt('x', "
+        f"extensions.gen_salt('bf')), banned_until = null where id = '{ids.OPS}';"
+    )
+    report = loader.load_demo("local", profile="test", do_verify=True, log=_quiet)
+    assert report.status.startswith("already loaded")
+    rows = db.query(
+        "select coalesce(encrypted_password, '') = '' and banned_until > now() "
+        f"from auth.users where id = '{ids.OPS}';"
+    )
+    assert rows == ["t"]
 
 
 def test_verify_passes(loaded):
