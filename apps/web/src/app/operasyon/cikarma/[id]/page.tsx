@@ -428,9 +428,7 @@ function RemovalCalculation({
                 {l.inventory_done && <span className="muted"> ({T.inventoryDone})</span>}
               </td>
               <td className={`${cell.num} ${cell.nowrap}`}>{money(l.gross_kurus)}</td>
-              <td className={`${cell.num} ${cell.nowrap}`}>
-                {money(-l.already_refunded_kurus)}
-              </td>
+              <td className={`${cell.num} ${cell.nowrap}`}>{money(-l.already_refunded_kurus)}</td>
               <td className={`${cell.num} ${cell.nowrap}`}>{money(l.refund_kurus)}</td>
               <td className={`${cell.num} ${cell.nowrap}`}>{money(l.refund_vat_kurus)}</td>
             </tr>

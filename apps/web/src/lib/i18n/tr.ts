@@ -1541,6 +1541,7 @@ export const tr = {
       latest: "Son durum",
       noAssessment: "Bu ağaç için yayımlanmış bir değerlendirme yok.",
       classHistory: "Durum geçmişi",
+      historyColumns: { date: "Denetim", class: "Sınıf", approval: "Karar" },
       measurements: "Ölçüm geçmişi",
       noMeasurements: "Karnede gösterilen bir ölçüm yok.",
       metric: "Ölçüm",

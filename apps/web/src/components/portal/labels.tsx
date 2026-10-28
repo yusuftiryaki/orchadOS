@@ -10,11 +10,13 @@ export function findingKindLabel(kind: string): string {
   return t.portal.findingKinds[kind] ?? kind.replaceAll("_", " ");
 }
 
-export function ApprovalBadge({ approval }: { approval: Approval }) {
+// `marked` carries the test id of the tree's latest decision; the rows of
+// the class history show the same badge without it.
+export function ApprovalBadge({ approval, marked = true }: { approval: Approval; marked?: boolean }) {
   return (
     <span
       className={approval === "expert" ? styles.approvalExpert : styles.approval}
-      data-testid="approval"
+      data-testid={marked ? "approval" : undefined}
     >
       {approval === "expert" ? "✓ " : ""}
       {t.portal.approval[approval]}

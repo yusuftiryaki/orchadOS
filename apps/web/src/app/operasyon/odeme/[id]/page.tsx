@@ -6,9 +6,7 @@ import {
   voidManualPaymentAction,
 } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
-import {
-  EventDetails,
-} from "@/components/back-office/money-ui";
+import { EventDetails } from "@/components/back-office/money-ui";
 import { Consequence, Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
 import type { ParcelReport } from "@/lib/portal/data";
 import { share } from "@/lib/portal/score";
+import { Panel } from "@/components/ui/panel";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
 
@@ -24,8 +25,7 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
   const a = t.portal.audit;
 
   return (
-    <div className={layout.panel} data-testid="dimensions">
-      <h3>{d.title}</h3>
+    <Panel title={d.title} headingLevel={3} testId="dimensions">
       <ul className={`${layout.rows} ${styles.dimensions}`}>
         <Row label={d.inventory} id="inventory">
           <p>
@@ -182,7 +182,7 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
           {latest.publishedAt && <p>{d.signed(formatDate(latest.publishedAt))}</p>}
         </Row>
       </ul>
-    </div>
+    </Panel>
   );
 }
 

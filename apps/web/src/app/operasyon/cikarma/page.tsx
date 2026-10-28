@@ -123,7 +123,11 @@ export default async function Page({
                       </td>
                       <td>
                         <span className={styles.badges}>
-                          <Badge labels={billingText.gardenRemovalStatus} value={r.status} kind="removal" />
+                          <Badge
+                            labels={billingText.gardenRemovalStatus}
+                            value={r.status}
+                            kind="removal"
+                          />
                           {r.blocked_reason && <UiBadge tone="danger">{T.blocked}</UiBadge>}
                           {r.withdrawal && <UiBadge>{T.withdrawal}</UiBadge>}
                           {r.at_period_end && <UiBadge>{T.atPeriodEnd}</UiBadge>}

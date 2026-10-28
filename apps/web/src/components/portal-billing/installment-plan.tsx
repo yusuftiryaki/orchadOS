@@ -79,7 +79,9 @@ export function InstallmentPlan({
                   <td className={s.state}>
                     <span className={s.planStatus}>
                       {row.status && (
-                        <Badge tone={statusTone(row.status, "installment")}>{T.statusText[row.status]}</Badge>
+                        <Badge tone={statusTone(row.status, "installment")}>
+                          {T.statusText[row.status]}
+                        </Badge>
                       )}
                       {isNext && <Badge tone="warning">{T.next}</Badge>}
                     </span>

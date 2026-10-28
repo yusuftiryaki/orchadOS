@@ -20,6 +20,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Select, Textarea } from "@/components/ui/field";
+import { panelClass } from "@/components/ui/panel";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
 
@@ -70,7 +71,7 @@ export function ServiceCard({
         </Badge>
       </div>
       <PortalResult params={params} />
-      <div className={layout.panel}>
+      <div className={panelClass}>
         <div className={layout.stack}>
           <p>{R.period(formatDate(garden.service_start), formatDate(garden.service_end))}</p>
           <p>{R.visits(garden.visits_used, garden.visits_entitled)}</p>

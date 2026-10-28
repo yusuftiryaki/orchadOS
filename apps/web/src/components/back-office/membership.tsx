@@ -168,7 +168,11 @@ export function CustomerGardens({ gardens }: { gardens: CustomerGardenRow[] }) {
                 {g.removal_status && (
                   <>
                     {" "}
-                    <Badge labels={billingText.gardenRemovalStatus} value={g.removal_status} kind="removal" />
+                    <Badge
+                      labels={billingText.gardenRemovalStatus}
+                      value={g.removal_status}
+                      kind="removal"
+                    />
                   </>
                 )}
               </td>

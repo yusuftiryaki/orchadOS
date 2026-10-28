@@ -7,6 +7,7 @@ import {
   type InventoryReport,
   type MapPoint,
 } from "@/lib/portal/inventory-report";
+import { panelClass } from "@/components/ui/panel";
 import { BoundaryNotice } from "./boundary-notice";
 import ir from "./inventory-report.module.css";
 import { Alert } from "@/components/ui/alert";
@@ -106,7 +107,7 @@ export function InventoryReportView({
           )}
           <section className={layout.section} aria-labelledby="ozet">
             <h2 id="ozet">{r.summaryTitle}</h2>
-            <div className={layout.panel}>
+            <div className={panelClass}>
               <p className={ir.lead} data-testid="inventory-summary">
                 {r.summary(c.slots, c.trees, c.emptySlots, c.interstitialTrees)}
                 {report.estimate && (
@@ -141,7 +142,7 @@ export function InventoryReportView({
             <h2 id="harita">{r.mapTitle}</h2>
             <p className={layout.sectionLead}>{r.mapHint}</p>
             {report.map && (
-              <div className={layout.panel}>
+              <div className={panelClass}>
                 <SlotMap map={report.map} />
               </div>
             )}
@@ -180,7 +181,7 @@ export function InventoryReportView({
 
           <section className={layout.section} aria-labelledby="yapi">
             <h2 id="yapi">{r.structureTitle}</h2>
-            <div className={`${layout.panel} ${ir.columns}`}>
+            <div className={`${panelClass} ${ir.columns}`}>
               <Counts
                 title={r.ages}
                 rows={Object.entries(report.structure.ages).map(([k, n]) => [
@@ -263,7 +264,7 @@ export function InventoryReportView({
 
           <section className={layout.section} aria-labelledby="sirada">
             <h2 id="sirada">{r.nextTitle}</h2>
-            <div className={layout.panel}>
+            <div className={panelClass}>
               <p>{r.next}</p>
               <h3>{r.youTitle}</h3>
               <p>{r.you}</p>

@@ -13,7 +13,9 @@ import type { QuestionThread } from "@/lib/portal/questions";
 import { AskQuestionForm, QuestionNotice, QuestionThreads } from "./question-threads";
 import { Badge, ClassBadge, ClassDot } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
+import { Facts } from "@/components/ui/facts";
 import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
 import { Table } from "@/components/ui/table";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
@@ -41,20 +43,21 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
   return (
     <main className={layout.page} data-testid="tree-card">
       <PageHeader
-        back={{ href: base, label: `${c.back} (${card.parcel.name})` }}
+        back={{ href: base, label: card.parcel.name }}
         title={tree.code}
         actions={
-          <div className={`${layout.actions} ${styles.noPrint}`}>
-            <ButtonLink variant="secondary" href={`${base}/gezi?agac=${tree.id}`}>
-              {t.portal.panel.openTour}
-            </ButtonLink>
-          </div>
+          <ButtonLink
+            variant="secondary"
+            href={`${base}/gezi?agac=${tree.id}`}
+            className={styles.noPrint}
+          >
+            {t.portal.panel.openTour}
+          </ButtonLink>
         }
       />
 
       <div className={styles.treeTop}>
-        <section className={layout.panel} aria-labelledby="durum-baslik">
-          <h2 id="durum-baslik">{c.latest}</h2>
+        <Panel title={c.latest} id="durum">
           {latest ? (
             <>
               <div className={styles.classLine}>
@@ -89,33 +92,26 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
               })}
             </ol>
           )}
-        </section>
+        </Panel>
 
-        <section className={layout.panel} aria-labelledby="kimlik-baslik">
-          <h2 id="kimlik-baslik">{c.identity}</h2>
-          <dl className={styles.facts}>
-            <dt>{c.code}</dt>
-            <dd>{tree.code}</dd>
-            <dt>{c.slotKind}</dt>
-            <dd>{v.slotKind[tree.slotKind]}</dd>
-            <dt>{t.portal.panel.sex}</dt>
-            <dd>{v.sex[tree.sex]}</dd>
-            <dt>{t.portal.panel.graft}</dt>
-            <dd>{v.graft[tree.graft]}</dd>
-            <dt>{t.portal.panel.ageClass}</dt>
-            <dd>{v.ageClass[tree.ageClass]}</dd>
-            <dt>{t.portal.panel.cultivar}</dt>
-            <dd>{tree.cultivar ?? t.tree.unknown}</dd>
-            <dt>{c.inventoryDate}</dt>
-            <dd>{tree.firstSeenAt ? formatDate(tree.firstSeenAt) : t.tree.none}</dd>
-            {tree.status === "lost" && (
-              <>
-                <dt>{c.lostAt}</dt>
-                <dd>{tree.lostAt ? formatDate(tree.lostAt) : v.status.lost}</dd>
-              </>
-            )}
-          </dl>
-        </section>
+        <Panel title={c.identity} id="kimlik">
+          <Facts
+            rows={[
+              [c.code, tree.code],
+              [c.slotKind, v.slotKind[tree.slotKind]],
+              [t.portal.panel.sex, v.sex[tree.sex]],
+              [t.portal.panel.graft, v.graft[tree.graft]],
+              [t.portal.panel.ageClass, v.ageClass[tree.ageClass]],
+              [t.portal.panel.cultivar, tree.cultivar ?? t.tree.unknown],
+              [c.inventoryDate, tree.firstSeenAt ? formatDate(tree.firstSeenAt) : t.tree.none],
+              ...(tree.status === "lost"
+                ? ([
+                    [c.lostAt, tree.lostAt ? formatDate(tree.lostAt) : v.status.lost],
+                  ] as [string, string][])
+                : []),
+            ]}
+          />
+        </Panel>
       </div>
 
       <section className={layout.section} aria-labelledby="bulgu-baslik">
@@ -151,6 +147,13 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
         <section className={layout.section} aria-labelledby="gecmis-baslik">
           <h2 id="gecmis-baslik">{c.classHistory}</h2>
           <Table data-testid="class-history">
+            <thead>
+              <tr>
+                <th>{c.historyColumns.date}</th>
+                <th>{c.historyColumns.class}</th>
+                <th>{c.historyColumns.approval}</th>
+              </tr>
+            </thead>
             <tbody>
               {card.classHistory.map((entry) => {
                 const s = entry.overallClass ?? "unassessed";
@@ -160,7 +163,9 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
                     <td>
                       <ClassBadge value={s}>{t.portal.classes[s]}</ClassBadge>
                     </td>
-                    <td>{t.portal.approval[entry.approval]}</td>
+                    <td>
+                      <ApprovalBadge approval={entry.approval} marked={false} />
+                    </td>
                   </tr>
                 );
               })}

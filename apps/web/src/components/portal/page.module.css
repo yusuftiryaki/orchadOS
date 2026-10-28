@@ -1,8 +1,8 @@
-/* Shared layout of the portal screens (docs/tasarim-sistemi.md, wave 2a).
-   Phone first: one column at 390px, 16px gutters; 1120px wide on desktop
-   like the portal AppShell. Surfaces are separated by borders, never by
-   shadows. Every portal page and component composes these instead of
-   writing its own card, section or key/value list. */
+/* Layout of the portal screens (docs/tasarim-sistemi.md). Phone first: one
+   column at 390px, 16px gutters; 1120px wide on desktop like the portal
+   AppShell. Surfaces (Panel), key/value lists (Facts) and two-column layouts
+   (Split) come from components/ui; this file holds the page column, the
+   anchored sections of the report pages and the rows of a list. */
 
 /* The page column: everything between the header and the end of the page. */
 .page {
@@ -30,15 +30,17 @@
   }
 }
 
-/* A narrow column for forms and single documents (application, quote,
-   payment): long lines are hard to read on a desktop. */
-.narrow {
-  composes: page;
+/* Every portal page shares the column above, so the title does not move
+   between the navigation tabs. Long-form content (a form, a document, an
+   application or a quote) keeps a reading width inside it, left aligned;
+   the header keeps the full column so its actions line up with every other
+   page. */
+.reading > :not(header) {
   max-width: 760px;
 }
 
-/* A titled block of a page. Plain on the ground: a heading, then content.
-   Use .panel for the one block that should read as a surface. */
+/* A titled block of a long page (parcel report, tree card) that the in-page
+   navigation scrolls to. Plain on the ground: a heading, then content. */
 .section {
   display: grid;
   gap: var(--space-3);
@@ -67,35 +69,6 @@
   max-width: var(--measure);
 }
 
-/* A bordered white surface: a card, a form, a document. */
-.panel {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3);
-  display: grid;
-  gap: var(--space-3);
-  align-content: start;
-  min-width: 0;
-}
-
-@media (min-width: 720px) {
-  .panel {
-    padding: var(--space-4);
-  }
-}
-
-.panel > h2,
-.panel > h3,
-.panel > header h2,
-.panel > header h3 {
-  margin: 0;
-}
-
-.panel > h2 {
-  font-size: var(--text-lg);
-}
-
 /* Vertical rhythm inside a block. */
 .stack {
   display: grid;
@@ -120,42 +93,6 @@
   .actions > :global(.button) {
     flex: 1 1 100%;
   }
-}
-
-/* Key/value facts: "Paket  Standart", "Toplam  ₺12.960,00". Label on the
-   left, value on the right; values are tabular. Stacks on the narrowest
-   phones only when the label is long. */
-.facts {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-2) var(--space-3);
-  margin: 0;
-}
-
-.facts dt {
-  color: var(--color-text-2);
-}
-
-.facts dd {
-  margin: 0;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  min-width: 0;
-  overflow-wrap: break-word;
-}
-
-/* The total under a list of facts. */
-.factsTotal {
-  border-top: 1px solid var(--color-border);
-  padding-top: var(--space-2);
-  font-size: var(--text-lg);
-  font-weight: 800;
-  color: var(--color-text);
-}
-
-.facts .factsTotal {
-  text-align: inherit;
 }
 
 /* Muted secondary text and small print. */
@@ -210,20 +147,6 @@
 
 .rowMain > * {
   margin: 0;
-}
-
-/* Two columns on a desktop: main content and a narrow side column (the
-   summary of a quote, the payment plan of an order). */
-.split {
-  display: grid;
-  gap: var(--space-5);
-  align-items: start;
-}
-
-@media (min-width: 960px) {
-  .split {
-    grid-template-columns: minmax(0, 1fr) 340px;
-  }
 }
 
 @media print {

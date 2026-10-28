@@ -64,35 +64,11 @@
   white-space: nowrap;
 }
 
-/* ---- Bank transfer details: each value on its own line, easy to copy. */
+/* ---- Bank transfer details: the IBAN may break anywhere on a phone. */
 
-.bank {
-  display: grid;
-  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
-  gap: var(--space-2) var(--space-3);
-  margin: 0;
-}
-
-.bank dt {
-  color: var(--color-text-2);
-}
-
-.bank dd {
-  margin: 0;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+.iban {
   overflow-wrap: anywhere;
-}
-
-@media (max-width: 479px) {
-  .bank {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
-
-  .bank dd {
-    margin-bottom: var(--space-2);
-  }
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---- Package choice: one bordered option per package. */
@@ -511,24 +487,12 @@ fieldset.checks {
   font-weight: 700;
 }
 
-/* A billing page: the portal's page column (titles line up with every other
-   portal page), its blocks kept to a reading width. */
-.doc > * {
-  max-width: 760px;
-}
-
 /* A button whose label states its consequence may run to two lines. */
 .longButton {
   white-space: normal;
   height: auto;
   min-height: var(--control-height);
   text-align: center;
-}
-
-/* Facts whose values can be long ("2/5, Ziyaret ödemesi, Kış (…)"): the label
-   keeps its width, the value wraps on its side. */
-.factsFlex.factsFlex {
-  grid-template-columns: minmax(9ch, max-content) minmax(0, 1fr);
 }
 
 /* The amount of a payment, said first. */

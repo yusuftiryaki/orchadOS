@@ -3,6 +3,7 @@ import { formatDate, t } from "@/lib/i18n";
 import { visitsText } from "@/lib/i18n/messages/visits";
 import type { UpcomingVisit } from "@/lib/portal/visits";
 import { Button } from "@/components/ui/button";
+import { panelClass } from "@/components/ui/panel";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
 
@@ -23,7 +24,7 @@ export function UpcomingVisits({
     <div className={`${layout.stack} ${styles.noPrint}`} data-testid="upcoming-visits">
       <h3>{V.title}</h3>
       <p className={`${styles.small} muted`}>{V.lead}</p>
-      <div className={layout.panel}>
+      <div className={panelClass}>
         <ul className={layout.rows}>
           {visits.map((v) => (
             <li key={v.sessionId} data-testid="upcoming-visit">

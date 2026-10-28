@@ -264,48 +264,48 @@ export function RemoveAllGardens({
     <Disclosure title={M.removeAll} testId="remove-all-gardens">
       <Consequence>{M.removeAllHint}</Consequence>
       <ActionForm action={removeAllGardensAction} testId="remove-all-form">
-          <input type="hidden" name="org_id" value={orgId} />
-          <input type="hidden" name="user_id" value={userId} />
-          <input type="hidden" name="setting_access_days" value={settingAccessDays} />
-          <Field label={B.fields.reason} hint={B.removal.reasonHint}>
-            <select name="reason" defaultValue="" required>
-              <option value="" disabled>
-                —
+        <input type="hidden" name="org_id" value={orgId} />
+        <input type="hidden" name="user_id" value={userId} />
+        <input type="hidden" name="setting_access_days" value={settingAccessDays} />
+        <Field label={B.fields.reason} hint={B.removal.reasonHint}>
+          <select name="reason" defaultValue="" required>
+            <option value="" disabled>
+              —
+            </option>
+            {OPS_REMOVAL_REASONS.map((r) => (
+              <option key={r} value={r}>
+                {billingText.gardenRemovalReason[r]}
               </option>
-              {OPS_REMOVAL_REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {billingText.gardenRemovalReason[r]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={B.fields.owner_consent_note} hint={B.removal.consentHint} optional>
-            <textarea name="owner_consent_note" maxLength={2000} rows={2} />
-          </Field>
-          <Field label={B.fields.effective_on}>
-            <input type="date" name="effective_on" min={today} required />
-          </Field>
-          <Field
-            label={B.fields.access_days}
-            hint={B.removal.accessDaysHint(settingAccessDays)}
-            optional
-          >
-            <input
-              name="access_days"
-              type="number"
-              min={0}
-              max={365}
-              placeholder={String(settingAccessDays)}
-            />
-          </Field>
-          <Field label={B.internalNote} optional>
-            <textarea name="note" maxLength={2000} rows={2} />
-          </Field>
-          <div className={styles.actions}>
-            <Button variant="danger" type="submit">
-              {M.removeAllSubmit}
-            </Button>
-          </div>
+            ))}
+          </select>
+        </Field>
+        <Field label={B.fields.owner_consent_note} hint={B.removal.consentHint} optional>
+          <textarea name="owner_consent_note" maxLength={2000} rows={2} />
+        </Field>
+        <Field label={B.fields.effective_on}>
+          <input type="date" name="effective_on" min={today} required />
+        </Field>
+        <Field
+          label={B.fields.access_days}
+          hint={B.removal.accessDaysHint(settingAccessDays)}
+          optional
+        >
+          <input
+            name="access_days"
+            type="number"
+            min={0}
+            max={365}
+            placeholder={String(settingAccessDays)}
+          />
+        </Field>
+        <Field label={B.internalNote} optional>
+          <textarea name="note" maxLength={2000} rows={2} />
+        </Field>
+        <div className={styles.actions}>
+          <Button variant="danger" type="submit">
+            {M.removeAllSubmit}
+          </Button>
+        </div>
       </ActionForm>
     </Disclosure>
   );

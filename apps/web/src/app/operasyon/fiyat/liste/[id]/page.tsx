@@ -215,12 +215,8 @@ export default async function Page({
                   return (
                     <tr key={i.id}>
                       <td className={cell.nowrap}>{p?.name ?? T.packageMissing}</td>
-                      <td className={`${cell.num} ${cell.nowrap}`}>
-                        {money(i.unit_price_kurus)}
-                      </td>
-                      <td className={`${cell.num} ${cell.nowrap}`}>
-                        {money(i.minimum_fee_kurus)}
-                      </td>
+                      <td className={`${cell.num} ${cell.nowrap}`}>{money(i.unit_price_kurus)}</td>
+                      <td className={`${cell.num} ${cell.nowrap}`}>{money(i.minimum_fee_kurus)}</td>
                       <td className={`${cell.num} ${cell.nowrap}`}>
                         {money(i.inventory_fee_kurus)}
                       </td>
