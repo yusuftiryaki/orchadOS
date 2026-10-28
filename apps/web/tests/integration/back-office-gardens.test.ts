@@ -161,7 +161,7 @@ describe("a member's period, gardens and orders", () => {
     const line = (await getOrder(ops, addon))!.items[0];
     const later = addDays(today, 10);
     const opened = await requestGardenRemoval(ops, line.id, {
-      reason: "not_needed",
+      reason: "staff_safety",
       effectiveOn: later,
       accessDays: null,
       revokeAllAccess: false,
@@ -172,7 +172,7 @@ describe("a member's period, gardens and orders", () => {
 
     // A second request on the same garden is refused.
     const again = await requestGardenRemoval(ops, line.id, {
-      reason: "other",
+      reason: "staff_safety",
       effectiveOn: later,
       accessDays: null,
       revokeAllAccess: false,
@@ -241,6 +241,8 @@ describe("a member's period, gardens and orders", () => {
     const opened = await requestGardenRemoval(ops, line.id, {
       reason: "transfer",
       effectiveOn: addDays(today, 5),
+      // An earlier day than the 30-day notice: by agreement (contract 12/3).
+      ownerConsentNote: "Sahip e-postayla onayladı",
       accessDays: 0,
       revokeAllAccess: true,
       note: null,
@@ -272,7 +274,7 @@ describe("a member's period, gardens and orders", () => {
 
   it("a missing order line is not found", async () => {
     const missing = await requestGardenRemoval(ops, "00000000-0000-4000-8000-000000000000", {
-      reason: "other",
+      reason: "staff_safety",
       effectiveOn: today,
       accessDays: null,
       revokeAllAccess: false,
@@ -308,7 +310,7 @@ describe("the writes are refused on ops' own record", () => {
   it("removal, add-on quote and the reads are forbidden on the caller's own record", async () => {
     const self = customer.client;
     const removal = await requestGardenRemoval(self, line, {
-      reason: "other",
+      reason: "staff_safety",
       effectiveOn: today,
       accessDays: null,
       revokeAllAccess: false,
@@ -328,7 +330,7 @@ describe("the writes are refused on ops' own record", () => {
 
     // The same line through another ops is allowed: the refusal is the own-record rule.
     const opened = await requestGardenRemoval(ops, line, {
-      reason: "other",
+      reason: "staff_safety",
       effectiveOn: addDays(today, 5),
       accessDays: null,
       revokeAllAccess: false,
@@ -421,7 +423,7 @@ describe("removing every garden of a member with a paid renewal", () => {
       if ("skipped" in step) throw new Error("skipped");
       expect(step).toMatchObject({ effectiveOn: day, moved: false });
       const opened = await requestGardenRemoval(ops, step.garden.order_item_id, {
-        reason: "not_needed",
+        reason: "staff_safety",
         effectiveOn: step.effectiveOn,
         accessDays: null,
         revokeAllAccess: false,

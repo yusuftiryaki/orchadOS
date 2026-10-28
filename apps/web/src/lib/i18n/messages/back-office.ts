@@ -100,6 +100,7 @@ const fields: Record<string, string> = {
   effective_on: "Çıkış günü",
   access_days: "Erişim süresi (gün)",
   revoke_all_access: "Herkesin erişimini kaldır",
+  owner_consent_note: "Sahip'in yazılı onayı",
   garden_changes_enabled: "Bahçe ekleme ve çıkarma",
   addon_min_days: "Ek teklif için en az kalan gün",
   removal_notice_days: "Çıkarma bildirim süresi (gün)",
@@ -719,6 +720,11 @@ export const backOfficeText = {
     unknown: "Okunamadı",
     revokeAllUnknown:
       "Kayıttaki seçim okunamadı: kutu boş bırakılırsa mevcut seçim korunur, işaretlenirse herkesin erişimi kaldırılır.",
+    // T05 (contract 12/3, kararlar.md H20 (c)).
+    reasonHint:
+      "Şirket yalnızca sözleşmede sayılan haklı sebeplerle çıkarabilir. Bildirim en az 30 gündür; güvenlik tehdidi, mükerrer kayıt, yetkisizlik ve üçüncü kişi itirazında süre aranmaz. Kullanılmayan bütün ziyaretlerin bedeli iade edilir.",
+    consentHint:
+      "Anlaşmayla çıkarmada ve 30 günden erken bir tarihte zorunlu: Sahip'in onayının nasıl ve ne zaman alındığı (ör. e-posta, tarih). İç kayıttır.",
     accessDaysHint: (days: number) =>
       `Boş bırakılırsa ${days} gün; nedeni devir ise 0 gün (satıcının erişimi kalmaz).`,
     shortAccessRule: (days: number) =>

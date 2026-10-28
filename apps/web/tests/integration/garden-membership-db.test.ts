@@ -81,6 +81,7 @@ describe("membership: an add-on garden and a removal", () => {
       await customer.client.rpc("customer_request_garden_removal", {
         p_parcel_id: addonParcel,
         p_reason: "sold",
+        p_timing: "notice",
       }),
     );
     check(
@@ -206,6 +207,7 @@ describe("concurrency", () => {
         customer.client.rpc("customer_request_garden_removal", {
           p_parcel_id: parcels[0],
           p_reason: "cost",
+          p_timing: "notice",
         }),
       ),
     );
@@ -236,6 +238,7 @@ describe("concurrency", () => {
     const blocked = await customer.client.rpc("customer_request_garden_removal", {
       p_parcel_id: parcels[0],
       p_reason: "not_needed",
+      p_timing: "notice",
     });
     expect(errorOf(blocked)).toBe("parcel_order_pending");
 
@@ -244,6 +247,7 @@ describe("concurrency", () => {
       await customer.client.rpc("customer_request_garden_removal", {
         p_parcel_id: parcels[0],
         p_reason: "not_needed",
+        p_timing: "notice",
       }),
     );
     check(

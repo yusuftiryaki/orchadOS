@@ -4,7 +4,7 @@ import { Field } from "@/components/operations/field";
 import styles from "@/components/operations/operations.module.css";
 import { addonBase, type CustomerAccount, type Membership } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
-import { REMOVAL_REASONS } from "@/lib/back-office/validation";
+import { OPS_REMOVAL_REASONS } from "@/lib/back-office/validation";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { ActionForm } from "./action-form";
@@ -75,17 +75,20 @@ export function CustomerAccountPanel({
             <input type="hidden" name="org_id" value={orgId} />
             <input type="hidden" name="user_id" value={userId} />
             <input type="hidden" name="setting_access_days" value={settingAccessDays} />
-            <Field label={B.fields.reason}>
+            <Field label={B.fields.reason} hint={B.removal.reasonHint}>
               <select name="reason" defaultValue="" required>
                 <option value="" disabled>
                   —
                 </option>
-                {REMOVAL_REASONS.map((r) => (
+                {OPS_REMOVAL_REASONS.map((r) => (
                   <option key={r} value={r}>
                     {billingText.gardenRemovalReason[r]}
                   </option>
                 ))}
               </select>
+            </Field>
+            <Field label={B.fields.owner_consent_note} hint={B.removal.consentHint} optional>
+              <textarea name="owner_consent_note" maxLength={2000} rows={2} />
             </Field>
             <Field label={B.fields.effective_on}>
               <input type="date" name="effective_on" min={today} required />

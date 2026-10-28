@@ -238,8 +238,7 @@ export async function removalFor(
         await client.rpc("customer_request_garden_removal", {
           p_parcel_id: parcelId,
           p_reason: "not_needed",
-          p_at_period_end: opts.atPeriodEnd ?? false,
-          p_withdrawal: opts.withdrawal ?? false,
+          p_timing: opts.withdrawal ? "withdrawal" : opts.atPeriodEnd ? "period_end" : "notice",
         }),
       );
   if (opts.complete) {

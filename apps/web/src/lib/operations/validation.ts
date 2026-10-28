@@ -363,7 +363,14 @@ export function parseDetailForm(read: Read): Parsed<DetailInput, DetailField> {
 // Visit (public.session)
 // ---------------------------------------------------------------------------
 
-export const VISIT_FIELDS = ["parcel_id", "kind", "planned_date", "lead_user_id", "notes"] as const;
+export const VISIT_FIELDS = [
+  "parcel_id",
+  "kind",
+  "planned_date",
+  "lead_user_id",
+  "notes",
+  "phone_notified_at",
+] as const;
 export type VisitField = (typeof VISIT_FIELDS)[number];
 
 export interface VisitInput {
@@ -372,13 +379,30 @@ export interface VisitInput {
   plannedDate: string;
   leadUserId: string | null;
   notes: string | null;
+  // T07 (contract 8A/1): when the owner was told the day by phone, as an
+  // instant (Istanbul, +03:00); required for a day closer than 3 days.
+  phoneNotifiedAt: string | null;
+}
+
+// The visit_scheduled message goes for a day at least this many days ahead
+// (contract 8A/1); a closer inventory or periodic visit needs a phone notice.
+export const VISIT_NOTICE_DAYS = 3;
+
+export function needsPhoneNotice(kind: string, plannedDate: string, today: string): boolean {
+  if (kind !== "inventory" && kind !== "periodic_scan") return false;
+  const [y, m, d] = today.split("-").map(Number);
+  const limit = new Date(Date.UTC(y!, m! - 1, d! + VISIT_NOTICE_DAYS)).toISOString().slice(0, 10);
+  return plannedDate < limit;
 }
 
 // `today`: a visit is not planned for a day that has passed.
 export function parseVisitForm(
   read: Read,
   today: string,
-  { requireParcel = true }: { requireParcel?: boolean } = {},
+  {
+    requireParcel = true,
+    originalDate = null,
+  }: { requireParcel?: boolean; originalDate?: string | null } = {},
 ): Parsed<VisitInput, VisitField> {
   const errs = new Errors<VisitField>();
   const parcelId = read("parcel_id").trim();
@@ -397,6 +421,23 @@ export function parseVisitForm(
   if (lead !== "" && !isUuid(lead)) errs.set("lead_user_id", "invalid");
   const notes = text(errs, read, "notes", LIMITS.note);
 
+  // A day set closer than 3 days (planned or moved) needs the phone notice.
+  const phoneInput = read("phone_notified_at").trim();
+  let phoneNotifiedAt: string | null = null;
+  if (phoneInput) {
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(phoneInput) || phoneInput.slice(0, 10) > today) {
+      errs.set("phone_notified_at", "invalid");
+    } else {
+      phoneNotifiedAt = `${phoneInput}:00+03:00`;
+    }
+  } else if (
+    plannedDate &&
+    plannedDate !== originalDate &&
+    needsPhoneNotice(kind, plannedDate, today)
+  ) {
+    errs.set("phone_notified_at", "required");
+  }
+
   if (errs.any) return { ok: false, errors: errs.errors };
   return {
     ok: true,
@@ -406,6 +447,7 @@ export function parseVisitForm(
       plannedDate: plannedDate!,
       leadUserId: lead || null,
       notes,
+      phoneNotifiedAt,
     },
   };
 }

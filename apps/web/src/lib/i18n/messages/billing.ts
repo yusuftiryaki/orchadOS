@@ -72,6 +72,19 @@ const errors: Record<BillingError, string> = {
     "Bu bahçede açık bir sınır itirazı var; itiraz kapatılmadan tarama planlanamaz.",
   order_not_active: "Sipariş henüz etkin değil.",
   contract_document_immutable: "Sözleşme belgeleri değiştirilemez ve silinemez.",
+  removal_reason_not_allowed:
+    "Şirket bir bahçeyi yalnızca sözleşmede sayılan haklı sebeplerle hizmetten çıkarabilir.",
+  removal_notice_too_short:
+    "Bu sebeple çıkarmada en az 30 gün önceden bildirim gerekir; daha erken bir tarih yalnızca Sahip'in yazılı onayıyla verilir.",
+  postponement_not_allowed:
+    "Bu ziyaret ertelenemez: erteleme ziyaretten en geç bir gün önce ve bir kez istenebilir.",
+  visit_not_planned: "Bu ziyaret planlı değil.",
+  proposed_date_outside_window: "Önerilen tarih aynı ziyaret penceresinin içinde olmalı.",
+  deemed_done_not_allowed:
+    "Ziyaret yalnızca Sahip kaynaklı ikinci başarısız denemede, önerilen tarihte yapılmış sayılır.",
+  carry_over_not_allowed: "Ziyaret yalnızca aynı dönemin sonraki bir penceresine aktarılabilir.",
+  missed_visit_frozen: "Bu kaydın sonucu zaten girildi; kayıt değiştirilemez.",
+  reconciliation_frozen: "Bu görev zaten kapatıldı.",
   payment_not_open: "Bu ödeme artık açık değil.",
   write_failed: "İşlem tamamlanamadı; lütfen yeniden deneyin.",
 };
@@ -175,6 +188,18 @@ export const billingText = {
     other: "Diğer",
     transfer: "Devir (yeni sahibe geçti)",
     duplicate: "Mükerrer kayıt",
+    // Ops just causes (contract 12/3, H20 (c)).
+    out_of_area: "Hizmet bölgesi dışında",
+    owner_breach: "Sahip'in Madde 5 yükümlülüklerini esaslı ya da tekrar tekrar ihlali",
+    no_authority: "Sahip'in yetkisinin bulunmaması",
+    third_party_objection: "Üçüncü kişi itirazı (Madde 6/4)",
+    staff_safety: "Personelin güvenliğini tehdit eden durum",
+    service_discontinued: "Şirket'in bölgede hizmeti bütünüyle sona erdirmesi",
+    by_agreement: "Sahip'le anlaşarak (yazılı onay)",
+    // The access flow of every contract end (T08, contract 12/4).
+    period_ended: "Hizmet dönemi sona erdi",
+    order_terminated: "Sözleşme Şirket tarafından feshedildi",
+    pilot_ended: "Pilot hizmet sona erdi",
   },
   removalRefundMode: {
     unused_visits: "Yapılmayan ziyaretler",

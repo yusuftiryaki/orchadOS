@@ -291,6 +291,8 @@ const EVERY_TEMPLATE: Record<Template, string | null> = {
   contract_ready: "S-2026-000001",
   addon_order_closed: "S-2026-000001",
   viewer_invited: null,
+  visit_scheduled: null,
+  garden_transfer_reports: "C-2026-000001",
 };
 
 describe("service messages carry no promotion", () => {
@@ -328,5 +330,41 @@ describe("co-owner invitation (T15, H32)", () => {
     expect(renderNotification("viewer_invited", { parcel_name: "X", path: "/kvkk" }, BASE)).toEqual(
       { ok: false, error: "invalid_link" },
     );
+  });
+});
+
+describe("visit date notice (T07, H01, H15)", () => {
+  it("gives the day, the notice for people in the garden and both links", () => {
+    expect(renderNotification("visit_scheduled", VARS, "https://portal.example/app")).toEqual({
+      ok: true,
+      body: "orchadOS: Örnek Bahçe 1 adlı bahçenizin denetim ziyareti 14 Ekim günü yapılacak. Bahçede çalışan ya da bulunacak kişilere görüntü alınacağını iletmenizi rica ederiz; bilgi: https://portal.example/bahcede-bulunanlar Erteleme ve ayrıntı: https://portal.example/app/portal/parsel/c0-1",
+    });
+  });
+
+  it("works without the parcel name and needs the day and a portal path", () => {
+    const out = renderNotification("visit_scheduled", { date: "2026-10-14", path: "/portal" }, BASE);
+    expect(out.ok && out.body).toMatch(/^orchadOS: bahçenizin denetim ziyareti 14 Ekim günü/);
+    expect(renderNotification("visit_scheduled", { path: "/portal" }, BASE)).toEqual({
+      ok: false,
+      error: "invalid_vars",
+    });
+    expect(renderNotification("visit_scheduled", { date: "2026-10-14", path: "/kvkk" }, BASE)).toEqual(
+      { ok: false, error: "invalid_link" },
+    );
+  });
+});
+
+describe("transfer: download your reports (T23, H22)", () => {
+  it("names the removal, the exit-day access end and the copy on request", () => {
+    expect(
+      renderNotification(
+        "garden_transfer_reports",
+        { ref: "C-2026-000007", path: "/portal/parsel/p1", parcel_name: "Kuzey" },
+        BASE,
+      ),
+    ).toEqual({
+      ok: true,
+      body: "orchadOS: Kuzey adlı bahçenizin devir nedeniyle hizmetten çıkışı planlandı (C-2026-000007). Raporlara erişim çıkış gününde kapanır; o güne kadar raporlarınızı indirebilirsiniz, sonrasında kopyası talebiniz üzerine verilir: https://portal.example.test/portal/parsel/p1",
+    });
   });
 });

@@ -26,6 +26,8 @@ export const PORTAL_NOTICES = [
   "cikarma_geri_alindi",
   "bahce_basvurudan_cikarildi",
   "siparis_duzeltmeye_acildi",
+  // T07 (contract 8A/1).
+  "ziyaret_ertelendi",
 ] as const;
 export type PortalNotice = (typeof PORTAL_NOTICES)[number];
 

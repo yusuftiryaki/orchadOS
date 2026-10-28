@@ -231,6 +231,9 @@ export interface EnsureOptions {
   force?: boolean;
   // The snapshot just written (the acceptance), instead of reading it back.
   snapshot?: AcceptanceSnapshot;
+  // The order and its stored documents as the caller already read them (the
+  // automatic sweep reads them through its ticket, sweep_contract_orders).
+  source?: { order: OrderRef; documents: Pick<ContractDocumentRow, "kind">[] };
 }
 
 // Renders and stores the order's missing documents as the caller (customer
@@ -242,12 +245,13 @@ export async function ensureOrderDocuments(
   options: EnsureOptions = {},
 ): Promise<EnsureResult> {
   const result: EnsureResult = { created: [], existing: [], failed: [], manualCopy: null };
-  const order = await orderRef(supabase, orderId);
+  const order = options.source?.order ?? (await orderRef(supabase, orderId));
   if (!order) return result;
   const documents =
-    actor === "customer"
+    options.source?.documents ??
+    (actor === "customer"
       ? (await customerDocuments(supabase)).filter((d) => d.order_id === orderId)
-      : await opsDocuments(supabase, orderId);
+      : await opsDocuments(supabase, orderId));
   const missing = missingKinds(order.activatedAt, documents);
   result.existing = requiredKinds(order.activatedAt).filter((k) => !missing.includes(k));
   if (missing.length === 0) return result;

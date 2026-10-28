@@ -2,12 +2,14 @@ import { notFound } from "next/navigation";
 import type { MapLayer } from "@/components/portal/health-map";
 import { ParcelReportView } from "@/components/portal/parcel-report";
 import { ServiceCard, type ServiceCardData } from "@/components/portal/service-card";
+import { UpcomingVisits } from "@/components/portal/upcoming-visits";
 import { requireSection } from "@/lib/auth/session";
 import { MARKER_ORDER, type MarkerState } from "@/lib/map/tree-style";
 import { DEMO_PDF_LIMIT } from "@/lib/pdf/serve";
 import { loadBoundaryCard } from "@/lib/portal/boundary";
 import { getParcelReport } from "@/lib/portal/data";
 import { listThreads } from "@/lib/portal/questions";
+import { listUpcomingVisits } from "@/lib/portal/visits";
 import { loadParcelViewers } from "@/lib/portal/viewers";
 import {
   getParcelServiceStatus,
@@ -49,13 +51,15 @@ export default async function Page({
   const supabase = await createClient();
   // IP14: a demo visitor has no service status and no customer reads.
   const customer = user.roles.customer && !user.demo;
-  const [report, boundaryCard, threads, viewers, status, service] = await Promise.all([
+  const [report, boundaryCard, threads, viewers, status, service, visits] = await Promise.all([
     getParcelReport(supabase, parcelId),
     loadBoundaryCard(supabase, parcelId, user.id),
     listThreads(supabase, user.id, { parcelId }),
     loadParcelViewers(supabase, parcelId, user.id),
     user.demo ? null : getParcelServiceStatus(supabase, parcelId),
     customer ? loadServiceCard(supabase, user.id, parcelId) : null,
+    // T07: the owner's planned visits (empty for co-owners).
+    user.demo ? [] : listUpcomingVisits(supabase, parcelId),
   ]);
   // Not visible under RLS looks the same as not existing.
   if (!report) notFound();
@@ -85,11 +89,16 @@ export default async function Page({
       viewers={{ data: viewers, outcome: first(query.hissedar), readOnly }}
       removedUntil={removedUntil}
       serviceCard={
-        service ? (
-          <ServiceCard
-            data={service}
-            params={{ bilgi: first(query.bilgi), hata: first(query.hata) }}
-          />
+        service || visits.length > 0 ? (
+          <>
+            {service && (
+              <ServiceCard
+                data={service}
+                params={{ bilgi: first(query.bilgi), hata: first(query.hata) }}
+              />
+            )}
+            <UpcomingVisits parcelId={parcelId} visits={visits} />
+          </>
         ) : null
       }
       demo={user.demo}
@@ -132,7 +141,9 @@ async function loadServiceCard(
   const openWithdrawal = open && withdrawal?.number === garden.removal_number;
   let timings: RemovalTiming[];
   if (removable(garden) && changesEnabled) {
-    timings = withdrawalOpen ? ["notice", "period_end", "withdrawal"] : ["notice", "period_end"];
+    timings = withdrawalOpen
+      ? ["immediate", "notice", "period_end", "withdrawal"]
+      : ["immediate", "notice", "period_end"];
   } else if (
     withdrawalOpen &&
     !openWithdrawal &&

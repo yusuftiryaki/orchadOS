@@ -29,6 +29,13 @@ export type OpsError =
   | "withdrawal_period_open"
   | "boundary_dispute_open"
   | "already_owner"
+  // T07, T06 (contract 8A).
+  | "postponement_not_allowed"
+  | "proposed_date_outside_window"
+  | "deemed_done_not_allowed"
+  | "carry_over_not_allowed"
+  | "missed_visit_frozen"
+  | "reconciliation_frozen"
   | "invite_unavailable"
   | "conflict"
   | "write_failed";
@@ -52,6 +59,12 @@ const KNOWN: OpsError[] = [
   "withdrawal_period_open",
   "boundary_dispute_open",
   "already_owner",
+  "postponement_not_allowed",
+  "proposed_date_outside_window",
+  "deemed_done_not_allowed",
+  "carry_over_not_allowed",
+  "missed_visit_frozen",
+  "reconciliation_frozen",
 ];
 
 // PostgREST error -> reason. Row level security denials (42501 without one of
@@ -319,7 +332,7 @@ export async function setParcelPassive(
 export async function planVisit(
   supabase: Client,
   orgId: string,
-  visit: VisitInput,
+  visit: Omit<VisitInput, "phoneNotifiedAt">,
 ): Promise<OpsResult<string>> {
   const { data, error } = await supabase
     .from("session")
@@ -353,6 +366,19 @@ export async function updateVisit(
     .select("id");
   if (error) return fail(reasonOf(error));
   return data.length === 0 ? fail("not_found") : ok(undefined);
+}
+
+// T07 (contract 8A/1): the owner was told the visit day by phone.
+export async function recordVisitPhoneNotice(
+  supabase: Client,
+  visitId: string,
+  notifiedAt: string,
+): Promise<OpsResult> {
+  const { error } = await supabase.rpc("ops_record_visit_phone_notice", {
+    p_session_id: visitId,
+    p_notified_at: notifiedAt,
+  });
+  return error ? fail(reasonOf(error)) : ok(undefined);
 }
 
 export async function cancelVisit(supabase: Client, visitId: string): Promise<OpsResult> {

@@ -157,17 +157,19 @@ export async function requestGardenRemovalAction(form: FormData) {
   if (!isUuid(parcelId)) redirect(portalHref.home({ hata: "not_found" }));
   const parsed = parseRemovalForm(read, { withdrawalOpen: read("withdrawal_open") === "1" });
   if (!parsed.ok) {
-    parcelReturn(parcelId, { hata: parsed.errors.confirm ? "consent_required" : "invalid_input" });
+    parcelReturn(parcelId, {
+      hata: parsed.errors.confirm || parsed.errors.cancel_pending ? "consent_required" : "invalid_input",
+    });
   }
-  const { reason, note, atPeriodEnd, withdrawal } = parsed.value;
+  const { reason, note, timing, cancelOrderId } = parsed.value;
   const { error } = await (
     await createClient()
   ).rpc("customer_request_garden_removal", {
     p_parcel_id: parcelId,
     p_reason: reason,
-    p_at_period_end: atPeriodEnd,
-    p_withdrawal: withdrawal,
+    p_timing: timing,
     ...(note ? { p_note: note } : {}),
+    ...(cancelOrderId ? { p_cancel_order_id: cancelOrderId } : {}),
   });
   if (error) parcelReturn(parcelId, { hata: billingReasonOf(error) });
   revalidatePath("/portal", "layout");
@@ -188,4 +190,21 @@ export async function cancelGardenRemovalAction(form: FormData) {
   if (error) parcelReturn(parcelId, { hata: billingReasonOf(error) });
   revalidatePath("/portal", "layout");
   parcelReturn(parcelId, { bilgi: "cikarma_geri_alindi" });
+}
+
+// T07 (contract 8A/1): the owner asks once, at the latest the day before, to
+// postpone a planned visit; ops replan it in the same window. The database
+// decides (customer_request_visit_postponement: owners only).
+export async function postponeVisitAction(form: FormData) {
+  const read = formReader(form);
+  const parcelId = read("parcel_id");
+  if ((await portalUser()).demo) parcelReturn(parcelId, { hata: "demo_read_only" });
+  const sessionId = read("session_id");
+  if (!isUuid(parcelId) || !isUuid(sessionId)) redirect(portalHref.home({ hata: "not_found" }));
+  const { error } = await (
+    await createClient()
+  ).rpc("customer_request_visit_postponement", { p_session_id: sessionId });
+  if (error) parcelReturn(parcelId, { hata: billingReasonOf(error) });
+  revalidatePath(`/portal/parsel/${parcelId}`);
+  parcelReturn(parcelId, { bilgi: "ziyaret_ertelendi" });
 }

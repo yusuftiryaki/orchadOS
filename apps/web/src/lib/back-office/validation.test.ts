@@ -395,15 +395,16 @@ describe("IP14 garden membership forms", () => {
   const days = { today: "2027-03-01", lastDay: "2027-06-30" };
 
   it("a removal request: reason, a day from today to the last day, access days", () => {
-    const base = { reason: "not_needed", effective_on: "2027-03-31" };
+    const base = { reason: "out_of_area", effective_on: "2027-03-31" };
     expect(parseRemovalRequest(reader(base), days, 90)).toEqual({
       ok: true,
       value: {
-        reason: "not_needed",
+        reason: "out_of_area",
         effectiveOn: "2027-03-31",
         accessDays: null,
         revokeAllAccess: false,
         note: null,
+        ownerConsentNote: null,
       },
     });
     expect(parseRemovalRequest(reader({ ...base, reason: "lost" }), days, 90)).toEqual({
@@ -416,10 +417,15 @@ describe("IP14 garden membership forms", () => {
         field: "effective_on",
       });
     }
-    // Today and the last day are both allowed; no last day: no upper bound.
-    expect(parseRemovalRequest(reader({ ...base, effective_on: "2027-03-01" }), days, 90).ok).toBe(
-      true,
-    );
+    // Today and the last day are both allowed (a cause without notice); no
+    // last day: no upper bound.
+    expect(
+      parseRemovalRequest(
+        reader({ ...base, reason: "staff_safety", effective_on: "2027-03-01" }),
+        days,
+        90,
+      ).ok,
+    ).toBe(true);
     expect(parseRemovalRequest(reader({ ...base, effective_on: "2027-06-30" }), days, 90).ok).toBe(
       true,
     );
@@ -434,8 +440,48 @@ describe("IP14 garden membership forms", () => {
     expect(revoked.ok && revoked.value.revokeAllAccess).toBe(true);
   });
 
+  it("ops removals: just causes only, 30 days notice or the owner's consent (12/3, H20)", () => {
+    const base = { effective_on: "2027-03-31" };
+    for (const reason of ["sold", "not_needed", "cost", "other", "period_ended"]) {
+      expect(parseRemovalRequest(reader({ ...base, reason }), days, 90)).toEqual({
+        ok: false,
+        field: "reason",
+      });
+    }
+    // 29 days ahead: refused for a cause with notice, unless the owner agreed.
+    const early = { reason: "out_of_area", effective_on: "2027-03-30" };
+    expect(parseRemovalRequest(reader(early), days, 90)).toEqual({
+      ok: false,
+      field: "owner_consent_note",
+    });
+    const agreed = parseRemovalRequest(
+      reader({ ...early, owner_consent_note: "E-postayla onay, 1 Mart" }),
+      days,
+      90,
+    );
+    expect(agreed.ok && agreed.value.ownerConsentNote).toBe("E-postayla onay, 1 Mart");
+    for (const reason of ["staff_safety", "duplicate", "no_authority", "third_party_objection"]) {
+      expect(
+        parseRemovalRequest(reader({ reason, effective_on: "2027-03-01" }), days, 90).ok,
+        reason,
+      ).toBe(true);
+    }
+    // By agreement: the consent note is required, the day is free.
+    expect(
+      parseRemovalRequest(reader({ reason: "by_agreement", effective_on: "2027-03-01" }), days, 90),
+    ).toEqual({ ok: false, field: "owner_consent_note" });
+    // The period ends sooner than the notice: its last day + 1 is enough.
+    expect(
+      parseRemovalRequest(
+        reader({ reason: "service_discontinued", effective_on: "2027-03-10" }),
+        { today: "2027-03-01", lastDay: "2027-03-10" },
+        90,
+      ).ok,
+    ).toBe(true);
+  });
+
   it("access days are 0..365; below the setting only for transfer, duplicate or with a note", () => {
-    const base = { reason: "sold", effective_on: "2027-03-31" };
+    const base = { reason: "staff_safety", effective_on: "2027-03-31" };
     for (const access_days of ["-1", "366", "abc", "1.5"]) {
       expect(parseRemovalRequest(reader({ ...base, access_days }), days, 90)).toEqual({
         ok: false,

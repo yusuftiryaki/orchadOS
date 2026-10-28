@@ -5,9 +5,11 @@ import { useActionState, useState } from "react";
 import { planVisitAction, updateVisitAction } from "@/app/operasyon/actions";
 import { t } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
+import { visitsText } from "@/lib/i18n/messages/visits";
 import { CURRENT_METHODOLOGY_VERSION } from "@/lib/methodology";
 import { EMPTY_FORM, type FormState } from "@/lib/operations/form-state";
 import { opsHref } from "@/lib/operations/urls";
+import { needsPhoneNotice } from "@/lib/operations/validation";
 import { VISIT_KINDS, visitSeason, type VisitKind } from "@/lib/operations/visits";
 import { Field, FormError } from "./field";
 import styles from "./operations.module.css";
@@ -60,6 +62,10 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
     date || null,
     visit ? visit.methodologyVersion : CURRENT_METHODOLOGY_VERSION,
   );
+  // T07 (contract 8A/1): no visit_scheduled message for a day closer than 3
+  // days; the phone notice is then recorded with the plan.
+  const phoneNotice =
+    !!date && date !== visit?.plannedDate && needsPhoneNotice(kind, date, today);
   const lead = failed ? (state.values.lead_user_id ?? "") : (visit?.leadUserId ?? "");
   const notes = failed ? (state.values.notes ?? "") : (visit?.notes ?? "");
 
@@ -69,6 +75,7 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
         <>
           <input type="hidden" name="visit_id" value={visit.id} />
           <input type="hidden" name="kind" value={visit.kind} />
+          <input type="hidden" name="original_date" value={visit.plannedDate} />
         </>
       )}
       <div className={styles.grid}>
@@ -124,6 +131,21 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
             ))}
           </select>
         </Field>
+        {phoneNotice && (
+          <Field
+            label={visitsText.ops.phoneNoticeAt}
+            hint={visitsText.ops.phoneRequired}
+            error={err("phone_notified_at")}
+          >
+            <input
+              name="phone_notified_at"
+              type="datetime-local"
+              defaultValue={(failed && state.values.phone_notified_at) || ""}
+              data-testid="visit-phone-notice"
+              required
+            />
+          </Field>
+        )}
         <Field label={T.visits.notes} error={err("notes")} optional wide>
           <textarea name="notes" rows={3} defaultValue={notes} />
         </Field>
