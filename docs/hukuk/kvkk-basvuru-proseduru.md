@@ -13,6 +13,7 @@
 | Güvenli elektronik ya da mobil imza | [kvkk@alanadi] | Şirket yetkilisi |
 | Sistemde kayıtlı e-posta adresinden | [kvkk@alanadi] | Şirket yetkilisi |
 | Portaldan rıza geri alma | Hesabım › İzinler | Kendiliğinden işler |
+| Portaldan KVKK başvurusu (T11; anahtar `kvkk_request_form_enabled` açıkken) | Hesabım › İzinler › KVKK başvurusu | Operasyon (`/operasyon/kvkk`), Şirket yetkilisine iletir |
 
 Başka bir kanaldan (telefon, SMS, saha) gelen talep geri çevrilmez: kişiye yukarıdaki yollar söylenir ve talep deftere "yönlendirildi" olarak yazılır. Rıza geri alma e-postayla istenirse elle yapılır.
 
@@ -23,6 +24,7 @@ Cevap vermeden ve veri açıklamadan önce kimlik doğrulanır.
 - **Kayıtlı e-postadan gelen başvuru:** E-posta doğrulanmadığı için kayıtlı telefona SMS kodu gönderilir ve kişi kodu bildirir, ya da teyit kişinin portal oturumundan alınır.
 - **Yazılı başvuru:** Islak imza ile ad soyad, T.C. kimlik numarası (yalnızca doğrulama için; kopyası saklanmaz) ve adres.
 - **KEP ya da güvenli elektronik imza:** Kanalın kendisi yeterlidir.
+- **Portal formu:** Başvuru kişinin kendi portal oturumundan geldiği için kimliği doğrulanmış sayılır; başka bir kişi adına yapılan talep bu yolla alınmaz.
 - **Görüntülerdeki üçüncü kişi** (bahçe işçisi, komşu): kimlik ile görüntüdeki kişinin eşleşmesi için bahçe, tarih ve yer bilgisi istenir; gerekirse kişiyle görüntü üzerinden görüşülür.
 
 Doğrulanamayan başvuruya veri açıklanmaz; kişiye doğrulama yolu bildirilir.
@@ -60,7 +62,7 @@ Silme talebi aşağıdaki sırayla ayrıştırılır:
 4. **Sözleşme bitmişse ve saklama gerekçesi yoksa:** veri silinir ya da anonim hale getirilir. Bu, KVKK'nın üstün geldiği "veri silinmez" istisnasıdır.
 5. **Parselde sözleşmesi süren başka sahip ya da hissedar varsa:** yalnızca talep edenin kişisel verileri (adı, telefonu, hesabı, soruları, kendi siparişlerinin kişisel bağlantıları) silinir. Diğer sahibin hizmetine ait bahçe verileri korunur.
 6. **Hissedarın talebi:** hesabı ve davet bağlantısı silinir.
-7. **Görüntülerdeki üçüncü kişiler:** göründükleri kare ya da panorama gizlenir (H01). Gizleme işlevi gelene kadar (T20) geliştirici eliyle yapılır ve denetim kaydına yazılır.
+7. **Görüntülerdeki üçüncü kişiler:** göründükleri kare ya da panorama gizlenir (H01). Operasyon ziyaret sayfasındaki "Görüntü gizleme (KVKK itirazı)" bölümünden yapar (T20): neden ve başvuru numarası not olarak yazılır, kayıt denetim kaydına girer. Gizlenen görüntü sahiplere, hissedarlara, demo ziyaretçilerine ve uzmana gösterilmez; dosya silinmez, gizleme kaldırılabilir.
 
 Bilgi isteme, düzeltme ve itiraz talepleri doğrudan karşılanır. Meşru menfaate dayanan işleme itirazda (örneğin Şirket içi geliştirme, H31) itiraz kabul edilirse o kişinin verisi bu kullanımdan çıkarılır.
 
@@ -75,7 +77,7 @@ Bilgi isteme, düzeltme ve itiraz talepleri doğrudan karşılanır. Meşru menf
 ## 7. Elle silme ve takma ad adımları
 
 1. Karar deftere yazılır ve ikinci bir kişi (Şirket yetkilisi ya da geliştirici) kontrol eder.
-2. Gözden geçirilmiş betik çalıştırılır (T11, [scripts/kvkk/README.md](../../scripts/kvkk/README.md)): `owner_profile`, `parcel_detail` iletişim bilgileri, sorular ve hissedar davetleri için silme; ekleme-yalnız tablolarda takma ada çevirme. Betik varsayılan olarak kuru çalışır ve değişmeden geri alınır; değişiklik yalnızca `--apply` ile kalıcı olur. Takma ad anahtarı `KVKK_PSEUDONYM_KEY` ortam değişkeninden okunur (parola yöneticisinde saklanır). Barındırılan veritabanında `--hosted` (adres `KVKK_DB_URL` ortam değişkeninde) ve terminalde onay gerekir. Sıra:
+2. Gözden geçirilmiş betik çalıştırılır (T11, [scripts/kvkk/README.md](../../scripts/kvkk/README.md)): `owner_profile`, `parcel_detail` iletişim bilgileri, sorular ve hissedar davetleri için silme; ekleme-yalnız tablolarda (saha olayları, sınırı gösteren kişi kaydı, görüntü gizleme ve sınır itirazı notları, denetim kaydı) takma ada çevirme. Sözleşme belgeleri, sınır beyanı ve portal KVKK başvuruları saklama süresince kalır. Betik varsayılan olarak kuru çalışır ve değişmeden geri alınır; değişiklik yalnızca `--apply` ile kalıcı olur. Takma ad anahtarı `KVKK_PSEUDONYM_KEY` ortam değişkeninden okunur (parola yöneticisinde saklanır). Barındırılan veritabanında `--hosted` (adres `KVKK_DB_URL` ortam değişkeninde) ve terminalde onay gerekir. Sıra:
    1. Envanter (deftere yazılır; serbest metinli saha notları elle okunur):
       `scripts/kvkk/run.sh inventory --subject <kullanıcı uuid> --request K-yyyy-nnn`
    2. Kuru çalıştırma ve ikinci kişinin kontrolü (sayılar ve envanterin "review" satırları birlikte okunur; kişiye bağlı olmayan eşleşmeler adaş olabilir, betik onları değiştirmez):
@@ -90,4 +92,4 @@ Bilgi isteme, düzeltme ve itiraz talepleri doğrudan karşılanır. Meşru menf
    Betik, saklama yükümlülüğü olan kayıtlara (fatura, ödeme, iade, sipariş, teklif, onay ve rıza kayıtları) dokunmaz (5. bölüm, 1. madde). Kişinin süren bir sözleşmesi varsa durur (3. madde); yalnızca deftere gerekçesi yazılmış bir istisnada `--force-active --reason "<gerekçe>"` ile çalıştırılır. Betikte olmayan bir veri için işlem geliştirici eliyle, aynı kurallarla yapılır ve betiğe eklenir.
 3. İşlem denetim kaydına (`audit_event`) yazılır: betik her `--apply`'da `kvkk.pseudonymized` ya da `kvkk.erased` kaydını başvuru numarasıyla kendisi yazar; kayıt numarası deftere işlenir.
 4. Yedeklerdeki kopyalar yedek saklama süresi sonunda kendiliğinden silinir; yedekten geri yükleme yapılırsa işlem yeniden uygulanır.
-5. Kişiye cevap gönderilir ve cevap tarihi deftere yazılır.
+5. Kişiye cevap gönderilir ve cevap tarihi deftere yazılır. Başvuru portaldan geldiyse `/operasyon/kvkk`'da durumu "Cevaplandı" ya da "Reddedildi" yapılır (sayaç orada da görünür; süresi geçen başvuru kırmızı işaretlenir).
