@@ -1,0 +1,79 @@
+/* The filled contract documents on the quote page and the document lists
+   (T04). */
+
+.document {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  max-height: 32rem;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  background: var(--color-surface, #fff);
+}
+
+.document h2 {
+  font-size: 1.05rem;
+  margin-top: var(--space-4);
+}
+
+.document h3 {
+  font-size: 1rem;
+  margin-top: var(--space-3);
+}
+
+.document ul,
+.document ol {
+  padding-left: 22px;
+  margin: 0 0 var(--space-3);
+}
+
+.document li {
+  margin-bottom: var(--space-1);
+}
+
+.title {
+  margin: 0;
+}
+
+.version {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-3);
+}
+
+.draft {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border: 1px solid #f1d9a6;
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: var(--space-3);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  margin: 0 0 var(--space-3);
+}
+
+.table {
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  min-width: 100%;
+}
+
+.table th,
+.table td {
+  border: 1px solid var(--color-border);
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+  vertical-align: top;
+}
+
+.hash {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  word-break: break-all;
+}

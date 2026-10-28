@@ -7,6 +7,7 @@ import ops from "@/components/operations/operations.module.css";
 import styles from "@/components/portal/portal.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { billingText } from "@/lib/i18n/messages/billing";
+import { contractsText as C } from "@/lib/i18n/messages/contracts";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import {
   getBillingProfile,
@@ -121,6 +122,13 @@ export default async function AccountPage({
             {A.billingNone} <Link href={portalHref.billing()}>{P.quote.billingFill}</Link>
           </p>
         )}
+      </section>
+
+      <section className={styles.section} data-testid="account-contracts">
+        <h2>{C.list.accountTitle}</h2>
+        <p>
+          <Link href="/portal/hesap/sozlesmeler">{C.list.accountLink}</Link>
+        </p>
       </section>
 
       <section className={styles.section}>
