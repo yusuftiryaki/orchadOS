@@ -1,0 +1,51 @@
+# TEMPORARY: proves the QR flake fix by looping the two flaky tests 30 times
+# (3 shards x 10 consecutive runs). Removed before merge.
+name: tmp-qr-flake-loop
+
+on:
+  push:
+    branches: [claude/pipeline-qr-kararsizligi]
+
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: docker.io
+
+jobs:
+  loop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    defaults:
+      run:
+        working-directory: services/pipeline
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - working-directory: .
+        run: pnpm install --frozen-lockfile
+      - working-directory: .
+        run: pnpm db:start
+      - working-directory: .
+        run: pnpm db:reset
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Loop the flaky tests (10 consecutive runs)
+        run: |
+          pass=0
+          for i in $(seq 1 10); do
+            if uv run pytest -q -p no:cacheprovider tests/test_chain_supabase.py::test_scan_to_owner tests/test_checks_supabase.py > "$RUNNER_TEMP/run_$i.log" 2>&1; then
+              pass=$((pass + 1)); echo "shard ${{ matrix.shard }} run $i PASS: $(tail -1 "$RUNNER_TEMP/run_$i.log")"
+            else
+              echo "::error::shard ${{ matrix.shard }} run $i FAILED"; cat "$RUNNER_TEMP/run_$i.log"
+            fi
+          done
+          echo "shard ${{ matrix.shard }}: $pass/10 passed" | tee -a "$GITHUB_STEP_SUMMARY"
+          test "$pass" -eq 10
