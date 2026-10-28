@@ -54,13 +54,17 @@ describe("legal-text registry (T21)", () => {
       "iade-v1-taslak",
       "iade-v2-taslak",
       "iade-v3-taslak",
+      "iade-v4-taslak",
       "kvkk-v1-taslak",
       "mesafeli-v1-taslak",
       "mesafeli-v2-taslak",
       "mesafeli-v3-taslak",
+      "mesafeli-v4-taslak",
+      "mesafeli-v4-taslak",
       "onbilgi-v1-taslak",
       "onbilgi-v2-taslak",
       "onbilgi-v3-taslak",
+      "onbilgi-v4-taslak",
       "riza-v1-taslak",
     ]);
     expect(archived.every((r) => r.sha256 === null && !r.is_final)).toBe(true);

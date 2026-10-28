@@ -121,7 +121,7 @@ select public.ops_verify_application_garden('91200000-0000-4000-8000-00000000040
 insert into ids select 'q', public.ops_issue_quote('91200000-0000-4000-8000-000000000301');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 insert into ids select 'o', public.customer_accept_quote(pg_temp.id('q'),
-  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
+  '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 
 create temporary table begin1 as
   select public.payment_begin(pg_temp.id('o'), 'a0000000-0000-4000-8000-000000000006', 'fake',
@@ -219,7 +219,7 @@ insert into ids select 'q3', public.ops_issue_parcel_quote('b0000000-0000-4000-8
   array['f3600000-0000-4000-8000-000000000011'::uuid], false, null);
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 insert into ids select 'o3', public.customer_accept_quote(pg_temp.id('q3'),
-  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
+  '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 set local session_replication_role = replica;
 update public.quote set valid_until = valid_until - 60 where id = pg_temp.id('q2');
 set local session_replication_role = origin;

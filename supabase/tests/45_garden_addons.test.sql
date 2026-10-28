@@ -87,7 +87,7 @@ create function pg_temp.accept(p_user uuid, p_quote uuid) returns uuid language 
 as $$
 begin
   perform pg_temp.as_user(p_user);
-  return public.customer_accept_quote(p_quote, '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
+  return public.customer_accept_quote(p_quote, '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 end;
 $$;
 
@@ -303,7 +303,7 @@ select is(pg_temp.error_of($$ select public.payment_begin(pg_temp.id('o3'), pg_t
   'P0001 addon_base_closed', 'no card payment after the last add-on day');
 select pg_temp.as_user(pg_temp.id('c1'));
 select is(pg_temp.error_of($$ select public.customer_accept_quote(pg_temp.id('q4'),
-  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}') $$),
+  '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}') $$),
   'P0001 addon_base_closed', 'no acceptance after the last add-on day');
 select pg_temp.pay(pg_temp.id('o3'));
 select results_eq(

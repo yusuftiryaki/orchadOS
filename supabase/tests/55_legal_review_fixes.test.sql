@@ -75,9 +75,9 @@ begin
   from public.application_garden x where x.application_id = a;
   q := public.ops_issue_quote(a);
   perform pg_temp.as_user(p_user);
-  o := public.customer_accept_quote(q, jsonb_build_object('distance_sales', 'mesafeli-v4-taslak',
-    'pre_information', 'onbilgi-v4-taslak')
-    || case when p_early then '{"early_performance": "mesafeli-v4-taslak"}'::jsonb else '{}'::jsonb end);
+  o := public.customer_accept_quote(q, jsonb_build_object('distance_sales', 'mesafeli-v5-taslak',
+    'pre_information', 'onbilgi-v5-taslak')
+    || case when p_early then '{"early_performance": "mesafeli-v5-taslak"}'::jsonb else '{}'::jsonb end);
   if p_pay then
     perform pg_temp.ops();
     perform testing.use_single_installment(o);
@@ -121,7 +121,7 @@ begin
   q := public.ops_issue_parcel_quote('b0000000-0000-4000-8000-000000000001', p_user,
     '91200000-0000-4000-8000-000000000001', array[pg_temp.parcel_of(a)], false, pg_temp.today() + 6, a);
   perform pg_temp.as_user(p_user);
-  b := public.customer_accept_quote(q, '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
+  b := public.customer_accept_quote(q, '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
   perform pg_temp.ops();
   perform testing.use_single_installment(b);
   perform public.ops_record_manual_payment(b, (select total_kurus from public.service_order where id = b),

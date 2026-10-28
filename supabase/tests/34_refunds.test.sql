@@ -63,7 +63,7 @@ as $$
 begin
   perform pg_temp.customer();
   return public.customer_accept_quote(p_quote,
-    '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
+    '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 end;
 $$;
 
