@@ -196,7 +196,8 @@ export const billingText = {
     transfer: "Devir (yeni sahibe geçti)",
     duplicate: "Mükerrer kayıt",
     // Ops just causes (contract 12/3, H20 (c) as changed by H36).
-    location_misdeclared: "Bahçenin gerçek konumunun başvuruda bildirilenden esaslı biçimde farklı olması",
+    location_misdeclared:
+      "Bahçenin gerçek konumunun başvuruda bildirilenden esaslı biçimde farklı olması",
     owner_breach: "Sahip'in Madde 5 yükümlülüklerini esaslı ya da tekrar tekrar ihlali",
     no_authority: "Sahip'in yetkisinin bulunmaması",
     third_party_objection: "Üçüncü kişi itirazı (Madde 6/4)",

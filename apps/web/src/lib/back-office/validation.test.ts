@@ -503,9 +503,9 @@ describe("IP14 garden membership forms", () => {
       ok: false,
       field: "note",
     });
-    expect(parseReject(reader({ reason: "out_of_service_area", note: "Yol süresi 3 saat" })).ok).toBe(
-      true,
-    );
+    expect(
+      parseReject(reader({ reason: "out_of_service_area", note: "Yol süresi 3 saat" })).ok,
+    ).toBe(true);
     expect(parseReject(reader({ reason: "capacity" })).ok).toBe(true);
   });
 
@@ -518,20 +518,30 @@ describe("IP14 garden membership forms", () => {
       parseRemovalRequest(reader({ ...district, effective_on: "2027-04-30" }), days, 90).ok,
     ).toBe(true);
     expect(
-      parseRemovalRequest(reader({ reason: "payment_default", effective_on: "2027-03-01" }), days, 90),
+      parseRemovalRequest(
+        reader({ reason: "payment_default", effective_on: "2027-03-01" }),
+        days,
+        90,
+      ),
     ).toEqual({ ok: false, field: "note" });
     expect(
       parseRemovalRequest(
-        reader({ reason: "payment_default", effective_on: "2027-03-01", note: "Uyarı SMS 1 Şubat" }),
+        reader({
+          reason: "payment_default",
+          effective_on: "2027-03-01",
+          note: "Uyarı SMS 1 Şubat",
+        }),
         days,
         90,
       ).ok,
     ).toBe(true);
     for (const reason of ["out_of_area", "service_discontinued"]) {
-      expect(parseRemovalRequest(reader({ reason, effective_on: "2027-04-30" }), days, 90)).toEqual({
-        ok: false,
-        field: "reason",
-      });
+      expect(parseRemovalRequest(reader({ reason, effective_on: "2027-04-30" }), days, 90)).toEqual(
+        {
+          ok: false,
+          field: "reason",
+        },
+      );
     }
   });
 
