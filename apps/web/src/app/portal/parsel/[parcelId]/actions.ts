@@ -158,7 +158,10 @@ export async function requestGardenRemovalAction(form: FormData) {
   const parsed = parseRemovalForm(read, { withdrawalOpen: read("withdrawal_open") === "1" });
   if (!parsed.ok) {
     parcelReturn(parcelId, {
-      hata: parsed.errors.confirm || parsed.errors.cancel_pending ? "consent_required" : "invalid_input",
+      hata:
+        parsed.errors.confirm || parsed.errors.cancel_pending
+          ? "consent_required"
+          : "invalid_input",
     });
   }
   const { reason, note, timing, cancelOrderId } = parsed.value;

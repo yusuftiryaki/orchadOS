@@ -71,7 +71,11 @@ const asArray = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 export async function loadVisitRecords(
   supabase: Client,
   sessionId: string,
-): Promise<{ records: VisitRecords; blocked: BlockedEvent[]; fieldNotices: FieldNoticeEvent[] } | null> {
+): Promise<{
+  records: VisitRecords;
+  blocked: BlockedEvent[];
+  fieldNotices: FieldNoticeEvent[];
+} | null> {
   if (!isUuid(sessionId)) return null;
   const [records, blocked, notices] = await Promise.all([
     supabase.rpc("ops_visit_records", { p_session_id: sessionId }),
@@ -153,7 +157,8 @@ export function parseMissedVisit(
   const occurredOn = read("occurred_on");
   if (!DAY.test(occurredOn) || occurredOn > today) return { ok: false, field: "occurred_on" };
   const note = read("note").trim() || null;
-  if ((note?.length ?? 0) > 2000 || (reason === "customer" && !note)) return { ok: false, field: "note" };
+  if ((note?.length ?? 0) > 2000 || (reason === "customer" && !note))
+    return { ok: false, field: "note" };
   const detail = read("detail").trim() || null;
   if (detail && !/^[a-z][a-z_]{0,39}$/.test(detail)) return { ok: false, field: "detail" };
   const sourceEventId = isUuid(read("source_event_id")) ? read("source_event_id") : null;

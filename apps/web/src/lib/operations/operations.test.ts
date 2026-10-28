@@ -294,6 +294,7 @@ describe("visit form", () => {
         plannedDate: "2026-12-15",
         leadUserId: null,
         notes: "Kapı kilitli",
+        phoneNotifiedAt: null,
       },
     });
   });
@@ -304,9 +305,47 @@ describe("visit form", () => {
       errors: { parcel_id: "required", kind: "invalid", planned_date: "past" },
     });
     expect(
-      parseVisitForm(reader({ parcel_id: parcel, kind: "inventory", planned_date: today }), today)
-        .ok,
+      parseVisitForm(
+        reader({
+          parcel_id: parcel,
+          kind: "inventory",
+          planned_date: today,
+          phone_notified_at: `${today}T09:30`,
+        }),
+        today,
+      ).ok,
     ).toBe(true);
+  });
+
+  it("asks for the phone notice of a day closer than 3 days (T07, contract 8A/1)", () => {
+    const base = { parcel_id: parcel, kind: "periodic_scan" };
+    expect(parseVisitForm(reader({ ...base, planned_date: "2026-10-23" }), today)).toEqual({
+      ok: false,
+      errors: { phone_notified_at: "required" },
+    });
+    const noted = parseVisitForm(
+      reader({ ...base, planned_date: "2026-10-23", phone_notified_at: "2026-10-21T10:15" }),
+      today,
+    );
+    expect(noted.ok && noted.value.phoneNotifiedAt).toBe("2026-10-21T10:15:00+03:00");
+    // 3 days ahead: the visit_scheduled message goes; no phone notice needed.
+    expect(parseVisitForm(reader({ ...base, planned_date: "2026-10-24" }), today).ok).toBe(true);
+    // A verification visit is not notified under 8A/1.
+    expect(
+      parseVisitForm(reader({ ...base, kind: "verification", planned_date: today }), today).ok,
+    ).toBe(true);
+    // An edit that keeps the day needs nothing new; a notice in the future is refused.
+    expect(
+      parseVisitForm(reader({ ...base, planned_date: "2026-10-22" }), today, {
+        originalDate: "2026-10-22",
+      }).ok,
+    ).toBe(true);
+    expect(
+      parseVisitForm(
+        reader({ ...base, planned_date: "2026-10-22", phone_notified_at: "2026-10-22T08:00" }),
+        today,
+      ),
+    ).toEqual({ ok: false, errors: { phone_notified_at: "invalid" } });
   });
 });
 

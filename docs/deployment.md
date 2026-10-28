@@ -86,6 +86,7 @@ Test projesi öneksiz adları, pilot `PILOT_`, demo (İP13) `DEMO_` önekini kul
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Kayıt formundaki Turnstile widget'ı | Cloudflare test site anahtarı | **Zorunlu**, canlı site anahtarı |
 | `NEXT_PUBLIC_CAPTCHA_PROVIDER` | Robot doğrulamasının widget'ı: boş ya da `turnstile` (varsayılan), `altcha` (kendi doğrulamamız). Edge'deki `CAPTCHA_PROVIDER` ile **aynı** olmalı (aşağıda, Robot doğrulaması) | Boş | Boş; değiştirmeden önce gizlilik metni |
 | `NEXT_PUBLIC_MAP_STYLE_URL` | Harita stili (MapLibre). Boşsa geliştirmede doğrudan OSM karoları, üretim derlemesinde kendi karo vekilimiz (`/harita/karo/…`) | Boş (vekil) ya da kendi stilimiz | Boş (vekil) ya da **kendi** sunucumuzdaki stil (aşağıda, Harita altlığı) |
+| `ORCHADOS_CRON_SECRET` | Sözleşme belgesi taramasının (`/sistem/sozlesme-tarama`, T04) sırrı; Vault `orchados_cron_secret` ve Edge `ORCHADOS_CRON_SECRET` ile **aynı** değer. Yalnızca sunucu. Yoksa rota 503 döner, tarama çalışmaz | Vault'taki değer | Vault'taki değer |
 | `MAP_TILE_UPSTREAM`, `MAP_TILE_CONTACT` | Karo vekilinin kaynağı (`https://…/{z}/{x}/{y}.png`; boşsa OSM) ve kaynağın gördüğü User-Agent'taki iletişim adresi. Yalnızca sunucu | Boş | Kaynak seçilince; iletişim adresi girilir |
 
 `NEXT_PUBLIC_*` değerleri derlemeye gömülür; değişince yeniden dağıtılır. Değişkenlerin ayrıntısı: `apps/web/README.md`.
@@ -162,7 +163,11 @@ echo "$SIGNUP_PROXY_SECRET"   # Vercel → Settings → Environment Variables �
 select vault.create_secret('https://<ref>.supabase.co/functions/v1/payments', 'payments_reconcile_url');
 select vault.create_secret('https://<ref>.supabase.co/functions/v1/customer-signup', 'signup_cleanup_url');
 select vault.create_secret('<ORCHADOS_CRON_SECRET ile aynı değer>', 'orchados_cron_secret');
+-- T04 sözleşme belgesi taraması (dalga 3): Next sitesinin rotası, Vercel'de de ORCHADOS_CRON_SECRET.
+select vault.create_secret('https://<site>/sistem/sozlesme-tarama', 'contract_documents_sweep_url');
 ```
+
+Üçüncü iş `contract-document-sweep` 30 dakikada bir, eksik belgesi olan en çok 5 sipariş için 10 dakikalık bir bilet üretip `contract_documents_sweep_url`'e POST eder ([musteri-yonetimi.md](musteri-yonetimi.md) §20.8). Adres ya da sır yoksa iş hiçbir şey yapmaz ve kimsenin açmadığı siparişlerin belgeleri (özellikle ödemeden sonra cayma bildirimi) ops listesinden elle üretilir. Vercel'de `ORCHADOS_CRON_SECRET` yoksa rota 503 döner. Rota Vercel'in genel adresinde olmalı (önizleme koruması varsa üretim adresi).
 
 **Web (Vercel):** değişkenler yukarıda, Vercel bölümünde. `ORCHADOS_PAYMENTS_ENABLED` kart ödemesi düğmesini açar. `PAYMENT_FAKE_CHECKOUT=1` yalnızca yerel, CI ve test projesinde; o zaman `/odeme/sahte` sayfası açılır (yoksa 404). Pilot Vercel projesinde tanımlanmaz.
 
@@ -522,6 +527,9 @@ Gizlilik metni (`gizlilik-v2-taslak` §2 ve §5) sunucu ve altyapı kayıtların
 - **Harita:** Üretimde `NEXT_PUBLIC_MAP_STYLE_URL` boştur (kendi karo vekilimiz) ya da kendi altyapımızdaki veya vekil sunucumuzdaki bir stili gösterir (yukarıda, Harita altlığı).
 - **Yapay zekâ aktarım kapısı:** İşleme istasyonunda `ORCHADOS_AI_TRANSFER_SAFEGUARD` yalnızca [yurt-disi-aktarim-kaydi.md](hukuk/yurt-disi-aktarim-kaydi.md)'deki ilgili satır tamamlandığında (standart sözleşme imzalı, Kurum'a bildirilmiş) ve o kaydın referansıyla tanımlanır. Tanımlı değilken ai-worker gerçek veriyle yurt dışındaki sağlayıcıyı çağırmaz ([services/ai-worker/README.md](../services/ai-worker/README.md#yurt-dışı-aktarım-kapısı), H02).
 - **Bahçe ekleme ve çıkarma:** `garden_changes_enabled` barındırılan projelerde ancak [yayın şartları](hukuk/kararlar.md#yayin) ile T05 ve T18 üretime girdikten sonra açılır (aşağıda, Bahçe ekleme ve çıkarma).
+- **Ziyaret tarihi SMS'i (T07):** `org_billing_setting.visit_notice_sms_enabled` (yalnızca SQL, varsayılan `false`). Açılınca envanter ya da periyodik ziyaret en az 3 gün sonrasına planlanınca sahibe `visit_scheduled` gider; kapalıyken tarih telefonla bildirilir ve ziyaret sayfasına kaydedilir. Pilot sırasında, Netgsm şablonu onaylanınca açılır: `update public.org_billing_setting set visit_notice_sms_enabled = true where org_id = '<org>';`
+- **Hizmet sonunda erişim (T08, H23):** `org_billing_setting.service_end_access_flow_enabled` (yalnızca SQL, varsayılan `false`). **İlk `service_end`'den en az 30 gün önce** açılır: `update public.org_billing_setting set service_end_access_flow_enabled = true where org_id = '<org>';`. Açılınca dönemi biten ve yenilenmeyen, idari olarak feshedilen siparişlerin ve pasife alınan pilot parsellerinin bahçelerinde 90 gün salt okunur erişim ve erişimin kaldırılması uygulanır. Açılmadan önce `ops_terminate_order` gerçek müşteride kullanılmaz. En erken bitişi bulmak için: `select min(service_end) from public.service_order where status = 'active';`
+- **Sözleşme belgesi taraması (T04):** Vault `contract_documents_sweep_url` ve Vercel `ORCHADOS_CRON_SECRET` (yukarıda, Vault). Yayın şartı 3 (T04 üretimde) bu kurulumla tamamlanır.
 - **Hukuki metin sürümleri:** Bir hukuki metnin sürümü her değiştiğinde (sitedeki kopya `apps/web/src/lib/i18n/messages/legal.ts` ve `LEGAL_TEXT_VERSIONS`) sürüm kaydını (`private.legal_text_version`) güncelleyen bir migration aynı değişiklikle gelir; kayıt fonksiyonları kayıtlı sürümden başkasını kabul etmez (T21).
 - **Robot doğrulaması:** Sağlayıcı değişikliği önce gizlilik metnini değiştirir (yukarıda, Robot doğrulaması).
 

@@ -222,31 +222,29 @@ function RemovalForm({
         <span className="muted">{R.noteHint}</span>
         <fieldset className={billing.options} data-testid="removal-options">
           <legend>{R.timing}</legend>
-          {removalChoices(data.options, data.garden.state, data.today).map(
-            ({ option, label }) => (
-              <label key={option.timing} data-timing={option.timing}>
-                {/* No default (contract 12/3, H20): the owner chooses. */}
-                <input type="radio" name="timing" value={option.timing} required />
-                <span>
-                  <strong>{label}</strong>
-                  <span data-testid="removal-option-date">
-                    {R.effectiveOn(formatDate(option.effectiveOn))}
-                  </span>
-                  <span className="muted">
-                    {R.refund(formatKurus(option.refundEstimateKurus))}
-                    {" · "}
-                    {R.accessUntil(formatDate(option.accessUntil))}
-                  </span>
-                  {/* H11 (c): another timing inside the period is no withdrawal. */}
-                  {withdrawalOpen && option.timing !== "withdrawal" && (
-                    <span className={styles.notice} data-testid="not-withdrawal-warning">
-                      {R.notWithdrawal}
-                    </span>
-                  )}
+          {removalChoices(data.options, data.garden.state, data.today).map(({ option, label }) => (
+            <label key={option.timing} data-timing={option.timing}>
+              {/* No default (contract 12/3, H20): the owner chooses. */}
+              <input type="radio" name="timing" value={option.timing} required />
+              <span>
+                <strong>{label}</strong>
+                <span data-testid="removal-option-date">
+                  {R.effectiveOn(formatDate(option.effectiveOn))}
                 </span>
-              </label>
-            ),
-          )}
+                <span className="muted">
+                  {R.refund(formatKurus(option.refundEstimateKurus))}
+                  {" · "}
+                  {R.accessUntil(formatDate(option.accessUntil))}
+                </span>
+                {/* H11 (c): another timing inside the period is no withdrawal. */}
+                {withdrawalOpen && option.timing !== "withdrawal" && (
+                  <span className={styles.notice} data-testid="not-withdrawal-warning">
+                    {R.notWithdrawal}
+                  </span>
+                )}
+              </span>
+            </label>
+          ))}
         </fieldset>
         <p className="muted">{R.refundNote}</p>
         <label>
@@ -330,7 +328,12 @@ function PendingRemovalForm({
         </fieldset>
         <p className="muted">{R.pendingDates}</p>
         <label>
-          <input type="checkbox" name="cancel_pending" required data-testid="removal-cancel-pending" />
+          <input
+            type="checkbox"
+            name="cancel_pending"
+            required
+            data-testid="removal-cancel-pending"
+          />
           <span>{R.pendingCancel}</span>
         </label>
         <label>

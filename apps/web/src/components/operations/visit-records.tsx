@@ -65,8 +65,7 @@ export function VisitRecords({
           <form action={recordPhoneNoticeAction} className={styles.actions}>
             <input type="hidden" name="visit_id" value={visit.id} />
             <label>
-              {V.phoneNoticeAt}{" "}
-              <input type="datetime-local" name="notified_at" required />
+              {V.phoneNoticeAt} <input type="datetime-local" name="notified_at" required />
             </label>
             <button className="button button-secondary" type="submit">
               {V.phoneNoticeSave}
@@ -178,7 +177,9 @@ function MissedItem({
       {m.proposed_date ? ` · ${V.proposedDate}: ${formatDate(m.proposed_date)}` : ""}
       {m.no_date_in_window ? ` · ${V.noDateInWindow}` : ""}
       {" · "}
-      <span data-testid="missed-outcome">{m.outcome ? V.outcome[m.outcome] : V.outcomePending}</span>
+      <span data-testid="missed-outcome">
+        {m.outcome ? V.outcome[m.outcome] : V.outcomePending}
+      </span>
       {m.note && <p className="muted">{m.note}</p>}
       {!m.outcome && (
         <form action={setMissedOutcomeAction} className={styles.actions}>
@@ -246,7 +247,10 @@ function MissedForm({
       <summary>{V.missedTitle}</summary>
       {blocked && (
         <p className={styles.notice} data-testid="missed-prefill">
-          {V.fieldEventPrefill(V.reason[blocked.reason ?? ""] ?? "", blocked.photoCaptureIds.length)}
+          {V.fieldEventPrefill(
+            V.reason[blocked.reason ?? ""] ?? "",
+            blocked.photoCaptureIds.length,
+          )}
         </p>
       )}
       <form action={recordMissedVisitAction} className={styles.form} encType="multipart/form-data">
@@ -255,7 +259,11 @@ function MissedForm({
         <div className={styles.grid}>
           <label>
             {V.reasonLabel}
-            <select name="reason" required defaultValue={scanned ? "company" : (blocked?.reason ?? "")}>
+            <select
+              name="reason"
+              required
+              defaultValue={scanned ? "company" : (blocked?.reason ?? "")}
+            >
               <option value="" disabled>
                 —
               </option>

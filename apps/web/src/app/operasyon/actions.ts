@@ -245,7 +245,10 @@ export async function planVisitAction(_prev: FormState, form: FormData): Promise
     : null;
   revalidatePath("/operasyon");
   redirect(
-    opsHref.visit(result.value, notice && !notice.ok ? { error: notice.error } : { notice: "planned" }),
+    opsHref.visit(
+      result.value,
+      notice && !notice.ok ? { error: notice.error } : { notice: "planned" },
+    ),
   );
 }
 
@@ -264,7 +267,9 @@ export async function updateVisitAction(_prev: FormState, form: FormData): Promi
     ? await recordVisitPhoneNotice(supabase, visitId, parsed.value.phoneNotifiedAt)
     : null;
   revalidatePath("/operasyon");
-  redirect(opsHref.visit(visitId, notice && !notice.ok ? { error: notice.error } : { notice: "updated" }));
+  redirect(
+    opsHref.visit(visitId, notice && !notice.ok ? { error: notice.error } : { notice: "updated" }),
+  );
 }
 
 export async function cancelVisitAction(form: FormData) {

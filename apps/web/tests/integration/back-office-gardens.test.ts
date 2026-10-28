@@ -196,7 +196,7 @@ describe("a member's period, gardens and orders", () => {
     expect(view?.customerName).toBe("Test Müşteri");
     expect(view?.orderNumber).toBe(view?.row?.order_number);
     expect(view?.blockedReason).toBeNull();
-    expect(view?.preview?.formula).toBe("removal-v1");
+    expect(view?.preview?.formula).toBe("removal-v2");
     expect(view?.preview?.lines.map((l) => l.order_id)).toEqual([addon]);
     expect(view?.preview?.access_scope.customer_owner).toBe(1);
     expect(view?.profileId).toBeTruthy();

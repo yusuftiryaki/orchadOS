@@ -62,7 +62,14 @@ export async function runSweep(
   const now = options.now ?? Date.now;
   const deadline = now() + (options.budgetMs ?? SWEEP_BUDGET_MS);
   const supabase = ticketClient(ticket, env);
-  const summary: SweepSummary = { orders: 0, created: 0, existing: 0, failed: 0, manualCopy: 0, skipped: 0 };
+  const summary: SweepSummary = {
+    orders: 0,
+    created: 0,
+    existing: 0,
+    failed: 0,
+    manualCopy: 0,
+    skipped: 0,
+  };
   const { data, error } = await supabase.rpc("sweep_contract_orders");
   if (error) throw new Error("sweep_orders_unreadable");
   for (const row of data ?? []) {

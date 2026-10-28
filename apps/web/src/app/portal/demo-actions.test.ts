@@ -109,6 +109,7 @@ describe("demo visitor at the action layer", () => {
       "cancelInvitationAction",
       "editQuestionAction",
       "inviteViewerAction",
+      "postponeVisitAction",
       "removeViewerAction",
       "replyQuestionAction",
       "requestGardenRemovalAction",

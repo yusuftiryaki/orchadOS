@@ -35,12 +35,17 @@ async function context(form: FormData) {
   return { read, visitId, supabase: await createClient() };
 }
 
-function back(visitId: string, error: { code?: string; message?: string } | null, notice: Notice): never {
+function back(
+  visitId: string,
+  error: { code?: string; message?: string } | null,
+  notice: Notice,
+): never {
   revalidatePath(`/operasyon/ziyaret/${visitId}`);
   redirect(opsHref.visit(visitId, error ? { error: reasonOf(error) } : { notice }));
 }
 
-const fail = (visitId: string, error: OpsError): never => redirect(opsHref.visit(visitId, { error }));
+const fail = (visitId: string, error: OpsError): never =>
+  redirect(opsHref.visit(visitId, { error }));
 
 // "datetime-local" in Istanbul (UTC+3 all year) → an instant.
 function instantOf(value: string): string | null {
@@ -106,7 +111,9 @@ export async function recordMissedVisitAction(form: FormData) {
   const input = parsed.ok ? parsed.value : null!;
   const file = form.get("evidence_file");
   const path =
-    file instanceof File ? await uploadEvidence(supabase, visit!.org_id, visit!.parcel_id, file) : null;
+    file instanceof File
+      ? await uploadEvidence(supabase, visit!.org_id, visit!.parcel_id, file)
+      : null;
   if (path === "invalid") fail(visitId, "invalid_input");
   const { error } = await supabase.rpc("ops_record_missed_visit", {
     p_session_id: visitId,
@@ -118,7 +125,9 @@ export async function recordMissedVisitAction(form: FormData) {
     p_evidence_capture_ids: input.evidenceCaptureIds,
     p_evidence_paths: path ? [path] : [],
     ...(input.customerNotifiedOn ? { p_customer_notified_on: input.customerNotifiedOn } : {}),
-    ...(input.customerNotifiedChannel ? { p_customer_notified_channel: input.customerNotifiedChannel } : {}),
+    ...(input.customerNotifiedChannel
+      ? { p_customer_notified_channel: input.customerNotifiedChannel }
+      : {}),
     ...(input.proposedDate ? { p_proposed_date: input.proposedDate } : {}),
     p_no_date_in_window: input.noDateInWindow,
     p_report_lost: input.reportLost,
@@ -131,7 +140,10 @@ export async function setMissedOutcomeAction(form: FormData) {
   const { read, visitId, supabase } = await context(form);
   const id = read("missed_visit_id");
   const outcome = read("outcome");
-  if (!isUuid(id) || !["rescheduled", "deemed_done", "refunded", "carried_over"].includes(outcome)) {
+  if (
+    !isUuid(id) ||
+    !["rescheduled", "deemed_done", "refunded", "carried_over"].includes(outcome)
+  ) {
     fail(visitId, "invalid_input");
   }
   const refundId = read("refund_id");

@@ -140,7 +140,7 @@ describe("concurrency", () => {
     const removal = check(
       await ops.rpc("ops_request_garden_removal", {
         p_order_item_id: item.id,
-        p_reason: "sold",
+        p_reason: "staff_safety",
         p_effective_on: istanbulToday(),
       }),
     );

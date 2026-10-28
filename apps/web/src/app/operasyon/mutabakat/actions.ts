@@ -23,7 +23,9 @@ export async function resolveReconciliationAction(form: FormData) {
   }
   const refundId = read("refund_id");
   const note = read("note").trim();
-  const { error } = await (await createClient()).rpc("ops_resolve_visit_reconciliation", {
+  const { error } = await (
+    await createClient()
+  ).rpc("ops_resolve_visit_reconciliation", {
     p_id: id,
     p_resolution: resolution,
     ...(note ? { p_note: note } : {}),

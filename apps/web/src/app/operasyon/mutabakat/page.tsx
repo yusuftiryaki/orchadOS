@@ -50,7 +50,10 @@ export default async function Page({
         <Link href={opsHref.reconciliation()} aria-current={all ? undefined : "page"}>
           {T.open}
         </Link>
-        <Link href={opsHref.reconciliation({ durum: "all" })} aria-current={all ? "page" : undefined}>
+        <Link
+          href={opsHref.reconciliation({ durum: "all" })}
+          aria-current={all ? "page" : undefined}
+        >
           {T.all}
         </Link>
       </nav>
@@ -88,7 +91,14 @@ export default async function Page({
                   <td>
                     {T.trigger[r.trigger] ?? r.trigger} · {r.window_label ?? day(r.scope_end)}
                   </td>
-                  <td>{T.visits(r.visits_used, r.visits_entitled, r.visits_refunded, r.visits_carried)}</td>
+                  <td>
+                    {T.visits(
+                      r.visits_used,
+                      r.visits_entitled,
+                      r.visits_refunded,
+                      r.visits_carried,
+                    )}
+                  </td>
                   <td className={styles.number}>{r.shortfall}</td>
                   <td className={styles.number}>{money(r.visit_fee_kurus)}</td>
                   <td>

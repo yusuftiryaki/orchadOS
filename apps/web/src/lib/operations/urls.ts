@@ -92,7 +92,10 @@ export const opsHref = {
   visit: (id: string, result?: Result) => withResult(`/operasyon/ziyaret/${id}`, result),
   // T06: the 8A reconciliation tasks.
   reconciliation: (filters: { durum?: string } = {}, result?: Result) =>
-    withResult(filters.durum ? `/operasyon/mutabakat?durum=${filters.durum}` : "/operasyon/mutabakat", result),
+    withResult(
+      filters.durum ? `/operasyon/mutabakat?durum=${filters.durum}` : "/operasyon/mutabakat",
+      result,
+    ),
 };
 
 type Params = Record<string, string | string[] | undefined>;

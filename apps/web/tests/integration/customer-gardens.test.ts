@@ -233,6 +233,8 @@ describe("a removal ops opened", () => {
         p_effective_on: addDays(istanbulToday(), 5),
         p_note: "Devir",
         p_access_days: 0,
+        // An earlier day than the 30-day notice: by agreement (contract 12/3).
+        p_owner_consent_note: "Sahip e-postayla onayladı",
       }),
     );
     const [row] = await data.listMyGardens(customer.client);

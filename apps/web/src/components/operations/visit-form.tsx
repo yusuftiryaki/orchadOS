@@ -64,8 +64,7 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
   );
   // T07 (contract 8A/1): no visit_scheduled message for a day closer than 3
   // days; the phone notice is then recorded with the plan.
-  const phoneNotice =
-    !!date && date !== visit?.plannedDate && needsPhoneNotice(kind, date, today);
+  const phoneNotice = !!date && date !== visit?.plannedDate && needsPhoneNotice(kind, date, today);
   const lead = failed ? (state.values.lead_user_id ?? "") : (visit?.leadUserId ?? "");
   const notes = failed ? (state.values.notes ?? "") : (visit?.notes ?? "");
 

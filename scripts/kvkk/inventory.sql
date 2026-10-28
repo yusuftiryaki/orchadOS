@@ -217,12 +217,29 @@ from private.boundary_dispute d
 join kvkk_parcel k on k.parcel_id = d.parcel_id
 where pg_temp.kvkk_has_match(d.note);
 
+-- ===== private.missed_visit, private.visit_reconciliation (ops notes) =====
+select pg_temp.kvkk_inv('private.missed_visit (notes mentioning the subject)', count(*),
+  'pseudonymize (--include-notes)', '2', 'missed-visit records (T07, 8A/3 evidence): the note; the record stays 10 years')
+from private.missed_visit m
+join kvkk_parcel k on k.parcel_id = m.parcel_id
+where pg_temp.kvkk_has_match(m.note);
+
+select pg_temp.kvkk_inv('private.visit_reconciliation (notes mentioning the subject)', count(*),
+  'pseudonymize (--include-notes)', '2', '8A reconciliation tasks (T06): the resolution note')
+from private.visit_reconciliation v
+join kvkk_parcel k on k.parcel_id = v.parcel_id
+where pg_temp.kvkk_has_match(v.resolution_note);
+
 select pg_temp.kvkk_inv('ops notes without an exact match (review)', count(*), 'review', '2',
-  'image-hiding and dispute notes on the parcels in scope; read them (ids below)')
+  'image-hiding, dispute, missed-visit and reconciliation notes on the parcels in scope; read them (ids below)')
 from (
   select m.note from private.media_suppression m join kvkk_parcel k on k.parcel_id = m.parcel_id
   union all
   select d.note from private.boundary_dispute d join kvkk_parcel k on k.parcel_id = d.parcel_id
+  union all
+  select mv.note from private.missed_visit mv join kvkk_parcel k on k.parcel_id = mv.parcel_id
+  union all
+  select v.resolution_note from private.visit_reconciliation v join kvkk_parcel k on k.parcel_id = v.parcel_id
 ) n
 where n.note is not null and not pg_temp.kvkk_has_match(n.note);
 
@@ -297,6 +314,32 @@ select pg_temp.kvkk_inv('private.kvkk_request', count(*), 'keep', '1',
   'KVKK başvuru defteri (T11): 10 years after the request is settled (saklama-imha-politikasi §2.2)')
 from private.kvkk_request r, kvkk_param p where r.subject_id = p.subject_id;
 
+-- Wave 3 (T07, T06, T09): service records of the visits and the contract end.
+select pg_temp.kvkk_inv('private.visit_notice', count(*), 'keep', '1',
+  'ziyaret tarihi bildirimleri (8A/1, 8A/3 ispatı): recipient user id, day, channel; 10 years with the contract')
+from private.visit_notice n, kvkk_param p where n.recipient_user_id = p.subject_id;
+
+select pg_temp.kvkk_inv('private.visit_postponement', count(*), 'keep', '1',
+  'erteleme talepleri (8A/1): requester user id, day, channel; 10 years with the contract')
+from private.visit_postponement x, kvkk_param p where x.requested_by = p.subject_id;
+
+select pg_temp.kvkk_inv('private.missed_visit (parcels in scope)', count(*), 'keep', '1, 2',
+  'yapılamayan ziyaret kayıtları ve kanıtları (8A/2–3, iade dayanağı): 10 years; notes above, photos in visit-evidence (H26 item 7)')
+from private.missed_visit m join kvkk_parcel k on k.parcel_id = m.parcel_id;
+
+select pg_temp.kvkk_inv('storage visit-evidence (parcels in scope)', count(*), 'keep', '7',
+  'ops photos of missed visits (8A/3 evidence): images, handled by the H01 hiding, not by these scripts')
+from storage.objects o join kvkk_parcel k on (storage.foldername(o.name))[2] = k.parcel_id::text
+where o.bucket_id = 'visit-evidence';
+
+select pg_temp.kvkk_inv('private.visit_reconciliation', count(*), 'keep', '1',
+  'dönem sonu 8A görevleri (T06, iade dayanağı): customer user id; 10 years with the contract')
+from private.visit_reconciliation v, kvkk_param p where v.customer_user_id = p.subject_id;
+
+select pg_temp.kvkk_inv('private.contract_end', count(*), 'keep', '1',
+  'sözleşme sona erme tarihleri (T09, H25): the start of every retention period (T10); kept as long as the longest one')
+from private.contract_end c, kvkk_param p where c.user_id = p.subject_id;
+
 \o
 
 select tbl as "table", rows, rule, h26 as "H26", note
@@ -321,7 +364,13 @@ select 'private.media_suppression', m.id, m.parcel_id, pg_temp.kvkk_has_match(m.
 from private.media_suppression m join kvkk_parcel k on k.parcel_id = m.parcel_id where m.note is not null
 union all
 select 'private.boundary_dispute', d.id, d.parcel_id, pg_temp.kvkk_has_match(d.note)
-from private.boundary_dispute d join kvkk_parcel k on k.parcel_id = d.parcel_id where d.note is not null;
+from private.boundary_dispute d join kvkk_parcel k on k.parcel_id = d.parcel_id where d.note is not null
+union all
+select 'private.missed_visit', m.id, m.parcel_id, pg_temp.kvkk_has_match(m.note)
+from private.missed_visit m join kvkk_parcel k on k.parcel_id = m.parcel_id where m.note is not null
+union all
+select 'private.visit_reconciliation', v.id, v.parcel_id, pg_temp.kvkk_has_match(v.resolution_note)
+from private.visit_reconciliation v join kvkk_parcel k on k.parcel_id = v.parcel_id where v.resolution_note is not null;
 
 -- Audit rows of the org that match but are not tied to the subject (ids only).
 select a.id as audit_event_id, a.action, a.entity_type

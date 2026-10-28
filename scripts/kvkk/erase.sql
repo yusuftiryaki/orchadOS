@@ -43,6 +43,15 @@ begin
     select 1 from private.boundary_dispute d
     join kvkk_parcel k on k.parcel_id = d.parcel_id
     where pg_temp.kvkk_has_match(d.note)
+  ) or exists (
+    -- Missed-visit and 8A task notes (T07, T06).
+    select 1 from private.missed_visit m
+    join kvkk_parcel k on k.parcel_id = m.parcel_id
+    where pg_temp.kvkk_has_match(m.note)
+  ) or exists (
+    select 1 from private.visit_reconciliation v
+    join kvkk_parcel k on k.parcel_id = v.parcel_id
+    where pg_temp.kvkk_has_match(v.resolution_note)
   ) then
     if p.apply then
       raise exception 'kvkk_notes_pending: field notes still name the subject; read them (inventory) and run "pseudonymize --include-notes --apply" for request % before "erase --apply"', p.request;

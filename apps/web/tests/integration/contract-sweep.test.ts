@@ -28,10 +28,14 @@ import { serviceClient, signIn } from "./fixtures";
 const DOMAIN = "contract-sweep.example.test";
 const admin = serviceClient();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const testing = createClient<any, "testing">(resolveSupabaseEnv().url, resolveSupabaseEnv().serviceRoleKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
-  db: { schema: "testing" },
-});
+const testing = createClient<any, "testing">(
+  resolveSupabaseEnv().url,
+  resolveSupabaseEnv().serviceRoleKey,
+  {
+    auth: { persistSession: false, autoRefreshToken: false },
+    db: { schema: "testing" },
+  },
+);
 
 let env: StoreEnv;
 let customer: TestCustomer;
@@ -86,7 +90,9 @@ describe("contract document sweep", () => {
   });
 
   it("fills the missing document through the system mode, once", async () => {
-    const ticket = check(await testing.rpc("issue_contract_sweep_ticket", { p_order_ids: [order] })) as string;
+    const ticket = check(
+      await testing.rpc("issue_contract_sweep_ticket", { p_order_ids: [order] }),
+    ) as string;
     const first = await runSweep(ticket, { env });
     expect(first).toMatchObject({ orders: 1, created: 1, failed: 0, manualCopy: 0 });
     expect(await kinds()).toEqual(["distance_sales", "pre_information", "withdrawal_confirmation"]);
@@ -119,9 +125,9 @@ describe("contract document sweep", () => {
       delete process.env.ORCHADOS_CRON_SECRET;
       expect((await post({}, { ticket: "0".repeat(64) })).status).toBe(503);
       process.env.ORCHADOS_CRON_SECRET = "cron-sweep-test";
-      expect((await post({ "x-orchados-cron-secret": "wrong" }, { ticket: "0".repeat(64) })).status).toBe(
-        401,
-      );
+      expect(
+        (await post({ "x-orchados-cron-secret": "wrong" }, { ticket: "0".repeat(64) })).status,
+      ).toBe(401);
       const bad = await post({ "x-orchados-cron-secret": "cron-sweep-test" }, { ticket: "x" });
       expect(bad.status).toBe(400);
       expect(await bad.json()).toEqual({ error: "invalid_input" });

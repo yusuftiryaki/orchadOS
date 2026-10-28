@@ -9,7 +9,13 @@ const V = visitsText.portal;
 // The owner's planned visits of the parcel and the one postponement each
 // allows, at the latest the day before (contract 8A/1). Owners only; the
 // page passes nothing for co-owners and demo visitors.
-export function UpcomingVisits({ parcelId, visits }: { parcelId: string; visits: UpcomingVisit[] }) {
+export function UpcomingVisits({
+  parcelId,
+  visits,
+}: {
+  parcelId: string;
+  visits: UpcomingVisit[];
+}) {
   if (visits.length === 0) return null;
   return (
     <section className={`${styles.section} ${styles.noPrint}`} data-testid="upcoming-visits">

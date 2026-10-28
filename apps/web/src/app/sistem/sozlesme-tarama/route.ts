@@ -1,5 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { CRON_SECRET_HEADER, cronSecretMatches, parseTicket, runSweep } from "@/lib/contracts/sweep";
+import {
+  CRON_SECRET_HEADER,
+  cronSecretMatches,
+  parseTicket,
+  runSweep,
+} from "@/lib/contracts/sweep";
 
 // POST /sistem/sozlesme-tarama: the automatic sweep of missing contract
 // documents (T04, H12), called by pg_cron through pg_net with the cron secret

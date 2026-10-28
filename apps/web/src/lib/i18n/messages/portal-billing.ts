@@ -222,7 +222,8 @@ export const portalBillingText = {
     // 12/3: "Portal, aynı işlemde bekleyen siparişi iptal etme seçeneği sunar."
     pendingCancel:
       "Bekleyen siparişi iptal et ve devam et: sipariş bedelsiz iptal edilir, ödeme alınmaz.",
-    pendingDates: "Çıkış tarihi ve tahmini iade, sipariş iptal edildikten sonra bahçenin sayfasında görünür.",
+    pendingDates:
+      "Çıkış tarihi ve tahmini iade, sipariş iptal edildikten sonra bahçenin sayfasında görünür.",
     removed: (number: string) => `Bahçe hizmetten çıkarıldı (${number}).`,
     removedBand: (date: string) =>
       `Bu bahçe hizmetten çıkarıldı. Raporlar şu tarihe kadar açık: ${date}`,

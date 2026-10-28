@@ -342,15 +342,19 @@ describe("visit date notice (T07, H01, H15)", () => {
   });
 
   it("works without the parcel name and needs the day and a portal path", () => {
-    const out = renderNotification("visit_scheduled", { date: "2026-10-14", path: "/portal" }, BASE);
+    const out = renderNotification(
+      "visit_scheduled",
+      { date: "2026-10-14", path: "/portal" },
+      BASE,
+    );
     expect(out.ok && out.body).toMatch(/^orchadOS: bahçenizin denetim ziyareti 14 Ekim günü/);
     expect(renderNotification("visit_scheduled", { path: "/portal" }, BASE)).toEqual({
       ok: false,
       error: "invalid_vars",
     });
-    expect(renderNotification("visit_scheduled", { date: "2026-10-14", path: "/kvkk" }, BASE)).toEqual(
-      { ok: false, error: "invalid_link" },
-    );
+    expect(
+      renderNotification("visit_scheduled", { date: "2026-10-14", path: "/kvkk" }, BASE),
+    ).toEqual({ ok: false, error: "invalid_link" });
   });
 });
 

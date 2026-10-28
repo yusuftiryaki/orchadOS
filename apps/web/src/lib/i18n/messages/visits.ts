@@ -4,8 +4,7 @@
 export const visitsText = {
   portal: {
     title: "Planlı ziyaretler",
-    lead:
-      "Ziyaret tarihi size en az 3 gün önce bildirilir. Ziyaretten en geç bir gün önce bir kez erteleme isteyebilirsiniz; ekibimiz ziyareti aynı pencere içinde yeniden planlar.",
+    lead: "Ziyaret tarihi size en az 3 gün önce bildirilir. Ziyaretten en geç bir gün önce bir kez erteleme isteyebilirsiniz; ekibimiz ziyareti aynı pencere içinde yeniden planlar.",
     postpone: "Ertelenmesini iste",
     postponed: "Erteleme istendi; yeni tarih size bildirilecek.",
     notPostponable: "Erteleme süresi geçti.",
@@ -17,7 +16,10 @@ export const visitsText = {
       "Sözleşme 8A/1: tarih Sahip'e en az 3 gün önce SMS ya da telefonla bildirilir. 3 günden yakın bir tarihte SMS gitmez; telefonla bildirim kaydı gerekir.",
     noNotice: "Bu tarih için bildirim kaydı yok.",
     channel: { message: "SMS / WhatsApp", phone: "Telefon" } as Record<string, string>,
-    status: { pending: "kuyrukta", sent: "gönderildi", failed: "gönderilemedi" } as Record<string, string>,
+    status: { pending: "kuyrukta", sent: "gönderildi", failed: "gönderilemedi" } as Record<
+      string,
+      string
+    >,
     phoneNotice: "Telefonla bildirildi",
     phoneNoticeAt: "Bildirim saati",
     phoneNoticeSave: "Telefonla bildirimi kaydet",
@@ -26,10 +28,11 @@ export const visitsText = {
     postponementTitle: "Erteleme",
     postponement: (date: string, channel: string) =>
       `Sahip ${channel} erteleme istedi (ilk tarih ${date}). Ziyareti aynı pencerede yeni bir tarihe planlayın.`,
-    postponementChannel: { portal: "portaldan", phone: "telefonla", written: "yazılı olarak" } as Record<
-      string,
-      string
-    >,
+    postponementChannel: {
+      portal: "portaldan",
+      phone: "telefonla",
+      written: "yazılı olarak",
+    } as Record<string, string>,
     postponementRecord: "Telefonla ya da yazılı gelen ertelemeyi kaydet",
     postponementAt: "İsteğin zamanı",
     postponementSave: "Ertelemeyi kaydet",
@@ -59,10 +62,14 @@ export const visitsText = {
     note: "Not",
     noteHint: "Ne oldu, kim vardı (telefon numarası yazmayın).",
     evidence: "Kanıt fotoğrafı",
-    evidenceHint: "Saha fotoğrafları seçili gelir; ek fotoğraf yükleyebilirsiniz (JPEG, PNG, WebP, en fazla 4 MB).",
+    evidenceHint:
+      "Saha fotoğrafları seçili gelir; ek fotoğraf yükleyebilirsiniz (JPEG, PNG, WebP, en fazla 4 MB).",
     notifiedOn: "Sahip'e bildirildiği gün",
     notifiedChannel: "Bildirim yolu",
-    notifiedChannels: { sms: "SMS", whatsapp: "WhatsApp", phone: "Telefon" } as Record<string, string>,
+    notifiedChannels: { sms: "SMS", whatsapp: "WhatsApp", phone: "Telefon" } as Record<
+      string,
+      string
+    >,
     proposedDate: "Önerilen yeni tarih (aynı pencerede)",
     noDateInWindow: "Pencere içinde yeni tarih önerilemiyor (8A/2 uygulanır)",
     reportLost: "Raporu yayımlanamıyor (örneğin veri kaybı); kullanılmış ziyaret sayılmaz",
@@ -85,10 +92,11 @@ export const visitsText = {
     } as Record<string, string>,
     sign: (sign: boolean, badge: boolean) =>
       `Levha: ${sign ? "kondu" : "konmadı"} · Kart: ${badge ? "görünür" : "görünmüyor"}`,
-    verbal: { given: "Bilgi verildi", nobody: "Bahçede kimse yoktu", not_given: "Verilemedi" } as Record<
-      string,
-      string
-    >,
+    verbal: {
+      given: "Bilgi verildi",
+      nobody: "Bahçede kimse yoktu",
+      not_given: "Verilemedi",
+    } as Record<string, string>,
     badgePostponed: "Erteleme istendi",
     badgeNoNotice: "Bildirim yok",
     badgeMissed: (n: number) => `${n} yapılamadı kaydı`,
@@ -96,8 +104,7 @@ export const visitsText = {
   reconciliation: {
     title: "Ziyaret mutabakatı (8A)",
     nav: "Mutabakat",
-    lead:
-      "Sözleşme 8A/6: her ziyaret penceresinin ve hizmet döneminin sonunda yapılamayan ziyaretler kendiliğinden tespit edilir; bedeli pencerenin bitiminden sonra en geç 14 gün içinde iade edilir ya da Sahip isterse aktarılır. İadeyi İadeler ekranından açın (neden: yapılamayan ziyaret).",
+    lead: "Sözleşme 8A/6: her ziyaret penceresinin ve hizmet döneminin sonunda yapılamayan ziyaretler kendiliğinden tespit edilir; bedeli pencerenin bitiminden sonra en geç 14 gün içinde iade edilir ya da Sahip isterse aktarılır. İadeyi İadeler ekranından açın (neden: yapılamayan ziyaret).",
     empty: "Açık görev yok.",
     all: "Tümü",
     open: "Açık",
