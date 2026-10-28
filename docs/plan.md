@@ -46,6 +46,7 @@ gantt
     İP11 İşleme istasyonu              :ip11, 2026-12-15, 2027-01-10
     section Müşteri
     İP12 Müşteri edinme ve ödeme       :ip12, 2026-10-28, 2026-11-20
+    İP13 Demo turu                     :ip13, 2026-10-28, 2026-11-07
 ```
 
 **Kritik yol:** Kit parçalarının teslim süresi → teknik denemeler → işleme hattı → pilot envanterleri → kış denetimi. Kit siparişi gecikirse her şey kayar; bu yüzden ilk hafta verilmeli.
@@ -67,6 +68,7 @@ gantt
 | İP10 | Operasyon hazırlıkları | P0 | 4 gün + dış süreler | Metodoloji v0 (ölçekler, referans fotoğraflar), KVKK aydınlatma ve rıza metinleri, sözleşme taslağı, uzman anlaşması, pilot sahiplerin onayı |
 | İP11 | İşleme istasyonu | P0 | 1 gün | Pilotta bulutta (karar 22 Ekim): ham video ofisten buluttaki depoya yüklenir, GPU'lu sanal makine iş başına açılıp kapanır; işleme hattı orada çalışıyor |
 | İP12 | Müşteri edinme ve yönetimi | P1 | 12 gün | Site, self-servis kayıt (SMS doğrulaması, rızalar), başvuru, teklif, kartla (iyzico) ve havaleyle ödeme, makbuz, iade, back office; bayraklar kapalıyken birleşir. Tasarım: `docs/musteri-yonetimi.md` |
+| İP13 | Demo turu | P1 | ~7 gün | Bahçe sahibi adayı hesap açmadan ve ödemeden, ayrı demo projesinde (`demo.<alan adı>`) geçici bir hesapla iki sentetik bahçeyi sahip portalında gezer; rehberli tur, filigranlı PDF'ler; demo hesabı hiçbir şey yazamaz; anahtarlar kapalıyken birleşir. Tasarım: [demo-turu.md](demo-turu.md) |
 
 **Durum (20 Ekim 2026)**
 
@@ -90,6 +92,10 @@ gantt
 | İP12-D | Tamam (PR #58) | Müşteri portalı: başvuru, teklif, sipariş, kartla ve havaleyle ödeme, hesap |
 | İP12-E | Tamam (PR #57) | Back office: başvuru inceleme, teklif, havale kaydı, iade, ödeme incelemesi, ayarlar |
 | İP12 entegrasyon düzeltmesi | PR açık (`claude/ip12-entegrasyon-duzeltme`) | Bütünleşik incelemenin bulguları: alıcı e-postası, `payment_in_progress` eşlemesi, Turnstile olmadan kayıt kapalı, geri alma anahtarı, deploy runbook'u (`docs/gorevler/ip12-entegrasyon-duzeltme.md`). Bayraklar barındırılan projelerde hâlâ kapalı |
+| İP13 tasarım | Tamam | [demo-turu.md](demo-turu.md) (sürüm 2) |
+| İP13-A | İncelemede (PR #63) | Demo erişimi: `private.demo_*` tabloları, yazma kilidi, hesap kilidi, erişim kapsamı, `demo-start` Edge Function, `deploy-db-demo` ve pilot denetimleri |
+| İP13-B | İncelemede (PR #64) | Demo verisi: sentetik medya, `orchados-pipeline demo`, `pnpm db:demo-tour`, `demo-data` iş akışı |
+| İP13-C | Sürüyor, PR (`claude/ip13-demo-arayuz`) | Demo arayüzü: demo sunucusu, `/demo`, oturum kapısı ve bant, rehberli tur, filigranlı PDF, uçtan uca test. Barındırılan projelerde demo henüz kapalı; yayına alma `docs/deployment.md` › Demo turu |
 | Operasyon ekranları | Tamam (PR #19) | `/operasyon`: pano, sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma, ziyaret planlama |
 | Envanter onayı | Tamam (PR #18) | Doğrulama listesi veritabanında (`verification_item`), ofiste ağaç özellikleri, altyapı ve saha sınırı; uzmanın envanter onayı; sahibin sınır onayı. Saha tarafı açık |
 | İP6 v0.3 | Tamam (PR #21) | Doğrulama turu ekranı, sahada sınır köşesi, kapsama haritası, test projesine bağlı APK (`docs/gorevler/ip6-envanter-saha.md`) |
@@ -114,6 +120,8 @@ gantt
 7. ✅ **27 Ekim işleri:** BLE paketi `universal_ble` (PR #41); dip sürgünü, kuruma deseni, gövde yapısı (PR #42); ücretsiz AI sağlayıcıları: yerel Ollama `gemma3:4b` ile uçtan uca denendi, Gemini ücretsiz katmanı yalnız test verisi (PR #43); envanter raporu ve sunucuda PDF (PR #44); web ve saha arayüzlerinde tasarım yenilemesi (PR #45, #46); **metodoloji v0.1**: uzman ajan kararları (PR #47, `docs/uzman-ajan-onerileri.md`), 27 Ekim'de işletme kararıyla kabul edildi; kalan kurallar kodda (zor ölçekler, mevsimin ilk ziyaretinde toplu onay kapalı, "yok" bir kez, aynı mevsimle trend, envanterde %98 ve 20×20 m kör nokta, AI istemi v0.3, yakın plan protokolü v0.1).
 
 8. **İP12 Müşteri edinme ve yönetimi** (27 Ekim): geliştirme bulut oturumlarında; üç dalgada altı akış (`docs/gorevler/ip12-*.md`, tasarım `docs/musteri-yonetimi.md` §17). Dalga 1: A1 veri modeli ve kayıt, B ödeme sağlayıcı, C site ve kayıt arayüzü; dalga 2: A2 teklif, sipariş, ödeme fonksiyonları; dalga 3: D müşteri portalı, E back office.
+
+9. **İP13 Demo turu** (28 Ekim): tasarım `docs/demo-turu.md`; iki dalgada üç akış (`docs/gorevler/ip13-*.md`). Dalga 1: A demo erişimi (veritabanı, Edge, dağıtım denetimleri), B demo verisi; dalga 2: C demo arayüzü ve uçtan uca test. Sonra test projesinde duman testi, demo projesi, en son pilot sitesine link.
 
 **Açık işler**
 

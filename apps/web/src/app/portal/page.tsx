@@ -22,6 +22,12 @@ export default async function Page({
   const params = await searchParams;
   return (
     <>
+      {/* A billing action a demo visitor reached anyway ("Demoda kapalı"). */}
+      {user.demo && params.hata && (
+        <div className={styles.page}>
+          <PortalResult params={params} />
+        </div>
+      )}
       {summary && (
         <div className={styles.page}>
           {parcels.length === 0 && <h1>{t.portal.gardens.title}</h1>}

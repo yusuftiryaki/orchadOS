@@ -33,6 +33,8 @@ export const PORTAL_ERRORS = [
   "odeme_bulunamadi",
   "onay_eksik",
   "fatura_eposta_eksik",
+  // A demo visitor (docs/demo-turu.md §6.3).
+  "demo_read_only",
 ] as const;
 export type PortalError =
   | BillingError
@@ -40,7 +42,8 @@ export type PortalError =
   | "provider_error"
   | "odeme_bulunamadi"
   | "onay_eksik"
-  | "fatura_eposta_eksik";
+  | "fatura_eposta_eksik"
+  | "demo_read_only";
 
 type Result = { bilgi?: PortalNotice; hata?: PortalError; eksik?: string };
 

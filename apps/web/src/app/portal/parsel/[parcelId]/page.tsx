@@ -55,8 +55,10 @@ export default async function Page({
         threads,
         sent: first(query.soru) === "1",
         error: first(query.soru_hata) ?? null,
+        demo: user.demo,
       }}
       viewers={{ data: viewers, outcome: first(query.hissedar) }}
+      demo={user.demo}
     />
   );
 }

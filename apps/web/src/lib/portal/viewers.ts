@@ -29,7 +29,9 @@ export type ViewerError =
   | "invalid_phone"
   | "too_many_invitations"
   | "not_found"
-  | "write_failed";
+  | "write_failed"
+  // A demo visitor (docs/demo-turu.md §6.3).
+  | "demo_read_only";
 
 export type ViewerResult = { ok: true } | { ok: false; error: ViewerError };
 
@@ -81,6 +83,7 @@ export async function loadParcelViewers(
 }
 
 const failWith = (error: { code?: string; message?: string }): ViewerResult => {
+  if (error.message === "demo_read_only") return { ok: false, error: "demo_read_only" };
   if (error.message === "too_many_invitations") return { ok: false, error: "too_many_invitations" };
   if (error.message === "not_found" || error.code === "P0002")
     return { ok: false, error: "not_found" };

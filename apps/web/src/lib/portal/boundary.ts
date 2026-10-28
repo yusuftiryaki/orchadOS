@@ -84,7 +84,7 @@ export async function loadBoundaryCard(
 }
 
 export type ApproveBoundaryResult =
-  { ok: true } | { ok: false; error: "forbidden" | "invalid_input" };
+  { ok: true } | { ok: false; error: "forbidden" | "invalid_input" | "demo_read_only" };
 
 // approve_boundary() refuses everyone but an owner of the parcel, and an
 // already approved version.
@@ -94,6 +94,10 @@ export async function approveBoundary(
 ): Promise<ApproveBoundaryResult> {
   if (!isUuid(boundaryId)) return { ok: false, error: "invalid_input" };
   const { error } = await supabase.rpc("approve_boundary", { p_boundary_id: boundaryId });
-  if (error) return { ok: false, error: "forbidden" };
+  if (error) {
+    // A demo visitor (docs/demo-turu.md §6.3).
+    if (error.message === "demo_read_only") return { ok: false, error: "demo_read_only" };
+    return { ok: false, error: "forbidden" };
+  }
   return { ok: true };
 }

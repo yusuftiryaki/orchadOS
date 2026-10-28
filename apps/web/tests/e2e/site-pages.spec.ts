@@ -19,6 +19,8 @@ const PUBLIC_PAGES: [string, string][] = [
   ["/iade", "İptal ve İade Politikası"],
   ["/kayit", "Kayıt ol"],
   ["/giris", "Giriş"],
+  // Demo tour (İP13): the build serves /demo (ORCHADOS_DEMO_ENABLED=1).
+  ["/demo", "Demoyu deneyin"],
 ];
 
 for (const [path, heading] of PUBLIC_PAGES) {
@@ -69,6 +71,9 @@ test("header and footer links work", async ({ page }) => {
     await header.getByRole("link", { name, exact: true }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(heading);
   }
+  await header.getByTestId("header-demo").click();
+  await expect(page).toHaveURL("/demo");
+  await expect(page.getByTestId("demo-start")).toBeVisible();
   await header.getByRole("link", { name: "Kayıt ol" }).click();
   await expect(page).toHaveURL("/kayit");
   await header.getByRole("link", { name: "Giriş", exact: true }).click();
@@ -169,4 +174,31 @@ test("signed-in users skip the landing and the sign-up page", async ({ page }) =
   const header = page.locator("header").first();
   await expect(header.getByRole("link", { name: "Hesabım" })).toBeVisible();
   await expect(header.getByRole("link", { name: "Kayıt ol" })).toHaveCount(0);
+});
+
+test("the demo is linked from the landing page, the login page and 'Nasıl çalışır'", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByTestId("landing-demo")).toHaveAttribute("href", "/demo");
+  await expect(page.getByTestId("landing-demo-foot")).toHaveAttribute("href", "/demo");
+  await page.goto("/giris");
+  await expect(page.getByTestId("login-demo").getByRole("link")).toHaveAttribute("href", "/demo");
+  await page.goto("/nasil-calisir");
+  await expect(page.getByTestId("how-demo").getByRole("link")).toHaveAttribute("href", "/demo");
+  await page.goto("/gizlilik");
+  await expect(page.getByRole("heading", { name: "Demo turu" })).toBeVisible();
+});
+
+test("phone size: the public pages fit without horizontal scroll", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 360, height: 800 } });
+  const page = await context.newPage();
+  for (const path of ["/", "/demo", "/nasil-calisir", "/giris"]) {
+    await page.goto(path);
+    const fits = await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    );
+    expect(fits, path).toBe(true);
+  }
+  await context.close();
 });

@@ -19,14 +19,18 @@ import type { Client } from "@/lib/supabase/types";
 // sees the no-roles card.
 export default async function HomePage() {
   const user = await getSessionUser();
-  if (!user) return <Landing signupEnabled={siteFlags().signupEnabled} />;
+  const { signupEnabled, demoUrl } = siteFlags();
+  // A demo visitor sees the landing; the header leads back to the demo.
+  if (!user || user.demo) {
+    return <Landing signupEnabled={signupEnabled} demoUrl={user?.demo ? null : demoUrl} />;
+  }
 
   const section = defaultSection(user.roles);
   if (section) redirect(`/${section}`);
 
   let phoneNotVerified = false;
   const supabase = await createClient();
-  if (siteFlags().signupEnabled && (await isSelfSignup(supabase))) {
+  if (signupEnabled && (await isSelfSignup(supabase))) {
     const result = await completeSignup(supabase);
     if (result.ok && result.status === "completed") redirect("/portal");
     phoneNotVerified = !result.ok && result.error === "phone_not_verified";
@@ -66,7 +70,13 @@ async function isSelfSignup(supabase: Client): Promise<boolean> {
   );
 }
 
-function Landing({ signupEnabled }: { signupEnabled: boolean }) {
+export function Landing({
+  signupEnabled,
+  demoUrl,
+}: {
+  signupEnabled: boolean;
+  demoUrl: string | null;
+}) {
   const l = siteText.landing;
   return (
     <>
@@ -81,9 +91,19 @@ function Landing({ signupEnabled }: { signupEnabled: boolean }) {
                 {l.ctaSignup}
               </Link>
             )}
+            {/* The demo is the primary action while sign-up is closed. */}
+            {demoUrl && (
+              <Link
+                href={demoUrl}
+                className={signupEnabled ? "button button-secondary" : "button"}
+                data-testid="landing-demo"
+              >
+                {l.ctaDemo}
+              </Link>
+            )}
             <Link
               href="/nasil-calisir"
-              className={signupEnabled ? "button button-secondary" : "button"}
+              className={signupEnabled || demoUrl ? "button button-secondary" : "button"}
             >
               {l.ctaHow}
             </Link>
@@ -113,6 +133,13 @@ function Landing({ signupEnabled }: { signupEnabled: boolean }) {
                 <li key={item}>{item}</li>
               ))}
             </ul>
+            {demoUrl && (
+              <p className={styles.tileFoot}>
+                <Link href={demoUrl} data-testid="landing-demo-foot">
+                  {l.demoFoot}
+                </Link>
+              </p>
+            )}
           </div>
           <div className={styles.tile}>
             <h2>{l.honestTitle}</h2>

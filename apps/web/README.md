@@ -174,6 +174,9 @@ MapLibre GL. Parsel detayında son sürüm sınır, yerler ve ağaçlar çizilir
 | `ORCHADOS_SITE_URL`               | Sitenin herkese açık adresi (`robots.txt` ve site haritası için), ör. `https://orchados.com.tr`              |
 | `SIGNUP_PROXY_SECRET`             | `customer-signup` fonksiyonuyla ortak sır; yalnızca sunucu, asla `NEXT_PUBLIC`. Yerelde `signup-proxy-local` |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`  | Cloudflare Turnstile site anahtarı. Boşsa robot doğrulaması gösterilmez (yerel, CI); pilotta zorunlu         |
+| `ORCHADOS_DEMO_ENABLED`           | `1` ise bu dağıtım `/demo`'yu sunar (demo dağıtımı, yerel, CI). Varsayılan kapalı                            |
+| `ORCHADOS_DEMO_URL`               | "Demoyu dene" bağlantılarının hedefi; pilot sitesinde `https://demo.<alan adı>/demo`                         |
+| `ORCHADOS_MAIN_SITE_URL`          | Yalnızca demo dağıtımında: asıl sitenin adresi. Tanımlıysa dağıtım bir demo sunucusudur                      |
 
 `NEXT_PUBLIC_*` değerleri derleme sırasında koda gömülür; ortam değişince yeniden derlemek gerekir. Site bayrakları (`ORCHADOS_*`) ve Turnstile anahtarı sunucuda her istekte okunur (`src/lib/flags.ts`).
 
@@ -689,3 +692,38 @@ Son 100 bildirim (durum filtresi `?durum=`): zaman, parsel, alıcı (ad, sahip/h
 
 - Telefon değişikliği portalda yok (giriş telefonu; operasyon üzerinden).
 - Makbuz fatura değildir; e-fatura entegrasyonu kapsam dışı.
+
+## Demo turu (İP13)
+
+Bahçe sahibi adayı, hesap açmadan sahip portalını örnek iki bahçede gezer. Tasarım: [docs/demo-turu.md](../../docs/demo-turu.md) (§11 web). Veritabanı ve Edge (`demo-start`) İP13-A, sentetik veri ve medya İP13-B, buradaki arayüz İP13-C.
+
+### Bayraklar ve demo sunucusu
+
+- `ORCHADOS_DEMO_ENABLED=1`: dağıtım `/demo`'yu sunar. Kapalıyken `/demo` 404'tür, `startDemoAction` reddeder, açık demo oturumları `/demo/bitti` ile kapanır.
+- "Demoyu dene" bağlantıları (landing `landing-demo`, üst menü `header-demo`, `/giris` `login-demo`, `nasil-calisir` sonundaki kutu) yalnızca `siteFlags().demoUrl` doluysa çizilir: `ORCHADOS_DEMO_URL`, yoksa bayrak açıkken `/demo`.
+- `ORCHADOS_MAIN_SITE_URL` tanımlıysa dağıtım **demo sunucusudur** (`src/lib/site/demo-host.ts`, proxy'de): `/` → `/demo`; `/demo/**`, `/portal/**`, Next varlıkları, `robots.txt` ve statik dosyalar dışındaki her sayfa asıl sitedeki aynı yola 307 ile gider; oturumsuz portal isteği `/giris` yerine `/demo`'ya gider; dizinleme hiçbir zaman açılmaz. Uygulamada auth geri dönüş rotası yoktur (demo oturumu tarayıcıda `verifyOtp` ile açılır).
+
+### Akış
+
+- `/demo` (`src/app/(site)/demo/`): açıklama, Turnstile, `demo-start`. `startDemoAction` → `src/lib/demo/start.ts` (`requestDemoStart`, proxy sırrı ve istemci IP'siyle `demo-start`) → tarayıcıda `verifyOtp({token_hash})` (`src/lib/supabase/browser.ts`) → `/portal?tur=bahceler`. Token sunucuda hiç doğrulanmaz.
+- Oturum kapısı (`src/lib/auth/session.ts`): `app_metadata.demo` taşıyan oturumda `requireUser` / `requireSection` rol kontrolünden önce bayrağa ve `demo_info()`'ya (`src/lib/demo/session.ts`) bakar; süre dolmuşsa `/demo/bitti` → `/demo?bitti=1`. PDF rotaları `demoGate()` ile 302 döner. `/demo/bitti` yalnızca demo oturumunu kapatır; gerçek kullanıcıya dokunmaz.
+- Kabuk (`src/components/demo/`): `demo-banner` (bitiş saati, "Turu başlat", "Gerçek hesap aç", "Demodan çık"; yazdırmada da görünür), "Bahçelerim (örnek)", e-posta ve avatar yok, `PortalNav` yok. Rehberli tur `guided-tour.tsx`, adımlar `src/lib/demo/tour-steps.ts` (10 adım; adım `?tur=` parametresinde, "kapatıldı" `sessionStorage`'da).
+- Yazmalar: portal eylemleri ve `billing-actions.ts` önce `user.demo`'ya bakar ve "Demoda kapalı" döner; veritabanından gelen `demo_read_only` aynı metne çevrilir. Soru dizileri, hissedarlar ve sınır kartı `demo` ile formsuz çizilir (`demo-notice`). Faturalama sayfaları demo kullanıcısını `/portal`'a döndürür.
+- Medya: demo kullanıcısında imzalayıcı `publicMirror` ile demo org'unun `storage://media/org/<org>/…` adreslerini `demo-media` kovasının herkese açık adresine çevirir; imza yok, baytlar aynı (hash doğrulaması geçer). Gezi imzası `demo_hit('sign')` sınırına bağlıdır.
+- PDF: `SampleWatermark` ("ÖRNEK RAPOR – gerçek bir bahçeye ait değildir", "Sentetik demo verisi") yalnızca `{demo: true}` ile; belge bilgisinde ASCII `orchadOS ornek rapor (sentetik demo verisi)`. Sıra `src/lib/pdf/serve.ts`'de: kapı → `demo_hit('pdf')` (aşılırsa 429) → kullanıcının RLS okuması → yalnızca demo parselinde Next veri önbelleği (`src/lib/demo/pdf-cache.ts`). Yanıt `X-Orchados-Sample: 1`, `Cache-Control: private, max-age=600`; gerçek kullanıcılarda değişiklik yok (`no-store`).
+
+### Yerelde çalıştırma
+
+```bash
+pnpm db:start && pnpm db:reset              # repo kökünde
+pnpm db:demo-tour                           # sentetik veri + medya (uv gerekir); test profili: --profile test
+ORCHADOS_DEMO_ENABLED=1 pnpm web:dev        # http://localhost:3000/demo
+```
+
+Yerel `demo-start` `ORCHADOS_DEMO_MODE=dev` ile çalışır (`supabase/config.toml`); Turnstile anahtarı yoksa doğrulama yoktur. `SIGNUP_PROXY_SECRET=signup-proxy-local` `.env.local`'da olmalıdır (yoksa bütün istekler tek `unknown` IP kovasına düşer).
+
+### Testler
+
+- Birim: `src/lib/site/demo-host.test.ts`, `src/lib/flags.test.ts`, `src/lib/auth/session.test.ts` (kapı), `src/app/(site)/demo/demo-exit.test.ts` (`/demo/bitti` ve çıkış gerçek kullanıcıyı çıkarmaz), `src/lib/demo/*.test.ts`, `src/lib/pdf/sample.test.ts`, `src/lib/pdf/serve.test.ts` (önbellek sırası), `src/components/site/flags-off.test.tsx` (bağlantılar), `src/lib/i18n/messages/demo.test.ts`.
+- Entegrasyon: `tests/integration/demo-portal.test.ts` (kendi küçük demo org'u, `demo-fixture.ts`), `tests/integration/demo-dataset.test.ts` (yalnızca `pnpm db:demo-tour` yüklüyse).
+- Tarayıcı: `tests/e2e/demo-tour.spec.ts`. Global kurulum `pnpm db:demo-tour --profile test --reset-local` çalıştırır; uv yoksa yerelde atlanır, CI'da (`process.env.CI`) başarısız olur.

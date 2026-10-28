@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 import { LogoMark } from "@/components/brand/logo";
+import { DemoContinue } from "@/components/site/demo-continue";
+import { DemoLink } from "@/components/site/demo-link";
 import { SignupLink } from "@/components/site/signup-link";
 import { siteFlags } from "@/lib/flags";
 import { LoginForm } from "./login-form";
@@ -15,7 +17,9 @@ export default async function LoginPage({
 }) {
   const { next } = await searchParams;
   const target = safeNextPath(next);
-  if (await getSessionUser()) redirect(target);
+  const user = await getSessionUser();
+  if (user && !user.demo) redirect(target);
+  const flags = siteFlags();
 
   return (
     <main className={styles.screen}>
@@ -38,10 +42,17 @@ export default async function LoginPage({
           </div>
           <h1>{t.login.title}</h1>
           <p className="muted">{t.login.subtitle}</p>
-          <LoginForm next={target} />
-          <div className={styles.signup}>
-            <SignupLink signupEnabled={siteFlags().signupEnabled} />
-          </div>
+          {user?.demo ? (
+            <DemoContinue next="/giris" />
+          ) : (
+            <>
+              <LoginForm next={target} />
+              <div className={styles.signup}>
+                <SignupLink signupEnabled={flags.signupEnabled} />
+                <DemoLink demoUrl={flags.demoUrl} />
+              </div>
+            </>
+          )}
         </div>
       </section>
     </main>

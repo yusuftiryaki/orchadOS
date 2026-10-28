@@ -15,6 +15,7 @@ export const siteText = {
     account: "Hesabım",
     logout: "Çıkış",
     menu: "Menü",
+    demo: "Demoyu dene",
   },
   footer: {
     legalLabel: "Hukuki metinler",
@@ -37,6 +38,8 @@ export const siteText = {
     ctaSignup: "Kayıt olun",
     ctaHow: "Nasıl çalışır?",
     ctaLogin: "Hesabınız varsa giriş yapın",
+    ctaDemo: "Demoyu dene",
+    demoFoot: "Bunları örnek bir bahçede hesap açmadan görün: demoyu deneyin",
     pillarsTitle: "Neden orchadOS?",
     pillars: [
       {
@@ -270,6 +273,7 @@ export const siteText = {
   login: {
     noAccount: "Hesabınız yok mu?",
     signup: "Kayıt olun",
+    tryDemo: "Hesap açmadan örnek bir bahçede demoyu deneyin",
   },
 } as const;
 

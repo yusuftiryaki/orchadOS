@@ -66,6 +66,11 @@ export const tr = {
     body: "Hesabınızın rolleri bu sayfayı açmaya izin vermiyor.",
     back: "Ana sayfaya dön",
   },
+  error: {
+    title: "Sayfa şu anda açılamadı",
+    body: "Geçici bir sorun oluştu. Biraz sonra yeniden deneyin.",
+    retry: "Yeniden dene",
+  },
   notFound: {
     title: "Sayfa bulunamadı",
     back: "Ana sayfaya dön",

@@ -31,10 +31,14 @@ import { createClient } from "@/lib/supabase/server";
 // redirect with `?bilgi=` / `?hata=`; the forms that keep typed values use
 // useActionState. Form values are personal data and are never logged.
 
+// A demo visitor has no customer profile and writes nothing (docs/demo-turu.md
+// §6.3): back to the gardens with "Demoda kapalı" before any call.
 async function context() {
-  await requireSection("portal");
+  if ((await requireSection("portal")).demo) redirect(portalHref.home({ hata: "demo_read_only" }));
   return createClient();
 }
+
+const DEMO_CLOSED: FormState = { error: P.errors.demo_read_only, fieldErrors: {}, values: {} };
 
 function idOf(form: FormData, name: string): string {
   const value = formReader(form)(name);
@@ -117,6 +121,7 @@ export async function setPackageAction(form: FormData) {
 }
 
 export async function saveGardenAction(_prev: FormState, form: FormData): Promise<FormState> {
+  if ((await requireSection("portal")).demo) return DEMO_CLOSED;
   const supabase = await context();
   const applicationId = idOf(form, "application_id");
   const gardenId = idOf(form, "garden_id");
@@ -300,6 +305,7 @@ export async function saveBillingProfileAction(
   form: FormData,
 ): Promise<FormState> {
   const user = await requireSection("portal");
+  if (user.demo) return DEMO_CLOSED;
   const supabase = await createClient();
   const current = await getBillingProfile(supabase);
   if (!current) return { error: P.errors.not_customer, fieldErrors: {}, values: {} };
@@ -324,6 +330,7 @@ export async function saveBillingProfileAction(
 }
 
 export async function saveContactAction(_prev: FormState, form: FormData): Promise<FormState> {
+  if ((await requireSection("portal")).demo) return DEMO_CLOSED;
   const supabase = await context();
   const parsed = parseContactForm(formReader(form));
   if (!parsed.ok) return invalid(form, parsed.errors);

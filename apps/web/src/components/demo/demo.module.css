@@ -1,0 +1,313 @@
+/* Demo tour (İP13): start page, shell, banner, closed-write notice and the
+   guided tour card. Mobile first, 16px gutter, no horizontal scroll. */
+
+/* Start page --------------------------------------------------------------- */
+
+.start {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-3) 0;
+}
+
+.start h1 {
+  margin-bottom: var(--space-2);
+}
+
+.start h2 {
+  margin-top: var(--space-4);
+  font-size: 17px;
+}
+
+.start ul {
+  padding-left: 20px;
+}
+
+.startForm {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  justify-items: start;
+}
+
+.startForm :global(.button) {
+  min-height: 44px;
+  font-size: 15px;
+}
+
+.endedCard {
+  border: 1px solid var(--color-info);
+  background: var(--color-info-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.endedCard h2 {
+  margin-top: 0;
+}
+
+/* Shell and banner ----------------------------------------------------------- */
+
+.banner {
+  position: sticky;
+  top: 0;
+  z-index: 55;
+  background: var(--color-info-soft);
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-info);
+}
+
+.bannerInner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 6px var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.bannerText {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bannerText strong {
+  color: var(--color-info);
+}
+
+.long {
+  display: none;
+}
+
+.bannerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.bannerActions form {
+  display: inline;
+}
+
+.bannerButton {
+  border: 1px solid var(--color-info);
+  background: transparent;
+  color: var(--color-info);
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.bannerButton:hover {
+  background: var(--color-surface);
+}
+
+.bannerPrimary {
+  background: var(--color-info);
+  color: #fff;
+}
+
+.bannerPrimary:hover {
+  background: var(--color-info);
+  color: #fff;
+  opacity: 0.9;
+}
+
+/* On a phone only "Gerçek hesap aç" and "Demodan çık" stay next to the short
+   text; "Turu başlat" moves to the shell header (.narrow). */
+.wide {
+  display: none;
+}
+
+.narrow {
+  margin-left: auto;
+}
+
+@media (min-width: 720px) {
+  .long {
+    display: inline;
+  }
+  .short {
+    display: none;
+  }
+  .wide {
+    display: inline-flex;
+  }
+  .narrow {
+    display: none;
+  }
+}
+
+@media print {
+  .banner {
+    position: static;
+  }
+  .bannerActions {
+    display: none;
+  }
+  .bannerText {
+    white-space: normal;
+  }
+  .long {
+    display: inline;
+  }
+  .short {
+    display: none;
+  }
+}
+
+.shellHeader {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.shellInner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.shellBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 16px;
+  text-decoration: none;
+  color: var(--color-text);
+}
+
+.shellLink {
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+/* Closed write paths ----------------------------------------------------------- */
+
+.notice {
+  border-left: 3px solid var(--color-info);
+  background: var(--color-info-soft);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 6px;
+  font-size: 14px;
+  margin: var(--space-2) 0;
+}
+
+/* Guided tour ---------------------------------------------------------------- */
+
+.highlight {
+  outline: 3px solid var(--color-focus) !important;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.tourCard {
+  position: fixed;
+  z-index: 60;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-surface);
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-3);
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tourCard[aria-busy="true"] {
+  opacity: 0.85;
+}
+
+.tourTitle:focus {
+  outline: none;
+}
+
+.tourTitle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.tourCard h2 {
+  margin: 0 0 var(--space-1);
+  font-size: 17px;
+}
+
+.tourCard p {
+  margin: 0 0 var(--space-2);
+  font-size: 14px;
+}
+
+.tourHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  color: var(--color-text-2);
+  margin-bottom: var(--space-1);
+}
+
+.tourControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.tourClose {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text-2);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px;
+}
+
+@media (min-width: 720px) {
+  .tourCard {
+    left: auto;
+    right: var(--space-4);
+    bottom: var(--space-4);
+    width: 360px;
+    max-height: none;
+    border-radius: var(--radius-lg);
+  }
+}
+
+@media print {
+  .tourCard {
+    display: none;
+  }
+}

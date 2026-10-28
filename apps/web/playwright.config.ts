@@ -41,6 +41,9 @@ export default defineConfig({
       ORCHADOS_PAYMENTS_ENABLED: "1",
       PAYMENT_FAKE_CHECKOUT: "1",
       SIGNUP_PROXY_SECRET: "signup-proxy-local",
+      // Demo tour (İP13): this build serves /demo; not a demo host (no
+      // ORCHADOS_MAIN_SITE_URL), so the site and the demo run side by side.
+      ORCHADOS_DEMO_ENABLED: "1",
     },
   },
 });

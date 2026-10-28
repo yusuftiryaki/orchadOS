@@ -1,7 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { Landing } from "@/app/(site)/page";
 import { SignupView } from "@/app/(site)/kayit/signup-view";
 import { siteText } from "@/lib/i18n/messages/site";
+import { DemoLink } from "./demo-link";
 import { SignupLink } from "./signup-link";
 import { SiteHeader } from "./site-header";
 
@@ -11,6 +13,10 @@ import { SiteHeader } from "./site-header";
 // Server actions and the session are not exercised by a static render.
 vi.mock("@/app/actions", () => ({ signOut: async () => {} }));
 vi.mock("@/app/(site)/kayit/actions", () => ({ signupAction: async () => ({}) }));
+vi.mock("@/app/(site)/demo/actions", () => ({ exitDemoAction: async () => {} }));
+vi.mock("@/lib/auth/session", () => ({ getSessionUser: async () => null }));
+vi.mock("@/lib/signup/client", () => ({ completeSignup: async () => ({}) }));
+vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({}) }));
 
 const SIGNUP_HREF = 'href="/kayit"';
 
@@ -70,5 +76,51 @@ describe("sign-up flag on", () => {
       <SignupView signupEnabled turnstileSiteKey="1x00000000000000000000AA" />,
     );
     expect(html).toContain('data-testid="turnstile"');
+  });
+});
+
+// The demo (docs/demo-turu.md §11.1): no link anywhere unless the site has a
+// demo URL.
+describe("demo links", () => {
+  const DEMO = 'data-testid="landing-demo"';
+
+  it("are absent without a demo URL", () => {
+    expect(renderToStaticMarkup(<SiteHeader signedIn={false} signupEnabled />)).not.toContain(
+      "header-demo",
+    );
+    expect(renderToStaticMarkup(<DemoLink demoUrl={null} />)).toBe("");
+    const landing = renderToStaticMarkup(<Landing signupEnabled demoUrl={null} />);
+    expect(landing).not.toContain(DEMO);
+    expect(landing).not.toContain("/demo");
+  });
+
+  it("all go to the demo URL when it is set", () => {
+    const url = "https://demo.orchados.example/demo";
+    const header = renderToStaticMarkup(
+      <SiteHeader signedIn={false} signupEnabled demoUrl={url} />,
+    );
+    expect(header).toContain('data-testid="header-demo"');
+    expect(header).toContain(`href="${url}"`);
+    expect(renderToStaticMarkup(<DemoLink demoUrl={url} />)).toContain('data-testid="login-demo"');
+    const landing = renderToStaticMarkup(<Landing signupEnabled={false} demoUrl={url} />);
+    expect(landing).toContain(DEMO);
+    expect(landing).toMatch(
+      /class="button" data-testid="landing-demo"|data-testid="landing-demo"[^>]*class="button"/,
+    );
+    expect(landing).toContain('data-testid="landing-demo-foot"');
+  });
+
+  it("is secondary while sign-up is open", () => {
+    const landing = renderToStaticMarkup(<Landing signupEnabled demoUrl="/demo" />);
+    expect(landing).toMatch(
+      /<a[^>]*button-secondary[^>]*landing-demo|landing-demo[^>]*button-secondary/,
+    );
+  });
+
+  it("a demo visitor sees 'Demoya dön' and 'Demodan çık' instead of the account", () => {
+    const header = renderToStaticMarkup(<SiteHeader signedIn signupEnabled demo demoUrl="/demo" />);
+    expect(header).toContain('data-testid="header-demo-back"');
+    expect(header).toContain('data-testid="header-demo-exit"');
+    expect(header).not.toContain(siteText.nav.account);
   });
 });

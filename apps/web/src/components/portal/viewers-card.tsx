@@ -3,12 +3,15 @@ import {
   inviteViewerAction,
   removeViewerAction,
 } from "@/app/portal/parsel/[parcelId]/actions";
+import { DemoNotice } from "@/components/demo/demo-notice";
 import { formatDate, t } from "@/lib/i18n";
+import { demoText } from "@/lib/i18n/messages/demo";
 import type { ParcelViewers } from "@/lib/portal/viewers";
 import styles from "./portal.module.css";
 
 // Co-owners of the parcel, for its owner: viewers, open invitations and a
-// form to invite one (name + phone). Ops completes the invitation.
+// form to invite one (name + phone). Ops completes the invitation. A demo
+// visitor sees the list without buttons or form.
 
 const v = t.portal.viewers;
 
@@ -16,14 +19,21 @@ export function ViewersCard({
   parcelId,
   viewers,
   outcome,
+  demo = false,
 }: {
   parcelId: string;
   viewers: ParcelViewers;
   outcome?: string;
+  demo?: boolean;
 }) {
   const notice =
     outcome && outcome in v.notices ? v.notices[outcome as keyof typeof v.notices] : null;
-  const error = outcome && outcome in v.errors ? v.errors[outcome as keyof typeof v.errors] : null;
+  const error =
+    outcome === "demo_read_only"
+      ? demoText.closed.viewers
+      : outcome && outcome in v.errors
+        ? v.errors[outcome as keyof typeof v.errors]
+        : null;
   return (
     <section
       id="hissedarlar"
@@ -55,7 +65,7 @@ export function ViewersCard({
               {entry.status !== "active" && (
                 <span className="muted"> ({formatDate(entry.createdAt)})</span>
               )}{" "}
-              {entry.kind === "viewer" ? (
+              {demo ? null : entry.kind === "viewer" ? (
                 <form action={removeViewerAction} className={styles.inlineForm}>
                   <input type="hidden" name="parcelId" value={parcelId} />
                   <input type="hidden" name="id" value={entry.id} />
@@ -76,20 +86,24 @@ export function ViewersCard({
           ))}
         </ul>
       )}
-      <form action={inviteViewerAction} className={styles.inviteForm} data-testid="invite-viewer">
-        <input type="hidden" name="parcelId" value={parcelId} />
-        <label>
-          {v.name}
-          <input name="name" required maxLength={120} autoComplete="off" />
-        </label>
-        <label>
-          {v.phone}
-          <input name="phone" type="tel" required maxLength={20} autoComplete="off" />
-        </label>
-        <button className="button" type="submit">
-          {v.invite}
-        </button>
-      </form>
+      {demo ? (
+        <DemoNotice text={demoText.closed.viewers} />
+      ) : (
+        <form action={inviteViewerAction} className={styles.inviteForm} data-testid="invite-viewer">
+          <input type="hidden" name="parcelId" value={parcelId} />
+          <label>
+            {v.name}
+            <input name="name" required maxLength={120} autoComplete="off" />
+          </label>
+          <label>
+            {v.phone}
+            <input name="phone" type="tel" required maxLength={20} autoComplete="off" />
+          </label>
+          <button className="button" type="submit">
+            {v.invite}
+          </button>
+        </form>
+      )}
     </section>
   );
 }
