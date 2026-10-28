@@ -10,6 +10,7 @@
 - `docs/veri-modeli.md`: **veri modelinin kaynağı**. Şema değişiklikleri önce burada tartışılır.
 - `docs/metodoloji.md`: değerlendirme kuralları (ölçekler, genel sınıf, bulgu türleri); `docs/kullanim-kilavuzu.md`: rol rol uçtan uca akış.
 - `docs/musteri-yonetimi.md`: müşteri edinme ve yönetimi (İP12): self-servis kayıt, başvuru, teklif, ödeme, back office; faturalama tablolarının, fonksiyonlarının ve hata kodlarının sözleşmesi.
+- `docs/demo-turu.md`: demo turu (İP13): ayrı demo projesi, geçici demo hesabı, yazma ve hesap kilitleri, sentetik demo verisi ve yükleyicisi, `demo-data` iş akışı.
 - `docs/arayuzler.md`: **bileşenler arası sözleşmelerin kaynağı**: oturum klasörü, `events.csv`, iki `session.json`, QR saat kodu, zaman tanımı. Bir biçim değişirse önce burası güncellenir.
 
 ## Yapı
@@ -27,6 +28,7 @@
 - **Medya değiştirilemez:** Dosyalar içerik hash'iyle adreslenir; mevcut bir medya kaydı güncellenmez, yenisi eklenir.
 - **Ölçümler sürümlüdür:** Her ölçüm ve ürün, onu üreten yöntem ya da hat sürümünü taşır. Yeniden işleme eski sonuçları silmez.
 - Gizli bilgiler (`.env`, API anahtarları) repoya girmez.
+- **Migration'lar:** Yeni tablo ekleyen migration `select private.attach_demo_guard('<tablo>')` çağırır; kullanıcıya erişim ya da kimlik veren tablo ayrıca `private.attach_demo_account_guard(...)` çağırır (docs/demo-turu.md §6.1–6.2). Servis rolüyle yazan yeni Edge yolları demo claim'ini reddeder.
 
 ## Komutlar
 İş paketleri ilerledikçe buraya eklenecek (her bileşenin build ve test komutu).
@@ -41,6 +43,7 @@ Kökte bir kez `pnpm install` (Supabase komut satırı aracı; sürümü `packag
 | `pnpm db:reset` | Veritabanını sıfırdan kurar: `supabase/migrations/` + `supabase/seed.sql` |
 | `pnpm db:test` | pgTAP testleri (`supabase/tests/`) |
 | `pnpm db:demo` | `db:reset`'ten sonra iki örnek tarama ziyareti yükler (`supabase/demo/scans.sql`): biri yayımlanmış, biri uzman incelemesinde. Görüntü dosyaları yok. Testler buna dayanmaz |
+| `pnpm db:demo-tour` | Demo turu veri kümesini (ayrı demo org'u, iki parsel, sentetik panoramalar, kesitler ve yakın planlar) derler, yükler, doğrular ve açar (`demo load --target local --verify --enable`). `--profile test --reset-local`: küçük görüntüler, önce demo org'unu temizler (CI, e2e). Ayrıntı: `supabase/demo/tour/README.md` |
 | `pnpm db:status` | Yerel adresler ve anahtarlar |
 
 Test temizliği `testing` şemasındaki fonksiyonlarla yapılır (`supabase/testing/`; seed'den sonra yüklenir, test ve pilot projelerine gitmez). Bu şemadan önceki eski bir yerel veritabanında `pnpm db:start` PostgREST hatasıyla takılırsa: `pnpm exec supabase stop --no-backup && pnpm db:start`.
@@ -66,6 +69,7 @@ BLE protokolü, dosya biçimleri ve bağlantı tablosu: `firmware/gnss-logger/RE
 | `uv run orchados-pipeline run <oturum> --trees-from-db` | Kesitler için ağaç konumlarını veritabanındaki envanterden alır |
 | `uv run orchados-pipeline synth <klasör> --trees-from-db --rows 1-2` | Sentetik sahneyi bir parselin gerçek ağaç konumlarına uydurur |
 | `uv run orchados-pipeline boundary <oturum> [--dry-run]` | Sınır köşelerini (oturum olayları) PPK'lı yörüngeden konumlayıp yeni sınır sürümü yazar; `run --boundary` ile de çalışır. Sentetik sınır yürüyüşü: `synth --boundary-walk` |
+| `uv run orchados-pipeline demo build\|load\|enable\|disable\|verify` | Demo turu verisi: sentetik medya derlemesi (`--profile full\|test`, önbellek `.demo-build/`), yükleme (`--target local\|remote`, `--reset-local`, `--demo-only`, `--dry-run`, `--verify`, `--enable`), açma, kapama, doğrulama. Barındırılan projeler: `demo-data` iş akışı |
 | `uv run orchados-pipeline upload <çalıştırma> --session-id <uuid>` | Çıktıları Supabase'e yükler (ops kullanıcısıyla; ortam değişkenleri README'de). Entegrasyon ve uçtan uca zincir testi (`tests/test_chain_supabase.py`: tarama → yükleme → uzman → yayın → sahip) yerel Supabase ister |
 
 Aşamalar, girdi/çıktı biçimleri ve QR saat kodu biçimi: `services/pipeline/README.md`.

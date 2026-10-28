@@ -8,6 +8,7 @@
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
     "db:demo": "docker exec -i supabase_db_orchados psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 < supabase/demo/scans.sql",
+    "db:demo-tour": "uv run --directory services/pipeline orchados-pipeline demo load --target local --verify --enable",
     "db:status": "supabase status",
     "web:dev": "pnpm --filter web dev",
     "web:build": "pnpm --filter web build",

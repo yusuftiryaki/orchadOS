@@ -44,3 +44,6 @@ supabase/.temp/
 supabase/.branches/
 .pnpm-store/
 services/pipeline/native/*/build/
+
+# Demo tour build cache (synthetic media, rebuilt by orchados-pipeline demo build)
+.demo-build/

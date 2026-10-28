@@ -17,6 +17,7 @@ uv run orchados-pipeline run /tmp/ornek     # tüm aşamalar
 uv run orchados-pipeline run /tmp/ornek --trees-from-db   # ağaç konumları veritabanından
 uv run orchados-pipeline upload /tmp/ornek.processed/v0.1.0_<hash> --session-id <uuid>   # Supabase'e
 uv run orchados-pipeline run /tmp/ornek --boundary          # ayrıca köşelerden sınır sürümü (veritabanı)
+uv run orchados-pipeline demo load --target local --verify   # demo turu verisi (aşağıda, "Demo verisi")
 ```
 
 Her aşama ayrıca tek başına çalışır ve bir önceki aşamanın kaydettiği dosyayı okur:
@@ -321,6 +322,51 @@ Supabase ücretsiz planda 1 GB dosya alanı var ([docs/deployment.md](../../docs
 Adım süreleri `pytest -s` ile yazdırılır. Yerelde ~65 sn (tarama) ve ~25 sn (sınır) sürer (çoğu `run`).
 
 **Test verisi:** Capture, asset, ölçüm ve bağ tabloları ekleme-yalnızdır, yayımlanmış ziyaret değiştirilemez; API kullanıcıları test verisini silemez. Kalırsa seed satırlarını sayan web testleri bozulabilir. Bu yüzden Supabase testleri açtıkları oturumları test oturumunun sonunda siler (`tests/supabase_util.py`): servis rolüyle `testing.purge_sessions` (`supabase/testing/purge.sql`; sadece yerel ve CI veritabanında var, `pnpm db:reset` yükler). Fonksiyon sadece o işlemde tetikleyiciler kapalıyken oturumu ve ona bağlı bütün satırları (oturum olayları, sınır sürümleri, bildirimler dahil) ve artık hiçbir satırın göstermediği `storage.objects` kayıtlarını siler. Bu bir test düzeneğidir; hat bunu yapmaz. `ORCHADOS_TEST_KEEP_DATA=1` veriyi bırakır (ör. web uygulamasında bakmak için); silme başarısız olursa pytest uyarı verir. pgTAP testleri başka takımların bıraktığı satırlardan etkilenmez (her dosya kendi işleminde `testing.reset_to_seed()` çağırır). CI'da pytest'ten sonra `pnpm db:test` çalışır ve bunu denetler.
+
+## Demo verisi
+
+Demo turunun (İP13, [docs/demo-turu.md](../../docs/demo-turu.md) §8–§10) sentetik veri kümesi, medyası ve yükleyicisi `orchados_pipeline.demo` paketindedir. Gerçek görüntü, gerçek kişi ya da telefon yoktur. Veri kümesinin ne olduğu, kimlikleri ve barındırılan projelere yükleme: [supabase/demo/tour/README.md](../../supabase/demo/tour/README.md).
+
+```bash
+uv run orchados-pipeline demo build   [--profile full|test] [--out KLASÖR] [--force] [--workers N]
+uv run orchados-pipeline demo load    --target local|remote [--profile full|test] [--build KLASÖR]
+                                      [--dry-run] [--reset-local] [--verify] [--demo-only] [--enable]
+uv run orchados-pipeline demo enable  --target local|remote
+uv run orchados-pipeline demo disable --target local|remote
+uv run orchados-pipeline demo verify  --target local|remote
+pnpm db:demo-tour [ek argümanlar]     # kökten: demo load --target local --verify --enable
+```
+
+| Modül | Ne yapar |
+| --- | --- |
+| `ids.py` | Akışlar arası sabit kimlikler (`de…`) ve öteki satırların `uuid5(de0f0000-…, "v<sürüm>:<tür>:<anahtar>")` kuralı |
+| `dataset.py` | Sürüm 1: iki parsel, yerler, ağaçlar ve nitelikleri, ziyaretler ve kareleri, ziyaret başına sınıflar ve uzman değerleri, bulgular, yakın planlar, sorular, doğrulama kalemleri. Bütün rastgelelik `(sürüm, anahtar)` ile tohumlanır |
+| `render.py` | Eşdikdörtgen çizici (işleme hattıyla aynı kural: orta sütun `heading_deg`, azimut sağa artar, üst satır zenit). Gökyüzü ve tepeler ziyaret başına bir kez çizilip karenin yönüne kaydırılır; zemin parselin dokusundan `cv2.remap` ile okunur; ağaçlar nesne nesne (elipsoit, silindir) yalnız açısal sınır kutularında z-buffer'la çizilir. Nadirde "orchadOS SENTETIK ORNEK" diski, kesit ve fotoğrafların köşesinde anahtarlı damga |
+| `closeups.py` | Yakın plan makro sahneleri: yaprakçık (sağlıklı, kuru, sararmış), psil lekesi, kuru sürgün, kabuk ve zamk damlası, boş salkım |
+| `build.py` | Derleme önbelleği: `.demo-build/v<sürüm>-<profil>/manifest.json`, `files/<sha256>` ve ziyaret başına işleme hattının çalıştırma dosyaları (`runs/<ziyaret>/outputs.json`, `panoramas.json`, `crops.json`, envanterde `coverage.json`, taramada `presence.json`). Kesitler `crops.candidate_views` ve `projection.gnomonic_crop` ile kesilir, kapsama `coverage.compute_coverage` ile hesaplanır. Kareler ayrı süreçlerde (spawn) çizilir |
+| `sqlgen.py` | Tek SQL işlemi. Capture, asset, kaynak bağı, kapsama raporu ve varlık ölçümleri `upload.upload_run()`'ın kendisiyle, SQL yazan bir `Catalog` (`SqlCatalog`) üzerinden üretilir. Her eklemede açık çakışma hedefi vardır |
+| `loader.py`, `verify.py` | psql taşıması (yerel: `docker exec … psql`, uzak: `psql "$DEMO_DB_URL"`), ön kontrol, medya yükleme, kayıt satırı, doğrulama, açma/kapama |
+| `sources.py` | Kaynak bağdaştırıcısı: `synthetic`; ileride `showcase` (repo dışına yazar, henüz yok) |
+
+**Profiller:**
+
+| Profil | Tam panorama | Önizleme | Kesit | Yakın plan | Toplam | Süre (4 çekirdek) |
+| --- | --- | --- | --- | --- | --- | --- |
+| `full` | 3840×1920 WebP (85) | 1920×960 WebP (80) | 1024² JPEG (90) | 1600×1200 JPEG | ~54 MB, 522 dosya | ~3 dk (derleme ve yükleme) |
+| `test` | 1024×512 | 512×256 | 256² | 400×300 | ~5,4 MB | ~30 sn |
+
+Kalite ayarları işleme hattının varsayılanlarıyla aynıdır (`PanoramaParams`, `CropParams`). Önbellek, üreticinin kaynak hash'i (`generator_hash`) ve manifest hash'i tutuyorsa yeniden kullanılır.
+
+**Örnek görüntüler** (repoya görüntü eklenmez; `demo build --profile test` ile üretilir):
+- `A26-P12` (A, 2026, 2. koridor): kırmızımsı kahve toprakta sıralara paralel izler ve damla sulama borusu, iki yanda koyu yeşil, meyve salkımlı yetişkin ağaçlar ve sabah güneşinin attığı taç gölgeleri; arkada sıraların kaçış noktası, ufukta pus içinde alçak tepeler ve dağınık bulutlar; nadirde koyu disk ve dört kez tekrarlanan "orchadOS SENTETIK ORNEK A26-P12".
+- `A26-S3-6-S` ve `A25-S3-6-S` (öne çıkan ağacın aynı yönden iki yılı): 2025'te dolu, koyu yeşil bir taç; 2026'da seyrek, kahve lekeli, içinden dalları görünen bir taç. Sol altta anahtarlı damga.
+- `A26-S2-9-C1` (zamk yakın planı): koyu, çatlak kabuk dokusu üzerinde amber bir zamk damlası ve çevresinde ıslak yara halkası.
+
+**Ön kontrol ve idempotentlik:** Sürüm kayıtlı ve `loaded_at` doluysa doğrulama geçtiğinde "already loaded" yazılır, baytlar karşılaştırılmaz. Yarım yükleme yalnız aynı derlemeyle (`dataset_sha256`) tamamlanır. Kayıt tablosu (`private.demo_org`, akış A) yoksa yerelde uyarı verilir, kayıt ve ayna adımları atlanır; `remote` reddedilir. Hedefte başka profilin medyası varsa yerelde `pnpm db:reset` ya da `--reset-local` önerilir. İkinci çalıştırma 0 satır ekler ve 0 dosya yükler.
+
+**Medya:** Operasyon kişisine o çalıştırmaya özel rastgele bir parola verilir, yasağı kalkar; GoTrue parola girişiyle eksik nesneler `media` kovasına, varsa aynı yolla `demo-media` kovasına (`cache-control: max-age=31536000`) yüklenir; örnek dosyalar geri okunup hash'leri doğrulanır; `finally` bloğunda parola boşaltılır ve yasak `2999-01-01` olarak geri konur. Servis rolü anahtarı yalnız yerelde `--reset-local` (`testing.purge_org`) için kullanılır.
+
+**Testler:** `tests/test_demo_dataset.py` (kimlikler, kişiler, telefon taraması, mevsim, sınıf dağılımı, nitelikler, erkek oranı, meyve yükü farkı, sezon dışı kod yok), `tests/test_demo_media.py` (test profilinin sıfırdan derlemesi 90 sn'nin altında ve ≤ 10 MB, full tahmini ≤ 150 MB, aynı makinede aynı bayt, ağacın beklenen sütunda olması, nadir ve köşe damgaları, yakın planlar), `tests/test_demo_sql.py` (her eklemede çakışma hedefi, adım sırası, silme/güncelleme yok, kişilerin boş token sütunları ve sonlu yasağı, `pose` alanları, ham kayıt adresleri, mevsim ve sürüm), `tests/test_demo_load_supabase.py` (`supabase` işareti: `--reset-local` ile yükleme, ikinci yükleme değişiklik yapmaz, doğrulama, geçici bir sahiple imzalı adresten ve `demo-media`'dan geri okuma, kişiler, Admin `listUsers`, bildirim yok, varsa kayıt satırı ve açma/kapama). Bu test demo verisini yüklü bırakır; pgTAP `reset_to_seed` ile etkilenmez.
 
 ## Insta360 `.insv` kayıtları
 
