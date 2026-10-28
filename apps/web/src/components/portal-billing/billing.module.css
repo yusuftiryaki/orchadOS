@@ -1,0 +1,530 @@
+/* The customer's billing journey (application, quote, order, payment;
+   docs/tasarim-sistemi.md, wave 2a). Layout comes from
+   components/portal/page.module.css; this file holds what is particular to
+   money and schedules: rows of a list, amounts, the payment plan and tables
+   that turn into stacked rows on a phone. Tokens only. */
+
+/* ---- Rows of a list (Başvurularım, Siparişlerim, quotes of an application) */
+
+.rowTitle {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rowSide {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  text-align: right;
+}
+
+@media (max-width: 479px) {
+  /* On a phone the side drops under the title, aligned left. */
+  .rowSide {
+    justify-items: start;
+    text-align: left;
+  }
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.meta {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.meta time,
+.nowrap {
+  white-space: nowrap;
+}
+
+/* ---- The next payment: what, how much, until when. */
+
+.due {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-surface-2);
+}
+
+.due > * {
+  margin: 0;
+}
+
+.dueAmount {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
+  white-space: nowrap;
+}
+
+/* ---- Bank transfer details: each value on its own line, easy to copy. */
+
+.bank {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
+.bank dt {
+  color: var(--color-text-2);
+}
+
+.bank dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 479px) {
+  .bank {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .bank dd {
+    margin-bottom: var(--space-2);
+  }
+}
+
+/* ---- Package choice: one bordered option per package. */
+
+.choices {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.choices legend {
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+
+.choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  align-items: start;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.choice:has(input:checked) {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+.choice:has(input:disabled) {
+  cursor: default;
+}
+
+.choice input {
+  margin-top: 4px;
+}
+
+.choiceBody {
+  display: grid;
+  gap: 2px;
+}
+
+.choiceBody > * {
+  margin: 0;
+}
+
+.choiceName {
+  font-weight: 700;
+  font-size: var(--text-lg);
+}
+
+.choiceFacts {
+  display: grid;
+  margin-top: var(--space-1);
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+}
+
+/* ---- Forms */
+
+.form {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 720px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.fieldError {
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+/* Map tools: modes, undo, clear and the point count. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.modes {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+/* Consent and confirmation boxes, one under the other. */
+.checks {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+fieldset.checks {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.checks legend {
+  font-weight: 700;
+  padding: 0;
+  margin-bottom: var(--space-2);
+}
+
+/* An inline form (a row action that posts). */
+.inlineForm {
+  display: inline;
+  margin: 0;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* A garden withdrawn from the application stays listed, muted. */
+.withdrawn {
+  color: var(--color-muted);
+}
+
+/* Disclosure for a secondary action (withdraw a garden). */
+.disclosure > summary {
+  cursor: pointer;
+  color: var(--color-accent);
+  font-weight: 600;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.disclosure[open] > summary {
+  margin-bottom: var(--space-2);
+}
+
+/* ---- History of an application */
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.timeline li {
+  display: grid;
+  gap: 0 var(--space-3);
+}
+
+.timeline time {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (min-width: 560px) {
+  .timeline li {
+    grid-template-columns: 16ch minmax(0, 1fr);
+  }
+}
+
+/* ---- Notes and small print under a block */
+
+.notes {
+  margin: 0;
+  padding-left: 1.2em;
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+  display: grid;
+  gap: var(--space-1);
+  max-width: var(--measure);
+}
+
+/* ---- Tables that stack on a narrow column.
+   The wrapper is a size container; under 600px each row of the table becomes
+   a small grid (named areas per table) and header cells give their name to
+   the value through data-label. Wide screens keep the plain table. */
+
+.tableBox {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.next td {
+  background: var(--color-accent-soft);
+}
+
+.planStatus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.planNote {
+  display: block;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  margin-top: 2px;
+}
+
+.seq {
+  font-variant-numeric: tabular-nums;
+}
+
+@container (max-width: 599px) {
+  .stack thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .stack,
+  .stack tbody,
+  .stack tfoot {
+    display: block;
+  }
+
+  .stack.stack tr {
+    display: grid;
+    gap: 2px var(--space-3);
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+    align-items: baseline;
+  }
+
+  .stack.stack tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .stack.stack tfoot tr {
+    border-top: 1px solid var(--color-border-strong);
+    border-bottom: 0;
+  }
+
+  .stack.stack :is(td, th) {
+    display: block;
+    padding: 0;
+    border: 0;
+    text-align: left;
+    background: none;
+    min-width: 0;
+  }
+
+  .stack.stack :is(td, th):empty {
+    display: none;
+  }
+
+  .stack.stack :is(td, th).end {
+    text-align: right;
+  }
+
+  .stack.stack [data-label]::before {
+    content: attr(data-label) " ";
+    color: var(--color-muted);
+    font-weight: 400;
+  }
+
+  .stack.stack tr.next {
+    background: var(--color-accent-soft);
+  }
+
+  /* The payment plan: number, what, amount / due day, VAT / state. */
+  .plan.plan tr {
+    grid-template-columns: 2ch minmax(0, 1fr) auto;
+    grid-template-areas:
+      "seq what amount"
+      ". due vat"
+      ". status status"
+      ". action action";
+  }
+
+  .plan .seq {
+    grid-area: seq;
+  }
+
+  .plan .what {
+    grid-area: what;
+    font-weight: 600;
+  }
+
+  .plan .dueOn {
+    grid-area: due;
+    font-size: var(--text-sm);
+  }
+
+  .plan .amt {
+    grid-area: amount;
+    font-weight: 700;
+  }
+
+  .plan .vat {
+    grid-area: vat;
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+  }
+
+  .plan .state {
+    grid-area: status;
+    margin-top: var(--space-1);
+  }
+
+  .plan .act {
+    grid-area: action;
+  }
+
+  /* Payments: date and amount / order and state / method / receipt. */
+  .payments.payments tr {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "date amount"
+      "order status"
+      "method method"
+      "receipt open";
+  }
+
+  .payments .date {
+    grid-area: date;
+    font-weight: 600;
+  }
+
+  .payments .amt {
+    grid-area: amount;
+    font-weight: 700;
+  }
+
+  .payments .order {
+    grid-area: order;
+    font-size: var(--text-sm);
+  }
+
+  .payments .status {
+    grid-area: status;
+  }
+
+  .payments .method {
+    grid-area: method;
+    font-size: var(--text-sm);
+  }
+
+  .payments .receipt {
+    grid-area: receipt;
+    margin-top: var(--space-1);
+  }
+
+  .payments .open {
+    grid-area: open;
+    margin-top: var(--space-1);
+  }
+
+  /* Quote lines: garden and amount, then the figures behind it. */
+  .lines.lines tr {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .lines .garden {
+    grid-row: 1;
+    grid-column: 1;
+    font-weight: 600;
+  }
+
+  .lines .lineTotal {
+    grid-row: 1;
+    grid-column: 2;
+    font-weight: 700;
+  }
+
+  .lines .figure {
+    grid-column: 1 / -1;
+    font-size: var(--text-sm);
+  }
+}
+
+.plan tfoot :is(th, td) {
+  font-weight: 700;
+}
+
+/* A billing page: the portal's page column (titles line up with every other
+   portal page), its blocks kept to a reading width. */
+.doc > * {
+  max-width: 760px;
+}
+
+/* A button whose label states its consequence may run to two lines. */
+.longButton {
+  white-space: normal;
+  height: auto;
+  min-height: var(--control-height);
+  text-align: center;
+}
+
+/* Facts whose values can be long ("2/5, Ziyaret ödemesi, Kış (…)"): the label
+   keeps its width, the value wraps on its side. */
+.factsFlex.factsFlex {
+  grid-template-columns: minmax(9ch, max-content) minmax(0, 1fr);
+}
+
+/* The amount of a payment, said first. */
+.hero {
+  display: grid;
+  gap: 2px;
+}
+
+.hero > * {
+  margin: 0;
+}

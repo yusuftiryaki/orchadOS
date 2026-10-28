@@ -169,7 +169,7 @@ test("a member adds a garden, accepts the add-on quote and pays by card", async 
   expect(draft.data?.package_id).toBe(quote.data?.package_id);
 
   // 3. The second garden on the map; the preview is prorated.
-  await page.getByRole("link", { name: "+ Bahçe ekle" }).click();
+  await page.getByRole("link", { name: "Bahçe ekle", exact: true }).click();
   await page.getByLabel("Bahçe adı").fill("Ek bahçe");
   await page.getByLabel("İlçe").fill("Nizip");
   await page.getByLabel("Alan (dönüm)").fill("12");
@@ -232,9 +232,9 @@ test("the customer asks to remove a garden from the account page and undoes it",
   const parcelId = member.parcelIds[0];
   await login(page, EMAIL, "/portal/hesap");
   const section = page.getByTestId("my-gardens");
-  await expect(section.locator("tr")).toHaveCount(2);
+  await expect(section.getByTestId("garden-row")).toHaveCount(2);
   await section
-    .locator(`tr[data-parcel-id="${parcelId}"]`)
+    .locator(`[data-testid="garden-row"][data-parcel-id="${parcelId}"]`)
     .getByRole("link", { name: "Hizmetten çıkar" })
     .click();
   await expect(page).toHaveURL(`/portal/parsel/${parcelId}#hizmet`);

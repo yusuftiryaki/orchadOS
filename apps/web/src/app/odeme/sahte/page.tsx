@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import layout from "@/components/portal/page.module.css";
+import { Alert } from "@/components/ui/alert";
 import { fakeCheckoutText as text } from "@/lib/i18n/messages/fake-checkout";
 import { supabaseEnv } from "@/lib/env";
 
@@ -31,22 +33,23 @@ export default async function FakeCheckoutPage({
 
   return (
     <main className="centered">
-      <div className="card">
+      <div className={`card ${layout.stack}`}>
         <h1>{text.title}</h1>
-        <p>{text.notice}</p>
+        <Alert tone="warning">{text.notice}</Alert>
         {valid ? (
-          <form method="post" action={action}>
+          <form method="post" action={action} className={layout.stack}>
             <input type="hidden" name="token" value={token} />
-            <p>
-              {text.amountLabel}: <strong>{`${amount} ${text.currency}`}</strong>
-            </p>
-            <p>
+            <dl className={layout.facts}>
+              <dt>{text.amountLabel}</dt>
+              <dd>{`${amount} ${text.currency}`}</dd>
+            </dl>
+            <div className={layout.actions}>
               <button className="button" type="submit" name="outcome" value="success">
                 {text.approve}
-              </button>{" "}
+              </button>
               <button className="button button-danger" type="submit" name="outcome" value="failure">
                 {text.decline}
-              </button>{" "}
+              </button>
               <button
                 className="button button-secondary"
                 type="submit"
@@ -55,10 +58,12 @@ export default async function FakeCheckoutPage({
               >
                 {text.review}
               </button>
-            </p>
+            </div>
           </form>
         ) : (
-          <p role="alert">{text.invalid}</p>
+          <Alert tone="danger" role="alert">
+            {text.invalid}
+          </Alert>
         )}
       </div>
     </main>

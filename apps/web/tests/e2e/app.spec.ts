@@ -26,19 +26,30 @@ test("wrong password shows an error", async ({ page }) => {
   );
 });
 
-const LANDING: [string, string, string[]][] = [
-  ["owner@example.com", "/portal", ["Bahçelerim"]],
-  ["viewer@example.com", "/portal", ["Bahçelerim"]],
-  ["field@example.com", "/ofis", ["Ofis"]],
-  ["expert@example.com", "/uzman", ["Uzman paneli"]],
-  ["ops@example.com", "/ofis", ["Ofis", "Operasyon"]],
+// The portal header of a customer (owner profile) lists the portal's own
+// pages under "Hesap" instead of the sections.
+const PORTAL_PAGES = [
+  "Bahçelerim",
+  "Başvurularım",
+  "Siparişlerim",
+  "Ödemelerim",
+  "Sözleşmelerim",
+  "Hesabım",
 ];
 
-for (const [email, landing, sections] of LANDING) {
+const LANDING: [string, string, string, string[]][] = [
+  ["owner@example.com", "/portal", "Hesap", PORTAL_PAGES],
+  ["viewer@example.com", "/portal", "Hesap", PORTAL_PAGES],
+  ["field@example.com", "/ofis", "Bölümler", ["Ofis"]],
+  ["expert@example.com", "/uzman", "Bölümler", ["Uzman paneli"]],
+  ["ops@example.com", "/ofis", "Bölümler", ["Ofis", "Operasyon"]],
+];
+
+for (const [email, landing, navName, sections] of LANDING) {
   test(`${email} lands on ${landing} and sees the seed parcel`, async ({ page }) => {
     await login(page, email);
     await expect(page).toHaveURL(landing);
-    const nav = page.getByRole("navigation", { name: "Bölümler" });
+    const nav = page.getByRole("navigation", { name: navName });
     await expect(nav.getByRole("link")).toHaveText(sections);
     await expect(page.locator(`[data-parcel-id="${SEED_PARCEL}"]`)).toBeVisible();
   });
@@ -76,7 +87,7 @@ test("ops switches between sections", async ({ page }) => {
 test("parcel map: clicking a tree opens its panel", async ({ page }) => {
   await login(page, "owner@example.com", `/portal/parsel/${SEED_PARCEL}`);
   await expect(page).toHaveURL(`/portal/parsel/${SEED_PARCEL}`);
-  await expect(page.getByText("Sınır v2 · 310 yer, 302 aktif ağaç")).toBeVisible();
+  await expect(page.getByTestId("parcel-inventory")).toHaveText("310 yer, 302 aktif ağaç");
 
   const map = page.getByTestId("parcel-map");
   await expect(map).toHaveAttribute("data-map-ready", "true");

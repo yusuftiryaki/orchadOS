@@ -1,0 +1,1240 @@
+/* Garden pages of the owner portal: the report card (parcel-report.tsx), the
+   health map (health-map.tsx), the tree card and the parts they share.
+   Phone first; composes the portal layout primitives (page.module.css) and
+   only adds what those do not have. Colours come from tokens; class colours
+   from --class-* (the map's palette). */
+
+/* Small type and states --------------------------------------------------- */
+
+.small {
+  font-size: var(--text-sm);
+}
+
+.better {
+  color: var(--color-success);
+}
+
+.worse {
+  color: var(--color-danger);
+}
+
+/* Hidden when printing (see the print block at the end). */
+.noPrint {
+  min-width: 0;
+}
+
+/* Overall score and class bar (labels.tsx; also on the garden list). ------ */
+
+.score,
+.scoreLarge {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+}
+
+.scoreLabel {
+  font-weight: 600;
+}
+
+.scoreValue {
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.scoreLarge .scoreValue {
+  font-size: var(--text-4xl);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.bar {
+  display: flex;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--color-surface-3);
+  min-width: 80px;
+  gap: 2px;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+}
+
+/* Overview: the state of the garden at a glance --------------------------- */
+
+.overviewHead {
+  display: grid;
+  gap: 2px;
+}
+
+.overviewHead > * {
+  margin: 0;
+}
+
+.scoreBox {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-accent-soft);
+}
+
+.scoreBox > p {
+  margin: 0;
+}
+
+.counts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1) var(--space-3);
+}
+
+@media (min-width: 720px) {
+  .counts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* One class count: dot and name, then count and share; opens the map
+   filtered to the class. */
+.count {
+  display: grid;
+  align-content: center;
+  gap: 0;
+  min-height: var(--control-height);
+  padding: var(--space-1);
+  margin: 0 calc(-1 * var(--space-1));
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.count:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.countValue {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.countShare {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.classHelp {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.classHelp dt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+.classHelp dd {
+  margin: 0;
+  color: var(--color-text-2);
+}
+
+.disclosure > summary {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+}
+
+.disclosure[open] > summary {
+  margin-bottom: var(--space-2);
+}
+
+/* Change against the previous visit. */
+.change {
+  display: grid;
+  gap: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+.change h3 {
+  margin: 0;
+}
+
+.change p {
+  margin: 0;
+}
+
+.changeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+
+.changeGrid h4 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-base);
+}
+
+.plainList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* What needs attention ----------------------------------------------------- */
+
+.attention {
+  border-left: 4px solid var(--color-danger);
+}
+
+.attentionCalm {
+  border-left: 4px solid var(--color-success);
+}
+
+.attention h2,
+.attentionCalm h2 {
+  font-size: var(--text-lg);
+}
+
+.attentionItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+
+.code {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* In-page navigation ------------------------------------------------------- */
+
+.sectionNav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 2px;
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.sectionNav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sectionNav a:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+/* Health map: map, side panel, controls ----------------------------------- */
+
+.explorer {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "map"
+    "legend"
+    "panel"
+    "controls";
+}
+
+@media (min-width: 960px) {
+  .explorer {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-areas:
+      "map panel"
+      "legend panel"
+      "controls panel";
+    align-items: start;
+  }
+}
+
+.mapArea {
+  grid-area: map;
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.map {
+  width: 100%;
+  height: 60vh;
+  min-height: 320px;
+  max-height: 460px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+@media (min-width: 960px) {
+  .map {
+    height: 520px;
+    max-height: none;
+  }
+}
+
+.legendArea {
+  grid-area: legend;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.legendArea > p {
+  margin: 0;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Class filter chip: pressed = shown on the map. */
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height-sm);
+  padding: 4px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter:hover:not(:disabled) {
+  background: var(--color-surface-2);
+}
+
+.filter[aria-pressed="false"] {
+  background: transparent;
+  border-style: dashed;
+  color: var(--color-muted);
+}
+
+.filter[aria-pressed="false"] > :first-child {
+  opacity: 0.35;
+}
+
+.filter:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height-sm);
+  padding: 4px 4px;
+  font-size: var(--text-sm);
+  color: var(--color-text-2);
+}
+
+.countInline {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.ring {
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 3px solid var(--ring, var(--color-danger));
+}
+
+@media (min-width: 720px) {
+  .filter {
+    min-height: var(--control-height-sm);
+  }
+}
+
+@media (max-width: 719px) {
+  .filter {
+    min-height: var(--control-height);
+  }
+}
+
+.controls {
+  grid-area: controls;
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+@media (min-width: 720px) {
+  .controls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.controls select {
+  width: 100%;
+}
+
+.controlGroup {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.controlGroup > p {
+  margin: 0;
+}
+
+.controlTitle {
+  margin: 0;
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.fieldset > legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+/* Checkbox with its label beside it (a native label around the input). */
+.check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 2px 0;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.check input {
+  margin-top: 3px;
+}
+
+.check > :nth-child(n + 3) {
+  grid-column: 2;
+}
+
+/* Side panel of the selected tree or finding. */
+.panelArea {
+  grid-area: panel;
+  min-width: 0;
+  scroll-margin-top: calc(var(--header-height) + 56px);
+}
+
+.mapHint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.panelHint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+@media (min-width: 960px) {
+  .panelHint {
+    padding: var(--space-3);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+  }
+}
+
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.panel p {
+  margin: 0;
+}
+
+.panelHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.panelHeading h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.close {
+  display: inline-grid;
+  place-items: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  margin: calc(-1 * var(--space-2));
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.classLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.className {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+  font-size: var(--text-lg);
+}
+
+.className > span:first-child {
+  width: 14px;
+  height: 14px;
+}
+
+/* Approval of a class: expert (green) or machine (neutral). */
+.approval {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.6;
+  background: var(--color-neutral-soft);
+  color: var(--color-neutral);
+}
+
+.approvalExpert {
+  composes: approval;
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+/* Compact key/value list (tree identity, panel facts): label left, value
+   right on a phone, two columns of pairs on a desktop. */
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-3);
+}
+
+.facts dt {
+  color: var(--color-text-2);
+}
+
+.facts dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Findings ------------------------------------------------------------------ */
+
+.findingGroups {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.findingGroup {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.findingGroup > h3 {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-base);
+}
+
+.findingKind {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.findingKind > p {
+  margin: 0;
+}
+
+.findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.findings > li {
+  border-top: 1px solid var(--color-border);
+}
+
+.findings > li:first-child {
+  border-top: 0;
+}
+
+/* One finding: tree code (or "Bahçe geneli") and what was seen. */
+.finding {
+  display: grid;
+  grid-template-columns: 9ch minmax(0, 1fr);
+  align-items: baseline;
+  gap: 2px var(--space-3);
+  min-height: var(--control-height);
+  padding: 10px var(--space-3);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+a.finding:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+a.finding:hover .findingWhere {
+  text-decoration: underline;
+}
+
+.findingWhere {
+  font-weight: 700;
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+span.findingWhere {
+  color: var(--color-text);
+}
+
+.findingText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.findingText > span {
+  overflow-wrap: anywhere;
+}
+
+.findingRecommendation {
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+}
+
+.recommendation {
+  font-size: var(--text-sm);
+  color: var(--color-text-2);
+}
+
+.severityDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--severity, var(--color-neutral));
+  flex: none;
+}
+
+.more > summary {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+}
+
+.more[open] > summary {
+  margin-bottom: var(--space-2);
+}
+
+/* Report card details ------------------------------------------------------- */
+
+.dimensions > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+}
+
+.dimensions > li > h4 {
+  margin: 0;
+  font-size: var(--text-base);
+}
+
+.dimensionBody {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 2px;
+  color: var(--color-text-2);
+}
+
+.dimensionBody p {
+  margin: 0;
+}
+
+.auditLines {
+  display: grid;
+  gap: 2px;
+}
+
+@media (min-width: 720px) {
+  .dimensions > li {
+    grid-template-columns: 200px minmax(0, 1fr) auto;
+  }
+
+  .dimensionBody {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+/* Forms of the garden pages ------------------------------------------------- */
+
+.form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  max-width: 640px;
+}
+
+.form > * {
+  margin: 0;
+  min-width: 0;
+}
+
+.form :where(select, textarea, input:not([type="checkbox"], [type="radio"])) {
+  width: 100%;
+}
+
+.form h3 {
+  margin: 0;
+}
+
+.formRow {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 720px) {
+  .formRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Long action names ("Bahçeyi hizmetten çıkar (raporlarınız silinmez)")
+   wrap inside the button instead of leaving the column. */
+.formActions > :global(.button) {
+  white-space: normal;
+  text-align: center;
+}
+
+@media (max-width: 479px) {
+  .formActions > :global(.button) {
+    flex: 1 1 100%;
+  }
+}
+
+/* Radio choices as bordered rows (removal timings). */
+.options {
+  display: grid;
+  gap: var(--space-2);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.options > legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+}
+
+.options label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) 0;
+  align-items: start;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.options label:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.options input {
+  margin-top: 3px;
+}
+
+.options label > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.warningText {
+  color: var(--color-warning);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+/* Inline row actions (remove a co-owner, postpone a visit). */
+.inlineForm {
+  display: inline-flex;
+  margin: 0;
+}
+
+.rowMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+/* Questions ----------------------------------------------------------------- */
+
+.threads {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.thread {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.threadHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+}
+
+.messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.message {
+  border-left: 3px solid var(--color-border-strong);
+  padding-left: var(--space-3);
+  display: grid;
+  gap: 2px;
+}
+
+.messageMine {
+  composes: message;
+  border-left-color: var(--color-accent);
+}
+
+.message p {
+  margin: 0;
+}
+
+.messageBody {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.reply {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.reply textarea {
+  width: 100%;
+  min-height: 64px;
+}
+
+.reply label {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+/* Tree card ------------------------------------------------------------------ */
+
+.treeTop {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 880px) {
+  .treeTop {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.timeline {
+  display: flex;
+  gap: var(--space-1);
+  list-style: none;
+  padding: 0 0 var(--space-1);
+  margin: 0;
+  overflow-x: auto;
+}
+
+.timeline li {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 84px;
+  padding: var(--space-2) var(--space-1);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.timelineDot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--dot);
+  box-shadow: 0 0 0 1px var(--class-ring);
+}
+
+.photoGrid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.photoRow {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.photoRow > h3 {
+  margin: 0;
+  font-size: var(--text-base);
+}
+
+.photoCells {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
+}
+
+@media (min-width: 720px) {
+  .photoCells {
+    grid-template-columns: repeat(var(--columns, 2), minmax(0, 240px));
+  }
+}
+
+.photo {
+  margin: 0;
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.photo img,
+.placeholder {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.photo figcaption {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hash {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+
+.evidence {
+  font-size: var(--text-sm);
+}
+
+.evidence > summary {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+}
+
+.evidence .facts {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin-bottom: var(--space-2);
+}
+
+.evidence .facts dd {
+  text-align: left;
+  margin-bottom: var(--space-2);
+}
+
+.hashFull {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  word-break: break-all;
+}
+
+/* Boundary notice (H07, T16): never hidden, also in print. Calm, not an
+   alarm: small muted text in place. ------------------------------------- */
+
+.boundaryNotice {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  max-width: var(--measure);
+}
+
+.mapCaption {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+
+/* Print: "Yazdır" saves the report card from the browser. ------------------ */
+
+@media print {
+  .noPrint,
+  .sectionNav,
+  .controls,
+  .legendArea {
+    display: none !important;
+  }
+
+  .explorer {
+    grid-template-columns: 1fr;
+    grid-template-areas: "map";
+  }
+
+  .map {
+    height: 420px;
+    max-height: none;
+    break-inside: avoid;
+  }
+
+  .findings > li,
+  .thread {
+    break-inside: avoid;
+  }
+
+  .finding .findingWhere {
+    color: inherit;
+  }
+}
+
+/* A finding on the tree card. */
+.treeFinding {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+.treeFinding p {
+  margin: 0;
+}
+
+/* Header actions of the report: side by side even on a phone; printing is
+   for a desktop. */
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (max-width: 479px) {
+  .headerActions {
+    width: 100%;
+  }
+
+  .headerActions > :global(.button) {
+    flex: 1 1 0;
+  }
+}
+
+@media (max-width: 719px) {
+  .printButton {
+    display: none;
+  }
+}
+
+/* Class counts: name above, count and share below; two per row on a phone. */
+.countName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-weight: 600;
+}
+
+.countFigures {
+  white-space: nowrap;
+  padding-left: 18px;
+}
+
+/* Tree codes of findings with the same text. */
+.codeList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.codeChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.codeChip:hover {
+  background: var(--color-surface-2);
+}
+
+/* The overview: score on the left, classes on the right on a desktop. */
+.overview {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 960px) {
+  .overview {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .overview .counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Visit history: fits a phone without scrolling; the methodology column
+   (also on the overview) only on wider screens. */
+table.history th,
+table.history td {
+  padding-inline: var(--space-2);
+  white-space: normal;
+}
+
+table.history th:first-child,
+table.history td:first-child {
+  padding-left: var(--space-3);
+}
+
+@media (max-width: 719px) {
+  table.history .wide {
+    display: none;
+  }
+}

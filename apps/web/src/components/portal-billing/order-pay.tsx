@@ -1,9 +1,10 @@
 import Link from "next/link";
-import local from "@/components/portal-billing/portal-billing.module.css";
+import layout from "@/components/portal/page.module.css";
 import { formatKurus } from "@/lib/billing/money";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import type { PaymentInstructions } from "@/lib/portal-billing/data";
 import { portalHref } from "@/lib/portal-billing/urls";
+import s from "./billing.module.css";
 import { PayButton } from "./pay-button";
 
 const O = P.order;
@@ -26,37 +27,39 @@ export function OrderPay({
   return (
     <>
       {liveAttemptId ? (
-        <p className="muted" data-testid="card-in-progress">
+        <p data-testid="card-in-progress">
           {O.cardInProgress}{" "}
           <Link href={portalHref.payment(liveAttemptId)}>{O.cardInProgressLink}</Link>
         </p>
       ) : paymentsEnabled ? (
         <PayButton orderId={orderId} identityRequired={instructions?.identityNumberRequired} />
       ) : (
-        <p className="muted" data-testid="card-off">
+        <p className={layout.muted} data-testid="card-off">
           {O.cardOff}
         </p>
       )}
-      <h3>{O.transferTitle}</h3>
-      {instructions?.iban ? (
-        <>
-          <p>{O.transferBody}</p>
-          <dl className={local.bank} data-testid="bank-transfer">
-            <dt>{O.bank}</dt>
-            <dd>{instructions.bankName ?? P.none}</dd>
-            <dt>{O.holder}</dt>
-            <dd>{instructions.ibanHolder ?? P.none}</dd>
-            <dt>{O.iban}</dt>
-            <dd>{instructions.iban}</dd>
-            <dt>{O.reference}</dt>
-            <dd data-testid="bank-reference">{instructions.reference}</dd>
-            <dt>{O.amount}</dt>
-            <dd>{formatKurus(instructions.outstandingKurus, instructions.currency)}</dd>
-          </dl>
-        </>
-      ) : (
-        <p className="muted">{O.noBank}</p>
-      )}
+      <div className={layout.stack}>
+        <h3>{O.transferTitle}</h3>
+        {instructions?.iban ? (
+          <>
+            <p className={layout.small}>{O.transferBody}</p>
+            <dl className={s.bank} data-testid="bank-transfer">
+              <dt>{O.bank}</dt>
+              <dd>{instructions.bankName ?? P.none}</dd>
+              <dt>{O.holder}</dt>
+              <dd>{instructions.ibanHolder ?? P.none}</dd>
+              <dt>{O.iban}</dt>
+              <dd>{instructions.iban}</dd>
+              <dt>{O.reference}</dt>
+              <dd data-testid="bank-reference">{instructions.reference}</dd>
+              <dt>{O.amount}</dt>
+              <dd>{formatKurus(instructions.outstandingKurus, instructions.currency)}</dd>
+            </dl>
+          </>
+        ) : (
+          <p className={layout.muted}>{O.noBank}</p>
+        )}
+      </div>
     </>
   );
 }

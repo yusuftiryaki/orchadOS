@@ -1,9 +1,11 @@
-import Link from "next/link";
 import { createApplicationAction } from "@/app/portal/billing-actions";
 import { MemberBand } from "@/components/portal-billing/member-band";
 import { PortalResult } from "@/components/portal-billing/result-notice";
-import ops from "@/components/operations/operations.module.css";
-import styles from "@/components/portal/portal.module.css";
+import s from "@/components/portal-billing/billing.module.css";
+import layout from "@/components/portal/page.module.css";
+import { Alert } from "@/components/ui/alert";
+import { ButtonLink } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { formatKurus } from "@/lib/billing/money";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
@@ -28,10 +30,11 @@ export default async function NewApplicationPage({
 }) {
   const user = assertCustomer(await requireSection("portal"));
   const supabase = await createClient();
-  const [packages, applications, { primary }] = await Promise.all([
+  const [packages, applications, { primary }, params] = await Promise.all([
     listPackagePrices(supabase),
     listApplications(supabase, user.id),
     getServicePeriods(supabase),
+    searchParams,
   ]);
   const closed = !!primary && !primary.garden_changes_enabled;
   const parcels = primary && !closed ? await listPortalParcels(supabase) : [];
@@ -41,42 +44,44 @@ export default async function NewApplicationPage({
     : null;
   const shown = primary ? (memberPackage ? [memberPackage] : []) : packages;
   return (
-    <main className={styles.page}>
-      <h1>{primary ? M.addTitle : N.title}</h1>
-      <PortalResult params={await searchParams} />
+    <main className={`${layout.page} ${s.doc}`}>
+      <PageHeader
+        title={primary ? M.addTitle : N.title}
+        lead={closed ? undefined : primary ? N.memberLead : N.lead}
+        back={{ href: portalHref.applications(), label: P.applications.title }}
+      />
+      <PortalResult params={params} />
       {primary && !closed && <MemberBand period={primary} parcels={parcels} />}
-      {!closed && <p>{primary ? N.memberLead : N.lead}</p>}
-      {!closed && !primary && (
-        <p className="muted" data-testid="application-location-note">
-          {N.locationNote}
-        </p>
-      )}
       {draft && (
-        <p className={ops.notice}>
-          {N.existingDraft}{" "}
-          <Link href={portalHref.application(draft.id)}>{P.home.draftButton}</Link>
-        </p>
+        <Alert tone="info">
+          <p>{N.existingDraft}</p>
+          <p>
+            <ButtonLink variant="secondary" size="sm" href={portalHref.application(draft.id)}>
+              {P.home.draftButton}
+            </ButtonLink>
+          </p>
+        </Alert>
       )}
       {closed ? (
-        <p className={ops.notice} data-testid="addon-closed">
+        <Alert tone="info" testId="addon-closed">
           {M.packageUnavailable}
-        </p>
+        </Alert>
       ) : primary && !memberPackage ? (
-        <p className={ops.notice} data-testid="addon-package-unavailable">
+        <Alert tone="info" testId="addon-package-unavailable">
           {M.packageUnavailable}
-        </p>
+        </Alert>
       ) : shown.length === 0 ? (
-        <p className={ops.notice}>{N.noPackages}</p>
+        <Alert tone="warning">{N.noPackages}</Alert>
       ) : (
-        <form action={createApplicationAction} className={ops.form}>
+        <form action={createApplicationAction} className={s.form}>
           {/* A disabled radio is not submitted: the locked package goes here. */}
           {memberPackage && (
             <input type="hidden" name="package_id" value={memberPackage.packageId} />
           )}
-          <fieldset className={ops.fieldset}>
+          <fieldset className={s.choices}>
             <legend>{N.package}</legend>
             {shown.map((pkg, i) => (
-              <label key={pkg.packageId} className={ops.check}>
+              <label key={pkg.packageId} className={s.choice}>
                 <input
                   type="radio"
                   name={memberPackage ? "package_locked" : "package_id"}
@@ -85,26 +90,37 @@ export default async function NewApplicationPage({
                   disabled={!!memberPackage}
                   required={!memberPackage}
                 />
-                <span>
-                  <strong>{pkg.name}</strong>
-                  {pkg.description && <> · {pkg.description}</>}
-                  <br />
-                  <span className="muted">
-                    {N.visits(pkg.periodicVisitsPerYear)}
-                    {pkg.includesInventory && ` · ${N.inventory}`} ·{" "}
-                    {N.unitPrice(formatKurus(pkg.unitPriceKurus, pkg.currency))} ·{" "}
-                    {N.minimum(formatKurus(pkg.minimumFeeKurus, pkg.currency))}
+                <span className={s.choiceBody}>
+                  <span className={s.choiceName}>{pkg.name}</span>
+                  {pkg.description && <span>{pkg.description}</span>}
+                  <span className={s.choiceFacts}>
+                    <span>{N.visits(pkg.periodicVisitsPerYear)}</span>
+                    {pkg.includesInventory && <span>{N.inventory}</span>}
+                    <span>{N.unitPrice(formatKurus(pkg.unitPriceKurus, pkg.currency))}</span>
+                    <span>{N.minimum(formatKurus(pkg.minimumFeeKurus, pkg.currency))}</span>
                   </span>
                 </span>
               </label>
             ))}
-            {memberPackage && <p className="muted">{M.packageLocked}</p>}
+            {memberPackage && (
+              <p className={`${layout.muted} ${layout.small}`}>{M.packageLocked}</p>
+            )}
           </fieldset>
-          <div className={ops.actions}>
+          {!primary && (
+            <p
+              className={`${layout.muted} ${layout.small}`}
+              data-testid="application-location-note"
+            >
+              {N.locationNote}
+            </p>
+          )}
+          <div className={layout.actions}>
             <button className="button" type="submit">
               {primary ? N.memberSubmit : N.submit}
             </button>
-            <Link href={portalHref.applications()}>{P.cancel}</Link>
+            <ButtonLink variant="quiet" href={portalHref.applications()}>
+              {P.cancel}
+            </ButtonLink>
           </div>
         </form>
       )}

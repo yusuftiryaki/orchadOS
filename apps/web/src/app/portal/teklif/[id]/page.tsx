@@ -4,12 +4,19 @@ import { acknowledgeKvkkAction } from "@/app/portal/billing-actions";
 import { acceptQuoteAction, declineQuoteAction } from "./actions";
 import { FilledDocumentView } from "@/components/contracts/filled-document";
 import { InstallmentPlan } from "@/components/portal-billing/installment-plan";
+import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { PortalResult } from "@/components/portal-billing/result-notice";
-import local from "@/components/portal-billing/portal-billing.module.css";
-import ops from "@/components/operations/operations.module.css";
-import styles from "@/components/portal/portal.module.css";
+import { StatusBadge } from "@/components/portal-billing/status-badge";
+import s from "@/components/portal-billing/billing.module.css";
+import layout from "@/components/portal/page.module.css";
+import { Alert } from "@/components/ui/alert";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Checkbox, Field, Textarea } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
+import { Table, cell } from "@/components/ui/table";
 import { requireSection } from "@/lib/auth/session";
 import { addonBreakdownOf, breakdownRows, windowsText } from "@/lib/billing/addon-breakdown";
+import { installmentLabel } from "@/lib/billing/installments";
 import { formatDonum, formatKurus } from "@/lib/billing/money";
 import { displaySha256 } from "@/lib/contracts/display-hash";
 import { quoteContractInput } from "@/lib/contracts/load";
@@ -50,18 +57,22 @@ export default async function QuotePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = assertCustomer(await requireSection("portal"));
-  const { id } = await params;
-  const supabase = await createClient();
-  const [view, profile] = await Promise.all([
+  const [{ id }, query, supabase] = await Promise.all([params, searchParams, createClient()]);
+  // Everything that needs only the quote id is read at once; the contract
+  // texts and the plan are dropped below when the quote is not open (both
+  // are plain reads, and an open quote is what this page is mostly for).
+  const [view, profile, contractInput, quotePlan] = await Promise.all([
     getQuote(supabase, user.id, id),
     getBillingProfile(supabase),
+    quoteContractInput(supabase, user.id, id),
+    getQuotePlan(supabase, id),
   ]);
   if (!view) notFound();
   const { quote, items, orderId } = view;
   const open = quote.status === "issued";
   const here = portalHref.quote(quote.id);
-  const query = await searchParams;
-  const contract = open ? await quoteContractInput(supabase, user.id, quote.id) : null;
+  const contract = open ? contractInput : null;
+  const plan = open ? quotePlan : [];
   const filled = contract
     ? [preInformationDocument(contract), distanceContractDocument(contract)].map((doc) => ({
         doc,
@@ -70,10 +81,9 @@ export default async function QuotePage({
     : null;
   // customer_accept_quote checks the notice in the quote's org; the portal can
   // record it only in the customer's org (customer_set_consent).
-  const [consents, gate, plan] = await Promise.all([
+  const [consents, gate] = await Promise.all([
     getConsents(supabase, quote.org_id),
     open ? getLegalGate(supabase, quote.org_id) : Promise.resolve(null),
-    open ? getQuotePlan(supabase, quote.id) : Promise.resolve([]),
   ]);
   const kvkk = hasKvkkNotice(consents);
   const kvkkRecordable = profile?.orgId === quote.org_id;
@@ -87,111 +97,65 @@ export default async function QuotePage({
   const addon = quote.addon_of_order_id ? addonInputsOf(quote.inputs) : null;
   const end = quoteServiceEnd(quote);
   const serviceEnd = end ? formatDate(end) : Q.serviceEndOnPayment;
+  const canAccept = !!profile?.complete && kvkk && gateReasons.length === 0 && !!filled;
+  const first = plan[0];
 
   return (
-    <main className={styles.page} data-testid="quote" data-status={quote.status}>
-      <div className={styles.titleRow}>
-        <h1>{Q.title(quote.number)}</h1>
-        <span className={ops.badge} data-testid="quote-status">
-          {billingText.quoteStatus[quote.status]}
-        </span>
-      </div>
+    <main className={`${layout.page} ${s.doc}`} data-testid="quote" data-status={quote.status}>
+      <PageHeader
+        title={<NumberedTitle text={Q.title(quote.number)} number={quote.number} />}
+        lead={open ? Q.openLead(formatDate(quote.valid_until)) : undefined}
+        meta={<StatusBadge kind="quote" status={quote.status} testId="quote-status" />}
+        back={
+          quote.application_id
+            ? { href: portalHref.application(quote.application_id), label: Q.backToApplication }
+            : { href: portalHref.applications(), label: P.applications.title }
+        }
+        actions={orderId && <ButtonLink href={portalHref.order(orderId)}>{Q.order}</ButtonLink>}
+      />
       {addon && (
-        <p className={styles.notice} data-testid="quote-addon">
+        <Alert tone="info" testId="quote-addon">
           {Q.addonHeader(serviceEnd)}
-        </p>
+        </Alert>
       )}
       <PortalResult params={query} />
       {query.belge === "degisti" && (
-        <p className={ops.notice} role="alert" data-testid="quote-contracts-stale">
+        <Alert tone="danger" role="alert" testId="quote-contracts-stale">
           {C.quote.stale}
-        </p>
+        </Alert>
       )}
-      {!open && <p className={ops.notice}>{Q.closed(billingText.quoteStatus[quote.status])}</p>}
-      {orderId && (
-        <p>
-          <Link className="button" href={portalHref.order(orderId)}>
-            {Q.order}
-          </Link>
-        </p>
-      )}
+      {!open && <Alert>{Q.closed(billingText.quoteStatus[quote.status])}</Alert>}
 
-      <section className={styles.section}>
-        <dl className={ops.dl}>
+      <section className={layout.panel} aria-labelledby="quote-summary">
+        <h2 id="quote-summary">{Q.summaryTitle}</h2>
+        <dl className={`${layout.facts} ${s.factsFlex}`}>
           <dt>{Q.package}</dt>
-          <dd>
-            {`${quote.package_name} · ${Q.visits(quote.periodic_visits_per_year)} · ${
-              quote.first_year ? Q.firstYear : Q.renewal
-            }`}
-          </dd>
+          <dd>{quote.package_name}</dd>
+          <dt>{Q.visitsLabel}</dt>
+          <dd>{Q.visits(quote.periodic_visits_per_year)}</dd>
+          <dt>{Q.kind}</dt>
+          <dd>{quote.first_year ? Q.firstYear : Q.renewal}</dd>
           <dt>{Q.validUntil}</dt>
-          <dd data-testid="quote-valid-until">
-            <strong>{formatDate(quote.valid_until)}</strong>
-          </dd>
+          <dd data-testid="quote-valid-until">{formatDate(quote.valid_until)}</dd>
           {addon && (
             <>
               <dt>{Q.servicePeriod}</dt>
               <dd data-testid="quote-addon-period">
-                {`${formatDate(addon.serviceStart)} – ${formatDate(addon.periodEnd)}`}
+                <span className={s.nowrap}>{formatDate(addon.serviceStart)}</span> –{" "}
+                <span className={s.nowrap}>{formatDate(addon.periodEnd)}</span>
               </dd>
             </>
           )}
-          <dt>{Q.serviceEnd}</dt>
-          <dd data-testid="quote-service-end">{serviceEnd}</dd>
           {!addon && quote.proposed_service_start && (
             <>
               <dt>{Q.serviceStart}</dt>
               <dd>{formatDate(quote.proposed_service_start)}</dd>
             </>
           )}
+          <dt>{Q.serviceEnd}</dt>
+          <dd data-testid="quote-service-end">{serviceEnd}</dd>
         </dl>
-      </section>
-
-      <section className={styles.section}>
-        <h2>{Q.lines}</h2>
-        <div className={ops.tableWrap}>
-          <table className={ops.table} data-testid="quote-lines">
-            <thead>
-              <tr>
-                <th>{Q.garden}</th>
-                <th className={ops.number}>{Q.area}</th>
-                <th className={ops.number}>{Q.visitsCol}</th>
-                <th className={ops.number}>{Q.unitPrice}</th>
-                <th className={ops.number}>{Q.inventoryFee}</th>
-                <th className={ops.number}>{Q.lineTotal}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    {item.garden_name}
-                    {item.visit_amount_kurus < item.minimum_fee_kurus && (
-                      <>
-                        <br />
-                        <span className="muted">{Q.minimumApplied}</span>
-                      </>
-                    )}
-                    {addon && item.inventory_fee_kurus > 0 && (
-                      <>
-                        <br />
-                        <span className="muted">{Q.inventoryIncluded}</span>
-                      </>
-                    )}
-                  </td>
-                  <td className={ops.number}>{formatDonum(Number(item.area_m2))}</td>
-                  <td className={ops.number}>
-                    {addon ? Q.addonVisits(item.visits, addon.visitsPerYear) : item.visits}
-                  </td>
-                  <td className={ops.number}>{formatKurus(item.unit_price_kurus, currency)}</td>
-                  <td className={ops.number}>{formatKurus(item.inventory_fee_kurus, currency)}</td>
-                  <td className={ops.number}>{formatKurus(item.line_base_kurus, currency)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <dl className={local.totals} data-testid="quote-totals">
+        <dl className={layout.facts} data-testid="quote-totals">
           <dt>{Q.base}</dt>
           <dd>{formatKurus(quote.base_kurus, currency)}</dd>
           {quote.discount_kurus > 0 && (
@@ -204,220 +168,295 @@ export default async function QuotePage({
           <dd>{formatKurus(quote.subtotal_kurus, currency)}</dd>
           <dt>{Q.vat(percent(quote.vat_rate_bp))}</dt>
           <dd>{formatKurus(quote.vat_kurus, currency)}</dd>
-          <dt className={local.grand}>{Q.total}</dt>
-          <dd className={local.grand} data-testid="quote-total">
+          <dt className={layout.factsTotal}>{Q.total}</dt>
+          <dd className={layout.factsTotal} data-testid="quote-total">
             {formatKurus(quote.total_kurus, currency)}
           </dd>
         </dl>
-        {addon && <p className="muted">{Q.addonVisitsHint}</p>}
+        {quote.discount_note && (
+          <p className={layout.small}>
+            <strong>{Q.discountNote}:</strong> {quote.discount_note}
+          </p>
+        )}
+      </section>
+
+      {quote.note_to_customer && (
+        <Alert tone="info" title={Q.note} testId="quote-note">
+          <p>{quote.note_to_customer}</p>
+        </Alert>
+      )}
+
+      <section className={layout.section}>
+        <h2>{Q.lines}</h2>
+        <div className={s.tableBox}>
+          <Table className={`${s.stack} ${s.lines}`} data-testid="quote-lines">
+            <thead>
+              <tr>
+                <th>{Q.garden}</th>
+                <th className={cell.num}>{Q.area}</th>
+                <th className={cell.num}>{Q.visitsCol}</th>
+                <th className={cell.num}>{Q.unitPrice}</th>
+                <th className={cell.num}>{Q.inventoryFee}</th>
+                <th className={cell.num}>{Q.lineTotal}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td className={s.garden}>
+                    {item.garden_name}
+                    {item.visit_amount_kurus < item.minimum_fee_kurus && (
+                      <span className={s.planNote}>{Q.minimumApplied}</span>
+                    )}
+                    {addon && item.inventory_fee_kurus > 0 && (
+                      <span className={s.planNote}>{Q.inventoryIncluded}</span>
+                    )}
+                  </td>
+                  <td className={`${cell.num} ${s.figure}`} data-label={Q.area}>
+                    {formatDonum(Number(item.area_m2))}
+                  </td>
+                  <td className={`${cell.num} ${s.figure}`} data-label={Q.visitsCol}>
+                    {addon ? Q.addonVisits(item.visits, addon.visitsPerYear) : item.visits}
+                  </td>
+                  <td className={`${cell.num} ${s.figure}`} data-label={Q.unitPrice}>
+                    {formatKurus(item.unit_price_kurus, currency)}
+                  </td>
+                  <td className={`${cell.num} ${s.figure}`} data-label={Q.inventoryFee}>
+                    {formatKurus(item.inventory_fee_kurus, currency)}
+                  </td>
+                  <td className={`${cell.num} ${s.lineTotal} ${s.end}`}>
+                    {formatKurus(item.line_base_kurus, currency)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+        {addon && <p className={`${layout.muted} ${layout.small}`}>{Q.addonVisitsHint}</p>}
         {breakdown && (
-          <div data-testid="quote-breakdown">
+          <div className={layout.panel} data-testid="quote-breakdown">
             <h3>{billingText.addonBreakdown.title}</h3>
             {breakdown.lines.map((line) => (
-              <div key={line.lineNo}>
+              <div key={line.lineNo} className={layout.stack}>
                 <h4>{Q.breakdownLine(line.gardenName)}</h4>
-                <dl className={ops.dl}>
+                <dl className={layout.facts}>
                   {breakdownRows(breakdown, line, currency).map((row) => (
-                    <div key={row.label}>
-                      <dt>{row.label}</dt>
-                      <dd>{row.value}</dd>
-                    </div>
+                    <Fact key={row.label} label={row.label} value={row.value} />
                   ))}
                 </dl>
               </div>
             ))}
-            <dl className={ops.dl}>
+            <dl className={layout.facts}>
               <dt>{billingText.addonBreakdown.priceList}</dt>
               <dd>{breakdown.priceListName}</dd>
               <dt>{billingText.addonBreakdown.windows}</dt>
               <dd data-testid="quote-windows">{windowsText(breakdown)}</dd>
             </dl>
-            <p className="muted">{billingText.addonBreakdown.roundingExample}</p>
+            <p className={`${layout.muted} ${layout.small}`}>
+              {billingText.addonBreakdown.roundingExample}
+            </p>
             <p>
               <strong>{billingText.addonBreakdown.binding}</strong>
             </p>
           </div>
         )}
-        {quote.discount_note && (
-          <p>
-            <strong>{Q.discountNote}:</strong> {quote.discount_note}
-          </p>
-        )}
-        {quote.note_to_customer && (
-          <p className={ops.notice} data-testid="quote-note">
-            <strong>{Q.note}:</strong> {quote.note_to_customer}
-          </p>
-        )}
       </section>
 
       {open && plan.length > 0 && (
-        <section className={styles.section} data-testid="quote-plan">
+        <section className={layout.section} data-testid="quote-plan">
           <h2>{billingText.plan.title}</h2>
-          <p className="muted">{billingText.plan.quoteHint}</p>
+          <p className={layout.sectionLead}>{billingText.plan.quoteHint}</p>
           <InstallmentPlan rows={plan} currency={currency} />
         </section>
       )}
 
       {open && (
         <>
-          <section className={styles.section} data-testid="quote-billing">
+          <section className={layout.section} data-testid="quote-billing">
             <h2>{Q.billingTitle}</h2>
             {profile?.complete ? (
               <p>
                 {Q.billingComplete} <Link href={portalHref.billing(here)}>{Q.billingEdit}</Link>
               </p>
             ) : (
-              <p className={ops.notice}>
-                {Q.billingIncomplete}{" "}
-                <Link className="button" href={portalHref.billing(here)}>
-                  {Q.billingFill}
-                </Link>
-              </p>
+              <Alert tone="warning">
+                <p>{Q.billingIncomplete}</p>
+                <p>
+                  <ButtonLink href={portalHref.billing(here)}>{Q.billingFill}</ButtonLink>
+                </p>
+              </Alert>
             )}
           </section>
 
           {gateReasons.length > 0 && (
-            <section className={styles.section} data-testid="quote-gate">
+            <section className={layout.section} data-testid="quote-gate">
               <h2>{Q.gateTitle}</h2>
-              <ul className={ops.notice}>
-                {gateReasons.map((reason) => (
-                  <li key={reason} data-reason={reason}>
-                    {Q.gateReason[reason]}
-                  </li>
-                ))}
-              </ul>
-              <p className="muted">{Q.gateHint}</p>
+              <Alert tone="warning">
+                <ul>
+                  {gateReasons.map((reason) => (
+                    <li key={reason} data-reason={reason}>
+                      {Q.gateReason[reason]}
+                    </li>
+                  ))}
+                </ul>
+              </Alert>
+              <p className={`${layout.muted} ${layout.small}`}>{Q.gateHint}</p>
             </section>
           )}
 
           {(!kvkk || kvkkOutdated) && !kvkkRecordable && (
-            <section className={styles.section} data-testid="quote-kvkk">
+            <section className={layout.section} data-testid="quote-kvkk">
               <h2>{Q.kvkkTitle}</h2>
-              <p className={ops.notice}>{Q.kvkkOtherOrg}</p>
+              <Alert tone="warning">{Q.kvkkOtherOrg}</Alert>
             </section>
           )}
 
           {(!kvkk || kvkkOutdated) && kvkkRecordable && (
-            <section className={styles.section} data-testid="quote-kvkk">
+            <section className={layout.section} data-testid="quote-kvkk">
               <h2>{Q.kvkkTitle}</h2>
-              <p>
-                {kvkkOutdated ? Q.kvkkCurrentBody : Q.kvkkBody}{" "}
-                <Link href="/kvkk" target="_blank">
-                  {Q.kvkkLink}
-                </Link>
-              </p>
-              <form action={acknowledgeKvkkAction} className={local.checks}>
+              <form action={acknowledgeKvkkAction} className={`${layout.panel} ${s.checks}`}>
                 <input type="hidden" name="geri" value={here} />
-                <label>
-                  <input type="checkbox" name="kvkk_notice" required />
-                  <span>
-                    {Q.kvkkCheck}{" "}
-                    <span className="muted">({Q.version(LEGAL_TEXT_VERSIONS.kvkk_notice)})</span>
-                  </span>
-                </label>
                 <p>
-                  <button className="button button-secondary" type="submit">
-                    {Q.kvkkSubmit}
-                  </button>
+                  {kvkkOutdated ? Q.kvkkCurrentBody : Q.kvkkBody}{" "}
+                  <Link href="/kvkk" target="_blank">
+                    {Q.kvkkLink}
+                  </Link>
                 </p>
+                <Checkbox
+                  id="c-kvkk_notice"
+                  name="kvkk_notice"
+                  required
+                  label={
+                    <>
+                      {Q.kvkkCheck}{" "}
+                      <span className={layout.muted}>
+                        ({Q.version(LEGAL_TEXT_VERSIONS.kvkk_notice)})
+                      </span>
+                    </>
+                  }
+                />
+                <div className={layout.actions}>
+                  <Button variant="secondary" type="submit">
+                    {Q.kvkkSubmit}
+                  </Button>
+                </div>
               </form>
             </section>
           )}
 
           {filled && (
-            <section className={styles.section} data-testid="quote-contracts">
+            <section className={layout.section} data-testid="quote-contracts">
               <h2>{C.quote.title}</h2>
-              <p>{C.quote.intro}</p>
-              {quote.addon_of_order_id && <p className={styles.notice}>{C.quote.addonIntro}</p>}
+              <p className={layout.sectionLead}>{C.quote.intro}</p>
+              {quote.addon_of_order_id && <Alert tone="info">{C.quote.addonIntro}</Alert>}
               {!quote.addon_of_order_id && quote.renewal_of_order_id && (
-                <p className={styles.notice}>{C.quote.renewalIntro}</p>
+                <Alert tone="info">{C.quote.renewalIntro}</Alert>
               )}
               <FilledDocumentView doc={filled[0].doc} displaySha256={filled[0].hash} />
-              <details data-testid="quote-contract-details">
+              <details className={s.disclosure} data-testid="quote-contract-details">
                 <summary>{C.quote.showContract}</summary>
                 <FilledDocumentView doc={filled[1].doc} displaySha256={filled[1].hash} />
               </details>
             </section>
           )}
 
-          <section className={styles.section} data-testid="quote-accept">
+          <section className={layout.section} data-testid="quote-accept">
             <h2>{Q.acceptTitle}</h2>
-            <form action={acceptQuoteAction} className={local.checks}>
+            <form action={acceptQuoteAction} className={`${layout.panel} ${s.checks}`}>
               <input type="hidden" name="quote_id" value={quote.id} />
               <input type="hidden" name="pre_information_display" value={filled?.[0].hash ?? ""} />
               <input type="hidden" name="distance_sales_display" value={filled?.[1].hash ?? ""} />
-              <label>
-                <input type="checkbox" name="pre_information" required />
-                <span>
-                  {C.quote.preCheck}{" "}
-                  <span className="muted">({Q.version(LEGAL_TEXT_VERSIONS.pre_information)})</span>
-                </span>
-              </label>
-              <label>
-                <input type="checkbox" name="distance_sales" required />
-                <span>
-                  {C.quote.contractCheck}{" "}
-                  <span className="muted">({Q.version(LEGAL_TEXT_VERSIONS.distance_sales)})</span>
-                </span>
-              </label>
-              <fieldset className={local.checks} data-testid="quote-early-performance">
+              <Checkbox
+                id="c-pre_information"
+                name="pre_information"
+                required
+                label={
+                  <>
+                    {C.quote.preCheck}{" "}
+                    <span className={layout.muted}>
+                      ({Q.version(LEGAL_TEXT_VERSIONS.pre_information)})
+                    </span>
+                  </>
+                }
+              />
+              <Checkbox
+                id="c-distance_sales"
+                name="distance_sales"
+                required
+                label={
+                  <>
+                    {C.quote.contractCheck}{" "}
+                    <span className={layout.muted}>
+                      ({Q.version(LEGAL_TEXT_VERSIONS.distance_sales)})
+                    </span>
+                  </>
+                }
+              />
+              <fieldset className={s.checks} data-testid="quote-early-performance">
                 <legend>{Q.earlyPerformanceTitle}</legend>
-                <label>
-                  <input type="checkbox" name="early_performance" />
-                  <span>
-                    {EARLY_PERFORMANCE_TEXT}{" "}
-                    <span className="muted">({Q.version(LEGAL_TEXT_VERSIONS.distance_sales)})</span>
-                  </span>
-                </label>
-                <p className="muted">{Q.earlyPerformanceHint}</p>
+                <Checkbox
+                  id="c-early_performance"
+                  name="early_performance"
+                  label={
+                    <>
+                      {EARLY_PERFORMANCE_TEXT}{" "}
+                      <span className={layout.muted}>
+                        ({Q.version(LEGAL_TEXT_VERSIONS.distance_sales)})
+                      </span>
+                    </>
+                  }
+                  hint={Q.earlyPerformanceHint}
+                />
               </fieldset>
-              <p>
-                <button
-                  className="button"
-                  type="submit"
-                  disabled={!profile?.complete || !kvkk || gateReasons.length > 0 || !filled}
-                >
+              <dl className={layout.facts}>
+                <dt>{Q.total}</dt>
+                <dd>{formatKurus(quote.total_kurus, currency)}</dd>
+                {first && (
+                  <>
+                    <dt>{`${Q.firstPayment}: ${installmentLabel(first)}`}</dt>
+                    <dd>{formatKurus(first.amountKurus, currency)}</dd>
+                  </>
+                )}
+              </dl>
+              <div className={layout.actions}>
+                <button className={`button ${s.longButton}`} type="submit" disabled={!canAccept}>
                   {Q.accept}
                 </button>
-              </p>
-              <p className="muted">{Q.acceptHint}</p>
+              </div>
+              {!canAccept && <p className={layout.small}>{Q.acceptBlocked}</p>}
+              <p className={`${layout.muted} ${layout.small}`}>{Q.acceptHint}</p>
             </form>
           </section>
 
-          <section className={styles.section}>
+          <section className={layout.section}>
             <h2>{Q.declineTitle}</h2>
-            <form action={declineQuoteAction} className={ops.form}>
+            <form action={declineQuoteAction} className={s.form}>
               <input type="hidden" name="quote_id" value={quote.id} />
-              <div className={ops.field}>
-                <label className={ops.label} htmlFor="f-note">
-                  {Q.revisionNote} <span className="muted">({P.optional})</span>
-                </label>
-                <textarea id="f-note" name="note" rows={2} maxLength={1000} />
-                <span className={ops.hint}>{Q.revisionHint}</span>
-              </div>
-              <div className={ops.actions}>
-                <button
-                  className="button button-secondary"
-                  type="submit"
-                  name="intent"
-                  value="revise"
-                >
+              <Field id="f-note" label={Q.revisionNote} hint={Q.revisionHint} optional={P.optional}>
+                <Textarea name="note" rows={2} maxLength={1000} />
+              </Field>
+              <div className={layout.actions}>
+                <Button variant="secondary" type="submit" name="intent" value="revise">
                   {Q.requestRevision}
-                </button>
-                <button
-                  className="button button-secondary"
-                  type="submit"
-                  name="intent"
-                  value="decline"
-                >
+                </Button>
+                <Button variant="quiet" type="submit" name="intent" value="decline">
                   {Q.decline}
-                </button>
+                </Button>
               </div>
-              <p className="muted">{Q.declineHint}</p>
+              <p className={`${layout.muted} ${layout.small}`}>{Q.declineHint}</p>
             </form>
           </section>
         </>
       )}
     </main>
+  );
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </>
   );
 }

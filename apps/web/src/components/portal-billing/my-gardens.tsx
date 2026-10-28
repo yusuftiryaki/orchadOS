@@ -1,20 +1,24 @@
 import Link from "next/link";
-import ops from "@/components/operations/operations.module.css";
-import portal from "@/components/portal/portal.module.css";
+import layout from "@/components/portal/page.module.css";
+import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { CustomerGarden } from "@/lib/billing/types";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { accessEnded, gardenBadge, removable } from "@/lib/portal-billing/gardens";
 import { portalHref } from "@/lib/portal-billing/urls";
-import styles from "./portal-billing.module.css";
+import styles from "./account.module.css";
+import { gardenTone } from "./status-badge";
 
 const G = P.gardens;
 
 // "Bahçelerim" on the account page (docs/bahce-yonetimi.md §5.1, §11): every
-// garden of the customer with its state, a link to the removal form on the
-// parcel page, and the "Bahçe ekle" button. Owned parcels that were never on
-// an order (pilot) can only be removed by the team; owned parcels whose
-// orders no longer serve them are listed as out of service.
+// garden of the customer in one list with its state, a link to the removal
+// form on the parcel page, and the "Bahçe ekle" button. Owned parcels that
+// were never on an order (pilot) are gardens the customer has, only the team
+// can remove them; owned parcels whose orders no longer serve them are listed
+// last as out of service.
 export function MyGardens({
   gardens,
   pilot,
@@ -28,86 +32,103 @@ export function MyGardens({
   addHref: string | null;
   changesEnabled: boolean;
 }) {
+  const empty = gardens.length === 0 && pilot.length === 0 && outOfService.length === 0;
   return (
-    <section className={portal.section} data-testid="my-gardens">
-      <div className={portal.titleRow}>
-        <h2>{G.title}</h2>
-        {addHref && (
-          <Link className="button" href={addHref} data-testid="my-gardens-add">
+    <section className={layout.section} data-testid="my-gardens" aria-labelledby="my-gardens-title">
+      <div className={layout.sectionHead}>
+        <h2 id="my-gardens-title">{G.title}</h2>
+        {addHref && !empty && (
+          <ButtonLink variant="secondary" href={addHref} data-testid="my-gardens-add">
             {G.add}
-          </Link>
+          </ButtonLink>
         )}
       </div>
-      {gardens.length === 0 ? (
-        <p className="muted">{G.empty}</p>
+      {empty ? (
+        <EmptyState
+          title={G.empty}
+          headingLevel={3}
+          action={
+            addHref && (
+              <ButtonLink href={addHref} data-testid="my-gardens-add">
+                {G.add}
+              </ButtonLink>
+            )
+          }
+        >
+          {addHref && <p>{G.emptyBody}</p>}
+        </EmptyState>
       ) : (
-        <div className={ops.tableWrap}>
-          <table className={ops.table}>
-            <tbody>
+        <div className={`${layout.panel} ${styles.rowGroups}`}>
+          {gardens.length > 0 && (
+            <ul className={layout.rows}>
               {gardens.map((g) => (
-                <tr key={g.order_item_id} data-parcel-id={g.parcel_id ?? undefined}>
-                  <td>
-                    {g.parcel_id && !accessEnded(g) ? (
-                      <Link href={portalHref.parcel(g.parcel_id)}>{g.garden_name}</Link>
-                    ) : (
-                      g.garden_name
+                <li
+                  key={g.order_item_id}
+                  data-testid="garden-row"
+                  data-parcel-id={g.parcel_id ?? undefined}
+                >
+                  <div className={layout.rowMain}>
+                    <p className={styles.name}>
+                      {g.parcel_id && !accessEnded(g) ? (
+                        <Link href={portalHref.parcel(g.parcel_id)}>{g.garden_name}</Link>
+                      ) : (
+                        g.garden_name
+                      )}
+                    </p>
+                    {/* The badge carries the date of a leaving or removed garden. */}
+                    {(g.state === "in_service" || g.state === "upcoming") && (
+                      <p className={styles.meta}>{G.serviceEnd(formatDate(g.service_end))}</p>
                     )}
-                    <br />
-                    <span className="muted">
-                      {g.state === "removed" && g.removal_effective_on
-                        ? G.leaving(formatDate(g.removal_effective_on))
-                        : G.serviceEnd(formatDate(g.service_end))}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={styles.state} data-state={g.state} data-testid="garden-state">
+                  </div>
+                  <div className={styles.rowSide}>
+                    <Badge tone={gardenTone(g.state)} testId="garden-state">
                       {gardenBadge(g)}
-                    </span>
-                  </td>
-                  <td>
+                    </Badge>
                     {g.parcel_id && changesEnabled && removable(g) && (
-                      <Link
-                        className="button button-secondary"
+                      <ButtonLink
+                        variant="quiet"
                         href={`${portalHref.parcel(g.parcel_id)}#hizmet`}
                         data-testid="garden-remove"
                       >
                         {G.remove}
-                      </Link>
+                      </ButtonLink>
                     )}
-                  </td>
-                </tr>
+                  </div>
+                </li>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          )}
+          {pilot.length > 0 && (
+            <ul className={layout.rows} data-testid="pilot-gardens">
+              {pilot.map((p) => (
+                <li key={p.id} data-parcel-id={p.id}>
+                  <div className={layout.rowMain}>
+                    <p className={styles.name}>
+                      <Link href={portalHref.parcel(p.id)}>{p.name}</Link>
+                    </p>
+                    <p className={styles.meta}>{G.pilotContact}</p>
+                  </div>
+                  <Badge>{G.pilotState}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+          {outOfService.length > 0 && (
+            <ul className={layout.rows} data-testid="out-of-service-gardens">
+              {outOfService.map((p) => (
+                <li key={p.id} data-parcel-id={p.id}>
+                  <div className={layout.rowMain}>
+                    <p className={styles.name}>
+                      <Link href={portalHref.parcel(p.id)}>{p.name}</Link>
+                    </p>
+                    <p className={styles.meta}>{G.outOfServiceNote}</p>
+                  </div>
+                  <Badge>{G.outOfService}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      )}
-      {outOfService.length > 0 && (
-        <>
-          <h3>{G.outOfServiceTitle}</h3>
-          <ul className={ops.plainList} data-testid="out-of-service-gardens">
-            {outOfService.map((p) => (
-              <li key={p.id}>
-                <Link href={portalHref.parcel(p.id)}>{p.name}</Link>
-                {" · "}
-                <span className="muted">{G.outOfService}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {pilot.length > 0 && (
-        <>
-          <h3>{G.pilotTitle}</h3>
-          <ul className={ops.plainList} data-testid="pilot-gardens">
-            {pilot.map((p) => (
-              <li key={p.id}>
-                <Link href={portalHref.parcel(p.id)}>{p.name}</Link>
-                {" · "}
-                <span className="muted">{G.pilotContact}</span>
-              </li>
-            ))}
-          </ul>
-        </>
       )}
     </section>
   );

@@ -1,0 +1,234 @@
+/* Shared layout of the portal screens (docs/tasarim-sistemi.md, wave 2a).
+   Phone first: one column at 390px, 16px gutters; 1120px wide on desktop
+   like the portal AppShell. Surfaces are separated by borders, never by
+   shadows. Every portal page and component composes these instead of
+   writing its own card, section or key/value list. */
+
+/* The page column: everything between the header and the end of the page. */
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-3) var(--space-6);
+  display: grid;
+  gap: var(--space-5);
+  align-content: start;
+}
+
+.page > * {
+  min-width: 0;
+}
+
+/* PageHeader brings its own bottom margin; the column gap replaces it. */
+.page > header:first-child {
+  margin-bottom: 0;
+}
+
+@media (min-width: 720px) {
+  .page {
+    padding: var(--space-5) var(--space-4) var(--space-7);
+    gap: var(--space-6);
+  }
+}
+
+/* A narrow column for forms and single documents (application, quote,
+   payment): long lines are hard to read on a desktop. */
+.narrow {
+  composes: page;
+  max-width: 760px;
+}
+
+/* A titled block of a page. Plain on the ground: a heading, then content.
+   Use .panel for the one block that should read as a surface. */
+.section {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  scroll-margin-top: calc(var(--header-height) + 56px);
+}
+
+.section > h2,
+.sectionHead h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+/* Heading with an action on the right ("Bahçelerim" + "Bahçe ekle"). */
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.sectionLead {
+  margin: 0;
+  color: var(--color-text-2);
+  max-width: var(--measure);
+}
+
+/* A bordered white surface: a card, a form, a document. */
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+
+@media (min-width: 720px) {
+  .panel {
+    padding: var(--space-4);
+  }
+}
+
+.panel > h2,
+.panel > h3,
+.panel > header h2,
+.panel > header h3 {
+  margin: 0;
+}
+
+.panel > h2 {
+  font-size: var(--text-lg);
+}
+
+/* Vertical rhythm inside a block. */
+.stack {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  min-width: 0;
+}
+
+.stack > * {
+  margin: 0;
+}
+
+/* Buttons in a row; full width under 480px so every target is easy to hit. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (max-width: 479px) {
+  .actions > :global(.button) {
+    flex: 1 1 100%;
+  }
+}
+
+/* Key/value facts: "Paket  Standart", "Toplam  ₺12.960,00". Label on the
+   left, value on the right; values are tabular. Stacks on the narrowest
+   phones only when the label is long. */
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--color-text-2);
+}
+
+.facts dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/* The total under a list of facts. */
+.factsTotal {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.facts .factsTotal {
+  text-align: inherit;
+}
+
+/* Muted secondary text and small print. */
+.muted {
+  color: var(--color-muted);
+}
+
+.small {
+  font-size: var(--text-sm);
+}
+
+/* Identifiers ("B-2026-000001") never break inside. */
+.nowrap {
+  white-space: nowrap;
+}
+
+/* A list of rows separated by hairlines inside a panel (gardens, documents,
+   payments on a phone). Each row: main text left, state or action right. */
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.rows > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+.rows > li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.rows > li:last-child {
+  padding-bottom: 0;
+}
+
+.rowMain {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 18ch;
+}
+
+.rowMain > * {
+  margin: 0;
+}
+
+/* Two columns on a desktop: main content and a narrow side column (the
+   summary of a quote, the payment plan of an order). */
+.split {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 960px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+@media print {
+  .page {
+    padding: 0;
+    gap: var(--space-4);
+  }
+}

@@ -1,45 +1,43 @@
-import Link from "next/link";
+import layout from "@/components/portal/page.module.css";
+import { Alert } from "@/components/ui/alert";
+import { ButtonLink } from "@/components/ui/button";
 import type { ServicePeriod } from "@/lib/billing/types";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { portalHref } from "@/lib/portal-billing/urls";
-import styles from "./portal-billing.module.css";
+import styles from "./home.module.css";
 
 const M = P.membership;
 
 // "Üyeliğiniz" (docs/bahce-yonetimi.md §11): the primary period's package,
 // end and garden count, the paid renewal or the renewal quote, and the note
-// for a customer with more than one period (§4.4). `as` picks the wrapper: a
-// card on the home page, a plain block on the account page.
-export function MembershipCard({
-  period,
-  as = "li",
-}: {
-  period: ServicePeriod;
-  as?: "li" | "div";
-}) {
-  const Tag = as;
+// for a customer with more than one period (§4.4). A bordered block on the
+// home page's side column and on the account page.
+export function MembershipCard({ period }: { period: ServicePeriod; as?: "li" | "div" }) {
   return (
-    <Tag className={styles.member} data-testid="membership">
+    <div className={`${layout.panel} ${styles.membership}`} data-testid="membership">
       <h2>{M.title}</h2>
-      <p>
-        <strong>{period.package_name}</strong>
-        {" · "}
-        <span data-testid="membership-end">{M.serviceEnd(formatDate(period.period_end))}</span>
-      </p>
+      <p className={styles.package}>{period.package_name}</p>
+      <p data-testid="membership-end">{M.serviceEnd(formatDate(period.period_end))}</p>
       <p data-testid="membership-gardens">{M.gardenCount(period.garden_count)}</p>
-      {period.next_period_end && <p>{M.nextPeriod(formatDate(period.next_period_end))}</p>}
+      {period.next_period_end && (
+        <p className={layout.small}>{M.nextPeriod(formatDate(period.next_period_end))}</p>
+      )}
       {period.renewal_quote_id && (
-        <p data-testid="membership-renewal">
-          <strong>{M.renewalReady}</strong>{" "}
-          <Link href={portalHref.quote(period.renewal_quote_id)}>{M.renewalOpen}</Link>
-        </p>
+        <div data-testid="membership-renewal" className={layout.stack}>
+          <p>
+            <strong>{M.renewalReady}</strong>
+          </p>
+          <ButtonLink variant="secondary" href={portalHref.quote(period.renewal_quote_id)}>
+            {M.renewalOpen}
+          </ButtonLink>
+        </div>
       )}
       {period.period_count > 1 && (
-        <p className="muted" data-testid="membership-multi">
-          {M.multiPeriod}
-        </p>
+        <Alert tone="info" testId="membership-multi">
+          <p className={layout.small}>{M.multiPeriod}</p>
+        </Alert>
       )}
-    </Tag>
+    </div>
   );
 }

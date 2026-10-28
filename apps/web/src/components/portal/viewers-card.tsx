@@ -8,7 +8,12 @@ import { formatDate, t } from "@/lib/i18n";
 import { demoText } from "@/lib/i18n/messages/demo";
 import { portalBillingText } from "@/lib/i18n/messages/portal-billing";
 import { VIEWER_DECLARATION, type ParcelViewers } from "@/lib/portal/viewers";
-import styles from "./portal.module.css";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox, Field, Input } from "@/components/ui/field";
+import layout from "./page.module.css";
+import styles from "./parcel.module.css";
 
 // Co-owners of the parcel, for its owner: viewers, open invitations and a
 // form to invite one (name + phone). Ops completes the invitation. A demo
@@ -43,55 +48,61 @@ export function ViewersCard({
   return (
     <section
       id="hissedarlar"
-      className={`${styles.section} ${styles.noPrint}`}
+      className={`${layout.section} ${styles.noPrint}`}
       aria-labelledby="hissedar-baslik"
       data-testid="viewers-card"
     >
       <h2 id="hissedar-baslik">{v.title}</h2>
-      <p className="muted">{v.hint}</p>
+      <p className={layout.sectionLead}>{v.hint}</p>
       {notice && (
-        <p className={styles.notice} role="status">
-          {notice}
-        </p>
+        <Alert tone="success" role="status">
+          <p>{notice}</p>
+        </Alert>
       )}
       {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
+        <Alert tone="danger" role="alert">
+          <p>{error}</p>
+        </Alert>
       )}
-      {viewers.entries.length === 0 ? (
-        <p className="muted">{v.empty}</p>
-      ) : (
-        <ul className={styles.plainList} data-testid="viewer-list">
-          {viewers.entries.map((entry) => (
-            <li key={`${entry.kind}:${entry.id}`} data-viewer-status={entry.status}>
-              <strong>{entry.fullName ?? "—"}</strong> <span className="muted">{entry.phone}</span>
-              {" · "}
-              {v.status[entry.status]}
-              {entry.status !== "active" && (
-                <span className="muted"> ({formatDate(entry.createdAt)})</span>
-              )}{" "}
-              {demo ? null : entry.kind === "viewer" ? (
-                <form action={removeViewerAction} className={styles.inlineForm}>
-                  <input type="hidden" name="parcelId" value={parcelId} />
-                  <input type="hidden" name="id" value={entry.id} />
-                  <button className="button button-secondary" type="submit">
-                    {v.remove}
-                  </button>
-                </form>
-              ) : entry.status === "pending" ? (
-                <form action={cancelInvitationAction} className={styles.inlineForm}>
-                  <input type="hidden" name="parcelId" value={parcelId} />
-                  <input type="hidden" name="id" value={entry.id} />
-                  <button className="button button-secondary" type="submit">
-                    {v.cancel}
-                  </button>
-                </form>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className={layout.panel}>
+        {viewers.entries.length === 0 ? (
+          <p className="muted">{v.empty}</p>
+        ) : (
+          <ul className={layout.rows} data-testid="viewer-list">
+            {viewers.entries.map((entry) => (
+              <li key={`${entry.kind}:${entry.id}`} data-viewer-status={entry.status}>
+                <div className={layout.rowMain}>
+                  <strong>{entry.fullName ?? "—"}</strong>
+                  <span className={styles.rowMeta}>
+                    <span className={`muted ${layout.nowrap}`}>{entry.phone}</span>
+                    <Badge tone={STATUS_TONES[entry.status]}>{v.status[entry.status]}</Badge>
+                    {entry.status !== "active" && (
+                      <span className={`muted ${styles.small}`}>{formatDate(entry.createdAt)}</span>
+                    )}
+                  </span>
+                </div>
+                {demo ? null : entry.kind === "viewer" ? (
+                  <form action={removeViewerAction} className={styles.inlineForm}>
+                    <input type="hidden" name="parcelId" value={parcelId} />
+                    <input type="hidden" name="id" value={entry.id} />
+                    <Button variant="secondary" type="submit">
+                      {v.remove}
+                    </Button>
+                  </form>
+                ) : entry.status === "pending" ? (
+                  <form action={cancelInvitationAction} className={styles.inlineForm}>
+                    <input type="hidden" name="parcelId" value={parcelId} />
+                    <input type="hidden" name="id" value={entry.id} />
+                    <Button variant="secondary" type="submit">
+                      {v.cancel}
+                    </Button>
+                  </form>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       {demo ? (
         <DemoNotice text={demoText.closed.viewers} />
       ) : readOnly ? (
@@ -99,26 +110,36 @@ export function ViewersCard({
           {portalBillingText.removal.readOnlyViewers}
         </p>
       ) : (
-        <form action={inviteViewerAction} className={styles.inviteForm} data-testid="invite-viewer">
+        <form action={inviteViewerAction} className={styles.form} data-testid="invite-viewer">
+          <h3>{v.inviteTitle}</h3>
           <input type="hidden" name="parcelId" value={parcelId} />
-          <label>
-            {v.name}
-            <input name="name" required maxLength={120} autoComplete="off" />
-          </label>
-          <label>
-            {v.phone}
-            <input name="phone" type="tel" required maxLength={20} autoComplete="off" />
-          </label>
+          <div className={styles.formRow}>
+            <Field id={`viewer-name-${parcelId}`} label={v.name}>
+              <Input name="name" required maxLength={120} autoComplete="off" />
+            </Field>
+            <Field id={`viewer-phone-${parcelId}`} label={v.phone}>
+              <Input name="phone" type="tel" required maxLength={20} autoComplete="off" />
+            </Field>
+          </div>
           {viewers.declarationRequired && (
-            <label data-testid="viewer-declaration">
-              <input type="checkbox" name="declared" required /> {VIEWER_DECLARATION}
-            </label>
+            <div data-testid="viewer-declaration">
+              <Checkbox
+                id={`viewer-declared-${parcelId}`}
+                name="declared"
+                required
+                label={VIEWER_DECLARATION}
+              />
+            </div>
           )}
-          <button className="button" type="submit">
-            {v.invite}
-          </button>
+          <div className={styles.formActions}>
+            <Button variant="secondary" type="submit">
+              {v.invite}
+            </Button>
+          </div>
         </form>
       )}
     </section>
   );
 }
+
+const STATUS_TONES = { active: "success", pending: "info", rejected: "danger" } as const;

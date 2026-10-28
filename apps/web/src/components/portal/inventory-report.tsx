@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { DemoNotice } from "@/components/demo/demo-notice";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import { demoText } from "@/lib/i18n/messages/demo";
@@ -10,7 +9,13 @@ import {
 } from "@/lib/portal/inventory-report";
 import { BoundaryNotice } from "./boundary-notice";
 import ir from "./inventory-report.module.css";
-import styles from "./portal.module.css";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import layout from "./page.module.css";
+import styles from "./parcel.module.css";
 
 // Owner's inventory report (src/lib/portal/inventory-report.ts): sections in
 // the order of the expert agent's proposal, plain language, counts only.
@@ -33,85 +38,116 @@ export function InventoryReportView({
   const base = `/portal/parsel/${report.parcel.id}`;
   const c = report.counts;
   const draft = report.warnings.includes("boundary_unapproved");
+  const lead = [
+    report.parcel.name,
+    report.parcel.place,
+    report.inventory?.date ? r.subtitle(formatDate(report.inventory.date)) : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
   return (
-    <main className={styles.page} data-testid="inventory-report">
-      <p className={styles.noPrint}>
-        <Link href={base}>← {r.back}</Link>
-      </p>
-      <div className={styles.titleRow}>
-        <div>
-          <p className={ir.eyebrow}>{r.title}</p>
-          <h1>{report.parcel.name}</h1>
-          <p className="muted">
-            {[
-              report.parcel.place,
-              report.inventory?.date ? r.subtitle(formatDate(report.inventory.date)) : null,
-              report.inventory?.approvedAt
-                ? r.approvedOn(formatDate(report.inventory.approvedAt))
-                : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-          {report.inventory?.approver && (
-            <p className="muted" data-testid="inventory-approver">
-              {approverLine(report.inventory.approver)}
-            </p>
-          )}
-        </div>
-        {report.inventory && (
-          <div className={`${styles.actions} ${styles.noPrint}`}>
-            <a className="button" href={`${base}/envanter/rapor.pdf`} data-testid="inventory-pdf">
-              {r.pdf}
-            </a>
-          </div>
-        )}
-      </div>
+    <main className={layout.page} data-testid="inventory-report">
+      <PageHeader
+        back={{ href: base, label: r.back }}
+        title={r.title}
+        lead={lead}
+        meta={
+          (report.inventory?.approvedAt || report.inventory?.approver) && (
+            <div className={layout.stack}>
+              {report.inventory?.approvedAt && (
+                <span>
+                  <Badge tone="success">
+                    {r.approvedOn(formatDate(report.inventory.approvedAt))}
+                  </Badge>
+                </span>
+              )}
+              {report.inventory?.approver && (
+                <span className="muted" data-testid="inventory-approver">
+                  {approverLine(report.inventory.approver)}
+                </span>
+              )}
+            </div>
+          )
+        }
+        actions={
+          report.inventory && (
+            <div className={`${layout.actions} ${styles.noPrint}`}>
+              <a
+                className="button button-secondary"
+                href={`${base}/envanter/rapor.pdf`}
+                data-testid="inventory-pdf"
+              >
+                {r.pdf}
+              </a>
+            </div>
+          )
+        }
+      />
       {pdfLimit && <DemoNotice text={demoText.closed.pdfLimit} />}
 
       {!report.inventory ? (
-        <p className={styles.notice} data-testid="inventory-not-approved">
-          {r.notApproved}
-        </p>
+        <EmptyState
+          title={r.notApprovedTitle}
+          testId="inventory-not-approved"
+          action={
+            <ButtonLink variant="secondary" href={base}>
+              {r.back}
+            </ButtonLink>
+          }
+        >
+          <p>{r.notApproved}</p>
+        </EmptyState>
       ) : (
         <>
-          {draft && <p className={styles.notice}>{r.draft}</p>}
-          <section className={styles.section} aria-labelledby="ozet">
+          {draft && (
+            <Alert tone="warning">
+              <p>{r.draft}</p>
+            </Alert>
+          )}
+          <section className={layout.section} aria-labelledby="ozet">
             <h2 id="ozet">{r.summaryTitle}</h2>
-            <p className={ir.lead} data-testid="inventory-summary">
-              {r.summary(c.slots, c.trees, c.emptySlots, c.interstitialTrees)}
-              {report.estimate && (
-                <> {r.estimateLine(report.estimate.declared, signedPct(report.estimate.share))}</>
-              )}
-            </p>
-            <div className={ir.statGrid}>
-              <Stat label={r.legend.slots} value={c.slots} />
-              <Stat label={r.legend.tree} value={c.rowTrees} />
-              <Stat label={r.legend.interstitial} value={c.interstitialTrees} />
-              <Stat label={r.legend.empty} value={c.emptySlots} />
+            <div className={layout.panel}>
+              <p className={ir.lead} data-testid="inventory-summary">
+                {r.summary(c.slots, c.trees, c.emptySlots, c.interstitialTrees)}
+                {report.estimate && (
+                  <> {r.estimateLine(report.estimate.declared, signedPct(report.estimate.share))}</>
+                )}
+              </p>
+              <dl className={ir.statGrid}>
+                <Stat label={r.legend.slots} value={c.slots} />
+                <Stat label={r.legend.tree} value={c.rowTrees} />
+                <Stat label={r.legend.interstitial} value={c.interstitialTrees} />
+                <Stat label={r.legend.empty} value={c.emptySlots} />
+              </dl>
+              <p className={`${ir.note} muted`}>{r.terms}</p>
+              <p className={`${ir.note} muted`}>{r.disclaimer}</p>
             </div>
-            <p className="muted">{r.terms}</p>
-            <p className="muted">{r.disclaimer}</p>
           </section>
 
           {report.warnings.length > 0 && (
-            <section className={styles.section} aria-labelledby="dikkat">
+            <section className={layout.section} aria-labelledby="dikkat">
               <h2 id="dikkat">{r.warningsTitle}</h2>
-              <ul className={ir.warningList} data-testid="inventory-warnings">
-                {report.warnings.map((w) => (
-                  <li key={w}>{r.warnings[w]}</li>
-                ))}
-              </ul>
+              <Alert tone="warning">
+                <ul className={ir.list} data-testid="inventory-warnings">
+                  {report.warnings.map((w) => (
+                    <li key={w}>{r.warnings[w]}</li>
+                  ))}
+                </ul>
+              </Alert>
             </section>
           )}
 
-          <section className={styles.section} aria-labelledby="harita">
+          <section className={layout.section} aria-labelledby="harita">
             <h2 id="harita">{r.mapTitle}</h2>
-            <p className="muted">{r.mapHint}</p>
-            {report.map && <SlotMap map={report.map} />}
+            <p className={layout.sectionLead}>{r.mapHint}</p>
+            {report.map && (
+              <div className={layout.panel}>
+                <SlotMap map={report.map} />
+              </div>
+            )}
           </section>
 
-          <section className={styles.section} aria-labelledby="sinir">
+          <section className={layout.section} aria-labelledby="sinir">
             <h2 id="sinir">{r.boundaryTitle}</h2>
             {report.boundary ? (
               <>
@@ -137,14 +173,14 @@ export function InventoryReportView({
             <BoundaryNotice />
           </section>
 
-          <section className={styles.section} aria-labelledby="bos">
+          <section className={layout.section} aria-labelledby="bos">
             <h2 id="bos">{r.emptyTitle}</h2>
             <p>{r.emptyLine(c.emptySlots, pct(c.emptySlots, c.slots))}</p>
           </section>
 
-          <section className={styles.section} aria-labelledby="yapi">
+          <section className={layout.section} aria-labelledby="yapi">
             <h2 id="yapi">{r.structureTitle}</h2>
-            <div className={ir.columns}>
+            <div className={`${layout.panel} ${ir.columns}`}>
               <Counts
                 title={r.ages}
                 rows={Object.entries(report.structure.ages).map(([k, n]) => [
@@ -180,16 +216,16 @@ export function InventoryReportView({
             <p className="muted">{r.sexNote}</p>
           </section>
 
-          <section className={styles.section} aria-labelledby="gozlem">
+          <section className={layout.section} aria-labelledby="gozlem">
             <h2 id="gozlem">{r.observationsTitle}</h2>
             <Observations report={report} />
             <p className="muted">{r.observationsNote}</p>
           </section>
 
-          <section className={styles.section} aria-labelledby="altyapi">
+          <section className={layout.section} aria-labelledby="altyapi">
             <h2 id="altyapi">{r.infrastructureTitle}</h2>
             {report.infrastructure.length > 0 ? (
-              <ul>
+              <ul className={ir.list}>
                 {report.infrastructure.map((z) => (
                   <li key={z.kind}>
                     {r.infrastructureLine(
@@ -205,9 +241,9 @@ export function InventoryReportView({
             )}
           </section>
 
-          <section className={styles.section} aria-labelledby="guven">
+          <section className={layout.section} aria-labelledby="guven">
             <h2 id="guven">{r.confidenceTitle}</h2>
-            <ul>
+            <ul className={ir.list}>
               <li>
                 {report.confidence.coverage
                   ? r.coverage(
@@ -225,11 +261,13 @@ export function InventoryReportView({
             </ul>
           </section>
 
-          <section className={styles.section} aria-labelledby="sirada">
+          <section className={layout.section} aria-labelledby="sirada">
             <h2 id="sirada">{r.nextTitle}</h2>
-            <p>{r.next}</p>
-            <h3>{r.youTitle}</h3>
-            <p>{r.you}</p>
+            <div className={layout.panel}>
+              <p>{r.next}</p>
+              <h3>{r.youTitle}</h3>
+              <p>{r.you}</p>
+            </div>
           </section>
         </>
       )}
@@ -240,8 +278,8 @@ export function InventoryReportView({
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className={ir.stat}>
-      <span className={ir.statValue}>{formatNumber(value)}</span>
-      <span className={ir.statLabel}>{label}</span>
+      <dt className={ir.statLabel}>{label}</dt>
+      <dd className={ir.statValue}>{formatNumber(value)}</dd>
     </div>
   );
 }
@@ -287,7 +325,7 @@ function Observations({ report }: { report: InventoryReport }) {
     : [];
   if (lines.length === 0) return <p>{r.observationsNone}</p>;
   return (
-    <ul>
+    <ul className={ir.list}>
       {lines.map((l) => (
         <li key={l}>{l}</li>
       ))}
@@ -308,7 +346,7 @@ export function SlotMap({ map }: { map: NonNullable<InventoryReport["map"]> }) {
   return (
     <figure className={ir.slotMap}>
       <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label={r.mapTitle} data-testid="inventory-map">
-        <rect x={0} y={0} width={w} height={h} fill="var(--color-surface-2, #f3f5ef)" rx={2} />
+        <rect x={0} y={0} width={w} height={h} fill="var(--color-surface-2)" rx={2} />
         {map.points.map((p) => (
           <circle
             key={p.code}
@@ -316,7 +354,7 @@ export function SlotMap({ map }: { map: NonNullable<InventoryReport["map"]> }) {
             cy={h - (p.y + pad)}
             r={p.state === "empty" ? 0.9 : 1.3}
             fill={INVENTORY_POINT_COLORS[p.state]}
-            stroke={p.state === "empty" ? "#9aa094" : "none"}
+            stroke={p.state === "empty" ? "var(--color-border-strong)" : "none"}
             strokeWidth={0.25}
           >
             <title>{`${p.code} · ${r.legend[p.state]}`}</title>
@@ -328,7 +366,7 @@ export function SlotMap({ map }: { map: NonNullable<InventoryReport["map"]> }) {
             x={Math.max(0.5, p.x + pad - 3.2)}
             y={h - (p.y + pad) + 0.9}
             fontSize={2.4}
-            fill="#5f6b5f"
+            fill="var(--color-muted)"
           >
             {`S${p.rowNo}`}
           </text>
@@ -337,8 +375,7 @@ export function SlotMap({ map }: { map: NonNullable<InventoryReport["map"]> }) {
       <figcaption className={ir.legend}>
         {(["tree", "interstitial", "empty", "uncertain"] as const).map((s) => (
           <span key={s}>
-            <i style={{ background: INVENTORY_POINT_COLORS[s] }} aria-hidden />
-            {r.legend[s]}
+            <i style={{ background: INVENTORY_POINT_COLORS[s] }} aria-hidden /> {r.legend[s]}
           </span>
         ))}
         <span className="muted">{r.mapScale(formatNumber(map.width, 0))}</span>

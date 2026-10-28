@@ -10,7 +10,11 @@ import { formatDate, formatNumber, t } from "@/lib/i18n";
 import { m2ToDonum } from "@/lib/office/boundary";
 import { BOUNDARY_DECLARATION, type BoundaryCard } from "@/lib/portal/boundary";
 import { BoundaryNotice, MapBoundaryCaption } from "./boundary-notice";
-import styles from "./portal.module.css";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/field";
+import layout from "./page.module.css";
+import styles from "./parcel.module.css";
 
 // Boundary card of the report card: the latest version on a map (the owner's
 // first declaration faint underneath), its area and source, and the owner's
@@ -19,15 +23,20 @@ import styles from "./portal.module.css";
 
 const p = t.inventory.portal;
 
-// A demo visitor (`demo`) sees the card without the approval.
+// A demo visitor (`demo`) sees the card without the approval. The parcel
+// page shows the long notice once by its health map and passes
+// `notice={false}`; the map, while the boundary waits for approval, keeps its
+// short caption.
 export function BoundaryCardView({
   parcelId,
   card,
   demo = false,
+  notice = true,
 }: {
   parcelId: string;
   card: BoundaryCard;
   demo?: boolean;
+  notice?: boolean;
 }) {
   const router = useRouter();
   const [confirmed, setConfirmed] = useState(false);
@@ -39,77 +48,75 @@ export function BoundaryCardView({
   const latest = card.latest;
 
   return (
-    <section className={styles.section} aria-labelledby="sinir-baslik" data-testid="boundary-card">
-      <h2 id="sinir-baslik">{p.boundaryTitle}</h2>
+    <div className={layout.panel} data-testid="boundary-card">
+      <h3>{p.boundaryTitle}</h3>
       {card.disputeOpen && (
-        <p className={styles.notice} role="status" data-testid="boundary-dispute">
-          {t.legal.dispute.portalNotice}
-        </p>
+        <Alert tone="warning" role="status" testId="boundary-dispute">
+          <p>{t.legal.dispute.portalNotice}</p>
+        </Alert>
       )}
       {!latest ? (
         <p className="muted">{p.noBoundary}</p>
       ) : (
         <>
-          <p>
-            <strong data-testid="boundary-area">
-              {latest.areaM2 != null &&
-                t.inventory.area(
-                  formatNumber(latest.areaM2),
-                  formatNumber(m2ToDonum(latest.areaM2), 2),
-                )}
-            </strong>
-            <br />
-            <span className="muted" data-testid="boundary-source">
+          <div className={layout.stack}>
+            <p>
+              <strong data-testid="boundary-area">
+                {latest.areaM2 != null &&
+                  t.inventory.area(
+                    formatNumber(latest.areaM2),
+                    formatNumber(m2ToDonum(latest.areaM2), 2),
+                  )}
+              </strong>
+            </p>
+            <p className={`${styles.small} muted`} data-testid="boundary-source">
               {p.version(latest.version, t.inventory.boundarySource[latest.source])}
               {latest.vertexUncertaintyM != null &&
-                ` · ${p.uncertainty(formatNumber(latest.vertexUncertaintyM, 2))}`}
-            </span>
-          </p>
-          <InventoryMap
-            label={p.boundaryTitle}
-            boundary={latest.ring}
-            declaredBoundary={card.declared?.ring ?? null}
-            height={260}
-            testId="boundary-map"
-          />
-          <MapBoundaryCaption />
-          {card.declared && <p className="muted">{p.declaredNote}</p>}
-          <BoundaryNotice className={styles.notice} />
+                `, ${p.uncertainty(formatNumber(latest.vertexUncertaintyM, 2)).toLocaleLowerCase("tr")}`}
+            </p>
+          </div>
+          {/* Once approved, the health map shows the boundary; the card's own
+              map is for checking it before the approval. */}
+          {!latest.approvedAt && (
+            <div className={layout.stack}>
+              <InventoryMap
+                label={p.boundaryTitle}
+                boundary={latest.ring}
+                declaredBoundary={card.declared?.ring ?? null}
+                height={260}
+                testId="boundary-map"
+              />
+              <MapBoundaryCaption />
+              {card.declared && <p className={`${styles.small} muted`}>{p.declaredNote}</p>}
+            </div>
+          )}
+          {notice && <BoundaryNotice />}
           {latest.approvedAt ? (
-            <p data-testid="boundary-approved">
+            <p className={styles.better} data-testid="boundary-approved">
               ✓ {p.approved(formatDate(latest.approvedAt), latest.approvedByMe)}
             </p>
           ) : card.canApprove && demo ? (
             <DemoNotice text={demoText.closed.boundary} />
           ) : card.canApprove ? (
-            <div className={styles.noPrint}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={confirmed}
-                  onChange={(e) => setConfirmed(e.target.checked)}
-                  data-testid="boundary-confirm"
-                />{" "}
-                {p.confirm}
-              </label>
+            <div className={`${styles.form} ${styles.noPrint}`}>
+              <Checkbox
+                id={`boundary-confirm-${latest.id}`}
+                label={p.confirm}
+                checked={confirmed}
+                onChange={(e) => setConfirmed(e.target.checked)}
+                data-testid="boundary-confirm"
+              />
               {needsDeclaration && (
-                <>
-                  <br />
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={declared}
-                      onChange={(e) => setDeclared(e.target.checked)}
-                      data-testid="boundary-declaration"
-                    />{" "}
-                    {BOUNDARY_DECLARATION}
-                  </label>
-                </>
+                <Checkbox
+                  id={`boundary-declaration-${latest.id}`}
+                  label={BOUNDARY_DECLARATION}
+                  checked={declared}
+                  onChange={(e) => setDeclared(e.target.checked)}
+                  data-testid="boundary-declaration"
+                />
               )}
-              <p>
-                <button
-                  type="button"
-                  className="button"
+              <div className={styles.formActions}>
+                <Button
                   disabled={!confirmed || (needsDeclaration && !declared) || pending}
                   data-testid="boundary-approve"
                   onClick={() =>
@@ -125,12 +132,12 @@ export function BoundaryCardView({
                   }
                 >
                   {pending ? p.approving : p.approve}
-                </button>
-              </p>
+                </Button>
+              </div>
               {error && (
-                <p role="alert" className={styles.danger}>
-                  {error === "demo_read_only" ? demoText.closed.boundary : p.approveError}
-                </p>
+                <Alert tone="danger" role="alert">
+                  <p>{error === "demo_read_only" ? demoText.closed.boundary : p.approveError}</p>
+                </Alert>
               )}
             </div>
           ) : card.awaitingApproval ? (
@@ -140,6 +147,6 @@ export function BoundaryCardView({
           ) : null}
         </>
       )}
-    </section>
+    </div>
   );
 }

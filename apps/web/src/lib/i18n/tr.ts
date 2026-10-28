@@ -1150,10 +1150,15 @@ export const tr = {
     gardens: {
       title: "Bahçelerim",
       empty: "Size açılmış bir bahçe yok.",
+      emptyBody:
+        "Bahçeniz hizmete alındığında ya da bir bahçe sahibi sizi hissedar olarak eklediğinde burada görünür.",
       lastVisit: "Son denetim",
       noVisit: "Henüz yayımlanmış denetim yok",
+      noVisitBody:
+        "İlk ziyaretten sonra uzmanımız sonuçları yayımlayınca bahçenizin durumu burada görünür.",
       trees: (n: number) => `${n} ağaç`,
       urgent: (n: number) => `${n} acil bulgu`,
+      countsLabel: "Ağaçların sınıflara göre sayısı",
       open: "Karneyi aç",
     },
     score: {
@@ -1206,6 +1211,7 @@ export const tr = {
       name: "Ad soyad",
       phone: "Telefon",
       invite: "Hissedar davet et",
+      inviteTitle: "Hissedar davet edin",
       remove: "Erişimi kaldır",
       cancel: "Daveti geri al",
       status: {
@@ -1282,6 +1288,42 @@ export const tr = {
       inventoryReport: "Envanter raporu",
       noResults:
         "Bu bahçe için henüz yayımlanmış bir denetim sonucu yok. Uzman raporu imzalayınca sonuçlar burada görünür.",
+      noResultsTitle: "Henüz yayımlanmış denetim yok",
+      noResultsNext:
+        "İlk ziyaretten sonra uzmanımız sonuçları yayımlayınca ağaçların durumu, harita ve bulgular burada görünür.",
+      attentionTitle: "Dikkat isteyenler",
+      calmTitle: "Acil bir durum yok",
+      calmBody: "Son denetimde acil ya da önemli bir bulgu çıkmadı.",
+      findingSummary: (high: number, medium: number) =>
+        [high > 0 ? `${high} acil` : null, medium > 0 ? `${medium} önemli` : null]
+          .filter(Boolean)
+          .join(", ") + " bulgu",
+      kindTrees: (n: number) => (n === 1 ? "1 yerde" : `${n} yerde`),
+      moreCodes: (n: number) => `ve ${n} tane daha`,
+      showOnMapFiltered: "Bu ağaçları haritada göster",
+      allFindings: "Bütün bulgular",
+      worseSince: (n: number) => `${n} ağacın durumu önceki denetime göre kötüleşti.`,
+      showChanged: "Değişen ağaçlar",
+      boundaryPending: "Bahçe sınırını onaylamanız bekleniyor.",
+      boundaryReview: "Sınırı inceleyin",
+      onThisPage: "Bu sayfada",
+      nav: {
+        map: "Harita",
+        findings: "Bulgular",
+        details: "Karne ayrıntıları",
+        boundary: "Sınır ve envanter",
+        service: "Hizmet",
+        visits: "Ziyaretler",
+        questions: "Sorular",
+        viewers: "Hissedarlar",
+      },
+      classHelpTitle: "Sınıflar ne anlama geliyor?",
+      scoreHelpTitle: "Skor nasıl hesaplanır?",
+      detailsTitle: "Karne ayrıntıları",
+      boundaryTitle: "Sınır ve envanter",
+      visitsTitle: "Ziyaretler",
+      findingsLead: "Önem sırasına göre. Ağaç koduna dokunarak ağacın karnesini açın.",
+      moreInGroup: (n: number) => `${n} bulgu daha göster`,
       summaryTitle: "Son denetim",
       visitOf: (date: string) => `${date} tarihli denetim`,
       methodology: (version: string) => `Yöntem: ${version}`,
@@ -1299,7 +1341,7 @@ export const tr = {
       changeLine: (from: string, to: string) => `${from} → ${to}`,
       moreTrees: (n: number) => `ve ${n} ağaç daha`,
       mapTitle: "Sağlık haritası",
-      mapHint: "Bir ağaca dokunun; ayrıntılar haritanın yanında açılır.",
+      mapHint: "Ayrıntıları görmek için haritada bir ağaca dokunun.",
       findingsTitle: "Bulgular",
       findingsEmpty: "Bu denetimde bulgu yok.",
       moreFindings: (n: number) => `${n} bulgu daha`,
@@ -1875,6 +1917,7 @@ export const tr = {
     pdf: "PDF indir",
     back: "Bahçe karnesi",
     draft: "Taslak: sınır onayınızı bekliyor",
+    notApprovedTitle: "Envanter henüz hazır değil",
     notApproved:
       "Envanter henüz uzman onayından geçmedi. Onaylandığında sayım ve harita bu sayfada görünür.",
     subtitle: (date: string) => `${date} tarihli ilk sayım`,

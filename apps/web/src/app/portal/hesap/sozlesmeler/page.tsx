@@ -1,7 +1,11 @@
 import Link from "next/link";
-import { ContractDocumentTable } from "@/components/contracts/document-list";
-import ops from "@/components/operations/operations.module.css";
-import styles from "@/components/portal/portal.module.css";
+import styles from "@/components/portal-billing/account.module.css";
+import { StatusBadge } from "@/components/portal-billing/status-badge";
+import layout from "@/components/portal/page.module.css";
+import { Alert } from "@/components/ui/alert";
+import { buttonClass } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import {
   accessTokenOf,
@@ -10,9 +14,10 @@ import {
   missingKinds,
   retryAfterResponse,
   stateRefOf,
+  type ContractDocumentRow,
 } from "@/lib/contracts/generate";
-import { contractsText as C } from "@/lib/i18n/messages/contracts";
-import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
+import { formatDateTime } from "@/lib/i18n";
+import { contractsText as C, type ContractDocumentKind } from "@/lib/i18n/messages/contracts";
 import { listOrders } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
@@ -23,7 +28,9 @@ const L = C.list;
 // Orders whose documents a visit may retry at most (the rest on the next).
 const RETRIES_PER_VISIT = 3;
 
-// Hesabım › Sözleşmelerim (H12, T04): the order-specific contract documents.
+const kindLabel = (kind: string) => C.kind[kind as ContractDocumentKind] ?? kind;
+
+// Sözleşmelerim (H12, T04): the order-specific contract documents.
 // Missing documents of the customer's orders (a failed generation after the
 // acceptance, or the withdrawal confirmation of an order paid since) are
 // retried after the response, from the acceptance snapshot, and say they are
@@ -33,65 +40,124 @@ const RETRIES_PER_VISIT = 3;
 export default async function ContractsPage() {
   const user = assertCustomer(await requireSection("portal"));
   const supabase = await createClient();
-  const orders = (await listOrders(supabase, user.id)).filter((o) => o.quote_id);
-  const documents = await customerDocuments(supabase);
-  const accessToken = await accessTokenOf(supabase);
+  const [allOrders, documents, accessToken] = await Promise.all([
+    listOrders(supabase, user.id),
+    customerDocuments(supabase),
+    accessTokenOf(supabase),
+  ]);
+  const orders = allOrders.filter((o) => o.quote_id);
+  const docsOf = (orderId: string) => documents.filter((d) => d.order_id === orderId);
+  // The state of every order with a missing document, read in parallel.
+  const incomplete = orders.filter((o) => missingKinds(o.activated_at, docsOf(o.id)).length > 0);
+  const states = await Promise.all(
+    incomplete.map((o) => documentState(supabase, stateRefOf(o), docsOf(o.id)).catch(() => null)),
+  );
   const preparing = new Set<string>();
   const manualCopy = new Set<string>();
-  for (const order of orders) {
-    const docs = documents.filter((d) => d.order_id === order.id);
-    if (missingKinds(order.activated_at, docs).length === 0) continue;
-    const state = await documentState(supabase, stateRefOf(order), docs).catch(() => null);
+  incomplete.forEach((order, i) => {
+    const state = states[i];
     if (state?.state === "manual_copy") {
       manualCopy.add(order.id);
-      continue;
+      return;
     }
     preparing.add(order.id);
     if (state && accessToken && preparing.size <= RETRIES_PER_VISIT) {
       retryAfterResponse(accessToken, order.id);
     }
-  }
+  });
 
   return (
-    <main className={styles.page} data-testid="contracts">
-      <p>
-        <Link href={portalHref.account()}>← {P.nav.account}</Link>
-      </p>
-      <h1>{L.title}</h1>
-      <p>{L.intro}</p>
-      {orders.length === 0 && <p className="muted">{L.empty}</p>}
+    <main className={layout.narrow} data-testid="contracts">
+      <PageHeader title={L.title} lead={L.intro} />
+      {orders.length === 0 && (
+        <EmptyState title={L.empty}>
+          <p>{L.emptyBody}</p>
+        </EmptyState>
+      )}
       {orders.map((order) => {
-        const docs = documents.filter((d) => d.order_id === order.id);
+        const docs = docsOf(order.id);
         return (
           <section
             key={order.id}
-            className={styles.section}
+            className={layout.section}
             data-testid="contracts-order"
             data-order-id={order.id}
+            aria-labelledby={`order-${order.id}`}
           >
-            <h2>
-              <Link href={portalHref.order(order.id)}>{L.order(order.number)}</Link>
-            </h2>
+            <div className={styles.orderHead}>
+              <h2 id={`order-${order.id}`}>
+                <span className={layout.nowrap}>{L.order(order.number)}</span>
+                <StatusBadge kind="order" status={order.status} />
+              </h2>
+              <Link className={layout.nowrap} href={portalHref.order(order.id)}>
+                {L.openOrder}
+              </Link>
+            </div>
             {docs.length > 0 && (
-              <ContractDocumentTable
-                documents={docs}
-                hrefOf={(d) => `/portal/hesap/sozlesmeler/${d.id}`}
-              />
+              <ul
+                className={`${layout.panel} ${layout.rows} ${styles.rowsPanel}`}
+                data-testid="contract-documents"
+              >
+                {docs.map((d) => (
+                  <DocumentRow key={d.id} doc={d} />
+                ))}
+              </ul>
             )}
             {preparing.has(order.id) && (
-              <p className={ops.notice} data-testid="contracts-preparing">
-                {L.preparing}
-              </p>
+              <Alert tone="info" testId="contracts-preparing">
+                <p>{L.preparing}</p>
+              </Alert>
             )}
             {manualCopy.has(order.id) && (
-              <p className={ops.notice} data-testid="contracts-manual-copy">
-                {L.manualCopy}
-              </p>
+              <Alert tone="warning" testId="contracts-manual-copy">
+                <p>{L.manualCopy}</p>
+              </Alert>
             )}
           </section>
         );
       })}
-      <p className="muted">{L.copyNote}</p>
+      <p className={`${layout.muted} ${layout.small}`}>{L.copyNote}</p>
     </main>
+  );
+}
+
+// One stored document: what it is, when it was made, its text version and
+// size, the fingerprint on request, and the download.
+function DocumentRow({ doc }: { doc: ContractDocumentRow }) {
+  const name = kindLabel(doc.kind);
+  return (
+    <li data-kind={doc.kind}>
+      <div className={layout.rowMain}>
+        <h3 className={styles.name}>{name}</h3>
+        {L.about[doc.kind] && <p className={styles.meta}>{L.about[doc.kind]}</p>}
+        <dl className={styles.docFacts}>
+          <div>
+            <dt>{L.created}</dt>
+            <dd>{formatDateTime(doc.created_at)}</dd>
+          </div>
+          <div>
+            <dt>{L.version}</dt>
+            <dd>{doc.text_version}</dd>
+          </div>
+          <div>
+            <dt>{L.size}</dt>
+            <dd>{L.kb(doc.size_bytes)}</dd>
+          </div>
+        </dl>
+        <details className={styles.details}>
+          <summary>{L.sha}</summary>
+          <p className={styles.hash}>{doc.sha256}</p>
+        </details>
+      </div>
+      <a
+        className={buttonClass({ variant: "secondary" })}
+        href={`/portal/hesap/sozlesmeler/${doc.id}`}
+        download
+        data-testid="contract-download"
+        aria-label={L.downloadPdf(name)}
+      >
+        {L.download}
+      </a>
+    </li>
   );
 }

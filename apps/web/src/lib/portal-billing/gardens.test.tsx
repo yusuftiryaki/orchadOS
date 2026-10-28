@@ -298,15 +298,35 @@ describe("account gardens", () => {
         changesEnabled
       />,
     );
-    const pilot = html.slice(html.indexOf('data-testid="pilot-gardens"'));
-    const over = html.slice(
+    // One list: in service, then pilot, then out of service.
+    const pilot = html.slice(
+      html.indexOf('data-testid="pilot-gardens"'),
       html.indexOf('data-testid="out-of-service-gardens"'),
+    );
+    const over = html.slice(html.indexOf('data-testid="out-of-service-gardens"'));
+    expect(html.indexOf('data-testid="garden-row"')).toBeLessThan(
       html.indexOf('data-testid="pilot-gardens"'),
     );
     expect(pilot).toContain("Pilot");
     expect(pilot).toContain(P.gardens.pilotContact);
+    expect(pilot).not.toContain(P.gardens.empty);
     expect(over).toContain("Eski bahçe");
     expect(over).toContain(P.gardens.outOfService);
     expect(over).not.toContain(P.gardens.pilotContact);
+  });
+
+  it("lists a pilot garden as a garden the customer has, not as 'no gardens'", () => {
+    const html = renderToStaticMarkup(
+      <MyGardens gardens={[]} pilot={[{ id: "p2", name: "Pilot" }]} addHref="/x" changesEnabled />,
+    );
+    expect(html).toContain("Pilot");
+    expect(html).toContain(P.gardens.pilotState);
+    expect(html).not.toContain(P.gardens.empty);
+    // Nothing at all: the empty state with the add action.
+    const empty = renderToStaticMarkup(
+      <MyGardens gardens={[]} pilot={[]} addHref="/x" changesEnabled />,
+    );
+    expect(empty).toContain(P.gardens.empty);
+    expect(empty).toContain('data-testid="my-gardens-add"');
   });
 });
