@@ -19,6 +19,7 @@ on:
       - "supabase/config.toml"
       - ".github/workflows/deploy-db-pilot.yml"
       - "scripts/demo-guard-check.sh"
+      - "scripts/retention-check.sh"
   workflow_dispatch:
 
 concurrency:
@@ -158,3 +159,12 @@ jobs:
       # verify_jwt per function comes from supabase/config.toml.
       - name: Deploy Edge Functions
         run: pnpm exec supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api
+
+      # T09 (docs/hukuk/kararlar.md H25): while an org accepts sign-ups, the
+      # pg_cron job signup-cleanup, Vault signup_cleanup_url and an
+      # orchados_cron_secret equal to the ORCHADOS_CRON_SECRET Edge secret
+      # must be in place, or accounts whose phone is never verified stay.
+      # After the push: the job comes with the migrations.
+      - name: Check the unverified-account clean-up
+        if: ${{ !cancelled() && steps.link.outcome == 'success' && steps.locks.outcome == 'success' }}
+        run: scripts/retention-check.sh signup

@@ -17,6 +17,9 @@ name: deploy-db-demo
 # migrations and Edge Functions. The job then runs in the `test` environment
 # with the test project's secrets and only checks the shared demo locks
 # (scripts/demo-lock-check.sh shared); nothing is pushed twice.
+#
+# Either way the project hosting the demo must purge GoTrue audit rows within
+# 30 days (scripts/retention-check.sh audit; docs/hukuk/kararlar.md H27, T09).
 
 on:
   push:
@@ -28,6 +31,7 @@ on:
       - ".github/workflows/deploy-db-demo.yml"
       - "scripts/demo-guard-check.sh"
       - "scripts/demo-lock-check.sh"
+      - "scripts/retention-check.sh"
   workflow_dispatch:
 
 concurrency:
@@ -50,6 +54,7 @@ jobs:
       SUPABASE_PROJECT_REF: ${{ secrets[vars.DEMO_HOST == 'test' && 'SUPABASE_PROJECT_REF' || 'DEMO_SUPABASE_PROJECT_REF'] }}
     steps:
       - name: Check the demo project's secrets
+        id: secrets
         run: |
           if [ "$SHARED" = "true" ]; then
             if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
@@ -120,3 +125,12 @@ jobs:
       - name: Deploy Edge Functions
         if: env.SHARED != 'true'
         run: pnpm exec supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api
+
+      # T09 (docs/hukuk/kararlar.md H27): the pg_cron job auth-audit-log-purge
+      # is active and auth.audit_log_entries holds no row older than 31 days
+      # (the privacy text promises at most 30; a day of slack for the daily
+      # job). Shared: the test project, after the demo locks; separate: after
+      # the push, which brings the job.
+      - name: Check the GoTrue audit log purge
+        if: ${{ !cancelled() && steps.secrets.outcome == 'success' && (env.SHARED == 'true' || (steps.link.outcome == 'success' && steps.locks.outcome == 'success')) }}
+        run: scripts/retention-check.sh audit

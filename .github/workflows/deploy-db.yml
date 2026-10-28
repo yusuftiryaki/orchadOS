@@ -9,6 +9,9 @@ name: deploy-db
 # secrets fail the job; before the test project is set up, the repository
 # variable SUPABASE_TEST_PENDING=1 turns that into an explicit skip.
 #
+# After the deploy, open sign-ups need a working clean-up of accounts whose
+# phone was never verified (scripts/retention-check.sh signup; T09).
+#
 # While the test project hosts the public demo tour (repository variable
 # DEMO_HOST=test, docs/demo-turu.md §15.1), this is also the demo's deploy:
 # the last step checks the shared demo locks.
@@ -23,6 +26,7 @@ on:
       - ".github/workflows/deploy-db.yml"
       - "scripts/demo-guard-check.sh"
       - "scripts/demo-lock-check.sh"
+      - "scripts/retention-check.sh"
   workflow_dispatch:
 
 concurrency:
@@ -110,3 +114,11 @@ jobs:
       - name: Check shared demo locks
         if: ${{ !cancelled() && steps.guard.outputs.ready == 'true' && vars.DEMO_HOST == 'test' }}
         run: scripts/demo-lock-check.sh shared
+
+      # T09 (docs/hukuk/kararlar.md H25): while an org accepts sign-ups, the
+      # pg_cron job signup-cleanup, Vault signup_cleanup_url and an
+      # orchados_cron_secret equal to the ORCHADOS_CRON_SECRET Edge secret
+      # must be in place, or accounts whose phone is never verified stay.
+      - name: Check the unverified-account clean-up
+        if: ${{ !cancelled() && steps.guard.outputs.ready == 'true' && steps.link.outcome == 'success' }}
+        run: scripts/retention-check.sh signup

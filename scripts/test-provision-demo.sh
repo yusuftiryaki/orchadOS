@@ -8,7 +8,8 @@
 # pilot and a foreign anon key are refused, a leftover ORCHADOS_DEMO_MODE=dev is
 # removed, init_cron_secret creates the test project's cron secret only when
 # both sides are missing (refused with one side), and the move to a separate project
-# catches a leftover. Then scripts/demo-lock-check.sh in both modes. Every
+# catches a leftover. Then scripts/demo-lock-check.sh in both modes and
+# scripts/retention-check.sh (signup, audit). Every
 # run's output and job summary is checked for secret values.
 # Every SQL text sent is then run on Postgres when DB_URL is set
 # (scripts/test-script-sql.sh).
@@ -439,13 +440,53 @@ if lock l12 separate $D; then bad "lock separate: a dummy Turnstile key fails"; 
   check "lock separate: a dummy Turnstile key fails" grep -q 'TURNSTILE_SECRET_KEY on .* is a Cloudflare test key' "$work/l12.lock"; fi
 check "lock: no secret value in the output" bash -c "! grep -qE 'sb-token-SECRET|(test|demo)-(hash|proxy|cron)-SECRET|live-demo-SECRET' '$work'/l*.lock"
 
+# --- scripts/retention-check.sh -------------------------------------------------
+# retention NAME MODE REF: runs the check against the mock; output in $work/NAME.ret.
+retention() {
+  env -i PATH="$PATH" SUPABASE_API="$base/sb" SUPABASE_ACCESS_TOKEN=sb-token-SECRET SUPABASE_PROJECT_REF="$3" \
+    bash "$here/retention-check.sh" "$2" >"$work/$1.ret" 2>&1
+}
+ret() { ctl set-retention "{\"ref\":\"$1\",\"retention\":$2}" >/dev/null; }
+# The test project's ORCHADOS_CRON_SECRET is test-cron-SECRET (mock state).
+cron_digest=$(printf 'test-cron-SECRET' | sha256sum | cut -d' ' -f1)
+ret $T '{"signup_orgs":0}'
+check "retention signup: no org accepts sign-ups passes" retention r1 signup $T
+ok_ret="{\"signup_orgs\":1,\"signup_cleanup_jobs\":1,\"signup_cleanup_url\":1,\"cron_secret_digest\":\"$cron_digest\"}"
+ret $T "$ok_ret"
+check "retention signup: open sign-ups with the clean-up set up pass" retention r2 signup $T
+for broken in signup_cleanup_jobs signup_cleanup_url; do
+  ret $T "$(jq -c --arg k "$broken" '.[$k] = 0' <<<"$ok_ret")"
+  if retention r3 signup $T; then bad "retention signup: no $broken fails"; else
+    check "retention signup: no $broken fails" grep -q '::error::accepts_signups is on' "$work/r3.ret"; fi
+done
+ret $T "$(jq -c '.cron_secret_digest = ""' <<<"$ok_ret")"
+if retention r4 signup $T; then bad "retention signup: no Vault cron secret fails"; else
+  check "retention signup: no Vault cron secret fails" grep -q 'Vault has no orchados_cron_secret' "$work/r4.ret"; fi
+ret $T "$(jq -c '.cron_secret_digest = "0000"' <<<"$ok_ret")"
+if retention r5 signup $T; then bad "retention signup: a Vault cron secret other than the Edge one fails"; else
+  check "retention signup: a Vault cron secret other than the Edge one fails" grep -q 'differs from the ORCHADOS_CRON_SECRET' "$work/r5.ret"; fi
+ret $D "$(jq -c '.cron_secret_digest = "0000"' <<<"$ok_ret")"
+ctl drop-secret "{\"ref\":\"$D\",\"name\":\"ORCHADOS_CRON_SECRET\"}" >/dev/null
+if retention r6 signup $D; then bad "retention signup: no ORCHADOS_CRON_SECRET Edge secret fails"; else
+  check "retention signup: no ORCHADOS_CRON_SECRET Edge secret fails" grep -q 'ORCHADOS_CRON_SECRET Edge secret is missing' "$work/r6.ret"; fi
+ret $T '{"audit_purge_jobs":1,"audit_rows_old":0}'
+check "retention audit: an active purge job and no old rows pass" retention r7 audit $T
+ret $T '{"audit_purge_jobs":0,"audit_rows_old":0}'
+if retention r8 audit $T; then bad "retention audit: no purge job fails"; else
+  check "retention audit: no purge job fails" grep -q 'auth-audit-log-purge is missing or inactive' "$work/r8.ret"; fi
+ret $T '{"audit_purge_jobs":1,"audit_rows_old":12}'
+if retention r9 audit $T; then bad "retention audit: rows older than 31 days fail"; else
+  check "retention audit: rows older than 31 days fail" grep -q '12 row(s) older than 31 days' "$work/r9.ret"; fi
+check "retention: usage error without a mode" bash -c "! bash '$here/retention-check.sh' >/dev/null 2>&1"
+check "retention: no secret value in the output" bash -c "! grep -qE 'sb-token-SECRET|test-cron-SECRET' '$work'/r*.ret"
+
 # Every SQL text the scripts sent; the mock answered them blindly. Each kind
 # must be there, then they run on a real Postgres when DB_URL is set
 # (scripts/test-script-sql.sh; CI sets it).
 ctl queries >"$work/queries.json"
-check "sql: Vault name lookup, Vault upsert and lock query were sent" jq -e '
+check "sql: Vault name lookup, Vault upsert, lock and retention queries were sent" jq -e '
   any(.[]; startswith("select name from vault.secrets")) and any(.[]; test("perform vault\\.create_secret"))
-  and any(.[]; test("as real_orgs"))' "$work/queries.json" >/dev/null
+  and any(.[]; test("as real_orgs")) and any(.[]; test("as signup_orgs"))' "$work/queries.json" >/dev/null
 check "sql: the test project's cron secret init (Vault upsert next to demo_cleanup_url) was sent" jq -e '
   any(.[]; test("testref000000000000\\.supabase\\.co/functions/v1/demo-start") and test("vault\\.create_secret\\(\u0027[0-9a-f]{64}\u0027, \u0027orchados_cron_secret\u0027\\)"))' \
   "$work/queries.json" >/dev/null

@@ -41,6 +41,8 @@ def test_project_state():
                   "send_notifications_url": "https://testref000000000000.supabase.co/functions/v1/send-notifications"},
         # Demo lock query answer (scripts/demo-lock-check.sh).
         "locks": {},
+        # Retention query answer (scripts/retention-check.sh).
+        "retention": {},
     }
 
 
@@ -64,6 +66,7 @@ def fresh_state():
         "secrets": {},
         "vault": {},
         "locks": {},
+        "retention": {},
         "test": test_project_state(),
         "vercel": None,
         "vercel_env": [],
@@ -152,6 +155,8 @@ class Handler(BaseHTTPRequestHandler):
             self.store(body.get("ref", DEMO_REF))["vault"].pop(body["name"], None)
         elif op == "set-locks":
             self.store(body.get("ref", DEMO_REF))["locks"] = body["locks"]
+        elif op == "set-retention":
+            self.store(body.get("ref", DEMO_REF))["retention"] = body["retention"]
         elif op == "set-secret":
             self.store(body.get("ref", DEMO_REF))["secrets"][body["name"]] = body["value"]
         return self.reply(200, STATE)
@@ -226,6 +231,11 @@ class Handler(BaseHTTPRequestHandler):
                 counts = {"real_orgs": 0, "enabled_demo_orgs": 0, "cleanup_url": 0, "cron_secret": 0,
                           "billing_orgs": 0, "demo_billing_orgs": 0, "demo_users_outside": 0}
                 counts.update(st["locks"])
+                return self.reply(201, [counts])
+            if "as signup_orgs" in q:
+                counts = {"signup_orgs": 0, "signup_cleanup_jobs": 0, "signup_cleanup_url": 0,
+                          "cron_secret_digest": "", "audit_purge_jobs": 0, "audit_rows_old": 0}
+                counts.update(st["retention"])
                 return self.reply(201, [counts])
             # scripts/provision-demo.sh vault_upsert: update when the name exists, else create.
             ups = re.findall(
