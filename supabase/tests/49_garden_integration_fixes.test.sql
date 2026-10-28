@@ -133,7 +133,8 @@ declare
   v uuid;
 begin
   perform pg_temp.ops();
-  v := public.ops_request_garden_removal(pg_temp.item_of(p_order), p_reason, pg_temp.today(), p_note, p_access);
+  v := public.ops_request_garden_removal(pg_temp.item_of(p_order), case p_reason when 'sold' then 'staff_safety' else p_reason end, pg_temp.today(), p_note, p_access,
+    p_owner_consent_note => case when p_reason = 'transfer' then 'Sahip yazılı onay verdi' end);
   perform public.ops_complete_garden_removal(v);
   return v;
 end;
@@ -241,7 +242,7 @@ select pg_temp.ops();
 select public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o4'), 1), 'duplicate', pg_temp.today() + 5,
   'mükerrer kayıt');
 select pg_temp.as_user(pg_temp.id('c4'));
-select public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o4'), 2), 'cost');
+select public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o4'), 2), 'cost', 'notice');
 select results_eq(
   $$ select removal_initiated_by from public.my_gardens() where order_id = pg_temp.id('o4') order by parcel_id = pg_temp.parcel_of(pg_temp.id('o4'), 2) $$,
   $$ values ('ops'::text), ('customer'::text) $$, 'my_gardens: removal_initiated_by of each open removal');
@@ -264,7 +265,8 @@ values ('b0000000-0000-4000-8000-000000000001', pg_temp.id('p5'), pg_temp.id('cB
         pg_temp.id('cB'));
 select pg_temp.ops();
 insert into ids select 'r5', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('oA')), 'transfer',
-  pg_temp.today(), 'hisse devri', 0, true);
+  pg_temp.today(), 'hisse devri', 0, true,
+    p_owner_consent_note => 'Sahip yazılı onay verdi');
 select public.ops_complete_garden_removal(pg_temp.id('r5'));
 insert into ids select 'oB', pg_temp.accept(pg_temp.id('cB'), public.ops_issue_parcel_quote(
   'b0000000-0000-4000-8000-000000000001', pg_temp.id('cB'), '91200000-0000-4000-8000-000000000001',
@@ -289,7 +291,8 @@ insert into public.parcel_access (org_id, parcel_id, user_id, role, granted_by)
 values ('b0000000-0000-4000-8000-000000000001', pg_temp.id('p6'), pg_temp.id('cD'), 'owner', null);
 select pg_temp.ops();
 insert into ids select 'r6', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('oC')), 'transfer',
-  pg_temp.today(), 'hisse devri', 0, true);
+  pg_temp.today(), 'hisse devri', 0, true,
+    p_owner_consent_note => 'Sahip yazılı onay verdi');
 select public.ops_complete_garden_removal(pg_temp.id('r6'));
 select testing.run_garden_removal_housekeeping();
 select is((select count(*)::integer from public.parcel_access where parcel_id = pg_temp.id('p6')), 0,

@@ -175,10 +175,10 @@ select is((select withdrawal_until from public.my_gardens() where parcel_id = pg
   'the service card shows the renewal''s withdrawal period');
 select results_eq(
   $$ select order_item_id, refund_estimate_kurus, line_count
-     from public.customer_garden_removal_preview(pg_temp.id('r2p'), false, true) $$,
+     from public.customer_garden_removal_preview(pg_temp.id('r2p'), 'withdrawal') $$,
   $$ select pg_temp.item_of(pg_temp.id('r2b')), 1200000::bigint, 1 $$,
   'the preview refunds the renewal alone');
-insert into ids select 'w2', public.customer_request_garden_removal(pg_temp.id('r2p'), 'other', null, false, true);
+insert into ids select 'w2', public.customer_request_garden_removal(pg_temp.id('r2p'), 'other', 'withdrawal');
 select is((select order_item_id from public.garden_removal where id = pg_temp.id('w2')),
   pg_temp.item_of(pg_temp.id('r2b')), 'the portal withdrawal targets the renewal line (switch off)');
 select pg_temp.ops();
@@ -194,13 +194,13 @@ insert into ids select 'o3', pg_temp.new_order(pg_temp.id('c3'), 37.521, false);
 update public.service_order set activated_at = now() - interval '20 days' where id = pg_temp.id('o3');
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('c3'));
-select is(pg_temp.error_of(format($$ select public.customer_request_garden_removal(%L, 'other', null, false, true) $$,
+select is(pg_temp.error_of(format($$ select public.customer_request_garden_removal(%L, 'other', 'withdrawal') $$,
   pg_temp.parcel_of(pg_temp.id('o3')))), 'P0001 garden_changes_closed', 'no open withdrawal period: closed');
 reset role;
 update public.org_billing_setting set garden_changes_enabled = true where org_id = 'b0000000-0000-4000-8000-000000000001';
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('c3'));
-select is(pg_temp.error_of(format($$ select public.customer_garden_removal_preview(%L, false, true) $$,
+select is(pg_temp.error_of(format($$ select public.customer_garden_removal_preview(%L, 'withdrawal') $$,
   pg_temp.parcel_of(pg_temp.id('o3')))), 'P0001 withdrawal_expired', 'and expired with the switch on');
 reset role;
 

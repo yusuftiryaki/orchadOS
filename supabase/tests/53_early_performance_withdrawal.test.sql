@@ -187,7 +187,7 @@ select pg_temp.visit(pg_temp.id('p1'), 'periodic_scan', 'captured', pg_temp.toda
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('c1'));
 select results_eq(
-  $$ select refund_estimate_kurus, withdrawal from public.customer_garden_removal_preview(pg_temp.id('p1'), false, true) $$,
+  $$ select refund_estimate_kurus, withdrawal from public.customer_garden_removal_preview(pg_temp.id('p1'), 'withdrawal') $$,
   $$ values (1200000::bigint, true) $$, 'preview: the whole amount without the box');
 reset role;
 -- With the box the done visit is deducted (this package has no inventory share).
@@ -195,7 +195,7 @@ select pg_temp.visit(pg_temp.id('p2'), 'inventory', 'captured', pg_temp.today() 
 select pg_temp.visit(pg_temp.id('p2'), 'periodic_scan', 'captured', pg_temp.today() - 1);
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('c2'));
-select is((select refund_estimate_kurus from public.customer_garden_removal_preview(pg_temp.id('p2'), false, true)),
+select is((select refund_estimate_kurus from public.customer_garden_removal_preview(pg_temp.id('p2'), 'withdrawal')),
   1200000::bigint - 300000, 'with the box: the done visit is deducted (8B/4)');
 reset role;
 
@@ -204,9 +204,9 @@ reset role;
 update public.org_billing_setting set garden_changes_enabled = false where org_id = 'b0000000-0000-4000-8000-000000000001';
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('c1'));
-select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.id('p1'), 'sold') $$),
+select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.id('p1'), 'sold', 'notice') $$),
   'P0001 garden_changes_closed', 'every other timing stays closed');
-insert into ids select 'w1', public.customer_request_garden_removal(pg_temp.id('p1'), 'dissatisfied', null, false, true);
+insert into ids select 'w1', public.customer_request_garden_removal(pg_temp.id('p1'), 'dissatisfied', 'withdrawal');
 reset role;
 select results_eq(
   $$ select status::text, withdrawal, initiated_by, notice_channel, notice_received_on
@@ -228,11 +228,11 @@ update public.org_billing_setting set garden_changes_enabled = true where org_id
 -- Supersede: a removal "in 30 days" gives way to the withdrawal.
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('c2'));
-insert into ids select 'r2', public.customer_request_garden_removal(pg_temp.id('p2'), 'not_needed');
-select is((select effective_on from public.customer_garden_removal_preview(pg_temp.id('p2'), false, true)), pg_temp.today(),
+insert into ids select 'r2', public.customer_request_garden_removal(pg_temp.id('p2'), 'not_needed', 'notice');
+select is((select effective_on from public.customer_garden_removal_preview(pg_temp.id('p2'), 'withdrawal')), pg_temp.today(),
   'the withdrawal preview is offered over an open removal');
-insert into ids select 'w2', public.customer_request_garden_removal(pg_temp.id('p2'), 'not_needed', null, false, true);
-select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.id('p2'), 'sold', null, false, true) $$),
+insert into ids select 'w2', public.customer_request_garden_removal(pg_temp.id('p2'), 'not_needed', 'withdrawal');
+select is(pg_temp.error_of($$ select public.customer_request_garden_removal(pg_temp.id('p2'), 'sold', 'withdrawal') $$),
   'P0001 garden_removal_open', 'one open withdrawal per garden');
 reset role;
 select results_eq(
@@ -283,7 +283,7 @@ select is((select details ->> 'notice_channel' from public.audit_event where ent
 update public.org_billing_setting set garden_changes_enabled = false where org_id = 'b0000000-0000-4000-8000-000000000001';
 set local role authenticated;
 select pg_temp.ops();
-select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'sold', %L) $$,
+select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'staff_safety', %L) $$,
   pg_temp.item_of(pg_temp.id('o6')), pg_temp.today() + 10)), 'P0001 garden_changes_closed',
   'other ops removals stay closed');
 insert into ids select 'w6', (public.ops_record_withdrawal(array[pg_temp.item_of(pg_temp.id('o6'))],

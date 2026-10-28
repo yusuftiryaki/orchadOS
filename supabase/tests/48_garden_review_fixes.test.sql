@@ -137,7 +137,8 @@ declare
   v uuid;
 begin
   perform pg_temp.ops();
-  v := public.ops_request_garden_removal(pg_temp.item_of(p_order), p_reason, pg_temp.today(), p_note, p_access);
+  v := public.ops_request_garden_removal(pg_temp.item_of(p_order), case p_reason when 'sold' then 'staff_safety' else p_reason end, pg_temp.today(), p_note, p_access,
+    p_owner_consent_note => case when p_reason = 'transfer' then 'Sahip yazılı onay verdi' end);
   perform public.ops_complete_garden_removal(v);
   return v;
 end;
@@ -179,7 +180,8 @@ insert into ids select 'c2', pg_temp.new_customer(2);
 insert into ids select 'o2', pg_temp.new_order(pg_temp.id('c2'), array[20000], 40.20);
 select pg_temp.ops();
 insert into ids select 'r2', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o2')), 'transfer',
-  pg_temp.today() + 5, 'parsel satıldı', 0);
+  pg_temp.today() + 5, 'parsel satıldı', 0,
+    p_owner_consent_note => 'Sahip yazılı onay verdi');
 select pg_temp.as_user(pg_temp.id('c2'));
 select is(pg_temp.error_of($$ select public.customer_cancel_garden_removal(pg_temp.id('r2')) $$),
   'P0001 removal_not_open', 'the former owner cannot undo a transfer removal ops opened');
@@ -187,7 +189,7 @@ select is((select status::text from public.garden_removal where id = pg_temp.id(
   'the ops removal stays scheduled');
 insert into ids select 'o2b', pg_temp.new_order(pg_temp.id('c2'), array[20000], 40.25);
 select pg_temp.as_user(pg_temp.id('c2'));
-insert into ids select 'r2b', public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o2b')), 'cost');
+insert into ids select 'r2b', public.customer_request_garden_removal(pg_temp.parcel_of(pg_temp.id('o2b')), 'cost', 'notice');
 select pg_temp.ops();
 select public.ops_schedule_garden_removal(pg_temp.id('r2b'), pg_temp.today() + 30);
 select pg_temp.as_user(pg_temp.id('c2'));
@@ -205,7 +207,7 @@ insert into ids select 'p3', pg_temp.parcel_of(pg_temp.id('o3'));
 select pg_temp.visit(pg_temp.id('p3'), 'inventory', 'captured', pg_temp.today(), 0);
 insert into ids select 's3', pg_temp.visit(pg_temp.id('p3'), 'periodic_scan', 'planned', pg_temp.today());
 select pg_temp.as_user(pg_temp.id('c3'));
-insert into ids select 'r3', public.customer_request_garden_removal(pg_temp.id('p3'), 'dissatisfied', null, false, true);
+insert into ids select 'r3', public.customer_request_garden_removal(pg_temp.id('p3'), 'dissatisfied', 'withdrawal');
 update public.session set status = 'captured', started_at = now() where id = pg_temp.id('s3');
 select pg_temp.ops();
 select public.ops_complete_garden_removal(pg_temp.id('r3'));
@@ -265,8 +267,8 @@ insert into ids select 'o7', pg_temp.new_order(pg_temp.id('c7'), array[20000], 4
 insert into ids select 'c8', pg_temp.new_customer(8);
 insert into ids select 'o8', pg_temp.new_order(pg_temp.id('c8'), array[20000], 40.80);
 select pg_temp.ops();
-insert into ids select 'r6', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o6')), 'sold', pg_temp.today());
-insert into ids select 'r7', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o7')), 'sold', pg_temp.today());
+insert into ids select 'r6', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o6')), 'staff_safety', pg_temp.today());
+insert into ids select 'r7', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o7')), 'staff_safety', pg_temp.today());
 insert into ids select 'r8', pg_temp.remove_now(pg_temp.id('o8'), 'sold', 0, 'satış');
 -- A deterministic failure while completing r6 (as a broken row would raise).
 create function public.zz_fail_48() returns trigger language plpgsql as $$
@@ -308,12 +310,12 @@ select testing.set_order_period(pg_temp.id('o9'), pg_temp.today() - 100, pg_temp
 select is((select count(*)::integer from public.payment_item i join public.payment p on p.id = i.payment_id
            where p.order_id = pg_temp.id('o9') and i.order_item_id is not null), 0, 'only balance items');
 select pg_temp.ops();
-insert into ids select 'r9a', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o9'), 1), 'sold', pg_temp.today());
+insert into ids select 'r9a', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o9'), 1), 'staff_safety', pg_temp.today());
 select public.ops_complete_garden_removal(pg_temp.id('r9a'));
 select results_eq(
   $$ select refund_mode, refund_kurus from public.garden_removal where id = pg_temp.id('r9a') $$,
   $$ values ('unused_visits'::text, 1200000::bigint) $$, 'garden A: refunded on the balance item');
-insert into ids select 'r9b', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o9'), 2), 'sold', pg_temp.today());
+insert into ids select 'r9b', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o9'), 2), 'staff_safety', pg_temp.today());
 select public.ops_complete_garden_removal(pg_temp.id('r9b'));
 select results_eq(
   $$ select refund_mode, refund_kurus, (pg_temp.line(id) ->> 'already_refunded_kurus')::bigint,
@@ -330,7 +332,7 @@ insert into ids select 'c10', pg_temp.new_customer(10);
 insert into ids select 'o10', pg_temp.new_order(pg_temp.id('c10'), array[20000], 41.00, -360);
 insert into ids select 'p10', pg_temp.parcel_of(pg_temp.id('o10'));
 select pg_temp.as_user(pg_temp.id('c10'));
-insert into ids select 'r10', public.customer_request_garden_removal(pg_temp.id('p10'), 'cost', null, true);
+insert into ids select 'r10', public.customer_request_garden_removal(pg_temp.id('p10'), 'cost', 'period_end');
 select is((select requested_effective_on from public.garden_removal where id = pg_temp.id('r10')), pg_temp.today() + 5,
   'at the period end, no renewal: the day after the line ends');
 select testing.set_order_period(pg_temp.id('o10'), pg_temp.today() - 365, pg_temp.today() - 1);
