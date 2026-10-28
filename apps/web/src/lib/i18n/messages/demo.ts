@@ -14,7 +14,8 @@ export type DemoStartError =
   | "demo_capacity"
   | "failed"
   | "unavailable"
-  | "verify_failed";
+  | "verify_failed"
+  | "signed_in";
 
 const closed = (what: string) => `Demoda kapalı: gerçek hesabınızda ${what}.`;
 
@@ -67,6 +68,8 @@ export const demoText = {
       failed: "Demo açılamadı. Yeniden deneyin.",
       unavailable: "Demo hizmetine ulaşılamıyor. Daha sonra yeniden deneyin.",
       verify_failed: "Demo oturumu açılamadı. Sayfayı yenileyip yeniden deneyin.",
+      signed_in:
+        "Gerçek hesabınızla giriş yapmış durumdasınız. Demo için önce hesabınızdan çıkış yapın.",
     } satisfies Record<DemoStartError, string>,
   },
   shell: {

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import styles from "@/components/demo/demo.module.css";
 import { InlineText } from "@/components/site/legal-document";
-import { getSessionUser } from "@/lib/auth/session";
+import { DEMO_END_PATH, demoGate, getSessionUser } from "@/lib/auth/session";
 import { siteFlags } from "@/lib/flags";
 import { demoText } from "@/lib/i18n/messages/demo";
 import { DemoStartForm } from "./demo-start-form";
@@ -23,9 +23,12 @@ export default async function DemoPage({
   const flags = siteFlags();
   if (!flags.demoEnabled) notFound();
   const user = await getSessionUser();
-  if (user?.demo) redirect("/portal");
   const { bitti } = await searchParams;
   const ended = bitti === "1";
+  // A live demo session goes back to the portal; an ended one that still has
+  // its cookie goes to /demo/bitti once, which clears it. On ?bitti=1 the page
+  // renders whatever the session says, so the two can never bounce.
+  if (user?.demo && !ended) redirect((await demoGate(user)) ? "/portal" : DEMO_END_PATH);
 
   return (
     <div className={styles.start}>
@@ -58,7 +61,7 @@ export default async function DemoPage({
       <p>
         <InlineText text={d.privacyLink} />
       </p>
-      {user ? (
+      {user && !user.demo ? (
         <div className={styles.endedCard} data-testid="demo-signed-in">
           <h2>{d.signedInTitle}</h2>
           <p>{d.signedInBody}</p>

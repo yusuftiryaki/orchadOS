@@ -1,4 +1,5 @@
 import { isDemoClaims } from "@/lib/auth/session";
+import { endDemoSession } from "@/lib/demo/end";
 import { createClient } from "@/lib/supabase/server";
 
 // The end of a demo session (docs/demo-turu.md §11.2): the session gate sends
@@ -12,12 +13,7 @@ export async function GET() {
   const { data } = await supabase.auth.getClaims();
   let target = "/demo";
   if (isDemoClaims(data?.claims)) {
-    try {
-      await supabase.rpc("demo_end");
-    } catch {
-      // Signing out ends the session anyway.
-    }
-    await supabase.auth.signOut();
+    await endDemoSession(supabase);
     target = "/demo?bitti=1";
   }
   return new Response(null, {

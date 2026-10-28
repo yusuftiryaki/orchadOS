@@ -61,6 +61,27 @@ async function expectStep(page: Page, id: string, n: number, targets: string[]) 
   for (const target of targets) await expect(page.getByTestId(target).first()).toBeAttached();
 }
 
+// The ten steps in order, with the targets each one outlines.
+const STEPS: [string, string[]][] = [
+  ["bahceler", ["parcel-list"]],
+  ["gezi", ["tour-viewer", "tour-visit"]],
+  ["harita", ["parcel-map", "map-controls"]],
+  ["karne", ["health-score", "dimensions"]],
+  ["bulgular", ["findings"]],
+  ["agac", ["tree-card", "photo-evidence", "hash-check"]],
+  ["ziyaret", ["visit-select", "report-summary"]],
+  ["envanter", ["inventory-report"]],
+  ["pdf", ["report-pdf"]],
+  ["son", ["demo-banner"]],
+];
+
+// After İleri/Geri the keyboard focus is on the new step's heading, and the
+// live region outside the card names the step.
+async function expectFocusOnStep(page: Page, n: number) {
+  await expect(step(page).getByRole("heading")).toBeFocused();
+  await expect(page.getByTestId("tour-announcer")).toContainText(`${n} / 10`);
+}
+
 test.afterAll(async () => {
   await purgeDemoAttempts();
 });
@@ -89,6 +110,7 @@ test("a visitor starts the demo from the landing page and takes the guided tour"
 
   // 2 gezi: real synthetic panoramas from the public mirror
   await expectStep(page, "gezi", 2, ["tour-viewer", "tour-visit"]);
+  await expectFocusOnStep(page, 2);
   await expect(page).toHaveURL(`${REPORT}/gezi?tur=gezi`);
   const viewer = page.getByTestId("tour-viewer");
   await expect(viewer).toHaveAttribute("data-loaded", "true", { timeout: 30_000 });
@@ -98,6 +120,13 @@ test("a visitor starts the demo from the landing page and takes the guided tour"
 
   // 3 harita
   await expectStep(page, "harita", 3, ["parcel-map", "map-controls"]);
+  await expect(page).toHaveURL(`${REPORT}?katman=isi&tur=harita`);
+  // Arrow keys on the focused map pan the map; the tour stays on its step.
+  await page.locator('[data-testid="parcel-map"] .maplibregl-canvas').focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(500);
+  await expect(step(page)).toHaveAttribute("data-step", "harita");
   await expect(page).toHaveURL(`${REPORT}?katman=isi&tur=harita`);
   await page.getByTestId("tour-next").click();
 
@@ -141,6 +170,7 @@ test("a visitor starts the demo from the landing page and takes the guided tour"
   await expectStep(page, "pdf", 9, ["report-pdf"]);
   await page.getByTestId("tour-prev").click();
   await expectStep(page, "envanter", 8, ["inventory-report"]);
+  await expectFocusOnStep(page, 8);
   await page.keyboard.press("ArrowRight");
   await expectStep(page, "pdf", 9, ["report-pdf"]);
   await page.getByTestId("tour-next").click();
@@ -233,7 +263,8 @@ test("a real user stays signed in after /demo/bitti", async ({ page }) => {
   await expect(page.getByTestId("demo-banner")).toHaveCount(0);
 });
 
-test("phone size: banner and bottom sheet fit without horizontal scroll", async ({ browser }) => {
+test("phone size: all ten steps fit, and a closed tour restarts", async ({ browser }) => {
+  test.setTimeout(180_000);
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   await startDemo(page);
@@ -248,12 +279,28 @@ test("phone size: banner and bottom sheet fit without horizontal scroll", async 
     page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
   expect(await noScroll()).toBe(true);
 
-  for (const n of [2, 3, 4]) {
-    await page.getByTestId("tour-next").click();
-    await expect(page.getByTestId("tour-counter")).toHaveText(`${n} / 10`, { timeout: 20_000 });
+  for (const [i, [id, targets]] of STEPS.entries()) {
+    if (i > 0) await page.getByTestId("tour-next").click();
+    await expectStep(page, id, i + 1, targets);
     await expect(page.getByTestId("demo-banner")).toBeVisible();
     expect(await noScroll()).toBe(true);
+    // The first target shows between the sticky banner and the bottom sheet.
+    const top = (await page.getByTestId("demo-banner").boundingBox())!;
+    const card = (await step(page).boundingBox())!;
+    const box = (await page.getByTestId(targets[0]).first().boundingBox())!;
+    expect(Math.max(box.y, top.y + top.height), id).toBeLessThan(card.y);
+    expect(box.y + box.height, id).toBeGreaterThan(top.y + top.height);
   }
+
+  // Closed, then started again from the shell header (the banner has no room
+  // for "Turu başlat" on a phone).
+  await expect(page.getByTestId("demo-tour-start")).toBeHidden();
+  await page.getByTestId("tour-close").click();
+  await expect(step(page)).toHaveCount(0);
+  await page.getByTestId("demo-tour-start-mobile").click();
+  await expectStep(page, "bahceler", 1, ["parcel-list"]);
+  await expectFocusOnStep(page, 1);
+
   await page.getByTestId("demo-exit").click();
   await expect(page).toHaveURL("/");
   await context.close();

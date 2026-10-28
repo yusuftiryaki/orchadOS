@@ -6,7 +6,7 @@ import { siteFlags } from "@/lib/flags";
 import { t } from "@/lib/i18n";
 import { demoText } from "@/lib/i18n/messages/demo";
 import { DemoBanner } from "./demo-banner";
-import { GuidedTour } from "./guided-tour";
+import { GuidedTour, TourStartButton } from "./guided-tour";
 import styles from "./demo.module.css";
 
 // "HH:MM" in Turkey (UTC+3).
@@ -38,6 +38,11 @@ export function DemoShell({ info, children }: { info: DemoInfo; children: React.
           <Link href="/portal" className={styles.shellLink} data-testid="demo-gardens">
             {demoText.shell.gardens}
           </Link>
+          <TourStartButton
+            ctx={info.tour}
+            className={`${styles.bannerButton} ${styles.narrow}`}
+            testId="demo-tour-start-mobile"
+          />
         </div>
       </header>
       {children}

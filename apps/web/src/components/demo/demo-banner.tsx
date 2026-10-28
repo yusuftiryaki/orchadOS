@@ -3,7 +3,7 @@
 import { exitDemoAction } from "@/app/(site)/demo/actions";
 import type { DemoTour } from "@/lib/demo/info";
 import { demoText } from "@/lib/i18n/messages/demo";
-import { useStartTour } from "./guided-tour";
+import { TourStartButton } from "./guided-tour";
 import styles from "./demo.module.css";
 
 const B = demoText.banner;
@@ -22,7 +22,6 @@ export function DemoBanner({
   // sign-up is closed on this site.
   signupNext: string;
 }) {
-  const startTour = useStartTour(ctx);
   return (
     <div className={styles.banner} role="region" aria-label={B.label} data-testid="demo-banner">
       <div className={styles.bannerInner}>
@@ -31,14 +30,11 @@ export function DemoBanner({
           <span className={styles.short}>{B.short(until)}</span>
         </p>
         <div className={styles.bannerActions}>
-          <button
-            type="button"
+          <TourStartButton
+            ctx={ctx}
             className={`${styles.bannerButton} ${styles.wide}`}
-            onClick={startTour}
-            data-testid="demo-tour-start"
-          >
-            {B.startTour}
-          </button>
+            testId="demo-tour-start"
+          />
           <form action={exitDemoAction}>
             <input type="hidden" name="next" value={signupNext} />
             <button

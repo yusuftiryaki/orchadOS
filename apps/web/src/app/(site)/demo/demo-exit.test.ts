@@ -8,6 +8,15 @@ const state = vi.hoisted(() => ({
   claims: null as Record<string, unknown> | null,
   calls: [] as string[],
   mainSiteUrl: null as string | null,
+  signOutError: null as { message: string; status: number } | null,
+  cookies: new Map<string, string>(),
+}));
+
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    getAll: () => [...state.cookies].map(([name, value]) => ({ name, value })),
+    delete: (name: string) => state.cookies.delete(name),
+  }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -27,7 +36,7 @@ vi.mock("@/lib/supabase/server", () => ({
       getClaims: async () => ({ data: state.claims ? { claims: state.claims } : null }),
       signOut: async () => {
         state.calls.push("signOut");
-        return { error: null };
+        return { error: state.signOutError };
       },
     },
     rpc: async (name: string) => {
@@ -49,9 +58,18 @@ const exit = (next: string) => {
   return exitDemoAction(form);
 };
 
+const SESSION_COOKIES = [
+  ["sb-127-auth-token.0", "a"],
+  ["sb-127-auth-token.1", "b"],
+  ["sb-127-auth-token-code-verifier", "c"],
+  ["consent", "1"],
+] as const;
+
 beforeEach(() => {
   state.calls = [];
   state.mainSiteUrl = null;
+  state.signOutError = null;
+  state.cookies = new Map(SESSION_COOKIES);
 });
 
 describe("/demo/bitti", () => {
@@ -62,11 +80,20 @@ describe("/demo/bitti", () => {
     expect(state.calls).toEqual(["demo_end", "signOut"]);
   });
 
+  it("clears the session cookies even when GoTrue fails the sign-out", async () => {
+    state.claims = DEMO;
+    state.signOutError = { message: "upstream", status: 502 };
+    const res = await GET();
+    expect(res.headers.get("location")).toBe("/demo?bitti=1");
+    expect([...state.cookies.keys()]).toEqual(["sb-127-auth-token-code-verifier", "consent"]);
+  });
+
   it("leaves a real user signed in", async () => {
     state.claims = REAL;
     const res = await GET();
     expect(res.headers.get("location")).toBe("/demo");
     expect(state.calls).toEqual([]);
+    expect(state.cookies.size).toBe(SESSION_COOKIES.length);
   });
 
   it("does nothing for a signed-out visitor", async () => {
@@ -84,10 +111,19 @@ describe("exitDemoAction", () => {
     expect(state.calls).toEqual(["demo_end", "signOut"]);
   });
 
+  it("clears the session cookies even when GoTrue fails the sign-out", async () => {
+    state.claims = DEMO;
+    state.signOutError = { message: "network", status: 0 };
+    await expect(exit("/")).rejects.toThrow("redirect /");
+    expect(state.cookies.has("sb-127-auth-token.0")).toBe(false);
+    expect(state.cookies.has("sb-127-auth-token.1")).toBe(false);
+  });
+
   it("never signs out a real user", async () => {
     state.claims = REAL;
     await expect(exit("/")).rejects.toThrow("redirect /");
     expect(state.calls).toEqual([]);
+    expect(state.cookies.size).toBe(SESSION_COOKIES.length);
   });
 
   it("allows only a few pages", async () => {

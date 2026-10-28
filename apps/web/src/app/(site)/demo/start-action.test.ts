@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
   demoEnabled: false,
   turnstileSiteKey: null as string | null,
   start: vi.fn(),
+  user: null as { demo: boolean } | null,
 }));
 
 vi.mock("next/headers", () => ({
@@ -26,6 +27,10 @@ vi.mock("@/lib/flags", () => ({
 }));
 vi.mock("@/lib/demo/start", () => ({ requestDemoStart: state.start }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({}) }));
+vi.mock("@/lib/auth/session", async (original) => ({
+  ...(await original<typeof import("@/lib/auth/session")>()),
+  getSessionUser: async () => state.user,
+}));
 
 const { startDemoAction } = await import("./actions");
 const run = (fields: Record<string, string> = {}) => {
@@ -38,6 +43,7 @@ beforeEach(() => {
   state.demoEnabled = false;
   state.turnstileSiteKey = null;
   state.start.mockReset();
+  state.user = null;
 });
 
 describe("startDemoAction", () => {
@@ -71,6 +77,20 @@ describe("startDemoAction", () => {
       next: "/portal?tur=bahceler",
     });
     expect(state.start).toHaveBeenCalledWith({ captchaToken: null, clientIp: "198.51.100.7" });
+  });
+
+  it("never hands a token to a signed-in real user", async () => {
+    state.demoEnabled = true;
+    state.user = { demo: false };
+    expect(await run()).toEqual({ status: "error", code: "signed_in" });
+    expect(state.start).not.toHaveBeenCalled();
+  });
+
+  it("sends a demo visitor back to the portal", async () => {
+    state.demoEnabled = true;
+    state.user = { demo: true };
+    await expect(run()).rejects.toThrow("redirect /portal");
+    expect(state.start).not.toHaveBeenCalled();
   });
 
   it("maps a refusal to its code", async () => {

@@ -12,7 +12,10 @@ import styles from "./demo.module.css";
 // The guided tour (docs/demo-turu.md §11.4): a non-modal card that walks the
 // real portal pages. The step lives in the URL (?tur=<id>); the "closed" flag
 // in sessionStorage. Targets are found by data-testid, scrolled into view and
-// outlined; a step without any target on its page is skipped.
+// outlined; a step without any target on its page is skipped. While the tour
+// is open the card stays mounted between steps, so keyboard focus survives
+// İleri/Geri; a step change the visitor started moves focus to the heading,
+// and a live region outside the card announces each step.
 
 const T = demoText.tour;
 const CLOSED_KEY = "orchados-demo-tour-closed";
@@ -68,11 +71,26 @@ function placeNextTo(target: HTMLElement | undefined): React.CSSProperties | und
   return undefined;
 }
 
+// The next step that turns up takes the focus: set by İleri/Geri, the arrow
+// keys and "Turu başlat", never by a page load.
+let focusNextStep = false;
+
+// Keys reach the tour only from inside its card or from nowhere in particular
+// (the page body): the map, the 360° viewer and any other widget keep theirs.
+function tourKey(event: KeyboardEvent, card: HTMLElement | null): boolean {
+  if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return false;
+  const target = event.target as Node | null;
+  if (!target || target === document.body || target === document.documentElement) return true;
+  if (!card?.contains(target)) return false;
+  return !(target as HTMLElement).closest?.("input, textarea, select, [contenteditable]");
+}
+
 // Starts the tour from step 1 (the banner's "Turu başlat").
 export function useStartTour(ctx: DemoTour) {
   const router = useRouter();
   return useCallback(() => {
     writeClosed(false);
+    focusNextStep = true;
     const url = stepUrl(TOUR_STEPS[0], ctx, "/portal");
     if (url) router.push(url);
   }, [ctx, router]);
@@ -106,6 +124,7 @@ export function GuidedTour({
   const direction = useRef(1);
   const highlighted = useRef<HTMLElement[]>([]);
   const cardRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   const clearHighlight = () => {
     for (const el of highlighted.current) el.classList.remove(styles.highlight);
@@ -135,7 +154,17 @@ export function GuidedTour({
     [ctx, current, router],
   );
 
+  // A step change the visitor asked for.
+  const move = useCallback(
+    (to: number, dir: number) => {
+      focusNextStep = true;
+      go(to, dir);
+    },
+    [go],
+  );
+
   const close = useCallback(() => {
+    focusNextStep = false;
     writeClosed(true);
     clearHighlight();
     const next = new URLSearchParams(search);
@@ -191,85 +220,129 @@ export function GuidedTour({
   const active = step !== null && !closed && found === `${step.id}|${current}`;
 
   useEffect(() => {
+    if (!active || !focusNextStep) return;
+    focusNextStep = false;
+    headingRef.current?.focus({ preventScroll: true });
+  }, [active, found]);
+
+  useEffect(() => {
     if (!active) return;
     const onKey = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (
-        target?.closest("input, textarea, select, [contenteditable], [data-testid='tour-viewer']")
-      ) {
-        return;
-      }
+      if (!tourKey(event, cardRef.current)) return;
       if (event.key === "Escape") close();
-      else if (event.key === "ArrowRight" && index < TOUR_STEPS.length - 1) go(index + 1, 1);
-      else if (event.key === "ArrowLeft" && index > 0) go(index - 1, -1);
+      else if (event.key === "ArrowRight" && index < TOUR_STEPS.length - 1) move(index + 1, 1);
+      else if (event.key === "ArrowLeft" && index > 0) move(index - 1, -1);
+      else return;
+      event.preventDefault();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, close, go, index]);
+  }, [active, close, move, index]);
 
-  if (!active || !step) return null;
+  // Mounted for every step of an open tour; until the new step's targets are
+  // found it keeps its place and says it is busy.
+  const open = step !== null && !closed;
   const last = index === TOUR_STEPS.length - 1;
   return (
-    <div
-      ref={cardRef}
-      className={styles.tourCard}
-      style={place}
-      role="dialog"
-      aria-modal="false"
-      aria-label={T.label}
-      data-testid="guided-tour"
-      data-step={step.id}
-      hidden={fullscreen}
-    >
-      <div className={styles.tourHead}>
-        <span>{T.label}</span>
-        <span data-testid="tour-counter">{T.counter(index + 1, TOUR_STEPS.length)}</span>
+    <>
+      <div className={styles.srOnly} aria-live="polite" data-testid="tour-announcer">
+        {active && step
+          ? `${T.label} ${T.counter(index + 1, TOUR_STEPS.length)}: ${step.title}`
+          : ""}
       </div>
-      <div aria-live="polite">
-        <h2>{step.title}</h2>
-        <p>{step.body}</p>
-      </div>
-      {last && (
-        <div className={styles.tourControls} style={{ marginBottom: 8 }}>
-          <form action={exitDemoAction}>
-            <input type="hidden" name="next" value={signupNext} />
-            <button className="button" type="submit" data-testid="tour-signup">
-              {T.signup}
+      {open && step && (
+        <div
+          ref={cardRef}
+          className={styles.tourCard}
+          style={place}
+          role="dialog"
+          aria-modal="false"
+          aria-label={T.label}
+          aria-busy={!active}
+          data-testid="guided-tour"
+          data-step={active ? step.id : undefined}
+          data-state={active ? "ready" : "loading"}
+          hidden={fullscreen}
+        >
+          <div className={styles.tourHead}>
+            <span>{T.label}</span>
+            <span data-testid="tour-counter">{T.counter(index + 1, TOUR_STEPS.length)}</span>
+          </div>
+          <h2 ref={headingRef} tabIndex={-1} className={styles.tourTitle}>
+            {step.title}
+          </h2>
+          <p>{step.body}</p>
+          {last && (
+            <div className={styles.tourControls} style={{ marginBottom: 8 }}>
+              <form action={exitDemoAction}>
+                <input type="hidden" name="next" value={signupNext} />
+                <button className="button" type="submit" data-testid="tour-signup">
+                  {T.signup}
+                </button>
+              </form>
+              <Link
+                className="button button-secondary"
+                href={packagesHref}
+                data-testid="tour-packages"
+              >
+                {T.packages}
+              </Link>
+            </div>
+          )}
+          <div className={styles.tourControls}>
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => move(index - 1, -1)}
+              disabled={index === 0}
+              data-testid="tour-prev"
+            >
+              {T.prev}
             </button>
-          </form>
-          <Link className="button button-secondary" href={packagesHref} data-testid="tour-packages">
-            {T.packages}
-          </Link>
+            {last ? (
+              <button type="button" className="button" onClick={close} data-testid="tour-next">
+                {T.finish}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="button"
+                onClick={() => move(index + 1, 1)}
+                data-testid="tour-next"
+              >
+                {T.next}
+              </button>
+            )}
+            <button
+              type="button"
+              className={styles.tourClose}
+              onClick={close}
+              data-testid="tour-close"
+            >
+              {T.close}
+            </button>
+          </div>
         </div>
       )}
-      <div className={styles.tourControls}>
-        <button
-          type="button"
-          className="button button-secondary"
-          onClick={() => go(index - 1, -1)}
-          disabled={index === 0}
-          data-testid="tour-prev"
-        >
-          {T.prev}
-        </button>
-        {last ? (
-          <button type="button" className="button" onClick={close} data-testid="tour-next">
-            {T.finish}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="button"
-            onClick={() => go(index + 1, 1)}
-            data-testid="tour-next"
-          >
-            {T.next}
-          </button>
-        )}
-        <button type="button" className={styles.tourClose} onClick={close} data-testid="tour-close">
-          {T.close}
-        </button>
-      </div>
-    </div>
+    </>
+  );
+}
+
+// "Turu başlat": in the banner on a wide screen, in the shell header on a
+// phone (the banner has no room there), so a closed tour can always restart.
+export function TourStartButton({
+  ctx,
+  className,
+  testId,
+}: {
+  ctx: DemoTour;
+  className: string;
+  testId: string;
+}) {
+  const startTour = useStartTour(ctx);
+  return (
+    <button type="button" className={className} onClick={startTour} data-testid={testId}>
+      {demoText.banner.startTour}
+    </button>
   );
 }

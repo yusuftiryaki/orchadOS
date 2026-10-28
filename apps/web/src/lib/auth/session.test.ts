@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   claims: null as Record<string, unknown> | null,
   info: null as unknown,
+  infoError: null as { code: string; message: string } | null,
   demoEnabled: true,
   mainSiteUrl: null as string | null,
   roles: { orgRoles: [], parcelRoles: ["owner"], customer: false } as Record<string, unknown>,
@@ -30,7 +31,9 @@ vi.mock("@/lib/supabase/server", () => ({
     auth: { getClaims: async () => ({ data: state.claims ? { claims: state.claims } : null }) },
     rpc: async (name: string) => {
       state.rpc(name);
-      return { data: state.info, error: null };
+      return state.infoError
+        ? { data: null, error: state.infoError }
+        : { data: state.info, error: null };
     },
   }),
 }));
@@ -50,6 +53,7 @@ const live = (minutes: number) => ({
 beforeEach(() => {
   state.claims = { sub: "u1", app_metadata: { demo: true } };
   state.info = live(60);
+  state.infoError = null;
   state.demoEnabled = true;
   state.mainSiteUrl = null;
   state.roles = { orgRoles: [], parcelRoles: ["owner"], customer: false };
@@ -73,6 +77,18 @@ describe("session gate", () => {
     const { requireUser, requireSection } = await load();
     await expect(requireUser()).rejects.toThrow("redirect /demo/bitti");
     await expect(requireSection("portal")).rejects.toThrow("redirect /demo/bitti");
+  });
+
+  it("fails the request, not the session, when demo_info cannot be read", async () => {
+    state.infoError = { code: "57014", message: "canceling statement due to statement timeout" };
+    const { requireUser } = await load();
+    await expect(requireUser()).rejects.toThrow("demo_info unavailable: 57014");
+  });
+
+  it("ends the session when PostgREST rejects its token", async () => {
+    state.infoError = { code: "PGRST301", message: "JWT expired" };
+    const { requireUser } = await load();
+    await expect(requireUser()).rejects.toThrow("redirect /demo/bitti");
   });
 
   it("checks the gate before the roles: no 403 after access is gone", async () => {
