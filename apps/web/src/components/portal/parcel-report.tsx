@@ -112,6 +112,18 @@ export function ParcelReportView({
         back={{ href: "/portal", label: r.back }}
         title={report.parcel.name}
         lead={placeOf(report) ?? undefined}
+        meta={
+          <>
+            <span className={`${layout.small} ${layout.muted}`}>
+              {report.boundary
+                ? t.parcel.boundaryVersion(report.boundary.version)
+                : t.parcel.noBoundary}
+            </span>
+            <span className={`${layout.small} ${layout.muted}`} data-testid="parcel-inventory">
+              {t.parcel.slotCount(report.slotCount, report.activeTreeCount)}
+            </span>
+          </>
+        }
         actions={
           <div className={`${styles.headerActions} ${styles.noPrint}`}>
             {report.visits.length > 0 && (

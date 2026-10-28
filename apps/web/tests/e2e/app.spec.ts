@@ -85,7 +85,7 @@ test("ops switches between sections", async ({ page }) => {
 test("parcel map: clicking a tree opens its panel", async ({ page }) => {
   await login(page, "owner@example.com", `/portal/parsel/${SEED_PARCEL}`);
   await expect(page).toHaveURL(`/portal/parsel/${SEED_PARCEL}`);
-  await expect(page.getByTestId("tree-count")).toHaveText("302 ağaç");
+  await expect(page.getByTestId("parcel-inventory")).toHaveText("310 yer, 302 aktif ağaç");
 
   const map = page.getByTestId("parcel-map");
   await expect(map).toHaveAttribute("data-map-ready", "true");
