@@ -48,8 +48,10 @@ begin
   values ('b0000000-0000-4000-8000-000000000001', v, 'Müşteri 51-' || p_n, 'sms');
   insert into private.billing_profile (org_id, user_id, kind, first_name, last_name, address, city)
   values ('b0000000-0000-4000-8000-000000000001', v, 'individual', 'A', 'B', 'Adres', 'Gaziantep');
-  insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source)
-  values ('b0000000-0000-4000-8000-000000000001', v, v, 'kvkk_notice', true, 'kvkk-v1-taslak', 'signup');
+  -- A day old: one transaction has one now(), and the gate reads the latest record.
+  insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source, recorded_at)
+  values ('b0000000-0000-4000-8000-000000000001', v, v, 'kvkk_notice', true, 'kvkk-v1-taslak', 'signup',
+          now() - interval '1 day');
   return v;
 end;
 $$;
