@@ -40,7 +40,9 @@ export function blocksHash(blocks: LegalBlock[]): string {
 export const EARLY_PERFORMANCE_BLOCKS: LegalBlock[] = [{ kind: "p", text: EARLY_PERFORMANCE_TEXT }];
 
 export function legalTextHash(kind: RegisteredText): string {
-  return blocksHash(kind === "early_performance" ? EARLY_PERFORMANCE_BLOCKS : legalText[kind].blocks);
+  return blocksHash(
+    kind === "early_performance" ? EARLY_PERFORMANCE_BLOCKS : legalText[kind].blocks,
+  );
 }
 
 // The current version and template hash of every registered kind: what

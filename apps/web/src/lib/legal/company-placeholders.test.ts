@@ -66,7 +66,9 @@ describe("company placeholders (T21)", () => {
     expect(kvkk).toContain("**Unvan:** Örnek Denetim A.Ş.");
     expect(kvkk).toContain("**E-posta:** kvkk@orchados.example");
     expect(kvkk).toContain("**KEP:** ornek@hs01.kep.tr");
-    const privacy = fillCompanyDocument(legalText.privacy, COMPANY).blocks.flatMap(texts).join("\n");
+    const privacy = fillCompanyDocument(legalText.privacy, COMPANY)
+      .blocks.flatMap(texts)
+      .join("\n");
     expect(privacy).toContain("orchadOS sitesini (orchados.example)");
     expect(privacy).toContain("Veri sorumlusu Örnek Denetim A.Ş.'dir.");
     expect(privacy).toContain("demo.orchados.example");

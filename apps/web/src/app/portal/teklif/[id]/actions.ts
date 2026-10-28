@@ -44,7 +44,9 @@ export async function acceptQuoteAction(form: FormData) {
     p_consents: {
       distance_sales: LEGAL_TEXT_VERSIONS.distance_sales,
       pre_information: LEGAL_TEXT_VERSIONS.pre_information,
-      ...(read("early_performance") === "on" ? { early_performance: EARLY_PERFORMANCE_VERSION } : {}),
+      ...(read("early_performance") === "on"
+        ? { early_performance: EARLY_PERFORMANCE_VERSION }
+        : {}),
     },
   });
   if (error || !data) redirect(portalHref.quote(quoteId, { hata: portalErrorOf(error) }));

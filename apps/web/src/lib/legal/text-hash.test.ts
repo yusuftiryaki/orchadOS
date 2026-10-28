@@ -107,13 +107,17 @@ describe("template hashes", () => {
     expect(legalTextHash("early_performance")).toBe(
       blocksHash([{ kind: "p", text: EARLY_PERFORMANCE_TEXT }]),
     );
-    expect(EARLY_PERFORMANCE_TEXT).toMatch(/^Hizmete \(envanter ve periyodik ziyaretler\) 14 günlük/);
+    expect(EARLY_PERFORMANCE_TEXT).toMatch(
+      /^Hizmete \(envanter ve periyodik ziyaretler\) 14 günlük/,
+    );
   });
 });
 
 describe("archive", () => {
   it("pins every archived draft by its file hash", () => {
-    const files = readdirSync(repo("docs/hukuk/arsiv")).filter((f) => f.endsWith(".md")).sort();
+    const files = readdirSync(repo("docs/hukuk/arsiv"))
+      .filter((f) => f.endsWith(".md"))
+      .sort();
     expect(files).toEqual(Object.keys(ARCHIVE).sort());
     for (const file of files) {
       expect(sha256Hex(readFileSync(repo(`docs/hukuk/arsiv/${file}`))), file).toBe(ARCHIVE[file]);

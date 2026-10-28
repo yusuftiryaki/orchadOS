@@ -28,9 +28,19 @@ export type CompleteCompany = { [K in Exclude<keyof CompanyFields, "complete">]:
 
 export function completeCompany(info: CompanyFields | null | undefined): CompleteCompany | null {
   if (!info?.complete) return null;
-  const { complete: _complete, ...fields } = info;
-  if (Object.values(fields).some((v) => v === null || v.trim() === "")) return null;
-  return fields as CompleteCompany;
+  const fields: CompleteCompany = {
+    legal_name: info.legal_name ?? "",
+    mersis_number: info.mersis_number ?? "",
+    address: info.address ?? "",
+    phone: info.phone ?? "",
+    email: info.email ?? "",
+    kep_address: info.kep_address ?? "",
+    tax_office: info.tax_office ?? "",
+    tax_number: info.tax_number ?? "",
+    site_domain: info.site_domain ?? "",
+    kvkk_email: info.kvkk_email ?? "",
+  };
+  return Object.values(fields).some((v) => v.trim() === "") ? null : fields;
 }
 
 // Every company placeholder of legal.ts on main, in the order they are

@@ -36,7 +36,9 @@ describe("legal-text registry (T21)", () => {
   it("holds the web's current versions with the helper's template hashes", async () => {
     const rows = check(await anonClient().rpc("registered_legal_text_versions"));
     const current = Object.fromEntries(
-      rows.filter((r) => r.is_current).map((r) => [r.kind, { version: r.version, sha256: r.sha256 }]),
+      rows
+        .filter((r) => r.is_current)
+        .map((r) => [r.kind, { version: r.version, sha256: r.sha256 }]),
     );
     expect(current).toEqual(currentLegalTexts());
     for (const kind of Object.keys(current) as RegisteredText[]) {
@@ -119,7 +121,10 @@ describe("production gate and the KVKK re-acknowledgement (T21)", () => {
       active: true,
       reasons: ["distance_sales_draft", "pre_information_draft", "kvkk_notice_not_final"],
     });
-    const drafts = await c.rpc("customer_accept_quote", { p_quote_id: quote, p_consents: CONSENTS });
+    const drafts = await c.rpc("customer_accept_quote", {
+      p_quote_id: quote,
+      p_consents: CONSENTS,
+    });
     expect(drafts.error).toMatchObject({
       message: "legal_texts_not_final",
       details: "distance_sales_draft",
@@ -129,7 +134,10 @@ describe("production gate and the KVKK re-acknowledgement (T21)", () => {
     for (const [kind, version] of LAUNCH) await registerLegalText(kind, version, "0".repeat(64));
     const final = { distance_sales: "mesafeli-v3", pre_information: "onbilgi-v3" };
     const stale = await c.rpc("customer_accept_quote", { p_quote_id: quote, p_consents: CONSENTS });
-    expect(stale.error).toMatchObject({ message: "legal_text_outdated", details: "distance_sales" });
+    expect(stale.error).toMatchObject({
+      message: "legal_text_outdated",
+      details: "distance_sales",
+    });
     const notice = await c.rpc("customer_accept_quote", { p_quote_id: quote, p_consents: final });
     expect(notice.error).toMatchObject({
       message: "legal_texts_not_final",
@@ -145,7 +153,9 @@ describe("production gate and the KVKK re-acknowledgement (T21)", () => {
       }),
     );
     expect(check(await c.rpc("legal_gate_status", { p_org_id: SEED.org }))[0].reasons).toEqual([]);
-    const order = check(await c.rpc("customer_accept_quote", { p_quote_id: quote, p_consents: final }));
+    const order = check(
+      await c.rpc("customer_accept_quote", { p_quote_id: quote, p_consents: final }),
+    );
     expect(order).toBeTruthy();
   });
 });
@@ -199,7 +209,11 @@ describe("contract documents (T04)", () => {
       .download(docs[0].storage_path);
     expect(download.error).toBeNull();
     const sms = check(
-      await admin.from("notification").select("template").eq("ref_id", order).eq("template", "contract_ready"),
+      await admin
+        .from("notification")
+        .select("template")
+        .eq("ref_id", order)
+        .eq("template", "contract_ready"),
     );
     expect(sms).toHaveLength(1);
 

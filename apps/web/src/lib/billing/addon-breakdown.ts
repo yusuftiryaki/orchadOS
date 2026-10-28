@@ -175,7 +175,12 @@ export function breakdownRows(
     { label: B.days, value: B.daysValue(b.remainingDays, b.periodDays) },
     {
       label: B.rawVisits,
-      value: B.rawVisitsValue(b.visitsPerYear, b.remainingDays, b.periodDays, formatDecimalTr(b.rawVisits)),
+      value: B.rawVisitsValue(
+        b.visitsPerYear,
+        b.remainingDays,
+        b.periodDays,
+        formatDecimalTr(b.rawVisits),
+      ),
     },
     { label: B.roundedVisits, value: String(line.visits) },
     { label: B.visitAmount, value: money(line.visitAmountKurus) },

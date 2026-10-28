@@ -27,8 +27,12 @@ export const siteText = {
       `${c.legal_name} · ${c.address} · MERSİS: ${c.mersis_number}`,
     taxLine: (c: { tax_office: string; tax_number: string }) =>
       `Vergi dairesi / no: ${c.tax_office} / ${c.tax_number}`,
-    contactFilled: (c: { email: string; phone: string; kep_address: string; site_domain: string }) =>
-      `${c.email} · ${c.phone} · KEP: ${c.kep_address} · ${c.site_domain}`,
+    contactFilled: (c: {
+      email: string;
+      phone: string;
+      kep_address: string;
+      site_domain: string;
+    }) => `${c.email} · ${c.phone} · KEP: ${c.kep_address} · ${c.site_domain}`,
     legal: {
       kvkk: "KVKK aydınlatma metni",
       explicitConsent: "Açık rıza metni",

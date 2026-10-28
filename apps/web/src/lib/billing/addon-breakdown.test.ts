@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  addonBreakdownOf,
-  breakdownRows,
-  formatDecimalTr,
-  windowsText,
-} from "./addon-breakdown";
+import { addonBreakdownOf, breakdownRows, formatDecimalTr, windowsText } from "./addon-breakdown";
 
 // inputs.addon as private.write_addon_quote stores it (T18).
 const INPUTS = {
@@ -25,9 +20,21 @@ const INPUTS = {
     rounding: "half_up",
     price_list_name: "Fiyat listesi v2",
     remaining_windows: [
-      { code: "spring", name: "İlkbahar", label: "İlkbahar 2027", start: "2027-04-01", end: "2027-05-31" },
+      {
+        code: "spring",
+        name: "İlkbahar",
+        label: "İlkbahar 2027",
+        start: "2027-04-01",
+        end: "2027-05-31",
+      },
       { code: "summer", name: "Yaz", label: "Yaz 2027", start: "2027-06-01", end: "2027-07-31" },
-      { code: "harvest", name: "Hasat", label: "Hasat 2027", start: "2027-08-01", end: "2027-10-31" },
+      {
+        code: "harvest",
+        name: "Hasat",
+        label: "Hasat 2027",
+        start: "2027-08-01",
+        end: "2027-10-31",
+      },
     ],
     remaining_window_count: 3,
     visits_exceed_windows: false,
@@ -65,8 +72,7 @@ describe("addon breakdown (H19)", () => {
   });
 
   it("returns null for quotes before T18 and for junk", () => {
-    const { lines: _lines, ...old } = INPUTS.addon;
-    expect(addonBreakdownOf({ addon: old })).toBeNull();
+    expect(addonBreakdownOf({ addon: { ...INPUTS.addon, lines: undefined } })).toBeNull();
     expect(addonBreakdownOf(null)).toBeNull();
     expect(addonBreakdownOf({ addon: { ...INPUTS.addon, lines: [{ line_no: "x" }] } })).toBeNull();
   });

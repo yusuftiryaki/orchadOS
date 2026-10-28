@@ -20,7 +20,10 @@ export async function getKvkkVersions(supabase: Client): Promise<string[]> {
 
 // The options of the select: the registered versions, plus a stored value
 // that is not one of them (free text recorded before T21 stays as it is).
-export function kvkkVersionOptions(registered: readonly string[], stored?: string | null): string[] {
+export function kvkkVersionOptions(
+  registered: readonly string[],
+  stored?: string | null,
+): string[] {
   const value = stored?.trim();
   return value && !registered.includes(value) ? [...registered, value] : [...registered];
 }

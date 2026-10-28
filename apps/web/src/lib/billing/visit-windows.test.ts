@@ -42,7 +42,13 @@ describe("contract visit windows (Ek-2)", () => {
 
   it("counts the last day of a window, with dates", () => {
     expect(remainingVisitWindows("2027-02-28", "2027-02-28")).toEqual([
-      { code: "winter", name: "Kış", label: "Kış 2026–2027", start: "2026-12-01", end: "2027-02-28" },
+      {
+        code: "winter",
+        name: "Kış",
+        label: "Kış 2026–2027",
+        start: "2026-12-01",
+        end: "2027-02-28",
+      },
     ]);
     expect(remainingVisitWindows("2028-02-29", "2028-02-29")[0].end).toBe("2028-02-29");
   });

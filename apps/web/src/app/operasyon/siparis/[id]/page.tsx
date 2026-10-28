@@ -221,7 +221,9 @@ export default async function Page({
         <section className={styles.section} data-testid="record-withdrawal">
           <h2>{B.withdrawal.title}</h2>
           <p className="muted">
-            {withdrawalUntil ? B.withdrawal.hint(day(withdrawalUntil)) : B.withdrawal.hintNoActivation}
+            {withdrawalUntil
+              ? B.withdrawal.hint(day(withdrawalUntil))
+              : B.withdrawal.hintNoActivation}
           </p>
           <ActionForm action={recordWithdrawalAction} testId="record-withdrawal-form">
             <input type="hidden" name="order_id" value={o.id} />
