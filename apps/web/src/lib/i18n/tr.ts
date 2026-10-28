@@ -1893,7 +1893,7 @@ export const tr = {
         failed: "Başvuru gönderilemedi. Lütfen tekrar deneyin.",
       } as Record<string, string>,
       ops: {
-        nav: "KVKK başvuruları",
+        nav: "KVKK talepleri",
         title: "KVKK başvuruları",
         hint: "Portaldan gelen başvurular. Cevap süresi başvurudan itibaren 30 gündür (KVKK md. 13). Silme ve takma ad işlemleri scripts/kvkk betikleriyle yapılır; başvuru defterine işlenir.",
         none: "Başvuru yok.",
