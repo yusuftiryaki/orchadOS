@@ -11,6 +11,7 @@ on:
       - "scripts/provision-demo.sh"
       - "scripts/test-provision-demo.sh"
       - "scripts/demo-lock-check.sh"
+      - "scripts/test-demo-lock-sql.sh"
       - "scripts/tests/**"
       - ".github/workflows/provision-demo.yml"
       - ".github/workflows/deploy-db.yml"
@@ -23,6 +24,7 @@ on:
       - "scripts/provision-demo.sh"
       - "scripts/test-provision-demo.sh"
       - "scripts/demo-lock-check.sh"
+      - "scripts/test-demo-lock-sql.sh"
       - "scripts/tests/**"
       - ".github/workflows/provision-demo.yml"
       - ".github/workflows/deploy-db.yml"
@@ -45,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: shellcheck
-        run: shellcheck scripts/provision-demo.sh scripts/test-provision-demo.sh scripts/demo-lock-check.sh
+        run: shellcheck scripts/provision-demo.sh scripts/test-provision-demo.sh scripts/demo-lock-check.sh scripts/test-demo-lock-sql.sh
 
       - name: actionlint
         run: |

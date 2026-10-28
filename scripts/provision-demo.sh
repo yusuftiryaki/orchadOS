@@ -26,10 +26,11 @@
 #   SUPABASE_ACCESS_TOKEN  Management API token (required)
 #   SUPABASE_PROJECT_REF   test project; separate: the demo project goes to its
 #                          organization (empty: the token's only organization);
-#                          test: the host (empty: taken from SUPABASE_URL)
+#                          test: the host (required, must match SUPABASE_URL)
 #   DEMO_DB_PASSWORD       separate: database password of a new demo project (required)
 #   SUPABASE_URL, SUPABASE_ANON_KEY  test: the test project's public values (required)
-#   PILOT_SUPABASE_URL     test: optional; the run refuses a host with this ref
+#   PILOT_SUPABASE_URL     test: required (https://<ref>.supabase.co); the run
+#                          refuses a host with this ref
 #   DEMO_HOST_VAR          the repository variable DEMO_HOST, for the summary
 #   VERCEL_TOKEN, VERCEL_TEAM_ID (required)
 #   TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY  optional; without both the demo stays closed
@@ -70,7 +71,7 @@ SUPABASE_URL=${SUPABASE_URL:-}
 SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
 shared() { [ "$HOST" = test ]; }
 case "$HOST" in
-  test) required=(SUPABASE_ACCESS_TOKEN SUPABASE_URL SUPABASE_ANON_KEY VERCEL_TOKEN VERCEL_TEAM_ID) ;;
+  test) required=(SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_REF SUPABASE_URL SUPABASE_ANON_KEY PILOT_SUPABASE_URL VERCEL_TOKEN VERCEL_TEAM_ID) ;;
   separate) required=(SUPABASE_ACCESS_TOKEN DEMO_DB_PASSWORD VERCEL_TOKEN VERCEL_TEAM_ID) ;;
   *) fail "HOST must be test or separate, not '$HOST'." ;;
 esac
@@ -150,16 +151,18 @@ url_ref() { if [[ "$1" =~ ^https://([a-z0-9]+)\.supabase\.co/?$ ]]; then echo "$
 created_project=false
 ref=
 if shared; then
-  # The test project hosts the demo: the ref from SUPABASE_PROJECT_REF or the
-  # URL (both must agree), never the pilot.
+  # The test project hosts the demo: SUPABASE_PROJECT_REF (the test
+  # environment's ref, the one deploy-db pushes to) and the URL must name the
+  # same project, and the pilot's ref must be known so it can be refused. The
+  # access token reaches every project of the organization, the pilot too.
   ref=$(url_ref "$SUPABASE_URL")
-  [ -n "$ref" ] || [ -n "$SUPABASE_PROJECT_REF" ] || fail "SUPABASE_URL is not https://<ref>.supabase.co; set SUPABASE_PROJECT_REF."
-  if [ -n "$SUPABASE_PROJECT_REF" ]; then
-    [ -z "$ref" ] || [ "$ref" = "$SUPABASE_PROJECT_REF" ] || fail "SUPABASE_URL and SUPABASE_PROJECT_REF name different projects."
-    ref=$SUPABASE_PROJECT_REF
-  fi
-  pilot_ref=$(url_ref "${PILOT_SUPABASE_URL:-}")
-  [ -z "$pilot_ref" ] || [ "$ref" != "$pilot_ref" ] || fail "the host is the pilot project; the pilot never hosts the demo."
+  pilot_ref=$(url_ref "$PILOT_SUPABASE_URL")
+  [ -n "$pilot_ref" ] || fail "PILOT_SUPABASE_URL is not https://<ref>.supabase.co; it is needed to refuse the pilot as a host."
+  for r in "$ref" "$SUPABASE_PROJECT_REF"; do
+    [ "$r" != "$pilot_ref" ] || fail "the host is the pilot project; the pilot never hosts the demo."
+  done
+  [ -n "$ref" ] || fail "SUPABASE_URL is not https://<ref>.supabase.co."
+  [ "$ref" = "$SUPABASE_PROJECT_REF" ] || fail "SUPABASE_URL and SUPABASE_PROJECT_REF name different projects."
   must sb GET "/v1/projects/$ref"
   test_name=$(resp -r '.name // ""')
   status=$(resp -r '.status')
@@ -348,12 +351,15 @@ edge_names=
 vault_names=
 if [ -n "$ref" ]; then
   must sb GET "/v1/projects/$ref/secrets"
+  cp "$tmp/resp" "$tmp/secrets"
   edge_names=$(resp -r '.[].name')
   jq -n '{query: "select name from vault.secrets where name in ('demo_cleanup_url', 'orchados_cron_secret')"}' > "$tmp/body"
   must sb POST "/v1/projects/$ref/database/query" "$tmp/body"
   vault_names=$(resp -r '.[].name')
 fi
 has_edge() { grep -qx "$1" <<<"$edge_names"; }
+# The sha256 digest the secrets API returns for a value (never the value).
+edge_digest() { jq -r --arg n "$1" 'first(.[] | select(.name == $n) | .value) // ""' "$tmp/secrets"; }
 has_vault() { grep -qx "$1" <<<"$vault_names"; }
 
 # Random secrets: kept while every holder has one, generated (and written to
@@ -384,11 +390,24 @@ fi
 if [ -n "$new_hash" ]; then edge_set+=("${P}SIGNUP_HASH_SECRET"); export "S_${P}SIGNUP_HASH_SECRET=$new_hash"; fi
 if [ -n "$new_cron" ]; then edge_set+=(ORCHADOS_CRON_SECRET); export S_ORCHADOS_CRON_SECRET=$new_cron; fi
 if [ -n "$new_proxy" ]; then edge_set+=("${P}SIGNUP_PROXY_SECRET"); export "S_${P}SIGNUP_PROXY_SECRET=$new_proxy"; fi
+# ORCHADOS_DEMO_MODE after this run: public, unset, or left (public from an
+# earlier run). Any other value (`dev` from a smoke test) would open the demo
+# without the live-key rule, so without Turnstile it is removed: unsetting it
+# is how the demo is closed (demo-start answers 503 demo_closed).
+demo_mode="unset"
+delete_mode=false
 if [ "$turnstile" = true ]; then
   edge_set+=("${P}TURNSTILE_SECRET_KEY" ORCHADOS_DEMO_MODE)
   export "S_${P}TURNSTILE_SECRET_KEY=$TURNSTILE_SECRET_KEY" S_ORCHADOS_DEMO_MODE=public
+  demo_mode=public
 elif has_edge ORCHADOS_DEMO_MODE; then
-  warn "ORCHADOS_DEMO_MODE is already set on $host_label but the Turnstile secrets are missing in GitHub; left as is."
+  public_digest=$(printf public | sha256sum | cut -d' ' -f1)
+  if [ "$(edge_digest ORCHADOS_DEMO_MODE)" = "$public_digest" ]; then
+    demo_mode=left
+    warn "ORCHADOS_DEMO_MODE=public is already set on $host_label but the Turnstile secrets are missing in GitHub; left as is. The demo is open only while ${P}TURNSTILE_SECRET_KEY there holds a live key."
+  else
+    delete_mode=true
+  fi
 fi
 if ! shared; then
   for name in PAYMENT_FAKE_ALLOWED SIGNUP_TURNSTILE_DISABLED PAYMENT_PROVIDER; do
@@ -409,6 +428,16 @@ else
   rm -f "$tmp/body"
   note "Edge secrets: set ${edge_set[*]}."
   [ -z "$generated" ] || changes+=("Generated $generated")
+fi
+if [ "$delete_mode" = true ]; then
+  if dry; then
+    note "Edge secrets: would delete ORCHADOS_DEMO_MODE (not public, no Turnstile keys)."
+  else
+    jq -n '["ORCHADOS_DEMO_MODE"]' > "$tmp/body"
+    must sb DELETE "/v1/projects/$ref/secrets" "$tmp/body"
+    changes+=("Edge secret ORCHADOS_DEMO_MODE deleted (not public and no Turnstile keys): the demo is closed")
+    note "Edge secrets: deleted ORCHADOS_DEMO_MODE (not public, no Turnstile keys)."
+  fi
 fi
 unset "S_${P}SIGNUP_HASH_SECRET" S_ORCHADOS_CRON_SECRET "S_${P}SIGNUP_PROXY_SECRET" "S_${P}TURNSTILE_SECRET_KEY"
 
@@ -575,8 +604,10 @@ if dry; then title="$title (dry run: nothing written)"; fi
   if [ "$turnstile" = true ]; then
     echo "- [x] Turnstile keys set (\`${P}TURNSTILE_SECRET_KEY\`); \`ORCHADOS_DEMO_MODE=public\`."
     echo "- [ ] \`demo-data\` with \`project=demo action=enable\`, then \`deploy-db-demo\` once more (open-demo locks)."
+  elif [ "$demo_mode" = left ]; then
+    echo "- [ ] **Turnstile missing in GitHub:** \`ORCHADOS_DEMO_MODE=public\` from an earlier run is kept; the demo is open only while \`${P}TURNSTILE_SECRET_KEY\` on the project is a live key. Add \`TURNSTILE_SITE_KEY\` and \`TURNSTILE_SECRET_KEY\` to the \`demo\` environment and run this workflow again."
   else
-    echo "- [ ] **Turnstile missing:** the demo stays closed (\`ORCHADOS_DEMO_MODE\` unset, demo-start answers 503 \`demo_closed\`). Add \`TURNSTILE_SITE_KEY\` and \`TURNSTILE_SECRET_KEY\` (live keys for the demo domain) and run this workflow again. Do not run \`demo-data action=enable\` before that: the demo locks fail on an enabled demo without its secrets."
+    echo "- [ ] **Turnstile missing:** the demo stays closed (\`ORCHADOS_DEMO_MODE\` $(if [ "$delete_mode" = true ]; then if dry; then echo "would be deleted"; else echo "deleted in this run"; fi; else echo unset; fi), demo-start answers 503 \`demo_closed\`). Add \`TURNSTILE_SITE_KEY\` and \`TURNSTILE_SECRET_KEY\` (live keys for the demo domain) and run this workflow again. Do not run \`demo-data action=enable\` before that: the demo locks fail on an enabled demo without its secrets."
   fi
   if shared; then
     echo "- [ ] Supabase: the test project's spend cap and 80% usage alert (egress, MAU) now cover the demo too; dashboard only."
@@ -588,11 +619,9 @@ if dry; then title="$title (dry run: nothing written)"; fi
   if ! shared && [ "$created_project" = false ] && [ -n "$ref" ]; then
     echo "- [ ] The project was reused: its database password must equal \`DEMO_SUPABASE_DB_PASSWORD\` for deploy-db-demo and demo-data."
   fi
-  for name in "${P}TURNSTILE_SECRET_KEY" ORCHADOS_DEMO_MODE; do
-    if [ "$turnstile" = false ] && has_edge "$name"; then
-      echo "- [ ] Edge secret \`$name\` already exists on the project; check it is intended."
-    fi
-  done
+  if [ "$turnstile" = false ] && has_edge "${P}TURNSTILE_SECRET_KEY"; then
+    echo "- [ ] Edge secret \`${P}TURNSTILE_SECRET_KEY\` already exists on the project; check it is intended."
+  fi
   if [ "${#warnings[@]}" -gt 0 ]; then
     echo
     echo "### Warnings"
@@ -608,7 +637,9 @@ if dry; then title="$title (dry run: nothing written)"; fi
 if [ "${#forbidden_vercel[@]}" -gt 0 ]; then
   fail "Vercel $NAME has ${forbidden_vercel[*]}; a demo deployment must not (docs/deployment.md › Demo turu)."
 fi
-if [ "$turnstile" = false ]; then
+if [ "$turnstile" = false ] && [ "$demo_mode" = left ]; then
+  echo "::notice::Turnstile keys are missing in GitHub: ORCHADOS_DEMO_MODE=public from an earlier run is kept."
+elif [ "$turnstile" = false ]; then
   echo "::notice::Turnstile keys are missing: the demo stays closed (ORCHADOS_DEMO_MODE unset)."
 fi
 echo "Done."

@@ -5,7 +5,8 @@
 # fresh run, an idempotent second run, Turnstile arriving later, a dry run, a
 # lost shared secret, and the refusals. test (shared hosting on the test
 # project): only demo-specific settings change, the test site's are kept, the
-# pilot and a foreign anon key are refused, and the move to a separate project
+# pilot and a foreign anon key are refused, a leftover ORCHADOS_DEMO_MODE=dev is
+# removed, and the move to a separate project
 # catches a leftover. Then scripts/demo-lock-check.sh in both modes. Every
 # run's output and job summary is checked for secret values.
 # Needs bash, curl, jq, openssl and python3; no network.
@@ -197,7 +198,7 @@ check "tworgs: nothing written" test "$(writes tworgs)" = ""
 # --- host=test: shared hosting on the test project (docs/demo-turu.md §15.1) ---
 TEST_URL=https://testref000000000000.supabase.co
 shared_env=(HOST=test SUPABASE_URL="$TEST_URL" SUPABASE_ANON_KEY=test-anon-public-key
-  SUPABASE_PROJECT_REF= DEMO_DB_PASSWORD= PILOT_SUPABASE_URL=https://pilotref00000000000.supabase.co)
+  SUPABASE_PROJECT_REF=testref000000000000 DEMO_DB_PASSWORD= PILOT_SUPABASE_URL=https://pilotref00000000000.supabase.co)
 ctl reset >/dev/null
 curl -fsS "$base/__ctl/state" -X POST -d '{}' -H 'Content-Type: application/json' >"$work/pristine.json"
 # kept NAME: every setting the test site relies on is as before.
@@ -236,7 +237,7 @@ cp "$work/sfresh.json" "$work/before-srerun.json"
 # 13. Shared rerun: nothing written, nothing rotated, no deployment.
 run_and_snap srerun "${shared_env[@]}" DEMO_HOST_VAR=test || { cat "$work/srerun.out"; bad "shared rerun exits 0"; }
 check "shared rerun: no writes" test "$(writes srerun)" = ""
-check "shared rerun: nothing rotated" same before-srerun srerun '$a.test == $b.test and $a.vercel_env == $b.vercel_env'
+check "shared rerun: nothing rotated" same before-srerun srerun '($a.test | del(.vault_updates)) == ($b.test | del(.vault_updates)) and $a.vercel_env == $b.vercel_env'
 check "shared rerun: summary sees DEMO_HOST=test" grep -q 'Repository variable `DEMO_HOST=test`' "$work/srerun.summary"
 
 # 14. Shared, Turnstile arrives: DEMO_TURNSTILE_SECRET_KEY, never the test site's key.
@@ -263,12 +264,43 @@ check "shared cron: warns" grep -q 'lacks Edge ORCHADOS_CRON_SECRET or Vault orc
 check "shared cron: never generates the test project's cron secret" J scron '(.test.vault | has("orchados_cron_secret") | not)
   and .test.secrets.ORCHADOS_CRON_SECRET == "test-cron-SECRET"'
 
-# 17. Shared refusals: the pilot (by URL or name), a foreign anon key, refs that
-# disagree, a missing URL, a Cloudflare test key. Nothing is written.
+# 16b. The test project still has ORCHADOS_DEMO_MODE=dev from a smoke test and a
+# demo_cleanup_url from an earlier run; no Turnstile keys. dev would open the
+# demo without the live-key rule, so it is deleted; the URL is updated in place.
+ctl reset >/dev/null
+ctl set-secret '{"ref":"testref000000000000","name":"ORCHADOS_DEMO_MODE","value":"dev"}' >/dev/null
+curl -fsS -X POST -H 'Authorization: Bearer sb-token-SECRET' -H 'Content-Type: application/json' \
+  -d "{\"query\":\"do \$\$ begin\n  if exists (select 1 from vault.secrets where name = 'demo_cleanup_url') then\n    perform vault.update_secret((select id from vault.secrets where name = 'demo_cleanup_url'), 'https://old.example/x');\n  else\n    perform vault.create_secret('https://old.example/x', 'demo_cleanup_url');\n  end if;\nend \$\$;\"}" \
+  "$base/sb/v1/projects/testref000000000000/database/query" >/dev/null
+run_and_snap sdevdry "${shared_env[@]}" DRY_RUN=true || { cat "$work/sdevdry.out"; bad "shared dev dry run exits 0"; }
+check "shared dev dry: no writes" test "$(writes sdevdry)" = ""
+check "shared dev dry: plans to delete ORCHADOS_DEMO_MODE" grep -q 'would delete ORCHADOS_DEMO_MODE' "$work/sdevdry.out"
+run_and_snap sdev "${shared_env[@]}" || { cat "$work/sdev.out"; bad "shared dev exits 0"; }
+check "shared dev: ORCHADOS_DEMO_MODE deleted, the test site's secrets kept" J sdev '(.test.secrets | has("ORCHADOS_DEMO_MODE") | not)
+  and .test.secrets.TURNSTILE_SECRET_KEY == "1x0000000000000000000000000000000AA" and .test.secrets.SIGNUP_PROXY_SECRET == "test-proxy-SECRET"'
+check "shared dev: only ORCHADOS_DEMO_MODE was deleted" J sdev '[.log[] | select(.method == "DELETE") | {path, body}]
+  == [{"path": "/sb/v1/projects/testref000000000000/secrets", "body": ["ORCHADOS_DEMO_MODE"]}]'
+check "shared dev: summary says it was deleted" grep -q '`ORCHADOS_DEMO_MODE` deleted in this run' "$work/sdev.summary"
+check "shared dev: existing demo_cleanup_url updated in place" J sdev '.test.vault.demo_cleanup_url == "https://testref000000000000.supabase.co/functions/v1/demo-start"
+  and (.test.vault_updates | index("demo_cleanup_url"))'
+check "shared dev: no secret in output or summary" no_leaks sdev
+# A public mode from an earlier run is kept without the keys in GitHub; the summary says so.
+ctl set-secret '{"ref":"testref000000000000","name":"ORCHADOS_DEMO_MODE","value":"public"}' >/dev/null
+run_and_snap spublic "${shared_env[@]}" || { cat "$work/spublic.out"; bad "shared public exits 0"; }
+check "shared public: kept" J spublic '.test.secrets.ORCHADOS_DEMO_MODE == "public" and ([.log[] | select(.method == "DELETE")] == [])'
+check "shared public: summary does not claim the demo is closed" bash -c "grep -q 'ORCHADOS_DEMO_MODE=public\` from an earlier run is kept' '$work/spublic.summary' && ! grep -q 'demo stays closed' '$work/spublic.summary'"
+
+# 17. Shared refusals: the pilot (by URL, ref or name), a missing or unparsable
+# pilot URL, a missing test ref, a foreign anon key, refs that disagree, a
+# missing URL, a Cloudflare test key. Nothing is written.
 ctl reset >/dev/null
 for case in \
   "pilot-url|the host is the pilot project|SUPABASE_URL=https://pilotref00000000000.supabase.co" \
-  "pilot-name|the pilot never hosts the demo|SUPABASE_URL=https://pilotref00000000000.supabase.co PILOT_SUPABASE_URL=" \
+  "pilot-ref|the host is the pilot project|SUPABASE_PROJECT_REF=pilotref00000000000" \
+  "pilot-name|the pilot never hosts the demo|SUPABASE_URL=https://pilotref00000000000.supabase.co SUPABASE_PROJECT_REF=pilotref00000000000 PILOT_SUPABASE_URL=https://elsewhere000000000.supabase.co" \
+  "nopilot|PILOT_SUPABASE_URL is missing|PILOT_SUPABASE_URL=" \
+  "badpilot|PILOT_SUPABASE_URL is not https|PILOT_SUPABASE_URL=https://pilot.example.com" \
+  "snoref|SUPABASE_PROJECT_REF is missing|SUPABASE_PROJECT_REF=" \
   "anon|is not the anon or publishable key|SUPABASE_ANON_KEY=anon-public-key" \
   "refs|name different projects|SUPABASE_PROJECT_REF=otherref" \
   "nourl|SUPABASE_URL is missing|SUPABASE_URL=" \
@@ -306,16 +338,34 @@ run_and_snap lsetup >/dev/null 2>&1 || true   # separate demo project with its s
 # The test project: its orgs, sign-ups and fake payments are accepted.
 locks $T '{"real_orgs":3,"billing_orgs":2}'
 check "lock shared: the test site's orgs and payments pass" lock l1 shared $T
+# The test site's own TURNSTILE_SECRET_KEY (a Cloudflare test key), SIGNUP_HASH_SECRET
+# and SIGNUP_PROXY_SECRET stay on the project throughout: they never count for the demo.
+sec() { ctl set-secret "{\"ref\":\"$1\",\"name\":\"$2\",\"value\":\"$3\"}" >/dev/null; }
 locks $T '{"real_orgs":3,"enabled_demo_orgs":1,"cleanup_url":1,"cron_secret":1}'
 if lock l2 shared $T; then bad "lock shared: enabled demo without ORCHADOS_DEMO_MODE fails"; else
   check "lock shared: enabled demo without ORCHADOS_DEMO_MODE fails" grep -q 'ORCHADOS_DEMO_MODE secret is missing' "$work/l2.lock"; fi
-ctl set-secret "{\"ref\":\"$T\",\"name\":\"ORCHADOS_DEMO_MODE\",\"value\":\"public\"}" >/dev/null
-check "lock shared: enabled demo with its secrets passes" lock l3 shared $T
-ctl drop-secret "{\"ref\":\"$T\",\"name\":\"TURNSTILE_SECRET_KEY\"}" >/dev/null
-if lock l4 shared $T; then bad "lock shared: no Turnstile secret fails"; else
-  check "lock shared: no Turnstile secret fails" grep -q 'neither DEMO_TURNSTILE_SECRET_KEY nor TURNSTILE_SECRET_KEY' "$work/l4.lock"; fi
-ctl set-secret "{\"ref\":\"$T\",\"name\":\"DEMO_TURNSTILE_SECRET_KEY\",\"value\":\"0x4live\"}" >/dev/null
-check "lock shared: DEMO_TURNSTILE_SECRET_KEY stands in" lock l5 shared $T
+sec $T ORCHADOS_DEMO_MODE public
+if lock l3 shared $T; then bad "lock shared: the test site's secrets never stand in for the DEMO_ ones"; else
+  check "lock shared: the test site's secrets never stand in for the DEMO_ ones" bash -c "
+    grep -q 'DEMO_TURNSTILE_SECRET_KEY secret is missing' '$work/l3.lock' && grep -q 'DEMO_SIGNUP_HASH_SECRET secret is missing' '$work/l3.lock' \
+    && grep -q 'DEMO_SIGNUP_PROXY_SECRET secret is missing' '$work/l3.lock'"; fi
+sec $T DEMO_TURNSTILE_SECRET_KEY 0x4AAAAAAAlive-demo-SECRET
+sec $T DEMO_SIGNUP_HASH_SECRET demo-hash-SECRET
+sec $T DEMO_SIGNUP_PROXY_SECRET demo-proxy-SECRET
+check "lock shared: enabled demo with its DEMO_ secrets and public mode passes" lock l4 shared $T
+sec $T ORCHADOS_DEMO_MODE dev
+if lock l4b shared $T; then bad "lock shared: ORCHADOS_DEMO_MODE=dev fails"; else
+  check "lock shared: ORCHADOS_DEMO_MODE=dev fails" grep -q "ORCHADOS_DEMO_MODE on .* is not 'public'" "$work/l4b.lock"; fi
+sec $T ORCHADOS_DEMO_MODE public
+for dummy in 1x0000000000000000000000000000000AA 2x0000000000000000000000000000000AA 3x00000AA; do
+  sec $T DEMO_TURNSTILE_SECRET_KEY "$dummy"
+  if lock l4c shared $T; then bad "lock shared: dummy Turnstile key ${dummy:0:2}… fails"; else
+    check "lock shared: dummy Turnstile key ${dummy:0:2}… fails" grep -q 'DEMO_TURNSTILE_SECRET_KEY on .* is a Cloudflare test key' "$work/l4c.lock"; fi
+done
+sec $T DEMO_TURNSTILE_SECRET_KEY 0x4AAAAAAAlive-demo-SECRET
+ctl drop-secret "{\"ref\":\"$T\",\"name\":\"DEMO_SIGNUP_PROXY_SECRET\"}" >/dev/null
+if lock l5 shared $T; then bad "lock shared: no DEMO_SIGNUP_PROXY_SECRET fails"; else
+  check "lock shared: no DEMO_SIGNUP_PROXY_SECRET fails" grep -q 'DEMO_SIGNUP_PROXY_SECRET secret is missing' "$work/l5.lock"; fi
 locks $T '{"enabled_demo_orgs":1,"cleanup_url":0,"cron_secret":1}'
 if lock l6 shared $T; then bad "lock shared: no demo_cleanup_url fails"; else
   check "lock shared: no demo_cleanup_url fails" grep -q 'no demo_cleanup_url' "$work/l6.lock"; fi
@@ -335,7 +385,11 @@ if lock l10 separate $D; then bad "lock separate: a real org fails"; else
 locks $D '{"enabled_demo_orgs":1,"cleanup_url":1,"cron_secret":1}'
 if lock l11 separate $D; then bad "lock separate: enabled without Turnstile fails (no DEMO_ stand-in)"; else
   check "lock separate: enabled without Turnstile fails (no DEMO_ stand-in)" grep -q 'TURNSTILE_SECRET_KEY secret is missing' "$work/l11.lock"; fi
-check "lock: no secret value in the output" bash -c "! grep -qE 'sb-token-SECRET|test-(hash|proxy|cron)-SECRET' '$work'/l*.lock"
+sec $D ORCHADOS_DEMO_MODE public
+sec $D TURNSTILE_SECRET_KEY 1x0000000000000000000000000000000AA
+if lock l12 separate $D; then bad "lock separate: a dummy Turnstile key fails"; else
+  check "lock separate: a dummy Turnstile key fails" grep -q 'TURNSTILE_SECRET_KEY on .* is a Cloudflare test key' "$work/l12.lock"; fi
+check "lock: no secret value in the output" bash -c "! grep -qE 'sb-token-SECRET|(test|demo)-(hash|proxy|cron)-SECRET|live-demo-SECRET' '$work'/l*.lock"
 
 echo
 if [ "$failures" -gt 0 ]; then

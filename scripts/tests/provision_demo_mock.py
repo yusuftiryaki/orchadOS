@@ -102,6 +102,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_PATCH(self):
         self.route("PATCH")
 
+    def do_DELETE(self):
+        self.route("DELETE")
+
     def route(self, method):
         url = urlparse(self.path)
         path, query = url.path, parse_qs(url.query)
@@ -202,6 +205,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self.reply(400, {"message": f"empty value for {s.get('name')}"})
                 st["secrets"][s["name"]] = s["value"]
             return self.reply(201)
+        if rest == "/secrets" and method == "DELETE":
+            if not isinstance(body, list) or not all(isinstance(n, str) for n in body):
+                return self.reply(400, {"message": "expected a list of names"})
+            for n in body:
+                st["secrets"].pop(n, None)
+            return self.reply(200)
         if rest == "/database/query" and method == "POST":
             q = body["query"]
             if q.startswith("select name from vault.secrets"):
@@ -211,11 +220,19 @@ class Handler(BaseHTTPRequestHandler):
                           "billing_orgs": 0, "demo_billing_orgs": 0, "demo_users_outside": 0}
                 counts.update(st["locks"])
                 return self.reply(201, [counts])
-            ups = re.findall(r"perform vault\.create_secret\('([^']*)', '([^']*)'\)", q)
+            # scripts/provision-demo.sh vault_upsert: update when the name exists, else create.
+            ups = re.findall(
+                r"if exists \(select 1 from vault\.secrets where name = '([^']*)'\) then\s*"
+                r"perform vault\.update_secret\(\(select id from vault\.secrets where name = '([^']*)'\), '([^']*)'\);\s*"
+                r"else\s*perform vault\.create_secret\('([^']*)', '([^']*)'\);", q)
             if not ups:
                 return self.reply(400, {"message": "unexpected query"})
-            for value, name in ups:
-                st["vault"][name] = value
+            for name, uname, uvalue, cvalue, cname in ups:
+                if not (name == uname == cname and uvalue == cvalue):
+                    return self.reply(400, {"message": "inconsistent upsert"})
+                if name in st["vault"]:
+                    st.setdefault("vault_updates", []).append(name)
+                st["vault"][name] = cvalue
             return self.reply(201, [])
         return self.reply(404, {"message": "no route"})
 

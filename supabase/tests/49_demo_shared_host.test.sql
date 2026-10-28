@@ -8,7 +8,7 @@
 -- of org b0..01, self-service customer a0..06.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(14);
 
 select testing.reset_to_seed();
 
@@ -58,14 +58,26 @@ select is((select count(*)::int from public.org where id = 'b0000000-0000-4000-8
 reset role;
 select set_config('request.jwt.claims', '', true);
 
-select is(
-  (select count(*)::int from (
-     select 'm' as kind, user_id, org_id, null::uuid, role::text from public.membership
+-- Demo operations that write membership-adjacent rows: a second start, then
+-- the visitor's session expires and housekeeping deletes expired and foreign
+-- demo access. None of it may change a row of the test site's people.
+select lives_ok($$ select public.demo_start('d14a0000-0000-4000-8000-000000000001', 'h') $$, 'a visitor starts again');
+set local session_replication_role = replica;
+update private.demo_session set expires_at = now() - interval '1 minute'
+where user_id = 'd14a0000-0000-4000-8000-000000000001';
+set local session_replication_role = origin;
+select private.demo_housekeeping();
+select is((select count(*)::int from public.parcel_access where user_id = 'd14a0000-0000-4000-8000-000000000001'), 0,
+  'housekeeping removed the expired visitor''s access');
+
+select set_eq(
+  $$ select 'm' as kind, user_id, org_id, null::uuid, role::text from public.membership
+       where user_id in (select id from seed_user)
      union all
-     select 'p', user_id, org_id, parcel_id, role::text from public.parcel_access) now_access
-   where user_id in (select id from seed_user)),
-  (select count(*)::int from seed_access where user_id in (select id from seed_user)),
-  'the test site''s memberships and parcel access are unchanged');
+     select 'p', user_id, org_id, parcel_id, role::text from public.parcel_access
+       where user_id in (select id from seed_user) $$,
+  $$ select kind, user_id, org_id, parcel_id, role from seed_access where user_id in (select id from seed_user) $$,
+  'the test site''s memberships and parcel access are unchanged, row for row');
 
 -- Cleanup ------------------------------------------------------------------------------------
 

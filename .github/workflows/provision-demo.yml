@@ -79,8 +79,9 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           DEMO_DB_PASSWORD: ${{ inputs.host == 'separate' && secrets.DEMO_SUPABASE_DB_PASSWORD || '' }}
-          # host=test: the test project's public values (repository level) and
-          # the pilot's URL, which the script refuses as a host.
+          # host=test: SUPABASE_PROJECT_REF (required there, must match
+          # SUPABASE_URL), the test project's public values (repository level)
+          # and the pilot's URL (required there), which the script refuses as a host.
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           PILOT_SUPABASE_URL: ${{ secrets.PILOT_SUPABASE_URL }}
