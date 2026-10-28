@@ -468,6 +468,16 @@ CLASS_SCALES = (
 # enters it (docs/metodoloji.md, section 4.10); frost damage is a winter metric
 # only for a late-March visit under v0.2, where frost on swelling buds needs a
 # close look, so only the expert enters it too (section 4.5).
+# Seasons the registry gained with methodology-v0.2 (migration
+# 20261102130000_methodology_v02). The registry is not versioned, so visits of
+# earlier versions are not asked about these (same as the expert panel,
+# apps/web expert/metrics.ts V0_2_SEASON_EXTRAS).
+V0_2_SEASON_EXTRAS: dict[str, tuple[Season, ...]] = {
+    "frost_damage_scale": ("winter",),
+    "branch_break": ("summer",),
+}
+V0_2_VERSIONS = ("methodology-v0.2",)
+
 AI_SKIP_IN_SEASON: dict[str, tuple[Season, ...]] = {
     "dieback_pattern": ("winter",),
     "frost_damage_scale": ("winter",),

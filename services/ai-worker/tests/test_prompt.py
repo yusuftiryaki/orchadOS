@@ -48,8 +48,13 @@ def test_season_metrics_follow_the_registry(registry):
         "dried_leaves_attached",
     ]
     assert "fruit_load_scale" in codes["summer"]
-    # Pre-harvest visit (summer under methodology-v0.2): broken branches too.
-    assert "branch_break" in codes["summer"]
+    # Pre-harvest visit (summer under methodology-v0.2): broken branches too,
+    # but not on visits of earlier versions.
+    assert "branch_break" not in codes["summer"]
+    v02_summer = [m.code for m in season_metrics(registry, "summer", "methodology-v0.2")]
+    assert "branch_break" in v02_summer
+    v02_winter = [m.code for m in season_metrics(registry, "winter", "methodology-v0.2")]
+    assert "frost_damage_scale" not in v02_winter
     # Frost damage is in the winter registry (late March) but only the expert enters it.
     assert "frost_damage_scale" not in codes["winter"]
     # Parcel metrics, numeric quantities and staff questions are not asked of the AI.

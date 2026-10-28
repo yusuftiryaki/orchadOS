@@ -50,19 +50,19 @@ const codes = (ms: MetricDefinition[]) => ms.map((m) => m.code);
 
 describe("reviewMetrics", () => {
   it("keeps the season's metrics shown on the report card, scales first", () => {
-    expect(codes(reviewMetrics(DEFS, "winter"))).toEqual([
+    expect(codes(reviewMetrics(DEFS, "winter", null))).toEqual([
       "dead_branch_scale",
       "pruning",
       "scaffold_branch_count",
       "trunk_diameter_h30",
     ]);
-    expect(codes(reviewMetrics(DEFS, "summer"))).toEqual([
+    expect(codes(reviewMetrics(DEFS, "summer", null))).toEqual([
       "dead_branch_scale",
       "fruit_load_scale",
       "crown_diameter",
       "trunk_diameter_h30",
     ]);
-    expect(codes(reviewMetrics(DEFS, "harvest"))).toEqual([
+    expect(codes(reviewMetrics(DEFS, "harvest", null))).toEqual([
       "dead_branch_scale",
       "harvest_complete",
       "trunk_diameter_h30",
@@ -70,15 +70,33 @@ describe("reviewMetrics", () => {
   });
 
   it("leaves out hidden, under-evaluation and non-tree metrics", () => {
-    const all = ALL.flatMap((s) => codes(reviewMetrics(DEFS, s)));
+    const all = ALL.flatMap((s) => codes(reviewMetrics(DEFS, s, null)));
     expect(all).not.toContain("fractal_dimension");
     expect(all).not.toContain("canopy_temp_delta");
     expect(all).not.toContain("parcel_weeds");
   });
+
+  it("shows the seasons added in methodology-v0.2 only on v0.2 visits, last", () => {
+    const defs = [
+      ...DEFS,
+      metric("frost_damage_scale", "scale", ["winter", "spring"], "shown", { name: "a_frost" }),
+      metric("branch_break", "boolean", ["summer", "harvest"]),
+    ];
+    const winter = codes(reviewMetrics(defs, "winter", "methodology-v0.2"));
+    expect(winter.slice(0, 2)).toEqual(["dead_branch_scale", "frost_damage_scale"]);
+    expect(codes(reviewMetrics(defs, "winter", "methodology-v0.1"))).not.toContain(
+      "frost_damage_scale",
+    );
+    expect(codes(reviewMetrics(defs, "winter", null))).not.toContain("frost_damage_scale");
+    expect(codes(reviewMetrics(defs, "spring", null))[0]).toBe("frost_damage_scale");
+    expect(codes(reviewMetrics(defs, "summer", "methodology-v0.2"))).toContain("branch_break");
+    expect(codes(reviewMetrics(defs, "summer", "methodology-v0.1"))).not.toContain("branch_break");
+    expect(codes(reviewMetrics(defs, "harvest", null))).toContain("branch_break");
+  });
 });
 
 describe("parseMetricInputs", () => {
-  const winter = reviewMetrics(DEFS, "winter");
+  const winter = reviewMetrics(DEFS, "winter", null);
   const form = (values: Record<string, string>) => (name: string) => values[name];
 
   it("turns form fields into measurement inputs", () => {
@@ -133,7 +151,7 @@ describe("parseMetricInputs", () => {
   });
 
   it("reads yes/no values", () => {
-    const harvest = reviewMetrics(DEFS, "harvest");
+    const harvest = reviewMetrics(DEFS, "harvest", null);
     const result = parseMetricInputs(
       harvest,
       form({ "metric.dead_branch_scale": "0", "metric.harvest_complete": "false" }),
@@ -148,7 +166,7 @@ describe("parseMetricInputs", () => {
 
 describe("acceptedValues", () => {
   it("copies the AI's values of the visit's metrics only", () => {
-    const harvest = reviewMetrics(DEFS, "harvest");
+    const harvest = reviewMetrics(DEFS, "harvest", null);
     const ai = [
       {
         metric_definition_id: "id-dead_branch_scale",

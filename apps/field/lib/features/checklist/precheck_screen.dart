@@ -237,12 +237,8 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Şafakta, gün batımında, yağmurda ve yoğun tozda tarama yapılmaz. '
-            'Kırağı ya da don kalkmadan girilmez; çamurda motosiklet '
-            'kullanılmaz. Yazın tarama sabah (gün doğumundan 1 saat sonra – '
-            '11.00) ya da akşamüstü (16.00 – gün batımından 1 saat önce) '
-            'yapılır. Çizme giy. Rüzgâr çok sertse (saatte ~30 km üstü) yakın '
-            'plan çekilmez.',
+            'Şafakta, gün batımında, yağmurda, tozda ve kırağı kalkmadan '
+            'tarama yapılmaz. Yazın 11.00–16.00 arası taranmaz. Çizme giy.',
             style: TextStyle(fontSize: 16),
           ),
           const SizedBox(height: 24),
@@ -360,9 +356,8 @@ class _SprayingItem extends StatelessWidget {
               style: TextStyle(fontSize: 20),
             ),
             subtitle: Text(
-              'Bilmiyorsan bahçe sahibine sor. Süre bilinmiyorsa en az 48 '
-              'saat geçmiş olmalı. Süre geçmediyse, yapraklar ıslaksa ya da '
-              'ilaç kokusu varsa bahçeye girme.',
+              'Bilmiyorsan sahibine sor; süre bilinmiyorsa en az 48 saat. '
+              'Yaprak ıslaksa ya da ilaç kokuyorsa girme.',
               style: TextStyle(fontSize: 16),
             ),
           ),

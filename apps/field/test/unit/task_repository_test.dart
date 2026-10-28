@@ -139,9 +139,9 @@ void main() {
 
   test('season of a planned day: shared vectors with web and AI worker', () {
     // test-vectors/season.json at the repository root; tests run in apps/field.
-    final vectors =
-        jsonDecode(File('../../test-vectors/season.json').readAsStringSync())
-            as Map<String, Object?>;
+    final vectors = jsonDecode(
+      File('../../test-vectors/season.json').readAsStringSync(),
+    ) as Map<String, Object?>;
     final calendars = (vectors['calendars']! as Map).cast<String, Object?>();
     final versions = (vectors['versions']! as Map).cast<String, Object?>();
     var cases = 0;

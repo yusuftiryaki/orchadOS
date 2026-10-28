@@ -372,7 +372,7 @@ export async function loadReview(
     rules,
     firstOfSeason,
     previous,
-    metrics: reviewMetrics(allMetrics, season),
+    metrics: reviewMetrics(allMetrics, season, s.methodology_version),
     allMetrics,
     trees,
     findings: findings.map((f) => ({

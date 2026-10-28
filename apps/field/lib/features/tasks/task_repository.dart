@@ -291,10 +291,7 @@ class SupabaseTaskSource implements TaskSource {
           parcelName: parcel['name'] as String? ?? '',
           village: parcel['village'] as String? ?? '',
           kind: kind,
-          season: Season.forDate(
-            planned,
-            v['methodology_version'] as String?,
-          ),
+          season: Season.forDate(planned, v['methodology_version'] as String?),
           // 1 dönüm = 1000 m².
           areaDecare: area / 1000,
           closeupTrees: closeups,

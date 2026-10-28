@@ -113,7 +113,8 @@ class CloseupListScreen extends ConsumerWidget {
                             ? null
                             : () => Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => TreeObservationScreen(tree: t),
+                                  builder: (_) =>
+                                      TreeObservationScreen(tree: t),
                                 ),
                               ),
                       ),

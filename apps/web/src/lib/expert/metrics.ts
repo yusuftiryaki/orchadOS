@@ -35,19 +35,39 @@ const TYPE_ORDER: Record<MetricDefinition["value_type"], number> = {
   numeric: 3,
 };
 
+// Seasons the registry gained with methodology-v0.2 (migration
+// 20261102130000_methodology_v02): frost damage in winter for the late-March
+// visit, broken branches in summer for the pre-harvest visit. The registry is
+// not versioned, so visits of earlier versions keep their old forms here, and
+// in v0.2 forms these come after the season's usual metrics.
+export const V0_2_SEASON_EXTRAS: Record<string, Season[]> = {
+  frost_damage_scale: ["winter"],
+  branch_break: ["summer"],
+};
+const V0_2_VERSIONS = new Set(["methodology-v0.2"]);
+
 // Metrics of the visit's season that are shown on the report card and can be
 // measured on a tree. Scales first (the expert's main input), then by name.
-export function reviewMetrics(definitions: MetricDefinition[], season: Season): MetricDefinition[] {
+export function reviewMetrics(
+  definitions: MetricDefinition[],
+  season: Season,
+  methodologyVersion: string | null,
+): MetricDefinition[] {
+  const extra = (m: MetricDefinition) => V0_2_SEASON_EXTRAS[m.code]?.includes(season) ?? false;
+  const v02 = methodologyVersion != null && V0_2_VERSIONS.has(methodologyVersion);
   return definitions
     .filter(
       (m) =>
         m.valid_seasons.includes(season) &&
         m.card_visibility === "shown" &&
-        m.subject_kinds.includes("tree"),
+        m.subject_kinds.includes("tree") &&
+        (v02 || !extra(m)),
     )
     .sort(
       (a, b) =>
-        TYPE_ORDER[a.value_type] - TYPE_ORDER[b.value_type] || a.name.localeCompare(b.name, "tr"),
+        TYPE_ORDER[a.value_type] - TYPE_ORDER[b.value_type] ||
+        Number(extra(a)) - Number(extra(b)) ||
+        a.name.localeCompare(b.name, "tr"),
     );
 }
 

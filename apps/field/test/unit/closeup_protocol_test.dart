@@ -76,12 +76,7 @@ void main() {
         for (final q in CloseupProtocol.summer.parcelQuestions)
           (q.metricCode, q.text),
       ],
-      [
-        (
-          'fence_breach_present',
-          'Tel ya da çitte yeni açılmış geçit var mı?',
-        ),
-      ],
+      [('fence_breach_present', 'Tel ya da çitte yeni açılmış geçit var mı?')],
     );
     for (final s in [Season.winter, Season.spring, Season.harvest]) {
       expect(CloseupProtocol.forSeason(s).parcelQuestions, isEmpty);

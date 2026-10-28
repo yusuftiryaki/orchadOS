@@ -137,7 +137,9 @@ class Worker:
         methodology = session.methodology_version or DEFAULT_METHODOLOGY_VERSION
         pv = prompt_version(methodology)
         season = season_of(session.time, session.methodology_version)
-        metrics = season_metrics(self.catalog.metric_registry(), season)
+        metrics = season_metrics(
+            self.catalog.metric_registry(), season, session.methodology_version
+        )
         if not metrics:
             raise WorkerError(f"no metrics for the {season} season in the registry")
 
