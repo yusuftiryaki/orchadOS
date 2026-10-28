@@ -67,6 +67,7 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
     "Başvurularım",
     "Siparişlerim",
     "Ödemelerim",
+    "Sözleşmelerim",
     "Hesabım",
   ]);
   await expect(page.getByTestId("home-cta")).toContainText("Bahçenizi kaydedin");
