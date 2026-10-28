@@ -65,7 +65,7 @@ Ziyaretin mevsimi, taramanın yapıldığı aydan (UTC) ve ziyaretin metodoloji 
 
 - Ziyaretin hangi takvim satırı olduğu şimdilik kaydedilmez; mevsim aydan çıkar. #2 ile #1, #5 ile #4 aynı mevsimdedir; skorun "aynı mevsimle trend" kuralı ve "mevsimin ilk ziyareti" kuralı mevsime göre çalışır (bölüm 6, 9). İleride `session.visit_slot` alanı açılabilir (bölüm 11).
 - **Yapraklı dönem:** İlkbahar ve yaz. Taç doluluğu sadece bu dönemde ölçülür. Kuru kararı yapraklı dönemde daha güvenilirdir (bkz. [5](#5-genel-sınıf-kuralı)). v0.2'de Mart kış olduğundan yapraksız ağaçta taç doluluğu sorulmaz, budama girilebilir.
-- **Don hasarı kışın:** Mart sonu ziyareti kabaran tomurcukta geç dona denk gelebilir. Don hasarı kayıtta kışın da girilebilir, ama yalnız uzman girer; AI kışın don önermez.
+- **Don hasarı kışın, dal kırığı yazın:** Mart sonu ziyareti kabaran tomurcukta geç dona denk gelebilir; Ağustos başı ziyaretinde dal kırığı aranır. Kayıt (`metric_definition`) sürümsüz olduğu için uzman formu ve AI bu iki eklemeyi yalnız `methodology-v0.2` ziyaretlerinde, mevsimin olağan ölçeklerinden sonra gösterir; eski ziyaretlerin formu değişmez. Kışın donu yalnız uzman girer; AI kışın don önermez.
 - **Envanter** ziyareti ayrı bir ziyaret türüdür. Hasat sonrası ya da kışın, otlar kısayken yapılır, çünkü uzun ot gövde diplerini kapatır. Envanterde sağlık ölçeği girilmez; sadece ağaç kimliği ve özellikleri çıkarılır.
 
 **Ziyaret kuralları (v0.2):**
