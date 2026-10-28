@@ -7,13 +7,15 @@
 -- read-only window and its guards, the end of access, re-adding a garden and
 -- the housekeeping.
 -- Seed: org b0..01, ops a0..05, expert a0..04, owner a0..01 of parcel c0..01
--- (viewer a0..02 granted by the owner), package standart 9120..0001 (V = 4):
--- 20 dönüm cost 1 200 000 kuruş a year. One transaction: now() is constant.
+-- (viewer a0..02 granted by the owner), package standart 9120..0001 (V = 4).
+-- Round test prices (testing.use_round_prices, no inventory fee): 20 dönüm
+-- cost 1 200 000 kuruş a year. One transaction: now() is constant.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(117);
 
 select testing.reset_to_seed();
+select testing.use_round_prices();
 
 create function pg_temp.as_user(p_id uuid) returns void language sql
 as $$ select set_config('request.jwt.claims', json_build_object('sub', p_id, 'role', 'authenticated')::text, true) $$;
@@ -307,14 +309,14 @@ select results_eq(
             calculation ->> 'formula', (calculation ->> 'unallocated_kurus')::bigint
      from public.garden_removal where id = pg_temp.id('r4') $$,
   $$ values ('completed'::text, 'unused_visits'::text, 600000::bigint, 100000::bigint, 'removal-v1'::text, 0::bigint) $$,
-  'doc §7 Md. 8A example: 3 × 300 000 − 300 000 = 600 000, VAT share 100 000');
+  'Md. 8A (doc §7 example at round prices): 3 × 300 000 − 300 000 = 600 000, VAT share 100 000');
 select results_eq(
   $$ select (l ->> 'amount_kurus')::bigint, (l ->> 'visits_entitled')::integer, (l ->> 'visits_used')::integer,
             (l ->> 'visits_excluded')::integer, (l ->> 'visit_fee_kurus')::bigint, (l ->> 'gross_kurus')::bigint,
             (l ->> 'already_refunded_kurus')::bigint, (l ->> 'unattributed')::boolean, (l ->> 'removed_on')::date
      from (select pg_temp.line(pg_temp.id('r4')) l) x $$,
   $$ select 1200000::bigint, 4, 1, 1, 300000::bigint, 900000::bigint, 300000::bigint, false, pg_temp.today() $$,
-  'the line: same-day scans count once, the extra_visit rescan is excluded (gross 900 000 as in §7.1)');
+  'the line: same-day scans count once, the extra_visit rescan is excluded (gross 900 000)');
 select results_eq(
   $$ select kind::text, reason::text, amount_kurus, status::text, note, payment_item_id is not null
      from public.refund where garden_removal_id = pg_temp.id('r4') $$,
@@ -760,16 +762,14 @@ select results_eq(
 select is((select status::text from public.quote where id = pg_temp.id('q26')), 'cancelled',
   'the open add-on quote of the ended base is cancelled');
 
--- 11. Inventory share (doc §7.1 third example), with a price list that has an inventory fee --
+-- 11. Inventory share (doc §7.1 first-year example), with the launch prices of standart --
 
 insert into public.price_list (id, org_id, status, valid_from, vat_rate_bp)
 values ('f4600000-0000-4000-8000-000000000901', 'b0000000-0000-4000-8000-000000000001', 'draft', pg_temp.today(), 2000);
 insert into public.price_list_item (org_id, price_list_id, package_id, unit_price_kurus, minimum_fee_kurus, inventory_fee_kurus)
 values ('b0000000-0000-4000-8000-000000000001', 'f4600000-0000-4000-8000-000000000901',
-        '91200000-0000-4000-8000-000000000001', 12500, 500000, 100000),
-       ('b0000000-0000-4000-8000-000000000001', 'f4600000-0000-4000-8000-000000000901',
-        '91200000-0000-4000-8000-000000000002', 13000, 450000, 0);
-update public.price_list set status = 'published', version = 2, published_at = now()
+        '91200000-0000-4000-8000-000000000001', 18000, 1120000, 600000);
+update public.price_list set status = 'published', version = 3, published_at = now()
 where id = 'f4600000-0000-4000-8000-000000000901';
 insert into ids select 'c20', pg_temp.new_customer(20);
 insert into ids select 'o26', pg_temp.new_order(pg_temp.id('c20'), array[20000], 39.20);
@@ -779,14 +779,14 @@ select results_eq(
   $$ select (l ->> 'amount_kurus')::bigint, (l ->> 'inventory_share_kurus')::bigint, (l ->> 'inventory_done')::boolean,
             (l ->> 'visit_fee_kurus')::bigint, (l ->> 'refund_kurus')::bigint, (l ->> 'refund_vat_kurus')::bigint
      from (select pg_temp.line(pg_temp.id('r26')) l) x $$,
-  $$ values (1320000::bigint, 120000::bigint, false, 300000::bigint, 1020000::bigint, 170000::bigint) $$,
-  'doc §7.1: share 120 000, visit fee 300 000; no inventory done: 900 000 + 120 000');
+  $$ values (2448000::bigint, 720000::bigint, false, 432000::bigint, 2016000::bigint, 336000::bigint) $$,
+  'doc §7.1: share 720 000, visit fee 432 000; no inventory done: 1 296 000 + 720 000');
 insert into ids select 'c21', pg_temp.new_customer(21);
 insert into ids select 'o27', pg_temp.new_order(pg_temp.id('c21'), array[20000], 39.30);
 select pg_temp.visit(pg_temp.parcel_of(pg_temp.id('o27')), 'inventory', 'captured', pg_temp.today() - 50);
 select pg_temp.visit(pg_temp.parcel_of(pg_temp.id('o27')), 'periodic_scan', 'captured', pg_temp.today() - 10);
 insert into ids select 'r27', pg_temp.remove_now(pg_temp.id('o27'));
-select is((select refund_kurus from public.garden_removal where id = pg_temp.id('r27')), 900000::bigint,
+select is((select refund_kurus from public.garden_removal where id = pg_temp.id('r27')), 1296000::bigint,
   'with the inventory done its share is kept');
 
 -- 12. Counters -------------------------------------------------------------------------------

@@ -176,8 +176,8 @@ describe("application to active order, then a transfer refund", () => {
     const row = check(
       await ops.from("quote").select("total_kurus, discount_bp").eq("id", quote.value).single(),
     );
-    // 20 dönüm standard: 1.000.000 base, 10 % off, 20 % VAT.
-    expect(row).toEqual({ total_kurus: 1_080_000, discount_bp: 1000 });
+    // 20 dönüm standard, first year: 1.440.000 + 600.000 inventory, 10 % off, 20 % VAT.
+    expect(row).toEqual({ total_kurus: 2_203_200, discount_bp: 1000 });
 
     const internal = await internalOf(ops, "application_garden", garden);
     expect(internal.verification_note).toBe("Uydu ile ölçüldü");
@@ -200,14 +200,14 @@ describe("application to active order, then a transfer refund", () => {
     if (!first.ok) throw new Error(first.error);
     expect(
       await recordManualPayment(ops, order, {
-        amountKurus: 1_000_001,
+        amountKurus: 2_123_201,
         valueDate: today,
         bankReference: "EFT-BO-2",
         note: null,
       }),
     ).toEqual({ ok: false, error: "amount_exceeds_balance" });
     const second = await recordManualPayment(ops, order, {
-      amountKurus: 1_000_000,
+      amountKurus: 2_123_200,
       valueDate: today,
       bankReference: "EFT-BO-2",
       note: null,
@@ -218,7 +218,7 @@ describe("application to active order, then a transfer refund", () => {
     const row = check(
       await ops.from("service_order").select("status, paid_kurus").eq("id", order).single(),
     );
-    expect(row).toEqual({ status: "active", paid_kurus: 1_080_000 });
+    expect(row).toEqual({ status: "active", paid_kurus: 2_203_200 });
     const items = check(
       await ops.from("service_order_item").select("parcel_id").eq("order_id", order),
     );

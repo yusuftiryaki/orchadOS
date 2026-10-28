@@ -1,0 +1,56 @@
+> **Orchestrator notes (28 Oct 2026):** Branch `claude/hukuk-t07-saha-kayitlari` from `origin/main`, or merge `origin/main` into it if it already exists. Wave 1; dependencies: none. A dependency PR may already be merged into main; if not, merge its branch (`git merge --no-edit origin/<branch>`) and merge it again before you open your PR. Open the PR with `gh api repos/yusuftiryaki/orchadOS/pulls ...` and write the description in Turkish. Never merge PRs, never push to main, never force-push. Ask no questions.
+
+# Legal follow-ups, wave 1: field-app records for the field notice, blocked visits and the boundary pointer (T07 field part, T16 pointer part)
+
+You are one cloud coding agent in the repository yusuftiryaki/orchadOS (independent audit service for pistachio orchards). This is wave 1 of the follow-up work listed in docs/hukuk/kararlar.md, section “Takip işleri”. Your scope is the Flutter field app (apps/field, `mobile` devcontainer). You write NO database migration: the app records new event types in `public.session_event`, which already accepts them (open set: `event_type text check (event_type ~ '^[a-z][a-z0-9_]*$')`, `payload text`, insert-only; supabase/migrations/20261021230000_field_sync.sql; phone-side copy, `logger_result` null when no logger command is sent).
+
+State of main: İP12-İP14, #79 (legal texts) and #80/#83/#84 (shared demo host: the demo org can live on the hosted test project, DEMO_HOST=test) are merged.
+Parallel streams in wave 1 (never touch their paths): claude/hukuk-t03-teklif-kabul (the only database stream: supabase/**, apps/web billing/ops; it adds a planning ban on inventory and periodic sessions inside the withdrawal period that refuses only inserts and planned_date changes, never the status updates your sync sends), claude/hukuk-t16-sinir-ibaresi (web PDFs and maps), claude/hukuk-t11-kvkk-betikleri (scripts/kvkk and docs). Merge order: claude/hukuk-t03-teklif-kabul merges first; then merge main into your branch and let CI run again before your PR is merged.
+Later database streams read your events: the wave-2 stream claude/hukuk-t23-gorunurluk-kisiler restricts session_event to staff, copies the boundary pointer into a private table and shows it on ops/expert inventory views; the wave-3 stream claude/hukuk-t05-bahce-ziyaret-donem builds missed-visit records and the ops visit page on top of your field_notice_* and visit_blocked events. The event contract you write in docs/arayuzler.md is therefore binding for them: make it precise.
+
+## Ground rules
+1. Read first: CLAUDE.md; docs/gorevler/README.md (common rules for cloud agents); docs/hukuk/kararlar.md sections “Yayın şartları”, “Takip işleri”, H01, H05, H07, H15, H25, H26, H32; docs/arayuzler.md; docs/kullanim-kilavuzu.md (saha bölümü); apps/field/README.md.
+2. The decisions in docs/hukuk/kararlar.md are final: the user ordered that the legal-expert agent's decisions be accepted as correct. Do not reopen them. Turkish wording quoted here is binding.
+3. Edit only the paths under “You own”. If you need a change elsewhere (database, web, pipeline, docs/kullanim-kilavuzu.md), describe it in the PR. Never edit CLAUDE.md, docs/plan.md or docs/hukuk/kararlar.md.
+4. Safety: the field app is used by staff; do not add any new location collection (H05: “GNSS izi yalnızca tarama sırasında, Şirket ekipmanıyla ve bahçe ölçümü için tutulur”). Never record a phone number in an event. Never update or delete rows; media are never updated. Tests use synthetic data.
+5. Personal data in events (accepted deviation, document it): the boundary pointer's name is personal data of a third person, and free-text notes may name people. The repo rule is that personal data lives in the private schema; here public.session_event is the existing insert-only transport, readable only by org members today and by staff only after wave 2. The coordinator accepts this: the wave-2 database stream copies name and role into a private table, and the KVKK scripts (scripts/kvkk) pseudonymise these payloads on request. In docs/arayuzler.md mark the boundary_pointer name and every note field as personal data with this rule. In the app, the note fields carry a hint not to write phone numbers or the names of third persons.
+6. Language: code, identifiers, comments, commit messages in English; UI strings and docs in Turkish; PR description in Turkish.
+7. Your first commit saves this brief verbatim as docs/gorevler/hukuk-t07-saha-kayitlari.md. Commits end with the Co-Authored-By line from docs/gorevler/README.md (or your session's attribution rule if it differs); the PR body ends with the “Generated with Claude Code” line from the same file.
+8. Never rebase, never force-push, never push to main, never merge a PR. Catch up with `git fetch origin && git merge --no-edit origin/main`; merge main once more right before opening the PR.
+9. PR: `gh pr` is blocked. Use `gh api repos/yusuftiryaki/orchadOS/pulls -f title='Hukuk T07/T16: saha uygulamasında levha, sözlü bilgi, yapılamayan ziyaret ve sınırı gösteren kişi kayıtları' -f head=claude/hukuk-t07-saha-kayitlari -f base=main -F body=@pr.md`. Turkish description: what was done, decisions and reasons, test commands with pass/fail counts, CI result (wait for GitHub Actions), deviations, cut items, follow-ups for other streams (proposed text for docs/kullanim-kilavuzu.md; anything the database streams must know, including the personal-data fields).
+10. Ask no questions; choose the most conservative option that satisfies the decision and list it in the PR.
+11. Run long commands in the background. Final message: branch, PR URL, commits, test commands with pass/fail counts, CI status, deviations, follow-ups.
+
+## Commands
+In apps/field (mobile devcontainer): `flutter analyze`, `flutter test`, `dart run build_runner build --delete-conflicting-outputs` (drift; generated files are committed). CI: .github/workflows/ci-field.yml.
+
+## Base
+Branch claude/hukuk-t07-saha-kayitlari from the latest origin/main. No dependencies.
+
+## Decisions you implement
+- H01 (b) 1: “Tarama günü sahada: Saha ekibi bahçe girişine ya da çalışma noktasına QR kodlu taşınabilir bir levha koyar. Personel görünür bir tanıtım kartı taşır ve bahçede rastladığı kişilere kısa sözlü bilgi verir.” Saha talimatı: “Kişi kadraja yakınsa personel geçmesini bekler. Kişi itiraz ederse o bölüm daha sonra taranır.” T07: “saha uygulamasında “levha kondu / sözlü bilgi verildi” kaydı” (until then an ops checklist is used).
+- H15 / 8A/3: an owner-caused obstacle (“kapalı kapı, anahtar ya da bekçi yok, sınırı gösterecek kişi yok”) “zaman damgalı fotoğraf ve notla belgelenir ve aynı gün Sahip'e bildirilir”. T07 reasons: customer, company, weather, force_majeure. Weather, road closure, flood or an official ban are not owner causes (8A/2).
+- H07 / T16: “Envanter kaydında sınırı gösteren kişinin adı ve rolü tutulur.” H25: the pointer's phone is deleted at the end of access; the name and role stay with the report. H32: the pointer gets a short oral notice at first contact: “Numaranızı bahçe sahibi bize verdi. orchadOS bahçe denetimi için sizi ziyaret günü aramak ve sınırı göstermeniz için kullanıyoruz. Ayrıntılı bilgi: [alanadi]/kvkk.”
+
+## Do
+1. Pre-check (features/checklist/precheck_screen.dart): two explicit answers before the scan starts: “Bilgilendirme levhası (QR'lı) bahçe girişine kondu” and “Tanıtım kartım görünür” (yes/no; “no” requires a short reason). Record one event `field_notice_sign` with JSON payload {sign: bool, badge: bool, reason?: string}.
+2. During or after the scan (route view or visit summary): “Bahçede rastlanan kişilere sözlü bilgi verildi” with the answers given / bahçede kimse yoktu / not given + note, recorded as `field_notice_verbal` {answer: given | nobody | not_given, note?: string}. A quick action “Bir kişi itiraz etti” records `field_notice_objection` {note: string} and reminds the crew that the section is scanned later. Show the saha talimatı as a short hint on the scan screen.
+3. Blocked visit: from the task/today screen, “Ziyaret yapılamadı” with a reason: customer (kapı kapalı, anahtar yok, bekçi yok, sınırı gösterecek kişi yok), weather, access_other (yol kapandı, sel, resmi yasak; not an owner cause), company (ekipman, personel), force_majeure; a note; one or more timestamped photos. Record `visit_blocked` {reason: customer | company | weather | force_majeure, detail: string, note?: string, photo_count: int} (map access_other to weather or force_majeure as documented). Photos: use the app's existing photo capture and sync path if it can attach a photo to the session without a tree (read core/sync/sync_rows.dart, supabase_sync_server.dart and the capture/asset tables); if that needs a database change, record the event with photo_count 0, show a hint that the crew sends photos to ops, and state the limitation in the PR (the wave-3 database stream adds evidence upload). Do not change the session status unless an existing allowed transition fits.
+4. Boundary survey (features/boundary/boundary_screen.dart): record who shows the boundary: name (1-120 chars) and role (sahip, sahibin yakını, işçi/bekçi, komşu, diğer) as `boundary_pointer` {name: string, role: owner | owner_relative | worker | neighbor | other}. Never the phone. Show the H32 oral notice as a script hint.
+5. These are phone-side events, never sent to the GNSS logger. Check that the pipeline and every reader of session_event ignore unknown types (read services/pipeline and supabase code; do not edit them; report anything that would break).
+6. Check the RLS on session_event: who can read it? If owners or co-owners can read it (pointer names would be visible to them), state it in the PR; the wave-2 database stream restricts it.
+7. Offline first: events go through the existing outbox and sync when online, with stable ids (a resent event keeps its id).
+8. Docs: docs/arayuzler.md gets a subsection “Saha olayları (session_event)” listing every type the app writes (existing and new), when it is written, the payload JSON schema, an example, and which fields are personal data (ground rule 5); apps/field/README.md gets short user notes.
+9. Tests: widget tests for the new screens and answers; repository/outbox tests that the right rows are queued with valid JSON payloads and sync offline; regenerate drift code if its schema changes.
+
+## You own
+apps/field/**; docs/arayuzler.md; .github/workflows/ci-field.yml (only if needed); docs/gorevler/hukuk-t07-saha-kayitlari.md.
+
+## Do not touch
+Everything else: supabase/**, apps/web/**, services/**, firmware/**, scripts/**, other workflows, other docs (CLAUDE.md, docs/plan.md, docs/hukuk/**, docs/kullanim-kilavuzu.md in particular).
+
+## Acceptance criteria
+- ci-field green (flutter analyze clean, flutter test passing).
+- A crew member cannot start a scan without answering the sign and badge questions; field_notice_sign, field_notice_verbal, field_notice_objection, visit_blocked and boundary_pointer rows are queued with valid JSON and synced, offline included.
+- No phone number and no new location data is recorded; note fields warn against names and phone numbers.
+- docs/arayuzler.md documents every event type, payload and personal-data field precisely enough for the database streams of waves 2 and 3 and the KVKK scripts.

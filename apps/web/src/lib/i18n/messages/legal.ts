@@ -562,11 +562,11 @@ export const legalText: Record<LegalText, LegalDocument> = {
           "**Ziyaret hakkı:** Paketteki yıllık ziyaret sayısı, kalan günün dönemin toplam gününe oranıyla çarpılır. Kalan gün, ek teklifte yazan başlangıç günü (teklif gününden önce olamaz) ile dönemin bitiş günü arasındaki gün sayısıdır (ikisi de dahil). Sonuç en yakın tam sayıya yuvarlanır, yarım yukarı yuvarlanır; en az 1, en çok yıllık ziyaret sayısıdır. Ziyaret hakkı ek teklifte yazılır ve sabittir; ödeme daha sonraki bir gün yapılsa da değişmez. Ek teklif hesabın adımlarını rakamla gösterir: kalan gün ve dönemin toplam günü, ham sonuç ve yuvarlanmış ziyaret hakkı (örneğin 2,35 → 2; 2,5 → 3), ziyaret tutarı, orantılı en az ücret ve hangisinin alındığı, envanter ücreti, KDV, toplam ve aynı bahçenin tam yıllık bedeli; ayrıca kullanılan fiyat listesinin adını ve dönemde kalan ziyaret pencerelerini yazar. Şirket ek teklifin başlangıç gününü, ziyaret hakkı dönemde kalan ziyaret pencerelerinin sayısını aşmayacak biçimde belirler. Sahip'ten teklifte yazan toplam dışında bir bedel istenmez.",
           "**Bedel:** Ziyaret tutarı, ziyaret hakkı × doğrulanan alan (dönüm) × paketin dönüm ve ziyaret başı birim fiyatıdır. Bahçe başına en az ücret aynı oranla (ziyaret hakkı ÷ yıllık ziyaret sayısı) orantılanır ve ikisinden büyük olanı alınır. Envanter ücreti, envanter tek seferlik bir iş olduğu için tam alınır. Daha önce hizmetten çıkarılıp, son yayımlanmış envanterinin tarihinden itibaren 24 ay içinde yeniden eklenen ve sınırı ile ağaç düzeni esaslı biçimde değişmemiş bahçeden envanter ücreti alınmaz; bu süre geçmişse ya da yeni envanter gerekiyorsa envanter ücreti ek teklifte gerekçesiyle ayrı satır olarak gösterilir. KDV ayrıca gösterilir.",
           {
-            text: "**Örnek** (bilgi amaçlıdır; tutarlar deneme fiyat listesinden alınmıştır, gerçek fiyat değildir):",
+            text: "**Örnek** (bilgi amaçlıdır; tutarlar lansman fiyat listesinin Standart paketinden alınmıştır, güncel fiyat ek teklifte yazar):",
             children: [
-              "Üyelik dönemi 1 Kasım 2026–31 Ekim 2027 (365 gün). Paket yılda 4 ziyaret; birim fiyat 125,00 TL (dönüm·ziyaret), bahçe başına en az ücret 5.000,00 TL, envanter ücreti 0, KDV %20.",
+              "Üyelik dönemi 1 Kasım 2026–31 Ekim 2027 (365 gün). Paket yılda 4 ziyaret; birim fiyat 180,00 TL (dönüm·ziyaret), bahçe başına en az ücret 11.200,00 TL, envanter ücreti 6.000,00 TL (KDV hariç), KDV %20.",
               "15 dönümlük ek bahçenin hizmeti 1 Nisan 2027'de başlıyor. Kalan 214 gün: 4 × 214 ÷ 365 = 2,35 → **2 ziyaret**.",
-              "Ziyaret tutarı 2 × 15 × 125,00 = 3.750,00 TL. Orantılı en az ücret 5.000,00 × 2 ÷ 4 = 2.500,00 TL; büyük olan 3.750,00 TL alınır. KDV dahil **4.500,00 TL**. Aynı bahçenin tam yıllık bedeli 9.000,00 TL olurdu.",
+              "Ziyaret tutarı 2 × 15 × 180,00 = 5.400,00 TL. Orantılı en az ücret 11.200,00 × 2 ÷ 4 = 5.600,00 TL; büyük olan 5.600,00 TL alınır. Yeni bahçe olduğu için envanter ücreti 6.000,00 TL eklenir. KDV dahil **13.920,00 TL**. Aynı bahçenin envanterle tam yıllık bedeli 20.640,00 TL olurdu.",
             ],
           },
           "**Son ek günü:** Ek teklif, dönemin bitişine (bitiş günü dahil) en az 30 gün kalan son güne kadar geçerlidir; örnekte 2 Ekim 2027. Ek teklif en geç bu gün onaylanır ve ödenir; bu günden sonra onaylanamaz ve kartla ödenemez. Daha sonra gelen bahçe, yenileme ödenip yeni dönem başlayınca yeni döneme tam yıl olarak eklenir.",
@@ -652,8 +652,8 @@ export const legalText: Record<LegalText, LegalDocument> = {
               {
                 text: "**Örnekler** (bilgi amaçlıdır):",
                 children: [
-                  "Satır tutarı 12.000,00 TL (KDV dahil, envanter ücreti yok), ziyaret hakkı 4, yapılmış ziyaret 1. Ziyaret bedeli 3.000,00 TL; iade 12.000,00 − 1 × 3.000,00 = **9.000,00 TL** (KDV payı 1.500,00 TL).",
-                  "Aynı satırda 1 ziyaret yapılmış, 1 ziyaret yapılamamış ve Madde 8A'ya göre 3.000,00 TL daha önce iade edilmiş. Hesap 12.000,00 − 1 × 3.000,00 = 9.000,00 TL; önceki iade 3.000,00 TL düşülür ve iade **6.000,00 TL** olur (KDV payı 1.000,00 TL). Toplam iade 9.000,00 TL'dir, yani yapılmamış üç ziyaretin bedeli.",
+                  "Satır tutarı 17.280,00 TL (KDV dahil, envanter ücreti yok; örneğin 20 dönümlük bir bahçenin Standart paketle yenileme yılı), ziyaret hakkı 4, yapılmış ziyaret 1. Ziyaret bedeli 4.320,00 TL; iade 17.280,00 − 1 × 4.320,00 = **12.960,00 TL** (KDV payı 2.160,00 TL).",
+                  "Aynı satırda 1 ziyaret yapılmış, 1 ziyaret yapılamamış ve Madde 8A'ya göre 4.320,00 TL daha önce iade edilmiş. Hesap 17.280,00 − 1 × 4.320,00 = 12.960,00 TL; önceki iade 4.320,00 TL düşülür ve iade **8.640,00 TL** olur (KDV payı 1.440,00 TL). Toplam iade 12.960,00 TL'dir, yani yapılmamış üç ziyaretin bedeli.",
                 ],
               },
               "**İade yöntemi:** İade hesabı çıkış gününde yapılır; iade, çıkış gününden itibaren en geç 14 gün içinde ödemenin yapıldığı yöntemle ödenir ([İptal ve İade Politikası](/iade)). İadenin bir bahçeye ayrılamayan kısmı varsa Şirket iadeyi elle inceler; süre değişmez.",
@@ -755,7 +755,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
               "Ziyaret tutarı ziyaret hakkıyla hesaplanır. Bahçe başına en az ücret aynı oranla orantılanır. Envanter ücreti, envanter tek seferlik bir iş olduğu için tam alınır. Daha önce hizmetten çıkarılıp, son yayımlanmış envanterinin tarihinden itibaren 24 ay içinde yeniden eklenen ve sınırı ile ağaç düzeni esaslı biçimde değişmemiş bahçeden envanter ücreti alınmaz; bu süre geçmişse ya da yeni envanter gerekiyorsa envanter ücreti ek teklifte gerekçesiyle ayrı satır olarak gösterilir.",
               'Ek teklif hizmet dönemini (başlangıç ve üyeliğinizle ortak bitiş günü), ziyaret hakkını (ör. "2/4 ziyaret"), bahçe bazında envanteri ve son geçerlilik gününü gösterir. Son geçerlilik günü, dönemin bitişine en az 30 gün kalan son günü geçmez; ek teklif en geç o gün onaylanır ve ödenir.',
               "Ek teklif hesabı rakamla gösterir (kalan gün, ziyaret hakkı ve yuvarlama, ziyaret tutarı, orantılı en az ücret, envanter, KDV, toplam) ve dönemde kalan ziyaret pencerelerini yazar. Yuvarlamada 2,5 ve üstü yukarı, altı aşağı yuvarlanır. Bağlayıcı olan teklifteki toplamdır.",
-              "Örnek (deneme fiyatlarıyla): 1 Kasım 2026–31 Ekim 2027 döneminde, yılda 4 ziyaretli pakette 1 Nisan 2027'de başlayan 15 dönümlük bahçe için 2 ziyaret ve KDV dahil 4.500,00 TL; tam yıl 9.000,00 TL olurdu.",
+              "Örnek (lansman fiyat listesi, Standart paket): 1 Kasım 2026–31 Ekim 2027 döneminde, yılda 4 ziyaretli pakette 1 Nisan 2027'de başlayan 15 dönümlük bahçe için 2 ziyaret ve envanter ücretiyle birlikte KDV dahil 13.920,00 TL; envanterle tam yıl 20.640,00 TL olurdu.",
             ],
           },
           "Teklifte yazan toplam bedel dışında Şirket'e ödeyeceğiniz başka bir ücret yoktur. Kartla ödemede ek ücret alınmaz. Havale ya da EFT ile ödemede kendi bankanızın alabileceği gönderim ücreti size aittir.",
@@ -933,8 +933,8 @@ export const legalText: Record<LegalText, LegalDocument> = {
       {
         kind: "ul",
         items: [
-          "12.000,00 TL'lik bahçe, 4 ziyaret hakkı, 1 ziyaret yapılmış: ziyaret bedeli 3.000,00 TL, iade 12.000,00 − 3.000,00 = **9.000,00 TL** (KDV payı 1.500,00 TL).",
-          "Aynı bahçede 1 ziyaret yapılmış, 1 ziyaret yapılamamış ve 3.000,00 TL daha önce iade edilmiş: hesap 9.000,00 TL, önceki iade düşülür, iade **6.000,00 TL**. Toplamda yapılmamış üç ziyaretin bedeli, 9.000,00 TL iade edilmiş olur.",
+          "17.280,00 TL'lik bahçe, 4 ziyaret hakkı, 1 ziyaret yapılmış: ziyaret bedeli 4.320,00 TL, iade 17.280,00 − 4.320,00 = **12.960,00 TL** (KDV payı 2.160,00 TL).",
+          "Aynı bahçede 1 ziyaret yapılmış, 1 ziyaret yapılamamış ve 4.320,00 TL daha önce iade edilmiş: hesap 12.960,00 TL, önceki iade düşülür, iade **8.640,00 TL**. Toplamda yapılmamış üç ziyaretin bedeli, 12.960,00 TL iade edilmiş olur.",
         ],
       },
       {

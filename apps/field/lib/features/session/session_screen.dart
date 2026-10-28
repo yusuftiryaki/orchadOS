@@ -7,6 +7,7 @@ import '../boundary/boundary_screen.dart';
 import '../closeup/closeup_list_screen.dart';
 import '../coverage/coverage_card.dart';
 import '../gnss/gnss_panel.dart';
+import '../notice/notice_widgets.dart';
 import '../qr_clock/qr_clock_screen.dart';
 import '../route/route_card.dart';
 import '../summary/visit_summary_screen.dart';
@@ -153,6 +154,8 @@ class SessionScreen extends ConsumerWidget {
             ),
           ],
           gap,
+          const FieldInstructionCard(),
+          gap,
           _Step(
             done: state.endQrShown,
             text: 'Tarama bitince bitiş QR’ını göster',
@@ -180,6 +183,7 @@ class SessionScreen extends ConsumerWidget {
             leading: Icon(Icons.check_circle, color: Colors.green, size: 40),
             title: Text('Kayıt durdu. Kameradaki videoyu da durdurun.'),
           ),
+          const FieldInstructionCard(),
           if (state.task?.isInventory ?? false) ...[
             gap,
             OutlinedButton.icon(
