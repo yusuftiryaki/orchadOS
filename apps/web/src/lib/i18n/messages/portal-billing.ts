@@ -564,7 +564,8 @@ export const portalBillingText = {
     items: "Bahçeler",
     payTitle: "Ödeme",
     summaryTitle: "Özet",
-    awaitingLead: "Siparişiniz ilk ödemeyle etkinleşir. Kartla hemen ya da havale ile ödeyebilirsiniz.",
+    awaitingLead:
+      "Siparişiniz ilk ödemeyle etkinleşir. Kartla hemen ya da havale ile ödeyebilirsiniz.",
     dueOn: (date: string) => `Son gün: ${date}`,
     payRule:
       "Kartla her işlemde sıradaki açık ödeme ödenir; havale ile birden fazla ödemeyi birlikte gönderebilirsiniz.",

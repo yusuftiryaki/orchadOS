@@ -81,7 +81,7 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
   applicationId = new URL(page.url()).pathname.split("/").pop()!;
 
   // 3. A garden with its location and rough boundary on the map.
-  await page.getByRole("link", { name: "+ Bahçe ekle" }).click();
+  await page.getByRole("link", { name: "Bahçe ekle", exact: true }).click();
   await page.getByLabel("Bahçe adı").fill("Yolculuk bahçesi");
   await page.getByLabel("İlçe").fill("Nizip");
   await page.getByLabel("Alan (dönüm)").fill("20");

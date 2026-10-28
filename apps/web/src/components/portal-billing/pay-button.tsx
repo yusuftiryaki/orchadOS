@@ -30,7 +30,11 @@ export function PayButton({
     <form action={startPaymentAction} className={layout.stack}>
       <input type="hidden" name="order_id" value={orderId} />
       {identityRequired && (
-        <Field id="pay-identity-number" label={P.order.identityNumber} hint={P.order.identityNumberHint}>
+        <Field
+          id="pay-identity-number"
+          label={P.order.identityNumber}
+          hint={P.order.identityNumberHint}
+        >
           <Input
             name="identity_number"
             inputMode="numeric"

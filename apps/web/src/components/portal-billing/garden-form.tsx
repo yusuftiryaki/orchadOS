@@ -182,9 +182,11 @@ export function GardenForm({
           <p data-testid="position-state" className={position ? undefined : layout.muted}>
             {position ? G.positionSet : G.positionMissing}
           </p>
-          {area != null && <p data-testid="boundary-area">
+          {area != null && (
+            <p data-testid="boundary-area">
               {G.boundaryArea(formatNumber(area), formatNumber(m2ToDonum(area), 1))}
-            </p>}
+            </p>
+          )}
           {problem && (
             <p className={s.fieldError} role="status">
               {P.fieldErrors[problem]}

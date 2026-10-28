@@ -93,11 +93,13 @@ export default async function PaymentPage({
         <h2 id="payment-facts" className="sr-only">
           {T.title}
         </h2>
-        <dl className={layout.facts}>
-          <dt>{T.amount}</dt>
-          <dd className={layout.factsTotal} data-testid="payment-amount">
+        <div className={s.hero}>
+          <p className={`${layout.muted} ${layout.small}`}>{T.amount}</p>
+          <p className={s.dueAmount} data-testid="payment-amount">
             {formatKurus(payment.amount_kurus, currency)}
-          </dd>
+          </p>
+        </div>
+        <dl className={`${layout.facts} ${s.factsFlex}`}>
           {order && (
             <>
               <dt>{T.order}</dt>

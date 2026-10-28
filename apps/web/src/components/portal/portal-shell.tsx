@@ -39,10 +39,7 @@ export function PortalShell({ user, children }: { user: SessionUser; children: R
           </span>
           {/* Six portal links leave no room for the address in the header;
               the customer finds it on "Hesabım". */}
-          <span
-            className={user.roles.customer ? "sr-only" : styles.email}
-            data-testid="user-email"
-          >
+          <span className={user.roles.customer ? "sr-only" : styles.email} data-testid="user-email">
             {user.email}
           </span>
           <form action={signOut}>

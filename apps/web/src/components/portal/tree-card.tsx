@@ -72,7 +72,7 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
           ) : (
             <p className="muted">{c.noAssessment}</p>
           )}
-          {card.classHistory.length > 0 && (
+          {card.classHistory.length > 1 && (
             <ol className={styles.timeline} aria-label={c.timeline} data-testid="class-timeline">
               {[...card.classHistory].reverse().map((entry) => {
                 const s = entry.overallClass ?? "unassessed";

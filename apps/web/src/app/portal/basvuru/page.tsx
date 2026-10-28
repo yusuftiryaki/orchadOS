@@ -32,9 +32,7 @@ export default async function ApplicationsPage({
   ]);
   // A member adds gardens only while garden changes are open (IP14, §2).
   const canStart = !primary || primary.garden_changes_enabled;
-  const newButton = canStart && (
-    <ButtonLink href={portalHref.newApplication()}>{A.new}</ButtonLink>
-  );
+  const newButton = canStart && <ButtonLink href={portalHref.newApplication()}>{A.new}</ButtonLink>;
   return (
     <main className={`${layout.page} ${s.doc}`}>
       <PageHeader title={A.title} actions={applications.length > 0 && newButton} />

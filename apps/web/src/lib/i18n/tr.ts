@@ -969,7 +969,8 @@ export const tr = {
         "Bahçeniz hizmete alındığında ya da bir bahçe sahibi sizi hissedar olarak eklediğinde burada görünür.",
       lastVisit: "Son denetim",
       noVisit: "Henüz yayımlanmış denetim yok",
-      noVisitBody: "İlk ziyaretten sonra uzmanımız sonuçları yayımlayınca bahçenizin durumu burada görünür.",
+      noVisitBody:
+        "İlk ziyaretten sonra uzmanımız sonuçları yayımlayınca bahçenizin durumu burada görünür.",
       trees: (n: number) => `${n} ağaç`,
       urgent: (n: number) => `${n} acil bulgu`,
       countsLabel: "Ağaçların sınıflara göre sayısı",
@@ -1026,6 +1027,7 @@ export const tr = {
       name: "Ad soyad",
       phone: "Telefon",
       invite: "Hissedar davet et",
+      inviteTitle: "Hissedar davet edin",
       remove: "Erişimi kaldır",
       cancel: "Daveti geri al",
       status: {
@@ -1132,6 +1134,7 @@ export const tr = {
         viewers: "Hissedarlar",
       },
       classHelpTitle: "Sınıflar ne anlama geliyor?",
+      scoreHelpTitle: "Skor nasıl hesaplanır?",
       detailsTitle: "Karne ayrıntıları",
       boundaryTitle: "Sınır ve envanter",
       visitsTitle: "Ziyaretler",
@@ -1664,6 +1667,7 @@ export const tr = {
     pdf: "PDF indir",
     back: "Bahçe karnesi",
     draft: "Taslak: sınır onayınızı bekliyor",
+    notApprovedTitle: "Envanter henüz hazır değil",
     notApproved:
       "Envanter henüz uzman onayından geçmedi. Onaylandığında sayım ve harita bu sayfada görünür.",
     subtitle: (date: string) => `${date} tarihli ilk sayım`,

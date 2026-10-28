@@ -159,7 +159,7 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
           linkLabel={d.coverageLink}
         >
           {audit && (
-            <div className={styles.dimensionBody} data-testid="audit">
+            <div className={styles.auditLines} data-testid="audit">
               <p data-testid="audit-coverage">
                 {a.coverage(
                   pct(audit.covered, audit.activeTrees),

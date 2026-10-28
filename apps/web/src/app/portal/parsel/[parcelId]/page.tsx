@@ -89,17 +89,15 @@ export default async function Page({
       viewers={{ data: viewers, outcome: first(query.hissedar), readOnly }}
       removedUntil={removedUntil}
       serviceCard={
-        service || visits.length > 0 ? (
-          <>
-            {service && (
-              <ServiceCard
-                data={service}
-                params={{ bilgi: first(query.bilgi), hata: first(query.hata) }}
-              />
-            )}
-            <UpcomingVisits parcelId={parcelId} visits={visits} />
-          </>
+        service ? (
+          <ServiceCard
+            data={service}
+            params={{ bilgi: first(query.bilgi), hata: first(query.hata) }}
+          />
         ) : null
+      }
+      upcomingVisits={
+        visits.length > 0 ? <UpcomingVisits parcelId={parcelId} visits={visits} /> : null
       }
       demo={user.demo}
       pdfLimit={user.demo && first(query.hata) === DEMO_PDF_LIMIT}
@@ -118,16 +116,17 @@ async function loadServiceCard(
   userId: string,
   parcelId: string,
 ): Promise<ServiceCardData | null> {
-  const [gardens, { periods }] = await Promise.all([
+  // One round trip: the withdrawal is read before we know the garden is ours.
+  const [gardens, { periods }, withdrawal] = await Promise.all([
     listMyGardens(supabase),
     getServicePeriods(supabase),
+    latestWithdrawal(supabase, userId, parcelId),
   ]);
   const garden = gardens.find((g) => g.parcel_id === parcelId);
   if (!garden) return null;
   const today = istanbulToday();
   const changesEnabled = periods.some((p) => p.garden_changes_enabled);
   const withdrawalOpen = !!garden.withdrawal_until && garden.withdrawal_until >= today;
-  const withdrawal = await latestWithdrawal(supabase, userId, parcelId);
   const data: ServiceCardData = {
     garden,
     changesEnabled,

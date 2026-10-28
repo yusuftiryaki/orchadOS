@@ -128,7 +128,7 @@ export default async function QuotePage({
 
       <section className={layout.panel} aria-labelledby="quote-summary">
         <h2 id="quote-summary">{Q.summaryTitle}</h2>
-        <dl className={layout.facts}>
+        <dl className={`${layout.facts} ${s.factsFlex}`}>
           <dt>{Q.package}</dt>
           <dd>{quote.package_name}</dd>
           <dt>{Q.visitsLabel}</dt>
@@ -419,7 +419,7 @@ export default async function QuotePage({
                 )}
               </dl>
               <div className={layout.actions}>
-                <button className="button" type="submit" disabled={!canAccept}>
+                <button className={`button ${s.longButton}`} type="submit" disabled={!canAccept}>
                   {Q.accept}
                 </button>
               </div>
@@ -432,12 +432,7 @@ export default async function QuotePage({
             <h2>{Q.declineTitle}</h2>
             <form action={declineQuoteAction} className={s.form}>
               <input type="hidden" name="quote_id" value={quote.id} />
-              <Field
-                id="f-note"
-                label={Q.revisionNote}
-                hint={Q.revisionHint}
-                optional={P.optional}
-              >
+              <Field id="f-note" label={Q.revisionNote} hint={Q.revisionHint} optional={P.optional}>
                 <Textarea name="note" rows={2} maxLength={1000} />
               </Field>
               <div className={layout.actions}>

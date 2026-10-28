@@ -102,13 +102,14 @@
   }
 }
 
-/* One class count: dot, name, count and share; opens the map filtered. */
+/* One class count: dot and name, then count and share; opens the map
+   filtered to the class. */
 .count {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  display: grid;
+  align-content: center;
+  gap: 0;
   min-height: var(--control-height);
-  padding: 0 var(--space-1);
+  padding: var(--space-1);
   margin: 0 calc(-1 * var(--space-1));
   border-radius: var(--radius-sm);
   color: var(--color-text);
@@ -120,11 +121,6 @@
   color: var(--color-text);
 }
 
-.countName {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
 .countValue {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -134,8 +130,6 @@
   color: var(--color-muted);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
-  min-width: 4ch;
-  text-align: right;
 }
 
 .classHelp {
@@ -486,8 +480,14 @@
   font-size: var(--text-sm);
 }
 
+.panelHint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
 @media (min-width: 960px) {
-  .mapHint {
+  .panelHint {
     padding: var(--space-3);
     border: 1px dashed var(--color-border-strong);
     border-radius: var(--radius-lg);
@@ -740,6 +740,11 @@ span.findingWhere {
 
 .dimensionBody p {
   margin: 0;
+}
+
+.auditLines {
+  display: grid;
+  gap: 2px;
 }
 
 @media (min-width: 720px) {
@@ -1121,4 +1126,89 @@ span.findingWhere {
 
 .treeFinding p {
   margin: 0;
+}
+
+/* Header actions of the report: side by side even on a phone; printing is
+   for a desktop. */
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (max-width: 479px) {
+  .headerActions {
+    width: 100%;
+  }
+
+  .headerActions > :global(.button) {
+    flex: 1 1 0;
+  }
+}
+
+@media (max-width: 719px) {
+  .printButton {
+    display: none;
+  }
+}
+
+/* Class counts: name above, count and share below; two per row on a phone. */
+.countName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-weight: 600;
+}
+
+.countFigures {
+  white-space: nowrap;
+  padding-left: 18px;
+}
+
+/* Tree codes of findings with the same text. */
+.codeList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.codeChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.codeChip:hover {
+  background: var(--color-surface-2);
+}
+
+/* The overview: score on the left, classes on the right on a desktop. */
+.overview {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 960px) {
+  .overview {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .overview .counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

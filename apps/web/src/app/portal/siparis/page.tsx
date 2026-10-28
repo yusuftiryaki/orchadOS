@@ -62,9 +62,7 @@ export default async function OrdersPage({
                 <div className={s.rowSide}>
                   <StatusBadge kind="order" status={o.status} />
                   <span className={s.amount}>{formatKurus(o.total_kurus, o.currency)}</span>
-                  <span className={s.meta}>
-                    {O.paidOf(formatKurus(o.paid_kurus, o.currency))}
-                  </span>
+                  <span className={s.meta}>{O.paidOf(formatKurus(o.paid_kurus, o.currency))}</span>
                 </div>
               </li>
             ))}

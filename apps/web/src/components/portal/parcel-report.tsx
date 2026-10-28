@@ -109,7 +109,7 @@ export function ParcelReportView({
         title={report.parcel.name}
         lead={placeOf(report) ?? undefined}
         actions={
-          <div className={`${layout.actions} ${styles.noPrint}`}>
+          <div className={`${styles.headerActions} ${styles.noPrint}`}>
             {report.visits.length > 0 && (
               <ButtonLink variant="secondary" href={`${base}/gezi`}>
                 {r.tour}
@@ -124,7 +124,7 @@ export function ParcelReportView({
                 {r.pdf}
               </a>
             )}
-            {latest && <PrintButton />}
+            {latest && <PrintButton className={styles.printButton} />}
           </div>
         }
       />
@@ -226,7 +226,7 @@ export function ParcelReportView({
       <section id="ziyaretler" className={layout.section} aria-labelledby="ziyaret-baslik">
         <h2 id="ziyaret-baslik">{r.visitsTitle}</h2>
         {upcomingVisits}
-        <History report={report} />
+        <History report={report} titled={!!upcomingVisits} />
       </section>
 
       {showQuestions && <Questions report={report} base={base} questions={questions!} />}
@@ -256,65 +256,81 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
   const shown = states.filter((c) => c !== "unassessed" || latest.distribution.unassessed > 0);
   return (
     <section className={layout.panel} aria-labelledby="durum-baslik" data-testid="report-summary">
-      <div className={styles.overviewHead}>
-        <h2 id="durum-baslik">{r.summaryTitle}</h2>
-        <p>
-          <strong>{r.visitOf(formatDate(latest.time))}</strong>
-        </p>
-        {latest.methodologyVersion && (
-          <p className={`${styles.small} muted`}>{r.methodology(latest.methodologyVersion)}</p>
-        )}
-        {report.approver && (
-          <p className="muted" data-testid="report-approver">
-            {approverLine(report.approver)}
+      <div className={styles.overview}>
+        <div className={layout.stack}>
+          <div className={styles.overviewHead}>
+            <h2 id="durum-baslik">{r.summaryTitle}</h2>
+            <p>
+              <strong>{r.visitOf(formatDate(latest.time))}</strong>
+            </p>
+            {latest.methodologyVersion && (
+              <p className={`${styles.small} muted`}>{r.methodology(latest.methodologyVersion)}</p>
+            )}
+            {report.approver && (
+              <p className="muted" data-testid="report-approver">
+                {approverLine(report.approver)}
+              </p>
+            )}
+          </div>
+          <div className={styles.scoreBox} data-testid="score-box">
+            <ScoreLine
+              score={latest.score}
+              change={report.scoreChange}
+              basis={report.scoreBasis}
+              unassessedPct={report.scoreUnassessedPct}
+              size="large"
+            />
+            <details className={`${styles.disclosure} ${styles.noPrint}`}>
+              <summary>{r.scoreHelpTitle}</summary>
+              <p className={styles.small}>
+                {t.portal.score.help}.{" "}
+                {t.portal.score.weights(scoreRulesFor(latest.methodologyVersion))}
+              </p>
+            </details>
+          </div>
+        </div>
+        <div className={layout.stack}>
+          <p>
+            <strong data-testid="tree-count">{r.treeCount(report.activeTreeCount)}</strong>
+            {"; "}
+            {r.assessedCount(latest.assessedCount, report.activeTreeCount)}
           </p>
-        )}
+          <DistributionBar distribution={latest.distribution} />
+          <ul className={styles.counts}>
+            {shown.map((c) => (
+              <li key={c}>
+                <Link
+                  className={styles.count}
+                  href={`${base}?sinif=${c}#harita`}
+                  data-testid={`count-${c}`}
+                  title={`${r.showOnMap}: ${t.portal.classes[c]}`}
+                >
+                  <span className={styles.countName}>
+                    <ClassDot value={c} />
+                    {t.portal.classes[c]}
+                  </span>
+                  <span className={styles.countFigures}>
+                    <span className={styles.countValue}>
+                      {formatNumber(latest.distribution[c])}
+                    </span>{" "}
+                    <span className={styles.countShare}>
+                      {r.percent(percent(latest.distribution[c], total))}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <details className={`${styles.disclosure} ${styles.noPrint}`}>
+            <summary>{r.classHelpTitle}</summary>
+            <dl className={styles.classHelp}>
+              {shown.map((c) => (
+                <ClassHelpRow key={c} state={c} />
+              ))}
+            </dl>
+          </details>
+        </div>
       </div>
-      <div className={styles.scoreBox} data-testid="score-box">
-        <ScoreLine
-          score={latest.score}
-          change={report.scoreChange}
-          basis={report.scoreBasis}
-          unassessedPct={report.scoreUnassessedPct}
-          size="large"
-        />
-        <p className={`${styles.small} muted`}>
-          {t.portal.score.help}. {t.portal.score.weights(scoreRulesFor(latest.methodologyVersion))}
-        </p>
-      </div>
-      <p>
-        <strong data-testid="tree-count">{r.treeCount(report.activeTreeCount)}</strong>
-        {"; "}
-        {r.assessedCount(latest.assessedCount, report.activeTreeCount)}
-      </p>
-      <DistributionBar distribution={latest.distribution} />
-      <ul className={styles.counts}>
-        {shown.map((c) => (
-          <li key={c}>
-            <Link
-              className={styles.count}
-              href={`${base}?sinif=${c}#harita`}
-              data-testid={`count-${c}`}
-              title={`${r.showOnMap}: ${t.portal.classes[c]}`}
-            >
-              <ClassDot value={c} />
-              <span className={styles.countName}>{t.portal.classes[c]}</span>
-              <span className={styles.countValue}>{formatNumber(latest.distribution[c])}</span>
-              <span className={styles.countShare}>
-                {r.percent(percent(latest.distribution[c], total))}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-      <details className={`${styles.disclosure} ${styles.noPrint}`}>
-        <summary>{r.classHelpTitle}</summary>
-        <dl className={styles.classHelp}>
-          {shown.map((c) => (
-            <ClassHelpRow key={c} state={c} />
-          ))}
-        </dl>
-      </details>
       <Change report={report} base={base} />
     </section>
   );
@@ -335,6 +351,7 @@ function ClassHelpRow({ state }: { state: keyof Distribution }) {
 const SHOWN_CHANGES = 10;
 // Per kind of finding; the rest sit behind "show more" and all of them print.
 const SHOWN_FINDINGS = 5;
+const SHOWN_CODE_CHIPS = 12;
 // Tree codes named per kind in "Dikkat isteyenler".
 const SHOWN_CODES = 4;
 
@@ -560,25 +577,49 @@ function KindFindings({ group, base }: { group: KindGroup; base: string }) {
     items.length > 1 && items.every((f) => f.recommendation === items[0].recommendation)
       ? items[0].recommendation
       : null;
+  // Tree findings with one and the same text show as a list of codes.
+  const sameText =
+    items.length > 1 &&
+    items.every((f) => f.treeId && f.treeCode && withoutCode(f) === withoutCode(items[0]));
+  const List = sameText ? CodeList : FindingList;
+  // A short remainder is shown rather than folded.
+  const limit = sameText ? SHOWN_CODE_CHIPS : SHOWN_FINDINGS;
+  const shown = items.length <= limit + 3 ? items.length : limit;
   return (
     <div className={styles.findingKind}>
       <p>
         <strong>{findingKindLabel(group.kind)}</strong>{" "}
         <span className="muted">({formatNumber(items.length)})</span>
       </p>
+      {sameText && <p>{withoutCode(items[0])}</p>}
       {shared && (
         <p className={styles.recommendation}>
           {r.recommendation}: {shared}
         </p>
       )}
-      <FindingList findings={items.slice(0, SHOWN_FINDINGS)} base={base} shared={!!shared} />
-      {items.length > SHOWN_FINDINGS && (
+      <List findings={items.slice(0, shown)} base={base} shared={!!shared} />
+      {items.length > shown && (
         <details className={styles.more}>
-          <summary>{r.moreInGroup(items.length - SHOWN_FINDINGS)}</summary>
-          <FindingList findings={items.slice(SHOWN_FINDINGS)} base={base} shared={!!shared} />
+          <summary>{r.moreInGroup(items.length - shown)}</summary>
+          <List findings={items.slice(shown)} base={base} shared={!!shared} />
         </details>
       )}
     </div>
+  );
+}
+
+// Tree findings that say the same thing: one line of tree codes.
+function CodeList({ findings, base }: { findings: FindingItem[]; base: string; shared?: boolean }) {
+  return (
+    <ul className={styles.codeList}>
+      {findings.map((f) => (
+        <li key={f.id} data-finding-id={f.id}>
+          <Link className={styles.codeChip} href={`${base}/agac/${f.treeId}`}>
+            {f.treeCode}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -733,19 +774,26 @@ function Questions({
           .filter((f) => !f.treeId)
           .map((f) => ({
             value: `finding:${f.id}`,
-            label: `${findingKindLabel(f.kind)}: ${f.description.slice(0, 60)}`,
+            label: `${findingKindLabel(f.kind)}: ${shorten(f.description, 60)}`,
           }))}
       />
     </section>
   );
 }
 
-function History({ report }: { report: ParcelReport }) {
+// At most `max` characters, cut at a word.
+function shorten(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  return `${cut.slice(0, cut.lastIndexOf(" ") > 0 ? cut.lastIndexOf(" ") : max).replace(/[;,.:]$/, "")}…`;
+}
+
+function History({ report, titled }: { report: ParcelReport; titled: boolean }) {
   const c = r.columns;
   if (report.visits.length === 0) return <p className="muted">{r.historyEmpty}</p>;
   return (
     <div className={layout.stack}>
-      <h3>{r.historyTitle}</h3>
+      {titled && <h3>{r.historyTitle}</h3>}
       <Table data-testid="visit-history">
         <thead>
           <tr>

@@ -95,23 +95,22 @@ export default async function NewApplicationPage({
                   {pkg.description && <span>{pkg.description}</span>}
                   <span className={s.choiceFacts}>
                     <span>{N.visits(pkg.periodicVisitsPerYear)}</span>
-                    {pkg.includesInventory && (
-                      <span>{N.inventory}</span>
-                    )}
-                    <span>
-                      {N.unitPrice(formatKurus(pkg.unitPriceKurus, pkg.currency))}
-                    </span>
-                    <span>
-                      {N.minimum(formatKurus(pkg.minimumFeeKurus, pkg.currency))}
-                    </span>
+                    {pkg.includesInventory && <span>{N.inventory}</span>}
+                    <span>{N.unitPrice(formatKurus(pkg.unitPriceKurus, pkg.currency))}</span>
+                    <span>{N.minimum(formatKurus(pkg.minimumFeeKurus, pkg.currency))}</span>
                   </span>
                 </span>
               </label>
             ))}
-            {memberPackage && <p className={`${layout.muted} ${layout.small}`}>{M.packageLocked}</p>}
+            {memberPackage && (
+              <p className={`${layout.muted} ${layout.small}`}>{M.packageLocked}</p>
+            )}
           </fieldset>
           {!primary && (
-            <p className={`${layout.muted} ${layout.small}`} data-testid="application-location-note">
+            <p
+              className={`${layout.muted} ${layout.small}`}
+              data-testid="application-location-note"
+            >
               {N.locationNote}
             </p>
           )}

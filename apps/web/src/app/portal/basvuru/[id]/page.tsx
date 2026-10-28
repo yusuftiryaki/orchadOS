@@ -134,7 +134,11 @@ export default async function ApplicationPage({
   );
 
   return (
-    <main className={`${layout.page} ${s.doc}`} data-testid="application" data-status={application.status}>
+    <main
+      className={`${layout.page} ${s.doc}`}
+      data-testid="application"
+      data-status={application.status}
+    >
       <PageHeader
         title={<NumberedTitle text={A.title(application.number)} number={application.number} />}
         lead={P.applications.next[application.status]}

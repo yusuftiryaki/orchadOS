@@ -79,11 +79,7 @@ function GardenRow({ parcel, badge }: { parcel: PortalParcel; badge?: GardenBadg
               {g.lastVisit}:{" "}
               <strong data-testid="last-visit">{formatDate(parcel.lastVisit!.time)}</strong>
             </p>
-            <ScoreLine
-              score={parcel.score}
-              change={parcel.scoreChange}
-              basis={parcel.scoreBasis}
-            />
+            <ScoreLine score={parcel.score} change={parcel.scoreChange} basis={parcel.scoreBasis} />
             <DistributionBar distribution={parcel.distribution!} />
             <ClassCounts distribution={parcel.distribution!} />
           </>
@@ -97,7 +93,9 @@ function GardenRow({ parcel, badge }: { parcel: PortalParcel; badge?: GardenBadg
         )}
       </div>
       <div className={styles.attention}>
-        {parcel.urgentFindings > 0 && <Badge tone="danger">{g.urgent(parcel.urgentFindings)}</Badge>}
+        {parcel.urgentFindings > 0 && (
+          <Badge tone="danger">{g.urgent(parcel.urgentFindings)}</Badge>
+        )}
         <ButtonLink
           variant="secondary"
           href={`/portal/parsel/${parcel.id}`}
@@ -120,7 +118,8 @@ function ClassCounts({ distribution }: { distribution: Distribution }): ReactNod
         <li key={c}>
           <ClassDot value={c} />
           <span>
-            <strong>{formatNumber(distribution[c])}</strong> {t.portal.classes[c].toLocaleLowerCase("tr-TR")}
+            <strong>{formatNumber(distribution[c])}</strong>{" "}
+            {t.portal.classes[c].toLocaleLowerCase("tr-TR")}
           </span>
         </li>
       ))}

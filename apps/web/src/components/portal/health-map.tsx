@@ -279,7 +279,7 @@ export function HealthMap({
         ) : finding ? (
           <FindingPanel parcelId={parcelId} finding={finding} onClose={() => setSelected(null)} />
         ) : (
-          <p className={styles.mapHint}>{t.portal.report.mapHint}</p>
+          <p className={styles.panelHint}>{t.portal.report.mapHint}</p>
         )}
       </aside>
       <div className={styles.controls} data-testid="map-controls">

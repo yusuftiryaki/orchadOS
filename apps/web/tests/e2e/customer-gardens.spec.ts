@@ -169,7 +169,7 @@ test("a member adds a garden, accepts the add-on quote and pays by card", async 
   expect(draft.data?.package_id).toBe(quote.data?.package_id);
 
   // 3. The second garden on the map; the preview is prorated.
-  await page.getByRole("link", { name: "+ Bahçe ekle" }).click();
+  await page.getByRole("link", { name: "Bahçe ekle", exact: true }).click();
   await page.getByLabel("Bahçe adı").fill("Ek bahçe");
   await page.getByLabel("İlçe").fill("Nizip");
   await page.getByLabel("Alan (dönüm)").fill("12");

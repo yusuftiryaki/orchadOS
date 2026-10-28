@@ -124,7 +124,7 @@ export default async function OrderPage({
       <section className={layout.section} aria-labelledby="order-summary">
         <h2 id="order-summary">{O.summaryTitle}</h2>
         <div className={layout.panel}>
-          <dl className={layout.facts}>
+          <dl className={`${layout.facts} ${s.factsFlex}`}>
             {quote && (
               <>
                 <dt>{O.quote}</dt>
@@ -226,7 +226,7 @@ export default async function OrderPage({
             <p className={layout.small}>{O.reviseBody}</p>
             <Checkbox id="c-revise-confirm" name="confirm" required label={O.reviseConfirm} />
             <div className={layout.actions}>
-              <Button variant="secondary" type="submit">
+              <Button variant="secondary" type="submit" className={s.longButton}>
                 {O.revise}
               </Button>
             </div>
