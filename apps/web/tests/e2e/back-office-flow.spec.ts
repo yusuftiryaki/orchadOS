@@ -181,7 +181,12 @@ test("ops takes an application to an active order and refunds part of the transf
   await manual.getByLabel("Tutar (TL)").fill("24.480,00");
   await manual.getByLabel("Banka referansı").fill(`EFT-${run}`);
   await manual.getByRole("button", { name: "Havaleyi kaydet" }).click();
-  await expect(page.getByText("Havale kaydedildi ve makbuz numarası verildi.")).toBeVisible();
+  // The whole amount covers the five installments of the plan: one payment
+  // and one receipt each (docs/musteri-yonetimi.md §6.14).
+  await expect(
+    page.getByText("Havale kaydedildi; her ödeme için ayrı makbuz numarası verildi."),
+  ).toBeVisible();
+  await expect(page.getByTestId("installment-5")).toHaveAttribute("data-status", "paid");
   await expect(page.getByTestId("order-facts")).toContainText("Aktif");
   await expect(page.getByTestId("order-parcel-link")).toHaveText(GARDEN);
 
