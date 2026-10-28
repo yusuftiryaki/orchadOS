@@ -235,8 +235,11 @@ select results_eq(
   'the add-on quote: base order, frozen pricing-v2 inputs, validity');
 select is((select array_agg(k order by k) from public.quote q, jsonb_object_keys(q.inputs -> 'addon') k
            where q.id = pg_temp.id('q2')),
-  array['addon_last_day', 'base_order_id', 'base_order_number', 'period_days', 'period_end', 'period_start',
-        'remaining_days', 'service_start', 'visits', 'visits_per_year'], 'inputs.addon keys');
+  array['addon_last_day', 'base_order_id', 'base_order_number', 'lines', 'period_days', 'period_end', 'period_start',
+        'price_list_id', 'price_list_name', 'price_list_valid_from', 'price_list_version', 'raw_visits',
+        'remaining_days', 'remaining_window_count', 'remaining_windows', 'rounded_visits', 'rounding',
+        'service_start', 'vat_rate_bp', 'visits', 'visits_exceed_windows', 'visits_per_year'],
+  'inputs.addon keys (with the T18 breakdown)');
 select results_eq(
   $$ select visits, inventory_fee_kurus, line_total_kurus from public.quote_item where quote_id = pg_temp.id('q2') $$,
   $$ select 3::smallint, 100000::bigint,
