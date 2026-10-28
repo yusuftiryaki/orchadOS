@@ -10,23 +10,35 @@ import type { SignupInput } from "./validation";
 export const SIGNUP_ERRORS = [
   "invalid_input",
   "captcha_failed",
-  "email_taken",
-  "phone_registered",
+  // A taken e-mail; never says which detail is registered (H33).
+  "not_completed",
   "too_many_attempts",
   "signup_closed",
   "signup_unavailable",
   "phone_not_verified",
+  // complete: the session does not prove the registrant (ticket or password).
+  "signup_mismatch",
+  // claim: the session was not opened with the account's password.
+  "password_required",
   "failed",
 ] as const;
 export type SignupError = (typeof SIGNUP_ERRORS)[number];
 
 export type CompleteStatus = "completed" | "already_completed" | "no_pending";
 
-export type RegisterResult = { ok: true } | { ok: false; error: SignupError; field?: string };
+// `ticket`: the sign-up ticket of this register (lib/signup/ticket.ts), or
+// null from a function deployed before tickets.
+export type RegisterResult =
+  { ok: true; ticket: string | null } | { ok: false; error: SignupError; field?: string };
 export type CompleteResult =
   { ok: true; status: CompleteStatus } | { ok: false; error: SignupError };
 
 const FUNCTION = "customer-signup";
+
+// Where a refused completion (signup_mismatch) goes: the route signs the
+// session out and sends the user to /giris?kayit=yarim with the guidance.
+export const SIGNUP_REFUSED_PATH = "/kayit/yarim";
+export const SIGNUP_REFUSED_LOGIN = "/giris?kayit=yarim";
 
 // Only the Next server knows the secret; with it the function trusts the
 // client_ip in the body (design §7.1, step 3). Never NEXT_PUBLIC.
@@ -38,12 +50,19 @@ function proxyHeaders(): Record<string, string> {
 const isSignupError = (value: unknown): value is SignupError =>
   typeof value === "string" && (SIGNUP_ERRORS as readonly string[]).includes(value);
 
+// Codes of a function deployed before H33 (docs/hukuk/kararlar.md): shown
+// as the generic not_completed, never told apart.
+const LEGACY_CONFLICTS = new Set(["email_taken", "phone_registered"]);
+
 // Maps an HTTP status and body of the function to an error code. A missing
 // function (404) or a server error (5xx) is "signup_unavailable", except for
 // the function's own 503 signup_closed and 500 failed.
 export function signupErrorFromResponse(status: number, body: unknown): SignupError {
   const code =
     body && typeof body === "object" && "error" in body ? (body as { error: unknown }).error : null;
+  if (status === 409 && typeof code === "string" && LEGACY_CONFLICTS.has(code)) {
+    return "not_completed";
+  }
   if (status === 503 && code === "signup_closed") return "signup_closed";
   if (status === 500 && code === "failed") return "failed";
   if (status === 404 || status >= 500) return "signup_unavailable";
@@ -80,6 +99,9 @@ export async function registerCustomer(
   input: SignupInput,
   clientIp: string | null,
   captchaToken: string | null,
+  // This browser's previous ticket: lets the register replace its own
+  // sign-up in progress.
+  previousTicket: string | null = null,
 ): Promise<RegisterResult> {
   const body = {
     action: "register",
@@ -96,6 +118,7 @@ export async function registerCustomer(
     },
     ...(clientIp ? { client_ip: clientIp } : {}),
     ...(captchaToken ? { captcha_token: captchaToken } : {}),
+    ...(previousTicket ? { ticket: previousTicket } : {}),
   };
   try {
     const { data, error } = await supabase.functions.invoke(FUNCTION, {
@@ -104,7 +127,8 @@ export async function registerCustomer(
     });
     if (error) return { ok: false, ...(await errorOf(error)) };
     if (data && typeof data === "object" && (data as { next?: unknown }).next === "verify_phone") {
-      return { ok: true };
+      const ticket = (data as { ticket?: unknown }).ticket;
+      return { ok: true, ticket: typeof ticket === "string" ? ticket : null };
     }
     return { ok: false, error: "failed" };
   } catch {
@@ -112,11 +136,17 @@ export async function registerCustomer(
   }
 }
 
-// Called with the user's session (supabase-js sends the access token).
-export async function completeSignup(supabase: Client): Promise<CompleteResult> {
+// Called with the user's session (supabase-js sends the access token) and
+// this browser's sign-up ticket, or null without one. Every caller passes
+// what it holds: customer-signup checks every pending sign-up, and without
+// the ticket only a password session passes (signup_mismatch otherwise).
+export async function completeSignup(
+  supabase: Client,
+  ticket: string | null,
+): Promise<CompleteResult> {
   try {
     const { data, error } = await supabase.functions.invoke(FUNCTION, {
-      body: { action: "complete" },
+      body: { action: "complete", ...(ticket ? { ticket } : {}) },
       headers: proxyHeaders(),
     });
     if (error) return { ok: false, error: (await errorOf(error)).error };
@@ -125,6 +155,26 @@ export async function completeSignup(supabase: Client): Promise<CompleteResult> 
       return { ok: true, status };
     }
     return { ok: false, error: "failed" };
+  } catch {
+    return { ok: false, error: "signup_unavailable" };
+  }
+}
+
+export type ClaimResult = { ok: true; ticket: string | null } | { ok: false; error: SignupError };
+
+// /kayit/dogrula: a session opened with the account's password gets a fresh
+// ticket for its pending sign-up (null: none is pending). The code it then
+// asks for opens a new session without the password, so the ticket carries
+// that proof to complete.
+export async function claimSignupTicket(supabase: Client): Promise<ClaimResult> {
+  try {
+    const { data, error } = await supabase.functions.invoke(FUNCTION, {
+      body: { action: "claim" },
+      headers: proxyHeaders(),
+    });
+    if (error) return { ok: false, error: (await errorOf(error)).error };
+    const ticket = data && typeof data === "object" ? (data as { ticket?: unknown }).ticket : null;
+    return { ok: true, ticket: typeof ticket === "string" ? ticket : null };
   } catch {
     return { ok: false, error: "signup_unavailable" };
   }

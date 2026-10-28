@@ -393,6 +393,43 @@ begin
 end;
 $$;
 
+-- Sign-up owner proof (review of PR #93, round 2): a pending sign-up as it was
+-- written before tickets (ticket_hash null), a phone confirmed earlier than
+-- the code at hand, and the review flag a refused completion leaves.
+create or replace function testing.legacy_signup(p_user_id uuid)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  update private.customer_signup set ticket_hash = null where user_id = p_user_id;
+$$;
+
+-- Also moves the code send times back, so Auth's one code a minute per
+-- account (auth.sms.max_frequency) does not hold the next step of a test.
+create or replace function testing.age_phone_confirmation(p_user_id uuid, p_minutes integer)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  update auth.users
+  set phone_confirmed_at = phone_confirmed_at - make_interval(mins => p_minutes),
+      confirmation_sent_at = confirmation_sent_at - make_interval(mins => p_minutes),
+      recovery_sent_at = recovery_sent_at - make_interval(mins => p_minutes),
+      phone_change_sent_at = phone_change_sent_at - make_interval(mins => p_minutes)
+  where id = p_user_id;
+$$;
+
+create or replace function testing.signup_review(p_user_id uuid)
+returns text
+language sql
+security definer
+set search_path = ''
+as $$
+  select review_reason from private.customer_signup where user_id = p_user_id;
+$$;
+
 revoke all on all functions in schema testing from public;
 grant execute on function
   testing.purge_sessions(uuid[]), testing.purge_parcels(uuid[]), testing.purge_org(uuid),
@@ -400,5 +437,7 @@ grant execute on function
   testing.purge_signup_attempts(), testing.age_signups(uuid[], integer),
   testing.selectable_columns(text, text[]), testing.run_garden_removal_housekeeping(),
   testing.set_order_period(uuid, date, date), testing.register_legal_text(text, text, text),
-  testing.acknowledge_kvkk_notice(uuid)
+  testing.acknowledge_kvkk_notice(uuid),
+  testing.legacy_signup(uuid), testing.age_phone_confirmation(uuid, integer),
+  testing.signup_review(uuid)
   to service_role;

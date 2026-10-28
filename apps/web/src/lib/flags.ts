@@ -1,4 +1,5 @@
 import "server-only";
+import { webCaptchaProvider, type WebCaptchaProvider } from "@/lib/site/captcha";
 import { mainSiteUrlOf } from "@/lib/site/demo-host";
 
 export interface SiteFlags {
@@ -10,6 +11,9 @@ export interface SiteFlags {
   // Public origin without a trailing slash, for the sitemap and robots.txt.
   siteUrl: string;
   turnstileSiteKey: string | null;
+  // The robot check's widget (docs/hukuk/kararlar.md H03, T12); turnstile by
+  // default, altcha for the self-hosted proof of work.
+  captchaProvider: WebCaptchaProvider;
   // This deployment serves /demo (docs/demo-turu.md §11.1).
   demoEnabled: boolean;
   // Target of the "Demoyu dene" links; null hides them.
@@ -31,6 +35,7 @@ export function siteFlags(): SiteFlags {
     indexable: on(process.env.ORCHADOS_SITE_INDEXABLE) && mainSiteUrl === null,
     siteUrl: (process.env.ORCHADOS_SITE_URL || "http://localhost:3000").replace(/\/+$/, ""),
     turnstileSiteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || null,
+    captchaProvider: webCaptchaProvider(),
     demoEnabled,
     demoUrl: process.env.ORCHADOS_DEMO_URL?.trim() || (demoEnabled ? "/demo" : null),
     mainSiteUrl,

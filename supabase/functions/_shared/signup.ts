@@ -34,6 +34,9 @@ export interface RegisterInput {
   consents: SignupConsents;
   clientIp: string | null;
   captchaToken: string | null;
+  // The ticket of this browser's previous register (the web's cookie), or
+  // null: it lets the same registrant replace their own sign-up in progress.
+  ticket: string | null;
 }
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; field: string };
@@ -91,6 +94,10 @@ export function parseRegister(body: unknown): Parsed<RegisterInput> {
     if (!captchaToken || captchaToken.length > 4096) return invalid("captcha_token");
   }
 
+  // A malformed ticket counts as none: it only ever widens what register may
+  // replace, never what it reveals.
+  const ticket = str(b.ticket);
+
   return {
     ok: true,
     value: {
@@ -111,6 +118,7 @@ export function parseRegister(body: unknown): Parsed<RegisterInput> {
       },
       clientIp,
       captchaToken,
+      ticket: ticket && TICKET_RE.test(ticket) ? ticket : null,
     },
   };
 }
@@ -144,15 +152,53 @@ export function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-// How register treats the captcha: "verify" with TURNSTILE_SECRET_KEY set;
-// without it sign-ups stay closed ("unconfigured", fail closed) unless
-// SIGNUP_TURNSTILE_DISABLED=1, which only the local stack sets
-// (supabase/config.toml), never a hosted project.
-export type CaptchaMode = "verify" | "skip" | "unconfigured";
+// --- Sign-up ticket ------------------------------------------------------------
+// Every 200 of register carries a fresh ticket (32 random bytes, base64url);
+// the web keeps it in an httpOnly cookie. Only a register that opens an
+// account stores its SHA-256 (signup_set_ticket); a registered phone gets an
+// unstored one, so the answer looks the same. `claim` stores a new one for a
+// session opened with the account's password (/kayit/dogrula). The ticket
+// binds the code step to the registrant: Auth sends a phone confirmation code
+// only after the web granted it with the ticket (signup_code_grant, checked
+// by the Send SMS hook), and every complete of a pending sign-up must carry
+// it (signup_owner_check).
 
-export function captchaMode(secret: string, disabledFlag: string | undefined): CaptchaMode {
-  if (secret) return "verify";
-  return disabledFlag === "1" ? "skip" : "unconfigured";
+export const TICKET_RE = /^[A-Za-z0-9_-]{43}$/;
+
+export function newTicket(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+// hex(SHA-256(ticket)): customer_signup.ticket_hash. The database computes the
+// same for signup_code_grant.
+export async function ticketHash(ticket: string): Promise<string> {
+  return toHex(await crypto.subtle.digest("SHA-256", encoder.encode(ticket)));
+}
+
+// The ticket of a `complete` request, or null when the body has none or a
+// malformed one. Null only means no ticket proof: complete still checks the
+// pending sign-up (signup_owner_check), and only a password session passes
+// without a ticket.
+export function completeTicket(body: unknown): string | null {
+  if (!body || typeof body !== "object" || !("ticket" in body)) return null;
+  const ticket = (body as { ticket: unknown }).ticket;
+  return typeof ticket === "string" && TICKET_RE.test(ticket) ? ticket : null;
+}
+
+// The session was opened with the account's password (amr method password):
+// the registrant's own credentials. verifyOtp replaces the session, so after
+// a phone code this no longer holds and `claim` hands out a ticket instead.
+export function hasPasswordAmr(claims: Record<string, unknown> | null): boolean {
+  const amr = claims?.amr;
+  return (
+    Array.isArray(amr) &&
+    amr.some((entry) => !!entry && typeof entry === "object" && entry.method === "password")
+  );
 }
 
 // The client's IP: the body's client_ip when the Next server proved itself
@@ -180,24 +226,34 @@ export interface AccountMatch {
   signup_completed: boolean;
   // When the pending sign-up was written (else when the account was created).
   started_at: string;
+  // The register's ticket is this account's pending sign-up's (the same
+  // registrant again).
+  ticket_match?: boolean;
 }
 
 export type MatchOutcome =
   // Open the account.
   | "create"
-  // The verified owner of this phone: send them to the code step, change nothing.
-  | "existing_account"
-  | "email_taken"
-  | "phone_registered";
+  // The phone belongs to an account (its verified owner, someone else's
+  // sign-up in progress or another customer's profile): answer as for a new
+  // sign-up and change nothing. The code step sends only a login code, which
+  // reaches only the phone's verified owner, never the confirmation code of
+  // an account this registrant did not open (docs/hukuk/kararlar.md H33).
+  | "send_code"
+  // The e-mail belongs to another account and the phone to none: the generic
+  // "not_completed" error, never told apart from other conflicts (H33).
+  | "conflict";
 
 export interface MatchDecision {
-  // Stale self sign-ups past the grace period: deleted before going on.
+  // Stale self sign-ups past the grace period, and the registrant's own
+  // sign-up in progress (ticket_match): deleted before going on.
   staleUserIds: string[];
   outcome: MatchOutcome;
 }
 
 // A stale sign-up younger than this still belongs to whoever is entering its
-// code: a register with the same e-mail or phone is refused, not a takeover.
+// code: a register with the same e-mail or phone does not replace it, unless
+// it carries that sign-up's ticket.
 export const STALE_GRACE_MS = 30 * 60 * 1000;
 
 export const isStale = (m: AccountMatch) =>
@@ -208,30 +264,39 @@ const pastGrace = (m: AccountMatch, nowMs: number) => {
   return Number.isFinite(started) && nowMs - started > STALE_GRACE_MS;
 };
 
-// §7.1 step 5, in order: stale accounts past the grace period go; a verified
-// phone owner whose e-mail is not someone else's continues to the code; a
-// phone in another customer's profile, a taken e-mail or a taken (unverified,
-// or stale but recent) phone is refused.
+// §7.1 step 5, in order: stale accounts past the grace period, and the
+// registrant's own one (the ticket matches), go; a phone that still belongs to
+// an account (by the account's phone or a customer profile, including someone
+// else's sign-up in progress) goes to the code step without changes, whoever
+// holds the e-mail; a taken e-mail with a free phone is a conflict. Nothing
+// here attaches the new e-mail or password to an existing account, and no
+// register without its ticket removes someone else's sign-up in progress.
 export function decideMatches(matches: AccountMatch[], nowMs: number): MatchDecision {
   const stale = [
-    ...new Set(matches.filter((m) => isStale(m) && pastGrace(m, nowMs)).map((m) => m.user_id)),
+    ...new Set(
+      matches
+        .filter((m) => isStale(m) && (pastGrace(m, nowMs) || m.ticket_match === true))
+        .map((m) => m.user_id),
+    ),
   ];
   const live = matches.filter((m) => !stale.includes(m.user_id));
-  const byPhone = live.find((m) => m.matched_by === "phone");
-  const byEmail = live.find((m) => m.matched_by === "email");
-  const byProfile = live.find((m) => m.matched_by === "profile_phone");
-
   let outcome: MatchOutcome = "create";
-  if (byPhone?.phone_confirmed && (!byEmail || byEmail.user_id === byPhone.user_id)) {
-    outcome = "existing_account";
-  } else if (byProfile) {
-    outcome = "phone_registered";
-  } else if (byEmail) {
-    outcome = "email_taken";
-  } else if (byPhone) {
-    outcome = "phone_registered";
+  if (live.some((m) => m.matched_by === "phone" || m.matched_by === "profile_phone")) {
+    outcome = "send_code";
+  } else if (live.some((m) => m.matched_by === "email")) {
+    outcome = "conflict";
   }
   return { staleUserIds: stale, outcome };
+}
+
+// H33: every register answer after the rate limits takes at least this long,
+// so a new account (Auth hashes the password, the pending row is written) and
+// a registered phone or e-mail (no writes) cannot be told apart by timing.
+export const REGISTER_MIN_MS = 1500;
+
+// How long to wait before answering a register that started at `startedMs`.
+export function registerDelayMs(startedMs: number, nowMs: number, minMs = REGISTER_MIN_MS): number {
+  return Math.max(0, startedMs + minMs - nowMs);
 }
 
 // The claims of a JWT (already verified by the Auth API), or null.
@@ -265,7 +330,10 @@ export function latestPhoneCodeAt(claims: Record<string, unknown> | null): numbe
   let latest: number | null = null;
   for (const entry of amr) {
     if (!entry || typeof entry !== "object") continue;
-    const { method, timestamp } = entry as { method?: unknown; timestamp?: unknown };
+    const { method, timestamp } = entry as {
+      method?: unknown;
+      timestamp?: unknown;
+    };
     if ((method !== "otp" && method !== "sms") || typeof timestamp !== "number") continue;
     if (!Number.isFinite(timestamp)) continue;
     if (latest === null || timestamp > latest) latest = timestamp;

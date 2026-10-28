@@ -1,9 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Turnstile } from "@/components/site/turnstile";
+import { CaptchaWidget } from "@/components/site/turnstile";
 import styles from "@/components/demo/demo.module.css";
 import { demoText, type DemoStartError } from "@/lib/i18n/messages/demo";
+import type { WebCaptchaProvider } from "@/lib/site/captcha";
 import { createClient } from "@/lib/supabase/browser";
 import { startDemoAction } from "./actions";
 import { INITIAL_DEMO_STATE, type DemoStartState } from "./demo-state";
@@ -14,9 +15,11 @@ const d = demoText.start;
 // its own session (docs/demo-turu.md §2) and opens the portal.
 export function DemoStartForm({
   turnstileSiteKey,
+  captchaProvider,
   label,
 }: {
   turnstileSiteKey: string | null;
+  captchaProvider?: WebCaptchaProvider;
   label: string;
 }) {
   const [state, action, pending] = useActionState(startDemoAction, INITIAL_DEMO_STATE);
@@ -56,7 +59,12 @@ export function DemoStartForm({
   const busy = pending || opening;
   return (
     <form action={action} className={styles.startForm}>
-      {turnstileSiteKey && <Turnstile siteKey={turnstileSiteKey} resetKey={state} />}
+      <CaptchaWidget
+        provider={captchaProvider}
+        siteKey={turnstileSiteKey}
+        purpose="demo"
+        resetKey={state}
+      />
       {error && (
         <p className="error" role="alert" data-testid="demo-start-error">
           {d.errors[error]}

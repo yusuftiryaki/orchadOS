@@ -141,23 +141,23 @@ describe("demoMode", () => {
   });
 
   it("dev opens; Turnstile only with a secret", () => {
-    expect(demoMode({ mode: "dev" })).toEqual({ open: true, requireTurnstile: false });
+    expect(demoMode({ mode: "dev" })).toEqual({ open: true, captcha: "off" });
     expect(demoMode({ mode: "dev", turnstileSecret: "" })).toEqual({
       open: true,
-      requireTurnstile: false,
+      captcha: "off",
     });
     expect(demoMode({ mode: "dev", turnstileSecret: live })).toEqual({
       open: true,
-      requireTurnstile: true,
+      captcha: "required",
     });
   });
 
   it("public opens only with a live secret, and always verifies", () => {
     expect(demoMode({ mode: "public", turnstileSecret: live })).toEqual({
       open: true,
-      requireTurnstile: true,
+      captcha: "required",
     });
-    expect(demoMode({ mode: "public" })).toEqual({ open: false, requireTurnstile: true });
+    expect(demoMode({ mode: "public" })).toEqual({ open: false, captcha: "required" });
   });
 
   it.each([
@@ -169,8 +169,47 @@ describe("demoMode", () => {
     // dev still verifies with it (local, CI).
     expect(demoMode({ mode: "dev", turnstileSecret: dummy })).toEqual({
       open: true,
-      requireTurnstile: true,
+      captcha: "required",
     });
+  });
+});
+
+// The self-hosted robot check (docs/hukuk/kararlar.md H03, T12).
+describe("demoMode with CAPTCHA_PROVIDER=altcha", () => {
+  const key = "k".repeat(32);
+
+  it("public opens only with a key of at least 32 characters, and always checks", () => {
+    expect(demoMode({ mode: "public", provider: "altcha", altchaKey: key })).toEqual({
+      open: true,
+      captcha: "required",
+    });
+    expect(demoMode({ mode: "public", provider: "altcha", altchaKey: key.slice(1) }).open).toBe(
+      false,
+    );
+    // A live Turnstile secret does not stand in for the missing key.
+    expect(
+      demoMode({ mode: "public", provider: "altcha", turnstileSecret: "0x4AAAAAAAlive" }).open,
+    ).toBe(false);
+    expect(demoMode({ provider: "altcha", altchaKey: key }).open).toBe(false);
+  });
+
+  it("dev checks a sent token when the key is set (local, CI)", () => {
+    expect(demoMode({ mode: "dev", provider: "altcha", altchaKey: key })).toEqual({
+      open: true,
+      captcha: "if_sent",
+    });
+    expect(demoMode({ mode: "dev", provider: "altcha" })).toEqual({ open: true, captcha: "off" });
+  });
+
+  it("an unknown provider keeps the demo closed", () => {
+    for (const mode of ["dev", "public"]) {
+      expect(
+        demoMode({ mode, provider: "hcaptcha", turnstileSecret: "0x4AAAAAAAlive", altchaKey: key }),
+      ).toEqual({ open: false, captcha: "required" });
+    }
+    expect(
+      demoMode({ mode: "public", provider: " Turnstile ", turnstileSecret: "0x4AAAAAAAlive" }).open,
+    ).toBe(true);
   });
 });
 

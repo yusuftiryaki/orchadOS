@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2016 # jq programs in single quotes
-# Runs the lock query of scripts/demo-lock-check.sh against the local database
-# (pnpm db:start && pnpm db:reset): the mock in test-provision-demo.sh only
-# returns canned counts, so this is where the generated SQL (quoting, columns,
-# which rows count) is checked. Crafted rows go in one transaction that is
+# Runs the lock query of scripts/demo-lock-check.sh and the retention query of
+# scripts/retention-check.sh against the local database (pnpm db:start &&
+# pnpm db:reset): the mock in test-provision-demo.sh only returns canned
+# counts, so this is where the generated SQL (quoting, columns, which rows
+# count) is checked. Crafted rows go in one transaction per query that is
 # rolled back. Needs psql and jq; DB_URL defaults to the local Supabase.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 DB_URL=${DB_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}
 sql=$(bash "$here/demo-lock-check.sh" sql)
+retention=$(bash "$here/retention-check.sh" sql)
 
 # Seed: org b0..01 with parcel c0..01. Fixtures: an enabled demo org that allows
 # fake payments, with one parcel; demo accounts with a membership in the seed org
@@ -66,6 +68,51 @@ expect "demo accounts with a membership or seed parcel access count; demo-parcel
   '$a.demo_users_outside == $b.demo_users_outside + 2'
 expect "Vault demo_cleanup_url is seen" '$a.cleanup_url >= 1'
 expect "the seed itself holds the locks" '$b.enabled_demo_orgs == 0 and $b.demo_users_outside == 0 and $b.demo_billing_orgs == 0'
+
+
+# Retention (T09): the seed opens sign-ups and schedules signup-cleanup. The
+# fixtures add a valid signup_cleanup_url and an orchados_cron_secret of 'abc',
+# an active auth-audit-log-purge job, one GoTrue audit row 40 days old (counts)
+# and one 20 days old (does not); then signup-cleanup is switched off and the
+# URL points elsewhere.
+out=$(psql "$DB_URL" -X -q -At -v ON_ERROR_STOP=1 <<SQL
+begin;
+delete from vault.secrets where name in ('signup_cleanup_url', 'orchados_cron_secret');
+select cron.unschedule('auth-audit-log-purge') where exists (select 1 from cron.job where jobname = 'auth-audit-log-purge');
+select row_to_json(t) from ($retention) t;
+select vault.create_secret('https://example.invalid/functions/v1/customer-signup', 'signup_cleanup_url');
+select vault.create_secret('abc', 'orchados_cron_secret');
+select cron.schedule('auth-audit-log-purge', '41 3 * * *', 'select 1');
+insert into auth.audit_log_entries (instance_id, id, payload, created_at, ip_address) values
+  ('00000000-0000-0000-0000-000000000000', 'd15b0000-0000-4000-8000-000000000001', '{}', now() - interval '40 days', ''),
+  ('00000000-0000-0000-0000-000000000000', 'd15b0000-0000-4000-8000-000000000002', '{}', now() - interval '20 days', '');
+select row_to_json(t) from ($retention) t;
+select cron.alter_job(jobid, active := false) from cron.job where jobname = 'signup-cleanup';
+select vault.update_secret(id, 'https://example.invalid/functions/v1/payments') from vault.secrets where name = 'signup_cleanup_url';
+select row_to_json(t) from ($retention) t;
+rollback;
+SQL
+)
+rows=$(grep '^{"signup_orgs"' <<<"$out")
+before=$(sed -n 1p <<<"$rows")
+after=$(sed -n 2p <<<"$rows")
+off=$(sed -n 3p <<<"$rows")
+echo "retention before: $before"
+echo "retention after:  $after"
+echo "retention off:    $off"
+abc=$(printf abc | sha256sum | cut -d' ' -f1)
+expect "retention: every count is an integer, the digest a string" \
+  '[$b, $a][] | to_entries | all(if .key == "cron_secret_digest" then (.value | type == "string") else (.value | type == "number") end)'
+expect "retention: the seed opens sign-ups with an active signup-cleanup job" '$b.signup_orgs >= 1 and $b.signup_cleanup_jobs == 1'
+expect "retention: no Vault entries, no audit purge job before" \
+  '$b.signup_cleanup_url == 0 and $b.cron_secret_digest == "" and $b.audit_purge_jobs == 0'
+expect "retention: a customer-signup URL counts" '$a.signup_cleanup_url == 1'
+expect "retention: the cron secret digest is sha256 of the value" "\$a.cron_secret_digest == \"$abc\""
+expect "retention: an active auth-audit-log-purge job counts" '$a.audit_purge_jobs == 1'
+expect "retention: only the audit row older than 31 days counts" '$a.audit_rows_old == $b.audit_rows_old + 1'
+before=$after after=$off
+expect "retention: an inactive signup-cleanup job and another function's URL do not count" \
+  '$a.signup_cleanup_jobs == 0 and $a.signup_cleanup_url == 0'
 
 if [ "$failures" -gt 0 ]; then echo "$failures check(s) failed"; exit 1; fi
 echo "all checks passed"

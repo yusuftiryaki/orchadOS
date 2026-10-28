@@ -54,7 +54,8 @@ export interface DemoErrorResponse {
 
 export type DemoRequest =
   | { action: "start"; clientIp: string | null; captchaToken: string | null }
-  | { action: "cleanup" };
+  | { action: "cleanup" }
+  | { action: "challenge" };
 
 export type ParsedDemo = { ok: true; value: DemoRequest } | { ok: false; field: string };
 
@@ -65,6 +66,7 @@ export function parseDemoRequest(body: unknown): ParsedDemo {
   if (!body || typeof body !== "object" || Array.isArray(body)) return { ok: false, field: "body" };
   const b = body as Record<string, unknown>;
   if (b.action === "cleanup") return { ok: true, value: { action: "cleanup" } };
+  if (b.action === "challenge") return { ok: true, value: { action: "challenge" } };
   if (b.action !== "start") return { ok: false, field: "action" };
 
   let clientIp: string | null = null;
@@ -152,18 +154,41 @@ const TURNSTILE_DUMMY_SECRET = /^[123]x0+AA$/;
 export interface DemoModeEnv {
   mode?: string;
   turnstileSecret?: string;
+  // CAPTCHA_PROVIDER (_shared/captcha.ts): "" or "turnstile", or "altcha";
+  // any other value keeps the demo closed.
+  provider?: string;
+  altchaKey?: string;
 }
 
+// How start treats the robot check: "required" needs a valid token, "if_sent"
+// checks a token when one comes (dev with the self-hosted check: local stack
+// and CI), "off" skips it.
+export type DemoCaptcha = "required" | "if_sent" | "off";
+
+// Same as captcha.ts ALTCHA_KEY_MIN.
+const ALTCHA_KEY_MIN = 32;
+
 // ORCHADOS_DEMO_MODE: unset or unknown keeps start closed; "dev" opens it
-// (Turnstile only when a secret is set: local, CI, a short smoke test);
-// "public" opens it only with a live Turnstile secret, always verified.
-export function demoMode(env: DemoModeEnv): { open: boolean; requireTurnstile: boolean } {
-  const secret = env.turnstileSecret ?? "";
-  if (env.mode === "dev") return { open: true, requireTurnstile: secret !== "" };
-  if (env.mode === "public") {
-    return { open: secret !== "" && !TURNSTILE_DUMMY_SECRET.test(secret), requireTurnstile: true };
+// (the robot check only when its key is set: local, CI, a short smoke test);
+// "public" opens it only with a live key of the chosen provider (a real
+// Turnstile secret, or an ALTCHA key of at least 32 characters), always
+// checked.
+export function demoMode(env: DemoModeEnv): { open: boolean; captcha: DemoCaptcha } {
+  const provider = (env.provider ?? "").trim().toLowerCase() || "turnstile";
+  if (provider !== "turnstile" && provider !== "altcha")
+    return { open: false, captcha: "required" };
+  if (provider === "altcha") {
+    const keyOk = (env.altchaKey ?? "").length >= ALTCHA_KEY_MIN;
+    if (env.mode === "dev") return { open: true, captcha: keyOk ? "if_sent" : "off" };
+    if (env.mode === "public") return { open: keyOk, captcha: "required" };
+    return { open: false, captcha: "required" };
   }
-  return { open: false, requireTurnstile: true };
+  const secret = env.turnstileSecret ?? "";
+  if (env.mode === "dev") return { open: true, captcha: secret !== "" ? "required" : "off" };
+  if (env.mode === "public") {
+    return { open: secret !== "" && !TURNSTILE_DUMMY_SECRET.test(secret), captcha: "required" };
+  }
+  return { open: false, captcha: "required" };
 }
 
 export interface DemoSecrets {

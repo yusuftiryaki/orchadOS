@@ -4019,6 +4019,10 @@ export type Database = {
       };
       calibration_kit_mount_valid: { Args: { p_extrinsics: Json }; Returns: boolean };
       cancel_followup: { Args: { p_request_id: string }; Returns: undefined };
+      captcha_spend: {
+        Args: { p_challenge: string; p_expires_at: string; p_purpose: string };
+        Returns: boolean;
+      };
       close_verification_item: {
         Args: { p_item_id: string; p_note: string };
         Returns: {
@@ -5619,6 +5623,7 @@ export type Database = {
         };
         Returns: string;
       };
+      signup_code_grant: { Args: { p_phone: string; p_ticket: string }; Returns: boolean };
       signup_complete: { Args: { p_code_at: string; p_user_id: string }; Returns: string };
       signup_find_account: {
         Args: { p_email: string; p_phone: string };
@@ -5630,6 +5635,10 @@ export type Database = {
           started_at: string;
           user_id: string;
         }[];
+      };
+      signup_owner_check: {
+        Args: { p_password: boolean; p_ticket_hash: string; p_user_id: string };
+        Returns: string;
       };
       signup_prepare: {
         Args: {
@@ -5643,10 +5652,14 @@ export type Database = {
         };
         Returns: undefined;
       };
+      signup_quarantine: { Args: { p_user_id: string }; Returns: undefined };
       signup_register_attempt: {
         Args: { p_email_hash: string; p_ip_hash: string; p_phone_hash: string };
         Returns: string;
       };
+      signup_set_ticket: { Args: { p_ticket_hash: string; p_user_id: string }; Returns: undefined };
+      signup_sms_allowed: { Args: { p_user_id: string }; Returns: boolean };
+      signup_ticket_users: { Args: { p_ticket_hash: string }; Returns: string[] };
       staff_boundary_pointers: {
         Args: { p_parcel_id: string };
         Returns: {
