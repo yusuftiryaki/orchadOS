@@ -126,6 +126,7 @@ export type Database = {
           verified_at: string | null;
           verified_by: string | null;
           village: string | null;
+          withdrawn_at: string | null;
         };
         ComputedFields: never;
         Insert: {
@@ -151,6 +152,7 @@ export type Database = {
           verified_at?: string | null;
           verified_by?: string | null;
           village?: string | null;
+          withdrawn_at?: string | null;
         };
         Update: {
           application_id?: string;
@@ -175,6 +177,7 @@ export type Database = {
           verified_at?: string | null;
           verified_by?: string | null;
           village?: string | null;
+          withdrawn_at?: string | null;
         };
         Relationships: [
           {
@@ -1136,6 +1139,150 @@ export type Database = {
           },
         ];
       };
+      garden_removal: {
+        Row: {
+          access_days: number;
+          access_notice_sent_at: string | null;
+          access_revoked_at: string | null;
+          access_until: string | null;
+          at_period_end: boolean;
+          blocked_reason: string | null;
+          calculation: Json | null;
+          cancelled_at: string | null;
+          cancelled_by: string | null;
+          completed_at: string | null;
+          created_at: string;
+          customer_note: string | null;
+          customer_user_id: string;
+          decided_by: string | null;
+          effective_on: string | null;
+          garden_name: string;
+          id: string;
+          initiated_by: string;
+          number: string;
+          ops_note: string | null;
+          order_id: string;
+          order_item_id: string;
+          org_id: string;
+          parcel_id: string;
+          reason: Database["public"]["Enums"]["garden_removal_reason"];
+          refund_kurus: number | null;
+          refund_mode: string | null;
+          requested_at: string;
+          requested_by: string | null;
+          requested_effective_on: string;
+          revoke_all_access: boolean;
+          scheduled_at: string | null;
+          status: Database["public"]["Enums"]["garden_removal_status"];
+          updated_at: string;
+          withdrawal: boolean;
+        };
+        ComputedFields: never;
+        Insert: {
+          access_days: number;
+          access_notice_sent_at?: string | null;
+          access_revoked_at?: string | null;
+          access_until?: string | null;
+          at_period_end?: boolean;
+          blocked_reason?: string | null;
+          calculation?: Json | null;
+          cancelled_at?: string | null;
+          cancelled_by?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          customer_note?: string | null;
+          customer_user_id: string;
+          decided_by?: string | null;
+          effective_on?: string | null;
+          garden_name: string;
+          id?: string;
+          initiated_by: string;
+          number: string;
+          ops_note?: string | null;
+          order_id: string;
+          order_item_id: string;
+          org_id: string;
+          parcel_id: string;
+          reason: Database["public"]["Enums"]["garden_removal_reason"];
+          refund_kurus?: number | null;
+          refund_mode?: string | null;
+          requested_at?: string;
+          requested_by?: string | null;
+          requested_effective_on: string;
+          revoke_all_access?: boolean;
+          scheduled_at?: string | null;
+          status?: Database["public"]["Enums"]["garden_removal_status"];
+          updated_at?: string;
+          withdrawal?: boolean;
+        };
+        Update: {
+          access_days?: number;
+          access_notice_sent_at?: string | null;
+          access_revoked_at?: string | null;
+          access_until?: string | null;
+          at_period_end?: boolean;
+          blocked_reason?: string | null;
+          calculation?: Json | null;
+          cancelled_at?: string | null;
+          cancelled_by?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          customer_note?: string | null;
+          customer_user_id?: string;
+          decided_by?: string | null;
+          effective_on?: string | null;
+          garden_name?: string;
+          id?: string;
+          initiated_by?: string;
+          number?: string;
+          ops_note?: string | null;
+          order_id?: string;
+          order_item_id?: string;
+          org_id?: string;
+          parcel_id?: string;
+          reason?: Database["public"]["Enums"]["garden_removal_reason"];
+          refund_kurus?: number | null;
+          refund_mode?: string | null;
+          requested_at?: string;
+          requested_by?: string | null;
+          requested_effective_on?: string;
+          revoke_all_access?: boolean;
+          scheduled_at?: string | null;
+          status?: Database["public"]["Enums"]["garden_removal_status"];
+          updated_at?: string;
+          withdrawal?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "garden_removal_order_id_customer_user_id_org_id_fkey";
+            columns: ["order_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+          {
+            foreignKeyName: "garden_removal_order_item_id_order_id_fkey";
+            columns: ["order_item_id", "order_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order_item";
+            referencedColumns: ["id", "order_id"];
+          },
+          {
+            foreignKeyName: "garden_removal_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "garden_removal_parcel_id_fkey";
+            columns: ["parcel_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       measurement: {
         Row: {
           confidence: number | null;
@@ -1583,11 +1730,13 @@ export type Database = {
       org_billing_setting: {
         Row: {
           accepts_signups: boolean;
+          addon_min_days: number;
           address: string | null;
           allow_fake_payments: boolean;
           bank_name: string | null;
           created_at: string;
           email: string | null;
+          garden_changes_enabled: boolean;
           iban: string | null;
           iban_holder: string | null;
           identity_number_required: boolean;
@@ -1597,6 +1746,9 @@ export type Database = {
           payment_due_days: number;
           phone: string | null;
           quote_valid_days: number;
+          removal_access_days: number;
+          removal_notice_days: number;
+          removal_refund_mode: string;
           renewal_notice_days: number;
           tax_number: string | null;
           tax_office: string | null;
@@ -1606,11 +1758,13 @@ export type Database = {
         ComputedFields: never;
         Insert: {
           accepts_signups?: boolean;
+          addon_min_days?: number;
           address?: string | null;
           allow_fake_payments?: boolean;
           bank_name?: string | null;
           created_at?: string;
           email?: string | null;
+          garden_changes_enabled?: boolean;
           iban?: string | null;
           iban_holder?: string | null;
           identity_number_required?: boolean;
@@ -1620,6 +1774,9 @@ export type Database = {
           payment_due_days?: number;
           phone?: string | null;
           quote_valid_days?: number;
+          removal_access_days?: number;
+          removal_notice_days?: number;
+          removal_refund_mode?: string;
           renewal_notice_days?: number;
           tax_number?: string | null;
           tax_office?: string | null;
@@ -1628,11 +1785,13 @@ export type Database = {
         };
         Update: {
           accepts_signups?: boolean;
+          addon_min_days?: number;
           address?: string | null;
           allow_fake_payments?: boolean;
           bank_name?: string | null;
           created_at?: string;
           email?: string | null;
+          garden_changes_enabled?: boolean;
           iban?: string | null;
           iban_holder?: string | null;
           identity_number_required?: boolean;
@@ -1642,6 +1801,9 @@ export type Database = {
           payment_due_days?: number;
           phone?: string | null;
           quote_valid_days?: number;
+          removal_access_days?: number;
+          removal_notice_days?: number;
+          removal_refund_mode?: string;
           renewal_notice_days?: number;
           tax_number?: string | null;
           tax_office?: string | null;
@@ -2238,6 +2400,7 @@ export type Database = {
       };
       quote: {
         Row: {
+          addon_of_order_id: string | null;
           application_id: string | null;
           base_kurus: number;
           created_at: string;
@@ -2275,6 +2438,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          addon_of_order_id?: string | null;
           application_id?: string | null;
           base_kurus: number;
           created_at?: string;
@@ -2311,6 +2475,7 @@ export type Database = {
           vat_rate_bp: number;
         };
         Update: {
+          addon_of_order_id?: string | null;
           application_id?: string | null;
           base_kurus?: number;
           created_at?: string;
@@ -2347,6 +2512,13 @@ export type Database = {
           vat_rate_bp?: number;
         };
         Relationships: [
+          {
+            foreignKeyName: "quote_addon_of_order_id_fkey";
+            columns: ["addon_of_order_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "quote_application_id_customer_user_id_org_id_fkey";
             columns: ["application_id", "customer_user_id", "org_id"];
@@ -2496,6 +2668,7 @@ export type Database = {
           currency: string;
           customer_user_id: string;
           failure_code: string | null;
+          garden_removal_id: string | null;
           id: string;
           kind: Database["public"]["Enums"]["refund_kind"];
           note: string | null;
@@ -2524,6 +2697,7 @@ export type Database = {
           currency?: string;
           customer_user_id: string;
           failure_code?: string | null;
+          garden_removal_id?: string | null;
           id?: string;
           kind: Database["public"]["Enums"]["refund_kind"];
           note?: string | null;
@@ -2551,6 +2725,7 @@ export type Database = {
           currency?: string;
           customer_user_id?: string;
           failure_code?: string | null;
+          garden_removal_id?: string | null;
           id?: string;
           kind?: Database["public"]["Enums"]["refund_kind"];
           note?: string | null;
@@ -2570,6 +2745,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "refund_garden_removal_fk";
+            columns: ["garden_removal_id"];
+            isOneToOne: false;
+            referencedRelation: "garden_removal";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "refund_order_id_customer_user_id_org_id_fkey";
             columns: ["order_id", "customer_user_id", "org_id"];
@@ -2795,6 +2977,7 @@ export type Database = {
       service_order: {
         Row: {
           activated_at: string | null;
+          addon_of_order_id: string | null;
           cancel_reason: string | null;
           cancelled_at: string | null;
           completed_at: string | null;
@@ -2821,6 +3004,7 @@ export type Database = {
         ComputedFields: never;
         Insert: {
           activated_at?: string | null;
+          addon_of_order_id?: string | null;
           cancel_reason?: string | null;
           cancelled_at?: string | null;
           completed_at?: string | null;
@@ -2846,6 +3030,7 @@ export type Database = {
         };
         Update: {
           activated_at?: string | null;
+          addon_of_order_id?: string | null;
           cancel_reason?: string | null;
           cancelled_at?: string | null;
           completed_at?: string | null;
@@ -2870,6 +3055,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "service_order_addon_of_order_id_fkey";
+            columns: ["addon_of_order_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "service_order_org_id_fkey";
             columns: ["org_id"];
@@ -2899,12 +3091,14 @@ export type Database = {
           created_at: string;
           customer_user_id: string;
           garden_name: string;
+          garden_removal_id: string | null;
           id: string;
           line_no: number;
           order_id: string;
           org_id: string;
           parcel_id: string | null;
           quote_item_id: string;
+          removed_on: string | null;
           updated_at: string;
         };
         ComputedFields: never;
@@ -2913,12 +3107,14 @@ export type Database = {
           created_at?: string;
           customer_user_id: string;
           garden_name: string;
+          garden_removal_id?: string | null;
           id?: string;
           line_no: number;
           order_id: string;
           org_id: string;
           parcel_id?: string | null;
           quote_item_id: string;
+          removed_on?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -2926,15 +3122,24 @@ export type Database = {
           created_at?: string;
           customer_user_id?: string;
           garden_name?: string;
+          garden_removal_id?: string | null;
           id?: string;
           line_no?: number;
           order_id?: string;
           org_id?: string;
           parcel_id?: string | null;
           quote_item_id?: string;
+          removed_on?: string | null;
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "service_order_item_garden_removal_fk";
+            columns: ["garden_removal_id"];
+            isOneToOne: false;
+            referencedRelation: "garden_removal";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "service_order_item_order_id_customer_user_id_org_id_fkey";
             columns: ["order_id", "customer_user_id", "org_id"];
@@ -3823,6 +4028,32 @@ export type Database = {
         Returns: Json;
       };
       customer_accept_quote: { Args: { p_consents: Json; p_quote_id: string }; Returns: string };
+      customer_addon_preview: {
+        Args: { p_areas_m2: number[] };
+        Returns: {
+          area_m2: number;
+          base_order_id: string;
+          billable_area_tenths: number;
+          inventory_fee_kurus: number;
+          line_base_kurus: number;
+          line_discount_kurus: number;
+          line_no: number;
+          line_subtotal_kurus: number;
+          line_total_kurus: number;
+          line_vat_kurus: number;
+          minimum_fee_kurus: number;
+          periodic_visits_per_year: number;
+          price_list_id: string;
+          price_list_version: number;
+          service_end: string;
+          service_start: string;
+          unit_price_kurus: number;
+          valid_from: string;
+          vat_rate_bp: number;
+          visit_amount_kurus: number;
+          visits: number;
+        }[];
+      };
       customer_application_garden_detail: {
         Args: { p_garden_id: string };
         Returns: {
@@ -3839,11 +4070,26 @@ export type Database = {
           used_portion_note: string;
         }[];
       };
+      customer_cancel_garden_removal: { Args: { p_removal_id: string }; Returns: undefined };
       customer_cancel_order: { Args: { p_order_id: string }; Returns: undefined };
       customer_create_application: { Args: { p_package_id?: string }; Returns: string };
       customer_decline_quote: {
         Args: { p_note?: string; p_quote_id: string; p_request_revision?: boolean };
         Returns: undefined;
+      };
+      customer_garden_removal_preview: {
+        Args: { p_at_period_end?: boolean; p_parcel_id: string; p_withdrawal?: boolean };
+        Returns: {
+          access_until: string;
+          effective_on: string;
+          line_count: number;
+          order_item_id: string;
+          refund_estimate_kurus: number;
+          visits_entitled: number;
+          visits_used: number;
+          withdrawal: boolean;
+          withdrawal_until: string;
+        }[];
       };
       customer_payment_instructions: {
         Args: { p_order_id: string };
@@ -3858,6 +4104,17 @@ export type Database = {
         }[];
       };
       customer_remove_application_garden: { Args: { p_garden_id: string }; Returns: undefined };
+      customer_request_garden_removal: {
+        Args: {
+          p_at_period_end?: boolean;
+          p_note?: string;
+          p_parcel_id: string;
+          p_reason: string;
+          p_withdrawal?: boolean;
+        };
+        Returns: string;
+      };
+      customer_revise_order: { Args: { p_note?: string; p_order_id: string }; Returns: string };
       customer_save_application_garden: {
         Args: { p_application_id: string; p_detail: Json; p_garden: Json; p_garden_id?: string };
         Returns: string;
@@ -3877,6 +4134,7 @@ export type Database = {
         Returns: undefined;
       };
       customer_withdraw_application: { Args: { p_application_id: string }; Returns: undefined };
+      customer_withdraw_application_garden: { Args: { p_garden_id: string }; Returns: undefined };
       demo_admit: { Args: { p_ip_hash: string }; Returns: Json };
       demo_end: { Args: Record<PropertyKey, never>; Returns: undefined };
       demo_expired_accounts: {
@@ -3943,6 +4201,34 @@ export type Database = {
           text_version: string;
         }[];
       };
+      my_gardens: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          access_until: string;
+          base_order_id: string;
+          garden_name: string;
+          in_next_period: boolean;
+          is_addon: boolean;
+          next_order_item_id: string;
+          order_id: string;
+          order_item_id: string;
+          order_number: string;
+          order_status: Database["public"]["Enums"]["order_status"];
+          parcel_id: string;
+          parcel_status: Database["public"]["Enums"]["parcel_status"];
+          removal_effective_on: string;
+          removal_id: string;
+          removal_number: string;
+          removal_status: Database["public"]["Enums"]["garden_removal_status"];
+          removed_on: string;
+          service_end: string;
+          service_start: string;
+          state: string;
+          visits_entitled: number;
+          visits_used: number;
+          withdrawal_until: string;
+        }[];
+      };
       my_owner_profile: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -3953,6 +4239,29 @@ export type Database = {
           kvkk_consent_at: string;
           org_id: string;
           phone: string;
+        }[];
+      };
+      my_service_period: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          addon_base_order_id: string;
+          addon_until: string;
+          base_order_id: string;
+          base_order_number: string;
+          garden_changes_enabled: boolean;
+          garden_count: number;
+          is_primary: boolean;
+          next_base_order_id: string;
+          next_period_end: string;
+          next_period_start: string;
+          org_id: string;
+          package_id: string;
+          package_name: string;
+          period_count: number;
+          period_end: string;
+          period_start: string;
+          periodic_visits_per_year: number;
+          renewal_quote_id: string;
         }[];
       };
       notification_claim: {
@@ -4059,11 +4368,13 @@ export type Database = {
         Args: { p_org_id: string };
         Returns: {
           accepts_signups: boolean;
+          addon_min_days: number;
           address: string | null;
           allow_fake_payments: boolean;
           bank_name: string | null;
           created_at: string;
           email: string | null;
+          garden_changes_enabled: boolean;
           iban: string | null;
           iban_holder: string | null;
           identity_number_required: boolean;
@@ -4073,6 +4384,9 @@ export type Database = {
           payment_due_days: number;
           phone: string | null;
           quote_valid_days: number;
+          removal_access_days: number;
+          removal_notice_days: number;
+          removal_refund_mode: string;
           renewal_notice_days: number;
           tax_number: string | null;
           tax_office: string | null;
@@ -4090,6 +4404,9 @@ export type Database = {
         Args: { p_org_id: string };
         Returns: {
           applications_submitted: number;
+          garden_removals_blocked: number;
+          garden_removals_due: number;
+          garden_removals_requested: number;
           orders_awaiting_payment: number;
           orders_overdue: number;
           parcels_awaiting_inventory: number;
@@ -4102,8 +4419,13 @@ export type Database = {
         }[];
       };
       ops_can_process_refund: { Args: { p_refund_id: string }; Returns: boolean };
+      ops_cancel_garden_removal: {
+        Args: { p_note: string; p_removal_id: string };
+        Returns: undefined;
+      };
       ops_cancel_order: { Args: { p_note?: string; p_order_id: string }; Returns: undefined };
       ops_cancel_refund: { Args: { p_note?: string; p_refund_id: string }; Returns: undefined };
+      ops_complete_garden_removal: { Args: { p_removal_id: string }; Returns: undefined };
       ops_complete_manual_refund: {
         Args: { p_bank_reference: string; p_completed_on: string; p_refund_id: string };
         Returns: undefined;
@@ -4176,6 +4498,57 @@ export type Database = {
           text_version: string;
         }[];
       };
+      ops_customer_gardens: {
+        Args: { p_org_id: string; p_user_id: string };
+        Returns: {
+          access_until: string;
+          base_order_id: string;
+          garden_name: string;
+          in_next_period: boolean;
+          is_addon: boolean;
+          next_order_item_id: string;
+          order_id: string;
+          order_item_id: string;
+          order_number: string;
+          order_status: Database["public"]["Enums"]["order_status"];
+          parcel_id: string;
+          parcel_status: Database["public"]["Enums"]["parcel_status"];
+          removal_effective_on: string;
+          removal_id: string;
+          removal_number: string;
+          removal_status: Database["public"]["Enums"]["garden_removal_status"];
+          removed_on: string;
+          service_end: string;
+          service_start: string;
+          state: string;
+          visits_entitled: number;
+          visits_used: number;
+          withdrawal_until: string;
+        }[];
+      };
+      ops_customer_service_period: {
+        Args: { p_org_id: string; p_user_id: string };
+        Returns: {
+          addon_base_order_id: string;
+          addon_until: string;
+          base_order_id: string;
+          base_order_number: string;
+          garden_changes_enabled: boolean;
+          garden_count: number;
+          is_primary: boolean;
+          next_base_order_id: string;
+          next_period_end: string;
+          next_period_start: string;
+          org_id: string;
+          package_id: string;
+          package_name: string;
+          period_count: number;
+          period_end: string;
+          period_start: string;
+          periodic_visits_per_year: number;
+          renewal_quote_id: string;
+        }[];
+      };
       ops_customers: {
         Args: { p_limit?: number; p_org_id: string; p_query?: string };
         Returns: {
@@ -4200,6 +4573,71 @@ export type Database = {
       };
       ops_find_user_id: {
         Args: { p_email?: string; p_org_id: string; p_phone?: string };
+        Returns: string;
+      };
+      ops_garden_overlaps: {
+        Args: { p_garden_id: string };
+        Returns: {
+          distance_m: number;
+          in_service: boolean;
+          inside_boundary: boolean;
+          parcel_id: string;
+          parcel_name: string;
+          parcel_status: Database["public"]["Enums"]["parcel_status"];
+          same_customer: boolean;
+        }[];
+      };
+      ops_garden_removal_preview: {
+        Args: { p_effective_on?: string; p_removal_id: string };
+        Returns: Json;
+      };
+      ops_garden_removals: {
+        Args: { p_limit?: number; p_org_id: string; p_status?: string };
+        Returns: {
+          access_days: number;
+          access_revoked_at: string;
+          access_until: string;
+          at_period_end: boolean;
+          blocked_reason: string;
+          cancelled_at: string;
+          completed_at: string;
+          customer_name: string;
+          customer_note: string;
+          customer_user_id: string;
+          effective_on: string;
+          garden_name: string;
+          id: string;
+          initiated_by: string;
+          number: string;
+          ops_note: string;
+          order_id: string;
+          order_item_id: string;
+          order_number: string;
+          parcel_id: string;
+          planned_visits_after: number;
+          planned_visits_before: number;
+          reason: Database["public"]["Enums"]["garden_removal_reason"];
+          refund_kurus: number;
+          refund_mode: string;
+          requested_at: string;
+          requested_effective_on: string;
+          revoke_all_access: boolean;
+          scheduled_at: string;
+          status: Database["public"]["Enums"]["garden_removal_status"];
+          withdrawal: boolean;
+        }[];
+      };
+      ops_issue_addon_quote: {
+        Args: {
+          p_application_id?: string;
+          p_base_order_id: string;
+          p_discount_bp?: number;
+          p_discount_note?: string;
+          p_note_to_customer?: string;
+          p_parcel_ids?: string[];
+          p_proposed_service_start?: string;
+          p_valid_days?: number;
+        };
         Returns: string;
       };
       ops_issue_parcel_quote: {
@@ -4228,6 +4666,10 @@ export type Database = {
           p_valid_days?: number;
         };
         Returns: string;
+      };
+      ops_link_application_garden_parcel: {
+        Args: { p_garden_id: string; p_parcel_id: string };
+        Returns: undefined;
       };
       ops_notifications: {
         Args: { p_limit?: number; p_status?: string };
@@ -4262,6 +4704,7 @@ export type Database = {
         };
         Returns: {
           activated_at: string;
+          addon_of_order_id: string;
           application_id: string;
           cancel_reason: string;
           cancelled_at: string;
@@ -4392,6 +4835,41 @@ export type Database = {
         Args: { p_request_ids: string[]; p_session_id: string };
         Returns: number;
       };
+      ops_preview_addon_quote: {
+        Args: {
+          p_application_id?: string;
+          p_base_order_id: string;
+          p_discount_bp?: number;
+          p_parcel_ids?: string[];
+          p_proposed_service_start?: string;
+        };
+        Returns: {
+          application_garden_id: string;
+          area_m2: number;
+          area_source: string;
+          billable_area_tenths: number;
+          garden_name: string;
+          inventory: boolean;
+          inventory_fee_kurus: number;
+          line_base_kurus: number;
+          line_discount_kurus: number;
+          line_no: number;
+          line_subtotal_kurus: number;
+          line_total_kurus: number;
+          line_vat_kurus: number;
+          minimum_fee_kurus: number;
+          parcel_id: string;
+          periodic_visits_per_year: number;
+          price_list_id: string;
+          price_list_version: number;
+          service_end: string;
+          service_start: string;
+          unit_price_kurus: number;
+          vat_rate_bp: number;
+          visit_amount_kurus: number;
+          visits: number;
+        }[];
+      };
       ops_preview_quote: {
         Args: { p_application_id: string; p_discount_bp?: number };
         Returns: {
@@ -4461,6 +4939,17 @@ export type Database = {
         Args: { p_application_id: string; p_note?: string; p_reason: string };
         Returns: undefined;
       };
+      ops_request_garden_removal: {
+        Args: {
+          p_access_days?: number;
+          p_effective_on: string;
+          p_note?: string;
+          p_order_item_id: string;
+          p_reason: string;
+          p_revoke_all_access?: boolean;
+        };
+        Returns: string;
+      };
       ops_request_refund: {
         Args: {
           p_amount_kurus: number;
@@ -4524,6 +5013,16 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_schedule_garden_removal: {
+        Args: {
+          p_access_days?: number;
+          p_effective_on: string;
+          p_note?: string;
+          p_removal_id: string;
+          p_revoke_all_access?: boolean;
+        };
+        Returns: undefined;
+      };
       ops_set_parcel_passive: {
         Args: { p_parcel_id: string; p_passive: boolean };
         Returns: Database["public"]["Enums"]["parcel_status"];
@@ -4567,6 +5066,10 @@ export type Database = {
         Args: { p_note: string; p_payment_id: string };
         Returns: undefined;
       };
+      ops_withdraw_application_garden: {
+        Args: { p_garden_id: string; p_note: string };
+        Returns: undefined;
+      };
       owner_cancel_viewer_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
       owner_invite_viewer: {
         Args: { p_full_name: string; p_parcel_id: string; p_phone: string };
@@ -4582,6 +5085,15 @@ export type Database = {
           phone_last2: string;
           status: string;
           user_id: string;
+        }[];
+      };
+      parcel_service_status: {
+        Args: { p_parcel_id: string };
+        Returns: {
+          access_until: string;
+          leaving_on: string;
+          removed_on: string;
+          status: string;
         }[];
       };
       payment_attach_token: {
@@ -4930,6 +5442,9 @@ export type Database = {
       followup_kind: "closeup" | "verification" | "extra_visit";
       followup_origin: "expert" | "pipeline";
       followup_status: "open" | "planned" | "done" | "cancelled";
+      garden_removal_reason:
+        "sold" | "not_needed" | "dissatisfied" | "cost" | "transfer" | "duplicate" | "other";
+      garden_removal_status: "requested" | "scheduled" | "completed" | "cancelled";
       graft_status: "grafted" | "ungrafted" | "unknown";
       health_class: "healthy" | "attention" | "problem" | "dead" | "absent";
       irrigation_type: "irrigated" | "rainfed" | "unknown";
@@ -4945,7 +5460,12 @@ export type Database = {
         | "application_rejected"
         | "payment_received"
         | "refund_completed"
-        | "payment_reminder";
+        | "payment_reminder"
+        | "garden_removal_scheduled"
+        | "garden_removal_rescheduled"
+        | "garden_removal_cancelled"
+        | "garden_removal_completed"
+        | "garden_access_ending";
       operation_kind:
         | "mowing"
         | "spraying"
@@ -5165,6 +5685,16 @@ export const Constants = {
       followup_kind: ["closeup", "verification", "extra_visit"],
       followup_origin: ["expert", "pipeline"],
       followup_status: ["open", "planned", "done", "cancelled"],
+      garden_removal_reason: [
+        "sold",
+        "not_needed",
+        "dissatisfied",
+        "cost",
+        "transfer",
+        "duplicate",
+        "other",
+      ],
+      garden_removal_status: ["requested", "scheduled", "completed", "cancelled"],
       graft_status: ["grafted", "ungrafted", "unknown"],
       health_class: ["healthy", "attention", "problem", "dead", "absent"],
       irrigation_type: ["irrigated", "rainfed", "unknown"],
@@ -5181,6 +5711,11 @@ export const Constants = {
         "payment_received",
         "refund_completed",
         "payment_reminder",
+        "garden_removal_scheduled",
+        "garden_removal_rescheduled",
+        "garden_removal_cancelled",
+        "garden_removal_completed",
+        "garden_access_ending",
       ],
       operation_kind: [
         "mowing",

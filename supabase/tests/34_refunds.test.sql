@@ -83,17 +83,25 @@ insert into ids select 'p1i1', id from public.payment_item where payment_id = pg
 insert into ids select 'p1i2', id from public.payment_item where payment_id = pg_temp.id('p1') and line_no = 2;
 
 -- o2: a transfer of part of a parcel quote; o3: a single-line card payment.
+-- Each on its own pilot parcel of the customer (15 000 m²): a parcel is never
+-- on two orders whose periods overlap (IP14, private.parcel_in_service).
+insert into public.parcel (id, org_id, name, estimated_area_m2) values
+  ('f3400000-0000-4000-8000-000000000011', 'b0000000-0000-4000-8000-000000000001', 'Pilot 34-2', 15000),
+  ('f3400000-0000-4000-8000-000000000012', 'b0000000-0000-4000-8000-000000000001', 'Pilot 34-3', 15000);
+insert into public.parcel_access (org_id, parcel_id, user_id, role, granted_by)
+select 'b0000000-0000-4000-8000-000000000001', x, 'a0000000-0000-4000-8000-000000000006', 'owner', null
+from unnest(array['f3400000-0000-4000-8000-000000000011', 'f3400000-0000-4000-8000-000000000012']::uuid[]) x;
 select pg_temp.ops();
 insert into ids select 'q2', public.ops_issue_parcel_quote('b0000000-0000-4000-8000-000000000001',
-  'a0000000-0000-4000-8000-000000000006', '91200000-0000-4000-8000-000000000001', array[pg_temp.id('parcel')],
-  false, null);
+  'a0000000-0000-4000-8000-000000000006', '91200000-0000-4000-8000-000000000001',
+  array['f3400000-0000-4000-8000-000000000011'::uuid], false, null);
 insert into ids select 'o2', pg_temp.accept(pg_temp.id('q2'));
 select pg_temp.ops();
 insert into ids select 'p2', public.ops_record_manual_payment(pg_temp.id('o2'), 100000, current_date, 'EFT-34-1');
 select pg_temp.ops();
 insert into ids select 'q3', public.ops_issue_parcel_quote('b0000000-0000-4000-8000-000000000001',
-  'a0000000-0000-4000-8000-000000000006', '91200000-0000-4000-8000-000000000001', array[pg_temp.id('parcel')],
-  false, null);
+  'a0000000-0000-4000-8000-000000000006', '91200000-0000-4000-8000-000000000001',
+  array['f3400000-0000-4000-8000-000000000012'::uuid], false, null);
 insert into ids select 'o3', pg_temp.accept(pg_temp.id('q3'));
 insert into ids select 'p3', pg_temp.card_pay(pg_temp.id('o3'), 'r3');
 

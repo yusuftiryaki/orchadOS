@@ -128,6 +128,30 @@ export async function runDemoHousekeeping() {
   await call("run_demo_housekeeping", {});
 }
 
+// Runs the daily garden removal housekeeping now (IP14,
+// docs/bahce-yonetimi.md §5.3–§5.4): completes due removals, sends the access
+// notice, ends access windows. Returns its counts ({scheduled, completed,
+// blocked, cancelled, access_notices, access_revoked, access_resumed}).
+export async function runGardenRemovalHousekeeping(): Promise<Record<string, number>> {
+  const { data, error } = await admin().rpc("run_garden_removal_housekeeping", {});
+  if (error) {
+    throw new Error(
+      `testing.run_garden_removal_housekeeping: ${error.message} (run \`pnpm db:reset\`)`,
+    );
+  }
+  return data as Record<string, number>;
+}
+
+// Sets the service period of an order directly (YYYY-MM-DD, Istanbul days),
+// e.g. to stand in the middle of a period or near its last add-on day.
+export async function setOrderPeriod(orderId: string, start: string, end: string) {
+  if (!UUID.test(orderId)) throw new Error("setOrderPeriod takes a uuid");
+  if (![start, end].every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))) {
+    throw new Error("setOrderPeriod takes YYYY-MM-DD days");
+  }
+  await call("set_order_period", { p_order_id: orderId, p_start: start, p_end: end });
+}
+
 // The columns of these public tables a role may select, per table.
 export async function selectableColumns(
   role: string,

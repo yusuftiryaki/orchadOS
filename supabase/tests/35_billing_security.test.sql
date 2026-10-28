@@ -133,7 +133,10 @@ select is((select count(*)::integer from pg_proc p
 select is((select array_agg(p.oid::regprocedure::text order by 1) from pg_proc p
            where p.pronamespace = 'private'::regnamespace
              and p.proname in ('price_lines', 'activate_order', 'create_customer_parcel', 'open_system_refund',
-               'enqueue_billing_notification', 'billing_housekeeping', 'dispatch_payment_reconcile')
+               'enqueue_billing_notification', 'billing_housekeeping', 'dispatch_payment_reconcile',
+               -- IP14
+               'price_lines_v2', 'write_addon_quote', 'complete_garden_removal', 'open_removal_refunds',
+               'removal_calculation', 'garden_removal_housekeeping', 'enqueue_garden_notification')
              and (has_function_privilege('anon', p.oid, 'EXECUTE') or has_function_privilege('authenticated', p.oid, 'EXECUTE'))),
   null, 'private helpers are closed to API users');
 

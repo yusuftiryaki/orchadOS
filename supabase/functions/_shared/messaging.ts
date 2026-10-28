@@ -9,13 +9,22 @@
 export type Channel = "sms" | "whatsapp";
 export type ReportTemplate = "report_ready" | "critical_finding";
 // Customer account messages (docs/musteri-yonetimi.md §12): ref is the
-// document number (T-…, B-…, M-…, I-…, S-…).
+// document number (T-…, B-…, M-…, I-…, S-…). Garden removal messages
+// (docs/bahce-yonetimi.md §10) refer to the removal (C-…) and may name the
+// parcel; without its name the text says "bahçeniz".
+export type GardenTemplate =
+  | "garden_removal_scheduled"
+  | "garden_removal_rescheduled"
+  | "garden_removal_cancelled"
+  | "garden_removal_completed"
+  | "garden_access_ending";
 export type AccountTemplate =
   | "quote_ready"
   | "application_rejected"
   | "payment_received"
   | "refund_completed"
-  | "payment_reminder";
+  | "payment_reminder"
+  | GardenTemplate;
 export type Template = ReportTemplate | AccountTemplate;
 
 export interface TemplateVars {
@@ -32,12 +41,20 @@ const ACCOUNT_REF_PREFIX: Record<AccountTemplate, string> = {
   payment_received: "M",
   refund_completed: "I",
   payment_reminder: "S",
+  garden_removal_scheduled: "C",
+  garden_removal_rescheduled: "C",
+  garden_removal_cancelled: "C",
+  garden_removal_completed: "C",
+  garden_access_ending: "C",
 };
 
 const isAccountTemplate = (template: string): template is AccountTemplate =>
   Object.prototype.hasOwnProperty.call(ACCOUNT_REF_PREFIX, template);
 
-function renderAccount(template: AccountTemplate, ref: string, link: string): string {
+function renderAccount(template: AccountTemplate, ref: string, link: string, parcel: string): string {
+  // "{parcel} adlı bahçenizin" / "bahçenizin", "{parcel} adlı bahçeniz" / "bahçeniz".
+  const gardenOf = parcel ? `${parcel} adlı bahçenizin` : "bahçenizin";
+  const garden = parcel ? `${parcel} adlı bahçeniz` : "bahçeniz";
   switch (template) {
     case "quote_ready":
       return `orchadOS teklifiniz (${ref}) hazır. İnceleyip onaylayabilirsiniz: ${link}`;
@@ -49,6 +66,16 @@ function renderAccount(template: AccountTemplate, ref: string, link: string): st
       return `${ref} numaralı iadeniz yapıldı; hesabınıza yansıması bankanıza göre birkaç gün sürebilir: ${link}`;
     case "payment_reminder":
       return `${ref} numaralı siparişinizin ödemesi bekleniyor: ${link}`;
+    case "garden_removal_scheduled":
+      return `orchadOS: ${gardenOf} hizmetten çıkışı planlandı (${ref}). Çıkış tarihi ve ayrıntılar: ${link}`;
+    case "garden_removal_rescheduled":
+      return `orchadOS: ${gardenOf} hizmetten çıkış tarihi değişti (${ref}). Yeni tarih ve ayrıntılar: ${link}`;
+    case "garden_removal_cancelled":
+      return `orchadOS: ${garden} için çıkarma işlemi iptal edildi (${ref}); bahçeniz hizmette kalıyor. Ayrıntılar: ${link}`;
+    case "garden_removal_completed":
+      return `orchadOS: ${garden} hizmetten çıkarıldı (${ref}). Raporlarınız silinmedi; erişim süresi ve iade bilgisi: ${link}`;
+    case "garden_access_ending":
+      return `orchadOS: hizmetten çıkan ${gardenOf} raporlarına erişim 7 gün sonra kapanacak (${ref}). Raporları indirmek için: ${link}`;
   }
 }
 
@@ -77,9 +104,10 @@ export function formatDayTr(isoDay: string): string | null {
   return `${day} ${MONTHS_TR[month - 1]}`;
 }
 
-// Base URL of the portal + a portal path. Only /portal/... paths are linked.
+// Base URL of the portal + a portal path. Only /portal and /portal/... paths
+// are linked (a removal without an access window links the portal's home).
 export function portalLink(baseUrl: string, path: string): string | null {
-  if (!/^\/portal\/[A-Za-z0-9/_-]*$/.test(path)) return null;
+  if (!/^\/portal(\/[A-Za-z0-9/_-]*)?$/.test(path)) return null;
   let base: URL;
   try {
     base = new URL(baseUrl);
@@ -101,9 +129,11 @@ export function renderNotification(
     const ref = typeof vars.ref === "string" ? vars.ref.trim() : "";
     const refOk = new RegExp(`^${ACCOUNT_REF_PREFIX[template]}-\\d{4}-\\d{6}$`).test(ref);
     const link = typeof vars.path === "string" ? portalLink(portalBaseUrl, vars.path) : null;
+    // Optional for garden messages; nothing else uses it.
+    const parcel = typeof vars.parcel_name === "string" ? vars.parcel_name.trim() : "";
     if (!refOk) return { ok: false, error: "invalid_vars" };
     if (!link) return { ok: false, error: "invalid_link" };
-    return { ok: true, body: renderAccount(template, ref, link) };
+    return { ok: true, body: renderAccount(template, ref, link, parcel) };
   }
 
   const parcel = typeof vars.parcel_name === "string" ? vars.parcel_name.trim() : "";
