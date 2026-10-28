@@ -5,6 +5,7 @@ on:
     paths:
       - "supabase/**"
       - "apps/web/**"
+      - "test-vectors/**"
       - "services/pipeline/**"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -18,6 +19,7 @@ on:
     paths:
       - "supabase/**"
       - "apps/web/**"
+      - "test-vectors/**"
       - "services/pipeline/**"
       - "package.json"
       - "pnpm-lock.yaml"

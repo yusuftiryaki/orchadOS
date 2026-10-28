@@ -125,11 +125,12 @@ describe("methodology v0.1 score", () => {
   });
 
   it("compares with the same season a year before", () => {
+    const mv = "methodology-v0.1";
     const visits = [
-      { id: "jul26", time: "2026-07-10T08:00:00Z" },
-      { id: "feb26", time: "2026-02-10T08:00:00Z" },
-      { id: "jul25", time: "2025-07-05T08:00:00Z" },
-      { id: "jun25", time: "2025-06-02T08:00:00Z" },
+      { id: "jul26", time: "2026-07-10T08:00:00Z", methodologyVersion: mv },
+      { id: "feb26", time: "2026-02-10T08:00:00Z", methodologyVersion: mv },
+      { id: "jul25", time: "2025-07-05T08:00:00Z", methodologyVersion: mv },
+      { id: "jun25", time: "2025-06-02T08:00:00Z", methodologyVersion: mv },
     ];
     expect(trendBase(visits, visits[0], v01)?.id).toBe("jul25");
     expect(trendBase(visits, visits[0], DEFAULT_SCORE_RULES)?.id).toBe("feb26");
@@ -138,6 +139,28 @@ describe("methodology v0.1 score", () => {
     expect(scoreBasis(true, visits[2], v01)).toBe("same_season");
     expect(scoreBasis(false, null, v01)).toBe("first");
     expect(scoreBasis(true, visits[1], DEFAULT_SCORE_RULES)).toBe("previous");
+  });
+
+  it("reads each visit's season with its own methodology", () => {
+    // August is summer under v0.2 and harvest before it.
+    const v02 = scoreRulesFor("methodology-v0.2");
+    const aug26 = {
+      id: "aug26",
+      time: "2026-08-10T08:00:00Z",
+      methodologyVersion: "methodology-v0.2",
+    };
+    const jul25 = {
+      id: "jul25",
+      time: "2025-07-20T08:00:00Z",
+      methodologyVersion: "methodology-v0.1",
+    };
+    const aug25 = {
+      id: "aug25",
+      time: "2025-08-12T08:00:00Z",
+      methodologyVersion: "methodology-v0.1",
+    };
+    expect(trendBase([aug26, aug25, jul25], aug26, v02)?.id).toBe("jul25");
+    expect(trendBase([aug26, aug25], aug26, v02)).toBeNull();
   });
 
   it("warns above 5 % unassessed trees", () => {

@@ -48,6 +48,10 @@ def test_season_metrics_follow_the_registry(registry):
         "dried_leaves_attached",
     ]
     assert "fruit_load_scale" in codes["summer"]
+    # Pre-harvest visit (summer under methodology-v0.2): broken branches too.
+    assert "branch_break" in codes["summer"]
+    # Frost damage is in the winter registry (late March) but only the expert enters it.
+    assert "frost_damage_scale" not in codes["winter"]
     # Parcel metrics, numeric quantities and staff questions are not asked of the AI.
     assert codes["harvest"] == [
         "dead_branch_scale",
@@ -84,6 +88,7 @@ def test_system_prompt_is_per_season_and_stable(registry):
 def test_prompt_version_is_bound_to_the_methodology():
     assert prompt_version(None) == "ai-v0.3/methodology-v0"
     assert prompt_version("methodology-v0") == "ai-v0.3/methodology-v0"
+    assert prompt_version("methodology-v0.2") == "ai-v0.3/methodology-v0.2"
     with pytest.raises(ValueError, match="methodology-v9"):
         prompt_version("methodology-v9")
 

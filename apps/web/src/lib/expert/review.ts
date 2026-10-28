@@ -353,7 +353,7 @@ export async function loadReview(
     })
     .sort(compareSlots);
 
-  const season = seasonOf(time);
+  const season = seasonOf(time, s.methodology_version);
   return {
     session: {
       id: s.id,
@@ -409,9 +409,11 @@ async function isFirstOfSeason(
       : query.eq("methodology_version", methodologyVersion);
   const { data, error } = await query;
   if (error) throw error;
-  const season = seasonOf(time);
+  const season = seasonOf(time, methodologyVersion);
   return !(data ?? []).some(
-    (v) => seasonOf(sessionTime(v)) === season && Date.parse(sessionTime(v)) < Date.parse(time),
+    (v) =>
+      seasonOf(sessionTime(v), methodologyVersion) === season &&
+      Date.parse(sessionTime(v)) < Date.parse(time),
   );
 }
 

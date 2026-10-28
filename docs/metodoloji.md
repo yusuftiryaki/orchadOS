@@ -1,11 +1,13 @@
 # Denetim Metodolojisi
 
-**Sürüm:** `methodology-v0.1` · 27 Ekim 2026 (işletme kararıyla kabul edildi) · önceki: `methodology-v0` (21 Ekim 2026)
+**Sürüm:** `methodology-v0.2` · 28 Ekim 2026 (uzman ajan kararı, nihai kabul edildi) · önceki: `methodology-v0.1` (27 Ekim 2026), `methodology-v0` (21 Ekim 2026)
 
 Bu belge, orchadOS denetimlerinde bir ağacın ve bir parselin **nasıl değerlendirildiğini** tanımlar: hangi ziyarette neye bakılır, ölçekler ne anlama gelir, ağacın genel sınıfı nasıl çıkar, bulgular nasıl yazılır, sahibe ne gösterilir. Uzman (ziraat mühendisi), saha personeli eğitmeni ve operasyon aynı kuralları buradan okur.
 
 Her ölçüm, değerlendirme ve rapor üretildiği metodoloji sürümünü taşır (veritabanında `methodology_version`). Kurallar değişince yeni sürüm açılır. Eski raporlar kendi sürümleriyle kalır ve yeniden hesaplanmaz.
 
+> **v0.2 değişiklikleri (28 Ekim 2026):** "Kapsamlı" paketin yılda 6 periyodik ziyaretinin takvimi bir **uzman ajanla** (AI, ziraat mühendisi rolünde) kararlaştırıldı; kararı, gerekçesi, güveni ve pilot uzmana sorular [uzman-ajan-onerileri.md](uzman-ajan-onerileri.md) bölüm 7'de. İşletme talimatıyla ajanın kararları nihai kabul edildi; bir ziraat mühendisi tarafından doğrulanmadı. Bu sürüme girenler: **yeni ay–mevsim eşlemesi** (kış Kasım–Mart, ilkbahar Nisan–Mayıs, yaz Haziran–Ağustos, hasat Eylül–Ekim; bölüm 2) ve 6 ziyaretlik takvim; Mart sonu "uyanma" ziyareti kış, Ağustos başı "hasat öncesi" ziyareti yaz sayılır. Bu, İP7'deki "Mart ilkbahardır" kararından bilerek ayrılır. Ziyaret kuralları (ilaçlama sonrası giriş, hasat sürerken girilmez, yaz tarama saatleri, don, çamur, rüzgâr, ziyaretler arası en az 3 hafta; bölüm 2). Kayıtta mevsim genişletmeleri: hırsızlık izi, dal kırığı ve ağaç altı yığın yazın da; don hasarı kışın da (yalnız uzman). Yakın plan protokolü `winter-v0.2` (kuru testinde "dolgun ya da kabaran tomurcuk var mı?") ve `summer-v0.2` (erken boşaltılmış salkım sapı; parsel sorusu: tel ya da çitte yeni geçit). Ön kontrolde ilaçlama sorusu "etiketteki tekrar giriş süresi" diye, hasat ziyaretinde hasat ve çöpleme sorusu (bölüm 7). Ölçek tanımları, genel sınıf, karar zinciri ve skor v0.1 ile aynı. Yeni ziyaretler `methodology-v0.2` ile planlanır; `methodology-v0` ve `v0.1` ziyaretleri eski takvimle kalır, yani Mart ve Ağustos'taki eski bir ziyaretin mevsimi değişmez.
+>
 > **v0.1 değişiklikleri (27 Ekim 2026):** Gerçek uzman gelene kadar kararlar bir **uzman ajanla** (AI) verildi; öneriler, gerekçeleri, güvenleri ve pilot uzmanla görüşülürse sorulacak sorular [uzman-ajan-onerileri.md](uzman-ajan-onerileri.md)'de. Bu sürüme girenler: ölçeklerin görünür ölçütleri (4), büyüklük sınıfı eşikleri (3), dip sürgünü ve kuruma deseni (4.9–4.10), hafif zararlı belirtisinin sınıfı değiştirmemesi ve kışın kuru kanıt kuralı (5), %10 / en az 20 ağaçlık kalite örneklemi, toplu onay durdurma kuralı, mevsimin ilk ziyaretinde toplu onayın kapalı olması ve zor ölçeklerin zorunlu incelemesi (6), yakın plan çekimleri ve soruları (7), yeni bulgu türleri (8), skor kuralları (9), envanterde %98 kapsama ve geniş aralıklı bahçede 20×20 m kör nokta hücresi (10). Yeni ziyaretler `methodology-v0.1` ile planlanır; eski ziyaretler `methodology-v0` kurallarıyla kalır.
 >
 > **Kabul (27 Ekim 2026):** İşletme, uzman ajanın önerilerini pilot için yeterli buldu ve bu sürümü kabul etti. Öneriler **bir ziraat mühendisi tarafından doğrulanmadı**; kaynak ya da saha ölçümüne dayanmıyor. Pilotta uzmanın düzeltmeleri, AI ile uyum ölçümü ve sahiplerin geri bildirimi bu kuralları sınar; değişiklikler yeni bir sürümle (`methodology-v0.2` ya da `v1`) gelir. Referans fotoğrafların hiçbiri henüz yok; listesi [Ek A](#ek-a--hazırlanacak-referans-fotoğraflar)'da.
@@ -37,19 +39,46 @@ Her ölçüm, değerlendirme ve rapor üretildiği metodoloji sürümünü taş�
 
 ## 2. Ziyaretler ve mevsimler
 
-Ziyaretin mevsimi, taramanın yapıldığı aydan çıkar. Hangi ölçeğin girileceğini mevsim belirler.
+Ziyaretin mevsimi, taramanın yapıldığı aydan (UTC) ve ziyaretin metodoloji sürümünden çıkar. Hangi ölçeğin girileceğini mevsim belirler. Ziyaret satırında ayrı bir mevsim alanı yoktur; aynı kural üç yerde, aynı test vektörleriyle uygulanır (uzman paneli `apps/web/src/lib/expert/season.ts`, AI worker `methodology.py`, saha uygulaması `field_task.dart`; ortak vektörler `test-vectors/season.json`).
 
-| Ay | Mevsim | Ziyaret | Odak |
-| --- | --- | --- | --- |
-| Aralık, Ocak, Şubat | Kış | Kış denetimi | Budama, kuru dal, eksik ya da kesilmiş ağaç, gövde ve dip |
-| Mart, Nisan, Mayıs | İlkbahar | İlkbahar denetimi | Çiçeklenme, don hasarı, cinsiyet, zararlı belirtileri |
-| Haziran, Temmuz | Yaz | Yaz denetimi | Meyve yükü, göz kurdu, kuraklık stresi |
-| Ağustos, Eylül, Ekim | Hasat | Hasat denetimi | Hırsızlık izi, hasadın tamamlanması, dal kırığı, yangın riski |
-| Kasım | Kış | (ara dönem) | Kış ölçekleri kullanılır |
+**v0.2 takvimi** (`methodology-v0.2` ile planlanan ziyaretler):
 
-- Mart ve Kasım, uzman panelinde (İP7) bu tabloyla eşlendi. Mart'ta erken bir ziyaret çiçeklenmeden önceye denk gelebilir. O zaman ilkbahar ölçeklerinden sadece görülebilenler girilir.
-- **Yapraklı dönem:** İlkbahar ve yaz. Taç doluluğu sadece bu dönemde ölçülür. Kuru kararı yapraklı dönemde daha güvenilirdir (bkz. [5](#5-genel-sınıf-kuralı)).
+| Ay | Mevsim | Odak |
+| --- | --- | --- |
+| Kasım, Aralık, Ocak, Şubat, Mart | Kış | Budama, kuru dal, eksik ya da kesilmiş ağaç, gövde ve dip. Mart sonunda kabaran tomurcuk canlılığı gösterir |
+| Nisan, Mayıs | İlkbahar | Çiçeklenme, don hasarı, cinsiyet, göz kurdu, karazenk, psilla 1. döl |
+| Haziran, Temmuz, Ağustos | Yaz | Meyve yükü, psilla, kokarca, kuraklık; Ağustos başında hırsızlık ve yangın riski |
+| Eylül, Ekim | Hasat | Hasadın tamamlanması, dal kırığı, hırsızlık karşılaştırması, dip sürgünü |
+
+**Eski takvim** (`methodology-v0`, `v0.1` ve sürümü olmayan ziyaretler; değişmez): Aralık–Şubat kış, Mart–Mayıs ilkbahar, Haziran–Temmuz yaz, Ağustos–Ekim hasat, Kasım kış. Bilinmeyen bir sürüm de eski takvimle okunur. (v0.2'den önce saha uygulaması Kasım'ı hasat sayıyordu; uzman paneli ve AI kış. Bu tutarsızlık giderildi: Kasım her sürümde kıştır.)
+
+**Paketlere göre ziyaretler** (v0.2, uzman ajan kararı; pencereler rakıma, çeşide ve yıla göre 1–2 hafta kayabilir):
+
+| # | Ziyaret | Hedef | Pencere | Mevsim | Fenoloji | Ana amaç | Temel | Standart | Kapsamlı |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | Kış | Ocak | 15 Aralık–15 Şubat | Kış | Dinlenme | Budama başladı mı, kuru dal, gövde, eksik ya da kesilmiş ağaç | ✓ | ✓ | ✓ |
+| 2 | Uyanma | Mart sonu | 10–31 Mart | Kış | Tomurcuk kabarması | Budamanın kesin sonucu, artıklar kaldırıldı mı, kışın "kuru" denen ağaçların doğrulanması (kabaran tomurcuk = canlı), dip sürgünü, toprak, ot ve sulama hattı bakımı | | | ✓ |
+| 3 | İlkbahar | Nisan sonu | 15 Nisan–15 Mayıs | İlkbahar | Çiçek sonu, meyve tutumu | Don, cinsiyet, göz kurdu, karazenk, psilla 1. döl | | ✓ | ✓ |
+| 4 | Yaz | Temmuz başı–ortası | 1–25 Temmuz | Yaz | Kabuk sertleşmiş | Meyve yükü, psilla piki, kokarca, kuraklık ve sulama | | ✓ | ✓ |
+| 5 | Hasat öncesi | Ağustos başı | 1–20 Ağustos, hasat başlamadan | Yaz | İç dolumu tamam | Hırsızlık (erken boşaltılmış salkım, yeni tel geçidi), yangın riski (kuru ot), son meyve yükü | | | ✓ |
+| 6 | Hasat sonrası | Ekim | 15 Eylül–31 Ekim, hasat bitiminden 3–21 gün sonra | Hasat | Hasat sonrası | Hasat tamam mı, dal kırığı, hırsızlık karşılaştırması (#5 ile), dip sürgünü | ✓ | ✓ | ✓ |
+
+- Ziyaretin hangi takvim satırı olduğu şimdilik kaydedilmez; mevsim aydan çıkar. #2 ile #1, #5 ile #4 aynı mevsimdedir; skorun "aynı mevsimle trend" kuralı ve "mevsimin ilk ziyareti" kuralı mevsime göre çalışır (bölüm 6, 9). İleride `session.visit_slot` alanı açılabilir (bölüm 11).
+- **Yapraklı dönem:** İlkbahar ve yaz. Taç doluluğu sadece bu dönemde ölçülür. Kuru kararı yapraklı dönemde daha güvenilirdir (bkz. [5](#5-genel-sınıf-kuralı)). v0.2'de Mart kış olduğundan yapraksız ağaçta taç doluluğu sorulmaz, budama girilebilir.
+- **Don hasarı kışın:** Mart sonu ziyareti kabaran tomurcukta geç dona denk gelebilir. Don hasarı kayıtta kışın da girilebilir, ama yalnız uzman girer; AI kışın don önermez.
 - **Envanter** ziyareti ayrı bir ziyaret türüdür. Hasat sonrası ya da kışın, otlar kısayken yapılır, çünkü uzun ot gövde diplerini kapatır. Envanterde sağlık ölçeği girilmez; sadece ağaç kimliği ve özellikleri çıkarılır.
+
+**Ziyaret kuralları (v0.2):**
+
+- **İlaçlama sonrası giriş:** İlacın etiketindeki tekrar giriş süresi geçmeden bahçeye girilmez. Süre bilinmiyorsa en az 48 saat beklenir. Yapraklar ıslaksa ya da ilaç kokusu varsa girilmez. Operasyon, ziyaretten 2 gün önce sahibe ilaçlama planını sorar. Saha personeli ön kontrolde onaylar (bölüm 7).
+- **Hasat sürerken bahçeye girilmez.** #5 hasat öncesi ziyaretinde hasat başlamışsa ziyaret iptal edilir ve #6'ya katılır. #6 hasat bitiminden 3–21 gün sonra yapılır; ön kontrolde hasadın bittiği ve çöplemenin sürüp sürmediği sorulur.
+- **Yaz tarama saatleri:** Sabah gün doğumundan 1 saat sonra ile 11.00 arası ya da akşamüstü 16.00 ile gün batımından 1 saat önce arası.
+- **Don ve kırağı:** Don ya da kırağı kalkmadan tarama yapılmaz.
+- **Çamur:** Çamurda motosikletle tarama yapılmaz.
+- **Güvenlik:** Çizme zorunludur.
+- **Ziyaretler arası:** Aynı parselde iki ziyaret arasında en az 3 hafta olur.
+- **Rüzgâr:** Rüzgâr saatte yaklaşık 30 km'yi aşıyorsa yakın plan çekilmez.
+- Şafakta, gün batımında, yağmurda ve yoğun tozda tarama yapılmaz (v0.1).
 
 ## 3. Ağaç kimliği ve özellikleri
 
@@ -207,6 +236,7 @@ Budama bir ölçek değil, bakım uyumu göstergesidir. Genel sınıfı etkileme
 
 Dal kırığı "var" ise ağaç için bir bulgu yazılır. Hırsızlık izi parsel düzeyinde bulgudur (bkz. [8](#8-bulgular-ve-öneriler)).
 
+- **Zamanlama (v0.2):** "Kapsamlı" pakette Ağustos başında bir hasat öncesi ziyareti vardır (bölüm 2, #5; yaz mevsimi). Hırsızlık izi, dal kırığı ve ağaç altı yığın o ziyarette de girilir; hasat sonrası ziyareti (#6) bunu karşılaştırır. Diğer paketlerde v0.1 kuralı geçerlidir.
 - **Zamanlama (v0.1):** Paket dört ziyarette kalır; hasat ziyareti **hasattan sonra** (Eylül sonu–Ekim) yapılır. Hırsızlık hasattan önce olduğu için bu ziyarette yalnız "olası iz" görülebilir; bulgu **orta** önemle gider, uzman en az iki ölçütle emin olursa yüksek.
 - **Hırsızlık izi ölçütleri:** Ağaç altındaki yaprak, sap ve kırık dal yığını tek başına iz sayılmaz (meşru hasattan da kalır). En az biri gerekir: hasat zamanından önce boşaltılmış salkım sapları; komşu ağaçlar dolu iken tek tük boşaltılmış ağaçlar; tel ya da çitte yeni açılmış geçit.
 
@@ -327,18 +357,20 @@ Ağacın her ziyaretteki genel sınıfı aşağıdaki kurallarla çıkar. Kurall
 - **Sıra:** Önce uzak (taç), sonra orta (gövde), en son yakın; personel ağaca yaklaşırken çeker.
 - **Yön:** Gövde ve taç ağacın **güney tarafından, kuzeye bakarak** çekilir; güneş arkada kalır ve her ziyaret aynı yüzü gösterir. Sıra düzeni izin vermezse en yakın koridor kullanılır.
 
-**Mevsime göre çekimler ve sorular** (v0.1, saha uygulaması `*-v0.1` protokolleri). Her soruda **"Göremedim"** seçeneği vardır; o zaman ölçüm yazılmaz, cevap kayıtta "görülemedi" olarak kalır. Sorular personelin gördüğünü ya da dokunduğunu sorar, ziraat terimi içermez.
+**Mevsime göre çekimler ve sorular** (saha uygulaması `winter-v0.2`, `spring-v0.1`, `summer-v0.2`, `harvest-v0.1` protokolleri). Her soruda **"Göremedim"** seçeneği vardır; o zaman ölçüm yazılmaz, cevap kayıtta "görülemedi" olarak kalır. Sorular personelin gördüğünü ya da dokunduğunu sorar, ziraat terimi içermez.
 
 | Mevsim | Çekimler | Sorular (metrik kodu) |
 | --- | --- | --- |
-| Kış | 1. Taç, 6–8 m · 2. Gövde ve dip, 1–1,5 m, diz hizasından · 3. Varsa yara, oyuk ya da zamk; yoksa bir dal ucu ve tomurcuğu, 30–50 cm, yanında el · (4. Kuru şüphesinde: üç dal ucu ve kazıma yeri) | Gövdede yara, oyuk ya da kabuğu kalkmış yer var mı? (`trunk_damage_present`) · Gövdenin dibinden ya da topraktan ince dallar çıkıyor mu; yok / birkaç / çok (`basal_sprout_level`) · Açık renkli, yeni kesilmiş dal yeri var mı? (`fresh_cut_present`) · Kuru görünen kalın dal (kol) var mı? (`dead_scaffold_present`) · Gövdede ya da dipte reçine gibi sertleşmiş damla var mı? (`gum_present`) · Kuru şüphesinde: `dead_test_no_buds`, `dead_test_snaps`, `dead_test_brown_cambium` |
+| Kış | 1. Taç, 6–8 m · 2. Gövde ve dip, 1–1,5 m, diz hizasından · 3. Varsa yara, oyuk ya da zamk; yoksa bir dal ucu ve tomurcuğu, 30–50 cm, yanında el · (4. Kuru şüphesinde: üç dal ucu ve kazıma yeri) | Gövdede yara, oyuk ya da kabuğu kalkmış yer var mı? (`trunk_damage_present`) · Gövdenin dibinden ya da topraktan ince dallar çıkıyor mu; yok / birkaç / çok (`basal_sprout_level`) · Açık renkli, yeni kesilmiş dal yeri var mı? (`fresh_cut_present`) · Kuru görünen kalın dal (kol) var mı? (`dead_scaffold_present`) · Gövdede ya da dipte reçine gibi sertleşmiş damla var mı? (`gum_present`) · Kuru şüphesinde: Baktığın üç dal ucundan herhangi birinde dolgun ya da kabaran tomurcuk var mı? (`dead_test_live_bud`, v0.2; v0.1'de ters soru `dead_test_no_buds`) · `dead_test_snaps` · `dead_test_brown_cambium` |
 | İlkbahar (Nisan ortası–Mayıs ortası) | 1. Taç · 2. Çiçek ya da sürgün salkımı, 20–30 cm, arkasında avuç · 3. Yaprak, 20–30 cm, alt yüzü dahil | Çiçek salkımı var mı? (`flower_cluster_present`) · Salkıma dokununca eline sarı toz bulaşıyor mu? (`pollen_present`) · Kararmış ya da kurumuş salkım veya sürgün var mı? (`frost_damage_present`) · Ucu kurumuş genç sürgün var mı? (`shoot_tip_dieback_present`) · Yapraklar yapışkan ya da parlak mı? (`honeydew_present`) · Yaprakta siyah is var mı? (`sooty_mould_present`) |
-| Yaz (Temmuz) | 1. Taç · 2. Meyve salkımı, 30 cm, dış kısımdan ilk salkım · 3. Yaprak, üst ve alt yüz | Meyve salkımı var mı? (`fruit_present`) · Yapraklar yapışkan ya da parlak mı? · Beyaz, şeker tanesi gibi pul var mı? (`white_flakes_present`) · Siyah is var mı? · Ağaç altında çok sayıda yeşil meyve var mı? (`green_fruit_drop_present`) · Dallarda kurumuş yaprak asılı mı? (`dried_leaves_attached`) |
+| Yaz (Temmuz; v0.2'de Ağustos başı da) | 1. Taç · 2. Meyve salkımı, 30 cm, dış kısımdan ilk salkım · 3. Yaprak, üst ve alt yüz | Meyve salkımı var mı? (`fruit_present`) · Yapraklar yapışkan ya da parlak mı? · Beyaz, şeker tanesi gibi pul var mı? (`white_flakes_present`) · Siyah is var mı? · Ağaç altında çok sayıda yeşil meyve var mı? (`green_fruit_drop_present`) · Dallarda kurumuş yaprak asılı mı? (`dried_leaves_attached`) · Dalda erken boşaltılmış salkım sapı var mı? (`early_emptied_cluster_present`, v0.2) · **Parsel sorusu** (ziyarette bir kez): Tel ya da çitte yeni açılmış geçit var mı? (`fence_breach_present`, v0.2) |
 | Hasat (hasattan sonra) | 1. Taç · 2. Varsa kırık dal, bağlantı yeriyle 1–2 m · 3. Ağaç altı, 2–3 m, 45° aşağı | Salkımların hepsi toplanmış mı? (`harvest_complete`) · Kırık ya da yarılmış dal var mı? (`branch_break`) · Ağaç altında yaprak, sap ya da kopmuş dal yığını var mı? (`debris_under_tree_present`) · Çevrede diz boyunu aşan kuru ot ya da yığın var mı? (`dry_weeds_present`) |
 
 Personel isterse sesli not bırakır. `methodology-v0` ziyaretlerinin eski soru kodları (`dead_branch_present`, `root_sucker_present`, `pruned`, `pest_sign_present`, `drought_stress_sign`, `theft_sign_present`) kayıtta kalır.
 
-**Ön kontrol (v0.1):** Saha personeli taramaya başlamadan "son günlerde ilaçlama yapıldıysa ilacın bekleme süresi geçti" ya da "ilaçlama yapılmadı" diye onaylar. Köpek, yılan ve sıcak çarpması eğitim konusudur.
+**Parsel soruları (v0.2):** Bazı sorular bir ağaca değil parselin tamamına aittir. Saha uygulaması bunları yakın plan listesinin başında bir kez sorar; cevap ağaçsız bir personel ölçümü olarak yazılır (`measurement` konusu parsel), "Göremedim" parsel için `closeup_unseen` olayına girer ([arayuzler.md](arayuzler.md)). Şimdilik tek parsel sorusu yazın tel ya da çit geçididir.
+
+**Ön kontrol (v0.2):** Saha personeli taramaya başlamadan "son günlerde ilaçlama yapıldıysa etiketteki tekrar giriş süresi geçti" ya da "ilaçlama yapılmadı" diye onaylar; süre bilinmiyorsa en az 48 saat geçmiş olmalıdır, yapraklar ıslaksa ya da ilaç kokusu varsa girilmez. Hasat mevsimindeki taramada ayrıca hasadın bittiğini ve çöplemenin bitip bitmediğini seçer ("hasat bitti, çöpleme de bitti", "çöpleme sürüyor", "çöpleme yapılmayacak"); hasat sürüyorsa seçenek yoktur, bahçeye girilmez. Cevaplar `session_start` olayında kayıtlıdır. Ekranda ziyaret kuralları (bölüm 2) hatırlatılır. Köpek, yılan ve sıcak çarpması eğitim konusudur.
 
 ## 8. Bulgular ve öneriler
 
@@ -447,9 +479,13 @@ Karne, son yayımlanmış ziyaretin özetidir.
 - [x] Tarama yöntemi ve kamera yüksekliği (bölüm 1) — 27 Ekim 2026, işletme kararı: üç yöntem de kullanılır (yürüyüş/sırt direği, motosiklet, robot); kamera yüksekliği ayarlanabilir, sabit bir sayı yok. Personel ön kontrolde yöntemi seçer ve merceğin yerden yüksekliğini ölçüp girer (0,50–3,50 m); telefon parseldeki son taramanın değerlerini önerir, yöntem farklıysa ya da yükseklik 25 cm'den fazla değiştiyse uyarır. İşleme hattı kesitleri ve ağaç var/yok kutularını (yerden 2,5–4 m) bu ölçülen yükseklikle izdüşürür; kutular yerden yükseklikle tanımlı; kamera yükselip alçaldıkça görüntüdeki yerleri değişir ama ağacın hep aynı bölümüne bakarlar. Uzman paneli, önceki ziyaret başka yöntemle ya da 25 cm'den fazla farklı yükseklikle çekildiyse uyarır. Robotta yükseklik kitin kalibrasyonundan (`kit_mount`) okunabilir; şimdilik o da elle girilir
 - [x] Referans fotoğrafların seçim ölçütleri (Ek A) — fotoğrafların kendisi henüz yok
 
+- [x] Ziyaret takvimi ve ay–mevsim eşlemesi (bölüm 2) — 28 Ekim 2026, uzman ajan kararı (v0.2): 6 ziyaretlik "Kapsamlı" takvim, Mart kış, Ağustos yaz, ziyaret kuralları. Pilot uzmana sorular: [uzman-ajan-onerileri.md](uzman-ajan-onerileri.md) bölüm 7.
+
 **Açık kalanlar:**
 - **Yönteme göre ayar:** Motosikletin titreşimi ve hızı ile robotun alçak montajı kesit kalitesini ve var/yok sinyalini nasıl etkiliyor, pilotta yöntem başına ölçülecek. Gerekirse yönteme göre ayrı eşikler gelir.
-- **Yabani ot ve toprak işleme:** Bakım uyumu satırı için `weed_cover` (az / orta / yoğun) ölçümü önerildi; henüz yok.
+- **Yabani ot ve toprak işleme:** Bakım uyumu satırı için `weed_cover` (az / orta / yoğun) ölçümü önerildi; henüz yok. v0.2'de #2 ve #5 ziyaretleri ot ve yangın riski için de bunu ister.
+- **Karazenk:** v0.2 ilkbahar ziyaretinin odağında; `pest_sign_type`'ta ayrı kodu (`leafhopper`) yok, şimdilik `other` girilir.
+- **Ziyaretin takvim satırı:** Hangi ziyaretin #1–#6 olduğu kayıtlı değil, mevsim aydan çıkıyor. Raporda "uyanma" ya da "hasat öncesi" diye adlandırmak için `session.visit_slot` (boş olabilir) alanı önerildi.
 - **Ofis kişisinin kaynağı:** Envanterde ofiste girilen özellikler şimdilik `staff` kaynağıyla yazılıyor; ayrı bir `office` kaynağı gerekip gerekmediği açık.
 - **Gövde ölçeğinin anlamı değişti:** v0.1'de dip sürgünü `trunk_base_scale`'den çıktı; kod adı aynı kaldı. Ağaç karnesinde v0 ve v0.1 değerleri sürümüyle okunmalı.
 - **Örneklemin %5'e inmesi** ve **meyve yükünün iki yıl önceyle yorumlanması** henüz kodda yok.
@@ -487,12 +523,12 @@ Ayrıca saha uygulamasındaki "böyle çek" görselleri: mevsim başına 3 çeki
 | Dalda asılı kuru yaprak | `dried_leaves_attached` | Evet/hayır | İlkbahar, yaz, hasat | Var |
 | Budama | `pruning_status` | Kategori: `done`, `partial`, `not_done` | Kış | Var |
 | Taç doluluğu | `crown_density_scale` | Ölçek 0–3 | İlkbahar, yaz | Var |
-| Don hasarı | `frost_damage_scale` | Ölçek 0–3 | İlkbahar | Var |
+| Don hasarı | `frost_damage_scale` | Ölçek 0–3 | İlkbahar, kış (v0.2; kışın yalnız uzman) | Var |
 | Zararlı belirtisi | `pest_sign_severity` + `pest_sign_type` | Kategori: `none`, `mild`, `marked` · kategori: `psylla`, `bud_borer`, `stink_bug`, `other` | İlkbahar, yaz | Var |
 | Meyve yükü | `fruit_load_scale` | Ölçek 0–3 | Yaz | Var |
 | Hasat tamam mı | `harvest_complete` | Evet/hayır | Hasat | Var |
-| Dal kırığı | `branch_break` | Evet/hayır | Hasat | Var |
-| Hırsızlık izi | `theft_trace` | Evet/hayır (parsel) | Hasat | Var |
+| Dal kırığı | `branch_break` | Evet/hayır | Yaz (v0.2), hasat | Var |
+| Hırsızlık izi | `theft_trace` | Evet/hayır (parsel) | Yaz (v0.2), hasat | Var |
 | Ağaç görünüyor mu (işleme hattı) | `tree_visible` | Kategori: `yes`, `no`, `unsure` (ağaç ya da boş yer) | Tümü (yapraksız dönemde hep `unsure`) | Var |
 
 Uzman panelinde bir düzeltme için mevsimin ölçeklerinden en az birinin girilmesi gerekir; görüntüden karar verilemeyen ölçek boş bırakılır (bölüm 4).
