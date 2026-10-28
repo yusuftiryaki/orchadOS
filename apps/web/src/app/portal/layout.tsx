@@ -26,11 +26,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
               for users with an owner profile (customer), including pilot
               owners and co-owners ops gave one. A co-owner (viewer) without a
               profile sees only the gardens. */}
-          {notice?.required && notice.version ? (
-            <NoticeGate version={notice.version} />
-          ) : (
-            children
-          )}
+          {notice?.required && notice.version ? <NoticeGate version={notice.version} /> : children}
         </PortalShell>
       )}
     </div>

@@ -114,40 +114,40 @@ export function CustomerHome({
   return (
     <div className={styles.top} data-has-parcels={hasParcels || undefined}>
       <div className={styles.main}>
-      {tasks.length > 0 && (
-        <section className={layout.section} aria-labelledby="tasks-title">
-          <h2 id="tasks-title">{H.tasksTitle}</h2>
-          <ul className={styles.tasks}>
-            {tasks.map((task, i) => (
-              <li
-                key={task.key}
-                className={task.yours ? styles.task : `${styles.task} ${styles.taskOurs}`}
-                data-testid={task.testId}
-              >
-                <div className={layout.stack}>
-                  <h3>{task.title}</h3>
-                  <p>{task.body}</p>
-                </div>
-                <ButtonLink
-                  href={task.href}
-                  variant={i === primary ? "primary" : task.yours ? "secondary" : "quiet"}
+        {tasks.length > 0 && (
+          <section className={layout.section} aria-labelledby="tasks-title">
+            <h2 id="tasks-title">{H.tasksTitle}</h2>
+            <ul className={styles.tasks}>
+              {tasks.map((task, i) => (
+                <li
+                  key={task.key}
+                  className={task.yours ? styles.task : `${styles.task} ${styles.taskOurs}`}
+                  data-testid={task.testId}
                 >
-                  {task.action}
-                </ButtonLink>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      {start}
-      {children && tasks.length > 0 ? (
-        <section className={layout.section} aria-labelledby="gardens-title">
-          <h2 id="gardens-title">{H.gardensTitle}</h2>
-          {children}
-        </section>
-      ) : (
-        children
-      )}
+                  <div className={layout.stack}>
+                    <h3>{task.title}</h3>
+                    <p>{task.body}</p>
+                  </div>
+                  <ButtonLink
+                    href={task.href}
+                    variant={i === primary ? "primary" : task.yours ? "secondary" : "quiet"}
+                  >
+                    {task.action}
+                  </ButtonLink>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {start}
+        {children && tasks.length > 0 ? (
+          <section className={layout.section} aria-labelledby="gardens-title">
+            <h2 id="gardens-title">{H.gardensTitle}</h2>
+            {children}
+          </section>
+        ) : (
+          children
+        )}
       </div>
       {period && (
         <aside className={styles.member} aria-label={M.title}>

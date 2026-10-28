@@ -40,9 +40,7 @@ export default async function Page({
   }
   // A new customer has no parcel yet: the call to apply says what to do.
   const gardens =
-    parcels.length > 0 || !summary ? (
-      <GardenList parcels={parcels} badges={badges} />
-    ) : null;
+    parcels.length > 0 || !summary ? <GardenList parcels={parcels} badges={badges} /> : null;
   return (
     <main className={layout.page}>
       <PageHeader
