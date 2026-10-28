@@ -2,7 +2,7 @@
 -- the optional early-performance consent and the production gate
 -- (docs/hukuk/kararlar.md T21, T04, T03, H11 (a); docs/musteri-yonetimi.md
 -- "Sözleşme belgeleri (T04)").
--- Seed: org b0..01 (fake payments allowed: gate inactive), ops a0..05,
+-- Seed: org b0..01 (legal_gate_enforced off: gate inactive), ops a0..05,
 -- package standart 9120..0001.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -167,7 +167,7 @@ select is((select count(*)::integer from private.consent_record c join public.se
 
 insert into ids select 'q4', pg_temp.new_quote(pg_temp.id('u1'), 37.531);
 reset role;
-update public.org_billing_setting set allow_fake_payments = false where org_id = 'b0000000-0000-4000-8000-000000000001';
+update public.org_billing_setting set legal_gate_enforced = true where org_id = 'b0000000-0000-4000-8000-000000000001';
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('u1'));
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
@@ -215,8 +215,8 @@ select is((select text_sha256 from private.consent_record c join public.service_
            where o.quote_id = pg_temp.id('q4') and c.kind = 'pre_information'), repeat('2', 64),
   'the string form records the registered hash of the final text');
 
--- Inactive where fake payments are allowed: the drafts pass (the steps above).
-update public.org_billing_setting set allow_fake_payments = true where org_id = 'b0000000-0000-4000-8000-000000000001';
+-- Inactive where the gate is not enforced: the drafts pass (the steps above).
+update public.org_billing_setting set legal_gate_enforced = false where org_id = 'b0000000-0000-4000-8000-000000000001';
 select private.register_legal_text('distance_sales', 'mesafeli-v3-taslak', pg_temp.h('distance_sales'));
 select private.register_legal_text('pre_information', 'onbilgi-v3-taslak', pg_temp.h('pre_information'));
 insert into ids select 'q5', pg_temp.new_quote(pg_temp.id('u2'), 37.541);
@@ -224,7 +224,7 @@ set local role authenticated;
 select pg_temp.as_user(pg_temp.id('u2'));
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
   '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak"}') $$, pg_temp.id('q5'))), null,
-  'the gate is inactive with fake payments allowed (local, CI, test)');
+  'the gate is inactive where it is not enforced (local, CI, test, demo)');
 reset role;
 
 -- Privileges -----------------------------------------------------------------------------------

@@ -1,10 +1,10 @@
 -- Legal-text registry, company information and the production gate status
 -- (docs/hukuk/kararlar.md H34, T21; docs/musteri-yonetimi.md §9.3, §9.4).
--- Seed: org b0..01 (sign-up org, fake payments allowed, complete company
+-- Seed: org b0..01 (sign-up org, fake payments allowed, gate not enforced, complete company
 -- information), customer a0..06 (KVKK notice kvkk-v1-taslak), ops a0..05.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(36);
 
 select testing.reset_to_seed();
 
@@ -134,9 +134,18 @@ select is((select marketing_consent_enabled from public.org_billing_setting
 set local role authenticated;
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 select results_eq($$ select active, reasons from public.legal_gate_status() $$,
-  $$ values (false, array[]::text[]) $$, 'fake payments allowed (local, CI, test): the gate is inactive');
+  $$ values (false, array[]::text[]) $$, 'not enforced (local, CI, test, demo): the gate is inactive');
 reset role;
 update public.org_billing_setting set allow_fake_payments = false where org_id = 'b0000000-0000-4000-8000-000000000001';
+set local role authenticated;
+select results_eq($$ select active, reasons from public.legal_gate_status() $$,
+  $$ values (false, array[]::text[]) $$, 'refusing fake payments (iyzico sandbox) does not turn the gate on');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+select throws_ok($$ select public.ops_save_billing_setting('b0000000-0000-4000-8000-000000000001',
+  '{"legal_gate_enforced": true}') $$, '22023', 'invalid_input', 'the gate switch is SQL only');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
+reset role;
+update public.org_billing_setting set legal_gate_enforced = true where org_id = 'b0000000-0000-4000-8000-000000000001';
 set local role authenticated;
 select results_eq($$ select active, reasons from public.legal_gate_status() $$,
   $$ values (true, array['distance_sales_draft', 'pre_information_draft', 'kvkk_notice_not_final']) $$,
