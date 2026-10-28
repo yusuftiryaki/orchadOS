@@ -143,6 +143,9 @@ must() {
   case "$code" in 2??) ;; *) fail "$svc $method ${path%%\?*}: HTTP $code $(api_error)" ;; esac
 }
 resp() { jq "$@" "$tmp/resp"; }
+# sql_lit VALUE: VALUE as an SQL string literal (quotes doubled;
+# standard_conforming_strings keeps backslashes literal).
+sql_lit() { printf "'%s'" "${1//\'/\'\'}"; }
 team="teamId=$VERCEL_TEAM_ID"
 
 # --- Supabase project ---------------------------------------------------------
@@ -353,7 +356,10 @@ if [ -n "$ref" ]; then
   must sb GET "/v1/projects/$ref/secrets"
   cp "$tmp/resp" "$tmp/secrets"
   edge_names=$(resp -r '.[].name')
-  jq -n '{query: "select name from vault.secrets where name in ('demo_cleanup_url', 'orchados_cron_secret')"}' > "$tmp/body"
+  # SQL goes through --arg: quotes inside a single-quoted jq program would end
+  # the shell quoting and drop the string literals.
+  jq -n --arg q "select name from vault.secrets where name in ($(sql_lit demo_cleanup_url), $(sql_lit orchados_cron_secret))" \
+    '{query: $q}' > "$tmp/body"
   must sb POST "/v1/projects/$ref/database/query" "$tmp/body"
   vault_names=$(resp -r '.[].name')
 fi
@@ -445,13 +451,16 @@ unset "S_${P}SIGNUP_HASH_SECRET" S_ORCHADOS_CRON_SECRET "S_${P}SIGNUP_PROXY_SECR
 # (§5.4, §7); without both, expired visitor accounts are never deleted.
 vault_upsert() { # NAME VALUE (value: [A-Za-z0-9:/._-] only, checked)
   [[ "$2" =~ ^[A-Za-z0-9:/._-]+$ ]] || fail "unexpected characters in the Vault value of $1."
+  [[ "$1" =~ ^[a-z_]+$ ]] || fail "unexpected Vault secret name $1."
+  local name value
+  name=$(sql_lit "$1") value=$(sql_lit "$2")
   printf "do \$\$ begin
-  if exists (select 1 from vault.secrets where name = '%s') then
-    perform vault.update_secret((select id from vault.secrets where name = '%s'), '%s');
+  if exists (select 1 from vault.secrets where name = %s) then
+    perform vault.update_secret((select id from vault.secrets where name = %s), %s);
   else
-    perform vault.create_secret('%s', '%s');
+    perform vault.create_secret(%s, %s);
   end if;
-end \$\$;\n" "$1" "$1" "$2" "$2" "$1"
+end \$\$;\n" "$name" "$name" "$value" "$value" "$name"
 }
 if [ -n "$ref" ] && ! dry; then
   { vault_upsert demo_cleanup_url "https://$ref.supabase.co/functions/v1/demo-start"

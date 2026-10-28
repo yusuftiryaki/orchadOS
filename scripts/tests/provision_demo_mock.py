@@ -74,6 +74,9 @@ def fresh_state():
 
 
 STATE = fresh_state()
+# Every SQL text sent to /database/query, kept across resets: the mock answers
+# any of them with canned rows, so scripts/test-script-sql.sh runs them on Postgres.
+QUERIES = []
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -131,6 +134,8 @@ class Handler(BaseHTTPRequestHandler):
             STATE = fresh_state()
         elif op == "clear-log":
             STATE["log"] = []
+        elif op == "queries":
+            return self.reply(200, QUERIES)
         elif op == "drop-vercel-env":
             STATE["vercel_env"] = [e for e in STATE["vercel_env"] if e["key"] != body["key"]]
         elif op == "add-vercel-env":
@@ -213,6 +218,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200)
         if rest == "/database/query" and method == "POST":
             q = body["query"]
+            if q not in QUERIES:
+                QUERIES.append(q)
             if q.startswith("select name from vault.secrets"):
                 return self.reply(200, [{"name": n} for n in st["vault"]])
             if "as real_orgs" in q:
