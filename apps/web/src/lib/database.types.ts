@@ -4301,6 +4301,17 @@ export type Database = {
           withdrawal_until: string;
         }[];
       };
+      my_kvkk_requests: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          created_at: string;
+          due_at: string;
+          id: string;
+          request_type: string;
+          settled_at: string;
+          status: string;
+        }[];
+      };
       my_owner_profile: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -4773,6 +4784,22 @@ export type Database = {
         };
         Returns: string;
       };
+      ops_kvkk_requests: {
+        Args: { p_org_id: string };
+        Returns: {
+          applicant_email: string;
+          applicant_name: string;
+          created_at: string;
+          due_at: string;
+          id: string;
+          message: string;
+          overdue: boolean;
+          request_type: string;
+          settled_at: string;
+          status: string;
+          subject_id: string;
+        }[];
+      };
       ops_link_application_garden_parcel: {
         Args: { p_garden_id: string; p_parcel_id: string };
         Returns: undefined;
@@ -5184,6 +5211,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_set_kvkk_request_status: {
+        Args: { p_request_id: string; p_status: string };
+        Returns: undefined;
+      };
       ops_set_parcel_passive: {
         Args: { p_parcel_id: string; p_passive: boolean };
         Returns: Database["public"]["Enums"]["parcel_status"];
@@ -5349,6 +5380,8 @@ export type Database = {
       phone_login_record_failure: { Args: { p_phone: string }; Returns: number };
       pipeline_rescan_request: { Args: { p_session_id: string }; Returns: Json };
       portal_acknowledge_kvkk_notice: { Args: { p_text_version: string }; Returns: number };
+      portal_file_kvkk_request: { Args: { p_message: string; p_type: string }; Returns: string };
+      portal_kvkk_form_enabled: { Args: Record<PropertyKey, never>; Returns: boolean };
       portal_notice_status: { Args: Record<PropertyKey, never>; Returns: Json };
       price_preview: {
         Args: { p_areas_m2: number[]; p_first_year?: boolean; p_package_id: string };

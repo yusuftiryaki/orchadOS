@@ -33,7 +33,10 @@ select tables_are('private', array['owner_profile', 'parcel_detail', 'message_ou
   -- Demo tour registry (IP13, docs/demo-turu.md §5.1).
   'demo_org', 'demo_parcel', 'demo_session', 'demo_attempt',
   -- Legal-text registry (T21) and contract documents (T04).
-  'legal_text_version', 'contract_document'], 'private has the personal data tables');
+  'legal_text_version', 'contract_document',
+  -- Legal follow-ups wave 2 (T23, T20, T16, T11).
+  'staff_profile', 'media_suppression', 'boundary_approval', 'boundary_pointer', 'boundary_dispute',
+  'kvkk_request'], 'private has the personal data tables');
 
 select is(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace

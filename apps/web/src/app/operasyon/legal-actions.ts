@@ -8,6 +8,7 @@ import {
   hideMedia,
   openDispute,
   saveStaffProfile,
+  setKvkkRequestStatus,
   unhideMedia,
   type LegalResult,
 } from "@/lib/operations/legal";
@@ -90,4 +91,13 @@ export async function closeDisputeAction(form: FormData) {
   const back = `/operasyon/parsel/${parcelId}`;
   if (!isUuid(parcelId)) finish("/operasyon", { ok: false, error: "invalid_input" }, "");
   finish(back, await closeDispute(supabase, parcelId, text(form, "note")), "dispute_closed");
+}
+
+export async function setKvkkStatusAction(form: FormData) {
+  const supabase = await context();
+  const id = text(form, "id");
+  const orgId = text(form, "org_id");
+  const back = `/operasyon/kvkk?org=${encodeURIComponent(orgId)}`;
+  if (!isUuid(id)) finish(back, { ok: false, error: "invalid_input" }, "");
+  finish(back, await setKvkkRequestStatus(supabase, id, text(form, "status")), "kvkk_updated");
 }

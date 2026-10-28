@@ -36,6 +36,7 @@ export function OpsNav({ current }: { current: OpsNavItem }) {
     ["visits", opsHref.visits(), T.visits],
     ["notifications", notificationsHref(), t.notifications.nav],
     ["staff", "/operasyon/personel", t.legal.staff.nav],
+    ["kvkk", "/operasyon/kvkk", t.legal.kvkkRequest.ops.nav],
   ] as const;
   const billing = [
     ["applications", boHref.applications(), B.applications],

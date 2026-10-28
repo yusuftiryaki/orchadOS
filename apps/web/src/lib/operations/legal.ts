@@ -301,3 +301,57 @@ export async function closeDispute(
     }),
   );
 }
+
+// ---------------------------------------------------------------------------
+// KVKK applications (T11)
+// ---------------------------------------------------------------------------
+
+export const KVKK_STATUSES = ["open", "in_progress", "answered", "rejected"] as const;
+
+export interface OpsKvkkRequest {
+  id: string;
+  applicantName: string | null;
+  applicantEmail: string | null;
+  type: string;
+  message: string;
+  status: string;
+  createdAt: string;
+  dueAt: string;
+  settledAt: string | null;
+  overdue: boolean;
+}
+
+export async function listKvkkRequests(supabase: Client, orgId: string): Promise<OpsKvkkRequest[]> {
+  const { data, error } = await supabase.rpc("ops_kvkk_requests", { p_org_id: orgId });
+  if (error) {
+    if (error.code === "PGRST202") return [];
+    throw error;
+  }
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    applicantName: r.applicant_name,
+    applicantEmail: r.applicant_email,
+    type: r.request_type,
+    message: r.message,
+    status: r.status,
+    createdAt: r.created_at,
+    dueAt: r.due_at,
+    settledAt: r.settled_at,
+    overdue: r.overdue,
+  }));
+}
+
+export async function setKvkkRequestStatus(
+  supabase: Client,
+  id: string,
+  status: string,
+): Promise<LegalResult> {
+  return result(
+    await supabase.rpc("ops_set_kvkk_request_status", { p_request_id: id, p_status: status }),
+  );
+}
+
+// Whole days from `now` to the deadline (negative: overdue).
+export function daysLeft(dueAt: string, now: number): number {
+  return Math.floor((Date.parse(dueAt) - now) / 86_400_000);
+}
