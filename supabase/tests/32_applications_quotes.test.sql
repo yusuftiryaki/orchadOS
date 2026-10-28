@@ -266,9 +266,9 @@ select is(
 select results_eq(
   format('select iban, reference, outstanding_kurus from public.customer_payment_instructions(%L)',
     (select id from ids where name = 'o1')),
-  $$ select 'TR000000000000000000000001'::text, number, 2047680::bigint from public.service_order
+  $$ select 'TR000000000000000000000001'::text, number, 648000::bigint from public.service_order
      where id = (select id from ids where name = 'o1') $$,
-  'IBAN, the order number as reference and the outstanding amount');
+  'IBAN, the order number as reference and the open amount of the first installment (inventory, 10 % off, VAT)');
 
 -- Decline -------------------------------------------------------------------------
 

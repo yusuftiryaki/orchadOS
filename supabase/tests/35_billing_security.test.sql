@@ -85,7 +85,12 @@ insert into ip12_fn values
   ('public.payment_record_event(text,text,text,uuid,uuid,boolean,integer,text,jsonb)', 'service_role'),
   ('public.payment_finalize(uuid,text,jsonb)', 'service_role'),
   ('public.payment_attempts_to_reconcile(integer)', 'service_role'),
-  ('public.ops_record_manual_payment(uuid,bigint,date,text,text)', 'authenticated'),
+  ('public.ops_record_manual_payment(uuid,bigint,date,text,text,uuid)', 'authenticated'),
+  -- Payment plan (installments-v1)
+  ('public.quote_installment_plan(uuid)', 'authenticated'),
+  ('public.ops_order_installments(uuid)', 'authenticated'),
+  ('public.ops_overdue_installments(uuid,integer,integer)', 'authenticated'),
+  ('public.ops_allow_unpaid_visit(uuid,text)', 'authenticated'),
   ('public.ops_void_manual_payment(uuid,text)', 'authenticated'),
   ('public.ops_resolve_payment_review(uuid,boolean,text,text)', 'authenticated'),
   ('public.receipt_data(uuid)', 'authenticated'),

@@ -80,6 +80,7 @@ begin
     || case when p_early then '{"early_performance": "mesafeli-v4-taslak"}'::jsonb else '{}'::jsonb end);
   if p_pay then
     perform pg_temp.ops();
+    perform testing.use_single_installment(o);
     perform public.ops_record_manual_payment(o, (select total_kurus from public.service_order where id = o),
       current_date, 'EFT-55-' || left(o::text, 8));
     perform testing.set_order_period(o, pg_temp.today() - 2, pg_temp.today() + 362);
@@ -122,6 +123,7 @@ begin
   perform pg_temp.as_user(p_user);
   b := public.customer_accept_quote(q, '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
   perform pg_temp.ops();
+  perform testing.use_single_installment(b);
   perform public.ops_record_manual_payment(b, (select total_kurus from public.service_order where id = b),
     current_date, 'EFT-55-' || p_key);
   insert into ids values (p_key || 'a', a), (p_key || 'b', b), (p_key || 'p', pg_temp.parcel_of(a));

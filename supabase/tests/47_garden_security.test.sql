@@ -67,7 +67,7 @@ insert into ip14_fn values
   ('public.ops_issue_parcel_quote(uuid,uuid,uuid,uuid[],boolean,date,uuid,integer,integer,text,text)'),
   ('public.customer_accept_quote(uuid,jsonb)'),
   ('public.ops_extend_payment_due(uuid,date)'),
-  ('public.ops_record_manual_payment(uuid,bigint,date,text,text)'),
+  ('public.ops_record_manual_payment(uuid,bigint,date,text,text,uuid)'),
   ('public.ops_verify_application_garden(uuid,numeric,jsonb,text)'),
   ('public.ops_preview_quote(uuid,integer)'),
   ('public.ops_billing_setting(uuid)'),

@@ -42,3 +42,49 @@ end;
 $$;
 
 revoke all on function testing.use_round_prices() from public;
+
+-- Orders before the payment plan (installments-v1) have one 'single'
+-- installment of their total (the backfill in
+-- 20261104100000_visit_installments.sql). The pgTAP files that check the
+-- mechanics of a fully paid order (removal refunds, add-ons, withdrawal) turn
+-- a new order without payments into such an order inside their transaction:
+-- its plan is replaced by one single installment due today, a line share per
+-- order line. Returns the installment id; null (and no change) for an order
+-- with payments or without a total.
+create or replace function testing.use_single_installment(p_order_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  o public.service_order;
+  v_id uuid;
+begin
+  select * into o from public.service_order where id = p_order_id;
+  if not found then
+    raise exception 'not_found' using errcode = 'P0002';
+  end if;
+  -- Already paid into (or nothing to pay): left as it is.
+  if o.total_kurus = 0 or exists (select 1 from public.payment p where p.order_id = o.id) then
+    return null;
+  end if;
+  set local session_replication_role = replica;
+  delete from public.order_installment_item where order_id = o.id;
+  delete from public.order_installment where order_id = o.id;
+  set local session_replication_role = origin;
+  insert into public.order_installment (org_id, order_id, customer_user_id, seq, kind, amount_kurus, vat_kurus, due_on)
+  select o.org_id, o.id, o.customer_user_id, 1, 'single', o.total_kurus, q.vat_kurus,
+         (now() at time zone 'Europe/Istanbul')::date
+  from public.quote q where q.id = o.quote_id
+  returning id into v_id;
+  insert into public.order_installment_item (org_id, installment_id, order_id, customer_user_id, order_item_id,
+    amount_kurus, vat_kurus)
+  select o.org_id, v_id, o.id, o.customer_user_id, oi.id, oi.amount_kurus, qi.line_vat_kurus
+  from public.service_order_item oi join public.quote_item qi on qi.id = oi.quote_item_id
+  where oi.order_id = o.id and oi.amount_kurus > 0;
+  return v_id;
+end;
+$$;
+
+revoke all on function testing.use_single_installment(uuid) from public;

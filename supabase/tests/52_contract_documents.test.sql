@@ -210,6 +210,9 @@ select results_eq(
   $$ values (pg_temp.id('o2'), array['pre_information', 'distance_sales']) $$,
   'the missing-documents reader lists the order without documents');
 -- Paid: o1 now needs its withdrawal confirmation.
+reset role;
+select testing.use_single_installment(pg_temp.id('o1'));
+set local role authenticated;
 select public.ops_record_manual_payment(pg_temp.id('o1'),
   (select total_kurus from public.service_order where id = pg_temp.id('o1')), current_date, 'EFT-52-1');
 select results_eq(

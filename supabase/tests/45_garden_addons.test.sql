@@ -310,9 +310,11 @@ select results_eq(
   $$ select status::text, cancel_reason, service_start from public.service_order where id = pg_temp.id('o3') $$,
   $$ values ('cancelled'::text, 'addon_base_closed'::text, null::date) $$,
   'a transfer after the last add-on day: the add-on is cancelled, not activated');
+-- The transfer is spread over the installments (one payment each): every one
+-- goes back once the add-on is cancelled.
 select results_eq(
-  $$ select r.kind::text, r.reason::text, r.amount_kurus, r.status::text
-     from public.refund r where r.order_id = pg_temp.id('o3') $$,
+  $$ select r.kind::text, r.reason::text, sum(r.amount_kurus)::bigint, r.status::text
+     from public.refund r where r.order_id = pg_temp.id('o3') group by 1, 2, 4 $$,
   $$ select 'manual'::text, 'order_closed'::text, (select total_kurus from public.service_order where id = pg_temp.id('o3')),
             'requested'::text $$,
   'the money goes back (order_closed)');

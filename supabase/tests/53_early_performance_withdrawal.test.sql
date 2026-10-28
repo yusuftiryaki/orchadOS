@@ -78,6 +78,7 @@ begin
     'pre_information', 'onbilgi-v4-taslak')
     || case when p_early then '{"early_performance": "mesafeli-v4-taslak"}'::jsonb else '{}'::jsonb end);
   perform pg_temp.ops();
+  perform testing.use_single_installment(o);
   perform public.ops_record_manual_payment(o, (select total_kurus from public.service_order where id = o), current_date,
     'EFT-53-' || left(o::text, 8));
   perform testing.set_order_period(o, pg_temp.today() - 2, pg_temp.today() + 362);
@@ -172,6 +173,9 @@ select is(pg_temp.error_of(pg_temp.plan_sql(pg_temp.id('p3'), 'periodic_scan', p
   'P0001 withdrawal_period_open', 'an unpaid renewal: no service before the contract is paid');
 select is(pg_temp.error_of(pg_temp.plan_sql(pg_temp.id('p3'), 'periodic_scan', pg_temp.today() + 2)), null,
   'the running order decides its own days');
+reset role;
+select testing.use_single_installment(pg_temp.id('o4'));
+set local role authenticated;
 select public.ops_record_manual_payment(pg_temp.id('o4'), (select total_kurus from public.service_order where id = pg_temp.id('o4')),
   current_date, 'EFT-53-renewal');
 select is(pg_temp.error_of(pg_temp.plan_sql(pg_temp.id('p3'), 'periodic_scan', pg_temp.today() + 3)), null,
