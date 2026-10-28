@@ -25,13 +25,13 @@ export function ValuesList({
   return (
     <dl className={styles.list}>
       {rule && (
-        <div style={{ display: "contents" }} data-testid="rule-class">
+        <div className={styles.contents} data-testid="rule-class">
           <dt>{r.ruleClass}</dt>
           <dd>{t.tree.values.health[rule]}</dd>
         </div>
       )}
       {rows.map(({ v, m }) => (
-        <div key={m.id} style={{ display: "contents" }} data-metric={m.code}>
+        <div key={m.id} className={styles.contents} data-metric={m.code}>
           <dt>{m.name}</dt>
           <dd>{formatValue(m, v, { yes: r.yes, no: r.no, category: categoryLabel })}</dd>
         </div>

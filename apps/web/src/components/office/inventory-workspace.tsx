@@ -1,7 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useTransition,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import {
   addZoneAction,
   closeVerificationItemAction,
@@ -11,6 +17,12 @@ import {
   saveBoundaryAction,
   setTreeAttributesAction,
 } from "@/app/ofis/parsel/[parcelId]/envanter/duzenle/actions";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
+import { Checkbox, Field, Input, Select } from "@/components/ui/field";
+import { cell, Table } from "@/components/ui/table";
 import type { Database } from "@/lib/database.types";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import { boundaryProblem, m2ToDonum, openRing, ringAreaM2 } from "@/lib/office/boundary";
@@ -81,6 +93,9 @@ export function InventoryWorkspaceView({
   const [zoneKind, setZoneKind] = useState<ZoneKind>("well");
   const [zoneName, setZoneName] = useState("");
   const [zonePoints, setZonePoints] = useState<LatLon[]>([]);
+  const [zoneToDelete, setZoneToDelete] = useState<InventoryWorkspace["zones"][number] | null>(
+    null,
+  );
   // Boundary being drawn.
   const [ring, setRing] = useState<LatLon[]>([]);
   const [uncertainty, setUncertainty] = useState(0.5);
@@ -258,6 +273,37 @@ export function InventoryWorkspaceView({
     });
   };
 
+  const selectTab = (name: WorkspaceTab) => {
+    setTab(name);
+    setMessage(null);
+    // Keep ?sekme= in step with the open tab, without a server round trip.
+    const url = new URL(window.location.href);
+    url.searchParams.set("sekme", name);
+    window.history.replaceState(window.history.state, "", url);
+  };
+  const tabId = (name: WorkspaceTab) => `workspace-tab-${name}`;
+  const onTabKey = (event: ReactKeyboardEvent, index: number) => {
+    const last = WORKSPACE_TABS.length - 1;
+    const next =
+      event.key === "ArrowRight"
+        ? index === last
+          ? 0
+          : index + 1
+        : event.key === "ArrowLeft"
+          ? index === 0
+            ? last
+            : index - 1
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? last
+              : null;
+    if (next === null) return;
+    event.preventDefault();
+    selectTab(WORKSPACE_TABS[next]);
+    document.getElementById(tabId(WORKSPACE_TABS[next]))?.focus();
+  };
+
   return (
     <div className={styles.layout}>
       <div className={styles.mapColumn}>
@@ -279,352 +325,424 @@ export function InventoryWorkspaceView({
           onSlotClick={clickableSlots ? onSlotClick : undefined}
           testId="workspace-map"
         />
-        <InventoryMapLegend track={track.length > 0} />
-        <label className={styles.check}>
-          <input
-            type="checkbox"
+        <div className={styles.mapFoot}>
+          <InventoryMapLegend track={track.length > 0} />
+          <Checkbox
+            id="workspace-show-codes"
+            label={t.inventory.showCodes}
             checked={showCodes}
             onChange={(e) => setShowCodes(e.target.checked)}
           />
-          {t.inventory.showCodes}
-        </label>
+        </div>
+        <p className={styles.mapHint}>{o.mapClick[tab]}</p>
       </div>
 
       <div className={styles.side}>
-        <nav className={styles.tabs} role="tablist">
-          {WORKSPACE_TABS.map((name) => (
+        <div role="tablist" aria-label={o.tabsLabel} className={styles.tabs}>
+          {WORKSPACE_TABS.map((name, i) => (
             <button
               key={name}
               type="button"
               role="tab"
+              id={tabId(name)}
+              aria-controls={tab === name ? "workspace-panel" : undefined}
               aria-selected={tab === name}
-              className={tab === name ? styles.tabActive : styles.tab}
-              onClick={() => {
-                setTab(name);
-                setMessage(null);
-              }}
+              tabIndex={tab === name ? 0 : -1}
+              className={styles.tab}
+              onClick={() => selectTab(name)}
+              onKeyDown={(e) => onTabKey(e, i)}
             >
               {o.tabs[name]}
             </button>
           ))}
-        </nav>
-        {message && (
-          <p
-            className={message.ok ? styles.success : styles.error}
+        </div>
+        {message && message.text && (
+          <Alert
+            tone={message.ok ? "success" : "danger"}
             role={message.ok ? "status" : "alert"}
-            data-testid="workspace-message"
+            testId="workspace-message"
           >
             {message.text}
-          </p>
+          </Alert>
         )}
 
-        {tab === "attributes" && (
-          <TreeAttributeEditor
-            slots={ws.slots}
-            selected={selected}
-            onSelectionChange={setSelected}
-            onApply={async (treeIds, attributes) => {
-              const result = await setTreeAttributesAction({ parcelId, treeIds, attributes });
-              if (result.ok) router.refresh();
-              return result;
-            }}
-          />
-        )}
-
-        {tab === "infrastructure" && (
-          <div className={styles.panel} data-testid="infrastructure">
-            <h2>{o.infrastructure.title}</h2>
-            <p className="muted">{o.infrastructure.hint}</p>
-            <div className={styles.row}>
-              <label className={styles.field}>
-                {o.infrastructure.kind}
-                <select
-                  value={zoneKind}
-                  onChange={(e) => {
-                    setZoneKind(e.target.value as ZoneKind);
-                    setZonePoints([]);
-                  }}
-                  data-testid="zone-kind"
-                >
-                  {INFRASTRUCTURE_KINDS.map((k) => (
-                    <option key={k} value={k}>
-                      {t.inventory.zoneKinds[k]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className={styles.field}>
-                {o.infrastructure.name}
-                <input
-                  value={zoneName}
-                  onChange={(e) => setZoneName(e.target.value)}
-                  maxLength={200}
-                />
-              </label>
-            </div>
-            {!POINT_ZONE_KINDS.includes(zoneKind) && (
-              <div className={styles.row}>
-                <span>{o.boundary.vertices(zonePoints.length)}</span>
-                <button
-                  type="button"
-                  className="button"
-                  disabled={pending || zonePoints.length < 2}
-                  onClick={() => saveZone(zonePoints)}
-                >
-                  {o.infrastructure.finish}
-                </button>
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  disabled={zonePoints.length === 0}
-                  onClick={() => setZonePoints((p) => p.slice(0, -1))}
-                >
-                  {o.infrastructure.undo}
-                </button>
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  disabled={zonePoints.length === 0}
-                  onClick={() => setZonePoints([])}
-                >
-                  {o.infrastructure.cancel}
-                </button>
-              </div>
-            )}
-            <h3>{o.infrastructure.list}</h3>
-            {ws.zones.length === 0 ? (
-              <p className="muted">{o.infrastructure.none}</p>
-            ) : (
-              <ul className={styles.list} data-testid="zone-list">
-                {ws.zones.map((z) => (
-                  <li key={z.id}>
-                    {t.inventory.zoneKinds[z.kind]}
-                    {z.name ? ` · ${z.name}` : ""}{" "}
-                    {canDeleteZones && (
-                      <button
-                        type="button"
-                        className={`button button-secondary ${styles.small}`}
-                        disabled={pending}
-                        onClick={() =>
-                          startTransition(async () => {
-                            finish(await deleteZoneAction({ parcelId, zoneId: z.id }), "");
-                          })
-                        }
-                      >
-                        {o.infrastructure.delete}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {!canDeleteZones && ws.zones.length > 0 && (
-              <p className="muted">{o.infrastructure.deleteOpsOnly}</p>
-            )}
-          </div>
-        )}
-
-        {tab === "boundary" && (
-          <div className={styles.panel} data-testid="boundary-editor">
-            <h2>{o.boundary.title}</h2>
-            <p className="muted">{o.boundary.hint}</p>
-            <div className={styles.row}>
-              <span data-testid="boundary-vertices">{o.boundary.vertices(ring.length)}</span>
-              {areaM2 > 0 && (
-                <strong data-testid="boundary-area">
-                  {t.inventory.area(formatNumber(areaM2), formatNumber(m2ToDonum(areaM2), 2))}
-                </strong>
-              )}
-            </div>
-            <div className={styles.row}>
-              <label className={styles.field}>
-                {o.boundary.uncertainty}
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.1}
-                  value={uncertainty}
-                  onChange={(e) => setUncertainty(Number(e.target.value))}
-                  data-testid="boundary-uncertainty"
-                />
-              </label>
-              <button
-                type="button"
-                className="button button-secondary"
-                disabled={ring.length === 0}
-                onClick={() => setRing((r) => r.slice(0, -1))}
-              >
-                {o.boundary.undo}
-              </button>
-              <button
-                type="button"
-                className="button button-secondary"
-                disabled={ring.length === 0}
-                onClick={() => setRing([])}
-              >
-                {o.boundary.clear}
-              </button>
-              {latestBoundary && (
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  onClick={() => setRing(openRing(latestBoundary.ring))}
-                >
-                  {o.boundary.copyLatest}
-                </button>
-              )}
-            </div>
-            {ring.length > 0 && problem && (
-              <p className={styles.error}>{t.inventory.errors[problem]}</p>
-            )}
-            <p>
-              <button
-                type="button"
-                className="button"
-                disabled={pending || problem !== null || !(uncertainty >= 0)}
-                onClick={saveRing}
-                data-testid="boundary-save"
-              >
-                {o.boundary.save}
-              </button>
-            </p>
-            <h3>{o.boundary.versions}</h3>
-            <ul className={styles.list} data-testid="boundary-versions">
-              {ws.boundaries.map((b) => (
-                <li key={b.id}>
-                  {o.boundary.version(b.version)} · {t.inventory.boundarySource[b.source]}
-                  {b.areaM2 != null &&
-                    ` · ${t.inventory.area(formatNumber(b.areaM2), formatNumber(m2ToDonum(b.areaM2), 2))}`}
-                  {" · "}
-                  {b.ownerApprovedAt
-                    ? o.boundary.approvedOn(formatDate(b.ownerApprovedAt))
-                    : o.boundary.notApproved}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {tab === "verification" && (
-          <>
-            <div className={styles.panel} data-testid="verification-create">
-              <h2>{v.title}</h2>
-              <p className="muted">{v.hint}</p>
-              <h3>{v.candidates}</h3>
-              <p className="muted">{v.candidatesHint}</p>
-              {pickList.length === 0 ? (
-                <p className="muted">{v.noCandidates}</p>
-              ) : (
-                <div className={styles.tableWrap}>
-                  <table className={styles.table} data-testid="candidate-table">
-                    <thead>
-                      <tr>
-                        <th />
-                        <th>{v.columns.code}</th>
-                        <th>{v.columns.reasons}</th>
-                        <th>{v.columns.note}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pickList.map((p) => (
-                        <tr key={p.slotId} data-code={p.code}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              checked={p.included}
-                              aria-label={p.code}
-                              onChange={() =>
-                                updatePick(p.slotId, (x) => ({ ...x, included: !x.included }))
-                              }
-                            />
-                          </td>
-                          <td>{p.code}</td>
-                          <td>
-                            <span className={styles.chips}>
-                              {sortReasons(p.reasons)
-                                .filter((r) => r !== "possible_sapling" && r !== "multi_stem")
-                                .map((r) => (
-                                  <span key={r} className={styles.chip}>
-                                    {t.inventory.reasons[r]}
-                                  </span>
-                                ))}
-                            </span>
-                            <label className={styles.inline}>
-                              <input
-                                type="checkbox"
-                                checked={p.reasons.has(
-                                  p.hasTree ? "multi_stem" : "possible_sapling",
-                                )}
-                                onChange={() =>
-                                  toggleReason(
-                                    p.slotId,
-                                    p.hasTree ? "multi_stem" : "possible_sapling",
-                                  )
-                                }
-                              />
-                              {p.hasTree ? v.addMultiStem : v.addSapling}
-                            </label>
-                          </td>
-                          <td>
-                            <input
-                              className={styles.small}
-                              value={p.note}
-                              maxLength={2000}
-                              aria-label={`${v.note} ${p.code}`}
-                              onChange={(e) =>
-                                updatePick(p.slotId, (x) => ({ ...x, note: e.target.value }))
-                              }
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <div className={styles.row}>
-                <label className={styles.field}>
-                  {v.plannedDate}
-                  <input
-                    type="date"
-                    value={plannedDate}
-                    onChange={(e) => setPlannedDate(e.target.value)}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="button"
-                  disabled={pending || included.length === 0}
-                  onClick={createTour}
-                  data-testid="create-tour"
-                >
-                  {pending ? v.creating : `${v.create} (${included.length})`}
-                </button>
-              </div>
-            </div>
-            <VerificationTours
-              tours={ws.tours}
-              canRecord
-              canClose
-              onRecord={async (itemId, treePresent, note) => {
-                const result = await recordVerificationResultAction({
-                  parcelId,
-                  itemId,
-                  treePresent,
-                  note,
-                });
-                if (result.ok) router.refresh();
-                return result;
-              }}
-              onClose={async (itemId, note) => {
-                const result = await closeVerificationItemAction({ parcelId, itemId, note });
+        <div
+          role="tabpanel"
+          id="workspace-panel"
+          aria-labelledby={tabId(tab)}
+          className={styles.tabPanel}
+        >
+          {tab === "attributes" && (
+            <TreeAttributeEditor
+              slots={ws.slots}
+              selected={selected}
+              onSelectionChange={setSelected}
+              onApply={async (treeIds, attributes) => {
+                const result = await setTreeAttributesAction({ parcelId, treeIds, attributes });
                 if (result.ok) router.refresh();
                 return result;
               }}
             />
-          </>
-        )}
+          )}
+
+          {tab === "infrastructure" && (
+            <section className={styles.panel} data-testid="infrastructure">
+              <h2>{o.infrastructure.title}</h2>
+              <p className={styles.hint}>{o.infrastructure.hint}</p>
+              <div className={styles.fields}>
+                <Field id="zone-kind" label={o.infrastructure.kind}>
+                  <Select
+                    value={zoneKind}
+                    onChange={(e) => {
+                      setZoneKind(e.target.value as ZoneKind);
+                      setZonePoints([]);
+                    }}
+                    data-testid="zone-kind"
+                  >
+                    {INFRASTRUCTURE_KINDS.map((k) => (
+                      <option key={k} value={k}>
+                        {t.inventory.zoneKinds[k]}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field id="zone-name" label={o.infrastructure.name}>
+                  <Input
+                    value={zoneName}
+                    onChange={(e) => setZoneName(e.target.value)}
+                    maxLength={200}
+                  />
+                </Field>
+              </div>
+              {!POINT_ZONE_KINDS.includes(zoneKind) && (
+                <div className={styles.toolbar}>
+                  <span className={styles.status}>{o.boundary.vertices(zonePoints.length)}</span>
+                  <Button
+                    disabled={pending || zonePoints.length < 2}
+                    onClick={() => saveZone(zonePoints)}
+                  >
+                    {o.infrastructure.finish}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={zonePoints.length === 0}
+                    onClick={() => setZonePoints((p) => p.slice(0, -1))}
+                  >
+                    {o.infrastructure.undo}
+                  </Button>
+                  <Button
+                    variant="quiet"
+                    disabled={zonePoints.length === 0}
+                    onClick={() => setZonePoints([])}
+                  >
+                    {o.infrastructure.cancel}
+                  </Button>
+                </div>
+              )}
+              <h3>{o.infrastructure.list}</h3>
+              {ws.zones.length === 0 ? (
+                <p className={styles.hint}>{o.infrastructure.none}</p>
+              ) : (
+                <Table data-testid="zone-list">
+                  <thead>
+                    <tr>
+                      <th>{o.infrastructure.columns.kind}</th>
+                      <th>{o.infrastructure.columns.name}</th>
+                      {canDeleteZones && (
+                        <th>
+                          <span className="sr-only">{o.infrastructure.columns.actions}</span>
+                        </th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ws.zones.map((z) => (
+                      <tr key={z.id}>
+                        <td>{t.inventory.zoneKinds[z.kind]}</td>
+                        <td>{z.name ?? ""}</td>
+                        {canDeleteZones && (
+                          <td className={styles.rowAction}>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={pending}
+                              onClick={() => setZoneToDelete(z)}
+                            >
+                              {o.infrastructure.delete}
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+              {!canDeleteZones && ws.zones.length > 0 && (
+                <p className={styles.hint}>{o.infrastructure.deleteOpsOnly}</p>
+              )}
+              <Dialog
+                open={zoneToDelete !== null}
+                onClose={() => setZoneToDelete(null)}
+                title={o.infrastructure.deleteTitle}
+                closeLabel={o.infrastructure.deleteCancel}
+                footer={
+                  <>
+                    <Button variant="secondary" onClick={() => setZoneToDelete(null)}>
+                      {o.infrastructure.deleteCancel}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      disabled={pending}
+                      onClick={() => {
+                        const zone = zoneToDelete;
+                        setZoneToDelete(null);
+                        if (!zone) return;
+                        startTransition(async () => {
+                          finish(
+                            await deleteZoneAction({ parcelId, zoneId: zone.id }),
+                            o.infrastructure.deleted,
+                          );
+                        });
+                      }}
+                    >
+                      {o.infrastructure.deleteConfirm}
+                    </Button>
+                  </>
+                }
+              >
+                <p>
+                  {zoneToDelete &&
+                    o.infrastructure.deleteBody(
+                      zoneToDelete.name
+                        ? `${t.inventory.zoneKinds[zoneToDelete.kind]} “${zoneToDelete.name}”`
+                        : t.inventory.zoneKinds[zoneToDelete.kind],
+                    )}
+                </p>
+              </Dialog>
+            </section>
+          )}
+
+          {tab === "boundary" && (
+            <section className={styles.panel} data-testid="boundary-editor">
+              <h2>{o.boundary.title}</h2>
+              <p className={styles.hint}>{o.boundary.hint}</p>
+              <div className={styles.toolbar}>
+                <span className={styles.status} data-testid="boundary-vertices">
+                  {o.boundary.vertices(ring.length)}
+                </span>
+                {areaM2 > 0 && (
+                  <strong data-testid="boundary-area">
+                    {t.inventory.areaShort(
+                      formatNumber(areaM2),
+                      formatNumber(m2ToDonum(areaM2), 2),
+                    )}
+                  </strong>
+                )}
+              </div>
+              <div className={styles.toolbar}>
+                <Field id="boundary-uncertainty" label={o.boundary.uncertainty}>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    value={uncertainty}
+                    onChange={(e) => setUncertainty(Number(e.target.value))}
+                    data-testid="boundary-uncertainty"
+                    className={styles.narrow}
+                  />
+                </Field>
+                <Button
+                  variant="secondary"
+                  disabled={ring.length === 0}
+                  onClick={() => setRing((r) => r.slice(0, -1))}
+                >
+                  {o.boundary.undo}
+                </Button>
+                <Button variant="quiet" disabled={ring.length === 0} onClick={() => setRing([])}>
+                  {o.boundary.clear}
+                </Button>
+                {latestBoundary && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => setRing(openRing(latestBoundary.ring))}
+                  >
+                    {o.boundary.copyLatest}
+                  </Button>
+                )}
+              </div>
+              {ring.length > 0 && problem && (
+                <p className={styles.error}>{t.inventory.errors[problem]}</p>
+              )}
+              <div>
+                <Button
+                  disabled={pending || problem !== null || !(uncertainty >= 0)}
+                  onClick={saveRing}
+                  data-testid="boundary-save"
+                >
+                  {o.boundary.save}
+                </Button>
+              </div>
+              <h3>{o.boundary.versions}</h3>
+              {ws.boundaries.length === 0 ? (
+                <p className={styles.hint}>{o.boundary.noVersions}</p>
+              ) : (
+                <Table data-testid="boundary-versions">
+                  <thead>
+                    <tr>
+                      <th>{o.boundary.columns.version}</th>
+                      <th>{o.boundary.columns.source}</th>
+                      <th className={cell.num}>{o.boundary.columns.area}</th>
+                      <th>{o.boundary.columns.approval}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ws.boundaries.map((b) => (
+                      <tr key={b.id}>
+                        <td className={cell.code}>{o.boundary.version(b.version)}</td>
+                        <td>{t.inventory.boundarySource[b.source]}</td>
+                        <td className={cell.num}>
+                          {b.areaM2 != null
+                            ? t.inventory.areaShort(
+                                formatNumber(b.areaM2),
+                                formatNumber(m2ToDonum(b.areaM2), 2),
+                              )
+                            : "—"}
+                        </td>
+                        <td>
+                          {b.ownerApprovedAt ? (
+                            <Badge tone="success">
+                              {o.boundary.approvedOn(formatDate(b.ownerApprovedAt))}
+                            </Badge>
+                          ) : (
+                            <Badge tone="warning">{o.boundary.notApproved}</Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+            </section>
+          )}
+
+          {tab === "verification" && (
+            <div className={styles.stack}>
+              <section className={styles.panel} data-testid="verification-create">
+                <h2>{v.title}</h2>
+                <p className={styles.hint}>{v.hint}</p>
+                <h3>{v.candidates}</h3>
+                <p className={styles.hint}>{v.candidatesHint}</p>
+                {pickList.length === 0 ? (
+                  <p className={styles.hint}>{v.noCandidates}</p>
+                ) : (
+                  <div className={styles.scroll}>
+                    <Table data-testid="candidate-table">
+                      <thead>
+                        <tr>
+                          <th>
+                            <span className="sr-only">{t.inventory.attributes.columns.select}</span>
+                          </th>
+                          <th>{v.columns.code}</th>
+                          <th>{v.columns.reasons}</th>
+                          <th>{v.columns.note}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pickList.map((p) => (
+                          <tr key={p.slotId} data-code={p.code}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={p.included}
+                                aria-label={p.code}
+                                onChange={() =>
+                                  updatePick(p.slotId, (x) => ({ ...x, included: !x.included }))
+                                }
+                              />
+                            </td>
+                            <td className={cell.code}>{p.code}</td>
+                            <td>
+                              <span className={styles.chips}>
+                                {sortReasons(p.reasons)
+                                  .filter((r) => r !== "possible_sapling" && r !== "multi_stem")
+                                  .map((r) => (
+                                    <Badge key={r}>{t.inventory.reasons[r]}</Badge>
+                                  ))}
+                              </span>
+                              <label className={styles.inline}>
+                                <input
+                                  type="checkbox"
+                                  checked={p.reasons.has(
+                                    p.hasTree ? "multi_stem" : "possible_sapling",
+                                  )}
+                                  onChange={() =>
+                                    toggleReason(
+                                      p.slotId,
+                                      p.hasTree ? "multi_stem" : "possible_sapling",
+                                    )
+                                  }
+                                />
+                                {p.hasTree ? v.addMultiStem : v.addSapling}
+                              </label>
+                            </td>
+                            <td>
+                              <input
+                                className={styles.cellInput}
+                                value={p.note}
+                                maxLength={2000}
+                                aria-label={`${v.note} ${p.code}`}
+                                onChange={(e) =>
+                                  updatePick(p.slotId, (x) => ({ ...x, note: e.target.value }))
+                                }
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </div>
+                )}
+                <div className={styles.toolbar}>
+                  <Field id="tour-date" label={v.plannedDate}>
+                    <Input
+                      type="date"
+                      value={plannedDate}
+                      onChange={(e) => setPlannedDate(e.target.value)}
+                    />
+                  </Field>
+                  <Button
+                    disabled={pending || included.length === 0}
+                    onClick={createTour}
+                    data-testid="create-tour"
+                  >
+                    {pending ? v.creating : `${v.create} (${included.length})`}
+                  </Button>
+                </div>
+              </section>
+              <VerificationTours
+                tours={ws.tours}
+                canRecord
+                canClose
+                onRecord={async (itemId, treePresent, note) => {
+                  const result = await recordVerificationResultAction({
+                    parcelId,
+                    itemId,
+                    treePresent,
+                    note,
+                  });
+                  if (result.ok) router.refresh();
+                  return result;
+                }}
+                onClose={async (itemId, note) => {
+                  const result = await closeVerificationItemAction({ parcelId, itemId, note });
+                  if (result.ok) router.refresh();
+                  return result;
+                }}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

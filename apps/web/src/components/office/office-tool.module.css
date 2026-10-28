@@ -1,38 +1,77 @@
 .page {
   margin: 0 auto;
-  padding: var(--space-3);
+  padding: var(--space-4) var(--space-3) var(--space-5);
   max-width: 1800px;
 }
 
+/* Session and panorama set chooser. */
 .chooser {
   display: grid;
   gap: var(--space-3);
   max-width: 640px;
+  min-width: 0;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: var(--space-4);
 }
 
-.field {
-  display: grid;
-  gap: var(--space-1);
+.chooser > * {
+  min-width: 0;
+}
+
+.chooser h2,
+.chooser p {
+  margin: 0;
+}
+
+.chooser h2 {
+  font-size: var(--text-lg);
+}
+
+.chooser select {
+  width: 100%;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  .chooser {
+    padding: var(--space-3);
+  }
 }
 
 .tool {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
+.tool > :global(*) {
+  max-width: none;
+}
+
+.alertRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.alertRow p {
+  margin: 0;
+}
+
+/* Workbench: the map on the left stays in view; the steps on the right. */
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   gap: var(--space-3);
+  align-items: start;
 }
 
 @media (max-width: 1000px) {
   .layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -40,6 +79,14 @@
   display: grid;
   gap: var(--space-2);
   align-content: start;
+  position: sticky;
+  top: var(--space-3);
+}
+
+@media (max-width: 1000px) {
+  .mapColumn {
+    position: static;
+  }
 }
 
 .map {
@@ -49,64 +96,140 @@
   border-radius: var(--radius);
 }
 
-.side {
-  display: grid;
-  gap: var(--space-2);
-  align-content: start;
+.mapHint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  max-width: var(--measure);
 }
 
-.tabs {
+.side {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+
+/* Step tabs and the save state. */
+.stepBar {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.steps {
   display: flex;
   gap: var(--space-1);
   border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
 }
 
-.tab,
-.tabActive {
-  border: 1px solid transparent;
-  border-bottom: none;
-  background: transparent;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius) var(--radius) 0 0;
-  cursor: pointer;
-  color: var(--color-muted);
-}
-
-.tabActive {
-  background: var(--color-surface);
-  border-color: var(--color-border);
-  color: var(--color-text);
+.step {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-2);
+  min-height: var(--control-height);
+  color: var(--color-text-2);
   font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast),
+    border-color var(--duration-fast);
+}
+
+.step:hover {
+  color: var(--color-text);
+}
+
+.step[aria-selected="true"] {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+.stepNo {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-strong);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.step[aria-selected="true"] .stepNo {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.stepCount {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
+}
+
+.saveState {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.saveHint {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
 }
 
 .panel {
   display: grid;
   gap: var(--space-3);
+  min-width: 0;
 }
 
+/* Panorama viewers: side by side when the column is wide enough. */
 .viewers {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: var(--space-2);
 }
 
 .viewerBox {
   display: grid;
   gap: var(--space-1);
+  min-width: 0;
 }
 
 .viewerBar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
-  font-size: 13px;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+  min-width: 0;
 }
 
-.viewerBar :global(.button) {
-  padding: 2px var(--space-2);
-}
-
-.spacer {
-  flex: 1;
+.viewerId {
+  flex: 1 1 6ch;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
 }
 
 .viewer {
@@ -117,12 +240,21 @@
 }
 
 .viewerEmpty {
-  height: 120px;
+  height: 160px;
   display: grid;
-  place-items: center;
-  border: 1px dashed var(--color-border);
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  text-align: center;
+  border: 1px dashed var(--color-border-strong);
   border-radius: var(--radius);
   color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.viewerEmpty strong {
+  color: var(--color-text-2);
 }
 
 .clickMarker {
@@ -141,31 +273,73 @@
   border-radius: 50%;
 }
 
-.candidate {
+/* Candidate and selected tree: next to each other under the viewers. */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: var(--space-2);
+  align-items: start;
+}
+
+.card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: var(--space-3);
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
 }
 
-.candidate h3 {
+.card h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--text-base);
+}
+
+.card p {
+  margin: 0;
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.count {
+  margin-left: auto;
+  font-size: var(--text-sm);
+  color: var(--color-text-2);
+  font-variant-numeric: tabular-nums;
 }
 
 .rayList {
   margin: 0;
-  padding-left: var(--space-3);
-  font-size: 13px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-sm);
+}
+
+.rayList li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
 }
 
 .facts {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: var(--space-1) var(--space-3);
+  gap: 2px var(--space-3);
   margin: 0;
+  font-size: var(--text-sm);
 }
 
 .facts dt {
@@ -174,16 +348,12 @@
 
 .facts dd {
   margin: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .warnings {
   margin: 0;
-  padding: var(--space-2) var(--space-3);
-  background: #fff4e6;
-  border: 1px solid #ffc078;
-  border-radius: var(--radius);
-  list-style: none;
-  color: #a33c00;
+  padding-left: var(--space-3);
 }
 
 .actions {
@@ -193,86 +363,119 @@
   gap: var(--space-2);
 }
 
-.check {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.small {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
 }
 
-.summary {
+.fields {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--space-2) var(--space-3);
+}
+
+/* Keyboard shortcuts of the triangulation step. */
+.shortcuts {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+}
+
+.shortcutsTitle {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.shortcuts dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
   margin: 0;
+  font-size: var(--text-sm);
+}
+
+.shortcuts dl div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.shortcuts dd {
+  margin: 0;
+  color: var(--color-text-2);
+}
+
+.shortcuts kbd {
+  display: inline-block;
+  min-width: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--color-border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  font-size: var(--text-xs);
+  line-height: 1.6;
   text-align: center;
+}
+
+/* Layout summary: five figures in one row. */
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
 }
 
 .summary dt {
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: var(--text-xs);
 }
 
 .summary dd {
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
-.tableWrap {
-  max-height: 420px;
+/* Long tables scroll in their own region with the header in view. */
+.scroll {
+  max-height: max(320px, calc(100vh - 420px));
   overflow: auto;
+  border-radius: var(--radius-lg);
 }
 
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.table th,
-.table td {
-  text-align: left;
-  padding: 2px var(--space-2);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.table tbody tr {
-  cursor: pointer;
+.scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .selectedRow {
-  background: #e7f5ff;
+  background: var(--color-highlight-soft);
 }
 
-.notice,
-.blocked,
-.success {
-  margin: 0;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius);
-}
-
-.notice {
-  background: #e7f5ff;
-  border: 1px solid #a5d8ff;
-}
-
-.blocked {
-  background: #fff5f5;
-  border: 1px solid #ffa8a8;
-  color: var(--color-danger);
-}
-
-.success {
-  background: #ebfbee;
-  border: 1px solid #8ce99a;
-}
-
-.linkButton {
-  border: none;
+.rowButton {
+  appearance: none;
+  border: 0;
   background: none;
   padding: 0;
+  font: inherit;
   color: var(--color-accent);
-  text-decoration: underline;
+  font-weight: 600;
   cursor: pointer;
+}
+
+.rowButton:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: var(--space-4) var(--space-3) var(--space-5);
+  }
+  .step {
+    min-height: 44px;
+  }
 }

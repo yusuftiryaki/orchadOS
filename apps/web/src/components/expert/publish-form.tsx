@@ -2,6 +2,9 @@
 
 import { useActionState } from "react";
 import { publishAction, type PublishState } from "@/app/uzman/actions";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/field";
 import { t } from "@/lib/i18n";
 import styles from "./expert.module.css";
 
@@ -20,19 +23,16 @@ export function PublishForm({ sessionId }: { sessionId: string }) {
   return (
     <form action={action} className={styles.form} data-testid="publish-form">
       <input type="hidden" name="sessionId" value={sessionId} />
-      <label className={styles.inline}>
-        <input type="checkbox" name="confirm" />
-        {t.expert.summary.confirm}
-      </label>
+      <Checkbox id="publish-confirm" name="confirm" label={t.expert.summary.confirm} />
       {message && (
-        <p role="alert" className={`${styles.notice} ${styles.error}`}>
+        <Alert tone="danger" role="alert">
           {message}
-        </p>
+        </Alert>
       )}
       <div>
-        <button className="button" type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending}>
           {pending ? t.expert.summary.publishing : t.expert.summary.publish}
-        </button>
+        </Button>
       </div>
     </form>
   );

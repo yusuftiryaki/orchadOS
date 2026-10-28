@@ -1,7 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { saveInventoryAction } from "@/app/ofis/parsel/[parcelId]/envanter/actions";
 import { formatNumber, t } from "@/lib/i18n";
 import {
@@ -24,6 +30,12 @@ import { frameFor, planLayout, type ParcelGeometry } from "@/lib/office/plan";
 import { CORNERS, estimateRowAzimuth, summarize, type Numbering } from "@/lib/office/rows";
 import { DEFAULT_TRIANGULATION, triangulate, type Ray } from "@/lib/office/triangulate";
 import { verificationCsv, verificationList } from "@/lib/office/verification";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
+import { Checkbox, Field, Input, Select } from "@/components/ui/field";
+import { cell, Table } from "@/components/ui/table";
 import { OfficeMap, type MapRay } from "./office-map";
 import { PanoramaViewer, type ViewerMarker } from "./panorama-viewer";
 import styles from "./office-tool.module.css";
@@ -102,6 +114,9 @@ export function OfficeTool({
   const [confirmed, setConfirmed] = useState(false);
   const [saveResult, setSaveResult] = useState<SaveInventoryResult | null>(null);
   const [saving, startSaving] = useTransition();
+  const [discardOpen, setDiscardOpen] = useState(false);
+  // The last tree deleted from the draft, for undo.
+  const [deleted, setDeleted] = useState<{ tree: DraftTree; index: number } | null>(null);
 
   // The draft is written on every change until the inventory is saved.
   useEffect(() => {
@@ -236,10 +251,25 @@ export function OfficeTool({
   const updateTree = (id: string, change: Partial<DraftTree>) =>
     setTrees((current) => current.map((tr) => (tr.id === id ? { ...tr, ...change } : tr)));
 
-  const deleteTree = useCallback((id: string) => {
-    setTrees((current) => current.filter((tr) => tr.id !== id));
-    setSelectedId(null);
-  }, []);
+  const deleteTree = useCallback(
+    (id: string) => {
+      const index = trees.findIndex((tr) => tr.id === id);
+      if (index >= 0) setDeleted({ tree: trees[index], index });
+      setTrees((current) => current.filter((tr) => tr.id !== id));
+      setSelectedId(null);
+    },
+    [trees],
+  );
+
+  const undoDelete = () => {
+    if (!deleted) return;
+    setTrees((current) => [
+      ...current.slice(0, deleted.index),
+      deleted.tree,
+      ...current.slice(deleted.index),
+    ]);
+    setDeleted(null);
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -390,29 +420,91 @@ export function OfficeTool({
   const blocked = existing.slots > 0 || existing.trees > 0;
   const numberingBlocked = !recordedNumbering && !canSetNumbering;
 
+  // Step tabs (ARIA tablist): arrow keys, Home and End move between steps.
+  const tabId = (name: Tab) => `office-step-${name}`;
+  const panelId = (name: Tab) => `office-panel-${name}`;
+  const panelProps = (name: Tab) => ({
+    role: "tabpanel" as const,
+    id: panelId(name),
+    "aria-labelledby": tabId(name),
+  });
+  const onTabKey = (event: ReactKeyboardEvent, index: number) => {
+    const last = TABS.length - 1;
+    const next =
+      event.key === "ArrowRight"
+        ? (index + 1) % TABS.length
+        : event.key === "ArrowLeft"
+          ? (index - 1 + TABS.length) % TABS.length
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? last
+              : null;
+    if (next === null) return;
+    event.preventDefault();
+    setTab(TABS[next]);
+    document.getElementById(tabId(TABS[next]))?.focus();
+  };
+  const tabCount: Partial<Record<Tab, number>> = {
+    triangulate: trees.length,
+    verification: verification.length,
+  };
+  const saveState = saveResult?.ok ? "saved" : blocked ? "blocked" : "draft";
+  const summaryList = (testId: string, keyed: boolean) =>
+    summary && (
+      <dl className={styles.summary} data-testid={testId}>
+        {(Object.keys(t.office.summary) as (keyof typeof summary)[]).map((key) => (
+          <div key={key}>
+            <dt>{t.office.summary[key]}</dt>
+            <dd data-key={keyed ? key : undefined}>{summary[key]}</dd>
+          </div>
+        ))}
+      </dl>
+    );
+
   return (
     <div className={styles.tool}>
       {restored !== null && restored > 0 && (
-        <p className={styles.notice} role="status">
-          {t.office.draftRestored(restored)}{" "}
-          <button
-            type="button"
-            className={styles.linkButton}
-            onClick={() => {
-              if (!window.confirm(t.office.discardConfirm)) return;
-              clearDraft(draftKey);
-              setTrees([]);
-              setRestored(null);
-            }}
-          >
-            {t.office.discardDraft}
-          </button>
-        </p>
+        <Alert tone="info" role="status">
+          <div className={styles.alertRow}>
+            <p>{t.office.draftRestored(restored)}</p>
+            <Button variant="secondary" size="sm" onClick={() => setDiscardOpen(true)}>
+              {t.office.discardDraft}
+            </Button>
+          </div>
+        </Alert>
       )}
+      <Dialog
+        open={discardOpen}
+        onClose={() => setDiscardOpen(false)}
+        title={t.office.discardTitle}
+        closeLabel={t.office.discardCancel}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDiscardOpen(false)}>
+              {t.office.discardCancel}
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                clearDraft(draftKey);
+                setTrees([]);
+                setRestored(null);
+                setDeleted(null);
+                setDiscardOpen(false);
+              }}
+            >
+              {t.office.discardDraft}
+            </Button>
+          </>
+        }
+      >
+        <p>{t.office.discardConfirm(trees.length)}</p>
+      </Dialog>
       {blocked && (
-        <p className={styles.blocked} role="alert" data-testid="existing-inventory">
-          {t.office.existingInventory(existing.slots, existing.trees)}
-        </p>
+        <Alert tone="warning" title={t.office.existingTitle} testId="existing-inventory">
+          <p>{t.office.existingInventory(existing.slots, existing.trees)}</p>
+        </Alert>
       )}
       <div className={styles.layout}>
         <div className={styles.mapColumn}>
@@ -428,33 +520,59 @@ export function OfficeTool({
             onTreeClick={(id) => setSelectedId(id)}
             onTreeMove={(id, p) => updateTree(id, { lat: p.lat, lon: p.lon, moved: true })}
           />
-          <p className="muted">{t.office.mapHint}</p>
+          <p className={styles.mapHint}>{t.office.mapHint}</p>
         </div>
         <div className={styles.side}>
-          <nav className={styles.tabs} role="tablist">
-            {TABS.map((name) => (
-              <button
-                key={name}
-                type="button"
-                role="tab"
-                aria-selected={tab === name}
-                className={tab === name ? styles.tabActive : styles.tab}
-                onClick={() => setTab(name)}
+          <div className={styles.stepBar}>
+            <div role="tablist" aria-label={t.office.steps} className={styles.steps}>
+              {TABS.map((name, i) => (
+                <button
+                  key={name}
+                  type="button"
+                  role="tab"
+                  id={tabId(name)}
+                  aria-controls={tab === name ? panelId(name) : undefined}
+                  aria-selected={tab === name}
+                  tabIndex={tab === name ? 0 : -1}
+                  className={styles.step}
+                  onClick={() => setTab(name)}
+                  onKeyDown={(e) => onTabKey(e, i)}
+                >
+                  <span className={styles.stepNo} aria-hidden>
+                    {i + 1}
+                  </span>
+                  {t.office.tabs[name]}
+                  {tabCount[name] !== undefined && (
+                    <span className={styles.stepCount}>{tabCount[name]}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className={styles.saveState}>
+              <Badge
+                tone={
+                  saveState === "saved" ? "success" : saveState === "blocked" ? "warning" : "info"
+                }
+                testId="save-state"
               >
-                {t.office.tabs[name]}
-              </button>
-            ))}
-          </nav>
+                {t.office.saveState[saveState]}
+              </Badge>
+              {saveState === "draft" && (
+                <span className={styles.saveHint}>{t.office.draftHint}</span>
+              )}
+            </div>
+          </div>
 
           {tab === "triangulate" && (
-            <div className={styles.panel}>
+            <div className={styles.panel} {...panelProps("triangulate")}>
               <div className={styles.viewers}>
                 {views.map((view, slot) => {
                   const label = t.office.viewer(slot + 1);
                   if (!view) {
                     return (
                       <div key={slot} className={styles.viewerEmpty}>
-                        {t.office.viewerEmpty}
+                        <strong>{label}</strong>
+                        <span>{t.office.viewerEmpty}</span>
                       </div>
                     );
                   }
@@ -463,22 +581,15 @@ export function OfficeTool({
                     <div key={slot} className={styles.viewerBox} data-testid={`viewer-${slot + 1}`}>
                       <div className={styles.viewerBar}>
                         <strong>{label}</strong>
-                        <span className="muted">{pano.id}</span>
-                        <span className={styles.spacer} />
-                        <button
-                          type="button"
-                          className="button button-secondary"
-                          onClick={() => stepView(slot, -1)}
-                        >
+                        <code className={styles.viewerId} title={pano.id}>
+                          {pano.id}
+                        </code>
+                        <Button variant="secondary" size="sm" onClick={() => stepView(slot, -1)}>
                           {t.office.previousPanorama}
-                        </button>
-                        <button
-                          type="button"
-                          className="button button-secondary"
-                          onClick={() => stepView(slot, 1)}
-                        >
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => stepView(slot, 1)}>
                           {t.office.nextPanorama}
-                        </button>
+                        </Button>
                       </div>
                       <PanoramaViewer
                         url={panoramaImageUrl(set.id, pano.id, initialVariant(pano) ?? "2k")}
@@ -499,164 +610,184 @@ export function OfficeTool({
                 })}
               </div>
 
-              <section className={styles.candidate} data-testid="candidate">
-                <h3>{t.office.candidate}</h3>
-                {rays.length > 0 && (
-                  <ul className={styles.rayList}>
-                    {rays.map((r) => (
-                      <li key={r.panoramaId}>
-                        {t.office.rayLine(r.panoramaId, fmt(r.azimuthDeg, 1))}{" "}
-                        <button
-                          type="button"
-                          className={styles.linkButton}
-                          aria-label={t.office.removeRay}
-                          onClick={() =>
-                            setRays((current) =>
-                              current.filter((x) => x.panoramaId !== r.panoramaId),
-                            )
-                          }
-                        >
-                          ×
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {candidate.ok ? (
-                  <>
-                    <dl className={styles.facts}>
-                      <dt>{t.office.uncertainty}</dt>
-                      <dd data-testid="candidate-uncertainty">
-                        {t.office.meters(fmt(candidate.uncertaintyM))}
-                      </dd>
-                      <dt>{t.office.angle}</dt>
-                      <dd>{t.office.degrees(fmt(candidate.maxAngleDeg, 0))}</dd>
-                    </dl>
-                    {candidate.warnings.length > 0 && (
-                      <ul className={styles.warnings} role="alert">
-                        {candidate.warnings.map((w) => (
-                          <li key={w}>{t.office.warnings[w]}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </>
-                ) : (
-                  <p className="muted">
-                    {candidate.reason === "parallel" ? t.office.parallel : t.office.needTwoRays}
-                  </p>
-                )}
-                <div className={styles.actions}>
-                  <button
-                    type="button"
-                    className="button"
-                    disabled={!candidate.ok}
-                    onClick={addTree}
-                  >
-                    {t.office.addTree}
-                  </button>
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    disabled={rays.length === 0}
-                    onClick={() => setRays([])}
-                  >
-                    {t.office.clearRays}
-                  </button>
-                  <span className="muted" data-testid="tree-count">
-                    {t.office.trees(trees.length)}
-                  </span>
-                </div>
-              </section>
-
-              {selected && (
-                <section className={styles.candidate} data-testid="selected-tree">
-                  <h3>
-                    {t.office.selectedTree}
-                    {codeByTree.get(selected.id) ? ` · ${codeByTree.get(selected.id)}` : ""}
-                  </h3>
-                  <dl className={styles.facts}>
-                    <dt>{t.office.uncertainty}</dt>
-                    <dd>{t.office.meters(fmt(selected.uncertaintyM))}</dd>
-                  </dl>
-                  {selected.warnings.length > 0 && (
-                    <ul className={styles.warnings}>
-                      {selected.warnings.map((w) => (
-                        <li key={w}>{t.office.warnings[w]}</li>
+              <div className={styles.cards}>
+                <section className={styles.card} data-testid="candidate">
+                  <div className={styles.cardHead}>
+                    <h3>{t.office.candidate}</h3>
+                    <span className={styles.count} data-testid="tree-count">
+                      {t.office.trees(trees.length)}
+                    </span>
+                  </div>
+                  {rays.length > 0 && (
+                    <ul className={styles.rayList} aria-label={t.office.rays}>
+                      {rays.map((r) => (
+                        <li key={r.panoramaId}>
+                          <code className={styles.viewerId}>{r.panoramaId}</code>
+                          <span className={styles.num}>
+                            {t.office.degrees(fmt(r.azimuthDeg, 1))}
+                          </span>
+                          <Button
+                            variant="quiet"
+                            size="sm"
+                            aria-label={t.office.removeRay(r.panoramaId)}
+                            onClick={() =>
+                              setRays((current) =>
+                                current.filter((x) => x.panoramaId !== r.panoramaId),
+                              )
+                            }
+                          >
+                            {t.office.remove}
+                          </Button>
+                        </li>
                       ))}
                     </ul>
                   )}
-                  {selected.moved && <p className="muted">{t.office.moved}</p>}
-                  <label className={styles.check}>
-                    <input
-                      type="checkbox"
+                  {candidate.ok ? (
+                    <>
+                      <dl className={styles.facts}>
+                        <dt>{t.office.uncertainty}</dt>
+                        <dd data-testid="candidate-uncertainty">
+                          {t.office.meters(fmt(candidate.uncertaintyM))}
+                        </dd>
+                        <dt>{t.office.angle}</dt>
+                        <dd>{t.office.degrees(fmt(candidate.maxAngleDeg, 0))}</dd>
+                      </dl>
+                      {candidate.warnings.length > 0 && (
+                        <Alert tone="warning" role="status">
+                          <ul className={styles.warnings}>
+                            {candidate.warnings.map((w) => (
+                              <li key={w}>{t.office.warnings[w]}</li>
+                            ))}
+                          </ul>
+                        </Alert>
+                      )}
+                    </>
+                  ) : (
+                    <p className="muted">
+                      {candidate.reason === "parallel" ? t.office.parallel : t.office.needTwoRays}
+                    </p>
+                  )}
+                  <div className={styles.actions}>
+                    <Button disabled={!candidate.ok} onClick={addTree}>
+                      {t.office.addTree}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      disabled={rays.length === 0}
+                      onClick={() => setRays([])}
+                    >
+                      {t.office.clearRays}
+                    </Button>
+                  </div>
+                  <Shortcuts />
+                </section>
+
+                {deleted && (
+                  <Alert tone="neutral" role="status">
+                    <div className={styles.alertRow}>
+                      <p>{t.office.treeDeleted}</p>
+                      <Button variant="secondary" size="sm" onClick={undoDelete}>
+                        {t.office.undo}
+                      </Button>
+                    </div>
+                  </Alert>
+                )}
+
+                {selected && (
+                  <section className={styles.card} data-testid="selected-tree">
+                    <div className={styles.cardHead}>
+                      <h3>{t.office.selectedTree}</h3>
+                      {codeByTree.get(selected.id) && (
+                        <Badge tone="highlight">{codeByTree.get(selected.id)}</Badge>
+                      )}
+                      {selected.moved && <Badge>{t.office.moved}</Badge>}
+                    </div>
+                    <dl className={styles.facts}>
+                      <dt>{t.office.uncertainty}</dt>
+                      <dd>{t.office.meters(fmt(selected.uncertaintyM))}</dd>
+                    </dl>
+                    {selected.warnings.length > 0 && (
+                      <Alert tone="warning">
+                        <ul className={styles.warnings}>
+                          {selected.warnings.map((w) => (
+                            <li key={w}>{t.office.warnings[w]}</li>
+                          ))}
+                        </ul>
+                      </Alert>
+                    )}
+                    <Checkbox
+                      id="office-unsure"
+                      label={t.office.unsure}
                       checked={selected.unsure}
                       onChange={(e) => updateTree(selected.id, { unsure: e.target.checked })}
                     />
-                    {t.office.unsure}
-                  </label>
-                  <p className="muted">{t.office.dragHint}</p>
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    onClick={() => deleteTree(selected.id)}
-                  >
-                    {t.office.deleteTree}
-                  </button>
-                </section>
-              )}
+                    <p className={styles.small}>{t.office.dragHint}</p>
+                    <div className={styles.actions}>
+                      <Button variant="secondary" onClick={() => deleteTree(selected.id)}>
+                        {t.office.deleteTree}
+                      </Button>
+                    </div>
+                  </section>
+                )}
+              </div>
             </div>
           )}
 
           {tab === "coding" && (
-            <div className={styles.panel}>
-              <section className={styles.candidate}>
+            <div className={styles.panel} {...panelProps("coding")}>
+              <section className={styles.card}>
                 <h3>{t.office.numbering}</h3>
-                <p className="muted">
+                <p className={styles.small}>
                   {recordedNumbering ? t.office.numberingRecorded : t.office.numberingChoose}
                 </p>
                 {numberingBlocked && (
-                  <p className={styles.warnings} role="alert">
-                    {t.office.numberingOpsOnly}
-                  </p>
+                  <Alert tone="warning">
+                    <p>{t.office.numberingOpsOnly}</p>
+                  </Alert>
                 )}
-                <label className={styles.field}>
-                  {t.office.corner}
-                  <select
-                    value={numbering.corner}
-                    disabled={Boolean(recordedNumbering)}
-                    onChange={(e) =>
-                      setNumbering((n) => ({ ...n, corner: e.target.value as Numbering["corner"] }))
-                    }
-                  >
-                    {CORNERS.map((c) => (
-                      <option key={c} value={c}>
-                        {t.office.corners[c]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  {t.office.rowAzimuth}
-                  <input
-                    type="number"
-                    min={0}
-                    max={359.99}
-                    step={0.1}
-                    value={numbering.rowAzimuthDeg}
-                    disabled={Boolean(recordedNumbering)}
-                    onChange={(e) => {
-                      const value = Number(e.target.value);
-                      if (Number.isFinite(value)) {
-                        setNumbering((n) => ({ ...n, rowAzimuthDeg: ((value % 360) + 360) % 360 }));
+                <div className={styles.fields}>
+                  <Field id="office-corner" label={t.office.corner}>
+                    <Select
+                      value={numbering.corner}
+                      disabled={Boolean(recordedNumbering)}
+                      onChange={(e) =>
+                        setNumbering((n) => ({
+                          ...n,
+                          corner: e.target.value as Numbering["corner"],
+                        }))
                       }
-                    }}
-                  />
-                </label>
+                    >
+                      {CORNERS.map((c) => (
+                        <option key={c} value={c}>
+                          {t.office.corners[c]}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field id="office-azimuth" label={t.office.rowAzimuth}>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={359.99}
+                      step={0.1}
+                      value={numbering.rowAzimuthDeg}
+                      disabled={Boolean(recordedNumbering)}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        if (Number.isFinite(value)) {
+                          setNumbering((n) => ({
+                            ...n,
+                            rowAzimuthDeg: ((value % 360) + 360) % 360,
+                          }));
+                        }
+                      }}
+                    />
+                  </Field>
+                </div>
                 {!recordedNumbering && (
                   <div className={styles.actions}>
-                    <button
-                      type="button"
-                      className="button button-secondary"
+                    <Button
+                      variant="secondary"
                       disabled={trees.length < 3}
                       onClick={() => {
                         const local = trees.map((tr) => frame.toLocal(tr));
@@ -665,44 +796,38 @@ export function OfficeTool({
                       }}
                     >
                       {t.office.estimate}
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-secondary"
+                    </Button>
+                    <Button
+                      variant="secondary"
                       onClick={() =>
                         setNumbering((n) => ({ ...n, rowAzimuthDeg: (n.rowAzimuthDeg + 90) % 360 }))
                       }
                     >
                       {t.office.rotate90}
-                    </button>
+                    </Button>
                   </div>
                 )}
               </section>
               {layout && summary ? (
-                <section className={styles.candidate}>
-                  <dl className={styles.summary} data-testid="layout-summary">
-                    {(Object.keys(t.office.summary) as (keyof typeof summary)[]).map((key) => (
-                      <div key={key}>
-                        <dt>{t.office.summary[key]}</dt>
-                        <dd data-key={key}>{summary[key]}</dd>
-                      </div>
-                    ))}
+                <section className={styles.card}>
+                  {summaryList("layout-summary", true)}
+                  <dl className={styles.facts}>
+                    <dt>{t.office.fittedAzimuth}</dt>
+                    <dd>{t.office.degrees(fmt(layout.rowAzimuthDeg))}</dd>
+                    <dt>{t.office.rowSpacing}</dt>
+                    <dd>
+                      {layout.rowSpacingM ? t.office.meters(fmt(layout.rowSpacingM, 1)) : "—"}
+                    </dd>
+                    <dt>{t.office.treeSpacing}</dt>
+                    <dd>{t.office.meters(fmt(layout.treeSpacingM, 1))}</dd>
                   </dl>
-                  <p className="muted">
-                    {t.office.fittedAzimuth(fmt(layout.rowAzimuthDeg))}
-                    {" · "}
-                    {t.office.spacing(
-                      layout.rowSpacingM ? fmt(layout.rowSpacingM, 1) : "—",
-                      fmt(layout.treeSpacingM, 1),
-                    )}
-                  </p>
-                  <div className={styles.tableWrap}>
-                    <table className={styles.table} data-testid="slot-table">
+                  <div className={styles.scroll}>
+                    <Table data-testid="slot-table" aria-label={t.office.slotList}>
                       <thead>
                         <tr>
                           <th>{t.office.code}</th>
                           <th>{t.office.state}</th>
-                          <th>{t.office.uncertainty}</th>
+                          <th className={cell.num}>{t.office.uncertainty}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -711,16 +836,28 @@ export function OfficeTool({
                             key={s.code}
                             data-code={s.code}
                             data-tree={s.treeId ?? ""}
+                            aria-selected={s.treeId ? s.treeId === selectedId : undefined}
                             className={s.treeId === selectedId ? styles.selectedRow : undefined}
-                            onClick={() => s.treeId && setSelectedId(s.treeId)}
                           >
-                            <td>{s.code}</td>
+                            <td className={cell.code}>
+                              {s.treeId ? (
+                                <button
+                                  type="button"
+                                  className={styles.rowButton}
+                                  onClick={() => setSelectedId(s.treeId)}
+                                >
+                                  {s.code}
+                                </button>
+                              ) : (
+                                s.code
+                              )}
+                            </td>
                             <td>{s.treeId ? t.office.treeSlot : t.office.emptySlot}</td>
-                            <td>{fmt(s.uncertaintyM)}</td>
+                            <td className={cell.num}>{t.office.meters(fmt(s.uncertaintyM))}</td>
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </Table>
                   </div>
                 </section>
               ) : (
@@ -730,8 +867,8 @@ export function OfficeTool({
           )}
 
           {tab === "verification" && (
-            <div className={styles.panel}>
-              <section className={styles.candidate}>
+            <div className={styles.panel} {...panelProps("verification")}>
+              <section className={styles.card}>
                 {verification.length === 0 ? (
                   <p className="muted">{t.office.verificationEmpty}</p>
                 ) : (
@@ -739,96 +876,84 @@ export function OfficeTool({
                     <p data-testid="verification-count">
                       {t.office.verificationCount(verification.length)}
                     </p>
-                    <div className={styles.tableWrap}>
-                      <table className={styles.table} data-testid="verification-table">
+                    <div className={styles.scroll}>
+                      <Table data-testid="verification-table">
                         <thead>
                           <tr>
                             <th>{t.office.code}</th>
                             <th>{t.office.reason}</th>
-                            <th>{t.office.uncertainty}</th>
+                            <th className={cell.num}>{t.office.uncertainty}</th>
                           </tr>
                         </thead>
                         <tbody>
                           {verification.map((v) => (
                             <tr key={v.code} data-code={v.code}>
-                              <td>{v.code}</td>
+                              <td className={cell.code}>{v.code}</td>
                               <td>{v.reasons.map((r) => t.office.reasons[r]).join(", ")}</td>
-                              <td>{fmt(v.uncertaintyM)}</td>
+                              <td className={cell.num}>{t.office.meters(fmt(v.uncertaintyM))}</td>
                             </tr>
                           ))}
                         </tbody>
-                      </table>
+                      </Table>
                     </div>
                   </>
                 )}
                 <div className={styles.actions}>
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    disabled={!layout}
-                    onClick={downloadCsv}
-                  >
+                  <Button variant="secondary" disabled={!layout} onClick={downloadCsv}>
                     {t.office.exportCsv}
-                  </button>
+                  </Button>
                 </div>
               </section>
             </div>
           )}
 
           {tab === "save" && (
-            <div className={styles.panel}>
-              <section className={styles.candidate}>
+            <div className={styles.panel} {...panelProps("save")}>
+              <section className={styles.card}>
                 <h3>{t.office.savePreview}</h3>
-                {summary ? (
-                  <dl className={styles.summary} data-testid="save-summary">
-                    {(Object.keys(t.office.summary) as (keyof typeof summary)[]).map((key) => (
-                      <div key={key}>
-                        <dt>{t.office.summary[key]}</dt>
-                        <dd>{summary[key]}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                ) : (
+                {summaryList("save-summary", false) ?? (
                   <p className="muted">{t.office.layoutNeedsTrees}</p>
                 )}
                 {saveResult?.ok ? (
-                  <p className={styles.success} role="status" data-testid="save-result">
-                    {t.office.saved(saveResult.slots, saveResult.trees)}{" "}
-                    {saveResult.labels > 0 && <>{t.office.savedLabels(saveResult.labels)} </>}
-                    <Link href={`/ofis/parsel/${parcelId}`}>{t.office.viewParcel}</Link>{" "}
-                    <Link
-                      href={`/ofis/parsel/${parcelId}/envanter/duzenle?sekme=verification`}
-                      data-testid="open-workspace"
-                    >
-                      {t.inventory.office.openAfterSave}
-                    </Link>
-                  </p>
+                  <Alert tone="success" role="status" testId="save-result">
+                    <p>
+                      {t.office.saved(saveResult.slots, saveResult.trees)}
+                      {saveResult.labels > 0 && <> {t.office.savedLabels(saveResult.labels)}</>}
+                    </p>
+                    <div className={styles.actions}>
+                      <ButtonLink
+                        size="sm"
+                        href={`/ofis/parsel/${parcelId}/envanter/duzenle?sekme=verification`}
+                        data-testid="open-workspace"
+                      >
+                        {t.inventory.office.openAfterSave}
+                      </ButtonLink>
+                      <ButtonLink variant="secondary" size="sm" href={`/ofis/parsel/${parcelId}`}>
+                        {t.office.viewParcel}
+                      </ButtonLink>
+                    </div>
+                  </Alert>
                 ) : (
                   <>
-                    <label className={styles.check}>
-                      <input
-                        type="checkbox"
-                        checked={confirmed}
-                        disabled={blocked || !layout}
-                        onChange={(e) => setConfirmed(e.target.checked)}
-                      />
-                      {t.office.saveConfirm}
-                    </label>
+                    <Checkbox
+                      id="office-save-confirm"
+                      label={t.office.saveConfirm}
+                      checked={confirmed}
+                      disabled={blocked || !layout}
+                      onChange={(e) => setConfirmed(e.target.checked)}
+                    />
                     <div className={styles.actions}>
-                      <button
-                        type="button"
-                        className="button"
-                        disabled={blocked || !layout || !confirmed || saving}
-                        onClick={save}
-                      >
+                      <Button disabled={blocked || !layout || !confirmed || saving} onClick={save}>
                         {saving ? t.office.saving : t.office.save}
-                      </button>
+                      </Button>
                     </div>
                     {saveResult && !saveResult.ok && (
-                      <p className={styles.blocked} role="alert" data-testid="save-error">
-                        {t.office.saveErrors[saveResult.error]}
-                        {saveResult.detail ? ` (${saveResult.detail})` : ""}
-                      </p>
+                      <Alert tone="danger" role="alert" testId="save-error">
+                        <p>
+                          {t.office.saveErrors[saveResult.error]}
+                          {saveResult.detail ? ` (${saveResult.detail})` : ""}
+                        </p>
+                      </Alert>
                     )}
                   </>
                 )}
@@ -837,6 +962,39 @@ export function OfficeTool({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// The tool's keyboard shortcuts (the listener above), shown under the
+// candidate controls.
+function Shortcuts() {
+  const s = t.office.shortcuts;
+  const k = t.office.keys;
+  return (
+    <div className={styles.shortcuts}>
+      <p className={styles.shortcutsTitle}>{s.title}</p>
+      <dl>
+        <div>
+          <dt>
+            <kbd>{k.enter}</kbd>
+          </dt>
+          <dd>{s.add}</dd>
+        </div>
+        <div>
+          <dt>
+            <kbd>{k.escape}</kbd>
+          </dt>
+          <dd>{s.clear}</dd>
+        </div>
+        <div>
+          <dt>
+            <kbd>{k.delete}</kbd>
+          </dt>
+          <dd>{s.remove}</dd>
+        </div>
+      </dl>
+      <p className={styles.small}>{s.note}</p>
     </div>
   );
 }

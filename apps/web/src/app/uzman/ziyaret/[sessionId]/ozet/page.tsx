@@ -23,6 +23,11 @@ export default async function Page({
   const ctx = await loadReview(supabase, sessionId);
   if (!ctx) notFound();
 
+  const [followups, checks] = await Promise.all([
+    listFollowups(supabase, { parcelIds: [ctx.session.parcelId] }),
+    loadPipelineChecks(supabase, sessionId),
+  ]);
+
   const findingError =
     typeof query.bulgu_hata === "string"
       ? (t.expert.findings.errors[query.bulgu_hata] ?? t.expert.findings.errors.write_failed)
@@ -33,11 +38,9 @@ export default async function Page({
       findingError={findingError}
       published={query.yayin === "1"}
       bulk={bulkMessages(query)}
-      followups={(await listFollowups(supabase, { parcelIds: [ctx.session.parcelId] })).filter(
-        (f) => f.sourceSessionId === sessionId,
-      )}
+      followups={followups.filter((f) => f.sourceSessionId === sessionId)}
       followupMessage={followupMessage(query)}
-      checks={await loadPipelineChecks(supabase, sessionId)}
+      checks={checks}
     />
   );
 }

@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { ParcelDetail } from "@/components/parcel-detail";
+import { ButtonLink } from "@/components/ui/button";
 import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 
@@ -10,18 +10,13 @@ export default async function Page({ params }: { params: Promise<{ parcelId: str
     <ParcelDetail
       section="ofis"
       parcelId={parcelId}
-      actions={
-        <p>
-          <Link className="button" href={`/ofis/parsel/${parcelId}/envanter`}>
-            {t.office.openTool}
-          </Link>{" "}
-          <Link
-            className="button button-secondary"
-            href={`/ofis/parsel/${parcelId}/envanter/duzenle`}
-          >
+      headerActions={
+        <>
+          <ButtonLink variant="secondary" href={`/ofis/parsel/${parcelId}/envanter/duzenle`}>
             {t.inventory.office.open}
-          </Link>
-        </p>
+          </ButtonLink>
+          <ButtonLink href={`/ofis/parsel/${parcelId}/envanter`}>{t.office.openTool}</ButtonLink>
+        </>
       }
     />
   );

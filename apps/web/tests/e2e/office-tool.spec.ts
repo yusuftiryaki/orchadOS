@@ -374,9 +374,11 @@ async function triangulateAndSave(page: Page, source: SourceKind) {
 
   // Save after confirming the preview.
   await page.getByRole("tab", { name: "Kaydet" }).click();
+  await expect(page.getByTestId("save-state")).toHaveText("Taslak: kaydedilmedi");
   await page.getByLabel(/Önizlemeyi kontrol ettim/).check();
   await page.getByRole("button", { name: "Veritabanına kaydet" }).click();
   await expect(page.getByTestId("save-result")).toContainText("12 yer ve 12 ağaç kaydedildi.");
+  await expect(page.getByTestId("save-state")).toHaveText("Veritabanına kaydedildi");
 
   const { data: slots } = await admin
     .from("slot")

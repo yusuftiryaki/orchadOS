@@ -1,7 +1,8 @@
-import { bulkApproveAction } from "@/app/uzman/actions";
+import { Alert } from "@/components/ui/alert";
 import { isReviewable, type ReviewContext } from "@/lib/expert/review";
 import { bulkGate, isBulkEligible } from "@/lib/expert/summary";
 import { t } from "@/lib/i18n";
+import { BulkConfirm } from "./bulk-confirm";
 import styles from "./expert.module.css";
 
 export interface BulkMessages {
@@ -28,45 +29,39 @@ export function BulkApprovePanel({
   const gate = bulkGate(ctx.trees, ctx.rules, ctx.firstOfSeason);
   if (!editable && messages.approved == null) return null;
   return (
-    <section className={styles.panel} data-testid="bulk-approve">
-      <h3>{b.title}</h3>
+    <section className={styles.bulk} data-testid="bulk-approve" aria-labelledby="bulk-title">
+      <h3 id="bulk-title">{b.title}</h3>
       {messages.approved != null && (
-        <p className={styles.notice} role="status">
+        <Alert tone="success" role="status">
           {b.done(messages.approved)}
-        </p>
+        </Alert>
       )}
       {messages.error && (
-        <p className={`${styles.notice} ${styles.error}`} role="alert">
+        <Alert tone="danger" role="alert">
           {b.errors[messages.error] ?? b.errors.write_failed}
-        </p>
+        </Alert>
       )}
-      {editable && (
-        <>
-          <p className="muted">{b.hint(sample)}</p>
-          {eligible === 0 ? (
-            <p className="muted" data-testid="bulk-none">
-              {b.none}
-            </p>
-          ) : !gate.open ? (
-            <p className={styles.notice} data-testid="bulk-gate">
-              {gate.reason === "first_of_season"
-                ? b.firstOfSeason
-                : gate.reason === "sample_open"
-                  ? b.sampleOpen(gate.remaining)
-                  : b.sampleDisagreement(Math.round(gate.agreement * 100))}
-            </p>
-          ) : (
-            <form action={bulkApproveAction}>
-              <input type="hidden" name="sessionId" value={ctx.session.id} />
-              <input type="hidden" name="return" value={returnPath} />
-              <input type="hidden" name="expected" value={eligible} />
-              <button className="button" type="submit">
-                {b.button(eligible)}
-              </button>
-            </form>
-          )}
-        </>
-      )}
+      {editable &&
+        (eligible === 0 ? (
+          <p className={styles.small} data-testid="bulk-none">
+            {b.none}
+          </p>
+        ) : !gate.open ? (
+          <p className={styles.small} data-testid="bulk-gate">
+            {gate.reason === "first_of_season"
+              ? b.firstOfSeason
+              : gate.reason === "sample_open"
+                ? b.sampleOpen(gate.remaining)
+                : b.sampleDisagreement(Math.round(gate.agreement * 100))}
+          </p>
+        ) : (
+          <BulkConfirm
+            sessionId={ctx.session.id}
+            returnPath={returnPath}
+            eligible={eligible}
+            sample={sample}
+          />
+        ))}
     </section>
   );
 }

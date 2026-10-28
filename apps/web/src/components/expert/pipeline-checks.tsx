@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import type { CoverageSummary, PipelineChecks } from "@/lib/expert/pipeline-checks";
 import { formatNumber, t } from "@/lib/i18n";
 import styles from "./expert.module.css";
@@ -14,24 +15,35 @@ function codes(list: string[]): string {
 }
 
 export function CoverageLine({ coverage }: { coverage: CoverageSummary | null }) {
-  if (!coverage) return <p className="muted">{p.noCoverage}</p>;
+  if (!coverage) return <p className={styles.small}>{p.noCoverage}</p>;
   return (
-    <div data-testid="coverage" data-passed={coverage.passed} data-rescan={coverage.rescanNeeded}>
-      <p>
-        <strong>{coverage.passed ? p.passed : p.failed}</strong> ·{" "}
-        {p.coverageLine(
-          formatNumber(coverage.ratio * 100, 1),
-          coverage.coveredTrees,
-          coverage.activeTrees,
-          formatNumber(coverage.threshold * 100, 1),
-        )}
-        {coverage.blindSpots > 0 && <> · {p.blindSpots(coverage.blindSpots)}</>}
+    <div
+      className={styles.coverage}
+      data-testid="coverage"
+      data-passed={coverage.passed}
+      data-rescan={coverage.rescanNeeded}
+    >
+      <p className={styles.itemHead}>
+        <Badge tone={coverage.passed ? "success" : "danger"}>
+          {coverage.passed ? p.passed : p.failed}
+        </Badge>
+        <span>
+          {p.coverageLine(
+            formatNumber(coverage.ratio * 100, 1),
+            coverage.coveredTrees,
+            coverage.activeTrees,
+            formatNumber(coverage.threshold * 100, 1),
+          )}
+        </span>
       </p>
+      {coverage.blindSpots > 0 && <p>{p.blindSpots(coverage.blindSpots)}</p>}
       {coverage.missingTrees > 0 && (
-        <p className="muted">{p.missing(coverage.missingTrees, codes(coverage.missingCodes))}</p>
+        <p className={styles.small}>
+          {p.missing(coverage.missingTrees, codes(coverage.missingCodes))}
+        </p>
       )}
-      {coverage.rescanNeeded && <p className="muted">{p.rescan}</p>}
-      <p className="muted">{p.version(coverage.pipelineVersion)}</p>
+      {coverage.rescanNeeded && <p className={styles.small}>{p.rescan}</p>}
+      <p className={styles.small}>{p.version(coverage.pipelineVersion)}</p>
     </div>
   );
 }
@@ -52,8 +64,8 @@ export function PipelineChecksPanel({ checks }: { checks: PipelineChecks }) {
       {checks.suggestions.length > 0 && (
         <>
           <h4>{p.suggestions}</h4>
-          <p className="muted">{p.suggestionsHint}</p>
-          <ul data-testid="planting-suggestions">
+          <p className={styles.small}>{p.suggestionsHint}</p>
+          <ul className={styles.codeList} data-testid="planting-suggestions">
             {checks.suggestions.map((s) => (
               <li key={s.slotId} data-slot={s.code}>
                 {p.suggestion(s.code, s.cropIds.length)}
