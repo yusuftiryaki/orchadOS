@@ -173,7 +173,7 @@ select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 insert into ids select 'q', public.ops_issue_quote('f3500000-0000-4000-8000-000000000001');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 insert into ids select 'o', public.customer_accept_quote(pg_temp.id('q'),
-  '{"distance_sales": "mesafeli-v1-taslak", "pre_information": "onbilgi-v1-taslak"}');
+  '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak"}');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 insert into ids select 'p', public.ops_record_manual_payment(pg_temp.id('o'), 1000, current_date, 'EFT-35-1');
 insert into ids select 'r', (public.ops_request_refund(pg_temp.id('p'), 500, 'goodwill'))[1];

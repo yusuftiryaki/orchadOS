@@ -79,7 +79,7 @@ create function pg_temp.accept(p_user uuid, p_quote uuid) returns uuid language 
 as $$
 begin
   perform pg_temp.as_user(p_user);
-  return public.customer_accept_quote(p_quote, '{"distance_sales": "mesafeli-v1-taslak", "pre_information": "onbilgi-v1-taslak"}');
+  return public.customer_accept_quote(p_quote, '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak"}');
 end;
 $$;
 

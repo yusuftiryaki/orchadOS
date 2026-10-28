@@ -45,7 +45,7 @@ begin
   perform public.ops_verify_application_garden(g, 20000);
   q := public.ops_issue_quote(a);
   perform pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
-  o := public.customer_accept_quote(q, '{"distance_sales": "mesafeli-v1-taslak", "pre_information": "onbilgi-v1-taslak"}');
+  o := public.customer_accept_quote(q, '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak"}');
   perform pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
   return o;
 end;

@@ -126,7 +126,7 @@ export async function quotedApplication(email: string, password: string): Promis
 // portal (C) and back office (D) browser tests. Each one works through the
 // API like a person would; nothing is written to the tables directly.
 
-const CONSENTS = { distance_sales: "mesafeli-v1-taslak", pre_information: "onbilgi-v1-taslak" };
+const CONSENTS = { distance_sales: "mesafeli-v3-taslak", pre_information: "onbilgi-v3-taslak" };
 
 // "Today" of the database functions (Istanbul), YYYY-MM-DD.
 export const istanbulToday = () =>

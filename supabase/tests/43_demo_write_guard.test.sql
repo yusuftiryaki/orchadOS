@@ -156,7 +156,7 @@ begin
   end loop;
   perform pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
   insert into ids select 'order', public.customer_accept_quote(pg_temp.id('quote2'),
-    '{"distance_sales": "mesafeli-v1-taslak", "pre_information": "onbilgi-v1-taslak"}');
+    '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak"}');
   -- A draft with a garden (last: create returns the open draft).
   a := public.customer_create_application('91200000-0000-4000-8000-000000000001');
   g := public.customer_save_application_garden(a,
@@ -171,7 +171,7 @@ select pg_temp.as_demo('a0000000-0000-4000-8000-000000000006');
 select is(pg_temp.error_of(f), 'demo_read_only', 'refused under a demo claim: ' || substring(f from 'public\.(\w+)'))
 -- (customer_create_application returns the open draft without writing.)
 from unnest(array[
-  $$ select public.customer_set_consent('explicit_marketing', true, 'acik-riza-v1') $$,
+  $$ select public.customer_set_consent('explicit_marketing', false, 'acik-riza-v1') $$,
   $$ select public.customer_save_billing_profile('{"kind": "individual", "first_name": "Örnek",
        "last_name": "Müşteri", "address": "Yeni adres 2", "city": "Gaziantep", "identity_number": "10000000146"}') $$,
   $$ select public.customer_update_contact('Ad Soyad', null, 'sms') $$,
@@ -183,7 +183,7 @@ from unnest(array[
   $$ select public.customer_submit_application(pg_temp.id('draft')) $$,
   $$ select public.customer_withdraw_application('91200000-0000-4000-8000-000000000301') $$,
   $$ select public.customer_accept_quote(pg_temp.id('quote1'),
-       '{"distance_sales": "mesafeli-v1-taslak", "pre_information": "onbilgi-v1-taslak"}') $$,
+       '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak"}') $$,
   $$ select public.customer_decline_quote(pg_temp.id('quote1'), false, null) $$,
   $$ select public.customer_cancel_order(pg_temp.id('order')) $$
 ]) as f;

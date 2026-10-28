@@ -21,7 +21,7 @@ import {
 
 const DOMAIN = "back-office-gardens-e2e.example.test";
 const run = Date.now().toString(36);
-const CONSENTS = { distance_sales: "mesafeli-v1-taslak", pre_information: "onbilgi-v1-taslak" };
+const CONSENTS = { distance_sales: "mesafeli-v3-taslak", pre_information: "onbilgi-v3-taslak" };
 
 test.describe.configure({ mode: "serial" });
 
