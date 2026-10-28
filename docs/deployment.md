@@ -210,6 +210,30 @@ Test projesinde Cloudflare'in test anahtarları kullanılır. `accepts_signups` 
 - [ ] İade zaman aşımında `/payment/detail` yanıtının alanları (iade/iptal izini nasıl gösterdiği); şimdilik sonuç otomatik çözülmez, satır `processing` kalır ve operasyon `ops_resolve_refund` ile kapatır.
 - [ ] Önizleme adresinden başlatılan ödeme o önizlemeye döner; listede olmayan adres `400`.
 
+### Lansman fiyat listesi
+
+Fiyatlar barındırılan projelere seed ile gitmez; test ve pilot projesinde ops kullanıcısı back office'ten girer. Rakamlar ve gerekçe: [fiyatlandirma.md](fiyatlandirma.md) §1.
+
+1. **Paketler** (`/operasyon/fiyat`): üç paket açılır ya da mevcutlar düzeltilir. Açıklamalar seed'deki gibi mevsimleri yazar; Kapsamlı için takvim yazılmaz.
+
+    | Kod | Ad | Yıllık ziyaret | Envanter dahil | Sıra |
+    | --- | --- | --- | --- | --- |
+    | `temel` | Temel | 2 | evet | 1 |
+    | `standart` | Standart | 4 | evet | 2 |
+    | `kapsamli` | Kapsamlı | 6 | evet | 3 |
+
+    Listede kalmaması gereken eski bir paket (örneğin denemeden kalan `ekonomik`) pasife alınır; yayımlama yalnızca aktif paketlere fiyat ister.
+2. **Taslak liste:** Yeni taslak; KDV %20 (2000 bp), geçerlilik başlangıcı yayım günü ya da sonrası (geçmiş gün yayımlanmaz, `valid_from_in_past`), not "Lansman fiyat listesi". Kalemler (TL, KDV hariç):
+
+    | Paket | Birim fiyat (dönüm·ziyaret) | En az ücret | Envanter ücreti |
+    | --- | --- | --- | --- |
+    | Temel | 208,00 | 5.600,00 | 6.000,00 |
+    | Standart | 180,00 | 11.200,00 | 6.000,00 |
+    | Kapsamlı | 168,00 | 16.000,00 | 6.000,00 |
+
+3. **Kontrol ve yayım:** Taslağı yayımlamadan önce ikinci bir kişi kontrol eder; yayımlanan liste değişmez. Yayımdan sonra `/paketler`'de Standart'ın 20 dönüm örneği yıllık 17.280 TL, ilk yıl 24.480 TL (KDV dahil) görünür. Önceden verilmiş teklifler kendi listesinde kalır (`quote.inputs`).
+4. **Revizyon:** 1 Ocak ve 1 Temmuz'da yeni sürüm aynı yolla, "Bundan taslak oluştur" ile ([fiyatlandirma.md](fiyatlandirma.md) §7).
+
 ## Demo turu (İP13)
 
 Tasarım: [demo-turu.md](demo-turu.md) §3.4, §4, §7, §11–§16. Bahçe sahibi adayları hesap açmadan, geçici bir demo hesabıyla sentetik iki bahçeyi sahip portalında gezer. Herkese açık demo **kendi Supabase ve Vercel projesinde** çalışır; Supabase organizasyonu Pro'ya geçene kadar geçici olarak **test projesinde** (aşağıda, Ortak barındırma; demo-turu.md §15.1). Pilot projesinde hiç açılmaz, pilot sitesi yalnızca demo adresine link verir. Migration'lar ve Edge Function'lar her projeye gider; demo org'u olmayan projede bir şey yapmaz.
@@ -444,7 +468,7 @@ Tasarım: [bahce-yonetimi.md](bahce-yonetimi.md) §2, §9.8, §15. Müşteri üy
 **Anahtar:** `org_billing_setting.garden_changes_enabled`, `/operasyon/ayarlar` sayfasından açılır ve kapanır. Varsayılan kapalıdır; yerel seed'de açıktır. Ayrı bir web bayrağı yoktur.
 - Kapalıyken `customer_request_garden_removal`, `ops_request_garden_removal` ve `ops_issue_addon_quote` `garden_changes_closed` döner, portal girişleri ("Bahçe ekle", "Bahçeyi hizmetten çıkar") gizlenir.
 - Açılmış kayıtlar anahtar kapalıyken de işler.
-- **Barındırılan projelerde (test, pilot) [yayın şartları](hukuk/kararlar.md#yayin) ile T05 (çıkarma akışı) ve T18 (ek teklif dökümü) üretime girene kadar kapalı kalır:** sözleşme `mesafeli-v3-taslak`, iade politikası `iade-v3-taslak`, ön bilgilendirme `onbilgi-v3-taslak`. Avukat soruları (hukuk/README.md 15–22) [hukuk/kararlar.md](hukuk/kararlar.md)'de karara bağlandı; kararlar metinlere girdi ama yayın şartları bitmeden metinler taslaktır. Fiyat kararları da beklenir (en az ücretin orantılanması, `addon_min_days`, bildirim ve erişim süreleri, iade modu; [bahce-yonetimi.md](bahce-yonetimi.md) §16, §19). Test projesinde yalnızca duman testi süresince açılır.
+- **Barındırılan projelerde (test, pilot) [yayın şartları](hukuk/kararlar.md#yayin) ile T05 (çıkarma akışı) ve T18 (ek teklif dökümü) üretime girene kadar kapalı kalır:** sözleşme `mesafeli-v4-taslak`, iade politikası `iade-v4-taslak`, ön bilgilendirme `onbilgi-v4-taslak`. Avukat soruları (hukuk/README.md 15–22) [hukuk/kararlar.md](hukuk/kararlar.md)'de karara bağlandı; kararlar metinlere girdi ama yayın şartları bitmeden metinler taslaktır. Fiyat kararları da beklenir (en az ücretin orantılanması, `addon_min_days`, bildirim ve erişim süreleri, iade modu; [bahce-yonetimi.md](bahce-yonetimi.md) §16, §19). Test projesinde yalnızca duman testi süresince açılır.
 
 Aynı sayfadaki diğer ayarlar: `addon_min_days` (30; son ek günü), `removal_notice_days` (30), `removal_access_days` (90), `removal_refund_mode` (`unused_visits` ya da `manual`).
 

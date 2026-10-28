@@ -67,10 +67,15 @@ test("packages page shows the published prices with a 20-dönüm example", async
   // left for a database without a published list).
   await page.goto("/paketler");
   await expect(page.getByTestId("packages-empty")).toHaveCount(0);
+  await expect(page.getByTestId("package")).toHaveCount(3);
   const standart = page.getByTestId("package").filter({ hasText: "Standart" });
   await expect(standart).toBeVisible();
-  // 4 visits × 20 dönüm × 125 ₺ = 10.000 ₺ + 20% VAT (design §6.6).
-  await expect(standart.getByTestId("package-example")).toContainText("12.000");
+  // Launch list (docs/fiyatlandirma.md), VAT included: 4 visits × 180 ₺ + 20%
+  // = 864 ₺ a dönüm and year; 20 dönüm 17.280 ₺, the first year with the
+  // 6.000 ₺ (+ VAT) inventory fee 24.480 ₺ (design §6.6).
+  await expect(standart).toContainText("₺864");
+  await expect(standart.getByTestId("package-example")).toContainText("₺17.280");
+  await expect(standart.getByTestId("package-example")).toContainText("₺24.480");
 });
 
 test("header and footer links work", async ({ page }) => {

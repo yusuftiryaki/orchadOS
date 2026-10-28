@@ -11,7 +11,7 @@ const INSTRUCTIONS = {
   iban: "TR00 0000 0000 0000 0000 0000 00",
   ibanHolder: "Örnek Tarım A.Ş.",
   reference: "S-2026-000001",
-  outstandingKurus: 1200000,
+  outstandingKurus: 2448000,
   currency: "TRY",
   paymentDueAt: null,
 };
@@ -26,7 +26,7 @@ describe("order payment box", () => {
     expect(html).not.toContain("<form");
     expect(html).toContain('data-testid="card-off"');
     expect(html).toContain("S-2026-000001");
-    expect(html).toContain("12.000,00 ₺");
+    expect(html).toContain("24.480,00 ₺");
   });
 
   it("shows the card button with the flag on", () => {

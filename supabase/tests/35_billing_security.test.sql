@@ -259,7 +259,7 @@ select is(pg_temp.error_of($$ select public.receipt_data(pg_temp.id('p')) $$),
   'permission denied for function receipt_data', 'anon reads no receipt');
 select ok((select count(*) from public.public_package_prices()) > 0, 'anon reads the public prices');
 select is((select sum(line_total_kurus)::bigint from public.price_preview('91200000-0000-4000-8000-000000000001',
-  array[20000]::numeric[])), 1200000::bigint, 'and a preview');
+  array[20000]::numeric[])), 2448000::bigint, 'and a preview');
 select is(pg_temp.error_of($$ select * from public.price_preview('91200000-0000-4000-8000-0000000000ff', array[1000]::numeric[]) $$),
   'not_found', 'an unknown package is not found');
 reset role;

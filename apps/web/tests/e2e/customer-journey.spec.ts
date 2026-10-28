@@ -72,6 +72,8 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
   await expect(page.getByTestId("home-cta")).toContainText("Bahçenizi kaydedin");
   await page.getByRole("link", { name: "Başvuru yapın" }).click();
   await expect(page).toHaveURL("/portal/basvuru/yeni");
+  // The first package (Temel) is preselected; this journey takes Standart.
+  await page.getByRole("radio", { name: /Standart/ }).check();
   await page.getByRole("button", { name: "Taslağı aç" }).click();
   await expect(page.getByTestId("application-status")).toHaveText("Taslak");
   applicationId = new URL(page.url()).pathname.split("/").pop()!;
@@ -103,7 +105,7 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
   await page.getByRole("button", { name: "Bahçeyi kaydet" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Bahçe kaydedildi." })).toBeVisible();
   await expect(page.getByTestId("garden-table")).toContainText("Yolculuk bahçesi");
-  await expect(page.getByTestId("preview-total")).toHaveText("12.000,00 ₺");
+  await expect(page.getByTestId("preview-total")).toHaveText("24.480,00 ₺");
 
   const saved = await admin
     .from("application_garden")
@@ -124,7 +126,7 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
   await page.goto("/portal");
   await page.getByTestId("home-quote").getByRole("link", { name: "Teklifi inceleyin" }).click();
   await expect(page).toHaveURL(`/portal/teklif/${quoteId}`);
-  await expect(page.getByTestId("quote-total")).toHaveText("12.000,00 ₺");
+  await expect(page.getByTestId("quote-total")).toHaveText("24.480,00 ₺");
   await expect(page.getByTestId("quote-note")).toContainText("mart");
   // The sign-up recorded the KVKK notice: no acknowledgement box.
   await expect(page.getByTestId("quote-kvkk")).toHaveCount(0);

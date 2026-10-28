@@ -191,7 +191,7 @@ describe("customer portal payment flow", () => {
         p_areas_m2: [20000],
       }),
     );
-    expect(preview[0].line_total_kurus).toBe(1200000);
+    expect(preview[0].line_total_kurus).toBe(2448000);
 
     check(await c.rpc("customer_submit_application", { p_application_id: state.application }));
     const app = check(
@@ -221,7 +221,7 @@ describe("customer portal payment flow", () => {
         .eq("id", state.quote)
         .single(),
     );
-    expect(quote).toMatchObject({ status: "issued", total_kurus: 1200000, vat_kurus: 200000 });
+    expect(quote).toMatchObject({ status: "issued", total_kurus: 2448000, vat_kurus: 408000 });
 
     // Without the contract consents the acceptance is refused.
     const refused = await customer.client.rpc("customer_accept_quote", {
@@ -242,7 +242,7 @@ describe("customer portal payment flow", () => {
     const instructions = check(
       await customer.client.rpc("customer_payment_instructions", { p_order_id: state.order }),
     )[0];
-    expect(instructions.outstanding_kurus).toBe(1200000);
+    expect(instructions.outstanding_kurus).toBe(2448000);
   });
 
   it("the fake card payment succeeds through start and a cookieless callback", async () => {
@@ -264,7 +264,7 @@ describe("customer portal payment flow", () => {
     const order = check(
       await admin.from("service_order").select("status, paid_kurus").eq("id", state.order).single(),
     );
-    expect(order).toEqual({ status: "active", paid_kurus: 1200000 });
+    expect(order).toEqual({ status: "active", paid_kurus: 2448000 });
 
     // The garden became a registered parcel the customer owns.
     const item = check(
@@ -314,7 +314,7 @@ describe("customer portal payment flow", () => {
     const receipt = check(
       await customer.client.rpc("receipt_data", { p_payment_id: state.payment }),
     ) as { receipt_number: string; paid_kurus: number };
-    expect(receipt).toMatchObject({ receipt_number: paid.receipt_number, paid_kurus: 1200000 });
+    expect(receipt).toMatchObject({ receipt_number: paid.receipt_number, paid_kurus: 2448000 });
   });
 
   it("finalizing twice more changes nothing", async () => {

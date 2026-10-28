@@ -84,9 +84,9 @@ describe("legal texts", () => {
   it("covers adding and removing gardens (IP14)", () => {
     expect(text("distance_sales")).toContain("Madde 8D – Dönem içinde bahçe ekleme");
     expect(text("distance_sales")).toContain("Fesih ve bahçe bazında çıkarma");
-    expect(text("distance_sales")).toContain("4.500,00 TL");
+    expect(text("distance_sales")).toContain("13.920,00 TL");
     expect(text("refund_policy")).toContain("5. Bahçe çıkarma");
-    expect(text("refund_policy")).toContain("6.000,00 TL");
+    expect(text("refund_policy")).toContain("8.640,00 TL");
     expect(text("pre_information")).toContain("ek teklif");
     expect(text("pre_information")).toContain("Cayma hakkımı kullanıyorum");
   });

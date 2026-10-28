@@ -161,11 +161,11 @@ test("ops takes an application to an active order and refunds part of the transf
   await page.getByRole("button", { name: "Doğrulamayı kaydet" }).click();
   await expect(page.getByText("Bahçe alanı doğrulandı.")).toBeVisible();
 
-  // 2. Preview (20 dönüm standard: 12.000 TL) and the quote.
-  await expect(page.getByTestId("quote-preview-total")).toHaveText("12.000,00 ₺");
+  // 2. Preview (20 dönüm standard, first year with the inventory fee: 24.480 TL) and the quote.
+  await expect(page.getByTestId("quote-preview-total")).toHaveText("24.480,00 ₺");
   await page.getByTestId("issue-quote-form").getByRole("button", { name: "Teklif ver" }).click();
   await expect(page.getByText("Teklif verildi; müşteriye bildirim gidecek.")).toBeVisible();
-  await expect(page.getByTestId("quote-lines-total")).toHaveText("12.000,00 ₺");
+  await expect(page.getByTestId("quote-lines-total")).toHaveText("24.480,00 ₺");
   const quoteId = page.url().split("/").pop()!.split("?")[0];
 
   // 3. The customer accepts (API); ops records the transfer.
@@ -176,9 +176,9 @@ test("ops takes an application to an active order and refunds part of the transf
     }),
   );
   await page.goto(`/operasyon/siparis/${orderId}`);
-  await expect(page.getByTestId("order-outstanding")).toHaveText("12.000,00 ₺");
+  await expect(page.getByTestId("order-outstanding")).toHaveText("24.480,00 ₺");
   const manual = page.getByTestId("manual-payment-form");
-  await manual.getByLabel("Tutar (TL)").fill("12.000,00");
+  await manual.getByLabel("Tutar (TL)").fill("24.480,00");
   await manual.getByLabel("Banka referansı").fill(`EFT-${run}`);
   await manual.getByRole("button", { name: "Havaleyi kaydet" }).click();
   await expect(page.getByText("Havale kaydedildi ve makbuz numarası verildi.")).toBeVisible();
@@ -239,10 +239,10 @@ test("ops publishes a price list from a copy and saves the settings", async ({ p
 
   const draft = page.getByTestId("price-list-draft");
   await expect(draft.getByLabel("Standart: Birim fiyat (TL / dönüm·ziyaret)")).toHaveValue(
-    "125,00",
+    "180,00",
   );
   await draft.getByLabel("Geçerlilik başlangıcı").fill(addDays(istanbulToday(), 3650));
-  await draft.getByLabel("Standart: Birim fiyat (TL / dönüm·ziyaret)").fill("130,00");
+  await draft.getByLabel("Standart: Birim fiyat (TL / dönüm·ziyaret)").fill("190,00");
   await draft.getByRole("button", { name: "Taslağı kaydet" }).click();
   await expect(page.getByText("Taslak kaydedildi.")).toBeVisible();
 
@@ -251,7 +251,7 @@ test("ops publishes a price list from a copy and saves the settings", async ({ p
   await publish.getByRole("button", { name: "Yayımla" }).click();
   await expect(page.getByText("Fiyat listesi yayımlandı; artık değiştirilemez.")).toBeVisible();
   expect(page.url().split("?")[0]).toBe(draftUrl);
-  await expect(page.getByTestId("price-list-items")).toContainText("130,00 ₺");
+  await expect(page.getByTestId("price-list-items")).toContainText("190,00 ₺");
   // Dated years ahead: v1 stays the list in force.
   await page.goto("/operasyon/fiyat");
   await expect(

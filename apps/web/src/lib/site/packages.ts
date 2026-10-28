@@ -44,27 +44,32 @@ export async function loadPublicPackages(supabase: Client): Promise<PublicPackag
 
 export interface PackageExample {
   areaM2: number;
+  firstYear: boolean;
   subtotalKurus: number;
   vatKurus: number;
   totalKurus: number;
 }
 
-// The first-year fee of one garden of `areaM2` (§6.6 example: 20 dönüm),
-// computed by the database's own formula (price_preview, callable without a
-// session), so the page never shows a figure the quote would not.
+// The fee of one garden of `areaM2` (§6.6 example: 20 dönüm) in the first
+// year (with the inventory fee) or a later year, computed by the database's
+// own formula (price_preview, callable without a session), so the page never
+// shows a figure the quote would not.
 export async function loadPackageExample(
   supabase: Client,
   packageId: string,
   areaM2: number,
+  firstYear: boolean,
 ): Promise<PackageExample | null> {
   const { data, error } = await supabase.rpc("price_preview", {
     p_package_id: packageId,
     p_areas_m2: [areaM2],
+    p_first_year: firstYear,
   });
   const line = error ? undefined : data?.[0];
   if (!line) return null;
   return {
     areaM2,
+    firstYear,
     subtotalKurus: line.line_subtotal_kurus,
     vatKurus: line.line_vat_kurus,
     totalKurus: line.line_total_kurus,
@@ -78,4 +83,11 @@ export function annualPerDonumKurus(
   pkg: Pick<PublicPackage, "unitPriceKurus" | "periodicVisitsPerYear">,
 ): number {
   return pkg.unitPriceKurus * pkg.periodicVisitsPerYear;
+}
+
+// A list amount (VAT excluded) as the consumer pays it: VAT included, rounded
+// half up to the kuruş like line_vat (§6.6). For display; a quote rounds its
+// VAT once per line.
+export function withVatKurus(kurus: number, vatRateBp: number): number {
+  return kurus + Math.round((kurus * vatRateBp) / 10000);
 }
