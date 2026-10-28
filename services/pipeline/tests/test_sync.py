@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import pytest
 
@@ -5,6 +6,7 @@ from orchados_pipeline.events import GnssEvent
 from orchados_pipeline.models import FileRole, QrObservation
 from orchados_pipeline.params import SyncParams
 from orchados_pipeline.sync import (
+    _detect,
     check_qr_events,
     decode_event_payload,
     decode_qr_payload,
@@ -13,6 +15,7 @@ from orchados_pipeline.sync import (
     fit_clock,
     scan_qr,
 )
+from orchados_pipeline.synthetic import _background, _draw_qr
 from orchados_pipeline.video import layout_parts, probe
 
 
@@ -29,6 +32,18 @@ def test_event_payload_formats():
     assert decode_event_payload("2026-10-18T09:15:04.250Z") == (1476350122250, None)
     assert decode_event_payload("2026-10-18T09:15:04.250") is None  # no time zone
     assert decode_event_payload("start") is None
+
+
+def test_detect_reads_codes_the_classic_detector_misses():
+    # A sharp code whose finder patterns OpenCV's classic QRCodeDetector fails to
+    # locate (whatever the background): the cause of the flaky CI sync failures.
+    detectors = (cv2.QRCodeDetector(), cv2.QRCodeDetectorAruco())
+    for seed in (1, 7, 57793):
+        background = _background(960, 480, seed)
+        for gps_ms in (1476435618200, 1476435618300, 1476435618400):
+            text = encode_qr_payload(gps_ms, "synth-0001")
+            assert _detect(detectors, _draw_qr(background.copy(), text)) == text
+        assert _detect(detectors, background) == ""
 
 
 def _qr_event(gps_ns, payload, line=2):
