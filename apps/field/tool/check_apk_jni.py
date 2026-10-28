@@ -150,6 +150,9 @@ class Dex:
 
 def problems(apk: str, package_config: Path) -> list[str]:
     classes, members = package_lookups(package_config)
+    if not classes:
+        return [f"no JNI lookups found in the packages of {package_config}"]
+    print(f"checking {len(classes)} classes and {len(members)} members looked up through JNI")
     dex = Dex(apk)
     found = [f"class {c} is missing" for c in sorted(classes) if f"L{c};" not in dex.supers]
     found += [
