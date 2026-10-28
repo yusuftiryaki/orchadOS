@@ -291,14 +291,18 @@ insert into public.zone (id, org_id, parcel_id, kind, name, geom, position_uncer
 insert into public.org_billing_setting (
   org_id, accepts_signups, allow_fake_payments, identity_number_required, legal_name, tax_office,
   tax_number, mersis_number, address, phone, email, bank_name, iban, iban_holder, updated_by,
-  garden_changes_enabled
+  garden_changes_enabled, kep_address, site_domain
 ) values (
   'b0000000-0000-4000-8000-000000000001', true, true, false, 'orchadOS Denetim Hizmetleri A.Ş. (örnek)',
   'Şahinbey', '1234567890', '0123456789012345', 'Örnek Mah. Fıstık Cad. No: 1, Şahinbey, Gaziantep',
   '+905550000100', 'destek@example.com', 'Örnek Bankası', 'TR000000000000000000000001',
   'orchadOS Denetim Hizmetleri A.Ş.', 'a0000000-0000-4000-8000-000000000005',
   -- IP14: adding and removing gardens is on locally (off on hosted projects).
-  true
+  true,
+  -- T21: complete company information (footer and legal texts show it). The
+  -- gate is inactive here (allow_fake_payments); marketing_consent_enabled
+  -- stays false (T27).
+  'orchados@hs01.kep.example', 'orchados.example'
 );
 
 -- Launch price list (docs/fiyatlandirma.md, decided 28 October 2026). The

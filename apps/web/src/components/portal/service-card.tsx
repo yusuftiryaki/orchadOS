@@ -11,7 +11,7 @@ import type { CustomerGarden } from "@/lib/billing/types";
 import { formatDate } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
-import type { RemovalPreview } from "@/lib/portal-billing/data";
+import type { RemovalPreview, WithdrawalNotice } from "@/lib/portal-billing/data";
 import { gardenBadge, openRemoval, removalChoices } from "@/lib/portal-billing/gardens";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { REMOVAL_REASONS } from "@/lib/portal-billing/validation";
@@ -30,6 +30,8 @@ export interface ServiceCardData {
   // The order awaiting payment that holds the parcel (parcel_order_pending).
   pendingOrderId: string | null;
   today: string;
+  // The latest withdrawal of the garden (T03): confirmed on the card.
+  withdrawal?: WithdrawalNotice | null;
 }
 
 // "Hizmet" on the parcel page (docs/bahce-yonetimi.md §5.1), for the paying
@@ -70,6 +72,14 @@ export function ServiceCard({
       {withdrawalOpen && garden.state !== "removed" && (
         <p className="muted">{R.withdrawalUntil(formatDate(garden.withdrawal_until!))}</p>
       )}
+      {data.withdrawal && (
+        <p className={styles.notice} data-testid="withdrawal-received">
+          {R.withdrawalReceived(
+            data.withdrawal.number,
+            data.withdrawal.receivedOn ? formatDate(data.withdrawal.receivedOn) : "",
+          )}
+        </p>
+      )}
       <Body data={data} parcelId={parcelId} withdrawalOpen={withdrawalOpen} />
     </section>
   );
@@ -90,41 +100,16 @@ function Body({
   }
   if (openRemoval(garden)) {
     return (
-      <div data-testid="removal-open">
-        <p>
-          <strong>
-            {(garden.removal_initiated_by === "customer" ? R.openTitle : R.openTitleOps)(
-              garden.removal_number ?? "",
-            )}
-          </strong>
-          {" · "}
-          {`${R.status}: ${billingText.gardenRemovalStatus[garden.removal_status!]}`}
-        </p>
-        {garden.removal_effective_on && (
-          <p data-testid="removal-effective">
-            {R.effectiveOn(formatDate(garden.removal_effective_on))}
-          </p>
+      <>
+        <OpenRemoval data={data} parcelId={parcelId} />
+        {/* A withdrawal supersedes an open removal of another kind (T03). */}
+        {withdrawalOpen && data.options.some((o) => o.timing === "withdrawal") && (
+          <RemovalForm data={data} parcelId={parcelId} withdrawalOpen />
         )}
-        {/* Only the customer's own request can be withdrawn; one ops opened
-            (transfer, duplicate, all gardens) is ops' to change (§5.1). */}
-        {garden.removal_initiated_by === "customer" ? (
-          <form action={cancelGardenRemovalAction}>
-            <input type="hidden" name="parcel_id" value={parcelId} />
-            <input type="hidden" name="removal_id" value={garden.removal_id!} />
-            <p className="muted">{R.cancelHint}</p>
-            <button className="button button-secondary" type="submit">
-              {R.cancel}
-            </button>
-          </form>
-        ) : (
-          <p className="muted" data-testid="removal-by-ops">
-            {R.byOps}
-          </p>
-        )}
-      </div>
+      </>
     );
   }
-  if (!data.changesEnabled) {
+  if (!data.changesEnabled && !data.options.some((o) => o.timing === "withdrawal")) {
     return (
       <p className="muted" data-testid="removal-closed">
         {R.closed}
@@ -147,9 +132,64 @@ function Body({
     return <p className="muted">{P.errors[data.previewError]}</p>;
   }
   if (data.options.length === 0) return null;
+  return <RemovalForm data={data} parcelId={parcelId} withdrawalOpen={withdrawalOpen} />;
+}
+
+function OpenRemoval({ data, parcelId }: { data: ServiceCardData; parcelId: string }) {
+  const { garden } = data;
   return (
-    <details className={styles.noPrint} data-testid="removal-form">
-      <summary>{R.formTitle}</summary>
+    <div data-testid="removal-open">
+      <p>
+        <strong>
+          {(garden.removal_initiated_by === "customer" ? R.openTitle : R.openTitleOps)(
+            garden.removal_number ?? "",
+          )}
+        </strong>
+        {" · "}
+        {`${R.status}: ${billingText.gardenRemovalStatus[garden.removal_status!]}`}
+      </p>
+      {garden.removal_effective_on && (
+        <p data-testid="removal-effective">
+          {R.effectiveOn(formatDate(garden.removal_effective_on))}
+        </p>
+      )}
+      {/* Only the customer's own request can be withdrawn; one ops opened
+            (transfer, duplicate, all gardens) is ops' to change (§5.1). */}
+      {garden.removal_initiated_by === "customer" ? (
+        <form action={cancelGardenRemovalAction}>
+          <input type="hidden" name="parcel_id" value={parcelId} />
+          <input type="hidden" name="removal_id" value={garden.removal_id!} />
+          <p className="muted">{R.cancelHint}</p>
+          <button className="button button-secondary" type="submit">
+            {R.cancel}
+          </button>
+        </form>
+      ) : (
+        <p className="muted" data-testid="removal-by-ops">
+          {R.byOps}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RemovalForm({
+  data,
+  parcelId,
+  withdrawalOpen,
+}: {
+  data: ServiceCardData;
+  parcelId: string;
+  withdrawalOpen: boolean;
+}) {
+  const withdrawalOnly = data.options.every((o) => o.timing === "withdrawal");
+  return (
+    <details
+      className={styles.noPrint}
+      data-testid="removal-form"
+      open={withdrawalOnly || undefined}
+    >
+      <summary>{withdrawalOnly ? R.withdrawalFormTitle : R.formTitle}</summary>
       <form action={requestGardenRemovalAction} className={billing.checks}>
         <input type="hidden" name="parcel_id" value={parcelId} />
         <input type="hidden" name="withdrawal_open" value={withdrawalOpen ? "1" : "0"} />
@@ -192,6 +232,12 @@ function Body({
                     {" · "}
                     {R.accessUntil(formatDate(option.accessUntil))}
                   </span>
+                  {/* H11 (c): another timing inside the period is no withdrawal. */}
+                  {withdrawalOpen && option.timing !== "withdrawal" && (
+                    <span className={styles.notice} data-testid="not-withdrawal-warning">
+                      {R.notWithdrawal}
+                    </span>
+                  )}
                 </span>
               </label>
             ),

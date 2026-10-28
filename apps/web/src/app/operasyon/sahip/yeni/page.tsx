@@ -6,6 +6,7 @@ import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 import { opsOrgs } from "@/lib/operations/data";
 import { todayIn } from "@/lib/operations/visits";
+import { getKvkkVersions } from "@/lib/operations/kvkk-versions";
 import { createClient } from "@/lib/supabase/server";
 
 const T = t.operations;
@@ -13,7 +14,10 @@ const T = t.operations;
 export default async function Page() {
   const user = await requireSection("operasyon");
   const supabase = await createClient();
-  const orgs = await opsOrgs(supabase, user.id);
+  const [orgs, kvkkVersions] = await Promise.all([
+    opsOrgs(supabase, user.id),
+    getKvkkVersions(supabase),
+  ]);
 
   return (
     <main className="page">
@@ -25,7 +29,7 @@ export default async function Page() {
         <FormError error={T.errors.no_org} />
       ) : (
         <section className={styles.section}>
-          <OwnerForm orgs={orgs} today={todayIn(new Date())} />
+          <OwnerForm orgs={orgs} today={todayIn(new Date())} kvkkVersions={kvkkVersions} />
         </section>
       )}
     </main>

@@ -199,7 +199,8 @@ begin
   get diagnostics n = row_count;
   table_name := 'public.org'; deleted := n; return next;
   delete from storage.objects
-    where bucket_id in ('media', 'demo-media') and (storage.foldername(name))[2] = p_org_id::text;
+    where (bucket_id in ('media', 'demo-media') and (storage.foldername(name))[2] = p_org_id::text)
+       or (bucket_id = 'contract-documents' and (storage.foldername(name))[1] = p_org_id::text);
   get diagnostics n = row_count;
   table_name := 'storage.objects'; deleted := n; return next;
   set local session_replication_role = origin;
@@ -259,6 +260,12 @@ begin
   delete from private.payment_event where payment_id = any(v_entities) or refund_id = any(v_entities);
   get diagnostics n = row_count;
   if n > 0 then table_name := 'private.payment_event'; deleted := n; return next; end if;
+  -- Contract PDFs of their orders (T04; the immutability trigger is off here).
+  delete from storage.objects
+    where bucket_id = 'contract-documents' and (storage.foldername(name))[2] = any(
+      select id::text from public.service_order where customer_user_id = any(p_user_ids));
+  get diagnostics n = row_count;
+  if n > 0 then table_name := 'storage.objects'; deleted := n; return next; end if;
   delete from public.audit_event where actor_user_id = any(p_user_ids) or entity_id = any(v_entities);
   get diagnostics n = row_count;
   if n > 0 then table_name := 'public.audit_event'; deleted := n; return next; end if;
@@ -353,11 +360,24 @@ begin
 end;
 $$;
 
+-- Legal-text registry (T21): a test makes a version current (a "launch") and
+-- puts the draft back afterwards; migrations do this on real projects.
+create or replace function testing.register_legal_text(p_kind text, p_version text, p_sha256 text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.register_legal_text(p_kind, p_version, p_sha256);
+end;
+$$;
+
 revoke all on all functions in schema testing from public;
 grant execute on function
   testing.purge_sessions(uuid[]), testing.purge_parcels(uuid[]), testing.purge_org(uuid),
   testing.purge_viewer_invitations(text[]), testing.purge_billing_users(uuid[]),
   testing.purge_signup_attempts(), testing.age_signups(uuid[], integer),
   testing.selectable_columns(text, text[]), testing.run_garden_removal_housekeeping(),
-  testing.set_order_period(uuid, date, date)
+  testing.set_order_period(uuid, date, date), testing.register_legal_text(text, text, text)
   to service_role;

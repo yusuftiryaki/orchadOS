@@ -1,17 +1,19 @@
 import { BILLING_COLUMNS } from "@/lib/billing/columns";
-import type {
-  ApplicationGarden,
-  CustomerGarden,
-  ParcelServiceStatus,
-  Payment,
-  PaymentItem,
-  Quote,
-  QuoteItem,
-  Refund,
-  ServiceApplication,
-  ServiceOrder,
-  ServiceOrderItem,
-  ServicePeriod,
+import {
+  LEGAL_GATE_REASONS,
+  type ApplicationGarden,
+  type CustomerGarden,
+  type LegalGateReason,
+  type ParcelServiceStatus,
+  type Payment,
+  type PaymentItem,
+  type Quote,
+  type QuoteItem,
+  type Refund,
+  type ServiceApplication,
+  type ServiceOrder,
+  type ServiceOrderItem,
+  type ServicePeriod,
 } from "@/lib/billing/types";
 import { billingReasonOf, type BillingError } from "@/lib/billing/errors";
 import type { Position } from "@/lib/map/geo";
@@ -771,6 +773,28 @@ export function hasKvkkNotice(consents: Map<string, ConsentView>): boolean {
   return consents.get("kvkk_notice")?.granted === true;
 }
 
+// The production gate of the quote's org for the caller (legal_gate_status,
+// T21). null when it cannot be read (the function is not deployed yet, or an
+// error): the page then shows nothing and customer_accept_quote decides.
+export async function getLegalGate(
+  supabase: Client,
+  orgId: string,
+): Promise<{ active: boolean; reasons: LegalGateReason[] } | null> {
+  try {
+    const { data, error } = await supabase.rpc("legal_gate_status", { p_org_id: orgId });
+    const row = Array.isArray(data) ? data[0] : null;
+    if (error || !row) return null;
+    return {
+      active: row.active === true,
+      reasons: (row.reasons ?? []).filter((r): r is LegalGateReason =>
+        (LEGAL_GATE_REASONS as readonly string[]).includes(r),
+      ),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export interface ContactView {
   fullName: string;
   phone: string | null;
@@ -860,4 +884,37 @@ export function liveCardAttempt<
       return p.status === "initiated" && Date.parse(p.initiated_at) > now - 15 * 60_000;
     }) ?? null
   );
+}
+
+// The latest withdrawal of the customer's garden (T03): its number, how and
+// when the notice arrived; the service card confirms it (H11 (c)).
+export interface WithdrawalNotice {
+  number: string;
+  status: string;
+  channel: string | null;
+  receivedOn: string | null;
+}
+
+export async function latestWithdrawal(
+  supabase: Client,
+  userId: string,
+  parcelId: string,
+): Promise<WithdrawalNotice | null> {
+  const { data } = await supabase
+    .from("garden_removal")
+    .select("number, status, notice_channel, notice_received_on, requested_at")
+    .eq("parcel_id", parcelId)
+    .eq("customer_user_id", userId)
+    .eq("withdrawal", true)
+    .neq("status", "cancelled")
+    .order("requested_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    number: data.number,
+    status: data.status,
+    channel: data.notice_channel,
+    receivedOn: data.notice_received_on,
+  };
 }

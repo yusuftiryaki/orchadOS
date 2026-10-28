@@ -24,7 +24,8 @@ select enum_has_labels('public', 'garden_removal_status',
 select enum_has_labels('public', 'garden_removal_reason',
   array['sold', 'not_needed', 'dissatisfied', 'cost', 'transfer', 'duplicate', 'other'], 'garden removal reasons (IP14)');
 select enum_has_labels('public', 'consent_kind',
-  array['kvkk_notice', 'explicit_service_improvement', 'explicit_marketing', 'distance_sales', 'pre_information'],
+  array['kvkk_notice', 'explicit_service_improvement', 'explicit_marketing', 'distance_sales', 'pre_information',
+        'early_performance'],
   'consent kinds');
 
 select ok(private.is_valid_tckn('10000000146'), 'a valid TCKN passes');

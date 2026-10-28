@@ -29,6 +29,7 @@ import {
   publishPriceList,
   recordManualPayment,
   rejectApplication,
+  recordWithdrawal,
   requestGardenRemoval,
   requestRefund,
   resolvePaymentReview,
@@ -61,6 +62,7 @@ import {
   parseRefund,
   parseReject,
   parseRemovalRequest,
+  parseWithdrawalRecord,
   parseRemovalSchedule,
   parseResolution,
   parseSettings,
@@ -328,6 +330,24 @@ export async function requestRemovalAction(
   if ("state" in parsed) return parsed.state;
   return then(requestGardenRemoval(supabase, itemId, parsed.value), (removalId) =>
     boHref.removal(removalId, { notice: "removal_requested" }),
+  );
+}
+
+// "Cayma bildirimi kaydet" on an order (T03): a withdrawal received by
+// e-mail, KEP or post for the ticked lines, by the day it arrived.
+export async function recordWithdrawalAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const orderId = idOf(read, "order_id");
+  if (!orderId) return notFound;
+  const items = form.getAll("order_item_ids").map(String);
+  const parsed = parsedOr(parseWithdrawalRecord(read, items, todayIn(new Date())));
+  if ("state" in parsed) return parsed.state;
+  return then(recordWithdrawal(supabase, parsed.value), () =>
+    boHref.order(orderId, { notice: "withdrawal_recorded" }),
   );
 }
 

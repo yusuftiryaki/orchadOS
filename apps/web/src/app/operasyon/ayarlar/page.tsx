@@ -6,6 +6,7 @@ import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { chooseOrg, getSetting } from "@/lib/back-office/data";
+import { completeCompany } from "@/lib/legal/company-placeholders";
 import { boHref, firstParam } from "@/lib/back-office/urls";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { opsOrgs } from "@/lib/operations/data";
@@ -17,7 +18,8 @@ const F = B.fields;
 
 // Billing settings of the org (ops_billing_setting / ops_save_billing_setting):
 // the sign-up switch, seller and bank details, TCKN requirement, durations.
-// allow_fake_payments is shown, never sent: only SQL sets it.
+// allow_fake_payments, marketing_consent_enabled (T27) and
+// inventory_reuse_months (T18) are shown, never sent: only SQL sets them.
 export default async function Page({
   searchParams,
 }: {
@@ -57,6 +59,13 @@ export default async function Page({
               {T.identityRequired}
             </label>
             <p className={styles.hint}>{T.identityRequiredHint}</p>
+            <p data-testid="marketing-consent">
+              {T.marketingConsent}:{" "}
+              <strong>
+                {s.marketing_consent_enabled ? T.marketingConsentOn : T.marketingConsentOff}
+              </strong>{" "}
+              <span className="muted">{T.marketingConsentHint}</span>
+            </p>
             <p data-testid="fake-payments">
               {T.fakePayments}:{" "}
               <strong>{s.allow_fake_payments ? T.fakePaymentsOn : T.fakePaymentsOff}</strong>{" "}
@@ -66,6 +75,18 @@ export default async function Page({
 
           <fieldset className={styles.fieldset}>
             <legend>{T.seller}</legend>
+            <p className={styles.hint}>{T.sellerHint}</p>
+            <p data-testid="company-complete">
+              <strong>
+                {completeCompany({
+                  ...s,
+                  kvkk_email: s.kvkk_email ?? (s.site_domain ? `kvkk@${s.site_domain}` : null),
+                  complete: true,
+                })
+                  ? T.companyComplete
+                  : T.companyIncomplete}
+              </strong>
+            </p>
             <div className={styles.grid}>
               <Field label={F.legal_name} optional>
                 <input name="legal_name" defaultValue={s.legal_name ?? ""} maxLength={200} />
@@ -94,6 +115,25 @@ export default async function Page({
               </Field>
               <Field label={F.email} optional>
                 <input name="email" type="email" defaultValue={s.email ?? ""} maxLength={254} />
+              </Field>
+              <Field label={F.kep_address} optional>
+                <input
+                  name="kep_address"
+                  type="email"
+                  defaultValue={s.kep_address ?? ""}
+                  maxLength={254}
+                />
+              </Field>
+              <Field label={F.site_domain} hint={T.siteDomainHint} optional>
+                <input name="site_domain" defaultValue={s.site_domain ?? ""} maxLength={253} />
+              </Field>
+              <Field label={F.kvkk_email} hint={T.kvkkEmailHint} optional>
+                <input
+                  name="kvkk_email"
+                  type="email"
+                  defaultValue={s.kvkk_email ?? ""}
+                  maxLength={254}
+                />
               </Field>
               <Field label={F.address} optional wide>
                 <textarea name="address" defaultValue={s.address ?? ""} maxLength={500} rows={2} />
@@ -162,6 +202,10 @@ export default async function Page({
               {T.gardenChangesEnabled}
             </label>
             <Warning>{T.gardenChangesWarning}</Warning>
+            <p data-testid="inventory-reuse">
+              {T.inventoryReuse}: <strong>{T.inventoryReuseValue(s.inventory_reuse_months)}</strong>{" "}
+              <span className="muted">{T.inventoryReuseHint}</span>
+            </p>
             <div className={styles.grid}>
               <Field label={F.addon_min_days} hint={T.addonMinDaysHint}>
                 <input

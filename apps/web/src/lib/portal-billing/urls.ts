@@ -1,5 +1,5 @@
 import { safeNextPath } from "@/app/giris/login-methods";
-import { BILLING_ERRORS, type BillingError } from "@/lib/billing/errors";
+import { BILLING_ERRORS, billingReasonOf, type BillingError } from "@/lib/billing/errors";
 
 // Addresses of the customer portal (docs/musteri-yonetimi.md §10) and the
 // result a redirect after a save puts into the URL (`?bilgi=` / `?hata=`).
@@ -54,6 +54,14 @@ export type PortalError =
   | "consent_unavailable";
 
 type Result = { bilgi?: PortalNotice; hata?: PortalError; eksik?: string };
+
+// A database error as the portal shows it: a consent the database refuses
+// because it is not asked (consent_not_asked, T27) reads like the portal's
+// own refusal.
+export function portalErrorOf(error: { code?: string; message?: string } | null): PortalError {
+  const reason = billingReasonOf(error);
+  return reason === "consent_not_asked" ? "consent_unavailable" : reason;
+}
 
 // What customer_submit_application found missing (its error detail).
 export const INCOMPLETE_FIELDS = ["package_id", "gardens", "authorization_basis"] as const;

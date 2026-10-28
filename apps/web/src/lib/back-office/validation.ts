@@ -1,3 +1,4 @@
+import { isUuid } from "@/lib/supabase/query";
 import { parseTlToKurus } from "@/lib/billing/money";
 
 // Pure parsers of the back office forms (docs/musteri-yonetimi.md §11): what
@@ -317,6 +318,26 @@ export function parseNote(read: Reader, required: boolean): Parsed<string | null
 export interface AddonQuoteInput extends QuoteTermsInput {
   // The parcel path (§4.3); null on the application path.
   parcelIds: string[] | null;
+  // T18 (contract 8D/3): parcels ops marks as needing a new inventory, with
+  // the reason (p_new_inventory); null when none is marked.
+  newInventory?: Record<string, string> | null;
+}
+
+// "Yeni envanter gerekli" marks of the parcel path: new_inventory_<parcel id>
+// with a reason of at most 300 characters; null when none is marked.
+export function parseNewInventory(
+  read: Reader,
+  parcelIds: readonly string[],
+  prefix = "new_inventory_",
+): Parsed<Record<string, string> | null> {
+  const marks: Record<string, string> = {};
+  for (const id of parcelIds) {
+    const reason = read(`${prefix}${id}`).trim();
+    if (!reason) continue;
+    if (reason.length > 300) return bad(`${prefix}${id}`);
+    marks[id] = reason;
+  }
+  return ok(Object.keys(marks).length > 0 ? marks : null);
 }
 
 // An add-on quote: the common terms and, for existing parcels, 1–50 distinct
@@ -333,7 +354,9 @@ export function parseAddonQuote(
     ...new Set(form.getAll("parcel_ids").filter((v): v is string => typeof v === "string")),
   ];
   if (parcelIds.length === 0 || parcelIds.length > 50) return bad("parcel_ids");
-  return ok({ ...terms.value, parcelIds });
+  const newInventory = parseNewInventory(read, parcelIds);
+  if (!newInventory.ok) return newInventory;
+  return ok({ ...terms.value, parcelIds, newInventory: newInventory.value });
 }
 
 // Every reason of garden_removal_reason; transfer and duplicate are ops'.
@@ -394,6 +417,33 @@ export interface RemovalRequestInput {
   accessDays: number | null;
   revokeAllAccess: boolean;
   note: string | null;
+}
+
+// A withdrawal received by e-mail, KEP or post (ops_record_withdrawal, T03;
+// docs/hukuk/kararlar.md H11 (c)): the lines it names, the day it arrived (not
+// in the future; the database judges the period by it), the channel and an
+// internal note.
+export interface WithdrawalRecordInput {
+  orderItemIds: string[];
+  noticeReceivedOn: string;
+  channel: "email" | "kep" | "post";
+  note: string | null;
+}
+
+export function parseWithdrawalRecord(
+  read: Reader,
+  itemIds: string[],
+  today: string,
+): Parsed<WithdrawalRecordInput> {
+  const ids = [...new Set(itemIds.filter((id) => isUuid(id)))];
+  if (ids.length === 0 || ids.length > 50) return bad("order_item_ids");
+  const channel = read("channel");
+  if (channel !== "email" && channel !== "kep" && channel !== "post") return bad("channel");
+  const received = parseIsoDate(read("notice_received_on"));
+  if (!received || received > today) return bad("notice_received_on");
+  const note = parseNote(read, false);
+  if (!note.ok) return note;
+  return ok({ orderItemIds: ids, noticeReceivedOn: received, channel, note: note.value });
 }
 
 // "Bahçeyi çıkar" (ops_request_garden_removal).
@@ -609,6 +659,20 @@ export function parseSettings(
   const email = read("email").toLowerCase();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad("email");
   settings.email = email || null;
+  // T21: KEP, KVKK e-mail and the site's host name.
+  for (const key of ["kep_address", "kvkk_email"] as const) {
+    const value = read(key).trim().toLowerCase();
+    if (value && (value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))) return bad(key);
+    settings[key] = value || null;
+  }
+  const domain = read("site_domain").trim().toLowerCase();
+  if (
+    domain &&
+    (domain.length > 253 || !/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain))
+  ) {
+    return bad("site_domain");
+  }
+  settings.site_domain = domain || null;
   const iban = normalizeIban(read("iban"));
   if (iban) {
     const issue = ibanIssue(iban);
