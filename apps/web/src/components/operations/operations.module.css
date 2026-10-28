@@ -292,8 +292,44 @@
   cursor: crosshair;
 }
 
-.drawMapPoint :global(.maplibregl-canvas) {
+.drawMap[data-mode="position"] :global(.maplibregl-canvas) {
   cursor: cell;
+}
+
+/* Keyboard drawing: a cross at the centre, where Enter puts the point. */
+.drawMap:focus-within::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  pointer-events: none;
+  background:
+    linear-gradient(
+        var(--map-focus, var(--color-focus, #4c8f3f)),
+        var(--map-focus, var(--color-focus, #4c8f3f))
+      )
+      center / 2px 100% no-repeat,
+    linear-gradient(
+        var(--map-focus, var(--color-focus, #4c8f3f)),
+        var(--map-focus, var(--color-focus, #4c8f3f))
+      )
+      center / 100% 2px no-repeat;
+}
+
+.drawKeys {
+  margin: var(--space-1, 4px) 0 0;
+  font-size: 0.85rem;
+}
+
+.vertexBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  margin-top: var(--space-2, 8px);
 }
 
 .secret {

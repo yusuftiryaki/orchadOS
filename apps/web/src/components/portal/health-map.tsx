@@ -196,6 +196,8 @@ export function HealthMap({
           label={t.portal.map.label}
           cells={cells}
           coverage={coverageLayer}
+          // "Changed only" may leave nothing to draw; that is not an empty parcel.
+          emptyText={slots.features.length === 0 ? t.map.noTrees : null}
         />
         <div className={styles.mapControls} data-testid="map-controls">
           {visits.length > 0 && (
