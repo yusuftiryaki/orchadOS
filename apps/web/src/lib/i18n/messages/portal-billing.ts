@@ -431,6 +431,25 @@ export const portalBillingText = {
     addonVisitsHint:
       "Ziyaret hakkı, üyeliğinizin kalan süresine göre yıllık ziyaret sayısından orantılanır.",
     inventoryIncluded: "envanter dahil",
+    // T21: the production gate (legal_gate_status) and the KVKK notice that
+    // must be a registered final version.
+    gateTitle: "Teklif şu anda onaylanamıyor",
+    gateReason: {
+      distance_sales_draft: "Mesafeli Hizmet Sözleşmesi henüz son hâlinde değil.",
+      pre_information_draft: "Ön Bilgilendirme Formu henüz son hâlinde değil.",
+      kvkk_notice_not_final:
+        "Aydınlatma metninin güncel sürümünü okuduğunuza dair kaydınız yok. Aşağıdan metni okuyup kaydedin.",
+      company_info_incomplete: "Şirket bilgileri henüz tamamlanmadı.",
+    },
+    gateHint: "Lütfen daha sonra yeniden deneyin; teklifiniz geçerlilik süresi boyunca açık kalır.",
+    kvkkCurrentBody:
+      "Aydınlatma metni güncellendi. Teklifi kabul etmeden önce güncel metni okuyup kaydedin.",
+    // T03 (H11 (a)): the optional early-performance box.
+    earlyPerformanceTitle: "Hizmetin başlangıcı (isteğe bağlı)",
+    earlyPerformanceHint:
+      "Bu kutu isteğe bağlıdır; işaretlemeseniz de teklifi kabul edebilirsiniz.",
+    // T18 (H19): the add-on breakdown.
+    breakdownLine: (garden: string) => `${garden}`,
   },
 
   orders: {

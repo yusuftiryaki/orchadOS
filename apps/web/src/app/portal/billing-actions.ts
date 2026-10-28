@@ -24,7 +24,12 @@ import {
   liveCardAttempt,
 } from "@/lib/portal-billing/data";
 import { paymentStartError, returnOriginOf, clientIpOf } from "@/lib/portal-billing/payments";
-import { portalHref, safeBackPath, type PortalError } from "@/lib/portal-billing/urls";
+import {
+  portalErrorOf,
+  portalHref,
+  safeBackPath,
+  type PortalError,
+} from "@/lib/portal-billing/urls";
 import {
   parseBillingProfileForm,
   parseContactForm,
@@ -270,47 +275,9 @@ export async function acknowledgeKvkkAction(form: FormData) {
     p_granted: true,
     p_text_version: LEGAL_TEXT_VERSIONS.kvkk_notice,
   });
-  if (error) redirect(go({ hata: billingReasonOf(error) }));
+  if (error) redirect(go({ hata: portalErrorOf(error) }));
   revalidatePath(back);
   redirect(go({ bilgi: "aydinlatma_kaydedildi" }));
-}
-
-export async function acceptQuoteAction(form: FormData) {
-  const supabase = await context();
-  const read = formReader(form);
-  const quoteId = idOf(form, "quote_id");
-  if (!quoteId) redirect(portalHref.home({ hata: "not_found" }));
-  if (read("distance_sales") !== "on" || read("pre_information") !== "on") {
-    redirect(portalHref.quote(quoteId, { hata: "onay_eksik" }));
-  }
-  const { data, error } = await supabase.rpc("customer_accept_quote", {
-    p_quote_id: quoteId,
-    p_consents: {
-      distance_sales: LEGAL_TEXT_VERSIONS.distance_sales,
-      pre_information: LEGAL_TEXT_VERSIONS.pre_information,
-    },
-  });
-  if (error || !data) redirect(portalHref.quote(quoteId, { hata: billingReasonOf(error) }));
-  revalidatePath("/portal", "layout");
-  redirect(portalHref.order(data, { bilgi: "teklif_kabul_edildi" }));
-}
-
-export async function declineQuoteAction(form: FormData) {
-  const supabase = await context();
-  const read = formReader(form);
-  const quoteId = idOf(form, "quote_id");
-  if (!quoteId) redirect(portalHref.home({ hata: "not_found" }));
-  const revision = read("intent") === "revise";
-  const note = parseNote(read("note"));
-  if (note === "too_long") redirect(portalHref.quote(quoteId, { hata: "invalid_input" }));
-  const { error } = await supabase.rpc("customer_decline_quote", {
-    p_quote_id: quoteId,
-    p_request_revision: revision,
-    ...(note ? { p_note: note } : {}),
-  });
-  if (error) redirect(portalHref.quote(quoteId, { hata: billingReasonOf(error) }));
-  revalidatePath("/portal", "layout");
-  redirect(portalHref.quote(quoteId, { bilgi: revision ? "revize_istendi" : "teklif_reddedildi" }));
 }
 
 // ---------------------------------------------------------------------------
@@ -448,7 +415,8 @@ export async function setConsentAction(form: FormData) {
     p_granted: granted,
     p_text_version: LEGAL_TEXT_VERSIONS.explicit_consent,
   });
-  if (error) redirect(portalHref.consents({ hata: billingReasonOf(error) }));
+  // The database refuses an unasked consent too (consent_not_asked, T27).
+  if (error) redirect(portalHref.consents({ hata: portalErrorOf(error) }));
   revalidatePath(portalHref.consents());
   redirect(portalHref.consents({ bilgi: "izin_kaydedildi" }));
 }

@@ -1,17 +1,19 @@
 import { BILLING_COLUMNS } from "@/lib/billing/columns";
-import type {
-  ApplicationGarden,
-  CustomerGarden,
-  ParcelServiceStatus,
-  Payment,
-  PaymentItem,
-  Quote,
-  QuoteItem,
-  Refund,
-  ServiceApplication,
-  ServiceOrder,
-  ServiceOrderItem,
-  ServicePeriod,
+import {
+  LEGAL_GATE_REASONS,
+  type ApplicationGarden,
+  type CustomerGarden,
+  type LegalGateReason,
+  type ParcelServiceStatus,
+  type Payment,
+  type PaymentItem,
+  type Quote,
+  type QuoteItem,
+  type Refund,
+  type ServiceApplication,
+  type ServiceOrder,
+  type ServiceOrderItem,
+  type ServicePeriod,
 } from "@/lib/billing/types";
 import { billingReasonOf, type BillingError } from "@/lib/billing/errors";
 import type { Position } from "@/lib/map/geo";
@@ -769,6 +771,28 @@ export function latestConsents(
 
 export function hasKvkkNotice(consents: Map<string, ConsentView>): boolean {
   return consents.get("kvkk_notice")?.granted === true;
+}
+
+// The production gate of the quote's org for the caller (legal_gate_status,
+// T21). null when it cannot be read (the function is not deployed yet, or an
+// error): the page then shows nothing and customer_accept_quote decides.
+export async function getLegalGate(
+  supabase: Client,
+  orgId: string,
+): Promise<{ active: boolean; reasons: LegalGateReason[] } | null> {
+  try {
+    const { data, error } = await supabase.rpc("legal_gate_status", { p_org_id: orgId });
+    const row = Array.isArray(data) ? data[0] : null;
+    if (error || !row) return null;
+    return {
+      active: row.active === true,
+      reasons: (row.reasons ?? []).filter((r): r is LegalGateReason =>
+        (LEGAL_GATE_REASONS as readonly string[]).includes(r),
+      ),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export interface ContactView {

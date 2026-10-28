@@ -19,8 +19,16 @@ export const siteText = {
   },
   footer: {
     legalLabel: "Hukuki metinler",
+    // Placeholders until the company information is complete (T21; filled
+    // from public_company_info()).
     company: "[Şirket unvanı] · [Adres] · [MERSİS no]",
     contactLine: "[E-posta] · [Telefon]",
+    companyFilled: (c: { legal_name: string; address: string; mersis_number: string }) =>
+      `${c.legal_name} · ${c.address} · MERSİS: ${c.mersis_number}`,
+    taxLine: (c: { tax_office: string; tax_number: string }) =>
+      `Vergi dairesi / no: ${c.tax_office} / ${c.tax_number}`,
+    contactFilled: (c: { email: string; phone: string; kep_address: string; site_domain: string }) =>
+      `${c.email} · ${c.phone} · KEP: ${c.kep_address} · ${c.site_domain}`,
     legal: {
       kvkk: "KVKK aydınlatma metni",
       explicitConsent: "Açık rıza metni",

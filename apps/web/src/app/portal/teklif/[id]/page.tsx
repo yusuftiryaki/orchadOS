@@ -1,21 +1,26 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  acceptQuoteAction,
-  acknowledgeKvkkAction,
-  declineQuoteAction,
-} from "@/app/portal/billing-actions";
+import { acknowledgeKvkkAction } from "@/app/portal/billing-actions";
+import { acceptQuoteAction, declineQuoteAction } from "./actions";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import local from "@/components/portal-billing/portal-billing.module.css";
 import ops from "@/components/operations/operations.module.css";
 import styles from "@/components/portal/portal.module.css";
 import { requireSection } from "@/lib/auth/session";
+import { addonBreakdownOf, breakdownRows, windowsText } from "@/lib/billing/addon-breakdown";
 import { formatDonum, formatKurus } from "@/lib/billing/money";
 import { formatDate } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
+import { EARLY_PERFORMANCE_TEXT } from "@/lib/legal/early-performance";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
-import { getBillingProfile, getConsents, getQuote, hasKvkkNotice } from "@/lib/portal-billing/data";
+import {
+  getBillingProfile,
+  getConsents,
+  getLegalGate,
+  getQuote,
+  hasKvkkNotice,
+} from "@/lib/portal-billing/data";
 import { addonInputsOf, quoteServiceEnd } from "@/lib/portal-billing/gardens";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
@@ -24,9 +29,11 @@ import { createClient } from "@/lib/supabase/server";
 const Q = P.quote;
 const percent = (bp: number) => String(bp / 100).replace(".", ",");
 
-// A quote: lines, discount, VAT and total, then the three conditions of the
-// acceptance (§4.6): a complete billing profile, the KVKK notice and the two
-// contract texts.
+// A quote: lines, discount, VAT and total (an add-on with its H19 breakdown),
+// then the conditions of the acceptance (§4.6): a complete billing profile,
+// the KVKK notice, the two contract texts, the optional early-performance box
+// (T03) and, where the production gate is active, final texts and company
+// information (T21; legal_gate_status, unknown when it cannot be read).
 export default async function QuotePage({
   params,
   searchParams,
@@ -47,8 +54,16 @@ export default async function QuotePage({
   const here = portalHref.quote(quote.id);
   // customer_accept_quote checks the notice in the quote's org; the portal can
   // record it only in the customer's org (customer_set_consent).
-  const kvkk = hasKvkkNotice(await getConsents(supabase, quote.org_id));
+  const [consents, gate] = await Promise.all([
+    getConsents(supabase, quote.org_id),
+    open ? getLegalGate(supabase, quote.org_id) : Promise.resolve(null),
+  ]);
+  const kvkk = hasKvkkNotice(consents);
   const kvkkRecordable = profile?.orgId === quote.org_id;
+  const gateReasons = gate?.active ? gate.reasons : [];
+  // The notice is on record but not a registered final version (T21).
+  const kvkkOutdated = kvkk && gateReasons.includes("kvkk_notice_not_final");
+  const breakdown = addonBreakdownOf(quote.inputs);
   const currency = quote.currency;
   // IP14 (docs/bahce-yonetimi.md §11): every quote says when the service
   // ends; an add-on quote ends with the membership and prorates the visits.
@@ -173,6 +188,34 @@ export default async function QuotePage({
           </dd>
         </dl>
         {addon && <p className="muted">{Q.addonVisitsHint}</p>}
+        {breakdown && (
+          <div data-testid="quote-breakdown">
+            <h3>{billingText.addonBreakdown.title}</h3>
+            {breakdown.lines.map((line) => (
+              <div key={line.lineNo}>
+                <h4>{Q.breakdownLine(line.gardenName)}</h4>
+                <dl className={ops.dl}>
+                  {breakdownRows(breakdown, line, currency).map((row) => (
+                    <div key={row.label}>
+                      <dt>{row.label}</dt>
+                      <dd>{row.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ))}
+            <dl className={ops.dl}>
+              <dt>{billingText.addonBreakdown.priceList}</dt>
+              <dd>{breakdown.priceListName}</dd>
+              <dt>{billingText.addonBreakdown.windows}</dt>
+              <dd data-testid="quote-windows">{windowsText(breakdown)}</dd>
+            </dl>
+            <p className="muted">{billingText.addonBreakdown.roundingExample}</p>
+            <p>
+              <strong>{billingText.addonBreakdown.binding}</strong>
+            </p>
+          </div>
+        )}
         {quote.discount_note && (
           <p>
             <strong>{Q.discountNote}:</strong> {quote.discount_note}
@@ -203,18 +246,32 @@ export default async function QuotePage({
             )}
           </section>
 
-          {!kvkk && !kvkkRecordable && (
+          {gateReasons.length > 0 && (
+            <section className={styles.section} data-testid="quote-gate">
+              <h2>{Q.gateTitle}</h2>
+              <ul className={ops.notice}>
+                {gateReasons.map((reason) => (
+                  <li key={reason} data-reason={reason}>
+                    {Q.gateReason[reason]}
+                  </li>
+                ))}
+              </ul>
+              <p className="muted">{Q.gateHint}</p>
+            </section>
+          )}
+
+          {(!kvkk || kvkkOutdated) && !kvkkRecordable && (
             <section className={styles.section} data-testid="quote-kvkk">
               <h2>{Q.kvkkTitle}</h2>
               <p className={ops.notice}>{Q.kvkkOtherOrg}</p>
             </section>
           )}
 
-          {!kvkk && kvkkRecordable && (
+          {(!kvkk || kvkkOutdated) && kvkkRecordable && (
             <section className={styles.section} data-testid="quote-kvkk">
               <h2>{Q.kvkkTitle}</h2>
               <p>
-                {Q.kvkkBody}{" "}
+                {kvkkOutdated ? Q.kvkkCurrentBody : Q.kvkkBody}{" "}
                 <Link href="/kvkk" target="_blank">
                   {Q.kvkkLink}
                 </Link>
@@ -261,8 +318,23 @@ export default async function QuotePage({
                   <span className="muted">({Q.version(LEGAL_TEXT_VERSIONS.distance_sales)})</span>
                 </span>
               </label>
+              <fieldset className={local.checks} data-testid="quote-early-performance">
+                <legend>{Q.earlyPerformanceTitle}</legend>
+                <label>
+                  <input type="checkbox" name="early_performance" />
+                  <span>
+                    {EARLY_PERFORMANCE_TEXT}{" "}
+                    <span className="muted">({Q.version(LEGAL_TEXT_VERSIONS.distance_sales)})</span>
+                  </span>
+                </label>
+                <p className="muted">{Q.earlyPerformanceHint}</p>
+              </fieldset>
               <p>
-                <button className="button" type="submit" disabled={!profile?.complete || !kvkk}>
+                <button
+                  className="button"
+                  type="submit"
+                  disabled={!profile?.complete || !kvkk || gateReasons.length > 0}
+                >
                   {Q.accept}
                 </button>
               </p>

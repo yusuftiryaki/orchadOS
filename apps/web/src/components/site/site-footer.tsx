@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LogoMark } from "@/components/brand/logo";
 import { t } from "@/lib/i18n";
 import { siteText } from "@/lib/i18n/messages/site";
+import { completeCompany, type CompanyFields } from "@/lib/legal/company-placeholders";
 import { SITE_NAV } from "./site-header";
 import styles from "./site.module.css";
 
@@ -15,8 +16,11 @@ export const LEGAL_LINKS = [
   { href: "/bahcede-bulunanlar", label: siteText.footer.legal.fieldNotice },
 ] as const;
 
-export function SiteFooter() {
+// The seller's company information (H34) when complete; the placeholder
+// lines otherwise (also when public_company_info is not deployed yet).
+export function SiteFooter({ company }: { company?: CompanyFields | null }) {
   const f = siteText.footer;
+  const c = completeCompany(company);
   return (
     <footer className={styles.footer}>
       <div className={styles.footerInner}>
@@ -26,8 +30,18 @@ export function SiteFooter() {
             <span>{t.app.name}</span>
           </div>
           <p className="muted">{t.app.tagline}</p>
-          <p className={styles.footerSmall}>{f.company}</p>
-          <p className={styles.footerSmall}>{f.contactLine}</p>
+          {c ? (
+            <div data-testid="footer-company">
+              <p className={styles.footerSmall}>{f.companyFilled(c)}</p>
+              <p className={styles.footerSmall}>{f.taxLine(c)}</p>
+              <p className={styles.footerSmall}>{f.contactFilled(c)}</p>
+            </div>
+          ) : (
+            <>
+              <p className={styles.footerSmall}>{f.company}</p>
+              <p className={styles.footerSmall}>{f.contactLine}</p>
+            </>
+          )}
         </div>
         <nav aria-label={siteText.nav.label} className={styles.footerLinks}>
           {SITE_NAV.map((item) => (

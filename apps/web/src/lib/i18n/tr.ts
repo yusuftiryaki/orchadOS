@@ -1744,6 +1744,9 @@ export const tr = {
       garden_removal_cancelled: "Bahçe çıkarma iptal edildi",
       garden_removal_completed: "Bahçe hizmetten çıkarıldı",
       garden_access_ending: "Rapor erişimi bitiyor",
+      withdrawal_received: "Cayma bildirimi alındı",
+      contract_ready: "Sözleşme belgeleri hazır",
+      addon_order_closed: "Ek sipariş iptal edildi",
     } as Record<string, string>,
     channel: {
       sms: "SMS",

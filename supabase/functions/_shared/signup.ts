@@ -99,11 +99,15 @@ export function parseRegister(body: unknown): Parsed<RegisterInput> {
       email,
       password,
       contactPreference,
+      // Neither explicit consent is asked at sign-up (docs/hukuk/kararlar.md
+      // H06, H31, T27): both are stored as false whatever the request says,
+      // so an old client keeps working and a direct POST grants nothing.
+      // signup_complete applies the same rule in the database.
       consents: {
         kvkk_notice_version: kvkk,
         explicit_text_version: explicit,
-        explicit_service_improvement: consents.explicit_service_improvement,
-        explicit_marketing: consents.explicit_marketing,
+        explicit_service_improvement: false,
+        explicit_marketing: false,
       },
       clientIp,
       captchaToken,
