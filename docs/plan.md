@@ -47,6 +47,7 @@ gantt
     section Müşteri
     İP12 Müşteri edinme ve ödeme       :ip12, 2026-10-28, 2026-11-20
     İP13 Demo turu                     :ip13, 2026-10-28, 2026-11-07
+    İP14 Bahçe yönetimi                :ip14, 2026-10-28, 2026-11-09
 ```
 
 **Kritik yol:** Kit parçalarının teslim süresi → teknik denemeler → işleme hattı → pilot envanterleri → kış denetimi. Kit siparişi gecikirse her şey kayar; bu yüzden ilk hafta verilmeli.
@@ -69,6 +70,7 @@ gantt
 | İP11 | İşleme istasyonu | P0 | 1 gün | Pilotta bulutta (karar 22 Ekim): ham video ofisten buluttaki depoya yüklenir, GPU'lu sanal makine iş başına açılıp kapanır; işleme hattı orada çalışıyor |
 | İP12 | Müşteri edinme ve yönetimi | P1 | 12 gün | Site, self-servis kayıt (SMS doğrulaması, rızalar), başvuru, teklif, kartla (iyzico) ve havaleyle ödeme, makbuz, iade, back office; bayraklar kapalıyken birleşir. Tasarım: `docs/musteri-yonetimi.md` |
 | İP13 | Demo turu | P1 | ~7 gün | Bahçe sahibi adayı hesap açmadan ve ödemeden, ayrı demo projesinde (`demo.<alan adı>`) geçici bir hesapla iki sentetik bahçeyi sahip portalında gezer; rehberli tur, filigranlı PDF'ler; demo hesabı hiçbir şey yazamaz; anahtarlar kapalıyken birleşir. Tasarım: [demo-turu.md](demo-turu.md) |
+| İP14 | Bahçe yönetimi | P1 | ~8 gün | Müşteri üyeliği boyunca bahçe ekler ve çıkarır: tek üyelik dönemi, ek sipariş ve kalan döneme göre orantılı fiyat (`pricing-v2`), son ek günü; bahçe bazında çıkarma (30 gün, dönem sonu ya da açık cayma), kullanılmayan ziyaret iadesi, 90 gün salt okunur erişim; yenileme bütün bahçeleri kapsar; hukuk taslaklarının ikinci sürümleri; `garden_changes_enabled` kapalıyken birleşir. Tasarım: [bahce-yonetimi.md](bahce-yonetimi.md) |
 
 **Durum (20 Ekim 2026)**
 
@@ -98,6 +100,12 @@ gantt
 | İP13-C | Tamam (PR #65) | Demo arayüzü: demo sunucusu, `/demo`, oturum kapısı ve bant, rehberli tur, filigranlı PDF, uçtan uca test |
 | İP13 entegrasyon düzeltmesi | PR açık (`claude/ip13-entegrasyon-duzeltme`) | Bütünleşik incelemenin bulguları: sınır bildirimleri (PDF, görüntü), tur metni, bant, tek GitHub Environment modeli (`test`/`demo`/`pilot`), demo kilidinde Vault `orchados_cron_secret`, demo derleme önbelleği, migration zaman damgası denetimi (`docs/gorevler/ip13-entegrasyon-duzeltme.md`) |
 | İP13 yayına alma | Açık (insan eylemi) | Barındırılan projelerde demo kapalı. Sıra: (1) GitHub Environment'ları `test`, `demo`, `pilot` ve secret'ların taşınması, repo düzeyindeki veritabanı secret'larının silinmesi; demo projesi açılana kadar `deploy-db-demo` devre dışı (`docs/deployment.md` › GitHub secret'ları ve ortamları); (2) test projesinde duman testi; (3) demo projesi: Supabase, Vercel (önizlemeler kapalı), DNS, Edge secret'ları, Vault, Auth, harcama tavanı, `demo-data` yükleme ve açma; (4) pilot sitesinde `ORCHADOS_DEMO_URL` ([demo-turu.md](demo-turu.md) §15–§16) |
+| İP14 tasarım | Tamam (PR #68) | [bahce-yonetimi.md](bahce-yonetimi.md) (sürüm 2); dört akış, iki dalga (§17) |
+| İP14-A | Sürüyor (`claude/ip14-veri-modeli`) | Veri modeli ve sözleşmeler: `garden_removal`, ek sipariş, `pricing-v2`, çıkarma ve iade, housekeeping, migration'lar `20261102120000`–`…120300` |
+| İP14-B | PR açık (`claude/ip14-hukuk-dokumanlar`) | Hukuk taslakları v2 (`mesafeli-v2-taslak`, `iade-v2-taslak`, `onbilgi-v2-taslak`), site metinleri, avukat soruları (`docs/hukuk/README.md` 15–23), doküman güncellemeleri |
+| İP14-C | Sürüyor (`claude/ip14-portal`) | Müşteri portalı: üyelik kartı, bahçe ekleme, ek teklif, bahçe çıkarma formu, salt okunur bant |
+| İP14-D | Sürüyor (`claude/ip14-back-office`) | Back office: çıkarma kuyruğu, ek teklif, üyelik ve bahçeler paneli, yenileme ön seçimi, ayarlar |
+| İP14 yayına alma | Açık (insan eylemi) | Barındırılan projelerde `garden_changes_enabled` kapalı. Avukat onayı (`docs/hukuk/README.md` 15–22) ve fiyat kararları ([bahce-yonetimi.md](bahce-yonetimi.md) §16, §19) gelince test projesinde duman testi, sonra anahtar açılır (`docs/deployment.md` › Bahçe ekleme ve çıkarma) |
 | Operasyon ekranları | Tamam (PR #19) | `/operasyon`: pano, sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma, ziyaret planlama |
 | Envanter onayı | Tamam (PR #18) | Doğrulama listesi veritabanında (`verification_item`), ofiste ağaç özellikleri, altyapı ve saha sınırı; uzmanın envanter onayı; sahibin sınır onayı. Saha tarafı açık |
 | İP6 v0.3 | Tamam (PR #21) | Doğrulama turu ekranı, sahada sınır köşesi, kapsama haritası, test projesine bağlı APK (`docs/gorevler/ip6-envanter-saha.md`) |
@@ -125,8 +133,11 @@ gantt
 
 9. **İP13 Demo turu** (28 Ekim): tasarım `docs/demo-turu.md`; iki dalgada üç akış (`docs/gorevler/ip13-*.md`). Dalga 1: A demo erişimi (veritabanı, Edge, dağıtım denetimleri), B demo verisi; dalga 2: C demo arayüzü ve uçtan uca test. Sonra test projesinde duman testi, demo projesi, en son pilot sitesine link.
 
+10. **İP14 Bahçe yönetimi** (28 Ekim): tasarım `docs/bahce-yonetimi.md`; iki dalgada dört akış (`docs/gorevler/ip14-*.md`). Dalga 1: A veri modeli ve sözleşmeler, B hukuk taslakları ve dokümanlar; dalga 2: C müşteri portalı, D back office. Anahtar avukat onayına kadar kapalı.
+
 **Açık işler**
 
+- [x] **Karar (28 Ekim, İP14):** Müşterinin birden fazla bahçesi; üyelik boyunca ekleme ve çıkarma; tek dönem, ek sipariş, orantılı fiyat, bahçe bazında fesih. Ayrıntı: `docs/bahce-yonetimi.md` §2.
 - [x] **Karar (27 Ekim, İP12):** Akış başvuru → operasyon onayı → ödeme. Fiyat dönüm başına ve yıllık; paket yıllık periyodik ziyaret sayısı, minimum ücret var; fiyat listesi sürümlü, yayımlanan değişmez. Kartla ödeme iyzico ile (3DS, sağlayıcıdan bağımsız arayüzün arkasında), havaleyi operasyon kaydeder. Ayrıntı: `docs/musteri-yonetimi.md` §2.
 - [x] **Envanter kaydı tek işlemde:** *(PR #15)* Yer ve ağaç kaydı şu an iki ayrı ekleme; `save_inventory(...)` adlı, kullanıcının yetkisiyle çalışan tek işlemlik bir veritabanı fonksiyonu.
 - [x] **Etiketli veri:** *(PR #15)* Ofis aracındaki gövde tıklamaları (gövde tespit modeli için etiket) şimdilik tarayıcıda; veritabanında saklanmalı.

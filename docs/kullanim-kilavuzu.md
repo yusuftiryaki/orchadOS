@@ -104,6 +104,53 @@ Bahçe sahibi hesabını kendisi açıp başvurabilir. Operasyonun telefonla kay
 | Kartla ödeme (iyzico) | 🟡 (sandbox ve sahte sağlayıcıyla test ediliyor; canlı hesap ve yazılı teyit bekleniyor) |
 | e-Arşiv / e-Fatura, taksit, otomatik yenileme ödemesi | ⬜ (İP12 kapsamı dışında) |
 
+### Bahçe ekleme ve çıkarma
+
+**Kim:** Müşteri ve hissedar (`/portal`), Operasyon (`/operasyon`), sistem (gece işi) · **Tasarım:** [bahce-yonetimi.md](bahce-yonetimi.md) (İP14)
+
+Müşterinin tek bir üyelik dönemi vardır; bütün bahçeleri aynı gün biter. Sonradan eklenen bahçe bir **ek sipariş** alır: fiyatı kalan döneme göre orantılanır ve hizmeti dönemin bitiş gününde biter. Bahçe bazında çıkarma, sözleşmenin o bahçe için feshidir (Md. 8D, 12/3). Bütün yeni talepler ve ek teklifler `org_billing_setting.garden_changes_enabled` anahtarına bağlıdır; anahtar kapalıyken portal girişleri gizlenir. Barındırılan projelerde anahtar avukat onayına kadar kapalıdır.
+
+**Müşteri**
+1. **Bahçe ekle.** Üyeliği olan müşteri "Bahçe ekle"yi üç yerde görür: portal ana sayfasındaki kart, "Bahçelerim" başlığının yanındaki düğme ve Hesabım › Bahçelerim. Başvuru sihirbazı açılır; paket üyeliğin paketiyle kilitlidir, üstte hizmet bitişi ve "fiyat kalan döneme göre hesaplanır" notu, altta hesaptaki bahçeler görünür. Önizleme kalan döneme göre yapılır. Dönemin son ek günü geçtiyse "Ek bahçeniz yenilemeyle başlayan yeni döneme eklenir" yazar.
+2. **Ek teklifi izle.** Ek teklif "Mevcut üyeliğinize ek bahçe teklifi" başlığıyla gelir: hizmet dönemi, ziyaret hakkı (ör. 2/4), bahçe bazında envanter ve son geçerlilik günü yazar. Müşteri onaylar ve kartla ya da havaleyle öder; son ek gününden sonra onaylanamaz ve kartla ödenemez. Ödeme tamamlanınca bahçe "Bahçelerim"de görünür ve envanter planlanır. Ek siparişin kendi makbuzu ve 14 günlük cayma süresi vardır.
+3. **Bahçeyi hizmetten çıkar.** Bahçenin sayfasındaki "Hizmet" kartından ya da Hesabım › Bahçelerim'den. Neden (satıldı, gerek kalmadı, memnun değilim, maliyet, diğer), isteğe bağlı not ve üç zaman seçeneği; her seçenek kendi çıkış tarihi, tahmini iadesi ("en fazla") ve erişim sonuyla gösterilir:
+    - **30 gün sonra** (varsayılan): 30 gün sonra ya da dönem sonu, hangisi önceyse;
+    - **Dönem sonunda:** dönemin bitişinin ertesi günü;
+    - **Cayma hakkımı kullanıyorum:** yalnızca cayma süresinde görünür; bahçe bugün çıkar, ödenen tutar yapılmış envanter ve ziyaretler düşülerek iade edilir.
+
+    Onay kutusundan sonra talep bir `C-…` numarası alır. Bahçe ödeme bekleyen bir siparişteyse (ör. onaylanmış ama ödenmemiş yenileme) talep alınmaz; portal o siparişe yönlendirir. Pilot (siparişsiz) bahçede "Bu bahçeyi çıkarmak için bize ulaşın" yazar.
+4. **Talebi geri al.** Çıkış gününe kadar bahçenin sayfasındaki "Talebi geri al" ile.
+5. **Salt okunur dönem.** Çıkış gününde bahçenin planlı ziyaretleri iptal edilir, bahçe hizmet dışı olur ve iade ekibe düşer. 90 gün boyunca raporlar açıktır; bahçenin sayfasında "Bu bahçe hizmetten çıkarıldı. Raporlar şu tarihe kadar açık: …" bandı görünür, soru sorulamaz ve hissedar davet edilemez. Erişimin bitmesine 7 gün kala SMS gelir. Son bahçe çıkınca üyelik sona erer; portal "Bahçe ekle" yerine yeni başvuru önerir.
+
+**Hissedar**
+- Çıkarma talep edemez. Bahçenin sayfasında çıkış tarihini ve salt okunur bandı görür.
+- Müşterinin davet ettiği hissedarın erişimi, müşterininkiyle birlikte 90 gün sonra kalkar. Parselde başka sahip kalmıyorsa bütün hissedarların erişimi kalkar. Hissedara SMS gitmez.
+
+**Operasyon**
+1. **Ek bahçe başvurusu (`/operasyon/basvuru/[id]`).** Üyelik paneli müşterinin dönemini gösterir (birden çok dönem varsa uyarı). Haritada müşterinin mevcut parselleri soluk bir katmandadır. Her bahçe için **mükerrer uyarısı:** sınırı bahçenin konumunu içeren ya da kaba sınırıyla kesişen parseller ve 200 m içindekiler. Bahçe müşterinin eski (pasif) parseliyse **"Eski parsele bağla"**; başka bir müşterinin parseliyse ya da devirle çıkarılmışsa ret (mükerrer) ya da yeni parsel.
+2. **Ek teklif.** Alan doğrulanınca ek teklif önizlenir ve birincil düğme **"Ek teklif ver"**dir. Geçerlilik son ek gününü geçmez. "Ayrı dönemle teklif ver" (ikinci bir dönem açar) yalnızca onay kutusuyla verilir. Mevcut parseller için başvurusuz ek teklif: sahip sayfasında "Ek teklif ver" ya da `/operasyon/teklif/yeni?ek=<temel sipariş>`.
+3. **İki dönemi birleştirme.** İki ayrı dönemi olan müşteride (İP12'den kalan veriler) erken biten dönem yenilenmez; yenileme ekranındaki "Dönemleri birleştir" önerisiyle bahçeleri geç biten döneme ek teklifle taşınır. Başlangıç, erken dönemin bitişinin ertesi günüdür.
+4. **Çıkarma kuyruğu (`/operasyon/cikarma`).** Pano "Müşteri ve ödeme" kartında yeni talepleri, 7 gün içinde çıkacakları ve engellileri sayar. Ayrıntı sayfasında iade hesabı, planlı ziyaretler, açık takip istekleri ve davetler, ödeme bekleyen siparişler ve erişim kapsamı görünür.
+5. **Tarihi teyit et ya da değiştir.** Tarih, erişim günü, "herkesin erişimini kaldır" ve not. İlk teyitte ve her tarih değişikliğinde müşteriye SMS gider. Tarih talepten farklıysa not zorunludur; tarih yalnızca müşteriyle anlaşarak değiştirilir.
+6. **Engelli kayıtlar.** Bahçe parası tutulmuş ya da kart denemesi süren bir ödeme bekleyen siparişteyse çıkarma tamamlanmaz ve kuyrukta "engelli" görünür; sipariş çözülünce gece işi yeniden dener.
+7. **Hemen tamamla ve iptal.** Çıkış günü gelmiş kaydı beklemeden tamamlar. İptalde not zorunludur ve müşteriye SMS gider.
+8. **İadeler.** Tamamlanınca iade satırları "istendi" durumunda açılır ve bugünkü iade ekranından (`/operasyon/iade`) işlenir; çıkarma ayrıntısında bağlantıları vardır. Ayarda iade modu **elle** (`manual`) ise ya da siparişte satıra bağlanamayan bir iade varsa sistem yalnızca hesabı gösterir, iade satırı açmaz; ops "İade iste" ile karar verir. Dağıtılamayan tutar uyarı olarak görünür.
+9. **Yenileme.** `/operasyon/teklif/yeni?siparis=<temel sipariş>`: temel siparişin ve ek siparişlerin hizmetteki bahçeleri işaretli gelir; çıkmakta olanlar işaretsiz ve etiketlidir. Ek siparişin kendisi yenilenmez.
+10. **Ops'un açtığı çıkarma ve devir.** Sipariş ayrıntısında satır başına "Bahçeyi çıkar". Bahçe satıldıysa neden **devir** ve erişim günü **0**; ayardan kısa bir erişim süresi yalnızca devirde, mükerrer kayıtta ya da not girilerek verilir. Devirle çıkarılan parsel aynı müşteriye yeniden bağlanamaz; yeni sahip kendi başvurusuyla yeni parsel alır. Müşteri panelindeki "Tüm bahçeleri çıkar" üyeliği sonlandırmanın önerilen yoludur.
+11. **İdari fesih.** Siparişin tamamını feshetmek (`ops_terminate_order`) idari durumlar içindir ve parsellere dokunmaz. Temel siparişte ek siparişler de sona erer, ödeme bekleyen ekler ve açık ek teklifler iptal edilir, açık çıkarmalar sistemce iptal edilir (SMS gitmez).
+12. **Salt okunur dönemde parsel.** Ops parseli bu dönemde yaşam döngüsü formundan "sürdür"emez (`parcel_removed`); geri ekleme ek teklifle olur. Çıkarma açıkken çıkış günü ve sonrasına ziyaret planlanamaz.
+13. **Ayarlar (`/operasyon/ayarlar`).** Anahtar (`garden_changes_enabled`), son ek günü için en az gün (30), bildirim süresi (30), erişim süresi (90), iade modu.
+
+**Sistem**
+- Gece `garden-removal-housekeeping` işi (00:30, `billing-housekeeping`'den sonra): çıkış günü gelen kayıtları tamamlar (planlı ziyaretleri, açık takip isteklerini ve bekleyen davetleri iptal eder, parseli pasife alır, iadeyi hesaplar ve iade satırlarını açar, boşalan siparişleri sona erdirir), erişim bitmeden 7 gün önce SMS gönderir ve erişim süresi dolanların erişimini kaldırır. İki kez çalışması zarar vermez.
+
+| Adım | Durum |
+| --- | --- |
+| Tasarım, hukuk taslakları v2, site metinleri | ✅ (avukat onayı bekleniyor) |
+| Veri modeli, ek teklif, çıkarma, iade, gece işi | 🟡 (İP14-A geliştiriliyor) |
+| Müşteri portalı ve back office ekranları | 🟡 (İP14-C ve İP14-D geliştiriliyor) |
+| Barındırılan projelerde açılması | ⬜ (avukat onayı ve fiyat kararlarından sonra) |
+
 ## 1. Kayıt
 
 **Kim:** Operasyon · **Araç:** `/operasyon`

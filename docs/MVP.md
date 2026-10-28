@@ -78,6 +78,8 @@ Kayıt, sahibin kabaca bildiği bilgilerle başlar. Kesin bilgiler envanter ziya
 
 **Parsel yaşam döngüsü:** Kayıt → Envanter planlandı → Envanter tamamlandı → Aktif izleme → Pasif.
 
+**Hizmetten çıkarma (İP14):** Müşteri bir bahçeyi üyeliği sürerken hizmetten çıkarabilir ([bahce-yonetimi.md](bahce-yonetimi.md) §5). Çıkış gününde bahçenin planlı ziyaretleri iptal edilir ve parsel **Pasif** olur. Hiçbir şey silinmez: medya, ölçümler ve raporlar kalır. 90 gün boyunca parsel salt okunurdur: müşteri ve davet ettiği hissedarlar raporları görür, soru sorulamaz, hissedar davet edilemez. Bu sürede operasyon parseli yaşam döngüsü ekranından sürdüremez; bahçe ancak ek teklifle (geri ekleme) yeniden hizmete girer. Süre sonunda müşterinin ve davet ettiklerinin erişimi kalkar.
+
 **Sınır notu:** Haritadaki sınır, sahibin gösterdiği fiili kullanım sınırıdır. Tapu ya da mülkiyet sınırı iddiası taşımaz ve sınır anlaşmazlıklarında kanıt olarak sunulmaz. Bu ibare sözleşmede ve her raporda yer alır.
 
 ## Modül 2 – Envanter çıkarımı

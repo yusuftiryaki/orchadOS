@@ -6,9 +6,9 @@ export const LEGAL_TEXT_VERSIONS = {
   kvkk_notice: "kvkk-v1-taslak",
   explicit_consent: "riza-v1-taslak",
   privacy: "gizlilik-v1-taslak",
-  distance_sales: "mesafeli-v1-taslak",
-  pre_information: "onbilgi-v1-taslak",
-  refund_policy: "iade-v1-taslak",
+  distance_sales: "mesafeli-v2-taslak",
+  pre_information: "onbilgi-v2-taslak",
+  refund_policy: "iade-v2-taslak",
 } as const;
 
 export type LegalText = keyof typeof LEGAL_TEXT_VERSIONS;

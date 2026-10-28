@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { isPublicPath } from "@/lib/site/public-paths";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
@@ -46,5 +47,52 @@ describe("legal texts", () => {
     expect(text).toContain("Tanıtım");
     expect(text).not.toMatch(/yapay zekâ|Anthropic|yurt dışı/i);
     expect(text.match(/☐/g)).toHaveLength(2);
+  });
+
+  // docs/hukuk is the source; these three texts are mirrored whole, so their
+  // version line and article headings must match the draft.
+  it.each(["distance_sales", "pre_information", "refund_policy"] as const)(
+    "keeps %s in step with its draft",
+    (key) => {
+      const doc = legalText[key];
+      const draft = readFileSync(
+        new URL(`../../../../../../${doc.source}`, import.meta.url),
+        "utf8",
+      );
+      expect(draft).toContain(`**Sürüm:** ${LEGAL_TEXT_VERSIONS[key]} `);
+      const headings = [...draft.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
+      expect(
+        doc.blocks.filter((b) => b.kind === "h2").map((b) => (b as { text: string }).text),
+      ).toEqual(headings);
+    },
+  );
+
+  // Consents keep the version they were given for, so every superseded
+  // version must still resolve to its text in docs/hukuk/arsiv/.
+  it.each(["distance_sales", "pre_information", "refund_policy"] as const)(
+    "archives every earlier version of %s",
+    (key) => {
+      const doc = legalText[key];
+      const [, prefix, current, suffix] = /^(.+)-v(\d+)(.*)$/.exec(LEGAL_TEXT_VERSIONS[key])!;
+      const file = doc.source.replace(/^docs\/hukuk\/(.+)\.md$/, "$1");
+      for (let v = 1; v < Number(current); v++) {
+        const archived = readFileSync(
+          new URL(`../../../../../../docs/hukuk/arsiv/${file}-v${v}.md`, import.meta.url),
+          "utf8",
+        );
+        expect(archived).toContain(`**Sürüm:** ${prefix}-v${v}${suffix} `);
+      }
+    },
+  );
+
+  it("covers adding and removing gardens (IP14)", () => {
+    const text = (key: keyof typeof legalText) => legalText[key].blocks.flatMap(texts).join("\n");
+    expect(text("distance_sales")).toContain("Madde 8D – Dönem içinde bahçe ekleme");
+    expect(text("distance_sales")).toContain("Fesih ve bahçe bazında çıkarma");
+    expect(text("distance_sales")).toContain("4.500,00 TL");
+    expect(text("refund_policy")).toContain("5. Bahçe çıkarma");
+    expect(text("refund_policy")).toContain("6.000,00 TL");
+    expect(text("pre_information")).toContain("ek teklif");
+    expect(text("pre_information")).toContain("Cayma hakkımı kullanıyorum");
   });
 });

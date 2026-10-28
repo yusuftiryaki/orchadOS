@@ -25,7 +25,7 @@ Bağlam: [MVP.md](MVP.md), [veri-modeli.md](veri-modeli.md), [deployment.md](dep
 | Teklif | Doğrulanmış alan ve yayımlı fiyat listesiyle hesaplanır. Girdileri dondurulur, geçerlilik süresi ve indirim içerir |
 | Sipariş ve ödeme | Checkout Form (3DS, tek çekim), havale kaydı, makbuz (PDF), ödeme geçmişi, iade ve iptal, mutabakat |
 | Hesap | İletişim bilgisi (ad, e-posta, iletişim tercihi), fatura profili, rıza yönetimi |
-| Yenileme | Hizmet yılı biten siparişe yenileme teklifi |
+| Yenileme | Hizmet yılı biten siparişe yenileme teklifi. İP14'ten sonra yenileme, ek siparişle eklenen bahçeler dahil dönemin hizmetteki bütün bahçelerini kapsar ([bahce-yonetimi.md](bahce-yonetimi.md) §4.1 adım 8) |
 | Back office | Başvurular, teklifler, siparişler, ödemeler, iadeler, fiyatlar, ayarlar, denetim kaydı. Müşteri görünümü mevcut Sahipler listesine eklenir |
 | Bildirim | Teklif hazır, başvuru sonucu, ödeme alındı, iade yapıldı, ödeme hatırlatma (mevcut kuyruk) |
 
@@ -135,6 +135,7 @@ flowchart LR
     - Bitime 45 günden az kalan sipariş panoda görünür.
     - Ops `ops_issue_parcel_quote(..., p_first_year => false, p_renewal_of_order_id)` ile teklif verir. Yeni hizmet dönemi eski bitişten 1 gün sonra başlar.
     - Pilotta ops'un açtığı mevcut parseller de aynı fonksiyonla, `p_first_year => true` vererek ilk siparişlerini alır.
+    - **İP14:** Dönem başına tek yenileme vardır. Temel sipariş yenilenir; ek siparişler yenilenmez, bahçeleri aynı teklife girer. İki ayrı dönemi olan müşteride dönemler yenileme zamanında ek teklifle birleştirilir ([bahce-yonetimi.md](bahce-yonetimi.md) §4.1 adım 8, §4.4).
 10. **İade ve iptal.**
     - Ödemeden önce sipariş iptal edilir.
     - Ödemeden sonra iade yolu: aynı gün ve tam tutarda `void`, diğer durumlarda kalem bazında `refund`, havalede `manual`.
@@ -173,6 +174,8 @@ flowchart LR
 | `→ cancelled` | `customer_cancel_order`, `ops_cancel_order` | Başarılı ödeme yok (`has_payments`) ve canlı deneme yok (`payment_in_progress`) |
 | `active → completed` | housekeeping | `service_end` < bugün |
 | `active → terminated` | `ops_terminate_order` | Not zorunlu |
+
+> **İP14:** Siparişe, teklife, başvuruya ve parsele eklenen yeni geçişler (ek sipariş, `addon_base_closed`, `garden_removed`, `all_gardens_removed`, `base_terminated`, `customer_revision`) [bahce-yonetimi.md](bahce-yonetimi.md) §8.4'te listelenir.
 
 **Canlı deneme:** `provider <> 'manual'` olan ve şu iki durumdan birindeki ödeme satırı.
 - `pending_review`
@@ -488,6 +491,8 @@ Satır politikası sütunları korumaz. Bu yüzden müşteri tablolarında `revo
 ### 6.9 Fonksiyonlar
 
 Adlar, parametreler ve dönüşler sözleşmedir. Sütun ayrıntıları A1/A2'nin tip üretiminden okunur.
+
+> **İP14:** Bazı fonksiyonlar aynı imzayla yeniden yazılır; aralarında `payment_begin`, `private.activate_order`, `ops_terminate_order` ve `ops_orders` (dönüşüne `addon_of_order_id` eklenir) vardır. Tam liste ve değişiklikler: [bahce-yonetimi.md](bahce-yonetimi.md) §9.6 "Aynı imzayla yeniden yazılanlar". Bu bölümdeki kurallar orada yazılanlar dışında geçerlidir.
 
 **Yardımcılar (`private`):**
 - `audit`, `next_document_number`, `signup_org_id`, `is_valid_tckn`, `price_lines`
@@ -861,8 +866,10 @@ POST /functions/v1/payment-webhook  → 200 {ok:true} | 401 {error:"invalid_sign
 
   ```ts
   LEGAL_TEXT_VERSIONS = { kvkk_notice: "kvkk-v1-taslak", explicit_consent: "riza-v1-taslak", privacy: "gizlilik-v1-taslak",
-    distance_sales: "mesafeli-v1-taslak", pre_information: "onbilgi-v1-taslak", refund_policy: "iade-v1-taslak" }
+    distance_sales: "mesafeli-v2-taslak", pre_information: "onbilgi-v2-taslak", refund_policy: "iade-v2-taslak" }
   ```
+
+  Üç metin İP14'te v2'ye geçti ([bahce-yonetimi.md](bahce-yonetimi.md) §18). v1 metinleri `docs/hukuk/arsiv/` altında durur; kural [hukuk/README.md](hukuk/README.md)'de.
 - **`/` davranışı:**
     1. Oturum yoksa landing.
     2. Varsayılan bölüm varsa oraya yönlendirme.
@@ -1040,6 +1047,7 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
 - E-posta doğrulanmıyor: `email_taken` ve `phone_registered` hesap varlığını açığa çıkarır; kabul edildi.
 - Barındırılan projede GoTrue'nun saatlik SMS sınırı, kötüye kullanımda telefonla girişi herkes için durdurabilir. Turnstile ve telefon başına sınır bunu azaltır.
 - Önizleme adresi kalıbı test projesinde bir yönlendirme riski taşır; yalnızca iç test kullanıcıları içindir.
+- **Yenilenmeyen üyelikte erişim:** Dönemi biten ve yenilenmeyen müşterinin parsel erişimi bugün kapanmaz. İP14'te yalnızca hizmetten çıkarılan bahçede erişim 90 gün sonra kalkar. Md. 12/4'ün dönem sonunda da uygulanması avukat onayından sonra ayrı iştir ([bahce-yonetimi.md](bahce-yonetimi.md) §1, §19; [hukuk/README.md](hukuk/README.md) soru 22).
 - Pilot sonrası işler:
     - eşik üstü havale ve iadelerde dört göz onayı
     - ayrı `finance` rolü

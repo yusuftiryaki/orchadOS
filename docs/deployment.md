@@ -353,6 +353,43 @@ Plan değişince (ör. demo projesi Pro'ya geçerse) süre de değişir; gizlili
   ```
 - Gerekirse Edge'den `ORCHADOS_DEMO_MODE` kaldırılır (`supabase secrets unset --project-ref <ref> ORCHADOS_DEMO_MODE`); başlatma 503 `demo_closed` döner.
 
+## Bahçe ekleme ve çıkarma (İP14)
+
+Tasarım: [bahce-yonetimi.md](bahce-yonetimi.md) §2, §9.8, §15. Müşteri üyeliği sürerken bahçe ekler (ek sipariş, `pricing-v2`) ve çıkarır (`garden_removal`, `removal-v1` iadesi). Yeni ortam değişkeni, Edge secret'ı ya da Vault girdisi yoktur.
+
+**Anahtar:** `org_billing_setting.garden_changes_enabled`, `/operasyon/ayarlar` sayfasından açılır ve kapanır. Varsayılan kapalıdır; yerel seed'de açıktır. Ayrı bir web bayrağı yoktur.
+- Kapalıyken `customer_request_garden_removal`, `ops_request_garden_removal` ve `ops_issue_addon_quote` `garden_changes_closed` döner, portal girişleri ("Bahçe ekle", "Bahçeyi hizmetten çıkar") gizlenir.
+- Açılmış kayıtlar anahtar kapalıyken de işler.
+- **Barındırılan projelerde (test, pilot) avukat metinleri onaylayana kadar kapalı kalır:** sözleşme `mesafeli-v2-taslak`, iade politikası `iade-v2-taslak`, ön bilgilendirme `onbilgi-v2-taslak`; sorular [hukuk/README.md](hukuk/README.md) 15–22. Fiyat kararları da beklenir (en az ücretin orantılanması, `addon_min_days`, bildirim ve erişim süreleri, iade modu; [bahce-yonetimi.md](bahce-yonetimi.md) §16, §19). Test projesinde yalnızca duman testi süresince açılır.
+
+Aynı sayfadaki diğer ayarlar: `addon_min_days` (30; son ek günü), `removal_notice_days` (30), `removal_access_days` (90), `removal_refund_mode` (`unused_visits` ya da `manual`).
+
+**Cron:** `garden-removal-housekeeping` (`30 0 * * *`, `billing-housekeeping`'den sonra) `select private.garden_removal_housekeeping()` çalıştırır: çıkış günü gelen kayıtları tamamlar, erişim bitmeden 7 gün önce bildirim kuyruğa yazar ve süresi dolan erişimleri kaldırır. İşi migration kurar; Vault ya da secret gerekmez, veritabanının içinde çalışır. Kontrol:
+
+```sql
+select jobname, schedule from cron.job where jobname = 'garden-removal-housekeeping';
+select status, return_message, start_time from cron.job_run_details
+ where jobid = (select jobid from cron.job where jobname = 'garden-removal-housekeeping')
+ order by start_time desc limit 5;
+```
+
+Bildirimler (`garden_removal_scheduled`, `_rescheduled`, `_cancelled`, `_completed`, `garden_access_ending`) mevcut kuyruktan gider; test ve pilot projesinde `MESSAGE_PROVIDER=record` iken `private.message_outbox`'ta okunur. Demo drift denetimi (`deploy-db*` sonrasında) yeni tabloyu ve `private.enqueue_garden_notification`'ı da kapsar.
+
+**Duman listesi** (test projesinde, anahtar açıkken, sahte ödemeyle):
+- [ ] Üye bir müşteri ek bahçe başvurur; ops ek teklif verir (geçerlilik son ek gününü geçmez); müşteri sahte kartla öder; ek siparişin bitişi temel siparişle aynı.
+- [ ] Çıkarma talebi; ops bugünü teyit eder ve "hemen tamamla"; parsel pasif, planlı ziyaretler iptal, iade satırı açılır; havaleyle ödenmiş bir siparişte havale iadesi işlenir.
+- [ ] Planlanmış bir çıkarmada tarih değişikliği: `private.message_outbox`'ta `garden_removal_rescheduled` satırı.
+- [ ] Erişim günü 0 ile çıkarma (devir): ertesi gece housekeeping'den sonra müşterinin ve davet ettiği hissedarın erişimi kalkmış.
+- [ ] Yenileme ekranında ek bahçe işaretli, çıkmakta olan bahçe işaretsiz gelir.
+
+**Geri alma:**
+- Anahtar kapatılır (`/operasyon/ayarlar` ya da SQL). Yeni talepler ve ek teklifler durur, portal girişleri gizlenir:
+  ```sql
+  update public.org_billing_setting set garden_changes_enabled = false where org_id = '<org>';
+  ```
+- Planlanmış çıkarmalar işlemeye devam eder; bir kaydı durdurmak için ops kaydı iptal eder (`/operasyon/cikarma/[id]`, müşteriye SMS gider).
+- Verilmiş ek teklifler ve ödenmiş ek siparişler geçerli kalır; ödenmiş bir ek sipariş için gerekirse bugünkü fesih ve iade yolları kullanılır.
+
 ## Pilot ortamı
 
 - **Supabase:** `orchados-pilot`, Frankfurt (`eu-central-1`), Free plan. Medya için 1 GB sınırı var; pilot verisi gelmeden Pro'ya geçilmeli.
