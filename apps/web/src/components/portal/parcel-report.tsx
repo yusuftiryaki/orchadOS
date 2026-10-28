@@ -83,6 +83,10 @@ export function ParcelReportView({
   const latest = report.latest;
   // A garden without trees or boundary yet has nothing to draw.
   const hasMap = report.slots.features.length > 0 || report.boundary !== null;
+  // H07, T16: the long boundary notice once per report: on the boundary card
+  // while the boundary waits for the owner's approval (where it is decided),
+  // otherwise under the health map.
+  const noticeOnCard = !!boundaryCard?.latest && !boundaryCard.latest.approvedAt;
   const showViewers = viewers?.data.isOwner === true;
   const showQuestions =
     !!questions &&
@@ -176,8 +180,7 @@ export function ParcelReportView({
             initialChanged={mapOptions?.changed}
             initialLayers={mapOptions?.layers}
           />
-          {/* H07, T16: the long form once on the report, by its map. */}
-          <BoundaryNotice />
+          {!noticeOnCard && <BoundaryNotice />}
         </section>
       )}
 
@@ -199,7 +202,7 @@ export function ParcelReportView({
             parcelId={report.parcel.id}
             card={boundaryCard}
             demo={demo}
-            notice={false}
+            notice={noticeOnCard}
           />
           {boundaryCard.inventory && (
             <div className={layout.panel} data-testid="portal-inventory">
@@ -794,14 +797,14 @@ function History({ report, titled }: { report: ParcelReport; titled: boolean }) 
   return (
     <div className={layout.stack}>
       {titled && <h3>{r.historyTitle}</h3>}
-      <Table data-testid="visit-history">
+      <Table data-testid="visit-history" className={styles.history}>
         <thead>
           <tr>
             <th>{c.date}</th>
             <th>{c.kind}</th>
             <th className={cell.num}>{c.assessed}</th>
             <th className={cell.num}>{c.findings}</th>
-            <th>{c.methodology}</th>
+            <th className={styles.wide}>{c.methodology}</th>
           </tr>
         </thead>
         <tbody>
@@ -811,7 +814,7 @@ function History({ report, titled }: { report: ParcelReport; titled: boolean }) 
               <td>{t.portal.sessionKind[v.kind]}</td>
               <td className={cell.num}>{formatNumber(v.assessedCount)}</td>
               <td className={cell.num}>{formatNumber(v.findingCount)}</td>
-              <td className={layout.nowrap}>{v.methodologyVersion ?? "—"}</td>
+              <td className={`${layout.nowrap} ${styles.wide}`}>{v.methodologyVersion ?? "—"}</td>
             </tr>
           ))}
         </tbody>

@@ -158,10 +158,32 @@ describe("boundary notice", () => {
         <ParcelReportView report={report} boundaryCard={card} demo={demo} />,
       );
       // Health map and boundary card (awaiting approval) each have their
-      // caption; the long form once, under the health map.
+      // caption; the long form once, on the card where the boundary is
+      // approved.
       expect(count(html, SHORT)).toBe(2);
       expect(count(html, LONG)).toBe(1);
-      expect(html.indexOf(LONG)).toBeGreaterThan(html.indexOf('id="harita"'));
+      expect(html.indexOf(LONG)).toBeGreaterThan(html.indexOf('data-testid="boundary-card"'));
+    }
+  });
+
+  it("an approved boundary leaves the long form under the health map", () => {
+    const approved: BoundaryCard = {
+      ...card,
+      latest: { ...card.latest!, approvedAt: "2026-10-12T10:00:00Z", approvedByMe: true },
+      canApprove: false,
+      awaitingApproval: false,
+    };
+    for (const demo of [false, true]) {
+      const html = renderToStaticMarkup(
+        <ParcelReportView report={report} boundaryCard={approved} demo={demo} />,
+      );
+      // The approved card has no map of its own.
+      expect(count(html, SHORT)).toBe(1);
+      expect(count(html, LONG)).toBe(1);
+      const harita = html.indexOf('id="harita"');
+      expect(harita).toBeGreaterThan(-1);
+      expect(html.indexOf(LONG)).toBeGreaterThan(harita);
+      expect(html.indexOf(LONG)).toBeLessThan(html.indexOf('data-testid="boundary-card"'));
     }
   });
 

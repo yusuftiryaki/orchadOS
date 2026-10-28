@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
 import type { PhotoItem, TreeCard, TreeMetricHistory } from "@/lib/portal/data";
 import { formatPosition } from "@/lib/portal/evidence";

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { formatDate, t } from "@/lib/i18n";
 import type { Bounds, FeatureCollection, PointGeometry, PolygonGeometry } from "@/lib/map/geo";
@@ -184,11 +183,9 @@ export function HealthMap({
       current.includes(state) ? current.filter((s) => s !== state) : [...current, state],
     );
 
-  // Chips for the classes on the map; the selected ones stay even at zero so
-  // they can be switched off again.
-  const chipStates = MARKER_ORDER.filter(
-    (state) => (counts.get(state) ?? 0) > 0 || !visible.includes(state),
-  );
+  // Chips only for the classes on the map: a class with no trees has nothing
+  // to filter.
+  const chipStates = MARKER_ORDER.filter((state) => (counts.get(state) ?? 0) > 0);
   const allVisible = MARKER_ORDER.every((s) => visible.includes(s));
 
   return (
