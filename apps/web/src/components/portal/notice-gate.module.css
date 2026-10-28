@@ -1,0 +1,17 @@
+/* The KVKK notice before the portal: the text in its own scroll box, the
+   confirmation under it. */
+
+.document {
+  max-height: min(60vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.document:focus-visible {
+  outline-offset: 2px;
+}
+
+.confirm {
+  position: sticky;
+  bottom: 0;
+}

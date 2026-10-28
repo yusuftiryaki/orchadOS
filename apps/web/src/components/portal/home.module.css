@@ -1,0 +1,123 @@
+/* "Bahçelerim": one row per garden. Phone: stacked blocks. Desktop: who and
+   where | how it is | what needs attention. The whole row opens the report
+   card (the button's hit area is stretched over the row). */
+
+.gardens {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  container-type: inline-size;
+}
+
+.garden {
+  position: relative;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--duration-fast) var(--ease);
+}
+
+.garden:hover {
+  border-color: var(--color-border-strong);
+}
+
+.garden:has(.open:focus-visible) {
+  border-color: var(--color-focus);
+}
+
+.garden p {
+  margin: 0;
+}
+
+.identity,
+.condition {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  min-width: 0;
+}
+
+.name {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 800;
+}
+
+.condition {
+  gap: var(--space-2);
+}
+
+.noVisit {
+  font-weight: 700;
+}
+
+.attention {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Stretched link: the row is one big target. */
+.open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+.open:focus-visible {
+  outline-offset: 2px;
+}
+
+.counts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-2);
+}
+
+.counts li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.counts strong {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+@container (max-width: 599px) {
+  .attention > .open {
+    flex: 1 1 100%;
+  }
+}
+
+@container (min-width: 680px) {
+  .garden {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto;
+    align-items: start;
+    gap: var(--space-4);
+    padding: var(--space-4);
+  }
+  .attention {
+    flex-direction: column;
+    align-items: end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .garden {
+    transition: none;
+  }
+}

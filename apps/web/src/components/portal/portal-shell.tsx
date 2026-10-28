@@ -34,10 +34,15 @@ export function PortalShell({ user, children }: { user: SessionUser; children: R
       navLabel={user.roles.customer ? P.nav.label : t.nav.sections}
       account={
         <>
-          <span className={styles.avatar} aria-hidden>
+          <span className={styles.avatar} aria-hidden title={user.email ?? undefined}>
             {initial}
           </span>
-          <span className={styles.email} data-testid="user-email">
+          {/* Six portal links leave no room for the address in the header;
+              the customer finds it on "Hesabım". */}
+          <span
+            className={user.roles.customer ? "sr-only" : styles.email}
+            data-testid="user-email"
+          >
             {user.email}
           </span>
           <form action={signOut}>
