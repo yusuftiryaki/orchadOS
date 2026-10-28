@@ -190,6 +190,16 @@ test("a member adds a garden, accepts the add-on quote and pays by card", async 
   );
   await expect(page.getByTestId("quote-service-end")).toBeVisible();
   await expect(page.getByTestId("quote-lines")).toContainText("/4");
+  // T18 (H19): the breakdown, the remaining windows and the binding total.
+  const breakdown = page.getByTestId("quote-breakdown");
+  await expect(breakdown).toContainText("Kalan gün / dönemin toplam günü");
+  await expect(breakdown).toContainText("Yuvarlanmış ziyaret hakkı");
+  await expect(breakdown).toContainText("Aynı bahçenin tam yıllık bedeli");
+  await expect(breakdown).toContainText("Yuvarlama: 2,35 → 2; 2,5 → 3.");
+  await expect(breakdown).toContainText("Bağlayıcı olan teklifteki toplamdır.");
+  await expect(page.getByTestId("quote-windows")).toHaveText(
+    /\(\d+\)$|Dönemde ziyaret penceresi kalmadı/,
+  );
   await page.getByLabel(/Ön Bilgilendirme Formu'nu okudum/).check();
   await page.getByLabel(/Mesafeli Hizmet Sözleşmesi'ni okudum/).check();
   await page.getByRole("button", { name: "Teklifi kabul et" }).click();
