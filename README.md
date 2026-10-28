@@ -23,4 +23,5 @@ Gaziantep'teki Antep fıstığı bahçe sahipleri için bağımsız, kanıta day
 - [Hedef veri modeli](docs/veri-modeli.md): Sensörden bağımsız model; konu, toplama, ürün ve bulgu katmanları, metrik kaydı, MVP'den geçiş.
 - [Tarama kiti](docs/tarama-kiti.md): RTK + 360° kamera + LiDAR + Raspberry Pi 5 kitinin bileşenleri, montajı, zaman senkronizasyonu, sahadan merkeze iş akışı ve maliyeti.
 - [Müşteri edinme ve yönetimi (İP12)](docs/musteri-yonetimi.md): Tanıtım sitesi, self-servis kayıt, başvuru → teklif → ödeme (iyzico, havale), müşteri portalı ve back office tasarımı.
+- [Demo turu (İP13)](docs/demo-turu.md): Hesap açmadan ve ödeme yapmadan sahip portalını sentetik bir demo bahçesinde deneme: 360° gezi, karneler, raporlar, rehberli tur.
 - [Uzun vadeli vizyon](docs/vizyon.md): Robotik saha operasyonu, ML değerlendirme, detaylı ağaç ölçümleri, birleşik tarama kiti (RTK + 360° + LiDAR), çok üreticili robot filosu.
