@@ -922,6 +922,10 @@ export const tr = {
       visit_cancelled: "Ziyaret iptal edilmiş; yeni bir ziyaret planlayın.",
       has_planned_visits: "Parselin planlı ziyaretleri var; önce onları iptal edin.",
       parcel_passive: "Parsel pasif; ziyaret planlamak için önce izlemeyi sürdürün.",
+      parcel_removal_scheduled:
+        "Bahçe bu tarihte hizmetten çıkıyor; ziyareti çıkış tarihinden önceye planlayın.",
+      parcel_removed:
+        "Bahçe hizmetten çıkarıldı; sürdürülemez. Yeniden eklemek için ek teklif verin.",
       already_owner: "Bu kişi parselin sahibi; hissedar olarak eklenemez.",
       invite_unavailable:
         "Portal hesabı açılamadı: hesap servisi (invite-user) erişilemiyor. Hesabı Supabase panelinden açıp aynı e-postayla tekrar deneyin.",
@@ -1735,6 +1739,11 @@ export const tr = {
       payment_received: "Ödeme alındı",
       refund_completed: "İade yapıldı",
       payment_reminder: "Ödeme hatırlatma",
+      garden_removal_scheduled: "Bahçe çıkarma planlandı",
+      garden_removal_rescheduled: "Bahçe çıkış tarihi değişti",
+      garden_removal_cancelled: "Bahçe çıkarma iptal edildi",
+      garden_removal_completed: "Bahçe hizmetten çıkarıldı",
+      garden_access_ending: "Rapor erişimi bitiyor",
     } as Record<string, string>,
     channel: {
       sms: "SMS",

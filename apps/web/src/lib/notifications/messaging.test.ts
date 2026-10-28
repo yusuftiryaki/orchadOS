@@ -143,6 +143,90 @@ describe("account templates", () => {
   });
 });
 
+describe("garden templates", () => {
+  const ID = "c0000000-0000-4000-8000-000000000001";
+  const path = `/portal/parsel/${ID}`;
+  const link = `${BASE}${path}`;
+  const ref = "C-2026-000123";
+  const cases = [
+    [
+      "garden_removal_scheduled",
+      `orchadOS: Nizip Bahçesi adlı bahçenizin hizmetten çıkışı planlandı (${ref}). Çıkış tarihi ve ayrıntılar: ${link}`,
+      `orchadOS: bahçenizin hizmetten çıkışı planlandı (${ref}). Çıkış tarihi ve ayrıntılar: ${link}`,
+    ],
+    [
+      "garden_removal_rescheduled",
+      `orchadOS: Nizip Bahçesi adlı bahçenizin hizmetten çıkış tarihi değişti (${ref}). Yeni tarih ve ayrıntılar: ${link}`,
+      `orchadOS: bahçenizin hizmetten çıkış tarihi değişti (${ref}). Yeni tarih ve ayrıntılar: ${link}`,
+    ],
+    [
+      "garden_removal_cancelled",
+      `orchadOS: Nizip Bahçesi adlı bahçeniz için çıkarma işlemi iptal edildi (${ref}); bahçeniz hizmette kalıyor. Ayrıntılar: ${link}`,
+      `orchadOS: bahçeniz için çıkarma işlemi iptal edildi (${ref}); bahçeniz hizmette kalıyor. Ayrıntılar: ${link}`,
+    ],
+    [
+      "garden_removal_completed",
+      `orchadOS: Nizip Bahçesi adlı bahçeniz hizmetten çıkarıldı (${ref}). Raporlarınız silinmedi; erişim süresi ve iade bilgisi: ${link}`,
+      `orchadOS: bahçeniz hizmetten çıkarıldı (${ref}). Raporlarınız silinmedi; erişim süresi ve iade bilgisi: ${link}`,
+    ],
+    [
+      "garden_access_ending",
+      `orchadOS: hizmetten çıkan Nizip Bahçesi adlı bahçenizin raporlarına erişim 7 gün sonra kapanacak (${ref}). Raporları indirmek için: ${link}`,
+      `orchadOS: hizmetten çıkan bahçenizin raporlarına erişim 7 gün sonra kapanacak (${ref}). Raporları indirmek için: ${link}`,
+    ],
+  ] as const;
+
+  it.each(cases)("%s with the parcel name", (template, withName) => {
+    expect(renderNotification(template, { ref, path, parcel_name: "Nizip Bahçesi" }, BASE)).toEqual(
+      {
+        ok: true,
+        body: withName,
+      },
+    );
+  });
+
+  it.each(cases)("%s without the parcel name", (template, _withName, withoutName) => {
+    expect(renderNotification(template, { ref, path }, BASE)).toEqual({
+      ok: true,
+      body: withoutName,
+    });
+    expect(renderNotification(template, { ref, path, parcel_name: "  " }, BASE)).toEqual({
+      ok: true,
+      body: withoutName,
+    });
+  });
+
+  it("takes only removal numbers (C-…) and portal links", () => {
+    expect(
+      renderNotification("garden_removal_completed", { ref: "S-2026-000123", path }, BASE),
+    ).toEqual({ ok: false, error: "invalid_vars" });
+    expect(
+      renderNotification(
+        "garden_removal_completed",
+        { ref, path: "https://evil.example/portal" },
+        BASE,
+      ),
+    ).toEqual({ ok: false, error: "invalid_link" });
+    expect(renderNotification("garden_removal_completed", { ref, path: "/portal" }, BASE)).toEqual({
+      ok: true,
+      body: `orchadOS: bahçeniz hizmetten çıkarıldı (${ref}). Raporlarınız silinmedi; erişim süresi ve iade bilgisi: ${BASE}/portal`,
+    });
+    expect(renderNotification("garden_removal_completed", { ref, path: "/portalx" }, BASE)).toEqual(
+      {
+        ok: false,
+        error: "invalid_link",
+      },
+    );
+  });
+
+  it("fit in two SMS segments without the name", () => {
+    for (const [template] of cases) {
+      const out = renderNotification(template, { ref, path }, "https://orchados.vercel.app");
+      expect(out.ok && out.body.length).toBeLessThanOrEqual(2 * 153);
+    }
+  });
+});
+
 describe("retry", () => {
   const now = new Date("2026-10-21T10:00:00Z");
 

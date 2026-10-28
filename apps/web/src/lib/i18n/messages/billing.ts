@@ -6,6 +6,7 @@ import type { BillingError } from "@/lib/billing/errors";
 
 const errors: Record<BillingError, string> = {
   forbidden: "Bu işlem için yetkiniz yok.",
+  demo_read_only: "Demo turunda değişiklik yapılamaz.",
   not_found: "Kayıt bulunamadı.",
   invalid_input: "Girilen bilgilerden biri geçersiz.",
   boundary_invalid: "Çizilen sınır geçersiz: en az üç nokta olmalı ve kenarlar kesişmemeli.",
@@ -37,6 +38,29 @@ const errors: Record<BillingError, string> = {
   signup_closed: "Kayıtlar şu anda kapalı.",
   too_many_attempts: "Çok fazla deneme yapıldı; lütfen daha sonra yeniden deneyin.",
   state_changed: "Kayıt bu arada değişti; sayfayı yenileyip yeniden deneyin.",
+  no_membership: "Aktif bir üyeliğiniz yok; yeni bahçe için başvuru yapın.",
+  addon_period_too_short:
+    "Üyelik döneminin sonuna çok az kaldı; ek bahçeniz yenilemeyle başlayan yeni döneme eklenir.",
+  addon_base_closed: "Üyelik dönemi bu ek bahçe için artık açık değil.",
+  parcel_in_service: "Bu bahçe aynı dönemde başka bir siparişle hizmet alıyor.",
+  parcel_not_reusable: "Bu bahçe bu hesaba yeniden bağlanamaz.",
+  account_garden_limit:
+    "Hesabınızda aynı anda en fazla 50 bahçe hizmet alabilir; daha fazlası için bizimle iletişime geçin.",
+  garden_withdrawn: "Bu bahçe başvurudan çıkarıldı.",
+  last_garden: "Başvuruda tek bahçe kaldı; bunun yerine başvurunun tamamını geri çekin.",
+  not_revisable: "Bu sipariş düzeltmeye açılamaz.",
+  not_in_service: "Bu bahçe şu anda hizmette değil.",
+  garden_removal_open: "Bu bahçe için açık bir çıkarma talebi var.",
+  parcel_order_pending:
+    "Bu bahçe ödeme bekleyen bir siparişte; önce o siparişi iptal edin ya da düzeltin.",
+  withdrawal_expired: "Cayma süresi doldu.",
+  removal_not_open: "Bu çıkarma talebi artık açık değil.",
+  removal_not_due: "Çıkış tarihi henüz gelmedi.",
+  garden_changes_closed: "Bahçe ekleme ve çıkarma şu anda kapalı; bizimle iletişime geçin.",
+  parcel_read_only: "Bu bahçe hizmetten çıkarıldı; raporlar yalnızca okunabilir.",
+  parcel_removal_scheduled:
+    "Bahçe bu tarihte hizmetten çıkıyor; ziyareti çıkış tarihinden önceye planlayın.",
+  parcel_removed: "Bahçe hizmetten çıkarıldı; yeniden eklemek için ek teklif verin.",
   payment_not_open: "Bu ödeme artık açık değil.",
   write_failed: "İşlem tamamlanamadı; lütfen yeniden deneyin.",
 };
@@ -122,6 +146,51 @@ export const billingText = {
     explicit_marketing: "Tanıtım iletileri için açık rıza",
     distance_sales: "Mesafeli hizmet sözleşmesi",
     pre_information: "Ön bilgilendirme formu",
+  },
+  // IP14 (docs/bahce-yonetimi.md §8, §9).
+  gardenRemovalStatus: {
+    requested: "Talep edildi",
+    scheduled: "Planlandı",
+    completed: "Tamamlandı",
+    cancelled: "İptal edildi",
+  },
+  // Customer choices first; transfer and duplicate are ops'.
+  gardenRemovalReason: {
+    sold: "Bahçeyi sattım",
+    not_needed: "Hizmete artık ihtiyacım yok",
+    dissatisfied: "Hizmetten memnun değilim",
+    cost: "Ücret yüksek",
+    other: "Diğer",
+    transfer: "Devir (yeni sahibe geçti)",
+    duplicate: "Mükerrer kayıt",
+  },
+  removalRefundMode: {
+    unused_visits: "Yapılmayan ziyaretler",
+    withdrawal: "Cayma",
+    duplicate: "Mükerrer kayıt",
+    manual: "Ops kararı",
+    none: "İade yok",
+  },
+  removalInitiatedBy: {
+    customer: "Müşteri",
+    ops: "Operasyon",
+  },
+  removalCancelledBy: {
+    customer: "Müşteri",
+    ops: "Operasyon",
+    system: "Sistem",
+  },
+  gardenState: {
+    in_service: "Hizmette",
+    leaving: "Çıkacak",
+    upcoming: "Sonraki dönemde başlıyor",
+    removed: "Hizmetten çıkarıldı",
+  },
+  parcelServiceStatus: {
+    in_service: "Hizmette",
+    leaving: "Çıkacak",
+    removed: "Hizmetten çıkarıldı",
+    none: "Hizmet yok",
   },
   consentSource: {
     signup: "Kayıt",

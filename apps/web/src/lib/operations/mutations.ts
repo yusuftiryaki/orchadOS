@@ -24,6 +24,8 @@ export type OpsError =
   | "visit_cancelled"
   | "has_planned_visits"
   | "parcel_passive"
+  | "parcel_removal_scheduled"
+  | "parcel_removed"
   | "already_owner"
   | "invite_unavailable"
   | "conflict"
@@ -43,6 +45,8 @@ const KNOWN: OpsError[] = [
   "visit_cancelled",
   "has_planned_visits",
   "parcel_passive",
+  "parcel_removal_scheduled",
+  "parcel_removed",
   "already_owner",
 ];
 
