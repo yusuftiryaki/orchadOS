@@ -13,6 +13,7 @@ on:
       - "scripts/check-migration-order.sh"
       - "scripts/demo-lock-check.sh"
       - "scripts/test-demo-lock-sql.sh"
+      - "scripts/kvkk/**"
   push:
     branches: [main]
     paths:
@@ -26,6 +27,7 @@ on:
       - "scripts/check-migration-order.sh"
       - "scripts/demo-lock-check.sh"
       - "scripts/test-demo-lock-sql.sh"
+      - "scripts/kvkk/**"
 
 concurrency:
   group: ci-db-web-${{ github.ref }}
@@ -51,6 +53,11 @@ jobs:
             echo "::error::supabase/testing/ is local only; a migration must not create it"
             exit 1
           fi
+
+      # KVKK request scripts (docs/hukuk/kararlar.md H26, T11); the
+      # integration test kvkk-scripts runs them against the local stack.
+      - name: Shellcheck KVKK scripts
+        run: shellcheck scripts/kvkk/*.sh
 
       # New migrations sort after the newest one on the base branch (CLAUDE.md):
       # `supabase migration new` can stamp a date before already merged,

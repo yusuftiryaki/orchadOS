@@ -37,6 +37,16 @@ export function Footer({ left }: { left: string }) {
   );
 }
 
+// Boundary notice on every page of a report PDF (docs/hukuk/kararlar.md H07,
+// T16), above the footer; the page reserves room for it (pdf.reportPage).
+export function BoundaryFooter() {
+  return (
+    <View style={pdf.boundaryNotice} fixed>
+      <Text>{t.boundaryNotice.long}</Text>
+    </View>
+  );
+}
+
 // Every page of a demo PDF (docs/demo-turu.md §11.6): a diagonal "ÖRNEK RAPOR"
 // across the page and "Sentetik demo verisi" above the footer.
 export function SampleWatermark() {
