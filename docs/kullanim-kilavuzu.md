@@ -324,6 +324,49 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 | Uzman | İnceler, karar verir, bulgu yazar, imzalar | `/uzman` |
 | Sahip, hissedar | Okur, inceler, gezer | `/portal` |
 
+## Demo
+
+**Kim:** Bahçe sahibi adayları; hesap ve ödeme gerekmez · **Araç:** demo dağıtımı, `demo.<alan adı>/demo` · **Tasarım:** [demo-turu.md](demo-turu.md)
+
+Aday, ücretli bir sahibin gördüğü portalı sentetik verilerle dener. Ekranlar gerçek sahip portalıdır; demo ayrı bir Supabase projesinde çalışır ve orada gerçek müşteri verisi yoktur.
+
+1. **Giriş.** Sitedeki "Demoyu dene" (landing, üst menü, `/giris`) `demo.<alan adı>/demo`'ya gider. Sayfa ne görüleceğini ve hangi teknik verinin tutulduğunu anlatır (kişisel veri istenmez; IP'nin takma adlandırılmış özeti 48 saat).
+2. **Başlatma.** Turnstile doğrulamasından sonra "Demoyu başlat". Ziyaretçiye 3 saatlik geçici bir demo hesabı açılır ve sahip portalına girilir: iki örnek bahçe, "Örnek Bahçe – Kuzey" ve "Örnek Bahçe – Dere".
+3. **Bant.** Her sayfanın üstünde: "Örnek bahçe · veriler ve görüntüler sentetik, konum temsilî · oturum HH:MM'ye kadar" ve üç düğme:
+    - "Turu başlat": rehberli turu açar.
+    - "Gerçek hesap aç": demodan çıkarıp asıl sitenin kayıt sayfasına götürür.
+    - "Demodan çık": oturumu kapatır.
+4. **Rehberli tur (10 adım).** Ekranları sırayla gezdirir; "Geri / İleri / Turu kapat", Esc ve ok tuşları çalışır:
+    1. Bahçeler
+    2. 360° gezi (ağaç işaretçisi, zaman yolculuğu)
+    3. Sağlık haritası ve katmanları
+    4. Karne: sağlık puanı ve boyutlar
+    5. Bulgular ve uzman önerileri
+    6. Ağaç karnesi: fotoğraf kanıtı ve hash doğrulaması
+    7. Ziyaret seçimi: bir yıl önceki ziyaret
+    8. Envanter raporu
+    9. PDF
+    10. Kapanış: "Gerçek hesap aç", "Paketleri gör"
+5. **Bitiş.** Süre dolunca ya da "Demodan çık"tan sonra ziyaretçi `/demo?bitti=1`'e döner; hesap kısa süre sonra silinir. Yeniden başlatmak serbesttir (IP başına saatlik sınır var).
+
+**Demoda kapalı olanlar** (formların yerinde "Demoda kapalı" notu görünür; okuma görünümü aynıdır):
+- soru sorma ve cevaplama
+- hissedar daveti, davet iptali ve hissedar çıkarma
+- sınır onayı
+- başvuru, teklif ve ödeme ekranları
+- hesap ekranı (e-posta, telefon, parola değişmez)
+
+Demo hesabı hiçbir şey yazamaz; bildirim, SMS ve AI işi oluşmaz. Veriler, panoramalar ve fotoğraflar sentetiktir ve "SENTETIK ORNEK" damgası taşır; PDF'lerde her sayfada "ÖRNEK RAPOR" filigranı vardır.
+
+**Kendi bilgisayarında:** `pnpm db:start && pnpm db:reset`, sonra `pnpm db:demo-tour` (demo verisini yükler ve açar) ve `ORCHADOS_DEMO_ENABLED=1 pnpm web:dev` → http://localhost:3000/demo. Yerelde Turnstile yoktur.
+
+| Adım | Durum |
+| --- | --- |
+| Demo erişimi, yazma ve hesap kilidi, `demo-start` | 🟡 (incelemede, PR #63) |
+| Sentetik demo verisi ve yükleyici | 🟡 (incelemede, PR #64) |
+| `/demo` sayfası, bant, rehberli tur, filigranlı PDF | 🟡 (PR açık) |
+| Herkese açık demo (`demo.<alan adı>`) | ⬜ (demo projesi ve alan adı bekleniyor; `docs/deployment.md` › Demo turu) |
+
 ## Test ortamı
 
 - **Web:** https://orchados-orchad-os.vercel.app
