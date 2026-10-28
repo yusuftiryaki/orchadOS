@@ -8,6 +8,7 @@ import '../../core/time/gps_time.dart';
 import '../../core/ui/widgets.dart';
 import '../camera/photo_capture.dart';
 import '../map/vector_map.dart';
+import '../notice/notice_widgets.dart';
 import '../session/session_controller.dart';
 import 'boundary_corners.dart';
 
@@ -161,6 +162,8 @@ class BoundaryScreen extends ConsumerWidget {
                 onPressed: deleteLast,
               ),
             ],
+            const SizedBox(height: 16),
+            const BoundaryPointerCard(),
             const SizedBox(height: 24),
           ],
         ),

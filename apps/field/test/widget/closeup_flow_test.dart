@@ -185,6 +185,30 @@ void main() {
     await settle(tester);
     expect(find.byType(VisitSummaryScreen), findsOneWidget);
     expect(find.text('1 / 3'), findsOneWidget);
+    // The oral notice answer comes first (H01).
+    FilledButton finish() => tester.widget<FilledButton>(
+      find.descendant(
+        of: find.byKey(const Key('summary-finish')),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('summary-finish')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(finish().onPressed, isNull);
+    await tapVisible(tester, find.byKey(const Key('verbal-notice-nobody')));
+    await tester.pump();
+    await tapVisible(tester, find.byKey(const Key('verbal-notice-save')));
+    await settle(tester);
+    expect(find.byKey(const Key('verbal-notice-saved')), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('summary-finish')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(finish().onPressed, isNotNull);
     await tapVisible(tester, find.byKey(const Key('summary-finish')));
     await settle(tester);
     expect(h.container.read(completedTasksProvider), contains(task.id));

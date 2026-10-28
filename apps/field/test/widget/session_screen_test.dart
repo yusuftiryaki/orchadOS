@@ -40,6 +40,13 @@ Future<TestHarness> openSession(
   return h;
 }
 
+/// Answers the sign and badge questions of the pre-check with yes.
+Future<void> answerNotice(WidgetTester tester) async {
+  await tapVisible(tester, find.byKey(const Key('check-notice-sign-yes')));
+  await tapVisible(tester, find.byKey(const Key('check-notice-badge-yes')));
+  await tester.pump();
+}
+
 /// Opens the QR screen, lets the first frame trigger qr_sync, closes it.
 Future<String> showQr(WidgetTester tester, String buttonKey) async {
   await tapVisible(tester, find.byKey(Key(buttonKey)));
@@ -239,8 +246,20 @@ void main() {
     expect(cont().onPressed, isNull, reason: 'spraying not confirmed');
 
     // Spraying: "none" and "waiting period passed" exclude each other;
-    // either one lets the crew in.
+    // either one lets the crew in once sign and badge are answered.
     await tapVisible(tester, find.byKey(const Key('check-spraying-none')));
+    await tester.pump();
+    expect(cont().onPressed, isNull, reason: 'sign and badge not answered');
+    await tapVisible(tester, find.byKey(const Key('check-notice-sign-no')));
+    await tapVisible(tester, find.byKey(const Key('check-notice-badge-yes')));
+    await tester.pump();
+    expect(cont().onPressed, isNull, reason: 'a "no" needs a reason');
+    final reason = find.byKey(const Key('check-notice-reason'));
+    await tester.enterText(reason, 'Ara 0532 123 45 67');
+    await tester.pump();
+    expect(find.text('Telefon numarası yazmayın'), findsOneWidget);
+    expect(cont().onPressed, isNull);
+    await tester.enterText(reason, 'Levha ikinci araçta kaldı');
     await tester.pump();
     expect(cont().onPressed, isNotNull);
     await tapVisible(
@@ -291,6 +310,22 @@ void main() {
     final row = (await tester.runAsync(() => repo.session(sessionId)))!;
     expect(row.scanPlatform, 'walk');
     expect(row.cameraHeightM, 1.85);
+    // Sign and badge: a phone-side event after the start, never sent to
+    // the logger.
+    final notice = events.singleWhere(
+      (e) => e.eventType == 'field_notice_sign',
+    );
+    expect(notice.loggerResult, 'none');
+    expect(jsonDecode(notice.payload), {
+      'sign': false,
+      'badge': true,
+      'reason': 'Levha ikinci araçta kaldı',
+    });
+    expect(events.map((e) => e.eventType).take(2), [
+      'session_start',
+      'field_notice_sign',
+    ]);
+    expect(h.logger.receivedCommands.whereType<MarkEvent>(), isEmpty);
     await tester.pump(const Duration(seconds: 5));
     await h.dispose(tester);
   });
@@ -299,7 +334,7 @@ void main() {
       'last scan of the parcel, with a warning when they differ', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1080, 6000);
+    tester.view.physicalSize = const Size(1080, 8000);
     tester.view.devicePixelRatio = 2.5;
     addTearDown(tester.view.reset);
     final h = TestHarness();
@@ -382,7 +417,7 @@ void main() {
     await tapVisible(tester, find.byKey(const Key('check-lens')));
     await tapVisible(tester, find.byKey(const Key('check-camera')));
     await tapVisible(tester, find.byKey(const Key('check-spraying-none')));
-    await tester.pump();
+    await answerNotice(tester);
     expect(cont().onPressed, isNotNull);
 
     // Up to 0,25 m from the last scan is comparable.
