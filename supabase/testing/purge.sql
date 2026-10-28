@@ -360,11 +360,24 @@ begin
 end;
 $$;
 
+-- Legal-text registry (T21): a test makes a version current (a "launch") and
+-- puts the draft back afterwards; migrations do this on real projects.
+create or replace function testing.register_legal_text(p_kind text, p_version text, p_sha256 text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.register_legal_text(p_kind, p_version, p_sha256);
+end;
+$$;
+
 revoke all on all functions in schema testing from public;
 grant execute on function
   testing.purge_sessions(uuid[]), testing.purge_parcels(uuid[]), testing.purge_org(uuid),
   testing.purge_viewer_invitations(text[]), testing.purge_billing_users(uuid[]),
   testing.purge_signup_attempts(), testing.age_signups(uuid[], integer),
   testing.selectable_columns(text, text[]), testing.run_garden_removal_housekeeping(),
-  testing.set_order_period(uuid, date, date)
+  testing.set_order_period(uuid, date, date), testing.register_legal_text(text, text, text)
   to service_role;

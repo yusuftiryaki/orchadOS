@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { requestSignupCode } from "@/lib/billing/signup-code";
+import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { ageSignups, purgeBillingUsers, purgeSignupAttempts } from "../local-db";
 import { anonClient, serviceClient } from "./fixtures";
 
@@ -27,11 +28,12 @@ function body(overrides: Record<string, unknown> = {}) {
     email: randomEmail("musteri"),
     password: PASSWORD,
     contact_preference: "sms",
+    // T27: a direct POST with both explicit consents true grants nothing.
     consents: {
-      kvkk_notice_version: "kvkk-v1-taslak",
+      kvkk_notice_version: LEGAL_TEXT_VERSIONS.kvkk_notice,
       explicit_text_version: "riza-v1-taslak",
       explicit_service_improvement: true,
-      explicit_marketing: false,
+      explicit_marketing: true,
     },
     ...overrides,
   };
@@ -137,8 +139,9 @@ describe("customer-signup", () => {
     expect(
       Object.fromEntries((consents.data ?? []).map((c) => [c.kind, [c.granted, c.text_version]])),
     ).toEqual({
-      kvkk_notice: [true, "kvkk-v1-taslak"],
-      explicit_service_improvement: [true, "riza-v1-taslak"],
+      kvkk_notice: [true, LEGAL_TEXT_VERSIONS.kvkk_notice],
+      // T27: sent true, stored false (neither is asked).
+      explicit_service_improvement: [false, "riza-v1-taslak"],
       explicit_marketing: [false, "riza-v1-taslak"],
     });
 
@@ -271,7 +274,7 @@ describe("customer-signup", () => {
     expect(res).toEqual({ status: 400, json: { error: "invalid_input", field: "phone" } });
     expect(JSON.stringify(res.json)).not.toContain("5551234567");
     const consent = await signup(
-      body({ consents: { kvkk_notice_version: "kvkk-v1-taslak" } }),
+      body({ consents: { kvkk_notice_version: LEGAL_TEXT_VERSIONS.kvkk_notice } }),
       "203.0.113.6",
     );
     expect(consent).toEqual({
