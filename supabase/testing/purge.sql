@@ -248,6 +248,7 @@ begin
     union all select id from public.service_order where customer_user_id = any(p_user_ids)
     union all select id from public.payment where customer_user_id = any(p_user_ids)
     union all select id from public.refund where customer_user_id = any(p_user_ids)
+    union all select id from public.garden_removal where customer_user_id = any(p_user_ids)
     union all select id from private.owner_profile where user_id = any(p_user_ids));
   delete from private.application_garden_detail where application_garden_id = any(v_entities);
   get diagnostics n = row_count;
@@ -326,10 +327,37 @@ as $$
   order by 1, a.attnum;
 $$;
 
+-- Garden removals (IP14): the daily housekeeping on demand, and an order's
+-- service period set directly (a test needs "the middle of a period" or
+-- "the last add-on day" without waiting).
+create or replace function testing.run_garden_removal_housekeeping()
+returns jsonb
+language sql
+security definer
+set search_path = ''
+as $$
+  select private.garden_removal_housekeeping();
+$$;
+
+create or replace function testing.set_order_period(p_order_id uuid, p_start date, p_end date)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.service_order set service_start = p_start, service_end = p_end where id = p_order_id;
+  if not found then
+    raise exception 'not_found' using errcode = 'P0002';
+  end if;
+end;
+$$;
+
 revoke all on all functions in schema testing from public;
 grant execute on function
   testing.purge_sessions(uuid[]), testing.purge_parcels(uuid[]), testing.purge_org(uuid),
   testing.purge_viewer_invitations(text[]), testing.purge_billing_users(uuid[]),
   testing.purge_signup_attempts(), testing.age_signups(uuid[], integer),
-  testing.selectable_columns(text, text[])
+  testing.selectable_columns(text, text[]), testing.run_garden_removal_housekeeping(),
+  testing.set_order_period(uuid, date, date)
   to service_role;

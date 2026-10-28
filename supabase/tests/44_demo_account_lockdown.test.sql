@@ -124,7 +124,7 @@ select lives_ok(
   'real accounts are unaffected');
 select is(
   (select array_agg(tgrelid::regclass::text order by tgrelid::regclass::text) from pg_trigger where tgname like 'demo\_account\_scope\_%'),
-  array['application_garden', 'membership', 'notification', 'parcel_access', 'payment', 'payment_item',
+  array['application_garden', 'garden_removal', 'membership', 'notification', 'parcel_access', 'payment', 'payment_item',
         'private.billing_profile', 'private.consent_record', 'private.consent_record', 'private.customer_signup',
         'private.owner_profile', 'private.viewer_invitation', 'quote', 'quote_item', 'refund',
         'service_application', 'service_order', 'service_order_item'],
