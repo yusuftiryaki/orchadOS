@@ -66,7 +66,8 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-const fail = (error: string, status: number) => json({ error }, status);
+const fail = (error: string, status: number, extra: Record<string, string> = {}) =>
+  json({ error, ...extra }, status);
 
 function redirect(location: string): Response {
   return new Response(null, {
@@ -247,8 +248,12 @@ const BEGIN_STATUS: Record<string, [string, number]> = {
   forbidden: ["not_found", 404],
   order_not_payable: ["order_not_payable", 409],
   billing_profile_incomplete: ["billing_profile_incomplete", 409],
+  payment_in_progress: ["payment_in_progress", 409],
   fake_payments_disabled: ["payments_disabled", 503],
 };
+
+// The fields payment_begin names in a billing_profile_incomplete detail.
+const BEGIN_FIELDS = new Set(["email"]);
 
 // "2026-10-27T10:11:12.000Z" -> "2026-10-27 10:11:12" (iyzico's format).
 function iyzicoDate(iso: string | null): string | undefined {
@@ -279,7 +284,7 @@ function checkoutInput(
       name: buyer.first_name,
       surname: buyer.last_name,
       identityNumber: buyer.identity_number,
-      email: buyer.email,
+      email: buyer.email ?? "",
       gsmNumber: buyer.phone,
       registrationAddress: [buyer.address, buyer.district].filter(Boolean).join(", "),
       city: buyer.city,
@@ -342,9 +347,17 @@ async function start(ctx: Ctx, req: Request, body: Record<string, unknown>): Pro
   } catch (err) {
     const code = err instanceof DbError ? err.code : "error";
     const mapped = BEGIN_STATUS[code];
-    if (mapped) return fail(mapped[0], mapped[1]);
+    const detail = err instanceof DbError ? err.detail : null;
+    const field = detail && BEGIN_FIELDS.has(detail) ? detail : null;
+    if (mapped) return fail(mapped[0], mapped[1], field ? { field } : {});
     ctx.log(`begin_${code}`);
     return fail("failed", 500);
+  }
+
+  // payment_begin refuses without an e-mail; the provider requires one.
+  if (!begin.buyer.email) {
+    ctx.log("begin_buyer_email_missing");
+    return fail("billing_profile_incomplete", 409, { field: "email" });
   }
 
   const result = await provider

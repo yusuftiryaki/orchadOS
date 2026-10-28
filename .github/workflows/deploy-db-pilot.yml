@@ -61,7 +61,9 @@ jobs:
 
       # Payment locks (docs/musteri-yonetimi.md §15, docs/deployment.md "Ödeme (İP12)"):
       # the pilot never runs the fake payment provider, and self-service signup
-      # is never open without Turnstile. Read through the Management API with
+      # is never open without Turnstile and its own secrets (customer-signup
+      # needs SIGNUP_HASH_SECRET, and SIGNUP_PROXY_SECRET for the client IP;
+      # SIGNUP_TURNSTILE_DISABLED is local only). Read through the Management API with
       # the access token: secret names (values are not returned in clear) and
       # one read-only query. org_billing_setting may not exist yet (to_regclass).
       - name: Check payment and signup locks
@@ -93,9 +95,17 @@ jobs:
             echo "::error::$fake_orgs org(s) have org_billing_setting.allow_fake_payments = true on the pilot project."
             failed=1
           fi
-          if [ "$signup_orgs" != "0" ] && ! echo "$secrets" | grep -qx 'TURNSTILE_SECRET_KEY'; then
-            echo "::error::accepts_signups is on but the TURNSTILE_SECRET_KEY secret is missing on the pilot project."
+          if echo "$secrets" | grep -qx 'SIGNUP_TURNSTILE_DISABLED'; then
+            echo "::error::SIGNUP_TURNSTILE_DISABLED is set on the pilot project; remove it (supabase secrets unset SIGNUP_TURNSTILE_DISABLED)."
             failed=1
+          fi
+          if [ "$signup_orgs" != "0" ]; then
+            for name in TURNSTILE_SECRET_KEY SIGNUP_HASH_SECRET SIGNUP_PROXY_SECRET; do
+              if ! echo "$secrets" | grep -qx "$name"; then
+                echo "::error::accepts_signups is on but the $name secret is missing on the pilot project."
+                failed=1
+              fi
+            done
           fi
           exit "$failed"
 

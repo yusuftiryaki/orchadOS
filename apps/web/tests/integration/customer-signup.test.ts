@@ -235,6 +235,37 @@ describe("customer-signup", () => {
     expect(res).toEqual({ status: 409, json: { error: "phone_registered" } });
   });
 
+  // The rollback switch (docs/musteri-yonetimi.md §15.5): the function itself
+  // refuses once accepts_signups is off, whatever the web flag says.
+  it("refuses to register while no org accepts sign-ups", async () => {
+    const service = serviceClient();
+    const { data: open, error } = await service
+      .from("org_billing_setting")
+      .select("org_id")
+      .eq("accepts_signups", true);
+    expect(error).toBeNull();
+    expect(open).toHaveLength(1);
+    const orgId = open![0].org_id;
+    const toggle = async (on: boolean) => {
+      const res = await service
+        .from("org_billing_setting")
+        .update({ accepts_signups: on })
+        .eq("org_id", orgId);
+      expect(res.error).toBeNull();
+    };
+    await toggle(false);
+    try {
+      const input = body({ email: randomEmail("kapali") });
+      expect(await signup(input, "203.0.113.11")).toEqual({
+        status: 503,
+        json: { error: "signup_closed" },
+      });
+      expect(await usersByEmail([String(input.email)])).toHaveLength(0);
+    } finally {
+      await toggle(true);
+    }
+  });
+
   it("refuses bad input naming the field only", async () => {
     const res = await signup(body({ phone: "+15551234567" }), "203.0.113.6");
     expect(res).toEqual({ status: 400, json: { error: "invalid_input", field: "phone" } });

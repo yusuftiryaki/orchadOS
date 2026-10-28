@@ -16,11 +16,14 @@ const B = P.billing;
 export function BillingProfileForm({
   initial,
   identityRequired,
+  emailRequired,
   identityMasked,
   back,
 }: {
   initial: Record<string, string>;
   identityRequired: boolean;
+  // No contact or account e-mail: card payments need this one.
+  emailRequired: boolean;
   identityMasked: string | null;
   back: string | null;
 }) {
@@ -129,8 +132,19 @@ export function BillingProfileForm({
             defaultValue={v("postal_code")}
           />
         </Field>
-        <Field label={B.email} error={err("email")} optional>
-          <input name="email" type="email" defaultValue={v("email")} />
+        <Field
+          label={B.email}
+          hint={emailRequired ? B.emailRequiredHint : B.emailHint}
+          error={err("email")}
+          optional={!emailRequired}
+        >
+          <input
+            name="email"
+            type="email"
+            defaultValue={v("email")}
+            required={emailRequired}
+            autoComplete="email"
+          />
         </Field>
       </div>
       {back && <p className="muted">{B.backTo}</p>}

@@ -12,7 +12,11 @@
 //   client_ip?, captcha_token? }
 //   x-orchados-proxy-secret: SIGNUP_PROXY_SECRET (Next server only; then
 //   client_ip is trusted, otherwise cf-connecting-ip / x-forwarded-for)
-//   1. Validation; Turnstile when TURNSTILE_SECRET_KEY is set.
+//   1. Validation; Turnstile. Without TURNSTILE_SECRET_KEY register is closed
+//      (503 signup_closed) unless SIGNUP_TURNSTILE_DISABLED=1 (local stack
+//      only, supabase/config.toml). Sign-ups are also closed while no org has
+//      accepts_signups (signup_register_attempt): that is the server-side
+//      switch; the web flag ORCHADOS_SIGNUP_ENABLED only hides /kayit.
 //   2. Rate limits: signup_register_attempt with HMAC-SHA256 (SIGNUP_HASH_SECRET)
 //      of the IP, the phone and the e-mail (10 per IP an hour, 3 per phone and
 //      5 per e-mail a day).
@@ -44,6 +48,7 @@
 
 import {
   type AccountMatch,
+  captchaMode,
   clientIp,
   decideMatches,
   hmacHex,
@@ -62,6 +67,7 @@ const HASH_SECRET = Deno.env.get("SIGNUP_HASH_SECRET") ?? "";
 const PROXY_SECRET = Deno.env.get("SIGNUP_PROXY_SECRET") ?? "";
 const CRON_SECRET = Deno.env.get("ORCHADOS_CRON_SECRET") ?? "";
 const TURNSTILE_SECRET = Deno.env.get("TURNSTILE_SECRET_KEY") ?? "";
+const CAPTCHA = captchaMode(TURNSTILE_SECRET, Deno.env.get("SIGNUP_TURNSTILE_DISABLED"));
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -102,7 +108,7 @@ async function deleteUser(id: string): Promise<void> {
 }
 
 async function captchaPassed(token: string | null, ip: string | null): Promise<boolean> {
-  if (!TURNSTILE_SECRET) return true;
+  if (CAPTCHA === "skip") return true;
   if (!token) return false;
   const form = new URLSearchParams({ secret: TURNSTILE_SECRET, response: token });
   if (ip) form.set("remoteip", ip);
@@ -141,6 +147,11 @@ async function register(req: Request, body: unknown): Promise<Response> {
   if (!parsed.ok) return error("invalid_input", 400, { field: parsed.field });
   const input = parsed.value;
   if (!HASH_SECRET) throw new Failure("SIGNUP_HASH_SECRET is not set");
+  if (CAPTCHA === "unconfigured") {
+    // Fail closed: no sign-up without a captcha on a hosted project.
+    console.error("customer-signup: TURNSTILE_SECRET_KEY is not set; sign-ups refused");
+    return error("signup_closed", 503);
+  }
 
   const ip = clientIp(req.headers, input.clientIp, PROXY_SECRET);
   if (!(await captchaPassed(input.captchaToken, ip))) return error("captcha_failed", 400);

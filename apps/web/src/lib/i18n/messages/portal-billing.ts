@@ -33,6 +33,8 @@ const errors: Record<PortalError, string> = {
   odeme_bulunamadi:
     "Ödeme kaydı bulunamadı. Kartınızdan çekim yapıldıysa birkaç dakika içinde burada görünür; görünmezse bizimle iletişime geçin.",
   onay_eksik: "Devam etmek için iki onay kutusunu da işaretleyin.",
+  fatura_eposta_eksik:
+    "Kartla ödeme için bir e-posta adresi gerekli. Fatura bilgilerinize e-posta adresinizi ekleyin ya da havale ile ödeyin.",
 };
 
 const fieldErrors: Record<PortalFieldError, string> = {
@@ -438,6 +440,9 @@ export const portalBillingText = {
     city: "İl",
     postalCode: "Posta kodu",
     email: "Fatura e-postası",
+    emailHint: "Boş bırakırsanız iletişim ya da giriş e-postanız kullanılır.",
+    emailRequiredHint:
+      "Hesabınızda e-posta adresi yok. Kartla ödeme için gerekli; ödeme kuruluşu makbuzu bu adrese gönderir.",
     submit: "Fatura bilgilerini kaydet",
     backTo: "Kaydettikten sonra teklife dönersiniz.",
   },

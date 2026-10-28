@@ -140,6 +140,17 @@ export function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// How register treats the captcha: "verify" with TURNSTILE_SECRET_KEY set;
+// without it sign-ups stay closed ("unconfigured", fail closed) unless
+// SIGNUP_TURNSTILE_DISABLED=1, which only the local stack sets
+// (supabase/config.toml), never a hosted project.
+export type CaptchaMode = "verify" | "skip" | "unconfigured";
+
+export function captchaMode(secret: string, disabledFlag: string | undefined): CaptchaMode {
+  if (secret) return "verify";
+  return disabledFlag === "1" ? "skip" : "unconfigured";
+}
+
 // The client's IP: the body's client_ip when the Next server proved itself
 // with the proxy secret, otherwise Cloudflare's header, otherwise the first
 // x-forwarded-for value.

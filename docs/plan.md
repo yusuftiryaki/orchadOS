@@ -82,7 +82,14 @@ gantt
 | İP8 | v0.1 tamam (PR #13) | Bahçelerim, parsel karnesi, sağlık haritası, ağaç karnesi ve fotoğraf geçmişi, işaretçili 360° gezi, yazdırma/PDF, telefon görünümü |
 | CI | Tamam (PR #10) | Her PR'da bileşen testleri GitHub Actions'ta; migration'lar `main`'den Supabase test projesine; web Vercel'de. Bkz. `docs/deployment.md` |
 | İP10 | Metodoloji v0 taslağı (`docs/metodoloji.md`) | Uzmanla kesinleşecek maddeler bölüm 11'de. Rol rol akış: `docs/kullanim-kilavuzu.md` |
-| İP12-A1 | Veri modeli ve kayıt (27 Ekim, PR açık) | Bütün faturalama tabloları (14 `public`, 8 `private`), sütun yetkileri, kayıt ve rıza fonksiyonları, `customer-signup` Edge Function, katalog ve başvuru fonksiyonları, `ops_find_user_id` sertleştirmesi, örnek müşteri (`customer@example.com`). Teklif, sipariş, ödeme İP12-A2 |
+| İP12 tasarım | Tamam (PR #52) | `docs/musteri-yonetimi.md` |
+| İP12-A1 | Tamam (PR #55) | Veri modeli ve kayıt: bütün faturalama tabloları (14 `public`, 8 `private`), sütun yetkileri, kayıt ve rıza fonksiyonları, `customer-signup` Edge Function, katalog ve başvuru fonksiyonları, `ops_find_user_id` sertleştirmesi, örnek müşteri (`customer@example.com`) |
+| İP12-B | Tamam (PR #54) | Ödeme sağlayıcı: iyzico Checkout Form ve sahte sağlayıcı, `payments`, `payment-callback`, `payment-webhook` Edge Function'ları. Açık: iyzico sandbox kontrol listesi (`docs/deployment.md`) |
+| İP12-C | Tamam (PR #53) | Herkese açık site, `/kayit` arayüzü, bayraklar, Turnstile widget'ı |
+| İP12-A2 | Tamam (PR #56) | Teklif, sipariş, ödeme, makbuz, iade fonksiyonları; bildirimler, `pg_cron` işleri |
+| İP12-D | Tamam (PR #58) | Müşteri portalı: başvuru, teklif, sipariş, kartla ve havaleyle ödeme, hesap |
+| İP12-E | Tamam (PR #57) | Back office: başvuru inceleme, teklif, havale kaydı, iade, ödeme incelemesi, ayarlar |
+| İP12 entegrasyon düzeltmesi | PR açık (`claude/ip12-entegrasyon-duzeltme`) | Bütünleşik incelemenin bulguları: alıcı e-postası, `payment_in_progress` eşlemesi, Turnstile olmadan kayıt kapalı, geri alma anahtarı, deploy runbook'u (`docs/gorevler/ip12-entegrasyon-duzeltme.md`). Bayraklar barındırılan projelerde hâlâ kapalı |
 | Operasyon ekranları | Tamam (PR #19) | `/operasyon`: pano, sahip ve parsel kaydı, kaba sınır, portal erişimi ve hesap açma, ziyaret planlama |
 | Envanter onayı | Tamam (PR #18) | Doğrulama listesi veritabanında (`verification_item`), ofiste ağaç özellikleri, altyapı ve saha sınırı; uzmanın envanter onayı; sahibin sınır onayı. Saha tarafı açık |
 | İP6 v0.3 | Tamam (PR #21) | Doğrulama turu ekranı, sahada sınır köşesi, kapsama haritası, test projesine bağlı APK (`docs/gorevler/ip6-envanter-saha.md`) |

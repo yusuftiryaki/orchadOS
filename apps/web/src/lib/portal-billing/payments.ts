@@ -40,12 +40,15 @@ const START_ERRORS: Record<string, PortalError> = {
 };
 
 // The reason of a failed `payments` start: the function answers
-// {error: code} (§8.4); a network failure is write_failed.
+// {error: code} (§8.4), with field "email" when the buyer has no e-mail; a
+// network failure is write_failed.
 export async function paymentStartError(error: unknown): Promise<PortalError> {
   const response = (error as { context?: unknown } | null)?.context;
   if (response instanceof Response) {
     try {
-      const body = (await response.clone().json()) as { error?: unknown };
+      const body = (await response.clone().json()) as { error?: unknown; field?: unknown };
+      if (body.error === "billing_profile_incomplete" && body.field === "email")
+        return "fatura_eposta_eksik";
       if (typeof body.error === "string" && START_ERRORS[body.error])
         return START_ERRORS[body.error];
     } catch {

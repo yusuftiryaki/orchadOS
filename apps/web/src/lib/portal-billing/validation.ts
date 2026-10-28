@@ -255,10 +255,16 @@ export interface BillingProfileInput {
 
 // The billing profile form → p_profile of customer_save_billing_profile.
 // identityRequired: the org needs a TCKN (my_billing_profile);
-// hasIdentity: one is already stored, so the field may stay empty.
+// hasIdentity: one is already stored, so the field may stay empty;
+// emailRequired: the customer has no contact or account e-mail, and card
+// payments need one (payment_begin refuses without it).
 export function parseBillingProfileForm(
   read: Read,
-  { identityRequired, hasIdentity }: { identityRequired: boolean; hasIdentity: boolean },
+  {
+    identityRequired,
+    hasIdentity,
+    emailRequired = false,
+  }: { identityRequired: boolean; hasIdentity: boolean; emailRequired?: boolean },
 ): Parsed<BillingProfileInput> {
   const errs = new Errors();
   const kind = choice(errs, read, "kind", BILLING_KINDS, true);
@@ -269,7 +275,7 @@ export function parseBillingProfileForm(
   const city = text(errs, read, "city", 100, true);
   const postal = text(errs, read, "postal_code", 5);
   if (postal && !/^[0-9]{5}$/.test(postal)) errs.set("postal_code", "invalid");
-  const email = text(errs, read, "email", 254)?.toLowerCase() ?? null;
+  const email = text(errs, read, "email", 254, emailRequired)?.toLowerCase() ?? null;
   if (email && !EMAIL.test(email)) errs.set("email", "invalid");
 
   let company: string | null = null;

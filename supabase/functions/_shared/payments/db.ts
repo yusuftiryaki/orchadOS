@@ -116,7 +116,9 @@ export interface PaymentBeginBuyer {
   first_name: string;
   last_name: string;
   identity_number: string;
-  email: string;
+  // payment_begin refuses (billing_profile_incomplete / email) when there is
+  // none, so null never reaches a provider.
+  email: string | null;
   phone: string;
   address: string;
   district: string | null;
@@ -222,6 +224,8 @@ export class DbError extends Error {
   constructor(
     readonly code: string,
     readonly httpStatus: number,
+    // The error's detail (a field name such as "email"), when it is one.
+    readonly detail: string | null = null,
   ) {
     super(code);
     this.name = "DbError";
@@ -246,6 +250,14 @@ export function reasonCode(httpStatus: number, error: unknown): string {
   if (typeof e.code === "string" && SQLSTATE_CODES[e.code]) return SQLSTATE_CODES[e.code];
   if (httpStatus === 401 || httpStatus === 403) return "forbidden";
   return "db_error";
+}
+
+// The PostgREST error's details when it is a field name (never a value).
+export function reasonDetail(error: unknown): string | null {
+  const details = (error && typeof error === "object" ? error : {}) as { details?: unknown };
+  return typeof details.details === "string" && /^[a-z][a-z0-9_]{1,40}$/.test(details.details)
+    ? details.details
+    : null;
 }
 
 async function rpc<T>(
@@ -275,7 +287,7 @@ async function rpc<T>(
       body = null;
     }
   }
-  if (!res.ok) throw new DbError(reasonCode(res.status, body), res.status);
+  if (!res.ok) throw new DbError(reasonCode(res.status, body), res.status, reasonDetail(body));
   return body as T;
 }
 

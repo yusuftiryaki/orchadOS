@@ -32,9 +32,15 @@ export const PORTAL_ERRORS = [
   "provider_error",
   "odeme_bulunamadi",
   "onay_eksik",
+  "fatura_eposta_eksik",
 ] as const;
 export type PortalError =
-  BillingError | "payments_disabled" | "provider_error" | "odeme_bulunamadi" | "onay_eksik";
+  | BillingError
+  | "payments_disabled"
+  | "provider_error"
+  | "odeme_bulunamadi"
+  | "onay_eksik"
+  | "fatura_eposta_eksik";
 
 type Result = { bilgi?: PortalNotice; hata?: PortalError; eksik?: string };
 
