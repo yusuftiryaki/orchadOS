@@ -50,7 +50,3 @@
   flex-direction: column;
   gap: 2px;
 }
-
-.readOnlyValue .muted {
-  font-size: var(--text-sm);
-}

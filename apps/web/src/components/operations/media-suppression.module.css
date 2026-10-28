@@ -120,11 +120,3 @@
 .pager > :first-child {
   margin-right: auto;
 }
-
-.history > summary {
-  cursor: pointer;
-  font-weight: 600;
-  color: var(--color-accent);
-  width: fit-content;
-  margin-bottom: var(--space-2);
-}
