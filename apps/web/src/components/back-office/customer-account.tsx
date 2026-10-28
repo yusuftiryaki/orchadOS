@@ -1,28 +1,44 @@
 import Link from "next/link";
+import { removeAllGardensAction } from "@/app/operasyon/back-office-actions";
+import { Field } from "@/components/operations/field";
 import styles from "@/components/operations/operations.module.css";
-import type { CustomerAccount } from "@/lib/back-office/data";
+import { addonBase, type CustomerAccount, type Membership } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
+import { REMOVAL_REASONS } from "@/lib/back-office/validation";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { billingText } from "@/lib/i18n/messages/billing";
-import { Badge, Facts, day, money, when } from "./parts";
+import { ActionForm } from "./action-form";
+import { CustomerGardens, MembershipPanel } from "./membership";
+import { Badge, Facts, Submit, day, money, when } from "./parts";
 import { RevealIdentity } from "./reveal-identity";
 
-const T = backOfficeText.account;
+const B = backOfficeText;
+const T = B.account;
+const M = B.membership;
 
-// "Müşteri hesabı" panel of an owner's page: billing profile (TCKN masked,
-// shown on request), consent history, applications, orders and payments.
+// "Müşteri hesabı" panel of an owner's page: the membership and gardens
+// (IP14), billing profile (TCKN masked, shown on request), consent history,
+// applications, orders and payments.
 export function CustomerAccountPanel({
   orgId,
   userId,
   profileId,
   account,
+  membership,
+  today,
+  settingAccessDays,
 }: {
   orgId: string;
   userId: string;
   profileId: string;
   account: CustomerAccount;
+  membership: Membership;
+  today: string;
+  settingAccessDays: number;
 }) {
   const p = account.profile;
+  const base = addonBase(membership.periods);
+  const inService = membership.gardens.filter((g) => g.state === "in_service");
   return (
     <section className={styles.section} data-testid="customer-account">
       <div className={styles.titleRow}>
@@ -31,6 +47,54 @@ export function CustomerAccountPanel({
           {T.parcelQuote}
         </Link>
       </div>
+
+      <MembershipPanel periods={membership.periods} />
+      {base && (
+        <p>
+          <Link
+            className="button button-secondary"
+            href={boHref.newQuote({ ek: base.baseOrderId })}
+            data-testid="customer-addon-quote"
+          >
+            {M.addonQuote}
+          </Link>
+        </p>
+      )}
+
+      <h3>{M.gardensTitle}</h3>
+      <CustomerGardens gardens={membership.gardens} />
+      {inService.length > 0 && (
+        <details data-testid="remove-all-gardens">
+          <summary>{M.removeAll}</summary>
+          <p className="muted">{M.removeAllHint}</p>
+          <ActionForm action={removeAllGardensAction} testId="remove-all-form">
+            <input type="hidden" name="org_id" value={orgId} />
+            <input type="hidden" name="user_id" value={userId} />
+            <input type="hidden" name="setting_access_days" value={settingAccessDays} />
+            <Field label={B.fields.reason}>
+              <select name="reason" defaultValue="" required>
+                <option value="" disabled>
+                  —
+                </option>
+                {REMOVAL_REASONS.map((r) => (
+                  <option key={r} value={r}>
+                    {billingText.gardenRemovalReason[r]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={B.fields.effective_on}>
+              <input type="date" name="effective_on" min={today} required />
+            </Field>
+            <Field label={B.internalNote} optional>
+              <textarea name="note" maxLength={2000} rows={2} />
+            </Field>
+            <div className={styles.actions}>
+              <Submit secondary>{M.removeAllSubmit}</Submit>
+            </div>
+          </ActionForm>
+        </details>
+      )}
 
       <h3>{T.billingProfile}</h3>
       {!p ? (

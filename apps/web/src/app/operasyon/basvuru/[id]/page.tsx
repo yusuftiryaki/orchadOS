@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { issueQuoteAction, rejectApplicationAction } from "@/app/operasyon/back-office-actions";
+import {
+  issueAddonQuoteAction,
+  issueQuoteAction,
+  linkGardenAction,
+  rejectApplicationAction,
+  withdrawGardenAction,
+} from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
 import { GardensMap } from "@/components/back-office/gardens-map";
 import {
@@ -8,33 +14,59 @@ import {
   BoResultNotice,
   Facts,
   Submit,
+  Warning,
   day,
   money,
   when,
 } from "@/components/back-office/parts";
+import { MembershipPanel } from "@/components/back-office/membership";
 import { QuoteLines } from "@/components/back-office/quote-lines";
 import { Field } from "@/components/operations/field";
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
-import { getApplication, previewQuote, userName } from "@/lib/back-office/data";
+import {
+  addonBase,
+  gardenOverlaps,
+  getApplication,
+  getSetting,
+  membershipOrEmpty,
+  parcelShapes,
+  previewAddonQuote,
+  previewQuote,
+  userName,
+  type OverlapRow,
+} from "@/lib/back-office/data";
 import { boHref, firstParam } from "@/lib/back-office/urls";
 import { bpToPercent, percentToBp } from "@/lib/back-office/validation";
 import { BILLING_ERRORS, type BillingError } from "@/lib/billing/errors";
 import { formatDonum } from "@/lib/billing/money";
+import { formatNumber, t } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { billingText } from "@/lib/i18n/messages/billing";
+import { opsHref } from "@/lib/operations/urls";
 import { createClient } from "@/lib/supabase/server";
 
 const B = backOfficeText;
 const T = B.application;
+const A = B.addon;
+const O = B.overlaps;
 const REASONS = Object.keys(
   billingText.rejectionReason,
 ) as (keyof typeof billingText.rejectionReason)[];
 
+const errorText = (error: string) =>
+  (BILLING_ERRORS as readonly string[]).includes(error)
+    ? billingText.errors[error as BillingError]
+    : billingText.errors.write_failed;
+
 // One application: gardens (declared against verified areas, map), the
 // internal note, a preview of the quote, issuing a quote or rejecting, and
-// the quotes given so far.
+// the quotes given so far. For a member (IP14, docs/bahce-yonetimi.md §4.1,
+// §12): the service period, the customer's parcels on the map, duplicate
+// checks per garden with linking to an earlier parcel, withdrawing a garden,
+// and the add-on quote as the primary action (a separate period only with
+// an explicit checkbox).
 export default async function Page({
   params,
   searchParams,
@@ -48,17 +80,42 @@ export default async function Page({
   const supabase = await createClient();
   const view = await getApplication(supabase, id);
   if (!view) notFound();
-  const { application: a, gardens, quotes, internal } = view;
+  const { application: a, gardens: allGardens, quotes, internal } = view;
   const open = a.status === "submitted" || a.status === "quoted";
+  const gardens = allGardens.filter((g) => !g.withdrawn_at);
   const allVerified = gardens.length > 0 && gardens.every((g) => g.verified_at);
   const discountBp = percentToBp(firstParam(query.indirim) ?? "") ?? 0;
-  const preview = open && allVerified ? await previewQuote(supabase, a.id, discountBp) : null;
-  const previewError =
-    preview && "error" in preview
-      ? (BILLING_ERRORS as readonly string[]).includes(preview.error)
-        ? billingText.errors[preview.error as BillingError]
-        : billingText.errors.write_failed
-      : null;
+  const membership = await membershipOrEmpty(supabase, a.org_id, a.customer_user_id);
+  const member = membership.periods.length > 0;
+  const base = addonBase(membership.periods);
+  const basePeriod = membership.periods.find((p) => p.base_order_id === base?.baseOrderId);
+  const [preview, addonPreview, overlaps, existing, setting] = await Promise.all([
+    open && allVerified && !member ? previewQuote(supabase, a.id, discountBp) : null,
+    open && base
+      ? previewAddonQuote(supabase, {
+          baseOrderId: base.baseOrderId,
+          applicationId: a.id,
+          discountBp,
+        })
+      : null,
+    Promise.all(
+      gardens.map(
+        async (g) => [g.id, await gardenOverlaps(supabase, g.id).catch(() => [])] as const,
+      ),
+    ).then((rows) => new Map<string, OverlapRow[]>(rows)),
+    parcelShapes(
+      supabase,
+      membership.gardens.map((g) => g.parcel_id),
+    ),
+    getSetting(supabase, a.org_id),
+  ]);
+  const previewError = preview && "error" in preview ? errorText(preview.error) : null;
+  const addonError = addonPreview && "error" in addonPreview ? errorText(addonPreview.error) : null;
+  const packageDiffers = basePeriod && a.package_id && basePeriod.package_id !== a.package_id;
+  const linkedNames = new Map([
+    ...existing.map((p) => [p.id, p.name] as const),
+    ...[...overlaps.values()].flat().map((o) => [o.parcel_id, o.parcel_name] as const),
+  ]);
 
   return (
     <main className="page">
@@ -99,6 +156,12 @@ export default async function Page({
         />
       </section>
 
+      {member && (
+        <section className={styles.section}>
+          <MembershipPanel periods={membership.periods} heading="h2" />
+        </section>
+      )}
+
       <h2>{T.gardens}</h2>
       <div className={styles.tableWrap}>
         <table className={styles.table} data-testid="application-gardens">
@@ -112,9 +175,17 @@ export default async function Page({
             </tr>
           </thead>
           <tbody>
-            {gardens.map((g) => (
-              <tr key={g.id} data-garden-id={g.id}>
-                <td>{g.name}</td>
+            {allGardens.map((g) => (
+              <tr
+                key={g.id}
+                data-garden-id={g.id}
+                data-withdrawn={g.withdrawn_at ? true : undefined}
+                className={g.withdrawn_at ? "muted" : undefined}
+              >
+                <td>
+                  {g.name}
+                  {g.withdrawn_at && <span className={styles.badge}> {O.withdrawn}</span>}
+                </td>
                 <td>{[g.village, g.district, g.province].filter(Boolean).join(", ")}</td>
                 <td className={styles.number}>{formatDonum(Number(g.declared_area_m2))}</td>
                 <td className={styles.number}>
@@ -124,7 +195,11 @@ export default async function Page({
                 </td>
                 <td>
                   <Link href={boHref.applicationGarden(a.id, g.id)}>
-                    {open ? (g.verified_at ? T.reverify : T.verifyAction) : B.details}
+                    {open && !g.withdrawn_at
+                      ? g.verified_at
+                        ? T.reverify
+                        : T.verifyAction
+                      : B.details}
                   </Link>
                 </td>
               </tr>
@@ -133,16 +208,184 @@ export default async function Page({
         </table>
       </div>
       <GardensMap
-        label={T.map}
+        label={existing.length ? `${T.map}; ${O.existing}` : T.map}
         gardens={gardens.map((g) => ({
           id: g.id,
           name: g.name,
           position: g.position,
           boundary: g.boundary,
         }))}
+        existing={existing}
       />
+      {existing.length > 0 && <p className="muted">{O.existing}</p>}
 
-      {open && (
+      <section className={styles.section} data-testid="garden-overlaps">
+        <h2>{O.title}</h2>
+        {gardens.map((g) => {
+          const rows = overlaps.get(g.id) ?? [];
+          return (
+            <div key={g.id} data-garden-id={g.id} data-testid="garden-overlap">
+              <h3>{g.name}</h3>
+              {g.parcel_id && (
+                <div className={styles.inline}>
+                  <span data-testid="garden-linked">
+                    {O.linked(linkedNames.get(g.parcel_id) ?? g.parcel_id.slice(0, 8))}
+                  </span>
+                  {open && (
+                    <ActionForm action={linkGardenAction} inline>
+                      <input type="hidden" name="application_id" value={a.id} />
+                      <input type="hidden" name="garden_id" value={g.id} />
+                      <input type="hidden" name="parcel_id" value="" />
+                      <Submit secondary>{O.unlink}</Submit>
+                    </ActionForm>
+                  )}
+                </div>
+              )}
+              {rows.length === 0 ? (
+                <p className="muted">{O.none}</p>
+              ) : (
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>{O.parcel}</th>
+                        <th>{O.status}</th>
+                        <th>{O.relation}</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((o) => (
+                        <tr
+                          key={o.parcel_id}
+                          data-parcel-id={o.parcel_id}
+                          data-same-customer={o.same_customer || undefined}
+                        >
+                          <td>
+                            <Link href={opsHref.parcel(o.parcel_id)}>{o.parcel_name}</Link>
+                          </td>
+                          <td>
+                            {t.parcels.status[o.parcel_status] ?? o.parcel_status}
+                            {o.in_service && <span className={styles.badge}> {O.inService}</span>}
+                          </td>
+                          <td>
+                            {o.same_customer ? O.sameCustomer : O.otherCustomer}
+                            {o.inside_boundary && <> · {O.inside}</>}
+                            {o.distance_m != null && (
+                              <> · {O.distance(formatNumber(Number(o.distance_m)))}</>
+                            )}
+                          </td>
+                          <td>
+                            {open && o.same_customer && !o.in_service && g.parcel_id !== o.parcel_id ? (
+                              <ActionForm action={linkGardenAction} inline>
+                                <input type="hidden" name="application_id" value={a.id} />
+                                <input type="hidden" name="garden_id" value={g.id} />
+                                <input type="hidden" name="parcel_id" value={o.parcel_id} />
+                                <Submit secondary>{O.link}</Submit>
+                              </ActionForm>
+                            ) : !o.same_customer ? (
+                              <span className="muted">{O.otherHint}</span>
+                            ) : null}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {open && gardens.length > 1 && (
+                <ActionForm action={withdrawGardenAction} testId="withdraw-garden-form" inline>
+                  <input type="hidden" name="application_id" value={a.id} />
+                  <input type="hidden" name="garden_id" value={g.id} />
+                  <label>
+                    {O.withdrawNote}
+                    <input name="note" maxLength={2000} required />
+                  </label>
+                  <Submit secondary>{O.withdraw}</Submit>
+                </ActionForm>
+              )}
+            </div>
+          );
+        })}
+      </section>
+
+      {open && base && (
+        <section className={styles.section} data-testid="addon-section">
+          <h2>{A.preview}</h2>
+          <p className="muted">{A.hint}</p>
+          {packageDiffers && (
+            <Warning testId="addon-package-differs">
+              {A.packageDiffers(view.packageName ?? B.none, basePeriod.package_name)}
+            </Warning>
+          )}
+          <Facts
+            rows={[
+              [
+                A.base,
+                <Link key="b" href={boHref.order(base.baseOrderId)}>
+                  {basePeriod?.base_order_number ?? A.base}
+                </Link>,
+              ],
+              [A.lastDay, day(base.until)],
+              ...(addonPreview && "lines" in addonPreview && addonPreview.lines[0]
+                ? ([
+                    [
+                      A.service,
+                      `${day(addonPreview.lines[0].service_start)} – ${day(addonPreview.lines[0].service_end)}`,
+                    ],
+                  ] as [string, string][])
+                : []),
+            ]}
+          />
+          {addonError ? (
+            <p className="muted" data-testid="addon-preview-error">
+              {addonError}
+            </p>
+          ) : addonPreview && "lines" in addonPreview ? (
+            <QuoteLines
+              testId="addon-preview"
+              lines={addonPreview.lines}
+              vatRateBp={addonPreview.lines[0]?.vat_rate_bp ?? 0}
+            />
+          ) : null}
+          <ActionForm action={issueAddonQuoteAction} testId="addon-quote-form">
+            <input type="hidden" name="base_order_id" value={base.baseOrderId} />
+            <input type="hidden" name="application_id" value={a.id} />
+            <Field label={B.quote.start} optional>
+              <input type="date" name="proposed_service_start" max={base.until ?? undefined} />
+            </Field>
+            <Field
+              label={B.fields.valid_days}
+              hint={B.quote.validDaysHint(setting?.quote_valid_days ?? 30)}
+              optional
+            >
+              <input name="valid_days" inputMode="numeric" />
+            </Field>
+            <Field label={B.fields.discount_percent} hint={B.quote.discountHint} optional>
+              <input
+                name="discount_percent"
+                inputMode="decimal"
+                defaultValue={discountBp ? bpToPercent(discountBp) : ""}
+              />
+            </Field>
+            <Field label={B.quote.discountNote} optional>
+              <input name="discount_note" maxLength={500} />
+            </Field>
+            <Field label={B.quote.noteToCustomer} optional>
+              <textarea name="note_to_customer" maxLength={1000} rows={3} />
+            </Field>
+            <div className={styles.actions}>
+              <Submit>{A.submit}</Submit>
+            </div>
+          </ActionForm>
+        </section>
+      )}
+
+      {open && member && !base && (
+        <Warning testId="addon-too-short">{billingText.errors.addon_period_too_short}</Warning>
+      )}
+
+      {open && !member && (
         <section className={styles.section}>
           <h2>{T.preview}</h2>
           {!allVerified ? (
@@ -178,10 +421,19 @@ export default async function Page({
       {open ? (
         <div className={styles.columns}>
           <section className={styles.section}>
-            <h2>{T.issueQuote}</h2>
-            <p className="muted">{T.issueHint}</p>
+            <h2>{member ? A.separateTitle : T.issueQuote}</h2>
+            <p className="muted">{member ? A.separateHint : T.issueHint}</p>
             <ActionForm action={issueQuoteAction} testId="issue-quote-form">
               <input type="hidden" name="application_id" value={a.id} />
+              {member && (
+                <>
+                  <input type="hidden" name="member" value="1" />
+                  <label className={styles.check}>
+                    <input type="checkbox" name="separate_period" required />
+                    {A.separateConfirm}
+                  </label>
+                </>
+              )}
               <Field label={B.quote.start} optional>
                 <input type="date" name="proposed_service_start" />
               </Field>
@@ -202,7 +454,7 @@ export default async function Page({
                 <textarea name="note_to_customer" maxLength={1000} rows={3} />
               </Field>
               <div className={styles.actions}>
-                <Submit>{T.issueQuote}</Submit>
+                <Submit secondary={member}>{member ? A.separateTitle : T.issueQuote}</Submit>
               </div>
             </ActionForm>
           </section>

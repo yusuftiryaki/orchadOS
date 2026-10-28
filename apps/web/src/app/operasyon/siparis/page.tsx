@@ -70,6 +70,12 @@ export default async function Page({
                 >
                   <td>
                     <Link href={boHref.order(o.id)}>{o.number}</Link>
+                    {o.addon_of_order_id && (
+                      <span className={styles.badge} data-testid="order-addon-badge">
+                        {" "}
+                        {T.addon}
+                      </span>
+                    )}
                   </td>
                   <td>{o.customer_name ?? backOfficeText.none}</td>
                   <td>{o.package_name}</td>
@@ -88,7 +94,9 @@ export default async function Page({
                   <td>
                     <Badge labels={billingText.orderStatus} value={o.status} />
                     {o.overdue && <span className={styles.badgeLate}> {T.overdue}</span>}
-                    {o.renewal_due && <span className={styles.badge}> {T.renewalDue}</span>}
+                    {o.renewal_due && !o.addon_of_order_id && (
+                      <span className={styles.badge}> {T.renewalDue}</span>
+                    )}
                     {o.live_payment && <span className={styles.badge}> {T.livePayment}</span>}
                   </td>
                 </tr>

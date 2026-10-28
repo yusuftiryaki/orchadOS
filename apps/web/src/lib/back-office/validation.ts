@@ -311,6 +311,153 @@ export function parseNote(read: Reader, required: boolean): Parsed<string | null
 }
 
 // ---------------------------------------------------------------------------
+// Garden membership (IP14, docs/bahce-yonetimi.md §4–§5, §12)
+// ---------------------------------------------------------------------------
+
+export interface AddonQuoteInput extends QuoteTermsInput {
+  // The parcel path (§4.3); null on the application path.
+  parcelIds: string[] | null;
+}
+
+// An add-on quote: the common terms and, for existing parcels, 1–50 distinct
+// parcels (ops_issue_addon_quote).
+export function parseAddonQuote(
+  read: Reader,
+  form: FormData,
+  mode: "application" | "parcels",
+): Parsed<AddonQuoteInput> {
+  const terms = parseQuoteTerms(read);
+  if (!terms.ok) return terms;
+  if (mode === "application") return ok({ ...terms.value, parcelIds: null });
+  const parcelIds = [
+    ...new Set(form.getAll("parcel_ids").filter((v): v is string => typeof v === "string")),
+  ];
+  if (parcelIds.length === 0 || parcelIds.length > 50) return bad("parcel_ids");
+  return ok({ ...terms.value, parcelIds });
+}
+
+// Every reason of garden_removal_reason; transfer and duplicate are ops'.
+export const REMOVAL_REASONS = [
+  "sold",
+  "not_needed",
+  "dissatisfied",
+  "cost",
+  "transfer",
+  "duplicate",
+  "other",
+] as const;
+export type RemovalReason = (typeof REMOVAL_REASONS)[number];
+
+// Reasons that allow a read-only window shorter than the setting without a
+// note (§5.2: a transfer suggests 0).
+export const SHORT_ACCESS_REASONS: readonly RemovalReason[] = ["transfer", "duplicate"];
+
+// The day range of a removal form: from today to the day after the latest
+// line of the garden ends (null: no upper bound known).
+export interface RemovalDays {
+  today: string;
+  lastDay: string | null;
+}
+
+function parseEffectiveOn(read: Reader, days: RemovalDays): Parsed<string> {
+  const day = parseIsoDate(read("effective_on"));
+  if (!day || day < days.today || (days.lastDay && day > days.lastDay)) {
+    return bad("effective_on");
+  }
+  return ok(day);
+}
+
+// Days of read-only access, 0..365; empty keeps the setting (a request) or the
+// current value (a schedule). Below the setting only for a transfer or a
+// duplicate, or with a note (private.check_access_days).
+function parseAccessDays(
+  read: Reader,
+  settingDays: number,
+  reason: string,
+  note: string | null,
+): Parsed<number | null> {
+  const input = read("access_days");
+  if (!input) return ok(null);
+  const days = parseIntInRange(input, 0, 365);
+  if (days == null) return bad("access_days");
+  if (days < settingDays && !SHORT_ACCESS_REASONS.includes(reason as RemovalReason) && !note) {
+    return bad("access_days");
+  }
+  return ok(days);
+}
+
+export interface RemovalRequestInput {
+  reason: RemovalReason;
+  effectiveOn: string;
+  accessDays: number | null;
+  revokeAllAccess: boolean;
+  note: string | null;
+}
+
+// "Bahçeyi çıkar" (ops_request_garden_removal).
+export function parseRemovalRequest(
+  read: Reader,
+  days: RemovalDays,
+  settingAccessDays: number,
+): Parsed<RemovalRequestInput> {
+  const reason = read("reason");
+  if (!(REMOVAL_REASONS as readonly string[]).includes(reason)) return bad("reason");
+  const effectiveOn = parseEffectiveOn(read, days);
+  if (!effectiveOn.ok) return effectiveOn;
+  const note = parseNote(read, false);
+  if (!note.ok) return note;
+  const accessDays = parseAccessDays(read, settingAccessDays, reason, note.value);
+  if (!accessDays.ok) return accessDays;
+  return ok({
+    reason: reason as RemovalReason,
+    effectiveOn: effectiveOn.value,
+    accessDays: accessDays.value,
+    revokeAllAccess: checked(read, "revoke_all_access"),
+    note: note.value,
+  });
+}
+
+export interface RemovalScheduleInput {
+  effectiveOn: string;
+  accessDays: number | null;
+  revokeAllAccess: boolean;
+  note: string | null;
+}
+
+// "Tarihi teyit et / değiştir" (ops_schedule_garden_removal): the note is
+// required when the day differs from the requested one; the short-access
+// rule applies only when the access days change.
+export function parseRemovalSchedule(
+  read: Reader,
+  days: RemovalDays,
+  removal: {
+    requestedOn: string;
+    reason: string;
+    accessDays: number;
+    settingAccessDays: number;
+  },
+): Parsed<RemovalScheduleInput> {
+  const effectiveOn = parseEffectiveOn(read, days);
+  if (!effectiveOn.ok) return effectiveOn;
+  const note = parseNote(read, false);
+  if (!note.ok) return note;
+  if (effectiveOn.value !== removal.requestedOn && !note.value) return bad("note");
+  // The stored value is sent as null (kept), so a short window given
+  // earlier passes again unchanged.
+  const unchanged = parseIntInRange(read("access_days"), 0, 365) === removal.accessDays;
+  const accessDays = unchanged
+    ? ok(null)
+    : parseAccessDays(read, removal.settingAccessDays, removal.reason, note.value);
+  if (!accessDays.ok) return accessDays;
+  return ok({
+    effectiveOn: effectiveOn.value,
+    accessDays: accessDays.value,
+    revokeAllAccess: checked(read, "revoke_all_access"),
+    note: note.value,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Prices and settings
 // ---------------------------------------------------------------------------
 
@@ -441,10 +588,18 @@ export function parseSettings(
     ["payment_due_days", 1, 60],
     ["quote_valid_days", 1, 90],
     ["renewal_notice_days", 7, 120],
+    // IP14 (docs/bahce-yonetimi.md §9.3)
+    ["addon_min_days", 1, 180],
+    ["removal_notice_days", 0, 90],
+    ["removal_access_days", 0, 365],
   ] as const) {
     const n = parseIntInRange(read(key), min, max);
     if (n == null) return bad(key);
     settings[key] = n;
   }
+  settings.garden_changes_enabled = checked(read, "garden_changes_enabled");
+  const refundMode = read("removal_refund_mode");
+  if (refundMode !== "unused_visits" && refundMode !== "manual") return bad("removal_refund_mode");
+  settings.removal_refund_mode = refundMode;
   return ok(settings);
 }

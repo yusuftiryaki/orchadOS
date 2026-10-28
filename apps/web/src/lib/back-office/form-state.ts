@@ -4,6 +4,9 @@
 export interface BoFormState {
   error: string | null;
   revealed?: string | null;
+  // A form acting on several records (Tüm bahçeleri çıkar): one result line
+  // per record, the error text or what was done.
+  lines?: { label: string; ok: boolean; text: string }[];
 }
 
 export const EMPTY_BO_FORM: BoFormState = { error: null };

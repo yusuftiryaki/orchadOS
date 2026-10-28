@@ -8,12 +8,15 @@ import type { Json } from "@/lib/database.types";
 import type { Client } from "@/lib/supabase/types";
 import type { BoError } from "./urls";
 import type {
+  AddonQuoteInput,
   ManualPaymentInput,
   PackageInput,
   ParcelQuoteInput,
   PriceListDraftInput,
   QuoteTermsInput,
   RefundInput,
+  RemovalRequestInput,
+  RemovalScheduleInput,
   VerifyInput,
 } from "./validation";
 
@@ -127,6 +130,99 @@ export async function rejectApplication(
       ...(note ? { p_note: note } : {}),
     }),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Garden membership (IP14, docs/bahce-yonetimi.md §4, §9.6)
+// ---------------------------------------------------------------------------
+
+// An add-on quote joining a base order: for an application's gardens, or for
+// existing parcels (input.parcelIds).
+export async function issueAddonQuote(
+  supabase: Client,
+  baseOrderId: string,
+  applicationId: string | null,
+  input: AddonQuoteInput,
+) {
+  return result(
+    await supabase.rpc("ops_issue_addon_quote", {
+      p_base_order_id: baseOrderId,
+      ...(input.parcelIds ? { p_parcel_ids: input.parcelIds } : {}),
+      ...(applicationId && !input.parcelIds ? { p_application_id: applicationId } : {}),
+      ...(input.proposedServiceStart
+        ? { p_proposed_service_start: input.proposedServiceStart }
+        : {}),
+      ...termArgs(input),
+    }),
+  );
+}
+
+// Links an application garden to the customer's earlier parcel; null unlinks.
+export async function linkGardenParcel(
+  supabase: Client,
+  gardenId: string,
+  parcelId: string | null,
+) {
+  return result(
+    await supabase.rpc("ops_link_application_garden_parcel", {
+      p_garden_id: gardenId,
+      // null unlinks (the generated type has no null).
+      p_parcel_id: parcelId as string,
+    }),
+  );
+}
+
+export async function withdrawApplicationGarden(supabase: Client, gardenId: string, note: string) {
+  return result(
+    await supabase.rpc("ops_withdraw_application_garden", {
+      p_garden_id: gardenId,
+      p_note: note,
+    }),
+  );
+}
+
+// A removal opened by ops for an order line (scheduled at once; SMS).
+export async function requestGardenRemoval(
+  supabase: Client,
+  orderItemId: string,
+  input: RemovalRequestInput,
+) {
+  return result(
+    await supabase.rpc("ops_request_garden_removal", {
+      p_order_item_id: orderItemId,
+      p_reason: input.reason,
+      p_effective_on: input.effectiveOn,
+      ...(input.note ? { p_note: input.note } : {}),
+      ...(input.accessDays != null ? { p_access_days: input.accessDays } : {}),
+      p_revoke_all_access: input.revokeAllAccess,
+    }),
+  );
+}
+
+export async function scheduleGardenRemoval(
+  supabase: Client,
+  removalId: string,
+  input: RemovalScheduleInput,
+) {
+  return result(
+    await supabase.rpc("ops_schedule_garden_removal", {
+      p_removal_id: removalId,
+      p_effective_on: input.effectiveOn,
+      ...(input.note ? { p_note: input.note } : {}),
+      ...(input.accessDays != null ? { p_access_days: input.accessDays } : {}),
+      p_revoke_all_access: input.revokeAllAccess,
+    }),
+  );
+}
+
+export async function cancelGardenRemoval(supabase: Client, removalId: string, note: string) {
+  return result(
+    await supabase.rpc("ops_cancel_garden_removal", { p_removal_id: removalId, p_note: note }),
+  );
+}
+
+export async function completeGardenRemoval(supabase: Client, removalId: string) {
+  return result(await supabase.rpc("ops_complete_garden_removal", { p_removal_id: removalId }));
 }
 
 // ---------------------------------------------------------------------------

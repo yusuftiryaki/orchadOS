@@ -7,7 +7,7 @@ import { OwnerForm } from "@/components/operations/owner-form";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
-import { customerAccount } from "@/lib/back-office/data";
+import { customerAccount, getSetting, membershipOrEmpty } from "@/lib/back-office/data";
 import { accessOfUser, getOwnerProfile, opsOrgs } from "@/lib/operations/data";
 import { opsHref } from "@/lib/operations/urls";
 import { todayIn } from "@/lib/operations/visits";
@@ -28,11 +28,14 @@ export default async function Page({
   const profile = await getOwnerProfile(supabase, profileId);
   // Not an ops of the profile's org looks the same as not existing.
   if (!profile) notFound();
-  const [orgs, access, account] = await Promise.all([
+  const [orgs, access, account, membership, setting] = await Promise.all([
     opsOrgs(supabase, user.id),
     accessOfUser(supabase, profile.user_id),
     customerAccount(supabase, profile.org_id, profile.user_id),
+    membershipOrEmpty(supabase, profile.org_id, profile.user_id),
+    getSetting(supabase, profile.org_id),
   ]);
+  const today = todayIn(new Date());
 
   return (
     <main className="page">
@@ -85,6 +88,9 @@ export default async function Page({
         userId={profile.user_id}
         profileId={profile.id}
         account={account}
+        membership={membership}
+        today={today}
+        settingAccessDays={setting?.removal_access_days ?? 90}
       />
     </main>
   );
