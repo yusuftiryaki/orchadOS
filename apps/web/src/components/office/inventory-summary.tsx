@@ -48,38 +48,29 @@ export function InventorySummaryView({
   );
 }
 
+// Map legend. The swatches are the colours inventory-map.tsx draws
+// (inventory.module.css, --legend-*): a filled dot for a tree, a ring for an
+// empty slot or a flagged one.
 export function InventoryMapLegend({ track = false, declared = false }) {
   const l = t.inventory.legend;
+  const items: [string, string, boolean][] = [
+    [styles.swatchTree, l.tree, true],
+    [styles.swatchInterstitial, l.interstitial, true],
+    [styles.swatchEmpty, l.empty, true],
+    [styles.swatchFlagged, l.flagged, true],
+    [styles.swatchTrack, l.track, track],
+    [styles.swatchDeclared, l.declared, declared],
+  ];
   return (
     <ul className={styles.legend}>
-      <li>
-        <span className={styles.dot} style={{ background: "#2b8a3e" }} />
-        {l.tree}
-      </li>
-      <li>
-        <span className={styles.dot} style={{ background: "#94d82d" }} />
-        {l.interstitial}
-      </li>
-      <li>
-        <span className={styles.dot} style={{ borderColor: "#c92a2a" }} />
-        {l.empty}
-      </li>
-      <li>
-        <span className={styles.dot} style={{ borderColor: "#f08c00" }} />
-        {l.flagged}
-      </li>
-      {track && (
-        <li>
-          <span className={styles.dot} style={{ background: "#74c0fc" }} />
-          {l.track}
-        </li>
-      )}
-      {declared && (
-        <li>
-          <span className={styles.dot} style={{ borderColor: "#868e96" }} />
-          {l.declared}
-        </li>
-      )}
+      {items
+        .filter(([, , shown]) => shown)
+        .map(([swatch, label]) => (
+          <li key={label}>
+            <span className={`${styles.dot} ${swatch}`} aria-hidden />
+            {label}
+          </li>
+        ))}
     </ul>
   );
 }

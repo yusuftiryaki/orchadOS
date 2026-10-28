@@ -149,6 +149,10 @@ test("expert approves the inventory", async ({ page }) => {
   await expect(summary.getByTestId("summary-ungrafted")).toContainText("1");
   await expect(summary.getByTestId("summary-age-productive")).toContainText("2");
   await expect(page.getByTestId("coding-checks")).toContainText("Sorun bulunmadı.");
+  // The gate at the top: nothing blocks the signature.
+  await expect(page.getByTestId("gate-items")).toContainText("Yok");
+  await expect(page.getByTestId("gate-coding")).toContainText("Sorun yok");
+  await expect(page.getByTestId("approve-blockers")).toHaveCount(0);
   await expect(page.getByTestId("verification-tours").locator("tbody tr")).toHaveCount(3);
 
   // The expert corrects one tree before signing.

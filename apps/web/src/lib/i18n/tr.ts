@@ -1606,7 +1606,8 @@ export const tr = {
         added: "Altyapı eklendi.",
         deleted: "Altyapı silindi.",
         deleteTitle: "Altyapı silinsin mi?",
-        deleteBody: (what: string) => `${what} haritadan ve envanterden silinir. Bu işlem geri alınamaz.`,
+        deleteBody: (what: string) =>
+          `${what} haritadan ve envanterden silinir. Bu işlem geri alınamaz.`,
         deleteConfirm: "Sil",
         deleteCancel: "Vazgeç",
         columns: { kind: "Tür", name: "Ad", actions: "İşlem" },
@@ -1701,7 +1702,8 @@ export const tr = {
         submit: "Envanteri onayla ve imzala",
         submitting: "İmzalanıyor…",
         done: "Envanter onaylandı. Parsel “Envanter tamam” durumuna geçti.",
-        blockedOpen: (n: number) => `${n} açık doğrulama kalemi var. Kalemleri aşağıdaki turlarda kapatın.`,
+        blockedOpen: (n: number) =>
+          `${n} açık doğrulama kalemi var. Kalemleri aşağıdaki turlarda kapatın.`,
         blockedTitle: "İmza için önce bunlar çözülmeli",
         ready: "Engel yok. Kontrol ettikten sonra imzalayabilirsiniz.",
         openCoverage: "Kapsamaya git",

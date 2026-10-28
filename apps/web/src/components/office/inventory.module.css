@@ -1,11 +1,19 @@
+/* Inventory workspace (office), the expert's inventory approval and the
+   inventory summary (also on the owner's report card). */
+
 .page {
   margin: 0 auto;
-  padding: var(--space-3);
+  padding: var(--space-4) var(--space-3) var(--space-5);
   max-width: 1800px;
   display: grid;
   gap: var(--space-3);
 }
 
+.page > * {
+  min-width: 0;
+}
+
+/* Workbench: the map stays in view on the left; the work on the right. */
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
@@ -15,7 +23,7 @@
 
 @media (max-width: 1000px) {
   .layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -23,7 +31,8 @@
   display: grid;
   gap: var(--space-2);
   position: sticky;
-  top: var(--space-2);
+  top: var(--space-3);
+  min-width: 0;
 }
 
 @media (max-width: 1000px) {
@@ -39,6 +48,24 @@
   border-radius: var(--radius);
 }
 
+.mapFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.mapFoot label {
+  font-size: var(--text-sm);
+}
+
+.mapHint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
 .side {
   display: grid;
   gap: var(--space-3);
@@ -46,216 +73,223 @@
   min-width: 0;
 }
 
+/* In-page tabs (role=tablist); the look of components/ui/tabs. */
 .tabs {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-1);
   border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.tab,
-.tabActive {
-  border: 1px solid transparent;
-  border-bottom: none;
-  background: transparent;
+.tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius) var(--radius) 0 0;
+  min-height: var(--control-height);
+  color: var(--color-text-2);
+  font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
-  color: var(--color-muted);
+  transition:
+    color var(--duration-fast),
+    border-color var(--duration-fast);
 }
 
-.tabActive {
-  background: var(--color-surface);
-  border-color: var(--color-border);
+.tab:hover {
   color: var(--color-text);
-  font-weight: 600;
+}
+
+.tab[aria-selected="true"] {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+@media (max-width: 640px) {
+  .tab {
+    min-height: 44px;
+  }
+}
+
+.tabPanel,
+.stack {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
 }
 
 .panel {
   display: grid;
   gap: var(--space-3);
+  align-content: start;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
   min-width: 0;
 }
 
 .panel h2,
-.panel h3 {
+.panel h3,
+.panel p {
   margin: 0;
 }
 
-.row {
+.panel h2 {
+  font-size: var(--text-lg);
+}
+
+.panel h3 {
+  font-size: var(--text-base);
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  max-width: var(--measure);
+}
+
+.details {
+  font-size: var(--text-sm);
+}
+
+.details summary {
+  font-weight: 600;
+}
+
+.details p {
+  margin-top: var(--space-1);
+  color: var(--color-text-2);
+  max-width: var(--measure);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--space-2) var(--space-3);
+}
+
+/* A row of controls: fields and buttons share the bottom edge. */
+.toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
   align-items: end;
-}
-
-.field {
-  display: grid;
-  gap: var(--space-1);
-  font-size: 13px;
-}
-
-.field select,
-.field input,
-.field textarea,
-.inline select,
-.inline input {
-  font: inherit;
-}
-
-.inline {
-  display: inline-flex;
-  gap: var(--space-1);
-  align-items: center;
-}
-
-.check {
-  display: flex;
   gap: var(--space-2);
-  align-items: flex-start;
 }
 
-.tableWrap {
-  overflow: auto;
-  max-height: 60vh;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.table th,
-.table td {
-  padding: var(--space-1) var(--space-2);
-  border-bottom: 1px solid var(--color-border);
-  text-align: left;
-  vertical-align: top;
-}
-
-.table th {
-  position: sticky;
-  top: 0;
-  background: var(--color-surface);
-  z-index: 1;
-}
-
-.number {
-  text-align: right;
+.status {
+  align-self: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-2);
   font-variant-numeric: tabular-nums;
 }
 
-.success {
-  color: var(--color-accent);
-  margin: 0;
+.narrow {
+  width: 10ch;
 }
 
 .error {
   color: var(--color-danger);
+  font-size: var(--text-sm);
+  font-weight: 600;
   margin: 0;
 }
 
-.notice {
-  background: #fff8e1;
-  border: 1px solid #ffe08a;
+/* Bulk attributes: what is selected and what is applied to it. */
+.bulk {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: var(--space-2) var(--space-3);
-  margin: 0;
+  background: var(--color-surface-2);
+  min-width: 0;
 }
 
-.approved {
-  background: #ebfbee;
-  border: 1px solid #b2f2bb;
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-3);
-  margin: 0;
-}
-
-.legend {
+.bulk legend {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  font-size: 12px;
-  color: var(--color-muted);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.legend li {
-  display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-}
-
-.dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-}
-
-.stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: var(--space-2);
-  margin: 0;
+  padding: 0 var(--space-1);
+  font-weight: 700;
+  font-size: var(--text-sm);
 }
 
-.stats div {
-  background: var(--color-bg);
-  border-radius: var(--radius);
-  padding: var(--space-2);
-}
-
-.stats dt {
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-.stats dd {
-  margin: 0;
-  font-size: 20px;
+.count,
+.countActive {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  line-height: 1.8;
 }
 
-.list {
-  margin: 0;
-  padding-left: var(--space-4);
+.count {
+  background: var(--color-neutral-soft);
+  color: var(--color-neutral);
+}
+
+.countActive {
+  background: var(--color-highlight-soft);
+  color: var(--color-highlight);
+}
+
+.bulkFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-2);
+  align-items: end;
+}
+
+/* Long tables scroll in their own region; the header stays in view. */
+.scroll {
+  max-height: max(320px, calc(100vh - 460px));
+  overflow: auto;
+  border-radius: var(--radius-lg);
+}
+
+.scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.selectedRow {
+  background: var(--color-highlight-soft);
+}
+
+.rowAction {
+  text-align: right;
+  width: 1%;
+  white-space: nowrap;
 }
 
 .chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
+  margin-bottom: var(--space-1);
 }
 
-.chip {
-  font-size: 12px;
-  padding: 0 var(--space-2);
-  border-radius: 999px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
+.inline {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  font-weight: 500;
+  font-size: var(--text-sm);
   white-space: nowrap;
 }
 
-.status_open {
-  color: #e8590c;
-  font-weight: 600;
-}
-
-.status_checked,
-.status_closed {
-  color: var(--color-accent);
+/* td input: beats the global control rule (input:not(...)) on specificity. */
+td input.cellInput {
+  min-height: var(--control-height-sm);
+  padding: 2px var(--space-2);
+  width: 100%;
+  min-width: 12ch;
+  font-size: var(--text-sm);
 }
 
 .itemForm {
@@ -264,14 +298,246 @@
   min-width: 220px;
 }
 
-.small {
-  font-size: 13px;
-  padding: 2px var(--space-2);
+.tour {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
-.viewer {
-  height: 360px;
+.tourHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.tourHead .status {
+  margin-left: auto;
+}
+
+/* Map legend. The swatch colours are the ones inventory-map.tsx draws (its
+   MapLibre paint values); keep the two in step when the map changes. */
+.legend {
+  --legend-tree: #2b8a3e;
+  --legend-interstitial: #94d82d;
+  --legend-empty: #c92a2a;
+  --legend-flagged: #f08c00;
+  --legend-track: #74c0fc;
+  --legend-declared: #868e96;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  flex: none;
+}
+
+.swatchTree {
+  background: var(--legend-tree);
+}
+
+.swatchInterstitial {
+  background: var(--legend-interstitial);
+}
+
+.swatchEmpty {
+  border-color: var(--legend-empty);
+}
+
+.swatchFlagged {
+  border-color: var(--legend-flagged);
+}
+
+/* Lines on the map: a short stroke. */
+.swatchTrack,
+.swatchDeclared {
+  width: 16px;
+  height: 0;
+  border-radius: 0;
+  border: 0;
+  border-top: 2px solid var(--legend-track);
+}
+
+.swatchDeclared {
+  border-top: 2px dashed var(--legend-declared);
+}
+
+/* Inventory summary: figures in a row, separated by thin rules. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-2) 0;
+  margin: 0;
+}
+
+.stats div {
+  padding: 0 var(--space-3);
+  border-left: 1px solid var(--color-border);
+}
+
+.stats dt {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.stats dd {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.list {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+/* Expert approval: the gate (can it be signed?) next to the sign-off. */
+.gateRow {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .gateRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.gateRow > :global(*) {
+  max-width: none;
+}
+
+.gate,
+.signoff {
+  display: grid;
+  gap: var(--space-2);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  overflow: hidden;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  min-width: 0;
+}
+
+.gate h2,
+.signoff h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.signoff p {
+  margin: 0;
+}
+
+.gate dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.gate dl > div {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+}
+
+.gate dt {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.gate dt a {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 3px;
+}
+
+.gate dt a:hover {
+  text-decoration-color: currentColor;
+}
+
+.gate dd {
+  margin: 0;
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+.gateNote {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.detailsSection {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.sectionTitle {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-lg);
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: var(--space-3);
+  align-items: stretch;
+}
+
+.pointers > :global(section) {
+  margin: 0;
+}
+
+.waiver {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* In-page targets: leave room above when jumped to. */
+.anchor,
+.panel[id],
+.pointers {
+  scroll-margin-top: var(--space-4);
+}
+
+.wide {
+  grid-column: 1 / -1;
+  display: grid;
+}
+
+.pointers {
+  display: grid;
+  height: 100%;
+}
+
+.pointers :global(h2) {
+  font-size: var(--text-base);
+}
+
+.scroll :where(th, td):first-child:has(input[type="checkbox"]),
+.scroll th:first-child:has(:global(.sr-only)) {
+  width: 1%;
 }
