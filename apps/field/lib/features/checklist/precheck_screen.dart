@@ -10,6 +10,7 @@ import '../gnss/protocol/gnss_status.dart';
 import '../notice/field_records.dart';
 import '../session/session_controller.dart';
 import '../session/session_screen.dart';
+import '../tasks/field_task.dart';
 import 'scan_setup.dart';
 
 /// Result of the pre-scan checklist.
@@ -23,6 +24,8 @@ class PrecheckResult {
     required this.platform,
     required this.cameraHeightM,
     this.notice,
+    this.harvestAsked = false,
+    this.harvest,
   });
 
   final bool connected;
@@ -41,6 +44,12 @@ class PrecheckResult {
   /// Sign and badge answers (H01); null until both are answered.
   final NoticeSign? notice;
 
+  /// Harvest-season scan: the crew states the harvest is over and whether
+  /// gleaning (çöpleme) goes on. No answer for "harvest under way": then the
+  /// crew must not enter the orchard.
+  final bool harvestAsked;
+  final HarvestCheck? harvest;
+
   bool get batteryOk => status != null && batteryHealth(status!) == Health.ok;
   bool get sdOk => status != null && status!.sdReady;
   bool get gnssOk => status != null && gnssReady(status!);
@@ -54,6 +63,7 @@ class PrecheckResult {
       lensClean &&
       cameraRecording &&
       spraying != null &&
+      (!harvestAsked || harvest != null) &&
       platform != null &&
       cameraHeightM != null &&
       notice != null &&
@@ -63,13 +73,14 @@ class PrecheckResult {
 /// Mandatory checklist before a scan (docs/MVP.md, Modül 3, "Ön kontrol").
 /// Battery, SD card and GNSS come from the logger over BLE; lens and camera
 /// are confirmed by the crew, and so is spraying: the crew states there was
-/// none, or that the label's waiting period has passed. The crew also picks
-/// the scan platform and types the measured camera height, prefilled from
-/// the parcel's last scan on this phone. Spraying, platform and height are
-/// recorded (on `session_start` and the session); the others only gate the
-/// start. The crew also answers whether the QR information sign is at the
-/// entrance and the badge is visible (H01); a "no" needs a reason. That goes
-/// into a `field_notice_sign` event.
+/// none, or that the label's re-entry interval has passed. On a harvest-season
+/// scan the crew also states that the harvest is over and whether gleaning
+/// goes on. The crew picks the scan platform and types the measured camera
+/// height, prefilled from the parcel's last scan on this phone. Spraying,
+/// harvest, platform and height are recorded (on `session_start` and the
+/// session); the others only gate the start. The crew also answers whether
+/// the QR information sign is at the entrance and the badge is visible (H01);
+/// a "no" needs a reason. That goes into a `field_notice_sign` event.
 class PrecheckScreen extends ConsumerStatefulWidget {
   const PrecheckScreen({super.key});
 
@@ -81,6 +92,7 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
   bool _lensClean = false;
   bool _cameraRecording = false;
   SprayingCheck? _spraying;
+  HarvestCheck? _harvest;
   ScanPlatform? _platform;
   final _height = TextEditingController();
   bool? _sign;
@@ -121,6 +133,12 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
   @override
   Widget build(BuildContext context) {
     final task = ref.watch(sessionControllerProvider).task;
+    // Harvest-season scans only: inventory and verification have no season
+    // of their own.
+    final harvestAsked =
+        task != null &&
+        task.kind == VisitKind.periodic &&
+        task.season == Season.harvest;
     final conn = ref.watch(gnssConnectionProvider).value;
     final status = ref.watch(gnssStatusProvider).value?.status;
     final result = PrecheckResult(
@@ -138,6 +156,8 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
               badge: _badge!,
               reason: _noticeReason.text,
             ),
+      harvestAsked: harvestAsked,
+      harvest: _harvest,
     );
     return Scaffold(
       appBar: AppBar(title: Text(task?.parcelName ?? 'Ön kontrol')),
@@ -189,6 +209,11 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
             value: _spraying,
             onChanged: (v) => setState(() => _spraying = v),
           ),
+          if (harvestAsked)
+            _HarvestItem(
+              value: _harvest,
+              onChanged: (v) => setState(() => _harvest = v),
+            ),
           _ScanSetupItem(
             platform: _platform,
             onPlatform: (v) => setState(() => _platform = v),
@@ -212,7 +237,8 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Şafakta, gün batımında, yağmurda ve yoğun tozda tarama yapılmaz.',
+            'Şafakta, gün batımında, yağmurda, tozda ve kırağı kalkmadan '
+            'tarama yapılmaz. Yazın 11.00–16.00 arası taranmaz. Çizme giy.',
             style: TextStyle(fontSize: 16),
           ),
           const SizedBox(height: 24),
@@ -229,6 +255,7 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
                           platform: result.platform!,
                           cameraHeightM: result.cameraHeightM!,
                           notice: result.notice!,
+                          harvest: result.harvest,
                         );
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute<void>(
@@ -303,8 +330,10 @@ class _ManualItem extends StatelessWidget {
   );
 }
 
-/// "Son günlerde ilaçlama yapıldıysa ilacın bekleme süresi geçti", with the
-/// way to say there was no spraying. Either answer passes.
+/// "Son günlerde ilaçlama yapıldıysa etiketteki tekrar giriş süresi geçti",
+/// with the way to say there was no spraying. Either answer passes
+/// (methodology v0.2, docs/metodoloji.md section 2: unknown interval at
+/// least 48 hours; wet leaves or a smell of spray mean no entry).
 class _SprayingItem extends StatelessWidget {
   const _SprayingItem({required this.value, required this.onChanged});
 
@@ -322,18 +351,61 @@ class _SprayingItem extends StatelessWidget {
           const ListTile(
             leading: Icon(Icons.sanitizer, size: 36),
             title: Text(
-              'Son günlerde ilaçlama yapıldıysa ilacın bekleme süresi geçti',
+              'Son günlerde ilaçlama yapıldıysa etiketteki tekrar giriş '
+              'süresi geçti',
               style: TextStyle(fontSize: 20),
             ),
             subtitle: Text(
-              'Bilmiyorsan bahçe sahibine sor. Bekleme süresi geçmediyse '
-              'bahçeye girme.',
+              'Bilmiyorsan sahibine sor; süre bilinmiyorsa en az 48 saat. '
+              'Yaprak ıslaksa ya da ilaç kokuyorsa girme.',
               style: TextStyle(fontSize: 16),
             ),
           ),
           for (final option in SprayingCheck.values)
             CheckboxListTile(
               key: Key('check-spraying-${option.code}'),
+              minTileHeight: 60,
+              title: Text(option.label, style: const TextStyle(fontSize: 18)),
+              value: value == option,
+              onChanged: (v) => onChanged(v == true ? option : null),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Harvest-season scan: the harvest is over (the crew does not enter while
+/// it goes on) and whether gleaning (çöpleme) goes on. Any answer passes.
+class _HarvestItem extends StatelessWidget {
+  const _HarvestItem({required this.value, required this.onChanged});
+
+  final HarvestCheck? value;
+  final ValueChanged<HarvestCheck?> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    key: const Key('check-harvest'),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const ListTile(
+            leading: Icon(Icons.agriculture, size: 36),
+            title: Text(
+              'Hasat bitti mi, çöpleme sürüyor mu?',
+              style: TextStyle(fontSize: 20),
+            ),
+            subtitle: Text(
+              'Bahçe sahibine sor. Hasat sürüyorsa bahçeye girme; ziyaret '
+              'ertelenir.',
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+          for (final option in HarvestCheck.values)
+            CheckboxListTile(
+              key: Key('check-harvest-${option.code}'),
               minTileHeight: 60,
               title: Text(option.label, style: const TextStyle(fontSize: 18)),
               value: value == option,

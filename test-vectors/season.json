@@ -1,0 +1,15 @@
+{
+  "_comment": "Season of a visit from its UTC month (1-12) and methodology version (docs/metodoloji.md, section 2). Shared by apps/web (src/lib/expert/season.ts), services/ai-worker (methodology.py) and apps/field (lib/features/tasks/field_task.dart): each runs every case in its tests. Change only together with all three. A null or unknown version uses the legacy calendar.",
+  "version": 1,
+  "calendars": {
+    "legacy": ["winter", "winter", "spring", "spring", "spring", "summer", "summer", "harvest", "harvest", "harvest", "winter", "winter"],
+    "v0.2": ["winter", "winter", "winter", "spring", "spring", "summer", "summer", "summer", "harvest", "harvest", "winter", "winter"]
+  },
+  "versions": {
+    "null": "legacy",
+    "methodology-v0": "legacy",
+    "methodology-v0.1": "legacy",
+    "methodology-v0.2": "v0.2",
+    "methodology-v9-unknown": "legacy"
+  }
+}

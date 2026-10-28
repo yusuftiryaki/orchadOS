@@ -27,20 +27,24 @@ HEALTH_CLASSES: tuple[HealthClass, ...] = ("healthy", "attention", "problem", "d
 # (session.methodology_version); a visit without one uses the default, as the
 # expert panel does (apps/web, DEFAULT_METHODOLOGY_VERSION).
 DEFAULT_METHODOLOGY_VERSION = "methodology-v0"
-SUPPORTED_METHODOLOGY_VERSIONS = ("methodology-v0", "methodology-v0.1")
+SUPPORTED_METHODOLOGY_VERSIONS = ("methodology-v0", "methodology-v0.1", "methodology-v0.2")
 
 # How far pest signs raise the general class, per methodology version (same as
 # apps/web/src/lib/expert/mandatory-review.ts, classRule): 0 not at all,
 # 1 attention, 2 problem. v0.1 (expert agent decision, awaiting the pilot
 # expert): mild signs no longer change the class, marked ones mean attention.
+# v0.2 changed the calendar and the close-up protocol, not the class rules.
 PEST_CLASS_LEVELS: dict[str, tuple[int, int]] = {
     "methodology-v0": (1, 2),
     "methodology-v0.1": (0, 1),
+    "methodology-v0.2": (0, 1),
 }
 
-# Visit calendar (docs/MVP.md, Modül 3), same rule as apps/web/src/lib/expert/season.ts:
-# March counts as spring, November as winter. Month in UTC.
-_SEASON_BY_MONTH: tuple[Season, ...] = (
+# Visit calendars (docs/metodoloji.md, section 2), same rule as
+# apps/web/src/lib/expert/season.ts and the field app (shared vectors:
+# test-vectors/season.json). Month in UTC. Legacy (v0, v0.1, no version): March
+# is spring, August harvest, November winter.
+_LEGACY_CALENDAR: tuple[Season, ...] = (
     "winter",
     "winter",
     "spring",
@@ -54,10 +58,35 @@ _SEASON_BY_MONTH: tuple[Season, ...] = (
     "winter",
     "winter",
 )
+# methodology-v0.2 (expert agent, docs/uzman-ajan-onerileri.md, section 6):
+# winter November-March, spring April-May, summer June-August, harvest
+# September-October.
+_V0_2_CALENDAR: tuple[Season, ...] = (
+    "winter",
+    "winter",
+    "winter",
+    "spring",
+    "spring",
+    "summer",
+    "summer",
+    "summer",
+    "harvest",
+    "harvest",
+    "winter",
+    "winter",
+)
+_CALENDAR_BY_VERSION: dict[str, tuple[Season, ...]] = {"methodology-v0.2": _V0_2_CALENDAR}
 
 
-def season_of(when: datetime) -> Season:
-    return _SEASON_BY_MONTH[when.month - 1]
+def season_of_month(month: int, methodology_version: str | None) -> Season:
+    """Season of a UTC month (1-12); unknown versions and None use the legacy calendar."""
+    calendar = _CALENDAR_BY_VERSION.get(methodology_version or "", _LEGACY_CALENDAR)
+    return calendar[month - 1]
+
+
+def season_of(when: datetime, methodology_version: str | None) -> Season:
+    """Season of a visit at `when` (UTC) under its methodology version."""
+    return season_of_month(when.month, methodology_version)
 
 
 @dataclass(frozen=True)
@@ -384,6 +413,8 @@ _SCALE_TEXTS_V01: dict[str, ScaleText] = {
 _SCALE_TEXTS_BY_VERSION: dict[str, dict[str, ScaleText]] = {
     "methodology-v0": SCALE_TEXTS,
     "methodology-v0.1": {**SCALE_TEXTS, **_SCALE_TEXTS_V01},
+    # v0.2 changed the calendar and the close-up protocol, not the scale texts.
+    "methodology-v0.2": {**SCALE_TEXTS, **_SCALE_TEXTS_V01},
 }
 
 
@@ -401,6 +432,7 @@ COMMON_RULES: dict[str, tuple[str, ...]] = {
         "the upper one; if the evidence is weak, give no value.",
     ),
 }
+COMMON_RULES["methodology-v0.2"] = COMMON_RULES["methodology-v0.1"]
 
 # Seasons in which the AI may never suggest the class dead, per methodology version.
 # v0.1 (expert agent, section 1.4): in the leafless winter only the expert calls a
@@ -410,6 +442,7 @@ COMMON_RULES: dict[str, tuple[str, ...]] = {
 NO_AI_DEAD_IN_SEASON: dict[str, tuple[Season, ...]] = {
     "methodology-v0": (),
     "methodology-v0.1": ("winter",),
+    "methodology-v0.2": ("winter",),
 }
 
 # Scales that are hardest to judge from images (expert agent, section 1.8): from this
@@ -417,6 +450,7 @@ NO_AI_DEAD_IN_SEASON: dict[str, tuple[Season, ...]] = {
 HARD_SCALES: dict[str, tuple[str, ...]] = {
     "methodology-v0": (),
     "methodology-v0.1": ("dead_branch_scale", "trunk_base_scale"),
+    "methodology-v0.2": ("dead_branch_scale", "trunk_base_scale"),
 }
 HARD_SCALE_MIN = 2
 
@@ -431,8 +465,23 @@ CLASS_SCALES = (
 
 # Metrics the AI is not asked about in a season although the registry allows
 # them: in winter the dieback pattern needs close-up evidence, so only the expert
-# enters it (docs/metodoloji.md, section 4.10).
-AI_SKIP_IN_SEASON: dict[str, tuple[Season, ...]] = {"dieback_pattern": ("winter",)}
+# enters it (docs/metodoloji.md, section 4.10); frost damage is a winter metric
+# only for a late-March visit under v0.2, where frost on swelling buds needs a
+# close look, so only the expert enters it too (section 4.5).
+# Seasons the registry gained with methodology-v0.2 (migration
+# 20261103100800_methodology_v02). The registry is not versioned, so visits of
+# earlier versions are not asked about these (same as the expert panel,
+# apps/web expert/metrics.ts V0_2_SEASON_EXTRAS).
+V0_2_SEASON_EXTRAS: dict[str, tuple[Season, ...]] = {
+    "frost_damage_scale": ("winter",),
+    "branch_break": ("summer",),
+}
+V0_2_VERSIONS = ("methodology-v0.2",)
+
+AI_SKIP_IN_SEASON: dict[str, tuple[Season, ...]] = {
+    "dieback_pattern": ("winter",),
+    "frost_damage_scale": ("winter",),
+}
 
 # Field staff yes/no questions (supabase/migrations/20261021230000_field_sync.sql).
 # Only the code and the answer go into a request; this gloss is ours, so the

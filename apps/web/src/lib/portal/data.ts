@@ -169,7 +169,12 @@ function visitScores(
   if (!latest)
     return { score: null, change: null, basis: "first" as ScoreBasis, unassessedPct: null };
   const rules = scoreRulesFor(latest.methodology_version);
-  const timed = assessed.map((v, i) => ({ id: v.id, time: sessionTime(v), i }));
+  const timed = assessed.map((v, i) => ({
+    id: v.id,
+    time: sessionTime(v),
+    methodologyVersion: v.methodology_version,
+    i,
+  }));
   const base = trendBase(timed, timed[0], rules);
   const score = scoreAt(0);
   const counts = distribution(activeIds, bySession.get(latest.id)!);

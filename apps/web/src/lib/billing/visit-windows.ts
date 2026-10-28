@@ -2,7 +2,8 @@
 // from public.contract_visit_windows() and private.remaining_visit_windows()
 // (supabase/migrations/20261103100600_addon_breakdown.sql). They are the
 // contract's windows, not the evaluation calendar of lib/expert/season.ts
-// (which counts March as spring and November as winter on purpose).
+// (which counts November as winter, and March as spring before
+// methodology-v0.2 and as winter from it, on purpose).
 
 export const VISIT_WINDOWS = [
   { code: "winter", name: "Kış", startMonth: 12, endMonth: 2 },

@@ -565,6 +565,90 @@ class FieldRepository {
     }
   });
 
+  /// Answer to a parcel question of the close-up protocol (methodology v0.2,
+  /// e.g. the fence gap): a staff measurement without a tree (subject
+  /// `parcel`), or for "Göremedim" a `closeup_unseen` event with `parcel_id`
+  /// instead of `tree_id`.
+  Future<void> saveParcelAnswer({
+    required String sessionId,
+    required String parcelId,
+    required String metricCode,
+    required StaffAnswer answer,
+    required String methodVersion,
+  }) => db.transaction(() async {
+    final now = _clock.now();
+    final (bool? yesNo, String? category) = switch (answer) {
+      YesNoAnswer(:final value) => (value, null),
+      CategoryAnswer(:final code) => (null, code),
+      UnseenAnswer() => (null, null),
+    };
+    if (answer is UnseenAnswer) {
+      await addEvent(
+        sessionId: sessionId,
+        eventType: closeupUnseenEvent,
+        payload: 'parcel',
+        time: GpsTimeReading(utcToGpsMs(now), TimeSource.phone),
+        loggerResult: 'none',
+        data: {
+          'version': 1,
+          'parcel_id': parcelId,
+          'method_version': methodVersion,
+          'metric_codes': [metricCode],
+          'evidence': <String>[],
+        },
+      );
+      return;
+    }
+    final id = newId();
+    await db
+        .into(db.measurements)
+        .insert(
+          MeasurementsCompanion.insert(
+            id: id,
+            sessionId: sessionId,
+            subjectType: 'parcel',
+            subjectId: parcelId,
+            metricCode: metricCode,
+            valueBoolean: Value(yesNo),
+            valueText: Value(category),
+            method: closeupQuestionMethod,
+            methodVersion: methodVersion,
+            source: 'staff',
+            measuredAt: now,
+            evidenceJson: '[]',
+          ),
+        );
+    await outbox.enqueue(OutboxEntity.measurement, id);
+  });
+
+  /// Metric codes of the parcel questions answered in [sessionId] (seen or
+  /// "Göremedim").
+  Stream<Set<String>> watchParcelAnswers(String sessionId) => db
+      .customSelect(
+        'SELECT metric_code AS code, NULL AS data FROM measurements '
+        'WHERE session_id = ?1 AND subject_type = ?2 AND method = ?3 '
+        'UNION ALL SELECT NULL AS code, data_json AS data FROM session_events '
+        'WHERE session_id = ?1 AND event_type = ?4 AND payload = ?2',
+        variables: [
+          Variable.withString(sessionId),
+          Variable.withString('parcel'),
+          Variable.withString(closeupQuestionMethod),
+          Variable.withString(closeupUnseenEvent),
+        ],
+        readsFrom: {db.measurements, db.sessionEvents},
+      )
+      .watch()
+      .map(
+        (rows) => {
+          for (final r in rows)
+            if (r.read<String?>('code') case final code?)
+              code
+            else if (r.read<String?>('data') case final data?)
+              for (final c in (jsonDecode(data) as Map)['metric_codes'] as List)
+                c as String,
+        },
+      );
+
   /// "Sorun gördüm" during the scan: a staff `problem_seen` = yes on the tree.
   /// The server puts the tree on the close-up list (`closeup_list`) and on
   /// the expert's mandatory review.

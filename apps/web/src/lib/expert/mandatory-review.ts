@@ -128,9 +128,19 @@ const METHODOLOGY_V0_1: ReviewRules = {
   classRule: { pestMild: 0, pestMarked: 1 },
 };
 
+// Expert agent decision of 28 October 2026 (docs/uzman-ajan-onerileri.md,
+// section 6): a new visit calendar (expert/season.ts) and the summer-v0.2 /
+// winter-v0.2 close-up protocol. The review rules stay those of v0.1; the new
+// theft questions are evidence for the expert, not checked against the AI.
+const METHODOLOGY_V0_2: ReviewRules = {
+  ...METHODOLOGY_V0_1,
+  methodologyVersion: "methodology-v0.2",
+};
+
 export const REVIEW_RULES: Record<string, ReviewRules> = {
   [METHODOLOGY_V0.methodologyVersion]: METHODOLOGY_V0,
   [METHODOLOGY_V0_1.methodologyVersion]: METHODOLOGY_V0_1,
+  [METHODOLOGY_V0_2.methodologyVersion]: METHODOLOGY_V0_2,
 };
 export const DEFAULT_REVIEW_RULES = METHODOLOGY_V0;
 

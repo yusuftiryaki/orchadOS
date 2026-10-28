@@ -38,7 +38,7 @@ export function VisitTable({
         </thead>
         <tbody>
           {visits.map((v) => {
-            const season = visitSeason(v.kind, v.planned_date);
+            const season = visitSeason(v.kind, v.planned_date, v.methodology_version);
             return (
               <tr key={v.id} data-visit-id={v.id}>
                 <td>

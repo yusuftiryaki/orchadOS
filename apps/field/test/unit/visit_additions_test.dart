@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:drift/native.dart';
@@ -103,7 +104,10 @@ void main() {
       media = MemoryMediaStore();
       server = FakeSyncServer(
         visits: {visitId: 'planned'},
-        metrics: {'problem_seen': 'md-problem_seen'},
+        metrics: {
+          'problem_seen': 'md-problem_seen',
+          'fence_breach_present': 'md-fence',
+        },
       );
       await repo.createSession(
         id: visitId,
@@ -136,6 +140,47 @@ void main() {
       expect(row['value_boolean'], true);
       expect(row['source'], 'staff');
       expect(row['tree_id'], 't-7');
+    });
+
+    test('a parcel answer syncs without a tree; unseen is an event', () async {
+      final answered = repo.watchParcelAnswers(visitId);
+      expect(await answered.first, isEmpty);
+      await repo.saveParcelAnswer(
+        sessionId: visitId,
+        parcelId: parcelId,
+        metricCode: 'fence_breach_present',
+        answer: const YesNoAnswer(true),
+        methodVersion: 'summer-v0.2',
+      );
+      expect(await answered.first, {'fence_breach_present'});
+      await worker().syncNow();
+      final row = server.table('measurement').values.single;
+      expect(row['metric_definition_id'], 'md-fence');
+      expect(row['value_boolean'], true);
+      expect(row['parcel_id'], parcelId);
+      expect(row.containsKey('tree_id'), isFalse);
+      expect(row['method_version'], 'summer-v0.2');
+
+      await repo.saveParcelAnswer(
+        sessionId: visitId,
+        parcelId: parcelId,
+        metricCode: 'other_parcel_question',
+        answer: const UnseenAnswer(),
+        methodVersion: 'summer-v0.2',
+      );
+      expect(await answered.first, {
+        'fence_breach_present',
+        'other_parcel_question',
+      });
+      final events = await repo.events(visitId);
+      final unseen = events.singleWhere(
+        (e) => e.eventType == closeupUnseenEvent,
+      );
+      expect(unseen.payload, 'parcel');
+      final data = jsonDecode(unseen.dataJson!) as Map;
+      expect(data['parcel_id'], parcelId);
+      expect(data['metric_codes'], ['other_parcel_question']);
+      expect(data.containsKey('tree_id'), isFalse);
     });
 
     test('the visit log sends its weather to the visit row', () async {
