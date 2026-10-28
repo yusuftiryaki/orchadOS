@@ -3,25 +3,39 @@
 //
 // POST /functions/v1/send-sms   (from Supabase Auth only; verify_jwt = false)
 //   Standard Webhooks headers: webhook-id, webhook-timestamp, webhook-signature
-//   { "user": { "phone": "905321234567", ... }, "sms": { "otp": "123456" } }
+//   { "user": { "id", "phone": "905321234567", "new_phone"?, ... },
+//     "sms": { "otp": "123456", "sms_type": "sms" | "signup" | "phone_change" | ... } }
 //
 // 1. The signature is checked with SEND_SMS_HOOK_SECRET ("v1,whsec_<base64>",
 //    the secret shown when the hook is set up); timestamps older than five
 //    minutes are rejected.
 // 1a. A demo account (user.app_metadata.demo) gets no code: 403
 //     demo_read_only, before any limit, provider or outbox call.
-// 1b. A phone confirmation code of an unfinished self sign-up (Auth's public
-//     /auth/v1/resend, a phone change) goes out only when the registration
-//     flow asked for it: signup_sms_allowed() consumes the short-lived marker
-//     that the web's code step left with the register's ticket
-//     (signup_code_grant, docs/musteri-yonetimi.md §7.5). Without it the hook
-//     answers 200 {} and sends nothing, so the caller cannot tell the number
-//     apart from any other (docs/hukuk/kararlar.md H33).
+// 1b. A phone change code (sms.sms_type "phone_change") goes to the new
+//     number (user.new_phone), never the current one: that would let the
+//     account holder confirm a phone they do not own. A customer or owner
+//     account gets none at all (account_phone_change_allowed; their phone
+//     changes only through ops, customer_account_guard): 403
+//     phone_change_not_allowed.
+// 1c. A phone confirmation code of an unfinished self sign-up (Auth's public
+//     /auth/v1/resend) goes out only when the registration flow asked for it:
+//     customer-signup `send_code` grants it with the register's ticket and
+//     asks Auth for the code in the same request (signup_code_grant,
+//     docs/musteri-yonetimi.md §7.5), and signup_sms_allowed() sees that
+//     short-lived marker. Without it the hook answers 200 {} and sends
+//     nothing, so the caller cannot tell the number apart from any other
+//     (docs/hukuk/kararlar.md H33). Auth then stores the new code it did not
+//     send and the one the registrant holds stops working: an accepted
+//     trade-off (an error would keep the old code but tell the number apart);
+//     the registrant sends a new code, and their wrong codes do not count
+//     toward the lock (phone_login_record_failure with the ticket).
 // 2. phone_login_code_requested() applies the limits per number (5 codes an
 //    hour; locked after 5 wrong codes in 15 minutes) and counts the code.
 // 3. The code goes out through the message provider (../_shared/providers.ts):
 //    the record provider unless a real one is configured, so locally and in
-//    tests the code lands in private.message_outbox.
+//    tests the code lands in private.message_outbox. Only then is the
+//    sign-up's marker consumed (signup_sms_sent): a limit, a provider error
+//    or Auth's retry after a timeout keeps it for the next call.
 //
 // Responses: 200 {} · 200 { error: { http_code, message } } (Auth passes it on
 // to the client) · 401 bad signature · 400 bad payload.
@@ -105,12 +119,15 @@ async function handle(req: Request): Promise<Response> {
   let phone: string;
   let otp: string;
   let userId: string;
+  let phoneChange: boolean;
   try {
     const payload = JSON.parse(body);
     // Extra layer (docs/demo-turu.md §6.5): no code for a demo account, which
     // has no phone and cannot get one (account freeze).
     if (payload?.user?.app_metadata?.demo === true) return hookError(403, "demo_read_only");
-    phone = `+${String(payload?.user?.phone ?? "").replace(/^\+/, "")}`;
+    phoneChange = payload?.sms?.sms_type === "phone_change";
+    const to = phoneChange ? payload?.user?.new_phone : payload?.user?.phone;
+    phone = `+${String(to ?? "").replace(/^\+/, "")}`;
     otp = String(payload?.sms?.otp ?? "");
     userId = String(payload?.user?.id ?? "");
   } catch {
@@ -121,20 +138,25 @@ async function handle(req: Request): Promise<Response> {
   }
   if (!/^[0-9a-f-]{36}$/i.test(userId)) return json({ error: "invalid_input" }, 400);
 
-  try {
-    const own = await fetch(`${SUPABASE_URL}/rest/v1/rpc/signup_sms_allowed`, {
+  const rpc = (fn: string, args: Record<string, unknown>) =>
+    fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
       method: "POST",
       headers: { ...serviceHeaders(), "content-type": "application/json" },
-      body: JSON.stringify({ p_user_id: userId }),
+      body: JSON.stringify(args),
     });
+
+  try {
+    if (phoneChange) {
+      const change = await rpc("account_phone_change_allowed", { p_user_id: userId });
+      if (!change.ok) throw new Error(`account_phone_change_allowed failed with ${change.status}`);
+      if ((await change.json()) !== true) return hookError(403, "phone_change_not_allowed");
+    }
+
+    const own = await rpc("signup_sms_allowed", { p_user_id: userId });
     if (!own.ok) throw new Error(`signup_sms_allowed failed with ${own.status}`);
     if ((await own.json()) !== true) return json({});
 
-    const limit = await fetch(`${SUPABASE_URL}/rest/v1/rpc/phone_login_code_requested`, {
-      method: "POST",
-      headers: { ...serviceHeaders(), "content-type": "application/json" },
-      body: JSON.stringify({ p_phone: phone }),
-    });
+    const limit = await rpc("phone_login_code_requested", { p_phone: phone });
     if (!limit.ok) throw new Error(`phone_login_code_requested failed with ${limit.status}`);
     const verdict = await limit.json();
     if (verdict === "locked") return hookError(429, "phone_locked");
@@ -154,6 +176,9 @@ async function handle(req: Request): Promise<Response> {
       console.error("send-sms: provider error", result.error);
       return hookError(502, "sms_not_sent");
     }
+    const sent = await rpc("signup_sms_sent", { p_user_id: userId });
+    // The code is out: a failure here only leaves the marker to expire.
+    if (!sent.ok) console.error("send-sms: signup_sms_sent failed with", sent.status);
     return json({});
   } catch (error) {
     console.error("send-sms:", error instanceof Error ? error.message : "unknown error");

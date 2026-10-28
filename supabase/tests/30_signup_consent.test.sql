@@ -120,11 +120,14 @@ select is(public.signup_complete('a3000000-0000-4000-8000-000000000099', now()),
 
 select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', now()), 'phone_mismatch',
   'not before the phone is confirmed');
+-- A customer account's phone changes only through ops (customer_account_guard).
+select set_config('orchados.account_phone_change', 'on', true);
 update auth.users set phone = '905559990009', phone_confirmed_at = now()
 where id = 'a3000000-0000-4000-8000-000000000001';
 select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', now()), 'phone_mismatch',
   'not when the confirmed phone is another number than the pending one');
 update auth.users set phone = '905559990001' where id = 'a3000000-0000-4000-8000-000000000001';
+select set_config('orchados.account_phone_change', '', true);
 select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', now() - interval '1 minute'), 'phone_mismatch',
   'not with a phone code older than the pending sign-up');
 select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', null), 'phone_mismatch',

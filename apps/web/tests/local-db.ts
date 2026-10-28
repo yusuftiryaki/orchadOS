@@ -212,3 +212,14 @@ export async function deleteUsers(match: (email: string) => boolean) {
 export async function registerLegalText(kind: string, version: string, sha256: string) {
   await call("register_legal_text", { p_kind: kind, p_version: version, p_sha256: sha256 });
 }
+
+// Auth hardening: takes the self sign-up flag off an account or puts it back.
+export async function setSelfSignup(userId: string, self: boolean) {
+  if (!UUID.test(userId)) throw new Error("setSelfSignup takes a uuid");
+  await call("set_self_signup", { p_user_id: userId, p_self: self });
+}
+
+// private.signup_housekeeping (the hourly pg_cron job), once.
+export async function runSignupHousekeeping() {
+  await call("run_signup_housekeeping", {});
+}

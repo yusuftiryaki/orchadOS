@@ -53,9 +53,9 @@ function valuesOf(form: FormData): SignupValues {
 // a failed send all get the same code step; the resend countdown runs on the
 // client (sentAt). Every answer takes at least CODE_STEP_MIN_MS.
 // The phone confirmation code is asked for only for the pending sign-up this
-// browser's register wrote: signup_code_grant checks the ticket and lets the
-// Send SMS hook send it one code. Any other number only gets a login code,
-// which reaches only its verified owner.
+// browser's register wrote: customer-signup send_code checks the ticket
+// (signup_code_grant) and asks Auth for that one code itself. Any other
+// number only gets a login code, which reaches only its verified owner.
 async function sendCode(
   supabase: Client,
   phone: string,
@@ -65,10 +65,7 @@ async function sendCode(
   try {
     const allowed = await supabase.rpc("phone_login_allowed", { p_phone: phone });
     if (allowed.data === false) return t.login.phone.locked;
-    const own = ticket
-      ? await supabase.rpc("signup_code_grant", { p_phone: phone, p_ticket: ticket })
-      : null;
-    await sendAccountCode(supabase, phone, { confirm: own?.data === true });
+    await sendAccountCode(supabase, phone, { ticket });
     return null;
   } finally {
     await waitAtLeast(started, CODE_STEP_MIN_MS);
@@ -175,9 +172,16 @@ async function verify(previous: SignupState, form: FormData): Promise<SignupStat
   const allowed = await supabase.rpc("phone_login_allowed", { p_phone: phone });
   if (allowed.data === false) return { ...previous, error: t.login.phone.locked, notice: null };
 
+  const ticket = await readTicket();
   const { error } = await supabase.auth.verifyOtp({ phone, token, type: "sms" });
   if (error) {
-    const left = await supabase.rpc("phone_login_record_failure", { p_phone: phone });
+    // With the ticket of this phone's pending sign-up a wrong code does not
+    // count toward the lock: Auth's public resend can replace the code
+    // without sending one (docs/deployment.md, accepted trade-off).
+    const left = await supabase.rpc("phone_login_record_failure", {
+      p_phone: phone,
+      ...(ticket ? { p_ticket: ticket.ticket } : {}),
+    });
     return { ...previous, error: t.login.phone.wrongCode(left.data ?? 0), notice: null };
   }
 
@@ -188,7 +192,6 @@ async function verify(previous: SignupState, form: FormData): Promise<SignupStat
   // quarantines that account) and is closed here at once. The login page
   // tells the registrant how to finish: e-mail and password, then the code
   // (/kayit/dogrula); never "register again", which would loop.
-  const ticket = await readTicket();
   const completed = await completeSignup(supabase, ticket?.ticket ?? null);
   if (!completed.ok && completed.error === "signup_mismatch") {
     await supabase.auth.signOut();
