@@ -1,0 +1,71 @@
+/* Photo Sphere Viewer chrome shared by the office tool and the portal tour.
+   Colours come from design tokens with fallbacks, so the design system can
+   theme the viewer without touching this file. */
+
+.frame:focus-visible {
+  outline: 3px solid var(--color-focus, #4c8f3f);
+  outline-offset: 2px;
+}
+
+/* One loading indicator: ours (below), not PSV's ring. */
+.frame :global(.psv-loader-container) {
+  display: none;
+}
+
+/* Navbar: 44 px touch targets (PSV draws 40) and legible contrast. */
+.frame :global(.psv-navbar) {
+  height: 44px;
+  bottom: -44px;
+  background: var(--panorama-navbar-bg, rgba(33, 37, 41, 0.8));
+}
+
+.frame :global(.psv-navbar.psv-navbar--open) {
+  bottom: 0;
+}
+
+.frame :global(.psv-button:not(.psv-zoom-range)) {
+  padding: 12px;
+  color: var(--panorama-navbar-text, #fff);
+}
+
+.frame :global(.psv-button:focus-visible) {
+  outline: 2px solid var(--color-focus, #4c8f3f);
+  outline-offset: -2px;
+}
+
+.status {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: calc(100% - 2 * var(--space-3, 16px));
+  margin: 0;
+  background: var(--panorama-overlay-bg, rgba(33, 37, 41, 0.85));
+  color: var(--panorama-overlay-text, #fff);
+  border-radius: var(--radius, 10px);
+  padding: var(--space-2, 8px) var(--space-3, 16px);
+  font-size: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.error {
+  composes: status;
+  background: var(--color-danger-soft, #fdecea);
+  color: var(--color-danger, #c0362c);
+}
