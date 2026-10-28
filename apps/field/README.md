@@ -416,7 +416,18 @@ Sonuçlar eşik ayarı için not edilmeli (ölçümler veritabanında `captures.
 5. Uygulamada `field@example.com` ile giriş: tur "Doğrulama turu" olarak, kalem sayısıyla görünmeli. **Uçak modunda** bir kaleme bak ve kaydet: "gönderilecek". Bu arada ofiste o kalemi kapat (`close_verification_item`). Uçak modunu kapat: kalem "Gönderilemeyenler" altında "Ofis bu kalemi kapatmış…" mesajıyla görünmeli. Diğer kalemler sunucuda `checked`, yakın plan `closeup_capture_id` dolu; bütün kalemler bakılınca tur `captured`.
 6. Envanter ziyareti planla, köşeleri işaretle, ziyareti bitir: `session_event`'te `corner` (data'da konum ve kalite; firmware konum göndermiyorsa `position: null`), `boundary_corners` ve (konum geldiyse) `coverage` satırları olmalı.
 
-**Test APK'sı:** `main`'deki her derlemede CI, Supabase test projesine bağlı ikinci bir APK üretir (`orchados-saha-test-apk`; adres ve publishable anahtar depo secret'larından: `SUPABASE_URL`, `SUPABASE_ANON_KEY`). Bu APK'da sahte kaydedici yoktur; gerçek kaydediciyle ya da konumsuz denenir.
+**Test APK'sı:** `main`'deki her derlemede CI, Supabase test projesine bağlı ikinci bir APK üretir (`orchados-saha-test-apk`; adres ve publishable anahtar depo secret'larından: `SUPABASE_URL`, `SUPABASE_ANON_KEY`). Telefonda "orchadOS Saha (test)" adıyla pilot uygulamasından ayrı kurulur ("Dağıtım"). Bu APK'da sahte kaydedici yoktur; gerçek kaydediciyle ya da konumsuz denenir.
+
+## Dağıtım
+
+| APK | Nereden | Bağlı olduğu proje | Telefonda |
+| --- | --- | --- | --- |
+| Pilot (`orchados-saha-pilot.apk`) | GitHub **Releases**, etiket `saha-v<sürüm>-<derleme>`; silinmez | Pilot Supabase projesi (`PILOT_SUPABASE_URL`, `PILOT_SUPABASE_ANON_KEY`) | "orchadOS Saha", `tr.orchados.orchados_field` |
+| Test (`orchados-saha-test-apk`) | `ci-field` çalıştırmasının ekleri (Artifacts), 7 gün | Test Supabase projesi | "orchadOS Saha (test)", `tr.orchados.orchados_field.test` |
+
+- **Pilot APK'sı** `release-field` iş akışıyla, saha uygulamasını değiştiren her `release` sürümünde (ya da Actions'tan elle) derlenir: testler, `flutter build apk --release`, sürüm adı `pubspec.yaml`'dan, derleme numarası çalıştırma numarasından. Yeni sürüm eskisinin üzerine kurulur; derleme numarası her seferinde artar.
+- **Test ve pilot ayrı uygulamalardır:** aynı telefonda yan yana durur, birinin verisi ötekine geçmez.
+- **İmza anahtarı:** Bütün CI APK'ları tek bir anahtarla imzalanır (PKCS12, takma ad `orchados`). Depo secret'ları `ANDROID_KEYSTORE_BASE64` (dosyanın base64'ü) ve `ANDROID_KEYSTORE_PASSWORD`; gradle onları `ORCHADOS_ANDROID_KEYSTORE` ve `ORCHADOS_ANDROID_KEYSTORE_PASSWORD` ortam değişkenlerinden okur. Değişkenler yoksa (yerel derleme) hata ayıklama anahtarı kullanılır. **Anahtar kaybolursa** telefondaki uygulama güncellenemez, kaldırılıp yeniden kurulması gerekir; anahtar ve parolası repoya girmez, yedeği işletmede saklanır.
 
 ## Bilinen eksikler
 

@@ -4,6 +4,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// One fixed signing key for every APK CI builds (docs: apps/field/README.md,
+// "Dağıtım"), so a newer APK installs over the older one. Without the variables
+// (local builds) the debug key is used.
+val keystorePath: String? = System.getenv("ORCHADOS_ANDROID_KEYSTORE")
+val keystorePassword: String? = System.getenv("ORCHADOS_ANDROID_KEYSTORE_PASSWORD")
+val fixedKey = !keystorePath.isNullOrEmpty() && !keystorePassword.isNullOrEmpty()
+
 android {
     namespace = "tr.orchados.orchados_field"
     compileSdk = flutter.compileSdkVersion
@@ -29,11 +36,32 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (fixedKey) {
+            create("orchados") {
+                storeFile = file(keystorePath!!)
+                storePassword = keystorePassword
+                keyAlias = System.getenv("ORCHADOS_ANDROID_KEY_ALIAS") ?: "orchados"
+                keyPassword = keystorePassword
+                storeType = "PKCS12"
+            }
+        }
+    }
+
     buildTypes {
+        // Debug builds (test APK) are a separate app next to the pilot one.
+        debug {
+            applicationIdSuffix = ".test"
+            manifestPlaceholders["appLabel"] = "orchadOS Saha (test)"
+            if (fixedKey) signingConfig = signingConfigs.getByName("orchados")
+        }
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            manifestPlaceholders["appLabel"] = "orchadOS Saha"
+            signingConfig =
+                if (fixedKey) signingConfigs.getByName("orchados") else signingConfigs.getByName("debug")
+        }
+        getByName("profile") {
+            manifestPlaceholders["appLabel"] = "orchadOS Saha (profile)"
         }
     }
 }
