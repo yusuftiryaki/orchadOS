@@ -158,9 +158,9 @@ Sıra yönü ve numaralandırmanın başladığı köşe parsel başına bir kez
 
 ## Modül 3 – Periyodik tarama
 
-Her ziyarette parsel iki yönde, yani grid şeklinde, 360° kamera ve GPS ile taranır. Ardından seçilen ağaçlarda yakın plan fotoğraf çekilir. Lansman paketleri ([fiyatlandirma.md](fiyatlandirma.md)): **Standart** yılda 4 periyodik ziyaret (aşağıdaki takvim), **Temel** 2 ziyaret (kış ve hasat), **Kapsamlı** 6 ziyaret.
+Her ziyarette parsel iki yönde, yani grid şeklinde, 360° kamera ve GPS ile taranır. Ardından seçilen ağaçlarda yakın plan fotoğraf çekilir. Lansman paketleri ([fiyatlandirma.md](fiyatlandirma.md)): **Standart** yılda 4 periyodik ziyaret (aşağıdaki takvim), **Temel** 2 ziyaret (kış ve hasat), **Kapsamlı** 6 ziyaret (Standart'ın dört ziyareti ile mart sonu uyanma ve ağustos başı hasat öncesi ziyaretleri; takvim [fiyatlandirma.md](fiyatlandirma.md) §1).
 
-> **Karar (28 Ekim):** Ziyaret sayısı paketle seçilir; 3 ziyaretlik paket yok. Kapsamlı paketin altı ziyaretlik takvimi [metodoloji.md](metodoloji.md)'de henüz tanımlı değil; uzman onayı bekliyor.
+> **Karar (28 Ekim):** Ziyaret sayısı paketle seçilir; 3 ziyaretlik paket yok. Kapsamlı paketin altı ziyaretlik takvimi [fiyatlandirma.md](fiyatlandirma.md) §1'de; ayların mevsimlere eşlenmesi [metodoloji.md](metodoloji.md)'de ayrı bir değişiklikle güncellenecek.
 
 **Ziyaret takvimi**
 

@@ -310,7 +310,7 @@ insert into public.service_package (id, org_id, code, name, description, periodi
   ('91200000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'standart', 'Standart',
    'Yılda dört periyodik ziyaret: kış, ilkbahar, yaz ve hasat. İlk yıl ağaç envanteri dahil.', 4, true, 2),
   ('91200000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001', 'kapsamli', 'Kapsamlı',
-   'Yılda altı periyodik ziyaretle yıl boyu sık takip; ziyaret takvimi uzman onayıyla kesinleşecek. İlk yıl ağaç envanteri dahil.',
+   'Yılda altı periyodik ziyaret: kış, uyanma (mart sonu), ilkbahar, yaz, hasat öncesi (ağustos başı) ve hasat sonrası. İlk yıl ağaç envanteri dahil.',
    6, true, 3);
 
 -- v1: written as a draft with its items, then published (price_list_item_guard).

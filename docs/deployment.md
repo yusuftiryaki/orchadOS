@@ -214,7 +214,7 @@ Test projesinde Cloudflare'in test anahtarları kullanılır. `accepts_signups` 
 
 Fiyatlar barındırılan projelere seed ile gitmez; test ve pilot projesinde ops kullanıcısı back office'ten girer. Rakamlar ve gerekçe: [fiyatlandirma.md](fiyatlandirma.md) §1.
 
-1. **Paketler** (`/operasyon/fiyat`): üç paket açılır ya da mevcutlar düzeltilir. Açıklamalar seed'deki gibi mevsimleri yazar; Kapsamlı için takvim yazılmaz.
+1. **Paketler** (`/operasyon/fiyat`): üç paket açılır ya da mevcutlar düzeltilir. Açıklamalar seed'deki gibi mevsimleri yazar (Kapsamlı: altı ziyaret, [fiyatlandirma.md](fiyatlandirma.md) §1).
 
     | Kod | Ad | Yıllık ziyaret | Envanter dahil | Sıra |
     | --- | --- | --- | --- | --- |

@@ -14,9 +14,22 @@ Tutarlar KDV hariçtir; üstüne %20 KDV eklenir. Birim fiyat **dönüm başına
 | --- | --- | --- | --- | --- | --- | --- |
 | `temel` | Temel | 2 | Kış, Hasat | 208 | 5.600 | 6.000 |
 | `standart` | Standart | 4 | Kış, İlkbahar, Yaz, Hasat | 180 | 11.200 | 6.000 |
-| `kapsamli` | Kapsamlı | 6 | Yıl boyu sık takip | 168 | 16.000 | 6.000 |
+| `kapsamli` | Kapsamlı | 6 | Kış, Uyanma, İlkbahar, Yaz, Hasat öncesi, Hasat sonrası | 168 | 16.000 | 6.000 |
 
-- **Kapsamlı paketin takvimi açık:** Altı ziyaretin mevsimlere dağılımı [metodoloji.md](metodoloji.md)'de tanımlı değil; uzman onayıyla belirlenecek. Paket listede durur; takvimi uzman onayı bekliyor.
+- **Kapsamlı paketin takvimi (28 Ekim):** Standart'ın dört ziyareti (#1, #3, #4, #6) ile iki ek ziyaret (#2, #5). Temel ve Standart'ın ayları değişmez.
+
+    | # | Ziyaret | Hedef ay | Pencere | Ana amaç |
+    | --- | --- | --- | --- | --- |
+    | 1 | Kış (Standart) | Ocak | 15 Ara – 15 Şub | Budama başladı mı, kuru dal, gövde, eksik ya da kesilmiş ağaç |
+    | 2 | Uyanma (ek) | Mart sonu | 10 – 31 Mart | Budamanın kesin sonucu, budama artıkları kaldırıldı mı, kış kuru kararlarının doğrulanması |
+    | 3 | İlkbahar (Standart) | Nisan sonu | 15 Nis – 15 May | Don, cinsiyet, göz kurdu, karazenk ve psilla 1. döl |
+    | 4 | Yaz (Standart) | Temmuz başı–ortası | 1 – 25 Tem | Meyve yükü, psilla piki, kokarca, kuraklık ve sulama |
+    | 5 | Hasat öncesi (ek) | Ağustos başı | 1 – 20 Ağu, hasat başlamadan | Hırsızlık dönemi, yangın riski, son meyve yükü |
+    | 6 | Hasat sonrası (Standart) | Ekim | 15 Eyl – 31 Eki, hasat bitiminden 3–21 gün sonra | Hasat tamam mı, dal kırığı, hırsızlık karşılaştırması (#5 ile), dip sürgünü |
+
+    - **Neden bu iki ek ziyaret:** #5 hırsızlık ve yangın riskinin en yüksek olduğu hasat öncesini kapsar ve #6'daki hırsızlık karşılaştırmasına taban verir. #2 budamanın kesin sonucunu verir; kış ziyaretinde budama çoğu zaman sürmektedir.
+    - **Kaynak ve güven:** Takvim yapay zekâ uzman ajanının kararıdır, lisanslı bir ziraat mühendisinin değil. Güven: #5 yüksek, #2 orta (alternatif: haziran ortası).
+    - **Açık:** Ayların mevsimlere eşlenmesi (mart → kış, ağustos → yaz) ve ölçütlerin geçerli mevsimleri [metodoloji.md](metodoloji.md)'de ayrı bir değişiklikle (methodology-v0.2) güncellenecek; bu belge yalnızca paket takvimini tutar.
 - **Envanter dahil:** Üç pakette de `includes_inventory = true`. Bu alan bilgi amaçlıdır: paketin ilk yıl envanter ziyaretini kapsadığını söyler ve teklife ve siparişe dondurulur. Ücreti `private.price_lines` belirler: `p_first_year` doğruysa kalemin `inventory_fee` tutarı eklenir, paketin alanına bakılmaz.
 - **Kurucu indirimi yok.** Ayrı bir lansman ya da kurucu indirimi uygulanmaz.
 - **Komşu bahçe indirimi:** Aynı köyden yönlendirilen ya da birlikte başvuran komşu bahçelere operasyon teklif başına %10–15 indirim yapabilir. Kod değişikliği yoktur: teklifte `discount_bp` (1000–1500) ve zorunlu indirim açıklaması ("Komşu bahçe indirimi, <köy>") girilir ([musteri-yonetimi.md](musteri-yonetimi.md) §6.6).
