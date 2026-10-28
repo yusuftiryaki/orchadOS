@@ -3,8 +3,11 @@ import { GET } from "./route";
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 
+// A map on our own page asks with Sec-Fetch-Site: same-origin.
 function call(z: string, x: string, y: string, headers: Record<string, string> = {}) {
-  const request = new Request(`https://orchados.example/harita/karo/${z}/${x}/${y}`, { headers });
+  const request = new Request(`https://orchados.example/harita/karo/${z}/${x}/${y}`, {
+    headers: { "sec-fetch-site": "same-origin", ...headers },
+  });
   return GET(request, { params: Promise.resolve({ z, x, y }) });
 }
 
@@ -74,6 +77,55 @@ describe("tile proxy route", () => {
       }),
     );
     expect((await call("2", "1", "1.png")).status).toBe(502);
+  });
+
+  // Review of PR #93, finding 5: no bulk download through us.
+  it("serves only our own pages", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(PNG, { headers: { "content-type": "image/png" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await call("3", "4", "5.png", { "sec-fetch-site": "cross-site" })).status).toBe(403);
+    expect((await call("3", "4", "5.png", { "sec-fetch-site": "none" })).status).toBe(403);
+    const bare = (headers: Record<string, string>) =>
+      GET(new Request("https://orchados.example/harita/karo/3/4/5.png", { headers }), {
+        params: Promise.resolve({ z: "3", x: "4", y: "5.png" }),
+      });
+    expect((await bare({})).status).toBe(403);
+    expect((await bare({ referer: "https://scraper.example/" })).status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+    // An older browser without Sec-Fetch-Site on our own page.
+    expect((await bare({ referer: "https://orchados.example/portal" })).status).toBe(200);
+  });
+
+  it("proxies detailed tiles over the service area only", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(PNG, { headers: { "content-type": "image/png" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    // Gaziantep at zoom 15, London at zoom 15.
+    expect((await call("15", "19786", "12745.png")).status).toBe(200);
+    expect((await call("15", "16374", "10896.png")).status).toBe(404);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("names a contact; in production it refuses without one", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(PNG, { headers: { "content-type": "image/png" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("MAP_TILE_CONTACT", "");
+    vi.stubEnv("ORCHADOS_SITE_URL", "");
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "");
+    vi.stubEnv("NODE_ENV", "production");
+    expect((await call("3", "4", "5.png")).status).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "orchados.example");
+    expect((await call("3", "4", "5.png")).status).toBe(200);
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(new Headers(init.headers).get("user-agent")).toBe(
+      "orchadOS-tile-proxy/1.0 (+https://orchados.example)",
+    );
   });
 
   it("limits one client", async () => {

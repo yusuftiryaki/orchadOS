@@ -134,7 +134,7 @@ Tasarım: [musteri-yonetimi.md](musteri-yonetimi.md) §7, §8, §13–§15. Kart
 | `SIGNUP_HASH_SECRET` | Kayıt oran sınırları için IP, telefon ve e-posta özetlerinin HMAC anahtarı. Yoksa her kayıt 500 döner | Rastgele | Rastgele (test projesinden farklı) |
 | `SIGNUP_PROXY_SECRET` | Next sunucusunun ziyaretçi IP'sini ilettiği başlığın sırrı; Vercel'deki değerle **aynı**. Yoksa ya da tutmazsa bütün ziyaretçiler Vercel'in IP'sini paylaşır ve saatte 10 kayıttan sonra herkes `too_many_attempts` alır | Rastgele | Rastgele |
 | `SIGNUP_TURNSTILE_DISABLED` | `1`: Turnstile olmadan kayıt. Yalnızca yerel yığın ve CI (`supabase/config.toml`) | **Asla tanımlanmaz** | **Asla tanımlanmaz** |
-| `CAPTCHA_PROVIDER` | Robot doğrulaması: boş ya da `turnstile` (varsayılan), `altcha` (kendi sunucumuzda iş kanıtı). Başka bir değer kaydı ve demoyu kapatır (fail closed). `demo-start` önce `DEMO_CAPTCHA_PROVIDER`'ı okur | Boş | Boş; değiştirmeden önce gizlilik metni (aşağıda) |
+| `CAPTCHA_PROVIDER` | Robot doğrulaması: boş ya da `turnstile` (varsayılan), `altcha` (kendi sunucumuzda iş kanıtı). Başka bir değer kaydı kapatır (fail closed). `demo-start` bunu okumaz: yalnızca `DEMO_CAPTCHA_PROVIDER` (boşsa Turnstile), bilinmeyen değer demoyu kapatır | Boş | Boş; değiştirmeden önce gizlilik metni (aşağıda) |
 | `ALTCHA_HMAC_KEY` | `altcha` seçiliyken sorunun imza anahtarı, en az 32 karakter (`openssl rand -hex 32`). Yoksa ya da kısaysa kayıt kapalıdır (503 `signup_closed`), demo `demo_closed` döner. `demo-start` önce `DEMO_ALTCHA_HMAC_KEY`'i okur | Yok | `altcha`'ya geçilirse rastgele |
 
 Örnek (test projesi, sahte ödeme):
@@ -208,6 +208,12 @@ Test projesinde ve demoda açılmaz.
 
 **Hesap varlığı gizlenir** ([hukuk/kararlar.md](hukuk/kararlar.md) H33, T19): kayıtlı bir telefon yeni bir kayıtla aynı yanıtı alır (`200 verify_phone`), hesap açılmaz; kod adımı yalnızca telefonun sahibine giriş kodu gönderir ve sahip kendi hesabına girer. E-posta çakışması ayırt edilmeyen `409 not_completed` döner ("Kayıt tamamlanamadı; bu bilgilerle hesabınız varsa telefonunuzla giriş yapın."). Oran sınırlarından sonraki her yanıt en az 1,5 saniye sürer (`REGISTER_MIN_MS`), web'deki kod adımı en az 2 saniye (`CODE_STEP_MIN_MS`). Oran sınırları üretimde açık kalır.
 
+**Kayıt bileti** (PR #93 incelemesi, hesap ön-ele-geçirme): `register`'ın her 200 yanıtı yeni bir bilet taşır (32 rastgele bayt). Web onu yalnızca `/kayit` yolunda geçerli, `httpOnly`, `SameSite=Lax` bir çerezde tutar (`orchados_signup`, bir gün; sunucu anahtarıyla telefona bağlı). Yalnızca hesap açan kaydın biletinin SHA-256'sı `private.customer_signup.ticket_hash`'e yazılır; kayıtlı telefon saklanmayan rastgele bir bilet alır, yanıt yine aynıdır.
+- Kod adımı telefon doğrulama kodunu (`resend`) yalnızca bu tarayıcının açtığı bekleyen kayıt için ister (`signup_code_allowed`). Başkasının açtığı doğrulanmamış hesabın kodu telefona hiç gönderilmez; telefonun sahibi o hesaba giremez.
+- `complete` bilet taşır; bekleyen kayıt bu bileti taşımıyorsa 403 `signup_mismatch` döner, oturum kapatılır ve hesap yalnızca bu kodla doğrulanmış, tamamlanmamış bir self-servis kayıtsa silinir. Oturum açık `/kayit/dogrula` sayfası (hesaba parolayla girilmiştir) bilet göndermez.
+- Aynı tarayıcıdan yeni bir `register` ("Bilgileri değiştir") kendi süren kaydının yerine geçer; bilet olmadan başkasının süren kaydı 30 dakika dolmadan silinmez.
+- Kod adımı her durumda aynı metni gösterir ve kod gelmezse e-posta ve parolayla `/giris`'e yönlendirir. Auth'un numara başına sınırları (yalnızca hesabı olan numaraya işler) ve gönderim hataları da aynı kod adımını gösterir; yeniden gönderme geri sayımı istemcidedir. Yeniden gönderme yalnızca bu tarayıcıda kayıttan (robot doğrulaması ve oran sınırlarıyla) geçmiş numaraya kod ister.
+
 Test projesinde Cloudflare'in test anahtarları kullanılır. `accepts_signups` dağıtımdan sonra `/operasyon/ayarlar`'dan açılabildiği için dağıtım denetimi tek başına yetmez: `customer-signup` `TURNSTILE_SECRET_KEY` olmadan kayıt almaz (fail closed).
 
 **Geri alma:**
@@ -234,7 +240,7 @@ Kayıt formu ve demo başlatma bugün Cloudflare Turnstile kullanır (varsayıla
 
 - **Nasıl çalışır:** Next sunucusu `customer-signup` (ya da `demo-start`) fonksiyonundan `{action: "challenge"}` ile HMAC imzalı bir soru alır (10 dakika geçerli; son kullanma ve amaç `signup`/`demo` tuzun içinde, imzanın kapsamında). Tarayıcı Web Crypto ile sayıyı bulur (ortalama ~50.000 SHA-256; telefonda bir iki saniye) ve gizli `altcha` alanına yazar. Fonksiyon imzayı, özeti, süreyi ve amacı denetler, aynı çözümü ikinci kez kabul etmez. Dış betik yüklenmez, üçüncü bir tarafa istek gitmez, çerez yoktur. Kod: `supabase/functions/_shared/captcha.ts`, `apps/web/src/lib/site/altcha-solver.ts`, `components/site/turnstile.tsx` (`CaptchaWidget`).
 - **Korunanlar:** Oran sınırları ve "anahtar yoksa kayıt kapalı" davranışı aynıdır: seçilen sağlayıcının anahtarı yoksa, kısaysa ya da `CAPTCHA_PROVIDER` bilinmeyen bir değerse kayıt 503 `signup_closed`, demo `demo_closed` döner. `SIGNUP_TURNSTILE_DISABLED` yalnızca yerel yığındadır.
-- **Tekrar kullanım:** Kullanılmış çözümler fonksiyon örneğinin belleğinde, sorunun süresi bitene kadar tutulur. Birden çok Edge örneğinde aynı çözüm başka bir örnekte bir kez daha geçebilir; oran sınırları (IP başına saatte 10, telefon başına günde 3 kayıt; demoda IP kovası) bunu sınırlar. Ortak bir tablo (`private.captcha_spent`, süre dolunca temizlenir) veritabanı akışına önerildi.
+- **Tekrar kullanım:** Kullanılmış çözümler `private.captcha_spent` tablosunda, sorunun süresi bitene kadar tutulur (`captcha_spend`; sorunun özeti birincil anahtar, `insert … on conflict do nothing`, her çağrı süresi dolmuş satırlardan bir parti siler). Tablo bütün Edge örneklerinde ortaktır: bir çözüm hangi örneğe giderse gitsin bir kez geçer. Veritabanına ulaşılamazsa çözüm kabul edilmez (fail closed). Zorluk (`ALTCHA_MAX_NUMBER`, ortalama ~50.000 SHA-256) yerel bir bot için ucuzdur; asıl sınır oran sınırlarıdır (IP başına saatte 10, telefon başına günde 3 kayıt; demoda IP kovası). Zorluğu artırmak telefonlarda bekleme süresini uzatır; gerekirse IP kovasına göre artan zorluk ayrı bir iş olarak ele alınır.
 - **Yerel yığın:** `supabase/config.toml` `CAPTCHA_PROVIDER=altcha` ve yerel bir `ALTCHA_HMAC_KEY` tanımlar; `SIGNUP_TURNSTILE_DISABLED=1` ile gönderilen jeton denetlenir, jetonsuz istek geçer (testler iki yolu da dener). Web yerelde Turnstile kipindedir ve site anahtarı yoktur.
 
 **Sağlayıcıyı değiştirmek** (yalnızca Cloudflare imzalamazsa ya da sözleşme düşerse):
@@ -243,16 +249,23 @@ Kayıt formu ve demo başlatma bugün Cloudflare Turnstile kullanır (varsayıla
     - §3: ilk paragraftaki “robot doğrulaması çerezleri bilgi güvenliği (md. 5/2-f) için kullanılır” ibaresi ve çerez tablosundaki Turnstile satırı çıkar.
     - §5 (demo) ve demo başlatma sayfası: “Robot doğrulaması (Turnstile) Cloudflare Inc. (ABD) tarafından sağlanır…” cümlesi “Robot doğrulaması kendi sunucularımızda yapılır; üçüncü bir tarafa aktarılmaz.” olur.
     - KVKK metni §5: Cloudflare satırı, başka bir hizmet için kullanılmıyorsa çıkar; [yurt-disi-aktarim-kaydi.md](hukuk/yurt-disi-aktarim-kaydi.md) güncellenir.
-2. Edge: `ALTCHA_HMAC_KEY` (rastgele, ≥ 32 karakter), sonra `CAPTCHA_PROVIDER=altcha`. Ortak demo barındırmada demo için `DEMO_CAPTCHA_PROVIDER` ve `DEMO_ALTCHA_HMAC_KEY`.
+2. Edge: `ALTCHA_HMAC_KEY` (rastgele, ≥ 32 karakter), sonra `CAPTCHA_PROVIDER=altcha`. Bu yalnızca kaydı değiştirir: `demo-start` `CAPTCHA_PROVIDER`'ı hiç okumaz, `DEMO_CAPTCHA_PROVIDER` boşsa Turnstile'da kalır. Böylece ortak demo barındırmada (`DEMO_HOST=test`) test sitesini denemek canlı demoyu bozmaz (demonun web bileşeni kendi Vercel projesinin `NEXT_PUBLIC_CAPTCHA_PROVIDER`'ını izler). Demo da geçecekse `DEMO_CAPTCHA_PROVIDER=altcha` ve `DEMO_ALTCHA_HMAC_KEY` (ayrı demo projesinde de `DEMO_CAPTCHA_PROVIDER`), ardından demo Vercel projesinde `NEXT_PUBLIC_CAPTCHA_PROVIDER=altcha`.
 3. Vercel: `NEXT_PUBLIC_CAPTCHA_PROVIDER=altcha`, yeniden dağıtım. Edge ile web aynı anda değişmezse arada kayıt `captcha_failed` döner; kayıt trafiği azken yapılır.
-4. `deploy-db-pilot` ve demo kilit denetimi `CAPTCHA_PROVIDER=altcha` iken Turnstile anahtarı yerine `ALTCHA_HMAC_KEY` ister; bilinmeyen sağlayıcıda başarısız olur.
-5. Duman testi: kayıt ve demo başlatma, tarayıcının ağ sekmesinde `challenges.cloudflare.com`'a istek yok.
+4. `deploy-db-pilot` `CAPTCHA_PROVIDER=altcha` iken Turnstile anahtarı yerine `ALTCHA_HMAC_KEY` ister; demo kilit denetimi aynısını `DEMO_CAPTCHA_PROVIDER=altcha` iken yapar. Bilinmeyen sağlayıcıda ikisi de başarısız olur.
+5. Hiçbir barındırılan projede gizlilik metni değişmeden `altcha` seçilmez; bugün hepsi Turnstile'dadır.
+6. Duman testi: kayıt ve demo başlatma, tarayıcının ağ sekmesinde `challenges.cloudflare.com`'a istek yok.
 
 ### Harita altlığı
 
 [hukuk/kararlar.md](hukuk/kararlar.md) H03, T12: üretimde tarayıcı harita karolarını doğrudan üçüncü taraf bir sunucudan istemez. `basemapStyle()` (`apps/web/src/lib/map/basemap.ts`):
 - `NEXT_PUBLIC_MAP_STYLE_URL` tanımlıysa o stil kullanılır. **Üretimde yalnızca kendi altyapımızdaki ya da vekil sunucumuzdaki bir stili gösterebilir** (stilin içindeki karo, font ve sprite adresleri de); üçüncü taraf bir harita sağlayıcısının stil adresi girilmez.
-- Tanımlı değilse üretim derlemesi kendi karo vekilimizi kullanır: `/harita/karo/{z}/{x}/{y}.png` (`app/harita/karo/[z]/[x]/[y]/route.ts`). Sunucu karoyu `MAP_TILE_UPSTREAM`'den (boşsa `tile.openstreetmap.org`) kendi User-Agent'ıyla alır; ziyaretçinin IP'si, çerezi ve başlıkları kaynağa gitmez. Yanıt tarayıcıda 7, CDN'de 30 gün önbelleğe alınır; örnek başına istemci başına dakikada 600 karo sınırı vardır. Yol `.png` ile bittiği için oturum vekilinden geçmez; demo alanında ve oturumsuz sayfalarda da çalışır (karolarda kişisel veri yoktur).
+- Tanımlı değilse üretim derlemesi kendi karo vekilimizi kullanır: `/harita/karo/{z}/{x}/{y}.png` (`app/harita/karo/[z]/[x]/[y]/route.ts`). Sunucu karoyu `MAP_TILE_UPSTREAM`'den (boşsa `tile.openstreetmap.org`) kendi User-Agent'ıyla alır; ziyaretçinin IP'si, çerezi ve başlıkları kaynağa gitmez. Yanıt tarayıcıda 7, CDN'de 30 gün önbelleğe alınır. Kaynağa giden istekler sınırlıdır (OSM'nin toplu indirme yasağı; bir engel bütün haritaları birden kapatır):
+    - Yalnızca kendi sayfalarımızın istekleri: `Sec-Fetch-Site: same-origin`, bu başlık yoksa kendi adresimizden bir `Referer`. Başka istemciler 403 alır (CDN'deki karolar yine sunulur).
+    - 7. yakınlaştırma düzeyinden itibaren yalnızca hizmet alanı (Türkiye ve çevresi, boylam 25–45,5, enlem 35–42,5); dışı 404.
+    - Örnek başına istemci başına dakikada 600 karo ve örnek başına toplam dakikada 1200 kaynak isteği (aşılırsa 503).
+    - User-Agent'ta iletişim adresi zorunludur: `MAP_TILE_CONTACT`, yoksa sitenin `https` adresi (`ORCHADOS_SITE_URL`, o da yoksa Vercel'in üretim adresi). Üretimde hiçbiri yoksa vekil 503 döner, kaynağa gitmez. Üretimde `MAP_TILE_CONTACT`'a bir e-posta adresi girilmesi önerilir.
+
+  Yol `.png` ile bittiği için oturum vekilinden geçmez; demo alanında ve oturumsuz sayfalarda da çalışır (karolarda kişisel veri yoktur).
 - Geliştirmede (`pnpm web:dev`) karolar eskisi gibi doğrudan OSM'den gelir.
 
 OSM karo sunucularının kullanım koşulları (tanımlı User-Agent, önbellek, toplu indirme yok) vekil için de geçerlidir. Trafik büyürse `MAP_TILE_UPSTREAM` kendi karo sunucumuza ya da sözleşmeli bir sağlayıcıya çevrilir (sunucudan sunucuya; tarayıcı yine yalnızca bizi görür). Kaynak değişince karo atfı ("© OpenStreetMap contributors") gerekirse güncellenir. **Saha uygulamasının** altlığı (personel cihazları, `apps/field`) bu işin kapsamında değildir.

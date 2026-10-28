@@ -34,6 +34,9 @@ export interface RegisterInput {
   consents: SignupConsents;
   clientIp: string | null;
   captchaToken: string | null;
+  // The ticket of this browser's previous register (the web's cookie), or
+  // null: it lets the same registrant replace their own sign-up in progress.
+  ticket: string | null;
 }
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; field: string };
@@ -91,6 +94,10 @@ export function parseRegister(body: unknown): Parsed<RegisterInput> {
     if (!captchaToken || captchaToken.length > 4096) return invalid("captcha_token");
   }
 
+  // A malformed ticket counts as none: it only ever widens what register may
+  // replace, never what it reveals.
+  const ticket = str(b.ticket);
+
   return {
     ok: true,
     value: {
@@ -111,6 +118,7 @@ export function parseRegister(body: unknown): Parsed<RegisterInput> {
       },
       clientIp,
       captchaToken,
+      ticket: ticket && TICKET_RE.test(ticket) ? ticket : null,
     },
   };
 }
@@ -144,6 +152,41 @@ export function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// --- Sign-up ticket ------------------------------------------------------------
+// Every 200 of register carries a fresh ticket (32 random bytes, base64url);
+// the web keeps it in an httpOnly cookie scoped to /kayit. Only a register
+// that opens an account stores its SHA-256 (signup_prepare); a registered
+// phone gets an unstored one, so the answer looks the same. The ticket binds
+// the code step to the register that wrote the pending sign-up: the web asks
+// for a phone confirmation code only with it (signup_code_allowed), and
+// complete refuses a pending sign-up whose ticket it does not carry.
+
+export const TICKET_RE = /^[A-Za-z0-9_-]{43}$/;
+
+export function newTicket(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+// hex(SHA-256(ticket)): customer_signup.ticket_hash. The database computes the
+// same for signup_code_allowed.
+export async function ticketHash(ticket: string): Promise<string> {
+  return toHex(await crypto.subtle.digest("SHA-256", encoder.encode(ticket)));
+}
+
+// The ticket of a `complete` request: null when the body has none (the
+// signed-in /kayit/dogrula page: no ticket check), else the sent text ("" for
+// a non-string, which matches no pending sign-up).
+export function completeTicket(body: unknown): string | null {
+  if (!body || typeof body !== "object" || !("ticket" in body)) return null;
+  const ticket = (body as { ticket: unknown }).ticket;
+  return typeof ticket === "string" ? ticket.slice(0, 256) : "";
+}
+
 // The client's IP: the body's client_ip when the Next server proved itself
 // with the proxy secret, otherwise Cloudflare's header, otherwise the first
 // x-forwarded-for value.
@@ -169,28 +212,34 @@ export interface AccountMatch {
   signup_completed: boolean;
   // When the pending sign-up was written (else when the account was created).
   started_at: string;
+  // The register's ticket is this account's pending sign-up's (the same
+  // registrant again).
+  ticket_match?: boolean;
 }
 
 export type MatchOutcome =
   // Open the account.
   | "create"
-  // The phone belongs to an account (its verified owner, a sign-up in
-  // progress or another customer's profile): answer as for a new sign-up and
-  // change nothing; the code step sends a login code that only reaches the
-  // phone's owner (docs/hukuk/kararlar.md H33).
+  // The phone belongs to an account (its verified owner, someone else's
+  // sign-up in progress or another customer's profile): answer as for a new
+  // sign-up and change nothing. The code step sends only a login code, which
+  // reaches only the phone's verified owner, never the confirmation code of
+  // an account this registrant did not open (docs/hukuk/kararlar.md H33).
   | "send_code"
   // The e-mail belongs to another account and the phone to none: the generic
   // "not_completed" error, never told apart from other conflicts (H33).
   | "conflict";
 
 export interface MatchDecision {
-  // Stale self sign-ups past the grace period: deleted before going on.
+  // Stale self sign-ups past the grace period, and the registrant's own
+  // sign-up in progress (ticket_match): deleted before going on.
   staleUserIds: string[];
   outcome: MatchOutcome;
 }
 
 // A stale sign-up younger than this still belongs to whoever is entering its
-// code: a register with the same e-mail or phone does not replace it.
+// code: a register with the same e-mail or phone does not replace it, unless
+// it carries that sign-up's ticket.
 export const STALE_GRACE_MS = 30 * 60 * 1000;
 
 export const isStale = (m: AccountMatch) =>
@@ -201,14 +250,20 @@ const pastGrace = (m: AccountMatch, nowMs: number) => {
   return Number.isFinite(started) && nowMs - started > STALE_GRACE_MS;
 };
 
-// §7.1 step 5, in order: stale accounts past the grace period go; a phone
-// that still belongs to an account (by the account's phone or a customer
-// profile) goes to the code step without changes, whoever holds the e-mail; a
-// taken e-mail with a free phone is a conflict. Nothing here attaches the new
-// e-mail or password to an existing account.
+// §7.1 step 5, in order: stale accounts past the grace period, and the
+// registrant's own one (the ticket matches), go; a phone that still belongs to
+// an account (by the account's phone or a customer profile, including someone
+// else's sign-up in progress) goes to the code step without changes, whoever
+// holds the e-mail; a taken e-mail with a free phone is a conflict. Nothing
+// here attaches the new e-mail or password to an existing account, and no
+// register without its ticket removes someone else's sign-up in progress.
 export function decideMatches(matches: AccountMatch[], nowMs: number): MatchDecision {
   const stale = [
-    ...new Set(matches.filter((m) => isStale(m) && pastGrace(m, nowMs)).map((m) => m.user_id)),
+    ...new Set(
+      matches
+        .filter((m) => isStale(m) && (pastGrace(m, nowMs) || m.ticket_match === true))
+        .map((m) => m.user_id),
+    ),
   ];
   const live = matches.filter((m) => !stale.includes(m.user_id));
   let outcome: MatchOutcome = "create";

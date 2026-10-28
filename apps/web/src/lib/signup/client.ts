@@ -16,13 +16,18 @@ export const SIGNUP_ERRORS = [
   "signup_closed",
   "signup_unavailable",
   "phone_not_verified",
+  // complete: the pending sign-up is not this browser's (the ticket).
+  "signup_mismatch",
   "failed",
 ] as const;
 export type SignupError = (typeof SIGNUP_ERRORS)[number];
 
 export type CompleteStatus = "completed" | "already_completed" | "no_pending";
 
-export type RegisterResult = { ok: true } | { ok: false; error: SignupError; field?: string };
+// `ticket`: the sign-up ticket of this register (lib/signup/ticket.ts), or
+// null from a function deployed before tickets.
+export type RegisterResult =
+  { ok: true; ticket: string | null } | { ok: false; error: SignupError; field?: string };
 export type CompleteResult =
   { ok: true; status: CompleteStatus } | { ok: false; error: SignupError };
 
@@ -87,6 +92,9 @@ export async function registerCustomer(
   input: SignupInput,
   clientIp: string | null,
   captchaToken: string | null,
+  // This browser's previous ticket: lets the register replace its own
+  // sign-up in progress.
+  previousTicket: string | null = null,
 ): Promise<RegisterResult> {
   const body = {
     action: "register",
@@ -103,6 +111,7 @@ export async function registerCustomer(
     },
     ...(clientIp ? { client_ip: clientIp } : {}),
     ...(captchaToken ? { captcha_token: captchaToken } : {}),
+    ...(previousTicket ? { ticket: previousTicket } : {}),
   };
   try {
     const { data, error } = await supabase.functions.invoke(FUNCTION, {
@@ -111,7 +120,8 @@ export async function registerCustomer(
     });
     if (error) return { ok: false, ...(await errorOf(error)) };
     if (data && typeof data === "object" && (data as { next?: unknown }).next === "verify_phone") {
-      return { ok: true };
+      const ticket = (data as { ticket?: unknown }).ticket;
+      return { ok: true, ticket: typeof ticket === "string" ? ticket : null };
     }
     return { ok: false, error: "failed" };
   } catch {
@@ -119,11 +129,13 @@ export async function registerCustomer(
   }
 }
 
-// Called with the user's session (supabase-js sends the access token).
-export async function completeSignup(supabase: Client): Promise<CompleteResult> {
+// Called with the user's session (supabase-js sends the access token). The
+// /kayit code step passes its ticket ("" when the cookie is gone): a pending
+// sign-up must then carry it. The signed-in /kayit/dogrula page passes none.
+export async function completeSignup(supabase: Client, ticket?: string): Promise<CompleteResult> {
   try {
     const { data, error } = await supabase.functions.invoke(FUNCTION, {
-      body: { action: "complete" },
+      body: { action: "complete", ...(ticket !== undefined ? { ticket } : {}) },
       headers: proxyHeaders(),
     });
     if (error) return { ok: false, error: (await errorOf(error)).error };

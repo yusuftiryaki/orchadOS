@@ -70,6 +70,11 @@ test("a registered phone gets the code step; the code signs its owner in", async
     `+90 5•• ••• •• ${digits.slice(-2)}`,
   );
   await expect(page.getByTestId("signup-error")).toHaveCount(0);
+  // The same hint in every outcome: no code means an existing account.
+  await expect(page.getByRole("link", { name: "E-posta ile giriş yap" })).toHaveAttribute(
+    "href",
+    "/giris",
+  );
 
   const code = await latestCode(PHONE);
   expect(code).toMatch(/^\d{6}$/);

@@ -9,7 +9,7 @@
 //   contact_preference ("whatsapp" | "sms"),
 //   consents: { kvkk_notice_version, explicit_text_version,
 //               explicit_service_improvement, explicit_marketing },
-//   client_ip?, captcha_token? }
+//   client_ip?, captcha_token?, ticket? }
 //   x-orchados-proxy-secret: SIGNUP_PROXY_SECRET (Next server only; then
 //   client_ip is trusted, otherwise cf-connecting-ip / x-forwarded-for)
 //   1. Validation; the robot check (_shared/captcha.ts): CAPTCHA_PROVIDER
@@ -24,19 +24,26 @@
 //      5 per e-mail a day).
 //   3. Accounts holding the e-mail or phone (signup_find_account): stale self
 //      sign-ups (phone never verified) started more than 30 minutes ago are
-//      deleted, younger ones count as taken. A phone that belongs to an account
-//      (its verified owner, a sign-up in progress, another customer's profile)
-//      gets the same 200 as a new sign-up and nothing changes: the web's code
-//      step then sends a login code that only reaches the phone's owner. A
-//      taken e-mail with a free phone gets the generic 409 not_completed
-//      (docs/hukuk/kararlar.md H33: no answer tells which one is registered).
+//      deleted, younger ones count as taken, except the registrant's own (the
+//      body's `ticket`, from this browser's previous register, is its pending
+//      sign-up's: signup_ticket_users). A phone that belongs to an account
+//      (its verified owner, someone else's sign-up in progress, another
+//      customer's profile) gets the same 200 as a new sign-up and nothing
+//      changes: the web's code step then asks only for a login code, which
+//      only reaches the phone's verified owner. A taken e-mail with a free
+//      phone gets the generic 409 not_completed (docs/hukuk/kararlar.md H33:
+//      no answer tells which one is registered).
 //   4. Admin API: the account, e-mail confirmed (password login needs it),
 //      phone not confirmed, app_metadata.signup = "self".
-//   5. signup_prepare stores the pending sign-up; on failure the account goes.
+//   5. signup_prepare stores the pending sign-up and signup_set_ticket the
+//      SHA-256 of the new ticket; on failure the account goes.
+//   Every 200 carries a fresh `ticket` (an unstored one for a registered
+//   phone): the web keeps it in an httpOnly cookie and sends it with the code
+//   step and complete, which binds them to this register.
 //   Every answer after the rate limits (200 or 409) waits until
 //   REGISTER_MIN_MS has passed since the request came in, so a new account
 //   and a registered phone or e-mail take the same time (H33).
-//   200 {next: "verify_phone"} · 400 {error: "invalid_input", field} |
+//   200 {next: "verify_phone", ticket} · 400 {error: "invalid_input", field} |
 //   {error: "captcha_failed"} · 409 {error: "not_completed"}
 //   · 429 {error: "too_many_attempts"} · 503 {error: "signup_closed"} · 500 {error: "failed"}
 //
@@ -46,15 +53,22 @@
 //   signature} · 400 {error: "invalid_input", field: "action"} with another
 //   provider · 503 {error: "signup_closed"} without ALTCHA_HMAC_KEY
 //
-// { "action": "complete" }   Authorization: Bearer <the user's access token>
+// { "action": "complete", ticket? }   Authorization: Bearer <the user's access token>
 //   After verifyOtp: the session must come from a phone code (amr otp/sms)
-//   with the phone confirmed; signup_complete then checks that the confirmed
-//   phone is the pending one and the code is newer than the pending sign-up
-//   (else 403) and writes the owner profile and the consent records.
+//   with the phone confirmed. With a `ticket` (the /kayit code step) a
+//   pending sign-up must carry it (signup_ticket_check): otherwise 403
+//   signup_mismatch, and an uncompleted self sign-up whose phone this code
+//   confirmed is deleted, so whoever owns the phone is never left signed in
+//   to an account someone else opened. Without one (the signed-in
+//   /kayit/dogrula page) there is no ticket check. signup_complete then
+//   checks that the confirmed phone is the pending one and the code is newer
+//   than the pending sign-up (else 403) and writes the owner profile and the
+//   consent records.
 //   A demo visitor's token (app_metadata.demo) is refused before any service
 //   role call (docs/demo-turu.md §6.3).
 //   200 {status: "completed" | "already_completed" | "no_pending"}
-//   · 401 {error: "unauthorized"} · 403 {error: "phone_not_verified" | "demo_read_only"}
+//   · 401 {error: "unauthorized"}
+//   · 403 {error: "phone_not_verified" | "signup_mismatch" | "demo_read_only"}
 //
 // { "action": "cleanup" }   x-orchados-cron-secret: ORCHADOS_CRON_SECRET
 //   Hourly (pg_cron, private.dispatch_signup_cleanup): deletes self sign-up
@@ -67,12 +81,13 @@ import {
   captchaEnv,
   captchaMode,
   createAltchaChallenge,
-  SpentChallenges,
+  databaseSpent,
   verifyCaptcha,
 } from "../_shared/captcha.ts";
 import {
   type AccountMatch,
   clientIp,
+  completeTicket,
   decideMatches,
   hmacHex,
   isDemoClaims,
@@ -82,6 +97,8 @@ import {
   parseRegister,
   type RegisterInput,
   registerDelayMs,
+  ticketHash,
+  newTicket,
   timingSafeEqual,
 } from "../_shared/signup.ts";
 
@@ -93,7 +110,6 @@ const PROXY_SECRET = Deno.env.get("SIGNUP_PROXY_SECRET") ?? "";
 const CRON_SECRET = Deno.env.get("ORCHADOS_CRON_SECRET") ?? "";
 const CAPTCHA_ENV = captchaEnv((name) => Deno.env.get(name));
 const CAPTCHA = captchaMode(CAPTCHA_ENV, Deno.env.get("SIGNUP_TURNSTILE_DISABLED"));
-const spentChallenges = new SpentChallenges();
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -124,6 +140,9 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   const text = await res.text();
   return (text ? JSON.parse(text) : null) as T;
 }
+
+// Solved self-hosted challenges, in the database for every instance.
+const spentChallenges = databaseSpent(rpc, "signup");
 
 async function deleteUser(id: string): Promise<void> {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${id}`, {
@@ -203,6 +222,16 @@ async function register(req: Request, body: unknown): Promise<Response> {
     return response;
   };
 
+  // The registrant's own sign-up in progress, by the previous ticket.
+  const own = new Set(
+    input.ticket
+      ? await rpc<string[]>("signup_ticket_users", {
+          p_ticket_hash: await ticketHash(input.ticket),
+        })
+      : [],
+  );
+  const ticket = newTicket();
+
   // A 422 from Auth means someone took the e-mail or phone meanwhile: the
   // matches are read again once.
   for (let round = 0; round < 2; round++) {
@@ -210,9 +239,14 @@ async function register(req: Request, body: unknown): Promise<Response> {
       p_email: input.email,
       p_phone: input.phone,
     });
-    const decision = decideMatches(matches, Date.now());
+    const decision = decideMatches(
+      matches.map((m) => ({ ...m, ticket_match: own.has(m.user_id) })),
+      Date.now(),
+    );
     for (const id of decision.staleUserIds) await deleteUser(id);
-    if (decision.outcome === "send_code") return answer(json({ next: "verify_phone" }));
+    // An unstored ticket: it matches nothing, so the code step asks for no
+    // confirmation code and complete opens no pending sign-up with it.
+    if (decision.outcome === "send_code") return answer(json({ next: "verify_phone", ticket }));
     if (decision.outcome === "conflict") return answer(error("not_completed", 409));
 
     const created = await createAccount(input);
@@ -227,16 +261,20 @@ async function register(req: Request, body: unknown): Promise<Response> {
         p_consents: input.consents,
         p_ip_hash: ip ? await hmacHex(HASH_SECRET, ip) : null,
       });
+      await rpc("signup_set_ticket", {
+        p_user_id: created.id,
+        p_ticket_hash: await ticketHash(ticket),
+      });
     } catch (cause) {
       await deleteUser(created.id);
       throw cause;
     }
-    return answer(json({ next: "verify_phone" }));
+    return answer(json({ next: "verify_phone", ticket }));
   }
   throw new Failure("account conflict did not resolve");
 }
 
-async function complete(req: Request): Promise<Response> {
+async function complete(req: Request, body: unknown): Promise<Response> {
   const authorization = req.headers.get("authorization") ?? "";
   const token = /^Bearer\s+(\S+)$/i.exec(authorization)?.[1];
   if (!token) return error("unauthorized", 401);
@@ -253,11 +291,29 @@ async function complete(req: Request): Promise<Response> {
 
   const codeAt = latestPhoneCodeAt(claims);
   if (!user.phone_confirmed_at || codeAt === null) return error("phone_not_verified", 403);
+  const codeAtIso = new Date(codeAt * 1000).toISOString();
+
+  // The /kayit code step: the pending sign-up must be this browser's.
+  const ticket = completeTicket(body);
+  if (ticket !== null) {
+    const check = await rpc<string>("signup_ticket_check", {
+      p_user_id: user.id,
+      p_code_at: codeAtIso,
+      p_ticket_hash: await ticketHash(ticket),
+    });
+    if (check === "ticket_mismatch") {
+      // Someone else's unfinished sign-up with this phone: it goes, and with
+      // it the session the code just opened.
+      await deleteUser(user.id);
+      return error("signup_mismatch", 403);
+    }
+    if (check === "ticket_refused") return error("signup_mismatch", 403);
+  }
   // signup_complete checks the rest in one transaction: a self sign-up whose
   // confirmed phone is the pending one, and a code newer than the pending row.
   const status = await rpc<string>("signup_complete", {
     p_user_id: user.id,
-    p_code_at: new Date(codeAt * 1000).toISOString(),
+    p_code_at: codeAtIso,
   });
   if (status === "phone_mismatch") return error("phone_not_verified", 403);
   return json({ status });
@@ -296,7 +352,7 @@ async function handle(req: Request): Promise<Response> {
   const action = body && typeof body === "object" ? (body as { action?: unknown }).action : null;
   try {
     if (action === "register") return await register(req, body);
-    if (action === "complete") return await complete(req);
+    if (action === "complete") return await complete(req, body);
     if (action === "cleanup") return await cleanup(req);
     if (action === "challenge") return await challenge();
     return error("invalid_input", 400, { field: "action" });

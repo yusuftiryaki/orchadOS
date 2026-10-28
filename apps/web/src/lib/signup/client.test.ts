@@ -76,8 +76,13 @@ describe("signupErrorFromResponse", () => {
 describe("registerCustomer", () => {
   it("sends the design §7 body with the proxy secret", async () => {
     vi.stubEnv("SIGNUP_PROXY_SECRET", "signup-proxy-local");
-    const { client, invoke } = fakeClient({ data: { next: "verify_phone" } });
-    expect(await registerCustomer(client, INPUT, "203.0.113.5", "tok")).toEqual({ ok: true });
+    const { client, invoke } = fakeClient({
+      data: { next: "verify_phone", ticket: "T".repeat(43) },
+    });
+    expect(await registerCustomer(client, INPUT, "203.0.113.5", "tok", "P".repeat(43))).toEqual({
+      ok: true,
+      ticket: "T".repeat(43),
+    });
     expect(invoke).toHaveBeenCalledWith("customer-signup", {
       body: {
         action: "register",
@@ -94,6 +99,7 @@ describe("registerCustomer", () => {
         },
         client_ip: "203.0.113.5",
         captcha_token: "tok",
+        ticket: "P".repeat(43),
       },
       headers: { "x-orchados-proxy-secret": "signup-proxy-local" },
     });
@@ -109,6 +115,7 @@ describe("registerCustomer", () => {
     ];
     expect(options.body).not.toHaveProperty("client_ip");
     expect(options.body).not.toHaveProperty("captcha_token");
+    expect(options.body).not.toHaveProperty("ticket");
     expect(options.headers).toEqual({});
   });
 
@@ -170,6 +177,23 @@ describe("completeSignup", () => {
       ]);
     },
   );
+
+  it("sends the code step's ticket, and none without one", async () => {
+    const { client, invoke } = fakeClient({ data: { status: "completed" } });
+    await completeSignup(client, "T".repeat(43));
+    await completeSignup(client, "");
+    expect(
+      (invoke.mock.calls as unknown as [string, { body: object }][]).map(([, o]) => o.body),
+    ).toEqual([
+      { action: "complete", ticket: "T".repeat(43) },
+      { action: "complete", ticket: "" },
+    ]);
+    const mismatch = fakeClient({ error: httpError(403, { error: "signup_mismatch" }) });
+    expect(await completeSignup(mismatch.client, "")).toEqual({
+      ok: false,
+      error: "signup_mismatch",
+    });
+  });
 
   it("maps 403 phone_not_verified and an unreachable function", async () => {
     const forbidden = fakeClient({ error: httpError(403, { error: "phone_not_verified" }) });

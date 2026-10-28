@@ -6,8 +6,9 @@
 //                        function issues an HMAC-signed challenge with an
 //                        expiry (ALTCHA_HMAC_KEY), the browser finds the number,
 //                        the function checks the signature, the hash, the
-//                        expiry and the purpose and refuses a solution it has
-//                        seen. No request leaves our infrastructure.
+//                        expiry and the purpose and refuses a solution already
+//                        used (private.captcha_spent, shared by every function
+//                        instance). No request leaves our infrastructure.
 // An unknown provider or a missing key keeps the door shut ("unconfigured",
 // fail closed). Switching to altcha on a hosted project first needs the
 // privacy text changed (docs/deployment.md › Robot doğrulaması).
@@ -33,11 +34,14 @@ export interface CaptchaEnv {
 }
 
 // The provider's settings; with a prefix (demo-start: "DEMO_") the prefixed
-// name wins, an empty value counts as unset.
+// key wins, an empty value counts as unset. The provider itself never falls
+// back: on the shared demo host (docs/demo-turu.md §15.1) the test site's
+// CAPTCHA_PROVIDER must not switch the live demo, whose web widget follows its
+// own deployment. An unset DEMO_CAPTCHA_PROVIDER is Turnstile.
 export function captchaEnv(get: (name: string) => string | undefined, prefix = ""): CaptchaEnv {
   const pick = (name: string) => (prefix ? get(`${prefix}${name}`) : "") || get(name) || "";
   return {
-    provider: parseCaptchaProvider(pick("CAPTCHA_PROVIDER")),
+    provider: parseCaptchaProvider(get(`${prefix}CAPTCHA_PROVIDER`)),
     turnstileSecret: pick("TURNSTILE_SECRET_KEY"),
     altchaKey: pick("ALTCHA_HMAC_KEY"),
   };
@@ -213,16 +217,20 @@ export async function verifyAltcha(
   return { ok: true, challenge: p.challenge, expiresMs: expires * 1000 };
 }
 
-// Solutions already used, until their challenge expires. In memory per
-// function instance: a solution is single use where it was checked first; the
-// rate limits bound what a replay on another instance could do (a shared
-// table is a follow-up, see docs/deployment.md).
-export class SpentChallenges {
+// Where used solutions are remembered until their challenge expires. The
+// functions use the database (captcha_spend, private.captcha_spent: one table
+// for every instance, so a replay fails wherever it lands); MemorySpent below
+// serves the unit tests.
+export interface SpentStore {
+  // True the first time a challenge is used; false on a replay or an error.
+  use(challenge: string, expiresMs: number, nowMs: number): boolean | Promise<boolean>;
+}
+
+export class MemorySpent implements SpentStore {
   private spent = new Map<string, number>();
 
   constructor(private readonly max = 50_000) {}
 
-  // True the first time a challenge is used; false on a replay.
   use(challenge: string, expiresMs: number, nowMs: number): boolean {
     if (this.spent.size >= this.max) {
       for (const [c, exp] of this.spent) if (exp <= nowMs) this.spent.delete(c);
@@ -235,13 +243,35 @@ export class SpentChallenges {
   }
 }
 
+// The database store of a function: `rpc` calls a PostgREST function with the
+// service role. A failed call counts as a replay (fail closed).
+export function databaseSpent(
+  rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>,
+  purpose: CaptchaPurpose,
+): SpentStore {
+  return {
+    async use(challenge, expiresMs) {
+      try {
+        const fresh = await rpc("captcha_spend", {
+          p_challenge: challenge,
+          p_purpose: purpose,
+          p_expires_at: new Date(expiresMs).toISOString(),
+        });
+        return fresh === true;
+      } catch {
+        return false;
+      }
+    },
+  };
+}
+
 // --- Both providers ---------------------------------------------------------
 
 export interface VerifyContext {
   purpose: CaptchaPurpose;
   ip: string | null;
   nowMs: number;
-  spent: SpentChallenges;
+  spent: SpentStore;
   fetch?: typeof fetch;
 }
 
@@ -255,7 +285,7 @@ export async function verifyCaptcha(
   if (!token || !captchaConfigured(env)) return false;
   if (env.provider === "altcha") {
     const result = await verifyAltcha(env.altchaKey, token, ctx.purpose, ctx.nowMs);
-    return result.ok && ctx.spent.use(result.challenge, result.expiresMs, ctx.nowMs);
+    return result.ok && (await ctx.spent.use(result.challenge, result.expiresMs, ctx.nowMs));
   }
   const form = new URLSearchParams({ secret: env.turnstileSecret, response: token });
   if (ctx.ip) form.set("remoteip", ctx.ip);

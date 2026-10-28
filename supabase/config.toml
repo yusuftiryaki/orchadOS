@@ -429,8 +429,10 @@ SIGNUP_TURNSTILE_DISABLED = "1"
 # the tests can solve challenges: with SIGNUP_TURNSTILE_DISABLED a sent token
 # is checked and a missing one passes (customer-signup "optional", demo-start
 # "if_sent" in dev). Hosted projects keep Turnstile unless the privacy text
-# names the self-hosted check (docs/deployment.md).
+# names the self-hosted check (docs/deployment.md). demo-start reads only
+# DEMO_CAPTCHA_PROVIDER (unset: Turnstile), never CAPTCHA_PROVIDER.
 CAPTCHA_PROVIDER = "altcha"
+DEMO_CAPTCHA_PROVIDER = "altcha"
 ALTCHA_HMAC_KEY = "altcha-local-hmac-key-0123456789abcdef"
 # pg_cron calls (signup cleanup, payment reconcile); Vault orchados_cron_secret.
 ORCHADOS_CRON_SECRET = "cron-local"

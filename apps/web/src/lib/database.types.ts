@@ -4009,6 +4009,10 @@ export type Database = {
       };
       calibration_kit_mount_valid: { Args: { p_extrinsics: Json }; Returns: boolean };
       cancel_followup: { Args: { p_request_id: string }; Returns: undefined };
+      captcha_spend: {
+        Args: { p_challenge: string; p_expires_at: string; p_purpose: string };
+        Returns: boolean;
+      };
       close_verification_item: {
         Args: { p_item_id: string; p_note: string };
         Returns: {
@@ -5498,6 +5502,7 @@ export type Database = {
         };
         Returns: string;
       };
+      signup_code_allowed: { Args: { p_phone: string; p_ticket: string }; Returns: boolean };
       signup_complete: { Args: { p_code_at: string; p_user_id: string }; Returns: string };
       signup_find_account: {
         Args: { p_email: string; p_phone: string };
@@ -5526,6 +5531,12 @@ export type Database = {
         Args: { p_email_hash: string; p_ip_hash: string; p_phone_hash: string };
         Returns: string;
       };
+      signup_set_ticket: { Args: { p_ticket_hash: string; p_user_id: string }; Returns: undefined };
+      signup_ticket_check: {
+        Args: { p_code_at: string; p_ticket_hash: string; p_user_id: string };
+        Returns: string;
+      };
+      signup_ticket_users: { Args: { p_ticket_hash: string }; Returns: string[] };
       waive_coverage: {
         Args: { p_note: string; p_session_id: string };
         Returns: {

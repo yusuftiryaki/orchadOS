@@ -17,15 +17,19 @@ export interface SignupCodeAuth<E extends { code?: string }> {
 }
 
 // Sends the SMS code for a phone that has just been registered; resolves to
-// the Auth error, or null once a code is on its way.
+// the Auth error, or null once a code is on its way. `confirm: false` never
+// asks for a phone confirmation code (an account the caller did not open,
+// lib/signup/send-code.ts): an unconfirmed phone then gets the signup_disabled
+// error and no SMS.
 export async function requestSignupCode<E extends { code?: string }>(
   auth: SignupCodeAuth<E>,
   phone: string,
+  { confirm = true }: { confirm?: boolean } = {},
 ): Promise<E | null> {
   const signIn = await auth.signInWithOtp({
     phone,
     options: { shouldCreateUser: false, channel: "sms" },
   });
-  if (signIn.error?.code !== "signup_disabled") return signIn.error;
+  if (signIn.error?.code !== "signup_disabled" || !confirm) return signIn.error;
   return (await auth.resend({ type: "sms", phone })).error;
 }

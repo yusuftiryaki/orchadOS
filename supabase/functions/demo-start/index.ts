@@ -14,9 +14,11 @@
 //   the demo shares the test project with the test site's sign-up for now.
 //   0. ORCHADOS_DEMO_MODE (with the robot check's settings, _shared/demo.ts
 //      demoMode): unset or unknown → 503 demo_closed; "public" needs a live
-//      key of the chosen provider (CAPTCHA_PROVIDER, DEMO_ name first:
-//      Turnstile, not one of Cloudflare's test keys, or ALTCHA_HMAC_KEY);
-//      "dev" checks only when a key is set. An unknown provider keeps it closed.
+//      key of the chosen provider (DEMO_CAPTCHA_PROVIDER alone, unset is
+//      Turnstile: the test site's CAPTCHA_PROVIDER never switches the demo;
+//      Turnstile, not one of Cloudflare's test keys, or ALTCHA_HMAC_KEY, DEMO_
+//      name first); "dev" checks only when a key is set. An unknown provider
+//      keeps it closed.
 //   1. The robot check (_shared/captcha.ts), when required: Turnstile, or the
 //      self-hosted proof of work (no request to Cloudflare).
 //   2. ip_hash = HMAC-SHA256(SIGNUP_HASH_SECRET, "demo:" + IP bucket): the
@@ -32,7 +34,7 @@
 //   · 400 {error: "invalid_input" | "captcha_failed"} · 429 {error: "rate_limited"}
 //   · 503 {error: "demo_closed" | "demo_capacity"} · 500 {error: "failed"}
 //
-// { "action": "challenge" }   CAPTCHA_PROVIDER=altcha only
+// { "action": "challenge" }   DEMO_CAPTCHA_PROVIDER=altcha only
 //   A signed proof-of-work challenge for the start page (10 minutes; the Next
 //   server asks for it). 200 {algorithm, challenge, maxnumber, salt,
 //   signature} · 400 {error: "invalid_input"} with another provider
@@ -62,7 +64,7 @@ import {
 import {
   captchaEnv,
   createAltchaChallenge,
-  SpentChallenges,
+  databaseSpent,
   verifyCaptcha,
 } from "../_shared/captcha.ts";
 import { clientIp, hmacHex, timingSafeEqual } from "../_shared/signup.ts";
@@ -72,7 +74,9 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const { hashSecret: HASH_SECRET, proxySecret: PROXY_SECRET } = demoSecrets((name) =>
   Deno.env.get(name),
 );
-// The DEMO_ names win here too (shared hosting on the test project).
+// The DEMO_ keys win here too (shared hosting on the test project); the
+// provider is DEMO_CAPTCHA_PROVIDER alone (unset: Turnstile), never the test
+// site's CAPTCHA_PROVIDER.
 const CAPTCHA_ENV = captchaEnv((name) => Deno.env.get(name), "DEMO_");
 const CRON_SECRET = Deno.env.get("ORCHADOS_CRON_SECRET") ?? "";
 const MODE = demoMode({
@@ -81,7 +85,6 @@ const MODE = demoMode({
   provider: CAPTCHA_ENV.provider ?? "unknown",
   altchaKey: CAPTCHA_ENV.altchaKey,
 });
-const spentChallenges = new SpentChallenges();
 
 const CLEANUP_BATCH = 200;
 const CLEANUP_ROUNDS = 10;
@@ -132,6 +135,9 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   }
   return (text ? JSON.parse(text) : null) as T;
 }
+
+// Solved self-hosted challenges, in the database for every instance.
+const spentChallenges = databaseSpent(rpc, "demo");
 
 async function deleteUser(id: string): Promise<void> {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${id}`, {

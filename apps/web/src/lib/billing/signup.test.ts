@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   type AccountMatch,
   clientIp,
+  completeTicket,
   decideMatches,
   hmacHex,
   isExpiredUnverified,
@@ -10,6 +11,9 @@ import {
   parseRegister,
   REGISTER_MIN_MS,
   registerDelayMs,
+  newTicket,
+  TICKET_RE,
+  ticketHash,
   timingSafeEqual,
 } from "../../../../../supabase/functions/_shared/signup";
 
@@ -183,6 +187,36 @@ describe("decideMatches", () => {
     expect(decideMatches([{ ...recent, started_at: "not a date" }], NOW).staleUserIds).toEqual([]);
   });
 
+  // Review of PR #93, finding 1: the registrant's own sign-up in progress
+  // (their ticket) is replaced; anyone else's stays, by e-mail or phone.
+  it("replaces only the registrant's own sign-up inside the grace period", () => {
+    const recent = match({
+      user_id: "a",
+      matched_by: "phone",
+      self_signup: true,
+      started_at: RECENT,
+    });
+    expect(decideMatches([{ ...recent, ticket_match: true }], NOW)).toEqual({
+      staleUserIds: ["a"],
+      outcome: "create",
+    });
+    expect(decideMatches([{ ...recent, matched_by: "email", ticket_match: true }], NOW)).toEqual({
+      staleUserIds: ["a"],
+      outcome: "create",
+    });
+    expect(decideMatches([{ ...recent, ticket_match: false }], NOW)).toEqual({
+      staleUserIds: [],
+      outcome: "send_code",
+    });
+    // A verified or completed account is never replaced, ticket or not.
+    for (const kept of [
+      { ...recent, ticket_match: true, phone_confirmed: true },
+      { ...recent, ticket_match: true, signup_completed: true },
+    ]) {
+      expect(decideMatches([kept], NOW)).toEqual({ staleUserIds: [], outcome: "send_code" });
+    }
+  });
+
   // H33: a registered phone answers like a new sign-up; only the phone's
   // owner gets the code.
   it("sends any registered phone to the code step, whoever holds the e-mail", () => {
@@ -290,5 +324,40 @@ describe("cleanup", () => {
       false,
     );
     expect(isExpiredUnverified({ ...old, app_metadata: {} }, now)).toBe(false);
+  });
+});
+
+describe("sign-up ticket", () => {
+  it("is 32 random bytes in base64url", () => {
+    const a = newTicket();
+    const b = newTicket();
+    expect(a).toMatch(TICKET_RE);
+    expect(b).toMatch(TICKET_RE);
+    expect(a).not.toBe(b);
+  });
+
+  it("is stored as its SHA-256 in hex (the database's digest)", async () => {
+    expect(await ticketHash("abc")).toBe(
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    );
+  });
+
+  it("rides in register's body; a malformed one counts as none", () => {
+    const ticket = newTicket();
+    const parsed = parseRegister({ ...valid, ticket });
+    expect(parsed.ok && parsed.value.ticket).toBe(ticket);
+    for (const bad of ["short", 42, "x".repeat(43) + "!"]) {
+      const p = parseRegister({ ...valid, ticket: bad });
+      expect(p.ok && p.value.ticket).toBeNull();
+    }
+    const none = parseRegister(valid);
+    expect(none.ok && none.value.ticket).toBeNull();
+  });
+
+  it("complete without a ticket key skips the check; anything else is checked", () => {
+    expect(completeTicket({ action: "complete" })).toBeNull();
+    expect(completeTicket({ action: "complete", ticket: "abc" })).toBe("abc");
+    expect(completeTicket({ action: "complete", ticket: "" })).toBe("");
+    expect(completeTicket({ action: "complete", ticket: null })).toBe("");
   });
 });

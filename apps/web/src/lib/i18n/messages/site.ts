@@ -243,6 +243,14 @@ export const siteText = {
     submitting: "Gönderiliyor…",
     codeTitle: "SMS kodu",
     codeSent: (masked: string) => `${masked} numarasına 6 haneli bir kod gönderdik.`,
+    // The /kayit code step: the same text whether the number is new, has an
+    // account or cannot get a code at all (docs/hukuk/kararlar.md H33).
+    codeRequested: (masked: string) =>
+      `${masked} numarasına SMS ile 6 haneli bir kod gönderiyoruz. Kod birkaç dakika geçerli.`,
+    codeMissing:
+      "Kod gelmezse bu numarayla zaten bir hesabınız olabilir; e-posta adresiniz ve parolanızla giriş yapın.",
+    codeMissingLogin: "E-posta ile giriş yap",
+    registerAgain: "Kod adımının süresi doldu. Bilgilerinizi girip yeniden kayıt olun.",
     codeExisting:
       "Bu numarayla hesabınız varsa giriş yapmış olursunuz; izin tercihlerinizi Hesabım › İzinler'den değiştirebilirsiniz.",
     code: "SMS kodu",
@@ -277,6 +285,8 @@ export const siteText = {
       signup_closed: "Kayıt şu anda kapalı.",
       signup_unavailable: "Kayıt hizmetine şu anda ulaşılamıyor. Biraz sonra yeniden deneyin.",
       phone_not_verified: "Telefonunuz henüz doğrulanmadı.",
+      signup_mismatch:
+        "Kayıt tamamlanamadı; güvenliğiniz için oturum açılmadı. Bilgilerinizi girip yeniden kayıt olun.",
       failed: "Kayıt tamamlanamadı. Biraz sonra yeniden deneyin.",
     },
     verifyPage: {

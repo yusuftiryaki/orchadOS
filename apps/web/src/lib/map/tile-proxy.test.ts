@@ -5,6 +5,8 @@ import {
   RateLimiter,
   tileUpstream,
   tileUrl,
+  tileContact,
+  tileInServiceArea,
   tileUserAgent,
 } from "./tile-proxy";
 
@@ -61,5 +63,37 @@ describe("RateLimiter", () => {
   it("stays bounded", () => {
     const limiter = new RateLimiter(1, 1000, 3);
     for (let i = 0; i < 10; i++) expect(limiter.allow(`k${i}`, 0)).toBe(true);
+  });
+});
+
+describe("service area", () => {
+  it("keeps the overview zooms worldwide and the detailed ones over Türkiye", () => {
+    expect(tileInServiceArea({ z: 0, x: 0, y: 0 })).toBe(true);
+    expect(tileInServiceArea({ z: 6, x: 0, y: 0 })).toBe(true);
+    // Gaziantep, Edirne and Kars at zoom 15.
+    expect(tileInServiceArea({ z: 15, x: 19786, y: 12745 })).toBe(true);
+    expect(tileInServiceArea({ z: 15, x: 18802, y: 12153 })).toBe(true);
+    expect(tileInServiceArea({ z: 15, x: 20365, y: 12257 })).toBe(true);
+    // London and New York.
+    expect(tileInServiceArea({ z: 15, x: 16374, y: 10896 })).toBe(false);
+    expect(tileInServiceArea({ z: 12, x: 1205, y: 1539 })).toBe(false);
+  });
+});
+
+describe("tileContact", () => {
+  it("prefers MAP_TILE_CONTACT, then the site's https address", () => {
+    expect(tileContact({ MAP_TILE_CONTACT: " ops@orchados.example " })).toBe(
+      "ops@orchados.example",
+    );
+    expect(tileContact({ ORCHADOS_SITE_URL: "https://orchados.example" })).toBe(
+      "https://orchados.example",
+    );
+    expect(
+      tileContact({
+        ORCHADOS_SITE_URL: "http://localhost:3000",
+        VERCEL_PROJECT_PRODUCTION_URL: "orchados.vercel.app",
+      }),
+    ).toBe("https://orchados.vercel.app");
+    expect(tileContact({})).toBeNull();
   });
 });

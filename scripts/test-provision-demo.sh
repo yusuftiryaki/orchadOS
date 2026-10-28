@@ -425,8 +425,8 @@ locks $T '{"demo_users_outside":2}'
 if lock l8 shared $T; then bad "lock shared: a demo account outside the demo org fails"; else
   check "lock shared: a demo account outside the demo org fails" grep -q '2 demo account(s)' "$work/l8.lock"; fi
 
-# The self-hosted robot check (CAPTCHA_PROVIDER=altcha): its key replaces the
-# Turnstile secret; an unknown provider fails.
+# The self-hosted robot check (DEMO_CAPTCHA_PROVIDER=altcha): its key replaces
+# the Turnstile secret; an unknown provider fails.
 locks $T '{"real_orgs":3,"enabled_demo_orgs":1,"cleanup_url":1,"cron_secret":1}'
 sec $T DEMO_SIGNUP_PROXY_SECRET demo-proxy-SECRET
 sec $T DEMO_TURNSTILE_SECRET_KEY 1x0000000000000000000000000000000AA
@@ -440,6 +440,12 @@ if lock la3 shared $T; then bad "lock shared: an unknown CAPTCHA_PROVIDER fails"
   check "lock shared: an unknown CAPTCHA_PROVIDER fails" grep -q 'neither turnstile nor altcha' "$work/la3.lock"; fi
 ctl drop-secret "{\"ref\":\"$T\",\"name\":\"DEMO_CAPTCHA_PROVIDER\"}" >/dev/null
 sec $T DEMO_TURNSTILE_SECRET_KEY 0x4AAAAAAAlive-demo-SECRET
+# The test site switching to altcha leaves the demo on Turnstile (demo-start
+# reads DEMO_CAPTCHA_PROVIDER only): its live Turnstile key still counts.
+sec $T CAPTCHA_PROVIDER altcha
+ctl drop-secret "{\"ref\":\"$T\",\"name\":\"DEMO_ALTCHA_HMAC_KEY\"}" >/dev/null
+check "lock shared: the test site's CAPTCHA_PROVIDER does not switch the demo" lock la4 shared $T
+ctl drop-secret "{\"ref\":\"$T\",\"name\":\"CAPTCHA_PROVIDER\"}" >/dev/null
 
 # The separate demo project: strict.
 locks $D '{}'

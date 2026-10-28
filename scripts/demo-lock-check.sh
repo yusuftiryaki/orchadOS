@@ -22,10 +22,11 @@
 #     (`dev` skips the live-key rule) or the Turnstile secret is one of
 #     Cloudflare's dummy keys. The secrets API returns a sha256 digest of each
 #     value, so values are compared by digest and never read in clear;
-#   - with the self-hosted robot check (CAPTCHA_PROVIDER=altcha, DEMO_ name
-#     first, _shared/captcha.ts) the ALTCHA_HMAC_KEY takes the Turnstile
-#     secret's place in the list above; a CAPTCHA_PROVIDER other than
-#     turnstile or altcha fails (demo-start stays closed with it);
+#   - with the self-hosted robot check (DEMO_CAPTCHA_PROVIDER=altcha; unset
+#     is Turnstile and the test site's CAPTCHA_PROVIDER never counts,
+#     _shared/captcha.ts) the ALTCHA_HMAC_KEY takes the Turnstile secret's
+#     place in the list above; a DEMO_CAPTCHA_PROVIDER other than turnstile or
+#     altcha fails (demo-start stays closed with it);
 #   - a demo org accepts sign-ups or fake payments;
 #   - a demo account (app_metadata.demo) has a membership, or access to a
 #     parcel of an org that is not a demo org.
@@ -114,14 +115,14 @@ if [ "$(get enabled_demo_orgs)" != "0" ]; then
   # The names demo-start reads first (_shared/demo.ts demoSecrets): on the shared
   # host the DEMO_ ones, which the test site's own secrets never stand in for.
   if [ "$mode" = shared ]; then P=DEMO_; else P=; fi
-  # The robot check demo-start uses: DEMO_CAPTCHA_PROVIDER, else CAPTCHA_PROVIDER.
+  # The robot check demo-start uses: DEMO_CAPTCHA_PROVIDER alone (unset is
+  # Turnstile, whatever CAPTCHA_PROVIDER says for the test site).
   provider=$(digest DEMO_CAPTCHA_PROVIDER)
-  [ -n "$provider" ] || provider=$(digest CAPTCHA_PROVIDER)
   captcha_key="${P}TURNSTILE_SECRET_KEY"
   if [ "$provider" = "$(sha altcha)" ]; then
     captcha_key="${P}ALTCHA_HMAC_KEY"
   elif [ -n "$provider" ] && [ "$provider" != "$(sha turnstile)" ]; then
-    err "A demo org is enabled but CAPTCHA_PROVIDER on $where is neither turnstile nor altcha; demo-start stays closed."
+    err "A demo org is enabled but DEMO_CAPTCHA_PROVIDER on $where is neither turnstile nor altcha; demo-start stays closed."
   fi
   needs=(ORCHADOS_DEMO_MODE "$captcha_key" "${P}SIGNUP_HASH_SECRET" "${P}SIGNUP_PROXY_SECRET" ORCHADOS_CRON_SECRET)
   for name in "${needs[@]}"; do

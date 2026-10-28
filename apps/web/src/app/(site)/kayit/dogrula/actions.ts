@@ -30,7 +30,8 @@ export async function verifyPhoneAction(
   if (allowed.data === false) return { ...previous, error: t.login.phone.locked, notice: null };
 
   if (formReader(form)("intent") !== "verify") {
-    const reason = await sendAccountCode(supabase, phone);
+    // The signed-in account's own phone (its session came from its password).
+    const reason = await sendAccountCode(supabase, phone, { confirm: true });
     if (reason) {
       return {
         ...previous,

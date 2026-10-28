@@ -429,9 +429,11 @@ Anahtar eksikse rehberli tur o adımı atlar.
        "public" → TURNSTILE_SECRET_KEY tanımlı olmalı ve Cloudflare'in sahte anahtarlarından
                   (1x0000…AA, 2x0000…AA, 3x0000…AA) biri olmamalı; değilse 503 demo_closed.
        "dev"    → Turnstile yalnızca secret tanımlıysa (yerel, CI, kısa test duman testi).
-       Kendi robot doğrulamamızda (CAPTCHA_PROVIDER=altcha, aşağıda) "public" için
-       ALTCHA_HMAC_KEY (≥ 32 karakter) gerekir; "dev" gönderilen jetonu denetler.
-       Bilinmeyen bir CAPTCHA_PROVIDER → 503 demo_closed.
+       Kendi robot doğrulamamızda (DEMO_CAPTCHA_PROVIDER=altcha, aşağıda) "public" için
+       ALTCHA_HMAC_KEY (≥ 32 karakter, önce DEMO_ adı) gerekir; "dev" gönderilen jetonu denetler.
+       Sağlayıcı yalnızca DEMO_CAPTCHA_PROVIDER'dan okunur; boşsa Turnstile. Test sitesinin
+       CAPTCHA_PROVIDER'ı demoyu hiçbir zaman değiştirmez (ortak barındırma, §15.1).
+       Bilinmeyen bir DEMO_CAPTCHA_PROVIDER → 503 demo_closed.
   1. Robot doğrulaması: Turnstile ya da kendi doğrulamamız (_shared/captcha.ts).
   2. ip_hash = HMAC-SHA256(SIGNUP_HASH_SECRET, "demo:" + (ipBucket(ip) ?? "unknown")); demo_admit(ip_hash).
      ipBucket: IPv4 tam adres; IPv6 ilk 64 bit; ::ffff: eşlemeli IPv4 → IPv4.
@@ -443,7 +445,7 @@ Anahtar eksikse rehberli tur o adımı atlar.
   · 400 {error: "invalid_input" | "captcha_failed"} · 429 {error: "rate_limited"}
   · 503 {error: "demo_closed" | "demo_capacity"} · 500 {error: "failed"}
 
-{ "action": "challenge" }   yalnızca CAPTCHA_PROVIDER=altcha
+{ "action": "challenge" }   yalnızca DEMO_CAPTCHA_PROVIDER=altcha
   HMAC imzalı iş kanıtı sorusu (10 dakika, amaç "demo"); Next sunucusu ister.
   200 {algorithm, challenge, maxnumber, salt, signature} · 400 invalid_input (başka sağlayıcı)
   · 503 demo_closed (başlatma kapalıyken)
@@ -479,7 +481,8 @@ Anahtar eksikse rehberli tur o adımı atlar.
 IP okuma, proxy sırrı ve HMAC için `_shared/signup.ts` kullanılır.
 
 **Robot doğrulaması** ([hukuk/kararlar.md](hukuk/kararlar.md) H03, T12; [deployment.md](deployment.md) › Robot doğrulaması):
-- Varsayılan Cloudflare Turnstile'dır. Cloudflare KVKK standart sözleşmesini imzalamazsa kendi sunucumuzda çalışan iş kanıtı doğrulamasına geçilir: Edge `CAPTCHA_PROVIDER=altcha` ve `ALTCHA_HMAC_KEY` (ortak barındırmada önce `DEMO_CAPTCHA_PROVIDER` ve `DEMO_ALTCHA_HMAC_KEY` okunur), Vercel `NEXT_PUBLIC_CAPTCHA_PROVIDER=altcha`.
+- Varsayılan Cloudflare Turnstile'dır. Cloudflare KVKK standart sözleşmesini imzalamazsa kendi sunucumuzda çalışan iş kanıtı doğrulamasına geçilir: Edge `DEMO_CAPTCHA_PROVIDER=altcha` ve `DEMO_ALTCHA_HMAC_KEY` (anahtar için `ALTCHA_HMAC_KEY` de okunur; sağlayıcı için `CAPTCHA_PROVIDER` okunmaz), demo Vercel projesinde `NEXT_PUBLIC_CAPTCHA_PROVIDER=altcha`. Test sitesinin `CAPTCHA_PROVIDER=altcha`'ya geçmesi demoyu Turnstile'da bırakır; demo kilit denetimi de yalnızca `DEMO_CAPTCHA_PROVIDER`'a bakar.
+- Kullanılmış çözümler `private.captcha_spent` tablosunda tutulur; aynı çözüm hangi Edge örneğine giderse gitsin bir kez geçer.
 - Başlatma sayfası soruyu Next sunucusu üzerinden `{action: "challenge"}` ile alır, tarayıcı Web Crypto ile çözer, cevap gizli `altcha` alanında `captcha_token` olarak gider. Cloudflare'e ya da başka bir üçüncü tarafa istek gitmez; aynı cevap ikinci kez kabul edilmez; kayıt formunun sorusu demoda geçmez (amaç imzanın kapsamında).
 - Anahtar yoksa ya da sağlayıcı bilinmiyorsa başlatma kapalıdır (`demo_closed`). Demo kilit denetimi (`scripts/demo-lock-check.sh`) `altcha` seçiliyken Turnstile secret'ı yerine bu anahtarı ister.
 - **Geçişten önce** gizlilik metninin demo bölümü (§5), çerez tablosu ve başlatma sayfasının kısa metnindeki Turnstile/Cloudflare cümleleri değişir; metin sürümü ve kayıt migration'ı birlikte gelir (önerilen metin deployment.md'de).
@@ -931,7 +934,7 @@ Görüntü durumu için `tour-viewer` öğesinde zaten bulunan nitelikler kullan
 | `SIGNUP_PROXY_SECRET` | Web (sunucu) + Edge | Var olan. `demo-start` da istemci IP'sine bununla güvenir |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Web / Edge | Var olan. Demo projesinde canlı anahtar zorunludur |
 | `SIGNUP_HASH_SECRET` | Edge | Var olan. IP özeti, `demo:` önekiyle |
-| `CAPTCHA_PROVIDER`, `ALTCHA_HMAC_KEY` (önce `DEMO_` adları) / `NEXT_PUBLIC_CAPTCHA_PROVIDER` | Edge / Web | **Yeni** (T12). Boş ya da `turnstile`: Turnstile (varsayılan). `altcha`: kendi robot doğrulamamız (§7); anahtar ≥ 32 karakter, yoksa başlatma kapalı. Gizlilik metni değişmeden barındırılan projede `altcha` seçilmez |
+| `DEMO_CAPTCHA_PROVIDER`, `ALTCHA_HMAC_KEY` (önce `DEMO_` adı) / `NEXT_PUBLIC_CAPTCHA_PROVIDER` | Edge / Web | **Yeni** (T12). Demo sağlayıcısı yalnızca `DEMO_CAPTCHA_PROVIDER`'dan okunur (`CAPTCHA_PROVIDER` kaydındır). Boş ya da `turnstile`: Turnstile (varsayılan). `altcha`: kendi robot doğrulamamız (§7); anahtar ≥ 32 karakter, yoksa başlatma kapalı. Gizlilik metni değişmeden barındırılan projede `altcha` seçilmez |
 | `NEXT_PUBLIC_MAP_STYLE_URL` | Web | Var olan. Boşsa üretim derlemesi harita karolarını kendi vekilimizden (`/harita/karo/…`) alır; demo alanında da çalışır (deployment.md › Harita altlığı) |
 | `DEMO_TURNSTILE_SECRET_KEY`, `DEMO_SIGNUP_HASH_SECRET`, `DEMO_SIGNUP_PROXY_SECRET` | Edge (`DEMO_SIGNUP_PROXY_SECRET` ayrıca Web sunucusu) | **Yeni.** Ortak barındırma (§15.1). Tanımlıysa `demo-start` (ve web'de `/demo` başlatması) öneksiz adın yerine bunu kullanır; boşsa öneksiz ada düşer. Test sitesinin `TURNSTILE_SECRET_KEY`, `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET` değerleri böylece değişmez |
 | `ORCHADOS_CRON_SECRET` | Edge + Vault `orchados_cron_secret` | Var olan. `cleanup` eylemi için |

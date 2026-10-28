@@ -94,6 +94,9 @@ export function SignupForm({
           </p>
         )}
         <p className={styles.notice}>{s.codeExisting}</p>
+        <p className={styles.notice}>
+          {s.codeMissing} <Link href="/giris">{s.codeMissingLogin}</Link>
+        </p>
         <form action={action} className={styles.form}>
           <input type="hidden" name="intent" value="verify" />
           <input type="hidden" name="phone" value={state.phone} />

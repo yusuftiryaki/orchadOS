@@ -10,6 +10,7 @@ import { clientIp } from "@/lib/site/client-ip";
 import { formReader, normalizePhone } from "@/lib/operations/validation";
 import { completeSignup, registerCustomer } from "@/lib/signup/client";
 import { sendAccountCode } from "@/lib/signup/send-code";
+import { clearTicket, readTicket, storeTicket, ticketFitsPhone } from "@/lib/signup/ticket";
 import { CODE_STEP_MIN_MS, waitAtLeast } from "@/lib/signup/timing";
 import {
   parseSignupForm,
@@ -45,20 +46,29 @@ function valuesOf(form: FormData): SignupValues {
   };
 }
 
-// Sends an SMS code to the account's phone. Returns an error text or null.
-// A number without a login gets the same answer as one with an account, as
-// on /giris: register answers a registered phone like a new one and the code
-// goes only to the phone's owner (docs/hukuk/kararlar.md H33), and resend
-// takes the number from the form. Every answer takes at least
-// CODE_STEP_MIN_MS, so the time does not tell either.
-async function sendCode(supabase: Client, phone: string): Promise<string | null> {
+// Sends an SMS code to the phone. Returns an error text or null.
+// Register answers a registered phone like a new one (docs/hukuk/kararlar.md
+// H33), so the code step must not tell them apart either: whether a code went
+// out, Auth's per-number limits (which only hit numbers with an account) and
+// a failed send all get the same code step; the resend countdown runs on the
+// client (sentAt). Every answer takes at least CODE_STEP_MIN_MS.
+// The phone confirmation code is asked for only for the pending sign-up this
+// browser's register wrote (the ticket, signup_code_allowed); any other
+// number only gets a login code, which reaches only its verified owner.
+async function sendCode(
+  supabase: Client,
+  phone: string,
+  ticket: string | null,
+): Promise<string | null> {
   const started = Date.now();
   try {
     const allowed = await supabase.rpc("phone_login_allowed", { p_phone: phone });
     if (allowed.data === false) return t.login.phone.locked;
-    const reason = await sendAccountCode(supabase, phone);
-    if (reason === null || reason === "not_registered") return null;
-    return t.login.phone[reason];
+    const own = ticket
+      ? await supabase.rpc("signup_code_allowed", { p_phone: phone, p_ticket: ticket })
+      : null;
+    await sendAccountCode(supabase, phone, { confirm: own?.data === true });
+    return null;
   } finally {
     await waitAtLeast(started, CODE_STEP_MIN_MS);
   }
@@ -71,7 +81,7 @@ function codeStep(previous: SignupState, phone: string): SignupState {
     phone,
     sentAt: Date.now(),
     fieldErrors: {},
-    notice: s.codeSent(maskPhone(phone)),
+    notice: s.codeRequested(maskPhone(phone)),
     error: null,
   };
 }
@@ -99,7 +109,14 @@ async function register(previous: SignupState, form: FormData): Promise<SignupSt
   }
 
   const supabase = await createClient();
-  const result = await registerCustomer(supabase, parsed.value, await clientIp(), captchaToken);
+  const previousTicket = (await readTicket())?.ticket ?? null;
+  const result = await registerCustomer(
+    supabase,
+    parsed.value,
+    await clientIp(),
+    captchaToken,
+    previousTicket,
+  );
   if (!result.ok) {
     const field = SIGNUP_FIELDS.find((f) => f === result.field);
     return {
@@ -109,7 +126,11 @@ async function register(previous: SignupState, form: FormData): Promise<SignupSt
     };
   }
 
-  const error = await sendCode(supabase, parsed.value.phone);
+  // Every 200 carries a ticket; a function deployed before tickets sends
+  // none, and then no confirmation code is asked for.
+  if (result.ticket) await storeTicket(result.ticket, parsed.value.phone);
+  else await clearTicket();
+  const error = await sendCode(supabase, parsed.value.phone, result.ticket);
   if (error) return { ...base, fieldErrors: {}, error };
   return codeStep({ ...base, fieldErrors: {} }, parsed.value.phone);
 }
@@ -119,10 +140,24 @@ function codePhone(form: FormData): string | null {
   return phone && phone !== "invalid" && TR_MOBILE.test(phone) ? phone : null;
 }
 
+// Only for the phone this browser registered (the ticket cookie is bound to
+// it): resend needs no robot check of its own because register, with its
+// robot check and rate limits, came first.
 async function resend(previous: SignupState, form: FormData): Promise<SignupState> {
   const phone = codePhone(form);
   if (!phone) return { ...previous, step: "form", error: s.errors.invalid_input, notice: null };
-  const error = await sendCode(await createClient(), phone);
+  const ticket = await readTicket();
+  if (!ticket || !ticketFitsPhone(ticket, phone)) {
+    return {
+      ...previous,
+      step: "form",
+      phone: null,
+      sentAt: null,
+      notice: null,
+      error: s.registerAgain,
+    };
+  }
+  const error = await sendCode(await createClient(), phone, ticket.ticket);
   if (error) return { ...previous, error, notice: null };
   return codeStep(previous, phone);
 }
@@ -146,12 +181,26 @@ async function verify(previous: SignupState, form: FormData): Promise<SignupStat
   }
 
   // A registered phone's owner is now signed in to their own account
-  // (already_completed or no_pending): "/" takes them to their section.
-  const completed = await completeSignup(supabase);
+  // (already_completed or no_pending): "/" takes them to their section. A
+  // pending sign-up must carry this browser's ticket; otherwise the session
+  // the code opened belongs to someone else's sign-up (customer-signup
+  // deletes it) and is closed here at once.
+  const ticket = await readTicket();
+  const completed = await completeSignup(supabase, ticket?.ticket ?? "");
+  if (!completed.ok) {
+    await supabase.auth.signOut();
+    return {
+      ...previous,
+      step: "form",
+      phone: null,
+      sentAt: null,
+      notice: null,
+      error: s.errors[completed.error],
+    };
+  }
+  await clearTicket();
   redirect(
-    completed.ok && (completed.status === "completed" || completed.status === "already_completed")
-      ? "/portal"
-      : "/",
+    completed.status === "completed" || completed.status === "already_completed" ? "/portal" : "/",
   );
 }
 

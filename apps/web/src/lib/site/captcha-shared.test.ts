@@ -7,10 +7,11 @@ import {
   captchaMode,
   type CaptchaEnv,
   createAltchaChallenge,
+  databaseSpent,
   encodeAltchaPayload,
   parseCaptchaProvider,
   sha256Hex,
-  SpentChallenges,
+  MemorySpent,
   verifyAltcha,
   verifyCaptcha,
 } from "../../../../../supabase/functions/_shared/captcha";
@@ -39,6 +40,24 @@ describe("provider and mode", () => {
     expect(parseCaptchaProvider(" Turnstile ")).toBe("turnstile");
     expect(parseCaptchaProvider("altcha")).toBe("altcha");
     expect(parseCaptchaProvider("hcaptcha")).toBeNull();
+  });
+
+  // Review of PR #93, finding 4: on the shared demo host the test site's
+  // CAPTCHA_PROVIDER must not switch the live demo.
+  it("never takes the demo's provider from CAPTCHA_PROVIDER; unset is Turnstile", () => {
+    const get = env({
+      CAPTCHA_PROVIDER: "altcha",
+      ALTCHA_HMAC_KEY: KEY,
+      TURNSTILE_SECRET_KEY: "t",
+      DEMO_TURNSTILE_SECRET_KEY: "demo-t",
+    });
+    expect(captchaEnv(get, "DEMO_")).toEqual({
+      provider: "turnstile",
+      turnstileSecret: "demo-t",
+      altchaKey: KEY,
+    });
+    expect(captchaEnv(get).provider).toBe("altcha");
+    expect(captchaEnv(env({ DEMO_CAPTCHA_PROVIDER: "hcaptcha" }), "DEMO_").provider).toBeNull();
   });
 
   it("reads the DEMO_ names first for the demo", () => {
@@ -147,19 +166,49 @@ describe("ALTCHA", () => {
 
   it("refuses a replay", async () => {
     const { token } = await solved();
-    const spent = new SpentChallenges();
+    const spent = new MemorySpent();
     const ctx = { purpose: "signup" as const, ip: null, nowMs: NOW, spent };
     expect(await verifyCaptcha(ALTCHA, token, ctx)).toBe(true);
     expect(await verifyCaptcha(ALTCHA, token, ctx)).toBe(false);
   });
 
   it("forgets expired solutions only when full, and then refuses rather than forgets", () => {
-    const spent = new SpentChallenges(2);
+    const spent = new MemorySpent(2);
     expect(spent.use("a", NOW + 10, NOW)).toBe(true);
     expect(spent.use("b", NOW + 1000, NOW)).toBe(true);
     expect(spent.use("c", NOW + 1000, NOW)).toBe(false);
     expect(spent.use("c", NOW + 1000, NOW + 20)).toBe(true);
     expect(spent.use("a", NOW + 1000, NOW + 20)).toBe(false);
+  });
+});
+
+// Review of PR #93, finding 3: one table for every function instance.
+describe("databaseSpent", () => {
+  it("records the challenge with its purpose and expiry; a replay or an error fails", async () => {
+    const seen = new Set<string>();
+    const rpc = vi.fn(async (_fn: string, args: Record<string, unknown>) => {
+      const key = String(args.p_challenge);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const spent = databaseSpent(rpc, "demo");
+    const { token } = await solved("demo");
+    const ctx = { purpose: "demo" as const, ip: null, nowMs: NOW, spent };
+    expect(await verifyCaptcha(ALTCHA, token, ctx)).toBe(true);
+    // Another instance shares the same table.
+    expect(await verifyCaptcha(ALTCHA, token, { ...ctx, spent: databaseSpent(rpc, "demo") })).toBe(
+      false,
+    );
+    const [fn, args] = rpc.mock.calls[0];
+    expect(fn).toBe("captcha_spend");
+    expect(args).toMatchObject({ p_purpose: "demo" });
+    expect(Date.parse(String(args.p_expires_at))).toBeGreaterThan(NOW);
+
+    const failing = databaseSpent(async () => {
+      throw new Error("down");
+    }, "signup");
+    expect(await failing.use("c".repeat(64), NOW + 1000, NOW)).toBe(false);
   });
 });
 
@@ -171,7 +220,7 @@ describe("verifyCaptcha", () => {
       purpose: "signup" as const,
       ip: "203.0.113.5",
       nowMs: NOW,
-      spent: new SpentChallenges(),
+      spent: new MemorySpent(),
       fetch: fetchMock,
     };
     expect(await verifyCaptcha(ALTCHA, token, ctx)).toBe(true);
@@ -184,7 +233,7 @@ describe("verifyCaptcha", () => {
       purpose: "signup" as const,
       ip: "203.0.113.5",
       nowMs: NOW,
-      spent: new SpentChallenges(),
+      spent: new MemorySpent(),
       fetch: fetchMock as unknown as typeof fetch,
     };
     expect(await verifyCaptcha(TURNSTILE, "tok", ctx)).toBe(true);
@@ -194,7 +243,7 @@ describe("verifyCaptcha", () => {
   });
 
   it("refuses without a token or a configured provider", async () => {
-    const ctx = { purpose: "signup" as const, ip: null, nowMs: NOW, spent: new SpentChallenges() };
+    const ctx = { purpose: "signup" as const, ip: null, nowMs: NOW, spent: new MemorySpent() };
     expect(await verifyCaptcha(ALTCHA, null, ctx)).toBe(false);
     const { token } = await solved();
     expect(await verifyCaptcha({ ...ALTCHA, altchaKey: "" }, token, ctx)).toBe(false);
