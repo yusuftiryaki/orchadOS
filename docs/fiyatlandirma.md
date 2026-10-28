@@ -29,7 +29,7 @@ Tutarlar KDV hariçtir; üstüne %20 KDV eklenir. Birim fiyat **dönüm başına
 
     - **Neden bu iki ek ziyaret:** #5 hırsızlık ve yangın riskinin en yüksek olduğu hasat öncesini kapsar ve #6'daki hırsızlık karşılaştırmasına taban verir. #2 budamanın kesin sonucunu verir; kış ziyaretinde budama çoğu zaman sürmektedir.
     - **Kaynak ve güven:** Takvim yapay zekâ uzman ajanının kararıdır, lisanslı bir ziraat mühendisinin değil. Güven: #5 yüksek, #2 orta (alternatif: haziran ortası).
-    - **Açık:** Ayların mevsimlere eşlenmesi (mart → kış, ağustos → yaz) ve ölçütlerin geçerli mevsimleri [metodoloji.md](metodoloji.md)'de ayrı bir değişiklikle (methodology-v0.2) güncellenecek; bu belge yalnızca paket takvimini tutar.
+    - **Mevsim eşlemesi:** Ayların mevsimlere eşlenmesi (mart → kış, ağustos → yaz) ve ölçütlerin geçerli mevsimleri metodoloji v0.2'de güncellendi ([metodoloji.md](metodoloji.md) bölüm 2; yeni ziyaretler `methodology-v0.2`, eski ziyaretler eski eşlemeyle kalır). Bu belge yalnızca paket takvimini tutar.
 - **Envanter dahil:** Üç pakette de `includes_inventory = true`. Bu alan bilgi amaçlıdır: paketin ilk yıl envanter ziyaretini kapsadığını söyler ve teklife ve siparişe dondurulur. Ücreti `private.price_lines` belirler: `p_first_year` doğruysa kalemin `inventory_fee` tutarı eklenir, paketin alanına bakılmaz.
 - **Kurucu indirimi yok.** Ayrı bir lansman ya da kurucu indirimi uygulanmaz.
 - **Komşu bahçe indirimi:** Aynı köyden yönlendirilen ya da birlikte başvuran komşu bahçelere operasyon teklif başına %10–15 indirim yapabilir. Kod değişikliği yoktur: teklifte `discount_bp` (1000–1500) ve zorunlu indirim açıklaması ("Komşu bahçe indirimi, <köy>") girilir ([musteri-yonetimi.md](musteri-yonetimi.md) §6.6).

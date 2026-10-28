@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { planVisitAction, updateVisitAction } from "@/app/operasyon/actions";
 import { t } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
+import { CURRENT_METHODOLOGY_VERSION } from "@/lib/methodology";
 import { EMPTY_FORM, type FormState } from "@/lib/operations/form-state";
 import { opsHref } from "@/lib/operations/urls";
 import { VISIT_KINDS, visitSeason, type VisitKind } from "@/lib/operations/visits";
@@ -26,6 +27,8 @@ export interface VisitFormProps {
     plannedDate: string;
     leadUserId: string | null;
     notes: string | null;
+    // The visit keeps the methodology it was planned with.
+    methodologyVersion: string | null;
   };
   initialParcelId?: string;
 }
@@ -52,7 +55,11 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
 
   const orgId = visit?.orgId ?? parcels.find((p) => p.id === parcelId)?.orgId;
   const leads = staff.filter((s) => !orgId || s.orgIds.includes(orgId));
-  const season = visitSeason(kind as VisitKind, date || null);
+  const season = visitSeason(
+    kind as VisitKind,
+    date || null,
+    visit ? visit.methodologyVersion : CURRENT_METHODOLOGY_VERSION,
+  );
   const lead = failed ? (state.values.lead_user_id ?? "") : (visit?.leadUserId ?? "");
   const notes = failed ? (state.values.notes ?? "") : (visit?.notes ?? "");
 

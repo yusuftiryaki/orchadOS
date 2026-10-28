@@ -236,6 +236,7 @@ class SupabaseTaskSource implements TaskSource {
         .from('session')
         .select(
           'id, org_id, parcel_id, kind, planned_date, lead_user_id, notes, '
+          'methodology_version, '
           'parcel(name, village, estimated_area_m2, estimated_tree_count, '
           'row_azimuth_deg, numbering_origin_corner)',
         )
@@ -290,7 +291,7 @@ class SupabaseTaskSource implements TaskSource {
           parcelName: parcel['name'] as String? ?? '',
           village: parcel['village'] as String? ?? '',
           kind: kind,
-          season: Season.forDate(planned),
+          season: Season.forDate(planned, v['methodology_version'] as String?),
           // 1 dönüm = 1000 m².
           areaDecare: area / 1000,
           closeupTrees: closeups,

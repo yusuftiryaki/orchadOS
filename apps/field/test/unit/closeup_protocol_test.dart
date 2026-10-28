@@ -16,10 +16,10 @@ void main() {
   ];
   List<String> shots(CloseupProtocol p) => [for (final s in p.shots) s.code];
 
-  test('methodology v0.1 versions', () {
+  test('protocol versions (methodology v0.2)', () {
     expect(
       [for (final s in Season.values) CloseupProtocol.forSeason(s).version],
-      ['winter-v0.1', 'spring-v0.1', 'summer-v0.1', 'harvest-v0.1'],
+      ['winter-v0.2', 'spring-v0.1', 'summer-v0.2', 'harvest-v0.1'],
     );
   });
 
@@ -60,6 +60,7 @@ void main() {
       'sooty_mould_present',
       'green_fruit_drop_present',
       'dried_leaves_attached',
+      'early_emptied_cluster_present',
     ]);
     expect(codes(CloseupProtocol.harvest), [
       'harvest_complete',
@@ -67,6 +68,19 @@ void main() {
       'debris_under_tree_present',
       'dry_weeds_present',
     ]);
+  });
+
+  test('parcel questions: the fence gap, summer only', () {
+    expect(
+      [
+        for (final q in CloseupProtocol.summer.parcelQuestions)
+          (q.metricCode, q.text),
+      ],
+      [('fence_breach_present', 'Tel ya da çitte yeni açılmış geçit var mı?')],
+    );
+    for (final s in [Season.winter, Season.spring, Season.harvest]) {
+      expect(CloseupProtocol.forSeason(s).parcelQuestions, isEmpty);
+    }
   });
 
   test('basal sprouts is a category question', () {
@@ -88,7 +102,7 @@ void main() {
     expect([for (final s in extra.shots) s.code], ['K4_1', 'K4_2', 'K4_3']);
     expect(
       [for (final q in extra.questions) q.metricCode],
-      ['dead_test_no_buds', 'dead_test_snaps', 'dead_test_brown_cambium'],
+      ['dead_test_live_bud', 'dead_test_snaps', 'dead_test_brown_cambium'],
     );
     expect(p.shotsWith(extraOpen: false), p.shots);
     expect(p.shotsWith(extraOpen: true), hasLength(6));
