@@ -15,13 +15,19 @@ import { cancelInvitation, inviteViewer, removeViewer } from "@/lib/portal/viewe
 import { isUuid } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
 
+// A demo visitor writes nothing (docs/demo-turu.md §6.3): every action checks
+// first and answers like the database would (demo_read_only).
+async function portalUser() {
+  return requireSection("portal");
+}
+
 // The owner approves the surveyed boundary (approve_boundary(): owners of the
 // parcel only; viewers and org roles are refused).
 export async function approveBoundaryAction(
   parcelId: unknown,
   boundaryId: unknown,
 ): Promise<ApproveBoundaryResult> {
-  await requireSection("portal");
+  if ((await portalUser()).demo) return { ok: false, error: "demo_read_only" };
   const result = await approveBoundary(await createClient(), boundaryId);
   if (result.ok && typeof parcelId === "string") {
     for (const section of ["portal", "ofis", "operasyon", "uzman"]) {
@@ -57,8 +63,10 @@ function questionReturn(form: FormData, result: QuestionWriteResult): never {
   redirect(`${path}#sorular`);
 }
 
+const DEMO_CLOSED: QuestionWriteResult = { ok: false, error: "demo_read_only" };
+
 export async function askQuestionAction(form: FormData) {
-  await requireSection("portal");
+  if ((await portalUser()).demo) questionReturn(form, DEMO_CLOSED);
   const target = text(form, "target");
   const findingId = target.startsWith("finding:") ? target.slice("finding:".length) : null;
   const result = await askQuestion(await createClient(), {
@@ -71,7 +79,7 @@ export async function askQuestionAction(form: FormData) {
 }
 
 export async function replyQuestionAction(form: FormData) {
-  await requireSection("portal");
+  if ((await portalUser()).demo) questionReturn(form, DEMO_CLOSED);
   const result = await replyToQuestion(
     await createClient(),
     text(form, "questionId"),
@@ -81,7 +89,7 @@ export async function replyQuestionAction(form: FormData) {
 }
 
 export async function editQuestionAction(form: FormData) {
-  await requireSection("portal");
+  if ((await portalUser()).demo) questionReturn(form, DEMO_CLOSED);
   const result = await editMessage(
     await createClient(),
     text(form, "kind") === "question" ? "question" : "reply",
@@ -99,8 +107,8 @@ function viewerReturn(parcelId: string, outcome: string): never {
 }
 
 export async function inviteViewerAction(form: FormData) {
-  await requireSection("portal");
   const parcelId = text(form, "parcelId");
+  if ((await portalUser()).demo) viewerReturn(parcelId, "demo_read_only");
   const result = await inviteViewer(
     await createClient(),
     parcelId,
@@ -112,15 +120,15 @@ export async function inviteViewerAction(form: FormData) {
 }
 
 export async function cancelInvitationAction(form: FormData) {
-  await requireSection("portal");
   const parcelId = text(form, "parcelId");
+  if ((await portalUser()).demo) viewerReturn(parcelId, "demo_read_only");
   const result = await cancelInvitation(await createClient(), text(form, "id"));
   viewerReturn(parcelId, result.ok ? "cancelled" : result.error);
 }
 
 export async function removeViewerAction(form: FormData) {
-  await requireSection("portal");
   const parcelId = text(form, "parcelId");
+  if ((await portalUser()).demo) viewerReturn(parcelId, "demo_read_only");
   const result = await removeViewer(await createClient(), parcelId, text(form, "id"));
   viewerReturn(parcelId, result.ok ? "removed" : result.error);
 }

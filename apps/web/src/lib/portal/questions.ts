@@ -182,12 +182,20 @@ export async function listThreads(
 }
 
 export type QuestionWriteError =
-  "empty" | "too_long" | "invalid_target" | "forbidden" | "edit_window" | "write_failed";
+  | "empty"
+  | "too_long"
+  | "invalid_target"
+  | "forbidden"
+  | "edit_window"
+  | "write_failed"
+  // A demo visitor (docs/demo-turu.md §6.3).
+  | "demo_read_only";
 
 export type QuestionWriteResult =
   { ok: true; id: string } | { ok: false; error: QuestionWriteError };
 
-function writeError(error: { code?: string }): QuestionWriteResult {
+function writeError(error: { code?: string; message?: string }): QuestionWriteResult {
+  if (error.message === "demo_read_only") return { ok: false, error: "demo_read_only" };
   if (error.code === "42501") return { ok: false, error: "forbidden" };
   if (error.code === "55000") return { ok: false, error: "edit_window" };
   if (error.code === "23503" || error.code === "23514")

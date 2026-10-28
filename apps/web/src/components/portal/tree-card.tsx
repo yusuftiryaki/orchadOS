@@ -24,6 +24,8 @@ export interface QuestionState {
   threads: QuestionThread[];
   sent: boolean;
   error: string | null;
+  // A demo visitor: threads without forms.
+  demo?: boolean;
 }
 
 export function TreeCardView({ card, questions }: { card: TreeCard; questions: QuestionState }) {
@@ -210,8 +212,10 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
           returnPath={`${base}/agac/${tree.id}`}
           replyAction={replyQuestionAction}
           editAction={editQuestionAction}
+          demo={questions.demo}
         />
         <AskQuestionForm
+          demo={questions.demo}
           parcelId={card.parcel.id}
           treeId={tree.id}
           returnPath={`${base}/agac/${tree.id}`}

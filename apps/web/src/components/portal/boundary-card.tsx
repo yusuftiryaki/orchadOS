@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { approveBoundaryAction } from "@/app/portal/parsel/[parcelId]/actions";
+import { DemoNotice } from "@/components/demo/demo-notice";
 import { InventoryMap } from "@/components/office/inventory-map";
+import { demoText } from "@/lib/i18n/messages/demo";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import { m2ToDonum } from "@/lib/office/boundary";
 import type { BoundaryCard } from "@/lib/portal/boundary";
@@ -16,10 +18,19 @@ import styles from "./portal.module.css";
 
 const p = t.inventory.portal;
 
-export function BoundaryCardView({ parcelId, card }: { parcelId: string; card: BoundaryCard }) {
+// A demo visitor (`demo`) sees the card without the approval.
+export function BoundaryCardView({
+  parcelId,
+  card,
+  demo = false,
+}: {
+  parcelId: string;
+  card: BoundaryCard;
+  demo?: boolean;
+}) {
   const router = useRouter();
   const [confirmed, setConfirmed] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const latest = card.latest;
 
@@ -58,6 +69,8 @@ export function BoundaryCardView({ parcelId, card }: { parcelId: string; card: B
             <p data-testid="boundary-approved">
               ✓ {p.approved(formatDate(latest.approvedAt), latest.approvedByMe)}
             </p>
+          ) : card.canApprove && demo ? (
+            <DemoNotice text={demoText.closed.boundary} />
           ) : card.canApprove ? (
             <div className={styles.noPrint}>
               <label>
@@ -78,7 +91,7 @@ export function BoundaryCardView({ parcelId, card }: { parcelId: string; card: B
                   onClick={() =>
                     startTransition(async () => {
                       const result = await approveBoundaryAction(parcelId, latest.id);
-                      setError(!result.ok);
+                      setError(result.ok ? null : result.error);
                       if (result.ok) router.refresh();
                     })
                   }
@@ -88,7 +101,7 @@ export function BoundaryCardView({ parcelId, card }: { parcelId: string; card: B
               </p>
               {error && (
                 <p role="alert" className={styles.danger}>
-                  {p.approveError}
+                  {error === "demo_read_only" ? demoText.closed.boundary : p.approveError}
                 </p>
               )}
             </div>

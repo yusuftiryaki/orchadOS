@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { DemoNotice } from "@/components/demo/demo-notice";
 import { formatDate, t } from "@/lib/i18n";
+import { demoText } from "@/lib/i18n/messages/demo";
 import type { QuestionMessage, QuestionThread } from "@/lib/portal/questions";
 import { findingKindLabel } from "./labels";
 import styles from "./portal.module.css";
 
 // Question threads with reply and edit forms. Used by the portal (owner,
 // viewer) and the expert panel; the forms post to the section's own actions.
+// A demo visitor (`demo`) reads the threads without any form.
 
 type Action = (form: FormData) => void | Promise<void>;
 
@@ -29,6 +32,7 @@ export function QuestionThreads({
   editAction,
   treeHref,
   showContext = false,
+  demo = false,
 }: {
   threads: QuestionThread[];
   returnPath: string;
@@ -37,6 +41,7 @@ export function QuestionThreads({
   // Link to the tree of a thread (context line), when there is a page for it.
   treeHref?: (thread: QuestionThread) => string | null;
   showContext?: boolean;
+  demo?: boolean;
 }) {
   if (threads.length === 0) return <p className="muted">{q.empty}</p>;
   return (
@@ -75,7 +80,7 @@ export function QuestionThreads({
                     {m.editedAt && ` · ${q.edited}`}
                   </div>
                   <p className={styles.messageBody}>{m.body}</p>
-                  {m.editable && (
+                  {m.editable && !demo && (
                     <details className={styles.noPrint}>
                       <summary>{q.edit}</summary>
                       <form action={editAction} className={styles.questionForm}>
@@ -92,17 +97,19 @@ export function QuestionThreads({
                 </li>
               ))}
             </ol>
-            <form action={replyAction} className={`${styles.questionForm} ${styles.noPrint}`}>
-              <input type="hidden" name="questionId" value={thread.id} />
-              <input type="hidden" name="return" value={returnPath} />
-              <label>
-                {q.reply}
-                <textarea name="body" maxLength={2000} required aria-label={q.replyLabel} />
-              </label>
-              <button className="button button-secondary" type="submit">
-                {q.send}
-              </button>
-            </form>
+            {!demo && (
+              <form action={replyAction} className={`${styles.questionForm} ${styles.noPrint}`}>
+                <input type="hidden" name="questionId" value={thread.id} />
+                <input type="hidden" name="return" value={returnPath} />
+                <label>
+                  {q.reply}
+                  <textarea name="body" maxLength={2000} required aria-label={q.replyLabel} />
+                </label>
+                <button className="button button-secondary" type="submit">
+                  {q.send}
+                </button>
+              </form>
+            )}
           </li>
         );
       })}
@@ -123,6 +130,7 @@ export function AskQuestionForm({
   returnPath,
   action,
   title,
+  demo = false,
 }: {
   parcelId: string;
   treeId: string | null;
@@ -130,7 +138,9 @@ export function AskQuestionForm({
   returnPath: string;
   action: Action;
   title: string;
+  demo?: boolean;
 }) {
+  if (demo) return <DemoNotice text={demoText.closed.questions} />;
   if (targets.length === 0) return null;
   return (
     <form
@@ -169,7 +179,9 @@ export function QuestionNotice({ sent, error }: { sent: boolean; error: string |
   if (error) {
     return (
       <p className={`${styles.notice} ${styles.worse}`} role="alert">
-        {q.errors[error] ?? q.errors.write_failed}
+        {error === "demo_read_only"
+          ? demoText.closed.questions
+          : (q.errors[error] ?? q.errors.write_failed)}
       </p>
     );
   }

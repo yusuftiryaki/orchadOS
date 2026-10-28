@@ -1,11 +1,11 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { siteFlags } from "@/lib/flags";
 import { t } from "@/lib/i18n";
 import { siteText } from "@/lib/i18n/messages/site";
 import { maskPhone } from "@/lib/notifications/phone";
+import { clientIp } from "@/lib/site/client-ip";
 import { formReader, normalizePhone } from "@/lib/operations/validation";
 import { completeSignup, registerCustomer } from "@/lib/signup/client";
 import { sendAccountCode } from "@/lib/signup/send-code";
@@ -41,14 +41,6 @@ function valuesOf(form: FormData): SignupValues {
     explicit_service_improvement: read("explicit_service_improvement") === "on",
     explicit_marketing: read("explicit_marketing") === "on",
   };
-}
-
-// The visitor's address as seen by our server, passed to the function for
-// its rate limit (design §7.1, step 3). The platform's proxy sets the header.
-async function clientIp(): Promise<string | null> {
-  const h = await headers();
-  const forwarded = h.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || h.get("x-real-ip") || null;
 }
 
 // Sends an SMS code to the account's phone. Returns an error text or null.

@@ -8,10 +8,15 @@ import { siteFlags } from "@/lib/flags";
 // visitors may open these (src/lib/site/public-paths.ts).
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const user = await getSessionUser();
-  const { signupEnabled } = siteFlags();
+  const { signupEnabled, demoUrl } = siteFlags();
   return (
     <div className={styles.shell}>
-      <SiteHeader signedIn={user !== null} signupEnabled={signupEnabled} />
+      <SiteHeader
+        signedIn={user !== null}
+        signupEnabled={signupEnabled}
+        demoUrl={demoUrl}
+        demo={user?.demo ?? false}
+      />
       <main className={styles.main}>{children}</main>
       <SiteFooter />
     </div>

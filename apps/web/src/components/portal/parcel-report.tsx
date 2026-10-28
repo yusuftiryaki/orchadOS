@@ -38,6 +38,7 @@ export function ParcelReportView({
   boundaryCard,
   questions,
   viewers,
+  demo = false,
 }: {
   report: ParcelReport;
   classFilter?: MarkerState[];
@@ -48,6 +49,8 @@ export function ParcelReportView({
   questions?: QuestionState;
   // Co-owners, for the parcel's owner only.
   viewers?: { data: ParcelViewers; outcome?: string };
+  // A demo visitor: the same report, its forms replaced by a notice.
+  demo?: boolean;
 }) {
   const base = `/portal/parsel/${report.parcel.id}`;
   return (
@@ -84,7 +87,9 @@ export function ParcelReportView({
         </div>
       </div>
 
-      {boundaryCard && <BoundaryCardView parcelId={report.parcel.id} card={boundaryCard} />}
+      {boundaryCard && (
+        <BoundaryCardView parcelId={report.parcel.id} card={boundaryCard} demo={demo} />
+      )}
       {boundaryCard?.inventory && (
         <div data-testid="portal-inventory">
           <InventorySummaryView
@@ -137,7 +142,12 @@ export function ParcelReportView({
       {questions && <Questions report={report} base={base} questions={questions} />}
       <History report={report} />
       {viewers?.data.isOwner && (
-        <ViewersCard parcelId={report.parcel.id} viewers={viewers.data} outcome={viewers.outcome} />
+        <ViewersCard
+          parcelId={report.parcel.id}
+          viewers={viewers.data}
+          outcome={viewers.outcome}
+          demo={demo}
+        />
       )}
     </main>
   );
@@ -441,8 +451,10 @@ function Questions({
         replyAction={replyQuestionAction}
         editAction={editQuestionAction}
         treeHref={(thread) => (thread.treeId ? `${base}/agac/${thread.treeId}` : null)}
+        demo={questions.demo}
       />
       <AskQuestionForm
+        demo={questions.demo}
         parcelId={report.parcel.id}
         treeId={null}
         returnPath={base}

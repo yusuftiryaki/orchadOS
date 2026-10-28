@@ -1,3 +1,4 @@
+import { demoText } from "./demo";
 import type { PortalError, PortalNotice } from "@/lib/portal-billing/urls";
 import type { PortalFieldError } from "@/lib/portal-billing/validation";
 import { billingText } from "./billing";
@@ -28,6 +29,7 @@ const notices: Record<PortalNotice, string> = {
 
 const errors: Record<PortalError, string> = {
   ...billingText.errors,
+  demo_read_only: demoText.closed.billing,
   payments_disabled: "Kartla ödeme şu anda kullanılamıyor. Havale ile ödeyebilirsiniz.",
   provider_error: "Ödeme sayfası açılamadı; lütfen biraz sonra yeniden deneyin.",
   odeme_bulunamadi:

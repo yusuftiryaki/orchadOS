@@ -52,6 +52,25 @@ export class SignedUrlCache {
 
 const sharedCache = new SignedUrlCache();
 
+// The demo org's files in the public demo-media bucket (docs/demo-turu.md
+// §11.6): same object names, same bytes, unsigned.
+export interface PublicMirror {
+  orgId: string;
+  // The Supabase origin (NEXT_PUBLIC_SUPABASE_URL).
+  baseUrl: string;
+}
+
+export const DEMO_MEDIA_BUCKET = "demo-media";
+
+// storage://media/org/<orgId>/... → its public demo-media URL; else null.
+export function publicMirrorUrl(uri: string, mirror: PublicMirror): string | null {
+  const object = parseMediaUri(uri);
+  if (!object || object.bucket !== "media") return null;
+  if (!object.path.startsWith(`org/${mirror.orgId}/`)) return null;
+  const path = object.path.split("/").map(encodeURIComponent).join("/");
+  return `${mirror.baseUrl.replace(/\/+$/, "")}/storage/v1/object/public/${DEMO_MEDIA_BUCKET}/${path}`;
+}
+
 export interface MediaSigner {
   // uri -> signed URL, or null when the uri is malformed, the file is missing
   // or signing was refused. Every distinct non-empty input uri is a key.
@@ -67,6 +86,8 @@ export function createMediaSigner(
     expiresInS?: number;
     cache?: SignedUrlCache | null;
     now?: () => number;
+    // Only for demo visitors: their demo org's files are not signed.
+    publicMirror?: PublicMirror;
   },
 ): MediaSigner {
   const expiresIn = options.expiresInS ?? SIGNED_URL_TTL_S;
@@ -80,6 +101,11 @@ export function createMediaSigner(
 
     for (const uri of uris) {
       if (!uri || result.has(uri)) continue;
+      const mirrored = options.publicMirror ? publicMirrorUrl(uri, options.publicMirror) : null;
+      if (mirrored) {
+        result.set(uri, mirrored);
+        continue;
+      }
       const object = parseMediaUri(uri);
       if (!object) {
         result.set(uri, null);

@@ -12,7 +12,7 @@ import {
   type Position,
 } from "@/lib/map/geo";
 import type { HealthClass, MarkerState } from "@/lib/map/tree-style";
-import { createMediaSigner } from "@/lib/media/signer";
+import { createMediaSigner, type PublicMirror } from "@/lib/media/signer";
 import { fetchLatestAssessments, listParcels, type ParcelSummary } from "@/lib/parcels";
 import type { Client } from "@/lib/supabase/types";
 import {
@@ -803,6 +803,7 @@ export async function getTreeCard(
   parcelId: string,
   treeId: string,
   scope: string,
+  media: { publicMirror?: PublicMirror } = {},
 ): Promise<TreeCard | null> {
   if (!UUID_RE.test(parcelId) || !UUID_RE.test(treeId)) return null;
 
@@ -914,7 +915,7 @@ export async function getTreeCard(
     });
   }
 
-  const signer = createMediaSigner(supabase, { scope });
+  const signer = createMediaSigner(supabase, { scope, publicMirror: media.publicMirror });
   const [urls, frameTimes] = await Promise.all([
     signer.signUrls([...assets.map((a) => a.uri), ...captures.map((c) => c.uri)]),
     panoramaTimes(
@@ -1101,6 +1102,7 @@ export async function signPanoramaImages(
   parcelId: string,
   assetIds: string[],
   scope: string,
+  media: { publicMirror?: PublicMirror } = {},
 ): Promise<Record<string, string | null>> {
   const ids = [...new Set(assetIds.filter((id) => UUID_RE.test(id)))].slice(0, 50);
   const out: Record<string, string | null> = {};
@@ -1118,7 +1120,10 @@ export async function signPanoramaImages(
     .in("session_id", visitIds);
   if (error) throw error;
 
-  const urls = await createMediaSigner(supabase, { scope }).signUrls(data.map((a) => a.uri));
+  const urls = await createMediaSigner(supabase, {
+    scope,
+    publicMirror: media.publicMirror,
+  }).signUrls(data.map((a) => a.uri));
   for (const a of data) out[a.id] = urls.get(a.uri) ?? null;
   return out;
 }
