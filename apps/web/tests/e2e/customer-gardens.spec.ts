@@ -88,6 +88,35 @@ test.beforeAll(async () => {
 
 test.afterAll(() => removeJourneyUsers(DOMAIN));
 
+// garden_changes_enabled off (the hosted default, §2): no entry, and the
+// wizard opened by its address asks the customer to contact the team instead
+// of offering a prorated price ops could not quote.
+test("with garden changes closed a member gets no add-garden wizard", async ({ page }) => {
+  const setSwitch = async (on: boolean) => {
+    const { error } = await admin
+      .from("org_billing_setting")
+      .update({ garden_changes_enabled: on })
+      .eq("org_id", SEED_ORG);
+    if (error) throw error;
+  };
+  await setSwitch(false);
+  try {
+    await login(page, EMAIL, "/portal");
+    await expect(page.getByTestId("membership")).toBeVisible();
+    await expect(page.getByTestId("home-add-garden")).toHaveCount(0);
+    await page.goto("/portal/basvuru");
+    await expect(page.getByRole("link", { name: "Yeni başvuru" })).toHaveCount(0);
+    await page.goto("/portal/basvuru/yeni");
+    await expect(page.getByTestId("addon-closed")).toHaveText(
+      "Ek bahçe için ekibimizle iletişime geçin.",
+    );
+    await expect(page.getByTestId("member-band")).toHaveCount(0);
+    await expect(page.locator('input[name="package_locked"]')).toHaveCount(0);
+  } finally {
+    await setSwitch(true);
+  }
+});
+
 test("a member adds a garden, accepts the add-on quote and pays by card", async ({ page }) => {
   test.setTimeout(180_000);
   await login(page, EMAIL, "/portal");
@@ -224,7 +253,7 @@ test("the customer asks to remove a garden from the account page and undoes it",
   await expect(card.getByTestId("service-state")).toHaveText("Hizmette");
 });
 
-test("a removed garden shows the band and no question form", async ({ page }) => {
+test("a removed garden shows the band and read-only questions and viewers", async ({ page }) => {
   test.setTimeout(90_000);
   const parcelId = member.parcelIds[0];
   await removalFor(EMAIL, PASSWORD, parcelId, { complete: true });
@@ -232,6 +261,10 @@ test("a removed garden shows the band and no question form", async ({ page }) =>
   await expect(page.getByTestId("removed-band")).toContainText(
     "Bu bahçe hizmetten çıkarıldı. Raporlar şu tarihe kadar açık:",
   );
+  // The read-only notices, not only the missing forms: the question form is
+  // absent anyway on a parcel without findings.
+  await expect(page.getByTestId("questions-read-only")).toBeVisible();
+  await expect(page.getByTestId("viewers-read-only")).toBeVisible();
   await expect(page.getByTestId("ask-question")).toHaveCount(0);
   await expect(page.getByTestId("invite-viewer")).toHaveCount(0);
   await expect(page.getByTestId("service-card")).toHaveAttribute("data-state", "removed");

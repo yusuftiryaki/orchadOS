@@ -94,32 +94,48 @@ function failed(
 // Applications
 // ---------------------------------------------------------------------------
 
-// A member (IP14, docs/bahce-yonetimi.md §4.1) always gets the membership's
-// package, whatever the form says: the draft opens with it, and an older
-// draft with another package is corrected once.
+type Client = Awaited<ReturnType<typeof createClient>>;
+
+// A member (IP14, docs/bahce-yonetimi.md §4.1) adds gardens only while the
+// switch is on (§2: otherwise ops cannot quote the add-on, so the portal asks
+// the customer to contact the team), and the draft always carries the
+// membership's package.
+async function memberPeriod(supabase: Client) {
+  const { primary } = await getServicePeriods(supabase);
+  return primary;
+}
+
+// An older draft with another package is corrected once.
+// customer_set_application_package rewrites the note too, so the draft's own
+// note goes along. Redirects back to the application on an error.
+async function alignDraftPackage(supabase: Client, applicationId: string, packageId: string) {
+  const { data: draft } = await supabase
+    .from("service_application")
+    .select(BILLING_COLUMNS.service_application)
+    .eq("id", applicationId)
+    .maybeSingle();
+  if (draft?.status !== "draft" || draft.package_id === packageId) return;
+  const { error } = await supabase.rpc("customer_set_application_package", {
+    p_application_id: applicationId,
+    p_package_id: packageId,
+    ...(draft.customer_note ? { p_customer_note: draft.customer_note } : {}),
+  });
+  if (error) redirect(portalHref.application(applicationId, { hata: billingReasonOf(error) }));
+}
+
 export async function createApplicationAction(form: FormData) {
   const supabase = await context();
-  const { primary } = await getServicePeriods(supabase);
+  const primary = await memberPeriod(supabase);
+  if (primary && !primary.garden_changes_enabled) {
+    redirect(portalHref.newApplication({ hata: "garden_changes_closed" }));
+  }
   const packageId = primary?.package_id ?? idOf(form, "package_id");
   if (!packageId) redirect(portalHref.newApplication({ hata: "invalid_input" }));
   const { data, error } = await supabase.rpc("customer_create_application", {
     p_package_id: packageId,
   });
   if (error || !data) redirect(portalHref.newApplication({ hata: billingReasonOf(error) }));
-  if (primary) {
-    const { data: draft } = await supabase
-      .from("service_application")
-      .select("id, package_id, status")
-      .eq("id", data)
-      .maybeSingle();
-    if (draft?.status === "draft" && draft.package_id !== primary.package_id) {
-      const { error: setError } = await supabase.rpc("customer_set_application_package", {
-        p_application_id: data,
-        p_package_id: primary.package_id,
-      });
-      if (setError) redirect(portalHref.application(data, { hata: billingReasonOf(setError) }));
-    }
-  }
+  if (primary) await alignDraftPackage(supabase, data, primary.package_id);
   revalidatePath("/portal", "layout");
   redirect(portalHref.application(data, { bilgi: "taslak_acildi" }));
 }
@@ -128,7 +144,7 @@ export async function setPackageAction(form: FormData) {
   const supabase = await context();
   const applicationId = idOf(form, "application_id");
   // A member's package is locked (IP14): only the note changes.
-  const { primary } = await getServicePeriods(supabase);
+  const primary = await memberPeriod(supabase);
   const packageId = primary?.package_id ?? idOf(form, "package_id");
   const note = parseNote(formReader(form)("customer_note"));
   if (!applicationId) redirect(portalHref.applications({ hata: "not_found" }));
@@ -200,6 +216,13 @@ export async function submitApplicationAction(form: FormData) {
   const supabase = await context();
   const applicationId = idOf(form, "application_id");
   if (!applicationId) redirect(portalHref.applications({ hata: "not_found" }));
+  // A member's draft goes out with the membership's package, even when the
+  // customer never saved the locked package form (§4.1).
+  const primary = await memberPeriod(supabase);
+  if (primary && !primary.garden_changes_enabled) {
+    redirect(portalHref.application(applicationId, { hata: "garden_changes_closed" }));
+  }
+  if (primary) await alignDraftPackage(supabase, applicationId, primary.package_id);
   const { error } = await supabase.rpc("customer_submit_application", {
     p_application_id: applicationId,
   });

@@ -101,6 +101,12 @@ describe("member reads", () => {
     expect(summary.gardens).toHaveLength(1);
   });
 
+  it("knows the parcels that were on an order, and no pending order without one", async () => {
+    // An owned parcel on an order is never a pilot parcel on the account page.
+    expect(await data.listOrderedParcelIds(customer.client, customer.id)).toEqual([parcel]);
+    expect(await data.pendingOrderOfParcel(customer.client, customer.id, parcel)).toBeNull();
+  });
+
   it("previews the three timings with their own days", async () => {
     const preview = await data.previewGardenRemoval(customer.client, parcel, [
       "notice",

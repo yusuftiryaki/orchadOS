@@ -12,16 +12,19 @@ const G = P.gardens;
 
 // "Bahçelerim" on the account page (docs/bahce-yonetimi.md §5.1, §11): every
 // garden of the customer with its state, a link to the removal form on the
-// parcel page, and the "Bahçe ekle" button. Owned parcels without an order
-// line (pilot) can only be removed by the team.
+// parcel page, and the "Bahçe ekle" button. Owned parcels that were never on
+// an order (pilot) can only be removed by the team; owned parcels whose
+// orders no longer serve them are listed as out of service.
 export function MyGardens({
   gardens,
   pilot,
+  outOfService = [],
   addHref,
   changesEnabled,
 }: {
   gardens: CustomerGarden[];
   pilot: { id: string; name: string }[];
+  outOfService?: { id: string; name: string }[];
   addHref: string | null;
   changesEnabled: boolean;
 }) {
@@ -73,6 +76,20 @@ export function MyGardens({
             </tbody>
           </table>
         </div>
+      )}
+      {outOfService.length > 0 && (
+        <>
+          <h3>{G.outOfServiceTitle}</h3>
+          <ul className={ops.plainList} data-testid="out-of-service-gardens">
+            {outOfService.map((p) => (
+              <li key={p.id}>
+                <Link href={portalHref.parcel(p.id)}>{p.name}</Link>
+                {" · "}
+                <span className="muted">{G.outOfService}</span>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
       {pilot.length > 0 && (
         <>

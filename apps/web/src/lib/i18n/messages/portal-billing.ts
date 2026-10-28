@@ -164,6 +164,8 @@ export const portalBillingText = {
     upcoming: (date: string) => `Sonraki dönemde başlıyor: ${date}`,
     pilotTitle: "Siparişsiz bahçeler",
     pilotContact: "Bu bahçeyi çıkarmak için bize ulaşın",
+    outOfServiceTitle: "Hizmette olmayan bahçeler",
+    outOfService: "Hizmette değil",
   },
 
   removal: {
@@ -179,7 +181,9 @@ export const portalBillingText = {
     noteHint: "Ekibimizin bilmesini istedikleriniz (en fazla 1000 karakter).",
     timing: "Ne zaman",
     timings: {
-      notice: "30 gün sonra",
+      // The days to the effective day (removal_notice_days, 30 by default).
+      notice: (days: number) => (days <= 0 ? "Bugün" : `${days} gün sonra`),
+      beforeStart: "Hizmet başlamadan",
       period_end: "Dönem sonunda",
       withdrawal:
         "Cayma hakkımı kullanıyorum: bahçe bugün hizmetten çıkar, ödediğiniz tutar iade edilir (yapılmış envanter ve ziyaretler hariç)",
@@ -414,6 +418,7 @@ export const portalBillingText = {
     closed: (status: string) => `Bu teklif kapandı: ${status}.`,
     order: "Siparişe git",
     serviceEnd: "Hizmet bitişi",
+    serviceEndOnPayment: "ödeme gününden itibaren bir yıl",
     servicePeriod: "Hizmet dönemi",
     addonHeader: (end: string) => `Mevcut üyeliğinize ek bahçe teklifi · hizmet bitişi: ${end}`,
     addonVisits: (visits: number, perYear: number) => `${visits}/${perYear}`,

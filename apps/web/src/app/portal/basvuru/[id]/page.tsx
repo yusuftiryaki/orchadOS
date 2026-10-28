@@ -62,7 +62,12 @@ export default async function ApplicationPage({
     (application.status === "submitted" || application.status === "quoted") && active.length >= 2;
   // A member's open application adds gardens to the membership: the
   // membership's package, locked, and the prorated add-on preview (§4.1).
-  const member = open ? primary : null;
+  // With garden changes closed (§2) ops cannot quote an add-on: a draft or
+  // submitted application gets no package form, no preview and no submit, the
+  // team is asked instead. A quote already issued still stands.
+  const closed =
+    (draft || application.status === "submitted") && !!primary && !primary.garden_changes_enabled;
+  const member = open && !closed ? primary : null;
   const memberPackage = member
     ? (packages.find((p) => p.packageId === member.package_id) ?? null)
     : null;
@@ -73,7 +78,7 @@ export default async function ApplicationPage({
   const areas = active.map((g) => Number(g.declared_area_m2));
   let preview: PricePreview | null = null;
   let previewError: BillingError | null = null;
-  if (draft || application.status === "submitted") {
+  if ((draft || application.status === "submitted") && !closed) {
     if (member) {
       const result = await previewAddonPrice(supabase, areas);
       if (result.ok) preview = result.preview;
@@ -124,10 +129,17 @@ export default async function ApplicationPage({
       )}
 
       {member && <MemberBand period={member} parcels={parcels} />}
+      {closed && (
+        <p className={ops.notice} data-testid="addon-closed">
+          {M.packageUnavailable}
+        </p>
+      )}
 
       <section className={styles.section}>
         <h2>{A.package}</h2>
-        {draft && member && !memberPackage ? (
+        {draft && closed ? (
+          <p data-testid="application-package">{pkg?.name ?? P.none}</p>
+        ) : draft && member && !memberPackage ? (
           <p className={ops.notice} data-testid="addon-package-unavailable">
             {M.packageUnavailable}
           </p>
@@ -186,7 +198,7 @@ export default async function ApplicationPage({
       <section className={styles.section}>
         <div className={styles.titleRow}>
           <h2>{A.gardens}</h2>
-          {draft && gardens.length < MAX_GARDENS && (
+          {draft && !closed && gardens.length < MAX_GARDENS && (
             <Link className="button" href={portalHref.newGarden(application.id)}>
               {A.addGarden}
             </Link>
@@ -277,7 +289,7 @@ export default async function ApplicationPage({
         )}
       </section>
 
-      {(draft || application.status === "submitted") && (
+      {(draft || application.status === "submitted") && !closed && (
         <section className={styles.section} data-testid="price-preview">
           <h2>{A.preview}</h2>
           {previewError === "addon_period_too_short" || previewError === "no_membership" ? (
@@ -355,7 +367,7 @@ export default async function ApplicationPage({
 
       {open && (
         <div className={ops.actions}>
-          {draft && (
+          {draft && !closed && (
             <form action={submitApplicationAction}>
               <input type="hidden" name="application_id" value={application.id} />
               <button className="button" type="submit" disabled={gardens.length === 0}>

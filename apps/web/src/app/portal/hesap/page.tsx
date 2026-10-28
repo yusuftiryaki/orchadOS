@@ -14,6 +14,7 @@ import {
   getServicePeriods,
   listApplications,
   listMyGardens,
+  listOrderedParcelIds,
   listOrders,
   listOwnedParcelIds,
   listPayments,
@@ -32,26 +33,43 @@ export default async function AccountPage({
 }) {
   const user = assertCustomer(await requireSection("portal"));
   const supabase = await createClient();
-  const [contact, profile, applications, orders, payments, periods, gardens, owned, parcels] =
-    await Promise.all([
-      getContact(supabase),
-      getBillingProfile(supabase),
-      listApplications(supabase, user.id),
-      listOrders(supabase, user.id),
-      listPayments(supabase, user.id),
-      getServicePeriods(supabase),
-      listMyGardens(supabase),
-      listOwnedParcelIds(supabase, user.id),
-      listParcels(supabase),
-    ]);
+  const [
+    contact,
+    profile,
+    applications,
+    orders,
+    payments,
+    periods,
+    gardens,
+    owned,
+    ordered,
+    parcels,
+  ] = await Promise.all([
+    getContact(supabase),
+    getBillingProfile(supabase),
+    listApplications(supabase, user.id),
+    listOrders(supabase, user.id),
+    listPayments(supabase, user.id),
+    getServicePeriods(supabase),
+    listMyGardens(supabase),
+    listOwnedParcelIds(supabase, user.id),
+    listOrderedParcelIds(supabase, user.id),
+    listParcels(supabase),
+  ]);
   // IP14 (docs/bahce-yonetimi.md §11): the membership and the gardens. Owned
-  // parcels without a my_gardens row are pilot parcels.
+  // parcels without a my_gardens row are pilot parcels when they were never
+  // on an order; otherwise their service is over (or not paid yet).
   const period = periods.primary;
   const changesEnabled = !!period?.garden_changes_enabled;
-  const withOrder = new Set(gardens.map((g) => g.parcel_id));
+  const inService = new Set(gardens.map((g) => g.parcel_id));
   const ownedSet = new Set(owned);
-  const pilot = parcels
-    .filter((p) => ownedSet.has(p.id) && !withOrder.has(p.id))
+  const orderedSet = new Set(ordered);
+  const others = parcels.filter((p) => ownedSet.has(p.id) && !inService.has(p.id));
+  const pilot = others
+    .filter((p) => !orderedSet.has(p.id))
+    .map((p) => ({ id: p.id, name: p.name }));
+  const outOfService = others
+    .filter((p) => orderedSet.has(p.id))
     .map((p) => ({ id: p.id, name: p.name }));
   return (
     <main className={styles.page}>
@@ -63,10 +81,11 @@ export default async function AccountPage({
           <MembershipCard period={period} as="div" />
         </section>
       )}
-      {(gardens.length > 0 || pilot.length > 0 || period) && (
+      {(gardens.length > 0 || pilot.length > 0 || outOfService.length > 0 || period) && (
         <MyGardens
           gardens={gardens}
           pilot={pilot}
+          outOfService={outOfService}
           addHref={changesEnabled ? portalHref.newApplication() : null}
           changesEnabled={changesEnabled}
         />

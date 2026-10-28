@@ -1,19 +1,22 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { MembershipCard } from "@/components/portal-billing/membership-card";
+import { MyGardens } from "@/components/portal-billing/my-gardens";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
-import { removalFlags } from "./data";
+import { lineParcelOf, removalFlags } from "./data";
 import { garden, period } from "./garden-fixtures";
 import {
   addDays,
   addonInputsOf,
+  daysBetween,
   gardenBadge,
   istanbulToday,
   oneYearEnd,
   openRemoval,
   quoteServiceEnd,
   removable,
+  removalChoices,
 } from "./gardens";
 import { parseRemovalForm, REMOVAL_TIMINGS } from "./validation";
 
@@ -165,9 +168,8 @@ describe("quote service end", () => {
     expect(quoteServiceEnd({ inputs: {}, proposed_service_start: "2027-03-01" })).toBe(
       "2028-02-29",
     );
-    expect(quoteServiceEnd({ inputs: {}, proposed_service_start: null }, "2026-10-28")).toBe(
-      "2027-10-27",
-    );
+    // No proposed start: the service starts on the day of payment.
+    expect(quoteServiceEnd({ inputs: {}, proposed_service_start: null })).toBeNull();
     const inputs = {
       formula: "pricing-v2",
       addon: {
@@ -200,5 +202,93 @@ describe("quote service end", () => {
   it("knows Istanbul's day", () => {
     // 22:30 UTC is already the next day in Istanbul (UTC+3).
     expect(istanbulToday(new Date("2026-10-28T22:30:00Z"))).toBe("2026-10-29");
+  });
+});
+
+describe("removal choices", () => {
+  const today = "2026-11-10";
+  const opt = (timing: "notice" | "period_end" | "withdrawal", effectiveOn: string) => ({
+    timing,
+    effectiveOn,
+  });
+  const shown = (choices: { option: { timing: string }; label: string }[]) =>
+    choices.map((c) => [c.option.timing, c.label]);
+
+  it("counts the notice days from the effective day, not a fixed 30", () => {
+    expect(daysBetween(today, "2026-12-10")).toBe(30);
+    const options = [
+      opt("notice", "2027-01-09"),
+      opt("period_end", "2027-11-01"),
+      opt("withdrawal", today),
+    ];
+    expect(shown(removalChoices(options, "in_service", today))).toEqual([
+      ["notice", "60 gün sonra"],
+      ["period_end", "Dönem sonunda"],
+      ["withdrawal", P.removal.timings.withdrawal],
+    ]);
+    expect(shown(removalChoices([opt("notice", today)], "in_service", today))).toEqual([
+      ["notice", "Bugün"],
+    ]);
+  });
+
+  it("offers one option when the period ends within the notice period", () => {
+    const options = [opt("notice", "2026-11-21"), opt("period_end", "2026-11-21")];
+    expect(shown(removalChoices(options, "in_service", today))).toEqual([
+      ["period_end", "Dönem sonunda"],
+    ]);
+  });
+
+  it("offers one option, before the start, for a garden starting next period", () => {
+    const options = [opt("notice", "2027-11-01"), opt("period_end", "2027-11-01")];
+    expect(shown(removalChoices(options, "upcoming", today))).toEqual([
+      ["notice", "Hizmet başlamadan"],
+    ]);
+  });
+});
+
+describe("the parcel of a pending order line", () => {
+  const quoteItems = new Map([
+    ["q1", { parcel_id: "p-quote", application_garden_id: null }],
+    ["q2", { parcel_id: null, application_garden_id: "g1" }],
+  ]);
+  const gardens = new Map([["g1", "p-garden"]]);
+
+  it("resolves like private.order_line_parcels", () => {
+    expect(lineParcelOf({ parcel_id: "p-line", quote_item_id: "q1" }, quoteItems, gardens)).toBe(
+      "p-line",
+    );
+    expect(lineParcelOf({ parcel_id: null, quote_item_id: "q1" }, quoteItems, gardens)).toBe(
+      "p-quote",
+    );
+    expect(lineParcelOf({ parcel_id: null, quote_item_id: "q2" }, quoteItems, gardens)).toBe(
+      "p-garden",
+    );
+    expect(
+      lineParcelOf({ parcel_id: null, quote_item_id: "q-unknown" }, quoteItems, gardens),
+    ).toBeNull();
+  });
+});
+
+describe("account gardens", () => {
+  it("tells pilot parcels apart from parcels whose service is over", () => {
+    const html = renderToStaticMarkup(
+      <MyGardens
+        gardens={[garden()]}
+        pilot={[{ id: "p2", name: "Pilot" }]}
+        outOfService={[{ id: "p3", name: "Eski bahçe" }]}
+        addHref={null}
+        changesEnabled
+      />,
+    );
+    const pilot = html.slice(html.indexOf('data-testid="pilot-gardens"'));
+    const over = html.slice(
+      html.indexOf('data-testid="out-of-service-gardens"'),
+      html.indexOf('data-testid="pilot-gardens"'),
+    );
+    expect(pilot).toContain("Pilot");
+    expect(pilot).toContain(P.gardens.pilotContact);
+    expect(over).toContain("Eski bahçe");
+    expect(over).toContain(P.gardens.outOfService);
+    expect(over).not.toContain(P.gardens.pilotContact);
   });
 });

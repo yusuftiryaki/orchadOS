@@ -256,8 +256,24 @@ export async function previewGardenRemoval(
   return { ok: true, options };
 }
 
+// The parcel of an order line before and after activation, as
+// private.order_line_parcels resolves it: the line's own parcel, else its
+// quote line's, else its application garden's.
+export function lineParcelOf(
+  item: Pick<ServiceOrderItem, "parcel_id" | "quote_item_id">,
+  quoteItems: Map<string, Pick<QuoteItem, "parcel_id" | "application_garden_id">>,
+  gardens: Map<string, string | null>,
+): string | null {
+  if (item.parcel_id) return item.parcel_id;
+  const qi = item.quote_item_id ? quoteItems.get(item.quote_item_id) : undefined;
+  if (!qi) return null;
+  if (qi.parcel_id) return qi.parcel_id;
+  return qi.application_garden_id ? (gardens.get(qi.application_garden_id) ?? null) : null;
+}
+
 // The customer's order awaiting payment that holds this parcel (the reason
-// of parcel_order_pending), for a link to it.
+// of parcel_order_pending), for a link to it; null when no line resolves to
+// the parcel (the caller links to the order list instead).
 export async function pendingOrderOfParcel(
   supabase: Client,
   userId: string,
@@ -266,23 +282,66 @@ export async function pendingOrderOfParcel(
   const orders = check(
     await supabase
       .from("service_order")
-      .select("id")
+      .select(BILLING_COLUMNS.service_order)
       .eq("customer_user_id", userId)
       .eq("status", "awaiting_payment"),
-  ) as { id: string }[];
+  ) as ServiceOrder[];
   if (orders.length === 0) return null;
   const items = check(
     await supabase
       .from("service_order_item")
-      .select("order_id")
-      .eq("parcel_id", parcelId)
+      .select(BILLING_COLUMNS.service_order_item)
       .in(
         "order_id",
         orders.map((o) => o.id),
-      )
-      .limit(1),
-  ) as { order_id: string }[];
-  return items[0]?.order_id ?? orders[0].id;
+      ),
+  ) as ServiceOrderItem[];
+  const quoteItemIds = items.flatMap((i) =>
+    !i.parcel_id && i.quote_item_id ? [i.quote_item_id] : [],
+  );
+  const quoteItems = quoteItemIds.length
+    ? (check(
+        await supabase.from("quote_item").select(BILLING_COLUMNS.quote_item).in("id", quoteItemIds),
+      ) as QuoteItem[])
+    : [];
+  const gardenIds = quoteItems.flatMap((q) =>
+    !q.parcel_id && q.application_garden_id ? [q.application_garden_id] : [],
+  );
+  const gardens = gardenIds.length
+    ? (check(
+        await supabase
+          .from("application_garden")
+          .select(BILLING_COLUMNS.application_garden)
+          .in("id", gardenIds),
+      ) as ApplicationGarden[])
+    : [];
+  const quoteItemMap = new Map(quoteItems.map((q) => [q.id, q]));
+  const gardenMap = new Map(gardens.map((g) => [g.id, g.parcel_id]));
+  return items.find((i) => lineParcelOf(i, quoteItemMap, gardenMap) === parcelId)?.order_id ?? null;
+}
+
+// Parcels that were ever on one of the customer's orders or linked to one of
+// their applications: an owned parcel among them without a my_gardens row has
+// left the service (ended, terminated, cancelled or not paid yet); only the
+// rest are pilot parcels (IP14, docs/bahce-yonetimi.md §11).
+export async function listOrderedParcelIds(supabase: Client, userId: string): Promise<string[]> {
+  const [items, gardens] = await Promise.all([
+    supabase
+      .from("service_order_item")
+      .select(BILLING_COLUMNS.service_order_item)
+      .eq("customer_user_id", userId)
+      .not("parcel_id", "is", null),
+    supabase
+      .from("application_garden")
+      .select(BILLING_COLUMNS.application_garden)
+      .eq("customer_user_id", userId)
+      .not("parcel_id", "is", null),
+  ]);
+  const ids = [
+    ...(check(items) as ServiceOrderItem[]).map((i) => i.parcel_id),
+    ...(check(gardens) as ApplicationGarden[]).map((g) => g.parcel_id),
+  ];
+  return [...new Set(ids.filter((id): id is string => !!id))];
 }
 
 // Parcels the user owns (parcel_access role owner): the pilot parcels without

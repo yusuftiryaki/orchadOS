@@ -19,8 +19,8 @@ const M = P.membership;
 // A new application draft: the package first (customer_create_application
 // returns the open draft if there is one). A member (IP14,
 // docs/bahce-yonetimi.md §4.1) adds gardens to the membership: the package is
-// the membership's, shown locked; if it is no longer offered, the team is
-// asked instead.
+// the membership's, shown locked; if it is no longer offered, or garden
+// changes are closed (garden_changes_enabled, §2), the team is asked instead.
 export default async function NewApplicationPage({
   searchParams,
 }: {
@@ -33,7 +33,8 @@ export default async function NewApplicationPage({
     listApplications(supabase, user.id),
     getServicePeriods(supabase),
   ]);
-  const parcels = primary ? await listPortalParcels(supabase) : [];
+  const closed = !!primary && !primary.garden_changes_enabled;
+  const parcels = primary && !closed ? await listPortalParcels(supabase) : [];
   const draft = applications.find((a) => a.status === "draft");
   const memberPackage = primary
     ? (packages.find((p) => p.packageId === primary.package_id) ?? null)
@@ -43,15 +44,19 @@ export default async function NewApplicationPage({
     <main className={styles.page}>
       <h1>{primary ? M.addTitle : N.title}</h1>
       <PortalResult params={await searchParams} />
-      {primary && <MemberBand period={primary} parcels={parcels} />}
-      <p>{primary ? N.memberLead : N.lead}</p>
+      {primary && !closed && <MemberBand period={primary} parcels={parcels} />}
+      {!closed && <p>{primary ? N.memberLead : N.lead}</p>}
       {draft && (
         <p className={ops.notice}>
           {N.existingDraft}{" "}
           <Link href={portalHref.application(draft.id)}>{P.home.draftButton}</Link>
         </p>
       )}
-      {primary && !memberPackage ? (
+      {closed ? (
+        <p className={ops.notice} data-testid="addon-closed">
+          {M.packageUnavailable}
+        </p>
+      ) : primary && !memberPackage ? (
         <p className={ops.notice} data-testid="addon-package-unavailable">
           {M.packageUnavailable}
         </p>

@@ -6,7 +6,7 @@ import { requireSection } from "@/lib/auth/session";
 import { formatDate } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
-import { listApplications } from "@/lib/portal-billing/data";
+import { getServicePeriods, listApplications } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
@@ -19,14 +19,22 @@ export default async function ApplicationsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = assertCustomer(await requireSection("portal"));
-  const applications = await listApplications(await createClient(), user.id);
+  const supabase = await createClient();
+  const [applications, { primary }] = await Promise.all([
+    listApplications(supabase, user.id),
+    getServicePeriods(supabase),
+  ]);
+  // A member adds gardens only while garden changes are open (IP14, §2).
+  const canStart = !primary || primary.garden_changes_enabled;
   return (
     <main className={styles.page}>
       <div className={styles.titleRow}>
         <h1>{A.title}</h1>
-        <Link className="button" href={portalHref.newApplication()}>
-          {A.new}
-        </Link>
+        {canStart && (
+          <Link className="button" href={portalHref.newApplication()}>
+            {A.new}
+          </Link>
+        )}
       </div>
       <PortalResult params={await searchParams} />
       {applications.length === 0 ? (

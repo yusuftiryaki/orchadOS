@@ -1,4 +1,5 @@
 import type { CustomerGarden, Quote } from "@/lib/billing/types";
+import type { RemovalTimingChoice as RemovalTiming } from "@/lib/portal-billing/validation";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 
@@ -25,7 +26,13 @@ export function oneYearEnd(start: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Whole days from `from` to `to` (YYYY-MM-DD).
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
 const G = P.gardens;
+const R = P.removal;
 
 // The state line of a garden (my_gardens.state); the date always after a
 // colon, never with a case suffix (§11).
@@ -102,13 +109,41 @@ export function addonInputsOf(inputs: Quote["inputs"]): AddonInputs | null {
 }
 
 // The last day of the service a quote offers: an add-on ends with the
-// membership; any other quote serves one year from its proposed start (or
-// from today, when it would start on payment).
+// membership; any other quote serves one year from its proposed start. Without
+// a proposed start the service starts on the day of payment (activate_order),
+// so there is no fixed day to show yet: null.
 export function quoteServiceEnd(
   quote: Pick<Quote, "inputs" | "proposed_service_start">,
-  today: string = istanbulToday(),
-): string {
+): string | null {
   const addon = addonInputsOf(quote.inputs);
   if (addon) return addon.periodEnd;
-  return oneYearEnd(quote.proposed_service_start ?? today);
+  return quote.proposed_service_start ? oneYearEnd(quote.proposed_service_start) : null;
+}
+
+// The removal timings offered on the service card (§5.1), each with its label.
+// customer_removal_plan gives "notice" and "period_end" the same day for a
+// garden that starts next period (its start) and for one within the notice
+// period of its end (the day after the end): only one of them is offered.
+// The notice label counts the days to its effective day, so it follows
+// removal_notice_days (customers cannot read the setting).
+export function removalChoices<T extends { timing: RemovalTiming; effectiveOn: string }>(
+  options: T[],
+  state: CustomerGarden["state"],
+  today: string,
+): { option: T; label: string }[] {
+  const notice = options.find((o) => o.timing === "notice");
+  const end = options.find((o) => o.timing === "period_end");
+  const same = !!notice && !!end && notice.effectiveOn === end.effectiveOn;
+  const upcoming = state === "upcoming";
+  return options
+    .filter((o) => !same || o.timing !== (upcoming ? "period_end" : "notice"))
+    .map((option) => ({
+      option,
+      label:
+        option.timing === "notice"
+          ? upcoming
+            ? R.timings.beforeStart
+            : R.timings.notice(daysBetween(today, option.effectiveOn))
+          : R.timings[option.timing],
+    }));
 }

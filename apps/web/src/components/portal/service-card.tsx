@@ -12,7 +12,7 @@ import { formatDate } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import type { RemovalPreview } from "@/lib/portal-billing/data";
-import { gardenBadge, openRemoval } from "@/lib/portal-billing/gardens";
+import { gardenBadge, openRemoval, removalChoices } from "@/lib/portal-billing/gardens";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { REMOVAL_REASONS } from "@/lib/portal-billing/validation";
 import styles from "./portal.module.css";
@@ -160,28 +160,30 @@ function Body({
         <span className="muted">{R.noteHint}</span>
         <fieldset className={billing.options} data-testid="removal-options">
           <legend>{R.timing}</legend>
-          {data.options.map((option, i) => (
-            <label key={option.timing} data-timing={option.timing}>
-              <input
-                type="radio"
-                name="timing"
-                value={option.timing}
-                defaultChecked={i === 0}
-                required
-              />
-              <span>
-                <strong>{R.timings[option.timing]}</strong>
-                <span data-testid="removal-option-date">
-                  {R.effectiveOn(formatDate(option.effectiveOn))}
+          {removalChoices(data.options, data.garden.state, data.today).map(
+            ({ option, label }, i) => (
+              <label key={option.timing} data-timing={option.timing}>
+                <input
+                  type="radio"
+                  name="timing"
+                  value={option.timing}
+                  defaultChecked={i === 0}
+                  required
+                />
+                <span>
+                  <strong>{label}</strong>
+                  <span data-testid="removal-option-date">
+                    {R.effectiveOn(formatDate(option.effectiveOn))}
+                  </span>
+                  <span className="muted">
+                    {R.refund(formatKurus(option.refundEstimateKurus))}
+                    {" · "}
+                    {R.accessUntil(formatDate(option.accessUntil))}
+                  </span>
                 </span>
-                <span className="muted">
-                  {R.refund(formatKurus(option.refundEstimateKurus))}
-                  {" · "}
-                  {R.accessUntil(formatDate(option.accessUntil))}
-                </span>
-              </span>
-            </label>
-          ))}
+              </label>
+            ),
+          )}
         </fieldset>
         <p className="muted">{R.refundNote}</p>
         <label>

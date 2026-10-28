@@ -53,7 +53,8 @@ export default async function QuotePage({
   // IP14 (docs/bahce-yonetimi.md §11): every quote says when the service
   // ends; an add-on quote ends with the membership and prorates the visits.
   const addon = quote.addon_of_order_id ? addonInputsOf(quote.inputs) : null;
-  const serviceEnd = formatDate(quoteServiceEnd(quote));
+  const end = quoteServiceEnd(quote);
+  const serviceEnd = end ? formatDate(end) : Q.serviceEndOnPayment;
 
   return (
     <main className={styles.page} data-testid="quote" data-status={quote.status}>
