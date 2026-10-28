@@ -4218,6 +4218,7 @@ export type Database = {
           parcel_status: Database["public"]["Enums"]["parcel_status"];
           removal_effective_on: string;
           removal_id: string;
+          removal_initiated_by: string;
           removal_number: string;
           removal_status: Database["public"]["Enums"]["garden_removal_status"];
           removed_on: string;
@@ -4515,6 +4516,7 @@ export type Database = {
           parcel_status: Database["public"]["Enums"]["parcel_status"];
           removal_effective_on: string;
           removal_id: string;
+          removal_initiated_by: string;
           removal_number: string;
           removal_status: Database["public"]["Enums"]["garden_removal_status"];
           removed_on: string;

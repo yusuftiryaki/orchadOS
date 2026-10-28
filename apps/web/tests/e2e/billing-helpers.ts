@@ -229,17 +229,19 @@ export async function removalFor(
   email: string,
   password: string,
   parcelId: string,
-  opts: { atPeriodEnd?: boolean; withdrawal?: boolean; complete?: boolean } = {},
+  opts: { atPeriodEnd?: boolean; withdrawal?: boolean; complete?: boolean; byOps?: boolean } = {},
 ): Promise<string> {
-  const { client } = await signedIn(email, password);
-  const removalId = check(
-    await client.rpc("customer_request_garden_removal", {
-      p_parcel_id: parcelId,
-      p_reason: "not_needed",
-      p_at_period_end: opts.atPeriodEnd ?? false,
-      p_withdrawal: opts.withdrawal ?? false,
-    }),
-  );
+  const { client, userId } = await signedIn(email, password);
+  const removalId = opts.byOps
+    ? await opsRemoval(userId, parcelId)
+    : check(
+        await client.rpc("customer_request_garden_removal", {
+          p_parcel_id: parcelId,
+          p_reason: "not_needed",
+          p_at_period_end: opts.atPeriodEnd ?? false,
+          p_withdrawal: opts.withdrawal ?? false,
+        }),
+      );
   if (opts.complete) {
     const ops = await opsClient();
     const today = istanbulToday();
@@ -260,6 +262,34 @@ export async function removalFor(
     check(await ops.rpc("ops_complete_garden_removal", { p_removal_id: removalId }));
   }
   return removalId;
+}
+
+// A removal ops opens on the customer's line of the parcel (a transfer in
+// 5 days, access 0; initiated_by 'ops'). Returns its id.
+async function opsRemoval(userId: string, parcelId: string): Promise<string> {
+  const ops = await opsClient();
+  const item = check(
+    await admin
+      .from("service_order_item")
+      .select("id, service_order!inner(customer_user_id, status)")
+      .eq("parcel_id", parcelId)
+      .eq("service_order.customer_user_id", userId)
+      .eq("service_order.status", "active")
+      .is("removed_on", null)
+      .limit(1)
+      .single(),
+  );
+  const day = new Date(`${istanbulToday()}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() + 5);
+  return check(
+    await ops.rpc("ops_request_garden_removal", {
+      p_order_item_id: item.id,
+      p_reason: "transfer",
+      p_effective_on: day.toISOString().slice(0, 10),
+      p_note: "E2E: devir",
+      p_access_days: 0,
+    }),
+  );
 }
 
 // Clicks the map at each [lon, lat], projected through the map instance

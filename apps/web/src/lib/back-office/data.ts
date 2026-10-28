@@ -459,6 +459,39 @@ export async function getOrder(supabase: Client, id: string): Promise<OrderView 
   };
 }
 
+// The lines of a base order's period: its own and those of its active or
+// completed add-ons (IP14 §4.1), shaped as OrderView.items; the renewal of
+// an ended period covers them all.
+export async function periodItems(supabase: Client, view: OrderView): Promise<OrderView["items"]> {
+  const addonIds = view.addons
+    .filter((a) => a.status === "active" || a.status === "completed")
+    .map((a) => a.id);
+  if (addonIds.length === 0) return view.items;
+  const rows = check(
+    await supabase
+      .from("service_order_item")
+      .select(BILLING_COLUMNS.service_order_item)
+      .in("order_id", addonIds)
+      .order("line_no"),
+  ) as ServiceOrderItem[];
+  const parcelIds = rows.map((r) => r.parcel_id).filter((p): p is string => !!p);
+  const [parcels, removals] = await Promise.all([
+    parcelIds.length
+      ? supabase.from("parcel").select("id, name").in("id", parcelIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+    openRemovals(supabase, view.order.customer_user_id, parcelIds),
+  ]);
+  const names = new Map(check(parcels).map((p) => [p.id, p.name]));
+  return [
+    ...view.items,
+    ...rows.map((r) => ({
+      ...r,
+      parcelName: r.parcel_id ? (names.get(r.parcel_id) ?? null) : null,
+      openRemoval: (r.parcel_id && removals.find((x) => x.parcel_id === r.parcel_id)) || null,
+    })),
+  ];
+}
+
 // ---------------------------------------------------------------------------
 // Payments and refunds
 // ---------------------------------------------------------------------------

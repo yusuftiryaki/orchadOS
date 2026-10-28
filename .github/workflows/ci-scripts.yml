@@ -1,0 +1,46 @@
+name: ci-scripts
+
+# The provision-demo script and workflow: shellcheck, actionlint and the tests
+# against mocked Supabase and Vercel APIs (no network, no secrets).
+
+on:
+  pull_request:
+    paths:
+      - "scripts/provision-demo.sh"
+      - "scripts/test-provision-demo.sh"
+      - "scripts/tests/**"
+      - ".github/workflows/provision-demo.yml"
+      - ".github/workflows/ci-scripts.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/provision-demo.sh"
+      - "scripts/test-provision-demo.sh"
+      - "scripts/tests/**"
+      - ".github/workflows/provision-demo.yml"
+      - ".github/workflows/ci-scripts.yml"
+
+concurrency:
+  group: ci-scripts-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  provision-demo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: shellcheck scripts/provision-demo.sh scripts/test-provision-demo.sh
+
+      - name: actionlint
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
+          ./actionlint -color .github/workflows/provision-demo.yml .github/workflows/ci-scripts.yml
+
+      - name: Tests (mocked APIs)
+        run: scripts/test-provision-demo.sh

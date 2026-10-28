@@ -46,6 +46,7 @@ import {
 } from "@/lib/back-office/mutations";
 import { boHref, type BoError } from "@/lib/back-office/urls";
 import {
+  addonQuoting,
   formReader,
   parseAddonQuote,
   parseIntInRange,
@@ -208,7 +209,8 @@ export async function issueQuoteAction(_prev: BoFormState, form: FormData): Prom
   if (!customer) return notFound;
   const membership = await readMembership(supabase, customer.orgId, customer.userId);
   if ("error" in membership) return failed(membership);
-  if (membership.membership.periods.length > 0 && read("separate_period") !== "on") {
+  // With garden changes closed there is no add-on to choose instead (§2).
+  if (addonQuoting(membership.membership.periods) && read("separate_period") !== "on") {
     return invalidField("separate_period");
   }
   const parsed = parsedOr(parseQuoteTerms(read));

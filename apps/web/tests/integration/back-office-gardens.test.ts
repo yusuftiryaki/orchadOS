@@ -10,6 +10,7 @@ import {
   membershipOf,
   membershipOrEmpty,
   parcelService,
+  periodItems,
   previewAddonQuote,
   readMembership,
   removalLastEffective,
@@ -127,6 +128,17 @@ describe("a member's period, gardens and orders", () => {
       ].sort(),
     );
     expect(m.gardens.every((g) => g.base_order_id === base)).toBe(true);
+  });
+
+  it("the renewal of a period covers the add-on's gardens too (periodItems)", async () => {
+    // The fallback of a period already over reads the lines of the base and
+    // of its active or completed add-ons, not only the base's own lines.
+    const baseView = await getOrder(ops, base);
+    if (!baseView) throw new Error("no base");
+    expect(baseView.items.map((i) => i.parcel_id)).toEqual([baseParcel]);
+    const items = await periodItems(ops, baseView);
+    expect(items.map((i) => i.parcel_id).sort()).toEqual([baseParcel, addonParcel].sort());
+    expect(items.every((i) => i.parcelName)).toBe(true);
   });
 
   it("an order shows its add-ons; an add-on its base; lines are in service", async () => {
