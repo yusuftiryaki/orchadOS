@@ -13,6 +13,7 @@ on:
       - "supabase/functions/**"
       - "supabase/config.toml"
       - ".github/workflows/deploy-db-pilot.yml"
+      - "scripts/demo-guard-check.sh"
   workflow_dispatch:
 
 concurrency:
@@ -66,6 +67,9 @@ jobs:
       # SIGNUP_TURNSTILE_DISABLED is local only). Read through the Management API with
       # the access token: secret names (values are not returned in clear) and
       # one read-only query. org_billing_setting may not exist yet (to_regclass).
+      # Demo tour (docs/demo-turu.md §3.4, §15): the pilot never hosts the
+      # demo, so it has no demo org, no ORCHADOS_DEMO_MODE and no demo-media
+      # object (private.demo_org may not exist yet either).
       - name: Check payment and signup locks
         if: steps.guard.outputs.ready == 'true'
         run: |
@@ -81,11 +85,21 @@ jobs:
             case when to_regclass('public.org_billing_setting') is null then 0
               else (xpath('/row/n/text()', query_to_xml(
                 'select count(*) as n from public.org_billing_setting where accepts_signups', false, true, '')))[1]::text::int
-            end as signup_orgs"
+            end as signup_orgs,
+            case when to_regclass('private.demo_org') is null then 0
+              else (xpath('/row/n/text()', query_to_xml(
+                'select count(*) as n from private.demo_org', false, true, '')))[1]::text::int
+            end as demo_orgs,
+            case when to_regclass('storage.objects') is null then 0
+              else (xpath('/row/n/text()', query_to_xml(
+                'select count(*) as n from storage.objects where bucket_id = ''demo-media''', false, true, '')))[1]::text::int
+            end as demo_media_objects"
           counts=$(curl -fsS -X POST -H "$auth" -H "Content-Type: application/json" \
             -d "$(jq -n --arg q "$sql" '{query: $q}')" "$api/database/query")
           fake_orgs=$(echo "$counts" | jq -r '.[0].fake_orgs')
           signup_orgs=$(echo "$counts" | jq -r '.[0].signup_orgs')
+          demo_orgs=$(echo "$counts" | jq -r '.[0].demo_orgs')
+          demo_media_objects=$(echo "$counts" | jq -r '.[0].demo_media_objects')
           failed=0
           if echo "$secrets" | grep -qx 'PAYMENT_FAKE_ALLOWED'; then
             echo "::error::PAYMENT_FAKE_ALLOWED is set on the pilot project; remove it (supabase secrets unset PAYMENT_FAKE_ALLOWED)."
@@ -107,6 +121,18 @@ jobs:
               fi
             done
           fi
+          if [ "$demo_orgs" != "0" ]; then
+            echo "::error::private.demo_org has $demo_orgs row(s) on the pilot project; the demo tour runs on its own project only."
+            failed=1
+          fi
+          if echo "$secrets" | grep -qx 'ORCHADOS_DEMO_MODE'; then
+            echo "::error::ORCHADOS_DEMO_MODE is set on the pilot project; remove it (supabase secrets unset ORCHADOS_DEMO_MODE)."
+            failed=1
+          fi
+          if [ "$demo_media_objects" != "0" ]; then
+            echo "::error::The demo-media bucket holds $demo_media_objects object(s) on the pilot project."
+            failed=1
+          fi
           exit "$failed"
 
       - name: Push migrations
@@ -114,6 +140,13 @@ jobs:
         # --include-all: parallel branches add migrations whose timestamps can be
         # older than one already applied; they are independent by convention.
         run: pnpm exec supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
+
+      # A late-merged migration with an older timestamp lands after the IP13-A
+      # ones here (but before them on a fresh CI database): re-attach the demo
+      # write guard and fail on any demo guard lost to migration order.
+      - name: Check demo guards
+        if: steps.guard.outputs.ready == 'true'
+        run: scripts/demo-guard-check.sh
 
       # Without a name every function under supabase/functions is deployed
       # (payments, payment-callback, payment-webhook included).

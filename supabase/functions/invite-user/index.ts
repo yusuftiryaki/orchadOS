@@ -23,12 +23,19 @@
 //    signs in with its phone number and an SMS code (send-sms hook); without
 //    an e-mail that is the only way in.
 //
+// 1a. A demo visitor's token (app_metadata.demo, docs/demo-turu.md §6.3) is
+//     refused right after the token check, before any other call.
+//
 // Responses: 200 { user_id, created, one_time_password | null }
-//            400 invalid_input · 401 unauthorized · 403 forbidden · 409 conflict · 500 failed
+//            400 invalid_input · 401 unauthorized · 403 forbidden | demo_read_only
+//            · 409 conflict · 500 failed
 // Personal data (e-mail, phone, password) is never logged or echoed in errors.
 //
-// No imports on purpose: plain fetch against the Auth and REST APIs keeps the
-// function free of remote dependencies (local edge runtime, CI, deploys).
+// No remote imports on purpose: plain fetch against the Auth and REST APIs
+// keeps the function free of remote dependencies (local edge runtime, CI,
+// deploys); the claim helpers come from ../_shared/signup.ts.
+
+import { isDemoClaims, jwtClaims } from "../_shared/signup.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
@@ -47,6 +54,7 @@ type ErrorCode =
   | "unauthorized"
   | "forbidden"
   | "conflict"
+  | "demo_read_only"
   | "method_not_allowed"
   | "failed";
 
@@ -55,6 +63,7 @@ const STATUS: Record<ErrorCode, number> = {
   unauthorized: 401,
   forbidden: 403,
   conflict: 409,
+  demo_read_only: 403,
   method_not_allowed: 405,
   failed: 500,
 };
@@ -189,6 +198,8 @@ async function handle(req: Request): Promise<Response> {
   try {
     const caller = await callerId(authorization);
     if (!caller) return fail("unauthorized");
+    // A demo visitor never opens or links accounts (docs/demo-turu.md §6.3).
+    if (isDemoClaims(jwtClaims(authorization.replace(/^Bearer\s+/i, "")))) return fail("demo_read_only");
     if (!input) return fail("invalid_input");
     if (!(await isOps(authorization, caller, input.orgId))) return fail("forbidden");
 

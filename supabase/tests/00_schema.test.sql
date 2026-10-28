@@ -29,7 +29,9 @@ select tables_are(
 );
 select tables_are('private', array['owner_profile', 'parcel_detail', 'message_outbox', 'phone_login_attempt', 'viewer_invitation',
   'billing_profile', 'payment_billing_snapshot', 'consent_record', 'customer_signup', 'signup_attempt',
-  'application_garden_detail', 'payment_event', 'document_sequence'], 'private has the personal data tables');
+  'application_garden_detail', 'payment_event', 'document_sequence',
+  -- Demo tour registry (IP13, docs/demo-turu.md §5.1).
+  'demo_org', 'demo_parcel', 'demo_session', 'demo_attempt'], 'private has the personal data tables');
 
 select is(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace

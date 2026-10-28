@@ -8,6 +8,8 @@
 // 1. The signature is checked with SEND_SMS_HOOK_SECRET ("v1,whsec_<base64>",
 //    the secret shown when the hook is set up); timestamps older than five
 //    minutes are rejected.
+// 1a. A demo account (user.app_metadata.demo) gets no code: 403
+//     demo_read_only, before any limit, provider or outbox call.
 // 2. phone_login_code_requested() applies the limits per number (5 codes an
 //    hour; locked after 5 wrong codes in 15 minutes) and counts the code.
 // 3. The code goes out through the message provider (../_shared/providers.ts):
@@ -97,6 +99,9 @@ async function handle(req: Request): Promise<Response> {
   let otp: string;
   try {
     const payload = JSON.parse(body);
+    // Extra layer (docs/demo-turu.md §6.5): no code for a demo account, which
+    // has no phone and cannot get one (account freeze).
+    if (payload?.user?.app_metadata?.demo === true) return hookError(403, "demo_read_only");
     phone = `+${String(payload?.user?.phone ?? "").replace(/^\+/, "")}`;
     otp = String(payload?.sms?.otp ?? "");
   } catch {

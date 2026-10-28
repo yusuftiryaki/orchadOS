@@ -27,6 +27,7 @@ import {
   type PaymentEventType,
 } from "./db.ts";
 import { timingSafeEqual } from "./iyzico-signatures.ts";
+import { isDemoClaims, jwtClaims } from "../signup.ts";
 import { isAllowedReturnOrigin } from "./origins.ts";
 import { safePayload } from "./payload.ts";
 import { choosePaymentProvider, enabledInstallments } from "./provider.ts";
@@ -308,8 +309,14 @@ function checkoutInput(
 }
 
 async function start(ctx: Ctx, req: Request, body: Record<string, unknown>): Promise<Response> {
-  const userId = await authUserId(ctx.db, req.headers.get("authorization"));
+  const authorization = req.headers.get("authorization");
+  const userId = await authUserId(ctx.db, authorization);
   if (!userId) return fail("unauthorized", 401);
+  // A demo visitor (docs/demo-turu.md §6.3): payment_begin runs with the
+  // service role, past the database's write guard.
+  if (isDemoClaims(jwtClaims((authorization ?? "").replace(/^Bearer\s+/i, "")))) {
+    return fail("demo_read_only", 403);
+  }
 
   const { order_id: orderId, return_origin: returnOrigin, client_ip: clientIp } = body;
   if (

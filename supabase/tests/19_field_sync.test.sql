@@ -63,7 +63,9 @@ select is_empty(
   'field staff cannot change an object');
 select is(
   (select count(*) from pg_policies
-   where schemaname = 'storage' and tablename = 'objects' and cmd in ('UPDATE', 'DELETE', 'ALL')),
+   where schemaname = 'storage' and tablename = 'objects' and cmd in ('UPDATE', 'DELETE', 'ALL')
+     -- Restrictive policies (media_demo_no_*, IP13) grant nothing.
+     and permissive = 'PERMISSIVE'),
   0::bigint,
   'no API role may change or delete objects, field staff included');
 
