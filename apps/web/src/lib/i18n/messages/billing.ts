@@ -137,13 +137,13 @@ export const billingText = {
     published: "Yayımlandı",
   },
   billingPartyKind: {
-    individual: "Bireysel",
-    company: "Şirket",
+    individual: "Bireysel (kendi adınıza)",
+    company: "Şirket (tüzel kişi ya da ticari işletmeniz adına; unvan ve VKN ile)",
   },
   consentKind: {
-    kvkk_notice: "KVKK aydınlatma metni",
-    explicit_service_improvement: "Hizmetin geliştirilmesi için açık rıza",
-    explicit_marketing: "Tanıtım iletileri için açık rıza",
+    kvkk_notice: "Aydınlatma metni (okundu teyidi)",
+    explicit_service_improvement: "Hizmetin geliştirilmesi için açık rıza (artık sorulmuyor)",
+    explicit_marketing: "Tanıtım iletileri için onay (açık rıza ve ticari elektronik ileti onayı)",
     distance_sales: "Mesafeli hizmet sözleşmesi",
     pre_information: "Ön bilgilendirme formu",
   },

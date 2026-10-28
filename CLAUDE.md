@@ -12,6 +12,7 @@
 - `docs/musteri-yonetimi.md`: müşteri edinme ve yönetimi (İP12): self-servis kayıt, başvuru, teklif, ödeme, back office; faturalama tablolarının, fonksiyonlarının ve hata kodlarının sözleşmesi.
 - `docs/bahce-yonetimi.md`: üyelik boyunca bahçe ekleme ve çıkarma (İP14): tek üyelik dönemi, ek sipariş ve orantılı fiyat (`pricing-v2`), bahçe bazında çıkarma, iade (`removal-v1`), salt okunur erişim süresi, `garden_changes_enabled` anahtarı.
 - `docs/demo-turu.md`: demo turu (İP13): ayrı demo projesi, geçici demo hesabı, yazma ve hesap kilitleri, sentetik demo verisi ve yükleyicisi, `demo-data` iş akışı.
+- `docs/hukuk/kararlar.md`: hukuki kararlar (H01–H34), yayın şartları ve takip işleri (T01–T26). Hukuk metinleri `docs/hukuk/`'tadır; sitedeki kopyaları `apps/web/src/lib/i18n/messages/legal.ts` (taslakla eşitliği testle denetlenir).
 - `docs/arayuzler.md`: **bileşenler arası sözleşmelerin kaynağı**: oturum klasörü, `events.csv`, iki `session.json`, QR saat kodu, zaman tanımı. Bir biçim değişirse önce burası güncellenir.
 
 ## Yapı
@@ -28,6 +29,7 @@
 - **Kişisel veri:** Sahip kimliği ve telefonu ayrı şemada tutulur; LLM'e asla gönderilmez (`docs/teknik-mimari.md`, KVKK bölümü).
 - **Medya değiştirilemez:** Dosyalar içerik hash'iyle adreslenir; mevcut bir medya kaydı güncellenmez, yenisi eklenir.
 - **Ölçümler sürümlüdür:** Her ölçüm ve ürün, onu üreten yöntem ya da hat sürümünü taşır. Yeniden işleme eski sonuçları silmez.
+- **Veriler saklama süresi içinde silinmez:** Medya, ölçüm ve raporlar sözleşme, erişim ve saklama süresi içinde silinmez; süre dolunca silinir ya da anonim hale getirilir (KVKK md. 4/2-d, md. 7; süreler `docs/hukuk/kvkk-aydinlatma-metni.md` §7 ve `docs/hukuk/saklama-imha-politikasi.md`, karar `docs/hukuk/kararlar.md` H25).
 - Gizli bilgiler (`.env`, API anahtarları) repoya girmez.
 - **Migration'lar:** Yeni tablo ekleyen migration `select private.attach_demo_guard('<tablo>')` çağırır; kullanıcıya erişim ya da kimlik veren tablo ayrıca `private.attach_demo_account_guard(...)` çağırır (docs/demo-turu.md §6.1–6.2). Servis rolüyle yazan yeni Edge yolları demo claim'ini reddeder. Yeni migration'ın zaman damgası `supabase/migrations/`'taki en yenisinden (şu an `20261102120500`) **sonra** gelir: `supabase migration new` bugünün tarihini verir ve gelecek tarihli mevcut migration'lardan önce sıralanabilir; o zaman dosya adı elle ileri alınır. CI (`scripts/check-migration-order.sh`) daha eski damgalı yeni migration'ı reddeder.
 

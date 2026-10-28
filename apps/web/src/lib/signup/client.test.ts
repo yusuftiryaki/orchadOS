@@ -85,8 +85,8 @@ describe("registerCustomer", () => {
         password: "fistik-2026",
         contact_preference: "sms",
         consents: {
-          kvkk_notice_version: "kvkk-v1-taslak",
-          explicit_text_version: "riza-v1-taslak",
+          kvkk_notice_version: "kvkk-v2-taslak",
+          explicit_text_version: "riza-v2-taslak",
           explicit_service_improvement: true,
           explicit_marketing: false,
         },

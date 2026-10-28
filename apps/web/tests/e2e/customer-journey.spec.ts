@@ -95,7 +95,11 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
   await expect(page.getByLabel("Bahçe adı")).toHaveValue("Yolculuk bahçesi");
   await expect(page.getByLabel("Bahçe üzerindeki yetkiniz")).toHaveValue("title_holder");
   await expect(page.getByTestId("boundary-points")).toHaveText("4 nokta");
-  await page.getByLabel("Ekibimizin ziyaret günlerinde bahçeye girmesine izin veriyorum.").check();
+  await page
+    .getByLabel(
+      "Bu bahçeyi seçtiğim dayanakla fiilen kullanıyorum. Ekibinizin envanter ve ziyaretler için bahçeye girmesine izin veriyorum ve buna yetkiliyim.",
+    )
+    .check();
   await page.getByRole("button", { name: "Bahçeyi kaydet" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Bahçe kaydedildi." })).toBeVisible();
   await expect(page.getByTestId("garden-table")).toContainText("Yolculuk bahçesi");

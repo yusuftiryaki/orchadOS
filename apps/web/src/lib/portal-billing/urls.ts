@@ -40,6 +40,8 @@ export const PORTAL_ERRORS = [
   "fatura_eposta_eksik",
   // A demo visitor (docs/demo-turu.md §6.3).
   "demo_read_only",
+  // An optional consent that is not asked (docs/hukuk/kararlar.md H06, H31).
+  "consent_unavailable",
 ] as const;
 export type PortalError =
   | BillingError
@@ -48,7 +50,8 @@ export type PortalError =
   | "odeme_bulunamadi"
   | "onay_eksik"
   | "fatura_eposta_eksik"
-  | "demo_read_only";
+  | "demo_read_only"
+  | "consent_unavailable";
 
 type Result = { bilgi?: PortalNotice; hata?: PortalError; eksik?: string };
 

@@ -7,6 +7,7 @@ import {
   renderLoginCode,
   renderNotification,
   retryDelayMs,
+  type Template,
 } from "../../../../../supabase/functions/_shared/messaging";
 
 // The Edge Functions' message texts and retry policy (pure TypeScript shared
@@ -248,5 +249,37 @@ describe("retry", () => {
 
   it("fails permanent errors at once", () => {
     expect(decideRetry(1, true, now)).toEqual({ outcome: "failed" });
+  });
+});
+
+// docs/hukuk/kararlar.md H06: service messages go out without İYS consent only
+// as long as they carry no promotion. The record lists every template (the
+// type makes a new one fail to compile here) with the ref it is rendered with.
+const EVERY_TEMPLATE: Record<Template, string | null> = {
+  report_ready: null,
+  critical_finding: null,
+  quote_ready: "T-2026-000001",
+  application_rejected: "B-2026-000001",
+  payment_received: "M-2026-000001",
+  refund_completed: "I-2026-000001",
+  payment_reminder: "S-2026-000001",
+  garden_removal_scheduled: "C-2026-000001",
+  garden_removal_rescheduled: "C-2026-000001",
+  garden_removal_cancelled: "C-2026-000001",
+  garden_removal_completed: "C-2026-000001",
+  garden_access_ending: "C-2026-000001",
+};
+
+describe("service messages carry no promotion", () => {
+  const PROMOTION = /kampanya|indirim|fırsat|avantaj|hediye|yeni paket|tanıtım/i;
+
+  it.each(Object.entries(EVERY_TEMPLATE))("%s", (template, ref) => {
+    const out = renderNotification(template, { ...VARS, ...(ref ? { ref } : {}) }, BASE);
+    expect(out.ok).toBe(true);
+    expect(out.ok && out.body).not.toMatch(PROMOTION);
+  });
+
+  it("login code", () => {
+    expect(renderLoginCode("123456")).not.toMatch(PROMOTION);
   });
 });

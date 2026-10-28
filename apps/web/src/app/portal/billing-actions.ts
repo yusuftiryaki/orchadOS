@@ -7,6 +7,11 @@ import { billingFieldOf, billingReasonOf } from "@/lib/billing/errors";
 import { requireSection } from "@/lib/auth/session";
 import { siteFlags } from "@/lib/flags";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
+import {
+  EXPLICIT_CONSENT_KINDS,
+  isExplicitConsentAsked,
+  type ExplicitConsentKind,
+} from "@/lib/legal/consents";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { formValues, type FormState } from "@/lib/operations/form-state";
 import { formReader } from "@/lib/operations/validation";
@@ -425,18 +430,22 @@ export async function saveContactAction(_prev: FormState, form: FormData): Promi
   redirect(portalHref.account({ bilgi: "iletisim_kaydedildi" }));
 }
 
-const EXPLICIT = ["explicit_service_improvement", "explicit_marketing"] as const;
-
+// Withdrawing is always allowed; granting only a consent that is asked
+// (docs/hukuk/kararlar.md H06, H31).
 export async function setConsentAction(form: FormData) {
   const supabase = await context();
   const read = formReader(form);
   const kind = read("kind");
-  if (!(EXPLICIT as readonly string[]).includes(kind)) {
+  if (!(EXPLICIT_CONSENT_KINDS as readonly string[]).includes(kind)) {
     redirect(portalHref.consents({ hata: "invalid_input" }));
+  }
+  const granted = read("granted") === "true";
+  if (granted && !isExplicitConsentAsked(kind as ExplicitConsentKind)) {
+    redirect(portalHref.consents({ hata: "consent_unavailable" }));
   }
   const { error } = await supabase.rpc("customer_set_consent", {
     p_kind: kind,
-    p_granted: read("granted") === "true",
+    p_granted: granted,
     p_text_version: LEGAL_TEXT_VERSIONS.explicit_consent,
   });
   if (error) redirect(portalHref.consents({ hata: billingReasonOf(error) }));

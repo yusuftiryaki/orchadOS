@@ -62,9 +62,9 @@ Aşağıdakilerin hepsi tamamlanmadan hiçbir metinden “-taslak” eki kaldır
 2. **Yurt dışı aktarım:** Kişisel veri alan her yurt dışı sağlayıcıyla Kurul'un ilan ettiği standart sözleşme imzalanmıştır. Sözleşme imzadan itibaren 5 iş günü içinde Kurum'a bildirilmiştir. Kayıt [yurt-disi-aktarim-kaydi.md](yurt-disi-aktarim-kaydi.md)'dedir. Standart sözleşmeyi imzalamayan sağlayıcıya kişisel veri gitmez (H02, T01). Harita altlığı kendi altyapımızdan sunulur. Cloudflare imzalamadıysa Turnstile yerine kendi barındırdığımız doğrulama devrededir (H03, T12).
 3. **Sistem:** T03 (erken başlama onayı), T04 (siparişe özel sözleşme PDF'i), T09 (kısa saklama temizlikleri) ve T21 (üretim kapısı) üretimdedir.
 4. **Bahçe ekleme ve çıkarma:** Ayrıca T05 ve T18 üretimdedir.
-5. **Tanıtım iletisi onayı:** Kutu yalnızca İYS kaydı ve entegrasyonundan sonra açılır (H06).
+5. **Tanıtım iletisi onayı:** Kutu yalnızca İYS kaydı ve entegrasyonundan sonra açılır (H06). Sorulmayan rızayı veritabanı ve Edge tarafı da reddeder (T27).
 
-**Acil not:** Barındırılan projelerde bugün gerçek kişisel veri varsa 2. madde gecikmeksizin yerine getirilir. O tarihe kadar gerçek bahçe görüntüsü yurt dışındaki yapay zekâ sağlayıcısına gönderilmez; bunu ai-worker kapısı sağlar (H02).
+**Acil not:** Barındırılan projelerde bugün gerçek kişisel veri varsa 2. madde gecikmeksizin yerine getirilir. O tarihe kadar gerçek bahçe görüntüsü yurt dışındaki yapay zekâ sağlayıcısına gönderilmez; bunu ai-worker kapısı sağlar (H02; `ORCHADOS_AI_TRANSFER_SAFEGUARD`, [services/ai-worker/README.md](../../services/ai-worker/README.md#yurt-dışı-aktarım-kapısı)).
 
 <a id="surum"></a>
 ## Sürüm planı
@@ -395,7 +395,7 @@ Sürümsüz yeni iç belgeler: [kvkk-basvuru-proseduru.md](kvkk-basvuru-prosedur
 
 **Sistem değişikliği.**
 - **Bu iş:**
-    - Tanıtım kutusu `MARKETING_CONSENT_ENABLED = false` ile gizlenir. Sunucu, kapalıyken bu rızanın verilmesini reddeder; geri almaya izin verir. Daha önce verilmiş rıza portalda yalnızca geri alınabilir olarak gösterilir.
+    - Tanıtım kutusu `MARKETING_CONSENT_ENABLED = false` ile gizlenir. Web sunucusu (Hesabım › İzinler eylemi ve kayıt formu ayrıştırıcısı), kapalıyken bu rızanın verilmesini reddeder; geri almaya izin verir. Veritabanı fonksiyonu `customer_set_consent` ve `customer-signup` Edge fonksiyonu bu PR'da değişmez; ret orada T27 ile gelir. O zamana kadar ret yalnız arayüz katmanındadır. Daha önce verilmiş rıza portalda yalnızca geri alınabilir olarak gösterilir.
     - Bildirim şablonlarında tanıtım ifadesi olmadığını denetleyen test eklenir.
 - **T22:**
     - İYS başvurusu ve entegrasyonu: onayların süresinde yüklenmesi, ret senkronu.
@@ -1419,7 +1419,7 @@ Tablonun altına: “Süre dolunca veriler, en geç altı ayda bir yapılan peri
 - **services/ai-worker/README.md:** “Değerlendirme ve istem geliştirme verileri repo dışında, erişimi kısıtlı bir yerde tutulur; sahip ve parsel kimliği yerine kod kullanılır.”
 
 **Sistem değişikliği.**
-- **Bu iş:** `explicit_service_improvement` kutusu kayıt formundan ve Hesabım › İzinler'den kaldırılır. Daha önce verilmişse yalnızca geri alınabilir olarak gösterilir. Sunucu yeni verilmesini reddeder.
+- **Bu iş:** `explicit_service_improvement` kutusu kayıt formundan ve Hesabım › İzinler'den kaldırılır. Daha önce verilmişse yalnızca geri alınabilir olarak gösterilir. Web sunucusu (portal eylemi, kayıt formu) yeni verilmesini reddeder; veritabanı ve Edge tarafındaki ret T27'dir.
 - Eval ve geliştirme dışa aktarımları repo dışında tutulur (kural).
 
 <a id="h32"></a>
@@ -1574,3 +1574,4 @@ Bu belgeyle birlikte yapılan PR yalnızca metinleri ve küçük değişiklikler
 | T24 | İşyeri dışında kâğıt sözleşme gerekirse uyumlu kâğıt sürüm (cayma formu, nüsha, cayma süresinde ödeme alınmaması) | H10 | Gerekirse |
 | T25 | CLAUDE.md'deki “veri silinmez” kuralının “saklama süresi içinde silinmez” olarak güncellenmesi (Yusuf) | H25 | Bir sonraki doküman güncellemesinde |
 | T26 | İsteğe bağlı: kişi görünen kesitlerin yapay zekâya gönderilmemesi (yerel kişi algılama) | H02 | İsteğe bağlı |
+| T27 | Sorulmayan rızanın veritabanı ve Edge tarafında reddi. Bugün ret yalnız web sunucusunda (`setConsentAction`, `parseSignupForm`); `public.customer_set_consent` (`authenticated` çalıştırabilir) ve `customer-signup` (`_shared/signup.ts`) `explicit_marketing` ve `explicit_service_improvement` için `granted = true` kaydı açabilir. Yeni migration: `customer_set_consent`, `p_granted = true` iken sorulmayan tür için hata verir (`explicit_service_improvement` her zaman; `explicit_marketing` İYS entegrasyonu açılana kadar, veritabanındaki bir ayarla); geri alma (`false`) serbest kalır. `customer-signup` ve `private` kayıt fonksiyonu kapalı türlerin değerini `false`'a zorlar ya da `true`'yu reddeder. pgTAP ve Edge testleri: kendi JWT'siyle RPC çağrısı ve doğrudan Edge POST'u `granted = true` satırı açamaz. Bu iş bitmeden açılmış `granted = true` satırları dayanak olarak kullanılmaz (H06, H31) | H06, H31 | Yayın şartı; `MARKETING_CONSENT_ENABLED` açılmadan önce |

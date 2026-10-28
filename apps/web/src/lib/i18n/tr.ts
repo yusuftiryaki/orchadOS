@@ -492,7 +492,7 @@ export const tr = {
       approved: "Onaylı",
       approveNow: "Onayla ve sahibe hemen bildir",
       approveNowHint:
-        "Acil bulgu raporu beklemeden onaylanır; sahibe SMS ya da WhatsApp ile bildirim gider. Onaylanan bulgu yayından önce de değiştirilemez sayılmalı.",
+        "Acil bulgu raporu beklemeden onaylanır; sahibe SMS ile bildirim gider. Onaylanan bulgu yayından önce de değiştirilemez sayılmalı.",
       tree: "Ağaç",
       parcel: "Parsel",
       kinds: {
@@ -663,7 +663,7 @@ export const tr = {
       noParcels: "Henüz parsel yok.",
       invitations: "Hissedar davetleri",
       invitationsHint:
-        "Sahiplerin portaldan davet ettiği hissedarlar. Kişiyi arayıp KVKK onayını alın; hesap telefonla açılır ve hissedar parsele izleyici olarak eklenir.",
+        "Sahiplerin portaldan davet ettiği hissedarlar. Kişiyi arayın; numarasının sahipten alındığını söyleyin, aydınlatma metninin bağlantısını SMS ile iletin ve okuduğunu kaydedin. Hesap telefonla açılır ve hissedar parsele izleyici olarak eklenir.",
       invitedBy: (name: string) => `Davet eden: ${name}`,
       approve: "Hesabı aç ve hissedar olarak ekle",
       reject: "Reddet",
@@ -693,9 +693,9 @@ export const tr = {
       phone_call: "Telefonla arama",
     },
     authorizationBasis: {
-      title_holder: "Tapu sahibi",
-      power_of_attorney: "Vekâlet",
-      heir_declaration: "Varis beyanı",
+      title_holder: "Malik ya da paydaş",
+      power_of_attorney: "İzinle kullanan (vekil, kiracı, ortakçı)",
+      heir_declaration: "Mirasçı (paylaşılmamış miras)",
     },
     irrigation: {
       irrigated: "Sulu",
@@ -717,7 +717,7 @@ export const tr = {
       name: "Ad soyad",
       phone: "Telefon",
       contact: "İletişim",
-      kvkk: "KVKK onayı",
+      kvkk: "Aydınlatma metni",
       parcels: "Parseller",
       role: "Rol",
       account: "Hesap",
@@ -750,10 +750,10 @@ export const tr = {
       emailHint:
         "Bugün portala e-posta ve parolayla girilir. E-posta yoksa hesap telefonla açılır; giriş, telefonla giriş gelince mümkün olur.",
       contactPreference: "İletişim tercihi",
-      kvkkConsent: "Aydınlatma metni okundu, açık rıza alındı",
-      kvkkConsentAt: "Onay tarihi",
-      kvkkTextVersion: "Onaylanan metin sürümü",
-      kvkkTextVersionHint: "Örnek: kvkk-v0",
+      kvkkConsent: "Aydınlatma metni verildi (okundu teyidi)",
+      kvkkConsentAt: "Teyit tarihi",
+      kvkkTextVersion: "Aydınlatma metni sürümü",
+      kvkkTextVersionHint: "Güncel sürüm:",
       consentYes: (date: string, version: string) => `Var (${date}, ${version})`,
       consentNo: "Yok",
       submit: "Sahibi kaydet",
@@ -762,7 +762,7 @@ export const tr = {
       accountExisting: "Bu e-posta ya da telefonla açılmış bir hesap vardı; kayıt ona bağlandı.",
       oneTimePassword: "Tek kullanımlık parola",
       oneTimePasswordHint:
-        "Parolayı sahibe WhatsApp'tan, giriş e-postasıyla birlikte iletin. Bir daha gösterilmez; bu ekranı kapatınca kaybolur. Sahip ilk girişten sonra parolasını değiştirmeli.",
+        "Parolayı sahibe SMS ile ya da telefonda sözlü olarak, giriş e-postasıyla birlikte iletin; WhatsApp kullanmayın. Bir daha gösterilmez; bu ekranı kapatınca kaybolur. Sahip ilk girişten sonra parolasını değiştirmeli.",
       noPassword:
         "E-posta olmadığı için parola verilmedi. Telefonla giriş açılınca sahip aynı hesapla telefon numarasıyla girer.",
       openProfile: "Sahip sayfasını aç",
@@ -1711,7 +1711,7 @@ export const tr = {
     nav: "Bildirimler",
     title: "Bildirimler",
     intro:
-      "Sahip ve hissedarlara giden SMS / WhatsApp bildirimleri. Başarısız olanlar yeniden kuyruğa alınabilir; bir sonraki gönderimde (dakikada bir) gider.",
+      "Sahip ve hissedarlara giden SMS bildirimleri. Başarısız olanlar yeniden kuyruğa alınabilir; bir sonraki gönderimde (dakikada bir) gider.",
     filters: "Bildirim filtresi",
     allStatuses: "Bütün durumlar",
     filter: "Göster",

@@ -12,6 +12,7 @@ export const LEGAL_LINKS = [
   { href: "/mesafeli-satis", label: siteText.footer.legal.distanceSales },
   { href: "/on-bilgilendirme", label: siteText.footer.legal.preInformation },
   { href: "/iade", label: siteText.footer.legal.refund },
+  { href: "/bahcede-bulunanlar", label: siteText.footer.legal.fieldNotice },
 ] as const;
 
 export function SiteFooter() {

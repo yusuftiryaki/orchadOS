@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -84,18 +85,44 @@ def _catalog():
     return SupabaseCatalog(SupabaseClient.sign_in(Credentials.from_env()))
 
 
+TRANSFER_SAFEGUARD_ENV = "ORCHADOS_AI_TRANSFER_SAFEGUARD"
+
+
+def _check_transfer(cfg: WorkerConfig, test_data_only: bool) -> None:
+    """Refuse real data to a provider abroad without a recorded safeguard (KVKK md. 9).
+
+    The variable holds the provider's standard contract reference
+    (docs/hukuk/yurt-disi-aktarim-kaydi.md); test data and local models are always allowed.
+    """
+    p = cfg.provider
+    if not p.is_cross_border or test_data_only:
+        return
+    ref = os.environ.get(TRANSFER_SAFEGUARD_ENV, "").strip()
+    if not ref:
+        where = p.base_url or "the Anthropic API"
+        raise ValueError(
+            f"{where} is outside Turkey: under KVKK md. 9 real orchard data may go abroad "
+            "only after the provider's standard contract is signed and notified to the "
+            f"Kurum (docs/hukuk/yurt-disi-aktarim-kaydi.md). Set {TRANSFER_SAFEGUARD_ENV} "
+            "to the contract reference, use a local model, or run test data with "
+            "--test-data-only"
+        )
+    print(f"cross-border transfer safeguard: {ref}", file=sys.stderr)
+
+
 def _api(cfg: WorkerConfig, state_dir: Path, test_data_only: bool):
     p = cfg.provider
-    if p.kind == "anthropic":
-        from .api import AnthropicBatchApi
-
-        return AnthropicBatchApi()
     if p.may_train_on_requests and not test_data_only:
         raise ValueError(
             f"{p.base_url} may use the requests to train its models: run it only on test "
             "data and confirm with --test-data-only (real orchard images stay with providers "
             "that do not train on them)"
         )
+    _check_transfer(cfg, test_data_only)
+    if p.kind == "anthropic":
+        from .api import AnthropicBatchApi
+
+        return AnthropicBatchApi()
     from .openai_compat import OpenAICompatBatchApi
 
     return OpenAICompatBatchApi.from_env(

@@ -41,6 +41,7 @@ const errors: Record<PortalError, string> = {
   odeme_bulunamadi:
     "Ödeme kaydı bulunamadı. Kartınızdan çekim yapıldıysa birkaç dakika içinde burada görünür; görünmezse bizimle iletişime geçin.",
   onay_eksik: "Devam etmek için iki onay kutusunu da işaretleyin.",
+  consent_unavailable: "Bu izin şu anda verilemiyor. Daha önce verdiyseniz geri alabilirsiniz.",
   fatura_eposta_eksik:
     "Kartla ödeme için bir e-posta adresi gerekli. Fatura bilgilerinize e-posta adresinizi ekleyin ya da havale ile ödeyin.",
 };
@@ -347,9 +348,10 @@ export const portalBillingText = {
     legal: "Yetki ve tapu",
     authorizationBasis: "Bahçe üzerindeki yetkiniz",
     authorizationValues: {
-      title_holder: "Tapu sahibiyim",
-      power_of_attorney: "Vekâletim var",
-      heir_declaration: "Mirasçıyım (veraset ilamı)",
+      title_holder:
+        "Tapu sahibiyim ya da hisseli tapuda paydaşım (kullandığım bölüm; rızai taksim dahil)",
+      power_of_attorney: "Malikin ya da paydaşların izniyle kullanıyorum (vekil, kiracı, ortakçı)",
+      heir_declaration: "Mirasçıyım (paylaşılmamış miras)",
     },
     deedBlock: "Ada",
     deedParcel: "Parsel",
@@ -357,9 +359,10 @@ export const portalBillingText = {
     sharedDeed: "Hisseli tapu mu?",
     usedPortion: "Kullandığınız bölüm",
     access: "Erişim",
-    entryPermission: "Ekibimizin ziyaret günlerinde bahçeye girmesine izin veriyorum.",
+    entryPermission:
+      "Bu bahçeyi seçtiğim dayanakla fiilen kullanıyorum. Ekibinizin envanter ve ziyaretler için bahçeye girmesine izin veriyorum ve buna yetkiliyim.",
     accessNote: "Erişim notu",
-    accessNoteHint: "Yol tarifi, kapı, anahtar gibi bilgiler.",
+    accessNoteHint: "Yol tarifi, kapı, anahtar gibi bilgiler. Gerekmedikçe kişi bilgisi yazmayın.",
     siteContactName: "Bahçedeki kişi",
     siteContactPhone: "Bahçedeki kişinin telefonu",
     privacy: "Tapu, erişim ve bahçedeki kişi bilgileri yalnızca operasyon ekibimizce görülür.",
@@ -397,20 +400,21 @@ export const portalBillingText = {
     billingFill: "Fatura bilgilerini girin",
     kvkkTitle: "Aydınlatma metni",
     kvkkBody:
-      "Kişisel verilerinizin nasıl işlendiğini anlatan aydınlatma metnini okuduğunuza dair bir kaydımız yok. Teklifi kabul etmeden önce onaylayın.",
+      "Kişisel verilerinizin nasıl işlendiğini anlatan aydınlatma metnini okuduğunuza dair bir kaydımız yok. Teklifi kabul etmeden önce metni okuyup kaydedin.",
     kvkkLink: "Aydınlatma metnini okuyun",
     kvkkCheck: "KVKK aydınlatma metnini okudum.",
-    kvkkSubmit: "Onayla",
+    kvkkSubmit: "Kaydet",
     kvkkOtherOrg:
-      "Bu teklif için aydınlatma metni onayınız kayıtlı değil ve buradan kaydedilemiyor. Lütfen bizimle iletişime geçin.",
+      "Bu teklif için aydınlatma metnini okuduğunuza dair kayıt yok ve buradan kaydedilemiyor. Lütfen bizimle iletişime geçin.",
     acceptTitle: "Kabul",
     preInformation: "Ön Bilgilendirme Formu",
     distanceSales: "Mesafeli Hizmet Sözleşmesi",
     preInformationCheck: "Ön Bilgilendirme Formu'nu okudum ve onaylıyorum.",
     distanceSalesCheck: "Mesafeli Hizmet Sözleşmesi'ni okudum ve kabul ediyorum.",
     version: (v: string) => `sürüm ${v}`,
-    accept: "Teklifi kabul et",
-    acceptHint: "Kabulden sonra siparişiniz açılır ve ödeme adımına geçersiniz.",
+    accept: "Teklifi kabul et (ödeme yükümlülüğü doğar)",
+    acceptHint:
+      "Kabulle sözleşme kurulur ve ödeme adımına geçersiniz. Ödeme süresi içinde ödemezseniz siparişi iptal edebilir ya da ödeme sürenizi uzatabiliriz; sizden bir bedel istenmez.",
     declineTitle: "Değişiklik ya da ret",
     revisionNote: "Ne değişsin?",
     revisionHint: "Ör. bir bahçenin alanı, paket ya da başlangıç tarihi.",
@@ -463,7 +467,7 @@ export const portalBillingText = {
     cardInProgressLink: "Ödemenin durumunu görün",
     transferTitle: "Havale / EFT",
     transferBody:
-      "Aşağıdaki hesaba gönderin ve açıklamaya referansı mutlaka yazın. Ödemeniz ekibimizce kaydedildiğinde sipariş aktifleşir; kısmi ödeme kabul edilir.",
+      "Aşağıdaki hesaba gönderin ve açıklamaya referansı mutlaka yazın. Ödemeniz ekibimizce kaydedildiğinde sipariş aktifleşir; kısmi ödeme kabul edilir. Bankanızın alabileceği gönderim ücreti size aittir; Şirket ek ücret almaz.",
     bank: "Banka",
     iban: "IBAN",
     holder: "Alıcı",
@@ -540,6 +544,7 @@ export const portalBillingText = {
       string,
       string
     >,
+    preferenceHint: "WhatsApp seçseniz de mesajlar şimdilik SMS olarak gönderilir.",
     billingTitle: "Fatura bilgileri",
     billingNone: "Fatura bilgileriniz henüz yok.",
     billingEdit: "Düzenle",
@@ -578,7 +583,10 @@ export const portalBillingText = {
 
   consents: {
     title: "İzinler",
-    lead: "Açık rızalarınızı istediğiniz zaman verebilir ya da geri alabilirsiniz. Geri almak, o ana kadarki işlemleri etkilemez.",
+    lead: "İsteğe bağlı izinlerinizi istediğiniz zaman verebilir ya da geri alabilirsiniz. Geri almak, o ana kadarki işlemleri etkilemez.",
+    noneAsked:
+      "Şu anda sorduğumuz isteğe bağlı bir izin yok. Tanıtım iletileri için onay, İleti Yönetim Sistemi (İYS) kaydımız tamamlandıktan sonra sorulacak; o zamana kadar size tanıtım iletisi gönderilmez.",
+    noLongerAsked: "Bu izin artık sorulmuyor ve kullanılmıyor; isterseniz geri alabilirsiniz.",
     explicitLink: "Açık rıza metni",
     kvkkLink: "Aydınlatma metni",
     granted: "Verildi",
@@ -590,6 +598,6 @@ export const portalBillingText = {
     kvkkMissing: "Aydınlatma metnini okuduğunuza dair kaydımız yok.",
     kvkkDone: (date: string, version: string) => `Okudunuz: ${date} (${version}).`,
     kvkkCheck: "KVKK aydınlatma metnini okudum.",
-    kvkkSubmit: "Onayla",
+    kvkkSubmit: "Kaydet",
   },
 } as const;

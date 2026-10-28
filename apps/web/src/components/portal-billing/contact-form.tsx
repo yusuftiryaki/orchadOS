@@ -41,7 +41,7 @@ export function ContactForm({
         <Field label={A.email} hint={A.emailHint} error={err("email")} optional>
           <input name="email" type="email" defaultValue={v("email")} autoComplete="email" />
         </Field>
-        <Field label={A.preference} error={err("contact_preference")}>
+        <Field label={A.preference} hint={A.preferenceHint} error={err("contact_preference")}>
           <select name="contact_preference" defaultValue={v("contact_preference")}>
             {CONTACT_PREFERENCES.map((c) => (
               <option key={c} value={c}>

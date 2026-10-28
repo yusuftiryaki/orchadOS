@@ -16,6 +16,7 @@ export const SITEMAP_PATHS = [
   "/mesafeli-satis",
   "/on-bilgilendirme",
   "/iade",
+  "/bahcede-bulunanlar",
 ] as const;
 
 // Empty unless the site may be indexed (ORCHADOS_SITE_INDEXABLE=1). /demo

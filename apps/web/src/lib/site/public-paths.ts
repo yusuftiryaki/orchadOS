@@ -14,6 +14,7 @@ const PUBLIC_PREFIXES = [
   "/mesafeli-satis",
   "/on-bilgilendirme",
   "/iade",
+  "/bahcede-bulunanlar",
   // The demo start page and its exit route (docs/demo-turu.md §11.1).
   "/demo",
   "/robots.txt",

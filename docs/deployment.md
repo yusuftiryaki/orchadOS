@@ -349,7 +349,7 @@ Ziyaretçinin ham IP'si ve tarayıcı bilgisi veritabanında yalnızca GoTrue ot
 | | Pro | 1 gün |
 | | Observability Plus ya da log drain | Daha uzun (eklentiye ya da hedefe göre) |
 
-Plan değişince (ör. demo projesi Pro'ya geçerse) süre de değişir; gizlilik metnindeki demo paragrafı (avukat onayı, demo-turu.md §16) buna göre yazılır. Log drain kurulursa ham IP o hedefte de saklanır; kurmadan önce gizlilik metni gözden geçirilir.
+Plan değişince (ör. demo projesi Pro'ya geçerse) süre de değişir; gizlilik metnindeki demo bölümü (`gizlilik-v2-taslak` §5, [hukuk/kararlar.md](hukuk/kararlar.md) H27) buna göre güncellenir. Log drain kurulursa ham IP o hedefte de saklanır; kurmadan önce gizlilik metni gözden geçirilir.
 
 ### Yayına alma sırası
 
@@ -403,7 +403,7 @@ Tasarım: [bahce-yonetimi.md](bahce-yonetimi.md) §2, §9.8, §15. Müşteri üy
 **Anahtar:** `org_billing_setting.garden_changes_enabled`, `/operasyon/ayarlar` sayfasından açılır ve kapanır. Varsayılan kapalıdır; yerel seed'de açıktır. Ayrı bir web bayrağı yoktur.
 - Kapalıyken `customer_request_garden_removal`, `ops_request_garden_removal` ve `ops_issue_addon_quote` `garden_changes_closed` döner, portal girişleri ("Bahçe ekle", "Bahçeyi hizmetten çıkar") gizlenir.
 - Açılmış kayıtlar anahtar kapalıyken de işler.
-- **Barındırılan projelerde (test, pilot) avukat metinleri onaylayana kadar kapalı kalır:** sözleşme `mesafeli-v2-taslak`, iade politikası `iade-v2-taslak`, ön bilgilendirme `onbilgi-v2-taslak`; sorular [hukuk/README.md](hukuk/README.md) 15–22. Fiyat kararları da beklenir (en az ücretin orantılanması, `addon_min_days`, bildirim ve erişim süreleri, iade modu; [bahce-yonetimi.md](bahce-yonetimi.md) §16, §19). Test projesinde yalnızca duman testi süresince açılır.
+- **Barındırılan projelerde (test, pilot) [yayın şartları](hukuk/kararlar.md#yayin) ile T05 (çıkarma akışı) ve T18 (ek teklif dökümü) üretime girene kadar kapalı kalır:** sözleşme `mesafeli-v3-taslak`, iade politikası `iade-v3-taslak`, ön bilgilendirme `onbilgi-v3-taslak`. Avukat soruları (hukuk/README.md 15–22) [hukuk/kararlar.md](hukuk/kararlar.md)'de karara bağlandı; kararlar metinlere girdi ama yayın şartları bitmeden metinler taslaktır. Fiyat kararları da beklenir (en az ücretin orantılanması, `addon_min_days`, bildirim ve erişim süreleri, iade modu; [bahce-yonetimi.md](bahce-yonetimi.md) §16, §19). Test projesinde yalnızca duman testi süresince açılır.
 
 Aynı sayfadaki diğer ayarlar: `addon_min_days` (30; son ek günü), `removal_notice_days` (30), `removal_access_days` (90), `removal_refund_mode` (`unused_visits` ya da `manual`).
 
