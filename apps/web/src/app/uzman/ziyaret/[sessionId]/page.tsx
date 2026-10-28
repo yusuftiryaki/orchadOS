@@ -30,16 +30,12 @@ export default async function Page({
     ctx.trees.find((tree) => tree.id === query.agac) ??
     ctx.trees.find((tree) => matchesFilter(tree, filter)) ??
     null;
-  const detail = selected
-    ? await loadTreeDetail(
-        supabase,
-        ctx,
-        selected.id,
-        createMediaSigner(supabase, { scope: user.id }),
-      )
-    : null;
-
-  const followups = await listFollowups(supabase, { parcelIds: [ctx.session.parcelId] });
+  const [detail, followups] = await Promise.all([
+    selected
+      ? loadTreeDetail(supabase, ctx, selected.id, createMediaSigner(supabase, { scope: user.id }))
+      : null,
+    listFollowups(supabase, { parcelIds: [ctx.session.parcelId] }),
+  ]);
 
   const r = t.expert.review;
   let error: string | null = null;

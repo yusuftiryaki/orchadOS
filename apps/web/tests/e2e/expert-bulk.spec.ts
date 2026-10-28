@@ -60,7 +60,11 @@ test("bulk approval, publication, score and a question with its answer", async (
 
   // Bulk approval: 18 candidates, 1 sampled -> 17.
   const bulk = expert.getByTestId("bulk-approve");
+  // A dialog states how many trees the bulk approval approves.
   await bulk.getByRole("button", { name: "Kalanları toplu onayla (17 ağaç)" }).click();
+  const confirm = bulk.getByRole("dialog", { name: "Kalan ağaçları toplu onaylayın" });
+  await expect(confirm).toContainText("17 ağaç AI sonucuyla onaylanacak");
+  await confirm.getByRole("button", { name: "17 ağacı onayla" }).click();
   await expect(bulk.getByRole("status")).toHaveText("17 ağaç toplu onaylandı.");
   await expect(expert.getByTestId("review-progress")).toHaveText("24 ağaçtan 17 tanesi incelendi");
   await expect(expert.getByTestId("bulk-none")).toBeVisible();
@@ -81,7 +85,9 @@ test("bulk approval, publication, score and a question with its answer", async (
     const sampled = await expert.getByTestId("sample-note").count();
     if (noAi || sampled) {
       const correction = expert.getByTestId("correction-form");
-      await correction.getByLabel(sampled ? "Dikkat (2)" : "Sağlıklı (1)").check();
+      await correction
+        .getByRole("radio", { name: sampled ? "Dikkat" : "Sağlıklı", exact: true })
+        .check();
       await correction.getByLabel("Kuru dal").selectOption(sampled ? "2" : "0");
       await correction.getByRole("button", { name: "Düzeltmeyi kaydet" }).click();
     } else {
@@ -101,7 +107,7 @@ test("bulk approval, publication, score and a question with its answer", async (
   await expect(expert.getByTestId("review-progress")).toHaveText("24 ağaçtan 24 tanesi incelendi");
 
   // Summary: one by one vs. bulk, sample disagreement; sign and publish.
-  await expert.getByRole("link", { name: "Özet ve imza →" }).click();
+  await expert.getByRole("link", { name: "Özet ve imza" }).click();
   await expect(expert.getByTestId("count-individually")).toHaveText("7");
   await expect(expert.getByTestId("count-bulk")).toHaveText("17");
   await expect(expert.getByTestId("sample-count")).toContainText("1 ağaçtan 1 tanesine bakıldı");

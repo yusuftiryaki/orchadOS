@@ -1,4 +1,6 @@
 import { saveFindingAction } from "@/app/uzman/actions";
+import { Button } from "@/components/ui/button";
+import { Field, Select, Textarea } from "@/components/ui/field";
 import { FINDING_KINDS, SEVERITIES } from "@/lib/expert/findings";
 import type { Crop, ReviewFinding } from "@/lib/expert/review";
 import { t } from "@/lib/i18n";
@@ -25,6 +27,7 @@ export function FindingForm({
   // Keep an unknown stored kind selectable when editing.
   const kinds: string[] = [...FINDING_KINDS];
   if (finding && !kinds.includes(finding.kind)) kinds.push(finding.kind);
+  const id = `finding-${finding?.id ?? `new-${treeId ?? "parcel"}`}`;
 
   return (
     <form action={saveFindingAction} className={styles.form} data-testid="finding-form">
@@ -32,38 +35,34 @@ export function FindingForm({
       <input type="hidden" name="treeId" value={treeId ?? ""} />
       <input type="hidden" name="findingId" value={finding?.id ?? ""} />
       <input type="hidden" name="return" value={returnPath} />
-      <div className={styles.inline}>
-        <label className={styles.field}>
-          {f.kind}
-          <select name="kind" defaultValue={finding?.kind ?? kinds[0]} required>
+      <div className={styles.pair}>
+        <Field id={`${id}-kind`} label={f.kind}>
+          <Select name="kind" defaultValue={finding?.kind ?? kinds[0]} required>
             {kinds.map((k) => (
               <option key={k} value={k}>
                 {f.kinds[k] ?? k}
               </option>
             ))}
-          </select>
-        </label>
-        <label className={styles.field}>
-          {f.severity}
-          <select name="severity" defaultValue={finding?.severity ?? "medium"} required>
+          </Select>
+        </Field>
+        <Field id={`${id}-severity`} label={f.severity}>
+          <Select name="severity" defaultValue={finding?.severity ?? "medium"} required>
             {SEVERITIES.map((s) => (
               <option key={s} value={s}>
                 {f.severities[s]}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       </div>
-      <label className={styles.field}>
-        {f.description}
-        <textarea name="description" rows={2} required defaultValue={finding?.description} />
-      </label>
-      <label className={styles.field}>
-        {f.recommendation}
-        <textarea name="recommendation" rows={2} defaultValue={finding?.recommendation ?? ""} />
-      </label>
+      <Field id={`${id}-description`} label={f.description}>
+        <Textarea name="description" rows={2} required defaultValue={finding?.description} />
+      </Field>
+      <Field id={`${id}-recommendation`} label={f.recommendation}>
+        <Textarea name="recommendation" rows={2} defaultValue={finding?.recommendation ?? ""} />
+      </Field>
       {evidenceOptions.length > 0 && (
-        <fieldset className={styles.classes}>
+        <fieldset className={styles.checks}>
           <input type="hidden" name="evidenceEditable" value="1" />
           <legend>{f.evidence}</legend>
           {evidenceOptions.map((crop) => (
@@ -80,9 +79,9 @@ export function FindingForm({
         </fieldset>
       )}
       <div>
-        <button className="button" type="submit">
+        <Button variant="secondary" type="submit">
           {submitLabel}
-        </button>
+        </Button>
       </div>
     </form>
   );
