@@ -15,6 +15,7 @@ const TONES: Record<string, BadgeTone> = {
   active_monitoring: "success",
   in_service: "success",
   inventory_done: "success",
+  answered: "success",
   // waits on someone else or on money
   awaiting_payment: "warning",
   requested: "warning",
@@ -29,6 +30,7 @@ const TONES: Record<string, BadgeTone> = {
   scheduled: "info",
   planned: "info",
   processing: "info",
+  in_progress: "info",
   initiated: "info",
   upcoming: "info",
   inventory_planned: "info",

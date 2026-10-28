@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   createDraftAction,
@@ -7,17 +6,15 @@ import {
   saveDraftAction,
 } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
-import {
-  Badge,
-  BoResultNotice,
-  Facts,
-  Submit,
-  day,
-  money,
-  when,
-} from "@/components/back-office/parts";
+import { Badge, BoResultNotice, Facts, day, money, when } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
 import styles from "@/components/operations/operations.module.css";
+import { opsCell, Panel, Split } from "@/components/operations/ops-ui";
+import { Badge as UiBadge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
+import { Table, cell } from "@/components/ui/table";
 import { requireSection } from "@/lib/auth/session";
 import { getPriceList } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
@@ -26,6 +23,7 @@ import { formatKurus } from "@/lib/billing/money";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { createClient } from "@/lib/supabase/server";
+import prices from "../../prices.module.css";
 
 const B = backOfficeText;
 const T = B.prices;
@@ -35,7 +33,8 @@ const tl = (kurus: number | null | undefined) =>
   kurus == null ? "" : formatKurus(kurus).replace(/\s*₺$/, "");
 
 // A price list: a draft is edited, published or deleted; a published list is
-// read only and can be copied into a new draft.
+// read only and can be copied into a new draft. Publishing cannot be undone,
+// so its panel says what happens and asks for a confirmation.
 export default async function Page({
   params,
   searchParams,
@@ -46,7 +45,7 @@ export default async function Page({
   await requireSection("operasyon");
   const { id } = await params;
   const supabase = await createClient();
-  const view = await getPriceList(supabase, id);
+  const [view, query] = await Promise.all([getPriceList(supabase, id), searchParams]);
   if (!view) notFound();
   const { list: l, items, packages } = view;
   const byPackage = new Map(items.map((i) => [i.package_id, i]));
@@ -54,50 +53,42 @@ export default async function Page({
 
   return (
     <main className="page">
-      <p>
-        <Link href={boHref.prices(undefined, l.org_id)}>← {T.title}</Link>
-      </p>
-      <h1>{T.listTitle(l.version)}</h1>
-      <BoResultNotice params={await searchParams} />
-      <Facts
-        testId="price-list-facts"
-        rows={[
-          [T.status, <Badge key="s" labels={billingText.priceListStatus} value={l.status} />],
-          [T.validFrom, day(l.valid_from)],
-          [T.vat, `%${bpToPercent(l.vat_rate_bp)}`],
-          [T.publishedAt, when(l.published_at)],
-        ]}
+      <PageHeader
+        back={{ href: boHref.prices(undefined, l.org_id), label: T.title }}
+        title={T.listTitle(l.version)}
+        meta={<Badge labels={billingText.priceListStatus} value={l.status} />}
+        lead={draft ? T.draftHint : T.readOnly}
       />
+      <BoResultNotice params={query} />
 
       {draft ? (
         <>
-          <p className="muted">{T.draftHint}</p>
-          <ActionForm action={saveDraftAction} testId="price-list-draft">
-            <input type="hidden" name="price_list_id" value={l.id} />
-            <div className={styles.grid}>
-              <Field label={T.validFrom}>
-                <input type="date" name="valid_from" defaultValue={l.valid_from ?? ""} />
-              </Field>
-              <Field label={T.vatPercent}>
-                <input
-                  name="vat_percent"
-                  inputMode="decimal"
-                  defaultValue={bpToPercent(l.vat_rate_bp)}
-                  required
-                />
-              </Field>
-              <Field label={T.note} optional wide>
-                <input name="note" defaultValue={l.note ?? ""} maxLength={1000} />
-              </Field>
-            </div>
-            <div className={styles.tableWrap}>
-              <table className={styles.table}>
+          <Panel title={T.items}>
+            <ActionForm action={saveDraftAction} testId="price-list-draft">
+              <input type="hidden" name="price_list_id" value={l.id} />
+              <div className={styles.grid}>
+                <Field label={T.validFrom}>
+                  <input type="date" name="valid_from" defaultValue={l.valid_from ?? ""} />
+                </Field>
+                <Field label={T.vatPercent}>
+                  <input
+                    name="vat_percent"
+                    inputMode="decimal"
+                    defaultValue={bpToPercent(l.vat_rate_bp)}
+                    required
+                  />
+                </Field>
+                <Field label={T.note} optional wide>
+                  <input name="note" defaultValue={l.note ?? ""} maxLength={1000} />
+                </Field>
+              </div>
+              <Table>
                 <thead>
                   <tr>
                     <th>{T.name}</th>
-                    <th>{T.unitPrice}</th>
-                    <th>{T.minimumFee}</th>
-                    <th>{T.inventoryFee}</th>
+                    <th className={cell.num}>{T.unitPrice}</th>
+                    <th className={cell.num}>{T.minimumFee}</th>
+                    <th className={cell.num}>{T.inventoryFee}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -107,27 +98,32 @@ export default async function Page({
                       <tr key={p.id} data-package-code={p.code}>
                         <td>
                           <input type="hidden" name="package_ids" value={p.id} />
-                          {p.name}
-                          {!p.active && <span className="muted"> · {T.passive}</span>}
+                          <span className={prices.badges}>
+                            <span className={opsCell.nowrap}>{p.name}</span>
+                            {!p.active && <UiBadge>{T.passive}</UiBadge>}
+                          </span>
                         </td>
-                        <td>
+                        <td className={cell.num}>
                           <input
+                            className={prices.priceInput}
                             name={`unit_${p.id}`}
                             aria-label={`${p.name}: ${T.unitPrice}`}
                             inputMode="decimal"
                             defaultValue={tl(item?.unit_price_kurus)}
                           />
                         </td>
-                        <td>
+                        <td className={cell.num}>
                           <input
+                            className={prices.priceInput}
                             name={`min_${p.id}`}
                             aria-label={`${p.name}: ${T.minimumFee}`}
                             inputMode="decimal"
                             defaultValue={tl(item?.minimum_fee_kurus)}
                           />
                         </td>
-                        <td>
+                        <td className={cell.num}>
                           <input
+                            className={prices.priceInput}
                             name={`inv_${p.id}`}
                             aria-label={`${p.name}: ${T.inventoryFee}`}
                             inputMode="decimal"
@@ -138,49 +134,76 @@ export default async function Page({
                     );
                   })}
                 </tbody>
-              </table>
-            </div>
-            <div className={styles.actions}>
-              <Submit>{T.saveDraft}</Submit>
-            </div>
-          </ActionForm>
-          <div className={styles.columns}>
-            <section className={styles.section}>
-              <h2>{T.publish}</h2>
+              </Table>
+              <div className={styles.actions}>
+                <Button type="submit" variant="secondary">
+                  {T.saveDraft}
+                </Button>
+              </div>
+            </ActionForm>
+          </Panel>
+          <div className={prices.finish}>
+            <Panel title={T.publishTitle} testId="publish-panel">
+              <p className={prices.consequence}>
+                {l.valid_from ? T.publishFrom(day(l.valid_from)) : T.publishNoDate}
+              </p>
+              <p className={prices.consequence}>{T.publishConsequence}</p>
               <ActionForm action={publishDraftAction} testId="publish-form">
                 <input type="hidden" name="price_list_id" value={l.id} />
-                <label className={styles.check}>
-                  <input type="checkbox" name="confirm" required />
-                  {T.publishConfirm}
-                </label>
+                <Checkbox id="publish-confirm" name="confirm" required label={T.publishConfirm} />
                 <div className={styles.actions}>
-                  <Submit>{T.publish}</Submit>
+                  <Button type="submit">{T.publish}</Button>
                 </div>
               </ActionForm>
-            </section>
-            <section className={styles.section}>
-              <h2>{T.deleteDraft}</h2>
+            </Panel>
+            <Panel title={T.deleteDraft} headingLevel={2}>
+              <p className={prices.consequence}>{T.deleteConsequence}</p>
               <ActionForm action={deleteDraftAction} testId="delete-draft-form">
                 <input type="hidden" name="price_list_id" value={l.id} />
                 <input type="hidden" name="org_id" value={l.org_id} />
                 <div className={styles.actions}>
-                  <Submit secondary>{T.deleteDraft}</Submit>
+                  <Button type="submit" variant="danger">
+                    {T.deleteDraft}
+                  </Button>
                 </div>
               </ActionForm>
-            </section>
+            </Panel>
           </div>
         </>
       ) : (
         <>
-          <p className="muted">{T.readOnly}</p>
-          <div className={styles.tableWrap}>
-            <table className={styles.table} data-testid="price-list-items">
+          <Split
+            aside={
+              <Panel title={T.newVersion}>
+                <p className={prices.consequence}>{T.copyHint}</p>
+                <ActionForm action={createDraftAction} inline testId="copy-to-draft">
+                  <input type="hidden" name="org_id" value={l.org_id} />
+                  <input type="hidden" name="copy_from_id" value={l.id} />
+                  <Button type="submit">{T.copyToDraft}</Button>
+                </ActionForm>
+              </Panel>
+            }
+          >
+            <Panel title={T.details}>
+              <Facts
+                testId="price-list-facts"
+                rows={[
+                  [T.validFrom, day(l.valid_from)],
+                  [T.vat, `%${bpToPercent(l.vat_rate_bp)}`],
+                  [T.publishedAt, when(l.published_at)],
+                  [T.note, l.note ?? B.none],
+                ]}
+              />
+            </Panel>
+          </Split>
+          <Panel plain title={T.items}>
+            <Table data-testid="price-list-items">
               <thead>
                 <tr>
                   <th>{T.name}</th>
-                  <th className={styles.number}>{T.unitPrice}</th>
-                  <th className={styles.number}>{T.minimumFee}</th>
-                  <th className={styles.number}>{T.inventoryFee}</th>
+                  <th className={cell.num}>{T.unitPrice}</th>
+                  <th className={cell.num}>{T.minimumFee}</th>
+                  <th className={cell.num}>{T.inventoryFee}</th>
                 </tr>
               </thead>
               <tbody>
@@ -188,21 +211,22 @@ export default async function Page({
                   const p = packages.find((x) => x.id === i.package_id);
                   return (
                     <tr key={i.id}>
-                      <td>{p?.name ?? T.packageMissing}</td>
-                      <td className={styles.number}>{money(i.unit_price_kurus)}</td>
-                      <td className={styles.number}>{money(i.minimum_fee_kurus)}</td>
-                      <td className={styles.number}>{money(i.inventory_fee_kurus)}</td>
+                      <td className={opsCell.nowrap}>{p?.name ?? T.packageMissing}</td>
+                      <td className={`${cell.num} ${opsCell.nowrap}`}>
+                        {money(i.unit_price_kurus)}
+                      </td>
+                      <td className={`${cell.num} ${opsCell.nowrap}`}>
+                        {money(i.minimum_fee_kurus)}
+                      </td>
+                      <td className={`${cell.num} ${opsCell.nowrap}`}>
+                        {money(i.inventory_fee_kurus)}
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
-          </div>
-          <ActionForm action={createDraftAction} inline testId="copy-to-draft">
-            <input type="hidden" name="org_id" value={l.org_id} />
-            <input type="hidden" name="copy_from_id" value={l.id} />
-            <Submit>{T.copyToDraft}</Submit>
-          </ActionForm>
+            </Table>
+          </Panel>
         </>
       )}
     </main>

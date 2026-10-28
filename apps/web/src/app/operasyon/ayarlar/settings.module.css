@@ -1,0 +1,56 @@
+/* Billing settings (/operasyon/ayarlar): each group of the one form is a
+   fieldset drawn as a panel, its legend the group's heading. Tokens only. */
+
+.group {
+  margin: 0;
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* A floated legend sits inside the box instead of on its border. */
+.legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+}
+
+.legend + * {
+  clear: both;
+}
+
+.groupHint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-2);
+  max-width: var(--measure);
+}
+
+.saveBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.readOnlyValue {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.readOnlyValue .muted {
+  font-size: var(--text-sm);
+}
