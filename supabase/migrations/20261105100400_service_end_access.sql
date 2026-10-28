@@ -429,10 +429,13 @@ from public.garden_removal r
 where r.status = 'completed'
 on conflict (garden_removal_id) do nothing;
 
--- At the end of an access window (access_revoked_at set), when no line serves
--- the parcel any more: the field contact's phone is cleared (H25: "Erişim
--- sonunda saha kişisi telefonunun silinmesi"); the name stays. The
--- customer's application copies of the garden too.
+-- At the end of an access window (access_revoked_at set on or after
+-- access_until), when no line serves the parcel and no order of the customer
+-- that holds it is active or awaiting payment (a renewal being activated
+-- closes the window first): the field contact's phone is cleared (H25:
+-- "Erişim sonunda saha kişisi telefonunun silinmesi"); the name stays. The
+-- customer's application copies of the garden too. A window closed early
+-- (resumed: re-added, renewed, pilot active again) clears nothing.
 create function private.clear_site_contact_phone()
 returns trigger
 language plpgsql
@@ -444,7 +447,14 @@ declare
   v_application integer := 0;
 begin
   if old.access_revoked_at is not null or new.access_revoked_at is null
-     or private.parcel_served_on(new.parcel_id, private.istanbul_today()) then
+     or new.access_until > private.istanbul_today()
+     or private.parcel_served_on(new.parcel_id, private.istanbul_today())
+     or exists (
+       select 1 from public.service_order_item oi
+       join public.service_order o on o.id = oi.order_id
+       where oi.parcel_id = new.parcel_id and o.customer_user_id = new.customer_user_id
+         and (o.status = 'awaiting_payment' or (o.status = 'active' and o.service_end >= private.istanbul_today()))
+         and oi.removed_on is null) then
     return null;
   end if;
   update private.parcel_detail set site_contact_phone = null, updated_at = now()

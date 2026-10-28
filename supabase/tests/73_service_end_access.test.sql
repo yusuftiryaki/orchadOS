@@ -11,7 +11,7 @@
 -- parcel c0..01 (no order, field contact "Örnek Bekçi"). One transaction.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(25);
 
 select testing.reset_to_seed();
 select testing.use_round_prices();
@@ -190,7 +190,8 @@ select private.garden_removal_housekeeping();
 select is((select count(*)::integer from public.notification where template = 'garden_access_ending'
            and recipient_user_id = pg_temp.id('c1')), 0, 'no access-ending message 90 days ahead');
 
--- A renewal paid in the window reopens access.
+-- A renewal paid in the window reopens access (and keeps the field contact's phone).
+update private.parcel_detail set site_contact_phone = '+905550007309' where parcel_id = pg_temp.id('p1');
 select pg_temp.ops();
 insert into ids select 'q1', public.ops_issue_parcel_quote('b0000000-0000-4000-8000-000000000001', pg_temp.id('c1'),
   '91200000-0000-4000-8000-000000000001', array[pg_temp.id('p1')], false, null, pg_temp.id('o1'));
@@ -203,6 +204,8 @@ select results_eq(
             (select status::text from public.parcel where id = pg_temp.id('p1')) <> 'passive',
             exists (select 1 from public.parcel_access where parcel_id = pg_temp.id('p1') and user_id = pg_temp.id('c1')) $$,
   $$ values (true, false, true, true) $$, 'renewal paid in the window: access fully open again');
+select is((select site_contact_phone from private.parcel_detail where parcel_id = pg_temp.id('p1')), '+905550007309',
+  'a window closed by the renewal clears no phone');
 
 -- 3. Terminated order -------------------------------------------------------------------
 
