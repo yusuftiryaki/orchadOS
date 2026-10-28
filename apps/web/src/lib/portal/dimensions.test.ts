@@ -12,10 +12,8 @@ import {
 } from "./dimensions";
 import {
   changedTrees,
-  compareGpsTime,
   coverageState,
   stateInVisit,
-  traceSegments,
   type MapVisit,
 } from "./map-layers";
 import type { MeasurementRow, MetricDef } from "./metrics";
@@ -309,18 +307,4 @@ describe("map layers", () => {
     expect([0, 1, 2, 4].map(coverageState)).toEqual(["none", "partial", "covered", "covered"]);
   });
 
-  it("orders panoramas by GPS time and splits the trace at jumps", () => {
-    expect(compareGpsTime("999", "1000")).toBeLessThan(0);
-    expect(compareGpsTime(null, "1")).toBeGreaterThan(0);
-    const segments = traceSegments([
-      { position: at(0, 10), gpsTimeNs: "1003" },
-      { position: at(0, 0), gpsTimeNs: "1001" },
-      { position: at(0, 5), gpsTimeNs: "1002" },
-      { position: at(100, 100), gpsTimeNs: "1004" },
-      { position: at(100, 104), gpsTimeNs: "1005" },
-      { position: at(300, 300), gpsTimeNs: "1006" },
-    ]);
-    expect(segments.map((s) => s.length)).toEqual([3, 2]);
-    expect(segments[0][0]).toEqual(at(0, 0));
-  });
 });

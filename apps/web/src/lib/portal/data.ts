@@ -66,7 +66,8 @@ import {
   type StructureDimension,
 } from "./dimensions";
 import { gpsNsToIso, staffCode } from "./evidence";
-import { traceSegments, type MapVisit } from "./map-layers";
+import { visitApprover, type Approver } from "./approver";
+import type { MapVisit } from "./map-layers";
 import { sessionTime, sortVisitsNewestFirst, type VisitRow } from "./sessions";
 import { pairPanoramaVariants, type TourPanorama } from "./tour";
 
@@ -293,6 +294,8 @@ export interface ParcelReport {
   activeTreeCount: number;
   bounds: Bounds | null;
   latest: VisitSummary | null;
+  // The expert who approved the latest visit (H05); null in the demo or unknown.
+  approver?: Approver | null;
   previous: VisitSummary | null;
   change: { compared: number; worse: TreeChange[]; better: TreeChange[] } | null;
   // Score change against the visit the methodology compares with (null
@@ -310,14 +313,14 @@ export interface ParcelReport {
   // Assessed published visits, newest first: classes for the map's visit
   // selector and "changed in this visit".
   mapVisits: MapVisit[];
-  // Published visits with scan products: the trace and crop directions per tree.
+  // Published visits with scan products: crop directions per tree. No scan
+  // trace and no panorama times: owners never see the crew's path (H05, T23).
   coverage: Record<string, VisitCoverage>;
   // Report card dimensions of the latest visit.
   dimensions: ReportDimensions | null;
 }
 
 export interface VisitCoverage {
-  trace: Position[][];
   // Tree id -> number of directions with a crop.
   directions: Record<string, number>;
   panoramas: number;
@@ -532,7 +535,6 @@ export async function getParcelReport(
   const coverage: Record<string, VisitCoverage> = {};
   for (const [id, c] of coverageData) {
     coverage[id] = {
-      trace: c.trace,
       directions: Object.fromEntries([...c.directions].map(([tree, set]) => [tree, set.size])),
       panoramas: c.panoramas,
       closeUps: c.closeUps,
@@ -633,6 +635,7 @@ export async function getParcelReport(
     activeTreeCount: active.length,
     bounds: boundsOf(positions),
     latest,
+    approver: await visitApprover(supabase, latest?.id),
     previous,
     change,
     scoreChange: scores.change,
@@ -652,14 +655,13 @@ export async function getParcelReport(
   };
 }
 
-// Scan products of the given visits: the panorama trace (one point per frame;
-// full and preview rows of a frame share pose.gps_time_ns), crop directions
-// per tree, panorama and close-up counts.
+// Scan products of the given visits: crop directions per tree, panorama
+// frames (full and preview rows of a frame share pose.gps_time_ns) and
+// close-up counts. No trace (H05).
 async function visitCoverage(supabase: Client, visitIds: string[]) {
   const out = new Map<
     string,
     {
-      trace: Position[][];
       directions: Map<string, Set<string>>;
       panoramas: number;
       closeUps: number;
@@ -687,11 +689,11 @@ async function visitCoverage(supabase: Client, visitIds: string[]) {
         .range(from, to),
     ),
   ]);
-  const frames = new Map<string, Map<string, { position: Position; gpsTimeNs: string | null }>>();
+  const frames = new Map<string, Set<string>>();
   const entry = (id: string) => {
     let e = out.get(id);
     if (!e) {
-      e = { trace: [], directions: new Map(), panoramas: 0, closeUps: 0 };
+      e = { directions: new Map(), panoramas: 0, closeUps: 0 };
       out.set(id, e);
     }
     return e;
@@ -704,18 +706,16 @@ async function visitCoverage(supabase: Client, visitIds: string[]) {
       if (!dirs.has(a.tree_id)) dirs.set(a.tree_id, new Set());
       dirs.get(a.tree_id)!.add(pose.direction.toUpperCase());
     } else if (isPoint(a.position)) {
-      const position = cleanPoint(a.position).coordinates;
       const gps = typeof pose.gps_time_ns === "string" ? pose.gps_time_ns : null;
-      const key = gps ?? position.join(",");
-      const byFrame = frames.get(a.session_id) ?? new Map();
+      const key = gps ?? cleanPoint(a.position).coordinates.join(",");
+      const byFrame = frames.get(a.session_id) ?? new Set<string>();
       frames.set(a.session_id, byFrame);
-      byFrame.set(key, { position, gpsTimeNs: gps });
+      byFrame.add(key);
     }
   }
   for (const [id, byFrame] of frames) {
     const e = entry(id);
     e.panoramas = byFrame.size;
-    e.trace = traceSegments([...byFrame.values()]);
   }
   for (const c of captures) entry(c.session_id).closeUps += 1;
   return out;

@@ -772,13 +772,6 @@
   font-size: 14px;
 }
 
-.traceSwatch {
-  display: inline-block;
-  width: 18px;
-  height: 3px;
-  background: #1c7ed6;
-}
-
 @media print {
   .mapControls {
     display: none;

@@ -118,8 +118,8 @@ select throws_ok(
 
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000002');
 select results_eq(
-  $$ select count(*) from public.question $$, array[2::bigint],
-  'the viewer sees the questions of the parcel');
+  $$ select count(*) from public.question $$, array[0::bigint],
+  'the viewer does not see the owner''s questions (T23, H32)');
 select lives_ok(
   format($$ insert into public.question (id, parcel_id, tree_id, body)
      values ('ab000000-0000-4000-8000-000000000052', 'c0000000-0000-4000-8000-000000000001', %L, 'Hissedar sorusu') $$,

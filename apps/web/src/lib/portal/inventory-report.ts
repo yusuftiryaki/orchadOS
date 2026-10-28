@@ -7,6 +7,7 @@ import {
 } from "@/lib/office/inventory-workspace";
 import { fetchAll } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
+import { visitApprover, type Approver } from "./approver";
 
 // Inventory report for the owner (docs/metodoloji.md section 9, "Envanter
 // raporu"; contents from the expert agent's proposal of 27 October 2026,
@@ -57,7 +58,13 @@ export interface InventoryReport {
     estimatedAreaM2: number | null;
   };
   // The approved inventory visit; null while the expert has not approved it.
-  inventory: { sessionId: string; date: string | null; approvedAt: string | null } | null;
+  inventory: {
+    sessionId: string;
+    date: string | null;
+    approvedAt: string | null;
+    // The approving expert (H05); null in the demo or unknown.
+    approver?: Approver | null;
+  } | null;
   boundary: {
     version: number;
     areaM2: number | null;
@@ -395,6 +402,7 @@ export async function loadInventoryReport(
           sessionId: session.id,
           date: session.startedAt ?? session.plannedDate ?? null,
           approvedAt: session.publishedAt,
+          approver: await visitApprover(supabase, session.id),
         }
       : null,
     boundary: newest

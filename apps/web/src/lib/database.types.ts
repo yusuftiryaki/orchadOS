@@ -1740,6 +1740,8 @@ export type Database = {
           address: string | null;
           allow_fake_payments: boolean;
           bank_name: string | null;
+          boundary_declaration_required: boolean;
+          coowner_notice_flow_enabled: boolean;
           created_at: string;
           email: string | null;
           garden_changes_enabled: boolean;
@@ -1749,6 +1751,7 @@ export type Database = {
           inventory_reuse_months: number;
           kep_address: string | null;
           kvkk_email: string | null;
+          kvkk_request_form_enabled: boolean;
           legal_gate_enforced: boolean;
           legal_name: string | null;
           marketing_consent_enabled: boolean;
@@ -1774,6 +1777,8 @@ export type Database = {
           address?: string | null;
           allow_fake_payments?: boolean;
           bank_name?: string | null;
+          boundary_declaration_required?: boolean;
+          coowner_notice_flow_enabled?: boolean;
           created_at?: string;
           email?: string | null;
           garden_changes_enabled?: boolean;
@@ -1783,6 +1788,7 @@ export type Database = {
           inventory_reuse_months?: number;
           kep_address?: string | null;
           kvkk_email?: string | null;
+          kvkk_request_form_enabled?: boolean;
           legal_gate_enforced?: boolean;
           legal_name?: string | null;
           marketing_consent_enabled?: boolean;
@@ -1807,6 +1813,8 @@ export type Database = {
           address?: string | null;
           allow_fake_payments?: boolean;
           bank_name?: string | null;
+          boundary_declaration_required?: boolean;
+          coowner_notice_flow_enabled?: boolean;
           created_at?: string;
           email?: string | null;
           garden_changes_enabled?: boolean;
@@ -1816,6 +1824,7 @@ export type Database = {
           inventory_reuse_months?: number;
           kep_address?: string | null;
           kvkk_email?: string | null;
+          kvkk_request_form_enabled?: boolean;
           legal_gate_enforced?: boolean;
           legal_name?: string | null;
           marketing_consent_enabled?: boolean;
@@ -4434,6 +4443,8 @@ export type Database = {
           address: string | null;
           allow_fake_payments: boolean;
           bank_name: string | null;
+          boundary_declaration_required: boolean;
+          coowner_notice_flow_enabled: boolean;
           created_at: string;
           email: string | null;
           garden_changes_enabled: boolean;
@@ -4443,6 +4454,7 @@ export type Database = {
           inventory_reuse_months: number;
           kep_address: string | null;
           kvkk_email: string | null;
+          kvkk_request_form_enabled: boolean;
           legal_gate_enforced: boolean;
           legal_name: string | null;
           marketing_consent_enabled: boolean;
@@ -5129,6 +5141,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_save_staff_profile: {
+        Args: { p_full_name: string; p_org_id: string; p_title: string; p_user_id: string };
+        Returns: undefined;
+      };
       ops_schedule_garden_removal: {
         Args: {
           p_access_days?: number;
@@ -5142,6 +5158,17 @@ export type Database = {
       ops_set_parcel_passive: {
         Args: { p_parcel_id: string; p_passive: boolean };
         Returns: Database["public"]["Enums"]["parcel_status"];
+      };
+      ops_staff: {
+        Args: { p_org_id: string };
+        Returns: {
+          email: string;
+          full_name: string;
+          roles: string[];
+          title: string;
+          updated_at: string;
+          user_id: string;
+        }[];
       };
       ops_terminate_order: { Args: { p_note: string; p_order_id: string }; Returns: undefined };
       ops_update_owner_profile: {
@@ -5526,6 +5553,7 @@ export type Database = {
         Args: { p_email_hash: string; p_ip_hash: string; p_phone_hash: string };
         Returns: string;
       };
+      visit_approver: { Args: { p_session_id: string }; Returns: Json };
       waive_coverage: {
         Args: { p_note: string; p_session_id: string };
         Returns: {

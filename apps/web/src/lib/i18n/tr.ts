@@ -1027,8 +1027,9 @@ export const tr = {
     questions: {
       title: "Sorular",
       treeHint:
-        "Bu ağaç ya da bulguları hakkında uzmana soru sorabilirsiniz. Uzman cevaplayınca burada görünür.",
-      parcelHint: "Bahçenin sorulan soruları. Bir ağaç hakkında sormak için ağaç karnesini açın.",
+        "Bu ağaç ya da bulguları hakkında uzmana soru sorabilirsiniz. Uzman cevaplayınca burada görünür. Sorularınızı yalnızca siz ve uzman görürsünüz; bahçenin diğer sahipleri ve hissedarları görmez.",
+      parcelHint:
+        "Bu bahçede sorduğunuz sorular. Diğer sahiplerin ve hissedarların soruları size, sizinkiler onlara görünmez. Bir ağaç hakkında sormak için ağaç karnesini açın.",
       empty: "Henüz soru yok.",
       ask: "Soru sor",
       askParcel: "Bahçe geneli bir bulguya soru sor",
@@ -1195,7 +1196,6 @@ export const tr = {
         none: "Görüntü yok",
       },
       coverageNone: "Bu ziyarette tarama izi yok.",
-      trace: "Tarama izi",
     },
     dimensions: {
       title: "Boyut boyut",
@@ -1779,6 +1779,43 @@ export const tr = {
       provider_unreachable: "Sağlayıcıya ulaşılamadı",
     } as Record<string, string>,
     providerError: (code: string) => `Sağlayıcı hatası (${code})`,
+  },
+  // Legal follow-ups, wave 2 (docs/hukuk/kararlar.md T23, T20, T16, T15, T11).
+  legal: {
+    notices: {
+      staff_saved: "Personel bilgisi kaydedildi.",
+      media_hidden: "Görüntü gizlendi. Sahip, hissedar ve uzman artık görmez.",
+      media_unhidden: "Gizleme kaldırıldı.",
+      dispute_opened: "Sınır itirazı açıldı; yeni tarama ziyareti planlanamaz.",
+      dispute_closed: "Sınır itirazı kapatıldı.",
+      kvkk_updated: "Başvuru güncellendi.",
+    } as Record<string, string>,
+    errors: {
+      forbidden: "Bu işlem için yetkiniz yok.",
+      not_found: "Kayıt bulunamadı.",
+      invalid_input: "Bilgiler eksik ya da hatalı.",
+      demo_read_only: "Demoda değişiklik yapılamaz.",
+      already_hidden: "Bu görüntü zaten gizli.",
+      not_hidden: "Bu görüntü gizli değil.",
+      dispute_open: "Bu bahçede zaten açık bir sınır itirazı var.",
+      no_open_dispute: "Bu bahçede açık bir sınır itirazı yok.",
+      failed: "İşlem tamamlanamadı. Tekrar deneyin.",
+    } as Record<string, string>,
+    staff: {
+      nav: "Personel",
+      title: "Personel",
+      hint: "Raporu onaylayan uzmanın adı ve unvanı sahip portalındaki raporda ve PDF'lerde gösterilir (demo hariç). Unvan girilmezse yalnızca ad görünür.",
+      email: "E-posta",
+      roles: "Rol",
+      name: "Ad Soyad",
+      titleField: "Unvan",
+      titlePlaceholder: "ör. Ziraat Mühendisi",
+      save: "Kaydet",
+      missingName: "Ad girilmemiş: bu kişinin onayladığı raporlarda uzman adı görünmez.",
+      missingTitle: "Unvan girilmemiş: raporda yalnızca ad görünür.",
+      empty: "Bu kuruluşta personel yok.",
+      roleNames: { field_staff: "Saha", expert: "Uzman", ops: "Operasyon" } as Record<string, string>,
+    },
   },
 } as const;
 

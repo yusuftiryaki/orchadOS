@@ -24,9 +24,10 @@ values ('96000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-0000000
           || encode(sha256('media-asset'::bytea), 'hex'),
         encode(sha256('media-asset'::bytea), 'hex'), 'pipeline', '0.1.0');
 -- A close-up photo capture of the seed session and its file.
-insert into public.capture (id, org_id, parcel_id, session_id, kind, uri, content_hash, started_at)
+insert into public.capture (id, org_id, parcel_id, session_id, kind, tree_id, uri, content_hash, started_at)
 values ('96000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000001',
         'c0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000001', 'photo',
+        md5('orchados-seed:tree:S1-1')::uuid,
         'storage://media/org/b0000000-0000-4000-8000-000000000001/parcel/c0000000-0000-4000-8000-000000000001/'
           || encode(sha256('media-capture'::bytea), 'hex'),
         encode(sha256('media-capture'::bytea), 'hex'), '2026-10-10 07:00:00+00');

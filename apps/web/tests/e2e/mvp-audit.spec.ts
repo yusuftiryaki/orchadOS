@@ -96,9 +96,10 @@ test("report card dimensions and health map layers", async ({ page }) => {
           m.getSource(id) as import("maplibre-gl").GeoJSONSource
         ).getData()) as GeoJSON.FeatureCollection
       ).features.length;
-    return { cells: await data("cells"), trace: await data("coverage-trace") };
+    // No scan trace for owners (H05, T23).
+    return { cells: await data("cells"), trace: m.getSource("coverage-trace") ?? null };
   });
-  expect(counts).toEqual({ cells: 2, trace: 1 });
+  expect(counts).toEqual({ cells: 2, trace: null });
 });
 
 test("photo evidence and the integrity check", async ({ page }) => {
