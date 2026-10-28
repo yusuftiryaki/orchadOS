@@ -90,6 +90,9 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk \
             build/app/outputs/flutter-apk/orchados-saha-pilot.apk
 
+      - name: Check JNI signatures after R8
+        run: python3 tool/check_apk_jni.py build/app/outputs/flutter-apk/orchados-saha-pilot.apk
+
       - name: Upload APK (check build)
         if: github.ref != 'refs/heads/release'
         uses: actions/upload-artifact@v4
