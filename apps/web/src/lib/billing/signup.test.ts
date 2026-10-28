@@ -4,6 +4,7 @@ import {
   clientIp,
   completeTicket,
   decideMatches,
+  hasPasswordAmr,
   hmacHex,
   isExpiredUnverified,
   jwtClaims,
@@ -354,10 +355,20 @@ describe("sign-up ticket", () => {
     expect(none.ok && none.value.ticket).toBeNull();
   });
 
-  it("complete without a ticket key skips the check; anything else is checked", () => {
+  it("a complete's ticket is the well-formed one or null; null never skips the check", () => {
+    const ticket = newTicket();
+    expect(completeTicket({ action: "complete", ticket })).toBe(ticket);
+    for (const bad of [undefined, null, "", "abc", 42, `${ticket}x`]) {
+      expect(completeTicket({ action: "complete", ticket: bad })).toBeNull();
+    }
     expect(completeTicket({ action: "complete" })).toBeNull();
-    expect(completeTicket({ action: "complete", ticket: "abc" })).toBe("abc");
-    expect(completeTicket({ action: "complete", ticket: "" })).toBe("");
-    expect(completeTicket({ action: "complete", ticket: null })).toBe("");
+  });
+
+  it("a password session is told by its amr", () => {
+    expect(hasPasswordAmr({ amr: [{ method: "password", timestamp: 1 }] })).toBe(true);
+    expect(hasPasswordAmr({ amr: [{ method: "otp", timestamp: 1 }] })).toBe(false);
+    expect(hasPasswordAmr({ amr: ["password"] })).toBe(false);
+    expect(hasPasswordAmr({})).toBe(false);
+    expect(hasPasswordAmr(null)).toBe(false);
   });
 });

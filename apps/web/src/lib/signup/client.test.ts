@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Client } from "@/lib/supabase/types";
 import {
+  claimSignupTicket,
   completeSignup,
   registerCustomer,
   signupErrorFromResponse,
@@ -170,7 +171,7 @@ describe("completeSignup", () => {
     "returns %s",
     async (status) => {
       const { client, invoke } = fakeClient({ data: { status } });
-      expect(await completeSignup(client)).toEqual({ ok: true, status });
+      expect(await completeSignup(client, null)).toEqual({ ok: true, status });
       expect(invoke.mock.calls[0]).toMatchObject([
         "customer-signup",
         { body: { action: "complete" } },
@@ -178,18 +179,15 @@ describe("completeSignup", () => {
     },
   );
 
-  it("sends the code step's ticket, and none without one", async () => {
+  it("sends the ticket it holds, and none without one", async () => {
     const { client, invoke } = fakeClient({ data: { status: "completed" } });
     await completeSignup(client, "T".repeat(43));
-    await completeSignup(client, "");
+    await completeSignup(client, null);
     expect(
       (invoke.mock.calls as unknown as [string, { body: object }][]).map(([, o]) => o.body),
-    ).toEqual([
-      { action: "complete", ticket: "T".repeat(43) },
-      { action: "complete", ticket: "" },
-    ]);
+    ).toEqual([{ action: "complete", ticket: "T".repeat(43) }, { action: "complete" }]);
     const mismatch = fakeClient({ error: httpError(403, { error: "signup_mismatch" }) });
-    expect(await completeSignup(mismatch.client, "")).toEqual({
+    expect(await completeSignup(mismatch.client, null)).toEqual({
       ok: false,
       error: "signup_mismatch",
     });
@@ -197,14 +195,27 @@ describe("completeSignup", () => {
 
   it("maps 403 phone_not_verified and an unreachable function", async () => {
     const forbidden = fakeClient({ error: httpError(403, { error: "phone_not_verified" }) });
-    expect(await completeSignup(forbidden.client)).toEqual({
+    expect(await completeSignup(forbidden.client, null)).toEqual({
       ok: false,
       error: "phone_not_verified",
     });
     const missing = fakeClient({ error: httpError(404, {}) });
-    expect(await completeSignup(missing.client)).toEqual({
+    expect(await completeSignup(missing.client, null)).toEqual({
       ok: false,
       error: "signup_unavailable",
     });
+  });
+});
+
+describe("claimSignupTicket", () => {
+  it("returns the ticket, null without a pending sign-up, and password_required", async () => {
+    const ticket = "T".repeat(43);
+    const { client, invoke } = fakeClient({ data: { ticket } });
+    expect(await claimSignupTicket(client)).toEqual({ ok: true, ticket });
+    expect(invoke.mock.calls[0]).toMatchObject(["customer-signup", { body: { action: "claim" } }]);
+    const none = fakeClient({ data: { status: "no_pending" } });
+    expect(await claimSignupTicket(none.client)).toEqual({ ok: true, ticket: null });
+    const otp = fakeClient({ error: httpError(403, { error: "password_required" }) });
+    expect(await claimSignupTicket(otp.client)).toEqual({ ok: false, error: "password_required" });
   });
 });

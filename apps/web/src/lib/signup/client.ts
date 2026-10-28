@@ -16,8 +16,10 @@ export const SIGNUP_ERRORS = [
   "signup_closed",
   "signup_unavailable",
   "phone_not_verified",
-  // complete: the pending sign-up is not this browser's (the ticket).
+  // complete: the session does not prove the registrant (ticket or password).
   "signup_mismatch",
+  // claim: the session was not opened with the account's password.
+  "password_required",
   "failed",
 ] as const;
 export type SignupError = (typeof SIGNUP_ERRORS)[number];
@@ -32,6 +34,11 @@ export type CompleteResult =
   { ok: true; status: CompleteStatus } | { ok: false; error: SignupError };
 
 const FUNCTION = "customer-signup";
+
+// Where a refused completion (signup_mismatch) goes: the route signs the
+// session out and sends the user to /giris?kayit=yarim with the guidance.
+export const SIGNUP_REFUSED_PATH = "/kayit/yarim";
+export const SIGNUP_REFUSED_LOGIN = "/giris?kayit=yarim";
 
 // Only the Next server knows the secret; with it the function trusts the
 // client_ip in the body (design §7.1, step 3). Never NEXT_PUBLIC.
@@ -129,13 +136,17 @@ export async function registerCustomer(
   }
 }
 
-// Called with the user's session (supabase-js sends the access token). The
-// /kayit code step passes its ticket ("" when the cookie is gone): a pending
-// sign-up must then carry it. The signed-in /kayit/dogrula page passes none.
-export async function completeSignup(supabase: Client, ticket?: string): Promise<CompleteResult> {
+// Called with the user's session (supabase-js sends the access token) and
+// this browser's sign-up ticket, or null without one. Every caller passes
+// what it holds: customer-signup checks every pending sign-up, and without
+// the ticket only a password session passes (signup_mismatch otherwise).
+export async function completeSignup(
+  supabase: Client,
+  ticket: string | null,
+): Promise<CompleteResult> {
   try {
     const { data, error } = await supabase.functions.invoke(FUNCTION, {
-      body: { action: "complete", ...(ticket !== undefined ? { ticket } : {}) },
+      body: { action: "complete", ...(ticket ? { ticket } : {}) },
       headers: proxyHeaders(),
     });
     if (error) return { ok: false, error: (await errorOf(error)).error };
@@ -144,6 +155,26 @@ export async function completeSignup(supabase: Client, ticket?: string): Promise
       return { ok: true, status };
     }
     return { ok: false, error: "failed" };
+  } catch {
+    return { ok: false, error: "signup_unavailable" };
+  }
+}
+
+export type ClaimResult = { ok: true; ticket: string | null } | { ok: false; error: SignupError };
+
+// /kayit/dogrula: a session opened with the account's password gets a fresh
+// ticket for its pending sign-up (null: none is pending). The code it then
+// asks for opens a new session without the password, so the ticket carries
+// that proof to complete.
+export async function claimSignupTicket(supabase: Client): Promise<ClaimResult> {
+  try {
+    const { data, error } = await supabase.functions.invoke(FUNCTION, {
+      body: { action: "claim" },
+      headers: proxyHeaders(),
+    });
+    if (error) return { ok: false, error: (await errorOf(error)).error };
+    const ticket = data && typeof data === "object" ? (data as { ticket?: unknown }).ticket : null;
+    return { ok: true, ticket: typeof ticket === "string" ? ticket : null };
   } catch {
     return { ok: false, error: "signup_unavailable" };
   }

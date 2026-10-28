@@ -6,6 +6,7 @@ import { DemoContinue } from "@/components/site/demo-continue";
 import { DemoLink } from "@/components/site/demo-link";
 import { SignupLink } from "@/components/site/signup-link";
 import { siteFlags } from "@/lib/flags";
+import { siteText } from "@/lib/i18n/messages/site";
 import { LoginForm } from "./login-form";
 import { loginMethodParam, safeNextPath } from "./login-methods";
 import styles from "./login.module.css";
@@ -13,9 +14,13 @@ import styles from "./login.module.css";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string | string[]; yontem?: string | string[] }>;
+  searchParams: Promise<{
+    next?: string | string[];
+    yontem?: string | string[];
+    kayit?: string | string[];
+  }>;
 }) {
-  const { next, yontem } = await searchParams;
+  const { next, yontem, kayit } = await searchParams;
   const target = safeNextPath(next);
   const user = await getSessionUser();
   if (user && !user.demo) redirect(target);
@@ -42,6 +47,11 @@ export default async function LoginPage({
           </div>
           <h1>{t.login.title}</h1>
           <p className="muted">{t.login.subtitle}</p>
+          {kayit === "yarim" && !user?.demo && (
+            <p role="status" className={styles.notice} data-testid="signup-unfinished">
+              {siteText.login.signupUnfinished}
+            </p>
+          )}
           {user?.demo ? (
             <DemoContinue next="/giris" />
           ) : (

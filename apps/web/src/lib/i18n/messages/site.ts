@@ -285,8 +285,12 @@ export const siteText = {
       signup_closed: "Kayıt şu anda kapalı.",
       signup_unavailable: "Kayıt hizmetine şu anda ulaşılamıyor. Biraz sonra yeniden deneyin.",
       phone_not_verified: "Telefonunuz henüz doğrulanmadı.",
+      // Never "register again": a registrant whose phone is already confirmed
+      // would loop. They finish with their e-mail and password (/kayit/dogrula).
       signup_mismatch:
-        "Kayıt tamamlanamadı; güvenliğiniz için oturum açılmadı. Bilgilerinizi girip yeniden kayıt olun.",
+        "Kayıt tamamlanamadı; güvenliğiniz için oturum açılmadı. Bu numarayla kaydı siz başlattıysanız kayıtta kullandığınız e-posta ve parolayla giriş yapın; telefon doğrulamasını oradan tamamlarsınız.",
+      password_required:
+        "Telefon doğrulamasını yalnızca e-posta ve parolanızla açtığınız oturumda tamamlayabilirsiniz. Çıkış yapıp e-posta ve parolanızla giriş yapın.",
       failed: "Kayıt tamamlanamadı. Biraz sonra yeniden deneyin.",
     },
     verifyPage: {
@@ -306,6 +310,10 @@ export const siteText = {
     retry: "Yeniden dene",
   },
   login: {
+    // /giris?kayit=yarim: a sign-up completion was refused and the session
+    // closed (customer-signup signup_mismatch).
+    signupUnfinished:
+      "Kaydınız tamamlanamadı ve güvenliğiniz için oturumunuz kapatıldı. Bu numarayla kaydı siz başlattıysanız kayıtta kullandığınız e-posta ve parolayla giriş yapın; telefonunuzu oradan doğrularsınız. Giriş yapamıyorsanız yeniden kayıt olabilirsiniz.",
     noAccount: "Hesabınız yok mu?",
     signup: "Kayıt olun",
     tryDemo: "Hesap açmadan örnek bir bahçede demoyu deneyin",

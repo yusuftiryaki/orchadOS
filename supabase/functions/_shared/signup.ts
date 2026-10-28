@@ -154,12 +154,14 @@ export function timingSafeEqual(a: string, b: string): boolean {
 
 // --- Sign-up ticket ------------------------------------------------------------
 // Every 200 of register carries a fresh ticket (32 random bytes, base64url);
-// the web keeps it in an httpOnly cookie scoped to /kayit. Only a register
-// that opens an account stores its SHA-256 (signup_prepare); a registered
-// phone gets an unstored one, so the answer looks the same. The ticket binds
-// the code step to the register that wrote the pending sign-up: the web asks
-// for a phone confirmation code only with it (signup_code_allowed), and
-// complete refuses a pending sign-up whose ticket it does not carry.
+// the web keeps it in an httpOnly cookie. Only a register that opens an
+// account stores its SHA-256 (signup_set_ticket); a registered phone gets an
+// unstored one, so the answer looks the same. `claim` stores a new one for a
+// session opened with the account's password (/kayit/dogrula). The ticket
+// binds the code step to the registrant: Auth sends a phone confirmation code
+// only after the web granted it with the ticket (signup_code_grant, checked
+// by the Send SMS hook), and every complete of a pending sign-up must carry
+// it (signup_owner_check).
 
 export const TICKET_RE = /^[A-Za-z0-9_-]{43}$/;
 
@@ -173,18 +175,30 @@ export function newTicket(): string {
 }
 
 // hex(SHA-256(ticket)): customer_signup.ticket_hash. The database computes the
-// same for signup_code_allowed.
+// same for signup_code_grant.
 export async function ticketHash(ticket: string): Promise<string> {
   return toHex(await crypto.subtle.digest("SHA-256", encoder.encode(ticket)));
 }
 
-// The ticket of a `complete` request: null when the body has none (the
-// signed-in /kayit/dogrula page: no ticket check), else the sent text ("" for
-// a non-string, which matches no pending sign-up).
+// The ticket of a `complete` request, or null when the body has none or a
+// malformed one. Null only means no ticket proof: complete still checks the
+// pending sign-up (signup_owner_check), and only a password session passes
+// without a ticket.
 export function completeTicket(body: unknown): string | null {
   if (!body || typeof body !== "object" || !("ticket" in body)) return null;
   const ticket = (body as { ticket: unknown }).ticket;
-  return typeof ticket === "string" ? ticket.slice(0, 256) : "";
+  return typeof ticket === "string" && TICKET_RE.test(ticket) ? ticket : null;
+}
+
+// The session was opened with the account's password (amr method password):
+// the registrant's own credentials. verifyOtp replaces the session, so after
+// a phone code this no longer holds and `claim` hands out a ticket instead.
+export function hasPasswordAmr(claims: Record<string, unknown> | null): boolean {
+  const amr = claims?.amr;
+  return (
+    Array.isArray(amr) &&
+    amr.some((entry) => !!entry && typeof entry === "object" && entry.method === "password")
+  );
 }
 
 // The client's IP: the body's client_ip when the Next server proved itself

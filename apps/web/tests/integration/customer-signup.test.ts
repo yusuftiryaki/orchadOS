@@ -1,9 +1,16 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
-import { requestSignupCode } from "@/lib/billing/signup-code";
 import { altchaPayload, isAltchaChallenge, solveAltcha } from "@/lib/site/altcha-solver";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
-import { ageSignups, purgeBillingUsers, purgeSignupAttempts } from "../local-db";
+import {
+  agePhoneConfirmation,
+  ageSignups,
+  legacySignup,
+  purgeBillingUsers,
+  purgeSignupAttempts,
+  signupReview,
+} from "../local-db";
 import { anonClient, serviceClient } from "./fixtures";
+import { claim, codes, complete, enterLatestCode, sendCode, userById } from "./signup-flow";
 
 // Self sign-up against the local stack (docs/musteri-yonetimi.md §7): the
 // customer-signup Edge Function opens the account, the SMS code (read from the
@@ -71,16 +78,6 @@ async function latestCode(phone: string): Promise<string | null> {
   if (error) throw error;
   const text = data?.[0]?.purpose === "login_code" ? data[0].body : "";
   return /\b(\d{6})\b/.exec(text)?.[1] ?? null;
-}
-
-// The code step of the web flow (kayit/actions.ts): the phone confirmation
-// code only with the ticket of the register that wrote the pending sign-up.
-async function sendCode(client: ReturnType<typeof anonClient>, phone: string, ticket?: string) {
-  const own = ticket
-    ? await client.rpc("signup_code_allowed", { p_phone: phone, p_ticket: ticket })
-    : { data: false, error: null };
-  expect(own.error).toBeNull();
-  return requestSignupCode(client.auth, phone, { confirm: own.data === true });
 }
 
 async function usersByEmail(emails: string[]) {
@@ -249,78 +246,255 @@ describe("customer-signup", () => {
     expect((await serviceClient().auth.admin.getUserById(old.id)).data.user).toBeNull();
   });
 
-  // Review of PR #93, finding 1 (critical): someone registers the victim's
-  // phone with their own e-mail and password; the victim then signs up with
-  // that phone. The victim must never end up in the attacker's account.
-  it("the phone's owner is never signed in to an account someone else opened with it", async () => {
-    const phone = randomPhone();
-    const attackerEmail = randomEmail("on-ele-gecirme");
-    const attacker = await signup(
-      body({ phone, email: attackerEmail, password: "saldirgan-1234" }),
-      "203.0.113.70",
-    );
-    expect(attacker).toEqual(VERIFY);
-    const [trap] = await usersByEmail([attackerEmail]);
+  // Review of PR #93 (finding 1, critical, and round 2): someone registers
+  // the victim's phone with their own e-mail and password. Every way the
+  // victim could receive and enter that account's code ends with the account
+  // gone or its phone unconfirmed, never with the victim signed in to it.
+  describe("account pre-hijack", () => {
+    async function trap(ip: string) {
+      const phone = randomPhone();
+      const email = randomEmail("on-ele-gecirme");
+      const res = await signup(body({ phone, email, password: "saldirgan-1234" }), ip);
+      expect(res).toEqual(VERIFY);
+      const [account] = await usersByEmail([email]);
+      return { phone, email, ticket: String(res.json.ticket), id: account.id };
+    }
 
-    // The victim signs up with the phone inside the 30-minute window: the
-    // same answer as a new sign-up; nothing is created or changed.
-    const victimEmail = randomEmail("kurban");
-    const victim = await signup(body({ phone, email: victimEmail }), "203.0.113.71");
-    expect(victim).toEqual(VERIFY);
-    const victimTicket = String(victim.json.ticket);
-    expect(await usersByEmail([victimEmail])).toHaveLength(0);
+    const attackerCanSignIn = async (email: string) =>
+      (await anonClient().auth.signInWithPassword({ email, password: "saldirgan-1234" })).error ===
+      null;
 
-    // The code step asks for no confirmation code of the attacker's account.
-    const client = anonClient();
-    const sent = await sendCode(client, phone, victimTicket);
-    expect(sent?.code).toBe("signup_disabled");
-    expect(await latestCode(phone)).toBeNull();
+    it("(i) the victim's own sign-up with the phone sends no code of the attacker's account", async () => {
+      const attack = await trap("203.0.113.70");
+      // Inside the 30-minute window: the same answer as a new sign-up;
+      // nothing is created or changed.
+      const victimEmail = randomEmail("kurban");
+      const victim = await signup(
+        body({ phone: attack.phone, email: victimEmail }),
+        "203.0.113.71",
+      );
+      expect(victim).toEqual(VERIFY);
+      expect(await usersByEmail([victimEmail])).toHaveLength(0);
 
-    // Even if such a code reached the phone (a race with another register),
-    // complete refuses the victim's ticket and deletes the attacker's account.
-    expect((await client.auth.resend({ type: "sms", phone })).error).toBeNull();
-    const code = await latestCode(phone);
-    expect(code).toMatch(/^\d{6}$/);
-    const login = await client.auth.verifyOtp({ phone, token: code!, type: "sms" });
-    expect(login.error).toBeNull();
-    expect(login.data.user?.id).toBe(trap.id);
-    const refused = await signup({ action: "complete", ticket: victimTicket }, "203.0.113.71", {
-      authorization: `Bearer ${login.data.session!.access_token}`,
+      // The code step: no grant with the victim's ticket, so only a login code
+      // is asked for, which an unconfirmed phone does not get.
+      const client = anonClient();
+      const sent = await sendCode(client, attack.phone, String(victim.json.ticket));
+      expect(sent?.code).toBe("signup_disabled");
+      expect(await codes(attack.phone)).toEqual([]);
+      expect((await userById(attack.id))?.phone_confirmed_at ?? null).toBeNull();
     });
-    expect(refused).toEqual({ status: 403, json: { error: "signup_mismatch" } });
-    expect((await serviceClient().auth.admin.getUserById(trap.id)).data.user).toBeNull();
-    expect((await client.auth.getUser()).data.user).toBeNull();
-    const attackerLogin = await anonClient().auth.signInWithPassword({
-      email: attackerEmail,
-      password: "saldirgan-1234",
-    });
-    expect(attackerLogin.error).not.toBeNull();
 
-    // The victim signs up again and gets an account of their own.
-    const own = await signup(
-      body({ phone, email: victimEmail, ticket: victimTicket }),
-      "203.0.113.71",
-    );
-    expect(own).toEqual(VERIFY);
-    const ownTicket = String(own.json.ticket);
-    const [account] = await usersByEmail([victimEmail]);
-    expect(account.id).not.toBe(trap.id);
-    const victimClient = anonClient();
-    expect(await sendCode(victimClient, phone, ownTicket)).toBeNull();
-    const ownCode = await latestCode(phone);
-    expect(ownCode).toMatch(/^\d{6}$/);
-    expect(ownCode).not.toBe(code);
-    const ownLogin = await victimClient.auth.verifyOtp({ phone, token: ownCode!, type: "sms" });
-    expect(ownLogin.error).toBeNull();
-    expect(ownLogin.data.user?.id).toBe(account.id);
-    expect(
-      await signup({ action: "complete", ticket: ownTicket }, "203.0.113.71", {
-        authorization: `Bearer ${ownLogin.data.session!.access_token}`,
-      }),
-    ).toEqual({ status: 200, json: { status: "completed" } });
-    const profile = await victimClient.rpc("my_owner_profile");
-    expect(profile.data).toEqual([expect.objectContaining({ email: victimEmail, phone })]);
-  }, 60_000);
+    it("(ii) Auth's public resend sends nothing; a code entered without the ticket deletes the account", async () => {
+      const attack = await trap("203.0.113.72");
+      // Straight to GoTrue, without the web: the Send SMS hook finds no
+      // grant and sends nothing, with the same empty answer as a sent code.
+      const direct = await anonClient().auth.resend({ type: "sms", phone: attack.phone });
+      expect(direct.error).toBeNull();
+      expect(await codes(attack.phone)).toEqual([]);
+      // Auth still counts that request against its code-a-minute limit.
+      await agePhoneConfirmation(attack.id, 2);
+
+      // The attacker's own code step (their ticket) does reach the phone.
+      expect(await sendCode(anonClient(), attack.phone, attack.ticket)).toBeNull();
+      expect(await codes(attack.phone)).toHaveLength(1);
+      // The victim enters it: /kayit/dogrula cannot claim a ticket with a
+      // code session, and `/` (complete without a ticket) is refused.
+      const victim = await enterLatestCode(attack.phone);
+      expect(victim.userId).toBe(attack.id);
+      expect(await claim(victim.token)).toEqual({
+        status: 403,
+        json: { error: "password_required" },
+      });
+      expect(await complete(victim.token, null)).toEqual({
+        status: 403,
+        json: { error: "signup_mismatch" },
+      });
+      expect(await userById(attack.id)).toBeNull();
+      expect(await attackerCanSignIn(attack.email)).toBe(false);
+    }, 30_000);
+
+    it("(ii) the victim's own /kayit ticket does not complete it either", async () => {
+      const attack = await trap("203.0.113.73");
+      const victim = await signup(
+        body({ phone: attack.phone, email: randomEmail("kurban") }),
+        "203.0.113.74",
+      );
+      expect(await sendCode(anonClient(), attack.phone, attack.ticket)).toBeNull();
+      const session = await enterLatestCode(attack.phone);
+      expect(await complete(session.token, String(victim.json.ticket))).toEqual({
+        status: 403,
+        json: { error: "signup_mismatch" },
+      });
+      expect(await userById(attack.id)).toBeNull();
+      expect((await session.client.auth.getUser()).data.user).toBeNull();
+    }, 30_000);
+
+    it("(iv) a planted attacker ticket only lets the victim replace the attacker's sign-up", async () => {
+      const attack = await trap("203.0.113.75");
+      // Cookie fixation: the victim's browser sends the attacker's ticket as
+      // its previous one. The register treats the attacker's pending
+      // sign-up as the browser's own and replaces it with the victim's.
+      const victimEmail = randomEmail("kurban");
+      const victim = await signup(
+        body({ phone: attack.phone, email: victimEmail, ticket: attack.ticket }),
+        "203.0.113.76",
+      );
+      expect(victim).toEqual(VERIFY);
+      expect(await userById(attack.id)).toBeNull();
+      const [own] = await usersByEmail([victimEmail]);
+      // The attacker's ticket no longer grants a code; the victim's does.
+      const stale = await anonClient().rpc("signup_code_grant", {
+        p_phone: attack.phone,
+        p_ticket: attack.ticket,
+      });
+      expect(stale.data).toBe(false);
+      expect(await sendCode(anonClient(), attack.phone, String(victim.json.ticket))).toBeNull();
+      const session = await enterLatestCode(attack.phone);
+      expect(session.userId).toBe(own.id);
+      expect(await complete(session.token, attack.ticket)).toEqual({
+        status: 403,
+        json: { error: "signup_mismatch" },
+      });
+    }, 30_000);
+
+    it("(iv) two registers of one phone at once: one account, and the other ticket cannot finish it", async () => {
+      const phone = randomPhone();
+      const [a, b] = await Promise.all([
+        signup(body({ phone, email: randomEmail("yaris-a") }), "203.0.113.77"),
+        signup(body({ phone, email: randomEmail("yaris-b") }), "203.0.113.78"),
+      ]);
+      expect([a.status, b.status]).toEqual([200, 200]);
+      const grants = await Promise.all(
+        [a, b].map(
+          async (r) =>
+            (
+              await anonClient().rpc("signup_code_grant", {
+                p_phone: phone,
+                p_ticket: String(r.json.ticket),
+              })
+            ).data,
+        ),
+      );
+      expect(grants.filter(Boolean)).toHaveLength(1);
+      const [winner, loser] = grants[0] ? [a, b] : [b, a];
+      expect(await requestCode(phone)).toBe(true);
+      const session = await enterLatestCode(phone);
+      expect(await complete(session.token, String(loser.json.ticket))).toEqual({
+        status: 403,
+        json: { error: "signup_mismatch" },
+      });
+      expect(await userById(session.userId)).toBeNull();
+      expect(winner.json.ticket).not.toBe(loser.json.ticket);
+    }, 30_000);
+
+    // Asks Auth for the phone's confirmation code after a grant consumed by
+    // nothing else (the grant above left the marker on the winner's row).
+    async function requestCode(phone: string) {
+      const { error } = await anonClient().auth.resend({ type: "sms", phone });
+      return error === null && (await codes(phone)).length === 1;
+    }
+  });
+
+  // Review of PR #93, round 2, item 4: a registrant whose completion was
+  // refused finishes with their e-mail and password (/kayit/dogrula), without
+  // registering again.
+  describe("recovery without a loop", () => {
+    it("a sign-up written before tickets is quarantined, then finished with the password", async () => {
+      const input = body({ email: randomEmail("eski-kayit") });
+      const phone = String(input.phone);
+      const registered = await signup(input, "203.0.113.80");
+      expect(await sendCode(anonClient(), phone, String(registered.json.ticket))).toBeNull();
+      const [account] = await usersByEmail([String(input.email)]);
+      // Written by the web before tickets: the row has no ticket hash and
+      // the new web holds no cookie for it.
+      await legacySignup(account.id);
+      const session = await enterLatestCode(phone);
+      expect(await complete(session.token, null)).toEqual({
+        status: 403,
+        json: { error: "signup_mismatch" },
+      });
+      // Not deleted (the registrant could not have had a ticket), but the
+      // phone is no longer confirmed on it, and ops sees it.
+      expect((await userById(account.id))?.phone_confirmed_at ?? null).toBeNull();
+      expect(await signupReview(account.id)).toBe("unproven_code");
+      await agePhoneConfirmation(account.id, 2);
+
+      expect(await finishWithPassword(String(input.email), phone)).toEqual({
+        status: 200,
+        json: { status: "completed" },
+      });
+    }, 40_000);
+
+    it("a confirmed phone whose complete never ran: the password finishes it", async () => {
+      const input = body({ email: randomEmail("yarim-kalan") });
+      const phone = String(input.phone);
+      const registered = await signup(input, "203.0.113.81");
+      expect(await sendCode(anonClient(), phone, String(registered.json.ticket))).toBeNull();
+      const [account] = await usersByEmail([String(input.email)]);
+      // The code confirmed the phone, then complete never ran (a closed tab,
+      // a 500) and the cookie is gone.
+      await enterLatestCode(phone);
+      await agePhoneConfirmation(account.id, 2);
+
+      // The guidance: e-mail and password, then the code (/kayit/dogrula).
+      expect(await finishWithPassword(String(input.email), phone)).toEqual({
+        status: 200,
+        json: { status: "completed" },
+      });
+    }, 40_000);
+
+    it("registering again instead ends in a fresh account, not a loop", async () => {
+      const input = body({ email: randomEmail("yeniden") });
+      const phone = String(input.phone);
+      const registered = await signup(input, "203.0.113.82");
+      expect(await sendCode(anonClient(), phone, String(registered.json.ticket))).toBeNull();
+      const [account] = await usersByEmail([String(input.email)]);
+      await enterLatestCode(phone);
+      await agePhoneConfirmation(account.id, 2);
+
+      // A new register: the phone is confirmed, so only a login code goes
+      // out, with an unstored ticket. That code proves nothing about the
+      // pending sign-up: refused, and the account goes.
+      const again = await signup(body({ phone, email: String(input.email) }), "203.0.113.82");
+      expect(again).toEqual(VERIFY);
+      expect(await sendCode(anonClient(), phone, String(again.json.ticket))).toBeNull();
+      const login = await enterLatestCode(phone);
+      expect(await complete(login.token, String(again.json.ticket))).toEqual({
+        status: 403,
+        json: { error: "signup_mismatch" },
+      });
+      expect(await userById(account.id)).toBeNull();
+
+      // The next register opens a fresh account that completes (the third
+      // and last register of the phone today).
+      const fresh = await signup(body({ phone, email: String(input.email) }), "203.0.113.82");
+      expect(fresh).toEqual(VERIFY);
+      const [own] = await usersByEmail([String(input.email)]);
+      expect(own.id).not.toBe(account.id);
+      expect(await sendCode(anonClient(), phone, String(fresh.json.ticket))).toBeNull();
+      const session = await enterLatestCode(phone);
+      expect(await complete(session.token, String(fresh.json.ticket))).toEqual({
+        status: 200,
+        json: { status: "completed" },
+      });
+    }, 40_000);
+
+    // /kayit/dogrula: a password session claims a ticket, the ticket grants
+    // the code, and complete carries it.
+    async function finishWithPassword(email: string, phone: string) {
+      const browser = anonClient();
+      const signedIn = await browser.auth.signInWithPassword({ email, password: PASSWORD });
+      expect(signedIn.error).toBeNull();
+      const claimed = await claim(signedIn.data.session!.access_token);
+      expect(claimed.status).toBe(200);
+      const ticket = String(claimed.json.ticket);
+      expect(ticket).toMatch(TICKET);
+      expect(await sendCode(browser, phone, ticket)).toBeNull();
+      const session = await enterLatestCode(phone, browser);
+      return complete(session.token, ticket);
+    }
+  });
 
   it("limits attempts per e-mail", async () => {
     const email = randomEmail("deneme-siniri");

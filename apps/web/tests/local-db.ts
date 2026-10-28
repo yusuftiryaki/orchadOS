@@ -81,6 +81,27 @@ export async function ageSignups(userIds: string[], minutes: number) {
   await call("age_signups", { p_user_ids: userIds, p_minutes: minutes });
 }
 
+// Makes a pending sign-up look written before tickets (ticket_hash null).
+export async function legacySignup(userId: string) {
+  if (!UUID.test(userId)) throw new Error("legacySignup takes a uuid");
+  await call("legacy_signup", { p_user_id: userId });
+}
+
+// Moves an account's phone confirmation and code send times back (confirmed
+// by an earlier code than the session's; Auth's code-a-minute limit passed).
+export async function agePhoneConfirmation(userId: string, minutes: number) {
+  if (!UUID.test(userId)) throw new Error("agePhoneConfirmation takes a uuid");
+  await call("age_phone_confirmation", { p_user_id: userId, p_minutes: minutes });
+}
+
+// The review flag of a pending sign-up (customer_signup.review_reason), or null.
+export async function signupReview(userId: string): Promise<string | null> {
+  if (!UUID.test(userId)) throw new Error("signupReview takes a uuid");
+  const { data, error } = await admin().rpc("signup_review", { p_user_id: userId });
+  if (error) throw new Error(`testing.signup_review: ${error.message}`);
+  return (data as string | null) ?? null;
+}
+
 // Registers a demo org with these parcels (in tour order) as loaded now
 // (docs/demo-turu.md §5.1); by default enabled, which disables every other
 // demo org. Returns the demo org that was enabled before, or null: tests

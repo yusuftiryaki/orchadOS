@@ -8,7 +8,7 @@ import { maskPhone } from "@/lib/notifications/phone";
 import { captchaRequired, captchaTokenOf } from "@/lib/site/captcha";
 import { clientIp } from "@/lib/site/client-ip";
 import { formReader, normalizePhone } from "@/lib/operations/validation";
-import { completeSignup, registerCustomer } from "@/lib/signup/client";
+import { completeSignup, registerCustomer, SIGNUP_REFUSED_LOGIN } from "@/lib/signup/client";
 import { sendAccountCode } from "@/lib/signup/send-code";
 import { clearTicket, readTicket, storeTicket, ticketFitsPhone } from "@/lib/signup/ticket";
 import { CODE_STEP_MIN_MS, waitAtLeast } from "@/lib/signup/timing";
@@ -53,8 +53,9 @@ function valuesOf(form: FormData): SignupValues {
 // a failed send all get the same code step; the resend countdown runs on the
 // client (sentAt). Every answer takes at least CODE_STEP_MIN_MS.
 // The phone confirmation code is asked for only for the pending sign-up this
-// browser's register wrote (the ticket, signup_code_allowed); any other
-// number only gets a login code, which reaches only its verified owner.
+// browser's register wrote: signup_code_grant checks the ticket and lets the
+// Send SMS hook send it one code. Any other number only gets a login code,
+// which reaches only its verified owner.
 async function sendCode(
   supabase: Client,
   phone: string,
@@ -65,7 +66,7 @@ async function sendCode(
     const allowed = await supabase.rpc("phone_login_allowed", { p_phone: phone });
     if (allowed.data === false) return t.login.phone.locked;
     const own = ticket
-      ? await supabase.rpc("signup_code_allowed", { p_phone: phone, p_ticket: ticket })
+      ? await supabase.rpc("signup_code_grant", { p_phone: phone, p_ticket: ticket })
       : null;
     await sendAccountCode(supabase, phone, { confirm: own?.data === true });
     return null;
@@ -183,10 +184,16 @@ async function verify(previous: SignupState, form: FormData): Promise<SignupStat
   // A registered phone's owner is now signed in to their own account
   // (already_completed or no_pending): "/" takes them to their section. A
   // pending sign-up must carry this browser's ticket; otherwise the session
-  // the code opened belongs to someone else's sign-up (customer-signup
-  // deletes it) and is closed here at once.
+  // the code opened cannot prove the registrant (customer-signup deletes or
+  // quarantines that account) and is closed here at once. The login page
+  // tells the registrant how to finish: e-mail and password, then the code
+  // (/kayit/dogrula); never "register again", which would loop.
   const ticket = await readTicket();
-  const completed = await completeSignup(supabase, ticket?.ticket ?? "");
+  const completed = await completeSignup(supabase, ticket?.ticket ?? null);
+  if (!completed.ok && completed.error === "signup_mismatch") {
+    await supabase.auth.signOut();
+    redirect(SIGNUP_REFUSED_LOGIN);
+  }
   if (!completed.ok) {
     await supabase.auth.signOut();
     return {

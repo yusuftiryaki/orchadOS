@@ -14,7 +14,7 @@ const auth = vi.hoisted(() => ({
   signOut: vi.fn(),
 }));
 const rpc = vi.hoisted(() => vi.fn());
-// signup_code_allowed: the ticket is the pending sign-up's of this phone.
+// signup_code_grant: the ticket is the pending sign-up's of this phone.
 const db = vi.hoisted(() => ({ codeAllowed: true }));
 // The ticket cookie: {ticket, phone} or null.
 const cookie = vi.hoisted(() => ({ value: null as { ticket: string; phone: string } | null }));
@@ -32,7 +32,11 @@ vi.mock("@/lib/flags", () => ({
   siteFlags: () => ({ ...flags, turnstileSiteKey: null }),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ auth, rpc }) }));
-vi.mock("@/lib/signup/client", () => ({ registerCustomer, completeSignup }));
+vi.mock("@/lib/signup/client", () => ({
+  registerCustomer,
+  completeSignup,
+  SIGNUP_REFUSED_LOGIN: "/giris?kayit=yarim",
+}));
 vi.mock("@/lib/signup/timing", () => ({ CODE_STEP_MIN_MS: 2000, waitAtLeast }));
 vi.mock("@/lib/signup/ticket", () => ({
   readTicket: async () =>
@@ -65,7 +69,7 @@ beforeEach(() => {
   db.codeAllowed = true;
   cookie.value = null;
   rpc.mockImplementation(async (fn: string) => ({
-    data: fn === "signup_code_allowed" ? db.codeAllowed : true,
+    data: fn === "signup_code_grant" ? db.codeAllowed : true,
     error: null,
   }));
   registerCustomer.mockResolvedValue({ ok: true, ticket: TICKET });
@@ -162,7 +166,7 @@ describe("signupAction register", () => {
     expect(state.error).toBeNull();
     expect(state.step).toBe("code");
     expect(state.phone).toBe(UNKNOWN);
-    expect(rpc).toHaveBeenCalledWith("signup_code_allowed", { p_phone: UNKNOWN, p_ticket: TICKET });
+    expect(rpc).toHaveBeenCalledWith("signup_code_grant", { p_phone: UNKNOWN, p_ticket: TICKET });
     expect(auth.resend).toHaveBeenCalledWith({ type: "sms", phone: UNKNOWN });
     expect(cookie.value).toEqual({ ticket: TICKET, phone: UNKNOWN });
   });
@@ -276,21 +280,34 @@ describe("signupAction verify", () => {
     expect(cookie.value).toBeNull();
   });
 
-  // Review of PR #93, finding 1: the code opened someone else's sign-up.
-  it.each([["signup_mismatch"], ["failed"]])(
-    "signs out and stays on the page when complete answers %s",
-    async (error) => {
-      completeSignup.mockResolvedValue({ ok: false, error });
-      auth.verifyOtp.mockResolvedValue({ data: {}, error: null });
-      const state = await signupAction(
+  // Review of PR #93: the code opened a sign-up this browser cannot prove is
+  // its own. Round 2: signed out and sent to the login page, whose guidance
+  // is "e-mail and password", never "register again" (which would loop).
+  it("signs out and goes to the login guidance when complete answers signup_mismatch", async () => {
+    completeSignup.mockResolvedValue({ ok: false, error: "signup_mismatch" });
+    auth.verifyOtp.mockResolvedValue({ data: {}, error: null });
+    await expect(
+      signupAction(
         { ...INITIAL_SIGNUP_STATE, step: "code", phone: KNOWN },
         form({ intent: "verify", phone: KNOWN, code: "123456" }),
-      );
-      // Without a cookie the ticket is "", which no pending sign-up carries.
-      expect(completeSignup.mock.calls[0][1]).toBe("");
-      expect(auth.signOut).toHaveBeenCalled();
-      expect(state.step).toBe("form");
-      expect(state.error).toBe(s.errors[error as "failed"]);
-    },
-  );
+      ),
+    ).rejects.toThrow("redirect /giris?kayit=yarim");
+    // Without a cookie no ticket goes, and complete still checks.
+    expect(completeSignup.mock.calls[0][1]).toBeNull();
+    expect(auth.signOut).toHaveBeenCalled();
+    expect(s.errors.signup_mismatch).not.toMatch(/yeniden kayıt/);
+    expect(siteText.login.signupUnfinished).toMatch(/e-posta ve parola/);
+  });
+
+  it("signs out and stays on the page when complete fails", async () => {
+    completeSignup.mockResolvedValue({ ok: false, error: "failed" });
+    auth.verifyOtp.mockResolvedValue({ data: {}, error: null });
+    const state = await signupAction(
+      { ...INITIAL_SIGNUP_STATE, step: "code", phone: KNOWN },
+      form({ intent: "verify", phone: KNOWN, code: "123456" }),
+    );
+    expect(auth.signOut).toHaveBeenCalled();
+    expect(state.step).toBe("form");
+    expect(state.error).toBe(s.errors.failed);
+  });
 });

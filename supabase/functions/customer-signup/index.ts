@@ -55,20 +55,33 @@
 //
 // { "action": "complete", ticket? }   Authorization: Bearer <the user's access token>
 //   After verifyOtp: the session must come from a phone code (amr otp/sms)
-//   with the phone confirmed. With a `ticket` (the /kayit code step) a
-//   pending sign-up must carry it (signup_ticket_check): otherwise 403
-//   signup_mismatch, and an uncompleted self sign-up whose phone this code
-//   confirmed is deleted, so whoever owns the phone is never left signed in
-//   to an account someone else opened. Without one (the signed-in
-//   /kayit/dogrula page) there is no ticket check. signup_complete then
-//   checks that the confirmed phone is the pending one and the code is newer
-//   than the pending sign-up (else 403) and writes the owner profile and the
-//   consent records.
+//   with the phone confirmed. Every complete of a pending sign-up proves the
+//   registrant (signup_owner_check; no ticket never skips it): the `ticket`
+//   of the register that wrote it (the web's cookie; `claim` for a password
+//   session), or a session opened with the account's password. Otherwise 403
+//   signup_mismatch and the phone is never left confirmed on that account:
+//   an unfinished self sign-up with a confirmed phone is deleted (if the
+//   delete fails: signup_quarantine clears the phone confirmation, ends its
+//   sessions and flags it for review); one written before tickets is
+//   quarantined by the check itself, and its registrant finishes with their
+//   password.
+//   signup_complete then checks that the confirmed phone is the pending one
+//   and the code is newer than the pending sign-up (else 403) and writes the
+//   owner profile and the consent records.
 //   A demo visitor's token (app_metadata.demo) is refused before any service
 //   role call (docs/demo-turu.md §6.3).
 //   200 {status: "completed" | "already_completed" | "no_pending"}
 //   · 401 {error: "unauthorized"}
 //   · 403 {error: "phone_not_verified" | "signup_mismatch" | "demo_read_only"}
+//
+// { "action": "claim" }   Authorization: Bearer <the user's access token>
+//   /kayit/dogrula, before it asks for the code: a session opened with the
+//   account's password (amr password) gets a fresh ticket for its pending
+//   sign-up (signup_set_ticket replaces the stored one). verifyOtp replaces
+//   the session with the code's, so the ticket carries the password proof to
+//   complete.
+//   200 {ticket} | {status: "no_pending"} · 401 {error: "unauthorized"}
+//   · 403 {error: "password_required" | "demo_read_only"}
 //
 // { "action": "cleanup" }   x-orchados-cron-secret: ORCHADOS_CRON_SECRET
 //   Hourly (pg_cron, private.dispatch_signup_cleanup): deletes self sign-up
@@ -89,6 +102,7 @@ import {
   clientIp,
   completeTicket,
   decideMatches,
+  hasPasswordAmr,
   hmacHex,
   isDemoClaims,
   isExpiredUnverified,
@@ -127,7 +141,14 @@ const serviceHeaders = {
   "content-type": "application/json",
 };
 
-class Failure extends Error {}
+class Failure extends Error {
+  constructor(
+    message: string,
+    readonly status = 0,
+  ) {
+    super(message);
+  }
+}
 
 async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
@@ -135,7 +156,7 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
     headers: serviceHeaders,
     body: JSON.stringify(args),
   });
-  if (!res.ok) throw new Failure(`${fn} failed with ${res.status}`);
+  if (!res.ok) throw new Failure(`${fn} failed with ${res.status}`, res.status);
   // Functions returning void answer with an empty body.
   const text = await res.text();
   return (text ? JSON.parse(text) : null) as T;
@@ -183,7 +204,9 @@ async function createAccount(input: RegisterInput): Promise<CreateResult> {
       app_metadata: { signup: "self" },
     }),
   });
-  if (res.status === 422) return { kind: "conflict" };
+  // Two registers of one phone at once: the loser gets 422, or a 500 when
+  // Auth hits the unique index mid-insert. Both are read again.
+  if (res.status === 422 || res.status === 500) return { kind: "conflict" };
   if (!res.ok) throw new Failure(`create user failed with ${res.status}`);
   const user = await res.json();
   return { kind: "created", id: String(user.id) };
@@ -274,7 +297,13 @@ async function register(req: Request, body: unknown): Promise<Response> {
   throw new Failure("account conflict did not resolve");
 }
 
-async function complete(req: Request, body: unknown): Promise<Response> {
+interface SessionUser {
+  user: { id: string; phone_confirmed_at?: string | null };
+  claims: Record<string, unknown> | null;
+}
+
+// The bearer token's user (checked by Auth) and claims, or an error answer.
+async function sessionUser(req: Request): Promise<SessionUser | Response> {
   const authorization = req.headers.get("authorization") ?? "";
   const token = /^Bearer\s+(\S+)$/i.exec(authorization)?.[1];
   if (!token) return error("unauthorized", 401);
@@ -288,26 +317,43 @@ async function complete(req: Request, body: unknown): Promise<Response> {
   // A demo visitor (docs/demo-turu.md §6.3): the service role below would not
   // carry its claim past the database's write guard.
   if (isDemoClaims(claims)) return error("demo_read_only", 403);
+  return { user, claims };
+}
+
+async function complete(req: Request, body: unknown): Promise<Response> {
+  const session = await sessionUser(req);
+  if (session instanceof Response) return session;
+  const { user, claims } = session;
 
   const codeAt = latestPhoneCodeAt(claims);
   if (!user.phone_confirmed_at || codeAt === null) return error("phone_not_verified", 403);
   const codeAtIso = new Date(codeAt * 1000).toISOString();
 
-  // The /kayit code step: the pending sign-up must be this browser's.
+  // The pending sign-up must be the session's: its ticket, or the password.
   const ticket = completeTicket(body);
-  if (ticket !== null) {
-    const check = await rpc<string>("signup_ticket_check", {
-      p_user_id: user.id,
-      p_code_at: codeAtIso,
-      p_ticket_hash: await ticketHash(ticket),
-    });
-    if (check === "ticket_mismatch") {
-      // Someone else's unfinished sign-up with this phone: it goes, and with
-      // it the session the code just opened.
+  const check = await rpc<string>("signup_owner_check", {
+    p_user_id: user.id,
+    p_ticket_hash: ticket === null ? null : await ticketHash(ticket),
+    p_password: hasPasswordAmr(claims),
+  });
+  if (check === "mismatch") {
+    // Someone else's unfinished sign-up with this phone: it goes, and with it
+    // the session the code just opened. If it cannot go, the phone
+    // confirmation does (fail closed) and ops reviews the row.
+    try {
       await deleteUser(user.id);
-      return error("signup_mismatch", 403);
+    } catch (cause) {
+      console.error(
+        "customer-signup: hijack candidate not deleted, quarantined:",
+        cause instanceof Error ? cause.message : "unknown error",
+      );
+      await rpc("signup_quarantine", { p_user_id: user.id });
     }
-    if (check === "ticket_refused") return error("signup_mismatch", 403);
+    return error("signup_mismatch", 403);
+  }
+  if (check === "refused") return error("signup_mismatch", 403);
+  if (check !== "ok" && check !== "no_pending" && check !== "already_completed") {
+    throw new Failure("unexpected owner check result");
   }
   // signup_complete checks the rest in one transaction: a self sign-up whose
   // confirmed phone is the pending one, and a code newer than the pending row.
@@ -317,6 +363,24 @@ async function complete(req: Request, body: unknown): Promise<Response> {
   });
   if (status === "phone_mismatch") return error("phone_not_verified", 403);
   return json({ status });
+}
+
+async function claim(req: Request): Promise<Response> {
+  const session = await sessionUser(req);
+  if (session instanceof Response) return session;
+  if (!hasPasswordAmr(session.claims)) return error("password_required", 403);
+  const ticket = newTicket();
+  try {
+    await rpc("signup_set_ticket", {
+      p_user_id: session.user.id,
+      p_ticket_hash: await ticketHash(ticket),
+    });
+  } catch (cause) {
+    // invalid_input (400): no unfinished sign-up for this account.
+    if (cause instanceof Failure && cause.status === 400) return json({ status: "no_pending" });
+    throw cause;
+  }
+  return json({ ticket });
 }
 
 async function cleanup(req: Request): Promise<Response> {
@@ -353,6 +417,7 @@ async function handle(req: Request): Promise<Response> {
   try {
     if (action === "register") return await register(req, body);
     if (action === "complete") return await complete(req, body);
+    if (action === "claim") return await claim(req);
     if (action === "cleanup") return await cleanup(req);
     if (action === "challenge") return await challenge();
     return error("invalid_input", 400, { field: "action" });

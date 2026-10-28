@@ -5502,7 +5502,7 @@ export type Database = {
         };
         Returns: string;
       };
-      signup_code_allowed: { Args: { p_phone: string; p_ticket: string }; Returns: boolean };
+      signup_code_grant: { Args: { p_phone: string; p_ticket: string }; Returns: boolean };
       signup_complete: { Args: { p_code_at: string; p_user_id: string }; Returns: string };
       signup_find_account: {
         Args: { p_email: string; p_phone: string };
@@ -5514,6 +5514,10 @@ export type Database = {
           started_at: string;
           user_id: string;
         }[];
+      };
+      signup_owner_check: {
+        Args: { p_password: boolean; p_ticket_hash: string; p_user_id: string };
+        Returns: string;
       };
       signup_prepare: {
         Args: {
@@ -5527,15 +5531,13 @@ export type Database = {
         };
         Returns: undefined;
       };
+      signup_quarantine: { Args: { p_user_id: string }; Returns: undefined };
       signup_register_attempt: {
         Args: { p_email_hash: string; p_ip_hash: string; p_phone_hash: string };
         Returns: string;
       };
       signup_set_ticket: { Args: { p_ticket_hash: string; p_user_id: string }; Returns: undefined };
-      signup_ticket_check: {
-        Args: { p_code_at: string; p_ticket_hash: string; p_user_id: string };
-        Returns: string;
-      };
+      signup_sms_allowed: { Args: { p_user_id: string }; Returns: boolean };
       signup_ticket_users: { Args: { p_ticket_hash: string }; Returns: string[] };
       waive_coverage: {
         Args: { p_note: string; p_session_id: string };
