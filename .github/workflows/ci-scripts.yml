@@ -55,13 +55,14 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready --health-interval 2s --health-timeout 5s --health-retries 20
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@v4
 
       - name: shellcheck
-        run: shellcheck scripts/provision-demo.sh scripts/test-provision-demo.sh scripts/demo-lock-check.sh scripts/test-demo-lock-sql.sh \
-          scripts/test-script-sql.sh
+        run: |
+          shellcheck scripts/provision-demo.sh scripts/test-provision-demo.sh scripts/demo-lock-check.sh \
+            scripts/test-demo-lock-sql.sh scripts/test-script-sql.sh
 
       - name: actionlint
         run: |
