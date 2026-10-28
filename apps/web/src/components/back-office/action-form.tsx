@@ -5,6 +5,7 @@ import type { BoFormState } from "@/lib/back-office/form-state";
 import { EMPTY_BO_FORM } from "@/lib/back-office/form-state";
 import { FormError } from "@/components/operations/field";
 import styles from "@/components/operations/operations.module.css";
+import { Badge } from "@/components/ui/badge";
 import bo from "./back-office.module.css";
 
 // A back office form posting to a server action. On success the action
@@ -45,7 +46,7 @@ export function ActionForm({
         <ul className={styles.plainList} data-testid={testId && `${testId}-results`}>
           {state.lines.map((line, i) => (
             <li key={i} data-ok={line.ok}>
-              {line.label}: {line.text}
+              <Badge tone={line.ok ? "success" : "danger"}>{line.label}</Badge> {line.text}
             </li>
           ))}
         </ul>
