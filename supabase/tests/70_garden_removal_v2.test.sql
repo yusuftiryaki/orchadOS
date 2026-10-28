@@ -11,7 +11,7 @@
 -- 1 200 000 kuruş a year (one visit 300 000). One transaction.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(45);
 
 select testing.reset_to_seed();
 select testing.use_round_prices();
@@ -83,7 +83,7 @@ as $$
 begin
   perform pg_temp.as_user(p_user);
   return public.customer_accept_quote(p_quote,
-    '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak", "early_performance": "mesafeli-v4-taslak"}');
+    '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak", "early_performance": "mesafeli-v5-taslak"}');
 end;
 $$;
 
@@ -165,7 +165,7 @@ select results_eq(
 
 -- 8A refund of one missed visit (3 000,00 TL) is deducted: 6 000,00 TL.
 select pg_temp.ops();
-select public.ops_request_refund((select id from public.payment where order_id = pg_temp.id('o1')), 300000,
+select public.ops_request_refund((select id from public.payment where order_id = pg_temp.id('o1') order by created_at, id limit 1), 300000,
   'missed_visit', '8A/2');
 reset role;
 select results_eq(
@@ -289,9 +289,9 @@ select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L
   'ops cannot remove for a customer reason');
 select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'other', %L) $$,
   pg_temp.item_of(pg_temp.id('o6')), pg_temp.today() + 40)), 'P0001 removal_reason_not_allowed', 'nor "other"');
-select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'out_of_area', %L) $$,
+select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'location_misdeclared', %L) $$,
   pg_temp.item_of(pg_temp.id('o6')), pg_temp.today() + 29)), 'P0001 removal_notice_too_short',
-  'out of area: at least 30 days notice');
+  'a misdeclared location: at least 30 days notice');
 select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'owner_breach', %L) $$,
   pg_temp.item_of(pg_temp.id('o6')), pg_temp.today() + 5)), 'P0001 removal_notice_too_short',
   'a breach of Md. 5: 30 days notice too');
@@ -300,12 +300,14 @@ select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L
   'by agreement: the owner''s written consent is required');
 select ok(private.ops_removal_reason('staff_safety') = 'no_notice' and private.ops_removal_reason('duplicate') = 'no_notice'
   and private.ops_removal_reason('no_authority') = 'no_notice' and private.ops_removal_reason('third_party_objection') = 'no_notice'
-  and private.ops_removal_reason('service_discontinued') = 'notice' and private.ops_removal_reason('transfer') = 'notice'
-  and private.ops_removal_reason('cost') is null, 'the notice rule of each cause (H20 (c))');
-insert into ids select 'r6', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o6')), 'out_of_area',
-  pg_temp.today() + 30, 'Bölge dışı');
-select is((select reason::text from public.garden_removal where id = pg_temp.id('r6')), 'out_of_area',
-  'out of area with 30 days notice is accepted');
+  and private.ops_removal_reason('location_misdeclared') = 'notice' and private.ops_removal_reason('transfer') = 'notice'
+  and private.ops_removal_reason('service_withdrawn_district') = 'district'
+  and private.ops_removal_reason('payment_default') = 'payment_warning'
+  and private.ops_removal_reason('cost') is null, 'the notice rule of each cause (H20 (c), H36)');
+insert into ids select 'r6', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o6')), 'location_misdeclared',
+  pg_temp.today() + 30, 'Konum başvurudakinden 40 km farklı');
+select is((select reason::text from public.garden_removal where id = pg_temp.id('r6')), 'location_misdeclared',
+  'a misdeclared location with 30 days notice is accepted');
 select public.ops_cancel_garden_removal(pg_temp.id('r6'), 'test');
 insert into ids select 'r6b', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o6')), 'staff_safety',
   pg_temp.today(), 'Tehdit');
@@ -323,6 +325,56 @@ select results_eq(
   'a transfer queues "raporlarınızı indirin" before the exit day');
 select is(pg_temp.error_of($$ select public.ops_cancel_garden_removal(pg_temp.id('r6c'), 'test') $$), null,
   'cleanup');
+
+-- H36: a district withdrawal gives 60 days and keeps the paid window of today.
+select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'service_withdrawn_district', %L) $$,
+  pg_temp.item_of(pg_temp.id('o6')), pg_temp.today() + 59)), 'P0001 removal_notice_too_short',
+  'a district withdrawal: at least 60 days notice');
+reset role;
+update public.order_installment set window_start = pg_temp.today() - 5, window_end = pg_temp.today() + 20
+where id = (select id from public.order_installment where order_id = pg_temp.id('o6') and kind = 'visit'
+            order by seq limit 1);
+select pg_temp.ops();
+select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'service_withdrawn_district', %L,
+  'İlçede hizmet sona eriyor', null, false, 'Sahip erken çıkışa yazılı onay verdi') $$,
+  pg_temp.item_of(pg_temp.id('o6')), pg_temp.today() + 20)), 'P0001 removal_window_not_ended',
+  'not before the paid window of today ends, even with the owner''s consent');
+insert into ids select 'r6d', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o6')),
+  'service_withdrawn_district', pg_temp.today() + 21, 'İlçede hizmet sona eriyor', null, false,
+  'Sahip erken çıkışa yazılı onay verdi');
+select is((select effective_on from public.garden_removal where id = pg_temp.id('r6d')), pg_temp.today() + 21,
+  'the day after the paid window ends, with consent to the shorter notice');
+select public.ops_cancel_garden_removal(pg_temp.id('r6d'), 'test');
+
+-- H35, H36: a payment default needs an installment unpaid 30 days after its due day and a note.
+select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'payment_default', %L) $$,
+  pg_temp.item_of(pg_temp.id('o6')), pg_temp.today())), '22023 invalid_input / note',
+  'a payment default records the Md. 8/6 warning in the note');
+select is(pg_temp.error_of(format($$ select public.ops_request_garden_removal(%L, 'payment_default', %L, 'Uyarı SMS''i') $$,
+  pg_temp.item_of(pg_temp.id('o6')), pg_temp.today())), 'P0001 payment_default_not_due',
+  'not for a paid-up order');
+insert into ids values ('c7', pg_temp.new_customer(7));
+insert into ids select 'o7', pg_temp.accept(pg_temp.id('c7'),
+  public.ops_issue_quote(pg_temp.new_app(pg_temp.id('c7'), array[20000], 37.561)));
+select pg_temp.ops();
+select public.ops_record_manual_payment(pg_temp.id('o7'),
+  (select amount_kurus from public.order_installment where order_id = pg_temp.id('o7') and seq = 1),
+  current_date, 'EFT-70-o7');
+reset role;
+select testing.set_order_period(pg_temp.id('o7'), pg_temp.today() - 100, pg_temp.today() + 264);
+update public.order_installment set due_on = pg_temp.today() - 30
+where order_id = pg_temp.id('o7') and seq = 2 and status = 'pending';
+select pg_temp.ops();
+insert into ids select 'r7', public.ops_request_garden_removal(pg_temp.item_of(pg_temp.id('o7')), 'payment_default',
+  pg_temp.today(), 'Md. 8/6 uyarısı SMS ve portalla 1 Eylül''de, 30 gün süreyle');
+select is((select reason::text from public.garden_removal where id = pg_temp.id('r7')), 'payment_default',
+  'an installment unpaid 30 days after its due day allows the removal without further notice');
+
+-- H36 (b): a rejection by location needs a note.
+insert into ids select 'a7', pg_temp.new_app(pg_temp.id('c7'), array[10000], 37.562);
+select pg_temp.ops();
+select is(pg_temp.error_of($$ select public.ops_reject_application(pg_temp.id('a7'), 'out_of_service_area') $$),
+  '22023 invalid_input / note', 'a rejection by location names the criterion it applied');
 reset role;
 select throws_ok(
   $$ insert into public.garden_removal (org_id, customer_user_id, number, parcel_id, order_id, order_item_id, garden_name,

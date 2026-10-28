@@ -24,15 +24,23 @@
 --    (12/3 "Portal, aynı işlemde bekleyen siparişi iptal etme seçeneği
 --    sunar"). The withdrawal path keeps working with garden changes off and
 --    supersedes an open removal (T03).
--- 5. Ops removals only for just causes (H20 (c)): out_of_area, owner_breach,
---    no_authority, third_party_objection, staff_safety, transfer, duplicate,
---    service_discontinued, by_agreement (with the consent note). Notice at
---    least 30 days (or the period's natural end when sooner), none for
+-- 5. Ops removals only for just causes (H20 (c) as changed by H36):
+--    location_misdeclared, owner_breach, no_authority, third_party_objection,
+--    staff_safety, transfer, duplicate, payment_default,
+--    service_withdrawn_district, by_agreement (with the consent note). Notice
+--    at least 30 days (or the period's natural end when sooner), none for
 --    staff_safety, duplicate, no_authority, third_party_objection and
---    by_agreement; an earlier day for the other causes only with the owner's
---    recorded consent. All unused visits are refunded (removal-v2).
+--    by_agreement; an earlier day for these causes only with the owner's
+--    recorded consent. service_withdrawn_district: at least 60 days, and never
+--    before the end of the paid visit window holding the notice day (no
+--    consent overrides this). payment_default: the notice is the Md. 8/6
+--    warning (T30), so no further notice; it needs an installment of the
+--    order unpaid for 30 days after its due day and a note (the warning's day
+--    and channel until T30 records it). All unused visits are refunded
+--    (removal-v2); unpaid installments are cut first (installments-v1).
 -- 6. Transfer (H22, T23): garden_transfer_reports ("raporlarınızı indirin")
 --    when a transfer removal is scheduled.
+-- 7. A rejection of an application by location needs a note (H36 (b)).
 
 -- ---------------------------------------------------------------------------
 -- 1. Columns
@@ -55,8 +63,9 @@ alter table public.garden_removal
 -- Ops removals of T05 onwards: just causes only (older rows keep theirs).
 alter table public.garden_removal
   add constraint garden_removal_ops_reason_check
-    check (initiated_by <> 'ops' or reason::text in ('out_of_area', 'owner_breach', 'no_authority',
-      'third_party_objection', 'staff_safety', 'transfer', 'duplicate', 'service_discontinued', 'by_agreement'))
+    check (initiated_by <> 'ops' or reason::text in ('location_misdeclared', 'owner_breach', 'no_authority',
+      'third_party_objection', 'staff_safety', 'transfer', 'duplicate', 'payment_default',
+      'service_withdrawn_district', 'by_agreement'))
     not valid;
 
 grant select (timing) on public.garden_removal to authenticated;
@@ -234,6 +243,9 @@ declare
   v_overall text;
   v_only_order uuid;
   v_billed_to date;
+  v_unpaid bigint;
+  v_cut bigint;
+  v_total_cut bigint := 0;
 begin
   if p_withdrawal then
     select o.id into v_only_order
@@ -303,7 +315,14 @@ begin
         + case when l.total_kurus > 0 then round(v_loose::numeric * l.amount_kurus / l.total_kurus) else 0 end;
       v_unattributed := v_loose > 0;
     end if;
-    v_refund := greatest(0, v_gross - v_already);
+    -- Installments: the line's unpaid share is cut first (up to what the
+    -- line would get back); only the rest is refunded, from what was paid.
+    select coalesce(sum(ii.amount_kurus - ii.cancelled_kurus - ii.paid_kurus), 0) into v_unpaid
+    from public.order_installment_item ii
+    join public.order_installment i on i.id = ii.installment_id
+    where ii.order_item_id = l.id and i.status = 'pending';
+    v_cut := least(v_unpaid, greatest(0, v_gross - v_already));
+    v_refund := greatest(0, v_gross - v_already - v_cut);
     v_vat := round(v_refund::numeric * l.vat_rate_bp / (10000 + l.vat_rate_bp));
 
     v_lines := v_lines || jsonb_build_object(
@@ -313,9 +332,11 @@ begin
       'visits_excluded', bv.excluded, 'visits_deemed_done', bv.deemed_done, 'visits_report_lost', bv.report_lost,
       'visit_fee_kurus', v_fee, 'gross_kurus', v_gross,
       'already_refunded_kurus', v_already, 'unattributed', v_unattributed, 'refund_kurus', v_refund,
-      'refund_vat_kurus', v_vat, 'mode', v_mode, 'early_performance', l.early_performance);
+      'refund_vat_kurus', v_vat, 'mode', v_mode, 'early_performance', l.early_performance,
+      'unpaid_kurus', v_unpaid, 'installments_cut_kurus', v_cut);
     v_total_amount := v_total_amount + l.amount_kurus;
     v_total_refund := v_total_refund + v_refund;
+    v_total_cut := v_total_cut + v_cut;
     v_total_vat := v_total_vat + v_vat;
     v_any_unattributed := v_any_unattributed or v_unattributed;
     if l.id = p_order_item_id then
@@ -337,6 +358,7 @@ begin
     'refund_kurus', v_total_refund,
     'refund_vat_kurus', v_total_vat,
     'unallocated_kurus', 0,
+    'installments_cut_kurus', v_total_cut,
     'unattributed_refunds', v_any_unattributed,
     'lines', v_lines
   );
@@ -583,7 +605,7 @@ grant execute on function public.customer_request_garden_removal(uuid, text, tex
 -- 5, 6. Ops removals for just causes; transfer message
 -- ---------------------------------------------------------------------------
 
--- Just causes of an ops removal (12/3) and those without a notice period.
+-- Just causes of an ops removal (12/3) by their notice rule.
 create function private.ops_removal_reason(p_reason text)
 returns text
 language sql
@@ -592,11 +614,41 @@ set search_path = ''
 as $$
   select case
     when p_reason in ('staff_safety', 'duplicate', 'no_authority', 'third_party_objection', 'by_agreement') then 'no_notice'
-    when p_reason in ('out_of_area', 'owner_breach', 'transfer', 'service_discontinued') then 'notice'
+    when p_reason in ('location_misdeclared', 'owner_breach', 'transfer') then 'notice'
+    when p_reason = 'service_withdrawn_district' then 'district'
+    when p_reason = 'payment_default' then 'payment_warning'
   end;
 $$;
 comment on function private.ops_removal_reason(text) is
-  'H20 (c): notice (30 days) or no_notice for the just causes of an ops removal; null for any other reason.';
+  'H20 (c), H36: notice (30 days), district (60 days, not before the paid current window ends), payment_warning '
+  '(the Md. 8/6 warning, T30) or no_notice for the just causes of an ops removal; null for any other reason.';
+
+-- H36: the first exit day a district withdrawal of the order's garden may
+-- have, by the visit window holding p_day: the day after it ends when that
+-- window is paid (its visit installment paid, or an order without visit
+-- installments, paid in full), else p_day.
+create function private.district_withdrawal_earliest(p_order_id uuid, p_day date)
+returns date
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  i public.order_installment;
+  w jsonb;
+begin
+  if exists (select 1 from public.order_installment x where x.order_id = p_order_id and x.kind = 'visit') then
+    select * into i from public.order_installment x
+    where x.order_id = p_order_id and x.kind = 'visit' and x.window_start <= p_day and p_day <= x.window_end
+    order by x.seq limit 1;
+    return case when found and i.status = 'paid' then i.window_end + 1 else p_day end;
+  end if;
+  w := private.visit_window_of(p_day);
+  return coalesce((w ->> 'end')::date + 1, p_day);
+end;
+$$;
+revoke all on function private.district_withdrawal_earliest(uuid, date) from public;
 
 drop function public.ops_request_garden_removal(uuid, text, date, text, integer, boolean);
 
@@ -677,6 +729,32 @@ begin
     raise exception 'removal_notice_too_short' using errcode = 'P0001',
       hint = '12/3: at least 30 days notice (none for safety, duplicate, authority or objection, agreement).';
   end if;
+  -- H36: a district withdrawal gives 60 days and never ends the paid window
+  -- the owner is in.
+  if p_reason = 'service_withdrawn_district' then
+    if p_effective_on < least(v_today + 60, v_last) and v_consent is null then
+      raise exception 'removal_notice_too_short' using errcode = 'P0001',
+        hint = 'H36: at least 60 days notice for a district withdrawal.';
+    end if;
+    if p_effective_on < least(private.district_withdrawal_earliest(o.id, v_today), v_last) then
+      raise exception 'removal_window_not_ended' using errcode = 'P0001',
+        hint = 'H36: not before the end of the paid visit window holding the notice day.';
+    end if;
+  end if;
+  -- H35, H36: a payment default needs an installment unpaid 30 days after
+  -- its due day; the note records the Md. 8/6 warning (T30).
+  if p_reason = 'payment_default' then
+    if v_note is null then
+      raise exception 'invalid_input' using errcode = '22023', detail = 'note';
+    end if;
+    if not exists (
+      select 1 from public.order_installment x
+      where x.order_id = o.id and x.status = 'pending' and x.due_on <= v_today - 30
+    ) then
+      raise exception 'payment_default_not_due' using errcode = 'P0001',
+        hint = 'H35: an installment of the order must be unpaid 30 days after its due day.';
+    end if;
+  end if;
   if private.has_open_removal(array[oi.parcel_id], oi.customer_user_id) then
     raise exception 'garden_removal_open' using errcode = 'P0001';
   end if;
@@ -751,3 +829,45 @@ comment on function public.ops_garden_removal_terms(uuid) is
   'Ops (T05): timing, owner consent note and notice rule of a garden removal.';
 revoke all on function public.ops_garden_removal_terms(uuid) from public, anon;
 grant execute on function public.ops_garden_removal_terms(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 7. Location rejections (H36 (b), T05)
+-- ---------------------------------------------------------------------------
+
+-- As in 20261030105300_quotes_orders.sql, except that a rejection by location
+-- (out_of_service_area) needs a note: the written internal criterion it
+-- applied (distance, travel time, capacity, access safety).
+create or replace function public.ops_reject_application(p_application_id uuid, p_reason text, p_note text default null)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  a public.service_application;
+  v_note text := nullif(btrim(p_note), '');
+begin
+  a := private.lock_application_for_ops(p_application_id);
+  if a.status not in ('submitted', 'quoted') then
+    raise exception 'application_not_open' using errcode = 'P0001';
+  end if;
+  if p_reason is null or not p_reason = any (enum_range(null::public.application_rejection_reason)::text[]) then
+    raise exception 'invalid_input' using errcode = '22023', detail = 'reason';
+  end if;
+  if length(v_note) > 2000 or (p_reason = 'out_of_service_area' and v_note is null) then
+    raise exception 'invalid_input' using errcode = '22023', detail = 'note';
+  end if;
+  perform private.cancel_open_quote(a, (select auth.uid()), 'ops');
+  update public.service_application
+  set status = 'rejected', rejection_reason = p_reason::public.application_rejection_reason, ops_note = v_note,
+      decided_at = now(), decided_by = (select auth.uid())
+  where id = a.id and status = a.status;
+  if not found then
+    raise exception 'state_changed' using errcode = 'P0001';
+  end if;
+  perform private.audit(a.org_id, (select auth.uid()), 'ops', 'application.rejected', 'application', a.id,
+    jsonb_build_object('reason', p_reason, 'from', a.status));
+  perform private.enqueue_billing_notification('application_rejected', a.org_id, a.customer_user_id, a.id, a.number,
+    '/portal/basvuru/' || a.id);
+end;
+$$;

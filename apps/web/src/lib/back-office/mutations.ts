@@ -256,7 +256,16 @@ export async function recordManualPayment(
       p_value_date: input.valueDate,
       p_bank_reference: input.bankReference,
       ...(input.note ? { p_note: input.note } : {}),
+      ...(input.installmentId ? { p_installment_id: input.installmentId } : {}),
     }),
+  );
+}
+
+// The visit of an unpaid visit installment may be planned (the customer's
+// written request, recorded in the note; H35 (c)).
+export async function allowUnpaidVisit(supabase: Client, installmentId: string, note: string) {
+  return result(
+    await supabase.rpc("ops_allow_unpaid_visit", { p_installment_id: installmentId, p_note: note }),
   );
 }
 

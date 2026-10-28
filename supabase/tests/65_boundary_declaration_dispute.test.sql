@@ -54,7 +54,7 @@ reset role;
 select results_eq(
   $$ select user_id, text_version, declaration_sha256 from private.boundary_approval
      where boundary_id = '65000000-0000-4000-8000-000000000011' $$,
-  $$ values ('a0000000-0000-4000-8000-000000000001'::uuid, 'mesafeli-v4-taslak',
+  $$ values ('a0000000-0000-4000-8000-000000000001'::uuid, 'mesafeli-v5-taslak',
              encode(sha256(convert_to('Gösterdiğim sınırın fiilen kullandığım alan olduğunu ve ekibinizin bu alana girmesine izin vermeye yetkili olduğumu beyan ederim.', 'UTF8')), 'hex')) $$,
   'recorded with the current distance_sales version and the text''s SHA-256');
 select is((select approved_at from private.boundary_approval where boundary_id = '65000000-0000-4000-8000-000000000011'),

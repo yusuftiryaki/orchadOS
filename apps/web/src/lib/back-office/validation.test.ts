@@ -15,6 +15,7 @@ import {
   parsePackage,
   parsePriceListDraft,
   parseQuoteTerms,
+  parseReject,
   parseRemovalRequest,
   parseRemovalSchedule,
   planRemoveAll,
@@ -160,12 +161,29 @@ describe("forms", () => {
         valueDate: "2026-10-27",
         bankReference: "EFT-1",
         note: null,
+        installmentId: null,
       },
     });
     expect(parseManualPayment(reader({ amount: "1", value_date: "2026-10-27" }))).toEqual({
       ok: false,
       field: "bank_reference",
     });
+    // The payment plan (installments-v1): one installment, or spread.
+    expect(
+      parseManualPayment(
+        reader({
+          amount: "1",
+          value_date: "2026-10-27",
+          bank_reference: "EFT-2",
+          installment_id: "f0000000-0000-4000-8000-000000000001",
+        }),
+      ),
+    ).toMatchObject({ ok: true, value: { installmentId: "f0000000-0000-4000-8000-000000000001" } });
+    expect(
+      parseManualPayment(
+        reader({ amount: "1", value_date: "2026-10-27", bank_reference: "x", installment_id: "1" }),
+      ),
+    ).toEqual({ ok: false, field: "installment_id" });
   });
 
   it("a card result needs the provider reference to succeed", () => {
@@ -395,11 +413,11 @@ describe("IP14 garden membership forms", () => {
   const days = { today: "2027-03-01", lastDay: "2027-06-30" };
 
   it("a removal request: reason, a day from today to the last day, access days", () => {
-    const base = { reason: "out_of_area", effective_on: "2027-03-31" };
+    const base = { reason: "location_misdeclared", effective_on: "2027-03-31" };
     expect(parseRemovalRequest(reader(base), days, 90)).toEqual({
       ok: true,
       value: {
-        reason: "out_of_area",
+        reason: "location_misdeclared",
         effectiveOn: "2027-03-31",
         accessDays: null,
         revokeAllAccess: false,
@@ -449,7 +467,7 @@ describe("IP14 garden membership forms", () => {
       });
     }
     // 29 days ahead: refused for a cause with notice, unless the owner agreed.
-    const early = { reason: "out_of_area", effective_on: "2027-03-30" };
+    const early = { reason: "location_misdeclared", effective_on: "2027-03-30" };
     expect(parseRemovalRequest(reader(early), days, 90)).toEqual({
       ok: false,
       field: "owner_consent_note",
@@ -473,11 +491,48 @@ describe("IP14 garden membership forms", () => {
     // The period ends sooner than the notice: its last day + 1 is enough.
     expect(
       parseRemovalRequest(
-        reader({ reason: "service_discontinued", effective_on: "2027-03-10" }),
+        reader({ reason: "service_withdrawn_district", effective_on: "2027-03-10" }),
         { today: "2027-03-01", lastDay: "2027-03-10" },
         90,
       ).ok,
     ).toBe(true);
+  });
+
+  it("H36 (b): a rejection by location needs a note", () => {
+    expect(parseReject(reader({ reason: "out_of_service_area" }))).toEqual({
+      ok: false,
+      field: "note",
+    });
+    expect(parseReject(reader({ reason: "out_of_service_area", note: "Yol süresi 3 saat" })).ok).toBe(
+      true,
+    );
+    expect(parseReject(reader({ reason: "capacity" })).ok).toBe(true);
+  });
+
+  it("H36: a district withdrawal needs 60 days; a payment default needs a note", () => {
+    const district = { reason: "service_withdrawn_district" };
+    expect(
+      parseRemovalRequest(reader({ ...district, effective_on: "2027-04-29" }), days, 90),
+    ).toEqual({ ok: false, field: "owner_consent_note" });
+    expect(
+      parseRemovalRequest(reader({ ...district, effective_on: "2027-04-30" }), days, 90).ok,
+    ).toBe(true);
+    expect(
+      parseRemovalRequest(reader({ reason: "payment_default", effective_on: "2027-03-01" }), days, 90),
+    ).toEqual({ ok: false, field: "note" });
+    expect(
+      parseRemovalRequest(
+        reader({ reason: "payment_default", effective_on: "2027-03-01", note: "Uyarı SMS 1 Şubat" }),
+        days,
+        90,
+      ).ok,
+    ).toBe(true);
+    for (const reason of ["out_of_area", "service_discontinued"]) {
+      expect(parseRemovalRequest(reader({ reason, effective_on: "2027-04-30" }), days, 90)).toEqual({
+        ok: false,
+        field: "reason",
+      });
+    }
   });
 
   it("access days are 0..365; below the setting only for transfer, duplicate or with a note", () => {

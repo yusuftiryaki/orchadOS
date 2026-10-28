@@ -76,6 +76,7 @@ begin
     r.coowner_notice_flow_enabled := false;
     r.boundary_declaration_required := false;
     r.kvkk_request_form_enabled := false;
+    r.installment_lead_days := 14;
     r.visit_notice_sms_enabled := false;
     r.service_end_access_flow_enabled := false;
   end if;

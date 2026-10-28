@@ -230,6 +230,8 @@ export function parseReject(read: Reader): Parsed<{ reason: string; note: string
   if (!reason) return bad("reason");
   const note = text(read, "note", 2000);
   if (!note.ok) return note;
+  // A rejection by location names the written criterion it applied (H36 (b)).
+  if (reason === "out_of_service_area" && !note.value) return bad("note");
   return ok({ reason, note: note.value });
 }
 
@@ -242,6 +244,8 @@ export interface ManualPaymentInput {
   valueDate: string;
   bankReference: string;
   note: string | null;
+  // One installment, or null: spread over the open ones in order.
+  installmentId?: string | null;
 }
 
 export function parseManualPayment(read: Reader): Parsed<ManualPaymentInput> {
@@ -253,7 +257,15 @@ export function parseManualPayment(read: Reader): Parsed<ManualPaymentInput> {
   if (!bankReference.ok) return bankReference;
   const note = text(read, "note", 2000);
   if (!note.ok) return note;
-  return ok({ amountKurus, valueDate, bankReference: bankReference.value!, note: note.value });
+  const installment = read("installment_id");
+  if (installment && !isUuid(installment)) return bad("installment_id");
+  return ok({
+    amountKurus,
+    valueDate,
+    bankReference: bankReference.value!,
+    note: note.value,
+    installmentId: installment || null,
+  });
 }
 
 export interface RefundInput {
@@ -368,12 +380,13 @@ export const REMOVAL_REASONS = [
   "transfer",
   "duplicate",
   "other",
-  "out_of_area",
+  "location_misdeclared",
   "owner_breach",
   "no_authority",
   "third_party_objection",
   "staff_safety",
-  "service_discontinued",
+  "payment_default",
+  "service_withdrawn_district",
   "by_agreement",
   "period_ended",
   "order_terminated",
@@ -381,32 +394,37 @@ export const REMOVAL_REASONS = [
 ] as const;
 export type RemovalReason = (typeof REMOVAL_REASONS)[number];
 
-// The just causes of a removal by ops (contract 12/3, kararlar.md H20 (c));
-// the database refuses any other (removal_reason_not_allowed).
+// The just causes of a removal by ops (contract 12/3, kararlar.md H20 (c) as
+// changed by H36); the database refuses any other (removal_reason_not_allowed).
 export const OPS_REMOVAL_REASONS = [
-  "out_of_area",
+  "location_misdeclared",
   "owner_breach",
   "no_authority",
   "third_party_objection",
   "staff_safety",
   "transfer",
   "duplicate",
-  "service_discontinued",
+  "payment_default",
+  "service_withdrawn_district",
   "by_agreement",
 ] as const satisfies readonly RemovalReason[];
 export type OpsRemovalReason = (typeof OPS_REMOVAL_REASONS)[number];
 
 // Causes without the 30-day notice (12/3: safety, duplicate, authority or
-// objection; an agreement sets its own day). The others need the notice, or
-// the owner's recorded consent to an earlier day.
+// objection; an agreement sets its own day; a payment default had the Md. 8/6
+// warning, T30). The others need the notice, or the owner's recorded consent
+// to an earlier day. A district withdrawal needs 60 days (H36); the database
+// also keeps it after the paid window of today (removal_window_not_ended).
 export const NO_NOTICE_REASONS: readonly OpsRemovalReason[] = [
   "staff_safety",
   "duplicate",
   "no_authority",
   "third_party_objection",
   "by_agreement",
+  "payment_default",
 ];
 export const OPS_REMOVAL_NOTICE_DAYS = 30;
+export const DISTRICT_NOTICE_DAYS = 60;
 
 // Reasons that allow a read-only window shorter than the setting without a
 // note (§5.2: a transfer suggests 0).
@@ -504,7 +522,12 @@ export function parseRemovalRequest(
   const consent = read("owner_consent_note").trim();
   if (consent.length > 2000) return bad("owner_consent_note");
   if (cause === "by_agreement" && !consent) return bad("owner_consent_note");
-  const noticeDay = addDays(days.today, OPS_REMOVAL_NOTICE_DAYS);
+  // A payment default records the Md. 8/6 warning in the note (H35, T30).
+  if (cause === "payment_default" && !note.value) return bad("note");
+  const noticeDay = addDays(
+    days.today,
+    cause === "service_withdrawn_district" ? DISTRICT_NOTICE_DAYS : OPS_REMOVAL_NOTICE_DAYS,
+  );
   const earliest = days.lastDay && days.lastDay < noticeDay ? days.lastDay : noticeDay;
   if (!NO_NOTICE_REASONS.includes(cause) && effectiveOn.value < earliest && !consent) {
     return bad("owner_consent_note");

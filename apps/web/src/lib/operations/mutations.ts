@@ -27,6 +27,7 @@ export type OpsError =
   | "parcel_removal_scheduled"
   | "parcel_removed"
   | "withdrawal_period_open"
+  | "installment_unpaid"
   | "boundary_dispute_open"
   | "already_owner"
   // T07, T06 (contract 8A).
@@ -57,6 +58,7 @@ const KNOWN: OpsError[] = [
   "parcel_removal_scheduled",
   "parcel_removed",
   "withdrawal_period_open",
+  "installment_unpaid",
   "boundary_dispute_open",
   "already_owner",
   "postponement_not_allowed",

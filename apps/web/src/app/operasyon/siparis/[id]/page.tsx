@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  allowUnpaidVisitAction,
   cancelOrderAction,
   extendDueAction,
   recordManualPaymentAction,
@@ -24,12 +25,14 @@ import {
 } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
 import { OpsNav } from "@/components/operations/ops-nav";
+import { InstallmentPlan } from "@/components/portal-billing/installment-plan";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { getOrder, getSetting, type OrderView } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
 import { OPS_WITHDRAWAL_CHANNELS } from "@/lib/billing/types";
-import { OPS_REMOVAL_REASONS, addDays, outstandingKurus } from "@/lib/back-office/validation";
+import { OPS_REMOVAL_REASONS, addDays } from "@/lib/back-office/validation";
+import { installmentLabel, openKurus, planRowOf } from "@/lib/billing/installments";
 import {
   documentState,
   opsDocuments,
@@ -63,8 +66,9 @@ function lineState(item: Item, orderActive: boolean): React.ReactNode {
   return orderActive && item.parcel_id ? L.in_service : B.none;
 }
 
-// One order: summary, items with their parcels, payments, the actions on its
-// state (transfer, due date, cancel, terminate, renewal), its contract
+// One order: summary, items with their parcels, its payment plan (with the
+// unpaid-visit override, H35), payments, the actions on its state (transfer
+// per installment, due date, cancel, terminate, renewal), its contract
 // documents (T04: download, "Belgeleri üret" when missing) and its audit
 // trail.
 export default async function Page({
@@ -80,7 +84,14 @@ export default async function Page({
   const view = await getOrder(supabase, id);
   if (!view) notFound();
   const { order: o, summary, items, payments, audit, internal } = view;
-  const outstanding = outstandingKurus(o);
+  const plan = view.plan.map((r) => ({
+    id: r.id,
+    overrideAt: r.visit_override_at,
+    overrideNote: r.visit_override_note,
+    row: planRowOf(r),
+  }));
+  const openPlan = plan.filter((p) => openKurus(p.row) > 0);
+  const outstanding = openPlan.reduce((sum, p) => sum + openKurus(p.row), 0);
   const today = todayIn(new Date());
   const awaiting = o.status === "awaiting_payment";
   const active = o.status === "active";
@@ -207,6 +218,48 @@ export default async function Page({
             : []),
         ]}
       />
+
+      {plan.length > 0 && (
+        <section data-testid="order-plan">
+          <h2>{T.planTitle}</h2>
+          <InstallmentPlan
+            rows={plan.map((p) => p.row)}
+            currency={o.currency}
+            withStatus
+            notes={false}
+            action={(row) => {
+              const p = plan.find((x) => x.row.seq === row.seq)!;
+              if (p.overrideAt) {
+                return (
+                  <span className="muted" data-testid="visit-allowed">
+                    {billingText.plan.visitAllowed}: {p.overrideNote}
+                  </span>
+                );
+              }
+              if (row.kind !== "visit" || row.status !== "pending" || !active) return null;
+              return (
+                <details>
+                  <summary>{T.allowVisit}</summary>
+                  <p className="muted">{T.allowVisitHint}</p>
+                  <ActionForm
+                    action={allowUnpaidVisitAction}
+                    testId={`allow-visit-form-${row.seq}`}
+                  >
+                    <input type="hidden" name="order_id" value={o.id} />
+                    <input type="hidden" name="installment_id" value={p.id} />
+                    <Field label={T.allowVisitNote}>
+                      <textarea name="note" maxLength={500} rows={2} required />
+                    </Field>
+                    <div className={styles.actions}>
+                      <Submit secondary>{T.allowVisitSubmit}</Submit>
+                    </div>
+                  </ActionForm>
+                </details>
+              );
+            }}
+          />
+        </section>
+      )}
 
       <h2>{T.items}</h2>
       <div className={styles.tableWrap}>
@@ -376,12 +429,24 @@ export default async function Page({
       )}
 
       <div className={styles.columns}>
-        {awaiting && outstanding > 0 && (
+        {o.status !== "cancelled" && outstanding > 0 && (
           <section className={styles.section}>
             <h2>{T.manualTitle}</h2>
             <p className="muted">{T.manualHint}</p>
             <ActionForm action={recordManualPaymentAction} testId="manual-payment-form">
               <input type="hidden" name="order_id" value={o.id} />
+              {openPlan.length > 0 && (
+                <Field label={T.installment}>
+                  <select name="installment_id" defaultValue="">
+                    <option value="">{T.installmentSpread}</option>
+                    {openPlan.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {`${p.row.seq}. ${installmentLabel(p.row)} · ${money(openKurus(p.row), o.currency)}`}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
               <Field label={T.amount}>
                 <input name="amount" inputMode="decimal" required />
               </Field>

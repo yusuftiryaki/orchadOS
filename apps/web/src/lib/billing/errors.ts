@@ -81,6 +81,11 @@ export const BILLING_ERRORS = [
   "carry_over_not_allowed",
   "missed_visit_frozen",
   "reconciliation_frozen",
+  "removal_window_not_ended",
+  "payment_default_not_due",
+  // P0001, per-visit payment plan (docs/musteri-yonetimi.md §5.6, H35)
+  "installment_unpaid",
+  "installment_not_open",
   // 55000
   "payment_not_open",
   // Anything else (network, unexpected database error).

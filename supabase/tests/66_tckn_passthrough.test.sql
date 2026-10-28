@@ -42,7 +42,7 @@ select public.ops_verify_application_garden('91200000-0000-4000-8000-00000000040
 insert into ids select 'q', public.ops_issue_quote('91200000-0000-4000-8000-000000000301');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 insert into ids select 'o', public.customer_accept_quote(pg_temp.id('q'),
-  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
+  '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 reset role;
 
 create temporary table begun as

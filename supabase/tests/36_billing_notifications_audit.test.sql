@@ -121,7 +121,7 @@ select public.ops_verify_application_garden('91200000-0000-4000-8000-00000000040
 insert into ids select 'q', public.ops_issue_quote('91200000-0000-4000-8000-000000000301');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 insert into ids select 'o', public.customer_accept_quote(pg_temp.id('q'),
-  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
+  '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 
 create temporary table begin1 as
   select public.payment_begin(pg_temp.id('o'), 'a0000000-0000-4000-8000-000000000006', 'fake',
@@ -143,8 +143,8 @@ select is((select pg_temp.keys(b -> 'billing') from begin1),
 select is((select b -> 'buyer' ->> 'identity_number' from begin1), '11111111111',
   'the placeholder TCKN while the org does not require it');
 select is((select b -> 'buyer' ->> 'phone' from begin1), '+905550000006', 'the phone of the profile');
-select is((select (b ->> 'amount_kurus')::bigint from begin1), (select total_kurus from public.service_order
-  where id = pg_temp.id('o')), 'the outstanding amount');
+select is((select (b ->> 'amount_kurus')::bigint from begin1), (select amount_kurus from public.order_installment
+  where order_id = pg_temp.id('o') and seq = 1), 'the open amount of the first installment');
 select is((select count(*)::integer from private.payment_billing_snapshot where payment_id = pg_temp.id('p')), 0,
   'payment_begin writes no snapshot');
 
@@ -219,18 +219,22 @@ insert into ids select 'q3', public.ops_issue_parcel_quote('b0000000-0000-4000-8
   array['f3600000-0000-4000-8000-000000000011'::uuid], false, null);
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 insert into ids select 'o3', public.customer_accept_quote(pg_temp.id('q3'),
-  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
+  '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 set local session_replication_role = replica;
 update public.quote set valid_until = valid_until - 60 where id = pg_temp.id('q2');
 set local session_replication_role = origin;
-update public.service_order set payment_due_at = now() + interval '2 days' where id = pg_temp.id('o3');
+-- Installment 1 is due today: the due-day reminder (installments-v1).
+update public.order_installment set due_on = (now() at time zone 'Europe/Istanbul')::date
+where order_id = pg_temp.id('o3') and seq = 1;
 select is((select (r ->> 'quotes_expired')::integer || '/' || (r ->> 'reminders_sent')::integer
            from (select private.billing_housekeeping() r) x), '1/1', 'housekeeping expires the quote and reminds once');
 select is((select (r ->> 'reminders_sent')::integer from (select private.billing_housekeeping() r) x), 0,
   'the reminder is not sent twice');
 select is((select actor_role || ':' || coalesce(actor_user_id::text, '-') from public.audit_event
            where action = 'quote.expired' and entity_id = pg_temp.id('q2')), 'system:-', 'expiry by the system');
-select is((select vars ->> 'ref' from public.notification where template = 'payment_reminder' and ref_id = pg_temp.id('o3')),
+select is((select vars ->> 'ref' from public.notification where template = 'payment_reminder'
+            and ref_id = (select md5(i.id::text || ':due')::uuid from public.order_installment i
+                          where i.order_id = pg_temp.id('o3') and i.seq = 1)),
   (select number from public.service_order where id = pg_temp.id('o3')), 'payment_reminder names the order');
 
 select is((select count(*)::integer from public.audit_event

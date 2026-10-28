@@ -497,11 +497,12 @@ describe("results in URLs and database errors", () => {
     expect(reasonOf(null)).toBe("write_failed");
   });
 
-  it("knows the garden removal codes of the visit and life cycle forms (IP14, T03)", () => {
+  it("knows the garden removal and payment plan codes of the visit and life cycle forms (IP14, T03, H35)", () => {
     for (const code of [
       "parcel_removal_scheduled",
       "parcel_removed",
       "withdrawal_period_open",
+      "installment_unpaid",
     ] as const) {
       expect(reasonOf({ code: "P0001", message: code })).toBe(code);
       expect(readResult({ hata: code }).error).toBe(code);

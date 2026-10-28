@@ -15,7 +15,8 @@ import {
 // The customer journey in the browser (IP12-D): a brand-new visitor signs up
 // (SMS code from the outbox), applies with a garden drawn on the map, ops
 // verifies and quotes through the API, the customer fills the billing
-// profile, accepts, pays with the fake card and downloads the receipt. Then a
+// profile, accepts, pays the inventory installment with the fake card,
+// downloads the receipt and pays the first visit installment. Then a
 // declined card. The build runs with ORCHADOS_PAYMENTS_ENABLED=1 and
 // PAYMENT_FAKE_CHECKOUT=1 (playwright.config.ts). Test accounts are removed
 // at the end.
@@ -129,6 +130,13 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
   await expect(page).toHaveURL(`/portal/teklif/${quoteId}`);
   await expect(page.getByTestId("quote-total")).toHaveText("24.480,00 ₺");
   await expect(page.getByTestId("quote-note")).toContainText("mart");
+  // The payment plan before acceptance (H35): inventory now, then one payment
+  // per periodic visit; the total equals the cash price.
+  await expect(page.getByTestId("installment-plan").locator("tbody tr")).toHaveCount(5);
+  await expect(page.getByTestId("installment-1")).toContainText("Envanter ödemesi");
+  await expect(page.getByTestId("installment-1")).toContainText("7.200,00 ₺");
+  await expect(page.getByTestId("installment-2")).toContainText("4.320,00 ₺");
+  await expect(page.getByTestId("installment-total")).toHaveText("24.480,00 ₺");
   // The sign-up recorded the KVKK notice: no acknowledgement box.
   await expect(page.getByTestId("quote-kvkk")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Teklifi kabul et" })).toBeDisabled();
@@ -151,6 +159,7 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
   await expect(page).toHaveURL(/\/portal\/siparis\/[0-9a-f-]{36}\?bilgi=teklif_kabul_edildi$/);
   await expect(page.getByTestId("order-status")).toHaveText("Ödeme bekleniyor");
   await expect(page.getByTestId("bank-reference")).toHaveText(/^S-\d{4}-\d{6}$/);
+  const orderUrl = page.url().replace(/\?.*$/, "");
   // T04: the order's filled pre-information and contract are stored, after
   // the redirect (after()); a reload shows them.
   await expect(async () => {
@@ -160,10 +169,10 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
     });
   }).toPass({ timeout: 30_000 });
 
-  // 6. Card payment through the fake checkout.
+  // 6. Card payment of the first installment (the inventory) through the fake checkout.
   await page.getByTestId("pay-card").click();
   await expect(page).toHaveURL(/\/odeme\/sahte\?/);
-  await expect(page.getByText("24480.00 TL")).toBeVisible();
+  await expect(page.getByText("7200.00 TL")).toBeVisible();
   await page.getByRole("button", { name: "Ödemeyi onayla" }).click();
   await expect(page).toHaveURL(/\/portal\/odeme\/[0-9a-f-]{36}$/);
   await expect(page.getByTestId("payment-status")).toHaveText("Başarılı");
@@ -180,6 +189,23 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
     /^inline; filename=makbuz-M-\d{4}-\d{6}\.pdf$/,
   );
   expect((await receipt.body()).subarray(0, 5).toString()).toBe("%PDF-");
+
+  // 8. The order is active; the customer pays the first visit installment.
+  await page.goto(orderUrl);
+  await expect(page.getByTestId("order-status")).toHaveText("Aktif");
+  await expect(page.getByTestId("installment-1")).toHaveAttribute("data-status", "paid");
+  await expect(page.getByTestId("installment-2")).toHaveAttribute("data-next", "true");
+  await page.getByTestId("pay-card").click();
+  await expect(page).toHaveURL(/\/odeme\/sahte\?/);
+  await expect(page.getByText("4320.00 TL")).toBeVisible();
+  await page.getByRole("button", { name: "Ödemeyi onayla" }).click();
+  await expect(page).toHaveURL(/\/portal\/odeme\/[0-9a-f-]{36}$/);
+  await expect(page.getByTestId("payment-status")).toHaveText("Başarılı");
+  await page.goto(orderUrl);
+  await expect(page.getByTestId("order-status")).toHaveText("Aktif");
+  await expect(page.getByTestId("installment-2")).toHaveAttribute("data-status", "paid");
+  await expect(page.getByTestId("installment-3")).toHaveAttribute("data-status", "pending");
+  await expect(page.getByTestId("installment-3")).toHaveAttribute("data-next", "true");
 
   // The garden is now a parcel of the customer.
   await page
@@ -220,6 +246,7 @@ test("a declined card leaves the order payable; others cannot open the receipt",
     .select("id")
     .eq("customer_user_id", userId)
     .eq("status", "succeeded")
+    .limit(1)
     .single();
   await page.context().clearCookies();
   await login(page, "viewer@example.com", "/portal");

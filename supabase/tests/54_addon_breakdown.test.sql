@@ -55,13 +55,14 @@ as $$
 begin
   perform pg_temp.as_user(p_user);
   return public.customer_accept_quote(p_quote,
-    '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak", "early_performance": "mesafeli-v4-taslak"}');
+    '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak", "early_performance": "mesafeli-v5-taslak"}');
 end;
 $$;
 create function pg_temp.pay(p_order uuid) returns uuid language plpgsql
 as $$
 begin
   perform pg_temp.ops();
+  perform testing.use_single_installment(p_order);
   return public.ops_record_manual_payment(p_order,
     (select total_kurus - (paid_kurus - refunded_kurus) from public.service_order where id = p_order),
     current_date, 'EFT-54-' || left(p_order::text, 8));

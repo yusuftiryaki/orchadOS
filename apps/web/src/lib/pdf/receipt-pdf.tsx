@@ -10,6 +10,18 @@ import { pdf, registerFonts } from "./theme";
 // The payment receipt (docs/musteri-yonetimi.md §10): what receipt_data()
 // returns, as a one-page PDF. A receipt is not an invoice; the title says so.
 
+// "2/5 · Ziyaret ödemesi · Kış" (H35: no "taksit" for the plan).
+function planText(p: ReceiptData["plan_installment"]): string | null {
+  if (!p) return null;
+  const what =
+    p.kind === "inventory"
+      ? R.planInventory
+      : p.kind === "single"
+        ? R.planSingle
+        : [R.planVisit, p.window_name].filter(Boolean).join(" · ");
+  return `${p.seq}/${p.count} · ${what}`;
+}
+
 export interface ReceiptData {
   receipt_number: string;
   status: string;
@@ -26,6 +38,16 @@ export interface ReceiptData {
   value_date: string | null;
   order_number: string;
   package_name: string | null;
+  // The installment of the payment plan the payment paid (installments-v1);
+  // absent on receipts read from an older database.
+  plan_installment?: {
+    seq: number;
+    count: number;
+    kind: "inventory" | "visit" | "single";
+    visit_no: number | null;
+    window_name: string | null;
+    due_on: string;
+  } | null;
   service_start: string | null;
   service_end: string | null;
   items: { line_no: number; name: string; amount_kurus: number }[];
@@ -141,6 +163,7 @@ function ReceiptDocument({ receipt, now }: { receipt: ReceiptData; now: Date }) 
           />
           <Row label={R.order} value={receipt.order_number} />
           <Row label={R.package} value={receipt.package_name} />
+          <Row label={R.planInstallment} value={planText(receipt.plan_installment)} />
           <Row
             label={R.service}
             value={

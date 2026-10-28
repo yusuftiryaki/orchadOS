@@ -23,7 +23,7 @@ Bağlam: [MVP.md](MVP.md), [veri-modeli.md](veri-modeli.md), [deployment.md](dep
 | Kayıt ve giriş | Ad soyad, Türkiye cep telefonu (SMS ile doğrulanır), e-posta ve parola, Turnstile. KVKK aydınlatma teyidi (okundu) ve isteğe bağlı açık rızalar, sürümüyle (bugün sorulan yok; hukuk/kararlar.md H06, H31) |
 | Başvuru | 1–10 bahçe: konum, beyan edilen alan (dönüm), sulama, yetki dayanağı ve giriş izni. Paket seçimi ve fiyat önizleme |
 | Teklif | Doğrulanmış alan ve yayımlı fiyat listesiyle hesaplanır. Girdileri dondurulur, geçerlilik süresi ve indirim içerir |
-| Sipariş ve ödeme | Checkout Form (3DS, tek çekim), havale kaydı, makbuz (PDF), ödeme geçmişi, iade ve iptal, mutabakat |
+| Sipariş ve ödeme | Ziyaret başına ödeme planı (§5.6): ilk yıl envanter ödemesi ve paketteki ziyaret sayısı kadar ziyaret ödemesi; her ödeme ayrı bir Checkout Form (3DS, tek çekim) işlemi ya da havale. Havale kaydı, ödeme başına makbuz (PDF), ödeme geçmişi, iade ve iptal, mutabakat |
 | Hesap | İletişim bilgisi (ad, e-posta, iletişim tercihi), fatura profili, rıza yönetimi |
 | Yenileme | Hizmet yılı biten siparişe yenileme teklifi. İP14'ten sonra yenileme, ek siparişle eklenen bahçeler dahil dönemin hizmetteki bütün bahçelerini kapsar ([bahce-yonetimi.md](bahce-yonetimi.md) §4.1 adım 8) |
 | Back office | Başvurular, teklifler, siparişler, ödemeler, iadeler, fiyatlar, ayarlar, denetim kaydı. Müşteri görünümü mevcut Sahipler listesine eklenir |
@@ -31,7 +31,7 @@ Bağlam: [MVP.md](MVP.md), [veri-modeli.md](veri-modeli.md), [deployment.md](dep
 
 **Kapsam dışı:**
 - e-Arşiv ve e-Fatura (makbuz fatura değildir)
-- Kart saklama, abonelik, otomatik çekim, taksit (ayarı hazır)
+- Kart saklama, abonelik, otomatik çekim, kart taksiti (`IYZICO_ENABLED_INSTALLMENTS`, ayarı hazır). Ziyaret başına ödeme planı (§5.6) kart taksiti değildir; kart taksiti kapsam dışı kalır (hukuk/kararlar.md H35)
 - E-posta kanalı (SMTP yok)
 - Telefon numarası değiştirme
 - Yabancı uyruklu müşteri
@@ -118,15 +118,16 @@ flowchart LR
     - aydınlatma teyidi kayıtlı olmalı,
     - Ön Bilgilendirme ve Mesafeli Hizmet Sözleşmesi onayları verilmeli.
 
-    Kabulde sipariş `S-2026-000123` açılır. Toplam 0 ise sipariş hemen aktifleşir.
-7. **Ödeme.**
-    - **Kart:** `payments`/`start` çağrılır ve tarayıcı iyzico'ya gider. Dönüşte `payment-callback` sonucu iyzico'dan yeniden sorgular, `payment_finalize` çağırır ve 303 ile `/portal/odeme/[id]`'ye yönlendirir. Webhook ve 10 dakikalık mutabakat yedek kanaldır.
-    - **Havale:** IBAN ve referans gösterilir. Ops kaydeder; kısmi havale kabul edilir.
+    Kabulde sipariş `S-2026-000123` ve ödeme planı (§5.6) açılır. Teklif sayfası planı kabulden önce gösterir (`quote_installment_plan`). Toplam 0 ise sipariş hemen aktifleşir.
+7. **Ödeme.** Her ödeme planın bir ödemesini öder (§5.6).
+    - **Kart:** `payments`/`start` çağrılır ve tarayıcı iyzico'ya gider; tutar sıradaki açık ödemenin açık tutarıdır. Dönüşte `payment-callback` sonucu iyzico'dan yeniden sorgular, `payment_finalize` çağırır ve 303 ile `/portal/odeme/[id]`'ye yönlendirir. Webhook ve 10 dakikalık mutabakat yedek kanaldır.
+    - **Havale:** IBAN, referans ve sıradaki ödemenin tutarı gösterilir. Ops kaydeder: bir ödemeye ya da açık ödemelere sırayla (her ödemeye ayrı ödeme satırı ve makbuz); kısmi havale kabul edilir.
     - Başarılı her ödemeye makbuz numarası verilir (`M-…`) ve `payment_received` bildirimi gider.
-8. **Aktivasyon.** `private.activate_order` tek işlemde şunları yapar:
+8. **Aktivasyon.** Sipariş planın ilk ödemesi (ilk yıl envanter, yenilemede ilk ziyaret ödemesi) ödenince etkinleşir. `private.activate_order` tek işlemde şunları yapar:
     - bahçe başına parsel (`registered`) oluşturur, kaba sınırı v1 `owner_declared` olarak ve `parcel_detail`'ı yazar,
     - sahip erişimini verir,
-    - hizmet dönemini 1 yıl olarak yazar.
+    - hizmet dönemini 1 yıl olarak yazar,
+    - açık ziyaret ödemelerinin pencerelerini ve son günlerini hizmet dönemine göre yeniden hesaplar (son günler öne alınmaz).
 
     Envanter planlanınca mevcut tetikleyici parseli `inventory_planned` yapar.
 9. **Yenileme.**
@@ -168,7 +169,7 @@ flowchart LR
 | Geçiş | Fonksiyon | Koşul |
 | --- | --- | --- |
 | → `awaiting_payment` | `customer_accept_quote` | Toplam 0 ise doğrudan `active` |
-| `→ active` | `private.activate_order` (`payment_finalize` ya da `ops_record_manual_payment` içinden) | `paid_kurus >= total_kurus` |
+| `→ active` | `private.activate_order` (`payment_finalize` ya da `ops_record_manual_payment` içinden) | Planın ilk ödemesi (pencere sonunda düşmemiş ilk ödeme) ödendi (`private.order_activatable`); toplam 0 ise hemen |
 | `→ cancelled` | `customer_cancel_order`, `ops_cancel_order` | Başarılı ödeme yok (`has_payments`) ve canlı deneme yok (`payment_in_progress`) |
 | `active → completed` | housekeeping | `service_end` < bugün |
 | `active → terminated` | `ops_terminate_order` | Not zorunlu |
@@ -179,7 +180,7 @@ flowchart LR
 - `pending_review`
 - `initiated` ya da `expired`, ve `token_expires_at > now()`
 
-Ödeme süresi (`payment_due_at`) dolunca sipariş kendiliğinden iptal olmaz. Bitimden 3 gün önce bir kez hatırlatma gider.
+Ödeme süresi (`payment_due_at`, planın ilk ödemesinin son günü) dolunca sipariş kendiliğinden iptal olmaz. Hatırlatmalar ödeme başınadır (§5.6). Sona eren sipariş (iptal, fesih, tamamlanma) ödenmemiş ödemelerini iptal eder; ops'un ödemesiz ziyarete izin verdiği ödeme kalır.
 
 ### 5.4 Ödeme
 
@@ -195,9 +196,10 @@ flowchart LR
 
 **`payment_finalize` kuralları:**
 - **Karşılaştırma:** Sağlayıcının bildirdiği tutar, para birimi, `conversationId` ve `basketId`, **ödeme satırıyla** (`amount_kurus`, `id`, `order_id`) karşılaştırılır; asla siparişle karşılaştırılmaz.
+- **Taksit:** Her ödeme satırı tam olarak bir plan ödemesine bağlıdır (`order_installment_id`). Başarılı ödeme önce o ödemenin açık tutarına yazılır; alamadığı kısım iade edilir: hiçbir şey alamadıysa ve sipariş ya da ödeme kapalıysa `order_closed`, değilse `overpayment` (§5.6).
 - **Başarı ama uyuşmazlık:** Sağlayıcı SUCCESS der ama değerler uyuşmazsa sonuç `pending_review` olur (`failure_code = amount_mismatch | reference_mismatch`). Sistem `provider_mismatch` nedenli bir `void` iadesi açar ve ödeme panoda görünür. Sonuç `failed` **yazılmaz**.
 - **Kapalı sipariş:** Başarılı ödeme `cancelled`, `terminated` ya da `completed` bir siparişe düşerse tam tutarlı `order_closed` iadesi açılır.
-- **Fazla ödeme:** Ödeme sipariş toplamını aşarsa aşan kısım (`paid_kurus − total_kurus`) için `overpayment` iadesi açılır.
+- **Fazla ödeme:** Ödeme, ödediği plan ödemesinin açık tutarını aşarsa aşan kısım için `overpayment` iadesi açılır (örneğin aynı ödeme hem kartla hem havaleyle ödendiyse).
 - **Yinelenen çağrı:** Son durumdaki bir satıra yeniden çağrı bir şey değiştirmez.
 - **Sahte sağlayıcı:** `provider = 'fake'` olan ödeme, `allow_fake_payments` açık değilse başarılı yazılmaz (`fake_payments_disabled`).
 
@@ -217,6 +219,34 @@ flowchart LR
 - **Yeniden deneme:** `failed → processing` geçişinde tavan yeniden denetlenir.
 - **Tutar güncellemesi:** `refunded_kurus` alanları yalnızca `succeeded`'a geçişte ve bir kez artar; artış koşullu güncellemeden dönen satıra bağlıdır.
 - **Zaman aşımı:** Kart iadesi idempotent değildir. Bu yüzden satır API çağrısından önce `processing` yapılır. 15 dakikadan uzun süren `processing` ops'a "belirsiz" olarak gösterilir.
+
+### 5.6 Ödeme planı (`installments-v1`)
+
+Ürün sahibi kararı (28 Ekim 2026): ilk yıl envanter ücreti teklif onayında tek çekimle önden ödenir; kalan yıllık tutar paketteki periyodik ziyaret sayısı kadar ödemeye bölünür (Temel 2, Standart 4, Kapsamlı 6). Bu kart taksiti değildir: her ödeme ayrı bir tek çekim kart işlemi ya da havaledir; faiz, vade farkı ya da ücret yoktur. Hukuki çerçeve: [hukuk/kararlar.md](hukuk/kararlar.md) H35 (yapay zekâ ajanlarının kararı); müşteriye dönük metinlerde "taksit" değil "ödeme planı", "envanter ödemesi", "ziyaret ödemesi", "ilk ödeme" yazılır.
+
+**Plan (tek kaynak SQL: `private.installment_schedule`).**
+- **Satır payları:** Her teklif satırında envanter payı = envanter ücreti − envanter ücretinin indirim payı (`round(fee × discount_bp / 10000)`), üstüne KDV (`round(net × vat_rate_bp / 10000)`), en fazla satır toplamı. Satırın geri kalanı satırdaki ziyaret sayısı kadar parçaya bölünür: `floor(kalan / n)`, kuruş farkı son parçaya. KDV de aynı biçimde bölünür.
+- **Ödemeler:** Envanter payı olan teklifte 1. ödeme envanter ödemesidir (satırların envanter payları toplamı). Ziyaret ödemesi k, satırların k'ncı parçalarının toplamıdır. Toplamı 0 olan ödeme oluşmaz. Planın toplamı teklif toplamına, her ödeme kendi satır paylarına eşittir (kabulde denetlenir: `installment_plan_mismatch`).
+- **Pencereler:** `public.package_visit_windows(V)`, sözleşme Ek-2 (v5) ve [fiyatlandirma.md](fiyatlandirma.md) §1: Kış 15 Ara–15 Şub, Uyanma 10–31 Mar, İlkbahar 15 Nis–15 May, Yaz 1–25 Tem, Hasat öncesi 1–20 Ağu, Hasat (Kapsamlı'da "Hasat sonrası") 15 Eyl–31 Eki. Temel: Kış, Hasat; Standart: Kış, İlkbahar, Yaz, Hasat; Kapsamlı: altısı. Ziyaret k, hizmet döneminde başlangıcı dönemin içinde kalan k'ncı penceredir (`private.installment_windows`); dönemde yeterli pencere yoksa eksik ziyaretler dönemin ilk gününe konur, penceresiz paket sayısında ziyaretler döneme eşit aralıkla yayılır.
+- **Son günler:** İlk ödeme ödeme süresi içinde (kabul + `payment_due_days`; ek siparişte en geç son ek günü). Ziyaret ödemesi k'nın son günü pencerenin başlangıcından `installment_lead_days` (varsayılan 14, yalnızca SQL; teklif `inputs.installments.lead_days` ile dondurur) gün öncesidir; bu gün kabul gününden önceyse kabul günüdür. Envanteri olmayan siparişin ilk ödemesi (yenileme) ödeme süresinden önce istenmez, ek siparişte ödeme süresinde istenir. Son günler sıradan önceye düşmez. `due_rule`: `payment_period`, `window`, `acceptance`.
+- **Kayıt:** Kabulde `private.create_order_installments` planı `order_installment` ve `order_installment_item` tablolarına yazar; siparişin `payment_due_at` değeri ilk ödemenin son gününden önceyse ileri alınır. Teklif `inputs.installments = {formula: 'installments-v1', lead_days}` taşır (`quote_installment_terms` tetikleyicisi). Etkinleşmede açık ziyaret ödemeleri hizmet dönemine göre yeniden zamanlanır (`private.reschedule_installments`; tutarlar değişmez).
+- **Eski siparişler:** Bu işten önceki her siparişin toplamı tek bir `single` ödemedir (migration'daki geri doldurma); ödemeleri ona bağlanır.
+
+**Ödeme.**
+- **Kart:** `payment_begin` sıradaki açık ödemenin açık tutarını çeker; satırı ödemeye bağlar (`order_installment_id`). Ödenebilir: ödeme bekleyen ya da aktif sipariş ve açık ödeme.
+- **Havale:** `ops_record_manual_payment(..., p_installment_id default null)`: ödeme verilirse en fazla onun açık tutarı; verilmezse tutar açık ödemelere sırayla dağıtılır, her ödemeye ayrı ödeme satırı ve makbuz (aynı banka referansı); dönüş ilk ödeme satırıdır. Sahip son günü gelmemiş ödemeleri önceden yapabilir (erken ödeme, H35).
+- **Tamamlama** (`private.complete_payment`): sipariş → ödeme → plan ödemesi kilit sırasıyla; ödeme, plan ödemesine en fazla açık tutarı kadar yazılır (satır paylarına satır sırasıyla). İlk ödeme ödenince sipariş etkinleşir. `payment_finalize`'ın idempotentlik ve uyuşmazlık kuralları (§5.4) aynen geçerlidir; sağlayıcının tutarı ödeme satırıyla karşılaştırılır.
+- **İade:** Ödeme bekleyen siparişin ödemesinden yapılan iade (fazla ödeme, `order_closed` ve uyuşmazlık iadeleri hariç) plan ödemesini o kadar yeniden açar; aktif siparişte iade (yapılamayan ziyaret, çıkarma, iyi niyet) plan ödemesini açmaz. Havale düzeltmesi (`ops_void_manual_payment`) yazılan tutarı geri alır.
+
+**Ziyaret planlama.** Ödenmemiş ziyaret ödemesinin ziyareti planlanmaz (`installment_unpaid`, `session_guard_installment`): planlanan gün bir ziyaret ödemesinin penceresindeyse o ödeme ödenmiş olmalıdır; pencere dışındaki günde ziyaret, dönemdeki önceki periyodik ziyaret günlerine göre sayılır ve k'ncı açık ödemeye bakılır. Ops, Sahip'in yazılı talebi ya da onayıyla ve not yazarak izin verebilir (`ops_allow_unpaid_visit`; denetim kaydı `order.unpaid_visit_allowed`); o ödeme borç olarak kalır. Durum değişikliği hiçbir zaman reddedilmez (saha uygulaması). Şirket'in yeniden taraması planlanırken sıradaki ödeme açıksa izin gerekir (bilinen sınır).
+
+**Pencere sonunda düşme (H35, T28).** Gece işi, penceresi biten ve ödenmemiş ziyaret ödemesini `window_passed` nedeniyle iptal eder (aktif siparişler ve başlamış yenilemeler; izinli olanlar hariç). Düşen ödeme istenmez ve hatırlatılmaz; sonradan gelen ödeme `order_closed` iadesiyle geri döner. Düşen ödeme etkinleşmeyi engellemez: pencere sonunda düşmemiş ilk ödeme belirleyicidir.
+
+**Hatırlatma.** Her açık ödemeye son gününden 7 gün önce (son 7 günde oluşturulduysa gönderilmez) ve son gününde (kaçan gece işi için en geç 3 gün sonra) birer `payment_reminder`; ilk bildirimin `ref_id`'si ödeme kimliği, ikincisininki `md5('<id>:due')` uuid'i. SMS tutar içermez (§12).
+
+**Ödenmeme.** Otomatik fesih yoktur; faiz, masraf ve muacceliyet yoktur. Son gününden 30 gün geçen açık ödemeler panoda (`installments_overdue`) ve sipariş listesinde (`ops_overdue_installments`) görünür. Fesih kılavuzdaki uyarı adımlarından sonra `ops_terminate_order` ile yapılır (T30). Sipariş sona erince (iptal, fesih, tamamlanma) ödenmemiş ödemeler iptal edilir (`order_cancelled`, `order_terminated`, `order_completed`); ödemesiz ziyaret izni olanlar kalır.
+
+**Bahçe çıkarma ve cayma** ([bahce-yonetimi.md](bahce-yonetimi.md) §7): satırın ödenmemiş payı iadeden önce iptal edilir; yalnızca ödenen tutar iade edilir.
 
 ## 6. Veri modeli
 
@@ -594,7 +624,7 @@ A2'de:
 - `ops_issue_quote(p_application_id, p_proposed_service_start default null, p_valid_days default null, p_discount_bp default 0, p_discount_note default null, p_note_to_customer default null) returns uuid`
 - `ops_issue_parcel_quote(p_org_id, p_customer_user_id, p_package_id, p_parcel_ids uuid[], p_first_year, p_proposed_service_start, p_renewal_of_order_id default null, p_valid_days default null, p_discount_bp default 0, p_discount_note default null, p_note_to_customer default null) returns uuid`
 - `ops_orders(...)`, `ops_cancel_order(p_order_id, p_note default null)`, `ops_extend_payment_due(p_order_id, p_due_on)`, `ops_terminate_order(p_order_id, p_note)`
-- `ops_record_manual_payment(p_order_id, p_amount_kurus, p_value_date, p_bank_reference, p_note default null) returns uuid`: `amount_exceeds_balance`, `payment_in_progress`.
+- `ops_record_manual_payment(p_order_id, p_amount_kurus, p_value_date, p_bank_reference, p_note default null, p_installment_id default null) returns uuid`: `amount_exceeds_balance`, `payment_in_progress`, `invalid_input` (`installment_id`), `installment_not_open`. Bir plan ödemesine ya da açık ödemelere sırayla (§5.6).
 - `ops_void_manual_payment(p_payment_id, p_note)`: `order_active`.
 - `ops_resolve_payment_review(p_payment_id, p_succeeded boolean, p_provider_ref text, p_note default null)`: Yalnızca dolandırıcılık incelemesi için; uyuşmazlık kodlu satırları reddeder.
 - `ops_payments(...)`, `ops_payment_events(p_payment_id)`
@@ -606,7 +636,7 @@ A2'de:
 - `ops_audit_events(p_org_id, p_entity_type default null, p_entity_id default null, p_action_prefix default null, p_limit default 200)`
 
 **Ödeme (`service_role`, A2; Edge sözleşmesi B'nin `_shared/payments/db.ts` dosyasında):**
-- `payment_begin(p_order_id, p_user_id, p_provider, p_return_origin) returns jsonb`
+- `payment_begin(p_order_id, p_user_id, p_provider, p_return_origin) returns jsonb`: sıradaki açık plan ödemesinin açık tutarı (§5.6).
     - Hatalar: `not_found`, `order_not_payable`, `payment_in_progress` (incelemede bir kart denemesi var), `billing_profile_incomplete`, `fake_payments_disabled`.
     - Alıcının kullanılabilir bir e-postası yoksa (sırayla fatura profili, iletişim, hesap e-postası; boş metin yok sayılır) `billing_profile_incomplete`, detail `email` döner ve deneme yazılmaz: sağlayıcı `buyer.email` ister. Yalnızca telefonla kayıtlı müşteri kartla ödemek için fatura bilgilerine e-posta ekler; portal formu bu durumda e-postayı zorunlu gösterir. Havale etkilenmez.
     - Süresi dolmamış `initiated` denemeleri `expired` yapar (`superseded`).
@@ -635,12 +665,15 @@ Mesaj kısa bir koddur. `detail` yalnızca alan adını taşır, değeri taşım
 | 22023 | `invalid_input`, `boundary_invalid`, `consent_required`, `item_required` |
 | 23505 | `exists` |
 | P0001 | `not_customer`, `application_not_draft`, `application_not_open`, `application_incomplete`, `too_many_gardens`, `garden_not_verified`, `no_price_list`, `package_not_priced`, `price_list_not_draft`, `price_list_incomplete`, `valid_from_in_past`, `quote_not_open`, `quote_expired`, `billing_profile_incomplete`, `order_not_payable`, `has_payments`, `payment_in_progress`, `order_active`, `amount_exceeds_balance`, `refund_exceeds_payment`, `refund_not_open`, `fake_payments_disabled`, `signup_closed`, `too_many_attempts`, `state_changed` |
+| P0001 (ödeme planı, §5.6) | `installment_unpaid` (ödenmemiş ziyaret ödemesinin ziyareti planlanamaz), `installment_not_open`, `installment_frozen` (plan satırının tutarı ve kimliği değişmez), `installment_plan_mismatch` (plan toplamı tutmadı; olmamalı) |
 | P0001 (hukuk takip işleri) | `consent_not_asked` (T27, detail tür), `legal_text_outdated` (T21, detail tür), `legal_texts_not_final` (T21, detail `distance_sales_draft` \| `pre_information_draft` \| `kvkk_notice_not_final` \| `company_info_incomplete`), `withdrawal_period_open` (T03, [bahce-yonetimi.md](bahce-yonetimi.md) §9.7), `order_not_active` (T04) |
 | 55000 | `payment_not_open` |
 
 ### 6.11 Tetikleyiciler ve cron
 
 **Koruma tetikleyicileri:** `price_list_guard`, `price_list_item_guard`, `quote_guard`, `service_order_item_guard`.
+
+**Ödeme planı (§5.6, §6.14):** `quote_installment_terms` (teklif eklenirken `inputs.installments`), `order_installment_guard` (plan satırı silinmez, tutarı değişmez, ödenmiş ya da iptal edilmiş satır açılmaz; havale düzeltmesi hariç), `service_order_close_installments` (sona eren siparişin ödenmemiş ödemeleri), `session_guard_installment` (ödenmemiş ziyaret ödemesinin ziyareti).
 
 **Ekleme-yalnız (`private.forbid_mutation`):** `quote_item`, `audit_event`, `consent_record`, `payment_event`, `payment_billing_snapshot`, `contract_document` (T04).
 
@@ -649,7 +682,7 @@ Mesaj kısa bir koddur. `detail` yalnızca alan adını taşır, değeri taşım
 | İş | Zaman | Sahip |
 | --- | --- | --- |
 | `signup-housekeeping` + `signup-cleanup` | Saatte bir | A1 |
-| `billing-housekeeping` | `0 0 * * *` | A2 |
+| `billing-housekeeping` | `0 0 * * *` | A2; plan ödemesi hatırlatmaları ve pencere sonunda düşme (§5.6) |
 | `reconcile-payments` | `*/10 * * * *` | A2 |
 
 ### 6.12 Seed (A1, yalnızca yerel)
@@ -670,6 +703,40 @@ Mesaj kısa bir koddur. `detail` yalnızca alan adını taşır, değeri taşım
 - `testing.purge_billing_users(p_user_ids uuid[])`: `customer_user_id`, `user_id` ve `subject_id` sütunlarından siler; tetikleyiciler kapalıdır.
 - `local-db.ts` içine `purgeBillingUsers(ids)` eklenir.
 - `27_testing_purge.test.sql` güncellenir.
+
+### 6.14 Ödeme planı tabloları ve fonksiyonları (`installments-v1`)
+
+Migration'lar: `20261104100950_visit_installments.sql`, `20261104101000_installment_visits_removals.sql`. Kurallar §5.6'da.
+
+```sql
+public.installment_kind  = ('inventory', 'visit', 'single')
+public.installment_status = ('pending', 'paid', 'cancelled')
+
+public.order_installment (id, org_id, order_id, customer_user_id, seq 1..13, kind, visit_no 1..12 (yalnızca visit),
+  window_code, window_name, window_start, window_end, amount_kurus > 0, vat_kurus, paid_kurus, cancelled_kurus,
+  currency, due_on, status, paid_at, cancelled_at, cancel_reason, reminder_sent_at, due_reminder_sent_at,
+  visit_override_at, visit_override_by [iç], visit_override_note [iç],
+  unique(order_id, seq), unique(order_id, visit_no),
+  check (paid + cancelled <= amount), check (pending ⇔ paid + cancelled < amount), check (paid ⇒ paid_kurus > 0))
+public.order_installment_item (id, org_id, installment_id, order_id, customer_user_id, order_item_id, amount_kurus,
+  vat_kurus, paid_kurus, cancelled_kurus, unique(installment_id, order_item_id))
+public.payment.order_installment_id not null → order_installment (ödemenin ödediği plan ödemesi)
+public.org_billing_setting.installment_lead_days 0..60, default 14 (yalnızca SQL)
+```
+
+- Açık tutar = `amount − cancelled − paid`. Plan satırları ve satır payları silinmez; tutarları değişmez. Demo ve hesap kilitleri bağlıdır. Müşteri kendi satırlarını okur; `visit_override_by` ve `visit_override_note` iç sütundur (`BILLING_COLUMNS`).
+- **Fonksiyonlar:**
+    - `public.package_visit_windows(p_year_visits)` (`anon`, `authenticated`): paket pencereleri; `apps/web/src/lib/billing/installments.ts` aynasıdır (entegrasyon testi denetler).
+    - `public.quote_installment_plan(p_quote_id)` (`authenticated`): teklif bugün onaylansa oluşacak plan; teklifin müşterisi ya da org'un ops'u; başkasına satır dönmez.
+    - `public.ops_order_installments(p_order_id)`: plan, gecikme günü ve iç izin sütunları (`visit_override_by` `{id, name}`).
+    - `public.ops_overdue_installments(p_org_id, p_min_days default 30, p_limit default 200)`: en az o kadar gün geciken açık ödemeler.
+    - `public.ops_allow_unpaid_visit(p_installment_id, p_note)`: ödemesiz ziyaret izni (not ≤ 500); `installment_not_open`, `invalid_input` (`note`).
+    - `ops_billing_summary` dönüşüne `installments_overdue` eklendi (30+ gün).
+    - `receipt_data` anahtarlarına `plan_installment {seq, count, kind, visit_no, window_name, due_on}` eklendi.
+    - `customer_payment_instructions.outstanding_kurus` ve `payment_due_at` sıradaki açık ödemenin açık tutarı ve son günüdür.
+    - Yardımcılar: `private.installment_windows`, `private.installment_schedule`, `private.quote_plan_period`, `private.quote_payment_due_on`, `private.create_order_installments`, `private.order_activatable`, `private.installment_due`, `private.credit_installment`, `private.uncredit_installment`, `private.next_open_installment`, `private.reschedule_installments`, `private.installment_blocking_visit` (`authz` sarmalayıcısıyla), `private.cut_line_installments`, `private.close_order_installments`.
+- **Denetim:** `order.installments_created`, `order.installments_rescheduled`, `order.installments_cancelled`, `order.installment_lapsed`, `order.unpaid_visit_allowed`; ödeme denetim kayıtları `installment_id` ve `installment_seq` taşır.
+- **Testler:** pgTAP `58_visit_installments` (plan, yuvarlama, son günler, lansman örnekleri, kabul, kart ve havale, idempotentlik, planlama engeli ve izni, pencere sonunda düşme, hatırlatmalar, gecikme listesi, fesih, çıkarma ve cayma, ek sipariş, sütun yetkileri); `33_orders_payments` plan üzerinden; entegrasyon `billing-db` (eşzamanlılık: aynı ödeme için kart ve havale), `payments-flow` (müşteri 1. sonra 2. ödemeyi kartla öder), `payments-contract`, `legal-followups` (pencere aynası). Sipariş ve iade mekaniğini tam ödenmiş siparişle sınayan pgTAP dosyaları (46, 48, 49, 52, 53, 54, 55) `testing.use_single_installment(order)` ile eski (tek ödemeli) siparişi kurar.
 
 ## 7. Kayıt: `customer-signup` Edge Function (A1)
 
@@ -984,7 +1051,7 @@ Yeni bölüm ya da rol açılmaz; ops rolü kullanılır.
 | `application_rejected` | Ret | B-… | `/portal/basvuru/<id>` | `{ref} numaralı başvurunuz sonuçlandı. Ayrıntı: {link}` |
 | `payment_received` | Ödeme başarılı | M-… | `/portal/odeme/<id>` | `{ref} numaralı ödemeniz alındı, teşekkür ederiz. Makbuz: {link}` |
 | `refund_completed` | İade başarılı | I-… | `/portal/odeme/<payment_id>` | `{ref} numaralı iadeniz yapıldı; hesabınıza yansıması bankanıza göre birkaç gün sürebilir: {link}` |
-| `payment_reminder` | Bitimden 3 gün önce, bir kez | S-… | `/portal/siparis/<id>` | `{ref} numaralı siparişinizin ödemesi bekleniyor: {link}` |
+| `payment_reminder` | Her açık plan ödemesinin son gününden 7 gün önce ve son gününde, birer kez (§5.6) | S-… | `/portal/siparis/<id>` | `orchadOS: {ref} numaralı siparişinizde bir ödemenin son günü yaklaştı. Tarih ve tutar portalınızda: {link} Ödeme yapılmadan ilgili hizmet planlanmaz; faiz ya da ek ücret alınmaz.` (H35 (f)) |
 | `contract_ready` (T04) | Siparişin iki kabul belgesi kaydedilince, sipariş başına bir kez | S-… | `/portal/hesap/sozlesmeler` | `orchadOS: {ref} numaralı siparişinizin sözleşmesi ve ön bilgilendirme formu portalınızda: {link}` |
 | `addon_order_closed` (T18) | Para tutan ek sipariş dönemi kapandığı için iptal edilince | S-… | `/portal/siparis/<id>` | `orchadOS: {ref} numaralı ek siparişiniz, hizmet dönemi kapandığı için iptal edildi. Ödediğiniz tutar 14 gün içinde aynı yöntemle, masrafsız iade edilir: {link}` |
 | `withdrawal_received` (T03) | Cayma kaydedilince (portal ya da ops) | C-… | `/portal/parsel/<id>` | [bahce-yonetimi.md](bahce-yonetimi.md) §10 |
@@ -1031,6 +1098,7 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
     - E: `back-office`.
 - **E2E:** C `site-*`, D `customer-journey`, E `back-office-*`.
 - **Sandbox:** CI dışında, elle; liste `deployment.md`'de.
+- **Ödeme planı (§5.6):** test dosyaları ve kapsamı §6.14'te.
 
 ## 15. Yayına alma
 
@@ -1103,9 +1171,9 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
 ## 19. Açık sorular ve kabul edilen riskler
 
 - ~~Gerçek fiyatlar, envanter ücreti, ziyaret sayısı~~: karara bağlandı (28 Ekim), lansman fiyat listesi [fiyatlandirma.md](fiyatlandirma.md). Kapsamlı paketin altı ziyaretlik takvimi de [fiyatlandirma.md](fiyatlandirma.md) §1'de.
-- Hizmet bölgesi.
+- ~~Hizmet bölgesi~~: karara bağlandı (28 Ekim, ürün sahibi): hizmet bölgesi belirtilmez; başvuruyu ops değerlendirir. Metinler bölge vaat etmez ve bölge adı vermez; konuma göre ret yazılı iç ölçüte göre yapılır (hukuk/kararlar.md H36).
 - Süreler.
-- Taksit.
+- ~~Taksit~~: karara bağlandı (28 Ekim, ürün sahibi): ziyaret başına ödeme planı (§5.6; hukuk/kararlar.md H35). Kart taksiti kapsam dışı kalır.
 - iyzico placeholder `identityNumber` teyidi. Gerçek TCKN gerekirse TCKN'nin saklanmadan iletilmesi ya da şifreli saklanması; yazılı risk kabulü yeterli değildir (hukuk/kararlar.md H16).
 - ~~Yapay zekâ aktarımının hukuki dayanağı~~: karara bağlandı, standart sözleşme (hukuk/kararlar.md H02, T01).
 - E-posta doğrulanmıyor: `email_taken` ve `phone_registered` hesap varlığını açığa çıkarır; kabul edildi. Hukuki değerlendirme (hukuk/kararlar.md H33): pilotta kabul edilebilir; genel lansmandan önce düzeltilir (T19).

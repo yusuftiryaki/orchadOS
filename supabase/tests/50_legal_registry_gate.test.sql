@@ -28,22 +28,24 @@ grant execute on all functions in schema pg_temp to authenticated, anon;
 
 select results_eq(
   $$ select kind, version from private.legal_text_version where is_current order by kind $$,
-  $$ values ('distance_sales', 'mesafeli-v4-taslak'), ('early_performance', 'mesafeli-v4-taslak'),
+  $$ values ('distance_sales', 'mesafeli-v5-taslak'), ('early_performance', 'mesafeli-v5-taslak'),
             ('explicit_consent', 'riza-v2-taslak'), ('field_notice', 'bahcede-v1-taslak'),
-            ('kvkk_notice', 'kvkk-v2-taslak'), ('pre_information', 'onbilgi-v4-taslak'),
-            ('privacy', 'gizlilik-v2-taslak'), ('refund_policy', 'iade-v4-taslak') $$,
+            ('kvkk_notice', 'kvkk-v2-taslak'), ('pre_information', 'onbilgi-v5-taslak'),
+            ('privacy', 'gizlilik-v2-taslak'), ('refund_policy', 'iade-v5-taslak') $$,
   'one current version per kind, equal to LEGAL_TEXT_VERSIONS');
 select is((select count(*)::integer from private.legal_text_version where is_current and sha256 ~ '^[0-9a-f]{64}$'), 8,
   'every current version carries its template hash');
 select results_eq(
   $$ select kind, version from private.legal_text_version where not is_current order by kind, version $$,
   $$ values ('distance_sales', 'mesafeli-v1-taslak'), ('distance_sales', 'mesafeli-v2-taslak'),
-            ('distance_sales', 'mesafeli-v3-taslak'),
+            ('distance_sales', 'mesafeli-v3-taslak'), ('distance_sales', 'mesafeli-v4-taslak'),
+            ('early_performance', 'mesafeli-v4-taslak'),
             ('explicit_consent', 'riza-v1-taslak'), ('kvkk_notice', 'kvkk-v1-taslak'),
             ('pre_information', 'onbilgi-v1-taslak'), ('pre_information', 'onbilgi-v2-taslak'),
-            ('pre_information', 'onbilgi-v3-taslak'),
+            ('pre_information', 'onbilgi-v3-taslak'), ('pre_information', 'onbilgi-v4-taslak'),
             ('privacy', 'gizlilik-v1-taslak'), ('refund_policy', 'iade-v1-taslak'),
-            ('refund_policy', 'iade-v2-taslak'), ('refund_policy', 'iade-v3-taslak') $$,
+            ('refund_policy', 'iade-v2-taslak'), ('refund_policy', 'iade-v3-taslak'),
+            ('refund_policy', 'iade-v4-taslak') $$,
   'the archived versions are registered without a hash');
 select ok(not exists (select 1 from private.legal_text_version where is_final), 'every registered version is a draft today');
 select throws_ok($$ insert into private.legal_text_version (kind, version, sha256, is_current)
@@ -63,7 +65,7 @@ select results_eq(
 rollback to savepoint reg;
 
 set local role anon;
-select is((select count(*)::integer from public.registered_legal_text_versions()), 20, 'anyone reads the registered versions');
+select is((select count(*)::integer from public.registered_legal_text_versions()), 24, 'anyone reads the registered versions');
 select throws_ok($$ select * from private.legal_text_version $$, '42501', null, 'the table itself is closed');
 reset role;
 

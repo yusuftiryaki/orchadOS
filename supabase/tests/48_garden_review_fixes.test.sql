@@ -85,7 +85,7 @@ begin
   -- With the early-performance box (T03): these orders plan visits and deduct
   -- them inside the withdrawal period.
   return public.customer_accept_quote(p_quote,
-    '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak", "early_performance": "mesafeli-v4-taslak"}');
+    '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak", "early_performance": "mesafeli-v5-taslak"}');
 end;
 $$;
 
@@ -93,6 +93,7 @@ create function pg_temp.pay(p_order uuid, p_amount bigint default null) returns 
 as $$
 begin
   perform pg_temp.ops();
+  perform testing.use_single_installment(p_order);
   return public.ops_record_manual_payment(p_order,
     coalesce(p_amount, (select total_kurus - (paid_kurus - refunded_kurus) from public.service_order where id = p_order)),
     current_date, 'EFT-48-' || left(p_order::text, 8) || '-' || coalesce(p_amount, 0));

@@ -81,7 +81,7 @@ as $$
 begin
   perform pg_temp.as_user(p_user);
   return public.customer_accept_quote(p_quote,
-    '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak", "early_performance": "mesafeli-v4-taslak"}');
+    '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak", "early_performance": "mesafeli-v5-taslak"}');
 end;
 $$;
 
@@ -144,7 +144,7 @@ insert into ids select 'o3', pg_temp.new_order(pg_temp.id('c3'), array[20000], 3
 select pg_temp.visit(pg_temp.parcel_of(pg_temp.id('o3')), 'periodic_scan', 'published', pg_temp.today() - 300 + n * 80)
 from generate_series(0, 2) n;
 select pg_temp.ops();
-select public.ops_request_refund((select id from public.payment where order_id = pg_temp.id('o3')), 300000,
+select public.ops_request_refund((select id from public.payment where order_id = pg_temp.id('o3') order by created_at, id limit 1), 300000,
   'missed_visit', '8A/2');
 reset role;
 select private.billing_housekeeping();
