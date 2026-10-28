@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { acknowledgeKvkkAction } from "@/app/portal/billing-actions";
 import { acceptQuoteAction, declineQuoteAction } from "./actions";
+import { FilledDocumentView } from "@/components/contracts/filled-document";
 import { InstallmentPlan } from "@/components/portal-billing/installment-plan";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import local from "@/components/portal-billing/portal-billing.module.css";
@@ -10,8 +11,12 @@ import styles from "@/components/portal/portal.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { addonBreakdownOf, breakdownRows, windowsText } from "@/lib/billing/addon-breakdown";
 import { formatDonum, formatKurus } from "@/lib/billing/money";
+import { displaySha256 } from "@/lib/contracts/display-hash";
+import { quoteContractInput } from "@/lib/contracts/load";
+import { distanceContractDocument, preInformationDocument } from "@/lib/contracts/render";
 import { formatDate } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
+import { contractsText as C } from "@/lib/i18n/messages/contracts";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { EARLY_PERFORMANCE_TEXT } from "@/lib/legal/early-performance";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
@@ -55,6 +60,14 @@ export default async function QuotePage({
   const { quote, items, orderId } = view;
   const open = quote.status === "issued";
   const here = portalHref.quote(quote.id);
+  const query = await searchParams;
+  const contract = open ? await quoteContractInput(supabase, user.id, quote.id) : null;
+  const filled = contract
+    ? [preInformationDocument(contract), distanceContractDocument(contract)].map((doc) => ({
+        doc,
+        hash: displaySha256(doc),
+      }))
+    : null;
   // customer_accept_quote checks the notice in the quote's org; the portal can
   // record it only in the customer's org (customer_set_consent).
   const [consents, gate, plan] = await Promise.all([
@@ -88,7 +101,12 @@ export default async function QuotePage({
           {Q.addonHeader(serviceEnd)}
         </p>
       )}
-      <PortalResult params={await searchParams} />
+      <PortalResult params={query} />
+      {query.belge === "degisti" && (
+        <p className={ops.notice} role="alert" data-testid="quote-contracts-stale">
+          {C.quote.stale}
+        </p>
+      )}
       {!open && <p className={ops.notice}>{Q.closed(billingText.quoteStatus[quote.status])}</p>}
       {orderId && (
         <p>
@@ -306,27 +324,39 @@ export default async function QuotePage({
             </section>
           )}
 
+          {filled && (
+            <section className={styles.section} data-testid="quote-contracts">
+              <h2>{C.quote.title}</h2>
+              <p>{C.quote.intro}</p>
+              {quote.addon_of_order_id && <p className={styles.notice}>{C.quote.addonIntro}</p>}
+              {!quote.addon_of_order_id && quote.renewal_of_order_id && (
+                <p className={styles.notice}>{C.quote.renewalIntro}</p>
+              )}
+              <FilledDocumentView doc={filled[0].doc} displaySha256={filled[0].hash} />
+              <details data-testid="quote-contract-details">
+                <summary>{C.quote.showContract}</summary>
+                <FilledDocumentView doc={filled[1].doc} displaySha256={filled[1].hash} />
+              </details>
+            </section>
+          )}
+
           <section className={styles.section} data-testid="quote-accept">
             <h2>{Q.acceptTitle}</h2>
             <form action={acceptQuoteAction} className={local.checks}>
               <input type="hidden" name="quote_id" value={quote.id} />
+              <input type="hidden" name="pre_information_display" value={filled?.[0].hash ?? ""} />
+              <input type="hidden" name="distance_sales_display" value={filled?.[1].hash ?? ""} />
               <label>
                 <input type="checkbox" name="pre_information" required />
                 <span>
-                  <Link href="/on-bilgilendirme" target="_blank">
-                    {Q.preInformation}
-                  </Link>{" "}
-                  — {Q.preInformationCheck}{" "}
+                  {C.quote.preCheck}{" "}
                   <span className="muted">({Q.version(LEGAL_TEXT_VERSIONS.pre_information)})</span>
                 </span>
               </label>
               <label>
                 <input type="checkbox" name="distance_sales" required />
                 <span>
-                  <Link href="/mesafeli-satis" target="_blank">
-                    {Q.distanceSales}
-                  </Link>{" "}
-                  — {Q.distanceSalesCheck}{" "}
+                  {C.quote.contractCheck}{" "}
                   <span className="muted">({Q.version(LEGAL_TEXT_VERSIONS.distance_sales)})</span>
                 </span>
               </label>
@@ -345,7 +375,7 @@ export default async function QuotePage({
                 <button
                   className="button"
                   type="submit"
-                  disabled={!profile?.complete || !kvkk || gateReasons.length > 0}
+                  disabled={!profile?.complete || !kvkk || gateReasons.length > 0 || !filled}
                 >
                   {Q.accept}
                 </button>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cancelOrderAction, reviseOrderAction } from "@/app/portal/billing-actions";
+import { ContractDocumentTable } from "@/components/contracts/document-list";
 import { InstallmentPlan } from "@/components/portal-billing/installment-plan";
 import { OrderPay } from "@/components/portal-billing/order-pay";
 import { PaymentTable } from "@/components/portal-billing/payment-table";
@@ -11,9 +12,17 @@ import styles from "@/components/portal/portal.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { installmentLabel, nextOpen, openKurus } from "@/lib/billing/installments";
 import { formatKurus } from "@/lib/billing/money";
+import {
+  accessTokenOf,
+  customerDocuments,
+  documentState,
+  retryAfterResponse,
+  stateRefOf,
+} from "@/lib/contracts/generate";
 import { siteFlags } from "@/lib/flags";
 import { formatDate, formatDateTime } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
+import { contractsText as C } from "@/lib/i18n/messages/contracts";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { getOrder, getPaymentInstructions, liveCardAttempt } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
@@ -26,7 +35,9 @@ const O = P.order;
 // a payment is open (awaiting payment, or an active order with an open
 // installment), the card button for the next payment (only with the payments
 // flag) and the bank transfer details; the cancel button before the first
-// payment.
+// payment; its contract documents (T04), retried after the response when
+// missing (after a failed generation at the acceptance, and the withdrawal
+// confirmation once the order is active), or the manual-copy note.
 export default async function OrderPage({
   params,
   searchParams,
@@ -47,6 +58,21 @@ export default async function OrderPage({
   const { paymentsEnabled } = siteFlags();
   const currency = order.currency;
   const liveAttempt = payable ? liveCardAttempt(payments) : null;
+  const documents = order.quote_id
+    ? (await customerDocuments(supabase)).filter((d) => d.order_id === order.id)
+    : [];
+  const documentsState = order.quote_id
+    ? await documentState(supabase, stateRefOf(order), documents).catch(() => null)
+    : null;
+  if (documentsState?.state === "preparing") {
+    const accessToken = await accessTokenOf(supabase);
+    if (accessToken) retryAfterResponse(accessToken, order.id);
+  }
+  const preparing =
+    !!order.quote_id &&
+    documentsState?.state !== "complete" &&
+    documentsState?.state !== "manual_copy";
+  const manualCopy = documentsState?.state === "manual_copy";
 
   return (
     <main className={styles.page} data-testid="order" data-status={order.status}>
@@ -172,6 +198,31 @@ export default async function OrderPage({
               {O.cancel}
             </button>
           </form>
+        </section>
+      )}
+
+      {order.quote_id && (
+        <section className={styles.section} data-testid="order-contracts">
+          <h2>{C.list.orderTitle}</h2>
+          {documents.length > 0 && (
+            <ContractDocumentTable
+              documents={documents}
+              hrefOf={(d) => `/portal/hesap/sozlesmeler/${d.id}`}
+            />
+          )}
+          {preparing && (
+            <p className={ops.notice} data-testid="contracts-preparing">
+              {C.list.preparing}
+            </p>
+          )}
+          {manualCopy && (
+            <p className={ops.notice} data-testid="contracts-manual-copy">
+              {C.list.manualCopy}
+            </p>
+          )}
+          <p>
+            <Link href="/portal/hesap/sozlesmeler">{C.list.orderLink}</Link>
+          </p>
         </section>
       )}
 

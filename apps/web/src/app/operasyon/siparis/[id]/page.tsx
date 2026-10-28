@@ -10,6 +10,8 @@ import {
   terminateOrderAction,
 } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
+import { ContractDocumentTable } from "@/components/contracts/document-list";
+import { GenerateResult } from "@/components/contracts/ops-parts";
 import { AuditTable } from "@/components/back-office/audit-table";
 import {
   Badge,
@@ -31,11 +33,19 @@ import { boHref } from "@/lib/back-office/urls";
 import { OPS_WITHDRAWAL_CHANNELS } from "@/lib/billing/types";
 import { REMOVAL_REASONS, addDays } from "@/lib/back-office/validation";
 import { installmentLabel, openKurus, planRowOf } from "@/lib/billing/installments";
+import {
+  documentState,
+  opsDocuments,
+  stateRefOf,
+  type ContractDocumentRow,
+} from "@/lib/contracts/generate";
 import { billingText } from "@/lib/i18n/messages/billing";
+import { contractsText as C } from "@/lib/i18n/messages/contracts";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { opsHref } from "@/lib/operations/urls";
 import { todayIn } from "@/lib/operations/visits";
 import { createClient } from "@/lib/supabase/server";
+import { generateOrderDocumentsAction } from "../actions";
 
 const B = backOfficeText;
 const T = B.order;
@@ -58,7 +68,9 @@ function lineState(item: Item, orderActive: boolean): React.ReactNode {
 
 // One order: summary, items with their parcels, its payment plan (with the
 // unpaid-visit override, H35), payments, the actions on its state (transfer
-// per installment, due date, cancel, terminate, renewal) and its audit trail.
+// per installment, due date, cancel, terminate, renewal), its contract
+// documents (T04: download, "Belgeleri üret" when missing) and its audit
+// trail.
 export default async function Page({
   params,
   searchParams,
@@ -84,6 +96,18 @@ export default async function Page({
   const awaiting = o.status === "awaiting_payment";
   const active = o.status === "active";
   const setting = await getSetting(supabase, o.org_id);
+  let documents: ContractDocumentRow[] = [];
+  try {
+    documents = o.quote_id ? await opsDocuments(supabase, o.id) : [];
+  } catch {
+    documents = [];
+  }
+  const documentsState = o.quote_id
+    ? await documentState(supabase, stateRefOf(o), documents).catch(() => null)
+    : null;
+  const documentsMissing = !!o.quote_id && documentsState?.state !== "complete";
+  const manualCopy = documentsState?.state === "manual_copy";
+  const query = await searchParams;
   // An add-on is paid by its last valid day at the latest (IP14 §4.1 step 6).
   const addonLastDay =
     view.base?.service_end && setting
@@ -116,7 +140,8 @@ export default async function Page({
         <Link href={boHref.orders()}>← {B.orders.title}</Link>
       </p>
       <h1>{T.title(o.number)}</h1>
-      <BoResultNotice params={await searchParams} />
+      <BoResultNotice params={query} />
+      <GenerateResult value={query.belgeler} />
       {summary?.overdue && <Warning>{B.orders.overdue}</Warning>}
       {summary?.live_payment && <Warning>{billingText.errors.payment_in_progress}</Warning>}
       <Facts
@@ -504,6 +529,35 @@ export default async function Page({
           </section>
         )}
       </div>
+
+      {o.quote_id && (
+        <section className={styles.section} data-testid="order-contract-documents">
+          <h2>{C.ops.documentsTitle}</h2>
+          {documents.length === 0 ? (
+            <p className="muted">{C.ops.documentsEmpty}</p>
+          ) : (
+            <ContractDocumentTable
+              documents={documents}
+              hrefOf={(d) => `/operasyon/siparis/${o.id}/belge/${d.id}`}
+              showGenerator
+            />
+          )}
+          <p className="muted">{C.ops.copyHint}</p>
+          {manualCopy && (
+            <p className={styles.notice} data-testid="order-contracts-manual-copy">
+              <strong>{C.ops.manualState}.</strong> {C.ops.manualHint}
+            </p>
+          )}
+          {documentsMissing && (
+            <form action={generateOrderDocumentsAction}>
+              <input type="hidden" name="order_id" value={o.id} />
+              <button className="button button-secondary" type="submit">
+                {manualCopy ? C.ops.retry : C.ops.generate}
+              </button>
+            </form>
+          )}
+        </section>
+      )}
 
       <h2>{T.audit}</h2>
       <AuditTable rows={audit} testId="order-audit" />
