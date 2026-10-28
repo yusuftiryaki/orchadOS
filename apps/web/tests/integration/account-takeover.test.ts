@@ -293,10 +293,16 @@ describe("auth hardening: remaining account-takeover paths", () => {
     expect((await userById(before!.id))?.phone).toBe(before!.phone);
   });
 
-  // The Send SMS hook as Auth calls it for a phone change (sms_type
-  // phone_change, the new number in user.new_phone), with the local secret.
-  async function hook(user: Record<string, unknown>, sms: Record<string, unknown>) {
-    const body = JSON.stringify({ user, sms });
+  // The Send SMS hook called with the payload GoTrue v2.197 (pinned) builds
+  // in sendPhoneConfirmation: the user as Auth stores it, with the pending
+  // number already in new_phone for a phone change, and sms { otp, phone }
+  // where phone is the destination. There is no sms.sms_type.
+  async function hook(userId: string, destination: string, otp: string, newPhone?: string) {
+    const stored = await userById(userId);
+    expect(stored).not.toBeNull();
+    const user = { ...stored!, ...(newPhone ? { new_phone: newPhone.slice(1) } : {}) };
+    const sms = { otp, phone: destination.slice(1) };
+    const body = JSON.stringify({ metadata: { name: "send-sms" }, user, sms });
     const id = `msg_${randomDigits(12)}`;
     const timestamp = String(Math.floor(Date.now() / 1000));
     const key = Buffer.from("p0oE1FH7E5tlPpCmuVnDZv5oL5cKXPNnx86jQcdd5HY=", "base64");
@@ -316,37 +322,98 @@ describe("auth hardening: remaining account-takeover paths", () => {
     return { status: res.status, json: await res.json() };
   }
 
-  it("a phone change code never goes to the current phone", async () => {
+  // A staff account (a role in the seed org), signed in with its password.
+  async function staffAccount() {
     const admin = serviceClient();
-    const staffPhone = randomPhone();
-    const staff = await admin.auth.admin.createUser({
-      email: `personel-${randomDigits(8)}@${EMAIL_DOMAIN}`,
-      phone: staffPhone,
+    const phone = randomPhone();
+    const email = `personel-${randomDigits(8)}@${EMAIL_DOMAIN}`;
+    const created = await admin.auth.admin.createUser({
+      email,
+      password: PASSWORD,
+      phone,
       phone_confirm: true,
       email_confirm: true,
     });
-    expect(staff.error).toBeNull();
+    expect(created.error).toBeNull();
+    const id = created.data.user!.id;
+    const member = await admin
+      .from("membership")
+      .insert({ org_id: SEED.org, user_id: id, role: "field_staff" });
+    expect(member.error).toBeNull();
+    const client = anonClient();
+    expect((await client.auth.signInWithPassword({ email, password: PASSWORD })).error).toBeNull();
+    return { id, phone, client };
+  }
+
+  it("a phone change code goes to the new number, and only for staff", async () => {
+    const staff = await staffAccount();
     const newPhone = randomPhone();
-    const sent = await hook(
-      { id: staff.data.user!.id, phone: staffPhone.slice(1), new_phone: newPhone.slice(1) },
-      { otp: "123456", sms_type: "phone_change" },
-    );
-    expect(sent).toEqual({ status: 200, json: {} });
+    expect(await hook(staff.id, newPhone, "123456", newPhone)).toEqual({ status: 200, json: {} });
     expect(await codes(newPhone)).toEqual(["123456"]);
-    expect(await codes(staffPhone)).toEqual([]);
+    expect(await codes(staff.phone)).toEqual([]);
+
+    // A login code (no pending change) goes to the current phone as before.
+    expect(await hook(staff.id, staff.phone, "234567")).toEqual({ status: 200, json: {} });
+    expect(await codes(staff.phone)).toEqual(["234567"]);
 
     // A customer gets no phone change code at all.
     const own = await customer("203.0.113.31");
-    const refused = await hook(
-      { id: own.id, phone: own.phone.slice(1), new_phone: newPhone.slice(1) },
-      { otp: "654321", sms_type: "phone_change" },
-    );
-    expect(refused).toEqual({
+    const otherPhone = randomPhone();
+    expect(await hook(own.id, otherPhone, "654321", otherPhone)).toEqual({
       status: 200,
       json: { error: { http_code: 403, message: "phone_change_not_allowed" } },
     });
-    expect(await codes(newPhone)).toEqual(["123456"]);
+    expect(await codes(otherPhone)).toEqual([]);
     expect(await codes(own.phone)).toHaveLength(1);
+
+    // Neither does an account without a role or parcels.
+    const plainPhone = randomPhone();
+    const plain = await serviceClient().auth.admin.createUser({
+      email: `hesap-${randomDigits(8)}@${EMAIL_DOMAIN}`,
+      phone: plainPhone,
+      phone_confirm: true,
+      email_confirm: true,
+    });
+    expect(plain.error).toBeNull();
+    expect(await hook(plain.data.user!.id, otherPhone, "345678", otherPhone)).toEqual({
+      status: 200,
+      json: { error: { http_code: 403, message: "phone_change_not_allowed" } },
+    });
+    expect(await codes(otherPhone)).toEqual([]);
+    expect(await codes(plainPhone)).toEqual([]);
+  }, 30_000);
+
+  // A staff account confirming a customer's number would make
+  // ops_find_user_id return it, and invite-user would hand the customer's
+  // parcels to staff.
+  it("staff cannot take over a customer's number through ops_find_user_id and invite-user", async () => {
+    const staff = await staffAccount();
+    const victimPhone = randomPhone();
+
+    // Locally Auth applies a phone change without a code (enable_confirmations
+    // = false): the trigger refuses it.
+    const changed = await staff.client.auth.updateUser({ phone: victimPhone });
+    expect(changed.error).not.toBeNull();
+    const after = await userById(staff.id);
+    expect(after?.phone).toBe(staff.phone.slice(1));
+    expect(after?.new_phone ?? null).toBeNull();
+    // Hosted (confirmations on), the code goes to the victim, not to staff.
+    expect(await hook(staff.id, victimPhone, "456789", victimPhone)).toEqual({
+      status: 200,
+      json: {},
+    });
+    expect(await codes(victimPhone)).toEqual(["456789"]);
+    expect(await codes(staff.phone)).toEqual([]);
+
+    const { client: ops } = await signIn("ops");
+    const found = await ops.rpc("ops_find_user_id", { p_org_id: SEED.org, p_phone: victimPhone });
+    expect(found.error).toBeNull();
+    expect(found.data).toBeNull();
+    const invited = await invite({ phone: victimPhone });
+    expect(invited.status).toBe(200);
+    expect(invited.json.created).toBe(true);
+    expect(invited.json.user_id).not.toBe(staff.id);
+    await serviceClient().auth.admin.deleteUser(String(invited.json.user_id));
   }, 30_000);
 
   // Item 2: GoTrue records an e-mail code or magic link as amr "otp", the

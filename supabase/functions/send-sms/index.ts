@@ -4,19 +4,23 @@
 // POST /functions/v1/send-sms   (from Supabase Auth only; verify_jwt = false)
 //   Standard Webhooks headers: webhook-id, webhook-timestamp, webhook-signature
 //   { "user": { "id", "phone": "905321234567", "new_phone"?, ... },
-//     "sms": { "otp": "123456", "sms_type": "sms" | "signup" | "phone_change" | ... } }
+//     "sms": { "otp": "123456", "phone": "905321234567" } }
+//   sms.phone is where Auth sends the code. GoTrue (v2.197, pinned) sends no
+//   sms.sms_type: a phone change shows only as sms.phone, the new number,
+//   being user.new_phone (Auth stores the pending number before the hook).
 //
 // 1. The signature is checked with SEND_SMS_HOOK_SECRET ("v1,whsec_<base64>",
 //    the secret shown when the hook is set up); timestamps older than five
 //    minutes are rejected.
 // 1a. A demo account (user.app_metadata.demo) gets no code: 403
 //     demo_read_only, before any limit, provider or outbox call.
-// 1b. A phone change code (sms.sms_type "phone_change") goes to the new
-//     number (user.new_phone), never the current one: that would let the
-//     account holder confirm a phone they do not own. A customer or owner
-//     account gets none at all (account_phone_change_allowed; their phone
-//     changes only through ops, customer_account_guard): 403
-//     phone_change_not_allowed.
+// 1b. The code always goes to sms.phone (user.phone only when it is missing),
+//     never to the account's current phone in place of the new one: that
+//     would let the account holder confirm a phone they do not own. A phone
+//     change code (user.new_phone is that destination) goes out only for a
+//     staff account (account_phone_change_allowed); every other account's
+//     phone changes only through ops (customer_account_guard): 403
+//     phone_change_not_allowed. sms_type is never read.
 // 1c. A phone confirmation code of an unfinished self sign-up (Auth's public
 //     /auth/v1/resend) goes out only when the registration flow asked for it:
 //     customer-signup `send_code` grants it with the register's ticket and
@@ -125,9 +129,11 @@ async function handle(req: Request): Promise<Response> {
     // Extra layer (docs/demo-turu.md §6.5): no code for a demo account, which
     // has no phone and cannot get one (account freeze).
     if (payload?.user?.app_metadata?.demo === true) return hookError(403, "demo_read_only");
-    phoneChange = payload?.sms?.sms_type === "phone_change";
-    const to = phoneChange ? payload?.user?.new_phone : payload?.user?.phone;
-    phone = `+${String(to ?? "").replace(/^\+/, "")}`;
+    const digits = (value: unknown) => String(value ?? "").replace(/^\+/, "");
+    const to = digits(payload?.sms?.phone) || digits(payload?.user?.phone);
+    const newPhone = digits(payload?.user?.new_phone);
+    phoneChange = newPhone !== "" && newPhone === to;
+    phone = `+${to}`;
     otp = String(payload?.sms?.otp ?? "");
     userId = String(payload?.user?.id ?? "");
   } catch {

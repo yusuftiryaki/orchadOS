@@ -1,10 +1,10 @@
 -- Auth hardening after PR #93 (docs/gorevler/auth-sertlestirme.md): phone
--- changes of customer and owner accounts, e-mail codes of self sign-ups, the
+-- changes (staff only, by a code to the new number), e-mail codes of self sign-ups, the
 -- service-role code grant and its rate limits, the hook's marker, quarantined
 -- rows kept for ops, and the registrant's wrong codes.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(42);
+select plan(48);
 
 select testing.reset_to_seed();
 
@@ -22,6 +22,11 @@ select public.signup_prepare('a5800000-0000-4000-8000-000000000001', 'Ad Soyad',
   '+905558000001', 'sms', pg_temp.consents(), null);
 select public.signup_set_ticket('a5800000-0000-4000-8000-000000000001', pg_temp.h(repeat('a', 43)));
 
+-- An account with neither a role nor parcels (e.g. invited, no access yet).
+insert into auth.users (instance_id, id, aud, role, email, phone, phone_confirmed_at, raw_app_meta_data, created_at, updated_at)
+values ('00000000-0000-0000-0000-000000000000', 'a5800000-0000-4000-8000-000000000009', 'authenticated',
+        'authenticated', 'pgtap-hard-9@example.test', '905558000009', now(), '{}', now(), now());
+
 -- 1. Phone changes ------------------------------------------------------------------------
 
 select throws_ok($$ update auth.users set phone = '905558000099' where id = 'a0000000-0000-4000-8000-000000000006' $$,
@@ -36,8 +41,20 @@ select throws_ok($$ update auth.users set phone = '905558000099' where id = 'a58
   '42501', 'phone_change_locked', 'a pending self sign-up neither');
 select throws_ok($$ update auth.users set phone = null where id = 'a0000000-0000-4000-8000-000000000006' $$,
   '42501', 'phone_change_locked', 'removing the phone is a change too');
-select lives_ok($$ update auth.users set phone = '905558000098' where id = 'a0000000-0000-4000-8000-000000000003' $$,
-  'staff accounts are not affected');
+select throws_ok($$ update auth.users set phone = '905558000099' where id = 'a5800000-0000-4000-8000-000000000009' $$,
+  '42501', 'phone_change_locked', 'an account without a role or parcels neither');
+select throws_ok($$ update auth.users set phone_change = '905558000099' where id = 'a5800000-0000-4000-8000-000000000009' $$,
+  '42501', 'phone_change_locked', '... nor starts a phone change');
+-- Staff: only by confirming a pending change (its code went to the new number).
+select throws_ok($$ update auth.users set phone = '905558000098' where id = 'a0000000-0000-4000-8000-000000000003' $$,
+  '42501', 'phone_change_locked', 'staff never get a phone directly (autoconfirm, Admin API)');
+select lives_ok($$ update auth.users set phone_change = '905558000098' where id = 'a0000000-0000-4000-8000-000000000003' $$,
+  'staff start a phone change');
+select throws_ok($$ update auth.users set phone = '905558000088', phone_change = '' where id = 'a0000000-0000-4000-8000-000000000003' $$,
+  '42501', 'phone_change_locked', '... and confirm no other number than the pending one');
+select lives_ok($$ update auth.users set phone = '905558000098', phone_change = '', phone_confirmed_at = now()
+                   where id = 'a0000000-0000-4000-8000-000000000003' $$,
+  '... but confirm the pending one');
 select lives_ok($$ update auth.users set phone_confirmed_at = now(), last_sign_in_at = now(), confirmation_token = 'tok'
                    where id = 'a0000000-0000-4000-8000-000000000006' $$,
   'a phone code (confirmation, login) still works');
@@ -66,6 +83,8 @@ select throws_ok($$ select private.change_account_phone('a5899999-0000-4000-8000
 select is(public.account_phone_change_allowed('a0000000-0000-4000-8000-000000000006'), false,
   'the hook sends no phone change code to a customer');
 select is(public.account_phone_change_allowed('a0000000-0000-4000-8000-000000000001'), false, '... nor an owner');
+select is(public.account_phone_change_allowed('a5800000-0000-4000-8000-000000000009'), false,
+  '... nor an account without a role or parcels');
 select is(public.account_phone_change_allowed('a0000000-0000-4000-8000-000000000003'), true, '... but to staff');
 
 set local role anon;

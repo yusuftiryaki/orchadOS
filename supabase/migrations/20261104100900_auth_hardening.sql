@@ -1,16 +1,23 @@
 -- Auth hardening after PR #93 (docs/gorevler/auth-sertlestirme.md): the
 -- account-takeover paths that already existed before it.
 --
--- 1. Phone changes. A customer or owner account never changes its phone
---    through Auth (PUT /auth/v1/user, the Admin API): customer_account_guard,
---    BEFORE UPDATE ON auth.users, in the style of demo_account_freeze.
---    Locally [auth.sms] enable_confirmations = false applies a phone change
---    without any code, and on hosted projects the code went to the current
---    phone; either way the account got a confirmed phone it does not own, and
---    that phone's later login landed in it. Ops changes a phone with
---    private.change_account_phone (SQL editor). The Send SMS hook refuses a
---    phone change code for these accounts (account_phone_change_allowed) and
---    sends any other one to the new number, never the current one.
+-- 1. Phone changes. Only a staff account (a membership, and no customer or
+--    owner account) changes its phone through Auth (PUT /auth/v1/user), and
+--    only by confirming a pending change with the code sent to the new number:
+--    customer_account_guard, BEFORE UPDATE ON auth.users, in the style of
+--    demo_account_freeze. Every other account (self sign-up, owner, viewer, an
+--    invited account without parcels yet) changes its phone only through ops,
+--    private.change_account_phone (SQL editor). Locally [auth.sms]
+--    enable_confirmations = false applies a phone change without any code,
+--    and the Admin API sets a phone directly; both are refused, since the
+--    account would get a confirmed phone it does not own, that phone's later
+--    login would land in it and ops_find_user_id would hand it to invite-user.
+--    The Send SMS hook sends a phone change code (GoTrue v2.197 sends no
+--    sms_type: sms.phone is the new number and equals user.new_phone) only for
+--    a staff account (account_phone_change_allowed), and always to sms.phone,
+--    the new number. Where the trigger cannot be installed the hook's refusal
+--    covers hosted projects with phone confirmations on; with them off (local)
+--    nothing does: docs/deployment.md.
 -- 2. E-mail codes. A self sign-up account never gets an e-mail login code or
 --    magic link (recovery token) or an e-mail change: GoTrue records both an
 --    e-mail code and a phone code as amr "otp", so on these accounts "otp" has
@@ -47,6 +54,22 @@ $$;
 comment on function private.is_customer_account(uuid) is
   'A self sign-up, an owner profile or parcel access: the phone changes only through ops (customer_account_guard).';
 
+-- A staff account: a role in a service org (field_staff, expert, ops) and no
+-- customer or owner account. The only accounts whose phone changes through
+-- Auth, with a code sent to the new number.
+create function private.is_staff_account(p_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from public.membership m where m.user_id = p_user_id)
+    and not private.is_customer_account(p_user_id);
+$$;
+comment on function private.is_staff_account(uuid) is
+  'A membership and no customer or owner account: the phone changes through Auth, confirmed with a code sent to the new number (customer_account_guard).';
+
 create function private.customer_account_guard()
 returns trigger
 language plpgsql
@@ -55,11 +78,17 @@ set search_path = ''
 as $$
 begin
   -- Phone: a new number, or a pending change to one. Clearing a pending
-  -- change is allowed.
-  if (coalesce(new.phone, '') is distinct from coalesce(old.phone, '')
-      or (coalesce(new.phone_change, '') <> '' and new.phone_change is distinct from old.phone_change))
-     and current_setting('orchados.account_phone_change', true) is distinct from 'on'
-     and private.is_customer_account(old.id) then
+  -- change is allowed. A staff account may start a change (the hook sends its
+  -- code to the new number) and confirm it: the new phone is the pending one.
+  -- A direct change (autoconfirm, the Admin API) is refused for everyone. A
+  -- demo account is left to demo_account_freeze (demo_account_locked).
+  if current_setting('orchados.account_phone_change', true) is distinct from 'on'
+     and old.raw_app_meta_data ->> 'demo' is distinct from 'true'
+     and ((coalesce(new.phone, '') is distinct from coalesce(old.phone, '')
+           and (coalesce(old.phone_change, '') = '' or new.phone is distinct from old.phone_change
+                or not private.is_staff_account(old.id)))
+          or (coalesce(new.phone_change, '') <> '' and new.phone_change is distinct from old.phone_change
+              and not private.is_staff_account(old.id))) then
     raise exception 'phone_change_locked' using errcode = '42501';
   end if;
   -- E-mail codes of a self sign-up: magic link, e-mail login code and
@@ -77,7 +106,7 @@ begin
 end;
 $$;
 comment on function private.customer_account_guard() is
-  'Trigger on auth.users: a customer or owner account''s phone changes only through private.change_account_phone (phone_change_locked); a self sign-up gets no e-mail code, magic link or e-mail change (email_code_locked).';
+  'Trigger on auth.users: a phone changes only through private.change_account_phone, or on a staff account by confirming a pending change (phone_change_locked); a self sign-up gets no e-mail code, magic link or e-mail change (email_code_locked).';
 revoke all on function private.customer_account_guard() from public;
 
 do $$
@@ -96,7 +125,7 @@ begin
   execute function private.customer_account_guard();
 exception
   when insufficient_privilege then
-    raise warning 'customer_account_guard: no trigger on auth.users (insufficient privilege); the Send SMS hook still refuses phone change codes';
+    raise warning 'customer_account_guard: no trigger on auth.users (insufficient privilege); phone changes are closed only where phone confirmations are on (docs/deployment.md)';
 end;
 $$;
 
@@ -124,11 +153,12 @@ begin
 end;
 $$;
 comment on function private.change_account_phone(uuid, text) is
-  'Ops only (SQL editor): sets and confirms an account''s phone; the only way a customer or owner account''s phone changes.';
+  'Ops only (SQL editor): sets and confirms an account''s phone; the only way a non-staff account''s phone changes.';
 revoke all on function private.change_account_phone(uuid, text) from public, anon, authenticated, service_role;
 
--- Send SMS hook, for a phone change code: never for a customer or owner
--- account (the trigger would refuse the change after the code went out).
+-- Send SMS hook, for a phone change code (user.new_phone is the destination):
+-- only for a staff account; the trigger would refuse any other change after
+-- the code went out.
 create function public.account_phone_change_allowed(p_user_id uuid)
 returns boolean
 language sql
@@ -136,10 +166,10 @@ stable
 security definer
 set search_path = ''
 as $$
-  select not private.is_customer_account(p_user_id);
+  select private.is_staff_account(p_user_id);
 $$;
 comment on function public.account_phone_change_allowed(uuid) is
-  'Send SMS hook: false for a phone change code of a customer or owner account. Service role only.';
+  'Send SMS hook: true only for a phone change code of a staff account (private.is_staff_account). Service role only.';
 
 -- ---------------------------------------------------------------------------
 -- 3, 4. Code grant and the hook's marker
@@ -401,6 +431,7 @@ comment on function public.phone_login_record_failure(text, text) is
   'Login and sign-up pages: counts a wrong code for the number (not with the ticket of its pending, unconfirmed self sign-up); returns the attempts left (0: locked for 15 minutes).';
 
 revoke all on function private.is_customer_account(uuid) from public, anon, authenticated;
+revoke all on function private.is_staff_account(uuid) from public, anon, authenticated;
 revoke all on function public.account_phone_change_allowed(uuid) from public, anon, authenticated;
 revoke all on function public.signup_code_grant(text, text) from public, anon, authenticated;
 revoke all on function public.signup_code_release(text) from public, anon, authenticated;
