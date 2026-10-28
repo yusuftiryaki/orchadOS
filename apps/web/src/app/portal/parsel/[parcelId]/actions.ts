@@ -118,6 +118,7 @@ export async function inviteViewerAction(form: FormData) {
     parcelId,
     text(form, "name"),
     text(form, "phone"),
+    form.get("declared") === "on",
   );
   if (result.ok) revalidatePath(`/portal/parsel/${parcelId}`);
   viewerReturn(parcelId, result.ok ? "invited" : result.error);

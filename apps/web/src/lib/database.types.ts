@@ -5239,7 +5239,7 @@ export type Database = {
       };
       owner_cancel_viewer_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
       owner_invite_viewer: {
-        Args: { p_full_name: string; p_parcel_id: string; p_phone: string };
+        Args: { p_declared?: boolean; p_full_name: string; p_parcel_id: string; p_phone: string };
         Returns: string;
       };
       owner_parcel_viewers: {
@@ -5254,6 +5254,7 @@ export type Database = {
           user_id: string;
         }[];
       };
+      parcel_legal_flags: { Args: { p_parcel_id: string }; Returns: Json };
       parcel_service_status: {
         Args: { p_parcel_id: string };
         Returns: {
@@ -5336,6 +5337,8 @@ export type Database = {
       phone_login_code_requested: { Args: { p_phone: string }; Returns: string };
       phone_login_record_failure: { Args: { p_phone: string }; Returns: number };
       pipeline_rescan_request: { Args: { p_session_id: string }; Returns: Json };
+      portal_acknowledge_kvkk_notice: { Args: { p_text_version: string }; Returns: number };
+      portal_notice_status: { Args: Record<PropertyKey, never>; Returns: Json };
       price_preview: {
         Args: { p_areas_m2: number[]; p_first_year?: boolean; p_package_id: string };
         Returns: {
@@ -5676,7 +5679,8 @@ export type Database = {
         | "garden_access_ending"
         | "contract_ready"
         | "withdrawal_received"
-        | "addon_order_closed";
+        | "addon_order_closed"
+        | "viewer_invited";
       operation_kind:
         | "mowing"
         | "spraying"
@@ -5931,6 +5935,7 @@ export const Constants = {
         "contract_ready",
         "withdrawal_received",
         "addon_order_closed",
+        "viewer_invited",
       ],
       operation_kind: [
         "mowing",

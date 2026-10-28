@@ -113,7 +113,7 @@ select throws_ok(
   $$ select public.approve_boundary('d1340000-0000-4000-8000-000000000011') $$,
   '42501', 'demo_read_only', 'nor approve the boundary');
 select throws_ok(
-  $$ select public.owner_invite_viewer('d1310000-0000-4000-8000-000000000011', 'Hisse', '+905550043001') $$,
+  $$ select public.owner_invite_viewer('d1310000-0000-4000-8000-000000000011', 'Hisse', '+905550043001', true) $$,
   '42501', 'demo_read_only', 'nor invite a co-owner');
 select throws_ok(
   $$ select public.owner_cancel_viewer_invitation(gen_random_uuid()) $$,
@@ -213,7 +213,7 @@ select lives_ok(
   $$ update public.question set body = 'Gerçek soru, düzeltilmiş' where id = 'd1350000-0000-4000-8000-000000000011' $$,
   'and edit one');
 select isa_ok(
-  public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Hisse', '+905550043003'),
+  public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Hisse', '+905550043003', true),
   'uuid', 'and invite a co-owner');
 reset role;
 

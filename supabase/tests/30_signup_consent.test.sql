@@ -180,7 +180,8 @@ select is(
 
 select results_eq(
   $$ select user_id, text_version, source::text, recorded_at from private.consent_record
-     where kind = 'kvkk_notice' and user_id in ('a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002')
+     where kind = 'kvkk_notice' and source = 'ops'
+       and user_id in ('a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002')
      order by user_id $$,
   $$ values ('a0000000-0000-4000-8000-000000000001'::uuid, 'kvkk-v0', 'ops', '2026-10-01 09:00:00+00'::timestamptz),
             ('a0000000-0000-4000-8000-000000000002'::uuid, 'kvkk-v0', 'ops', '2026-10-02 09:00:00+00'::timestamptz) $$,

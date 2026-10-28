@@ -1,6 +1,7 @@
 import { normalizePhone } from "@/lib/operations/validation";
 import { isUuid } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
+import { parcelLegalFlags } from "./legal-flags";
 
 // Co-owners (hissedar) of a parcel, from the owner's side (MVP Module 1, step
 // 8). The owner leaves an invitation (name + phone); ops opens the account and
@@ -21,7 +22,13 @@ export interface ViewerEntry {
 export interface ParcelViewers {
   isOwner: boolean;
   entries: ViewerEntry[];
+  // T15 (H32): the invitation form asks for the owner's declaration.
+  declarationRequired?: boolean;
 }
+
+// The owner's declaration on a co-owner invitation, as the database records
+// it (private.viewer_declaration(), kararlar.md T15): shown verbatim.
+export const VIEWER_DECLARATION = "Bu kişinin bahçede hakkı var ve numarasını vermeye yetkiliyim.";
 
 export type ViewerError =
   | "forbidden"
@@ -30,6 +37,8 @@ export type ViewerError =
   | "too_many_invitations"
   | "not_found"
   | "write_failed"
+  // T15: the declaration box was not ticked.
+  | "declaration_required"
   // A demo visitor (docs/demo-turu.md §6.3).
   | "demo_read_only"
   // A removed garden while its reports stay open (docs/bahce-yonetimi.md §5.4).
@@ -68,10 +77,14 @@ export async function loadParcelViewers(
   if (accessError) throw accessError;
   if (access?.role !== "owner") return { isOwner: false, entries: [] };
 
-  const { data, error } = await supabase.rpc("owner_parcel_viewers", { p_parcel_id: parcelId });
+  const [{ data, error }, flags] = await Promise.all([
+    supabase.rpc("owner_parcel_viewers", { p_parcel_id: parcelId }),
+    parcelLegalFlags(supabase, parcelId),
+  ]);
   if (error) throw error;
   return {
     isOwner: true,
+    declarationRequired: flags.coownerNoticeFlow,
     entries: data.map((row) => ({
       kind: row.kind === "viewer" ? "viewer" : "invitation",
       id: row.id,
@@ -88,6 +101,7 @@ export const failWith = (error: { code?: string; message?: string }): ViewerResu
   if (error.message === "demo_read_only") return { ok: false, error: "demo_read_only" };
   if (error.message === "parcel_read_only") return { ok: false, error: "parcel_read_only" };
   if (error.message === "too_many_invitations") return { ok: false, error: "too_many_invitations" };
+  if (error.message === "declaration_required") return { ok: false, error: "declaration_required" };
   if (error.message === "not_found" || error.code === "P0002")
     return { ok: false, error: "not_found" };
   if (error.code === "42501") return { ok: false, error: "forbidden" };
@@ -100,6 +114,8 @@ export async function inviteViewer(
   parcelId: string,
   name: string,
   phone: string,
+  // T15: the owner ticked the declaration (required while the switch is on).
+  declared = false,
 ): Promise<ViewerResult> {
   const parsed = parseInvite(name, phone);
   if (!parsed.ok) return parsed;
@@ -108,6 +124,7 @@ export async function inviteViewer(
     p_parcel_id: parcelId,
     p_full_name: parsed.name,
     p_phone: parsed.phone,
+    ...(declared ? { p_declared: true } : {}),
   });
   return error ? failWith(error) : { ok: true };
 }

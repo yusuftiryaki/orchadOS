@@ -402,6 +402,13 @@ insert into private.consent_record (org_id, subject_id, user_id, kind, granted, 
 -- The KVKK notice of the profiles above (owner, viewer), as the migration does on
 -- a database with profiles.
 select private.backfill_kvkk_consents();
+-- T15 (H30): the seed owner and viewer acknowledged the notice in the portal
+-- themselves, so the first-login notice screen (on here) does not stop them.
+insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source, recorded_at) values
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001',
+   'a0000000-0000-4000-8000-000000000001', 'kvkk_notice', true, 'kvkk-v2-taslak', 'portal', '2026-10-03 09:00:00+00'),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002',
+   'a0000000-0000-4000-8000-000000000002', 'kvkk_notice', true, 'kvkk-v2-taslak', 'portal', '2026-10-03 09:00:00+00');
 
 insert into private.billing_profile (org_id, user_id, kind, first_name, last_name, address, district, city, postal_code)
 values (

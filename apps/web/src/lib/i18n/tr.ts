@@ -1020,6 +1020,7 @@ export const tr = {
         invalid_name: "Ad soyad yazın.",
         invalid_phone: "Telefon numarası geçersiz (ör. 0532 123 45 67).",
         too_many_invitations: "Bekleyen davet sayısı sınırda; önce bekleyenler tamamlansın.",
+        declaration_required: "Davet için beyan kutusunu işaretleyin.",
         not_found: "Kayıt bulunamadı.",
         write_failed: "Kaydedilemedi. Lütfen tekrar deneyin.",
       },
@@ -1753,6 +1754,7 @@ export const tr = {
       withdrawal_received: "Cayma bildirimi alındı",
       contract_ready: "Sözleşme belgeleri hazır",
       addon_order_closed: "Ek sipariş iptal edildi",
+      viewer_invited: "Hissedar daveti",
     } as Record<string, string>,
     channel: {
       sms: "SMS",
@@ -1815,6 +1817,13 @@ export const tr = {
       missingTitle: "Unvan girilmemiş: raporda yalnızca ad görünür.",
       empty: "Bu kuruluşta personel yok.",
       roleNames: { field_staff: "Saha", expert: "Uzman", ops: "Operasyon" } as Record<string, string>,
+    },
+    notice: {
+      title: "Kişisel verileriniz hakkında bilgilendirme",
+      intro:
+        "Portalı kullanmaya başlamadan önce kişisel verilerinizin nasıl işlendiğini anlatan aydınlatma metnini okuyun. Metni okuduğunuzu kaydetmeniz yeterlidir.",
+      read: "Aydınlatma metnini okudum.",
+      save: "Kaydet",
     },
     media: {
       title: "Görüntü gizleme (KVKK itirazı)",

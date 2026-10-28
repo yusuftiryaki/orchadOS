@@ -290,6 +290,7 @@ const EVERY_TEMPLATE: Record<Template, string | null> = {
   withdrawal_received: "C-2026-000001",
   contract_ready: "S-2026-000001",
   addon_order_closed: "S-2026-000001",
+  viewer_invited: null,
 };
 
 describe("service messages carry no promotion", () => {
@@ -303,5 +304,29 @@ describe("service messages carry no promotion", () => {
 
   it("login code", () => {
     expect(renderLoginCode("123456")).not.toMatch(PROMOTION);
+  });
+});
+
+describe("co-owner invitation (T15, H32)", () => {
+  it("names the parcel, says who gave the number and links the notice and the portal", () => {
+    const out = renderNotification(
+      "viewer_invited",
+      { parcel_name: "Kuzey Bahçe", path: "/portal" },
+      "https://portal.example/app",
+    );
+    expect(out).toEqual({
+      ok: true,
+      body: "orchadOS: Kuzey Bahçe bahçesinin sahibi sizi raporları görmeniz için davet etti; numaranızı bize o verdi. Kişisel verileriniz: https://portal.example/kvkk Giriş: https://portal.example/app/portal",
+    });
+  });
+
+  it("needs the parcel name and a portal path", () => {
+    expect(renderNotification("viewer_invited", { path: "/portal" }, BASE)).toEqual({
+      ok: false,
+      error: "invalid_vars",
+    });
+    expect(
+      renderNotification("viewer_invited", { parcel_name: "X", path: "/kvkk" }, BASE),
+    ).toEqual({ ok: false, error: "invalid_link" });
   });
 });
