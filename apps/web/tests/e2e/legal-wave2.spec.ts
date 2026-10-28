@@ -192,6 +192,6 @@ test("an owner files a KVKK application; ops sees the deadline and answers (T11)
   const row = page.getByTestId("kvkk-request-table").locator("tr", { hasText: KVKK_MESSAGE });
   await expect(row).toContainText("gün kaldı");
   await row.getByLabel("Durum").selectOption("answered");
-  await row.getByRole("button", { name: "Kaydet" }).click();
+  await row.getByRole("button", { name: "Durumu kaydet" }).click();
   await expect(page.getByText("Başvurunun durumu güncellendi.")).toBeVisible();
 });

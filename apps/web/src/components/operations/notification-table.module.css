@@ -1,0 +1,32 @@
+/* The notification queue (notification-table.tsx). */
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.recipient,
+.detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.detail {
+  gap: var(--space-1);
+  min-width: 10rem;
+}
+
+.phone {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+.detail button {
+  white-space: nowrap;
+}

@@ -56,7 +56,7 @@ export const visitsText = {
     outcomePending: "Sonuç bekleniyor",
     fieldEvents: "Saha uygulamasının kaydı",
     fieldEventPrefill: (reason: string, photos: number) =>
-      `Saha: ${reason} · ${photos} fotoğraf. Form bu kayıtla dolduruldu.`,
+      `Saha uygulaması kaydı: ${reason}, ${photos} fotoğraf. Form bu kayıtla dolduruldu.`,
     occurredOn: "Ziyaretin yapılamadığı gün",
     detail: "Ayrıntı kodu",
     note: "Not",
@@ -91,7 +91,22 @@ export const visitsText = {
       field_notice_objection: "İtiraz",
     } as Record<string, string>,
     sign: (sign: boolean, badge: boolean) =>
-      `Levha: ${sign ? "kondu" : "konmadı"} · Kart: ${badge ? "görünür" : "görünmüyor"}`,
+      `Levha ${sign ? "kondu" : "konmadı"}, kart ${badge ? "görünür" : "görünmüyor"}`,
+    fieldNoticeColumns: { kind: "Kayıt", at: "Zaman", detail: "Ayrıntı" },
+    noticeColumns: {
+      channel: "Kanal",
+      day: "Bildirilen tarih",
+      at: "Bildirim zamanı",
+      status: "Durum",
+    },
+    postponementNone: "Erteleme isteği yok.",
+    postponementClosed:
+      "Erteleme isteği yok; ziyaret gününe bir günden az kaldığı için artık kaydedilemez.",
+    missedRecord: "Yapılamayan ziyareti kaydet",
+    missedColumns: {
+      day: "Gün",
+      notified: "Sahip'e bildirildi",
+    },
     verbal: {
       given: "Bilgi verildi",
       nobody: "Bahçede kimse yoktu",
@@ -105,7 +120,7 @@ export const visitsText = {
     title: "Ziyaret mutabakatı (8A)",
     nav: "Mutabakat",
     lead: "Sözleşme 8A/6: her ziyaret penceresinin ve hizmet döneminin sonunda yapılamayan ziyaretler kendiliğinden tespit edilir; bedeli pencerenin bitiminden sonra en geç 14 gün içinde iade edilir ya da Sahip isterse aktarılır. İadeyi İadeler ekranından açın (neden: yapılamayan ziyaret).",
-    empty: "Açık görev yok.",
+    empty: "Açık görev yok",
     all: "Tümü",
     open: "Açık",
     columns: {
@@ -127,6 +142,23 @@ export const visitsText = {
     } as Record<string, string>,
     visits: (used: number, entitled: number, refunded: number, carried: number) =>
       `${used}/${entitled} yapıldı · ${refunded} iade · ${carried} aktarma`,
+    // Table columns of the same counts (the sentence above stays for exports).
+    visitColumns: {
+      done: "Yapılan",
+      refunded: "İade",
+      carried: "Aktarma",
+    },
+    filterLabel: "Görev durumu",
+    count: (n: number) => `${n} görev`,
+    emptyAll: "Mutabakat görevi yok",
+    emptyHint:
+      "Görevler ziyaret penceresi ya da hizmet dönemi eksik ziyaretle kapanınca kendiliğinden açılır.",
+    resolveHint: "Kapatma nedeni",
+    notePlaceholder: "Not (Gerek yok için zorunlu)",
+    statusLabel: {
+      open: "Açık",
+      resolved: "Kapatıldı",
+    } as Record<string, string>,
     overdue: "Gecikti",
     resolution: {
       refund_opened: "İade açıldı",

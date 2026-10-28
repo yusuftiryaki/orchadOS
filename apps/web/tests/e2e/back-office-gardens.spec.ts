@@ -152,6 +152,8 @@ test("an add-on application: period panel, overlap check, verification, Ek tekli
 
   // A separate period needs the explicit checkbox.
   await expect(page.getByRole("heading", { name: "Ayrı dönemle teklif ver" })).toBeVisible();
+  // The form is folded away: it is the exception for a member.
+  await page.getByText("Ayrı dönem formunu aç").click();
   await expect(page.getByTestId("issue-quote-form").getByRole("checkbox")).not.toBeChecked();
 
   await page.getByTestId("application-gardens").getByRole("link", { name: "Doğrula" }).click();

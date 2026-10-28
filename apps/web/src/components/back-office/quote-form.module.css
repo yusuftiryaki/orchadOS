@@ -1,0 +1,38 @@
+/* The quote forms of teklif/yeni: parcel choices and the form column. */
+
+/* A form that is the screen's main content: readable width. */
+.formColumn {
+  max-width: 52rem;
+  min-width: 0;
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.fieldset legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+/* A checkbox with its label (a parcel to quote). */
+.choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+.choice :global(.muted) {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}

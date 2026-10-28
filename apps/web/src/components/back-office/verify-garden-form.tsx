@@ -4,12 +4,13 @@ import { useState } from "react";
 import { verifyGardenAction } from "@/app/operasyon/back-office-actions";
 import { BoundaryEditor } from "@/components/operations/boundary-editor";
 import { Field } from "@/components/operations/field";
-import styles from "@/components/operations/operations.module.css";
+import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import type { Position } from "@/lib/map/geo";
 import { m2ToDonum, ringAreaM2, validateRing } from "@/lib/operations/geometry";
 import { ActionForm } from "./action-form";
+import q from "./quote.module.css";
 
 const T = backOfficeText.garden;
 
@@ -31,6 +32,7 @@ export function VerifyGardenForm({
   const [ring, setRing] = useState<Position[]>([]);
   const [area, setArea] = useState(initialDonum);
   const drawn = ring.length >= 3 && !validateRing(ring) ? ringAreaM2(ring) : null;
+  const drawnDonum = drawn != null ? formatNumber(m2ToDonum(drawn), 3).replace(/\./g, "") : null;
 
   return (
     <ActionForm action={verifyGardenAction} testId="verify-garden-form">
@@ -43,31 +45,27 @@ export function VerifyGardenForm({
         mode="boundary"
         context={boundary}
       />
-      <Field label={T.area}>
-        <input
-          name="verified_area_donum"
-          inputMode="decimal"
-          required
-          value={area}
-          onChange={(e) => setArea(e.target.value)}
-        />
-      </Field>
-      {drawn != null && (
-        <button
-          type="button"
-          className="button button-secondary"
-          onClick={() => setArea(formatNumber(m2ToDonum(drawn), 3).replace(/\./g, ""))}
-        >
-          {T.useDrawnArea}
-        </button>
-      )}
+      <div className={q.inlineForm}>
+        <Field label={T.area}>
+          <input
+            name="verified_area_donum"
+            inputMode="decimal"
+            required
+            value={area}
+            onChange={(e) => setArea(e.target.value)}
+          />
+        </Field>
+        {drawnDonum != null && (
+          <Button variant="secondary" onClick={() => setArea(drawnDonum)}>
+            {T.drawnAreaButton(drawnDonum)}
+          </Button>
+        )}
+      </div>
       <Field label={T.note} optional>
-        <textarea name="note" maxLength={2000} rows={3} />
+        <textarea name="note" maxLength={2000} rows={2} />
       </Field>
-      <div className={styles.actions}>
-        <button className="button" type="submit">
-          {T.submit}
-        </button>
+      <div className={q.actions}>
+        <Button type="submit">{T.submit}</Button>
       </div>
     </ActionForm>
   );

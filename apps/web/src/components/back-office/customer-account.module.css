@@ -1,0 +1,13 @@
+/* "Tüm bahçeleri çıkar": the form opens on request, so the aside stays
+   short. Tokens only. */
+
+.disclosure > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-danger);
+  margin-bottom: var(--space-2);
+}
+
+.disclosure:not([open]) > summary {
+  margin-bottom: 0;
+}

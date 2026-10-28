@@ -196,7 +196,7 @@ test("ops takes an application to an active order and refunds part of the transf
     page.getByText("Havale kaydedildi; her ödeme için ayrı makbuz numarası verildi."),
   ).toBeVisible();
   await expect(page.getByTestId("installment-5")).toHaveAttribute("data-status", "paid");
-  await expect(page.getByTestId("order-facts")).toContainText("Aktif");
+  await expect(page.getByTestId("order-status")).toHaveText("Aktif");
   await expect(page.getByTestId("order-parcel-link")).toHaveText(GARDEN);
 
   // 4. A transfer refund: requested on the payment, completed on İadeler.
@@ -262,7 +262,7 @@ test("ops publishes a price list from a copy and saves the settings", async ({ p
 
   const publish = page.getByTestId("publish-form");
   await publish.getByRole("checkbox").check();
-  await publish.getByRole("button", { name: "Yayımla" }).click();
+  await publish.getByRole("button", { name: "Listeyi yayımla" }).click();
   await expect(page.getByText("Fiyat listesi yayımlandı; artık değiştirilemez.")).toBeVisible();
   expect(page.url().split("?")[0]).toBe(draftUrl);
   await expect(page.getByTestId("price-list-items")).toContainText("190,00 ₺");
@@ -279,13 +279,13 @@ test("ops publishes a price list from a copy and saves the settings", async ({ p
   const days = form.getByLabel("Teklif geçerliliği (gün)");
   const before = await days.inputValue();
   await days.fill("31");
-  await form.getByRole("button", { name: "Kaydet" }).click();
+  await form.getByRole("button", { name: "Ayarları kaydet" }).click();
   await expect(page.getByText("Ayarlar kaydedildi.")).toBeVisible();
   await expect(
     page.getByTestId("settings-form").getByLabel("Teklif geçerliliği (gün)"),
   ).toHaveValue("31");
   await page.getByTestId("settings-form").getByLabel("Teklif geçerliliği (gün)").fill(before);
-  await page.getByTestId("settings-form").getByRole("button", { name: "Kaydet" }).click();
+  await page.getByTestId("settings-form").getByRole("button", { name: "Ayarları kaydet" }).click();
   await expect(page.getByText("Ayarlar kaydedildi.")).toBeVisible();
 
   await page.goto("/operasyon/denetim-kaydi?eylem=billing_setting.");
@@ -330,7 +330,7 @@ test("the customer's TCKN is never stored, so ops sees none (T13)", async ({ pag
 
   await login(page, "ops@example.com", "/operasyon/sahip");
   await page.getByLabel("Ad, telefon ya da e-posta").fill(NAME);
-  await page.getByRole("button", { name: "Süz" }).click();
+  await page.getByRole("button", { name: "Ara", exact: true }).click();
   // The search is posted: only the matching row, and the term (personal
   // data) is not in the URL.
   await expect(page.getByTestId("owner-list").locator("tbody tr")).toHaveCount(1);

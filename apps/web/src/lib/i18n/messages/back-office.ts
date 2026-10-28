@@ -176,6 +176,9 @@ const auditActions: Record<string, string> = {
 export const backOfficeText = {
   nav: {
     group: "Müşteri ve ödeme",
+    groupField: "Saha",
+    groupAdmin: "Yönetim",
+    menu: "Menü",
     applications: "Başvurular",
     orders: "Siparişler",
     payments: "Ödemeler",
@@ -248,6 +251,14 @@ export const backOfficeText = {
     paid: "Ödenen",
     parcels: "Parsel",
     empty: "Aramaya uyan kayıt yok.",
+    emptyHint: "Yazımı kontrol edin ya da adın, telefonun veya e-postanın bir parçasıyla arayın.",
+    emptySource: "Bu kaynaktan kayıt yok.",
+    emptyAllHint: "Sahibi kaydedin; portal hesabı kayıtla birlikte açılır.",
+    searchSubmit: "Ara",
+    searchClear: "Aramayı temizle",
+    searchLabel: "Sahip ara",
+    count: (n: string) => `${n} kayıt`,
+    searchCount: (n: string) => `Aramaya uyan ${n} kayıt`,
     truncated:
       "Bir işletmede 1000'den çok kayıt var; yalnızca en yeni 1000 kayıt gösteriliyor. Daha eskiler için arayın.",
   },
@@ -275,10 +286,30 @@ export const backOfficeText = {
     payments: "Ödemeler",
     none: "Kayıt yok.",
     parcelQuote: "Parsel teklifi ver",
+    removeAllOpen: "Çıkarma formunu aç",
+    columns: {
+      recordedAt: "Kayıt zamanı",
+      consent: "Onay",
+      result: "Sonuç",
+      version: "Metin sürümü",
+      source: "Kaynak",
+      number: "No",
+      status: "Durum",
+      submittedAt: "Gönderildi",
+      paid: "Ödenen",
+      total: "Toplam",
+      receipt: "Makbuz",
+      method: "Yöntem",
+      amount: "Tutar",
+    },
   },
   applications: {
     title: "Başvurular",
     empty: "Bu durumda başvuru yok.",
+    emptyAll: "Henüz başvuru yok.",
+    emptyHint: "Müşteriler portaldan başvuru gönderdikçe burada listelenir.",
+    count: (n: string) => `${n} başvuru`,
+    openQuoteLink: "Teklifi aç",
     number: "No",
     customer: "Müşteri",
     package: "Paket",
@@ -316,6 +347,10 @@ export const backOfficeText = {
     quotes: "Teklif geçmişi",
     noQuotes: "Henüz teklif verilmedi.",
     closed: "Başvuru açık değil; teklif ya da ret verilemez.",
+    summary: "Başvuru",
+    actions: "İşlem",
+    quoteNumber: "Teklif no",
+    reasonPlaceholder: "Neden seçin",
   },
   garden: {
     title: (name: string) => `Bahçe: ${name}`,
@@ -335,12 +370,16 @@ export const backOfficeText = {
     entryPermission: "Giriş izni",
     accessNote: "Erişim notu",
     siteContact: "Saha kişisi",
+    siteContactName: "Saha kişisi",
+    siteContactPhone: "Saha kişisinin telefonu",
+    declaredTitle: "Müşterinin beyanı",
+    verifiedBadge: "Alan doğrulandı",
     verifyTitle: "Alanı doğrula",
     verifyHint:
       "Doğrulanan alan teklife girer. Sınırı yeniden çizmek isteğe bağlıdır; çizilirse alanı otomatik doldurulur.",
     area: "Doğrulanan alan (dönüm)",
     note: "Doğrulama notu (iç)",
-    useDrawnArea: "Çizilen alanı kullan",
+    drawnAreaButton: (donum: string) => `Çizilen alanı kullan (${donum} dönüm)`,
     submit: "Doğrulamayı kaydet",
   },
   quote: {
@@ -377,9 +416,20 @@ export const backOfficeText = {
     startHint: "Yenilemede eski dönemin bitişinden bir gün sonrası önerilir.",
     validDaysHint: (days: number) => `Boş bırakılırsa ${days} gün.`,
     discountHint: "0–100 arası; indirim varsa açıklama zorunlu.",
-    submit: "Teklifi ver",
+    submit: "Teklif ver",
     noOrg: "Bu müşteri sizin operasyon org'unuzda değil.",
     printHint: "Bu sayfa yazdırılabilir; iç bilgiler yazdırılmaz.",
+    totalWithVat: "KDV dahil toplam",
+    summary: "Teklif",
+    lines: "Teklif satırları",
+    openOrder: "Siparişi aç",
+    noParcelsTitle: "Teklif verilecek parsel yok",
+    formTitle: "Teklif koşulları",
+    parcel: "Parsel",
+    parcelNote: "Not",
+    previewTotal: "Önizlemedeki toplam (KDV dahil):",
+    issueConsequence:
+      "Müşteriye SMS gider. Aynı başvuru ya da sipariş için açık bir teklif varsa bu teklif onun yerini alır.",
   },
   orders: {
     overdueInstallments: "30 gün ve daha uzun geciken ödemeler",
@@ -402,6 +452,16 @@ export const backOfficeText = {
     renewalDue: "Yenileme zamanı",
     livePayment: "Kart ödemesi sürüyor",
     addon: "Ek sipariş",
+    filterLabel: "Sipariş durumu",
+    count: (n: number) => `${n} sipariş`,
+    emptyAll: "Henüz sipariş yok",
+    emptyStatus: "Bu durumda sipariş yok",
+    emptyHint: "Sipariş, müşteri teklifi kabul edince açılır.",
+    overdueAlert: (n: number) =>
+      `${n} ödeme 30 günden uzun süredir gecikmiş. Fesih uyarısı gerekip gerekmediğine bakın.`,
+    missingAlert: (n: number) => `${n} siparişin sözleşme belgesi eksik.`,
+    manualAlert: (n: number) => `${n} siparişin belgesi elle kopya bekliyor.`,
+    showList: "Listeye git",
   },
   order: {
     title: (number: string) => `Sipariş ${number}`,
@@ -434,13 +494,20 @@ export const backOfficeText = {
     extendTitle: "Ödeme süresini uzat",
     dueOn: "Yeni son ödeme günü",
     extend: "Süreyi uzat",
+    extendHint: (due: string) =>
+      `Şu anki son ödeme günü ${due}. Müşteri yeni güne kadar ödeyebilir; sipariş o güne kadar açık kalır.`,
+    outstandingNow: "Açık tutar",
     cancelTitle: "Siparişi iptal et",
-    cancelHint: "Ödeme alınmamış siparişler iptal edilir; ödeme varsa iade yolunu kullanın.",
+    cancelHint:
+      "Sipariş iptal edilir ve müşteri artık ödeyemez. Geri alınamaz. Ödeme alınmışsa iptal yerine ödemeden iade isteyin.",
     cancel: "Siparişi iptal et",
     terminateTitle: "Siparişi feshet",
-    terminateHint: "Aktif hizmet sona erer. İade ayrı bir işlemdir. Not zorunlu.",
+    terminateHint:
+      "Aktif hizmet bugün sona erer ve geri alınamaz. Para kendiliğinden iade edilmez; iade gerekiyorsa ödemeden ayrıca isteyin. Not zorunlu.",
     terminateConfirm: "Feshin geri alınamayacağını biliyorum.",
-    terminate: "Feshet",
+    terminate: "Siparişi feshet",
+    removeGarden: "Bahçe",
+    actions: "İşlemler",
     renewal: "Yenileme teklifi ver",
     audit: "Denetim izi",
     noAudit: "Kayıt yok.",
@@ -456,10 +523,20 @@ export const backOfficeText = {
     amount: "Tutar",
     refundable: "İade edilebilir",
     date: "Tarih",
+    filterStatus: "Ödeme durumu",
+    filterMethod: "Ödeme yöntemi",
+    count: (n: number) => `${n} ödeme`,
+    emptyTitle: "Bu süzgece uyan ödeme yok",
+    emptyHint:
+      "Kart ödemeleri müşteri ödeyince, havaleler sipariş sayfasından kaydedilince burada görünür.",
+    clear: "Süzgeci temizle",
   },
   payment: {
     title: (ref: string) => `Ödeme ${ref}`,
     untitled: "Ödeme",
+    summary: "Özet",
+    noActions: "Bu ödemenin durumunda yapılacak işlem yok.",
+    allRefunds: "Tüm iadeler",
     mismatch: {
       amount_mismatch:
         "Tutar uyuşmazlığı: sağlayıcının bildirdiği tutar istenen tutarla aynı değil. Sistem bir iptal iadesi açtı; sonucunu İadeler'den izleyin.",
@@ -532,10 +609,24 @@ export const backOfficeText = {
     note: "İç not",
     attempts: (n: number) => `${n} deneme`,
     retryable: "Yeniden denenebilir",
+    filterLabel: "İade durumu",
+    count: (n: number) => `${n} iade`,
+    open: "Açık iş",
+    emptyTitle: "İade yok",
+    emptyOpen: "Bekleyen iade yok",
+    emptyHint: "İadeler ödeme sayfasından istenir ya da bahçe çıkarmada kendiliğinden açılır.",
+    processHint: "Kart iadesi sağlayıcıya şimdi gönderilir.",
+    actions: "İşlem",
   },
   prices: {
     title: "Paketler ve fiyatlar",
+    lead: "Fiyatı değiştirmek için geçerli listeden taslak oluşturun, fiyatları girip yayımlayın. Yayımlanan liste değiştirilemez; verilmiş teklifler eski fiyatla kalır.",
     packages: "Paketler",
+    packagesHint: "Aktif paketler sitede görünür ve yeni başvuru ile teklifte seçilebilir.",
+    noPackages: "Henüz paket yok",
+    noPackagesBody: "Fiyat listesi açmadan önce en az bir paket tanımlayın.",
+    noLists: "Henüz fiyat listesi yok",
+    noListsBody: "Boş bir taslak açın, her aktif paketin fiyatını girip yayımlayın.",
     newPackage: "Yeni paket",
     code: "Kod",
     name: "Ad",
@@ -548,6 +639,13 @@ export const backOfficeText = {
     description: "Açıklama",
     packageTitle: (name: string) => `Paket: ${name}`,
     newPackageTitle: "Yeni paket",
+    packageLead:
+      "Paketin fiyatı fiyat listesinde girilir. Ad ve açıklama sitedeki paket sayfasında ve tekliflerde görünür.",
+    packageDetails: "Paket bilgileri",
+    savePackage: "Paketi kaydet",
+    inventoryHint: "Paket ilk yılda ağaç envanterini içerir.",
+    activeHint: "Pasif paket sitede görünmez, yeni başvuru ve teklifte seçilemez.",
+    sortHint: "Sitede ve listelerde küçük sayı önce gelir.",
     codeHint: "Küçük harf, rakam, - ve _; harfle başlar.",
     lists: "Fiyat listeleri",
     version: "Sürüm",
@@ -559,7 +657,13 @@ export const backOfficeText = {
     newDraft: "Boş taslak aç",
     listTitle: (version: number | null) => (version ? `Fiyat listesi v${version}` : "Taslak"),
     readOnly: "Yayımlanmış liste değiştirilemez.",
+    items: "Fiyatlar",
+    details: "Liste bilgileri",
+    newVersion: "Yeni sürüm",
+    copyHint:
+      "Bu listenin fiyatları yeni bir taslağa kopyalanır. Taslakta değiştirip yayımlayınca yeni sürüm olur; bu liste olduğu gibi kalır.",
     copyToDraft: "Bundan taslak oluştur",
+    copyInForce: "Geçerli listeden taslak oluştur",
     unitPrice: "Birim fiyat (TL / dönüm·ziyaret)",
     minimumFee: "Minimum ücret (TL)",
     inventoryFee: "Envanter ücreti (TL, ilk yıl)",
@@ -568,9 +672,18 @@ export const backOfficeText = {
     draftHint:
       "Birim fiyatı boş bırakılan paket listeye girmez. Yayımlamak için her aktif paketin fiyatı olmalı ve başlangıç bugünden önce olmamalı.",
     saveDraft: "Taslağı kaydet",
-    publish: "Yayımla",
-    publishConfirm: "Yayımlanan liste değiştirilemez; yeni tekliflerde kullanılır.",
+    publish: "Listeyi yayımla",
+    publishTitle: "Yayımla",
+    publishFrom: (date: string) =>
+      `Liste ${date} tarihinden başlayarak yeni tekliflerde kullanılır.`,
+    publishNoDate: "Yayımlamak için önce geçerlilik başlangıcını girip taslağı kaydedin.",
+    publishConsequence:
+      "Yayımlanan liste bir daha değiştirilemez ve silinemez. Verilmiş teklifler eski fiyatla kalır. Yayımlanan, kaydedilmiş taslaktır: değişiklik yaptıysanız önce taslağı kaydedin.",
+    publishConfirm:
+      "Fiyatları ve başlangıç tarihini kontrol ettim; liste bundan sonra değiştirilemez.",
     deleteDraft: "Taslağı sil",
+    deleteConsequence:
+      "Taslak ve girilen fiyatlar silinir. Yayımlanmış listeler ve verilmiş teklifler etkilenmez.",
     packageMissing: "Pasif ya da silinmiş paket",
   },
   audit: {
@@ -579,6 +692,15 @@ export const backOfficeText = {
     entityId: "Kayıt kimliği",
     action: "Eylem öneki",
     actionHint: "ör. refund. ya da payment.manual",
+    lead: "Faturalama kayıtlarındaki her değişiklik, en yenisi başta. Ayrıntılarda kişisel veri tutulmaz.",
+    entityIdHint: "Kimliğin tamamı (36 karakter).",
+    clear: "Süzgeci temizle",
+    count: (n: number) => `${n.toLocaleString("tr-TR")} kayıt`,
+    limited: (n: number) =>
+      `Son ${n.toLocaleString("tr-TR")} kayıt gösteriliyor; daraltmak için süzün.`,
+    noRows: "Bu süzgece uyan kayıt yok",
+    nothing: "Henüz denetim kaydı yok",
+    noRowsBody: "Kayıt türünü ya da eylem önekini değiştirin veya süzgeci temizleyin.",
     when: "Zaman",
     actor: "Kim",
     what: "Eylem",
@@ -604,6 +726,16 @@ export const backOfficeText = {
   },
   settings: {
     title: "Faturalama ayarları",
+    lead: "Kayıt, teklif, ödeme ve makbuzları etkiler. Kaydedince hemen geçerli olur ve denetim kaydına yazılır.",
+    save: "Ayarları kaydet",
+    isOn: "Şu an açık",
+    isOff: "Şu an kapalı",
+    paymentDueDaysHint: "1–60. Teklif kabulünden sonra ilk ödeme için tanınan süre.",
+    quoteValidDaysHint: "1–90. Yeni tekliflerin varsayılan geçerlilik süresi.",
+    renewalNoticeDaysHint:
+      "7–120. Dönem sonuna bu kadar gün kalan siparişler panoda yenileme kuyruğuna girer.",
+    sqlOnly: "Veritabanından yönetilenler",
+    sqlOnlyHint: "Bu ayarlar burada değiştirilemez; yalnızca veritabanından değişir.",
     signups: "Dışarıdan kayıt",
     acceptsSignups: "Dışarıdan kayıt açık",
     acceptsSignupsWarning:
@@ -614,7 +746,8 @@ export const backOfficeText = {
     fakePayments: "Sahte ödeme",
     fakePaymentsOn: "Açık (yalnızca yerel ve test ortamı)",
     fakePaymentsOff: "Kapalı",
-    fakePaymentsHint: "Bu ayar yalnızca veritabanından değiştirilir.",
+    fakePaymentsHint:
+      "Kart yerine sahte ödeme sağlayıcısı kullanılır; pilot ve üretimde kapalıdır.",
     seller: "Satıcı bilgileri (makbuzda)",
     bank: "Havale bilgileri",
     ibanHint: "TR ile başlayan 26 karakter; sağlama toplamı denetlenir.",
@@ -645,13 +778,11 @@ export const backOfficeText = {
     // T18 and T27: SQL-only settings shown read-only.
     inventoryReuse: "Envanterin yeniden kullanım süresi",
     inventoryReuseValue: (months: number) => `${months} ay`,
-    inventoryReuseHint:
-      "Yalnızca veritabanından değiştirilir. Değişmesi sözleşme metnini (Md. 8D/3) ve sürümünü değiştirir.",
+    inventoryReuseHint: "Değişmesi sözleşme metnini (Md. 8D/3) ve sürümünü değiştirir.",
     marketingConsent: "Tanıtım iletisi onayı",
     marketingConsentOn: "Soruluyor",
     marketingConsentOff: "Sorulmuyor",
-    marketingConsentHint:
-      "Yalnızca veritabanından değiştirilir; İYS kaydı ve entegrasyonundan sonra açılır (H06, T22).",
+    marketingConsentHint: "İYS kaydı ve entegrasyonundan sonra açılır (H06, T22).",
   },
   // IP14 (docs/bahce-yonetimi.md §12)
   removals: {
@@ -659,6 +790,13 @@ export const backOfficeText = {
     hint: "Çıkış gününe göre sıralı. Talepler çıkış gününde kendiliğinden işler; engelli kayıtlar ödeme bekleyen bir sipariş yüzünden tamamlanamadı.",
     open: "Açık",
     empty: "Bu süzgece uyan çıkarma yok.",
+    emptyOpen: "Açık çıkarma yok",
+    emptyOpenHint:
+      "Müşteri bahçesini portaldan çıkarınca ya da siz müşteri sayfasından çıkarma açınca burada görünür.",
+    count: (n: string) => `${n} çıkarma`,
+    relative: (days: number) =>
+      days === 0 ? "Bugün" : days > 0 ? `${days} gün sonra` : `${-days} gün geçti`,
+    refundMode: "İade modu",
     number: "No",
     customer: "Müşteri",
     garden: "Bahçe",
@@ -777,6 +915,16 @@ export const backOfficeText = {
     refunds: "Açılan iadeler",
     noRefunds: "Bu çıkarma için iade satırı açılmadı.",
     refundsHint: "İadeleri İadeler sayfasından işleyin.",
+    calendar: "Takvim",
+    refundEstimate: "İade (üst sınır)",
+    history: "İşlem geçmişi",
+    order: "Sipariş",
+    refundNumber: "İade no",
+    refundStatus: "Durum",
+    refundAmount: "Tutar",
+    refundsLink: "İadeler sayfasını aç",
+    completeConsequence: (date: string) => `Bugün (${date}) hizmetten çıkar. Geri alınamaz.`,
+    cancelConsequence: "Bahçe hizmette kalır, erişim değişmez. Not zorunlu; müşteriye SMS gider.",
   },
   membership: {
     title: "Üyelik",
@@ -787,6 +935,7 @@ export const backOfficeText = {
     gardens: "Hizmetteki bahçe",
     next: "Sonraki dönem",
     renewalQuote: "Yenileme teklifi",
+    renewalQuoteLink: "Teklifi aç",
     primary: "Ana dönem",
     addonUntil: "Ek teklifin son günü",
     noAddon:
@@ -832,6 +981,7 @@ export const backOfficeText = {
     separateHint:
       "Bugünkü bir yıllık teklif. Üye müşteride ikinci bir dönem açar ve yenilemeyi böler; yalnızca bilinçli olarak kullanın.",
     separateConfirm: "Bu müşteriye ikinci bir hizmet dönemi açılacak",
+    separateOpen: "Ayrı dönem formunu aç",
     newTitle: (order: string) => `Ek teklif (${order})`,
     parcelsHint:
       "Müşterinin sahibi olduğu parseller; hizmetteki ya da açık çıkarması olanlar reddedilir.",
@@ -840,7 +990,7 @@ export const backOfficeText = {
     noMembership: "Bu sipariş bir üyeliğin temel siparişi değil ya da aktif değil.",
     previewButton: "Önizlemeyi güncelle",
     termsFromPreview:
-      "Başlangıç ve indirim yukarıdaki önizlemeden alınır; değiştirmek için önizlemeyi güncelleyin.",
+      "Başlangıç ve indirim ek teklif önizlemesinden alınır; değiştirmek için önizlemeyi güncelleyin.",
     issueBlocked: "Üyelik okunamadığı için teklif verilemez; sayfayı yenileyin.",
     info: "Ek teklif bilgisi",
     period: "Üyelik dönemi",
@@ -854,12 +1004,21 @@ export const backOfficeText = {
     fullYear: "Tam yıllık bedel",
     inventory: "Envanter",
     lastInventory: (date: string) => `son envanter ${date}`,
+    garden: "Bahçe",
+    visits: "Ziyaret hakkı",
+    lastInventoryOn: "Son envanter",
+    issueAfterPreview: "Önizleme hesaplanınca ek teklif buradan verilir.",
+    issueAfterPick:
+      "Parselleri seçip önizlemeyi güncelleyin; ek teklif önizlemeden sonra buradan verilir.",
+    pickTitle: "Parseller ve başlangıç",
     newInventory: "Yeni envanter gerekli (gerekçe)",
     newInventoryHint:
       "Son envanterden bu yana 24 ay geçmediyse ve sınır ile ağaç düzeni esaslı biçimde değişmediyse envanter ücreti alınmaz. Yeni envanter gerekiyorsa gerekçesini yazın; ücret ayrı satır olarak gerekçesiyle gösterilir.",
   },
   overlaps: {
     title: "Mükerrer kontrolü",
+    hint: "Her bahçe için konumu içeren, sınırı kesişen ya da 200 m içindeki parseller.",
+    distanceTitle: "Uzaklık",
     none: "Konumu içeren, sınırı kesişen ya da 200 m içinde parsel yok.",
     failed: (reason: string) => `Mükerrer kontrolü yapılamadı (${reason}). Sayfayı yenileyin.`,
     issueBlocked: "Mükerrer kontrolü her bahçe için yapılamadan teklif verilemez.",
@@ -883,7 +1042,7 @@ export const backOfficeText = {
     existing: "Müşterinin mevcut parselleri (soluk)",
   },
   renewal: {
-    openRemoval: (date: string) => `Açık çıkarma · ${date}`,
+    openRemoval: (date: string) => `Açık çıkarma: ${date}`,
     otherParcels: "Müşterinin diğer parselleri",
     addedAfterQuote:
       "Açık yenileme teklifinden sonra eklenen bahçeler var; teklifi yeniden verin (eskisi yenisiyle değişir).",
@@ -894,8 +1053,8 @@ export const backOfficeText = {
   lineState: {
     title: "Durum",
     in_service: "Hizmette",
-    leaving: (date: string) => `Çıkacak · ${date}`,
-    removed: (date: string) => `Çıkarıldı · ${date}`,
+    leaving: (date: string) => `Çıkacak: ${date}`,
+    removed: (date: string) => `Çıkarıldı: ${date}`,
     removeTitle: "Bahçeyi çıkar",
     removeHint:
       "Kayıt planlanmış olarak açılır ve müşteriye SMS gider. Devirde neden devir ve erişim 0 gün.",
@@ -933,3 +1092,15 @@ export const backOfficeText = {
     removal: "Açık çıkarma",
   },
 } as const;
+
+// Shared pieces of the dense operations screens (components/operations/ops-ui).
+export const opsUiText = {
+  queuesEmpty: (label: string) => `${label}: boş olanlar`,
+  pagination: {
+    label: "Sayfalar",
+    range: (from: number, to: number, total: number) =>
+      `${from.toLocaleString("tr-TR")}–${to.toLocaleString("tr-TR")} / ${total.toLocaleString("tr-TR")}`,
+    prev: "Önceki",
+    next: "Sonraki",
+  },
+};

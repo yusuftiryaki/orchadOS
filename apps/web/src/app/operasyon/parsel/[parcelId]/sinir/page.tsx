@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BoundaryForm } from "@/components/operations/boundary-form";
-import { OpsNav } from "@/components/operations/ops-nav";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 import { getParcelOps } from "@/lib/operations/data";
@@ -19,11 +18,11 @@ export default async function Page({ params }: { params: Promise<{ parcelId: str
 
   return (
     <main className="page">
-      <OpsNav current={null} />
-      <p>
-        <Link href={opsHref.parcel(parcelId)}>← {ops.parcel.name}</Link>
-      </p>
-      <h1>{T.parcel.boundaryTitle}</h1>
+      <PageHeader
+        title={T.parcel.boundaryTitle}
+        back={{ href: opsHref.parcel(parcelId), label: ops.parcel.name }}
+        lead={T.parcel.boundaryLead(ops.parcel.name)}
+      />
       <BoundaryForm
         parcelId={parcelId}
         nextVersion={(ops.boundary?.version ?? 0) + 1}

@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { OpsNav } from "@/components/operations/ops-nav";
 import { ParcelForm } from "@/components/operations/parcel-form";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 import { getParcelOps, opsOrgs } from "@/lib/operations/data";
@@ -25,11 +24,10 @@ export default async function Page({ params }: { params: Promise<{ parcelId: str
 
   return (
     <main className="page">
-      <OpsNav current={null} />
-      <p>
-        <Link href={opsHref.parcel(parcel.id)}>← {parcel.name}</Link>
-      </p>
-      <h1>{T.parcel.editTitle}</h1>
+      <PageHeader
+        title={T.parcel.editTitle}
+        back={{ href: opsHref.parcel(parcel.id), label: parcel.name }}
+      />
       <ParcelForm
         orgs={orgs}
         parcelId={parcel.id}

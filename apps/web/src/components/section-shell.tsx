@@ -7,7 +7,7 @@ import styles from "./section-shell.module.css";
 
 // Frame of a signed-in section: the sections the user may open, the account
 // and logout. The portal is the owner's shell; ofis, operasyon and uzman use
-// the staff shell (components/ui/app-shell.tsx).
+// the staff shell (components/ui/app-shell.tsx), compact throughout.
 export function SectionShell({
   user,
   section,
@@ -23,6 +23,8 @@ export function SectionShell({
   return (
     <AppShell
       variant={section === "portal" ? "portal" : "staff"}
+      // Staff screens are dense desktop work (docs/tasarim-sistemi.md §Personel).
+      dense={section !== "portal"}
       navLabel={t.nav.sections}
       nav={sections.map((s) => ({ href: `/${s}`, label: t.sections[s], current: s === section }))}
       account={

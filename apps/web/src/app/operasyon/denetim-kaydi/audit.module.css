@@ -1,0 +1,28 @@
+/* Audit log filters (/operasyon/denetim-kaydi): labelled controls in a row
+   that wraps, the buttons on the controls' baseline. Tokens only. */
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  gap: var(--space-3);
+  align-items: start;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+}
+
+.filterActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  /* Line up with the controls under their labels. */
+  padding-top: calc(var(--text-sm) * 1.5 + 6px);
+}
+
+@media (max-width: 479px) {
+  .filterActions {
+    padding-top: 0;
+  }
+}

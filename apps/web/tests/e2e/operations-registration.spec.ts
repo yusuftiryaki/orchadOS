@@ -76,7 +76,7 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   await expect(page.getByTestId("visit-counts")).toBeVisible();
 
   // 1. Owner
-  await page.getByRole("link", { name: "+ Yeni sahip" }).click();
+  await page.getByRole("main").getByRole("link", { name: "Yeni sahip", exact: true }).click();
   await expect(page).toHaveURL("/operasyon/sahip/yeni");
   const ownerForm = page.getByTestId("owner-form");
   await ownerForm.getByLabel("Ad soyad").fill("Tarayıcı Sahibi");
@@ -143,7 +143,7 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   await expect(page.getByRole("heading", { name: PARCEL_NAME })).toBeVisible();
   await expect(page.getByText("Parsel kaydedildi.")).toBeVisible();
   await expect(page.getByTestId("parcel-status")).toHaveText("Kayıtlı");
-  await expect(page.getByTestId("parcel-boundary")).toHaveText("Sınır v1 · sahip beyanı");
+  await expect(page.getByTestId("parcel-boundary")).toHaveText("Sınır v1 (sahip beyanı)");
   await expect(page.getByTestId("parcel-private")).toContainText("+905320000099");
   await expect(page.getByTestId("parcel-access")).toContainText("Tarayıcı Sahibi");
   await expect(page.getByTestId("parcel-access")).toContainText("Sahip");

@@ -78,16 +78,18 @@ test("ops sees the notifications with masked phones and retries a failed one", a
   const viewer = rows.filter({ hasText: "Örnek Hissedar" });
   await expect(viewer).toContainText("+90 5•• ••• •• 02");
   await expect(viewer).toContainText("Bekliyor");
-  await expect(viewer.getByRole("button", { name: "Yeniden dene" })).toHaveCount(0);
+  await expect(viewer.getByRole("button", { name: "Yeniden kuyruğa al" })).toHaveCount(0);
   // No full number anywhere on the page.
   await expect(page.locator("main")).not.toContainText("5550000001");
 
-  await page.getByLabel("Durum").selectOption("failed");
-  await page.getByRole("button", { name: "Göster" }).click();
+  await page
+    .getByRole("navigation", { name: "Bildirim filtresi" })
+    .getByRole("link", { name: /^Başarısız/ })
+    .click();
   await page.waitForURL(/durum=failed/);
   await expect(rows).toHaveCount(1);
 
-  await owner.getByRole("button", { name: "Yeniden dene" }).click();
+  await owner.getByRole("button", { name: "Yeniden kuyruğa al" }).click();
   await expect(page.locator("main")).toContainText("Bildirim yeniden kuyruğa alındı.");
   await expect(rows).toHaveCount(0);
 

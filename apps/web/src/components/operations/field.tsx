@@ -1,10 +1,12 @@
-import { cloneElement, isValidElement } from "react";
+import { isValidElement } from "react";
+import { Alert } from "@/components/ui/alert";
+import { Field as UiField } from "@/components/ui/field";
 import { t } from "@/lib/i18n";
 import styles from "./operations.module.css";
 
 // Label, control, hint and error of one form field. The control (input,
 // select or textarea) is the only child; it gets an id from its name, so the
-// label names it alone and the hint and error describe it.
+// label names it alone and the hint and error describe it (components/ui/field).
 export function Field({
   label,
   hint,
@@ -21,52 +23,41 @@ export function Field({
   children: React.ReactElement<{ name?: string; id?: string }>;
 }) {
   const name = isValidElement(children) ? children.props.name : undefined;
-  const id = name ? `f-${name}` : undefined;
-  const described = id
-    ? [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined
-    : undefined;
-  const control = id
-    ? cloneElement(children as React.ReactElement<Record<string, unknown>>, {
-        id,
-        "aria-describedby": described,
-        "aria-invalid": error ? true : undefined,
-      })
-    : children;
-
   return (
-    <div className={wide ? `${styles.field} ${styles.wide}` : styles.field}>
-      <label className={styles.label} htmlFor={id}>
-        {label}
-        {optional && <span className="muted"> ({t.operations.optional})</span>}
-      </label>
-      {control}
-      {hint && (
-        <span className={styles.hint} id={id && `${id}-hint`}>
-          {hint}
-        </span>
-      )}
-      {error && (
-        <span className={styles.fieldError} id={id && `${id}-error`} role="alert">
-          {error}
-        </span>
-      )}
+    <UiField
+      id={children.props.id ?? `f-${name ?? "field"}`}
+      label={label}
+      hint={hint}
+      // role=alert: a server-side validation error is announced on load.
+      error={error ? <span role="alert">{error}</span> : undefined}
+      optional={optional ? t.operations.optional : undefined}
+      className={wide ? styles.wide : undefined}
+    >
+      {children}
+    </UiField>
+  );
+}
+
+// The error of the last action (a redirect put it into the URL, or the form
+// returned it).
+export function FormError({ error }: { error: string | null }) {
+  if (!error) return null;
+  return (
+    <div className={styles.message}>
+      <Alert tone="danger" role="alert">
+        <p>{error}</p>
+      </Alert>
     </div>
   );
 }
 
-export function FormError({ error }: { error: string | null }) {
-  if (!error) return null;
-  return (
-    <p className={`${styles.notice} ${styles.error}`} role="alert">
-      {error}
-    </p>
-  );
-}
-
+// The confirmation of the last action.
 export function Notice({ children }: { children: React.ReactNode }) {
   return (
-    <p className={styles.notice} role="status">
-      {children}
-    </p>
+    <div className={styles.message}>
+      <Alert tone="success" role="status">
+        <p>{children}</p>
+      </Alert>
+    </div>
   );
 }

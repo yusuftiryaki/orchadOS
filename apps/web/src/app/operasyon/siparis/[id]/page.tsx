@@ -13,6 +13,8 @@ import { ActionForm } from "@/components/back-office/action-form";
 import { ContractDocumentTable } from "@/components/contracts/document-list";
 import { GenerateResult } from "@/components/contracts/ops-parts";
 import { AuditTable } from "@/components/back-office/audit-table";
+import { statusTone } from "@/components/back-office/status-tone";
+import { ActionDisclosure, Amount, Badges, Consequence } from "@/components/back-office/money-ui";
 import {
   Badge,
   BoResultNotice,
@@ -24,9 +26,14 @@ import {
   when,
 } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
-import { OpsNav } from "@/components/operations/ops-nav";
+import { Panel, Split, opsCell } from "@/components/operations/ops-ui";
 import { InstallmentPlan } from "@/components/portal-billing/installment-plan";
 import styles from "@/components/operations/operations.module.css";
+import { Alert } from "@/components/ui/alert";
+import { Badge as UiBadge } from "@/components/ui/badge";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Table, cell } from "@/components/ui/table";
 import { requireSection } from "@/lib/auth/session";
 import { getOrder, getSetting, type OrderView } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
@@ -53,7 +60,7 @@ const L = B.lineState;
 
 type Item = OrderView["items"][number];
 
-// Hizmette / Çıkacak · day / Çıkarıldı · day (IP14 §12).
+// Hizmette / Çıkacak: day / Çıkarıldı: day (IP14 §12).
 function lineState(item: Item, orderActive: boolean): React.ReactNode {
   if (item.removed_on) return L.removed(day(item.removed_on));
   if (item.openRemoval) {
@@ -66,11 +73,11 @@ function lineState(item: Item, orderActive: boolean): React.ReactNode {
   return orderActive && item.parcel_id ? L.in_service : B.none;
 }
 
-// One order: summary, items with their parcels, its payment plan (with the
-// unpaid-visit override, H35), payments, the actions on its state (transfer
-// per installment, due date, cancel, terminate, renewal), its contract
-// documents (T04: download, "Belgeleri üret" when missing) and its audit
-// trail.
+// One order. Left: the record (summary, payment plan with the unpaid-visit
+// override (H35), items with their parcels, payments, contract documents (T04)
+// and the audit trail). Right: what can be done to it, the common action
+// (record a transfer) open, the rare and irreversible ones (withdrawal,
+// removal, due date, cancel, terminate) closed until asked for.
 export default async function Page({
   params,
   searchParams,
@@ -95,19 +102,19 @@ export default async function Page({
   const today = todayIn(new Date());
   const awaiting = o.status === "awaiting_payment";
   const active = o.status === "active";
-  const setting = await getSetting(supabase, o.org_id);
-  let documents: ContractDocumentRow[] = [];
-  try {
-    documents = o.quote_id ? await opsDocuments(supabase, o.id) : [];
-  } catch {
-    documents = [];
-  }
+  // The setting, the documents and their state do not depend on each other.
+  const [setting, documents, query] = await Promise.all([
+    getSetting(supabase, o.org_id),
+    o.quote_id
+      ? opsDocuments(supabase, o.id).catch(() => [] as ContractDocumentRow[])
+      : Promise.resolve([] as ContractDocumentRow[]),
+    searchParams,
+  ]);
   const documentsState = o.quote_id
     ? await documentState(supabase, stateRefOf(o), documents).catch(() => null)
     : null;
   const documentsMissing = !!o.quote_id && documentsState?.state !== "complete";
   const manualCopy = documentsState?.state === "manual_copy";
-  const query = await searchParams;
   // An add-on is paid by its last valid day at the latest (IP14 §4.1 step 6).
   const addonLastDay =
     view.base?.service_end && setting
@@ -132,177 +139,142 @@ export default async function Page({
       )
     : [];
   const withdrawalUntil = o.activated_at ? addDays(todayIn(new Date(o.activated_at)), 14) : null;
+  const accessDays = setting?.removal_access_days ?? 90;
+  const canRecord = o.status !== "cancelled" && outstanding > 0;
+  const canRenew = (active || o.status === "completed") && !o.addon_of_order_id;
 
-  return (
-    <main className="page">
-      <OpsNav current="orders" />
-      <p>
-        <Link href={boHref.orders()}>← {B.orders.title}</Link>
-      </p>
-      <h1>{T.title(o.number)}</h1>
-      <BoResultNotice params={query} />
-      <GenerateResult value={query.belgeler} />
-      {summary?.overdue && <Warning>{B.orders.overdue}</Warning>}
-      {summary?.live_payment && <Warning>{billingText.errors.payment_in_progress}</Warning>}
-      <Facts
-        testId="order-facts"
-        rows={[
-          [B.orders.status, <Badge key="s" labels={billingText.orderStatus} value={o.status} />],
-          [B.orders.customer, summary?.customer_name],
-          [B.orders.package, summary?.package_name],
-          [B.orders.total, money(o.total_kurus, o.currency)],
-          [B.orders.paid, money(o.paid_kurus, o.currency)],
-          [T.refunded, money(o.refunded_kurus, o.currency)],
-          [
-            T.outstanding,
-            <span key="out" data-testid="order-outstanding">
-              {money(outstanding, o.currency)}
-            </span>,
-          ],
-          [B.orders.due, awaiting ? when(o.payment_due_at) : B.none],
-          [
-            B.orders.service,
-            o.service_start ? `${day(o.service_start)} – ${day(o.service_end)}` : B.none,
-          ],
-          [
-            T.quote,
-            summary?.quote_id ? (
-              <Link key="q" href={boHref.quote(summary.quote_id)}>
-                {summary.quote_number}
-              </Link>
-            ) : (
-              B.none
-            ),
-          ],
-          ...(o.renewal_of_order_id
-            ? ([
-                [
-                  T.renewalOf,
-                  <Link key="r" href={boHref.order(o.renewal_of_order_id)}>
-                    {T.renewalOf}
-                  </Link>,
-                ],
-              ] as [string, React.ReactNode][])
-            : []),
-          ...(view.base
-            ? ([
-                [
-                  B.orderLinks.base,
-                  <Link key="b" href={boHref.order(view.base.id)} data-testid="order-base-link">
-                    {view.base.number}
-                  </Link>,
-                ],
-              ] as [string, React.ReactNode][])
-            : []),
-          ...(view.addons.length
-            ? ([
-                [
-                  B.orderLinks.addons,
-                  <span key="a" data-testid="order-addons">
-                    {view.addons.map((a, i) => (
-                      <span key={a.id}>
-                        {i > 0 && ", "}
-                        <Link href={boHref.order(a.id)}>{a.number}</Link> (
-                        {billingText.orderStatus[
-                          a.status as keyof typeof billingText.orderStatus
-                        ] ?? a.status}
-                        )
-                      </span>
-                    ))}
-                  </span>,
-                ],
-              ] as [string, React.ReactNode][])
-            : []),
-          ...(internal.termination_note
-            ? ([[T.terminationNote, internal.termination_note as string]] as [string, string][])
-            : []),
-        ]}
-      />
+  const facts: [string, React.ReactNode][] = [
+    [B.orders.customer, summary?.customer_name],
+    [B.orders.package, summary?.package_name],
+    [B.orders.total, money(o.total_kurus, o.currency)],
+    [B.orders.paid, money(o.paid_kurus, o.currency)],
+    [T.refunded, money(o.refunded_kurus, o.currency)],
+    [
+      T.outstanding,
+      <span key="out" data-testid="order-outstanding">
+        {money(outstanding, o.currency)}
+      </span>,
+    ],
+    [B.orders.due, awaiting ? when(o.payment_due_at) : B.none],
+    [
+      B.orders.service,
+      o.service_start ? `${day(o.service_start)} – ${day(o.service_end)}` : B.none,
+    ],
+    [
+      T.quote,
+      summary?.quote_id ? (
+        <Link key="q" href={boHref.quote(summary.quote_id)}>
+          {summary.quote_number}
+        </Link>
+      ) : (
+        B.none
+      ),
+    ],
+  ];
+  if (o.renewal_of_order_id) {
+    facts.push([
+      T.renewalOf,
+      <Link key="r" href={boHref.order(o.renewal_of_order_id)}>
+        {T.renewalOf}
+      </Link>,
+    ]);
+  }
+  if (view.base) {
+    facts.push([
+      B.orderLinks.base,
+      <Link key="b" href={boHref.order(view.base.id)} data-testid="order-base-link">
+        {view.base.number}
+      </Link>,
+    ]);
+  }
+  if (view.addons.length) {
+    facts.push([
+      B.orderLinks.addons,
+      <span key="a" data-testid="order-addons" className={opsCell.nowrap}>
+        {view.addons.map((a) => (
+          <Badges key={a.id}>
+            <Link href={boHref.order(a.id)}>{a.number}</Link>
+            <Badge labels={billingText.orderStatus} value={a.status} />
+          </Badges>
+        ))}
+      </span>,
+    ]);
+  }
+  if (internal.termination_note) {
+    facts.push([T.terminationNote, internal.termination_note as string]);
+  }
 
-      {plan.length > 0 && (
-        <section data-testid="order-plan">
-          <h2>{T.planTitle}</h2>
-          <InstallmentPlan
-            rows={plan.map((p) => p.row)}
-            currency={o.currency}
-            withStatus
-            notes={false}
-            action={(row) => {
-              const p = plan.find((x) => x.row.seq === row.seq)!;
-              if (p.overrideAt) {
-                return (
-                  <span className="muted" data-testid="visit-allowed">
-                    {billingText.plan.visitAllowed}: {p.overrideNote}
-                  </span>
-                );
-              }
-              if (row.kind !== "visit" || row.status !== "pending" || !active) return null;
-              return (
-                <details>
-                  <summary>{T.allowVisit}</summary>
-                  <p className="muted">{T.allowVisitHint}</p>
-                  <ActionForm
-                    action={allowUnpaidVisitAction}
-                    testId={`allow-visit-form-${row.seq}`}
-                  >
-                    <input type="hidden" name="order_id" value={o.id} />
-                    <input type="hidden" name="installment_id" value={p.id} />
-                    <Field label={T.allowVisitNote}>
-                      <textarea name="note" maxLength={500} rows={2} required />
-                    </Field>
-                    <div className={styles.actions}>
-                      <Submit secondary>{T.allowVisitSubmit}</Submit>
-                    </div>
-                  </ActionForm>
-                </details>
-              );
-            }}
-          />
-        </section>
+  const aside = (
+    <>
+      {canRecord && (
+        <Panel title={T.manualTitle} description={T.manualHint}>
+          <Consequence>
+            {T.outstandingNow}: <Amount>{money(outstanding, o.currency)}</Amount>
+          </Consequence>
+          <ActionForm action={recordManualPaymentAction} testId="manual-payment-form">
+            <input type="hidden" name="order_id" value={o.id} />
+            {openPlan.length > 0 && (
+              <Field label={T.installment}>
+                <select name="installment_id" defaultValue="">
+                  <option value="">{T.installmentSpread}</option>
+                  {openPlan.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {`${p.row.seq}. ${installmentLabel(p.row)}: ${money(openKurus(p.row), o.currency)}`}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            <Field label={T.amount}>
+              <input name="amount" inputMode="decimal" required />
+            </Field>
+            <Field label={T.valueDate}>
+              <input type="date" name="value_date" defaultValue={today} max={today} required />
+            </Field>
+            <Field label={T.bankReference}>
+              <input name="bank_reference" maxLength={100} required />
+            </Field>
+            <Field label={T.note} optional>
+              <textarea name="note" maxLength={2000} rows={2} />
+            </Field>
+            <div className={styles.actions}>
+              <Submit>{T.record}</Submit>
+            </div>
+          </ActionForm>
+        </Panel>
       )}
 
-      <h2>{T.items}</h2>
-      <div className={styles.tableWrap}>
-        <table className={styles.table} data-testid="order-items">
-          <thead>
-            <tr>
-              <th>{B.quote.line}</th>
-              <th className={styles.number}>{B.orders.total}</th>
-              <th>{T.parcel}</th>
-              <th>{L.title}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((i) => (
-              <tr key={i.id} data-item-id={i.id}>
-                <td>
-                  {i.line_no}. {i.garden_name}
-                </td>
-                <td className={styles.number}>{money(i.amount_kurus, o.currency)}</td>
-                <td>
-                  {i.parcel_id ? (
-                    <Link href={opsHref.parcel(i.parcel_id)} data-testid="order-parcel-link">
-                      {i.parcelName ?? i.garden_name}
-                    </Link>
-                  ) : (
-                    B.none
-                  )}
-                </td>
-                <td data-testid="order-item-state">{lineState(i, active)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {awaiting && (
+        <ActionDisclosure title={T.extendTitle}>
+          <Consequence>{T.extendHint(when(o.payment_due_at))}</Consequence>
+          <ActionForm action={extendDueAction} testId="extend-due-form">
+            <input type="hidden" name="order_id" value={o.id} />
+            <Field
+              label={T.dueOn}
+              hint={addonLastDay ? B.orderLinks.dueMax(day(addonLastDay)) : undefined}
+            >
+              <input
+                type="date"
+                name="due_on"
+                min={today}
+                max={addonLastDay ?? undefined}
+                required
+              />
+            </Field>
+            <div className={styles.actions}>
+              <Submit secondary>{T.extend}</Submit>
+            </div>
+          </ActionForm>
+        </ActionDisclosure>
+      )}
 
       {withdrawable.length > 0 && (
-        <section className={styles.section} data-testid="record-withdrawal">
-          <h2>{B.withdrawal.title}</h2>
-          <p className="muted">
+        <ActionDisclosure title={B.withdrawal.title} testId="record-withdrawal">
+          <Consequence>
             {withdrawalUntil
               ? B.withdrawal.hint(day(withdrawalUntil))
               : B.withdrawal.hintNoActivation}
-          </p>
+          </Consequence>
           <ActionForm action={recordWithdrawalAction} testId="record-withdrawal-form">
             <input type="hidden" name="order_id" value={o.id} />
             <fieldset className={styles.fieldset}>
@@ -314,23 +286,21 @@ export default async function Page({
                 </label>
               ))}
             </fieldset>
-            <div className={styles.grid}>
-              <Field label={B.withdrawal.channel}>
-                <select name="channel" defaultValue="" required>
-                  <option value="" disabled>
-                    —
+            <Field label={B.withdrawal.channel}>
+              <select name="channel" defaultValue="" required>
+                <option value="" disabled>
+                  —
+                </option>
+                {OPS_WITHDRAWAL_CHANNELS.map((c) => (
+                  <option key={c} value={c}>
+                    {billingText.withdrawalChannel[c]}
                   </option>
-                  {OPS_WITHDRAWAL_CHANNELS.map((c) => (
-                    <option key={c} value={c}>
-                      {billingText.withdrawalChannel[c]}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={B.withdrawal.receivedOn}>
-                <input type="date" name="notice_received_on" max={today} required />
-              </Field>
-            </div>
+                ))}
+              </select>
+            </Field>
+            <Field label={B.withdrawal.receivedOn}>
+              <input type="date" name="notice_received_on" max={today} required />
+            </Field>
             <Field label={B.internalNote} optional>
               <textarea name="note" maxLength={2000} rows={2} />
             </Field>
@@ -338,232 +308,322 @@ export default async function Page({
               <Submit secondary>{B.withdrawal.submit}</Submit>
             </div>
           </ActionForm>
-        </section>
+        </ActionDisclosure>
       )}
 
       {removable.length > 0 && (
-        <section className={styles.section} data-testid="remove-gardens">
-          <h2>{L.removeTitle}</h2>
-          <p className="muted">{L.removeHint}</p>
-          <p className="muted">{B.removal.shortAccessRule(setting?.removal_access_days ?? 90)}</p>
-          {removable.map((i) => (
-            <details key={i.id} data-item-id={i.id}>
-              <summary>
-                {L.removeTitle}: {i.parcelName ?? i.garden_name}
-              </summary>
-              <ActionForm action={requestRemovalAction} testId="remove-garden-form">
-                <input type="hidden" name="order_item_id" value={i.id} />
-                <input type="hidden" name="last_day" value={addDays(o.service_end!, 1)} />
-                <input
-                  type="hidden"
-                  name="setting_access_days"
-                  value={setting?.removal_access_days ?? 90}
-                />
-                <Field label={B.fields.reason} hint={B.removal.reasonHint}>
-                  <select name="reason" defaultValue="" required>
-                    <option value="" disabled>
-                      —
+        <ActionDisclosure title={L.removeTitle} testId="remove-gardens">
+          <Consequence>{L.removeHint}</Consequence>
+          <Consequence>{B.removal.shortAccessRule(accessDays)}</Consequence>
+          <ActionForm action={requestRemovalAction} testId="remove-garden-form">
+            {removable.length === 1 ? (
+              <input type="hidden" name="order_item_id" value={removable[0].id} />
+            ) : (
+              <Field label={T.removeGarden}>
+                <select name="order_item_id" defaultValue="" required>
+                  <option value="" disabled>
+                    —
+                  </option>
+                  {removable.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.parcelName ?? i.garden_name}
                     </option>
-                    {OPS_REMOVAL_REASONS.map((r) => (
-                      <option key={r} value={r}>
-                        {billingText.gardenRemovalReason[r]}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label={B.fields.owner_consent_note} hint={B.removal.consentHint} optional>
-                  <textarea name="owner_consent_note" maxLength={2000} rows={2} />
-                </Field>
-                <Field label={B.fields.effective_on}>
-                  <input
-                    type="date"
-                    name="effective_on"
-                    min={today}
-                    max={addDays(o.service_end!, 1)}
-                    required
-                  />
-                </Field>
-                <Field
-                  label={B.fields.access_days}
-                  hint={B.removal.accessDaysHint(setting?.removal_access_days ?? 90)}
-                  optional
-                >
-                  <input
-                    name="access_days"
-                    type="number"
-                    min={0}
-                    max={365}
-                    placeholder={String(setting?.removal_access_days ?? 90)}
-                  />
-                </Field>
-                <label className={styles.check}>
-                  <input type="checkbox" name="revoke_all_access" />
-                  {B.fields.revoke_all_access}
-                </label>
-                <Field label={B.internalNote} optional>
-                  <textarea name="note" maxLength={2000} rows={2} />
-                </Field>
-                <div className={styles.actions}>
-                  <Submit secondary>{L.removeSubmit}</Submit>
-                </div>
-              </ActionForm>
-            </details>
-          ))}
-        </section>
-      )}
-
-      <h2>{T.payments}</h2>
-      {payments.length === 0 ? (
-        <p className="muted">{T.noPayments}</p>
-      ) : (
-        <ul className={styles.plainList} data-testid="order-payments">
-          {payments.map((p) => (
-            <li key={p.id}>
-              <Link href={boHref.payment(p.id)}>{p.receipt_number ?? p.id.slice(0, 8)}</Link> ·{" "}
-              {billingText.paymentProvider[p.provider as keyof typeof billingText.paymentProvider]}{" "}
-              · <Badge labels={billingText.paymentStatus} value={p.status} /> ·{" "}
-              {money(p.amount_kurus, p.currency)}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className={styles.columns}>
-        {o.status !== "cancelled" && outstanding > 0 && (
-          <section className={styles.section}>
-            <h2>{T.manualTitle}</h2>
-            <p className="muted">{T.manualHint}</p>
-            <ActionForm action={recordManualPaymentAction} testId="manual-payment-form">
-              <input type="hidden" name="order_id" value={o.id} />
-              {openPlan.length > 0 && (
-                <Field label={T.installment}>
-                  <select name="installment_id" defaultValue="">
-                    <option value="">{T.installmentSpread}</option>
-                    {openPlan.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {`${p.row.seq}. ${installmentLabel(p.row)} · ${money(openKurus(p.row), o.currency)}`}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              )}
-              <Field label={T.amount}>
-                <input name="amount" inputMode="decimal" required />
+                  ))}
+                </select>
               </Field>
-              <Field label={T.valueDate}>
-                <input type="date" name="value_date" defaultValue={today} max={today} required />
-              </Field>
-              <Field label={T.bankReference}>
-                <input name="bank_reference" maxLength={100} required />
-              </Field>
-              <Field label={T.note} optional>
-                <textarea name="note" maxLength={2000} rows={2} />
-              </Field>
-              <div className={styles.actions}>
-                <Submit>{T.record}</Submit>
-              </div>
-            </ActionForm>
-          </section>
-        )}
-        {awaiting && (
-          <section className={styles.section}>
-            <h2>{T.extendTitle}</h2>
-            <ActionForm action={extendDueAction} testId="extend-due-form">
-              <input type="hidden" name="order_id" value={o.id} />
-              <Field
-                label={T.dueOn}
-                hint={addonLastDay ? B.orderLinks.dueMax(day(addonLastDay)) : undefined}
-              >
-                <input
-                  type="date"
-                  name="due_on"
-                  min={today}
-                  max={addonLastDay ?? undefined}
-                  required
-                />
-              </Field>
-              <div className={styles.actions}>
-                <Submit secondary>{T.extend}</Submit>
-              </div>
-            </ActionForm>
-            <h2>{T.cancelTitle}</h2>
-            <p className="muted">{T.cancelHint}</p>
-            <ActionForm action={cancelOrderAction} testId="cancel-order-form">
-              <input type="hidden" name="order_id" value={o.id} />
-              <Field label={T.note} optional>
-                <textarea name="note" maxLength={2000} rows={2} />
-              </Field>
-              <div className={styles.actions}>
-                <Submit secondary>{T.cancel}</Submit>
-              </div>
-            </ActionForm>
-          </section>
-        )}
-        {o.status === "active" && (
-          <section className={styles.section}>
-            <h2>{T.terminateTitle}</h2>
-            <p className="muted">{T.terminateHint}</p>
-            {!o.addon_of_order_id && (
-              <p className="muted" data-testid="terminate-addon-hint">
-                {B.orderLinks.terminateAddonHint}
+            )}
+            {removable.length === 1 && (
+              <p className={styles.hint}>
+                {T.removeGarden}: {removable[0].parcelName ?? removable[0].garden_name}
               </p>
             )}
-            <ActionForm action={terminateOrderAction} testId="terminate-form">
-              <input type="hidden" name="order_id" value={o.id} />
-              <Field label={T.note}>
-                <textarea name="note" maxLength={2000} rows={2} required />
-              </Field>
-              <label className={styles.check}>
-                <input type="checkbox" name="confirm" required />
-                {T.terminateConfirm}
-              </label>
-              <div className={styles.actions}>
-                <Submit secondary>{T.terminate}</Submit>
-              </div>
-            </ActionForm>
-          </section>
-        )}
-        {(o.status === "active" || o.status === "completed") && !o.addon_of_order_id && (
-          <section className={styles.section}>
-            <h2>{T.renewal}</h2>
-            <Link className="button" href={boHref.newQuote({ siparis: o.id })}>
-              {T.renewal}
-            </Link>
-          </section>
-        )}
-      </div>
-
-      {o.quote_id && (
-        <section className={styles.section} data-testid="order-contract-documents">
-          <h2>{C.ops.documentsTitle}</h2>
-          {documents.length === 0 ? (
-            <p className="muted">{C.ops.documentsEmpty}</p>
-          ) : (
-            <ContractDocumentTable
-              documents={documents}
-              hrefOf={(d) => `/operasyon/siparis/${o.id}/belge/${d.id}`}
-              showGenerator
-            />
-          )}
-          <p className="muted">{C.ops.copyHint}</p>
-          {manualCopy && (
-            <p className={styles.notice} data-testid="order-contracts-manual-copy">
-              <strong>{C.ops.manualState}.</strong> {C.ops.manualHint}
-            </p>
-          )}
-          {documentsMissing && (
-            <form action={generateOrderDocumentsAction}>
-              <input type="hidden" name="order_id" value={o.id} />
-              <button className="button button-secondary" type="submit">
-                {manualCopy ? C.ops.retry : C.ops.generate}
-              </button>
-            </form>
-          )}
-        </section>
+            <input type="hidden" name="last_day" value={addDays(o.service_end!, 1)} />
+            <input type="hidden" name="setting_access_days" value={accessDays} />
+            <Field label={B.fields.reason} hint={B.removal.reasonHint}>
+              <select name="reason" defaultValue="" required>
+                <option value="" disabled>
+                  —
+                </option>
+                {OPS_REMOVAL_REASONS.map((r) => (
+                  <option key={r} value={r}>
+                    {billingText.gardenRemovalReason[r]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={B.fields.owner_consent_note} hint={B.removal.consentHint} optional>
+              <textarea name="owner_consent_note" maxLength={2000} rows={2} />
+            </Field>
+            <Field label={B.fields.effective_on}>
+              <input
+                type="date"
+                name="effective_on"
+                min={today}
+                max={addDays(o.service_end!, 1)}
+                required
+              />
+            </Field>
+            <Field
+              label={B.fields.access_days}
+              hint={B.removal.accessDaysHint(accessDays)}
+              optional
+            >
+              <input
+                name="access_days"
+                type="number"
+                min={0}
+                max={365}
+                placeholder={String(accessDays)}
+              />
+            </Field>
+            <label className={styles.check}>
+              <input type="checkbox" name="revoke_all_access" />
+              {B.fields.revoke_all_access}
+            </label>
+            <Field label={B.internalNote} optional>
+              <textarea name="note" maxLength={2000} rows={2} />
+            </Field>
+            <div className={styles.actions}>
+              <Submit secondary>{L.removeSubmit}</Submit>
+            </div>
+          </ActionForm>
+        </ActionDisclosure>
       )}
 
-      <h2>{T.audit}</h2>
-      <AuditTable rows={audit} testId="order-audit" />
+      {awaiting && (
+        <ActionDisclosure title={T.cancelTitle}>
+          <Consequence>{T.cancelHint}</Consequence>
+          <ActionForm action={cancelOrderAction} testId="cancel-order-form">
+            <input type="hidden" name="order_id" value={o.id} />
+            <Field label={T.note} optional>
+              <textarea name="note" maxLength={2000} rows={2} />
+            </Field>
+            <div className={styles.actions}>
+              <Button type="submit" variant="danger">
+                {T.cancel}
+              </Button>
+            </div>
+          </ActionForm>
+        </ActionDisclosure>
+      )}
+
+      {active && (
+        <ActionDisclosure title={T.terminateTitle}>
+          <Consequence>{T.terminateHint}</Consequence>
+          {!o.addon_of_order_id && (
+            <Consequence testId="terminate-addon-hint">
+              {B.orderLinks.terminateAddonHint}
+            </Consequence>
+          )}
+          <ActionForm action={terminateOrderAction} testId="terminate-form">
+            <input type="hidden" name="order_id" value={o.id} />
+            <Field label={T.note}>
+              <textarea name="note" maxLength={2000} rows={2} required />
+            </Field>
+            <label className={styles.check}>
+              <input type="checkbox" name="confirm" required />
+              {T.terminateConfirm}
+            </label>
+            <div className={styles.actions}>
+              <Button type="submit" variant="danger">
+                {T.terminate}
+              </Button>
+            </div>
+          </ActionForm>
+        </ActionDisclosure>
+      )}
+    </>
+  );
+
+  return (
+    <main className="page">
+      <PageHeader
+        title={T.title(o.number)}
+        back={{ href: boHref.orders(), label: B.orders.title }}
+        meta={
+          <Badges>
+            <UiBadge tone={statusTone(o.status)} testId="order-status">
+              {billingText.orderStatus[o.status as keyof typeof billingText.orderStatus] ??
+                o.status}
+            </UiBadge>
+            {o.addon_of_order_id && <UiBadge>{B.orders.addon}</UiBadge>}
+          </Badges>
+        }
+        actions={
+          canRenew ? (
+            <ButtonLink
+              variant={canRecord ? "secondary" : "primary"}
+              href={boHref.newQuote({ siparis: o.id })}
+            >
+              {T.renewal}
+            </ButtonLink>
+          ) : undefined
+        }
+      />
+      <BoResultNotice params={query} />
+      <GenerateResult value={query.belgeler} />
+      {summary?.overdue && <Warning>{B.orders.overdue}</Warning>}
+      {summary?.live_payment && <Warning>{billingText.errors.payment_in_progress}</Warning>}
+
+      <Split aside={aside}>
+        <Panel title={T.summary}>
+          <Facts testId="order-facts" rows={facts} />
+        </Panel>
+
+        {plan.length > 0 && (
+          <Panel plain title={T.planTitle} testId="order-plan">
+            <InstallmentPlan
+              rows={plan.map((p) => p.row)}
+              currency={o.currency}
+              withStatus
+              notes={false}
+              action={(row) => {
+                const p = plan.find((x) => x.row.seq === row.seq)!;
+                if (p.overrideAt) {
+                  return (
+                    <span className="muted" data-testid="visit-allowed">
+                      {billingText.plan.visitAllowed}: {p.overrideNote}
+                    </span>
+                  );
+                }
+                if (row.kind !== "visit" || row.status !== "pending" || !active) return null;
+                return (
+                  <details>
+                    <summary>{T.allowVisit}</summary>
+                    <p className="muted">{T.allowVisitHint}</p>
+                    <ActionForm
+                      action={allowUnpaidVisitAction}
+                      testId={`allow-visit-form-${row.seq}`}
+                    >
+                      <input type="hidden" name="order_id" value={o.id} />
+                      <input type="hidden" name="installment_id" value={p.id} />
+                      <Field label={T.allowVisitNote}>
+                        <textarea name="note" maxLength={500} rows={2} required />
+                      </Field>
+                      <div className={styles.actions}>
+                        <Button type="submit" variant="secondary" size="sm">
+                          {T.allowVisitSubmit}
+                        </Button>
+                      </div>
+                    </ActionForm>
+                  </details>
+                );
+              }}
+            />
+          </Panel>
+        )}
+
+        <Panel plain title={T.items}>
+          <Table data-testid="order-items">
+            <thead>
+              <tr>
+                <th>{B.quote.line}</th>
+                <th className={cell.num}>{B.orders.total}</th>
+                <th>{T.parcel}</th>
+                <th>{L.title}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((i) => (
+                <tr key={i.id} data-item-id={i.id}>
+                  <td>
+                    {i.line_no}. {i.garden_name}
+                  </td>
+                  <td className={cell.num}>{money(i.amount_kurus, o.currency)}</td>
+                  <td>
+                    {i.parcel_id ? (
+                      <Link href={opsHref.parcel(i.parcel_id)} data-testid="order-parcel-link">
+                        {i.parcelName ?? i.garden_name}
+                      </Link>
+                    ) : (
+                      B.none
+                    )}
+                  </td>
+                  <td data-testid="order-item-state">{lineState(i, active)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Panel>
+
+        <Panel plain title={T.payments}>
+          {payments.length === 0 ? (
+            <p className="muted">{T.noPayments}</p>
+          ) : (
+            <Table data-testid="order-payments">
+              <thead>
+                <tr>
+                  <th>{B.payments.receipt}</th>
+                  <th>{B.payments.method}</th>
+                  <th className={cell.num}>{B.payments.date}</th>
+                  <th className={cell.num}>{B.payments.amount}</th>
+                  <th>{B.payments.status}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p) => (
+                  <tr key={p.id} data-payment-id={p.id}>
+                    <td className={cell.code}>
+                      <Link href={boHref.payment(p.id)}>
+                        {p.receipt_number ?? p.id.slice(0, 8)}
+                      </Link>
+                    </td>
+                    <td className={opsCell.nowrap}>
+                      {
+                        billingText.paymentProvider[
+                          p.provider as keyof typeof billingText.paymentProvider
+                        ]
+                      }
+                    </td>
+                    <td className={cell.num}>{when(p.succeeded_at ?? p.initiated_at)}</td>
+                    <td className={cell.num}>{money(p.amount_kurus, p.currency)}</td>
+                    <td>
+                      <Badge labels={billingText.paymentStatus} value={p.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </Panel>
+
+        {o.quote_id && (
+          <Panel
+            title={C.ops.documentsTitle}
+            description={C.ops.copyHint}
+            testId="order-contract-documents"
+            actions={
+              documentsMissing ? (
+                <form action={generateOrderDocumentsAction}>
+                  <input type="hidden" name="order_id" value={o.id} />
+                  <Button type="submit" variant="secondary" size="sm">
+                    {manualCopy ? C.ops.retry : C.ops.generate}
+                  </Button>
+                </form>
+              ) : undefined
+            }
+          >
+            {manualCopy && (
+              <Alert tone="warning" testId="order-contracts-manual-copy" title={C.ops.manualState}>
+                <p>{C.ops.manualHint}</p>
+              </Alert>
+            )}
+            {documents.length === 0 ? (
+              <p className="muted">{C.ops.documentsEmpty}</p>
+            ) : (
+              <ContractDocumentTable
+                documents={documents}
+                hrefOf={(d) => `/operasyon/siparis/${o.id}/belge/${d.id}`}
+                showGenerator
+              />
+            )}
+          </Panel>
+        )}
+
+        <Panel plain title={T.audit}>
+          <AuditTable rows={audit} testId="order-audit" />
+        </Panel>
+      </Split>
     </main>
   );
 }

@@ -4,7 +4,13 @@ import {
   recordPostponementAction,
   setMissedOutcomeAction,
 } from "@/app/operasyon/visit-record-actions";
-import { formatDate, formatDateTime } from "@/lib/i18n";
+import { statusTone } from "@/components/back-office/status-tone";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/field";
+import { Table, cell } from "@/components/ui/table";
+import { formatDate, formatDateTime, t } from "@/lib/i18n";
 import { visitsText } from "@/lib/i18n/messages/visits";
 import {
   MISSED_REASONS,
@@ -14,9 +20,19 @@ import {
   type MissedVisitRow,
   type VisitRecords as Records,
 } from "@/lib/operations/visit-records";
+import { Field } from "./field";
+import { Facts, Panel } from "./ops-ui";
 import styles from "./operations.module.css";
 
 const V = visitsText.ops;
+const T_YES = t.operations.yes;
+
+// Message states of a date notice, in the shared status tones.
+const NOTICE_CODE: Record<string, string> = {
+  pending: "processing",
+  sent: "succeeded",
+  failed: "failed",
+};
 
 // The legal records of a visit (T07; contract 8A/1–4; kararlar.md H01, H15):
 // date notices and the phone notice, the owner's postponement, missed-visit
@@ -40,75 +56,97 @@ export function VisitRecords({
   const dayNotices = records.notices.filter((n) => n.planned_date === visit.plannedDate);
   return (
     <>
-      <section className={styles.section} data-testid="visit-notices">
-        <h2>{V.noticesTitle}</h2>
-        <p className="muted">{V.noticesLead}</p>
+      <Panel title={V.noticesTitle} description={V.noticesLead} testId="visit-notices">
         {records.notices.length === 0 ? (
-          <p className="muted">{V.noNotice}</p>
+          !planned && <p className="muted">{V.noNotice}</p>
         ) : (
-          <ul className={styles.plainList}>
-            {records.notices.map((n) => (
-              <li key={n.id} data-testid="visit-notice">
-                {V.channel[n.channel]} · {formatDate(n.planned_date)} ·{" "}
-                {formatDateTime(n.notified_at)}
-                {n.status ? ` · ${V.status[n.status] ?? n.status}` : ""}
-              </li>
-            ))}
-          </ul>
+          <Table>
+            <thead>
+              <tr>
+                <th>{V.noticeColumns.channel}</th>
+                <th className={cell.num}>{V.noticeColumns.day}</th>
+                <th className={cell.num}>{V.noticeColumns.at}</th>
+                <th>{V.noticeColumns.status}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {records.notices.map((n) => (
+                <tr key={n.id} data-testid="visit-notice">
+                  <td>{V.channel[n.channel]}</td>
+                  <td className={cell.num}>{formatDate(n.planned_date)}</td>
+                  <td className={cell.num}>{formatDateTime(n.notified_at)}</td>
+                  <td>
+                    {n.status ? (
+                      <Badge tone={statusTone(NOTICE_CODE[n.status] ?? n.status)}>
+                        {V.status[n.status] ?? n.status}
+                      </Badge>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
         )}
         {planned && dayNotices.length === 0 && (
-          <p className={styles.notice} data-testid="visit-notice-missing">
-            {V.noNotice}
-          </p>
+          <Alert tone="warning" testId="visit-notice-missing">
+            <p>{V.noNotice}</p>
+          </Alert>
         )}
         {planned && (
-          <form action={recordPhoneNoticeAction} className={styles.actions}>
+          <form action={recordPhoneNoticeAction} className={styles.inline}>
             <input type="hidden" name="visit_id" value={visit.id} />
-            <label>
-              {V.phoneNoticeAt} <input type="datetime-local" name="notified_at" required />
-            </label>
-            <button className="button button-secondary" type="submit">
+            <Field label={V.phoneNoticeAt}>
+              <input
+                type="datetime-local"
+                name="notified_at"
+                id={`phone-notice-${visit.id}`}
+                required
+              />
+            </Field>
+            <Button variant="secondary" type="submit">
               {V.phoneNoticeSave}
-            </button>
+            </Button>
           </form>
         )}
-      </section>
+      </Panel>
 
-      <section className={styles.section} data-testid="visit-postponement">
-        <h2>{V.postponementTitle}</h2>
+      <Panel title={V.postponementTitle} testId="visit-postponement">
         {records.postponement ? (
-          <p className={styles.notice}>
-            {V.postponement(
-              formatDate(records.postponement.original_date),
-              V.postponementChannel[records.postponement.channel] ?? "",
-            )}
-          </p>
+          <Alert tone="info">
+            <p>
+              {V.postponement(
+                formatDate(records.postponement.original_date),
+                V.postponementChannel[records.postponement.channel] ?? "",
+              )}
+            </p>
+          </Alert>
         ) : planned && visit.plannedDate && visit.plannedDate > today ? (
-          <form action={recordPostponementAction} className={styles.actions}>
+          <form action={recordPostponementAction} className={styles.inline}>
             <input type="hidden" name="visit_id" value={visit.id} />
-            <span>{V.postponementRecord}</span>
-            <select name="channel" required defaultValue="">
-              <option value="" disabled>
-                —
-              </option>
-              <option value="phone">{V.postponementChannel.phone}</option>
-              <option value="written">{V.postponementChannel.written}</option>
-            </select>
-            <label>
-              {V.postponementAt} <input type="datetime-local" name="requested_at" required />
-            </label>
-            <button className="button button-secondary" type="submit">
+            <Field label={V.postponementRecord}>
+              <select name="channel" id="postponement-channel" required defaultValue="">
+                <option value="" disabled>
+                  —
+                </option>
+                <option value="phone">{V.postponementChannel.phone}</option>
+                <option value="written">{V.postponementChannel.written}</option>
+              </select>
+            </Field>
+            <Field label={V.postponementAt}>
+              <input type="datetime-local" name="requested_at" required />
+            </Field>
+            <Button variant="secondary" type="submit">
               {V.postponementSave}
-            </button>
+            </Button>
           </form>
         ) : (
-          <p className="muted">—</p>
+          <p className="muted">{planned ? V.postponementClosed : V.postponementNone}</p>
         )}
-      </section>
+      </Panel>
 
-      <section className={styles.section} data-testid="missed-visits">
-        <h2>{V.missedTitle}</h2>
-        <p className="muted">{V.missedLead}</p>
+      <Panel title={V.missedTitle} description={V.missedLead} testId="missed-visits">
         <p className="muted">
           {records.window
             ? V.window(records.window.label, formatDate(records.window.end))
@@ -126,24 +164,32 @@ export function VisitRecords({
         {(planned || scanned) && (
           <MissedForm visit={visit} blocked={blocked[0] ?? null} today={today} scanned={scanned} />
         )}
-      </section>
+      </Panel>
 
-      <section className={styles.section} data-testid="field-notices">
-        <h2>{V.fieldNoticesTitle}</h2>
+      <Panel title={V.fieldNoticesTitle} testId="field-notices">
         {fieldNotices.length === 0 ? (
           <p className="muted">{V.fieldNoticesNone}</p>
         ) : (
-          <ul className={styles.plainList}>
-            {fieldNotices.map((n) => (
-              <li key={n.eventId} data-testid="field-notice">
-                <strong>{V.fieldNotice[n.eventType]}</strong> · {formatDateTime(n.recordedAt)}
-                {" · "}
-                {fieldNoticeText(n)}
-              </li>
-            ))}
-          </ul>
+          <Table>
+            <thead>
+              <tr>
+                <th>{V.fieldNoticeColumns.kind}</th>
+                <th className={cell.num}>{V.fieldNoticeColumns.at}</th>
+                <th>{V.fieldNoticeColumns.detail}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {fieldNotices.map((n) => (
+                <tr key={n.eventId} data-testid="field-notice">
+                  <td>{V.fieldNotice[n.eventType]}</td>
+                  <td className={cell.num}>{formatDateTime(n.recordedAt)}</td>
+                  <td>{fieldNoticeText(n) || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
         )}
-      </section>
+      </Panel>
     </>
   );
 }
@@ -152,10 +198,10 @@ function fieldNoticeText(n: FieldNoticeEvent): string {
   const p = n.payload ?? {};
   const str = (v: unknown) => (typeof v === "string" ? v : "");
   if (n.eventType === "field_notice_sign") {
-    return [V.sign(p.sign === true, p.badge === true), str(p.reason)].filter(Boolean).join(" · ");
+    return [V.sign(p.sign === true, p.badge === true), str(p.reason)].filter(Boolean).join("; ");
   }
   if (n.eventType === "field_notice_verbal") {
-    return [V.verbal[str(p.answer)] ?? str(p.answer), str(p.note)].filter(Boolean).join(" · ");
+    return [V.verbal[str(p.answer)] ?? str(p.answer), str(p.note)].filter(Boolean).join("; ");
   }
   return str(p.note);
 }
@@ -169,54 +215,84 @@ function MissedItem({
   missed: MissedVisitRow;
   records: Records;
 }) {
+  const rows: [string, React.ReactNode][] = [
+    [V.missedColumns.day, formatDate(m.occurred_on)],
+    ...(m.detail ? ([[V.detail, m.detail]] as [string, string][]) : []),
+    ...(m.customer_notified_on
+      ? ([
+          [
+            V.missedColumns.notified,
+            [
+              formatDate(m.customer_notified_on),
+              m.customer_notified_channel ? V.notifiedChannels[m.customer_notified_channel] : null,
+            ]
+              .filter(Boolean)
+              .join(", "),
+          ],
+        ] as [string, string][])
+      : []),
+    ...(m.proposed_date
+      ? ([[V.proposedDate, formatDate(m.proposed_date)]] as [string, string][])
+      : []),
+    ...(m.no_date_in_window ? ([[V.noDateInWindow, T_YES]] as [string, string][]) : []),
+    ...(m.report_lost ? ([[V.reportLost, T_YES]] as [string, string][]) : []),
+    ...(m.note ? ([[V.note, m.note]] as [string, string][]) : []),
+  ];
   return (
-    <li data-testid="missed-visit">
-      <strong>{V.reason[m.reason]}</strong> · {formatDate(m.occurred_on)}
-      {m.detail ? ` · ${m.detail}` : ""}
-      {m.report_lost ? ` · ${V.reportLost}` : ""}
-      {m.proposed_date ? ` · ${V.proposedDate}: ${formatDate(m.proposed_date)}` : ""}
-      {m.no_date_in_window ? ` · ${V.noDateInWindow}` : ""}
-      {" · "}
-      <span data-testid="missed-outcome">
-        {m.outcome ? V.outcome[m.outcome] : V.outcomePending}
-      </span>
-      {m.note && <p className="muted">{m.note}</p>}
+    <li data-testid="missed-visit" className={styles.record}>
+      <div className={styles.recordHead}>
+        <strong>{V.reason[m.reason]}</strong>
+        <Badge tone={statusTone(m.outcome ? "done" : "open")}>
+          <span data-testid="missed-outcome">
+            {m.outcome ? V.outcome[m.outcome] : V.outcomePending}
+          </span>
+        </Badge>
+      </div>
+      <Facts rows={rows} />
       {!m.outcome && (
-        <form action={setMissedOutcomeAction} className={styles.actions}>
+        <form action={setMissedOutcomeAction} className={styles.inline}>
           <input type="hidden" name="visit_id" value={visitId} />
           <input type="hidden" name="missed_visit_id" value={m.id} />
-          <select name="outcome" required defaultValue="">
-            <option value="" disabled>
-              {V.outcomeLabel}
-            </option>
-            <option value="rescheduled">{V.outcome.rescheduled}</option>
-            {m.deemed_done_allowed && <option value="deemed_done">{V.deemedDone}</option>}
-            <option value="refunded">{V.outcome.refunded}</option>
-            {records.carryWindows.length > 0 && (
-              <option value="carried_over">{V.outcome.carried_over}</option>
-            )}
-          </select>
+          <Field label={V.outcomeLabel}>
+            <select name="outcome" id={`outcome-${m.id}`} required defaultValue="">
+              <option value="" disabled>
+                —
+              </option>
+              <option value="rescheduled">{V.outcome.rescheduled}</option>
+              {m.deemed_done_allowed && <option value="deemed_done">{V.deemedDone}</option>}
+              <option value="refunded">{V.outcome.refunded}</option>
+              {records.carryWindows.length > 0 && (
+                <option value="carried_over">{V.outcome.carried_over}</option>
+              )}
+            </select>
+          </Field>
           {records.carryWindows.length > 0 && (
             <>
-              <select name="carried_to_window_start" defaultValue="">
-                <option value="">{V.carryTo}</option>
-                {records.carryWindows.map((w) => (
-                  <option key={w.start} value={w.start}>
-                    {w.label}
-                  </option>
-                ))}
-              </select>
-              <select name="carry_over_channel" defaultValue="">
-                <option value="">{V.carryChannel}</option>
-                <option value="portal">{V.carryChannels.portal}</option>
-                <option value="written">{V.carryChannels.written}</option>
-              </select>
+              <Field label={V.carryTo} optional>
+                <select name="carried_to_window_start" id={`carry-${m.id}`} defaultValue="">
+                  <option value="">—</option>
+                  {records.carryWindows.map((w) => (
+                    <option key={w.start} value={w.start}>
+                      {w.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={V.carryChannel} optional>
+                <select name="carry_over_channel" id={`carry-channel-${m.id}`} defaultValue="">
+                  <option value="">—</option>
+                  <option value="portal">{V.carryChannels.portal}</option>
+                  <option value="written">{V.carryChannels.written}</option>
+                </select>
+              </Field>
             </>
           )}
-          <input name="refund_id" placeholder={V.refundId} size={36} />
-          <button className="button button-secondary" type="submit">
+          <Field label={V.refundId} optional>
+            <input name="refund_id" id={`refund-${m.id}`} size={24} />
+          </Field>
+          <Button variant="secondary" type="submit">
             {V.setOutcome}
-          </button>
+          </Button>
         </form>
       )}
     </li>
@@ -243,22 +319,27 @@ function MissedForm({
         ? blocked.recordedAt.slice(0, 10)
         : today;
   return (
-    <details data-testid="missed-visit-form" open={!!blocked || undefined}>
-      <summary>{V.missedTitle}</summary>
+    <details
+      data-testid="missed-visit-form"
+      open={!!blocked || undefined}
+      className={styles.disclosure}
+    >
+      <summary>{V.missedRecord}</summary>
       {blocked && (
-        <p className={styles.notice} data-testid="missed-prefill">
-          {V.fieldEventPrefill(
-            V.reason[blocked.reason ?? ""] ?? "",
-            blocked.photoCaptureIds.length,
-          )}
-        </p>
+        <Alert tone="info" testId="missed-prefill">
+          <p>
+            {V.fieldEventPrefill(
+              V.reason[blocked.reason ?? ""] ?? "",
+              blocked.photoCaptureIds.length,
+            )}
+          </p>
+        </Alert>
       )}
       <form action={recordMissedVisitAction} className={styles.form} encType="multipart/form-data">
         <input type="hidden" name="visit_id" value={visit.id} />
         {blocked && <input type="hidden" name="source_event_id" value={blocked.eventId} />}
         <div className={styles.grid}>
-          <label>
-            {V.reasonLabel}
+          <Field label={V.reasonLabel}>
             <select
               name="reason"
               required
@@ -273,37 +354,17 @@ function MissedForm({
                 </option>
               ))}
             </select>
-          </label>
-          <label>
-            {V.occurredOn}
+          </Field>
+          <Field label={V.occurredOn}>
             <input type="date" name="occurred_on" max={today} defaultValue={day} required />
-          </label>
-          <label>
-            {V.detail}
+          </Field>
+          <Field label={V.detail} optional>
             <input name="detail" defaultValue={blocked?.detail ?? ""} pattern="[a-z][a-z_]{0,39}" />
-          </label>
-          <label>
-            {V.note}
-            <textarea name="note" rows={2} maxLength={2000} defaultValue={blocked?.note ?? ""} />
-            <span className="muted">{V.noteHint}</span>
-          </label>
-          <fieldset>
-            <legend>{V.evidence}</legend>
-            {blocked?.photoCaptureIds.map((id) => (
-              <label key={id}>
-                <input type="checkbox" name="evidence_capture_ids" value={id} defaultChecked />{" "}
-                {id.slice(0, 8)}
-              </label>
-            ))}
-            <input type="file" name="evidence_file" accept="image/jpeg,image/png,image/webp" />
-            <span className="muted">{V.evidenceHint}</span>
-          </fieldset>
-          <label>
-            {V.notifiedOn}
+          </Field>
+          <Field label={V.notifiedOn} optional>
             <input type="date" name="customer_notified_on" max={today} defaultValue={day} />
-          </label>
-          <label>
-            {V.notifiedChannel}
+          </Field>
+          <Field label={V.notifiedChannel} optional>
             <select name="customer_notified_channel" defaultValue="">
               <option value="">—</option>
               {NOTIFIED_CHANNELS.map((c) => (
@@ -312,33 +373,53 @@ function MissedForm({
                 </option>
               ))}
             </select>
-          </label>
-          <label>
-            {V.proposedDate}
+          </Field>
+          <Field label={V.proposedDate} optional>
             <input type="date" name="proposed_date" min={today} />
-          </label>
-          <label>
-            <input type="checkbox" name="no_date_in_window" /> {V.noDateInWindow}
-          </label>
-          {scanned && (
-            <label>
-              <input type="checkbox" name="report_lost" defaultChecked /> {V.reportLost}
-            </label>
-          )}
-          <label>
-            {V.outcomeLabel}
+          </Field>
+          <Field label={V.outcomeLabel} optional>
             <select name="outcome" defaultValue={scanned ? "" : "rescheduled"}>
               <option value="">{V.outcomePending}</option>
               <option value="rescheduled">{V.outcome.rescheduled}</option>
               <option value="deemed_done">{V.deemedDone}</option>
               <option value="refunded">{V.outcome.refunded}</option>
             </select>
-          </label>
+          </Field>
+          <Field label={V.note} hint={V.noteHint} optional wide>
+            <textarea name="note" rows={2} maxLength={2000} defaultValue={blocked?.note ?? ""} />
+          </Field>
+          <fieldset className={`${styles.fieldset} ${styles.wide}`}>
+            <legend>{V.evidence}</legend>
+            {blocked?.photoCaptureIds.map((id) => (
+              <Checkbox
+                key={id}
+                id={`evidence-${id}`}
+                name="evidence_capture_ids"
+                value={id}
+                defaultChecked
+                label={<code>{id.slice(0, 8)}</code>}
+              />
+            ))}
+            <input
+              type="file"
+              name="evidence_file"
+              accept="image/jpeg,image/png,image/webp"
+              aria-label={V.evidence}
+              aria-describedby="evidence-hint"
+            />
+            <span className="muted" id="evidence-hint">
+              {V.evidenceHint}
+            </span>
+          </fieldset>
+          <div className={styles.wide}>
+            <Checkbox id="no-date-in-window" name="no_date_in_window" label={V.noDateInWindow} />
+            {scanned && (
+              <Checkbox id="report-lost" name="report_lost" defaultChecked label={V.reportLost} />
+            )}
+          </div>
         </div>
         <div className={styles.actions}>
-          <button className="button" type="submit">
-            {V.save}
-          </button>
+          <Button type="submit">{V.missedRecord}</Button>
         </div>
       </form>
     </details>
