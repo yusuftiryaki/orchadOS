@@ -62,26 +62,26 @@ jobs:
     environment: ${{ (inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'demo' || 'test' }}
     env:
       PROJECT: ${{ inputs.project }}
-      # Prefix of the target's secret names: DEMO_ only for a separate demo project.
-      SP: ${{ (inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_' || '' }}
+      # The project actually written: project=demo on the shared host is test.
+      TARGET: ${{ (inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'demo' || 'test' }}
       SHARED: ${{ inputs.project == 'demo' && vars.DEMO_HOST == 'test' }}
       ACTION: ${{ inputs.action }}
       BUILD_DIR: services/pipeline/.demo-build/v1-full
     steps:
-      # The target's own secrets only: a missing DEMO_ secret is empty and never
-      # falls back to test. Only DEMO_HOST=test (a repository variable, set on
-      # purpose) points project=demo at the test project.
+      # The target's own secrets only: the names are string literals, so a missing
+      # DEMO_ secret is empty and never falls back to test. Only DEMO_HOST=test (a
+      # repository variable, set on purpose) points project=demo at the test project.
       - name: Check the project's secrets
         id: guard
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: ${{ secrets[format('{0}SUPABASE_PROJECT_REF', env.SP)] }}
-          PGPASSWORD: ${{ secrets[format('{0}SUPABASE_DB_PASSWORD', env.SP)] }}
-          SUPABASE_URL: ${{ secrets[format('{0}SUPABASE_URL', env.SP)] }}
-          SUPABASE_ANON_KEY: ${{ secrets[format('{0}SUPABASE_ANON_KEY', env.SP)] }}
+          PROJECT_REF: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_PROJECT_REF' || 'SUPABASE_PROJECT_REF'] }}
+          PGPASSWORD: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_DB_PASSWORD' || 'SUPABASE_DB_PASSWORD'] }}
+          SUPABASE_URL: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_URL' || 'SUPABASE_URL'] }}
+          SUPABASE_ANON_KEY: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_ANON_KEY' || 'SUPABASE_ANON_KEY'] }}
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$PROJECT_REF" ] || [ -z "$PGPASSWORD" ] || [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "::error::Secrets for the $PROJECT project are missing in the $([ -n "$SP" ] && echo demo || echo test) environment (docs/demo-turu.md §10.4)."
+            echo "::error::Secrets for the $PROJECT project are missing in the $TARGET environment (docs/demo-turu.md §10.4)."
             exit 1
           fi
           if [ "$SHARED" = "true" ]; then
@@ -108,8 +108,8 @@ jobs:
         if: steps.guard.outputs.ready == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: ${{ secrets[format('{0}SUPABASE_PROJECT_REF', env.SP)] }}
-          PGPASSWORD: ${{ secrets[format('{0}SUPABASE_DB_PASSWORD', env.SP)] }}
+          PROJECT_REF: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_PROJECT_REF' || 'SUPABASE_PROJECT_REF'] }}
+          PGPASSWORD: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_DB_PASSWORD' || 'SUPABASE_DB_PASSWORD'] }}
         run: pnpm exec supabase link --project-ref "$PROJECT_REF" --password "$PGPASSWORD"
 
       - name: Session pooler address
@@ -197,9 +197,9 @@ jobs:
         working-directory: services/pipeline
         env:
           DRY_RUN: ${{ inputs.dry_run }}
-          PGPASSWORD: ${{ secrets[format('{0}SUPABASE_DB_PASSWORD', env.SP)] }}
-          SUPABASE_URL: ${{ secrets[format('{0}SUPABASE_URL', env.SP)] }}
-          SUPABASE_ANON_KEY: ${{ secrets[format('{0}SUPABASE_ANON_KEY', env.SP)] }}
+          PGPASSWORD: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_DB_PASSWORD' || 'SUPABASE_DB_PASSWORD'] }}
+          SUPABASE_URL: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_URL' || 'SUPABASE_URL'] }}
+          SUPABASE_ANON_KEY: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_ANON_KEY' || 'SUPABASE_ANON_KEY'] }}
         run: |
           args=(demo load --target remote --profile full --build "$GITHUB_WORKSPACE/$BUILD_DIR" --verify)
           # A separate demo project holds the demo org only; the shared test project does not.
@@ -212,9 +212,9 @@ jobs:
         if: steps.guard.outputs.ready == 'true' && inputs.action != 'load'
         working-directory: services/pipeline
         env:
-          PGPASSWORD: ${{ secrets[format('{0}SUPABASE_DB_PASSWORD', env.SP)] }}
-          SUPABASE_URL: ${{ secrets[format('{0}SUPABASE_URL', env.SP)] }}
-          SUPABASE_ANON_KEY: ${{ secrets[format('{0}SUPABASE_ANON_KEY', env.SP)] }}
+          PGPASSWORD: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_DB_PASSWORD' || 'SUPABASE_DB_PASSWORD'] }}
+          SUPABASE_URL: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_URL' || 'SUPABASE_URL'] }}
+          SUPABASE_ANON_KEY: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_ANON_KEY' || 'SUPABASE_ANON_KEY'] }}
         run: |
           set -o pipefail
           uv run orchados-pipeline demo "$ACTION" --target remote 2>&1 | tee "$RUNNER_TEMP/demo-load.log"
