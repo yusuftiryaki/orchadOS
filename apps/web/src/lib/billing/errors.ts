@@ -68,6 +68,7 @@ export const BILLING_ERRORS = [
   "legal_text_outdated",
   "legal_texts_not_final",
   "withdrawal_period_open",
+  "boundary_dispute_open",
   "order_not_active",
   "contract_document_immutable",
   // 55000

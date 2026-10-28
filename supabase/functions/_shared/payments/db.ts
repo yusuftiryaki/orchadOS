@@ -17,6 +17,8 @@ export const PAYMENT_BEGIN_KEYS = [
   "currency",
   "items",
   "buyer",
+  // T13: the org needs the TCKN typed in at payment.
+  "identity_number_required",
   "billing",
 ] as const;
 export const PAYMENT_BEGIN_ITEM_KEYS = [
@@ -136,6 +138,8 @@ export interface PaymentBeginResult {
   currency: "TRY";
   items: PaymentBeginItem[];
   buyer: PaymentBeginBuyer;
+  // T13: the org needs the buyer's TCKN (typed in at payment, never stored).
+  identity_number_required?: boolean;
   billing: {
     contact_name: string;
     address: string;
@@ -316,11 +320,14 @@ export async function paymentAttachToken(
   paymentId: string,
   token: string,
   expiresAt: Date,
+  // T13: the last four TCKN digits, when the org needs a TCKN.
+  identityLast4: string | null = null,
 ) {
   await rpc<unknown>(cfg, "payment_attach_token", {
     p_payment_id: paymentId,
     p_token: token,
     p_expires_at: expiresAt.toISOString(),
+    ...(identityLast4 ? { p_identity_number_last4: identityLast4 } : {}),
   });
 }
 

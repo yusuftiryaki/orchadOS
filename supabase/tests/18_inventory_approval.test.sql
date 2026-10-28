@@ -251,7 +251,7 @@ select is(pg_temp.error_of($$ select public.approve_boundary('ad000000-0000-4000
   'boundary ad000000-0000-4000-8000-000000000031 not found, already approved, or caller is not an owner of its parcel',
   'a viewer cannot approve the boundary');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
-select is((public.approve_boundary('ad000000-0000-4000-8000-000000000031')).owner_approved_by,
+select is((public.approve_boundary('ad000000-0000-4000-8000-000000000031', true)).owner_approved_by,
   'a0000000-0000-4000-8000-000000000001'::uuid, 'the owner approves the boundary');
 
 select * from finish();

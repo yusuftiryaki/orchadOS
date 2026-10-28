@@ -76,6 +76,13 @@ test.beforeAll(async () => {
     },
   });
   if (billing.error) throw billing.error;
+  // An ops-opened customer owes the first-login KVKK notice (T15, H30) even
+  // without a garden; this test is about the contract documents, not that gate.
+  const notice = await customer.rpc("portal_notice_status");
+  if (notice.error) throw notice.error;
+  const version = (notice.data as { version: string }).version;
+  const ack = await customer.rpc("portal_acknowledge_kvkk_notice", { p_text_version: version });
+  if (ack.error) throw ack.error;
 });
 
 test.afterAll(async () => {

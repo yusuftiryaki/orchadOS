@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DemoNotice } from "@/components/demo/demo-notice";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import { demoText } from "@/lib/i18n/messages/demo";
+import { approverLine } from "@/lib/portal/approver";
 import {
   INVENTORY_POINT_COLORS,
   type InventoryReport,
@@ -52,6 +53,11 @@ export function InventoryReportView({
               .filter(Boolean)
               .join(" · ")}
           </p>
+          {report.inventory?.approver && (
+            <p className="muted" data-testid="inventory-approver">
+              {approverLine(report.inventory.approver)}
+            </p>
+          )}
         </div>
         {report.inventory && (
           <div className={`${styles.actions} ${styles.noPrint}`}>

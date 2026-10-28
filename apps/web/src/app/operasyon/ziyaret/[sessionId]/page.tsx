@@ -4,12 +4,16 @@ import { cancelVisitAction } from "@/app/operasyon/actions";
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { CloseupList } from "@/components/operations/closeup-list";
+import { LegalNotice } from "@/components/operations/legal-notice";
+import { MediaSuppression } from "@/components/operations/media-suppression";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { VisitForm } from "@/components/operations/visit-form";
 import { requireSection } from "@/lib/auth/session";
 import { formatDate, t } from "@/lib/i18n";
 import { loadCloseupList } from "@/lib/expert/followups";
+import { createMediaSigner } from "@/lib/media/signer";
 import { getVisit, listStaffByUser, opsOrgs } from "@/lib/operations/data";
+import { listSuppressions, listVisitMedia, type MediaTab } from "@/lib/operations/legal";
 import { opsHref } from "@/lib/operations/urls";
 import { isPlanEditable, todayIn, visitSeason, type VisitKind } from "@/lib/operations/visits";
 import { createClient } from "@/lib/supabase/server";
@@ -38,6 +42,32 @@ export default async function Page({
       ? await loadCloseupList(supabase, visit.id)
       : null;
 
+  // T20: hiding images of a scanned visit (ops only).
+  const query = await searchParams;
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const tabParam = one(query.gorsel);
+  const tab: MediaTab = tabParam === "tree_crop" || tabParam === "closeup" ? tabParam : "panorama";
+  const pageNo = Math.max(0, Math.min(999, Number.parseInt(one(query.sayfa) ?? "0", 10) || 0));
+  const isOps = orgs.some((o) => o.id === visit.org_id);
+  const scanned =
+    visit.kind !== "verification" && ["processed", "in_review", "published"].includes(visit.status);
+  const mediaHref = (tabName: MediaTab, page: number) =>
+    `${opsHref.visit(visit.id)}?gorsel=${tabName}&sayfa=${page}#gorseller`;
+  const media =
+    isOps && scanned
+      ? await (async () => {
+          const [records, gallery] = await Promise.all([
+            listSuppressions(supabase, { sessionId: visit.id }),
+            listVisitMedia(supabase, visit.id, tab, pageNo),
+          ]);
+          const urls = await createMediaSigner(supabase, { scope: user.id }).signUrls([
+            ...records.map((r) => r.uri),
+            ...gallery.items.map((i) => i.uri),
+          ]);
+          return { records, gallery, urls };
+        })()
+      : null;
+
   return (
     <main className="page">
       <OpsNav current="visits" />
@@ -47,7 +77,8 @@ export default async function Page({
       <h1>
         {T.visitKind[visit.kind as VisitKind]} · {visit.parcel_name}
       </h1>
-      <ResultNotice params={await searchParams} />
+      <ResultNotice params={query} />
+      <LegalNotice params={query} />
       <div className={styles.columns}>
         <section className={styles.section} data-testid="visit-detail">
           <h2>{T.visits.detailTitle}</h2>
@@ -111,6 +142,22 @@ export default async function Page({
         </section>
       </div>
       {closeups && <CloseupList items={closeups} />}
+      {media && (
+        <div id="gorseller">
+          <MediaSuppression
+            back={mediaHref(tab, pageNo)}
+            records={media.records}
+            urls={media.urls}
+            gallery={{
+              tab,
+              page: pageNo,
+              more: media.gallery.more,
+              items: media.gallery.items,
+              href: mediaHref,
+            }}
+          />
+        </div>
+      )}
     </main>
   );
 }

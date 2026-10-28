@@ -156,3 +156,35 @@ describe("boundary notice in report PDFs", () => {
     expect(pageCount(b)).toBeGreaterThan(1);
   }, 60_000);
 });
+
+// T23 (H05): the approving expert's name and title in both PDFs (demo: none,
+// the database gives no approver there).
+describe("approving expert in report PDFs", () => {
+  const approver = { name: "Örnek Uzman", title: "Ziraat Mühendisi" };
+  const line = "Onaylayan uzman: Örnek Uzman, Ziraat Mühendisi";
+  const docText = (doc: ReactNode) => text(expand(doc));
+
+  it("the report names the expert who approved the latest visit", () => {
+    expect(docText(ReportDocument({ report: { ...report, approver }, now: NOW }))).toContain(line);
+    expect(docText(ReportDocument({ report, now: NOW }))).not.toContain("Onaylayan uzman");
+  });
+
+  it("the inventory report names the expert who approved the inventory", () => {
+    const withApprover = {
+      ...inventory,
+      inventory: { ...inventory.inventory!, approver },
+    };
+    expect(docText(InventoryDocument({ report: withApprover, now: NOW }))).toContain(line);
+    expect(
+      docText(
+        InventoryDocument({
+          report: {
+            ...inventory,
+            inventory: { ...inventory.inventory!, approver: { name: "Ad Soyad", title: null } },
+          },
+          now: NOW,
+        }),
+      ),
+    ).toContain("Onaylayan uzman: Ad Soyad");
+  });
+});

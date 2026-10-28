@@ -66,7 +66,19 @@ Bu politika, Şirket'in işlediği kişisel verilerin ne kadar saklanacağını,
 ## 5. Periyodik imha
 
 - Süresi dolan veriler en geç **6 ayda bir** yapılan periyodik imhayla silinir, yok edilir ya da anonim hale getirilir.
-- Kısa süreli temizlikler (24 saat, 2 gün, 7 gün, 30 gün) otomatik işlerle yapılır (T09).
+- Kısa süreli temizlikler (24 saat, 2 gün, 7 gün, 30 gün, 12 ay) otomatik işlerle yapılır (T09). Veritabanındaki zamanlanmış işler (`pg_cron`):
+
+| İş | Ne siler | Süre | Sıklık |
+| --- | --- | --- | --- |
+| `notification-purge` | Bildirim kayıtları (`public.notification`) ve varsa gönderim kuyruğundaki satırları | 12 ay | Her gün |
+| `auth-session-purge` | Giriş sisteminin sona ermiş oturumları (`auth.sessions`; IP ve tarayıcı bilgisi). Süresi dolmuş oturum (`not_after`) sona ermiş sayılır; boşta kalan oturum silinmez, kullanıcının oturumu kapanmaz. Çıkış yapınca oturum zaten silinir | Sona erdikten sonra 30 gün | Her gün |
+| `auth-audit-log-purge` | Giriş sisteminin denetim kayıtları (`auth.audit_log_entries`; IP adresi). Bütün projelerde; ortak test projesindeki demo hesaplarını da kapsar | 30 gün | Her gün |
+| `signup-housekeeping` | Tamamlanmamış kayıtlar (24 saat), kayıt denemesi özetleri (2 gün) | 24 saat / 2 gün | Saatte bir |
+| `signup-cleanup` | Telefonu doğrulanmamış hesaplar (Auth, Edge Function üzerinden) | 24 saat | Saatte bir |
+| `dispatch-notifications` | Gönderim kuyruğu (giriş kodu gönderim kaydı dahil) 7 gün, telefonla giriş denemeleri 1 gün | 7 gün / 1 gün | Dakikada bir |
+| `demo-housekeeping`, `demo-cleanup` | Demo turu: IP özetleri, süresi biten demo hesapları ve denetim kayıtları | 48 saat / oturum sonu | 5 ve 15 dakikada bir |
+
+  Üç yeni iş ilk kurulumda bir kez de çalışır; süresi geçmiş kayıt bırakmaz. Barındırılan projede veritabanı rolünün `auth` şemasında silme yetkisi yoksa iş durmaz, uyarı yazar ve `null` döner; o durumda yayına alma kontrolü (`cron.job_run_details`) bunu gösterir ve silme Supabase panelinden ya da yetkili rolle yapılır. İşlerin çıktısı (`cron.job_run_details`) imha tutanağına eklenir.
 - 2 ve 10 yıllık imha ve anonimleştirme (T10), ilk vade olan 2029'dan önce kurulur.
 
 ## 6. Talep üzerine silme

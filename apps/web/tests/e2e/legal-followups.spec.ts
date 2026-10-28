@@ -57,6 +57,14 @@ test.beforeAll(async () => {
   const customer = createClient<Database>(env.url, env.anonKey, options);
   const signedIn = await customer.auth.signInWithPassword({ email: EMAIL, password: PASSWORD });
   if (signedIn.error) throw signedIn.error;
+  // T15: the customer records the KVKK notice in the portal (an ops-opened
+  // owner is otherwise stopped by the first-login notice screen).
+  const notice = await customer.rpc("customer_set_consent", {
+    p_kind: "kvkk_notice",
+    p_granted: true,
+    p_text_version: "kvkk-v2-taslak",
+  });
+  if (notice.error) throw notice.error;
   const billing = await customer.rpc("customer_save_billing_profile", {
     p_profile: {
       kind: "individual",

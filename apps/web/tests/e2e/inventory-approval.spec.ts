@@ -199,6 +199,9 @@ test("a viewer cannot approve the boundary; the owner does", async ({ page }) =>
 
   await expect(card.getByTestId("boundary-approve")).toBeDisabled();
   await card.getByTestId("boundary-confirm").check();
+  // T16: the seed org asks the boundary declaration as well.
+  await expect(card.getByTestId("boundary-approve")).toBeDisabled();
+  await card.getByTestId("boundary-declaration").check();
   await card.getByTestId("boundary-approve").click();
   await expect(card.getByTestId("boundary-approved")).toContainText("Siz");
   await expect(card.getByTestId("boundary-approved")).toContainText("tarihinde onayladı");

@@ -38,7 +38,7 @@ export interface MapPanorama {
 export type MapSelection = { kind: "slot" | "finding"; id: string } | null;
 
 // Optional layers of the health map: 10 x 10 m heat cells and the scan's
-// coverage (trace and per-tree coverage rings).
+// coverage (per-tree coverage rings; no scan trace, H05).
 export interface MapCell {
   key: string;
   ring: Position[];
@@ -46,7 +46,6 @@ export interface MapCell {
 }
 
 export interface MapCoverage {
-  trace: Position[][];
   trees: { id: string; position: Position; color: string }[];
 }
 
@@ -197,16 +196,6 @@ export function PortalMap({
           source: "cells",
           paint: { "fill-color": ["get", "color"], "fill-opacity": 0.55 },
         });
-        m.addSource("coverage-trace", {
-          type: "geojson",
-          data: traceData(coverageRef.current),
-        });
-        m.addLayer({
-          id: "coverage-trace",
-          type: "line",
-          source: "coverage-trace",
-          paint: { "line-color": "#1c7ed6", "line-width": 2, "line-opacity": 0.8 },
-        });
 
         m.addSource("view", { type: "geojson", data: viewData(viewRef.current) });
         m.addLayer({
@@ -350,7 +339,6 @@ export function PortalMap({
   useEffect(() => {
     coverageRef.current = coverage;
     const map = mapRef.current;
-    (map?.getSource("coverage-trace") as GeoJSONSource | undefined)?.setData(traceData(coverage));
     (map?.getSource("coverage-trees") as GeoJSONSource | undefined)?.setData(
       coverageTreesData(coverage),
     );
@@ -440,17 +428,6 @@ function cellsData(cells: MapCell[] | null): GeoJSON.FeatureCollection {
       type: "Feature",
       geometry: { type: "Polygon", coordinates: [c.ring] },
       properties: { key: c.key, color: c.color },
-    })),
-  };
-}
-
-function traceData(coverage: MapCoverage | null): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: (coverage?.trace ?? []).map((line) => ({
-      type: "Feature",
-      geometry: { type: "LineString", coordinates: line },
-      properties: {},
     })),
   };
 }

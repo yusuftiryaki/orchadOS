@@ -186,9 +186,10 @@ select results_eq(
   $$ select overall_class::text from public.assessment where tree_id = md5('orchados-seed:tree:S1-1')::uuid $$,
   array['problem'], 'after publication the owner sees the published assessment, not the unpublished one');
 select results_eq($$ select count(*) from public.finding $$, array[1::bigint], 'owner sees the published finding');
-select results_eq($$ select count(*) from public.capture $$, array[1::bigint], 'owner sees the published capture');
+-- T23 (H05): a raw 360° video is staff only, also after publication.
+select results_eq($$ select count(*) from public.capture $$, array[0::bigint], 'owner does not see the raw video capture (staff only)');
 select results_eq($$ select count(*) from public.asset $$, array[1::bigint], 'owner sees the published asset');
-select results_eq($$ select count(*) from public.asset_source $$, array[1::bigint], 'owner sees the asset lineage');
+select results_eq($$ select count(*) from public.asset_source $$, array[0::bigint], 'owner does not see lineage to a staff-only capture');
 select results_eq($$ select count(*) from public.measurement_evidence $$, array[1::bigint], 'owner sees measurement evidence');
 select results_eq($$ select count(*) from public.assessment_measurement $$, array[1::bigint], 'owner sees assessment inputs');
 select results_eq($$ select count(*) from public.finding_evidence $$, array[1::bigint], 'owner sees finding evidence');

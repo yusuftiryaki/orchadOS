@@ -1740,6 +1740,8 @@ export type Database = {
           address: string | null;
           allow_fake_payments: boolean;
           bank_name: string | null;
+          boundary_declaration_required: boolean;
+          coowner_notice_flow_enabled: boolean;
           created_at: string;
           email: string | null;
           garden_changes_enabled: boolean;
@@ -1749,6 +1751,7 @@ export type Database = {
           inventory_reuse_months: number;
           kep_address: string | null;
           kvkk_email: string | null;
+          kvkk_request_form_enabled: boolean;
           legal_gate_enforced: boolean;
           legal_name: string | null;
           marketing_consent_enabled: boolean;
@@ -1774,6 +1777,8 @@ export type Database = {
           address?: string | null;
           allow_fake_payments?: boolean;
           bank_name?: string | null;
+          boundary_declaration_required?: boolean;
+          coowner_notice_flow_enabled?: boolean;
           created_at?: string;
           email?: string | null;
           garden_changes_enabled?: boolean;
@@ -1783,6 +1788,7 @@ export type Database = {
           inventory_reuse_months?: number;
           kep_address?: string | null;
           kvkk_email?: string | null;
+          kvkk_request_form_enabled?: boolean;
           legal_gate_enforced?: boolean;
           legal_name?: string | null;
           marketing_consent_enabled?: boolean;
@@ -1807,6 +1813,8 @@ export type Database = {
           address?: string | null;
           allow_fake_payments?: boolean;
           bank_name?: string | null;
+          boundary_declaration_required?: boolean;
+          coowner_notice_flow_enabled?: boolean;
           created_at?: string;
           email?: string | null;
           garden_changes_enabled?: boolean;
@@ -1816,6 +1824,7 @@ export type Database = {
           inventory_reuse_months?: number;
           kep_address?: string | null;
           kvkk_email?: string | null;
+          kvkk_request_form_enabled?: boolean;
           legal_gate_enforced?: boolean;
           legal_name?: string | null;
           marketing_consent_enabled?: boolean;
@@ -3921,7 +3930,7 @@ export type Database = {
         };
       };
       approve_boundary: {
-        Args: { p_boundary_id: string };
+        Args: { p_boundary_id: string; p_declared?: boolean };
         Returns: {
           area_m2: number | null;
           created_at: string;
@@ -4004,6 +4013,7 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      boundary_dispute_status: { Args: { p_parcel_id: string }; Returns: Json };
       bulk_approve_trees: {
         Args: { p_items: Json; p_method_version: string; p_session_id: string };
         Returns: number;
@@ -4296,6 +4306,17 @@ export type Database = {
           withdrawal_until: string;
         }[];
       };
+      my_kvkk_requests: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          created_at: string;
+          due_at: string;
+          id: string;
+          request_type: string;
+          settled_at: string;
+          status: string;
+        }[];
+      };
       my_owner_profile: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -4439,6 +4460,8 @@ export type Database = {
           address: string | null;
           allow_fake_payments: boolean;
           bank_name: string | null;
+          boundary_declaration_required: boolean;
+          coowner_notice_flow_enabled: boolean;
           created_at: string;
           email: string | null;
           garden_changes_enabled: boolean;
@@ -4448,6 +4471,7 @@ export type Database = {
           inventory_reuse_months: number;
           kep_address: string | null;
           kvkk_email: string | null;
+          kvkk_request_form_enabled: boolean;
           legal_gate_enforced: boolean;
           legal_name: string | null;
           marketing_consent_enabled: boolean;
@@ -4498,6 +4522,10 @@ export type Database = {
       };
       ops_cancel_order: { Args: { p_note?: string; p_order_id: string }; Returns: undefined };
       ops_cancel_refund: { Args: { p_note?: string; p_refund_id: string }; Returns: undefined };
+      ops_close_boundary_dispute: {
+        Args: { p_note?: string; p_parcel_id: string };
+        Returns: string;
+      };
       ops_complete_garden_removal: { Args: { p_removal_id: string }; Returns: undefined };
       ops_complete_manual_refund: {
         Args: { p_bank_reference: string; p_completed_on: string; p_refund_id: string };
@@ -4716,6 +4744,10 @@ export type Database = {
           withdrawal: boolean;
         }[];
       };
+      ops_hide_media: {
+        Args: { p_id: string; p_note?: string; p_reason: string };
+        Returns: string;
+      };
       ops_issue_addon_quote: {
         Args: {
           p_application_id?: string;
@@ -4757,9 +4789,44 @@ export type Database = {
         };
         Returns: string;
       };
+      ops_kvkk_requests: {
+        Args: { p_org_id: string };
+        Returns: {
+          applicant_email: string;
+          applicant_name: string;
+          created_at: string;
+          due_at: string;
+          id: string;
+          message: string;
+          overdue: boolean;
+          request_type: string;
+          settled_at: string;
+          status: string;
+          subject_id: string;
+        }[];
+      };
       ops_link_application_garden_parcel: {
         Args: { p_garden_id: string; p_parcel_id: string };
         Returns: undefined;
+      };
+      ops_media_suppressions: {
+        Args: { p_parcel_id?: string; p_session_id?: string };
+        Returns: {
+          action: string;
+          actor_email: string;
+          created_at: string;
+          hidden_now: boolean;
+          id: string;
+          kind: string;
+          note: string;
+          org_id: string;
+          parcel_id: string;
+          reason: string;
+          session_id: string;
+          target_id: string;
+          target_table: string;
+          uri: string;
+        }[];
       };
       ops_notifications: {
         Args: { p_limit?: number; p_status?: string };
@@ -4785,6 +4852,7 @@ export type Database = {
           template: string;
         }[];
       };
+      ops_open_boundary_dispute: { Args: { p_note: string; p_parcel_id: string }; Returns: string };
       ops_orders: {
         Args: {
           p_customer_user_id?: string;
@@ -5134,6 +5202,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_save_staff_profile: {
+        Args: { p_full_name: string; p_org_id: string; p_title: string; p_user_id: string };
+        Returns: undefined;
+      };
       ops_schedule_garden_removal: {
         Args: {
           p_access_days?: number;
@@ -5144,11 +5216,27 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_set_kvkk_request_status: {
+        Args: { p_request_id: string; p_status: string };
+        Returns: undefined;
+      };
       ops_set_parcel_passive: {
         Args: { p_parcel_id: string; p_passive: boolean };
         Returns: Database["public"]["Enums"]["parcel_status"];
       };
+      ops_staff: {
+        Args: { p_org_id: string };
+        Returns: {
+          email: string;
+          full_name: string;
+          roles: string[];
+          title: string;
+          updated_at: string;
+          user_id: string;
+        }[];
+      };
       ops_terminate_order: { Args: { p_note: string; p_order_id: string }; Returns: undefined };
+      ops_unhide_media: { Args: { p_id: string; p_note?: string }; Returns: string };
       ops_update_owner_profile: {
         Args: {
           p_contact_preference: string;
@@ -5193,7 +5281,7 @@ export type Database = {
       };
       owner_cancel_viewer_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
       owner_invite_viewer: {
-        Args: { p_full_name: string; p_parcel_id: string; p_phone: string };
+        Args: { p_declared?: boolean; p_full_name: string; p_parcel_id: string; p_phone: string };
         Returns: string;
       };
       owner_parcel_viewers: {
@@ -5208,6 +5296,7 @@ export type Database = {
           user_id: string;
         }[];
       };
+      parcel_legal_flags: { Args: { p_parcel_id: string }; Returns: Json };
       parcel_service_status: {
         Args: { p_parcel_id: string };
         Returns: {
@@ -5218,7 +5307,12 @@ export type Database = {
         }[];
       };
       payment_attach_token: {
-        Args: { p_expires_at: string; p_payment_id: string; p_token: string };
+        Args: {
+          p_expires_at: string;
+          p_identity_number_last4?: string;
+          p_payment_id: string;
+          p_token: string;
+        };
         Returns: undefined;
       };
       payment_attempts_to_reconcile: {
@@ -5290,6 +5384,33 @@ export type Database = {
       phone_login_code_requested: { Args: { p_phone: string }; Returns: string };
       phone_login_record_failure: { Args: { p_phone: string; p_ticket?: string }; Returns: number };
       pipeline_rescan_request: { Args: { p_session_id: string }; Returns: Json };
+      portal_acknowledge_kvkk_notice: { Args: { p_text_version: string }; Returns: number };
+      portal_closeups: {
+        Args: { p_session_ids: string[]; p_tree_id?: string };
+        Returns: {
+          captured_by: string;
+          content_hash: string;
+          id: string;
+          session_id: string;
+          tree_id: string;
+          uri: string;
+        }[];
+      };
+      portal_file_kvkk_request: { Args: { p_message: string; p_type: string }; Returns: string };
+      portal_kvkk_form_enabled: { Args: Record<PropertyKey, never>; Returns: boolean };
+      portal_notice_status: { Args: Record<PropertyKey, never>; Returns: Json };
+      portal_panorama_frames: {
+        Args: { p_session_ids: string[] };
+        Returns: {
+          full_asset_id: string;
+          full_uri: string;
+          heading_deg: number;
+          preview_asset_id: string;
+          preview_uri: string;
+          session_id: string;
+          viewpoint: Json;
+        }[];
+      };
       price_preview: {
         Args: { p_areas_m2: number[]; p_first_year?: boolean; p_package_id: string };
         Returns: {
@@ -5543,6 +5664,17 @@ export type Database = {
       signup_sms_allowed: { Args: { p_user_id: string }; Returns: boolean };
       signup_sms_sent: { Args: { p_user_id: string }; Returns: undefined };
       signup_ticket_users: { Args: { p_ticket_hash: string }; Returns: string[] };
+      staff_boundary_pointers: {
+        Args: { p_parcel_id: string };
+        Returns: {
+          id: string;
+          name: string;
+          recorded_at: string;
+          role: string;
+          session_id: string;
+        }[];
+      };
+      visit_approver: { Args: { p_session_id: string }; Returns: Json };
       waive_coverage: {
         Args: { p_note: string; p_session_id: string };
         Returns: {
@@ -5641,7 +5773,8 @@ export type Database = {
         | "garden_access_ending"
         | "contract_ready"
         | "withdrawal_received"
-        | "addon_order_closed";
+        | "addon_order_closed"
+        | "viewer_invited";
       operation_kind:
         | "mowing"
         | "spraying"
@@ -5896,6 +6029,7 @@ export const Constants = {
         "contract_ready",
         "withdrawal_received",
         "addon_order_closed",
+        "viewer_invited",
       ],
       operation_kind: [
         "mowing",
