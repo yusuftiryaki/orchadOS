@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cancelVisitAction } from "@/app/operasyon/actions";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { CloseupList } from "@/components/operations/closeup-list";
 import { LegalNotice } from "@/components/operations/legal-notice";
@@ -77,7 +76,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="visits" />
       <p>
         <Link href={opsHref.visits()}>← {T.visits.title}</Link>
       </p>

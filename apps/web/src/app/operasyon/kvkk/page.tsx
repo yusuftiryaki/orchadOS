@@ -1,7 +1,6 @@
 import { setKvkkStatusAction } from "@/app/operasyon/legal-actions";
 import { OrgPicker } from "@/components/back-office/parts";
 import { LegalNotice } from "@/components/operations/legal-notice";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { chooseOrg } from "@/lib/back-office/data";
@@ -32,7 +31,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="kvkk" />
       <h1>{O.title}</h1>
       {org && <OrgPicker orgs={orgs} current={org.id} action="/operasyon/kvkk" />}
       <LegalNotice params={query} />

@@ -5,7 +5,6 @@ import {
   revokeAccessAction,
   setParcelPassiveAction,
 } from "@/app/operasyon/actions";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { LegalNotice } from "@/components/operations/legal-notice";
 import { BoundaryDispute } from "@/components/operations/boundary-dispute";
@@ -80,7 +79,6 @@ export default async function Page({
 
   const actions = (
     <>
-      <OpsNav current={null} />
       <ResultNotice params={query} />
       <LegalNotice params={query} />
       <div className={styles.actions}>

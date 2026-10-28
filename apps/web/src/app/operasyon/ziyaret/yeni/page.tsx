@@ -1,4 +1,3 @@
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { VisitForm } from "@/components/operations/visit-form";
 import { requireSection } from "@/lib/auth/session";
@@ -26,7 +25,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="visits" />
       <h1>{T.visits.newTitle}</h1>
       <section className={styles.section}>
         <VisitForm

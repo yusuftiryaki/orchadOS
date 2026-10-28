@@ -4,7 +4,6 @@ import { savePackageAction } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
 import { Submit } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { chooseOrg, getPackage } from "@/lib/back-office/data";
@@ -37,7 +36,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="prices" />
       <p>
         <Link href={boHref.prices(undefined, orgId)}>← {T.title}</Link>
       </p>

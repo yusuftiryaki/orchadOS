@@ -1,5 +1,4 @@
 import { AuditTable } from "@/components/back-office/audit-table";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { chooseOrg, listAudit } from "@/lib/back-office/data";
@@ -38,7 +37,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="audit" />
       <h1>{T.title}</h1>
       <form className={styles.inline} action={boHref.audit()} data-testid="audit-filter">
         {orgs.length > 1 && org && (

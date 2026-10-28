@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { CustomerList } from "@/components/back-office/customer-list";
 import { customerListView } from "@/components/back-office/customer-rows";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { listCustomers } from "@/lib/back-office/data";
@@ -35,7 +34,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="owners" />
       <div className={styles.titleRow}>
         <h1>{T.owners.title}</h1>
         <Link className="button" href={opsHref.newOwner()}>

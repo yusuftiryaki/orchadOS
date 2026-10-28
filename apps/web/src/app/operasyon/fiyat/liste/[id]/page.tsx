@@ -17,7 +17,6 @@ import {
   when,
 } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { getPriceList } from "@/lib/back-office/data";
@@ -55,7 +54,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="prices" />
       <p>
         <Link href={boHref.prices(undefined, l.org_id)}>← {T.title}</Link>
       </p>

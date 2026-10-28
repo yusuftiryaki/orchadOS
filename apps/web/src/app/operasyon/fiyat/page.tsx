@@ -9,7 +9,6 @@ import {
   day,
   when,
 } from "@/components/back-office/parts";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { chooseOrg, getPrices } from "@/lib/back-office/data";
@@ -40,7 +39,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="prices" />
       <h1>{T.title}</h1>
       {org && <OrgPicker orgs={orgs} current={org.id} action={boHref.prices()} />}
       <BoResultNotice params={query} />

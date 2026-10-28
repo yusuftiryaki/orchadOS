@@ -1,12 +1,15 @@
 import { FormError, Notice } from "@/components/operations/field";
+import { Facts as FactList } from "@/components/operations/ops-ui";
 import styles from "@/components/operations/operations.module.css";
+import { Alert } from "@/components/ui/alert";
+import { Badge as UiBadge } from "@/components/ui/badge";
 import { readBoResult } from "@/lib/back-office/urls";
 import type { OpsOrg } from "@/lib/operations/data";
 import { formatKurus } from "@/lib/billing/money";
 import { formatDate, formatDateTime } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { billingText } from "@/lib/i18n/messages/billing";
-import bo from "./back-office.module.css";
+import { statusTone } from "./status-tone";
 
 // Small pieces shared by the back office pages.
 
@@ -36,20 +39,17 @@ export const money = (kurus: number | null | undefined, currency = "TRY") =>
 export const day = (iso: string | null | undefined) => (iso ? formatDate(iso) : B.none);
 export const when = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : B.none);
 
-// A status code with its Turkish label (unknown codes as they are).
+// A status code with its Turkish label (unknown codes as they are), in the
+// tone the same status has on every screen (status-tone.ts).
 export function Badge({ labels, value }: { labels: Record<string, string>; value: string }) {
-  return (
-    <span className={styles.badge} data-status={value}>
-      {labels[value] ?? value}
-    </span>
-  );
+  return <UiBadge tone={statusTone(value)}>{labels[value] ?? value}</UiBadge>;
 }
 
 export function Warning({ children, testId }: { children: React.ReactNode; testId?: string }) {
   return (
-    <p className={bo.warning} data-testid={testId}>
-      {children}
-    </p>
+    <Alert tone="warning" testId={testId}>
+      <p>{children}</p>
+    </Alert>
   );
 }
 
@@ -87,16 +87,7 @@ export function OrgPicker({
 
 // Label → value pairs.
 export function Facts({ rows, testId }: { rows: [string, React.ReactNode][]; testId?: string }) {
-  return (
-    <dl className={styles.dl} data-testid={testId}>
-      {rows.map(([label, value]) => (
-        <div key={label} style={{ display: "contents" }}>
-          <dt>{label}</dt>
-          <dd>{value ?? B.none}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+  return <FactList rows={rows} testId={testId} none={B.none} />;
 }
 
 // Submit button of an ActionForm.

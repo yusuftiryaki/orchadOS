@@ -18,7 +18,6 @@ import {
   when,
 } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { getPayment, userName } from "@/lib/back-office/data";
@@ -62,7 +61,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="payments" />
       <p>
         <Link href={boHref.payments()}>← {B.payments.title}</Link>
       </p>

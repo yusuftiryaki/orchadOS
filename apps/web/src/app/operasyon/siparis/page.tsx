@@ -2,7 +2,6 @@ import Link from "next/link";
 import { GenerateResult } from "@/components/contracts/ops-parts";
 import bo from "@/components/back-office/back-office.module.css";
 import { Badge, day, money } from "@/components/back-office/parts";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { listOrders, listOverdueInstallments } from "@/lib/back-office/data";
@@ -44,7 +43,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="orders" />
       <h1>{T.title}</h1>
       <GenerateResult value={query.belgeler} />
       <section className={styles.section} data-testid="orders-missing-contracts">

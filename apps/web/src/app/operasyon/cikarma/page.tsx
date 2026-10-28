@@ -1,7 +1,6 @@
 import Link from "next/link";
 import bo from "@/components/back-office/back-office.module.css";
 import { Badge, Warning, day, money } from "@/components/back-office/parts";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { REMOVAL_FILTERS, listRemovals } from "@/lib/back-office/data";
@@ -39,7 +38,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="removals" />
       <h1>{T.title}</h1>
       <p className="muted">{T.hint}</p>
       <nav className={styles.inline} aria-label={T.status} data-testid="removal-filters">

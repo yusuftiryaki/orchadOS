@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { CustomerAccountPanel } from "@/components/back-office/customer-account";
 import { OwnerForm } from "@/components/operations/owner-form";
@@ -41,7 +40,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="owners" />
       <p>
         <Link href={opsHref.owners()}>← {T.owners.title}</Link>
       </p>

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Facts, when } from "@/components/back-office/parts";
 import { VerifyGardenForm } from "@/components/back-office/verify-garden-form";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { getApplication, getGarden, userName } from "@/lib/back-office/data";
@@ -38,7 +37,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="applications" />
       <p>
         <Link href={boHref.application(id)}>
           ←{" "}

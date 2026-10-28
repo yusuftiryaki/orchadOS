@@ -1,5 +1,4 @@
 import { FormError } from "@/components/operations/field";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { OwnerForm } from "@/components/operations/owner-form";
 import { requireSection } from "@/lib/auth/session";
@@ -21,7 +20,6 @@ export default async function Page() {
 
   return (
     <main className="page">
-      <OpsNav current="owners" />
       <h1>{T.owners.newTitle}</h1>
       <p className="muted">{T.owners.newHint}</p>
       <p className={styles.privacy}>{T.owners.privacy}</p>

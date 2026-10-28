@@ -23,7 +23,6 @@ import {
 import { MembershipPanel } from "@/components/back-office/membership";
 import { QuoteLines } from "@/components/back-office/quote-lines";
 import { Field } from "@/components/operations/field";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import {
@@ -135,7 +134,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="applications" />
       <p>
         <Link href={boHref.applications()}>← {B.applications.title}</Link>
       </p>

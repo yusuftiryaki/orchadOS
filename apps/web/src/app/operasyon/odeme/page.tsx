@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Badge, money, when } from "@/components/back-office/parts";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { listPayments } from "@/lib/back-office/data";
@@ -36,7 +35,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="payments" />
       <h1>{T.title}</h1>
       <form className={styles.inline} action={boHref.payments()} data-testid="payment-filter">
         <label>

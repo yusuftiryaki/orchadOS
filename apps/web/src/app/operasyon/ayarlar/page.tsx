@@ -2,7 +2,6 @@ import { saveSettingsAction } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
 import { BoResultNotice, OrgPicker, Submit, Warning } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { chooseOrg, getSetting } from "@/lib/back-office/data";
@@ -34,7 +33,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="settings" />
       <h1>{T.title}</h1>
       {org && <OrgPicker orgs={orgs} current={org.id} action={boHref.settings()} />}
       <BoResultNotice params={query} />

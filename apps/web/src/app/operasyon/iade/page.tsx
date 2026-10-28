@@ -8,7 +8,6 @@ import {
 import { ActionForm } from "@/components/back-office/action-form";
 import bo from "@/components/back-office/back-office.module.css";
 import { Badge, BoResultNotice, Submit, money, when } from "@/components/back-office/parts";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { listRefunds, type RefundRow } from "@/lib/back-office/data";
@@ -37,7 +36,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="refunds" />
       <h1>{T.title}</h1>
       <BoResultNotice params={await searchParams} />
       <p className="muted">{T.hint}</p>

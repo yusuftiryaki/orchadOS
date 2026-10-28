@@ -1,5 +1,4 @@
 import { NotificationTable } from "@/components/operations/notification-table";
-import { OpsNav } from "@/components/operations/ops-nav";
 import { FormError, Notice } from "@/components/operations/field";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
@@ -34,7 +33,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="notifications" />
       <h1>{T.title}</h1>
       <p className="muted">{T.intro}</p>
       {result === "retried" && <Notice>{T.retried}</Notice>}

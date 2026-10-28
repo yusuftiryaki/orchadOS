@@ -1,5 +1,4 @@
 import { FormError } from "@/components/operations/field";
-import { OpsNav } from "@/components/operations/ops-nav";
 import { ParcelForm } from "@/components/operations/parcel-form";
 import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
@@ -24,7 +23,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current={null} />
       <h1>{T.parcel.newTitle}</h1>
       {orgs.length === 0 ? (
         <FormError error={T.errors.no_org} />

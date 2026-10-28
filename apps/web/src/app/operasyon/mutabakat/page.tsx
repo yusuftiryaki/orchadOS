@@ -2,7 +2,6 @@ import Link from "next/link";
 import { resolveReconciliationAction } from "@/app/operasyon/mutabakat/actions";
 import bo from "@/components/back-office/back-office.module.css";
 import { day, money } from "@/components/back-office/parts";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { requireSection } from "@/lib/auth/session";
@@ -42,7 +41,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="reconciliation" />
       <h1>{T.title}</h1>
       <p className="muted">{T.lead}</p>
       <ResultNotice params={params} />

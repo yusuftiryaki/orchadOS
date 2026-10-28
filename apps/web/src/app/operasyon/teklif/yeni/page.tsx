@@ -6,7 +6,6 @@ import { AddonPreviewNotes } from "@/components/back-office/addon-preview-notes"
 import { BoResultNotice, Facts, Submit, Warning, day } from "@/components/back-office/parts";
 import { QuoteLines } from "@/components/back-office/quote-lines";
 import { Field } from "@/components/operations/field";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import {
@@ -134,7 +133,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Que
 
   return (
     <main className="page">
-      <OpsNav current={renewal ? "orders" : "owners"} />
       <p>
         <Link href={back}>← {B.back}</Link>
       </p>
@@ -368,7 +366,6 @@ async function AddonQuote({
 
   return (
     <main className="page">
-      <OpsNav current="orders" />
       <p>
         <Link href={back}>← {B.back}</Link>
       </p>

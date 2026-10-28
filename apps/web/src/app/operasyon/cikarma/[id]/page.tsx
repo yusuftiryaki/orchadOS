@@ -18,7 +18,6 @@ import {
   when,
 } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { getRemoval, type RemovalPreview } from "@/lib/back-office/data";
@@ -68,7 +67,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="removals" />
       <p>
         <Link href={boHref.removals()}>← {B.removals.title}</Link>
       </p>

@@ -176,6 +176,9 @@ const auditActions: Record<string, string> = {
 export const backOfficeText = {
   nav: {
     group: "Müşteri ve ödeme",
+    groupField: "Saha",
+    groupAdmin: "Yönetim",
+    menu: "Menü",
     applications: "Başvurular",
     orders: "Siparişler",
     payments: "Ödemeler",
@@ -933,3 +936,15 @@ export const backOfficeText = {
     removal: "Açık çıkarma",
   },
 } as const;
+
+// Shared pieces of the dense operations screens (components/operations/ops-ui).
+export const opsUiText = {
+  queuesEmpty: (label: string) => `${label}: boş olanlar`,
+  pagination: {
+    label: "Sayfalar",
+    range: (from: number, to: number, total: number) =>
+      `${from.toLocaleString("tr-TR")}–${to.toLocaleString("tr-TR")} / ${total.toLocaleString("tr-TR")}`,
+    prev: "Önceki",
+    next: "Sonraki",
+  },
+};

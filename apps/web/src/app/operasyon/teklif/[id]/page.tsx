@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { Badge, BoResultNotice, Facts, day, when } from "@/components/back-office/parts";
 import bo from "@/components/back-office/back-office.module.css";
 import { QuoteLines } from "@/components/back-office/quote-lines";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { getQuote, userName } from "@/lib/back-office/data";
@@ -57,7 +56,6 @@ export default async function Page({
   return (
     <main className="page">
       <div className={bo.noPrint}>
-        <OpsNav current="applications" />
         {q.application_id && (
           <p>
             <Link href={boHref.application(q.application_id)}>← {T.application}</Link>

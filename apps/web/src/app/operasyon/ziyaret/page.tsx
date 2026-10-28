@@ -1,4 +1,3 @@
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { VisitTable } from "@/components/operations/visit-table";
 import { requireSection } from "@/lib/auth/session";
@@ -43,7 +42,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="visits" />
       <h1>{T.visits.title}</h1>
       <form className={styles.inline} method="get" aria-label={T.visits.filters}>
         <label>

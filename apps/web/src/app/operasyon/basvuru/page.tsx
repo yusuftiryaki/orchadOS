@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Badge, day } from "@/components/back-office/parts";
-import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { listApplications } from "@/lib/back-office/data";
@@ -27,7 +26,6 @@ export default async function Page({
 
   return (
     <main className="page">
-      <OpsNav current="applications" />
       <h1>{T.title}</h1>
       <nav className={styles.inline} aria-label={T.status}>
         <Link href={boHref.applications()} aria-current={!status ? "page" : undefined}>
