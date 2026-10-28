@@ -237,12 +237,14 @@ export function TreeAttributeEditor({
                 className={selected.has(s.id) ? styles.selectedRow : undefined}
               >
                 <td>
-                  <input
-                    type="checkbox"
-                    checked={selected.has(s.id)}
-                    onChange={() => toggle(s.id)}
-                    aria-label={s.code}
-                  />
+                  <label className={styles.rowCheck}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(s.id)}
+                      onChange={() => toggle(s.id)}
+                      aria-label={s.code}
+                    />
+                  </label>
                 </td>
                 <td className={cell.code}>{s.code}</td>
                 <td>{values.ageClass[s.tree!.ageClass]}</td>

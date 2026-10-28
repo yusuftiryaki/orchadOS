@@ -1,5 +1,5 @@
 /* Pieces of the order, payment, refund and reconciliation screens that the
-   shared ops-ui does not have. Tokens only. */
+   ui primitives do not have. Tokens only. */
 
 /* Several state badges in one cell: they wrap with a gap, never touch. */
 .badges {
@@ -19,75 +19,6 @@
 
 .code {
   font-family: var(--font-mono);
-}
-
-/* An action that is rarely used: a bordered region with its title as the
-   toggle. Same frame as the ops Panel. */
-.disclosure {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-}
-
-.disclosure > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  min-height: var(--control-height);
-  cursor: pointer;
-  font-weight: 700;
-  list-style: none;
-}
-
-.disclosure > summary::-webkit-details-marker {
-  display: none;
-}
-
-.disclosure > summary::after {
-  content: "";
-  flex: none;
-  width: 0.5em;
-  height: 0.5em;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: rotate(45deg) translateY(-2px);
-  color: var(--color-muted);
-}
-
-.disclosure[open] > summary::after {
-  transform: rotate(-135deg) translateY(-2px);
-}
-
-.disclosure[open] > summary {
-  border-bottom: 1px solid var(--color-border);
-}
-
-.disclosureBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-}
-
-.disclosureBody > * {
-  margin: 0;
-}
-
-/* What an action does, in one or two sentences above its button. */
-.consequence {
-  margin: 0;
-  color: var(--color-text-2);
-  font-size: var(--text-sm);
-  max-width: var(--measure);
-}
-
-/* The amount an action is about, next to its description. */
-.amount {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--color-text);
 }
 
 /* Structured details of an event (audit, provider events): key = value per
@@ -141,17 +72,6 @@
   flex-direction: column;
   gap: var(--space-2);
   align-items: flex-start;
-}
-
-.rowActions details > summary {
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-accent);
-}
-
-.rowActions details[open] > summary {
-  margin-bottom: var(--space-2);
 }
 
 .wide {

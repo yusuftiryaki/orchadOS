@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ParcelExplorer } from "./parcel-explorer";
 import { statusTone } from "@/components/ui/status";
 import styles from "./parcel-detail.module.css";
+import staff from "@/components/staff-page.module.css";
 
 export async function ParcelDetail({
   section,
@@ -29,7 +30,7 @@ export async function ParcelDetail({
   const slots = data.slots.features.length;
 
   return (
-    <main className={`page ${styles.page}`}>
+    <main className={`page ${staff.page}`}>
       <PageHeader
         back={{ href: `/${section}`, label: t.sections[section] }}
         title={data.parcel.name}

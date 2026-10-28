@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createDraftAction } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
+import { Badges } from "@/components/back-office/money-ui";
 import { Badge, BoResultNotice, OrgPicker, day, when } from "@/components/back-office/parts";
 import { Panel } from "@/components/ui/panel";
 import { Badge as UiBadge } from "@/components/ui/badge";
@@ -115,10 +116,10 @@ export default async function Page({
                         <Link href={boHref.priceList(l.id)}>{T.listTitle(l.version)}</Link>
                       </td>
                       <td>
-                        <span className={styles.badges}>
+                        <Badges>
                           <Badge labels={billingText.priceListStatus} value={l.status} />
                           {l.id === prices.inForceId && <UiBadge tone="info">{T.inForce}</UiBadge>}
-                        </span>
+                        </Badges>
                       </td>
                       <td className={`${cell.num} ${cell.nowrap}`}>{day(l.valid_from)}</td>
                       <td className={cell.num}>%{bpToPercent(l.vat_rate_bp)}</td>

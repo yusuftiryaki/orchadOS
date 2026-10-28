@@ -2,9 +2,6 @@
    inventory summary (also on the owner's report card). */
 
 .page {
-  margin: 0 auto;
-  padding: var(--space-4) var(--space-3) var(--space-5);
-  max-width: 1800px;
   display: grid;
   gap: var(--space-3);
 }
@@ -281,6 +278,31 @@
   font-weight: 500;
   font-size: var(--text-sm);
   white-space: nowrap;
+}
+
+/* A row checkbox: a 24px hit area (44px on touch) around the 18px box; the
+   negative margin keeps the row as dense as before. */
+.rowCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  margin: -3px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.rowCheck input {
+  margin: 0;
+}
+
+@media (pointer: coarse) {
+  .rowCheck {
+    min-width: 44px;
+    min-height: 44px;
+    margin: -13px;
+  }
 }
 
 /* td input: beats the global control rule (input:not(...)) on specificity. */

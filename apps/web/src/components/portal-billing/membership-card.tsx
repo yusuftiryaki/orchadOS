@@ -1,6 +1,7 @@
 import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { ButtonLink } from "@/components/ui/button";
+import { Panel } from "@/components/ui/panel";
 import type { ServicePeriod } from "@/lib/billing/types";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
@@ -15,16 +16,17 @@ const M = P.membership;
 // home page's side column and on the account page.
 export function MembershipCard({ period }: { period: ServicePeriod; as?: "li" | "div" }) {
   return (
-    <div className={`${layout.panel} ${styles.membership}`} data-testid="membership">
-      <h2>{M.title}</h2>
-      <p className={styles.package}>{period.package_name}</p>
-      <p data-testid="membership-end">{M.serviceEnd(formatDate(period.period_end))}</p>
-      <p data-testid="membership-gardens">{M.gardenCount(period.garden_count)}</p>
-      {period.next_period_end && (
-        <p className={layout.small}>{M.nextPeriod(formatDate(period.next_period_end))}</p>
-      )}
+    <Panel title={M.title} testId="membership">
+      <div className={styles.membershipBody}>
+        <p className={styles.package}>{period.package_name}</p>
+        <p data-testid="membership-end">{M.serviceEnd(formatDate(period.period_end))}</p>
+        <p data-testid="membership-gardens">{M.gardenCount(period.garden_count)}</p>
+        {period.next_period_end && (
+          <p className={layout.small}>{M.nextPeriod(formatDate(period.next_period_end))}</p>
+        )}
+      </div>
       {period.renewal_quote_id && (
-        <div data-testid="membership-renewal" className={layout.stack}>
+        <div data-testid="membership-renewal" className={styles.renewal}>
           <p>
             <strong>{M.renewalReady}</strong>
           </p>
@@ -38,6 +40,6 @@ export function MembershipCard({ period }: { period: ServicePeriod; as?: "li" | 
           <p className={layout.small}>{M.multiPeriod}</p>
         </Alert>
       )}
-    </div>
+    </Panel>
   );
 }

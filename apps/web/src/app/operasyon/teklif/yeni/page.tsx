@@ -13,6 +13,7 @@ import { Split } from "@/components/ui/layout";
 import { Alert } from "@/components/ui/alert";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { Consequence } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Checkbox } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
@@ -38,9 +39,11 @@ import {
 } from "@/lib/back-office/validation";
 import { BILLING_ERRORS, type BillingError } from "@/lib/billing/errors";
 import { formatDonum } from "@/lib/billing/money";
+import { t } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { getOwnerProfile } from "@/lib/operations/data";
+import { opsHref } from "@/lib/operations/urls";
 import { todayIn } from "@/lib/operations/visits";
 import { isUuid } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
@@ -168,7 +171,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<Que
         </Alert>
       )}
       {all.length === 0 ? (
-        <EmptyState title={T.noParcelsTitle}>
+        <EmptyState
+          title={T.noParcelsTitle}
+          action={
+            <ButtonLink href={opsHref.newParcel(profileId ?? undefined)}>
+              {profileId ? t.operations.owners.addParcel : t.operations.nav.newParcel}
+            </ButtonLink>
+          }
+        >
           <p>{T.noParcels}</p>
         </EmptyState>
       ) : (
@@ -226,7 +236,7 @@ function IssueFooter({ label, total }: { label: string; total?: number }) {
           {T.previewTotal} <strong>{money(total)}</strong>
         </p>
       )}
-      <p className={q.consequence}>{T.issueConsequence}</p>
+      <Consequence>{T.issueConsequence}</Consequence>
       <div className={q.actions}>
         <Button type="submit">{label}</Button>
       </div>
@@ -486,8 +496,21 @@ async function AddonQuote({
               {from && <input type="hidden" name="siparis" value={from.order.id} />}
               <fieldset className={f.fieldset}>
                 <legend>{T.parcels}</legend>
-                <p className={q.consequence}>{A.parcelsHint}</p>
-                {parcels.length === 0 && <p className="muted">{T.noParcels}</p>}
+                <Consequence>{A.parcelsHint}</Consequence>
+                {parcels.length === 0 && (
+                  <EmptyState
+                    compact
+                    headingLevel={3}
+                    title={T.noParcelsTitle}
+                    action={
+                      <ButtonLink variant="secondary" size="sm" href={opsHref.newParcel()}>
+                        {t.operations.nav.newParcel}
+                      </ButtonLink>
+                    }
+                  >
+                    <p>{T.noParcels}</p>
+                  </EmptyState>
+                )}
                 {parcels.map((p) => (
                   <label key={p.id} className={f.choice} data-parcel-id={p.id}>
                     <input
@@ -506,7 +529,7 @@ async function AddonQuote({
               {selected.length > 0 && (
                 <fieldset className={f.fieldset} data-testid="addon-new-inventory">
                   <legend>{A.newInventory}</legend>
-                  <p className={q.consequence}>{A.newInventoryHint}</p>
+                  <Consequence>{A.newInventoryHint}</Consequence>
                   {parcels
                     .filter((p) => selected.includes(p.id))
                     .map((p) => (

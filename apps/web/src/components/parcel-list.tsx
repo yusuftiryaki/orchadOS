@@ -9,6 +9,7 @@ import { formatNumber, t } from "@/lib/i18n";
 import { listParcels } from "@/lib/parcels";
 import { createClient } from "@/lib/supabase/server";
 import styles from "./parcel-list.module.css";
+import staff from "@/components/staff-page.module.css";
 
 // Lists every parcel row level security lets the user read. No filtering here.
 export async function ParcelList({ section }: { section: Section }) {
@@ -16,7 +17,7 @@ export async function ParcelList({ section }: { section: Section }) {
   const parcels = await listParcels(supabase);
 
   return (
-    <main className={`page ${styles.page}`}>
+    <main className={`page ${staff.page}`}>
       <PageHeader
         title={t.parcels.title}
         lead={parcels.length > 0 ? t.parcels.lead(parcels.length) : undefined}

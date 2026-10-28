@@ -155,7 +155,7 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   expect(boundary).toEqual([{ version: 1, source: "owner_declared" }]);
 
   // 3. Inventory visit
-  await page.getByRole("link", { name: "Bu parsel için ziyaret planla" }).click();
+  await page.getByRole("link", { name: "Ziyaret planla", exact: true }).click();
   const visitForm = page.getByTestId("visit-form");
   await expect(visitForm.getByLabel("Parsel")).toHaveValue(parcelId);
   // A scan visit shows its season.
@@ -168,7 +168,7 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   await visitForm.getByLabel("Tarih").fill(dayIn(10));
   await visitForm.getByLabel("Sorumlu saha personeli").selectOption({ label: "field@example.com" });
   await visitForm.getByLabel("Not").fill("Sahip sınırı gösterecek");
-  await visitForm.getByRole("button", { name: "Ziyareti planla" }).click();
+  await visitForm.getByRole("button", { name: "Ziyaret planla" }).click();
 
   await expect(page).toHaveURL(/\/operasyon\/ziyaret\/[0-9a-f-]{36}\?bilgi=planned$/);
   await expect(page.getByTestId("visit-status")).toHaveText("Planlandı");

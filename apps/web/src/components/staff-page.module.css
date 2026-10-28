@@ -1,0 +1,27 @@
+/* The content column of the staff sections served by the shared shell
+   (ofis, uzman): the staff shell's width and the same gutter as its header
+   (components/ui/app-shell.module.css), so content lines up with the brand.
+   The operations section has its own layout with the same width and gutter.
+   `.wide` is for dense workbenches (map beside panoramas): full width, same
+   gutter. Keep the global `page` class next to these on <main>. */
+
+.page,
+.wide {
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) var(--space-6);
+}
+
+.page {
+  max-width: var(--shell-width, 1440px);
+}
+
+.wide {
+  max-width: none;
+}
+
+@media (max-width: 859px) {
+  .page,
+  .wide {
+    padding: var(--space-3) var(--space-3) var(--space-5);
+  }
+}

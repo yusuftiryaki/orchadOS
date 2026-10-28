@@ -82,8 +82,9 @@ export const tr = {
   },
   forbidden: {
     title: "Bu bölüme erişiminiz yok",
-    body: "Bu sayfa hesabınızın rolüne açık değil. Erişmeniz gerekiyorsa operasyon ekibine yazın; başka bir hesapla girmek için önce çıkış yapın.",
+    body: "Bu sayfa hesabınızın rolüne açık değil. Erişmeniz gerekiyorsa operasyon ekibine yazın; başka bir hesapla girmek için çıkış yapın.",
     back: "Ana sayfaya dön",
+    signOut: "Çıkış yap",
   },
   error: {
     title: "Sayfa şu anda açılamadı",
@@ -807,7 +808,7 @@ export const tr = {
       title: "Operasyon panosu",
       counts: "Ziyaretler (durumlarına göre)",
       upcoming: (days: number) => `Yaklaşan ziyaretler (${days} gün)`,
-      noUpcoming: "Önümüzdeki günlerde planlanmış ziyaret yok.",
+      noUpcoming: "Önümüzdeki günlerde planlanmış ziyaret yok",
       overdue: "Geciken işler",
       noOverdue: "Geciken iş yok",
       overdueCount: (n: number) => `${n} geciken iş`,
@@ -815,8 +816,8 @@ export const tr = {
         past_due: (days: number) => `Tarihi ${days} gün önce geçti, hâlâ planlandı`,
         waiting_processing: (days: number) => `${days} gündür işlenmeyi bekliyor`,
       },
-      parcels: "Parseller ve yaşam döngüsü",
-      noParcels: "Henüz parsel yok.",
+      parcels: "Parseller",
+      noParcels: "Henüz parsel yok",
       invitations: "Hissedar davetleri",
       invitationsHint:
         "Sahiplerin portaldan davet ettiği hissedarlar. Kişiyi arayın; numarasının sahipten alındığını söyleyin, aydınlatma metninin bağlantısını SMS ile iletin ve okuduğunu kaydedin. Hesap telefonla açılır ve hissedar parsele izleyici olarak eklenir.",
@@ -902,13 +903,13 @@ export const tr = {
     org: "İşletme",
     owners: {
       title: "Sahipler ve hissedarlar",
-      empty: "Kayıtlı sahip yok.",
+      empty: "Kayıtlı sahip yok",
       privacy:
         "Bu sayfadaki bilgiler kişisel veridir (KVKK). Sadece operasyon görür; ekran görüntüsü almayın, başka kanala kopyalamayın.",
       newTitle: "Yeni sahip kaydı",
       newHint:
         "Sahip ya da hissedar için: kişisel bilgiler ayrı, korumalı şemada tutulur. Kayıtla birlikte portal hesabı açılır (ya da aynı e-posta / telefonla açılmış hesap bulunur).",
-      editTitle: "Bilgileri düzelt",
+      editTitle: "Bilgileri düzenle",
       personLegend: "Kişi ve iletişim",
       kvkkLegend: "KVKK aydınlatması",
       kvkkLegendHint:
@@ -941,12 +942,12 @@ export const tr = {
       accessRole: "Erişim",
       kvkkGiven: (date: string) => `KVKK aydınlatması ${date}`,
       kvkkMissing: "KVKK aydınlatması yok",
-      noParcels: "Henüz bir parsele erişimi yok.",
+      noParcels: "Henüz bir parsele erişimi yok",
       account: "Giriş hesabı",
     },
     parcel: {
       newTitle: "Yeni parsel kaydı",
-      editTitle: "Parsel bilgilerini düzelt",
+      editTitle: "Parseli düzenle",
       publicSection: "Parsel",
       privateSection: "Tapu, yetki ve erişim (kişisel veri, sadece operasyon görür)",
       name: "Parsel adı",
@@ -1002,7 +1003,7 @@ export const tr = {
       rowsLater: "Sıra yönü ve başlangıç köşesi envanterde belirlenir.",
       submit: "Parseli kaydet",
       registered: "Parsel kaydedildi.",
-      edit: "Bilgileri düzelt",
+      edit: "Düzenle",
       lifecycle: "Yaşam döngüsü",
       setPassive: "İzlemeyi bitir (pasif)",
       resume: "İzlemeyi sürdür",
@@ -1016,11 +1017,11 @@ export const tr = {
       actions: "Parsel işlemleri",
       boundaryLead: (name: string) =>
         `${name} için sahibin gösterdiği köşeleri haritada işaretleyin.`,
-      noDetail: "Kayıt yok.",
+      noDetail: "Kayıt yok",
     },
     access: {
       title: "Portal erişimi",
-      empty: "Bu parsele kimsenin portal erişimi yok.",
+      empty: "Bu parsele kimsenin portal erişimi yok",
       grant: "Erişim ver",
       person: "Kişi",
       choosePerson: "Kayıtlı bir kişi seçin",
@@ -1065,7 +1066,7 @@ export const tr = {
       seasonHint: (season: string) => `Bu tarihte tarama ${season} ölçekleriyle değerlendirilir.`,
       inventoryHint:
         'Envanter ziyaretinde sağlık ölçeği girilmez. İlk envanter planlanınca parsel "Envanter planlandı" olur.',
-      submit: "Ziyareti planla",
+      submit: "Ziyaret planla",
       newLead:
         "Ziyaret, sorumlu saha personelinin görev listesine düşer. Tarih Sahip'e en az 3 gün önce bildirilir; daha yakın bir tarihte telefonla bildirim kaydı istenir.",
       willPlan: (day: string) => `Ziyaret ${day} tarihine planlanır.`,
@@ -1083,8 +1084,8 @@ export const tr = {
       cancelled: "Ziyaret iptal edildi.",
       locked: "Bu ziyaret taranmış (ya da iptal edilmiş); plan buradan değiştirilemez.",
       parcelVisits: "Parselin ziyaretleri",
-      noVisits: "Bu parsel için ziyaret yok.",
-      planForParcel: "Bu parsel için ziyaret planla",
+      noVisits: "Bu parsel için ziyaret yok",
+      planForParcel: "Ziyaret planla",
       methodology: "Metodoloji sürümü",
     },
     fieldErrors: {
@@ -2211,7 +2212,8 @@ export const tr = {
       submit: "Başvuruyu gönder",
       sent: "Başvurunuz alındı. En geç 30 gün içinde cevaplanacak.",
       mine: "Başvurularınız",
-      none: "Henüz başvurunuz yok.",
+      none: "Henüz başvurunuz yok",
+      noneBody: "Yukarıdaki formla yaptığınız başvurular ve durumları burada listelenir.",
       due: (date: string) => `Son cevap günü: ${date}`,
       status: {
         open: "Alındı",

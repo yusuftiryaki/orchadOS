@@ -8,6 +8,7 @@ import { useMapLibre } from "@/components/map/use-maplibre";
 import { collection, EMPTY_COLLECTION, feature, ringOutline } from "@/lib/map/features";
 import { boundsOf, type Position } from "@/lib/map/geo";
 import { syncSelection } from "@/lib/map/selection";
+import { MAP_COLORS, MARKER_COLORS } from "@/lib/map/tree-style";
 import type { LatLon } from "@/lib/office/local-frame";
 import type { ZoneGeometry } from "@/lib/office/inventory-workspace";
 import styles from "./inventory.module.css";
@@ -26,7 +27,7 @@ export interface InventoryMapSlot {
   position: LatLon;
   state: "tree" | "interstitial" | "empty";
   selected: boolean;
-  // Drawn with an orange ring (verification item, coding problem).
+  // Drawn with a warning ring (verification item, coding problem).
   flagged: boolean;
 }
 
@@ -135,7 +136,7 @@ export function InventoryMap({
           type: "line",
           source: "declared",
           paint: {
-            "line-color": "#868e96",
+            "line-color": MAP_COLORS.muted,
             "line-width": 2,
             "line-dasharray": [3, 2],
             "line-opacity": 0.7,
@@ -145,13 +146,13 @@ export function InventoryMap({
           id: "boundary",
           type: "line",
           source: "boundary",
-          paint: { "line-color": "#4f7a28", "line-width": 3 },
+          paint: { "line-color": MAP_COLORS.accent, "line-width": 3 },
         });
         m.addLayer({
           id: "track",
           type: "line",
           source: "track",
-          paint: { "line-color": "#74c0fc", "line-width": 1.5 },
+          paint: { "line-color": MAP_COLORS.info, "line-width": 1.5 },
         });
         m.addLayer({
           id: "zone-lines",
@@ -159,7 +160,7 @@ export function InventoryMap({
           source: "zones",
           filter: ["==", ["geometry-type"], "LineString"],
           paint: {
-            "line-color": ["match", ["get", "kind"], "fence", "#795548", "#1c7ed6"],
+            "line-color": ["match", ["get", "kind"], "fence", MAP_COLORS.muted, MAP_COLORS.ink],
             "line-width": 3,
             "line-dasharray": [
               "match",
@@ -177,8 +178,8 @@ export function InventoryMap({
           filter: ["==", ["geometry-type"], "Point"],
           paint: {
             "circle-radius": 6,
-            "circle-color": "#1c7ed6",
-            "circle-stroke-color": "#ffffff",
+            "circle-color": MAP_COLORS.ink,
+            "circle-stroke-color": MAP_COLORS.surface,
             "circle-stroke-width": 2,
           },
         });
@@ -192,27 +193,29 @@ export function InventoryMap({
               "match",
               ["get", "state"],
               "tree",
-              "#2b8a3e",
+              MARKER_COLORS.healthy,
               "interstitial",
-              "#94d82d",
-              "rgba(0,0,0,0)",
+              MAP_COLORS.interstitial,
+              MARKER_COLORS.empty,
             ],
             "circle-stroke-color": [
               "case",
               ["boolean", ["feature-state", "selected"], false],
-              "#000000",
+              MAP_COLORS.highlight,
               ["get", "flagged"],
-              "#f08c00",
+              MAP_COLORS.warning,
               ["==", ["get", "state"], "empty"],
-              "#c92a2a",
-              "#ffffff",
+              MAP_COLORS.emptyRing,
+              MAP_COLORS.ring,
             ],
             "circle-stroke-width": [
               "case",
               ["boolean", ["feature-state", "selected"], false],
               3,
-              ["any", ["get", "flagged"], ["==", ["get", "state"], "empty"]],
+              ["get", "flagged"],
               2,
+              ["==", ["get", "state"], "empty"],
+              1.5,
               1,
             ],
           },
@@ -228,13 +231,13 @@ export function InventoryMap({
             "text-offset": [0, 1.2],
             visibility: "none",
           },
-          paint: { "text-halo-color": "#ffffff", "text-halo-width": 1.5 },
+          paint: { "text-color": MAP_COLORS.ink, "text-halo-color": MAP_COLORS.surface, "text-halo-width": 1.5 },
         });
         m.addLayer({
           id: "draft-line",
           type: "line",
           source: "draft",
-          paint: { "line-color": "#e8590c", "line-width": 2, "line-dasharray": [2, 1] },
+          paint: { "line-color": MAP_COLORS.highlight, "line-width": 2, "line-dasharray": [2, 1] },
         });
         m.addLayer({
           id: "draft-points",
@@ -243,8 +246,8 @@ export function InventoryMap({
           filter: ["==", ["geometry-type"], "Point"],
           paint: {
             "circle-radius": 4,
-            "circle-color": "#e8590c",
-            "circle-stroke-color": "#ffffff",
+            "circle-color": MAP_COLORS.highlight,
+            "circle-stroke-color": MAP_COLORS.surface,
             "circle-stroke-width": 1,
           },
         });

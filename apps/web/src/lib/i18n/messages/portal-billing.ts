@@ -181,7 +181,8 @@ export const portalBillingText = {
     upcoming: (date: string) => `Sonraki dönemde başlıyor: ${date}`,
     // An owned parcel that was never on an order (pilot, paper contract).
     pilotState: "Siparişe bağlı değil",
-    pilotContact: "Bu bahçeyi çıkarmak için bize ulaşın",
+    pilotContact: "Bu bahçeyi çıkarmak için",
+    pilotContactLink: "iletişim sayfasından bize yazın",
     outOfService: "Hizmette değil",
     outOfServiceNote: "Yeniden hizmet almak için başvuru yapabilirsiniz.",
     emptyBody: "Hizmet almak istediğiniz bahçeyi ekleyin; teklifinizi ekibimiz hazırlar.",

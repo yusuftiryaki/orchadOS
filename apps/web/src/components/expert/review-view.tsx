@@ -19,6 +19,7 @@ import { ClassBadge, ClassLabel } from "./class-badge";
 import { CropCompare, CropGrid } from "./crop-grid";
 import { DecisionPanel } from "./decision-panel";
 import styles from "./expert.module.css";
+import staff from "@/components/staff-page.module.css";
 import { FindingForm } from "./finding-form";
 import { FindingList } from "./finding-list";
 import { FollowupPanel } from "./followup-panel";
@@ -162,7 +163,7 @@ export function ReviewView({
   const treeFollowups = selected ? followups.filter((f) => f.treeId === selected.id) : [];
 
   return (
-    <main className={styles.workbenchPage} data-testid="review-page">
+    <main className={staff.page} data-testid="review-page">
       <ReviewShortcuts />
       <VisitHeader
         ctx={ctx}

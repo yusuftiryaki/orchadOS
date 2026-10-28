@@ -27,6 +27,8 @@ import { Panel } from "@/components/ui/panel";
 import { Split } from "@/components/ui/layout";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { Consequence, Disclosure } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Checkbox } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, cell } from "@/components/ui/table";
@@ -230,10 +232,7 @@ export default async function Page({
           {!canIssue ? (
             blocked
           ) : addonMode ? (
-            <details className={q.withdraw}>
-              <summary>{A.separateOpen}</summary>
-              {issueForm}
-            </details>
+            <Disclosure title={A.separateOpen}>{issueForm}</Disclosure>
           ) : (
             issueForm
           )}
@@ -241,7 +240,9 @@ export default async function Page({
       )}
 
       {open && (
-        <Panel title={T.reject} description={T.rejectHint}>
+        <Disclosure title={T.reject} testId="reject-application">
+          <Consequence>{T.rejectConsequence}</Consequence>
+          <Consequence>{T.rejectHint}</Consequence>
           <ActionForm action={rejectApplicationAction} testId="reject-form">
             <input type="hidden" name="application_id" value={a.id} />
             <Field label={B.fields.reason}>
@@ -265,7 +266,7 @@ export default async function Page({
               </Button>
             </div>
           </ActionForm>
-        </Panel>
+        </Disclosure>
       )}
 
       <Panel title={B.internal}>
@@ -489,8 +490,7 @@ export default async function Page({
                   </Table>
                 )}
                 {open && gardens.length > 1 && (
-                  <details className={q.withdraw}>
-                    <summary>{O.withdraw}</summary>
+                  <Disclosure title={O.withdraw}>
                     <ActionForm action={withdrawGardenAction} testId="withdraw-garden-form">
                       <input type="hidden" name="application_id" value={a.id} />
                       <input type="hidden" name="garden_id" value={g.id} />
@@ -503,7 +503,7 @@ export default async function Page({
                         </Button>
                       </div>
                     </ActionForm>
-                  </details>
+                  </Disclosure>
                 )}
               </div>
             );
@@ -611,7 +611,7 @@ export default async function Page({
 
         <Panel plain title={T.quotes} id="quotes">
           {quotes.length === 0 ? (
-            <p className="muted">{T.noQuotes}</p>
+            <EmptyState compact headingLevel={3} title={T.noQuotes} />
           ) : (
             <Table data-testid="quote-history">
               <thead>
@@ -662,7 +662,7 @@ function IssueFooter({
           {B.quote.previewTotal} <strong>{money(total)}</strong>
         </p>
       )}
-      <p className={q.consequence}>{B.quote.issueConsequence}</p>
+      <Consequence>{B.quote.issueConsequence}</Consequence>
       <div className={q.actions}>
         <Button type="submit" variant={secondary ? "secondary" : "primary"}>
           {label}

@@ -4,6 +4,7 @@ import type { Cache as PsvCache, Viewer } from "@photo-sphere-viewer/core";
 import type { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
 import { useCallback, useEffect, useRef, useState, type FocusEvent } from "react";
 import { t } from "@/lib/i18n";
+import { prefersReducedMotion } from "@/lib/map/motion";
 import {
   destroyViewer,
   fetchPanorama,
@@ -167,6 +168,8 @@ export function usePanoramaViewer(options: PanoramaViewerOptions) {
           loadingTxt: "",
           // Arrow keys only while the viewer has the focus (see onFocus).
           keyboard: false,
+          // No drift after a drag when the visitor asked for less motion.
+          moveInertia: !prefersReducedMotion(),
           lang: t.panorama.lang,
           plugins: [[markersModule.MarkersPlugin, {}]],
         });

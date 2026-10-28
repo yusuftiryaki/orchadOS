@@ -17,6 +17,7 @@ import {
 import { t } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
 import styles from "@/components/expert/expert.module.css";
+import staff from "@/components/staff-page.module.css";
 
 // Owners' questions of the org; ?durum=acik (default) or tum.
 export default async function Page({
@@ -34,7 +35,7 @@ export default async function Page({
   const returnPath = `/uzman/sorular?durum=${QUESTION_FILTER_PARAM[filter]}`;
 
   return (
-    <main className={`page ${styles.page}`} data-testid="questions-page">
+    <main className={`page ${staff.page} ${styles.page}`} data-testid="questions-page">
       <ExpertHeader current="questions" openQuestions={openCount(all)} />
       <Panel id="questions" title={q.title} description={q.hint} plain className={styles.section}>
         <Toolbar>

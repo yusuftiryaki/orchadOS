@@ -5,8 +5,10 @@ import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Select, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
+import { Panel, panelClass } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import { formatDate, t } from "@/lib/i18n";
 import { KVKK_REQUEST_TYPES, kvkkFormEnabled, myKvkkRequests } from "@/lib/portal/kvkk-request";
@@ -59,7 +61,7 @@ export default async function Page({
       )}
       <form
         action={fileKvkkRequestAction}
-        className={`${layout.panel} ${styles.form}`}
+        className={`${panelClass} ${styles.form}`}
         data-testid="kvkk-request-form"
       >
         <Field
@@ -87,16 +89,14 @@ export default async function Page({
           <Button type="submit">{T.submit}</Button>
         </div>
       </form>
-      <section
-        className={layout.section}
-        data-testid="kvkk-requests"
-        aria-labelledby="kvkk-requests-title"
-      >
-        <h2 id="kvkk-requests-title">{T.mine}</h2>
+      <Panel title={T.mine} plain id="kvkk-requests" testId="kvkk-requests">
         {requests.length === 0 ? (
-          <p className={layout.muted}>{T.none}</p>
+          <EmptyState title={T.none} headingLevel={3}>
+            <p>{T.noneBody}</p>
+          </EmptyState>
         ) : (
-          <ul className={`${layout.panel} ${layout.rows} ${styles.rowsPanel}`}>
+          <div className={panelClass}>
+          <ul className={layout.rows}>
             {requests.map((r) => (
               <li key={r.id}>
                 <div className={layout.rowMain}>
@@ -110,8 +110,9 @@ export default async function Page({
               </li>
             ))}
           </ul>
+          </div>
         )}
-      </section>
+      </Panel>
     </main>
   );
 }

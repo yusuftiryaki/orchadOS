@@ -8,11 +8,13 @@ import styles from "@/components/operations/operations.module.css";
 import { t } from "@/lib/i18n";
 import { closeRing, paddedBounds } from "@/lib/map/features";
 import type { Position } from "@/lib/map/geo";
+import { MAP_COLORS } from "@/lib/map/tree-style";
 
-const ACCENT = "#4f7a28";
-const POSITION = "#c92a2a";
+const ACCENT = MAP_COLORS.accent;
+// A garden known only by its location: a dark dot.
+const POSITION = MAP_COLORS.ink;
 // The customer's existing parcels (IP14): a muted second layer.
-const MUTED = "#868e96";
+const MUTED = MAP_COLORS.muted;
 
 export interface MapGarden {
   id: string;
@@ -128,7 +130,7 @@ export function GardensMap({
           filter: ["==", ["geometry-type"], "Point"],
           paint: {
             "circle-color": POSITION,
-            "circle-stroke-color": "#ffffff",
+            "circle-stroke-color": MAP_COLORS.surface,
             "circle-stroke-width": 2,
             "circle-radius": 6,
           },

@@ -8,6 +8,7 @@ import { useMapLibre } from "@/components/map/use-maplibre";
 import { t } from "@/lib/i18n";
 import type { Bounds, FeatureCollection, PointGeometry, PolygonGeometry } from "@/lib/map/geo";
 import { slotFeatures } from "@/lib/map/features";
+import { MAP_COLORS, SLOT_STROKE_COLOR, SLOT_STROKE_WIDTH } from "@/lib/map/tree-style";
 import type { SlotProperties } from "@/lib/parcels";
 import styles from "./parcel-map.module.css";
 
@@ -67,20 +68,8 @@ export function ParcelMap({
           paint: {
             "circle-color": ["get", "color"],
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 15, 2, 18, 6, 21, 14],
-            "circle-stroke-color": [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              "#000000",
-              ["get", "empty"],
-              "#495057",
-              "#ffffff",
-            ],
-            "circle-stroke-width": [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              3,
-              1,
-            ],
+            "circle-stroke-color": SLOT_STROKE_COLOR,
+            "circle-stroke-width": SLOT_STROKE_WIDTH,
           },
         });
         if (selectedRef.current) {
@@ -136,12 +125,12 @@ export function addBoundary(m: MapLibreMap, boundary: PolygonGeometry) {
     id: "boundary-fill",
     type: "fill",
     source: "boundary",
-    paint: { "fill-color": "#4f7a28", "fill-opacity": 0.08 },
+    paint: { "fill-color": MAP_COLORS.accent, "fill-opacity": 0.08 },
   });
   m.addLayer({
     id: "boundary-line",
     type: "line",
     source: "boundary",
-    paint: { "line-color": "#4f7a28", "line-width": 2 },
+    paint: { "line-color": MAP_COLORS.accent, "line-width": 2 },
   });
 }

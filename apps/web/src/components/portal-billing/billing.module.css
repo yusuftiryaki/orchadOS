@@ -166,6 +166,18 @@
   min-width: 0;
 }
 
+/* A short form: a hint, its button and small print. */
+.formTight {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  min-width: 0;
+}
+
+.formTight > * {
+  margin: 0;
+}
+
 .grid {
   display: grid;
   gap: var(--space-3);

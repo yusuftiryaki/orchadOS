@@ -6,7 +6,10 @@ import { PortalResult } from "@/components/portal-billing/result-notice";
 import styles from "@/components/portal-billing/account.module.css";
 import layout from "@/components/portal/page.module.css";
 import { ButtonLink } from "@/components/ui/button";
+import { Facts } from "@/components/ui/facts";
+import { Split } from "@/components/ui/layout";
 import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import {
@@ -68,9 +71,34 @@ export default async function AccountPage({
       <PageHeader title={A.title} lead={A.lead} />
       <PortalResult params={params} />
 
-      <div className={layout.split}>
-        <div className={styles.column}>
-          {period && <MembershipCard period={period} />}
+      <Split
+        aside={
+          <>
+            <BillingSummary profile={profile} />
+            <Panel title={A.docsTitle} id="account-docs" testId="account-docs">
+              <ul className={layout.rows}>
+                <li data-testid="account-contracts">
+                  <div className={layout.rowMain}>
+                    <Link className={styles.linkRow} href="/portal/hesap/sozlesmeler">
+                      {A.contractsLink}
+                    </Link>
+                    <p className={styles.meta}>{A.contractsBody}</p>
+                  </div>
+                </li>
+                <li data-testid="account-consents">
+                  <div className={layout.rowMain}>
+                    <Link className={styles.linkRow} href={portalHref.consents()}>
+                      {A.consentsLink}
+                    </Link>
+                    <p className={styles.meta}>{A.consentsBody}</p>
+                  </div>
+                </li>
+              </ul>
+            </Panel>
+          </>
+        }
+      >
+        {period && <MembershipCard period={period} />}
           {showGardens && (
             <MyGardens
               gardens={gardens}
@@ -80,53 +108,17 @@ export default async function AccountPage({
               changesEnabled={changesEnabled}
             />
           )}
-          <section className={layout.section} aria-labelledby="account-contact">
-            <div className={styles.panelHead}>
-              <h2 id="account-contact">{A.contactTitle}</h2>
-              <p className={layout.sectionLead}>{A.contactLead}</p>
-            </div>
-            <div className={layout.panel}>
-              <ContactForm
-                phone={contact?.phone ?? null}
-                initial={{
-                  full_name: contact?.fullName ?? "",
-                  email: contact?.email ?? "",
-                  contact_preference: contact?.contactPreference ?? "whatsapp",
-                }}
-              />
-            </div>
-          </section>
-        </div>
-
-        <div className={styles.column}>
-          <BillingSummary profile={profile} />
-          <section
-            className={layout.section}
-            aria-labelledby="account-docs"
-            data-testid="account-docs"
-          >
-            <h2 id="account-docs">{A.docsTitle}</h2>
-            <ul className={`${layout.panel} ${layout.rows} ${styles.rowsPanel}`}>
-              <li data-testid="account-contracts">
-                <div className={layout.rowMain}>
-                  <Link className={styles.linkRow} href="/portal/hesap/sozlesmeler">
-                    {A.contractsLink}
-                  </Link>
-                  <p className={styles.meta}>{A.contractsBody}</p>
-                </div>
-              </li>
-              <li data-testid="account-consents">
-                <div className={layout.rowMain}>
-                  <Link className={styles.linkRow} href={portalHref.consents()}>
-                    {A.consentsLink}
-                  </Link>
-                  <p className={styles.meta}>{A.consentsBody}</p>
-                </div>
-              </li>
-            </ul>
-          </section>
-        </div>
-      </div>
+        <Panel title={A.contactTitle} description={A.contactLead} id="account-contact">
+          <ContactForm
+            phone={contact?.phone ?? null}
+            initial={{
+              full_name: contact?.fullName ?? "",
+              email: contact?.email ?? "",
+              contact_preference: contact?.contactPreference ?? "whatsapp",
+            }}
+          />
+        </Panel>
+      </Split>
     </main>
   );
 }
@@ -135,56 +127,37 @@ export default async function AccountPage({
 function BillingSummary({ profile }: { profile: BillingProfileView | null }) {
   const place = [profile?.district, profile?.city].filter(Boolean).join(", ");
   return (
-    <section
-      className={layout.section}
-      aria-labelledby="account-billing"
-      data-testid="account-billing"
-    >
-      <h2 id="account-billing">{A.billingTitle}</h2>
-      <div className={layout.panel}>
-        {profile?.hasProfile ? (
-          <>
-            <dl className={layout.facts}>
-              <dt>{P.billing.kind}</dt>
-              <dd>{A.billingKind[profile.kind ?? "individual"]}</dd>
-              {profile.kind === "company" ? (
-                <>
-                  <dt>{A.billingCompany}</dt>
-                  <dd>{profile.companyTitle}</dd>
-                </>
-              ) : (
-                <>
-                  <dt>{A.billingName}</dt>
-                  <dd>{[profile.firstName, profile.lastName].filter(Boolean).join(" ")}</dd>
-                </>
-              )}
-              {place && (
-                <>
-                  <dt>{A.billingPlace}</dt>
-                  <dd>{place}</dd>
-                </>
-              )}
-            </dl>
-            <div className={layout.actions}>
-              <ButtonLink variant="secondary" href={portalHref.billing()}>
-                {A.billingEdit}
-              </ButtonLink>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className={layout.stack}>
-              <p>{A.billingNone}</p>
-              <p className={styles.meta}>{A.billingNoneBody}</p>
-            </div>
-            <div className={layout.actions}>
-              <ButtonLink variant="secondary" href={portalHref.billing()}>
-                {P.quote.billingFill}
-              </ButtonLink>
-            </div>
-          </>
-        )}
-      </div>
-    </section>
+    <Panel title={A.billingTitle} id="account-billing" testId="account-billing">
+      {profile?.hasProfile ? (
+        <>
+          <Facts
+            rows={[
+              [P.billing.kind, A.billingKind[profile.kind ?? "individual"]],
+              profile.kind === "company"
+                ? [A.billingCompany, profile.companyTitle]
+                : [A.billingName, [profile.firstName, profile.lastName].filter(Boolean).join(" ")],
+              ...(place ? ([[A.billingPlace, place]] as [string, string][]) : []),
+            ]}
+          />
+          <div className={layout.actions}>
+            <ButtonLink variant="secondary" href={portalHref.billing()}>
+              {A.billingEdit}
+            </ButtonLink>
+          </div>
+        </>
+      ) : (
+        <>
+          <div>
+            <p>{A.billingNone}</p>
+            <p className={styles.meta}>{A.billingNoneBody}</p>
+          </div>
+          <div className={layout.actions}>
+            <ButtonLink variant="secondary" href={portalHref.billing()}>
+              {P.quote.billingFill}
+            </ButtonLink>
+          </div>
+        </>
+      )}
+    </Panel>
   );
 }

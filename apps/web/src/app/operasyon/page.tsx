@@ -4,11 +4,11 @@ import { statusTone } from "@/components/ui/status";
 import { ExpertRequests } from "@/components/operations/expert-requests";
 import { Pagination, pageOf } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
-import { QueueList } from "@/components/operations/queue-list";
+import { QueueList, type QueueItem } from "@/components/operations/queue-list";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { ViewerInvitations } from "@/components/operations/viewer-invitations";
 import { VisitTable } from "@/components/operations/visit-table";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -31,8 +31,12 @@ import {
 } from "@/lib/operations/visits";
 import { listParcels } from "@/lib/parcels";
 import { createClient } from "@/lib/supabase/server";
+import styles from "./dashboard.module.css";
 
 const T = t.operations;
+
+// A badge tone as a queue tone ("highlight" is not a status tone).
+const queueTone = (tone: BadgeTone): QueueItem["tone"] => (tone === "highlight" ? "info" : tone);
 
 // Operations dashboard: what needs action today first (late work, the
 // customer and payment queues, open requests), then visits by status and the
@@ -118,12 +122,15 @@ export default async function Page({
         <QueueList
           testId="visit-counts"
           label={T.dashboard.counts}
+          // A status breakdown, not a work queue: pipeline order, and each
+          // count in its status badge's tone.
+          ordered
           items={PIPELINE_STATUSES.map((status) => ({
             key: status,
             label: t.office.sessionStatus[status],
             value: counts[status],
             href: opsHref.visits({ durum: status }),
-            tone: status === "in_review" || status === "captured" ? "warning" : "info",
+            tone: queueTone(statusTone(status, "visit")),
           }))}
         />
       </Panel>
@@ -145,7 +152,16 @@ export default async function Page({
 
       <Panel plain title={T.dashboard.upcoming(UPCOMING_DAYS)} id="upcoming">
         {upcoming.length === 0 ? (
-          <p className="muted">{T.dashboard.noUpcoming}</p>
+          <EmptyState
+            compact
+            headingLevel={3}
+            title={T.dashboard.noUpcoming}
+            action={
+              <ButtonLink variant="secondary" size="sm" href={opsHref.newVisit()}>
+                {T.nav.newVisit}
+              </ButtonLink>
+            }
+          />
         ) : (
           <VisitTable visits={upcoming} leads={leads} testId="upcoming-visits" />
         )}
@@ -154,8 +170,14 @@ export default async function Page({
       <Panel plain title={T.dashboard.parcels} id="parcels">
         {parcels.length === 0 ? (
           <EmptyState
+            compact
+            headingLevel={3}
             title={T.dashboard.noParcels}
-            action={<ButtonLink href={opsHref.newParcel()}>{T.nav.newParcel}</ButtonLink>}
+            action={
+              <ButtonLink variant="secondary" size="sm" href={opsHref.newParcel()}>
+                {T.nav.newParcel}
+              </ButtonLink>
+            }
           />
         ) : (
           <>
@@ -163,7 +185,7 @@ export default async function Page({
               <thead>
                 <tr>
                   <th>{t.parcels.columns.name}</th>
-                  <th>{T.parcel.lifecycle}</th>
+                  <th>{t.parcels.columns.status}</th>
                   <th>{t.parcels.columns.location}</th>
                   <th className={cell.num}>{t.parcels.columns.area}</th>
                   <th className={cell.num}>{t.parcels.columns.trees}</th>
@@ -173,7 +195,9 @@ export default async function Page({
                 {parcelPage.rows.map((parcel) => (
                   <tr key={parcel.id} data-parcel-id={parcel.id}>
                     <td className={cell.nowrap}>
-                      <Link href={opsHref.parcel(parcel.id)}>{parcel.name}</Link>
+                      <Link href={opsHref.parcel(parcel.id)} className={styles.parcelName}>
+                        {parcel.name}
+                      </Link>
                     </td>
                     <td>
                       <Badge tone={statusTone(parcel.status)}>

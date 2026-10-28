@@ -1,0 +1,7 @@
+/* Operations dashboard (page.tsx). */
+
+/* A parcel name in the parcel table: the same weight as the parcel lists of
+   the office and the expert panel (components/parcel-list.module.css). */
+.parcelName {
+  font-weight: 600;
+}

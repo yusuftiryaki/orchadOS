@@ -4,10 +4,6 @@
 
 /* Pages ------------------------------------------------------------------- */
 
-.page {
-  max-width: 1440px;
-}
-
 .section {
   margin-top: var(--space-5);
 }
@@ -43,12 +39,8 @@
 }
 
 /* Contains its sr-only text: an absolute span would escape a scroller. */
-.srCell,
 .tabLabel {
   position: relative;
-}
-
-.tabLabel {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -336,12 +328,6 @@ h3.small {
 }
 
 /* Review workbench --------------------------------------------------------- */
-
-.workbenchPage {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: var(--space-4) var(--space-4) var(--space-6);
-}
 
 .workbench {
   display: grid;
@@ -858,9 +844,6 @@ h3.small {
 
 /* Phones: controls keep a 44 px target, crops stack. */
 @media (max-width: 640px) {
-  .workbenchPage {
-    padding: var(--space-3) var(--space-3) var(--space-5);
-  }
   .filterGrid a,
   .treeList a,
   .classes label {

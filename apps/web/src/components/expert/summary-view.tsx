@@ -12,6 +12,7 @@ import { formatNumber, t } from "@/lib/i18n";
 import { BulkApprovePanel, type BulkMessages } from "./bulk-approve";
 import { ClassBadge } from "./class-badge";
 import styles from "./expert.module.css";
+import staff from "@/components/staff-page.module.css";
 import { FindingForm } from "./finding-form";
 import { FindingList, SEVERITY_TONE } from "./finding-list";
 import { FollowupPanel } from "./followup-panel";
@@ -55,7 +56,7 @@ export function SummaryView({
   const treeFollowups = followups.filter((f) => f.treeId);
 
   return (
-    <main className={`page ${styles.page}`} data-testid="summary-page">
+    <main className={`page ${staff.page} ${styles.page}`} data-testid="summary-page">
       <VisitHeader ctx={ctx} back={{ href: reviewHref(s.id), label: sm.back }} />
       {(published || findingError) && (
         <div className={styles.notices}>

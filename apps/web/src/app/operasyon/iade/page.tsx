@@ -13,6 +13,7 @@ import { Pagination, pageOf } from "@/components/ui/pagination";
 import { Toolbar } from "@/components/ui/layout";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, cell } from "@/components/ui/table";
@@ -172,8 +173,7 @@ function RowActions({ refund: r, today }: { refund: RefundRow; today: string }) 
         </ActionForm>
       )}
       {!card && r.status === "requested" && (
-        <details open>
-          <summary>{T.completeManual}</summary>
+        <Disclosure open title={T.completeManual}>
           <ActionForm action={completeManualRefundAction} inline testId="complete-manual-refund">
             <input type="hidden" name="refund_id" value={r.id} />
             <label>
@@ -188,11 +188,10 @@ function RowActions({ refund: r, today }: { refund: RefundRow; today: string }) 
               {T.completeManual}
             </Button>
           </ActionForm>
-        </details>
+        </Disclosure>
       )}
       {canResolve && (
-        <details>
-          <summary>{T.resolve}</summary>
+        <Disclosure title={T.resolve}>
           <ActionForm action={resolveRefundAction} inline testId="resolve-refund">
             <input type="hidden" name="refund_id" value={r.id} />
             <label>
@@ -210,11 +209,10 @@ function RowActions({ refund: r, today }: { refund: RefundRow; today: string }) 
               {T.failed}
             </Button>
           </ActionForm>
-        </details>
+        </Disclosure>
       )}
       {canCancel && (
-        <details>
-          <summary>{T.cancel}</summary>
+        <Disclosure title={T.cancel}>
           <ActionForm action={cancelRefundAction} inline testId="cancel-refund">
             <input type="hidden" name="refund_id" value={r.id} />
             <label>
@@ -225,7 +223,7 @@ function RowActions({ refund: r, today }: { refund: RefundRow; today: string }) 
               {T.cancel}
             </Button>
           </ActionForm>
-        </details>
+        </Disclosure>
       )}
     </div>
   );

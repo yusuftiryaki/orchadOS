@@ -1,9 +1,31 @@
 /* Photo Sphere Viewer chrome shared by the office tool and the portal tour.
-   Colours come from design tokens with fallbacks, so the design system can
-   theme the viewer without touching this file. */
+   Only design tokens (src/app/globals.css). The viewer is a photo, so its
+   chrome is dark: soil ink (--color-text) with white text, defined once here
+   (.frame and .chrome) and used by the navbar, the overlays and the portal's
+   markers and notes. On the dark chrome the focus ring is white with a dark
+   edge, since the dark --color-focus would vanish there. */
+
+.frame,
+.chrome {
+  --chrome-bg: color-mix(in srgb, var(--color-text) 85%, transparent);
+  --chrome-solid: var(--color-text);
+  --chrome-text: var(--color-surface);
+  --chrome-focus: var(--color-surface);
+  --chrome-focus-edge: var(--color-text);
+}
+
+/* A dark note over the photo (portal: placeholder image). */
+.chrome {
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+}
+
+.frame {
+  background: var(--chrome-solid);
+}
 
 .frame:focus-visible {
-  outline: 3px solid var(--color-focus, #4c8f3f);
+  outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
 
@@ -16,7 +38,7 @@
 .frame :global(.psv-navbar) {
   height: 44px;
   bottom: -44px;
-  background: var(--panorama-navbar-bg, rgba(33, 37, 41, 0.8));
+  background: var(--chrome-bg);
 }
 
 .frame :global(.psv-navbar.psv-navbar--open) {
@@ -25,27 +47,33 @@
 
 .frame :global(.psv-button:not(.psv-zoom-range)) {
   padding: 12px;
-  color: var(--panorama-navbar-text, #fff);
+  color: var(--chrome-text);
 }
 
 .frame :global(.psv-button:focus-visible) {
-  outline: 2px solid var(--color-focus, #4c8f3f);
-  outline-offset: -2px;
+  outline: 2px solid var(--chrome-focus);
+  outline-offset: -4px;
+  box-shadow: inset 0 0 0 2px var(--chrome-focus-edge);
 }
 
+/* Loading and error notes over the viewer: the ui Alert look (tone bar on
+   the left, soft tone background), centred on the photo. */
 .status {
+  --tone: var(--color-info);
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  max-width: calc(100% - 2 * var(--space-3, 16px));
+  max-width: calc(100% - 2 * var(--space-3));
   margin: 0;
-  background: var(--panorama-overlay-bg, rgba(33, 37, 41, 0.85));
-  color: var(--panorama-overlay-text, #fff);
-  border-radius: var(--radius, 10px);
-  padding: var(--space-2, 8px) var(--space-3, 16px);
-  font-size: 14px;
-  text-align: center;
+  background: var(--color-info-soft);
+  color: var(--color-text);
+  border-left: 4px solid var(--tone);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--leading);
   pointer-events: none;
 }
 
@@ -66,6 +94,6 @@
 
 .error {
   composes: status;
-  background: var(--color-danger-soft, #fdecea);
-  color: var(--color-danger, #c0362c);
+  --tone: var(--color-danger);
+  background: var(--color-danger-soft);
 }

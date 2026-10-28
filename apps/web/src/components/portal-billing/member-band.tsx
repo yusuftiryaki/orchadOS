@@ -1,10 +1,12 @@
 import Link from "next/link";
 import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
+import { Panel } from "@/components/ui/panel";
 import type { ServicePeriod } from "@/lib/billing/types";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import type { PortalParcel } from "@/lib/portal/data";
+import styles from "./home.module.css";
 
 const M = P.membership;
 
@@ -18,13 +20,12 @@ export function MemberBand({
   parcels: PortalParcel[];
 }) {
   return (
-    <section className={layout.section} data-testid="member-band">
+    <section className={styles.band} data-testid="member-band">
       <Alert tone="info" title={M.bandTitle(period.package_name)}>
         <p>{M.bandEnd(formatDate(period.period_end))}</p>
         <p>{M.bandPrice}</p>
       </Alert>
-      <div className={layout.panel}>
-        <h2>{M.accountGardens}</h2>
+      <Panel title={M.accountGardens}>
         {parcels.length === 0 ? (
           <p className={layout.muted}>{M.accountGardensEmpty}</p>
         ) : (
@@ -42,7 +43,7 @@ export function MemberBand({
             })}
           </ul>
         )}
-      </div>
+      </Panel>
     </section>
   );
 }

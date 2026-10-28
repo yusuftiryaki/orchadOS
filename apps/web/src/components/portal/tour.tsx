@@ -150,8 +150,8 @@ export function Tour({
       id: `tree:${m.tree.id}`,
       yawDeg: m.yawDeg,
       pitchDeg: m.pitchDeg,
-      html: `<div class="${styles.treeMarker}" data-tree="${escapeHtml(m.tree.code)}"><span class="${styles.treeDot}" style="background:${MARKER_COLORS[m.tree.state]}"></span>${escapeHtml(m.tree.code)}</div>`,
-      tooltip: escapeHtml(`${tt.treeMarker(m.tree.code)} · ${t.portal.classes[m.tree.state]}`),
+      html: `<div class="${styles.treeMarker}" data-tree="${escapeHtml(m.tree.code)}"><span class="${styles.treeDot}" data-class="${m.tree.state}" style="background:${MARKER_COLORS[m.tree.state]}"></span>${escapeHtml(m.tree.code)}</div>`,
+      tooltip: escapeHtml(`${tt.treeMarker(m.tree.code)} (${t.portal.classes[m.tree.state]})`),
       size: 28,
     }));
     return [...arrows, ...trees];
@@ -355,7 +355,7 @@ export function Tour({
           )}
           <p className={`muted ${styles.small}`}>
             {tt.mapHint} {tt.viewDirection}{" "}
-            {visit && `${tt.visit(formatDate(visit.time))} · ${tt.count(panoramas.length)}`}
+            {visit && `${tt.visit(formatDate(visit.time))}, ${tt.count(panoramas.length)}.`}
           </p>
         </div>
       </div>

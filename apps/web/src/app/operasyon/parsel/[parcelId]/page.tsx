@@ -21,6 +21,8 @@ import { ParcelDetail } from "@/components/parcel-detail";
 import { Alert } from "@/components/ui/alert";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { Consequence } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Table } from "@/components/ui/table";
 import { requireSection } from "@/lib/auth/session";
 import { parcelService } from "@/lib/back-office/data";
@@ -190,7 +192,7 @@ export default async function Page({
               >
                 <input type="hidden" name="parcel_id" value={parcel.id} />
                 <input type="hidden" name="passive" value={passive ? "0" : "1"} />
-                <p className="muted">{T.parcel.passiveHint}</p>
+                <Consequence>{T.parcel.passiveHint}</Consequence>
                 <div className={styles.actions}>
                   <Button variant={passive ? "secondary" : "danger"} type="submit">
                     {passive ? T.parcel.resume : T.parcel.setPassive}
@@ -257,7 +259,16 @@ export default async function Page({
           testId="parcel-private"
         >
           {!detail ? (
-            <p className="muted">{T.parcel.noDetail}</p>
+            <EmptyState
+              compact
+              headingLevel={3}
+              title={T.parcel.noDetail}
+              action={
+                <ButtonLink variant="secondary" size="sm" href={opsHref.editParcel(parcel.id)}>
+                  {T.parcel.edit}
+                </ButtonLink>
+              }
+            />
           ) : (
             <Facts
               rows={[
@@ -297,7 +308,7 @@ export default async function Page({
 
         <Panel title={T.access.title} id="erisim" testId="parcel-access">
           {access.length === 0 ? (
-            <p className="muted">{T.access.empty}</p>
+            <EmptyState compact headingLevel={3} title={T.access.empty} />
           ) : (
             <Table>
               <thead>
@@ -326,7 +337,7 @@ export default async function Page({
                       <form action={revokeAccessAction}>
                         <input type="hidden" name="parcel_id" value={parcel.id} />
                         <input type="hidden" name="access_id" value={a.id} />
-                        <Button variant="quiet" size="sm" type="submit">
+                        <Button variant="danger" size="sm" type="submit">
                           {T.access.revoke}
                         </Button>
                       </form>
@@ -369,7 +380,7 @@ export default async function Page({
 
         <Panel plain title={T.visits.parcelVisits} testId="parcel-visits">
           {visits.length === 0 ? (
-            <p className="muted">{T.visits.noVisits}</p>
+            <EmptyState compact headingLevel={3} title={T.visits.noVisits} />
           ) : (
             <VisitTable visits={visits} leads={leads} showParcel={false} />
           )}

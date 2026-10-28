@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import { formatDate, t } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
@@ -59,17 +60,16 @@ export default async function ConsentsPage({
       />
       <PortalResult params={params} />
 
-      <section
-        className={layout.panel}
-        data-testid="consent-kvkk_notice"
-        aria-labelledby="consent-kvkk-title"
-      >
-        <div className={styles.orderHead}>
-          <h2 id="consent-kvkk-title">{C.kvkkTitle}</h2>
+      <Panel
+        title={C.kvkkTitle}
+        id="consent-kvkk"
+        testId="consent-kvkk_notice"
+        actions={
           <Badge tone={kvkkDone ? "success" : "warning"}>
             {kvkkDone ? C.kvkkRead : C.kvkkUnread}
           </Badge>
-        </div>
+        }
+      >
         {kvkkDone && kvkk ? (
           <p>
             {C.kvkkDone(formatDate(kvkk.recordedAt), kvkk.textVersion)}{" "}
@@ -80,7 +80,7 @@ export default async function ConsentsPage({
             <p>
               {C.kvkkMissing} <Link href="/kvkk">{C.kvkkLink}</Link>
             </p>
-            <form action={acknowledgeKvkkAction} className={layout.stack}>
+            <form action={acknowledgeKvkkAction} className={styles.form}>
               <input type="hidden" name="geri" value={portalHref.consents()} />
               <Checkbox
                 id="consent-kvkk-check"
@@ -99,17 +99,16 @@ export default async function ConsentsPage({
             </form>
           </>
         )}
-      </section>
+      </Panel>
 
-      <section className={layout.section} aria-labelledby="consent-explicit-title">
-        <h2 id="consent-explicit-title">{C.explicitTitle}</h2>
+      <Panel title={C.explicitTitle} id="consent-explicit">
         {!EXPLICIT_CONSENT_KINDS.some(isExplicitConsentAsked) && (
-          <p className={layout.sectionLead} data-testid="consent-none-asked">
+          <p className={styles.lead} data-testid="consent-none-asked">
             {C.noneAsked}
           </p>
         )}
         {shown.length > 0 && (
-          <ul className={`${layout.panel} ${layout.rows} ${styles.rowsPanel}`}>
+          <ul className={layout.rows}>
             {shown.map((kind) => {
               const record = consents.get(kind);
               const granted = record?.granted === true;
@@ -132,7 +131,7 @@ export default async function ConsentsPage({
                     <form action={setConsentAction}>
                       <input type="hidden" name="kind" value={kind} />
                       <input type="hidden" name="granted" value={granted ? "false" : "true"} />
-                      <Button variant="secondary" type="submit">
+                      <Button variant={granted ? "danger" : "secondary"} type="submit">
                         {granted ? C.withdraw : C.grant}
                       </Button>
                     </form>
@@ -142,22 +141,17 @@ export default async function ConsentsPage({
             })}
           </ul>
         )}
-      </section>
+      </Panel>
 
       {kvkkForm && (
-        <section
-          className={layout.panel}
-          data-testid="kvkk-request-link"
-          aria-labelledby="kvkk-request-title"
-        >
-          <h2 id="kvkk-request-title">{K.title}</h2>
+        <Panel title={K.title} id="kvkk-request" testId="kvkk-request-link">
           <p>{K.linkHint}</p>
           <div className={layout.actions}>
             <ButtonLink variant="secondary" href="/portal/hesap/izinler/kvkk-basvurusu">
               {K.link}
             </ButtonLink>
           </div>
-        </section>
+        </Panel>
       )}
     </main>
   );

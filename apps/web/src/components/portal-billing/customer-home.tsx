@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import layout from "@/components/portal/page.module.css";
 import { ButtonLink } from "@/components/ui/button";
+import { Panel } from "@/components/ui/panel";
 import { formatKurus } from "@/lib/billing/money";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
@@ -115,8 +116,7 @@ export function CustomerHome({
     <div className={styles.top} data-has-parcels={hasParcels || undefined}>
       <div className={styles.main}>
         {tasks.length > 0 && (
-          <section className={layout.section} aria-labelledby="tasks-title">
-            <h2 id="tasks-title">{H.tasksTitle}</h2>
+          <Panel title={H.tasksTitle} plain id="tasks">
             <ul className={styles.tasks}>
               {tasks.map((task, i) => (
                 <li
@@ -124,7 +124,7 @@ export function CustomerHome({
                   className={task.yours ? styles.task : `${styles.task} ${styles.taskOurs}`}
                   data-testid={task.testId}
                 >
-                  <div className={layout.stack}>
+                  <div className={styles.taskText}>
                     <h3>{task.title}</h3>
                     <p>{task.body}</p>
                   </div>
@@ -137,14 +137,13 @@ export function CustomerHome({
                 </li>
               ))}
             </ul>
-          </section>
+          </Panel>
         )}
         {start}
         {children && tasks.length > 0 ? (
-          <section className={layout.section} aria-labelledby="gardens-title">
-            <h2 id="gardens-title">{H.gardensTitle}</h2>
+          <Panel title={H.gardensTitle} plain id="gardens">
             {children}
-          </section>
+          </Panel>
         ) : (
           children
         )}

@@ -3,6 +3,7 @@ import layout from "@/components/portal/page.module.css";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Panel } from "@/components/ui/panel";
 import type { CustomerGarden } from "@/lib/billing/types";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
@@ -34,15 +35,19 @@ export function MyGardens({
 }) {
   const empty = gardens.length === 0 && pilot.length === 0 && outOfService.length === 0;
   return (
-    <section className={layout.section} data-testid="my-gardens" aria-labelledby="my-gardens-title">
-      <div className={layout.sectionHead}>
-        <h2 id="my-gardens-title">{G.title}</h2>
-        {addHref && !empty && (
+    <Panel
+      title={G.title}
+      id="my-gardens"
+      testId="my-gardens"
+      actions={
+        addHref &&
+        !empty && (
           <ButtonLink variant="secondary" href={addHref} data-testid="my-gardens-add">
             {G.add}
           </ButtonLink>
-        )}
-      </div>
+        )
+      }
+    >
       {empty ? (
         <EmptyState
           title={G.empty}
@@ -58,7 +63,7 @@ export function MyGardens({
           {addHref && <p>{G.emptyBody}</p>}
         </EmptyState>
       ) : (
-        <div className={`${layout.panel} ${styles.rowGroups}`}>
+        <div className={styles.rowGroups}>
           {gardens.length > 0 && (
             <ul className={layout.rows}>
               {gardens.map((g) => (
@@ -106,7 +111,9 @@ export function MyGardens({
                     <p className={styles.name}>
                       <Link href={portalHref.parcel(p.id)}>{p.name}</Link>
                     </p>
-                    <p className={styles.meta}>{G.pilotContact}</p>
+                    <p className={styles.meta}>
+                      {G.pilotContact} <Link href="/iletisim">{G.pilotContactLink}</Link>.
+                    </p>
                   </div>
                   <Badge>{G.pilotState}</Badge>
                 </li>
@@ -130,6 +137,6 @@ export function MyGardens({
           )}
         </div>
       )}
-    </section>
+    </Panel>
   );
 }

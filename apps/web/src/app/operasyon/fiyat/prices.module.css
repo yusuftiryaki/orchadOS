@@ -1,12 +1,5 @@
-/* Prices screens (/operasyon/fiyat): status badges side by side, the price
-   inputs of a draft row. Tokens only. */
-
-.badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  align-items: center;
-}
+/* Prices screens (/operasyon/fiyat): the price inputs of a draft row. Tokens
+   only. */
 
 .priceInput {
   width: 100%;
@@ -14,12 +7,6 @@
   max-width: 12rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-
-.consequence {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-text-2);
 }
 
 /* Free text in a dense table: wide enough not to wrap word by word. */

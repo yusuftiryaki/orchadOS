@@ -11,6 +11,7 @@ import type { InventoryQueueItem } from "@/lib/expert/inventory";
 import type { QueueItem } from "@/lib/expert/review";
 import { ExpertHeader } from "./expert-nav";
 import styles from "./expert.module.css";
+import staff from "@/components/staff-page.module.css";
 import { SessionStatusBadge } from "./status";
 
 // Visits waiting for the expert, inventories waiting for approval, then the
@@ -28,7 +29,7 @@ export function VisitQueue({
 }) {
   const q = t.expert.queue;
   return (
-    <main className={`page ${styles.page}`}>
+    <main className={`page ${staff.page} ${styles.page}`}>
       <ExpertHeader current="queue" openQuestions={openQuestions} />
 
       <section className={styles.section} aria-labelledby="queue-title">
@@ -55,7 +56,7 @@ export function VisitQueue({
                 <th scope="col" className={cell.num}>
                   {q.columns.remaining}
                 </th>
-                <th scope="col" className={styles.srCell}>
+                <th scope="col">
                   <span className="sr-only">{q.columns.action}</span>
                 </th>
               </tr>
@@ -154,7 +155,7 @@ function InventoryQueue({ items }: { items: InventoryQueueItem[] }) {
               <th scope="col" className={cell.num}>
                 {e.queueColumns.openItems}
               </th>
-              <th scope="col" className={styles.srCell}>
+              <th scope="col">
                 <span className="sr-only">{t.expert.queue.columns.action}</span>
               </th>
             </tr>

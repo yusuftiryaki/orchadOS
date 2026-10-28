@@ -98,7 +98,7 @@ export function TourViewer({
         {t.panorama.keyboardHint}
       </p>
       {broken ? (
-        <p className={chrome.status} role="alert" data-testid="tour-unsupported">
+        <p className={chrome.error} role="alert" data-testid="tour-unsupported">
           {t.panorama.unsupported}
         </p>
       ) : (

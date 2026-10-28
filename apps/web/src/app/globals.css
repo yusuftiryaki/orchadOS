@@ -434,11 +434,22 @@ summary {
   transform: translateY(1px);
 }
 
-.button:disabled,
-.button[aria-disabled="true"] {
-  opacity: 0.55;
+/* Disabled reads as unavailable at a glance: a flat grey surface, muted text
+   (5.3:1 on surface-3, AA) and a plain border, for every variant. :is() keeps
+   it above the variants and their :hover. Quiet stays transparent. */
+.button:is(:disabled, [aria-disabled="true"]),
+.button:is(:disabled, [aria-disabled="true"]):hover {
+  background: var(--color-surface-3);
+  border-color: var(--color-border-strong);
+  color: var(--color-muted);
   cursor: not-allowed;
   transform: none;
+}
+
+.button-quiet:is(:disabled, [aria-disabled="true"]),
+.button-quiet:is(:disabled, [aria-disabled="true"]):hover {
+  background: transparent;
+  border-color: transparent;
 }
 
 .button-secondary {

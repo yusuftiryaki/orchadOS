@@ -7,6 +7,7 @@ import {
   withdrawApplicationAction,
   withdrawApplicationGardenAction,
 } from "@/app/portal/billing-actions";
+import { FactRow } from "@/components/portal-billing/fact-row";
 import { MemberBand } from "@/components/portal-billing/member-band";
 import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { PortalResult } from "@/components/portal-billing/result-notice";
@@ -16,8 +17,10 @@ import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { factsClass } from "@/components/ui/facts";
 import { Checkbox, Field, Select, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
+import { Panel, panelClass } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import { formatDonum, formatKurus } from "@/lib/billing/money";
 import { formatDate, formatDateTime } from "@/lib/i18n";
@@ -166,8 +169,7 @@ export default async function ApplicationPage({
         </Alert>
       )}
 
-      <section className={layout.section}>
-        <h2>{A.package}</h2>
+      <Panel title={A.package} plain>
         {draft && closed ? (
           <p data-testid="application-package">{pkg?.name ?? P.none}</p>
         ) : draft && member && !memberPackage ? (
@@ -175,7 +177,7 @@ export default async function ApplicationPage({
             {M.packageUnavailable}
           </Alert>
         ) : draft ? (
-          <form action={setPackageAction} className={`${layout.panel} ${s.form}`}>
+          <form action={setPackageAction} className={`${panelClass} ${s.form}`}>
             <input type="hidden" name="application_id" value={application.id} />
             {memberPackage && (
               <input type="hidden" name="package_id" value={memberPackage.packageId} />
@@ -224,13 +226,13 @@ export default async function ApplicationPage({
         ) : (
           <p data-testid="application-package">{pkg?.name ?? P.none}</p>
         )}
-      </section>
+      </Panel>
 
-      <section className={layout.section}>
-        <div className={layout.sectionHead}>
-          <h2>{A.gardens}</h2>
-          {canAddGarden && gardens.length > 0 && addGarden("secondary")}
-        </div>
+      <Panel
+        title={A.gardens}
+        plain
+        actions={canAddGarden && gardens.length > 0 && addGarden("secondary")}
+      >
         {gardens.length === 0 ? (
           <EmptyState
             title={A.noGardens.replace(/\.$/, "")}
@@ -240,7 +242,7 @@ export default async function ApplicationPage({
             <p>{A.gardensEmptyBody}</p>
           </EmptyState>
         ) : (
-          <div className={layout.panel}>
+          <div className={panelClass}>
             <ul className={layout.rows} data-testid="garden-table">
               {gardens.map((g) => {
                 const place = [g.village, g.district, g.province].filter(Boolean).join(", ");
@@ -311,7 +313,7 @@ export default async function ApplicationPage({
                             hint={A.withdrawGardenHint}
                           />
                           <div>
-                            <Button variant="secondary" size="sm" type="submit">
+                            <Button variant="danger" size="sm" type="submit">
                               {A.withdrawGarden}
                             </Button>
                           </div>
@@ -324,11 +326,10 @@ export default async function ApplicationPage({
             </ul>
           </div>
         )}
-      </section>
+      </Panel>
 
       {wantsPreview && (
-        <section className={layout.section} data-testid="price-preview">
-          <h2>{A.preview}</h2>
+        <Panel title={A.preview} plain testId="price-preview">
           {previewError === "addon_period_too_short" || previewError === "no_membership" ? (
             <Alert tone="info" testId="addon-too-short">
               {M.periodTooShort}
@@ -336,7 +337,7 @@ export default async function ApplicationPage({
           ) : previewError ? (
             <Alert tone="warning">{P.errors[previewError]}</Alert>
           ) : preview ? (
-            <div className={layout.panel}>
+            <div className={panelClass}>
               {preview.addon && (
                 <p data-testid="addon-preview">
                   {M.addonPreview(
@@ -347,35 +348,34 @@ export default async function ApplicationPage({
                   )}
                 </p>
               )}
-              <dl className={layout.facts}>
+              <dl className={factsClass.summary}>
                 {preview.lines.map((line) => (
-                  <PreviewLine
+                  <FactRow
                     key={line.lineNo}
                     label={`${active[line.lineNo - 1]?.name ?? A.line(line.lineNo)}, ${formatDonum(line.areaM2)}`}
-                    value={formatKurus(line.subtotalKurus)}
-                  />
+                  >
+                    {formatKurus(line.subtotalKurus)}
+                  </FactRow>
                 ))}
-                <dt>{A.subtotal}</dt>
-                <dd>{formatKurus(preview.subtotalKurus)}</dd>
-                <dt>{A.vat(vatPercent(preview.vatRateBp))}</dt>
-                <dd>{formatKurus(preview.vatKurus)}</dd>
-                <dt className={layout.factsTotal}>{A.total}</dt>
-                <dd className={layout.factsTotal} data-testid="preview-total">
+                <FactRow label={A.subtotal}>{formatKurus(preview.subtotalKurus)}</FactRow>
+                <FactRow label={A.vat(vatPercent(preview.vatRateBp))}>
+                  {formatKurus(preview.vatKurus)}
+                </FactRow>
+                <FactRow label={A.total} testId="preview-total" total>
                   {formatKurus(preview.totalKurus)}
-                </dd>
+                </FactRow>
               </dl>
               <p className={`${layout.muted} ${layout.small}`}>{A.previewNote}</p>
             </div>
           ) : (
             <p className={layout.muted}>{A.previewNone}</p>
           )}
-        </section>
+        </Panel>
       )}
 
       {quotes.length > 0 && (
-        <section className={layout.section}>
-          <h2>{A.quotes}</h2>
-          <div className={layout.panel}>
+        <Panel title={A.quotes} plain>
+          <div className={panelClass}>
             <ul className={layout.rows}>
               {quotes.map((q) => (
                 <li key={q.id}>
@@ -398,12 +398,11 @@ export default async function ApplicationPage({
               ))}
             </ul>
           </div>
-        </section>
+        </Panel>
       )}
 
       {!draft && (
-        <section className={layout.section}>
-          <h2>{A.timeline}</h2>
+        <Panel title={A.timeline} plain>
           <ol className={s.timeline} data-testid="application-timeline">
             {events.map((e, i) => (
               <li key={i}>
@@ -412,13 +411,13 @@ export default async function ApplicationPage({
               </li>
             ))}
           </ol>
-        </section>
+        </Panel>
       )}
 
       {open && (
-        <section className={layout.stack}>
+        <section className={s.form}>
           {draft && !closed && gardens.length > 0 && (
-            <form action={submitApplicationAction} className={layout.stack}>
+            <form action={submitApplicationAction} className={s.formTight}>
               <input type="hidden" name="application_id" value={application.id} />
               <p className={layout.small}>{A.submitHint}</p>
               <div className={layout.actions}>
@@ -428,10 +427,10 @@ export default async function ApplicationPage({
               </div>
             </form>
           )}
-          <form action={withdrawApplicationAction} className={layout.stack}>
+          <form action={withdrawApplicationAction} className={s.formTight}>
             <input type="hidden" name="application_id" value={application.id} />
             <div className={layout.actions}>
-              <Button variant="quiet" type="submit">
+              <Button variant="danger" type="submit">
                 {A.withdraw}
               </Button>
             </div>
@@ -440,14 +439,5 @@ export default async function ApplicationPage({
         </section>
       )}
     </main>
-  );
-}
-
-function PreviewLine({ label, value }: { label: string; value: string }) {
-  return (
-    <>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </>
   );
 }

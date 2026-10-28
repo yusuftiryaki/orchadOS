@@ -9,6 +9,7 @@ import { SessionStatusBadge } from "@/components/expert/status";
 import { InventorySummaryView } from "@/components/office/inventory-summary";
 import { BoundaryPointers } from "@/components/operations/boundary-pointers";
 import styles from "@/components/office/inventory.module.css";
+import staff from "@/components/staff-page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
@@ -80,7 +81,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
   );
   const coverageBlocked = !!coverage && !coverage.passed && !coverage.waivedAt;
   return (
-    <main className={styles.page}>
+    <main className={`${staff.wide} ${styles.page}`}>
       <PageHeader
         back={{ href: "/uzman", label: e.back }}
         title={e.title(ws.parcel.name)}

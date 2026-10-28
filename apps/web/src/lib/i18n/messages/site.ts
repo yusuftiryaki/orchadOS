@@ -10,7 +10,7 @@ export const siteText = {
     packages: "Paketler",
     faq: "SSS",
     contact: "İletişim",
-    login: "Giriş",
+    login: "Giriş yap",
     signup: "Kayıt ol",
     account: "Hesabım",
     logout: "Çıkış",
@@ -49,10 +49,10 @@ export const siteText = {
   landing: {
     title: "Bahçenize gitmeden, ağaç ağaç görün.",
     lead: "orchadOS, Antep fıstığı bahçeleri için bağımsız bir denetim hizmetidir. Saha ekibimiz bahçenizi 360° kamerayla sıra sıra tarar; bir ziraat mühendisi her ağacı değerlendirir ve raporu imzalar. Siz sonucu telefonunuzdan, fotoğrafıyla birlikte görürsünüz.",
-    ctaSignup: "Kayıt olun",
+    ctaSignup: "Kayıt ol",
     signupNote:
       "Hesap açmak ücretsizdir. Ödemeyi, ekibimizin alanı doğruladığı teklifi onaylayınca yaparsınız.",
-    ctaDemo: "Demoyu deneyin",
+    ctaDemo: "Demoyu dene",
     demoNote: "Hesap açmadan, örnek bahçelerde sahip portalını rehberli turla gezin.",
     ctaHow: "Nasıl çalışır?",
     ctaLogin: "Hesabınız varsa giriş yapın",
@@ -139,7 +139,7 @@ export const siteText = {
     closingTitle: "Önce bir örnek bahçeyi gezin",
     closingBody:
       "Demoda karneyi, sağlık haritasını, 360° gezintiyi ve ağaç karnesini sahibin gördüğü gibi görürsünüz. Hesap açmanız gerekmez.",
-    demoFoot: "Demoyu deneyin",
+    demoFoot: "Demoyu dene",
   },
   how: {
     title: "Nasıl çalışır?",
@@ -175,7 +175,7 @@ export const siteText = {
     closingTitle: "Bahçeniz için başvurun",
     closingBody:
       "Hesap açmak ücretsizdir. Ödemeyi, ekibimiz alanı doğrulayıp teklif gönderdikten sonra, teklifi onaylarsanız yaparsınız.",
-    ctaSignup: "Kayıt olun",
+    ctaSignup: "Kayıt ol",
     outOfScope: [
       "Bakım, ilaçlama, budama gibi bahçe işleri",
       "Hastalık teşhisi ve laboratuvar analizi",
@@ -193,8 +193,8 @@ export const siteText = {
     ctaTitle: "Paketinizi başvuruda seçersiniz",
     ctaBody:
       "Kayıt olduktan sonra bahçenizi haritada işaretler ve paketi seçersiniz. Kesin fiyat, ekibimiz alanı doğruladıktan sonra teklifte yazar.",
-    ctaSignup: "Kayıt olun",
-    ctaDemo: "Demoyu deneyin",
+    ctaSignup: "Kayıt ol",
+    ctaDemo: "Demoyu dene",
     model: [
       "Yıllık bedel: yıllık ziyaret sayısı × doğrulanan alan (dönüm) × paketin dönüm ve ziyaret başı birim fiyatı.",
       "Her bahçe için yıllık en az ücret uygulanır.",
@@ -313,7 +313,7 @@ export const siteText = {
       "Kendi hesabınızı açma özelliği yakında açılacak. Şimdilik kayıt için bizimle iletişime geçin.",
     closedContact: "İletişim bilgileri",
     haveAccount: "Hesabınız var mı?",
-    login: "Giriş yapın",
+    login: "Giriş yap",
     fullName: "Ad soyad",
     phone: "Cep telefonu",
     phoneHint: "05xx xxx xx xx biçiminde. Doğrulama kodu bu numaraya gelir.",
@@ -415,9 +415,9 @@ export const siteText = {
     noAccount: "Hesabınız yok mu?",
     signupBody:
       "Kayıt ücretsizdir. Hesap açtıktan sonra bahçenizi haritada işaretleyip başvurursunuz; ödemeyi teklifi onaylayınca yaparsınız.",
-    signup: "Kayıt olun",
+    signup: "Kayıt ol",
     demoBefore: "Önce görmek ister misiniz?",
-    tryDemo: "Örnek bir bahçede demoyu deneyin",
+    tryDemo: "Demoyu dene",
   },
 } as const;
 
