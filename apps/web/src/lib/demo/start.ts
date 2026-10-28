@@ -7,8 +7,10 @@ import type {
 } from "../../../../../supabase/functions/_shared/demo";
 
 // Calls the demo-start Edge Function (docs/demo-turu.md §7) from the /demo
-// server action. Only the Next server knows SIGNUP_PROXY_SECRET; with it the
-// function trusts client_ip. The answer carries a single-use token for the
+// server action. Only the Next server knows SIGNUP_PROXY_SECRET (or
+// DEMO_SIGNUP_PROXY_SECRET, which wins: the demo's own value while it shares
+// the test project, docs/demo-turu.md §15.1); with it the function trusts
+// client_ip. The answer carries a single-use token for the
 // visitor's browser (verifyOtp there, never on the server); it is not logged.
 
 export type DemoStartResult =
@@ -47,12 +49,17 @@ function isStartResponse(value: unknown): value is DemoStartResponse {
   );
 }
 
+// The same preference as demo-start's demoSecrets: DEMO_ first, empty is unset.
+export function demoProxySecret(): string | undefined {
+  return process.env.DEMO_SIGNUP_PROXY_SECRET || process.env.SIGNUP_PROXY_SECRET || undefined;
+}
+
 export async function requestDemoStart(input: {
   captchaToken: string | null;
   clientIp: string | null;
 }): Promise<DemoStartResult> {
   const { url, anonKey } = supabaseEnv();
-  const secret = process.env.SIGNUP_PROXY_SECRET;
+  const secret = demoProxySecret();
   const body = {
     action: "start",
     ...(input.clientIp ? { client_ip: input.clientIp } : {}),

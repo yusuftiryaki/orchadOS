@@ -1,16 +1,26 @@
 name: provision-demo
 
 # Sets up the hosted demo tour (IP13, docs/demo-turu.md §15, docs/deployment.md
-# › Demo turu) once: the Supabase project orchados-demo in the test project's
-# organization (Auth settings, Edge Function secrets, Vault entries) and the
-# Vercel project orchados-demo (build settings, Production variables). Running
-# it again is safe: projects are reused, random secrets are generated only when
-# one holder lacks them, and Vercel deploys only when something changed.
+# › Demo turu) on one of two hosts:
+#   host=test (default for now, docs/demo-turu.md §15.1): the test project
+#     hosts the demo; only demo-specific settings are added there (the demo
+#     origin in the Auth redirect list, ORCHADOS_DEMO_MODE and DEMO_* Edge
+#     secrets, Vault demo_cleanup_url). With the repository variable
+#     DEMO_HOST=test, deploy-db-demo and demo-data (project=demo) use the test
+#     project's secrets.
+#   host=separate: the Supabase project orchados-demo in the test project's
+#     organization (Auth settings, Edge Function secrets, Vault entries), once
+#     the organization allows a third project.
+# Both set up the Vercel project orchados-demo (build settings, Production
+# variables). Running it again is safe: projects are reused, random secrets
+# are generated only when one holder lacks them, and Vercel deploys only when
+# something changed.
 #
-# It does not push migrations or load demo data: after the DEMO_SUPABASE_*
-# secrets are set from the job summary, deploy-db-demo and demo-data
-# (project=demo) do that. Without TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY
-# the demo stays closed (ORCHADOS_DEMO_MODE is not set).
+# It does not push migrations or load demo data: deploy-db (host=test) or
+# deploy-db-demo (host=separate, after the DEMO_SUPABASE_* secrets are set from
+# the job summary) and demo-data (project=demo) do that. Without
+# TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY the demo stays closed
+# (ORCHADOS_DEMO_MODE is not set).
 #
 # The logic lives in scripts/provision-demo.sh, tested with mocked APIs by
 # scripts/test-provision-demo.sh (ci-scripts). Secret values never reach the
@@ -19,8 +29,13 @@ name: provision-demo
 on:
   workflow_dispatch:
     inputs:
+      host:
+        description: "test: the test project hosts the demo; separate: its own project orchados-demo"
+        type: choice
+        options: [test, separate]
+        default: test
       region:
-        description: "Supabase region of a new demo project"
+        description: "Supabase region of a new demo project (host=separate)"
         type: string
         default: eu-central-1
       dry_run:
@@ -60,9 +75,16 @@ jobs:
 
       - name: Provision
         env:
+          HOST: ${{ inputs.host }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-          DEMO_DB_PASSWORD: ${{ secrets.DEMO_SUPABASE_DB_PASSWORD }}
+          DEMO_DB_PASSWORD: ${{ inputs.host == 'separate' && secrets.DEMO_SUPABASE_DB_PASSWORD || '' }}
+          # host=test: the test project's public values (repository level) and
+          # the pilot's URL, which the script refuses as a host.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          PILOT_SUPABASE_URL: ${{ secrets.PILOT_SUPABASE_URL }}
+          DEMO_HOST_VAR: ${{ vars.DEMO_HOST }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_TEAM_ID: team_0Ga9zPSUlRt15QdLIDp2Jj6W
           TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}

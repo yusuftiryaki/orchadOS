@@ -1,23 +1,33 @@
 name: ci-scripts
 
-# The provision-demo script and workflow: shellcheck, actionlint and the tests
-# against mocked Supabase and Vercel APIs (no network, no secrets).
+# The demo provisioning scripts and workflows (provision-demo, the demo lock
+# check, the deploy and demo-data workflows that use them): shellcheck,
+# actionlint and the tests against mocked Supabase and Vercel APIs (no
+# network, no secrets).
 
 on:
   pull_request:
     paths:
       - "scripts/provision-demo.sh"
       - "scripts/test-provision-demo.sh"
+      - "scripts/demo-lock-check.sh"
       - "scripts/tests/**"
       - ".github/workflows/provision-demo.yml"
+      - ".github/workflows/deploy-db.yml"
+      - ".github/workflows/deploy-db-demo.yml"
+      - ".github/workflows/demo-data.yml"
       - ".github/workflows/ci-scripts.yml"
   push:
     branches: [main]
     paths:
       - "scripts/provision-demo.sh"
       - "scripts/test-provision-demo.sh"
+      - "scripts/demo-lock-check.sh"
       - "scripts/tests/**"
       - ".github/workflows/provision-demo.yml"
+      - ".github/workflows/deploy-db.yml"
+      - ".github/workflows/deploy-db-demo.yml"
+      - ".github/workflows/demo-data.yml"
       - ".github/workflows/ci-scripts.yml"
 
 concurrency:
@@ -35,12 +45,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: shellcheck
-        run: shellcheck scripts/provision-demo.sh scripts/test-provision-demo.sh
+        run: shellcheck scripts/provision-demo.sh scripts/test-provision-demo.sh scripts/demo-lock-check.sh
 
       - name: actionlint
         run: |
           bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
-          ./actionlint -color .github/workflows/provision-demo.yml .github/workflows/ci-scripts.yml
+          ./actionlint -color .github/workflows/provision-demo.yml .github/workflows/ci-scripts.yml \
+            .github/workflows/deploy-db.yml .github/workflows/deploy-db-demo.yml .github/workflows/demo-data.yml
 
       - name: Tests (mocked APIs)
         run: scripts/test-provision-demo.sh

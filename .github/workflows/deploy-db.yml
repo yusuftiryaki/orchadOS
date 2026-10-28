@@ -8,6 +8,10 @@ name: deploy-db
 # secrets (deployment branch rule: main only), and only from main. Missing
 # secrets fail the job; before the test project is set up, the repository
 # variable SUPABASE_TEST_PENDING=1 turns that into an explicit skip.
+#
+# While the test project hosts the public demo tour (repository variable
+# DEMO_HOST=test, docs/demo-turu.md §15.1), this is also the demo's deploy:
+# the last step checks the shared demo locks.
 
 on:
   push:
@@ -18,6 +22,7 @@ on:
       - "supabase/config.toml"
       - ".github/workflows/deploy-db.yml"
       - "scripts/demo-guard-check.sh"
+      - "scripts/demo-lock-check.sh"
   workflow_dispatch:
 
 concurrency:
@@ -95,3 +100,13 @@ jobs:
       - name: Deploy Edge Functions
         if: steps.guard.outputs.ready == 'true'
         run: pnpm exec supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api
+
+      # Shared demo host (DEMO_HOST=test): an enabled demo org is accepted here,
+      # with the secrets demo-start needs (DEMO_* or the shared names), Vault
+      # demo_cleanup_url and orchados_cron_secret, no billing switch on a demo
+      # org and no demo account outside it. The test site's own orgs, sign-up
+      # and fake payments are not locks here. Runs after the deploy, so a
+      # failing demo lock never holds back the test project's migrations.
+      - name: Check shared demo locks
+        if: ${{ !cancelled() && steps.guard.outputs.ready == 'true' && vars.DEMO_HOST == 'test' }}
+        run: scripts/demo-lock-check.sh shared
