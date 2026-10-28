@@ -150,6 +150,8 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
   await expect(page).toHaveURL(/\/portal\/siparis\/[0-9a-f-]{36}\?bilgi=teklif_kabul_edildi$/);
   await expect(page.getByTestId("order-status")).toHaveText("Ödeme bekleniyor");
   await expect(page.getByTestId("bank-reference")).toHaveText(/^S-\d{4}-\d{6}$/);
+  // T04: the order's filled pre-information and contract are stored.
+  await expect(page.getByTestId("order-contracts").locator("tbody tr")).toHaveCount(2);
 
   // 6. Card payment through the fake checkout.
   await page.getByTestId("pay-card").click();

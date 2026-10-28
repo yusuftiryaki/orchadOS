@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cancelOrderAction, reviseOrderAction } from "@/app/portal/billing-actions";
+import { ContractDocumentTable } from "@/components/contracts/document-list";
 import { OrderPay } from "@/components/portal-billing/order-pay";
 import { PaymentTable } from "@/components/portal-billing/payment-table";
 import { PortalResult } from "@/components/portal-billing/result-notice";
@@ -9,9 +10,15 @@ import ops from "@/components/operations/operations.module.css";
 import styles from "@/components/portal/portal.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { formatKurus } from "@/lib/billing/money";
+import {
+  customerDocuments,
+  requiredKinds,
+  tryEnsureOrderDocuments,
+} from "@/lib/contracts/generate";
 import { siteFlags } from "@/lib/flags";
 import { formatDate, formatDateTime } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
+import { contractsText as C } from "@/lib/i18n/messages/contracts";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import {
   getOrder,
@@ -26,7 +33,10 @@ import { createClient } from "@/lib/supabase/server";
 const O = P.order;
 
 // An order: totals, lines, and while it awaits payment the card button (only
-// with the payments flag), the bank transfer details and the cancel button.
+// with the payments flag), the bank transfer details and the cancel button;
+// its contract documents (T04), generated on the visit when missing (after
+// a failed generation at the acceptance, and the withdrawal confirmation
+// once the order is active).
 export default async function OrderPage({
   params,
   searchParams,
@@ -46,6 +56,17 @@ export default async function OrderPage({
   const currency = order.currency;
   const outstanding = outstandingKurus(order);
   const liveAttempt = awaiting ? liveCardAttempt(payments) : null;
+  const ownDocuments = async () =>
+    (await customerDocuments(supabase)).filter((d) => d.order_id === order.id);
+  let documents = order.quote_id ? await ownDocuments() : [];
+  const lacking = () =>
+    !!order.quote_id &&
+    requiredKinds(order.activated_at).some((k) => !documents.some((d) => d.kind === k));
+  if (lacking()) {
+    await tryEnsureOrderDocuments(supabase, "customer", order.id);
+    documents = await ownDocuments();
+  }
+  const preparing = lacking();
 
   return (
     <main className={styles.page} data-testid="order" data-status={order.status}>
@@ -157,6 +178,26 @@ export default async function OrderPage({
               {O.cancel}
             </button>
           </form>
+        </section>
+      )}
+
+      {order.quote_id && (
+        <section className={styles.section} data-testid="order-contracts">
+          <h2>{C.list.orderTitle}</h2>
+          {documents.length > 0 && (
+            <ContractDocumentTable
+              documents={documents}
+              hrefOf={(d) => `/portal/hesap/sozlesmeler/${d.id}`}
+            />
+          )}
+          {preparing && (
+            <p className={ops.notice} data-testid="contracts-preparing">
+              {C.list.preparing}
+            </p>
+          )}
+          <p>
+            <Link href="/portal/hesap/sozlesmeler">{C.list.orderLink}</Link>
+          </p>
         </section>
       )}
 

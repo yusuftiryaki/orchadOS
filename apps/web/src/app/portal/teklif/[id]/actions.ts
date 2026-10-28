@@ -3,13 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireSection } from "@/lib/auth/session";
+import { acceptanceConsents, displaySha256 } from "@/lib/contracts/display-hash";
+import { tryEnsureOrderDocuments } from "@/lib/contracts/generate";
+import { quoteContractInput } from "@/lib/contracts/load";
+import { distanceContractDocument, preInformationDocument } from "@/lib/contracts/render";
 import { EARLY_PERFORMANCE_VERSION } from "@/lib/legal/early-performance";
-import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { formReader } from "@/lib/operations/validation";
 import { parseNote } from "@/lib/portal-billing/validation";
 import { portalErrorOf, portalHref } from "@/lib/portal-billing/urls";
 import { isUuid } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/database.types";
 
 // Accepting and declining a quote (docs/musteri-yonetimi.md §4.6, "Sözleşme
 // belgeleri (T04)"; docs/hukuk/kararlar.md H11 (a), T03, T21). They run as the
@@ -17,8 +21,9 @@ import { createClient } from "@/lib/supabase/server";
 // registry and, where the production gate is active, refuses drafts.
 
 async function context() {
-  if ((await requireSection("portal")).demo) redirect(portalHref.home({ hata: "demo_read_only" }));
-  return createClient();
+  const user = await requireSection("portal");
+  if (user.demo) redirect(portalHref.home({ hata: "demo_read_only" }));
+  return { user, supabase: await createClient() };
 }
 
 function quoteIdOf(form: FormData): string {
@@ -26,36 +31,51 @@ function quoteIdOf(form: FormData): string {
   return isUuid(value) ? value : "";
 }
 
-// The versions shown on the page go in the string form, which every
-// database of this and the previous release takes; the database records the
-// registered template hash. The optional early-performance box (unchecked by
-// default) adds its own consent; without it the inventory and the visits wait
-// for the end of the withdrawal period.
+// The page showed the Ön Bilgilendirme Formu and the contract filled with
+// this quote; the action renders them again from the same reads and sends
+// their display hashes in the object form of p_consents ({version, sha256,
+// display_sha256}; docs/musteri-yonetimi.md §20.2). When the rendering
+// changed since the page was shown (the quote, the billing profile, the
+// company information or the day), nothing is accepted and the page is shown
+// again. The optional early-performance box (unchecked by default) adds its
+// own consent; without it the inventory and the visits wait for the end of
+// the withdrawal period. After the acceptance the order's documents are
+// rendered and stored (T04); a failure leaves the acceptance as it is and the
+// order page and Sözleşmelerim retry.
 export async function acceptQuoteAction(form: FormData) {
-  const supabase = await context();
+  const { user, supabase } = await context();
   const read = formReader(form);
   const quoteId = quoteIdOf(form);
   if (!quoteId) redirect(portalHref.home({ hata: "not_found" }));
   if (read("distance_sales") !== "on" || read("pre_information") !== "on") {
     redirect(portalHref.quote(quoteId, { hata: "onay_eksik" }));
   }
+  const input = await quoteContractInput(supabase, user.id, quoteId);
+  if (!input) redirect(portalHref.home({ hata: "not_found" }));
+  const pre = preInformationDocument(input);
+  const contract = distanceContractDocument(input);
+  if (
+    read("pre_information_display") !== displaySha256(pre) ||
+    read("distance_sales_display") !== displaySha256(contract)
+  ) {
+    redirect(`${portalHref.quote(quoteId)}?belge=degisti`);
+  }
   const { data, error } = await supabase.rpc("customer_accept_quote", {
     p_quote_id: quoteId,
-    p_consents: {
-      distance_sales: LEGAL_TEXT_VERSIONS.distance_sales,
-      pre_information: LEGAL_TEXT_VERSIONS.pre_information,
-      ...(read("early_performance") === "on"
-        ? { early_performance: EARLY_PERFORMANCE_VERSION }
-        : {}),
-    },
+    p_consents: acceptanceConsents(
+      pre,
+      contract,
+      read("early_performance") === "on" ? { version: EARLY_PERFORMANCE_VERSION } : null,
+    ) as unknown as Json,
   });
   if (error || !data) redirect(portalHref.quote(quoteId, { hata: portalErrorOf(error) }));
+  await tryEnsureOrderDocuments(supabase, "customer", data);
   revalidatePath("/portal", "layout");
   redirect(portalHref.order(data, { bilgi: "teklif_kabul_edildi" }));
 }
 
 export async function declineQuoteAction(form: FormData) {
-  const supabase = await context();
+  const { supabase } = await context();
   const read = formReader(form);
   const quoteId = quoteIdOf(form);
   if (!quoteId) redirect(portalHref.home({ hata: "not_found" }));
