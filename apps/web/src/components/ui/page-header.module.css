@@ -1,0 +1,59 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.text {
+  flex: 1 1 32ch;
+  min-width: 0;
+}
+
+.back {
+  display: inline-block;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+  text-decoration: none;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.title {
+  font-size: var(--text-2xl);
+  margin: 0;
+}
+
+.lead {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-2);
+  max-width: var(--measure);
+}
+
+.meta {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (min-width: 720px) {
+  .title {
+    font-size: var(--text-3xl);
+  }
+  :global([data-density="compact"]) .title {
+    font-size: var(--text-2xl);
+  }
+}

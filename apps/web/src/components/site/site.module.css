@@ -1,5 +1,6 @@
 /* Public site: header, footer, page sections and legal texts. Mobile first,
-   16px gutter; wider screens from 720px and 1024px. */
+   16px gutter; wider screens from 720px and 960px. The landing page has its
+   own module (app/(site)/landing.module.css). */
 
 .shell {
   min-height: 100vh;
@@ -34,54 +35,50 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgb(255 255 255 / 92%);
-  backdrop-filter: saturate(180%) blur(12px);
+  background: rgb(255 255 255 / 96%);
+  backdrop-filter: saturate(160%) blur(10px);
   border-bottom: 1px solid var(--color-border);
 }
 
 .headerInner {
   max-width: 1120px;
   margin: 0 auto;
-  padding: var(--space-2) var(--space-3);
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-areas:
-    "brand actions"
-    "nav nav";
+  min-height: 60px;
+  padding: 0 var(--space-3);
+  display: flex;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
+  gap: var(--space-3);
+  position: relative;
 }
 
 .brand {
-  grid-area: brand;
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: 800;
+  font-size: 18px;
   letter-spacing: -0.01em;
   text-decoration: none;
   color: var(--color-text);
+  margin-right: auto;
 }
 
 .brand:hover {
   color: var(--color-text);
+  text-decoration: none;
 }
 
+/* Page links: on the bar from 960px, in the menu below that. */
 .nav {
-  grid-area: nav;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px var(--space-1);
-  margin: 0 calc(-1 * var(--space-2));
+  display: none;
 }
 
 .navLink {
-  padding: 6px var(--space-2);
-  border-radius: var(--radius-pill);
+  padding: 8px 12px;
+  border-radius: var(--radius);
   text-decoration: none;
-  font-weight: 500;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: var(--text-sm);
   white-space: nowrap;
   color: var(--color-text-2);
 }
@@ -89,57 +86,154 @@
 .navLink:hover {
   background: var(--color-surface-2);
   color: var(--color-text);
+  text-decoration: none;
 }
 
 .actions {
-  grid-area: actions;
-  justify-self: end;
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
 
 .actionLink {
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 700;
+  font-size: var(--text-sm);
   text-decoration: none;
   white-space: nowrap;
-  padding: 6px var(--space-1);
+  padding: 8px var(--space-2);
 }
 
-/* Header links that do not fit next to the others on a phone (the demo link:
-   the landing page carries it there). */
+.actionLink:hover {
+  text-decoration: underline;
+}
+
+/* Header items that move into the phone menu. */
 .wideOnly {
   display: none;
 }
 
+.menuButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height-sm);
+  padding: 4px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.menuIcon,
+.menuIcon::before,
+.menuIcon::after {
+  display: block;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentcolor;
+}
+
+.menuIcon {
+  position: relative;
+}
+
+.menuIcon::before,
+.menuIcon::after {
+  content: "";
+  position: absolute;
+  left: 0;
+}
+
+.menuIcon::before {
+  top: -5px;
+}
+
+.menuIcon::after {
+  top: 5px;
+}
+
+.menuIcon[data-open] {
+  background: transparent;
+}
+
+.menuIcon[data-open]::before {
+  top: 0;
+  transform: rotate(45deg);
+}
+
+.menuIcon[data-open]::after {
+  top: 0;
+  transform: rotate(-45deg);
+}
+
+.menuPanel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+.menuLinks {
+  display: grid;
+}
+
+.menuLinks a {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.menuActions {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
 @media (min-width: 600px) {
   .wideOnly {
-    display: inline;
+    display: inline-flex;
   }
 }
 
-@media (min-width: 860px) {
+@media (min-width: 960px) {
   .headerInner {
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas: "brand nav actions";
     min-height: var(--header-height);
-    padding-top: 0;
-    padding-bottom: 0;
+    padding: 0 var(--space-4);
   }
   .nav {
-    margin: 0;
-    justify-content: center;
+    display: flex;
+    gap: 2px;
+    margin-right: auto;
+  }
+  .brand {
+    margin-right: var(--space-4);
+  }
+  .menuButton,
+  .menuPanel {
+    display: none;
   }
 }
 
 /* Footer ------------------------------------------------------------------- */
 
 .footer {
-  margin-top: var(--space-6);
+  margin-top: var(--space-7);
   border-top: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-surface-2);
   padding: var(--space-5) 0 var(--space-4);
+  font-size: var(--text-sm);
 }
 
 .footerInner {
@@ -147,23 +241,33 @@
   margin: 0 auto;
   padding: 0 var(--space-3);
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
+}
+
+.footerBrand {
+  grid-column: 1 / -1;
 }
 
 .footerBrand .brand {
   margin-bottom: var(--space-2);
 }
 
+.footerHeading {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin: 0 0 var(--space-2);
+}
+
 .footerLinks {
   display: grid;
-  gap: var(--space-1);
-  font-size: 14px;
   align-content: start;
 }
 
 .footerLinks a {
   color: var(--color-text-2);
   text-decoration: none;
+  padding: 6px 0;
 }
 
 .footerLinks a:hover {
@@ -182,65 +286,35 @@ p.footerSmall {
 
 .footerBrand p.footerSmall {
   margin-top: 0;
+  margin-bottom: 2px;
+  max-width: 60ch;
+}
+
+.footerNote {
+  max-width: 1120px;
+  margin: var(--space-4) auto 0;
+  padding: 0 var(--space-3);
 }
 
 @media (min-width: 720px) {
+  .footerNote {
+    padding: 0 var(--space-4);
+  }
   .footerInner {
     grid-template-columns: 2fr 1fr 1fr;
+    padding: 0 var(--space-4);
+  }
+  .footerBrand {
+    grid-column: auto;
   }
 }
 
 /* Sections ----------------------------------------------------------------- */
 
-.hero {
-  padding: var(--space-6) 0 var(--space-5);
-  background:
-    radial-gradient(900px 400px at 0% 100%, rgb(185 220 143 / 30%), transparent 60%),
-    linear-gradient(180deg, var(--color-surface) 0%, var(--color-bg) 100%);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.eyebrow {
-  color: var(--color-accent);
-  font-weight: 600;
-  font-size: var(--text-sm);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  margin-bottom: var(--space-2);
-}
-
-.heroTitle {
-  font-size: 30px;
-  line-height: 1.15;
-  max-width: 18ch;
-}
-
 .lead {
   font-size: var(--text-lg);
   color: var(--color-text-2);
   max-width: 62ch;
-}
-
-.ctaRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  margin-top: var(--space-4);
-}
-
-.ctaRow :global(.button) {
-  min-height: 44px;
-  font-size: 15px;
-}
-
-@media (min-width: 720px) {
-  .heroTitle {
-    font-size: 44px;
-  }
-  .hero {
-    padding: 72px 0 var(--space-6);
-  }
 }
 
 .section {
@@ -263,9 +337,6 @@ p.footerSmall {
 }
 
 @media (min-width: 1024px) {
-  .grid4 {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
   .grid3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

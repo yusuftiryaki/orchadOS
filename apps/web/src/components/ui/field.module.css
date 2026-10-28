@@ -1,0 +1,54 @@
+.field {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.label {
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.error {
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  font-weight: 600;
+  margin: 0;
+}
+
+.control :where(input, select, textarea) {
+  width: 100%;
+}
+
+.check {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 0;
+  align-items: start;
+}
+
+.check input {
+  margin-top: 3px;
+}
+
+.check .checkLabel {
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.check .hint,
+.check .error {
+  grid-column: 2;
+}
