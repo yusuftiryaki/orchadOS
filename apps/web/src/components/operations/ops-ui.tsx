@@ -243,7 +243,7 @@ export function Facts({
   );
 }
 
-// Two columns from 1024px: the record on the left, its actions on the right.
+// Two columns from 1280px: the record on the left, its actions on the right.
 export function Split({ children, aside }: { children: ReactNode; aside: ReactNode }) {
   return (
     <div className={styles.split}>

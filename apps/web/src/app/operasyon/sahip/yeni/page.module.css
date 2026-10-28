@@ -1,0 +1,4 @@
+/* The registration form at a readable width. */
+.form {
+  max-width: 52rem;
+}

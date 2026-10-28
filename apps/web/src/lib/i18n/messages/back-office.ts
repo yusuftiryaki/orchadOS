@@ -923,10 +923,8 @@ export const backOfficeText = {
     refundStatus: "Durum",
     refundAmount: "Tutar",
     refundsLink: "İadeler sayfasını aç",
-    completeConsequence: (date: string) =>
-      `Bugün (${date}) hizmetten çıkar. Geri alınamaz.`,
-    cancelConsequence:
-      "Bahçe hizmette kalır, erişim değişmez. Not zorunlu; müşteriye SMS gider.",
+    completeConsequence: (date: string) => `Bugün (${date}) hizmetten çıkar. Geri alınamaz.`,
+    cancelConsequence: "Bahçe hizmette kalır, erişim değişmez. Not zorunlu; müşteriye SMS gider.",
   },
   membership: {
     title: "Üyelik",
