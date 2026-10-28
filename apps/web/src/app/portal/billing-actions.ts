@@ -12,7 +12,12 @@ import { formValues, type FormState } from "@/lib/operations/form-state";
 import { formReader } from "@/lib/operations/validation";
 import { BILLING_COLUMNS } from "@/lib/billing/columns";
 import type { Payment } from "@/lib/billing/types";
-import { getBillingProfile, hasFallbackEmail, liveCardAttempt } from "@/lib/portal-billing/data";
+import {
+  getBillingProfile,
+  getServicePeriods,
+  hasFallbackEmail,
+  liveCardAttempt,
+} from "@/lib/portal-billing/data";
 import { paymentStartError, returnOriginOf, clientIpOf } from "@/lib/portal-billing/payments";
 import { portalHref, safeBackPath, type PortalError } from "@/lib/portal-billing/urls";
 import {
@@ -89,14 +94,32 @@ function failed(
 // Applications
 // ---------------------------------------------------------------------------
 
+// A member (IP14, docs/bahce-yonetimi.md §4.1) always gets the membership's
+// package, whatever the form says: the draft opens with it, and an older
+// draft with another package is corrected once.
 export async function createApplicationAction(form: FormData) {
   const supabase = await context();
-  const packageId = idOf(form, "package_id");
+  const { primary } = await getServicePeriods(supabase);
+  const packageId = primary?.package_id ?? idOf(form, "package_id");
   if (!packageId) redirect(portalHref.newApplication({ hata: "invalid_input" }));
   const { data, error } = await supabase.rpc("customer_create_application", {
     p_package_id: packageId,
   });
   if (error || !data) redirect(portalHref.newApplication({ hata: billingReasonOf(error) }));
+  if (primary) {
+    const { data: draft } = await supabase
+      .from("service_application")
+      .select("id, package_id, status")
+      .eq("id", data)
+      .maybeSingle();
+    if (draft?.status === "draft" && draft.package_id !== primary.package_id) {
+      const { error: setError } = await supabase.rpc("customer_set_application_package", {
+        p_application_id: data,
+        p_package_id: primary.package_id,
+      });
+      if (setError) redirect(portalHref.application(data, { hata: billingReasonOf(setError) }));
+    }
+  }
   revalidatePath("/portal", "layout");
   redirect(portalHref.application(data, { bilgi: "taslak_acildi" }));
 }
@@ -104,7 +127,9 @@ export async function createApplicationAction(form: FormData) {
 export async function setPackageAction(form: FormData) {
   const supabase = await context();
   const applicationId = idOf(form, "application_id");
-  const packageId = idOf(form, "package_id");
+  // A member's package is locked (IP14): only the note changes.
+  const { primary } = await getServicePeriods(supabase);
+  const packageId = primary?.package_id ?? idOf(form, "package_id");
   const note = parseNote(formReader(form)("customer_note"));
   if (!applicationId) redirect(portalHref.applications({ hata: "not_found" }));
   if (!packageId || note === "too_long") {
@@ -151,6 +176,24 @@ export async function removeGardenAction(form: FormData) {
   if (error) redirect(portalHref.application(applicationId, { hata: billingReasonOf(error) }));
   revalidatePath(portalHref.application(applicationId));
   redirect(portalHref.application(applicationId, { bilgi: "bahce_silindi" }));
+}
+
+// IP14 (§5.5): one garden leaves a submitted or quoted application; an open
+// quote is cancelled and ops quotes again.
+export async function withdrawApplicationGardenAction(form: FormData) {
+  const supabase = await context();
+  const applicationId = idOf(form, "application_id");
+  const gardenId = idOf(form, "garden_id");
+  if (!applicationId || !gardenId) redirect(portalHref.applications({ hata: "not_found" }));
+  if (formReader(form)("confirm") !== "on") {
+    redirect(portalHref.application(applicationId, { hata: "consent_required" }));
+  }
+  const { error } = await supabase.rpc("customer_withdraw_application_garden", {
+    p_garden_id: gardenId,
+  });
+  if (error) redirect(portalHref.application(applicationId, { hata: billingReasonOf(error) }));
+  revalidatePath("/portal", "layout");
+  redirect(portalHref.application(applicationId, { bilgi: "bahce_basvurudan_cikarildi" }));
 }
 
 export async function submitApplicationAction(form: FormData) {
@@ -294,6 +337,21 @@ export async function cancelOrderAction(form: FormData) {
   if (error) redirect(portalHref.order(orderId, { hata: billingReasonOf(error) }));
   revalidatePath("/portal", "layout");
   redirect(portalHref.order(orderId, { bilgi: "siparis_iptal_edildi" }));
+}
+
+// IP14 (§5.5): an order awaiting payment that came from an application is
+// cancelled and its application opens again for a new garden list.
+export async function reviseOrderAction(form: FormData) {
+  const supabase = await context();
+  const orderId = idOf(form, "order_id");
+  if (!orderId) redirect(portalHref.orders({ hata: "not_found" }));
+  if (formReader(form)("confirm") !== "on") {
+    redirect(portalHref.order(orderId, { hata: "consent_required" }));
+  }
+  const { data, error } = await supabase.rpc("customer_revise_order", { p_order_id: orderId });
+  if (error || !data) redirect(portalHref.order(orderId, { hata: billingReasonOf(error) }));
+  revalidatePath("/portal", "layout");
+  redirect(portalHref.application(data, { bilgi: "siparis_duzeltmeye_acildi" }));
 }
 
 // ---------------------------------------------------------------------------

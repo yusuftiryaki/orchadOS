@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cancelOrderAction } from "@/app/portal/billing-actions";
+import { cancelOrderAction, reviseOrderAction } from "@/app/portal/billing-actions";
 import { OrderPay } from "@/components/portal-billing/order-pay";
 import { PaymentTable } from "@/components/portal-billing/payment-table";
 import { PortalResult } from "@/components/portal-billing/result-notice";
@@ -57,6 +57,11 @@ export default async function OrderPage({
       </div>
       <PortalResult params={await searchParams} />
       {order.status === "active" && <p className={ops.notice}>{O.activeNote}</p>}
+      {order.addon_of_order_id && (
+        <p className={styles.notice} data-testid="order-addon">
+          {O.addonNote}
+        </p>
+      )}
 
       <section className={styles.section}>
         <dl className={ops.dl}>
@@ -120,6 +125,25 @@ export default async function OrderPage({
             instructions={instructions}
             liveAttemptId={liveAttempt?.id ?? null}
           />
+        </section>
+      )}
+
+      {awaiting && quote?.application_id && (
+        <section className={styles.section} data-testid="order-revise">
+          <h2>{O.reviseTitle}</h2>
+          <p className="muted">{O.reviseBody}</p>
+          <form action={reviseOrderAction} className={local.checks}>
+            <input type="hidden" name="order_id" value={order.id} />
+            <label>
+              <input type="checkbox" name="confirm" required />
+              <span>{O.reviseConfirm}</span>
+            </label>
+            <p>
+              <button className="button button-secondary" type="submit">
+                {O.revise}
+              </button>
+            </p>
+          </form>
         </section>
       )}
 

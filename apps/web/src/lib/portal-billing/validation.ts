@@ -1,3 +1,4 @@
+import { CUSTOMER_REMOVAL_REASONS } from "@/lib/billing/types";
 import type { Position } from "@/lib/map/geo";
 import { parseRing, validateRing, type RingError } from "@/lib/operations/geometry";
 import {
@@ -343,4 +344,47 @@ export function parseNote(input: string, max = 1000): string | null | "too_long"
   const v = input.trim();
   if (v === "") return null;
   return v.length > max ? "too_long" : v;
+}
+
+// --------------------------------------------------------------------------
+// Garden removal (IP14, docs/bahce-yonetimi.md §5.1)
+// --------------------------------------------------------------------------
+
+// The reasons a customer may give (transfer and duplicate are ops').
+export const REMOVAL_REASONS = CUSTOMER_REMOVAL_REASONS;
+export type RemovalReason = (typeof REMOVAL_REASONS)[number];
+
+// The customer picks exactly one timing: one radio, so the two database flags
+// (p_at_period_end, p_withdrawal) are never both set.
+export const REMOVAL_TIMINGS = ["notice", "period_end", "withdrawal"] as const;
+export type RemovalTimingChoice = (typeof REMOVAL_TIMINGS)[number];
+
+export interface RemovalForm {
+  reason: RemovalReason;
+  note: string | null;
+  atPeriodEnd: boolean;
+  withdrawal: boolean;
+}
+
+export function parseRemovalForm(
+  read: Read,
+  opts: { withdrawalOpen: boolean },
+): Parsed<RemovalForm> {
+  const errs = new Errors();
+  const reason = choice(errs, read, "reason", REMOVAL_REASONS, true);
+  const note = text(errs, read, "note", 1000);
+  const timing = choice(errs, read, "timing", REMOVAL_TIMINGS, true);
+  // The withdrawal option is offered only inside the withdrawal window.
+  if (timing === "withdrawal" && !opts.withdrawalOpen) errs.set("timing", "invalid");
+  if (read("confirm") !== "on") errs.set("confirm", "required");
+  if (errs.any || !reason || !timing) return { ok: false, errors: errs.errors };
+  return {
+    ok: true,
+    value: {
+      reason,
+      note,
+      atPeriodEnd: timing === "period_end",
+      withdrawal: timing === "withdrawal",
+    },
+  };
 }

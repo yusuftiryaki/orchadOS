@@ -1,20 +1,26 @@
 import Link from "next/link";
 import { createApplicationAction } from "@/app/portal/billing-actions";
+import { MemberBand } from "@/components/portal-billing/member-band";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import ops from "@/components/operations/operations.module.css";
 import styles from "@/components/portal/portal.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { formatKurus } from "@/lib/billing/money";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
-import { listApplications, listPackagePrices } from "@/lib/portal-billing/data";
+import { getServicePeriods, listApplications, listPackagePrices } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
+import { listPortalParcels } from "@/lib/portal/data";
 import { createClient } from "@/lib/supabase/server";
 
 const N = P.newApplication;
+const M = P.membership;
 
 // A new application draft: the package first (customer_create_application
-// returns the open draft if there is one).
+// returns the open draft if there is one). A member (IP14,
+// docs/bahce-yonetimi.md §4.1) adds gardens to the membership: the package is
+// the membership's, shown locked; if it is no longer offered, the team is
+// asked instead.
 export default async function NewApplicationPage({
   searchParams,
 }: {
@@ -22,36 +28,52 @@ export default async function NewApplicationPage({
 }) {
   const user = assertCustomer(await requireSection("portal"));
   const supabase = await createClient();
-  const [packages, applications] = await Promise.all([
+  const [packages, applications, { primary }] = await Promise.all([
     listPackagePrices(supabase),
     listApplications(supabase, user.id),
+    getServicePeriods(supabase),
   ]);
+  const parcels = primary ? await listPortalParcels(supabase) : [];
   const draft = applications.find((a) => a.status === "draft");
+  const memberPackage = primary
+    ? (packages.find((p) => p.packageId === primary.package_id) ?? null)
+    : null;
+  const shown = primary ? (memberPackage ? [memberPackage] : []) : packages;
   return (
     <main className={styles.page}>
-      <h1>{N.title}</h1>
+      <h1>{primary ? M.addTitle : N.title}</h1>
       <PortalResult params={await searchParams} />
-      <p>{N.lead}</p>
+      {primary && <MemberBand period={primary} parcels={parcels} />}
+      <p>{primary ? N.memberLead : N.lead}</p>
       {draft && (
         <p className={ops.notice}>
           {N.existingDraft}{" "}
           <Link href={portalHref.application(draft.id)}>{P.home.draftButton}</Link>
         </p>
       )}
-      {packages.length === 0 ? (
+      {primary && !memberPackage ? (
+        <p className={ops.notice} data-testid="addon-package-unavailable">
+          {M.packageUnavailable}
+        </p>
+      ) : shown.length === 0 ? (
         <p className={ops.notice}>{N.noPackages}</p>
       ) : (
         <form action={createApplicationAction} className={ops.form}>
+          {/* A disabled radio is not submitted: the locked package goes here. */}
+          {memberPackage && (
+            <input type="hidden" name="package_id" value={memberPackage.packageId} />
+          )}
           <fieldset className={ops.fieldset}>
             <legend>{N.package}</legend>
-            {packages.map((pkg, i) => (
+            {shown.map((pkg, i) => (
               <label key={pkg.packageId} className={ops.check}>
                 <input
                   type="radio"
-                  name="package_id"
+                  name={memberPackage ? "package_locked" : "package_id"}
                   value={pkg.packageId}
                   defaultChecked={i === 0}
-                  required
+                  disabled={!!memberPackage}
+                  required={!memberPackage}
                 />
                 <span>
                   <strong>{pkg.name}</strong>
@@ -66,10 +88,11 @@ export default async function NewApplicationPage({
                 </span>
               </label>
             ))}
+            {memberPackage && <p className="muted">{M.packageLocked}</p>}
           </fieldset>
           <div className={ops.actions}>
             <button className="button" type="submit">
-              {N.submit}
+              {primary ? N.memberSubmit : N.submit}
             </button>
             <Link href={portalHref.applications()}>{P.cancel}</Link>
           </div>

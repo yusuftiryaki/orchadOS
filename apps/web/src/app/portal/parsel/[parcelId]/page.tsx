@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { MapLayer } from "@/components/portal/health-map";
 import { ParcelReportView } from "@/components/portal/parcel-report";
+import { ServiceCard, type ServiceCardData } from "@/components/portal/service-card";
 import { requireSection } from "@/lib/auth/session";
 import { MARKER_ORDER, type MarkerState } from "@/lib/map/tree-style";
 import { DEMO_PDF_LIMIT } from "@/lib/pdf/serve";
@@ -8,6 +9,16 @@ import { loadBoundaryCard } from "@/lib/portal/boundary";
 import { getParcelReport } from "@/lib/portal/data";
 import { listThreads } from "@/lib/portal/questions";
 import { loadParcelViewers } from "@/lib/portal/viewers";
+import {
+  getParcelServiceStatus,
+  getServicePeriods,
+  listMyGardens,
+  pendingOrderOfParcel,
+  previewGardenRemoval,
+  type RemovalTiming,
+} from "@/lib/portal-billing/data";
+import { istanbulToday, removable } from "@/lib/portal-billing/gardens";
+import type { Client } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/server";
 
 // ?sinif=problem,dead opens the map filtered to those classes;
@@ -29,19 +40,28 @@ export default async function Page({
     degisen?: string | string[];
     katman?: string | string[];
     hata?: string | string[];
+    bilgi?: string | string[];
   }>;
 }) {
   const user = await requireSection("portal");
   const [{ parcelId }, query] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
-  const [report, boundaryCard, threads, viewers] = await Promise.all([
+  // IP14: a demo visitor has no service status and no customer reads.
+  const customer = user.roles.customer && !user.demo;
+  const [report, boundaryCard, threads, viewers, status, service] = await Promise.all([
     getParcelReport(supabase, parcelId),
     loadBoundaryCard(supabase, parcelId, user.id),
     listThreads(supabase, user.id, { parcelId }),
     loadParcelViewers(supabase, parcelId, user.id),
+    user.demo ? null : getParcelServiceStatus(supabase, parcelId),
+    customer ? loadServiceCard(supabase, user.id, parcelId) : null,
   ]);
   // Not visible under RLS looks the same as not existing.
   if (!report) notFound();
+  // A removed garden is read-only for everyone with access while its reports
+  // stay open (docs/bahce-yonetimi.md §5.4).
+  const removedUntil = status?.status === "removed" ? (status.access_until ?? null) : null;
+  const readOnly = status?.status === "removed";
 
   return (
     <ParcelReportView
@@ -59,12 +79,61 @@ export default async function Page({
         sent: first(query.soru) === "1",
         error: first(query.soru_hata) ?? null,
         demo: user.demo,
+        readOnly,
       }}
-      viewers={{ data: viewers, outcome: first(query.hissedar) }}
+      viewers={{ data: viewers, outcome: first(query.hissedar), readOnly }}
+      removedUntil={removedUntil}
+      serviceCard={
+        service ? (
+          <ServiceCard
+            data={service}
+            params={{ bilgi: first(query.bilgi), hata: first(query.hata) }}
+          />
+        ) : null
+      }
       demo={user.demo}
       pdfLimit={user.demo && first(query.hata) === DEMO_PDF_LIMIT}
     />
   );
+}
+
+// The paying owner's service card: their my_gardens row of the parcel and,
+// while it may be removed, one preview per timing (§5.1). Null for a
+// co-owner or a parcel without an order line (pilot).
+async function loadServiceCard(
+  supabase: Client,
+  userId: string,
+  parcelId: string,
+): Promise<ServiceCardData | null> {
+  const [gardens, { periods }] = await Promise.all([
+    listMyGardens(supabase),
+    getServicePeriods(supabase),
+  ]);
+  const garden = gardens.find((g) => g.parcel_id === parcelId);
+  if (!garden) return null;
+  const today = istanbulToday();
+  const changesEnabled = periods.some((p) => p.garden_changes_enabled);
+  const data: ServiceCardData = {
+    garden,
+    changesEnabled,
+    options: [],
+    previewError: null,
+    pendingOrderId: null,
+    today,
+  };
+  if (!changesEnabled || !removable(garden)) return data;
+  const timings: RemovalTiming[] = ["notice", "period_end"];
+  if (garden.withdrawal_until && garden.withdrawal_until >= today) timings.push("withdrawal");
+  const preview = await previewGardenRemoval(supabase, parcelId, timings);
+  if (preview.ok) {
+    data.options = preview.options;
+  } else {
+    data.previewError = preview.error;
+    if (preview.error === "parcel_order_pending") {
+      data.pendingOrderId = await pendingOrderOfParcel(supabase, userId, parcelId);
+    }
+  }
+  return data;
 }
 
 function first(value: string | string[] | undefined): string | undefined {

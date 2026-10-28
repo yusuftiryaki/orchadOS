@@ -1,6 +1,8 @@
 import { BILLING_COLUMNS } from "@/lib/billing/columns";
 import type {
   ApplicationGarden,
+  CustomerGarden,
+  ParcelServiceStatus,
   Payment,
   PaymentItem,
   Quote,
@@ -9,8 +11,11 @@ import type {
   ServiceApplication,
   ServiceOrder,
   ServiceOrderItem,
+  ServicePeriod,
 } from "@/lib/billing/types";
+import { billingReasonOf, type BillingError } from "@/lib/billing/errors";
 import type { Position } from "@/lib/map/geo";
+import type { RemovalTimingChoice } from "@/lib/portal-billing/validation";
 import { isUuid } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
 
@@ -65,6 +70,13 @@ export async function listPackagePrices(supabase: Client): Promise<PackagePrice[
 }
 
 export interface PricePreview {
+  // customer_addon_preview (IP14): the service the add-on lines would get.
+  addon?: {
+    serviceStart: string;
+    serviceEnd: string;
+    visitsPerYear: number;
+    visits: number;
+  };
   lines: {
     lineNo: number;
     areaM2: number;
@@ -94,6 +106,22 @@ export async function previewPrice(
     p_areas_m2: areasM2,
   });
   if (error || !data || data.length === 0) return null;
+  return previewOf(data);
+}
+
+type PreviewRow = {
+  line_no: number;
+  area_m2: number;
+  visit_amount_kurus: number;
+  inventory_fee_kurus: number;
+  line_subtotal_kurus: number;
+  line_vat_kurus: number;
+  line_total_kurus: number;
+  vat_rate_bp: number;
+  price_list_version: number;
+};
+
+function previewOf(data: PreviewRow[]): PricePreview {
   const lines = data.map((r) => ({
     lineNo: r.line_no,
     areaM2: Number(r.area_m2),
@@ -113,6 +141,161 @@ export async function previewPrice(
     vatRateBp: data[0].vat_rate_bp,
     priceListVersion: data[0].price_list_version,
   };
+}
+
+// The non-binding price of a member's added gardens (customer_addon_preview,
+// docs/bahce-yonetimi.md §4.1): prorated to the rest of the membership
+// period. No area yet: null; a refusal (addon_period_too_short, …) as its code.
+export async function previewAddonPrice(
+  supabase: Client,
+  areasM2: number[],
+): Promise<{ ok: true; preview: PricePreview | null } | { ok: false; error: BillingError }> {
+  if (areasM2.length === 0) return { ok: true, preview: null };
+  const { data, error } = await supabase.rpc("customer_addon_preview", { p_areas_m2: areasM2 });
+  if (error) return { ok: false, error: billingReasonOf(error) };
+  if (!data || data.length === 0) return { ok: true, preview: null };
+  const first = data[0];
+  return {
+    ok: true,
+    preview: {
+      ...previewOf(data),
+      addon: {
+        serviceStart: first.service_start,
+        serviceEnd: first.service_end,
+        visitsPerYear: first.periodic_visits_per_year,
+        visits: first.visits,
+      },
+    },
+  };
+}
+
+// --------------------------------------------------------------------------
+// Membership and gardens (IP14, docs/bahce-yonetimi.md §9.6)
+// --------------------------------------------------------------------------
+
+export interface ServicePeriods {
+  // Every current membership period, by its end (my_service_period).
+  periods: ServicePeriod[];
+  // The one the portal and add-ons use (is_primary); null: no membership.
+  primary: ServicePeriod | null;
+}
+
+// A user without a customer profile (a co-owner, a demo visitor) gets no rows.
+export async function getServicePeriods(supabase: Client): Promise<ServicePeriods> {
+  const periods = (check(await supabase.rpc("my_service_period")) ?? []) as ServicePeriod[];
+  return { periods, primary: periods.find((p) => p.is_primary) ?? null };
+}
+
+// One row per garden of the customer (my_gardens): in service, leaving,
+// starting next period, or removed with its reports still open.
+export async function listMyGardens(supabase: Client): Promise<CustomerGarden[]> {
+  return (check(await supabase.rpc("my_gardens")) ?? []) as CustomerGarden[];
+}
+
+// The service status of a parcel for anyone with access (owner, co-owner);
+// null when the function returns no row.
+export async function getParcelServiceStatus(
+  supabase: Client,
+  parcelId: string,
+): Promise<ParcelServiceStatus | null> {
+  if (!isUuid(parcelId)) return null;
+  const { data, error } = await supabase.rpc("parcel_service_status", { p_parcel_id: parcelId });
+  if (error) return null;
+  return (data?.[0] as ParcelServiceStatus | undefined) ?? null;
+}
+
+export type RemovalTiming = RemovalTimingChoice;
+
+export interface RemovalPreview {
+  timing: RemovalTiming;
+  effectiveOn: string;
+  accessUntil: string;
+  refundEstimateKurus: number;
+  withdrawalUntil: string | null;
+  visitsEntitled: number;
+  visitsUsed: number;
+}
+
+export const removalFlags = (timing: RemovalTiming) => ({
+  p_at_period_end: timing === "period_end",
+  p_withdrawal: timing === "withdrawal",
+});
+
+// One customer_garden_removal_preview call per timing option (§5.1); the
+// first refusal (parcel_order_pending, garden_removal_open, …) stops it.
+export async function previewGardenRemoval(
+  supabase: Client,
+  parcelId: string,
+  timings: readonly RemovalTiming[],
+): Promise<{ ok: true; options: RemovalPreview[] } | { ok: false; error: BillingError }> {
+  const results = await Promise.all(
+    timings.map((timing) =>
+      supabase.rpc("customer_garden_removal_preview", {
+        p_parcel_id: parcelId,
+        ...removalFlags(timing),
+      }),
+    ),
+  );
+  const options: RemovalPreview[] = [];
+  for (const [i, { data, error }] of results.entries()) {
+    // The withdrawal window may close between the read and the preview.
+    if (error && timings[i] === "withdrawal" && error.message === "withdrawal_expired") continue;
+    if (error) return { ok: false, error: billingReasonOf(error) };
+    const row = data?.[0];
+    if (!row) continue;
+    options.push({
+      timing: timings[i],
+      effectiveOn: row.effective_on,
+      accessUntil: row.access_until,
+      refundEstimateKurus: row.refund_estimate_kurus,
+      withdrawalUntil: row.withdrawal_until ?? null,
+      visitsEntitled: row.visits_entitled,
+      visitsUsed: row.visits_used,
+    });
+  }
+  return { ok: true, options };
+}
+
+// The customer's order awaiting payment that holds this parcel (the reason
+// of parcel_order_pending), for a link to it.
+export async function pendingOrderOfParcel(
+  supabase: Client,
+  userId: string,
+  parcelId: string,
+): Promise<string | null> {
+  const orders = check(
+    await supabase
+      .from("service_order")
+      .select("id")
+      .eq("customer_user_id", userId)
+      .eq("status", "awaiting_payment"),
+  ) as { id: string }[];
+  if (orders.length === 0) return null;
+  const items = check(
+    await supabase
+      .from("service_order_item")
+      .select("order_id")
+      .eq("parcel_id", parcelId)
+      .in(
+        "order_id",
+        orders.map((o) => o.id),
+      )
+      .limit(1),
+  ) as { order_id: string }[];
+  return items[0]?.order_id ?? orders[0].id;
+}
+
+// Parcels the user owns (parcel_access role owner): the pilot parcels without
+// an order line are told to contact us on the account page.
+export async function listOwnedParcelIds(supabase: Client, userId: string): Promise<string[]> {
+  const rows = check(
+    await supabase
+      .from("parcel_access")
+      .select("parcel_id")
+      .eq("user_id", userId)
+      .eq("role", "owner"),
+  ) as { parcel_id: string }[];
+  return rows.map((r) => r.parcel_id);
 }
 
 // --------------------------------------------------------------------------
@@ -283,7 +466,7 @@ export interface OrderView {
   order: ServiceOrder;
   items: ServiceOrderItem[];
   payments: Payment[];
-  quote: Pick<Quote, "id" | "number" | "package_name"> | null;
+  quote: Pick<Quote, "id" | "number" | "package_name" | "application_id"> | null;
 }
 
 export async function getOrder(
@@ -314,7 +497,7 @@ export async function getOrder(
       .order("created_at", { ascending: false }),
     supabase
       .from("quote")
-      .select("id, number, package_name")
+      .select("id, number, package_name, application_id")
       .eq("id", order.quote_id)
       .maybeSingle(),
   ]);
@@ -567,22 +750,29 @@ export interface CustomerSummary {
   awaitingOrders: ServiceOrder[];
   draft: ServiceApplication | null;
   openApplications: ServiceApplication[];
+  // IP14: the primary membership period (null: none) and the gardens.
+  servicePeriod: ServicePeriod | null;
+  gardens: CustomerGarden[];
 }
 
 export async function getCustomerSummary(
   supabase: Client,
   userId: string,
 ): Promise<CustomerSummary> {
-  const [applications, quotes, orders] = await Promise.all([
+  const [applications, quotes, orders, periods, gardens] = await Promise.all([
     listApplications(supabase, userId),
     listQuotes(supabase, userId),
     listOrders(supabase, userId),
+    getServicePeriods(supabase),
+    listMyGardens(supabase),
   ]);
   return {
     openQuotes: quotes.filter((q) => q.status === "issued"),
     awaitingOrders: orders.filter((o) => o.status === "awaiting_payment"),
     draft: applications.find((a) => a.status === "draft") ?? null,
     openApplications: applications.filter((a) => a.status === "submitted"),
+    servicePeriod: periods.primary,
+    gardens,
   };
 }
 

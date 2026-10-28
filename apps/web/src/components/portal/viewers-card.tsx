@@ -6,12 +6,14 @@ import {
 import { DemoNotice } from "@/components/demo/demo-notice";
 import { formatDate, t } from "@/lib/i18n";
 import { demoText } from "@/lib/i18n/messages/demo";
+import { portalBillingText } from "@/lib/i18n/messages/portal-billing";
 import type { ParcelViewers } from "@/lib/portal/viewers";
 import styles from "./portal.module.css";
 
 // Co-owners of the parcel, for its owner: viewers, open invitations and a
 // form to invite one (name + phone). Ops completes the invitation. A demo
-// visitor sees the list without buttons or form.
+// visitor sees the list without buttons or form. On a removed garden
+// (`readOnly`, IP14) no one can be invited; removing a viewer still works.
 
 const v = t.portal.viewers;
 
@@ -20,20 +22,24 @@ export function ViewersCard({
   viewers,
   outcome,
   demo = false,
+  readOnly = false,
 }: {
   parcelId: string;
   viewers: ParcelViewers;
   outcome?: string;
   demo?: boolean;
+  readOnly?: boolean;
 }) {
   const notice =
     outcome && outcome in v.notices ? v.notices[outcome as keyof typeof v.notices] : null;
   const error =
     outcome === "demo_read_only"
       ? demoText.closed.viewers
-      : outcome && outcome in v.errors
-        ? v.errors[outcome as keyof typeof v.errors]
-        : null;
+      : outcome === "parcel_read_only"
+        ? portalBillingText.removal.readOnlyViewers
+        : outcome && outcome in v.errors
+          ? v.errors[outcome as keyof typeof v.errors]
+          : null;
   return (
     <section
       id="hissedarlar"
@@ -88,6 +94,10 @@ export function ViewersCard({
       )}
       {demo ? (
         <DemoNotice text={demoText.closed.viewers} />
+      ) : readOnly ? (
+        <p className="muted" data-testid="viewers-read-only">
+          {portalBillingText.removal.readOnlyViewers}
+        </p>
       ) : (
         <form action={inviteViewerAction} className={styles.inviteForm} data-testid="invite-viewer">
           <input type="hidden" name="parcelId" value={parcelId} />

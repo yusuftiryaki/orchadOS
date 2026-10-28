@@ -5,7 +5,9 @@ import {
   setPackageAction,
   submitApplicationAction,
   withdrawApplicationAction,
+  withdrawApplicationGardenAction,
 } from "@/app/portal/billing-actions";
+import { MemberBand } from "@/components/portal-billing/member-band";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import local from "@/components/portal-billing/portal-billing.module.css";
 import ops from "@/components/operations/operations.module.css";
@@ -15,12 +17,22 @@ import { formatDonum, formatKurus } from "@/lib/billing/money";
 import { formatDate, formatDateTime } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
-import { getApplication, listPackagePrices, previewPrice } from "@/lib/portal-billing/data";
+import {
+  getApplication,
+  getServicePeriods,
+  listPackagePrices,
+  previewAddonPrice,
+  previewPrice,
+  type PricePreview,
+} from "@/lib/portal-billing/data";
+import type { BillingError } from "@/lib/billing/errors";
+import { listPortalParcels } from "@/lib/portal/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
 
 const A = P.application;
+const M = P.membership;
 const MAX_GARDENS = 10;
 
 const vatPercent = (bp: number) => String(bp / 100).replace(".", ",");
@@ -35,23 +47,41 @@ export default async function ApplicationPage({
   const user = assertCustomer(await requireSection("portal"));
   const { id } = await params;
   const supabase = await createClient();
-  const [view, packages] = await Promise.all([
+  const [view, packages, { primary }] = await Promise.all([
     getApplication(supabase, user.id, id),
     listPackagePrices(supabase),
+    getServicePeriods(supabase),
   ]);
   if (!view) notFound();
   const { application, gardens, quotes } = view;
   const draft = application.status === "draft";
   const open = ["draft", "submitted", "quoted"].includes(application.status);
-  const pkg = packages.find((p) => p.packageId === application.package_id) ?? null;
-  const preview =
-    draft || application.status === "submitted"
-      ? await previewPrice(
-          supabase,
-          application.package_id,
-          gardens.map((g) => Number(g.declared_area_m2)),
-        )
-      : null;
+  // IP14: a withdrawn garden stays on the application, muted (§5.5).
+  const active = gardens.filter((g) => !g.withdrawn_at);
+  const canWithdrawGarden =
+    (application.status === "submitted" || application.status === "quoted") && active.length >= 2;
+  // A member's open application adds gardens to the membership: the
+  // membership's package, locked, and the prorated add-on preview (§4.1).
+  const member = open ? primary : null;
+  const memberPackage = member
+    ? (packages.find((p) => p.packageId === member.package_id) ?? null)
+    : null;
+  const pkg =
+    (draft && memberPackage) ||
+    (packages.find((p) => p.packageId === application.package_id) ?? null);
+  const parcels = member ? await listPortalParcels(supabase) : [];
+  const areas = active.map((g) => Number(g.declared_area_m2));
+  let preview: PricePreview | null = null;
+  let previewError: BillingError | null = null;
+  if (draft || application.status === "submitted") {
+    if (member) {
+      const result = await previewAddonPrice(supabase, areas);
+      if (result.ok) preview = result.preview;
+      else previewError = result.error;
+    } else {
+      preview = await previewPrice(supabase, application.package_id, areas);
+    }
+  }
 
   const events: { at: string; text: string }[] = [
     { at: application.created_at, text: A.events.created },
@@ -93,9 +123,15 @@ export default async function ApplicationPage({
         </p>
       )}
 
+      {member && <MemberBand period={member} parcels={parcels} />}
+
       <section className={styles.section}>
         <h2>{A.package}</h2>
-        {draft ? (
+        {draft && member && !memberPackage ? (
+          <p className={ops.notice} data-testid="addon-package-unavailable">
+            {M.packageUnavailable}
+          </p>
+        ) : draft ? (
           <form action={setPackageAction} className={ops.form}>
             <input type="hidden" name="application_id" value={application.id} />
             <div className={ops.grid}>
@@ -103,18 +139,24 @@ export default async function ApplicationPage({
                 <label className={ops.label} htmlFor="f-package_id">
                   {A.package}
                 </label>
+                {memberPackage && (
+                  <input type="hidden" name="package_id" value={memberPackage.packageId} />
+                )}
                 <select
                   id="f-package_id"
-                  name="package_id"
-                  defaultValue={application.package_id ?? ""}
+                  name={memberPackage ? "package_locked" : "package_id"}
+                  defaultValue={memberPackage?.packageId ?? application.package_id ?? ""}
+                  disabled={!!memberPackage}
+                  data-testid="package-select"
                   required
                 >
-                  {packages.map((p) => (
+                  {(memberPackage ? [memberPackage] : packages).map((p) => (
                     <option key={p.packageId} value={p.packageId}>
                       {`${p.name} · ${P.newApplication.visits(p.periodicVisitsPerYear)}`}
                     </option>
                   ))}
                 </select>
+                {memberPackage && <span className={ops.hint}>{M.packageLocked}</span>}
               </div>
               <div className={`${ops.field} ${ops.wide}`}>
                 <label className={ops.label} htmlFor="f-customer_note">
@@ -132,7 +174,7 @@ export default async function ApplicationPage({
             </div>
             <div className={ops.actions}>
               <button className="button button-secondary" type="submit">
-                {A.changePackage}
+                {memberPackage ? P.save : A.changePackage}
               </button>
             </div>
           </form>
@@ -166,8 +208,23 @@ export default async function ApplicationPage({
               </thead>
               <tbody>
                 {gardens.map((g) => (
-                  <tr key={g.id} data-garden-id={g.id}>
-                    <td>{g.name}</td>
+                  <tr
+                    key={g.id}
+                    data-garden-id={g.id}
+                    data-withdrawn={g.withdrawn_at ? "1" : undefined}
+                    className={g.withdrawn_at ? local.withdrawn : undefined}
+                  >
+                    <td>
+                      {g.name}
+                      {g.withdrawn_at && (
+                        <>
+                          <br />
+                          <span className={local.state} data-state="removed">
+                            {A.withdrawn}
+                          </span>
+                        </>
+                      )}
+                    </td>
                     <td>
                       {[g.village, g.district, g.province].filter(Boolean).join(", ") || P.none}
                       <br />
@@ -194,6 +251,23 @@ export default async function ApplicationPage({
                           </form>
                         </span>
                       )}
+                      {canWithdrawGarden && !g.withdrawn_at && (
+                        <details data-testid="withdraw-garden">
+                          <summary>{A.withdrawGarden}</summary>
+                          <form action={withdrawApplicationGardenAction} className={local.checks}>
+                            <input type="hidden" name="application_id" value={application.id} />
+                            <input type="hidden" name="garden_id" value={g.id} />
+                            <label>
+                              <input type="checkbox" name="confirm" required />
+                              <span>{A.withdrawGardenConfirm}</span>
+                            </label>
+                            <span className="muted">{A.withdrawGardenHint}</span>
+                            <button className="button button-secondary" type="submit">
+                              {A.withdrawGarden}
+                            </button>
+                          </form>
+                        </details>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -206,12 +280,28 @@ export default async function ApplicationPage({
       {(draft || application.status === "submitted") && (
         <section className={styles.section} data-testid="price-preview">
           <h2>{A.preview}</h2>
-          {preview ? (
+          {previewError === "addon_period_too_short" || previewError === "no_membership" ? (
+            <p className={ops.notice} data-testid="addon-too-short">
+              {M.periodTooShort}
+            </p>
+          ) : previewError ? (
+            <p className="muted">{P.errors[previewError]}</p>
+          ) : preview ? (
             <>
+              {preview.addon && (
+                <p data-testid="addon-preview">
+                  {M.addonPreview(
+                    formatDate(preview.addon.serviceStart),
+                    formatDate(preview.addon.serviceEnd),
+                    preview.addon.visits,
+                    preview.addon.visitsPerYear,
+                  )}
+                </p>
+              )}
               <dl className={local.totals}>
                 {preview.lines.map((line) => (
                   <div key={line.lineNo} style={{ display: "contents" }}>
-                    <dt>{`${gardens[line.lineNo - 1]?.name ?? A.line(line.lineNo)} · ${formatDonum(line.areaM2)}`}</dt>
+                    <dt>{`${active[line.lineNo - 1]?.name ?? A.line(line.lineNo)} · ${formatDonum(line.areaM2)}`}</dt>
                     <dd>{formatKurus(line.subtotalKurus)}</dd>
                   </div>
                 ))}
