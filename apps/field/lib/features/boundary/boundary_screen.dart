@@ -8,6 +8,7 @@ import '../../core/time/gps_time.dart';
 import '../../core/ui/widgets.dart';
 import '../camera/photo_capture.dart';
 import '../map/vector_map.dart';
+import '../notice/field_records.dart';
 import '../notice/notice_widgets.dart';
 import '../session/session_controller.dart';
 import 'boundary_corners.dart';
@@ -326,6 +327,7 @@ class _CornerScreenState extends ConsumerState<CornerScreen> {
         .boundary
         .corners
         .indexWhere((c) => c.eventId == widget.eventId);
+    final noteError = textError(_note.text, maxLength: maxNoteLength);
     return Scaffold(
       appBar: AppBar(title: Text('Köşe ${index + 1}')),
       body: SingleChildScrollView(
@@ -394,9 +396,15 @@ class _CornerScreenState extends ConsumerState<CornerScreen> {
               key: const Key('corner-note'),
               controller: _note,
               maxLines: 3,
-              decoration: const InputDecoration(
+              maxLength: maxNoteLength,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
                 labelText: 'Not (isteğe bağlı)',
-                border: OutlineInputBorder(),
+                helperText: noteHint,
+                helperMaxLines: 3,
+                errorText: noteError,
+                errorMaxLines: 3,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 24),
@@ -405,7 +413,8 @@ class _CornerScreenState extends ConsumerState<CornerScreen> {
               icon: Icons.save,
               label: 'Kaydet',
               busy: _saving,
-              onPressed: _save,
+              // The note goes to session_event: no phone numbers.
+              onPressed: noteError == null ? _save : null,
             ),
           ],
         ),

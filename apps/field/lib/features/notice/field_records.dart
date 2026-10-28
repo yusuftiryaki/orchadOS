@@ -42,12 +42,32 @@ const noteHint =
     'Telefon numarası ve başka kişilerin adını yazmayın. Kişiyi rolüyle '
     'anın (ör. bekçi, komşu).';
 
-/// Seven or more digits, possibly split by spaces, dots, dashes or brackets:
-/// looks like a phone number.
-final _phoneLike = RegExp(r'(?:\+?\d[\s\-().]*){7,}');
+/// A date (28.10.2026, 28/10/26, 2026-10-28) or a clock time (09:30, 08.30),
+/// optionally a time range (08.30-10.15). Not next to another digit group, so
+/// the tail of a dotted phone number is not taken for a time.
+final _dateOrTime = RegExp(
+  r'(?<![\d][.,/_\-]?)'
+  r'(?:'
+  r'\d{4}-\d{1,2}-\d{1,2}'
+  r'|\d{1,2}[./-]\d{1,2}[./-](?:\d{4}|\d{2})'
+  r'|(?:[01]?\d|2[0-3])[:.][0-5]\d(?:\s*[-–]\s*(?:[01]?\d|2[0-3])[:.][0-5]\d)?'
+  r')'
+  r'(?![.,/_\-]?\d)',
+);
 
-/// The text seems to contain a phone number.
-bool containsPhoneNumber(String text) => _phoneLike.hasMatch(text);
+/// Digits joined only by spaces or punctuation: one number as written.
+final _digitRun = RegExp(r'\+?\d(?:[\s.,/_\-()+:]*\d)*');
+
+/// Digits in a number that look like a phone number: Turkish mobile and
+/// landline numbers have ten digits without the leading 0.
+const _phoneDigits = 10;
+
+/// The text seems to contain a phone number: after dates and clock times are
+/// taken out, some run of digits separated only by spaces or punctuation
+/// (space . , / _ - ( ) + :) has ten or more digits.
+bool containsPhoneNumber(String text) => _digitRun
+    .allMatches(text.replaceAll(_dateOrTime, ' x '))
+    .any((m) => m[0]!.replaceAll(RegExp(r'\D'), '').length >= _phoneDigits);
 
 /// Error for a free-text field in Turkish, or null when it is fine. Empty
 /// text is fine unless [required].

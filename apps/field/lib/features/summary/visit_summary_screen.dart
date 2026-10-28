@@ -131,6 +131,11 @@ class VisitSummaryScreen extends ConsumerWidget {
     final verbalNotice = ref.watch(
       sessionControllerProvider.select((s) => s.verbalNotice),
     );
+    // An inventory records who showed the boundary (H07, T16).
+    final needsPointer =
+        (task?.isInventory ?? false) &&
+        ref.watch(sessionControllerProvider.select((s) => s.pointerName)) ==
+            null;
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -252,6 +257,10 @@ class VisitSummaryScreen extends ConsumerWidget {
                   ),
                 ),
               const VerbalNoticeCard(),
+              if ((task?.isInventory ?? false) && sessionId != null) ...[
+                const SizedBox(height: 8),
+                const BoundaryPointerCard(),
+              ],
               if (sessionId != null) ...[
                 const SizedBox(height: 8),
                 SyncStatusCard(sessionId: sessionId),
@@ -267,8 +276,10 @@ class VisitSummaryScreen extends ConsumerWidget {
                 key: const Key('summary-finish'),
                 icon: Icons.done_all,
                 label: 'Ziyareti bitir',
-                // The oral notice answer is recorded first (H01, T07).
-                onPressed: verbalNotice == null && sessionId != null
+                // The oral notice answer (H01, T07) and, on an inventory,
+                // the boundary pointer (H07, T16) are recorded first.
+                onPressed:
+                    sessionId != null && (verbalNotice == null || needsPointer)
                     ? null
                     : () async {
                         await ref

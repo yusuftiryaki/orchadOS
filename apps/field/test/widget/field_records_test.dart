@@ -6,11 +6,15 @@ import 'package:orchados_field/app/providers.dart';
 import 'package:orchados_field/core/db/outbox.dart';
 import 'package:orchados_field/core/media/synthetic_photo.dart';
 import 'package:orchados_field/features/boundary/boundary_screen.dart';
+import 'package:orchados_field/features/checklist/precheck_screen.dart';
+import 'package:orchados_field/features/gnss/fake_gnss_logger.dart';
 import 'package:orchados_field/features/gnss/protocol/gnss_command.dart';
 import 'package:orchados_field/features/notice/field_records.dart';
 import 'package:orchados_field/features/notice/notice_widgets.dart';
 import 'package:orchados_field/features/session/session_controller.dart';
 import 'package:orchados_field/features/session/session_screen.dart';
+import 'package:orchados_field/features/summary/visit_log.dart';
+import 'package:orchados_field/features/summary/visit_summary_screen.dart';
 import 'package:orchados_field/features/tasks/field_task.dart';
 import 'package:orchados_field/features/tasks/task_repository.dart';
 import 'package:orchados_field/features/tasks/today_screen.dart';
@@ -273,6 +277,116 @@ void main() {
       [for (final e in queued) e.entityType],
       [OutboxEntity.capture, OutboxEntity.sessionEvent],
     );
+
+    // The obstacle is gone the same day (H15): the visit can still be
+    // scanned through the pre-check and the controller's start.
+    await tester.tap(find.byKey(const Key('task-v-1')));
+    await tester.pumpAndSettle();
+    expect(find.byType(PrecheckScreen), findsOneWidget);
+    await tapVisible(tester, find.byKey(const Key('gnss-connect')));
+    await settle(tester);
+    h.logger.status = FakeGnssLogger.healthyStatus;
+    await tapVisible(tester, find.byKey(const Key('check-lens')));
+    await tapVisible(tester, find.byKey(const Key('check-camera')));
+    await tapVisible(tester, find.byKey(const Key('check-platform-walk')));
+    await tester.enterText(
+      find.byKey(const Key('check-camera-height')),
+      '1,85',
+    );
+    await tapVisible(tester, find.byKey(const Key('check-spraying-none')));
+    await tapVisible(tester, find.byKey(const Key('check-notice-sign-yes')));
+    await tapVisible(tester, find.byKey(const Key('check-notice-badge-yes')));
+    await tester.pump();
+    await tapVisible(tester, find.byKey(const Key('precheck-continue')));
+    await tester.pumpAndSettle();
+    expect(find.byType(SessionScreen), findsOneWidget);
+    await tapVisible(tester, find.byKey(const Key('session-start')));
+    await settle(tester);
+    final state = h.container.read(sessionControllerProvider);
+    expect(state.phase, SessionPhase.recording, reason: '${state.error}');
+    expect(state.sessionId, 'v-1');
+    final started = (await tester.runAsync(() => repo.session('v-1')))!;
+    expect(started.status, 'recording');
+    final types = [
+      for (final e in (await tester.runAsync(() => repo.events('v-1')))!)
+        e.eventType,
+    ];
+    expect(types, containsAll(['visit_blocked', 'session_start']));
+    expect(types.where((t) => t == 'visit_blocked'), hasLength(1));
+    // Back on the task list the visit counts as recorded, not blocked.
+    tester
+        .state<NavigatorState>(find.byType(Navigator))
+        .popUntil((r) => r.isFirst);
+    await settle(tester);
+    await tester.pumpAndSettle();
+    expect(find.byType(TodayScreen), findsOneWidget);
+    expect(find.byKey(const Key('task-blocked')), findsNothing);
+    expect(find.text('Tamamlandı'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('task-v-1')),
+        matching: find.byIcon(Icons.check_circle),
+      ),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 5));
+    await h.dispose(tester);
+  });
+
+  testWidgets('summary: an inventory needs the boundary pointer to finish', (
+    tester,
+  ) async {
+    final h = await recording(tester);
+    await tester.pumpWidget(h.wrap(const VisitSummaryScreen()));
+    await settle(tester);
+    FilledButton finish() => tester.widget<FilledButton>(
+      find.descendant(
+        of: find.byKey(const Key('summary-finish')),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    await tapVisible(tester, find.byKey(const Key('verbal-notice-nobody')));
+    await tester.pump();
+    await tapVisible(tester, find.byKey(const Key('verbal-notice-save')));
+    await settle(tester);
+    expect(finish().onPressed, isNull, reason: 'no boundary pointer yet');
+
+    await tester.enterText(
+      find.byKey(const Key('boundary-pointer-name')),
+      'Ayşe Kaya',
+    );
+    await tapVisible(
+      tester,
+      find.byKey(const Key('boundary-pointer-role-owner')),
+    );
+    await tester.pump();
+    await tapVisible(tester, find.byKey(const Key('boundary-pointer-save')));
+    await settle(tester);
+    expect(finish().onPressed, isNotNull);
+    expect(await payloads(tester, h, 'boundary_pointer'), [
+      {'name': 'Ayşe Kaya', 'role': 'owner'},
+    ]);
+    await tester.pump(const Duration(seconds: 5));
+    await h.dispose(tester);
+  });
+
+  testWidgets('corner note and visit log refuse phone numbers', (tester) async {
+    final h = await recording(tester);
+    await tester.pumpWidget(h.wrap(const VisitLogScreen()));
+    await settle(tester);
+    FilledButton logSave() =>
+        tester.widget<FilledButton>(find.byKey(const Key('visit-log-save')));
+    expect(find.text(noteHint), findsOneWidget);
+    final issues = find.byKey(const Key('visit-log-issues'));
+    await tester.enterText(issues, 'Bekçi 0532/123/45/67 aradı');
+    await tester.pump();
+    expect(find.text('Telefon numarası yazmayın'), findsOneWidget);
+    expect(logSave().onPressed, isNull);
+    await tester.enterText(issues, '28.10.2026 09:30 yağmur başladı');
+    await tester.pump();
+    expect(find.text('Telefon numarası yazmayın'), findsNothing);
+    expect(logSave().onPressed, isNotNull);
+    await tester.pump(const Duration(seconds: 5));
     await h.dispose(tester);
   });
 }

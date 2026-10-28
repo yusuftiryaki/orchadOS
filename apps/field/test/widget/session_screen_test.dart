@@ -305,6 +305,13 @@ void main() {
         'spraying': 'waiting_period_passed',
         'platform': 'walk',
         'camera_height_m': 1.85,
+        // The sign and badge answers ride along, in case the app dies
+        // before field_notice_sign is written.
+        'notice': {
+          'sign': false,
+          'badge': true,
+          'reason': 'Levha ikinci araçta kaldı',
+        },
       },
     });
     final row = (await tester.runAsync(() => repo.session(sessionId)))!;
@@ -479,6 +486,7 @@ void main() {
       'spraying': 'none',
       'platform': 'walk',
       'camera_height_m': 0.5,
+      'notice': {'sign': true, 'badge': true},
     });
     await tester.pump(const Duration(seconds: 5));
     await h.dispose(tester);

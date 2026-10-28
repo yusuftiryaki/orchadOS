@@ -26,6 +26,11 @@ void main() {
         '+90 (532) 123-4567',
         'bekçi 05321234567 aradı',
         '532.123.45.67',
+        '0532/123/45/67',
+        '0532,123,4567',
+        '0532_1234_567',
+        '0532.123.10.15',
+        '28.10.2026 0532 123 45 67',
       ]) {
         expect(containsPhoneNumber(t), isTrue, reason: t);
         expect(
@@ -33,7 +38,15 @@ void main() {
           'Telefon numarası yazmayın',
         );
       }
-      for (final t in ['Kapı kilitli, 2 kez çaldık', 'S3-12 civarı', '']) {
+      for (final t in [
+        'Kapı kilitli, 2 kez çaldık',
+        'S3-12 civarı',
+        '',
+        '28.10.2026 09:30 kapı kilitli',
+        'Saat 08.30-10.15 arası',
+        '2026-10-28 sabah',
+        '28/10/26 saat 7:05.',
+      ]) {
         expect(containsPhoneNumber(t), isFalse, reason: t);
       }
       expect(textError('  ', maxLength: 10, required: true), 'Bu alan gerekli');

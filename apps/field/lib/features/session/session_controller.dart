@@ -489,12 +489,16 @@ class SessionController extends Notifier<SessionState> {
     );
     final spraying = _spraying;
     final setup = _setup;
+    final notice = _notice;
     final precheck = {
       if (spraying != null) 'spraying': spraying.code,
       if (setup != null) ...{
         'platform': setup.platform.code,
         'camera_height_m': setup.cameraHeightM,
       },
+      // Also on the start event, so the answers survive a crash before the
+      // field_notice_sign row below is written.
+      if (notice != null) 'notice': notice.toJson(),
     };
     await repo.addEvent(
       sessionId: sessionId,
@@ -504,7 +508,6 @@ class SessionController extends Notifier<SessionState> {
       loggerResult: result.name,
       data: precheck.isEmpty ? null : {'version': 1, 'precheck': precheck},
     );
-    final notice = _notice;
     if (notice != null) {
       await repo.addFieldRecord(
         sessionId: sessionId,

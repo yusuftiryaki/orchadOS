@@ -9,6 +9,8 @@ import 'package:orchados_field/core/sync/sync_rows.dart';
 import 'package:orchados_field/features/boundary/boundary_corners.dart';
 import 'package:orchados_field/features/gnss/protocol/gnss_command.dart';
 import 'package:orchados_field/features/map/vector_map.dart';
+import 'package:orchados_field/features/notice/field_records.dart'
+    show noteHint;
 import 'package:orchados_field/features/session/session_controller.dart';
 import 'package:orchados_field/features/session/session_screen.dart';
 import 'package:orchados_field/features/summary/visit_summary_screen.dart';
@@ -106,7 +108,27 @@ void main() {
     await tester.pumpAndSettle();
     await settle(tester);
     expect(find.text('1 fotoğraf'), findsOneWidget);
+    // The note goes to session_event: no phone numbers (H25).
+    expect(find.text(noteHint), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('corner-note')),
+      'Ahmet bey gösterdi, 0532 123 45 67',
+    );
+    await tester.pump();
+    expect(find.text('Telefon numarası yazmayın'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.descendant(
+              of: find.byKey(const Key('corner-save')),
+              matching: find.byType(FilledButton),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
     await tester.enterText(find.byKey(const Key('corner-note')), 'Köşe taşı');
+    await tester.pump();
     await tapVisible(tester, find.byKey(const Key('corner-save')));
     await settle(tester);
     await tester.pumpAndSettle();
