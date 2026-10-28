@@ -9,8 +9,13 @@ import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { VisitTable } from "@/components/operations/visit-table";
+import { Badge, Facts, day } from "@/components/back-office/parts";
 import { ParcelDetail } from "@/components/parcel-detail";
 import { requireSection } from "@/lib/auth/session";
+import { parcelService } from "@/lib/back-office/data";
+import { boHref } from "@/lib/back-office/urls";
+import { backOfficeText } from "@/lib/i18n/messages/back-office";
+import { billingText } from "@/lib/i18n/messages/billing";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import {
   getParcelOps,
@@ -24,6 +29,7 @@ import { opsHref } from "@/lib/operations/urls";
 import { createClient } from "@/lib/supabase/server";
 
 const T = t.operations;
+const S = backOfficeText.service;
 
 export default async function Page({
   params,
@@ -39,11 +45,13 @@ export default async function Page({
   if (!ops) notFound();
   const { parcel, detail, access, boundary } = ops;
 
-  const [orgs, profiles, visits] = await Promise.all([
+  const [orgs, profiles, visits, service] = await Promise.all([
     opsOrgs(supabase, user.id),
     listOwnerProfiles(supabase),
     listVisits(supabase, { parcelId }),
+    parcelService(supabase, parcel.org_id, parcelId),
   ]);
+  const covering = service.garden;
   const staff = await listFieldStaff(supabase, orgs);
   const leads = new Map(staff.map((s) => [s.userId, s.email]));
   const withAccess = new Set(access.map((a) => a.user_id));
@@ -158,6 +166,79 @@ export default async function Page({
           )}
         </section>
       </div>
+
+      <section className={styles.section} data-testid="parcel-service">
+        <h2>{S.title}</h2>
+        <Facts
+          rows={[
+            [
+              S.status,
+              <Badge
+                key="s"
+                labels={billingText.parcelServiceStatus}
+                value={service.status?.status ?? "none"}
+              />,
+            ],
+            ...(service.status?.leaving_on
+              ? ([[S.leavingOn, day(service.status.leaving_on)]] as [string, string][])
+              : []),
+            ...(service.status?.removed_on
+              ? ([[S.removedOn, day(service.status.removed_on)]] as [string, string][])
+              : []),
+            ...(service.status?.access_until
+              ? ([[S.accessUntil, day(service.status.access_until)]] as [string, string][])
+              : []),
+            [
+              S.order,
+              covering?.order_id ? (
+                <Link key="o" href={boHref.order(covering.order_id)}>
+                  {covering.order_number}
+                </Link>
+              ) : (
+                <span key="o" data-testid="parcel-service-pilot">
+                  {S.pilot}
+                </span>
+              ),
+            ],
+            ...(covering
+              ? ([
+                  [
+                    S.customer,
+                    covering.profileId ? (
+                      <Link key="c" href={boHref.customer(covering.profileId)}>
+                        {covering.customerName ?? S.customer}
+                      </Link>
+                    ) : (
+                      covering.customerName
+                    ),
+                  ],
+                  [
+                    S.period,
+                    `${day(covering.service_start)} – ${day(covering.removed_on ?? covering.service_end)}`,
+                  ],
+                ] as [string, React.ReactNode][])
+              : []),
+            ...(service.openRemoval
+              ? ([
+                  [
+                    S.removal,
+                    <Link
+                      key="r"
+                      href={boHref.removal(service.openRemoval.id)}
+                      data-testid="parcel-open-removal"
+                    >
+                      {service.openRemoval.number} ·{" "}
+                      {day(
+                        service.openRemoval.effective_on ??
+                          service.openRemoval.requested_effective_on,
+                      )}
+                    </Link>,
+                  ],
+                ] as [string, React.ReactNode][])
+              : []),
+          ]}
+        />
+      </section>
 
       <section className={styles.section} id="erisim" data-testid="parcel-access">
         <h2>{T.access.title}</h2>

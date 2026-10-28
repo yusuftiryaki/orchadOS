@@ -19,6 +19,7 @@ export type OpsNavItem =
   | "orders"
   | "payments"
   | "refunds"
+  | "removals"
   | "prices"
   | "audit"
   | "settings"
@@ -38,6 +39,7 @@ export function OpsNav({ current }: { current: OpsNavItem }) {
     ["orders", boHref.orders(), B.orders],
     ["payments", boHref.payments(), B.payments],
     ["refunds", boHref.refunds(), B.refunds],
+    ["removals", boHref.removals(), B.removals],
     ["prices", boHref.prices(), B.prices],
     ["audit", boHref.audit(), B.audit],
     ["settings", boHref.settings(), B.settings],

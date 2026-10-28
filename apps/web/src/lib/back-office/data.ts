@@ -1,6 +1,9 @@
+import { addDays } from "@/lib/back-office/validation";
 import { BILLING_COLUMNS } from "@/lib/billing/columns";
+import { billingReasonOf, type BillingError } from "@/lib/billing/errors";
 import type {
   ApplicationGarden,
+  GardenRemoval,
   PriceList,
   PriceListItem,
   Quote,
@@ -11,6 +14,7 @@ import type {
   ServicePackage,
   Payment,
   PaymentItem,
+  Refund,
 } from "@/lib/billing/types";
 import type { Database, Json } from "@/lib/database.types";
 import { isPoint, isPolygon, type Position } from "@/lib/map/geo";
@@ -40,6 +44,14 @@ export type BillingProfile = Row<"ops_billing_profile">;
 export type ConsentRow = Row<"ops_customer_consents">;
 export type GardenDetail = Row<"ops_application_garden_detail">;
 export type BillingSetting = Row<"ops_billing_setting">;
+// IP14 (docs/bahce-yonetimi.md §9.6). The generated types say "not null";
+// every column of these reads may be null.
+export type ServicePeriodRow = Row<"ops_customer_service_period">;
+export type CustomerGardenRow = Row<"ops_customer_gardens">;
+export type OverlapRow = Row<"ops_garden_overlaps">;
+export type AddonPreviewLine = Row<"ops_preview_addon_quote">;
+export type RemovalRow = Row<"ops_garden_removals">;
+export type ParcelService = Row<"parcel_service_status">;
 
 // {id, name} of a user in ops_billing_internal.
 export interface UserRef {
@@ -373,10 +385,13 @@ export async function listOrders(
 export interface OrderView {
   order: ServiceOrder;
   summary: OrderRow | null;
-  items: (ServiceOrderItem & { parcelName: string | null })[];
+  items: (ServiceOrderItem & { parcelName: string | null; openRemoval: GardenRemoval | null })[];
   payments: PaymentRow[];
   audit: AuditRow[];
   internal: Internal;
+  // IP14: the add-on orders of a base order, or the base of an add-on.
+  addons: { id: string; number: string; status: string; activated_at: string | null }[];
+  base: { id: string; number: string; service_end: string | null } | null;
 }
 
 export async function getOrder(supabase: Client, id: string): Promise<OrderView | null> {
@@ -409,20 +424,38 @@ export async function getOrder(supabase: Client, id: string): Promise<OrderView 
   ]);
   const rows = check(items) as ServiceOrderItem[];
   const parcelIds = rows.map((r) => r.parcel_id).filter((p): p is string => !!p);
-  const parcels = parcelIds.length
-    ? check(await supabase.from("parcel").select("id, name").in("id", parcelIds))
-    : [];
-  const names = new Map(parcels.map((p) => [p.id, p.name]));
+  const [parcels, removals, addons, base] = await Promise.all([
+    parcelIds.length
+      ? supabase.from("parcel").select("id, name").in("id", parcelIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+    openRemovals(supabase, order.customer_user_id, parcelIds),
+    supabase
+      .from("service_order")
+      .select("id, number, status, activated_at")
+      .eq("addon_of_order_id", id)
+      .order("created_at"),
+    order.addon_of_order_id
+      ? supabase
+          .from("service_order")
+          .select("id, number, service_end")
+          .eq("id", order.addon_of_order_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  const names = new Map(check(parcels).map((p) => [p.id, p.name]));
   return {
     order,
     summary: check(list).find((o) => o.id === id) ?? null,
     items: rows.map((r) => ({
       ...r,
       parcelName: r.parcel_id ? (names.get(r.parcel_id) ?? null) : null,
+      openRemoval: (r.parcel_id && removals.find((x) => x.parcel_id === r.parcel_id)) || null,
     })),
     payments: check(payments),
     audit: check(audit),
     internal,
+    addons: check(addons),
+    base: (base.error ? null : base.data) as OrderView["base"],
   };
 }
 
@@ -649,6 +682,418 @@ export async function ownerParcels(
       orgId: r.parcel!.org_id,
       areaM2: r.parcel!.estimated_area_m2,
     }));
+}
+
+// ---------------------------------------------------------------------------
+// Garden membership (IP14, docs/bahce-yonetimi.md §4–§5, §12)
+// ---------------------------------------------------------------------------
+
+export interface Membership {
+  // One row per current base order, ordered by period end; empty: no
+  // membership.
+  periods: ServicePeriodRow[];
+  gardens: CustomerGardenRow[];
+}
+
+// The service period(s) and gardens of a customer.
+export async function membershipOf(
+  supabase: Client,
+  orgId: string,
+  userId: string,
+): Promise<Membership> {
+  const [periods, gardens] = await Promise.all([
+    supabase.rpc("ops_customer_service_period", { p_org_id: orgId, p_user_id: userId }),
+    supabase.rpc("ops_customer_gardens", { p_org_id: orgId, p_user_id: userId }),
+  ]);
+  return { periods: check(periods), gardens: check(gardens) };
+}
+
+// The same, or the reason code when the reads fail: a screen that decides
+// between an add-on and a separate period must not take a failed read for
+// "no membership" (IP14 §4.4).
+export async function readMembership(
+  supabase: Client,
+  orgId: string,
+  userId: string,
+): Promise<{ membership: Membership } | { error: BillingError }> {
+  try {
+    return { membership: await membershipOf(supabase, orgId, userId) };
+  } catch (error) {
+    return { error: billingReasonOf(error as { code?: string; message?: string }) };
+  }
+}
+
+// The customer of an application (the server-side membership check).
+export async function applicationCustomer(
+  supabase: Client,
+  id: string,
+): Promise<{ orgId: string; userId: string } | null> {
+  if (!isUuid(id)) return null;
+  const row = check(
+    await supabase
+      .from("service_application")
+      .select("org_id, customer_user_id")
+      .eq("id", id)
+      .maybeSingle(),
+  ) as { org_id: string; customer_user_id: string } | null;
+  return row ? { orgId: row.org_id, userId: row.customer_user_id } : null;
+}
+
+// The last day a removal of each parcel can take effect, as
+// private.removal_last_effective: the day after the latest end of the
+// customer's active, not removed lines of the parcel (a paid renewal
+// included). Parcels without such a line are missing.
+export async function removalLastEffective(
+  supabase: Client,
+  userId: string,
+  parcelIds: string[],
+): Promise<Map<string, string>> {
+  const last = new Map<string, string>();
+  if (parcelIds.length === 0) return last;
+  const items = check(
+    await supabase
+      .from("service_order_item")
+      .select("parcel_id, order_id")
+      .eq("customer_user_id", userId)
+      .in("parcel_id", parcelIds)
+      .is("removed_on", null),
+  );
+  const orderIds = [...new Set(items.map((i) => i.order_id))];
+  if (orderIds.length === 0) return last;
+  const orders = check(
+    await supabase
+      .from("service_order")
+      .select("id, service_end")
+      .in("id", orderIds)
+      .eq("status", "active"),
+  );
+  const ends = new Map(orders.map((o) => [o.id, o.service_end]));
+  for (const i of items) {
+    const end = ends.get(i.order_id);
+    if (!i.parcel_id || !end) continue;
+    const day = addDays(end, 1);
+    if (day > (last.get(i.parcel_id) ?? "")) last.set(i.parcel_id, day);
+  }
+  return last;
+}
+
+// The same, empty when the reads are refused (the caller's own record).
+export async function membershipOrEmpty(
+  supabase: Client,
+  orgId: string,
+  userId: string,
+): Promise<Membership> {
+  try {
+    return await membershipOf(supabase, orgId, userId);
+  } catch {
+    return { periods: [], gardens: [] };
+  }
+}
+
+// The period an add-on joins: private.addon_base_order's choice (the same on
+// every row), with its last valid day; null when none has enough days left.
+export function addonBase(
+  periods: ServicePeriodRow[],
+): { baseOrderId: string; until: string | null } | null {
+  const row = periods.find((p) => p.addon_base_order_id);
+  return row ? { baseOrderId: row.addon_base_order_id, until: row.addon_until ?? null } : null;
+}
+
+export async function gardenOverlaps(supabase: Client, gardenId: string): Promise<OverlapRow[]> {
+  return check(await supabase.rpc("ops_garden_overlaps", { p_garden_id: gardenId }));
+}
+
+// The duplicate check of each garden; a failed check is reported as such,
+// never as "no overlap".
+export async function gardenOverlapsOf(
+  supabase: Client,
+  gardenIds: string[],
+): Promise<Map<string, OverlapRow[] | { error: BillingError }>> {
+  const rows = await Promise.all(
+    gardenIds.map(async (id) => {
+      const { data, error } = await supabase.rpc("ops_garden_overlaps", { p_garden_id: id });
+      return [id, error ? { error: billingReasonOf(error) } : data] as const;
+    }),
+  );
+  return new Map(rows);
+}
+
+// The add-on quote ops would issue now (pricing-v2); the reason code when it
+// cannot be computed.
+export async function previewAddonQuote(
+  supabase: Client,
+  input: {
+    baseOrderId: string;
+    applicationId?: string | null;
+    parcelIds?: string[] | null;
+    start?: string | null;
+    discountBp?: number;
+  },
+): Promise<{ lines: AddonPreviewLine[] } | { error: string }> {
+  const { data, error } = await supabase.rpc("ops_preview_addon_quote", {
+    p_base_order_id: input.baseOrderId,
+    ...(input.applicationId ? { p_application_id: input.applicationId } : {}),
+    ...(input.parcelIds ? { p_parcel_ids: input.parcelIds } : {}),
+    ...(input.start ? { p_proposed_service_start: input.start } : {}),
+    p_discount_bp: input.discountBp ?? 0,
+  });
+  if (error) return { error: error.message };
+  return { lines: data };
+}
+
+export interface MapParcel {
+  id: string;
+  name: string;
+  position: Position | null;
+  boundary: Position[] | null;
+}
+
+// Positions and latest boundaries of parcels, for the muted map layer.
+export async function parcelShapes(supabase: Client, parcelIds: string[]): Promise<MapParcel[]> {
+  if (parcelIds.length === 0) return [];
+  const [parcels, boundaries] = await Promise.all([
+    supabase.from("parcel").select("id, name, position:position::json").in("id", parcelIds),
+    supabase
+      .from("boundary")
+      .select("parcel_id, version, geom:geom::json")
+      .in("parcel_id", parcelIds)
+      .order("version", { ascending: false }),
+  ]);
+  const latest = new Map<string, Position[]>();
+  for (const b of check(boundaries) as unknown as { parcel_id: string; geom: unknown }[]) {
+    if (latest.has(b.parcel_id) || !isPolygon(b.geom)) continue;
+    latest.set(
+      b.parcel_id,
+      b.geom.coordinates[0].slice(0, -1).map(([lon, lat]) => [lon, lat] as Position),
+    );
+  }
+  return (check(parcels) as unknown as { id: string; name: string; position: unknown }[]).map(
+    (p) => ({
+      id: p.id,
+      name: p.name,
+      position: isPoint(p.position) ? [p.position.coordinates[0], p.position.coordinates[1]] : null,
+      boundary: latest.get(p.id) ?? null,
+    }),
+  );
+}
+
+// The queue filters of /operasyon/cikarma: null reads the open removals.
+export const REMOVAL_FILTERS = ["completed", "cancelled", "all"] as const;
+export type RemovalFilter = (typeof REMOVAL_FILTERS)[number];
+
+// ops_garden_removals returns at most this many rows of an org, the earliest
+// effective days first: past it the latest removals are missing.
+export const REMOVAL_LIST_LIMIT = 1000;
+
+export async function listRemovals(
+  supabase: Client,
+  orgs: OpsOrg[],
+  filter: RemovalFilter | null,
+): Promise<{ rows: RemovalRow[]; truncated: boolean }> {
+  let truncated = false;
+  const rows = await eachOrg(orgs, async (orgId) => {
+    const list = check(
+      await supabase.rpc("ops_garden_removals", {
+        p_org_id: orgId,
+        ...(filter ? { p_status: filter } : {}),
+        p_limit: REMOVAL_LIST_LIMIT,
+      }),
+    );
+    if (list.length >= REMOVAL_LIST_LIMIT) truncated = true;
+    return list;
+  });
+  // By the effective day, as the function orders one org.
+  const dayOf = (r: RemovalRow) => r.effective_on ?? r.requested_effective_on ?? "";
+  rows.sort((a, b) => dayOf(a).localeCompare(dayOf(b)) || a.number.localeCompare(b.number));
+  return { rows, truncated };
+}
+
+// ops_garden_removal_preview (removal-v1 calculation and its context).
+export interface RemovalPreviewLine {
+  order_item_id: string;
+  order_id: string;
+  order_number: string;
+  removed_on: string | null;
+  amount_kurus: number;
+  vat_rate_bp: number;
+  inventory_share_kurus: number;
+  inventory_done: boolean;
+  visits_entitled: number;
+  visits_used: number;
+  visits_excluded: number;
+  visit_fee_kurus: number;
+  gross_kurus: number;
+  already_refunded_kurus: number;
+  unattributed: boolean;
+  refund_kurus: number;
+  refund_vat_kurus: number;
+  mode: string;
+}
+
+export interface RemovalPreview {
+  formula: string;
+  as_of: string;
+  effective_on: string;
+  mode: string;
+  refund_kurus: number;
+  refund_vat_kurus: number;
+  unallocated_kurus: number;
+  unattributed_refunds: boolean;
+  lines: RemovalPreviewLine[];
+  access_until: string | null;
+  withdrawal: boolean;
+  blocked_reason: string | null;
+  planned_visits_before: number;
+  planned_visits_after: number;
+  captured_unpublished: number;
+  open_followups: number;
+  pending_invitations: number;
+  open_refunds: number;
+  pending_orders: string[];
+  access_scope: {
+    customer_owner: number;
+    invited_viewers: number;
+    other_viewers: number;
+    other_owners: number;
+  };
+}
+
+export interface RemovalView {
+  removal: GardenRemoval;
+  // The ops row (internal note, blocked reason, revoke-all choice, names);
+  // null when it is past the list's limit (REMOVAL_LIST_LIMIT), then the
+  // internal note and the revoke-all choice are unknown.
+  row: RemovalRow | null;
+  customerName: string | null;
+  orderNumber: string | null;
+  blockedReason: string | null;
+  preview: RemovalPreview | null;
+  refunds: Refund[];
+  profileId: string | null;
+  setting: BillingSetting | null;
+}
+
+export async function getRemoval(supabase: Client, id: string): Promise<RemovalView | null> {
+  if (!isUuid(id)) return null;
+  const removal = check(
+    await supabase
+      .from("garden_removal")
+      .select(BILLING_COLUMNS.garden_removal)
+      .eq("id", id)
+      .maybeSingle(),
+  ) as GardenRemoval | null;
+  if (!removal) return null;
+  const [rows, preview, refunds, customer, setting, order] = await Promise.all([
+    supabase.rpc("ops_garden_removals", {
+      p_org_id: removal.org_id,
+      p_status: removal.status,
+      p_limit: REMOVAL_LIST_LIMIT,
+    }),
+    supabase.rpc("ops_garden_removal_preview", { p_removal_id: id }),
+    supabase
+      .from("refund")
+      .select(BILLING_COLUMNS.refund)
+      .eq("garden_removal_id", id)
+      .order("requested_at"),
+    supabase.rpc("ops_customer", { p_org_id: removal.org_id, p_user_id: removal.customer_user_id }),
+    getSetting(supabase, removal.org_id),
+    removal.order_id
+      ? supabase.from("service_order").select("number").eq("id", removal.order_id).maybeSingle()
+      : null,
+  ]);
+  const row = check(rows).find((r) => r.id === id) ?? null;
+  // The calculation is refused on the caller's own record (forbidden).
+  const calc = preview.error ? null : (preview.data as unknown as RemovalPreview);
+  const person = check(customer)[0];
+  return {
+    removal,
+    row,
+    // From the other reads when the row is past the list's limit.
+    customerName: row?.customer_name ?? person?.full_name ?? null,
+    orderNumber: row?.order_number ?? order?.data?.number ?? null,
+    blockedReason: row?.blocked_reason ?? calc?.blocked_reason ?? null,
+    preview: calc,
+    refunds: check(refunds) as unknown as Refund[],
+    profileId: person?.profile_id ?? null,
+    setting,
+  };
+}
+
+// Open removals (requested, scheduled) of a customer's parcels.
+export async function openRemovals(
+  supabase: Client,
+  userId: string,
+  parcelIds: string[],
+): Promise<GardenRemoval[]> {
+  if (parcelIds.length === 0) return [];
+  return check(
+    await supabase
+      .from("garden_removal")
+      .select(BILLING_COLUMNS.garden_removal)
+      .eq("customer_user_id", userId)
+      .in("parcel_id", parcelIds)
+      .in("status", ["requested", "scheduled"]),
+  ) as unknown as GardenRemoval[];
+}
+
+export interface ParcelServiceView {
+  status: ParcelService | null;
+  // The garden row of the customer whose order covers the parcel (null: no
+  // order, a pilot parcel), with the profile to link to.
+  garden: (CustomerGardenRow & { profileId: string | null; customerName: string | null }) | null;
+  openRemoval: GardenRemoval | null;
+}
+
+// The "Hizmet" card of a parcel: parcel_service_status, the covering order
+// line (ops_customer_gardens of the parcel's owners and order customers) and
+// its open removal.
+export async function parcelService(
+  supabase: Client,
+  orgId: string,
+  parcelId: string,
+): Promise<ParcelServiceView> {
+  const [status, owners, lines, removals] = await Promise.all([
+    supabase.rpc("parcel_service_status", { p_parcel_id: parcelId }),
+    supabase.from("parcel_access").select("user_id").eq("parcel_id", parcelId).eq("role", "owner"),
+    supabase.from("service_order_item").select("customer_user_id").eq("parcel_id", parcelId),
+    supabase
+      .from("garden_removal")
+      .select(BILLING_COLUMNS.garden_removal)
+      .eq("parcel_id", parcelId)
+      .order("requested_at", { ascending: false }),
+  ]);
+  const users = [
+    ...new Set([
+      ...check(lines).map((l) => l.customer_user_id),
+      ...check(owners).map((o) => o.user_id),
+    ]),
+  ];
+  let garden: ParcelServiceView["garden"] = null;
+  for (const userId of users) {
+    const gardens = await supabase.rpc("ops_customer_gardens", {
+      p_org_id: orgId,
+      p_user_id: userId,
+    });
+    // Not a customer of this org, or the caller's own record (forbidden).
+    if (gardens.error) continue;
+    const row = gardens.data.find((g) => g.parcel_id === parcelId);
+    if (!row) continue;
+    const customer = check(
+      await supabase.rpc("ops_customer", { p_org_id: orgId, p_user_id: userId }),
+    )[0];
+    garden = {
+      ...row,
+      profileId: customer?.profile_id ?? null,
+      customerName: customer?.full_name ?? null,
+    };
+    if (row.state !== "removed") break;
+  }
+  const all = check(removals) as unknown as GardenRemoval[];
+  return {
+    status: check(status)[0] ?? null,
+    garden,
+    openRemoval: all.find((r) => r.status === "requested" || r.status === "scheduled") ?? null,
+  };
 }
 
 export type { Json };

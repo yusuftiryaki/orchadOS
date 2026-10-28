@@ -9,6 +9,8 @@ import type { Position } from "@/lib/map/geo";
 
 const ACCENT = "#4f7a28";
 const POSITION = "#c92a2a";
+// The customer's existing parcels (IP14): a muted second layer.
+const MUTED = "#868e96";
 
 export interface MapGarden {
   id: string;
@@ -17,44 +19,60 @@ export interface MapGarden {
   boundary: Position[] | null;
 }
 
+const NONE: MapGarden[] = [];
+
+function features(gardens: MapGarden[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: gardens.flatMap((g): GeoJSON.Feature[] => [
+      ...(g.boundary && g.boundary.length >= 3
+        ? [
+            {
+              type: "Feature" as const,
+              geometry: {
+                type: "Polygon" as const,
+                coordinates: [[...g.boundary, g.boundary[0]]],
+              },
+              properties: { name: g.name },
+            },
+          ]
+        : []),
+      ...(g.position
+        ? [
+            {
+              type: "Feature" as const,
+              geometry: { type: "Point" as const, coordinates: g.position },
+              properties: { name: g.name },
+            },
+          ]
+        : []),
+    ]),
+  };
+}
+
 // Read-only map of an application's gardens: the marked locations and the
-// boundaries the customer drew.
-export function GardensMap({ gardens, label }: { gardens: MapGarden[]; label: string }) {
+// boundaries the customer drew; the customer's existing parcels, when given,
+// in a muted layer below.
+export function GardensMap({
+  gardens,
+  existing = NONE,
+  label,
+}: {
+  gardens: MapGarden[];
+  existing?: MapGarden[];
+  label: string;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
     let map: MapLibreMap | null = null;
-    const points = gardens.flatMap((g) => [
+    const points = [...gardens, ...existing].flatMap((g) => [
       ...(g.position ? [g.position] : []),
       ...(g.boundary ?? []),
     ]);
-    const data: GeoJSON.FeatureCollection = {
-      type: "FeatureCollection",
-      features: gardens.flatMap((g): GeoJSON.Feature[] => [
-        ...(g.boundary && g.boundary.length >= 3
-          ? [
-              {
-                type: "Feature" as const,
-                geometry: {
-                  type: "Polygon" as const,
-                  coordinates: [[...g.boundary, g.boundary[0]]],
-                },
-                properties: { name: g.name },
-              },
-            ]
-          : []),
-        ...(g.position
-          ? [
-              {
-                type: "Feature" as const,
-                geometry: { type: "Point" as const, coordinates: g.position },
-                properties: { name: g.name },
-              },
-            ]
-          : []),
-      ]),
-    };
+    const data = features(gardens);
+    const muted = features(existing);
 
     import("maplibre-gl").then((maplibregl) => {
       const container = containerRef.current;
@@ -81,6 +99,28 @@ export function GardensMap({ gardens, label }: { gardens: MapGarden[]; label: st
       map = m;
       m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
       m.on("load", () => {
+        m.addSource("existing", { type: "geojson", data: muted });
+        m.addLayer({
+          id: "existing-fill",
+          type: "fill",
+          source: "existing",
+          filter: ["==", ["geometry-type"], "Polygon"],
+          paint: { "fill-color": MUTED, "fill-opacity": 0.1 },
+        });
+        m.addLayer({
+          id: "existing-line",
+          type: "line",
+          source: "existing",
+          filter: ["==", ["geometry-type"], "Polygon"],
+          paint: { "line-color": MUTED, "line-width": 1, "line-dasharray": [2, 2] },
+        });
+        m.addLayer({
+          id: "existing-point",
+          type: "circle",
+          source: "existing",
+          filter: ["==", ["geometry-type"], "Point"],
+          paint: { "circle-color": MUTED, "circle-radius": 4, "circle-opacity": 0.7 },
+        });
         m.addSource("gardens", { type: "geojson", data });
         m.addLayer({
           id: "gardens-fill",
@@ -115,7 +155,7 @@ export function GardensMap({ gardens, label }: { gardens: MapGarden[]; label: st
       cancelled = true;
       map?.remove();
     };
-  }, [gardens]);
+  }, [gardens, existing]);
 
   return (
     <div

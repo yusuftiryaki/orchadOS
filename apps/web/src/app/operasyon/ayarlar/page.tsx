@@ -151,6 +151,59 @@ export default async function Page({
               </Field>
             </div>
           </fieldset>
+          <fieldset className={styles.fieldset} data-testid="garden-settings">
+            <legend>{T.gardens}</legend>
+            <label className={styles.check}>
+              <input
+                type="checkbox"
+                name="garden_changes_enabled"
+                defaultChecked={s.garden_changes_enabled}
+              />
+              {T.gardenChangesEnabled}
+            </label>
+            <Warning>{T.gardenChangesWarning}</Warning>
+            <div className={styles.grid}>
+              <Field label={F.addon_min_days} hint={T.addonMinDaysHint}>
+                <input
+                  name="addon_min_days"
+                  type="number"
+                  min={1}
+                  max={180}
+                  defaultValue={s.addon_min_days}
+                  required
+                />
+              </Field>
+              <Field label={F.removal_notice_days} hint={T.removalNoticeDaysHint}>
+                <input
+                  name="removal_notice_days"
+                  type="number"
+                  min={0}
+                  max={90}
+                  defaultValue={s.removal_notice_days}
+                  required
+                />
+              </Field>
+              <Field label={F.removal_access_days} hint={T.removalAccessDaysHint}>
+                <input
+                  name="removal_access_days"
+                  type="number"
+                  min={0}
+                  max={365}
+                  defaultValue={s.removal_access_days}
+                  required
+                />
+              </Field>
+              <Field label={F.removal_refund_mode} hint={T.refundModeHint}>
+                <select name="removal_refund_mode" defaultValue={s.removal_refund_mode}>
+                  {Object.entries(T.refundModes).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </fieldset>
           <div className={styles.actions}>
             <Submit>{B.save}</Submit>
           </div>

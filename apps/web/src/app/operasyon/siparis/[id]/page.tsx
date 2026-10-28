@@ -4,6 +4,7 @@ import {
   cancelOrderAction,
   extendDueAction,
   recordManualPaymentAction,
+  requestRemovalAction,
   terminateOrderAction,
 } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
@@ -22,9 +23,9 @@ import { Field } from "@/components/operations/field";
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
-import { getOrder } from "@/lib/back-office/data";
+import { getOrder, getSetting, type OrderView } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
-import { outstandingKurus } from "@/lib/back-office/validation";
+import { REMOVAL_REASONS, addDays, outstandingKurus } from "@/lib/back-office/validation";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { opsHref } from "@/lib/operations/urls";
@@ -33,6 +34,22 @@ import { createClient } from "@/lib/supabase/server";
 
 const B = backOfficeText;
 const T = B.order;
+const L = B.lineState;
+
+type Item = OrderView["items"][number];
+
+// Hizmette / Çıkacak · day / Çıkarıldı · day (IP14 §12).
+function lineState(item: Item, orderActive: boolean): React.ReactNode {
+  if (item.removed_on) return L.removed(day(item.removed_on));
+  if (item.openRemoval) {
+    return (
+      <Link href={boHref.removal(item.openRemoval.id)}>
+        {L.leaving(day(item.openRemoval.effective_on ?? item.openRemoval.requested_effective_on))}
+      </Link>
+    );
+  }
+  return orderActive && item.parcel_id ? L.in_service : B.none;
+}
 
 // One order: summary, items with their parcels, payments, the actions on its
 // state (transfer, due date, cancel, terminate, renewal) and its audit trail.
@@ -52,6 +69,19 @@ export default async function Page({
   const outstanding = outstandingKurus(o);
   const today = todayIn(new Date());
   const awaiting = o.status === "awaiting_payment";
+  const active = o.status === "active";
+  const setting = await getSetting(supabase, o.org_id);
+  // An add-on is paid by its last valid day at the latest (IP14 §4.1 step 6).
+  const addonLastDay =
+    view.base?.service_end && setting
+      ? addDays(view.base.service_end, 1 - setting.addon_min_days)
+      : null;
+  const removable = active
+    ? items.filter(
+        (i) =>
+          i.parcel_id && !i.removed_on && !i.openRemoval && o.service_end && o.service_end >= today,
+      )
+    : [];
 
   return (
     <main className="page">
@@ -103,6 +133,35 @@ export default async function Page({
                 ],
               ] as [string, React.ReactNode][])
             : []),
+          ...(view.base
+            ? ([
+                [
+                  B.orderLinks.base,
+                  <Link key="b" href={boHref.order(view.base.id)} data-testid="order-base-link">
+                    {view.base.number}
+                  </Link>,
+                ],
+              ] as [string, React.ReactNode][])
+            : []),
+          ...(view.addons.length
+            ? ([
+                [
+                  B.orderLinks.addons,
+                  <span key="a" data-testid="order-addons">
+                    {view.addons.map((a, i) => (
+                      <span key={a.id}>
+                        {i > 0 && ", "}
+                        <Link href={boHref.order(a.id)}>{a.number}</Link> (
+                        {billingText.orderStatus[
+                          a.status as keyof typeof billingText.orderStatus
+                        ] ?? a.status}
+                        )
+                      </span>
+                    ))}
+                  </span>,
+                ],
+              ] as [string, React.ReactNode][])
+            : []),
           ...(internal.termination_note
             ? ([[T.terminationNote, internal.termination_note as string]] as [string, string][])
             : []),
@@ -117,11 +176,12 @@ export default async function Page({
               <th>{B.quote.line}</th>
               <th className={styles.number}>{B.orders.total}</th>
               <th>{T.parcel}</th>
+              <th>{L.title}</th>
             </tr>
           </thead>
           <tbody>
             {items.map((i) => (
-              <tr key={i.id}>
+              <tr key={i.id} data-item-id={i.id}>
                 <td>
                   {i.line_no}. {i.garden_name}
                 </td>
@@ -135,11 +195,80 @@ export default async function Page({
                     B.none
                   )}
                 </td>
+                <td data-testid="order-item-state">{lineState(i, active)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {removable.length > 0 && (
+        <section className={styles.section} data-testid="remove-gardens">
+          <h2>{L.removeTitle}</h2>
+          <p className="muted">{L.removeHint}</p>
+          <p className="muted">{B.removal.shortAccessRule(setting?.removal_access_days ?? 90)}</p>
+          {removable.map((i) => (
+            <details key={i.id} data-item-id={i.id}>
+              <summary>
+                {L.removeTitle}: {i.parcelName ?? i.garden_name}
+              </summary>
+              <ActionForm action={requestRemovalAction} testId="remove-garden-form">
+                <input type="hidden" name="order_item_id" value={i.id} />
+                <input type="hidden" name="last_day" value={addDays(o.service_end!, 1)} />
+                <input
+                  type="hidden"
+                  name="setting_access_days"
+                  value={setting?.removal_access_days ?? 90}
+                />
+                <Field label={B.fields.reason}>
+                  <select name="reason" defaultValue="" required>
+                    <option value="" disabled>
+                      —
+                    </option>
+                    {REMOVAL_REASONS.map((r) => (
+                      <option key={r} value={r}>
+                        {billingText.gardenRemovalReason[r]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label={B.fields.effective_on}>
+                  <input
+                    type="date"
+                    name="effective_on"
+                    min={today}
+                    max={addDays(o.service_end!, 1)}
+                    required
+                  />
+                </Field>
+                <Field
+                  label={B.fields.access_days}
+                  hint={B.removal.accessDaysHint(setting?.removal_access_days ?? 90)}
+                  optional
+                >
+                  <input
+                    name="access_days"
+                    type="number"
+                    min={0}
+                    max={365}
+                    placeholder={String(setting?.removal_access_days ?? 90)}
+                  />
+                </Field>
+                <label className={styles.check}>
+                  <input type="checkbox" name="revoke_all_access" />
+                  {B.fields.revoke_all_access}
+                </label>
+                <Field label={B.internalNote} optional>
+                  <textarea name="note" maxLength={2000} rows={2} />
+                </Field>
+                <div className={styles.actions}>
+                  <Submit secondary>{L.removeSubmit}</Submit>
+                </div>
+              </ActionForm>
+            </details>
+          ))}
+        </section>
+      )}
 
       <h2>{T.payments}</h2>
       {payments.length === 0 ? (
@@ -187,8 +316,17 @@ export default async function Page({
             <h2>{T.extendTitle}</h2>
             <ActionForm action={extendDueAction} testId="extend-due-form">
               <input type="hidden" name="order_id" value={o.id} />
-              <Field label={T.dueOn}>
-                <input type="date" name="due_on" min={today} required />
+              <Field
+                label={T.dueOn}
+                hint={addonLastDay ? B.orderLinks.dueMax(day(addonLastDay)) : undefined}
+              >
+                <input
+                  type="date"
+                  name="due_on"
+                  min={today}
+                  max={addonLastDay ?? undefined}
+                  required
+                />
               </Field>
               <div className={styles.actions}>
                 <Submit secondary>{T.extend}</Submit>
@@ -211,6 +349,11 @@ export default async function Page({
           <section className={styles.section}>
             <h2>{T.terminateTitle}</h2>
             <p className="muted">{T.terminateHint}</p>
+            {!o.addon_of_order_id && (
+              <p className="muted" data-testid="terminate-addon-hint">
+                {B.orderLinks.terminateAddonHint}
+              </p>
+            )}
             <ActionForm action={terminateOrderAction} testId="terminate-form">
               <input type="hidden" name="order_id" value={o.id} />
               <Field label={T.note}>
@@ -226,7 +369,7 @@ export default async function Page({
             </ActionForm>
           </section>
         )}
-        {(o.status === "active" || o.status === "completed") && (
+        {(o.status === "active" || o.status === "completed") && !o.addon_of_order_id && (
           <section className={styles.section}>
             <h2>{T.renewal}</h2>
             <Link className="button" href={boHref.newQuote({ siparis: o.id })}>

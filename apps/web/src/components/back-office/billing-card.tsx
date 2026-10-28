@@ -24,6 +24,10 @@ export function BillingCard({ summary }: { summary: BillingSummary }) {
     ["refundsFailed", summary.refunds_failed, boHref.refunds()],
     ["inventory", summary.parcels_awaiting_inventory, boHref.orders({ durum: "active" })],
     ["renewals", summary.renewals_due, boHref.orders({ durum: "active" })],
+    // IP14: the garden removal queue (open removals by their effective day).
+    ["removalsRequested", summary.garden_removals_requested, boHref.removals()],
+    ["removalsDue", summary.garden_removals_due, boHref.removals()],
+    ["removalsBlocked", summary.garden_removals_blocked, boHref.removals()],
   ];
   const labels: Record<string, string> = {
     applications: T.applicationsSubmitted,
@@ -35,6 +39,9 @@ export function BillingCard({ summary }: { summary: BillingSummary }) {
     refundsFailed: T.refundsFailed,
     inventory: T.parcelsAwaitingInventory,
     renewals: T.renewalsDue,
+    removalsRequested: T.removalsRequested,
+    removalsDue: T.removalsDue,
+    removalsBlocked: T.removalsBlocked,
   };
   return (
     <section className={styles.section} data-testid="billing-card">

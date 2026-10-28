@@ -41,6 +41,15 @@ export function ActionForm({
         {children}
       </fieldset>
       <FormError error={state.error} />
+      {state.lines && (
+        <ul className={styles.plainList} data-testid={testId && `${testId}-results`}>
+          {state.lines.map((line, i) => (
+            <li key={i} data-ok={line.ok}>
+              {line.label}: {line.text}
+            </li>
+          ))}
+        </ul>
+      )}
     </form>
   );
 }
