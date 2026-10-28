@@ -142,8 +142,7 @@ export const contractsText = {
     emptyBody: "Bir teklifi onayladığınızda siparişinizin belgeleri burada saklanır.",
     // What each document is, under its name in Sözleşmelerim.
     about: {
-      pre_information:
-        "Sipariş vermeden önce size sunulan hizmet, fiyat ve cayma hakkı bilgileri.",
+      pre_information: "Sipariş vermeden önce size sunulan hizmet, fiyat ve cayma hakkı bilgileri.",
       distance_sales: "Sizinle yaptığımız hizmet sözleşmesi, sipariş bilgilerinizle doldurulmuş.",
       withdrawal_confirmation: "Ödemeden sonra cayma hakkınızın son gününü bildirir.",
     } as Record<string, string>,

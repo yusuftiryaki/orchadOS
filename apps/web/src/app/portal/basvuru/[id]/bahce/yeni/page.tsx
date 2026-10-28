@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { GardenForm } from "@/components/portal-billing/garden-form";
-import styles from "@/components/portal/portal.module.css";
+import s from "@/components/portal-billing/billing.module.css";
+import layout from "@/components/portal/page.module.css";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { getApplication } from "@/lib/portal-billing/data";
@@ -17,8 +19,11 @@ export default async function NewGardenPage({ params }: { params: Promise<{ id: 
     redirect(portalHref.application(id, { hata: "application_not_draft" }));
   }
   return (
-    <main className={styles.page}>
-      <h1>{P.garden.newTitle}</h1>
+    <main className={`${layout.page} ${s.doc}`}>
+      <PageHeader
+        title={P.garden.newTitle}
+        back={{ href: portalHref.application(id), label: P.garden.backToApplication }}
+      />
       <GardenForm applicationId={id} initial={{}} />
     </main>
   );

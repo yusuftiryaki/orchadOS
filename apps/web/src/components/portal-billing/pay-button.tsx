@@ -2,6 +2,8 @@
 
 import { useFormStatus } from "react-dom";
 import { startPaymentAction } from "@/app/portal/billing-actions";
+import { Field, Input } from "@/components/ui/field";
+import layout from "@/components/portal/page.module.css";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 
 function Submit() {
@@ -25,31 +27,25 @@ export function PayButton({
   identityRequired?: boolean;
 }) {
   return (
-    <form action={startPaymentAction}>
+    <form action={startPaymentAction} className={layout.stack}>
       <input type="hidden" name="order_id" value={orderId} />
       {identityRequired && (
-        <p>
-          <label>
-            {P.order.identityNumber}
-            <br />
-            <input
-              name="identity_number"
-              inputMode="numeric"
-              autoComplete="off"
-              pattern="[0-9 ]{11,14}"
-              maxLength={14}
-              required
-              data-testid="pay-identity-number"
-            />
-          </label>
-          <br />
-          <span className="muted">{P.order.identityNumberHint}</span>
-        </p>
+        <Field id="pay-identity-number" label={P.order.identityNumber} hint={P.order.identityNumberHint}>
+          <Input
+            name="identity_number"
+            inputMode="numeric"
+            autoComplete="off"
+            pattern="[0-9 ]{11,14}"
+            maxLength={14}
+            required
+            data-testid="pay-identity-number"
+          />
+        </Field>
       )}
-      <p>
+      <div className={layout.actions}>
         <Submit />
-      </p>
-      <p className="muted">{P.order.cardHint}</p>
+      </div>
+      <p className={`${layout.muted} ${layout.small}`}>{P.order.cardHint}</p>
     </form>
   );
 }

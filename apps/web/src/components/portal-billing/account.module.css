@@ -53,8 +53,21 @@
 
 /* Groups of rows inside one panel (in service, not on an order, out of
    service) read as one list. */
-.rowGroups {
-  display: grid;
+/* Element + class: wins over .panel's gap whatever the stylesheet order. */
+div.rowGroups {
+  gap: 0;
+}
+
+/* A panel that is itself a list of rows: the rows bring their own spacing. */
+ul.rowsPanel {
+  gap: 0;
+  padding: var(--space-3);
+}
+
+@media (min-width: 720px) {
+  ul.rowsPanel {
+    padding: var(--space-4);
+  }
 }
 
 .rowGroups > ul + ul > li:first-child {
@@ -76,6 +89,13 @@
   .wide {
     grid-column: 1 / -1;
   }
+}
+
+/* Fields one under the other, at a readable width (contact form). */
+.fields {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 34rem;
 }
 
 .form {
@@ -105,12 +125,7 @@
 .options {
   display: grid;
   gap: var(--space-2);
-}
-
-@media (min-width: 600px) {
-  .options {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  max-width: 34rem;
 }
 
 .option {

@@ -132,10 +132,10 @@ test("the customer reads the filled documents, accepts and downloads them", asyn
     .click();
   await expect(page).toHaveURL("/portal/hesap/sozlesmeler");
   const section = page.locator(`[data-testid="contracts-order"][data-order-id="${orderId}"]`);
-  await expect(section.locator("tbody tr")).toHaveCount(2);
+  await expect(section.locator("li[data-kind]")).toHaveCount(2);
   await expect(section.getByTestId("contracts-preparing")).toHaveCount(0);
   const href = await section
-    .locator('tr[data-kind="distance_sales"]')
+    .locator('li[data-kind="distance_sales"]')
     .getByTestId("contract-download")
     .getAttribute("href");
   const pdf = await page.request.get(href!);

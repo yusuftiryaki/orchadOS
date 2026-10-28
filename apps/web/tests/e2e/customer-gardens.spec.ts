@@ -232,9 +232,9 @@ test("the customer asks to remove a garden from the account page and undoes it",
   const parcelId = member.parcelIds[0];
   await login(page, EMAIL, "/portal/hesap");
   const section = page.getByTestId("my-gardens");
-  await expect(section.locator("tr")).toHaveCount(2);
+  await expect(section.getByTestId("garden-row")).toHaveCount(2);
   await section
-    .locator(`tr[data-parcel-id="${parcelId}"]`)
+    .locator(`[data-testid="garden-row"][data-parcel-id="${parcelId}"]`)
     .getByRole("link", { name: "Hizmetten çıkar" })
     .click();
   await expect(page).toHaveURL(`/portal/parsel/${parcelId}#hizmet`);

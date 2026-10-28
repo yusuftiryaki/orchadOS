@@ -1,5 +1,6 @@
 import Link from "next/link";
-import ops from "@/components/operations/operations.module.css";
+import layout from "@/components/portal/page.module.css";
+import { Alert } from "@/components/ui/alert";
 import type { ServicePeriod } from "@/lib/billing/types";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
@@ -17,26 +18,31 @@ export function MemberBand({
   parcels: PortalParcel[];
 }) {
   return (
-    <section data-testid="member-band">
-      <p className={ops.notice}>{M.band(period.package_name, formatDate(period.period_end))}</p>
-      <h2>{M.accountGardens}</h2>
-      {parcels.length === 0 ? (
-        <p className="muted">{M.accountGardensEmpty}</p>
-      ) : (
-        <ul className={ops.plainList} data-testid="account-gardens">
-          {parcels.map((p) => (
-            <li key={p.id}>
-              <Link href={`/portal/parsel/${p.id}`}>{p.name}</Link>
-              {[p.village, p.district, p.province].some(Boolean) && (
-                <span className="muted">
-                  {" · "}
-                  {[p.village, p.district, p.province].filter(Boolean).join(", ")}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+    <section className={layout.section} data-testid="member-band">
+      <Alert tone="info" title={M.bandTitle(period.package_name)}>
+        <p>{M.bandEnd(formatDate(period.period_end))}</p>
+        <p>{M.bandPrice}</p>
+      </Alert>
+      <div className={layout.panel}>
+        <h2>{M.accountGardens}</h2>
+        {parcels.length === 0 ? (
+          <p className={layout.muted}>{M.accountGardensEmpty}</p>
+        ) : (
+          <ul className={layout.rows} data-testid="account-gardens">
+            {parcels.map((p) => {
+              const place = [p.village, p.district, p.province].filter(Boolean).join(", ");
+              return (
+                <li key={p.id}>
+                  <div className={layout.rowMain}>
+                    <Link href={`/portal/parsel/${p.id}`}>{p.name}</Link>
+                    {place && <span className={`${layout.muted} ${layout.small}`}>{place}</span>}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

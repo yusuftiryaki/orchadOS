@@ -3,22 +3,20 @@ import { ContactForm } from "@/components/portal-billing/contact-form";
 import { MembershipCard } from "@/components/portal-billing/membership-card";
 import { MyGardens } from "@/components/portal-billing/my-gardens";
 import { PortalResult } from "@/components/portal-billing/result-notice";
-import ops from "@/components/operations/operations.module.css";
-import styles from "@/components/portal/portal.module.css";
+import styles from "@/components/portal-billing/account.module.css";
+import layout from "@/components/portal/page.module.css";
+import { ButtonLink } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
-import { billingText } from "@/lib/i18n/messages/billing";
-import { contractsText as C } from "@/lib/i18n/messages/contracts";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import {
   getBillingProfile,
   getContact,
   getServicePeriods,
-  listApplications,
   listMyGardens,
   listOrderedParcelIds,
-  listOrders,
   listOwnedParcelIds,
-  listPayments,
+  type BillingProfileView,
 } from "@/lib/portal-billing/data";
 import { listParcels } from "@/lib/parcels";
 import { assertCustomer } from "@/lib/portal-billing/session";
@@ -27,6 +25,11 @@ import { createClient } from "@/lib/supabase/server";
 
 const A = P.account;
 
+// Hesabım: a calm overview ordered by importance. The membership and the
+// gardens first, then how we reach the customer (the one form, the one
+// primary button); on the side the billing profile and the links to the
+// documents and permissions. The counts of applications, orders and payments
+// are in the portal navigation, not repeated here.
 export default async function AccountPage({
   searchParams,
 }: {
@@ -34,23 +37,10 @@ export default async function AccountPage({
 }) {
   const user = assertCustomer(await requireSection("portal"));
   const supabase = await createClient();
-  const [
-    contact,
-    profile,
-    applications,
-    orders,
-    payments,
-    periods,
-    gardens,
-    owned,
-    ordered,
-    parcels,
-  ] = await Promise.all([
+  const [params, contact, profile, periods, gardens, owned, ordered, parcels] = await Promise.all([
+    searchParams,
     getContact(supabase),
     getBillingProfile(supabase),
-    listApplications(supabase, user.id),
-    listOrders(supabase, user.id),
-    listPayments(supabase, user.id),
     getServicePeriods(supabase),
     listMyGardens(supabase),
     listOwnedParcelIds(supabase, user.id),
@@ -72,86 +62,129 @@ export default async function AccountPage({
   const outOfService = others
     .filter((p) => orderedSet.has(p.id))
     .map((p) => ({ id: p.id, name: p.name }));
+  const showGardens = gardens.length > 0 || pilot.length > 0 || outOfService.length > 0 || !!period;
   return (
-    <main className={styles.page}>
-      <h1>{A.title}</h1>
-      <PortalResult params={await searchParams} />
+    <main className={layout.page}>
+      <PageHeader title={A.title} lead={A.lead} />
+      <PortalResult params={params} />
 
-      {period && (
-        <section className={styles.section}>
-          <MembershipCard period={period} as="div" />
-        </section>
-      )}
-      {(gardens.length > 0 || pilot.length > 0 || outOfService.length > 0 || period) && (
-        <MyGardens
-          gardens={gardens}
-          pilot={pilot}
-          outOfService={outOfService}
-          addHref={changesEnabled ? portalHref.newApplication() : null}
-          changesEnabled={changesEnabled}
-        />
-      )}
+      <div className={layout.split}>
+        <div className={styles.column}>
+          {period && <MembershipCard period={period} />}
+          {showGardens && (
+            <MyGardens
+              gardens={gardens}
+              pilot={pilot}
+              outOfService={outOfService}
+              addHref={changesEnabled ? portalHref.newApplication() : null}
+              changesEnabled={changesEnabled}
+            />
+          )}
+          <section className={layout.section} aria-labelledby="account-contact">
+            <div className={styles.panelHead}>
+              <h2 id="account-contact">{A.contactTitle}</h2>
+              <p className={layout.sectionLead}>{A.contactLead}</p>
+            </div>
+            <div className={layout.panel}>
+              <ContactForm
+                phone={contact?.phone ?? null}
+                initial={{
+                  full_name: contact?.fullName ?? "",
+                  email: contact?.email ?? "",
+                  contact_preference: contact?.contactPreference ?? "whatsapp",
+                }}
+              />
+            </div>
+          </section>
+        </div>
 
-      <section className={styles.section}>
-        <h2>{A.contactTitle}</h2>
-        <ContactForm
-          phone={contact?.phone ?? null}
-          initial={{
-            full_name: contact?.fullName ?? "",
-            email: contact?.email ?? "",
-            contact_preference: contact?.contactPreference ?? "whatsapp",
-          }}
-        />
-      </section>
-
-      <section className={styles.section} data-testid="account-billing">
-        <h2>{A.billingTitle}</h2>
-        {profile?.hasProfile ? (
-          <p>
-            {profile.kind === "company"
-              ? profile.companyTitle
-              : `${profile.firstName} ${profile.lastName}`}
-            {" · "}
-            {billingText.billingPartyKind[profile.kind ?? "individual"]}
-            {" · "}
-            {[profile.district, profile.city].filter(Boolean).join(", ")}{" "}
-            <Link href={portalHref.billing()}>{A.billingEdit}</Link>
-          </p>
-        ) : (
-          <p>
-            {A.billingNone} <Link href={portalHref.billing()}>{P.quote.billingFill}</Link>
-          </p>
-        )}
-      </section>
-
-      <section className={styles.section} data-testid="account-contracts">
-        <h2>{C.list.accountTitle}</h2>
-        <p>
-          <Link href="/portal/hesap/sozlesmeler">{C.list.accountLink}</Link>
-        </p>
-      </section>
-
-      <section className={styles.section}>
-        <h2>{A.consentsTitle}</h2>
-        <p>
-          <Link href={portalHref.consents()}>{A.consentsLink}</Link>
-        </p>
-      </section>
-
-      <section className={styles.section}>
-        <h2>{A.summaryTitle}</h2>
-        <ul className={ops.plainList}>
-          <li>
-            <Link href={portalHref.applications()}>{A.applications(applications.length)}</Link>
-          </li>
-          <li>
-            <Link href={portalHref.orders()}>{A.orders(orders.length)}</Link>
-          </li>
-          <li>
-            <Link href={portalHref.payments()}>{A.payments(payments.length)}</Link>
-          </li>
-        </ul>
-      </section>
+        <div className={styles.column}>
+          <BillingSummary profile={profile} />
+          <section
+            className={layout.section}
+            aria-labelledby="account-docs"
+            data-testid="account-docs"
+          >
+            <h2 id="account-docs">{A.docsTitle}</h2>
+            <ul className={`${layout.panel} ${layout.rows} ${styles.rowsPanel}`}>
+              <li data-testid="account-contracts">
+                <div className={layout.rowMain}>
+                  <Link className={styles.linkRow} href="/portal/hesap/sozlesmeler">
+                    {A.contractsLink}
+                  </Link>
+                  <p className={styles.meta}>{A.contractsBody}</p>
+                </div>
+              </li>
+              <li data-testid="account-consents">
+                <div className={layout.rowMain}>
+                  <Link className={styles.linkRow} href={portalHref.consents()}>
+                    {A.consentsLink}
+                  </Link>
+                  <p className={styles.meta}>{A.consentsBody}</p>
+                </div>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </div>
     </main>
+  );
+}
+
+// The billing profile in three facts, or what is missing and why it matters.
+function BillingSummary({ profile }: { profile: BillingProfileView | null }) {
+  const place = [profile?.district, profile?.city].filter(Boolean).join(", ");
+  return (
+    <section
+      className={layout.section}
+      aria-labelledby="account-billing"
+      data-testid="account-billing"
+    >
+      <h2 id="account-billing">{A.billingTitle}</h2>
+      <div className={layout.panel}>
+        {profile?.hasProfile ? (
+          <>
+            <dl className={layout.facts}>
+              <dt>{P.billing.kind}</dt>
+              <dd>{A.billingKind[profile.kind ?? "individual"]}</dd>
+              {profile.kind === "company" ? (
+                <>
+                  <dt>{A.billingCompany}</dt>
+                  <dd>{profile.companyTitle}</dd>
+                </>
+              ) : (
+                <>
+                  <dt>{A.billingName}</dt>
+                  <dd>{[profile.firstName, profile.lastName].filter(Boolean).join(" ")}</dd>
+                </>
+              )}
+              {place && (
+                <>
+                  <dt>{A.billingPlace}</dt>
+                  <dd>{place}</dd>
+                </>
+              )}
+            </dl>
+            <div className={layout.actions}>
+              <ButtonLink variant="secondary" href={portalHref.billing()}>
+                {A.billingEdit}
+              </ButtonLink>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={layout.stack}>
+              <p>{A.billingNone}</p>
+              <p className={styles.meta}>{A.billingNoneBody}</p>
+            </div>
+            <div className={layout.actions}>
+              <ButtonLink variant="secondary" href={portalHref.billing()}>
+                {P.quote.billingFill}
+              </ButtonLink>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
   );
 }

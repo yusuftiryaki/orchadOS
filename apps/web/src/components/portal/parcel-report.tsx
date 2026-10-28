@@ -1,10 +1,17 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { Alert } from "@/components/ui/alert";
+import { Badge, ClassDot } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { cell, Table } from "@/components/ui/table";
 import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
-import { MARKER_COLORS, type MarkerState } from "@/lib/map/tree-style";
+import type { MarkerState } from "@/lib/map/tree-style";
 import { CLASS_ORDER, distributionTotal, type Distribution } from "@/lib/portal/classes";
 import { approverLine } from "@/lib/portal/approver";
 import type { ParcelReport, TreeChange } from "@/lib/portal/data";
-import type { FindingItem } from "@/lib/portal/findings";
+import { SEVERITY_ORDER, type FindingItem, type Severity } from "@/lib/portal/findings";
 import type { MetricSummaryRow } from "@/lib/portal/metrics";
 import { InventorySummaryView } from "@/components/office/inventory-summary";
 import { DemoNotice } from "@/components/demo/demo-notice";
@@ -16,7 +23,7 @@ import { BoundaryNotice } from "./boundary-notice";
 import { Dimensions } from "./dimensions";
 import { HealthMap, type MapLayer } from "./health-map";
 import { DistributionBar, findingKindLabel, percent, ScoreLine } from "./labels";
-import { scoreRulesFor, share } from "@/lib/portal/score";
+import { scoreRulesFor } from "@/lib/portal/score";
 import {
   askQuestionAction,
   editQuestionAction,
@@ -24,14 +31,17 @@ import {
 } from "@/app/portal/parsel/[parcelId]/actions";
 import type { QuestionState } from "./tree-card";
 import { AskQuestionForm, QuestionNotice, QuestionThreads } from "./question-threads";
-import { SEVERITY_COLORS } from "./colors";
+import { SEVERITY_TONES } from "./colors";
 import { PrintButton } from "./print-button";
 import type { ParcelViewers } from "@/lib/portal/viewers";
 import { ViewersCard } from "./viewers-card";
-import styles from "./portal.module.css";
+import layout from "./page.module.css";
+import styles from "./parcel.module.css";
 
-// Parcel report card: latest published visit, change since the previous one,
-// health map, findings, card metrics and visit history.
+// The garden's report card, built to answer "how is my garden and what needs
+// my attention" on a phone: the state of the latest published visit, what
+// needs attention, the health map, then the findings, the report card
+// details, the boundary, the service, the visits, questions and co-owners.
 
 const r = t.portal.report;
 
@@ -46,6 +56,7 @@ export function ParcelReportView({
   demo = false,
   pdfLimit = false,
   serviceCard = null,
+  upcomingVisits = null,
   removedUntil = null,
 }: {
   report: ParcelReport;
@@ -63,131 +74,196 @@ export function ParcelReportView({
   pdfLimit?: boolean;
   // IP14: the paying owner's "Hizmet" card, and the last day the reports of
   // a removed garden stay open (a band for everyone).
-  serviceCard?: React.ReactNode;
+  serviceCard?: ReactNode;
+  // T07: the owner's planned visits.
+  upcomingVisits?: ReactNode;
   removedUntil?: string | null;
 }) {
   const base = `/portal/parsel/${report.parcel.id}`;
+  const latest = report.latest;
+  // A garden without trees or boundary yet has nothing to draw.
+  const hasMap = report.slots.features.length > 0 || report.boundary !== null;
+  const showViewers = viewers?.data.isOwner === true;
+  const showQuestions =
+    !!questions &&
+    (latest !== null || questions.threads.length > 0 || !!questions.readOnly || !!questions.demo);
+  const nav: [string, string][] = [
+    ...(hasMap ? ([["#harita", r.nav.map]] as [string, string][]) : []),
+    ...(latest
+      ? ([
+          ["#bulgular", r.nav.findings],
+          ["#karne", r.nav.details],
+        ] as [string, string][])
+      : []),
+    ...(boundaryCard ? ([["#sinir", r.nav.boundary]] as [string, string][]) : []),
+    ...(serviceCard ? ([["#hizmet", r.nav.service]] as [string, string][]) : []),
+    ["#ziyaretler", r.nav.visits],
+    ...(showQuestions ? ([["#sorular", r.nav.questions]] as [string, string][]) : []),
+    ...(showViewers ? ([["#hissedarlar", r.nav.viewers]] as [string, string][]) : []),
+  ];
+
   return (
-    <main className={styles.page}>
-      <p className={styles.noPrint}>
-        <Link href="/portal">← {r.back}</Link>
-      </p>
-      <div className={styles.titleRow}>
-        <div>
-          <h1>{report.parcel.name}</h1>
-          <p className="muted">
-            {report.boundary
-              ? t.parcel.boundaryVersion(report.boundary.version)
-              : t.parcel.noBoundary}
-            {" · "}
-            {t.parcel.slotCount(report.slotCount, report.activeTreeCount)}
-          </p>
-        </div>
-        <div className={`${styles.actions} ${styles.noPrint}`}>
-          <Link className="button" href={`${base}/gezi`}>
-            {r.tour}
-          </Link>
-          {report.latest && (
-            <a className="button" href={`${base}/rapor.pdf`} data-testid="report-pdf">
-              {r.pdf}
-            </a>
-          )}
-          {boundaryCard?.inventory && (
-            <Link className="button button-secondary" href={`${base}/envanter`}>
-              {r.inventoryReport}
-            </Link>
-          )}
-          <PrintButton />
-        </div>
-      </div>
+    <main className={layout.page}>
+      <PageHeader
+        back={{ href: "/portal", label: r.back }}
+        title={report.parcel.name}
+        lead={placeOf(report) ?? undefined}
+        actions={
+          <div className={`${layout.actions} ${styles.noPrint}`}>
+            {report.visits.length > 0 && (
+              <ButtonLink variant="secondary" href={`${base}/gezi`}>
+                {r.tour}
+              </ButtonLink>
+            )}
+            {latest && (
+              <a
+                className="button button-secondary"
+                href={`${base}/rapor.pdf`}
+                data-testid="report-pdf"
+              >
+                {r.pdf}
+              </a>
+            )}
+            {latest && <PrintButton />}
+          </div>
+        }
+      />
       {pdfLimit && <DemoNotice text={demoText.closed.pdfLimit} />}
       {removedUntil && (
-        <p className={styles.notice} role="status" data-testid="removed-band">
-          {portalBillingText.removal.removedBand(formatDate(removedUntil))}
-        </p>
-      )}
-      {serviceCard}
-
-      {boundaryCard && (
-        <BoundaryCardView parcelId={report.parcel.id} card={boundaryCard} demo={demo} />
-      )}
-      {boundaryCard?.inventory && (
-        <div data-testid="portal-inventory">
-          <InventorySummaryView
-            summary={boundaryCard.inventory.summary}
-            title={
-              boundaryCard.inventory.approvedAt
-                ? `${t.inventory.portal.inventoryTitle} · ${t.inventory.portal.inventoryApproved(formatDate(boundaryCard.inventory.approvedAt))}`
-                : t.inventory.portal.inventoryTitle
-            }
-          />
-        </div>
+        <Alert tone="info" role="status" testId="removed-band">
+          <p>{portalBillingText.removal.removedBand(formatDate(removedUntil))}</p>
+        </Alert>
       )}
 
-      {report.latest ? (
+      {latest ? (
         <>
           <Summary report={report} base={base} />
-          <Dimensions report={report} base={base} />
+          <Attention report={report} base={base} boundaryCard={boundaryCard ?? null} />
         </>
       ) : (
-        <p className={styles.notice} data-testid="no-results">
-          {r.noResults}
-        </p>
+        <EmptyState title={r.noResultsTitle} testId="no-results">
+          <p>{r.noResultsNext}</p>
+        </EmptyState>
       )}
 
-      <section id="harita" className={styles.section} aria-labelledby="harita-baslik">
-        <h2 id="harita-baslik">{r.mapTitle}</h2>
-        <HealthMap
-          key={`${classFilter?.join(",") ?? "all"}|${mapOptions?.layers?.join(",") ?? ""}|${mapOptions?.visitId ?? ""}|${mapOptions?.changed ?? ""}`}
-          parcelId={report.parcel.id}
-          boundary={report.boundary?.geometry ?? null}
-          slots={report.slots}
-          findings={report.findings}
-          bounds={report.bounds}
-          initialStates={classFilter}
-          initialFindingId={findingId}
-          visits={report.mapVisits}
-          coverage={report.coverage}
-          initialVisitId={mapOptions?.visitId}
-          initialChanged={mapOptions?.changed}
-          initialLayers={mapOptions?.layers}
-        />
-        <BoundaryNotice />
-      </section>
+      {nav.length > 2 && (
+        <nav aria-label={r.onThisPage} className={`${styles.sectionNav} ${styles.noPrint}`}>
+          <ul>
+            {nav.map(([href, label]) => (
+              <li key={href}>
+                <a href={href}>{label}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
 
-      {report.latest && (
+      {hasMap && (
+        <section id="harita" className={layout.section} aria-labelledby="harita-baslik">
+          <h2 id="harita-baslik">{r.mapTitle}</h2>
+          <HealthMap
+            key={`${classFilter?.join(",") ?? "all"}|${mapOptions?.layers?.join(",") ?? ""}|${mapOptions?.visitId ?? ""}|${mapOptions?.changed ?? ""}`}
+            parcelId={report.parcel.id}
+            boundary={report.boundary?.geometry ?? null}
+            slots={report.slots}
+            findings={report.findings}
+            bounds={report.bounds}
+            initialStates={classFilter}
+            initialFindingId={findingId}
+            visits={report.mapVisits}
+            coverage={report.coverage}
+            initialVisitId={mapOptions?.visitId}
+            initialChanged={mapOptions?.changed}
+            initialLayers={mapOptions?.layers}
+          />
+          {/* H07, T16: the long form once on the report, by its map. */}
+          <BoundaryNotice />
+        </section>
+      )}
+
+      {latest && (
         <>
           <Findings findings={report.findings} base={base} />
-          <Metrics metrics={report.metrics} />
+          <section id="karne" className={layout.section} aria-labelledby="karne-baslik">
+            <h2 id="karne-baslik">{r.detailsTitle}</h2>
+            <Dimensions report={report} base={base} />
+            <Metrics metrics={report.metrics} />
+          </section>
         </>
       )}
-      {questions && <Questions report={report} base={base} questions={questions} />}
-      <History report={report} />
-      {viewers?.data.isOwner && (
+
+      {boundaryCard && (
+        <section id="sinir" className={layout.section} aria-labelledby="sinir-baslik">
+          <h2 id="sinir-baslik">{r.boundaryTitle}</h2>
+          <BoundaryCardView
+            parcelId={report.parcel.id}
+            card={boundaryCard}
+            demo={demo}
+            notice={false}
+          />
+          {boundaryCard.inventory && (
+            <div className={layout.panel} data-testid="portal-inventory">
+              <InventorySummaryView
+                summary={boundaryCard.inventory.summary}
+                title={
+                  boundaryCard.inventory.approvedAt
+                    ? `${t.inventory.portal.inventoryTitle}, ${t.inventory.portal.inventoryApproved(formatDate(boundaryCard.inventory.approvedAt))}`
+                    : t.inventory.portal.inventoryTitle
+                }
+              />
+              <div className={`${layout.actions} ${styles.noPrint}`}>
+                <ButtonLink variant="secondary" href={`${base}/envanter`}>
+                  {r.inventoryReport}
+                </ButtonLink>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {serviceCard}
+
+      <section id="ziyaretler" className={layout.section} aria-labelledby="ziyaret-baslik">
+        <h2 id="ziyaret-baslik">{r.visitsTitle}</h2>
+        {upcomingVisits}
+        <History report={report} />
+      </section>
+
+      {showQuestions && <Questions report={report} base={base} questions={questions!} />}
+      {showViewers && (
         <ViewersCard
           parcelId={report.parcel.id}
-          viewers={viewers.data}
-          outcome={viewers.outcome}
+          viewers={viewers!.data}
+          outcome={viewers!.outcome}
           demo={demo}
-          readOnly={viewers.readOnly}
+          readOnly={viewers!.readOnly}
         />
       )}
     </main>
   );
 }
 
+function placeOf(report: ParcelReport): string | null {
+  const { village, district, province } = report.parcel;
+  const place = [village, district, province].filter(Boolean).join(", ");
+  return place || null;
+}
+
 function Summary({ report, base }: { report: ParcelReport; base: string }) {
   const latest = report.latest!;
   const total = distributionTotal(latest.distribution);
   const states: (keyof Distribution)[] = [...CLASS_ORDER, "unassessed"];
+  const shown = states.filter((c) => c !== "unassessed" || latest.distribution.unassessed > 0);
   return (
-    <section className={styles.section} aria-labelledby="karne-baslik" data-testid="report-summary">
-      <div>
-        <h2 id="karne-baslik">{r.summaryTitle}</h2>
-        <p className="muted">
-          {r.visitOf(formatDate(latest.time))}
-          {latest.methodologyVersion && ` · ${r.methodology(latest.methodologyVersion)}`}
+    <section className={layout.panel} aria-labelledby="durum-baslik" data-testid="report-summary">
+      <div className={styles.overviewHead}>
+        <h2 id="durum-baslik">{r.summaryTitle}</h2>
+        <p>
+          <strong>{r.visitOf(formatDate(latest.time))}</strong>
         </p>
+        {latest.methodologyVersion && (
+          <p className={`${styles.small} muted`}>{r.methodology(latest.methodologyVersion)}</p>
+        )}
         {report.approver && (
           <p className="muted" data-testid="report-approver">
             {approverLine(report.approver)}
@@ -202,70 +278,65 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
           unassessedPct={report.scoreUnassessedPct}
           size="large"
         />
-        <p className={`muted ${styles.small}`}>
+        <p className={`${styles.small} muted`}>
           {t.portal.score.help}. {t.portal.score.weights(scoreRulesFor(latest.methodologyVersion))}
         </p>
       </div>
       <p>
         <strong data-testid="tree-count">{r.treeCount(report.activeTreeCount)}</strong>
-        {" · "}
+        {"; "}
         {r.assessedCount(latest.assessedCount, report.activeTreeCount)}
       </p>
-      {report.audit && <Audit audit={report.audit} />}
       <DistributionBar distribution={latest.distribution} />
-      <ul className={styles.tiles}>
-        {states
-          .filter((c) => c !== "unassessed" || latest.distribution.unassessed > 0)
-          .map((c) => (
-            <li key={c}>
-              <Link
-                className={styles.tile}
-                href={`${base}?sinif=${c}#harita`}
-                data-testid={`count-${c}`}
-                title={`${r.showOnMap}: ${t.portal.classes[c]}`}
-              >
-                <span className={styles.tileLabel}>
-                  <span className={styles.swatch} style={{ background: MARKER_COLORS[c] }} />
-                  {t.portal.classes[c]}
-                </span>
-                <span className={styles.tileValue}>{formatNumber(latest.distribution[c])}</span>
-                <span className={`muted ${styles.small}`}>
-                  {r.percent(percent(latest.distribution[c], total))} · {t.portal.classHelp[c]}
-                </span>
-              </Link>
-            </li>
-          ))}
+      <ul className={styles.counts}>
+        {shown.map((c) => (
+          <li key={c}>
+            <Link
+              className={styles.count}
+              href={`${base}?sinif=${c}#harita`}
+              data-testid={`count-${c}`}
+              title={`${r.showOnMap}: ${t.portal.classes[c]}`}
+            >
+              <ClassDot value={c} />
+              <span className={styles.countName}>{t.portal.classes[c]}</span>
+              <span className={styles.countValue}>{formatNumber(latest.distribution[c])}</span>
+              <span className={styles.countShare}>
+                {r.percent(percent(latest.distribution[c], total))}
+              </span>
+            </Link>
+          </li>
+        ))}
       </ul>
+      <details className={`${styles.disclosure} ${styles.noPrint}`}>
+        <summary>{r.classHelpTitle}</summary>
+        <dl className={styles.classHelp}>
+          {shown.map((c) => (
+            <ClassHelpRow key={c} state={c} />
+          ))}
+        </dl>
+      </details>
       <Change report={report} base={base} />
     </section>
   );
 }
 
-function Audit({ audit }: { audit: NonNullable<ParcelReport["audit"]> }) {
-  const a = t.portal.audit;
-  const pct = (n: number) => String(share(n, audit.activeTrees) ?? 0);
+function ClassHelpRow({ state }: { state: keyof Distribution }) {
   return (
-    <div className={styles.audit} data-testid="audit">
-      <h3>{a.title}</h3>
-      <ul className={styles.plainList}>
-        <li data-testid="audit-coverage">
-          {a.coverage(pct(audit.covered), audit.covered, audit.activeTrees)}
-        </li>
-        <li data-testid="audit-expert">
-          {a.expert(pct(audit.expertReviewed), audit.expertReviewed)}
-        </li>
-        {audit.autoApproved > 0 && <li className="muted">{a.auto}</li>}
-        <li data-testid="audit-methodology">
-          {audit.methodologyVersion ? a.methodology(audit.methodologyVersion) : a.noMethodology}
-        </li>
-      </ul>
-    </div>
+    <>
+      <dt>
+        <ClassDot value={state} />
+        {t.portal.classes[state]}
+      </dt>
+      <dd>{t.portal.classHelp[state]}</dd>
+    </>
   );
 }
 
 const SHOWN_CHANGES = 10;
-// The rest of the findings sit behind "show more"; all of them print.
-const SHOWN_FINDINGS = 8;
+// Per kind of finding; the rest sit behind "show more" and all of them print.
+const SHOWN_FINDINGS = 5;
+// Tree codes named per kind in "Dikkat isteyenler".
+const SHOWN_CODES = 4;
 
 function Change({ report, base }: { report: ParcelReport; base: string }) {
   if (!report.previous || !report.change) {
@@ -273,22 +344,17 @@ function Change({ report, base }: { report: ParcelReport; base: string }) {
   }
   const { worse, better } = report.change;
   return (
-    <div data-testid="report-change">
+    <div className={styles.change} data-testid="report-change">
       <h3>{r.changeTitle}</h3>
       <p className="muted">{r.changeIntro(formatDate(report.previous.time))}</p>
       {worse.length === 0 && better.length === 0 ? (
         <p>{r.unchanged}</p>
       ) : (
         <div className={styles.changeGrid}>
-          <ChangeList
-            title={r.worse(worse.length)}
-            className={styles.worse}
-            items={worse}
-            base={base}
-          />
+          <ChangeList title={r.worse(worse.length)} tone={styles.worse} items={worse} base={base} />
           <ChangeList
             title={r.better(better.length)}
-            className={styles.better}
+            tone={styles.better}
             items={better}
             base={base}
           />
@@ -300,22 +366,24 @@ function Change({ report, base }: { report: ParcelReport; base: string }) {
 
 function ChangeList({
   title,
-  className,
+  tone,
   items,
   base,
 }: {
   title: string;
-  className: string;
+  tone: string;
   items: TreeChange[];
   base: string;
 }) {
   return (
     <div>
-      <h3 className={className}>{title}</h3>
+      <h4 className={tone}>{title}</h4>
       <ul className={styles.plainList}>
         {items.slice(0, SHOWN_CHANGES).map((c) => (
           <li key={c.treeId}>
-            <Link href={`${base}/agac/${c.treeId}`}>{c.code}</Link>{" "}
+            <Link className={styles.code} href={`${base}/agac/${c.treeId}`}>
+              {c.code}
+            </Link>{" "}
             <span className="muted">
               {r.changeLine(t.portal.classes[c.from], t.portal.classes[c.to])}
             </span>
@@ -329,28 +397,209 @@ function ChangeList({
   );
 }
 
-function Findings({ findings, base }: { findings: FindingItem[]; base: string }) {
+interface KindGroup {
+  kind: string;
+  items: FindingItem[];
+}
+
+// Findings of one severity, grouped by kind in the order they come (most
+// severe first, then as the report sorts them).
+function byKind(findings: FindingItem[]): KindGroup[] {
+  const groups = new Map<string, FindingItem[]>();
+  for (const f of findings) {
+    const list = groups.get(f.kind);
+    if (list) list.push(f);
+    else groups.set(f.kind, [f]);
+  }
+  return [...groups].map(([kind, items]) => ({ kind, items }));
+}
+
+function bySeverity(findings: FindingItem[]): [Severity, FindingItem[]][] {
+  return SEVERITY_ORDER.map(
+    (s) => [s, findings.filter((f) => f.severity === s)] as [Severity, FindingItem[]],
+  ).filter(([, items]) => items.length > 0);
+}
+
+// "Dikkat isteyenler": urgent and important findings by kind with the first
+// tree codes, trees that got worse, and a boundary waiting for approval.
+function Attention({
+  report,
+  base,
+  boundaryCard,
+}: {
+  report: ParcelReport;
+  base: string;
+  boundaryCard: BoundaryCard | null;
+}) {
+  const pressing = report.findings.filter((f) => f.severity === "high" || f.severity === "medium");
+  const high = pressing.filter((f) => f.severity === "high").length;
+  const worse = report.change?.worse.length ?? 0;
+  const boundaryPending =
+    !!boundaryCard?.latest && !boundaryCard.latest.approvedAt && boundaryCard.canApprove;
+  if (pressing.length === 0 && worse === 0 && !boundaryPending) {
+    return (
+      <section className={`${layout.panel} ${styles.attentionCalm}`} aria-labelledby="dikkat">
+        <h2 id="dikkat">{r.calmTitle}</h2>
+        <p>{r.calmBody}</p>
+      </section>
+    );
+  }
+  // The map filtered to the classes of the trees with these findings.
+  const stateOf = new Map(
+    report.slots.features
+      .filter((f) => f.properties.tree)
+      .map((f) => [f.properties.tree!.id, f.properties.state]),
+  );
+  const states = [
+    ...new Set(pressing.flatMap((f) => (f.treeId ? [stateOf.get(f.treeId)] : []))),
+  ].filter((s): s is MarkerState => !!s);
   return (
-    <section className={styles.section} aria-labelledby="bulgu-baslik">
-      <h2 id="bulgu-baslik">{r.findingsTitle}</h2>
-      {findings.length === 0 ? (
-        <p className="muted">{r.findingsEmpty}</p>
-      ) : (
-        <div className={styles.more} data-testid="findings">
-          <FindingList findings={findings.slice(0, SHOWN_FINDINGS)} base={base} />
-          {findings.length > SHOWN_FINDINGS && (
-            <details className={styles.more}>
-              <summary>{r.moreFindings(findings.length - SHOWN_FINDINGS)}</summary>
-              <FindingList findings={findings.slice(SHOWN_FINDINGS)} base={base} />
-            </details>
-          )}
+    <section className={`${layout.panel} ${styles.attention}`} aria-labelledby="dikkat">
+      <h2 id="dikkat">{r.attentionTitle}</h2>
+      {pressing.length > 0 && (
+        <>
+          <p>
+            <strong>{r.findingSummary(high, pressing.length - high)}</strong>
+          </p>
+          <ul className={layout.rows}>
+            {bySeverity(pressing).flatMap(([severity, items]) =>
+              byKind(items).map(({ kind, items: group }) => {
+                const trees = group.filter((f) => f.treeId);
+                return (
+                  <li key={`${severity}:${kind}`}>
+                    <div className={layout.rowMain}>
+                      <span className={styles.attentionItem}>
+                        <Badge tone={SEVERITY_TONES[severity]}>{t.portal.severity[severity]}</Badge>
+                        <strong>{findingKindLabel(kind)}</strong>
+                        <span className="muted">{r.kindTrees(group.length)}</span>
+                      </span>
+                      {trees.length > 0 && (
+                        <span>
+                          {trees.slice(0, SHOWN_CODES).map((f, i) => (
+                            <span key={f.id}>
+                              {i > 0 && ", "}
+                              <Link className={styles.code} href={`${base}/agac/${f.treeId}`}>
+                                {f.treeCode}
+                              </Link>
+                            </span>
+                          ))}
+                          {trees.length > SHOWN_CODES && (
+                            <span className="muted">
+                              {" "}
+                              {r.moreCodes(trees.length - SHOWN_CODES)}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                );
+              }),
+            )}
+          </ul>
+        </>
+      )}
+      {worse > 0 && (
+        <p>
+          {r.worseSince(worse)} <Link href={`${base}?degisen=1#harita`}>{r.showChanged}</Link>
+        </p>
+      )}
+      {boundaryPending && (
+        <p>
+          {r.boundaryPending} <a href="#sinir">{r.boundaryReview}</a>
+        </p>
+      )}
+      {pressing.length > 0 && (
+        <div className={`${layout.actions} ${styles.noPrint}`}>
+          <ButtonLink
+            href={states.length > 0 ? `${base}?sinif=${states.join(",")}#harita` : `${base}#harita`}
+          >
+            {r.showOnMapFiltered}
+          </ButtonLink>
+          <ButtonLink variant="secondary" href="#bulgular">
+            {r.allFindings}
+          </ButtonLink>
         </div>
       )}
     </section>
   );
 }
 
-function FindingList({ findings, base }: { findings: FindingItem[]; base: string }) {
+function Findings({ findings, base }: { findings: FindingItem[]; base: string }) {
+  return (
+    <section id="bulgular" className={layout.section} aria-labelledby="bulgu-baslik">
+      <h2 id="bulgu-baslik">{r.findingsTitle}</h2>
+      {findings.length === 0 ? (
+        <p className="muted">{r.findingsEmpty}</p>
+      ) : (
+        <>
+          <p className={layout.sectionLead}>{r.findingsLead}</p>
+          <div className={styles.findingGroups} data-testid="findings">
+            {bySeverity(findings).map(([severity, items]) => (
+              <div key={severity} className={styles.findingGroup}>
+                <h3>
+                  <Badge tone={SEVERITY_TONES[severity]}>{t.portal.severity[severity]}</Badge>
+                  <span className="muted">{formatNumber(items.length)}</span>
+                </h3>
+                {byKind(items).map((group) => (
+                  <KindFindings key={group.kind} group={group} base={base} />
+                ))}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function KindFindings({ group, base }: { group: KindGroup; base: string }) {
+  const { items } = group;
+  // One recommendation for the kind when every finding has the same one.
+  const shared =
+    items.length > 1 && items.every((f) => f.recommendation === items[0].recommendation)
+      ? items[0].recommendation
+      : null;
+  return (
+    <div className={styles.findingKind}>
+      <p>
+        <strong>{findingKindLabel(group.kind)}</strong>{" "}
+        <span className="muted">({formatNumber(items.length)})</span>
+      </p>
+      {shared && (
+        <p className={styles.recommendation}>
+          {r.recommendation}: {shared}
+        </p>
+      )}
+      <FindingList findings={items.slice(0, SHOWN_FINDINGS)} base={base} shared={!!shared} />
+      {items.length > SHOWN_FINDINGS && (
+        <details className={styles.more}>
+          <summary>{r.moreInGroup(items.length - SHOWN_FINDINGS)}</summary>
+          <FindingList findings={items.slice(SHOWN_FINDINGS)} base={base} shared={!!shared} />
+        </details>
+      )}
+    </div>
+  );
+}
+
+// "S1-6: ağaç kurumuş görünüyor." reads "ağaç kurumuş görünüyor." next to
+// the code.
+function withoutCode(f: FindingItem): string {
+  const prefix = f.treeCode ? `${f.treeCode}: ` : null;
+  const text =
+    prefix && f.description.startsWith(prefix) ? f.description.slice(prefix.length) : f.description;
+  return text.charAt(0).toLocaleUpperCase("tr") + text.slice(1);
+}
+
+function FindingList({
+  findings,
+  base,
+  shared,
+}: {
+  findings: FindingItem[];
+  base: string;
+  shared: boolean;
+}) {
   return (
     <ul className={styles.findings}>
       {findings.map((f) => {
@@ -360,34 +609,26 @@ function FindingList({ findings, base }: { findings: FindingItem[]; base: string
             ? `${base}?bulgu=${f.id}#harita`
             : null;
         const body = (
-          <div
-            className={styles.finding}
-            style={{ "--severity": SEVERITY_COLORS[f.severity] } as React.CSSProperties}
-          >
-            <div className={styles.findingHead}>
-              <strong style={{ color: SEVERITY_COLORS[f.severity] }}>
-                {t.portal.severity[f.severity]}
-              </strong>
-              <span>{findingKindLabel(f.kind)}</span>
-              <span className="muted">{f.treeCode ?? r.parcelLevel}</span>
-            </div>
-            <span>{f.description}</span>
-            {f.recommendation && (
-              <span>
-                <strong>{r.recommendation}: </strong>
-                {f.recommendation}
-              </span>
-            )}
-          </div>
+          <>
+            <span className={styles.findingWhere}>{f.treeCode ?? r.parcelLevel}</span>
+            <span className={styles.findingText}>
+              <span>{withoutCode(f)}</span>
+              {f.recommendation && !shared && (
+                <span className={styles.findingRecommendation}>
+                  {r.recommendation}: {f.recommendation}
+                </span>
+              )}
+            </span>
+          </>
         );
         return (
           <li key={f.id} data-finding-id={f.id}>
             {href ? (
-              <Link className={styles.findingLink} href={href}>
+              <Link className={styles.finding} href={href}>
                 {body}
               </Link>
             ) : (
-              body
+              <div className={styles.finding}>{body}</div>
             )}
           </li>
         );
@@ -398,28 +639,26 @@ function FindingList({ findings, base }: { findings: FindingItem[]; base: string
 
 function Metrics({ metrics }: { metrics: MetricSummaryRow[] }) {
   return (
-    <section className={styles.section} aria-labelledby="olcum-baslik">
-      <h2 id="olcum-baslik">{r.metricsTitle}</h2>
+    <div className={layout.stack}>
+      <h3>{r.metricsTitle}</h3>
       {metrics.length === 0 ? (
         <p className="muted">{r.metricsEmpty}</p>
       ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table} data-testid="metrics">
-            <tbody>
-              {metrics.map((m) => (
-                <tr key={m.code}>
-                  <th scope="row">{m.name}</th>
-                  <td>{r.metricCount(m.count)}</td>
-                  <td>
-                    <MetricSummaryText metric={m} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table data-testid="metrics">
+          <tbody>
+            {metrics.map((m) => (
+              <tr key={m.code}>
+                <th scope="row">{m.name}</th>
+                <td>{r.metricCount(m.count)}</td>
+                <td>
+                  <MetricSummaryText metric={m} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -448,7 +687,7 @@ function MetricSummaryText({ metric }: { metric: MetricSummaryRow }) {
               (c) =>
                 `${s.type === "category" ? categoryLabel(String(c.value)) : c.value}: ${c.count}`,
             )
-            .join(" · ")}
+            .join(", ")}
         </>
       );
     case "boolean":
@@ -469,9 +708,9 @@ function Questions({
 }) {
   const q = t.portal.questions;
   return (
-    <section id="sorular" className={styles.section} aria-labelledby="soru-baslik">
+    <section id="sorular" className={layout.section} aria-labelledby="soru-baslik">
       <h2 id="soru-baslik">{q.title}</h2>
-      <p className="muted">{q.parcelHint}</p>
+      <p className={layout.sectionLead}>{q.parcelHint}</p>
       <QuestionNotice sent={questions.sent} error={questions.error} />
       <QuestionThreads
         threads={questions.threads}
@@ -503,37 +742,32 @@ function Questions({
 
 function History({ report }: { report: ParcelReport }) {
   const c = r.columns;
+  if (report.visits.length === 0) return <p className="muted">{r.historyEmpty}</p>;
   return (
-    <section className={styles.section} aria-labelledby="gecmis-baslik">
-      <h2 id="gecmis-baslik">{r.historyTitle}</h2>
-      {report.visits.length === 0 ? (
-        <p className="muted">{r.historyEmpty}</p>
-      ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table} data-testid="visit-history">
-            <thead>
-              <tr>
-                <th>{c.date}</th>
-                <th>{c.kind}</th>
-                <th className={styles.number}>{c.assessed}</th>
-                <th className={styles.number}>{c.findings}</th>
-                <th>{c.methodology}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.visits.map((v) => (
-                <tr key={v.id} data-visit-id={v.id}>
-                  <td>{formatDate(v.time)}</td>
-                  <td>{t.portal.sessionKind[v.kind]}</td>
-                  <td className={styles.number}>{formatNumber(v.assessedCount)}</td>
-                  <td className={styles.number}>{formatNumber(v.findingCount)}</td>
-                  <td>{v.methodologyVersion ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
+    <div className={layout.stack}>
+      <h3>{r.historyTitle}</h3>
+      <Table data-testid="visit-history">
+        <thead>
+          <tr>
+            <th>{c.date}</th>
+            <th>{c.kind}</th>
+            <th className={cell.num}>{c.assessed}</th>
+            <th className={cell.num}>{c.findings}</th>
+            <th>{c.methodology}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {report.visits.map((v) => (
+            <tr key={v.id} data-visit-id={v.id}>
+              <td className={layout.nowrap}>{formatDate(v.time)}</td>
+              <td>{t.portal.sessionKind[v.kind]}</td>
+              <td className={cell.num}>{formatNumber(v.assessedCount)}</td>
+              <td className={cell.num}>{formatNumber(v.findingCount)}</td>
+              <td className={layout.nowrap}>{v.methodologyVersion ?? "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </div>
   );
 }

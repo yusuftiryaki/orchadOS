@@ -44,7 +44,7 @@ export function ContactForm({
         </p>
         <p className={styles.meta}>{A.phoneNote}</p>
       </div>
-      <div className={styles.formGrid}>
+      <div className={styles.fields}>
         <Field id="contact-full_name" label={A.fullName} error={err("full_name")}>
           <Input name="full_name" defaultValue={v("full_name")} required autoComplete="name" />
         </Field>
@@ -62,7 +62,6 @@ export function ContactForm({
           label={A.preference}
           hint={A.preferenceHint}
           error={err("contact_preference")}
-          className={styles.wide}
         >
           <Select name="contact_preference" defaultValue={v("contact_preference")}>
             {CONTACT_PREFERENCES.map((c) => (

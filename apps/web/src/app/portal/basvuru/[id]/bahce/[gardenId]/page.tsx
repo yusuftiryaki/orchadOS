@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { GardenForm } from "@/components/portal-billing/garden-form";
-import styles from "@/components/portal/portal.module.css";
+import s from "@/components/portal-billing/billing.module.css";
+import layout from "@/components/portal/page.module.css";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { getApplication, getGardenDetail } from "@/lib/portal-billing/data";
@@ -17,13 +19,17 @@ export default async function EditGardenPage({
   const user = assertCustomer(await requireSection("portal"));
   const { id, gardenId } = await params;
   const supabase = await createClient();
-  const view = await getApplication(supabase, user.id, id);
+  // Read together; the detail is used only once the garden is found on the
+  // caller's own application (the function checks the caller as well).
+  const [view, detail] = await Promise.all([
+    getApplication(supabase, user.id, id),
+    getGardenDetail(supabase, gardenId),
+  ]);
   const garden = view?.gardens.find((g) => g.id === gardenId);
   if (!view || !garden) notFound();
   if (view.application.status !== "draft") {
     redirect(portalHref.application(id, { hata: "application_not_draft" }));
   }
-  const detail = await getGardenDetail(supabase, gardenId);
   const initial: Record<string, string> = {
     name: garden.name,
     province: garden.province ?? "",
@@ -48,8 +54,11 @@ export default async function EditGardenPage({
     entry_permission: "on",
   };
   return (
-    <main className={styles.page}>
-      <h1>{P.garden.editTitle(garden.name)}</h1>
+    <main className={`${layout.page} ${s.doc}`}>
+      <PageHeader
+        title={P.garden.editTitle(garden.name)}
+        back={{ href: portalHref.application(id), label: P.garden.backToApplication }}
+      />
       <GardenForm applicationId={id} gardenId={gardenId} initial={initial} />
     </main>
   );

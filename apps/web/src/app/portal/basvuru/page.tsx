@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { StatusBadge } from "@/components/portal-billing/status-badge";
 import { PortalResult } from "@/components/portal-billing/result-notice";
-import ops from "@/components/operations/operations.module.css";
-import styles from "@/components/portal/portal.module.css";
+import s from "@/components/portal-billing/billing.module.css";
+import layout from "@/components/portal/page.module.css";
+import { ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { formatDate } from "@/lib/i18n";
-import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { getServicePeriods, listApplications } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
@@ -13,6 +16,8 @@ import { createClient } from "@/lib/supabase/server";
 
 const A = P.applications;
 
+// The customer's applications, newest first: number, state and what happens
+// next. One row each, the number never breaks.
 export default async function ApplicationsPage({
   searchParams,
 }: {
@@ -20,51 +25,40 @@ export default async function ApplicationsPage({
 }) {
   const user = assertCustomer(await requireSection("portal"));
   const supabase = await createClient();
-  const [applications, { primary }] = await Promise.all([
+  const [applications, { primary }, params] = await Promise.all([
     listApplications(supabase, user.id),
     getServicePeriods(supabase),
+    searchParams,
   ]);
   // A member adds gardens only while garden changes are open (IP14, §2).
   const canStart = !primary || primary.garden_changes_enabled;
+  const newButton = canStart && (
+    <ButtonLink href={portalHref.newApplication()}>{A.new}</ButtonLink>
+  );
   return (
-    <main className={styles.page}>
-      <div className={styles.titleRow}>
-        <h1>{A.title}</h1>
-        {canStart && (
-          <Link className="button" href={portalHref.newApplication()}>
-            {A.new}
-          </Link>
-        )}
-      </div>
-      <PortalResult params={await searchParams} />
+    <main className={`${layout.page} ${s.doc}`}>
+      <PageHeader title={A.title} actions={applications.length > 0 && newButton} />
+      <PortalResult params={params} />
       {applications.length === 0 ? (
-        <p className="muted">{A.empty}</p>
+        <EmptyState title={A.emptyTitle} action={newButton}>
+          <p>{A.emptyBody}</p>
+        </EmptyState>
       ) : (
-        <div className={ops.tableWrap}>
-          <table className={ops.table} data-testid="application-list">
-            <thead>
-              <tr>
-                <th>{A.number}</th>
-                <th>{A.status}</th>
-                <th>{A.created}</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {applications.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.number ?? A.draftNumber}</td>
-                  <td>
-                    <span className={ops.badge}>{billingText.applicationStatus[a.status]}</span>
-                  </td>
-                  <td>{formatDate(a.created_at)}</td>
-                  <td>
-                    <Link href={portalHref.application(a.id)}>{A.open}</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className={layout.panel}>
+          <ul className={layout.rows} data-testid="application-list">
+            {applications.map((a) => (
+              <li key={a.id} data-application-id={a.id}>
+                <div className={layout.rowMain}>
+                  <Link href={portalHref.application(a.id)} className={s.rowTitle}>
+                    {a.number ?? A.draftTitle}
+                  </Link>
+                  <span className={layout.small}>{A.next[a.status]}</span>
+                  <span className={s.meta}>{A.createdOn(formatDate(a.created_at))}</span>
+                </div>
+                <StatusBadge kind="application" status={a.status} />
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </main>
