@@ -54,8 +54,9 @@ describe("contract visit windows (Ek-2)", () => {
   });
 
   it("differs on purpose from the evaluation calendar (seasonOf unchanged)", () => {
-    expect(seasonOf("2026-03-15")).toBe("spring");
-    expect(seasonOf("2026-11-15")).toBe("winter");
+    expect(seasonOf("2026-03-15", null)).toBe("spring");
+    expect(seasonOf("2026-03-15", "methodology-v0.2")).toBe("winter");
+    expect(seasonOf("2026-11-15", null)).toBe("winter");
     expect(labels("2026-03-15", "2026-03-15")).toEqual([]);
   });
 });
