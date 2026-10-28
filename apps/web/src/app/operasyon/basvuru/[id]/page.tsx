@@ -276,7 +276,10 @@ export default async function Page({
                             )}
                           </td>
                           <td>
-                            {open && o.same_customer && !o.in_service && g.parcel_id !== o.parcel_id ? (
+                            {open &&
+                            o.same_customer &&
+                            !o.in_service &&
+                            g.parcel_id !== o.parcel_id ? (
                               <ActionForm action={linkGardenAction} inline>
                                 <input type="hidden" name="application_id" value={a.id} />
                                 <input type="hidden" name="garden_id" value={g.id} />
