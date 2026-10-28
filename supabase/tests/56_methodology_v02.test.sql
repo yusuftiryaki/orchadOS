@@ -1,4 +1,4 @@
--- methodology-v0.2 registry changes (20261102130000_methodology_v02): wider
+-- methodology-v0.2 registry changes (20261103100800_methodology_v02): wider
 -- seasons for the pre-harvest visit and late-March frost, the two summer
 -- questions, and the fence question stored on the parcel (no tree).
 -- Seed: field_staff a0..03, org b0..01, parcel c0..01.

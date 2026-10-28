@@ -36,7 +36,7 @@ const TYPE_ORDER: Record<MetricDefinition["value_type"], number> = {
 };
 
 // Seasons the registry gained with methodology-v0.2 (migration
-// 20261102130000_methodology_v02): frost damage in winter for the late-March
+// 20261103100800_methodology_v02): frost damage in winter for the late-March
 // visit, broken branches in summer for the pre-harvest visit. The registry is
 // not versioned, so visits of earlier versions keep their old forms here, and
 // in v0.2 forms these come after the season's usual metrics.
