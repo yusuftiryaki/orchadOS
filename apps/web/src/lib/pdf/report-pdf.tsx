@@ -7,7 +7,7 @@ import { CLASS_ORDER, distributionTotal, type Distribution } from "@/lib/portal/
 import type { ParcelReport } from "@/lib/portal/data";
 import type { MetricSummaryRow } from "@/lib/portal/metrics";
 import { scoreRulesFor, share } from "@/lib/portal/score";
-import { Bullets, Footer, Header, SampleWatermark, sampleInfo } from "./parts";
+import { BoundaryFooter, Bullets, Footer, Header, SampleWatermark, sampleInfo } from "./parts";
 import { COLORS, pdf, registerFonts } from "./theme";
 
 // The owner's report card of the latest published visit as a PDF: summary,
@@ -63,7 +63,7 @@ export function ReportDocument({
       language="tr"
       {...sampleInfo(demo)}
     >
-      <Page size="A4" style={pdf.page}>
+      <Page size="A4" style={pdf.reportPage}>
         {demo && <SampleWatermark />}
         <Header kicker={r.pdfKicker} title={report.parcel.name} subtitle={subtitle} />
 
@@ -228,6 +228,7 @@ export function ReportDocument({
           </View>
         )}
 
+        <BoundaryFooter />
         <Footer left={`${t.inventoryReport.generated(formatDate(now.toISOString()))}`} />
       </Page>
     </Document>

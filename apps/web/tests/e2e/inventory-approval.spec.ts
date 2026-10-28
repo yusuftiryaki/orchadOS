@@ -179,7 +179,7 @@ test("a viewer cannot approve the boundary; the owner does", async ({ page }) =>
   await expect(card.getByTestId("boundary-source")).toContainText("Sürüm 2 · Saha ölçümü");
   await expect(card.getByTestId("boundary-area")).toContainText("500 m²");
   await expect(card.getByTestId("boundary-area")).toContainText("0,5 dönüm");
-  await expect(card).toContainText("tapu ya da mülkiyet sınırı değildir");
+  await expect(card).toContainText("resmi bir sınır belirlemez");
   await expect(card.getByTestId("boundary-awaiting")).toContainText(
     "Sınırı sadece parsel sahibi onaylayabilir.",
   );

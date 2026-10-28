@@ -849,3 +849,16 @@
     text-align: right;
   }
 }
+
+/* Boundary notice (H07, T16): never hidden, also in print. ----------------- */
+
+.boundaryNotice {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.mapCaption {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
