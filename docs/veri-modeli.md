@@ -336,6 +336,32 @@ Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) H01, H05, H07, H16, H22, H25, H
 
 **Kısa saklama işleri (T09):** `notification-purge` (12 ay), `auth-session-purge` (sona erdikten 30 gün sonra), `auth-audit-log-purge` (30 gün, H27); ayrıntı [hukuk/saklama-imha-politikasi.md](hukuk/saklama-imha-politikasi.md) §5.
 
+## Hukuk takip işleri, dalga 3 (T05, T07, T06, T08, T09, T23, T04)
+
+Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) H01, H12, H15, H20, H21, H22, H23, H25. Migration'lar `20261105100000`–`20261105100500`; kurallar [bahce-yonetimi.md](bahce-yonetimi.md) §22, tarama [musteri-yonetimi.md](musteri-yonetimi.md) §20.8.
+
+| Tablo / sütun | Ne tutar |
+| --- | --- |
+| `org_billing_setting` | `visit_notice_sms_enabled` (T07) ve `service_end_access_flow_enabled` (T08). Yalnızca SQL; barındırılan projelerde `false`, `seed.sql`'de `true`. Kapalıyken bugünkü davranış değişmez |
+| `garden_removal_reason` | Ops'un haklı sebepleri `out_of_area`, `owner_breach`, `no_authority`, `third_party_objection`, `staff_safety`, `service_discontinued`, `by_agreement` (ve mevcut `transfer`, `duplicate`); sistem nedenleri `period_ended`, `order_terminated`, `pilot_ended` |
+| `garden_removal.timing` | Müşterinin açık zaman seçimi: `immediate`, `notice`, `period_end`, `withdrawal` (kaydın kimliği; T05 öncesi satırlarda boş) |
+| `garden_removal.owner_consent_note` | Anlaşmayla ya da bildirim süresinden erken çıkarmada Sahip'in yazılı onayının kaydı (iç; kaydın kimliği) |
+| `garden_removal.initiated_by = 'system'` | T08 hizmet sonu penceresi: tamamlanmış, iadesiz satır (`calculation.formula = 'service-end-v1'`); pilot satırında `order_id` ve `order_item_id` boştur |
+| `garden_removal.calculation.formula` | `removal-v2` (T05'ten sonra); `removal-v1` kayıtları değişmez |
+| `private.visit_notice` | Ziyaret tarihi bildirimi (T07, 8A/1): ziyaret, gün, kanal (`message` = `visit_scheduled`, ya da `phone`), zaman, mesaj kimliği, alıcı, kaydeden. Ekleme-yalnız |
+| `private.visit_postponement` | Sahip'in ertelemesi (8A/1): ziyaret başına bir kez, ilk gün, istenme zamanı, kanal (`portal`, `phone`, `written`), isteyen ya da kaydeden. Ekleme-yalnız |
+| `private.missed_visit` | Yapılamayan ziyaret (8A/2–4): neden (`customer`, `company`, `weather`, `force_majeure`), ayrıntı kodu, not, `report_lost`, saha olayı (`visit_blocked`), kanıt (yakalama kimlikleri ve `visit-evidence` kovası yolları), Sahip'e bildirim (gün, kanal), önerilen tarih ya da "pencerede tarih yok", sonuç (`rescheduled`, `deemed_done`, `refunded`, `carried_over`; bir kez), iade, aktarılan pencere. Silinmez; kayıt değişmez, sonuç bir kez yazılır |
+| `private.visit_reconciliation` | 8A mutabakat görevi (T06): sipariş satırı, kontrol (`window_end`, `period_end`, `removal`), kapsam sonu, ziyaret sayıları, eksik, ziyaret bedeli, son gün (+14), durum ve kapanış. Sayılar dondurulur, görev bir kez kapanır |
+| `private.contract_end` | Sözleşmenin parsel ve kullanıcı için sona erme tarihi (T09, H25): son hizmet günü ve neden; her tamamlanan çıkarma ya da hizmet sonu penceresiyle yazılır. Ekleme-yalnız |
+| `private.contract_sweep_ticket` | Belge taraması bileti (T04): token özeti, sipariş kimlikleri, 10 dakikalık süre; kişisel veri yok |
+| `notification_template` | `visit_scheduled` (parsel ve ziyareti taşır; değişkenler `date`, `path`, `parcel_name`), `garden_transfer_reports` (C-…) |
+| `audit_event.entity_type` | `session`, `missed_visit`, `visit_reconciliation`, `parcel` |
+| Kova `visit-evidence` | Ops'un yüklediği yapılamayan ziyaret fotoğrafları (`<org>/<parsel>/<sha256>.<uzantı>`; özel, yalnız org'un ops'u okur ve ekler) |
+
+**Kullanılmış ziyaret (`private.visit_usage`):** Faturalanan ziyaretler (§ İP14) artı 8A/3'e göre yapılmış sayılanlar, eksi raporu yayımlanamayanlar (`report_lost`). Çıkarma hesabı ve Bahçelerim'deki ziyaret sayısı bunu okur.
+
+**Erişim (T08, T09):** Hizmet sonu penceresi çıkarmanın salt okunur dönemini ve erişim kaldırmasını kullanır. Pencere kapanınca ve parsele hiçbir satır hizmet vermiyorsa `parcel_detail.site_contact_phone` (ve müşterinin başvuru kopyası) silinir.
+
 ## MVP tablolarından geçiş
 
 | MVP | Hedef |

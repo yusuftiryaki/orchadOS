@@ -729,3 +729,25 @@ revoke all on function private.visit_usage(uuid, date, date) from public;
 revoke all on function private.removal_visit_fee(bigint, bigint, integer) from public;
 revoke all on function private.removal_v2_gross(bigint, bigint, integer, integer, boolean) from public;
 revoke all on function private.ops_removal_reason(text) from public;
+
+-- Ops: the T05 terms of a removal for its detail page: the customer's timing,
+-- the owner's consent note and the notice rule of the reason.
+create function public.ops_garden_removal_terms(p_removal_id uuid)
+returns table (timing text, owner_consent_note text, notice_rule text)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  r public.garden_removal;
+begin
+  r := private.removal_for_ops(p_removal_id);
+  return query select r.timing, r.owner_consent_note,
+    case when r.initiated_by = 'ops' then private.ops_removal_reason(r.reason::text) end;
+end;
+$$;
+comment on function public.ops_garden_removal_terms(uuid) is
+  'Ops (T05): timing, owner consent note and notice rule of a garden removal.';
+revoke all on function public.ops_garden_removal_terms(uuid) from public, anon;
+grant execute on function public.ops_garden_removal_terms(uuid) to authenticated;

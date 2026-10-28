@@ -211,6 +211,8 @@ export const billingText = {
   removalInitiatedBy: {
     customer: "Müşteri",
     ops: "Operasyon",
+    // T08: the access window when a contract ends (period end, termination, pilot).
+    system: "Sistem (hizmet sonu)",
   },
   // T18 (docs/hukuk/kararlar.md H19, contract 8D/2–8D/3): the add-on
   // breakdown (lib/billing/addon-breakdown.ts).

@@ -4734,6 +4734,14 @@ export type Database = {
         Args: { p_effective_on?: string; p_removal_id: string };
         Returns: Json;
       };
+      ops_garden_removal_terms: {
+        Args: { p_removal_id: string };
+        Returns: {
+          notice_rule: string;
+          owner_consent_note: string;
+          timing: string;
+        }[];
+      };
       ops_garden_removals: {
         Args: { p_limit?: number; p_org_id: string; p_status?: string };
         Returns: {

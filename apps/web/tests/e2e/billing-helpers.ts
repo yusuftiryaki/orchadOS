@@ -286,6 +286,8 @@ async function opsRemoval(userId: string, parcelId: string): Promise<string> {
       p_reason: "transfer",
       p_effective_on: day.toISOString().slice(0, 10),
       p_note: "E2E: devir",
+      // An earlier day than the 30-day notice: by agreement (contract 12/3).
+      p_owner_consent_note: "E2E: Sahip yazılı onay verdi",
       p_access_days: 0,
     }),
   );

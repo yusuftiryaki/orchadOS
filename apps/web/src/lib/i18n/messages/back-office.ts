@@ -662,6 +662,20 @@ export const backOfficeText = {
     parcel: "Parsel",
     reason: "Neden",
     initiatedBy: "Açan",
+    // T05 (contract 12/3).
+    timing: "Müşterinin seçtiği zaman",
+    timings: {
+      immediate: "Hemen (ertesi gün)",
+      notice: "30 gün sonra",
+      period_end: "Dönem sonunda",
+      withdrawal: "Cayma",
+    } as Record<string, string>,
+    noticeRule: "Bildirim kuralı",
+    noticeRules: {
+      notice: "En az 30 gün (ya da Sahip'in yazılı onayı)",
+      no_notice: "Bildirim süresi aranmaz",
+    } as Record<string, string>,
+    ownerConsent: "Sahip'in yazılı onayı",
     customerNote: "Müşterinin notu",
     opsNote: "İç not",
     requestedOn: "İstenen çıkış günü",

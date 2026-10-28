@@ -51,6 +51,10 @@ export default async function Page({
   const { id } = await params;
   const supabase = await createClient();
   const view = await getRemoval(supabase, id);
+  // T05: the customer's timing, the owner's consent and the notice rule.
+  const terms = view
+    ? ((await supabase.rpc("ops_garden_removal_terms", { p_removal_id: id })).data?.[0] ?? null)
+    : null;
   if (!view) notFound();
   const { removal: r, row, preview, refunds, setting } = view;
   // Past the list's limit the internal note and the revoke-all choice are
@@ -113,6 +117,9 @@ export default async function Page({
               B.removals.withdrawal,
               r.withdrawal ? B.yes : r.at_period_end ? B.removals.atPeriodEnd : B.no,
             ],
+            [T.timing, terms?.timing ? label(T.timings, terms.timing) : B.none],
+            [T.noticeRule, terms?.notice_rule ? label(T.noticeRules, terms.notice_rule) : B.none],
+            [T.ownerConsent, terms?.owner_consent_note ?? B.none],
             [T.customerNote, r.customer_note],
             [T.opsNote, row ? row.ops_note : unknown],
             [T.requestedOn, day(r.requested_effective_on)],
