@@ -1,4 +1,4 @@
--- Per-visit payment plan (docs/musteri-yonetimi.md §5.6, §6.13; product owner
+-- Per-visit payment plan (docs/musteri-yonetimi.md §5.6, §6.14; product owner
 -- decisions of 28 October 2026; docs/hukuk/kararlar.md H35).
 --
 -- 1. org_billing_setting.installment_lead_days (SQL only, default 14): how many

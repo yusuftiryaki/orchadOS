@@ -1,5 +1,5 @@
 -- Per-visit payment plan (installments-v1; docs/musteri-yonetimi.md §5.6,
--- §6.13; docs/fiyatlandirma.md §2a; docs/hukuk/kararlar.md H35): the schedule
+-- §6.14; docs/fiyatlandirma.md §2a; docs/hukuk/kararlar.md H35): the schedule
 -- (amounts, rounding, due days, the launch examples), the plan on the quote
 -- and on the order, activation by the first installment, card and transfer
 -- payments per installment, the planning ban and its override, the window

@@ -1,4 +1,4 @@
--- Per-visit payment plan, part 2 (docs/musteri-yonetimi.md §5.6, §6.13;
+-- Per-visit payment plan, part 2 (docs/musteri-yonetimi.md §5.6, §6.14;
 -- docs/bahce-yonetimi.md §7; docs/hukuk/kararlar.md H35):
 --
 -- 1. An order that ends (cancelled, terminated, completed) cancels its unpaid

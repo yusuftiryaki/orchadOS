@@ -402,6 +402,7 @@ Gece çalışan `garden-removal-housekeeping` ya da ops'un "hemen tamamla" eylem
 - **Ziyaret hakkı:** 15 dönümlük ek bahçe 1 Nisan 2027'de başlıyor. Kalan 214 gün, 4 × 214 / 365 = 2,35 → 2 ziyaret.
 - **Fiyat:** 2 × 150 × 18.000 / 10 = 540.000 kuruş. Orantılı minimum 1.120.000 × 2 / 4 = 560.000 daha büyük olduğu için 560.000 geçerli. Yeni bahçe olduğu için envanter 600.000 eklenir: taban 1.160.000. KDV dahil **1.392.000 kuruş** (13.920,00 TL). Envanterle tam yıl 2.064.000 kuruş olurdu.
 - **Ek-2 ile karşılaştırma:** Nisan–Ekim arasında ilkbahar, yaz ve hasat pencereleri kalır. Önce envanter yapılacağı için 2 periyodik ziyaret gerçekçidir.
+- **Ödeme planı (installments-v1, [musteri-yonetimi.md](musteri-yonetimi.md) §5.6):** Ek sipariş de envanter ödemesi ve ziyaret başına ödemelerle ödenir: envanter (KDV dahil 720.000) kabulde, 2 ziyaret ödemesi (her biri 336.000 = 672.000 / 2) kalan dönemin ilk iki ziyaret penceresine (ilkbahar, yaz), pencere başından `installment_lead_days` gün önce. Ek sipariş envanter ödemesiyle etkinleşir. Envanteri olmayan ek siparişte ilk ziyaret ödemesi etkinleştirir. Ziyaret ödemesi sayısı satırın ziyaret hakkıdır (en az 1). Kalan dönemde yeterli pencere yoksa eksik ziyaret ödemeleri başa, kabul gününe konur.
 
 ## 7. Çıkarmada iade (`removal-v1`)
 
@@ -421,7 +422,9 @@ Gece çalışan `garden-removal-housekeeping` ya da ops'un "hemen tamamla" eylem
 | Hesap, `withdrawal` | `amount − (inventory_done ? inventory_share : 0) − used × visit_fee` |
 | Hesap, `duplicate` | `amount − used × visit_fee` |
 | Önceki iadeler | `already_refunded`: (a) ödeme kalemi bu satır olan (`payment_item.order_item_id = satır`) ya da bu satırı çıkaran bir çıkarmanın açtığı (`refund.garden_removal_id`, satır o kaydın `calculation.lines`'ında) ve durumu `requested`, `processing`, `succeeded` ya da `failed` olan iadeler; (b) siparişin ödemelerindeki kalemsiz iadeler (`payment_item_id` boş ya da bakiye kalemi), `overpayment`, `provider_mismatch` ve başka çıkarmaların açtığı iadeler (`garden_removal_id` dolu) hariç, aynı durumlarla. `failed` iade yalnızca hâlâ sonuçlanabiliyorsa sayılır (`retryable` `false` değil; `payment_refund_claim`'in kuralı): İP12'de yeniden denenebilir ya da ops tarafından başarılı kapatılabilir (`ops_resolve_refund`); sayılmasaydı toplam iade hakkı aşabilirdi. Kesin reddedilmiş ya da ops'un başarısız kapattığı iade (`retryable = false`) hiç ödenmediği ve bir daha talep edilemediği için sayılmaz; yerine açılan yeni iade sayılır. Tek satırlı siparişte (b)'nin tamamı satıra yazılır. Çok satırlı siparişte orantılı pay (`round(Σ × amount / order.total_kurus)`) yazılır ve satır `unattributed` işaretlenir |
-| İade | `refund = max(0, hesap − already_refunded)` |
+| Ödenmemiş pay | `unpaid_kurus`: satırın henüz ödenmemiş, iptal edilmemiş ödeme planı payları (`order_installment_item`, durumu `pending` olan ödemelerin `amount − paid − cancelled` payı; installments-v1, [musteri-yonetimi.md](musteri-yonetimi.md) §5.6, H35/H36). Tek ödemeli eski siparişte ve tamamı ödenmiş satırda 0 |
+| Kesilen pay | `installments_cut_kurus = min(unpaid, max(0, hesap − already_refunded))`: hak edilen tutar önce ödenmemiş paylardan düşülür; payların bu kadarı `cancelled` olur (`private.cut_line_installments`, son ödemeden geriye doğru, neden `garden_removed`). Ödenmemiş bir tutar iade edilmez |
+| İade | `refund = max(0, hesap − already_refunded − installments_cut)`: yalnızca ödenmiş olanın fazlası iade edilir |
 | KDV payı | `refund_vat = round(refund × vat_rate_bp / (10000 + vat_rate_bp))`; oran dondurulmuş `quote.vat_rate_bp` |
 
 **Modlar:**
@@ -443,6 +446,8 @@ Lansman fiyatlarıyla ([fiyatlandirma.md](fiyatlandirma.md)); hukuk metinlerinde
     - ziyaret bedeli yine 432.000,
     - envanter yapılmadıysa iade 1.296.000 + 720.000 = 2.016.000.
 - **İşleme hattının yeniden taraması** (`extra_visit` isteğine bağlı) yapılmış ziyaret sayılmaz; iadeyi azaltmaz.
+- **Ödeme planıyla (installments-v1, H36):** Temel örnekteki satır ziyaret başına ödeniyor (4 × 432.000) ve iki ödeme yapılmış (864.000), biri yapılmış ziyaret. Hesap 1.296.000; ödenmemiş 864.000 kesilir (son iki ziyaret ödemesi iptal), iade 1.296.000 − 864.000 = **432.000**. Müşterinin cebinden çıkan 432.000, yani yapılmış tek ziyaretin bedeli (`56_visit_installments`).
+- **Cayma, ödeme planıyla:** İlk yıl satırı 2.448.000 (envanter 720.000 + 4 × 432.000), yalnızca envanter ödemesi yapılmış, envanter yapılmamış. Hesap 2.448.000; ödenmemiş 1.728.000 kesilir, iade 720.000.
 
 ### 7.2 `calculation` (kayıtta ve önizlemede)
 
@@ -456,17 +461,21 @@ Lansman fiyatlarıyla ([fiyatlandirma.md](fiyatlandirma.md)); hukuk metinlerinde
   "refund_vat_kurus": 144000,
   "unallocated_kurus": 0,
   "unattributed_refunds": false,
+  "unpaid_kurus": 0,
+  "installments_cut_kurus": 0,
   "lines": [
     {"order_item_id": "…", "order_id": "…", "order_number": "S-2026-000012", "removed_on": "2027-03-01",
      "amount_kurus": 1728000, "vat_rate_bp": 2000, "inventory_share_kurus": 0, "inventory_done": false,
      "visits_entitled": 4, "visits_used": 1, "visits_excluded": 1, "visit_fee_kurus": 432000,
      "gross_kurus": 1296000, "already_refunded_kurus": 432000, "unattributed": false,
+     "unpaid_kurus": 0, "installments_cut_kurus": 0,
      "refund_kurus": 864000, "refund_vat_kurus": 144000, "mode": "unused_visits"}
   ]
 }
 ```
 
 - Kişisel veri içermez.
+- `unpaid_kurus` ve `installments_cut_kurus` ödeme planıyla eklenen anahtarlardır (§7.1); formül adı `removal-v1` kalır, çünkü tek ödemeli siparişte ikisi de 0'dır ve sonuç öncekiyle aynıdır.
 - Önizlemede `used` o günkü sayıdır. Çıkışa kadar yapılacak ziyaretler sayılmadığı için tutar bir üst sınırdır ("en fazla").
 
 ### 7.3 İade satırları (`private.open_removal_refunds`)

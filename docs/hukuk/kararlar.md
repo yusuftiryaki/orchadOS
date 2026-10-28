@@ -2,6 +2,8 @@
 
 28 Ekim 2026
 
+> **H35 ve H36 (28 Ekim 2026, ziyaret başına ödeme planı ve hizmet bölgesi):** Ürün sahibinin talimatıyla iki bağımsız tüketici hukuku uzmanı yapay zekâ ajanı görüş verdi; üçüncü bir uzlaştırıcı ajan görüşleri karşılaştırıp karar verdi. Bu kararlar da **yapay zekâ ajanlarının kararıdır, baro kayıtlı bir avukatın imzalı görüşü değildir**; talimat gereği nihai olarak uygulanır.
+>
 > **Bu kararları kim verdi?** Kullanıcı (Yusuf) şu talimatı verdi: “Hukuk ile ilgili sorular olursa hukuk uzmanı bir ajan yarat ve ondan aldığın kararları doğru kabul ederek ilerle.” Bu belgedeki kararları, bu talimatla görevlendirilen hukuk uzmanı bir yapay zekâ ajanı verdi. Ajan iki bağımsız uzman görüşünü karşılaştırdı. Uzmanların birleştiği yerde ortak görüşü benimsedi; ayrıştıkları yerde gerekçesiyle karar verdi. Talimat gereği kararlar doğru kabul edilir ve **nihai olarak uygulanır**. Kararlar baro kayıtlı bir avukatın imzalı görüşü değildir. Mali müşavirin alanına giren ayrıntılar (fatura belge türleri, eşikler) ayrıca belirtilmiştir.
 
 Kaynak sorular: [README.md](README.md)'deki “Avukata sorulacaklar” listesi (1–23) ve taslaklarla tasarım dokümanları karşılaştırılarak türetilen sorular (H25–H34). Kullanıcının sabit kararları ([bahce-yonetimi.md](../bahce-yonetimi.md) §2) değiştirilmedi: fiyat formülü ve orantı, tek bahçe için cayma ve kesintiler, 90 gün salt okunur erişim. Kararlar bu çerçevenin içinde verildi.
@@ -51,6 +53,8 @@ Kaynak sorular: [README.md](README.md)'deki “Avukata sorulacaklar” listesi (
 - [H32 – Sahibin verdiği üçüncü kişi verileri](#h32)
 - [H33 – Kayıtta hesap varlığının açığa çıkması](#h33)
 - [H34 – Diğer yer tutucular ve şirket bilgileri](#h34)
+- [H35 – Ödeme planı](#h35)
+- [H36 – Hizmet bölgesi](#h36)
 - [Takip işleri](#takip)
 
 <a id="yayin"></a>
@@ -60,7 +64,7 @@ Aşağıdakilerin hepsi tamamlanmadan hiçbir metinden “-taslak” eki kaldır
 
 1. **Şirket bilgileri:** Ticaret sicilindeki tam unvan, MERSİS, açık adres, telefon, e-posta, KEP, vergi dairesi ve numarası ile alan adı bütün metinlerde ve site altbilgisinde doludur. ETBİS kaydı yapılmıştır (H34, T22).
 2. **Yurt dışı aktarım:** Kişisel veri alan her yurt dışı sağlayıcıyla Kurul'un ilan ettiği standart sözleşme imzalanmıştır. Sözleşme imzadan itibaren 5 iş günü içinde Kurum'a bildirilmiştir. Kayıt [yurt-disi-aktarim-kaydi.md](yurt-disi-aktarim-kaydi.md)'dedir. Standart sözleşmeyi imzalamayan sağlayıcıya kişisel veri gitmez (H02, T01). Harita altlığı kendi altyapımızdan sunulur. Cloudflare imzalamadıysa Turnstile yerine kendi barındırdığımız doğrulama devrededir (H03, T12).
-3. **Sistem:** T03 (erken başlama onayı), T04 (siparişe özel sözleşme PDF'i), T09 (kısa saklama temizlikleri) ve T21 (üretim kapısı) üretimdedir.
+3. **Sistem:** T03 (erken başlama onayı), T04 (siparişe özel sözleşme PDF'i), T09 (kısa saklama temizlikleri), T21 (üretim kapısı), T28 (pencere sonunda düşen ziyaret ödemesi) ve T29 (ödeme planı PDF'te ve ön bilgilendirmede) üretimdedir.
 4. **Bahçe ekleme ve çıkarma:** Ayrıca T05 ve T18 üretimdedir.
 5. **Tanıtım iletisi onayı:** Kutu yalnızca İYS kaydı ve entegrasyonundan sonra açılır (H06). Sorulmayan rızayı veritabanı ve Edge tarafı da reddeder (T27).
 
@@ -82,6 +86,14 @@ Aşağıdakilerin hepsi tamamlanmadan hiçbir metinden “-taslak” eki kaldır
 | Demo vitrini görsel ve veri kullanım izni (yeni; iç) | — | vitrin-v1-taslak | — |
 
 **Lansman fiyat listesi (28 Ekim 2026):** Sözleşme (Md. 8D/4, 12/3), ön bilgilendirme (3) ve iade politikasındaki (5) örnek tutarlar [fiyatlandirma.md](../fiyatlandirma.md)'deki listeyle yeniden hesaplandı; hüküm değişmedi. README'deki kural ("metin değişince sürüm artırılır") örnek değişikliğini ayırmadığı için sürümler artırıldı: `mesafeli-v4-taslak`, `onbilgi-v4-taslak`, `iade-v4-taslak`; önceki metinler `arsiv/*-v3.md`. H20 kararındaki "örnekler aynı sonuçları verir" notu v3 içindir; v4'te örnekler 12.960,00 TL ve 8.640,00 TL'dir.
+
+**Ödeme planı ve hizmet bölgesi (28 Ekim 2026, H35, H36):** Hüküm değişti; sürümler v5. KVKK, rıza ve gizlilik metinleri değişmedi.
+
+| Metin | Eski sürüm | Yeni sürüm | Arşiv dosyası |
+| --- | --- | --- | --- |
+| Mesafeli hizmet sözleşmesi | mesafeli-v4-taslak | mesafeli-v5-taslak | arsiv/hizmet-sozlesmesi-taslagi-v4.md |
+| Ön bilgilendirme formu | onbilgi-v4-taslak | onbilgi-v5-taslak | arsiv/on-bilgilendirme-formu-taslagi-v4.md |
+| İptal ve iade politikası | iade-v4-taslak | iade-v5-taslak | arsiv/iptal-iade-politikasi-taslagi-v4.md |
 
 Sürümsüz yeni iç belgeler: [kvkk-basvuru-proseduru.md](kvkk-basvuru-proseduru.md), [saklama-imha-politikasi.md](saklama-imha-politikasi.md), [yurt-disi-aktarim-kaydi.md](yurt-disi-aktarim-kaydi.md).
 
@@ -916,13 +928,13 @@ Sürümsüz yeni iç belgeler: [kvkk-basvuru-proseduru.md](kvkk-basvuru-prosedur
     - Raporu yayımlanamayan ziyaret (örneğin veri kaybı) kullanılmış sayılmaz. Bu durumda fark ayrıca iade edilir (ops elle).
     - 8A/3'e göre yapılmış sayılan ziyaret kullanılmış sayılır.
 - **(c) Şirket'in sebepsiz tek taraflı çıkarması haksız şart riski taşır.** Aynı hakkın tüketiciye de tanınması bunu gidermez. Şirket yalnızca şu haklı sebeplerle çıkarabilir:
-    - hizmet bölgesi dışında kalma,
+    - hizmet bölgesi dışında kalma (H36 ile değişti: “gerçek konumun başvuruda bildirilenden esaslı biçimde farklı olması”),
     - Sahip'in Md. 5 yükümlülüklerinin esaslı ya da tekrarlanan ihlali (örneğin iki pencere boyunca erişim sağlanamaması),
     - yetkisizlik ya da Md. 6/4'teki üçüncü kişi itirazı,
     - personel güvenliğini tehdit eden durum,
     - devir,
     - mükerrer kayıt,
-    - Şirket'in bölgede hizmeti bütünüyle sona erdirmesi.
+    - Şirket'in bölgede hizmeti bütünüyle sona erdirmesi (H36 ile değişti: Bahçe'nin ilçesindeki saha hizmetinin o ilçedeki bütün sahipler için aynı tarihte, en az 60 gün önce bildirilerek sona erdirilmesi).
 
   Bildirim en az 30 gündür. Güvenlik tehdidi, mükerrer kayıt ve yetki ya da itiraz hallerinde bildirim süresi aranmaz. Anlaşmayla çıkarmada Sahip'in onayı yazılı kaydedilir. İade, kullanılmayan bütün ziyaretlerin bedelidir; bildirim süresinde Şirket ziyaret yapmazsa o ziyaretler kullanılmamış sayılır.
 - **Garden anahtarı:** Bu değişiklikler (T05) gelmeden `garden_changes_enabled` açılmaz. Anahtar zaten kapalıdır.
@@ -1070,6 +1082,8 @@ Sürümsüz yeni iç belgeler: [kvkk-basvuru-proseduru.md](kvkk-basvuru-prosedur
 
 <a id="h24"></a>
 ## H24 – Ödenmeyen siparişin “kendiliğinden düşmesi”
+
+> **H35 ile değişti (28 Ekim 2026):** Md. 8/2 ve kabul notu ödeme planına göre yeniden yazıldı; bu bölümdeki kural ilk ödemeye uygulanır.
 
 **Soru.** Metin “kendiliğinden düşer” diyor, sistem iptal etmiyor. Hangisi tercih edilmeli; hukuki durum nasıl yazılmalı?
 
@@ -1543,6 +1557,225 @@ Tablonun altına: “Süre dolunca veriler, en geç altı ayda bir yapılan peri
 
 ---
 
+<a id="h35"></a>
+## H35 – Ziyaret başına ödeme planı (taksitli satış, ön bilgilendirme, ödenmeme, cayma)
+
+**Soru.** (a) Envanter ödemesi ile paketteki ziyaret sayısı kadar ziyaret ödemesinden oluşan plan 6502 md. 17–20 anlamında taksitle satış mı? Hangi içerik zorunlu? Envanter ödemesi peşinat mı? (b) Ön bilgilendirme ve teklif sayfası onaydan önce ne göstermeli? (c) Ziyaret ödemesi yapılmazsa ne olur: ziyaret yapılmayabilir mi, sözleşme feshedilebilir mi, md. 19 ne getirir, ziyaret düşer mi ertelenir mi, faiz ve masraf istenebilir mi? (d) Cayma ve iadeler plana göre nasıl işler? (e) Yenileme ve ek siparişte ne değişir? (f) Hatırlatma SMS'i, makbuz ve haksız ziyaret durdurmaya karşı koruma.
+
+**Karar.**
+- **(a) Nitelik.**
+    - Plan özünde taksitle satış değildir. Her ödeme, karşılığı olan edimden önce yapılır: envanter ödemesi envanterden, k'ncı ziyaret ödemesi k'ncı ziyaretten önce. Şirket kredi vermez. Tüketici almadığı hizmet için borçlanmaz.
+    - md. 17/1'in lafzı geniş olduğu için plan, taksitle satış sayılsa da eksik kalmayacak biçimde yazılır:
+        - peşin fiyat ile plandaki toplam fiyat (eşittir), faiz oranı %0, vade farkı, komisyon ve ücret yok;
+        - ödeme sayısı; her ödemenin karşılığı, tutarı, KDV payı ve son günü;
+        - son günün hesaplanma kuralı ve ödeme yöntemleri;
+        - erken ödeme hakkı (md. 20);
+        - ödenmemenin sonuçları; muacceliyet ve senet yok;
+        - caymanın plana etkisi.
+    - Yazılı şekil: portal onayı ve siparişe özel PDF'in kalıcı veri saklayıcısında teslimi (H12, T04). Plan PDF'te Ek-8'dir (T29). Şekil eksikliği tüketici aleyhine ileri sürülemez (md. 17/3).
+    - Envanter ödemesi kendi ediminin bedelidir; "peşinat" diye adlandırılmaz. Hizmette taksitle satış için peşinat oranı sınırı yoktur. Kartla ilgili bankacılık sınırları burada uygulanmaz.
+    - Envanter ödemesinin tutarı, Md. 12/3'teki **envanter payıdır**: envanter ücretinden indirim payı düşülür, KDV eklenir. Sistem bunu zaten böyle hesaplar. Bu yüzden Uzman B'nin indirimli siparişte gördüğü çelişki doğmaz.
+    - Kart taksiti kapsam dışıdır. İleride açılırsa ayrı karar gerekir.
+- **(b) Onaydan önce gösterilecekler.** Teklif ekranı, o teklifin bilgileriyle doldurulmuş ön bilgilendirme formu ve sözleşmenin Ek-8'i aynı plan tablosunu içerir.
+    - Tablo sütunları: sıra, karşılığı (envanter ya da pencere adıyla ziyaret), son ödeme günü (takvim tarihi), tutar (KDV dahil), KDV payı. Altında "Toplam = peşin fiyat" satırı bulunur.
+    - Tablonun altında şunlar yazar:
+        - son gün kuralı;
+        - "kart taksiti değildir; faiz, vade farkı ya da ücret yoktur";
+        - her ödemenin ayrı bir işlem olduğu, kartın saklanmadığı ve otomatik çekim yapılmadığı;
+        - havale gönderim ücreti cümlesi (H29);
+        - erken ödeme hakkı;
+        - hatırlatma SMS'leri;
+        - ödenmemenin sonucu, tek cümle;
+        - caymada ödenmemiş ödemelerin iptal edildiği.
+    - Çok bahçeli teklifte tablo sipariş düzeyinde tektir. Her ödemenin bahçe satırlarına dağılımı açılarak görülebilir.
+    - Plan, onay günü sipariş etkinleşmiş sayılarak hesaplanır ve onayda sabitlenir; tutarlar değişmez. Sipariş daha geç etkinleşirse, ödenmemiş ziyaret ödemelerinin pencereleri ve son günleri hizmet yılına göre yeniden belirlenir. Son günler hiçbir zaman öne alınmaz (sistemde `reschedule_installments`).
+- **(c) Ödenmeme.**
+    - **Ziyaretin yapılmaması:** Geçerlidir (TBK md. 97). Ödemeyi önce yapmak Sahip'in borcudur. Ödenmeyen ödeme yalnızca **kendi ziyaretini** durdurur. Envanter, ödenmiş diğer ziyaretler, raporlar ve portal erişimi bundan etkilenmez.
+    - **Geç ödeme:** Ödeme pencere bitmeden yapılırsa ziyaret o pencerede planlanır. Şirket pencerede yapamazsa Md. 8A/2 uygulanır: iade ya da Sahip isterse aktarma.
+    - **Düşme:** Pencere ödeme gelmeden biterse o pencerenin ziyareti yapılmaz ve ödemesi iptal edilir. Bu ödeme Sahip'ten istenmez, hatırlatılmaz ve artık alınmaz. Yine de gelirse 14 gün içinde masrafsız iade edilir. Ziyaret hakkı bir azalır. Ziyaret ertelenmez, çünkü Sahip bedelini de ödemez. Ertelemenin yolu, ödenmiş ve Şirket kaynaklı yapılamayan ziyaret için Md. 8A/2'deki aktarmadır.
+    - **Faiz ve masraf:** Temerrüt faizi, gecikme bedeli, cezai şart ve takip masrafı istenmez. Kalan ödemeler muaccel kılınmaz. Senet alınmaz. Bu, metinde Sahip lehine açıkça yazılır. md. 19 muacceliyeti sınırlar; muacceliyet saklı tutulmadığı için doğrudan uygulanmaz.
+    - **Fesih:** Ödenmeme kendiliğinden fesih sebebi değildir. Şirket yalnızca şu üç koşul birlikte varsa fesheder:
+        - bir ödeme son gününden itibaren 30 gün geçtiği halde yapılmamış ve iptal edilmemiştir;
+        - Şirket SMS ve portal ile en az 30 gün süre veren, son günü ve sonucu açıkça yazan bir uyarı göndermiştir;
+        - süre sonunda ödeme hâlâ yapılmamış ve iptal edilmemiştir.
+
+      Uyarı süresinde ödeme yapılırsa ya da pencere bittiği için ödeme düşerse uyarı hükümsüz kalır. Fesih ileriye etkilidir ve o siparişteki bahçeler için hüküm doğurur. Fesihte ödenmiş ama yapılmamış ziyaretler iade edilir, ödenmemiş ödemeler iptal edilir ve Md. 12/4 uygulanır. md. 19'daki 30 günlük uyarı süresi kıyasen asgari kabul edildi. Uygulamada fesih çoğunlukla ödemesiz yapılmış ziyaretin (aşağıda) ödenmemesinde gündeme gelir.
+    - **Ödemesiz ziyaret (ops istisnası):** Yalnızca Sahip'in portal, SMS ya da e-postayla verdiği yazılı talep ya da onayla yapılır. Talebin kanalı ve tarihi ops notuna yazılır. Bu ziyaretin ödemesi düşmez ve fesihte iptal edilmez; faiz istenmez. Sahip'in talebi ya da onayı olmadan ödemesiz yapılmış bir ziyaretin bedeli istenmez.
+    - **Haksız durdurmaya karşı koruma:**
+        - Ödenmiş bir ziyaretin, ödeme kaydındaki hata dahil Şirket'ten kaynaklanan bir nedenle planlanmaması Md. 8A/2'deki hâldir; 8A/6'daki kendiliğinden tespit buna da uygulanır.
+        - Havale/EFT, Sahip'in gönderdiği gün yapılmış sayılır.
+        - Sahip, ödediği halde açık görünen bir ödeme için portaldan ya da e-postayla bildirimde bulunabilir. Şirket 2 iş günü içinde yanıt verir.
+- **(d) Cayma ve iade.**
+    - Cayma süresi ve hizmet yılı **ilk ödemenin yapıldığı** (siparişin etkinleştiği) gün başlar (H13). Sonraki ödemeler süreyi yeniden başlatmaz.
+    - Caymada ödenmemiş bütün ödemeler iptal edilir. Ödenen her şey, öne çekilmiş ödemeler dahil, 14 gün içinde iade edilir. Her ödeme kendi yöntemiyle iade edilir.
+    - H11'deki kesintiler yalnızca ödenen tutardan yapılır ve onu aşamaz. Tek istisna, Sahip'in talebiyle ödemesiz yapılmış ziyarettir.
+    - Son günü cayma süresine düşen bir ziyaret ödemesi istenebilir. Ancak Sahip erken başlama talep etmediyse ziyaret yine cayma süresinden sonra yapılır.
+    - Bahçe çıkarma (removal-v1, uygulandığı gibi): iade = brüt iade − önceki iadeler − satırın ödenmemiş tutarı; sonuç sıfırdan küçükse iade yapılmaz. Satırın ödenmemiş tutarı, brüt iadeden önceki iadeler düşüldükten sonra kalan tutara kadar iptal edilir. Bunu aşan kısım, ödemesiz yapılmış ziyaretlerin bedelidir ve ödenmeye devam eder. Tam ödenmiş satırda sonuç bugünkü formülle aynıdır.
+    - Genel kural: Metinlerde "bedeli iade edilir" denen her yerde yalnızca ödenmiş tutar iade edilir; ödenmemiş kısım iptal edilir.
+    - Alan düzeltmesinde (Md. 6/3) fark önce ödenmemiş ödemelerden düşülür, ödenmiş fazlası iade edilir (T31).
+- **(e) Yenileme ve ek sipariş.** Aynı kurgu uygulanır. Her biri ayrı bir mesafeli sözleşmedir ve kendi planını gösterir.
+    - Yenilemede envanter yoktur. İlk ödeme ilk ziyaret ödemesidir ve ödeme süresi içinde yapılır.
+    - Yeni hizmet yılı önceki yılın bitişinin ertesi günü başlar. Bu arada Md. 12/4'teki erişim kuralı aynen uygulanır. Uzman B'nin "vade gününe kadar tam erişim" önerisi alınmadı (gerekçede).
+    - Ek siparişte ödeme sayısı ziyaret hakkı kadardır. Envanter ücreti alınıyorsa ilk ödeme envanter ödemesidir; alınmıyorsa ilk ziyaret ödemesidir. Ziyaretler dönemde kalan ilk pencerelere bağlanır ve ek teklif bunları adlarıyla gösterir.
+    - Son ek günü (Md. 8D/5) ve dönem kapanması (8D/6) yalnızca ilk ödemeye uygulanır.
+- **(f) Hatırlatma ve belge.**
+    - Hatırlatma SMS'i hizmete ilişkin bildirimdir (H06). Son günden 7 gün önce ve son gün gönderilir. Tutar, bahçe adı ve tanıtım içermez; baskı dili kullanılmaz. Ödenmiş ya da iptal edilmiş ödeme için gönderilmez. WhatsApp, H02 güvencesi ve Md. 14 güncellenmeden kullanılmaz.
+    - Her ödeme için ayrı makbuz ve fatura düzenlenir (Md. 8/3). Önceden tahsil edilen ziyaret bedelinde KDV'nin doğduğu an mali müşavirin kararıdır (H17, T14).
+    - Plan tutarları sözleşme süresince değişmez. Fiyat listesinin değişmesi planı etkilemez.
+
+**Dayanak.** 6502 md. 4/1–4/4, 5, 17, 18, 19, 20, 21/1, 48, 52 (kıyasen); Taksitle Satış Sözleşmeleri Hakkında Yönetmelik (RG 14.01.2015, 29236) md. 5–6 (ihtiyaten; yayından önce mevzuat.gov.tr'den doğrulanır); Mesafeli Sözleşmeler Yönetmeliği md. 4/1-(ç), 5/1–3, 6, 7, 9, 10, 11, 12, 15/1-(h); Haksız Şartlar Yönetmeliği md. 5 ve Ek; Ticari Reklam ve Haksız Ticari Uygulamalar Yönetmeliği; TBK md. 23, 77 vd., 97, 117/2, 120, 123–126, 136, 512; 6563 md. 2 ve Ticari İletişim ve Ticari Elektronik İletiler Hakkında Yönetmelik (hizmet iletisi); H02, H06, H11, H12, H13, H14, H17, H19, H20, H21, H24, H29.
+
+**Gerekçe.**
+- Taksitle satış korumasının amacı, edimi önceden almış ve borcu ileriye yayılmış tüketicidir. Bu planda tüketici hiçbir an almadığı hizmet için borçlu değildir. Lafzi uygulama riski ise ucuz bir ihtiyatla kapanır: içerik yazılır, faiz ve muacceliyet yoktur, erken ödeme vardır.
+- "Ödenmemiş ziyaret için para yok, ödenmemiş para için iade yok" ilkesi metinde açıkça yazılmazsa eski "satır tutarı" formülü yanlış okunur. Belirsizlik de düzenleyenin aleyhine yorumlanır (TBK md. 23).
+- **Pencere sonunda düşme şarttır.** Düşme olmazsa tüketici artık yapılamayacak bir ziyaretin parasını ödeyebilir; bu sebepsiz zenginleşme ve haksız şart riskidir.
+    - Bugünkü sistemde planlama engeli k'ncı ziyareti k'ncı ödemeye bağlıyor ve süresi geçmiş ödeme açık kalıyor. Kart da en erken açık ödemeyi çekiyor.
+    - Bu yüzden İlkbahar'ı ödemeyip Haziran'da ödeyen Sahip'in parası Yaz ziyaretini açıyor. Son ödemenin hatırlatması ise dönemde pencere kalmadığı halde gidiyor.
+    - Sonuçta Sahip karşılığı olmayan bir ödeme yapabilir. Bu para ancak dönem sonu kontrolüyle (T06) geri döner. Hatırlatma da yanıltıcıdır.
+    - Bu yüzden T28 yayın şartıdır. Metinler gerçek müşteriye onaylatılmadan önce sistem metne uyar.
+- Fesihte "30 gün gecikme + en az 30 günlük süre" kuralı TBK md. 123'teki uygun süre şartını ve md. 19'daki 30 günlük uyarı süresini birlikte karşılar. Feshin Sahip'e maddi bir yükü yoktur.
+- **Uzlaştırma:**
+    - **Nitelendirme:** Uzman A ve Uzman B aynı sonuca vardı: özünde taksitle satış değil, içerik ihtiyaten karşılanır, peşinat sınırı yok. Uzman A'nın Taksitle Satış Yönetmeliği'ne atfı ve "peşinat kelimesi kullanılmaz" önerisi alındı.
+    - **Metnin yeri:** Uzman A yeni bir Madde 8E önerdi. Uzman B, Md. 8/2'nin yeniden yazılmasını, yeni Md. 8/6 ve 8/7'yi ve Ek-8'i önerdi. Uzman B'nin yapısı seçildi: ödeme zaten Md. 8'dedir ve madde sayısı ile atıflar değişmez. Uzman A'nın erken ödeme, plan sabitliği ve rakamlı örnek cümleleri bu yapıya katıldı.
+    - **Terim:** İki uzman da "ödeme planı / ziyaret ödemesi" dedi. Uzman A "1. ödeme", Uzman B "ilk ödeme" önerdi. Numaralı fıkralarla karışmaması için "ilk ödeme" seçildi.
+    - **Envanter ödemesi ve indirim:** Uzman B indirimli siparişte bir çelişki gördü. Uygulanan sistem envanter ödemesini envanter payı olarak hesapladığı için çelişki yoktur. Metin bunu açıkça söyler.
+    - **Düşme ve geç ödeme:** İki uzman aynı görüşte. Uzman B'nin "sonradan gelen ödeme 14 gün içinde iade edilir" cümlesi alındı. Bu kural sistemde yoktur ve T28'e girer.
+    - **Fesih:** İki uzman aynı kurala vardı (30 + 30). Uyarının ne zaman hükümsüz kaldığı ve feshin sipariş düzeyinde olduğu eklendi.
+    - **Ödemesiz ziyaret:** Uzman A "talebi ya da onayı", Uzman B "yazılı talebi" dedi. Birleştirildi: yazılı talep ya da onay, kanalı ve tarihiyle kayda geçer.
+    - **Havale tarihi:** Uzman A paranın hesaba geçtiği günü, Uzman B gönderim gününü önerdi. Faiz olmadığından tarih yalnızca planlamayı ve düşmeyi etkiler. Tüketici lehine olduğu için Uzman B seçildi.
+    - **SMS:** Uzman B bahçe ve pencere adını yazmayı önerdi, Uzman A yazmamayı. Uzman A seçildi: veri en aza indirilir, mevcut SMS kuralıyla tutarlıdır ve metin bugünkü şablon değişkenleriyle yazılabilir. Tarihli ayrı şablonlar T28 ve T30'dadır.
+    - **Yenilemede erişim:** Uzman B, ilk ödemenin son gününe kadar tam erişim önerdi. İlk ödeme bugünkü tek ödemeyle aynı sürede istendiği için yeni bir boşluk doğmuyor. Sistem değişikliği gerektirmeyen Uzman A seçildi.
+    - **Uzman B'nin önerileri:** 2 iş günlük itiraz yanıtı ve plan sabitliği alındı. Makbuzda plan özeti alınmadı; plan portalda gösterilir.
+    - **Uzman A'nın önerileri:** Cayma süresine düşen ödeme cümlesi, ödeme başına ayrı iade ve alan düzeltmesi (T31) alındı. KDV oranı değişikliği hükmü alınmadı: plan tutarları KDV dahil sabittir ve sistem dondurulmuş tutarı değiştirmez. Kanunla bir oran değişikliği olursa ayrı karar verilir.
+
+**Metin değişikliği.** Bağlayıcı metinler aşağıdadır. Yerleştirme ve eski cümleler 2. bölümdeki listededir; o liste bu kararın uygulamasıdır.
+
+- **[M-8/2] Sözleşme Md. 8/2** (tamamen değişir):
+  “2. **Ödeme planı:** Bedel, teklifte gösterilen ve teklif onayında sabitlenen ödeme planıyla ödenir; plan Ek-8'dedir. İlk ödeme, teklif onaylandıktan sonra siparişte yazan ödeme süresi içinde tek seferde yapılır: ilk yıl siparişinde ve envanter ücreti alınan ek siparişte envanter ödemesidir (Bahçe'nin Madde 12/3'teki envanter payı: indirim varsa envanter ücretine düşen payı çıkarılmış, KDV dahil); yenilemede ve envanter ücreti alınmayan ek siparişte ilk ziyaret ödemesidir. Kalan tutar, paketteki periyodik ziyaret sayısı kadar (Temel 2, Standart 4, Kapsamlı 6; ek siparişte ziyaret hakkı kadar) eşit ziyaret ödemesine bölünür; kuruş farkı son ödemeye eklenir. Her ziyaret ödemesi hizmet yılındaki bir periyodik ziyaretin bedelidir ve son günü o ziyaretin penceresinin (Ek-2) başlangıcından 14 gün öncesidir; bu gün teklifin onaylandığı günden önceye düşüyorsa son gün onay günüdür. Plan, teklifin onaylandığı gün siparişin etkinleştiği varsayılarak hesaplanır; sipariş daha geç etkinleşirse ödenmemiş ziyaret ödemelerinin pencereleri ve son günleri hizmet yılına göre yeniden belirlenir ve portalda gösterilir; son günler öne alınmaz ve tutarlar değişmez. Ödemelerin toplamı peşin fiyata eşittir; faiz (oran %0), vade farkı, komisyon ya da ödeme planı ücreti alınmaz. Bu plan bir kredi ya da kart taksiti değildir: her ödeme ayrı bir işlemdir ve kartla (3D Secure, [ödeme kuruluşu: iyzico] üzerinden) ya da havale/EFT ile yapılır. Kart bilgileri Şirket'e ulaşmaz; kart saklanmaz ve hiçbir ödeme otomatik çekilmez. Şirket, ödeme yöntemlerinin hiçbiri için plandaki tutarların dışında ücret almaz; havale/EFT ile ödemede Sahip'in kendi bankasının alabileceği gönderim ücreti Sahip'e aittir. Sahip son günü gelmemiş ödemeleri dilediği zaman önceden yapabilir: kartla her işlemde sıradaki açık ödeme ödenir; havale/EFT ile birden fazla ödeme birlikte yapılabilir. Önceden ödeme tutarı, ziyaretlerin zamanını ve cayma süresini değiştirmez. Sipariş ilk ödemeyle etkinleşir; hizmet bundan önce başlamaz. İlk ödeme ödeme süresi içinde yapılmazsa Şirket ek süre vermeden siparişi iptal edebilir ya da ödeme süresini uzatabilir; uzatma Sahip'e bildirilir. Sahip de ilk ödemeden önce siparişi bedelsiz iptal edebilir (Madde 8C/1). Sipariş iptal edilmedikçe süre geçtikten sonra yapılan ilk ödeme kabul edilir ve sipariş etkinleşir; ek siparişte Madde 8D/5 ve 8D/6 saklıdır. İlk ödemesi yapılmayan sipariş için taraflar birbirinden bedel, faiz ya da tazminat istemez. Bu sözleşmede bir bedelin iadesinden söz edilen her yerde yalnızca ödenmiş tutar iade edilir; aynı bedelin ödenmemiş kısmı iptal edilir ve Sahip'ten istenmez. Ziyaret ödemesinin yapılmamasının sonuçları 6. fıkradadır.”
+- **[M-8/6] Sözleşme, yeni Md. 8/6:**
+  “6. **Ziyaret ödemesinin yapılmaması:** Bir ziyaret ödemesi yapılmadıkça Şirket o ziyareti planlamaz; envanter, ödenmiş diğer ziyaretler, raporlar ve portal erişimi bundan etkilenmez. Ödeme pencerenin bitiminden önce yapılırsa ziyaret aynı pencerede planlanır; pencerede yapılamazsa Madde 8A/2 uygulanır. Pencere ödeme yapılmadan biterse o ziyaret yapılmaz, ödemesi iptal edilir ve Sahip'ten istenmez; ziyaret hakkı bir azalır ve durum Sahip'e bildirilir. Bu ödeme için sonradan bir tutar gelirse 14 gün içinde geldiği yöntemle ve masrafsız iade edilir. Şirket ödenmeyen ödemeler için faiz, gecikme bedeli, cezai şart ya da masraf istemez, kalan ödemelerin tamamını muaccel kılmaz, icra takibi yapmaz ve senet almaz. Bir ödeme son gününden itibaren 30 gün geçtiği halde yapılmamış ve iptal edilmemişse Şirket, Sahip'e SMS ve portal ile en az 30 gün süre veren ve süre sonunda sözleşmenin o siparişteki bahçeler için sona ereceğini belirten bir uyarı gönderebilir. Süre sonunda ödeme hâlâ yapılmamış ve iptal edilmemişse Şirket o siparişteki bahçeleri Madde 12/3'e göre hizmetten çıkarabilir; süre içinde ödeme yapılır ya da pencere bittiği için iptal edilirse uyarı hükümsüz kalır. Bu halde ödenmiş ama yapılmamış ziyaretlerin bedeli iade edilir ve ödenmemiş ödemeler iptal edilir. Ödemesi yapılmadan bir ziyaret yalnızca Sahip'in portal, SMS ya da e-posta ile verdiği talep ya da onayla yapılır; bu ziyaretin ödemesi iptal edilmez ve ödenmeye devam eder, faiz istenmez. Sahip'in talebi ya da onayı olmadan ödemesi yapılmadan yapılmış ziyaretin bedeli istenmez.”
+- **[M-8/7] Sözleşme, yeni Md. 8/7:**
+  “7. **Ödeme durumu ve hatırlatma:** Her ödemenin durumu (bekliyor, ödendi, iptal, iade) ve karşılığı portalda gösterilir. Şirket her ödemenin son gününden 7 gün önce ve son gününde Sahip'e SMS ile hatırlatma gönderir; hatırlatma tutar içermez. Havale/EFT, Sahip'in gönderdiği gün yapılmış sayılır. Sahip ödediği halde açık görünen bir ödeme için portaldan ya da [E-posta] adresine bildirimde bulunabilir; Şirket en geç 2 iş günü içinde yanıt verir. Ödeme kuruluşundan ya da Şirket'ten kaynaklanan bir hata Sahip'in gecikmesi sayılmaz. Ödenmiş bir ziyaretin, ödeme kaydındaki hata dahil Şirket'ten kaynaklanan bir nedenle pencerede yapılmaması Madde 8A/2'deki hâldir; Madde 8A/6 uygulanır. Plandaki tutarlar sözleşme süresince değişmez.”
+- **[M-EK2] Sözleşme Ek-2** (tamamen değişir):
+  “**Ek-2:** Ziyaret pencereleri (başlangıç ve bitiş günleri dahil).
+
+  | Pencere | Tarihler | Temel | Standart | Kapsamlı |
+  | --- | --- | --- | --- | --- |
+  | Kış | 15 Aralık – 15 Şubat | ✓ | ✓ | ✓ |
+  | Uyanma | 10 – 31 Mart | | | ✓ |
+  | İlkbahar | 15 Nisan – 15 Mayıs | | ✓ | ✓ |
+  | Yaz | 1 – 25 Temmuz | | ✓ | ✓ |
+  | Hasat öncesi | 1 – 20 Ağustos (hasat başlamadan) | | | ✓ |
+  | Hasat (Kapsamlı pakette “Hasat sonrası”) | 15 Eylül – 31 Ekim | ✓ | ✓ | ✓ |
+
+  Her işaretli pencerede bir periyodik ziyaret yapılır. Ziyaretler hizmet yılı içinde pencerelerin başlangıç sırasına göre sayılır; başlangıcı hizmet yılından önce kalan pencere o yıla girmez. Ziyaret ödemesinin son günü, ziyaretin penceresinin başlangıcından 14 gün öncesidir (Madde 8/2). Örnek, 1 Kasım'da başlayan hizmet yılı: Temel 1 Aralık ve 1 Eylül; Standart 1 Aralık, 1 Nisan, 17 Haziran ve 1 Eylül; Kapsamlı 1 Aralık, 24 Şubat, 1 Nisan, 17 Haziran, 18 Temmuz ve 1 Eylül. Pencereler sonradan değişse de onaylanmış sözleşmenin pencereleri değişmez.”
+- **[M-EK8] Sözleşme, yeni Ek-8:**
+  “**Ek-8:** Ödeme planı. Her ödeme için sıra, karşılığı (envanter ya da pencere adıyla ziyaret), son ödeme günü, KDV dahil tutar ve KDV payı; peşin fiyat ve plandaki toplam (eşittir); faiz oranı %0. Siparişe özel sözleşme kopyasında yer alır. Örnek (bilgi amaçlıdır; lansman fiyat listesi, Standart paket, 20 dönüm, ilk yıl, teklif onayı 1 Kasım 2026): envanter ödemesi 7.200,00 TL (son gün 15 Kasım 2026); ziyaret ödemeleri 4 × 4.320,00 TL: Kış 1 Aralık 2026, İlkbahar 1 Nisan 2027, Yaz 17 Haziran 2027, Hasat 1 Eylül 2027. Toplam 24.480,00 TL; peşin fiyat 24.480,00 TL. Aynı bahçenin yenileme yılı: Temel 2 × 4.992,00 TL; Kapsamlı 6 × 4.032,00 TL.”
+- **[M-12/3-İADE] Sözleşme Md. 12/3, “İade hesabı”** (alt maddeler değişir):
+  “- **İade hesabı:** Bahçe'nin teklif satırı esas alınır ve tutarlar KDV dahildir. İade yalnızca bu satır için ödenmiş tutardan yapılır.
+      - Envanter payı = satır tutarı × envanter ücreti ÷ satırın KDV ve indirim öncesi tabanı.
+      - Ziyaret bedeli = (satır tutarı − envanter payı) ÷ satırdaki ziyaret hakkı (Madde 8A/2); kuruşa aşağı yuvarlanır.
+      - Brüt iade = satır tutarı − (envanter yapıldıysa) envanter payı − kullanılmış ziyaret sayısı × ziyaret bedeli; böylece yuvarlamadan kalan kuruş farkı Sahip lehine kalır.
+      - İade = brüt iade − bu satır için daha önce yapılmış iadeler − satırın ödeme planında henüz ödenmemiş tutarı. Sonuç sıfırdan küçükse iade yapılmaz.
+      - Satırın ödenmemiş tutarı, brüt iadeden önceki iadeler düşüldükten sonra kalan tutara kadar çıkış gününde iptal edilir ve Sahip'ten istenmez. Bunu aşan kısım, Madde 8/6'ya göre Sahip'in talebiyle ödemesi yapılmadan yapılmış ziyaretlerin bedelidir ve ödenmeye devam eder; faiz istenmez.
+      - Önceki iadeler: Bu Bahçe'nin satırı için daha önce yapılmış ya da başlatılmış ziyaret ve hizmet bedeli iadeleri, Madde 8A iadeleri dahil, düşülür. Madde 8A'ya göre bedeli iade edilmiş ziyaret bu hesapta kullanılmamış ziyaret sayılır. Fazla ödemenin iadesi gibi Şirket kaynaklı iadeler düşülmez.
+      - Her iadenin KDV payı ayrıca gösterilir.”
+- **[M-ÖBF-3] Ön Bilgilendirme §3, ilk maddeden sonra yeni madde:**
+  “**Ödeme planı:** Toplam bedel tek seferde değil, bir ödeme planıyla ödenir. İlk ödeme, teklifi onayladıktan sonra siparişte yazan ödeme süresi içinde yapılır: ilk yıl envanter ödemesidir (envanter ücreti, varsa indirim payı düşülmüş, KDV dahil); yenilemede ilk ziyaret ödemesidir. Kalan tutar paketteki ziyaret sayısı kadar eşit ziyaret ödemesine bölünür (Temel 2, Standart 4, Kapsamlı 6; ek siparişte ziyaret hakkınız kadar). Her ziyaret ödemesinin son günü, o ziyaretin penceresinin (sözleşme Ek-2) başlangıcından 14 gün öncesidir; bu gün geçmişse onay günüdür. Siparişiniz onay gününden sonra etkinleşirse son günler hizmet yılınıza göre yeniden belirlenir, hiçbir zaman öne alınmaz. Her ödemenin karşılığı, tutarı, KDV payı ve son günü aşağıdaki tabloda ve sözleşmenizin Ek-8'inde yazar. Ödemelerin toplamı peşin fiyata eşittir; faiz, vade farkı ya da ücret yoktur ve bu bir kredi ya da kart taksiti değildir. Son günü gelmemiş ödemeleri dilediğiniz zaman önceden yapabilirsiniz. Örnek: 20 dönüm Standart, ilk yıl: 7.200,00 TL envanter ödemesi ve 4 × 4.320,00 TL ziyaret ödemesi, toplam 24.480,00 TL. [Ödeme planı tablosu]”
+- **[M-ÖBF-4] Ön Bilgilendirme §4, ilk iki madde** (değişir) ve yeni üçüncü madde:
+  - “Teklifi onaylamak, ödeme planındaki ödemeler için ödeme yükümlülüğü doğurur. Siparişiniz ilk ödemeyle etkinleşir. İlk ödeme süresi içinde yapılmazsa Şirket siparişi iptal edebilir ya da süreyi uzatabilir; ilk ödemesi yapılmayan sipariş için sizden bir bedel istenmez.”
+  - “Her ödeme ayrı bir işlemle yapılır: kartla 3D Secure ile ([iyzico Ödeme Hizmetleri A.Ş.] üzerinden) ya da havale/EFT ile. Kart bilgileri Şirket'e ulaşmaz; kartınız saklanmaz ve hiçbir ödeme otomatik çekilmez. Her ödemenin son gününden 7 gün önce ve son gününde SMS ile hatırlatılırsınız; hatırlatmada tutar yazmaz.”
+  - “Bir ziyaret ödemesi yapılmadıkça o ziyaret planlanmaz. Ödeme ziyaret penceresi bitene kadar yapılmazsa o ziyaret yapılmaz ve ödemesi sizden istenmez; diğer ziyaretleriniz etkilenmez. Ödenmeyen ödeme için faiz ya da masraf istenmez ve kalan ödemeler birlikte istenmez. Bir ödeme son gününden 30 gün sonra hâlâ yapılmamışsa Şirket size en az 30 gün süre veren bir uyarı gönderebilir; bu süre içinde de ödenmezse sözleşme o siparişteki bahçeler için sona erebilir. Bu durumda ödediğiniz ama yapılmamış ziyaretlerin bedeli iade edilir.”
+- **[M-İADE-1A] İade Politikası, yeni bölüm “1A. Ödeme planı”** (1. bölümden sonra):
+  “## 1A. Ödeme planı
+  - Bedeli bir ödeme planıyla ödersiniz: ilk yıl envanter ödemesi teklif onayından sonra ödeme süresi içinde, her ziyaret ödemesi o ziyaretin penceresinin başlangıcından 14 gün önce. Plan teklifte ve sözleşmenizin Ek-8'inde yazar. Toplamı peşin fiyata eşittir; faiz, vade farkı ya da ücret yoktur.
+  - Son günü gelmemiş ödemeleri dilediğiniz zaman önceden yapabilirsiniz.
+  - Bir ziyaret ödemesini yapmazsanız o ziyaret planlanmaz. Pencere bitene kadar öderseniz ziyaret o pencerede yapılır; yapamazsak bedelini iade ederiz ya da isterseniz sonraki pencereye aktarırız (3. bölüm). Pencere biterse o ziyaret yapılmaz ve ödemesi sizden istenmez; sonradan ödeme gönderirseniz 14 gün içinde iade ederiz.
+  - Faiz, gecikme bedeli ya da masraf yoktur; kalan ödemeler birlikte istenmez.
+  - Bir ödeme 30 gün gecikirse size en az 30 gün süre veren bir uyarı gönderebiliriz; bu süre içinde de ödenmezse siparişteki bahçeleri hizmetten çıkarabiliriz. Bu durumda ödediğiniz ama yapılmamış ziyaretlerin bedelini iade ederiz ve ödenmemiş ödemeler iptal edilir.
+  - Ödediğiniz halde açık görünen bir ödeme için portaldan ya da [e-posta] adresine yazın; en geç 2 iş günü içinde yanıt veririz.”
+
+Sözcük düzeyindeki diğer değişiklikler (bağlayıcı; yerleri 2. bölümde): "ödemenin tamamlandığı gün" ve "ödeme günü" ifadeleri, sipariş etkinleşmesine ve cayma süresine bağlandıkları her yerde "ilk ödemenin yapıldığı gün" ve "ilk ödeme günü" olur. "Ödemeden önce" ifadesi "ilk ödemeden önce" olur. İade tutarlarındaki "satır tutarının tamamı" ifadesi "satır için ödenmiş tutarın tamamı" olur. Md. 4/2, 6/3, 8/1, 8/3, 8/5, 8A/2, 8B/1, 8B/3–5, 8C, 8D/1, 8D/4–7, 12/2, 12/3, 12/4, 14, 16, Ek-7, Ön Bilgilendirme §3–5 ve §8, İade Politikası §1, §2, §3, §4, §5 ve §6 buna göre değişir.
+
+**Sistem değişikliği.**
+- **Bu iş:**
+    - Metinler v5'e geçer; v4 metinleri `arsiv/*-v4.md` olur. `legal.ts` güncellenir (eşitlik testi). Sürüm kayıt defterine (`legal_text_registry`) yeni sürümler girer.
+    - Teklif sayfasındaki plan tablosu (`quote_installment_plan`) (b)'deki sütunları ve tablo altı cümlelerini içerir: [M-ÖBF-3]'teki cümleler, "Toplam = peşin fiyat" satırı ve pencere adları.
+    - Kabul düğmesi “Teklifi kabul et (ödeme yükümlülüğü doğar)” olarak kalır. Altındaki not (H24'ün yerine) şöyle olur: “Kabulle sözleşme kurulur ve ilk ödeme adımına geçersiniz. Diğer ödemelerin son günleri yukarıdaki plandadır. Bir ziyaret ödemesini yapmazsanız o ziyaret yapılmaz; sizden faiz ya da ek bedel istenmez. İlk ödemeyi süresi içinde yapmazsanız siparişi iptal edebilir ya da sürenizi uzatabiliriz.”
+    - Müşteriye görünen "Taksit" etiketleri (ör. `portal-billing.ts` `payment.installment`) plan için "Ödeme" ya da "Ziyaret ödemesi" olur. Kart taksiti bilgisi gösterilecekse "Kart taksiti: yok" yazılır.
+    - `payment_reminder` SMS metni (`supabase/functions/_shared/messaging.ts`; yalnızca metin değişir) şöyle olur: “orchadOS: ${ref} numaralı siparişinizde bir ödemenin son günü yaklaştı. Tarih ve tutar portalınızda: ${link} Ödeme yapılmadan ilgili hizmet planlanmaz; faiz ya da ek ücret alınmaz.”
+    - **kullanim-kilavuzu.md:**
+        - “Ödemesiz ziyaret izni (`ops_allow_unpaid_visit`) yalnızca Sahip'in portal, SMS ya da e-postayla verdiği talep ya da onayla verilir; notta talebin kanalı ve tarihi yazar.”
+        - “Ödeme nedeniyle fesih T30 gelene kadar elle yürür: 30 günü geçen ödemede Sahip'e SMS ve portal mesajıyla, son günü ve sonucu yazan, en az 30 gün süreli uyarı gönderilir ve tarihi nota yazılır; süre sonunda ödeme hâlâ açıksa fesih bu notla yapılır.”
+        - “Havale, Sahip'in gönderim tarihiyle (valör değil, dekonttaki gönderim günü) değerlendirilir.”
+        - “Ödendiği halde açık görünen ödeme bildirimine 2 iş günü içinde yanıt verilir.”
+    - `musteri-yonetimi.md` §19'daki "Taksit" açık sorusu "karara bağlandı (hukuk/kararlar.md H35)" olur.
+    - `kararlar.md`: Yayın şartları 3. maddeye T28 ve T29 eklenir. Sürüm planı güncellenir (3. bölüm). H24'ün kabul notu ve Md. 8/2 metni H35'le değişti diye işaretlenir.
+- **T28:** Pencere sonunda düşme. Yayın şartı. **Bu PR'da çekirdeği yapıldı:** gece işi penceresi biten açık ziyaret ödemesini `window_passed` nedeniyle iptal eder (ödemesiz ziyaret izni olanlar hariç), planlama engeli ödemeyi pencereye bağlar, kart düşen ödemeyi atlar, düşen ödemeye hatırlatma gitmez, sonradan gelen ödeme `order_closed` iadesiyle geri döner (pgTAP `56_visit_installments`). Kalanlar: düşme SMS'i, havalede gönderim tarihinin ayrı girilmesi, hatırlatmaya son gün değişkeni.
+- **T29:** Ödeme planının PDF'te ve ön bilgilendirmede gösterilmesi. Yayın şartı, T04 ile birlikte.
+- **T30:** Ödenmeme nedeniyle fesih ve ödemesiz ziyaret kaydı. Pilot sırasında, ödeme nedeniyle ilk fesihten önce.
+- **T31:** Alan düzeltmesinde ödenmemiş ödemelerin düşürülmesi. İlk alan düzeltmesinden önce.
+
+  Ayrıntılar Takip işleri tablosundadır (3. bölüm).
+
+---
+
+<a id="h36"></a>
+## H36 – Hizmet bölgesi belirtilmemesi
+
+**Soru.** Hiçbir metin bölge vaat edemiyor ya da bölge adı veremiyor. Bu durumda (a) sözleşme Md. 12/3 ile İade Politikası §5'teki "Bahçe'nin hizmet bölgesi dışında kalması" ve "Şirket'in bölgede hizmeti bütünüyle sona erdirmesi" sebepleri nasıl yazılmalı? (b) Yayımlanmış bir bölge yokken ops'un başvuruyu konuma göre (`out_of_service_area`) reddetmesi uygun mu?
+
+**Karar.**
+- **(a) Kurulmuş sözleşme:**
+    - "Bahçe'nin hizmet bölgesi dışında kalması" sebebi **silinir**. Tanımsız bir bölgeye dayanan fesih, şartın içeriğini Şirket'in takdirine bırakır (Haksız Şartlar Yönetmeliği Ek). Konum sözleşmeden önce doğrulandığı için bahçe sonradan ancak Şirket'in kararıyla "bölge dışına" düşebilir.
+    - Yerine Sahip'ten kaynaklanan nesnel hal yazılır: “Bahçe'nin gerçek konumunun başvuruda bildirilenden esaslı biçimde farklı olması”.
+    - "Bölgede hizmeti sona erdirme" sebebi, bölge adı vermeden ve seçici feshi önleyerek yazılır: Şirket'in, Bahçe'nin bulunduğu **ilçedeki** saha hizmetini o ilçedeki bütün sahipler için aynı tarihte sona erdirmesi. İlçe, Bahçe'nin kendi Ek-1 bilgisidir; bölge vaadi değildir. Bu sebep için:
+        - bildirim süresi en az 60 gündür;
+        - çıkış günü, bildirim günü içinde bulunulan ve ödemesi yapılmış ziyaret penceresinin bitiminden önce olamaz;
+        - kullanılmayan ziyaretlerin ödenmiş bedeli iade edilir, ödenmemiş ödemeler iptal edilir.
+    - Diğer sebepler (H20) ve 30 günlük genel bildirim aynen kalır.
+- **(b) Başvuru aşaması:** Konuma göre ret uygundur. Başvuru ve önizleme sözleşme önerisi değil, öneriye davettir; sözleşme teklif onayıyla kurulur. 6502 md. 6/2 "haklı sebep olmadan hizmetten kaçınmayı" yasaklar. Ekibin ulaşabileceği mesafe, yol süresi, kapasite ve erişim güvenliği haklı sebeptir. Şartlar:
+    - ret, yazılı bir iç ölçüte göre ve herkese aynı biçimde yapılır;
+    - gerekçe ops notuna yazılır ve Sahip'e bildirilir;
+    - başvuru ve önizleme ücretsizdir ve retten önce hiçbir ödeme alınmaz;
+    - site ve başvuru ekranı, hizmetin her konuma verilemeyebileceğini önceden söyler. Yayımlanmış bölge listesi gerekmez. Gereken, tüketicinin sınırlamanın varlığını bilmesidir.
+- Müşteriye görünen ret etiketi bölge ima etmez. Enum değeri `out_of_service_area` iç ad olarak kalır. Md. 15/2'deki "Gaziantep mahkemeleri" yalnızca tacir Sahip için yetki şartıdır ve kalır (T22). Herkese açık sitede ve pazarlama metinlerinde bölge adı geçmez.
+
+**Dayanak.** 6502 md. 5, 6/2, 61–62; Haksız Şartlar Yönetmeliği md. 5 ve Ek (sağlayıcıya takdire bağlı fesih); Ticari Reklam ve Haksız Ticari Uygulamalar Yönetmeliği (yanıltıcı ve eksik bilgi); TBK md. 8 (öneriye davet), 23, 26; H20.
+
+**Gerekçe.**
+- Sözleşmeden önce konuma göre seçim, sözleşme serbestisi içindedir. Kurulmuş sözleşmeyi tanımsız bir ölçütle bitirmek ise haksız şart riskidir.
+- İlçe ölçütü ile "herkes için aynı tarihte" şartı keyfiliği önler. 60 gün ve pencere sonu kuralı, Sahip'in ödediği ziyareti kaybetmemesini sağlar.
+- **Uzlaştırma:**
+    - **Ortak görüş:** Uzman A ve Uzman B silmede, ilçe ölçütünde, başvuruda konuma göre retin şartlarında ve ret etiketinde birleşti.
+    - **Ek sebep:** Uzman B'nin "konumun esaslı biçimde farklı bildirilmesi" sebebi eklendi. Nesneldir ve Sahip'ten kaynaklanır.
+    - **Bildirim süresi:** Uzman A 30 gün, Uzman B 60 gün ve pencere sonu kuralını önerdi. Uzman B seçildi. Bu sebep Sahip'ten kaynaklanmaz ve kullanılmayan ziyaretler zaten iade edildiği için Şirket'e maliyeti küçüktür. Kural, Sahip'in ödediği ve içinde bulunulan ziyareti korur.
+
+**Metin değişikliği.**
+- **Sözleşme Md. 12/3, “Şirket'in çıkarması”** paragrafının ilk iki cümlesi şöyle olur:
+  “Şirket bir Bahçe'yi yalnızca şu haklı sebeplerle hizmetten çıkarabilir: Bahçe'nin gerçek konumunun başvuruda bildirilenden esaslı biçimde farklı olması; Sahip'in Madde 5'teki yükümlülüklerini esaslı biçimde ya da tekrar tekrar ihlal etmesi (örneğin iki ziyaret penceresi boyunca erişimin sağlanamaması); Sahip'in yetkisinin bulunmaması ya da Madde 6/4'teki üçüncü kişi itirazı; personelin güvenliğini tehdit eden bir durum; Bahçe'nin devri (satış); mükerrer kayıt; Madde 8/6'daki uyarıya rağmen bir ödemenin süresinde yapılmaması; Şirket'in, Bahçe'nin bulunduğu ilçedeki saha hizmetini o ilçedeki bütün sahipler için aynı tarihte sona erdirmesi. Şirket çıkarmayı en az 30 gün önceden Sahip'e SMS ile bildirir; güvenlik tehdidi, mükerrer kayıt, yetkisizlik ve üçüncü kişi itirazı hallerinde bildirim süresi aranmaz, ödemenin yapılmamasında bildirim süresi Madde 8/6'daki uyarı süresidir, ilçedeki saha hizmetinin sona erdirilmesinde ise bildirim en az 60 gün önce yapılır ve çıkış günü, bildirim günü içinde bulunulan ve ödemesi yapılmış ziyaret penceresinin bitiminden önce olamaz.”
+  Paragrafın geri kalanı korunur. Yalnızca “kullanılmayan bütün ziyaretlerin bedeli iade edilir” ifadesi “kullanılmayan bütün ziyaretlerin ödenmiş bedeli iade edilir ve ödenmemiş ödemeler iptal edilir” olur.
+- **İade Politikası §5, “Bahçeyi bizim çıkarmamız”** (tamamen değişir):
+  “**Bahçeyi bizim çıkarmamız** yalnızca şu sebeplerle olur: bahçenin gerçek konumunun başvuruda bildirdiğinizden esaslı biçimde farklı olması, yükümlülüklerinizin esaslı ya da tekrarlanan ihlali (örneğin iki pencere boyunca erişim sağlanamaması), yetkisizlik ya da üçüncü kişi itirazı, personel güvenliğini tehdit eden durum, devir, mükerrer kayıt, uyarımıza rağmen bir ödemenin yapılmaması (1A. bölüm) ya da bahçenizin bulunduğu ilçedeki saha hizmetimizi oradaki bütün sahipler için sona erdirmemiz. En az 30 gün önce SMS ile bildiririz; güvenlik tehdidi, mükerrer kayıt, yetkisizlik ve itiraz hallerinde bu süre aranmaz. İlçedeki hizmeti sona erdirirsek en az 60 gün önce bildiririz ve içinde bulunduğunuz, ödediğiniz ziyaret penceresi bitmeden bahçenizi çıkarmayız. Kullanılmayan ziyaretler için ödediğiniz tutarın tamamını iade ederiz; ödenmemiş ödemeler iptal edilir.”
+- **Ön Bilgilendirme §2, son maddeden sonra:** “Hizmet, başvuruda konumu doğrulanan bahçe için verilir. Başvurular bahçenin konumuna ve ekip kapasitesine göre değerlendirilir; her konuma hizmet verilemeyebilir.”
+- **Başvuru ekranı ve kayıt formu** (yeni cümle): “Başvurunuzu bahçenizin konumuna ve ekibimizin kapasitesine göre değerlendiririz; her konuma hizmet veremeyebiliriz. Başvuru ve fiyat önizlemesi ücretsizdir; hizmet veremeyeceksek başvurunuzu kapatır ve size bildiririz.”
+- **Ret etiketi** (`apps/web/src/lib/i18n/messages/billing.ts`): `out_of_service_area: "Bahçenin konumuna şu an hizmet veremiyoruz"`.
+- **kullanim-kilavuzu.md** (Şirket'in çıkarması listesi): "hizmet bölgesi dışında kalma" yerine "gerçek konumun başvuruda bildirilenden esaslı biçimde farklı olması". "Şirket'in bölgede hizmeti bütünüyle sona erdirmesi" yerine "Bahçe'nin ilçesindeki saha hizmetinin o ilçedeki bütün sahipler için aynı tarihte sona erdirilmesi (en az 60 gün önce bildirim; çıkış, ödenmiş ve içinde bulunulan pencerenin bitiminden önce olamaz)". "Madde 8/6 uyarısına rağmen ödenmeme" eklenir. Başvuru bölümüne eklenir: “Konuma göre ret yalnızca yazılı iç ölçüte (mesafe, yol süresi, kapasite, erişim güvenliği) göre yapılır; gerekçe notta yazılır ve aynı ölçüt herkese uygulanır.”
+- **kararlar.md H20 (c):** Sebep listesine not düşülür: "H36 ile değişti".
+- `legal.ts` aynı değişiklikleri alır.
+
+**Sistem değişikliği.**
+- **Bu iş:**
+    - Ret etiketi.
+    - Başvuru ekranı cümlesi.
+    - `legal.ts`.
+    - Kılavuz.
+    - `musteri-yonetimi.md` §19'daki "Hizmet bölgesi" maddesi "karara bağlandı (H36)" olur.
+    - Herkese açık sitede (`site.ts`) bölge adı geçmediği denetlenir. Bugün geçmiyor.
+- **T05 (genişler):** Ops çıkarma nedenlerine `location_misdeclared`, `service_withdrawn_district` ve `payment_default` (T30) eklenir. `service_withdrawn_district` için 60 gün ve pencere sonu denetimi yapılır. "Bölge dışı" diye bir neden açılmaz. Konuma göre retlerde not zorunludur.
+
+---
+
 <a id="takip"></a>
 ## Takip işleri
 
@@ -1554,7 +1787,7 @@ Bu belgeyle birlikte yapılan PR yalnızca metinleri ve küçük değişiklikler
 | T02 | Netgsm ve dışarıdan çalışan uzmanla veri işleme sözleşmesi; personel metninin teslimi | H02, H05 | Pilottan önce |
 | T03 | Erken başlama onayı, planlama engeli, cayma kesintisinin onaya bağlanması, cayma teyit SMS'i, bildirim tarihine göre ops kaydı, uyarı | H11 | Yayın şartı |
 | T04 | Siparişe özel sözleşme ve ön bilgilendirme PDF'i, hash, Sözleşmelerim, SMS, teklif verileriyle ön bilgilendirme, arşiv hash testi | H12, H13, H18 | Yayın şartı |
-| T05 | Bahçe çıkarma: “hemen”, varsayılanın kaldırılması, kalan yöntemiyle iade, haklı sebep nedenleri, bekleyen siparişi aynı akışta iptal | H20 | `garden_changes_enabled` öncesi |
+| T05 | Bahçe çıkarma: “hemen”, varsayılanın kaldırılması, kalan yöntemiyle iade, haklı sebep nedenleri, bekleyen siparişi aynı akışta iptal; H36: `location_misdeclared`, `service_withdrawn_district` (60 gün ve pencere sonu denetimi), `payment_default` (T30); konuma göre retlerde zorunlu not | H20, H36 | `garden_changes_enabled` öncesi |
 | T06 | Dönem sonu 8A mutabakatı (ops görevi, 14 gün sayacı) | H21 | İlk dönem sonundan önce |
 | T07 | Ziyaret tarihi SMS'i (en az 3 gün önce, bağlantılı); yapılamayan ziyaret nedeni ve kanıtı; saha uygulamasında levha ve sözlü bilgi kaydı | H01, H15 | Pilot sırasında; o zamana kadar elle |
 | T08 | 12/4'ün bütün sona erme hallerine uygulanması; yenilemede yeniden açma; pilot parselleri | H23 | İlk `service_end`'den en az 30 gün önce |
@@ -1577,3 +1810,8 @@ Bu belgeyle birlikte yapılan PR yalnızca metinleri ve küçük değişiklikler
 | T25 | CLAUDE.md'deki “veri silinmez” kuralının “saklama süresi içinde silinmez” olarak güncellenmesi (Yusuf) | H25 | Bir sonraki doküman güncellemesinde |
 | T26 | İsteğe bağlı: kişi görünen kesitlerin yapay zekâya gönderilmemesi (yerel kişi algılama) | H02 | İsteğe bağlı |
 | T27 | Sorulmayan rızanın veritabanı ve Edge tarafında reddi. Bugün ret yalnız web sunucusunda (`setConsentAction`, `parseSignupForm`); `public.customer_set_consent` (`authenticated` çalıştırabilir) ve `customer-signup` (`_shared/signup.ts`) `explicit_marketing` ve `explicit_service_improvement` için `granted = true` kaydı açabilir. Yeni migration: `customer_set_consent`, `p_granted = true` iken sorulmayan tür için hata verir (`explicit_service_improvement` her zaman; `explicit_marketing` İYS entegrasyonu açılana kadar, veritabanındaki bir ayarla); geri alma (`false`) serbest kalır. `customer-signup` ve `private` kayıt fonksiyonu kapalı türlerin değerini `false`'a zorlar ya da `true`'yu reddeder. pgTAP ve Edge testleri: kendi JWT'siyle RPC çağrısı ve doğrudan Edge POST'u `granted = true` satırı açamaz. Bu iş bitmeden açılmış `granted = true` satırları dayanak olarak kullanılmaz (H06, H31) | H06, H31 | Yayın şartı; `MARKETING_CONSENT_ENABLED` açılmadan önce |
+| T28 | Pencere sonunda düşme: penceresi biten ziyaretin açık ödemesi gece işinde `window_passed` nedeniyle iptal edilir (ödemesiz ziyaret izni olanlar hariç). Planlama engeli ödemeyi ziyaret sırasına değil pencereye bağlar; düşen ödeme sonraki pencerenin ziyaretini açmaz. Kart en erken açık ödemeyi seçerken düşmüş ödemeyi atlar. Düşen ödemeye hatırlatma gitmez; havaleyle gelirse `order_closed` benzeri bir iadeyle 14 gün içinde iade edilir. Havalede ops gönderim tarihini girer; düşme bu tarihe göre değerlendirilir. Düşme SMS'i: “orchadOS: ${ref} numaralı siparişinizde ödemesi yapılmadığı için bir ziyaret yapılmadı; bu ziyaretin bedeli sizden istenmez: ${link}”. Hatırlatmaya son gün değişkeni eklenir (isteğe bağlı). Dönem sonu kontrolü (T06) yalnızca ödenmiş ama yapılmamış ziyaretleri sayar. pgTAP: düşen ödeme ödenemez; geç ödeme yanlış pencereyi açmaz | H35 | Yayın şartı; ilk ziyaret penceresinin bitiminden önce. Çekirdeği (düşme, pencereye bağlı engel, kartın atlaması, hatırlatmasızlık, geç ödemenin iadesi) yapıldı; kalan: düşme SMS'i, havalede gönderim tarihi, hatırlatmada son gün |
+| T29 | Ödeme planı tablosu: siparişe özel sözleşme PDF'inde Ek-8 olarak, Ek-2 ile birlikte; teklif verileriyle gösterilen ön bilgilendirmede de aynı tablo. Onay kaydına gösterilen planın özeti ya da hash'i yazılır; gösterilen ve dondurulan plan aynıdır (test) | H35, H12 | Yayın şartı; T04 ile |
+| T30 | Ödenmeme nedeniyle fesih: uyarı kaydı ve SMS'i (≥30 gün; son günü ve sonucu yazar); uyarı süresi dolmadan ya da ödeme iptal edilmişken ödeme nedenli fesih ya da çıkarma kapalı; yeni çıkarma nedeni `payment_default` (T05). Ödemesiz ziyaret izninde Sahip talebinin kanalı ve tarihi zorunlu alan; talepsiz yapılmış ödemesiz ziyaretin ödemesini iptal eden ops işlemi | H35 | Pilot sırasında, ödeme nedeniyle ilk fesihten önce; o zamana kadar kılavuz kuralı |
+| T31 | Alan düzeltmesinde (Md. 6/3) ödenmemiş ziyaret ödemelerinin yeni alana göre kısmen iptali (`cancelled_kurus`, satır payları dahil) ve ödenmiş fazlanın iadesi; denetim kaydı | H35 | İlk alan düzeltmesinden önce; o zamana kadar geliştirici eliyle, denetim kaydıyla |
+| T32 | Ek teklif dökümündeki kalan pencereler (`contract_visit_windows`, `remaining_visit_windows`, `visit-windows.ts`) Ek-2 v5'in gün aralıklarına ve paket eşlemesine (`package_visit_windows`) geçirilir; bugün ay düzeyinde dört pencere sayılıyor | H19, H35 | `garden_changes_enabled` öncesi |

@@ -18,7 +18,7 @@ export type Payment = Omit<
   "provider_token" | "return_origin" | "recorded_by" | "manual_note"
 >;
 export type PaymentItem = Tables<"payment_item">;
-// The payment plan (installments-v1, docs/musteri-yonetimi.md §6.13).
+// The payment plan (installments-v1, docs/musteri-yonetimi.md §6.14).
 export type OrderInstallment = Omit<
   Tables<"order_installment">,
   "visit_override_by" | "visit_override_note"

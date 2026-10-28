@@ -46,7 +46,7 @@ export const BILLING_COLUMNS = {
   // requested_by, decided_by, blocked_reason and revoke_all_access (ops reads
   // them through ops_garden_removals and ops_garden_removal_preview).
   garden_removal: `${GARDEN_REMOVAL_READ}, notice_channel, notice_received_on`,
-  // The payment plan (installments-v1, docs/musteri-yonetimi.md §6.13):
+  // The payment plan (installments-v1, docs/musteri-yonetimi.md §6.14):
   // without the internal visit_override_by and visit_override_note (ops reads
   // them through ops_order_installments).
   order_installment:

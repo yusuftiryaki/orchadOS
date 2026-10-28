@@ -80,12 +80,17 @@ Bahçe sahibi hesabını kendisi açıp başvurabilir. Operasyonun telefonla kay
     - Her bahçe için "Doğrula": alan dönüm olarak girilir; gerekirse sınır haritada yeniden çizilir ve çizilen alan kullanılır. Doğrulama notu iç bilgidir, müşteri görmez.
     - Bütün bahçeler doğrulanınca teklif önizlemesi çıkar (bugün geçerli fiyat listesi). İndirim yüzde olarak girilir; indirim varsa açıklama zorunludur. Aynı köyden komşu bahçeye %10–15 indirim bu alanla verilir (açıklama: "Komşu bahçe indirimi, <köy>"); ayrı bir kurucu indirimi yoktur.
     - "Teklif ver" ya da "Başvuruyu reddet" (neden müşteriye gider, not içte kalır). Müşteriye SMS ile bildirim gider.
-3. **Teklif onayı (müşteri).** Fatura bilgileri, Ön Bilgilendirme ve Mesafeli Hizmet Sözleşmesi onaylanır; sipariş açılır (`S-2026-…`).
-4. **Ödeme.**
-    - Kartla: iyzico ödeme sayfası (3DS). Sonuç sunucudan doğrulanır; tutar ya da referans tutmazsa ödeme "İncelemede" kalır ve sistem bir iptal iadesi açar (ödeme sayfasında uyarı).
-    - Havaleyle: müşteri IBAN'a öder, operasyon sipariş sayfasında "Havale/EFT kaydet" ile tutarı (TL), valör tarihini ve banka referansını girer. Kısmi havale kabul edilir. Süren bir kart denemesi varsa kayıt reddedilir.
-    - Her başarılı ödemeye makbuz numarası verilir (`M-…`, `/makbuz/<id>`). Makbuz fatura değildir.
-5. **Aktivasyon.** Ödeme tamamlanınca sipariş "Aktif" olur, her bahçe için parsel "kayıt" durumunda açılır ve müşteriye sahip erişimi verilir. Sipariş sayfasından parsele geçilip envanter ziyareti planlanır (bölüm 1, adım 5).
+    - **Hizmet bölgesi yoktur** (H36): sitede ve metinlerde bölge vaat edilmez ve bölge adı verilmez. Konuma göre ret ("Bahçenin konumuna şu an hizmet veremiyoruz") yalnızca yazılı iç ölçüte (mesafe, yol süresi, kapasite, erişim güvenliği) göre yapılır; gerekçe notta yazılır ve aynı ölçüt herkese uygulanır.
+3. **Teklif onayı (müşteri).** Teklif sayfası kabulden önce **ödeme planını** gösterir (H35): ilk yıl envanter ödemesi ve paketteki ziyaret sayısı kadar ziyaret ödemesi, her birinin son günü ve tutarı, toplam = peşin fiyat. Fatura bilgileri, Ön Bilgilendirme ve Mesafeli Hizmet Sözleşmesi onaylanır; sipariş ve planı açılır (`S-2026-…`). Ayrıntı ve örnekler: [fiyatlandirma.md](fiyatlandirma.md) §2a.
+4. **Ödeme.** Her ödeme planın bir ödemesini öder; kart taksiti yoktur.
+    - Kartla: iyzico ödeme sayfası (3DS); tutar sıradaki açık ödemedir. Müşteri son günü gelmemiş ödemeleri önceden de yapabilir. Sonuç sunucudan doğrulanır; tutar ya da referans tutmazsa ödeme "İncelemede" kalır ve sistem bir iptal iadesi açar (ödeme sayfasında uyarı).
+    - Havaleyle: müşteri IBAN'a öder, operasyon sipariş sayfasında "Havale/EFT kaydet" ile tutarı (TL), valör tarihini, banka referansını ve ödemeyi girer. Ödeme seçilmezse tutar açık ödemelere sırayla dağıtılır ve her ödemeye ayrı makbuz verilir. Kısmi havale kabul edilir. Süren bir kart denemesi varsa kayıt reddedilir. Havale, sahibin dekonttaki gönderim gününde yapılmış sayılır (H35).
+    - Her başarılı ödemeye makbuz numarası verilir (`M-…`, `/makbuz/<id>`); makbuzda ödemenin plandaki sırası yazar. Makbuz fatura değildir.
+    - Hatırlatma: her ödemenin son gününden 7 gün önce ve son gününde SMS (tutar yazmaz).
+5. **Aktivasyon.** Planın ilk ödemesi (ilk yıl envanter, yenilemede ilk ziyaret ödemesi) ödenince sipariş "Aktif" olur, her bahçe için parsel "kayıt" durumunda açılır ve müşteriye sahip erişimi verilir. Sipariş sayfasından parsele geçilip envanter ziyareti planlanır (bölüm 1, adım 5).
+    - **Ödenmemiş ziyaret ödemesi:** O ziyaret planlanamaz ("Bu ziyaretin ödemesi yapılmadı"). Sahip portal, SMS ya da e-postayla yazılı olarak isterse siparişin ödeme planında "Ödemesiz ziyarete izin ver" ile, talebin kanalı ve tarihi notta yazılarak izin verilir; o ödeme borç olarak kalır, faiz istenmez. Pencere ödemesiz biterse ödeme kendiliğinden düşer ("Pencere ödemesiz bitti"); ziyaret yapılmaz ve ödemesi istenmez, sonradan gelen ödeme iade edilir.
+    - **Geciken ödeme:** Son gününden 30 gün geçen ödemeler panoda ve sipariş listesinin başında görünür; sözleşme kendiliğinden sona ermez. Ödeme nedeniyle fesih T30 gelene kadar elle yürür: sahibe SMS ve portal mesajıyla, son günü ve sonucu yazan, en az 30 gün süreli uyarı gönderilir ve tarihi nota yazılır; süre sonunda ödeme hâlâ açıksa fesih bu notla yapılır. Fesihte ödenmemiş ödemeler iptal edilir, ödenmiş ama yapılmamış ziyaretler iade edilir.
+    - Sahip ödediği halde açık görünen bir ödeme bildirirse 2 iş günü içinde yanıt verilir.
 6. **Sipariş işlemleri (`/operasyon/siparis`).** Ödeme süresi uzatma, ödemesi alınmamış siparişi iptal, aktif siparişi fesih (not zorunlu, onay kutusu). Süresi geçen siparişler listede vurgulanır. Hizmet yılı biten siparişe "Yenileme teklifi ver"; ops'un açtığı mevcut parseller için sahip sayfasındaki "Parsel teklifi ver".
     - **Aktif siparişi fesih** (`ops_terminate_order`) T08 gelene kadar gerçek müşteride kullanılmaz; ayrıntı aşağıda, "Bahçe ekleme ve çıkarma" › Operasyon › 11 ([hukuk/kararlar.md](hukuk/kararlar.md) H23).
     - **Sözleşme kendiliğinden uzamaz** (H14). v1 kâğıt sözleşmeyi imzalamış pilot sahiplerine, ilk yenileme tekliflerinden önce ve dönem bitmeden şu SMS gönderilir ve gönderim sahibin notuna yazılır (T22): “orchadOS: Sözleşmeniz [bitiş tarihi]'nde sona erecek ve kendiliğinden uzamayacak. Devam etmek isterseniz bitişten önce portalınızdaki yenileme teklifini onaylayabilirsiniz; onaylayıp ödemedikçe yeni yıl başlamaz ve sizden bedel istenmez.”
@@ -105,7 +110,9 @@ Bahçe sahibi hesabını kendisi açıp başvurabilir. Operasyonun telefonla kay
 | Back office: başvuru, doğrulama, teklif, sipariş, havale, iade, fiyatlar, ayarlar, denetim kaydı, müşteri hesabı paneli | ✅ |
 | Müşteri portalı: başvuru, teklif onayı, kartla ödeme, makbuz | 🟡 (ayrı iş paketinde geliştiriliyor) |
 | Kartla ödeme (iyzico) | 🟡 (sandbox ve sahte sağlayıcıyla test ediliyor; canlı hesap ve yazılı teyit bekleniyor) |
-| e-Arşiv / e-Fatura, taksit, otomatik yenileme ödemesi | ⬜ (İP12 kapsamı dışında) |
+| Ziyaret başına ödeme planı: plan, ödeme başına kart ve havale, hatırlatma, ödenmemiş ziyaretin engeli ve izni, pencere sonunda düşme | ✅ (`installments-v1`) |
+| Ödeme planının sözleşme PDF'inde (Ek-8) ve ön bilgilendirmede gösterilmesi; ödeme nedeniyle fesih uyarısı | ⬜ (T29, T30; o zamana kadar portal ve elle) |
+| e-Arşiv / e-Fatura, kart taksiti, otomatik yenileme ödemesi | ⬜ (İP12 kapsamı dışında) |
 
 ### Bahçe ekleme ve çıkarma
 
@@ -142,13 +149,14 @@ Müşterinin tek bir üyelik dönemi vardır; bütün bahçeleri aynı gün bite
 9. **Yenileme.** `/operasyon/teklif/yeni?siparis=<temel sipariş>`: temel siparişin ve ek siparişlerin hizmetteki ya da dönem içinde başlayacak bahçeleri işaretli gelir (dönem bittiyse temel ve ek siparişlerin satırları); çıkmakta olanlar işaretsiz ve etiketlidir. Ek siparişin kendisi yenilenmez.
 10. **Ops'un açtığı çıkarma ve devir.** Sipariş ayrıntısında satır başına "Bahçeyi çıkar". Bahçe satıldıysa neden **devir** ve erişim günü **0**; ayardan kısa bir erişim süresi yalnızca devirde, mükerrer kayıtta ya da not girilerek verilir. Devirle çıkarılan parsel aynı müşteriye yeniden bağlanamaz; yeni sahip kendi başvurusuyla yeni parsel alır. Müşteri panelindeki "Tüm bahçeleri çıkar" üyeliği sonlandırmanın önerilen yoludur.
     - **Şirket'in çıkarması yalnızca sayılan sebeplerle ve sebebi notta yazarak yapılır** ([hukuk/kararlar.md](hukuk/kararlar.md) H20; neden değerleri T05 ile gelecek). Haklı sebepler:
-        - hizmet bölgesi dışında kalma,
+        - gerçek konumun başvuruda bildirilenden esaslı biçimde farklı olması (H36),
         - Sahip'in Md. 5 yükümlülüklerinin esaslı ya da tekrarlanan ihlali (örneğin iki pencere boyunca erişim sağlanamaması),
         - yetkisizlik ya da Md. 6/4'teki üçüncü kişi itirazı,
         - personel güvenliğini tehdit eden durum,
         - devir,
         - mükerrer kayıt,
-        - Şirket'in bölgede hizmeti bütünüyle sona erdirmesi.
+        - Madde 8/6 uyarısına rağmen bir ödemenin yapılmaması (H35),
+        - Bahçe'nin ilçesindeki saha hizmetinin o ilçedeki bütün sahipler için aynı tarihte sona erdirilmesi (en az 60 gün önce bildirim; çıkış, ödenmiş ve içinde bulunulan pencerenin bitiminden önce olamaz; H36).
     - Bildirim en az 30 gündür; güvenlik tehdidi, mükerrer kayıt ve yetki ya da itiraz hallerinde bildirim süresi aranmaz. Sahiple anlaşarak çıkarmada sahibin onayı yazılı kaydedilir ve notta belirtilir. İade, kullanılmayan bütün ziyaretlerin bedelidir; bildirim süresinde ziyaret yapılmazsa o ziyaretler kullanılmamış sayılır.
 11. **İdari fesih.** Siparişin tamamını feshetmek (`ops_terminate_order`) idari durumlar içindir ve parsellere dokunmaz. Temel siparişte ek siparişler de sona erer, ödeme bekleyen ekler ve açık ek teklifler iptal edilir (kısmen ödenmiş bir ek siparişin parası için `order_closed` iadesi açılır; kart ödemesi sürüyorsa mutabakata kalır), açık çıkarmalar sistemce iptal edilir (SMS gitmez).
     - `ops_terminate_order` T08 gelene kadar gerçek müşteride kullanılmaz. Zorunlu kalınırsa 90 gün sonunda erişim geliştirici eliyle kaldırılır ve denetim kaydına yazılır ([hukuk/kararlar.md](hukuk/kararlar.md) H23).
@@ -282,6 +290,7 @@ Parsel için `periodic_scan` türünde, `planned` durumda bir ziyaret açılır;
 
 - **Ziyaret bildirimi** ([hukuk/kararlar.md](hukuk/kararlar.md) H15, H01): Her ziyaretin tarihi sahibe en az 3 gün önce SMS ya da telefonla bildirilir, bildirim ziyaret notuna yazılır. Bildirime bahçede çalışanlar için kısa bilgilendirme ve /bahcede-bulunanlar bağlantısı eklenir. Sahip ziyaretten en geç 24 saat önce bir kez erteleme isteyebilir; ziyaret aynı pencerede yeniden planlanır.
 - **Cayma süresi:** Cayma süresi bitmemiş siparişte ziyaret planlanmaz (bölüm 1, adım 5).
+- **Ödeme planı:** Ziyaret ödemesi yapılmamış pencerede periyodik ziyaret planlanmaz (bölüm 0, adım 5); izin yalnızca sahibin yazılı talebiyle. Şirket'in yeniden taraması planlanırken sıradaki ödeme açıksa da izin gerekir.
 - **Pencere ve dönem sonu kontrolü** (H21; T06 gelene kadar elle): Ops her ziyaret penceresinin ve hizmet döneminin sonunda yapılamayan ziyaretlerin listesini çıkarır. Bunların bedelini sahibin talebini beklemeden 14 gün içinde iade eder ya da sahip isterse sonraki pencereye aktarır; aktarma sahibin talebiyle kaydedilir ve dönemin son penceresinden sonraya yapılmaz. "Dönem sonunda" çıkarılan bahçelerde de aynı kural uygulanır.
 
 | Adım | Durum |
