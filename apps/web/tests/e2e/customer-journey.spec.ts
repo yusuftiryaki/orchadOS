@@ -151,7 +151,7 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
   // 6. Card payment through the fake checkout.
   await page.getByTestId("pay-card").click();
   await expect(page).toHaveURL(/\/odeme\/sahte\?/);
-  await expect(page.getByText("12000.00 TL")).toBeVisible();
+  await expect(page.getByText("24480.00 TL")).toBeVisible();
   await page.getByRole("button", { name: "Ödemeyi onayla" }).click();
   await expect(page).toHaveURL(/\/portal\/odeme\/[0-9a-f-]{36}$/);
   await expect(page.getByTestId("payment-status")).toHaveText("Başarılı");
