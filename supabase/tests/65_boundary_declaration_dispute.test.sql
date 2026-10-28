@@ -2,12 +2,16 @@
 -- copied from session events (an invalid payload never fails the insert),
 -- and boundary disputes that refuse new scan visits.
 -- Seed: org b0..01, owner a0..01, viewer a0..02 of parcel c0..01, field a0..03,
--- expert a0..04, ops a0..05; boundary_declaration_required is on. One transaction.
+-- expert a0..04, ops a0..05; the file switches boundary_declaration_required on.
+-- One transaction.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(30);
 
 select testing.reset_to_seed();
+-- The seed leaves the declaration off (pipeline chain test); this file needs it.
+update public.org_billing_setting set boundary_declaration_required = true
+where org_id = 'b0000000-0000-4000-8000-000000000001';
 
 create function pg_temp.as_user(p_id text) returns void language sql
 as $$ select set_config('request.jwt.claims', json_build_object('sub', p_id, 'role', 'authenticated')::text, true) $$;

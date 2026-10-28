@@ -315,7 +315,7 @@ Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) H01, H05, H07, H16, H22, H25, H
 
 | Tablo / sütun | Ne tutar |
 | --- | --- |
-| `org_billing_setting` | `coowner_notice_flow_enabled` (T15), `boundary_declaration_required` (T16), `kvkk_request_form_enabled` (T11). Yalnızca SQL; barındırılan projelerde `false`, `seed.sql`'de `true`. Kapalıyken bugünkü davranış değişmez |
+| `org_billing_setting` | `coowner_notice_flow_enabled` (T15), `boundary_declaration_required` (T16), `kvkk_request_form_enabled` (T11). Yalnızca SQL; barındırılan projelerde `false`. `seed.sql`'de T15 ve T11 `true`, T16 `false` (işleme hattının zincir testi sınırı beyansız onaylıyor; beyanı deneyen testler anahtarı kendileri açar). Kapalıyken bugünkü davranış değişmez |
 | `private.staff_profile` | Personelin görünen adı ve unvanı (ops `/operasyon/personel`'de düzenler). Raporu onaylayan uzmanın adı ve unvanı raporda ve PDF'lerde (H05); demo org'unda gösterilmez (`visit_approver`) |
 | `private.media_suppression` | Görüntü gizleme (T20, H01): hedef (`asset` ya da `capture`), `hide`/`unhide`, neden (`kvkk_objection`, `third_party`, `other`), not, yapan, zaman. Ekleme-yalnız; bir hedefin en yeni kaydı geçerlidir. Medya satırı ve dosya değişmez |
 | `private.boundary_approval` | Sınır onayındaki beyan (T16, Md. 6/2): sınır, kullanıcı, kayıtlı `distance_sales` sürümü, metin özeti, zaman. Ekleme-yalnız |

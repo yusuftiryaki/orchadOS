@@ -426,13 +426,23 @@ describe("owner's boundary card", () => {
   it("the owner approves; who and when are shown; the inventory summary appears", async () => {
     const before = (await loadBoundaryCard(as.owner, IDS.parcel, userIds.owner))!;
     expect(before.canApprove).toBe(true);
-    // T16: the seed org asks the boundary declaration (boundary_declaration_required).
-    expect(before.declarationRequired).toBe(true);
-    expect(await approveBoundary(as.owner, before.latest!.id)).toEqual({
-      ok: false,
-      error: "declaration_required",
-    });
-    expect(await approveBoundary(as.owner, before.latest!.id, true)).toEqual({ ok: true });
+    // T16: with the org's switch on the declaration is required (the seed leaves it off).
+    const setting = (on: boolean) =>
+      admin
+        .from("org_billing_setting")
+        .update({ boundary_declaration_required: on })
+        .eq("org_id", "b0000000-0000-4000-8000-000000000001");
+    expect(before.declarationRequired).toBe(false);
+    expect((await setting(true)).error).toBeNull();
+    try {
+      expect(await approveBoundary(as.owner, before.latest!.id)).toEqual({
+        ok: false,
+        error: "declaration_required",
+      });
+      expect(await approveBoundary(as.owner, before.latest!.id, true)).toEqual({ ok: true });
+    } finally {
+      await setting(false);
+    }
     const after = (await loadBoundaryCard(as.owner, IDS.parcel, userIds.owner))!;
     expect(after.latest?.approvedAt).toBeTruthy();
     expect(after.latest?.approvedByMe).toBe(true);

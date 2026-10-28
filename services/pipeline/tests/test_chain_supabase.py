@@ -173,7 +173,7 @@ def test_scan_to_owner(supabase_env, test_sessions, tmp_path, monkeypatch):
         crop_assets.setdefault(a["tree_id"], []).append(a["id"])
     sample = crops[0]
     sample_key = media_key(ORG, PARCEL, sample["content_hash"])
-    uploaded = ops.select("asset", {"session_id": f"eq.{session_id}", "select": "id"})
+    uploaded = ops.select("asset", {"session_id": f"eq.{session_id}", "select": "id,kind"})
     print(
         f"  {len(cset.crops)} crops of {len(crop_assets)} trees, "
         f"{len(uploaded)} asset rows; {len(active)} active trees on the parcel"
@@ -246,7 +246,11 @@ def test_scan_to_owner(supabase_env, test_sessions, tmp_path, monkeypatch):
     assert {r["source"] for r in mine.values()} == {"expert"}
 
     seen = owner.select("asset", {"session_id": f"eq.{session_id}", "select": "id,kind"})
-    assert len(seen) == len(uploaded)
+    # T23 (kararlar.md H05): the owner reads panoramas, crops and photos; the
+    # trajectory (the crew's GNSS track) and point clouds are staff only.
+    owner_kinds = {"panorama", "tree_crop", "photo"}
+    assert len(seen) == sum(a["kind"] in owner_kinds for a in uploaded)
+    assert {a["kind"] for a in seen} <= owner_kinds
     assert sum(a["kind"] == "tree_crop" for a in seen) == len(crops)
     evidence = owner.select(
         "measurement_evidence",
