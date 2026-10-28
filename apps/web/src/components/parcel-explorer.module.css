@@ -1,10 +1,13 @@
+/* Map on the left, the selected tree on the right; the panel stays in view
+   while the map is panned. */
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: var(--space-3);
+  align-items: start;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
   }
@@ -13,36 +16,50 @@
 .mapColumn {
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
 }
 
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--space-1) var(--space-3);
   list-style: none;
   margin: 0;
   padding: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .legend li {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 6px;
 }
 
-.swatch {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1px solid #333;
+.count {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .panel {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: var(--space-3);
-  align-self: start;
+}
+
+@media (min-width: 861px) {
+  .panel {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-3));
+  }
+}
+
+.hint {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.hintTitle {
+  font-weight: 700;
+  margin: 0;
 }
