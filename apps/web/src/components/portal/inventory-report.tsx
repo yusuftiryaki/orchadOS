@@ -7,6 +7,7 @@ import {
   type InventoryReport,
   type MapPoint,
 } from "@/lib/portal/inventory-report";
+import { BoundaryNotice } from "./boundary-notice";
 import ir from "./inventory-report.module.css";
 import styles from "./portal.module.css";
 
@@ -123,11 +124,11 @@ export function InventoryReportView({
                       ? r.boundaryAwaiting
                       : null}
                 </p>
-                <p className="muted">{r.boundaryNote}</p>
               </>
             ) : (
               <p className="muted">{r.noBoundary}</p>
             )}
+            <BoundaryNotice />
           </section>
 
           <section className={styles.section} aria-labelledby="bos">
@@ -335,6 +336,9 @@ export function SlotMap({ map }: { map: NonNullable<InventoryReport["map"]> }) {
           </span>
         ))}
         <span className="muted">{r.mapScale(formatNumber(map.width, 0))}</span>
+        <span className="muted" data-testid="map-boundary-caption">
+          {t.boundaryNotice.short}
+        </span>
       </figcaption>
     </figure>
   );

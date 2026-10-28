@@ -37,7 +37,7 @@ Web uygulamasında herkes sadece rolünün bölümünü görür. Kullanıcının
 
 ```mermaid
 flowchart TD
-    K["1 · Kayıt<br/>Operasyon: sahip, parsel, KVKK onayı"] --> E1
+    K["1 · Kayıt<br/>Operasyon: sahip, parsel, aydınlatma metni"] --> E1
     subgraph ENV["2 · Envanter (parsel başına bir kez)"]
         E1["Saha: sınır yürüyüşü + grid tarama"] --> E2["İstasyon: işleme + yükleme"]
         E2 --> E3["Ofis: gövde üçgenleme, kodlama, boş yerler"]
@@ -79,7 +79,7 @@ Bahçe sahibi hesabını kendisi açıp başvurabilir. Operasyonun telefonla kay
     - Başvuru sayfasında bahçeler haritada ve tabloda (beyan edilen ve doğrulanan alan) görünür.
     - Her bahçe için "Doğrula": alan dönüm olarak girilir; gerekirse sınır haritada yeniden çizilir ve çizilen alan kullanılır. Doğrulama notu iç bilgidir, müşteri görmez.
     - Bütün bahçeler doğrulanınca teklif önizlemesi çıkar (bugün geçerli fiyat listesi). İndirim yüzde olarak girilir; indirim varsa açıklama zorunludur. Aynı köyden komşu bahçeye %10–15 indirim bu alanla verilir (açıklama: "Komşu bahçe indirimi, <köy>"); ayrı bir kurucu indirimi yoktur.
-    - "Teklif ver" ya da "Başvuruyu reddet" (neden müşteriye gider, not içte kalır). Müşteriye SMS ya da WhatsApp bildirimi gider.
+    - "Teklif ver" ya da "Başvuruyu reddet" (neden müşteriye gider, not içte kalır). Müşteriye SMS ile bildirim gider.
 3. **Teklif onayı (müşteri).** Fatura bilgileri, Ön Bilgilendirme ve Mesafeli Hizmet Sözleşmesi onaylanır; sipariş açılır (`S-2026-…`).
 4. **Ödeme.**
     - Kartla: iyzico ödeme sayfası (3DS). Sonuç sunucudan doğrulanır; tutar ya da referans tutmazsa ödeme "İncelemede" kalır ve sistem bir iptal iadesi açar (ödeme sayfasında uyarı).
@@ -87,10 +87,13 @@ Bahçe sahibi hesabını kendisi açıp başvurabilir. Operasyonun telefonla kay
     - Her başarılı ödemeye makbuz numarası verilir (`M-…`, `/makbuz/<id>`). Makbuz fatura değildir.
 5. **Aktivasyon.** Ödeme tamamlanınca sipariş "Aktif" olur, her bahçe için parsel "kayıt" durumunda açılır ve müşteriye sahip erişimi verilir. Sipariş sayfasından parsele geçilip envanter ziyareti planlanır (bölüm 1, adım 5).
 6. **Sipariş işlemleri (`/operasyon/siparis`).** Ödeme süresi uzatma, ödemesi alınmamış siparişi iptal, aktif siparişi fesih (not zorunlu, onay kutusu). Süresi geçen siparişler listede vurgulanır. Hizmet yılı biten siparişe "Yenileme teklifi ver"; ops'un açtığı mevcut parseller için sahip sayfasındaki "Parsel teklifi ver".
+    - **Aktif siparişi fesih** (`ops_terminate_order`) T08 gelene kadar gerçek müşteride kullanılmaz; ayrıntı aşağıda, "Bahçe ekleme ve çıkarma" › Operasyon › 11 ([hukuk/kararlar.md](hukuk/kararlar.md) H23).
+    - **Sözleşme kendiliğinden uzamaz** (H14). v1 kâğıt sözleşmeyi imzalamış pilot sahiplerine, ilk yenileme tekliflerinden önce ve dönem bitmeden şu SMS gönderilir ve gönderim sahibin notuna yazılır (T22): “orchadOS: Sözleşmeniz [bitiş tarihi]'nde sona erecek ve kendiliğinden uzamayacak. Devam etmek isterseniz bitişten önce portalınızdaki yenileme teklifini onaylayabilirsiniz; onaylayıp ödemedikçe yeni yıl başlamaz ve sizden bedel istenmez.”
 7. **İadeler (`/operasyon/odeme`, `/operasyon/iade`).**
     - Ödeme sayfasında "İade iste": havalede iade elle yapılır; kartta aynı gün tam tutar iptal, diğer durumlarda kalem bazında iade edilir ve hemen ödeme servisine gönderilir.
     - İadeler sayfası önce istenen, başarısız ve belirsiz (15 dakikadan uzun süredir işlenen) iadeleri gösterir. Satırda: "İşle" (kart), "Havale iadesi yapıldı" (banka referansı ve gün), "Vazgeç", "Sonucu elle kaydet" (kartta başarılı için sağlayıcı referansı zorunlu). Ödeme servisine ulaşılamazsa ekranda bildirilir.
     - Yanlış girilmiş bir havale, sipariş aktif değilse ödeme sayfasından geri alınır.
+    - Havale iadesi tam tutarla gönderilir; banka ücreti Şirket'e ayrı gider olarak yazılır. Bütün iadeler (cayma, 8A, bahçe çıkarma, `order_closed`, fazla ödeme) sahibe masraf yüklenmeden yapılır ([hukuk/kararlar.md](hukuk/kararlar.md) H29).
 8. **Fiyatlar (`/operasyon/fiyat`).** Paketler (kod, ad, yıllık ziyaret, envanter dahil mi, aktif mi). Fiyat listeleri sürümlüdür: taslakta birim fiyat (TL / dönüm·ziyaret), minimum ve envanter ücreti, KDV ve geçerlilik başlangıcı girilir, onay kutusuyla yayımlanır. Yayımlanan liste değişmez; "Bundan taslak oluştur" ile kopyalanır. Bugün geçerli liste işaretlidir. Lansman listesi (Temel, Standart, Kapsamlı) ve revizyon takvimi: [fiyatlandirma.md](fiyatlandirma.md).
 9. **Müşteriler (`/operasyon/sahip`).** Sahip listesi kayıt kaynağını (self-servis ya da operasyon), açık sipariş sayısını ve ödenen tutarı gösterir; arama ve "Yalnızca self-servis" süzgeci vardır. Sahip sayfasındaki "Müşteri hesabı" panelinde fatura profili, onay geçmişi, başvurular, siparişler ve ödemeler yer alır. Telefonlar maskelidir. TCKN yalnızca ayarlarda zorunlu yapılmışsa toplanır ve maskeli görünür; "TCKN'yi göster" her seferinde denetim kaydına yazılır.
 10. **Ayarlar ve denetim kaydı.** `/operasyon/ayarlar`: dışarıdan kayıt anahtarı (uyarısıyla), TCKN zorunluluğu, satıcı ve havale bilgileri (IBAN denetlenir), süreler. Sahte ödeme ayarı yalnızca gösterilir; veritabanından değiştirilir. `/operasyon/denetim-kaydi`: faturalama ile ilgili her yazma işlemi kim, ne zaman, hangi kayıtta diye listelenir; kayıt türü, kimlik ve eylemle süzülür.
@@ -132,12 +135,23 @@ Müşterinin tek bir üyelik dönemi vardır; bütün bahçeleri aynı gün bite
 3. **İki dönemi birleştirme.** İki ayrı dönemi olan müşteride (İP12'den kalan veriler) erken biten dönem yenilenmez; yenileme ekranındaki "Dönemleri birleştir" önerisiyle bahçeleri geç biten döneme ek teklifle taşınır. Başlangıç, erken dönemin bitişinin ertesi günüdür.
 4. **Çıkarma kuyruğu (`/operasyon/cikarma`).** Pano "Müşteri ve ödeme" kartında yeni talepleri, 7 gün içinde çıkacakları ve engellileri sayar. Ayrıntı sayfasında iade hesabı, planlı ziyaretler, açık takip istekleri ve davetler, ödeme bekleyen siparişler ve erişim kapsamı görünür.
 5. **Tarihi teyit et ya da değiştir.** Tarih, erişim günü, "herkesin erişimini kaldır" ve not. İlk teyitte ve her tarih değişikliğinde müşteriye SMS gider. Tarih talepten farklıysa not zorunludur; tarih yalnızca müşteriyle anlaşarak değiştirilir.
+    - "Herkesin erişimini kaldır" (`revoke_all_access`) yalnızca kendi sözleşmesi bitmiş kişiler için ya da yazılı bir gerekçeyle (devir, uyuşmazlık, mükerrer kayıt) kullanılır; gerekçe notta yazılır. Kendi sözleşmesi süren başka bir sahibin erişimi bu seçenekle kaldırılmaz ([hukuk/kararlar.md](hukuk/kararlar.md) H22).
 6. **Engelli kayıtlar.** Bahçe parası tutulmuş ya da kart denemesi süren bir ödeme bekleyen siparişteyse çıkarma tamamlanmaz ve kuyrukta "engelli" görünür; sipariş çözülünce gece işi yeniden dener.
 7. **Hemen tamamla ve iptal.** Çıkış günü gelmiş kaydı beklemeden tamamlar. İptalde not zorunludur ve müşteriye SMS gider.
 8. **İadeler.** Tamamlanınca iade satırları "istendi" durumunda açılır ve bugünkü iade ekranından (`/operasyon/iade`) işlenir; çıkarma ayrıntısında bağlantıları vardır. Ayarda iade modu **elle** (`manual`) ise ya da siparişte satıra bağlanamayan bir iade varsa sistem yalnızca hesabı gösterir, iade satırı açmaz; ops "İade iste" ile karar verir. Dağıtılamayan tutar uyarı olarak görünür.
 9. **Yenileme.** `/operasyon/teklif/yeni?siparis=<temel sipariş>`: temel siparişin ve ek siparişlerin hizmetteki ya da dönem içinde başlayacak bahçeleri işaretli gelir (dönem bittiyse temel ve ek siparişlerin satırları); çıkmakta olanlar işaretsiz ve etiketlidir. Ek siparişin kendisi yenilenmez.
 10. **Ops'un açtığı çıkarma ve devir.** Sipariş ayrıntısında satır başına "Bahçeyi çıkar". Bahçe satıldıysa neden **devir** ve erişim günü **0**; ayardan kısa bir erişim süresi yalnızca devirde, mükerrer kayıtta ya da not girilerek verilir. Devirle çıkarılan parsel aynı müşteriye yeniden bağlanamaz; yeni sahip kendi başvurusuyla yeni parsel alır. Müşteri panelindeki "Tüm bahçeleri çıkar" üyeliği sonlandırmanın önerilen yoludur.
+    - **Şirket'in çıkarması yalnızca sayılan sebeplerle ve sebebi notta yazarak yapılır** ([hukuk/kararlar.md](hukuk/kararlar.md) H20; neden değerleri T05 ile gelecek). Haklı sebepler:
+        - hizmet bölgesi dışında kalma,
+        - Sahip'in Md. 5 yükümlülüklerinin esaslı ya da tekrarlanan ihlali (örneğin iki pencere boyunca erişim sağlanamaması),
+        - yetkisizlik ya da Md. 6/4'teki üçüncü kişi itirazı,
+        - personel güvenliğini tehdit eden durum,
+        - devir,
+        - mükerrer kayıt,
+        - Şirket'in bölgede hizmeti bütünüyle sona erdirmesi.
+    - Bildirim en az 30 gündür; güvenlik tehdidi, mükerrer kayıt ve yetki ya da itiraz hallerinde bildirim süresi aranmaz. Sahiple anlaşarak çıkarmada sahibin onayı yazılı kaydedilir ve notta belirtilir. İade, kullanılmayan bütün ziyaretlerin bedelidir; bildirim süresinde ziyaret yapılmazsa o ziyaretler kullanılmamış sayılır.
 11. **İdari fesih.** Siparişin tamamını feshetmek (`ops_terminate_order`) idari durumlar içindir ve parsellere dokunmaz. Temel siparişte ek siparişler de sona erer, ödeme bekleyen ekler ve açık ek teklifler iptal edilir (kısmen ödenmiş bir ek siparişin parası için `order_closed` iadesi açılır; kart ödemesi sürüyorsa mutabakata kalır), açık çıkarmalar sistemce iptal edilir (SMS gitmez).
+    - `ops_terminate_order` T08 gelene kadar gerçek müşteride kullanılmaz. Zorunlu kalınırsa 90 gün sonunda erişim geliştirici eliyle kaldırılır ve denetim kaydına yazılır ([hukuk/kararlar.md](hukuk/kararlar.md) H23).
 12. **Salt okunur dönemde parsel.** Ops parseli bu dönemde yaşam döngüsü formundan "sürdür"emez (`parcel_removed`); geri ekleme ek teklifle olur. Çıkarma açıkken çıkış günü ve sonrasına ziyaret planlanamaz.
 13. **Ayarlar (`/operasyon/ayarlar`).** Anahtar (`garden_changes_enabled`), son ek günü için en az gün (30), bildirim süresi (30), erişim süresi (90), iade modu.
 
@@ -155,14 +169,21 @@ Müşterinin tek bir üyelik dönemi vardır; bütün bahçeleri aynı gün bite
 
 **Kim:** Operasyon · **Araç:** `/operasyon`
 
-1. Sahiple telefonda ya da yüz yüze görüşülür. Ad, telefon, iletişim tercihi ve KVKK onayı alınır. Kişisel bilgiler ayrı, korumalı bir şemada (`private`) tutulur.
+1. Sahiple telefonda ya da yüz yüze görüşülür. Ad, telefon ve iletişim tercihi alınır. Aydınlatma metni sahibe verilir (basılı ya da SMS bağlantısı) ve aldığı imzalı alındıyla ya da tarihli bir kayıtla tutulur. İsteğe bağlı açık rızalar ayrıca sorulur (bugün sorulan yoktur; hukuk/kararlar.md H06, H31). Kişisel bilgiler ayrı, korumalı bir şemada (`private`) tutulur.
+    - **Kâğıt alındı şablonu** ([hukuk/kararlar.md](hukuk/kararlar.md) H30): “Kişisel Verilerin İşlenmesine İlişkin Aydınlatma Metni'nin (sürüm …) bir nüshasını aldım ve okudum. Ad soyad / Tarih / İmza.”
+    - Aydınlatma bir onay ya da rıza değildir; ops dilinde "KVKK onayı" denmez, "aydınlatma metni verildi (okundu teyidi)" denir.
+    - Kâğıt sözleşme yalnızca Şirket'in işyerinde imzalatılır; sahada ya da sahibin evinde sözleşme kurulacaksa sahip teklifi portalda onaylar ([hukuk/kararlar.md](hukuk/kararlar.md) H10).
 2. Her parsel için: il/ilçe/köy, kaba konum ve sınır, tahmini alan ve ağaç sayısı, erişim notu, sınırı sahada gösterecek kişi. Tapu bilgisi sadece kayıt içindir.
+    - Erişim notu kapı, anahtar ve yol bilgisiyle sınırlı tutulur; gereksiz kişi bilgisi yazılmaz (H32).
+    - **Sınırı gösterecek kişi ilk arandığında** (telefonda ya da sahada) şu kısa bilgilendirme okunur, istenirse bağlantı SMS ile gönderilir ([hukuk/kararlar.md](hukuk/kararlar.md) H32): “Numaranızı bahçe sahibi bize verdi. orchadOS bahçe denetimi için sizi ziyaret günü aramak ve sınırı göstermeniz için kullanıyoruz. Ayrıntılı bilgi: [alanadi]/kvkk.”
 3. Kaba sınır haritada çizilir (sınır sürüm 1, kaynağı "sahibin beyanı").
 4. Sahibe ve varsa hissedarlara portal erişimi verilir (`parcel_access`: sahip `owner`, hissedar `viewer`).
     - Hesap yoksa açılır; tek kullanımlık parola ekranda bir kez gösterilir.
-    - Operasyon parolayı sahibe WhatsApp'la iletir.
+    - Parola sahibe SMS ile ya da telefonda sözlü iletilir; WhatsApp kullanılmaz. Şirket kod, bildirim, rapor ya da fatura bilgisini WhatsApp'la göndermez ([hukuk/kararlar.md](hukuk/kararlar.md) H02).
+    - **Hissedar ilk arandığında** (H30, H32): Kişiyi arayın; numarasının sahipten alındığını söyleyin, aydınlatma metninin bağlantısını SMS ile iletin ve okuduğunu kaydedin. Hesap telefonla açılır ve hissedar parsele izleyici olarak eklenir. Aramada hangi bahçe için davet edildiği de söylenir.
     - Hesabı Supabase'deki `invite-user` fonksiyonu açar; servis anahtarı Vercel'e çıkmaz.
 5. Envanter ziyareti planlanınca parsel durumu "kayıt"tan "envanter planlandı"ya geçer.
+    - **Geçici kural** ([hukuk/kararlar.md](hukuk/kararlar.md) H11): T03 yayına alınana kadar cayma süresi (sipariş etkinleşmesinden itibaren 14 gün) bitmeden envanter ya da ziyaret planlanmaz. E-posta, KEP ya da postayla gelen cayma, bildirimin ulaştığı gün not edilerek geliştiriciye iletilir.
 
 | Adım | Durum |
 | --- | --- |
@@ -184,9 +205,10 @@ Envanter her parselin dijital haritasını bir kez çıkarır. Sonraki her ziyar
 2. **Ön kontrol:** Lens, pil, depolama, GNSS ham kaydı. Liste tamamlanmadan tarama başlamaz.
 3. **Kaydediciyi bağla:** Uygulama Bluetooth ile GNSS kaydediciye bağlanır ve konum kalitesini gösterir (fix/float).
 4. **QR saat:** Telefonda GPS saatini gösteren QR kodu 360° kameraya okutulur. Böylece video ile GPS zamanı eşlenir.
-5. **Sınır yürüyüşü:** Sahibin ya da yetkilendirdiği kişinin gösterdiği sınır boyunca yürünür. Her köşede uygulamada "köşe" işaretlenir; sınır işaretleri fotoğraflanır.
-6. **Grid tarama:** Motosikletle önce sıra boyunca, sonra dik koridorlar, en son kenarlar.
-7. **Bitir:** Ziyaret özeti ekranında kayıtların gönderildiği görülür. Kameranın hafıza kartı ofise getirilir; ham video telefondan gönderilmez.
+5. **Bahçede bulunanlar:** Taramadan önce bahçe girişine levha konur; tanıtım kartı ve sözlü bilgi bölüm 3.2'deki gibidir.
+6. **Sınır yürüyüşü:** Sahibin ya da yetkilendirdiği kişinin gösterdiği sınır boyunca yürünür. Her köşede uygulamada "köşe" işaretlenir; sınır işaretleri fotoğraflanır.
+7. **Grid tarama:** Motosikletle önce sıra boyunca, sonra dik koridorlar, en son kenarlar.
+8. **Bitir:** Ziyaret özeti ekranında kayıtların gönderildiği görülür. Kameranın hafıza kartı ofise getirilir; ham video telefondan gönderilmez.
 
 | Adım | Durum |
 | --- | --- |
@@ -258,10 +280,16 @@ Yılda dört ziyaret: kış, ilkbahar, yaz, hasat. Her ziyarette neye bakıldı�
 
 Parsel için `periodic_scan` türünde, `planned` durumda bir ziyaret açılır; tarihi ve sorumlu personeli girilir. Ziyaret, personelin uygulamasında "bugünkü görevler" listesine düşer.
 
+- **Ziyaret bildirimi** ([hukuk/kararlar.md](hukuk/kararlar.md) H15, H01): Her ziyaretin tarihi sahibe en az 3 gün önce SMS ya da telefonla bildirilir, bildirim ziyaret notuna yazılır. Bildirime bahçede çalışanlar için kısa bilgilendirme ve /bahcede-bulunanlar bağlantısı eklenir. Sahip ziyaretten en geç 24 saat önce bir kez erteleme isteyebilir; ziyaret aynı pencerede yeniden planlanır.
+- **Cayma süresi:** Cayma süresi bitmemiş siparişte ziyaret planlanmaz (bölüm 1, adım 5).
+- **Pencere ve dönem sonu kontrolü** (H21; T06 gelene kadar elle): Ops her ziyaret penceresinin ve hizmet döneminin sonunda yapılamayan ziyaretlerin listesini çıkarır. Bunların bedelini sahibin talebini beklemeden 14 gün içinde iade eder ya da sahip isterse sonraki pencereye aktarır; aktarma sahibin talebiyle kaydedilir ve dönemin son penceresinden sonraya yapılmaz. "Dönem sonunda" çıkarılan bahçelerde de aynı kural uygulanır.
+
 | Adım | Durum |
 | --- | --- |
 | Planlama, tarih ve sorumlu değişikliği, iptal; pano (duruma göre sayılar, yaklaşanlar, gecikenler) | ✅ |
 | Görevlerin telefona inmesi | ✅ |
+| Ziyaret tarihi SMS'i (`visit_scheduled`, /bahcede-bulunanlar bağlantısıyla), yapılamayan ziyaretin nedeni ve kanıtı | ⬜ (T07; o zamana kadar elle) |
+| Pencere ve dönem sonunda yapılamayan ziyaretlerin listesi | ⬜ (T06; o zamana kadar elle) |
 
 ### 3.2 Sahada: tarama ve yakın plan
 
@@ -277,12 +305,27 @@ Parsel için `periodic_scan` türünde, `planned` durumda bir ziyaret açılır;
    Her ağaçta mevsime göre 2–3 çekim yapılır ve evet/hayır soruları cevaplanır. Bulanık ya da karanlık fotoğraf telefonda reddedilir; fotoğraflar sadece uygulama içinden çekilir.
 4. **Bitir:** Kayıtlar internet olunca kendiliğinden gönderilir. Hafıza kartı ofise getirilir.
 
+**Bahçede bulunan kişiler** ([hukuk/kararlar.md](hukuk/kararlar.md) H01; envanter ziyaretinde de aynıdır):
+- **Levha:** Taramaya başlamadan bahçe girişine ya da çalışma noktasına QR kodlu taşınabilir levha konur. Levha metni: “BAHÇE DENETİM TARAMASI — Bugün bu bahçede, bahçe denetimi amacıyla 360° kamerayla görüntü kaydı yapılmaktadır. Veri sorumlusu: OBA Bilişim Teknolojileri LTD. Ayrıntılı bilgi ve başvuru: [alanadi]/bahcede-bulunanlar · [Telefon] · [QR]”
+- **Tanıtım kartı:** Personel tarama boyunca görünür bir tanıtım kartı taşır.
+- **Sözlü bilgi:** Personel bahçede rastladığı kişilere kısa sözlü bilgi verir: bahçe denetimi için görüntü kaydı yapıldığını, kişilerin hedeflenmediğini ve ayrıntının levhadaki adreste olduğunu söyler.
+- **Saha talimatı:** Kişi kadraja yakınsa personel geçmesini bekler. Kişi itiraz ederse o bölüm daha sonra taranır; itiraz ziyaret notuna yazılır.
+- **Saha kiti:** QR kodlu levha ve tanıtım kartı saha kitinin parçasıdır; ön kontrolde bakılır.
+- **Operasyon kontrol listesi** (saha uygulamasındaki kayıt T07 ile gelene kadar): ziyaret bildirimi en az 3 gün önce gönderildi; levha ve tanıtım kartı kitte; levha kondu; sözlü bilgi verildi; itiraz ve yeniden taranan bölüm varsa not edildi. Liste ziyaret notuna yazılır.
+
+**Sahip kaynaklı engel** (kapalı kapı, anahtar ya da bekçi yok, sınırı gösterecek kişi yok; [hukuk/kararlar.md](hukuk/kararlar.md) H15):
+1. Engel zaman damgalı fotoğraf ve notla belgelenir.
+2. Aynı gün sahibe bildirilir.
+3. Aynı pencere içinde en az bir yeni tarih önerilir.
+4. Önerilen tarihte de aynı nedenle ziyaret yapılamazsa ziyaret yapılmış sayılır ve iade edilmez. Pencere içinde yeni tarih önerilemiyorsa Şirket kaynaklı hal gibi işlenir: iade ya da sahibin isteğiyle aktarma (bölüm 3.1).
+
 | Adım | Durum |
 | --- | --- |
 | Yakın plan akışı, kamera, cihazda kalite kontrolü, gözlem soruları | ✅ |
 | Gönderim | ✅ |
 | Kapsama haritası, sabit grid rotası | ✅ |
 | Yakın plan listesinin sunucuda üretilmesi (10×10 m tabakalı örneklem, uzman istekleri, "Sorun gördüm") | 🟡 Sunucu ve operasyon ekranı hazır; saha uygulaması listeyi henüz kendisi hesaplıyor, "Sorun gördüm" düğmesi yok |
+| Saha uygulamasında "levha kondu / sözlü bilgi verildi" kaydı | ⬜ (T07; o zamana kadar operasyon kontrol listesi) |
 
 ### 3.3 İşleme istasyonunda
 
@@ -301,6 +344,8 @@ Envanterle aynı adımlar. Bunlara ek olarak her ağaç için, ağaca en yakın 
 **Kim:** Otomatik
 
 Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından ölçek önerisi ve güven skoru üretilir. Bu bir **öneridir**: sahibe görünmez, uzman paneline düşer.
+
+**Yurt dışı aktarım kapısı** ([hukuk/kararlar.md](hukuk/kararlar.md) H02): Kesitler yurt dışındaki bir sağlayıcıya (Anthropic ya da yerel olmayan başka bir sağlayıcı) ancak `ORCHADOS_AI_TRANSFER_SAFEGUARD` o sağlayıcının standart sözleşme kaydını taşıyorsa gönderilir. Değişken, sözleşme imzalanıp Kurum'a bildirilmeden tanımlanmaz. Tanımlı değilse gerçek ziyaretle yalnızca yerel model çalışır; yurt dışı sağlayıcıyla iş hiçbir istek göndermeden durur (`--no-write` dahil; test verisi için `--test-data-only`). Ayrıntı: [services/ai-worker/README.md › Yurt dışı aktarım kapısı](../services/ai-worker/README.md#yurt-dışı-aktarım-kapısı).
 
 | Adım | Durum |
 | --- | --- |
@@ -361,6 +406,13 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 | Harita: ziyaret seçici, "bu ziyarette değişenler", 10×10 m ısı haritası, kapsama izi | ✅ |
 | Gezide zamanda gezinme ve bakış yönü; ağaç karnesinde kanıt bilgisi ve hash doğrulaması | ✅ |
 | "Rapor hazır" ve kritik bulgu bildirimleri, operasyonda bildirim listesi | ✅ (gerçek SMS için Netgsm hesabı gerekiyor; o zamana kadar mesajlar kaydediliyor) |
+
+## Kişisel veri başvuruları ve görüntü gizleme
+
+**Kim:** Operasyon, geliştirici · **Tasarım:** [hukuk/kvkk-basvuru-proseduru.md](hukuk/kvkk-basvuru-proseduru.md)
+
+- **KVKK başvuruları** (md. 11) [hukuk/kvkk-basvuru-proseduru.md](hukuk/kvkk-basvuru-proseduru.md)'ye göre yürür: kimlik doğrulama, başvuru defteri, 30 gün sayacı, karar ağacı ve cevap şablonları oradadır. Elle silme ve takma ada çevirme, gözden geçirilmiş betiklerle yapılır (`scripts/kvkk/run.sh`; [scripts/kvkk/README.md](../scripts/kvkk/README.md)); her uygulama denetim kaydına yazılır ([hukuk/kararlar.md](hukuk/kararlar.md) H26).
+- **Görüntü gizleme:** Görüntülerde yer aldığını söyleyen kişinin gizleme talebi, T20 (ops için gizleme işlevi) gelene kadar geliştirici eliyle karşılanır ve denetim kaydına yazılır ([hukuk/kararlar.md](hukuk/kararlar.md) H01, H26). Talep başvuru defterine de girer.
 
 ## Rol rol özet
 

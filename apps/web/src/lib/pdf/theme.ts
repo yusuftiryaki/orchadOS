@@ -91,6 +91,25 @@ export const pdf = StyleSheet.create({
     borderBottomColor: COLORS.border,
     paddingVertical: 2,
   },
+  // Report and inventory pages: room for the boundary notice above the footer.
+  reportPage: {
+    fontFamily: "Noto Sans",
+    fontSize: 10,
+    color: COLORS.text,
+    paddingTop: 40,
+    paddingBottom: 84,
+    paddingHorizontal: 40,
+    lineHeight: 1.45,
+  },
+  boundaryNotice: {
+    position: "absolute",
+    bottom: 36,
+    left: 40,
+    right: 40,
+    fontSize: 7.5,
+    lineHeight: 1.35,
+    color: COLORS.muted,
+  },
   footer: {
     position: "absolute",
     bottom: 20,

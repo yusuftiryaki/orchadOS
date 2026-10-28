@@ -9,12 +9,13 @@ import { demoText } from "@/lib/i18n/messages/demo";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import { m2ToDonum } from "@/lib/office/boundary";
 import type { BoundaryCard } from "@/lib/portal/boundary";
+import { BoundaryNotice, MapBoundaryCaption } from "./boundary-notice";
 import styles from "./portal.module.css";
 
 // Boundary card of the report card: the latest version on a map (the owner's
 // first declaration faint underneath), its area and source, and the owner's
-// approval. The approval text carries the boundary note: usage boundary, not
-// a title or ownership boundary.
+// approval. The card carries the boundary notice (H07): usage boundary, not
+// a title, cadastre or ownership boundary.
 
 const p = t.inventory.portal;
 
@@ -63,8 +64,9 @@ export function BoundaryCardView({
             height={260}
             testId="boundary-map"
           />
+          <MapBoundaryCaption />
           {card.declared && <p className="muted">{p.declaredNote}</p>}
-          <p className={styles.notice}>{p.note}</p>
+          <BoundaryNotice className={styles.notice} />
           {latest.approvedAt ? (
             <p data-testid="boundary-approved">
               ✓ {p.approved(formatDate(latest.approvedAt), latest.approvedByMe)}

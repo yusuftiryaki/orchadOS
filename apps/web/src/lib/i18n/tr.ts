@@ -7,6 +7,13 @@ export const tr = {
     name: "orchadOS",
     tagline: "Antep fıstığı bahçeleri için bağımsız denetim",
   },
+  // Boundary notice (docs/hukuk/kararlar.md H07, T16; contract Md. 6/1): the
+  // long form on every owner report page and every PDF page, the short form
+  // on every owner-facing map. The wording is binding; do not edit it alone.
+  boundaryNotice: {
+    long: "Haritadaki sınır, sizin ya da yetkilendirdiğiniz kişinin gösterdiği fiili kullanım sınırıdır. Tapu sınırı, kadastro ölçümü, mülkiyet ya da kullanım hakkı tespiti değildir; resmi bir sınır belirlemez. Sınır ve mülkiyet uyuşmazlıklarında kanıt olarak sunulmak üzere hazırlanmamıştır.",
+    short: "Fiili kullanım sınırı; tapu ya da kadastro sınırı değildir.",
+  },
   sections: {
     portal: "Bahçelerim",
     uzman: "Uzman paneli",
@@ -1579,7 +1586,6 @@ export const tr = {
       version: (v: number, source: string) => `Sürüm ${v} · ${source}`,
       uncertainty: (m: string) => `Köşe belirsizliği ±${m} m`,
       declaredNote: "Soluk kesikli çizgi: kayıtta beyan ettiğiniz ilk sınır.",
-      note: "Bu sınır, gösterdiğiniz fiili kullanım sınırıdır; tapu ya da mülkiyet sınırı değildir.",
       confirm: "Sınırı kontrol ettim; bahçemin kullanım sınırı budur.",
       approve: "Sınırı onaylıyorum",
       approving: "Kaydediliyor…",
@@ -1615,8 +1621,6 @@ export const tr = {
     boundaryArea: (area: string) => `Ölçülen alan: ${area}`,
     boundaryDeclared: (area: string, diff: string) =>
       `Beyan ettiğiniz alan: ${area} (fark: ${diff})`,
-    boundaryNote:
-      "Haritadaki sınır, sizin ya da yetkilendirdiğiniz kişinin gösterdiği kullanım sınırıdır; tapu sınırı değildir.",
     boundaryApproved: (date: string) => `Sınırı ${date} tarihinde onayladınız.`,
     boundaryAwaiting:
       "Sınır onayınızı bekliyor. Bahçe karnesindeki sınır kartından onaylayabilirsiniz.",

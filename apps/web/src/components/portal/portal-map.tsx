@@ -8,6 +8,7 @@ import type { Bounds, Position, PolygonGeometry } from "@/lib/map/geo";
 import { MARKER_COLORS, type MarkerState } from "@/lib/map/tree-style";
 import type { Severity } from "@/lib/portal/findings";
 import { viewWedge } from "@/lib/portal/tour";
+import { MapBoundaryCaption } from "./boundary-notice";
 import { SEVERITY_COLORS } from "./colors";
 import styles from "./portal.module.css";
 
@@ -382,14 +383,19 @@ export function PortalMap({
     map.easeTo({ center: focus, zoom: Math.max(map.getZoom(), 19) });
   }, [focus]);
 
+  // The boundary notice's short form sits under the map, outside the
+  // MapLibre container, so it survives resizes, mobile and print (H07, T16).
   return (
-    <div
-      ref={containerRef}
-      className={className ?? styles.map}
-      data-testid="parcel-map"
-      role="region"
-      aria-label={label}
-    />
+    <>
+      <div
+        ref={containerRef}
+        className={className ?? styles.map}
+        data-testid="parcel-map"
+        role="region"
+        aria-label={label}
+      />
+      <MapBoundaryCaption />
+    </>
   );
 }
 

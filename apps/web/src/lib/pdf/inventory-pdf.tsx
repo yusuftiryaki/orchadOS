@@ -2,7 +2,7 @@ import "server-only";
 import { Circle, Document, Page, Rect, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import { INVENTORY_POINT_COLORS, type InventoryReport } from "@/lib/portal/inventory-report";
-import { Bullets, Footer, Header, SampleWatermark, sampleInfo } from "./parts";
+import { BoundaryFooter, Bullets, Footer, Header, SampleWatermark, sampleInfo } from "./parts";
 import type { PdfOptions } from "./report-pdf";
 import { pdf, registerFonts } from "./theme";
 
@@ -57,7 +57,7 @@ export function InventoryDocument({
       language="tr"
       {...sampleInfo(demo)}
     >
-      <Page size="A4" style={pdf.page}>
+      <Page size="A4" style={pdf.reportPage}>
         {demo && <SampleWatermark />}
         <Header kicker={r.title} title={report.parcel.name} subtitle={subtitle} />
         {report.warnings.includes("boundary_unapproved") && (
@@ -127,7 +127,6 @@ export function InventoryDocument({
               ) : report.boundary.fieldSurvey ? (
                 <Text style={pdf.p}>{r.boundaryAwaiting}</Text>
               ) : null}
-              <Text style={pdf.muted}>{r.boundaryNote}</Text>
             </>
           ) : (
             <Text style={pdf.muted}>{r.noBoundary}</Text>
@@ -229,6 +228,7 @@ export function InventoryDocument({
           <Text style={pdf.p}>{r.you}</Text>
         </View>
 
+        <BoundaryFooter />
         <Footer left={r.generated(formatDate(now.toISOString()))} />
       </Page>
     </Document>
