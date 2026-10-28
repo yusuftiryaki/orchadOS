@@ -1249,3 +1249,42 @@ Metinler `messages/back-office.ts` içindedir. Durum etiketleri ve hata metinler
     - **Security definer yolları:** `create_verification_tour` gibi yollar, bugünkü pasif parsel korumasında olduğu gibi ziyaret korumasını aşar. Yalnızca ops ve saha ekibi çağırabilir; çıkışta planlı her ziyaret yine iptal edilir.
     - **Ekstra ziyaret bağlantısı:** Ops bir `extra_visit` isteğini olağan bir periyodik ziyarete bağlarsa o ziyaret faturalanan ziyaret sayılmaz. Bu, müşteri lehine bir hatadır.
     - **Kalemsiz iade:** Çok satırlı siparişte kalemsiz iadeler satıra bağlanamaz. Kayıt `manual` olur ve ops karar verir.
+
+## 20. Uygulama notları
+
+Akış A (`claude/ip14-veri-modeli`) bu dokümanın §6, §7, §9 ve §10'daki sözleşmelerini uyguladı. Herkese açık adlar, imzalar, dönüş sütunları, hata kodları ve bildirim metinleri dokümandaki gibidir. Aşağıdakiler dokümanın bıraktığı seçimler ve küçük sapmalardır.
+
+**Migration dosyaları:** `20261102120000_garden_notification_enum_values.sql`, `20261102120100_garden_membership_schema.sql`, `20261102120200_garden_addons.sql`, `20261102120300_garden_removals.sql`. **Son dosya `20261102120300_garden_removals.sql`**; aralıkta daha sonraki bir dosya açılmadı. CLAUDE.md'deki "şu an" işaretçisi `20261102120300` olur.
+
+**Teslim edilmeyenler:** Yok. "Yapılabilirse" maddeleri de teslim edildi: `customer_withdraw_application_garden`, `ops_withdraw_application_garden`, `customer_revise_order` ve getirdikleri `quoted/accepted → submitted` geçişleri; `ops_garden_overlaps`'in 200 m yakınlık araması (`distance_m` dolu döner).
+
+**`private` yardımcıları** (§9.6'da önerilenlere ek olarak):
+- Ayar ve kapsama: `billing_setting` (kayıt yoksa varsayılanlarla ayarlar; `ops_billing_setting` de bunu döner), `coverage_lines` (aktif ve ödeme bekleyen satırların kapsadığı günler), `lock_customer_gardens`, `order_line_parcels`, `quote_line_parcels`, `has_open_removal`, `parcel_transferred`, `addon_base_open`, `parcel_has_inventory`.
+- Okumalar: `service_periods` (`my_service_period` ve `ops_customer_service_period`), `customer_gardens` (`my_gardens` ve `ops_customer_gardens`), `billed_visits` (§7.1'in faturalanan ziyaret sayısı; `my_gardens.visits_used` ve iade hesabı aynı fonksiyonu kullanır), `require_ops_customer`.
+- Ek teklif: `addon_lines`, `addon_start`, `addon_base_for_ops`, `check_addon_parcels`, `write_addon_quote`.
+- Çıkarma: `removal_calc` (hesabın kendisi; `removal_calculation(p_removal_id, p_effective_on)` kaydı okuyup onu çağırır, müşteri önizlemesi doğrudan çağırır), `removal_access_scope` (erişim kapsamı; önizlemenin sayıları ve erişimin kaldırılması aynı kuralı okur), `terminate_emptied_order`, `close_base_addons`, `removal_target`, `customer_removal_plan`, `removal_for_ops`, `check_access_days`, `removal_last_effective`, `withdraw_application_garden`.
+- `authz.parcel_read_only(uuid)` ve `authz.parcel_open_removal_from(uuid)`: korumalar API kullanıcısı olarak çalışır ve `private` şemasını kullanamaz; `authz.is_demo_org` kalıbıyla security definer sarmalayıcılar. `anon` çalıştıramaz.
+
+**Kararlar ve küçük sapmalar:**
+- **Korumalarda "API kullanıcısı":** `zz_parcel_read_only` (soru, yanıt, `parcel_access`) ve `session_guard_removal`, mevcut pasif parsel koruması gibi `current_user in ('authenticated', 'anon')` ile karar verir. Security definer yollar (`activate_order`, `ops_resolve_viewer_invitation`, `create_verification_tour`) bu yüzden korumaya takılmaz. `private.viewer_invitation` için koruma her rolde çalışır (§9.8).
+- **Geri eklemede sıra:** `activate_order`, salt okunur korumasına takılmamak için önce aynı müşterinin açık erişim penceresini kapatır (`garden_removal.access_closed`, `resumed`), sonra sahip erişimini ekler.
+- **Temel siparişin başlangıcı:** `activate_order`'da `greatest(…, bugün)` yalnızca ek siparişe uygulanır; temel sipariş (yenileme dahil) main'deki gibi `coalesce(önerilen başlangıç, bugün)` ile başlar.
+- **İade satırının kalemi:** Havale iadesi (`manual`) satırın ödeme kalemine ya da bakiye kalemine yazılır; böylece aynı siparişin başka bir bahçesi çıkarıldığında önceki iade satıra bağlanabilir ve kayıt gereksiz yere `manual` olmaz. Yalnızca `void` kalemsizdir (bugünkü `ops_request_refund` kuralı). Görev tanımındaki "manual iadeler kalem taşımaz" ifadesinden bu noktada ayrılındı.
+- **İade satırları kayıt açıkken açılır:** `garden_removal_guard` tamamlanmış kayıtta `calculation`'ı değiştirmeye izin vermediği için `open_removal_refunds` kayıt `scheduled` iken çalışır (`unallocated_kurus` yazılır), sonra kayıt `completed` olur.
+- **`ops_complete_garden_removal`:** Siparişi bu arada sona ermiş ve satırı kalmamış kaydı sistem bu çağrıda iptal ettiyse hata vermeden döner (iptal geri alınmasın diye). Başka bir yol kaydı tamamladıysa ya da iptal ettiyse `state_changed`.
+- **Tamamlamada planlama:** `requested` kayıt tamamlanırken `requested_effective_on` ile planlanır ve `garden_removal.scheduled` (çağıranın aktörü ve rolüyle, `change_id: null`) denetlenir; SMS gitmez. Housekeeping'in `scheduled` sayısı bu kayıtları sayar.
+- **Erişim süresi kuralı:** Kısa erişim süresi neden ya da not olmadan verilirse hata `invalid_input` (`access_days`) olur. `ops_schedule_garden_removal` kuralı yalnızca erişim süresi değiştiğinde yeniden denetler.
+- **Müşteri talebi:** Parselde müşterinin `owner` satırı olmalıdır (`not_found`). Yalnızca ödenmiş yenileme satırı varsa çıkış günü o satırın başlangıcıdır; cayma seçildiyse bugündür.
+- **`parcel_service_status`:** `leaving` parseldeki herhangi bir açık çıkarmaya bakar; `removed` en son tamamlanan çıkarmanın açık penceresine bakar.
+- **`my_gardens.removal_*`:** Seçilen satırı kapatan çıkarma, yoksa açık çıkarma, yoksa en son çıkarma.
+- **`ops_withdraw_application_garden`:** Zorunlu not bahçenin `verification_note` sütununa (iç sütun) yazılır; denetim kaydına serbest metin yazılmaz.
+- **`ops_garden_removal_preview.captured_unpublished`:** Yalnızca envanter, periyodik tarama ve doğrulama ziyaretlerini sayar.
+- **`account_garden_count`:** Ödeme bekleyen siparişlerdeki bağlanmamış yeni bahçeler pencereden bağımsız sayılır.
+- **Bildirim bağlantısı:** Erişim süresi 0 olan tamamlamada yol `/portal`'dır; `_shared/messaging.ts` içindeki `portalLink` artık `/portal` yolunu da kabul eder (önceden yalnızca `/portal/...`).
+- **`ops_billing_summary` ve `ops_orders`:** `drop` ve yeniden `create` edildi; yetkiler yeniden verildi. `renewals_due` ve `renewal_due` `private.renewal_due` ile hesaplanır.
+
+**Akış C ve D için test yardımcıları:**
+- `supabase/testing/purge.sql`: `testing.run_garden_removal_housekeeping()`, `testing.set_order_period(p_order_id, p_start, p_end)`; `purge_billing_users` çıkarma kayıtlarını ve onların denetim satırlarını da siler.
+- `apps/web/tests/local-db.ts`: `runGardenRemovalHousekeeping()`, `setOrderPeriod(orderId, start, end)`.
+- `apps/web/tests/integration/billing-fixture.ts`: `activeOrderFor(customer, areasM2?)`, `addonOrderFor(customer, baseOrderId, areasM2?)`, ayrıca `submitGardens`, `payByTransfer`, `addDays`. `removeCustomers` sipariş satırlarındaki parselleri de temizler.
+- `apps/web/tests/e2e/billing-helpers.ts`: `activeMember(email, password?)`, `opsAddonQuote(applicationId, baseOrderId)`, `removalFor(email, password, parcelId, opts?)`, `istanbulToday()`.
