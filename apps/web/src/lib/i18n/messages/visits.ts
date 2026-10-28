@@ -100,7 +100,8 @@ export const visitsText = {
       status: "Durum",
     },
     postponementNone: "Erteleme isteği yok.",
-    postponementClosed: "Erteleme isteği yok; ziyaret gününe bir günden az kaldığı için artık kaydedilemez.",
+    postponementClosed:
+      "Erteleme isteği yok; ziyaret gününe bir günden az kaldığı için artık kaydedilemez.",
     missedRecord: "Yapılamayan ziyareti kaydet",
     missedColumns: {
       day: "Gün",

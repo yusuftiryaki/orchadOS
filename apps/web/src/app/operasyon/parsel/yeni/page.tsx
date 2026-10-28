@@ -1,8 +1,10 @@
 import { FormError } from "@/components/operations/field";
 import { ParcelForm } from "@/components/operations/parcel-form";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 import { listOwnerProfiles, opsOrgs } from "@/lib/operations/data";
+import { opsHref } from "@/lib/operations/urls";
 import { createClient } from "@/lib/supabase/server";
 
 const T = t.operations;
@@ -14,16 +16,20 @@ export default async function Page({
 }) {
   const user = await requireSection("operasyon");
   const supabase = await createClient();
-  const [orgs, profiles] = await Promise.all([
+  const [orgs, profiles, { sahip }] = await Promise.all([
     opsOrgs(supabase, user.id),
     listOwnerProfiles(supabase),
+    searchParams,
   ]);
-  const { sahip } = await searchParams;
   const owner = profiles.find((p) => p.id === sahip);
 
   return (
     <main className="page">
-      <h1>{T.parcel.newTitle}</h1>
+      <PageHeader
+        title={T.parcel.newTitle}
+        back={{ href: opsHref.dashboard(), label: T.nav.dashboard }}
+        lead={T.parcel.newLead}
+      />
       {orgs.length === 0 ? (
         <FormError error={T.errors.no_org} />
       ) : (

@@ -1008,7 +1008,8 @@ export const backOfficeText = {
     visits: "Ziyaret hakkı",
     lastInventoryOn: "Son envanter",
     issueAfterPreview: "Önizleme hesaplanınca ek teklif buradan verilir.",
-    issueAfterPick: "Parselleri seçip önizlemeyi güncelleyin; ek teklif önizlemeden sonra buradan verilir.",
+    issueAfterPick:
+      "Parselleri seçip önizlemeyi güncelleyin; ek teklif önizlemeden sonra buradan verilir.",
     pickTitle: "Parseller ve başlangıç",
     newInventory: "Yeni envanter gerekli (gerekçe)",
     newInventoryHint:

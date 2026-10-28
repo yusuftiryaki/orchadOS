@@ -1,21 +1,29 @@
-import { NotificationTable } from "@/components/operations/notification-table";
 import { FormError, Notice } from "@/components/operations/field";
-import styles from "@/components/operations/operations.module.css";
+import { NotificationTable } from "@/components/operations/notification-table";
+import { FilterTabs, Pagination, Toolbar, pageOf } from "@/components/operations/ops-ui";
+import { ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 import {
   listNotifications,
   NOTIFICATION_STATUSES,
+  type NotificationRow,
   type NotificationStatus,
 } from "@/lib/notifications/data";
+import { notificationsHref } from "@/lib/notifications/urls";
 import { createClient } from "@/lib/supabase/server";
 
 const T = t.notifications;
+// The newest this many of each status; the counts of the tabs.
+const LIMIT = 100;
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
-// Latest notifications of the ops orgs (?durum=pending|sent|failed), newest
-// first; failed ones can be queued again. Phone numbers are masked.
+// Latest notifications of the ops orgs, with status tabs (?durum=pending|
+// sent|failed) and their counts, newest first; failed ones can be queued
+// again. Phone numbers are masked.
 export default async function Page({
   searchParams,
 }: {
@@ -29,35 +37,83 @@ export default async function Page({
     ? (status as NotificationStatus)
     : null;
 
-  const rows = await listNotifications(await createClient(), { status: chosen });
+  // One query per status: the tabs get their counts, and the newest LIMIT
+  // of all statuses are among the newest LIMIT of each.
+  const supabase = await createClient();
+  const byStatus = new Map<NotificationStatus, NotificationRow[]>(
+    await Promise.all(
+      NOTIFICATION_STATUSES.map(
+        async (s) => [s, await listNotifications(supabase, { status: s, limit: LIMIT })] as const,
+      ),
+    ),
+  );
+  const rows = chosen
+    ? (byStatus.get(chosen) ?? [])
+    : [...byStatus.values()]
+        .flat()
+        .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
+        .slice(0, LIMIT);
+  const page = pageOf(rows, params.sayfa);
+  const total = [...byStatus.values()].reduce((n, list) => n + list.length, 0);
+  const count = (n: number) => (n >= LIMIT ? undefined : n);
 
   return (
     <main className="page">
-      <h1>{T.title}</h1>
-      <p className="muted">{T.intro}</p>
+      <PageHeader title={T.title} lead={T.intro} />
       {result === "retried" && <Notice>{T.retried}</Notice>}
       <FormError error={result === "retry_failed" ? T.retryFailed : null} />
-      <form className={styles.inline} method="get" aria-label={T.filters}>
-        <label>
-          {T.columns.status}
-          <select name="durum" defaultValue={chosen ?? ""}>
-            <option value="">{T.allStatuses}</option>
-            {NOTIFICATION_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {T.status[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button className="button" type="submit">
-          {T.filter}
-        </button>
-      </form>
-      {rows.length === 0 ? (
-        <p className="muted">{T.empty}</p>
-      ) : (
-        <NotificationTable rows={rows} status={chosen ?? ""} />
-      )}
+
+      <div>
+        <Toolbar end={rows.length > 0 ? T.count(rows.length) : undefined}>
+          <FilterTabs
+            label={T.filters}
+            testId="notification-status-filter"
+            items={[
+              {
+                href: notificationsHref(),
+                label: T.allStatuses,
+                count: count(total),
+                current: !chosen,
+              },
+              ...NOTIFICATION_STATUSES.map((s) => ({
+                href: notificationsHref(s),
+                label: T.status[s],
+                count: count(byStatus.get(s)?.length ?? 0),
+                current: chosen === s,
+              })),
+            ]}
+          />
+        </Toolbar>
+        {rows.length === 0 ? (
+          chosen ? (
+            <EmptyState
+              title={T.emptyStatus(T.status[chosen])}
+              action={
+                <ButtonLink variant="secondary" href={notificationsHref()}>
+                  {T.showAll}
+                </ButtonLink>
+              }
+            >
+              {chosen === "failed" && <p>{T.emptyFailed}</p>}
+            </EmptyState>
+          ) : (
+            <EmptyState title={T.empty}>
+              <p>{T.emptyHint}</p>
+            </EmptyState>
+          )
+        ) : (
+          <>
+            <NotificationTable rows={page.rows} status={chosen ?? ""} />
+            <Pagination
+              {...page}
+              href={(p) => {
+                const base = notificationsHref(chosen ?? undefined);
+                return `${base}${base.includes("?") ? "&" : "?"}sayfa=${p}`;
+              }}
+            />
+          </>
+        )}
+      </div>
     </main>
   );
 }

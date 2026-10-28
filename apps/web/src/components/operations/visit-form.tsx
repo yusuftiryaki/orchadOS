@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useState } from "react";
 import { planVisitAction, updateVisitAction } from "@/app/operasyon/actions";
-import { t } from "@/lib/i18n";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { formatDate, t } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { visitsText } from "@/lib/i18n/messages/visits";
 import { CURRENT_METHODOLOGY_VERSION } from "@/lib/methodology";
@@ -106,11 +106,7 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
             </select>
           </Field>
         )}
-        <Field
-          label={T.visits.plannedDate}
-          hint={backOfficeText.withdrawalPlanningHint}
-          error={err("planned_date")}
-        >
+        <Field label={T.visits.plannedDate} error={err("planned_date")}>
           <input
             name="planned_date"
             type="date"
@@ -149,7 +145,8 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
           <textarea name="notes" rows={3} defaultValue={notes} />
         </Field>
       </div>
-      <p className="muted" data-testid="visit-season">
+      <p className={styles.formNote}>{backOfficeText.withdrawalPlanningHint}</p>
+      <p className={styles.formNote} data-testid="visit-season">
         {kind === "inventory"
           ? T.visits.inventoryHint
           : season
@@ -157,11 +154,20 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
             : null}
       </p>
       <FormError error={state.error} />
+      <p className={styles.confirm} data-testid="visit-confirm" aria-live="polite">
+        {!date
+          ? T.visits.chooseDay
+          : visit && visit.plannedDate && date !== visit.plannedDate
+            ? T.visits.willMove(formatDate(visit.plannedDate), formatDate(date))
+            : T.visits.willPlan(formatDate(date))}
+      </p>
       <div className={styles.actions}>
-        <button className="button" type="submit" disabled={pending}>
-          {pending ? T.saving : visit ? T.save : T.visits.submit}
-        </button>
-        <Link href={visit ? opsHref.visit(visit.id) : opsHref.visits()}>{T.cancel}</Link>
+        <Button type="submit" disabled={pending}>
+          {pending ? T.saving : visit ? T.visits.saveChanges : T.visits.submit}
+        </Button>
+        <ButtonLink variant="quiet" href={visit ? opsHref.visit(visit.id) : opsHref.visits()}>
+          {T.cancel}
+        </ButtonLink>
       </div>
     </form>
   );

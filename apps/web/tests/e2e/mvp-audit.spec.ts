@@ -157,6 +157,7 @@ test("owner invites a co-owner; ops sees and rejects the invitation", async ({ p
 test("ops sees the server-side close-up list of a planned scan", async ({ page }) => {
   await login(page, "ops@example.com", "orchados-dev", `/operasyon/ziyaret/${SCAN}`);
   const list = page.getByTestId("closeup-list");
-  await expect(list).toContainText("Yakın plan listesi · 31 ağaç");
+  await expect(list.getByRole("heading", { name: "Yakın plan listesi" })).toBeVisible();
+  await expect(list).toContainText("31 ağaç");
   await expect(list.locator('[data-reason="sample"]')).toContainText("31");
 });

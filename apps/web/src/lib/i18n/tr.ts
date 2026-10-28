@@ -672,7 +672,6 @@ export const tr = {
       invitations: "Hissedar davetleri",
       invitationsHint:
         "Sahiplerin portaldan davet ettiği hissedarlar. Kişiyi arayın; numarasının sahipten alındığını söyleyin, aydınlatma metninin bağlantısını SMS ile iletin ve okuduğunu kaydedin. Hesap telefonla açılır ve hissedar parsele izleyici olarak eklenir.",
-      invitedBy: (name: string) => `Davet eden: ${name}`,
       invitedByLabel: "Davet eden",
       invitedAt: "Davet tarihi",
       requestColumns: {
@@ -867,7 +866,8 @@ export const tr = {
       newLead:
         "Parseli kaba sınırı ve tapu bilgisiyle kaydedin. Kesin sınır ve ağaç düzeni envanter ziyaretinde çıkarılır.",
       actions: "Parsel işlemleri",
-      boundaryLead: (name: string) => `${name} için sahibin gösterdiği köşeleri haritada işaretleyin.`,
+      boundaryLead: (name: string) =>
+        `${name} için sahibin gösterdiği köşeleri haritada işaretleyin.`,
       noDetail: "Kayıt yok.",
     },
     access: {
@@ -888,7 +888,8 @@ export const tr = {
     visits: {
       title: "Ziyaretler",
       empty: "Bu filtrelere uyan ziyaret yok",
-      emptyHint: "Parsel, sorumlu, tür ya da tarih aralığını değiştirin veya filtreleri temizleyin.",
+      emptyHint:
+        "Parsel, sorumlu, tür ya da tarih aralığını değiştirin veya filtreleri temizleyin.",
       none: "Henüz ziyaret yok",
       noneHint: "Planladığınız ziyaretler burada tarihe göre, en yenisi üstte listelenir.",
       clearFilters: "Filtreleri temizle",
