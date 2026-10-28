@@ -1,0 +1,232 @@
+/* Hesabım and its sub-pages (contact, billing profile, permissions, KVKK
+   application, contracts). Layout comes from components/portal/page.module.css;
+   this file only adds what those primitives do not cover. Tokens only. */
+
+/* A column of panels (main and side column of the account page). */
+.column {
+  display: grid;
+  gap: var(--space-5);
+  align-content: start;
+  min-width: 0;
+}
+
+/* A panel heading with its lead under it. */
+.panelHead {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.panelHead > * {
+  margin: 0;
+}
+
+.panelHead h2 {
+  font-size: var(--text-lg);
+}
+
+.panelHead h3 {
+  font-size: var(--text-base);
+}
+
+.lead {
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+}
+
+/* A row's name: the garden or document it is about. */
+.name {
+  font-weight: 700;
+}
+
+.meta {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+/* The right side of a row: a badge and a quiet action. */
+.rowSide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Groups of rows inside one panel (in service, not on an order, out of
+   service) read as one list. */
+.rowGroups {
+  display: grid;
+}
+
+.rowGroups > ul + ul > li:first-child {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+/* Two form fields side by side from a tablet up. */
+.formGrid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 600px) {
+  .formGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* A group of fields with a small heading (billing form). */
+.group {
+  display: grid;
+  gap: var(--space-3);
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.group > legend,
+.group > h2 {
+  padding: 0;
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+/* Radio options as large targets (Fatura türü). */
+.options {
+  display: grid;
+  gap: var(--space-2);
+}
+
+@media (min-width: 600px) {
+  .options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2);
+  align-items: start;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.option input {
+  margin-top: 4px;
+}
+
+.option:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.option:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.optionLabel {
+  font-weight: 600;
+}
+
+/* The read-only login phone: a value, not a field. */
+.readonly {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-surface-2);
+}
+
+.readonly > * {
+  margin: 0;
+}
+
+.readonlyLabel {
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.readonlyValue {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Document facts in a row: "Oluşturma 28 Eki 2026  Sürüm v1  Boyut 42 KB". */
+.docFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.docFacts > div {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.docFacts dt::after {
+  content: ":";
+}
+
+.docFacts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The SHA-256 fingerprint: a long hex string that may break anywhere. */
+.hash {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  margin: var(--space-1) 0 0;
+}
+
+.details summary {
+  cursor: pointer;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  width: fit-content;
+}
+
+/* An order's documents: the heading with the order link on the right. */
+.orderHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.orderHead h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Links that lead to another page, as rows (Belgeler ve izinler). */
+.linkRow {
+  font-weight: 700;
+}

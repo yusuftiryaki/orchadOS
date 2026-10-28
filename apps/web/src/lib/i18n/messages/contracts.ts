@@ -137,8 +137,16 @@ export const contractsText = {
     size: "Boyut",
     sha: "SHA-256",
     download: "İndir",
-    accountLink: "Sözleşmelerim (siparişlerinizin sözleşme belgeleri)",
-    accountTitle: "Sözleşme belgeleri",
+    downloadPdf: (kind: string) => `${kind} (PDF) indir`,
+    openOrder: "Siparişi aç",
+    emptyBody: "Bir teklifi onayladığınızda siparişinizin belgeleri burada saklanır.",
+    // What each document is, under its name in Sözleşmelerim.
+    about: {
+      pre_information:
+        "Sipariş vermeden önce size sunulan hizmet, fiyat ve cayma hakkı bilgileri.",
+      distance_sales: "Sizinle yaptığımız hizmet sözleşmesi, sipariş bilgilerinizle doldurulmuş.",
+      withdrawal_confirmation: "Ödemeden sonra cayma hakkınızın son gününü bildirir.",
+    } as Record<string, string>,
     orderTitle: "Sözleşme belgeleri",
     orderLink: "Tüm sözleşmelerim",
     copyNote:

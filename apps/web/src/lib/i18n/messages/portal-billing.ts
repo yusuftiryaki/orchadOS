@@ -168,10 +168,12 @@ export const portalBillingText = {
     removed: (date: string) => `Hizmet dışı · raporlar şu tarihe kadar açık: ${date}`,
     exited: (date: string) => `Hizmetten çıkış: ${date} · raporlara erişim kapandı`,
     upcoming: (date: string) => `Sonraki dönemde başlıyor: ${date}`,
-    pilotTitle: "Siparişsiz bahçeler",
+    // An owned parcel that was never on an order (pilot, paper contract).
+    pilotState: "Siparişe bağlı değil",
     pilotContact: "Bu bahçeyi çıkarmak için bize ulaşın",
-    outOfServiceTitle: "Hizmette olmayan bahçeler",
     outOfService: "Hizmette değil",
+    outOfServiceNote: "Yeniden hizmet almak için başvuru yapabilirsiniz.",
+    emptyBody: "Hizmet almak istediğiniz bahçeyi ekleyin; teklifinizi ekibimiz hazırlar.",
   },
 
   removal: {
@@ -244,11 +246,20 @@ export const portalBillingText = {
     ctaBody:
       "Bahçelerinizi haritada işaretleyin, paketinizi seçin; ekibimiz inceleyip size bağlayıcı bir teklif göndersin.",
     ctaButton: "Başvuru yapın",
+    ctaSteps: [
+      "Bahçenizi haritada işaretleyin ve paketinizi seçin.",
+      "Ekibimiz başvurunuzu inceler, size kesin fiyatlı bir teklif gönderir.",
+      "Teklifi onaylayıp ödemeyi yapınca ilk ziyaretin tarihini birlikte belirleriz.",
+    ],
+    tasksTitle: "Sizi bekleyenler",
+    gardensTitle: "Bahçeleriniz",
     draftTitle: "Taslak başvurunuz",
     draftBody: "Başvurunuzu tamamlayıp gönderin.",
     draftButton: "Taslağa devam edin",
     reviewTitle: "İncelemedeki başvuru",
-    reviewBody: (n: string) => `${n} numaralı başvurunuz ekibimizde inceleniyor.`,
+    reviewBody: (n: string) =>
+      `${n} numaralı başvurunuz ekibimizde inceleniyor. Teklifiniz hazır olunca size haber veririz.`,
+    reviewButton: "Başvuruyu gör",
     quoteTitle: "Açık teklif",
     quoteBody: (n: string, total: string, until: string) =>
       `${n} numaralı teklif: ${total}. Son geçerlilik ${until}.`,
@@ -422,6 +433,9 @@ export const portalBillingText = {
     billingIncomplete: "Teklifi kabul etmeden önce fatura bilgilerinizi tamamlayın.",
     billingEdit: "Fatura bilgilerini düzenle",
     billingFill: "Fatura bilgilerini girin",
+    explicitTitle: "İsteğe bağlı izinler",
+    kvkkRead: "Okundu",
+    kvkkUnread: "Kayıt yok",
     kvkkTitle: "Aydınlatma metni",
     kvkkBody:
       "Kişisel verilerinizin nasıl işlendiğini anlatan aydınlatma metnini okuduğunuza dair bir kaydımız yok. Teklifi kabul etmeden önce metni okuyup kaydedin.",
@@ -596,15 +610,25 @@ export const portalBillingText = {
       string
     >,
     preferenceHint: "WhatsApp seçseniz de mesajlar şimdilik SMS olarak gönderilir.",
+    lead: "Bahçeleriniz, size nasıl ulaşacağımız, fatura bilgileriniz ve belgeleriniz.",
+    contactLead: "Ziyaret ve rapor haberlerini bu bilgilerle göndeririz.",
+    contactSubmit: "İletişim bilgilerini kaydet",
+    phoneValue: (phone: string) =>
+      phone.replace(/^\+90(\d{3})(\d{3})(\d{2})(\d{2})$/, "+90 $1 $2 $3 $4"),
     billingTitle: "Fatura bilgileri",
     billingNone: "Fatura bilgileriniz henüz yok.",
-    billingEdit: "Düzenle",
-    consentsTitle: "İzinler",
-    consentsLink: "İzinleri yönet",
-    summaryTitle: "Özet",
-    applications: (n: number) => `${n} başvuru`,
-    orders: (n: number) => `${n} sipariş`,
-    payments: (n: number) => `${n} ödeme`,
+    billingNoneBody: "Teklifi onaylamadan önce gerekir; makbuz ve fatura bu bilgilerle düzenlenir.",
+    billingEdit: "Fatura bilgilerini düzenle",
+    billingKind: { individual: "Bireysel", company: "Şirket" } as Record<string, string>,
+    billingName: "Ad soyad",
+    billingCompany: "Unvan",
+    billingPlace: "İlçe, il",
+    docsTitle: "Belgeler ve izinler",
+    contractsLink: "Sözleşmelerim",
+    contractsBody:
+      "Onayladığınız siparişlerin ön bilgilendirme formu, mesafeli hizmet sözleşmesi ve cayma süresi bildirimi.",
+    consentsLink: "İzinler",
+    consentsBody: "Aydınlatma metni, isteğe bağlı izinleriniz ve KVKK başvurusu.",
   },
 
   billing: {
@@ -631,6 +655,9 @@ export const portalBillingText = {
       "Hesabınızda e-posta adresi yok. Kartla ödeme için gerekli; ödeme kuruluşu makbuzu bu adrese gönderir.",
     submit: "Fatura bilgilerini kaydet",
     backTo: "Kaydettikten sonra teklife dönersiniz.",
+    backToQuote: "Teklife dön",
+    personTitle: "Fatura kimin adına",
+    addressTitle: "Fatura adresi",
   },
 
   consents: {
@@ -646,6 +673,9 @@ export const portalBillingText = {
     recorded: (date: string, version: string) => `Son kayıt ${date} (${version})`,
     grant: "Rıza ver",
     withdraw: "Rızayı geri al",
+    explicitTitle: "İsteğe bağlı izinler",
+    kvkkRead: "Okundu",
+    kvkkUnread: "Kayıt yok",
     kvkkTitle: "Aydınlatma metni",
     kvkkMissing: "Aydınlatma metnini okuduğunuza dair kaydımız yok.",
     kvkkDone: (date: string, version: string) => `Okudunuz: ${date} (${version}).`,

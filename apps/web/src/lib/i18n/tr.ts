@@ -965,11 +965,16 @@ export const tr = {
     gardens: {
       title: "Bahçelerim",
       empty: "Size açılmış bir bahçe yok.",
+      emptyBody:
+        "Bahçeniz hizmete alındığında ya da bir bahçe sahibi sizi hissedar olarak eklediğinde burada görünür.",
       lastVisit: "Son denetim",
       noVisit: "Henüz yayımlanmış denetim yok",
+      noVisitBody: "İlk ziyaretten sonra uzmanımız sonuçları yayımlayınca bahçenizin durumu burada görünür.",
       trees: (n: number) => `${n} ağaç`,
       urgent: (n: number) => `${n} acil bulgu`,
+      countsLabel: "Ağaçların sınıflara göre sayısı",
       open: "Karneyi aç",
+      openEmpty: "Bahçeyi aç",
     },
     score: {
       label: "Genel durum skoru",
