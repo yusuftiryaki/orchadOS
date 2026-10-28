@@ -8,7 +8,7 @@ import { InventoryMap } from "@/components/office/inventory-map";
 import { demoText } from "@/lib/i18n/messages/demo";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import { m2ToDonum } from "@/lib/office/boundary";
-import type { BoundaryCard } from "@/lib/portal/boundary";
+import { BOUNDARY_DECLARATION, type BoundaryCard } from "@/lib/portal/boundary";
 import { BoundaryNotice, MapBoundaryCaption } from "./boundary-notice";
 import styles from "./portal.module.css";
 
@@ -31,6 +31,9 @@ export function BoundaryCardView({
 }) {
   const router = useRouter();
   const [confirmed, setConfirmed] = useState(false);
+  // T16: the boundary declaration, when the org asks for it.
+  const [declared, setDeclared] = useState(false);
+  const needsDeclaration = card.declarationRequired === true;
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const latest = card.latest;
@@ -38,6 +41,11 @@ export function BoundaryCardView({
   return (
     <section className={styles.section} aria-labelledby="sinir-baslik" data-testid="boundary-card">
       <h2 id="sinir-baslik">{p.boundaryTitle}</h2>
+      {card.disputeOpen && (
+        <p className={styles.notice} role="status" data-testid="boundary-dispute">
+          {t.legal.dispute.portalNotice}
+        </p>
+      )}
       {!latest ? (
         <p className="muted">{p.noBoundary}</p>
       ) : (
@@ -84,15 +92,33 @@ export function BoundaryCardView({
                 />{" "}
                 {p.confirm}
               </label>
+              {needsDeclaration && (
+                <>
+                  <br />
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={declared}
+                      onChange={(e) => setDeclared(e.target.checked)}
+                      data-testid="boundary-declaration"
+                    />{" "}
+                    {BOUNDARY_DECLARATION}
+                  </label>
+                </>
+              )}
               <p>
                 <button
                   type="button"
                   className="button"
-                  disabled={!confirmed || pending}
+                  disabled={!confirmed || (needsDeclaration && !declared) || pending}
                   data-testid="boundary-approve"
                   onClick={() =>
                     startTransition(async () => {
-                      const result = await approveBoundaryAction(parcelId, latest.id);
+                      const result = await approveBoundaryAction(
+                        parcelId,
+                        latest.id,
+                        needsDeclaration && declared,
+                      );
                       setError(result.ok ? null : result.error);
                       if (result.ok) router.refresh();
                     })

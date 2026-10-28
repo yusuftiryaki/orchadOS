@@ -72,7 +72,7 @@ select throws_ok(
      values ('b0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000001',
        'a0000000-0000-4000-8000-000000000003', 'owner') $$,
   '42501', null, 'owner cannot grant the owner role');
-select lives_ok($$ select public.approve_boundary('c1000000-0000-4000-8000-000000000001') $$,
+select lives_ok($$ select public.approve_boundary('c1000000-0000-4000-8000-000000000001', true) $$,
   'owner can approve a boundary version of their parcel');
 select results_eq($$ select full_name from public.my_owner_profile() $$, array['Örnek Sahip'],
   'owner reads their own profile through my_owner_profile()');

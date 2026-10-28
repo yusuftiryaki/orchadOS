@@ -30,9 +30,11 @@ async function portalUser() {
 export async function approveBoundaryAction(
   parcelId: unknown,
   boundaryId: unknown,
+  // T16: the owner ticked the boundary declaration.
+  declared: unknown = false,
 ): Promise<ApproveBoundaryResult> {
   if ((await portalUser()).demo) return { ok: false, error: "demo_read_only" };
-  const result = await approveBoundary(await createClient(), boundaryId);
+  const result = await approveBoundary(await createClient(), boundaryId, declared === true);
   if (result.ok && typeof parcelId === "string") {
     for (const section of ["portal", "ofis", "operasyon", "uzman"]) {
       revalidatePath(`/${section}/parsel/${parcelId}`);

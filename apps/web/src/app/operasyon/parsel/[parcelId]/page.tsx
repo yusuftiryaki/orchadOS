@@ -8,6 +8,8 @@ import {
 import { OpsNav } from "@/components/operations/ops-nav";
 import styles from "@/components/operations/operations.module.css";
 import { LegalNotice } from "@/components/operations/legal-notice";
+import { BoundaryDispute } from "@/components/operations/boundary-dispute";
+import { BoundaryPointers } from "@/components/operations/boundary-pointers";
 import { MediaSuppression } from "@/components/operations/media-suppression";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { VisitTable } from "@/components/operations/visit-table";
@@ -27,7 +29,11 @@ import {
   opsOrgs,
 } from "@/lib/operations/data";
 import { m2ToDonum } from "@/lib/operations/geometry";
-import { listSuppressions } from "@/lib/operations/legal";
+import {
+  disputeStatus,
+  listBoundaryPointers,
+  listSuppressions,
+} from "@/lib/operations/legal";
 import { createMediaSigner } from "@/lib/media/signer";
 import { opsHref } from "@/lib/operations/urls";
 import { createClient } from "@/lib/supabase/server";
@@ -59,7 +65,11 @@ export default async function Page({
   const query = await searchParams;
   // Legal follow-ups (T20): hidden images of the parcel's visits.
   const isOps = orgs.some((o) => o.id === parcel.org_id);
-  const suppressions = isOps ? await listSuppressions(supabase, { parcelId }) : [];
+  const [suppressions, pointers, dispute] = await Promise.all([
+    isOps ? listSuppressions(supabase, { parcelId }) : [],
+    listBoundaryPointers(supabase, parcelId),
+    disputeStatus(supabase, parcelId),
+  ]);
   const suppressionUrls = await createMediaSigner(supabase, { scope: user.id }).signUrls(
     suppressions.map((r) => r.uri),
   );
@@ -335,6 +345,8 @@ export default async function Page({
         )}
       </section>
 
+      <BoundaryPointers pointers={pointers} />
+      {isOps && <BoundaryDispute parcelId={parcel.id} status={dispute} />}
       {isOps && (
         <MediaSuppression
           back={opsHref.parcel(parcel.id)}

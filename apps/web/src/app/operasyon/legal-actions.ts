@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireSection } from "@/lib/auth/session";
 import {
+  closeDispute,
   hideMedia,
+  openDispute,
   saveStaffProfile,
   unhideMedia,
   type LegalResult,
@@ -72,4 +74,20 @@ export async function unhideMediaAction(form: FormData) {
   const back = text(form, "back");
   if (!isUuid(id)) finish(back, { ok: false, error: "invalid_input" }, "");
   finish(back, await unhideMedia(supabase, { id, note: text(form, "note") }), "media_unhidden");
+}
+
+export async function openDisputeAction(form: FormData) {
+  const supabase = await context();
+  const parcelId = text(form, "parcel_id");
+  const back = `/operasyon/parsel/${parcelId}`;
+  if (!isUuid(parcelId)) finish("/operasyon", { ok: false, error: "invalid_input" }, "");
+  finish(back, await openDispute(supabase, parcelId, text(form, "note")), "dispute_opened");
+}
+
+export async function closeDisputeAction(form: FormData) {
+  const supabase = await context();
+  const parcelId = text(form, "parcel_id");
+  const back = `/operasyon/parsel/${parcelId}`;
+  if (!isUuid(parcelId)) finish("/operasyon", { ok: false, error: "invalid_input" }, "");
+  finish(back, await closeDispute(supabase, parcelId, text(form, "note")), "dispute_closed");
 }

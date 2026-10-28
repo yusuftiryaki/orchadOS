@@ -227,3 +227,77 @@ export async function listVisitMedia(
     more: data.length > MEDIA_PAGE_SIZE,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Boundary pointer and disputes (T16)
+// ---------------------------------------------------------------------------
+
+export interface BoundaryPointer {
+  id: string;
+  sessionId: string;
+  name: string;
+  role: string;
+  recordedAt: string;
+}
+
+// Staff of the parcel's org: who showed the boundary (name and role only).
+export async function listBoundaryPointers(
+  supabase: Client,
+  parcelId: string,
+): Promise<BoundaryPointer[]> {
+  const { data, error } = await supabase.rpc("staff_boundary_pointers", { p_parcel_id: parcelId });
+  if (error) {
+    if (error.code === "PGRST202") return [];
+    throw error;
+  }
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    sessionId: r.session_id,
+    name: r.name,
+    role: r.role,
+    recordedAt: r.recorded_at,
+  }));
+}
+
+export interface DisputeStatus {
+  open: boolean;
+  since: string | null;
+  history: { action: "open" | "close"; note: string | null; at: string; by: string | null }[];
+}
+
+export async function disputeStatus(supabase: Client, parcelId: string): Promise<DisputeStatus> {
+  const { data, error } = await supabase.rpc("boundary_dispute_status", { p_parcel_id: parcelId });
+  if (error) {
+    if (error.code === "PGRST202") return { open: false, since: null, history: [] };
+    throw error;
+  }
+  const d = (data ?? {}) as { open?: unknown; since?: unknown; history?: unknown };
+  return {
+    open: d.open === true,
+    since: typeof d.since === "string" ? d.since : null,
+    history: Array.isArray(d.history) ? (d.history as DisputeStatus["history"]) : [],
+  };
+}
+
+export async function openDispute(
+  supabase: Client,
+  parcelId: string,
+  note: string,
+): Promise<LegalResult> {
+  return result(
+    await supabase.rpc("ops_open_boundary_dispute", { p_parcel_id: parcelId, p_note: note }),
+  );
+}
+
+export async function closeDispute(
+  supabase: Client,
+  parcelId: string,
+  note: string,
+): Promise<LegalResult> {
+  return result(
+    await supabase.rpc("ops_close_boundary_dispute", {
+      p_parcel_id: parcelId,
+      p_note: note || undefined,
+    }),
+  );
+}

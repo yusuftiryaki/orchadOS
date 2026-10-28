@@ -3929,7 +3929,7 @@ export type Database = {
         };
       };
       approve_boundary: {
-        Args: { p_boundary_id: string };
+        Args: { p_boundary_id: string; p_declared?: boolean };
         Returns: {
           area_m2: number | null;
           created_at: string;
@@ -4012,6 +4012,7 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      boundary_dispute_status: { Args: { p_parcel_id: string }; Returns: Json };
       bulk_approve_trees: {
         Args: { p_items: Json; p_method_version: string; p_session_id: string };
         Returns: number;
@@ -4505,6 +4506,10 @@ export type Database = {
       };
       ops_cancel_order: { Args: { p_note?: string; p_order_id: string }; Returns: undefined };
       ops_cancel_refund: { Args: { p_note?: string; p_refund_id: string }; Returns: undefined };
+      ops_close_boundary_dispute: {
+        Args: { p_note?: string; p_parcel_id: string };
+        Returns: string;
+      };
       ops_complete_garden_removal: { Args: { p_removal_id: string }; Returns: undefined };
       ops_complete_manual_refund: {
         Args: { p_bank_reference: string; p_completed_on: string; p_refund_id: string };
@@ -4815,6 +4820,7 @@ export type Database = {
           template: string;
         }[];
       };
+      ops_open_boundary_dispute: { Args: { p_note: string; p_parcel_id: string }; Returns: string };
       ops_orders: {
         Args: {
           p_customer_user_id?: string;
@@ -5579,6 +5585,16 @@ export type Database = {
       signup_register_attempt: {
         Args: { p_email_hash: string; p_ip_hash: string; p_phone_hash: string };
         Returns: string;
+      };
+      staff_boundary_pointers: {
+        Args: { p_parcel_id: string };
+        Returns: {
+          id: string;
+          name: string;
+          recorded_at: string;
+          role: string;
+          session_id: string;
+        }[];
       };
       visit_approver: { Args: { p_session_id: string }; Returns: Json };
       waive_coverage: {

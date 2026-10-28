@@ -935,6 +935,8 @@ export const tr = {
         "Bahçe hizmetten çıkarıldı; sürdürülemez. Yeniden eklemek için ek teklif verin.",
       withdrawal_period_open:
         "Siparişin cayma süresi sürüyor ve sahip erken başlama talep etmedi; envanteri ve ziyaretleri cayma süresinin bitiminden sonraya planlayın.",
+      boundary_dispute_open:
+        "Bu bahçede açık bir sınır itirazı var; itiraz kapatılmadan envanter ya da periyodik tarama planlanamaz.",
       already_owner: "Bu kişi parselin sahibi; hissedar olarak eklenemez.",
       invite_unavailable:
         "Portal hesabı açılamadı: hesap servisi (invite-user) erişilemiyor. Hesabı Supabase panelinden açıp aynı e-postayla tekrar deneyin.",
@@ -1824,6 +1826,33 @@ export const tr = {
         "Portalı kullanmaya başlamadan önce kişisel verilerinizin nasıl işlendiğini anlatan aydınlatma metnini okuyun. Metni okuduğunuzu kaydetmeniz yeterlidir.",
       read: "Aydınlatma metnini okudum.",
       save: "Kaydet",
+    },
+    dispute: {
+      portalNotice:
+        "Bu bahçenin sınırıyla ilgili bir itiraz incelendiği için değerlendirme şimdilik askıda. Süreç tamamlanınca size bilgi verilecek.",
+      title: "Sınır itirazı / askı",
+      hint: "Üçüncü bir kişi sınıra itiraz ederse (Sözleşme Md. 6/4) itiraz açılır: açıkken bu bahçeye yeni envanter ya da periyodik tarama planlanamaz. Sahip portalında yalnızca değerlendirmenin askıda olduğu görünür; not görünmez.",
+      open: "İtiraz açık",
+      since: (date: string) => `Açılış: ${date}`,
+      none: "Açık itiraz yok.",
+      note: "Not (itirazın konusu; gereksiz kişisel veri yazmayın)",
+      openButton: "İtirazı aç",
+      closeButton: "İtirazı kapat",
+      closeNote: "Kapanış notu (isteğe bağlı)",
+      history: "Kayıtlar",
+      actions: { open: "Açıldı", close: "Kapatıldı" } as Record<string, string>,
+    },
+    pointer: {
+      title: "Sınırı gösteren kişi",
+      hint: "Saha ekibinin envanter sırasında kaydettiği ad ve rol (telefon tutulmaz).",
+      none: "Kayıt yok.",
+      roles: {
+        owner: "Sahip",
+        owner_relative: "Sahibin yakını",
+        worker: "Bahçe çalışanı",
+        neighbor: "Komşu",
+        other: "Diğer",
+      } as Record<string, string>,
     },
     media: {
       title: "Görüntü gizleme (KVKK itirazı)",
