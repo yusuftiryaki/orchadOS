@@ -119,7 +119,7 @@ Müşterinin tek bir üyelik dönemi vardır; bütün bahçeleri aynı gün bite
     - **Cayma hakkımı kullanıyorum:** yalnızca cayma süresinde görünür; bahçe bugün çıkar, ödenen tutar yapılmış envanter ve ziyaretler düşülerek iade edilir.
 
     Onay kutusundan sonra talep bir `C-…` numarası alır. Bahçe ödeme bekleyen bir siparişteyse (ör. onaylanmış ama ödenmemiş yenileme) talep alınmaz; portal o siparişe yönlendirir. Pilot (siparişsiz) bahçede "Bu bahçeyi çıkarmak için bize ulaşın" yazar.
-4. **Talebi geri al.** Çıkış gününe kadar bahçenin sayfasındaki "Talebi geri al" ile.
+4. **Talebi geri al.** Çıkış gününe kadar bahçenin sayfasındaki "Talebi geri al" ile. Yalnızca müşterinin kendi talebi geri alınır; ekibin açtığı çıkarmada (devir, mükerrer kayıt, "Tüm bahçeleri çıkar") düğme görünmez, sayfa "Bu çıkarmayı ekibimiz başlattı; değişiklik için bize ulaşın." der.
 5. **Salt okunur dönem.** Çıkış gününde bahçenin planlı ziyaretleri iptal edilir, bahçe hizmet dışı olur ve iade ekibe düşer. 90 gün boyunca raporlar açıktır; bahçenin sayfasında "Bu bahçe hizmetten çıkarıldı. Raporlar şu tarihe kadar açık: …" bandı görünür, soru sorulamaz ve hissedar davet edilemez. Erişimin bitmesine 7 gün kala SMS gelir. Son bahçe çıkınca üyelik sona erer; portal "Bahçe ekle" yerine yeni başvuru önerir.
 
 **Hissedar**
@@ -135,20 +135,20 @@ Müşterinin tek bir üyelik dönemi vardır; bütün bahçeleri aynı gün bite
 6. **Engelli kayıtlar.** Bahçe parası tutulmuş ya da kart denemesi süren bir ödeme bekleyen siparişteyse çıkarma tamamlanmaz ve kuyrukta "engelli" görünür; sipariş çözülünce gece işi yeniden dener.
 7. **Hemen tamamla ve iptal.** Çıkış günü gelmiş kaydı beklemeden tamamlar. İptalde not zorunludur ve müşteriye SMS gider.
 8. **İadeler.** Tamamlanınca iade satırları "istendi" durumunda açılır ve bugünkü iade ekranından (`/operasyon/iade`) işlenir; çıkarma ayrıntısında bağlantıları vardır. Ayarda iade modu **elle** (`manual`) ise ya da siparişte satıra bağlanamayan bir iade varsa sistem yalnızca hesabı gösterir, iade satırı açmaz; ops "İade iste" ile karar verir. Dağıtılamayan tutar uyarı olarak görünür.
-9. **Yenileme.** `/operasyon/teklif/yeni?siparis=<temel sipariş>`: temel siparişin ve ek siparişlerin hizmetteki bahçeleri işaretli gelir; çıkmakta olanlar işaretsiz ve etiketlidir. Ek siparişin kendisi yenilenmez.
+9. **Yenileme.** `/operasyon/teklif/yeni?siparis=<temel sipariş>`: temel siparişin ve ek siparişlerin hizmetteki ya da dönem içinde başlayacak bahçeleri işaretli gelir (dönem bittiyse temel ve ek siparişlerin satırları); çıkmakta olanlar işaretsiz ve etiketlidir. Ek siparişin kendisi yenilenmez.
 10. **Ops'un açtığı çıkarma ve devir.** Sipariş ayrıntısında satır başına "Bahçeyi çıkar". Bahçe satıldıysa neden **devir** ve erişim günü **0**; ayardan kısa bir erişim süresi yalnızca devirde, mükerrer kayıtta ya da not girilerek verilir. Devirle çıkarılan parsel aynı müşteriye yeniden bağlanamaz; yeni sahip kendi başvurusuyla yeni parsel alır. Müşteri panelindeki "Tüm bahçeleri çıkar" üyeliği sonlandırmanın önerilen yoludur.
-11. **İdari fesih.** Siparişin tamamını feshetmek (`ops_terminate_order`) idari durumlar içindir ve parsellere dokunmaz. Temel siparişte ek siparişler de sona erer, ödeme bekleyen ekler ve açık ek teklifler iptal edilir, açık çıkarmalar sistemce iptal edilir (SMS gitmez).
+11. **İdari fesih.** Siparişin tamamını feshetmek (`ops_terminate_order`) idari durumlar içindir ve parsellere dokunmaz. Temel siparişte ek siparişler de sona erer, ödeme bekleyen ekler ve açık ek teklifler iptal edilir (kısmen ödenmiş bir ek siparişin parası için `order_closed` iadesi açılır; kart ödemesi sürüyorsa mutabakata kalır), açık çıkarmalar sistemce iptal edilir (SMS gitmez).
 12. **Salt okunur dönemde parsel.** Ops parseli bu dönemde yaşam döngüsü formundan "sürdür"emez (`parcel_removed`); geri ekleme ek teklifle olur. Çıkarma açıkken çıkış günü ve sonrasına ziyaret planlanamaz.
 13. **Ayarlar (`/operasyon/ayarlar`).** Anahtar (`garden_changes_enabled`), son ek günü için en az gün (30), bildirim süresi (30), erişim süresi (90), iade modu.
 
 **Sistem**
-- Gece `garden-removal-housekeeping` işi (00:30, `billing-housekeeping`'den sonra): çıkış günü gelen kayıtları tamamlar (planlı ziyaretleri, açık takip isteklerini ve bekleyen davetleri iptal eder, parseli pasife alır, iadeyi hesaplar ve iade satırlarını açar, boşalan siparişleri sona erdirir), erişim bitmeden 7 gün önce SMS gönderir ve erişim süresi dolanların erişimini kaldırır. İki kez çalışması zarar vermez.
+- Gece `garden-removal-housekeeping` işi (03:30 İstanbul saati; cron UTC 00:30, `billing-housekeeping` 03:00'ten sonra): çıkış günü gelen kayıtları tamamlar (planlı ziyaretleri, açık takip isteklerini ve bekleyen davetleri iptal eder, parseli pasife alır, iadeyi hesaplar ve iade satırlarını açar, boşalan siparişleri sona erdirir), erişim bitmeden 7 gün önce SMS gönderir ve erişim süresi dolanların erişimini kaldırır. İki kez çalışması zarar vermez.
 
 | Adım | Durum |
 | --- | --- |
 | Tasarım, hukuk taslakları v2, site metinleri | ✅ (avukat onayı bekleniyor) |
-| Veri modeli, ek teklif, çıkarma, iade, gece işi | 🟡 (İP14-A geliştiriliyor) |
-| Müşteri portalı ve back office ekranları | 🟡 (İP14-C ve İP14-D geliştiriliyor) |
+| Veri modeli, ek teklif, çıkarma, iade, gece işi | ✅ (PR #71; barındırılan projelerde anahtar kapalı) |
+| Müşteri portalı ve back office ekranları | ✅ (PR #74, #73; barındırılan projelerde anahtar kapalı) |
 | Barındırılan projelerde açılması | ⬜ (avukat onayı ve fiyat kararlarından sonra) |
 
 ## 1. Kayıt
@@ -410,9 +410,9 @@ Demo hesabı hiçbir şey yazamaz; bildirim, SMS ve AI işi oluşmaz. Veriler, p
 
 | Adım | Durum |
 | --- | --- |
-| Demo erişimi, yazma ve hesap kilidi, `demo-start` | 🟡 (incelemede, PR #63) |
-| Sentetik demo verisi ve yükleyici | 🟡 (incelemede, PR #64) |
-| `/demo` sayfası, bant, rehberli tur, filigranlı PDF | 🟡 (PR açık) |
+| Demo erişimi, yazma ve hesap kilidi, `demo-start` | ✅ (PR #63, #66) |
+| Sentetik demo verisi ve yükleyici | ✅ (PR #64) |
+| `/demo` sayfası, bant, rehberli tur, filigranlı PDF | ✅ (PR #65) |
 | Herkese açık demo (`demo.<alan adı>`) | ⬜ (demo projesi ve alan adı bekleniyor; `docs/deployment.md` › Demo turu) |
 
 ## Test ortamı

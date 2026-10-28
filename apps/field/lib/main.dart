@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
 import 'app/providers.dart';
+import 'app/startup_error.dart';
 import 'core/audio/voice_recorder.dart';
 import 'core/db/database.dart';
 import 'core/media/field_camera.dart';
@@ -38,7 +39,10 @@ const _fakeCamera = bool.fromEnvironment('FAKE_CAMERA');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await guardedStartup(_start);
+}
 
+Future<void> _start() async {
   final db = AppDatabase.open();
   final overrides = <Override>[];
   AuthRepository auth;
