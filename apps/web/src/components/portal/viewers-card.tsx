@@ -11,6 +11,8 @@ import { VIEWER_DECLARATION, type ParcelViewers } from "@/lib/portal/viewers";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { panelClass } from "@/components/ui/panel";
 import { Checkbox, Field, Input } from "@/components/ui/field";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
@@ -64,10 +66,12 @@ export function ViewersCard({
           <p>{error}</p>
         </Alert>
       )}
-      <div className={layout.panel}>
-        {viewers.entries.length === 0 ? (
-          <p className="muted">{v.empty}</p>
-        ) : (
+      {viewers.entries.length === 0 ? (
+        <EmptyState title={v.empty} headingLevel={3}>
+          <p>{v.emptyBody}</p>
+        </EmptyState>
+      ) : (
+        <div className={panelClass}>
           <ul className={layout.rows} data-testid="viewer-list">
             {viewers.entries.map((entry) => (
               <li key={`${entry.kind}:${entry.id}`} data-viewer-status={entry.status}>
@@ -85,7 +89,7 @@ export function ViewersCard({
                   <form action={removeViewerAction} className={styles.inlineForm}>
                     <input type="hidden" name="parcelId" value={parcelId} />
                     <input type="hidden" name="id" value={entry.id} />
-                    <Button variant="secondary" type="submit">
+                    <Button variant="danger" type="submit">
                       {v.remove}
                     </Button>
                   </form>
@@ -101,8 +105,8 @@ export function ViewersCard({
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </div>
+      )}
       {demo ? (
         <DemoNotice text={demoText.closed.viewers} />
       ) : readOnly ? (
@@ -132,9 +136,7 @@ export function ViewersCard({
             </div>
           )}
           <div className={styles.formActions}>
-            <Button variant="secondary" type="submit">
-              {v.invite}
-            </Button>
+            <Button type="submit">{v.invite}</Button>
           </div>
         </form>
       )}
@@ -142,4 +144,5 @@ export function ViewersCard({
   );
 }
 
-const STATUS_TONES = { active: "success", pending: "info", rejected: "danger" } as const;
+// "Hissedar" is a role, not an outcome: neutral (docs/tasarim-sistemi.md).
+const STATUS_TONES = { active: "neutral", pending: "info", rejected: "danger" } as const;

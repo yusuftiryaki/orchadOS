@@ -152,16 +152,8 @@ export default async function Page({
 
       <Panel plain title={T.dashboard.upcoming(UPCOMING_DAYS)} id="upcoming">
         {upcoming.length === 0 ? (
-          <EmptyState
-            compact
-            headingLevel={3}
-            title={T.dashboard.noUpcoming}
-            action={
-              <ButtonLink variant="secondary" size="sm" href={opsHref.newVisit()}>
-                {T.nav.newVisit}
-              </ButtonLink>
-            }
-          />
+          // "Ziyaret planla" is in the page header; no second link here.
+          <EmptyState compact headingLevel={3} title={T.dashboard.noUpcoming} />
         ) : (
           <VisitTable visits={upcoming} leads={leads} testId="upcoming-visits" />
         )}

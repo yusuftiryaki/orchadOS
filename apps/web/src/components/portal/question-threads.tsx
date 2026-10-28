@@ -8,6 +8,7 @@ import { findingKindLabel } from "./labels";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Select, Textarea } from "@/components/ui/field";
 import styles from "./parcel.module.css";
 
@@ -52,7 +53,13 @@ export function QuestionThreads({
   demo?: boolean;
   readOnly?: boolean;
 }) {
-  if (threads.length === 0) return <p className="muted">{q.empty}</p>;
+  if (threads.length === 0) {
+    return (
+      <EmptyState title={q.empty} headingLevel={3} testId="questions-empty">
+        <p>{q.emptyBody}</p>
+      </EmptyState>
+    );
+  }
   const forms = !demo && !readOnly;
   return (
     <ul className={styles.threads} data-testid="question-threads">
@@ -210,9 +217,7 @@ export function AskQuestionForm({
         <Textarea name="body" maxLength={2000} required rows={3} />
       </Field>
       <div className={styles.formActions}>
-        <Button variant="secondary" type="submit">
-          {q.ask}
-        </Button>
+        <Button type="submit">{q.ask}</Button>
       </div>
     </form>
   );

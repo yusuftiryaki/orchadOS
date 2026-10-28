@@ -27,7 +27,7 @@ export default async function Page({
     <main className="page">
       <PageHeader
         title={T.parcel.newTitle}
-        back={{ href: opsHref.dashboard(), label: T.nav.dashboard }}
+        back={{ href: opsHref.dashboard(), label: T.dashboard.title }}
         lead={T.parcel.newLead}
       />
       {orgs.length === 0 ? (

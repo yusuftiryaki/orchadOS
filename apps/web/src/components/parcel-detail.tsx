@@ -7,7 +7,6 @@ import { getParcelMap } from "@/lib/parcels";
 import { createClient } from "@/lib/supabase/server";
 import { ParcelExplorer } from "./parcel-explorer";
 import { statusTone } from "@/components/ui/status";
-import styles from "./parcel-detail.module.css";
 import staff from "@/components/staff-page.module.css";
 
 export async function ParcelDetail({

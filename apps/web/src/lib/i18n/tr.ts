@@ -1217,7 +1217,8 @@ export const tr = {
     viewers: {
       title: "Hissedarlar",
       hint: "Hisseli bahçede diğer hissedarlar raporları sizinle aynı görür, değiştiremez. Davetinizi operasyon ekibimiz hissedarı arayıp onayladıktan sonra tamamlar.",
-      empty: "Henüz hissedar eklenmedi.",
+      empty: "Henüz hissedar yok",
+      emptyBody: "Davet ettiğiniz hissedarlar bahçenin karnesini sizinle birlikte görür.",
       name: "Ad soyad",
       phone: "Telefon",
       invite: "Hissedar davet et",
@@ -1250,7 +1251,8 @@ export const tr = {
         "Bu ağaç ya da bulguları hakkında uzmana soru sorabilirsiniz. Uzman cevaplayınca burada görünür. Sorularınızı yalnızca siz ve uzman görürsünüz; bahçenin diğer sahipleri ve hissedarları görmez.",
       parcelHint:
         "Bu bahçede sorduğunuz sorular. Diğer sahiplerin ve hissedarların soruları size, sizinkiler onlara görünmez. Bir ağaç hakkında sormak için ağaç karnesini açın.",
-      empty: "Henüz soru yok.",
+      empty: "Henüz soru yok",
+      emptyBody: "Sorduğunuz sorular ve uzmanın cevapları burada görünür.",
       ask: "Soru sor",
       askParcel: "Bahçe geneli bir bulguya soru sor",
       target: "Konu",
@@ -1360,6 +1362,7 @@ export const tr = {
       openTree: "Ağaç karnesi",
       showFinding: "Haritada göster",
       metricsTitle: "Ölçümler",
+      metricColumns: { metric: "Ölçüm", count: "Ölçülen ağaç", summary: "Özet" },
       metricsEmpty: "Bu denetimde karnede gösterilen bir ölçüm yok.",
       metricCount: (n: number) => `${n} ağaçta ölçüldü`,
       metricMean: (mean: string, min: string, max: string) =>

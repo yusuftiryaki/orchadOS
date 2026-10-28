@@ -18,6 +18,7 @@ const TONES: Record<string, BadgeTone> = {
   accepted: "success",
   active: "success",
   succeeded: "success",
+  paid: "success",
   completed: "success",
   published: "success",
   done: "success",
@@ -76,13 +77,17 @@ export type StatusKind =
   | "removal"
   | "garden"
   | "visit"
-  | "parcel";
+  | "parcel"
+  | "installment";
 
 // An order or a garden removal that is completed has ended: the service is no
 // longer in force. A scheduled removal warns that the garden is leaving.
 const FAMILY: Partial<Record<StatusKind, Record<string, BadgeTone>>> = {
   order: { completed: "neutral" },
   removal: { completed: "neutral", scheduled: "warning" },
+  // An installment not yet due is not late: the "Sıradaki" badge beside it
+  // carries the warning.
+  installment: { pending: "neutral" },
 };
 
 export function statusTone(status: string, kind?: StatusKind): BadgeTone {
