@@ -1,11 +1,14 @@
 "use client";
 
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
-import { basemapStyle } from "@/lib/map/basemap";
+import { MapStatus } from "@/components/map/map-status";
+import mapStyles from "@/components/map/map.module.css";
+import { useMapLibre } from "@/components/map/use-maplibre";
+import { t } from "@/lib/i18n";
+import { slotFeatures } from "@/lib/map/features";
 import type { Bounds, Position, PolygonGeometry } from "@/lib/map/geo";
-import { MARKER_COLORS, type MarkerState } from "@/lib/map/tree-style";
+import type { MarkerState } from "@/lib/map/tree-style";
 import type { Severity } from "@/lib/portal/findings";
 import { viewWedge } from "@/lib/portal/tour";
 import { MapBoundaryCaption } from "./boundary-notice";
@@ -52,12 +55,14 @@ export interface MapCoverage {
 const SLOT_LAYER = "slots";
 const FINDING_LAYER = "findings";
 const PANORAMA_LAYER = "panoramas";
+const NO_FINDINGS: MapFinding[] = [];
+const NO_PANORAMAS: MapPanorama[] = [];
 
 export function PortalMap({
   boundary,
   slots,
-  findings = [],
-  panoramas = [],
+  findings = NO_FINDINGS,
+  panoramas = NO_PANORAMAS,
   bounds,
   visibleStates,
   selected = null,
@@ -70,6 +75,7 @@ export function PortalMap({
   cells = null,
   coverage = null,
   view = null,
+  emptyText,
 }: {
   boundary: PolygonGeometry | null;
   slots: MapSlot[];
@@ -92,16 +98,20 @@ export function PortalMap({
   coverage?: MapCoverage | null;
   // Tour: where the camera stands and which way it looks.
   view?: { position: Position; azimuthDeg: number } | null;
+  // Shown under the map; defaults to "no trees" when there are no slots.
+  emptyText?: string | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
   const handlers = useRef({ onSelect, onPointClick });
   const selectedRef = useRef<MapSelection>(null);
   const currentPanoramaRef = useRef<string | null>(null);
   const visibleRef = useRef(visibleStates);
   const focusRef = useRef(focus);
-  // Slots and layers change without rebuilding the map (visit selector).
+  // Slots, findings, panoramas and layers change without rebuilding the map
+  // (visit selector, tour time travel).
   const slotsRef = useRef(slots);
+  const findingsRef = useRef(findings);
+  const panoramasRef = useRef(panoramas);
   const cellsRef = useRef(cells);
   const coverageRef = useRef(coverage);
   const viewRef = useRef(view);
@@ -110,19 +120,20 @@ export function PortalMap({
     handlers.current = { onSelect, onPointClick };
   }, [onSelect, onPointClick]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let map: MapLibreMap | null = null;
-
-    import("maplibre-gl").then((maplibregl) => {
-      const container = containerRef.current;
-      if (cancelled || !container) return;
-      maplibregl.setWorkerUrl(
-        new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).toString(),
-      );
-      const m = new maplibregl.Map({
-        container,
-        style: basemapStyle(process.env.NEXT_PUBLIC_MAP_STYLE_URL),
+  const state = useMapLibre(
+    containerRef,
+    {
+      label,
+      overlaySources: [
+        "boundary",
+        "panoramas",
+        "cells",
+        "view",
+        "slots",
+        "coverage-trees",
+        "findings",
+      ],
+      options: () => ({
         bounds: bounds ?? undefined,
         fitBoundsOptions: { padding: 24 },
         center: bounds ? undefined : [37.38, 37.07],
@@ -130,15 +141,8 @@ export function PortalMap({
         maxZoom: 22,
         // Lets "Yazdır / PDF" print the map canvas.
         canvasContextAttributes: { preserveDrawingBuffer: true },
-      });
-      map = m;
-      mapRef.current = m;
-      m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-      m.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
-      // Test hook: lets browser tests project positions to pixels.
-      (container as HTMLDivElement & { __map?: MapLibreMap }).__map = m;
-
-      m.on("load", () => {
+      }),
+      onStyle: (m) => {
         if (boundary) {
           m.addSource("boundary", {
             type: "geojson",
@@ -158,36 +162,27 @@ export function PortalMap({
           });
         }
 
-        if (panoramas.length > 0) {
-          m.addSource("panoramas", {
-            type: "geojson",
-            data: {
-              type: "FeatureCollection",
-              features: panoramas.map((p) => ({
-                type: "Feature",
-                geometry: { type: "Point", coordinates: p.position },
-                properties: { panoramaId: p.id },
-              })),
-            },
-            promoteId: "panoramaId",
-          });
-          m.addLayer({
-            id: PANORAMA_LAYER,
-            type: "circle",
-            source: "panoramas",
-            paint: {
-              "circle-color": [
-                "case",
-                ["boolean", ["feature-state", "current"], false],
-                "#e64980",
-                "#343a40",
-              ],
-              "circle-radius": ["case", ["boolean", ["feature-state", "current"], false], 7, 2.5],
-              "circle-stroke-color": "#ffffff",
-              "circle-stroke-width": 1,
-            },
-          });
-        }
+        m.addSource("panoramas", {
+          type: "geojson",
+          data: panoramasData(panoramasRef.current),
+          promoteId: "panoramaId",
+        });
+        m.addLayer({
+          id: PANORAMA_LAYER,
+          type: "circle",
+          source: "panoramas",
+          paint: {
+            "circle-color": [
+              "case",
+              ["boolean", ["feature-state", "current"], false],
+              "#e64980",
+              "#343a40",
+            ],
+            "circle-radius": ["case", ["boolean", ["feature-state", "current"], false], 7, 2.5],
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 1,
+          },
+        });
 
         m.addSource("cells", { type: "geojson", data: cellsData(cellsRef.current) });
         m.addLayer({
@@ -207,7 +202,7 @@ export function PortalMap({
 
         m.addSource("slots", {
           type: "geojson",
-          data: slotsData(slotsRef.current),
+          data: slotFeatures(slotsRef.current),
           promoteId: "slotId",
         });
         m.addLayer({
@@ -251,43 +246,35 @@ export function PortalMap({
           },
         });
 
-        if (findings.length > 0) {
-          m.addSource("findings", {
-            type: "geojson",
-            data: {
-              type: "FeatureCollection",
-              features: findings.map((f) => ({
-                type: "Feature",
-                geometry: { type: "Point", coordinates: f.position },
-                properties: { findingId: f.id, color: SEVERITY_COLORS[f.severity] },
-              })),
-            },
-            promoteId: "findingId",
-          });
-          // A ring around the tree (or the spot) the finding is about.
-          m.addLayer({
-            id: FINDING_LAYER,
-            type: "circle",
-            source: "findings",
-            paint: {
-              "circle-color": "rgba(0,0,0,0)",
-              "circle-radius": ["interpolate", ["linear"], ["zoom"], 15, 5, 18, 11, 21, 22],
-              "circle-stroke-color": ["get", "color"],
-              "circle-stroke-width": [
-                "case",
-                ["boolean", ["feature-state", "selected"], false],
-                5,
-                3,
-              ],
-            },
-          });
-        }
+        m.addSource("findings", {
+          type: "geojson",
+          data: findingsData(findingsRef.current),
+          promoteId: "findingId",
+        });
+        // A ring around the tree (or the spot) the finding is about.
+        m.addLayer({
+          id: FINDING_LAYER,
+          type: "circle",
+          source: "findings",
+          paint: {
+            "circle-color": "rgba(0,0,0,0)",
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 15, 5, 18, 11, 21, 22],
+            "circle-stroke-color": ["get", "color"],
+            "circle-stroke-width": [
+              "case",
+              ["boolean", ["feature-state", "selected"], false],
+              5,
+              3,
+            ],
+          },
+        });
 
         m.on("click", (event) => {
           const { onSelect: select, onPointClick: pointClick } = handlers.current;
           if (select) {
-            const layers = [SLOT_LAYER, FINDING_LAYER].filter((id) => m.getLayer(id));
-            const hits = m.queryRenderedFeatures(event.point, { layers });
+            const hits = m.queryRenderedFeatures(event.point, {
+              layers: [SLOT_LAYER, FINDING_LAYER],
+            });
             const slot = hits.find((h) => h.layer.id === SLOT_LAYER)?.properties?.slotId;
             const finding = hits.find((h) => h.layer.id === FINDING_LAYER)?.properties?.findingId;
             if (typeof slot === "string") return select({ kind: "slot", id: slot });
@@ -307,34 +294,43 @@ export function PortalMap({
         syncPanorama(m, currentPanoramaRef.current, null);
         if (focusRef.current)
           m.jumpTo({ center: focusRef.current, zoom: Math.max(m.getZoom(), 19) });
-        container.setAttribute("data-map-ready", "true");
-      });
-    });
+      },
+    },
+    // Built once per parcel; everything else is applied below.
+    [boundary, bounds],
+  );
+  const { mapRef } = state;
 
-    return () => {
-      cancelled = true;
-      map?.remove();
-      mapRef.current = null;
-    };
-    // Built once per data set; slots, layers, selection and filter are applied below.
-  }, [boundary, findings, panoramas, bounds]);
+  useEffect(() => {
+    findingsRef.current = findings;
+    (mapRef.current?.getSource("findings") as GeoJSONSource | undefined)?.setData(
+      findingsData(findings),
+    );
+  }, [mapRef, findings]);
+
+  useEffect(() => {
+    panoramasRef.current = panoramas;
+    (mapRef.current?.getSource("panoramas") as GeoJSONSource | undefined)?.setData(
+      panoramasData(panoramas),
+    );
+  }, [mapRef, panoramas]);
 
   useEffect(() => {
     slotsRef.current = slots;
     const source = mapRef.current?.getSource("slots") as GeoJSONSource | undefined;
-    source?.setData(slotsData(slots));
-  }, [slots]);
+    source?.setData(slotFeatures(slots));
+  }, [mapRef, slots]);
 
   useEffect(() => {
     cellsRef.current = cells;
     const source = mapRef.current?.getSource("cells") as GeoJSONSource | undefined;
     source?.setData(cellsData(cells));
-  }, [cells]);
+  }, [mapRef, cells]);
 
   useEffect(() => {
     viewRef.current = view;
     (mapRef.current?.getSource("view") as GeoJSONSource | undefined)?.setData(viewData(view));
-  }, [view]);
+  }, [mapRef, view]);
 
   useEffect(() => {
     coverageRef.current = coverage;
@@ -342,34 +338,34 @@ export function PortalMap({
     (map?.getSource("coverage-trees") as GeoJSONSource | undefined)?.setData(
       coverageTreesData(coverage),
     );
-  }, [coverage]);
+  }, [mapRef, coverage]);
 
   useEffect(() => {
     visibleRef.current = visibleStates;
     const map = mapRef.current;
     if (map?.getLayer(SLOT_LAYER)) applyFilter(map, visibleStates);
-  }, [visibleStates]);
+  }, [mapRef, visibleStates]);
 
   useEffect(() => {
     const map = mapRef.current;
     const previous = selectedRef.current;
     selectedRef.current = selected;
     if (map) syncSelection(map, selected, previous);
-  }, [selected]);
+  }, [mapRef, selected]);
 
   useEffect(() => {
     const map = mapRef.current;
     const previous = currentPanoramaRef.current;
     currentPanoramaRef.current = currentPanoramaId;
     if (map?.getSource("panoramas")) syncPanorama(map, currentPanoramaId, previous);
-  }, [currentPanoramaId]);
+  }, [mapRef, currentPanoramaId]);
 
   useEffect(() => {
     focusRef.current = focus;
     const map = mapRef.current;
     if (!map || !focus) return;
     map.easeTo({ center: focus, zoom: Math.max(map.getZoom(), 19) });
-  }, [focus]);
+  }, [mapRef, focus]);
 
   // The boundary notice's short form sits under the map, outside the
   // MapLibre container, so it survives resizes, mobile and print (H07, T16).
@@ -377,29 +373,39 @@ export function PortalMap({
     <>
       <div
         ref={containerRef}
-        className={className ?? styles.map}
+        className={`${className ?? styles.map} ${mapStyles.base}`}
         data-testid="parcel-map"
+        data-slot-count={slots.length}
         role="region"
         aria-label={label}
+      />
+      <MapStatus
+        state={state}
+        empty={emptyText === undefined ? (slots.length === 0 ? t.map.noTrees : null) : emptyText}
       />
       <MapBoundaryCaption />
     </>
   );
 }
 
-function slotsData(slots: MapSlot[]): GeoJSON.FeatureCollection {
+function findingsData(findings: MapFinding[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
-    features: slots.map((s) => ({
+    features: findings.map((f) => ({
       type: "Feature",
-      geometry: { type: "Point", coordinates: s.position },
-      properties: {
-        slotId: s.slotId,
-        code: s.code,
-        state: s.state,
-        color: MARKER_COLORS[s.state],
-        empty: s.state === "empty",
-      },
+      geometry: { type: "Point", coordinates: f.position },
+      properties: { findingId: f.id, color: SEVERITY_COLORS[f.severity] },
+    })),
+  };
+}
+
+function panoramasData(panoramas: MapPanorama[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: panoramas.map((p) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: p.position },
+      properties: { panoramaId: p.id },
     })),
   };
 }
