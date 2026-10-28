@@ -269,7 +269,7 @@ Dördüne de `anon` ve `authenticated` için yetki yoktur; RLS açık, politika 
 
 ## Üyelik boyunca bahçe ekleme ve çıkarma (İP14)
 
-Tasarım: [bahce-yonetimi.md](bahce-yonetimi.md). Yeni üyelik tablosu yoktur; üyelik dönemi **temel sipariştir** (`addon_of_order_id` boş). Migration'lar `20261102120000`–`20261102120300`.
+Tasarım: [bahce-yonetimi.md](bahce-yonetimi.md). Yeni üyelik tablosu yoktur; üyelik dönemi **temel sipariştir** (`addon_of_order_id` boş). Migration'lar `20261102120000`–`20261102120400`.
 
 | Tablo / sütun | Ne tutar |
 | --- | --- |
