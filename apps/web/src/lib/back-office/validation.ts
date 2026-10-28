@@ -318,6 +318,26 @@ export function parseNote(read: Reader, required: boolean): Parsed<string | null
 export interface AddonQuoteInput extends QuoteTermsInput {
   // The parcel path (§4.3); null on the application path.
   parcelIds: string[] | null;
+  // T18 (contract 8D/3): parcels ops marks as needing a new inventory, with
+  // the reason (p_new_inventory); null when none is marked.
+  newInventory?: Record<string, string> | null;
+}
+
+// "Yeni envanter gerekli" marks of the parcel path: new_inventory_<parcel id>
+// with a reason of at most 300 characters; null when none is marked.
+export function parseNewInventory(
+  read: Reader,
+  parcelIds: readonly string[],
+  prefix = "new_inventory_",
+): Parsed<Record<string, string> | null> {
+  const marks: Record<string, string> = {};
+  for (const id of parcelIds) {
+    const reason = read(`${prefix}${id}`).trim();
+    if (!reason) continue;
+    if (reason.length > 300) return bad(`${prefix}${id}`);
+    marks[id] = reason;
+  }
+  return ok(Object.keys(marks).length > 0 ? marks : null);
 }
 
 // An add-on quote: the common terms and, for existing parcels, 1–50 distinct
@@ -334,7 +354,9 @@ export function parseAddonQuote(
     ...new Set(form.getAll("parcel_ids").filter((v): v is string => typeof v === "string")),
   ];
   if (parcelIds.length === 0 || parcelIds.length > 50) return bad("parcel_ids");
-  return ok({ ...terms.value, parcelIds });
+  const newInventory = parseNewInventory(read, parcelIds);
+  if (!newInventory.ok) return newInventory;
+  return ok({ ...terms.value, parcelIds, newInventory: newInventory.value });
 }
 
 // Every reason of garden_removal_reason; transfer and duplicate are ops'.

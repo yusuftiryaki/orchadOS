@@ -361,6 +361,20 @@ describe("IP14 garden membership forms", () => {
     const parsed = parseAddonQuote(formReader(parcels), parcels, "parcels");
     expect(parsed.ok && parsed.value.parcelIds).toEqual(["p1", "p2"]);
     expect(parsed.ok && parsed.value.proposedServiceStart).toBe("2027-01-01");
+    expect(parsed.ok && parsed.value.newInventory).toBeNull();
+    // T18: "yeni envanter gerekli" with a reason, per parcel.
+    const marked = form({
+      parcel_ids: ["p1", "p2"],
+      new_inventory_p2: " Sınır değişti ",
+      new_inventory_p9: "not quoted",
+    });
+    const withMarks = parseAddonQuote(formReader(marked), marked, "parcels");
+    expect(withMarks.ok && withMarks.value.newInventory).toEqual({ p2: "Sınır değişti" });
+    const tooLong = form({ parcel_ids: ["p1"], new_inventory_p1: "x".repeat(301) });
+    expect(parseAddonQuote(formReader(tooLong), tooLong, "parcels")).toEqual({
+      ok: false,
+      field: "new_inventory_p1",
+    });
     const none = form({});
     expect(parseAddonQuote(formReader(none), none, "parcels")).toEqual({
       ok: false,

@@ -350,6 +350,8 @@ export const portalBillingText = {
     positionSet: "Yer işaretlendi.",
     positionMissing: "Yer henüz işaretlenmedi.",
     boundaryArea: (m2: string, donum: string) => `Çizilen alan yaklaşık ${m2} m² (${donum} dönüm).`,
+    // Contract Md. 6/1, short form (T16).
+    boundaryCaption: "Fiili kullanım sınırı; tapu ya da kadastro sınırı değildir.",
     legal: "Yetki ve tapu",
     authorizationBasis: "Bahçe üzerindeki yetkiniz",
     authorizationValues: {

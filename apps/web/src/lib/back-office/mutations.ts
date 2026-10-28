@@ -153,6 +153,7 @@ export async function issueAddonQuote(
       ...(input.proposedServiceStart
         ? { p_proposed_service_start: input.proposedServiceStart }
         : {}),
+      ...(input.newInventory ? { p_new_inventory: input.newInventory } : {}),
       ...termArgs(input),
     }),
   );

@@ -808,6 +808,16 @@ export const backOfficeText = {
     visitsLine: (visits: number, perYear: number) => `${visits} ziyaret (yılda ${perYear})`,
     remainingDays: "Kalan dönem",
     remaining: (days: number, total: number) => `${days} / ${total} gün`,
+    // T18 (H19, 8D/2–8D/3).
+    windows: "Dönemde kalan ziyaret pencereleri",
+    rawVisits: (raw: string, rounded: number) => `Ham sonuç ${raw} → ${rounded} ziyaret`,
+    priceList: "Fiyat listesi",
+    fullYear: "Tam yıllık bedel",
+    inventory: "Envanter",
+    lastInventory: (date: string) => `son envanter ${date}`,
+    newInventory: "Yeni envanter gerekli (gerekçe)",
+    newInventoryHint:
+      "Son envanterden bu yana 24 ay geçmediyse ve sınır ile ağaç düzeni esaslı biçimde değişmediyse envanter ücreti alınmaz. Yeni envanter gerekiyorsa gerekçesini yazın; ücret ayrı satır olarak gerekçesiyle gösterilir.",
   },
   overlaps: {
     title: "Mükerrer kontrolü",

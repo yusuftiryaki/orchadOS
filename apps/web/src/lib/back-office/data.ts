@@ -861,6 +861,8 @@ export async function previewAddonQuote(
     parcelIds?: string[] | null;
     start?: string | null;
     discountBp?: number;
+    // T18: parcels marked "yeni envanter gerekli", with the reason.
+    newInventory?: Record<string, string> | null;
   },
 ): Promise<{ lines: AddonPreviewLine[] } | { error: string }> {
   const { data, error } = await supabase.rpc("ops_preview_addon_quote", {
@@ -868,6 +870,7 @@ export async function previewAddonQuote(
     ...(input.applicationId ? { p_application_id: input.applicationId } : {}),
     ...(input.parcelIds ? { p_parcel_ids: input.parcelIds } : {}),
     ...(input.start ? { p_proposed_service_start: input.start } : {}),
+    ...(input.newInventory ? { p_new_inventory: input.newInventory } : {}),
     p_discount_bp: input.discountBp ?? 0,
   });
   if (error) return { error: error.message };

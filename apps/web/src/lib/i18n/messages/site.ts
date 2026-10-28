@@ -79,7 +79,8 @@ export const siteText = {
     honestTitle: "Neyi iddia etmiyoruz?",
     honest: [
       "Yapay zekâ hastalık teşhisi koymaz. Görüntüde görülen belirtileri işaretler, kararı uzman verir.",
-      "Haritadaki sınır, sizin gösterdiğiniz fiili kullanım sınırıdır. Tapu ya da mülkiyet sınırı iddiası taşımaz.",
+      // Contract Md. 6/1 (docs/hukuk/kararlar.md H07, T16), word for word.
+      "Haritadaki sınır, sizin ya da yetkilendirdiğiniz kişinin gösterdiği fiili kullanım sınırıdır. Tapu sınırı, kadastro ölçümü, mülkiyet ya da kullanım hakkı tespiti değildir; resmi bir sınır belirlemez. Sınır ve mülkiyet uyuşmazlıklarında kanıt olarak sunulmak üzere hazırlanmamıştır.",
       "Verim ya da gelir tahmini ve garantisi vermeyiz.",
     ],
   },
@@ -153,7 +154,7 @@ export const siteText = {
       },
       {
         q: "Sınır tapudaki sınırla aynı mı?",
-        a: "Hayır. Haritadaki sınır, gösterdiğiniz fiili kullanım sınırıdır. Tapu ya da mülkiyet sınırı iddiası taşımaz ve sınır anlaşmazlıklarında kanıt olarak hazırlanmaz.",
+        a: "Hayır. Haritadaki sınır, sizin ya da yetkilendirdiğiniz kişinin gösterdiği fiili kullanım sınırıdır. Tapu sınırı, kadastro ölçümü, mülkiyet ya da kullanım hakkı tespiti değildir; resmi bir sınır belirlemez. Sınır ve mülkiyet uyuşmazlıklarında kanıt olarak sunulmak üzere hazırlanmamıştır.",
       },
       {
         q: "Hissedarlarım da raporu görebilir mi?",
