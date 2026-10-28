@@ -157,10 +157,11 @@ describe("boundary notice", () => {
       const html = renderToStaticMarkup(
         <ParcelReportView report={report} boundaryCard={card} demo={demo} />,
       );
-      // Health map and boundary card each have their caption; the long form
-      // under the health map and in the boundary card.
+      // Health map and boundary card (awaiting approval) each have their
+      // caption; the long form once, under the health map.
       expect(count(html, SHORT)).toBe(2);
-      expect(count(html, LONG)).toBe(2);
+      expect(count(html, LONG)).toBe(1);
+      expect(html.indexOf(LONG)).toBeGreaterThan(html.indexOf('id="harita"'));
     }
   });
 
