@@ -87,7 +87,7 @@ begin
   -- With the early-performance box (T03): these orders plan visits and deduct
   -- them inside the withdrawal period.
   return public.customer_accept_quote(p_quote,
-    '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak", "early_performance": "mesafeli-v3-taslak"}');
+    '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak", "early_performance": "mesafeli-v4-taslak"}');
 end;
 $$;
 

@@ -4,13 +4,15 @@
 -- while garden changes are off and its supersede, ops_record_withdrawal by
 -- notice day and channel, the notice columns and the withdrawal_received
 -- messages.
--- Seed: org b0..01, ops a0..05, package standart 9120..0001 (V = 4): 20 dönüm
--- cost 1 200 000 kuruş a year (one visit 300 000). One transaction.
+-- Seed: org b0..01, ops a0..05, package standart 9120..0001 (V = 4). Round test
+-- prices (testing.use_round_prices, no inventory fee): 20 dönüm cost 1 200 000
+-- kuruş a year (one visit 300 000). One transaction.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(41);
 
 select testing.reset_to_seed();
+select testing.use_round_prices();
 
 create function pg_temp.as_user(p_id uuid) returns void language sql
 as $$ select set_config('request.jwt.claims', json_build_object('sub', p_id, 'role', 'authenticated')::text, true) $$;
@@ -72,9 +74,9 @@ begin
   from public.application_garden x where x.application_id = a;
   q := public.ops_issue_quote(a);
   perform pg_temp.as_user(p_user);
-  o := public.customer_accept_quote(q, jsonb_build_object('distance_sales', 'mesafeli-v3-taslak',
-    'pre_information', 'onbilgi-v3-taslak')
-    || case when p_early then '{"early_performance": "mesafeli-v3-taslak"}'::jsonb else '{}'::jsonb end);
+  o := public.customer_accept_quote(q, jsonb_build_object('distance_sales', 'mesafeli-v4-taslak',
+    'pre_information', 'onbilgi-v4-taslak')
+    || case when p_early then '{"early_performance": "mesafeli-v4-taslak"}'::jsonb else '{}'::jsonb end);
   perform pg_temp.ops();
   perform public.ops_record_manual_payment(o, (select total_kurus from public.service_order where id = o), current_date,
     'EFT-53-' || left(o::text, 8));
@@ -164,7 +166,7 @@ insert into ids select 'rq', public.ops_issue_parcel_quote('b0000000-0000-4000-8
   '91200000-0000-4000-8000-000000000001', array[pg_temp.id('p3')], false, pg_temp.today() + 6, pg_temp.id('o3'));
 select pg_temp.as_user(pg_temp.id('c3'));
 insert into ids select 'o4', public.customer_accept_quote(pg_temp.id('rq'),
-  '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak"}');
+  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
 select pg_temp.ops();
 select is(pg_temp.error_of(pg_temp.plan_sql(pg_temp.id('p3'), 'periodic_scan', pg_temp.today() + 7)),
   'P0001 withdrawal_period_open', 'an unpaid renewal: no service before the contract is paid');

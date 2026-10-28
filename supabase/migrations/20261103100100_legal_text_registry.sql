@@ -118,22 +118,25 @@ insert into private.legal_text_version (kind, version, sha256, is_current) value
   ('pre_information', 'onbilgi-v1-taslak', null, false),
   ('pre_information', 'onbilgi-v2-taslak', null, false),
   ('refund_policy', 'iade-v1-taslak', null, false),
-  ('refund_policy', 'iade-v2-taslak', null, false);
+  ('refund_policy', 'iade-v2-taslak', null, false),
+  ('distance_sales', 'mesafeli-v3-taslak', null, false),
+  ('pre_information', 'onbilgi-v3-taslak', null, false),
+  ('refund_policy', 'iade-v3-taslak', null, false);
 select private.register_legal_text('kvkk_notice', 'kvkk-v2-taslak',
   'b4a873a3d57f02958f0b73662828a13aa0a5fb98c85aa8ffcf75161636f76052');
 select private.register_legal_text('explicit_consent', 'riza-v2-taslak',
   '959cc1375322156a375619da78468d51dd6fa0dd165e5b13f1a3ce6f693234c8');
 select private.register_legal_text('privacy', 'gizlilik-v2-taslak',
   '94c793947e1ab06819958b19dee39962be914a2821892e0cb13866c311770ad9');
-select private.register_legal_text('distance_sales', 'mesafeli-v3-taslak',
-  '47bf481aa03349cd8b8501e3327ada8d412553a61f86aac49ab774170145eb61');
-select private.register_legal_text('pre_information', 'onbilgi-v3-taslak',
-  'f83ec40328fa5cbfa9fa263bca9883bdeed0d832c2488d2ab44e0439982ff08e');
-select private.register_legal_text('refund_policy', 'iade-v3-taslak',
-  'd477e226429491cf2ffe7c558bb0d75ff9d11d5e94db9c8d61987533a789a3ec');
+select private.register_legal_text('distance_sales', 'mesafeli-v4-taslak',
+  '7edaa9ffa577d0538c1930fcf71a1faf561c282802af76ff9c2b59b6db4b7222');
+select private.register_legal_text('pre_information', 'onbilgi-v4-taslak',
+  '1a77ee0dda45f72f68d1f628603ecff5d2e2ceb9f83adaa0fc9b5ee6da4c1e33');
+select private.register_legal_text('refund_policy', 'iade-v4-taslak',
+  '67f4e8a122b12dac851dfd8a95f43698263b8d7f231c25c8be9d2f45613b722b');
 select private.register_legal_text('field_notice', 'bahcede-v1-taslak',
   'e993ff6d5a947596108d3246f678b040159f6bd81bb9cb2d11755a1234255a47');
-select private.register_legal_text('early_performance', 'mesafeli-v3-taslak',
+select private.register_legal_text('early_performance', 'mesafeli-v4-taslak',
   '3745a7686d1205ffcd0af3081d3891b345a297c6fdfbdbf37c7028c09b1c5bb2');
 
 -- ---------------------------------------------------------------------------

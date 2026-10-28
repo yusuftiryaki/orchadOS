@@ -4,7 +4,7 @@
 --
 -- p_consents takes, for distance_sales, pre_information and the optional
 -- early_performance, either form (the old web keeps working during a deploy):
---   {"distance_sales": "mesafeli-v3-taslak", ...}
+--   {"distance_sales": "mesafeli-v4-taslak", ...}
 --   {"distance_sales": {"version": "...", "sha256": "<64 hex>", "display_sha256": "<64 hex>"}, ...}
 -- The version must be the current registered one and a sent sha256 its
 -- registered template hash, else legal_text_outdated (P0001, detail: kind);

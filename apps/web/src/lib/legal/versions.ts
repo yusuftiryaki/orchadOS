@@ -7,7 +7,7 @@
 // (private.legal_text_version, T21; hashes from text-hash.ts). Every text
 // change or version bump here or in legal.ts, also removing "-taslak" at
 // launch, ships a registry migration (private.register_legal_text) in the same
-// PR; text-hash.test.ts and the integration test legal-registry.test.ts fail
+// PR; text-hash.test.ts and the integration test legal-followups.test.ts fail
 // until it does. Between deploy-db and the Vercel deploy the database refuses
 // an acceptance with legal_text_outdated (safe) and the page asks the customer
 // to reload.

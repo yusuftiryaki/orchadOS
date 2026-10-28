@@ -53,11 +53,14 @@ describe("legal-text registry (T21)", () => {
       "gizlilik-v1-taslak",
       "iade-v1-taslak",
       "iade-v2-taslak",
+      "iade-v3-taslak",
       "kvkk-v1-taslak",
       "mesafeli-v1-taslak",
       "mesafeli-v2-taslak",
+      "mesafeli-v3-taslak",
       "onbilgi-v1-taslak",
       "onbilgi-v2-taslak",
+      "onbilgi-v3-taslak",
       "riza-v1-taslak",
     ]);
     expect(archived.every((r) => r.sha256 === null && !r.is_final)).toBe(true);
@@ -88,8 +91,8 @@ describe("legal-text registry (T21)", () => {
 
 describe("production gate and the KVKK re-acknowledgement (T21)", () => {
   const LAUNCH: [RegisteredText, string][] = [
-    ["distance_sales", "mesafeli-v3"],
-    ["pre_information", "onbilgi-v3"],
+    ["distance_sales", "mesafeli-v4"],
+    ["pre_information", "onbilgi-v4"],
     ["kvkk_notice", "kvkk-v2"],
   ];
 
@@ -132,7 +135,7 @@ describe("production gate and the KVKK re-acknowledgement (T21)", () => {
 
     // Launch: final versions registered (a registry migration on real projects).
     for (const [kind, version] of LAUNCH) await registerLegalText(kind, version, "0".repeat(64));
-    const final = { distance_sales: "mesafeli-v3", pre_information: "onbilgi-v3" };
+    const final = { distance_sales: "mesafeli-v4", pre_information: "onbilgi-v4" };
     const stale = await c.rpc("customer_accept_quote", { p_quote_id: quote, p_consents: CONSENTS });
     expect(stale.error).toMatchObject({
       message: "legal_text_outdated",

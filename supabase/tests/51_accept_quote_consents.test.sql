@@ -85,45 +85,45 @@ insert into ids select 'q3', pg_temp.new_quote(pg_temp.id('u3'), 37.521);
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('u1'));
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
-  '{"distance_sales": "mesafeli-v2-taslak", "pre_information": "onbilgi-v3-taslak"}') $$, pg_temp.id('q1'))),
+  '{"distance_sales": "mesafeli-v2-taslak", "pre_information": "onbilgi-v4-taslak"}') $$, pg_temp.id('q1'))),
   'P0001 legal_text_outdated / distance_sales', 'an earlier registered version is outdated');
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
-  '{"distance_sales": "mesafeli-v3", "pre_information": "onbilgi-v3-taslak"}') $$, pg_temp.id('q1'))),
+  '{"distance_sales": "mesafeli-v4", "pre_information": "onbilgi-v4-taslak"}') $$, pg_temp.id('q1'))),
   'P0001 legal_text_outdated / distance_sales', 'a final-looking version that is not registered is refused');
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
-  '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v9-taslak"}') $$, pg_temp.id('q1'))),
+  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v9-taslak"}') $$, pg_temp.id('q1'))),
   'P0001 legal_text_outdated / pre_information', 'the pre-information form is checked too');
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L, %L) $$, pg_temp.id('q1'),
-  jsonb_build_object('distance_sales', jsonb_build_object('version', 'mesafeli-v3-taslak', 'sha256', repeat('0', 64)),
-    'pre_information', 'onbilgi-v3-taslak'))),
+  jsonb_build_object('distance_sales', jsonb_build_object('version', 'mesafeli-v4-taslak', 'sha256', repeat('0', 64)),
+    'pre_information', 'onbilgi-v4-taslak'))),
   'P0001 legal_text_outdated / distance_sales', 'a hash other than the registered one is refused');
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L, %L) $$, pg_temp.id('q1'),
-  jsonb_build_object('distance_sales', jsonb_build_object('version', 'mesafeli-v3-taslak'),
-    'pre_information', 'onbilgi-v3-taslak'))),
+  jsonb_build_object('distance_sales', jsonb_build_object('version', 'mesafeli-v4-taslak'),
+    'pre_information', 'onbilgi-v4-taslak'))),
   '22023 consent_required / distance_sales', 'the object form carries the hash');
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L, %L) $$, pg_temp.id('q1'),
-  jsonb_build_object('distance_sales', 'mesafeli-v3-taslak', 'pre_information',
-    jsonb_build_object('version', 'onbilgi-v3-taslak', 'sha256', pg_temp.h('pre_information'), 'display_sha256', 'xyz')))),
+  jsonb_build_object('distance_sales', 'mesafeli-v4-taslak', 'pre_information',
+    jsonb_build_object('version', 'onbilgi-v4-taslak', 'sha256', pg_temp.h('pre_information'), 'display_sha256', 'xyz')))),
   '22023 invalid_input / pre_information.display_sha256', 'display_sha256 is format-checked');
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
-  '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak", "early_performance": "mesafeli-v2-taslak"}') $$,
+  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak", "early_performance": "mesafeli-v2-taslak"}') $$,
   pg_temp.id('q1'))),
   'P0001 legal_text_outdated / early_performance', 'the early-performance box has its registered version too');
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
-  '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak", "early_performance": 1}') $$,
+  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak", "early_performance": 1}') $$,
   pg_temp.id('q1'))),
   '22023 consent_required / early_performance', 'a malformed box value is refused');
 
 -- Old string form, no box -----------------------------------------------------------------
 
 insert into ids select 'o1', public.customer_accept_quote(pg_temp.id('q1'),
-  '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak"}');
+  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
 reset role;
 select results_eq(
   $$ select kind::text, granted, text_version, text_sha256 = pg_temp.h(kind::text), display_sha256 is null
      from private.consent_record where order_id = pg_temp.id('o1') order by kind::text $$,
-  $$ values ('distance_sales', true, 'mesafeli-v3-taslak', true, true),
-            ('pre_information', true, 'onbilgi-v3-taslak', true, true) $$,
+  $$ values ('distance_sales', true, 'mesafeli-v4-taslak', true, true),
+            ('pre_information', true, 'onbilgi-v4-taslak', true, true) $$,
   'the old form: the rows carry the registered template hash');
 select ok(not private.has_early_performance(pg_temp.id('o1')), 'without the box there is no early_performance row');
 select is((select details -> 'kinds' from public.audit_event
@@ -135,18 +135,18 @@ select is((select details -> 'kinds' from public.audit_event
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('u2'));
 insert into ids select 'o2', public.customer_accept_quote(pg_temp.id('q2'), jsonb_build_object(
-  'distance_sales', jsonb_build_object('version', 'mesafeli-v3-taslak', 'sha256', pg_temp.h('distance_sales'),
+  'distance_sales', jsonb_build_object('version', 'mesafeli-v4-taslak', 'sha256', pg_temp.h('distance_sales'),
     'display_sha256', repeat('d', 64)),
-  'pre_information', jsonb_build_object('version', 'onbilgi-v3-taslak', 'sha256', pg_temp.h('pre_information'),
+  'pre_information', jsonb_build_object('version', 'onbilgi-v4-taslak', 'sha256', pg_temp.h('pre_information'),
     'display_sha256', repeat('e', 64)),
-  'early_performance', jsonb_build_object('version', 'mesafeli-v3-taslak', 'sha256', pg_temp.h('early_performance'))));
+  'early_performance', jsonb_build_object('version', 'mesafeli-v4-taslak', 'sha256', pg_temp.h('early_performance'))));
 reset role;
 select results_eq(
   $$ select kind::text, granted, text_version, text_sha256 = pg_temp.h(kind::text), display_sha256, source::text
      from private.consent_record where order_id = pg_temp.id('o2') order by kind::text $$,
-  $$ values ('distance_sales', true, 'mesafeli-v3-taslak', true, repeat('d', 64), 'quote_acceptance'),
-            ('early_performance', true, 'mesafeli-v3-taslak', true, null, 'quote_acceptance'),
-            ('pre_information', true, 'onbilgi-v3-taslak', true, repeat('e', 64), 'quote_acceptance') $$,
+  $$ values ('distance_sales', true, 'mesafeli-v4-taslak', true, repeat('d', 64), 'quote_acceptance'),
+            ('early_performance', true, 'mesafeli-v4-taslak', true, null, 'quote_acceptance'),
+            ('pre_information', true, 'onbilgi-v4-taslak', true, repeat('e', 64), 'quote_acceptance') $$,
   'the object form: hashes and the display hash as given; the box is its own consent row');
 select ok(private.has_early_performance(pg_temp.id('o2')), 'the order has the early-performance consent');
 select is((select details -> 'kinds' from public.audit_event
@@ -157,7 +157,7 @@ select is((select details -> 'kinds' from public.audit_event
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('u3'));
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
-  '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak", "early_performance": false}') $$,
+  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak", "early_performance": false}') $$,
   pg_temp.id('q3'))), null, 'false: accepted without the box');
 reset role;
 select is((select count(*)::integer from private.consent_record c join public.service_order o on o.id = c.order_id
@@ -171,28 +171,28 @@ update public.org_billing_setting set allow_fake_payments = false where org_id =
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('u1'));
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
-  '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak"}') $$, pg_temp.id('q4'))),
+  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}') $$, pg_temp.id('q4'))),
   'P0001 legal_texts_not_final / distance_sales_draft', 'the gate refuses a draft contract');
 select results_eq($$ select reasons from public.legal_gate_status('b0000000-0000-4000-8000-000000000001') $$,
   $$ values (array['distance_sales_draft', 'pre_information_draft', 'kvkk_notice_not_final']) $$,
   'legal_gate_status names every reason for the quote''s org');
 reset role;
-select private.register_legal_text('distance_sales', 'mesafeli-v3', repeat('1', 64));
+select private.register_legal_text('distance_sales', 'mesafeli-v4', repeat('1', 64));
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('u1'));
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
-  '{"distance_sales": "mesafeli-v3", "pre_information": "onbilgi-v3-taslak"}') $$, pg_temp.id('q4'))),
+  '{"distance_sales": "mesafeli-v4", "pre_information": "onbilgi-v4-taslak"}') $$, pg_temp.id('q4'))),
   'P0001 legal_texts_not_final / pre_information_draft', 'then a draft pre-information form');
 reset role;
-select private.register_legal_text('pre_information', 'onbilgi-v3', repeat('2', 64));
+select private.register_legal_text('pre_information', 'onbilgi-v4', repeat('2', 64));
 select private.register_legal_text('kvkk_notice', 'kvkk-v2', repeat('3', 64));
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('u1'));
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
-  '{"distance_sales": "mesafeli-v3", "pre_information": "onbilgi-v3"}') $$, pg_temp.id('q4'))),
+  '{"distance_sales": "mesafeli-v4", "pre_information": "onbilgi-v4"}') $$, pg_temp.id('q4'))),
   'P0001 legal_texts_not_final / kvkk_notice_not_final', 'then the customer''s draft KVKK notice');
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
-  '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3"}') $$, pg_temp.id('q4'))),
+  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4"}') $$, pg_temp.id('q4'))),
   'P0001 legal_text_outdated / distance_sales', 'the client''s string never decides: the old draft is outdated');
 select lives_ok($$ select public.customer_set_consent('kvkk_notice', true, 'kvkk-v2') $$,
   'the customer acknowledges the current final notice');
@@ -201,15 +201,15 @@ update public.org_billing_setting set site_domain = null where org_id = 'b000000
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('u1'));
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
-  '{"distance_sales": "mesafeli-v3", "pre_information": "onbilgi-v3"}') $$, pg_temp.id('q4'))),
+  '{"distance_sales": "mesafeli-v4", "pre_information": "onbilgi-v4"}') $$, pg_temp.id('q4'))),
   'P0001 legal_texts_not_final / company_info_incomplete', 'then missing company data (the domain)');
 reset role;
 update public.org_billing_setting set site_domain = 'orchados.example' where org_id = 'b0000000-0000-4000-8000-000000000001';
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('u1'));
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L, %L) $$, pg_temp.id('q4'),
-  jsonb_build_object('distance_sales', jsonb_build_object('version', 'mesafeli-v3', 'sha256', repeat('1', 64)),
-    'pre_information', 'onbilgi-v3'))), null, 'final texts, final notice, complete company data: accepted');
+  jsonb_build_object('distance_sales', jsonb_build_object('version', 'mesafeli-v4', 'sha256', repeat('1', 64)),
+    'pre_information', 'onbilgi-v4'))), null, 'final texts, final notice, complete company data: accepted');
 reset role;
 select is((select text_sha256 from private.consent_record c join public.service_order o on o.id = c.order_id
            where o.quote_id = pg_temp.id('q4') and c.kind = 'pre_information'), repeat('2', 64),
@@ -217,13 +217,13 @@ select is((select text_sha256 from private.consent_record c join public.service_
 
 -- Inactive where fake payments are allowed: the drafts pass (the steps above).
 update public.org_billing_setting set allow_fake_payments = true where org_id = 'b0000000-0000-4000-8000-000000000001';
-select private.register_legal_text('distance_sales', 'mesafeli-v3-taslak', pg_temp.h('distance_sales'));
-select private.register_legal_text('pre_information', 'onbilgi-v3-taslak', pg_temp.h('pre_information'));
+select private.register_legal_text('distance_sales', 'mesafeli-v4-taslak', pg_temp.h('distance_sales'));
+select private.register_legal_text('pre_information', 'onbilgi-v4-taslak', pg_temp.h('pre_information'));
 insert into ids select 'q5', pg_temp.new_quote(pg_temp.id('u2'), 37.541);
 set local role authenticated;
 select pg_temp.as_user(pg_temp.id('u2'));
 select is(pg_temp.error_of(format($$ select public.customer_accept_quote(%L,
-  '{"distance_sales": "mesafeli-v3-taslak", "pre_information": "onbilgi-v3-taslak"}') $$, pg_temp.id('q5'))), null,
+  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}') $$, pg_temp.id('q5'))), null,
   'the gate is inactive with fake payments allowed (local, CI, test)');
 reset role;
 
