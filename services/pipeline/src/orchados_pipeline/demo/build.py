@@ -75,6 +75,15 @@ from .dataset import (
 from .render import PROFILES, Profile, Scene, corner_stamp, make_scene, render
 
 GENERATOR = f"orchados-demo/{DATASET_VERSION} (orchados-pipeline {__version__})"
+
+
+def generator_hash() -> str:
+    """Hash of the generator's source: a cached build of other code is rebuilt."""
+    here = Path(__file__).parent
+    body = b"".join(f.name.encode() + f.read_bytes() for f in sorted(here.glob("*.py")))
+    return sha256_bytes(body)[:16]
+
+
 SHORT = {"A-INV25": "A25I", "A-SCN25": "A25", "A-SCN26": "A26", "B-INV26": "B26I", "B-SCN26": "B26"}
 # Ellipsoidal height of the antenna (WGS84): ground ~850 m + geoid ~25 m + pole.
 ANTENNA_HEIGHT_M = 877.4
@@ -653,8 +662,10 @@ def build(
     mpath = target / "manifest.json"
     if mpath.is_file() and not force and visits is None:
         manifest = json.loads(mpath.read_text(encoding="utf-8"))
-        if manifest.get("dataset_sha256") == manifest_sha(manifest) and all(
-            (target / "files" / f["sha256"]).is_file() for f in manifest["files"]
+        if (
+            manifest.get("generator_hash") == generator_hash()
+            and manifest.get("dataset_sha256") == manifest_sha(manifest)
+            and all((target / "files" / f["sha256"]).is_file() for f in manifest["files"])
         ):
             log(f"build: reusing {target}")
             return target, manifest
@@ -675,6 +686,7 @@ def build(
         "version": DATASET_VERSION,
         "profile": profile,
         "generator": GENERATOR,
+        "generator_hash": generator_hash(),
         "source": "synthetic",
         "params_hash": params_hash(),
         "files": [f.as_dict() for f in sorted(b.files.values(), key=lambda f: f.key)],

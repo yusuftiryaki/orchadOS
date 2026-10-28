@@ -37,7 +37,7 @@ def test_full_profile_estimate_is_at_most_150_mb(fresh_build):
     """Scale the test profile's bytes per kind by the pixel ratio of the full profile.
 
     JPEG and WebP bytes grow slower than the pixel count on smooth synthetic
-    content, so this overestimates (the full build is ~60 MB)."""
+    content, so this overestimates (the full build is ~54 MB)."""
     _root, manifest, _s = fresh_build
     test, full = render.PROFILES["test"], render.PROFILES["full"]
     ratio = {
