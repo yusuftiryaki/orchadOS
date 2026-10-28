@@ -166,6 +166,9 @@ export function GardenForm({
         <input type="hidden" name="lon" value={position ? String(position[0]) : ""} />
         <input type="hidden" name="lat" value={position ? String(position[1]) : ""} />
         <input type="hidden" name="boundary" value={ring.length > 0 ? JSON.stringify(ring) : ""} />
+        <p className="muted" data-testid="boundary-caption">
+          {G.boundaryCaption}
+        </p>
         <p data-testid="position-state" className={position ? undefined : "muted"}>
           {position ? G.positionSet : G.positionMissing}
         </p>

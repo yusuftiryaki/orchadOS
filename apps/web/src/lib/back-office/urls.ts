@@ -31,6 +31,7 @@ export const BO_NOTICES = [
   "garden_unlinked",
   "garden_withdrawn",
   "removal_requested",
+  "withdrawal_recorded",
   "removal_scheduled",
   "removal_completed",
   "removal_cancelled",

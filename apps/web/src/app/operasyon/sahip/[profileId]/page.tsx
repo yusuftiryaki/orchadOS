@@ -11,6 +11,7 @@ import { customerAccount, getSetting, membershipOrEmpty } from "@/lib/back-offic
 import { accessOfUser, getOwnerProfile, opsOrgs } from "@/lib/operations/data";
 import { opsHref } from "@/lib/operations/urls";
 import { todayIn } from "@/lib/operations/visits";
+import { getKvkkVersions } from "@/lib/operations/kvkk-versions";
 import { createClient } from "@/lib/supabase/server";
 
 const T = t.operations;
@@ -28,12 +29,13 @@ export default async function Page({
   const profile = await getOwnerProfile(supabase, profileId);
   // Not an ops of the profile's org looks the same as not existing.
   if (!profile) notFound();
-  const [orgs, access, account, membership, setting] = await Promise.all([
+  const [orgs, access, account, membership, setting, kvkkVersions] = await Promise.all([
     opsOrgs(supabase, user.id),
     accessOfUser(supabase, profile.user_id),
     customerAccount(supabase, profile.org_id, profile.user_id),
     membershipOrEmpty(supabase, profile.org_id, profile.user_id),
     getSetting(supabase, profile.org_id),
+    getKvkkVersions(supabase),
   ]);
   const today = todayIn(new Date());
 
@@ -71,6 +73,7 @@ export default async function Page({
             orgs={orgs}
             profileId={profile.id}
             today={todayIn(new Date())}
+            kvkkVersions={kvkkVersions}
             initial={{
               full_name: profile.full_name,
               phone: profile.phone ?? "",

@@ -42,8 +42,22 @@ describe("parseRegister", () => {
         contactPreference: "whatsapp",
         clientIp: "203.0.113.5",
         captchaToken: null,
-        consents: { explicit_service_improvement: false, explicit_marketing: true },
+        // T27: neither explicit consent is asked; both are forced to false.
+        consents: { explicit_service_improvement: false, explicit_marketing: false },
       },
+    });
+  });
+
+  it("forces both explicit consents to false (T27: a direct POST grants nothing)", () => {
+    const parsed = parseRegister({
+      ...valid,
+      consents: { ...valid.consents, explicit_service_improvement: true, explicit_marketing: true },
+    });
+    expect(parsed.ok && parsed.value.consents).toEqual({
+      kvkk_notice_version: "kvkk-v1-taslak",
+      explicit_text_version: "riza-v1-taslak",
+      explicit_service_improvement: false,
+      explicit_marketing: false,
     });
   });
 

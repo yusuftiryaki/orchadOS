@@ -50,8 +50,8 @@ insert into ip14_fn values
   ('public.ops_garden_overlaps(uuid)'),
   ('public.ops_link_application_garden_parcel(uuid,uuid)'),
   ('public.ops_withdraw_application_garden(uuid,text)'),
-  ('public.ops_preview_addon_quote(uuid,uuid,uuid[],date,integer)'),
-  ('public.ops_issue_addon_quote(uuid,uuid,uuid[],date,integer,integer,text,text)'),
+  ('public.ops_preview_addon_quote(uuid,uuid,uuid[],date,integer,jsonb)'),
+  ('public.ops_issue_addon_quote(uuid,uuid,uuid[],date,integer,integer,text,text,jsonb)'),
   ('public.ops_garden_removals(uuid,text,integer)'),
   ('public.ops_garden_removal_preview(uuid,date)'),
   ('public.ops_request_garden_removal(uuid,text,date,text,integer,boolean)'),
@@ -139,7 +139,7 @@ insert into ids select 'q', public.ops_issue_parcel_quote('b0000000-0000-4000-80
   array['c0000000-0000-4000-8000-000000000001'::uuid], true, null);
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 insert into ids select 'o', public.customer_accept_quote(pg_temp.id('q'),
-  '{"distance_sales": "mesafeli-v1-taslak", "pre_information": "onbilgi-v1-taslak"}');
+  '{"distance_sales": "mesafeli-v4-taslak", "pre_information": "onbilgi-v4-taslak"}');
 select pg_temp.ops();
 select public.ops_record_manual_payment(pg_temp.id('o'), (select total_kurus from public.service_order where id = pg_temp.id('o')),
   current_date, 'EFT-47');

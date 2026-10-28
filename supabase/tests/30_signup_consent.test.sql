@@ -5,7 +5,7 @@
 -- ops a0..05, customer a0..06 (+905550000006, completed sign-up).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(77);
+select plan(83);
 
 select testing.reset_to_seed();
 
@@ -27,8 +27,8 @@ $$;
 create function pg_temp.h(p_text text) returns text language sql immutable
 as $$ select encode(extensions.digest(p_text, 'sha256'), 'hex') $$;
 create function pg_temp.consents() returns jsonb language sql immutable
-as $$ select '{"kvkk_notice_version": "kvkk-v1-taslak", "explicit_text_version": "riza-v1-taslak",
-               "explicit_service_improvement": true, "explicit_marketing": false}'::jsonb $$;
+as $$ select '{"kvkk_notice_version": "kvkk-v2-taslak", "explicit_text_version": "riza-v2-taslak",
+               "explicit_service_improvement": true, "explicit_marketing": true}'::jsonb $$;
 grant execute on all functions in schema pg_temp to authenticated;
 
 -- A fresh self sign-up account (as customer-signup opens it).
@@ -101,6 +101,9 @@ select is(pg_temp.error_of($$ select public.signup_prepare('a3000000-0000-4000-8
   'pgtap-signup@example.test', '+905559990001', 'sms', pg_temp.consents() || '{"kvkk_notice_version": "KVKK 1"}', null) $$),
   '22023 invalid_input / kvkk_notice_version', 'consent text versions have a format');
 select is(pg_temp.error_of($$ select public.signup_prepare('a3000000-0000-4000-8000-000000000001', 'Ad Soyad',
+  'pgtap-signup@example.test', '+905559990001', 'sms', pg_temp.consents() || '{"kvkk_notice_version": "kvkk-v1-taslak"}', null) $$),
+  '22023 invalid_input / kvkk_notice_version', 'T21: only the current registered KVKK notice version is taken');
+select is(pg_temp.error_of($$ select public.signup_prepare('a3000000-0000-4000-8000-000000000001', 'Ad Soyad',
   'pgtap-signup@example.test', '+905559990001', 'sms', pg_temp.consents() - 'explicit_marketing', null) $$),
   '22023 invalid_input / explicit_marketing', 'both explicit consents are answered');
 select lives_ok($$ select public.signup_prepare('a3000000-0000-4000-8000-000000000001', ' Ayşe  Kaya ',
@@ -134,19 +137,19 @@ select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', now()),
 select results_eq(
   $$ select full_name, phone, contact_preference::text, kvkk_consent, kvkk_text_version
      from private.owner_profile where user_id = 'a3000000-0000-4000-8000-000000000001' $$,
-  $$ values ('Ayşe  Kaya', '+905559990001', 'sms', true, 'kvkk-v1-taslak') $$,
+  $$ values ('Ayşe  Kaya', '+905559990001', 'sms', true, 'kvkk-v2-taslak') $$,
   'the owner profile carries the KVKK acknowledgement');
 select results_eq(
   $$ select kind::text, granted, text_version, source::text, ip_hash is not null from private.consent_record
      where subject_id = 'a3000000-0000-4000-8000-000000000001' order by kind::text $$,
-  $$ values ('explicit_marketing', false, 'riza-v1-taslak', 'signup', true),
-            ('explicit_service_improvement', true, 'riza-v1-taslak', 'signup', true),
-            ('kvkk_notice', true, 'kvkk-v1-taslak', 'signup', true) $$,
-  'three consent records with their text versions');
+  $$ values ('explicit_marketing', false, 'riza-v2-taslak', 'signup', true),
+            ('explicit_service_improvement', false, 'riza-v2-taslak', 'signup', true),
+            ('kvkk_notice', true, 'kvkk-v2-taslak', 'signup', true) $$,
+  'three consent records; T27: both explicit kinds sent true are stored false (not asked)');
 select results_eq(
   $$ select actor_role, action, details from public.audit_event
      where actor_user_id = 'a3000000-0000-4000-8000-000000000001' $$,
-  $$ values ('customer', 'signup.completed', '{"explicit_marketing": false, "explicit_service_improvement": true}'::jsonb) $$,
+  $$ values ('customer', 'signup.completed', '{"explicit_marketing": false, "explicit_service_improvement": false}'::jsonb) $$,
   'one audit row, without personal data');
 select is(public.signup_complete('a3000000-0000-4000-8000-000000000001', now()), 'already_completed', 'completing twice');
 select is(pg_temp.error_of($$ select public.signup_prepare('a3000000-0000-4000-8000-000000000001', 'Ad Soyad',
@@ -202,10 +205,25 @@ select results_eq(
   $$ select kind, granted from public.my_consents() order by kind $$,
   $$ values ('explicit_marketing', false), ('explicit_service_improvement', true), ('kvkk_notice', true) $$,
   'the customer reads their current consents');
-select lives_ok($$ select public.customer_set_consent('explicit_marketing', true, 'riza-v1-taslak') $$,
-  'an explicit consent is given');
-select lives_ok($$ select public.customer_set_consent('explicit_service_improvement', false, 'riza-v1-taslak') $$,
-  'and another withdrawn');
+-- T27: a kind that is not asked is never granted; withdrawing always works.
+select is(pg_temp.error_of($$ select public.customer_set_consent('explicit_marketing', true, 'riza-v2-taslak') $$),
+  'P0001 consent_not_asked / explicit_marketing', 'T27: marketing is not granted while the İYS switch is off');
+select is(pg_temp.error_of($$ select public.customer_set_consent('explicit_service_improvement', true, 'riza-v2-taslak') $$),
+  'P0001 consent_not_asked / explicit_service_improvement', 'T27: service improvement is never granted');
+select lives_ok($$ select public.customer_set_consent('explicit_service_improvement', false, 'riza-v2-taslak') $$,
+  'an old consent is withdrawn');
+reset role;
+update public.org_billing_setting set marketing_consent_enabled = true
+where org_id = 'b0000000-0000-4000-8000-000000000001';
+set local role authenticated;
+select lives_ok($$ select public.customer_set_consent('explicit_marketing', true, 'riza-v2-taslak') $$,
+  'T27: with the switch on (after İYS) marketing is granted');
+select is(pg_temp.error_of($$ select public.customer_set_consent('explicit_service_improvement', true, 'riza-v2-taslak') $$),
+  'P0001 consent_not_asked / explicit_service_improvement', 'T27: service improvement stays refused with the switch on');
+reset role;
+update public.org_billing_setting set marketing_consent_enabled = false
+where org_id = 'b0000000-0000-4000-8000-000000000001';
+set local role authenticated;
 select results_eq(
   $$ select kind, granted, source from public.my_consents() where kind like 'explicit%' order by kind $$,
   $$ values ('explicit_marketing', true, 'portal'), ('explicit_service_improvement', false, 'portal') $$,
@@ -214,8 +232,12 @@ select is(pg_temp.error_of($$ select public.customer_set_consent('kvkk_notice', 
   '22023 invalid_input / granted', 'the KVKK notice is only acknowledged');
 select is(pg_temp.error_of($$ select public.customer_set_consent('distance_sales', true, 'mesafeli-v1') $$),
   '22023 invalid_input / kind', 'contract consents come with the quote');
-select is(pg_temp.error_of($$ select public.customer_set_consent('explicit_marketing', true, 'Bad Version') $$),
+select is(pg_temp.error_of($$ select public.customer_set_consent('explicit_marketing', false, 'Bad Version') $$),
   '22023 invalid_input / text_version', 'text versions have a format');
+select is(pg_temp.error_of($$ select public.customer_set_consent('kvkk_notice', true, 'kvkk-v1-taslak') $$),
+  '22023 invalid_input / text_version', 'T21: an earlier KVKK notice version is not acknowledged');
+select is(pg_temp.error_of($$ select public.customer_set_consent('kvkk_notice', true, 'kvkk-v2') $$),
+  '22023 invalid_input / text_version', 'T21: an unregistered version is refused, also without -taslak');
 select lives_ok($$ select public.customer_set_consent('kvkk_notice', true, 'kvkk-v2-taslak') $$,
   'a new KVKK notice version is acknowledged');
 reset role;

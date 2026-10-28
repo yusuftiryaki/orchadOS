@@ -185,3 +185,9 @@ export async function deleteUsers(match: (email: string) => boolean) {
     if (data.users.length < 1000) return;
   }
 }
+
+// Makes a legal text version current in the registry (T21); tests put the
+// draft back with the same call.
+export async function registerLegalText(kind: string, version: string, sha256: string) {
+  await call("register_legal_text", { p_kind: kind, p_version: version, p_sha256: sha256 });
+}

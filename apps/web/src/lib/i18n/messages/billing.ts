@@ -61,6 +61,15 @@ const errors: Record<BillingError, string> = {
   parcel_removal_scheduled:
     "Bahçe bu tarihte hizmetten çıkıyor; ziyareti çıkış tarihinden önceye planlayın.",
   parcel_removed: "Bahçe hizmetten çıkarıldı; yeniden eklemek için ek teklif verin.",
+  consent_not_asked: "Bu izin şu anda verilemiyor. Daha önce verdiyseniz geri alabilirsiniz.",
+  legal_text_outdated:
+    "Sözleşme metinleri bu arada güncellendi. Sayfayı yenileyip güncel metinleri okuyarak yeniden onaylayın.",
+  legal_texts_not_final:
+    "Teklif şu anda onaylanamıyor: sözleşme metinleri ya da şirket bilgileri henüz son hâlinde değil. Lütfen daha sonra yeniden deneyin.",
+  withdrawal_period_open:
+    "Siparişin cayma süresi sürüyor ve erken başlama talebi yok; envanter ve ziyaretler cayma süresinden sonra planlanır.",
+  order_not_active: "Sipariş henüz etkin değil.",
+  contract_document_immutable: "Sözleşme belgeleri değiştirilemez ve silinemez.",
   payment_not_open: "Bu ödeme artık açık değil.",
   write_failed: "İşlem tamamlanamadı; lütfen yeniden deneyin.",
 };
@@ -146,6 +155,7 @@ export const billingText = {
     explicit_marketing: "Tanıtım iletileri için onay (açık rıza ve ticari elektronik ileti onayı)",
     distance_sales: "Mesafeli hizmet sözleşmesi",
     pre_information: "Ön bilgilendirme formu",
+    early_performance: "Hizmete cayma süresi dolmadan başlanması talebi",
   },
   // IP14 (docs/bahce-yonetimi.md §8, §9).
   gardenRemovalStatus: {
@@ -174,6 +184,46 @@ export const billingText = {
   removalInitiatedBy: {
     customer: "Müşteri",
     ops: "Operasyon",
+  },
+  // T18 (docs/hukuk/kararlar.md H19, contract 8D/2–8D/3): the add-on
+  // breakdown (lib/billing/addon-breakdown.ts).
+  addonBreakdown: {
+    title: "Hesabın adımları",
+    days: "Kalan gün / dönemin toplam günü",
+    daysValue: (left: number, total: number) => `${left} / ${total}`,
+    rawVisits: "Ham sonuç",
+    rawVisitsValue: (perYear: number, left: number, total: number, raw: string) =>
+      `${perYear} × ${left} / ${total} = ${raw}`,
+    roundedVisits: "Yuvarlanmış ziyaret hakkı",
+    roundingExample: "Yuvarlama: 2,35 → 2; 2,5 → 3.",
+    visitAmount: "Ziyaret tutarı",
+    minimum: "Orantılı en az ücret",
+    charged: "Alınan",
+    basis: { visits: "ziyaret tutarı", minimum: "orantılı en az ücret" },
+    inventoryFee: "Envanter ücreti",
+    inventoryReason: {
+      new_garden: "yeni bahçe",
+      no_inventory: "bahçenin yayımlanmış envanteri yok",
+      inventory_expired: "son envanter 24 aydan eski",
+      ops_required: "yeni envanter gerekli",
+      inventory_reused: "son envanter yeniden kullanılıyor; ücret alınmaz",
+    },
+    vat: "KDV",
+    total: "Toplam",
+    fullYear: "Aynı bahçenin tam yıllık bedeli",
+    priceList: "Fiyat listesi",
+    windows: "Dönemde kalan ziyaret pencereleri",
+    noWindows: "Dönemde ziyaret penceresi kalmadı",
+    binding: "Bağlayıcı olan teklifteki toplamdır.",
+    exceedsWindows: (visits: number, windows: number) =>
+      `Ziyaret hakkı (${visits}) dönemde kalan ziyaret penceresi sayısını (${windows}) aşıyor. Başlangıç gününü ziyaret hakkı kalan pencereleri aşmayacak biçimde belirleyin (8D/2).`,
+  },
+  // T03 (docs/bahce-yonetimi.md §9): how a withdrawal notice arrived.
+  withdrawalChannel: {
+    portal: "Portal",
+    email: "E-posta",
+    kep: "KEP",
+    post: "Posta",
   },
   removalCancelledBy: {
     customer: "Müşteri",

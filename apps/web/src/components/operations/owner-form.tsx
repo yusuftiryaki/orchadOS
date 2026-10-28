@@ -9,6 +9,7 @@ import { EMPTY_FORM, type FormState } from "@/lib/operations/form-state";
 import { opsHref } from "@/lib/operations/urls";
 import { CONTACT_PREFERENCES } from "@/lib/operations/validation";
 import { Field, FormError } from "./field";
+import { KvkkVersionSelect } from "./kvkk-version-select";
 import styles from "./operations.module.css";
 
 const T = t.operations;
@@ -29,11 +30,14 @@ export function OwnerForm({
   profileId,
   initial,
   today,
+  kvkkVersions = [LEGAL_TEXT_VERSIONS.kvkk_notice],
 }: {
   orgs: { id: string; name: string }[];
   profileId?: string;
   initial?: OwnerFormValues;
   today: string;
+  // Registered KVKK notice versions, current first (T21).
+  kvkkVersions?: readonly string[];
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(
     profileId ? updateOwnerAction : createOwnerAction,
@@ -108,11 +112,10 @@ export function OwnerForm({
             hint={`${T.owners.kvkkTextVersionHint} ${LEGAL_TEXT_VERSIONS.kvkk_notice}`}
             error={err("kvkk_text_version")}
           >
-            <input
+            <KvkkVersionSelect
               name="kvkk_text_version"
-              defaultValue={
-                v("kvkk_text_version") || (profileId ? "" : LEGAL_TEXT_VERSIONS.kvkk_notice)
-              }
+              versions={kvkkVersions}
+              defaultValue={v("kvkk_text_version")}
             />
           </Field>
         </div>

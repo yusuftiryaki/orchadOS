@@ -11,19 +11,25 @@ export type ReportTemplate = "report_ready" | "critical_finding";
 // Customer account messages (docs/musteri-yonetimi.md §12): ref is the
 // document number (T-…, B-…, M-…, I-…, S-…). Garden removal messages
 // (docs/bahce-yonetimi.md §10) refer to the removal (C-…) and may name the
-// parcel; without its name the text says "bahçeniz".
+// parcel; without its name the text says "bahçeniz". withdrawal_received
+// confirms a withdrawal notice (C-…, kararlar.md H11 (c)); contract_ready
+// links the order's contract documents (S-…, H12); addon_order_closed tells
+// that an add-on order was cancelled because its period closed (S-…, 8D/6).
 export type GardenTemplate =
   | "garden_removal_scheduled"
   | "garden_removal_rescheduled"
   | "garden_removal_cancelled"
   | "garden_removal_completed"
-  | "garden_access_ending";
+  | "garden_access_ending"
+  | "withdrawal_received";
 export type AccountTemplate =
   | "quote_ready"
   | "application_rejected"
   | "payment_received"
   | "refund_completed"
   | "payment_reminder"
+  | "contract_ready"
+  | "addon_order_closed"
   | GardenTemplate;
 export type Template = ReportTemplate | AccountTemplate;
 
@@ -41,11 +47,14 @@ const ACCOUNT_REF_PREFIX: Record<AccountTemplate, string> = {
   payment_received: "M",
   refund_completed: "I",
   payment_reminder: "S",
+  contract_ready: "S",
+  addon_order_closed: "S",
   garden_removal_scheduled: "C",
   garden_removal_rescheduled: "C",
   garden_removal_cancelled: "C",
   garden_removal_completed: "C",
   garden_access_ending: "C",
+  withdrawal_received: "C",
 };
 
 const isAccountTemplate = (template: string): template is AccountTemplate =>
@@ -66,6 +75,10 @@ function renderAccount(template: AccountTemplate, ref: string, link: string, par
       return `${ref} numaralı iadeniz yapıldı; hesabınıza yansıması bankanıza göre birkaç gün sürebilir: ${link}`;
     case "payment_reminder":
       return `${ref} numaralı siparişinizin ödemesi bekleniyor: ${link}`;
+    case "contract_ready":
+      return `orchadOS: ${ref} numaralı siparişinizin sözleşmesi ve ön bilgilendirme formu portalınızda: ${link}`;
+    case "addon_order_closed":
+      return `orchadOS: ${ref} numaralı ek siparişiniz, hizmet dönemi kapandığı için iptal edildi. Ödediğiniz tutar 14 gün içinde aynı yöntemle, masrafsız iade edilir: ${link}`;
     case "garden_removal_scheduled":
       return `orchadOS: ${gardenOf} hizmetten çıkışı planlandı (${ref}). Çıkış tarihi ve ayrıntılar: ${link}`;
     case "garden_removal_rescheduled":
@@ -74,6 +87,8 @@ function renderAccount(template: AccountTemplate, ref: string, link: string, par
       return `orchadOS: ${garden} için çıkarma işlemi iptal edildi (${ref}); bahçeniz hizmette kalıyor. Ayrıntılar: ${link}`;
     case "garden_removal_completed":
       return `orchadOS: ${garden} hizmetten çıkarıldı (${ref}). Raporlarınız silinmedi; erişim süresi ve iade bilgisi: ${link}`;
+    case "withdrawal_received":
+      return `orchadOS: ${garden} için cayma bildiriminiz alındı (${ref}). İade ve ayrıntılar: ${link}`;
     case "garden_access_ending":
       return `orchadOS: hizmetten çıkan ${gardenOf} raporlarına erişim 7 gün sonra kapanacak (${ref}). Raporları indirmek için: ${link}`;
   }

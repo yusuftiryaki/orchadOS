@@ -7,6 +7,7 @@ import {
   rejectApplicationAction,
   withdrawGardenAction,
 } from "@/app/operasyon/back-office-actions";
+import { AddonPreviewNotes } from "@/components/back-office/addon-preview-notes";
 import { ActionForm } from "@/components/back-office/action-form";
 import { GardensMap } from "@/components/back-office/gardens-map";
 import {
@@ -367,11 +368,14 @@ export default async function Page({
               {addonError}
             </p>
           ) : addonPreview && "lines" in addonPreview ? (
-            <QuoteLines
-              testId="addon-preview"
-              lines={addonPreview.lines}
-              vatRateBp={addonPreview.lines[0]?.vat_rate_bp ?? 0}
-            />
+            <>
+              <QuoteLines
+                testId="addon-preview"
+                lines={addonPreview.lines}
+                vatRateBp={addonPreview.lines[0]?.vat_rate_bp ?? 0}
+              />
+              <AddonPreviewNotes lines={addonPreview.lines} />
+            </>
           ) : null}
           <form
             className={styles.inline}

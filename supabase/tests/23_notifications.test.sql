@@ -56,7 +56,8 @@ select enum_has_labels('public', 'notification_status', array['pending', 'sent',
 select enum_has_labels('public', 'notification_template',
   array['report_ready', 'critical_finding', 'quote_ready', 'application_rejected', 'payment_received',
         'refund_completed', 'payment_reminder', 'garden_removal_scheduled', 'garden_removal_rescheduled',
-        'garden_removal_cancelled', 'garden_removal_completed', 'garden_access_ending'],
+        'garden_removal_cancelled', 'garden_removal_completed', 'garden_access_ending',
+        'contract_ready', 'withdrawal_received', 'addon_order_closed'],
   'templates (reports, account and garden messages)');
 select has_trigger('public', 'session', 'session_notify_published', 'report trigger');
 select has_trigger('public', 'finding', 'finding_notify_critical', 'critical finding trigger');

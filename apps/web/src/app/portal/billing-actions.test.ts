@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   periods: [] as unknown[],
   draft: null as Record<string, unknown> | null,
   calls: [] as { fn: string; args: Record<string, unknown> }[],
+  rpcError: null as { message: string; code?: string } | null,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -29,7 +30,7 @@ vi.mock("@/lib/supabase/server", () => ({
       if (fn === "my_service_period") return { data: state.periods, error: null };
       state.calls.push({ fn, args });
       if (fn === "customer_create_application") return { data: APP, error: null };
-      return { data: null, error: null };
+      return { data: null, error: state.rpcError };
     },
     from: () => {
       const query = {
@@ -70,6 +71,7 @@ beforeEach(() => {
   state.periods = [];
   state.draft = null;
   state.calls = [];
+  state.rpcError = null;
 });
 
 describe("a member with garden changes closed", () => {
@@ -178,6 +180,15 @@ describe("setConsentAction", () => {
         args: { p_kind: kind, p_granted: false, p_text_version: "riza-v2-taslak" },
       },
     ]);
+  });
+
+  // T27: the database refuses an unasked consent too (consent_not_asked); the
+  // portal shows its own text for it.
+  it("shows consent_not_asked from the database as consent_unavailable", async () => {
+    state.rpcError = { message: "consent_not_asked", code: "P0001" };
+    expect(
+      await run(actions.setConsentAction, { kind: "explicit_marketing", granted: "false" }),
+    ).toBe("redirect /portal/hesap/izinler?hata=consent_unavailable");
   });
 
   it("rejects a kind that is not an optional consent", async () => {

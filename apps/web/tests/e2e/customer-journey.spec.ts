@@ -143,6 +143,9 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
 
   await page.getByLabel(/Ön Bilgilendirme Formu'nu okudum/).check();
   await page.getByLabel(/Mesafeli Hizmet Sözleşmesi'ni okudum/).check();
+  // T03: the early-performance box is optional and unchecked; accepted without it.
+  const early = page.getByTestId("quote-early-performance").getByRole("checkbox");
+  await expect(early).not.toBeChecked();
   await page.getByRole("button", { name: "Teklifi kabul et" }).click();
   await expect(page).toHaveURL(/\/portal\/siparis\/[0-9a-f-]{36}\?bilgi=teklif_kabul_edildi$/);
   await expect(page.getByTestId("order-status")).toHaveText("Ödeme bekleniyor");

@@ -187,7 +187,7 @@ export const portalBillingText = {
       beforeStart: "Hizmet başlamadan",
       period_end: "Dönem sonunda",
       withdrawal:
-        "Cayma hakkımı kullanıyorum: bahçe bugün hizmetten çıkar, ödediğiniz tutar iade edilir (yapılmış envanter ve ziyaretler hariç)",
+        "Cayma hakkımı kullanıyorum: bahçe bugün hizmetten çıkar, ödediğiniz tutar iade edilir (hizmete erken başlanmasını talep ettiyseniz yapılmış envanter ve ziyaretler hariç)",
     },
     effectiveOn: (date: string) => `Çıkış tarihi: ${date}`,
     refund: (amount: string) => `Tahmini iade: en fazla ${amount}`,
@@ -204,6 +204,11 @@ export const portalBillingText = {
     cancelHint: "Talebi çıkış tarihine kadar geri alabilirsiniz; bahçeniz hizmette kalır.",
     byOps: "Bu çıkarmayı ekibimiz başlattı; değişiklik için bize ulaşın.",
     closed: "Bahçe çıkarmak için bize ulaşın.",
+    // T03 (docs/hukuk/kararlar.md H10, H11 (c)).
+    withdrawalFormTitle: "Cayma hakkını kullan",
+    notWithdrawal: "Bu seçim cayma bildirimi değildir; cayma hakkınız sürüyor.",
+    withdrawalReceived: (number: string, date: string) =>
+      `Cayma bildiriminiz ${date ? `${date} tarihinde ` : ""}alındı (${number}). Teyit SMS ile de gönderildi.`,
     pending:
       "Bu bahçe ödeme bekleyen bir siparişte. Çıkarmak için önce o siparişi iptal edin ya da bahçe listesini değiştirin.",
     pendingLink: "Siparişe gidin",
@@ -345,6 +350,8 @@ export const portalBillingText = {
     positionSet: "Yer işaretlendi.",
     positionMissing: "Yer henüz işaretlenmedi.",
     boundaryArea: (m2: string, donum: string) => `Çizilen alan yaklaşık ${m2} m² (${donum} dönüm).`,
+    // Contract Md. 6/1, short form (T16).
+    boundaryCaption: "Fiili kullanım sınırı; tapu ya da kadastro sınırı değildir.",
     legal: "Yetki ve tapu",
     authorizationBasis: "Bahçe üzerindeki yetkiniz",
     authorizationValues: {
@@ -431,6 +438,25 @@ export const portalBillingText = {
     addonVisitsHint:
       "Ziyaret hakkı, üyeliğinizin kalan süresine göre yıllık ziyaret sayısından orantılanır.",
     inventoryIncluded: "envanter dahil",
+    // T21: the production gate (legal_gate_status) and the KVKK notice that
+    // must be a registered final version.
+    gateTitle: "Teklif şu anda onaylanamıyor",
+    gateReason: {
+      distance_sales_draft: "Mesafeli Hizmet Sözleşmesi henüz son hâlinde değil.",
+      pre_information_draft: "Ön Bilgilendirme Formu henüz son hâlinde değil.",
+      kvkk_notice_not_final:
+        "Aydınlatma metninin güncel sürümünü okuduğunuza dair kaydınız yok. Aşağıdan metni okuyup kaydedin.",
+      company_info_incomplete: "Şirket bilgileri henüz tamamlanmadı.",
+    },
+    gateHint: "Lütfen daha sonra yeniden deneyin; teklifiniz geçerlilik süresi boyunca açık kalır.",
+    kvkkCurrentBody:
+      "Aydınlatma metni güncellendi. Teklifi kabul etmeden önce güncel metni okuyup kaydedin.",
+    // T03 (H11 (a)): the optional early-performance box.
+    earlyPerformanceTitle: "Hizmetin başlangıcı (isteğe bağlı)",
+    earlyPerformanceHint:
+      "Bu kutu isteğe bağlıdır; işaretlemeseniz de teklifi kabul edebilirsiniz.",
+    // T18 (H19): the add-on breakdown.
+    breakdownLine: (garden: string) => `${garden}`,
   },
 
   orders: {
