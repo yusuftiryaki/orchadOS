@@ -1,12 +1,21 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { issueAddonQuoteAction, issueParcelQuoteAction } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
 import { AddonPreviewNotes } from "@/components/back-office/addon-preview-notes";
-import { BoResultNotice, Facts, Submit, Warning, day } from "@/components/back-office/parts";
+import { BoResultNotice, Facts, Warning, day, money } from "@/components/back-office/parts";
+import f from "@/components/back-office/quote-form.module.css";
+import q from "@/components/back-office/quote.module.css";
 import { QuoteLines } from "@/components/back-office/quote-lines";
 import { Field } from "@/components/operations/field";
 import styles from "@/components/operations/operations.module.css";
+import { Panel, Split } from "@/components/operations/ops-ui";
+import { Alert } from "@/components/ui/alert";
+import { Badge as UiBadge } from "@/components/ui/badge";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Checkbox } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
+import { Table, cell } from "@/components/ui/table";
 import { requireSection } from "@/lib/auth/session";
 import {
   getOrder,
@@ -80,6 +89,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Que
   let packageId: string | null = null;
   let start = today;
   let back: string;
+  let backLabel: string;
   let other: ParcelChoice[] = [];
   let addedAfterQuote = false;
   let merge: { orderId: string; number: string; end: string } | null = null;
@@ -105,6 +115,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Que
       .maybeSingle();
     packageId = data?.package_id ?? null;
     back = boHref.order(view.order.id);
+    backLabel = B.order.title(view.order.number);
     const choices = await renewalChoices(supabase, view);
     parcels = choices.parcels;
     other = choices.other;
@@ -120,6 +131,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Que
       .filter((p) => p.orgId === orgId)
       .map((p) => ({ ...p, checked: true }));
     back = boHref.customer(profile.id);
+    backLabel = B.account.title;
   } else {
     notFound();
   }
@@ -133,78 +145,137 @@ export default async function Page({ searchParams }: { searchParams: Promise<Que
 
   return (
     <main className="page">
-      <p>
-        <Link href={back}>← {B.back}</Link>
-      </p>
-      <h1>{renewal ? T.renewalTitle(renewal.number) : T.newTitle}</h1>
+      <PageHeader
+        title={renewal ? T.renewalTitle(renewal.number) : T.newTitle}
+        back={{ href: back, label: backLabel }}
+        lead={`${T.customer}: ${customerName ?? B.none}`}
+      />
       <BoResultNotice params={query} />
-      <p>
-        {T.customer}: <strong>{customerName ?? B.none}</strong>
-      </p>
       {addedAfterQuote && <Warning testId="renewal-added-after">{R.addedAfterQuote}</Warning>}
       {merge && renewal && (
-        <section className={styles.section} data-testid="renewal-merge">
+        <Alert tone="info" testId="renewal-merge">
           <p>{R.mergeHint(merge.number, day(merge.end))}</p>
-          <Link
-            className="button button-secondary"
-            href={boHref.newQuote({ ek: merge.orderId, siparis: renewal.id })}
-          >
-            {R.merge}
-          </Link>
-        </section>
+          <p>
+            <ButtonLink
+              variant="secondary"
+              size="sm"
+              href={boHref.newQuote({ ek: merge.orderId, siparis: renewal.id })}
+            >
+              {R.merge}
+            </ButtonLink>
+          </p>
+        </Alert>
       )}
       {all.length === 0 ? (
-        <p className="muted">{T.noParcels}</p>
+        <EmptyState title={T.noParcelsTitle}>
+          <p>{T.noParcels}</p>
+        </EmptyState>
       ) : (
-        <ActionForm action={issueParcelQuoteAction} testId="parcel-quote-form">
-          <input type="hidden" name="org_id" value={orgId} />
-          <input type="hidden" name="customer_user_id" value={customerUserId} />
-          {renewal && <input type="hidden" name="renewal_of_order_id" value={renewal.id} />}
-          <ParcelBoxes legend={T.parcels} parcels={parcels} />
-          {other.length > 0 && <ParcelBoxes legend={R.otherParcels} parcels={other} />}
-          <Field label={T.package}>
-            <select name="package_id" defaultValue={packageId ?? packages[0]?.id ?? ""} required>
-              {packages.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.periodic_visits_per_year})
-                </option>
-              ))}
-            </select>
-          </Field>
-          <label className={styles.check}>
-            <input type="checkbox" name="first_year" defaultChecked={!renewal} />
-            {T.firstYear}
-          </label>
-          <Field label={T.start} hint={T.startHint}>
-            <input type="date" name="proposed_service_start" defaultValue={start} required />
-          </Field>
-          <TermFields validDays={setting?.quote_valid_days ?? 30} />
-          <div className={styles.actions}>
-            <Submit>{T.submit}</Submit>
-          </div>
-        </ActionForm>
+        <div className={f.formColumn}>
+          <Panel title={T.formTitle}>
+            <ActionForm action={issueParcelQuoteAction} testId="parcel-quote-form">
+              <input type="hidden" name="org_id" value={orgId} />
+              <input type="hidden" name="customer_user_id" value={customerUserId} />
+              {renewal && <input type="hidden" name="renewal_of_order_id" value={renewal.id} />}
+              <ParcelTable legend={T.parcels} parcels={parcels} />
+              {other.length > 0 && <ParcelTable legend={R.otherParcels} parcels={other} />}
+              <div className={styles.grid}>
+                <Field label={T.package}>
+                  <select
+                    name="package_id"
+                    defaultValue={packageId ?? packages[0]?.id ?? ""}
+                    required
+                  >
+                    {packages.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({B.membership.visits(p.periodic_visits_per_year)})
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label={T.start} hint={renewal ? T.startHint : undefined}>
+                  <input type="date" name="proposed_service_start" defaultValue={start} required />
+                </Field>
+                <div className={styles.wide}>
+                  <Checkbox
+                    id="first_year"
+                    name="first_year"
+                    defaultChecked={!renewal}
+                    label={T.firstYear}
+                  />
+                </div>
+                <TermFields validDays={setting?.quote_valid_days ?? 30} />
+              </div>
+              <IssueFooter label={T.submit} />
+            </ActionForm>
+          </Panel>
+        </div>
       )}
     </main>
   );
 }
 
-function ParcelBoxes({ legend, parcels }: { legend: string; parcels: ParcelChoice[] }) {
+// The end of an issue form: what happens on issuing, the total when it is
+// known (the add-on preview), and the button.
+function IssueFooter({ label, total }: { label: string; total?: number }) {
   return (
-    <fieldset className={styles.fieldset}>
+    <div className={q.issue}>
+      {total != null && (
+        <p className={q.amount}>
+          {T.previewTotal} <strong>{money(total)}</strong>
+        </p>
+      )}
+      <p className={q.consequence}>{T.issueConsequence}</p>
+      <div className={q.actions}>
+        <Button type="submit">{label}</Button>
+      </div>
+    </div>
+  );
+}
+
+function ParcelTable({ legend, parcels }: { legend: string; parcels: ParcelChoice[] }) {
+  const notes = parcels.some((p) => p.note);
+  return (
+    <fieldset className={f.fieldset}>
       <legend>{legend}</legend>
-      {parcels.map((p) => (
-        <label key={p.id} className={styles.check} data-parcel-id={p.id}>
-          <input type="checkbox" name="parcel_ids" value={p.id} defaultChecked={p.checked} />
-          {p.name}
-          {p.areaM2 != null && <span className="muted"> · {formatDonum(Number(p.areaM2))}</span>}
-          {p.note && (
-            <span className={styles.badgeLate} data-testid="parcel-open-removal">
-              {" "}
-              {p.note}
-            </span>
-          )}
-        </label>
-      ))}
+      <Table>
+        <thead>
+          <tr>
+            <th>{T.parcel}</th>
+            <th className={cell.num}>{T.area}</th>
+            {notes && <th>{T.parcelNote}</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {parcels.map((p) => (
+            <tr key={p.id} data-parcel-id={p.id}>
+              <td>
+                <label className={f.choice}>
+                  <input
+                    type="checkbox"
+                    name="parcel_ids"
+                    value={p.id}
+                    defaultChecked={p.checked}
+                  />
+                  {p.name}
+                </label>
+              </td>
+              <td className={cell.num}>
+                {p.areaM2 != null ? formatDonum(Number(p.areaM2)) : B.none}
+              </td>
+              {notes && (
+                <td>
+                  {p.note && (
+                    <UiBadge tone="warning" testId="parcel-open-removal">
+                      {p.note}
+                    </UiBadge>
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </Table>
     </fieldset>
   );
 }
@@ -228,10 +299,10 @@ function TermFields({ validDays, discountBp }: { validDays: number; discountBp?:
           value={discountBp ? bpToPercent(discountBp) : ""}
         />
       )}
-      <Field label={T.discountNote} optional>
+      <Field label={T.discountNote} optional wide>
         <input name="discount_note" maxLength={500} />
       </Field>
-      <Field label={T.noteToCustomer} optional>
+      <Field label={T.noteToCustomer} optional wide>
         <textarea name="note_to_customer" maxLength={1000} rows={3} />
       </Field>
     </>
@@ -364,119 +435,133 @@ async function AddonQuote({
   const addonUntil =
     o.service_end && setting ? addDays(o.service_end, 1 - setting.addon_min_days) : null;
 
+  const previewLines = preview && "lines" in preview ? preview.lines : null;
+  const issue = (
+    <Panel title={A.submit} description={previewLines ? A.termsFromPreview : undefined}>
+      {previewLines ? (
+        <ActionForm action={issueAddonQuoteAction} testId="addon-quote-form">
+          <input type="hidden" name="base_order_id" value={o.id} />
+          {selected.map((id) => (
+            <input key={id} type="hidden" name="parcel_ids" value={id} />
+          ))}
+          {Object.entries(newInventory ?? {}).map(([id, reason]) => (
+            <input key={id} type="hidden" name={`new_inventory_${id}`} value={reason} />
+          ))}
+          {start && <input type="hidden" name="proposed_service_start" value={start} />}
+          <TermFields validDays={setting?.quote_valid_days ?? 30} discountBp={discountBp} />
+          <IssueFooter
+            label={A.submit}
+            total={previewLines.reduce((sum, l) => sum + Number(l.line_total_kurus), 0)}
+          />
+        </ActionForm>
+      ) : (
+        <p className="muted">{A.issueAfterPick}</p>
+      )}
+    </Panel>
+  );
+
   return (
     <main className="page">
-      <p>
-        <Link href={back}>← {B.back}</Link>
-      </p>
-      <h1>{A.newTitle(o.number)}</h1>
+      <PageHeader
+        title={A.newTitle(o.number)}
+        back={{ href: back, label: B.order.title(o.number) }}
+        lead={`${T.customer}: ${view.summary?.customer_name ?? B.none}`}
+      />
       <BoResultNotice params={query} />
-      <p>
-        {T.customer}: <strong>{view.summary?.customer_name ?? B.none}</strong>
-      </p>
       {!isBase ? (
-        <p className="muted" data-testid="addon-not-base">
-          {A.noMembership}
-        </p>
+        <Warning testId="addon-not-base">{A.noMembership}</Warning>
       ) : (
-        <>
-          <p className="muted">{A.hint}</p>
+        <Split aside={issue}>
           {from && <Warning testId="addon-merge">{A.mergeFrom(from.order.number)}</Warning>}
-          <Facts
-            rows={[
-              [A.period, `${day(o.service_start)} – ${day(o.service_end)}`],
-              [A.lastDay, day(addonUntil)],
-            ]}
-          />
-          <form className={styles.form} action="/operasyon/teklif/yeni" data-testid="addon-pick">
-            <input type="hidden" name="ek" value={o.id} />
-            {from && <input type="hidden" name="siparis" value={from.order.id} />}
-            <fieldset className={styles.fieldset}>
-              <legend>{T.parcels}</legend>
-              <p className={styles.hint}>{A.parcelsHint}</p>
-              {parcels.length === 0 && <p className="muted">{T.noParcels}</p>}
-              {parcels.map((p) => (
-                <label key={p.id} className={styles.check} data-parcel-id={p.id}>
-                  <input
-                    type="checkbox"
-                    name="parsel"
-                    value={p.id}
-                    defaultChecked={selected.includes(p.id)}
-                  />
-                  {p.name}
-                  {p.areaM2 != null && (
-                    <span className="muted"> · {formatDonum(Number(p.areaM2))}</span>
-                  )}
-                </label>
-              ))}
-            </fieldset>
-            {selected.length > 0 && (
-              <fieldset className={styles.fieldset} data-testid="addon-new-inventory">
-                <legend>{A.newInventory}</legend>
-                <p className={styles.hint}>{A.newInventoryHint}</p>
-                {parcels
-                  .filter((p) => selected.includes(p.id))
-                  .map((p) => (
-                    <Field key={p.id} label={p.name} optional>
-                      <input
-                        name={`envanter_${p.id}`}
-                        maxLength={300}
-                        defaultValue={newInventory?.[p.id] ?? ""}
-                      />
-                    </Field>
-                  ))}
+          <Panel title={A.pickTitle} description={A.hint}>
+            <Facts
+              rows={[
+                [A.period, `${day(o.service_start)} – ${day(o.service_end)}`],
+                [A.lastDay, day(addonUntil)],
+              ]}
+            />
+            <form className={styles.form} action="/operasyon/teklif/yeni" data-testid="addon-pick">
+              <input type="hidden" name="ek" value={o.id} />
+              {from && <input type="hidden" name="siparis" value={from.order.id} />}
+              <fieldset className={f.fieldset}>
+                <legend>{T.parcels}</legend>
+                <p className={q.consequence}>{A.parcelsHint}</p>
+                {parcels.length === 0 && <p className="muted">{T.noParcels}</p>}
+                {parcels.map((p) => (
+                  <label key={p.id} className={f.choice} data-parcel-id={p.id}>
+                    <input
+                      type="checkbox"
+                      name="parsel"
+                      value={p.id}
+                      defaultChecked={selected.includes(p.id)}
+                    />
+                    {p.name}
+                    {p.areaM2 != null && (
+                      <span className="muted">{formatDonum(Number(p.areaM2))}</span>
+                    )}
+                  </label>
+                ))}
               </fieldset>
-            )}
-            <Field label={T.start} optional>
-              <input type="date" name="baslangic" defaultValue={start ?? ""} />
-            </Field>
-            <Field label={B.fields.discount_percent} hint={T.discountHint} optional>
-              <input name="indirim" inputMode="decimal" defaultValue={bpToPercent(discountBp)} />
-            </Field>
-            <div className={styles.actions}>
-              <button className="button button-secondary" type="submit">
-                {A.previewButton}
-              </button>
-            </div>
-          </form>
+              {selected.length > 0 && (
+                <fieldset className={f.fieldset} data-testid="addon-new-inventory">
+                  <legend>{A.newInventory}</legend>
+                  <p className={q.consequence}>{A.newInventoryHint}</p>
+                  {parcels
+                    .filter((p) => selected.includes(p.id))
+                    .map((p) => (
+                      <Field key={p.id} label={p.name} optional>
+                        <input
+                          name={`envanter_${p.id}`}
+                          maxLength={300}
+                          defaultValue={newInventory?.[p.id] ?? ""}
+                        />
+                      </Field>
+                    ))}
+                </fieldset>
+              )}
+              <div className={q.inlineForm}>
+                <Field label={T.start} optional>
+                  <input type="date" name="baslangic" defaultValue={start ?? ""} />
+                </Field>
+                <Field label={B.fields.discount_percent} hint={T.discountHint} optional>
+                  <input
+                    name="indirim"
+                    inputMode="decimal"
+                    defaultValue={bpToPercent(discountBp)}
+                  />
+                </Field>
+              </div>
+              <div className={q.actions}>
+                <Button type="submit" variant="secondary">
+                  {A.previewButton}
+                </Button>
+              </div>
+            </form>
+          </Panel>
           {preview && "error" in preview && (
-            <p className="muted" data-testid="addon-preview-error">
-              {errorText(preview.error)}
-            </p>
+            <Warning testId="addon-preview-error">{errorText(preview.error)}</Warning>
           )}
-          {preview && "lines" in preview && (
-            <>
-              <h2>{A.preview}</h2>
-              {preview.lines[0] && (
-                <p>
-                  {A.service}: {day(preview.lines[0].service_start)} –{" "}
-                  {day(preview.lines[0].service_end)}
-                </p>
+          {previewLines && (
+            <Panel title={A.preview}>
+              {previewLines[0] && (
+                <Facts
+                  rows={[
+                    [
+                      A.service,
+                      `${day(previewLines[0].service_start)} – ${day(previewLines[0].service_end)}`,
+                    ],
+                  ]}
+                />
               )}
               <QuoteLines
                 testId="addon-preview"
-                lines={preview.lines}
-                vatRateBp={preview.lines[0]?.vat_rate_bp ?? 0}
+                lines={previewLines}
+                vatRateBp={previewLines[0]?.vat_rate_bp ?? 0}
               />
-              <AddonPreviewNotes lines={preview.lines} />
-              <ActionForm action={issueAddonQuoteAction} testId="addon-quote-form">
-                <input type="hidden" name="base_order_id" value={o.id} />
-                {selected.map((id) => (
-                  <input key={id} type="hidden" name="parcel_ids" value={id} />
-                ))}
-                {Object.entries(newInventory ?? {}).map(([id, reason]) => (
-                  <input key={id} type="hidden" name={`new_inventory_${id}`} value={reason} />
-                ))}
-                {start && <input type="hidden" name="proposed_service_start" value={start} />}
-                <p className="muted">{A.termsFromPreview}</p>
-                <TermFields validDays={setting?.quote_valid_days ?? 30} discountBp={discountBp} />
-                <div className={styles.actions}>
-                  <Submit>{A.submit}</Submit>
-                </div>
-              </ActionForm>
-            </>
+              <AddonPreviewNotes lines={previewLines} />
+            </Panel>
           )}
-        </>
+        </Split>
       )}
     </main>
   );

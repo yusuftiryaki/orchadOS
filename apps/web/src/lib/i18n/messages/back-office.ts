@@ -990,7 +990,7 @@ export const backOfficeText = {
     noMembership: "Bu sipariş bir üyeliğin temel siparişi değil ya da aktif değil.",
     previewButton: "Önizlemeyi güncelle",
     termsFromPreview:
-      "Başlangıç ve indirim yukarıdaki önizlemeden alınır; değiştirmek için önizlemeyi güncelleyin.",
+      "Başlangıç ve indirim ek teklif önizlemesinden alınır; değiştirmek için önizlemeyi güncelleyin.",
     issueBlocked: "Üyelik okunamadığı için teklif verilemez; sayfayı yenileyin.",
     info: "Ek teklif bilgisi",
     period: "Üyelik dönemi",
