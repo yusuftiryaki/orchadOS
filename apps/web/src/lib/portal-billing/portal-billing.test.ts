@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { hasKvkkNotice, latestConsents, liveCardAttempt } from "./data";
 import { clientIpOf, paymentStartError, returnOriginOf } from "./payments";
+import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { isValidTckn } from "./tckn";
 import { portalHref, readPortalResult, safeBackPath } from "./urls";
 import {
@@ -302,6 +303,25 @@ describe("portal addresses", () => {
     );
   });
 
+  it("reads the IP14 notices and builds parcel addresses", () => {
+    for (const bilgi of [
+      "cikarma_istendi",
+      "cikarma_geri_alindi",
+      "bahce_basvurudan_cikarildi",
+      "siparis_duzeltmeye_acildi",
+    ] as const) {
+      expect(readPortalResult({ bilgi }).notice).toBe(bilgi);
+      expect(P.notices[bilgi]).toBeTruthy();
+    }
+    expect(readPortalResult({ bildirim: "cikarma_istendi" }).notice).toBeNull();
+    expect(portalHref.parcel("p1", { bilgi: "cikarma_istendi" })).toBe(
+      "/portal/parsel/p1?bilgi=cikarma_istendi",
+    );
+    expect(portalHref.parcel("p1", { hata: "garden_removal_open" })).toBe(
+      "/portal/parsel/p1?hata=garden_removal_open",
+    );
+  });
+
   it("adds the return address to the billing profile link", () => {
     expect(portalHref.billing("/portal/teklif/abc")).toBe(
       "/portal/hesap/fatura?geri=%2Fportal%2Fteklif%2Fabc",
@@ -371,6 +391,13 @@ describe("payment start helpers", () => {
     );
     expect(await paymentStartError(err(503, { error: "payments_disabled" }))).toBe(
       "payments_disabled",
+    );
+    // IP14: a removal opened on one of the gardens, or a closed membership period.
+    expect(await paymentStartError(err(409, { error: "garden_removal_open" }))).toBe(
+      "garden_removal_open",
+    );
+    expect(await paymentStartError(err(409, { error: "addon_base_closed" }))).toBe(
+      "addon_base_closed",
     );
     expect(await paymentStartError(err(502, "x"))).toBe("provider_error");
     expect(await paymentStartError(err(500, { error: "failed" }))).toBe("write_failed");

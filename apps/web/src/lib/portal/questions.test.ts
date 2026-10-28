@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { filterThreads, openCount, parseQuestionFilter } from "@/lib/expert/questions";
-import { EDIT_WINDOW_MS, buildThreads, canEdit, parseBody } from "./questions";
+import { EDIT_WINDOW_MS, buildThreads, canEdit, parseBody, writeError } from "./questions";
 
 const NOW = Date.parse("2026-11-01T12:00:00Z");
 const ago = (min: number) => new Date(NOW - min * 60_000).toISOString();
@@ -96,5 +96,23 @@ describe("buildThreads", () => {
     expect(filterThreads(threads, "open").map((t) => t.id)).toEqual(["q3", "q2"]);
     expect(filterThreads(threads, "all")).toHaveLength(3);
     expect(openCount(threads)).toBe(2);
+  });
+});
+
+describe("write errors", () => {
+  it("maps the read-only guard of a removed garden (IP14)", () => {
+    // Not the generic "kaydedilemedi": the guard has its own text.
+    expect(writeError({ code: "P0001", message: "parcel_read_only" })).toEqual({
+      ok: false,
+      error: "parcel_read_only",
+    });
+    expect(writeError({ code: "42501", message: "demo_read_only" })).toEqual({
+      ok: false,
+      error: "demo_read_only",
+    });
+    expect(writeError({ code: "P0001", message: "other" })).toEqual({
+      ok: false,
+      error: "write_failed",
+    });
   });
 });

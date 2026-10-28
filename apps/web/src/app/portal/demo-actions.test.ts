@@ -55,6 +55,11 @@ function fullForm(): FormData {
     garden_id: ID,
     quote_id: ID,
     order_id: ID,
+    parcel_id: PARCEL,
+    removal_id: ID,
+    reason: "sold",
+    timing: "notice",
+    confirm: "on",
     distance_sales: "on",
     pre_information: "on",
     kvkk_notice: "on",
@@ -100,11 +105,13 @@ describe("demo visitor at the action layer", () => {
     ).toEqual([
       "approveBoundaryAction",
       "askQuestionAction",
+      "cancelGardenRemovalAction",
       "cancelInvitationAction",
       "editQuestionAction",
       "inviteViewerAction",
       "removeViewerAction",
       "replyQuestionAction",
+      "requestGardenRemovalAction",
     ]);
     expect(entries(billingActions).length).toBeGreaterThanOrEqual(14);
   });

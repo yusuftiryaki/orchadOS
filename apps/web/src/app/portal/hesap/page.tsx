@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ContactForm } from "@/components/portal-billing/contact-form";
+import { MembershipCard } from "@/components/portal-billing/membership-card";
+import { MyGardens } from "@/components/portal-billing/my-gardens";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import ops from "@/components/operations/operations.module.css";
 import styles from "@/components/portal/portal.module.css";
@@ -9,10 +11,15 @@ import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import {
   getBillingProfile,
   getContact,
+  getServicePeriods,
   listApplications,
+  listMyGardens,
+  listOrderedParcelIds,
   listOrders,
+  listOwnedParcelIds,
   listPayments,
 } from "@/lib/portal-billing/data";
+import { listParcels } from "@/lib/parcels";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
@@ -26,17 +33,63 @@ export default async function AccountPage({
 }) {
   const user = assertCustomer(await requireSection("portal"));
   const supabase = await createClient();
-  const [contact, profile, applications, orders, payments] = await Promise.all([
+  const [
+    contact,
+    profile,
+    applications,
+    orders,
+    payments,
+    periods,
+    gardens,
+    owned,
+    ordered,
+    parcels,
+  ] = await Promise.all([
     getContact(supabase),
     getBillingProfile(supabase),
     listApplications(supabase, user.id),
     listOrders(supabase, user.id),
     listPayments(supabase, user.id),
+    getServicePeriods(supabase),
+    listMyGardens(supabase),
+    listOwnedParcelIds(supabase, user.id),
+    listOrderedParcelIds(supabase, user.id),
+    listParcels(supabase),
   ]);
+  // IP14 (docs/bahce-yonetimi.md §11): the membership and the gardens. Owned
+  // parcels without a my_gardens row are pilot parcels when they were never
+  // on an order; otherwise their service is over (or not paid yet).
+  const period = periods.primary;
+  const changesEnabled = !!period?.garden_changes_enabled;
+  const inService = new Set(gardens.map((g) => g.parcel_id));
+  const ownedSet = new Set(owned);
+  const orderedSet = new Set(ordered);
+  const others = parcels.filter((p) => ownedSet.has(p.id) && !inService.has(p.id));
+  const pilot = others
+    .filter((p) => !orderedSet.has(p.id))
+    .map((p) => ({ id: p.id, name: p.name }));
+  const outOfService = others
+    .filter((p) => orderedSet.has(p.id))
+    .map((p) => ({ id: p.id, name: p.name }));
   return (
     <main className={styles.page}>
       <h1>{A.title}</h1>
       <PortalResult params={await searchParams} />
+
+      {period && (
+        <section className={styles.section}>
+          <MembershipCard period={period} as="div" />
+        </section>
+      )}
+      {(gardens.length > 0 || pilot.length > 0 || outOfService.length > 0 || period) && (
+        <MyGardens
+          gardens={gardens}
+          pilot={pilot}
+          outOfService={outOfService}
+          addHref={changesEnabled ? portalHref.newApplication() : null}
+          changesEnabled={changesEnabled}
+        />
+      )}
 
       <section className={styles.section}>
         <h2>{A.contactTitle}</h2>

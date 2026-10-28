@@ -8,6 +8,7 @@ import type { MetricSummaryRow } from "@/lib/portal/metrics";
 import { InventorySummaryView } from "@/components/office/inventory-summary";
 import { DemoNotice } from "@/components/demo/demo-notice";
 import { demoText } from "@/lib/i18n/messages/demo";
+import { portalBillingText } from "@/lib/i18n/messages/portal-billing";
 import type { BoundaryCard } from "@/lib/portal/boundary";
 import { BoundaryCardView } from "./boundary-card";
 import { Dimensions } from "./dimensions";
@@ -42,6 +43,8 @@ export function ParcelReportView({
   viewers,
   demo = false,
   pdfLimit = false,
+  serviceCard = null,
+  removedUntil = null,
 }: {
   report: ParcelReport;
   classFilter?: MarkerState[];
@@ -51,11 +54,15 @@ export function ParcelReportView({
   boundaryCard?: BoundaryCard | null;
   questions?: QuestionState;
   // Co-owners, for the parcel's owner only.
-  viewers?: { data: ParcelViewers; outcome?: string };
+  viewers?: { data: ParcelViewers; outcome?: string; readOnly?: boolean };
   // A demo visitor: the same report, its forms replaced by a notice.
   demo?: boolean;
   // A demo session over its PDF cap was sent back here.
   pdfLimit?: boolean;
+  // IP14: the paying owner's "Hizmet" card, and the last day the reports of
+  // a removed garden stay open (a band for everyone).
+  serviceCard?: React.ReactNode;
+  removedUntil?: string | null;
 }) {
   const base = `/portal/parsel/${report.parcel.id}`;
   return (
@@ -92,6 +99,12 @@ export function ParcelReportView({
         </div>
       </div>
       {pdfLimit && <DemoNotice text={demoText.closed.pdfLimit} />}
+      {removedUntil && (
+        <p className={styles.notice} role="status" data-testid="removed-band">
+          {portalBillingText.removal.removedBand(formatDate(removedUntil))}
+        </p>
+      )}
+      {serviceCard}
 
       {boundaryCard && (
         <BoundaryCardView parcelId={report.parcel.id} card={boundaryCard} demo={demo} />
@@ -153,6 +166,7 @@ export function ParcelReportView({
           viewers={viewers.data}
           outcome={viewers.outcome}
           demo={demo}
+          readOnly={viewers.readOnly}
         />
       )}
     </main>
@@ -458,9 +472,11 @@ function Questions({
         editAction={editQuestionAction}
         treeHref={(thread) => (thread.treeId ? `${base}/agac/${thread.treeId}` : null)}
         demo={questions.demo}
+        readOnly={questions.readOnly}
       />
       <AskQuestionForm
         demo={questions.demo}
+        readOnly={questions.readOnly}
         parcelId={report.parcel.id}
         treeId={null}
         returnPath={base}

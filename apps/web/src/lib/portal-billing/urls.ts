@@ -21,6 +21,11 @@ export const PORTAL_NOTICES = [
   "iletisim_kaydedildi",
   "izin_kaydedildi",
   "hesap_vardi",
+  // IP14 (docs/bahce-yonetimi.md §11).
+  "cikarma_istendi",
+  "cikarma_geri_alindi",
+  "bahce_basvurudan_cikarildi",
+  "siparis_duzeltmeye_acildi",
 ] as const;
 export type PortalNotice = (typeof PORTAL_NOTICES)[number];
 
@@ -82,6 +87,8 @@ export const portalHref = {
     return `${base}${base.includes("?") ? "&" : "?"}geri=${encodeURIComponent(back)}`;
   },
   consents: (r?: Result) => withResult("/portal/hesap/izinler", r),
+  // A parcel page; its service card (IP14) reads the result.
+  parcel: (id: string, r?: Result) => withResult(`/portal/parsel/${id}`, r),
   receipt: (paymentId: string) => `/makbuz/${paymentId}`,
 };
 

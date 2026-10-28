@@ -26,6 +26,8 @@ export interface QuestionState {
   error: string | null;
   // A demo visitor: threads without forms.
   demo?: boolean;
+  // IP14: a removed garden's reports are read-only (no forms, no notice).
+  readOnly?: boolean;
 }
 
 export function TreeCardView({ card, questions }: { card: TreeCard; questions: QuestionState }) {
@@ -213,9 +215,11 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
           replyAction={replyQuestionAction}
           editAction={editQuestionAction}
           demo={questions.demo}
+          readOnly={questions.readOnly}
         />
         <AskQuestionForm
           demo={questions.demo}
+          readOnly={questions.readOnly}
           parcelId={card.parcel.id}
           treeId={tree.id}
           returnPath={`${base}/agac/${tree.id}`}

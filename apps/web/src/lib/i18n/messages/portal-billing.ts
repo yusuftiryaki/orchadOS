@@ -25,6 +25,12 @@ const notices: Record<PortalNotice, string> = {
   izin_kaydedildi: "İzin tercihiniz kaydedildi.",
   hesap_vardi:
     "Bu bilgilerle zaten bir hesabınız vardı; oturumunuz o hesapla açıldı. İzinlerinizi buradan gözden geçirebilirsiniz.",
+  cikarma_istendi:
+    "Çıkarma talebiniz alındı. Bahçe çıkış tarihinde kendiliğinden hizmetten çıkar; o güne kadar talebi geri alabilirsiniz.",
+  cikarma_geri_alindi: "Çıkarma talebiniz geri alındı; bahçeniz hizmette kalıyor.",
+  bahce_basvurudan_cikarildi: "Bahçe başvurudan çıkarıldı.",
+  siparis_duzeltmeye_acildi:
+    "Sipariş iptal edildi ve başvurunuz düzeltmeye açıldı. Bahçe listesini değiştirin; ekibimiz yeni bir teklif hazırlayacak.",
 };
 
 const errors: Record<PortalError, string> = {
@@ -113,6 +119,104 @@ export const portalBillingText = {
   none: "—",
   donum: (text: string) => `${text} dönüm`,
 
+  // IP14 (docs/bahce-yonetimi.md §11). Dates are never followed by a case
+  // suffix: the wording puts them after a colon.
+  membership: {
+    title: "Üyeliğiniz",
+    package: "Paket",
+    serviceEnd: (date: string) => `Hizmet bitişi: ${date}`,
+    gardenCount: (n: number) => `${n} bahçe hizmette`,
+    nextPeriod: (date: string) => `Üyeliğiniz yenilendi · sonraki dönemin bitişi: ${date}`,
+    renewalReady: "Yenileme teklifiniz hazır",
+    renewalOpen: "Teklifi inceleyin",
+    multiPeriod:
+      "Birden fazla hizmet döneminiz var; yenileme zamanı geldiğinde ekibimiz bahçelerinizi tek döneme toplamayı önerecek.",
+    endedTitle: "Üyeliğiniz sona erdi",
+    endedBody:
+      "Bahçelerinizin hizmeti sona erdi; raporlarınız silinmedi. Yeniden hizmet almak için başvuru yapabilirsiniz.",
+    addTitle: "Bahçe ekle",
+    addBody:
+      "Üyeliğinize yeni bir bahçe ekleyin. Fiyat döneminizin kalan kısmına göre hesaplanır; yeni bahçenin hizmeti üyeliğinizle aynı gün biter.",
+    addButton: "Bahçe ekle",
+    band: (pkg: string, end: string) =>
+      `Ek bahçeleriniz ${pkg} paketiyle hizmet alır · Hizmet bitişi: ${end} · fiyat kalan döneme göre hesaplanır`,
+    accountGardens: "Hesabınızdaki bahçeler",
+    accountGardensEmpty: "Hesabınızda henüz bahçe yok.",
+    packageLocked: "Ek bahçeler üyeliğinizin paketiyle hizmet alır.",
+    packageUnavailable: "Ek bahçe için ekibimizle iletişime geçin.",
+    periodTooShort:
+      "Döneminizin bitmesine az kaldı; ek bahçeniz yenilemeyle başlayan yeni döneme eklenir.",
+    addonPreview: (start: string, end: string, visits: number, perYear: number) =>
+      `Hizmet dönemi: ${start} – ${end} · ziyaret hakkı ${visits}/${perYear}`,
+  },
+
+  gardens: {
+    title: "Bahçelerim",
+    lead: "Hizmet alan bahçeleriniz ve durumları.",
+    empty: "Hizmette bahçeniz yok.",
+    add: "Bahçe ekle",
+    remove: "Hizmetten çıkar",
+    open: "Bahçeyi aç",
+    inService: "Hizmette",
+    serviceEnd: (date: string) => `Hizmet bitişi: ${date}`,
+    leaving: (date: string) => `Çıkış tarihi: ${date}`,
+    removed: (date: string) => `Hizmet dışı · raporlar şu tarihe kadar açık: ${date}`,
+    upcoming: (date: string) => `Sonraki dönemde başlıyor: ${date}`,
+    pilotTitle: "Siparişsiz bahçeler",
+    pilotContact: "Bu bahçeyi çıkarmak için bize ulaşın",
+    outOfServiceTitle: "Hizmette olmayan bahçeler",
+    outOfService: "Hizmette değil",
+  },
+
+  removal: {
+    title: "Hizmet",
+    period: (start: string, end: string) => `Hizmet dönemi: ${start} – ${end}`,
+    visits: (used: number, entitled: number) => `Yapılan ziyaret: ${used}/${entitled}`,
+    withdrawalUntil: (date: string) => `Cayma hakkının son günü: ${date}`,
+    formTitle: "Bahçeyi hizmetten çıkar",
+    formLead:
+      "Bahçe çıkış tarihinde hizmetten çıkar ve planlı ziyaretleri iptal edilir. Raporlarınız silinmez; bir süre salt okunur açık kalır.",
+    reason: "Neden",
+    note: "Notunuz",
+    noteHint: "Ekibimizin bilmesini istedikleriniz (en fazla 1000 karakter).",
+    timing: "Ne zaman",
+    timings: {
+      // The days to the effective day (removal_notice_days, 30 by default).
+      notice: (days: number) => (days <= 0 ? "Bugün" : `${days} gün sonra`),
+      beforeStart: "Hizmet başlamadan",
+      period_end: "Dönem sonunda",
+      withdrawal:
+        "Cayma hakkımı kullanıyorum: bahçe bugün hizmetten çıkar, ödediğiniz tutar iade edilir (yapılmış envanter ve ziyaretler hariç)",
+    },
+    effectiveOn: (date: string) => `Çıkış tarihi: ${date}`,
+    refund: (amount: string) => `Tahmini iade: en fazla ${amount}`,
+    accessUntil: (date: string) => `Raporlar şu tarihe kadar açık: ${date}`,
+    refundNote:
+      "Tahmini iade bağlayıcı değildir; kesin tutar çıkış tarihinde hesaplanır ve ekibimiz işledikten sonra ödenir.",
+    confirm:
+      "Bahçenin seçtiğim tarihte hizmetten çıkacağını ve planlı ziyaretlerinin iptal edileceğini anladım.",
+    submit: "Bahçeyi hizmetten çıkar (raporlarınız silinmez)",
+    openTitle: (number: string) => `Çıkarma talebiniz: ${number}`,
+    status: "Durum",
+    cancel: "Talebi geri al",
+    cancelHint: "Talebi çıkış tarihine kadar geri alabilirsiniz; bahçeniz hizmette kalır.",
+    closed: "Bahçe çıkarmak için bize ulaşın.",
+    pending:
+      "Bu bahçe ödeme bekleyen bir siparişte. Çıkarmak için önce o siparişi iptal edin ya da bahçe listesini değiştirin.",
+    pendingLink: "Siparişe gidin",
+    removed: (number: string) => `Bahçe hizmetten çıkarıldı (${number}).`,
+    removedBand: (date: string) =>
+      `Bu bahçe hizmetten çıkarıldı. Raporlar şu tarihe kadar açık: ${date}`,
+    readOnlyQuestions: "Bu bahçe hizmetten çıkarıldı; raporları okuyabilirsiniz, soru sorulamaz.",
+    readOnlyViewers: "Bu bahçe hizmetten çıkarıldı; yeni hissedar davet edilemez.",
+    fieldErrors: {
+      reason: "Bir neden seçin.",
+      timing: "Bir çıkış zamanı seçin.",
+      confirm: "Devam etmek için onay kutusunu işaretleyin.",
+      note: "Not en fazla 1000 karakter olabilir.",
+    } as Record<string, string>,
+  },
+
   home: {
     title: "Hesabınız",
     ctaTitle: "Bahçenizi kaydedin",
@@ -156,6 +260,9 @@ export const portalBillingText = {
     submit: "Taslağı aç",
     noPackages: "Şu anda yayımlanmış bir fiyat listesi yok; başvuru açılamıyor.",
     existingDraft: "Açık bir taslağınız var; yeni başvuru yerine o açılacak.",
+    memberLead:
+      "Yeni bahçeniz üyeliğinize eklenir. Bahçelerinizi sonraki adımda eklersiniz; ekibimiz inceleyip size ek bahçe teklifi gönderir.",
+    memberSubmit: "Devam edin",
   },
 
   application: {
@@ -199,6 +306,10 @@ export const portalBillingText = {
     quotes: "Teklifler",
     openQuote: "Teklifi aç",
     incomplete: (field: string) => `Başvuruda eksik bilgi var: ${field}.`,
+    withdrawGarden: "Başvurudan çıkar",
+    withdrawGardenConfirm: "Bu bahçeyi başvurudan çıkar",
+    withdrawGardenHint: "Açık teklif varsa iptal olur; ekibimiz yeni teklif hazırlar.",
+    withdrawn: "Başvurudan çıkarıldı",
     incompleteFields: {
       package_id: "paket seçilmedi",
       gardens: "bahçe eklenmedi",
@@ -306,6 +417,14 @@ export const portalBillingText = {
     declineHint: "Reddedilen teklif kapanır; başvurunuz da geri çekilir.",
     closed: (status: string) => `Bu teklif kapandı: ${status}.`,
     order: "Siparişe git",
+    serviceEnd: "Hizmet bitişi",
+    serviceEndOnPayment: "ödeme gününden itibaren bir yıl",
+    servicePeriod: "Hizmet dönemi",
+    addonHeader: (end: string) => `Mevcut üyeliğinize ek bahçe teklifi · hizmet bitişi: ${end}`,
+    addonVisits: (visits: number, perYear: number) => `${visits}/${perYear}`,
+    addonVisitsHint:
+      "Ziyaret hakkı, üyeliğinizin kalan süresine göre yıllık ziyaret sayısından orantılanır.",
+    inventoryIncluded: "envanter dahil",
   },
 
   orders: {
@@ -355,6 +474,12 @@ export const portalBillingText = {
     payments: "Ödemeler",
     noPayments: "Bu sipariş için ödeme yok.",
     activeNote: "Siparişiniz aktif; bahçeleriniz “Bahçelerim” altında.",
+    addonNote: "Üyeliğinize eklenen bahçe",
+    reviseTitle: "Bahçe listesini değiştir",
+    reviseBody:
+      "Sipariş iptal edilir ve başvurunuz yeniden açılır. Bahçe çıkardıktan sonra ekibimiz yeni bir teklif hazırlar.",
+    reviseConfirm: "Siparişin iptal edileceğini anladım.",
+    revise: "Bahçe listesini değiştir (sipariş iptal edilir, yeni teklif hazırlanır)",
   },
 
   payments: {

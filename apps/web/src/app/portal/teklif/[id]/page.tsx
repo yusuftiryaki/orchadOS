@@ -16,6 +16,7 @@ import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { getBillingProfile, getConsents, getQuote, hasKvkkNotice } from "@/lib/portal-billing/data";
+import { addonInputsOf, quoteServiceEnd } from "@/lib/portal-billing/gardens";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
@@ -49,6 +50,11 @@ export default async function QuotePage({
   const kvkk = hasKvkkNotice(await getConsents(supabase, quote.org_id));
   const kvkkRecordable = profile?.orgId === quote.org_id;
   const currency = quote.currency;
+  // IP14 (docs/bahce-yonetimi.md §11): every quote says when the service
+  // ends; an add-on quote ends with the membership and prorates the visits.
+  const addon = quote.addon_of_order_id ? addonInputsOf(quote.inputs) : null;
+  const end = quoteServiceEnd(quote);
+  const serviceEnd = end ? formatDate(end) : Q.serviceEndOnPayment;
 
   return (
     <main className={styles.page} data-testid="quote" data-status={quote.status}>
@@ -58,6 +64,11 @@ export default async function QuotePage({
           {billingText.quoteStatus[quote.status]}
         </span>
       </div>
+      {addon && (
+        <p className={styles.notice} data-testid="quote-addon">
+          {Q.addonHeader(serviceEnd)}
+        </p>
+      )}
       <PortalResult params={await searchParams} />
       {!open && <p className={ops.notice}>{Q.closed(billingText.quoteStatus[quote.status])}</p>}
       {orderId && (
@@ -77,8 +88,20 @@ export default async function QuotePage({
             }`}
           </dd>
           <dt>{Q.validUntil}</dt>
-          <dd data-testid="quote-valid-until">{formatDate(quote.valid_until)}</dd>
-          {quote.proposed_service_start && (
+          <dd data-testid="quote-valid-until">
+            <strong>{formatDate(quote.valid_until)}</strong>
+          </dd>
+          {addon && (
+            <>
+              <dt>{Q.servicePeriod}</dt>
+              <dd data-testid="quote-addon-period">
+                {`${formatDate(addon.serviceStart)} – ${formatDate(addon.periodEnd)}`}
+              </dd>
+            </>
+          )}
+          <dt>{Q.serviceEnd}</dt>
+          <dd data-testid="quote-service-end">{serviceEnd}</dd>
+          {!addon && quote.proposed_service_start && (
             <>
               <dt>{Q.serviceStart}</dt>
               <dd>{formatDate(quote.proposed_service_start)}</dd>
@@ -112,9 +135,17 @@ export default async function QuotePage({
                         <span className="muted">{Q.minimumApplied}</span>
                       </>
                     )}
+                    {addon && item.inventory_fee_kurus > 0 && (
+                      <>
+                        <br />
+                        <span className="muted">{Q.inventoryIncluded}</span>
+                      </>
+                    )}
                   </td>
                   <td className={ops.number}>{formatDonum(Number(item.area_m2))}</td>
-                  <td className={ops.number}>{item.visits}</td>
+                  <td className={ops.number}>
+                    {addon ? Q.addonVisits(item.visits, addon.visitsPerYear) : item.visits}
+                  </td>
                   <td className={ops.number}>{formatKurus(item.unit_price_kurus, currency)}</td>
                   <td className={ops.number}>{formatKurus(item.inventory_fee_kurus, currency)}</td>
                   <td className={ops.number}>{formatKurus(item.line_base_kurus, currency)}</td>
@@ -141,6 +172,7 @@ export default async function QuotePage({
             {formatKurus(quote.total_kurus, currency)}
           </dd>
         </dl>
+        {addon && <p className="muted">{Q.addonVisitsHint}</p>}
         {quote.discount_note && (
           <p>
             <strong>{Q.discountNote}:</strong> {quote.discount_note}

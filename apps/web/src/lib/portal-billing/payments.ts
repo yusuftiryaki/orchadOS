@@ -37,6 +37,9 @@ const START_ERRORS: Record<string, PortalError> = {
   payment_in_progress: "payment_in_progress",
   provider_error: "provider_error",
   payments_disabled: "payments_disabled",
+  // IP14 (docs/bahce-yonetimi.md §9.6, payment_begin).
+  garden_removal_open: "garden_removal_open",
+  addon_base_closed: "addon_base_closed",
 };
 
 // The reason of a failed `payments` start: the function answers

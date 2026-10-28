@@ -1,0 +1,52 @@
+import type { CustomerGarden, ServicePeriod } from "@/lib/billing/types";
+
+// Rows of my_gardens and my_service_period for the unit tests (IP14).
+
+export const garden = (over: Partial<CustomerGarden> = {}): CustomerGarden => ({
+  order_item_id: "i1",
+  order_id: "o1",
+  order_number: "S-2026-000001",
+  base_order_id: "o1",
+  is_addon: false,
+  order_status: "active",
+  parcel_id: "p1",
+  garden_name: "Kuzey bahçe",
+  parcel_status: "registered",
+  state: "in_service",
+  service_start: "2026-11-01",
+  service_end: "2027-10-31",
+  removed_on: null as unknown as string,
+  visits_entitled: 4,
+  visits_used: 1,
+  withdrawal_until: "2026-11-15",
+  in_next_period: null as unknown as boolean,
+  next_order_item_id: null as unknown as string,
+  removal_id: null as unknown as string,
+  removal_number: null as unknown as string,
+  removal_status: null as unknown as CustomerGarden["removal_status"],
+  removal_effective_on: null as unknown as string,
+  access_until: null as unknown as string,
+  ...over,
+});
+
+export const period = (over: Partial<ServicePeriod> = {}): ServicePeriod => ({
+  org_id: "org",
+  base_order_id: "o1",
+  base_order_number: "S-2026-000001",
+  package_id: "pkg",
+  package_name: "Standart",
+  periodic_visits_per_year: 4,
+  period_start: "2026-11-01",
+  period_end: "2027-10-31",
+  next_base_order_id: null as unknown as string,
+  next_period_start: null as unknown as string,
+  next_period_end: null as unknown as string,
+  renewal_quote_id: null as unknown as string,
+  addon_base_order_id: "o1",
+  addon_until: "2027-10-02",
+  garden_count: 2,
+  garden_changes_enabled: true,
+  is_primary: true,
+  period_count: 1,
+  ...over,
+});
