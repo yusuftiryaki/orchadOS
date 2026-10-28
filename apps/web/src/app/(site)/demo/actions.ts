@@ -7,6 +7,7 @@ import { demoExitTarget } from "@/lib/demo/exit";
 import { requestDemoStart } from "@/lib/demo/start";
 import { siteFlags } from "@/lib/flags";
 import { formReader } from "@/lib/operations/validation";
+import { captchaRequired, captchaTokenOf } from "@/lib/site/captcha";
 import { clientIp } from "@/lib/site/client-ip";
 import { createClient } from "@/lib/supabase/server";
 import type { DemoStartState } from "./demo-state";
@@ -26,9 +27,9 @@ export async function startDemoAction(
   const user = await getSessionUser();
   if (user?.demo) redirect("/portal");
   if (user) return { status: "error", code: "signed_in" };
-  // Turnstile puts its token into this field of the surrounding form.
-  const captchaToken = formReader(form)("cf-turnstile-response") || null;
-  if (flags.turnstileSiteKey && !captchaToken) return { status: "error", code: "captcha_missing" };
+  // The widget puts its token into a field of the surrounding form.
+  const captchaToken = captchaTokenOf(formReader(form), flags.captchaProvider);
+  if (captchaRequired(flags) && !captchaToken) return { status: "error", code: "captcha_missing" };
 
   const result = await requestDemoStart({ captchaToken, clientIp: await clientIp() });
   if (!result.ok) return { status: "error", code: result.error };

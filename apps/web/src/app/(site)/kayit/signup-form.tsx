@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { cloneElement, useActionState, useEffect, useState } from "react";
 import { resendWaitSeconds } from "@/app/giris/login-methods";
-import { Turnstile } from "@/components/site/turnstile";
+import { CaptchaWidget } from "@/components/site/turnstile";
 import { siteText } from "@/lib/i18n/messages/site";
 import { isExplicitConsentAsked } from "@/lib/legal/consents";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
+import type { WebCaptchaProvider } from "@/lib/site/captcha";
 import type { SignupField } from "@/lib/signup/validation";
 import { signupAction } from "./actions";
 import { INITIAL_SIGNUP_STATE, type SignupState } from "./signup-state";
@@ -73,7 +74,13 @@ function TextField({
   );
 }
 
-export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey: string | null }) {
+export function SignupForm({
+  turnstileSiteKey,
+  captchaProvider,
+}: {
+  turnstileSiteKey: string | null;
+  captchaProvider?: WebCaptchaProvider;
+}) {
   const [state, action, pending] = useActionState(signupAction, INITIAL_SIGNUP_STATE);
   const wait = useResendWait(state.sentAt);
 
@@ -222,7 +229,12 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey: string | nu
         </p>
       </div>
 
-      {turnstileSiteKey && <Turnstile siteKey={turnstileSiteKey} resetKey={state} />}
+      <CaptchaWidget
+        provider={captchaProvider}
+        siteKey={turnstileSiteKey}
+        purpose="signup"
+        resetKey={state}
+      />
 
       {state.error && (
         <p role="alert" className={styles.error} data-testid="signup-error">

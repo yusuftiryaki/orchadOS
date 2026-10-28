@@ -288,6 +288,13 @@ export const siteText = {
       continue: "Devam et",
     },
   },
+  // Self-hosted robot check (docs/hukuk/kararlar.md H03, T12).
+  captcha: {
+    solving: "Robot doğrulaması yapılıyor…",
+    done: "Robot doğrulaması tamam.",
+    failed: "Robot doğrulaması başlatılamadı.",
+    retry: "Yeniden dene",
+  },
   login: {
     noAccount: "Hesabınız yok mu?",
     signup: "Kayıt olun",

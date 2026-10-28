@@ -425,6 +425,22 @@ locks $T '{"demo_users_outside":2}'
 if lock l8 shared $T; then bad "lock shared: a demo account outside the demo org fails"; else
   check "lock shared: a demo account outside the demo org fails" grep -q '2 demo account(s)' "$work/l8.lock"; fi
 
+# The self-hosted robot check (CAPTCHA_PROVIDER=altcha): its key replaces the
+# Turnstile secret; an unknown provider fails.
+locks $T '{"real_orgs":3,"enabled_demo_orgs":1,"cleanup_url":1,"cron_secret":1}'
+sec $T DEMO_SIGNUP_PROXY_SECRET demo-proxy-SECRET
+sec $T DEMO_TURNSTILE_SECRET_KEY 1x0000000000000000000000000000000AA
+sec $T DEMO_CAPTCHA_PROVIDER altcha
+if lock la1 shared $T; then bad "lock shared: altcha without DEMO_ALTCHA_HMAC_KEY fails"; else
+  check "lock shared: altcha without DEMO_ALTCHA_HMAC_KEY fails" grep -q 'DEMO_ALTCHA_HMAC_KEY secret is missing' "$work/la1.lock"; fi
+sec $T DEMO_ALTCHA_HMAC_KEY altcha-demo-SECRET-0123456789abcdef
+check "lock shared: altcha with its key passes; the Turnstile test key no longer counts" lock la2 shared $T
+sec $T DEMO_CAPTCHA_PROVIDER hcaptcha
+if lock la3 shared $T; then bad "lock shared: an unknown CAPTCHA_PROVIDER fails"; else
+  check "lock shared: an unknown CAPTCHA_PROVIDER fails" grep -q 'neither turnstile nor altcha' "$work/la3.lock"; fi
+ctl drop-secret "{\"ref\":\"$T\",\"name\":\"DEMO_CAPTCHA_PROVIDER\"}" >/dev/null
+sec $T DEMO_TURNSTILE_SECRET_KEY 0x4AAAAAAAlive-demo-SECRET
+
 # The separate demo project: strict.
 locks $D '{}'
 check "lock separate: a clean demo project passes" lock l9 separate $D
@@ -438,7 +454,7 @@ sec $D ORCHADOS_DEMO_MODE public
 sec $D TURNSTILE_SECRET_KEY 1x0000000000000000000000000000000AA
 if lock l12 separate $D; then bad "lock separate: a dummy Turnstile key fails"; else
   check "lock separate: a dummy Turnstile key fails" grep -q 'TURNSTILE_SECRET_KEY on .* is a Cloudflare test key' "$work/l12.lock"; fi
-check "lock: no secret value in the output" bash -c "! grep -qE 'sb-token-SECRET|(test|demo)-(hash|proxy|cron)-SECRET|live-demo-SECRET' '$work'/l*.lock"
+check "lock: no secret value in the output" bash -c "! grep -qE 'sb-token-SECRET|(test|demo)-(hash|proxy|cron)-SECRET|live-demo-SECRET|altcha-demo-SECRET' '$work'/l*.lock"
 
 # --- scripts/retention-check.sh -------------------------------------------------
 # retention NAME MODE REF: runs the check against the mock; output in $work/NAME.ret.

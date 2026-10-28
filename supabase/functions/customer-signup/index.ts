@@ -12,9 +12,11 @@
 //   client_ip?, captcha_token? }
 //   x-orchados-proxy-secret: SIGNUP_PROXY_SECRET (Next server only; then
 //   client_ip is trusted, otherwise cf-connecting-ip / x-forwarded-for)
-//   1. Validation; Turnstile. Without TURNSTILE_SECRET_KEY register is closed
-//      (503 signup_closed) unless SIGNUP_TURNSTILE_DISABLED=1 (local stack
-//      only, supabase/config.toml). Sign-ups are also closed while no org has
+//   1. Validation; the robot check (_shared/captcha.ts): CAPTCHA_PROVIDER
+//      turnstile (default, TURNSTILE_SECRET_KEY) or altcha (self-hosted proof
+//      of work, ALTCHA_HMAC_KEY). Without the chosen provider's key, or with
+//      an unknown provider, register is closed (503 signup_closed) unless
+//      SIGNUP_TURNSTILE_DISABLED=1 (local stack only, supabase/config.toml). Sign-ups are also closed while no org has
 //      accepts_signups (signup_register_attempt): that is the server-side
 //      switch; the web flag ORCHADOS_SIGNUP_ENABLED only hides /kayit.
 //   2. Rate limits: signup_register_attempt with HMAC-SHA256 (SIGNUP_HASH_SECRET)
@@ -38,6 +40,12 @@
 //   {error: "captcha_failed"} · 409 {error: "not_completed"}
 //   · 429 {error: "too_many_attempts"} · 503 {error: "signup_closed"} · 500 {error: "failed"}
 //
+// { "action": "challenge" }   CAPTCHA_PROVIDER=altcha only
+//   A signed proof-of-work challenge for the sign-up form (10 minutes; the
+//   Next server asks for it). 200 {algorithm, challenge, maxnumber, salt,
+//   signature} · 400 {error: "invalid_input", field: "action"} with another
+//   provider · 503 {error: "signup_closed"} without ALTCHA_HMAC_KEY
+//
 // { "action": "complete" }   Authorization: Bearer <the user's access token>
 //   After verifyOtp: the session must come from a phone code (amr otp/sms)
 //   with the phone confirmed; signup_complete then checks that the confirmed
@@ -55,8 +63,15 @@
 // No response and no log line carries a phone number, e-mail or password.
 
 import {
-  type AccountMatch,
+  captchaConfigured,
+  captchaEnv,
   captchaMode,
+  createAltchaChallenge,
+  SpentChallenges,
+  verifyCaptcha,
+} from "../_shared/captcha.ts";
+import {
+  type AccountMatch,
   clientIp,
   decideMatches,
   hmacHex,
@@ -76,24 +91,19 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const HASH_SECRET = Deno.env.get("SIGNUP_HASH_SECRET") ?? "";
 const PROXY_SECRET = Deno.env.get("SIGNUP_PROXY_SECRET") ?? "";
 const CRON_SECRET = Deno.env.get("ORCHADOS_CRON_SECRET") ?? "";
-const TURNSTILE_SECRET = Deno.env.get("TURNSTILE_SECRET_KEY") ?? "";
-const CAPTCHA = captchaMode(
-  TURNSTILE_SECRET,
-  Deno.env.get("SIGNUP_TURNSTILE_DISABLED"),
-);
+const CAPTCHA_ENV = captchaEnv((name) => Deno.env.get(name));
+const CAPTCHA = captchaMode(CAPTCHA_ENV, Deno.env.get("SIGNUP_TURNSTILE_DISABLED"));
+const spentChallenges = new SpentChallenges();
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
 }
 
-const error = (
-  code: string,
-  status: number,
-  extra: Record<string, string> = {},
-) => json({ error: code, ...extra }, status);
+const error = (code: string, status: number, extra: Record<string, string> = {}) =>
+  json({ error: code, ...extra }, status);
 
 const serviceHeaders = {
   apikey: SERVICE_ROLE_KEY,
@@ -120,31 +130,23 @@ async function deleteUser(id: string): Promise<void> {
     method: "DELETE",
     headers: serviceHeaders,
   });
-  if (!res.ok && res.status !== 404)
-    throw new Failure(`delete user failed with ${res.status}`);
+  if (!res.ok && res.status !== 404) throw new Failure(`delete user failed with ${res.status}`);
 }
 
-async function captchaPassed(
-  token: string | null,
-  ip: string | null,
-): Promise<boolean> {
-  if (CAPTCHA === "skip") return true;
-  if (!token) return false;
-  const form = new URLSearchParams({
-    secret: TURNSTILE_SECRET,
-    response: token,
+async function captchaPassed(token: string | null, ip: string | null): Promise<boolean> {
+  if (CAPTCHA === "skip" || (CAPTCHA === "optional" && !token)) return true;
+  return verifyCaptcha(CAPTCHA_ENV, token, {
+    purpose: "signup",
+    ip,
+    nowMs: Date.now(),
+    spent: spentChallenges,
   });
-  if (ip) form.set("remoteip", ip);
-  const res = await fetch(
-    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-    {
-      method: "POST",
-      body: form,
-    },
-  );
-  if (!res.ok) return false;
-  const result = await res.json();
-  return result?.success === true;
+}
+
+async function challenge(): Promise<Response> {
+  if (CAPTCHA_ENV.provider !== "altcha") return error("invalid_input", 400, { field: "action" });
+  if (!captchaConfigured(CAPTCHA_ENV)) return error("signup_closed", 503);
+  return json(await createAltchaChallenge(CAPTCHA_ENV.altchaKey, "signup", Date.now()));
 }
 
 type CreateResult = { kind: "created"; id: string } | { kind: "conflict" };
@@ -178,15 +180,12 @@ async function register(req: Request, body: unknown): Promise<Response> {
   if (!HASH_SECRET) throw new Failure("SIGNUP_HASH_SECRET is not set");
   if (CAPTCHA === "unconfigured") {
     // Fail closed: no sign-up without a captcha on a hosted project.
-    console.error(
-      "customer-signup: TURNSTILE_SECRET_KEY is not set; sign-ups refused",
-    );
+    console.error("customer-signup: the captcha provider is not configured; sign-ups refused");
     return error("signup_closed", 503);
   }
 
   const ip = clientIp(req.headers, input.clientIp, PROXY_SECRET);
-  if (!(await captchaPassed(input.captchaToken, ip)))
-    return error("captcha_failed", 400);
+  if (!(await captchaPassed(input.captchaToken, ip))) return error("captcha_failed", 400);
 
   const attempt = await rpc<string>("signup_register_attempt", {
     p_ip_hash: await hmacHex(HASH_SECRET, ip ?? "unknown"),
@@ -213,10 +212,8 @@ async function register(req: Request, body: unknown): Promise<Response> {
     });
     const decision = decideMatches(matches, Date.now());
     for (const id of decision.staleUserIds) await deleteUser(id);
-    if (decision.outcome === "send_code")
-      return answer(json({ next: "verify_phone" }));
-    if (decision.outcome === "conflict")
-      return answer(error("not_completed", 409));
+    if (decision.outcome === "send_code") return answer(json({ next: "verify_phone" }));
+    if (decision.outcome === "conflict") return answer(error("not_completed", 409));
 
     const created = await createAccount(input);
     if (created.kind === "conflict") continue;
@@ -255,8 +252,7 @@ async function complete(req: Request): Promise<Response> {
   if (isDemoClaims(claims)) return error("demo_read_only", 403);
 
   const codeAt = latestPhoneCodeAt(claims);
-  if (!user.phone_confirmed_at || codeAt === null)
-    return error("phone_not_verified", 403);
+  if (!user.phone_confirmed_at || codeAt === null) return error("phone_not_verified", 403);
   // signup_complete checks the rest in one transaction: a self sign-up whose
   // confirmed phone is the pending one, and a code newer than the pending row.
   const status = await rpc<string>("signup_complete", {
@@ -275,19 +271,13 @@ async function cleanup(req: Request): Promise<Response> {
   const now = Date.now();
   const expired: string[] = [];
   for (let page = 1; ; page++) {
-    const res = await fetch(
-      `${SUPABASE_URL}/auth/v1/admin/users?page=${page}&per_page=1000`,
-      {
-        headers: serviceHeaders,
-      },
-    );
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=${page}&per_page=1000`, {
+      headers: serviceHeaders,
+    });
     if (!res.ok) throw new Failure(`list users failed with ${res.status}`);
-    const users = ((await res.json())?.users ?? []) as Parameters<
-      typeof isExpiredUnverified
-    >[0][];
+    const users = ((await res.json())?.users ?? []) as Parameters<typeof isExpiredUnverified>[0][];
     for (const user of users) {
-      if (isExpiredUnverified(user, now))
-        expired.push(String((user as { id: unknown }).id));
+      if (isExpiredUnverified(user, now)) expired.push(String((user as { id: unknown }).id));
     }
     if (users.length < 1000) break;
   }
@@ -303,21 +293,16 @@ async function handle(req: Request): Promise<Response> {
   } catch {
     return error("invalid_input", 400, { field: "body" });
   }
-  const action =
-    body && typeof body === "object"
-      ? (body as { action?: unknown }).action
-      : null;
+  const action = body && typeof body === "object" ? (body as { action?: unknown }).action : null;
   try {
     if (action === "register") return await register(req, body);
     if (action === "complete") return await complete(req);
     if (action === "cleanup") return await cleanup(req);
+    if (action === "challenge") return await challenge();
     return error("invalid_input", 400, { field: "action" });
   } catch (cause) {
     // Status codes only; never the request body.
-    console.error(
-      "customer-signup:",
-      cause instanceof Error ? cause.message : "unknown error",
-    );
+    console.error("customer-signup:", cause instanceof Error ? cause.message : "unknown error");
     return error("failed", 500);
   }
 }

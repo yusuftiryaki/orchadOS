@@ -5,6 +5,7 @@ import { siteFlags } from "@/lib/flags";
 import { t } from "@/lib/i18n";
 import { siteText } from "@/lib/i18n/messages/site";
 import { maskPhone } from "@/lib/notifications/phone";
+import { captchaRequired, captchaTokenOf } from "@/lib/site/captcha";
 import { clientIp } from "@/lib/site/client-ip";
 import { formReader, normalizePhone } from "@/lib/operations/validation";
 import { completeSignup, registerCustomer } from "@/lib/signup/client";
@@ -91,9 +92,9 @@ async function register(previous: SignupState, form: FormData): Promise<SignupSt
     return { ...base, fieldErrors, error: s.formErrors };
   }
 
-  // Turnstile puts its token into this field of the surrounding form.
-  const captchaToken = formReader(form)("cf-turnstile-response") || null;
-  if (flags.turnstileSiteKey && !captchaToken) {
+  // The widget puts its token into a field of the surrounding form.
+  const captchaToken = captchaTokenOf(formReader(form), flags.captchaProvider);
+  if (captchaRequired(flags) && !captchaToken) {
     return { ...base, fieldErrors: {}, error: s.captchaMissing };
   }
 

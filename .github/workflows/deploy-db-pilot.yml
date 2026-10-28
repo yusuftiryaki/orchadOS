@@ -65,11 +65,14 @@ jobs:
 
       # Payment locks (docs/musteri-yonetimi.md §15, docs/deployment.md "Ödeme (İP12)"):
       # the pilot never runs the fake payment provider, and self-service signup
-      # is never open without Turnstile and its own secrets (customer-signup
+      # is never open without its robot check and its own secrets (customer-signup
       # needs SIGNUP_HASH_SECRET, and SIGNUP_PROXY_SECRET for the client IP;
-      # SIGNUP_TURNSTILE_DISABLED is local only). Read through the Management API with
-      # the access token: secret names (values are not returned in clear) and
-      # one read-only query. org_billing_setting may not exist yet (to_regclass).
+      # SIGNUP_TURNSTILE_DISABLED is local only). The robot check is Turnstile
+      # (TURNSTILE_SECRET_KEY) unless CAPTCHA_PROVIDER=altcha (ALTCHA_HMAC_KEY;
+      # docs/deployment.md › Robot doğrulaması); any other provider fails. Read
+      # through the Management API with the access token: secret names with the
+      # sha256 digest of each value (values are not returned in clear) and one
+      # read-only query. org_billing_setting may not exist yet (to_regclass).
       # Demo tour (docs/demo-turu.md §3.4, §15): the pilot never hosts the
       # demo, so it has no demo org, no ORCHADOS_DEMO_MODE and no demo-media
       # object (private.demo_org may not exist yet either).
@@ -79,7 +82,10 @@ jobs:
           set -euo pipefail
           api="https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF"
           auth="Authorization: Bearer $SUPABASE_ACCESS_TOKEN"
-          secrets=$(curl -fsS -H "$auth" "$api/secrets" | jq -r '.[].name')
+          secrets_json=$(curl -fsS -H "$auth" "$api/secrets")
+          secrets=$(jq -r '.[].name' <<<"$secrets_json")
+          provider=$(jq -r '.[] | select(.name == "CAPTCHA_PROVIDER") | .value // ""' <<<"$secrets_json")
+          sha() { printf '%s' "$1" | sha256sum | cut -d' ' -f1; }
           sql="select
             case when to_regclass('public.org_billing_setting') is null then 0
               else (xpath('/row/n/text()', query_to_xml(
@@ -116,8 +122,15 @@ jobs:
             echo "::error::SIGNUP_TURNSTILE_DISABLED is set on the pilot project; remove it (supabase secrets unset SIGNUP_TURNSTILE_DISABLED)."
             failed=1
           fi
+          captcha_key=TURNSTILE_SECRET_KEY
+          if [ "$provider" = "$(sha altcha)" ]; then
+            captcha_key=ALTCHA_HMAC_KEY
+          elif [ -n "$provider" ] && [ "$provider" != "$(sha turnstile)" ]; then
+            echo "::error::CAPTCHA_PROVIDER on the pilot project is neither turnstile nor altcha; sign-ups and the demo stay closed with it."
+            failed=1
+          fi
           if [ "$signup_orgs" != "0" ]; then
-            for name in TURNSTILE_SECRET_KEY SIGNUP_HASH_SECRET SIGNUP_PROXY_SECRET; do
+            for name in "$captcha_key" SIGNUP_HASH_SECRET SIGNUP_PROXY_SECRET; do
               if ! echo "$secrets" | grep -qx "$name"; then
                 echo "::error::accepts_signups is on but the $name secret is missing on the pilot project."
                 failed=1

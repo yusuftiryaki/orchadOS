@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { requestSignupCode } from "@/lib/billing/signup-code";
+import { altchaPayload, isAltchaChallenge, solveAltcha } from "@/lib/site/altcha-solver";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { ageSignups, purgeBillingUsers, purgeSignupAttempts } from "../local-db";
 import { anonClient, serviceClient } from "./fixtures";
@@ -402,5 +403,51 @@ describe("customer-signup", () => {
     expect(typeof res.json.deleted).toBe("number");
     // Younger than a day: kept.
     expect(await usersByEmail([String(input.email)])).toHaveLength(1);
+  });
+
+  // The self-hosted robot check (docs/hukuk/kararlar.md H03, T12). Locally
+  // CAPTCHA_PROVIDER=altcha with SIGNUP_TURNSTILE_DISABLED (supabase/config.toml):
+  // a sent token is checked, a missing one passes. Nothing goes to Cloudflare.
+  describe("self-hosted robot check", () => {
+    async function solvedToken(action = "customer-signup") {
+      const res = await fetch(`${inject("supabase").url}/functions/v1/${action}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "challenge" }),
+      });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      const challenge: unknown = await res.json();
+      if (!isAltchaChallenge(challenge)) throw new Error("not a challenge");
+      const number = await solveAltcha(challenge);
+      expect(number).not.toBeNull();
+      return altchaPayload(challenge, number!);
+    }
+
+    it("a solved challenge passes once; a replay, a forgery and a demo challenge fail", async () => {
+      const token = await solvedToken();
+      const ok = await signup(body({ captcha_token: token }), "203.0.113.60");
+      expect(ok).toEqual({ status: 200, json: { next: "verify_phone" } });
+
+      const replay = await signup(body({ captcha_token: token }), "203.0.113.61");
+      expect(replay).toEqual({ status: 400, json: { error: "captcha_failed" } });
+
+      const payload = JSON.parse(atob(await solvedToken()));
+      const forged = btoa(JSON.stringify({ ...payload, number: payload.number + 1 }));
+      expect(await signup(body({ captcha_token: forged }), "203.0.113.62")).toEqual({
+        status: 400,
+        json: { error: "captcha_failed" },
+      });
+      expect(await signup(body({ captcha_token: "garbage" }), "203.0.113.62")).toEqual({
+        status: 400,
+        json: { error: "captcha_failed" },
+      });
+
+      const demoToken = await solvedToken("demo-start");
+      expect(await signup(body({ captcha_token: demoToken }), "203.0.113.63")).toEqual({
+        status: 400,
+        json: { error: "captcha_failed" },
+      });
+    }, 40_000);
   });
 });
