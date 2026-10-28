@@ -1,0 +1,111 @@
+name: release-field
+
+# Pilot APK of the field app on every release of the field app: built in
+# release mode against the pilot Supabase project, signed with the fixed key and
+# attached to a GitHub release (kept, unlike CI artifacts). apps/field/README.md,
+# "Dağıtım". Run by hand on another branch, it only builds (a check of the
+# release build) and keeps the APK as a short-lived artifact.
+
+on:
+  push:
+    branches: [release]
+    paths:
+      - "apps/field/**"
+      - ".github/workflows/release-field.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: release-field
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  pilot-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/field
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        working-directory: .
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost \
+            /opt/hostedtoolcache/CodeQL /usr/local/lib/node_modules /usr/share/swift
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+
+      - name: Dependencies
+        run: flutter pub get
+
+      - name: Tests
+        run: flutter test
+
+      - name: Version
+        id: version
+        run: |
+          name=$(sed -n 's/^version: *\([0-9.]*\).*/\1/p' pubspec.yaml)
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "tag=saha-v$name-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build pilot APK
+        env:
+          SUPABASE_URL: ${{ secrets.PILOT_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.PILOT_SUPABASE_ANON_KEY }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ORCHADOS_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          required="SUPABASE_URL SUPABASE_ANON_KEY"
+          if [ "$GITHUB_REF" = refs/heads/release ]; then
+            required="$required KEYSTORE_BASE64 ORCHADOS_ANDROID_KEYSTORE_PASSWORD"
+          fi
+          for v in $required; do
+            if [ -z "${!v}" ]; then
+              echo "::error::$v is empty: PILOT_SUPABASE_URL, PILOT_SUPABASE_ANON_KEY, ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD secrets are required"
+              exit 1
+            fi
+          done
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/orchados.p12"
+            export ORCHADOS_ANDROID_KEYSTORE="$RUNNER_TEMP/orchados.p12"
+          fi
+          flutter build apk --release \
+            --build-name=${{ steps.version.outputs.name }} \
+            --build-number=${{ github.run_number }} \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_KEY="$SUPABASE_ANON_KEY"
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            build/app/outputs/flutter-apk/orchados-saha-pilot.apk
+
+      - name: Upload APK (check build)
+        if: github.ref != 'refs/heads/release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchados-saha-pilot-apk-check
+          path: apps/field/build/app/outputs/flutter-apk/orchados-saha-pilot.apk
+          retention-days: 3
+
+      - name: GitHub release
+        if: github.ref == 'refs/heads/release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release create "$TAG" build/app/outputs/flutter-apk/orchados-saha-pilot.apk \
+            --target "${{ github.sha }}" \
+            --title "Saha uygulaması ${{ steps.version.outputs.name }} (pilot, derleme ${{ github.run_number }})" \
+            --notes "Pilot Supabase projesine bağlı saha uygulaması. Commit: ${{ github.sha }}. Kurulum: apps/field/README.md, \"Dağıtım\"." \
+            --latest
