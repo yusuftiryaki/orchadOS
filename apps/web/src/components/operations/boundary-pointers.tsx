@@ -1,4 +1,5 @@
 import { Table, cell } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime, t } from "@/lib/i18n";
 import type { BoundaryPointer } from "@/lib/operations/legal";
 import { Panel } from "@/components/ui/panel";
@@ -13,7 +14,7 @@ export function BoundaryPointers({ pointers }: { pointers: BoundaryPointer[] }) 
   return (
     <Panel title={T.title} description={T.hint} testId="boundary-pointers">
       {pointers.length === 0 ? (
-        <p className="muted">{T.none}</p>
+        <EmptyState compact headingLevel={3} title={T.none} />
       ) : (
         <Table>
           <thead>

@@ -169,7 +169,7 @@ export const contractsText = {
     generate: "Belgeleri üret",
     generateAll: (n: number) => `Sıradakileri üret (${n})`,
     documentsTitle: "Sözleşme belgeleri",
-    documentsEmpty: "Bu sipariş için kayıtlı belge yok.",
+    documentsEmpty: "Bu sipariş için kayıtlı belge yok",
     copyHint:
       "Portal erişimi sona ermiş müşteriye talep halinde buradan indirilen kopya verilir (H12).",
     generator: "Üreten",

@@ -47,11 +47,12 @@ export default async function Page({
   );
   const today = todayIn(new Date());
   const shown = pageOf(rows, params.sayfa);
+  // "Tümü" first as on every list; open work stays the default (no ?durum).
   const filters = [
+    ["all", B.all],
     [null, T.open],
     ["completed", billingText.gardenRemovalStatus.completed],
     ["cancelled", billingText.gardenRemovalStatus.cancelled],
-    ["all", B.all],
   ] as const;
   const pageHref = (p: number) => {
     const base = boHref.removals({ durum: filter });

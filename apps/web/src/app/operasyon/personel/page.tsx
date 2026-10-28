@@ -51,7 +51,9 @@ export default async function Page({
               <th>{T.name}</th>
               <th>{T.titleField}</th>
               <th>{T.onReport}</th>
-              <th aria-label={T.save} />
+              <th>
+                <span className="sr-only">{T.saveColumn}</span>
+              </th>
             </tr>
           </thead>
           <tbody>

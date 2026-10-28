@@ -131,7 +131,8 @@ test("unpublished results stay hidden on the tree card", async ({ page }) => {
   const card = page.getByTestId("tree-card");
   await expect(card.getByTestId("tree-class")).toHaveText("Sağlıklı");
   await expect(card).toContainText("Bu ağaç için bulgu yok.");
-  await expect(card).not.toContainText("Kurumuş");
+  // The unpublished class "Kuru" and finding "Kuru ağaç"; "Kuru dal" is a metric name.
+  await expect(card).not.toContainText(/\bKuru\b(?! dal)/);
 });
 
 test("360° tour opens near the tree and walks to the next panorama", async ({ page }) => {

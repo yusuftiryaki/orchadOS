@@ -19,6 +19,7 @@ import {
 import { Field } from "@/components/operations/field";
 import ops from "@/components/operations/operations.module.css";
 import { Panel } from "@/components/ui/panel";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Split, Stack } from "@/components/ui/layout";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -204,7 +205,7 @@ export default async function Page({
           }
         >
           {refunds.length === 0 ? (
-            <p className="muted">{T.noRefunds}</p>
+            <EmptyState compact headingLevel={3} title={T.noRefunds} />
           ) : (
             <Table data-testid="removal-refunds">
               <thead>

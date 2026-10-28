@@ -331,23 +331,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.facts {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px var(--space-3);
-  margin: 0;
-  font-size: var(--text-sm);
-}
-
-.facts dt {
-  color: var(--color-muted);
-}
-
-.facts dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
 .warnings {
   margin: 0;
   padding-left: var(--space-3);

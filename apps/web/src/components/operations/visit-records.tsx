@@ -5,6 +5,8 @@ import {
   setMissedOutcomeAction,
 } from "@/app/operasyon/visit-record-actions";
 import { statusTone } from "@/components/ui/status";
+import { Disclosure } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -72,9 +74,7 @@ export function VisitRecords({
                   <td className={cell.num}>{formatDateTime(n.notified_at)}</td>
                   <td>
                     {n.status ? (
-                      <Badge tone={statusTone(n.status)}>
-                        {V.status[n.status] ?? n.status}
-                      </Badge>
+                      <Badge tone={statusTone(n.status)}>{V.status[n.status] ?? n.status}</Badge>
                     ) : (
                       "—"
                     )}
@@ -148,7 +148,7 @@ export function VisitRecords({
             : V.noWindow}
         </p>
         {records.missed.length === 0 ? (
-          <p className="muted">{V.missedNone}</p>
+          <EmptyState compact headingLevel={3} title={V.missedNone} />
         ) : (
           <ul className={styles.plainList}>
             {records.missed.map((m) => (
@@ -163,7 +163,7 @@ export function VisitRecords({
 
       <Panel title={V.fieldNoticesTitle} testId="field-notices">
         {fieldNotices.length === 0 ? (
-          <p className="muted">{V.fieldNoticesNone}</p>
+          <EmptyState compact headingLevel={3} title={V.fieldNoticesNone} />
         ) : (
           <Table>
             <thead>
@@ -314,12 +314,7 @@ function MissedForm({
         ? blocked.recordedAt.slice(0, 10)
         : today;
   return (
-    <details
-      data-testid="missed-visit-form"
-      open={!!blocked || undefined}
-      className={styles.disclosure}
-    >
-      <summary>{V.missedRecord}</summary>
+    <Disclosure testId="missed-visit-form" open={!!blocked} title={V.missedRecord}>
       {blocked && (
         <Alert tone="info" testId="missed-prefill">
           <p>
@@ -417,6 +412,6 @@ function MissedForm({
           <Button type="submit">{V.missedRecord}</Button>
         </div>
       </form>
-    </details>
+    </Disclosure>
   );
 }

@@ -5,6 +5,8 @@ import { Panel } from "@/components/ui/panel";
 import styles from "@/components/operations/operations.module.css";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { Consequence, Disclosure } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Table, cell } from "@/components/ui/table";
 import { addonBase, type CustomerAccount, type Membership } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
@@ -14,7 +16,6 @@ import { billingText } from "@/lib/i18n/messages/billing";
 import { ActionForm } from "./action-form";
 import { CustomerGardens, MembershipPanel } from "./membership";
 import { Badge, Facts, day, money, when } from "./parts";
-import local from "./customer-account.module.css";
 import { RevealIdentity } from "./reveal-identity";
 
 const B = backOfficeText;
@@ -62,7 +63,7 @@ export function CustomerAccountPanel({
 
       <Panel title={T.billingProfile}>
         {!p ? (
-          <p className="muted">{T.noBillingProfile}</p>
+          <EmptyState compact headingLevel={3} title={T.noBillingProfile} />
         ) : (
           <Facts
             testId="billing-profile"
@@ -101,7 +102,7 @@ export function CustomerAccountPanel({
 
       <Panel plain title={T.consents}>
         {account.consents.length === 0 ? (
-          <p className="muted">{T.noConsents}</p>
+          <EmptyState compact headingLevel={3} title={T.noConsents} />
         ) : (
           <Table data-testid="consent-history">
             <thead>
@@ -141,7 +142,7 @@ export function CustomerAccountPanel({
 
       <Panel plain title={T.applications}>
         {account.applications.length === 0 ? (
-          <p className="muted">{T.none}</p>
+          <EmptyState compact headingLevel={3} title={T.noApplications} />
         ) : (
           <Table>
             <thead>
@@ -170,7 +171,7 @@ export function CustomerAccountPanel({
 
       <Panel plain title={T.orders}>
         {account.orders.length === 0 ? (
-          <p className="muted">{T.none}</p>
+          <EmptyState compact headingLevel={3} title={T.noOrders} />
         ) : (
           <Table data-testid="customer-orders">
             <thead>
@@ -201,7 +202,7 @@ export function CustomerAccountPanel({
 
       <Panel plain title={T.payments}>
         {account.payments.length === 0 ? (
-          <p className="muted">{T.none}</p>
+          <EmptyState compact headingLevel={3} title={T.noPayments} />
         ) : (
           <Table>
             <thead>
@@ -260,10 +261,9 @@ export function RemoveAllGardens({
   );
   if (removable.length === 0) return null;
   return (
-    <Panel title={M.removeAll} description={M.removeAllHint} testId="remove-all-gardens">
-      <details className={local.disclosure}>
-        <summary>{T.removeAllOpen}</summary>
-        <ActionForm action={removeAllGardensAction} testId="remove-all-form">
+    <Disclosure title={M.removeAll} testId="remove-all-gardens">
+      <Consequence>{M.removeAllHint}</Consequence>
+      <ActionForm action={removeAllGardensAction} testId="remove-all-form">
           <input type="hidden" name="org_id" value={orgId} />
           <input type="hidden" name="user_id" value={userId} />
           <input type="hidden" name="setting_access_days" value={settingAccessDays} />
@@ -306,8 +306,7 @@ export function RemoveAllGardens({
               {M.removeAllSubmit}
             </Button>
           </div>
-        </ActionForm>
-      </details>
-    </Panel>
+      </ActionForm>
+    </Disclosure>
   );
 }

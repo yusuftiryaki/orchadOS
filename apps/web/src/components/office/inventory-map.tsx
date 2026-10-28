@@ -231,7 +231,11 @@ export function InventoryMap({
             "text-offset": [0, 1.2],
             visibility: "none",
           },
-          paint: { "text-color": MAP_COLORS.ink, "text-halo-color": MAP_COLORS.surface, "text-halo-width": 1.5 },
+          paint: {
+            "text-color": MAP_COLORS.ink,
+            "text-halo-color": MAP_COLORS.surface,
+            "text-halo-width": 1.5,
+          },
         });
         m.addLayer({
           id: "draft-line",

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CustomerAccountPanel, RemoveAllGardens } from "@/components/back-office/customer-account";
 import { Panel } from "@/components/ui/panel";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Split } from "@/components/ui/layout";
 import { OwnerForm } from "@/components/operations/owner-form";
 import { ResultNotice } from "@/components/operations/result-notice";
@@ -93,7 +94,7 @@ export default async function Page({
       >
         <Panel plain title={T.owners.parcelsTitle}>
           {access.length === 0 ? (
-            <p className="muted">{T.owners.noParcels}</p>
+            <EmptyState compact headingLevel={3} title={T.owners.noParcels} />
           ) : (
             <Table data-testid="owner-parcels">
               <thead>

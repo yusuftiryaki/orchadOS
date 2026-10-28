@@ -708,7 +708,9 @@ export function OfficeTool({
                       )}
                       {selected.moved && <Badge>{t.office.moved}</Badge>}
                     </div>
-                    <Facts rows={[[t.office.uncertainty, t.office.meters(fmt(selected.uncertaintyM))]]} />
+                    <Facts
+                      rows={[[t.office.uncertainty, t.office.meters(fmt(selected.uncertaintyM))]]}
+                    />
                     {selected.warnings.length > 0 && (
                       <Alert tone="warning">
                         <ul className={styles.warnings}>

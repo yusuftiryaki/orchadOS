@@ -235,7 +235,10 @@ test.describe("office triangulation tool", () => {
     const errors = collectErrors(page);
     await login(page, "ops@example.com", `/ofis/parsel/${PARCEL}`);
     await page.getByRole("link", { name: "Üçgenleme aracını aç" }).click();
-    await page.getByTestId("office-chooser").getByRole("button", { name: "Üçgenleme aracını aç" }).click();
+    await page
+      .getByTestId("office-chooser")
+      .getByRole("button", { name: "Üçgenleme aracını aç" })
+      .click();
     const map = page.getByTestId("office-map");
     await expect(map).toHaveAttribute("data-map-ready", "true", { timeout: 30_000 });
 

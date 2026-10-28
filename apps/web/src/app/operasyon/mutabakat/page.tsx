@@ -56,8 +56,8 @@ export default async function Page({
           <FilterTabs
             label={T.filterLabel}
             items={[
-              { href: opsHref.reconciliation(), label: T.open, current: !all },
               { href: opsHref.reconciliation({ durum: "all" }), label: T.all, current: all },
+              { href: opsHref.reconciliation(), label: T.open, current: !all },
             ]}
           />
         </Toolbar>

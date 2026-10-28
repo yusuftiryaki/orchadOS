@@ -14,6 +14,7 @@ import { ContractDocumentTable } from "@/components/contracts/document-list";
 import { GenerateResult } from "@/components/contracts/ops-parts";
 import { AuditTable } from "@/components/back-office/audit-table";
 import { statusTone } from "@/components/ui/status";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Badges } from "@/components/back-office/money-ui";
 import { Consequence, Disclosure } from "@/components/ui/disclosure";
 import {
@@ -549,7 +550,7 @@ export default async function Page({
 
         <Panel plain title={T.payments}>
           {payments.length === 0 ? (
-            <p className="muted">{T.noPayments}</p>
+            <EmptyState compact headingLevel={3} title={T.noPayments} />
           ) : (
             <Table data-testid="order-payments">
               <thead>
@@ -610,7 +611,7 @@ export default async function Page({
               </Alert>
             )}
             {documents.length === 0 ? (
-              <p className="muted">{C.ops.documentsEmpty}</p>
+              <EmptyState compact headingLevel={3} title={C.ops.documentsEmpty} />
             ) : (
               <ContractDocumentTable
                 documents={documents}

@@ -1,7 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import styles from "@/components/portal/portal.module.css";
+import layout from "@/components/portal/page.module.css";
 import { TourLoader } from "@/components/portal/tour-loader";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 import { getTour } from "@/lib/portal/data";
@@ -46,17 +47,15 @@ export default async function Page({
     : null;
 
   return (
-    <main className={styles.page}>
-      <p>
-        <Link href={`/portal/parsel/${parcelId}`}>
-          ← {t.portal.tour.back} ({data.parcel.name})
-        </Link>
-      </p>
-      <h1>{t.portal.tour.title}</h1>
+    <main className={layout.page}>
+      <PageHeader
+        title={t.portal.tour.title}
+        back={{ href: `/portal/parsel/${parcelId}`, label: data.parcel.name }}
+      />
       {data.panoramas.length === 0 ? (
-        <p className={styles.notice} data-testid="tour-empty">
-          {t.portal.tour.empty}
-        </p>
+        <EmptyState title={t.portal.tour.empty} testId="tour-empty">
+          <p>{t.portal.tour.emptyBody}</p>
+        </EmptyState>
       ) : (
         <TourLoader data={data} start={start} images={images} />
       )}

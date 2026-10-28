@@ -180,7 +180,7 @@ test("a viewer cannot approve the boundary; the owner does", async ({ page }) =>
   await login(page, T.users.viewer);
   await page.goto(`/portal/parsel/${T.parcel}`);
   let card = page.getByTestId("boundary-card");
-  await expect(card.getByTestId("boundary-source")).toContainText("Sürüm 2 · Saha ölçümü");
+  await expect(card.getByTestId("boundary-source")).toContainText("Sürüm 2, saha ölçümü");
   await expect(card.getByTestId("boundary-area")).toContainText("500 m²");
   await expect(card.getByTestId("boundary-area")).toContainText("0,5 dönüm");
   await expect(card).toContainText("resmi bir sınır belirlemez");

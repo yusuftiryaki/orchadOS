@@ -32,14 +32,14 @@ export function SiteFooter({ company }: { company?: CompanyFields | null }) {
           <p className="muted">{t.app.tagline}</p>
           {c ? (
             <div data-testid="footer-company">
-              <p className={styles.footerSmall}>{f.companyFilled(c)}</p>
-              <p className={styles.footerSmall}>{f.taxLine(c)}</p>
-              <p className={styles.footerSmall}>{f.contactFilled(c)}</p>
+              <FooterLine items={f.companyFilled(c)} />
+              <FooterLine items={f.taxLine(c)} />
+              <FooterLine items={f.contactFilled(c)} />
             </div>
           ) : (
             <>
-              <p className={styles.footerSmall}>{f.company}</p>
-              <p className={styles.footerSmall}>{f.contactLine}</p>
+              <FooterLine items={f.company} />
+              <FooterLine items={f.contactLine} />
             </>
           )}
         </div>
@@ -62,5 +62,16 @@ export function SiteFooter({ company }: { company?: CompanyFields | null }) {
       </div>
       <p className={`${styles.footerNote} ${styles.footerSmall}`}>{f.note}</p>
     </footer>
+  );
+}
+
+// One line of company facts: each fact its own item, wrapping as a whole.
+function FooterLine({ items }: { items: readonly string[] }) {
+  return (
+    <ul className={`${styles.footerSmall} ${styles.footerLine}`}>
+      {items.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ul>
   );
 }

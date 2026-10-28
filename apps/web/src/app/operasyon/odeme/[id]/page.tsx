@@ -10,6 +10,7 @@ import {
   EventDetails,
 } from "@/components/back-office/money-ui";
 import { Consequence, Disclosure } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Badge,
   BoResultNotice,
@@ -293,7 +294,7 @@ export default async function Page({
           }
         >
           {refunds.length === 0 ? (
-            <p className="muted">{B.refunds.empty}</p>
+            <EmptyState compact headingLevel={3} title={B.refunds.empty} />
           ) : (
             <Table data-testid="payment-refunds">
               <thead>
@@ -330,7 +331,7 @@ export default async function Page({
 
         <Panel plain title={T.events}>
           {events.length === 0 ? (
-            <p className="muted">{T.noEvents}</p>
+            <EmptyState compact headingLevel={3} title={T.noEvents} />
           ) : (
             <Table data-testid="payment-events">
               <thead>

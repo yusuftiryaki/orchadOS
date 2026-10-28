@@ -1,4 +1,6 @@
 import { Badge } from "@/components/ui/badge";
+import { Disclosure } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Table, cell } from "@/components/ui/table";
 import { countReasons, type CloseupItem, type CloseupReason } from "@/lib/expert/followups";
 import { formatNumber, t } from "@/lib/i18n";
@@ -31,10 +33,9 @@ export function CloseupList({ items }: { items: CloseupItem[] }) {
         </tbody>
       </Table>
       {items.length === 0 ? (
-        <p className="muted">{c.empty}</p>
+        <EmptyState compact headingLevel={3} title={c.empty} />
       ) : (
-        <details className={styles.disclosure}>
-          <summary>{c.count(items.length)}</summary>
+        <Disclosure title={c.count(items.length)}>
           <Table>
             <tbody>
               {items.map((item) => (
@@ -45,7 +46,7 @@ export function CloseupList({ items }: { items: CloseupItem[] }) {
               ))}
             </tbody>
           </Table>
-        </details>
+        </Disclosure>
       )}
     </Panel>
   );

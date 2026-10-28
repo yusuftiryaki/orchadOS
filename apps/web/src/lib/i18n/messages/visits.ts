@@ -39,7 +39,7 @@ export const visitsText = {
     missedTitle: "Yapılamayan ziyaret",
     missedLead:
       "Sözleşme 8A: Sahip kaynaklı engelde zaman damgalı fotoğraf ve not, aynı gün bildirim ve aynı pencerede yeni tarih zorunludur. Önerilen tarihte aynı nedenle yine yapılamazsa ziyaret yapılmış sayılır.",
-    missedNone: "Kayıt yok.",
+    missedNone: "Yapılamayan ziyaret kaydı yok",
     reasonLabel: "Neden",
     reason: {
       customer: "Sahip kaynaklı (8A/3)",
@@ -84,7 +84,7 @@ export const visitsText = {
     setOutcome: "Sonucu kaydet",
     deemedDone: "Yapılmış say (ikinci başarısız deneme)",
     fieldNoticesTitle: "Sahada bilgilendirme kayıtları",
-    fieldNoticesNone: "Kayıt yok.",
+    fieldNoticesNone: "Bilgilendirme kaydı yok",
     fieldNotice: {
       field_notice_sign: "Levha ve tanıtım kartı",
       field_notice_verbal: "Sözlü bilgilendirme",

@@ -132,7 +132,10 @@ test("robots.txt disallows everything while the site is not indexable", async ({
 
 test("login page links to sign-up", async ({ page }) => {
   await page.goto("/giris");
-  await page.getByTestId("login-signup-link").getByRole("link", { name: "Kayıt ol", exact: true }).click();
+  await page
+    .getByTestId("login-signup-link")
+    .getByRole("link", { name: "Kayıt ol", exact: true })
+    .click();
   await expect(page).toHaveURL("/kayit");
 });
 
