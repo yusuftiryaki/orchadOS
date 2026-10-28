@@ -28,7 +28,7 @@ Bu sözleşme, Sahip'in Ek-1'de listelenen bahçelerinin (her biri "Bahçe") Şi
 - **Rapor:** Ziyaret sonuçlarının portalda ve PDF olarak sunulan, uzman imzalı özeti: ağaç ağaç sınıflar, bulgular ve öneriler.
 - **Portal:** Sahip'in raporlara, haritaya, ağaç karnelerine ve görüntülere eriştiği web uygulaması.
 - **Metodoloji:** Değerlendirmede kullanılan, sürümü raporda belirtilen ölçek ve kurallar.
-- **Üyelik dönemi:** İlk siparişin (ya da yenilemenin) hizmet başlangıcından bitişine kadar geçen süre. Sahip'in bütün bahçelerinin hizmeti aynı gün biter.
+- **Üyelik dönemi:** İlk siparişin (ya da yenilemenin) hizmet başlangıcından bitişine kadar geçen süre. Ek siparişler temel siparişle aynı gün biter; böylece aynı üyelik dönemindeki bütün bahçelerin hizmeti aynı gün biter. Sahip'in birden fazla üyelik dönemi olabilir (örneğin teklifte ayrı dönem yazıyorsa); her dönem kendi bitiş gününe göre yürür (Madde 12/2).
 - **Ek sipariş:** Üyelik dönemi içinde yeni bir bahçe için verilen ve hizmeti üyelik döneminin bitiş gününde biten sipariş (Madde 8D).
 - **Ziyaret hakkı:** Bir bahçe için siparişte yazan periyodik ziyaret sayısı. Tam yıllık siparişte paketteki yıllık ziyaret sayısıdır; ek siparişte Madde 8D/2'ye göre hesaplanır.
 - **Çıkış günü:** Hizmetten çıkarılan bahçenin hizmette olmadığı ilk gün. Bahçenin son hizmet günü bir önceki gündür.
@@ -88,10 +88,10 @@ Bu ibare her raporda yer alır.
 
 ## Madde 8B – Cayma hakkı
 
-1. Sözleşme portalda kurulmuşsa Sahip, siparişin başladığı günden (ödemenin tamamlandığı gün) itibaren **14 gün** içinde hiçbir gerekçe göstermeden ve cezai şart ödemeden cayabilir. Sürenin son günü, başlangıç gününden 14 gün sonraki gündür ve süreye dahildir; örneğin 1 Mart'ta başlayan siparişte 15 Mart. Ek siparişin cayma süresi Madde 8D/7'dedir.
+1. Sözleşme portalda kurulmuşsa Sahip, ödemenin tamamlandığı (siparişin onaylanıp etkinleştiği) günden itibaren, hizmetin başlangıcı teklifte daha ileri bir gün olsa bile (örneğin yenilemede), **14 gün** içinde hiçbir gerekçe göstermeden ve cezai şart ödemeden cayabilir. Sürenin son günü, ödeme gününden 14 gün sonraki gündür ve süreye dahildir; örneğin ödemesi 1 Mart'ta tamamlanan siparişte 15 Mart. Ek siparişin cayma süresi Madde 8D/7'dedir.
 2. Cayma bildirimi portaldan, [e-posta] adresine ya da [KEP] adresine yazılı olarak yapılır. Süre içinde gönderilen bildirim yeterlidir.
 3. Şirket, cayma bildiriminin kendisine ulaştığı günden itibaren en geç **14 gün** içinde tahsil ettiği tutarın tamamını, ödemenin yapıldığı yöntemle ve Sahip'e bir masraf yüklemeden iade eder; 4. fıkradaki kesintiler saklıdır.
-4. **Hizmete cayma süresi içinde başlanması:** Sahip, envanter ziyaretinin ya da periyodik ziyaretlerin cayma süresi dolmadan yapılmasını açıkça isterse ve ziyaret yapılırsa, caymada yapılmış envanterin payı ve yapılmış periyodik ziyaretlerin bedeli (Madde 8A/2'deki ziyaret bedeliyle) iadeden düşülür [avukat: Mesafeli Sözleşmeler Yönetmeliği md. 15/1-ğ; düşme mi orantılı bedel mi; tüketicinin ön onayının biçimi]. Envanter payı, Madde 12/3'teki gibi hesaplanır.
+4. **Hizmete cayma süresi içinde başlanması:** Sahip, teklifi onaylayarak hizmete (envanter ve periyodik ziyaretler) cayma süresi dolmadan başlanmasını açıkça talep eder ve cayma halinde yapılmış envanterin ve yapılmış periyodik ziyaretlerin bedelinin iade edilmeyeceğini kabul eder. Bu nedenle caymada, envanter sayımı yapıldıysa envanterin payı ve yapılmış periyodik ziyaretlerin bedeli (Madde 8A/2'deki ziyaret bedeliyle) iadeden düşülür [avukat: Mesafeli Sözleşmeler Yönetmeliği md. 15/1-ğ; teklif onayının açık talep sayılıp sayılmayacağı; düşme mi orantılı bedel mi]. Envanter payı, Madde 12/3'teki gibi hesaplanır.
 5. **Tek bahçe için cayma:** Siparişte birden fazla Bahçe varsa Sahip cayma hakkını yalnızca bir Bahçe için de kullanabilir [avukat: çok bahçeli siparişte kısmi cayma]. Portalda Bahçe'yi hizmetten çıkarırken "Cayma hakkımı kullanıyorum" seçeneğini **açıkça** seçer. Bu seçenek yalnızca cayma süresi içinde gösterilir; Bahçe aynı gün hizmetten çıkar ve o Bahçe'nin satır tutarı 4. fıkradaki kesintilerle iade edilir. Madde 12/3'teki zamanlama seçenekleri ("30 gün sonra", "dönem sonunda") cayma bildirimi sayılmaz.
 6. Sahip tüketici değilse (tacir ya da şirket) bu madde uygulanmaz [avukat: tarım işletmesi sahibinin tüketici sayılıp sayılmayacağı].
 
@@ -104,7 +104,7 @@ Bu ibare her raporda yer alır.
 ## Madde 8D – Dönem içinde bahçe ekleme
 
 1. **Ek sipariş:** Sahip üyelik dönemi içinde portaldan yeni bir bahçe için başvurabilir. Şirket alanı ve konumu doğrular ve **ek teklif** verir. Ek teklif üyeliğin paketiyle ve teklif günü yürürlükte olan yayımlı fiyat listesiyle hesaplanır. Ek siparişin hizmeti, ödemenin tamamlandığı gün (teklifte daha ileri bir başlangıç günü yazıyorsa o gün) başlar ve üyelik döneminin bitiş gününde biter. Eklenen bahçe Ek-1'e girer ve sonraki yenileme teklifine dahil edilir.
-2. **Ziyaret hakkı:** Paketteki yıllık ziyaret sayısı, kalan günün dönemin toplam gününe oranıyla çarpılır. Kalan gün, hizmetin başladığı gün ile dönemin bitiş günü arasındaki gün sayısıdır (ikisi de dahil). Sonuç en yakın tam sayıya yuvarlanır, yarım yukarı yuvarlanır; en az 1, en çok yıllık ziyaret sayısıdır. Ziyaret hakkı ek teklifte yazılır.
+2. **Ziyaret hakkı:** Paketteki yıllık ziyaret sayısı, kalan günün dönemin toplam gününe oranıyla çarpılır. Kalan gün, ek teklifte yazan başlangıç günü (teklif gününden önce olamaz) ile dönemin bitiş günü arasındaki gün sayısıdır (ikisi de dahil). Sonuç en yakın tam sayıya yuvarlanır, yarım yukarı yuvarlanır; en az 1, en çok yıllık ziyaret sayısıdır. Ziyaret hakkı ek teklifte yazılır ve sabittir; ödeme daha sonraki bir gün yapılsa da değişmez.
 3. **Bedel:** Ziyaret tutarı, ziyaret hakkı × doğrulanan alan (dönüm) × paketin dönüm ve ziyaret başı birim fiyatıdır. Bahçe başına en az ücret aynı oranla (ziyaret hakkı ÷ yıllık ziyaret sayısı) orantılanır ve ikisinden büyük olanı alınır [avukat/fiyat: en az ücretin orantılanması]. Envanter ücreti, envanter tek seferlik bir iş olduğu için tam alınır; daha önce hizmetten çıkarılıp yeniden eklenen ve yayımlanmış envanteri bulunan bahçeden alınmaz. KDV ayrıca gösterilir.
 4. **Örnek** (bilgi amaçlıdır; tutarlar deneme fiyat listesinden alınmıştır, gerçek fiyat değildir):
     - Üyelik dönemi 1 Kasım 2026–31 Ekim 2027 (365 gün). Paket yılda 4 ziyaret; birim fiyat 125,00 TL (dönüm·ziyaret), bahçe başına en az ücret 5.000,00 TL, envanter ücreti 0, KDV %20.
@@ -112,7 +112,7 @@ Bu ibare her raporda yer alır.
     - Ziyaret tutarı 2 × 15 × 125,00 = 3.750,00 TL. Orantılı en az ücret 5.000,00 × 2 ÷ 4 = 2.500,00 TL; büyük olan 3.750,00 TL alınır. KDV dahil **4.500,00 TL**. Aynı bahçenin tam yıllık bedeli 9.000,00 TL olurdu.
 5. **Son ek günü:** Ek teklif, dönemin bitişine (bitiş günü dahil) en az [30] gün kalan son güne kadar geçerlidir; örnekte 2 Ekim 2027. Ek teklif en geç bu gün onaylanır ve ödenir; bu günden sonra onaylanamaz ve kartla ödenemez. Daha sonra gelen bahçe, yenileme ödenip yeni dönem başlayınca yeni döneme tam yıl olarak eklenir [avukat/fiyat: son ek günü ve [30] günlük süre].
 6. **Dönem kapanırsa:** Ödeme alındıktan sonra, ancak ek sipariş başlamadan önce üyelik dönemi sona ermiş ya da son ek günü geçmişse (örneğin geç kaydedilen bir havale ya da incelemede kalan bir kart ödemesi), ek sipariş başlamaz ve iptal edilir. Ödenen tutarın tamamı Madde 8B/3'teki gibi iade edilir.
-7. **Ek siparişin ödemesi ve cayma süresi:** Ek siparişin kendi ödemesi ve makbuzu vardır. Ek sipariş için cayma süresi, ek siparişin başladığı günden itibaren 14 gündür; son gün dahildir. Cayma Madde 8B'ye göre kullanılır [avukat: ek sipariş ayrı bir mesafeli sözleşme mi, bu sözleşmeye ek mi; cayma süresi başlangıç (aktivasyon) gününden mi, teklifin onaylandığı günden mi başlar].
+7. **Ek siparişin ödemesi ve cayma süresi:** Ek siparişin kendi ödemesi ve makbuzu vardır. Ek sipariş için cayma süresi, ek siparişin ödemesinin tamamlandığı (ek siparişin onaylanıp etkinleştiği) günden itibaren 14 gündür; teklifte daha ileri bir hizmet başlangıcı yazsa bile bu günden sayılır. Son gün dahildir. Cayma Madde 8B'ye göre kullanılır [avukat: ek sipariş ayrı bir mesafeli sözleşme mi, bu sözleşmeye ek mi; cayma süresi ödeme (etkinleşme) gününden mi, teklifin onaylandığı ya da hizmetin başladığı günden mi başlar].
 8. Ek sipariş, bu maddede yazılanlar dışında bu sözleşmenin hükümlerine tabidir.
 
 ## Madde 9 – Kişisel veriler ve gizlilik
@@ -141,7 +141,7 @@ Bu ibare her raporda yer alır.
 
 1. Sözleşme kurulduğu tarihten (portalda: ödemenin tamamlandığı günden) itibaren [1] yıl süreyle geçerlidir. Ek siparişler bu sürenin sonunda biter (Madde 8D).
 2. **Yenileme:** Hizmet yılı bitmeden en az [45] gün önce Şirket, Sahip'e portalda yenileme teklifi gönderir. Yeni dönemin fiyatı o gün yayımlı fiyat listesine göre hesaplanır.
-    - Yenileme teklifi, o gün hizmette olan **bütün bahçeleri**, ek siparişle eklenenler dahil, tek teklifte kapsar. Hizmetten çıkmakta olan bahçe yenilemeye girmez. Sahip'in iki ayrı üyelik dönemi varsa Şirket, yenileme zamanında bahçeleri ek teklifle tek döneme toplamayı önerebilir.
+    - Yenileme teklifi, o gün hizmette olan **bütün bahçeleri**, ek siparişle eklenenler dahil, tek teklifte kapsar. Hizmetten çıkmakta olan bahçe yenilemeye girmez. Sahip'in birden fazla üyelik dönemi varsa her dönemin yenileme teklifi ayrı verilir; Şirket, yenileme zamanında bahçeleri ek teklifle tek döneme toplamayı önerebilir.
     - Sözleşme **kendiliğinden uzamaz ve kart otomatik olarak çekilmez.** Sahip yenileme teklifini onaylayıp ödediğinde yeni hizmet yılı, önceki yılın bitişinin ertesi günü başlar.
     - Sahip yenileme teklifini onaylamazsa hizmet yılın sonunda biter ve 4. fıkra uygulanır.
     - [Avukat: kâğıt sözleşmedeki "bildirim yoksa aynı şartlarla uzar" hükmü korunacak mı; portal sözleşmesiyle uyumu.]
@@ -167,15 +167,15 @@ Bu ibare her raporda yer alır.
     - **Örnekler** (bilgi amaçlıdır):
         - Satır tutarı 12.000,00 TL (KDV dahil, envanter ücreti yok), ziyaret hakkı 4, yapılmış ziyaret 1. Ziyaret bedeli 3.000,00 TL; iade 3 × 3.000,00 = **9.000,00 TL** (KDV payı 1.500,00 TL).
         - Aynı satırda 1 ziyaret yapılmış, 1 ziyaret yapılamamış ve Madde 8A'ya göre 3.000,00 TL daha önce iade edilmiş. Hesap 3 × 3.000,00 = 9.000,00 TL; önceki iade 3.000,00 TL düşülür ve iade **6.000,00 TL** olur (KDV payı 1.000,00 TL). Toplam iade 9.000,00 TL'dir, yani yapılmamış üç ziyaretin bedeli.
-    - **İade yöntemi:** İade, çıkış gününden itibaren en geç [14] gün içinde ödemenin yapıldığı yöntemle yapılır ([İptal ve İade Politikası](iptal-iade-politikasi-taslagi.md)).
+    - **İade yöntemi:** İade hesabı çıkış gününde yapılır; iade, çıkış gününden itibaren en geç [14] gün içinde ödemenin yapıldığı yöntemle ödenir ([İptal ve İade Politikası](iptal-iade-politikasi-taslagi.md)). İadenin bir bahçeye ayrılamayan kısmı varsa Şirket iadeyi elle inceler; süre değişmez.
     - **Son bahçe:** Sahip'in son Bahçe'si hizmetten çıktığında sözleşme bütünüyle sona erer.
-4. **Sözleşme sona erdiğinde ya da bir Bahçe hizmetten çıkarıldığında:**
-    - Sahip ve davet ettiği hissedarlar, çıkış gününden (sözleşmenin sona erdiği günden) itibaren [90] gün boyunca Bahçe'nin raporlarını portalda **salt okunur** olarak görür ve indirebilir. Bu sürede soru sorulamaz ve yeni hissedar eklenemez. Bahçe'nin verileri silinmez [avukat: 90 günlük salt okunur erişim ve KVKK saklama süresi [X] ile ilişkisi].
-    - Erişimin bitmesinden 7 gün önce Sahip'e SMS ile hatırlatma gönderilir.
+4. **Bir Bahçe 3. fıkraya göre hizmetten çıkarıldığında** (son Bahçe'nin çıkmasıyla sözleşmenin sona ermesi dahil):
+    - Sahip ve davet ettiği hissedarlar, çıkış gününden itibaren [90] gün boyunca Bahçe'nin raporlarını portalda **salt okunur** olarak görür ve indirebilir. Bu sürede soru sorulamaz ve yeni hissedar eklenemez. Bahçe'nin verileri silinmez [avukat: 90 günlük salt okunur erişim ve KVKK saklama süresi [X] ile ilişkisi].
+    - Erişim süresi en az 14 gün ise, erişimin bitmesinden 7 gün önce Sahip'e SMS ile hatırlatma gönderilir.
     - Süre sonunda şu erişimler kaldırılır: Sahip'in kendi erişimi, Sahip'in davet ettiği hissedarların erişimi ve Bahçe'de başka bir sahip kalmıyorsa bütün hissedarların erişimi. Bahçe'de hizmet alan başka bir sahip varsa onun erişimi sürer; Şirket bütün erişimleri kaldırmaya karar verebilir [avukat: hissedarların ve diğer sahiplerin erişimi].
     - Bahçe'nin devrinde (satış) erişim süresi uygulanmaz ve erişim çıkış gününde kaldırılır. Daha kısa bir erişim süresi yalnızca devirde, mükerrer kayıtta ya da yazılı bir gerekçeyle uygulanır.
     - Sonrasında veriler, Aydınlatma Metni'ndeki sürelere göre silinir ya da anonim hale getirilir.
-    - [Avukat: yenilenmeyen ve süresi biten üyelikte erişimin dönem sonunda da kapanması gerekir mi? Sistem bugün yalnızca hizmetten çıkarılan bahçede erişimi kapatıyor.]
+    - [Avukat: yenilenmeyen ve süresi biten üyelikte ve Şirket'in siparişi idari olarak feshettiği durumda (bahçe çıkarma olmadan) erişimin de bu fıkraya göre kapanması gerekir mi? Sistem bugün yalnızca 3. fıkraya göre hizmetten çıkarılan bahçede erişimi salt okunur yapıp kapatıyor; diğer durumlarda erişim sürüyor.]
 
 ## Madde 13 – Mücbir sebep
 

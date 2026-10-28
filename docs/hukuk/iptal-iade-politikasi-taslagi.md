@@ -15,16 +15,16 @@
 
 ## 2. Cayma hakkı (14 gün)
 
-- Siparişinizin başladığı (ödemenin tamamlandığı) günden itibaren 14 gün içinde gerekçe göstermeden cayabilirsiniz. Son gün dahildir: 1 Mart'ta başlayan siparişte 15 Mart.
-- Üyeliğinize sonradan eklenen bahçenin siparişi (ek sipariş) için 14 gün, o siparişin başladığı günden sayılır [avukat: aktivasyon günü mü, kabul günü mü].
+- Ödemenin tamamlandığı (siparişinizin onaylanıp etkinleştiği) günden itibaren 14 gün içinde gerekçe göstermeden cayabilirsiniz. Hizmetin başlangıcı daha ileri bir gün olsa bile (örneğin yenilemede) süre ödeme gününden sayılır. Son gün dahildir: ödemesi 1 Mart'ta tamamlanan siparişte 15 Mart.
+- Üyeliğinize sonradan eklenen bahçenin siparişi (ek sipariş) için de 14 gün, o siparişin ödemesinin tamamlandığı günden sayılır [avukat: ödeme (etkinleşme) günü mü, kabul günü mü, hizmetin başladığı gün mü].
 - Bildirimi portaldan, [e-posta] ya da [KEP] adresine yazarak yaparsınız. Tek bir bahçe için cayma, bahçeyi hizmetten çıkarırken "Cayma hakkımı kullanıyorum" seçeneğiyle yapılır (5. bölüm).
 - Ödediğiniz tutar en geç 14 gün içinde iade edilir.
-- Sizin isteğinizle cayma süresi içinde envanter ya da periyodik ziyaret yapılmışsa, envanterin payı ve yapılmış ziyaretlerin bedeli iadeden düşülür [avukat: Yönetmelik md. 15/1-ğ; düşme mi orantılı bedel mi].
+- Teklifi onaylayarak hizmete cayma süresi içinde başlanmasını açıkça istemiş ve yapılmış hizmetin bedelinin iade edilmeyeceğini kabul etmiş olursunuz. Bu yüzden caymada, envanter sayımı yapıldıysa envanterin payı ve yapılmış periyodik ziyaretlerin bedeli iadeden düşülür [avukat: Yönetmelik md. 15/1-ğ; teklif onayı açık talep sayılır mı; düşme mi orantılı bedel mi].
 
 ## 3. Yapılamayan ziyaret
 
 - Hava ya da erişim nedeniyle yapılamayan ziyaret aynı pencere içinde yeniden planlanır.
-- Pencere içinde yapılamazsa o ziyaretin bedeli iade edilir ya da isterseniz sonraki pencereye aktarılır. Ziyaret bedeli: yıllık bedel (envanter hariç) ÷ yıllık ziyaret sayısı.
+- Pencere içinde yapılamazsa o ziyaretin bedeli iade edilir ya da isterseniz sonraki pencereye aktarılır. Ziyaret bedeli: bahçenin teklif satırındaki tutar (envanter payı hariç) ÷ satırdaki ziyaret hakkı. Tam yıllık siparişte bu, yıllık bedelin (envanter hariç) yıllık ziyaret sayısına bölünmesidir.
 - Sizden kaynaklanan nedenlerle (erişim sağlanmaması) yapılamayan ziyaret iade edilmez.
 - Bu yolla iade edilen ziyaret, bahçeyi daha sonra hizmetten çıkarırsanız oradaki iadeden düşülür; bir ziyaret iki kez iade edilmez.
 
@@ -46,9 +46,9 @@
 
 | Seçenek | Çıkış günü | İade |
 | --- | --- | --- |
-| 30 gün sonra (varsayılan) | Talepten [30] gün sonra; hizmet döneminiz daha önce bitiyorsa dönem sonunun ertesi günü | Kullanılmayan ziyaretler (aşağıda) |
-| Dönem sonunda | Hizmet döneminin bitişinin ertesi günü | Kullanılmayan ziyaretler; ödenmiş bir yenileme varsa yenilemenin tamamı |
-| Cayma hakkımı kullanıyorum | Bugün. Yalnızca cayma süresi içinde gösterilir ve açıkça seçilir | Bahçe için ödediğiniz tutar; yapılmış envanterin payı ve yapılmış ziyaretlerin bedeli düşülür |
+| 30 gün sonra (varsayılan) | Talepten [30] gün sonra; hizmet döneminiz daha önce bitiyorsa dönem sonunun ertesi günü | Kullanılmayan ziyaretler (aşağıda). Çıkış günü dönem sonunun ertesi gününe denk gelirse "Dönem sonunda" satırındaki gibi |
+| Dönem sonunda | Hizmet döneminin bitişinin ertesi günü | Bu dönem için çıkarma iadesi yoktur, çünkü bahçe dönemin sonuna kadar hizmette kalır. Dönem içinde yapılamayan ziyaretler yalnızca 3. bölüme göre iade edilir. Ödenmiş bir yenileme varsa yenilemenin tamamı iade edilir |
+| Cayma hakkımı kullanıyorum | Bugün. Yalnızca cayma süresi içinde gösterilir ve açıkça seçilir | Bahçe için ödediğiniz tutar; envanter sayımı yapıldıysa envanterin payı ve yapılmış ziyaretlerin bedeli düşülür (2. bölüm) |
 
 Ekibimiz çıkış tarihini teyit eder. Tarih yalnızca sizinle anlaşarak değiştirilir; değişiklik size SMS ile bildirilir.
 
@@ -58,7 +58,7 @@ Ekibimiz çıkış tarihini teyit eder. Tarih yalnızca sizinle anlaşarak deği
 - İade = kullanılmayan ziyaret × ziyaret bedeli; envanter yapılmadıysa envanter payı da iade edilir.
 - **Kullanılmış sayılan ziyaret:** çıkış gününden önce yapılmış periyodik ziyaretler. Bizim gerektirdiğimiz yeniden taramalar (görüntü kalitesi ya da kapsama için yapılan ek ziyaretler) sayılmaz. Aynı gün yapılmış iki tarama bir ziyaret sayılır.
 - **Önceki iadeler düşülür:** Bu bahçe için daha önce yapılmış iadeler, yapılamayan ziyaret iadeleri (3. bölüm) dahil, hesaptan düşülür.
-- Hizmet dönemi çıkış gününden önce bitmiş eski bir siparişin yapılamayan ziyaretleri bu iadeye girmez; onlar 3. bölüme göre iade edilir.
+- Hizmet dönemi çıkış gününden önce bitmiş bir siparişin, çıkış dönem sonuna denk geldiğinde içinde bulunduğunuz dönemin siparişi dahil, kullanılmayan ve yapılamayan ziyaretleri bu iadeye girmez; yapılamayan ziyaretler yalnızca 3. bölüme göre iade edilir.
 - Ödenmiş ama henüz başlamamış yenilemenin bu bahçeye düşen tutarı tamamen iade edilir.
 - Her iadede KDV payı ayrıca gösterilir.
 
@@ -66,7 +66,7 @@ Ekibimiz çıkış tarihini teyit eder. Tarih yalnızca sizinle anlaşarak deği
 - 12.000,00 TL'lik bahçe, 4 ziyaret hakkı, 1 ziyaret yapılmış: ziyaret bedeli 3.000,00 TL, iade **9.000,00 TL** (KDV payı 1.500,00 TL).
 - Aynı bahçede 1 ziyaret yapılmış, 1 ziyaret yapılamamış ve 3.000,00 TL daha önce iade edilmiş: hesap 9.000,00 TL, önceki iade düşülür, iade **6.000,00 TL**. Toplamda yapılmamış üç ziyaretin bedeli, 9.000,00 TL iade edilmiş olur.
 
-**İade nasıl ödenir?** İade, çıkış gününde açılır ve 6. bölümdeki gibi ödemenin yapıldığı yöntemle, en geç [14] gün içinde yapılır.
+**İade nasıl ödenir?** İade hesabı çıkış gününde yapılır. İade, 6. bölümdeki gibi ödemenin yapıldığı yöntemle, çıkış gününden itibaren en geç [14] gün içinde ödenir. Tutarın bir kısmı birden fazla bahçeye ayrılamıyorsa (örneğin bahçe ayrımı olmadan yapılmış bir önceki iade) iadeyi ekibimiz elle inceler; bu durumda da süre aynıdır.
 
 **Çıkıştan sonra**
 - Bahçenin planlı ziyaretleri iptal edilir. Çıkıştan önce yapılmış ziyaretlerin raporları yayımlanır. Verileriniz silinmez.
@@ -79,7 +79,7 @@ Ekibimiz çıkış tarihini teyit eder. Tarih yalnızca sizinle anlaşarak deği
 - Çıkış tarihi değiştiğinde.
 - Çıkarma biz tarafından iptal edildiğinde.
 - Bahçe hizmetten çıkarıldığında.
-- Raporlara erişim bitmeden 7 gün önce.
+- Raporlara erişim bitmeden 7 gün önce (erişim süresi en az 14 gün ise).
 - İade yapıldığında (6. bölüm).
 
 Bahçe çıkarma SMS'lerinde tarih, tutar ve neden yazmaz; ayrıntılar portaldadır.

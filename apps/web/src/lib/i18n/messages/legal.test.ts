@@ -67,6 +67,24 @@ describe("legal texts", () => {
     },
   );
 
+  // Consents keep the version they were given for, so every superseded
+  // version must still resolve to its text in docs/hukuk/arsiv/.
+  it.each(["distance_sales", "pre_information", "refund_policy"] as const)(
+    "archives every earlier version of %s",
+    (key) => {
+      const doc = legalText[key];
+      const [, prefix, current, suffix] = /^(.+)-v(\d+)(.*)$/.exec(LEGAL_TEXT_VERSIONS[key])!;
+      const file = doc.source.replace(/^docs\/hukuk\/(.+)\.md$/, "$1");
+      for (let v = 1; v < Number(current); v++) {
+        const archived = readFileSync(
+          new URL(`../../../../../../docs/hukuk/arsiv/${file}-v${v}.md`, import.meta.url),
+          "utf8",
+        );
+        expect(archived).toContain(`**Sürüm:** ${prefix}-v${v}${suffix} `);
+      }
+    },
+  );
+
   it("covers adding and removing gardens (IP14)", () => {
     const text = (key: keyof typeof legalText) => legalText[key].blocks.flatMap(texts).join("\n");
     expect(text("distance_sales")).toContain("Madde 8D – Dönem içinde bahçe ekleme");

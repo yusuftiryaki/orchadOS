@@ -361,7 +361,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
           "**Rapor:** Ziyaret sonuçlarının portalda ve PDF olarak sunulan, uzman imzalı özeti: ağaç ağaç sınıflar, bulgular ve öneriler.",
           "**Portal:** Sahip'in raporlara, haritaya, ağaç karnelerine ve görüntülere eriştiği web uygulaması.",
           "**Metodoloji:** Değerlendirmede kullanılan, sürümü raporda belirtilen ölçek ve kurallar.",
-          "**Üyelik dönemi:** İlk siparişin (ya da yenilemenin) hizmet başlangıcından bitişine kadar geçen süre. Sahip'in bütün bahçelerinin hizmeti aynı gün biter.",
+          "**Üyelik dönemi:** İlk siparişin (ya da yenilemenin) hizmet başlangıcından bitişine kadar geçen süre. Ek siparişler temel siparişle aynı gün biter; böylece aynı üyelik dönemindeki bütün bahçelerin hizmeti aynı gün biter. Sahip'in birden fazla üyelik dönemi olabilir (örneğin teklifte ayrı dönem yazıyorsa); her dönem kendi bitiş gününe göre yürür (Madde 12/2).",
           "**Ek sipariş:** Üyelik dönemi içinde yeni bir bahçe için verilen ve hizmeti üyelik döneminin bitiş gününde biten sipariş (Madde 8D).",
           "**Ziyaret hakkı:** Bir bahçe için siparişte yazan periyodik ziyaret sayısı. Tam yıllık siparişte paketteki yıllık ziyaret sayısıdır; ek siparişte Madde 8D/2'ye göre hesaplanır.",
           "**Çıkış günü:** Hizmetten çıkarılan bahçenin hizmette olmadığı ilk gün. Bahçenin son hizmet günü bir önceki gündür.",
@@ -448,10 +448,10 @@ export const legalText: Record<LegalText, LegalDocument> = {
       {
         kind: "ol",
         items: [
-          "Sözleşme portalda kurulmuşsa Sahip, siparişin başladığı günden (ödemenin tamamlandığı gün) itibaren **14 gün** içinde hiçbir gerekçe göstermeden ve cezai şart ödemeden cayabilir. Sürenin son günü, başlangıç gününden 14 gün sonraki gündür ve süreye dahildir; örneğin 1 Mart'ta başlayan siparişte 15 Mart. Ek siparişin cayma süresi Madde 8D/7'dedir.",
+          "Sözleşme portalda kurulmuşsa Sahip, ödemenin tamamlandığı (siparişin onaylanıp etkinleştiği) günden itibaren, hizmetin başlangıcı teklifte daha ileri bir gün olsa bile (örneğin yenilemede), **14 gün** içinde hiçbir gerekçe göstermeden ve cezai şart ödemeden cayabilir. Sürenin son günü, ödeme gününden 14 gün sonraki gündür ve süreye dahildir; örneğin ödemesi 1 Mart'ta tamamlanan siparişte 15 Mart. Ek siparişin cayma süresi Madde 8D/7'dedir.",
           "Cayma bildirimi portaldan, [e-posta] adresine ya da [KEP] adresine yazılı olarak yapılır. Süre içinde gönderilen bildirim yeterlidir.",
           "Şirket, cayma bildiriminin kendisine ulaştığı günden itibaren en geç **14 gün** içinde tahsil ettiği tutarın tamamını, ödemenin yapıldığı yöntemle ve Sahip'e bir masraf yüklemeden iade eder; 4. fıkradaki kesintiler saklıdır.",
-          "**Hizmete cayma süresi içinde başlanması:** Sahip, envanter ziyaretinin ya da periyodik ziyaretlerin cayma süresi dolmadan yapılmasını açıkça isterse ve ziyaret yapılırsa, caymada yapılmış envanterin payı ve yapılmış periyodik ziyaretlerin bedeli (Madde 8A/2'deki ziyaret bedeliyle) iadeden düşülür. Envanter payı, Madde 12/3'teki gibi hesaplanır.",
+          "**Hizmete cayma süresi içinde başlanması:** Sahip, teklifi onaylayarak hizmete (envanter ve periyodik ziyaretler) cayma süresi dolmadan başlanmasını açıkça talep eder ve cayma halinde yapılmış envanterin ve yapılmış periyodik ziyaretlerin bedelinin iade edilmeyeceğini kabul eder. Bu nedenle caymada, envanter sayımı yapıldıysa envanterin payı ve yapılmış periyodik ziyaretlerin bedeli (Madde 8A/2'deki ziyaret bedeliyle) iadeden düşülür. Envanter payı, Madde 12/3'teki gibi hesaplanır.",
           '**Tek bahçe için cayma:** Siparişte birden fazla Bahçe varsa Sahip cayma hakkını yalnızca bir Bahçe için de kullanabilir. Portalda Bahçe\'yi hizmetten çıkarırken "Cayma hakkımı kullanıyorum" seçeneğini **açıkça** seçer. Bu seçenek yalnızca cayma süresi içinde gösterilir; Bahçe aynı gün hizmetten çıkar ve o Bahçe\'nin satır tutarı 4. fıkradaki kesintilerle iade edilir. Madde 12/3\'teki zamanlama seçenekleri ("30 gün sonra", "dönem sonunda") cayma bildirimi sayılmaz.',
           "Sahip tüketici değilse (tacir ya da şirket) bu madde uygulanmaz.",
         ],
@@ -470,7 +470,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
         kind: "ol",
         items: [
           "**Ek sipariş:** Sahip üyelik dönemi içinde portaldan yeni bir bahçe için başvurabilir. Şirket alanı ve konumu doğrular ve **ek teklif** verir. Ek teklif üyeliğin paketiyle ve teklif günü yürürlükte olan yayımlı fiyat listesiyle hesaplanır. Ek siparişin hizmeti, ödemenin tamamlandığı gün (teklifte daha ileri bir başlangıç günü yazıyorsa o gün) başlar ve üyelik döneminin bitiş gününde biter. Eklenen bahçe Ek-1'e girer ve sonraki yenileme teklifine dahil edilir.",
-          "**Ziyaret hakkı:** Paketteki yıllık ziyaret sayısı, kalan günün dönemin toplam gününe oranıyla çarpılır. Kalan gün, hizmetin başladığı gün ile dönemin bitiş günü arasındaki gün sayısıdır (ikisi de dahil). Sonuç en yakın tam sayıya yuvarlanır, yarım yukarı yuvarlanır; en az 1, en çok yıllık ziyaret sayısıdır. Ziyaret hakkı ek teklifte yazılır.",
+          "**Ziyaret hakkı:** Paketteki yıllık ziyaret sayısı, kalan günün dönemin toplam gününe oranıyla çarpılır. Kalan gün, ek teklifte yazan başlangıç günü (teklif gününden önce olamaz) ile dönemin bitiş günü arasındaki gün sayısıdır (ikisi de dahil). Sonuç en yakın tam sayıya yuvarlanır, yarım yukarı yuvarlanır; en az 1, en çok yıllık ziyaret sayısıdır. Ziyaret hakkı ek teklifte yazılır ve sabittir; ödeme daha sonraki bir gün yapılsa da değişmez.",
           "**Bedel:** Ziyaret tutarı, ziyaret hakkı × doğrulanan alan (dönüm) × paketin dönüm ve ziyaret başı birim fiyatıdır. Bahçe başına en az ücret aynı oranla (ziyaret hakkı ÷ yıllık ziyaret sayısı) orantılanır ve ikisinden büyük olanı alınır. Envanter ücreti, envanter tek seferlik bir iş olduğu için tam alınır; daha önce hizmetten çıkarılıp yeniden eklenen ve yayımlanmış envanteri bulunan bahçeden alınmaz. KDV ayrıca gösterilir.",
           {
             text: "**Örnek** (bilgi amaçlıdır; tutarlar deneme fiyat listesinden alınmıştır, gerçek fiyat değildir):",
@@ -482,7 +482,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
           },
           "**Son ek günü:** Ek teklif, dönemin bitişine (bitiş günü dahil) en az [30] gün kalan son güne kadar geçerlidir; örnekte 2 Ekim 2027. Ek teklif en geç bu gün onaylanır ve ödenir; bu günden sonra onaylanamaz ve kartla ödenemez. Daha sonra gelen bahçe, yenileme ödenip yeni dönem başlayınca yeni döneme tam yıl olarak eklenir.",
           "**Dönem kapanırsa:** Ödeme alındıktan sonra, ancak ek sipariş başlamadan önce üyelik dönemi sona ermiş ya da son ek günü geçmişse (örneğin geç kaydedilen bir havale ya da incelemede kalan bir kart ödemesi), ek sipariş başlamaz ve iptal edilir. Ödenen tutarın tamamı Madde 8B/3'teki gibi iade edilir.",
-          "**Ek siparişin ödemesi ve cayma süresi:** Ek siparişin kendi ödemesi ve makbuzu vardır. Ek sipariş için cayma süresi, ek siparişin başladığı günden itibaren 14 gündür; son gün dahildir. Cayma Madde 8B'ye göre kullanılır.",
+          "**Ek siparişin ödemesi ve cayma süresi:** Ek siparişin kendi ödemesi ve makbuzu vardır. Ek sipariş için cayma süresi, ek siparişin ödemesinin tamamlandığı (ek siparişin onaylanıp etkinleştiği) günden itibaren 14 gündür; teklifte daha ileri bir hizmet başlangıcı yazsa bile bu günden sayılır. Son gün dahildir. Cayma Madde 8B'ye göre kullanılır.",
           "Ek sipariş, bu maddede yazılanlar dışında bu sözleşmenin hükümlerine tabidir.",
         ],
       },
@@ -529,7 +529,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
           {
             text: "**Yenileme:** Hizmet yılı bitmeden en az [45] gün önce Şirket, Sahip'e portalda yenileme teklifi gönderir. Yeni dönemin fiyatı o gün yayımlı fiyat listesine göre hesaplanır.",
             children: [
-              "Yenileme teklifi, o gün hizmette olan **bütün bahçeleri**, ek siparişle eklenenler dahil, tek teklifte kapsar. Hizmetten çıkmakta olan bahçe yenilemeye girmez. Sahip'in iki ayrı üyelik dönemi varsa Şirket, yenileme zamanında bahçeleri ek teklifle tek döneme toplamayı önerebilir.",
+              "Yenileme teklifi, o gün hizmette olan **bütün bahçeleri**, ek siparişle eklenenler dahil, tek teklifte kapsar. Hizmetten çıkmakta olan bahçe yenilemeye girmez. Sahip'in birden fazla üyelik dönemi varsa her dönemin yenileme teklifi ayrı verilir; Şirket, yenileme zamanında bahçeleri ek teklifle tek döneme toplamayı önerebilir.",
               "Sözleşme **kendiliğinden uzamaz ve kart otomatik olarak çekilmez.** Sahip yenileme teklifini onaylayıp ödediğinde yeni hizmet yılı, önceki yılın bitişinin ertesi günü başlar.",
               "Sahip yenileme teklifini onaylamazsa hizmet yılın sonunda biter ve 4. fıkra uygulanır.",
             ],
@@ -554,10 +554,10 @@ export const legalText: Record<LegalText, LegalDocument> = {
             ],
           },
           {
-            text: "**Sözleşme sona erdiğinde ya da bir Bahçe hizmetten çıkarıldığında:**",
+            text: "**Bir Bahçe 3. fıkraya göre hizmetten çıkarıldığında** (son Bahçe'nin çıkmasıyla sözleşmenin sona ermesi dahil):",
             children: [
               "Sahip ve davet ettiği hissedarlar, çıkış gününden (sözleşmenin sona erdiği günden) itibaren [90] gün boyunca Bahçe'nin raporlarını portalda **salt okunur** olarak görür ve indirebilir. Bu sürede soru sorulamaz ve yeni hissedar eklenemez. Bahçe'nin verileri silinmez.",
-              "Erişimin bitmesinden 7 gün önce Sahip'e SMS ile hatırlatma gönderilir.",
+              "Erişim süresi en az 14 gün ise, erişimin bitmesinden 7 gün önce Sahip'e SMS ile hatırlatma gönderilir.",
               "Süre sonunda şu erişimler kaldırılır: Sahip'in kendi erişimi, Sahip'in davet ettiği hissedarların erişimi ve Bahçe'de başka bir sahip kalmıyorsa bütün hissedarların erişimi. Bahçe'de hizmet alan başka bir sahip varsa onun erişimi sürer; Şirket bütün erişimleri kaldırmaya karar verebilir.",
               "Bahçe'nin devrinde (satış) erişim süresi uygulanmaz ve erişim çıkış gününde kaldırılır. Daha kısa bir erişim süresi yalnızca devirde, mükerrer kayıtta ya da yazılı bir gerekçeyle uygulanır.",
               "Sonrasında veriler, Aydınlatma Metni'ndeki sürelere göre silinir ya da anonim hale getirilir.",
@@ -635,7 +635,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
           {
             text: "**Üyelik dönemi içinde eklenen bahçe (ek teklif):** Hizmeti üyeliğinizin bitiş gününde biter ve fiyatı kalan döneme göre orantılanır. Teklif günü yürürlükte olan yayımlı fiyat listesi ve üyeliğinizin paketi kullanılır.",
             children: [
-              "Ziyaret hakkı = yıllık ziyaret sayısı × kalan gün ÷ dönemin toplam günü; yarım yukarı yuvarlanır, en az 1 ziyarettir.",
+              "Ziyaret hakkı = yıllık ziyaret sayısı × kalan gün ÷ dönemin toplam günü; yarım yukarı yuvarlanır, en az 1 ziyarettir. Kalan gün, ek teklifte yazan başlangıç gününden dönemin bitişine kadar sayılır. Ziyaret hakkı teklifte sabitlenir; ödeme daha sonra yapılsa da değişmez.",
               "Ziyaret tutarı ziyaret hakkıyla hesaplanır. Bahçe başına en az ücret aynı oranla orantılanır. Envanter ücreti tam alınır; yayımlanmış envanteri olan ve yeniden eklenen bahçeden alınmaz.",
               'Ek teklif hizmet dönemini (başlangıç ve üyeliğinizle ortak bitiş günü), ziyaret hakkını (ör. "2/4 ziyaret"), bahçe bazında envanteri ve son geçerlilik gününü gösterir. Son geçerlilik günü, dönemin bitişine en az [30] gün kalan son günü geçmez; ek teklif en geç o gün onaylanır ve ödenir.',
               "Örnek (deneme fiyatlarıyla): 1 Kasım 2026–31 Ekim 2027 döneminde, yılda 4 ziyaretli pakette 1 Nisan 2027'de başlayan 15 dönümlük bahçe için 2 ziyaret ve KDV dahil 4.500,00 TL; tam yıl 9.000,00 TL olurdu.",
@@ -657,11 +657,11 @@ export const legalText: Record<LegalText, LegalDocument> = {
       {
         kind: "ul",
         items: [
-          "Sahip, siparişin başladığı (ödemenin tamamlandığı) günden itibaren **14 gün** içinde gerekçe göstermeden ve cezai şart ödemeden cayabilir; son gün dahildir. Ek siparişte süre, ek siparişin başladığı günden sayılır.",
+          "Sahip, ödemenin tamamlandığı (siparişin onaylanıp etkinleştiği) günden itibaren **14 gün** içinde gerekçe göstermeden ve cezai şart ödemeden cayabilir; son gün dahildir. Hizmetin başlangıcı teklifte daha ileri bir gün olsa bile (örneğin yenilemede) süre ödeme gününden sayılır. Ek siparişte süre, ek siparişin ödemesinin tamamlandığı günden sayılır.",
           "Bildirim portaldan, [e-posta] ya da [KEP] adresine yazılı olarak yapılır.",
           'Cayma tek bir bahçe için de kullanılabilir: portalda bahçeyi hizmetten çıkarırken "Cayma hakkımı kullanıyorum" seçeneği **açıkça** seçilir. Bu seçenek yalnızca cayma süresi içinde gösterilir. "30 gün sonra" ya da "dönem sonunda" seçimi cayma bildirimi sayılmaz.',
           "Ödenen tutar, bildirimin ulaşmasından itibaren en geç **14 gün** içinde, ödemenin yapıldığı yöntemle iade edilir.",
-          "Sahip'in açık isteğiyle cayma süresi içinde envanter ya da periyodik ziyaret yapılmışsa, envanterin payı ve yapılmış ziyaretlerin bedeli iadeden düşülür.",
+          "**Hizmete cayma süresi içinde başlanması:** Sahip, teklifi onaylayarak hizmete (envanter ve periyodik ziyaretler) cayma süresi dolmadan başlanmasını açıkça talep eder ve cayma halinde yapılmış envanterin ve yapılmış periyodik ziyaretlerin bedelinin iade edilmeyeceğini kabul eder. Caymada, envanter sayımı yapıldıysa envanterin payı ve yapılmış periyodik ziyaretlerin bedeli iadeden düşülür.",
           "Cayma süresinden sonra bahçe bazında fesih ve iade: [İptal ve İade Politikası](/iade), 5. bölüm.",
         ],
       },
@@ -703,11 +703,11 @@ export const legalText: Record<LegalText, LegalDocument> = {
       {
         kind: "ul",
         items: [
-          "Siparişinizin başladığı (ödemenin tamamlandığı) günden itibaren 14 gün içinde gerekçe göstermeden cayabilirsiniz. Son gün dahildir: 1 Mart'ta başlayan siparişte 15 Mart.",
-          "Üyeliğinize sonradan eklenen bahçenin siparişi (ek sipariş) için 14 gün, o siparişin başladığı günden sayılır.",
+          "Ödemenin tamamlandığı (siparişinizin onaylanıp etkinleştiği) günden itibaren 14 gün içinde gerekçe göstermeden cayabilirsiniz. Hizmetin başlangıcı daha ileri bir gün olsa bile (örneğin yenilemede) süre ödeme gününden sayılır. Son gün dahildir: ödemesi 1 Mart'ta tamamlanan siparişte 15 Mart.",
+          "Üyeliğinize sonradan eklenen bahçenin siparişi (ek sipariş) için de 14 gün, o siparişin ödemesinin tamamlandığı günden sayılır.",
           'Bildirimi portaldan, [e-posta] ya da [KEP] adresine yazarak yaparsınız. Tek bir bahçe için cayma, bahçeyi hizmetten çıkarırken "Cayma hakkımı kullanıyorum" seçeneğiyle yapılır (5. bölüm).',
           "Ödediğiniz tutar en geç 14 gün içinde iade edilir.",
-          "Sizin isteğinizle cayma süresi içinde envanter ya da periyodik ziyaret yapılmışsa, envanterin payı ve yapılmış ziyaretlerin bedeli iadeden düşülür.",
+          "Teklifi onaylayarak hizmete cayma süresi içinde başlanmasını açıkça istemiş ve yapılmış hizmetin bedelinin iade edilmeyeceğini kabul etmiş olursunuz. Bu yüzden caymada, envanter sayımı yapıldıysa envanterin payı ve yapılmış periyodik ziyaretlerin bedeli iadeden düşülür.",
         ],
       },
       { kind: "h2", text: "3. Yapılamayan ziyaret" },
@@ -715,7 +715,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
         kind: "ul",
         items: [
           "Hava ya da erişim nedeniyle yapılamayan ziyaret aynı pencere içinde yeniden planlanır.",
-          "Pencere içinde yapılamazsa o ziyaretin bedeli iade edilir ya da isterseniz sonraki pencereye aktarılır. Ziyaret bedeli: yıllık bedel (envanter hariç) ÷ yıllık ziyaret sayısı.",
+          "Pencere içinde yapılamazsa o ziyaretin bedeli iade edilir ya da isterseniz sonraki pencereye aktarılır. Ziyaret bedeli: bahçenin teklif satırındaki tutar (envanter payı hariç) ÷ satırdaki ziyaret hakkı. Tam yıllık siparişte bu, yıllık bedelin (envanter hariç) yıllık ziyaret sayısına bölünmesidir.",
           "Sizden kaynaklanan nedenlerle (erişim sağlanmaması) yapılamayan ziyaret iade edilmez.",
           "Bu yolla iade edilen ziyaret, bahçeyi daha sonra hizmetten çıkarırsanız oradaki iadeden düşülür; bir ziyaret iki kez iade edilmez.",
         ],
@@ -748,17 +748,17 @@ export const legalText: Record<LegalText, LegalDocument> = {
           [
             "30 gün sonra (varsayılan)",
             "Talepten [30] gün sonra; hizmet döneminiz daha önce bitiyorsa dönem sonunun ertesi günü",
-            "Kullanılmayan ziyaretler (aşağıda)",
+            'Kullanılmayan ziyaretler (aşağıda). Çıkış günü dönem sonunun ertesi gününe denk gelirse "Dönem sonunda" satırındaki gibi',
           ],
           [
             "Dönem sonunda",
             "Hizmet döneminin bitişinin ertesi günü",
-            "Kullanılmayan ziyaretler; ödenmiş bir yenileme varsa yenilemenin tamamı",
+            "Bu dönem için çıkarma iadesi yoktur, çünkü bahçe dönemin sonuna kadar hizmette kalır. Dönem içinde yapılamayan ziyaretler yalnızca 3. bölüme göre iade edilir. Ödenmiş bir yenileme varsa yenilemenin tamamı iade edilir",
           ],
           [
             "Cayma hakkımı kullanıyorum",
             "Bugün. Yalnızca cayma süresi içinde gösterilir ve açıkça seçilir",
-            "Bahçe için ödediğiniz tutar; yapılmış envanterin payı ve yapılmış ziyaretlerin bedeli düşülür",
+            "Bahçe için ödediğiniz tutar; envanter sayımı yapıldıysa envanterin payı ve yapılmış ziyaretlerin bedeli düşülür (2. bölüm)",
           ],
         ],
       },
@@ -775,7 +775,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
           "İade = kullanılmayan ziyaret × ziyaret bedeli; envanter yapılmadıysa envanter payı da iade edilir.",
           "**Kullanılmış sayılan ziyaret:** çıkış gününden önce yapılmış periyodik ziyaretler. Bizim gerektirdiğimiz yeniden taramalar (görüntü kalitesi ya da kapsama için yapılan ek ziyaretler) sayılmaz. Aynı gün yapılmış iki tarama bir ziyaret sayılır.",
           "**Önceki iadeler düşülür:** Bu bahçe için daha önce yapılmış iadeler, yapılamayan ziyaret iadeleri (3. bölüm) dahil, hesaptan düşülür.",
-          "Hizmet dönemi çıkış gününden önce bitmiş eski bir siparişin yapılamayan ziyaretleri bu iadeye girmez; onlar 3. bölüme göre iade edilir.",
+          "Hizmet dönemi çıkış gününden önce bitmiş bir siparişin, çıkış dönem sonuna denk geldiğinde içinde bulunduğunuz dönemin siparişi dahil, kullanılmayan ve yapılamayan ziyaretleri bu iadeye girmez; yapılamayan ziyaretler yalnızca 3. bölüme göre iade edilir.",
           "Ödenmiş ama henüz başlamamış yenilemenin bu bahçeye düşen tutarı tamamen iade edilir.",
           "Her iadede KDV payı ayrıca gösterilir.",
         ],
@@ -790,7 +790,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
       },
       {
         kind: "p",
-        text: "**İade nasıl ödenir?** İade, çıkış gününde açılır ve 6. bölümdeki gibi ödemenin yapıldığı yöntemle, en geç [14] gün içinde yapılır.",
+        text: "**İade nasıl ödenir?** İade hesabı çıkış gününde yapılır. İade, 6. bölümdeki gibi ödemenin yapıldığı yöntemle, çıkış gününden itibaren en geç [14] gün içinde ödenir. Tutarın bir kısmı birden fazla bahçeye ayrılamıyorsa (örneğin bahçe ayrımı olmadan yapılmış bir önceki iade) iadeyi ekibimiz elle inceler; bu durumda da süre aynıdır.",
       },
       { kind: "p", text: "**Çıkıştan sonra**" },
       {
@@ -810,7 +810,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
           "Çıkış tarihi değiştiğinde.",
           "Çıkarma biz tarafından iptal edildiğinde.",
           "Bahçe hizmetten çıkarıldığında.",
-          "Raporlara erişim bitmeden 7 gün önce.",
+          "Raporlara erişim bitmeden 7 gün önce (erişim süresi en az 14 gün ise).",
           "İade yapıldığında (6. bölüm).",
         ],
       },

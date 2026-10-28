@@ -866,8 +866,10 @@ POST /functions/v1/payment-webhook  → 200 {ok:true} | 401 {error:"invalid_sign
 
   ```ts
   LEGAL_TEXT_VERSIONS = { kvkk_notice: "kvkk-v1-taslak", explicit_consent: "riza-v1-taslak", privacy: "gizlilik-v1-taslak",
-    distance_sales: "mesafeli-v1-taslak", pre_information: "onbilgi-v1-taslak", refund_policy: "iade-v1-taslak" }
+    distance_sales: "mesafeli-v2-taslak", pre_information: "onbilgi-v2-taslak", refund_policy: "iade-v2-taslak" }
   ```
+
+  Üç metin İP14'te v2'ye geçti ([bahce-yonetimi.md](bahce-yonetimi.md) §18). v1 metinleri `docs/hukuk/arsiv/` altında durur; kural [hukuk/README.md](hukuk/README.md)'de.
 - **`/` davranışı:**
     1. Oturum yoksa landing.
     2. Varsayılan bölüm varsa oraya yönlendirme.

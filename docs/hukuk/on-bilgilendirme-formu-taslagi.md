@@ -26,7 +26,7 @@
 - Toplam bedel, vergiler dahil olarak teklifte ve sipariş özetinde gösterilir: yıllık ziyaret sayısı × doğrulanan alan × dönüm ve ziyaret başı birim fiyat, bahçe başına en az ücret, ilk yıl envanter ücreti, varsa indirim, KDV.
 - Teklif, üzerinde yazan son geçerlilik tarihine kadar değişmez.
 - **Üyelik dönemi içinde eklenen bahçe (ek teklif):** Hizmeti üyeliğinizin bitiş gününde biter ve fiyatı kalan döneme göre orantılanır. Teklif günü yürürlükte olan yayımlı fiyat listesi ve üyeliğinizin paketi kullanılır.
-    - Ziyaret hakkı = yıllık ziyaret sayısı × kalan gün ÷ dönemin toplam günü; yarım yukarı yuvarlanır, en az 1 ziyarettir.
+    - Ziyaret hakkı = yıllık ziyaret sayısı × kalan gün ÷ dönemin toplam günü; yarım yukarı yuvarlanır, en az 1 ziyarettir. Kalan gün, ek teklifte yazan başlangıç gününden dönemin bitişine kadar sayılır. Ziyaret hakkı teklifte sabitlenir; ödeme daha sonra yapılsa da değişmez.
     - Ziyaret tutarı ziyaret hakkıyla hesaplanır. Bahçe başına en az ücret aynı oranla orantılanır [avukat/fiyat]. Envanter ücreti tam alınır; yayımlanmış envanteri olan ve yeniden eklenen bahçeden alınmaz.
     - Ek teklif hizmet dönemini (başlangıç ve üyeliğinizle ortak bitiş günü), ziyaret hakkını (ör. "2/4 ziyaret"), bahçe bazında envanteri ve son geçerlilik gününü gösterir. Son geçerlilik günü, dönemin bitişine en az [30] gün kalan son günü geçmez; ek teklif en geç o gün onaylanır ve ödenir.
     - Örnek (deneme fiyatlarıyla): 1 Kasım 2026–31 Ekim 2027 döneminde, yılda 4 ziyaretli pakette 1 Nisan 2027'de başlayan 15 dönümlük bahçe için 2 ziyaret ve KDV dahil 4.500,00 TL; tam yıl 9.000,00 TL olurdu.
@@ -40,11 +40,11 @@
 
 ## 5. Cayma hakkı
 
-- Sahip, siparişin başladığı (ödemenin tamamlandığı) günden itibaren **14 gün** içinde gerekçe göstermeden ve cezai şart ödemeden cayabilir; son gün dahildir. Ek siparişte süre, ek siparişin başladığı günden sayılır [avukat: aktivasyon günü mü, kabul günü mü].
+- Sahip, ödemenin tamamlandığı (siparişin onaylanıp etkinleştiği) günden itibaren **14 gün** içinde gerekçe göstermeden ve cezai şart ödemeden cayabilir; son gün dahildir. Hizmetin başlangıcı teklifte daha ileri bir gün olsa bile (örneğin yenilemede) süre ödeme gününden sayılır. Ek siparişte süre, ek siparişin ödemesinin tamamlandığı günden sayılır [avukat: ödeme (etkinleşme) günü mü, kabul günü mü, hizmetin başladığı gün mü].
 - Bildirim portaldan, [e-posta] ya da [KEP] adresine yazılı olarak yapılır.
 - Cayma tek bir bahçe için de kullanılabilir: portalda bahçeyi hizmetten çıkarırken "Cayma hakkımı kullanıyorum" seçeneği **açıkça** seçilir. Bu seçenek yalnızca cayma süresi içinde gösterilir. "30 gün sonra" ya da "dönem sonunda" seçimi cayma bildirimi sayılmaz.
 - Ödenen tutar, bildirimin ulaşmasından itibaren en geç **14 gün** içinde, ödemenin yapıldığı yöntemle iade edilir.
-- Sahip'in açık isteğiyle cayma süresi içinde envanter ya da periyodik ziyaret yapılmışsa, envanterin payı ve yapılmış ziyaretlerin bedeli iadeden düşülür [avukat: Yönetmelik md. 15/1-ğ; cayma hakkının kullanılamayacağı ya da orantılı bedel].
+- **Hizmete cayma süresi içinde başlanması:** Sahip, teklifi onaylayarak hizmete (envanter ve periyodik ziyaretler) cayma süresi dolmadan başlanmasını açıkça talep eder ve cayma halinde yapılmış envanterin ve yapılmış periyodik ziyaretlerin bedelinin iade edilmeyeceğini kabul eder. Caymada, envanter sayımı yapıldıysa envanterin payı ve yapılmış periyodik ziyaretlerin bedeli iadeden düşülür [avukat: Yönetmelik md. 15/1-ğ; teklif onayının açık talep sayılıp sayılmayacağı; cayma hakkının kullanılamayacağı ya da orantılı bedel].
 - Cayma süresinden sonra bahçe bazında fesih ve iade: [İptal ve İade Politikası](iptal-iade-politikasi-taslagi.md), 5. bölüm.
 
 ## 6. Şikâyet ve itiraz
