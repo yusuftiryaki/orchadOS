@@ -4,7 +4,7 @@
 -- and 9120..0102 (draft), customer a0..06 with application 9120..0301.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(53);
 
 select testing.reset_to_seed();
 
@@ -19,6 +19,10 @@ select enum_has_labels('public', 'application_status',
   array['draft', 'submitted', 'quoted', 'accepted', 'rejected', 'withdrawn'], 'application statuses');
 select enum_has_labels('public', 'payment_status',
   array['initiated', 'pending_review', 'succeeded', 'failed', 'expired', 'voided'], 'payment statuses');
+select enum_has_labels('public', 'garden_removal_status',
+  array['requested', 'scheduled', 'completed', 'cancelled'], 'garden removal statuses (IP14)');
+select enum_has_labels('public', 'garden_removal_reason',
+  array['sold', 'not_needed', 'dissatisfied', 'cost', 'transfer', 'duplicate', 'other'], 'garden removal reasons (IP14)');
 select enum_has_labels('public', 'consent_kind',
   array['kvkk_notice', 'explicit_service_improvement', 'explicit_marketing', 'distance_sales', 'pre_information'],
   'consent kinds');

@@ -149,15 +149,143 @@ export async function orderFor(customer: TestCustomer, verifiedAreaM2 = 20000) {
   return { application, garden, quote, order };
 }
 
+// A day after `day` (YYYY-MM-DD) by `days`, as YYYY-MM-DD.
+export function addDays(day: string, days: number): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// A submitted application with one garden per area (m²), side by side.
+export async function submitGardens(customer: TestCustomer, areasM2: number[]) {
+  const application = check(
+    await customer.client.rpc("customer_create_application", {
+      p_package_id: BILLING_SEED.packages.standart,
+    }),
+  );
+  const offset = Math.random() * 0.05;
+  const gardens: string[] = [];
+  for (const [i, area] of areasM2.entries()) {
+    gardens.push(
+      check(
+        await customer.client.rpc("customer_save_application_garden", {
+          p_application_id: application,
+          p_garden: {
+            name: `Test bahçesi ${i + 1}`,
+            declared_area_m2: area,
+            lon: 37.85 + offset + i * 0.01,
+            lat: 37.05,
+          },
+          p_detail: GARDEN_DETAIL,
+        }),
+      ),
+    );
+  }
+  check(
+    await customer.client.rpc("customer_submit_application", { p_application_id: application }),
+  );
+  return { application, gardens };
+}
+
+// Ops verifies every garden of an application with its declared area.
+async function verifyAll(ops: Client, gardens: string[], areasM2: number[]) {
+  for (const [i, garden] of gardens.entries()) {
+    check(
+      await ops.rpc("ops_verify_application_garden", {
+        p_garden_id: garden,
+        p_verified_area_m2: areasM2[i],
+      }),
+    );
+  }
+}
+
+// Pays an order in full with a bank transfer recorded by ops@ (activates it).
+export async function payByTransfer(orderId: string) {
+  const { client: ops } = await signIn("ops");
+  const order = check(
+    await ops
+      .from("service_order")
+      .select("total_kurus, paid_kurus, refunded_kurus")
+      .eq("id", orderId)
+      .single(),
+  );
+  return check(
+    await ops.rpc("ops_record_manual_payment", {
+      p_order_id: orderId,
+      p_amount_kurus: order.total_kurus - (order.paid_kurus - order.refunded_kurus),
+      p_value_date: istanbulToday(),
+      p_bank_reference: `EFT-${orderId.slice(0, 8)}`,
+    }),
+  );
+}
+
+// IP14: an active (paid) first order of the customer, one garden per area,
+// serving one year from today. Returns the order, its quote and application,
+// and the parcels opened for the gardens (in line order).
+export async function activeOrderFor(customer: TestCustomer, areasM2: number[] = [20000]) {
+  const { application, gardens } = await submitGardens(customer, areasM2);
+  const { client: ops } = await signIn("ops");
+  await verifyAll(ops, gardens, areasM2);
+  const quote = check(await ops.rpc("ops_issue_quote", { p_application_id: application }));
+  const order = check(
+    await customer.client.rpc("customer_accept_quote", { p_quote_id: quote, p_consents: CONSENTS }),
+  );
+  await payByTransfer(order);
+  const parcels = check(
+    await customer.client
+      .from("service_order_item")
+      .select("parcel_id, line_no")
+      .eq("order_id", order)
+      .order("line_no"),
+  ).map((r) => r.parcel_id as string);
+  return { application, gardens, quote, order, parcels };
+}
+
+// IP14: an add-on order joining `baseOrderId` (application path, add-on
+// quote by ops, accepted and paid by transfer via ops_record_manual_payment).
+// It serves from today to the base order's end.
+export async function addonOrderFor(
+  customer: TestCustomer,
+  baseOrderId: string,
+  areasM2: number[] = [15000],
+) {
+  const { application, gardens } = await submitGardens(customer, areasM2);
+  const { client: ops } = await signIn("ops");
+  await verifyAll(ops, gardens, areasM2);
+  const quote = check(
+    await ops.rpc("ops_issue_addon_quote", {
+      p_base_order_id: baseOrderId,
+      p_application_id: application,
+    }),
+  );
+  const order = check(
+    await customer.client.rpc("customer_accept_quote", { p_quote_id: quote, p_consents: CONSENTS }),
+  );
+  await payByTransfer(order);
+  const parcels = check(
+    await customer.client
+      .from("service_order_item")
+      .select("parcel_id, line_no")
+      .eq("order_id", order)
+      .order("line_no"),
+  ).map((r) => r.parcel_id as string);
+  return { application, gardens, quote, order, parcels };
+}
+
 export async function removeCustomers(domain: string) {
   const admin = serviceClient();
   const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   if (error) throw error;
   const ids = data.users.filter((u) => u.email?.endsWith(`@${domain}`)).map((u) => u.id);
   if (ids.length === 0) return;
-  const parcels = check(
+  // Owned parcels, and those of order lines (a removed garden has no owner row left).
+  const owned = check(
     await admin.from("parcel_access").select("parcel_id").in("user_id", ids).eq("role", "owner"),
   ).map((r) => r.parcel_id);
+  const ordered = check(
+    await admin.from("service_order_item").select("parcel_id").in("customer_user_id", ids),
+  ).flatMap((r) => (r.parcel_id ? [r.parcel_id] : []));
+  const parcels = [...new Set([...owned, ...ordered])];
   await purgeBillingUsers(ids);
   if (parcels.length) await purgeParcels(parcels);
   for (const id of ids) {

@@ -6,6 +6,7 @@
 export const BILLING_ERRORS = [
   // 42501
   "forbidden",
+  "demo_read_only",
   // P0002
   "not_found",
   // 22023
@@ -41,6 +42,26 @@ export const BILLING_ERRORS = [
   "signup_closed",
   "too_many_attempts",
   "state_changed",
+  // P0001, IP14 (docs/bahce-yonetimi.md §9.7)
+  "no_membership",
+  "addon_period_too_short",
+  "addon_base_closed",
+  "parcel_in_service",
+  "parcel_not_reusable",
+  "account_garden_limit",
+  "garden_withdrawn",
+  "last_garden",
+  "not_revisable",
+  "not_in_service",
+  "garden_removal_open",
+  "parcel_order_pending",
+  "withdrawal_expired",
+  "removal_not_open",
+  "removal_not_due",
+  "garden_changes_closed",
+  "parcel_read_only",
+  "parcel_removal_scheduled",
+  "parcel_removed",
   // 55000
   "payment_not_open",
   // Anything else (network, unexpected database error).

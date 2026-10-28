@@ -108,7 +108,11 @@ select is(
                 ('application_garden', 'verified_by'), ('application_garden', 'verification_note'),
                 ('quote', 'issued_by'), ('quote', 'decided_by'), ('service_order', 'termination_note'),
                 ('payment', 'provider_token'), ('payment', 'return_origin'), ('payment', 'recorded_by'),
-                ('payment', 'manual_note'), ('refund', 'note'), ('refund', 'requested_by')) x(t, c)
+                ('payment', 'manual_note'), ('refund', 'note'), ('refund', 'requested_by'),
+                -- IP14 (docs/bahce-yonetimi.md §9.5)
+                ('garden_removal', 'ops_note'), ('garden_removal', 'requested_by'),
+                ('garden_removal', 'decided_by'), ('garden_removal', 'blocked_reason'),
+                ('garden_removal', 'revoke_all_access')) x(t, c)
    where has_column_privilege('authenticated', 'public.' || t, c, 'SELECT')),
   null, 'no internal column is granted');
 
@@ -131,9 +135,12 @@ select is(
      'ops_application_garden_detail(uuid)', 'ops_verify_application_garden(uuid,numeric,jsonb,text)',
      'ops_reject_application(uuid,text,text)', 'ops_find_user_id(uuid,text,text)',
      'ops_create_owner_profile(uuid,uuid,text,text,boolean,text,text,timestamptz,text)',
-     'ops_update_owner_profile(uuid,text,text,boolean,text,text,timestamptz,text)'
+     'ops_update_owner_profile(uuid,text,text,boolean,text,text,timestamptz,text)',
+     -- IP14 (docs/bahce-yonetimi.md §9.6); the full list is in 47_garden_security.
+     'my_service_period()', 'my_gardens()', 'customer_request_garden_removal(uuid,text,text,boolean,boolean)',
+     'ops_issue_addon_quote(uuid,uuid,uuid[],date,integer,integer,text,text)'
    ]) f where has_function_privilege('anon', 'public.' || f, 'EXECUTE')),
-  null, 'anon executes none of the IP12 functions of A1');
+  null, 'anon executes none of the IP12 functions of A1 (nor the IP14 ones)');
 select is(
   (select array_agg(f order by f) from unnest(array[
      'signup_register_attempt(text,text,text)', 'signup_find_account(text,text)',
