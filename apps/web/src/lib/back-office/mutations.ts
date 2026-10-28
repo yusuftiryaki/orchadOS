@@ -18,6 +18,7 @@ import type {
   RemovalRequestInput,
   RemovalScheduleInput,
   VerifyInput,
+  WithdrawalRecordInput,
 } from "./validation";
 
 // Writes of the back office, as the signed-in ops user: the ops_* functions
@@ -195,6 +196,18 @@ export async function requestGardenRemoval(
       ...(input.note ? { p_note: input.note } : {}),
       ...(input.accessDays != null ? { p_access_days: input.accessDays } : {}),
       p_revoke_all_access: input.revokeAllAccess,
+    }),
+  );
+}
+
+// A withdrawal by e-mail, KEP or post (T03): one completed removal per line.
+export async function recordWithdrawal(supabase: Client, input: WithdrawalRecordInput) {
+  return result(
+    await supabase.rpc("ops_record_withdrawal", {
+      p_order_item_ids: input.orderItemIds,
+      p_notice_received_on: input.noticeReceivedOn,
+      p_channel: input.channel,
+      ...(input.note ? { p_note: input.note } : {}),
     }),
   );
 }

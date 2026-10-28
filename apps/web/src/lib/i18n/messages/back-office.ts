@@ -31,6 +31,8 @@ const notices: Record<BoNotice, string> = {
   garden_unlinked: "Parsel bağı kaldırıldı; bahçe aktivasyonda yeni parsel olarak açılır.",
   garden_withdrawn: "Bahçe başvurudan çıkarıldı.",
   removal_requested: "Bahçe çıkarma planlandı; müşteriye SMS gidecek.",
+  withdrawal_recorded:
+    "Cayma kaydedildi ve uygulandı; müşteriye teyit SMS'i gidecek. İade satırları açıldıysa iadeler listesindedir.",
   removal_scheduled: "Çıkış tarihi kaydedildi.",
   removal_completed: "Bahçe hizmetten çıkarıldı.",
   removal_cancelled: "Çıkarma iptal edildi; müşteriye SMS gidecek.",
@@ -103,6 +105,10 @@ const fields: Record<string, string> = {
   removal_notice_days: "Çıkarma bildirim süresi (gün)",
   removal_access_days: "Çıkarmadan sonra erişim (gün)",
   removal_refund_mode: "Çıkarmada iade",
+  // T21 (docs/hukuk/kararlar.md H34).
+  kep_address: "KEP adresi",
+  site_domain: "Alan adı",
+  kvkk_email: "KVKK başvuru e-postası",
   separate_period: "Ayrı dönem onayı",
 };
 
@@ -180,6 +186,9 @@ export const backOfficeText = {
   notices,
   fields,
   auditActions,
+  // T03 (docs/hukuk/kararlar.md H11 (a)): the visit form's planning rule.
+  withdrawalPlanningHint:
+    "Sözleşmeli bahçelerde envanter ve periyodik ziyaret, siparişin cayma süresi bitmeden ancak sahip teklif kabulünde erken başlama talep ettiyse planlanır.",
   paymentsUnreachable: "Ödeme servisine ulaşılamadı; biraz sonra yeniden deneyin.",
   fieldError: (label: string) => `Kontrol edin: ${label}.`,
   formError: "Formda düzeltilmesi gereken bir alan var.",
@@ -607,6 +616,24 @@ export const backOfficeText = {
       unused_visits: "Yapılmayan ziyaretlerin bedeli (iade satırı açılır)",
       manual: "Ops kararı (yalnızca hesap)",
     } as Record<string, string>,
+    // T21: the company information of the legal texts and the footer.
+    sellerHint:
+      "Unvan, MERSİS, adres, telefon, e-posta, KEP, vergi dairesi ve numarası ile alan adı tam olunca site altbilgisi ve hukuki metinler bu bilgileri gösterir. Pilot ve üretimde bunlar eksikken teklif kabul edilmez (H34).",
+    companyComplete: "Şirket bilgileri tam: altbilgi ve hukuki metinler bu bilgileri gösteriyor.",
+    companyIncomplete:
+      "Şirket bilgileri eksik: hukuki metinler yer tutucularla görünür; pilot ve üretimde teklif kabulü kapalıdır.",
+    siteDomainHint: "Yalnızca alan adı, ör. orchados.com.tr (https:// ve / olmadan).",
+    kvkkEmailHint: "Boş bırakılırsa kvkk@ + alan adı kullanılır.",
+    // T18 and T27: SQL-only settings shown read-only.
+    inventoryReuse: "Envanterin yeniden kullanım süresi",
+    inventoryReuseValue: (months: number) => `${months} ay`,
+    inventoryReuseHint:
+      "Yalnızca veritabanından değiştirilir. Değişmesi sözleşme metnini (Md. 8D/3) ve sürümünü değiştirir.",
+    marketingConsent: "Tanıtım iletisi onayı",
+    marketingConsentOn: "Soruluyor",
+    marketingConsentOff: "Sorulmuyor",
+    marketingConsentHint:
+      "Yalnızca veritabanından değiştirilir; İYS kaydı ve entegrasyonundan sonra açılır (H06, T22).",
   },
   // IP14 (docs/bahce-yonetimi.md §12)
   removals: {
@@ -824,6 +851,18 @@ export const backOfficeText = {
     removeHint:
       "Kayıt planlanmış olarak açılır ve müşteriye SMS gider. Devirde neden devir ve erişim 0 gün.",
     removeSubmit: "Çıkarmayı aç",
+  },
+  // T03 (docs/hukuk/kararlar.md H11 (c), docs/bahce-yonetimi.md §9).
+  withdrawal: {
+    title: "Cayma bildirimi kaydet (e-posta, KEP, posta)",
+    hint: (until: string) =>
+      `Bir bahçeyi belirten bildirim o bahçe için caymadır. Bildirimin ulaştığı günü girin; süre o güne göre değerlendirilir (son gün ${until}, dahil). Kayıt hemen uygulanır, iade hesaplanır ve müşteriye teyit SMS'i gider. Bahçe ekleme ve çıkarma kapalıyken de çalışır.`,
+    hintNoActivation:
+      "Bir bahçeyi belirten bildirim o bahçe için caymadır. Bildirimin ulaştığı günü girin; süre o güne göre değerlendirilir.",
+    gardens: "Bahçeler",
+    channel: "Kanal",
+    receivedOn: "Bildirimin ulaştığı gün",
+    submit: "Caymayı kaydet",
   },
   orderLinks: {
     addons: "Ek siparişler",

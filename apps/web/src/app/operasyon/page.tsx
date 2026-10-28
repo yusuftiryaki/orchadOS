@@ -12,6 +12,7 @@ import { formatNumber, t } from "@/lib/i18n";
 import { billingSummary } from "@/lib/back-office/data";
 import { listFieldStaff, listVisits, opsOrgs } from "@/lib/operations/data";
 import { listViewerInvitations } from "@/lib/operations/invitations";
+import { getKvkkVersions } from "@/lib/operations/kvkk-versions";
 import { opsHref } from "@/lib/operations/urls";
 import {
   countByStatus,
@@ -41,7 +42,7 @@ export default async function Page({
     listParcels(supabase),
     opsOrgs(supabase, user.id),
   ]);
-  const [staff, followups, invitations, billing] = await Promise.all([
+  const [staff, followups, invitations, billing, kvkkVersions] = await Promise.all([
     listFieldStaff(supabase, orgs),
     listFollowups(supabase, { statuses: ["open", "planned"] }),
     listViewerInvitations(
@@ -49,6 +50,7 @@ export default async function Page({
       orgs.map((o) => o.id),
     ),
     billingSummary(supabase, orgs),
+    getKvkkVersions(supabase),
   ]);
   const leads = new Map(staff.map((s) => [s.userId, s.email]));
 
@@ -66,7 +68,11 @@ export default async function Page({
       <ResultNotice params={await searchParams} />
       {billing && <BillingCard summary={billing} />}
       {invitations.length > 0 && (
-        <ViewerInvitations invitations={invitations} today={todayIn(now)} />
+        <ViewerInvitations
+          invitations={invitations}
+          today={todayIn(now)}
+          kvkkVersions={kvkkVersions}
+        />
       )}
       {followups.length > 0 && (
         <ExpertRequests

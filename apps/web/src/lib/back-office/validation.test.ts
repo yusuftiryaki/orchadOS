@@ -285,6 +285,47 @@ describe("forms", () => {
       field: "tax_number",
     });
   });
+
+  // T21: the company fields of the legal texts and the footer; the SQL-only
+  // switches are never sent.
+  it("takes the KEP address, the KVKK e-mail and the domain", () => {
+    const base = {
+      payment_due_days: "14",
+      quote_valid_days: "30",
+      renewal_notice_days: "45",
+      addon_min_days: "30",
+      removal_notice_days: "30",
+      removal_access_days: "90",
+      removal_refund_mode: "unused_visits",
+    };
+    const parsed = parseSettings(
+      reader({
+        ...base,
+        kep_address: " Firma@HS01.kep.tr ",
+        kvkk_email: "",
+        site_domain: "Orchados.com.tr",
+        marketing_consent_enabled: "on",
+        inventory_reuse_months: "12",
+      }),
+    );
+    expect(parsed.ok && parsed.value).toMatchObject({
+      kep_address: "firma@hs01.kep.tr",
+      kvkk_email: null,
+      site_domain: "orchados.com.tr",
+    });
+    expect(parsed.ok && "marketing_consent_enabled" in parsed.value).toBe(false);
+    expect(parsed.ok && "inventory_reuse_months" in parsed.value).toBe(false);
+    for (const site_domain of ["https://orchados.com.tr", "orchados", "orchados.com.tr/"]) {
+      expect(parseSettings(reader({ ...base, site_domain }))).toEqual({
+        ok: false,
+        field: "site_domain",
+      });
+    }
+    expect(parseSettings(reader({ ...base, kep_address: "kep" }))).toEqual({
+      ok: false,
+      field: "kep_address",
+    });
+  });
 });
 
 describe("IP14 garden membership forms", () => {

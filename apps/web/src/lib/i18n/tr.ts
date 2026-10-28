@@ -926,6 +926,8 @@ export const tr = {
         "Bahçe bu tarihte hizmetten çıkıyor; ziyareti çıkış tarihinden önceye planlayın.",
       parcel_removed:
         "Bahçe hizmetten çıkarıldı; sürdürülemez. Yeniden eklemek için ek teklif verin.",
+      withdrawal_period_open:
+        "Siparişin cayma süresi sürüyor ve sahip erken başlama talep etmedi; envanteri ve ziyaretleri cayma süresinin bitiminden sonraya planlayın.",
       already_owner: "Bu kişi parselin sahibi; hissedar olarak eklenemez.",
       invite_unavailable:
         "Portal hesabı açılamadı: hesap servisi (invite-user) erişilemiyor. Hesabı Supabase panelinden açıp aynı e-postayla tekrar deneyin.",

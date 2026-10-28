@@ -1,3 +1,4 @@
+import { isUuid } from "@/lib/supabase/query";
 import { parseTlToKurus } from "@/lib/billing/money";
 
 // Pure parsers of the back office forms (docs/musteri-yonetimi.md §11): what
@@ -396,6 +397,33 @@ export interface RemovalRequestInput {
   note: string | null;
 }
 
+// A withdrawal received by e-mail, KEP or post (ops_record_withdrawal, T03;
+// docs/hukuk/kararlar.md H11 (c)): the lines it names, the day it arrived (not
+// in the future; the database judges the period by it), the channel and an
+// internal note.
+export interface WithdrawalRecordInput {
+  orderItemIds: string[];
+  noticeReceivedOn: string;
+  channel: "email" | "kep" | "post";
+  note: string | null;
+}
+
+export function parseWithdrawalRecord(
+  read: Reader,
+  itemIds: string[],
+  today: string,
+): Parsed<WithdrawalRecordInput> {
+  const ids = [...new Set(itemIds.filter((id) => isUuid(id)))];
+  if (ids.length === 0 || ids.length > 50) return bad("order_item_ids");
+  const channel = read("channel");
+  if (channel !== "email" && channel !== "kep" && channel !== "post") return bad("channel");
+  const received = parseIsoDate(read("notice_received_on"));
+  if (!received || received > today) return bad("notice_received_on");
+  const note = parseNote(read, false);
+  if (!note.ok) return note;
+  return ok({ orderItemIds: ids, noticeReceivedOn: received, channel, note: note.value });
+}
+
 // "Bahçeyi çıkar" (ops_request_garden_removal).
 export function parseRemovalRequest(
   read: Reader,
@@ -609,6 +637,20 @@ export function parseSettings(
   const email = read("email").toLowerCase();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad("email");
   settings.email = email || null;
+  // T21: KEP, KVKK e-mail and the site's host name.
+  for (const key of ["kep_address", "kvkk_email"] as const) {
+    const value = read(key).trim().toLowerCase();
+    if (value && (value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))) return bad(key);
+    settings[key] = value || null;
+  }
+  const domain = read("site_domain").trim().toLowerCase();
+  if (
+    domain &&
+    (domain.length > 253 || !/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain))
+  ) {
+    return bad("site_domain");
+  }
+  settings.site_domain = domain || null;
   const iban = normalizeIban(read("iban"));
   if (iban) {
     const issue = ibanIssue(iban);

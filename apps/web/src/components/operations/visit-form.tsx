@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { planVisitAction, updateVisitAction } from "@/app/operasyon/actions";
 import { t } from "@/lib/i18n";
+import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { EMPTY_FORM, type FormState } from "@/lib/operations/form-state";
 import { opsHref } from "@/lib/operations/urls";
 import { VISIT_KINDS, visitSeason, type VisitKind } from "@/lib/operations/visits";
@@ -92,7 +93,11 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
             </select>
           </Field>
         )}
-        <Field label={T.visits.plannedDate} error={err("planned_date")}>
+        <Field
+          label={T.visits.plannedDate}
+          hint={backOfficeText.withdrawalPlanningHint}
+          error={err("planned_date")}
+        >
           <input
             name="planned_date"
             type="date"

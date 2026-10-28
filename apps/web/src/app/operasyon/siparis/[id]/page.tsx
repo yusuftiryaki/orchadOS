@@ -4,6 +4,7 @@ import {
   cancelOrderAction,
   extendDueAction,
   recordManualPaymentAction,
+  recordWithdrawalAction,
   requestRemovalAction,
   terminateOrderAction,
 } from "@/app/operasyon/back-office-actions";
@@ -25,6 +26,7 @@ import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { getOrder, getSetting, type OrderView } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
+import { OPS_WITHDRAWAL_CHANNELS } from "@/lib/billing/types";
 import { REMOVAL_REASONS, addDays, outstandingKurus } from "@/lib/back-office/validation";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
@@ -82,6 +84,19 @@ export default async function Page({
           i.parcel_id && !i.removed_on && !i.openRemoval && o.service_end && o.service_end >= today,
       )
     : [];
+  // T03: a withdrawal by e-mail, KEP or post names lines in service without
+  // an open withdrawal (an open removal of another kind is superseded).
+  const withdrawable = active
+    ? items.filter(
+        (i) =>
+          i.parcel_id &&
+          !i.removed_on &&
+          !i.openRemoval?.withdrawal &&
+          o.service_end &&
+          o.service_end >= today,
+      )
+    : [];
+  const withdrawalUntil = o.activated_at ? addDays(todayIn(new Date(o.activated_at)), 14) : null;
 
   return (
     <main className="page">
@@ -201,6 +216,50 @@ export default async function Page({
           </tbody>
         </table>
       </div>
+
+      {withdrawable.length > 0 && (
+        <section className={styles.section} data-testid="record-withdrawal">
+          <h2>{B.withdrawal.title}</h2>
+          <p className="muted">
+            {withdrawalUntil ? B.withdrawal.hint(day(withdrawalUntil)) : B.withdrawal.hintNoActivation}
+          </p>
+          <ActionForm action={recordWithdrawalAction} testId="record-withdrawal-form">
+            <input type="hidden" name="order_id" value={o.id} />
+            <fieldset className={styles.fieldset}>
+              <legend>{B.withdrawal.gardens}</legend>
+              {withdrawable.map((i) => (
+                <label key={i.id} className={styles.check}>
+                  <input type="checkbox" name="order_item_ids" value={i.id} />
+                  {i.parcelName ?? i.garden_name}
+                </label>
+              ))}
+            </fieldset>
+            <div className={styles.grid}>
+              <Field label={B.withdrawal.channel}>
+                <select name="channel" defaultValue="" required>
+                  <option value="" disabled>
+                    —
+                  </option>
+                  {OPS_WITHDRAWAL_CHANNELS.map((c) => (
+                    <option key={c} value={c}>
+                      {billingText.withdrawalChannel[c]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={B.withdrawal.receivedOn}>
+                <input type="date" name="notice_received_on" max={today} required />
+              </Field>
+            </div>
+            <Field label={B.internalNote} optional>
+              <textarea name="note" maxLength={2000} rows={2} />
+            </Field>
+            <div className={styles.actions}>
+              <Submit secondary>{B.withdrawal.submit}</Submit>
+            </div>
+          </ActionForm>
+        </section>
+      )}
 
       {removable.length > 0 && (
         <section className={styles.section} data-testid="remove-gardens">

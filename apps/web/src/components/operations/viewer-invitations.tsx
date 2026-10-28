@@ -2,6 +2,7 @@ import { approveInvitationAction, rejectInvitationAction } from "@/app/operasyon
 import { formatDate, t } from "@/lib/i18n";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import type { ViewerInvitation } from "@/lib/operations/invitations";
+import { KvkkVersionSelect } from "./kvkk-version-select";
 import styles from "./operations.module.css";
 
 // Open viewer invitations on the dashboard: ops calls the co-owner, records the
@@ -12,9 +13,12 @@ const T = t.operations;
 export function ViewerInvitations({
   invitations,
   today,
+  kvkkVersions = [LEGAL_TEXT_VERSIONS.kvkk_notice],
 }: {
   invitations: ViewerInvitation[];
   today: string;
+  // Registered KVKK notice versions, current first (T21).
+  kvkkVersions?: readonly string[];
 }) {
   return (
     <section className={styles.section} data-testid="viewer-invitations">
@@ -55,11 +59,7 @@ export function ViewerInvitations({
               </label>
               <label>
                 {T.owners.kvkkTextVersion}
-                <input
-                  name="kvkk_text_version"
-                  defaultValue={LEGAL_TEXT_VERSIONS.kvkk_notice}
-                  required
-                />
+                <KvkkVersionSelect versions={kvkkVersions} required />
               </label>
               <button className="button" type="submit">
                 {T.dashboard.approve}
