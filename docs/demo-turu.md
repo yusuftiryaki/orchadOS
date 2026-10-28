@@ -640,7 +640,7 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
     - `local`: `docker exec -i supabase_db_orchados psql -U postgres`. Adres ve anon anahtar `supabase status`'tan gelir.
     - `remote`: `DEMO_DB_URL` ve `PGPASSWORD` kullanılır. İş akışı adresi `supabase link`'ten sonra `supabase/.temp/pooler-url` dosyasından, oturum modunda (5432) kurar. GitHub makinelerinde IPv6 olmadığı için doğrudan `db.<ref>.supabase.co` kullanılmaz.
     - Medya her iki hedefte `SUPABASE_URL` ve `SUPABASE_ANON_KEY` ile yüklenir.
-- **`--reset-local`:** Yüklemeden önce `testing.purge_org` ile demo org'unu temizler. Yalnızca yerelde çalışır.
+- **`--reset-local`:** Yüklemeden önce `testing.purge_org` ile demo org'unu temizler. Yalnızca yerelde çalışır; `--dry-run` ile birlikte reddedilir (kuru çalıştırma hiçbir şey yazmaz).
 - **`--demo-only`:** Hedefte demo org'u dışında hiçbir org yoksa devam eder; varsa hiçbir şey yazmadan durur. Demo projesi için iş akışı bunu her zaman verir; yanlış secret'la pilota yazmayı engeller.
 - **Açma ve kapama:**
     - `load --enable`: doğrulama geçerse demoyu açar.
@@ -650,27 +650,31 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
 ### 10.2 Adımlar
 
 1. **Derleme:** Önbellekte yoksa derlenir. Manifestin kanonik JSON'unun SHA-256'sı `dataset_sha256` olur.
+    - `--build` ile verilen klasör (ör. indirilmiş artefakt) önbellekteki gibi denetlenir: sürüm bilinen bir tam sayı, profil istenen profil, `generator_hash` bu kodunki, `dataset_sha256` manifestin kendisiyle tutarlı, her dosya var ve baytları adındaki hash'e eşit. Biri tutmazsa hiçbir şey yazılmadan durulur.
+    - Kayıt satırına manifestteki sürüm değil, kodun `DATASET_VERSION`'ı yazılır.
 2. **Ön kontrol (sürüme göre):**
     - Sürüm v kayıtlı, `loaded_at` dolu ve doğrulama geçiyorsa: "zaten yüklü" yazılır ve çıkış kodu 0'dır. Baytlar karşılaştırılmaz.
     - Sürüm v kayıtlı ama `loaded_at` boşsa (yarım yükleme):
         - Manifest hash'i kayıttakiyle aynıysa yükleme kaldığı yerden devam eder.
         - Farklıysa durulur. Mesaj şunu söyler: önceki çalıştırmanın derleme artefaktını kullan (`reuse_build_run_id`) ya da sürümü artır.
-    - Yerelde farklı profil ya da bayt bulunursa `pnpm db:reset` ya da `--reset-local` önerilir.
+    - Yerelde farklı profil ya da bayt bulunursa `pnpm db:reset` ya da `--reset-local` önerilir. Bu denetim "zaten yüklü" kısayolundan önce yapılır.
+    - Operasyon kişisinin kilidi her çalıştırmanın başında yeniden konur (kuru çalıştırma hariç); `verify` ve `enable` de önce kilitler. Medya yüklendikten sonra öldürülen bir çalıştırmanın açık bıraktığı kişi böylece kendiliğinden kapanır.
     - Kayıt tablosu yoksa (A birleşmeden önce): yerelde uyarı verilir ve kayıt adımı atlanır; `remote` reddedilir.
 3. **Tek SQL işlemi (postgres):**
     - Satırlar §8.3'teki sırayla eklenir. Kayıt satırı aynı işlemde `loaded_at = null` olarak yazılır.
     - Tetikleyicisi kimliğe bakan satırlar (ör. soru) yazarın claim'leriyle eklenir: `set_config('request.jwt.claims', …, true)` ve `set local role authenticated`.
     - Yayın tarihleri ziyaret tarihlerine göre açıkça verilir.
 4. **Medya:**
-    1. Operasyon kişisine o çalıştırmaya özel rastgele bir parola verilir ve yasağı kalkar.
-    2. Kişi GoTrue parola girişiyle oturum açar.
-    3. Eksik nesneler iki kovaya yüklenir:
+    1. Yüklenecek her dosyanın baytları adındaki hash'le, nesne yolu `org/<uuid>/parcel/<uuid>/<sha256>` biçimiyle yeniden denetlenir.
+    2. Operasyon kişisine o çalıştırmaya özel rastgele bir parola verilir ve yasağı kalkar. `updated_at = now()` yazılır; A'nın bakım görevi son bir saatte değişen kişiyi yeniden yasaklamaz.
+    3. Kişi GoTrue parola girişiyle oturum açar.
+    4. Eksik nesneler iki kovaya yüklenir:
         - `media` kovasına `org/<org>/parcel/<parcel>/<sha256>` yoluyla
         - aynı yolla `demo-media` kovasına, `cache-control: max-age=31536000` ile
 
        Zaten varsa geçilir.
-    4. Örnek dosyalar geri okunup hash'leri doğrulanır.
-    5. `finally` bloğunda parola boşaltılır ve yasak `2999-01-01` olarak geri konur.
+    5. Örnek dosyalar geri okunup hash'leri doğrulanır.
+    6. `finally` bloğunda parola boşaltılır ve yasak `2999-01-01` olarak geri konur.
 5. **Kayıt:** `loaded_at`, `tour`, `dataset_sha256` yazılır. `demo_parcel` satırları: A=1, B=2, ikisi de etkin.
 6. **Doğrulama (`--verify`):**
     - Sahip kişisinin claim'leriyle, RLS altında şu sayılar kontrol edilir:
@@ -692,7 +696,7 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
 
 - **Aynı build:** İkinci çalıştırma hiçbir satır eklemez ve hiçbir dosya yüklemez.
 - **Yeniden derleme:** Başka bir makinede derlenen kopya farklı bayt üretebilir. Bu yüzden barındırılan projede ön kontrol sürüme ve doğrulamaya bakar, baytlara bakmaz. Yarım kalan bir yükleme yalnızca aynı derlemeyle tamamlanır. Derleme bu yüzden iş akışı artefaktı olarak saklanır.
-- **Yeni sürüm:** Sürüm 2 yeni satırlar ekler, ör. bir 2027 ziyareti. Sürüm 1'e dokunmaz, çünkü veri ekleme-yalnızdır. Yükleyici hedef sürüme kadar bütün sürümleri sırayla uygular.
+- **Yeni sürüm:** Sürüm 2 yeni satırlar ekler, ör. bir 2027 ziyareti. Sürüm 1'e dokunmaz, çünkü veri ekleme-yalnızdır. Yükleyici hedef sürüme kadar bütün sürümleri sırayla uygular. Bu, sürüme göre veri kümesi ve derleme gerektirir; sürüm 2 gelene kadar yükleyici yalnızca `DATASET_VERSION`'ı uygular ve `VERSIONS == (DATASET_VERSION,)` olduğunu iddia eder.
 
 ### 10.4 Barındırılan projeler
 
@@ -700,7 +704,11 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
 - `project`: `test` ya da `demo`. Pilot seçeneği yoktur.
 - `action`: `load`, `enable` ya da `disable`; varsayılan `load`.
 - `dry_run`: varsayılan `false`.
-- `reuse_build_run_id`: isteğe bağlı; önceki bir çalıştırmanın derleme artefaktı.
+- `reuse_build_run_id`: isteğe bağlı; önceki bir çalıştırmanın derleme artefaktı. Yalnızca bu iş akışının, bu repoda `main` üzerinde `workflow_dispatch` ile başlatılmış bir çalıştırması kabul edilir; başka bir çalıştırmanın (dal, PR) artefaktı reddedilir.
+
+Koruma:
+- İş yalnızca `main`'den çalışır ve projenin adını taşıyan GitHub Environment'ında koşar (`environment: ${{ inputs.project }}`). `test` ve `demo` ortamları zorunlu onaylayıcılarla ve yalnızca `main`'e izin veren dağıtım dalı kuralıyla elle oluşturulur; bu iş akışının secret'ları oraya taşınır (ortam secret'ı aynı adlı repo secret'ını geçersiz kılar).
+- Secret'lar yalnızca onlara ihtiyaç duyan adımlara verilir (denetim, `supabase link`, yükleme ve komut adımları); kurulum adımları ve üçüncü taraf eylemler görmez.
 
 Adımlar:
 1. Secret'ların varlığı denetlenir.
