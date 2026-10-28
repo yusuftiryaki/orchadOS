@@ -11,6 +11,7 @@ import { demoText } from "@/lib/i18n/messages/demo";
 import { portalBillingText } from "@/lib/i18n/messages/portal-billing";
 import type { BoundaryCard } from "@/lib/portal/boundary";
 import { BoundaryCardView } from "./boundary-card";
+import { BoundaryNotice } from "./boundary-notice";
 import { Dimensions } from "./dimensions";
 import { HealthMap, type MapLayer } from "./health-map";
 import { DistributionBar, findingKindLabel, percent, ScoreLine } from "./labels";
@@ -150,6 +151,7 @@ export function ParcelReportView({
           initialChanged={mapOptions?.changed}
           initialLayers={mapOptions?.layers}
         />
+        <BoundaryNotice />
       </section>
 
       {report.latest && (
