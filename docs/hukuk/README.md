@@ -8,9 +8,9 @@
 | --- | --- | --- |
 | [kvkk-aydinlatma-metni.md](kvkk-aydinlatma-metni.md) | KVKK 10. madde aydınlatma metni | Sahip ve hissedar; portalda ve sözleşme ekinde |
 | [acik-riza-metni.md](acik-riza-metni.md) | Açık rıza gerektiren işlemler için ayrı onay | Sahip ve hissedar, isteğe bağlı |
-| [hizmet-sozlesmesi-taslagi.md](hizmet-sozlesmesi-taslagi.md) | Denetim hizmeti sözleşmesi. Portalda kurulduğunda mesafeli hizmet sözleşmesi (cayma hakkı, yapılamayan ziyaret iadesi, yenileme); sitede `/mesafeli-satis` | Sahip ve şirket; portalda teklif onayıyla |
+| [hizmet-sozlesmesi-taslagi.md](hizmet-sozlesmesi-taslagi.md) | Denetim hizmeti sözleşmesi. Portalda kurulduğunda mesafeli hizmet sözleşmesi (cayma hakkı, yapılamayan ziyaret iadesi, yenileme; v2'den beri birden fazla bahçe, dönem içinde bahçe ekleme ve bahçe bazında çıkarma); sitede `/mesafeli-satis` | Sahip ve şirket; portalda teklif onayıyla |
 | [on-bilgilendirme-formu-taslagi.md](on-bilgilendirme-formu-taslagi.md) | Mesafeli sözleşme öncesi ön bilgilendirme formu; sitede `/on-bilgilendirme` | Sahip; teklif onayından önce ayrıca onaylanır |
-| [iptal-iade-politikasi-taslagi.md](iptal-iade-politikasi-taslagi.md) | İptal, cayma ve iade kuralları, sözleşmenin sade özeti; sitede `/iade` | Herkes |
+| [iptal-iade-politikasi-taslagi.md](iptal-iade-politikasi-taslagi.md) | İptal, cayma, bahçe çıkarma ve iade kuralları, sözleşmenin sade özeti; sitede `/iade` | Herkes |
 | [gizlilik-cerez-politikasi-taslagi.md](gizlilik-cerez-politikasi-taslagi.md) | Site ve portal gizlilik ve çerez politikası; sitede `/gizlilik` | Ziyaretçi ve sahip |
 
 Sitedeki sayfalar bu dosyalardan elle aktarılan metni gösterir (`apps/web/src/lib/i18n/messages/legal.ts`); sürümler `apps/web/src/lib/legal/versions.ts` dosyasındadır. Bir metin değişince ikisi birlikte güncellenir ve sürüm adı artırılır. Sürüm adı `-taslak` ile bitiyorsa sayfanın üstünde "taslak" bandı görünür.
@@ -43,3 +43,22 @@ Köşeli parantez içindeki yerler doldurulacak. Veri sorumlusu: OBA Bilişim Te
 12. **Ödeme kuruluşu (iyzico).** iyzico'ya aktarılan alıcı bilgileri (ad, soyad, telefon, e-posta, adres, IP) için hukuki sebep sözleşmenin ifası mı? TCKN yerine sabit bir değer gönderilmesi (iyzico yazılı teyidi bekleniyor) KVKK açısından sorun yaratır mı?
 13. **Çerezler.** Yalnızca zorunlu oturum çerezi ve robot doğrulaması (Cloudflare Turnstile) kullanılıyor. Çerez onay penceresi gerekmez mi? Turnstile yurt dışı aktarım sayılır mı?
 14. **e-Arşiv.** Portalda verilen makbuz fatura değil. Faturanın ne zaman ve nasıl düzenleneceği (mali müşavirle birlikte).
+
+### Bahçe ekleme ve çıkarma (İP14)
+
+Tasarım: [docs/bahce-yonetimi.md](../bahce-yonetimi.md) §2, §4–§7, §10, §16, §19. Sürümler: `mesafeli-v2-taslak`, `iade-v2-taslak`, `onbilgi-v2-taslak`. KVKK aydınlatma metni ve açık rıza metni değişmedi (`kvkk-v1-taslak`, `riza-v1-taslak`); KVKK sorusu aşağıda 21'de.
+
+**Bu sorular cevaplanıp metinler onaylanana kadar barındırılan projelerde `org_billing_setting.garden_changes_enabled` kapalı kalır;** müşteri bahçe ekleyemez ve çıkaramaz, ops ek teklif veremez (`docs/deployment.md` › Bahçe ekleme ve çıkarma).
+
+15. **Çoğul bahçe ve Ek-1 (Md. 2).** Tek sözleşmede birden çok bahçe ve Ek-1'in güncellenen bir bahçe listesi olması yeterli mi? Ek siparişle eklenen bahçenin Ek-1'e girmesi için ayrı bir onay ya da imza gerekir mi?
+16. **Ek siparişin niteliği ve cayma süresi (Md. 8D/7).** Ek sipariş ayrı bir mesafeli sözleşme mi, mevcut sözleşmeye ek mi? Kendi ödemesi, makbuzu ve 14 günlük cayma süresi var. Süre bugün ek siparişin başladığı günden (aktivasyon, yani ödemenin tamamlandığı gün) sayılıyor ve 14. gün dahil; teklifin onaylandığı günden mi sayılmalı? Ek teklif onayından önce ön bilgilendirme formu yeniden onaylatılmalı mı?
+17. **Dönem içi orantılı fiyat (Md. 8D/2–5, Ön Bilgilendirme 3).** Ziyaret hakkının kalan güne göre orantılanması, yarım yukarı yuvarlama ve en az 1 ziyaret; bahçe başına en az ücretin aynı oranla orantılanması (fiyat kararı Yusuf'ta); envanter ücretinin tam alınması; teklif günündeki fiyat listesinin kullanılması; son ek günü ([30] gün) ve dönem kapanınca siparişin iptali ve iadesi. Bu madde ve ön bilgilendirmedeki anlatım tüketiciye yeterince açık mı?
+18. **Bahçe bazında fesih (Md. 12/3).** Sözleşmenin bahçe bazında kısmen feshedilebilmesi; [30] günlük bildirim süresi ve "dönem sonunda" seçeneği; talebin Şirket onayı beklemeden çıkış gününde kendiliğinden hüküm doğurması, tarihin yalnızca anlaşmayla değişmesi; ödemesi beklenen siparişteki bahçe için önce o siparişin iptali şartı; son bahçe çıkınca sözleşmenin sona ermesi. İade formülü (kullanılmayan ziyaret × ziyaret bedeli, envanter yapılmadıysa envanter payı) ve Şirket'in kendi yeniden taramalarının kullanılmış ziyaret sayılmaması yeterli ve adil mi?
+19. **Yapılamayan ziyaretler ve 8A iadesinin düşülmesi (Md. 8A/5, 12/3).** Çıkarma iadesinden daha önce yapılmış bütün iadelerin (8A dahil) düşülmesi; hizmet dönemi çıkış gününden önce bitmiş satırın çıkarma iadesine girmemesi ve o dönemin yapılamayan ziyaretlerinin yalnızca 8A'ya göre iade edilmesi.
+20. **Tek bahçe için açık cayma (Md. 8B/4–5).** Çok bahçeli siparişte cayma hakkının tek bahçe için kullanılabilmesi; caymanın ayrı ve açık bir seçenek olması ("30 gün sonra" ya da "dönem sonunda" seçimi cayma bildirimi sayılmaz); caymada yapılmış envanterin payı ile yapılmış periyodik ziyaretlerin bedelinin düşülmesi (Mesafeli Sözleşmeler Yönetmeliği md. 15/1-ğ). Düşme mi, orantılı bedel mi, yoksa hizmete başlanınca cayma hakkının kullanılamaması mı? Tüketicinin "hizmete cayma süresinde başlansın" onayının biçimi.
+21. **Erişim süresi ve KVKK (Md. 12/4).** Çıkarılan bahçede 90 gün salt okunur erişim (soru ve hissedar daveti kapalı), süre sonunda Sahip'in, davet ettiği hissedarların ve başka sahip kalmıyorsa bütün hissedarların erişiminin kaldırılması; parselde başka sahip varsa onun erişiminin sürmesi; devirde (satış) erişim süresinin 0 olması. Veri silinmiyor, bahçe pasif oluyor. Bu süreler KVKK aydınlatma metnindeki saklama süresi [X] ile nasıl ilişkilendirilir? Aydınlatma metninde ayrıca yazılması gerekir mi (metnin sürümü bu işte değiştirilmedi)? Erişimi kalkan hissedara bildirim gerekir mi (bugün SMS gitmiyor)?
+22. **Yenilenmeyen üyelik (Md. 12/4).** Süresi biten ve yenilenmeyen üyelikte erişim bugün kapanmıyor; yalnızca hizmetten çıkarılan bahçede 90 gün sonra kapanıyor. 12/4'ün dönem sonunda da uygulanması gerekir mi? Gerekirse ayrı bir iş olarak yapılacak (`docs/bahce-yonetimi.md` §1, §19).
+
+### Bilinen fark (İP14 dışı)
+
+23. **Ödenmeyen sipariş.** Sözleşme (Md. 8/2) ve iade politikası (1. bölüm) "ödeme süresi içinde ödenmeyen sipariş kendiliğinden düşer" diyor; sistem ise süre dolunca siparişi iptal etmiyor, yalnızca hatırlatma gönderiyor (`docs/musteri-yonetimi.md` §5.3). Fark İP12'den kalmadır ve v2 taslaklarında bilerek değiştirilmedi. Avukat hangi davranışın yazılacağına karar verince metin ya da sistem düzeltilir.
