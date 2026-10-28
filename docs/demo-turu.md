@@ -282,6 +282,7 @@ Anahtar eksikse rehberli tur o adımı atlar.
 | `private.dispatch_demo_cleanup()` | cron | Vault'taki `demo_cleanup_url` ve `orchados_cron_secret` ile `{"action":"cleanup"}` gönderir. Biri yoksa hiçbir şey yapmaz |
 | `private.demo_housekeeping()` | cron | §4'teki işler; her adım kendi hata bloğundadır |
 | `private.deny_demo_write()`, `private.attach_demo_guard(regclass)` | iç | Genel yazma kilidi (§6.1) |
+| `private.attach_demo_guards() → setof regclass`, `private.demo_guard_drift() → table(kind, object, problem)` | iç | Yayına almadan sonra yeniden bağlama ve sapma denetimi (§6.1) |
 | `private.demo_account_freeze()` | `auth.users` tetikleyicisi | Hesap kilidi (§6.2) |
 | `private.demo_account_scope_guard()`, `private.attach_demo_account_guard(regclass, text, boolean)` | iç | Erişim kapsamı (§6.2) |
 
@@ -330,6 +331,7 @@ Anahtar eksikse rehberli tur o adımı atlar.
     - `private.demo_session`: `demo_end` ve `demo_hit` bu tabloya yazar.
 - **Kimleri etkilemez:** Servis rolü, cron, işleme hattı ve yükleyicinin isteklerinde demo claim'i yoktur; onlar kilitten etkilenmez.
 - **Yeni tablolar:** Bundan sonra tablo ekleyen her migration `select private.attach_demo_guard('<tablo>');` çağırır. Kullanıcıya erişim ya da kimlik veren yeni tablo ayrıca `private.attach_demo_account_guard(...)` çağırır. pgTAP `43_demo_write_guard` birinci çağrısı eksik tabloyu bulursa başarısız olur. Kural CLAUDE.md'de de yazılıdır.
+- **Migration sırası:** Yayına alma `db push --include-all` ile yapılır. Sonradan birleşen ama zaman damgası daha eski bir migration, barındırılan projede IP13-A migration'larından sonra, temiz CI veritabanında ise önce uygulanır. Bu yüzden pgTAP onu göremez. Her yayına alma iş akışı (`deploy-db*.yml`) `db push`'tan sonra `scripts/demo-guard-check.sh`'ı çalıştırır: `private.attach_demo_guards()` kilidi eksik tablolara yeniden bağlar, `private.demo_guard_drift()` hâlâ kilitsiz tablo, demo süzgecini kaybetmiş bir geçersiz kılınmış fonksiyon (`ops_find_user_id`, `enqueue_notifications` vb.) ya da kaybolmuş bir hesap kapsamı tetikleyicisi bulursa iş başarısız olur. `ddl_command_end` olay tetikleyicisi kullanılmadı: barındırılan Supabase'de (supautils) `db push` sırasında güvenilir biçimde çalıştığı gösterilemedi; sessizce çalışmayan bir kilit açık denetimden kötüdür.
 - **Tablo dışı yan etkiler:** `authenticated` rolüne açık olup `pg_notify` ya da `net.http_` çağıran fonksiyonlar test dosyasındaki bir izin listesinde olmalıdır. Listede olmayan bir fonksiyon testi düşürür.
 
 ### 6.2 Hesap kilidi ve erişim kapsamı

@@ -13,9 +13,15 @@
 --    and, for a table that grants access to or holds the identity of a user,
 --      select private.attach_demo_account_guard('<schema>.<table>', '<user column>');
 --    (20261101120200_demo_account_lockdown.sql). pgTAP 43_demo_write_guard
---    fails on a table without zz_demo_read_only.
+--    fails on a table without zz_demo_read_only. Migration order alone is not
+--    enough: deploys run db push --include-all, so a late-merged migration
+--    with an older timestamp lands after this one on hosted projects. Every
+--    deploy workflow therefore runs private.attach_demo_guards() after the
+--    push and fails on private.demo_guard_drift()
+--    (20261101120300_demo_guard_drift.sql).
 -- 2. Restrictive policies on parcel_access, question, question_reply and
---    storage.objects. parcel_access select also hides other visitors' rows.
+--    storage.objects. parcel_access select also hides other visitors' rows;
+--    session select shows a visitor published visits only.
 -- 3. approve_boundary, owner_invite_viewer, owner_cancel_viewer_invitation
 --    start with private.assert_not_demo() (signature, grants, comment as
 --    before).
@@ -64,7 +70,17 @@ $$;
 comment on function private.attach_demo_guard(regclass) is
   'Attaches the demo write guard (zz_demo_read_only) to a table; every table-creating migration calls it.';
 
-do $$
+-- Idempotent: guards every base table of public and private that lacks
+-- zz_demo_read_only and returns the tables it guarded. Run here and again by
+-- every deploy workflow after db push: --include-all applies a late-merged
+-- migration with an older timestamp after this one, so this migration's own
+-- pass cannot be the only one (see private.demo_guard_drift()).
+create function private.attach_demo_guards()
+returns setof regclass
+language plpgsql
+security definer
+set search_path = ''
+as $$
 declare
   t record;
 begin
@@ -79,12 +95,23 @@ begin
         select 1 from pg_catalog.pg_depend d
         where d.classid = 'pg_catalog.pg_class'::regclass and d.objid = c.oid and d.deptype = 'e')
       and c.oid <> 'private.demo_session'::regclass
+      and not exists (
+        select 1 from pg_catalog.pg_trigger g where g.tgrelid = c.oid and g.tgname = 'zz_demo_read_only')
     order by n.nspname, c.relname
   loop
     perform private.attach_demo_guard(t.tbl);
+    return next t.tbl;
   end loop;
 end;
 $$;
+comment on function private.attach_demo_guards() is
+  'Attaches zz_demo_read_only to every public/private base table without it; returns those tables. Deploy workflows run it after db push.';
+
+revoke all on function private.deny_demo_write() from public;
+revoke all on function private.attach_demo_guard(regclass) from public;
+revoke all on function private.attach_demo_guards() from public;
+
+select private.attach_demo_guards();
 
 -- ---------------------------------------------------------------------------
 -- 2. Restrictive policies
@@ -116,6 +143,11 @@ create policy question_reply_demo_insert on public.question_reply as restrictive
 create policy question_reply_demo_update on public.question_reply as restrictive for update to authenticated
   using (not (select authz.is_demo_user()))
   with check (not (select authz.is_demo_user()));
+
+-- A demo visitor sees published visits only (§14): owners in general see that
+-- a visit is planned or in review, a visitor of the showcase does not.
+create policy session_demo_select on public.session as restrictive for select to authenticated
+  using (not (select authz.is_demo_user()) or status = 'published');
 
 -- Restrictive only: they grant nothing (media stays without update or delete
 -- policies for API users).

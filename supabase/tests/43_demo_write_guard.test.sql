@@ -5,7 +5,7 @@
 -- Seed: owner a0..01, ops a0..05 of org b0..01, parcel c0..01, tree S1-1.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(40);
 
 -- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
 -- removed first; rolled back with the file (supabase/testing/reset.sql).
@@ -226,6 +226,53 @@ select is(
      'public.signup_find_account(text, text)', 'public.demo_admit(text)', 'public.demo_start(uuid, text)']) f
    where has_function_privilege('authenticated', f, 'EXECUTE')),
   '{}'::text[], 'payment, sign-up and demo service functions are not executable by authenticated');
+
+-- Guard helpers are not callable by API roles or PUBLIC ----------------------------------
+
+select is(
+  (select coalesce(array_agg(f order by f), '{}') from unnest(array[
+     'private.deny_demo_write()', 'private.attach_demo_guard(regclass)',
+     'private.attach_demo_guards()', 'private.demo_guard_drift()']) f
+   where has_function_privilege('authenticated', f, 'EXECUTE')
+      or has_function_privilege('anon', f, 'EXECUTE')
+      or exists (select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                 where p.oid = f::regprocedure and a.grantee = 0)),
+  '{}'::text[], 'the guard helpers are revoked from PUBLIC, anon and authenticated');
+
+-- Migration order (deploys run db push --include-all) ------------------------------------
+
+-- A late-merged migration with an older timestamp creates an owner-writable
+-- table after the one-time pass of 20261101120100.
+create table public.zz_late_43 (id integer);
+alter table public.zz_late_43 enable row level security;
+create policy zz_late_43_all on public.zz_late_43 for all to authenticated using (true) with check (true);
+grant select, insert on public.zz_late_43 to authenticated;
+
+select results_eq($$ select * from private.demo_guard_drift() $$,
+  $$ values ('table', 'public.zz_late_43', 'zz_demo_read_only missing') $$,
+  'demo_guard_drift reports the unguarded table');
+set local role authenticated;
+select pg_temp.as_demo('d13a0000-0000-4000-8000-000000000011');
+select lives_ok($$ insert into public.zz_late_43 values (1) $$, 'unguarded, a demo visitor could write it');
+reset role;
+select results_eq($$ select t::text from private.attach_demo_guards() t $$, $$ values ('zz_late_43') $$,
+  'attach_demo_guards (run by every deploy after db push) guards it');
+select is_empty($$ select * from private.demo_guard_drift() $$, 'and the drift check is clean again');
+set local role authenticated;
+select throws_ok($$ insert into public.zz_late_43 values (2) $$, '42501', 'demo_read_only',
+  'the demo visitor''s write is refused');
+reset role;
+select is_empty($$ select * from private.attach_demo_guards() $$, 'attach_demo_guards is idempotent');
+
+-- A late create or replace drops a demo filter; a dropped account guard.
+create or replace function public.ops_find_user_id(p_org_id uuid, p_email text default null, p_phone text default null)
+returns uuid language sql stable security definer set search_path = '' as $$ select null::uuid $$;
+drop trigger demo_account_scope_user_id on public.membership;
+select results_eq($$ select * from private.demo_guard_drift() $$,
+  $$ values ('account_guard', 'public.membership.demo_account_scope_user_id', 'missing'),
+            ('function', 'public.ops_find_user_id(uuid,text,text)',
+             'demo filter missing: raw_app_meta_data ->> ''demo''') $$,
+  'demo_guard_drift reports an overridden function without its demo filter and a lost account guard');
 
 select * from finish();
 rollback;

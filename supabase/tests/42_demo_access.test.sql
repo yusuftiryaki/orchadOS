@@ -7,7 +7,7 @@
 -- in-test (Edge's Admin API is not involved here).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(80);
+select plan(82);
 
 -- Rows other suites left behind (web, pipeline, AI worker tests, db:demo) are
 -- removed first; rolled back with the file (supabase/testing/reset.sql).
@@ -214,12 +214,16 @@ select lives_ok($$ select public.demo_start('d13a0000-0000-4000-8000-00000000000
 set local role authenticated;
 select pg_temp.as_demo('d13a0000-0000-4000-8000-000000000001');
 select ok(authz.is_demo_user(), 'the claim makes the request a demo request');
--- Visit rows are visible to parcel roles in any status (as for every owner);
--- their results only once published.
+-- §14: a visitor sees published visits only (session_demo_select), while an
+-- ordinary owner also sees that a visit is in review.
 select results_eq($$ select id, status::text from public.session order by id $$,
-  $$ values ('d1320000-0000-4000-8000-000000000001'::uuid, 'published'),
-            ('d1320000-0000-4000-8000-000000000002'::uuid, 'in_review') $$,
-  'the visitor sees the visits of the demo parcel, nothing of the seed org');
+  $$ values ('d1320000-0000-4000-8000-000000000001'::uuid, 'published') $$,
+  'the visitor sees the published visit of the demo parcel, nothing of the seed org');
+select is((select count(*)::int from public.session where id = 'd1320000-0000-4000-8000-000000000002'), 0,
+  'the in_review visit is invisible to the visitor');
+select pg_temp.as_user('d13a0000-0000-4000-8000-000000000001');
+select is((select count(*)::int from public.session), 2, 'the same parcel role without the demo claim sees both visits');
+select pg_temp.as_demo('d13a0000-0000-4000-8000-000000000001');
 select results_eq($$ select id from public.asset $$,
   $$ values ('d1330000-0000-4000-8000-000000000001'::uuid) $$,
   'and only the published visit''s assets');

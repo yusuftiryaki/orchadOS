@@ -253,8 +253,10 @@ Dördüne de `anon` ve `authenticated` için yetki yoktur; RLS açık, politika 
 **Yazma kilidi:**
 - `zz_demo_read_only`, `public` ve `private` şemalarındaki her temel tabloda bir `BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ... FOR EACH STATEMENT` tetikleyicisidir. İstekte `app_metadata.demo` claim'i varsa (`authz.is_demo_user()`) `demo_read_only` (42501) yükseltir. Security definer fonksiyonların içindeki yazmaları da yakalar.
 - İstisnalar eklenti tabloları ve `private.demo_session`'dır (`demo_end`, `demo_hit`).
-- Ayrıca kısıtlayıcı politikalar (`parcel_access`, `question`, `question_reply`, `storage.objects`) ve `approve_boundary`, `owner_invite_viewer`, `owner_cancel_viewer_invitation` başında `assert_not_demo` vardır.
+- Ayrıca kısıtlayıcı politikalar (`parcel_access`, `question`, `question_reply`, `session` okuma, `storage.objects`) ve `approve_boundary`, `owner_invite_viewer`, `owner_cancel_viewer_invitation` başında `assert_not_demo` vardır.
 - **Zorunluluk:** Tablo ekleyen her migration `select private.attach_demo_guard('<tablo>');` çağırır. pgTAP `43_demo_write_guard` eksik tabloyu bulur.
+- **Migration sırası:** `db push --include-all` eski zaman damgalı bir migration'ı IP13-A'dan sonra uygulayabilir. Her yayına alma iş akışı push'tan sonra `private.attach_demo_guards()` çalıştırır ve `private.demo_guard_drift()` satır döndürürse başarısız olur (`20261101120300_demo_guard_drift.sql`).
+- Demo ziyaretçisi `session` tablosunda yalnızca yayımlanmış ziyaretleri görür (`session_demo_select`, kısıtlayıcı); sıradan sahip incelemedeki ziyareti de görür.
 - Bildirimler (`enqueue_notifications`, `enqueue_billing_notification`) demo org'larını ve demo hesaplarını atlar; `save_ai_assessment` demo org'unun ziyaretini `demo_org_no_ai` ile reddeder; demo org'unda `org_billing_setting` kayıt ya da sahte ödeme açamaz (`demo_billing_forbidden`).
 
 **Hesap kilidi ve erişim kapsamı:**

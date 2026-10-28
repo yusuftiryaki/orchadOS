@@ -15,6 +15,7 @@ on:
       - "supabase/functions/**"
       - "supabase/config.toml"
       - ".github/workflows/deploy-db-demo.yml"
+      - "scripts/demo-guard-check.sh"
   workflow_dispatch:
 
 concurrency:
@@ -134,6 +135,13 @@ jobs:
         # --include-all: parallel branches add migrations whose timestamps can be
         # older than one already applied; they are independent by convention.
         run: pnpm exec supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
+
+      # A late-merged migration with an older timestamp lands after the IP13-A
+      # ones here (but before them on a fresh CI database): re-attach the demo
+      # write guard and fail on any demo guard lost to migration order.
+      - name: Check demo guards
+        if: steps.guard.outputs.ready == 'true'
+        run: scripts/demo-guard-check.sh
 
       # Without a name every function under supabase/functions is deployed
       # (demo-start included). The functions read SUPABASE_URL /
