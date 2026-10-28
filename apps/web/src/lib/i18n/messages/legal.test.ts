@@ -151,4 +151,10 @@ describe("blocksFromMarkdown", () => {
   it("refuses links that have no public page", () => {
     expect(() => blocksFromMarkdown("**Sürüm:** v\n\nBak [x](kararlar.md).")).toThrow();
   });
+
+  it.each(["#### Ek", "# Başlık", "#etiket"])("throws on an unsupported heading (%s)", (line) => {
+    expect(() => blocksFromMarkdown(`**Sürüm:** v\n\nMetin.\n\n${line}\n`)).toThrow(
+      `unsupported heading on body line 5: ${line}`,
+    );
+  });
 });

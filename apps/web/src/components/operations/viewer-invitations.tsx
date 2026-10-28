@@ -1,5 +1,6 @@
 import { approveInvitationAction, rejectInvitationAction } from "@/app/operasyon/actions";
 import { formatDate, t } from "@/lib/i18n";
+import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import type { ViewerInvitation } from "@/lib/operations/invitations";
 import styles from "./operations.module.css";
 
@@ -54,7 +55,11 @@ export function ViewerInvitations({
               </label>
               <label>
                 {T.owners.kvkkTextVersion}
-                <input name="kvkk_text_version" defaultValue="kvkk-v0" required />
+                <input
+                  name="kvkk_text_version"
+                  defaultValue={LEGAL_TEXT_VERSIONS.kvkk_notice}
+                  required
+                />
               </label>
               <button className="button" type="submit">
                 {T.dashboard.approve}

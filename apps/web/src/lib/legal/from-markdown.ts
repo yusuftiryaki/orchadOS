@@ -67,6 +67,8 @@ export function blocksFromMarkdown(markdown: string): LegalBlock[] {
     } else if (line.startsWith("## ")) {
       blocks.push({ kind: "h2", text: inline(line.slice(3)) });
       i++;
+    } else if (line.startsWith("#")) {
+      throw new Error(`unsupported heading on body line ${versionLine + 2 + i}: ${line}`);
     } else if (line.startsWith("|")) {
       const head = cells(line);
       const rows: string[][] = [];
@@ -101,6 +103,8 @@ export function blocksFromMarkdown(markdown: string): LegalBlock[] {
         paragraph.push(body[i].replace(/^> ?/, "").trim());
         i++;
       }
+      // Every branch above consumes a line; a paragraph that took none would loop.
+      if (paragraph.length === 0) throw new Error(`unsupported line: ${line}`);
       blocks.push({ kind: "p", text: inline(paragraph.join(" ")) });
     }
   }

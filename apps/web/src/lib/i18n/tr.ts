@@ -753,7 +753,7 @@ export const tr = {
       kvkkConsent: "Aydınlatma metni verildi (okundu teyidi)",
       kvkkConsentAt: "Teyit tarihi",
       kvkkTextVersion: "Aydınlatma metni sürümü",
-      kvkkTextVersionHint: "Örnek: kvkk-v0",
+      kvkkTextVersionHint: "Güncel sürüm:",
       consentYes: (date: string, version: string) => `Var (${date}, ${version})`,
       consentNo: "Yok",
       submit: "Sahibi kaydet",

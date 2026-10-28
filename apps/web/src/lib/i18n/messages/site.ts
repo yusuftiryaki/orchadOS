@@ -30,7 +30,7 @@ export const siteText = {
       refund: "İptal ve iade politikası",
       fieldNotice: "Bahçede bulunanlar için aydınlatma",
     },
-    note: "Hukuki metinler taslaktır; avukat onayından sonra yayımlanır.",
+    note: "Hukuki metinler taslaktır; yayın şartları tamamlanınca yürürlüğe girer.",
   },
   landing: {
     eyebrow: "Antep fıstığı bahçeleri için",

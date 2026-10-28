@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { createOwnerAction, updateOwnerAction } from "@/app/operasyon/actions";
 import { t } from "@/lib/i18n";
+import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { EMPTY_FORM, type FormState } from "@/lib/operations/form-state";
 import { opsHref } from "@/lib/operations/urls";
 import { CONTACT_PREFERENCES } from "@/lib/operations/validation";
@@ -104,10 +105,15 @@ export function OwnerForm({
           </Field>
           <Field
             label={T.owners.kvkkTextVersion}
-            hint={T.owners.kvkkTextVersionHint}
+            hint={`${T.owners.kvkkTextVersionHint} ${LEGAL_TEXT_VERSIONS.kvkk_notice}`}
             error={err("kvkk_text_version")}
           >
-            <input name="kvkk_text_version" defaultValue={v("kvkk_text_version")} />
+            <input
+              name="kvkk_text_version"
+              defaultValue={
+                v("kvkk_text_version") || (profileId ? "" : LEGAL_TEXT_VERSIONS.kvkk_notice)
+              }
+            />
           </Field>
         </div>
       </fieldset>

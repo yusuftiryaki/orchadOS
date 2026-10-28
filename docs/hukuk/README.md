@@ -6,7 +6,7 @@
 
 | Dosya | Ne | Kim imzalar / okur |
 | --- | --- | --- |
-| [kararlar.md](kararlar.md) | Hukuki kararlar (H01–H34), yayın şartları, sürüm planı ve takip işleri (T01–T26) | Ekip |
+| [kararlar.md](kararlar.md) | Hukuki kararlar (H01–H34), yayın şartları, sürüm planı ve takip işleri (T01–T27) | Ekip |
 | [kvkk-aydinlatma-metni.md](kvkk-aydinlatma-metni.md) | KVKK 10. madde aydınlatma metni; sitede `/kvkk` | Sahip ve hissedar; portalda ve sözleşme ekinde (okundu teyidi) |
 | [acik-riza-metni.md](acik-riza-metni.md) | Açık rıza ve ticari elektronik ileti onayı: yalnızca tanıtım iletileri, İYS kaydından sonra sorulur; sitede `/acik-riza` | Sahip, isteğe bağlı |
 | [bahcede-bulunanlar-aydinlatma-metni.md](bahcede-bulunanlar-aydinlatma-metni.md) | Görüntülere girebilen işçi, bekçi, komşu ve yoldan geçenler için aydınlatma; sitede `/bahcede-bulunanlar`, tarama levhasının QR kodu | Bahçede bulunan kişiler |

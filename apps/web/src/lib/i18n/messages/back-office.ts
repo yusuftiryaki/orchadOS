@@ -595,7 +595,7 @@ export const backOfficeText = {
     gardens: "Bahçe ekleme ve çıkarma",
     gardenChangesEnabled: "Üyelik boyunca bahçe ekleme ve çıkarma açık",
     gardenChangesWarning:
-      "Açıkken müşteri portalda bahçe ekleyip çıkarabilir, operasyon ek teklif ve çıkarma açabilir. Sözleşme ve iade metinleri avukat onayından geçmeden pilotta açmayın. Kapalıyken açılmış kayıtlar işlemeye devam eder.",
+      "Açıkken müşteri portalda bahçe ekleyip çıkarabilir, operasyon ek teklif ve çıkarma açabilir. Hukuki yayın şartları (docs/hukuk/kararlar.md › Yayın şartları) ile T05 ve T18 tamamlanmadan pilotta açmayın. Kapalıyken açılmış kayıtlar işlemeye devam eder.",
     addonMinDaysHint:
       "1–180. Dönem sonuna bundan az gün kalınca ek teklif verilmez; ek bahçe yenilemeyle yeni döneme girer.",
     removalNoticeDaysHint: '0–90. Müşterinin "30 gün sonra" seçeneğinin süresi (Md. 12/3).',
