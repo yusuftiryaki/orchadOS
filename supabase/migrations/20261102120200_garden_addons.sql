@@ -701,7 +701,7 @@ security definer
 set search_path = ''
 as $$
   with lines as (
-    select oi.id as item_id, oi.order_id, oi.line_no, oi.parcel_id, oi.removed_on, oi.quote_item_id,
+    select oi.id as item_id, oi.order_id, oi.line_no, oi.parcel_id, oi.removed_on, oi.quote_item_id, oi.garden_removal_id,
            o.number, o.status, o.addon_of_order_id, o.service_start, o.service_end,
            case
              when o.status = 'active' and o.service_start <= private.istanbul_today()
@@ -755,7 +755,8 @@ as $$
   left join lateral (
     select gr.* from public.garden_removal gr
     where gr.parcel_id = k.parcel_id and gr.customer_user_id = p_user_id
-    order by gr.requested_at desc, gr.id desc
+    order by gr.id is not distinct from k.garden_removal_id desc, gr.status in ('requested', 'scheduled') desc,
+             gr.requested_at desc, gr.id desc
     limit 1
   ) rm on true
   order by k.service_start, k.line_no, k.item_id;

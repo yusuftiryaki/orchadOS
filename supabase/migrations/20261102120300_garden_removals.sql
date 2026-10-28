@@ -1222,7 +1222,8 @@ begin
       where s.parcel_id = r.parcel_id and s.status = 'planned' and s.kind in ('inventory', 'periodic_scan', 'verification')
         and (s.planned_date is null or s.planned_date >= v_eff)),
     'captured_unpublished', (select count(*) from public.session s
-      where s.parcel_id = r.parcel_id and s.status in ('captured', 'processed', 'in_review')),
+      where s.parcel_id = r.parcel_id and s.status in ('captured', 'processed', 'in_review')
+        and s.kind in ('inventory', 'periodic_scan', 'verification')),
     'open_followups', (select count(*) from public.followup_request f
       where f.parcel_id = r.parcel_id and f.status in ('open', 'planned')),
     'pending_invitations', (select count(*) from private.viewer_invitation vi
@@ -1463,7 +1464,8 @@ $$;
 comment on function public.ops_cancel_garden_removal(uuid, text) is
   'Ops: cancels an open garden removal (note required); sends garden_removal_cancelled.';
 
--- Completes a due removal now. Errors: not_found, forbidden,
+-- Completes a due removal now (or cancels it, by the system, when its order
+-- ended and no line is left). Errors: not_found, forbidden,
 -- removal_not_open, removal_not_due, parcel_order_pending (blocked by an
 -- order awaiting payment), state_changed (completed or cancelled meanwhile).
 create function public.ops_complete_garden_removal(p_removal_id uuid)
@@ -1488,6 +1490,10 @@ begin
   select * into r from public.garden_removal x where x.id = p_removal_id;
   if r.status in ('requested', 'scheduled') and r.blocked_reason = 'pending_order' then
     raise exception 'parcel_order_pending' using errcode = 'P0001';
+  end if;
+  -- Cancelled by this call: its order ended and no line was left.
+  if r.status = 'cancelled' and r.cancelled_by = 'system' and r.cancelled_at = now() then
+    return;
   end if;
   raise exception 'state_changed' using errcode = 'P0001';
 end;
