@@ -32,8 +32,9 @@ select tables_are('private', array['owner_profile', 'parcel_detail', 'message_ou
   'application_garden_detail', 'payment_event', 'document_sequence',
   -- Demo tour registry (IP13, docs/demo-turu.md §5.1).
   'demo_org', 'demo_parcel', 'demo_session', 'demo_attempt',
-  -- Legal-text registry (T21) and contract documents (T04).
-  'legal_text_version', 'contract_document'], 'private has the personal data tables');
+  -- Legal-text registry (T21) and contract documents (T04); spent
+  -- self-hosted captcha challenges (T12).
+  'legal_text_version', 'contract_document', 'captcha_spent'], 'private has the personal data tables');
 
 select is(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace

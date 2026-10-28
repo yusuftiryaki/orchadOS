@@ -22,6 +22,11 @@
 #     (`dev` skips the live-key rule) or the Turnstile secret is one of
 #     Cloudflare's dummy keys. The secrets API returns a sha256 digest of each
 #     value, so values are compared by digest and never read in clear;
+#   - with the self-hosted robot check (DEMO_CAPTCHA_PROVIDER=altcha; unset
+#     is Turnstile and the test site's CAPTCHA_PROVIDER never counts,
+#     _shared/captcha.ts) the ALTCHA_HMAC_KEY takes the Turnstile secret's
+#     place in the list above; a DEMO_CAPTCHA_PROVIDER other than turnstile or
+#     altcha fails (demo-start stays closed with it);
 #   - a demo org accepts sign-ups or fake payments;
 #   - a demo account (app_metadata.demo) has a membership, or access to a
 #     parcel of an org that is not a demo org.
@@ -110,14 +115,24 @@ if [ "$(get enabled_demo_orgs)" != "0" ]; then
   # The names demo-start reads first (_shared/demo.ts demoSecrets): on the shared
   # host the DEMO_ ones, which the test site's own secrets never stand in for.
   if [ "$mode" = shared ]; then P=DEMO_; else P=; fi
-  needs=(ORCHADOS_DEMO_MODE "${P}TURNSTILE_SECRET_KEY" "${P}SIGNUP_HASH_SECRET" "${P}SIGNUP_PROXY_SECRET" ORCHADOS_CRON_SECRET)
+  # The robot check demo-start uses: DEMO_CAPTCHA_PROVIDER alone (unset is
+  # Turnstile, whatever CAPTCHA_PROVIDER says for the test site).
+  provider=$(digest DEMO_CAPTCHA_PROVIDER)
+  captcha_key="${P}TURNSTILE_SECRET_KEY"
+  if [ "$provider" = "$(sha altcha)" ]; then
+    captcha_key="${P}ALTCHA_HMAC_KEY"
+  elif [ -n "$provider" ] && [ "$provider" != "$(sha turnstile)" ]; then
+    err "A demo org is enabled but DEMO_CAPTCHA_PROVIDER on $where is neither turnstile nor altcha; demo-start stays closed."
+  fi
+  needs=(ORCHADOS_DEMO_MODE "$captcha_key" "${P}SIGNUP_HASH_SECRET" "${P}SIGNUP_PROXY_SECRET" ORCHADOS_CRON_SECRET)
   for name in "${needs[@]}"; do
     has "$name" || err "A demo org is enabled but the $name secret is missing on $where."
   done
   if has ORCHADOS_DEMO_MODE && [ "$(digest ORCHADOS_DEMO_MODE)" != "$(sha public)" ]; then
     err "A demo org is enabled but ORCHADOS_DEMO_MODE on $where is not 'public' (dev skips the live Turnstile key); run provision-demo with the Turnstile keys."
   fi
-  if has "${P}TURNSTILE_SECRET_KEY" && is_dummy_digest "$(digest "${P}TURNSTILE_SECRET_KEY")"; then
+  if [ "$captcha_key" = "${P}TURNSTILE_SECRET_KEY" ] && has "$captcha_key" \
+    && is_dummy_digest "$(digest "$captcha_key")"; then
     err "A demo org is enabled but ${P}TURNSTILE_SECRET_KEY on $where is a Cloudflare test key; the public demo needs a live key."
   fi
   if [ "$(get cleanup_url)" = "0" ]; then

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import { altchaPayload, isAltchaChallenge, solveAltcha } from "@/lib/site/altcha-solver";
 import { jwtClaims } from "../../../../supabase/functions/_shared/signup";
 import {
   ageDemoSessions,
@@ -275,6 +276,40 @@ describe("demo-start", () => {
         tour: { parcel_id: DEMO.parcel, session_id: DEMO.session },
       });
     }
+  });
+
+  // The self-hosted robot check (docs/hukuk/kararlar.md H03, T12): locally
+  // CAPTCHA_PROVIDER=altcha in dev mode checks a token when one is sent.
+  it("checks a sent self-hosted robot check token and refuses its replay", async () => {
+    const challenge = await callDemo({ action: "challenge" }, {});
+    expect(challenge.status).toBe(200);
+    if (!isAltchaChallenge(challenge.json)) throw new Error("not a challenge");
+    const token = altchaPayload(challenge.json, (await solveAltcha(challenge.json))!);
+
+    const ok = await callDemo({
+      action: "start",
+      client_ip: "198.51.100.40",
+      captcha_token: token,
+    });
+    expect(ok.status).toBe(200);
+    const { data } = await anonClient().auth.verifyOtp({
+      token_hash: String(ok.json.token_hash),
+      type: ok.json.verification_type as "magiclink",
+    });
+    created.add(data.user!.id);
+
+    const replay = await callDemo({
+      action: "start",
+      client_ip: "198.51.100.41",
+      captcha_token: token,
+    });
+    expect(replay).toEqual({ status: 400, json: { error: "captcha_failed" } });
+    const garbage = await callDemo({
+      action: "start",
+      client_ip: "198.51.100.41",
+      captcha_token: "garbage",
+    });
+    expect(garbage).toEqual({ status: 400, json: { error: "captcha_failed" } });
   });
 
   it("rejects bad input", async () => {

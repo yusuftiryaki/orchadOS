@@ -17,7 +17,7 @@ const PHONE = "+905321234567";
 describe("sendAccountCode", () => {
   it("signs in a verified phone without resend", async () => {
     const { auth, client } = fakeClient(null);
-    expect(await sendAccountCode(client, PHONE)).toBeNull();
+    expect(await sendAccountCode(client, PHONE, { confirm: true })).toBeNull();
     expect(auth.signInWithOtp).toHaveBeenCalledWith({
       phone: PHONE,
       options: { shouldCreateUser: false, channel: "sms" },
@@ -32,7 +32,7 @@ describe("sendAccountCode", () => {
       code: "signup_disabled",
       message: "Signups not allowed",
     });
-    expect(await sendAccountCode(client, PHONE)).toBeNull();
+    expect(await sendAccountCode(client, PHONE, { confirm: true })).toBeNull();
     expect(auth.resend).toHaveBeenCalledWith({ type: "sms", phone: PHONE });
   });
 
@@ -41,12 +41,19 @@ describe("sendAccountCode", () => {
       { code: "signup_disabled" },
       { code: "over_sms_send_rate_limit", message: "after 40 seconds" },
     );
-    expect(await sendAccountCode(client, PHONE)).toBe("tooSoon");
+    expect(await sendAccountCode(client, PHONE, { confirm: true })).toBe("tooSoon");
+  });
+
+  // Review of PR #93, finding 1: an account the caller did not open.
+  it("never asks for the confirmation code without confirm", async () => {
+    const { auth, client } = fakeClient({ code: "signup_disabled" });
+    expect(await sendAccountCode(client, PHONE, { confirm: false })).toBe("not_registered");
+    expect(auth.resend).not.toHaveBeenCalled();
   });
 
   it("reports an unknown number without resend", async () => {
     const { auth, client } = fakeClient({ code: "otp_disabled" });
-    expect(await sendAccountCode(client, PHONE)).toBe("not_registered");
+    expect(await sendAccountCode(client, PHONE, { confirm: true })).toBe("not_registered");
     expect(auth.resend).not.toHaveBeenCalled();
   });
 });

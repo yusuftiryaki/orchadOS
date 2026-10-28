@@ -429,7 +429,12 @@ Anahtar eksikse rehberli tur o adımı atlar.
        "public" → TURNSTILE_SECRET_KEY tanımlı olmalı ve Cloudflare'in sahte anahtarlarından
                   (1x0000…AA, 2x0000…AA, 3x0000…AA) biri olmamalı; değilse 503 demo_closed.
        "dev"    → Turnstile yalnızca secret tanımlıysa (yerel, CI, kısa test duman testi).
-  1. Turnstile.
+       Kendi robot doğrulamamızda (DEMO_CAPTCHA_PROVIDER=altcha, aşağıda) "public" için
+       ALTCHA_HMAC_KEY (≥ 32 karakter, önce DEMO_ adı) gerekir; "dev" gönderilen jetonu denetler.
+       Sağlayıcı yalnızca DEMO_CAPTCHA_PROVIDER'dan okunur; boşsa Turnstile. Test sitesinin
+       CAPTCHA_PROVIDER'ı demoyu hiçbir zaman değiştirmez (ortak barındırma, §15.1).
+       Bilinmeyen bir DEMO_CAPTCHA_PROVIDER → 503 demo_closed.
+  1. Robot doğrulaması: Turnstile ya da kendi doğrulamamız (_shared/captcha.ts).
   2. ip_hash = HMAC-SHA256(SIGNUP_HASH_SECRET, "demo:" + (ipBucket(ip) ?? "unknown")); demo_admit(ip_hash).
      ipBucket: IPv4 tam adres; IPv6 ilk 64 bit; ::ffff: eşlemeli IPv4 → IPv4.
   3. Admin API: e-posta ziyaretci-<uuid>@<email_domain>, email_confirm true, app_metadata {demo: true};
@@ -439,6 +444,11 @@ Anahtar eksikse rehberli tur o adımı atlar.
   200 {token_hash, verification_type, expires_at, next: "/portal?tur=bahceler"}
   · 400 {error: "invalid_input" | "captcha_failed"} · 429 {error: "rate_limited"}
   · 503 {error: "demo_closed" | "demo_capacity"} · 500 {error: "failed"}
+
+{ "action": "challenge" }   yalnızca DEMO_CAPTCHA_PROVIDER=altcha
+  HMAC imzalı iş kanıtı sorusu (10 dakika, amaç "demo"); Next sunucusu ister.
+  200 {algorithm, challenge, maxnumber, salt, signature} · 400 invalid_input (başka sağlayıcı)
+  · 503 demo_closed (başlatma kapalıyken)
 
 { "action": "cleanup" }   x-orchados-cron-secret: ORCHADOS_CRON_SECRET
   tur: demo_expired_accounts(200, başarısızlar) → her biri Admin API ile silinir;
@@ -470,6 +480,16 @@ Anahtar eksikse rehberli tur o adımı atlar.
 
 IP okuma, proxy sırrı ve HMAC için `_shared/signup.ts` kullanılır.
 
+**Robot doğrulaması** ([hukuk/kararlar.md](hukuk/kararlar.md) H03, T12; [deployment.md](deployment.md) › Robot doğrulaması):
+- Varsayılan Cloudflare Turnstile'dır. Cloudflare KVKK standart sözleşmesini imzalamazsa kendi sunucumuzda çalışan iş kanıtı doğrulamasına geçilir: Edge `DEMO_CAPTCHA_PROVIDER=altcha` ve `DEMO_ALTCHA_HMAC_KEY` (anahtar için `ALTCHA_HMAC_KEY` de okunur; sağlayıcı için `CAPTCHA_PROVIDER` okunmaz), demo Vercel projesinde `NEXT_PUBLIC_CAPTCHA_PROVIDER=altcha`. Test sitesinin `CAPTCHA_PROVIDER=altcha`'ya geçmesi demoyu Turnstile'da bırakır; demo kilit denetimi de yalnızca `DEMO_CAPTCHA_PROVIDER`'a bakar.
+- Kullanılmış çözümler `private.captcha_spent` tablosunda tutulur; aynı çözüm hangi Edge örneğine giderse gitsin bir kez geçer.
+- Başlatma sayfası soruyu Next sunucusu üzerinden `{action: "challenge"}` ile alır, tarayıcı Web Crypto ile çözer, cevap gizli `altcha` alanında `captcha_token` olarak gider. Cloudflare'e ya da başka bir üçüncü tarafa istek gitmez; aynı cevap ikinci kez kabul edilmez; kayıt formunun sorusu demoda geçmez (amaç imzanın kapsamında).
+- Anahtar yoksa ya da sağlayıcı bilinmiyorsa başlatma kapalıdır (`demo_closed`). Demo kilit denetimi (`scripts/demo-lock-check.sh`) `altcha` seçiliyken Turnstile secret'ı yerine bu anahtarı ister.
+- **Geçişten önce** gizlilik metninin demo bölümü (§5), çerez tablosu ve başlatma sayfasının kısa metnindeki Turnstile/Cloudflare cümleleri değişir; metin sürümü ve kayıt migration'ı birlikte gelir (önerilen metin deployment.md'de).
+- Yerel yığında sağlayıcı `altcha`'dır (`supabase/config.toml`); `dev` kipinde gönderilen jeton denetlenir, jetonsuz başlatma geçer.
+
+**GoTrue denetim kayıtları:** `cleanup` silinen hesapların denetim satırlarını hemen siler (en iyi çaba); geri kalanı `pg_cron` işi `auth-audit-log-purge` en fazla 30 günde temizler. `deploy-db-demo`, demoyu barındıran projede iş yoksa ya da 31 günden eski satır kalmışsa başarısız olur ([deployment.md](deployment.md) › Kısa saklama denetimleri; H27, T09).
+
 **Ziyaretçi e-posta alan adı:**
 - Varsayılan `demo.orchados.invalid`'dir. Bu alan adı RFC 2606 ile ayrılmıştır ve teslim edilemez.
 - Barındırılan GoTrue ayrılmış alan adlarını reddedebilir; yerel yığın kabul etse bile. Bu yüzden alan adı `private.demo_org.visitor_email_domain`'da tutulur ve bayrak açılmadan önce barındırılan projede bir duman adımıyla denenir (§15).
@@ -479,6 +499,8 @@ IP okuma, proxy sırrı ve HMAC için `_shared/signup.ts` kullanılır.
 - Hiçbir log satırı IP, e-posta ya da token içermez.
 - `supabase/config.toml` dosyasına `[functions.demo-start] verify_jwt = false` eklenir; yerel `[edge_runtime.secrets]`'e de `ORCHADOS_DEMO_MODE = "dev"`.
 - `[auth]` ayarları **değişmez**: `enable_signup = false` ve `enable_anonymous_sign_ins = false` kalır.
+
+**Vitrin kuralları** ([hukuk/kararlar.md](hukuk/kararlar.md) H28; gerçek bir vitrin bahçesine geçişte, §10.5): Kişi görünen kareler vitrine konmaz; kaçınılmazsa yüz, plaka ve tanınmaya yetecek ayrıntı bulanıklaştırılır. Komşu parsel bilgileri gösterilmez. İzin metni: [hukuk/demo-vitrin-izni.md](hukuk/demo-vitrin-izni.md).
 
 ## 8. Demo verisi (B)
 
@@ -742,7 +764,7 @@ Eşzamanlılık grubu, gerçekten yazılan veritabanına göre `demo-data-test` 
 
 Gerçek bir bahçe demo parseli olarak doğrudan **kaydedilmez**. Kaydedilseydi ziyaretçi o org'un gerçek sorularını ve hissedar adlarını görürdü. Yapılacak iş:
 
-1. **Yazılı izin:** Bahçe sahibinden görsel ve veri kullanımı için yazılı izin alınır (avukat metni; `docs/hukuk/`). İzin, görüntülerde tanınabilen çevreyi de açıkça kapsar: tepeler, binalar, komşu parseller. Konum kaydırılsa bile yer bu görüntülerden yeniden bulunabilir.
+1. **Yazılı izin:** Bahçe sahibinden görsel ve veri kullanımı için yazılı izin alınır ([hukuk/demo-vitrin-izni.md](hukuk/demo-vitrin-izni.md); vitrin kuralları §7). İzin, görüntülerde tanınabilen çevreyi de açıkça kapsar: tepeler, binalar, komşu parseller. Konum kaydırılsa bile yer bu görüntülerden yeniden bulunabilir.
 2. **Kopyalama:** Bir dışa aktarma komutu, yayımlanmış bir ziyaretin medyasını ve sonuçlarını yeni kimliklerle demo org'una kopyalar. Bu sırada:
     - kişiler, notlardaki adlar ve telefonlar çıkarılır
     - konum kaydırılır
@@ -912,6 +934,8 @@ Görüntü durumu için `tour-viewer` öğesinde zaten bulunan nitelikler kullan
 | `SIGNUP_PROXY_SECRET` | Web (sunucu) + Edge | Var olan. `demo-start` da istemci IP'sine bununla güvenir |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Web / Edge | Var olan. Demo projesinde canlı anahtar zorunludur |
 | `SIGNUP_HASH_SECRET` | Edge | Var olan. IP özeti, `demo:` önekiyle |
+| `DEMO_CAPTCHA_PROVIDER`, `ALTCHA_HMAC_KEY` (önce `DEMO_` adı) / `NEXT_PUBLIC_CAPTCHA_PROVIDER` | Edge / Web | **Yeni** (T12). Demo sağlayıcısı yalnızca `DEMO_CAPTCHA_PROVIDER`'dan okunur (`CAPTCHA_PROVIDER` kaydındır). Boş ya da `turnstile`: Turnstile (varsayılan). `altcha`: kendi robot doğrulamamız (§7); anahtar ≥ 32 karakter, yoksa başlatma kapalı. Gizlilik metni değişmeden barındırılan projede `altcha` seçilmez |
+| `NEXT_PUBLIC_MAP_STYLE_URL` | Web | Var olan. Boşsa üretim derlemesi harita karolarını kendi vekilimizden (`/harita/karo/…`) alır; demo alanında da çalışır (deployment.md › Harita altlığı) |
 | `DEMO_TURNSTILE_SECRET_KEY`, `DEMO_SIGNUP_HASH_SECRET`, `DEMO_SIGNUP_PROXY_SECRET` | Edge (`DEMO_SIGNUP_PROXY_SECRET` ayrıca Web sunucusu) | **Yeni.** Ortak barındırma (§15.1). Tanımlıysa `demo-start` (ve web'de `/demo` başlatması) öneksiz adın yerine bunu kullanır; boşsa öneksiz ada düşer. Test sitesinin `TURNSTILE_SECRET_KEY`, `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET` değerleri böylece değişmez |
 | `ORCHADOS_CRON_SECRET` | Edge + Vault `orchados_cron_secret` | Var olan. `cleanup` eylemi için |
 | `ORCHADOS_DEMO_MODE` | Edge | **Yeni.** `dev` ya da `public`; tanımsızsa başlatma kapalıdır. Pilotta tanımlanmaz (`deploy-db-pilot` denetler) |
@@ -921,7 +945,7 @@ Görüntü durumu için `tour-viewer` öğesinde zaten bulunan nitelikler kullan
 | `DEMO_HOST` | GitHub (repo değişkeni) | **Yeni.** `test`: demo test projesinde (§15.1); `deploy-db-demo`, `demo-data project=demo` ve `deploy-db`'nin demo kilitleri buna göre davranır. Tanımsız ya da başka bir değer: ayrı demo projesi |
 | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` | GitHub | Var olan. Test projesi |
 
-Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırındadır: `enabled`, süre, sınırlar, ziyaretçi alan adı. Yerel Edge secret'ları `config.toml` içindedir; `TURNSTILE_SECRET_KEY` yerelde tanımsız kalır.
+Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırındadır: `enabled`, süre, sınırlar, ziyaretçi alan adı. Yerel Edge secret'ları `config.toml` içindedir; `TURNSTILE_SECRET_KEY` yerelde tanımsız kalır, robot doğrulaması yerelde `altcha`'dır (§7).
 
 ## 14. Test stratejisi
 

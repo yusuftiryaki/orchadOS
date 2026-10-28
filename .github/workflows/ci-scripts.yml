@@ -1,7 +1,7 @@
 name: ci-scripts
 
 # The demo provisioning scripts and workflows (provision-demo, the demo lock
-# check, the deploy and demo-data workflows that use them): shellcheck,
+# check, the retention check, the deploy and demo-data workflows that use them): shellcheck,
 # actionlint and the tests against mocked Supabase and Vercel APIs (no
 # network, no secrets). Every SQL text the scripts send to the mock then runs
 # on a plain Postgres (scripts/test-script-sql.sh), since the mock answers any
@@ -13,11 +13,13 @@ on:
       - "scripts/provision-demo.sh"
       - "scripts/test-provision-demo.sh"
       - "scripts/demo-lock-check.sh"
+      - "scripts/retention-check.sh"
       - "scripts/test-demo-lock-sql.sh"
       - "scripts/test-script-sql.sh"
       - "scripts/tests/**"
       - ".github/workflows/provision-demo.yml"
       - ".github/workflows/deploy-db.yml"
+      - ".github/workflows/deploy-db-pilot.yml"
       - ".github/workflows/deploy-db-demo.yml"
       - ".github/workflows/demo-data.yml"
       - ".github/workflows/ci-scripts.yml"
@@ -27,11 +29,13 @@ on:
       - "scripts/provision-demo.sh"
       - "scripts/test-provision-demo.sh"
       - "scripts/demo-lock-check.sh"
+      - "scripts/retention-check.sh"
       - "scripts/test-demo-lock-sql.sh"
       - "scripts/test-script-sql.sh"
       - "scripts/tests/**"
       - ".github/workflows/provision-demo.yml"
       - ".github/workflows/deploy-db.yml"
+      - ".github/workflows/deploy-db-pilot.yml"
       - ".github/workflows/deploy-db-demo.yml"
       - ".github/workflows/demo-data.yml"
       - ".github/workflows/ci-scripts.yml"
@@ -62,13 +66,14 @@ jobs:
       - name: shellcheck
         run: |
           shellcheck scripts/provision-demo.sh scripts/test-provision-demo.sh scripts/demo-lock-check.sh \
-            scripts/test-demo-lock-sql.sh scripts/test-script-sql.sh
+            scripts/retention-check.sh scripts/test-demo-lock-sql.sh scripts/test-script-sql.sh
 
       - name: actionlint
         run: |
           bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
           ./actionlint -color .github/workflows/provision-demo.yml .github/workflows/ci-scripts.yml \
-            .github/workflows/deploy-db.yml .github/workflows/deploy-db-demo.yml .github/workflows/demo-data.yml
+            .github/workflows/deploy-db.yml .github/workflows/deploy-db-pilot.yml .github/workflows/deploy-db-demo.yml \
+            .github/workflows/demo-data.yml
 
       - name: Tests (mocked APIs, SQL on Postgres)
         env:

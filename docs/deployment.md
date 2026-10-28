@@ -26,12 +26,12 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 | `ci-pipeline` | `services/pipeline/` değişince | ruff, pytest, sentetik oturumla uçtan uca çalıştırma |
 | `ci-firmware` | `firmware/` değişince | Native testler, ESP32 derlemesi; `firmware.bin` 14 gün saklanır |
 | `ci-field` | `apps/field/` değişince | analyze, test, üretilmiş kodun güncelliği. `main`'de ayrıca debug APK derlenir ve 7 gün saklanır |
-| `deploy-db` | `main`'de `supabase/migrations/`, `supabase/functions/` ya da `supabase/config.toml` değişince, ya da elle (yalnızca `main`'den) | `test` ortamında koşar. `supabase db push` ile test projesine migration uygular ve bütün Edge Function'ları dağıtır. Seed uygulanmaz. `DEMO_HOST=test` iken sonunda ortak demo kilitlerini denetler (aşağıda, Ortak barındırma) |
-| `deploy-db-pilot` | `release`'te aynı yollar değişince, ya da elle (yalnızca `release`'ten) | `pilot` ortamında koşar; aynısını pilot projesine yapar. Seed hiçbir zaman uygulanmaz. Önce ödeme, kayıt ve demo kilitlerini denetler (aşağıda, Ödeme ve Demo turu) |
-| `deploy-db-demo` | `main`'de aynı yollar değişince, ya da elle (yalnızca `main`'den) | `demo` ortamında koşar; aynısını demo projesine yapar. Önce demo projesinin kilitlerini denetler (aşağıda, Demo turu). Demo projesi açılana kadar iş akışı GitHub'da devre dışıdır. `DEMO_HOST=test` iken `test` ortamında koşar ve yalnızca ortak demo kilitlerini denetler |
+| `deploy-db` | `main`'de `supabase/migrations/`, `supabase/functions/` ya da `supabase/config.toml` değişince, ya da elle (yalnızca `main`'den) | `test` ortamında koşar. `supabase db push` ile test projesine migration uygular ve bütün Edge Function'ları dağıtır. Seed uygulanmaz. `DEMO_HOST=test` iken sonunda ortak demo kilitlerini denetler (aşağıda, Ortak barındırma). En sonda kayıt temizliği denetimi (aşağıda, Kısa saklama denetimleri) |
+| `deploy-db-pilot` | `release`'te aynı yollar değişince, ya da elle (yalnızca `release`'ten) | `pilot` ortamında koşar; aynısını pilot projesine yapar. Seed hiçbir zaman uygulanmaz. Önce ödeme, kayıt ve demo kilitlerini denetler (aşağıda, Ödeme ve Demo turu); en sonda kayıt temizliği denetimi (aşağıda, Kısa saklama denetimleri) |
+| `deploy-db-demo` | `main`'de aynı yollar değişince, ya da elle (yalnızca `main`'den) | `demo` ortamında koşar; aynısını demo projesine yapar. Önce demo projesinin kilitlerini denetler (aşağıda, Demo turu). Demo projesi açılana kadar iş akışı GitHub'da devre dışıdır. `DEMO_HOST=test` iken `test` ortamında koşar ve yalnızca ortak demo kilitlerini denetler. İki kipte de en sonda GoTrue denetim kaydı temizliğini denetler (aşağıda, Kısa saklama denetimleri) |
 | `demo-data` | Yalnızca elle (`workflow_dispatch`, yalnızca `main`'den) | `test` ya da `demo` ortamında koşar. Demo turu verisini test ya da demo projesine yükler, açar ya da kapatır (aşağıda, Demo turu). `DEMO_HOST=test` iken `project=demo` test projesidir |
 | `provision-demo` | Yalnızca elle (`workflow_dispatch`, yalnızca `main`'den) | `demo` ortamında koşar. Demo turunu test projesinde (`host=test`, şimdilik varsayılan) ya da ayrı Supabase projesinde (`host=separate`) ve Vercel `orchados-demo` projesinde kurar ya da günceller; tekrar çalıştırmak güvenlidir. Migration ve veri yüklemez (aşağıda, Demo turu › Kurulum) |
-| `ci-scripts` | `scripts/provision-demo.sh`, testleri ya da `provision-demo` değişince | shellcheck, actionlint ve sahte Supabase/Vercel API'sine karşı `scripts/test-provision-demo.sh`; gönderilen her SQL düz bir Postgres servisinde çalıştırılır (`scripts/test-script-sql.sh`) |
+| `ci-scripts` | `scripts/provision-demo.sh`, `scripts/demo-lock-check.sh`, `scripts/retention-check.sh`, testleri ya da dağıtım ve demo iş akışları değişince | shellcheck, actionlint ve sahte Supabase/Vercel API'sine karşı `scripts/test-provision-demo.sh` (demo kilitleri ve kısa saklama denetimleri dahil); gönderilen her SQL düz bir Postgres servisinde çalıştırılır (`scripts/test-script-sql.sh`). Kilit ve saklama sorguları ayrıca `ci-db-web`'de yerel Supabase'te hazırlanmış satırlarla denenir (`scripts/test-demo-lock-sql.sh`) |
 | `keepalive` | Haftada iki kez | Ücretsiz Supabase projelerinin (test, pilot) duraklatılmaması için küçük bir istek. Test adresi yoksa ya da yanıt gelmezse (`000`) başarısız olur |
 
 **Dakika bütçesi:** Private repoda ayda 2.000 dakika ücretsiz. İş akışları sadece ilgili klasör değişince koşar. Firmware araç zinciri ve Flutter önbelleğe alınır.
@@ -84,6 +84,9 @@ Test projesi öneksiz adları, pilot `PILOT_`, demo (İP13) `DEMO_` önekini kul
 | `ORCHADOS_SITE_URL` | `robots.txt` ve site haritasındaki adres (sonda `/` yok). Boşsa `http://localhost:3000` | `https://orchados-orchad-os.vercel.app` | Pilot adresi, alan adı gelince o |
 | `SIGNUP_PROXY_SECRET` | `customer-signup` ile ortak sır; Next sunucusu ziyaretçi IP'sini bununla iletir. Edge'deki değerle **aynı**; yalnızca sunucu, asla `NEXT_PUBLIC` | Rastgele | Rastgele (test projesinden farklı) |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Kayıt formundaki Turnstile widget'ı | Cloudflare test site anahtarı | **Zorunlu**, canlı site anahtarı |
+| `NEXT_PUBLIC_CAPTCHA_PROVIDER` | Robot doğrulamasının widget'ı: boş ya da `turnstile` (varsayılan), `altcha` (kendi doğrulamamız). Edge'deki `CAPTCHA_PROVIDER` ile **aynı** olmalı (aşağıda, Robot doğrulaması) | Boş | Boş; değiştirmeden önce gizlilik metni |
+| `NEXT_PUBLIC_MAP_STYLE_URL` | Harita stili (MapLibre). Boşsa geliştirmede doğrudan OSM karoları, üretim derlemesinde kendi karo vekilimiz (`/harita/karo/…`) | Boş (vekil) ya da kendi stilimiz | Boş (vekil) ya da **kendi** sunucumuzdaki stil (aşağıda, Harita altlığı) |
+| `MAP_TILE_UPSTREAM`, `MAP_TILE_CONTACT` | Karo vekilinin kaynağı (`https://…/{z}/{x}/{y}.png`; boşsa OSM) ve kaynağın gördüğü User-Agent'taki iletişim adresi. Yalnızca sunucu | Boş | Kaynak seçilince; iletişim adresi girilir |
 
 `NEXT_PUBLIC_*` değerleri derlemeye gömülür; değişince yeniden dağıtılır. Değişkenlerin ayrıntısı: `apps/web/README.md`.
 
@@ -131,6 +134,8 @@ Tasarım: [musteri-yonetimi.md](musteri-yonetimi.md) §7, §8, §13–§15. Kart
 | `SIGNUP_HASH_SECRET` | Kayıt oran sınırları için IP, telefon ve e-posta özetlerinin HMAC anahtarı. Yoksa her kayıt 500 döner | Rastgele | Rastgele (test projesinden farklı) |
 | `SIGNUP_PROXY_SECRET` | Next sunucusunun ziyaretçi IP'sini ilettiği başlığın sırrı; Vercel'deki değerle **aynı**. Yoksa ya da tutmazsa bütün ziyaretçiler Vercel'in IP'sini paylaşır ve saatte 10 kayıttan sonra herkes `too_many_attempts` alır | Rastgele | Rastgele |
 | `SIGNUP_TURNSTILE_DISABLED` | `1`: Turnstile olmadan kayıt. Yalnızca yerel yığın ve CI (`supabase/config.toml`) | **Asla tanımlanmaz** | **Asla tanımlanmaz** |
+| `CAPTCHA_PROVIDER` | Robot doğrulaması: boş ya da `turnstile` (varsayılan), `altcha` (kendi sunucumuzda iş kanıtı). Başka bir değer kaydı kapatır (fail closed). `demo-start` bunu okumaz: yalnızca `DEMO_CAPTCHA_PROVIDER` (boşsa Turnstile), bilinmeyen değer demoyu kapatır | Boş | Boş; değiştirmeden önce gizlilik metni (aşağıda) |
+| `ALTCHA_HMAC_KEY` | `altcha` seçiliyken sorunun imza anahtarı, en az 32 karakter (`openssl rand -hex 32`). Yoksa ya da kısaysa kayıt kapalıdır (503 `signup_closed`), demo `demo_closed` döner. `demo-start` önce `DEMO_ALTCHA_HMAC_KEY`'i okur | Yok | `altcha`'ya geçilirse rastgele |
 
 Örnek (test projesi, sahte ödeme):
 
@@ -181,9 +186,12 @@ Pilotta hiçbiri açılmaz. `deploy-db-pilot` migration'dan önce Management API
 - `PAYMENT_FAKE_ALLOWED` secret'ı tanımlı;
 - `allow_fake_payments` açık bir org var;
 - `SIGNUP_TURNSTILE_DISABLED` secret'ı tanımlı;
-- `accepts_signups` açık bir org var ama `TURNSTILE_SECRET_KEY`, `SIGNUP_HASH_SECRET` ya da `SIGNUP_PROXY_SECRET` tanımlı değil.
+- `accepts_signups` açık bir org var ama `TURNSTILE_SECRET_KEY` (`CAPTCHA_PROVIDER=altcha` ise `ALTCHA_HMAC_KEY`), `SIGNUP_HASH_SECRET` ya da `SIGNUP_PROXY_SECRET` tanımlı değil;
+- `CAPTCHA_PROVIDER` `turnstile` ya da `altcha` dışında bir değer taşıyor.
 
-Denetim `SUPABASE_ACCESS_TOKEN`'ı kullanır, değerleri okumaz (secret listesi yalnızca adları verir). Vercel'deki `SIGNUP_PROXY_SECRET`'ı ve Vault girdilerini göremez; onlar aşağıdaki kapıda elle denetlenir.
+`db push`'tan sonra ayrıca kayıt temizliği denetlenir (aşağıda, Kısa saklama denetimleri).
+
+Denetim `SUPABASE_ACCESS_TOKEN`'ı kullanır, değerleri okumaz (secret listesi adları ve değerlerin sha256 özetini verir). Vercel'deki `SIGNUP_PROXY_SECRET`'ı ve Vault girdilerini göremez; onlar aşağıdaki kapıda elle denetlenir.
 
 **Hukuki metin kapısı (T21):** `org_billing_setting.legal_gate_enforced` açıkken `customer_accept_quote` taslak sözleşme ve ön bilgilendirme metniyle, son sürüm olmayan KVKK teyidiyle ya da eksik şirket bilgisiyle teklif kabul etmez (`legal_texts_not_final`; [musteri-yonetimi.md](musteri-yonetimi.md) §9.4). Varsayılan kapalıdır; sahte ödeme ayarına bağlı değildir. Bu yüzden test projesi ve canlı demo (ortak barındırma) her ödeme kipinde, iyzico sandbox listesi de sahte kilitler kapalıyken teklif kabul eder. Yalnızca SQL ile açılır, ops ayar ekranı bu alanı yazmaz. Pilot, [yayın şartları](hukuk/kararlar.md#yayin) tamamlanıp metinler son sürüm olarak kaydedildiğinde (sürüm adında `-taslak` yok) açar:
 ```sql
@@ -192,9 +200,32 @@ update public.org_billing_setting set legal_gate_enforced = true where org_id = 
 Test projesinde ve demoda açılmaz.
 
 **Kayıt kapısı:** Kayıt (`accepts_signups`) bir org'da açılmadan önce:
-- Edge: `TURNSTILE_SECRET_KEY` (canlı), `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET`, `ORCHADOS_CRON_SECRET`;
+- Edge: `TURNSTILE_SECRET_KEY` (canlı; kendi doğrulamamızda `ALTCHA_HMAC_KEY`), `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET`, `ORCHADOS_CRON_SECRET`;
 - Vercel: `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (canlı), Edge'dekiyle aynı `SIGNUP_PROXY_SECRET`;
 - Vault: `signup_cleanup_url`, `orchados_cron_secret`.
+
+**Telefonu doğrulanmamış hesap temizliği zorunludur** ([hukuk/kararlar.md](hukuk/kararlar.md) H25, T09): `pg_cron` işi `signup-cleanup` saatte bir `customer-signup`'ın `cleanup` eylemini çağırır ve telefonunu 24 saatte doğrulamayan self-servis hesapları siler. Barındırılan bir projede kayıt bu temizlik çalışmadan açık kalamaz; `deploy-db` ve `deploy-db-pilot` bunu her dağıtımda denetler (aşağıda, Kısa saklama denetimleri).
+
+**Hesap varlığı gizlenir** ([hukuk/kararlar.md](hukuk/kararlar.md) H33, T19): kayıtlı bir telefon yeni bir kayıtla aynı yanıtı alır (`200 verify_phone`), hesap açılmaz; kod adımı yalnızca telefonun sahibine giriş kodu gönderir ve sahip kendi hesabına girer. E-posta çakışması ayırt edilmeyen `409 not_completed` döner ("Kayıt tamamlanamadı; bu bilgilerle hesabınız varsa telefonunuzla giriş yapın."). Oran sınırlarından sonraki her yanıt en az 1,5 saniye sürer (`REGISTER_MIN_MS`), web'deki kod adımı en az 2 saniye (`CODE_STEP_MIN_MS`). Oran sınırları üretimde açık kalır.
+
+**Kayıt bileti** (PR #93 incelemesi, iki tur; hesap ön-ele-geçirme): `register`'ın her 200 yanıtı yeni bir bilet taşır (32 rastgele bayt). Web onu `httpOnly`, `SameSite=Lax`, `Path=/` bir çerezde tutar (HTTPS'te `__Host-orchados_signup`, yerelde `orchados_signup`; bir gün; sunucu anahtarıyla telefona bağlı). `__Host-` öneki çerezin bir alt alan adından ya da düz HTTP yanıtından yerleştirilmesini (cookie fixation) engeller. Yalnızca hesap açan kaydın biletinin SHA-256'sı `private.customer_signup.ticket_hash`'e yazılır; kayıtlı telefon saklanmayan rastgele bir bilet alır, yanıt yine aynıdır.
+- **Kod gönderimi Auth katmanında da denetlenir.** Kod adımı telefon doğrulama kodunu yalnızca bu tarayıcının açtığı bekleyen kayıt için ister: `signup_code_grant` bileti denetler ve satıra iki dakikalık, tek kullanımlık bir "gönderim izni" bırakır. Send SMS hook'u (`send-sms`) tamamlanmamış self-servis kaydın telefon doğrulama (ya da telefon değiştirme) kodunu yalnızca bu izinle gönderir (`signup_sms_allowed`, izni tüketir). Auth'un herkese açık `/auth/v1/resend` ucu izinsiz çağrılırsa hook hiçbir şey göndermez ve gönderilmiş gibi boş `200` döner (H33). Doğrulanmış telefonun giriş kodu, davet edilen kullanıcılar ve tamamlanmış müşteriler etkilenmez.
+- **Her `complete` kayıt sahibini kanıtlar; bilet yokluğu denetimi atlatmaz.** `/kayit`, `/kayit/dogrula` ve `/` çerezdeki bileti gönderir. Bekleyen kayıt ya bu bileti taşımalı ya da oturum hesabın parolasıyla açılmış olmalıdır (`amr` içinde `password`). `verifyOtp` oturumu kodun oturumuyla değiştirdiği için `/kayit/dogrula` kodu istemeden önce parola oturumuyla `claim` eylemini çağırır ve yeni bir bilet alır. Kanıt yoksa 403 `signup_mismatch` döner; web oturumu kapatır ve kullanıcıyı `/giris?kayit=yarim`'e gönderir: "kaydı siz başlattıysanız e-posta ve parolanızla giriş yapın; telefonunuzu oradan doğrularsınız; giremiyorsanız yeniden kayıt olabilirsiniz". Hiçbir zaman yalnızca "yeniden kayıt olun" demez; o, telefonu doğrulanmış kayıtta döngüye yol açardı.
+- **Kapalı başarısızlık.** Kanıtsız bir telefon kodu, tamamlanmamış self-servis kayıtta telefonu doğrulanmış bırakmaz. Telefonu doğrulanmış, biletli bekleyen kayıt silinir. Auth her kod girişinde `phone_confirmed_at`'i yeniden damgaladığı için "telefon daha önce doğrulanmıştı" ayrımı yapılamaz; biletini kaybeden kayıt sahibi yeniden kayıt olur ya da silinmeden önce parolasıyla tamamlar. Silme başarısız olursa `signup_quarantine` telefon onayını kaldırır, hesabın oturumlarını kapatır ve satırı `review_reason = 'delete_failed'` ile işaretler. Biletten önce yazılmış satır (`ticket_hash IS NULL`) silinmez, aynı şekilde karantinaya alınır (`unproven_code`); kayıt sahibi parolasıyla tamamlar. `signup_housekeeping` bir günü geçen, telefonu doğrulanmış ama tamamlanmamış kayıtları `unfinished` ile işaretler. Ops şu sorguyla bakar:
+  ```sql
+  select user_id, review_reason, review_required_at from private.customer_signup
+  where review_required_at is not null and completed_at is null order by review_required_at;
+  ```
+- Aynı tarayıcıdan yeni bir `register` ("Bilgileri değiştir") kendi süren kaydının yerine geçer; bilet olmadan başkasının süren kaydı 30 dakika dolmadan silinmez. Aynı tarayıcıda iki sekmede iki ayrı telefonla kayıt olunursa çerezde son kaydın bileti kalır; ilk sekmedeki kod girilince o kayıt kanıtsız sayılıp silinir ve yeniden kayıt gerekir (güvenlik için kabul edilen ödünleşim).
+- Kod adımı her durumda aynı metni gösterir ve kod gelmezse e-posta ve parolayla `/giris`'e yönlendirir. Auth'un numara başına sınırları (yalnızca hesabı olan numaraya işler) ve gönderim hataları da aynı kod adımını gösterir; yeniden gönderme geri sayımı istemcidedir. Yeniden gönderme yalnızca bu tarayıcıda kayıttan (robot doğrulaması ve oran sınırlarıyla) geçmiş numaraya kod ister.
+
+**Dağıtım sırası (kayıt):** `deploy-db` (migration'lar, sonra Edge Function'lar) web dağıtımından **önce** biter. Vercel dağıtımı ayrı çalıştığı için yeni web, `deploy-db` tamamlanmadan yayına alınmaz (gerekirse Vercel'de "Promote" `deploy-db` yeşil olunca yapılır). Ters sırada yeni web eski `customer-signup`'tan bilet almaz, kod istemez ve `signup_code_grant` henüz yoktur; yeni kayıtlar SMS alamaz. 30 dakikalık bekleme süresi dolana kadar aynı telefonla yeniden denemek de kod getirmez. Kendiliğinden düzelir, 500 dönmez, ama kayıt o süre boyunca çalışmaz.
+
+**Dağıtım anında süren kayıtlar baştan başlar.** Bu sürümle çerezin adı ve yolu değişti (`/kayit` → `/`, HTTPS'te `__Host-` öneki) ve biletten önce yazılmış satırların `ticket_hash` değeri boştur. Dağıtım anında kod adımında olan kullanıcının kodu kanıtsız sayılır: satır karantinaya alınır, `/giris?kayit=yarim` e-posta ve parolayla tamamlamayı anlatır. Kullanıcı isterse kaydı baştan da yapabilir (30 dakika sonra ya da hesabı silindiğinde).
+
+**Robot doğrulama sağlayıcısı:** Web tek bir `NEXT_PUBLIC_CAPTCHA_PROVIDER` değerini hem `/kayit` hem `/demo` için kullanır. `/demo`'nun sunulduğu her dağıtımda bu değer `demo-start`'ın `DEMO_CAPTCHA_PROVIDER` değeriyle (tanımsızsa Turnstile) aynı olmalıdır. Örneğin web'de `altcha`, `demo-start`'ta varsayılan Turnstile olursa `/demo` ALTCHA kutusunu gösterir, `challenge` çağrısı 400 alır ve demo başlamaz. Ayrı `orchados-demo` Vercel projesinde değişken tanımsızdır, bu yüzden varsayılan yapılandırma çalışır.
+
+**`SIGNUP_PROXY_SECRET` Vercel'de zorunludur:** Yoksa kayıt bileti çerezinin telefon bağı her lambda örneğinde ayrı bir anahtarla kurulur. Yeniden gönderme o zaman sık sık "yeniden kayıt olun" der. Üretimde (Vercel) eksikse web bunu bir kez hata günlüğüne yazar.
 
 Test projesinde Cloudflare'in test anahtarları kullanılır. `accepts_signups` dağıtımdan sonra `/operasyon/ayarlar`'dan açılabildiği için dağıtım denetimi tek başına yetmez: `customer-signup` `TURNSTILE_SECRET_KEY` olmadan kayıt almaz (fail closed).
 
@@ -215,6 +246,42 @@ Test projesinde Cloudflare'in test anahtarları kullanılır. `accepts_signups` 
 - [ ] `identityNumber = 11111111111` ile ödeme geçiyor (yazılı teyit ayrıca alınır).
 - [ ] İade zaman aşımında `/payment/detail` yanıtının alanları (iade/iptal izini nasıl gösterdiği); şimdilik sonuç otomatik çözülmez, satır `processing` kalır ve operasyon `ops_resolve_refund` ile kapatır.
 - [ ] Önizleme adresinden başlatılan ödeme o önizlemeye döner; listede olmayan adres `400`.
+
+### Robot doğrulaması (Turnstile ya da kendi doğrulamamız)
+
+Kayıt formu ve demo başlatma bugün Cloudflare Turnstile kullanır (varsayılan). [hukuk/kararlar.md](hukuk/kararlar.md) H03: Cloudflare KVKK standart sözleşmesini imzalamazsa Turnstile, kendi sunucumuzda çalışan açık kaynak bir iş kanıtı doğrulamasıyla (ALTCHA şeması) değiştirilir. Seçenek hazırdır, **varsayılan olarak kapalıdır** (T12).
+
+- **Nasıl çalışır:** Next sunucusu `customer-signup` (ya da `demo-start`) fonksiyonundan `{action: "challenge"}` ile HMAC imzalı bir soru alır (10 dakika geçerli; son kullanma ve amaç `signup`/`demo` tuzun içinde, imzanın kapsamında). Tarayıcı Web Crypto ile sayıyı bulur (ortalama ~50.000 SHA-256; telefonda bir iki saniye) ve gizli `altcha` alanına yazar. Fonksiyon imzayı, özeti, süreyi ve amacı denetler, aynı çözümü ikinci kez kabul etmez. Dış betik yüklenmez, üçüncü bir tarafa istek gitmez, çerez yoktur. Kod: `supabase/functions/_shared/captcha.ts`, `apps/web/src/lib/site/altcha-solver.ts`, `components/site/turnstile.tsx` (`CaptchaWidget`).
+- **Korunanlar:** Oran sınırları ve "anahtar yoksa kayıt kapalı" davranışı aynıdır: seçilen sağlayıcının anahtarı yoksa, kısaysa ya da `CAPTCHA_PROVIDER` bilinmeyen bir değerse kayıt 503 `signup_closed`, demo `demo_closed` döner. `SIGNUP_TURNSTILE_DISABLED` yalnızca yerel yığındadır.
+- **Tekrar kullanım:** Kullanılmış çözümler `private.captcha_spent` tablosunda, sorunun süresi bitene kadar tutulur (`captcha_spend`; sorunun özeti birincil anahtar, `insert … on conflict do nothing`, her çağrı süresi dolmuş satırlardan bir parti siler). Tablo bütün Edge örneklerinde ortaktır: bir çözüm hangi örneğe giderse gitsin bir kez geçer. Veritabanına ulaşılamazsa çözüm kabul edilmez (fail closed). Zorluk (`ALTCHA_MAX_NUMBER`, ortalama ~50.000 SHA-256) yerel bir bot için ucuzdur; asıl sınır oran sınırlarıdır (IP başına saatte 10, telefon başına günde 3 kayıt; demoda IP kovası). Zorluğu artırmak telefonlarda bekleme süresini uzatır; gerekirse IP kovasına göre artan zorluk ayrı bir iş olarak ele alınır.
+- **Yerel yığın:** `supabase/config.toml` `CAPTCHA_PROVIDER=altcha` ve yerel bir `ALTCHA_HMAC_KEY` tanımlar; `SIGNUP_TURNSTILE_DISABLED=1` ile gönderilen jeton denetlenir, jetonsuz istek geçer (testler iki yolu da dener). Web yerelde Turnstile kipindedir ve site anahtarı yoktur.
+
+**Sağlayıcıyı değiştirmek** (yalnızca Cloudflare imzalamazsa ya da sözleşme düşerse):
+1. **Önce gizlilik metni.** `gizlilik-v2-taslak` §2 ve §3 Turnstile'ı anar; KVKK metni §5'te Cloudflare satırı, demo başlatma sayfasının kısa metni ve gizlilik §5 (demo) Cloudflare'i anar. Metin güncellenir, sürüm artar (`gizlilik-v3-taslak`), eski sürüm arşive gider ve sürüm kaydı (`private.legal_text_version`) bir migration'la güncellenir. Önerilen metin (avukat onayına):
+    - §2, Turnstile maddesinin yerine: “Kayıt formunda ve demo turunu başlatma sayfasında, kötüye kullanımı ve otomatik kayıtları önlemek için kendi sunucularımızda çalışan bir robot doğrulaması kullanılır. Doğrulama tarayıcınızda kısa bir hesaplama yapar; bu amaçla üçüncü bir tarafa veri aktarılmaz ve çerez kullanılmaz. Hukuki sebep, bilgi güvenliğine ilişkin meşru menfaatimizdir (KVKK md. 5/2-f).”
+    - §3: ilk paragraftaki “robot doğrulaması çerezleri bilgi güvenliği (md. 5/2-f) için kullanılır” ibaresi ve çerez tablosundaki Turnstile satırı çıkar.
+    - §5 (demo) ve demo başlatma sayfası: “Robot doğrulaması (Turnstile) Cloudflare Inc. (ABD) tarafından sağlanır…” cümlesi “Robot doğrulaması kendi sunucularımızda yapılır; üçüncü bir tarafa aktarılmaz.” olur.
+    - KVKK metni §5: Cloudflare satırı, başka bir hizmet için kullanılmıyorsa çıkar; [yurt-disi-aktarim-kaydi.md](hukuk/yurt-disi-aktarim-kaydi.md) güncellenir.
+2. Edge: `ALTCHA_HMAC_KEY` (rastgele, ≥ 32 karakter), sonra `CAPTCHA_PROVIDER=altcha`. Bu yalnızca kaydı değiştirir: `demo-start` `CAPTCHA_PROVIDER`'ı hiç okumaz, `DEMO_CAPTCHA_PROVIDER` boşsa Turnstile'da kalır. Böylece ortak demo barındırmada (`DEMO_HOST=test`) test sitesini denemek canlı demoyu bozmaz (demonun web bileşeni kendi Vercel projesinin `NEXT_PUBLIC_CAPTCHA_PROVIDER`'ını izler). Demo da geçecekse `DEMO_CAPTCHA_PROVIDER=altcha` ve `DEMO_ALTCHA_HMAC_KEY` (ayrı demo projesinde de `DEMO_CAPTCHA_PROVIDER`), ardından demo Vercel projesinde `NEXT_PUBLIC_CAPTCHA_PROVIDER=altcha`.
+3. Vercel: `NEXT_PUBLIC_CAPTCHA_PROVIDER=altcha`, yeniden dağıtım. Edge ile web aynı anda değişmezse arada kayıt `captcha_failed` döner; kayıt trafiği azken yapılır.
+4. `deploy-db-pilot` `CAPTCHA_PROVIDER=altcha` iken Turnstile anahtarı yerine `ALTCHA_HMAC_KEY` ister; demo kilit denetimi aynısını `DEMO_CAPTCHA_PROVIDER=altcha` iken yapar. Bilinmeyen sağlayıcıda ikisi de başarısız olur.
+5. Hiçbir barındırılan projede gizlilik metni değişmeden `altcha` seçilmez; bugün hepsi Turnstile'dadır.
+6. Duman testi: kayıt ve demo başlatma, tarayıcının ağ sekmesinde `challenges.cloudflare.com`'a istek yok.
+
+### Harita altlığı
+
+[hukuk/kararlar.md](hukuk/kararlar.md) H03, T12: üretimde tarayıcı harita karolarını doğrudan üçüncü taraf bir sunucudan istemez. `basemapStyle()` (`apps/web/src/lib/map/basemap.ts`):
+- `NEXT_PUBLIC_MAP_STYLE_URL` tanımlıysa o stil kullanılır. **Üretimde yalnızca kendi altyapımızdaki ya da vekil sunucumuzdaki bir stili gösterebilir** (stilin içindeki karo, font ve sprite adresleri de); üçüncü taraf bir harita sağlayıcısının stil adresi girilmez.
+- Tanımlı değilse üretim derlemesi kendi karo vekilimizi kullanır: `/harita/karo/{z}/{x}/{y}.png` (`app/harita/karo/[z]/[x]/[y]/route.ts`). Sunucu karoyu `MAP_TILE_UPSTREAM`'den (boşsa `tile.openstreetmap.org`) kendi User-Agent'ıyla alır; ziyaretçinin IP'si, çerezi ve başlıkları kaynağa gitmez. Yanıt tarayıcıda 7, CDN'de 30 gün önbelleğe alınır. Kaynağa giden istekler sınırlıdır (OSM'nin toplu indirme yasağı; bir engel bütün haritaları birden kapatır):
+    - Yalnızca kendi sayfalarımızın istekleri: `Sec-Fetch-Site: same-origin`, bu başlık yoksa kendi adresimizden bir `Referer`. Başka istemciler 403 alır (CDN'deki karolar yine sunulur).
+    - 7. yakınlaştırma düzeyinden itibaren yalnızca hizmet alanı (Türkiye ve çevresi, boylam 25–45,5, enlem 35–42,5); dışı 404.
+    - Örnek başına istemci başına dakikada 600 karo ve örnek başına toplam dakikada 1200 kaynak isteği (aşılırsa 503).
+    - User-Agent'ta iletişim adresi zorunludur: `MAP_TILE_CONTACT`, yoksa sitenin `https` adresi (`ORCHADOS_SITE_URL`, o da yoksa Vercel'in üretim adresi). Üretimde hiçbiri yoksa vekil 503 döner, kaynağa gitmez. Üretimde `MAP_TILE_CONTACT`'a bir e-posta adresi girilmesi önerilir.
+
+  Yol `.png` ile bittiği için oturum vekilinden geçmez; demo alanında ve oturumsuz sayfalarda da çalışır (karolarda kişisel veri yoktur).
+- Geliştirmede (`pnpm web:dev`) karolar eskisi gibi doğrudan OSM'den gelir.
+
+OSM karo sunucularının kullanım koşulları (tanımlı User-Agent, önbellek, toplu indirme yok) vekil için de geçerlidir. Trafik büyürse `MAP_TILE_UPSTREAM` kendi karo sunucumuza ya da sözleşmeli bir sağlayıcıya çevrilir (sunucudan sunucuya; tarayıcı yine yalnızca bizi görür). Kaynak değişince karo atfı ("© OpenStreetMap contributors") gerekirse güncellenir. **Saha uygulamasının** altlığı (personel cihazları, `apps/field`) bu işin kapsamında değildir.
 
 ### Lansman fiyat listesi
 
@@ -381,6 +448,9 @@ select vault.create_secret('<ORCHADOS_CRON_SECRET ile aynı değer>', 'orchados_
 3. `supabase db push --include-all`.
 4. **Demo koruması denetimi** (`scripts/demo-guard-check.sh`): `private.attach_demo_guards()` eksik kalmış `zz_demo_read_only` tetikleyicilerini yeniden takar (uyarı yazar), `private.demo_guard_drift()` bir sapma bulursa iş başarısız olur. Sebep: `--include-all` geç birleşen, eski zaman damgalı bir migration'ı İP13-A migration'larından sonra uygular. `db push` yarıda başarısız olsa da çalışır (her migration dosyası ayrı işlemde uygulanır; başarısızlıktan önce uygulananların tabloları da korumayı almalı). Düzeltme yeni bir migration'la yapılır; zaman damgası mevcut en yeni migration'dan sonra gelir (CLAUDE.md; CI `scripts/check-migration-order.sh` ile denetler). Aynı denetim `deploy-db` ve `deploy-db-pilot`'ta da `db push`'tan sonra çalışır.
 5. Bütün Edge Function'ların dağıtımı (`demo-start` dahil).
+6. **GoTrue denetim kaydı temizliği** (`scripts/retention-check.sh audit`; aşağıda, Kısa saklama denetimleri). Ortak barındırmada (`DEMO_HOST=test`) yalnızca demo kilitleri ve bu adım çalışır.
+
+Kendi robot doğrulamamız seçiliyse (`CAPTCHA_PROVIDER`/`DEMO_CAPTCHA_PROVIDER` `altcha`), demo kilitleri Turnstile secret'ı yerine `ALTCHA_HMAC_KEY`'i (ortak barındırmada `DEMO_ALTCHA_HMAC_KEY`) ister ve sahte Turnstile anahtarı kuralı uygulanmaz; bilinmeyen bir sağlayıcıda açık demo başarısız olur.
 
 **`demo-data`:** Yalnızca elle (`workflow_dispatch`); eşzamanlılık grubu `demo-data-<project>`. Girdiler:
 
@@ -406,6 +476,22 @@ GitHub secret'ları: `test` ortamında `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJEC
 
 `db push`'tan sonra demo koruması denetimi (`scripts/demo-guard-check.sh`) pilotta da çalışır.
 
+### Kısa saklama denetimleri (T09)
+
+[hukuk/kararlar.md](hukuk/kararlar.md) H25, H27, T09. `scripts/retention-check.sh`, Management API'yle (secret adları ve değerlerin sha256 özeti, bir salt okunur sorgu) iki denetim yapar; ikisi de dağıtımdan sonra çalışır ve başarısızlık işi kırmızı bitirir (migration'lar ve fonksiyonlar yine de uygulanmış olur):
+
+- **`signup`** (`deploy-db` test projesinde, `deploy-db-pilot` pilotta): bir org'da `accepts_signups` açıkken şu durumlarda başarısız olur: `pg_cron` işi `signup-cleanup` yok ya da pasif; Vault'ta bir `customer-signup` adresine giden `signup_cleanup_url` yok; Vault `orchados_cron_secret` yok; Edge `ORCHADOS_CRON_SECRET` yok ya da Vault'takiyle aynı değil (özetle karşılaştırılır). Bunlardan biri eksikse `private.dispatch_signup_cleanup()` sessizce hiçbir şey yapmaz ya da fonksiyon 401 döner ve doğrulanmamış hesaplar `auth.users`'ta kalır.
+- **`audit`** (`deploy-db-demo`; demoyu barındıran proje: `DEMO_HOST=test` iken test projesi, yoksa demo projesi): `pg_cron` işi `auth-audit-log-purge` yok ya da pasifse ya da `auth.audit_log_entries`'te 31 günden eski satır varsa başarısız olur. Gizlilik metni denetim kayıtlarındaki IP için en fazla 30 gün der; bir gün günlük işin payıdır. İş ve ilk temizlik veritabanı akışının migration'ıyla gelir (T09; `notification-purge`, `auth-session-purge` ile birlikte).
+
+Eksik secret işi başarısız kılar (yukarıda); tek istisna `SUPABASE_TEST_PENDING=1` ile atlanan kurulmamış test projesidir. Sorgular `scripts/test-demo-lock-sql.sh` ile yerel Supabase'te hazırlanmış satırlarla, betik `scripts/test-provision-demo.sh` ile sahte API'ye karşı denenir (`ci-scripts`, `ci-db-web`).
+
+Elle kontrol (SQL düzenleyici):
+```sql
+select jobname, schedule, active from cron.job
+ where jobname in ('signup-cleanup', 'auth-audit-log-purge', 'notification-purge', 'auth-session-purge');
+select count(*) from auth.audit_log_entries where created_at < now() - interval '31 days';
+```
+
 ### Log saklama
 
 Ziyaretçinin ham IP'si ve tarayıcı bilgisi veritabanında yalnızca GoTrue oturum satırında (hesap silinene kadar) ve denetim kayıtlarında (silme en iyi çaba ile) kalır. Bunun dışında Supabase (API, Auth, Postgres), Edge Function ve Vercel logları ham IP'yi sağlayıcının, **plana göre değişen** saklama süresince tutar. Sağlayıcıların belgelediği değerler (Ekim 2026 itibarıyla; yayına almadan önce fiyat ve belge sayfalarından yeniden doğrulanmalı):
@@ -420,7 +506,24 @@ Ziyaretçinin ham IP'si ve tarayıcı bilgisi veritabanında yalnızca GoTrue ot
 | | Pro | 1 gün |
 | | Observability Plus ya da log drain | Daha uzun (eklentiye ya da hedefe göre) |
 
-Plan değişince (ör. demo projesi Pro'ya geçerse) süre de değişir; gizlilik metnindeki demo bölümü (`gizlilik-v2-taslak` §5, [hukuk/kararlar.md](hukuk/kararlar.md) H27) buna göre güncellenir. Log drain kurulursa ham IP o hedefte de saklanır; kurmadan önce gizlilik metni gözden geçirilir.
+**Seçilen planlar** (H03, H25; plan değişikliği bu tabloyu günceller):
+
+| Proje | Supabase | Vercel | En uzun log saklama |
+| --- | --- | --- | --- |
+| Test (demo ortak barındırmada dahil) | Free | Hobby | 1 gün |
+| Pilot | Free; pilot verisi gelmeden Pro (aşağıda, Pilot için geçiş) | Hobby; ücretli müşteriden önce Pro | Pro'da 7 gün |
+| Demo projesi (açılırsa) | Free, Pro'ya geçerse 7 gün | Hobby | 1 gün (Pro'da 7) |
+
+Gizlilik metni (`gizlilik-v2-taslak` §2 ve §5) sunucu ve altyapı kayıtlarında IP'nin **en fazla 30 gün** tutulduğunu söyler. Bu süre Free, Pro, Team (28 gün) ve Vercel planlarını kapsar. Enterprise (90 güne kadar), Vercel Observability Plus ya da bir log aktarımı (log drain) 30 günü aşabilir: **bunlardan biri seçilmeden ya da kurulmadan önce gizlilik metni değişir** (sürüm artar, kayıt migration'ı gelir), sonra plan ya da aktarım açılır. Log drain kurulursa ham IP o hedefte de saklanır; hedefin saklama süresi 30 günü aşmamalıdır.
+
+### Yayına almadan önce: hukuki ayarlar
+
+- **Telefonu doğrulanmamış hesap temizliği** her barındırılan projede zorunludur (yukarıda, Kayıt kapısı ve Kısa saklama denetimleri).
+- **Harita:** Üretimde `NEXT_PUBLIC_MAP_STYLE_URL` boştur (kendi karo vekilimiz) ya da kendi altyapımızdaki veya vekil sunucumuzdaki bir stili gösterir (yukarıda, Harita altlığı).
+- **Yapay zekâ aktarım kapısı:** İşleme istasyonunda `ORCHADOS_AI_TRANSFER_SAFEGUARD` yalnızca [yurt-disi-aktarim-kaydi.md](hukuk/yurt-disi-aktarim-kaydi.md)'deki ilgili satır tamamlandığında (standart sözleşme imzalı, Kurum'a bildirilmiş) ve o kaydın referansıyla tanımlanır. Tanımlı değilken ai-worker gerçek veriyle yurt dışındaki sağlayıcıyı çağırmaz ([services/ai-worker/README.md](../services/ai-worker/README.md#yurt-dışı-aktarım-kapısı), H02).
+- **Bahçe ekleme ve çıkarma:** `garden_changes_enabled` barındırılan projelerde ancak [yayın şartları](hukuk/kararlar.md#yayin) ile T05 ve T18 üretime girdikten sonra açılır (aşağıda, Bahçe ekleme ve çıkarma).
+- **Hukuki metin sürümleri:** Bir hukuki metnin sürümü her değiştiğinde (sitedeki kopya `apps/web/src/lib/i18n/messages/legal.ts` ve `LEGAL_TEXT_VERSIONS`) sürüm kaydını (`private.legal_text_version`) güncelleyen bir migration aynı değişiklikle gelir; kayıt fonksiyonları kayıtlı sürümden başkasını kabul etmez (T21).
+- **Robot doğrulaması:** Sağlayıcı değişikliği önce gizlilik metnini değiştirir (yukarıda, Robot doğrulaması).
 
 ### Yayına alma sırası
 

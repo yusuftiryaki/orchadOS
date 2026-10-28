@@ -72,6 +72,7 @@ export default async function DemoPage({
       ) : (
         <DemoStartForm
           turnstileSiteKey={flags.turnstileSiteKey}
+          captchaProvider={flags.captchaProvider}
           label={ended ? d.restart : d.button}
         />
       )}

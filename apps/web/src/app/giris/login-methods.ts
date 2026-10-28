@@ -42,6 +42,12 @@ export function phoneCodeError(
 }
 
 // Only same-origin relative paths are allowed as a post-login target.
+// ?yontem=telefon opens the phone code tab (the sign-up's not_completed
+// error links there, docs/hukuk/kararlar.md H33).
+export function loginMethodParam(value: unknown): LoginMethod {
+  return value === "telefon" ? "phone" : "password";
+}
+
 export function safeNextPath(value: unknown): string {
   if (typeof value !== "string") return "/";
   if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return "/";

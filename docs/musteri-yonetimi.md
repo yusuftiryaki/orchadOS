@@ -500,7 +500,8 @@ Adlar, parametreler ve dönüşler sözleşmedir. Sütun ayrıntıları A1/A2'ni
 - `open_system_refund(p_payment_id, p_amount_kurus, p_reason)`: Tutar tam ve ödeme aynı gün ise `void` açar. Değilse son kalemden geriye doğru kalem bazında `refund` satırları açar.
 - `enqueue_billing_notification`
 - `billing_housekeeping() returns jsonb` (A2): teklif süre dolumu, hatırlatma, `completed`, 7 günden eski ve `payment_id` taşımayan `payment_event` satırlarının silinmesi.
-- `signup_housekeeping() returns jsonb` (A1): 24 saati geçen, tamamlanmamış ve hesabının telefonu doğrulanmamış `customer_signup` satırlarını ve 2 günden eski `signup_attempt` satırlarını siler. Telefonu doğrulanmış ama `complete` çağrısı yarım kalmış kayıt silinmez: kullanıcı telefon koduyla girip `complete`'i yeniden çağırabilir.
+- `signup_housekeeping() returns jsonb` (A1): 24 saati geçen, tamamlanmamış ve hesabının telefonu doğrulanmamış `customer_signup` satırlarını ve 2 günden eski `signup_attempt` satırlarını siler. Telefonu doğrulanmış ama `complete` çağrısı yarım kalmış kayıt silinmez, `review_reason = 'unfinished'` ile ops incelemesine işaretlenir (`signups_flagged`). Kullanıcı biletiyle ya da parolasıyla (§7.5) `complete`'i yeniden çağırabilir.
+- `signup_quarantine(p_user_id uuid, p_reason text)` (§7.5): sahip profili olmayan self-servis hesabın telefon onayını kaldırır, oturumlarını siler, bekleyen kaydı `review_required_at` / `review_reason` (`delete_failed`, `unproven_code`, `unfinished`) ile işaretler.
 - `dispatch_signup_cleanup()`, `dispatch_payment_reconcile()`: Vault'tan adres ve `orchados_cron_secret` okur; ikisi de varsa pg_net ile POST eder, yoksa hiçbir şey yapmaz.
 
 **Herkese açık (`anon` ve `authenticated`, A2):**
@@ -515,6 +516,10 @@ Adlar, parametreler ve dönüşler sözleşmedir. Sütun ayrıntıları A1/A2'ni
     - `started_at`: bekleyen kaydın yazıldığı an (yoksa hesabın açıldığı an); bayat hesabın bekleme süresi buna göre hesaplanır (§7.1).
     - `matched_by` değerleri `email`, `phone` (Auth, `+` olmadan) ya da `profile_phone` (kayıt org'unda başka kullanıcının `owner_profile` telefonu).
 - `signup_prepare(p_user_id, p_full_name, p_email, p_phone, p_contact_preference, p_consents jsonb, p_ip_hash) returns void`: `invalid_input` (detail alan).
+- `signup_set_ticket(p_user_id uuid, p_ticket_hash text) returns void`: `register`'ın (ya da `claim`'in) biletinin SHA-256'sını tamamlanmamış bekleyen kayda yazar; satır yoksa `invalid_input`.
+- `signup_ticket_users(p_ticket_hash text) returns setof uuid`: bileti taşıyan tamamlanmamış kayıtların hesabı (aynı tarayıcının yeni `register`'ı).
+- `signup_owner_check(p_user_id uuid, p_ticket_hash text, p_password boolean) returns text` (§7.5): `ok`, `no_pending`, `already_completed`, `mismatch` (çağıran hesabı siler) ya da `refused` (biletsiz eski satır burada karantinaya alınır).
+- `signup_sms_allowed(p_user_id uuid) returns boolean` (§7.5, Send SMS hook'u): tamamlanmamış self-servis kaydın telefon doğrulama ya da telefon değiştirme kodu için `signup_code_grant` izni gerekir; izni tüketir. Diğer herkes için `true`.
 - `signup_complete(p_user_id uuid, p_code_at timestamptz) returns text`: `completed`, `already_completed`, `no_pending` ya da `phone_mismatch`.
     - `p_code_at`: oturumu açan telefon kodunun zamanı (JWT `amr`). Bekleyen kayıt satırı kilitlenir; hesap self-servis değilse, telefonu doğrulanmamışsa, Auth telefonu bekleyen kayıttaki telefon değilse ya da kod bekleyen kayıttan eskiyse `phone_mismatch` döner ve hiçbir şey yazılmaz.
     - Oluşturduğu kayıtlar: `owner_profile` (KVKK alanlarıyla), üç `consent_record` (`kvkk_notice` ve iki `explicit_*`), denetim kaydı.
@@ -675,8 +680,12 @@ x-orchados-proxy-secret: <SIGNUP_PROXY_SECRET>   (yalnızca Next sunucusu; varsa
 409 {"error":"email_taken"} | {"error":"phone_registered"}
 429 {"error":"too_many_attempts"}   503 {"error":"signup_closed"}   500 {"error":"failed"}
 
-{ "action":"complete" }  Authorization: Bearer <kullanıcı access token>
-200 {"status":"completed"|"already_completed"|"no_pending"}   401 {"error":"unauthorized"}   403 {"error":"phone_not_verified"}
+{ "action":"complete", "ticket"? }  Authorization: Bearer <kullanıcı access token>
+200 {"status":"completed"|"already_completed"|"no_pending"}   401 {"error":"unauthorized"}
+403 {"error":"phone_not_verified"|"signup_mismatch"|"demo_read_only"}
+
+{ "action":"claim" }  Authorization: Bearer <parolayla açılmış oturumun access token'ı>
+200 {"ticket"} | {"status":"no_pending"}   401   403 {"error":"password_required"|"demo_read_only"}
 
 { "action":"cleanup" }   x-orchados-cron-secret: <ORCHADOS_CRON_SECRET>
 200 {"deleted": n}   401
@@ -700,7 +709,8 @@ x-orchados-proxy-secret: <SIGNUP_PROXY_SECRET>   (yalnızca Next sunucusu; varsa
 
 1. Kullanıcı `/auth/v1/user` üzerinden okunur.
 2. JWT `amr` dizisinde `otp` ya da `sms` yöntemli öğe aranır; `phone_confirmed_at` dolu olmalıdır. Yoksa 403.
-3. `signup_complete(p_user_id, p_code_at)` en yeni kod zamanıyla çağrılır. Kodun bekleyen kayıttan sonra alındığını ve Auth'taki doğrulanmış telefonun bekleyen kayıttaki telefon olduğunu o denetler; `phone_mismatch` dönerse 403 `phone_not_verified`.
+3. `signup_owner_check` her istekte çalışır (§7.5); bilet yokluğu denetimi atlatmaz. `mismatch` gelirse hesap silinir (silme başarısızsa `signup_quarantine`), `refused` ya da `mismatch` 403 `signup_mismatch` döner.
+4. `signup_complete(p_user_id, p_code_at)` en yeni kod zamanıyla çağrılır. Kodun bekleyen kayıttan sonra alındığını ve Auth'taki doğrulanmış telefonun bekleyen kayıttaki telefon olduğunu o denetler; `phone_mismatch` dönerse 403 `phone_not_verified`.
 
 ### 7.3 `cleanup`
 
@@ -713,11 +723,22 @@ Saatlik çalışır. 24 saati geçmiş, telefonu doğrulanmamış self-servis he
     - Senaryo: Saldırgan kurbanın e-postasıyla kaydolur. Ops kurbanı bu e-postayla davet edince `ops_find_user_id` hesabı döndürmez, Auth 422 verir ve `invite-user` 409 `conflict` döner.
     - A1 bu senaryoyu entegrasyon testiyle, hissedar onayı için de pgTAP ile kanıtlar.
 
+### 7.5 Hesap ön-ele-geçirme önlemi (PR #93 incelemesi, iki tur)
+
+Senaryo: saldırgan kurbanın telefonu, kendi e-postası ve parolasıyla kaydolur ve kurbanın telefonu o hesapta doğrulamasını bekler. Doğrulanırsa kurbanın telefonla girişi saldırganın parolasını bildiği hesaba düşer. Önlemler:
+
+- **Bilet.** `register`'ın her 200 yanıtı bir bilet taşır; web onu `httpOnly` bir çerezde tutar (HTTPS'te `__Host-` önekli, `Path=/`). Yalnızca hesap açan kaydın bilet özeti saklanır.
+- **Gönderim izni (Auth katmanı).** Kod adımı `signup_code_grant(phone, ticket)` ile bekleyen kayda iki dakikalık, tek kullanımlık bir izin bırakır. Send SMS hook'u tamamlanmamış self-servis kaydın telefon doğrulama ya da telefon değiştirme kodunu yalnızca bu izinle gönderir (`signup_sms_allowed`). Auth'un herkese açık `/auth/v1/resend` ucu izinsiz çağrılırsa SMS gitmez, hook boş `200` döner (H33).
+- **Sahiplik kanıtı.** Her `complete` (web'de `/kayit`, `/kayit/dogrula` ve `/`) çerezdeki bileti gönderir. Bekleyen kayıt bu bileti taşımalıdır ya da oturum hesabın parolasıyla açılmış olmalıdır (`amr` içinde `password`). `verifyOtp` oturumu kodun oturumuyla değiştirir; bu yüzden `/kayit/dogrula` kodu istemeden önce parola oturumuyla `claim` çağırır ve yeni bir bilet alır.
+- **Kapalı başarısızlık.** Kanıtsız kod, tamamlanmamış self-servis kayıtta telefonu doğrulanmış bırakmaz. Biletli kayıt silinir. Silme başarısız olursa telefon onayı kaldırılır, oturumlar kapanır ve satır `delete_failed` ile işaretlenir. Biletten önce yazılmış satır (`ticket_hash IS NULL`) aynı şekilde karantinaya alınır (`unproven_code`). Auth her kod girişinde `phone_confirmed_at`'i yeniden damgaladığı için "daha önce doğrulanmış" ayrımı yapılmaz.
+- **Kurtarma.** Reddedilen tamamlama oturumu kapatır ve `/giris?kayit=yarim`'e gider: kaydı başlatan kişi e-posta ve parolasıyla girip telefonunu `/kayit/dogrula`'da doğrular; hesabı silinmişse yeniden kayıt olur. "Yeniden kayıt olun" tek başına gösterilmez.
+- Testler: `account-takeover.test.ts` ve `customer-signup.test.ts` (asıl saldırı, doğrudan `resend`, `/giris` telefon girişi, çerez sabitleme ve eşzamanlı iki kayıt, eski satır ve döngüsüz kurtarma), pgTAP `57_signup_owner_proof`.
+
 **Web akışı (C):**
 1. Server action `register` çağırır; proxy sırrı başlığı ve `x-forwarded-for` bilgisi gönderilir.
-2. `phone_login_allowed`, ardından `requestSignupCode(supabase.auth, phone)` (`apps/web/src/lib/billing/signup-code.ts`, A1). Önce `signInWithOtp({phone, options: {shouldCreateUser: false, channel: "sms"}})` dener. Yeni açılan hesabın telefonu henüz doğrulanmadığı için GoTrue bunu kayıt sayar ve `signup_disabled` (422) döner; o zaman `auth.resend({type: "sms", phone})` telefon doğrulama kodunu gönderir. Telefonu doğrulanmış hesapta (numaranın sahibi yeniden kaydoluyor) `signInWithOtp` kodu gönderir. Yalnız `signInWithOtp` çağırmak yeni kayıtta hiç SMS göndermez. Yeniden gönderme düğmesi de aynı yardımcıyı kullanır.
+2. `phone_login_allowed`, `signup_code_grant(phone, ticket)` (§7.5), ardından `requestSignupCode(supabase.auth, phone)` (`apps/web/src/lib/billing/signup-code.ts`, A1). Önce `signInWithOtp({phone, options: {shouldCreateUser: false, channel: "sms"}})` dener. Yeni açılan hesabın telefonu henüz doğrulanmadığı için GoTrue bunu kayıt sayar ve `signup_disabled` (422) döner; o zaman `auth.resend({type: "sms", phone})` telefon doğrulama kodunu gönderir. Telefonu doğrulanmış hesapta (numaranın sahibi yeniden kaydoluyor) `signInWithOtp` kodu gönderir. Yalnız `signInWithOtp` çağırmak yeni kayıtta hiç SMS göndermez. Yeniden gönderme düğmesi de aynı yardımcıyı kullanır.
 3. `verifyOtp` (başarısızlıkta `phone_login_record_failure`).
-4. `complete` çağrılır. `completed` gelirse `/portal`'a, diğer durumlarda `/`'a gidilir.
+4. `complete` biletle çağrılır. `completed` gelirse `/portal`'a gidilir; `signup_mismatch` gelirse oturum kapatılır ve `/giris?kayit=yarim`'e gidilir; diğer durumlarda `/`'a gidilir.
 
 ## 8. Ödeme katmanı (B)
 
@@ -884,7 +905,7 @@ POST /functions/v1/payment-webhook  → 200 {ok:true} | 401 {error:"invalid_sign
 - **`/` davranışı:**
     1. Oturum yoksa landing.
     2. Varsayılan bölüm varsa oraya yönlendirme.
-    3. Yoksa `complete` çağrılır: `completed` gelirse `/portal`, `phone_not_verified` gelirse doğrulama kartı.
+    3. Yoksa `complete` çerezdeki biletle çağrılır: `completed` gelirse `/portal`, `phone_not_verified` gelirse doğrulama kartı, `signup_mismatch` gelirse `/kayit/yarim` (oturumu kapatır, `/giris?kayit=yarim`).
     4. Diğer durumlarda `noRoles` kartı.
 - **Proxy:** `isPublicPath(path)` (`src/lib/site/public-paths.ts`). `/portal`, `/makbuz` ve `/odeme/sahte` girişe kapalıdır.
 - **Roller:** `UserRoles.customer`. `loadUserRoles`, `my_owner_profile` çağrısıyla belirler.
