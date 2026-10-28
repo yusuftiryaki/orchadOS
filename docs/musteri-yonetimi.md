@@ -64,7 +64,7 @@ Bağlam: [MVP.md](MVP.md), [veri-modeli.md](veri-modeli.md), [deployment.md](dep
     - iyzico'ya `identityNumber = "11111111111"` gönderilir. Bu, iyzico'dan yazılı teyit bekleyen bir pilot kapısıdır (§15).
     - iyzico gerçek numara isterse `org_billing_setting.identity_number_required = true` yapılır. TCKN o zaman yalnızca `private.billing_profile` içinde durur. Ödeme anlık görüntüsüne yalnızca son 4 hane yazılır. Bayrak açılmadan önce TCKN'nin saklanmadan iletilmesi ya da şifreli saklanması gerekir; yazılı risk kabulü yeterli değildir (hukuk/kararlar.md H16, T13).
     - Şirket müşteride unvan, vergi dairesi ve VKN istenir.
-- **Yapay zekâ için yurt dışı aktarım rızaya bağlanmaz.** Dayanak, sağlayıcıyla imzalanıp Kurum'a bildirilen standart sözleşmedir (hukuk/kararlar.md H02). ai-worker, standart sözleşme kaydı tanımlı değilse gerçek veriyle yurt dışındaki sağlayıcıyı çağırmaz.
+- **Yapay zekâ için yurt dışı aktarım rızaya bağlanmaz.** Dayanak, sağlayıcıyla imzalanıp Kurum'a bildirilen standart sözleşmedir (hukuk/kararlar.md H02). ai-worker, standart sözleşme kaydı tanımlı değilse gerçek veriyle yurt dışındaki sağlayıcıyı çağırmaz (`ORCHADOS_AI_TRANSFER_SAFEGUARD`; [services/ai-worker/README.md](../services/ai-worker/README.md#yurt-dışı-aktarım-kapısı)).
     - Kayıt formunda ve portalda bu konuda bir kutu yoktur. Aktarım aydınlatma metninde anlatılır.
     - Hizmetin geliştirilmesi rızası sorulmaz; Şirket içi geliştirme meşru menfaate dayanır (hukuk/kararlar.md H31). Tanıtım onayı İYS'den sonra sorulur (H06). Eski kayıtlar silinmez, dayanak olarak kullanılmaz. İşlevi olmayan bir rıza düğmesi yayımlanmaz (`MARKETING_CONSENT_ENABLED`, `apps/web/src/lib/legal/consents.ts`).
 - **Kişisel veri `private` şemada tutulur.** Müşterinin görebildiği `public` tablolarda iç sütunlar **sütun yetkisiyle** gizlenir (§6.8).
@@ -859,15 +859,16 @@ POST /functions/v1/payment-webhook  → 200 {ok:true} | 401 {error:"invalid_sign
 
 ## 9. Site (C)
 
-- **Yollar:** `src/app/(site)/` altında `/`, `/nasil-calisir`, `/paketler`, `/sss`, `/iletisim`, `/kvkk`, `/acik-riza`, `/gizlilik`, `/mesafeli-satis`, `/on-bilgilendirme`, `/iade`, `/kayit`, `/kayit/dogrula`. Ayrıca `robots` ve `sitemap`; `ORCHADOS_SITE_INDEXABLE=1` olmadıkça her şey `Disallow`.
+- **Yollar:** `src/app/(site)/` altında `/`, `/nasil-calisir`, `/paketler`, `/sss`, `/iletisim`, `/kvkk`, `/acik-riza`, `/gizlilik`, `/mesafeli-satis`, `/on-bilgilendirme`, `/iade`, `/bahcede-bulunanlar`, `/kayit`, `/kayit/dogrula`. Ayrıca `robots` ve `sitemap`; `ORCHADOS_SITE_INDEXABLE=1` olmadıkça her şey `Disallow`.
 - **Hukuk metinleri:** `src/lib/legal/` altında; sürüm adı `-taslak` ile bitiyorsa üstte bant görünür.
 
   ```ts
-  LEGAL_TEXT_VERSIONS = { kvkk_notice: "kvkk-v1-taslak", explicit_consent: "riza-v1-taslak", privacy: "gizlilik-v1-taslak",
-    distance_sales: "mesafeli-v2-taslak", pre_information: "onbilgi-v2-taslak", refund_policy: "iade-v2-taslak" }
+  LEGAL_TEXT_VERSIONS = { kvkk_notice: "kvkk-v2-taslak", explicit_consent: "riza-v2-taslak", privacy: "gizlilik-v2-taslak",
+    distance_sales: "mesafeli-v3-taslak", pre_information: "onbilgi-v3-taslak", refund_policy: "iade-v3-taslak",
+    field_notice: "bahcede-v1-taslak" }
   ```
 
-  Üç metin İP14'te v2'ye geçti ([bahce-yonetimi.md](bahce-yonetimi.md) §18). v1 metinleri `docs/hukuk/arsiv/` altında durur; kural [hukuk/README.md](hukuk/README.md)'de.
+  Üç metin İP14'te v2'ye geçti ([bahce-yonetimi.md](bahce-yonetimi.md) §18); hukuki kararlarla ([hukuk/kararlar.md](hukuk/kararlar.md#surum)) bütün metinler bir sürüm ilerledi ve sahada karşılaşılan kişiler için `bahcede-v1-taslak` (`/bahcede-bulunanlar`) eklendi. Önceki sürümler (v1, sözleşme metinlerinde v2) `docs/hukuk/arsiv/` altında durur; kural [hukuk/README.md](hukuk/README.md)'de. Yeni kayıtlar bu sürümlerle açılır; eski kayıtlar kendi sürümünü korur.
 - **`/` davranışı:**
     1. Oturum yoksa landing.
     2. Varsayılan bölüm varsa oraya yönlendirme.

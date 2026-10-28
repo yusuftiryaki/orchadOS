@@ -28,6 +28,8 @@ ORCHADOS_EMAIL=
 ORCHADOS_PASSWORD=
 # Claude API anahtarı; SDK ortamdan okur
 ANTHROPIC_API_KEY=
+# Yurt dışındaki sağlayıcının standart sözleşme kaydı (KVKK md. 9); boşsa gerçek veri gitmez
+ORCHADOS_AI_TRANSFER_SAFEGUARD=
 # İsteğe bağlı: iş durumu klasörü (varsayılan ~/.local/state/orchados-ai-worker)
 AI_WORKER_STATE_DIR=
 ```
@@ -82,7 +84,7 @@ Anthropic anahtarı olmadan da akış uçtan uca çalışır. `provider.kind = "
 
 | Yapılandırma | Ne | Veri nereye gider | Ne zaman |
 | --- | --- | --- | --- |
-| `configs/ollama-gemma3.json` | Yerel [Ollama](https://ollama.com), `gemma3:4b` (görsel destekli, ~3,3 GB) | Makineden çıkmaz | Akış denemesi, gerçek kesitlerle de kullanılabilir |
+| `configs/ollama-gemma3.json` | Yerel [Ollama](https://ollama.com), `gemma3:4b` (görsel destekli, ~3,3 GB) | Makineden çıkmaz | Akış denemesi, gerçek kesitlerle de kullanılabilir (yurt dışı aktarım kapısı uygulanmaz) |
 | `configs/gemini-free.json` | Google Gemini ücretsiz katmanı, OpenAI uyumlu uç (`GEMINI_API_KEY`) | Google'a; ücretsiz katmanda istekler ürün geliştirmede kullanılabilir | **Sadece test verisi:** `--test-data-only` olmadan çalışmaz |
 
 ```bash
@@ -97,7 +99,7 @@ GEMINI_API_KEY=… uv run ai-worker run --session-id <uuid> --config configs/gem
 
 - **Model kalitesi:** Küçük yerel modelin cevapları uzmanla karşılaştırma için değil, akışı (istem → şema → satırlar → uzman paneli) çalıştırmak içindir. Ollama yapılandırmasında ikinci aşama kapalıdır (`"review": null`): aynı küçük modele ikinci kez sormak bir şey katmaz.
 - **Gemini model adları** sık değişir; yapılandırma `gemini-flash-lite-latest` / `gemini-flash-latest` takma adlarını kullanır. Güncel liste: `curl -H "Authorization: Bearer $GEMINI_API_KEY" https://generativelanguage.googleapis.com/v1beta/openai/models`. Ücretsiz katmanın dakika sınırı için istekler arası `request_interval_s` (7 sn) beklenir; 429 ve 5xx cevapları geri çekilerek yeniden denenir.
-- **Kişisel veri kuralı** burada da aynıdır: istekte yalnızca ağaç kodu, mevsim, mozaikler, ölçek tanımları ve evet/hayır cevapları vardır (`tests/test_openai_compat.py` denetler). Gerçek bahçe görüntüleri, istekleri eğitimde kullanmayan sağlayıcıya gider (yerel model ya da ücretli API).
+- **Kişisel veri kuralı** burada da aynıdır: istekte yalnızca ağaç kodu, mevsim, mozaikler, ölçek tanımları ve evet/hayır cevapları vardır (`tests/test_openai_compat.py` denetler). Gerçek bahçe görüntüleri, istekleri eğitimde kullanmayan sağlayıcıya gider (yerel model ya da ücretli API) ve yurt dışındaysa yalnızca standart sözleşmesi imzalanıp Kurum'a bildirilmiş sağlayıcıya (aşağıda, "Yurt dışı aktarım kapısı").
 
 ## İstem
 
@@ -118,6 +120,17 @@ GEMINI_API_KEY=… uv run ai-worker run --session-id <uuid> --config configs/gem
 - Sahip adı, telefonu, tapu bilgisi, parsel adı, köy ve soru metinleri **gönderilmez**. Worker bunları okumaz bile: katalog arayüzü (`catalog.py`) sadece ağaç kimliği ve kodu, kesitler, cevaplar ve metrik kodlarını okur; metrik kaydının ad ve açıklama alanları istenmez. Testler bunu sahte veriyle ve yerel Supabase'in seed verisiyle denetler (`test_worker.py::test_no_personal_data_in_requests`, `test_supabase.py::test_no_personal_data_left_the_database`).
 - **Görüntüler:** Sadece panorama kesitleri; ziyaretin bütün kesitleri gönderilir. Yakın plan fotoğraflar v0.1'de gönderilmez; bu bir kapsam kararıdır: yakın plan analizi sonraki sürümde.
 - `ANTHROPIC_API_KEY` sadece ortamdan okunur; loglanmaz, iş durumuna yazılmaz. İş durumu klasöründe kişisel veri yoktur.
+- Değerlendirme ve istem geliştirme verileri (iş klasörü, `report.json`, `eval` çıktısı, dışa aktarımlar) repo dışında, erişimi kısıtlı bir yerde tutulur; sahip ve parsel kimliği yerine kod kullanılır.
+
+### Yurt dışı aktarım kapısı
+
+Kesitler sahibin parseline bağlıdır ve tanınabilir üçüncü kişileri gösterebilir; yurt dışındaki bir sağlayıcıya gönderilmeleri KVKK md. 9 kapsamında aktarımdır ([hukuk/kararlar.md](../../docs/hukuk/kararlar.md) H02, [yurt-disi-aktarim-kaydi.md](../../docs/hukuk/yurt-disi-aktarim-kaydi.md)). Kapı varsayılan olarak kapalıdır (`cli.py`, `_check_transfer`):
+
+- **Yurt dışı sayılan:** `anthropic` her zaman; `openai` türü, `base_url` sunucusu `localhost`, `127.0.0.1`, `::1` ya da `host.docker.internal` değilse. Yapılandırmada `provider.cross_border` açıkça `true`/`false` verilebilir (Türkiye'deki bir sunucu için `false`; sonuca etkisi yok, `params_hash`'e girmez).
+- Yurt dışı sağlayıcıyla `run` ve `resume` (`--no-write` ve `--no-wait` dahil) ancak şu durumlarda çalışır: `ORCHADOS_AI_TRANSFER_SAFEGUARD` sağlayıcının standart sözleşme kaydının referansını taşıyorsa (ör. "Anthropic SCC 2026-11-15, Kurum bildirimi 2026-11-20"; çalıştırma başında stderr'e basılır) ya da ziyaret yalnızca test verisiyse ve `--test-data-only` verilmişse. Yoksa iş hiçbir istek göndermeden çıkış kodu 1 ile durur.
+- Değişken, kayıttaki satır tamamlanmadan (sözleşme imzalı, Kurum'a bildirilmiş, durum "tamam") tanımlanmaz. Bugün bütün satırlar "bekliyor": gerçek veriyle yalnızca yerel model çalışır.
+- `eval` sağlayıcıya istek göndermez; veritabanındaki ve iş klasöründeki cevapları karşılaştırır. Değerlendirme seti için cevap üreten `run --no-write` kapıdan geçer.
+- İstekleri eğitimde kullanabilen ücretsiz katmanlar (`may_train_on_requests`) değişken tanımlı olsa da yalnızca `--test-data-only` ile çalışır.
 
 ## Maliyet notu
 
@@ -154,7 +167,7 @@ Kış denetiminin uzman kararları setin ilk verisidir. O ziyaretler AI çalış
 | `schema.py` | Çıktı JSON şeması, doğrulama, worker'ın cevaba uyguladığı kurallar (kışın kuru) |
 | `mosaic.py` | Dört yön mozaiği |
 | `triage.py` | Triaj kuralları, son cevabın seçimi |
-| `config.py` | Modeller, eşikler, fiyatlar; `--config` JSON'u bu alanları değiştirir |
+| `config.py` | Modeller, eşikler, fiyatlar, sağlayıcının yurt dışı sayılıp sayılmadığı; `--config` JSON'u bu alanları değiştirir |
 | `catalog.py`, `supabase.py` | Veritabanı okuma/yazma (ops kimliği) |
 | `api.py` | Message Batches API (resmi SDK) |
 | `state.py` | Yerel iş durumu |
@@ -165,7 +178,7 @@ Kış denetiminin uzman kararları setin ilk verisidir. O ziyaretler AI çalış
 
 ## Testler
 
-- **Birim:** istem kurulumu, sürüme göre ölçek metinleri ve kişisel veri (`test_prompt.py`), şema doğrulama ve kışın kuru kuralı (`test_schema.py`), triaj kuralları (`test_triage.py`), mozaik, cevabın satırlara dönüşmesi (`test_rows.py`), değerlendirme (`test_evaluate.py`), SDK ile batch istemcisi sahte HTTP taşıyıcısıyla (`test_api.py`).
+- **Birim:** istem kurulumu, sürüme göre ölçek metinleri ve kişisel veri (`test_prompt.py`), şema doğrulama ve kışın kuru kuralı (`test_schema.py`), triaj kuralları (`test_triage.py`), mozaik, cevabın satırlara dönüşmesi (`test_rows.py`), değerlendirme (`test_evaluate.py`), yurt dışı aktarım kapısı (`test_transfer_gate.py`), SDK ile batch istemcisi sahte HTTP taşıyıcısıyla (`test_api.py`).
 - **Uçtan uca, sahte API ile** (`test_worker.py`): batch gönder → sonuç → yaz → tekrar çalıştır; `--no-wait` + `resume`; yazma sırasında kesilme; Sonnet reddi; cevapsız ağacın yeniden denenmesi; yayımlanmış ziyaret; batch bölme; Opus aşaması; `methodology-v0.1` kış ziyaretinde kuru cevabın sorunluya çevrilmesi ve zor ölçeklerin Sonnet'e gitmesi.
 - **Entegrasyon** (`test_supabase.py`, `supabase` işareti): yerel Supabase'te kendi ziyaretini açar, seed parselinin üç ağacına kesit yükler, sahte API ile çalıştırır; satırların yazıldığını, tekrar çalıştırmanın bir şey eklemediğini, sahip ve hissedarın hiçbir AI satırını görmediğini, uzman panelinin sorgularının öneriyi okuduğunu, saha personelinin yazamadığını ve `eval`'ı denetler. Önce kökte `pnpm install && pnpm db:start && pnpm db:reset`. Supabase'e ulaşılamazsa atlanır; CI'da atlanırsa iş başarısız olur. Test oturumları sonunda silinir (`ORCHADOS_TEST_KEEP_DATA=1` ile kalır).
 - **Gerçek API** (`test_live.py`, `-m live`): bir sentetik ağaçla tek istek ve token sayımı. Sadece `ANTHROPIC_API_KEY` varsa ve açıkça istenirse.

@@ -15,10 +15,14 @@ import json
 from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 TRIAGE_MODEL = "claude-haiku-5-5"
 REVIEW_MODEL = "claude-sonnet-5-5"
 HARD_MODEL = "claude-opus-5-5"
+
+# Hosts whose requests stay on this machine (or its Docker host): not a transfer abroad.
+LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "host.docker.internal"})
 
 
 @dataclass(frozen=True)
@@ -46,6 +50,18 @@ class ProviderConfig:
     request_interval_s: float = 0.0
     # True for free tiers whose terms let them use the requests: test data only.
     may_train_on_requests: bool = False
+    # Whether requests leave Turkey (KVKK md. 9, docs/hukuk/yurt-disi-aktarim-kaydi.md).
+    # None = derived: anthropic always, openai unless base_url is a local host.
+    cross_border: bool | None = None
+
+    @property
+    def is_cross_border(self) -> bool:
+        if self.cross_border is not None:
+            return self.cross_border
+        if self.kind == "anthropic":
+            return True
+        host = urlparse(self.base_url or "").hostname or ""
+        return host.lower() not in LOCAL_HOSTS
 
     def __post_init__(self) -> None:
         if self.kind not in ("anthropic", "openai"):
@@ -114,6 +130,9 @@ class WorkerConfig:
         data = asdict(self)
         if self.provider == ProviderConfig():
             del data["provider"]  # keeps the hash of Anthropic runs as before
+        else:
+            # The transfer flag shapes no request; keeps the hash of earlier runs.
+            data["provider"].pop("cross_border")
         text = json.dumps(data, sort_keys=True, default=str)
         return hashlib.sha256(text.encode()).hexdigest()[:16]
 
