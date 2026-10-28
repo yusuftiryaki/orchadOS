@@ -1042,7 +1042,7 @@ export const backOfficeText = {
     existing: "Müşterinin mevcut parselleri (soluk)",
   },
   renewal: {
-    openRemoval: (date: string) => `Açık çıkarma · ${date}`,
+    openRemoval: (date: string) => `Açık çıkarma: ${date}`,
     otherParcels: "Müşterinin diğer parselleri",
     addedAfterQuote:
       "Açık yenileme teklifinden sonra eklenen bahçeler var; teklifi yeniden verin (eskisi yenisiyle değişir).",
