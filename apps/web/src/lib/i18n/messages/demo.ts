@@ -78,9 +78,11 @@ export const demoText = {
   },
   banner: {
     label: "Demo bilgisi",
+    // No suffix after the time: the Turkish dative follows how it is read
+    // aloud (15:30'a, 18:00'e, 16:00'ya), so a fixed 'ye is wrong.
     text: (until: string) =>
-      `Örnek bahçe · veriler ve görüntüler sentetik, konum temsilî · oturum ${until}'ye kadar`,
-    short: (until: string) => `Örnek veri · ${until}'ye kadar`,
+      `Örnek bahçe · veriler ve görüntüler sentetik, konum temsilî · oturum bitişi ${until}`,
+    short: (until: string) => `Örnek veri · bitiş ${until}`,
     startTour: "Turu başlat",
     signup: "Gerçek hesap aç",
     contact: "Bize ulaşın",
@@ -99,7 +101,7 @@ export const demoText = {
     boundary: closed("ölçülen sınırı onaylayabilirsiniz"),
     billing: closed("başvuru, teklif ve ödeme işlemleri yapılabilir"),
     images: "Bu demo oturumunun görüntü sınırına ulaşıldı. Yeni bir demo başlatabilirsiniz.",
-    pdfLimit: "Bu demo oturumunun PDF sınırına ulaşıldı.",
+    pdfLimit: "Bu demo oturumunun PDF sınırına ulaşıldı. Yeni bir demo başlatabilirsiniz.",
   },
   // Sample PDFs (§11.6). `keywords` is ASCII: the PDF Info dictionary is not
   // compressed, so a byte search finds it.
@@ -120,7 +122,6 @@ export const demoText = {
     next: "İleri",
     finish: "Bitir",
     close: "Turu kapat",
-    signup: "Gerçek hesap aç",
     packages: "Paketleri gör",
     steps: {
       bahceler: {
@@ -149,7 +150,7 @@ export const demoText = {
       },
       ziyaret: {
         title: "Ziyaret seçimi",
-        body: 'Önceki ziyareti seçerek haritayı ve karneyi o güne göre görün. Hangi ağaçların değiştiğini "değişenler" süzgeciyle bulabilirsiniz.',
+        body: 'Önceki ziyareti seçerek haritayı o güne göre görün; karne her zaman son ziyareti özetler. Hangi ağaçların değiştiğini "değişenler" süzgeciyle bulabilirsiniz.',
       },
       envanter: {
         title: "Envanter raporu",
@@ -183,3 +184,9 @@ export const demoText = {
 };
 
 export type DemoTourStepId = keyof typeof demoText.tour.steps;
+
+// The banner's and the closing tour card's label for the same action: without
+// a main site or sign-up the demo ends on the contact page (DemoShell).
+export function demoSignupLabel(signupNext: string): string {
+  return signupNext === "/iletisim" ? demoText.banner.contact : demoText.banner.signup;
+}

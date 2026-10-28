@@ -78,10 +78,21 @@ GENERATOR = f"orchados-demo/{DATASET_VERSION} (orchados-pipeline {__version__})"
 
 
 def generator_hash() -> str:
-    """Hash of the generator's source: a cached build of other code is rebuilt."""
-    here = Path(__file__).parent
-    body = b"".join(f.name.encode() + f.read_bytes() for f in sorted(here.glob("*.py")))
-    return sha256_bytes(body)[:16]
+    """Hash of the generator's source and parameters: a cached build of other code is rebuilt.
+
+    The build runs the core pipeline (outputs, crops, coverage, projection, imaging) and
+    the loader reads it back through upload, so the whole package source counts, not
+    only demo/, and so do the PipelineParams defaults.
+    """
+    package = Path(__file__).resolve().parents[1]
+    body = b"".join(name.encode() + (package / name).read_bytes() for name in source_files())
+    return sha256_bytes(body + params_hash().encode())[:16]
+
+
+def source_files() -> list[str]:
+    """The package's Python sources, relative to orchados_pipeline/, in a stable order."""
+    package = Path(__file__).resolve().parents[1]
+    return sorted(f.relative_to(package).as_posix() for f in package.rglob("*.py"))
 
 
 SHORT = {"A-INV25": "A25I", "A-SCN25": "A25", "A-SCN26": "A26", "B-INV26": "B26I", "B-SCN26": "B26"}

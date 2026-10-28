@@ -18,6 +18,7 @@ export async function GET(
   return servePdf(pdfDeps, {
     kind: "report",
     parcelId,
+    page: `/portal/parsel/${parcelId}`,
     load: async () => {
       const report = await getParcelReport(await createClient(), parcelId);
       return report?.latest ? report : null;

@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { DemoNotice } from "@/components/demo/demo-notice";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
+import { demoText } from "@/lib/i18n/messages/demo";
 import {
   INVENTORY_POINT_COLORS,
   type InventoryReport,
@@ -18,7 +20,14 @@ const pct = (n: number, total: number) => (total > 0 ? formatNumber((n / total) 
 const signedPct = (share: number) => `${share > 0 ? "+" : ""}%${formatNumber(share * 100, 0)}`;
 const area = (m2: number) => `${formatNumber(m2 / 1000, 1)} dönüm (${formatNumber(m2, 0)} m²)`;
 
-export function InventoryReportView({ report }: { report: InventoryReport }) {
+export function InventoryReportView({
+  report,
+  pdfLimit = false,
+}: {
+  report: InventoryReport;
+  // A demo session over its PDF cap was sent back here.
+  pdfLimit?: boolean;
+}) {
   const base = `/portal/parsel/${report.parcel.id}`;
   const c = report.counts;
   const draft = report.warnings.includes("boundary_unapproved");
@@ -51,6 +60,7 @@ export function InventoryReportView({ report }: { report: InventoryReport }) {
           </div>
         )}
       </div>
+      {pdfLimit && <DemoNotice text={demoText.closed.pdfLimit} />}
 
       {!report.inventory ? (
         <p className={styles.notice} data-testid="inventory-not-approved">

@@ -6,6 +6,8 @@ import type { ParcelReport, TreeChange } from "@/lib/portal/data";
 import type { FindingItem } from "@/lib/portal/findings";
 import type { MetricSummaryRow } from "@/lib/portal/metrics";
 import { InventorySummaryView } from "@/components/office/inventory-summary";
+import { DemoNotice } from "@/components/demo/demo-notice";
+import { demoText } from "@/lib/i18n/messages/demo";
 import type { BoundaryCard } from "@/lib/portal/boundary";
 import { BoundaryCardView } from "./boundary-card";
 import { Dimensions } from "./dimensions";
@@ -39,6 +41,7 @@ export function ParcelReportView({
   questions,
   viewers,
   demo = false,
+  pdfLimit = false,
 }: {
   report: ParcelReport;
   classFilter?: MarkerState[];
@@ -51,6 +54,8 @@ export function ParcelReportView({
   viewers?: { data: ParcelViewers; outcome?: string };
   // A demo visitor: the same report, its forms replaced by a notice.
   demo?: boolean;
+  // A demo session over its PDF cap was sent back here.
+  pdfLimit?: boolean;
 }) {
   const base = `/portal/parsel/${report.parcel.id}`;
   return (
@@ -86,6 +91,7 @@ export function ParcelReportView({
           <PrintButton />
         </div>
       </div>
+      {pdfLimit && <DemoNotice text={demoText.closed.pdfLimit} />}
 
       {boundaryCard && (
         <BoundaryCardView parcelId={report.parcel.id} card={boundaryCard} demo={demo} />

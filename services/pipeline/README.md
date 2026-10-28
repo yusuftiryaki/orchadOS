@@ -355,7 +355,7 @@ pnpm db:demo-tour [ek argümanlar]     # kökten: demo load --target local --ver
 | `full` | 3840×1920 WebP (85) | 1920×960 WebP (80) | 1024² JPEG (90) | 1600×1200 JPEG | ~54 MB, 522 dosya | ~3 dk (derleme ve yükleme) |
 | `test` | 1024×512 | 512×256 | 256² | 400×300 | ~5,4 MB | ~30 sn |
 
-Kalite ayarları işleme hattının varsayılanlarıyla aynıdır (`PanoramaParams`, `CropParams`). Önbellek, üreticinin kaynak hash'i (`generator_hash`) ve manifest hash'i tutuyorsa yeniden kullanılır.
+Kalite ayarları işleme hattının varsayılanlarıyla aynıdır (`PanoramaParams`, `CropParams`). Önbellek, üreticinin kaynak hash'i (`generator_hash`) ve manifest hash'i tutuyorsa yeniden kullanılır. `generator_hash` bütün `orchados_pipeline` paketinin kaynağını ve `PipelineParams` varsayılanlarının hash'ini kapsar: derleme çekirdek hattı (çıktılar, kesitler, kapsama, izdüşüm) kullanır ve yükleyici çıktıyı `upload` ile okur, bu yüzden hattaki bir değişiklik de yeniden derletir. CI önbellek anahtarı da `services/pipeline/src/**`'yi kapsar.
 
 **Örnek görüntüler** (repoya görüntü eklenmez; `demo build --profile test` ile üretilir):
 - `A26-P12` (A, 2026, 2. koridor): kırmızımsı kahve toprakta sıralara paralel izler ve damla sulama borusu, iki yanda koyu yeşil, meyve salkımlı yetişkin ağaçlar ve sabah güneşinin attığı taç gölgeleri; arkada sıraların kaçış noktası, ufukta pus içinde alçak tepeler ve dağınık bulutlar; nadirde koyu disk ve dört kez tekrarlanan "orchadOS SENTETIK ORNEK A26-P12".

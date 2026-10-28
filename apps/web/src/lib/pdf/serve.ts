@@ -8,6 +8,11 @@ import type { DemoPdfKind } from "@/lib/demo/pdf-cache";
 // row level security read, and only then, for a demo parcel, the shared demo
 // cache (docs/demo-turu.md §11.6). Real users' PDFs are rendered per request
 // and never cached. Dependencies are passed in, so the order is unit-tested.
+// The PDF button is a plain link, so a demo session over its PDF cap is sent
+// back to the page with the link (?hata=demo_pdf_limit), which says why,
+// rather than to a bare error page.
+
+export const DEMO_PDF_LIMIT = "demo_pdf_limit";
 
 export interface PdfDeps {
   user: () => Promise<SessionUser | null>;
@@ -23,6 +28,8 @@ export interface PdfDeps {
 export interface PdfJob<T> {
   kind: DemoPdfKind;
   parcelId: string;
+  // The portal page that links to this PDF (where a capped visitor goes back).
+  page: string;
   // The user's RLS read; null when there is nothing to print.
   load: () => Promise<T | null>;
   // The published session the PDF shows (part of the cache key).
@@ -41,7 +48,15 @@ export async function servePdf<T>(deps: PdfDeps, job: PdfJob<T>): Promise<Respon
     });
   }
   if (!canAccessSection(user.roles, "portal")) return new Response(null, { status: 403 });
-  if (user.demo && !(await deps.demoHit())) return new Response(null, { status: 429 });
+  if (user.demo && !(await deps.demoHit())) {
+    return new Response(null, {
+      status: 303,
+      headers: {
+        Location: `${job.page}?hata=${DEMO_PDF_LIMIT}`,
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
 
   const data = await job.load();
   if (!data) return new Response(null, { status: 404 });

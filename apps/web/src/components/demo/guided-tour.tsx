@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { exitDemoAction } from "@/app/(site)/demo/actions";
 import type { DemoTour } from "@/lib/demo/info";
 import { onStepPage, stepIndex, stepUrl, TOUR_PARAM, TOUR_STEPS } from "@/lib/demo/tour-steps";
-import { demoText } from "@/lib/i18n/messages/demo";
+import { demoSignupLabel, demoText } from "@/lib/i18n/messages/demo";
 import styles from "./demo.module.css";
 
 // The guided tour (docs/demo-turu.md §11.4): a non-modal card that walks the
@@ -277,7 +277,7 @@ export function GuidedTour({
               <form action={exitDemoAction}>
                 <input type="hidden" name="next" value={signupNext} />
                 <button className="button" type="submit" data-testid="tour-signup">
-                  {T.signup}
+                  {demoSignupLabel(signupNext)}
                 </button>
               </form>
               <Link

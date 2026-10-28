@@ -216,3 +216,14 @@ def test_workflow_reuses_only_main_runs_of_itself():
     check = text.index("name: Check the reused run")
     assert check < text.index("name: Download an earlier build")
     assert ".github/workflows/demo-data.yml main workflow_dispatch" in text[check:]
+
+
+def test_generator_hash_covers_the_core_pipeline_and_params(monkeypatch):
+    # A change to the core pipeline (outputs, crops, coverage) or to the default
+    # parameters must invalidate a cached build, not only a change under demo/.
+    files = demo_build.source_files()
+    for name in ("outputs.py", "models.py", "params.py", "upload.py", "demo/build.py"):
+        assert name in files
+    before = demo_build.generator_hash()
+    monkeypatch.setattr(demo_build, "params_hash", lambda: "changed")
+    assert demo_build.generator_hash() != before

@@ -14,10 +14,11 @@ name: demo-data
 # service role key is not used.
 #
 # The job runs in the GitHub Environment named after the project (`test` or
-# `demo`): create both with required reviewers and a deployment branch rule of
-# main only, and keep this workflow's secrets there (docs/demo-turu.md §10.4).
-# Secrets are given only to the steps that need them, never to installs or
-# third-party actions. A reused build must come from a run of this workflow on main.
+# `demo`), like deploy-db and deploy-db-demo: each has a deployment branch rule
+# of main only and holds that project's secrets (docs/demo-turu.md §10.4);
+# missing secrets fail the job. Secrets are given only to the steps that need
+# them, never to installs or third-party actions. A reused build must come from
+# a run of this workflow on main.
 
 on:
   workflow_dispatch:
@@ -72,9 +73,8 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets[inputs.project == 'demo' && 'DEMO_SUPABASE_ANON_KEY' || 'SUPABASE_ANON_KEY'] }}
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$PROJECT_REF" ] || [ -z "$PGPASSWORD" ] || [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "::warning::Secrets for the $PROJECT project are not set; skipping (docs/demo-turu.md §13)."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "::error::Secrets for the $PROJECT project are missing in the $PROJECT environment (docs/demo-turu.md §10.4)."
+            exit 1
           fi
           echo "ready=true" >> "$GITHUB_OUTPUT"
 

@@ -111,6 +111,12 @@ export async function ageDemoSessions(userIds: string[], minutes: number) {
   await call("age_demo_sessions", { p_user_ids: userIds, p_minutes: minutes });
 }
 
+// Uses up the image signing and PDF caps of these users' demo sessions.
+export async function exhaustDemoCaps(userIds: string[]) {
+  if (!userIds.every((id) => UUID.test(id))) throw new Error("exhaustDemoCaps takes uuids");
+  await call("exhaust_demo_caps", { p_user_ids: userIds });
+}
+
 // Clears the demo start counters (rate limits), so that demo tests can run
 // again within the hour.
 export async function purgeDemoAttempts() {

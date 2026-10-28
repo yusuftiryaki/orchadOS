@@ -37,6 +37,7 @@ function setup(
   const job: PdfJob<{ id: string }> = {
     kind: "report",
     parcelId: "p",
+    page: "/portal/parsel/p",
     load: async () => (events.push("load"), opts.data === false ? null : { id: "s" }),
     sessionOf: (d) => d.id,
     render: async (_d, demo) => (events.push(`render:${demo}`), Buffer.from("%PDF-")),
@@ -91,9 +92,12 @@ describe("servePdf", () => {
     expect(events).toEqual(["gate"]);
   });
 
-  it("demo: over the cap is 429 without reading", async () => {
+  it("demo: over the cap goes back to the page with the notice, without reading", async () => {
     const { deps, job, events } = setup(VISITOR, { hit: false });
-    expect((await servePdf(deps, job)).status).toBe(429);
+    const res = await servePdf(deps, job);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("Location")).toBe("/portal/parsel/p?hata=demo_pdf_limit");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     expect(events).toEqual(["gate", "hit"]);
   });
 
