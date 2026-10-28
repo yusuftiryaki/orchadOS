@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - "apps/field/**"
+      - "test-vectors/**"
       - ".github/workflows/ci-field.yml"
   push:
     branches: [main]
     paths:
       - "apps/field/**"
+      - "test-vectors/**"
       - ".github/workflows/ci-field.yml"
 
 concurrency:

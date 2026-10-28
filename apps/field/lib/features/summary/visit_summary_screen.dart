@@ -97,7 +97,8 @@ final visitSummaryProvider = FutureProvider.autoDispose<VisitSummary?>((
         .where((e) => e.timeSource == TimeSource.phone.code)
         .length,
     treesDone: {
-      for (final m in answers) m.subjectId,
+      for (final m in answers)
+        if (m.subjectType == 'tree') m.subjectId,
       for (final c in captures)
         if (c.kind == 'closeup_photo') c.subjectId,
     }.length,

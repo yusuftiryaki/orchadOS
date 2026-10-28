@@ -1,6 +1,7 @@
 # Uzman ajan önerileri: metodoloji v0 → v1 taslak kararları
 
 **Durum:** Bu belgedeki her karar bir **AI uzman ajanın** (ziraat mühendisi rolünde çalıştırılan bir dil modeli) önerisidir. **27 Ekim 2026'da işletme kararıyla `methodology-v0.1` olarak kabul edildi.** Bir ziraat mühendisinin görüşü değildir; kaynak ya da saha ölçümüne dayanmaz. Pilotta uzman düzeltmeleri ve AI uyum ölçümü bu kararları sınar. Kabul edilen kurallar ve açık kalanlar: [metodoloji.md](metodoloji.md), bölüm 11. Bölüm 6'daki sorular pilot uzmanla görüşülürse diye duruyor; kabul için şart değil.
+**v0.2 (28 Ekim 2026):** Bölüm 7, "Kapsamlı" paketin 6 ziyaretlik takvimi ve yeni ay–mevsim eşlemesi. İşletme talimatıyla uzman ajanın kararı nihai kabul edildi ve `methodology-v0.2` olarak uygulandı; yine bir ziraat mühendisinin görüşü değildir.
 **Tarih:** 27 Ekim 2026 · **Dayanak:** `docs/metodoloji.md` (methodology-v0), `docs/MVP.md`, `docs/mvp-denetimi.md`
 
 **Nasıl okunur:**
@@ -17,6 +18,7 @@
 4. ["Böyle çek" referans görselleri ve ölçek referans fotoğrafları](#4-böyle-çek-referans-görselleri-ve-ölçek-referans-fotoğrafları)
 5. [Belgelerdeki çelişkiler ve eksikler](#5-belgelerdeki-çelişkiler-ve-eksikler)
 6. [Gerçek uzmana sorulacak soruların toplu listesi](#6-gerçek-uzmana-sorulacak-soruların-toplu-listesi)
+7. [Metodoloji v0.2: "Kapsamlı" paketin 6 ziyaretlik takvimi](#7-metodoloji-v02-kapsamlı-paketin-6-ziyaretlik-takvimi)
 
 ---
 
@@ -620,3 +622,51 @@ Aşağıdaki her satır bir SVG'ye dönüşür. "Mesafe" ağacın gövdesine ola
 15. Bir ziyarette AI ile ne kadar uyuşmazlık görürseniz o ziyaretteki AI önerilerine güvenmezsiniz?
 16. Envanter raporunda "kuru görünen" ağaç sayısı ve aşılatma önerisi verilmeli mi?
 17. Arşivinizde referans olarak kullanılabilecek fotoğraf var mı? İkinci değerlendirici kim olabilir?
+
+---
+
+## 7. Metodoloji v0.2: "Kapsamlı" paketin 6 ziyaretlik takvimi
+
+**Tarih:** 28 Ekim 2026 · **Durum:** Uzman ajan kararı; işletme talimatıyla nihai kabul edildi, `methodology-v0.2` olarak uygulandı ([metodoloji.md](metodoloji.md) bölüm 2 ve 7). Bir ziraat mühendisi tarafından doğrulanmadı.
+
+### 7.1 Takvim — Değiştir (4 ziyarete iki ek ziyaret, Mart ve Ağustos'un mevsimi)
+
+**Öneri:** "Kapsamlı" pakette yılda 6 periyodik ziyaret. Standart paketin dört ziyareti (#1, #3, #4, #6) aynı kalır; iki ek ziyaret Mart sonu (#2) ve Ağustos başıdır (#5). Temel paket #1 ve #6, Standart paket #1, #3, #4 ve #6.
+
+| # | Ziyaret | Hedef ay | Pencere | Fenoloji | Ana amaç |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Kış (Standart) | Ocak | 15 Aralık–15 Şubat | Dinlenme | Budama başladı mı, kuru dal, gövde, eksik ya da kesilmiş ağaç |
+| 2 | Uyanma (ek) | Mart sonu | 10–31 Mart | Tomurcuk kabarması | Budamanın kesin sonucu, artıklar kaldırıldı mı, kış kuru kararlarının doğrulanması (kabaran tomurcuk = canlı), dip sürgünü, toprak, ot ve sulama hattı bakımı |
+| 3 | İlkbahar (Standart) | Nisan sonu | 15 Nisan–15 Mayıs | Çiçek sonu, meyve tutumu | Don, cinsiyet, göz kurdu, karazenk, psilla 1. döl |
+| 4 | Yaz (Standart) | Temmuz başı–ortası | 1–25 Temmuz | Kabuk sertleşmiş | Meyve yükü, psilla piki, kokarca, kuraklık ve sulama |
+| 5 | Hasat öncesi (ek) | Ağustos başı | 1–20 Ağustos, hasat başlamadan | İç dolumu tamam | Hırsızlık (erken boşaltılmış salkım, yeni tel geçidi), yangın riski (kuru ot), son meyve yükü |
+| 6 | Hasat sonrası (Standart) | Ekim | 15 Eylül–31 Ekim, hasat bitiminden 3–21 gün sonra | Hasat sonrası | Hasat tamam mı, dal kırığı, hırsızlık karşılaştırması (#5 ile), dip sürgünü |
+
+**Ay–mevsim eşlemesi (v0.2):** Kış Kasım–Mart, ilkbahar Nisan–Mayıs, yaz Haziran–Ağustos, hasat Eylül–Ekim. Mevsim ziyaretin ayından ve metodoloji sürümünden çıkar; `methodology-v0` ve `v0.1` ziyaretleri eski eşlemeyle kalır.
+
+**Bu karar İP7'deki "Mart ilkbahardır" kararından bilerek ayrılır.** Eski eşlemeyle Mart sonu ziyareti ilkbahar sayılıyor, yapraksız ağaçta taç doluluğu soruluyor ve budama girilemiyordu; Ağustos başı ziyareti hasat sayılıyor, hasat sorusu yanlış zamanda soruluyor ve meyve yükü girilemiyordu. Bölüm 5 madde 6'daki "Mart ziyareti kış ölçekleriyle değerlendirilsin" önerisi de böylece uygulanmış olur.
+
+**Gerekçe:**
+- **#5 hasat öncesi:** Hırsızlık meyve olgunlaşıp hasat başlamadan önce olur (bölüm 1.1, 4.8). Hasattan sonra yapılan ziyaret hırsızlığı yalnız "olası iz" olarak görebilir. Ağustos başında boşaltılmış salkım sapı ve yeni tel geçidi hâlâ tazedir; #6 ile karşılaştırılınca hırsızlık ile meşru hasat artığı ayrılır. Kuru ot yangın riski de en yüksek bu dönemdedir.
+- **#2 uyanma:** Kışın kuru kararı yapraksız ağaçta en zor karardır (bölüm 1.4). Mart sonunda kabaran tomurcuk dalın canlı olduğunu açıkça gösterir; kışın "kuru" denen ağaçlar burada doğrulanır. Budamanın kesin sonucu ve artıkların kaldırılması bu dönemde görülür; dip sürgünü, ot ve sulama hattı bakımı sezon başlamadan sahibe bildirilir.
+- **Mevsim olarak:** #2 hâlâ yapraksızdır, kış ölçekleriyle değerlendirilir. #5'te ağaç yaprakta ve meyvededir; yaz ölçekleri (meyve yükü, taç, zararlı) geçerlidir, hırsızlık izi, dal kırığı ve ağaç altı yığın da girilir.
+
+**Uygulanan değişiklikler:**
+- Ay–mevsim eşlemesi sürüme bağlı, üç yerde aynı ve ortak test vektörleriyle (`test-vectors/season.json`); saha uygulamasının Kasım'ı hasat sayma tutarsızlığı giderildi.
+- Kayıtta (`metric_definition.valid_seasons`): `theft_trace`, `branch_break`, `debris_under_tree_present` yazın da; `frost_damage_scale` kışın da (Mart sonu geç donu için; yalnız uzman girer, AI kışın önermez).
+- Yakın plan protokolü: `summer-v0.2` ağaç sorusu "Dalda erken boşaltılmış salkım sapı var mı?" (`early_emptied_cluster_present`) ve parsel sorusu "Tel ya da çitte yeni açılmış geçit var mı?" (`fence_breach_present`, ziyarette bir kez, ağaçsız ölçüm). `winter-v0.2` kuru testinde "Baktığın üç dal ucundan herhangi birinde dolgun ya da kabaran tomurcuk var mı?" (`dead_test_live_bud`; v0.1'in ters sorusu `dead_test_no_buds` kayıtta kalır).
+- Ziyaret kuralları ve ön kontrol ([metodoloji.md](metodoloji.md) bölüm 2 ve 7): ilaçlama sonrası etiketteki tekrar giriş süresi (bilinmiyorsa en az 48 saat; ıslak yaprak ya da ilaç kokusu varsa girilmez; ziyaretten 2 gün önce ilaçlama planı sorulur); hasat sürerken girilmez (#5'te hasat başlamışsa iptal, #6'ya katılır); #6 hasattan 3–21 gün sonra, ön kontrolde çöpleme sorulur; yaz taraması sabah (gün doğumu + 1 saat – 11.00) ya da akşamüstü (16.00 – gün batımı − 1 saat); çizme zorunlu; don ve kırağı kalkmadan girilmez; çamurda motosiklet yok; ziyaretler arası en az 3 hafta; saatte ~30 km'yi aşan rüzgârda yakın plan yok.
+
+**Güven:**
+- #5 hasat öncesi ziyareti: **yüksek**.
+- #2'nin Mart sonunda olması: **orta**. En güçlü alternatif **Haziran ortası**: psilla ve karazenk ilaçlamasının etkisi, Haziran dökümü ve ot biçimi o zaman görülür.
+- Veri modeli önerisi (mevsim aydan ve sürümden, takvim satırı kaydedilmez): **orta–yüksek**.
+- Pencereler: **orta**. Hasat rakıma, çeşide ve yıla göre 1–2 hafta kayar.
+
+**Takip (kodda henüz yok):** `pest_sign_type` için karazenk kodu (`leafhopper`), `weed_cover` (az / orta / yoğun; #2 ve #5 için de), ziyaretin takvim satırını tutan boş olabilir `session.visit_slot` alanı.
+
+### 7.2 Pilot uzmana sorular
+
+1. Pilot bahçelerde hasat ne zaman başlıyor ve hırsızlık hangi haftalarda yoğunlaşıyor? 1–20 Ağustos penceresi tutar mı?
+2. İkinci ek ziyaret Mart sonunda mı olsun, Haziran ortasında mı (psilla ve karazenk ilaçlamasının etkisi, Haziran dökümü, ot biçimi)?
+3. Çöpleme kaç gün sürüyor? Hasat sonrası ziyareti hasattan kaç gün sonra yapılmalı (önerilen 3–21 gün)?
