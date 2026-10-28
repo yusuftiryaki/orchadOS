@@ -62,6 +62,14 @@ export const BILLING_ERRORS = [
   "parcel_read_only",
   "parcel_removal_scheduled",
   "parcel_removed",
+  // P0001, legal follow-ups (docs/musteri-yonetimi.md §6.10, docs/hukuk/kararlar.md
+  // T27, T21, T03, T04)
+  "consent_not_asked",
+  "legal_text_outdated",
+  "legal_texts_not_final",
+  "withdrawal_period_open",
+  "order_not_active",
+  "contract_document_immutable",
   // 55000
   "payment_not_open",
   // Anything else (network, unexpected database error).

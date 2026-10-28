@@ -56,6 +56,39 @@ export type CustomerGarden = Functions["my_gardens"]["Returns"][number];
 export type ParcelServiceStatus = Functions["parcel_service_status"]["Returns"][number];
 export type OpsGardenRemoval = Functions["ops_garden_removals"]["Returns"][number];
 
+// Legal follow-ups (docs/musteri-yonetimi.md "Sözleşme belgeleri (T04)", §9.3,
+// §9.4; docs/bahce-yonetimi.md §9).
+export type ContractDocument = Functions["my_contract_documents"]["Returns"][number];
+export type OpsContractDocument = Functions["ops_contract_documents"]["Returns"][number];
+export type OrderMissingContractDocuments =
+  Functions["ops_orders_missing_contract_documents"]["Returns"][number];
+export type CompanyInfo = Functions["public_company_info"]["Returns"][number];
+export type LegalGateStatus = Functions["legal_gate_status"]["Returns"][number];
+export type RegisteredLegalTextVersion =
+  Functions["registered_legal_text_versions"]["Returns"][number];
+
+// contract_document.kind.
+export const CONTRACT_DOCUMENT_KINDS = [
+  "pre_information",
+  "distance_sales",
+  "withdrawal_confirmation",
+] as const;
+export type ContractDocumentKind = (typeof CONTRACT_DOCUMENT_KINDS)[number];
+
+// garden_removal.notice_channel (withdrawals); ops records the last three.
+export const WITHDRAWAL_CHANNELS = ["portal", "email", "kep", "post"] as const;
+export type WithdrawalChannel = (typeof WITHDRAWAL_CHANNELS)[number];
+export const OPS_WITHDRAWAL_CHANNELS = ["email", "kep", "post"] as const;
+
+// The reasons of legal_texts_not_final / legal_gate_status, in order.
+export const LEGAL_GATE_REASONS = [
+  "distance_sales_draft",
+  "pre_information_draft",
+  "kvkk_notice_not_final",
+  "company_info_incomplete",
+] as const;
+export type LegalGateReason = (typeof LEGAL_GATE_REASONS)[number];
+
 // my_gardens.state and parcel_service_status.status.
 export const GARDEN_STATES = ["in_service", "leaving", "upcoming", "removed"] as const;
 export type GardenState = (typeof GARDEN_STATES)[number];

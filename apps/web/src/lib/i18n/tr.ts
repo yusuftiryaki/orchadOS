@@ -933,6 +933,8 @@ export const tr = {
         "Bahçe bu tarihte hizmetten çıkıyor; ziyareti çıkış tarihinden önceye planlayın.",
       parcel_removed:
         "Bahçe hizmetten çıkarıldı; sürdürülemez. Yeniden eklemek için ek teklif verin.",
+      withdrawal_period_open:
+        "Siparişin cayma süresi sürüyor ve sahip erken başlama talep etmedi; envanteri ve ziyaretleri cayma süresinin bitiminden sonraya planlayın.",
       already_owner: "Bu kişi parselin sahibi; hissedar olarak eklenemez.",
       invite_unavailable:
         "Portal hesabı açılamadı: hesap servisi (invite-user) erişilemiyor. Hesabı Supabase panelinden açıp aynı e-postayla tekrar deneyin.",
@@ -1748,6 +1750,9 @@ export const tr = {
       garden_removal_cancelled: "Bahçe çıkarma iptal edildi",
       garden_removal_completed: "Bahçe hizmetten çıkarıldı",
       garden_access_ending: "Rapor erişimi bitiyor",
+      withdrawal_received: "Cayma bildirimi alındı",
+      contract_ready: "Sözleşme belgeleri hazır",
+      addon_order_closed: "Ek sipariş iptal edildi",
     } as Record<string, string>,
     channel: {
       sms: "SMS",

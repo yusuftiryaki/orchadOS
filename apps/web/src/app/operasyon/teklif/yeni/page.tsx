@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { issueAddonQuoteAction, issueParcelQuoteAction } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
+import { AddonPreviewNotes } from "@/components/back-office/addon-preview-notes";
 import { BoResultNotice, Facts, Submit, Warning, day } from "@/components/back-office/parts";
 import { QuoteLines } from "@/components/back-office/quote-lines";
 import { Field } from "@/components/operations/field";
@@ -19,7 +20,13 @@ import {
   type OrderView,
 } from "@/lib/back-office/data";
 import { boHref, firstParam } from "@/lib/back-office/urls";
-import { addDays, bpToPercent, parseIsoDate, percentToBp } from "@/lib/back-office/validation";
+import {
+  addDays,
+  bpToPercent,
+  parseIsoDate,
+  parseNewInventory,
+  percentToBp,
+} from "@/lib/back-office/validation";
 import { BILLING_ERRORS, type BillingError } from "@/lib/billing/errors";
 import { formatDonum } from "@/lib/billing/money";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
@@ -341,6 +348,9 @@ async function AddonQuote({
   const startParam = parseIsoDate(firstParam(query.baslangic) ?? "");
   const start = startParam ?? (from?.order.service_end ? addDays(from.order.service_end, 1) : null);
   const discountBp = percentToBp(firstParam(query.indirim) ?? "") ?? 0;
+  // T18: "yeni envanter gerekli" with a reason, per selected parcel.
+  const marks = parseNewInventory((name) => firstParam(query[name]) ?? "", selected, "envanter_");
+  const newInventory = marks.ok ? marks.value : null;
   const preview =
     isBase && selected.length
       ? await previewAddonQuote(supabase, {
@@ -348,6 +358,7 @@ async function AddonQuote({
           parcelIds: selected,
           start,
           discountBp,
+          newInventory,
         })
       : null;
   // This order's last add-on day (private.addon_last_day), not the
@@ -402,6 +413,23 @@ async function AddonQuote({
                 </label>
               ))}
             </fieldset>
+            {selected.length > 0 && (
+              <fieldset className={styles.fieldset} data-testid="addon-new-inventory">
+                <legend>{A.newInventory}</legend>
+                <p className={styles.hint}>{A.newInventoryHint}</p>
+                {parcels
+                  .filter((p) => selected.includes(p.id))
+                  .map((p) => (
+                    <Field key={p.id} label={p.name} optional>
+                      <input
+                        name={`envanter_${p.id}`}
+                        maxLength={300}
+                        defaultValue={newInventory?.[p.id] ?? ""}
+                      />
+                    </Field>
+                  ))}
+              </fieldset>
+            )}
             <Field label={T.start} optional>
               <input type="date" name="baslangic" defaultValue={start ?? ""} />
             </Field>
@@ -433,10 +461,14 @@ async function AddonQuote({
                 lines={preview.lines}
                 vatRateBp={preview.lines[0]?.vat_rate_bp ?? 0}
               />
+              <AddonPreviewNotes lines={preview.lines} />
               <ActionForm action={issueAddonQuoteAction} testId="addon-quote-form">
                 <input type="hidden" name="base_order_id" value={o.id} />
                 {selected.map((id) => (
                   <input key={id} type="hidden" name="parcel_ids" value={id} />
+                ))}
+                {Object.entries(newInventory ?? {}).map(([id, reason]) => (
+                  <input key={id} type="hidden" name={`new_inventory_${id}`} value={reason} />
                 ))}
                 {start && <input type="hidden" name="proposed_service_start" value={start} />}
                 <p className="muted">{A.termsFromPreview}</p>

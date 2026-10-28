@@ -19,8 +19,20 @@ export const siteText = {
   },
   footer: {
     legalLabel: "Hukuki metinler",
+    // Placeholders until the company information is complete (T21; filled
+    // from public_company_info()).
     company: "[Şirket unvanı] · [Adres] · [MERSİS no]",
     contactLine: "[E-posta] · [Telefon]",
+    companyFilled: (c: { legal_name: string; address: string; mersis_number: string }) =>
+      `${c.legal_name} · ${c.address} · MERSİS: ${c.mersis_number}`,
+    taxLine: (c: { tax_office: string; tax_number: string }) =>
+      `Vergi dairesi / no: ${c.tax_office} / ${c.tax_number}`,
+    contactFilled: (c: {
+      email: string;
+      phone: string;
+      kep_address: string;
+      site_domain: string;
+    }) => `${c.email} · ${c.phone} · KEP: ${c.kep_address} · ${c.site_domain}`,
     legal: {
       kvkk: "KVKK aydınlatma metni",
       explicitConsent: "Açık rıza metni",
@@ -71,7 +83,8 @@ export const siteText = {
     honestTitle: "Neyi iddia etmiyoruz?",
     honest: [
       "Yapay zekâ hastalık teşhisi koymaz. Görüntüde görülen belirtileri işaretler, kararı uzman verir.",
-      "Haritadaki sınır, sizin gösterdiğiniz fiili kullanım sınırıdır. Tapu ya da mülkiyet sınırı iddiası taşımaz.",
+      // Contract Md. 6/1 (docs/hukuk/kararlar.md H07, T16), word for word.
+      "Haritadaki sınır, sizin ya da yetkilendirdiğiniz kişinin gösterdiği fiili kullanım sınırıdır. Tapu sınırı, kadastro ölçümü, mülkiyet ya da kullanım hakkı tespiti değildir; resmi bir sınır belirlemez. Sınır ve mülkiyet uyuşmazlıklarında kanıt olarak sunulmak üzere hazırlanmamıştır.",
       "Verim ya da gelir tahmini ve garantisi vermeyiz.",
     ],
   },
@@ -146,7 +159,7 @@ export const siteText = {
       },
       {
         q: "Sınır tapudaki sınırla aynı mı?",
-        a: "Hayır. Haritadaki sınır, gösterdiğiniz fiili kullanım sınırıdır. Tapu ya da mülkiyet sınırı iddiası taşımaz ve sınır anlaşmazlıklarında kanıt olarak hazırlanmaz.",
+        a: "Hayır. Haritadaki sınır, sizin ya da yetkilendirdiğiniz kişinin gösterdiği fiili kullanım sınırıdır. Tapu sınırı, kadastro ölçümü, mülkiyet ya da kullanım hakkı tespiti değildir; resmi bir sınır belirlemez. Sınır ve mülkiyet uyuşmazlıklarında kanıt olarak sunulmak üzere hazırlanmamıştır.",
       },
       {
         q: "Hissedarlarım da raporu görebilir mi?",

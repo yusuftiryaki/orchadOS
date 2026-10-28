@@ -1159,6 +1159,8 @@ export type Database = {
           garden_name: string;
           id: string;
           initiated_by: string;
+          notice_channel: string | null;
+          notice_received_on: string | null;
           number: string;
           ops_note: string | null;
           order_id: string;
@@ -1197,6 +1199,8 @@ export type Database = {
           garden_name: string;
           id?: string;
           initiated_by: string;
+          notice_channel?: string | null;
+          notice_received_on?: string | null;
           number: string;
           ops_note?: string | null;
           order_id: string;
@@ -1234,6 +1238,8 @@ export type Database = {
           garden_name?: string;
           id?: string;
           initiated_by?: string;
+          notice_channel?: string | null;
+          notice_received_on?: string | null;
           number?: string;
           ops_note?: string | null;
           order_id?: string;
@@ -1740,7 +1746,12 @@ export type Database = {
           iban: string | null;
           iban_holder: string | null;
           identity_number_required: boolean;
+          inventory_reuse_months: number;
+          kep_address: string | null;
+          kvkk_email: string | null;
+          legal_gate_enforced: boolean;
           legal_name: string | null;
+          marketing_consent_enabled: boolean;
           mersis_number: string | null;
           org_id: string;
           payment_due_days: number;
@@ -1750,6 +1761,7 @@ export type Database = {
           removal_notice_days: number;
           removal_refund_mode: string;
           renewal_notice_days: number;
+          site_domain: string | null;
           tax_number: string | null;
           tax_office: string | null;
           updated_at: string;
@@ -1768,7 +1780,12 @@ export type Database = {
           iban?: string | null;
           iban_holder?: string | null;
           identity_number_required?: boolean;
+          inventory_reuse_months?: number;
+          kep_address?: string | null;
+          kvkk_email?: string | null;
+          legal_gate_enforced?: boolean;
           legal_name?: string | null;
+          marketing_consent_enabled?: boolean;
           mersis_number?: string | null;
           org_id: string;
           payment_due_days?: number;
@@ -1778,6 +1795,7 @@ export type Database = {
           removal_notice_days?: number;
           removal_refund_mode?: string;
           renewal_notice_days?: number;
+          site_domain?: string | null;
           tax_number?: string | null;
           tax_office?: string | null;
           updated_at?: string;
@@ -1795,7 +1813,12 @@ export type Database = {
           iban?: string | null;
           iban_holder?: string | null;
           identity_number_required?: boolean;
+          inventory_reuse_months?: number;
+          kep_address?: string | null;
+          kvkk_email?: string | null;
+          legal_gate_enforced?: boolean;
           legal_name?: string | null;
+          marketing_consent_enabled?: boolean;
           mersis_number?: string | null;
           org_id?: string;
           payment_due_days?: number;
@@ -1805,6 +1828,7 @@ export type Database = {
           removal_notice_days?: number;
           removal_refund_mode?: string;
           renewal_notice_days?: number;
+          site_domain?: string | null;
           tax_number?: string | null;
           tax_office?: string | null;
           updated_at?: string;
@@ -4023,6 +4047,15 @@ export type Database = {
           tree_id: string;
         }[];
       };
+      contract_visit_windows: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          code: string;
+          end_month: number;
+          name: string;
+          start_month: number;
+        }[];
+      };
       create_verification_tour: {
         Args: { p_items: Json; p_notes?: string; p_parcel_id: string; p_planned_date?: string };
         Returns: Json;
@@ -4033,7 +4066,9 @@ export type Database = {
         Returns: {
           area_m2: number;
           base_order_id: string;
+          basis: string;
           billable_area_tenths: number;
+          full_year_total_kurus: number;
           inventory_fee_kurus: number;
           line_base_kurus: number;
           line_discount_kurus: number;
@@ -4044,7 +4079,10 @@ export type Database = {
           minimum_fee_kurus: number;
           periodic_visits_per_year: number;
           price_list_id: string;
+          price_list_name: string;
           price_list_version: number;
+          raw_visits: number;
+          remaining_windows: Json;
           service_end: string;
           service_start: string;
           unit_price_kurus: number;
@@ -4146,6 +4184,13 @@ export type Database = {
       demo_purge_audit_log: { Args: { p_user_ids: string[] }; Returns: number };
       demo_start: { Args: { p_ip_hash: string; p_user_id: string }; Returns: Json };
       demo_undeletable_count: { Args: Record<PropertyKey, never>; Returns: number };
+      legal_gate_status: {
+        Args: { p_org_id?: string };
+        Returns: {
+          active: boolean;
+          reasons: string[];
+        }[];
+      };
       message_outbox_list: {
         Args: { p_limit?: number; p_recipient: string };
         Returns: {
@@ -4198,6 +4243,22 @@ export type Database = {
           org_id: string;
           recorded_at: string;
           source: string;
+          text_version: string;
+        }[];
+      };
+      my_contract_documents: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          created_at: string;
+          id: string;
+          kind: string;
+          order_id: string;
+          order_number: string;
+          quote_id: string;
+          sha256: string;
+          size_bytes: number;
+          storage_path: string;
+          text_sha256: string;
           text_version: string;
         }[];
       };
@@ -4379,7 +4440,12 @@ export type Database = {
           iban: string | null;
           iban_holder: string | null;
           identity_number_required: boolean;
+          inventory_reuse_months: number;
+          kep_address: string | null;
+          kvkk_email: string | null;
+          legal_gate_enforced: boolean;
           legal_name: string | null;
+          marketing_consent_enabled: boolean;
           mersis_number: string | null;
           org_id: string;
           payment_due_days: number;
@@ -4389,6 +4455,7 @@ export type Database = {
           removal_notice_days: number;
           removal_refund_mode: string;
           renewal_notice_days: number;
+          site_domain: string | null;
           tax_number: string | null;
           tax_office: string | null;
           updated_at: string;
@@ -4430,6 +4497,21 @@ export type Database = {
       ops_complete_manual_refund: {
         Args: { p_bank_reference: string; p_completed_on: string; p_refund_id: string };
         Returns: undefined;
+      };
+      ops_contract_documents: {
+        Args: { p_order_id: string };
+        Returns: {
+          consent_ids: string[];
+          created_at: string;
+          generator: string;
+          id: string;
+          kind: string;
+          sha256: string;
+          size_bytes: number;
+          storage_path: string;
+          text_sha256: string;
+          text_version: string;
+        }[];
       };
       ops_create_owner_profile: {
         Args: {
@@ -4635,6 +4717,7 @@ export type Database = {
           p_base_order_id: string;
           p_discount_bp?: number;
           p_discount_note?: string;
+          p_new_inventory?: Json;
           p_note_to_customer?: string;
           p_parcel_ids?: string[];
           p_proposed_service_start?: string;
@@ -4732,6 +4815,19 @@ export type Database = {
           status: string;
           terminated_at: string;
           total_kurus: number;
+        }[];
+      };
+      ops_orders_missing_contract_documents: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          accepted_at: string;
+          activated_at: string;
+          customer_user_id: string;
+          missing: string[];
+          order_id: string;
+          order_number: string;
+          org_id: string;
+          status: Database["public"]["Enums"]["order_status"];
         }[];
       };
       ops_org_members: {
@@ -4842,6 +4938,7 @@ export type Database = {
           p_application_id?: string;
           p_base_order_id: string;
           p_discount_bp?: number;
+          p_new_inventory?: Json;
           p_parcel_ids?: string[];
           p_proposed_service_start?: string;
         };
@@ -4849,10 +4946,15 @@ export type Database = {
           application_garden_id: string;
           area_m2: number;
           area_source: string;
+          basis: string;
           billable_area_tenths: number;
+          full_year_total_kurus: number;
           garden_name: string;
           inventory: boolean;
           inventory_fee_kurus: number;
+          inventory_note: string;
+          inventory_reason: string;
+          last_inventory_on: string;
           line_base_kurus: number;
           line_discount_kurus: number;
           line_no: number;
@@ -4863,7 +4965,10 @@ export type Database = {
           parcel_id: string;
           periodic_visits_per_year: number;
           price_list_id: string;
+          price_list_name: string;
           price_list_version: number;
+          raw_visits: number;
+          remaining_windows: Json;
           service_end: string;
           service_start: string;
           unit_price_kurus: number;
@@ -4906,6 +5011,15 @@ export type Database = {
           p_value_date: string;
         };
         Returns: string;
+      };
+      ops_record_withdrawal: {
+        Args: {
+          p_channel: string;
+          p_note?: string;
+          p_notice_received_on: string;
+          p_order_item_ids: string[];
+        };
+        Returns: string[];
       };
       ops_refunds: {
         Args: { p_limit?: number; p_org_id: string; p_payment_id?: string; p_status?: string };
@@ -5193,6 +5307,22 @@ export type Database = {
           visits: number;
         }[];
       };
+      public_company_info: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          address: string;
+          complete: boolean;
+          email: string;
+          kep_address: string;
+          kvkk_email: string;
+          legal_name: string;
+          mersis_number: string;
+          phone: string;
+          site_domain: string;
+          tax_number: string;
+          tax_office: string;
+        }[];
+      };
       public_package_prices: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -5287,6 +5417,16 @@ export type Database = {
         };
         Returns: string;
       };
+      registered_legal_text_versions: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          is_current: boolean;
+          is_final: boolean;
+          kind: string;
+          sha256: string;
+          version: string;
+        }[];
+      };
       request_followup: {
         Args: {
           p_kind: Database["public"]["Enums"]["followup_kind"];
@@ -5344,6 +5484,19 @@ export type Database = {
           p_session_id: string;
         };
         Returns: Json;
+      };
+      service_register_contract_document: {
+        Args: {
+          p_generator: string;
+          p_kind: string;
+          p_order_id: string;
+          p_sha256: string;
+          p_size_bytes: number;
+          p_storage_path: string;
+          p_text_sha256: string;
+          p_text_version: string;
+        };
+        Returns: string;
       };
       signup_complete: { Args: { p_code_at: string; p_user_id: string }; Returns: string };
       signup_find_account: {
@@ -5436,7 +5589,8 @@ export type Database = {
         | "explicit_service_improvement"
         | "explicit_marketing"
         | "distance_sales"
-        | "pre_information";
+        | "pre_information"
+        | "early_performance";
       consent_source: "signup" | "portal" | "quote_acceptance" | "ops";
       corner: "ne" | "nw" | "se" | "sw";
       device_kind: "human_kit" | "robot" | "phone" | "base_station" | "other";
@@ -5467,7 +5621,10 @@ export type Database = {
         | "garden_removal_rescheduled"
         | "garden_removal_cancelled"
         | "garden_removal_completed"
-        | "garden_access_ending";
+        | "garden_access_ending"
+        | "contract_ready"
+        | "withdrawal_received"
+        | "addon_order_closed";
       operation_kind:
         | "mowing"
         | "spraying"
@@ -5679,6 +5836,7 @@ export const Constants = {
         "explicit_marketing",
         "distance_sales",
         "pre_information",
+        "early_performance",
       ],
       consent_source: ["signup", "portal", "quote_acceptance", "ops"],
       corner: ["ne", "nw", "se", "sw"],
@@ -5718,6 +5876,9 @@ export const Constants = {
         "garden_removal_cancelled",
         "garden_removal_completed",
         "garden_access_ending",
+        "contract_ready",
+        "withdrawal_received",
+        "addon_order_closed",
       ],
       operation_kind: [
         "mowing",

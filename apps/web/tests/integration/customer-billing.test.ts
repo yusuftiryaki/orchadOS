@@ -119,21 +119,30 @@ describe("billing profile", () => {
 });
 
 describe("consents", () => {
+  // T27 (docs/hukuk/kararlar.md H06, H31): the customer's own JWT cannot
+  // grant a consent that is not asked; withdrawing always works and
   // my_consents returns the latest record per kind.
-  it("an explicit consent can be given and withdrawn; the latest record wins", async () => {
+  it("an unasked explicit consent is refused; a withdrawal is recorded", async () => {
     const c = customer.client;
-    for (const granted of [true, false]) {
-      check(
-        await c.rpc("customer_set_consent", {
-          p_kind: "explicit_marketing",
-          p_granted: granted,
-          p_text_version: LEGAL_TEXT_VERSIONS.explicit_consent,
-        }),
-      );
+    for (const kind of ["explicit_marketing", "explicit_service_improvement"]) {
+      const refused = await c.rpc("customer_set_consent", {
+        p_kind: kind,
+        p_granted: true,
+        p_text_version: LEGAL_TEXT_VERSIONS.explicit_consent,
+      });
+      expect(refused.error).toMatchObject({ message: "consent_not_asked", details: kind });
     }
+    check(
+      await c.rpc("customer_set_consent", {
+        p_kind: "explicit_marketing",
+        p_granted: false,
+        p_text_version: LEGAL_TEXT_VERSIONS.explicit_consent,
+      }),
+    );
     const rows = check(await c.rpc("my_consents")).filter((r) => r.kind === "explicit_marketing");
     const latest = rows.sort((a, b) => b.recorded_at.localeCompare(a.recorded_at))[0];
     expect(latest).toMatchObject({ granted: false, source: "portal" });
+    expect(rows.every((r) => r.granted === false)).toBe(true);
   });
 
   it("the KVKK notice is only acknowledged, never withdrawn", async () => {

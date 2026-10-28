@@ -1,3 +1,4 @@
+import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { purgeBillingUsers, purgeSignupAttempts } from "../local-db";
 import { SEED, serviceClient, signIn } from "./fixtures";
@@ -27,7 +28,7 @@ async function selfSignup(email: string, phone: string, ip: string) {
       password: "parola-1234",
       contact_preference: "sms",
       consents: {
-        kvkk_notice_version: "kvkk-v1-taslak",
+        kvkk_notice_version: LEGAL_TEXT_VERSIONS.kvkk_notice,
         explicit_text_version: "riza-v1-taslak",
         explicit_service_improvement: false,
         explicit_marketing: false,

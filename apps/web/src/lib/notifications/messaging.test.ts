@@ -111,6 +111,20 @@ describe("account templates", () => {
       `/portal/siparis/${ID}`,
       `S-2026-000123 numaralı siparişinizin ödemesi bekleniyor: ${BASE}/portal/siparis/${ID}`,
     ],
+    [
+      "contract_ready",
+      "S-2026-000123",
+      "/portal/hesap/sozlesmeler",
+      "orchadOS: S-2026-000123 numaralı siparişinizin sözleşmesi ve ön bilgilendirme formu portalınızda: " +
+        `${BASE}/portal/hesap/sozlesmeler`,
+    ],
+    [
+      "addon_order_closed",
+      "S-2026-000123",
+      `/portal/siparis/${ID}`,
+      "orchadOS: S-2026-000123 numaralı ek siparişiniz, hizmet dönemi kapandığı için iptal edildi. " +
+        `Ödediğiniz tutar 14 gün içinde aynı yöntemle, masrafsız iade edilir: ${BASE}/portal/siparis/${ID}`,
+    ],
   ] as const;
 
   it.each(cases)("%s", (template, ref, path, body) => {
@@ -174,6 +188,11 @@ describe("garden templates", () => {
       "garden_access_ending",
       `orchadOS: hizmetten çıkan Nizip Bahçesi adlı bahçenizin raporlarına erişim 7 gün sonra kapanacak (${ref}). Raporları indirmek için: ${link}`,
       `orchadOS: hizmetten çıkan bahçenizin raporlarına erişim 7 gün sonra kapanacak (${ref}). Raporları indirmek için: ${link}`,
+    ],
+    [
+      "withdrawal_received",
+      `orchadOS: Nizip Bahçesi adlı bahçeniz için cayma bildiriminiz alındı (${ref}). İade ve ayrıntılar: ${link}`,
+      `orchadOS: bahçeniz için cayma bildiriminiz alındı (${ref}). İade ve ayrıntılar: ${link}`,
     ],
   ] as const;
 
@@ -268,6 +287,9 @@ const EVERY_TEMPLATE: Record<Template, string | null> = {
   garden_removal_cancelled: "C-2026-000001",
   garden_removal_completed: "C-2026-000001",
   garden_access_ending: "C-2026-000001",
+  withdrawal_received: "C-2026-000001",
+  contract_ready: "S-2026-000001",
+  addon_order_closed: "S-2026-000001",
 };
 
 describe("service messages carry no promotion", () => {

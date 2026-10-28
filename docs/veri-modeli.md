@@ -191,7 +191,7 @@ Kurallar:
 
 | Tablo | Şema | Ne tutar |
 | --- | --- | --- |
-| `org_billing_setting` | public | Kayda açık mı (en fazla bir org), satıcı bilgileri, IBAN, süreler, `identity_number_required`, `allow_fake_payments` (yalnız SQL ile) |
+| `org_billing_setting` | public | Kayda açık mı (en fazla bir org), satıcı bilgileri, IBAN, süreler, `identity_number_required`, `allow_fake_payments` ve `legal_gate_enforced` (üretim kapısı, T21; ikisi de yalnız SQL ile) |
 | `service_package`, `price_list`, `price_list_item` | public | Paket (yıllık periyodik ziyaret sayısı) ve sürümlü fiyat listesi (dönüm başına birim fiyat, minimum ücret, envanter ücreti, KDV). Yayımlanan sürüm değişmez |
 | `service_application`, `application_garden` | public | Başvuru (`B-YYYY-NNNNNN`) ve bahçeleri: konum, kaba sınır, beyan ve doğrulanmış alan. Parsel, ödeme tamamlanınca açılır |
 | `quote`, `quote_item` | public | Teklif: girdiler ve tutarlar dondurulur (`quote_guard`, satırlar ekleme-yalnız) |
@@ -287,6 +287,27 @@ Tasarım: [bahce-yonetimi.md](bahce-yonetimi.md). Yeni üyelik tablosu yoktur; �
 - **Salt okunur dönem:** `access_until` gününe kadar sahip ve hissedar soru yazamaz, hissedar davet edilemez (`parcel_read_only`); ops parseli sürdüremez (`parcel_removed`); çıkış günü ve sonrasına ziyaret planlanamaz (`parcel_removal_scheduled`). Süre bitince müşterinin sahip satırı ve davet ettiği hissedarlar kaldırılır (`private.garden_removal_housekeeping`, her gece 00:30).
 - **Yetki:** Müşteri kendi çıkarma kayıtlarını iç sütunlar (`ops_note`, `requested_by`, `decided_by`, `blocked_reason`, `revoke_all_access`) olmadan okur; ops org'unun kayıtlarını. API'den yazma yoktur; bütün geçişler fonksiyonlarla yapılır (`bahce-yonetimi.md` §9.6).
 - **Demo:** `garden_removal` yazma kilidini ve hesap kilidini taşır; yeni müşteri yazma fonksiyonları `assert_not_demo` ile başlar; `enqueue_garden_notification` demo org'unu ve demo hesabını atlar.
+
+## Hukuk takip işleri, dalga 1 (T27, T21, T04, T03, T18)
+
+Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) "Takip işleri"; sözleşmeler [musteri-yonetimi.md](musteri-yonetimi.md) §6.9, §9.3, §9.4, §20 ve [bahce-yonetimi.md](bahce-yonetimi.md) §21. Migration'lar `20261103100000`–`20261103100600`.
+
+| Tablo / sütun | Ne tutar |
+| --- | --- |
+| `private.legal_text_version` | Hukuki metinlerin veritabanının bildiği sürümleri: tür, sürüm, şablon özeti (güncel olanlarda), güncel mi, son hâli mi (`-taslak` değil). Yalnızca migration'lar yazar (`private.register_legal_text`) |
+| `org_billing_setting` | `kep_address`, `site_domain`, `kvkk_email` (satıcının şirket bilgileri; altbilgi ve metinler), `marketing_consent_enabled` (yalnızca SQL, İYS'den sonra açılır), `inventory_reuse_months` (yalnızca SQL, varsayılan 24) |
+| `consent_kind` | `early_performance`: teklif kabulündeki isteğe bağlı erken başlama kutusu |
+| `consent_record.text_sha256`, `display_sha256` | Onaylanan şablonun kayıtlı özeti; müşterinin gördüğü doldurulmuş metnin özeti (gönderilirse) |
+| `private.contract_document` | Siparişe özel sözleşme belgeleri (ön bilgilendirme, sözleşme, cayma teyidi): şablon sürümü ve özeti, depo yolu, PDF özeti ve boyutu, üretici, ilgili onay kayıtları. Ekleme-yalnız; 10 yıl saklanır |
+| `garden_removal.notice_channel`, `notice_received_on` | Caymanın nasıl (portal, e-posta, KEP, posta) ve hangi gün geldiği |
+| `notification_template` | `contract_ready`, `withdrawal_received`, `addon_order_closed` |
+
+**Kurallar:**
+- **Sorulmayan rıza yok (T27):** `explicit_service_improvement` hiçbir zaman, `explicit_marketing` `marketing_consent_enabled` açılana kadar verilemez (`consent_not_asked`); kayıtta `false` yazılır. Geri alma serbesttir. Eski `granted = true` satırları kanıt olarak kalır, dayanak değildir.
+- **Kayıtlı sürümler (T21):** Teklif kabulü ve KVKK teyidi yalnızca kayıtlı güncel sürümle olur (`legal_text_outdated`, `invalid_input`). Pilot ve üretimde (`allow_fake_payments` kapalı) taslak metin, son hâli olmayan KVKK kaydı ya da eksik şirket bilgisiyle kabul alınmaz (`legal_texts_not_final`).
+- **Belgeler değiştirilemez (T04):** `contract-documents` kovasındaki nesneler güncellenemez ve silinemez (hizmet rolü dahil, `storage.objects` tetikleyicisi).
+- **Erken başlama (T03):** Onay yoksa cayma süresi bitmeden envanter ve periyodik ziyaret planlanmaz (`withdrawal_period_open`); caymada kesinti yapılmaz.
+- **Ek teklif (T18):** Döküm `quote.inputs.addon` içinde saklanır; envanter ücreti son envanterden 24 ay içinde yeniden eklenen bahçeden alınmaz.
 
 ## MVP tablolarından geçiş
 

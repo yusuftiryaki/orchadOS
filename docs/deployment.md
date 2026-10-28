@@ -185,6 +185,12 @@ Pilotta hiçbiri açılmaz. `deploy-db-pilot` migration'dan önce Management API
 
 Denetim `SUPABASE_ACCESS_TOKEN`'ı kullanır, değerleri okumaz (secret listesi yalnızca adları verir). Vercel'deki `SIGNUP_PROXY_SECRET`'ı ve Vault girdilerini göremez; onlar aşağıdaki kapıda elle denetlenir.
 
+**Hukuki metin kapısı (T21):** `org_billing_setting.legal_gate_enforced` açıkken `customer_accept_quote` taslak sözleşme ve ön bilgilendirme metniyle, son sürüm olmayan KVKK teyidiyle ya da eksik şirket bilgisiyle teklif kabul etmez (`legal_texts_not_final`; [musteri-yonetimi.md](musteri-yonetimi.md) §9.4). Varsayılan kapalıdır; sahte ödeme ayarına bağlı değildir. Bu yüzden test projesi ve canlı demo (ortak barındırma) her ödeme kipinde, iyzico sandbox listesi de sahte kilitler kapalıyken teklif kabul eder. Yalnızca SQL ile açılır, ops ayar ekranı bu alanı yazmaz. Pilot, [yayın şartları](hukuk/kararlar.md#yayin) tamamlanıp metinler son sürüm olarak kaydedildiğinde (sürüm adında `-taslak` yok) açar:
+```sql
+update public.org_billing_setting set legal_gate_enforced = true where org_id = '<org>';
+```
+Test projesinde ve demoda açılmaz.
+
 **Kayıt kapısı:** Kayıt (`accepts_signups`) bir org'da açılmadan önce:
 - Edge: `TURNSTILE_SECRET_KEY` (canlı), `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET`, `ORCHADOS_CRON_SECRET`;
 - Vercel: `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (canlı), Edge'dekiyle aynı `SIGNUP_PROXY_SECRET`;

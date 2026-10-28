@@ -13,8 +13,8 @@ import { BILLING_SEED, PASSWORD, SEED, serviceClient, signIn } from "./fixtures"
 const options = { auth: { persistSession: false, autoRefreshToken: false } };
 
 export const CONSENTS = {
-  distance_sales: "mesafeli-v1-taslak",
-  pre_information: "onbilgi-v1-taslak",
+  distance_sales: "mesafeli-v4-taslak",
+  pre_information: "onbilgi-v4-taslak",
 } as const;
 
 // Around Nizip; a rough boundary of about 20 dönüm.
