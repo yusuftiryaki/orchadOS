@@ -138,6 +138,8 @@ test("owner invites a co-owner; ops sees and rejects the invitation", async ({ p
   const form = card.getByTestId("invite-viewer");
   await form.getByLabel("Ad soyad").fill("E2E Hissedar");
   await form.getByLabel("Telefon").fill("0555 987 65 01");
+  // T15: the seed org asks the owner's declaration.
+  await form.getByTestId("viewer-declaration").getByRole("checkbox").check();
   await form.getByRole("button", { name: "Hissedar davet et" }).click();
   await expect(page.getByTestId("viewers-card")).toContainText("Davetiniz alındı");
   await expect(page.locator('[data-viewer-status="pending"]')).toContainText("E2E Hissedar");
