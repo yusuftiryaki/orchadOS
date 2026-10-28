@@ -92,7 +92,8 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   await expect(ownerForm.getByText("Gerekli.")).toBeVisible();
 
   await ownerForm.getByLabel("Aydınlatma metni verildi (okundu teyidi)").check();
-  await ownerForm.getByLabel("Aydınlatma metni sürümü").fill("kvkk-v0");
+  // T21: a registered version is chosen.
+  await ownerForm.getByLabel("Aydınlatma metni sürümü").selectOption("kvkk-v2-taslak");
   await ownerForm.getByRole("button", { name: "Sahibi kaydet" }).click();
 
   const created = page.getByTestId("owner-created");

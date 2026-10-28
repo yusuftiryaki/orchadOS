@@ -112,7 +112,11 @@ export function OwnerForm({
             hint={`${T.owners.kvkkTextVersionHint} ${LEGAL_TEXT_VERSIONS.kvkk_notice}`}
             error={err("kvkk_text_version")}
           >
-            <KvkkVersionSelect versions={kvkkVersions} defaultValue={v("kvkk_text_version")} />
+            <KvkkVersionSelect
+              name="kvkk_text_version"
+              versions={kvkkVersions}
+              defaultValue={v("kvkk_text_version")}
+            />
           </Field>
         </div>
       </fieldset>
