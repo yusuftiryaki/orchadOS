@@ -10,7 +10,10 @@
 #             Auth redirect list, only demo-specific Edge secrets are set
 #             (ORCHADOS_DEMO_MODE, DEMO_TURNSTILE_SECRET_KEY,
 #             DEMO_SIGNUP_HASH_SECRET, DEMO_SIGNUP_PROXY_SECRET) and only the
-#             Vault entry demo_cleanup_url is written.
+#             Vault entry demo_cleanup_url is written. The shared cron secret
+#             (Edge ORCHADOS_CRON_SECRET, Vault orchados_cron_secret) is
+#             created only with INIT_CRON_SECRET=true and only when both are
+#             missing.
 # In both, the Vercel project `orchados-demo` with its Production variables.
 # Run by the provision-demo workflow; safe to run again: existing projects are
 # reused, random secrets are generated only when one side is missing, and
@@ -37,6 +40,9 @@
 #   REGION (eu-central-1), DEMO_URL (https://orchados-demo.vercel.app),
 #   MAIN_SITE_URL (https://orchados-pilot-orchad-os.vercel.app),
 #   DRY_RUN (false: true reads only), REDEPLOY (false: true forces a Vercel deployment)
+#   INIT_CRON_SECRET (false) test: true generates ORCHADOS_CRON_SECRET and Vault
+#                          orchados_cron_secret (one value) when both are
+#                          missing; fails when only one is there
 #   Tests: SUPABASE_API, VERCEL_API, POLL_INTERVAL, POLL_TIMEOUT, SUMMARY_FILE
 set -euo pipefail
 
@@ -48,6 +54,7 @@ DEMO_URL=${DEMO_URL:-https://orchados-demo.vercel.app}
 MAIN_SITE_URL=${MAIN_SITE_URL:-https://orchados-pilot-orchad-os.vercel.app}
 DRY_RUN=${DRY_RUN:-false}
 REDEPLOY=${REDEPLOY:-false}
+INIT_CRON_SECRET=${INIT_CRON_SECRET:-false}
 POLL_INTERVAL=${POLL_INTERVAL:-10}
 POLL_TIMEOUT=${POLL_TIMEOUT:-900}
 SUMMARY_FILE=${SUMMARY_FILE:-${GITHUB_STEP_SUMMARY:-/dev/stdout}}
@@ -92,6 +99,11 @@ for v in DEMO_URL MAIN_SITE_URL; do
   [[ "${!v}" =~ ^https://[a-z0-9.-]+$ ]] || fail "$v must be an https origin without a path or trailing slash."
 done
 [ "$DEMO_URL" != "$MAIN_SITE_URL" ] || fail "DEMO_URL and MAIN_SITE_URL must differ."
+case "$INIT_CRON_SECRET" in
+  true) shared || note "INIT_CRON_SECRET: ignored on a separate project, which generates its cron secret anyway." ;;
+  false) ;;
+  *) fail "INIT_CRON_SECRET must be true or false, not '$INIT_CRON_SECRET'." ;;
+esac
 
 # Turnstile: both keys or neither. Without them the demo stays closed:
 # ORCHADOS_DEMO_MODE stays unset, so demo-start answers 503 demo_closed (§5, §7).
@@ -242,6 +254,50 @@ if ! shared; then
   fi
 fi
 
+# --- Edge secret and Vault names ---------------------------------------------
+edge_names=
+vault_names=
+if [ -n "$ref" ]; then
+  must sb GET "/v1/projects/$ref/secrets"
+  cp "$tmp/resp" "$tmp/secrets"
+  edge_names=$(resp -r '.[].name')
+  # SQL goes through --arg: quotes inside a single-quoted jq program would end
+  # the shell quoting and drop the string literals.
+  jq -n --arg q "select name from vault.secrets where name in ($(sql_lit demo_cleanup_url), $(sql_lit orchados_cron_secret))" \
+    '{query: $q}' > "$tmp/body"
+  must sb POST "/v1/projects/$ref/database/query" "$tmp/body"
+  vault_names=$(resp -r '.[].name')
+fi
+has_edge() { grep -qx "$1" <<<"$edge_names"; }
+# The sha256 digest the secrets API returns for a value (never the value).
+edge_digest() { jq -r --arg n "$1" 'first(.[] | select(.name == $n) | .value) // ""' "$tmp/secrets"; }
+has_vault() { grep -qx "$1" <<<"$vault_names"; }
+
+# The cron secret is decided before anything is written, so a refusal leaves
+# the projects as they were.
+# The test project's ORCHADOS_CRON_SECRET and Vault orchados_cron_secret
+# belong to its other crons too: reused, never generated there, unless
+# INIT_CRON_SECRET=true and both sides are missing (nothing to keep in step).
+# With only one side present the value cannot be copied without reading it.
+new_cron=
+if ! { has_edge ORCHADOS_CRON_SECRET && has_vault orchados_cron_secret; }; then
+  if ! shared; then
+    new_cron=$(openssl rand -hex 32)
+  elif [ -z "$ref" ]; then
+    :
+  elif [ "$INIT_CRON_SECRET" != true ]; then
+    warn "The test project lacks Edge ORCHADOS_CRON_SECRET or Vault orchados_cron_secret; demo cleanup cannot run, and an enabled demo fails the deploy-db locks. Run again with init_cron_secret=true when both are missing, or set both to one value by hand (docs/deployment.md › Edge secret'ları ve Vault)."
+  elif has_edge ORCHADOS_CRON_SECRET; then
+    fail "init_cron_secret: the test project has Edge ORCHADOS_CRON_SECRET but no Vault orchados_cron_secret. Its value cannot be read back, so copy it into Vault by hand (docs/deployment.md › Edge secret'ları ve Vault); nothing was generated."
+  elif has_vault orchados_cron_secret; then
+    fail "init_cron_secret: the test project has Vault orchados_cron_secret but no Edge ORCHADOS_CRON_SECRET. Copy the Vault value into the Edge secret by hand (docs/deployment.md › Edge secret'ları ve Vault); nothing was generated."
+  else
+    new_cron=$(openssl rand -hex 32)
+  fi
+elif shared && [ "$INIT_CRON_SECRET" = true ]; then
+  note "Cron secret: the test project has both ORCHADOS_CRON_SECRET and Vault orchados_cron_secret; kept."
+fi
+
 # --- Auth (§15, supabase/config.toml [auth]) ------------------------------------
 # No outside sign-up and no anonymous sign-in: demo-start opens the visitor
 # account with the Admin API. Confirm email, confirm phone and secure email
@@ -349,40 +405,11 @@ venv_prod() {
   jq -r --arg k "$1" 'first(.envs[] | select(.key == $k and (.target | index("production")))) | "\(.id) \(.type)"' "$tmp/venv"
 }
 
-# --- Edge Function secrets and Vault ---------------------------------------------
-edge_names=
-vault_names=
-if [ -n "$ref" ]; then
-  must sb GET "/v1/projects/$ref/secrets"
-  cp "$tmp/resp" "$tmp/secrets"
-  edge_names=$(resp -r '.[].name')
-  # SQL goes through --arg: quotes inside a single-quoted jq program would end
-  # the shell quoting and drop the string literals.
-  jq -n --arg q "select name from vault.secrets where name in ($(sql_lit demo_cleanup_url), $(sql_lit orchados_cron_secret))" \
-    '{query: $q}' > "$tmp/body"
-  must sb POST "/v1/projects/$ref/database/query" "$tmp/body"
-  vault_names=$(resp -r '.[].name')
-fi
-has_edge() { grep -qx "$1" <<<"$edge_names"; }
-# The sha256 digest the secrets API returns for a value (never the value).
-edge_digest() { jq -r --arg n "$1" 'first(.[] | select(.name == $n) | .value) // ""' "$tmp/secrets"; }
-has_vault() { grep -qx "$1" <<<"$vault_names"; }
-
+# --- Edge Function secrets and Vault ----------------------------------------
 # Random secrets: kept while every holder has one, generated (and written to
 # every holder in this run) when one is missing. Values are never compared.
-# The test project's ORCHADOS_CRON_SECRET and Vault orchados_cron_secret
-# belong to its other crons too: reused, never generated there.
-new_hash=; new_cron=; new_proxy=
+new_hash=; new_proxy=
 has_edge "${P}SIGNUP_HASH_SECRET" || new_hash=$(openssl rand -hex 32)
-if ! { has_edge ORCHADOS_CRON_SECRET && has_vault orchados_cron_secret; }; then
-  if shared; then
-    if [ -n "$ref" ]; then
-      warn "The test project lacks Edge ORCHADOS_CRON_SECRET or Vault orchados_cron_secret; demo cleanup cannot run, and an enabled demo fails the deploy-db locks. Set both to one value by hand (docs/deployment.md › Edge secret'ları ve Vault); this workflow does not touch them on the test project."
-    fi
-  else
-    new_cron=$(openssl rand -hex 32)
-  fi
-fi
 { has_edge "${P}SIGNUP_PROXY_SECRET" && [ -n "$(venv_prod "${P}SIGNUP_PROXY_SECRET")" ]; } || new_proxy=$(openssl rand -hex 32)
 for v in "$new_hash" "$new_cron" "$new_proxy"; do [ -z "$v" ] || mask "$v"; done
 

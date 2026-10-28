@@ -6,7 +6,8 @@
 # lost shared secret, and the refusals. test (shared hosting on the test
 # project): only demo-specific settings change, the test site's are kept, the
 # pilot and a foreign anon key are refused, a leftover ORCHADOS_DEMO_MODE=dev is
-# removed, and the move to a separate project
+# removed, init_cron_secret creates the test project's cron secret only when
+# both sides are missing (refused with one side), and the move to a separate project
 # catches a leftover. Then scripts/demo-lock-check.sh in both modes. Every
 # run's output and job summary is checked for secret values.
 # Every SQL text sent is then run on Postgres when DB_URL is set
@@ -265,6 +266,51 @@ run_and_snap scron "${shared_env[@]}" || { cat "$work/scron.out"; bad "shared cr
 check "shared cron: warns" grep -q 'lacks Edge ORCHADOS_CRON_SECRET or Vault orchados_cron_secret' "$work/scron.summary"
 check "shared cron: never generates the test project's cron secret" J scron '(.test.vault | has("orchados_cron_secret") | not)
   and .test.secrets.ORCHADOS_CRON_SECRET == "test-cron-SECRET"'
+check "shared cron: points at init_cron_secret" grep -q 'init_cron_secret=true' "$work/scron.summary"
+
+# 16a. init_cron_secret with only one side present: refused before any write,
+# since the value cannot be read back to copy it.
+if run_and_snap sinitedge "${shared_env[@]}" INIT_CRON_SECRET=true; then bad "init, Edge only: refused"; else
+  check "init, Edge only: refused" grep -q 'has Edge ORCHADOS_CRON_SECRET but no Vault orchados_cron_secret' "$work/sinitedge.out"; fi
+check "init, Edge only: nothing written" test "$(writes sinitedge)" = ""
+check "init, Edge only: no Vault write" J sinitedge '[.log[] | select(.path | test("database/query")) | .body.query | select(test("vault\\.create_secret"))] == []
+  and (.test.vault | has("orchados_cron_secret") | not) and .test.secrets.ORCHADOS_CRON_SECRET == "test-cron-SECRET"'
+ctl reset >/dev/null
+ctl drop-secret '{"ref":"testref000000000000","name":"ORCHADOS_CRON_SECRET"}' >/dev/null
+if run_and_snap sinitvault "${shared_env[@]}" INIT_CRON_SECRET=true; then bad "init, Vault only: refused"; else
+  check "init, Vault only: refused" grep -q 'has Vault orchados_cron_secret but no Edge ORCHADOS_CRON_SECRET' "$work/sinitvault.out"; fi
+check "init, Vault only: nothing written" test "$(writes sinitvault)" = ""
+check "init, Vault only: Vault kept, Edge still missing" J sinitvault '.test.vault.orchados_cron_secret == "test-cron-SECRET"
+  and (.test.secrets | has("ORCHADOS_CRON_SECRET") | not)'
+check "init, Vault only: no secret in output" no_leaks sinitvault
+if run_and_snap sinitbad "${shared_env[@]}" INIT_CRON_SECRET=yes; then bad "init: a non-boolean value refused"; else
+  check "init: a non-boolean value refused" grep -q 'INIT_CRON_SECRET must be true or false' "$work/sinitbad.out"; fi
+
+# 16b. init_cron_secret with both sides missing: one value on Edge and in Vault.
+ctl drop-vault '{"ref":"testref000000000000","name":"orchados_cron_secret"}' >/dev/null
+run_and_snap sinitdry "${shared_env[@]}" INIT_CRON_SECRET=true DRY_RUN=true || { cat "$work/sinitdry.out"; bad "init dry run exits 0"; }
+check "init dry: no writes" test "$(writes sinitdry)" = ""
+check "init dry: plans the cron secret" grep -q '(new: .*ORCHADOS_CRON_SECRET' "$work/sinitdry.out"
+cp "$work/sinitdry.json" "$work/before-sinit.json"
+run_and_snap sinit "${shared_env[@]}" INIT_CRON_SECRET=true || { cat "$work/sinit.out"; bad "init exits 0"; }
+check "init: Edge and Vault hold one new value" J sinit '.test.secrets.ORCHADOS_CRON_SECRET as $c
+  | ($c | test("^[0-9a-f]{64}$")) and .test.vault.orchados_cron_secret == $c'
+check "init: the test site's other secrets kept" same before-sinit sinit \
+  '($a.test.secrets | del(.ORCHADOS_CRON_SECRET) | to_entries | all(. as $e | $b.test.secrets[$e.key] == $e.value))
+   and $a.test.vault.send_notifications_url == $b.test.vault.send_notifications_url'
+check "init: summary lists it as generated" grep -q 'Generated .*ORCHADOS_CRON_SECRET' "$work/sinit.summary"
+check "init: no warning about the cron secret" bash -c "! grep -q 'lacks Edge ORCHADOS_CRON_SECRET' '$work/sinit.summary'"
+check "init: no secret in output or summary" no_leaks sinit
+cp "$work/sinit.json" "$work/before-sinitkeep.json"
+
+# 16c. init_cron_secret with both sides present: nothing touched.
+run_and_snap sinitkeep "${shared_env[@]}" INIT_CRON_SECRET=true || { cat "$work/sinitkeep.out"; bad "init keep exits 0"; }
+check "init keep: no writes" test "$(writes sinitkeep)" = ""
+check "init keep: cron secret unchanged" same before-sinitkeep sinitkeep \
+  '$a.test.secrets.ORCHADOS_CRON_SECRET == $b.test.secrets.ORCHADOS_CRON_SECRET
+   and $a.test.vault.orchados_cron_secret == $b.test.vault.orchados_cron_secret
+   and ($b.test.vault_updates // [] | index("orchados_cron_secret") | not)'
+check "init keep: says it kept them" grep -q 'has both ORCHADOS_CRON_SECRET and Vault orchados_cron_secret; kept' "$work/sinitkeep.out"
 
 # 16b. The test project still has ORCHADOS_DEMO_MODE=dev from a smoke test and a
 # demo_cleanup_url from an earlier run; no Turnstile keys. dev would open the
@@ -400,6 +446,9 @@ ctl queries >"$work/queries.json"
 check "sql: Vault name lookup, Vault upsert and lock query were sent" jq -e '
   any(.[]; startswith("select name from vault.secrets")) and any(.[]; test("perform vault\\.create_secret"))
   and any(.[]; test("as real_orgs"))' "$work/queries.json" >/dev/null
+check "sql: the test project's cron secret init (Vault upsert next to demo_cleanup_url) was sent" jq -e '
+  any(.[]; test("testref000000000000\\.supabase\\.co/functions/v1/demo-start") and test("vault\\.create_secret\\(\u0027[0-9a-f]{64}\u0027, \u0027orchados_cron_secret\u0027\\)"))' \
+  "$work/queries.json" >/dev/null
 if [ -n "${DB_URL:-}" ]; then
   check "sql: every query runs on Postgres" bash "$here/test-script-sql.sh" "$work/queries.json"
 else

@@ -252,6 +252,7 @@ gh workflow run provision-demo --ref main
 | `demo_url` | `https://orchados-demo.vercel.app` | Auth Site URL, yönlendirme kalıbı, `ORCHADOS_SITE_URL`, `PORTAL_BASE_URL`. Alan adı gelince `https://demo.<alan adı>` ile yeniden çalıştırılır |
 | `main_site_url` | `https://orchados-pilot-orchad-os.vercel.app` | `ORCHADOS_MAIN_SITE_URL` |
 | `redeploy` | `false` | `true`: hiçbir şey değişmese de Vercel'de `main` dağıtılır |
+| `init_cron_secret` | `false` | Yalnızca `host=test`: Edge `ORCHADOS_CRON_SECRET` ve Vault `orchados_cron_secret` **ikisi de yoksa** tek bir rastgele değer (`openssl rand -hex 32`) üretip ikisine yazar. Yalnızca biri varsa iş hiçbir şey yazmadan başarısız olur; ikisi de varsa dokunmaz. `host=separate`'te yok sayılır |
 
 Ne yapar (`host=separate`; `host=test` farkları aşağıda, Ortak barındırma):
 1. **Supabase projesi:** `SUPABASE_PROJECT_REF`'in (test projesi) organizasyonunda `orchados-demo` adlı proje varsa onu kullanır, yoksa `DEMO_SUPABASE_DB_PASSWORD` parolasıyla açar ve `ACTIVE_HEALTHY` olana kadar bekler (en çok 15 dakika). Duraklatılmış (`INACTIVE`) projede durur.
@@ -282,7 +283,12 @@ gh variable set DEMO_HOST --body test   # repo değişkeni (ortam değişkeni de
 - Proje açmaz, veritabanı parolası istemez. `SUPABASE_PROJECT_REF` ve `SUPABASE_URL` (`https://<ref>.supabase.co`) zorunludur ve aynı projeyi göstermelidir. `PILOT_SUPABASE_URL` de zorunludur ve `https://<ref>.supabase.co` biçiminde olmalıdır: erişim token'ı organizasyonun bütün projelerine, pilota da yazabildiği için pilotun ref'i bilinmeden iş başlamaz. Ref'lerden biri pilotunkiyse ya da proje adı `pilot` içeriyorsa iş başarısız olur. `SUPABASE_ANON_KEY` projenin anon ya da publishable anahtarı değilse de başarısız olur.
 - Auth'ta yalnızca `<demo_url>/**`'ı ek yönlendirme adreslerine ekler (zaten varsa yazmaz). Site URL ve öteki ayarlar test sitesinindir.
 - Edge'e yalnızca demoya özgü secret'ları yazar: `DEMO_SIGNUP_HASH_SECRET`, `DEMO_SIGNUP_PROXY_SECRET` (biri eksikse üretilir), Turnstile varsa `DEMO_TURNSTILE_SECRET_KEY` ve `ORCHADOS_DEMO_MODE=public`. Turnstile anahtarları yokken `ORCHADOS_DEMO_MODE` `public` dışında bir değer taşıyorsa (eski duman testinden kalan `dev`) siler: `dev` canlı anahtar kuralını atladığı için demoyu açık bırakırdı; silmek demoyu kapatmanın yoludur (`demo_closed`). Önceki bir çalıştırmadan kalan `public` korunur, özet bunu söyler. Değer, secrets API'nin döndürdüğü sha256 özetiyle karşılaştırılır, açık okunmaz. `MESSAGE_PROVIDER`, `PORTAL_BASE_URL`, `SIGNUP_*`, `TURNSTILE_SECRET_KEY`, `ORCHADOS_CRON_SECRET` ve ödeme secret'larına dokunmaz.
-- Vault'a yalnızca `demo_cleanup_url` yazar; `orchados_cron_secret` ya da Edge `ORCHADOS_CRON_SECRET` eksikse uyarır, üretmez.
+- Vault'a yalnızca `demo_cleanup_url` yazar; `orchados_cron_secret` ya da Edge `ORCHADOS_CRON_SECRET` eksikse uyarır, üretmez. Bu değer test projesinin öteki cron'larınındır (ödeme mutabakatı, kayıt temizliği), bu yüzden yalnızca `init_cron_secret=true` ile ve **iki taraf da yoksa** üretilir: tek bir rastgele değer Edge'e Management API ile, Vault'a güvenli SQL yardımcısıyla (`vault_upsert`) aynı çalıştırmada yazılır; değer loga ve özete düşmez. Yalnızca bir taraf varsa iş, hiçbir şey yazmadan başarısız olur: var olan değer okunamadığı için eşlenemez; Edge'deki değeri Vault'a (ya da Vault'takini Edge'e) elle kopyalayın (aşağıda, Edge secret'ları ve Vault). Önce `dry_run=true` ile ne yapılacağı görülebilir:
+
+  ```bash
+  gh workflow run provision-demo --ref main -f host=test -f init_cron_secret=true -f dry_run=true
+  gh workflow run provision-demo --ref main -f host=test -f init_cron_secret=true
+  ```
 - Vercel `orchados-demo`'ya test projesinin adresini ve anon anahtarını, `DEMO_SIGNUP_PROXY_SECRET`'ı (sensitive, Edge'dekiyle aynı) yazar; öteki değişkenler ve dağıtım `host=separate`'teki gibidir.
 
 | Değişken | Yer | Not |
