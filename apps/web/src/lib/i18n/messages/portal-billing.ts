@@ -37,6 +37,8 @@ const errors: Record<PortalError, string> = {
   ...billingText.errors,
   demo_read_only: demoText.closed.billing,
   payments_disabled: "Kartla ödeme şu anda kullanılamıyor. Havale ile ödeyebilirsiniz.",
+  identity_number_required: "Kartla ödeme için T.C. kimlik numaranızı yazın.",
+  identity_number_invalid: "T.C. kimlik numarası geçersiz; 11 haneyi kontrol edip yeniden deneyin.",
   provider_error: "Ödeme sayfası açılamadı; lütfen biraz sonra yeniden deneyin.",
   odeme_bulunamadi:
     "Ödeme kaydı bulunamadı. Kartınızdan çekim yapıldıysa birkaç dakika içinde burada görünür; görünmezse bizimle iletişime geçin.",
@@ -484,6 +486,9 @@ export const portalBillingText = {
     items: "Kalemler",
     payTitle: "Ödeme",
     card: "Kartla öde",
+    identityNumber: "T.C. kimlik numarası",
+    identityNumberHint:
+      "Fatura için ödeme kuruluşuna iletilir; bizde saklanmaz, yalnızca son dört hanesi kalır.",
     cardHint:
       "Ödeme sayfası iyzico güvencesiyle açılır; kart bilgileriniz bize ulaşmaz. Ödemeden sonra bu sayfaya dönersiniz.",
     cardPending: "Ödeme sayfası açılıyor…",
@@ -590,7 +595,8 @@ export const portalBillingText = {
     firstName: "Ad",
     lastName: "Soyad",
     identityNumber: "T.C. kimlik numarası",
-    identityHint: "11 haneli. Kayıtlı numaranız gösterilmez; değiştirmek için yenisini yazın.",
+    identityHint:
+      "T.C. kimlik numaranız kayıtlı tutulmaz; kartla ödeme sırasında istenir ve yalnızca ödeme kuruluşuna iletilir.",
     identityStored: (masked: string) => `Kayıtlı: ${masked}`,
     companyTitle: "Şirket unvanı",
     taxOffice: "Vergi dairesi",

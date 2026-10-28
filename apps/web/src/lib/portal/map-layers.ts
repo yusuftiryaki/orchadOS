@@ -1,11 +1,10 @@
-import type { Position } from "@/lib/map/geo";
 import { markerState, type HealthClass, type MarkerState } from "@/lib/map/tree-style";
 import { CLASS_RANK } from "./classes";
-import { distanceM } from "./tour";
 
 // Health map layers of the owner portal (docs/MVP.md Module 5, "Sağlık
 // haritası"): a visit selector, "changed in this visit", and the coverage
-// trace of a scan. Pure functions; the map draws what they return.
+// of a scan per tree. Pure functions; the map draws what they return. No scan
+// trace: owners never see the crew's path (H05, T23).
 
 // A visit as the map needs it: tree id -> class in that visit.
 export interface MapVisit {
@@ -51,33 +50,3 @@ export const COVERAGE_COLORS: Record<CoverageState, string> = {
   partial: "#e3b505",
   none: "#c92a2a",
 };
-
-// GPS time of a panorama (pose.gps_time_ns, a 64-bit integer as text):
-// compare as integers without losing precision.
-export function compareGpsTime(a: string | null, b: string | null): number {
-  if (a === b) return 0;
-  if (a === null) return 1;
-  if (b === null) return -1;
-  return a.length - b.length || (a < b ? -1 : 1);
-}
-
-// The scan trace: panorama positions in capture order, split where the
-// camera jumped more than `maxJumpM` (a pause, another corridor).
-export function traceSegments(
-  points: { position: Position; gpsTimeNs: string | null }[],
-  maxJumpM = 30,
-): Position[][] {
-  const sorted = [...points].sort((a, b) => compareGpsTime(a.gpsTimeNs, b.gpsTimeNs));
-  const segments: Position[][] = [];
-  let current: Position[] = [];
-  for (const p of sorted) {
-    const last = current[current.length - 1];
-    if (last && distanceM(last, p.position) > maxJumpM) {
-      if (current.length > 1) segments.push(current);
-      current = [];
-    }
-    current.push(p.position);
-  }
-  if (current.length > 1) segments.push(current);
-  return segments;
-}

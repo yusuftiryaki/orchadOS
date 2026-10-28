@@ -39,7 +39,7 @@ export const BILLING_COLUMNS = {
   price_list_item:
     "id, org_id, price_list_id, package_id, unit_price_kurus, minimum_fee_kurus, inventory_fee_kurus, created_at, updated_at",
   org_billing_setting:
-    "org_id, accepts_signups, allow_fake_payments, identity_number_required, legal_name, tax_office, tax_number, mersis_number, address, phone, email, bank_name, iban, iban_holder, payment_due_days, quote_valid_days, renewal_notice_days, updated_by, created_at, updated_at, garden_changes_enabled, addon_min_days, removal_notice_days, removal_access_days, removal_refund_mode, marketing_consent_enabled, kep_address, site_domain, kvkk_email, inventory_reuse_months, legal_gate_enforced",
+    "org_id, accepts_signups, allow_fake_payments, identity_number_required, legal_name, tax_office, tax_number, mersis_number, address, phone, email, bank_name, iban, iban_holder, payment_due_days, quote_valid_days, renewal_notice_days, updated_by, created_at, updated_at, garden_changes_enabled, addon_min_days, removal_notice_days, removal_access_days, removal_refund_mode, marketing_consent_enabled, kep_address, site_domain, kvkk_email, inventory_reuse_months, legal_gate_enforced, coowner_notice_flow_enabled, boundary_declaration_required, kvkk_request_form_enabled",
   audit_event:
     "id, org_id, actor_user_id, actor_role, action, entity_type, entity_id, details, created_at",
   // IP14 (docs/bahce-yonetimi.md §9.5): without the internal ops_note,

@@ -50,8 +50,12 @@ afterAll(async () => {
 
 describe("co-owner invitations", () => {
   it("the owner invites a co-owner; the list shows the invitation masked", async () => {
+    // T15: the seed org asks the owner's declaration (coowner_notice_flow_enabled).
     expect(
       await inviteViewer(owner, SEED.parcel, "Test Hissedar", PHONE.replace("+90", "0")),
+    ).toEqual({ ok: false, error: "declaration_required" });
+    expect(
+      await inviteViewer(owner, SEED.parcel, "Test Hissedar", PHONE.replace("+90", "0"), true),
     ).toEqual({
       ok: true,
     });
@@ -118,7 +122,7 @@ describe("co-owner invitations", () => {
   });
 
   it("a rejected invitation shows as such; an open one can be withdrawn", async () => {
-    expect(await inviteViewer(owner, SEED.parcel, "Reddedilen", PHONE_REJECTED)).toEqual({
+    expect(await inviteViewer(owner, SEED.parcel, "Reddedilen", PHONE_REJECTED, true)).toEqual({
       ok: true,
     });
     const open = await listViewerInvitations(ops, [SEED.org]);
@@ -128,7 +132,7 @@ describe("co-owner invitations", () => {
     const list = await loadParcelViewers(owner, SEED.parcel, ownerId);
     expect(list.entries.find((e) => e.fullName === "Reddedilen")?.status).toBe("rejected");
 
-    expect(await inviteViewer(owner, SEED.parcel, "Geri alınan", PHONE_REJECTED)).toEqual({
+    expect(await inviteViewer(owner, SEED.parcel, "Geri alınan", PHONE_REJECTED, true)).toEqual({
       ok: true,
     });
     const pending = (await loadParcelViewers(owner, SEED.parcel, ownerId)).entries.find(

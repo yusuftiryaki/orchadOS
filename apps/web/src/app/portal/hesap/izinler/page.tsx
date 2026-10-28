@@ -12,7 +12,9 @@ import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { getBillingProfile, getConsents, hasKvkkNotice } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
+import { kvkkFormEnabled } from "@/lib/portal/kvkk-request";
 import { createClient } from "@/lib/supabase/server";
+import { t } from "@/lib/i18n";
 
 const C = P.consents;
 
@@ -31,6 +33,8 @@ export default async function ConsentsPage({
   const profile = await getBillingProfile(supabase);
   const consents = await getConsents(supabase, profile?.orgId ?? null);
   const kvkk = consents.get("kvkk_notice");
+  // T11: the KVKK application form, while the org has it switched on.
+  const kvkkForm = await kvkkFormEnabled(supabase);
   const shown = EXPLICIT_CONSENT_KINDS.filter(
     (kind) => isExplicitConsentAsked(kind) || consents.get(kind)?.granted === true,
   );
@@ -41,6 +45,14 @@ export default async function ConsentsPage({
       <p>
         {C.lead} <Link href="/acik-riza">{C.explicitLink}</Link>
       </p>
+      {kvkkForm && (
+        <section className={styles.section} data-testid="kvkk-request-link">
+          <p>
+            <Link href="/portal/hesap/izinler/kvkk-basvurusu">{t.legal.kvkkRequest.link}</Link>
+          </p>
+          <p className="muted">{t.legal.kvkkRequest.linkHint}</p>
+        </section>
+      )}
       {!EXPLICIT_CONSENT_KINDS.some(isExplicitConsentAsked) && (
         <p data-testid="consent-none-asked">{C.noneAsked}</p>
       )}

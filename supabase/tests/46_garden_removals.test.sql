@@ -375,7 +375,7 @@ select is(pg_temp.error_of(format($$ insert into public.session (org_id, parcel_
   values ('b0000000-0000-4000-8000-000000000001', %L, 'periodic_scan', 'planned', %L) $$,
   pg_temp.id('p1'), pg_temp.today() + 3)), 'P0001 parcel_passive', 'no visit is planned on a removed parcel');
 select pg_temp.as_user(pg_temp.id('c1'));
-select is(pg_temp.error_of($$ select public.owner_invite_viewer(pg_temp.id('p1'), 'Yeni Hissedar', '+905550004602') $$),
+select is(pg_temp.error_of($$ select public.owner_invite_viewer(pg_temp.id('p1'), 'Yeni Hissedar', '+905550004602', true) $$),
   'P0001 parcel_read_only', 'no viewer is invited');
 select is(pg_temp.error_of(format($$ insert into public.parcel_access (org_id, parcel_id, user_id, role)
   values ('b0000000-0000-4000-8000-000000000001', %L, 'a0000000-0000-4000-8000-000000000002', 'viewer') $$,
@@ -526,7 +526,7 @@ select results_eq(
   $$ values (true, 'registered'::text, 'resumed'::text) $$,
   're-added: the access window is closed (resumed), the parcel leaves passive');
 select pg_temp.as_user(pg_temp.id('c7'));
-insert into ids select 'inv', public.owner_invite_viewer(pg_temp.id('p4'), 'Yeni Hissedar', '+905550004604');
+insert into ids select 'inv', public.owner_invite_viewer(pg_temp.id('p4'), 'Yeni Hissedar', '+905550004604', true);
 select pg_temp.ops();
 insert into public.parcel_access (org_id, parcel_id, user_id, role)
 values ('b0000000-0000-4000-8000-000000000001', pg_temp.id('p4'), pg_temp.id('u_view'), 'viewer');

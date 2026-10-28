@@ -21,17 +21,17 @@ set local role authenticated;
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 
 select isa_ok(
-  public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', '  Hisse Sahibi  ', '+905550002601'),
+  public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', '  Hisse Sahibi  ', '+905550002601', true),
   'uuid', 'the owner invites a co-owner');
 select is(
-  public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Hisse Sahibi', '+905550002601'),
+  public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Hisse Sahibi', '+905550002601', true),
   (select id from public.owner_parcel_viewers('c0000000-0000-4000-8000-000000000001') where kind = 'invitation'),
   'inviting the same phone again returns the open invitation');
 select throws_ok(
-  $$ select public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'X', '0555 000') $$,
+  $$ select public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'X', '0555 000', true) $$,
   '22023', 'invalid_input', 'a malformed phone is refused');
 select throws_ok(
-  $$ select public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', '   ', '+905550002602') $$,
+  $$ select public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', '   ', '+905550002602', true) $$,
   '22023', 'invalid_input', 'a name is required');
 select results_eq(
   $$ select kind, full_name, phone_last2, status from public.owner_parcel_viewers('c0000000-0000-4000-8000-000000000001') $$,
@@ -44,7 +44,7 @@ select throws_ok(
 -- Viewer, staff: no invitations.
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000002');
 select throws_ok(
-  $$ select public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Y', '+905550002603') $$,
+  $$ select public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Y', '+905550002603', true) $$,
   '42501', 'forbidden', 'a viewer cannot invite');
 select is((select count(*)::int from public.owner_parcel_viewers('c0000000-0000-4000-8000-000000000001')), 0,
           'a viewer does not see the list');
@@ -87,7 +87,7 @@ select is((select count(*)::int from public.ops_viewer_invitations('b0000000-000
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 select lives_ok(
   $$ select public.owner_cancel_viewer_invitation(
-       public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Vazgeçilen', '+905550002609')) $$,
+       public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Vazgeçilen', '+905550002609', true)) $$,
   'the owner withdraws an invitation');
 select lives_ok(
   $$ delete from public.parcel_access

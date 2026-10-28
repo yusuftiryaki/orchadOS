@@ -25,7 +25,7 @@ import styles from "./portal.module.css";
 // or finding. The panel links to the full tree card. A visit selector shows the
 // classes of one published visit, "changed in this visit" keeps the trees whose
 // class moved against the visit before, and two layers: 10 x 10 m heat cells
-// and the scan's coverage (trace, trees seen from two directions).
+// and the scan's coverage (trees seen from two directions; no trace, H05).
 
 export type MapLayer = "heat" | "coverage";
 
@@ -125,7 +125,6 @@ export function HealthMap({
   const coverageLayer = useMemo<MapCoverage | null>(() => {
     if (!layers.includes("coverage") || !visitCoverage) return null;
     return {
-      trace: visitCoverage.trace,
       trees: allSlots
         .filter((s) => s.treeId)
         .map((s) => ({
@@ -260,10 +259,6 @@ export function HealthMap({
                   {m.coverageLegend[c]} {m.count(coverageCounts[c])}
                 </li>
               ))}
-              <li className={styles.filter}>
-                <span className={styles.traceSwatch} />
-                {m.trace}
-              </li>
             </ul>
           ) : (
             <p className="muted">{m.coverageNone}</p>

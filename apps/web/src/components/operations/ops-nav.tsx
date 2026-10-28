@@ -23,6 +23,8 @@ export type OpsNavItem =
   | "prices"
   | "audit"
   | "settings"
+  | "staff"
+  | "kvkk"
   | null;
 
 // Links between the operations screens, under the section header; the
@@ -33,6 +35,8 @@ export function OpsNav({ current }: { current: OpsNavItem }) {
     ["owners", opsHref.owners(), T.owners],
     ["visits", opsHref.visits(), T.visits],
     ["notifications", notificationsHref(), t.notifications.nav],
+    ["staff", "/operasyon/personel", t.legal.staff.nav],
+    ["kvkk", "/operasyon/kvkk", t.legal.kvkkRequest.ops.nav],
   ] as const;
   const billing = [
     ["applications", boHref.applications(), B.applications],

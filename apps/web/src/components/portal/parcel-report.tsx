@@ -2,6 +2,7 @@ import Link from "next/link";
 import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
 import { MARKER_COLORS, type MarkerState } from "@/lib/map/tree-style";
 import { CLASS_ORDER, distributionTotal, type Distribution } from "@/lib/portal/classes";
+import { approverLine } from "@/lib/portal/approver";
 import type { ParcelReport, TreeChange } from "@/lib/portal/data";
 import type { FindingItem } from "@/lib/portal/findings";
 import type { MetricSummaryRow } from "@/lib/portal/metrics";
@@ -187,6 +188,11 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
           {r.visitOf(formatDate(latest.time))}
           {latest.methodologyVersion && ` · ${r.methodology(latest.methodologyVersion)}`}
         </p>
+        {report.approver && (
+          <p className="muted" data-testid="report-approver">
+            {approverLine(report.approver)}
+          </p>
+        )}
       </div>
       <div className={styles.scoreBox} data-testid="score-box">
         <ScoreLine

@@ -1,6 +1,7 @@
 import "server-only";
 import { Circle, Document, Page, Rect, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
+import { approverLine } from "@/lib/portal/approver";
 import { INVENTORY_POINT_COLORS, type InventoryReport } from "@/lib/portal/inventory-report";
 import { BoundaryFooter, Bullets, Footer, Header, SampleWatermark, sampleInfo } from "./parts";
 import type { PdfOptions } from "./report-pdf";
@@ -38,6 +39,7 @@ export function InventoryDocument({
     report.parcel.place,
     report.inventory?.date ? r.subtitle(formatDate(report.inventory.date)) : null,
     report.inventory?.approvedAt ? r.approvedOn(formatDate(report.inventory.approvedAt)) : null,
+    report.inventory?.approver ? approverLine(report.inventory.approver) : null,
   ]
     .filter(Boolean)
     .join(" · ");

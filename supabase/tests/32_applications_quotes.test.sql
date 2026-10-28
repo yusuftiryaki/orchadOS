@@ -200,8 +200,8 @@ select is(
 
 update public.org_billing_setting set identity_number_required = true where org_id = 'b0000000-0000-4000-8000-000000000001';
 select is(
-  pg_temp.error_of(format('select public.customer_accept_quote(%L, pg_temp.consents())', (select id from ids where name = 'q2'))),
-  'P0001 billing_profile_incomplete', 'a TCKN is needed while the org requires it');
+  pg_temp.error_of(format('select public.customer_accept_quote(%L, pg_temp.consents())', (select id from ids where name = 'q1'))),
+  'P0001 quote_not_open', 'T13: no TCKN in the profile is needed (it is asked at payment); a superseded quote still cannot be accepted');
 update public.org_billing_setting set identity_number_required = false where org_id = 'b0000000-0000-4000-8000-000000000001';
 
 -- A newer record without the acknowledgement (as a backfill could write).

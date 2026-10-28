@@ -64,6 +64,15 @@ async function newCustomer(name: string): Promise<string> {
     }),
   );
   const customer = await signedIn(email);
+  // T15: the customer records the KVKK notice in the portal (an ops-opened
+  // owner is otherwise stopped by the first-login notice screen).
+  check(
+    await customer.rpc("customer_set_consent", {
+      p_kind: "kvkk_notice",
+      p_granted: true,
+      p_text_version: "kvkk-v2-taslak",
+    }),
+  );
   check(
     await customer.rpc("customer_save_billing_profile", {
       p_profile: {

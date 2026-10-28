@@ -373,6 +373,26 @@ begin
 end;
 $$;
 
+-- T15: records the portal KVKK notice acknowledgement of a test user (every
+-- org where it is due), so that tests opening the portal as an ops-created
+-- owner are not stopped by the first-login notice screen.
+create or replace function testing.acknowledge_kvkk_notice(p_user_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  n integer;
+begin
+  insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source)
+  select o, p_user_id, p_user_id, 'kvkk_notice', true, (private.legal_text_current('kvkk_notice')).version, 'portal'
+  from private.notice_due_orgs(p_user_id) o;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
 -- Sign-up owner proof (review of PR #93, round 2): a pending sign-up as it was
 -- written before tickets (ticket_hash null), a phone confirmed earlier than
 -- the code at hand, and the review flag a refused completion leaves.
@@ -417,6 +437,7 @@ grant execute on function
   testing.purge_signup_attempts(), testing.age_signups(uuid[], integer),
   testing.selectable_columns(text, text[]), testing.run_garden_removal_housekeeping(),
   testing.set_order_period(uuid, date, date), testing.register_legal_text(text, text, text),
+  testing.acknowledge_kvkk_notice(uuid),
   testing.legacy_signup(uuid), testing.age_phone_confirmation(uuid, integer),
   testing.signup_review(uuid)
   to service_role;

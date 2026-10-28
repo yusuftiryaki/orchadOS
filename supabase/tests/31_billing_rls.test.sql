@@ -250,7 +250,7 @@ select is(public.ops_find_user_id('b0000000-0000-4000-8000-000000000001', null, 
 -- Co-owner approval: the owner invites the victim's phone; ops looks the account up
 -- (as the operations screen does through invite-user) and finds nothing to link.
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
-select lives_ok($$ select public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Kurban', '+905559991002') $$,
+select lives_ok($$ select public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Kurban', '+905559991002', true) $$,
   'the owner invites a co-owner by phone');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 select is(
