@@ -42,6 +42,19 @@
 //   409 {error: "order_not_active" | "version_mismatch"} · 500 {error: "failed"}
 //
 // No response and no log line carries personal data or the PDF.
+//
+// Two more operations, chosen by the body's `op`, store a JSON object next
+// to the PDFs (never registered: only {kind}.pdf paths are documents):
+//   {op: "snapshot", order_id, snapshot}
+//     The acceptance snapshot (apps/web/src/lib/contracts/snapshot.ts), at
+//     {org_id}/{order_id}/acceptance-{sha256}.json, content-addressed and once
+//     per order. Only the order's customer (user mode), within
+//     SNAPSHOT_WINDOW_MS of the acceptance; an existing snapshot is returned.
+//   {op: "manual_copy", order_id, reason}
+//     The marker of an order whose documents need a manual copy, at
+//     {org_id}/{order_id}/manual-copy.json ({reason, at}); the customer, ops of
+//     the org or the system, as for a document.
+//   200 {status: "created" | "existing", object: {name}}
 
 import { isDemoClaims, jwtClaims, timingSafeEqual } from "../_shared/signup.ts";
 
@@ -72,7 +85,21 @@ export interface OrderRow {
   org_id: string;
   customer_user_id: string;
   activated_at: string | null;
+  created_at: string;
 }
+
+// How long after the acceptance its snapshot may be written.
+export const SNAPSHOT_WINDOW_MS = 15 * 60 * 1000;
+export const MAX_SNAPSHOT_BYTES = 512 * 1024;
+export const SNAPSHOT_SCHEMA = "contract-acceptance-v1";
+export const MANUAL_COPY_REASONS = [
+  "no_snapshot",
+  "snapshot_invalid",
+  "template_unavailable",
+  "version_mismatch",
+  "invalid_input",
+  "render_failed",
+] as const;
 
 export interface ExistingDocument {
   id: string;
@@ -111,6 +138,13 @@ export interface Deps {
   // "exists" when an object is already stored at the path.
   upload: (path: string, pdf: Uint8Array) => Promise<"created" | "exists">;
   download: (path: string) => Promise<Uint8Array>;
+  // The object names in the folder, with the service role.
+  list: (folder: string) => Promise<string[]>;
+  uploadJson: (
+    path: string,
+    bytes: Uint8Array,
+  ) => Promise<"created" | "exists">;
+  now?: () => Date;
 }
 
 export interface RegisterArgs {
@@ -236,6 +270,96 @@ function refusal(e: RpcError): Response {
   }
 }
 
+type JsonOp =
+  | { op: "snapshot"; orderId: string; snapshot: Record<string, unknown> }
+  | { op: "manual_copy"; orderId: string; reason: string };
+
+export function parseJsonOp(
+  body: Record<string, unknown>,
+): { ok: true; value: JsonOp } | { ok: false; field: string } {
+  const orderId = typeof body.order_id === "string" ? body.order_id : "";
+  if (!UUID_RE.test(orderId)) return { ok: false, field: "order_id" };
+  if (body.op === "snapshot") {
+    const snapshot = body.snapshot as Record<string, unknown> | null;
+    if (
+      !snapshot ||
+      typeof snapshot !== "object" ||
+      Array.isArray(snapshot) ||
+      snapshot.schema !== SNAPSHOT_SCHEMA ||
+      snapshot.orderId !== orderId
+    ) {
+      return { ok: false, field: "snapshot" };
+    }
+    return { ok: true, value: { op: "snapshot", orderId, snapshot } };
+  }
+  if (body.op === "manual_copy") {
+    const reason = typeof body.reason === "string" ? body.reason : "";
+    if (!(MANUAL_COPY_REASONS as readonly string[]).includes(reason)) {
+      return { ok: false, field: "reason" };
+    }
+    return { ok: true, value: { op: "manual_copy", orderId, reason } };
+  }
+  return { ok: false, field: "op" };
+}
+
+const encoder = new TextEncoder();
+
+async function handleJsonOp(
+  mode: Mode,
+  op: JsonOp,
+  deps: Deps,
+): Promise<Response> {
+  let order: OrderRow | null;
+  if (mode.kind === "user") {
+    order = await deps.readOrderAsUser(mode.token, op.orderId);
+    if (!order) return error("not_found", 404);
+    if (op.op === "snapshot") {
+      if (order.customer_user_id !== mode.userId) {
+        return error("forbidden", 403);
+      }
+    } else {
+      const documents =
+        order.customer_user_id === mode.userId
+          ? await deps.customerDocuments(mode.token, order.id)
+          : await deps.opsDocuments(mode.token, order.id);
+      if (!documents) return error("forbidden", 403);
+    }
+  } else {
+    if (op.op === "snapshot") return error("forbidden", 403);
+    order = await deps.readOrderAsService(op.orderId);
+    if (!order) return error("not_found", 404);
+  }
+  const folder = `${order.org_id}/${order.id}`;
+  const names = await deps.list(folder);
+
+  if (op.op === "manual_copy") {
+    const name = "manual-copy.json";
+    if (names.includes(name)) {
+      return json({ status: "existing", object: { name } });
+    }
+    const at = (deps.now?.() ?? new Date()).toISOString();
+    const stored = await deps.uploadJson(
+      `${folder}/${name}`,
+      encoder.encode(JSON.stringify({ reason: op.reason, at })),
+    );
+    return json({ status: stored === "created" ? "created" : "existing", object: { name } });
+  }
+
+  const existing = names.find((n) => /^acceptance-[0-9a-f]{64}\.json$/.test(n));
+  if (existing) return json({ status: "existing", object: { name: existing } });
+  const now = (deps.now?.() ?? new Date()).getTime();
+  if (now - Date.parse(order.created_at) > SNAPSHOT_WINDOW_MS) {
+    return error("snapshot_too_late", 409);
+  }
+  const bytes = encoder.encode(JSON.stringify(op.snapshot));
+  if (bytes.length > MAX_SNAPSHOT_BYTES) {
+    return error("invalid_input", 400, { field: "snapshot" });
+  }
+  const name = `acceptance-${await sha256Hex(bytes)}.json`;
+  const stored = await deps.uploadJson(`${folder}/${name}`, bytes);
+  return json({ status: stored === "created" ? "created" : "existing", object: { name } });
+}
+
 export async function handleStore(req: Request, deps: Deps): Promise<Response> {
   if (req.method !== "POST") return error("method_not_allowed", 405);
   const secret = req.headers.get("x-orchados-proxy-secret") ?? "";
@@ -255,6 +379,15 @@ export async function handleStore(req: Request, deps: Deps): Promise<Response> {
     body = await req.json();
   } catch {
     return error("invalid_input", 400, { field: "body" });
+  }
+  if (body && typeof body === "object" && "op" in body) {
+    const op = parseJsonOp(body as Record<string, unknown>);
+    if (!op.ok) return error("invalid_input", 400, { field: op.field });
+    try {
+      return await handleJsonOp(mode, op.value, deps);
+    } catch {
+      return error("failed", 500);
+    }
   }
   const parsed = parseStore(body);
   if (!parsed.ok) return error("invalid_input", 400, { field: parsed.field });

@@ -7,10 +7,11 @@ import { isUuid } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
 import { istanbulDay, type ContractBuyer, type ContractInput, type ContractOrder } from "./model";
 
-// The inputs of the contract documents, read with the caller's own client
-// (row level security and the customer or ops readers decide what is
-// visible). The customer and ops reads give the same values, so a document
-// is the same whoever generates it.
+// The inputs of the contract documents on the quote page, read live with the
+// customer's own client (row level security decides what is visible). An
+// order's documents are never rendered from these reads but from its
+// acceptance snapshot (snapshot.ts), written from the input the customer
+// accepted.
 
 export type ContractActor = "customer" | "ops";
 
@@ -66,22 +67,10 @@ export function buyerOf(
   };
 }
 
-async function buyer(
-  supabase: Client,
-  actor: ContractActor,
-  orgId: string,
-  userId: string,
-): Promise<ContractBuyer> {
-  if (actor === "customer") {
-    const [billing, contact] = await Promise.all([
-      supabase.rpc("my_billing_profile"),
-      supabase.rpc("my_owner_profile"),
-    ]);
-    return buyerOf(check(billing)?.[0], check(contact)?.[0]);
-  }
+async function customerBuyer(supabase: Client): Promise<ContractBuyer> {
   const [billing, contact] = await Promise.all([
-    supabase.rpc("ops_billing_profile", { p_org_id: orgId, p_user_id: userId }),
-    supabase.rpc("ops_customer", { p_org_id: orgId, p_user_id: userId }),
+    supabase.rpc("my_billing_profile"),
+    supabase.rpc("my_owner_profile"),
   ]);
   return buyerOf(check(billing)?.[0], check(contact)?.[0]);
 }
@@ -170,10 +159,7 @@ export async function quoteContractInput(
   if (!isUuid(quoteId)) return null;
   const parts = await quoteParts(supabase, quoteId);
   if (!parts || parts.quote.customer_user_id !== userId) return null;
-  const [buyerValue, company] = await Promise.all([
-    buyer(supabase, "customer", parts.quote.org_id, userId),
-    companyInfo(supabase),
-  ]);
+  const [buyerValue, company] = await Promise.all([customerBuyer(supabase), companyInfo(supabase)]);
   return {
     quote: parts.contract,
     lines: parts.lines,
@@ -185,22 +171,22 @@ export async function quoteContractInput(
   };
 }
 
-export interface OrderContract {
+// An accepted order as the caller sees it (the customer or an ops user of
+// its org; row level security), with what the documents need of its live
+// state: its folder, the activation and the service period.
+export interface OrderRef {
+  id: string;
   orgId: string;
   customerUserId: string;
+  number: string;
   // The acceptance instant (service_order.created_at).
   acceptedAt: string;
-  input: ContractInput;
+  activatedAt: string | null;
+  serviceStart: string | null;
+  serviceEnd: string | null;
 }
 
-// An accepted order, read by its customer or by an ops user of its org. Its
-// "today" is the day of the acceptance (service_order.created_at), so the
-// document does not depend on when it is generated.
-export async function orderContractInput(
-  supabase: Client,
-  actor: ContractActor,
-  orderId: string,
-): Promise<OrderContract | null> {
+export async function orderRef(supabase: Client, orderId: string): Promise<OrderRef | null> {
   if (!isUuid(orderId)) return null;
   const row = check(
     await supabase
@@ -212,31 +198,22 @@ export async function orderContractInput(
       .maybeSingle(),
   );
   if (!row?.quote_id) return null;
-  const parts = await quoteParts(supabase, row.quote_id);
-  if (!parts) return null;
-  const order: ContractOrder = {
+  return {
     id: row.id,
+    orgId: row.org_id,
+    customerUserId: row.customer_user_id,
     number: row.number,
+    acceptedAt: row.created_at,
     activatedAt: row.activated_at ?? null,
     serviceStart: row.service_start ?? null,
     serviceEnd: row.service_end ?? null,
   };
-  const [buyerValue, company] = await Promise.all([
-    buyer(supabase, actor, row.org_id, row.customer_user_id),
-    companyInfo(supabase),
-  ]);
-  return {
-    orgId: row.org_id,
-    customerUserId: row.customer_user_id,
-    acceptedAt: row.created_at,
-    input: {
-      quote: parts.contract,
-      lines: parts.lines,
-      order,
-      buyer: buyerValue,
-      company,
-      versions: currentVersions(),
-      today: istanbulDay(row.created_at),
-    },
-  };
 }
+
+export const contractOrderOf = (o: OrderRef): ContractOrder => ({
+  id: o.id,
+  number: o.number,
+  activatedAt: o.activatedAt,
+  serviceStart: o.serviceStart,
+  serviceEnd: o.serviceEnd,
+});

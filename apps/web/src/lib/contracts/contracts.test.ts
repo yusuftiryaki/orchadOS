@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { canonicalJson, legalTextHash, sha256Hex } from "@/lib/legal/text-hash";
 import { COMPANY_PLACEHOLDERS } from "@/lib/legal/company-placeholders";
 import { EARLY_PERFORMANCE_VERSION } from "@/lib/legal/early-performance";
@@ -14,6 +14,18 @@ import {
   type FilledDocument,
 } from "./render";
 import type { LegalBlock, LegalListItem } from "@/lib/i18n/messages/legal";
+
+// A final (non-draft) version has no template yet: these tests render the
+// "-v5" names with today's "-v4-taslak" templates (templates.test.ts covers
+// the real lookup).
+vi.mock("./templates", async (importOriginal) => {
+  const real = await importOriginal<typeof import("./templates")>();
+  return {
+    ...real,
+    contractTemplate: (kind: "pre_information" | "distance_sales", version: string) =>
+      real.contractTemplate(kind, version.replace(/-v5$/, "-v4-taslak")),
+  };
+});
 
 // Every text of a document, flattened (bold markers kept).
 function itemText(x: LegalListItem): string {

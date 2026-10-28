@@ -128,6 +128,8 @@ export const contractsText = {
       "Onayladığınız her siparişin Ön Bilgilendirme Formu ve Mesafeli Hizmet Sözleşmesi, sipariş bilgileriyle doldurulmuş PDF olarak burada değiştirilmeden saklanır. Ödemeden sonra cayma süresinin son gününü yazan bildirim eklenir.",
     empty: "Henüz bir sözleşme belgeniz yok.",
     preparing: "Belgeler hazırlanıyor. Birkaç dakika içinde burada görünür.",
+    manualCopy:
+      "Bu siparişin belgeleri otomatik olarak üretilemedi. Onayladığınız metnin kopyası talebiniz üzerine Şirket tarafından verilir; destek kanallarından bize yazabilirsiniz.",
     order: (n: string) => `Sipariş ${n}`,
     kind: "Belge",
     version: "Sürüm",
@@ -147,13 +149,18 @@ export const contractsText = {
     missingTitle: "Sözleşme belgesi eksik siparişler",
     missingEmpty: "Sözleşme belgesi eksik sipariş yok.",
     missingHint:
-      "Belgeler teklif kabulünde üretilir; üretilemediyse müşteri Sözleşmelerim'i ya da sipariş sayfasını açtığında yeniden denenir. Buradan da üretilebilir.",
+      "Belgeler teklif kabulünden hemen sonra, kabul anında saklanan bilgilerle (kabul anlık görüntüsü) üretilir; üretilemediyse müşteri Sözleşmelerim'i ya da sipariş sayfasını açtığında yeniden denenir. Buradan da üretilebilir; bir tıklama en fazla 5 siparişi işler.",
+    manualTitle: "Elle kopya gereken siparişler",
+    manualHint:
+      "Bu siparişlerin belgeleri otomatik üretilemez (kabul anlık görüntüsü yok, onaylanan sürümün şablonu yok ya da kayıt sürümü reddetti). Otomatik denemeye ve toplu üretime alınmazlar; müşteriye onayladığı sürümün kopyası elle hazırlanıp verilir. “Yeniden dene” yalnızca bu siparişi bir kez daha dener.",
+    manualState: "Elle kopya gerekiyor",
+    retry: "Yeniden dene",
     order: "Sipariş",
     status: "Durum",
     accepted: "Kabul",
     missing: "Eksik",
     generate: "Belgeleri üret",
-    generateAll: (n: number) => `Hepsini üret (${n})`,
+    generateAll: (n: number) => `Sıradakileri üret (${n})`,
     documentsTitle: "Sözleşme belgeleri",
     documentsEmpty: "Bu sipariş için kayıtlı belge yok.",
     copyHint:
@@ -165,6 +172,7 @@ export const contractsText = {
       partial: (ok: number, failed: number) =>
         `${ok} belge üretildi, ${failed} belge üretilemedi (sonra yeniden denenebilir).`,
       failed: "Belgeler üretilemedi. Sonra yeniden deneyin.",
+      manual: (n: number) => `${n} sipariş elle kopya listesine alındı.`,
     },
   },
 } as const;

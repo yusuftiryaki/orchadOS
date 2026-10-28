@@ -2,7 +2,7 @@ import { addonBreakdownOf, breakdownRows, windowsText } from "@/lib/billing/addo
 import { formatDonum, formatKurus } from "@/lib/billing/money";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { contractsText as C, type ContractDocumentKind } from "@/lib/i18n/messages/contracts";
-import { legalText, type LegalBlock, type LegalListItem } from "@/lib/i18n/messages/legal";
+import type { LegalBlock, LegalListItem } from "@/lib/i18n/messages/legal";
 import {
   completeCompany,
   fillCompanyDocument,
@@ -10,6 +10,7 @@ import {
 } from "@/lib/legal/company-placeholders";
 import { isDraftVersion } from "@/lib/legal/versions";
 import { addonInputsOf, quoteServiceEnd } from "@/lib/portal-billing/gardens";
+import { contractTemplate, type TemplateKind } from "./templates";
 import {
   addDays,
   istanbulDay,
@@ -109,10 +110,27 @@ function fillBuyerBlock(block: LegalBlock, b: ContractBuyer): LegalBlock {
   }
 }
 
-function template(which: "pre_information" | "distance_sales", input: ContractInput): LegalBlock[] {
-  return fillCompanyDocument(legalText[which], input.company).blocks.map((b) =>
-    fillBuyerBlock(b, input.buyer),
-  );
+// The template of the version the document names (templates.ts): the
+// current one on the quote page, the accepted one for an order.
+export class TemplateUnavailableError extends Error {
+  constructor(readonly version: string) {
+    super("template_unavailable");
+  }
+}
+
+function templateOf(which: TemplateKind, input: ContractInput) {
+  const version = input.versions[which];
+  const found = contractTemplate(which, version);
+  if (!found) throw new TemplateUnavailableError(version);
+  return found;
+}
+
+function template(which: TemplateKind, input: ContractInput): LegalBlock[] {
+  const { title, blocks } = templateOf(which, input);
+  return fillCompanyDocument(
+    { title, description: "", source: "", blocks },
+    input.company,
+  ).blocks.map((b) => fillBuyerBlock(b, input.buyer));
 }
 
 function servicePeriod(input: ContractInput): string {
@@ -247,7 +265,7 @@ export function preInformationDocument(input: ContractInput): FilledDocument {
   const version = input.versions.pre_information;
   return {
     kind: "pre_information",
-    title: legalText.pre_information.title,
+    title: templateOf("pre_information", input).title,
     version,
     draft: isDraft(version, input),
     orderNumber: input.order?.number ?? null,
@@ -283,7 +301,7 @@ export function distanceContractDocument(input: ContractInput): FilledDocument {
   const version = input.versions.distance_sales;
   return {
     kind: "distance_sales",
-    title: legalText.distance_sales.title,
+    title: templateOf("distance_sales", input).title,
     version,
     draft: isDraft(version, input),
     orderNumber: input.order?.number ?? null,
@@ -344,6 +362,6 @@ export function contractDocument(kind: ContractDocumentKind, input: ContractInpu
 }
 
 // The registered text kind of a document: the template its version names.
-export function textKindOf(kind: ContractDocumentKind): "pre_information" | "distance_sales" {
+export function textKindOf(kind: ContractDocumentKind): TemplateKind {
   return kind === "pre_information" ? "pre_information" : "distance_sales";
 }

@@ -4,10 +4,12 @@ import ops from "@/components/operations/operations.module.css";
 import styles from "@/components/portal/portal.module.css";
 import { requireSection } from "@/lib/auth/session";
 import {
+  accessTokenOf,
   customerDocuments,
-  requiredKinds,
-  tryEnsureOrderDocuments,
-  type ContractDocumentRow,
+  documentState,
+  missingKinds,
+  retryAfterResponse,
+  stateRefOf,
 } from "@/lib/contracts/generate";
 import { contractsText as C } from "@/lib/i18n/messages/contracts";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
@@ -18,29 +20,37 @@ import { createClient } from "@/lib/supabase/server";
 
 const L = C.list;
 
-// Orders whose documents a visit may generate at most (the rest on the next).
+// Orders whose documents a visit may retry at most (the rest on the next).
 const RETRIES_PER_VISIT = 3;
 
 // Hesabım › Sözleşmelerim (H12, T04): the order-specific contract documents.
 // Missing documents of the customer's orders (a failed generation after the
 // acceptance, or the withdrawal confirmation of an order paid since) are
-// generated on the visit; the rest say they are being prepared.
+// retried after the response, from the acceptance snapshot, and say they are
+// being prepared. An order that needs a manual copy (no snapshot, a version
+// that cannot be rendered, a refused registration) is not retried and says
+// that a copy is given on request.
 export default async function ContractsPage() {
   const user = assertCustomer(await requireSection("portal"));
   const supabase = await createClient();
   const orders = (await listOrders(supabase, user.id)).filter((o) => o.quote_id);
-  let documents = await customerDocuments(supabase);
-  const missing = (docs: ContractDocumentRow[]) =>
-    orders.filter((o) => {
-      const have = new Set(docs.filter((d) => d.order_id === o.id).map((d) => d.kind));
-      return requiredKinds(o.activated_at).some((k) => !have.has(k));
-    });
-  const retry = missing(documents).slice(0, RETRIES_PER_VISIT);
-  if (retry.length > 0) {
-    for (const order of retry) await tryEnsureOrderDocuments(supabase, "customer", order.id);
-    documents = await customerDocuments(supabase);
+  const documents = await customerDocuments(supabase);
+  const accessToken = await accessTokenOf(supabase);
+  const preparing = new Set<string>();
+  const manualCopy = new Set<string>();
+  for (const order of orders) {
+    const docs = documents.filter((d) => d.order_id === order.id);
+    if (missingKinds(order.activated_at, docs).length === 0) continue;
+    const state = await documentState(supabase, stateRefOf(order), docs).catch(() => null);
+    if (state?.state === "manual_copy") {
+      manualCopy.add(order.id);
+      continue;
+    }
+    preparing.add(order.id);
+    if (state && accessToken && preparing.size <= RETRIES_PER_VISIT) {
+      retryAfterResponse(accessToken, order.id);
+    }
   }
-  const preparing = new Set(missing(documents).map((o) => o.id));
 
   return (
     <main className={styles.page} data-testid="contracts">
@@ -71,6 +81,11 @@ export default async function ContractsPage() {
             {preparing.has(order.id) && (
               <p className={ops.notice} data-testid="contracts-preparing">
                 {L.preparing}
+              </p>
+            )}
+            {manualCopy.has(order.id) && (
+              <p className={ops.notice} data-testid="contracts-manual-copy">
+                {L.manualCopy}
               </p>
             )}
           </section>

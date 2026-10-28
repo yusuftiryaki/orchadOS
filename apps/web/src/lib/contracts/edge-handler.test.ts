@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   type Deps,
@@ -14,6 +15,8 @@ const ORG = "b0000000-0000-4000-8000-000000000001";
 const CUSTOMER = "a0000000-0000-4000-8000-000000000006";
 const OPS = "a0000000-0000-4000-8000-000000000005";
 const PDF = Buffer.from("%PDF-1.4\n% test\n");
+const ACCEPTED = "2026-03-01T09:00:00Z";
+const NOW = new Date("2026-03-01T09:05:00Z");
 
 function token(claims: Record<string, unknown>): string {
   const part = (v: unknown) => Buffer.from(JSON.stringify(v)).toString("base64url");
@@ -47,13 +50,20 @@ function fakes(overrides: Partial<Deps> = {}) {
     proxySecret: "secret",
     readOrderAsUser: async (t) =>
       t === customerToken || t === opsToken
-        ? { id: ORDER, org_id: ORG, customer_user_id: CUSTOMER, activated_at: null }
+        ? {
+            id: ORDER,
+            org_id: ORG,
+            customer_user_id: CUSTOMER,
+            activated_at: null,
+            created_at: ACCEPTED,
+          }
         : null,
     readOrderAsService: async () => ({
       id: ORDER,
       org_id: ORG,
       customer_user_id: CUSTOMER,
       activated_at: null,
+      created_at: ACCEPTED,
     }),
     customerDocuments: async () => [],
     opsDocuments: async (t) => (t === opsToken ? [] : null),
@@ -80,6 +90,17 @@ function fakes(overrides: Partial<Deps> = {}) {
       return "created";
     },
     download: async (path) => stored.get(path)!,
+    list: async (folder) =>
+      [...stored.keys()]
+        .filter((k) => k.startsWith(`${folder}/`))
+        .map((k) => k.slice(folder.length + 1)),
+    async uploadJson(path, bytes) {
+      calls.upload.push(path);
+      if (stored.has(path)) return "exists";
+      stored.set(path, bytes);
+      return "created";
+    },
+    now: () => NOW,
     ...overrides,
   };
   return { deps, calls, stored, registered };
@@ -153,6 +174,7 @@ describe("contract-documents Edge Function", () => {
         org_id: ORG,
         customer_user_id: CUSTOMER,
         activated_at: null,
+        created_at: ACCEPTED,
       }),
     });
     expect((await handleStore(request(user(stranger)), d2)).status).toBe(403);
@@ -217,5 +239,90 @@ describe("contract-documents Edge Function", () => {
       field: "pdf_base64",
     });
     expect(parseStore({ ...ok, pdf_base64: PDF.toString("base64") }).ok).toBe(true);
+  });
+
+  describe("JSON objects", () => {
+    const snapshot = { schema: "contract-acceptance-v1", orderId: ORDER, input: { x: 1 } };
+    const op = (body: Record<string, unknown>) => ({ order_id: ORDER, ...body });
+    const call = (headers: Record<string, string>, body: Record<string, unknown>, deps: Deps) =>
+      handleStore(
+        new Request("http://edge/functions/v1/contract-documents", {
+          method: "POST",
+          headers: { "content-type": "application/json", ...headers },
+          body: JSON.stringify(body),
+        }),
+        deps,
+      );
+
+    it("stores the acceptance snapshot once, content-addressed, for the order's customer", async () => {
+      const { deps, stored } = fakes();
+      const res = await call(user(customerToken), op({ op: "snapshot", snapshot }), deps);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.status).toBe("created");
+      expect(body.object.name).toMatch(/^acceptance-[0-9a-f]{64}\.json$/);
+      const path = `${ORG}/${ORDER}/${body.object.name}`;
+      const sha = createHash("sha256").update(stored.get(path)!).digest("hex");
+      expect(body.object.name).toBe(`acceptance-${sha}.json`);
+      // A second, different snapshot never replaces it.
+      const again = await call(
+        user(customerToken),
+        op({ op: "snapshot", snapshot: { ...snapshot, input: { x: 2 } } }),
+        deps,
+      );
+      expect(await again.json()).toEqual({
+        status: "existing",
+        object: { name: body.object.name },
+      });
+      expect([...stored.keys()]).toEqual([path]);
+    });
+
+    it("refuses a snapshot from ops, the system, too late or of another order", async () => {
+      const { deps, stored } = fakes();
+      expect((await call(user(opsToken), op({ op: "snapshot", snapshot }), deps)).status).toBe(403);
+      const sweep = { ...user(anonToken), "x-orchados-sweep": "1" };
+      expect((await call(sweep, op({ op: "snapshot", snapshot }), deps)).status).toBe(403);
+      const late = fakes({ now: () => new Date("2026-03-01T09:16:00Z") });
+      const res = await call(user(customerToken), op({ op: "snapshot", snapshot }), late.deps);
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: "snapshot_too_late" });
+      const other = await call(
+        user(customerToken),
+        op({ op: "snapshot", snapshot: { ...snapshot, orderId: ORG } }),
+        deps,
+      );
+      expect(await other.json()).toEqual({ error: "invalid_input", field: "snapshot" });
+      const demo = token({ role: "authenticated", sub: CUSTOMER, app_metadata: { demo: true } });
+      expect((await call(user(demo), op({ op: "snapshot", snapshot }), deps)).status).toBe(403);
+      expect(stored.size).toBe(0);
+    });
+
+    it("stores the manual-copy marker once for the customer, ops or the system", async () => {
+      const { deps, stored } = fakes();
+      const res = await call(
+        user(opsToken),
+        op({ op: "manual_copy", reason: "version_mismatch" }),
+        deps,
+      );
+      expect(await res.json()).toEqual({ status: "created", object: { name: "manual-copy.json" } });
+      const path = `${ORG}/${ORDER}/manual-copy.json`;
+      expect(JSON.parse(Buffer.from(stored.get(path)!).toString())).toEqual({
+        reason: "version_mismatch",
+        at: NOW.toISOString(),
+      });
+      const again = await call(
+        user(customerToken),
+        op({ op: "manual_copy", reason: "render_failed" }),
+        deps,
+      );
+      expect((await again.json()).status).toBe("existing");
+      expect(
+        (await call(user(customerToken), op({ op: "manual_copy", reason: "x" }), deps)).status,
+      ).toBe(400);
+      const stranger = token({ role: "authenticated", sub: "x" });
+      expect(
+        (await call(user(stranger), op({ op: "manual_copy", reason: "no_snapshot" }), deps)).status,
+      ).toBe(404);
+    });
   });
 });

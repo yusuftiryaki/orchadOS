@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { requireSection } from "@/lib/auth/session";
-import { acceptanceConsents, displaySha256 } from "@/lib/contracts/display-hash";
-import { tryEnsureOrderDocuments } from "@/lib/contracts/generate";
+import { acceptanceConsents, acceptedTexts, displaySha256 } from "@/lib/contracts/display-hash";
+import { accessTokenOf, generateAfterAcceptance } from "@/lib/contracts/generate";
 import { quoteContractInput } from "@/lib/contracts/load";
 import { distanceContractDocument, preInformationDocument } from "@/lib/contracts/render";
 import { EARLY_PERFORMANCE_VERSION } from "@/lib/legal/early-performance";
@@ -39,9 +40,11 @@ function quoteIdOf(form: FormData): string {
 // company information or the day), nothing is accepted and the page is shown
 // again. The optional early-performance box (unchecked by default) adds its
 // own consent; without it the inventory and the visits wait for the end of
-// the withdrawal period. After the acceptance the order's documents are
-// rendered and stored (T04); a failure leaves the acceptance as it is and the
-// order page and Sözleşmelerim retry.
+// the withdrawal period. After the acceptance the customer is redirected at
+// once; in the background (after()) the acceptance snapshot of exactly this
+// rendering is stored and the order's documents are rendered from it (T04).
+// A failure leaves the acceptance as it is; the order page and Sözleşmelerim
+// retry from the snapshot.
 export async function acceptQuoteAction(form: FormData) {
   const { user, supabase } = await context();
   const read = formReader(form);
@@ -60,16 +63,21 @@ export async function acceptQuoteAction(form: FormData) {
   ) {
     redirect(`${portalHref.quote(quoteId)}?belge=degisti`);
   }
+  const consents = acceptanceConsents(
+    pre,
+    contract,
+    read("early_performance") === "on" ? { version: EARLY_PERFORMANCE_VERSION } : null,
+  );
   const { data, error } = await supabase.rpc("customer_accept_quote", {
     p_quote_id: quoteId,
-    p_consents: acceptanceConsents(
-      pre,
-      contract,
-      read("early_performance") === "on" ? { version: EARLY_PERFORMANCE_VERSION } : null,
-    ) as unknown as Json,
+    p_consents: consents as unknown as Json,
   });
   if (error || !data) redirect(portalHref.quote(quoteId, { hata: portalErrorOf(error) }));
-  await tryEnsureOrderDocuments(supabase, "customer", data);
+  const accessToken = await accessTokenOf(supabase);
+  if (accessToken) {
+    const texts = acceptedTexts(pre, contract);
+    after(() => generateAfterAcceptance({ accessToken, orderId: data, shown: input, texts }));
+  }
   revalidatePath("/portal", "layout");
   redirect(portalHref.order(data, { bilgi: "teklif_kabul_edildi" }));
 }

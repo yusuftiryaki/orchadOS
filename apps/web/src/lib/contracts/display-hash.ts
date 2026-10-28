@@ -1,5 +1,6 @@
 import { canonicalJson, legalTextHash, sha256Hex } from "@/lib/legal/text-hash";
 import type { FilledDocument } from "./render";
+import type { AcceptedText } from "./snapshot";
 
 // display_sha256 (docs/musteri-yonetimi.md "Sözleşme belgeleri (T04)"): the
 // SHA-256 of the filled rendering the customer saw on the quote page.
@@ -32,11 +33,11 @@ export interface ConsentEntry {
 // The object form of customer_accept_quote's p_consents (§20.2): the version
 // shown, its registered template hash and the hash of the filled rendering.
 // The early-performance box is its template; it has no filled rendering.
-export function acceptanceConsents(
+// The texts the acceptance records: the acceptance snapshot keeps them.
+export function acceptedTexts(
   pre: FilledDocument,
   contract: FilledDocument,
-  earlyPerformance: { version: string } | null,
-): Record<string, ConsentEntry> {
+): { pre_information: AcceptedText; distance_sales: AcceptedText } {
   return {
     pre_information: {
       version: pre.version,
@@ -48,6 +49,16 @@ export function acceptanceConsents(
       sha256: legalTextHash("distance_sales"),
       display_sha256: displaySha256(contract),
     },
+  };
+}
+
+export function acceptanceConsents(
+  pre: FilledDocument,
+  contract: FilledDocument,
+  earlyPerformance: { version: string } | null,
+): Record<string, ConsentEntry> {
+  return {
+    ...acceptedTexts(pre, contract),
     ...(earlyPerformance
       ? {
           early_performance: {

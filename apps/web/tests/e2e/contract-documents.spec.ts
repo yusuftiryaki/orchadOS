@@ -107,8 +107,14 @@ test("the customer reads the filled documents, accepts and downloads them", asyn
   await expect(page).toHaveURL(/\/portal\/siparis\/[0-9a-f-]{36}\?bilgi=teklif_kabul_edildi$/);
   orderId = new URL(page.url()).pathname.split("/").pop()!;
 
+  // The documents are produced after the redirect (after()): the page says
+  // they are being prepared until a reload shows them.
   const orderDocs = page.getByTestId("order-contracts").getByTestId("contract-documents");
-  await expect(orderDocs.locator("tbody tr")).toHaveCount(2);
+  await expect(async () => {
+    await page.reload();
+    await expect(orderDocs.locator("tbody tr")).toHaveCount(2, { timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
+  await expect(page.getByTestId("contracts-preparing")).toHaveCount(0);
   await expect(orderDocs.locator('tr[data-kind="pre_information"]')).toBeVisible();
   await expect(orderDocs.locator('tr[data-kind="distance_sales"]')).toBeVisible();
 

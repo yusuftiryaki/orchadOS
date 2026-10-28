@@ -11,9 +11,11 @@ import styles from "@/components/portal/portal.module.css";
 import { requireSection } from "@/lib/auth/session";
 import { formatKurus } from "@/lib/billing/money";
 import {
+  accessTokenOf,
   customerDocuments,
-  requiredKinds,
-  tryEnsureOrderDocuments,
+  documentState,
+  retryAfterResponse,
+  stateRefOf,
 } from "@/lib/contracts/generate";
 import { siteFlags } from "@/lib/flags";
 import { formatDate, formatDateTime } from "@/lib/i18n";
@@ -34,9 +36,9 @@ const O = P.order;
 
 // An order: totals, lines, and while it awaits payment the card button (only
 // with the payments flag), the bank transfer details and the cancel button;
-// its contract documents (T04), generated on the visit when missing (after
-// a failed generation at the acceptance, and the withdrawal confirmation
-// once the order is active).
+// its contract documents (T04), retried after the response when missing
+// (after a failed generation at the acceptance, and the withdrawal
+// confirmation once the order is active), or the manual-copy note.
 export default async function OrderPage({
   params,
   searchParams,
@@ -56,17 +58,21 @@ export default async function OrderPage({
   const currency = order.currency;
   const outstanding = outstandingKurus(order);
   const liveAttempt = awaiting ? liveCardAttempt(payments) : null;
-  const ownDocuments = async () =>
-    (await customerDocuments(supabase)).filter((d) => d.order_id === order.id);
-  let documents = order.quote_id ? await ownDocuments() : [];
-  const lacking = () =>
-    !!order.quote_id &&
-    requiredKinds(order.activated_at).some((k) => !documents.some((d) => d.kind === k));
-  if (lacking()) {
-    await tryEnsureOrderDocuments(supabase, "customer", order.id);
-    documents = await ownDocuments();
+  const documents = order.quote_id
+    ? (await customerDocuments(supabase)).filter((d) => d.order_id === order.id)
+    : [];
+  const documentsState = order.quote_id
+    ? await documentState(supabase, stateRefOf(order), documents).catch(() => null)
+    : null;
+  if (documentsState?.state === "preparing") {
+    const accessToken = await accessTokenOf(supabase);
+    if (accessToken) retryAfterResponse(accessToken, order.id);
   }
-  const preparing = lacking();
+  const preparing =
+    !!order.quote_id &&
+    documentsState?.state !== "complete" &&
+    documentsState?.state !== "manual_copy";
+  const manualCopy = documentsState?.state === "manual_copy";
 
   return (
     <main className={styles.page} data-testid="order" data-status={order.status}>
@@ -193,6 +199,11 @@ export default async function OrderPage({
           {preparing && (
             <p className={ops.notice} data-testid="contracts-preparing">
               {C.list.preparing}
+            </p>
+          )}
+          {manualCopy && (
+            <p className={ops.notice} data-testid="contracts-manual-copy">
+              {C.list.manualCopy}
             </p>
           )}
           <p>

@@ -30,7 +30,12 @@ import { getOrder, getSetting, type OrderView } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
 import { OPS_WITHDRAWAL_CHANNELS } from "@/lib/billing/types";
 import { REMOVAL_REASONS, addDays, outstandingKurus } from "@/lib/back-office/validation";
-import { opsDocuments, requiredKinds, type ContractDocumentRow } from "@/lib/contracts/generate";
+import {
+  documentState,
+  opsDocuments,
+  stateRefOf,
+  type ContractDocumentRow,
+} from "@/lib/contracts/generate";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { contractsText as C } from "@/lib/i18n/messages/contracts";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
@@ -86,8 +91,11 @@ export default async function Page({
   } catch {
     documents = [];
   }
-  const documentsMissing =
-    !!o.quote_id && requiredKinds(o.activated_at).some((k) => !documents.some((d) => d.kind === k));
+  const documentsState = o.quote_id
+    ? await documentState(supabase, stateRefOf(o), documents).catch(() => null)
+    : null;
+  const documentsMissing = !!o.quote_id && documentsState?.state !== "complete";
+  const manualCopy = documentsState?.state === "manual_copy";
   const query = await searchParams;
   // An add-on is paid by its last valid day at the latest (IP14 §4.1 step 6).
   const addonLastDay =
@@ -470,11 +478,16 @@ export default async function Page({
             />
           )}
           <p className="muted">{C.ops.copyHint}</p>
+          {manualCopy && (
+            <p className={styles.notice} data-testid="order-contracts-manual-copy">
+              <strong>{C.ops.manualState}.</strong> {C.ops.manualHint}
+            </p>
+          )}
           {documentsMissing && (
             <form action={generateOrderDocumentsAction}>
               <input type="hidden" name="order_id" value={o.id} />
               <button className="button button-secondary" type="submit">
-                {C.ops.generate}
+                {manualCopy ? C.ops.retry : C.ops.generate}
               </button>
             </form>
           )}

@@ -19,7 +19,7 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 // gets contract documents.
 const PROXY_SECRET = Deno.env.get("SIGNUP_PROXY_SECRET") ?? "";
 const BUCKET = "contract-documents";
-const ORDER_COLUMNS = "id,org_id,customer_user_id,activated_at";
+const ORDER_COLUMNS = "id,org_id,customer_user_id,activated_at,created_at";
 
 class Failure extends Error {}
 
@@ -92,18 +92,19 @@ const objectUrl = (path: string) =>
 
 async function upload(
   path: string,
-  pdf: Uint8Array,
+  bytes: Uint8Array,
+  contentType = "application/pdf",
 ): Promise<"created" | "exists"> {
   const res = await fetch(objectUrl(path), {
     method: "POST",
     headers: {
       apikey: SERVICE_ROLE_KEY,
       authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-      "content-type": "application/pdf",
+      "content-type": contentType,
       "x-upsert": "false",
       "cache-control": "no-store",
     },
-    body: pdf as BodyInit,
+    body: bytes as BodyInit,
   });
   if (res.ok) {
     await res.body?.cancel();
@@ -131,6 +132,17 @@ async function download(path: string): Promise<Uint8Array> {
   return new Uint8Array(await res.arrayBuffer());
 }
 
+async function list(folder: string): Promise<string[]> {
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/list/${BUCKET}`, {
+    method: "POST",
+    headers: serviceHeaders,
+    body: JSON.stringify({ prefix: `${folder}/`, limit: 100, offset: 0 }),
+  });
+  if (!res.ok) throw new Failure(`list failed with ${res.status}`);
+  const rows = (await res.json()) as { name: string }[];
+  return rows.map((r) => r.name);
+}
+
 const deps: Deps = {
   proxySecret: PROXY_SECRET,
   readOrderAsUser: (token, orderId) => readOrder(userHeaders(token), orderId),
@@ -148,8 +160,10 @@ const deps: Deps = {
       p_order_id: orderId,
     }),
   register,
-  upload,
+  upload: (path, pdf) => upload(path, pdf),
   download,
+  list,
+  uploadJson: (path, bytes) => upload(path, bytes, "application/json"),
 };
 
 Deno.serve((req) => handleStore(req, deps));

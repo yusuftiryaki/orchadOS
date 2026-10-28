@@ -1,6 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
-import { ensureOrderDocuments } from "@/lib/contracts/generate";
+import { acceptedTexts } from "@/lib/contracts/display-hash";
+import {
+  ensureOrderDocuments,
+  generateAfterAcceptance,
+  opsMissingOrders,
+  SNAPSHOT_GRACE_MS,
+} from "@/lib/contracts/generate";
+import { quoteContractInput } from "@/lib/contracts/load";
+import { distanceContractDocument, preInformationDocument } from "@/lib/contracts/render";
+import { storeAcceptanceSnapshot, storeManualCopyMarker } from "@/lib/contracts/store";
 import { storeContractDocument, type StoreEnv } from "@/lib/contracts/store";
 import type { Database } from "@/lib/database.types";
 import { currentLegalTexts } from "@/lib/legal/text-hash";
@@ -31,6 +40,7 @@ let env: StoreEnv;
 let customer: TestCustomer;
 let stranger: TestCustomer;
 let order: string;
+let quote: string;
 
 const options = { auth: { persistSession: false, autoRefreshToken: false } };
 
@@ -82,8 +92,28 @@ beforeAll(async () => {
   await purgeOrg(OTHER_ORG).catch(() => undefined);
   customer = await createCustomer(DOMAIN);
   stranger = await createCustomer(DOMAIN);
-  ({ order } = await orderFor(customer));
+  ({ order, quote } = await orderFor(customer));
 });
+
+// What acceptQuoteAction schedules after customer_accept_quote: the snapshot
+// of the quote page's input, then both documents from it.
+async function afterAcceptance(of: TestCustomer, quoteId: string, orderId: string) {
+  const shown = await quoteContractInput(of.client, of.id, quoteId);
+  if (!shown) throw new Error("quote not readable");
+  return generateAfterAcceptance({
+    accessToken: of.token,
+    orderId,
+    shown,
+    texts: acceptedTexts(preInformationDocument(shown), distanceContractDocument(shown)),
+    env,
+  });
+}
+
+async function folder(orderId: string): Promise<string[]> {
+  const row = check(await admin.from("service_order").select("org_id").eq("id", orderId).single());
+  const listed = await admin.storage.from(BUCKET).list(`${row.org_id}/${orderId}`);
+  return (listed.data ?? []).map((o) => o.name).sort();
+}
 
 afterAll(async () => {
   await removeCustomers(DOMAIN);
@@ -95,13 +125,46 @@ afterAll(async () => {
 });
 
 describe("contract documents after an acceptance (customer mode)", () => {
-  it("renders, stores and registers both acceptance documents and queues one SMS", async () => {
-    const result = await ensureOrderDocuments(customer.client, "customer", order, {
-      auth: { accessToken: customer.token },
+  it("stores the snapshot, renders, stores and registers both acceptance documents and queues one SMS", async () => {
+    const result = await afterAcceptance(customer, quote, order);
+    expect(result?.failed).toEqual([]);
+    expect(result?.manualCopy).toBeNull();
+    const names = await folder(order);
+    expect(names).toHaveLength(3);
+    expect(names.filter((n) => n.endsWith(".pdf"))).toEqual([
+      "distance_sales.pdf",
+      "pre_information.pdf",
+    ]);
+    // Content-addressed: the name carries the SHA-256 of the stored bytes.
+    const snapshotName = names.find((n) => n.startsWith("acceptance-"))!;
+    expect(snapshotName).toMatch(/^acceptance-[0-9a-f]{64}\.json$/);
+    const row = check(await admin.from("service_order").select("org_id").eq("id", order).single());
+    const stored = await customer.client.storage
+      .from(BUCKET)
+      .download(`${row.org_id}/${order}/${snapshotName}`);
+    const bytes = new Uint8Array(await stored.data!.arrayBuffer());
+    expect(`acceptance-${sha256Hex(bytes)}.json`).toBe(snapshotName);
+    const snapshot = JSON.parse(Buffer.from(bytes).toString());
+    expect(snapshot.texts.pre_information.version).toBe(
+      currentLegalTexts().pre_information.version,
+    );
+    // Never replaced: a second snapshot returns the first.
+    const again = await storeAcceptanceSnapshot(
+      { accessToken: customer.token },
+      order,
+      { ...snapshot, acceptedAt: "2000-01-01T00:00:00Z" },
       env,
-    });
-    expect(result.failed).toEqual([]);
-    expect(result.created.sort()).toEqual(["distance_sales", "pre_information"]);
+    );
+    expect(again).toMatchObject({ ok: true, status: "existing", name: snapshotName });
+    // Ops never write a snapshot.
+    const byOps = await storeAcceptanceSnapshot(
+      { accessToken: await opsToken() },
+      order,
+      snapshot,
+      env,
+    );
+    expect(byOps).toMatchObject({ ok: false, status: 403 });
+    expect(result!.created.sort()).toEqual(["distance_sales", "pre_information"]);
 
     const docs = check(await customer.client.rpc("my_contract_documents")).filter(
       (d) => d.order_id === order,
@@ -117,6 +180,41 @@ describe("contract documents after an acceptance (customer mode)", () => {
       expect(bytes.length).toBe(doc.size_bytes);
     }
     expect(await contractReadySms(order)).toHaveLength(1);
+  });
+
+  it("renders a later document from the snapshot, not from the billing profile changed since", async () => {
+    // The customer edits the billing profile after the acceptance; the
+    // snapshot (what the documents are rendered from) keeps the old one.
+    const names = await folder(order);
+    const row = check(await admin.from("service_order").select("org_id").eq("id", order).single());
+    const name = names.find((n) => n.startsWith("acceptance-"))!;
+    const read = async () =>
+      JSON.parse(
+        Buffer.from(
+          await (
+            await customer.client.storage.from(BUCKET).download(`${row.org_id}/${order}/${name}`)
+          ).data!.arrayBuffer(),
+        ).toString(),
+      );
+    const before = await read();
+    expect(before.input.buyer.name).toBe("Test Müşteri");
+    check(
+      await customer.client.rpc("customer_save_billing_profile", {
+        p_profile: {
+          kind: "individual",
+          first_name: "Yeni",
+          last_name: "Ad",
+          address: "Başka Mah. 3. Sok. No: 4",
+          district: "Nizip",
+          city: "Gaziantep",
+          postal_code: "27700",
+        },
+      }),
+    );
+    const live = await quoteContractInput(customer.client, customer.id, quote);
+    expect(live?.buyer.name).toBe("Yeni Ad");
+    expect(await folder(order)).toEqual(names);
+    expect(await read()).toEqual(before);
   });
 
   it("returns the existing documents on a second attempt and stores nothing new", async () => {
@@ -162,6 +260,56 @@ describe("contract documents after an acceptance (customer mode)", () => {
       env,
     );
     expect(res).toMatchObject({ ok: false, status: 404 });
+  });
+});
+
+describe("manual copy", () => {
+  it("an order without a snapshot is prepared for a while, then needs a manual copy and leaves the bulk list", async () => {
+    const { order: bare } = await orderFor(customer);
+    const soon = await ensureOrderDocuments(customer.client, "customer", bare, {
+      auth: { accessToken: customer.token },
+      env,
+    });
+    expect(soon.failed.map((f) => f.error)).toEqual(["snapshot_pending", "snapshot_pending"]);
+    const later = new Date(Date.now() + SNAPSHOT_GRACE_MS + 60_000);
+    const late = await ensureOrderDocuments(customer.client, "customer", bare, {
+      auth: { accessToken: customer.token },
+      env,
+      now: later,
+    });
+    expect(late.manualCopy).toBe("no_snapshot");
+    expect(await folder(bare)).toEqual([]);
+    const { client: ops } = await signIn("ops");
+    const listed = (await opsMissingOrders(ops, later)).find((m) => m.order_id === bare);
+    expect(listed?.state).toBe("manual_copy");
+    const now = (await opsMissingOrders(ops)).find((m) => m.order_id === bare);
+    expect(now?.state).toBe("preparing");
+  });
+
+  it("a refused registration marks the order once and stops the automatic retries", async () => {
+    const { order: other, quote: otherQuote } = await orderFor(customer);
+    const res = await storeManualCopyMarker(
+      { accessToken: customer.token },
+      other,
+      "version_mismatch",
+      env,
+    );
+    expect(res).toMatchObject({ ok: true, status: "created", name: "manual-copy.json" });
+    // The snapshot still goes in (within the window), but nothing is rendered automatically.
+    const result = await afterAcceptance(customer, otherQuote, other);
+    expect(result?.manualCopy).toBe("marked");
+    expect((await folder(other)).filter((n) => n.endsWith(".pdf"))).toEqual([]);
+    const { client: ops } = await signIn("ops");
+    expect((await opsMissingOrders(ops)).find((m) => m.order_id === other)?.state).toBe(
+      "manual_copy",
+    );
+    // Ops' explicit retry of the order still renders it from the snapshot.
+    const forced = await ensureOrderDocuments(ops, "ops", other, {
+      auth: { accessToken: await opsToken() },
+      env,
+      force: true,
+    });
+    expect(forced.created.sort()).toEqual(["distance_sales", "pre_information"]);
   });
 });
 
