@@ -284,7 +284,9 @@ test("phone size: all ten steps fit, and a closed tour restarts", async ({ brows
     await expectStep(page, id, i + 1, targets);
     await expect(page.getByTestId("demo-banner")).toBeVisible();
     expect(await noScroll()).toBe(true);
-    // The first target shows between the sticky banner and the bottom sheet.
+    // The first target shows between the sticky banner and the bottom sheet
+    // ("son" points at the banner itself, visible above).
+    if (id === "son") continue;
     const top = (await page.getByTestId("demo-banner").boundingBox())!;
     const card = (await step(page).boundingBox())!;
     const box = (await page.getByTestId(targets[0]).first().boundingBox())!;
