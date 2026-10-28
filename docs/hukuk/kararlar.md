@@ -1711,7 +1711,7 @@ Sözcük düzeyindeki diğer değişiklikler (bağlayıcı; yerleri 2. bölümde
         - “Ödendiği halde açık görünen ödeme bildirimine 2 iş günü içinde yanıt verilir.”
     - `musteri-yonetimi.md` §19'daki "Taksit" açık sorusu "karara bağlandı (hukuk/kararlar.md H35)" olur.
     - `kararlar.md`: Yayın şartları 3. maddeye T28 ve T29 eklenir. Sürüm planı güncellenir (3. bölüm). H24'ün kabul notu ve Md. 8/2 metni H35'le değişti diye işaretlenir.
-- **T28:** Pencere sonunda düşme. Yayın şartı. **Bu PR'da çekirdeği yapıldı:** gece işi penceresi biten açık ziyaret ödemesini `window_passed` nedeniyle iptal eder (ödemesiz ziyaret izni olanlar hariç), planlama engeli ödemeyi pencereye bağlar, kart düşen ödemeyi atlar, düşen ödemeye hatırlatma gitmez, sonradan gelen ödeme `order_closed` iadesiyle geri döner (pgTAP `56_visit_installments`). Kalanlar: düşme SMS'i, havalede gönderim tarihinin ayrı girilmesi, hatırlatmaya son gün değişkeni.
+- **T28:** Pencere sonunda düşme. Yayın şartı. **Bu PR'da çekirdeği yapıldı:** gece işi penceresi biten açık ziyaret ödemesini `window_passed` nedeniyle iptal eder (ödemesiz ziyaret izni olanlar hariç), planlama engeli ödemeyi pencereye bağlar, kart düşen ödemeyi atlar, düşen ödemeye hatırlatma gitmez, sonradan gelen ödeme `order_closed` iadesiyle geri döner (pgTAP `57_visit_installments`). Kalanlar: düşme SMS'i, havalede gönderim tarihinin ayrı girilmesi, hatırlatmaya son gün değişkeni.
 - **T29:** Ödeme planının PDF'te ve ön bilgilendirmede gösterilmesi. Yayın şartı, T04 ile birlikte.
 - **T30:** Ödenmeme nedeniyle fesih ve ödemesiz ziyaret kaydı. Pilot sırasında, ödeme nedeniyle ilk fesihten önce.
 - **T31:** Alan düzeltmesinde ödenmemiş ödemelerin düşürülmesi. İlk alan düzeltmesinden önce.
