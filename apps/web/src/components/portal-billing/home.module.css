@@ -42,9 +42,20 @@
   font-size: var(--text-lg);
 }
 
+/* Ours: reported, nothing to do. A quieter surface, never the dashed
+   border of an empty state. */
 .taskOurs {
-  background: transparent;
-  border-style: dashed;
+  background: var(--color-surface-2);
+}
+
+.taskText {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.taskText > * {
+  margin: 0;
 }
 
 @media (min-width: 600px) {
@@ -67,13 +78,27 @@
   align-content: start;
 }
 
-.membership {
+.membershipBody,
+.renewal {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+}
+
+.renewal {
   gap: var(--space-2);
 }
 
-.membership > h2 {
-  font-size: var(--text-base);
-  color: var(--color-text-2);
+.membershipBody > *,
+.renewal > * {
+  margin: 0;
+}
+
+/* The membership band of the application wizard: notice, then gardens. */
+.band {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
 }
 
 .package {

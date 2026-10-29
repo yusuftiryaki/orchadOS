@@ -95,7 +95,7 @@ test("header and footer links work", async ({ page }) => {
   await expect(page.getByTestId("demo-start")).toBeVisible();
   await header.getByRole("link", { name: "Kayıt ol" }).click();
   await expect(page).toHaveURL("/kayit");
-  await header.getByRole("link", { name: "Giriş", exact: true }).click();
+  await header.getByRole("link", { name: "Giriş yap", exact: true }).click();
   await expect(page).toHaveURL("/giris");
 
   await page.goto("/");
@@ -132,7 +132,10 @@ test("robots.txt disallows everything while the site is not indexable", async ({
 
 test("login page links to sign-up", async ({ page }) => {
   await page.goto("/giris");
-  await page.getByTestId("login-signup-link").getByRole("link", { name: "Kayıt olun" }).click();
+  await page
+    .getByTestId("login-signup-link")
+    .getByRole("link", { name: "Kayıt ol", exact: true })
+    .click();
   await expect(page).toHaveURL("/kayit");
 });
 
@@ -206,7 +209,7 @@ test("the demo is linked from the landing page, the login page and 'Nasıl çal�
   await expect(page.getByTestId("login-demo").getByRole("link")).toHaveAttribute("href", "/demo");
   await page.goto("/nasil-calisir");
   await expect(
-    page.getByTestId("how-demo").getByRole("link", { name: "Demoyu deneyin" }),
+    page.getByTestId("how-demo").getByRole("link", { name: "Demoyu dene", exact: true }),
   ).toHaveAttribute("href", "/demo");
   await page.goto("/gizlilik");
   await expect(page.getByRole("heading", { name: "Demo turu" })).toBeVisible();

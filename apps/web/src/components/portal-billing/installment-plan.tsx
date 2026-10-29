@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
+import { statusTone } from "@/components/ui/status";
 import { Table, cell } from "@/components/ui/table";
 import {
   installmentLabel,
@@ -14,8 +15,6 @@ import { billingText } from "@/lib/i18n/messages/billing";
 import s from "./billing.module.css";
 
 const T = billingText.plan;
-
-const STATUS_TONE = { paid: "success", pending: "neutral", cancelled: "neutral" } as const;
 
 // The payment plan of a quote or an order (docs/hukuk/kararlar.md H35 (b)):
 // what each payment is for, its last day, amount with VAT and its VAT, and
@@ -80,7 +79,9 @@ export function InstallmentPlan({
                   <td className={s.state}>
                     <span className={s.planStatus}>
                       {row.status && (
-                        <Badge tone={STATUS_TONE[row.status]}>{T.statusText[row.status]}</Badge>
+                        <Badge tone={statusTone(row.status, "installment")}>
+                          {T.statusText[row.status]}
+                        </Badge>
                       )}
                       {isNext && <Badge tone="warning">{T.next}</Badge>}
                     </span>

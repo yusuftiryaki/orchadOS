@@ -5,9 +5,11 @@ import {
   InventoryApproval,
   type ApprovalPanorama,
 } from "@/components/expert/inventory-approval";
+import { SessionStatusBadge } from "@/components/expert/status";
 import { InventorySummaryView } from "@/components/office/inventory-summary";
 import { BoundaryPointers } from "@/components/operations/boundary-pointers";
 import styles from "@/components/office/inventory.module.css";
+import staff from "@/components/staff-page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
@@ -79,15 +81,13 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
   );
   const coverageBlocked = !!coverage && !coverage.passed && !coverage.waivedAt;
   return (
-    <main className={styles.page}>
+    <main className={`${staff.wide} ${styles.page}`}>
       <PageHeader
         back={{ href: "/uzman", label: e.back }}
         title={e.title(ws.parcel.name)}
         meta={
           <>
-            <Badge tone={STATUS_TONE[session.status] ?? "neutral"}>
-              {t.office.sessionStatus[session.status]}
-            </Badge>
+            <SessionStatusBadge status={session.status} />
             <span className={styles.hint}>{e.session(formatDate(sessionTime(session)))}</span>
           </>
         }
@@ -140,13 +140,6 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
     </main>
   );
 }
-
-const STATUS_TONE: Partial<Record<string, BadgeTone>> = {
-  in_review: "info",
-  processed: "info",
-  published: "success",
-  cancelled: "danger",
-};
 
 function flaggedSlots(slots: { id: string; code: string }[], checks: CodingChecks): string[] {
   const codes = new Set([

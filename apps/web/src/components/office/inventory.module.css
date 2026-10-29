@@ -2,9 +2,6 @@
    inventory summary (also on the owner's report card). */
 
 .page {
-  margin: 0 auto;
-  padding: var(--space-4) var(--space-3) var(--space-5);
-  max-width: 1800px;
   display: grid;
   gap: var(--space-3);
 }
@@ -283,6 +280,31 @@
   white-space: nowrap;
 }
 
+/* A row checkbox: a 24px hit area (44px on touch) around the 18px box; the
+   negative margin keeps the row as dense as before. */
+.rowCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  margin: -3px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.rowCheck input {
+  margin: 0;
+}
+
+@media (pointer: coarse) {
+  .rowCheck {
+    min-width: 44px;
+    min-height: 44px;
+    margin: -13px;
+  }
+}
+
 /* td input: beats the global control rule (input:not(...)) on specificity. */
 td input.cellInput {
   min-height: var(--control-height-sm);
@@ -315,15 +337,14 @@ td input.cellInput {
   margin-left: auto;
 }
 
-/* Map legend. The swatch colours are the ones inventory-map.tsx draws (its
-   MapLibre paint values); keep the two in step when the map changes. */
+/* Map legend. The swatches are the tokens behind inventory-map.tsx's paint
+   values (src/lib/map/tree-style.ts, checked against globals.css); a tree and
+   an empty slot are ClassDot, as on every map. --legend-interstitial has no
+   semantic token and is set from MAP_COLORS by the legend. */
 .legend {
-  --legend-tree: #2b8a3e;
-  --legend-interstitial: #94d82d;
-  --legend-empty: #c92a2a;
-  --legend-flagged: #f08c00;
-  --legend-track: #74c0fc;
-  --legend-declared: #868e96;
+  --legend-flagged: var(--color-warning);
+  --legend-track: var(--color-info);
+  --legend-declared: var(--color-muted);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-3);
@@ -349,19 +370,17 @@ td input.cellInput {
   flex: none;
 }
 
-.swatchTree {
-  background: var(--legend-tree);
-}
-
 .swatchInterstitial {
+  border: 0;
   background: var(--legend-interstitial);
+  box-shadow: 0 0 0 1px var(--class-ring);
 }
 
-.swatchEmpty {
-  border-color: var(--legend-empty);
-}
-
+/* A tree with the verification ring. */
 .swatchFlagged {
+  width: 12px;
+  height: 12px;
+  background: var(--class-healthy);
   border-color: var(--legend-flagged);
 }
 

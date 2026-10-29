@@ -1,5 +1,5 @@
 import { contractsText as C } from "@/lib/i18n/messages/contracts";
-import ops from "@/components/operations/operations.module.css";
+import { Alert } from "@/components/ui/alert";
 
 // The outcome of "Belgeleri üret" (?belgeler=<created>-<failed>-<manual>).
 export function GenerateResult({ value }: { value: string | string[] | undefined }) {
@@ -18,9 +18,15 @@ export function GenerateResult({ value }: { value: string | string[] | undefined
         ? R.failed
         : R.partial(created, failed);
   return (
-    <p className={ops.notice} role="status" data-testid="contracts-generate-result">
-      {text}
-      {manual > 0 && ` ${R.manual(manual)}`}
-    </p>
+    <Alert
+      tone={failed === 0 ? "success" : "warning"}
+      role="status"
+      testId="contracts-generate-result"
+    >
+      <p>
+        {text}
+        {manual > 0 && ` ${R.manual(manual)}`}
+      </p>
+    </Alert>
   );
 }

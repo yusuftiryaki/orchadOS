@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import layout from "@/components/portal/page.module.css";
 import { ButtonLink } from "@/components/ui/button";
+import { Panel } from "@/components/ui/panel";
 import { formatKurus } from "@/lib/billing/money";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import type { CustomerSummary } from "@/lib/portal-billing/data";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { MembershipCard } from "./membership-card";
+import { NumberedTitle } from "./numbered-title";
 import styles from "./home.module.css";
 
 const H = P.home;
@@ -52,10 +54,15 @@ export function CustomerHome({
       key: `q-${quote.id}`,
       testId: "home-quote",
       title: H.quoteTitle,
-      body: H.quoteBody(
-        quote.number,
-        formatKurus(quote.total_kurus, quote.currency),
-        formatDate(quote.valid_until),
+      body: (
+        <NumberedTitle
+          text={H.quoteBody(
+            quote.number,
+            formatKurus(quote.total_kurus, quote.currency),
+            formatDate(quote.valid_until),
+          )}
+          number={quote.number}
+        />
       ),
       href: portalHref.quote(quote.id),
       action: H.quoteButton,
@@ -67,7 +74,7 @@ export function CustomerHome({
       key: `o-${order.id}`,
       testId: "home-order",
       title: H.orderTitle,
-      body: H.orderBody(order.number),
+      body: <NumberedTitle text={H.orderBody(order.number)} number={order.number} />,
       href: portalHref.order(order.id),
       action: H.orderButton,
       yours: true,
@@ -88,7 +95,9 @@ export function CustomerHome({
     tasks.push({
       key: `a-${application.id}`,
       title: H.reviewTitle,
-      body: H.reviewBody(application.number ?? ""),
+      body: (
+        <NumberedTitle text={H.reviewBody(application.number ?? "")} number={application.number} />
+      ),
       href: portalHref.application(application.id),
       action: H.reviewButton,
       yours: false,
@@ -115,8 +124,7 @@ export function CustomerHome({
     <div className={styles.top} data-has-parcels={hasParcels || undefined}>
       <div className={styles.main}>
         {tasks.length > 0 && (
-          <section className={layout.section} aria-labelledby="tasks-title">
-            <h2 id="tasks-title">{H.tasksTitle}</h2>
+          <Panel title={H.tasksTitle} plain id="tasks">
             <ul className={styles.tasks}>
               {tasks.map((task, i) => (
                 <li
@@ -124,7 +132,7 @@ export function CustomerHome({
                   className={task.yours ? styles.task : `${styles.task} ${styles.taskOurs}`}
                   data-testid={task.testId}
                 >
-                  <div className={layout.stack}>
+                  <div className={styles.taskText}>
                     <h3>{task.title}</h3>
                     <p>{task.body}</p>
                   </div>
@@ -137,14 +145,13 @@ export function CustomerHome({
                 </li>
               ))}
             </ul>
-          </section>
+          </Panel>
         )}
         {start}
         {children && tasks.length > 0 ? (
-          <section className={layout.section} aria-labelledby="gardens-title">
-            <h2 id="gardens-title">{H.gardensTitle}</h2>
+          <Panel title={H.gardensTitle} plain id="gardens">
             {children}
-          </section>
+          </Panel>
         ) : (
           children
         )}

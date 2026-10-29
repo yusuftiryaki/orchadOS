@@ -234,8 +234,11 @@ test.describe("office triangulation tool", () => {
     await page.addInitScript(COUNT_GL);
     const errors = collectErrors(page);
     await login(page, "ops@example.com", `/ofis/parsel/${PARCEL}`);
-    await page.getByRole("link", { name: "Envanter üçgenleme aracı" }).click();
-    await page.getByTestId("office-chooser").getByRole("button", { name: "Aracı aç" }).click();
+    await page.getByRole("link", { name: "Üçgenleme aracını aç" }).click();
+    await page
+      .getByTestId("office-chooser")
+      .getByRole("button", { name: "Üçgenleme aracını aç" })
+      .click();
     const map = page.getByTestId("office-map");
     await expect(map).toHaveAttribute("data-map-ready", "true", { timeout: 30_000 });
 
@@ -291,14 +294,14 @@ test.describe("office triangulation tool", () => {
 async function triangulateAndSave(page: Page, source: SourceKind) {
   test.setTimeout(240_000);
   await login(page, "ops@example.com", `/ofis/parsel/${PARCEL}`);
-  await page.getByRole("link", { name: "Envanter üçgenleme aracı" }).click();
+  await page.getByRole("link", { name: "Üçgenleme aracını aç" }).click();
 
   const chooser = page.getByTestId("office-chooser");
   await expect(chooser.getByLabel("Envanter oturumu")).toHaveValue(SESSION);
   // The storage set belongs to the session and is offered first.
   await expect(chooser.getByLabel("Panorama seti")).toHaveValue(SET_IDS.storage);
   await chooser.getByLabel("Panorama seti").selectOption(SET_IDS[source]);
-  await chooser.getByRole("button", { name: "Aracı aç" }).click();
+  await chooser.getByRole("button", { name: "Üçgenleme aracını aç" }).click();
 
   const map = page.getByTestId("office-map");
   await expect(map).toHaveAttribute("data-map-ready", "true", { timeout: 30_000 });

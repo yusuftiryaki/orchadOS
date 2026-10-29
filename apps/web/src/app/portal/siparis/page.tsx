@@ -6,6 +6,7 @@ import layout from "@/components/portal/page.module.css";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { panelClass } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import { formatKurus } from "@/lib/billing/money";
 import { formatDate } from "@/lib/i18n";
@@ -30,7 +31,7 @@ export default async function OrdersPage({
     searchParams,
   ]);
   return (
-    <main className={`${layout.page} ${s.doc}`}>
+    <main className={layout.page}>
       <PageHeader title={O.title} />
       <PortalResult params={params} />
       {orders.length === 0 ? (
@@ -45,7 +46,7 @@ export default async function OrdersPage({
           <p>{O.emptyBody}</p>
         </EmptyState>
       ) : (
-        <div className={layout.panel}>
+        <div className={panelClass}>
           <ul className={layout.rows} data-testid="order-list">
             {orders.map((o) => (
               <li key={o.id} data-order-id={o.id}>

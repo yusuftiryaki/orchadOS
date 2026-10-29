@@ -1137,22 +1137,6 @@ span.findingWhere {
 
 /* Header actions of the report: side by side even on a phone; printing is
    for a desktop. */
-.headerActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-@media (max-width: 479px) {
-  .headerActions {
-    width: 100%;
-  }
-
-  .headerActions > :global(.button) {
-    flex: 1 1 0;
-  }
-}
-
 @media (max-width: 719px) {
   .printButton {
     display: none;
@@ -1201,6 +1185,10 @@ span.findingWhere {
 
 .codeChip:hover {
   background: var(--color-surface-2);
+}
+
+.codeMore {
+  align-self: center;
 }
 
 /* The overview: score on the left, classes on the right on a desktop. */

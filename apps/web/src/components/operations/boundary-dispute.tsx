@@ -1,12 +1,14 @@
 import { closeDisputeAction, openDisputeAction } from "@/app/operasyon/legal-actions";
-import { statusTone } from "@/components/back-office/status-tone";
+import { statusTone } from "@/components/ui/status";
+import { Disclosure } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, cell } from "@/components/ui/table";
 import { formatDate, formatDateTime, t } from "@/lib/i18n";
 import type { DisputeStatus } from "@/lib/operations/legal";
 import { Field } from "./field";
-import { Panel } from "./ops-ui";
+import { Panel } from "@/components/ui/panel";
 import styles from "./operations.module.css";
 
 const T = t.legal.dispute;
@@ -39,7 +41,7 @@ export function BoundaryDispute({ parcelId, status }: { parcelId: string; status
         </>
       ) : (
         <>
-          <p className="muted">{T.none}</p>
+          <EmptyState compact headingLevel={3} title={T.none} />
           <form action={openDisputeAction} className={styles.form}>
             <input type="hidden" name="parcel_id" value={parcelId} />
             <Field label={T.note}>
@@ -54,8 +56,7 @@ export function BoundaryDispute({ parcelId, status }: { parcelId: string; status
         </>
       )}
       {status.history.length > 0 && (
-        <details className={styles.disclosure}>
-          <summary>{T.history}</summary>
+        <Disclosure title={T.history}>
           <Table>
             <thead>
               <tr>
@@ -76,7 +77,7 @@ export function BoundaryDispute({ parcelId, status }: { parcelId: string; status
               ))}
             </tbody>
           </Table>
-        </details>
+        </Disclosure>
       )}
     </Panel>
   );

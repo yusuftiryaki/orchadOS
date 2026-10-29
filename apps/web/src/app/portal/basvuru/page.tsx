@@ -6,6 +6,7 @@ import layout from "@/components/portal/page.module.css";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { panelClass } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
@@ -34,7 +35,7 @@ export default async function ApplicationsPage({
   const canStart = !primary || primary.garden_changes_enabled;
   const newButton = canStart && <ButtonLink href={portalHref.newApplication()}>{A.new}</ButtonLink>;
   return (
-    <main className={`${layout.page} ${s.doc}`}>
+    <main className={layout.page}>
       <PageHeader title={A.title} actions={applications.length > 0 && newButton} />
       <PortalResult params={params} />
       {applications.length === 0 ? (
@@ -42,7 +43,7 @@ export default async function ApplicationsPage({
           <p>{A.emptyBody}</p>
         </EmptyState>
       ) : (
-        <div className={layout.panel}>
+        <div className={panelClass}>
           <ul className={layout.rows} data-testid="application-list">
             {applications.map((a) => (
               <li key={a.id} data-application-id={a.id}>

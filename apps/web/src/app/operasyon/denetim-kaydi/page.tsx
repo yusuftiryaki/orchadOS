@@ -1,6 +1,7 @@
 import { AuditTable } from "@/components/back-office/audit-table";
 import { Field } from "@/components/operations/field";
-import { Pagination, pageOf, Toolbar } from "@/components/operations/ops-ui";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Toolbar } from "@/components/ui/layout";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -84,7 +85,7 @@ export default async function Page({
         </Field>
         <div className={styles.filterActions}>
           <Button type="submit" variant="secondary">
-            {B.filter}
+            {B.apply}
           </Button>
           {filtered && (
             <ButtonLink variant="quiet" href={boHref.audit({ org: filterQuery.org })}>

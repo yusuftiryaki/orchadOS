@@ -1,8 +1,10 @@
 import { setKvkkStatusAction } from "@/app/operasyon/legal-actions";
 import { OrgPicker } from "@/components/back-office/parts";
-import { statusTone } from "@/components/back-office/status-tone";
+import { statusTone } from "@/components/ui/status";
 import { LegalNotice } from "@/components/operations/legal-notice";
-import { FilterTabs, opsCell, Pagination, pageOf, Toolbar } from "@/components/operations/ops-ui";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Toolbar } from "@/components/ui/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -104,7 +106,7 @@ export default async function Page({
                 <tbody>
                   {page.rows.map((r) => (
                     <tr key={r.id} data-request-id={r.id}>
-                      <td className={`${cell.num} ${opsCell.nowrap}`}>{formatDate(r.createdAt)}</td>
+                      <td className={`${cell.num} ${cell.nowrap}`}>{formatDate(r.createdAt)}</td>
                       <td>
                         <span className={styles.stack}>
                           <span>{r.applicantName ?? "—"}</span>
@@ -117,9 +119,9 @@ export default async function Page({
                       <td className={styles.message}>{r.message}</td>
                       <td className={cell.num}>
                         <span className={`${styles.stack} ${styles.end}`}>
-                          <span className={opsCell.nowrap}>{formatDate(r.dueAt)}</span>
+                          <span className={cell.nowrap}>{formatDate(r.dueAt)}</span>
                           {r.settledAt ? (
-                            <span className={`${styles.secondary} ${opsCell.nowrap}`}>
+                            <span className={`${styles.secondary} ${cell.nowrap}`}>
                               {O.settledOn(formatDate(r.settledAt))}
                             </span>
                           ) : r.overdue ? (
@@ -127,7 +129,7 @@ export default async function Page({
                               {O.overdue}
                             </Badge>
                           ) : (
-                            <span className={`${styles.secondary} ${opsCell.nowrap}`}>
+                            <span className={`${styles.secondary} ${cell.nowrap}`}>
                               {O.left(daysLeft(r.dueAt, now))}
                             </span>
                           )}
@@ -136,7 +138,7 @@ export default async function Page({
                       <td>
                         {r.settledAt ? (
                           <span className={styles.stack}>
-                            <Badge tone={statusTone(r.status)} testId="kvkk-final">
+                            <Badge tone={statusTone(r.status, "kvkk")} testId="kvkk-final">
                               {T.status[r.status]}
                             </Badge>
                             <span className={styles.secondary}>{O.final}</span>

@@ -7,6 +7,7 @@ import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { ButtonLink } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
+import { Panel } from "@/components/ui/panel";
 import { formatNumber } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import type { Position } from "@/lib/map/geo";
@@ -86,8 +87,7 @@ export function GardenForm({
       <input type="hidden" name="application_id" value={applicationId} />
       {gardenId && <input type="hidden" name="garden_id" value={gardenId} />}
 
-      <section className={layout.panel}>
-        <h2>{G.general}</h2>
+      <Panel title={G.general}>
         <div className={s.grid}>
           <Field
             id="f-name"
@@ -132,11 +132,9 @@ export function GardenForm({
             />
           </Field>
         </div>
-      </section>
+      </Panel>
 
-      <section className={layout.panel}>
-        <h2>{G.mapSection}</h2>
-        <p className={layout.sectionLead}>{G.mapLead}</p>
+      <Panel title={G.mapSection} description={G.mapLead}>
         <div className={s.toolbar}>
           <div role="group" aria-label={G.mapSection} className={s.modes}>
             {(["position", "boundary"] as const).map((m) => (
@@ -184,7 +182,7 @@ export function GardenForm({
         <input type="hidden" name="lon" value={position ? String(position[0]) : ""} />
         <input type="hidden" name="lat" value={position ? String(position[1]) : ""} />
         <input type="hidden" name="boundary" value={ring.length > 0 ? JSON.stringify(ring) : ""} />
-        <div className={layout.stack}>
+        <div className={s.formTight}>
           <p data-testid="position-state" className={position ? undefined : layout.muted}>
             {position ? G.positionSet : G.positionMissing}
           </p>
@@ -207,11 +205,9 @@ export function GardenForm({
             {G.boundaryCaption}
           </p>
         </div>
-      </section>
+      </Panel>
 
-      <section className={layout.panel}>
-        <h2>{G.legal}</h2>
-        <p className={`${layout.muted} ${layout.small}`}>{G.privacy}</p>
+      <Panel title={G.legal} description={G.privacy}>
         <div className={s.grid}>
           <Field
             id="f-authorization_basis"
@@ -262,10 +258,9 @@ export function GardenForm({
             <Input name="used_portion_note" defaultValue={v("used_portion_note")} />
           </Field>
         </div>
-      </section>
+      </Panel>
 
-      <section className={layout.panel}>
-        <h2>{G.access}</h2>
+      <Panel title={G.access}>
         <div className={s.grid}>
           <Field
             id="f-access_note"
@@ -316,7 +311,7 @@ export function GardenForm({
             {err("entry_permission")}
           </p>
         )}
-      </section>
+      </Panel>
 
       {state.error && (
         <Alert tone="danger" role="alert">

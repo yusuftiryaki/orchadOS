@@ -6,12 +6,15 @@ import {
   saveDraftAction,
 } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
+import { Badges } from "@/components/back-office/money-ui";
 import { Badge, BoResultNotice, Facts, day, money, when } from "@/components/back-office/parts";
 import { Field } from "@/components/operations/field";
 import styles from "@/components/operations/operations.module.css";
-import { opsCell, Panel, Split } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
+import { Split } from "@/components/ui/layout";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Consequence, Disclosure } from "@/components/ui/disclosure";
 import { Checkbox } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, cell } from "@/components/ui/table";
@@ -98,10 +101,10 @@ export default async function Page({
                       <tr key={p.id} data-package-code={p.code}>
                         <td>
                           <input type="hidden" name="package_ids" value={p.id} />
-                          <span className={prices.badges}>
-                            <span className={opsCell.nowrap}>{p.name}</span>
+                          <Badges>
+                            <span className={cell.nowrap}>{p.name}</span>
                             {!p.active && <UiBadge>{T.passive}</UiBadge>}
-                          </span>
+                          </Badges>
                         </td>
                         <td className={cell.num}>
                           <input
@@ -144,10 +147,10 @@ export default async function Page({
           </Panel>
           <div className={prices.finish}>
             <Panel title={T.publishTitle} testId="publish-panel">
-              <p className={prices.consequence}>
+              <Consequence>
                 {l.valid_from ? T.publishFrom(day(l.valid_from)) : T.publishNoDate}
-              </p>
-              <p className={prices.consequence}>{T.publishConsequence}</p>
+              </Consequence>
+              <Consequence>{T.publishConsequence}</Consequence>
               <ActionForm action={publishDraftAction} testId="publish-form">
                 <input type="hidden" name="price_list_id" value={l.id} />
                 <Checkbox id="publish-confirm" name="confirm" required label={T.publishConfirm} />
@@ -156,8 +159,8 @@ export default async function Page({
                 </div>
               </ActionForm>
             </Panel>
-            <Panel title={T.deleteDraft} headingLevel={2}>
-              <p className={prices.consequence}>{T.deleteConsequence}</p>
+            <Disclosure title={T.deleteDraft}>
+              <Consequence>{T.deleteConsequence}</Consequence>
               <ActionForm action={deleteDraftAction} testId="delete-draft-form">
                 <input type="hidden" name="price_list_id" value={l.id} />
                 <input type="hidden" name="org_id" value={l.org_id} />
@@ -167,7 +170,7 @@ export default async function Page({
                   </Button>
                 </div>
               </ActionForm>
-            </Panel>
+            </Disclosure>
           </div>
         </>
       ) : (
@@ -175,7 +178,7 @@ export default async function Page({
           <Split
             aside={
               <Panel title={T.newVersion}>
-                <p className={prices.consequence}>{T.copyHint}</p>
+                <Consequence>{T.copyHint}</Consequence>
                 <ActionForm action={createDraftAction} inline testId="copy-to-draft">
                   <input type="hidden" name="org_id" value={l.org_id} />
                   <input type="hidden" name="copy_from_id" value={l.id} />
@@ -211,14 +214,10 @@ export default async function Page({
                   const p = packages.find((x) => x.id === i.package_id);
                   return (
                     <tr key={i.id}>
-                      <td className={opsCell.nowrap}>{p?.name ?? T.packageMissing}</td>
-                      <td className={`${cell.num} ${opsCell.nowrap}`}>
-                        {money(i.unit_price_kurus)}
-                      </td>
-                      <td className={`${cell.num} ${opsCell.nowrap}`}>
-                        {money(i.minimum_fee_kurus)}
-                      </td>
-                      <td className={`${cell.num} ${opsCell.nowrap}`}>
+                      <td className={cell.nowrap}>{p?.name ?? T.packageMissing}</td>
+                      <td className={`${cell.num} ${cell.nowrap}`}>{money(i.unit_price_kurus)}</td>
+                      <td className={`${cell.num} ${cell.nowrap}`}>{money(i.minimum_fee_kurus)}</td>
+                      <td className={`${cell.num} ${cell.nowrap}`}>
                         {money(i.inventory_fee_kurus)}
                       </td>
                     </tr>

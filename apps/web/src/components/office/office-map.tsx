@@ -9,6 +9,7 @@ import { t } from "@/lib/i18n";
 import { ringOutline } from "@/lib/map/features";
 import { boundsOf, type Position } from "@/lib/map/geo";
 import { syncSelection } from "@/lib/map/selection";
+import { MAP_COLORS, MARKER_COLORS } from "@/lib/map/tree-style";
 import type { LatLon } from "@/lib/office/local-frame";
 import styles from "./office-tool.module.css";
 
@@ -135,19 +136,19 @@ export function OfficeMap({
           id: "boundary-line",
           type: "line",
           source: "boundary",
-          paint: { "line-color": "#4f7a28", "line-width": 2 },
+          paint: { "line-color": MAP_COLORS.accent, "line-width": 2 },
         });
         m.addLayer({
           id: "rows",
           type: "line",
           source: "rows",
-          paint: { "line-color": "#868e96", "line-width": 1, "line-dasharray": [2, 2] },
+          paint: { "line-color": MAP_COLORS.muted, "line-width": 1, "line-dasharray": [2, 2] },
         });
         m.addLayer({
           id: "rays",
           type: "line",
           source: "rays",
-          paint: { "line-color": "#e8590c", "line-width": 2 },
+          paint: { "line-color": MAP_COLORS.highlight, "line-width": 2 },
         });
         m.addLayer({
           id: "panoramas",
@@ -155,8 +156,9 @@ export function OfficeMap({
           source: "panoramas",
           paint: {
             "circle-radius": ["case", ["get", "active"], 6, 3.5],
-            "circle-color": ["case", ["get", "active"], "#1971c2", "#74c0fc"],
-            "circle-stroke-color": "#ffffff",
+            "circle-color": MAP_COLORS.info,
+            "circle-opacity": ["case", ["get", "active"], 1, 0.45],
+            "circle-stroke-color": MAP_COLORS.surface,
             "circle-stroke-width": 1,
           },
         });
@@ -166,9 +168,9 @@ export function OfficeMap({
           source: "empty",
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 16, 3, 20, 8],
-            "circle-color": "rgba(0,0,0,0)",
-            "circle-stroke-color": "#c92a2a",
-            "circle-stroke-width": 2,
+            "circle-color": MARKER_COLORS.empty,
+            "circle-stroke-color": MAP_COLORS.emptyRing,
+            "circle-stroke-width": 1.5,
           },
         });
         m.addLayer({
@@ -177,17 +179,21 @@ export function OfficeMap({
           source: "trees",
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 16, 3, 20, 8],
-            "circle-color": ["case", ["get", "flagged"], "#f08c00", "#2b8a3e"],
+            "circle-color": MARKER_COLORS.healthy,
             "circle-stroke-color": [
               "case",
               ["boolean", ["feature-state", "selected"], false],
-              "#000000",
-              "#ffffff",
+              MAP_COLORS.highlight,
+              ["get", "flagged"],
+              MAP_COLORS.warning,
+              MAP_COLORS.ring,
             ],
             "circle-stroke-width": [
               "case",
               ["boolean", ["feature-state", "selected"], false],
               3,
+              ["get", "flagged"],
+              2,
               1,
             ],
           },
@@ -198,8 +204,8 @@ export function OfficeMap({
           source: "candidate",
           paint: {
             "circle-radius": 6,
-            "circle-color": "rgba(0,0,0,0)",
-            "circle-stroke-color": "#e8590c",
+            "circle-color": "transparent",
+            "circle-stroke-color": MAP_COLORS.highlight,
             "circle-stroke-width": 3,
           },
         });

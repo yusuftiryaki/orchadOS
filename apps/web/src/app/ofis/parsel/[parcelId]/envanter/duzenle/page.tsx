@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { InventoryWorkspaceView } from "@/components/office/inventory-workspace";
 import styles from "@/components/office/inventory.module.css";
+import staff from "@/components/staff-page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -46,7 +47,7 @@ export default async function Page({
 
   if (ws.slots.length === 0) {
     return (
-      <main className={styles.page}>
+      <main className={`${staff.wide} ${styles.page}`}>
         <PageHeader back={back} title={o.title} />
         <EmptyState
           title={o.noInventoryTitle}
@@ -67,7 +68,7 @@ export default async function Page({
   const tab = typeof query.sekme === "string" ? query.sekme : "";
   const approvedAt = ws.approved ? (ws.inventorySession?.publishedAt ?? null) : null;
   return (
-    <main className={styles.page}>
+    <main className={`${staff.wide} ${styles.page}`}>
       <PageHeader back={back} title={o.title} lead={o.lead} />
       {approvedAt && (
         <Alert tone="success" testId="inventory-approved">

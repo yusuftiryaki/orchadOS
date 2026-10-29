@@ -4,10 +4,10 @@ import { useState, useTransition } from "react";
 import { formatDate, t } from "@/lib/i18n";
 import type { EditResult } from "@/lib/office/inventory-edits";
 import type { WorkspaceItem, WorkspaceTour } from "@/lib/office/inventory-workspace";
-import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { statusTone } from "@/components/ui/status";
 import { cell, Table } from "@/components/ui/table";
-import type { Database } from "@/lib/database.types";
 import styles from "./inventory.module.css";
 
 // Verification tours of a parcel and their items. Until the field app has the
@@ -16,21 +16,6 @@ import styles from "./inventory.module.css";
 // close items too.
 
 const v = t.inventory.verification;
-
-// Open items wait on someone (warning); a checked item is done (success); a
-// closed one was settled without a visit (neutral).
-const ITEM_TONE: Record<WorkspaceItem["status"], BadgeTone> = {
-  open: "warning",
-  checked: "success",
-  closed: "neutral",
-};
-const SESSION_TONE: Partial<Record<Database["public"]["Enums"]["session_status"], BadgeTone>> = {
-  planned: "warning",
-  captured: "info",
-  processed: "info",
-  in_review: "info",
-  published: "success",
-};
 
 export function VerificationTours({
   tours,
@@ -61,7 +46,7 @@ export function VerificationTours({
           >
             <div className={styles.tourHead}>
               <h3>{v.tourTitle(formatDate(tour.plannedDate ?? tour.createdAt))}</h3>
-              <Badge tone={SESSION_TONE[tour.status] ?? "neutral"}>
+              <Badge tone={statusTone(tour.status, "visit")}>
                 {t.office.sessionStatus[tour.status]}
               </Badge>
               <span className={styles.status} data-testid="tour-progress">
@@ -139,7 +124,7 @@ function ItemRow({
       </td>
       <td>{item.note ?? ""}</td>
       <td>
-        <Badge tone={ITEM_TONE[item.status]}>{t.inventory.itemStatus[item.status]}</Badge>
+        <Badge tone={statusTone(item.status)}>{t.inventory.itemStatus[item.status]}</Badge>
       </td>
       <td>
         {item.status !== "open" && (

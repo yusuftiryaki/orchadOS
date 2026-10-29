@@ -49,7 +49,7 @@ test("bulk approval, publication, score and a question with its answer", async (
   // Queue -> open.
   const row = expert.locator(`[data-session-id="${run.session}"]`);
   await expect(row).toContainText(T.parcelName);
-  await row.getByRole("button", { name: "Aç" }).click();
+  await row.getByRole("button", { name: "İncele" }).click();
   await expect(expert).toHaveURL(`/uzman/ziyaret/${run.session}`);
 
   // Mandatory rules are shown per tree.

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { removeAllGardensAction } from "@/app/operasyon/back-office-actions";
 import { Field } from "@/components/operations/field";
-import { Panel, opsCell } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
 import styles from "@/components/operations/operations.module.css";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { Consequence, Disclosure } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Table, cell } from "@/components/ui/table";
 import { addonBase, type CustomerAccount, type Membership } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
@@ -14,7 +16,6 @@ import { billingText } from "@/lib/i18n/messages/billing";
 import { ActionForm } from "./action-form";
 import { CustomerGardens, MembershipPanel } from "./membership";
 import { Badge, Facts, day, money, when } from "./parts";
-import local from "./customer-account.module.css";
 import { RevealIdentity } from "./reveal-identity";
 
 const B = backOfficeText;
@@ -62,7 +63,7 @@ export function CustomerAccountPanel({
 
       <Panel title={T.billingProfile}>
         {!p ? (
-          <p className="muted">{T.noBillingProfile}</p>
+          <EmptyState compact headingLevel={3} title={T.noBillingProfile} />
         ) : (
           <Facts
             testId="billing-profile"
@@ -101,7 +102,7 @@ export function CustomerAccountPanel({
 
       <Panel plain title={T.consents}>
         {account.consents.length === 0 ? (
-          <p className="muted">{T.noConsents}</p>
+          <EmptyState compact headingLevel={3} title={T.noConsents} />
         ) : (
           <Table data-testid="consent-history">
             <thead>
@@ -116,7 +117,7 @@ export function CustomerAccountPanel({
             <tbody>
               {account.consents.map((c) => (
                 <tr key={c.id}>
-                  <td className={`${cell.num} ${opsCell.nowrap}`}>{when(c.recorded_at)}</td>
+                  <td className={`${cell.num} ${cell.nowrap}`}>{when(c.recorded_at)}</td>
                   <td>
                     {billingText.consentKind[c.kind as keyof typeof billingText.consentKind] ??
                       c.kind}
@@ -126,7 +127,7 @@ export function CustomerAccountPanel({
                       {c.granted ? T.granted : T.withdrawn}
                     </UiBadge>
                   </td>
-                  <td className={opsCell.nowrap}>{c.text_version}</td>
+                  <td className={cell.nowrap}>{c.text_version}</td>
                   <td>
                     {billingText.consentSource[
                       c.source as keyof typeof billingText.consentSource
@@ -141,7 +142,7 @@ export function CustomerAccountPanel({
 
       <Panel plain title={T.applications}>
         {account.applications.length === 0 ? (
-          <p className="muted">{T.none}</p>
+          <EmptyState compact headingLevel={3} title={T.noApplications} />
         ) : (
           <Table>
             <thead>
@@ -154,13 +155,13 @@ export function CustomerAccountPanel({
             <tbody>
               {account.applications.map((a) => (
                 <tr key={a.id}>
-                  <td className={`${cell.code} ${opsCell.nowrap}`}>
+                  <td className={`${cell.code} ${cell.nowrap}`}>
                     <Link href={boHref.application(a.id)}>{a.number ?? a.id.slice(0, 8)}</Link>
                   </td>
                   <td>
                     <Badge labels={billingText.applicationStatus} value={a.status} />
                   </td>
-                  <td className={`${cell.num} ${opsCell.nowrap}`}>{day(a.submitted_at)}</td>
+                  <td className={`${cell.num} ${cell.nowrap}`}>{day(a.submitted_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -170,7 +171,7 @@ export function CustomerAccountPanel({
 
       <Panel plain title={T.orders}>
         {account.orders.length === 0 ? (
-          <p className="muted">{T.none}</p>
+          <EmptyState compact headingLevel={3} title={T.noOrders} />
         ) : (
           <Table data-testid="customer-orders">
             <thead>
@@ -184,14 +185,14 @@ export function CustomerAccountPanel({
             <tbody>
               {account.orders.map((o) => (
                 <tr key={o.id}>
-                  <td className={`${cell.code} ${opsCell.nowrap}`}>
+                  <td className={`${cell.code} ${cell.nowrap}`}>
                     <Link href={boHref.order(o.id)}>{o.number}</Link>
                   </td>
                   <td>
-                    <Badge labels={billingText.orderStatus} value={o.status} />
+                    <Badge labels={billingText.orderStatus} value={o.status} kind="order" />
                   </td>
-                  <td className={`${cell.num} ${opsCell.nowrap}`}>{money(o.paid_kurus)}</td>
-                  <td className={`${cell.num} ${opsCell.nowrap}`}>{money(o.total_kurus)}</td>
+                  <td className={`${cell.num} ${cell.nowrap}`}>{money(o.paid_kurus)}</td>
+                  <td className={`${cell.num} ${cell.nowrap}`}>{money(o.total_kurus)}</td>
                 </tr>
               ))}
             </tbody>
@@ -201,7 +202,7 @@ export function CustomerAccountPanel({
 
       <Panel plain title={T.payments}>
         {account.payments.length === 0 ? (
-          <p className="muted">{T.none}</p>
+          <EmptyState compact headingLevel={3} title={T.noPayments} />
         ) : (
           <Table>
             <thead>
@@ -215,7 +216,7 @@ export function CustomerAccountPanel({
             <tbody>
               {account.payments.map((x) => (
                 <tr key={x.id}>
-                  <td className={`${cell.code} ${opsCell.nowrap}`}>
+                  <td className={`${cell.code} ${cell.nowrap}`}>
                     <Link href={boHref.payment(x.id)}>{x.receipt_number ?? x.id.slice(0, 8)}</Link>
                   </td>
                   <td>
@@ -228,7 +229,7 @@ export function CustomerAccountPanel({
                   <td>
                     <Badge labels={billingText.paymentStatus} value={x.status} />
                   </td>
-                  <td className={`${cell.num} ${opsCell.nowrap}`}>{money(x.amount_kurus)}</td>
+                  <td className={`${cell.num} ${cell.nowrap}`}>{money(x.amount_kurus)}</td>
                 </tr>
               ))}
             </tbody>
@@ -260,54 +261,52 @@ export function RemoveAllGardens({
   );
   if (removable.length === 0) return null;
   return (
-    <Panel title={M.removeAll} description={M.removeAllHint} testId="remove-all-gardens">
-      <details className={local.disclosure}>
-        <summary>{T.removeAllOpen}</summary>
-        <ActionForm action={removeAllGardensAction} testId="remove-all-form">
-          <input type="hidden" name="org_id" value={orgId} />
-          <input type="hidden" name="user_id" value={userId} />
-          <input type="hidden" name="setting_access_days" value={settingAccessDays} />
-          <Field label={B.fields.reason} hint={B.removal.reasonHint}>
-            <select name="reason" defaultValue="" required>
-              <option value="" disabled>
-                —
+    <Disclosure title={M.removeAll} testId="remove-all-gardens">
+      <Consequence>{M.removeAllHint}</Consequence>
+      <ActionForm action={removeAllGardensAction} testId="remove-all-form">
+        <input type="hidden" name="org_id" value={orgId} />
+        <input type="hidden" name="user_id" value={userId} />
+        <input type="hidden" name="setting_access_days" value={settingAccessDays} />
+        <Field label={B.fields.reason} hint={B.removal.reasonHint}>
+          <select name="reason" defaultValue="" required>
+            <option value="" disabled>
+              —
+            </option>
+            {OPS_REMOVAL_REASONS.map((r) => (
+              <option key={r} value={r}>
+                {billingText.gardenRemovalReason[r]}
               </option>
-              {OPS_REMOVAL_REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {billingText.gardenRemovalReason[r]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={B.fields.owner_consent_note} hint={B.removal.consentHint} optional>
-            <textarea name="owner_consent_note" maxLength={2000} rows={2} />
-          </Field>
-          <Field label={B.fields.effective_on}>
-            <input type="date" name="effective_on" min={today} required />
-          </Field>
-          <Field
-            label={B.fields.access_days}
-            hint={B.removal.accessDaysHint(settingAccessDays)}
-            optional
-          >
-            <input
-              name="access_days"
-              type="number"
-              min={0}
-              max={365}
-              placeholder={String(settingAccessDays)}
-            />
-          </Field>
-          <Field label={B.internalNote} optional>
-            <textarea name="note" maxLength={2000} rows={2} />
-          </Field>
-          <div className={styles.actions}>
-            <Button variant="danger" type="submit">
-              {M.removeAllSubmit}
-            </Button>
-          </div>
-        </ActionForm>
-      </details>
-    </Panel>
+            ))}
+          </select>
+        </Field>
+        <Field label={B.fields.owner_consent_note} hint={B.removal.consentHint} optional>
+          <textarea name="owner_consent_note" maxLength={2000} rows={2} />
+        </Field>
+        <Field label={B.fields.effective_on}>
+          <input type="date" name="effective_on" min={today} required />
+        </Field>
+        <Field
+          label={B.fields.access_days}
+          hint={B.removal.accessDaysHint(settingAccessDays)}
+          optional
+        >
+          <input
+            name="access_days"
+            type="number"
+            min={0}
+            max={365}
+            placeholder={String(settingAccessDays)}
+          />
+        </Field>
+        <Field label={B.internalNote} optional>
+          <textarea name="note" maxLength={2000} rows={2} />
+        </Field>
+        <div className={styles.actions}>
+          <Button variant="danger" type="submit">
+            {M.removeAllSubmit}
+          </Button>
+        </div>
+      </ActionForm>
+    </Disclosure>
   );
 }

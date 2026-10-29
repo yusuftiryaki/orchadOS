@@ -7,15 +7,17 @@ import mapStyles from "@/components/map/map.module.css";
 import { useMapLibre } from "@/components/map/use-maplibre";
 import { drawRingData, closeRing, paddedBounds, pointData } from "@/lib/map/features";
 import type { Position } from "@/lib/map/geo";
+import { MAP_COLORS } from "@/lib/map/tree-style";
 import { t } from "@/lib/i18n";
 import { moveVertex, roundPosition } from "@/lib/operations/geometry";
 import styles from "./operations.module.css";
 
 export type DrawMode = "boundary" | "position";
 
-const ACCENT = "#4f7a28";
-const POSITION = "#c92a2a";
-const SELECTED = "#e8590c";
+const ACCENT = MAP_COLORS.accent;
+// The marked location: a dark dot, apart from the corners and the classes.
+const POSITION = MAP_COLORS.ink;
+const SELECTED = MAP_COLORS.highlight;
 const VERTEX_LAYER = "draw-vertices";
 // Pixels around the pointer that still hit a vertex (a finger is not a pixel).
 const HIT_PX = 12;
@@ -99,7 +101,7 @@ export function BoundaryDrawMap({
             id: "draw-context-line",
             type: "line",
             source: "draw-context",
-            paint: { "line-color": "#5f6b5f", "line-width": 1.5, "line-dasharray": [2, 2] },
+            paint: { "line-color": MAP_COLORS.muted, "line-width": 1.5, "line-dasharray": [2, 2] },
           });
         }
         const now = latest.current;
@@ -124,8 +126,8 @@ export function BoundaryDrawMap({
           source: "draw-ring",
           filter: ["==", ["geometry-type"], "Point"],
           paint: {
-            "circle-color": ["case", ["get", "selected"], SELECTED, "#ffffff"],
-            "circle-stroke-color": ["case", ["get", "selected"], "#ffffff", ACCENT],
+            "circle-color": ["case", ["get", "selected"], SELECTED, MAP_COLORS.surface],
+            "circle-stroke-color": ["case", ["get", "selected"], MAP_COLORS.surface, ACCENT],
             "circle-stroke-width": 2,
             "circle-radius": ["case", ["get", "selected"], 8, 6],
           },
@@ -137,7 +139,7 @@ export function BoundaryDrawMap({
           source: "draw-position",
           paint: {
             "circle-color": POSITION,
-            "circle-stroke-color": "#ffffff",
+            "circle-stroke-color": MAP_COLORS.surface,
             "circle-stroke-width": 2,
             "circle-radius": 7,
           },

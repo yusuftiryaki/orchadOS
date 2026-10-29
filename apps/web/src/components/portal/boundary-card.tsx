@@ -9,6 +9,7 @@ import { demoText } from "@/lib/i18n/messages/demo";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import { m2ToDonum } from "@/lib/office/boundary";
 import { BOUNDARY_DECLARATION, type BoundaryCard } from "@/lib/portal/boundary";
+import { Panel } from "@/components/ui/panel";
 import { BoundaryNotice, MapBoundaryCaption } from "./boundary-notice";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -48,8 +49,7 @@ export function BoundaryCardView({
   const latest = card.latest;
 
   return (
-    <div className={layout.panel} data-testid="boundary-card">
-      <h3>{p.boundaryTitle}</h3>
+    <Panel title={p.boundaryTitle} headingLevel={3} testId="boundary-card">
       {card.disputeOpen && (
         <Alert tone="warning" role="status" testId="boundary-dispute">
           <p>{t.legal.dispute.portalNotice}</p>
@@ -147,6 +147,6 @@ export function BoundaryCardView({
           ) : null}
         </>
       )}
-    </div>
+    </Panel>
   );
 }

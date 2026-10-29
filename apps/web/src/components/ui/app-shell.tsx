@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { LogoMark } from "@/components/brand/logo";
 import { t } from "@/lib/i18n";
 import styles from "./app-shell.module.css";
+import { CurrentIntoView } from "./current-into-view";
 
 export interface NavItem {
   href: string;
@@ -40,7 +41,7 @@ export function AppShell({
             <span>{t.app.name}</span>
           </Link>
           {nav.length > 0 && (
-            <nav aria-label={navLabel} className={styles.nav}>
+            <CurrentIntoView label={navLabel} className={styles.nav}>
               {nav.map((item) => (
                 <Link
                   key={item.href}
@@ -51,7 +52,7 @@ export function AppShell({
                   {item.label}
                 </Link>
               ))}
-            </nav>
+            </CurrentIntoView>
           )}
           {account && <div className={styles.account}>{account}</div>}
         </div>

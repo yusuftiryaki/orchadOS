@@ -114,7 +114,7 @@ describe("garden states", () => {
       ),
     ).toBe(`Çıkış tarihi: ${formatDate("2026-12-12")}`);
     expect(gardenBadge(garden({ state: "removed", access_until: "2027-03-10" }))).toBe(
-      `Hizmet dışı · raporlar şu tarihe kadar açık: ${formatDate("2027-03-10")}`,
+      `Hizmet dışı, raporlar şu tarihe kadar açık: ${formatDate("2027-03-10")}`,
     );
     expect(gardenBadge(garden({ state: "upcoming", service_start: "2027-11-01" }))).toBe(
       `Sonraki dönemde başlıyor: ${formatDate("2027-11-01")}`,

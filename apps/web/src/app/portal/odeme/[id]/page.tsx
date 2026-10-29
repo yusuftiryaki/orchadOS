@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { FactRow } from "@/components/portal-billing/fact-row";
 import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { PortalResult } from "@/components/portal-billing/result-notice";
-import { StatusBadge, statusTone } from "@/components/portal-billing/status-badge";
+import { StatusBadge } from "@/components/portal-billing/status-badge";
+import { statusTone } from "@/components/ui/status";
 import s from "@/components/portal-billing/billing.module.css";
 import layout from "@/components/portal/page.module.css";
 import { Alert, type AlertTone } from "@/components/ui/alert";
 import { buttonClass, ButtonLink } from "@/components/ui/button";
+import { Facts, factsClass } from "@/components/ui/facts";
 import { PageHeader } from "@/components/ui/page-header";
+import { Panel, panelClass } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import { installmentLabel } from "@/lib/billing/installments";
 import { formatKurus } from "@/lib/billing/money";
@@ -43,12 +47,16 @@ export default async function PaymentPage({
   const waiting = WAITING.has(payment.status);
   const failed = payment.status === "failed" || payment.status === "expired";
   const currency = payment.currency;
-  const tone = statusTone("payment", payment.status);
+  const tone = statusTone(payment.status, "payment");
   const retry =
     failed && order && (order.status === "awaiting_payment" || order.status === "active");
 
   return (
-    <main className={`${layout.page} ${s.doc}`} data-testid="payment" data-status={payment.status}>
+    <main
+      className={`${layout.page} ${layout.reading}`}
+      data-testid="payment"
+      data-status={payment.status}
+    >
       {waiting && <meta httpEquiv="refresh" content="10" />}
       <PageHeader
         title={
@@ -89,7 +97,7 @@ export default async function PaymentPage({
         </div>
       )}
 
-      <section className={layout.panel} aria-labelledby="payment-facts">
+      <section className={panelClass} aria-labelledby="payment-facts">
         <h2 id="payment-facts" className="sr-only">
           {T.title}
         </h2>
@@ -99,83 +107,56 @@ export default async function PaymentPage({
             {formatKurus(payment.amount_kurus, currency)}
           </p>
         </div>
-        <dl className={`${layout.facts} ${s.factsFlex}`}>
+        <dl className={factsClass.list}>
           {order && (
-            <>
-              <dt>{T.order}</dt>
-              <dd>
-                <Link href={portalHref.order(order.id)} className={s.nowrap}>
-                  {order.number}
-                </Link>
-              </dd>
-            </>
+            <FactRow label={T.order}>
+              <Link href={portalHref.order(order.id)} className={s.nowrap}>
+                {order.number}
+              </Link>
+            </FactRow>
           )}
           {planInstallment && (
-            <>
-              <dt>{T.planInstallment}</dt>
-              <dd data-testid="payment-installment">
-                {T.planInstallmentText(
-                  planInstallment.row.seq,
-                  planInstallment.count,
-                  installmentLabel(planInstallment.row),
-                )}
-              </dd>
-            </>
+            <FactRow label={T.planInstallment} testId="payment-installment">
+              {T.planInstallmentText(
+                planInstallment.row.seq,
+                planInstallment.count,
+                installmentLabel(planInstallment.row),
+              )}
+            </FactRow>
           )}
-          <dt>{T.method}</dt>
-          <dd>{billingText.paymentProvider[payment.provider]}</dd>
-          <dt>{T.date}</dt>
-          <dd>
+          <FactRow label={T.method}>{billingText.paymentProvider[payment.provider]}</FactRow>
+          <FactRow label={T.date}>
             {formatDateTime(payment.succeeded_at ?? payment.initiated_at ?? payment.created_at)}
-          </dd>
+          </FactRow>
           {(payment.card_association || payment.card_last4) && (
-            <>
-              <dt>{T.card}</dt>
-              <dd>{T.cardText(payment.card_association, payment.card_last4)}</dd>
-            </>
+            <FactRow label={T.card}>
+              {T.cardText(payment.card_association, payment.card_last4)}
+            </FactRow>
           )}
           {payment.installment != null && payment.installment > 1 && (
-            <>
-              <dt>{T.installment}</dt>
-              <dd>{payment.installment}</dd>
-            </>
+            <FactRow label={T.installment}>{payment.installment}</FactRow>
           )}
           {payment.bank_reference && (
-            <>
-              <dt>{T.bankReference}</dt>
-              <dd>{payment.bank_reference}</dd>
-            </>
+            <FactRow label={T.bankReference}>{payment.bank_reference}</FactRow>
           )}
           {payment.value_date && (
-            <>
-              <dt>{T.valueDate}</dt>
-              <dd>{formatDate(payment.value_date)}</dd>
-            </>
+            <FactRow label={T.valueDate}>{formatDate(payment.value_date)}</FactRow>
           )}
         </dl>
       </section>
 
       {items.length > 0 && (
-        <section className={layout.section}>
-          <h2>{T.itemsTitle}</h2>
-          <div className={layout.panel}>
-            <dl className={layout.facts}>
-              {items.map((item) => (
-                <Fact
-                  key={item.id}
-                  label={item.name}
-                  value={formatKurus(item.amount_kurus, currency)}
-                />
-              ))}
-            </dl>
-          </div>
-        </section>
+        <Panel title={T.itemsTitle}>
+          <Facts
+            variant="summary"
+            rows={items.map((item) => [item.name, formatKurus(item.amount_kurus, currency)])}
+          />
+        </Panel>
       )}
 
       {refunds.length > 0 && (
-        <section className={layout.section}>
-          <h2>{T.refunds}</h2>
-          <div className={layout.panel}>
+        <Panel title={T.refunds}>
+          <div>
             <ul className={layout.rows}>
               {refunds.map((r) => (
                 <li key={r.id}>
@@ -191,17 +172,8 @@ export default async function PaymentPage({
               ))}
             </ul>
           </div>
-        </section>
+        </Panel>
       )}
     </main>
-  );
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </>
   );
 }

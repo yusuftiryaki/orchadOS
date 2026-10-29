@@ -14,11 +14,13 @@ import type { RemovalPreview, WithdrawalNotice } from "@/lib/portal-billing/data
 import { gardenBadge, openRemoval, removalChoices } from "@/lib/portal-billing/gardens";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { REMOVAL_REASONS } from "@/lib/portal-billing/validation";
-import { gardenTone, StatusBadge } from "@/components/portal-billing/status-badge";
+import { StatusBadge } from "@/components/portal-billing/status-badge";
+import { statusTone } from "@/components/ui/status";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Select, Textarea } from "@/components/ui/field";
+import { panelClass } from "@/components/ui/panel";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
 
@@ -64,12 +66,12 @@ export function ServiceCard({
     >
       <div className={layout.sectionHead}>
         <h2 id="hizmet-baslik">{R.title}</h2>
-        <Badge tone={gardenTone(garden.state)} testId="service-state">
+        <Badge tone={statusTone(garden.state, "garden")} testId="service-state">
           {gardenBadge(garden)}
         </Badge>
       </div>
       <PortalResult params={params} />
-      <div className={layout.panel}>
+      <div className={panelClass}>
         <div className={layout.stack}>
           <p>{R.period(formatDate(garden.service_start), formatDate(garden.service_end))}</p>
           <p>{R.visits(garden.visits_used, garden.visits_entitled)}</p>

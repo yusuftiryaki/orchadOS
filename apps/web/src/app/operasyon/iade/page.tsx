@@ -8,9 +8,12 @@ import {
 import { ActionForm } from "@/components/back-office/action-form";
 import { Badges, Sub, moneyUi } from "@/components/back-office/money-ui";
 import { Badge, BoResultNotice, money, when } from "@/components/back-office/parts";
-import { FilterTabs, Pagination, Toolbar, opsCell, pageOf } from "@/components/operations/ops-ui";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Toolbar } from "@/components/ui/layout";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, cell } from "@/components/ui/table";
@@ -109,11 +112,11 @@ export default async function Page({
                 {page.rows.map((r) => (
                   <tr key={r.id} data-refund-id={r.id} data-status={r.status}>
                     <td className={cell.code}>{r.number}</td>
-                    <td className={opsCell.nowrap}>
+                    <td className={cell.nowrap}>
                       <Link href={boHref.payment(r.payment_id)}>{r.order_number}</Link>
                       <Sub>{r.customer_name ?? B.none}</Sub>
                     </td>
-                    <td className={opsCell.nowrap}>
+                    <td className={cell.nowrap}>
                       {billingText.refundKind[r.kind as keyof typeof billingText.refundKind]}
                     </td>
                     <td className={cell.num}>{money(r.amount_kurus, r.currency)}</td>
@@ -170,8 +173,7 @@ function RowActions({ refund: r, today }: { refund: RefundRow; today: string }) 
         </ActionForm>
       )}
       {!card && r.status === "requested" && (
-        <details open>
-          <summary>{T.completeManual}</summary>
+        <Disclosure open title={T.completeManual}>
           <ActionForm action={completeManualRefundAction} inline testId="complete-manual-refund">
             <input type="hidden" name="refund_id" value={r.id} />
             <label>
@@ -186,11 +188,10 @@ function RowActions({ refund: r, today }: { refund: RefundRow; today: string }) 
               {T.completeManual}
             </Button>
           </ActionForm>
-        </details>
+        </Disclosure>
       )}
       {canResolve && (
-        <details>
-          <summary>{T.resolve}</summary>
+        <Disclosure title={T.resolve}>
           <ActionForm action={resolveRefundAction} inline testId="resolve-refund">
             <input type="hidden" name="refund_id" value={r.id} />
             <label>
@@ -208,11 +209,10 @@ function RowActions({ refund: r, today }: { refund: RefundRow; today: string }) 
               {T.failed}
             </Button>
           </ActionForm>
-        </details>
+        </Disclosure>
       )}
       {canCancel && (
-        <details>
-          <summary>{T.cancel}</summary>
+        <Disclosure title={T.cancel}>
           <ActionForm action={cancelRefundAction} inline testId="cancel-refund">
             <input type="hidden" name="refund_id" value={r.id} />
             <label>
@@ -223,7 +223,7 @@ function RowActions({ refund: r, today }: { refund: RefundRow; today: string }) 
               {T.cancel}
             </Button>
           </ActionForm>
-        </details>
+        </Disclosure>
       )}
     </div>
   );

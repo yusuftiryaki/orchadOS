@@ -1,34 +1,11 @@
 /* Hesabım and its sub-pages (contact, billing profile, permissions, KVKK
-   application, contracts). Layout comes from components/portal/page.module.css;
-   this file only adds what those primitives do not cover. Tokens only. */
+   application, contracts). Surfaces and facts come from components/ui, the
+   page column and rows from components/portal/page.module.css; this file
+   only adds what those do not cover. Tokens only. */
 
-/* A column of panels (main and side column of the account page). */
-.column {
-  display: grid;
-  gap: var(--space-5);
-  align-content: start;
-  min-width: 0;
-}
-
-/* A panel heading with its lead under it. */
-.panelHead {
-  display: grid;
-  gap: var(--space-1);
-}
-
-.panelHead > * {
-  margin: 0;
-}
-
-.panelHead h2 {
-  font-size: var(--text-lg);
-}
-
-.panelHead h3 {
-  font-size: var(--text-base);
-}
-
+/* A short lead inside a panel. */
 .lead {
+  margin: 0;
   color: var(--color-text-2);
   font-size: var(--text-sm);
 }
@@ -51,25 +28,7 @@
   gap: var(--space-2);
 }
 
-/* Groups of rows inside one panel (in service, not on an order, out of
-   service) read as one list. */
-/* Element + class: wins over .panel's gap whatever the stylesheet order. */
-div.rowGroups {
-  gap: 0;
-}
-
-/* A panel that is itself a list of rows: the rows bring their own spacing. */
-ul.rowsPanel {
-  gap: 0;
-  padding: var(--space-3);
-}
-
-@media (min-width: 720px) {
-  ul.rowsPanel {
-    padding: var(--space-4);
-  }
-}
-
+/* Groups of rows (in service, pilot, out of service) read as one list. */
 .rowGroups > ul + ul > li:first-child {
   border-top: 1px solid var(--color-border);
   padding-top: var(--space-3);
@@ -183,30 +142,6 @@ ul.rowsPanel {
   white-space: nowrap;
 }
 
-/* Document facts in a row: "Oluşturma 28 Eki 2026  Sürüm v1  Boyut 42 KB". */
-.docFacts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-3);
-  margin: 0;
-  color: var(--color-muted);
-  font-size: var(--text-sm);
-}
-
-.docFacts > div {
-  display: flex;
-  gap: var(--space-1);
-}
-
-.docFacts dt::after {
-  content: ":";
-}
-
-.docFacts dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
 /* The SHA-256 fingerprint: a long hex string that may break anywhere. */
 .hash {
   font-family: var(--font-mono);
@@ -223,22 +158,22 @@ ul.rowsPanel {
   width: fit-content;
 }
 
-/* An order's documents: the heading with the order link on the right. */
-.orderHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-3);
-}
-
-.orderHead h2 {
-  margin: 0;
-  font-size: var(--text-lg);
-  display: flex;
+/* An order's documents: the number and its state in the heading. */
+.orderTitle {
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* The form's button with a note under it. */
+.formEnd {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.formEnd > * {
+  margin: 0;
 }
 
 /* Links that lead to another page, as rows (Belgeler ve izinler). */

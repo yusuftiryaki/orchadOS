@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Badge, money, when } from "@/components/back-office/parts";
-import { FilterTabs, Pagination, Toolbar, opsCell, pageOf } from "@/components/operations/ops-ui";
+import { FilterTabs } from "@/components/ui/filter-tabs";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Toolbar } from "@/components/ui/layout";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -132,8 +134,8 @@ export default async function Page({
                     <td className={cell.code}>
                       <Link href={boHref.order(p.order_id)}>{p.order_number}</Link>
                     </td>
-                    <td className={opsCell.nowrap}>{p.customer_name ?? backOfficeText.none}</td>
-                    <td className={opsCell.nowrap}>
+                    <td className={cell.nowrap}>{p.customer_name ?? backOfficeText.none}</td>
+                    <td className={cell.nowrap}>
                       {
                         billingText.paymentProvider[
                           p.provider as keyof typeof billingText.paymentProvider

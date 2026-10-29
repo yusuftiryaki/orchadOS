@@ -194,7 +194,7 @@ test("a member adds a garden, accepts the add-on quote and pays by card", async 
   const quoteId = await opsAddonQuote(applicationId, member.orderId);
   await page.goto(`/portal/teklif/${quoteId}`);
   await expect(page.getByTestId("quote-addon")).toContainText(
-    "Mevcut üyeliğinize ek bahçe teklifi · hizmet bitişi:",
+    "Mevcut üyeliğinize ek bahçe teklifi, hizmet bitişi:",
   );
   await expect(page.getByTestId("quote-service-end")).toBeVisible();
   await expect(page.getByTestId("quote-lines")).toContainText("/4");
@@ -319,5 +319,5 @@ test("a removed garden shows the band and read-only questions and viewers", asyn
   await page.goto("/portal");
   await expect(
     page.locator(`[data-parcel-id="${parcelId}"]`).getByTestId("garden-state"),
-  ).toContainText("Hizmet dışı · raporlar şu tarihe kadar açık:");
+  ).toContainText("Hizmet dışı, raporlar şu tarihe kadar açık:");
 });

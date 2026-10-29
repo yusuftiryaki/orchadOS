@@ -6,6 +6,7 @@ import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
+import { panelClass } from "@/components/ui/panel";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { EMPTY_FORM, type FormState } from "@/lib/operations/form-state";
 import { BILLING_KINDS } from "@/lib/portal-billing/validation";
@@ -43,7 +44,7 @@ export function BillingProfileForm({
   return (
     <form
       action={action}
-      className={`${layout.panel} ${styles.form}`}
+      className={`${panelClass} ${styles.form}`}
       data-testid="billing-form"
       // Remounted after a failed save so that every field shows the typed value.
       key={failed ? JSON.stringify(state.values) : "initial"}
@@ -190,7 +191,7 @@ export function BillingProfileForm({
           <p>{state.error}</p>
         </Alert>
       )}
-      <div className={layout.stack}>
+      <div className={styles.formEnd}>
         <div className={layout.actions}>
           <Button type="submit" disabled={pending}>
             {pending ? P.saving : B.submit}

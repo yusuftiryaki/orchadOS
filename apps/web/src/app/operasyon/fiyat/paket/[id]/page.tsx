@@ -3,7 +3,7 @@ import { savePackageAction } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
 import { Field } from "@/components/operations/field";
 import styles from "@/components/operations/operations.module.css";
-import { Panel } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";

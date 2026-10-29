@@ -55,7 +55,7 @@ async function clickSlot(page: Page, testId: string, code: string, shift = false
 test("office sets tree attributes and runs the verification tour", async ({ page }) => {
   await login(page, T.users.field);
   await page.goto(`/ofis/parsel/${T.parcel}`);
-  await page.getByRole("link", { name: "Özellikler, altyapı, sınır ve doğrulama" }).click();
+  await page.getByRole("link", { name: "Envanteri düzenle" }).click();
   await expect(page).toHaveURL(WORKSPACE);
 
   // Attributes: row 1 in bulk, then S2-3 picked on the map.
@@ -180,7 +180,7 @@ test("a viewer cannot approve the boundary; the owner does", async ({ page }) =>
   await login(page, T.users.viewer);
   await page.goto(`/portal/parsel/${T.parcel}`);
   let card = page.getByTestId("boundary-card");
-  await expect(card.getByTestId("boundary-source")).toContainText("Sürüm 2 · Saha ölçümü");
+  await expect(card.getByTestId("boundary-source")).toContainText("Sürüm 2, saha ölçümü");
   await expect(card.getByTestId("boundary-area")).toContainText("500 m²");
   await expect(card.getByTestId("boundary-area")).toContainText("0,5 dönüm");
   await expect(card).toContainText("resmi bir sınır belirlemez");

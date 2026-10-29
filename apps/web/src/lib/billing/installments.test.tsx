@@ -64,7 +64,7 @@ describe("payment plan", () => {
 
   it("names a payment by what it pays for, never 'taksit'", () => {
     expect(installmentLabel(PLAN[0])).toBe("Envanter ödemesi");
-    expect(installmentLabel(PLAN[1])).toMatch(/^Ziyaret ödemesi · Kış \(/);
+    expect(installmentLabel(PLAN[1])).toMatch(/^Ziyaret ödemesi, Kış \(/);
     expect(installmentLabel({ ...PLAN[1], kind: "single" })).toBe("Tek ödeme");
   });
 

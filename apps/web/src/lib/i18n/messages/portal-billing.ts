@@ -137,7 +137,7 @@ export const portalBillingText = {
     package: "Paket",
     serviceEnd: (date: string) => `Hizmet bitişi: ${date}`,
     gardenCount: (n: number) => `${n} bahçe hizmette`,
-    nextPeriod: (date: string) => `Üyeliğiniz yenilendi · sonraki dönemin bitişi: ${date}`,
+    nextPeriod: (date: string) => `Üyeliğiniz yenilendi, sonraki dönemin bitişi: ${date}`,
     renewalReady: "Yenileme teklifiniz hazır",
     renewalOpen: "Teklifi inceleyin",
     multiPeriod:
@@ -150,7 +150,7 @@ export const portalBillingText = {
       "Üyeliğinize yeni bir bahçe ekleyin. Fiyat döneminizin kalan kısmına göre hesaplanır; yeni bahçenin hizmeti üyeliğinizle aynı gün biter.",
     addButton: "Bahçe ekle",
     band: (pkg: string, end: string) =>
-      `Ek bahçeleriniz ${pkg} paketiyle hizmet alır · Hizmet bitişi: ${end} · fiyat kalan döneme göre hesaplanır`,
+      `Ek bahçeleriniz ${pkg} paketiyle hizmet alır. Hizmet bitişi: ${end}. Fiyat kalan döneme göre hesaplanır.`,
     accountGardens: "Hesabınızdaki bahçeler",
     accountGardensEmpty: "Hesabınızda henüz bahçe yok.",
     packageLocked: "Ek bahçeler üyeliğinizin paketiyle hizmet alır.",
@@ -158,7 +158,7 @@ export const portalBillingText = {
     periodTooShort:
       "Döneminizin bitmesine az kaldı; ek bahçeniz yenilemeyle başlayan yeni döneme eklenir.",
     addonPreview: (start: string, end: string, visits: number, perYear: number) =>
-      `Hizmet dönemi: ${start} – ${end} · ziyaret hakkı ${visits}/${perYear}`,
+      `Hizmet dönemi: ${start} – ${end}, ziyaret hakkı ${visits}/${perYear}`,
     // The band of the application wizard as separate lines (band() above is
     // the one-line form).
     bandTitle: (pkg: string) => `Ek bahçeleriniz ${pkg} paketiyle hizmet alır`,
@@ -169,19 +169,20 @@ export const portalBillingText = {
   gardens: {
     title: "Bahçelerim",
     lead: "Hizmet alan bahçeleriniz ve durumları.",
-    empty: "Hizmette bahçeniz yok.",
+    empty: "Hizmette bahçeniz yok",
     add: "Bahçe ekle",
     remove: "Hizmetten çıkar",
     open: "Bahçeyi aç",
     inService: "Hizmette",
     serviceEnd: (date: string) => `Hizmet bitişi: ${date}`,
     leaving: (date: string) => `Çıkış tarihi: ${date}`,
-    removed: (date: string) => `Hizmet dışı · raporlar şu tarihe kadar açık: ${date}`,
-    exited: (date: string) => `Hizmetten çıkış: ${date} · raporlara erişim kapandı`,
+    removed: (date: string) => `Hizmet dışı, raporlar şu tarihe kadar açık: ${date}`,
+    exited: (date: string) => `Hizmetten çıkış: ${date}, raporlara erişim kapandı`,
     upcoming: (date: string) => `Sonraki dönemde başlıyor: ${date}`,
     // An owned parcel that was never on an order (pilot, paper contract).
     pilotState: "Siparişe bağlı değil",
-    pilotContact: "Bu bahçeyi çıkarmak için bize ulaşın",
+    pilotContact: "Bu bahçeyi çıkarmak için",
+    pilotContactLink: "iletişim sayfasından bize yazın",
     outOfService: "Hizmette değil",
     outOfServiceNote: "Yeniden hizmet almak için başvuru yapabilirsiniz.",
     emptyBody: "Hizmet almak istediğiniz bahçeyi ekleyin; teklifinizi ekibimiz hazırlar.",
@@ -270,7 +271,7 @@ export const portalBillingText = {
     reviewTitle: "İncelemedeki başvuru",
     reviewBody: (n: string) =>
       `${n} numaralı başvurunuz ekibimizde inceleniyor. Teklifiniz hazır olunca size haber veririz.`,
-    reviewButton: "Başvuruyu gör",
+    reviewButton: "Başvuruyu aç",
     quoteTitle: "Açık teklif",
     quoteBody: (n: string, total: string, until: string) =>
       `${n} numaralı teklif: ${total}. Son geçerlilik ${until}.`,
@@ -504,7 +505,7 @@ export const portalBillingText = {
     serviceEnd: "Hizmet bitişi",
     serviceEndOnPayment: "ödeme gününden itibaren bir yıl",
     servicePeriod: "Hizmet dönemi",
-    addonHeader: (end: string) => `Mevcut üyeliğinize ek bahçe teklifi · hizmet bitişi: ${end}`,
+    addonHeader: (end: string) => `Mevcut üyeliğinize ek bahçe teklifi, hizmet bitişi: ${end}`,
     addonVisits: (visits: number, perYear: number) => `${visits}/${perYear}`,
     addonVisitsHint:
       "Ziyaret hakkı, üyeliğinizin kalan süresine göre yıllık ziyaret sayısından orantılanır.",
@@ -593,7 +594,8 @@ export const portalBillingText = {
     cancelBody: "İlk ödeme yapılmadıysa siparişi iptal edebilirsiniz.",
     cancel: "Siparişi iptal et",
     payments: "Ödemeler",
-    noPayments: "Bu sipariş için ödeme yok.",
+    noPayments: "Henüz ödeme yok",
+    noPaymentsBody: "Bu sipariş için yaptığınız ödemeler ve makbuzları burada listelenir.",
     activeNote: "Siparişiniz aktif; bahçeleriniz “Bahçelerim” altında.",
     addonNote: "Üyeliğinize eklenen bahçe",
     reviseTitle: "Bahçe listesini değiştir",
@@ -633,7 +635,7 @@ export const portalBillingText = {
       [association, last4 ? `•••• ${last4}` : null].filter(Boolean).join(" "),
     installment: "Kart taksiti",
     planInstallment: "Ödeme",
-    planInstallmentText: (seq: number, count: number, what: string) => `${seq}/${count} · ${what}`,
+    planInstallmentText: (seq: number, count: number, what: string) => `${seq}/${count}, ${what}`,
     bankReference: "Banka referansı",
     valueDate: "Valör",
     date: "Tarih",

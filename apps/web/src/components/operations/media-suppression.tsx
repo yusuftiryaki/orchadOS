@@ -1,5 +1,7 @@
 import { hideMediaAction, unhideMediaAction } from "@/app/operasyon/legal-actions";
 import { Badge } from "@/components/ui/badge";
+import { Disclosure } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { TabLinks } from "@/components/ui/tab-links";
@@ -12,7 +14,7 @@ import {
   type VisitMediaItem,
 } from "@/lib/operations/legal";
 import { Field } from "./field";
-import { Panel } from "./ops-ui";
+import { Panel } from "@/components/ui/panel";
 import styles from "./media-suppression.module.css";
 
 const T = t.legal.media;
@@ -110,7 +112,7 @@ export function MediaSuppression({
             }))}
           />
           {gallery.items.length === 0 ? (
-            <p className="muted">{T.empty}</p>
+            <EmptyState compact headingLevel={3} title={T.empty} />
           ) : (
             <ul className={styles.gallery} data-testid="media-gallery">
               {gallery.items.map((item) => {
@@ -158,8 +160,7 @@ export function MediaSuppression({
       )}
 
       {records.length > 0 && (
-        <details className={styles.history}>
-          <summary>{T.history}</summary>
+        <Disclosure title={T.history}>
           <Table>
             <thead>
               <tr>
@@ -186,7 +187,7 @@ export function MediaSuppression({
               ))}
             </tbody>
           </Table>
-        </details>
+        </Disclosure>
       )}
     </Panel>
   );

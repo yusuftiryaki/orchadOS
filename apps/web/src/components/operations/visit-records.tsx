@@ -4,7 +4,9 @@ import {
   recordPostponementAction,
   setMissedOutcomeAction,
 } from "@/app/operasyon/visit-record-actions";
-import { statusTone } from "@/components/back-office/status-tone";
+import { statusTone } from "@/components/ui/status";
+import { Disclosure } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,19 +23,14 @@ import {
   type VisitRecords as Records,
 } from "@/lib/operations/visit-records";
 import { Field } from "./field";
-import { Facts, Panel } from "./ops-ui";
+import { Facts } from "@/components/ui/facts";
+import { Panel } from "@/components/ui/panel";
 import styles from "./operations.module.css";
 
 const V = visitsText.ops;
 const T_YES = t.operations.yes;
 
 // Message states of a date notice, in the shared status tones.
-const NOTICE_CODE: Record<string, string> = {
-  pending: "processing",
-  sent: "succeeded",
-  failed: "failed",
-};
-
 // The legal records of a visit (T07; contract 8A/1–4; kararlar.md H01, H15):
 // date notices and the phone notice, the owner's postponement, missed-visit
 // records with their outcome, and the field app's sign, verbal notice and
@@ -77,9 +74,7 @@ export function VisitRecords({
                   <td className={cell.num}>{formatDateTime(n.notified_at)}</td>
                   <td>
                     {n.status ? (
-                      <Badge tone={statusTone(NOTICE_CODE[n.status] ?? n.status)}>
-                        {V.status[n.status] ?? n.status}
-                      </Badge>
+                      <Badge tone={statusTone(n.status)}>{V.status[n.status] ?? n.status}</Badge>
                     ) : (
                       "—"
                     )}
@@ -153,7 +148,7 @@ export function VisitRecords({
             : V.noWindow}
         </p>
         {records.missed.length === 0 ? (
-          <p className="muted">{V.missedNone}</p>
+          <EmptyState compact headingLevel={3} title={V.missedNone} />
         ) : (
           <ul className={styles.plainList}>
             {records.missed.map((m) => (
@@ -168,7 +163,7 @@ export function VisitRecords({
 
       <Panel title={V.fieldNoticesTitle} testId="field-notices">
         {fieldNotices.length === 0 ? (
-          <p className="muted">{V.fieldNoticesNone}</p>
+          <EmptyState compact headingLevel={3} title={V.fieldNoticesNone} />
         ) : (
           <Table>
             <thead>
@@ -319,12 +314,7 @@ function MissedForm({
         ? blocked.recordedAt.slice(0, 10)
         : today;
   return (
-    <details
-      data-testid="missed-visit-form"
-      open={!!blocked || undefined}
-      className={styles.disclosure}
-    >
-      <summary>{V.missedRecord}</summary>
+    <Disclosure testId="missed-visit-form" open={!!blocked} title={V.missedRecord}>
       {blocked && (
         <Alert tone="info" testId="missed-prefill">
           <p>
@@ -422,6 +412,6 @@ function MissedForm({
           <Button type="submit">{V.missedRecord}</Button>
         </div>
       </form>
-    </details>
+    </Disclosure>
   );
 }

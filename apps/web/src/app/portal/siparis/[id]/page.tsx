@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cancelOrderAction, reviseOrderAction } from "@/app/portal/billing-actions";
 import { ContractDocumentTable } from "@/components/contracts/document-list";
+import { FactRow } from "@/components/portal-billing/fact-row";
 import { InstallmentPlan } from "@/components/portal-billing/installment-plan";
 import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { OrderPay } from "@/components/portal-billing/order-pay";
@@ -13,8 +14,11 @@ import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { factsClass } from "@/components/ui/facts";
 import { Checkbox } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
+import { Panel, panelClass } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import { installmentLabel, nextOpen, openKurus } from "@/lib/billing/installments";
 import { formatKurus } from "@/lib/billing/money";
@@ -83,7 +87,11 @@ export default async function OrderPage({
   const lead = awaiting ? O.awaitingLead : order.status === "active" ? O.activeNote : undefined;
 
   return (
-    <main className={`${layout.page} ${s.doc}`} data-testid="order" data-status={order.status}>
+    <main
+      className={`${layout.page} ${layout.reading}`}
+      data-testid="order"
+      data-status={order.status}
+    >
       <PageHeader
         title={<NumberedTitle text={O.title(order.number)} number={order.number} />}
         lead={lead}
@@ -102,8 +110,7 @@ export default async function OrderPage({
       <PortalResult params={query} />
 
       {payable && (
-        <section className={layout.panel} data-testid="order-pay" aria-labelledby="order-pay">
-          <h2 id="order-pay">{O.nextPayment}</h2>
+        <Panel title={O.nextPayment} testId="order-pay" id="order-pay">
           {next && (
             <div className={s.due} data-testid="order-next-payment">
               <p>{installmentLabel(next)}</p>
@@ -118,84 +125,64 @@ export default async function OrderPage({
             instructions={instructions}
             liveAttemptId={liveAttempt?.id ?? null}
           />
-        </section>
+        </Panel>
       )}
 
-      <section className={layout.section} aria-labelledby="order-summary">
-        <h2 id="order-summary">{O.summaryTitle}</h2>
-        <div className={layout.panel}>
-          <dl className={`${layout.facts} ${s.factsFlex}`}>
-            {quote && (
-              <>
-                <dt>{O.quote}</dt>
-                <dd>
-                  <Link href={portalHref.quote(quote.id)} className={s.nowrap}>
-                    {quote.number}
-                  </Link>
-                  <br />
-                  <span className={layout.small}>{quote.package_name}</span>
-                </dd>
-              </>
-            )}
-            {order.service_start && order.service_end && (
-              <>
-                <dt>{O.service}</dt>
-                <dd>
-                  <span className={s.nowrap}>{formatDate(order.service_start)}</span> –{" "}
-                  <span className={s.nowrap}>{formatDate(order.service_end)}</span>
-                </dd>
-              </>
-            )}
-            {!next && awaiting && order.payment_due_at && (
-              <>
-                <dt>{O.due}</dt>
-                <dd>{formatDateTime(order.payment_due_at)}</dd>
-              </>
-            )}
-          </dl>
-          <dl className={layout.facts}>
-            {items.map((item) => (
-              <Fact
-                key={item.id}
-                label={item.garden_name}
-                value={formatKurus(item.amount_kurus, currency)}
-              />
-            ))}
-            <dt className={layout.factsTotal}>{O.total}</dt>
-            <dd className={layout.factsTotal} data-testid="order-total">
-              {formatKurus(order.total_kurus, currency)}
-            </dd>
-            <dt>{O.paid}</dt>
-            <dd>{formatKurus(order.paid_kurus, currency)}</dd>
-            {order.refunded_kurus > 0 && (
-              <>
-                <dt>{O.refunded}</dt>
-                <dd>{formatKurus(order.refunded_kurus, currency)}</dd>
-              </>
-            )}
-          </dl>
-        </div>
-      </section>
+      <Panel title={O.summaryTitle} id="order-summary">
+        <dl className={factsClass.list}>
+          {quote && (
+            <FactRow label={O.quote}>
+              <Link href={portalHref.quote(quote.id)} className={s.nowrap}>
+                {quote.number}
+              </Link>
+              <br />
+              <span className={layout.small}>{quote.package_name}</span>
+            </FactRow>
+          )}
+          {order.service_start && order.service_end && (
+            <FactRow label={O.service}>
+              <span className={s.nowrap}>{formatDate(order.service_start)}</span> –{" "}
+              <span className={s.nowrap}>{formatDate(order.service_end)}</span>
+            </FactRow>
+          )}
+          {!next && awaiting && order.payment_due_at && (
+            <FactRow label={O.due}>{formatDateTime(order.payment_due_at)}</FactRow>
+          )}
+        </dl>
+        <dl className={factsClass.summary}>
+          {items.map((item) => (
+            <FactRow key={item.id} label={item.garden_name}>
+              {formatKurus(item.amount_kurus, currency)}
+            </FactRow>
+          ))}
+          <FactRow label={O.total} testId="order-total" total>
+            {formatKurus(order.total_kurus, currency)}
+          </FactRow>
+          <FactRow label={O.paid}>{formatKurus(order.paid_kurus, currency)}</FactRow>
+          {order.refunded_kurus > 0 && (
+            <FactRow label={O.refunded}>{formatKurus(order.refunded_kurus, currency)}</FactRow>
+          )}
+        </dl>
+      </Panel>
 
       {plan.length > 0 && (
-        <section className={layout.section} data-testid="order-plan">
-          <h2>{billingText.plan.title}</h2>
+        <Panel title={billingText.plan.title} plain testId="order-plan">
           <InstallmentPlan rows={plan} currency={currency} withStatus />
-        </section>
+        </Panel>
       )}
 
-      <section className={layout.section}>
-        <h2>{O.payments}</h2>
+      <Panel title={O.payments} plain>
         {payments.length === 0 ? (
-          <p className={layout.muted}>{O.noPayments}</p>
+          <EmptyState title={O.noPayments} headingLevel={3}>
+            <p>{O.noPaymentsBody}</p>
+          </EmptyState>
         ) : (
           <PaymentTable payments={payments.map((p) => ({ ...p, order_number: order.number }))} />
         )}
-      </section>
+      </Panel>
 
       {order.quote_id && (
-        <section className={layout.section} data-testid="order-contracts">
-          <h2>{C.list.orderTitle}</h2>
+        <Panel title={C.list.orderTitle} plain testId="order-contracts">
           {documents.length > 0 && (
             <ContractDocumentTable
               documents={documents}
@@ -215,13 +202,12 @@ export default async function OrderPage({
           <p>
             <Link href="/portal/hesap/sozlesmeler">{C.list.orderLink}</Link>
           </p>
-        </section>
+        </Panel>
       )}
 
       {awaiting && quote?.application_id && (
-        <section className={layout.section} data-testid="order-revise">
-          <h2>{O.reviseTitle}</h2>
-          <form action={reviseOrderAction} className={`${layout.panel} ${s.checks}`}>
+        <Panel title={O.reviseTitle} plain testId="order-revise">
+          <form action={reviseOrderAction} className={`${panelClass} ${s.checks}`}>
             <input type="hidden" name="order_id" value={order.id} />
             <p className={layout.small}>{O.reviseBody}</p>
             <Checkbox id="c-revise-confirm" name="confirm" required label={O.reviseConfirm} />
@@ -231,32 +217,22 @@ export default async function OrderPage({
               </Button>
             </div>
           </form>
-        </section>
+        </Panel>
       )}
 
       {awaiting && (
-        <section className={layout.section}>
-          <h2>{O.cancelTitle}</h2>
-          <form action={cancelOrderAction} className={layout.stack}>
+        <Panel title={O.cancelTitle} plain>
+          <form action={cancelOrderAction} className={s.form}>
             <input type="hidden" name="order_id" value={order.id} />
             <p className={layout.small}>{O.cancelBody}</p>
             <div className={layout.actions}>
-              <Button variant="quiet" type="submit">
+              <Button variant="danger" type="submit">
                 {O.cancel}
               </Button>
             </div>
           </form>
-        </section>
+        </Panel>
       )}
     </main>
-  );
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </>
   );
 }

@@ -652,14 +652,16 @@ export function InventoryWorkspaceView({
                         {pickList.map((p) => (
                           <tr key={p.slotId} data-code={p.code}>
                             <td>
-                              <input
-                                type="checkbox"
-                                checked={p.included}
-                                aria-label={p.code}
-                                onChange={() =>
-                                  updatePick(p.slotId, (x) => ({ ...x, included: !x.included }))
-                                }
-                              />
+                              <label className={styles.rowCheck}>
+                                <input
+                                  type="checkbox"
+                                  checked={p.included}
+                                  aria-label={p.code}
+                                  onChange={() =>
+                                    updatePick(p.slotId, (x) => ({ ...x, included: !x.included }))
+                                  }
+                                />
+                              </label>
                             </td>
                             <td className={cell.code}>{p.code}</td>
                             <td>

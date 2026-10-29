@@ -6,8 +6,8 @@ import { t } from "@/lib/i18n";
 import { getParcelMap } from "@/lib/parcels";
 import { createClient } from "@/lib/supabase/server";
 import { ParcelExplorer } from "./parcel-explorer";
-import { PARCEL_STATUS_TONE } from "./parcel-list";
-import styles from "./parcel-detail.module.css";
+import { statusTone } from "@/components/ui/status";
+import staff from "@/components/staff-page.module.css";
 
 export async function ParcelDetail({
   section,
@@ -29,13 +29,13 @@ export async function ParcelDetail({
   const slots = data.slots.features.length;
 
   return (
-    <main className={`page ${styles.page}`}>
+    <main className={`page ${staff.page}`}>
       <PageHeader
         back={{ href: `/${section}`, label: t.sections[section] }}
         title={data.parcel.name}
         meta={
           <>
-            <Badge tone={PARCEL_STATUS_TONE[data.parcel.status]}>
+            <Badge tone={statusTone(data.parcel.status, "parcel")}>
               {t.parcels.status[data.parcel.status]}
             </Badge>
             <Badge tone={data.boundary ? "neutral" : "warning"}>

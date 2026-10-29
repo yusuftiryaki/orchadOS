@@ -1,4 +1,5 @@
-import { Panel, QueueList, type QueueItem } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
+import { QueueList, type QueueItem } from "@/components/operations/queue-list";
 import type { BillingSummary } from "@/lib/back-office/data";
 import { boHref } from "@/lib/back-office/urls";
 import { formatNumber } from "@/lib/i18n";

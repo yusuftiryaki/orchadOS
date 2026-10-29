@@ -115,7 +115,7 @@ export const demoText = {
   howTile: {
     title: "Önce bir örnek bahçeyi gezin",
     body: "Örnek bir bahçenin portalını hesap açmadan gezin: 360° gezi, sağlık haritası, karne ve raporlar. Veriler sentetiktir.",
-    cta: "Demoyu deneyin",
+    cta: "Demoyu dene",
   },
   tour: {
     label: "Rehberli tur",

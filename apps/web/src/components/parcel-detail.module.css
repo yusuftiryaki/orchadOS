@@ -1,4 +1,0 @@
-/* Staff screens use the full 1440px shell so the map gets the room. */
-.page {
-  max-width: 1440px;
-}

@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import s from "@/components/portal-billing/billing.module.css";
 import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
+import { Facts } from "@/components/ui/facts";
 import { fakeCheckoutText as text } from "@/lib/i18n/messages/fake-checkout";
 import { supabaseEnv } from "@/lib/env";
 
@@ -33,16 +35,13 @@ export default async function FakeCheckoutPage({
 
   return (
     <main className="centered">
-      <div className={`card ${layout.stack}`}>
+      <div className={`card ${s.formTight}`}>
         <h1>{text.title}</h1>
         <Alert tone="warning">{text.notice}</Alert>
         {valid ? (
-          <form method="post" action={action} className={layout.stack}>
+          <form method="post" action={action} className={s.formTight}>
             <input type="hidden" name="token" value={token} />
-            <dl className={layout.facts}>
-              <dt>{text.amountLabel}</dt>
-              <dd>{`${amount} ${text.currency}`}</dd>
-            </dl>
+            <Facts variant="summary" rows={[[text.amountLabel, `${amount} ${text.currency}`]]} />
             <div className={layout.actions}>
               <button className="button" type="submit" name="outcome" value="success">
                 {text.approve}

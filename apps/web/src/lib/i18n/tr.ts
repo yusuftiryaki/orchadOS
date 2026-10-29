@@ -7,6 +7,16 @@ export const tr = {
     name: "orchadOS",
     tagline: "Antep fıstığı bahçeleri için bağımsız denetim",
   },
+  // Shared design system components (src/components/ui).
+  ui: {
+    pagination: {
+      label: "Sayfalar",
+      range: (from: number, to: number, total: number) =>
+        `${from.toLocaleString("tr-TR")}–${to.toLocaleString("tr-TR")} / ${total.toLocaleString("tr-TR")}`,
+      prev: "Önceki",
+      next: "Sonraki",
+    },
+  },
   // Boundary notice (docs/hukuk/kararlar.md H07, T16; contract Md. 6/1): the
   // long form on every owner report page and every PDF page, the short form
   // on every owner-facing map. The wording is binding; do not edit it alone.
@@ -72,8 +82,9 @@ export const tr = {
   },
   forbidden: {
     title: "Bu bölüme erişiminiz yok",
-    body: "Bu sayfa hesabınızın rolüne açık değil. Erişmeniz gerekiyorsa operasyon ekibine yazın; başka bir hesapla girmek için önce çıkış yapın.",
+    body: "Bu sayfa hesabınızın rolüne açık değil. Erişmeniz gerekiyorsa operasyon ekibine yazın; başka bir hesapla girmek için çıkış yapın.",
     back: "Ana sayfaya dön",
+    signOut: "Çıkış yap",
   },
   error: {
     title: "Sayfa şu anda açılamadı",
@@ -139,7 +150,7 @@ export const tr = {
     slotCount: (slots: number, trees: number) => `${slots} yer, ${trees} aktif ağaç`,
     noSlots: "Henüz yer yok",
     legend: "Gösterim",
-    selectHint: "Ayrıntı için haritada bir ağaca tıklayın.",
+    selectHint: "Ayrıntı için haritada bir ağaç seçin.",
     selectHintTitle: "Ağaç seçilmedi",
     mapTitle: "Ağaç haritası",
     legendCount: (count: string) => `(${count})`,
@@ -175,7 +186,7 @@ export const tr = {
     },
   },
   office: {
-    openTool: "Envanter üçgenleme aracı",
+    openTool: "Üçgenleme aracını aç",
     title: "Envanter üçgenleme",
     back: "Parsel",
     chooseTitle: "Oturum ve panorama seti",
@@ -202,7 +213,7 @@ export const tr = {
     setMismatch: "başka oturumun seti",
     setHint:
       "Set listede kaynağına göre gruplanır. “Başka oturumun seti” yalnız geliştirme verisinde görülür; konumlar yine yukarıda seçilen oturuma kaydedilir.",
-    open: "Aracı aç",
+    open: "Üçgenleme aracını aç",
     existingInventory: (slots: number, trees: number) =>
       `Bu parselde zaten ${slots} yer ve ${trees} ağaç kayıtlı. Kaydetme kapalı; mevcut envanteri değiştirme akışı henüz yok.`,
     tabs: {
@@ -428,8 +439,7 @@ export const tr = {
         remaining: "Kalan",
         action: "İşlem",
       },
-      open: "Aç",
-      continue: "Devam et",
+      open: "İncele",
       parcels: "Parseller",
     },
     kinds: {
@@ -444,7 +454,7 @@ export const tr = {
     seasons: { winter: "Kış", spring: "İlkbahar", summer: "Yaz", harvest: "Hasat" },
     review: {
       ruleClass: "Kurala göre sınıf (metodoloji 5)",
-      back: "Ziyaret kuyruğu",
+      back: "Uzman paneli",
       title: (parcel: string, date: string) => `${parcel}, ${date}`,
       facts: {
         label: "Ziyaret bilgileri",
@@ -788,7 +798,7 @@ export const tr = {
   operations: {
     nav: {
       dashboard: "Pano",
-      owners: "Sahipler",
+      owners: "Sahipler ve hissedarlar",
       visits: "Ziyaretler",
       newOwner: "Yeni sahip",
       newParcel: "Yeni parsel",
@@ -798,7 +808,7 @@ export const tr = {
       title: "Operasyon panosu",
       counts: "Ziyaretler (durumlarına göre)",
       upcoming: (days: number) => `Yaklaşan ziyaretler (${days} gün)`,
-      noUpcoming: "Önümüzdeki günlerde planlanmış ziyaret yok.",
+      noUpcoming: "Önümüzdeki günlerde planlanmış ziyaret yok",
       overdue: "Geciken işler",
       noOverdue: "Geciken iş yok",
       overdueCount: (n: number) => `${n} geciken iş`,
@@ -806,8 +816,8 @@ export const tr = {
         past_due: (days: number) => `Tarihi ${days} gün önce geçti, hâlâ planlandı`,
         waiting_processing: (days: number) => `${days} gündür işlenmeyi bekliyor`,
       },
-      parcels: "Parseller ve yaşam döngüsü",
-      noParcels: "Henüz parsel yok.",
+      parcels: "Parseller",
+      noParcels: "Henüz parsel yok",
       invitations: "Hissedar davetleri",
       invitationsHint:
         "Sahiplerin portaldan davet ettiği hissedarlar. Kişiyi arayın; numarasının sahipten alındığını söyleyin, aydınlatma metninin bağlantısını SMS ile iletin ve okuduğunu kaydedin. Hesap telefonla açılır ve hissedar parsele izleyici olarak eklenir.",
@@ -893,13 +903,13 @@ export const tr = {
     org: "İşletme",
     owners: {
       title: "Sahipler ve hissedarlar",
-      empty: "Kayıtlı sahip yok.",
+      empty: "Kayıtlı sahip yok",
       privacy:
         "Bu sayfadaki bilgiler kişisel veridir (KVKK). Sadece operasyon görür; ekran görüntüsü almayın, başka kanala kopyalamayın.",
       newTitle: "Yeni sahip kaydı",
       newHint:
         "Sahip ya da hissedar için: kişisel bilgiler ayrı, korumalı şemada tutulur. Kayıtla birlikte portal hesabı açılır (ya da aynı e-posta / telefonla açılmış hesap bulunur).",
-      editTitle: "Bilgileri düzelt",
+      editTitle: "Bilgileri düzenle",
       personLegend: "Kişi ve iletişim",
       kvkkLegend: "KVKK aydınlatması",
       kvkkLegendHint:
@@ -932,12 +942,12 @@ export const tr = {
       accessRole: "Erişim",
       kvkkGiven: (date: string) => `KVKK aydınlatması ${date}`,
       kvkkMissing: "KVKK aydınlatması yok",
-      noParcels: "Henüz bir parsele erişimi yok.",
+      noParcels: "Henüz bir parsele erişimi yok",
       account: "Giriş hesabı",
     },
     parcel: {
       newTitle: "Yeni parsel kaydı",
-      editTitle: "Parsel bilgilerini düzelt",
+      editTitle: "Parseli düzenle",
       publicSection: "Parsel",
       privateSection: "Tapu, yetki ve erişim (kişisel veri, sadece operasyon görür)",
       name: "Parsel adı",
@@ -993,7 +1003,7 @@ export const tr = {
       rowsLater: "Sıra yönü ve başlangıç köşesi envanterde belirlenir.",
       submit: "Parseli kaydet",
       registered: "Parsel kaydedildi.",
-      edit: "Bilgileri düzelt",
+      edit: "Düzenle",
       lifecycle: "Yaşam döngüsü",
       setPassive: "İzlemeyi bitir (pasif)",
       resume: "İzlemeyi sürdür",
@@ -1007,11 +1017,11 @@ export const tr = {
       actions: "Parsel işlemleri",
       boundaryLead: (name: string) =>
         `${name} için sahibin gösterdiği köşeleri haritada işaretleyin.`,
-      noDetail: "Kayıt yok.",
+      noDetail: "Kayıt yok",
     },
     access: {
       title: "Portal erişimi",
-      empty: "Bu parsele kimsenin portal erişimi yok.",
+      empty: "Bu parsele kimsenin portal erişimi yok",
       grant: "Erişim ver",
       person: "Kişi",
       choosePerson: "Kayıtlı bir kişi seçin",
@@ -1056,7 +1066,7 @@ export const tr = {
       seasonHint: (season: string) => `Bu tarihte tarama ${season} ölçekleriyle değerlendirilir.`,
       inventoryHint:
         'Envanter ziyaretinde sağlık ölçeği girilmez. İlk envanter planlanınca parsel "Envanter planlandı" olur.',
-      submit: "Ziyareti planla",
+      submit: "Ziyaret planla",
       newLead:
         "Ziyaret, sorumlu saha personelinin görev listesine düşer. Tarih Sahip'e en az 3 gün önce bildirilir; daha yakın bir tarihte telefonla bildirim kaydı istenir.",
       willPlan: (day: string) => `Ziyaret ${day} tarihine planlanır.`,
@@ -1074,8 +1084,8 @@ export const tr = {
       cancelled: "Ziyaret iptal edildi.",
       locked: "Bu ziyaret taranmış (ya da iptal edilmiş); plan buradan değiştirilemez.",
       parcelVisits: "Parselin ziyaretleri",
-      noVisits: "Bu parsel için ziyaret yok.",
-      planForParcel: "Bu parsel için ziyaret planla",
+      noVisits: "Bu parsel için ziyaret yok",
+      planForParcel: "Ziyaret planla",
       methodology: "Metodoloji sürümü",
     },
     fieldErrors: {
@@ -1207,7 +1217,8 @@ export const tr = {
     viewers: {
       title: "Hissedarlar",
       hint: "Hisseli bahçede diğer hissedarlar raporları sizinle aynı görür, değiştiremez. Davetinizi operasyon ekibimiz hissedarı arayıp onayladıktan sonra tamamlar.",
-      empty: "Henüz hissedar eklenmedi.",
+      empty: "Henüz hissedar yok",
+      emptyBody: "Davet ettiğiniz hissedarlar bahçenin karnesini sizinle birlikte görür.",
       name: "Ad soyad",
       phone: "Telefon",
       invite: "Hissedar davet et",
@@ -1240,7 +1251,8 @@ export const tr = {
         "Bu ağaç ya da bulguları hakkında uzmana soru sorabilirsiniz. Uzman cevaplayınca burada görünür. Sorularınızı yalnızca siz ve uzman görürsünüz; bahçenin diğer sahipleri ve hissedarları görmez.",
       parcelHint:
         "Bu bahçede sorduğunuz sorular. Diğer sahiplerin ve hissedarların soruları size, sizinkiler onlara görünmez. Bir ağaç hakkında sormak için ağaç karnesini açın.",
-      empty: "Henüz soru yok.",
+      empty: "Henüz soru yok",
+      emptyBody: "Sorduğunuz sorular ve uzmanın cevapları burada görünür.",
       ask: "Soru sor",
       askParcel: "Bahçe geneli bir bulguya soru sor",
       target: "Konu",
@@ -1281,7 +1293,7 @@ export const tr = {
     },
     report: {
       back: "Bahçelerim",
-      tour: "360° gezi",
+      tour: "360° geziyi aç",
       print: "Yazdır",
       pdf: "PDF indir",
       pdfKicker: "Bahçe karnesi",
@@ -1341,7 +1353,7 @@ export const tr = {
       changeLine: (from: string, to: string) => `${from} → ${to}`,
       moreTrees: (n: number) => `ve ${n} ağaç daha`,
       mapTitle: "Sağlık haritası",
-      mapHint: "Ayrıntıları görmek için haritada bir ağaca dokunun.",
+      mapHint: "Ayrıntı için haritada bir ağaç seçin.",
       findingsTitle: "Bulgular",
       findingsEmpty: "Bu denetimde bulgu yok.",
       moreFindings: (n: number) => `${n} bulgu daha`,
@@ -1350,6 +1362,7 @@ export const tr = {
       openTree: "Ağaç karnesi",
       showFinding: "Haritada göster",
       metricsTitle: "Ölçümler",
+      metricColumns: { metric: "Ölçüm", count: "Ölçülen ağaç", summary: "Özet" },
       metricsEmpty: "Bu denetimde karnede gösterilen bir ölçüm yok.",
       metricCount: (n: number) => `${n} ağaçta ölçüldü`,
       metricMean: (mean: string, min: string, max: string) =>
@@ -1369,7 +1382,7 @@ export const tr = {
       healthy: "Sağlıklı",
       attention: "Dikkat",
       problem: "Sorunlu",
-      dead: "Kurumuş",
+      dead: "Kuru",
       absent: "Yok",
       unassessed: "Değerlendirilmedi",
       empty: "Boş yer",
@@ -1392,7 +1405,7 @@ export const tr = {
     },
     severity: { high: "Acil", medium: "Önemli", low: "Düşük öncelik", info: "Bilgi" },
     findingKinds: {
-      dead_tree: "Kurumuş ağaç",
+      dead_tree: "Kuru ağaç",
       dead_branch: "Kuru dal",
       pest_sign: "Zararlı belirtisi",
       trunk_damage: "Gövde yarası",
@@ -1514,7 +1527,7 @@ export const tr = {
       cultivar: "Çeşit",
       findings: "Bu ağaçtaki bulgular",
       openCard: "Ağaç karnesini aç",
-      openTour: "360° gezide gör",
+      openTour: "360° geziyi aç",
       noTree: "Bu yerde ağaç yok.",
       findingTitle: "Bulgu",
     },
@@ -1528,6 +1541,7 @@ export const tr = {
       latest: "Son durum",
       noAssessment: "Bu ağaç için yayımlanmış bir değerlendirme yok.",
       classHistory: "Durum geçmişi",
+      historyColumns: { date: "Denetim", class: "Sınıf", approval: "Karar" },
       measurements: "Ölçüm geçmişi",
       noMeasurements: "Karnede gösterilen bir ölçüm yok.",
       metric: "Ölçüm",
@@ -1572,9 +1586,10 @@ export const tr = {
     },
     tour: {
       title: "360° gezi",
-      back: "Karneye dön",
       visit: (date: string) => `${date} tarihli denetimin panoramaları`,
-      empty: "Bu bahçe için yayımlanmış panorama yok.",
+      empty: "Henüz panorama yok",
+      emptyBody:
+        "Bu bahçenin panoramaları, uzman incelemesinden geçen ilk denetimden sonra burada açılır.",
       mapHint: "Haritada bir noktaya dokunun: en yakın panorama açılır.",
       viewer: "Panorama",
       arrow: "Bu yöne ilerle",
@@ -1631,7 +1646,7 @@ export const tr = {
       other: "Diğer",
     },
     boundarySource: { owner_declared: "Sahibin beyanı", field_survey: "Saha ölçümü" },
-    area: (m2: string, donum: string) => `${m2} m² · ${donum} dönüm`,
+    area: (m2: string, donum: string) => `${m2} m², ${donum} dönüm`,
     areaShort: (m2: string, donum: string) => `${m2} m² (${donum} dönüm)`,
     mapLabel: "Envanter haritası",
     legend: {
@@ -1728,8 +1743,8 @@ export const tr = {
         "“Ağaç var” boş bir yere yeni ağaç ekler; “Ağaç yok” yerdeki ağacı kayıp yapar. Yer kodu korunur.",
     },
     office: {
-      open: "Özellikler, altyapı, sınır ve doğrulama",
-      openAfterSave: "Özellikleri ve doğrulama turunu aç",
+      open: "Envanteri düzenle",
+      openAfterSave: "Envanteri düzenle",
       title: "Envanter düzenleme",
       lead: "Ağaç özellikleri, altyapı, saha sınırı ve doğrulama turu. Haritaya tıklamanın ne yaptığı açık sekmeye göre değişir.",
       noInventoryTitle: "Bu parselde kayıtlı yer yok",
@@ -1807,7 +1822,7 @@ export const tr = {
       },
       open: "İncele",
       title: (parcel: string) => `${parcel}: envanter onayı`,
-      back: "Ziyaret kuyruğu",
+      back: "Uzman paneli",
       session: (date: string) => `Envanter ziyareti ${date}`,
       gate: {
         title: "Onay kontrolleri",
@@ -1874,7 +1889,7 @@ export const tr = {
         },
         noSlots: "Parselde kayıtlı yer yok.",
         openItems: (codes: string) => `Açık doğrulama kalemleri: ${codes}`,
-        coverageTitle: "Grid tarama kapsaması",
+        coverageTitle: "Tarama kapsaması",
         coverageBelow: (ratio: string, threshold: string) =>
           `Kapsama %${ratio}, eşik %${threshold}: kalite kapısından geçmedi. Ek tarama yapılmalı ya da gerekçeyle kabul edilmeli.`,
         coverageBlocked:
@@ -1895,7 +1910,7 @@ export const tr = {
     portal: {
       boundaryTitle: "Bahçe sınırı",
       noBoundary: "Henüz çizilmiş bir sınır yok.",
-      version: (v: number, source: string) => `Sürüm ${v} · ${source}`,
+      version: (v: number, source: string) => `Sürüm ${v}, ${source.toLocaleLowerCase("tr")}`,
       uncertainty: (m: string) => `Köşe belirsizliği ±${m} m`,
       declaredNote: "Soluk kesikli çizgi: kayıtta beyan ettiğiniz ilk sınır.",
       confirm: "Sınırı kontrol ettim; bahçemin kullanım sınırı budur.",
@@ -2132,16 +2147,17 @@ export const tr = {
       hint: "Raporu onaylayan uzmanın adı ve unvanı sahip portalındaki raporda ve PDF'lerde gösterilir (demo hariç). Ad girilmezse raporda uzman adı görünmez; unvan girilmezse yalnızca ad görünür.",
       email: "E-posta",
       roles: "Rol",
-      name: "Ad Soyad",
+      name: "Ad soyad",
       titleField: "Unvan",
       titlePlaceholder: "ör. Ziraat Mühendisi",
-      save: "Kaydet",
+      save: "Adı ve unvanı kaydet",
+      saveColumn: "Kaydet",
       missingName: "Ad girilmemiş: bu kişinin onayladığı raporlarda uzman adı görünmez.",
       missingTitle: "Unvan girilmemiş: raporda yalnızca ad görünür.",
       missingNameShort: "Ad yok",
       missingTitleShort: "Unvan yok",
       onReport: "Raporda",
-      empty: "Bu kuruluşta personel yok.",
+      empty: "Bu kuruluşta personel yok",
       emptyBody: "Saha, uzman ve operasyon üyeleri kuruluşa eklenince burada listelenir.",
       roleNames: { field_staff: "Saha", expert: "Uzman", ops: "Operasyon" } as Record<
         string,
@@ -2162,7 +2178,7 @@ export const tr = {
       hint: "Üçüncü bir kişi sınıra itiraz ederse (Sözleşme Md. 6/4) itiraz açılır: açıkken bu bahçeye yeni envanter ya da periyodik tarama planlanamaz. Sahip portalında yalnızca değerlendirmenin askıda olduğu görünür; not görünmez.",
       open: "İtiraz açık",
       since: (date: string) => `Açılış: ${date}`,
-      none: "Açık itiraz yok.",
+      none: "Açık itiraz yok",
       note: "Not (itirazın konusu; gereksiz kişisel veri yazmayın)",
       openButton: "İtirazı aç",
       closeButton: "İtirazı kapat",
@@ -2173,7 +2189,7 @@ export const tr = {
     pointer: {
       title: "Sınırı gösteren kişi",
       hint: "Saha ekibinin envanter sırasında kaydettiği ad ve rol (telefon tutulmaz).",
-      none: "Kayıt yok.",
+      none: "Sınırı gösteren kişi kaydı yok",
       roles: {
         owner: "Sahip",
         owner_relative: "Sahibin yakını",
@@ -2202,7 +2218,8 @@ export const tr = {
       submit: "Başvuruyu gönder",
       sent: "Başvurunuz alındı. En geç 30 gün içinde cevaplanacak.",
       mine: "Başvurularınız",
-      none: "Henüz başvurunuz yok.",
+      none: "Henüz başvurunuz yok",
+      noneBody: "Yukarıdaki formla yaptığınız başvurular ve durumları burada listelenir.",
       due: (date: string) => `Son cevap günü: ${date}`,
       status: {
         open: "Alındı",
@@ -2219,7 +2236,7 @@ export const tr = {
       } as Record<string, string>,
       ops: {
         nav: "KVKK talepleri",
-        title: "KVKK başvuruları",
+        title: "KVKK talepleri",
         hint: "Portaldan gelen başvurular. Cevap süresi başvurudan itibaren 30 gündür (KVKK md. 13). Silme ve takma ad işlemleri scripts/kvkk betikleriyle yapılır; başvuru defterine işlenir.",
         none: "Henüz KVKK başvurusu yok",
         noneBody: "Portaldan KVKK başvurusu gelince burada 30 günlük sayaçla listelenir.",
@@ -2268,8 +2285,8 @@ export const tr = {
       hidden: "Gizlendi",
       hiddenTitle: "Gizlenen görüntüler",
       history: "Kayıtlar",
-      none: "Gizlenen görüntü yok.",
-      empty: "Bu ziyarette bu türde görüntü yok.",
+      none: "Gizlenen görüntü yok",
+      empty: "Bu ziyarette bu türde görüntü yok",
       previous: "Önceki sayfa",
       next: "Sonraki sayfa",
       columns: {

@@ -3,6 +3,7 @@ import { signOut } from "@/app/actions";
 import { LogoMark } from "@/components/brand/logo";
 import { t } from "@/lib/i18n";
 import { demoText } from "@/lib/i18n/messages/demo";
+import { CurrentLink } from "./current-link";
 import { DemoExitButton } from "./demo-exit-button";
 import { siteText } from "@/lib/i18n/messages/site";
 import { MobileNav } from "./mobile-nav";
@@ -41,9 +42,9 @@ export function SiteHeader({
         </Link>
         <nav aria-label={s.label} className={styles.nav}>
           {SITE_NAV.map((item) => (
-            <Link key={item.href} href={item.href} className={styles.navLink}>
+            <CurrentLink key={item.href} href={item.href} className={styles.navLink}>
               {item.label}
-            </Link>
+            </CurrentLink>
           ))}
         </nav>
         <div className={styles.actions}>
@@ -73,9 +74,9 @@ export function SiteHeader({
             </>
           ) : (
             <>
-              <Link href="/giris" className={`${styles.actionLink} ${styles.wideOnly}`}>
+              <CurrentLink href="/giris" className={`${styles.navLink} ${styles.wideOnly}`}>
                 {s.login}
-              </Link>
+              </CurrentLink>
               {demoUrl && (
                 <Link
                   href={demoUrl}
@@ -95,9 +96,9 @@ export function SiteHeader({
           <MobileNav openLabel={s.menu} closeLabel={s.menuClose}>
             <nav aria-label={s.label} className={styles.menuLinks}>
               {SITE_NAV.map((item) => (
-                <Link key={item.href} href={item.href}>
+                <CurrentLink key={item.href} href={item.href}>
                   {item.label}
-                </Link>
+                </CurrentLink>
               ))}
             </nav>
             <div className={styles.menuActions}>

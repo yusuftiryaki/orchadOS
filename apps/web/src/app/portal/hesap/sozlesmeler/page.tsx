@@ -5,7 +5,9 @@ import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Facts } from "@/components/ui/facts";
 import { PageHeader } from "@/components/ui/page-header";
+import { Panel, panelClass } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import {
   accessTokenOf,
@@ -67,7 +69,7 @@ export default async function ContractsPage() {
   });
 
   return (
-    <main className={layout.narrow} data-testid="contracts">
+    <main className={`${layout.page} ${layout.reading}`} data-testid="contracts">
       <PageHeader title={L.title} lead={L.intro} />
       {orders.length === 0 && (
         <EmptyState title={L.empty}>
@@ -77,43 +79,43 @@ export default async function ContractsPage() {
       {orders.map((order) => {
         const docs = docsOf(order.id);
         return (
-          <section
-            key={order.id}
-            className={layout.section}
-            data-testid="contracts-order"
-            data-order-id={order.id}
-            aria-labelledby={`order-${order.id}`}
-          >
-            <div className={styles.orderHead}>
-              <h2 id={`order-${order.id}`}>
-                <span className={layout.nowrap}>{L.order(order.number)}</span>
-                <StatusBadge kind="order" status={order.status} />
-              </h2>
-              <Link className={layout.nowrap} href={portalHref.order(order.id)}>
-                {L.openOrder}
-              </Link>
-            </div>
-            {docs.length > 0 && (
-              <ul
-                className={`${layout.panel} ${layout.rows} ${styles.rowsPanel}`}
-                data-testid="contract-documents"
-              >
-                {docs.map((d) => (
-                  <DocumentRow key={d.id} doc={d} />
-                ))}
-              </ul>
-            )}
-            {preparing.has(order.id) && (
-              <Alert tone="info" testId="contracts-preparing">
-                <p>{L.preparing}</p>
-              </Alert>
-            )}
-            {manualCopy.has(order.id) && (
-              <Alert tone="warning" testId="contracts-manual-copy">
-                <p>{L.manualCopy}</p>
-              </Alert>
-            )}
-          </section>
+          <div key={order.id} data-testid="contracts-order" data-order-id={order.id}>
+            <Panel
+              plain
+              id={`order-${order.id}`}
+              title={
+                <span className={styles.orderTitle}>
+                  <span className={layout.nowrap}>{L.order(order.number)}</span>
+                  <StatusBadge kind="order" status={order.status} />
+                </span>
+              }
+              actions={
+                <Link className={layout.nowrap} href={portalHref.order(order.id)}>
+                  {L.openOrder}
+                </Link>
+              }
+            >
+              {docs.length > 0 && (
+                <div className={panelClass}>
+                  <ul className={layout.rows} data-testid="contract-documents">
+                    {docs.map((d) => (
+                      <DocumentRow key={d.id} doc={d} />
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {preparing.has(order.id) && (
+                <Alert tone="info" testId="contracts-preparing">
+                  <p>{L.preparing}</p>
+                </Alert>
+              )}
+              {manualCopy.has(order.id) && (
+                <Alert tone="warning" testId="contracts-manual-copy">
+                  <p>{L.manualCopy}</p>
+                </Alert>
+              )}
+            </Panel>
+          </div>
         );
       })}
       <p className={`${layout.muted} ${layout.small}`}>{L.copyNote}</p>
@@ -130,20 +132,13 @@ function DocumentRow({ doc }: { doc: ContractDocumentRow }) {
       <div className={layout.rowMain}>
         <h3 className={styles.name}>{name}</h3>
         {L.about[doc.kind] && <p className={styles.meta}>{L.about[doc.kind]}</p>}
-        <dl className={styles.docFacts}>
-          <div>
-            <dt>{L.created}</dt>
-            <dd>{formatDateTime(doc.created_at)}</dd>
-          </div>
-          <div>
-            <dt>{L.version}</dt>
-            <dd>{doc.text_version}</dd>
-          </div>
-          <div>
-            <dt>{L.size}</dt>
-            <dd>{L.kb(doc.size_bytes)}</dd>
-          </div>
-        </dl>
+        <Facts
+          rows={[
+            [L.created, formatDateTime(doc.created_at)],
+            [L.version, doc.text_version],
+            [L.size, L.kb(doc.size_bytes)],
+          ]}
+        />
         <details className={styles.details}>
           <summary>{L.sha}</summary>
           <p className={styles.hash}>{doc.sha256}</p>

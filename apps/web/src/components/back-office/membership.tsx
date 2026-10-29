@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Facts as FactList, Panel } from "@/components/operations/ops-ui";
+import { Facts as FactList } from "@/components/ui/facts";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Panel } from "@/components/ui/panel";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Table, cell } from "@/components/ui/table";
 import type { CustomerGardenRow, ServicePeriodRow } from "@/lib/back-office/data";
@@ -31,7 +33,7 @@ export function MembershipPanel({
   if (periods.length === 0) {
     return (
       <Panel plain={!framed} headingLevel={level} title={T.title} testId="membership">
-        <p className="muted">{T.none}</p>
+        <EmptyState compact headingLevel={3} title={T.none} />
       </Panel>
     );
   }
@@ -102,7 +104,7 @@ export function MembershipPanel({
 // The gardens of a customer (ops_customer_gardens): state, covering order,
 // visits, the withdrawal deadline and the removal, if any.
 export function CustomerGardens({ gardens }: { gardens: CustomerGardenRow[] }) {
-  if (gardens.length === 0) return <p className="muted">{T.noGardens}</p>;
+  if (gardens.length === 0) return <EmptyState compact headingLevel={3} title={T.noGardens} />;
   const missingNext = gardens.some((g) => g.in_next_period === false);
   return (
     <>
@@ -166,7 +168,11 @@ export function CustomerGardens({ gardens }: { gardens: CustomerGardenRow[] }) {
                 {g.removal_status && (
                   <>
                     {" "}
-                    <Badge labels={billingText.gardenRemovalStatus} value={g.removal_status} />
+                    <Badge
+                      labels={billingText.gardenRemovalStatus}
+                      value={g.removal_status}
+                      kind="removal"
+                    />
                   </>
                 )}
               </td>

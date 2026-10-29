@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { acknowledgeKvkkAction } from "@/app/portal/billing-actions";
 import { acceptQuoteAction, declineQuoteAction } from "./actions";
 import { FilledDocumentView } from "@/components/contracts/filled-document";
+import { FactRow } from "@/components/portal-billing/fact-row";
 import { InstallmentPlan } from "@/components/portal-billing/installment-plan";
 import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { PortalResult } from "@/components/portal-billing/result-notice";
@@ -11,8 +12,11 @@ import s from "@/components/portal-billing/billing.module.css";
 import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { Facts, factsClass } from "@/components/ui/facts";
 import { Checkbox, Field, Textarea } from "@/components/ui/field";
+import { Stack } from "@/components/ui/layout";
 import { PageHeader } from "@/components/ui/page-header";
+import { Panel, panelClass } from "@/components/ui/panel";
 import { Table, cell } from "@/components/ui/table";
 import { requireSection } from "@/lib/auth/session";
 import { addonBreakdownOf, breakdownRows, windowsText } from "@/lib/billing/addon-breakdown";
@@ -101,7 +105,11 @@ export default async function QuotePage({
   const first = plan[0];
 
   return (
-    <main className={`${layout.page} ${s.doc}`} data-testid="quote" data-status={quote.status}>
+    <main
+      className={`${layout.page} ${layout.reading}`}
+      data-testid="quote"
+      data-status={quote.status}
+    >
       <PageHeader
         title={<NumberedTitle text={Q.title(quote.number)} number={quote.number} />}
         lead={open ? Q.openLead(formatDate(quote.valid_until)) : undefined}
@@ -126,59 +134,48 @@ export default async function QuotePage({
       )}
       {!open && <Alert>{Q.closed(billingText.quoteStatus[quote.status])}</Alert>}
 
-      <section className={layout.panel} aria-labelledby="quote-summary">
-        <h2 id="quote-summary">{Q.summaryTitle}</h2>
-        <dl className={`${layout.facts} ${s.factsFlex}`}>
-          <dt>{Q.package}</dt>
-          <dd>{quote.package_name}</dd>
-          <dt>{Q.visitsLabel}</dt>
-          <dd>{Q.visits(quote.periodic_visits_per_year)}</dd>
-          <dt>{Q.kind}</dt>
-          <dd>{quote.first_year ? Q.firstYear : Q.renewal}</dd>
-          <dt>{Q.validUntil}</dt>
-          <dd data-testid="quote-valid-until">{formatDate(quote.valid_until)}</dd>
+      <Panel title={Q.summaryTitle} id="quote-summary">
+        <dl className={factsClass.list}>
+          <FactRow label={Q.package}>{quote.package_name}</FactRow>
+          <FactRow label={Q.visitsLabel}>{Q.visits(quote.periodic_visits_per_year)}</FactRow>
+          <FactRow label={Q.kind}>{quote.first_year ? Q.firstYear : Q.renewal}</FactRow>
+          <FactRow label={Q.validUntil} testId="quote-valid-until">
+            {formatDate(quote.valid_until)}
+          </FactRow>
           {addon && (
-            <>
-              <dt>{Q.servicePeriod}</dt>
-              <dd data-testid="quote-addon-period">
-                <span className={s.nowrap}>{formatDate(addon.serviceStart)}</span> –{" "}
-                <span className={s.nowrap}>{formatDate(addon.periodEnd)}</span>
-              </dd>
-            </>
+            <FactRow label={Q.servicePeriod} testId="quote-addon-period">
+              <span className={s.nowrap}>{formatDate(addon.serviceStart)}</span> –{" "}
+              <span className={s.nowrap}>{formatDate(addon.periodEnd)}</span>
+            </FactRow>
           )}
           {!addon && quote.proposed_service_start && (
-            <>
-              <dt>{Q.serviceStart}</dt>
-              <dd>{formatDate(quote.proposed_service_start)}</dd>
-            </>
+            <FactRow label={Q.serviceStart}>{formatDate(quote.proposed_service_start)}</FactRow>
           )}
-          <dt>{Q.serviceEnd}</dt>
-          <dd data-testid="quote-service-end">{serviceEnd}</dd>
+          <FactRow label={Q.serviceEnd} testId="quote-service-end">
+            {serviceEnd}
+          </FactRow>
         </dl>
-        <dl className={layout.facts} data-testid="quote-totals">
-          <dt>{Q.base}</dt>
-          <dd>{formatKurus(quote.base_kurus, currency)}</dd>
+        <dl className={factsClass.summary} data-testid="quote-totals">
+          <FactRow label={Q.base}>{formatKurus(quote.base_kurus, currency)}</FactRow>
           {quote.discount_kurus > 0 && (
-            <>
-              <dt>{Q.discount(percent(quote.discount_bp))}</dt>
-              <dd>{formatKurus(-quote.discount_kurus, currency)}</dd>
-            </>
+            <FactRow label={Q.discount(percent(quote.discount_bp))}>
+              {formatKurus(-quote.discount_kurus, currency)}
+            </FactRow>
           )}
-          <dt>{Q.subtotal}</dt>
-          <dd>{formatKurus(quote.subtotal_kurus, currency)}</dd>
-          <dt>{Q.vat(percent(quote.vat_rate_bp))}</dt>
-          <dd>{formatKurus(quote.vat_kurus, currency)}</dd>
-          <dt className={layout.factsTotal}>{Q.total}</dt>
-          <dd className={layout.factsTotal} data-testid="quote-total">
+          <FactRow label={Q.subtotal}>{formatKurus(quote.subtotal_kurus, currency)}</FactRow>
+          <FactRow label={Q.vat(percent(quote.vat_rate_bp))}>
+            {formatKurus(quote.vat_kurus, currency)}
+          </FactRow>
+          <FactRow label={Q.total} testId="quote-total" total>
             {formatKurus(quote.total_kurus, currency)}
-          </dd>
+          </FactRow>
         </dl>
         {quote.discount_note && (
           <p className={layout.small}>
             <strong>{Q.discountNote}:</strong> {quote.discount_note}
           </p>
         )}
-      </section>
+      </Panel>
 
       {quote.note_to_customer && (
         <Alert tone="info" title={Q.note} testId="quote-note">
@@ -186,8 +183,7 @@ export default async function QuotePage({
         </Alert>
       )}
 
-      <section className={layout.section}>
-        <h2>{Q.lines}</h2>
+      <Panel title={Q.lines} plain>
         <div className={s.tableBox}>
           <Table className={`${s.stack} ${s.lines}`} data-testid="quote-lines">
             <thead>
@@ -234,23 +230,26 @@ export default async function QuotePage({
         </div>
         {addon && <p className={`${layout.muted} ${layout.small}`}>{Q.addonVisitsHint}</p>}
         {breakdown && (
-          <div className={layout.panel} data-testid="quote-breakdown">
-            <h3>{billingText.addonBreakdown.title}</h3>
+          <Panel title={billingText.addonBreakdown.title} headingLevel={3} testId="quote-breakdown">
             {breakdown.lines.map((line) => (
-              <div key={line.lineNo} className={layout.stack}>
+              <Stack key={line.lineNo} gap="sm">
                 <h4>{Q.breakdownLine(line.gardenName)}</h4>
-                <dl className={layout.facts}>
-                  {breakdownRows(breakdown, line, currency).map((row) => (
-                    <Fact key={row.label} label={row.label} value={row.value} />
-                  ))}
-                </dl>
-              </div>
+                <Facts
+                  variant="summary"
+                  rows={breakdownRows(breakdown, line, currency).map((row) => [
+                    row.label,
+                    row.value,
+                  ])}
+                />
+              </Stack>
             ))}
-            <dl className={layout.facts}>
-              <dt>{billingText.addonBreakdown.priceList}</dt>
-              <dd>{breakdown.priceListName}</dd>
-              <dt>{billingText.addonBreakdown.windows}</dt>
-              <dd data-testid="quote-windows">{windowsText(breakdown)}</dd>
+            <dl className={factsClass.list}>
+              <FactRow label={billingText.addonBreakdown.priceList}>
+                {breakdown.priceListName}
+              </FactRow>
+              <FactRow label={billingText.addonBreakdown.windows} testId="quote-windows">
+                {windowsText(breakdown)}
+              </FactRow>
             </dl>
             <p className={`${layout.muted} ${layout.small}`}>
               {billingText.addonBreakdown.roundingExample}
@@ -258,22 +257,24 @@ export default async function QuotePage({
             <p>
               <strong>{billingText.addonBreakdown.binding}</strong>
             </p>
-          </div>
+          </Panel>
         )}
-      </section>
+      </Panel>
 
       {open && plan.length > 0 && (
-        <section className={layout.section} data-testid="quote-plan">
-          <h2>{billingText.plan.title}</h2>
-          <p className={layout.sectionLead}>{billingText.plan.quoteHint}</p>
+        <Panel
+          title={billingText.plan.title}
+          description={billingText.plan.quoteHint}
+          plain
+          testId="quote-plan"
+        >
           <InstallmentPlan rows={plan} currency={currency} />
-        </section>
+        </Panel>
       )}
 
       {open && (
         <>
-          <section className={layout.section} data-testid="quote-billing">
-            <h2>{Q.billingTitle}</h2>
+          <Panel title={Q.billingTitle} plain testId="quote-billing">
             {profile?.complete ? (
               <p>
                 {Q.billingComplete} <Link href={portalHref.billing(here)}>{Q.billingEdit}</Link>
@@ -286,11 +287,10 @@ export default async function QuotePage({
                 </p>
               </Alert>
             )}
-          </section>
+          </Panel>
 
           {gateReasons.length > 0 && (
-            <section className={layout.section} data-testid="quote-gate">
-              <h2>{Q.gateTitle}</h2>
+            <Panel title={Q.gateTitle} plain testId="quote-gate">
               <Alert tone="warning">
                 <ul>
                   {gateReasons.map((reason) => (
@@ -301,20 +301,18 @@ export default async function QuotePage({
                 </ul>
               </Alert>
               <p className={`${layout.muted} ${layout.small}`}>{Q.gateHint}</p>
-            </section>
+            </Panel>
           )}
 
           {(!kvkk || kvkkOutdated) && !kvkkRecordable && (
-            <section className={layout.section} data-testid="quote-kvkk">
-              <h2>{Q.kvkkTitle}</h2>
+            <Panel title={Q.kvkkTitle} plain testId="quote-kvkk">
               <Alert tone="warning">{Q.kvkkOtherOrg}</Alert>
-            </section>
+            </Panel>
           )}
 
           {(!kvkk || kvkkOutdated) && kvkkRecordable && (
-            <section className={layout.section} data-testid="quote-kvkk">
-              <h2>{Q.kvkkTitle}</h2>
-              <form action={acknowledgeKvkkAction} className={`${layout.panel} ${s.checks}`}>
+            <Panel title={Q.kvkkTitle} plain testId="quote-kvkk">
+              <form action={acknowledgeKvkkAction} className={`${panelClass} ${s.checks}`}>
                 <input type="hidden" name="geri" value={here} />
                 <p>
                   {kvkkOutdated ? Q.kvkkCurrentBody : Q.kvkkBody}{" "}
@@ -341,13 +339,11 @@ export default async function QuotePage({
                   </Button>
                 </div>
               </form>
-            </section>
+            </Panel>
           )}
 
           {filled && (
-            <section className={layout.section} data-testid="quote-contracts">
-              <h2>{C.quote.title}</h2>
-              <p className={layout.sectionLead}>{C.quote.intro}</p>
+            <Panel title={C.quote.title} description={C.quote.intro} plain testId="quote-contracts">
               {quote.addon_of_order_id && <Alert tone="info">{C.quote.addonIntro}</Alert>}
               {!quote.addon_of_order_id && quote.renewal_of_order_id && (
                 <Alert tone="info">{C.quote.renewalIntro}</Alert>
@@ -357,12 +353,11 @@ export default async function QuotePage({
                 <summary>{C.quote.showContract}</summary>
                 <FilledDocumentView doc={filled[1].doc} displaySha256={filled[1].hash} />
               </details>
-            </section>
+            </Panel>
           )}
 
-          <section className={layout.section} data-testid="quote-accept">
-            <h2>{Q.acceptTitle}</h2>
-            <form action={acceptQuoteAction} className={`${layout.panel} ${s.checks}`}>
+          <Panel title={Q.acceptTitle} plain testId="quote-accept">
+            <form action={acceptQuoteAction} className={`${panelClass} ${s.checks}`}>
               <input type="hidden" name="quote_id" value={quote.id} />
               <input type="hidden" name="pre_information_display" value={filled?.[0].hash ?? ""} />
               <input type="hidden" name="distance_sales_display" value={filled?.[1].hash ?? ""} />
@@ -408,16 +403,20 @@ export default async function QuotePage({
                   hint={Q.earlyPerformanceHint}
                 />
               </fieldset>
-              <dl className={layout.facts}>
-                <dt>{Q.total}</dt>
-                <dd>{formatKurus(quote.total_kurus, currency)}</dd>
-                {first && (
-                  <>
-                    <dt>{`${Q.firstPayment}: ${installmentLabel(first)}`}</dt>
-                    <dd>{formatKurus(first.amountKurus, currency)}</dd>
-                  </>
-                )}
-              </dl>
+              <Facts
+                variant="summary"
+                rows={[
+                  [Q.total, formatKurus(quote.total_kurus, currency)],
+                  ...(first
+                    ? ([
+                        [
+                          `${Q.firstPayment}: ${installmentLabel(first)}`,
+                          formatKurus(first.amountKurus, currency),
+                        ],
+                      ] as [string, string][])
+                    : []),
+                ]}
+              />
               <div className={layout.actions}>
                 <button className={`button ${s.longButton}`} type="submit" disabled={!canAccept}>
                   {Q.accept}
@@ -426,10 +425,9 @@ export default async function QuotePage({
               {!canAccept && <p className={layout.small}>{Q.acceptBlocked}</p>}
               <p className={`${layout.muted} ${layout.small}`}>{Q.acceptHint}</p>
             </form>
-          </section>
+          </Panel>
 
-          <section className={layout.section}>
-            <h2>{Q.declineTitle}</h2>
+          <Panel title={Q.declineTitle} plain>
             <form action={declineQuoteAction} className={s.form}>
               <input type="hidden" name="quote_id" value={quote.id} />
               <Field id="f-note" label={Q.revisionNote} hint={Q.revisionHint} optional={P.optional}>
@@ -445,18 +443,9 @@ export default async function QuotePage({
               </div>
               <p className={`${layout.muted} ${layout.small}`}>{Q.declineHint}</p>
             </form>
-          </section>
+          </Panel>
         </>
       )}
     </main>
-  );
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </>
   );
 }

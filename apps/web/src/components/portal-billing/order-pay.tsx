@@ -1,10 +1,12 @@
 import Link from "next/link";
 import layout from "@/components/portal/page.module.css";
+import { factsClass } from "@/components/ui/facts";
 import { formatKurus } from "@/lib/billing/money";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import type { PaymentInstructions } from "@/lib/portal-billing/data";
 import { portalHref } from "@/lib/portal-billing/urls";
 import s from "./billing.module.css";
+import { FactRow } from "./fact-row";
 import { PayButton } from "./pay-button";
 
 const O = P.order;
@@ -38,22 +40,23 @@ export function OrderPay({
           {O.cardOff}
         </p>
       )}
-      <div className={layout.stack}>
+      <div className={s.formTight}>
         <h3>{O.transferTitle}</h3>
         {instructions?.iban ? (
           <>
             <p className={layout.small}>{O.transferBody}</p>
-            <dl className={s.bank} data-testid="bank-transfer">
-              <dt>{O.bank}</dt>
-              <dd>{instructions.bankName ?? P.none}</dd>
-              <dt>{O.holder}</dt>
-              <dd>{instructions.ibanHolder ?? P.none}</dd>
-              <dt>{O.iban}</dt>
-              <dd>{instructions.iban}</dd>
-              <dt>{O.reference}</dt>
-              <dd data-testid="bank-reference">{instructions.reference}</dd>
-              <dt>{O.amount}</dt>
-              <dd>{formatKurus(instructions.outstandingKurus, instructions.currency)}</dd>
+            <dl className={factsClass.list} data-testid="bank-transfer">
+              <FactRow label={O.bank}>{instructions.bankName ?? P.none}</FactRow>
+              <FactRow label={O.holder}>{instructions.ibanHolder ?? P.none}</FactRow>
+              <FactRow label={O.iban}>
+                <span className={s.iban}>{instructions.iban}</span>
+              </FactRow>
+              <FactRow label={O.reference} testId="bank-reference">
+                {instructions.reference}
+              </FactRow>
+              <FactRow label={O.amount}>
+                {formatKurus(instructions.outstandingKurus, instructions.currency)}
+              </FactRow>
             </dl>
           </>
         ) : (

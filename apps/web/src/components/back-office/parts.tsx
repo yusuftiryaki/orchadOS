@@ -1,15 +1,17 @@
 import { FormError, Notice } from "@/components/operations/field";
-import { Facts as FactList } from "@/components/operations/ops-ui";
-import styles from "@/components/operations/operations.module.css";
+import { Facts as FactList } from "@/components/ui/facts";
 import { Alert } from "@/components/ui/alert";
 import { Badge as UiBadge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Field, Select } from "@/components/ui/field";
 import { readBoResult } from "@/lib/back-office/urls";
 import type { OpsOrg } from "@/lib/operations/data";
 import { formatKurus } from "@/lib/billing/money";
 import { formatDate, formatDateTime } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { billingText } from "@/lib/i18n/messages/billing";
-import { statusTone } from "./status-tone";
+import { statusTone, type StatusKind } from "@/components/ui/status";
+import bo from "./back-office.module.css";
 
 // Small pieces shared by the back office pages.
 
@@ -40,9 +42,17 @@ export const day = (iso: string | null | undefined) => (iso ? formatDate(iso) : 
 export const when = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : B.none);
 
 // A status code with its Turkish label (unknown codes as they are), in the
-// tone the same status has on every screen (status-tone.ts).
-export function Badge({ labels, value }: { labels: Record<string, string>; value: string }) {
-  return <UiBadge tone={statusTone(value)}>{labels[value] ?? value}</UiBadge>;
+// tone the same status has on every screen (components/ui/status.ts).
+export function Badge({
+  labels,
+  value,
+  kind,
+}: {
+  labels: Record<string, string>;
+  value: string;
+  kind?: StatusKind;
+}) {
+  return <UiBadge tone={statusTone(value, kind)}>{labels[value] ?? value}</UiBadge>;
 }
 
 export function Warning({ children, testId }: { children: React.ReactNode; testId?: string }) {
@@ -67,20 +77,19 @@ export function OrgPicker({
 }) {
   if (orgs.length < 2) return null;
   return (
-    <form className={styles.inline} action={action} data-testid="org-picker">
-      <label>
-        {B.org}
-        <select name="org" defaultValue={current}>
+    <form className={bo.picker} action={action} data-testid="org-picker">
+      <Field id="org-picker" label={B.org}>
+        <Select name="org" defaultValue={current}>
           {orgs.map((o) => (
             <option key={o.id} value={o.id}>
               {o.name}
             </option>
           ))}
-        </select>
-      </label>
-      <button className="button button-secondary" type="submit">
-        {B.show}
-      </button>
+        </Select>
+      </Field>
+      <Button variant="secondary" type="submit">
+        {B.apply}
+      </Button>
     </form>
   );
 }
@@ -103,13 +112,8 @@ export function Submit({
   secondary?: boolean;
 }) {
   return (
-    <button
-      className={secondary ? "button button-secondary" : "button"}
-      type="submit"
-      name={name}
-      value={value}
-    >
+    <Button variant={secondary ? "secondary" : "primary"} type="submit" name={name} value={value}>
       {children}
-    </button>
+    </Button>
   );
 }

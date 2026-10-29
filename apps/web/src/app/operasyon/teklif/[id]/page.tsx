@@ -4,7 +4,7 @@ import { Badge, BoResultNotice, Facts, day, when } from "@/components/back-offic
 import bo from "@/components/back-office/back-office.module.css";
 import { QuoteLines } from "@/components/back-office/quote-lines";
 import q2 from "@/components/back-office/quote.module.css";
-import { Panel } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import styles from "@/components/operations/operations.module.css";
 import { requireSection } from "@/lib/auth/session";

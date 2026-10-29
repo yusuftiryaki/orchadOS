@@ -77,12 +77,6 @@
   border-top: 1px solid var(--color-border);
 }
 
-.consequence {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-text-2);
-}
-
 /* A GET form that recomputes a preview: fields and the button on one row. */
 .inlineForm {
   display: flex;
@@ -123,17 +117,6 @@
 .overlapTitle {
   margin: 0;
   font-size: var(--text-base);
-}
-
-.withdraw summary {
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-2);
-}
-
-.withdraw[open] summary {
-  margin-bottom: var(--space-2);
 }
 
 /* Keeps an absolutely positioned sr-only label inside a scrolling table. */

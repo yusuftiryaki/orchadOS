@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cancelVisitAction } from "@/app/operasyon/actions";
-import { statusTone } from "@/components/back-office/status-tone";
+import { statusTone } from "@/components/ui/status";
 import { CloseupList } from "@/components/operations/closeup-list";
 import { LegalNotice } from "@/components/operations/legal-notice";
 import { MediaSuppression } from "@/components/operations/media-suppression";
-import { Facts, Panel, Split, Stack } from "@/components/operations/ops-ui";
+import { Facts } from "@/components/ui/facts";
+import { Panel } from "@/components/ui/panel";
+import { Split, Stack } from "@/components/ui/layout";
 import { ResultNotice } from "@/components/operations/result-notice";
 import { VisitForm } from "@/components/operations/visit-form";
 import { VisitRecords } from "@/components/operations/visit-records";

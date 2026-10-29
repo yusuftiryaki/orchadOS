@@ -13,6 +13,7 @@ import { sourceOfSet, type PanoramaSetInfo } from "@/lib/office/panoramas";
 import { UUID_RE } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
 import styles from "@/components/office/office-tool.module.css";
+import staff from "@/components/staff-page.module.css";
 
 // Office triangulation tool for one parcel. Without ?oturum=&set= it first
 // asks for the inventory session and the processed panorama set.
@@ -54,7 +55,7 @@ export default async function Page({
         ? t.office.setLabel(s.label, s.count)
         : `${t.office.setLabel(s.label, s.count)} (${t.office.setMismatch})`;
     return (
-      <main className="page">
+      <main className={`page ${staff.page}`}>
         <PageHeader back={back} title={t.office.title} />
         <form method="get" className={styles.chooser} data-testid="office-chooser">
           <h2>{t.office.chooseTitle}</h2>
@@ -107,7 +108,7 @@ export default async function Page({
 
   const date = session.startedAt ?? session.plannedDate;
   return (
-    <main className={styles.page}>
+    <main className={staff.wide}>
       <PageHeader
         back={back}
         title={t.office.title}

@@ -1,8 +1,9 @@
 import { cancelFollowupAction, requestFollowupAction } from "@/app/uzman/actions";
 import { Alert } from "@/components/ui/alert";
-import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Select, Textarea } from "@/components/ui/field";
+import { statusTone } from "@/components/ui/status";
 import type { Followup } from "@/lib/expert/followups";
 import { formatDate, t } from "@/lib/i18n";
 import styles from "./expert.module.css";
@@ -12,14 +13,6 @@ import styles from "./expert.module.css";
 // after publication too, and owners never see them.
 
 const f = t.expert.followups;
-
-// Open requests wait on operations; done is done, cancelled is set aside.
-export const FOLLOWUP_STATUS_TONE: Record<Followup["status"], BadgeTone> = {
-  open: "warning",
-  planned: "info",
-  done: "success",
-  cancelled: "neutral",
-};
 
 export function FollowupPanel({
   sessionId,
@@ -71,7 +64,7 @@ export function FollowupPanel({
             >
               <div className={styles.itemHead}>
                 <strong>{f.kinds[item.kind]}</strong>
-                <Badge tone={FOLLOWUP_STATUS_TONE[item.status]}>{f.status[item.status]}</Badge>
+                <Badge tone={statusTone(item.status)}>{f.status[item.status]}</Badge>
                 {item.origin === "pipeline" && <Badge>{f.origin.pipeline}</Badge>}
                 <span className={styles.muted}>{formatDate(item.createdAt)}</span>
               </div>

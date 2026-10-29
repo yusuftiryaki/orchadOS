@@ -4,6 +4,7 @@ import { useFormStatus } from "react-dom";
 import { startPaymentAction } from "@/app/portal/billing-actions";
 import { Field, Input } from "@/components/ui/field";
 import layout from "@/components/portal/page.module.css";
+import s from "./billing.module.css";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 
 function Submit() {
@@ -27,7 +28,7 @@ export function PayButton({
   identityRequired?: boolean;
 }) {
   return (
-    <form action={startPaymentAction} className={layout.stack}>
+    <form action={startPaymentAction} className={s.formTight}>
       <input type="hidden" name="order_id" value={orderId} />
       {identityRequired && (
         <Field

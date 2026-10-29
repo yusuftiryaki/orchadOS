@@ -1,22 +1,15 @@
 import Link from "next/link";
-import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { statusTone } from "@/components/ui/status";
 import { cell, Table } from "@/components/ui/table";
 import type { Section } from "@/lib/auth/roles";
 import { formatNumber, t } from "@/lib/i18n";
-import { listParcels, type ParcelSummary } from "@/lib/parcels";
+import { listParcels } from "@/lib/parcels";
 import { createClient } from "@/lib/supabase/server";
 import styles from "./parcel-list.module.css";
-
-// Lifecycle tones: work still ahead is info, a monitored parcel success.
-export const PARCEL_STATUS_TONE: Record<ParcelSummary["status"], BadgeTone> = {
-  registered: "neutral",
-  inventory_planned: "info",
-  inventory_done: "info",
-  active_monitoring: "success",
-  passive: "neutral",
-};
+import staff from "@/components/staff-page.module.css";
 
 // Lists every parcel row level security lets the user read. No filtering here.
 export async function ParcelList({ section }: { section: Section }) {
@@ -24,7 +17,7 @@ export async function ParcelList({ section }: { section: Section }) {
   const parcels = await listParcels(supabase);
 
   return (
-    <main className={`page ${styles.page}`}>
+    <main className={`page ${staff.page}`}>
       <PageHeader
         title={t.parcels.title}
         lead={parcels.length > 0 ? t.parcels.lead(parcels.length) : undefined}
@@ -63,7 +56,7 @@ export async function ParcelList({ section }: { section: Section }) {
                   {parcel.estimated_tree_count != null && formatNumber(parcel.estimated_tree_count)}
                 </td>
                 <td>
-                  <Badge tone={PARCEL_STATUS_TONE[parcel.status]}>
+                  <Badge tone={statusTone(parcel.status, "parcel")}>
                     {t.parcels.status[parcel.status]}
                   </Badge>
                 </td>

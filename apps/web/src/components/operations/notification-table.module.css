@@ -1,9 +1,5 @@
 /* The notification queue (notification-table.tsx). */
 
-.nowrap {
-  white-space: nowrap;
-}
-
 .recipient,
 .detail {
   display: flex;

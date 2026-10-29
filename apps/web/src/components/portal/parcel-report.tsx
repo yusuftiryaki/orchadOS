@@ -5,6 +5,7 @@ import { Badge, ClassDot } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { Panel, panelClass } from "@/components/ui/panel";
 import { cell, Table } from "@/components/ui/table";
 import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
 import type { MarkerState } from "@/lib/map/tree-style";
@@ -125,23 +126,25 @@ export function ParcelReportView({
           </>
         }
         actions={
-          <div className={`${styles.headerActions} ${styles.noPrint}`}>
-            {report.visits.length > 0 && (
-              <ButtonLink variant="secondary" href={`${base}/gezi`}>
-                {r.tour}
-              </ButtonLink>
-            )}
-            {latest && (
-              <a
-                className="button button-secondary"
-                href={`${base}/rapor.pdf`}
-                data-testid="report-pdf"
-              >
-                {r.pdf}
-              </a>
-            )}
-            {latest && <PrintButton className={styles.printButton} />}
-          </div>
+          (report.visits.length > 0 || latest) && (
+            <>
+              {report.visits.length > 0 && (
+                <ButtonLink variant="secondary" href={`${base}/gezi`} className={styles.noPrint}>
+                  {r.tour}
+                </ButtonLink>
+              )}
+              {latest && (
+                <a
+                  className={`button button-secondary ${styles.noPrint}`}
+                  href={`${base}/rapor.pdf`}
+                  data-testid="report-pdf"
+                >
+                  {r.pdf}
+                </a>
+              )}
+              {latest && <PrintButton className={`${styles.printButton} ${styles.noPrint}`} />}
+            </>
+          )
         }
       />
       {pdfLimit && <DemoNotice text={demoText.closed.pdfLimit} />}
@@ -217,7 +220,7 @@ export function ParcelReportView({
             notice={noticeOnCard}
           />
           {boundaryCard.inventory && (
-            <div className={layout.panel} data-testid="portal-inventory">
+            <div className={panelClass} data-testid="portal-inventory">
               <InventorySummaryView
                 summary={boundaryCard.inventory.summary}
                 title={
@@ -270,7 +273,7 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
   const states: (keyof Distribution)[] = [...CLASS_ORDER, "unassessed"];
   const shown = states.filter((c) => c !== "unassessed" || latest.distribution.unassessed > 0);
   return (
-    <section className={layout.panel} aria-labelledby="durum-baslik" data-testid="report-summary">
+    <section className={panelClass} aria-labelledby="durum-baslik" data-testid="report-summary">
       <div className={styles.overview}>
         <div className={layout.stack}>
           <div className={styles.overviewHead}>
@@ -470,10 +473,9 @@ function Attention({
     !!boundaryCard?.latest && !boundaryCard.latest.approvedAt && boundaryCard.canApprove;
   if (pressing.length === 0 && worse === 0 && !boundaryPending) {
     return (
-      <section className={`${layout.panel} ${styles.attentionCalm}`} aria-labelledby="dikkat">
-        <h2 id="dikkat">{r.calmTitle}</h2>
+      <Panel title={r.calmTitle} id="dikkat" className={styles.attentionCalm}>
         <p>{r.calmBody}</p>
-      </section>
+      </Panel>
     );
   }
   // The map filtered to the classes of the trees with these findings.
@@ -486,8 +488,7 @@ function Attention({
     ...new Set(pressing.flatMap((f) => (f.treeId ? [stateOf.get(f.treeId)] : []))),
   ].filter((s): s is MarkerState => !!s);
   return (
-    <section className={`${layout.panel} ${styles.attention}`} aria-labelledby="dikkat">
-      <h2 id="dikkat">{r.attentionTitle}</h2>
+    <Panel title={r.attentionTitle} id="dikkat" className={styles.attention}>
       {pressing.length > 0 && (
         <>
           <p>
@@ -506,22 +507,13 @@ function Attention({
                         <span className="muted">{r.kindTrees(group.length)}</span>
                       </span>
                       {trees.length > 0 && (
-                        <span>
-                          {trees.slice(0, SHOWN_CODES).map((f, i) => (
-                            <span key={f.id}>
-                              {i > 0 && ", "}
-                              <Link className={styles.code} href={`${base}/agac/${f.treeId}`}>
-                                {f.treeCode}
-                              </Link>
-                            </span>
-                          ))}
+                        <CodeList findings={trees.slice(0, SHOWN_CODES)} base={base} ids={false}>
                           {trees.length > SHOWN_CODES && (
-                            <span className="muted">
-                              {" "}
+                            <li className={`muted ${styles.codeMore}`}>
                               {r.moreCodes(trees.length - SHOWN_CODES)}
-                            </span>
+                            </li>
                           )}
-                        </span>
+                        </CodeList>
                       )}
                     </div>
                   </li>
@@ -553,7 +545,7 @@ function Attention({
           </ButtonLink>
         </div>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -623,17 +615,33 @@ function KindFindings({ group, base }: { group: KindGroup; base: string }) {
   );
 }
 
-// Tree findings that say the same thing: one line of tree codes.
-function CodeList({ findings, base }: { findings: FindingItem[]; base: string; shared?: boolean }) {
+// Tree findings that say the same thing, or the trees of a kind in "Dikkat
+// isteyenler": one line of tree code chips (44px targets), each opening the
+// tree card. `children` adds a last item ("ve 3 ağaç daha").
+function CodeList({
+  findings,
+  base,
+  ids = true,
+  children,
+}: {
+  findings: FindingItem[];
+  base: string;
+  shared?: boolean;
+  // The findings list marks its items; the summary above it does not repeat
+  // the marks.
+  ids?: boolean;
+  children?: React.ReactNode;
+}) {
   return (
     <ul className={styles.codeList}>
       {findings.map((f) => (
-        <li key={f.id} data-finding-id={f.id}>
+        <li key={f.id} data-finding-id={ids ? f.id : undefined}>
           <Link className={styles.codeChip} href={`${base}/agac/${f.treeId}`}>
             {f.treeCode}
           </Link>
         </li>
       ))}
+      {children}
     </ul>
   );
 }
@@ -701,11 +709,18 @@ function Metrics({ metrics }: { metrics: MetricSummaryRow[] }) {
         <p className="muted">{r.metricsEmpty}</p>
       ) : (
         <Table data-testid="metrics">
+          <thead>
+            <tr>
+              <th>{r.metricColumns.metric}</th>
+              <th className={cell.num}>{r.metricColumns.count}</th>
+              <th>{r.metricColumns.summary}</th>
+            </tr>
+          </thead>
           <tbody>
             {metrics.map((m) => (
               <tr key={m.code}>
                 <th scope="row">{m.name}</th>
-                <td>{r.metricCount(m.count)}</td>
+                <td className={cell.num}>{formatNumber(m.count)}</td>
                 <td>
                   <MetricSummaryText metric={m} />
                 </td>

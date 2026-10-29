@@ -39,7 +39,7 @@ test("renders the orchard sample, the classes and the packages without console e
 test("the main calls to action lead to sign-up and to the demo tour", async ({ page }) => {
   await page.goto("/");
   const hero = page.locator("section").first();
-  await hero.getByRole("link", { name: "Kayıt olun" }).click();
+  await hero.getByRole("link", { name: "Kayıt ol", exact: true }).click();
   await expect(page).toHaveURL("/kayit");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Kayıt ol");
 
@@ -76,10 +76,10 @@ test.describe("phone", () => {
     );
 
     await header.getByRole("button", { name: "Menü" }).click();
-    await expect(header.getByRole("link", { name: "Giriş", exact: true })).toBeVisible();
+    await expect(header.getByRole("link", { name: "Giriş yap", exact: true })).toBeVisible();
     await expect(header.getByRole("link", { name: "Demoyu dene" })).toBeVisible();
     await page.keyboard.press("Escape");
-    await expect(header.getByRole("link", { name: "Giriş", exact: true })).toBeHidden();
+    await expect(header.getByRole("link", { name: "Giriş yap", exact: true })).toBeHidden();
     await expect(header.getByRole("button", { name: "Menü" })).toBeFocused();
   });
 

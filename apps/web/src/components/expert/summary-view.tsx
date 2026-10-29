@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { statusTone, severityTone } from "@/components/ui/status";
 import { cell, Table } from "@/components/ui/table";
 import type { Followup } from "@/lib/expert/followups";
 import type { PipelineChecks } from "@/lib/expert/pipeline-checks";
@@ -11,9 +12,10 @@ import { formatNumber, t } from "@/lib/i18n";
 import { BulkApprovePanel, type BulkMessages } from "./bulk-approve";
 import { ClassBadge } from "./class-badge";
 import styles from "./expert.module.css";
+import staff from "@/components/staff-page.module.css";
 import { FindingForm } from "./finding-form";
-import { FindingList, SEVERITY_TONE } from "./finding-list";
-import { FOLLOWUP_STATUS_TONE, FollowupPanel } from "./followup-panel";
+import { FindingList } from "./finding-list";
+import { FollowupPanel } from "./followup-panel";
 import { PipelineChecksPanel } from "./pipeline-checks";
 import { PublishForm } from "./publish-form";
 import { VisitHeader } from "./review-view";
@@ -54,7 +56,7 @@ export function SummaryView({
   const treeFollowups = followups.filter((f) => f.treeId);
 
   return (
-    <main className={`page ${styles.page}`} data-testid="summary-page">
+    <main className={`page ${staff.page} ${styles.page}`} data-testid="summary-page">
       <VisitHeader ctx={ctx} back={{ href: reviewHref(s.id), label: sm.back }} />
       {(published || findingError) && (
         <div className={styles.notices}>
@@ -208,7 +210,7 @@ export function SummaryView({
             <div className={styles.itemHead}>
               <span className={styles.muted}>{sm.findingsBySeverity}</span>
               {(["high", "medium", "low", "info"] as const).map((sev) => (
-                <Badge key={sev} tone={SEVERITY_TONE[sev]}>
+                <Badge key={sev} tone={severityTone(sev)}>
                   {t.expert.findings.severities[sev]} {summary.findingsBySeverity[sev]}
                 </Badge>
               ))}
@@ -253,7 +255,7 @@ export function SummaryView({
                         {codeOf.get(f.treeId!) ?? "?"}
                       </Link>
                       <span>{t.expert.followups.kinds[f.kind]}</span>
-                      <Badge tone={FOLLOWUP_STATUS_TONE[f.status]}>
+                      <Badge tone={statusTone(f.status)}>
                         {t.expert.followups.status[f.status]}
                       </Badge>
                     </div>

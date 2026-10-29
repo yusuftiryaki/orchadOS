@@ -1,6 +1,6 @@
 # Tasarım sistemi
 
-28 Ekim 2026 · Arayüz yenileme, 1. dalga
+28 Ekim 2026 · Arayüz yenileme, 1. dalga; 29 Ekim 2026 · 3. dalga (entegrasyon)
 
 Bu belge orchadOS web arayüzünün görsel dilini ve bileşen sözleşmesini tutar. 1. dalgada tasarım sistemi ve karşılama sayfası yapıldı. 2. dalgada portal, personel ekranları (ofis, operasyon, uzman, back office) ve kalan site sayfaları bu belgeye göre yeniden düzenlenir. Bir token ya da bileşen sözleşmesi değişirse önce bu belge güncellenir.
 
@@ -197,7 +197,20 @@ Hepsi `@/components/ui/<dosya>` yolundan tek tek içe aktarılır; toplu dışa 
 | `Toast` | `toast.tsx` (istemci) | Kısa onay için; kendiliğinden kapanır. Okunması gereken hata için `Alert` kullanılır |
 | `EmptyState` | `empty-state.tsx` | Başlık eksik olanı söyler, gövde nedenini ve sonrasını, eylem bir sonraki adıma çağırır |
 | `PageHeader` | `page-header.tsx` | Tek `h1`, giriş metni, durum rozetleri (`meta`), eylemler ve bir üst düzeye dönüş bağlantısı (`back`) |
-| `AppShell` | `app-shell.tsx` | Oturumlu bölüm kabuğu. `variant`: portal ya da staff; `dense`, `nav`, `account`. Telefonda bölüm bağlantıları ikinci satırda yatay kayar |
+| `AppShell` | `app-shell.tsx` | Oturumlu bölüm kabuğu. `variant`: portal ya da staff; `dense`, `nav`, `account`. Telefonda bölüm bağlantıları ikinci satırda yatay kayar; geçerli bağlantı görünüme kaydırılır, sağda daha fazlası varken kenar solar (`current-into-view.tsx`) |
+| `Panel`, `panelClass` | `panel.tsx` | Başlıklı bölge: `h2`/`h3` (`headingLevel`), `description`, sağda `actions`, çerçeveli yüzey. `plain` yüzeyi kaldırır (içinde tablo olan bölge). Başlıksız hali yalnız yüzeydir; `section` olmayan öğe (form) için `panelClass` |
+| `Facts`, `factsClass` | `facts.tsx` | Etiket → değer listesi (`dl`). `list`: kayıt ("Paket  Standart"). `summary`: para; değerler sağa hizalı, tabular, `total` çizginin altında. Satırı kendi test kimliğini taşıyorsa `factsClass` |
+| `FilterTabs` | `filter-tabs.tsx` | Listenin süzgeçleri, her biri ayrı URL (`?durum=`): bölmeli denetim, sayılar, `aria-current`. Sekme paneli için `Tabs`, ekranın alt sayfaları için `TabLinks` |
+| `Pagination`, `pageOf`, `PAGE_SIZE` | `pagination.tsx` | Bellekteki uzun listenin bir sayfası (`?sayfa=`, 50 satır); aralık ve önceki/sonraki |
+| `Stack`, `Split`, `Toolbar` | `layout.tsx` | Bölge yığını; kayıt + dar yan sütun (`Split`, kapsayıcı sorgusu: içerik 880 px'i geçince iki sütun, kenar çubuğunun yanında da ortalanmış portal sütununda da aynı); listenin üstündeki süzgeç ve sayı satırı (`Toolbar`) |
+| `Disclosure`, `Consequence` | `disclosure.tsx` | Seyrek ya da geri alınamaz eylem (iptal, fesih, ret, cayma kaydı): kapalı başlar, özet dokunmatikte 44 px. İçinde `Consequence` düğmeye basınca ne olacağını söyler |
+| `Kbd` | `kbd.tsx` | Klavye tuşu. Adı zaten söyleyen düğmenin yanında `hidden`, dolu düğmede `onAccent` |
+| `statusTone`, `severityTone` | `status.ts` | Uygulamanın tek durum → ton eşlemesi (§Kullanım 5). `statusTone(durum, tür?)`; tür yalnız aynı kodun başka anlama geldiği yerde fark eder |
+| `ScrollBox` | `scroll-box.tsx` (istemci) | `Table`'ın kayan kutusu: içerik taşarken odaklanabilir, adlı bir bölge olur (klavyeyle kaydırma, axe `scrollable-region-focusable`); sığan tablo sekme durağı eklemez |
+
+`Table` 3. dalgada şunları aldı: `cell.nowrap`; `tfoot` toplam satırı; sarmalayıcıda `position: relative` (başlık hücresindeki `.sr-only` metin artık sayfayı genişletmez); satır vurgusu `--color-row-hover` token'ı. `EmptyState` `compact` aldı (panel içindeki boş liste: çizimsiz, az boşluk). `StatusPage` (`components/site/status-page.tsx`) 404, 403 ve `error.tsx` için ortak; 403 oturum açıksa "Çıkış yap" da verir.
+
+Harita ve panorama kabuğu da token'ları kullanır: MapLibre boyası somut renk ister, bu yüzden renkler `src/lib/map/tree-style.ts`'te (`MARKER_COLORS`, `MAP_COLORS`) tek yerde durur ve `tree-style.test.ts` her sabiti `globals.css`'teki token'la karşılaştırır. Seçili ağaç kabuk halkası, sınıf noktası koyu halka (`ClassDot` ile aynı), boş yer gri halkalı beyaz nokta, sınır `--color-accent`, bulgu halkası bulgu rozetinin tonu. Ayrıntı: `docs/haritalar.md`.
 
 Site kabuğu bileşenleri (`components/site/`):
 
@@ -222,6 +235,15 @@ Site kabuğu bileşenleri (`components/site/`):
 5. **Durum = ton + metin.** Ödendi ve Yayımlandı success, İncelemede ve Taslak neutral ya da info, Süresi geçti ve Başarısız danger, Ödeme bekliyor warning. Aynı durum her ekranda aynı tonu alır.
 6. **Ağaç sınıfı her yerde `ClassBadge` ya da `ClassDot` ile ve adıyla gösterilir.** Harita renkleri `tree-style.ts`'te kalır; harita bileşenlerine bu dalga dokunmaz (harita ve panorama başka dallarda).
 7. **e2e sözleşmeleri.** Metin ya da biçim değişince seçiciler güncellenir (tercihen `getByRole`, `getByLabel`). Doğrulamalar zayıflatılmaz; `data-testid`'ler korunur. Hukuk metinlerine dokunulmaz.
+
+### 3. dalgadan sonra (bütün alanlar)
+
+1. **Yerel kopya yazmayın.** Panel, anahtar/değer listesi, süzgeç, sayfalama, yığın ve yan sütun, katlanır eylem, tuş, boş durum `components/ui`'den gelir. Bir alanda yeni bir yapı taşı gerekiyorsa önce `ui/`'ye eklenir ve bu belgeye yazılır. Kaldırılanlar: `operations/ops-ui.tsx`, `back-office/status-tone.ts`, `money-ui.tsx`'teki `ActionDisclosure`/`Consequence`/`Amount`, uzman ve ofisteki `.kbd`, `.segmented`, `.facts`, portaldaki `.panel`, `.facts`, `.narrow`, `.doc`, yerel ton haritaları (`SESSION_STATUS_TONE`, `PARCEL_STATUS_TONE`, `SEVERITY_TONE`, KVKK ve hissedar tonları).
+2. **Durum tonu yalnız `statusTone`'dan.** Aynı durum portalda, back office'te, ofiste ve uzman panelinde aynı renktir; operasyon panosundaki sayaçlar da rozetle aynı tonu alır. Yeni bir durum kodu `status.ts`'e eklenir, ekranda eşleme yazılmaz.
+3. **Genişlik ve hiza.** Portal: her sayfa aynı 1120 px sütunda, başlık aynı yerde; form ve belge sayfaları `.reading` ile 760 px'e daralır ama sola hizalı kalır. Personel: ofis ve uzman sayfaları `components/staff-page.module.css` ile kabuk genişliğinde ve kabukla aynı kenar boşluğunda; operasyon kenar çubuğunun yanında.
+4. **Aynı eylem, aynı ad.** Kayıt ol, Demoyu dene, Giriş yap; personel satır eylemi "İncele", portalda "<Nesne>yi aç" ("Karneyi aç", "Başvuruyu aç", "360° geziyi aç"); süzgeç "Uygula", arama "Ara"; "Düzenle", "Ziyaret planla", "Fiyat önizlemesi". Menü adı ile sayfa başlığı aynıdır. Ağaç sınıfı 2 her yerde "Kuru" (metodoloji §5).
+5. **Yıkıcı eylem kırmızıdır** (`danger`): erişimi kaldır, başvuruyu geri çek, rızayı geri al, reddet. Seyrek ve geri alınamaz olan `Disclosure` içinde, sonucuyla birlikte durur.
+6. **Boş durum başlığı noktasız** ("Henüz sipariş yok"); panel içinde `compact`. Kesik çerçeve yalnız boş durum demektir, iş kartında kullanılmaz.
 
 ### Yap ve yapma
 
@@ -281,6 +303,23 @@ Karşılama sayfası (`/`) için ölçüm yapıldı: üretim derlemesi, yerel Su
 - FCP'deki küçük artış ölçümler arasındaki oynamanın içindedir. HTML büyüdü (paket fiyatları ve çizim), LCP ise düştü.
 - Paket fiyatları `/paketler` ile aynı kaynaktan gelir: `public_package_prices`. Sayfaya bir RPC çağrısı eklendi.
 
+### 3. dalga (entegrasyon)
+
+Üretim derlemesi, yerel Supabase (`db:reset` + `db:demo` + `db:demo-tour --profile test` + `office:dev-data`), 390 px, önbelleksiz yükleme, başsız Chromium (yazılımla WebGL); bir ısınmadan sonra beş yüklemenin medyanı. Önce: `main` a3e89713 (#101–#107 birleşmiş hali). JS ve CSS sıkıştırılmamış boyuttur.
+
+| Rota | TTFB | FCP | LCP | TBT | JS (KiB) |
+| --- | --- | --- | --- | --- | --- |
+| `/` | 58 → 23 ms | 184 → 124 ms | 184 → 124 ms | 17 → 1 ms | 534 → 544 |
+| `/portal` | 72 → 52 ms | 156 → 120 ms | 156 → 120 ms | 0 → 0 ms | 549 → 560 |
+| `/portal/parsel/[id]` | 177 → 125 ms | 304 → 228 ms | 304 → 228 ms | 193 → 140 ms | 2159 → 2172 |
+| `/portal/parsel/[id]/gezi` | 138 → 115 ms | 224 → 172 ms | 452 → 388 ms | 330 → 288 ms | 2825 → 2837 |
+| `/operasyon` | 46 → 38 ms | 132 → 120 ms | 132 → 120 ms | 0 → 0 ms | 584 → 595 |
+| `/uzman/ziyaret/[id]` | 121 → 99 ms | 268 → 228 ms | 268 → 228 ms | 47 → 15 ms | 541 → 551 |
+
+- Gerileme yok; süre farklarının çoğu ölçüm oynamasının içinde (sunucu ilk koşuda yeni açılmıştı).
+- JS her sayfada yaklaşık 10 KiB (sıkıştırılmamış) arttı: üç küçük istemci bileşeni (`ScrollBox`, `CurrentIntoView`, site başlığındaki geçerli bağlantı). Sayfalar yine sunucu bileşeni.
+- Önceki PR'ların sayıları başka koşullarda alındı (#101 Lighthouse, #102 ve #104 `data-map-ready` ve ilk panorama karesi, #103 ve #105–#107 TTFB ve load); bu tablo hepsini aynı koşulda karşılaştırır.
+
 ## Notlar
 
 - **Kahraman, ilk deneme:** Açıklama kartı bahçe planının sağ alt köşesine biniyor, sınıf kümesini ve seçili ağacı kapatıyordu. Küme yukarı alındı ve kart planın alt kenarından sarkıtıldı; artık yalnız son sıranın ucunu örtüyor. Telefonda kart planın altında duruyor.
@@ -291,3 +330,5 @@ Karşılama sayfası (`/`) için ölçüm yapıldı: üretim derlemesi, yerel Su
 - **Mevcut ekranlar:** Token değişikliğinden sonra bütün ana rotaların ekran görüntüsü yeniden alındı (portal, ofis, operasyon, uzman, giriş, kayıt). Kırılan yerleşim görülmedi: renkler, yazı ve köşeler yenilendi, yerleşim aynı kaldı. Denetimdeki sorunların çoğu sayfa düzeyindedir ve 2. dalgaya kalır.
 - **Kesilenler:** Kahramanda gerçek demo ekranının görüntüsü kullanılmadı. Harita karoları çevrimdışı ortamda yüklenmiyor; ayrıca bir görüntü dosyası LCP'yi ağırlaştırırdı. Dört özellik kartı da kesildi.
 - **Referans görüntüleri** (`docs/tasarim/`): `karsilama-1440.jpg` ve `karsilama-390.jpg` (ilk ekran), `karsilama-menu-390.jpg` (telefon menüsü), `karsilama-takvim-390.jpg` (paket takvimi).
+- **3. dalga (entegrasyon, 29 Ekim 2026):** Yedi PR'ın her biri kendi alanında yerel yapı taşları yazmıştı. Ekran görüntüsü denetimi (390 ve 1440 px; ziyaretçi, `owner@`, `customer@`, `ops@`, `expert@`, `field@`) aynı durumun alanlara göre başka renk aldığını gösterdi: operasyon panosunda "İncelemede" turuncu, her yerde mavi; "Yayımlandı" mavi, her yerde yeşil; teklif "Açık" portalda sarı, back office'te mavi. Bunun nedeni dört ayrı ton haritasıydı. Ayrıca iki ayrı süzgeç görünümü, üç portal sayfa genişliği, üç ofis genişliği, "Kuru"/"Kurumuş", "Devam et"/"İncele"/"Aç", "Kayıt ol"/"Kayıt olun" gibi farklar vardı. Haritada seçili ağaç siyah, sınıf noktası beyaz halkalıydı; açıklama ise koyu halkalı noktaydı. Hepsi tek kaynağa bağlandı (§Bileşenler, §Kullanım "3. dalgadan sonra"). axe: bütün ana rotalarda (rol başına) WCAG 2.1 A/AA ihlali yok. Önce MapLibre atıf bağlantısında `link-in-text-block` ve back office bahçe haritasında `nested-interactive` vardı.
+- **Boş durum başlığı:** `EmptyState` dize başlığın sonundaki noktayı düşürür. Aynı ileti başka yerde cümle olarak da kullanıldığı için kural bileşende.

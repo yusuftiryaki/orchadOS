@@ -8,7 +8,13 @@ import { useMapLibre } from "@/components/map/use-maplibre";
 import { t } from "@/lib/i18n";
 import { slotFeatures } from "@/lib/map/features";
 import type { Bounds, Position, PolygonGeometry } from "@/lib/map/geo";
-import type { MarkerState } from "@/lib/map/tree-style";
+import { prefersReducedMotion } from "@/lib/map/motion";
+import {
+  MAP_COLORS,
+  SLOT_STROKE_COLOR,
+  SLOT_STROKE_WIDTH,
+  type MarkerState,
+} from "@/lib/map/tree-style";
 import type { Severity } from "@/lib/portal/findings";
 import { viewWedge } from "@/lib/portal/tour";
 import { MapBoundaryCaption } from "./boundary-notice";
@@ -152,13 +158,13 @@ export function PortalMap({
             id: "boundary-fill",
             type: "fill",
             source: "boundary",
-            paint: { "fill-color": "#4f7a28", "fill-opacity": 0.08 },
+            paint: { "fill-color": MAP_COLORS.accent, "fill-opacity": 0.08 },
           });
           m.addLayer({
             id: "boundary-line",
             type: "line",
             source: "boundary",
-            paint: { "line-color": "#4f7a28", "line-width": 2 },
+            paint: { "line-color": MAP_COLORS.accent, "line-width": 2 },
           });
         }
 
@@ -175,11 +181,11 @@ export function PortalMap({
             "circle-color": [
               "case",
               ["boolean", ["feature-state", "current"], false],
-              "#e64980",
-              "#343a40",
+              MAP_COLORS.highlight,
+              MAP_COLORS.ink,
             ],
             "circle-radius": ["case", ["boolean", ["feature-state", "current"], false], 7, 2.5],
-            "circle-stroke-color": "#ffffff",
+            "circle-stroke-color": MAP_COLORS.surface,
             "circle-stroke-width": 1,
           },
         });
@@ -197,7 +203,7 @@ export function PortalMap({
           id: "view",
           type: "fill",
           source: "view",
-          paint: { "fill-color": "#e64980", "fill-opacity": 0.3 },
+          paint: { "fill-color": MAP_COLORS.highlight, "fill-opacity": 0.3 },
         });
 
         m.addSource("slots", {
@@ -212,20 +218,8 @@ export function PortalMap({
           paint: {
             "circle-color": ["get", "color"],
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 15, 2, 18, 6, 21, 14],
-            "circle-stroke-color": [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              "#000000",
-              ["get", "empty"],
-              "#495057",
-              "#ffffff",
-            ],
-            "circle-stroke-width": [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              3,
-              1,
-            ],
+            "circle-stroke-color": SLOT_STROKE_COLOR,
+            "circle-stroke-width": SLOT_STROKE_WIDTH,
           },
         });
         applyFilter(m, visibleRef.current);
@@ -239,7 +233,7 @@ export function PortalMap({
           type: "circle",
           source: "coverage-trees",
           paint: {
-            "circle-color": "rgba(0,0,0,0)",
+            "circle-color": "transparent",
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 15, 4, 18, 9, 21, 18],
             "circle-stroke-color": ["get", "color"],
             "circle-stroke-width": 2.5,
@@ -257,7 +251,7 @@ export function PortalMap({
           type: "circle",
           source: "findings",
           paint: {
-            "circle-color": "rgba(0,0,0,0)",
+            "circle-color": "transparent",
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 15, 5, 18, 11, 21, 22],
             "circle-stroke-color": ["get", "color"],
             "circle-stroke-width": [
@@ -364,7 +358,9 @@ export function PortalMap({
     focusRef.current = focus;
     const map = mapRef.current;
     if (!map || !focus) return;
-    map.easeTo({ center: focus, zoom: Math.max(map.getZoom(), 19) });
+    const camera = { center: focus, zoom: Math.max(map.getZoom(), 19) };
+    if (prefersReducedMotion()) map.jumpTo(camera);
+    else map.easeTo(camera);
   }, [mapRef, focus]);
 
   // The boundary notice's short form sits under the map, outside the

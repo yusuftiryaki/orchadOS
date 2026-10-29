@@ -1,12 +1,11 @@
 import { saveStaffAction } from "@/app/operasyon/legal-actions";
 import { OrgPicker } from "@/components/back-office/parts";
 import { LegalNotice } from "@/components/operations/legal-notice";
-import { opsCell } from "@/components/operations/ops-ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { Table } from "@/components/ui/table";
+import { Table, cell } from "@/components/ui/table";
 import { requireSection } from "@/lib/auth/session";
 import { chooseOrg } from "@/lib/back-office/data";
 import { firstParam } from "@/lib/back-office/urls";
@@ -52,7 +51,9 @@ export default async function Page({
               <th>{T.name}</th>
               <th>{T.titleField}</th>
               <th>{T.onReport}</th>
-              <th aria-label={T.save} />
+              <th>
+                <span className="sr-only">{T.saveColumn}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -60,7 +61,7 @@ export default async function Page({
               const formId = `staff-${m.userId}`;
               return (
                 <tr key={m.userId} data-staff-id={m.userId}>
-                  <td className={opsCell.nowrap}>{m.email ?? "—"}</td>
+                  <td className={cell.nowrap}>{m.email ?? "—"}</td>
                   <td>{m.roles.map((r) => T.roleNames[r] ?? r).join(", ")}</td>
                   <td>
                     <input

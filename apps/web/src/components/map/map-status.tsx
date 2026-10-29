@@ -1,3 +1,4 @@
+import { Alert } from "@/components/ui/alert";
 import { t } from "@/lib/i18n";
 import type { MapState } from "./use-maplibre";
 import styles from "./map.module.css";
@@ -20,17 +21,17 @@ export function MapStatus({
       : null;
   if (!problem && !empty) return null;
   return (
-    <>
+    <div className={styles.status}>
       {problem && (
-        <p className={styles.status} role="status" data-testid={testId}>
+        <Alert tone="warning" role="status" testId={testId}>
           {problem}
-        </p>
+        </Alert>
       )}
       {empty && (
-        <p className={`${styles.status} ${styles.info}`} data-testid={`${testId}-empty`}>
+        <Alert tone="info" testId={`${testId}-empty`}>
           {empty}
-        </p>
+        </Alert>
       )}
-    </>
+    </div>
   );
 }

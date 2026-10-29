@@ -273,7 +273,7 @@ test("ops publishes a price list from a copy and saves the settings", async ({ p
   ).toHaveText("Fiyat listesi v1");
 
   // Settings: change a duration and put it back.
-  await page.getByRole("link", { name: "Ayarlar" }).click();
+  await page.getByRole("link", { name: "Faturalama ayarları" }).click();
   await expect(page.getByTestId("fake-payments")).toContainText("Açık");
   const form = page.getByTestId("settings-form");
   const days = form.getByLabel("Teklif geçerliliği (gün)");

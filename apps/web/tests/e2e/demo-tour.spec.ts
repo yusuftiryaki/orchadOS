@@ -614,7 +614,8 @@ test.describe("360° tour viewer", () => {
     // In and out of the tour (client-side navigation): each viewer releases
     // its context when it goes.
     for (let i = 0; i < 6; i += 1) {
-      await page.getByRole("link", { name: /Karneye dön/ }).click();
+      // The page header leads back to the parcel by its name.
+      await page.getByRole("link", { name: "Örnek Bahçe – Kuzey", exact: true }).click();
       await expect(page.getByTestId("dimensions")).toBeVisible();
       await page.goBack();
       await expect(viewer).toHaveAttribute("data-loaded", "true", { timeout: 30_000 });

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { createDraftAction } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
+import { Badges } from "@/components/back-office/money-ui";
 import { Badge, BoResultNotice, OrgPicker, day, when } from "@/components/back-office/parts";
-import { opsCell, Panel } from "@/components/operations/ops-ui";
+import { Panel } from "@/components/ui/panel";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -111,18 +112,18 @@ export default async function Page({
                       data-price-list-id={l.id}
                       data-in-force={l.id === prices.inForceId || undefined}
                     >
-                      <td className={opsCell.nowrap}>
+                      <td className={cell.nowrap}>
                         <Link href={boHref.priceList(l.id)}>{T.listTitle(l.version)}</Link>
                       </td>
                       <td>
-                        <span className={styles.badges}>
+                        <Badges>
                           <Badge labels={billingText.priceListStatus} value={l.status} />
                           {l.id === prices.inForceId && <UiBadge tone="info">{T.inForce}</UiBadge>}
-                        </span>
+                        </Badges>
                       </td>
-                      <td className={`${cell.num} ${opsCell.nowrap}`}>{day(l.valid_from)}</td>
+                      <td className={`${cell.num} ${cell.nowrap}`}>{day(l.valid_from)}</td>
                       <td className={cell.num}>%{bpToPercent(l.vat_rate_bp)}</td>
-                      <td className={`${cell.num} ${opsCell.nowrap}`}>{when(l.published_at)}</td>
+                      <td className={`${cell.num} ${cell.nowrap}`}>{when(l.published_at)}</td>
                       <td className={styles.note}>{l.note ?? B.none}</td>
                     </tr>
                   ))}
@@ -165,7 +166,7 @@ export default async function Page({
                 <tbody>
                   {prices.packages.map((p) => (
                     <tr key={p.id} data-package-code={p.code}>
-                      <td className={opsCell.nowrap}>{p.name}</td>
+                      <td className={cell.nowrap}>{p.name}</td>
                       <td className={cell.code}>{p.code}</td>
                       <td className={cell.num}>{formatNumber(p.periodic_visits_per_year)}</td>
                       <td>{p.includes_inventory ? B.yes : B.no}</td>

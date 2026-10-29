@@ -126,7 +126,7 @@ export const contractsText = {
     navLabel: "Sözleşmelerim",
     intro:
       "Onayladığınız her siparişin Ön Bilgilendirme Formu ve Mesafeli Hizmet Sözleşmesi, sipariş bilgileriyle doldurulmuş PDF olarak burada değiştirilmeden saklanır. Ödemeden sonra cayma süresinin son gününü yazan bildirim eklenir.",
-    empty: "Henüz bir sözleşme belgeniz yok.",
+    empty: "Henüz bir sözleşme belgeniz yok",
     preparing: "Belgeler hazırlanıyor. Birkaç dakika içinde burada görünür.",
     manualCopy:
       "Bu siparişin belgeleri otomatik olarak üretilemedi. Onayladığınız metnin kopyası talebiniz üzerine Şirket tarafından verilir; destek kanallarından bize yazabilirsiniz.",
@@ -169,7 +169,7 @@ export const contractsText = {
     generate: "Belgeleri üret",
     generateAll: (n: number) => `Sıradakileri üret (${n})`,
     documentsTitle: "Sözleşme belgeleri",
-    documentsEmpty: "Bu sipariş için kayıtlı belge yok.",
+    documentsEmpty: "Bu sipariş için kayıtlı belge yok",
     copyHint:
       "Portal erişimi sona ermiş müşteriye talep halinde buradan indirilen kopya verilir (H12).",
     generator: "Üreten",

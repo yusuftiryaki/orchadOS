@@ -4,10 +4,6 @@
 
 /* Pages ------------------------------------------------------------------- */
 
-.page {
-  max-width: 1440px;
-}
-
 .section {
   margin-top: var(--space-5);
 }
@@ -43,12 +39,8 @@
 }
 
 /* Contains its sr-only text: an absolute span would escape a scroller. */
-.srCell,
 .tabLabel {
   position: relative;
-}
-
-.tabLabel {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -68,10 +60,6 @@ h3.small {
 .code {
   font-family: var(--font-mono);
   white-space: nowrap;
-}
-
-.contents {
-  display: contents;
 }
 
 .notices {
@@ -108,73 +96,6 @@ h3.small {
   font-weight: 600;
 }
 
-/* Keyboard keys ----------------------------------------------------------- */
-
-.kbd,
-.kbdOnAccent {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.7em;
-  padding: 0 5px;
-  border: 1px solid var(--color-border-strong);
-  border-bottom-width: 2px;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-2);
-  color: var(--color-text-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  line-height: 1.5;
-}
-
-.kbdOnAccent {
-  background: transparent;
-  border-color: currentColor;
-  color: inherit;
-  opacity: 0.85;
-}
-
-/* Segmented links: filters whose choice is the URL (aria-current). */
-.segmented {
-  display: inline-flex;
-  flex-wrap: wrap;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-  overflow: hidden;
-  margin-bottom: var(--space-3);
-  max-width: 100%;
-}
-
-.segmented a {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--control-height-sm);
-  padding: 4px 14px;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-2);
-  text-decoration: none;
-}
-
-.segmented a + a {
-  border-left: 1px solid var(--color-border);
-}
-
-.segmented a:hover {
-  background: var(--color-surface-2);
-  color: var(--color-text);
-}
-
-.segmented a[aria-current="page"] {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-  font-weight: 700;
-}
-
-.segmented a:focus-visible,
 .filterGrid a:focus-visible,
 .treeList a:focus-visible {
   outline-offset: -3px;
@@ -403,12 +324,6 @@ h3.small {
 }
 
 /* Review workbench --------------------------------------------------------- */
-
-.workbenchPage {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: var(--space-4) var(--space-4) var(--space-6);
-}
 
 .workbench {
   display: grid;
@@ -925,10 +840,6 @@ h3.small {
 
 /* Phones: controls keep a 44 px target, crops stack. */
 @media (max-width: 640px) {
-  .workbenchPage {
-    padding: var(--space-3) var(--space-3) var(--space-5);
-  }
-  .segmented a,
   .filterGrid a,
   .treeList a,
   .classes label {

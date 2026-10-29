@@ -32,3 +32,18 @@
 .action {
   margin-top: var(--space-2);
 }
+
+/* Inside a panel: the panel already frames it. */
+.compact {
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+.compact h2,
+.compact h3 {
+  font-size: var(--text-base);
+}
+
+.compact .action {
+  margin-top: var(--space-1);
+}

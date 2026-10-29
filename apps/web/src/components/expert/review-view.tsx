@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
+import { Facts } from "@/components/ui/facts";
+import { Kbd } from "@/components/ui/kbd";
 import { PageHeader } from "@/components/ui/page-header";
 import { Tabs } from "@/components/ui/tabs";
 import type { Followup } from "@/lib/expert/followups";
@@ -17,6 +19,7 @@ import { ClassBadge, ClassLabel } from "./class-badge";
 import { CropCompare, CropGrid } from "./crop-grid";
 import { DecisionPanel } from "./decision-panel";
 import styles from "./expert.module.css";
+import staff from "@/components/staff-page.module.css";
 import { FindingForm } from "./finding-form";
 import { FindingList } from "./finding-list";
 import { FollowupPanel } from "./followup-panel";
@@ -160,7 +163,7 @@ export function ReviewView({
   const treeFollowups = selected ? followups.filter((f) => f.treeId === selected.id) : [];
 
   return (
-    <main className={styles.workbenchPage} data-testid="review-page">
+    <main className={staff.page} data-testid="review-page">
       <ReviewShortcuts />
       <VisitHeader
         ctx={ctx}
@@ -294,9 +297,7 @@ export function ReviewView({
                       aria-keyshortcuts="K"
                     >
                       {r.previousTree}
-                      <kbd className={styles.kbd} aria-hidden>
-                        K
-                      </kbd>
+                      <Kbd hidden>K</Kbd>
                     </ButtonLink>
                   )}
                   {next && (
@@ -308,9 +309,7 @@ export function ReviewView({
                       aria-keyshortcuts="J"
                     >
                       {r.nextTree}
-                      <kbd className={styles.kbd} aria-hidden>
-                        J
-                      </kbd>
+                      <Kbd hidden>J</Kbd>
                     </ButtonLink>
                   )}
                 </nav>
@@ -366,16 +365,14 @@ export function ReviewView({
                 </section>
                 <section className={styles.block}>
                   <h3>{r.attributes}</h3>
-                  <dl className={styles.list}>
-                    <dt>{t.tree.sex}</dt>
-                    <dd>{t.tree.values.sex[selected.sex]}</dd>
-                    <dt>{t.tree.graft}</dt>
-                    <dd>{t.tree.values.graft[selected.graft]}</dd>
-                    <dt>{t.tree.ageClass}</dt>
-                    <dd>{t.tree.values.ageClass[selected.ageClass]}</dd>
-                    <dt>{t.tree.cultivar}</dt>
-                    <dd>{selected.cultivar ?? t.tree.unknown}</dd>
-                  </dl>
+                  <Facts
+                    rows={[
+                      [t.tree.sex, t.tree.values.sex[selected.sex]],
+                      [t.tree.graft, t.tree.values.graft[selected.graft]],
+                      [t.tree.ageClass, t.tree.values.ageClass[selected.ageClass]],
+                      [t.tree.cultivar, selected.cultivar ?? t.tree.unknown],
+                    ]}
+                  />
                 </section>
               </div>
             </section>
