@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2016 # jq programs in single quotes
-# Runs every SQL text the demo scripts sent to the Management API
-# (/database/query) against a real Postgres: the mock in test-provision-demo.sh
-# answers any SQL with canned rows, so a quoting or syntax error (string
-# literals lost to shell quoting, say) only shows here.
+# Runs every SQL text the demo and pilot scripts sent to the Management API
+# (/database/query) against a real Postgres: the mocks in test-provision-demo.sh
+# and test-provision-pilot.sh answer any SQL with canned rows, so a quoting or
+# syntax error (string literals lost to shell quoting, say) only shows here.
 #
 #   test-script-sql.sh QUERIES.json    a JSON array of SQL texts
 #
 # DB_URL: any Postgres (CI: a plain postgres service) or the local Supabase.
 # Without vault.secrets a stand-in with Supabase Vault's create_secret and
-# update_secret signatures is created. Each query runs in its own transaction
-# with the two demo Vault rows present, then everything is rolled back.
+# update_secret signatures and its decrypted_secrets view is created. Each
+# query runs in its own transaction with the two demo Vault rows present, then
+# everything is rolled back.
 # Needs psql and jq.
 set -euo pipefail
 
@@ -40,7 +41,8 @@ create function vault.update_secret(secret_id uuid, new_secret text default null
 language sql as \$\$
   update vault.secrets set secret = coalesce(new_secret, secret), name = coalesce(new_name, name),
     description = coalesce(new_description, description) where id = secret_id
-\$\$;"
+\$\$;
+create view vault.decrypted_secrets as select *, secret as decrypted_secret from vault.secrets;"
 fi
 
 failures=0

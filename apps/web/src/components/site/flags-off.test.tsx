@@ -41,6 +41,23 @@ describe("sign-up flag off", () => {
     expect(html).not.toContain('name="password"');
     expect(html).not.toContain("turnstile");
   });
+
+  it("/kayit closed leads on: contact, packages, login; the demo only when linked", () => {
+    const html = renderToStaticMarkup(<SignupView signupEnabled={false} turnstileSiteKey={null} />);
+    expect(html).toContain('href="/iletisim"');
+    expect(html).toContain('href="/paketler"');
+    expect(html).toContain('href="/giris"');
+    expect(html).not.toContain('data-testid="signup-closed-demo"');
+    const withDemo = renderToStaticMarkup(
+      <SignupView
+        signupEnabled={false}
+        turnstileSiteKey={null}
+        demoUrl="https://demo.example/demo"
+      />,
+    );
+    expect(withDemo).toContain('href="https://demo.example/demo"');
+    expect(withDemo).toContain(siteText.signup.closedWays.demo.link);
+  });
 });
 
 describe("sign-up flag on", () => {

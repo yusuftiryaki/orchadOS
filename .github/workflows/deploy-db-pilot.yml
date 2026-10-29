@@ -20,6 +20,7 @@ on:
       - ".github/workflows/deploy-db-pilot.yml"
       - "scripts/demo-guard-check.sh"
       - "scripts/retention-check.sh"
+      - "scripts/vault-signup-cleanup.sh"
   workflow_dispatch:
 
 concurrency:
@@ -172,6 +173,13 @@ jobs:
       # verify_jwt per function comes from supabase/config.toml.
       - name: Deploy Edge Functions
         run: pnpm exec supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api
+
+      # The hourly signup-cleanup job calls Vault signup_cleanup_url: this
+      # project's customer-signup function. Not a secret; created or corrected
+      # on every run (the cron secret is checked below, never written here).
+      - name: Set Vault signup_cleanup_url
+        if: ${{ !cancelled() && steps.link.outcome == 'success' && steps.locks.outcome == 'success' }}
+        run: scripts/vault-signup-cleanup.sh
 
       # T09 (docs/hukuk/kararlar.md H25): while an org accepts sign-ups, the
       # pg_cron job signup-cleanup, Vault signup_cleanup_url and an

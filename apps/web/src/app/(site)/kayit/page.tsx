@@ -25,12 +25,13 @@ export default async function SignupPage() {
     );
   }
   if (user) redirect("/");
-  const { signupEnabled, turnstileSiteKey, captchaProvider } = siteFlags();
+  const { signupEnabled, turnstileSiteKey, captchaProvider, demoUrl } = siteFlags();
   return (
     <SignupView
       signupEnabled={signupEnabled}
       turnstileSiteKey={turnstileSiteKey}
       captchaProvider={captchaProvider}
+      demoUrl={demoUrl}
     />
   );
 }

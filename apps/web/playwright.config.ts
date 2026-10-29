@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { E2E_DATA_DIR } from "./tests/e2e/global-setup";
+import { CLOSED_SITE, DEMO_HOST } from "./tests/e2e/site-hosts";
 import { resolveSupabaseEnv } from "./tests/local-supabase";
 
 // Browser tests against a production build of the app and the local Supabase
@@ -7,6 +8,13 @@ import { resolveSupabaseEnv } from "./tests/local-supabase";
 // no .env.local is needed.
 const PORT = 3100;
 const supabase = resolveSupabaseEnv();
+const supabaseEnv = {
+  NEXT_PUBLIC_SUPABASE_URL: supabase.url,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: supabase.anonKey,
+  // Matches the local customer-signup and demo-start (supabase/config.toml).
+  SIGNUP_PROXY_SECRET: "signup-proxy-local",
+};
+const portOf = (origin: string) => new URL(origin).port;
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -23,30 +31,47 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: {
-    command: `pnpm build && pnpm start --port ${PORT}`,
-    url: `http://127.0.0.1:${PORT}/giris`,
-    timeout: 240_000,
-    reuseExistingServer: !process.env.CI,
-    env: {
-      NEXT_PUBLIC_SUPABASE_URL: supabase.url,
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: supabase.anonKey,
-      // Office tool: synthetic panoramas from the global setup. The local
-      // panorama source is development-only; this build allows it explicitly.
-      LOCAL_PANORAMA_DIR: `${E2E_DATA_DIR}/runs`,
-      LOCAL_PANORAMA_ALLOW_PRODUCTION: "1",
-      // Public site and sign-up (İP12): flags on; the secret matches the local
-      // customer-signup function (supabase/config.toml).
-      ORCHADOS_SIGNUP_ENABLED: "1",
-      ORCHADOS_PAYMENTS_ENABLED: "1",
-      PAYMENT_FAKE_CHECKOUT: "1",
-      SIGNUP_PROXY_SECRET: "signup-proxy-local",
-      // Demo tour (İP13): this build serves /demo; not a demo host (no
-      // ORCHADOS_MAIN_SITE_URL), so the site and the demo run side by side.
-      ORCHADOS_DEMO_ENABLED: "1",
-      // Map tests (tests/e2e/maps.spec.ts): window.__orchadMaps counts live
-      // map instances (src/lib/map/maplibre.ts).
-      NEXT_PUBLIC_MAP_TEST_HOOKS: "1",
+  // Started one after the other: the first one builds, the others start the
+  // same build with other flags (tests/e2e/site-hosts.ts).
+  webServer: [
+    {
+      command: `pnpm build && pnpm start --port ${PORT}`,
+      url: `http://127.0.0.1:${PORT}/giris`,
+      timeout: 240_000,
+      reuseExistingServer: !process.env.CI,
+      env: {
+        ...supabaseEnv,
+        // Office tool: synthetic panoramas from the global setup. The local
+        // panorama source is development-only; this build allows it explicitly.
+        LOCAL_PANORAMA_DIR: `${E2E_DATA_DIR}/runs`,
+        LOCAL_PANORAMA_ALLOW_PRODUCTION: "1",
+        // Public site and sign-up (İP12): flags on.
+        ORCHADOS_SIGNUP_ENABLED: "1",
+        ORCHADOS_PAYMENTS_ENABLED: "1",
+        PAYMENT_FAKE_CHECKOUT: "1",
+        // Demo tour (İP13): this build serves /demo; not a demo host (no
+        // ORCHADOS_MAIN_SITE_URL), so the site and the demo run side by side.
+        ORCHADOS_DEMO_ENABLED: "1",
+        // Map tests (tests/e2e/maps.spec.ts): window.__orchadMaps counts live
+        // map instances (src/lib/map/maplibre.ts).
+        NEXT_PUBLIC_MAP_TEST_HOOKS: "1",
+      },
     },
-  },
+    {
+      // The main site with sign-up closed, linking to the demo host.
+      command: `pnpm start --port ${portOf(CLOSED_SITE)}`,
+      url: `${CLOSED_SITE}/giris`,
+      timeout: 60_000,
+      reuseExistingServer: !process.env.CI,
+      env: { ...supabaseEnv, ORCHADOS_DEMO_URL: `${DEMO_HOST}/demo` },
+    },
+    {
+      // A demo deployment whose main site is CLOSED_SITE.
+      command: `pnpm start --port ${portOf(DEMO_HOST)}`,
+      url: `${DEMO_HOST}/demo`,
+      timeout: 60_000,
+      reuseExistingServer: !process.env.CI,
+      env: { ...supabaseEnv, ORCHADOS_DEMO_ENABLED: "1", ORCHADOS_MAIN_SITE_URL: CLOSED_SITE },
+    },
+  ],
 });

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2016 # jq programs in single quotes
-# Runs the lock query of scripts/demo-lock-check.sh and the retention query of
-# scripts/retention-check.sh against the local database (pnpm db:start &&
+# Runs the lock query of scripts/demo-lock-check.sh, the retention query of
+# scripts/retention-check.sh and the read query and sign-up switch of
+# scripts/provision-pilot-signup.sh against the local database (pnpm db:start &&
 # pnpm db:reset): the mock in test-provision-demo.sh only returns canned
 # counts, so this is where the generated SQL (quoting, columns, which rows
 # count) is checked. Crafted rows go in one transaction per query that is
@@ -12,6 +13,10 @@ here=$(cd "$(dirname "$0")" && pwd)
 DB_URL=${DB_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}
 sql=$(bash "$here/demo-lock-check.sh" sql)
 retention=$(bash "$here/retention-check.sh" sql)
+pilot_read=$(ORG_ID=b0000000-0000-4000-8000-000000000001 bash "$here/provision-pilot-signup.sh" sql-read)
+pilot_off=$(bash "$here/provision-pilot-signup.sh" sql-signups off)
+pilot_on=$(bash "$here/provision-pilot-signup.sh" sql-signups on b0000000-0000-4000-8000-000000000001)
+pilot_vault=$(bash "$here/vault-signup-cleanup.sh" sql)
 
 # Seed: org b0..01 with parcel c0..01. Fixtures: an enabled demo org that allows
 # fake payments, with one parcel; demo accounts with a membership in the seed org
@@ -113,6 +118,48 @@ expect "retention: only the audit row older than 31 days counts" '$a.audit_rows_
 before=$after after=$off
 expect "retention: an inactive signup-cleanup job and another function's URL do not count" \
   '$a.signup_cleanup_jobs == 0 and $a.signup_cleanup_url == 0'
+
+# Pilot sign-ups (scripts/provision-pilot-signup.sh): the seed's one org
+# accepts sign-ups. Off closes it; on opens it again (twice: the second is a
+# no-op) and a second org stays closed. The URL upsert (vault-signup-cleanup.sh,
+# same dummy ref as the read query) makes signup_cleanup_url count.
+out=$(psql "$DB_URL" -X -q -At -v ON_ERROR_STOP=1 <<SQL
+begin;
+delete from vault.secrets where name in ('signup_cleanup_url', 'orchados_cron_secret');
+select row_to_json(t) from ($pilot_read) t;
+$pilot_off
+select row_to_json(t) from ($pilot_read) t;
+set local session_replication_role = replica;
+insert into public.org (id, name, kind) values ('d1500000-0000-4000-8000-000000000002', 'pilot sql second', 'other');
+set local session_replication_role = origin;
+$pilot_on
+$pilot_on
+$pilot_vault
+$pilot_vault
+select vault.create_secret('abc', 'orchados_cron_secret');
+select row_to_json(t) from ($pilot_read) t;
+select count(*) from vault.secrets where name = 'signup_cleanup_url';
+rollback;
+SQL
+)
+rows=$(grep '^{"billing_table"' <<<"$out")
+before=$(sed -n 1p <<<"$rows")
+off=$(sed -n 2p <<<"$rows")
+on=$(sed -n 3p <<<"$rows")
+echo "pilot before: $before"
+echo "pilot off:    $off"
+echo "pilot on:     $on"
+seed=b0000000-0000-4000-8000-000000000001
+before=$before after=$on
+expect "pilot: the sign-up migrations are seen" '$b.billing_table == 1 and $b.send_code == 1 and $b.signup_cleanup_jobs == 1'
+expect "pilot: the seed org accepts sign-ups and is the only org" "\$b.signup_org == \"$seed\" and \$b.orgs == 1 and \$b.only_org == \"$seed\" and \$b.org_given == 1"
+before=$off
+expect "pilot: off closes sign-ups" '$b.signup_org == ""'
+expect "pilot: on opens them for the given org only; two orgs, no only org" "\$a.signup_org == \"$seed\" and \$a.orgs == 2 and \$a.only_org == \"\""
+expect "pilot: the cron secret digest is sha256 of the value" "\$a.cron_secret_digest == \"$abc\""
+expect "pilot: the upserted cleanup URL counts, the missing sweep URL does not" '$b.cleanup_url_ok == 0 and $a.cleanup_url_ok == 1 and $a.sweep_url_ok == 0'
+if [ "$(tail -n 1 <<<"$out")" = 1 ]; then echo "ok   - pilot: the URL upsert twice leaves one Vault entry"; else
+  echo "FAIL - pilot: the URL upsert twice leaves one Vault entry"; failures=$((failures + 1)); fi
 
 if [ "$failures" -gt 0 ]; then echo "$failures check(s) failed"; exit 1; fi
 echo "all checks passed"

@@ -10,7 +10,8 @@ name: deploy-db
 # variable SUPABASE_TEST_PENDING=1 turns that into an explicit skip.
 #
 # After the deploy, open sign-ups need a working clean-up of accounts whose
-# phone was never verified (scripts/retention-check.sh signup; T09).
+# phone was never verified (scripts/retention-check.sh signup; T09); the
+# clean-up's address (Vault signup_cleanup_url) is set here on every run.
 #
 # While the test project hosts the public demo tour (repository variable
 # DEMO_HOST=test, docs/demo-turu.md §15.1), this is also the demo's deploy:
@@ -27,6 +28,7 @@ on:
       - "scripts/demo-guard-check.sh"
       - "scripts/demo-lock-check.sh"
       - "scripts/retention-check.sh"
+      - "scripts/vault-signup-cleanup.sh"
   workflow_dispatch:
 
 concurrency:
@@ -114,6 +116,13 @@ jobs:
       - name: Check shared demo locks
         if: ${{ !cancelled() && steps.guard.outputs.ready == 'true' && vars.DEMO_HOST == 'test' }}
         run: scripts/demo-lock-check.sh shared
+
+      # The hourly signup-cleanup job calls Vault signup_cleanup_url: this
+      # project's customer-signup function. Not a secret; created or corrected
+      # on every run (the cron secret is checked below, never written here).
+      - name: Set Vault signup_cleanup_url
+        if: ${{ !cancelled() && steps.guard.outputs.ready == 'true' && steps.link.outcome == 'success' }}
+        run: scripts/vault-signup-cleanup.sh
 
       # T09 (docs/hukuk/kararlar.md H25): while an org accepts sign-ups, the
       # pg_cron job signup-cleanup, Vault signup_cleanup_url and an

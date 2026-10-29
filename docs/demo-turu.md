@@ -840,6 +840,7 @@ Gerçek bir bahçe demo parseli olarak doğrudan **kaydedilmez**. Kaydedilseydi 
     - Metin: "Örnek bahçe · veriler ve görüntüler sentetik, konum temsilî · oturum bitişi HH:MM". Saatten sonra ek yoktur: Türkçe yönelme eki saatin okunuşuna göre değişir (15:30'a, 18:00'e, 16:00'ya).
     - Düğmeler: "Turu başlat", "Gerçek hesap aç" (`demo-signup`), "Demodan çık" (`demo-exit`).
     - "Gerçek hesap aç" önce demodan çıkarır. Sonra demo sunucusunda asıl sitenin `/kayit`'ına, aksi halde kayıt açıksa `/kayit`'a, kapalıysa `/iletisim`'e gider.
+    - Demo sunucusu asıl sitenin kaydının açık olup olmadığını bilmez; asıl sitede kayıt kapalıysa `/kayit` "Kayıt yakında" sayfasıdır ve iletişim, paketler, demoya dönüş ("Demoyu dene", `ORCHADOS_DEMO_URL`) ve giriş bağlantılarını gösterir. Uçtan uca test: `tests/e2e/site-demo-signup.spec.ts`.
     - Görünüm: `--color-info-soft`; sticky; z-index 55; 16 px kenar boşluğu; mobilde tek satır. Yazdırmada da görünür (`.noPrint` değil).
 - **Landing:** `/` sayfasında demo dalı `defaultSection`'dan önce gelir. Demo kullanıcısı landing'i görür; üst menüde "Demoya dön" ve "Demodan çık" çıkar.
 - **`/kayit` ve `/giris`:** Bu sayfalarda "Demodan çıkıp devam et" görünür. `/kayit`'taki oturum yönlendirmesi demo kullanıcısı için uygulanmaz.
