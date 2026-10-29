@@ -6,6 +6,8 @@
 
 Bu kılavuz, orchadOS'ta ofiste ve sahada çalışan personelin günlük işini adım adım anlatır. Bahçe sahibi portalı ve uzman paneli burada yalnızca işin size değdiği yerde geçer.
 
+Her ekranın düğme düğme, ekran görüntülü anlatımı: [Ekran ekran kullanım kılavuzu](kilavuz/README.md).
+
 orchadOS, Antep fıstığı bahçelerini yılda dört kez 360° kamera ve GPS ile tarar. Yapay zekâ ön değerlendirme yapar, ziraat mühendisi (uzman) her ağaca karar verip raporu imzalar, sahip raporu portalda görür. Sizin işiniz bu zincirin başı ve ortasıdır: bahçeyi sisteme almak, ziyareti planlamak, sahada eksiksiz taramak ve veriyi uzmana hazır hale getirmek.
 
 | Rol | Kim | Ne yapar | Kullandığı araç |
