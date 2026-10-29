@@ -13,6 +13,7 @@ import '../coverage/coverage.dart';
 import '../gnss/gnss_logger.dart';
 import '../gnss/protocol/command_result.dart';
 import '../gnss/protocol/gnss_command.dart';
+import '../notice/field_records.dart';
 import '../route/grid_route.dart';
 import '../route/route_guide.dart';
 import '../route/route_store.dart';
@@ -29,10 +30,26 @@ enum SprayingCheck {
   none('none', 'Son günlerde ilaçlama yapılmadı'),
   waitingPassed(
     'waiting_period_passed',
-    'İlaçlama yapıldı, bekleme süresi geçti',
+    'İlaçlama yapıldı, tekrar giriş süresi geçti',
   );
 
   const SprayingCheck(this.code, this.label);
+  final String code;
+  final String label;
+}
+
+/// Pre-check answer on the harvest, asked on harvest-season scans
+/// (methodology v0.2, docs/metodoloji.md section 2): the crew does not enter
+/// while the harvest is under way, so there is no such answer. Gleaning
+/// (çöpleme: picking up the nuts left on the ground and on the trees) may
+/// still go on; the expert reads leftover clusters and heaps with it.
+/// Recorded on the `session_start` event (`data.precheck.harvest`).
+enum HarvestCheck {
+  gleaningDone('gleaning_done', 'Hasat bitti, çöpleme de bitti'),
+  gleaningOngoing('gleaning_ongoing', 'Hasat bitti, çöpleme sürüyor'),
+  noGleaning('no_gleaning', 'Hasat bitti, çöpleme yapılmayacak');
+
+  const HarvestCheck(this.code, this.label);
   final String code;
   final String label;
 }
@@ -79,9 +96,23 @@ class SessionState {
     this.busy = false,
     this.error,
     this.problemTrees = const {},
+    this.verbalNotice,
+    this.objections = 0,
+    this.pointerName,
+    this.pointerRole,
   });
 
   final FieldTask? task;
+
+  /// Newest "sözlü bilgi" answer of this recording; null until given.
+  final VerbalNotice? verbalNotice;
+
+  /// "Bir kişi itiraz etti" records of this recording.
+  final int objections;
+
+  /// Newest person recorded as showing the boundary (inventory).
+  final String? pointerName;
+  final PointerRole? pointerRole;
 
   /// Trees marked "Sorun gördüm" during this recording.
   final Set<String> problemTrees;
@@ -123,6 +154,10 @@ class SessionState {
     bool? busy,
     String? Function()? error,
     Set<String>? problemTrees,
+    VerbalNotice? verbalNotice,
+    int? objections,
+    String? pointerName,
+    PointerRole? pointerRole,
   }) => SessionState(
     task: task ?? this.task,
     phase: phase ?? this.phase,
@@ -136,6 +171,10 @@ class SessionState {
     busy: busy ?? this.busy,
     error: error != null ? error() : this.error,
     problemTrees: problemTrees ?? this.problemTrees,
+    verbalNotice: verbalNotice ?? this.verbalNotice,
+    objections: objections ?? this.objections,
+    pointerName: pointerName ?? this.pointerName,
+    pointerRole: pointerRole ?? this.pointerRole,
   );
 }
 
@@ -168,7 +207,9 @@ class SessionController extends Notifier<SessionState> {
     _stopTrack();
     _resetRoute();
     _spraying = null;
+    _harvest = null;
     _setup = null;
+    _notice = null;
     state = SessionState(task: task);
   }
 
@@ -394,15 +435,21 @@ class SessionController extends Notifier<SessionState> {
 
   /// Answers of the pre-check that are recorded; go with the next start.
   SprayingCheck? _spraying;
+  HarvestCheck? _harvest;
   ScanSetup? _setup;
+  NoticeSign? _notice;
 
   void confirmPrecheck({
     required SprayingCheck spraying,
     required ScanPlatform platform,
     required double cameraHeightM,
+    required NoticeSign notice,
+    HarvestCheck? harvest,
   }) {
     _spraying = spraying;
+    _harvest = harvest;
     _setup = ScanSetup(platform: platform, cameraHeightM: cameraHeightM);
+    _notice = notice;
   }
 
   /// Starts recording on the logger and creates the local session.
@@ -416,7 +463,9 @@ class SessionController extends Notifier<SessionState> {
     // A planned visit keeps its server id on the phone and on the logger
     // (docs/arayuzler.md); the sync fills in that row.
     final sessionId = task.visitId ?? repo.newId();
-    if (await repo.session(sessionId) != null) {
+    final existing = await repo.session(sessionId);
+    // A visit recorded as blocked has a local row but no recording yet.
+    if (existing != null && existing.status != blockedSessionStatus) {
       // The logger refuses an existing session folder (session_exists).
       state = state.copyWith(
         error: () => 'Bu ziyaret bu telefonda zaten kaydedildi',
@@ -459,13 +508,19 @@ class SessionController extends Notifier<SessionState> {
       cameraHeightM: _setup?.cameraHeightM,
     );
     final spraying = _spraying;
+    final harvest = _harvest;
     final setup = _setup;
+    final notice = _notice;
     final precheck = {
       if (spraying != null) 'spraying': spraying.code,
+      if (harvest != null) 'harvest': harvest.code,
       if (setup != null) ...{
         'platform': setup.platform.code,
         'camera_height_m': setup.cameraHeightM,
       },
+      // Also on the start event, so the answers survive a crash before the
+      // field_notice_sign row below is written.
+      if (notice != null) 'notice': notice.toJson(),
     };
     await repo.addEvent(
       sessionId: sessionId,
@@ -475,6 +530,14 @@ class SessionController extends Notifier<SessionState> {
       loggerResult: result.name,
       data: precheck.isEmpty ? null : {'version': 1, 'precheck': precheck},
     );
+    if (notice != null) {
+      await repo.addFieldRecord(
+        sessionId: sessionId,
+        eventType: FieldRecordEvent.noticeSign,
+        payload: notice.toPayload(),
+        time: time,
+      );
+    }
     if (!ref.mounted) return true;
     state = state.copyWith(
       phase: SessionPhase.recording,
@@ -534,6 +597,77 @@ class SessionController extends Notifier<SessionState> {
         ]),
       ),
     );
+    return true;
+  }
+
+  /// Session of the current visit, while it can still take records.
+  String? get _recordSession =>
+      state.phase == SessionPhase.recording ||
+          state.phase == SessionPhase.stopped
+      ? state.sessionId
+      : null;
+
+  /// "Bahçede rastlanan kişilere sözlü bilgi verildi" (H01). A note is
+  /// required for "not given". The newest answer counts.
+  Future<bool> recordVerbalNotice(VerbalNotice answer, {String? note}) async {
+    final sessionId = _recordSession;
+    if (sessionId == null) return false;
+    if (textError(
+          note ?? '',
+          maxLength: maxNoteLength,
+          required: answer == VerbalNotice.notGiven,
+        ) !=
+        null) {
+      return false;
+    }
+    await ref
+        .read(fieldRepositoryProvider)
+        .addFieldRecord(
+          sessionId: sessionId,
+          eventType: FieldRecordEvent.noticeVerbal,
+          payload: verbalNoticePayload(answer, note: note),
+          time: _now(),
+        );
+    if (!ref.mounted) return true;
+    state = state.copyWith(verbalNotice: answer);
+    return true;
+  }
+
+  /// "Bir kişi itiraz etti": the section is scanned later (H01).
+  Future<bool> recordObjection(String note) async {
+    final sessionId = _recordSession;
+    if (sessionId == null) return false;
+    if (textError(note, maxLength: maxNoteLength, required: true) != null) {
+      return false;
+    }
+    await ref
+        .read(fieldRepositoryProvider)
+        .addFieldRecord(
+          sessionId: sessionId,
+          eventType: FieldRecordEvent.noticeObjection,
+          payload: objectionPayload(note),
+          time: _now(),
+        );
+    if (!ref.mounted) return true;
+    state = state.copyWith(objections: state.objections + 1);
+    return true;
+  }
+
+  /// Who shows the boundary: name and role, never the phone (H07, T16). The
+  /// newest record counts.
+  Future<bool> recordBoundaryPointer(String name, PointerRole role) async {
+    final sessionId = _recordSession;
+    if (sessionId == null || pointerNameError(name) != null) return false;
+    await ref
+        .read(fieldRepositoryProvider)
+        .addFieldRecord(
+          sessionId: sessionId,
+          eventType: FieldRecordEvent.boundaryPointer,
+          payload: boundaryPointerPayload(name, role),
+          time: _now(),
+        );
+    if (!ref.mounted) return true;
+    state = state.copyWith(pointerName: name.trim(), pointerRole: role);
     return true;
   }
 

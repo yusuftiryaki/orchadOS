@@ -1,11 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useState } from "react";
 import { planVisitAction, updateVisitAction } from "@/app/operasyon/actions";
-import { t } from "@/lib/i18n";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { formatDate, t } from "@/lib/i18n";
+import { backOfficeText } from "@/lib/i18n/messages/back-office";
+import { visitsText } from "@/lib/i18n/messages/visits";
+import { CURRENT_METHODOLOGY_VERSION } from "@/lib/methodology";
 import { EMPTY_FORM, type FormState } from "@/lib/operations/form-state";
 import { opsHref } from "@/lib/operations/urls";
+import { needsPhoneNotice } from "@/lib/operations/validation";
 import { VISIT_KINDS, visitSeason, type VisitKind } from "@/lib/operations/visits";
 import { Field, FormError } from "./field";
 import styles from "./operations.module.css";
@@ -25,6 +29,8 @@ export interface VisitFormProps {
     plannedDate: string;
     leadUserId: string | null;
     notes: string | null;
+    // The visit keeps the methodology it was planned with.
+    methodologyVersion: string | null;
   };
   initialParcelId?: string;
 }
@@ -51,7 +57,14 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
 
   const orgId = visit?.orgId ?? parcels.find((p) => p.id === parcelId)?.orgId;
   const leads = staff.filter((s) => !orgId || s.orgIds.includes(orgId));
-  const season = visitSeason(kind as VisitKind, date || null);
+  const season = visitSeason(
+    kind as VisitKind,
+    date || null,
+    visit ? visit.methodologyVersion : CURRENT_METHODOLOGY_VERSION,
+  );
+  // T07 (contract 8A/1): no visit_scheduled message for a day closer than 3
+  // days; the phone notice is then recorded with the plan.
+  const phoneNotice = !!date && date !== visit?.plannedDate && needsPhoneNotice(kind, date, today);
   const lead = failed ? (state.values.lead_user_id ?? "") : (visit?.leadUserId ?? "");
   const notes = failed ? (state.values.notes ?? "") : (visit?.notes ?? "");
 
@@ -61,6 +74,7 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
         <>
           <input type="hidden" name="visit_id" value={visit.id} />
           <input type="hidden" name="kind" value={visit.kind} />
+          <input type="hidden" name="original_date" value={visit.plannedDate} />
         </>
       )}
       <div className={styles.grid}>
@@ -112,11 +126,27 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
             ))}
           </select>
         </Field>
+        {phoneNotice && (
+          <Field
+            label={visitsText.ops.phoneNoticeAt}
+            hint={visitsText.ops.phoneRequired}
+            error={err("phone_notified_at")}
+          >
+            <input
+              name="phone_notified_at"
+              type="datetime-local"
+              defaultValue={(failed && state.values.phone_notified_at) || ""}
+              data-testid="visit-phone-notice"
+              required
+            />
+          </Field>
+        )}
         <Field label={T.visits.notes} error={err("notes")} optional wide>
           <textarea name="notes" rows={3} defaultValue={notes} />
         </Field>
       </div>
-      <p className="muted" data-testid="visit-season">
+      <p className={styles.formNote}>{backOfficeText.withdrawalPlanningHint}</p>
+      <p className={styles.formNote} data-testid="visit-season">
         {kind === "inventory"
           ? T.visits.inventoryHint
           : season
@@ -124,11 +154,20 @@ export function VisitForm({ parcels, staff, today, visit, initialParcelId }: Vis
             : null}
       </p>
       <FormError error={state.error} />
+      <p className={styles.confirm} data-testid="visit-confirm" aria-live="polite">
+        {!date
+          ? T.visits.chooseDay
+          : visit && visit.plannedDate && date !== visit.plannedDate
+            ? T.visits.willMove(formatDate(visit.plannedDate), formatDate(date))
+            : T.visits.willPlan(formatDate(date))}
+      </p>
       <div className={styles.actions}>
-        <button className="button" type="submit" disabled={pending}>
-          {pending ? T.saving : visit ? T.save : T.visits.submit}
-        </button>
-        <Link href={visit ? opsHref.visit(visit.id) : opsHref.visits()}>{T.cancel}</Link>
+        <Button type="submit" disabled={pending}>
+          {pending ? T.saving : visit ? T.visits.saveChanges : T.visits.submit}
+        </Button>
+        <ButtonLink variant="quiet" href={visit ? opsHref.visit(visit.id) : opsHref.visits()}>
+          {T.cancel}
+        </ButtonLink>
       </div>
     </form>
   );

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// The back office screens (IP12-E) are ops only: owner@ and expert@ get 403
+// The back office screens (IP12-E, IP14) are ops only: owner@ and expert@ get 403
 // on each of them, as on the other operations screens.
 
 const PASSWORD = "orchados-dev";
@@ -21,6 +21,10 @@ const PATHS = [
   "/operasyon/fiyat/liste/91200000-0000-4000-8000-000000000101",
   "/operasyon/denetim-kaydi",
   "/operasyon/ayarlar",
+  // IP14
+  "/operasyon/cikarma",
+  `/operasyon/cikarma/${ANY}`,
+  `/operasyon/teklif/yeni?ek=${ANY}`,
 ];
 
 async function login(page: Page, email: string, next: string) {

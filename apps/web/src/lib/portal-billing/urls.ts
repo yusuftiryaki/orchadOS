@@ -1,5 +1,5 @@
-import { safeNextPath } from "@/app/giris/login-methods";
-import { BILLING_ERRORS, type BillingError } from "@/lib/billing/errors";
+import { safeNextPath } from "@/app/(site)/giris/login-methods";
+import { BILLING_ERRORS, billingReasonOf, type BillingError } from "@/lib/billing/errors";
 
 // Addresses of the customer portal (docs/musteri-yonetimi.md §10) and the
 // result a redirect after a save puts into the URL (`?bilgi=` / `?hata=`).
@@ -21,6 +21,13 @@ export const PORTAL_NOTICES = [
   "iletisim_kaydedildi",
   "izin_kaydedildi",
   "hesap_vardi",
+  // IP14 (docs/bahce-yonetimi.md §11).
+  "cikarma_istendi",
+  "cikarma_geri_alindi",
+  "bahce_basvurudan_cikarildi",
+  "siparis_duzeltmeye_acildi",
+  // T07 (contract 8A/1).
+  "ziyaret_ertelendi",
 ] as const;
 export type PortalNotice = (typeof PORTAL_NOTICES)[number];
 
@@ -32,11 +39,36 @@ export const PORTAL_ERRORS = [
   "provider_error",
   "odeme_bulunamadi",
   "onay_eksik",
+  "fatura_eposta_eksik",
+  // A demo visitor (docs/demo-turu.md §6.3).
+  "demo_read_only",
+  // An optional consent that is not asked (docs/hukuk/kararlar.md H06, H31).
+  "consent_unavailable",
+  // T13: the card payment needs a (valid) TCKN.
+  "identity_number_required",
+  "identity_number_invalid",
 ] as const;
 export type PortalError =
-  BillingError | "payments_disabled" | "provider_error" | "odeme_bulunamadi" | "onay_eksik";
+  | BillingError
+  | "payments_disabled"
+  | "provider_error"
+  | "odeme_bulunamadi"
+  | "onay_eksik"
+  | "fatura_eposta_eksik"
+  | "demo_read_only"
+  | "consent_unavailable"
+  | "identity_number_required"
+  | "identity_number_invalid";
 
 type Result = { bilgi?: PortalNotice; hata?: PortalError; eksik?: string };
+
+// A database error as the portal shows it: a consent the database refuses
+// because it is not asked (consent_not_asked, T27) reads like the portal's
+// own refusal.
+export function portalErrorOf(error: { code?: string; message?: string } | null): PortalError {
+  const reason = billingReasonOf(error);
+  return reason === "consent_not_asked" ? "consent_unavailable" : reason;
+}
 
 // What customer_submit_application found missing (its error detail).
 export const INCOMPLETE_FIELDS = ["package_id", "gardens", "authorization_basis"] as const;
@@ -73,6 +105,8 @@ export const portalHref = {
     return `${base}${base.includes("?") ? "&" : "?"}geri=${encodeURIComponent(back)}`;
   },
   consents: (r?: Result) => withResult("/portal/hesap/izinler", r),
+  // A parcel page; its service card (IP14) reads the result.
+  parcel: (id: string, r?: Result) => withResult(`/portal/parsel/${id}`, r),
   receipt: (paymentId: string) => `/makbuz/${paymentId}`,
 };
 

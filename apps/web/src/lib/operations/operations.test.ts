@@ -294,6 +294,7 @@ describe("visit form", () => {
         plannedDate: "2026-12-15",
         leadUserId: null,
         notes: "Kapı kilitli",
+        phoneNotifiedAt: null,
       },
     });
   });
@@ -304,9 +305,47 @@ describe("visit form", () => {
       errors: { parcel_id: "required", kind: "invalid", planned_date: "past" },
     });
     expect(
-      parseVisitForm(reader({ parcel_id: parcel, kind: "inventory", planned_date: today }), today)
-        .ok,
+      parseVisitForm(
+        reader({
+          parcel_id: parcel,
+          kind: "inventory",
+          planned_date: today,
+          phone_notified_at: `${today}T09:30`,
+        }),
+        today,
+      ).ok,
     ).toBe(true);
+  });
+
+  it("asks for the phone notice of a day closer than 3 days (T07, contract 8A/1)", () => {
+    const base = { parcel_id: parcel, kind: "periodic_scan" };
+    expect(parseVisitForm(reader({ ...base, planned_date: "2026-10-23" }), today)).toEqual({
+      ok: false,
+      errors: { phone_notified_at: "required" },
+    });
+    const noted = parseVisitForm(
+      reader({ ...base, planned_date: "2026-10-23", phone_notified_at: "2026-10-21T10:15" }),
+      today,
+    );
+    expect(noted.ok && noted.value.phoneNotifiedAt).toBe("2026-10-21T10:15:00+03:00");
+    // 3 days ahead: the visit_scheduled message goes; no phone notice needed.
+    expect(parseVisitForm(reader({ ...base, planned_date: "2026-10-24" }), today).ok).toBe(true);
+    // A verification visit is not notified under 8A/1.
+    expect(
+      parseVisitForm(reader({ ...base, kind: "verification", planned_date: today }), today).ok,
+    ).toBe(true);
+    // An edit that keeps the day needs nothing new; a notice in the future is refused.
+    expect(
+      parseVisitForm(reader({ ...base, planned_date: "2026-10-22" }), today, {
+        originalDate: "2026-10-22",
+      }).ok,
+    ).toBe(true);
+    expect(
+      parseVisitForm(
+        reader({ ...base, planned_date: "2026-10-22", phone_notified_at: "2026-10-22T08:00" }),
+        today,
+      ),
+    ).toEqual({ ok: false, errors: { phone_notified_at: "invalid" } });
   });
 });
 
@@ -361,14 +400,21 @@ describe("visits", () => {
     expect(isIsoDate("2028-02-29")).toBe(true);
   });
 
-  it("season of scan visits from their day; none for inventory", () => {
-    expect(visitSeason("periodic_scan", "2027-01-20")).toBe("winter");
-    expect(visitSeason("verification", "2027-04-10")).toBe("spring");
-    expect(visitSeason("periodic_scan", "2027-07-01")).toBe("summer");
-    expect(visitSeason("periodic_scan", "2026-10-31")).toBe("harvest");
-    expect(visitSeason("periodic_scan", "2026-11-30")).toBe("winter");
-    expect(visitSeason("inventory", "2027-01-20")).toBeNull();
-    expect(visitSeason("periodic_scan", null)).toBeNull();
+  it("season of scan visits from their day and methodology; none for inventory", () => {
+    const v02 = "methodology-v0.2";
+    expect(visitSeason("periodic_scan", "2027-01-20", v02)).toBe("winter");
+    expect(visitSeason("periodic_scan", "2027-03-28", v02)).toBe("winter");
+    expect(visitSeason("verification", "2027-04-10", v02)).toBe("spring");
+    expect(visitSeason("periodic_scan", "2027-07-01", v02)).toBe("summer");
+    expect(visitSeason("periodic_scan", "2027-08-10", v02)).toBe("summer");
+    expect(visitSeason("periodic_scan", "2026-10-31", v02)).toBe("harvest");
+    expect(visitSeason("periodic_scan", "2026-11-30", v02)).toBe("winter");
+    // Visits planned before v0.2 keep their season.
+    expect(visitSeason("periodic_scan", "2027-03-28", "methodology-v0.1")).toBe("spring");
+    expect(visitSeason("periodic_scan", "2027-08-10", "methodology-v0.1")).toBe("harvest");
+    expect(visitSeason("periodic_scan", "2027-08-10", null)).toBe("harvest");
+    expect(visitSeason("inventory", "2027-01-20", v02)).toBeNull();
+    expect(visitSeason("periodic_scan", null, v02)).toBeNull();
   });
 
   it("counts visits by status", () => {
@@ -449,6 +495,19 @@ describe("results in URLs and database errors", () => {
       "write_failed",
     );
     expect(reasonOf(null)).toBe("write_failed");
+  });
+
+  it("knows the garden removal and payment plan codes of the visit and life cycle forms (IP14, T03, H35)", () => {
+    for (const code of [
+      "parcel_removal_scheduled",
+      "parcel_removed",
+      "withdrawal_period_open",
+      "installment_unpaid",
+    ] as const) {
+      expect(reasonOf({ code: "P0001", message: code })).toBe(code);
+      expect(readResult({ hata: code }).error).toBe(code);
+      expect(tr.operations.errors[code]).toBeTruthy();
+    }
   });
 });
 

@@ -57,6 +57,13 @@ insert into public.membership (org_id, user_id, role) values
   ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000004', 'expert'),
   ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000005', 'ops');
 
+-- Staff display names and titles (T23, H05: the report names the approving
+-- expert). The field staff member has no title: ops sees the warning.
+insert into private.staff_profile (org_id, user_id, full_name, title) values
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 'Örnek Saha Personeli', null),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000004', 'Örnek Uzman', 'Ziraat Mühendisi'),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000005', 'Örnek Operasyon', 'Operasyon Sorumlusu');
+
 -- ---------------------------------------------------------------------------
 -- Parcel geometry helper: parcel-local metres -> WGS84.
 -- Local origin at 37.00 N, 37.45 E (south-west corner), x along rows.
@@ -290,35 +297,61 @@ insert into public.zone (id, org_id, parcel_id, kind, name, geom, position_uncer
 
 insert into public.org_billing_setting (
   org_id, accepts_signups, allow_fake_payments, identity_number_required, legal_name, tax_office,
-  tax_number, mersis_number, address, phone, email, bank_name, iban, iban_holder, updated_by
+  tax_number, mersis_number, address, phone, email, bank_name, iban, iban_holder, updated_by,
+  garden_changes_enabled, kep_address, site_domain,
+  coowner_notice_flow_enabled, boundary_declaration_required, kvkk_request_form_enabled,
+  visit_notice_sms_enabled, service_end_access_flow_enabled
 ) values (
   'b0000000-0000-4000-8000-000000000001', true, true, false, 'orchadOS Denetim Hizmetleri A.Ş. (örnek)',
   'Şahinbey', '1234567890', '0123456789012345', 'Örnek Mah. Fıstık Cad. No: 1, Şahinbey, Gaziantep',
   '+905550000100', 'destek@example.com', 'Örnek Bankası', 'TR000000000000000000000001',
-  'orchadOS Denetim Hizmetleri A.Ş.', 'a0000000-0000-4000-8000-000000000005'
+  'orchadOS Denetim Hizmetleri A.Ş.', 'a0000000-0000-4000-8000-000000000005',
+  -- IP14: adding and removing gardens is on locally (off on hosted projects).
+  true,
+  -- T21: complete company information (footer and legal texts show it). The
+  -- gate is inactive here (allow_fake_payments); marketing_consent_enabled
+  -- stays false (T27).
+  'orchados@hs01.kep.example', 'orchados.example',
+  -- Legal follow-ups wave 2 (T15, T16, T11): on locally so tests exercise
+  -- them; off on hosted projects until switched on in SQL.
+  true, true, true,
+  -- Wave 3 (T07 visit_scheduled message, T08 service-end access flow): on
+  -- locally; off on hosted projects until switched on in SQL.
+  true, true
 );
 
+-- Launch price list (docs/fiyatlandirma.md, decided 28 October 2026). The
+-- packages include the first-year inventory visit (informational, frozen into
+-- quote and order); price_lines charges inventory_fee whenever first_year.
 insert into public.service_package (id, org_id, code, name, description, periodic_visits_per_year, includes_inventory, sort_order) values
+  ('91200000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000001', 'temel', 'Temel',
+   'Yılda iki periyodik ziyaret: kış ve hasat. İlk yıl ağaç envanteri dahil.', 2, true, 1),
   ('91200000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'standart', 'Standart',
-   'Yılda dört periyodik ziyaret; ilk yıl ağaç envanteri dahil.', 4, true, 1),
-  ('91200000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000001', 'ekonomik', 'Ekonomik',
-   'Yılda üç periyodik ziyaret; ilk yıl ağaç envanteri dahil.', 3, true, 2);
+   'Yılda dört periyodik ziyaret: kış, ilkbahar, yaz ve hasat. İlk yıl ağaç envanteri dahil.', 4, true, 2),
+  ('91200000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001', 'kapsamli', 'Kapsamlı',
+   'Yılda altı periyodik ziyaret: kış, uyanma (mart sonu), ilkbahar, yaz, hasat öncesi (ağustos başı) ve hasat sonrası. İlk yıl ağaç envanteri dahil.',
+   6, true, 3);
 
 -- v1: written as a draft with its items, then published (price_list_item_guard).
+-- v2 is an unpublished draft for 1 January 2027 (about +15 %, six-month CPI).
 insert into public.price_list (id, org_id, status, valid_from, vat_rate_bp, note, created_by) values
   ('91200000-0000-4000-8000-000000000101', 'b0000000-0000-4000-8000-000000000001', 'draft', '2026-10-01', 2000,
-   'Örnek fiyatlar', 'a0000000-0000-4000-8000-000000000005'),
+   'Lansman fiyat listesi', 'a0000000-0000-4000-8000-000000000005'),
   ('91200000-0000-4000-8000-000000000102', 'b0000000-0000-4000-8000-000000000001', 'draft', '2027-01-01', 2000,
-   'Taslak (örnek)', 'a0000000-0000-4000-8000-000000000005');
+   'Taslak: 1 Ocak 2027 revizyonu (örnek)', 'a0000000-0000-4000-8000-000000000005');
 insert into public.price_list_item (id, org_id, price_list_id, package_id, unit_price_kurus, minimum_fee_kurus, inventory_fee_kurus) values
   ('91200000-0000-4000-8000-000000000201', 'b0000000-0000-4000-8000-000000000001',
-   '91200000-0000-4000-8000-000000000101', '91200000-0000-4000-8000-000000000001', 12500, 500000, 0),
+   '91200000-0000-4000-8000-000000000101', '91200000-0000-4000-8000-000000000001', 18000, 1120000, 600000),
   ('91200000-0000-4000-8000-000000000202', 'b0000000-0000-4000-8000-000000000001',
-   '91200000-0000-4000-8000-000000000101', '91200000-0000-4000-8000-000000000002', 13000, 450000, 0),
+   '91200000-0000-4000-8000-000000000101', '91200000-0000-4000-8000-000000000002', 20800, 560000, 600000),
+  ('91200000-0000-4000-8000-000000000205', 'b0000000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000101', '91200000-0000-4000-8000-000000000003', 16800, 1600000, 600000),
   ('91200000-0000-4000-8000-000000000203', 'b0000000-0000-4000-8000-000000000001',
-   '91200000-0000-4000-8000-000000000102', '91200000-0000-4000-8000-000000000001', 13500, 500000, 0),
+   '91200000-0000-4000-8000-000000000102', '91200000-0000-4000-8000-000000000001', 20700, 1288000, 690000),
   ('91200000-0000-4000-8000-000000000204', 'b0000000-0000-4000-8000-000000000001',
-   '91200000-0000-4000-8000-000000000102', '91200000-0000-4000-8000-000000000002', 14000, 450000, 0);
+   '91200000-0000-4000-8000-000000000102', '91200000-0000-4000-8000-000000000002', 23900, 644000, 690000),
+  ('91200000-0000-4000-8000-000000000206', 'b0000000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000102', '91200000-0000-4000-8000-000000000003', 19300, 1840000, 690000);
 update public.price_list
 set status = 'published', version = 1, published_at = '2026-10-01 06:00:00+00',
     published_by = 'a0000000-0000-4000-8000-000000000005'
@@ -373,6 +406,13 @@ insert into private.consent_record (org_id, subject_id, user_id, kind, granted, 
 -- The KVKK notice of the profiles above (owner, viewer), as the migration does on
 -- a database with profiles.
 select private.backfill_kvkk_consents();
+-- T15 (H30): the seed owner and viewer acknowledged the notice in the portal
+-- themselves, so the first-login notice screen (on here) does not stop them.
+insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source, recorded_at) values
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001',
+   'a0000000-0000-4000-8000-000000000001', 'kvkk_notice', true, 'kvkk-v2-taslak', 'portal', '2026-10-03 09:00:00+00'),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002',
+   'a0000000-0000-4000-8000-000000000002', 'kvkk_notice', true, 'kvkk-v2-taslak', 'portal', '2026-10-03 09:00:00+00');
 
 insert into private.billing_profile (org_id, user_id, kind, first_name, last_name, address, district, city, postal_code)
 values (

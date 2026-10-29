@@ -16,6 +16,7 @@ import {
   planVisit,
   registerParcel,
   planFollowups,
+  recordVisitPhoneNotice,
   revokeAccess,
   setParcelPassive,
   updateOwner,
@@ -238,20 +239,37 @@ export async function planVisitAction(_prev: FormState, form: FormData): Promise
 
   const result = await planVisit(supabase, orgId, parsed.value);
   if (!result.ok) return failed(form, result.error);
+  // T07: the phone notice of a day closer than 3 days, with the visit saved.
+  const notice = parsed.value.phoneNotifiedAt
+    ? await recordVisitPhoneNotice(supabase, result.value, parsed.value.phoneNotifiedAt)
+    : null;
   revalidatePath("/operasyon");
-  redirect(opsHref.visit(result.value, { notice: "planned" }));
+  redirect(
+    opsHref.visit(
+      result.value,
+      notice && !notice.ok ? { error: notice.error } : { notice: "planned" },
+    ),
+  );
 }
 
 export async function updateVisitAction(_prev: FormState, form: FormData): Promise<FormState> {
   const { supabase } = await context();
   const read = formReader(form);
   const visitId = read("visit_id");
-  const parsed = parseVisitForm(read, todayIn(new Date()), { requireParcel: false });
+  const parsed = parseVisitForm(read, todayIn(new Date()), {
+    requireParcel: false,
+    originalDate: read("original_date") || null,
+  });
   if (!parsed.ok) return invalid(form, parsed.errors);
   const result = await updateVisit(supabase, visitId, parsed.value);
   if (!result.ok) return failed(form, result.error);
+  const notice = parsed.value.phoneNotifiedAt
+    ? await recordVisitPhoneNotice(supabase, visitId, parsed.value.phoneNotifiedAt)
+    : null;
   revalidatePath("/operasyon");
-  redirect(opsHref.visit(visitId, { notice: "updated" }));
+  redirect(
+    opsHref.visit(visitId, notice && !notice.ok ? { error: notice.error } : { notice: "updated" }),
+  );
 }
 
 export async function cancelVisitAction(form: FormData) {

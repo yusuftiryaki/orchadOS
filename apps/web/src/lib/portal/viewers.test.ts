@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { maskedFromLast2, parseInvite } from "./viewers";
+import { failWith, maskedFromLast2, parseInvite } from "./viewers";
 
 describe("viewer invitations", () => {
   it("normalises the name and a Turkish phone number", () => {
@@ -25,5 +25,16 @@ describe("viewer invitations", () => {
     expect(maskedFromLast2("67")).toBe("••• ••• •• 67");
     expect(maskedFromLast2(null)).toBe("");
     expect(maskedFromLast2("6a")).toBe("");
+  });
+
+  it("maps the read-only guard of a removed garden (IP14)", () => {
+    expect(failWith({ code: "P0001", message: "parcel_read_only" })).toEqual({
+      ok: false,
+      error: "parcel_read_only",
+    });
+    expect(failWith({ code: "P0001", message: "something" })).toEqual({
+      ok: false,
+      error: "write_failed",
+    });
   });
 });

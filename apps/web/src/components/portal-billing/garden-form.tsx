@@ -1,19 +1,27 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useCallback, useState } from "react";
 import { saveGardenAction } from "@/app/portal/billing-actions";
 import { BoundaryDrawMap, type DrawMode } from "@/components/operations/boundary-draw-map";
-import { Field, FormError } from "@/components/operations/field";
-import ops from "@/components/operations/operations.module.css";
+import layout from "@/components/portal/page.module.css";
+import { Alert } from "@/components/ui/alert";
+import { ButtonLink } from "@/components/ui/button";
+import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
+import { Panel } from "@/components/ui/panel";
 import { formatNumber } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import type { Position } from "@/lib/map/geo";
 import { EMPTY_FORM, type FormState } from "@/lib/operations/form-state";
-import { m2ToDonum, ringAreaM2, validateRing } from "@/lib/operations/geometry";
+import {
+  deleteVertex,
+  m2ToDonum,
+  moveVertex,
+  ringAreaM2,
+  validateRing,
+} from "@/lib/operations/geometry";
 import { AUTHORIZATION_BASES, IRRIGATION } from "@/lib/operations/validation";
 import { portalHref } from "@/lib/portal-billing/urls";
-import styles from "./portal-billing.module.css";
+import s from "./billing.module.css";
 
 const G = P.garden;
 
@@ -56,6 +64,8 @@ export function GardenForm({
       : null;
   });
   const addVertex = useCallback((p: Position) => setRing((r) => [...r, p]), []);
+  const move = useCallback((i: number, p: Position) => setRing((r) => moveVertex(r, i, p)), []);
+  const remove = useCallback((i: number) => setRing((r) => deleteVertex(r, i)), []);
   const setPosition = useCallback((p: Position) => {
     setPositionState(p);
     // After the location the next clicks draw the boundary.
@@ -67,7 +77,7 @@ export function GardenForm({
   return (
     <form
       action={action}
-      className={ops.form}
+      className={s.form}
       data-testid="garden-form"
       // After a failed save React resets the form; a select keeps only the
       // default it was mounted with, so the form is remounted with the typed
@@ -77,54 +87,62 @@ export function GardenForm({
       <input type="hidden" name="application_id" value={applicationId} />
       {gardenId && <input type="hidden" name="garden_id" value={gardenId} />}
 
-      <section className={ops.section}>
-        <h2>{G.general}</h2>
-        <div className={ops.grid}>
-          <Field label={G.name} hint={G.nameHint} error={err("name")} wide>
-            <input name="name" defaultValue={v("name")} required maxLength={120} />
+      <Panel title={G.general}>
+        <div className={s.grid}>
+          <Field
+            id="f-name"
+            label={G.name}
+            hint={G.nameHint}
+            error={err("name")}
+            className={s.wide}
+          >
+            <Input name="name" defaultValue={v("name")} required maxLength={120} />
           </Field>
-          <Field label={G.province} error={err("province")} optional>
-            <input name="province" defaultValue={v("province")} />
+          <Field id="f-province" label={G.province} error={err("province")} optional={P.optional}>
+            <Input name="province" defaultValue={v("province")} />
           </Field>
-          <Field label={G.district} error={err("district")} optional>
-            <input name="district" defaultValue={v("district")} />
+          <Field id="f-district" label={G.district} error={err("district")} optional={P.optional}>
+            <Input name="district" defaultValue={v("district")} />
           </Field>
-          <Field label={G.village} error={err("village")} optional>
-            <input name="village" defaultValue={v("village")} />
+          <Field id="f-village" label={G.village} error={err("village")} optional={P.optional}>
+            <Input name="village" defaultValue={v("village")} />
           </Field>
-          <Field label={G.areaDonum} hint={G.areaHint} error={err("area_donum")}>
-            <input name="area_donum" inputMode="decimal" defaultValue={v("area_donum")} required />
+          <Field id="f-area_donum" label={G.areaDonum} hint={G.areaHint} error={err("area_donum")}>
+            <Input name="area_donum" inputMode="decimal" defaultValue={v("area_donum")} required />
           </Field>
-          <Field label={G.irrigation} error={err("irrigation")}>
-            <select name="irrigation" defaultValue={v("irrigation") || "unknown"}>
+          <Field id="f-irrigation" label={G.irrigation} error={err("irrigation")}>
+            <Select name="irrigation" defaultValue={v("irrigation") || "unknown"}>
               {IRRIGATION.map((i) => (
                 <option key={i} value={i}>
                   {G.irrigationValues[i]}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
-          <Field label={G.trees} error={err("estimated_tree_count")} optional>
-            <input
+          <Field
+            id="f-estimated_tree_count"
+            label={G.trees}
+            error={err("estimated_tree_count")}
+            optional={P.optional}
+          >
+            <Input
               name="estimated_tree_count"
               inputMode="numeric"
               defaultValue={v("estimated_tree_count")}
             />
           </Field>
         </div>
-      </section>
+      </Panel>
 
-      <section className={ops.section}>
-        <h2>{G.mapSection}</h2>
-        <p className="muted">{G.mapLead}</p>
-        <div className={ops.toolbar}>
-          <div role="group" aria-label={G.mapSection} className={ops.modes}>
+      <Panel title={G.mapSection} description={G.mapLead}>
+        <div className={s.toolbar}>
+          <div role="group" aria-label={G.mapSection} className={s.modes}>
             {(["position", "boundary"] as const).map((m) => (
               <button
                 key={m}
                 type="button"
                 aria-pressed={mode === m}
-                className={mode === m ? "button" : "button button-secondary"}
+                className={mode === m ? "button button-sm" : "button button-secondary button-sm"}
                 onClick={() => setMode(m)}
               >
                 {m === "position" ? G.modePosition : G.modeBoundary}
@@ -133,7 +151,7 @@ export function GardenForm({
           </div>
           <button
             type="button"
-            className="button button-secondary"
+            className="button button-quiet button-sm"
             disabled={ring.length === 0}
             onClick={() => setRing((r) => r.slice(0, -1))}
           >
@@ -141,105 +159,138 @@ export function GardenForm({
           </button>
           <button
             type="button"
-            className="button button-secondary"
+            className="button button-quiet button-sm"
             disabled={ring.length === 0}
             onClick={() => setRing([])}
           >
             {G.clear}
           </button>
-          <span className="muted" data-testid="boundary-points">
+          <span className={`${layout.muted} ${layout.small}`} data-testid="boundary-points">
             {G.points(ring.length)}
           </span>
         </div>
-        {/* Remounted per mode: BoundaryDrawMap re-renders its className on a
-            mode change, which drops the class MapLibre adds to the container
-            (maplibregl-map, position: relative) and leaves the canvas off the
-            map. The new map fits the ring and location already drawn. */}
         <BoundaryDrawMap
-          key={mode}
           ring={ring}
           position={position}
           mode={mode}
           onAddVertex={addVertex}
           onSetPosition={setPosition}
+          onMoveVertex={move}
+          onDeleteVertex={remove}
+          label={G.mapSection}
         />
         <input type="hidden" name="lon" value={position ? String(position[0]) : ""} />
         <input type="hidden" name="lat" value={position ? String(position[1]) : ""} />
         <input type="hidden" name="boundary" value={ring.length > 0 ? JSON.stringify(ring) : ""} />
-        <p data-testid="position-state" className={position ? undefined : "muted"}>
-          {position ? G.positionSet : G.positionMissing}
-        </p>
-        {area != null && (
-          <p data-testid="boundary-area">
-            {G.boundaryArea(formatNumber(area), formatNumber(m2ToDonum(area), 1))}
+        <div className={s.formTight}>
+          <p data-testid="position-state" className={position ? undefined : layout.muted}>
+            {position ? G.positionSet : G.positionMissing}
           </p>
-        )}
-        {problem && (
-          <p className={ops.fieldError} role="status">
-            {P.fieldErrors[problem]}
+          {area != null && (
+            <p data-testid="boundary-area">
+              {G.boundaryArea(formatNumber(area), formatNumber(m2ToDonum(area), 1))}
+            </p>
+          )}
+          {problem && (
+            <p className={s.fieldError} role="status">
+              {P.fieldErrors[problem]}
+            </p>
+          )}
+          {(err("position") || err("boundary")) && (
+            <p className={s.fieldError} role="alert">
+              {err("position") ?? err("boundary")}
+            </p>
+          )}
+          <p className={`${layout.muted} ${layout.small}`} data-testid="boundary-caption">
+            {G.boundaryCaption}
           </p>
-        )}
-        {(err("position") || err("boundary")) && (
-          <p className={ops.fieldError} role="alert">
-            {err("position") ?? err("boundary")}
-          </p>
-        )}
-      </section>
+        </div>
+      </Panel>
 
-      <section className={ops.section}>
-        <h2>{G.legal}</h2>
-        <p className={ops.privacy}>{G.privacy}</p>
-        <div className={ops.grid}>
-          <Field label={G.authorizationBasis} error={err("authorization_basis")}>
-            <select name="authorization_basis" defaultValue={v("authorization_basis")} required>
+      <Panel title={G.legal} description={G.privacy}>
+        <div className={s.grid}>
+          <Field
+            id="f-authorization_basis"
+            label={G.authorizationBasis}
+            error={err("authorization_basis")}
+            className={s.wide}
+          >
+            <Select name="authorization_basis" defaultValue={v("authorization_basis")} required>
               <option value="">{P.choose}</option>
               {AUTHORIZATION_BASES.map((b) => (
                 <option key={b} value={b}>
                   {G.authorizationValues[b]}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
-          <Field label={G.deedBlock} hint={G.deedHint} error={err("deed_block")} optional>
-            <input name="deed_block" defaultValue={v("deed_block")} />
+          <Field
+            id="f-deed_block"
+            label={G.deedBlock}
+            hint={G.deedHint}
+            error={err("deed_block")}
+            optional={P.optional}
+          >
+            <Input name="deed_block" defaultValue={v("deed_block")} />
           </Field>
-          <Field label={G.deedParcel} error={err("deed_parcel")} optional>
-            <input name="deed_parcel" defaultValue={v("deed_parcel")} />
+          <Field
+            id="f-deed_parcel"
+            label={G.deedParcel}
+            error={err("deed_parcel")}
+            optional={P.optional}
+          >
+            <Input name="deed_parcel" defaultValue={v("deed_parcel")} />
           </Field>
-          <Field label={G.sharedDeed} error={err("is_shared_deed")}>
-            <select name="is_shared_deed" defaultValue={v("is_shared_deed")}>
+          <Field id="f-is_shared_deed" label={G.sharedDeed} error={err("is_shared_deed")}>
+            <Select name="is_shared_deed" defaultValue={v("is_shared_deed")}>
               <option value="">{P.unknown}</option>
               <option value="yes">{P.yes}</option>
               <option value="no">{P.no}</option>
-            </select>
+            </Select>
           </Field>
-          <Field label={G.usedPortion} error={err("used_portion_note")} optional wide>
-            <input name="used_portion_note" defaultValue={v("used_portion_note")} />
+          <Field
+            id="f-used_portion_note"
+            label={G.usedPortion}
+            error={err("used_portion_note")}
+            optional={P.optional}
+            className={s.wide}
+          >
+            <Input name="used_portion_note" defaultValue={v("used_portion_note")} />
           </Field>
         </div>
-      </section>
+      </Panel>
 
-      <section className={ops.section}>
-        <h2>{G.access}</h2>
-        <div className={ops.grid}>
+      <Panel title={G.access}>
+        <div className={s.grid}>
           <Field
+            id="f-access_note"
             label={G.accessNote}
             hint={G.accessNoteHint}
             error={err("access_note")}
-            optional
-            wide
+            optional={P.optional}
+            className={s.wide}
           >
-            <textarea name="access_note" rows={3} defaultValue={v("access_note")} />
+            <Textarea name="access_note" rows={3} defaultValue={v("access_note")} />
           </Field>
-          <Field label={G.siteContactName} error={err("site_contact_name")} optional>
-            <input
+          <Field
+            id="f-site_contact_name"
+            label={G.siteContactName}
+            error={err("site_contact_name")}
+            optional={P.optional}
+          >
+            <Input
               name="site_contact_name"
               defaultValue={v("site_contact_name")}
               autoComplete="off"
             />
           </Field>
-          <Field label={G.siteContactPhone} error={err("site_contact_phone")} optional>
-            <input
+          <Field
+            id="f-site_contact_phone"
+            label={G.siteContactPhone}
+            error={err("site_contact_phone")}
+            optional={P.optional}
+          >
+            <Input
               name="site_contact_phone"
               type="tel"
               defaultValue={v("site_contact_phone")}
@@ -247,29 +298,33 @@ export function GardenForm({
             />
           </Field>
         </div>
-        <div className={styles.checks}>
-          <label>
-            <input
-              type="checkbox"
-              name="entry_permission"
-              defaultChecked={v("entry_permission") === "on"}
-            />
-            <span>{G.entryPermission}</span>
-          </label>
-          {err("entry_permission") && (
-            <span className={ops.fieldError} role="alert">
-              {err("entry_permission")}
-            </span>
-          )}
-        </div>
-      </section>
+        <Checkbox
+          id="f-entry_permission"
+          name="entry_permission"
+          label={G.entryPermission}
+          defaultChecked={v("entry_permission") === "on"}
+          aria-describedby={err("entry_permission") ? "f-entry_permission-error" : undefined}
+          aria-invalid={err("entry_permission") ? true : undefined}
+        />
+        {err("entry_permission") && (
+          <p id="f-entry_permission-error" className={s.fieldError} role="alert">
+            {err("entry_permission")}
+          </p>
+        )}
+      </Panel>
 
-      <FormError error={state.error} />
-      <div className={ops.actions}>
+      {state.error && (
+        <Alert tone="danger" role="alert">
+          <p>{state.error}</p>
+        </Alert>
+      )}
+      <div className={layout.actions}>
         <button className="button" type="submit" disabled={pending}>
           {pending ? P.saving : G.submit}
         </button>
-        <Link href={portalHref.application(applicationId)}>{P.cancel}</Link>
+        <ButtonLink variant="quiet" href={portalHref.application(applicationId)}>
+          {P.cancel}
+        </ButtonLink>
       </div>
     </form>
   );

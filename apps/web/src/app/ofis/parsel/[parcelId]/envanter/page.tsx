@@ -1,13 +1,19 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OfficeToolLoader } from "@/components/office/office-tool-loader";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Field, Select } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { formatDate, t } from "@/lib/i18n";
 import { loadInventoryContext } from "@/lib/office/inventory";
 import { officePanoramaSources } from "@/lib/office/panorama-source";
-import { sourceOfSet } from "@/lib/office/panoramas";
+import { sourceOfSet, type PanoramaSetInfo } from "@/lib/office/panoramas";
+import { UUID_RE } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
 import styles from "@/components/office/office-tool.module.css";
+import staff from "@/components/staff-page.module.css";
 
 // Office triangulation tool for one parcel. Without ?oturum=&set= it first
 // asks for the inventory session and the processed panorama set.
@@ -19,45 +25,46 @@ export default async function Page({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireSection("ofis");
-  const { parcelId } = await params;
-  const query = await searchParams;
+  const [{ parcelId }, query] = await Promise.all([params, searchParams]);
+  if (!UUID_RE.test(parcelId)) notFound();
   const supabase = await createClient();
-  const ctx = await loadInventoryContext(supabase, parcelId);
+  const sources = officePanoramaSources(supabase, user.id);
+  // The sets are listed by the parcel id of the URL; they are only used when
+  // the parcel exists (ctx).
+  const [ctx, setLists] = await Promise.all([
+    loadInventoryContext(supabase, parcelId),
+    Promise.all(sources.map((s) => s.listSets(parcelId))),
+  ]);
   if (!ctx) notFound();
 
-  const sources = officePanoramaSources(supabase, user.id);
-  const sets = (await Promise.all(sources.map((s) => s.listSets(ctx.parcel.id)))).flat();
+  const sets = setLists.flat();
   const session = ctx.sessions.find((s) => s.id === query.oturum);
   const set = sets.find((s) => s.id === query.set);
   const panoramas = set ? await sourceOfSet(sources, set.id)!.listPanoramas(set.id) : null;
-
-  const header = (
-    <>
-      <p>
-        <Link href={`/ofis/parsel/${parcelId}`}>← {t.office.back}</Link>
-      </p>
-      <h1>
-        {t.office.title} · {ctx.parcel.name}
-      </h1>
-    </>
-  );
+  const back = { href: `/ofis/parsel/${parcelId}`, label: ctx.parcel.name };
 
   if (!session || !set || !panoramas) {
     const defaultSession = session ?? ctx.sessions[0];
     const defaultSet =
       set ?? sets.find((s) => s.sessionId === defaultSession?.id) ?? sets[0] ?? null;
+    const bySource = (["storage", "local"] as const)
+      .map((source) => [source, sets.filter((s) => s.source === source)] as const)
+      .filter(([, list]) => list.length > 0);
+    const optionLabel = (s: PanoramaSetInfo) =>
+      ctx.sessions.some((x) => x.id === s.sessionId)
+        ? t.office.setLabel(s.label, s.count)
+        : `${t.office.setLabel(s.label, s.count)} (${t.office.setMismatch})`;
     return (
-      <main className="page">
-        {header}
+      <main className={`page ${staff.page}`}>
+        <PageHeader back={back} title={t.office.title} />
         <form method="get" className={styles.chooser} data-testid="office-chooser">
           <h2>{t.office.chooseTitle}</h2>
           <p className="muted">{t.office.chooseHint}</p>
           {ctx.sessions.length === 0 ? (
-            <p role="alert">{t.office.noSessions}</p>
+            <Alert tone="warning">{t.office.noSessions}</Alert>
           ) : (
-            <label className={styles.field}>
-              {t.office.session}
-              <select name="oturum" defaultValue={defaultSession?.id}>
+            <Field id="office-session" label={t.office.session}>
+              <Select name="oturum" defaultValue={defaultSession?.id}>
                 {ctx.sessions.map((s) => {
                   const date = s.startedAt ?? s.plannedDate;
                   return (
@@ -69,44 +76,54 @@ export default async function Page({
                     </option>
                   );
                 })}
-              </select>
-            </label>
+              </Select>
+            </Field>
           )}
           {sets.length === 0 ? (
-            <p role="alert">{t.office.noSets}</p>
+            <Alert tone="warning">{t.office.noSets}</Alert>
           ) : (
-            <label className={styles.field}>
-              {t.office.panoramaSet}
-              <select name="set" defaultValue={defaultSet?.id}>
-                {sets.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {t.office.setLabel(s.label, s.count)}
-                    {" · "}
-                    {t.office.setSource[s.source]}
-                    {" · "}
-                    {ctx.sessions.some((x) => x.id === s.sessionId)
-                      ? t.office.setMatches
-                      : t.office.setMismatch(s.sessionId)}
-                  </option>
+            <Field id="office-set" label={t.office.panoramaSet} hint={t.office.setHint}>
+              <Select name="set" defaultValue={defaultSet?.id}>
+                {bySource.map(([source, list]) => (
+                  <optgroup key={source} label={t.office.setSource[source]}>
+                    {list.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {optionLabel(s)}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </Field>
           )}
-          <button
-            className="button"
-            type="submit"
-            disabled={sets.length === 0 || ctx.sessions.length === 0}
-          >
-            {t.office.open}
-          </button>
+          <div>
+            <Button type="submit" disabled={sets.length === 0 || ctx.sessions.length === 0}>
+              {t.office.open}
+            </Button>
+          </div>
         </form>
       </main>
     );
   }
 
+  const date = session.startedAt ?? session.plannedDate;
   return (
-    <main className={styles.page}>
-      {header}
+    <main className={staff.wide}>
+      <PageHeader
+        back={back}
+        title={t.office.title}
+        meta={
+          <>
+            <span>
+              {(session.kind === "inventory" ? t.office.sessionLabel : t.office.scanSessionLabel)(
+                date ? formatDate(date) : session.id.slice(0, 8),
+                t.office.sessionStatus[session.status],
+              )}
+            </span>
+            <Badge>{t.office.setLabel(set.label, set.count)}</Badge>
+          </>
+        }
+      />
       <OfficeToolLoader
         key={`${session.id}:${set.id}`}
         parcelId={ctx.parcel.id}

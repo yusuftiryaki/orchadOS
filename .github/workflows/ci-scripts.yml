@@ -1,0 +1,93 @@
+name: ci-scripts
+
+# The demo and pilot provisioning scripts and workflows (provision-demo,
+# provision-pilot-signup, the demo lock check, the retention check, the Vault
+# signup_cleanup_url step, the deploy and demo-data workflows that use them): shellcheck,
+# actionlint and the tests against mocked Supabase and Vercel APIs (no
+# network, no secrets). Every SQL text the scripts send to the mock then runs
+# on a plain Postgres (scripts/test-script-sql.sh), since the mock answers any
+# SQL with canned rows.
+
+on:
+  pull_request:
+    paths:
+      - "scripts/provision-demo.sh"
+      - "scripts/test-provision-demo.sh"
+      - "scripts/demo-lock-check.sh"
+      - "scripts/retention-check.sh"
+      - "scripts/provision-pilot-signup.sh"
+      - "scripts/vault-signup-cleanup.sh"
+      - "scripts/test-provision-pilot.sh"
+      - "scripts/test-demo-lock-sql.sh"
+      - "scripts/test-script-sql.sh"
+      - "scripts/tests/**"
+      - ".github/workflows/provision-demo.yml"
+      - ".github/workflows/provision-pilot-signup.yml"
+      - ".github/workflows/deploy-db.yml"
+      - ".github/workflows/deploy-db-pilot.yml"
+      - ".github/workflows/deploy-db-demo.yml"
+      - ".github/workflows/demo-data.yml"
+      - ".github/workflows/ci-scripts.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/provision-demo.sh"
+      - "scripts/test-provision-demo.sh"
+      - "scripts/demo-lock-check.sh"
+      - "scripts/retention-check.sh"
+      - "scripts/provision-pilot-signup.sh"
+      - "scripts/vault-signup-cleanup.sh"
+      - "scripts/test-provision-pilot.sh"
+      - "scripts/test-demo-lock-sql.sh"
+      - "scripts/test-script-sql.sh"
+      - "scripts/tests/**"
+      - ".github/workflows/provision-demo.yml"
+      - ".github/workflows/provision-pilot-signup.yml"
+      - ".github/workflows/deploy-db.yml"
+      - ".github/workflows/deploy-db-pilot.yml"
+      - ".github/workflows/deploy-db-demo.yml"
+      - ".github/workflows/demo-data.yml"
+      - ".github/workflows/ci-scripts.yml"
+
+concurrency:
+  group: ci-scripts-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  provision-demo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: |
+          shellcheck scripts/provision-demo.sh scripts/test-provision-demo.sh scripts/demo-lock-check.sh \
+            scripts/retention-check.sh scripts/test-demo-lock-sql.sh scripts/test-script-sql.sh \
+            scripts/provision-pilot-signup.sh scripts/vault-signup-cleanup.sh scripts/test-provision-pilot.sh
+
+      - name: actionlint
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
+          ./actionlint -color .github/workflows/provision-demo.yml .github/workflows/ci-scripts.yml \
+            .github/workflows/deploy-db.yml .github/workflows/deploy-db-pilot.yml .github/workflows/deploy-db-demo.yml \
+            .github/workflows/demo-data.yml .github/workflows/provision-pilot-signup.yml
+
+      - name: Tests (mocked APIs, SQL on Postgres)
+        env:
+          DB_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+        run: |
+          scripts/test-provision-demo.sh
+          scripts/test-provision-pilot.sh

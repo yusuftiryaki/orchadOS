@@ -2,12 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   type AccountMatch,
   clientIp,
+  completeTicket,
   decideMatches,
+  hasPasswordAmr,
   hmacHex,
   isExpiredUnverified,
   jwtClaims,
   latestPhoneCodeAt,
   parseRegister,
+  REGISTER_MIN_MS,
+  registerDelayMs,
+  newTicket,
+  TICKET_RE,
+  ticketHash,
   timingSafeEqual,
 } from "../../../../../supabase/functions/_shared/signup";
 
@@ -41,8 +48,22 @@ describe("parseRegister", () => {
         contactPreference: "whatsapp",
         clientIp: "203.0.113.5",
         captchaToken: null,
-        consents: { explicit_service_improvement: false, explicit_marketing: true },
+        // T27: neither explicit consent is asked; both are forced to false.
+        consents: { explicit_service_improvement: false, explicit_marketing: false },
       },
+    });
+  });
+
+  it("forces both explicit consents to false (T27: a direct POST grants nothing)", () => {
+    const parsed = parseRegister({
+      ...valid,
+      consents: { ...valid.consents, explicit_service_improvement: true, explicit_marketing: true },
+    });
+    expect(parsed.ok && parsed.value.consents).toEqual({
+      kvkk_notice_version: "kvkk-v1-taslak",
+      explicit_text_version: "riza-v1-taslak",
+      explicit_service_improvement: false,
+      explicit_marketing: false,
     });
   });
 
@@ -148,17 +169,18 @@ describe("decideMatches", () => {
     });
   });
 
-  it("keeps a stale sign-up inside the grace period: the same e-mail or phone is refused", () => {
+  it("keeps a stale sign-up inside the grace period: nothing replaces it", () => {
     const recent = match({
       user_id: "a",
       matched_by: "email",
       self_signup: true,
       started_at: RECENT,
     });
-    expect(decideMatches([recent], NOW)).toEqual({ staleUserIds: [], outcome: "email_taken" });
+    expect(decideMatches([recent], NOW)).toEqual({ staleUserIds: [], outcome: "conflict" });
+    // Its phone: the code goes to that phone, nothing is created.
     expect(decideMatches([{ ...recent, matched_by: "phone" }], NOW)).toEqual({
       staleUserIds: [],
-      outcome: "phone_registered",
+      outcome: "send_code",
     });
     // Past the grace period it goes.
     const old = { ...recent, started_at: OLD };
@@ -166,29 +188,56 @@ describe("decideMatches", () => {
     expect(decideMatches([{ ...recent, started_at: "not a date" }], NOW).staleUserIds).toEqual([]);
   });
 
-  it("sends the verified owner of the phone to the code step", () => {
-    const owner = match({ user_id: "a", matched_by: "phone", phone_confirmed: true });
-    expect(decideMatches([owner], NOW).outcome).toBe("existing_account");
-    expect(decideMatches([owner, { ...owner, matched_by: "email" }], NOW).outcome).toBe(
-      "existing_account",
-    );
+  // Review of PR #93, finding 1: the registrant's own sign-up in progress
+  // (their ticket) is replaced; anyone else's stays, by e-mail or phone.
+  it("replaces only the registrant's own sign-up inside the grace period", () => {
+    const recent = match({
+      user_id: "a",
+      matched_by: "phone",
+      self_signup: true,
+      started_at: RECENT,
+    });
+    expect(decideMatches([{ ...recent, ticket_match: true }], NOW)).toEqual({
+      staleUserIds: ["a"],
+      outcome: "create",
+    });
+    expect(decideMatches([{ ...recent, matched_by: "email", ticket_match: true }], NOW)).toEqual({
+      staleUserIds: ["a"],
+      outcome: "create",
+    });
+    expect(decideMatches([{ ...recent, ticket_match: false }], NOW)).toEqual({
+      staleUserIds: [],
+      outcome: "send_code",
+    });
+    // A verified or completed account is never replaced, ticket or not.
+    for (const kept of [
+      { ...recent, ticket_match: true, phone_confirmed: true },
+      { ...recent, ticket_match: true, signup_completed: true },
+    ]) {
+      expect(decideMatches([kept], NOW)).toEqual({ staleUserIds: [], outcome: "send_code" });
+    }
   });
 
-  it("refuses a verified phone whose e-mail is someone else's", () => {
+  // H33: a registered phone answers like a new sign-up; only the phone's
+  // owner gets the code.
+  it("sends any registered phone to the code step, whoever holds the e-mail", () => {
     const owner = match({ user_id: "a", matched_by: "phone", phone_confirmed: true });
     const other = match({ user_id: "b", matched_by: "email" });
-    expect(decideMatches([owner, other], NOW).outcome).toBe("email_taken");
+    for (const matches of [
+      [owner],
+      [owner, { ...owner, matched_by: "email" as const }],
+      [owner, other],
+      [match({ user_id: "a", matched_by: "phone" })],
+      [match({ user_id: "a", matched_by: "profile_phone" })],
+      [match({ user_id: "a", matched_by: "profile_phone" }), other],
+    ]) {
+      expect(decideMatches(matches, NOW)).toEqual({ staleUserIds: [], outcome: "send_code" });
+    }
   });
 
-  it("refuses another customer's profile phone, a taken e-mail and an unverified phone", () => {
-    expect(decideMatches([match({ user_id: "a", matched_by: "profile_phone" })], NOW).outcome).toBe(
-      "phone_registered",
-    );
+  it("answers a taken e-mail with a free phone as a conflict", () => {
     expect(decideMatches([match({ user_id: "a", matched_by: "email" })], NOW).outcome).toBe(
-      "email_taken",
-    );
-    expect(decideMatches([match({ user_id: "a", matched_by: "phone" })], NOW).outcome).toBe(
-      "phone_registered",
+      "conflict",
     );
     // A completed self sign-up is not stale even with an unconfirmed phone.
     expect(
@@ -196,7 +245,38 @@ describe("decideMatches", () => {
         [match({ user_id: "a", matched_by: "email", self_signup: true, signup_completed: true })],
         NOW,
       ),
-    ).toEqual({ staleUserIds: [], outcome: "email_taken" });
+    ).toEqual({ staleUserIds: [], outcome: "conflict" });
+  });
+
+  it("has only three outcomes, none naming what is registered", () => {
+    const outcomes = new Set<string>();
+    const kinds = ["email", "phone", "profile_phone"] as const;
+    for (const a of kinds) {
+      for (const b of kinds) {
+        for (const confirmed of [false, true]) {
+          outcomes.add(
+            decideMatches(
+              [
+                match({ user_id: "a", matched_by: a, phone_confirmed: confirmed }),
+                match({ user_id: "b", matched_by: b }),
+              ],
+              NOW,
+            ).outcome,
+          );
+        }
+      }
+    }
+    expect([...outcomes].sort()).toEqual(["conflict", "send_code"]);
+  });
+});
+
+describe("register timing", () => {
+  it("pads every answer to the same minimum", () => {
+    expect(REGISTER_MIN_MS).toBeGreaterThanOrEqual(1000);
+    expect(registerDelayMs(1000, 1000)).toBe(REGISTER_MIN_MS);
+    expect(registerDelayMs(1000, 1000 + 400)).toBe(REGISTER_MIN_MS - 400);
+    expect(registerDelayMs(1000, 1000 + REGISTER_MIN_MS + 5)).toBe(0);
+    expect(registerDelayMs(0, 50, 200)).toBe(150);
   });
 });
 
@@ -208,7 +288,7 @@ function token(claims: unknown): string {
 describe("complete: phone code check", () => {
   const at = (iso: string) => Math.floor(Date.parse(iso) / 1000);
 
-  it("gives the latest otp or sms login", () => {
+  it("gives the latest otp or sms code that stamped the phone confirmation", () => {
     const claims = jwtClaims(
       token({
         amr: [
@@ -218,15 +298,31 @@ describe("complete: phone code check", () => {
         ],
       }),
     );
-    expect(latestPhoneCodeAt(claims)).toBe(at("2026-10-27T10:03:00Z"));
+    expect(latestPhoneCodeAt(claims, "2026-10-27T10:03:00.4Z")).toBe(at("2026-10-27T10:03:00Z"));
+    expect(latestPhoneCodeAt(claims, "2026-10-27T10:01:02Z")).toBe(at("2026-10-27T10:01:00Z"));
+  });
+
+  // Auth hardening, item 2: GoTrue records an e-mail code or magic link as
+  // amr "otp" too. Such a session did not stamp phone_confirmed_at, so it is
+  // no phone proof, whether the phone was confirmed before or after it.
+  it("gives null for an otp entry the phone confirmation does not match", () => {
+    const claims = { amr: [{ method: "otp", timestamp: at("2026-10-27T10:10:00Z") }] };
+    expect(latestPhoneCodeAt(claims, "2026-10-27T10:09:00Z")).toBeNull();
+    expect(latestPhoneCodeAt(claims, "2026-10-27T10:10:30Z")).toBeNull();
+    expect(latestPhoneCodeAt(claims, null)).toBeNull();
+    expect(latestPhoneCodeAt(claims, "not a date")).toBeNull();
   });
 
   it("gives null for a password login or no claims", () => {
+    const confirmed = "2026-10-27T10:05:00Z";
     expect(
-      latestPhoneCodeAt({ amr: [{ method: "password", timestamp: at("2026-10-27T10:05:00Z") }] }),
+      latestPhoneCodeAt(
+        { amr: [{ method: "password", timestamp: at("2026-10-27T10:05:00Z") }] },
+        confirmed,
+      ),
     ).toBeNull();
-    expect(latestPhoneCodeAt({ amr: [{ method: "otp" }] })).toBeNull();
-    expect(latestPhoneCodeAt(null)).toBeNull();
+    expect(latestPhoneCodeAt({ amr: [{ method: "otp" }] }, confirmed)).toBeNull();
+    expect(latestPhoneCodeAt(null, confirmed)).toBeNull();
     expect(jwtClaims("not-a-token")).toBeNull();
   });
 });
@@ -245,5 +341,50 @@ describe("cleanup", () => {
       false,
     );
     expect(isExpiredUnverified({ ...old, app_metadata: {} }, now)).toBe(false);
+  });
+});
+
+describe("sign-up ticket", () => {
+  it("is 32 random bytes in base64url", () => {
+    const a = newTicket();
+    const b = newTicket();
+    expect(a).toMatch(TICKET_RE);
+    expect(b).toMatch(TICKET_RE);
+    expect(a).not.toBe(b);
+  });
+
+  it("is stored as its SHA-256 in hex (the database's digest)", async () => {
+    expect(await ticketHash("abc")).toBe(
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    );
+  });
+
+  it("rides in register's body; a malformed one counts as none", () => {
+    const ticket = newTicket();
+    const parsed = parseRegister({ ...valid, ticket });
+    expect(parsed.ok && parsed.value.ticket).toBe(ticket);
+    for (const bad of ["short", 42, "x".repeat(43) + "!"]) {
+      const p = parseRegister({ ...valid, ticket: bad });
+      expect(p.ok && p.value.ticket).toBeNull();
+    }
+    const none = parseRegister(valid);
+    expect(none.ok && none.value.ticket).toBeNull();
+  });
+
+  it("a complete's ticket is the well-formed one or null; null never skips the check", () => {
+    const ticket = newTicket();
+    expect(completeTicket({ action: "complete", ticket })).toBe(ticket);
+    for (const bad of [undefined, null, "", "abc", 42, `${ticket}x`]) {
+      expect(completeTicket({ action: "complete", ticket: bad })).toBeNull();
+    }
+    expect(completeTicket({ action: "complete" })).toBeNull();
+  });
+
+  it("a password session is told by its amr", () => {
+    expect(hasPasswordAmr({ amr: [{ method: "password", timestamp: 1 }] })).toBe(true);
+    expect(hasPasswordAmr({ amr: [{ method: "otp", timestamp: 1 }] })).toBe(false);
+    expect(hasPasswordAmr({ amr: ["password"] })).toBe(false);
+    expect(hasPasswordAmr({})).toBe(false);
+    expect(hasPasswordAmr(null)).toBe(false);
   });
 });

@@ -139,7 +139,7 @@ void main() {
     ))!;
     expect(measurements, hasLength(protocol.questions.length - 1));
     expect(measurements.every((m) => m.source == 'staff'), isTrue);
-    expect(measurements.every((m) => m.methodVersion == 'winter-v0.1'), isTrue);
+    expect(measurements.every((m) => m.methodVersion == 'winter-v0.2'), isTrue);
     final byMetric = {for (final m in measurements) m.metricCode: m};
     expect(byMetric['trunk_damage_present']!.valueBoolean, isTrue);
     expect(byMetric['fresh_cut_present']!.valueBoolean, isFalse);
@@ -157,7 +157,7 @@ void main() {
     expect(unseen.payload, 'S5-12');
     final data = jsonDecode(unseen.dataJson!) as Map;
     expect(data['tree_id'], 't-0512');
-    expect(data['method_version'], 'winter-v0.1');
+    expect(data['method_version'], 'winter-v0.2');
     expect(data['metric_codes'], ['gum_present']);
     expect(data['evidence'], unorderedEquals(captures.map((c) => c.sha256)));
     final queued = (await tester.runAsync(repo.outbox.pending))!;
@@ -185,6 +185,30 @@ void main() {
     await settle(tester);
     expect(find.byType(VisitSummaryScreen), findsOneWidget);
     expect(find.text('1 / 3'), findsOneWidget);
+    // The oral notice answer comes first (H01).
+    FilledButton finish() => tester.widget<FilledButton>(
+      find.descendant(
+        of: find.byKey(const Key('summary-finish')),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('summary-finish')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(finish().onPressed, isNull);
+    await tapVisible(tester, find.byKey(const Key('verbal-notice-nobody')));
+    await tester.pump();
+    await tapVisible(tester, find.byKey(const Key('verbal-notice-save')));
+    await settle(tester);
+    expect(find.byKey(const Key('verbal-notice-saved')), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('summary-finish')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(finish().onPressed, isNotNull);
     await tapVisible(tester, find.byKey(const Key('summary-finish')));
     await settle(tester);
     expect(h.container.read(completedTasksProvider), contains(task.id));
@@ -223,7 +247,7 @@ void main() {
     }
     expect(saveButton(tester).onPressed, isNull);
     await shootAndUse(tester, 'K4_1');
-    await answer(tester, 'dead_test_no_buds', 'true');
+    await answer(tester, 'dead_test_live_bud', 'true');
     expect(h.media.files, hasLength(4));
 
     // Closing drops its photo and answer.
@@ -239,7 +263,7 @@ void main() {
     for (final s in extra.shots) {
       await shootAndUse(tester, s.code);
     }
-    await answer(tester, 'dead_test_no_buds', 'true');
+    await answer(tester, 'dead_test_live_bud', 'true');
     await answer(tester, 'dead_test_snaps', 'true');
     expect(saveButton(tester).onPressed, isNull);
     await answer(tester, 'dead_test_brown_cambium', 'unseen');
@@ -260,7 +284,7 @@ void main() {
     ))!;
     expect(
       {for (final m in measurements) m.metricCode: m.valueBoolean},
-      {'dead_test_no_buds': true, 'dead_test_snaps': true},
+      {'dead_test_live_bud': true, 'dead_test_snaps': true},
     );
     final events = (await tester.runAsync(() => repo.events(sessionId)))!;
     final unseen = events.singleWhere((e) => e.eventType == closeupUnseenEvent);

@@ -1,7 +1,11 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { InventoryWorkspaceView } from "@/components/office/inventory-workspace";
 import styles from "@/components/office/inventory.module.css";
+import staff from "@/components/staff-page.module.css";
+import { Alert } from "@/components/ui/alert";
+import { ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { formatDate, t } from "@/lib/i18n";
 import {
@@ -11,7 +15,8 @@ import {
 } from "@/lib/office/inventory-workspace";
 import type { LatLon } from "@/lib/office/local-frame";
 import { officePanoramaSources } from "@/lib/office/panorama-source";
-import { sourceOfSet } from "@/lib/office/panoramas";
+import { sourceOfSet, type PanoramaSetInfo, type PanoramaSource } from "@/lib/office/panoramas";
+import { UUID_RE } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
 
 // Inventory workspace of one parcel (after the triangulation tool saved the
@@ -26,42 +31,49 @@ export default async function Page({
 }) {
   const user = await requireSection("ofis");
   const [{ parcelId }, query] = await Promise.all([params, searchParams]);
+  if (!UUID_RE.test(parcelId)) notFound();
   const supabase = await createClient();
-  const ws = await loadInventoryWorkspace(supabase, parcelId);
+  const sources = officePanoramaSources(supabase, user.id);
+  // The panorama sets (for the scan track) are listed while the workspace
+  // loads; they are only used when the parcel exists.
+  const [ws, setLists] = await Promise.all([
+    loadInventoryWorkspace(supabase, parcelId),
+    Promise.all(sources.map((s) => s.listSets(parcelId))),
+  ]);
   if (!ws) notFound();
 
-  const header = (
-    <>
-      <p>
-        <Link href={`/ofis/parsel/${parcelId}`}>← {t.inventory.office.back}</Link>
-      </p>
-      <h1>
-        {t.inventory.office.title} · {ws.parcel.name}
-      </h1>
-    </>
-  );
+  const back = { href: `/ofis/parsel/${parcelId}`, label: ws.parcel.name };
+  const o = t.inventory.office;
 
   if (ws.slots.length === 0) {
     return (
-      <main className={styles.page}>
-        {header}
-        <p className={styles.notice} role="alert">
-          {t.inventory.office.noInventory}{" "}
-          <Link href={`/ofis/parsel/${parcelId}/envanter`}>{t.office.openTool}</Link>
-        </p>
+      <main className={`${staff.wide} ${styles.page}`}>
+        <PageHeader back={back} title={o.title} />
+        <EmptyState
+          title={o.noInventoryTitle}
+          action={<ButtonLink href={`/ofis/parsel/${parcelId}/envanter`}>{o.openTool}</ButtonLink>}
+        >
+          <p>{o.noInventory}</p>
+        </EmptyState>
       </main>
     );
   }
 
-  const track = await scanTrack(supabase, user.id, parcelId, ws.inventorySession?.id ?? null);
+  const track = await scanTrack(
+    sources,
+    setLists.flat(),
+    parcelId,
+    ws.inventorySession?.id ?? null,
+  );
   const tab = typeof query.sekme === "string" ? query.sekme : "";
+  const approvedAt = ws.approved ? (ws.inventorySession?.publishedAt ?? null) : null;
   return (
-    <main className={styles.page}>
-      {header}
-      {ws.approved && ws.inventorySession?.publishedAt && (
-        <p className={styles.approved} data-testid="inventory-approved">
-          {t.inventory.office.approved(formatDate(ws.inventorySession.publishedAt))}
-        </p>
+    <main className={`${staff.wide} ${styles.page}`}>
+      <PageHeader back={back} title={o.title} lead={o.lead} />
+      {approvedAt && (
+        <Alert tone="success" testId="inventory-approved">
+          <p>{o.approved(formatDate(approvedAt))}</p>
+        </Alert>
       )}
       <InventoryWorkspaceView
         ws={ws}
@@ -79,13 +91,11 @@ export default async function Page({
 // order: the trajectory the boundary is drawn on. Another set of the parcel
 // when the session has none.
 async function scanTrack(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
+  sources: PanoramaSource[],
+  sets: PanoramaSetInfo[],
   parcelId: string,
   sessionId: string | null,
 ): Promise<LatLon[]> {
-  const sources = officePanoramaSources(supabase, userId);
-  const sets = (await Promise.all(sources.map((s) => s.listSets(parcelId)))).flat();
   const set =
     sets.find((s) => s.sessionId === sessionId) ?? sets.find((s) => s.parcelId === parcelId);
   if (!set) return [];

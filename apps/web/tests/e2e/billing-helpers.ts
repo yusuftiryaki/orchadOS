@@ -122,6 +122,177 @@ export async function quotedApplication(email: string, password: string): Promis
   return opsQuote(application);
 }
 
+// --- IP14 (docs/bahce-yonetimi.md §9.12): garden membership helpers for the
+// portal (C) and back office (D) browser tests. Each one works through the
+// API like a person would; nothing is written to the tables directly.
+
+const CONSENTS = { distance_sales: "mesafeli-v5-taslak", pre_information: "onbilgi-v5-taslak" };
+
+// "Today" of the database functions (Istanbul), YYYY-MM-DD.
+export const istanbulToday = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(new Date());
+
+async function signedIn(email: string, password: string) {
+  const client = anon();
+  const result = await client.auth.signInWithPassword({ email, password });
+  if (result.error) throw result.error;
+  return { client, userId: result.data.user.id };
+}
+
+const opsClient = () => signedIn("ops@example.com", PASSWORD).then((s) => s.client);
+
+// Makes a customer an active member: a new application with one garden
+// (15 dönüm), quoted by ops, accepted and paid by a bank transfer recorded
+// by ops; the order serves one year from today. The account needs an owner
+// profile with the KVKK notice and a billing profile, as customer@example.com
+// has (or a customer who finished the sign-up and the billing step).
+// Returns the customer's id, the order and the parcels of its lines.
+export async function activeMember(
+  email: string,
+  password = PASSWORD,
+): Promise<{ userId: string; orderId: string; parcelIds: string[] }> {
+  const { client, userId } = await signedIn(email, password);
+  const application = check(
+    await client.rpc("customer_create_application", { p_package_id: STANDART }),
+  );
+  check(
+    await client.rpc("customer_save_application_garden", {
+      p_application_id: application,
+      p_garden: {
+        name: `Üye bahçesi ${Math.floor(Math.random() * 1000)}`,
+        declared_area_m2: 15000,
+        lon: 37.83 + Math.random() * 0.02,
+        lat: 37.03,
+      },
+      p_detail: { entry_permission: true, authorization_basis: "title_holder" },
+    }),
+  );
+  check(await client.rpc("customer_submit_application", { p_application_id: application }));
+  const quote = await opsQuote(application);
+  const orderId = check(
+    await client.rpc("customer_accept_quote", { p_quote_id: quote, p_consents: CONSENTS }),
+  );
+  const ops = await opsClient();
+  const order = check(
+    await admin.from("service_order").select("total_kurus").eq("id", orderId).single(),
+  );
+  check(
+    await ops.rpc("ops_record_manual_payment", {
+      p_order_id: orderId,
+      p_amount_kurus: order.total_kurus,
+      p_value_date: istanbulToday(),
+      p_bank_reference: `EFT-E2E-${orderId.slice(0, 8)}`,
+    }),
+  );
+  const parcelIds = check(
+    await admin
+      .from("service_order_item")
+      .select("parcel_id")
+      .eq("order_id", orderId)
+      .order("line_no"),
+  ).map((r) => r.parcel_id as string);
+  return { userId, orderId, parcelIds };
+}
+
+// Ops verifies every garden of a submitted application (declared areas) and
+// issues an add-on quote joining the base order. Returns the quote id.
+export async function opsAddonQuote(applicationId: string, baseOrderId: string): Promise<string> {
+  const ops = await opsClient();
+  const gardens = check(
+    await admin
+      .from("application_garden")
+      .select("id, declared_area_m2, verified_at, withdrawn_at")
+      .eq("application_id", applicationId),
+  );
+  for (const g of gardens) {
+    if (g.verified_at || g.withdrawn_at) continue;
+    check(
+      await ops.rpc("ops_verify_application_garden", {
+        p_garden_id: g.id,
+        p_verified_area_m2: Number(g.declared_area_m2),
+      }),
+    );
+  }
+  return check(
+    await ops.rpc("ops_issue_addon_quote", {
+      p_base_order_id: baseOrderId,
+      p_application_id: applicationId,
+    }),
+  );
+}
+
+// The customer asks to remove a garden (reason not_needed; in 30 days by
+// default, or at the period end, or as a withdrawal today). With complete,
+// ops moves the day to today when needed and completes it at once (parcel
+// passive, refund rows, read-only window). Returns the removal id.
+export async function removalFor(
+  email: string,
+  password: string,
+  parcelId: string,
+  opts: { atPeriodEnd?: boolean; withdrawal?: boolean; complete?: boolean; byOps?: boolean } = {},
+): Promise<string> {
+  const { client, userId } = await signedIn(email, password);
+  const removalId = opts.byOps
+    ? await opsRemoval(userId, parcelId)
+    : check(
+        await client.rpc("customer_request_garden_removal", {
+          p_parcel_id: parcelId,
+          p_reason: "not_needed",
+          p_timing: opts.withdrawal ? "withdrawal" : opts.atPeriodEnd ? "period_end" : "notice",
+        }),
+      );
+  if (opts.complete) {
+    const ops = await opsClient();
+    const today = istanbulToday();
+    const removal = check(
+      await admin
+        .from("garden_removal")
+        .select("requested_effective_on")
+        .eq("id", removalId)
+        .single(),
+    );
+    check(
+      await ops.rpc("ops_schedule_garden_removal", {
+        p_removal_id: removalId,
+        p_effective_on: today,
+        p_note: removal.requested_effective_on === today ? undefined : "E2E: bugün tamamlanır",
+      }),
+    );
+    check(await ops.rpc("ops_complete_garden_removal", { p_removal_id: removalId }));
+  }
+  return removalId;
+}
+
+// A removal ops opens on the customer's line of the parcel (a transfer in
+// 5 days, access 0; initiated_by 'ops'). Returns its id.
+async function opsRemoval(userId: string, parcelId: string): Promise<string> {
+  const ops = await opsClient();
+  const item = check(
+    await admin
+      .from("service_order_item")
+      .select("id, service_order!inner(customer_user_id, status)")
+      .eq("parcel_id", parcelId)
+      .eq("service_order.customer_user_id", userId)
+      .eq("service_order.status", "active")
+      .is("removed_on", null)
+      .limit(1)
+      .single(),
+  );
+  const day = new Date(`${istanbulToday()}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() + 5);
+  return check(
+    await ops.rpc("ops_request_garden_removal", {
+      p_order_item_id: item.id,
+      p_reason: "transfer",
+      p_effective_on: day.toISOString().slice(0, 10),
+      p_note: "E2E: devir",
+      // An earlier day than the 30-day notice: by agreement (contract 12/3).
+      p_owner_consent_note: "E2E: Sahip yazılı onay verdi",
+      p_access_days: 0,
+    }),
+  );
+}
+
 // Clicks the map at each [lon, lat], projected through the map instance
 // (as in operations-registration.spec.ts).
 export async function clickOnMap(map: Locator, points: [number, number][]) {
@@ -161,9 +332,14 @@ export async function removeJourneyUsers(domain = E2E_DOMAIN) {
   if (error) throw error;
   const ids = data.users.filter((u) => u.email?.endsWith(`@${domain}`)).map((u) => u.id);
   if (ids.length === 0) return;
-  const parcels = check(
+  // Owned parcels, and those of order lines (a removed garden has no owner row left).
+  const owned = check(
     await admin.from("parcel_access").select("parcel_id").in("user_id", ids).eq("role", "owner"),
   ).map((r) => r.parcel_id);
+  const ordered = check(
+    await admin.from("service_order_item").select("parcel_id").in("customer_user_id", ids),
+  ).flatMap((r) => (r.parcel_id ? [r.parcel_id] : []));
+  const parcels = [...new Set([...owned, ...ordered])];
   await purgeBillingUsers(ids);
   if (parcels.length) await purgeParcels(parcels);
   for (const id of ids) {

@@ -1,14 +1,17 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { siteFlags } from "@/lib/flags";
 import { t } from "@/lib/i18n";
 import { siteText } from "@/lib/i18n/messages/site";
 import { maskPhone } from "@/lib/notifications/phone";
+import { captchaRequired, captchaTokenOf } from "@/lib/site/captcha";
+import { clientIp } from "@/lib/site/client-ip";
 import { formReader, normalizePhone } from "@/lib/operations/validation";
-import { completeSignup, registerCustomer } from "@/lib/signup/client";
+import { completeSignup, registerCustomer, SIGNUP_REFUSED_LOGIN } from "@/lib/signup/client";
 import { sendAccountCode } from "@/lib/signup/send-code";
+import { clearTicket, readTicket, storeTicket, ticketFitsPhone } from "@/lib/signup/ticket";
+import { CODE_STEP_MIN_MS, waitAtLeast } from "@/lib/signup/timing";
 import {
   parseSignupForm,
   SIGNUP_FIELDS,
@@ -38,34 +41,36 @@ function valuesOf(form: FormData): SignupValues {
     phone: read("phone"),
     email: read("email"),
     contact_preference: read("contact_preference") || INITIAL_VALUES.contact_preference,
+    kvkk_notice: read("kvkk_notice") === "on",
     explicit_service_improvement: read("explicit_service_improvement") === "on",
     explicit_marketing: read("explicit_marketing") === "on",
   };
 }
 
-// The visitor's address as seen by our server, passed to the function for
-// its rate limit (design §7.1, step 3). The platform's proxy sets the header.
-async function clientIp(): Promise<string | null> {
-  const h = await headers();
-  const forwarded = h.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || h.get("x-real-ip") || null;
-}
-
-// Sends an SMS code to the account's phone. Returns an error text or null.
-// `hideUnknown`: a number without an account gets the same answer as one
-// with an account, as on /giris (the resend intent takes the number from the
-// form, so it must not tell whether a number is registered).
+// Sends an SMS code to the phone. Returns an error text or null.
+// Register answers a registered phone like a new one (docs/hukuk/kararlar.md
+// H33), so the code step must not tell them apart either: whether a code went
+// out, Auth's per-number limits (which only hit numbers with an account) and
+// a failed send all get the same code step; the resend countdown runs on the
+// client (sentAt). Every answer takes at least CODE_STEP_MIN_MS.
+// The phone confirmation code is asked for only for the pending sign-up this
+// browser's register wrote: customer-signup send_code checks the ticket
+// (signup_code_grant) and asks Auth for that one code itself. Any other
+// number only gets a login code, which reaches only its verified owner.
 async function sendCode(
   supabase: Client,
   phone: string,
-  hideUnknown: boolean,
+  ticket: string | null,
 ): Promise<string | null> {
-  const allowed = await supabase.rpc("phone_login_allowed", { p_phone: phone });
-  if (allowed.data === false) return t.login.phone.locked;
-  const reason = await sendAccountCode(supabase, phone);
-  if (reason === null) return null;
-  if (reason === "not_registered") return hideUnknown ? null : s.errors.failed;
-  return t.login.phone[reason];
+  const started = Date.now();
+  try {
+    const allowed = await supabase.rpc("phone_login_allowed", { p_phone: phone });
+    if (allowed.data === false) return t.login.phone.locked;
+    await sendAccountCode(supabase, phone, { ticket });
+    return null;
+  } finally {
+    await waitAtLeast(started, CODE_STEP_MIN_MS);
+  }
 }
 
 function codeStep(previous: SignupState, phone: string): SignupState {
@@ -75,7 +80,7 @@ function codeStep(previous: SignupState, phone: string): SignupState {
     phone,
     sentAt: Date.now(),
     fieldErrors: {},
-    notice: s.codeSent(maskPhone(phone)),
+    notice: s.codeRequested(maskPhone(phone)),
     error: null,
   };
 }
@@ -96,14 +101,21 @@ async function register(previous: SignupState, form: FormData): Promise<SignupSt
     return { ...base, fieldErrors, error: s.formErrors };
   }
 
-  // Turnstile puts its token into this field of the surrounding form.
-  const captchaToken = formReader(form)("cf-turnstile-response") || null;
-  if (flags.turnstileSiteKey && !captchaToken) {
+  // The widget puts its token into a field of the surrounding form.
+  const captchaToken = captchaTokenOf(formReader(form), flags.captchaProvider);
+  if (captchaRequired(flags) && !captchaToken) {
     return { ...base, fieldErrors: {}, error: s.captchaMissing };
   }
 
   const supabase = await createClient();
-  const result = await registerCustomer(supabase, parsed.value, await clientIp(), captchaToken);
+  const previousTicket = (await readTicket())?.ticket ?? null;
+  const result = await registerCustomer(
+    supabase,
+    parsed.value,
+    await clientIp(),
+    captchaToken,
+    previousTicket,
+  );
   if (!result.ok) {
     const field = SIGNUP_FIELDS.find((f) => f === result.field);
     return {
@@ -113,7 +125,11 @@ async function register(previous: SignupState, form: FormData): Promise<SignupSt
     };
   }
 
-  const error = await sendCode(supabase, parsed.value.phone, false);
+  // Every 200 carries a ticket; a function deployed before tickets sends
+  // none, and then no confirmation code is asked for.
+  if (result.ticket) await storeTicket(result.ticket, parsed.value.phone);
+  else await clearTicket();
+  const error = await sendCode(supabase, parsed.value.phone, result.ticket);
   if (error) return { ...base, fieldErrors: {}, error };
   return codeStep({ ...base, fieldErrors: {} }, parsed.value.phone);
 }
@@ -123,10 +139,24 @@ function codePhone(form: FormData): string | null {
   return phone && phone !== "invalid" && TR_MOBILE.test(phone) ? phone : null;
 }
 
+// Only for the phone this browser registered (the ticket cookie is bound to
+// it): resend needs no robot check of its own because register, with its
+// robot check and rate limits, came first.
 async function resend(previous: SignupState, form: FormData): Promise<SignupState> {
   const phone = codePhone(form);
   if (!phone) return { ...previous, step: "form", error: s.errors.invalid_input, notice: null };
-  const error = await sendCode(await createClient(), phone, true);
+  const ticket = await readTicket();
+  if (!ticket || !ticketFitsPhone(ticket, phone)) {
+    return {
+      ...previous,
+      step: "form",
+      phone: null,
+      sentAt: null,
+      notice: null,
+      error: s.registerAgain,
+    };
+  }
+  const error = await sendCode(await createClient(), phone, ticket.ticket);
   if (error) return { ...previous, error, notice: null };
   return codeStep(previous, phone);
 }
@@ -143,14 +173,46 @@ async function verify(previous: SignupState, form: FormData): Promise<SignupStat
   const allowed = await supabase.rpc("phone_login_allowed", { p_phone: phone });
   if (allowed.data === false) return { ...previous, error: t.login.phone.locked, notice: null };
 
+  const ticket = await readTicket();
   const { error } = await supabase.auth.verifyOtp({ phone, token, type: "sms" });
   if (error) {
-    const left = await supabase.rpc("phone_login_record_failure", { p_phone: phone });
+    // With the ticket of this phone's pending sign-up a wrong code does not
+    // count toward the lock: Auth's public resend can replace the code
+    // without sending one (docs/deployment.md, accepted trade-off).
+    const left = await supabase.rpc("phone_login_record_failure", {
+      p_phone: phone,
+      ...(ticket ? { p_ticket: ticket.ticket } : {}),
+    });
     return { ...previous, error: t.login.phone.wrongCode(left.data ?? 0), notice: null };
   }
 
-  const completed = await completeSignup(supabase);
-  redirect(completed.ok && completed.status === "completed" ? "/portal" : "/");
+  // A registered phone's owner is now signed in to their own account
+  // (already_completed or no_pending): "/" takes them to their section. A
+  // pending sign-up must carry this browser's ticket; otherwise the session
+  // the code opened cannot prove the registrant (customer-signup deletes or
+  // quarantines that account) and is closed here at once. The login page
+  // tells the registrant how to finish: e-mail and password, then the code
+  // (/kayit/dogrula); never "register again", which would loop.
+  const completed = await completeSignup(supabase, ticket?.ticket ?? null);
+  if (!completed.ok && completed.error === "signup_mismatch") {
+    await supabase.auth.signOut();
+    redirect(SIGNUP_REFUSED_LOGIN);
+  }
+  if (!completed.ok) {
+    await supabase.auth.signOut();
+    return {
+      ...previous,
+      step: "form",
+      phone: null,
+      sentAt: null,
+      notice: null,
+      error: s.errors[completed.error],
+    };
+  }
+  await clearTicket();
+  redirect(
+    completed.status === "completed" || completed.status === "already_completed" ? "/portal" : "/",
+  );
 }
 
 export async function signupAction(previous: SignupState, form: FormData): Promise<SignupState> {

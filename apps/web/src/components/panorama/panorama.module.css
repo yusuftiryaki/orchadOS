@@ -1,0 +1,99 @@
+/* Photo Sphere Viewer chrome shared by the office tool and the portal tour.
+   Only design tokens (src/app/globals.css). The viewer is a photo, so its
+   chrome is dark: soil ink (--color-text) with white text, defined once here
+   (.frame and .chrome) and used by the navbar, the overlays and the portal's
+   markers and notes. On the dark chrome the focus ring is white with a dark
+   edge, since the dark --color-focus would vanish there. */
+
+.frame,
+.chrome {
+  --chrome-bg: color-mix(in srgb, var(--color-text) 85%, transparent);
+  --chrome-solid: var(--color-text);
+  --chrome-text: var(--color-surface);
+  --chrome-focus: var(--color-surface);
+  --chrome-focus-edge: var(--color-text);
+}
+
+/* A dark note over the photo (portal: placeholder image). */
+.chrome {
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+}
+
+.frame {
+  background: var(--chrome-solid);
+}
+
+.frame:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* One loading indicator: ours (below), not PSV's ring. */
+.frame :global(.psv-loader-container) {
+  display: none;
+}
+
+/* Navbar: 44 px touch targets (PSV draws 40) and legible contrast. */
+.frame :global(.psv-navbar) {
+  height: 44px;
+  bottom: -44px;
+  background: var(--chrome-bg);
+}
+
+.frame :global(.psv-navbar.psv-navbar--open) {
+  bottom: 0;
+}
+
+.frame :global(.psv-button:not(.psv-zoom-range)) {
+  padding: 12px;
+  color: var(--chrome-text);
+}
+
+.frame :global(.psv-button:focus-visible) {
+  outline: 2px solid var(--chrome-focus);
+  outline-offset: -4px;
+  box-shadow: inset 0 0 0 2px var(--chrome-focus-edge);
+}
+
+/* Loading and error notes over the viewer: the ui Alert look (tone bar on
+   the left, soft tone background), centred on the photo. */
+.status {
+  --tone: var(--color-info);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: calc(100% - 2 * var(--space-3));
+  margin: 0;
+  background: var(--color-info-soft);
+  color: var(--color-text);
+  border-left: 4px solid var(--tone);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--leading);
+  pointer-events: none;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.error {
+  composes: status;
+  --tone: var(--color-danger);
+  background: var(--color-danger-soft);
+}

@@ -8,13 +8,17 @@ import type { Json } from "@/lib/database.types";
 import type { Client } from "@/lib/supabase/types";
 import type { BoError } from "./urls";
 import type {
+  AddonQuoteInput,
   ManualPaymentInput,
   PackageInput,
   ParcelQuoteInput,
   PriceListDraftInput,
   QuoteTermsInput,
   RefundInput,
+  RemovalRequestInput,
+  RemovalScheduleInput,
   VerifyInput,
+  WithdrawalRecordInput,
 } from "./validation";
 
 // Writes of the back office, as the signed-in ops user: the ops_* functions
@@ -130,6 +134,113 @@ export async function rejectApplication(
 }
 
 // ---------------------------------------------------------------------------
+// Garden membership (IP14, docs/bahce-yonetimi.md §4, §9.6)
+// ---------------------------------------------------------------------------
+
+// An add-on quote joining a base order: for an application's gardens, or for
+// existing parcels (input.parcelIds).
+export async function issueAddonQuote(
+  supabase: Client,
+  baseOrderId: string,
+  applicationId: string | null,
+  input: AddonQuoteInput,
+) {
+  return result(
+    await supabase.rpc("ops_issue_addon_quote", {
+      p_base_order_id: baseOrderId,
+      ...(input.parcelIds ? { p_parcel_ids: input.parcelIds } : {}),
+      ...(applicationId && !input.parcelIds ? { p_application_id: applicationId } : {}),
+      ...(input.proposedServiceStart
+        ? { p_proposed_service_start: input.proposedServiceStart }
+        : {}),
+      ...(input.newInventory ? { p_new_inventory: input.newInventory } : {}),
+      ...termArgs(input),
+    }),
+  );
+}
+
+// Links an application garden to the customer's earlier parcel; null unlinks.
+export async function linkGardenParcel(
+  supabase: Client,
+  gardenId: string,
+  parcelId: string | null,
+) {
+  return result(
+    await supabase.rpc("ops_link_application_garden_parcel", {
+      p_garden_id: gardenId,
+      // null unlinks (the generated type has no null).
+      p_parcel_id: parcelId as string,
+    }),
+  );
+}
+
+export async function withdrawApplicationGarden(supabase: Client, gardenId: string, note: string) {
+  return result(
+    await supabase.rpc("ops_withdraw_application_garden", {
+      p_garden_id: gardenId,
+      p_note: note,
+    }),
+  );
+}
+
+// A removal opened by ops for an order line (scheduled at once; SMS).
+export async function requestGardenRemoval(
+  supabase: Client,
+  orderItemId: string,
+  input: RemovalRequestInput,
+) {
+  return result(
+    await supabase.rpc("ops_request_garden_removal", {
+      p_order_item_id: orderItemId,
+      p_reason: input.reason,
+      p_effective_on: input.effectiveOn,
+      ...(input.note ? { p_note: input.note } : {}),
+      ...(input.accessDays != null ? { p_access_days: input.accessDays } : {}),
+      p_revoke_all_access: input.revokeAllAccess,
+      ...(input.ownerConsentNote ? { p_owner_consent_note: input.ownerConsentNote } : {}),
+    }),
+  );
+}
+
+// A withdrawal by e-mail, KEP or post (T03): one completed removal per line.
+export async function recordWithdrawal(supabase: Client, input: WithdrawalRecordInput) {
+  return result(
+    await supabase.rpc("ops_record_withdrawal", {
+      p_order_item_ids: input.orderItemIds,
+      p_notice_received_on: input.noticeReceivedOn,
+      p_channel: input.channel,
+      ...(input.note ? { p_note: input.note } : {}),
+    }),
+  );
+}
+
+export async function scheduleGardenRemoval(
+  supabase: Client,
+  removalId: string,
+  input: RemovalScheduleInput,
+) {
+  return result(
+    await supabase.rpc("ops_schedule_garden_removal", {
+      p_removal_id: removalId,
+      p_effective_on: input.effectiveOn,
+      ...(input.note ? { p_note: input.note } : {}),
+      ...(input.accessDays != null ? { p_access_days: input.accessDays } : {}),
+      ...(input.revokeAllAccess != null ? { p_revoke_all_access: input.revokeAllAccess } : {}),
+    }),
+  );
+}
+
+export async function cancelGardenRemoval(supabase: Client, removalId: string, note: string) {
+  return result(
+    await supabase.rpc("ops_cancel_garden_removal", { p_removal_id: removalId, p_note: note }),
+  );
+}
+
+export async function completeGardenRemoval(supabase: Client, removalId: string) {
+  return result(await supabase.rpc("ops_complete_garden_removal", { p_removal_id: removalId }));
+}
+
+// ---------------------------------------------------------------------------
 // Orders and payments
 // ---------------------------------------------------------------------------
 
@@ -145,7 +256,16 @@ export async function recordManualPayment(
       p_value_date: input.valueDate,
       p_bank_reference: input.bankReference,
       ...(input.note ? { p_note: input.note } : {}),
+      ...(input.installmentId ? { p_installment_id: input.installmentId } : {}),
     }),
+  );
+}
+
+// The visit of an unpaid visit installment may be planned (the customer's
+// written request, recorded in the note; H35 (c)).
+export async function allowUnpaidVisit(supabase: Client, installmentId: string, note: string) {
+  return result(
+    await supabase.rpc("ops_allow_unpaid_visit", { p_installment_id: installmentId, p_note: note }),
   );
 }
 
@@ -332,12 +452,36 @@ export async function deletePriceListDraft(supabase: Client, priceListId: string
   );
 }
 
+// T21 settings a database without 20261103100100 refuses as unknown keys.
+const T21_SETTING_KEYS = ["kep_address", "site_domain", "kvkk_email"];
+
 export async function saveSetting(
   supabase: Client,
   orgId: string,
   settings: Record<string, string | number | boolean | null>,
 ) {
-  return result(
-    await supabase.rpc("ops_save_billing_setting", { p_org_id: orgId, p_settings: settings }),
-  );
+  const saved = await supabase.rpc("ops_save_billing_setting", {
+    p_org_id: orgId,
+    p_settings: settings,
+  });
+  // The web may run ahead of the database (PR previews, the deploy gap): an
+  // unknown T21 key is saved without the T21 keys, so the other settings (the
+  // sign-up switch among them) stay savable. Only when the database lacks the
+  // registry (public_company_info); a bad value on a current one stays an
+  // error.
+  if (
+    saved.error?.message === "invalid_input" &&
+    T21_SETTING_KEYS.includes(saved.error.details ?? "")
+  ) {
+    const probe = await supabase.rpc("public_company_info");
+    if (probe.error?.code === "PGRST202") {
+      const rest = Object.fromEntries(
+        Object.entries(settings).filter(([key]) => !T21_SETTING_KEYS.includes(key)),
+      );
+      return result(
+        await supabase.rpc("ops_save_billing_setting", { p_org_id: orgId, p_settings: rest }),
+      );
+    }
+  }
+  return result(saved);
 }

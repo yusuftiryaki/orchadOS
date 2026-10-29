@@ -1,3 +1,4 @@
+import { isExplicitConsentAsked } from "@/lib/legal/consents";
 import { normalizePhone, type Read } from "@/lib/operations/validation";
 
 // Sign-up form parsing (pure, unit tested). Rules follow the customer-signup
@@ -93,8 +94,13 @@ export function parseSignupForm(read: Read): SignupParsed {
       email,
       password,
       contactPreference: preference as SignupContactPreference,
-      explicitServiceImprovement: checked(read, "explicit_service_improvement"),
-      explicitMarketing: checked(read, "explicit_marketing"),
+      // A consent the form does not ask is never recorded as given
+      // (kararlar.md H06, H31); the Edge contract still carries both.
+      explicitServiceImprovement:
+        isExplicitConsentAsked("explicit_service_improvement") &&
+        checked(read, "explicit_service_improvement"),
+      explicitMarketing:
+        isExplicitConsentAsked("explicit_marketing") && checked(read, "explicit_marketing"),
     },
   };
 }

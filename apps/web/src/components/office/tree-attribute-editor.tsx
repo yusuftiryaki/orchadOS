@@ -1,6 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useId, useMemo, useState, useTransition } from "react";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field, Select } from "@/components/ui/field";
+import { cell, Table } from "@/components/ui/table";
 import type { Database } from "@/lib/database.types";
 import { Constants } from "@/lib/database.types";
 import { t } from "@/lib/i18n";
@@ -40,6 +44,7 @@ export function TreeAttributeEditor({
   const [sex, setSex] = useState<Enums["tree_sex"] | "">("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  const idBase = useId();
 
   const withTrees = useMemo(() => slots.filter((s) => s.tree), [slots]);
   const rows = useMemo(
@@ -80,14 +85,67 @@ export function TreeAttributeEditor({
   if (withTrees.length === 0) return <p className="muted">{a.noTrees}</p>;
 
   const nothingToApply = !ageClass && !graft && !stemForm && !sex;
+  const bulk: {
+    key: string;
+    label: string;
+    value: string;
+    options: readonly string[];
+    names: Record<string, string>;
+    set: (value: string) => void;
+    testId: string;
+  }[] = [
+    {
+      key: "age",
+      label: a.columns.ageClass,
+      value: ageClass,
+      options: E.age_class,
+      names: values.ageClass,
+      set: (x) => setAgeClass(x as Enums["age_class"] | ""),
+      testId: "bulk-age",
+    },
+    {
+      key: "graft",
+      label: a.columns.graft,
+      value: graft,
+      options: E.graft_status,
+      names: values.graft,
+      set: (x) => setGraft(x as Enums["graft_status"] | ""),
+      testId: "bulk-graft",
+    },
+    {
+      key: "stem",
+      label: a.columns.stemForm,
+      value: stemForm,
+      options: E.stem_form,
+      names: values.stemForm,
+      set: (x) => setStemForm(x as Enums["stem_form"] | ""),
+      testId: "bulk-stem",
+    },
+    ...(showSex
+      ? [
+          {
+            key: "sex",
+            label: a.columns.sex,
+            value: sex,
+            options: E.tree_sex,
+            names: values.sex,
+            set: (x: string) => setSex(x as Enums["tree_sex"] | ""),
+            testId: "bulk-sex",
+          },
+        ]
+      : []),
+  ];
   return (
-    <div className={styles.panel} data-testid="tree-attributes">
+    <section className={styles.panel} data-testid="tree-attributes">
       <h2>{a.title}</h2>
-      <p className="muted">{a.hint}</p>
-      <div className={styles.row}>
-        <label className={styles.field}>
-          {a.selectRow}
-          <select
+      <p className={styles.hint}>{a.hint}</p>
+      <details className={styles.details}>
+        <summary>{a.sizeRuleTitle}</summary>
+        <p>{a.sizeRule}</p>
+      </details>
+      <div className={styles.toolbar}>
+        <Field id={`${idBase}-row`} label={a.selectRow}>
+          <Select
             value={row}
             onChange={(e) => setRow(e.target.value === "all" ? "all" : Number(e.target.value))}
             data-testid="attribute-row"
@@ -98,110 +156,72 @@ export function TreeAttributeEditor({
                 {a.row(r)}
               </option>
             ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          className="button button-secondary"
+          </Select>
+        </Field>
+        <Button
+          variant="secondary"
           onClick={() => onSelectionChange(new Set([...selected, ...shown.map((s) => s.id)]))}
         >
           {a.selectAll}
-        </button>
-        <button
-          type="button"
-          className="button button-secondary"
+        </Button>
+        <Button
+          variant="quiet"
           onClick={() => onSelectionChange(new Set())}
           disabled={selected.size === 0}
         >
           {a.clear}
-        </button>
+        </Button>
       </div>
 
-      <div className={styles.row}>
-        <strong data-testid="attribute-selected">{a.selected(selectedTrees.length)}</strong>
-        <label className={styles.field}>
-          {a.columns.ageClass}
-          <select
-            value={ageClass}
-            onChange={(e) => setAgeClass(e.target.value as Enums["age_class"] | "")}
-            data-testid="bulk-age"
+      <fieldset className={styles.bulk}>
+        <legend>
+          {a.applyTitle}
+          <span
+            className={selectedTrees.length > 0 ? styles.countActive : styles.count}
+            data-testid="attribute-selected"
           >
-            <option value="">{a.keep}</option>
-            {E.age_class.map((v) => (
-              <option key={v} value={v}>
-                {values.ageClass[v]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.field}>
-          {a.columns.graft}
-          <select
-            value={graft}
-            onChange={(e) => setGraft(e.target.value as Enums["graft_status"] | "")}
-            data-testid="bulk-graft"
+            {a.selected(selectedTrees.length)}
+          </span>
+        </legend>
+        <div className={styles.bulkFields}>
+          {bulk.map((b) => (
+            <Field key={b.key} id={`${idBase}-${b.key}`} label={b.label}>
+              <Select
+                value={b.value}
+                onChange={(e) => b.set(e.target.value)}
+                data-testid={b.testId}
+              >
+                <option value="">{a.keep}</option>
+                {b.options.map((v) => (
+                  <option key={v} value={v}>
+                    {b.names[v]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ))}
+          <Button
+            onClick={apply}
+            disabled={pending || selectedTrees.length === 0 || nothingToApply}
+            data-testid="bulk-apply"
           >
-            <option value="">{a.keep}</option>
-            {E.graft_status.map((v) => (
-              <option key={v} value={v}>
-                {values.graft[v]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.field}>
-          {a.columns.stemForm}
-          <select
-            value={stemForm}
-            onChange={(e) => setStemForm(e.target.value as Enums["stem_form"] | "")}
-            data-testid="bulk-stem"
-          >
-            <option value="">{a.keep}</option>
-            {E.stem_form.map((v) => (
-              <option key={v} value={v}>
-                {values.stemForm[v]}
-              </option>
-            ))}
-          </select>
-        </label>
-        {showSex && (
-          <label className={styles.field}>
-            {a.columns.sex}
-            <select
-              value={sex}
-              onChange={(e) => setSex(e.target.value as Enums["tree_sex"] | "")}
-              data-testid="bulk-sex"
-            >
-              <option value="">{a.keep}</option>
-              {E.tree_sex.map((v) => (
-                <option key={v} value={v}>
-                  {values.sex[v]}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <button
-          type="button"
-          className="button"
-          onClick={apply}
-          disabled={pending || selectedTrees.length === 0 || nothingToApply}
-          data-testid="bulk-apply"
-        >
-          {a.apply}
-        </button>
-      </div>
+            {a.apply}
+          </Button>
+        </div>
+      </fieldset>
       {message && (
-        <p className={message.ok ? styles.success : styles.error} role="status">
+        <Alert tone={message.ok ? "success" : "danger"} role={message.ok ? "status" : "alert"}>
           {message.text}
-        </p>
+        </Alert>
       )}
 
-      <div className={styles.tableWrap}>
-        <table className={styles.table} data-testid="attribute-table">
+      <div className={styles.scroll}>
+        <Table data-testid="attribute-table">
           <thead>
             <tr>
-              <th>{a.columns.select}</th>
+              <th>
+                <span className="sr-only">{a.columns.select}</span>
+              </th>
               <th>{a.columns.code}</th>
               <th>{a.columns.ageClass}</th>
               <th>{a.columns.graft}</th>
@@ -211,16 +231,22 @@ export function TreeAttributeEditor({
           </thead>
           <tbody>
             {shown.map((s) => (
-              <tr key={s.id} data-code={s.code}>
+              <tr
+                key={s.id}
+                data-code={s.code}
+                className={selected.has(s.id) ? styles.selectedRow : undefined}
+              >
                 <td>
-                  <input
-                    type="checkbox"
-                    checked={selected.has(s.id)}
-                    onChange={() => toggle(s.id)}
-                    aria-label={s.code}
-                  />
+                  <label className={styles.rowCheck}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(s.id)}
+                      onChange={() => toggle(s.id)}
+                      aria-label={s.code}
+                    />
+                  </label>
                 </td>
-                <td>{s.code}</td>
+                <td className={cell.code}>{s.code}</td>
                 <td>{values.ageClass[s.tree!.ageClass]}</td>
                 <td>{values.graft[s.tree!.graft]}</td>
                 <td>{values.stemForm[s.tree!.stemForm]}</td>
@@ -228,8 +254,8 @@ export function TreeAttributeEditor({
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       </div>
-    </div>
+    </section>
   );
 }

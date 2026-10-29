@@ -18,7 +18,18 @@ export type Payment = Omit<
   "provider_token" | "return_origin" | "recorded_by" | "manual_note"
 >;
 export type PaymentItem = Tables<"payment_item">;
+// The payment plan (installments-v1, docs/musteri-yonetimi.md §6.14).
+export type OrderInstallment = Omit<
+  Tables<"order_installment">,
+  "visit_override_by" | "visit_override_note"
+>;
+export type OrderInstallmentItem = Tables<"order_installment_item">;
 export type Refund = Omit<Tables<"refund">, "note" | "requested_by">;
+// IP14: a garden leaving the service (docs/bahce-yonetimi.md §9.4).
+export type GardenRemoval = Omit<
+  Tables<"garden_removal">,
+  "ops_note" | "requested_by" | "decided_by" | "blocked_reason" | "revoke_all_access"
+>;
 
 // Ops-only tables (every column is granted).
 export type ServicePackage = Tables<"service_package">;
@@ -41,3 +52,73 @@ export type PriceListStatus = Enums["price_list_status"];
 export type BillingPartyKind = Enums["billing_party_kind"];
 export type ConsentKind = Enums["consent_kind"];
 export type ConsentSource = Enums["consent_source"];
+export type GardenRemovalStatus = Enums["garden_removal_status"];
+export type GardenRemovalReason = Enums["garden_removal_reason"];
+
+// IP14 reads (docs/bahce-yonetimi.md §9.6).
+type Functions = Database["public"]["Functions"];
+export type ServicePeriod = Functions["my_service_period"]["Returns"][number];
+export type CustomerGarden = Functions["my_gardens"]["Returns"][number];
+export type ParcelServiceStatus = Functions["parcel_service_status"]["Returns"][number];
+export type OpsGardenRemoval = Functions["ops_garden_removals"]["Returns"][number];
+export type QuotePlanRow = Functions["quote_installment_plan"]["Returns"][number];
+export type OpsOrderInstallment = Functions["ops_order_installments"]["Returns"][number];
+export type OpsOverdueInstallment = Functions["ops_overdue_installments"]["Returns"][number];
+
+// Legal follow-ups (docs/musteri-yonetimi.md "Sözleşme belgeleri (T04)", §9.3,
+// §9.4; docs/bahce-yonetimi.md §9).
+export type ContractDocument = Functions["my_contract_documents"]["Returns"][number];
+export type OpsContractDocument = Functions["ops_contract_documents"]["Returns"][number];
+export type OrderMissingContractDocuments =
+  Functions["ops_orders_missing_contract_documents"]["Returns"][number];
+export type CompanyInfo = Functions["public_company_info"]["Returns"][number];
+export type LegalGateStatus = Functions["legal_gate_status"]["Returns"][number];
+export type RegisteredLegalTextVersion =
+  Functions["registered_legal_text_versions"]["Returns"][number];
+
+// contract_document.kind.
+export const CONTRACT_DOCUMENT_KINDS = [
+  "pre_information",
+  "distance_sales",
+  "withdrawal_confirmation",
+] as const;
+export type ContractDocumentKind = (typeof CONTRACT_DOCUMENT_KINDS)[number];
+
+// garden_removal.notice_channel (withdrawals); ops records the last three.
+export const WITHDRAWAL_CHANNELS = ["portal", "email", "kep", "post"] as const;
+export type WithdrawalChannel = (typeof WITHDRAWAL_CHANNELS)[number];
+export const OPS_WITHDRAWAL_CHANNELS = ["email", "kep", "post"] as const;
+
+// The reasons of legal_texts_not_final / legal_gate_status, in order.
+export const LEGAL_GATE_REASONS = [
+  "distance_sales_draft",
+  "pre_information_draft",
+  "kvkk_notice_not_final",
+  "company_info_incomplete",
+] as const;
+export type LegalGateReason = (typeof LEGAL_GATE_REASONS)[number];
+
+// my_gardens.state and parcel_service_status.status.
+export const GARDEN_STATES = ["in_service", "leaving", "upcoming", "removed"] as const;
+export type GardenState = (typeof GARDEN_STATES)[number];
+export const PARCEL_SERVICE_STATUSES = ["in_service", "leaving", "removed", "none"] as const;
+export type ParcelServiceStatusValue = (typeof PARCEL_SERVICE_STATUSES)[number];
+
+// Reasons the customer may choose; transfer and duplicate are ops'.
+export const CUSTOMER_REMOVAL_REASONS = [
+  "sold",
+  "not_needed",
+  "dissatisfied",
+  "cost",
+  "other",
+] as const satisfies readonly GardenRemovalReason[];
+
+// garden_removal.refund_mode (removal-v1, §7.1).
+export const REMOVAL_REFUND_MODES = [
+  "unused_visits",
+  "withdrawal",
+  "duplicate",
+  "manual",
+  "none",
+] as const;
+export type RemovalRefundMode = (typeof REMOVAL_REFUND_MODES)[number];

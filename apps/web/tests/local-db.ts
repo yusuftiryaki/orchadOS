@@ -81,6 +81,98 @@ export async function ageSignups(userIds: string[], minutes: number) {
   await call("age_signups", { p_user_ids: userIds, p_minutes: minutes });
 }
 
+// Makes a pending sign-up look written before tickets (ticket_hash null).
+export async function legacySignup(userId: string) {
+  if (!UUID.test(userId)) throw new Error("legacySignup takes a uuid");
+  await call("legacy_signup", { p_user_id: userId });
+}
+
+// Moves an account's phone confirmation and code send times back (confirmed
+// by an earlier code than the session's; Auth's code-a-minute limit passed).
+export async function agePhoneConfirmation(userId: string, minutes: number) {
+  if (!UUID.test(userId)) throw new Error("agePhoneConfirmation takes a uuid");
+  await call("age_phone_confirmation", { p_user_id: userId, p_minutes: minutes });
+}
+
+// The review flag of a pending sign-up (customer_signup.review_reason), or null.
+export async function signupReview(userId: string): Promise<string | null> {
+  if (!UUID.test(userId)) throw new Error("signupReview takes a uuid");
+  const { data, error } = await admin().rpc("signup_review", { p_user_id: userId });
+  if (error) throw new Error(`testing.signup_review: ${error.message}`);
+  return (data as string | null) ?? null;
+}
+
+// Registers a demo org with these parcels (in tour order) as loaded now
+// (docs/demo-turu.md §5.1); by default enabled, which disables every other
+// demo org. Returns the demo org that was enabled before, or null: tests
+// register it again in afterAll with `registerDemoOrg(previous, null)`, which
+// keeps its parcels and tour.
+export async function registerDemoOrg(
+  orgId: string,
+  parcelIds: string[] | null,
+  opts: { enabled?: boolean; tour?: Record<string, string> } = {},
+): Promise<string | null> {
+  if (![orgId, ...(parcelIds ?? [])].every((id) => UUID.test(id))) {
+    throw new Error("registerDemoOrg takes uuids");
+  }
+  const { data, error } = await admin().rpc("register_demo_org", {
+    p_org_id: orgId,
+    p_parcel_ids: parcelIds,
+    p_enabled: opts.enabled ?? true,
+    p_tour: opts.tour ?? (parcelIds === null ? null : {}),
+  });
+  if (error) throw new Error(`testing.register_demo_org: ${error.message} (run \`pnpm db:reset\`)`);
+  return (data as string | null) ?? null;
+}
+
+// Moves the demo sessions of these users back in time (created_at and
+// expires_at), e.g. past their end.
+export async function ageDemoSessions(userIds: string[], minutes: number) {
+  if (!userIds.every((id) => UUID.test(id))) throw new Error("ageDemoSessions takes uuids");
+  await call("age_demo_sessions", { p_user_ids: userIds, p_minutes: minutes });
+}
+
+// Uses up the image signing and PDF caps of these users' demo sessions.
+export async function exhaustDemoCaps(userIds: string[]) {
+  if (!userIds.every((id) => UUID.test(id))) throw new Error("exhaustDemoCaps takes uuids");
+  await call("exhaust_demo_caps", { p_user_ids: userIds });
+}
+
+// Clears the demo start counters (rate limits), so that demo tests can run
+// again within the hour.
+export async function purgeDemoAttempts() {
+  await call("purge_demo_attempts", {});
+}
+
+// Runs the 5-minute demo housekeeping job now.
+export async function runDemoHousekeeping() {
+  await call("run_demo_housekeeping", {});
+}
+
+// Runs the daily garden removal housekeeping now (IP14,
+// docs/bahce-yonetimi.md §5.3–§5.4): completes due removals, sends the access
+// notice, ends access windows. Returns its counts ({scheduled, completed,
+// blocked, cancelled, access_notices, access_revoked, access_resumed}).
+export async function runGardenRemovalHousekeeping(): Promise<Record<string, number>> {
+  const { data, error } = await admin().rpc("run_garden_removal_housekeeping", {});
+  if (error) {
+    throw new Error(
+      `testing.run_garden_removal_housekeeping: ${error.message} (run \`pnpm db:reset\`)`,
+    );
+  }
+  return data as Record<string, number>;
+}
+
+// Sets the service period of an order directly (YYYY-MM-DD, Istanbul days),
+// e.g. to stand in the middle of a period or near its last add-on day.
+export async function setOrderPeriod(orderId: string, start: string, end: string) {
+  if (!UUID.test(orderId)) throw new Error("setOrderPeriod takes a uuid");
+  if (![start, end].every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))) {
+    throw new Error("setOrderPeriod takes YYYY-MM-DD days");
+  }
+  await call("set_order_period", { p_order_id: orderId, p_start: start, p_end: end });
+}
+
 // The columns of these public tables a role may select, per table.
 export async function selectableColumns(
   role: string,
@@ -113,4 +205,21 @@ export async function deleteUsers(match: (email: string) => boolean) {
     }
     if (data.users.length < 1000) return;
   }
+}
+
+// Makes a legal text version current in the registry (T21); tests put the
+// draft back with the same call.
+export async function registerLegalText(kind: string, version: string, sha256: string) {
+  await call("register_legal_text", { p_kind: kind, p_version: version, p_sha256: sha256 });
+}
+
+// Auth hardening: takes the self sign-up flag off an account or puts it back.
+export async function setSelfSignup(userId: string, self: boolean) {
+  if (!UUID.test(userId)) throw new Error("setSelfSignup takes a uuid");
+  await call("set_self_signup", { p_user_id: userId, p_self: self });
+}
+
+// private.signup_housekeeping (the hourly pg_cron job), once.
+export async function runSignupHousekeeping() {
+  await call("run_signup_housekeeping", {});
 }

@@ -35,10 +35,11 @@ export const CUSTOMER = {
 // IP12 seed (supabase/seed.sql, docs/musteri-yonetimi.md §6.12).
 export const BILLING_SEED = {
   packages: {
+    temel: "91200000-0000-4000-8000-000000000002",
     standart: "91200000-0000-4000-8000-000000000001",
-    ekonomik: "91200000-0000-4000-8000-000000000002",
+    kapsamli: "91200000-0000-4000-8000-000000000003",
   },
-  // v1 published (valid from 2026-10-01, VAT 2000 bp), v2 a draft.
+  // v1 published (launch list, valid from 2026-10-01, VAT 2000 bp), v2 a draft.
   priceListV1: "91200000-0000-4000-8000-000000000101",
   priceListV2: "91200000-0000-4000-8000-000000000102",
   application: "91200000-0000-4000-8000-000000000301",

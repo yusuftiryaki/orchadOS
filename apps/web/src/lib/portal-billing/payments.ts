@@ -37,15 +37,23 @@ const START_ERRORS: Record<string, PortalError> = {
   payment_in_progress: "payment_in_progress",
   provider_error: "provider_error",
   payments_disabled: "payments_disabled",
+  // IP14 (docs/bahce-yonetimi.md §9.6, payment_begin).
+  garden_removal_open: "garden_removal_open",
+  addon_base_closed: "addon_base_closed",
+  // T13: the org needs a TCKN and none (or a malformed one) came with the start.
+  identity_number_required: "identity_number_required",
 };
 
 // The reason of a failed `payments` start: the function answers
-// {error: code} (§8.4); a network failure is write_failed.
+// {error: code} (§8.4), with field "email" when the buyer has no e-mail; a
+// network failure is write_failed.
 export async function paymentStartError(error: unknown): Promise<PortalError> {
   const response = (error as { context?: unknown } | null)?.context;
   if (response instanceof Response) {
     try {
-      const body = (await response.clone().json()) as { error?: unknown };
+      const body = (await response.clone().json()) as { error?: unknown; field?: unknown };
+      if (body.error === "billing_profile_incomplete" && body.field === "email")
+        return "fatura_eposta_eksik";
       if (typeof body.error === "string" && START_ERRORS[body.error])
         return START_ERRORS[body.error];
     } catch {

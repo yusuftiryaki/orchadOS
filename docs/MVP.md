@@ -40,6 +40,7 @@ MVP, kayıttan rapora kadar tek bir uçtan uca döngüyü kapsar. Havadan ve sen
 | Gerçek 3D model | Hayır | Gezi, Street View tarzı panoramalarla |
 | Kendi AI modeli | Hayır | Uzman kararları etiketli veri olarak birikir |
 | Ödeme altyapısı | İP12 | Dönüm başına yıllık fiyat, teklif, kartla ödeme (iyzico, 3DS) ve havale; bayraklar kapalıyken birleşir. Açılana kadar faturalandırma elle |
+| Demo turu | İP13 | Bahçe sahibi adayı hesap açmadan, ayrı demo projesinde geçici bir hesapla iki sentetik bahçeyi sahip portalında rehberli turla gezer; demo hiçbir şey yazamaz, PDF'ler "ÖRNEK RAPOR" filigranlı ([demo-turu.md](demo-turu.md)) |
 
 ## Roller
 
@@ -71,11 +72,13 @@ Kayıt, sahibin kabaca bildiği bilgilerle başlar. Kesin bilgiler envanter ziya
    - Sahada sınırı gösterecek kişi: sahibin kendisi ya da yetkilendirdiği bir akraba, komşu veya bekçi
 4. **Kaba sınır:** Sahibin haritada çizdiği ya da tarif ettiği alan `kaynak: sahip_beyanı` olarak saklanır. Kesin sınır envanter ziyaretinde çıkarılır. TKGM poligonu, varsa, sadece bahçeyi haritada bulmak için arka plan olarak gösterilir; bahçe sınırı yerine geçmez.
 5. **Yetki ve izin:** Tapu sahibi, vekâlet ya da varis beyanı alınır. Sahip, denetim için bahçeye girilmesine izin verdiğini beyan eder.
-6. **KVKK:** Konum, fotoğraf ve kişisel veriler için aydınlatma metni ve açık rıza alınır. Görüntülerde kişiler görünebilir; bu, aydınlatma metninde belirtilir. Saklama süresi sözleşmede yazılır.
+6. **KVKK:** Konum, fotoğraf ve kişisel veriler için aydınlatma metni verilir. Açık rıza yalnızca isteğe bağlı işlemler için ayrıca sorulur. Yurt dışı aktarım standart sözleşmeye dayanır. Görüntülerde kişiler görünebilir; bu, aydınlatma metninde belirtilir. Saklama süreleri KVKK Aydınlatma Metni §7'dedir; sözleşme Md. 12/4 buna atıf yapar.
 7. **Hizmet paketi:** Ziyaret tipleri, fiyat ve ilk envanter tarihi belirlenir.
 8. **Portal daveti:** SMS ya da WhatsApp ile link gönderilir, giriş telefon doğrulamasıyla yapılır. Sahip isterse hissedarları izleyici olarak ekler.
 
 **Parsel yaşam döngüsü:** Kayıt → Envanter planlandı → Envanter tamamlandı → Aktif izleme → Pasif.
+
+**Hizmetten çıkarma (İP14):** Müşteri bir bahçeyi üyeliği sürerken hizmetten çıkarabilir ([bahce-yonetimi.md](bahce-yonetimi.md) §5). Çıkış gününde bahçenin planlı ziyaretleri iptal edilir ve parsel **Pasif** olur. Hiçbir şey silinmez: medya, ölçümler ve raporlar kalır. 90 gün boyunca parsel salt okunurdur: müşteri ve davet ettiği hissedarlar raporları görür, soru sorulamaz, hissedar davet edilemez. Bu sürede operasyon parseli yaşam döngüsü ekranından sürdüremez; bahçe ancak ek teklifle (geri ekleme) yeniden hizmete girer. Süre sonunda müşterinin ve davet ettiklerinin erişimi kalkar.
 
 **Sınır notu:** Haritadaki sınır, sahibin gösterdiği fiili kullanım sınırıdır. Tapu ya da mülkiyet sınırı iddiası taşımaz ve sınır anlaşmazlıklarında kanıt olarak sunulmaz. Bu ibare sözleşmede ve her raporda yer alır.
 
@@ -155,9 +158,9 @@ Sıra yönü ve numaralandırmanın başladığı köşe parsel başına bir kez
 
 ## Modül 3 – Periyodik tarama
 
-Her ziyarette parsel iki yönde, yani grid şeklinde, 360° kamera ve GPS ile taranır. Ardından seçilen ağaçlarda yakın plan fotoğraf çekilir. MVP paketi yılda 4 periyodik ziyaret içerir.
+Her ziyarette parsel iki yönde, yani grid şeklinde, 360° kamera ve GPS ile taranır. Ardından seçilen ağaçlarda yakın plan fotoğraf çekilir. Lansman paketleri ([fiyatlandirma.md](fiyatlandirma.md)): **Standart** yılda 4 periyodik ziyaret (aşağıdaki takvim), **Temel** 2 ziyaret (kış ve hasat), **Kapsamlı** 6 ziyaret (Standart'ın dört ziyareti ile mart sonu uyanma ve ağustos başı hasat öncesi ziyaretleri; takvim [fiyatlandirma.md](fiyatlandirma.md) §1).
 
-> **Açık soru:** Pakette yılda 4 ziyaret varsayıldı. Maliyeti düşürmek için yaz ve hasat birleştirilip 3'e mi insin?
+> **Karar (28 Ekim):** Ziyaret sayısı paketle seçilir; 3 ziyaretlik paket yok. Kapsamlı paketin altı ziyaretlik takvimi [fiyatlandirma.md](fiyatlandirma.md) §1'de; ayların mevsimlere eşlenmesi [metodoloji.md](metodoloji.md)'de ayrı bir değişiklikle güncellenecek.
 
 **Ziyaret takvimi**
 
@@ -323,7 +326,7 @@ Aşağıdaki tablo MVP'nin ihtiyacını tarif eder. Yeni sensörlere ve robotlar
 
 | Varlık | Temel alanlar | Bağlı olduğu varlık |
 | --- | --- | --- |
-| Owner (sahip) | Ad, telefon, iletişim tercihi, KVKK rızası ve tarihi | — |
+| Owner (sahip) | Ad, telefon, iletişim tercihi, Aydınlatma metni okundu teyidi (metin sürümü, tarih); isteğe bağlı açık rızalar ayrı | — |
 | Parcel | İl/ilçe/köy, tapu referansı (ada/parsel, hisse; opsiyonel), alan, sulu/kıraç, erişim notu, yaşam döngüsü durumu, numaralandırma başlangıç köşesi | — |
 | ParcelAccess | Kullanıcı, rol (sahip / izleyici) | Owner, Parcel |
 | Boundary | Poligon, kaynak (sahip_beyanı / saha), sürüm, tarih, sahip onayı | Parcel |
@@ -444,12 +447,12 @@ Pilotun asıl sorusu şu: Eşleştirme güvenilir mi ve sahipler bu rapor için 
 | AI'ın yanlış güveni | Hatalı toplu onay | Rastgele %5 uzman kontrolü, eşik ayarı |
 | Personel kalitesi | Eksik ya da yanlış veri | Eğitim ve sertifika, tutarsızlık bayrakları, personel başına uyum skoru |
 | Veri hacmi | Depolama ve aktarım maliyeti | Ham video saklanmaz, panoramalar sıkıştırılır |
-| KVKK ve girme izni | Hukuki risk | Açık rıza, aydınlatma metni, yazılı giriş izni |
+| KVKK ve girme izni | Hukuki risk | Aydınlatma metni, yurt dışı aktarımda standart sözleşme, yazılı yetki ve giriş izni beyanı |
 | Sınırın yanlış gösterilmesi | Komşu bahçenin ağaçları envantere girer ya da sahibinkiler dışarıda kalır | Sınırı sahip portalda onaylar; sınır notu sözleşmede |
 
 **Açık sorular**
 
-- [ ] Paket ve fiyat: Yılda kaç periyodik ziyaret olacak? *(İP12 kararı: fiyat dönüm başına ve yıllık, paket yıllık ziyaret sayısıdır, minimum ücret var. Gerçek rakamlar açık.)*
+- [x] Paket ve fiyat: Yılda kaç periyodik ziyaret olacak? *(İP12 kararı: fiyat dönüm başına ve yıllık, paket yıllık ziyaret sayısıdır, minimum ücret var. 28 Ekim: lansman fiyat listesi, Temel 2, Standart 4, Kapsamlı 6 ziyaret; [fiyatlandirma.md](fiyatlandirma.md).)*
 - [ ] Uzman kim olacak ve nasıl ücretlendirilecek?
 - [ ] TUSAGA-Aktif aboneliğinin koşulları ve maliyeti ne?
 - [ ] Seçilecek 360° kameranın SDK erişimi var mı?

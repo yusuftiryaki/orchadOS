@@ -1,11 +1,22 @@
 import Link from "next/link";
+import { DemoNotice } from "@/components/demo/demo-notice";
 import { formatDate, t } from "@/lib/i18n";
+import { demoText } from "@/lib/i18n/messages/demo";
+import { portalBillingText } from "@/lib/i18n/messages/portal-billing";
 import type { QuestionMessage, QuestionThread } from "@/lib/portal/questions";
 import { findingKindLabel } from "./labels";
-import styles from "./portal.module.css";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field, Select, Textarea } from "@/components/ui/field";
+import styles from "./parcel.module.css";
 
 // Question threads with reply and edit forms. Used by the portal (owner,
 // viewer) and the expert panel; the forms post to the section's own actions.
+// A demo visitor (`demo`) reads the threads without any form; so does
+// everyone on a removed garden (`readOnly`, IP14: the database refuses the
+// writes with parcel_read_only).
 
 type Action = (form: FormData) => void | Promise<void>;
 
@@ -29,6 +40,8 @@ export function QuestionThreads({
   editAction,
   treeHref,
   showContext = false,
+  demo = false,
+  readOnly = false,
 }: {
   threads: QuestionThread[];
   returnPath: string;
@@ -37,8 +50,17 @@ export function QuestionThreads({
   // Link to the tree of a thread (context line), when there is a page for it.
   treeHref?: (thread: QuestionThread) => string | null;
   showContext?: boolean;
+  demo?: boolean;
+  readOnly?: boolean;
 }) {
-  if (threads.length === 0) return <p className="muted">{q.empty}</p>;
+  if (threads.length === 0) {
+    return (
+      <EmptyState title={q.empty} headingLevel={3} testId="questions-empty">
+        <p>{q.emptyBody}</p>
+      </EmptyState>
+    );
+  }
+  const forms = !demo && !readOnly;
   return (
     <ul className={styles.threads} data-testid="question-threads">
       {threads.map((thread) => {
@@ -51,10 +73,10 @@ export function QuestionThreads({
             data-answered={thread.answered ? "1" : "0"}
           >
             <div className={styles.threadHead}>
-              <strong className={thread.answered ? styles.better : styles.worse}>
+              <Badge tone={thread.answered ? "success" : "warning"}>
                 {thread.answered ? q.answered : q.open}
-              </strong>
-              {showContext && thread.parcelName && <span>{thread.parcelName}</span>}
+              </Badge>
+              {showContext && thread.parcelName && <strong>{thread.parcelName}</strong>}
               {thread.treeCode &&
                 (href ? (
                   <Link href={href}>{q.about.tree(thread.treeCode)}</Link>
@@ -69,40 +91,62 @@ export function QuestionThreads({
             </div>
             <ol className={styles.messages}>
               {thread.messages.map((m) => (
-                <li key={m.id} className={styles.message} data-testid="question-message">
-                  <div className={`muted ${styles.small}`}>
-                    <strong>{author(m)}</strong> · {time(m.createdAt)}
-                    {m.editedAt && ` · ${q.edited}`}
-                  </div>
+                <li
+                  key={m.id}
+                  className={m.mine ? styles.messageMine : styles.message}
+                  data-testid="question-message"
+                >
+                  <p className={`muted ${styles.small}`}>
+                    <strong>{author(m)}</strong>, {time(m.createdAt)}
+                    {m.editedAt && ` (${q.edited})`}
+                  </p>
                   <p className={styles.messageBody}>{m.body}</p>
-                  {m.editable && (
-                    <details className={styles.noPrint}>
+                  {m.editable && forms && (
+                    <details className={`${styles.disclosure} ${styles.noPrint}`}>
                       <summary>{q.edit}</summary>
-                      <form action={editAction} className={styles.questionForm}>
+                      <form action={editAction} className={styles.reply}>
                         <input type="hidden" name="kind" value={m.kind} />
                         <input type="hidden" name="id" value={m.id} />
                         <input type="hidden" name="return" value={returnPath} />
-                        <textarea name="body" defaultValue={m.body} maxLength={2000} required />
-                        <button className="button button-secondary" type="submit">
-                          {q.save}
-                        </button>
+                        <textarea
+                          name="body"
+                          defaultValue={m.body}
+                          maxLength={2000}
+                          required
+                          aria-label={q.edit}
+                        />
+                        <div className={styles.formActions}>
+                          <Button variant="secondary" type="submit">
+                            {q.save}
+                          </Button>
+                        </div>
                       </form>
                     </details>
                   )}
                 </li>
               ))}
             </ol>
-            <form action={replyAction} className={`${styles.questionForm} ${styles.noPrint}`}>
-              <input type="hidden" name="questionId" value={thread.id} />
-              <input type="hidden" name="return" value={returnPath} />
-              <label>
-                {q.reply}
-                <textarea name="body" maxLength={2000} required aria-label={q.replyLabel} />
-              </label>
-              <button className="button button-secondary" type="submit">
-                {q.send}
-              </button>
-            </form>
+            {forms && (
+              <form action={replyAction} className={`${styles.reply} ${styles.noPrint}`}>
+                <input type="hidden" name="questionId" value={thread.id} />
+                <input type="hidden" name="return" value={returnPath} />
+                <label>
+                  {q.reply}
+                  <textarea
+                    name="body"
+                    rows={2}
+                    maxLength={2000}
+                    required
+                    aria-label={q.replyLabel}
+                  />
+                </label>
+                <div className={styles.formActions}>
+                  <Button variant="secondary" type="submit">
+                    {q.send}
+                  </Button>
+                </div>
+              </form>
+            )}
           </li>
         );
       })}
@@ -123,6 +167,8 @@ export function AskQuestionForm({
   returnPath,
   action,
   title,
+  demo = false,
+  readOnly = false,
 }: {
   parcelId: string;
   treeId: string | null;
@@ -130,36 +176,49 @@ export function AskQuestionForm({
   returnPath: string;
   action: Action;
   title: string;
+  demo?: boolean;
+  readOnly?: boolean;
 }) {
+  if (demo) return <DemoNotice text={demoText.closed.questions} />;
+  if (readOnly) {
+    return (
+      <p className="muted" data-testid="questions-read-only">
+        {portalBillingText.removal.readOnlyQuestions}
+      </p>
+    );
+  }
   if (targets.length === 0) return null;
+  const id = treeId ? `ask-${treeId}` : `ask-${parcelId}`;
   return (
-    <form
-      action={action}
-      className={`${styles.questionForm} ${styles.noPrint}`}
-      data-testid="ask-question"
-    >
+    <form action={action} className={`${styles.form} ${styles.noPrint}`} data-testid="ask-question">
       <h3>{title}</h3>
       <input type="hidden" name="parcelId" value={parcelId} />
       <input type="hidden" name="treeId" value={treeId ?? ""} />
       <input type="hidden" name="return" value={returnPath} />
-      <label>
-        {q.target}
-        <select name="target" defaultValue={targets[0].value}>
-          {targets.map((target) => (
-            <option key={target.value} value={target.value}>
-              {target.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        {q.body}
-        <textarea name="body" maxLength={2000} required />
-      </label>
-      <p className={`muted ${styles.small}`}>{q.editHint}</p>
-      <button className="button" type="submit">
-        {q.ask}
-      </button>
+      {targets.length > 1 ? (
+        <Field id={`${id}-target`} label={q.target}>
+          <Select name="target" defaultValue={targets[0].value}>
+            {targets.map((target) => (
+              <option key={target.value} value={target.value}>
+                {target.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      ) : (
+        <>
+          <input type="hidden" name="target" value={targets[0].value} />
+          <p className={`${styles.small} muted`}>
+            {q.target}: {targets[0].label}
+          </p>
+        </>
+      )}
+      <Field id={`${id}-body`} label={q.body} hint={q.editHint}>
+        <Textarea name="body" maxLength={2000} required rows={3} />
+      </Field>
+      <div className={styles.formActions}>
+        <Button type="submit">{q.ask}</Button>
+      </div>
     </form>
   );
 }
@@ -168,16 +227,22 @@ export function AskQuestionForm({
 export function QuestionNotice({ sent, error }: { sent: boolean; error: string | null }) {
   if (error) {
     return (
-      <p className={`${styles.notice} ${styles.worse}`} role="alert">
-        {q.errors[error] ?? q.errors.write_failed}
-      </p>
+      <Alert tone="danger" role="alert">
+        <p>
+          {error === "demo_read_only"
+            ? demoText.closed.questions
+            : error === "parcel_read_only"
+              ? portalBillingText.removal.readOnlyQuestions
+              : (q.errors[error] ?? q.errors.write_failed)}
+        </p>
+      </Alert>
     );
   }
   if (sent) {
     return (
-      <p className={styles.notice} role="status">
-        {q.sent}
-      </p>
+      <Alert tone="success" role="status">
+        <p>{q.sent}</p>
+      </Alert>
     );
   }
   return null;

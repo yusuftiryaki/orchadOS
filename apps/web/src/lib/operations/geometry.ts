@@ -113,3 +113,20 @@ export function ringAreaM2(ring: Position[]): number {
 
 export const m2ToDonum = (m2: number) => m2 / DONUM_M2;
 export const donumToM2 = (donum: number) => donum * DONUM_M2;
+
+// Vertex edits of a drawn ring (the map's drag and delete). Out-of-range
+// indexes leave the ring as it is; a new array is returned either way.
+export function moveVertex(ring: Position[], index: number, to: Position): Position[] {
+  if (index < 0 || index >= ring.length) return [...ring];
+  return ring.map((p, i) => (i === index ? ([to[0], to[1]] as Position) : p));
+}
+
+export function deleteVertex(ring: Position[], index: number): Position[] {
+  if (index < 0 || index >= ring.length) return [...ring];
+  return ring.filter((_, i) => i !== index);
+}
+
+// A map click as a stored vertex: [lon, lat] rounded to 1e-7° (about 1 cm).
+export function roundPosition(lon: number, lat: number): Position {
+  return [Math.round(lon * 1e7) / 1e7, Math.round(lat * 1e7) / 1e7];
+}

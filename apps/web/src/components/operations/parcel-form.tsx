@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useCallback, useState } from "react";
 import { registerParcelAction, updateParcelAction } from "@/app/operasyon/actions";
 import { formatNumber, t } from "@/lib/i18n";
@@ -11,7 +10,9 @@ import { opsHref } from "@/lib/operations/urls";
 import { AUTHORIZATION_BASES, IRRIGATION, parseDecimal } from "@/lib/operations/validation";
 import type { DrawMode } from "./boundary-draw-map";
 import { BoundaryEditor } from "./boundary-editor";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, FormError } from "./field";
+import { Panel } from "@/components/ui/panel";
 import styles from "./operations.module.css";
 
 const T = t.operations;
@@ -85,8 +86,7 @@ export function ParcelForm({
   return (
     <form action={action} className={styles.form} data-testid="parcel-form">
       {parcelId && <input type="hidden" name="parcel_id" value={parcelId} />}
-      <section className={styles.section}>
-        <h2>{T.parcel.publicSection}</h2>
+      <Panel title={T.parcel.publicSection}>
         {!parcelId && orgs.length > 1 && (
           <Field label={T.org}>
             <select name="org_id" value={orgId} onChange={(e) => setOrgId(e.target.value)}>
@@ -111,12 +111,7 @@ export function ParcelForm({
           <Field label={T.parcel.village} error={err("village")} optional>
             <input name="village" defaultValue={v("village")} />
           </Field>
-          <Field
-            label={T.parcel.areaDonum}
-            error={err("area_donum")}
-            hint={T.parcel.areaHint}
-            optional
-          >
+          <Field label={T.parcel.areaDonum} error={err("area_donum")} optional>
             <input
               name="area_donum"
               inputMode="decimal"
@@ -157,11 +152,11 @@ export function ParcelForm({
             </Field>
           )}
         </div>
-        <p className="muted">{T.parcel.rowsLater}</p>
-      </section>
+        <p className={styles.formNote}>{T.parcel.areaHint}</p>
+        <p className={styles.formNote}>{T.parcel.rowsLater}</p>
+      </Panel>
 
-      <section className={styles.section}>
-        <h2>{parcelId ? T.parcel.position : T.parcel.boundary}</h2>
+      <Panel title={parcelId ? T.parcel.position : T.parcel.boundary}>
         {!parcelId && (
           <BoundaryEditor
             ring={ring}
@@ -202,18 +197,15 @@ export function ParcelForm({
             />
           </Field>
         </div>
-        <p className="muted">{T.parcel.positionHint}</p>
-      </section>
+        <p className={styles.formNote}>{T.parcel.positionHint}</p>
+      </Panel>
 
-      <section className={styles.section}>
-        <h2>{T.parcel.privateSection}</h2>
+      <Panel
+        title={T.parcel.privateTitle}
+        description={`${T.parcel.privateHint} ${T.parcel.deedHint}`}
+      >
         <div className={styles.grid}>
-          <Field
-            label={T.parcel.deedBlock}
-            error={err("deed_block")}
-            hint={T.parcel.deedHint}
-            optional
-          >
+          <Field label={T.parcel.deedBlock} error={err("deed_block")} optional>
             <input name="deed_block" defaultValue={v("deed_block")} />
           </Field>
           <Field label={T.parcel.deedParcel} error={err("deed_parcel")} optional>
@@ -267,14 +259,19 @@ export function ParcelForm({
             />
           </Field>
         </div>
-      </section>
+      </Panel>
 
       <FormError error={state.error} />
       <div className={styles.actions}>
-        <button className="button" type="submit" disabled={pending}>
-          {pending ? T.saving : parcelId ? T.save : T.parcel.submit}
-        </button>
-        <Link href={parcelId ? opsHref.parcel(parcelId) : opsHref.dashboard()}>{T.cancel}</Link>
+        <Button type="submit" disabled={pending}>
+          {pending ? T.saving : parcelId ? T.parcel.saveChanges : T.parcel.submit}
+        </Button>
+        <ButtonLink
+          variant="quiet"
+          href={parcelId ? opsHref.parcel(parcelId) : opsHref.dashboard()}
+        >
+          {T.cancel}
+        </ButtonLink>
       </div>
     </form>
   );

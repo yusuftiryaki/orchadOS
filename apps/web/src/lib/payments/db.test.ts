@@ -42,6 +42,7 @@ describe("contract key lists (§6.9)", () => {
       "currency",
       "items",
       "buyer",
+      "identity_number_required",
       "billing",
     ]);
   });

@@ -6,6 +6,7 @@
 export const BILLING_ERRORS = [
   // 42501
   "forbidden",
+  "demo_read_only",
   // P0002
   "not_found",
   // 22023
@@ -41,6 +42,50 @@ export const BILLING_ERRORS = [
   "signup_closed",
   "too_many_attempts",
   "state_changed",
+  // P0001, IP14 (docs/bahce-yonetimi.md §9.7)
+  "no_membership",
+  "addon_period_too_short",
+  "addon_base_closed",
+  "parcel_in_service",
+  "parcel_not_reusable",
+  "account_garden_limit",
+  "garden_withdrawn",
+  "last_garden",
+  "not_revisable",
+  "not_in_service",
+  "garden_removal_open",
+  "parcel_order_pending",
+  "withdrawal_expired",
+  "removal_not_open",
+  "removal_not_due",
+  "garden_changes_closed",
+  "parcel_read_only",
+  "parcel_removal_scheduled",
+  "parcel_removed",
+  // P0001, legal follow-ups (docs/musteri-yonetimi.md §6.10, docs/hukuk/kararlar.md
+  // T27, T21, T03, T04)
+  "consent_not_asked",
+  "legal_text_outdated",
+  "legal_texts_not_final",
+  "withdrawal_period_open",
+  "boundary_dispute_open",
+  "order_not_active",
+  "contract_document_immutable",
+  // P0001, wave 3 (docs/hukuk/kararlar.md T05, T07, T06)
+  "removal_reason_not_allowed",
+  "removal_notice_too_short",
+  "postponement_not_allowed",
+  "visit_not_planned",
+  "proposed_date_outside_window",
+  "deemed_done_not_allowed",
+  "carry_over_not_allowed",
+  "missed_visit_frozen",
+  "reconciliation_frozen",
+  "removal_window_not_ended",
+  "payment_default_not_due",
+  // P0001, per-visit payment plan (docs/musteri-yonetimi.md §5.6, H35)
+  "installment_unpaid",
+  "installment_not_open",
   // 55000
   "payment_not_open",
   // Anything else (network, unexpected database error).

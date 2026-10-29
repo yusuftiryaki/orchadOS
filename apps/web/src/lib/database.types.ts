@@ -126,6 +126,7 @@ export type Database = {
           verified_at: string | null;
           verified_by: string | null;
           village: string | null;
+          withdrawn_at: string | null;
         };
         ComputedFields: never;
         Insert: {
@@ -151,6 +152,7 @@ export type Database = {
           verified_at?: string | null;
           verified_by?: string | null;
           village?: string | null;
+          withdrawn_at?: string | null;
         };
         Update: {
           application_id?: string;
@@ -175,6 +177,7 @@ export type Database = {
           verified_at?: string | null;
           verified_by?: string | null;
           village?: string | null;
+          withdrawn_at?: string | null;
         };
         Relationships: [
           {
@@ -1136,6 +1139,162 @@ export type Database = {
           },
         ];
       };
+      garden_removal: {
+        Row: {
+          access_days: number;
+          access_notice_sent_at: string | null;
+          access_revoked_at: string | null;
+          access_until: string | null;
+          at_period_end: boolean;
+          blocked_reason: string | null;
+          calculation: Json | null;
+          cancelled_at: string | null;
+          cancelled_by: string | null;
+          completed_at: string | null;
+          created_at: string;
+          customer_note: string | null;
+          customer_user_id: string;
+          decided_by: string | null;
+          effective_on: string | null;
+          garden_name: string;
+          id: string;
+          initiated_by: string;
+          notice_channel: string | null;
+          notice_received_on: string | null;
+          number: string;
+          ops_note: string | null;
+          order_id: string | null;
+          order_item_id: string | null;
+          org_id: string;
+          owner_consent_note: string | null;
+          parcel_id: string;
+          reason: Database["public"]["Enums"]["garden_removal_reason"];
+          refund_kurus: number | null;
+          refund_mode: string | null;
+          requested_at: string;
+          requested_by: string | null;
+          requested_effective_on: string;
+          revoke_all_access: boolean;
+          scheduled_at: string | null;
+          status: Database["public"]["Enums"]["garden_removal_status"];
+          timing: string | null;
+          updated_at: string;
+          withdrawal: boolean;
+        };
+        ComputedFields: never;
+        Insert: {
+          access_days: number;
+          access_notice_sent_at?: string | null;
+          access_revoked_at?: string | null;
+          access_until?: string | null;
+          at_period_end?: boolean;
+          blocked_reason?: string | null;
+          calculation?: Json | null;
+          cancelled_at?: string | null;
+          cancelled_by?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          customer_note?: string | null;
+          customer_user_id: string;
+          decided_by?: string | null;
+          effective_on?: string | null;
+          garden_name: string;
+          id?: string;
+          initiated_by: string;
+          notice_channel?: string | null;
+          notice_received_on?: string | null;
+          number: string;
+          ops_note?: string | null;
+          order_id?: string | null;
+          order_item_id?: string | null;
+          org_id: string;
+          owner_consent_note?: string | null;
+          parcel_id: string;
+          reason: Database["public"]["Enums"]["garden_removal_reason"];
+          refund_kurus?: number | null;
+          refund_mode?: string | null;
+          requested_at?: string;
+          requested_by?: string | null;
+          requested_effective_on: string;
+          revoke_all_access?: boolean;
+          scheduled_at?: string | null;
+          status?: Database["public"]["Enums"]["garden_removal_status"];
+          timing?: string | null;
+          updated_at?: string;
+          withdrawal?: boolean;
+        };
+        Update: {
+          access_days?: number;
+          access_notice_sent_at?: string | null;
+          access_revoked_at?: string | null;
+          access_until?: string | null;
+          at_period_end?: boolean;
+          blocked_reason?: string | null;
+          calculation?: Json | null;
+          cancelled_at?: string | null;
+          cancelled_by?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          customer_note?: string | null;
+          customer_user_id?: string;
+          decided_by?: string | null;
+          effective_on?: string | null;
+          garden_name?: string;
+          id?: string;
+          initiated_by?: string;
+          notice_channel?: string | null;
+          notice_received_on?: string | null;
+          number?: string;
+          ops_note?: string | null;
+          order_id?: string | null;
+          order_item_id?: string | null;
+          org_id?: string;
+          owner_consent_note?: string | null;
+          parcel_id?: string;
+          reason?: Database["public"]["Enums"]["garden_removal_reason"];
+          refund_kurus?: number | null;
+          refund_mode?: string | null;
+          requested_at?: string;
+          requested_by?: string | null;
+          requested_effective_on?: string;
+          revoke_all_access?: boolean;
+          scheduled_at?: string | null;
+          status?: Database["public"]["Enums"]["garden_removal_status"];
+          timing?: string | null;
+          updated_at?: string;
+          withdrawal?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "garden_removal_order_id_customer_user_id_org_id_fkey";
+            columns: ["order_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+          {
+            foreignKeyName: "garden_removal_order_item_id_order_id_fkey";
+            columns: ["order_item_id", "order_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order_item";
+            referencedColumns: ["id", "order_id"];
+          },
+          {
+            foreignKeyName: "garden_removal_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "garden_removal_parcel_id_fkey";
+            columns: ["parcel_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       measurement: {
         Row: {
           confidence: number | null;
@@ -1558,6 +1717,183 @@ export type Database = {
           },
         ];
       };
+      order_installment: {
+        Row: {
+          amount_kurus: number;
+          cancel_reason: string | null;
+          cancelled_at: string | null;
+          cancelled_kurus: number;
+          created_at: string;
+          currency: string;
+          customer_user_id: string;
+          due_on: string;
+          due_reminder_sent_at: string | null;
+          id: string;
+          kind: Database["public"]["Enums"]["installment_kind"];
+          order_id: string;
+          org_id: string;
+          paid_at: string | null;
+          paid_kurus: number;
+          reminder_sent_at: string | null;
+          seq: number;
+          status: Database["public"]["Enums"]["installment_status"];
+          updated_at: string;
+          vat_kurus: number;
+          visit_no: number | null;
+          visit_override_at: string | null;
+          visit_override_by: string | null;
+          visit_override_note: string | null;
+          window_code: string | null;
+          window_end: string | null;
+          window_name: string | null;
+          window_start: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_kurus: number;
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
+          cancelled_kurus?: number;
+          created_at?: string;
+          currency?: string;
+          customer_user_id: string;
+          due_on: string;
+          due_reminder_sent_at?: string | null;
+          id?: string;
+          kind: Database["public"]["Enums"]["installment_kind"];
+          order_id: string;
+          org_id: string;
+          paid_at?: string | null;
+          paid_kurus?: number;
+          reminder_sent_at?: string | null;
+          seq: number;
+          status?: Database["public"]["Enums"]["installment_status"];
+          updated_at?: string;
+          vat_kurus: number;
+          visit_no?: number | null;
+          visit_override_at?: string | null;
+          visit_override_by?: string | null;
+          visit_override_note?: string | null;
+          window_code?: string | null;
+          window_end?: string | null;
+          window_name?: string | null;
+          window_start?: string | null;
+        };
+        Update: {
+          amount_kurus?: number;
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
+          cancelled_kurus?: number;
+          created_at?: string;
+          currency?: string;
+          customer_user_id?: string;
+          due_on?: string;
+          due_reminder_sent_at?: string | null;
+          id?: string;
+          kind?: Database["public"]["Enums"]["installment_kind"];
+          order_id?: string;
+          org_id?: string;
+          paid_at?: string | null;
+          paid_kurus?: number;
+          reminder_sent_at?: string | null;
+          seq?: number;
+          status?: Database["public"]["Enums"]["installment_status"];
+          updated_at?: string;
+          vat_kurus?: number;
+          visit_no?: number | null;
+          visit_override_at?: string | null;
+          visit_override_by?: string | null;
+          visit_override_note?: string | null;
+          window_code?: string | null;
+          window_end?: string | null;
+          window_name?: string | null;
+          window_start?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_installment_order_id_customer_user_id_org_id_fkey";
+            columns: ["order_id", "customer_user_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id", "customer_user_id", "org_id"];
+          },
+          {
+            foreignKeyName: "order_installment_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      order_installment_item: {
+        Row: {
+          amount_kurus: number;
+          cancelled_kurus: number;
+          created_at: string;
+          customer_user_id: string;
+          id: string;
+          installment_id: string;
+          order_id: string;
+          order_item_id: string;
+          org_id: string;
+          paid_kurus: number;
+          updated_at: string;
+          vat_kurus: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_kurus: number;
+          cancelled_kurus?: number;
+          created_at?: string;
+          customer_user_id: string;
+          id?: string;
+          installment_id: string;
+          order_id: string;
+          order_item_id: string;
+          org_id: string;
+          paid_kurus?: number;
+          updated_at?: string;
+          vat_kurus: number;
+        };
+        Update: {
+          amount_kurus?: number;
+          cancelled_kurus?: number;
+          created_at?: string;
+          customer_user_id?: string;
+          id?: string;
+          installment_id?: string;
+          order_id?: string;
+          order_item_id?: string;
+          org_id?: string;
+          paid_kurus?: number;
+          updated_at?: string;
+          vat_kurus?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_installment_item_installment_id_order_id_fkey";
+            columns: ["installment_id", "order_id"];
+            isOneToOne: false;
+            referencedRelation: "order_installment";
+            referencedColumns: ["id", "order_id"];
+          },
+          {
+            foreignKeyName: "order_installment_item_order_item_id_fkey";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order_item";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_installment_item_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       org: {
         Row: {
           created_at: string;
@@ -1583,70 +1919,121 @@ export type Database = {
       org_billing_setting: {
         Row: {
           accepts_signups: boolean;
+          addon_min_days: number;
           address: string | null;
           allow_fake_payments: boolean;
           bank_name: string | null;
+          boundary_declaration_required: boolean;
+          coowner_notice_flow_enabled: boolean;
           created_at: string;
           email: string | null;
+          garden_changes_enabled: boolean;
           iban: string | null;
           iban_holder: string | null;
           identity_number_required: boolean;
+          installment_lead_days: number;
+          inventory_reuse_months: number;
+          kep_address: string | null;
+          kvkk_email: string | null;
+          kvkk_request_form_enabled: boolean;
+          legal_gate_enforced: boolean;
           legal_name: string | null;
+          marketing_consent_enabled: boolean;
           mersis_number: string | null;
           org_id: string;
           payment_due_days: number;
           phone: string | null;
           quote_valid_days: number;
+          removal_access_days: number;
+          removal_notice_days: number;
+          removal_refund_mode: string;
           renewal_notice_days: number;
+          service_end_access_flow_enabled: boolean;
+          site_domain: string | null;
           tax_number: string | null;
           tax_office: string | null;
           updated_at: string;
           updated_by: string | null;
+          visit_notice_sms_enabled: boolean;
         };
         ComputedFields: never;
         Insert: {
           accepts_signups?: boolean;
+          addon_min_days?: number;
           address?: string | null;
           allow_fake_payments?: boolean;
           bank_name?: string | null;
+          boundary_declaration_required?: boolean;
+          coowner_notice_flow_enabled?: boolean;
           created_at?: string;
           email?: string | null;
+          garden_changes_enabled?: boolean;
           iban?: string | null;
           iban_holder?: string | null;
           identity_number_required?: boolean;
+          installment_lead_days?: number;
+          inventory_reuse_months?: number;
+          kep_address?: string | null;
+          kvkk_email?: string | null;
+          kvkk_request_form_enabled?: boolean;
+          legal_gate_enforced?: boolean;
           legal_name?: string | null;
+          marketing_consent_enabled?: boolean;
           mersis_number?: string | null;
           org_id: string;
           payment_due_days?: number;
           phone?: string | null;
           quote_valid_days?: number;
+          removal_access_days?: number;
+          removal_notice_days?: number;
+          removal_refund_mode?: string;
           renewal_notice_days?: number;
+          service_end_access_flow_enabled?: boolean;
+          site_domain?: string | null;
           tax_number?: string | null;
           tax_office?: string | null;
           updated_at?: string;
           updated_by?: string | null;
+          visit_notice_sms_enabled?: boolean;
         };
         Update: {
           accepts_signups?: boolean;
+          addon_min_days?: number;
           address?: string | null;
           allow_fake_payments?: boolean;
           bank_name?: string | null;
+          boundary_declaration_required?: boolean;
+          coowner_notice_flow_enabled?: boolean;
           created_at?: string;
           email?: string | null;
+          garden_changes_enabled?: boolean;
           iban?: string | null;
           iban_holder?: string | null;
           identity_number_required?: boolean;
+          installment_lead_days?: number;
+          inventory_reuse_months?: number;
+          kep_address?: string | null;
+          kvkk_email?: string | null;
+          kvkk_request_form_enabled?: boolean;
+          legal_gate_enforced?: boolean;
           legal_name?: string | null;
+          marketing_consent_enabled?: boolean;
           mersis_number?: string | null;
           org_id?: string;
           payment_due_days?: number;
           phone?: string | null;
           quote_valid_days?: number;
+          removal_access_days?: number;
+          removal_notice_days?: number;
+          removal_refund_mode?: string;
           renewal_notice_days?: number;
+          service_end_access_flow_enabled?: boolean;
+          site_domain?: string | null;
           tax_number?: string | null;
           tax_office?: string | null;
           updated_at?: string;
           updated_by?: string | null;
+          visit_notice_sms_enabled?: boolean;
         };
         Relationships: [
           {
@@ -1842,6 +2229,7 @@ export type Database = {
           installment: number;
           manual_note: string | null;
           order_id: string;
+          order_installment_id: string;
           org_id: string;
           paid_kurus: number | null;
           provider: Database["public"]["Enums"]["payment_provider"];
@@ -1877,6 +2265,7 @@ export type Database = {
           installment?: number;
           manual_note?: string | null;
           order_id: string;
+          order_installment_id: string;
           org_id: string;
           paid_kurus?: number | null;
           provider: Database["public"]["Enums"]["payment_provider"];
@@ -1911,6 +2300,7 @@ export type Database = {
           installment?: number;
           manual_note?: string | null;
           order_id?: string;
+          order_installment_id?: string;
           org_id?: string;
           paid_kurus?: number | null;
           provider?: Database["public"]["Enums"]["payment_provider"];
@@ -1929,6 +2319,13 @@ export type Database = {
           voided_at?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "payment_installment_fk";
+            columns: ["order_installment_id", "order_id"];
+            isOneToOne: false;
+            referencedRelation: "order_installment";
+            referencedColumns: ["id", "order_id"];
+          },
           {
             foreignKeyName: "payment_order_id_customer_user_id_org_id_fkey";
             columns: ["order_id", "customer_user_id", "org_id"];
@@ -2238,6 +2635,7 @@ export type Database = {
       };
       quote: {
         Row: {
+          addon_of_order_id: string | null;
           application_id: string | null;
           base_kurus: number;
           created_at: string;
@@ -2275,6 +2673,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          addon_of_order_id?: string | null;
           application_id?: string | null;
           base_kurus: number;
           created_at?: string;
@@ -2311,6 +2710,7 @@ export type Database = {
           vat_rate_bp: number;
         };
         Update: {
+          addon_of_order_id?: string | null;
           application_id?: string | null;
           base_kurus?: number;
           created_at?: string;
@@ -2347,6 +2747,13 @@ export type Database = {
           vat_rate_bp?: number;
         };
         Relationships: [
+          {
+            foreignKeyName: "quote_addon_of_order_id_fkey";
+            columns: ["addon_of_order_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "quote_application_id_customer_user_id_org_id_fkey";
             columns: ["application_id", "customer_user_id", "org_id"];
@@ -2496,6 +2903,7 @@ export type Database = {
           currency: string;
           customer_user_id: string;
           failure_code: string | null;
+          garden_removal_id: string | null;
           id: string;
           kind: Database["public"]["Enums"]["refund_kind"];
           note: string | null;
@@ -2524,6 +2932,7 @@ export type Database = {
           currency?: string;
           customer_user_id: string;
           failure_code?: string | null;
+          garden_removal_id?: string | null;
           id?: string;
           kind: Database["public"]["Enums"]["refund_kind"];
           note?: string | null;
@@ -2551,6 +2960,7 @@ export type Database = {
           currency?: string;
           customer_user_id?: string;
           failure_code?: string | null;
+          garden_removal_id?: string | null;
           id?: string;
           kind?: Database["public"]["Enums"]["refund_kind"];
           note?: string | null;
@@ -2570,6 +2980,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "refund_garden_removal_fk";
+            columns: ["garden_removal_id"];
+            isOneToOne: false;
+            referencedRelation: "garden_removal";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "refund_order_id_customer_user_id_org_id_fkey";
             columns: ["order_id", "customer_user_id", "org_id"];
@@ -2795,6 +3212,7 @@ export type Database = {
       service_order: {
         Row: {
           activated_at: string | null;
+          addon_of_order_id: string | null;
           cancel_reason: string | null;
           cancelled_at: string | null;
           completed_at: string | null;
@@ -2821,6 +3239,7 @@ export type Database = {
         ComputedFields: never;
         Insert: {
           activated_at?: string | null;
+          addon_of_order_id?: string | null;
           cancel_reason?: string | null;
           cancelled_at?: string | null;
           completed_at?: string | null;
@@ -2846,6 +3265,7 @@ export type Database = {
         };
         Update: {
           activated_at?: string | null;
+          addon_of_order_id?: string | null;
           cancel_reason?: string | null;
           cancelled_at?: string | null;
           completed_at?: string | null;
@@ -2870,6 +3290,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "service_order_addon_of_order_id_fkey";
+            columns: ["addon_of_order_id"];
+            isOneToOne: false;
+            referencedRelation: "service_order";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "service_order_org_id_fkey";
             columns: ["org_id"];
@@ -2899,12 +3326,14 @@ export type Database = {
           created_at: string;
           customer_user_id: string;
           garden_name: string;
+          garden_removal_id: string | null;
           id: string;
           line_no: number;
           order_id: string;
           org_id: string;
           parcel_id: string | null;
           quote_item_id: string;
+          removed_on: string | null;
           updated_at: string;
         };
         ComputedFields: never;
@@ -2913,12 +3342,14 @@ export type Database = {
           created_at?: string;
           customer_user_id: string;
           garden_name: string;
+          garden_removal_id?: string | null;
           id?: string;
           line_no: number;
           order_id: string;
           org_id: string;
           parcel_id?: string | null;
           quote_item_id: string;
+          removed_on?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -2926,15 +3357,24 @@ export type Database = {
           created_at?: string;
           customer_user_id?: string;
           garden_name?: string;
+          garden_removal_id?: string | null;
           id?: string;
           line_no?: number;
           order_id?: string;
           org_id?: string;
           parcel_id?: string | null;
           quote_item_id?: string;
+          removed_on?: string | null;
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "service_order_item_garden_removal_fk";
+            columns: ["garden_removal_id"];
+            isOneToOne: false;
+            referencedRelation: "garden_removal";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "service_order_item_order_id_customer_user_id_org_id_fkey";
             columns: ["order_id", "customer_user_id", "org_id"];
@@ -3656,6 +4096,7 @@ export type Database = {
       };
     };
     Functions: {
+      account_phone_change_allowed: { Args: { p_user_id: string }; Returns: boolean };
       add_field_survey_boundary: {
         Args: {
           p_ring: Json;
@@ -3691,7 +4132,7 @@ export type Database = {
         };
       };
       approve_boundary: {
-        Args: { p_boundary_id: string };
+        Args: { p_boundary_id: string; p_declared?: boolean };
         Returns: {
           area_m2: number | null;
           created_at: string;
@@ -3774,12 +4215,17 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      boundary_dispute_status: { Args: { p_parcel_id: string }; Returns: Json };
       bulk_approve_trees: {
         Args: { p_items: Json; p_method_version: string; p_session_id: string };
         Returns: number;
       };
       calibration_kit_mount_valid: { Args: { p_extrinsics: Json }; Returns: boolean };
       cancel_followup: { Args: { p_request_id: string }; Returns: undefined };
+      captcha_spend: {
+        Args: { p_challenge: string; p_expires_at: string; p_purpose: string };
+        Returns: boolean;
+      };
       close_verification_item: {
         Args: { p_item_id: string; p_note: string };
         Returns: {
@@ -3818,11 +4264,52 @@ export type Database = {
           tree_id: string;
         }[];
       };
+      contract_sweep_ticket_orders: { Args: Record<PropertyKey, never>; Returns: string[] };
+      contract_visit_windows: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          code: string;
+          end_month: number;
+          name: string;
+          start_month: number;
+        }[];
+      };
       create_verification_tour: {
         Args: { p_items: Json; p_notes?: string; p_parcel_id: string; p_planned_date?: string };
         Returns: Json;
       };
       customer_accept_quote: { Args: { p_consents: Json; p_quote_id: string }; Returns: string };
+      customer_addon_preview: {
+        Args: { p_areas_m2: number[] };
+        Returns: {
+          area_m2: number;
+          base_order_id: string;
+          basis: string;
+          billable_area_tenths: number;
+          full_year_total_kurus: number;
+          inventory_fee_kurus: number;
+          line_base_kurus: number;
+          line_discount_kurus: number;
+          line_no: number;
+          line_subtotal_kurus: number;
+          line_total_kurus: number;
+          line_vat_kurus: number;
+          minimum_fee_kurus: number;
+          periodic_visits_per_year: number;
+          price_list_id: string;
+          price_list_name: string;
+          price_list_version: number;
+          raw_visits: number;
+          remaining_windows: Json;
+          service_end: string;
+          service_start: string;
+          unit_price_kurus: number;
+          valid_from: string;
+          vat_rate_bp: number;
+          visit_amount_kurus: number;
+          visits: number;
+        }[];
+      };
       customer_application_garden_detail: {
         Args: { p_garden_id: string };
         Returns: {
@@ -3839,11 +4326,27 @@ export type Database = {
           used_portion_note: string;
         }[];
       };
+      customer_cancel_garden_removal: { Args: { p_removal_id: string }; Returns: undefined };
       customer_cancel_order: { Args: { p_order_id: string }; Returns: undefined };
       customer_create_application: { Args: { p_package_id?: string }; Returns: string };
       customer_decline_quote: {
         Args: { p_note?: string; p_quote_id: string; p_request_revision?: boolean };
         Returns: undefined;
+      };
+      customer_garden_removal_preview: {
+        Args: { p_parcel_id: string; p_timing: string };
+        Returns: {
+          access_until: string;
+          effective_on: string;
+          line_count: number;
+          order_item_id: string;
+          refund_estimate_kurus: number;
+          timing: string;
+          visits_entitled: number;
+          visits_used: number;
+          withdrawal: boolean;
+          withdrawal_until: string;
+        }[];
       };
       customer_payment_instructions: {
         Args: { p_order_id: string };
@@ -3858,6 +4361,18 @@ export type Database = {
         }[];
       };
       customer_remove_application_garden: { Args: { p_garden_id: string }; Returns: undefined };
+      customer_request_garden_removal: {
+        Args: {
+          p_cancel_order_id?: string;
+          p_note?: string;
+          p_parcel_id: string;
+          p_reason: string;
+          p_timing: string;
+        };
+        Returns: string;
+      };
+      customer_request_visit_postponement: { Args: { p_session_id: string }; Returns: string };
+      customer_revise_order: { Args: { p_note?: string; p_order_id: string }; Returns: string };
       customer_save_application_garden: {
         Args: { p_application_id: string; p_detail: Json; p_garden: Json; p_garden_id?: string };
         Returns: string;
@@ -3877,6 +4392,25 @@ export type Database = {
         Returns: undefined;
       };
       customer_withdraw_application: { Args: { p_application_id: string }; Returns: undefined };
+      customer_withdraw_application_garden: { Args: { p_garden_id: string }; Returns: undefined };
+      demo_admit: { Args: { p_ip_hash: string }; Returns: Json };
+      demo_end: { Args: Record<PropertyKey, never>; Returns: undefined };
+      demo_expired_accounts: {
+        Args: { p_exclude?: string[]; p_limit?: number };
+        Returns: string[];
+      };
+      demo_hit: { Args: { p_kind: string }; Returns: boolean };
+      demo_info: { Args: Record<PropertyKey, never>; Returns: Json };
+      demo_purge_audit_log: { Args: { p_user_ids: string[] }; Returns: number };
+      demo_start: { Args: { p_ip_hash: string; p_user_id: string }; Returns: Json };
+      demo_undeletable_count: { Args: Record<PropertyKey, never>; Returns: number };
+      legal_gate_status: {
+        Args: { p_org_id?: string };
+        Returns: {
+          active: boolean;
+          reasons: string[];
+        }[];
+      };
       message_outbox_list: {
         Args: { p_limit?: number; p_recipient: string };
         Returns: {
@@ -3932,6 +4466,62 @@ export type Database = {
           text_version: string;
         }[];
       };
+      my_contract_documents: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          created_at: string;
+          id: string;
+          kind: string;
+          order_id: string;
+          order_number: string;
+          quote_id: string;
+          sha256: string;
+          size_bytes: number;
+          storage_path: string;
+          text_sha256: string;
+          text_version: string;
+        }[];
+      };
+      my_gardens: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          access_until: string;
+          base_order_id: string;
+          garden_name: string;
+          in_next_period: boolean;
+          is_addon: boolean;
+          next_order_item_id: string;
+          order_id: string;
+          order_item_id: string;
+          order_number: string;
+          order_status: Database["public"]["Enums"]["order_status"];
+          parcel_id: string;
+          parcel_status: Database["public"]["Enums"]["parcel_status"];
+          removal_effective_on: string;
+          removal_id: string;
+          removal_initiated_by: string;
+          removal_number: string;
+          removal_status: Database["public"]["Enums"]["garden_removal_status"];
+          removed_on: string;
+          service_end: string;
+          service_start: string;
+          state: string;
+          visits_entitled: number;
+          visits_used: number;
+          withdrawal_until: string;
+        }[];
+      };
+      my_kvkk_requests: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          created_at: string;
+          due_at: string;
+          id: string;
+          request_type: string;
+          settled_at: string;
+          status: string;
+        }[];
+      };
       my_owner_profile: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -3942,6 +4532,39 @@ export type Database = {
           kvkk_consent_at: string;
           org_id: string;
           phone: string;
+        }[];
+      };
+      my_parcel_visits: {
+        Args: { p_parcel_id: string };
+        Returns: {
+          can_postpone: boolean;
+          kind: Database["public"]["Enums"]["session_kind"];
+          planned_date: string;
+          postponed: boolean;
+          session_id: string;
+        }[];
+      };
+      my_service_period: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          addon_base_order_id: string;
+          addon_until: string;
+          base_order_id: string;
+          base_order_number: string;
+          garden_changes_enabled: boolean;
+          garden_count: number;
+          is_primary: boolean;
+          next_base_order_id: string;
+          next_period_end: string;
+          next_period_start: string;
+          org_id: string;
+          package_id: string;
+          package_name: string;
+          period_count: number;
+          period_end: string;
+          period_start: string;
+          periodic_visits_per_year: number;
+          renewal_quote_id: string;
         }[];
       };
       notification_claim: {
@@ -3964,6 +4587,10 @@ export type Database = {
           p_retry_at?: string;
           p_sent_via?: string;
         };
+        Returns: undefined;
+      };
+      ops_allow_unpaid_visit: {
+        Args: { p_installment_id: string; p_note: string };
         Returns: undefined;
       };
       ops_application_garden_detail: {
@@ -4048,25 +4675,42 @@ export type Database = {
         Args: { p_org_id: string };
         Returns: {
           accepts_signups: boolean;
+          addon_min_days: number;
           address: string | null;
           allow_fake_payments: boolean;
           bank_name: string | null;
+          boundary_declaration_required: boolean;
+          coowner_notice_flow_enabled: boolean;
           created_at: string;
           email: string | null;
+          garden_changes_enabled: boolean;
           iban: string | null;
           iban_holder: string | null;
           identity_number_required: boolean;
+          installment_lead_days: number;
+          inventory_reuse_months: number;
+          kep_address: string | null;
+          kvkk_email: string | null;
+          kvkk_request_form_enabled: boolean;
+          legal_gate_enforced: boolean;
           legal_name: string | null;
+          marketing_consent_enabled: boolean;
           mersis_number: string | null;
           org_id: string;
           payment_due_days: number;
           phone: string | null;
           quote_valid_days: number;
+          removal_access_days: number;
+          removal_notice_days: number;
+          removal_refund_mode: string;
           renewal_notice_days: number;
+          service_end_access_flow_enabled: boolean;
+          site_domain: string | null;
           tax_number: string | null;
           tax_office: string | null;
           updated_at: string;
           updated_by: string | null;
+          visit_notice_sms_enabled: boolean;
         }[];
         SetofOptions: {
           from: "*";
@@ -4079,6 +4723,10 @@ export type Database = {
         Args: { p_org_id: string };
         Returns: {
           applications_submitted: number;
+          garden_removals_blocked: number;
+          garden_removals_due: number;
+          garden_removals_requested: number;
+          installments_overdue: number;
           orders_awaiting_payment: number;
           orders_overdue: number;
           parcels_awaiting_inventory: number;
@@ -4091,11 +4739,35 @@ export type Database = {
         }[];
       };
       ops_can_process_refund: { Args: { p_refund_id: string }; Returns: boolean };
+      ops_cancel_garden_removal: {
+        Args: { p_note: string; p_removal_id: string };
+        Returns: undefined;
+      };
       ops_cancel_order: { Args: { p_note?: string; p_order_id: string }; Returns: undefined };
       ops_cancel_refund: { Args: { p_note?: string; p_refund_id: string }; Returns: undefined };
+      ops_close_boundary_dispute: {
+        Args: { p_note?: string; p_parcel_id: string };
+        Returns: string;
+      };
+      ops_complete_garden_removal: { Args: { p_removal_id: string }; Returns: undefined };
       ops_complete_manual_refund: {
         Args: { p_bank_reference: string; p_completed_on: string; p_refund_id: string };
         Returns: undefined;
+      };
+      ops_contract_documents: {
+        Args: { p_order_id: string };
+        Returns: {
+          consent_ids: string[];
+          created_at: string;
+          generator: string;
+          id: string;
+          kind: string;
+          sha256: string;
+          size_bytes: number;
+          storage_path: string;
+          text_sha256: string;
+          text_version: string;
+        }[];
       };
       ops_create_owner_profile: {
         Args: {
@@ -4165,6 +4837,58 @@ export type Database = {
           text_version: string;
         }[];
       };
+      ops_customer_gardens: {
+        Args: { p_org_id: string; p_user_id: string };
+        Returns: {
+          access_until: string;
+          base_order_id: string;
+          garden_name: string;
+          in_next_period: boolean;
+          is_addon: boolean;
+          next_order_item_id: string;
+          order_id: string;
+          order_item_id: string;
+          order_number: string;
+          order_status: Database["public"]["Enums"]["order_status"];
+          parcel_id: string;
+          parcel_status: Database["public"]["Enums"]["parcel_status"];
+          removal_effective_on: string;
+          removal_id: string;
+          removal_initiated_by: string;
+          removal_number: string;
+          removal_status: Database["public"]["Enums"]["garden_removal_status"];
+          removed_on: string;
+          service_end: string;
+          service_start: string;
+          state: string;
+          visits_entitled: number;
+          visits_used: number;
+          withdrawal_until: string;
+        }[];
+      };
+      ops_customer_service_period: {
+        Args: { p_org_id: string; p_user_id: string };
+        Returns: {
+          addon_base_order_id: string;
+          addon_until: string;
+          base_order_id: string;
+          base_order_number: string;
+          garden_changes_enabled: boolean;
+          garden_count: number;
+          is_primary: boolean;
+          next_base_order_id: string;
+          next_period_end: string;
+          next_period_start: string;
+          org_id: string;
+          package_id: string;
+          package_name: string;
+          period_count: number;
+          period_end: string;
+          period_start: string;
+          periodic_visits_per_year: number;
+          renewal_quote_id: string;
+        }[];
+      };
       ops_customers: {
         Args: { p_limit?: number; p_org_id: string; p_query?: string };
         Returns: {
@@ -4189,6 +4913,84 @@ export type Database = {
       };
       ops_find_user_id: {
         Args: { p_email?: string; p_org_id: string; p_phone?: string };
+        Returns: string;
+      };
+      ops_garden_overlaps: {
+        Args: { p_garden_id: string };
+        Returns: {
+          distance_m: number;
+          in_service: boolean;
+          inside_boundary: boolean;
+          parcel_id: string;
+          parcel_name: string;
+          parcel_status: Database["public"]["Enums"]["parcel_status"];
+          same_customer: boolean;
+        }[];
+      };
+      ops_garden_removal_preview: {
+        Args: { p_effective_on?: string; p_removal_id: string };
+        Returns: Json;
+      };
+      ops_garden_removal_terms: {
+        Args: { p_removal_id: string };
+        Returns: {
+          notice_rule: string;
+          owner_consent_note: string;
+          timing: string;
+        }[];
+      };
+      ops_garden_removals: {
+        Args: { p_limit?: number; p_org_id: string; p_status?: string };
+        Returns: {
+          access_days: number;
+          access_revoked_at: string;
+          access_until: string;
+          at_period_end: boolean;
+          blocked_reason: string;
+          cancelled_at: string;
+          completed_at: string;
+          customer_name: string;
+          customer_note: string;
+          customer_user_id: string;
+          effective_on: string;
+          garden_name: string;
+          id: string;
+          initiated_by: string;
+          number: string;
+          ops_note: string;
+          order_id: string;
+          order_item_id: string;
+          order_number: string;
+          parcel_id: string;
+          planned_visits_after: number;
+          planned_visits_before: number;
+          reason: Database["public"]["Enums"]["garden_removal_reason"];
+          refund_kurus: number;
+          refund_mode: string;
+          requested_at: string;
+          requested_effective_on: string;
+          revoke_all_access: boolean;
+          scheduled_at: string;
+          status: Database["public"]["Enums"]["garden_removal_status"];
+          withdrawal: boolean;
+        }[];
+      };
+      ops_hide_media: {
+        Args: { p_id: string; p_note?: string; p_reason: string };
+        Returns: string;
+      };
+      ops_issue_addon_quote: {
+        Args: {
+          p_application_id?: string;
+          p_base_order_id: string;
+          p_discount_bp?: number;
+          p_discount_note?: string;
+          p_new_inventory?: Json;
+          p_note_to_customer?: string;
+          p_parcel_ids?: string[];
+          p_proposed_service_start?: string;
+          p_valid_days?: number;
+        };
         Returns: string;
       };
       ops_issue_parcel_quote: {
@@ -4218,6 +5020,45 @@ export type Database = {
         };
         Returns: string;
       };
+      ops_kvkk_requests: {
+        Args: { p_org_id: string };
+        Returns: {
+          applicant_email: string;
+          applicant_name: string;
+          created_at: string;
+          due_at: string;
+          id: string;
+          message: string;
+          overdue: boolean;
+          request_type: string;
+          settled_at: string;
+          status: string;
+          subject_id: string;
+        }[];
+      };
+      ops_link_application_garden_parcel: {
+        Args: { p_garden_id: string; p_parcel_id: string };
+        Returns: undefined;
+      };
+      ops_media_suppressions: {
+        Args: { p_parcel_id?: string; p_session_id?: string };
+        Returns: {
+          action: string;
+          actor_email: string;
+          created_at: string;
+          hidden_now: boolean;
+          id: string;
+          kind: string;
+          note: string;
+          org_id: string;
+          parcel_id: string;
+          reason: string;
+          session_id: string;
+          target_id: string;
+          target_table: string;
+          uri: string;
+        }[];
+      };
       ops_notifications: {
         Args: { p_limit?: number; p_status?: string };
         Returns: {
@@ -4242,6 +5083,36 @@ export type Database = {
           template: string;
         }[];
       };
+      ops_open_boundary_dispute: { Args: { p_note: string; p_parcel_id: string }; Returns: string };
+      ops_order_installments: {
+        Args: { p_order_id: string };
+        Returns: {
+          amount_kurus: number;
+          cancel_reason: string;
+          cancelled_at: string;
+          cancelled_kurus: number;
+          days_overdue: number;
+          due_on: string;
+          due_reminder_sent_at: string;
+          id: string;
+          kind: string;
+          open_kurus: number;
+          paid_at: string;
+          paid_kurus: number;
+          reminder_sent_at: string;
+          seq: number;
+          status: string;
+          vat_kurus: number;
+          visit_no: number;
+          visit_override_at: string;
+          visit_override_by: Json;
+          visit_override_note: string;
+          window_code: string;
+          window_end: string;
+          window_name: string;
+          window_start: string;
+        }[];
+      };
       ops_orders: {
         Args: {
           p_customer_user_id?: string;
@@ -4251,6 +5122,7 @@ export type Database = {
         };
         Returns: {
           activated_at: string;
+          addon_of_order_id: string;
           application_id: string;
           cancel_reason: string;
           cancelled_at: string;
@@ -4278,12 +5150,44 @@ export type Database = {
           total_kurus: number;
         }[];
       };
+      ops_orders_missing_contract_documents: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          accepted_at: string;
+          activated_at: string;
+          customer_user_id: string;
+          missing: string[];
+          order_id: string;
+          order_number: string;
+          org_id: string;
+          status: Database["public"]["Enums"]["order_status"];
+        }[];
+      };
       ops_org_members: {
         Args: { p_org_id: string };
         Returns: {
           email: string;
           role: Database["public"]["Enums"]["org_role"];
           user_id: string;
+        }[];
+      };
+      ops_overdue_installments: {
+        Args: { p_limit?: number; p_min_days?: number; p_org_id: string };
+        Returns: {
+          customer_name: string;
+          customer_user_id: string;
+          days_overdue: number;
+          due_on: string;
+          installment_id: string;
+          kind: string;
+          open_kurus: number;
+          order_id: string;
+          order_number: string;
+          order_status: string;
+          seq: number;
+          visit_allowed: boolean;
+          visit_no: number;
+          window_name: string;
         }[];
       };
       ops_owner_profiles: {
@@ -4381,6 +5285,50 @@ export type Database = {
         Args: { p_request_ids: string[]; p_session_id: string };
         Returns: number;
       };
+      ops_preview_addon_quote: {
+        Args: {
+          p_application_id?: string;
+          p_base_order_id: string;
+          p_discount_bp?: number;
+          p_new_inventory?: Json;
+          p_parcel_ids?: string[];
+          p_proposed_service_start?: string;
+        };
+        Returns: {
+          application_garden_id: string;
+          area_m2: number;
+          area_source: string;
+          basis: string;
+          billable_area_tenths: number;
+          full_year_total_kurus: number;
+          garden_name: string;
+          inventory: boolean;
+          inventory_fee_kurus: number;
+          inventory_note: string;
+          inventory_reason: string;
+          last_inventory_on: string;
+          line_base_kurus: number;
+          line_discount_kurus: number;
+          line_no: number;
+          line_subtotal_kurus: number;
+          line_total_kurus: number;
+          line_vat_kurus: number;
+          minimum_fee_kurus: number;
+          parcel_id: string;
+          periodic_visits_per_year: number;
+          price_list_id: string;
+          price_list_name: string;
+          price_list_version: number;
+          raw_visits: number;
+          remaining_windows: Json;
+          service_end: string;
+          service_start: string;
+          unit_price_kurus: number;
+          vat_rate_bp: number;
+          visit_amount_kurus: number;
+          visits: number;
+        }[];
+      };
       ops_preview_quote: {
         Args: { p_application_id: string; p_discount_bp?: number };
         Returns: {
@@ -4410,11 +5358,51 @@ export type Database = {
         Args: {
           p_amount_kurus: number;
           p_bank_reference: string;
+          p_installment_id?: string;
           p_note?: string;
           p_order_id: string;
           p_value_date: string;
         };
         Returns: string;
+      };
+      ops_record_missed_visit: {
+        Args: {
+          p_carried_to_window_start?: string;
+          p_carry_over_channel?: string;
+          p_customer_notified_channel?: string;
+          p_customer_notified_on?: string;
+          p_detail?: string;
+          p_evidence_capture_ids?: string[];
+          p_evidence_paths?: string[];
+          p_no_date_in_window?: boolean;
+          p_note?: string;
+          p_occurred_on: string;
+          p_outcome?: string;
+          p_proposed_date?: string;
+          p_reason: string;
+          p_refund_id?: string;
+          p_report_lost?: boolean;
+          p_session_id: string;
+          p_source_event_id?: string;
+        };
+        Returns: string;
+      };
+      ops_record_visit_phone_notice: {
+        Args: { p_notified_at: string; p_session_id: string };
+        Returns: string;
+      };
+      ops_record_visit_postponement: {
+        Args: { p_channel: string; p_requested_at: string; p_session_id: string };
+        Returns: string;
+      };
+      ops_record_withdrawal: {
+        Args: {
+          p_channel: string;
+          p_note?: string;
+          p_notice_received_on: string;
+          p_order_item_ids: string[];
+        };
+        Returns: string[];
       };
       ops_refunds: {
         Args: { p_limit?: number; p_org_id: string; p_payment_id?: string; p_status?: string };
@@ -4450,6 +5438,18 @@ export type Database = {
         Args: { p_application_id: string; p_note?: string; p_reason: string };
         Returns: undefined;
       };
+      ops_request_garden_removal: {
+        Args: {
+          p_access_days?: number;
+          p_effective_on: string;
+          p_note?: string;
+          p_order_item_id: string;
+          p_owner_consent_note?: string;
+          p_reason: string;
+          p_revoke_all_access?: boolean;
+        };
+        Returns: string;
+      };
       ops_request_refund: {
         Args: {
           p_amount_kurus: number;
@@ -4480,6 +5480,10 @@ export type Database = {
       };
       ops_resolve_viewer_invitation: {
         Args: { p_approve: boolean; p_invitation_id: string; p_user_id?: string };
+        Returns: undefined;
+      };
+      ops_resolve_visit_reconciliation: {
+        Args: { p_id: string; p_note?: string; p_refund_id?: string; p_resolution: string };
         Returns: undefined;
       };
       ops_retry_notification: { Args: { p_id: string }; Returns: undefined };
@@ -4513,11 +5517,51 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_save_staff_profile: {
+        Args: { p_full_name: string; p_org_id: string; p_title: string; p_user_id: string };
+        Returns: undefined;
+      };
+      ops_schedule_garden_removal: {
+        Args: {
+          p_access_days?: number;
+          p_effective_on: string;
+          p_note?: string;
+          p_removal_id: string;
+          p_revoke_all_access?: boolean;
+        };
+        Returns: undefined;
+      };
+      ops_set_kvkk_request_status: {
+        Args: { p_request_id: string; p_status: string };
+        Returns: undefined;
+      };
+      ops_set_missed_visit_outcome: {
+        Args: {
+          p_carried_to_window_start?: string;
+          p_carry_over_channel?: string;
+          p_missed_visit_id: string;
+          p_outcome: string;
+          p_refund_id?: string;
+        };
+        Returns: undefined;
+      };
       ops_set_parcel_passive: {
         Args: { p_parcel_id: string; p_passive: boolean };
         Returns: Database["public"]["Enums"]["parcel_status"];
       };
+      ops_staff: {
+        Args: { p_org_id: string };
+        Returns: {
+          email: string;
+          full_name: string;
+          roles: string[];
+          title: string;
+          updated_at: string;
+          user_id: string;
+        }[];
+      };
       ops_terminate_order: { Args: { p_note: string; p_order_id: string }; Returns: undefined };
+      ops_unhide_media: { Args: { p_id: string; p_note?: string }; Returns: string };
       ops_update_owner_profile: {
         Args: {
           p_contact_preference: string;
@@ -4552,13 +5596,85 @@ export type Database = {
           phone: string;
         }[];
       };
+      ops_visit_blocked_events: {
+        Args: { p_session_id: string };
+        Returns: {
+          detail: string;
+          event_id: string;
+          note: string;
+          photo_capture_ids: string[];
+          reason: string;
+          recorded_at: string;
+        }[];
+      };
+      ops_visit_field_notices: {
+        Args: { p_session_id: string };
+        Returns: {
+          event_id: string;
+          event_type: string;
+          payload: Json;
+          recorded_at: string;
+        }[];
+      };
+      ops_visit_notice_flags: {
+        Args: { p_org_id: string };
+        Returns: {
+          missed_count: number;
+          notice_missing: boolean;
+          postponed: boolean;
+          session_id: string;
+        }[];
+      };
+      ops_visit_reconciliation_counts: {
+        Args: { p_org_id: string };
+        Returns: {
+          open: number;
+          overdue: number;
+        }[];
+      };
+      ops_visit_reconciliations: {
+        Args: { p_org_id: string; p_status?: string };
+        Returns: {
+          customer_name: string;
+          customer_user_id: string;
+          detected_on: string;
+          due_on: string;
+          id: string;
+          order_id: string;
+          order_item_id: string;
+          order_number: string;
+          overdue: boolean;
+          parcel_id: string;
+          parcel_name: string;
+          refund_id: string;
+          resolution: string;
+          resolution_note: string;
+          resolved_at: string;
+          scope_end: string;
+          shortfall: number;
+          status: string;
+          trigger: string;
+          visit_fee_kurus: number;
+          visits_carried: number;
+          visits_entitled: number;
+          visits_refunded: number;
+          visits_used: number;
+          window_label: string;
+          windows_ahead: number;
+        }[];
+      };
+      ops_visit_records: { Args: { p_session_id: string }; Returns: Json };
       ops_void_manual_payment: {
         Args: { p_note: string; p_payment_id: string };
         Returns: undefined;
       };
+      ops_withdraw_application_garden: {
+        Args: { p_garden_id: string; p_note: string };
+        Returns: undefined;
+      };
       owner_cancel_viewer_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
       owner_invite_viewer: {
-        Args: { p_full_name: string; p_parcel_id: string; p_phone: string };
+        Args: { p_declared?: boolean; p_full_name: string; p_parcel_id: string; p_phone: string };
         Returns: string;
       };
       owner_parcel_viewers: {
@@ -4573,8 +5689,34 @@ export type Database = {
           user_id: string;
         }[];
       };
+      package_visit_windows: {
+        Args: { p_year_visits: number };
+        Returns: {
+          code: string;
+          end_day: number;
+          end_month: number;
+          name: string;
+          start_day: number;
+          start_month: number;
+        }[];
+      };
+      parcel_legal_flags: { Args: { p_parcel_id: string }; Returns: Json };
+      parcel_service_status: {
+        Args: { p_parcel_id: string };
+        Returns: {
+          access_until: string;
+          leaving_on: string;
+          removed_on: string;
+          status: string;
+        }[];
+      };
       payment_attach_token: {
-        Args: { p_expires_at: string; p_payment_id: string; p_token: string };
+        Args: {
+          p_expires_at: string;
+          p_identity_number_last4?: string;
+          p_payment_id: string;
+          p_token: string;
+        };
         Returns: undefined;
       };
       payment_attempts_to_reconcile: {
@@ -4644,8 +5786,35 @@ export type Database = {
       };
       phone_login_allowed: { Args: { p_phone: string }; Returns: boolean };
       phone_login_code_requested: { Args: { p_phone: string }; Returns: string };
-      phone_login_record_failure: { Args: { p_phone: string }; Returns: number };
+      phone_login_record_failure: { Args: { p_phone: string; p_ticket?: string }; Returns: number };
       pipeline_rescan_request: { Args: { p_session_id: string }; Returns: Json };
+      portal_acknowledge_kvkk_notice: { Args: { p_text_version: string }; Returns: number };
+      portal_closeups: {
+        Args: { p_session_ids: string[]; p_tree_id?: string };
+        Returns: {
+          captured_by: string;
+          content_hash: string;
+          id: string;
+          session_id: string;
+          tree_id: string;
+          uri: string;
+        }[];
+      };
+      portal_file_kvkk_request: { Args: { p_message: string; p_type: string }; Returns: string };
+      portal_kvkk_form_enabled: { Args: Record<PropertyKey, never>; Returns: boolean };
+      portal_notice_status: { Args: Record<PropertyKey, never>; Returns: Json };
+      portal_panorama_frames: {
+        Args: { p_session_ids: string[] };
+        Returns: {
+          full_asset_id: string;
+          full_uri: string;
+          heading_deg: number;
+          preview_asset_id: string;
+          preview_uri: string;
+          session_id: string;
+          viewpoint: Json;
+        }[];
+      };
       price_preview: {
         Args: { p_areas_m2: number[]; p_first_year?: boolean; p_package_id: string };
         Returns: {
@@ -4666,6 +5835,22 @@ export type Database = {
           vat_rate_bp: number;
           visit_amount_kurus: number;
           visits: number;
+        }[];
+      };
+      public_company_info: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          address: string;
+          complete: boolean;
+          email: string;
+          kep_address: string;
+          kvkk_email: string;
+          legal_name: string;
+          mersis_number: string;
+          phone: string;
+          site_domain: string;
+          tax_number: string;
+          tax_office: string;
         }[];
       };
       public_package_prices: {
@@ -4717,6 +5902,22 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      quote_installment_plan: {
+        Args: { p_quote_id: string };
+        Returns: {
+          amount_kurus: number;
+          due_on: string;
+          due_rule: string;
+          kind: string;
+          seq: number;
+          vat_kurus: number;
+          visit_no: number;
+          window_code: string;
+          window_end: string;
+          window_name: string;
+          window_start: string;
+        }[];
+      };
       receipt_data: { Args: { p_payment_id: string }; Returns: Json };
       record_coverage_report: { Args: { p_report: Json; p_session_id: string }; Returns: Json };
       record_tree_presence: { Args: { p_payload: Json; p_session_id: string }; Returns: Json };
@@ -4761,6 +5962,16 @@ export type Database = {
           p_parcel: Json;
         };
         Returns: string;
+      };
+      registered_legal_text_versions: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          is_current: boolean;
+          is_final: boolean;
+          kind: string;
+          sha256: string;
+          version: string;
+        }[];
       };
       request_followup: {
         Args: {
@@ -4820,6 +6031,21 @@ export type Database = {
         };
         Returns: Json;
       };
+      service_register_contract_document: {
+        Args: {
+          p_generator: string;
+          p_kind: string;
+          p_order_id: string;
+          p_sha256: string;
+          p_size_bytes: number;
+          p_storage_path: string;
+          p_text_sha256: string;
+          p_text_version: string;
+        };
+        Returns: string;
+      };
+      signup_code_grant: { Args: { p_phone: string; p_ticket: string }; Returns: string };
+      signup_code_release: { Args: { p_phone: string }; Returns: undefined };
       signup_complete: { Args: { p_code_at: string; p_user_id: string }; Returns: string };
       signup_find_account: {
         Args: { p_email: string; p_phone: string };
@@ -4831,6 +6057,10 @@ export type Database = {
           started_at: string;
           user_id: string;
         }[];
+      };
+      signup_owner_check: {
+        Args: { p_password: boolean; p_ticket_hash: string; p_user_id: string };
+        Returns: string;
       };
       signup_prepare: {
         Args: {
@@ -4844,10 +6074,42 @@ export type Database = {
         };
         Returns: undefined;
       };
+      signup_quarantine: { Args: { p_user_id: string }; Returns: undefined };
       signup_register_attempt: {
         Args: { p_email_hash: string; p_ip_hash: string; p_phone_hash: string };
         Returns: string;
       };
+      signup_review_user_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
+      signup_set_ticket: { Args: { p_ticket_hash: string; p_user_id: string }; Returns: undefined };
+      signup_sms_allowed: { Args: { p_user_id: string }; Returns: boolean };
+      signup_sms_sent: { Args: { p_user_id: string }; Returns: undefined };
+      signup_ticket_users: { Args: { p_ticket_hash: string }; Returns: string[] };
+      staff_boundary_pointers: {
+        Args: { p_parcel_id: string };
+        Returns: {
+          id: string;
+          name: string;
+          recorded_at: string;
+          role: string;
+          session_id: string;
+        }[];
+      };
+      sweep_contract_orders: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          accepted_at: string;
+          activated_at: string;
+          customer_user_id: string;
+          existing: string[];
+          missing: string[];
+          order_id: string;
+          order_number: string;
+          org_id: string;
+          service_end: string;
+          service_start: string;
+        }[];
+      };
+      visit_approver: { Args: { p_session_id: string }; Returns: Json };
       waive_coverage: {
         Args: { p_note: string; p_session_id: string };
         Returns: {
@@ -4911,7 +6173,8 @@ export type Database = {
         | "explicit_service_improvement"
         | "explicit_marketing"
         | "distance_sales"
-        | "pre_information";
+        | "pre_information"
+        | "early_performance";
       consent_source: "signup" | "portal" | "quote_acceptance" | "ops";
       corner: "ne" | "nw" | "se" | "sw";
       device_kind: "human_kit" | "robot" | "phone" | "base_station" | "other";
@@ -4919,8 +6182,30 @@ export type Database = {
       followup_kind: "closeup" | "verification" | "extra_visit";
       followup_origin: "expert" | "pipeline";
       followup_status: "open" | "planned" | "done" | "cancelled";
+      garden_removal_reason:
+        | "sold"
+        | "not_needed"
+        | "dissatisfied"
+        | "cost"
+        | "transfer"
+        | "duplicate"
+        | "other"
+        | "location_misdeclared"
+        | "owner_breach"
+        | "no_authority"
+        | "third_party_objection"
+        | "staff_safety"
+        | "payment_default"
+        | "service_withdrawn_district"
+        | "by_agreement"
+        | "period_ended"
+        | "order_terminated"
+        | "pilot_ended";
+      garden_removal_status: "requested" | "scheduled" | "completed" | "cancelled";
       graft_status: "grafted" | "ungrafted" | "unknown";
       health_class: "healthy" | "attention" | "problem" | "dead" | "absent";
+      installment_kind: "inventory" | "visit" | "single";
+      installment_status: "pending" | "paid" | "cancelled";
       irrigation_type: "irrigated" | "rainfed" | "unknown";
       measurement_source: "staff" | "algorithm" | "ai" | "expert";
       measurement_subject: "tree" | "slot" | "zone" | "parcel";
@@ -4934,7 +6219,18 @@ export type Database = {
         | "application_rejected"
         | "payment_received"
         | "refund_completed"
-        | "payment_reminder";
+        | "payment_reminder"
+        | "garden_removal_scheduled"
+        | "garden_removal_rescheduled"
+        | "garden_removal_cancelled"
+        | "garden_removal_completed"
+        | "garden_access_ending"
+        | "contract_ready"
+        | "withdrawal_received"
+        | "addon_order_closed"
+        | "viewer_invited"
+        | "visit_scheduled"
+        | "garden_transfer_reports";
       operation_kind:
         | "mowing"
         | "spraying"
@@ -5146,6 +6442,7 @@ export const Constants = {
         "explicit_marketing",
         "distance_sales",
         "pre_information",
+        "early_performance",
       ],
       consent_source: ["signup", "portal", "quote_acceptance", "ops"],
       corner: ["ne", "nw", "se", "sw"],
@@ -5154,8 +6451,31 @@ export const Constants = {
       followup_kind: ["closeup", "verification", "extra_visit"],
       followup_origin: ["expert", "pipeline"],
       followup_status: ["open", "planned", "done", "cancelled"],
+      garden_removal_reason: [
+        "sold",
+        "not_needed",
+        "dissatisfied",
+        "cost",
+        "transfer",
+        "duplicate",
+        "other",
+        "location_misdeclared",
+        "owner_breach",
+        "no_authority",
+        "third_party_objection",
+        "staff_safety",
+        "payment_default",
+        "service_withdrawn_district",
+        "by_agreement",
+        "period_ended",
+        "order_terminated",
+        "pilot_ended",
+      ],
+      garden_removal_status: ["requested", "scheduled", "completed", "cancelled"],
       graft_status: ["grafted", "ungrafted", "unknown"],
       health_class: ["healthy", "attention", "problem", "dead", "absent"],
+      installment_kind: ["inventory", "visit", "single"],
+      installment_status: ["pending", "paid", "cancelled"],
       irrigation_type: ["irrigated", "rainfed", "unknown"],
       measurement_source: ["staff", "algorithm", "ai", "expert"],
       measurement_subject: ["tree", "slot", "zone", "parcel"],
@@ -5170,6 +6490,17 @@ export const Constants = {
         "payment_received",
         "refund_completed",
         "payment_reminder",
+        "garden_removal_scheduled",
+        "garden_removal_rescheduled",
+        "garden_removal_cancelled",
+        "garden_removal_completed",
+        "garden_access_ending",
+        "contract_ready",
+        "withdrawal_received",
+        "addon_order_closed",
+        "viewer_invited",
+        "visit_scheduled",
+        "garden_transfer_reports",
       ],
       operation_kind: [
         "mowing",

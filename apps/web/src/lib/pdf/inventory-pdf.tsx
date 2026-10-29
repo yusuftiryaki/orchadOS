@@ -1,8 +1,10 @@
 import "server-only";
 import { Circle, Document, Page, Rect, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
+import { approverLine } from "@/lib/portal/approver";
 import { INVENTORY_POINT_COLORS, type InventoryReport } from "@/lib/portal/inventory-report";
-import { Bullets, Footer, Header } from "./parts";
+import { BoundaryFooter, Bullets, Footer, Header, SampleWatermark, sampleInfo } from "./parts";
+import type { PdfOptions } from "./report-pdf";
 import { pdf, registerFonts } from "./theme";
 
 // The owner's inventory report as a PDF: the same sections and texts as the
@@ -14,17 +16,30 @@ const pct = (n: number, total: number) => (total > 0 ? formatNumber((n / total) 
 const signedPct = (share: number) => `${share > 0 ? "+" : ""}%${formatNumber(share * 100, 0)}`;
 const area = (m2: number) => `${formatNumber(m2 / 1000, 1)} dönüm (${formatNumber(m2, 0)} m²)`;
 
-export async function inventoryPdf(report: InventoryReport, now = new Date()): Promise<Buffer> {
+export async function inventoryPdf(
+  report: InventoryReport,
+  now = new Date(),
+  options: PdfOptions = {},
+): Promise<Buffer> {
   registerFonts();
-  return renderToBuffer(<InventoryDocument report={report} now={now} />);
+  return renderToBuffer(<InventoryDocument report={report} now={now} demo={options.demo} />);
 }
 
-function InventoryDocument({ report, now }: { report: InventoryReport; now: Date }) {
+export function InventoryDocument({
+  report,
+  now,
+  demo = false,
+}: {
+  report: InventoryReport;
+  now: Date;
+  demo?: boolean;
+}) {
   const c = report.counts;
   const subtitle = [
     report.parcel.place,
     report.inventory?.date ? r.subtitle(formatDate(report.inventory.date)) : null,
     report.inventory?.approvedAt ? r.approvedOn(formatDate(report.inventory.approvedAt)) : null,
+    report.inventory?.approver ? approverLine(report.inventory.approver) : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -38,8 +53,14 @@ function InventoryDocument({ report, now }: { report: InventoryReport; now: Date
       ].filter((x): x is string => !!x)
     : [];
   return (
-    <Document title={`${r.title} · ${report.parcel.name}`} author="orchadOS" language="tr">
-      <Page size="A4" style={pdf.page}>
+    <Document
+      title={`${r.title} · ${report.parcel.name}`}
+      author="orchadOS"
+      language="tr"
+      {...sampleInfo(demo)}
+    >
+      <Page size="A4" style={pdf.reportPage}>
+        {demo && <SampleWatermark />}
         <Header kicker={r.title} title={report.parcel.name} subtitle={subtitle} />
         {report.warnings.includes("boundary_unapproved") && (
           <View style={pdf.notice}>
@@ -108,7 +129,6 @@ function InventoryDocument({ report, now }: { report: InventoryReport; now: Date
               ) : report.boundary.fieldSurvey ? (
                 <Text style={pdf.p}>{r.boundaryAwaiting}</Text>
               ) : null}
-              <Text style={pdf.muted}>{r.boundaryNote}</Text>
             </>
           ) : (
             <Text style={pdf.muted}>{r.noBoundary}</Text>
@@ -210,6 +230,7 @@ function InventoryDocument({ report, now }: { report: InventoryReport; now: Date
           <Text style={pdf.p}>{r.you}</Text>
         </View>
 
+        <BoundaryFooter />
         <Footer left={r.generated(formatDate(now.toISOString()))} />
       </Page>
     </Document>

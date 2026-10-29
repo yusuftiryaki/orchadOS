@@ -76,7 +76,7 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   await expect(page.getByTestId("visit-counts")).toBeVisible();
 
   // 1. Owner
-  await page.getByRole("link", { name: "+ Yeni sahip" }).click();
+  await page.getByRole("main").getByRole("link", { name: "Yeni sahip", exact: true }).click();
   await expect(page).toHaveURL("/operasyon/sahip/yeni");
   const ownerForm = page.getByTestId("owner-form");
   await ownerForm.getByLabel("Ad soyad").fill("Tarayıcı Sahibi");
@@ -91,8 +91,9 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   await expect(ownerForm.getByRole("alert").first()).toBeVisible();
   await expect(ownerForm.getByText("Gerekli.")).toBeVisible();
 
-  await ownerForm.getByLabel("Aydınlatma metni okundu, açık rıza alındı").check();
-  await ownerForm.getByLabel("Onaylanan metin sürümü").fill("kvkk-v0");
+  await ownerForm.getByLabel("Aydınlatma metni verildi (okundu teyidi)").check();
+  // T21: a registered version is chosen.
+  await ownerForm.getByLabel("Aydınlatma metni sürümü").selectOption("kvkk-v2-taslak");
   await ownerForm.getByRole("button", { name: "Sahibi kaydet" }).click();
 
   const created = page.getByTestId("owner-created");
@@ -142,7 +143,7 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   await expect(page.getByRole("heading", { name: PARCEL_NAME })).toBeVisible();
   await expect(page.getByText("Parsel kaydedildi.")).toBeVisible();
   await expect(page.getByTestId("parcel-status")).toHaveText("Kayıtlı");
-  await expect(page.getByTestId("parcel-boundary")).toHaveText("Sınır v1 · sahip beyanı");
+  await expect(page.getByTestId("parcel-boundary")).toHaveText("Sınır v1 (sahip beyanı)");
   await expect(page.getByTestId("parcel-private")).toContainText("+905320000099");
   await expect(page.getByTestId("parcel-access")).toContainText("Tarayıcı Sahibi");
   await expect(page.getByTestId("parcel-access")).toContainText("Sahip");
@@ -154,7 +155,7 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   expect(boundary).toEqual([{ version: 1, source: "owner_declared" }]);
 
   // 3. Inventory visit
-  await page.getByRole("link", { name: "Bu parsel için ziyaret planla" }).click();
+  await page.getByRole("link", { name: "Ziyaret planla", exact: true }).click();
   const visitForm = page.getByTestId("visit-form");
   await expect(visitForm.getByLabel("Parsel")).toHaveValue(parcelId);
   // A scan visit shows its season.
@@ -167,7 +168,7 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   await visitForm.getByLabel("Tarih").fill(dayIn(10));
   await visitForm.getByLabel("Sorumlu saha personeli").selectOption({ label: "field@example.com" });
   await visitForm.getByLabel("Not").fill("Sahip sınırı gösterecek");
-  await visitForm.getByRole("button", { name: "Ziyareti planla" }).click();
+  await visitForm.getByRole("button", { name: "Ziyaret planla" }).click();
 
   await expect(page).toHaveURL(/\/operasyon\/ziyaret\/[0-9a-f-]{36}\?bilgi=planned$/);
   await expect(page.getByTestId("visit-status")).toHaveText("Planlandı");
@@ -189,6 +190,12 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   // 4. The owner signs in with the one-time password and sees only their parcel.
   await page.getByRole("button", { name: "Çıkış" }).click();
   await login(page, OWNER_EMAIL, oneTimePassword, "/portal");
+  // T15 (H30): an owner opened by ops first records the KVKK notice ("okudum",
+  // "Kaydet"); the seed org has the co-owner flow on.
+  const gate = page.getByTestId("notice-gate");
+  await gate.getByLabel("Aydınlatma metnini okudum.").check();
+  await gate.getByRole("button", { name: "Kaydet" }).click();
+  await expect(page.getByTestId("notice-gate")).toHaveCount(0);
   await expect(page.getByText(PARCEL_NAME)).toBeVisible();
   await expect(page.getByText("Örnek Bahçe 1")).toHaveCount(0);
 });

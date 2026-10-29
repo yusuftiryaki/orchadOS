@@ -167,7 +167,9 @@ begin
   get diagnostics n = row_count;
   table_name := 'public.parcel'; deleted := n; return next;
   delete from storage.objects
-    where bucket_id = 'media' and (storage.foldername(name))[4] = any(p_parcel_ids::text[]);
+    where (bucket_id in ('media', 'demo-media') and (storage.foldername(name))[4] = any(p_parcel_ids::text[]))
+       -- Missed-visit evidence (T07): <org>/<parcel>/<file>.
+       or (bucket_id = 'visit-evidence' and (storage.foldername(name))[2] = any(p_parcel_ids::text[]));
   get diagnostics n = row_count;
   table_name := 'storage.objects'; deleted := n; return next;
   set local session_replication_role = origin;
@@ -175,7 +177,8 @@ end;
 $$;
 
 -- A test organisation: its parcels (as purge_parcels), then devices, rigs,
--- memberships, owner profiles, its notifications and media, the org row.
+-- memberships, owner profiles, demo registry rows (demo_org, demo_parcel,
+-- demo_session), its notifications and media (media and demo-media), the org row.
 -- Auth users are not deleted (the tests remove theirs with the admin API).
 create or replace function testing.purge_org(p_org_id uuid)
 returns table (table_name text, deleted bigint)
@@ -198,7 +201,8 @@ begin
   get diagnostics n = row_count;
   table_name := 'public.org'; deleted := n; return next;
   delete from storage.objects
-    where bucket_id = 'media' and (storage.foldername(name))[2] = p_org_id::text;
+    where (bucket_id in ('media', 'demo-media') and (storage.foldername(name))[2] = p_org_id::text)
+       or (bucket_id in ('contract-documents', 'visit-evidence') and (storage.foldername(name))[1] = p_org_id::text);
   get diagnostics n = row_count;
   table_name := 'storage.objects'; deleted := n; return next;
   set local session_replication_role = origin;
@@ -247,6 +251,7 @@ begin
     union all select id from public.service_order where customer_user_id = any(p_user_ids)
     union all select id from public.payment where customer_user_id = any(p_user_ids)
     union all select id from public.refund where customer_user_id = any(p_user_ids)
+    union all select id from public.garden_removal where customer_user_id = any(p_user_ids)
     union all select id from private.owner_profile where user_id = any(p_user_ids));
   delete from private.application_garden_detail where application_garden_id = any(v_entities);
   get diagnostics n = row_count;
@@ -257,6 +262,12 @@ begin
   delete from private.payment_event where payment_id = any(v_entities) or refund_id = any(v_entities);
   get diagnostics n = row_count;
   if n > 0 then table_name := 'private.payment_event'; deleted := n; return next; end if;
+  -- Contract PDFs of their orders (T04; the immutability trigger is off here).
+  delete from storage.objects
+    where bucket_id = 'contract-documents' and (storage.foldername(name))[2] = any(
+      select id::text from public.service_order where customer_user_id = any(p_user_ids));
+  get diagnostics n = row_count;
+  if n > 0 then table_name := 'storage.objects'; deleted := n; return next; end if;
   delete from public.audit_event where actor_user_id = any(p_user_ids) or entity_id = any(v_entities);
   get diagnostics n = row_count;
   if n > 0 then table_name := 'public.audit_event'; deleted := n; return next; end if;
@@ -325,10 +336,208 @@ as $$
   order by 1, a.attnum;
 $$;
 
+-- Garden removals (IP14): the daily housekeeping on demand, and an order's
+-- service period set directly (a test needs "the middle of a period" or
+-- "the last add-on day" without waiting).
+create or replace function testing.run_garden_removal_housekeeping()
+returns jsonb
+language sql
+security definer
+set search_path = ''
+as $$
+  select private.garden_removal_housekeeping();
+$$;
+
+create or replace function testing.set_order_period(p_order_id uuid, p_start date, p_end date)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.service_order set service_start = p_start, service_end = p_end where id = p_order_id;
+  if not found then
+    raise exception 'not_found' using errcode = 'P0002';
+  end if;
+end;
+$$;
+
+-- Legal-text registry (T21): a test makes a version current (a "launch") and
+-- puts the draft back afterwards; migrations do this on real projects.
+create or replace function testing.register_legal_text(p_kind text, p_version text, p_sha256 text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.register_legal_text(p_kind, p_version, p_sha256);
+end;
+$$;
+
+-- T15: records the portal KVKK notice acknowledgement of a test user (every
+-- org where it is due), so that tests opening the portal as an ops-created
+-- owner are not stopped by the first-login notice screen.
+create or replace function testing.acknowledge_kvkk_notice(p_user_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  n integer;
+begin
+  insert into private.consent_record (org_id, subject_id, user_id, kind, granted, text_version, source)
+  select o, p_user_id, p_user_id, 'kvkk_notice', true, (private.legal_text_current('kvkk_notice')).version, 'portal'
+  from private.notice_due_orgs(p_user_id) o;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+-- Sign-up owner proof (review of PR #93, round 2): a pending sign-up as it was
+-- written before tickets (ticket_hash null), a phone confirmed earlier than
+-- the code at hand, and the review flag a refused completion leaves.
+create or replace function testing.legacy_signup(p_user_id uuid)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  update private.customer_signup set ticket_hash = null where user_id = p_user_id;
+$$;
+
+-- Also moves the code send times back, so Auth's one code a minute per
+-- account (auth.sms.max_frequency) does not hold the next step of a test.
+create or replace function testing.age_phone_confirmation(p_user_id uuid, p_minutes integer)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  update auth.users
+  set phone_confirmed_at = phone_confirmed_at - make_interval(mins => p_minutes),
+      confirmation_sent_at = confirmation_sent_at - make_interval(mins => p_minutes),
+      recovery_sent_at = recovery_sent_at - make_interval(mins => p_minutes),
+      phone_change_sent_at = phone_change_sent_at - make_interval(mins => p_minutes)
+  where id = p_user_id;
+  -- customer-signup send_code's one-a-minute limit (signup_code_grant).
+  update private.customer_signup
+  set code_granted_at = code_granted_at - make_interval(mins => p_minutes)
+  where user_id = p_user_id;
+$$;
+
+create or replace function testing.signup_review(p_user_id uuid)
+returns text
+language sql
+security definer
+set search_path = ''
+as $$
+  select review_reason from private.customer_signup where user_id = p_user_id;
+$$;
+
+-- Wave 3 (T04 sweep): a ticket for given orders (the token is returned, its
+-- hash stored, as private.dispatch_contract_document_sweep does), the orders
+-- the dispatcher would pick, the dispatcher itself, an order's acceptance
+-- moved back in time, and the removal of every ticket.
+create or replace function testing.issue_contract_sweep_ticket(p_order_ids uuid[])
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_token text := encode(extensions.gen_random_bytes(32), 'hex');
+begin
+  insert into private.contract_sweep_ticket (token_sha256, order_ids, expires_at)
+  values (encode(extensions.digest(v_token, 'sha256'), 'hex'), p_order_ids, now() + interval '10 minutes');
+  return v_token;
+end;
+$$;
+
+create or replace function testing.contract_sweep_candidates()
+returns uuid[]
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select private.contract_sweep_candidates(20);
+$$;
+
+create or replace function testing.dispatch_contract_document_sweep()
+returns bigint
+language sql
+security definer
+set search_path = ''
+as $$
+  select private.dispatch_contract_document_sweep();
+$$;
+
+create or replace function testing.age_order_acceptance(p_order_id uuid, p_minutes integer)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  set local session_replication_role = replica;
+  update public.service_order set created_at = created_at - make_interval(mins => p_minutes) where id = p_order_id;
+  set local session_replication_role = origin;
+end;
+$$;
+
+create or replace function testing.purge_contract_sweep_tickets()
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  n bigint;
+begin
+  delete from private.contract_sweep_ticket where true;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+-- Auth hardening tests: takes the self sign-up flag off an account (or puts
+-- it back), so a test can open an e-mail code session on it as a project
+-- without customer_account_guard (insufficient privilege) would.
+create or replace function testing.set_self_signup(p_user_id uuid, p_self boolean)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  update auth.users
+  set raw_app_meta_data = case when p_self then coalesce(raw_app_meta_data, '{}') || '{"signup": "self"}'
+                               else coalesce(raw_app_meta_data, '{}') - 'signup' end
+  where id = p_user_id;
+$$;
+
+create or replace function testing.run_signup_housekeeping()
+returns jsonb
+language sql
+security definer
+set search_path = ''
+as $$
+  select private.signup_housekeeping();
+$$;
+
 revoke all on all functions in schema testing from public;
 grant execute on function
   testing.purge_sessions(uuid[]), testing.purge_parcels(uuid[]), testing.purge_org(uuid),
   testing.purge_viewer_invitations(text[]), testing.purge_billing_users(uuid[]),
   testing.purge_signup_attempts(), testing.age_signups(uuid[], integer),
-  testing.selectable_columns(text, text[])
+  testing.selectable_columns(text, text[]), testing.run_garden_removal_housekeeping(),
+  testing.set_order_period(uuid, date, date), testing.register_legal_text(text, text, text),
+  testing.acknowledge_kvkk_notice(uuid),
+  testing.legacy_signup(uuid), testing.age_phone_confirmation(uuid, integer),
+  testing.signup_review(uuid), testing.set_self_signup(uuid, boolean),
+  testing.run_signup_housekeeping(),
+  testing.issue_contract_sweep_ticket(uuid[]), testing.contract_sweep_candidates(),
+  testing.dispatch_contract_document_sweep(), testing.age_order_acceptance(uuid, integer),
+  testing.purge_contract_sweep_tickets()
   to service_role;

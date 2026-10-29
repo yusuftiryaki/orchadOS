@@ -56,7 +56,9 @@ export function purgeInventoryFixture() {
 
 export async function createInventoryFixture(admin: SupabaseClient<Database>) {
   await purgeInventoryFixture();
-  const users = (await admin.auth.admin.listUsers()).data.users;
+  // Demo visitors (one per demo start) can push the seeded users off the
+  // first page of 50.
+  const users = (await admin.auth.admin.listUsers({ perPage: 1000 })).data.users;
   const userId = (email: string) => users.find((u) => u.email === email)!.id;
 
   check(

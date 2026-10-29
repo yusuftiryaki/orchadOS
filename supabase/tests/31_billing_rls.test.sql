@@ -108,7 +108,11 @@ select is(
                 ('application_garden', 'verified_by'), ('application_garden', 'verification_note'),
                 ('quote', 'issued_by'), ('quote', 'decided_by'), ('service_order', 'termination_note'),
                 ('payment', 'provider_token'), ('payment', 'return_origin'), ('payment', 'recorded_by'),
-                ('payment', 'manual_note'), ('refund', 'note'), ('refund', 'requested_by')) x(t, c)
+                ('payment', 'manual_note'), ('refund', 'note'), ('refund', 'requested_by'),
+                -- IP14 (docs/bahce-yonetimi.md §9.5)
+                ('garden_removal', 'ops_note'), ('garden_removal', 'requested_by'),
+                ('garden_removal', 'decided_by'), ('garden_removal', 'blocked_reason'),
+                ('garden_removal', 'revoke_all_access')) x(t, c)
    where has_column_privilege('authenticated', 'public.' || t, c, 'SELECT')),
   null, 'no internal column is granted');
 
@@ -131,9 +135,12 @@ select is(
      'ops_application_garden_detail(uuid)', 'ops_verify_application_garden(uuid,numeric,jsonb,text)',
      'ops_reject_application(uuid,text,text)', 'ops_find_user_id(uuid,text,text)',
      'ops_create_owner_profile(uuid,uuid,text,text,boolean,text,text,timestamptz,text)',
-     'ops_update_owner_profile(uuid,text,text,boolean,text,text,timestamptz,text)'
+     'ops_update_owner_profile(uuid,text,text,boolean,text,text,timestamptz,text)',
+     -- IP14 (docs/bahce-yonetimi.md §9.6); the full list is in 47_garden_security.
+     'my_service_period()', 'my_gardens()', 'customer_request_garden_removal(uuid,text,text,text,uuid)',
+     'ops_issue_addon_quote(uuid,uuid,uuid[],date,integer,integer,text,text,jsonb)'
    ]) f where has_function_privilege('anon', 'public.' || f, 'EXECUTE')),
-  null, 'anon executes none of the IP12 functions of A1');
+  null, 'anon executes none of the IP12 functions of A1 (nor the IP14 ones)');
 select is(
   (select array_agg(f order by f) from unnest(array[
      'signup_register_attempt(text,text,text)', 'signup_find_account(text,text)',
@@ -207,7 +214,7 @@ select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 select is(pg_temp.n($$ select count(*) from public.service_application $$), 3::bigint, 'ops sees the org''s applications');
 select is(pg_temp.n($$ select count(*) from public.price_list $$)
           + pg_temp.n($$ select count(*) from public.service_package $$)
-          + pg_temp.n($$ select count(*) from public.org_billing_setting $$), 5::bigint,
+          + pg_temp.n($$ select count(*) from public.org_billing_setting $$), 6::bigint,
   'and its price lists, packages and settings');
 select throws_ok($$ select ops_note from public.service_application $$, '42501', null,
   'ops reads internal columns only through functions');
@@ -243,7 +250,7 @@ select is(public.ops_find_user_id('b0000000-0000-4000-8000-000000000001', null, 
 -- Co-owner approval: the owner invites the victim's phone; ops looks the account up
 -- (as the operations screen does through invite-user) and finds nothing to link.
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
-select lives_ok($$ select public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Kurban', '+905559991002') $$,
+select lives_ok($$ select public.owner_invite_viewer('c0000000-0000-4000-8000-000000000001', 'Kurban', '+905559991002', true) $$,
   'the owner invites a co-owner by phone');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 select is(
@@ -377,8 +384,8 @@ insert into public.quote (id, org_id, customer_user_id, application_id, number, 
   base_kurus, discount_kurus, subtotal_kurus, vat_kurus, total_kurus, inputs, valid_until)
 values ('f3100000-0000-4000-8000-000000000005', 'b0000000-0000-4000-8000-000000000001',
   'a3100000-0000-4000-8000-000000000001', 'f3100000-0000-4000-8000-000000000001', 'T-2026-990001',
-  '91200000-0000-4000-8000-000000000101', 1, '91200000-0000-4000-8000-000000000002', 'ekonomik', 'Ekonomik', 3,
-  true, true, 2000, 450000, 0, 450000, 90000, 540000, '{}', current_date + 30);
+  '91200000-0000-4000-8000-000000000101', 1, '91200000-0000-4000-8000-000000000002', 'temel', 'Temel', 2,
+  true, true, 2000, 1160000, 0, 1160000, 232000, 1392000, '{}', current_date + 30);
 set local role authenticated;
 select is(pg_temp.error_of($$ select public.ops_reject_application('f3100000-0000-4000-8000-000000000001', 'bogus') $$),
   '22023 invalid_input / reason', 'a rejection needs a known reason');
@@ -434,7 +441,7 @@ select is(pg_temp.error_of($$ select public.ops_save_package('b0000000-0000-4000
 insert into ids values ('list', public.ops_create_price_list_draft('b0000000-0000-4000-8000-000000000001',
   '91200000-0000-4000-8000-000000000101'));
 select is(pg_temp.n(format($$ select count(*) from public.price_list_item where price_list_id = %L $$,
-  (select id from ids where name = 'list'))), 2::bigint, 'a draft copies the items');
+  (select id from ids where name = 'list'))), 3::bigint, 'a draft copies the items');
 select is(pg_temp.error_of(format($$ select public.ops_publish_price_list(%L) $$, (select id from ids where name = 'list'))),
   'P0001 valid_from_in_past', 'a copied draft needs a new validity date');
 select lives_ok(format($$ select public.ops_save_price_list_draft(%L, current_date + 1, 2000, null, %L) $$,

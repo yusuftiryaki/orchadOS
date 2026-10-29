@@ -45,7 +45,7 @@ test("expert reviews and publishes a visit", async ({ page }) => {
   const row = page.locator(`[data-session-id="${run.session}"]`);
   await expect(row).toContainText("Uzman testi bahçesi");
   await expect(row).toContainText("İşlendi");
-  await row.getByRole("button", { name: "Aç" }).click();
+  await row.getByRole("button", { name: "İncele" }).click();
   await expect(page).toHaveURL(`/uzman/ziyaret/${run.session}`);
   await expect(page.getByTestId("visit-status")).toHaveText("İncelemede");
 
@@ -66,7 +66,7 @@ test("expert reviews and publishes a visit", async ({ page }) => {
 
   // S1-2: AI says problem; the expert corrects it to "dead".
   const correction = page.getByTestId("correction-form");
-  await correction.getByLabel("Kuru (4)").check();
+  await correction.getByRole("radio", { name: "Kuru", exact: true }).check();
   await correction.getByLabel("Kuru dal").selectOption("3");
   await correction.getByLabel("Not", { exact: true }).fill("Taçta canlı sürgün yok.");
   await correction.getByRole("button", { name: "Düzeltmeyi kaydet" }).click();
@@ -74,7 +74,7 @@ test("expert reviews and publishes a visit", async ({ page }) => {
   await expect(page.getByTestId("review-progress")).toHaveText("3 ağaçtan 2 tanesi incelendi");
 
   // Publishing is refused while S1-3 has no decision.
-  await page.getByRole("link", { name: "Özet ve imza →" }).click();
+  await page.getByRole("link", { name: "Özet ve imza" }).click();
   await expect(page.getByTestId("unreviewed")).toContainText("S1-3");
   await expect(page.getByTestId("class-changes")).toContainText("S1-2: Sağlıklı → Kuru");
   const publish = page.getByTestId("publish-form");
@@ -90,7 +90,7 @@ test("expert reviews and publishes a visit", async ({ page }) => {
   await expect(page.getByTestId("review-progress")).toHaveText("3 ağaçtan 3 tanesi incelendi");
 
   // Sign and publish.
-  await page.getByRole("link", { name: "Özet ve imza →" }).click();
+  await page.getByRole("link", { name: "Özet ve imza" }).click();
   await expect(page.getByTestId("unreviewed")).toContainText("Bütün aktif ağaçlar incelendi.");
   await publish.getByLabel("Raporu inceledim; kendi adıma imzalıyorum.").check();
   await publish.getByRole("button", { name: "İmzala ve yayımla" }).click();

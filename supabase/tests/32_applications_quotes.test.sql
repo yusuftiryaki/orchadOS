@@ -4,14 +4,15 @@
 -- renewal quotes, expiry by housekeeping, rejection message, a zero total.
 -- Seed: ops a0..05, customer a0..06 (owner and billing profile, consents),
 -- application 9120..0301 (submitted) with garden 9120..0401 (15 000 m², not
--- verified), packages standart 9120..0001 (4 visits) and ekonomik 9120..0002,
--- price list v1 (standart 12 500 / min 500 000, ekonomik 13 000 / min 450 000,
--- VAT 2000 bp). The functions are called as postgres with the JWT claims of the
+-- verified), packages temel 9120..0002 (2 visits), standart 9120..0001 (4) and
+-- kapsamli 9120..0003 (6), price list v1 (unit / minimum / inventory: temel
+-- 20 800 / 560 000 / 600 000, standart 18 000 / 1 120 000 / 600 000, kapsamli
+-- 16 800 / 1 600 000 / 600 000; VAT 2000 bp). The functions are called as postgres with the JWT claims of the
 -- user (security definer functions read auth.uid()); grants are in
 -- 35_billing_security.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(67);
+select plan(68);
 
 select testing.reset_to_seed();
 
@@ -32,7 +33,7 @@ $$;
 create function pg_temp.detail() returns jsonb language sql immutable
 as $$ select '{"authorization_basis": "title_holder", "entry_permission": true}'::jsonb $$;
 create function pg_temp.consents() returns jsonb language sql immutable
-as $$ select '{"distance_sales": "mesafeli-v1-taslak", "pre_information": "onbilgi-v1-taslak"}'::jsonb $$;
+as $$ select '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}'::jsonb $$;
 -- A submitted application of the customer with one verified garden.
 create function pg_temp.verified_application(p_area numeric) returns uuid language plpgsql
 as $$
@@ -56,33 +57,39 @@ create temporary table ids (name text primary key, id uuid) on commit drop;
 
 select is(
   (select line_total_kurus from public.price_preview('91200000-0000-4000-8000-000000000001', array[20000])),
-  1200000::bigint, '20 dönüm, standart: 1 200 000 kuruş with VAT');
+  2448000::bigint, '20 dönüm, standart, first year: 2 448 000 kuruş with VAT');
 select results_eq(
   $$ select billable_area_tenths, visit_amount_kurus, line_base_kurus, line_vat_kurus, price_list_version
      from public.price_preview('91200000-0000-4000-8000-000000000001', array[20000]) $$,
-  $$ values (200, 1000000::bigint, 1000000::bigint, 200000::bigint, 1) $$,
-  '20 dönüm: 200 tenths, 4 × 200 × 12 500 / 10, VAT 20 %');
+  $$ values (200, 1440000::bigint, 2040000::bigint, 408000::bigint, 1) $$,
+  '20 dönüm: 200 tenths, 4 × 200 × 18 000 / 10, inventory 600 000 (first year), VAT 20 %');
 select results_eq(
   $$ select visit_amount_kurus, line_base_kurus, line_total_kurus
      from public.price_preview('91200000-0000-4000-8000-000000000001', array[1000]) $$,
-  $$ values (50000::bigint, 500000::bigint, 600000::bigint) $$,
+  $$ values (72000::bigint, 1720000::bigint, 2064000::bigint) $$,
   'the minimum fee applies below it');
+select results_eq(
+  $$ select p.code, l.line_total_kurus
+     from public.service_package p cross join lateral public.price_preview(p.id, array[20000], false) l
+     where p.org_id = 'b0000000-0000-4000-8000-000000000001' order by p.sort_order $$,
+  $$ values ('temel'::text, 998400::bigint), ('standart', 1728000), ('kapsamli', 2419200) $$,
+  'launch list (docs/fiyatlandirma.md): 20 dönüm, after the first year, with VAT');
 select is(
   (select billable_area_tenths from public.price_preview('91200000-0000-4000-8000-000000000001', array[15001])),
   151, 'billable tenths are rounded up');
 select is(
   (select visits from public.price_preview('91200000-0000-4000-8000-000000000002', array[20000]))::integer,
-  3, 'the package''s visits');
+  2, 'the package''s visits');
 select results_eq(
   $$ select line_no, area_m2 from public.price_preview('91200000-0000-4000-8000-000000000001', array[1000, 20000]) $$,
   $$ values (1, 1000.00::numeric), (2, 20000.00::numeric) $$,
   'one line per area, in order');
--- 201 tenths: base 1 005 000, discount 1 bp = 100.5 → 101 (half up).
+-- 201 tenths: base 1 447 200 + 600 000, discount 1 bp = 204.72 → 205; VAT 409 399 (half up).
 select results_eq(
   $$ select line_discount_kurus, line_subtotal_kurus, line_vat_kurus, line_total_kurus
      from private.price_lines('b0000000-0000-4000-8000-000000000001', '91200000-0000-4000-8000-000000000001',
        array[20100], true, 1) $$,
-  $$ values (101::bigint, 1004899::bigint, 200980::bigint, 1205879::bigint) $$,
+  $$ values (205::bigint, 2046995::bigint, 409399::bigint, 2456394::bigint) $$,
   'discount and VAT round half up');
 select is(
   pg_temp.error_of($$ select * from private.price_lines('b0000000-0000-4000-8000-000000000001',
@@ -105,7 +112,8 @@ select is(
 select results_eq(
   $$ select code, price_list_version, unit_price_kurus, minimum_fee_kurus, vat_rate_bp
      from public.public_package_prices() $$,
-  $$ values ('standart'::text, 1, 12500::bigint, 500000::bigint, 2000), ('ekonomik', 1, 13000, 450000, 2000) $$,
+  $$ values ('temel'::text, 1, 20800::bigint, 560000::bigint, 2000), ('standart', 1, 18000, 1120000, 2000),
+    ('kapsamli', 1, 16800, 1600000, 2000) $$,
   'public prices: active packages with an item of the list in force');
 
 -- Ops preview and issue ------------------------------------------------------------
@@ -114,15 +122,15 @@ select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 select results_eq(
   $$ select application_garden_id, area_source, area_m2, line_total_kurus
      from public.ops_preview_quote('91200000-0000-4000-8000-000000000301') $$,
-  $$ values ('91200000-0000-4000-8000-000000000401'::uuid, 'estimated'::text, 15000.00::numeric, 900000::bigint) $$,
+  $$ values ('91200000-0000-4000-8000-000000000401'::uuid, 'estimated'::text, 15000.00::numeric, 2064000::bigint) $$,
   'preview of an unverified garden uses the declared area');
 select is(
   pg_temp.error_of($$ select public.ops_issue_quote('91200000-0000-4000-8000-000000000301') $$),
   'P0001 garden_not_verified', 'a quote needs verified gardens');
-select public.ops_verify_application_garden('91200000-0000-4000-8000-000000000401', 14000);
+select public.ops_verify_application_garden('91200000-0000-4000-8000-000000000401', 18000);
 select is(
   (select area_source || ':' || line_total_kurus from public.ops_preview_quote('91200000-0000-4000-8000-000000000301')),
-  'verified:840000', 'preview of a verified garden');
+  'verified:2275200', 'preview of a verified garden');
 select is(
   pg_temp.error_of($$ select public.ops_issue_quote('91200000-0000-4000-8000-000000000301', p_discount_bp => 500) $$),
   '22023 invalid_input / discount_note', 'a discount needs a note');
@@ -140,14 +148,14 @@ select results_eq(
   $$ select status::text, total_kurus, first_year, price_list_version, package_code, inputs ->> 'formula',
             inputs -> 'areas' -> 0 ->> 'source', valid_until - (now() at time zone 'Europe/Istanbul')::date
      from public.quote where id = (select id from ids where name = 'q1') $$,
-  $$ values ('issued'::text, 840000::bigint, true, 1, 'standart'::text, 'pricing-v1'::text, 'verified'::text, 30) $$,
+  $$ values ('issued'::text, 2275200::bigint, true, 1, 'standart'::text, 'pricing-v1'::text, 'verified'::text, 30) $$,
   'the quote freezes the verified area, list and package; valid 30 days');
 select ok((select number ~ '^T-[0-9]{4}-[0-9]{6}$' from public.quote where id = (select id from ids where name = 'q1')),
   'quote number T-YYYY-NNNNNN');
 select results_eq(
   $$ select application_garden_id, area_m2, line_total_kurus from public.quote_item
      where quote_id = (select id from ids where name = 'q1') $$,
-  $$ values ('91200000-0000-4000-8000-000000000401'::uuid, 14000.00::numeric, 840000::bigint) $$,
+  $$ values ('91200000-0000-4000-8000-000000000401'::uuid, 18000.00::numeric, 2275200::bigint) $$,
   'one line per garden');
 select is((select status::text from public.service_application where id = '91200000-0000-4000-8000-000000000301'),
   'quoted', 'submitted → quoted');
@@ -167,7 +175,7 @@ select is((select count(*)::integer from public.audit_event
   1, 'superseding is audited');
 select results_eq(
   $$ select status::text, discount_kurus, total_kurus from public.quote where id = (select id from ids where name = 'q2') $$,
-  $$ values ('issued'::text, 70000::bigint, 756000::bigint) $$, 'the discount is in the new quote');
+  $$ values ('issued'::text, 189600::bigint, 2047680::bigint) $$, 'the discount is in the new quote');
 select is((select status::text from public.service_application where id = '91200000-0000-4000-8000-000000000301'),
   'quoted', 'quoted → quoted');
 
@@ -179,11 +187,11 @@ select is(
   'P0002 not_found', 'only the quote''s customer accepts it');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 select is(
-  pg_temp.error_of(format($$ select public.customer_accept_quote(%L, '{"pre_information": "onbilgi-v1-taslak"}') $$,
+  pg_temp.error_of(format($$ select public.customer_accept_quote(%L, '{"pre_information": "onbilgi-v5-taslak"}') $$,
     (select id from ids where name = 'q2'))),
   '22023 consent_required / distance_sales', 'the distance sales text is required');
 select is(
-  pg_temp.error_of(format($$ select public.customer_accept_quote(%L, '{"distance_sales": "mesafeli-v1-taslak"}') $$,
+  pg_temp.error_of(format($$ select public.customer_accept_quote(%L, '{"distance_sales": "mesafeli-v5-taslak"}') $$,
     (select id from ids where name = 'q2'))),
   '22023 consent_required / pre_information', 'the pre-information text is required');
 select is(
@@ -192,8 +200,8 @@ select is(
 
 update public.org_billing_setting set identity_number_required = true where org_id = 'b0000000-0000-4000-8000-000000000001';
 select is(
-  pg_temp.error_of(format('select public.customer_accept_quote(%L, pg_temp.consents())', (select id from ids where name = 'q2'))),
-  'P0001 billing_profile_incomplete', 'a TCKN is needed while the org requires it');
+  pg_temp.error_of(format('select public.customer_accept_quote(%L, pg_temp.consents())', (select id from ids where name = 'q1'))),
+  'P0001 quote_not_open', 'T13: no TCKN in the profile is needed (it is asked at payment); a superseded quote still cannot be accepted');
 update public.org_billing_setting set identity_number_required = false where org_id = 'b0000000-0000-4000-8000-000000000001';
 
 -- A newer record without the acknowledgement (as a backfill could write).
@@ -225,7 +233,7 @@ select results_eq(
   $$ select status::text, total_kurus, paid_kurus, quote_id, payment_due_at = now() + interval '14 days',
             number ~ '^S-[0-9]{4}-[0-9]{6}$'
      from public.service_order where id = (select id from ids where name = 'o1') $$,
-  $$ select 'awaiting_payment'::text, 756000::bigint, 0::bigint, id, true, true from ids where name = 'q2' $$,
+  $$ select 'awaiting_payment'::text, 2047680::bigint, 0::bigint, id, true, true from ids where name = 'q2' $$,
   'the order awaits payment for the quote total, due in 14 days');
 select results_eq(
   $$ select oi.line_no::integer, oi.amount_kurus, oi.quote_item_id from public.service_order_item oi
@@ -241,8 +249,8 @@ select results_eq(
   $$ select kind::text, text_version, source::text from private.consent_record
      where order_id = (select id from ids where name = 'o1') and quote_id = (select id from ids where name = 'q2')
      order by kind $$,
-  $$ values ('distance_sales'::text, 'mesafeli-v1-taslak'::text, 'quote_acceptance'::text),
-            ('pre_information', 'onbilgi-v1-taslak', 'quote_acceptance') $$,
+  $$ values ('distance_sales'::text, 'mesafeli-v5-taslak'::text, 'quote_acceptance'::text),
+            ('pre_information', 'onbilgi-v5-taslak', 'quote_acceptance') $$,
   'both texts are recorded with the quote and the order');
 select is(
   (select count(*)::integer from public.audit_event
@@ -258,9 +266,9 @@ select is(
 select results_eq(
   format('select iban, reference, outstanding_kurus from public.customer_payment_instructions(%L)',
     (select id from ids where name = 'o1')),
-  $$ select 'TR000000000000000000000001'::text, number, 756000::bigint from public.service_order
+  $$ select 'TR000000000000000000000001'::text, number, 648000::bigint from public.service_order
      where id = (select id from ids where name = 'o1') $$,
-  'IBAN, the order number as reference and the outstanding amount');
+  'IBAN, the order number as reference and the open amount of the first installment (inventory, 10 % off, VAT)');
 
 -- Decline -------------------------------------------------------------------------
 
@@ -353,7 +361,7 @@ select results_eq(
   $$ select q.renewal_of_order_id, q.application_id, q.first_year, q.proposed_service_start, q.total_kurus,
             q.inputs -> 'areas' -> 0 ->> 'source'
      from public.quote q where q.id = (select id from ids where name = 'q7') $$,
-  $$ select o.id, null::uuid, false, o.service_end + 1, 1200000::bigint, 'estimated'::text
+  $$ select o.id, null::uuid, false, o.service_end + 1, 1728000::bigint, 'estimated'::text
      from public.service_order o where o.id = (select id from ids where name = 'o2') $$,
   'a renewal quote starts the day after the old service ends');
 select is((select parcel_id from public.quote_item where quote_id = (select id from ids where name = 'q7')),

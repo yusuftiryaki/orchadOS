@@ -5,11 +5,15 @@
 - Dokümanlar (`docs/`) Türkçe. Kod, tanımlayıcılar, commit mesajları ve kod yorumları İngilizce.
 
 ## Önce oku
-- `docs/plan.md`: iş paketleri (İP0–İP12), kilometre taşları, kesme listesi. Hangi İP üzerinde çalışıldığını buradan bul; ilerlemeyi burada güncelle.
+- `docs/plan.md`: iş paketleri (İP0–İP14), kilometre taşları, kesme listesi. Hangi İP üzerinde çalışıldığını buradan bul; ilerlemeyi burada güncelle.
 - `docs/MVP.md`: ürün tanımı ve modüller.
 - `docs/veri-modeli.md`: **veri modelinin kaynağı**. Şema değişiklikleri önce burada tartışılır.
 - `docs/metodoloji.md`: değerlendirme kuralları (ölçekler, genel sınıf, bulgu türleri); `docs/kullanim-kilavuzu.md`: rol rol uçtan uca akış.
 - `docs/musteri-yonetimi.md`: müşteri edinme ve yönetimi (İP12): self-servis kayıt, başvuru, teklif, ödeme, back office; faturalama tablolarının, fonksiyonlarının ve hata kodlarının sözleşmesi.
+- `docs/fiyatlandirma.md`: lansman fiyat listesi (Temel, Standart, Kapsamlı) ve gerekçesi: pazar, bahçe ekonomisi, maliyet modeli, revizyon takvimi. Formül `docs/musteri-yonetimi.md` §6.6'da.
+- `docs/bahce-yonetimi.md`: üyelik boyunca bahçe ekleme ve çıkarma (İP14): tek üyelik dönemi, ek sipariş ve orantılı fiyat (`pricing-v2`), bahçe bazında çıkarma, iade (`removal-v1`), salt okunur erişim süresi, `garden_changes_enabled` anahtarı.
+- `docs/demo-turu.md`: demo turu (İP13): ayrı demo projesi, geçici demo hesabı, yazma ve hesap kilitleri, sentetik demo verisi ve yükleyicisi, `demo-data` iş akışı.
+- `docs/hukuk/kararlar.md`: hukuki kararlar (H01–H34), yayın şartları ve takip işleri (T01–T26). Hukuk metinleri `docs/hukuk/`'tadır; sitedeki kopyaları `apps/web/src/lib/i18n/messages/legal.ts` (taslakla eşitliği testle denetlenir).
 - `docs/arayuzler.md`: **bileşenler arası sözleşmelerin kaynağı**: oturum klasörü, `events.csv`, iki `session.json`, QR saat kodu, zaman tanımı. Bir biçim değişirse önce burası güncellenir.
 
 ## Yapı
@@ -26,7 +30,9 @@
 - **Kişisel veri:** Sahip kimliği ve telefonu ayrı şemada tutulur; LLM'e asla gönderilmez (`docs/teknik-mimari.md`, KVKK bölümü).
 - **Medya değiştirilemez:** Dosyalar içerik hash'iyle adreslenir; mevcut bir medya kaydı güncellenmez, yenisi eklenir.
 - **Ölçümler sürümlüdür:** Her ölçüm ve ürün, onu üreten yöntem ya da hat sürümünü taşır. Yeniden işleme eski sonuçları silmez.
+- **Veriler saklama süresi içinde silinmez:** Medya, ölçüm ve raporlar sözleşme, erişim ve saklama süresi içinde silinmez; süre dolunca silinir ya da anonim hale getirilir (KVKK md. 4/2-d, md. 7; süreler `docs/hukuk/kvkk-aydinlatma-metni.md` §7 ve `docs/hukuk/saklama-imha-politikasi.md`, karar `docs/hukuk/kararlar.md` H25).
 - Gizli bilgiler (`.env`, API anahtarları) repoya girmez.
+- **Migration'lar:** Yeni tablo ekleyen migration `select private.attach_demo_guard('<tablo>')` çağırır; kullanıcıya erişim ya da kimlik veren tablo ayrıca `private.attach_demo_account_guard(...)` çağırır (docs/demo-turu.md §6.1–6.2). Servis rolüyle yazan yeni Edge yolları demo claim'ini reddeder. Yeni migration'ın zaman damgası `supabase/migrations/`'taki en yenisinden (şu an `20261104101100`) **sonra** gelir: `supabase migration new` bugünün tarihini verir ve gelecek tarihli mevcut migration'lardan önce sıralanabilir; o zaman dosya adı elle ileri alınır. CI (`scripts/check-migration-order.sh`) daha eski damgalı yeni migration'ı reddeder.
 
 ## Komutlar
 İş paketleri ilerledikçe buraya eklenecek (her bileşenin build ve test komutu).
@@ -41,6 +47,7 @@ Kökte bir kez `pnpm install` (Supabase komut satırı aracı; sürümü `packag
 | `pnpm db:reset` | Veritabanını sıfırdan kurar: `supabase/migrations/` + `supabase/seed.sql` |
 | `pnpm db:test` | pgTAP testleri (`supabase/tests/`) |
 | `pnpm db:demo` | `db:reset`'ten sonra iki örnek tarama ziyareti yükler (`supabase/demo/scans.sql`): biri yayımlanmış, biri uzman incelemesinde. Görüntü dosyaları yok. Testler buna dayanmaz |
+| `pnpm db:demo-tour` | Demo turu veri kümesini (ayrı demo org'u, iki parsel, sentetik panoramalar, kesitler ve yakın planlar) derler, yükler, doğrular ve açar (`demo load --target local --verify --enable`). `--profile test --reset-local`: küçük görüntüler, önce demo org'unu temizler (CI, e2e). Ayrıntı: `supabase/demo/tour/README.md` |
 | `pnpm db:status` | Yerel adresler ve anahtarlar |
 
 Test temizliği `testing` şemasındaki fonksiyonlarla yapılır (`supabase/testing/`; seed'den sonra yüklenir, test ve pilot projelerine gitmez). Bu şemadan önceki eski bir yerel veritabanında `pnpm db:start` PostgREST hatasıyla takılırsa: `pnpm exec supabase stop --no-backup && pnpm db:start`.
@@ -66,6 +73,7 @@ BLE protokolü, dosya biçimleri ve bağlantı tablosu: `firmware/gnss-logger/RE
 | `uv run orchados-pipeline run <oturum> --trees-from-db` | Kesitler için ağaç konumlarını veritabanındaki envanterden alır |
 | `uv run orchados-pipeline synth <klasör> --trees-from-db --rows 1-2` | Sentetik sahneyi bir parselin gerçek ağaç konumlarına uydurur |
 | `uv run orchados-pipeline boundary <oturum> [--dry-run]` | Sınır köşelerini (oturum olayları) PPK'lı yörüngeden konumlayıp yeni sınır sürümü yazar; `run --boundary` ile de çalışır. Sentetik sınır yürüyüşü: `synth --boundary-walk` |
+| `uv run orchados-pipeline demo build\|load\|enable\|disable\|verify` | Demo turu verisi: sentetik medya derlemesi (`--profile full\|test`, önbellek `.demo-build/`), yükleme (`--target local\|remote`, `--reset-local`, `--demo-only`, `--dry-run`, `--verify`, `--enable`), açma, kapama, doğrulama. Barındırılan projeler: `demo-data` iş akışı |
 | `uv run orchados-pipeline upload <çalıştırma> --session-id <uuid>` | Çıktıları Supabase'e yükler (ops kullanıcısıyla; ortam değişkenleri README'de). Entegrasyon ve uçtan uca zincir testi (`tests/test_chain_supabase.py`: tarama → yükleme → uzman → yayın → sahip) yerel Supabase ister |
 
 Aşamalar, girdi/çıktı biçimleri ve QR saat kodu biçimi: `services/pipeline/README.md`.

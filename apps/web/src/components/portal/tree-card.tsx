@@ -1,9 +1,7 @@
-import Link from "next/link";
-import { categoryLabel, formatDate, formatDateTime, formatNumber, t } from "@/lib/i18n";
-import { MARKER_COLORS } from "@/lib/map/tree-style";
+import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
 import type { PhotoItem, TreeCard, TreeMetricHistory } from "@/lib/portal/data";
 import { formatPosition } from "@/lib/portal/evidence";
-import { SEVERITY_COLORS } from "./colors";
+import { SEVERITY_TONES } from "./colors";
 import { HashCheck } from "./hash-check";
 import { ApprovalBadge, findingKindLabel } from "./labels";
 import {
@@ -13,7 +11,14 @@ import {
 } from "@/app/portal/parsel/[parcelId]/actions";
 import type { QuestionThread } from "@/lib/portal/questions";
 import { AskQuestionForm, QuestionNotice, QuestionThreads } from "./question-threads";
-import styles from "./portal.module.css";
+import { Badge, ClassBadge, ClassDot } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
+import { Facts } from "@/components/ui/facts";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { Table } from "@/components/ui/table";
+import layout from "./page.module.css";
+import styles from "./parcel.module.css";
 
 // Tree card: identity, latest class and who gave it, class and measurement
 // history per visit, photos per visit and direction, findings.
@@ -24,6 +29,10 @@ export interface QuestionState {
   threads: QuestionThread[];
   sent: boolean;
   error: string | null;
+  // A demo visitor: threads without forms.
+  demo?: boolean;
+  // IP14: a removed garden's reports are read-only (no forms, no notice).
+  readOnly?: boolean;
 }
 
 export function TreeCardView({ card, questions }: { card: TreeCard; questions: QuestionState }) {
@@ -32,186 +41,185 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
   const base = `/portal/parsel/${card.parcel.id}`;
   const state = latest?.overallClass ?? "unassessed";
   return (
-    <main className={styles.page} data-testid="tree-card">
-      <p className={styles.noPrint}>
-        <Link href={base}>
-          ← {c.back} ({card.parcel.name})
-        </Link>
-      </p>
-      <div className={styles.titleRow}>
-        <h1>{tree.code}</h1>
-        <div className={`${styles.actions} ${styles.noPrint}`}>
-          <Link className="button button-secondary" href={`${base}/gezi?agac=${tree.id}`}>
+    <main className={layout.page} data-testid="tree-card">
+      <PageHeader
+        back={{ href: base, label: card.parcel.name }}
+        title={tree.code}
+        actions={
+          <ButtonLink
+            variant="secondary"
+            href={`${base}/gezi?agac=${tree.id}`}
+            className={styles.noPrint}
+          >
             {t.portal.panel.openTour}
-          </Link>
-        </div>
+          </ButtonLink>
+        }
+      />
+
+      <div className={styles.treeTop}>
+        <Panel title={c.latest} id="durum">
+          {latest ? (
+            <>
+              <div className={styles.classLine}>
+                <span className={styles.className} data-testid="tree-class">
+                  <ClassDot value={state} />
+                  {t.portal.classes[state]}
+                </span>
+                <ApprovalBadge approval={latest.approval} />
+              </div>
+              <p className="muted">
+                {t.portal.classHelp[state]} {formatDate(latest.visit.time)}
+              </p>
+            </>
+          ) : (
+            <p className="muted">{c.noAssessment}</p>
+          )}
+          {card.classHistory.length > 1 && (
+            <ol className={styles.timeline} aria-label={c.timeline} data-testid="class-timeline">
+              {[...card.classHistory].reverse().map((entry) => {
+                const s = entry.overallClass ?? "unassessed";
+                return (
+                  <li key={entry.visit.id}>
+                    <span
+                      className={styles.timelineDot}
+                      style={{ "--dot": `var(--class-${s})` } as React.CSSProperties}
+                      aria-hidden
+                    />
+                    <span>{formatDate(entry.visit.time)}</span>
+                    <span className="muted">{t.portal.classes[s]}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </Panel>
+
+        <Panel title={c.identity} id="kimlik">
+          <Facts
+            rows={[
+              [c.code, tree.code],
+              [c.slotKind, v.slotKind[tree.slotKind]],
+              [t.portal.panel.sex, v.sex[tree.sex]],
+              [t.portal.panel.graft, v.graft[tree.graft]],
+              [t.portal.panel.ageClass, v.ageClass[tree.ageClass]],
+              [t.portal.panel.cultivar, tree.cultivar ?? t.tree.unknown],
+              [c.inventoryDate, tree.firstSeenAt ? formatDate(tree.firstSeenAt) : t.tree.none],
+              ...(tree.status === "lost"
+                ? ([[c.lostAt, tree.lostAt ? formatDate(tree.lostAt) : v.status.lost]] as [
+                    string,
+                    string,
+                  ][])
+                : []),
+            ]}
+          />
+        </Panel>
       </div>
 
-      <section className={styles.section} aria-labelledby="durum-baslik">
-        <h2 id="durum-baslik">{c.latest}</h2>
-        {latest ? (
-          <>
-            <div className={styles.classBadge} data-testid="tree-class">
-              <span className={styles.swatch} style={{ background: MARKER_COLORS[state] }} />
-              {t.portal.classes[state]}
-            </div>
-            <p className="muted">
-              {t.portal.classHelp[state]} {formatDate(latest.visit.time)}
-            </p>
-            <div>
-              <ApprovalBadge approval={latest.approval} />
-            </div>
-          </>
-        ) : (
-          <p className="muted">{c.noAssessment}</p>
-        )}
-      </section>
-
-      <section className={styles.section} aria-labelledby="kimlik-baslik">
-        <h2 id="kimlik-baslik">{c.identity}</h2>
-        <dl className={styles.facts}>
-          <dt>{c.code}</dt>
-          <dd>{tree.code}</dd>
-          <dt>{c.slotKind}</dt>
-          <dd>{v.slotKind[tree.slotKind]}</dd>
-          <dt>{t.portal.panel.sex}</dt>
-          <dd>{v.sex[tree.sex]}</dd>
-          <dt>{t.portal.panel.graft}</dt>
-          <dd>{v.graft[tree.graft]}</dd>
-          <dt>{t.portal.panel.ageClass}</dt>
-          <dd>{v.ageClass[tree.ageClass]}</dd>
-          <dt>{t.portal.panel.cultivar}</dt>
-          <dd>{tree.cultivar ?? t.tree.unknown}</dd>
-          <dt>{c.inventoryDate}</dt>
-          <dd>{tree.firstSeenAt ? formatDate(tree.firstSeenAt) : t.tree.none}</dd>
-          {tree.status === "lost" && (
-            <>
-              <dt>{c.lostAt}</dt>
-              <dd>{tree.lostAt ? formatDate(tree.lostAt) : v.status.lost}</dd>
-            </>
-          )}
-        </dl>
-      </section>
-
-      {card.classHistory.length > 0 && (
-        <section className={styles.section} aria-labelledby="gecmis-baslik">
-          <h2 id="gecmis-baslik">{c.classHistory}</h2>
-          <ol className={styles.timeline} aria-label={c.timeline} data-testid="class-timeline">
-            {[...card.classHistory].reverse().map((entry) => {
-              const s = entry.overallClass ?? "unassessed";
-              return (
-                <li key={entry.visit.id} title={t.portal.classes[s]}>
-                  <span className={styles.timelineDot} style={{ background: MARKER_COLORS[s] }} />
-                  <span className={styles.small}>{formatDate(entry.visit.time)}</span>
-                  <span className={styles.small}>{t.portal.classes[s]}</span>
-                </li>
-              );
-            })}
-          </ol>
-          <div className={styles.tableWrap}>
-            <table className={styles.table} data-testid="class-history">
-              <tbody>
-                {card.classHistory.map((entry) => {
-                  const s = entry.overallClass ?? "unassessed";
-                  return (
-                    <tr key={entry.visit.id}>
-                      <td>{formatDate(entry.visit.time)}</td>
-                      <td>
-                        <span className={styles.tileLabel}>
-                          <span
-                            className={styles.swatch}
-                            style={{ background: MARKER_COLORS[s] }}
-                          />
-                          {t.portal.classes[s]}
-                        </span>
-                      </td>
-                      <td>{t.portal.approval[entry.approval]}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      <section className={styles.section} aria-labelledby="olcum-baslik">
-        <h2 id="olcum-baslik">{c.measurements}</h2>
-        {card.metrics.length === 0 ? (
-          <p className="muted">{c.noMeasurements}</p>
-        ) : (
-          <div className={styles.tableWrap}>
-            <table className={styles.table} data-testid="measurement-history">
-              <thead>
-                <tr>
-                  <th>{c.metric}</th>
-                  {card.visits.map((visit) => (
-                    <th key={visit.id}>{formatDate(visit.time)}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {card.metrics.map((m) => (
-                  <tr key={m.code}>
-                    <th scope="row">{m.name}</th>
-                    {m.values.map((value, i) => (
-                      <td key={card.visits[i].id}>
-                        <MetricCell value={value} />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <Photos card={card} />
-
-      <section className={styles.section} aria-labelledby="bulgu-baslik">
+      <section className={layout.section} aria-labelledby="bulgu-baslik">
         <h2 id="bulgu-baslik">{c.findings}</h2>
         {card.findings.length === 0 ? (
           <p className="muted">{c.noFindings}</p>
         ) : (
           <ul className={styles.findings} data-testid="tree-findings">
             {card.findings.map((f) => (
-              <li
-                key={f.id}
-                className={styles.finding}
-                style={{ "--severity": SEVERITY_COLORS[f.severity] } as React.CSSProperties}
-              >
-                <div className={styles.findingHead}>
-                  <strong style={{ color: SEVERITY_COLORS[f.severity] }}>
-                    {t.portal.severity[f.severity]}
-                  </strong>
-                  <span>{findingKindLabel(f.kind)}</span>
-                  <span className="muted">{f.visitTime && formatDate(f.visitTime)}</span>
+              <li key={f.id}>
+                <div className={styles.treeFinding}>
+                  <div className={styles.classLine}>
+                    <Badge tone={SEVERITY_TONES[f.severity]}>{t.portal.severity[f.severity]}</Badge>
+                    <strong>{findingKindLabel(f.kind)}</strong>
+                    {f.visitTime && <span className="muted">{formatDate(f.visitTime)}</span>}
+                  </div>
+                  <p>{f.description}</p>
+                  {f.recommendation && (
+                    <p className={styles.recommendation}>
+                      {t.portal.report.recommendation}: {f.recommendation}
+                    </p>
+                  )}
                 </div>
-                <span>{f.description}</span>
-                {f.recommendation && (
-                  <span>
-                    <strong>{t.portal.report.recommendation}: </strong>
-                    {f.recommendation}
-                  </span>
-                )}
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      <section id="sorular" className={styles.section} aria-labelledby="soru-baslik">
+      <Photos card={card} />
+
+      {card.classHistory.length > 0 && (
+        <section className={layout.section} aria-labelledby="gecmis-baslik">
+          <h2 id="gecmis-baslik">{c.classHistory}</h2>
+          <Table data-testid="class-history">
+            <thead>
+              <tr>
+                <th>{c.historyColumns.date}</th>
+                <th>{c.historyColumns.class}</th>
+                <th>{c.historyColumns.approval}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {card.classHistory.map((entry) => {
+                const s = entry.overallClass ?? "unassessed";
+                return (
+                  <tr key={entry.visit.id}>
+                    <td className={layout.nowrap}>{formatDate(entry.visit.time)}</td>
+                    <td>
+                      <ClassBadge value={s}>{t.portal.classes[s]}</ClassBadge>
+                    </td>
+                    <td>
+                      <ApprovalBadge approval={entry.approval} marked={false} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        </section>
+      )}
+
+      <section className={layout.section} aria-labelledby="olcum-baslik">
+        <h2 id="olcum-baslik">{c.measurements}</h2>
+        {card.metrics.length === 0 ? (
+          <p className="muted">{c.noMeasurements}</p>
+        ) : (
+          <Table data-testid="measurement-history">
+            <thead>
+              <tr>
+                <th>{c.metric}</th>
+                {card.visits.map((visit) => (
+                  <th key={visit.id}>{formatDate(visit.time)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {card.metrics.map((m) => (
+                <tr key={m.code}>
+                  <th scope="row">{m.name}</th>
+                  {m.values.map((value, i) => (
+                    <td key={card.visits[i].id}>
+                      <MetricCell value={value} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </section>
+
+      <section id="sorular" className={layout.section} aria-labelledby="soru-baslik">
         <h2 id="soru-baslik">{t.portal.questions.title}</h2>
-        <p className="muted">{t.portal.questions.treeHint}</p>
+        <p className={layout.sectionLead}>{t.portal.questions.treeHint}</p>
         <QuestionNotice sent={questions.sent} error={questions.error} />
         <QuestionThreads
           threads={questions.threads}
           returnPath={`${base}/agac/${tree.id}`}
           replyAction={replyQuestionAction}
           editAction={editQuestionAction}
+          demo={questions.demo}
+          readOnly={questions.readOnly}
         />
         <AskQuestionForm
+          demo={questions.demo}
+          readOnly={questions.readOnly}
           parcelId={card.parcel.id}
           treeId={tree.id}
           returnPath={`${base}/agac/${tree.id}`}
@@ -273,20 +281,20 @@ function MetricCell({ value }: { value: TreeMetricHistory["values"][number] }) {
 function Photos({ card }: { card: TreeCard }) {
   const visits = card.visits.filter((v) => card.photos[v.id]?.length);
   return (
-    <section className={styles.section} aria-labelledby="foto-baslik">
+    <section className={layout.section} aria-labelledby="foto-baslik">
       <h2 id="foto-baslik">{c.photos}</h2>
       {visits.length === 0 ? (
         <p className="muted">{c.noPhotos}</p>
       ) : (
         <>
-          <p className={`muted ${styles.small}`}>{c.photosHint}</p>
+          <p className={layout.sectionLead}>{c.photosHint}</p>
           <div className={styles.photoGrid} data-testid="photo-history">
             {visits.map((visit) => {
               const items = card.photos[visit.id];
               const closeUps = items.filter((p) => p.direction === null);
               return (
                 <div key={visit.id} className={styles.photoRow} data-visit-id={visit.id}>
-                  <strong>{formatDate(visit.time)}</strong>
+                  <h3>{formatDate(visit.time)}</h3>
                   <div
                     className={styles.photoCells}
                     style={
@@ -334,8 +342,8 @@ function Photo({ photo, label }: { photo: PhotoItem | null; label: string }) {
         </div>
       )}
       <figcaption>
-        {label}
-        {photo && <span className={styles.hash}> · {c.hash(photo.contentHash.slice(0, 8))}</span>}
+        <span>{label}</span>
+        {photo && <span className={styles.hash}>{c.hash(photo.contentHash.slice(0, 8))}</span>}
         {photo && <Evidence photo={photo} />}
       </figcaption>
     </figure>
@@ -349,7 +357,7 @@ function Evidence({ photo }: { photo: PhotoItem }) {
       <summary>{e.title}</summary>
       <dl className={styles.facts}>
         <dt>{e.takenAt}</dt>
-        <dd>{photo.takenAt ? formatDateTime(photo.takenAt) : e.unknown}</dd>
+        <dd>{photo.visitTime ? formatDate(photo.visitTime) : e.unknown}</dd>
         <dt>{e.position}</dt>
         <dd>{formatPosition(photo.position) ?? e.unknown}</dd>
         <dt>{e.takenBy}</dt>

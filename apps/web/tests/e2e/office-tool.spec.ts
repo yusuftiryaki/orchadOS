@@ -6,6 +6,7 @@ import { bearingDeg, LocalFrame, wrap180 } from "../../src/lib/office/local-fram
 import { purgeParcels } from "../local-db";
 import { resolveSupabaseEnv } from "../local-supabase";
 import { E2E_DATA_DIR } from "./global-setup";
+import { collectErrors, COUNT_GL, glContexts, viewerTextures } from "./panorama-helpers";
 
 // Office triangulation tool with the pipeline's synthetic session: click each
 // of the 12 trunks in two panoramas, code the rows, export the verification
@@ -225,19 +226,82 @@ test.describe("office triangulation tool", () => {
       await triangulateAndSave(page, source);
     });
   }
+
+  test("viewers: a missing image shows a message and stepping on recovers; keyboard, names, no leaks", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await page.addInitScript(COUNT_GL);
+    const errors = collectErrors(page);
+    await login(page, "ops@example.com", `/ofis/parsel/${PARCEL}`);
+    await page.getByRole("link", { name: "Üçgenleme aracını aç" }).click();
+    await page
+      .getByTestId("office-chooser")
+      .getByRole("button", { name: "Üçgenleme aracını aç" })
+      .click();
+    const map = page.getByTestId("office-map");
+    await expect(map).toHaveAttribute("data-map-ready", "true", { timeout: 30_000 });
+
+    // Every panorama image 404: each viewer says so instead of a black box.
+    await page.route("**/ofis/panorama/**", (route) => route.fulfill({ status: 404, body: "" }));
+    await clickMap(map, truth[0].lat, truth[0].lon);
+    const box = page.getByTestId("viewer-1");
+    const viewer = box.getByRole("region");
+    await expect(box.getByTestId("viewer-error")).toHaveText("Panorama görüntüsü açılamadı.");
+    await expect(viewer).toHaveAttribute("data-loaded", "false");
+    await expect(page.getByTestId("viewer-2").getByTestId("viewer-error")).toBeVisible();
+
+    // Images back: the next panorama opens in the same viewer.
+    await page.unroute("**/ofis/panorama/**");
+    await box.getByRole("button", { name: "Sonraki" }).click();
+    await expect(viewer).toHaveAttribute("data-loaded", "true", { timeout: 30_000 });
+    await expect(box.getByTestId("viewer-error")).toHaveCount(0);
+
+    // Accessible names, and the arrow keys turn the focused viewer only.
+    await expect(viewer).toHaveAccessibleName("Panorama 1");
+    for (const name of ["Yakınlaştır", "Tam ekran"]) {
+      await expect(viewer.getByRole("button", { name, exact: true })).toBeAttached();
+    }
+    type ViewerEl = HTMLElement & { __viewer: import("@photo-sphere-viewer/core").Viewer };
+    const yaw = () => viewer.evaluate((el) => (el as ViewerEl).__viewer.getPosition().yaw);
+    const before = await yaw();
+    await viewer.focus();
+    await page.keyboard.down("ArrowLeft");
+    await page.waitForTimeout(400);
+    await page.keyboard.up("ArrowLeft");
+    await expect.poll(yaw).not.toBeCloseTo(before, 2);
+
+    // Stepping through 25 panoramas keeps one viewer and its textures.
+    const start = await glContexts(page);
+    const textures = await viewerTextures(viewer);
+    const seen = new Set<string>();
+    for (let i = 0; i < 25; i += 1) {
+      const previous = await viewer.getAttribute("data-panorama");
+      await box.getByRole("button", { name: "Sonraki" }).click();
+      await expect(viewer).not.toHaveAttribute("data-panorama", previous!);
+      await expect(viewer).toHaveAttribute("data-loaded", "true", { timeout: 30_000 });
+      seen.add((await viewer.getAttribute("data-panorama"))!);
+    }
+    expect(seen.size).toBeGreaterThan(5);
+    expect((await glContexts(page)).created).toBe(start.created);
+    expect(await viewerTextures(viewer)).toBeLessThanOrEqual(textures + 1);
+
+    // Only the 404s asked for above.
+    expect(errors.filter((e) => !/status of 404/.test(e))).toEqual([]);
+  });
 });
 
 async function triangulateAndSave(page: Page, source: SourceKind) {
   test.setTimeout(240_000);
   await login(page, "ops@example.com", `/ofis/parsel/${PARCEL}`);
-  await page.getByRole("link", { name: "Envanter üçgenleme aracı" }).click();
+  await page.getByRole("link", { name: "Üçgenleme aracını aç" }).click();
 
   const chooser = page.getByTestId("office-chooser");
   await expect(chooser.getByLabel("Envanter oturumu")).toHaveValue(SESSION);
   // The storage set belongs to the session and is offered first.
   await expect(chooser.getByLabel("Panorama seti")).toHaveValue(SET_IDS.storage);
   await chooser.getByLabel("Panorama seti").selectOption(SET_IDS[source]);
-  await chooser.getByRole("button", { name: "Aracı aç" }).click();
+  await chooser.getByRole("button", { name: "Üçgenleme aracını aç" }).click();
 
   const map = page.getByTestId("office-map");
   await expect(map).toHaveAttribute("data-map-ready", "true", { timeout: 30_000 });
@@ -313,9 +377,11 @@ async function triangulateAndSave(page: Page, source: SourceKind) {
 
   // Save after confirming the preview.
   await page.getByRole("tab", { name: "Kaydet" }).click();
+  await expect(page.getByTestId("save-state")).toHaveText("Taslak: kaydedilmedi");
   await page.getByLabel(/Önizlemeyi kontrol ettim/).check();
   await page.getByRole("button", { name: "Veritabanına kaydet" }).click();
   await expect(page.getByTestId("save-result")).toContainText("12 yer ve 12 ağaç kaydedildi.");
+  await expect(page.getByTestId("save-state")).toHaveText("Veritabanına kaydedildi");
 
   const { data: slots } = await admin
     .from("slot")

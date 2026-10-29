@@ -1,0 +1,20 @@
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.range {
+  margin-right: auto;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.pagination [aria-disabled="true"] {
+  opacity: 0.45;
+  pointer-events: none;
+}

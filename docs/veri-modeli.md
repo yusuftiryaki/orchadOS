@@ -191,12 +191,13 @@ Kurallar:
 
 | Tablo | Şema | Ne tutar |
 | --- | --- | --- |
-| `org_billing_setting` | public | Kayda açık mı (en fazla bir org), satıcı bilgileri, IBAN, süreler, `identity_number_required`, `allow_fake_payments` (yalnız SQL ile) |
+| `org_billing_setting` | public | Kayda açık mı (en fazla bir org), satıcı bilgileri, IBAN, süreler, `identity_number_required`, `allow_fake_payments` ve `legal_gate_enforced` (üretim kapısı, T21; ikisi de yalnız SQL ile) |
 | `service_package`, `price_list`, `price_list_item` | public | Paket (yıllık periyodik ziyaret sayısı) ve sürümlü fiyat listesi (dönüm başına birim fiyat, minimum ücret, envanter ücreti, KDV). Yayımlanan sürüm değişmez |
 | `service_application`, `application_garden` | public | Başvuru (`B-YYYY-NNNNNN`) ve bahçeleri: konum, kaba sınır, beyan ve doğrulanmış alan. Parsel, ödeme tamamlanınca açılır |
 | `quote`, `quote_item` | public | Teklif: girdiler ve tutarlar dondurulur (`quote_guard`, satırlar ekleme-yalnız) |
 | `service_order`, `service_order_item` | public | Sipariş, hizmet dönemi, ödenen ve iade edilen tutar |
-| `payment`, `payment_item`, `refund` | public | Kart denemesi ya da havale, makbuz numarası, kalem bazında iade |
+| `order_installment`, `order_installment_item` | public | Ödeme planı (`installments-v1`): envanter ödemesi ve ziyaret ödemeleri, son günleri, ödenen ve iptal edilen tutar; satır payları. Silinmez, tutarı değişmez ([musteri-yonetimi.md](musteri-yonetimi.md) §5.6, §6.14) |
+| `payment`, `payment_item`, `refund` | public | Kart denemesi ya da havale, makbuz numarası, kalem bazında iade. Her ödeme tam olarak bir plan ödemesini öder (`order_installment_id`) |
 | `audit_event` | public | Denetim kaydı: aktör ve rolü açıkça verilir, ayrıntıda kişisel veri yok. Ekleme-yalnız |
 | `billing_profile`, `payment_billing_snapshot` | private | Fatura bilgisi; TCKN yalnızca gerekirse, anlık görüntüde maskeli |
 | `consent_record` | private | KVKK aydınlatma ve açık rızalar, metin sürümüyle. Ekleme-yalnız; hesap silinse de `subject_id` ile kalır |
@@ -225,7 +226,8 @@ Hepsi `security definer`, `search_path = ''`; hatalar kısa koddur, `detail` yal
 | Müşteri | `customer_accept_quote` (fatura profili, son KVKK aydınlatma kaydı, mesafeli satış ve ön bilgilendirme onayı; toplam 0 ise sipariş hemen aktif), `customer_decline_quote`, `customer_cancel_order`, `customer_payment_instructions`, `receipt_data` | müşteri (makbuz: müşteri ya da ops) |
 | Sipariş | `ops_cancel_order`, `ops_extend_payment_due`, `ops_terminate_order` | ops |
 | Ödeme | `payment_begin`, `payment_attach_token`, `payment_by_token`, `payment_record_event`, `payment_finalize`, `payment_attempts_to_reconcile` (Edge sözleşmesi `supabase/functions/_shared/payments/db.ts`) | service_role |
-| Havale ve inceleme | `ops_record_manual_payment`, `ops_void_manual_payment`, `ops_resolve_payment_review` | ops |
+| Havale ve inceleme | `ops_record_manual_payment` (bir plan ödemesine ya da açık ödemelere sırayla), `ops_void_manual_payment`, `ops_resolve_payment_review` | ops |
+| Ödeme planı | `quote_installment_plan` (teklif sayfası), `package_visit_windows` (herkese açık); `ops_order_installments`, `ops_overdue_installments`, `ops_allow_unpaid_visit` | müşteri ya da ops; ops |
 | İade | `ops_request_refund`, `ops_can_process_refund`, `ops_complete_manual_refund`, `ops_cancel_refund`, `ops_resolve_refund`; `payment_refund_claim`, `payment_refund_report` | ops; service_role |
 | Back office | `ops_billing_summary`, `ops_customers`, `ops_billing_internal` (iç sütunlar), `ops_orders`, `ops_payments`, `ops_payment_events`, `ops_refunds`, `ops_audit_events` | ops |
 | Yardımcı ve zamanlanmış | `private.activate_order`, `private.create_customer_parcel`, `private.open_system_refund`, `private.enqueue_billing_notification`, `private.billing_housekeeping` (her gece), `private.dispatch_payment_reconcile` (10 dakikada bir) | — |
@@ -236,6 +238,131 @@ Hepsi `security definer`, `search_path = ''`; hatalar kısa koddur, `detail` yal
 - **Canlı deneme:** `pending_review`, ya da süresi dolmamış token'lı `initiated`/`expired` kart denemesi. Token'ı henüz eklenmemiş `initiated` deneme 15 dakika canlı sayılır. Canlı deneme varken sipariş iptal edilmez ve havale kaydedilmez (`payment_in_progress`).
 - **İade tavanı:** `tutar + Σ(requested, processing, succeeded)` ödemenin (`coalesce(provider_amount_kurus, amount_kurus)`) ve kalemin tutarını aşamaz; başarısız iadenin yeniden denenmesinde yeniden denetlenir. `retryable = false` iade yeniden gönderilmez; ops `processing` iadeyi ancak sağlayıcı çağrısından 15 dakika sonra elle sonuçlandırır. `refunded_kurus` alanları yalnızca `succeeded`'a geçişte, bir kez artar.
 - **Bildirimler:** `notification` artık hesap mesajlarını da taşır (`ref_id` belge kimliği, `vars.ref` belge numarası; parsel ve ziyaret boş). Şablonlar `quote_ready`, `application_rejected`, `payment_received`, `refund_completed`, `payment_reminder`; alıcı başına, şablon ve belge başına bir mesaj (`notification_ref_once`).
+
+## Demo turu (İP13)
+
+Olası müşteriye kısa ömürlü, salt okunur bir demo hesabı açılır; hesap tek bir demo org'unun etkin parsellerine `owner` erişimi alır. Tasarım, sözleşmeler ve hata kodları [demo-turu.md](demo-turu.md) §5–§7'de. Migration'lar `20261101120000`–`120200`. Herkese açık demo yalnızca kendi projesinde çalışır; nesneler her projeye gider ve demo org'u yoksa etkisizdir.
+
+| Tablo | Şema | Ne tutar |
+| --- | --- | --- |
+| `demo_org` | private | Demo org'u ve turun sınırları: süre (`session_ttl`, 15 dk–24 sa), IP başına saatlik ve günlük başlatma, aynı anda etkin oturum, günlük toplam, oturum başı görüntü eşleme ve PDF, ziyaretçi e-posta alan adı, tur hedefleri (`tour`), veri sürümü, `loaded_at`. En fazla biri `enabled`; etkin satırın `loaded_at` değeri dolu |
+| `demo_parcel` | private | Demo org'unun ziyaretçiye açılan parselleri, sırası ve etkinliği. Parsel aynı org'a ait olmalı (tetikleyici) |
+| `demo_session` | private | Ziyaretçi hesabı başına bir satır: bitiş, kapanış, IP özeti, sayaçlar (`sign_calls`, `pdf_renders`) |
+| `demo_attempt` | private | Başlatma sayacı: IP kovası özeti, sonuç (`admitted`, `rate_limited`, `capacity`, `closed`) ve dakika başına tek satır. Sınırlar yalnızca kabul edilenleri sayar; 48 saat tutulur |
+
+Dördüne de `anon` ve `authenticated` için yetki yoktur; RLS açık, politika yok. Ziyaretçi yalnızca `demo_info`, `demo_end`, `demo_hit` fonksiyonlarını çağırır; Edge `demo_admit`, `demo_start` ve temizlik fonksiyonlarını servis rolüyle çağırır.
+
+**Yazma kilidi:**
+- `zz_demo_read_only`, `public` ve `private` şemalarındaki her temel tabloda bir `BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ... FOR EACH STATEMENT` tetikleyicisidir. İstekte `app_metadata.demo` claim'i varsa (`authz.is_demo_user()`) `demo_read_only` (42501) yükseltir. Security definer fonksiyonların içindeki yazmaları da yakalar.
+- İstisnalar eklenti tabloları ve `private.demo_session`'dır (`demo_end`, `demo_hit`).
+- Ayrıca kısıtlayıcı politikalar (`parcel_access`, `question`, `question_reply`, `session` okuma, `storage.objects`) ve `approve_boundary`, `owner_invite_viewer`, `owner_cancel_viewer_invitation` başında `assert_not_demo` vardır.
+- **Zorunluluk:** Tablo ekleyen her migration `select private.attach_demo_guard('<tablo>');` çağırır. pgTAP `43_demo_write_guard` eksik tabloyu bulur.
+- **Migration sırası:** `db push --include-all` eski zaman damgalı bir migration'ı IP13-A'dan sonra uygulayabilir. Her yayına alma iş akışı push'tan sonra `private.attach_demo_guards()` çalıştırır ve `private.demo_guard_drift()` satır döndürürse başarısız olur (`20261101120300_demo_guard_drift.sql`).
+- Demo ziyaretçisi `session` tablosunda yalnızca yayımlanmış ziyaretleri görür (`session_demo_select`, kısıtlayıcı); sıradan sahip incelemedeki ziyareti de görür.
+- Bildirimler (`enqueue_notifications`, `enqueue_billing_notification`) demo org'larını ve demo hesaplarını atlar; `save_ai_assessment` demo org'unun ziyaretini `demo_org_no_ai` ile reddeder; demo org'unda `org_billing_setting` kayıt ya da sahte ödeme açamaz (`demo_billing_forbidden`).
+
+**Hesap kilidi ve erişim kapsamı:**
+- **Hesap kilidi:** `auth.users` üzerindeki `demo_account_freeze` tetikleyicisi, demo hesabının e-postasını, telefonunu, bekleyen e-posta ve telefon değişikliğini, parolasını ve kullanıcı metaverisini değiştirmez (`demo_account_locked`). GoTrue'nun kendi tuttuğu `email_verified`, `phone_verified`, `email`, `sub` anahtarları, oturum açma ve token sütunları serbesttir. Parolanın boşaltılmasına izin verilir: `demo_start`, Admin API'nin koyduğu rastgele parola özetini siler. Barındırılan proje tetikleyiciye izin vermezse migration uyarıyla geçer; o durumda housekeeping, bilgileri değişen demo hesabının oturumunu bitirir.
+- **Erişim kapsamı:** `demo_account_scope_<sütun>` satır tetikleyicileri servis rolü dahil her çağıranda çalışır. Demo hesabı yalnızca demo org'unda `parcel_access` alır; `membership`, `owner_profile`, `billing_profile`, `consent_record` (`user_id` ve `subject_id`), `customer_signup`, `viewer_invitation`, `notification` (alıcı) ve `customer_user_id` taşıyan faturalama tablolarında (`service_application`, `application_garden`, `quote`, `quote_item`, `service_order`, `service_order_item`, `payment`, `payment_item`, `refund`) hiç satırı olmaz (`demo_account_scope`).
+- **Zorunluluk:** Kullanıcıya erişim veren ya da kimliğini tutan yeni bir tablo ayrıca `select private.attach_demo_account_guard('<tablo>', '<kullanıcı sütunu>');` çağırır.
+- `ops_find_user_id` ve `signup_find_account` demo hesabını hiç döndürmez.
+
+**`demo-media` kovası:** Herkese açık kova; demo org'unun dosyaları `org/<demo org>/parcel/<parsel>/<sha256>` yolunda, `media` ile aynı baytlarla durur ve `/object/public` üzerinden imzasız sunulur. Yalnızca demo org'unun `ops` üyesi yükler (demo claim'i olmadan); güncelleme ve silme politikası yoktur.
+
+## Üyelik boyunca bahçe ekleme ve çıkarma (İP14)
+
+Tasarım: [bahce-yonetimi.md](bahce-yonetimi.md). Yeni üyelik tablosu yoktur; üyelik dönemi **temel sipariştir** (`addon_of_order_id` boş). Migration'lar `20261102120000`–`20261102120400`.
+
+| Tablo / sütun | Ne tutar |
+| --- | --- |
+| `quote.addon_of_order_id`, `service_order.addon_of_order_id` | Ek teklif ve ek sipariş: bağlandığı temel sipariş. Ek sipariş temel siparişle aynı gün biter; yenileme hedefi olamaz |
+| `application_garden.withdrawn_at` | Gönderilmiş ya da teklif verilmiş başvurudan geri çekilen bahçe; ön izlemeye, teklife ve doğrulamaya girmez |
+| `service_order_item.removed_on`, `garden_removal_id` | Satırın hizmetten çıktığı ilk gün ve çıkarma kaydı; ikisi birlikte, bir kez yazılır (`service_order_item_guard`) |
+| `refund.garden_removal_id` | Çıkarmanın açtığı sistem iadesi |
+| `org_billing_setting` | `garden_changes_enabled` (anahtar, varsayılan kapalı), `addon_min_days` (30), `removal_notice_days` (30), `removal_access_days` (90), `removal_refund_mode` (`unused_visits` ya da `manual`) |
+| `garden_removal` | Bir parselin bir müşteri için hizmetten çıkışı (`C-YYYY-NNNNNN`): `requested` → `scheduled` → `completed` ya da `cancelled`; çıkış günü (`effective_on`), salt okunur erişim sonu (`access_until`), iade hesabı (`calculation`, `removal-v1`), iade modu ve tutarı. Silinmez; tamamlanmış kayıtta yalnızca erişim bildirimi ve erişimin kaldırılması yazılır. Parsel ve müşteri başına tek açık kayıt (`garden_removal_open_uq`) |
+
+**Kurallar:**
+- **Fiyat:** Ek teklif `pricing-v2` ile fiyatlanır (`private.price_lines_v2`): ziyaret hakkı kalan güne göre orantılanır (`private.addon_visits`), minimum ücret aynı oranla, envanter ücreti satır bazında. `pricing-v1` artık teklif başına 50 alan alır.
+- **Çift kapsama yok:** Bir parsel dönemleri çakışan iki siparişte bulunamaz (`private.parcel_in_service`); teklifte, bağlamada ve kabulde `parcel_coverage:<parsel>` danışma kilidi altında denetlenir. Hesap başına en çok 50 bahçe (`account_garden_limit`).
+- **Çıkarma:** Çıkış gününde satırlar `removed_on` alır, parselin bütün planlı ziyaretleri, açık takip istekleri ve bekleyen davetleri iptal edilir, parsel `passive` olur, iade satırları `requested` açılır, boşalan siparişler `terminated` olur. Veri silinmez.
+- **Salt okunur dönem:** `access_until` gününe kadar sahip ve hissedar soru yazamaz, hissedar davet edilemez (`parcel_read_only`); ops parseli sürdüremez (`parcel_removed`); çıkış günü ve sonrasına ziyaret planlanamaz (`parcel_removal_scheduled`). Süre bitince müşterinin sahip satırı ve davet ettiği hissedarlar kaldırılır (`private.garden_removal_housekeeping`, her gece 00:30).
+- **Yetki:** Müşteri kendi çıkarma kayıtlarını iç sütunlar (`ops_note`, `requested_by`, `decided_by`, `blocked_reason`, `revoke_all_access`) olmadan okur; ops org'unun kayıtlarını. API'den yazma yoktur; bütün geçişler fonksiyonlarla yapılır (`bahce-yonetimi.md` §9.6).
+- **Demo:** `garden_removal` yazma kilidini ve hesap kilidini taşır; yeni müşteri yazma fonksiyonları `assert_not_demo` ile başlar; `enqueue_garden_notification` demo org'unu ve demo hesabını atlar.
+
+## Hukuk takip işleri, dalga 1 (T27, T21, T04, T03, T18)
+
+Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) "Takip işleri"; sözleşmeler [musteri-yonetimi.md](musteri-yonetimi.md) §6.9, §9.3, §9.4, §20 ve [bahce-yonetimi.md](bahce-yonetimi.md) §21. Migration'lar `20261103100000`–`20261103100600`.
+
+| Tablo / sütun | Ne tutar |
+| --- | --- |
+| `private.legal_text_version` | Hukuki metinlerin veritabanının bildiği sürümleri: tür, sürüm, şablon özeti (güncel olanlarda), güncel mi, son hâli mi (`-taslak` değil). Yalnızca migration'lar yazar (`private.register_legal_text`) |
+| `org_billing_setting` | `kep_address`, `site_domain`, `kvkk_email` (satıcının şirket bilgileri; altbilgi ve metinler), `marketing_consent_enabled` (yalnızca SQL, İYS'den sonra açılır), `inventory_reuse_months` (yalnızca SQL, varsayılan 24) |
+| `consent_kind` | `early_performance`: teklif kabulündeki isteğe bağlı erken başlama kutusu |
+| `consent_record.text_sha256`, `display_sha256` | Onaylanan şablonun kayıtlı özeti; müşterinin gördüğü doldurulmuş metnin özeti (gönderilirse) |
+| `private.contract_document` | Siparişe özel sözleşme belgeleri (ön bilgilendirme, sözleşme, cayma teyidi): şablon sürümü ve özeti, depo yolu, PDF özeti ve boyutu, üretici, ilgili onay kayıtları. Ekleme-yalnız; 10 yıl saklanır |
+| `garden_removal.notice_channel`, `notice_received_on` | Caymanın nasıl (portal, e-posta, KEP, posta) ve hangi gün geldiği |
+| `notification_template` | `contract_ready`, `withdrawal_received`, `addon_order_closed` |
+
+**Kurallar:**
+- **Sorulmayan rıza yok (T27):** `explicit_service_improvement` hiçbir zaman, `explicit_marketing` `marketing_consent_enabled` açılana kadar verilemez (`consent_not_asked`); kayıtta `false` yazılır. Geri alma serbesttir. Eski `granted = true` satırları kanıt olarak kalır, dayanak değildir.
+- **Kayıtlı sürümler (T21):** Teklif kabulü ve KVKK teyidi yalnızca kayıtlı güncel sürümle olur (`legal_text_outdated`, `invalid_input`). Pilot ve üretimde (`allow_fake_payments` kapalı) taslak metin, son hâli olmayan KVKK kaydı ya da eksik şirket bilgisiyle kabul alınmaz (`legal_texts_not_final`).
+- **Belgeler değiştirilemez (T04):** `contract-documents` kovasındaki nesneler güncellenemez ve silinemez (hizmet rolü dahil, `storage.objects` tetikleyicisi).
+- **Erken başlama (T03):** Onay yoksa cayma süresi bitmeden envanter ve periyodik ziyaret planlanmaz (`withdrawal_period_open`); caymada kesinti yapılmaz.
+- **Ek teklif (T18):** Döküm `quote.inputs.addon` içinde saklanır; envanter ücreti son envanterden 24 ay içinde yeniden eklenen bahçeden alınmaz.
+
+## Hukuk takip işleri, dalga 2 (T23, T09, T20, T15, T16, T13, T11)
+
+Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) H01, H05, H07, H16, H22, H25, H26, H27, H30, H32. Migration'lar `20261104100000`–`20261104100700`.
+
+| Tablo / sütun | Ne tutar |
+| --- | --- |
+| `org_billing_setting` | `coowner_notice_flow_enabled` (T15), `boundary_declaration_required` (T16), `kvkk_request_form_enabled` (T11). Yalnızca SQL; barındırılan projelerde `false`, `seed.sql`'de `true`. Kapalıyken bugünkü davranış değişmez |
+| `private.staff_profile` | Personelin kurum başına görünen adı ve unvanı (`(org_id, user_id)`; o kurumun ops'u `/operasyon/personel`'de düzenler; başka kurumun ops'u değiştiremez). Raporu onaylayan uzmanın adı ve unvanı raporda ve PDF'lerde (H05); demo org'unda gösterilmez (`visit_approver`) |
+| `private.media_suppression` | Görüntü gizleme (T20, H01): hedef (`asset` ya da `capture`), `hide`/`unhide`, neden (`kvkk_objection`, `third_party`, `other`), not, yapan, zaman. Ekleme-yalnız (hesap silinince yalnız `created_by` boşalır, `insert_only_unlink_user`); bir hedefin en yeni kaydı geçerlidir. Medya satırı ve dosya değişmez |
+| `private.boundary_approval` | Sınır onayındaki beyan (T16, Md. 6/2): sınır, kullanıcı, kayıtlı `distance_sales` sürümü, metin özeti, zaman. Ekleme-yalnız; hesap silinince yalnız `user_id` boşalır, kayıt kalır |
+| `private.boundary_pointer` | Sınırı gösteren kişinin adı ve rolü (T16, H07); `boundary_pointer` olaylarından `session_event` üzerindeki tetikleyiciyle kopyalanır. Yalnız personel okur, telefon tutulmaz. Ekleme-yalnız |
+| `private.boundary_dispute` | Sınır itirazı / askı (T16, Md. 6/4): `open`/`close` satırları ve not; ekleme-yalnız (hesap silinince yalnız `created_by` boşalır). Açıkken yeni envanter ve periyodik ziyaret planlanmaz (`boundary_dispute_open`) |
+| `private.viewer_invitation.declared_at`, `declaration_version`, `declaration_sha256` | Sahibin hissedar davetindeki beyanı (T15): "Bu kişinin bahçede hakkı var ve numarasını vermeye yetkiliyim." |
+| `private.kvkk_request` | Portaldan KVKK başvurusu (T11): tür, metin, durum, `due_at` (+30 gün), sonuçlanma. `answered` ve `rejected` kesindir: durum bir daha değişmez, `settled_at` (10 yıllık saklamanın başlangıcı) bir kez yazılır. Başvuru defteri kaydı; sonuçlandıktan sonra 10 yıl |
+| `private.billing_profile.identity_number` | T13: her zaman boş (kısıt). TCKN ödeme anında alınır, yalnızca ödeme kuruluşuna gider; `payment_billing_snapshot.identity_number_last4` tek izdir |
+| `notification_template` | `viewer_invited` (hissedar davet SMS'i; değişkenler: bahçe adı, portal yolu) |
+| `audit_event.entity_type` | `staff_profile`, `media_suppression`, `boundary`, `boundary_dispute`, `viewer_invitation`, `kvkk_request` |
+
+**Görünürlük (T23):**
+- **Soru-cevap:** Sahip ve hissedar yalnız kendi başlattığı dizileri ve cevaplarını okur (`question.created_by`); aynı bahçenin diğer sahibinin ya da hissedarının sorularını görmez, çıkan sahibin soruları kalan sahibe açılmaz (H22, H32). Uzman ve ops org'un bütün dizilerini görür. Demo turunun kurgusal dizileri demo ziyaretçilerine açıktır. Soru bildirimi bugün yoktur; eklenecek bildirim aynı kurala uyar.
+- **Personel izi (H05):** Parsel okuyucuları (sahip, hissedar, izleyici, demo ziyaretçisi) zamanı taşıyan satırları okumaz. `asset`'ten yalnız kesit ve fotoğraf satırlarını okur (kesitin `pose`'unda yön, açı ve panorama kimliği vardır, zaman yoktur). Panoramaları `public.portal_panorama_frames` verir: kare başına bir satır, tam ve önizleme kimliği sunucuda eşlenmiş, konum ve yön ile; `pose.gps_time_ns`, kare anahtarı ve çekim sırası dışarı çıkmaz. `capture` satırlarını (`started_at`, konum, `metadata.gps_time_ns`/`phone_time`) hiç okumaz; ağaca bağlı yakın planları `public.portal_closeups` verir: kimlik, ziyaret, ağaç, dosya ve çeken personel. Medya kovası bu dosyaları `authz.parcel_reader_media_object` ile imzalatır. Ham GNSS kaydı, MCAP, 360° video, ses notu, yörünge ve nokta bulutu yalnız personele açıktır (dosyaları da). `session_event` yalnız personel (saha, uzman, ops) içindir. Personel (kurum üyeleri) iki tabloyu eskisi gibi okur: ofis aracı, uzman paneli, işleme hattı, AI worker ve saha uygulaması değişmez. Portal tarama izini göstermez; turdaki panoramalar zaman damgası ve aralarında çizgi olmadan ayrık noktalardır. Ağaç karnesindeki fotoğraf kanıtı çekim saati yerine ziyaret gününü gösterir; konum kesitte kameranın durduğu ayrık nokta, yakın planda boştur. Sahip, hissedar ve demo ziyaretçisinin `pose->>'gps_time_ns'` okuyamadığı pgTAP ile denetlenir (`60_`, `42_`).
+- **Gizlenen görüntü (T20):** Kısıtlayıcı politikalar gizli satırları ops ve saha personeli dışında herkesten saklar; medya kovası politikası dosyayı da kapatır (imzalı adres verilmez). Gizlenen panoramayla karenin öteki çözünürlüğü ve ondan kesilen ağaç kesitleri de gizlenir. Daha önce verilmiş imzalı adres en fazla 15 dakika geçerli kalır. Demo org'unun dosyalarının herkese açık `demo-media` kovasında aynı adla birer kopyası vardır ve bu kopyayı politikalar kapatmaz. Demo verisi bugün sentetiktir, ama vitrin veri kümesi (`showcase`, H28) gerçek bir bahçe olabilir. Bu yüzden kopyası duran bir demo dosyası gizlenmez (`demo_mirror_public`): ops önce kopyayı kovadan kaldırır, sonra gizler.
+
+**`session_event` kabul edilen sapma (T16):** Sınırı gösteren kişinin adı ve rolü saha uygulamasının `boundary_pointer` olayının `payload`'ında taşınır ve orada kalır (ekleme-yalnız taşıma kaydı); asıl okuma yeri `private.boundary_pointer`'dır. `session_event` T23'ten beri yalnız personele açıktır ve KVKK betikleri her iki yeri de takma ada çevirir (`scripts/kvkk/README.md`). Geçersiz bir yük (bozuk JSON, eksik ad, bilinmeyen rol) sessizce atlanır; saha uygulamasının yazması hiçbir zaman başarısız olmaz.
+
+**Kısa saklama işleri (T09):** `notification-purge` (12 ay), `auth-session-purge` (sona erdikten 30 gün sonra), `auth-audit-log-purge` (30 gün, H27); ayrıntı [hukuk/saklama-imha-politikasi.md](hukuk/saklama-imha-politikasi.md) §5.
+
+## Hukuk takip işleri, dalga 3 (T05, T07, T06, T08, T09, T23, T04)
+
+Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) H01, H12, H15, H20, H21, H22, H23, H25. Migration'lar `20261105100000`–`20261105100500`; kurallar [bahce-yonetimi.md](bahce-yonetimi.md) §22, tarama [musteri-yonetimi.md](musteri-yonetimi.md) §20.8.
+
+| Tablo / sütun | Ne tutar |
+| --- | --- |
+| `org_billing_setting` | `visit_notice_sms_enabled` (T07) ve `service_end_access_flow_enabled` (T08). Yalnızca SQL; barındırılan projelerde `false`, `seed.sql`'de `true`. Kapalıyken bugünkü davranış değişmez |
+| `garden_removal_reason` | Ops'un haklı sebepleri (H20, H36) `location_misdeclared`, `owner_breach`, `no_authority`, `third_party_objection`, `staff_safety`, `payment_default`, `service_withdrawn_district`, `by_agreement` (ve mevcut `transfer`, `duplicate`); sistem nedenleri `period_ended`, `order_terminated`, `pilot_ended` |
+| `garden_removal.timing` | Müşterinin açık zaman seçimi: `immediate`, `notice`, `period_end`, `withdrawal` (kaydın kimliği; T05 öncesi satırlarda boş) |
+| `garden_removal.owner_consent_note` | Anlaşmayla ya da bildirim süresinden erken çıkarmada Sahip'in yazılı onayının kaydı (iç; kaydın kimliği) |
+| `garden_removal.initiated_by = 'system'` | T08 hizmet sonu penceresi: tamamlanmış, iadesiz satır (`calculation.formula = 'service-end-v1'`); pilot satırında `order_id` ve `order_item_id` boştur |
+| `garden_removal.calculation.formula` | `removal-v2` (T05'ten sonra); `removal-v1` kayıtları değişmez |
+| `private.visit_notice` | Ziyaret tarihi bildirimi (T07, 8A/1): ziyaret, gün, kanal (`message` = `visit_scheduled`, ya da `phone`), zaman, mesaj kimliği, alıcı, kaydeden. Ekleme-yalnız |
+| `private.visit_postponement` | Sahip'in ertelemesi (8A/1): ziyaret başına bir kez, ilk gün, istenme zamanı, kanal (`portal`, `phone`, `written`), isteyen ya da kaydeden. Ekleme-yalnız |
+| `private.missed_visit` | Yapılamayan ziyaret (8A/2–4): neden (`customer`, `company`, `weather`, `force_majeure`), ayrıntı kodu, not, `report_lost`, saha olayı (`visit_blocked`), kanıt (yakalama kimlikleri ve `visit-evidence` kovası yolları), Sahip'e bildirim (gün, kanal), önerilen tarih ya da "pencerede tarih yok", sonuç (`rescheduled`, `deemed_done`, `refunded`, `carried_over`; bir kez), iade, aktarılan pencere. Silinmez; kayıt değişmez, sonuç bir kez yazılır |
+| `private.visit_reconciliation` | 8A mutabakat görevi (T06): sipariş satırı, kontrol (`window_end`, `period_end`, `removal`), kapsam sonu, ziyaret sayıları, eksik, ziyaret bedeli, son gün (+14), durum ve kapanış. Sayılar dondurulur, görev bir kez kapanır |
+| `private.contract_end` | Sözleşmenin parsel ve kullanıcı için sona erme tarihi (T09, H25): son hizmet günü ve neden; her tamamlanan çıkarma ya da hizmet sonu penceresiyle yazılır. Ekleme-yalnız |
+| `private.contract_sweep_ticket` | Belge taraması bileti (T04): token özeti, sipariş kimlikleri, 10 dakikalık süre; kişisel veri yok |
+| `notification_template` | `visit_scheduled` (parsel ve ziyareti taşır; değişkenler `date`, `path`, `parcel_name`), `garden_transfer_reports` (C-…) |
+| `audit_event.entity_type` | `session`, `missed_visit`, `visit_reconciliation`, `parcel` |
+| Kova `visit-evidence` | Ops'un yüklediği yapılamayan ziyaret fotoğrafları (`<org>/<parsel>/<sha256>.<uzantı>`; özel, yalnız org'un ops'u okur ve ekler) |
+
+**Kullanılmış ziyaret (`private.visit_usage`):** Faturalanan ziyaretler (§ İP14) artı 8A/3'e göre yapılmış sayılanlar, eksi raporu yayımlanamayanlar (`report_lost`). Çıkarma hesabı ve Bahçelerim'deki ziyaret sayısı bunu okur.
+
+**Erişim (T08, T09):** Hizmet sonu penceresi çıkarmanın salt okunur dönemini ve erişim kaldırmasını kullanır. Pencere kapanınca ve parsele hiçbir satır hizmet vermiyorsa `parcel_detail.site_contact_phone` (ve müşterinin başvuru kopyası) silinir.
 
 ## MVP tablolarından geçiş
 

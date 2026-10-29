@@ -27,6 +27,8 @@ import {
   type PaymentEventType,
 } from "./db.ts";
 import { timingSafeEqual } from "./iyzico-signatures.ts";
+import { isDemoClaims, jwtClaims } from "../signup.ts";
+import { PLACEHOLDER_TCKN, readTckn } from "./identity.ts";
 import { isAllowedReturnOrigin } from "./origins.ts";
 import { safePayload } from "./payload.ts";
 import { choosePaymentProvider, enabledInstallments } from "./provider.ts";
@@ -66,7 +68,8 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-const fail = (error: string, status: number) => json({ error }, status);
+const fail = (error: string, status: number, extra: Record<string, string> = {}) =>
+  json({ error, ...extra }, status);
 
 function redirect(location: string): Response {
   return new Response(null, {
@@ -247,8 +250,15 @@ const BEGIN_STATUS: Record<string, [string, number]> = {
   forbidden: ["not_found", 404],
   order_not_payable: ["order_not_payable", 409],
   billing_profile_incomplete: ["billing_profile_incomplete", 409],
+  payment_in_progress: ["payment_in_progress", 409],
+  // IP14: an open removal of a garden on the order, an add-on whose period closed.
+  garden_removal_open: ["garden_removal_open", 409],
+  addon_base_closed: ["addon_base_closed", 409],
   fake_payments_disabled: ["payments_disabled", 503],
 };
+
+// The fields payment_begin names in a billing_profile_incomplete detail.
+const BEGIN_FIELDS = new Set(["email"]);
 
 // "2026-10-27T10:11:12.000Z" -> "2026-10-27 10:11:12" (iyzico's format).
 function iyzicoDate(iso: string | null): string | undefined {
@@ -262,6 +272,8 @@ function checkoutInput(
   env: Env,
   clientIp: string,
   returnOrigin: string,
+  // T13: the TCKN typed in for this payment (placeholder when not required).
+  identityNumber: string,
 ): StartCheckoutInput {
   const { buyer, billing } = begin;
   return {
@@ -278,8 +290,8 @@ function checkoutInput(
       id: buyer.id,
       name: buyer.first_name,
       surname: buyer.last_name,
-      identityNumber: buyer.identity_number,
-      email: buyer.email,
+      identityNumber,
+      email: buyer.email ?? "",
       gsmNumber: buyer.phone,
       registrationAddress: [buyer.address, buyer.district].filter(Boolean).join(", "),
       city: buyer.city,
@@ -303,10 +315,19 @@ function checkoutInput(
 }
 
 async function start(ctx: Ctx, req: Request, body: Record<string, unknown>): Promise<Response> {
-  const userId = await authUserId(ctx.db, req.headers.get("authorization"));
+  const authorization = req.headers.get("authorization");
+  const userId = await authUserId(ctx.db, authorization);
   if (!userId) return fail("unauthorized", 401);
+  // A demo visitor (docs/demo-turu.md §6.3): payment_begin runs with the
+  // service role, past the database's write guard.
+  if (isDemoClaims(jwtClaims((authorization ?? "").replace(/^Bearer\s+/i, "")))) {
+    return fail("demo_read_only", 403);
+  }
 
   const { order_id: orderId, return_origin: returnOrigin, client_ip: clientIp } = body;
+  // T13 (H16): never logged, stored or echoed; checked before any write.
+  const tckn = readTckn(body);
+  if (tckn === "invalid") return fail("invalid_input", 400, { field: "identity_number" });
   if (
     typeof orderId !== "string" ||
     !UUID_RE.test(orderId) ||
@@ -342,13 +363,29 @@ async function start(ctx: Ctx, req: Request, body: Record<string, unknown>): Pro
   } catch (err) {
     const code = err instanceof DbError ? err.code : "error";
     const mapped = BEGIN_STATUS[code];
-    if (mapped) return fail(mapped[0], mapped[1]);
+    const detail = err instanceof DbError ? err.detail : null;
+    const field = detail && BEGIN_FIELDS.has(detail) ? detail : null;
+    if (mapped) return fail(mapped[0], mapped[1], field ? { field } : {});
     ctx.log(`begin_${code}`);
     return fail("failed", 500);
   }
 
+  // payment_begin refuses without an e-mail; the provider requires one.
+  if (!begin.buyer.email) {
+    ctx.log("begin_buyer_email_missing");
+    return fail("billing_profile_incomplete", 409, { field: "email" });
+  }
+  // T13: the org needs the TCKN and the start carried none. The attempt is
+  // closed as failed (a new start opens another).
+  const identityRequired = begin.identity_number_required === true;
+  if (identityRequired && tckn === "absent") {
+    await finalize(ctx, begin.payment_id, "failed", failedResult("identity_number_required"));
+    return fail("identity_number_required", 409);
+  }
+  const identityNumber = identityRequired && tckn !== "absent" ? tckn : PLACEHOLDER_TCKN;
+
   const result = await provider
-    .startCheckout(checkoutInput(begin, ctx.env, clientIp, returnOrigin))
+    .startCheckout(checkoutInput(begin, ctx.env, clientIp, returnOrigin, identityNumber))
     .catch(() => ({ ok: false as const, error: "provider_error", raw: null }));
   // begin (with the buyer's personal data) is not used past this point.
   const paymentId = begin.payment_id;
@@ -370,7 +407,13 @@ async function start(ctx: Ctx, req: Request, body: Record<string, unknown>): Pro
   }
 
   try {
-    await paymentAttachToken(ctx.db, paymentId, result.providerToken, result.expiresAt);
+    await paymentAttachToken(
+      ctx.db,
+      paymentId,
+      result.providerToken,
+      result.expiresAt,
+      identityRequired ? identityNumber.slice(-4) : null,
+    );
   } catch (err) {
     ctx.log(`attach_${err instanceof DbError ? err.code : "error"}`);
     await finalize(ctx, paymentId, "failed", failedResult("attach_failed"));

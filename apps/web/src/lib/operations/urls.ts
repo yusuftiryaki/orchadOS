@@ -17,6 +17,12 @@ export const NOTICES = [
   "invitation_approved",
   "invitation_rejected",
   "followups_planned",
+  // T07, T06.
+  "phone_notice_saved",
+  "postponement_saved",
+  "missed_visit_saved",
+  "missed_outcome_saved",
+  "reconciliation_resolved",
 ] as const;
 export type Notice = (typeof NOTICES)[number];
 
@@ -32,7 +38,18 @@ const ERRORS: OpsError[] = [
   "visit_cancelled",
   "has_planned_visits",
   "parcel_passive",
+  "parcel_removal_scheduled",
+  "parcel_removed",
+  "withdrawal_period_open",
+  "installment_unpaid",
+  "boundary_dispute_open",
   "already_owner",
+  "postponement_not_allowed",
+  "proposed_date_outside_window",
+  "deemed_done_not_allowed",
+  "carry_over_not_allowed",
+  "missed_visit_frozen",
+  "reconciliation_frozen",
   "invite_unavailable",
   "conflict",
   "write_failed",
@@ -74,6 +91,12 @@ export const opsHref = {
   newVisit: (parcelId?: string) =>
     parcelId ? `/operasyon/ziyaret/yeni?parsel=${parcelId}` : "/operasyon/ziyaret/yeni",
   visit: (id: string, result?: Result) => withResult(`/operasyon/ziyaret/${id}`, result),
+  // T06: the 8A reconciliation tasks.
+  reconciliation: (filters: { durum?: string } = {}, result?: Result) =>
+    withResult(
+      filters.durum ? `/operasyon/mutabakat?durum=${filters.durum}` : "/operasyon/mutabakat",
+      result,
+    ),
 };
 
 type Params = Record<string, string | string[] | undefined>;

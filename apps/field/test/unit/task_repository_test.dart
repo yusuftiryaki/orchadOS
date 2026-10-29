@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orchados_field/core/db/database.dart';
@@ -134,25 +137,38 @@ void main() {
     expect(t.closeupTrees, isEmpty);
   });
 
-  test('season of a planned day', () {
-    Season s(int month) => Season.forDate(DateTime(2027, month, 15));
-    expect(
-      [for (var m = 1; m <= 12; m++) s(m)],
-      [
-        Season.winter,
-        Season.winter,
-        Season.spring,
-        Season.spring,
-        Season.spring,
-        Season.summer,
-        Season.summer,
-        Season.harvest,
-        Season.harvest,
-        Season.harvest,
-        Season.harvest,
-        Season.winter,
-      ],
-    );
+  test('season of a planned day: shared vectors with web and AI worker', () {
+    // test-vectors/season.json at the repository root; tests run in apps/field.
+    final vectors = jsonDecode(
+      File('../../test-vectors/season.json').readAsStringSync(),
+    ) as Map<String, Object?>;
+    final calendars = (vectors['calendars']! as Map).cast<String, Object?>();
+    final versions = (vectors['versions']! as Map).cast<String, Object?>();
+    var cases = 0;
+    for (final MapEntry(key: version, value: calendar) in versions.entries) {
+      final seasons = calendars[calendar]! as List;
+      for (var m = 1; m <= 12; m++) {
+        final v = version == 'null' ? null : version;
+        expect(
+          Season.forDate(DateTime(2027, m, 15), v).code,
+          seasons[m - 1],
+          reason: '$version, month $m',
+        );
+        cases++;
+      }
+    }
+    expect(cases, 60);
+  });
+
+  test('a visit keeps the season of its methodology', () {
+    final lateMarch = DateTime(2027, 3, 28);
+    final earlyAugust = DateTime(2027, 8, 5);
+    expect(Season.forDate(lateMarch, 'methodology-v0.2'), Season.winter);
+    expect(Season.forDate(earlyAugust, 'methodology-v0.2'), Season.summer);
+    expect(Season.forDate(lateMarch, 'methodology-v0.1'), Season.spring);
+    expect(Season.forDate(earlyAugust, 'methodology-v0.1'), Season.harvest);
+    // November is winter in every version (the field app used to say harvest).
+    expect(Season.forDate(DateTime(2026, 11, 20), null), Season.winter);
   });
 
   group('close-up trees', () {

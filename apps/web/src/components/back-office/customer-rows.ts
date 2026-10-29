@@ -18,6 +18,8 @@ export interface CustomerListRow {
   paid: string;
   contact: string;
   kvkk: string;
+  // The KVKK notice was given (and when): "Yok" is shown as a warning.
+  kvkkOk: boolean;
 }
 
 export interface CustomerListView {
@@ -40,6 +42,7 @@ export function customerListView(
       .filter((c) => !selfOnly || c.signup_source === "self")
       .map((c) => {
         const p = byId.get(c.profile_id);
+        const kvkkOk = Boolean(p?.kvkk_consent && p.kvkk_consent_at);
         return {
           profileId: c.profile_id,
           name: c.full_name,
@@ -53,9 +56,10 @@ export function customerListView(
               p.contact_preference)
             : "",
           kvkk:
-            p?.kvkk_consent && p.kvkk_consent_at
+            kvkkOk && p?.kvkk_consent_at
               ? T.owners.consentYes(formatDate(p.kvkk_consent_at), p.kvkk_text_version ?? "")
               : T.owners.consentNo,
+          kvkkOk,
         };
       }),
   };

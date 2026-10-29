@@ -1,0 +1,157 @@
+/* Layout of the portal screens (docs/tasarim-sistemi.md). Phone first: one
+   column at 390px, 16px gutters; 1120px wide on desktop like the portal
+   AppShell. Surfaces (Panel), key/value lists (Facts) and two-column layouts
+   (Split) come from components/ui; this file holds the page column, the
+   anchored sections of the report pages and the rows of a list. */
+
+/* The page column: everything between the header and the end of the page. */
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-3) var(--space-6);
+  display: grid;
+  gap: var(--space-5);
+  align-content: start;
+}
+
+.page > * {
+  min-width: 0;
+}
+
+/* PageHeader brings its own bottom margin; the column gap replaces it. */
+.page > header:first-child {
+  margin-bottom: 0;
+}
+
+@media (min-width: 720px) {
+  .page {
+    padding: var(--space-5) var(--space-4) var(--space-7);
+    gap: var(--space-6);
+  }
+}
+
+/* Every portal page shares the column above, so the title does not move
+   between the navigation tabs. Long-form content (a form, a document, an
+   application or a quote) keeps a reading width inside it, left aligned;
+   the header keeps the full column so its actions line up with every other
+   page. */
+.reading > :not(header) {
+  max-width: 760px;
+}
+
+/* A titled block of a long page (parcel report, tree card) that the in-page
+   navigation scrolls to. Plain on the ground: a heading, then content. */
+.section {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  scroll-margin-top: calc(var(--header-height) + 56px);
+}
+
+.section > h2,
+.sectionHead h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+/* Heading with an action on the right ("Bahçelerim" + "Bahçe ekle"). */
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.sectionLead {
+  margin: 0;
+  color: var(--color-text-2);
+  max-width: var(--measure);
+}
+
+/* Vertical rhythm inside a block. */
+.stack {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  min-width: 0;
+}
+
+.stack > * {
+  margin: 0;
+}
+
+/* Buttons in a row; full width under 480px so every target is easy to hit. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (max-width: 479px) {
+  .actions > :global(.button) {
+    flex: 1 1 100%;
+  }
+}
+
+/* Muted secondary text and small print. */
+.muted {
+  color: var(--color-muted);
+}
+
+.small {
+  font-size: var(--text-sm);
+}
+
+/* Identifiers ("B-2026-000001") never break inside. */
+.nowrap {
+  white-space: nowrap;
+}
+
+/* A list of rows separated by hairlines inside a panel (gardens, documents,
+   payments on a phone). Each row: main text left, state or action right. */
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.rows > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+.rows > li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.rows > li:last-child {
+  padding-bottom: 0;
+}
+
+.rowMain {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 18ch;
+}
+
+.rowMain > * {
+  margin: 0;
+}
+
+@media print {
+  .page {
+    padding: 0;
+    gap: var(--space-4);
+  }
+}

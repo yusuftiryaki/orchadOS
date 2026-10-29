@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { formatDate, t } from "@/lib/i18n";
 import type { Bounds, FeatureCollection, PointGeometry, PolygonGeometry } from "@/lib/map/geo";
-import { MARKER_COLORS, MARKER_ORDER, type MarkerState } from "@/lib/map/tree-style";
+import { MARKER_ORDER, type MarkerState } from "@/lib/map/tree-style";
 import { cellFrame, cellRing, cellStats, heatColor } from "@/lib/portal/cells";
 import type { PortalSlot, VisitCoverage } from "@/lib/portal/data";
 import type { FindingItem } from "@/lib/portal/findings";
@@ -17,15 +16,18 @@ import {
   type MapVisit,
 } from "@/lib/portal/map-layers";
 import { ApprovalBadge, findingKindLabel } from "./labels";
-import { SEVERITY_COLORS } from "./colors";
+import { SEVERITY_TONES } from "./colors";
 import { PortalMap, type MapCell, type MapCoverage, type MapSelection } from "./portal-map";
-import styles from "./portal.module.css";
+import { Badge, ClassDot } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
+import { Field, Select } from "@/components/ui/field";
+import styles from "./parcel.module.css";
 
 // Health map with class filter, legend and a side panel for the selected tree
 // or finding. The panel links to the full tree card. A visit selector shows the
 // classes of one published visit, "changed in this visit" keeps the trees whose
 // class moved against the visit before, and two layers: 10 x 10 m heat cells
-// and the scan's coverage (trace, trees seen from two directions).
+// and the scan's coverage (trees seen from two directions; no trace, H05).
 
 export type MapLayer = "heat" | "coverage";
 
@@ -125,7 +127,6 @@ export function HealthMap({
   const coverageLayer = useMemo<MapCoverage | null>(() => {
     if (!layers.includes("coverage") || !visitCoverage) return null;
     return {
-      trace: visitCoverage.trace,
       trees: allSlots
         .filter((s) => s.treeId)
         .map((s) => ({
@@ -182,9 +183,14 @@ export function HealthMap({
       current.includes(state) ? current.filter((s) => s !== state) : [...current, state],
     );
 
+  // Chips only for the classes on the map: a class with no trees has nothing
+  // to filter.
+  const chipStates = MARKER_ORDER.filter((state) => (counts.get(state) ?? 0) > 0);
+  const allVisible = MARKER_ORDER.every((s) => visible.includes(s));
+
   return (
     <div className={styles.explorer}>
-      <div className={styles.mapColumn}>
+      <div className={styles.mapArea}>
         <PortalMap
           boundary={boundary}
           slots={mapSlots}
@@ -197,95 +203,33 @@ export function HealthMap({
           label={t.portal.map.label}
           cells={cells}
           coverage={coverageLayer}
+          className={styles.map}
+          // "Changed only" may leave nothing to draw; that is not an empty parcel.
+          emptyText={slots.features.length === 0 ? t.map.noTrees : null}
         />
-        <div className={styles.mapControls} data-testid="map-controls">
-          {visits.length > 0 && (
-            <label>
-              {m.visit}{" "}
-              <select
-                value={visitId}
-                onChange={(e) => setVisitId(e.target.value)}
-                data-testid="visit-select"
+      </div>
+      <div className={styles.legendArea}>
+        <p className={styles.mapHint}>{t.portal.map.filterHint}</p>
+        <ul className={styles.legend} aria-label={t.portal.map.legend}>
+          {chipStates.map((state) => (
+            <li key={state}>
+              <button
+                type="button"
+                className={styles.filter}
+                aria-pressed={visible.includes(state)}
+                title={t.portal.classHelp[state]}
+                onClick={() => toggle(state)}
+                data-state={state}
               >
-                <option value="">{m.latestState}</option>
-                {visits.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {formatDate(v.time)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {visits.length > 0 && (
-            <label>
-              <input
-                type="checkbox"
-                checked={changedOnly}
-                onChange={(e) => setChangedOnly(e.target.checked)}
-                data-testid="changed-only"
-              />{" "}
-              {m.changedOnly}{" "}
-              <span className="muted" data-testid="changed-count">
-                {changeVisit?.previousId ? m.changedCount(changed.size) : m.noPrevious}
-              </span>
-            </label>
-          )}
-          <span>{m.layers}:</span>
-          <label>
-            <input
-              type="checkbox"
-              checked={layers.includes("heat")}
-              onChange={() => toggleLayer("heat")}
-              data-testid="layer-heat"
-            />{" "}
-            {m.heat}
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={layers.includes("coverage")}
-              onChange={() => toggleLayer("coverage")}
-              data-testid="layer-coverage"
-            />{" "}
-            {m.coverage}
-          </label>
-        </div>
-        {layers.includes("heat") && <p className={`muted ${styles.small}`}>{m.heatLegend}</p>}
-        {layers.includes("coverage") &&
-          (visitCoverage ? (
-            <ul className={styles.legend} data-testid="coverage-legend">
-              {(["covered", "partial", "none"] as const).map((c) => (
-                <li key={c} className={styles.filter}>
-                  <span className={styles.ring} style={{ borderColor: COVERAGE_COLORS[c] }} />
-                  {m.coverageLegend[c]} {m.count(coverageCounts[c])}
-                </li>
-              ))}
-              <li className={styles.filter}>
-                <span className={styles.traceSwatch} />
-                {m.trace}
-              </li>
-            </ul>
-          ) : (
-            <p className="muted">{m.coverageNone}</p>
+                <ClassDot value={state} />
+                {t.portal.classes[state]}{" "}
+                <span className={styles.countInline}>
+                  {t.portal.map.count(counts.get(state) ?? 0)}
+                </span>
+              </button>
+            </li>
           ))}
-        <div className={styles.noPrint}>
-          <p className={`muted ${styles.small}`}>{t.portal.map.filterHint}</p>
-          <ul className={styles.legend} aria-label={t.portal.map.legend}>
-            {MARKER_ORDER.map((state) => (
-              <li key={state}>
-                <button
-                  type="button"
-                  className={styles.filter}
-                  aria-pressed={visible.includes(state)}
-                  title={t.portal.classHelp[state]}
-                  onClick={() => toggle(state)}
-                  data-state={state}
-                >
-                  <span className={styles.swatch} style={{ background: MARKER_COLORS[state] }} />
-                  {t.portal.classes[state]} {t.portal.map.count(counts.get(state) ?? 0)}
-                </button>
-              </li>
-            ))}
+          {!allVisible && (
             <li>
               <button
                 type="button"
@@ -295,16 +239,35 @@ export function HealthMap({
                 {t.portal.map.all}
               </button>
             </li>
-            {mapFindings.length > 0 && (
-              <li className={styles.filter} aria-label={t.portal.map.findingLegend}>
-                <span className={styles.ring} />
-                {t.portal.map.finding} {t.portal.map.count(mapFindings.length)}
-              </li>
-            )}
-          </ul>
-        </div>
+          )}
+          {mapFindings.length > 0 && (
+            <li className={styles.legendItem} aria-label={t.portal.map.findingLegend}>
+              <span className={styles.ring} aria-hidden />
+              {t.portal.map.finding}{" "}
+              <span className={styles.countInline}>{t.portal.map.count(mapFindings.length)}</span>
+            </li>
+          )}
+        </ul>
+        {layers.includes("heat") && <p className={styles.mapHint}>{m.heatLegend}</p>}
+        {layers.includes("coverage") &&
+          (visitCoverage ? (
+            <ul className={styles.legend} data-testid="coverage-legend">
+              {(["covered", "partial", "none"] as const).map((c) => (
+                <li key={c} className={styles.legendItem}>
+                  <span
+                    className={styles.ring}
+                    style={{ "--ring": COVERAGE_COLORS[c] } as React.CSSProperties}
+                    aria-hidden
+                  />
+                  {m.coverageLegend[c]} {m.count(coverageCounts[c])}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className={styles.mapHint}>{m.coverageNone}</p>
+          ))}
       </div>
-      <aside ref={panelRef} className={`${styles.panel} ${styles.noPrint}`}>
+      <aside ref={panelRef} className={`${styles.panelArea} ${styles.noPrint}`}>
         {slot ? (
           <TreePanel
             parcelId={parcelId}
@@ -315,9 +278,62 @@ export function HealthMap({
         ) : finding ? (
           <FindingPanel parcelId={parcelId} finding={finding} onClose={() => setSelected(null)} />
         ) : (
-          <p className="muted">{t.portal.report.mapHint}</p>
+          <p className={styles.panelHint}>{t.portal.report.mapHint}</p>
         )}
       </aside>
+      <div className={styles.controls} data-testid="map-controls">
+        {visits.length > 0 && (
+          <div className={styles.controlGroup}>
+            <Field id="map-visit" label={m.visit}>
+              <Select
+                value={visitId}
+                onChange={(e) => setVisitId(e.target.value)}
+                data-testid="visit-select"
+              >
+                <option value="">{m.latestState}</option>
+                {visits.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {formatDate(v.time)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <label className={styles.check}>
+              <input
+                type="checkbox"
+                checked={changedOnly}
+                onChange={(e) => setChangedOnly(e.target.checked)}
+                data-testid="changed-only"
+              />
+              <span>{m.changedOnly}</span>
+              <span className={`${styles.small} muted`} data-testid="changed-count">
+                {changeVisit?.previousId ? m.changedCount(changed.size) : m.noPrevious}
+              </span>
+            </label>
+          </div>
+        )}
+        <fieldset className={styles.fieldset}>
+          <legend>{m.layers}</legend>
+          <label className={styles.check}>
+            <input
+              type="checkbox"
+              checked={layers.includes("heat")}
+              onChange={() => toggleLayer("heat")}
+              data-testid="layer-heat"
+            />
+            <span>{m.heat}</span>
+          </label>
+          <label className={styles.check}>
+            <input
+              type="checkbox"
+              checked={layers.includes("coverage")}
+              onChange={() => toggleLayer("coverage")}
+              data-testid="layer-coverage"
+            />
+            <span>{m.coverage}</span>
+          </label>
+        </fieldset>
+      </div>
     </div>
   );
 }
@@ -337,24 +353,24 @@ function TreePanel({
   const v = t.tree.values;
   const p = t.portal.panel;
   return (
-    <section data-testid="tree-panel" className={styles.panelBody}>
+    <section data-testid="tree-panel" className={styles.panel} aria-labelledby="panel-baslik">
       <div className={styles.panelHeading}>
-        <h2>{slot.code}</h2>
+        <h2 id="panel-baslik">{slot.code}</h2>
         <button type="button" className={styles.close} onClick={onClose} aria-label={p.close}>
           ×
         </button>
       </div>
       {tree ? (
         <>
-          <div className={styles.classBadge}>
-            <span className={styles.swatch} style={{ background: MARKER_COLORS[slot.state] }} />
-            {t.portal.classes[slot.state]}
+          <div className={styles.classLine}>
+            <span className={styles.className}>
+              <ClassDot value={slot.state} />
+              {t.portal.classes[slot.state]}
+            </span>
+            {tree.approval && <ApprovalBadge approval={tree.approval} />}
           </div>
-          <p className={`muted ${styles.small}`}>{t.portal.classHelp[slot.state]}</p>
-          {tree.approval && <ApprovalBadge approval={tree.approval} />}
+          <p className={`${styles.small} muted`}>{t.portal.classHelp[slot.state]}</p>
           <dl className={styles.facts}>
-            <dt>{p.health}</dt>
-            <dd>{t.portal.classes[tree.health ?? "unassessed"]}</dd>
             {tree.assessedVisitTime && (
               <>
                 <dt>{p.visit}</dt>
@@ -371,31 +387,28 @@ function TreePanel({
             <dd>{tree.cultivar ?? t.tree.unknown}</dd>
           </dl>
           {findings.length > 0 && (
-            <div>
-              <strong>{p.findings}</strong>
+            <div className={styles.findingKind}>
+              <p className={styles.controlTitle}>{p.findings}</p>
               <ul className={styles.plainList}>
                 {findings.map((f) => (
-                  <li key={f.id}>
-                    <span style={{ color: SEVERITY_COLORS[f.severity] }}>
-                      {t.portal.severity[f.severity]}
-                    </span>
-                    {": "}
-                    {f.description}
+                  <li key={f.id} className={styles.attentionItem}>
+                    <Badge tone={SEVERITY_TONES[f.severity]}>{t.portal.severity[f.severity]}</Badge>
+                    <span>{f.description}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
-          <div className={styles.actions}>
-            <Link className="button" href={`/portal/parsel/${parcelId}/agac/${tree.id}`}>
+          <div className={styles.formActions}>
+            <ButtonLink href={`/portal/parsel/${parcelId}/agac/${tree.id}`}>
               {p.openCard}
-            </Link>
-            <Link
-              className="button button-secondary"
+            </ButtonLink>
+            <ButtonLink
+              variant="secondary"
               href={`/portal/parsel/${parcelId}/gezi?agac=${tree.id}`}
             >
               {p.openTour}
-            </Link>
+            </ButtonLink>
           </div>
         </>
       ) : (
@@ -415,9 +428,9 @@ function FindingPanel({
   onClose: () => void;
 }) {
   return (
-    <section data-testid="finding-panel" className={styles.panelBody}>
+    <section data-testid="finding-panel" className={styles.panel} aria-labelledby="panel-baslik">
       <div className={styles.panelHeading}>
-        <h2>{findingKindLabel(finding.kind)}</h2>
+        <h2 id="panel-baslik">{findingKindLabel(finding.kind)}</h2>
         <button
           type="button"
           className={styles.close}
@@ -427,24 +440,22 @@ function FindingPanel({
           ×
         </button>
       </div>
-      <p>
-        <strong style={{ color: SEVERITY_COLORS[finding.severity] }}>
-          {t.portal.severity[finding.severity]}
-        </strong>
-        {" · "}
-        {finding.treeCode ?? t.portal.report.parcelLevel}
-      </p>
+      <div className={styles.classLine}>
+        <Badge tone={SEVERITY_TONES[finding.severity]}>{t.portal.severity[finding.severity]}</Badge>
+        <span>{finding.treeCode ?? t.portal.report.parcelLevel}</span>
+      </div>
       <p>{finding.description}</p>
       {finding.recommendation && (
-        <p>
-          <strong>{t.portal.report.recommendation}: </strong>
-          {finding.recommendation}
+        <p className={styles.recommendation}>
+          {t.portal.report.recommendation}: {finding.recommendation}
         </p>
       )}
       {finding.treeId && (
-        <Link className="button" href={`/portal/parsel/${parcelId}/agac/${finding.treeId}`}>
-          {t.portal.report.openTree}
-        </Link>
+        <div className={styles.formActions}>
+          <ButtonLink href={`/portal/parsel/${parcelId}/agac/${finding.treeId}`}>
+            {t.portal.report.openTree}
+          </ButtonLink>
+        </div>
       )}
     </section>
   );

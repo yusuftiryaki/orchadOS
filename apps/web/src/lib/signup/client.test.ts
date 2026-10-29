@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Client } from "@/lib/supabase/types";
 import {
+  claimSignupTicket,
   completeSignup,
   registerCustomer,
   signupErrorFromResponse,
@@ -53,8 +54,10 @@ describe("signupErrorFromResponse", () => {
   it.each<[number, unknown, SignupError]>([
     [400, { error: "invalid_input", field: "phone" }, "invalid_input"],
     [400, { error: "captcha_failed" }, "captcha_failed"],
-    [409, { error: "email_taken" }, "email_taken"],
-    [409, { error: "phone_registered" }, "phone_registered"],
+    [409, { error: "not_completed" }, "not_completed"],
+    // A function deployed before H33: the same generic error.
+    [409, { error: "email_taken" }, "not_completed"],
+    [409, { error: "phone_registered" }, "not_completed"],
     [429, { error: "too_many_attempts" }, "too_many_attempts"],
     [503, { error: "signup_closed" }, "signup_closed"],
     [500, { error: "failed" }, "failed"],
@@ -74,8 +77,13 @@ describe("signupErrorFromResponse", () => {
 describe("registerCustomer", () => {
   it("sends the design §7 body with the proxy secret", async () => {
     vi.stubEnv("SIGNUP_PROXY_SECRET", "signup-proxy-local");
-    const { client, invoke } = fakeClient({ data: { next: "verify_phone" } });
-    expect(await registerCustomer(client, INPUT, "203.0.113.5", "tok")).toEqual({ ok: true });
+    const { client, invoke } = fakeClient({
+      data: { next: "verify_phone", ticket: "T".repeat(43) },
+    });
+    expect(await registerCustomer(client, INPUT, "203.0.113.5", "tok", "P".repeat(43))).toEqual({
+      ok: true,
+      ticket: "T".repeat(43),
+    });
     expect(invoke).toHaveBeenCalledWith("customer-signup", {
       body: {
         action: "register",
@@ -85,13 +93,14 @@ describe("registerCustomer", () => {
         password: "fistik-2026",
         contact_preference: "sms",
         consents: {
-          kvkk_notice_version: "kvkk-v1-taslak",
-          explicit_text_version: "riza-v1-taslak",
+          kvkk_notice_version: "kvkk-v2-taslak",
+          explicit_text_version: "riza-v2-taslak",
           explicit_service_improvement: true,
           explicit_marketing: false,
         },
         client_ip: "203.0.113.5",
         captcha_token: "tok",
+        ticket: "P".repeat(43),
       },
       headers: { "x-orchados-proxy-secret": "signup-proxy-local" },
     });
@@ -107,6 +116,7 @@ describe("registerCustomer", () => {
     ];
     expect(options.body).not.toHaveProperty("client_ip");
     expect(options.body).not.toHaveProperty("captcha_token");
+    expect(options.body).not.toHaveProperty("ticket");
     expect(options.headers).toEqual({});
   });
 
@@ -119,10 +129,10 @@ describe("registerCustomer", () => {
       error: "invalid_input",
       field: "email",
     });
-    const taken = fakeClient({ error: httpError(409, { error: "phone_registered" }) });
+    const taken = fakeClient({ error: httpError(409, { error: "not_completed" }) });
     expect(await registerCustomer(taken.client, INPUT, null, null)).toEqual({
       ok: false,
-      error: "phone_registered",
+      error: "not_completed",
     });
   });
 
@@ -161,7 +171,7 @@ describe("completeSignup", () => {
     "returns %s",
     async (status) => {
       const { client, invoke } = fakeClient({ data: { status } });
-      expect(await completeSignup(client)).toEqual({ ok: true, status });
+      expect(await completeSignup(client, null)).toEqual({ ok: true, status });
       expect(invoke.mock.calls[0]).toMatchObject([
         "customer-signup",
         { body: { action: "complete" } },
@@ -169,16 +179,43 @@ describe("completeSignup", () => {
     },
   );
 
+  it("sends the ticket it holds, and none without one", async () => {
+    const { client, invoke } = fakeClient({ data: { status: "completed" } });
+    await completeSignup(client, "T".repeat(43));
+    await completeSignup(client, null);
+    expect(
+      (invoke.mock.calls as unknown as [string, { body: object }][]).map(([, o]) => o.body),
+    ).toEqual([{ action: "complete", ticket: "T".repeat(43) }, { action: "complete" }]);
+    const mismatch = fakeClient({ error: httpError(403, { error: "signup_mismatch" }) });
+    expect(await completeSignup(mismatch.client, null)).toEqual({
+      ok: false,
+      error: "signup_mismatch",
+    });
+  });
+
   it("maps 403 phone_not_verified and an unreachable function", async () => {
     const forbidden = fakeClient({ error: httpError(403, { error: "phone_not_verified" }) });
-    expect(await completeSignup(forbidden.client)).toEqual({
+    expect(await completeSignup(forbidden.client, null)).toEqual({
       ok: false,
       error: "phone_not_verified",
     });
     const missing = fakeClient({ error: httpError(404, {}) });
-    expect(await completeSignup(missing.client)).toEqual({
+    expect(await completeSignup(missing.client, null)).toEqual({
       ok: false,
       error: "signup_unavailable",
     });
+  });
+});
+
+describe("claimSignupTicket", () => {
+  it("returns the ticket, null without a pending sign-up, and password_required", async () => {
+    const ticket = "T".repeat(43);
+    const { client, invoke } = fakeClient({ data: { ticket } });
+    expect(await claimSignupTicket(client)).toEqual({ ok: true, ticket });
+    expect(invoke.mock.calls[0]).toMatchObject(["customer-signup", { body: { action: "claim" } }]);
+    const none = fakeClient({ data: { status: "no_pending" } });
+    expect(await claimSignupTicket(none.client)).toEqual({ ok: true, ticket: null });
+    const otp = fakeClient({ error: httpError(403, { error: "password_required" }) });
+    expect(await claimSignupTicket(otp.client)).toEqual({ ok: false, error: "password_required" });
   });
 });

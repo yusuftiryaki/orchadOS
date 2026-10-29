@@ -1,28 +1,21 @@
-# Açık Rıza Metni
+# Açık Rıza ve Ticari Elektronik İleti Onayı Metni
 
-> **Taslak:** Avukat incelemesi için. Hukuki görüş değildir. Hangi işlemlerin açık rızaya dayanacağı avukatın kararıdır (bkz. [README](README.md), soru 2). Açık rıza hizmet sözleşmesine bağlanamaz; her madde ayrı ayrı ve isteğe bağlı sorulur.
+> **Taslak:** Hukuki kararlar ([kararlar.md](kararlar.md)) uygulandı. Şirket bilgileri doldurulup [yayın şartları](kararlar.md#yayin) tamamlanınca sürüm adındaki "-taslak" eki kaldırılır.
+>
+> **v2 (28 Ekim 2026):** Metnin tamamı değişti. Yapay zekâ için yurt dışı aktarım rızası (eski 1. madde) ve hizmetin geliştirilmesi rızası (eski 2. madde) kaldırıldı ([H02](kararlar.md#h02), [H31](kararlar.md#h31)); tanıtım onayı tek kutuda açık rıza ve ticari elektronik ileti onayı olarak yazıldı ([H06](kararlar.md#h06)).
 
-**Sürüm:** riza-v1-taslak · [Tarih]
+**Sürüm:** riza-v2-taslak · [Tarih]
 
-[Kişisel Verilerin İşlenmesine İlişkin Aydınlatma Metni](kvkk-aydinlatma-metni.md)'ni okudum. Aşağıdaki işlemler için, her birini ayrı ayrı işaretleyerek açık rızamı veriyorum. Rıza vermemem hizmeti almama engel değildir. Rızamı istediğim zaman portaldan ya da [kvkk@alanadi] adresine yazarak geri alabilirim.
+Bu metin, açık rızanıza ve ticari elektronik ileti onayınıza dayanan tek işlemi anlatır: tanıtım iletilerinin gönderilmesi. Hizmetin verilmesi için gereken işlemler (görüntülerin işlenmesi ve hizmet sağlayıcılara aktarımı dahil) açık rızaya dayanmaz; [Aydınlatma Metni](kvkk-aydinlatma-metni.md)'nde yazılı hukuki sebeplere ve güvencelere dayanır.
 
-**1. Yapay zekâ ön değerlendirmesi için yurt dışına aktarım**
+> Bu onay, Şirket'in İleti Yönetim Sistemi (İYS) kaydı ve entegrasyonu tamamlandıktan sonra kayıt formunda ve portalda sorulur. O tarihe kadar size tanıtım iletisi gönderilmez.
 
-> **İP12'de sorulmaz; hukuki dayanak avukat kararı (README soru 2).** Kayıt formunda, portalda ve sitedeki `/acik-riza` sayfasında bu madde yoktur; site yalnızca 2. ve 3. maddeleri gösterir. Avukat açık rıza derse önce ai-worker'a rıza denetimi eklenir, madde ondan sonra açılır.
+**Tanıtım iletileri**
 
-☐ Bahçeme ait ağaç görüntülerinin, uzman incelemesinden önce ön değerlendirme yapılması amacıyla Amerika Birleşik Devletleri'nde yerleşik yapay zekâ hizmet sağlayıcısına [Anthropic PBC] aktarılmasına rıza veriyorum.
-- Bu görüntülerde bahçede bulunan kişiler görünebilir.
-- Adım, telefonum, parsel adı ve köy aktarılmaz.
-- Rıza vermezsem ağaçlarımın değerlendirmesini yalnızca uzman yapar.
+☐ OBA Bilişim Teknolojileri LTD.'nin orchadOS hizmetine ilişkin yenilik, kampanya ve tanıtımlarını bana kısa mesajla (SMS) göndermesine ticari elektronik ileti onayı veriyorum ve bu amaçla adımın ve telefon numaramın işlenmesine açık rıza veriyorum. Onayım İleti Yönetim Sistemi'ne (İYS) kaydedilir.
 
-> *Avukata not:* 2024 değişikliğinden sonra yurt dışı aktarımda açık rıza sadece arızi aktarımlarda kullanılabiliyor. Düzenli aktarımda standart sözleşme gerekiyorsa bu madde metinden çıkar.
-
-**2. Hizmetin geliştirilmesi**
-☐ Bahçemin görüntülerinin ve uzman değerlendirmelerinin, kimliğimle ilişkilendirilmeden, ağaç değerlendirme yöntemlerinin ve modellerinin geliştirilmesinde kullanılmasına rıza veriyorum.
-
-**3. Tanıtım ve bilgilendirme mesajları**
-☐ Hizmetle ilgili yeniliklerin ve kampanyaların bana SMS / WhatsApp ile gönderilmesine rıza veriyorum. Ticari elektronik ileti onayı ayrıca İYS'ye kaydedilir.
-
-"Rapor hazır" ve "kritik bulgu" gibi hizmete ilişkin bildirimler bu maddeye bağlı değildir; hizmetin parçası olarak gönderilir.
+- Onay vermemem hizmeti almama engel değildir.
+- Onayımı istediğim zaman portaldan (Hesabım › İzinler), İYS üzerinden ya da iletilerdeki ret yoluyla ücretsiz geri alabilirim.
+- "Rapor hazır", "kritik bulgu", ziyaret tarihi, teklif, ödeme, iade, hatırlatma ve erişim bildirimleri ile giriş kodları bu onaya bağlı değildir; hizmetin parçası olarak gönderilir ve tanıtım içermez.
 
 **Ad soyad:** ______________________  **Tarih:** ____________  **İmza / portal onayı:** ____________

@@ -9,6 +9,7 @@ export const BO_NOTICES = [
   "quote_issued",
   "application_rejected",
   "payment_recorded",
+  "unpaid_visit_allowed",
   "due_extended",
   "order_cancelled",
   "order_terminated",
@@ -26,6 +27,15 @@ export const BO_NOTICES = [
   "price_list_published",
   "draft_deleted",
   "settings_saved",
+  // IP14 (docs/bahce-yonetimi.md §12)
+  "garden_linked",
+  "garden_unlinked",
+  "garden_withdrawn",
+  "removal_requested",
+  "withdrawal_recorded",
+  "removal_scheduled",
+  "removal_completed",
+  "removal_cancelled",
 ] as const;
 export type BoNotice = (typeof BO_NOTICES)[number];
 
@@ -61,14 +71,22 @@ export const boHref = {
   applicationGarden: (applicationId: string, gardenId: string, result?: BoResult) =>
     build(`/operasyon/basvuru/${applicationId}/bahce/${gardenId}`, {}, result),
   quote: (id: string, result?: BoResult) => build(`/operasyon/teklif/${id}`, {}, result),
-  newQuote: (query: { sahip?: string | null; siparis?: string | null }, result?: BoResult) =>
-    build("/operasyon/teklif/yeni", query, result),
+  // ?sahip=<profile>: parcel quote; ?siparis=<order>: renewal; ?ek=<base
+  // order> (with an optional &siparis=<order> to merge): add-on quote for
+  // existing parcels (IP14).
+  newQuote: (
+    query: { sahip?: string | null; siparis?: string | null; ek?: string | null },
+    result?: BoResult,
+  ) => build("/operasyon/teklif/yeni", query, result),
   orders: (query: { durum?: string | null } = {}) => build("/operasyon/siparis", query),
   order: (id: string, result?: BoResult) => build(`/operasyon/siparis/${id}`, {}, result),
   payments: (query: { durum?: string | null; yontem?: string | null } = {}) =>
     build("/operasyon/odeme", query),
   payment: (id: string, result?: BoResult) => build(`/operasyon/odeme/${id}`, {}, result),
   refunds: (result?: BoResult) => build("/operasyon/iade", {}, result),
+  // Garden removals (IP14): the queue (open by default) and one removal.
+  removals: (query: { durum?: string | null } = {}) => build("/operasyon/cikarma", query),
+  removal: (id: string, result?: BoResult) => build(`/operasyon/cikarma/${id}`, {}, result),
   // `org` keeps the org of a multi-org ops user across links and redirects.
   prices: (result?: BoResult, org?: string | null) => build("/operasyon/fiyat", { org }, result),
   priceList: (id: string, result?: BoResult) => build(`/operasyon/fiyat/liste/${id}`, {}, result),

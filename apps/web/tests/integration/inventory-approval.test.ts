@@ -426,7 +426,13 @@ describe("owner's boundary card", () => {
   it("the owner approves; who and when are shown; the inventory summary appears", async () => {
     const before = (await loadBoundaryCard(as.owner, IDS.parcel, userIds.owner))!;
     expect(before.canApprove).toBe(true);
-    expect(await approveBoundary(as.owner, before.latest!.id)).toEqual({ ok: true });
+    // T16: the seed org asks the boundary declaration (boundary_declaration_required).
+    expect(before.declarationRequired).toBe(true);
+    expect(await approveBoundary(as.owner, before.latest!.id)).toEqual({
+      ok: false,
+      error: "declaration_required",
+    });
+    expect(await approveBoundary(as.owner, before.latest!.id, true)).toEqual({ ok: true });
     const after = (await loadBoundaryCard(as.owner, IDS.parcel, userIds.owner))!;
     expect(after.latest?.approvedAt).toBeTruthy();
     expect(after.latest?.approvedByMe).toBe(true);

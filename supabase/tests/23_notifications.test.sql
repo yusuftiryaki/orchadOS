@@ -55,7 +55,11 @@ select enum_has_labels('public', 'notification_channel', array['sms', 'whatsapp'
 select enum_has_labels('public', 'notification_status', array['pending', 'sent', 'failed'], 'statuses');
 select enum_has_labels('public', 'notification_template',
   array['report_ready', 'critical_finding', 'quote_ready', 'application_rejected', 'payment_received',
-        'refund_completed', 'payment_reminder'], 'templates (reports and account messages)');
+        'refund_completed', 'payment_reminder', 'garden_removal_scheduled', 'garden_removal_rescheduled',
+        'garden_removal_cancelled', 'garden_removal_completed', 'garden_access_ending',
+        'contract_ready', 'withdrawal_received', 'addon_order_closed', 'viewer_invited', 'visit_scheduled',
+        'garden_transfer_reports'],
+  'templates (reports, account and garden messages)');
 select has_trigger('public', 'session', 'session_notify_published', 'report trigger');
 select has_trigger('public', 'finding', 'finding_notify_critical', 'critical finding trigger');
 select ok(not has_table_privilege('authenticated', 'public.notification', 'INSERT')
@@ -292,7 +296,7 @@ delete from private.phone_login_attempt;
 
 select hasnt_column('private', 'phone_login_attempt', 'phone', 'login attempts keep a hash, not the number');
 select ok(has_function_privilege('anon', 'public.phone_login_allowed(text)', 'EXECUTE')
-  and has_function_privilege('anon', 'public.phone_login_record_failure(text)', 'EXECUTE')
+  and has_function_privilege('anon', 'public.phone_login_record_failure(text, text)', 'EXECUTE')
   and not has_function_privilege('anon', 'public.phone_login_code_requested(text)', 'EXECUTE')
   and not has_function_privilege('authenticated', 'public.phone_login_code_requested(text)', 'EXECUTE'),
   'the login page checks and reports wrong codes; only the SMS hook counts codes');

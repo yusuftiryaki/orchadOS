@@ -1,16 +1,20 @@
 "use client";
 
-import type { GeoJSONSource, Map as MapLibreMap, MapMouseEvent } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef, useState } from "react";
+import type { GeoJSONSource, MapMouseEvent } from "maplibre-gl";
+import { useEffect, useMemo, useRef } from "react";
+import { MapStatus } from "@/components/map/map-status";
+import mapStyles from "@/components/map/map.module.css";
+import { useMapLibre } from "@/components/map/use-maplibre";
 import { t } from "@/lib/i18n";
-import { basemapStyle } from "@/lib/map/basemap";
+import { ringOutline } from "@/lib/map/features";
 import { boundsOf, type Position } from "@/lib/map/geo";
+import { syncSelection } from "@/lib/map/selection";
+import { MAP_COLORS, MARKER_COLORS } from "@/lib/map/tree-style";
 import type { LatLon } from "@/lib/office/local-frame";
 import styles from "./office-tool.module.css";
 
 // Map of the office tool. Built once; every overlay is a GeoJSON source whose
-// data is replaced when its prop changes.
+// data is replaced when its prop changes; the selected tree is a feature state.
 
 export interface MapPanorama {
   id: string;
@@ -96,8 +100,6 @@ export function OfficeMap({
   onTreeMove: (id: string, p: LatLon) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
-  const [ready, setReady] = useState(false);
   const handlers = useRef({ onMapClick, onTreeClick, onTreeMove });
   const initial = useRef({ boundary, panoramas });
   // Last tree data handed to the map; dragging edits it in place.
@@ -107,57 +109,46 @@ export function OfficeMap({
     handlers.current = { onMapClick, onTreeClick, onTreeMove };
   }, [onMapClick, onTreeClick, onTreeMove]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let map: MapLibreMap | null = null;
-
-    import("maplibre-gl").then((maplibregl) => {
-      const container = containerRef.current;
-      if (cancelled || !container) return;
-      maplibregl.setWorkerUrl(
-        new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).toString(),
-      );
-      const { boundary: ring, panoramas: panos } = initial.current;
-      const bounds = boundsOf([...(ring ?? []), ...panos.map((p) => p.position)].map(pos));
-      const m = new maplibregl.Map({
-        container,
-        style: basemapStyle(process.env.NEXT_PUBLIC_MAP_STYLE_URL),
-        bounds: bounds ?? undefined,
-        fitBoundsOptions: { padding: 24 },
-        center: bounds ? undefined : [37.38, 37.07],
-        zoom: bounds ? undefined : 10,
-        maxZoom: 23,
-        doubleClickZoom: false,
-      });
-      map = m;
-      mapRef.current = m;
-      m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-      m.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
-      // Test hook, as in ParcelMap.
-      (container as HTMLDivElement & { __map?: MapLibreMap }).__map = m;
-
-      m.on("load", () => {
+  const state = useMapLibre(
+    containerRef,
+    {
+      label: t.office.map,
+      overlaySources: ["boundary", "rows", "rays", "panoramas", "empty", "trees", "candidate"],
+      options: () => {
+        const { boundary: ring, panoramas: panos } = initial.current;
+        const bounds = boundsOf([...(ring ?? []), ...panos.map((p) => p.position)].map(pos));
+        return {
+          bounds: bounds ?? undefined,
+          fitBoundsOptions: { padding: 24 },
+          center: bounds ? undefined : [37.38, 37.07],
+          zoom: bounds ? undefined : 10,
+          maxZoom: 23,
+          doubleClickZoom: false,
+        };
+      },
+      onStyle: (m) => {
         const source = (id: string) => m.addSource(id, { type: "geojson", data: EMPTY });
-        for (const id of ["boundary", "rows", "rays", "panoramas", "empty", "trees", "candidate"]) {
+        for (const id of ["boundary", "rows", "rays", "panoramas", "empty", "candidate"]) {
           source(id);
         }
+        m.addSource("trees", { type: "geojson", data: EMPTY, promoteId: "id" });
         m.addLayer({
           id: "boundary-line",
           type: "line",
           source: "boundary",
-          paint: { "line-color": "#4f7a28", "line-width": 2 },
+          paint: { "line-color": MAP_COLORS.accent, "line-width": 2 },
         });
         m.addLayer({
           id: "rows",
           type: "line",
           source: "rows",
-          paint: { "line-color": "#868e96", "line-width": 1, "line-dasharray": [2, 2] },
+          paint: { "line-color": MAP_COLORS.muted, "line-width": 1, "line-dasharray": [2, 2] },
         });
         m.addLayer({
           id: "rays",
           type: "line",
           source: "rays",
-          paint: { "line-color": "#e8590c", "line-width": 2 },
+          paint: { "line-color": MAP_COLORS.highlight, "line-width": 2 },
         });
         m.addLayer({
           id: "panoramas",
@@ -165,8 +156,9 @@ export function OfficeMap({
           source: "panoramas",
           paint: {
             "circle-radius": ["case", ["get", "active"], 6, 3.5],
-            "circle-color": ["case", ["get", "active"], "#1971c2", "#74c0fc"],
-            "circle-stroke-color": "#ffffff",
+            "circle-color": MAP_COLORS.info,
+            "circle-opacity": ["case", ["get", "active"], 1, 0.45],
+            "circle-stroke-color": MAP_COLORS.surface,
             "circle-stroke-width": 1,
           },
         });
@@ -176,9 +168,9 @@ export function OfficeMap({
           source: "empty",
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 16, 3, 20, 8],
-            "circle-color": "rgba(0,0,0,0)",
-            "circle-stroke-color": "#c92a2a",
-            "circle-stroke-width": 2,
+            "circle-color": MARKER_COLORS.empty,
+            "circle-stroke-color": MAP_COLORS.emptyRing,
+            "circle-stroke-width": 1.5,
           },
         });
         m.addLayer({
@@ -187,9 +179,23 @@ export function OfficeMap({
           source: "trees",
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 16, 3, 20, 8],
-            "circle-color": ["case", ["get", "flagged"], "#f08c00", "#2b8a3e"],
-            "circle-stroke-color": ["case", ["get", "selected"], "#000000", "#ffffff"],
-            "circle-stroke-width": ["case", ["get", "selected"], 3, 1],
+            "circle-color": MARKER_COLORS.healthy,
+            "circle-stroke-color": [
+              "case",
+              ["boolean", ["feature-state", "selected"], false],
+              MAP_COLORS.highlight,
+              ["get", "flagged"],
+              MAP_COLORS.warning,
+              MAP_COLORS.ring,
+            ],
+            "circle-stroke-width": [
+              "case",
+              ["boolean", ["feature-state", "selected"], false],
+              3,
+              ["get", "flagged"],
+              2,
+              1,
+            ],
           },
         });
         m.addLayer({
@@ -198,8 +204,8 @@ export function OfficeMap({
           source: "candidate",
           paint: {
             "circle-radius": 6,
-            "circle-color": "rgba(0,0,0,0)",
-            "circle-stroke-color": "#e8590c",
+            "circle-color": "transparent",
+            "circle-stroke-color": MAP_COLORS.highlight,
             "circle-stroke-width": 3,
           },
         });
@@ -246,41 +252,16 @@ export function OfficeMap({
         m.on("mouseleave", TREE_LAYER, () => {
           if (!dragging) m.getCanvas().style.cursor = "";
         });
-        setReady(true);
-        container.setAttribute("data-map-ready", "true");
-      });
-    });
-
-    return () => {
-      cancelled = true;
-      map?.remove();
-      mapRef.current = null;
-    };
-  }, []);
-
-  const set = (id: string, data: Geo) => {
-    const src = mapRef.current?.getSource(id) as GeoJSONSource | undefined;
-    src?.setData(data);
-  };
+      },
+    },
+    [],
+  );
+  const { mapRef, ready, setData: set } = state;
 
   useEffect(() => {
     if (!ready) return;
-    set(
-      "boundary",
-      boundary
-        ? {
-            type: "FeatureCollection",
-            features: [
-              {
-                type: "Feature",
-                geometry: { type: "LineString", coordinates: boundary.map(pos) },
-                properties: {},
-              },
-            ],
-          }
-        : EMPTY,
-    );
-  }, [ready, boundary]);
+    set("boundary", ringOutline(boundary?.map(pos)));
+  }, [ready, set, boundary]);
 
   useEffect(() => {
     if (ready)
@@ -292,11 +273,11 @@ export function OfficeMap({
           (p) => ({ id: p.id, active: p.active }),
         ),
       );
-  }, [ready, panoramas]);
+  }, [ready, set, panoramas]);
 
   useEffect(() => {
     if (ready) set("rays", lines(rays));
-  }, [ready, rays]);
+  }, [ready, set, rays]);
 
   useEffect(() => {
     if (ready)
@@ -310,17 +291,38 @@ export function OfficeMap({
             )
           : EMPTY,
       );
-  }, [ready, candidate]);
+  }, [ready, set, candidate]);
 
+  // Tree data changes when a tree moves, is flagged or coded; the selection
+  // goes through feature state.
+  const treeKey = useMemo(
+    () =>
+      trees
+        .map((tr) => `${tr.id}|${tr.position.lat}|${tr.position.lon}|${tr.flagged}|${tr.code}`)
+        .join(";"),
+    [trees],
+  );
+  const treesRef = useRef(trees);
+  useEffect(() => {
+    treesRef.current = trees;
+  });
   useEffect(() => {
     if (!ready) return;
     treeData.current = points(
-      trees,
+      treesRef.current,
       (tr) => tr.position,
-      (tr) => ({ id: tr.id, selected: tr.selected, flagged: tr.flagged, code: tr.code ?? "" }),
+      (tr) => ({ id: tr.id, flagged: tr.flagged, code: tr.code ?? "" }),
     );
     set("trees", treeData.current);
-  }, [ready, trees]);
+  }, [ready, set, treeKey]);
+
+  const selectedIds = useMemo(() => trees.filter((tr) => tr.selected).map((tr) => tr.id), [trees]);
+  const shownSelection = useRef<string[]>([]);
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!ready || !m) return;
+    shownSelection.current = syncSelection(m, "trees", shownSelection.current, selectedIds);
+  }, [ready, mapRef, selectedIds]);
 
   useEffect(() => {
     if (ready)
@@ -332,19 +334,22 @@ export function OfficeMap({
           (s) => ({ code: s.code }),
         ),
       );
-  }, [ready, emptySlots]);
+  }, [ready, set, emptySlots]);
 
   useEffect(() => {
     if (ready) set("rows", lines(rowLines));
-  }, [ready, rowLines]);
+  }, [ready, set, rowLines]);
 
   return (
-    <div
-      ref={containerRef}
-      className={styles.map}
-      data-testid="office-map"
-      aria-label={t.office.map}
-      role="region"
-    />
+    <>
+      <div
+        ref={containerRef}
+        className={`${styles.map} ${mapStyles.base}`}
+        data-testid="office-map"
+        aria-label={t.office.map}
+        role="region"
+      />
+      <MapStatus state={state} testId="office-map-status" />
+    </>
   );
 }

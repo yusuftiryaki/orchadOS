@@ -254,18 +254,27 @@ export async function loadReview(
     .sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
   const previous = before[0] ?? null;
 
-  const previousExpert = previous
-    ? await fetchAll((from, to) =>
-        supabase
-          .from("assessment")
-          .select("id, tree_id, overall_class, assessed_at, created_at")
-          .eq("session_id", previous.id)
-          .eq("source", "expert")
-          .not("tree_id", "is", null)
-          .order("id")
-          .range(from, to),
-      )
-    : [];
+  const methodologyVersion = s.methodology_version ?? DEFAULT_METHODOLOGY_VERSION;
+  const rules = reviewRulesFor(methodologyVersion);
+  const allMetrics = metricRows.data ?? [];
+  // Independent of each other: the previous visit's decisions, the season
+  // check of bulk approval and the triage signals.
+  const [previousExpert, firstOfSeason, signals] = await Promise.all([
+    previous
+      ? fetchAll((from, to) =>
+          supabase
+            .from("assessment")
+            .select("id, tree_id, overall_class, assessed_at, created_at")
+            .eq("session_id", previous.id)
+            .eq("source", "expert")
+            .not("tree_id", "is", null)
+            .order("id")
+            .range(from, to),
+        )
+      : [],
+    isFirstOfSeason(supabase, s.id, time, methodologyVersion),
+    loadSignals(supabase, s.id, allMetrics, rules),
+  ]);
 
   const latestClass = (
     rows: {
@@ -289,12 +298,6 @@ export async function loadReview(
     }
     return out;
   };
-
-  const methodologyVersion = s.methodology_version ?? DEFAULT_METHODOLOGY_VERSION;
-  const rules = reviewRulesFor(methodologyVersion);
-  const firstOfSeason = await isFirstOfSeason(supabase, s.id, time, methodologyVersion);
-  const allMetrics = metricRows.data ?? [];
-  const signals = await loadSignals(supabase, s.id, allMetrics, rules);
 
   const expertRows = assessments.filter((a) => a.source === "expert");
   const expert = latestClass(expertRows);
@@ -353,7 +356,7 @@ export async function loadReview(
     })
     .sort(compareSlots);
 
-  const season = seasonOf(time);
+  const season = seasonOf(time, s.methodology_version);
   return {
     session: {
       id: s.id,
@@ -372,7 +375,7 @@ export async function loadReview(
     rules,
     firstOfSeason,
     previous,
-    metrics: reviewMetrics(allMetrics, season),
+    metrics: reviewMetrics(allMetrics, season, s.methodology_version),
     allMetrics,
     trees,
     findings: findings.map((f) => ({
@@ -409,9 +412,11 @@ async function isFirstOfSeason(
       : query.eq("methodology_version", methodologyVersion);
   const { data, error } = await query;
   if (error) throw error;
-  const season = seasonOf(time);
+  const season = seasonOf(time, methodologyVersion);
   return !(data ?? []).some(
-    (v) => seasonOf(sessionTime(v)) === season && Date.parse(sessionTime(v)) < Date.parse(time),
+    (v) =>
+      seasonOf(sessionTime(v), methodologyVersion) === season &&
+      Date.parse(sessionTime(v)) < Date.parse(time),
   );
 }
 
@@ -487,6 +492,11 @@ export interface Crop {
   direction: string | null;
   url: string | null;
   quality: number | null;
+  // Where the camera stood: distance to the tree and the position's
+  // uncertainty (m); the capture time when the pipeline recorded one.
+  distanceM: number | null;
+  positionUncertaintyM: number | null;
+  capturedAt: string | null;
 }
 
 export interface Judgement {
@@ -521,6 +531,11 @@ const VALUE_COLUMNS =
 // expert's decision must not copy it ("Yok" is the expert's class).
 const NOT_AN_AI_VALUE = new Set(["tree_visible"]);
 
+// Times between components are GPS time: ns since 1980-01-06, no leap seconds
+// (docs/arayuzler.md); UTC is 18 s behind since 2017.
+const GPS_EPOCH_MS = Date.UTC(1980, 0, 6);
+const GPS_LEAP_MS = 18_000;
+
 // Crop images are signed with `signer` (src/lib/media); without one (server
 // actions that only need the crop ids) their URLs stay null.
 export async function loadTreeDetail(
@@ -533,7 +548,7 @@ export async function loadTreeDetail(
   const [crops, assessments, measurements] = await Promise.all([
     supabase
       .from("asset")
-      .select("id, session_id, uri, pose, quality_score")
+      .select("id, session_id, uri, pose, quality_score, position_uncertainty_m")
       .eq("tree_id", treeId)
       .eq("kind", "tree_crop")
       .in("session_id", sessionIds),
@@ -556,13 +571,27 @@ export async function loadTreeDetail(
     ? await signer.signUrls((crops.data ?? []).map((c) => c.uri))
     : new Map<string, string | null>();
   const toCrop = (c: NonNullable<typeof crops.data>[number]): Crop => {
-    const pose = (c.pose ?? {}) as { direction?: unknown };
+    const pose = (c.pose ?? {}) as {
+      direction?: unknown;
+      distance_m?: unknown;
+      gps_time_ns?: unknown;
+    };
+    const ns =
+      typeof pose.gps_time_ns === "number" || typeof pose.gps_time_ns === "string"
+        ? Number(pose.gps_time_ns)
+        : NaN;
     return {
       id: c.id,
       sessionId: c.session_id,
       direction: typeof pose.direction === "string" ? pose.direction : null,
       url: urls.get(c.uri) ?? null,
       quality: c.quality_score,
+      distanceM: typeof pose.distance_m === "number" ? pose.distance_m : null,
+      positionUncertaintyM: c.position_uncertainty_m,
+      capturedAt:
+        Number.isFinite(ns) && ns > 0
+          ? new Date(GPS_EPOCH_MS + ns / 1e6 - GPS_LEAP_MS).toISOString()
+          : null,
     };
   };
   const cropsOf = (sessionId: string) =>

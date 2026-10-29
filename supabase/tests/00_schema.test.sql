@@ -23,13 +23,24 @@ select tables_are(
     -- Customers and billing (IP12, docs/musteri-yonetimi.md §6.3).
     'org_billing_setting', 'service_package', 'price_list', 'price_list_item', 'service_application',
     'application_garden', 'quote', 'quote_item', 'service_order', 'service_order_item', 'payment',
-    'payment_item', 'refund', 'audit_event'
+    'payment_item', 'refund', 'audit_event', 'garden_removal', 'order_installment', 'order_installment_item'
   ],
   'public has exactly the MVP tables'
 );
 select tables_are('private', array['owner_profile', 'parcel_detail', 'message_outbox', 'phone_login_attempt', 'viewer_invitation',
   'billing_profile', 'payment_billing_snapshot', 'consent_record', 'customer_signup', 'signup_attempt',
-  'application_garden_detail', 'payment_event', 'document_sequence'], 'private has the personal data tables');
+  'application_garden_detail', 'payment_event', 'document_sequence',
+  -- Demo tour registry (IP13, docs/demo-turu.md §5.1).
+  'demo_org', 'demo_parcel', 'demo_session', 'demo_attempt',
+  -- Legal-text registry (T21) and contract documents (T04); spent
+  -- self-hosted captcha challenges (T12).
+  'legal_text_version', 'contract_document', 'captcha_spent',
+  -- Legal follow-ups wave 2 (T23, T20, T16, T11).
+  'staff_profile', 'media_suppression', 'boundary_approval', 'boundary_pointer', 'boundary_dispute',
+  'kvkk_request',
+  -- Wave 3 (T07, T06, T09, T04 sweep).
+  'visit_notice', 'visit_postponement', 'missed_visit', 'visit_reconciliation', 'contract_end',
+  'contract_sweep_ticket'], 'private has the personal data tables');
 
 select is(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
@@ -122,7 +133,9 @@ select set_eq(
         'fresh_cut_present', 'dead_scaffold_present', 'gum_present', 'dead_test_no_buds',
         'dead_test_snaps', 'dead_test_brown_cambium', 'flower_cluster_present', 'pollen_present',
         'shoot_tip_dieback_present', 'honeydew_present', 'sooty_mould_present', 'white_flakes_present',
-        'green_fruit_drop_present', 'debris_under_tree_present', 'dry_weeds_present'],
+        'green_fruit_drop_present', 'debris_under_tree_present', 'dry_weeds_present',
+        -- Close-up protocol of methodology v0.2 (20261103100800_methodology_v02).
+        'dead_test_live_bud', 'early_emptied_cluster_present', 'fence_breach_present'],
   'migrations register the metrics from docs/metodoloji.md (Ek B), docs/veri-modeli.md and the field questions'
 );
 

@@ -1,7 +1,16 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
-import { requestSignupCode } from "@/lib/billing/signup-code";
-import { ageSignups, purgeBillingUsers, purgeSignupAttempts } from "../local-db";
+import { altchaPayload, isAltchaChallenge, solveAltcha } from "@/lib/site/altcha-solver";
+import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
+import {
+  agePhoneConfirmation,
+  ageSignups,
+  legacySignup,
+  purgeBillingUsers,
+  purgeSignupAttempts,
+  signupReview,
+} from "../local-db";
 import { anonClient, serviceClient } from "./fixtures";
+import { claim, codes, complete, enterLatestCode, sendCode, userById } from "./signup-flow";
 
 // Self sign-up against the local stack (docs/musteri-yonetimi.md §7): the
 // customer-signup Edge Function opens the account, the SMS code (read from the
@@ -18,6 +27,12 @@ const randomDigits = (n: number) =>
 const randomPhone = () => `+90555${randomDigits(7)}`;
 const randomEmail = (label: string) => `${label}-${randomDigits(8)}@${EMAIL_DOMAIN}`;
 const PASSWORD = "parola-1234";
+// Every 200 of register carries a fresh sign-up ticket.
+const TICKET = /^[A-Za-z0-9_-]{43}$/;
+const VERIFY = {
+  status: 200,
+  json: { next: "verify_phone", ticket: expect.stringMatching(TICKET) },
+};
 
 function body(overrides: Record<string, unknown> = {}) {
   return {
@@ -27,11 +42,12 @@ function body(overrides: Record<string, unknown> = {}) {
     email: randomEmail("musteri"),
     password: PASSWORD,
     contact_preference: "sms",
+    // T27: a direct POST with both explicit consents true grants nothing.
     consents: {
-      kvkk_notice_version: "kvkk-v1-taslak",
+      kvkk_notice_version: LEGAL_TEXT_VERSIONS.kvkk_notice,
       explicit_text_version: "riza-v1-taslak",
       explicit_service_improvement: true,
-      explicit_marketing: false,
+      explicit_marketing: true,
     },
     ...overrides,
   };
@@ -62,11 +78,6 @@ async function latestCode(phone: string): Promise<string | null> {
   if (error) throw error;
   const text = data?.[0]?.purpose === "login_code" ? data[0].body : "";
   return /\b(\d{6})\b/.exec(text)?.[1] ?? null;
-}
-
-// The code step of the web flow, through the helper the sign-up page uses.
-async function sendCode(client: ReturnType<typeof anonClient>, phone: string) {
-  return requestSignupCode(client.auth, phone);
 }
 
 async function usersByEmail(emails: string[]) {
@@ -101,7 +112,8 @@ describe("customer-signup", () => {
   it("register → SMS code → complete creates the profile and three consents", async () => {
     const input = body({ full_name: "  Ayşe   Deneme ", email: randomEmail("Tam").toUpperCase() });
     const registered = await signup(input, "203.0.113.1");
-    expect(registered).toEqual({ status: 200, json: { next: "verify_phone" } });
+    expect(registered).toEqual(VERIFY);
+    const ticket = String(registered.json.ticket);
 
     const [user] = await usersByEmail([String(input.email).toLowerCase()]);
     expect(user.app_metadata.signup).toBe("self");
@@ -109,14 +121,14 @@ describe("customer-signup", () => {
 
     const client = anonClient();
     const phone = String(input.phone);
-    expect(await sendCode(client, phone)).toBeNull();
+    expect(await sendCode(client, phone, ticket)).toBeNull();
     const code = await latestCode(phone);
     expect(code).toMatch(/^\d{6}$/);
     const verified = await client.auth.verifyOtp({ phone, token: code!, type: "sms" });
     expect(verified.error).toBeNull();
     const token = verified.data.session!.access_token;
 
-    const complete = await signup({ action: "complete" }, "203.0.113.1", {
+    const complete = await signup({ action: "complete", ticket }, "203.0.113.1", {
       authorization: `Bearer ${token}`,
     });
     expect(complete).toEqual({ status: 200, json: { status: "completed" } });
@@ -137,8 +149,9 @@ describe("customer-signup", () => {
     expect(
       Object.fromEntries((consents.data ?? []).map((c) => [c.kind, [c.granted, c.text_version]])),
     ).toEqual({
-      kvkk_notice: [true, "kvkk-v1-taslak"],
-      explicit_service_improvement: [true, "riza-v1-taslak"],
+      kvkk_notice: [true, LEGAL_TEXT_VERSIONS.kvkk_notice],
+      // T27: sent true, stored false (neither is asked).
+      explicit_service_improvement: [false, "riza-v1-taslak"],
       explicit_marketing: [false, "riza-v1-taslak"],
     });
 
@@ -155,7 +168,7 @@ describe("customer-signup", () => {
     });
     expect(password.error).toBeNull();
     const repeat = await signup(body({ phone, email: String(input.email) }), "203.0.113.1");
-    expect(repeat).toEqual({ status: 200, json: { next: "verify_phone" } });
+    expect(repeat).toEqual(VERIFY);
   });
 
   it("complete after a password sign-in is refused (no phone code)", async () => {
@@ -184,10 +197,7 @@ describe("customer-signup", () => {
     await ageSignups([stale.id], 31);
 
     const second = body({ email });
-    expect(await signup(second, "203.0.113.3")).toEqual({
-      status: 200,
-      json: { next: "verify_phone" },
-    });
+    expect(await signup(second, "203.0.113.3")).toEqual(VERIFY);
     const [fresh] = await usersByEmail([email]);
     expect(fresh.id).not.toBe(stale.id);
     expect(fresh.phone).toBe(String(second.phone).slice(1));
@@ -201,16 +211,275 @@ describe("customer-signup", () => {
     const [account] = await usersByEmail([String(victim.email)]);
 
     const sameEmail = await signup(body({ email: victim.email }), "203.0.113.8");
-    expect(sameEmail).toEqual({ status: 409, json: { error: "email_taken" } });
+    expect(sameEmail).toEqual({ status: 409, json: { error: "not_completed" } });
+    // H33: the same phone answers like a new sign-up, and nothing is created.
+    const attackerEmail = randomEmail("saldirgan");
     const samePhone = await signup(
-      body({ phone: victim.phone, email: randomEmail("saldirgan") }),
+      body({ phone: victim.phone, email: attackerEmail }),
       "203.0.113.8",
     );
-    expect(samePhone).toEqual({ status: 409, json: { error: "phone_registered" } });
+    expect(samePhone).toEqual(VERIFY);
+    expect(await usersByEmail([attackerEmail])).toHaveLength(0);
 
     const kept = await serviceClient().auth.admin.getUserById(account.id);
     expect(kept.data.user?.id).toBe(account.id);
+    expect(kept.data.user?.email).toBe(String(victim.email));
     expect(kept.data.user?.phone).toBe(String(victim.phone).slice(1));
+  });
+
+  it("the registrant's own ticket replaces their sign-up in progress", async () => {
+    const first = body({ email: randomEmail("degistir") });
+    const registered = await signup(first, "203.0.113.9");
+    expect(registered).toEqual(VERIFY);
+    const [old] = await usersByEmail([String(first.email)]);
+
+    // "Bilgileri değiştir": the same phone, a corrected e-mail, the ticket.
+    const corrected = randomEmail("duzeltilmis");
+    const again = await signup(
+      body({ phone: first.phone, email: corrected, ticket: registered.json.ticket }),
+      "203.0.113.9",
+    );
+    expect(again).toEqual(VERIFY);
+    expect(again.json.ticket).not.toBe(registered.json.ticket);
+    const [fresh] = await usersByEmail([corrected]);
+    expect(fresh.id).not.toBe(old.id);
+    expect((await serviceClient().auth.admin.getUserById(old.id)).data.user).toBeNull();
+  });
+
+  // Review of PR #93 (finding 1, critical, and round 2): someone registers
+  // the victim's phone with their own e-mail and password. Every way the
+  // victim could receive and enter that account's code ends with the account
+  // gone or its phone unconfirmed, never with the victim signed in to it.
+  describe("account pre-hijack", () => {
+    async function trap(ip: string) {
+      const phone = randomPhone();
+      const email = randomEmail("on-ele-gecirme");
+      const res = await signup(body({ phone, email, password: "saldirgan-1234" }), ip);
+      expect(res).toEqual(VERIFY);
+      const [account] = await usersByEmail([email]);
+      return { phone, email, ticket: String(res.json.ticket), id: account.id };
+    }
+
+    const attackerCanSignIn = async (email: string) =>
+      (await anonClient().auth.signInWithPassword({ email, password: "saldirgan-1234" })).error ===
+      null;
+
+    it("(i) the victim's own sign-up with the phone sends no code of the attacker's account", async () => {
+      const attack = await trap("203.0.113.70");
+      // Inside the 30-minute window: the same answer as a new sign-up;
+      // nothing is created or changed.
+      const victimEmail = randomEmail("kurban");
+      const victim = await signup(
+        body({ phone: attack.phone, email: victimEmail }),
+        "203.0.113.71",
+      );
+      expect(victim).toEqual(VERIFY);
+      expect(await usersByEmail([victimEmail])).toHaveLength(0);
+
+      // The code step: send_code grants nothing with the victim's (unstored)
+      // ticket and answers as for any number; the login code is not sent to
+      // an unconfirmed phone either.
+      const client = anonClient();
+      expect(await sendCode(client, attack.phone, String(victim.json.ticket))).toBeNull();
+      expect(await codes(attack.phone)).toEqual([]);
+      expect((await userById(attack.id))?.phone_confirmed_at ?? null).toBeNull();
+    });
+
+    it("(ii) Auth's public resend sends nothing; a code entered without the ticket deletes the account", async () => {
+      const attack = await trap("203.0.113.72");
+      // Straight to GoTrue, without the web: the Send SMS hook finds no
+      // grant and sends nothing, with the same empty answer as a sent code.
+      const direct = await anonClient().auth.resend({ type: "sms", phone: attack.phone });
+      expect(direct.error).toBeNull();
+      expect(await codes(attack.phone)).toEqual([]);
+      // Auth still counts that request against its code-a-minute limit.
+      await agePhoneConfirmation(attack.id, 2);
+
+      // The attacker's own code step (their ticket) does reach the phone.
+      expect(await sendCode(anonClient(), attack.phone, attack.ticket)).toBeNull();
+      expect(await codes(attack.phone)).toHaveLength(1);
+      // The victim enters it: /kayit/dogrula cannot claim a ticket with a
+      // code session, and `/` (complete without a ticket) is refused.
+      const victim = await enterLatestCode(attack.phone);
+      expect(victim.userId).toBe(attack.id);
+      expect(await claim(victim.token)).toEqual({
+        status: 403,
+        json: { error: "password_required" },
+      });
+      expect(await complete(victim.token, null)).toEqual({
+        status: 403,
+        json: { error: "signup_mismatch" },
+      });
+      expect(await userById(attack.id)).toBeNull();
+      expect(await attackerCanSignIn(attack.email)).toBe(false);
+    }, 30_000);
+
+    it("(ii) the victim's own /kayit ticket does not complete it either", async () => {
+      const attack = await trap("203.0.113.73");
+      const victim = await signup(
+        body({ phone: attack.phone, email: randomEmail("kurban") }),
+        "203.0.113.74",
+      );
+      expect(await sendCode(anonClient(), attack.phone, attack.ticket)).toBeNull();
+      const session = await enterLatestCode(attack.phone);
+      expect(await complete(session.token, String(victim.json.ticket))).toEqual({
+        status: 403,
+        json: { error: "signup_mismatch" },
+      });
+      expect(await userById(attack.id)).toBeNull();
+      expect((await session.client.auth.getUser()).data.user).toBeNull();
+    }, 30_000);
+
+    it("(iv) a planted attacker ticket only lets the victim replace the attacker's sign-up", async () => {
+      const attack = await trap("203.0.113.75");
+      // Cookie fixation: the victim's browser sends the attacker's ticket as
+      // its previous one. The register treats the attacker's pending
+      // sign-up as the browser's own and replaces it with the victim's.
+      const victimEmail = randomEmail("kurban");
+      const victim = await signup(
+        body({ phone: attack.phone, email: victimEmail, ticket: attack.ticket }),
+        "203.0.113.76",
+      );
+      expect(victim).toEqual(VERIFY);
+      expect(await userById(attack.id)).toBeNull();
+      const [own] = await usersByEmail([victimEmail]);
+      // The attacker's ticket no longer gets a code; the victim's does.
+      expect(await sendCode(anonClient(), attack.phone, attack.ticket)).toBeNull();
+      expect(await codes(attack.phone)).toEqual([]);
+      expect(await sendCode(anonClient(), attack.phone, String(victim.json.ticket))).toBeNull();
+      const session = await enterLatestCode(attack.phone);
+      expect(session.userId).toBe(own.id);
+      expect(await complete(session.token, attack.ticket)).toEqual({
+        status: 403,
+        json: { error: "signup_mismatch" },
+      });
+    }, 30_000);
+
+    it("(iv) two registers of one phone at once: one account, and the other ticket cannot finish it", async () => {
+      const phone = randomPhone();
+      const emails = [randomEmail("yaris-a"), randomEmail("yaris-b")];
+      const [a, b] = await Promise.all([
+        signup(body({ phone, email: emails[0] }), "203.0.113.77"),
+        signup(body({ phone, email: emails[1] }), "203.0.113.78"),
+      ]);
+      expect([a.status, b.status]).toEqual([200, 200]);
+      // Both browsers ask for the code: only the account's own ticket gets
+      // one.
+      for (const r of [a, b]) {
+        expect(await sendCode(anonClient(), phone, String(r.json.ticket))).toBeNull();
+      }
+      expect(await codes(phone)).toHaveLength(1);
+      const accounts = await usersByEmail(emails);
+      expect(accounts).toHaveLength(1);
+      const [winner, loser] = accounts[0].email === emails[0] ? [a, b] : [b, a];
+      const session = await enterLatestCode(phone);
+      expect(await complete(session.token, String(loser.json.ticket))).toEqual({
+        status: 403,
+        json: { error: "signup_mismatch" },
+      });
+      expect(await userById(session.userId)).toBeNull();
+      expect(winner.json.ticket).not.toBe(loser.json.ticket);
+    }, 30_000);
+  });
+
+  // Review of PR #93, round 2, item 4: a registrant whose completion was
+  // refused finishes with their e-mail and password (/kayit/dogrula), without
+  // registering again.
+  describe("recovery without a loop", () => {
+    it("a sign-up written before tickets is quarantined, then finished with the password", async () => {
+      const input = body({ email: randomEmail("eski-kayit") });
+      const phone = String(input.phone);
+      const registered = await signup(input, "203.0.113.80");
+      expect(await sendCode(anonClient(), phone, String(registered.json.ticket))).toBeNull();
+      const [account] = await usersByEmail([String(input.email)]);
+      // Written by the web before tickets: the row has no ticket hash and
+      // the new web holds no cookie for it.
+      await legacySignup(account.id);
+      const session = await enterLatestCode(phone);
+      expect(await complete(session.token, null)).toEqual({
+        status: 403,
+        json: { error: "signup_mismatch" },
+      });
+      // Not deleted (the registrant could not have had a ticket), but the
+      // phone is no longer confirmed on it, and ops sees it.
+      expect((await userById(account.id))?.phone_confirmed_at ?? null).toBeNull();
+      expect(await signupReview(account.id)).toBe("unproven_code");
+      await agePhoneConfirmation(account.id, 2);
+
+      expect(await finishWithPassword(String(input.email), phone)).toEqual({
+        status: 200,
+        json: { status: "completed" },
+      });
+    }, 40_000);
+
+    it("a confirmed phone whose complete never ran: the password finishes it", async () => {
+      const input = body({ email: randomEmail("yarim-kalan") });
+      const phone = String(input.phone);
+      const registered = await signup(input, "203.0.113.81");
+      expect(await sendCode(anonClient(), phone, String(registered.json.ticket))).toBeNull();
+      const [account] = await usersByEmail([String(input.email)]);
+      // The code confirmed the phone, then complete never ran (a closed tab,
+      // a 500) and the cookie is gone.
+      await enterLatestCode(phone);
+      await agePhoneConfirmation(account.id, 2);
+
+      // The guidance: e-mail and password, then the code (/kayit/dogrula).
+      expect(await finishWithPassword(String(input.email), phone)).toEqual({
+        status: 200,
+        json: { status: "completed" },
+      });
+    }, 40_000);
+
+    it("registering again instead ends in a fresh account, not a loop", async () => {
+      const input = body({ email: randomEmail("yeniden") });
+      const phone = String(input.phone);
+      const registered = await signup(input, "203.0.113.82");
+      expect(await sendCode(anonClient(), phone, String(registered.json.ticket))).toBeNull();
+      const [account] = await usersByEmail([String(input.email)]);
+      await enterLatestCode(phone);
+      await agePhoneConfirmation(account.id, 2);
+
+      // A new register: the phone is confirmed, so only a login code goes
+      // out, with an unstored ticket. That code proves nothing about the
+      // pending sign-up: refused, and the account goes.
+      const again = await signup(body({ phone, email: String(input.email) }), "203.0.113.82");
+      expect(again).toEqual(VERIFY);
+      expect(await sendCode(anonClient(), phone, String(again.json.ticket))).toBeNull();
+      const login = await enterLatestCode(phone);
+      expect(await complete(login.token, String(again.json.ticket))).toEqual({
+        status: 403,
+        json: { error: "signup_mismatch" },
+      });
+      expect(await userById(account.id)).toBeNull();
+
+      // The next register opens a fresh account that completes (the third
+      // and last register of the phone today).
+      const fresh = await signup(body({ phone, email: String(input.email) }), "203.0.113.82");
+      expect(fresh).toEqual(VERIFY);
+      const [own] = await usersByEmail([String(input.email)]);
+      expect(own.id).not.toBe(account.id);
+      expect(await sendCode(anonClient(), phone, String(fresh.json.ticket))).toBeNull();
+      const session = await enterLatestCode(phone);
+      expect(await complete(session.token, String(fresh.json.ticket))).toEqual({
+        status: 200,
+        json: { status: "completed" },
+      });
+    }, 40_000);
+
+    // /kayit/dogrula: a password session claims a ticket, the ticket grants
+    // the code, and complete carries it.
+    async function finishWithPassword(email: string, phone: string) {
+      const browser = anonClient();
+      const signedIn = await browser.auth.signInWithPassword({ email, password: PASSWORD });
+      expect(signedIn.error).toBeNull();
+      const claimed = await claim(signedIn.data.session!.access_token);
+      expect(claimed.status).toBe(200);
+      const ticket = String(claimed.json.ticket);
+      expect(ticket).toMatch(TICKET);
+      expect(await sendCode(browser, phone, ticket)).toBeNull();
+      const session = await enterLatestCode(phone, browser);
+      return complete(session.token, ticket);
+    }
   });
 
   it("limits attempts per e-mail", async () => {
@@ -222,17 +491,131 @@ describe("customer-signup", () => {
       statuses.push(res.status);
     }
     expect(statuses).toEqual([200, 409, 409, 409, 409, 429]);
+  }, 40_000);
+
+  // docs/hukuk/kararlar.md H33: nothing in the answer tells which detail is
+  // registered.
+  it("an e-mail of another account gets the generic error only", async () => {
+    const res = await fetch(`${inject("supabase").url}/functions/v1/customer-signup`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-orchados-proxy-secret": PROXY_SECRET },
+      body: JSON.stringify({ ...body({ email: "owner@example.com" }), client_ip: "203.0.113.4" }),
+    });
+    expect(res.status).toBe(409);
+    const text = await res.text();
+    expect(JSON.parse(text)).toEqual({ error: "not_completed" });
+    expect(text).not.toMatch(/email|phone|owner/);
+    const headers = [...res.headers].map(([k, v]) => `${k}: ${v}`).join("\n");
+    expect(headers).not.toMatch(/email|phone|taken|registered/i);
   });
 
-  it("an e-mail of another account is taken", async () => {
-    const res = await signup(body({ email: "owner@example.com" }), "203.0.113.4");
-    expect(res).toEqual({ status: 409, json: { error: "email_taken" } });
-  });
-
-  it("a phone in another customer's profile is registered", async () => {
+  it("a phone in another customer's profile answers like a new sign-up and creates nothing", async () => {
     // The seed owner's profile phone; the owner signs in with e-mail.
-    const res = await signup(body({ phone: "+905550000001" }), "203.0.113.5");
-    expect(res).toEqual({ status: 409, json: { error: "phone_registered" } });
+    const email = randomEmail("profil-telefon");
+    const res = await signup(body({ phone: "+905550000001", email }), "203.0.113.5");
+    expect(res).toEqual(VERIFY);
+    expect(await usersByEmail([email])).toHaveLength(0);
+  });
+
+  it("the verified owner of a registered phone gets in with the code; nothing of the new form sticks", async () => {
+    // The owner of the number: an account with a verified phone (one SMS code
+    // a minute per number, so it is made directly).
+    const owner = body({ email: randomEmail("sahip") });
+    const phone = String(owner.phone);
+    const made = await serviceClient().auth.admin.createUser({
+      email: String(owner.email),
+      password: PASSWORD,
+      phone,
+      email_confirm: true,
+      phone_confirm: true,
+    });
+    expect(made.error).toBeNull();
+    const account = made.data.user!;
+
+    // Someone registers the same number with another e-mail and password.
+    const otherEmail = randomEmail("baska");
+    const again = await signup(
+      body({ phone, email: otherEmail, password: "baska-parola-1" }),
+      "203.0.113.31",
+    );
+    expect(again).toEqual(VERIFY);
+    expect(await usersByEmail([otherEmail])).toHaveLength(0);
+
+    // The code goes to the number's owner, who lands in their own account.
+    const client = anonClient();
+    expect(await sendCode(client, phone, String(again.json.ticket))).toBeNull();
+    const code = await latestCode(phone);
+    expect(code).toMatch(/^\d{6}$/);
+    const login = await client.auth.verifyOtp({ phone, token: code!, type: "sms" });
+    expect(login.error).toBeNull();
+    expect(login.data.user?.id).toBe(account.id);
+    expect(
+      await signup({ action: "complete", ticket: String(again.json.ticket) }, "203.0.113.31", {
+        authorization: `Bearer ${login.data.session!.access_token}`,
+      }),
+    ).toEqual({ status: 200, json: { status: "no_pending" } });
+
+    // The account keeps its e-mail and password; the new ones do not work.
+    const kept = await serviceClient().auth.admin.getUserById(account.id);
+    expect(kept.data.user?.email).toBe(String(owner.email));
+    const otherPassword = await anonClient().auth.signInWithPassword({
+      email: String(owner.email),
+      password: "baska-parola-1",
+    });
+    expect(otherPassword.error).not.toBeNull();
+    const ownPassword = await anonClient().auth.signInWithPassword({
+      email: String(owner.email),
+      password: PASSWORD,
+    });
+    expect(ownPassword.error).toBeNull();
+  }, 40_000);
+
+  it("a new sign-up, a registered phone and a taken e-mail take about the same time", async () => {
+    const timed = async (payload: Record<string, unknown>, ip: string) => {
+      const started = performance.now();
+      const res = await signup(payload, ip);
+      return { status: res.status, ms: performance.now() - started };
+    };
+    const created = await timed(body({ email: randomEmail("sure-yeni") }), "203.0.113.40");
+    const registered = await timed(body({ phone: "+905550000001" }), "203.0.113.41");
+    const taken = await timed(body({ email: "owner@example.com" }), "203.0.113.42");
+    expect([created.status, registered.status, taken.status]).toEqual([200, 200, 409]);
+    // REGISTER_MIN_MS (1500) is the floor of each; they stay within 400 ms.
+    for (const { ms } of [created, registered, taken]) expect(ms).toBeGreaterThanOrEqual(1450);
+    const spread =
+      Math.max(created.ms, registered.ms, taken.ms) - Math.min(created.ms, registered.ms, taken.ms);
+    expect(spread).toBeLessThan(400);
+  });
+
+  // The rollback switch (docs/musteri-yonetimi.md §15.5): the function itself
+  // refuses once accepts_signups is off, whatever the web flag says.
+  it("refuses to register while no org accepts sign-ups", async () => {
+    const service = serviceClient();
+    const { data: open, error } = await service
+      .from("org_billing_setting")
+      .select("org_id")
+      .eq("accepts_signups", true);
+    expect(error).toBeNull();
+    expect(open).toHaveLength(1);
+    const orgId = open![0].org_id;
+    const toggle = async (on: boolean) => {
+      const res = await service
+        .from("org_billing_setting")
+        .update({ accepts_signups: on })
+        .eq("org_id", orgId);
+      expect(res.error).toBeNull();
+    };
+    await toggle(false);
+    try {
+      const input = body({ email: randomEmail("kapali") });
+      expect(await signup(input, "203.0.113.11")).toEqual({
+        status: 503,
+        json: { error: "signup_closed" },
+      });
+      expect(await usersByEmail([String(input.email)])).toHaveLength(0);
+    } finally {
+      await toggle(true);
+    }
   });
 
   it("refuses bad input naming the field only", async () => {
@@ -240,7 +623,7 @@ describe("customer-signup", () => {
     expect(res).toEqual({ status: 400, json: { error: "invalid_input", field: "phone" } });
     expect(JSON.stringify(res.json)).not.toContain("5551234567");
     const consent = await signup(
-      body({ consents: { kvkk_notice_version: "kvkk-v1-taslak" } }),
+      body({ consents: { kvkk_notice_version: LEGAL_TEXT_VERSIONS.kvkk_notice } }),
       "203.0.113.6",
     );
     expect(consent).toEqual({
@@ -264,7 +647,7 @@ describe("customer-signup", () => {
     }
     expect(statuses.at(-1)).toBe(429);
     expect(statuses.filter((s) => s === 200).length).toBeLessThanOrEqual(10);
-  });
+  }, 40_000);
 
   it("cleanup needs the cron secret and keeps fresh sign-ups", async () => {
     const input = body({ email: randomEmail("temizlik") });
@@ -281,5 +664,51 @@ describe("customer-signup", () => {
     expect(typeof res.json.deleted).toBe("number");
     // Younger than a day: kept.
     expect(await usersByEmail([String(input.email)])).toHaveLength(1);
+  });
+
+  // The self-hosted robot check (docs/hukuk/kararlar.md H03, T12). Locally
+  // CAPTCHA_PROVIDER=altcha with SIGNUP_TURNSTILE_DISABLED (supabase/config.toml):
+  // a sent token is checked, a missing one passes. Nothing goes to Cloudflare.
+  describe("self-hosted robot check", () => {
+    async function solvedToken(action = "customer-signup") {
+      const res = await fetch(`${inject("supabase").url}/functions/v1/${action}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "challenge" }),
+      });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      const challenge: unknown = await res.json();
+      if (!isAltchaChallenge(challenge)) throw new Error("not a challenge");
+      const number = await solveAltcha(challenge);
+      expect(number).not.toBeNull();
+      return altchaPayload(challenge, number!);
+    }
+
+    it("a solved challenge passes once; a replay, a forgery and a demo challenge fail", async () => {
+      const token = await solvedToken();
+      const ok = await signup(body({ captcha_token: token }), "203.0.113.60");
+      expect(ok).toEqual(VERIFY);
+
+      const replay = await signup(body({ captcha_token: token }), "203.0.113.61");
+      expect(replay).toEqual({ status: 400, json: { error: "captcha_failed" } });
+
+      const payload = JSON.parse(atob(await solvedToken()));
+      const forged = btoa(JSON.stringify({ ...payload, number: payload.number + 1 }));
+      expect(await signup(body({ captcha_token: forged }), "203.0.113.62")).toEqual({
+        status: 400,
+        json: { error: "captcha_failed" },
+      });
+      expect(await signup(body({ captcha_token: "garbage" }), "203.0.113.62")).toEqual({
+        status: 400,
+        json: { error: "captcha_failed" },
+      });
+
+      const demoToken = await solvedToken("demo-start");
+      expect(await signup(body({ captcha_token: demoToken }), "203.0.113.63")).toEqual({
+        status: 400,
+        json: { error: "captcha_failed" },
+      });
+    }, 40_000);
   });
 });

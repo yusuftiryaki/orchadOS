@@ -1,8 +1,7 @@
 import { formatNumber, t } from "@/lib/i18n";
-import { MARKER_COLORS } from "@/lib/map/tree-style";
 import { distributionTotal, type Approval, type Distribution } from "@/lib/portal/classes";
 import { trendOf, type ScoreBasis } from "@/lib/portal/score";
-import styles from "./portal.module.css";
+import styles from "./parcel.module.css";
 
 // Small shared pieces of the portal: who gave a class, finding kinds, the
 // class distribution bar.
@@ -11,11 +10,19 @@ export function findingKindLabel(kind: string): string {
   return t.portal.findingKinds[kind] ?? kind.replaceAll("_", " ");
 }
 
-export function ApprovalBadge({ approval }: { approval: Approval }) {
+// `marked` carries the test id of the tree's latest decision; the rows of
+// the class history show the same badge without it.
+export function ApprovalBadge({
+  approval,
+  marked = true,
+}: {
+  approval: Approval;
+  marked?: boolean;
+}) {
   return (
     <span
-      className={approval === "expert" ? styles.badgeExpert : styles.badgeMachine}
-      data-testid="approval"
+      className={approval === "expert" ? styles.approvalExpert : styles.approval}
+      data-testid={marked ? "approval" : undefined}
     >
       {approval === "expert" ? "✓ " : ""}
       {t.portal.approval[approval]}
@@ -42,7 +49,10 @@ export function DistributionBar({ distribution }: { distribution: Distribution }
           distribution[c] > 0 ? (
             <span
               key={c}
-              style={{ width: `${(100 * distribution[c]) / total}%`, background: MARKER_COLORS[c] }}
+              style={{
+                width: `${(100 * distribution[c]) / total}%`,
+                background: `var(--class-${c})`,
+              }}
             />
           ) : null,
         )}
@@ -93,13 +103,12 @@ export function ScoreLine({
           data-trend={trend}
         >
           {trend === "same" ? sc.change.same : sc.change[trend](Math.abs(change!))}
-          {basis === "same_season" && ` · ${sc.sameSeasonNote}`}
+          {basis === "same_season" && ` (${sc.sameSeasonNote})`}
         </span>
       )}
       {unassessedPct != null && (
         <span className={`${styles.small} ${styles.worse}`} data-testid="score-unassessed">
-          {" "}
-          · {sc.unassessed(unassessedPct)}
+          {sc.unassessed(unassessedPct)}
         </span>
       )}
     </p>

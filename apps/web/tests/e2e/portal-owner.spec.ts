@@ -99,7 +99,7 @@ test("owner goes from the garden list to the report card, the map and the tree c
   await expect(card.getByRole("heading", { level: 1 })).toHaveText("S1-1");
   await expect(card.getByTestId("tree-class")).toHaveText("Dikkat");
   await expect(card.getByTestId("approval")).toHaveText(/Uzman onaylı/);
-  await expect(card.getByTestId("class-history").locator("tr")).toHaveCount(2);
+  await expect(card.getByTestId("class-history").locator("tbody tr")).toHaveCount(2);
   await expect(card.getByTestId("measurement-history")).toContainText("2 / 3");
 
   // Photos: the stored crop loads; the missing one is a placeholder.
@@ -131,7 +131,8 @@ test("unpublished results stay hidden on the tree card", async ({ page }) => {
   const card = page.getByTestId("tree-card");
   await expect(card.getByTestId("tree-class")).toHaveText("Sağlıklı");
   await expect(card).toContainText("Bu ağaç için bulgu yok.");
-  await expect(card).not.toContainText("Kurumuş");
+  // The unpublished class "Kuru" and finding "Kuru ağaç"; "Kuru dal" is a metric name.
+  await expect(card).not.toContainText(/\bKuru\b(?! dal)/);
 });
 
 test("360° tour opens near the tree and walks to the next panorama", async ({ page }) => {

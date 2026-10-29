@@ -1,0 +1,165 @@
+/* Portal home, top part: what waits on the customer and the membership. */
+
+.top {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 960px) {
+  .top {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+.main {
+  display: grid;
+  gap: var(--space-6);
+  align-content: start;
+  min-width: 0;
+}
+
+/* Tasks: one bordered list, each row a sentence and its action. Ours (an
+   application under review) sits on the ground, the customer's on white. */
+.tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.task {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.task h3 {
+  font-size: var(--text-lg);
+}
+
+/* Ours: reported, nothing to do. A quieter surface, never the dashed
+   border of an empty state. */
+.taskOurs {
+  background: var(--color-surface-2);
+}
+
+.taskText {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.taskText > * {
+  margin: 0;
+}
+
+@media (min-width: 600px) {
+  .task {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+  }
+}
+
+@media (max-width: 599px) {
+  .task > :global(.button) {
+    width: 100%;
+  }
+}
+
+.member {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.membershipBody,
+.renewal {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+}
+
+.renewal {
+  gap: var(--space-2);
+}
+
+.membershipBody > *,
+.renewal > * {
+  margin: 0;
+}
+
+/* The membership band of the application wizard: notice, then gardens. */
+.band {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.package {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  margin: 0;
+}
+
+.add {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding: 0 var(--space-1);
+}
+
+.add h3 {
+  margin: 0;
+}
+
+/* Nothing yet: the one call to apply, with the three steps ahead. */
+.start {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding: var(--space-5) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.start h2 {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.start > p {
+  max-width: var(--measure);
+  color: var(--color-text-2);
+}
+
+/* The orchard grid with no trees: the design system's empty motif. */
+.startGrid {
+  width: 72px;
+  height: 40px;
+  background-image: radial-gradient(circle, var(--color-border-strong) 3px, transparent 3.5px);
+  background-size: 18px 13px;
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.4em;
+  display: grid;
+  gap: var(--space-1);
+  max-width: var(--measure);
+}
+
+@media (max-width: 599px) {
+  .start {
+    padding: var(--space-4) var(--space-3);
+  }
+  .start > :global(.button) {
+    width: 100%;
+  }
+}

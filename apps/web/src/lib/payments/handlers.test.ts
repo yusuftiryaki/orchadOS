@@ -6,6 +6,7 @@ import {
   handleWebhook,
   type HandlerDeps,
 } from "../../../../../supabase/functions/_shared/payments/handlers.ts";
+import { TCKN_PATTERN } from "../../../../../supabase/functions/_shared/payments/identity.ts";
 import { IYZICO_PATHS } from "../../../../../supabase/functions/_shared/payments/iyzico.ts";
 import {
   hmacHex,
@@ -53,7 +54,8 @@ const BUYER = {
   id: USER_ID,
   first_name: "Ayşe",
   last_name: "Yılmaz",
-  identity_number: "10000000146",
+  // T13: the database holds no TCKN; payment_begin sends the placeholder.
+  identity_number: "11111111111",
   email: "ayse@example.com",
   phone: "+905350000000",
   address: "Örnek Mah. 1",
@@ -546,6 +548,9 @@ describe("start", () => {
   it.each([
     ["order_not_payable", 409, "order_not_payable"],
     ["billing_profile_incomplete", 409, "billing_profile_incomplete"],
+    ["payment_in_progress", 409, "payment_in_progress"],
+    ["garden_removal_open", 409, "garden_removal_open"],
+    ["addon_base_closed", 409, "addon_base_closed"],
     ["not_found", 404, "not_found"],
     ["fake_payments_disabled", 503, "payments_disabled"],
   ])("payment_begin %s -> %d", async (code, status, error) => {
@@ -556,6 +561,32 @@ describe("start", () => {
     const res = await handlePayments(paymentsRequest(startBody, auth), s.deps);
     expect(res.status).toBe(status);
     expect(await res.json()).toEqual({ error: error });
+  });
+
+  it("payment_begin billing_profile_incomplete with detail email -> 409 with the field", async () => {
+    const s = setup(FAKE_ENV, {
+      ...userRoute,
+      "/rpc/payment_begin": () =>
+        jsonResponse(
+          { code: "P0001", message: "billing_profile_incomplete", details: "email" },
+          400,
+        ),
+    });
+    const res = await handlePayments(paymentsRequest(startBody, auth), s.deps);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "billing_profile_incomplete", field: "email" });
+  });
+
+  it("never sends a buyer without an e-mail to the provider", async () => {
+    const s = setup(IYZICO_ENV, {
+      ...userRoute,
+      "/rpc/payment_begin": () =>
+        jsonResponse({ ...BEGIN, buyer: { ...BEGIN.buyer, email: null } }),
+    });
+    const res = await handlePayments(paymentsRequest(startBody, auth), s.deps);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "billing_profile_incomplete", field: "email" });
+    expect(s.calls.some((c) => c.url.includes(IYZICO_PATHS.initialize))).toBe(false);
   });
 
   it("starts a fake checkout", async () => {
@@ -633,6 +664,98 @@ describe("start", () => {
       expect(stored).not.toContain(pii);
       expect(logged).not.toContain(pii);
     }
+  });
+});
+
+describe("start: TCKN at payment time (T13, H16)", () => {
+  const auth = { authorization: "Bearer customer-jwt" };
+  const TCKN = "10000000146";
+  const startBody = {
+    action: "start",
+    order_id: ORDER_ID,
+    return_origin: "http://localhost:3000",
+    client_ip: "203.0.113.7",
+  };
+  const routes = (required: boolean) => ({
+    "/auth/v1/user": () => jsonResponse({ id: USER_ID }),
+    "/rpc/payment_begin": () => jsonResponse({ ...BEGIN, identity_number_required: required }),
+    "/rpc/payment_record_event": () => jsonResponse(true),
+    "/rpc/payment_finalize": () => jsonResponse("failed"),
+    "/rpc/payment_attach_token": () => new Response(null, { status: 204 }),
+    [IYZICO_PATHS.initialize]: () =>
+      jsonResponse({
+        status: "success",
+        token: "tok-1",
+        tokenExpireTime: 1800,
+        paymentPageUrl: "https://sandbox-cpp.iyzipay.com?token=tok-1",
+        conversationId: PAYMENT_ID,
+        signature: hmacHex(SECRET, `${PAYMENT_ID}:tok-1`),
+      }),
+  });
+  const sentBuyer = (s: ReturnType<typeof setup>) =>
+    (s.calls.find((c) => c.url.endsWith(IYZICO_PATHS.initialize))?.body as {
+      buyer: Record<string, string>;
+    }) ?? null;
+
+  it("required: the typed TCKN goes to iyzico only; the database gets the last four digits", async () => {
+    const s = setup(IYZICO_ENV, routes(true));
+    const res = await handlePayments(
+      paymentsRequest({ ...startBody, identity_number: "100 000 001 46" }, auth),
+      s.deps,
+    );
+    expect(res.status).toBe(200);
+    expect(sentBuyer(s)?.buyer.identityNumber).toBe(TCKN);
+    expect(s.rpcCalls("payment_attach_token")[0].body).toMatchObject({
+      p_identity_number_last4: "0146",
+    });
+    const stored = JSON.stringify(
+      s
+        .writes()
+        .filter((c) => !c.url.endsWith("/rpc/payment_begin"))
+        .map((c) => c.body),
+    );
+    expect(stored).not.toContain(TCKN);
+    expect(stored).not.toMatch(TCKN_PATTERN);
+    expect(s.logs.join("\n")).not.toMatch(TCKN_PATTERN);
+    expect(JSON.stringify(await res.json())).not.toMatch(TCKN_PATTERN);
+  });
+
+  it("required but missing: the attempt is closed and the provider is not called", async () => {
+    const s = setup(IYZICO_ENV, routes(true));
+    const res = await handlePayments(paymentsRequest(startBody, auth), s.deps);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "identity_number_required" });
+    expect(sentBuyer(s)).toBeNull();
+    expect(s.rpcCalls("payment_finalize")[0].body).toMatchObject({
+      p_outcome: "failed",
+      p_result: { failure_code: "identity_number_required" },
+    });
+  });
+
+  it("a malformed TCKN is refused before any write and is not echoed", async () => {
+    const s = setup(IYZICO_ENV, routes(true));
+    const res = await handlePayments(
+      paymentsRequest({ ...startBody, identity_number: "10000000147" }, auth),
+      s.deps,
+    );
+    expect(res.status).toBe(400);
+    const body = JSON.stringify(await res.json());
+    expect(body).toBe(JSON.stringify({ error: "invalid_input", field: "identity_number" }));
+    expect(s.writes()).toHaveLength(0);
+    expect(s.logs.join("\n")).not.toContain("10000000147");
+  });
+
+  it("not required: iyzico gets the placeholder, the database no digits", async () => {
+    const s = setup(IYZICO_ENV, routes(false));
+    const res = await handlePayments(
+      paymentsRequest({ ...startBody, identity_number: TCKN }, auth),
+      s.deps,
+    );
+    expect(res.status).toBe(200);
+    expect(sentBuyer(s)?.buyer.identityNumber).toBe("11111111111");
+    expect(s.rpcCalls("payment_attach_token")[0].body).not.toHaveProperty(
+      "p_identity_number_last4",
+    );
   });
 });
 

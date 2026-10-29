@@ -1,32 +1,53 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cancelOrderAction } from "@/app/portal/billing-actions";
+import { cancelOrderAction, reviseOrderAction } from "@/app/portal/billing-actions";
+import { ContractDocumentTable } from "@/components/contracts/document-list";
+import { FactRow } from "@/components/portal-billing/fact-row";
+import { InstallmentPlan } from "@/components/portal-billing/installment-plan";
+import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { OrderPay } from "@/components/portal-billing/order-pay";
 import { PaymentTable } from "@/components/portal-billing/payment-table";
 import { PortalResult } from "@/components/portal-billing/result-notice";
-import local from "@/components/portal-billing/portal-billing.module.css";
-import ops from "@/components/operations/operations.module.css";
-import styles from "@/components/portal/portal.module.css";
+import { StatusBadge } from "@/components/portal-billing/status-badge";
+import s from "@/components/portal-billing/billing.module.css";
+import layout from "@/components/portal/page.module.css";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { factsClass } from "@/components/ui/facts";
+import { Checkbox } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel, panelClass } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
+import { installmentLabel, nextOpen, openKurus } from "@/lib/billing/installments";
 import { formatKurus } from "@/lib/billing/money";
+import {
+  accessTokenOf,
+  customerDocuments,
+  documentState,
+  retryAfterResponse,
+  stateRefOf,
+} from "@/lib/contracts/generate";
 import { siteFlags } from "@/lib/flags";
 import { formatDate, formatDateTime } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
+import { contractsText as C } from "@/lib/i18n/messages/contracts";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
-import {
-  getOrder,
-  getPaymentInstructions,
-  liveCardAttempt,
-  outstandingKurus,
-} from "@/lib/portal-billing/data";
+import { getOrder, getPaymentInstructions, liveCardAttempt } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
 
 const O = P.order;
 
-// An order: totals, lines, and while it awaits payment the card button (only
-// with the payments flag), the bank transfer details and the cancel button.
+// An order: totals, lines, its payment plan (installments-v1, H35) and, while
+// a payment is open (awaiting payment, or an active order with an open
+// installment), the card button for the next payment (only with the payments
+// flag) and the bank transfer details; the cancel button before the first
+// payment; its contract documents (T04), retried after the response when
+// missing (after a failed generation at the acceptance, and the withdrawal
+// confirmation once the order is active), or the manual-copy note.
 export default async function OrderPage({
   params,
   searchParams,
@@ -35,115 +56,183 @@ export default async function OrderPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = assertCustomer(await requireSection("portal"));
-  const { id } = await params;
-  const supabase = await createClient();
+  const [{ id }, query, supabase] = await Promise.all([params, searchParams, createClient()]);
   const view = await getOrder(supabase, user.id, id);
   if (!view) notFound();
-  const { order, items, payments, quote } = view;
+  const { order, items, payments, quote, plan } = view;
   const awaiting = order.status === "awaiting_payment";
-  const instructions = awaiting ? await getPaymentInstructions(supabase, order.id) : null;
+  const next = nextOpen(plan);
+  const payable = (awaiting || order.status === "active") && next !== null;
   const { paymentsEnabled } = siteFlags();
   const currency = order.currency;
-  const outstanding = outstandingKurus(order);
-  const liveAttempt = awaiting ? liveCardAttempt(payments) : null;
+  const liveAttempt = payable ? liveCardAttempt(payments) : null;
+  // The bank details and the documents do not depend on each other.
+  const [instructions, allDocuments] = await Promise.all([
+    payable ? getPaymentInstructions(supabase, order.id) : Promise.resolve(null),
+    order.quote_id ? customerDocuments(supabase) : Promise.resolve([]),
+  ]);
+  const documents = allDocuments.filter((d) => d.order_id === order.id);
+  const documentsState = order.quote_id
+    ? await documentState(supabase, stateRefOf(order), documents).catch(() => null)
+    : null;
+  if (documentsState?.state === "preparing") {
+    const accessToken = await accessTokenOf(supabase);
+    if (accessToken) retryAfterResponse(accessToken, order.id);
+  }
+  const preparing =
+    !!order.quote_id &&
+    documentsState?.state !== "complete" &&
+    documentsState?.state !== "manual_copy";
+  const manualCopy = documentsState?.state === "manual_copy";
+  const lead = awaiting ? O.awaitingLead : order.status === "active" ? O.activeNote : undefined;
 
   return (
-    <main className={styles.page} data-testid="order" data-status={order.status}>
-      <div className={styles.titleRow}>
-        <h1>{O.title(order.number)}</h1>
-        <span className={ops.badge} data-testid="order-status">
-          {billingText.orderStatus[order.status]}
-        </span>
-      </div>
-      <PortalResult params={await searchParams} />
-      {order.status === "active" && <p className={ops.notice}>{O.activeNote}</p>}
+    <main
+      className={`${layout.page} ${layout.reading}`}
+      data-testid="order"
+      data-status={order.status}
+    >
+      <PageHeader
+        title={<NumberedTitle text={O.title(order.number)} number={order.number} />}
+        lead={lead}
+        meta={
+          <>
+            <StatusBadge kind="order" status={order.status} testId="order-status" />
+            {order.addon_of_order_id && (
+              <Badge tone="info" testId="order-addon">
+                {O.addonNote}
+              </Badge>
+            )}
+          </>
+        }
+        back={{ href: portalHref.orders(), label: P.orders.title }}
+      />
+      <PortalResult params={query} />
 
-      <section className={styles.section}>
-        <dl className={ops.dl}>
-          {quote && (
-            <>
-              <dt>{O.quote}</dt>
-              <dd>
-                <Link href={portalHref.quote(quote.id)}>{quote.number}</Link> · {quote.package_name}
-              </dd>
-            </>
-          )}
-          <dt>{O.total}</dt>
-          <dd data-testid="order-total">{formatKurus(order.total_kurus, currency)}</dd>
-          <dt>{O.paid}</dt>
-          <dd>{formatKurus(order.paid_kurus, currency)}</dd>
-          {order.refunded_kurus > 0 && (
-            <>
-              <dt>{O.refunded}</dt>
-              <dd>{formatKurus(order.refunded_kurus, currency)}</dd>
-            </>
-          )}
-          {awaiting && (
-            <>
-              <dt>{O.outstanding}</dt>
-              <dd>{formatKurus(outstanding, currency)}</dd>
-              {order.payment_due_at && (
-                <>
-                  <dt>{O.due}</dt>
-                  <dd>{formatDateTime(order.payment_due_at)}</dd>
-                </>
-              )}
-            </>
-          )}
-          {order.service_start && order.service_end && (
-            <>
-              <dt>{O.service}</dt>
-              <dd>{`${formatDate(order.service_start)} – ${formatDate(order.service_end)}`}</dd>
-            </>
-          )}
-        </dl>
-      </section>
-
-      <section className={styles.section}>
-        <h2>{O.items}</h2>
-        <dl className={local.totals}>
-          {items.map((item) => (
-            <div key={item.id} style={{ display: "contents" }}>
-              <dt>{item.garden_name}</dt>
-              <dd>{formatKurus(item.amount_kurus, currency)}</dd>
+      {payable && (
+        <Panel title={O.nextPayment} testId="order-pay" id="order-pay">
+          {next && (
+            <div className={s.due} data-testid="order-next-payment">
+              <p>{installmentLabel(next)}</p>
+              <p className={s.dueAmount}>{formatKurus(openKurus(next), currency)}</p>
+              <p className={layout.small}>{O.dueOn(formatDate(next.dueOn))}</p>
             </div>
-          ))}
-        </dl>
-      </section>
-
-      {awaiting && (
-        <section className={styles.section} data-testid="order-pay">
-          <h2>{O.payTitle}</h2>
+          )}
+          <p className={`${layout.muted} ${layout.small}`}>{O.payRule}</p>
           <OrderPay
             orderId={order.id}
             paymentsEnabled={paymentsEnabled}
             instructions={instructions}
             liveAttemptId={liveAttempt?.id ?? null}
           />
-        </section>
+        </Panel>
       )}
 
-      {awaiting && (
-        <section className={styles.section}>
-          <h2>{O.cancelTitle}</h2>
-          <p className="muted">{O.cancelBody}</p>
-          <form action={cancelOrderAction}>
-            <input type="hidden" name="order_id" value={order.id} />
-            <button className="button button-secondary" type="submit">
-              {O.cancel}
-            </button>
-          </form>
-        </section>
+      <Panel title={O.summaryTitle} id="order-summary">
+        <dl className={factsClass.list}>
+          {quote && (
+            <FactRow label={O.quote}>
+              <Link href={portalHref.quote(quote.id)} className={s.nowrap}>
+                {quote.number}
+              </Link>
+              <br />
+              <span className={layout.small}>{quote.package_name}</span>
+            </FactRow>
+          )}
+          {order.service_start && order.service_end && (
+            <FactRow label={O.service}>
+              <span className={s.nowrap}>{formatDate(order.service_start)}</span> –{" "}
+              <span className={s.nowrap}>{formatDate(order.service_end)}</span>
+            </FactRow>
+          )}
+          {!next && awaiting && order.payment_due_at && (
+            <FactRow label={O.due}>{formatDateTime(order.payment_due_at)}</FactRow>
+          )}
+        </dl>
+        <dl className={factsClass.summary}>
+          {items.map((item) => (
+            <FactRow key={item.id} label={item.garden_name}>
+              {formatKurus(item.amount_kurus, currency)}
+            </FactRow>
+          ))}
+          <FactRow label={O.total} testId="order-total" total>
+            {formatKurus(order.total_kurus, currency)}
+          </FactRow>
+          <FactRow label={O.paid}>{formatKurus(order.paid_kurus, currency)}</FactRow>
+          {order.refunded_kurus > 0 && (
+            <FactRow label={O.refunded}>{formatKurus(order.refunded_kurus, currency)}</FactRow>
+          )}
+        </dl>
+      </Panel>
+
+      {plan.length > 0 && (
+        <Panel title={billingText.plan.title} plain testId="order-plan">
+          <InstallmentPlan rows={plan} currency={currency} withStatus />
+        </Panel>
       )}
 
-      <section className={styles.section}>
-        <h2>{O.payments}</h2>
+      <Panel title={O.payments} plain>
         {payments.length === 0 ? (
-          <p className="muted">{O.noPayments}</p>
+          <EmptyState title={O.noPayments} headingLevel={3}>
+            <p>{O.noPaymentsBody}</p>
+          </EmptyState>
         ) : (
           <PaymentTable payments={payments.map((p) => ({ ...p, order_number: order.number }))} />
         )}
-      </section>
+      </Panel>
+
+      {order.quote_id && (
+        <Panel title={C.list.orderTitle} plain testId="order-contracts">
+          {documents.length > 0 && (
+            <ContractDocumentTable
+              documents={documents}
+              hrefOf={(d) => `/portal/hesap/sozlesmeler/${d.id}`}
+            />
+          )}
+          {preparing && (
+            <Alert tone="info" testId="contracts-preparing">
+              {C.list.preparing}
+            </Alert>
+          )}
+          {manualCopy && (
+            <Alert tone="info" testId="contracts-manual-copy">
+              {C.list.manualCopy}
+            </Alert>
+          )}
+          <p>
+            <Link href="/portal/hesap/sozlesmeler">{C.list.orderLink}</Link>
+          </p>
+        </Panel>
+      )}
+
+      {awaiting && quote?.application_id && (
+        <Panel title={O.reviseTitle} plain testId="order-revise">
+          <form action={reviseOrderAction} className={`${panelClass} ${s.checks}`}>
+            <input type="hidden" name="order_id" value={order.id} />
+            <p className={layout.small}>{O.reviseBody}</p>
+            <Checkbox id="c-revise-confirm" name="confirm" required label={O.reviseConfirm} />
+            <div className={layout.actions}>
+              <Button variant="secondary" type="submit" className={s.longButton}>
+                {O.revise}
+              </Button>
+            </div>
+          </form>
+        </Panel>
+      )}
+
+      {awaiting && (
+        <Panel title={O.cancelTitle} plain>
+          <form action={cancelOrderAction} className={s.form}>
+            <input type="hidden" name="order_id" value={order.id} />
+            <p className={layout.small}>{O.cancelBody}</p>
+            <div className={layout.actions}>
+              <Button variant="danger" type="submit">
+                {O.cancel}
+              </Button>
+            </div>
+          </form>
+        </Panel>
+      )}
     </main>
   );
 }

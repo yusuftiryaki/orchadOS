@@ -6,6 +6,7 @@ import type { BillingError } from "@/lib/billing/errors";
 
 const errors: Record<BillingError, string> = {
   forbidden: "Bu işlem için yetkiniz yok.",
+  demo_read_only: "Demo turunda değişiklik yapılamaz.",
   not_found: "Kayıt bulunamadı.",
   invalid_input: "Girilen bilgilerden biri geçersiz.",
   boundary_invalid: "Çizilen sınır geçersiz: en az üç nokta olmalı ve kenarlar kesişmemeli.",
@@ -37,6 +38,60 @@ const errors: Record<BillingError, string> = {
   signup_closed: "Kayıtlar şu anda kapalı.",
   too_many_attempts: "Çok fazla deneme yapıldı; lütfen daha sonra yeniden deneyin.",
   state_changed: "Kayıt bu arada değişti; sayfayı yenileyip yeniden deneyin.",
+  no_membership: "Aktif bir üyeliğiniz yok; yeni bahçe için başvuru yapın.",
+  addon_period_too_short:
+    "Üyelik döneminin sonuna çok az kaldı; ek bahçeniz yenilemeyle başlayan yeni döneme eklenir.",
+  addon_base_closed: "Üyelik dönemi bu ek bahçe için artık açık değil.",
+  parcel_in_service: "Bu bahçe aynı dönemde başka bir siparişle hizmet alıyor.",
+  parcel_not_reusable: "Bu bahçe bu hesaba yeniden bağlanamaz.",
+  account_garden_limit:
+    "Hesabınızda aynı anda en fazla 50 bahçe hizmet alabilir; daha fazlası için bizimle iletişime geçin.",
+  garden_withdrawn: "Bu bahçe başvurudan çıkarıldı.",
+  last_garden: "Başvuruda tek bahçe kaldı; bunun yerine başvurunun tamamını geri çekin.",
+  not_revisable: "Bu sipariş düzeltmeye açılamaz.",
+  not_in_service: "Bu bahçe şu anda hizmette değil.",
+  garden_removal_open: "Bu bahçe için açık bir çıkarma talebi var.",
+  parcel_order_pending:
+    "Bu bahçe ödeme bekleyen bir siparişte; önce o siparişi iptal edin ya da düzeltin.",
+  withdrawal_expired: "Cayma süresi doldu.",
+  removal_not_open: "Bu çıkarma talebi artık açık değil.",
+  removal_not_due: "Çıkış tarihi henüz gelmedi.",
+  garden_changes_closed: "Bahçe ekleme ve çıkarma şu anda kapalı; bizimle iletişime geçin.",
+  parcel_read_only: "Bu bahçe hizmetten çıkarıldı; raporlar yalnızca okunabilir.",
+  parcel_removal_scheduled:
+    "Bahçe bu tarihte hizmetten çıkıyor; ziyareti çıkış tarihinden önceye planlayın.",
+  parcel_removed: "Bahçe hizmetten çıkarıldı; yeniden eklemek için ek teklif verin.",
+  consent_not_asked: "Bu izin şu anda verilemiyor. Daha önce verdiyseniz geri alabilirsiniz.",
+  legal_text_outdated:
+    "Sözleşme metinleri bu arada güncellendi. Sayfayı yenileyip güncel metinleri okuyarak yeniden onaylayın.",
+  legal_texts_not_final:
+    "Teklif şu anda onaylanamıyor: sözleşme metinleri ya da şirket bilgileri henüz son hâlinde değil. Lütfen daha sonra yeniden deneyin.",
+  withdrawal_period_open:
+    "Siparişin cayma süresi sürüyor ve erken başlama talebi yok; envanter ve ziyaretler cayma süresinden sonra planlanır.",
+  boundary_dispute_open:
+    "Bu bahçede açık bir sınır itirazı var; itiraz kapatılmadan tarama planlanamaz.",
+  order_not_active: "Sipariş henüz etkin değil.",
+  contract_document_immutable: "Sözleşme belgeleri değiştirilemez ve silinemez.",
+  removal_reason_not_allowed:
+    "Şirket bir bahçeyi yalnızca sözleşmede sayılan haklı sebeplerle hizmetten çıkarabilir.",
+  removal_notice_too_short:
+    "Bu sebeple çıkarmada en az 30 gün (ilçedeki hizmetin sona ermesinde 60 gün) önceden bildirim gerekir; daha erken bir tarih yalnızca Sahip'in yazılı onayıyla verilir.",
+  postponement_not_allowed:
+    "Bu ziyaret ertelenemez: erteleme ziyaretten en geç bir gün önce ve bir kez istenebilir.",
+  visit_not_planned: "Bu ziyaret planlı değil.",
+  proposed_date_outside_window: "Önerilen tarih aynı ziyaret penceresinin içinde olmalı.",
+  deemed_done_not_allowed:
+    "Ziyaret yalnızca Sahip kaynaklı ikinci başarısız denemede, önerilen tarihte yapılmış sayılır.",
+  carry_over_not_allowed: "Ziyaret yalnızca aynı dönemin sonraki bir penceresine aktarılabilir.",
+  missed_visit_frozen: "Bu kaydın sonucu zaten girildi; kayıt değiştirilemez.",
+  reconciliation_frozen: "Bu görev zaten kapatıldı.",
+  removal_window_not_ended:
+    "İlçedeki hizmetin sona ermesinde çıkış günü, bugünün içinde bulunduğu ve ödenmiş ziyaret penceresinin bitiminden önce olamaz.",
+  payment_default_not_due:
+    "Ödeme nedeniyle çıkarma için siparişin bir ödemesinin son gününden itibaren en az 30 gün geçmiş ve ödenmemiş olması gerekir.",
+  installment_unpaid:
+    "Bu ziyaretin ödemesi yapılmadı; ziyaret ödemeden sonra planlanır. Sahip yazılı olarak isterse sipariş sayfasından not yazarak ödemesiz ziyarete izin verebilirsiniz.",
+  installment_not_open: "Bu ödeme artık açık değil.",
   payment_not_open: "Bu ödeme artık açık değil.",
   write_failed: "İşlem tamamlanamadı; lütfen yeniden deneyin.",
 };
@@ -51,7 +106,7 @@ export const billingText = {
     withdrawn: "Geri çekildi",
   },
   rejectionReason: {
-    out_of_service_area: "Hizmet bölgesi dışında",
+    out_of_service_area: "Bahçenin konumuna şu an hizmet veremiyoruz",
     area_mismatch: "Alan bilgisi tutmuyor",
     not_authorized: "Yetki belgesi yetersiz",
     duplicate: "Mükerrer başvuru",
@@ -113,15 +168,152 @@ export const billingText = {
     published: "Yayımlandı",
   },
   billingPartyKind: {
-    individual: "Bireysel",
-    company: "Şirket",
+    individual: "Bireysel (kendi adınıza)",
+    company: "Şirket (tüzel kişi ya da ticari işletmeniz adına; unvan ve VKN ile)",
   },
   consentKind: {
-    kvkk_notice: "KVKK aydınlatma metni",
-    explicit_service_improvement: "Hizmetin geliştirilmesi için açık rıza",
-    explicit_marketing: "Tanıtım iletileri için açık rıza",
+    kvkk_notice: "Aydınlatma metni (okundu teyidi)",
+    explicit_service_improvement: "Hizmetin geliştirilmesi için açık rıza (artık sorulmuyor)",
+    explicit_marketing: "Tanıtım iletileri için onay (açık rıza ve ticari elektronik ileti onayı)",
     distance_sales: "Mesafeli hizmet sözleşmesi",
     pre_information: "Ön bilgilendirme formu",
+    early_performance: "Hizmete cayma süresi dolmadan başlanması talebi",
+  },
+  // IP14 (docs/bahce-yonetimi.md §8, §9).
+  gardenRemovalStatus: {
+    requested: "Talep edildi",
+    scheduled: "Planlandı",
+    completed: "Tamamlandı",
+    cancelled: "İptal edildi",
+  },
+  // Customer choices first; transfer and duplicate are ops'.
+  gardenRemovalReason: {
+    sold: "Bahçeyi sattım",
+    not_needed: "Hizmete artık ihtiyacım yok",
+    dissatisfied: "Hizmetten memnun değilim",
+    cost: "Ücret yüksek",
+    other: "Diğer",
+    transfer: "Devir (yeni sahibe geçti)",
+    duplicate: "Mükerrer kayıt",
+    // Ops just causes (contract 12/3, H20 (c) as changed by H36).
+    location_misdeclared:
+      "Bahçenin gerçek konumunun başvuruda bildirilenden esaslı biçimde farklı olması",
+    owner_breach: "Sahip'in Madde 5 yükümlülüklerini esaslı ya da tekrar tekrar ihlali",
+    no_authority: "Sahip'in yetkisinin bulunmaması",
+    third_party_objection: "Üçüncü kişi itirazı (Madde 6/4)",
+    staff_safety: "Personelin güvenliğini tehdit eden durum",
+    payment_default: "Madde 8/6'daki uyarıya rağmen bir ödemenin yapılmaması",
+    service_withdrawn_district:
+      "İlçedeki saha hizmetinin o ilçedeki bütün sahipler için aynı tarihte sona erdirilmesi",
+    by_agreement: "Sahip'le anlaşarak (yazılı onay)",
+    // The access flow of every contract end (T08, contract 12/4).
+    period_ended: "Hizmet dönemi sona erdi",
+    order_terminated: "Sözleşme Şirket tarafından feshedildi",
+    pilot_ended: "Pilot hizmet sona erdi",
+  },
+  removalRefundMode: {
+    unused_visits: "Yapılmayan ziyaretler",
+    withdrawal: "Cayma",
+    duplicate: "Mükerrer kayıt",
+    manual: "Ops kararı",
+    none: "İade yok",
+  },
+  removalInitiatedBy: {
+    customer: "Müşteri",
+    ops: "Operasyon",
+    // T08: the access window when a contract ends (period end, termination, pilot).
+    system: "Sistem (hizmet sonu)",
+  },
+  // T18 (docs/hukuk/kararlar.md H19, contract 8D/2–8D/3): the add-on
+  // breakdown (lib/billing/addon-breakdown.ts).
+  // The per-visit payment plan (installments-v1; docs/hukuk/kararlar.md H35).
+  plan: {
+    title: "Ödeme planı",
+    seq: "Sıra",
+    what: "Karşılığı",
+    due: "Son ödeme günü",
+    amount: "Tutar (KDV dahil)",
+    vat: "KDV",
+    status: "Durum",
+    total: "Toplam = peşin fiyat",
+    next: "Sıradaki ödeme",
+    statusText: {
+      pending: "Bekliyor",
+      paid: "Ödendi",
+      cancelled: "İptal",
+    } as Record<string, string>,
+    cancelReason: {
+      window_passed: "Pencere ödemesiz bitti; ziyaret yapılmadı, ödemesi istenmez",
+      garden_removed: "Bahçe çıkarıldı",
+      order_terminated: "Sözleşme sona erdi",
+      order_completed: "Hizmet dönemi bitti",
+      order_cancelled: "Sipariş iptal edildi",
+    } as Record<string, string>,
+    open: (amount: string) => `Açık: ${amount}`,
+    notes: [
+      "Kart taksiti değildir; faiz, vade farkı ya da ücret yoktur. Her ödeme ayrı bir işlemdir; kartınız saklanmaz ve otomatik çekim yapılmaz.",
+      "Son günü gelmemiş ödemeleri dilediğiniz zaman yapabilirsiniz. Bir ziyaret ödemesini yapmazsanız o ziyaret yapılmaz ve ödemesi sizden istenmez.",
+      "İlk ödeme siparişte yazan ödeme süresi içinde yapılır; her ziyaret ödemesinin son günü o ziyaretin penceresinin başlangıcından 14 gün öncesidir, bu gün geçmişse onay günüdür. Siparişiniz daha geç etkinleşirse son günler hizmet yılınıza göre yeniden belirlenir, hiçbir zaman öne alınmaz.",
+      "Son günden 7 gün önce ve son gün SMS ile hatırlatırız; hatırlatmada tutar yazmaz. Havale/EFT ile ödemede bankanızın alabileceği gönderim ücreti size aittir.",
+    ],
+    quoteHint:
+      "Plan, teklifi bugün onaylarsanız geçerli olan tarihlerle gösterilir ve onayla sabitlenir.",
+    visitAllowed: "Ödemesiz ziyarete izin verildi",
+  },
+  addonBreakdown: {
+    title: "Hesabın adımları",
+    days: "Kalan gün / dönemin toplam günü",
+    daysValue: (left: number, total: number) => `${left} / ${total}`,
+    rawVisits: "Ham sonuç",
+    rawVisitsValue: (perYear: number, left: number, total: number, raw: string) =>
+      `${perYear} × ${left} / ${total} = ${raw}`,
+    roundedVisits: "Yuvarlanmış ziyaret hakkı",
+    roundingExample: "Yuvarlama: 2,35 → 2; 2,5 → 3.",
+    visitAmount: "Ziyaret tutarı",
+    minimum: "Orantılı en az ücret",
+    charged: "Alınan",
+    basis: { visits: "ziyaret tutarı", minimum: "orantılı en az ücret" },
+    inventoryFee: "Envanter ücreti",
+    inventoryReason: {
+      new_garden: "yeni bahçe",
+      no_inventory: "bahçenin yayımlanmış envanteri yok",
+      inventory_expired: "son envanter 24 aydan eski",
+      ops_required: "yeni envanter gerekli",
+      inventory_reused: "son envanter yeniden kullanılıyor; ücret alınmaz",
+    },
+    vat: "KDV",
+    total: "Toplam",
+    fullYear: "Aynı bahçenin tam yıllık bedeli",
+    priceList: "Fiyat listesi",
+    windows: "Dönemde kalan ziyaret pencereleri",
+    noWindows: "Dönemde ziyaret penceresi kalmadı",
+    binding: "Bağlayıcı olan teklifteki toplamdır.",
+    exceedsWindows: (visits: number, windows: number) =>
+      `Ziyaret hakkı (${visits}) dönemde kalan ziyaret penceresi sayısını (${windows}) aşıyor. Başlangıç gününü ziyaret hakkı kalan pencereleri aşmayacak biçimde belirleyin (8D/2).`,
+  },
+  // T03 (docs/bahce-yonetimi.md §9): how a withdrawal notice arrived.
+  withdrawalChannel: {
+    portal: "Portal",
+    email: "E-posta",
+    kep: "KEP",
+    post: "Posta",
+  },
+  removalCancelledBy: {
+    customer: "Müşteri",
+    ops: "Operasyon",
+    system: "Sistem",
+  },
+  gardenState: {
+    in_service: "Hizmette",
+    leaving: "Çıkacak",
+    upcoming: "Sonraki dönemde başlıyor",
+    removed: "Hizmetten çıkarıldı",
+  },
+  parcelServiceStatus: {
+    in_service: "Hizmette",
+    leaving: "Çıkacak",
+    removed: "Hizmetten çıkarıldı",
+    none: "Hizmet yok",
   },
   consentSource: {
     signup: "Kayıt",

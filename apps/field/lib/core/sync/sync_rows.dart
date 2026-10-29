@@ -113,6 +113,7 @@ Map<String, Object?> captureRow(
       'slot_code': c.slotCode,
       if (c.subjectType == 'slot') 'slot_id': c.subjectId,
       if (c.subjectType == 'corner') 'corner_event_id': c.subjectId,
+      if (c.subjectType == 'event') 'event_id': c.subjectId,
       'gps_time_ns': c.gpsTimeMs * 1000000,
       'time_source': c.timeSource,
       'phone_time': c.capturedAt.toUtc().toIso8601String(),

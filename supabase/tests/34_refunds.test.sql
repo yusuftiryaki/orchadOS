@@ -4,7 +4,10 @@
 -- the refunded amounts, voids, manual refunds and ops' manual resolution.
 -- Seed: ops a0..05, customer a0..06 with application 9120..0301 (garden
 -- 9120..0401, 15 000 m²). A second garden (20 000 m²) is added here, so the
--- first order has two lines: 900 000 + 1 200 000 kuruş.
+-- first order has two lines: 2 064 000 + 2 448 000 kuruş (first year). Its first
+-- installment (installments-v1) is the inventory of both lines, 720 000 each:
+-- the card payment p1 is 1 440 000 on two lines. The parcel quotes have no
+-- inventory: their first installment is the first visit (336 000).
 -- The whole file is one transaction, so now() is constant.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -34,7 +37,7 @@ $$;
 create temporary table ids (k text primary key, v uuid);
 create function pg_temp.id(p_k text) returns uuid language sql as $$ select v from ids where k = p_k $$;
 
--- A succeeded fake card payment of the outstanding amount of an order.
+-- A succeeded fake card payment of the earliest open installment of an order.
 create function pg_temp.card_pay(p_order uuid, p_token text) returns uuid language plpgsql
 as $$
 declare
@@ -60,7 +63,7 @@ as $$
 begin
   perform pg_temp.customer();
   return public.customer_accept_quote(p_quote,
-    '{"distance_sales": "mesafeli-v1-taslak", "pre_information": "onbilgi-v1-taslak"}');
+    '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 end;
 $$;
 
@@ -83,23 +86,31 @@ insert into ids select 'p1i1', id from public.payment_item where payment_id = pg
 insert into ids select 'p1i2', id from public.payment_item where payment_id = pg_temp.id('p1') and line_no = 2;
 
 -- o2: a transfer of part of a parcel quote; o3: a single-line card payment.
+-- Each on its own pilot parcel of the customer (15 000 m²): a parcel is never
+-- on two orders whose periods overlap (IP14, private.parcel_in_service).
+insert into public.parcel (id, org_id, name, estimated_area_m2) values
+  ('f3400000-0000-4000-8000-000000000011', 'b0000000-0000-4000-8000-000000000001', 'Pilot 34-2', 15000),
+  ('f3400000-0000-4000-8000-000000000012', 'b0000000-0000-4000-8000-000000000001', 'Pilot 34-3', 15000);
+insert into public.parcel_access (org_id, parcel_id, user_id, role, granted_by)
+select 'b0000000-0000-4000-8000-000000000001', x, 'a0000000-0000-4000-8000-000000000006', 'owner', null
+from unnest(array['f3400000-0000-4000-8000-000000000011', 'f3400000-0000-4000-8000-000000000012']::uuid[]) x;
 select pg_temp.ops();
 insert into ids select 'q2', public.ops_issue_parcel_quote('b0000000-0000-4000-8000-000000000001',
-  'a0000000-0000-4000-8000-000000000006', '91200000-0000-4000-8000-000000000001', array[pg_temp.id('parcel')],
-  false, null);
+  'a0000000-0000-4000-8000-000000000006', '91200000-0000-4000-8000-000000000001',
+  array['f3400000-0000-4000-8000-000000000011'::uuid], false, null);
 insert into ids select 'o2', pg_temp.accept(pg_temp.id('q2'));
 select pg_temp.ops();
 insert into ids select 'p2', public.ops_record_manual_payment(pg_temp.id('o2'), 100000, current_date, 'EFT-34-1');
 select pg_temp.ops();
 insert into ids select 'q3', public.ops_issue_parcel_quote('b0000000-0000-4000-8000-000000000001',
-  'a0000000-0000-4000-8000-000000000006', '91200000-0000-4000-8000-000000000001', array[pg_temp.id('parcel')],
-  false, null);
+  'a0000000-0000-4000-8000-000000000006', '91200000-0000-4000-8000-000000000001',
+  array['f3400000-0000-4000-8000-000000000012'::uuid], false, null);
 insert into ids select 'o3', pg_temp.accept(pg_temp.id('q3'));
 insert into ids select 'p3', pg_temp.card_pay(pg_temp.id('o3'), 'r3');
 
 select is((select array[amount_kurus, (select count(*) from public.payment_item i where i.payment_id = p.id)]
            from public.payment p where id = pg_temp.id('p1')),
-  array[2100000, 2]::bigint[], 'setup: a two-line card payment of 2 100 000 kuruş');
+  array[1440000, 2]::bigint[], 'setup: a two-line card payment of 1 440 000 kuruş');
 select is((select status::text from public.payment where id = pg_temp.id('p2')), 'succeeded', 'setup: a transfer');
 select is((select count(*)::integer from public.payment_item where payment_id = pg_temp.id('p3')), 1,
   'setup: a single-line card payment');
@@ -107,7 +118,7 @@ select is((select count(*)::integer from public.payment_item where payment_id = 
 -- Kind selection ---------------------------------------------------------------------
 
 select pg_temp.ops();
-insert into ids select 'void1', (public.ops_request_refund(pg_temp.id('p1'), 2100000, 'withdrawal'))[1];
+insert into ids select 'void1', (public.ops_request_refund(pg_temp.id('p1'), 1440000, 'withdrawal'))[1];
 select is((select kind::text || '/' || status::text || '/' || coalesce(payment_item_id::text, '-')
            from public.refund where id = pg_temp.id('void1')),
   'void/requested/-', 'the full amount on the day of the payment is a void');
@@ -122,10 +133,10 @@ select is(pg_temp.error_of($$ select public.ops_cancel_refund(pg_temp.id('void1'
 
 update public.payment set succeeded_at = now() - interval '1 day' where id in (pg_temp.id('p1'), pg_temp.id('p3'));
 create temporary table full_refund as
-  select unnest(public.ops_request_refund(pg_temp.id('p1'), 2100000, 'withdrawal')) as id;
+  select unnest(public.ops_request_refund(pg_temp.id('p1'), 1440000, 'withdrawal')) as id;
 select is((select array_agg(r.kind::text || ':' || r.amount_kurus order by r.amount_kurus)
            from public.refund r join full_refund f on f.id = r.id),
-  array['refund:900000', 'refund:1200000'], 'the full amount on a later day: one refund per line');
+  array['refund:720000', 'refund:720000'], 'the full amount on a later day: one refund per line');
 select lives_ok($$ select public.ops_cancel_refund(id) from full_refund $$, 'both cancelled');
 
 select is(pg_temp.error_of($$ select public.ops_request_refund(pg_temp.id('p1'), 1000, 'goodwill') $$),
@@ -149,13 +160,13 @@ select is((select kind::text from public.refund where id = pg_temp.id('manual'))
 -- Ceilings ---------------------------------------------------------------------------
 
 insert into ids select 'a', (public.ops_request_refund(pg_temp.id('p1'), 600000, 'missed_visit', null, pg_temp.id('p1i1')))[1];
-select is(pg_temp.error_of($$ select public.ops_request_refund(pg_temp.id('p1'), 400000, 'missed_visit', null,
+select is(pg_temp.error_of($$ select public.ops_request_refund(pg_temp.id('p1'), 1500000, 'missed_visit', null,
   pg_temp.id('p1i1')) $$),
   'refund_exceeds_payment', 'a second request beyond the line''s amount is refused');
-insert into ids select 'r2', (public.ops_request_refund(pg_temp.id('p1'), 1200000, 'missed_visit', null, pg_temp.id('p1i2')))[1];
+insert into ids select 'r2', (public.ops_request_refund(pg_temp.id('p1'), 720000, 'missed_visit', null, pg_temp.id('p1i2')))[1];
 select is(pg_temp.error_of($$ select public.ops_request_refund(pg_temp.id('p1'), 1, 'goodwill', null, pg_temp.id('p1i2')) $$),
   'refund_exceeds_payment', 'the second line is used up');
-select is(pg_temp.error_of($$ select public.ops_request_refund(pg_temp.id('p1'), 300001, 'goodwill', null, pg_temp.id('p1i1')) $$),
+select is(pg_temp.error_of($$ select public.ops_request_refund(pg_temp.id('p1'), 120001, 'goodwill', null, pg_temp.id('p1i1')) $$),
   'refund_exceeds_payment', 'the payment''s ceiling counts every open refund');
 
 -- Claim and report -------------------------------------------------------------------
@@ -182,7 +193,7 @@ select is(pg_temp.error_of($$ select public.payment_refund_report(pg_temp.id('a'
 
 -- The failed refund no longer counts: another one takes the line's room.
 select pg_temp.ops();
-insert into ids select 'c', (public.ops_request_refund(pg_temp.id('p1'), 900000, 'missed_visit', null, pg_temp.id('p1i1')))[1];
+insert into ids select 'c', (public.ops_request_refund(pg_temp.id('p1'), 720000, 'missed_visit', null, pg_temp.id('p1i1')))[1];
 reset role;
 select is(pg_temp.error_of($$ select public.payment_refund_claim(pg_temp.id('a')) $$), 'refund_exceeds_payment',
   'a retry checks the ceiling again');
@@ -200,7 +211,7 @@ select is(pg_temp.error_of($$ select public.payment_refund_report(pg_temp.id('r2
 select is((select array[p.refunded_kurus, i.refunded_kurus, o.refunded_kurus]
            from public.payment p, public.payment_item i, public.service_order o
            where p.id = pg_temp.id('p1') and i.id = pg_temp.id('p1i2') and o.id = pg_temp.id('o1')),
-  array[1200000, 1200000, 1200000]::bigint[], 'payment, line and order grow once');
+  array[720000, 720000, 720000]::bigint[], 'payment, line and order grow once');
 select is((select status::text || '/' || provider_ref from public.refund where id = pg_temp.id('r2')),
   'succeeded/iyz-r2', 'succeeded with the provider reference');
 
@@ -220,7 +231,7 @@ select is(pg_temp.error_of($$ select public.ops_resolve_refund(pg_temp.id('c'), 
 select is((select array[p.refunded_kurus, i.refunded_kurus, o.refunded_kurus]
            from public.payment p, public.payment_item i, public.service_order o
            where p.id = pg_temp.id('p1') and i.id = pg_temp.id('p1i1') and o.id = pg_temp.id('o1')),
-  array[2100000, 900000, 2100000]::bigint[], 'counted once more, for this refund only');
+  array[1440000, 720000, 1440000]::bigint[], 'counted once more, for this refund only');
 select is((select status::text from public.payment where id = pg_temp.id('p1')), 'succeeded',
   'line refunds leave the payment succeeded');
 select is(pg_temp.error_of($$ select public.ops_resolve_refund(pg_temp.id('a'), true, 'iyz-a') $$),
@@ -251,14 +262,14 @@ select is(pg_temp.error_of($$ select public.ops_resolve_refund(pg_temp.id('manua
 update public.payment set succeeded_at = now() where id = pg_temp.id('p3');
 -- The line given (as the back office may always do) does not turn the
 -- same-day full amount into a line refund.
-insert into ids select 'void3', (public.ops_request_refund(pg_temp.id('p3'), 900000, 'withdrawal', null,
+insert into ids select 'void3', (public.ops_request_refund(pg_temp.id('p3'), 336000, 'withdrawal', null,
   (select id from public.payment_item where payment_id = pg_temp.id('p3'))))[1];
 reset role;
 select is((select c ->> 'kind' from (select public.payment_refund_claim(pg_temp.id('void3')) c) x), 'void', 'a void is claimed');
 select lives_ok($$ select public.payment_refund_report(pg_temp.id('void3'), 'succeeded', 'void', 'iyz-v3') $$, 'voided at the provider');
 select is((select status::text || '/' || refunded_kurus || '/' || (voided_at is not null)::text
            from public.payment where id = pg_temp.id('p3')),
-  'voided/900000/true', 'a succeeded void voids the payment');
+  'voided/336000/true', 'a succeeded void voids the payment');
 select is(pg_temp.error_of($$ select public.payment_refund_claim(
   (public.ops_request_refund(pg_temp.id('p3'), 1, 'goodwill'))[1]) $$),
   'payment_not_open', 'a voided payment is not refunded again');

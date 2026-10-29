@@ -82,6 +82,15 @@ test.beforeAll(async () => {
     }),
   );
   customer = await signedIn(EMAIL);
+  // T15: the customer records the KVKK notice in the portal (an ops-opened
+  // owner is otherwise stopped by the first-login notice screen).
+  check(
+    await customer.rpc("customer_set_consent", {
+      p_kind: "kvkk_notice",
+      p_granted: true,
+      p_text_version: "kvkk-v2-taslak",
+    }),
+  );
   check(
     await customer.rpc("customer_save_billing_profile", {
       p_profile: {
@@ -161,28 +170,33 @@ test("ops takes an application to an active order and refunds part of the transf
   await page.getByRole("button", { name: "Doğrulamayı kaydet" }).click();
   await expect(page.getByText("Bahçe alanı doğrulandı.")).toBeVisible();
 
-  // 2. Preview (20 dönüm standard: 12.000 TL) and the quote.
-  await expect(page.getByTestId("quote-preview-total")).toHaveText("12.000,00 ₺");
+  // 2. Preview (20 dönüm standard, first year with the inventory fee: 24.480 TL) and the quote.
+  await expect(page.getByTestId("quote-preview-total")).toHaveText("24.480,00 ₺");
   await page.getByTestId("issue-quote-form").getByRole("button", { name: "Teklif ver" }).click();
   await expect(page.getByText("Teklif verildi; müşteriye bildirim gidecek.")).toBeVisible();
-  await expect(page.getByTestId("quote-lines-total")).toHaveText("12.000,00 ₺");
+  await expect(page.getByTestId("quote-lines-total")).toHaveText("24.480,00 ₺");
   const quoteId = page.url().split("/").pop()!.split("?")[0];
 
   // 3. The customer accepts (API); ops records the transfer.
   const orderId = check(
     await customer.rpc("customer_accept_quote", {
       p_quote_id: quoteId,
-      p_consents: { distance_sales: "mesafeli-v1-taslak", pre_information: "onbilgi-v1-taslak" },
+      p_consents: { distance_sales: "mesafeli-v5-taslak", pre_information: "onbilgi-v5-taslak" },
     }),
   );
   await page.goto(`/operasyon/siparis/${orderId}`);
-  await expect(page.getByTestId("order-outstanding")).toHaveText("12.000,00 ₺");
+  await expect(page.getByTestId("order-outstanding")).toHaveText("24.480,00 ₺");
   const manual = page.getByTestId("manual-payment-form");
-  await manual.getByLabel("Tutar (TL)").fill("12.000,00");
+  await manual.getByLabel("Tutar (TL)").fill("24.480,00");
   await manual.getByLabel("Banka referansı").fill(`EFT-${run}`);
   await manual.getByRole("button", { name: "Havaleyi kaydet" }).click();
-  await expect(page.getByText("Havale kaydedildi ve makbuz numarası verildi.")).toBeVisible();
-  await expect(page.getByTestId("order-facts")).toContainText("Aktif");
+  // The whole amount covers the five installments of the plan: one payment
+  // and one receipt each (docs/musteri-yonetimi.md §6.14).
+  await expect(
+    page.getByText("Havale kaydedildi; her ödeme için ayrı makbuz numarası verildi."),
+  ).toBeVisible();
+  await expect(page.getByTestId("installment-5")).toHaveAttribute("data-status", "paid");
+  await expect(page.getByTestId("order-status")).toHaveText("Aktif");
   await expect(page.getByTestId("order-parcel-link")).toHaveText(GARDEN);
 
   // 4. A transfer refund: requested on the payment, completed on İadeler.
@@ -239,19 +253,19 @@ test("ops publishes a price list from a copy and saves the settings", async ({ p
 
   const draft = page.getByTestId("price-list-draft");
   await expect(draft.getByLabel("Standart: Birim fiyat (TL / dönüm·ziyaret)")).toHaveValue(
-    "125,00",
+    "180,00",
   );
   await draft.getByLabel("Geçerlilik başlangıcı").fill(addDays(istanbulToday(), 3650));
-  await draft.getByLabel("Standart: Birim fiyat (TL / dönüm·ziyaret)").fill("130,00");
+  await draft.getByLabel("Standart: Birim fiyat (TL / dönüm·ziyaret)").fill("190,00");
   await draft.getByRole("button", { name: "Taslağı kaydet" }).click();
   await expect(page.getByText("Taslak kaydedildi.")).toBeVisible();
 
   const publish = page.getByTestId("publish-form");
   await publish.getByRole("checkbox").check();
-  await publish.getByRole("button", { name: "Yayımla" }).click();
+  await publish.getByRole("button", { name: "Listeyi yayımla" }).click();
   await expect(page.getByText("Fiyat listesi yayımlandı; artık değiştirilemez.")).toBeVisible();
   expect(page.url().split("?")[0]).toBe(draftUrl);
-  await expect(page.getByTestId("price-list-items")).toContainText("130,00 ₺");
+  await expect(page.getByTestId("price-list-items")).toContainText("190,00 ₺");
   // Dated years ahead: v1 stays the list in force.
   await page.goto("/operasyon/fiyat");
   await expect(
@@ -259,19 +273,19 @@ test("ops publishes a price list from a copy and saves the settings", async ({ p
   ).toHaveText("Fiyat listesi v1");
 
   // Settings: change a duration and put it back.
-  await page.getByRole("link", { name: "Ayarlar" }).click();
+  await page.getByRole("link", { name: "Faturalama ayarları" }).click();
   await expect(page.getByTestId("fake-payments")).toContainText("Açık");
   const form = page.getByTestId("settings-form");
   const days = form.getByLabel("Teklif geçerliliği (gün)");
   const before = await days.inputValue();
   await days.fill("31");
-  await form.getByRole("button", { name: "Kaydet" }).click();
+  await form.getByRole("button", { name: "Ayarları kaydet" }).click();
   await expect(page.getByText("Ayarlar kaydedildi.")).toBeVisible();
   await expect(
     page.getByTestId("settings-form").getByLabel("Teklif geçerliliği (gün)"),
   ).toHaveValue("31");
   await page.getByTestId("settings-form").getByLabel("Teklif geçerliliği (gün)").fill(before);
-  await page.getByTestId("settings-form").getByRole("button", { name: "Kaydet" }).click();
+  await page.getByTestId("settings-form").getByRole("button", { name: "Ayarları kaydet" }).click();
   await expect(page.getByText("Ayarlar kaydedildi.")).toBeVisible();
 
   await page.goto("/operasyon/denetim-kaydi?eylem=billing_setting.");
@@ -284,7 +298,7 @@ test("ops publishes a price list from a copy and saves the settings", async ({ p
   ).toBeVisible();
 });
 
-test("the customer's TCKN is masked until ops reveals it", async ({ page }) => {
+test("the customer's TCKN is never stored, so ops sees none (T13)", async ({ page }) => {
   // A valid test number (checksum digits), never a real person's. Required
   // only for the moment the customer saves it; the setting is put back.
   const TCKN = "10000000146";
@@ -316,7 +330,7 @@ test("the customer's TCKN is masked until ops reveals it", async ({ page }) => {
 
   await login(page, "ops@example.com", "/operasyon/sahip");
   await page.getByLabel("Ad, telefon ya da e-posta").fill(NAME);
-  await page.getByRole("button", { name: "Süz" }).click();
+  await page.getByRole("button", { name: "Ara", exact: true }).click();
   // The search is posted: only the matching row, and the term (personal
   // data) is not in the URL.
   await expect(page.getByTestId("owner-list").locator("tbody tr")).toHaveCount(1);
@@ -324,15 +338,8 @@ test("the customer's TCKN is masked until ops reveals it", async ({ page }) => {
   await page.getByTestId("owner-list").getByRole("link", { name: NAME }).click();
   const panel = page.getByTestId("customer-account");
   await expect(panel.getByTestId("billing-profile")).toBeVisible();
-  await expect(panel.getByTestId("identity-number")).not.toContainText(TCKN);
+  // T13 (H16): the TCKN that came with the profile was not stored: nothing to
+  // mask or reveal.
   await expect(page.locator("body")).not.toContainText(TCKN);
-  await panel.getByRole("button", { name: "TCKN'yi göster" }).click();
-  await expect(panel.getByTestId("identity-number")).toContainText(TCKN);
-
-  // Gone after a reload; the reveal is in the audit log.
-  await page.reload();
-  await expect(page.locator("body")).not.toContainText(TCKN);
-  await page.goto("/operasyon/denetim-kaydi?tur=billing_profile");
-  await expect(page.getByTestId("audit-log").getByText("TCKN görüntülendi").first()).toBeVisible();
-  await expect(page.getByTestId("audit-log")).not.toContainText(TCKN);
+  await expect(panel.getByRole("button", { name: "TCKN'yi göster" })).toHaveCount(0);
 });

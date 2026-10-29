@@ -17,8 +17,11 @@ describe("isPublicPath", () => {
     "/mesafeli-satis",
     "/on-bilgilendirme",
     "/iade",
+    "/bahcede-bulunanlar",
     "/robots.txt",
     "/sitemap.xml",
+    "/demo",
+    "/demo/bitti",
   ])("opens %s", (path) => {
     expect(isPublicPath(path)).toBe(true);
   });
@@ -34,6 +37,7 @@ describe("isPublicPath", () => {
     "/kayitlar",
     "/girisx",
     "/sss-eski",
+    "/demolar",
     "",
   ])("closes %s", (path) => {
     expect(isPublicPath(path)).toBe(false);

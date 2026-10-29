@@ -4,10 +4,11 @@ import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
 import { MARKER_COLORS, type MarkerState } from "@/lib/map/tree-style";
 import { LocalFrame } from "@/lib/office/local-frame";
 import { CLASS_ORDER, distributionTotal, type Distribution } from "@/lib/portal/classes";
+import { approverLine } from "@/lib/portal/approver";
 import type { ParcelReport } from "@/lib/portal/data";
 import type { MetricSummaryRow } from "@/lib/portal/metrics";
 import { scoreRulesFor, share } from "@/lib/portal/score";
-import { Bullets, Footer, Header } from "./parts";
+import { BoundaryFooter, Bullets, Footer, Header, SampleWatermark, sampleInfo } from "./parts";
 import { COLORS, pdf, registerFonts } from "./theme";
 
 // The owner's report card of the latest published visit as a PDF: summary,
@@ -23,12 +24,29 @@ const SEVERITY: Record<string, string> = {
 };
 const pct = (n: number, total: number) => (total > 0 ? formatNumber((100 * n) / total, 0) : "0");
 
-export async function reportPdf(report: ParcelReport, now = new Date()): Promise<Buffer> {
-  registerFonts();
-  return renderToBuffer(<ReportDocument report={report} now={now} />);
+export interface PdfOptions {
+  // A demo visitor's sample: watermark and sample marker (docs/demo-turu.md §11.6).
+  demo?: boolean;
 }
 
-function ReportDocument({ report, now }: { report: ParcelReport; now: Date }) {
+export async function reportPdf(
+  report: ParcelReport,
+  now = new Date(),
+  options: PdfOptions = {},
+): Promise<Buffer> {
+  registerFonts();
+  return renderToBuffer(<ReportDocument report={report} now={now} demo={options.demo} />);
+}
+
+export function ReportDocument({
+  report,
+  now,
+  demo = false,
+}: {
+  report: ParcelReport;
+  now: Date;
+  demo?: boolean;
+}) {
   const latest = report.latest!;
   const total = distributionTotal(latest.distribution);
   const states: (keyof Distribution)[] = [...CLASS_ORDER, "unassessed"];
@@ -36,12 +54,19 @@ function ReportDocument({ report, now }: { report: ParcelReport; now: Date }) {
   const subtitle = [
     r.visitOf(formatDate(latest.time)),
     latest.methodologyVersion ? r.methodology(latest.methodologyVersion) : null,
+    report.approver ? approverLine(report.approver) : null,
   ]
     .filter(Boolean)
     .join(" · ");
   return (
-    <Document title={`${r.summaryTitle} · ${report.parcel.name}`} author="orchadOS" language="tr">
-      <Page size="A4" style={pdf.page}>
+    <Document
+      title={`${r.summaryTitle} · ${report.parcel.name}`}
+      author="orchadOS"
+      language="tr"
+      {...sampleInfo(demo)}
+    >
+      <Page size="A4" style={pdf.reportPage}>
+        {demo && <SampleWatermark />}
         <Header kicker={r.pdfKicker} title={report.parcel.name} subtitle={subtitle} />
 
         <View style={pdf.section} wrap={false}>
@@ -205,6 +230,7 @@ function ReportDocument({ report, now }: { report: ParcelReport; now: Date }) {
           </View>
         )}
 
+        <BoundaryFooter />
         <Footer left={`${t.inventoryReport.generated(formatDate(now.toISOString()))}`} />
       </Page>
     </Document>

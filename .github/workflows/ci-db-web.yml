@@ -5,19 +5,37 @@ on:
     paths:
       - "supabase/**"
       - "apps/web/**"
+      - "test-vectors/**"
+      - "services/pipeline/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/ci-db-web.yml"
+      - "scripts/check-migration-order.sh"
+      - "scripts/demo-lock-check.sh"
+      - "scripts/test-demo-lock-sql.sh"
+      - "scripts/retention-check.sh"
+      - "scripts/provision-pilot-signup.sh"
+      - "scripts/vault-signup-cleanup.sh"
+      - "scripts/kvkk/**"
   push:
     branches: [main]
     paths:
       - "supabase/**"
       - "apps/web/**"
+      - "test-vectors/**"
+      - "services/pipeline/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/ci-db-web.yml"
+      - "scripts/check-migration-order.sh"
+      - "scripts/demo-lock-check.sh"
+      - "scripts/test-demo-lock-sql.sh"
+      - "scripts/retention-check.sh"
+      - "scripts/provision-pilot-signup.sh"
+      - "scripts/vault-signup-cleanup.sh"
+      - "scripts/kvkk/**"
 
 concurrency:
   group: ci-db-web-${{ github.ref }}
@@ -31,7 +49,7 @@ env:
 jobs:
   db-web:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -43,6 +61,22 @@ jobs:
             echo "::error::supabase/testing/ is local only; a migration must not create it"
             exit 1
           fi
+
+      # KVKK request scripts (docs/hukuk/kararlar.md H26, T11); the
+      # integration test kvkk-scripts runs them against the local stack.
+      - name: Shellcheck KVKK scripts
+        run: shellcheck scripts/kvkk/*.sh
+
+      # New migrations sort after the newest one on the base branch (CLAUDE.md):
+      # `supabase migration new` can stamp a date before already merged,
+      # future-dated migrations, whose functions it would then run without.
+      - name: New migrations sort after the base branch's
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          scripts/check-migration-order.sh FETCH_HEAD
 
       - uses: pnpm/action-setup@v4
 
@@ -63,6 +97,12 @@ jobs:
       - name: Database tests (pgTAP)
         run: pnpm db:test
 
+      # The demo lock query (scripts/demo-lock-check.sh), the retention query
+      # and the pilot sign-up SQL (scripts/provision-pilot-signup.sh) on
+      # crafted rows; the ci-scripts mocks only return canned counts.
+      - name: Demo lock query against the database
+        run: scripts/test-demo-lock-sql.sh
+
       - name: Generated database types are up to date
         run: |
           pnpm web:typegen
@@ -73,6 +113,35 @@ jobs:
 
       - name: Build
         run: pnpm web:build
+
+      # The demo tour dataset (IP13, docs/demo-turu.md §10) and the office
+      # tool's synthetic panoramas are built by services/pipeline: with uv here,
+      # demo-dataset.test.ts, demo-tour.spec.ts and office-tool.spec.ts run.
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: services/pipeline/uv.lock
+
+      - name: Install pipeline dependencies
+        working-directory: services/pipeline
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends rtklib
+          uv sync --locked
+
+      - name: Cache the demo tour build
+        uses: actions/cache@v4
+        with:
+          path: services/pipeline/.demo-build
+          key: demo-build-${{ hashFiles('services/pipeline/src/**', 'services/pipeline/uv.lock') }}
+
+      - name: Cache the office tool's synthetic panoramas
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.dev-data/e2e
+          key: office-e2e-${{ hashFiles('services/pipeline/src/**', 'services/pipeline/uv.lock', 'apps/web/scripts/office-dev-data.mjs') }}
+
+      - name: Load the demo tour dataset
+        run: pnpm db:demo-tour --profile test --reset-local
 
       - name: Unit and integration tests
         run: pnpm web:test

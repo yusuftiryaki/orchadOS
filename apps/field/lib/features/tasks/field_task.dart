@@ -31,16 +31,33 @@ enum Season {
   static Season fromCode(String code) =>
       values.firstWhere((s) => s.code == code);
 
-  /// Visit season of a planned day (docs/MVP.md, Modül 3): winter Dec–Feb,
-  /// spring Mar–May, summer Jun–Jul, harvest Aug–Nov. The visit row has no
-  /// season of its own; March and November, outside the MVP table, go to the
-  /// visit that follows or precedes them.
-  static Season forDate(DateTime day) => switch (day.month) {
-    12 || 1 || 2 => Season.winter,
-    3 || 4 || 5 => Season.spring,
-    6 || 7 => Season.summer,
-    _ => Season.harvest,
-  };
+  /// Visit season of a planned day under the visit's methodology version
+  /// (docs/metodoloji.md, section 2). The visit row has no season of its
+  /// own. Same rule and test vectors (test-vectors/season.json) as the web
+  /// app and the AI worker.
+  ///
+  /// `methodology-v0.2`: winter Nov–Mar, spring Apr–May, summer Jun–Aug,
+  /// harvest Sep–Oct. Older versions, unknown ones and visits without a
+  /// version keep the legacy calendar: winter Nov–Feb, spring Mar–May,
+  /// summer Jun–Jul, harvest Aug–Oct.
+  static Season forDate(DateTime day, String? methodologyVersion) =>
+      forMonth(day.month, methodologyVersion);
+
+  static Season forMonth(int month, String? methodologyVersion) =>
+      switch (methodologyVersion) {
+        'methodology-v0.2' => switch (month) {
+          11 || 12 || 1 || 2 || 3 => Season.winter,
+          4 || 5 => Season.spring,
+          6 || 7 || 8 => Season.summer,
+          _ => Season.harvest,
+        },
+        _ => switch (month) {
+          11 || 12 || 1 || 2 => Season.winter,
+          3 || 4 || 5 => Season.spring,
+          6 || 7 => Season.summer,
+          _ => Season.harvest,
+        },
+      };
 }
 
 /// A planting position of the parcel (`public.slot`), for maps, coverage and

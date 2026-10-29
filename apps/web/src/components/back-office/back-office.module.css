@@ -1,4 +1,12 @@
-/* Back office (IP12-E) additions to operations.module.css. */
+/* Back office (IP12-E) pieces that the ui primitives do not cover. */
+
+/* The org picker (parts.tsx): the field and its button on one line. */
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
 
 .bare {
   display: contents;
@@ -8,67 +16,12 @@
   min-width: 0;
 }
 
-.navGroup {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-  margin-top: calc(-1 * var(--space-2));
-  margin-bottom: var(--space-4);
-}
-
-.navGroupLabel {
-  font-size: 13px;
-  color: var(--color-muted);
-}
-
-.navGroup a {
-  padding: var(--space-1) var(--space-2);
-  border-radius: 6px;
-  text-decoration: none;
-}
-
-.navGroup a[aria-current="page"] {
-  background: var(--color-surface-2);
-  font-weight: 600;
-}
-
-.warning {
-  border-left: 4px solid var(--color-warning);
-  background: var(--color-warning-soft);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 6px;
-}
-
 .highlight td {
   background: var(--color-warning-soft);
 }
 
 .totals td {
   font-weight: 600;
-}
-
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
-  word-break: break-all;
-}
-
-.stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.rowActions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-width: 14rem;
-}
-
-.rowActions details > form {
-  margin-top: var(--space-2);
 }
 
 @media print {

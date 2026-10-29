@@ -17,6 +17,9 @@ import { VerificationTours } from "@/components/office/verification-panel";
 import styles from "@/components/office/inventory.module.css";
 import type { ApproveInventoryResult, WaiveCoverageResult } from "@/lib/expert/inventory";
 import type { CoverageSummary } from "@/lib/expert/pipeline-checks";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox, Field, Textarea } from "@/components/ui/field";
 import { formatNumber, t } from "@/lib/i18n";
 import type { InventoryWorkspace } from "@/lib/office/inventory-workspace";
 import { bearingDeg, LocalFrame, wrap180 } from "@/lib/office/local-frame";
@@ -44,7 +47,6 @@ export function InventoryApproval({
   flaggedSlotIds,
   panoramaSet,
   panoramas,
-  coverage = null,
 }: {
   ws: InventoryWorkspace;
   sessionId: string;
@@ -52,8 +54,6 @@ export function InventoryApproval({
   flaggedSlotIds: string[];
   panoramaSet: string | null;
   panoramas: ApprovalPanorama[];
-  // Newest coverage report of the inventory scan (null: none yet).
-  coverage?: CoverageSummary | null;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -128,15 +128,16 @@ export function InventoryApproval({
             testId="approval-map"
             height={460}
           />
-          <InventoryMapLegend />
-          <label className={styles.check}>
-            <input
-              type="checkbox"
+          <div className={styles.mapFoot}>
+            <InventoryMapLegend />
+            <Checkbox
+              id="approval-show-codes"
+              label={t.inventory.showCodes}
               checked={showCodes}
               onChange={(ev) => setShowCodes(ev.target.checked)}
             />
-            {t.inventory.showCodes}
-          </label>
+          </div>
+          <p className={styles.mapHint}>{e.mapClick}</p>
         </div>
         <div className={styles.side}>
           <section className={styles.panel} data-testid="approval-panorama">
@@ -184,40 +185,52 @@ export function InventoryApproval({
           />
         </div>
       </div>
-      <VerificationTours
-        tours={ws.tours}
-        canRecord={false}
-        canClose={!ws.approved}
-        onRecord={async () => ({ ok: false, error: "forbidden" })}
-        onClose={async (itemId, note) => {
-          const result = await closeVerificationItemExpertAction({
-            parcelId: ws.parcel.id,
-            itemId,
-            note,
-          });
-          if (result.ok) router.refresh();
-          return result;
-        }}
-      />
-      <section className={styles.panel} data-testid="inventory-coverage">
-        <h2>{e.approve.coverageTitle}</h2>
-        <CoverageLine coverage={coverage} />
-        {coverage?.waivedAt && coverage.waiverNote && (
-          <p data-testid="coverage-waived">{e.approve.waived(coverage.waiverNote)}</p>
-        )}
-        {!ws.approved && coverage && !coverage.passed && !coverage.waivedAt && (
-          <WaiveForm parcelId={ws.parcel.id} sessionId={sessionId} />
-        )}
-      </section>
-      {!ws.approved && (
-        <ApproveForm
-          parcelId={ws.parcel.id}
-          sessionId={sessionId}
-          ws={ws}
-          coverageBlocked={!!coverage && !coverage.passed && !coverage.waivedAt}
+      <div id="dogrulama" className={styles.anchor}>
+        <VerificationTours
+          tours={ws.tours}
+          canRecord={false}
+          canClose={!ws.approved}
+          onRecord={async () => ({ ok: false, error: "forbidden" })}
+          onClose={async (itemId, note) => {
+            const result = await closeVerificationItemExpertAction({
+              parcelId: ws.parcel.id,
+              itemId,
+              note,
+            });
+            if (result.ok) router.refresh();
+            return result;
+          }}
         />
-      )}
+      </div>
     </>
+  );
+}
+
+// Coverage of the inventory scan and, below the threshold, the expert's
+// reasoned acceptance.
+export function CoverageDetails({
+  coverage,
+  parcelId,
+  sessionId,
+  approved,
+}: {
+  // Newest coverage report of the inventory scan (null: none yet).
+  coverage: CoverageSummary | null;
+  parcelId: string;
+  sessionId: string;
+  approved: boolean;
+}) {
+  return (
+    <section id="kapsama" className={styles.panel} data-testid="inventory-coverage">
+      <h3>{e.approve.coverageTitle}</h3>
+      <CoverageLine coverage={coverage} />
+      {coverage?.waivedAt && coverage.waiverNote && (
+        <p data-testid="coverage-waived">{e.approve.waived(coverage.waiverNote)}</p>
+      )}
+      {!approved && coverage && !coverage.passed && !coverage.waivedAt && (
+        <WaiveForm parcelId={parcelId} sessionId={sessionId} />
+      )}
+    </section>
   );
 }
 
@@ -228,21 +241,19 @@ function WaiveForm({ parcelId, sessionId }: { parcelId: string; sessionId: strin
   const [pending, startTransition] = useTransition();
   const a = e.approve;
   return (
-    <div data-testid="coverage-waiver">
-      <label>
-        {a.waiverLabel}
-        <textarea
+    <div className={styles.waiver} data-testid="coverage-waiver">
+      <Field id="coverage-waiver-note" label={a.waiverLabel}>
+        <Textarea
           rows={2}
           maxLength={2000}
           value={note}
           placeholder={a.waiverPlaceholder}
           onChange={(ev) => setNote(ev.target.value)}
         />
-      </label>
-      <p>
-        <button
-          type="button"
-          className="button button-secondary"
+      </Field>
+      <div>
+        <Button
+          variant="secondary"
           disabled={pending || note.trim() === ""}
           onClick={() =>
             startTransition(async () => {
@@ -253,57 +264,76 @@ function WaiveForm({ parcelId, sessionId }: { parcelId: string; sessionId: strin
           }
         >
           {a.waiverSubmit}
-        </button>
-      </p>
+        </Button>
+      </div>
       {result && !result.ok && (
-        <p className={styles.error} role="alert">
+        <Alert tone="danger" role="alert">
           {a.waiverErrors[result.error] ?? a.waiverErrors.write_failed}
-        </p>
+        </Alert>
       )}
     </div>
   );
 }
 
-function ApproveForm({
+// The signature. What blocks it (open verification items, coverage below the
+// threshold, no slots) is listed first; signing stays closed until they are
+// resolved.
+export function ApproveForm({
   parcelId,
   sessionId,
-  ws,
+  openItems,
   coverageBlocked,
+  noSlots,
 }: {
   parcelId: string;
   sessionId: string;
-  ws: InventoryWorkspace;
+  openItems: number;
   coverageBlocked: boolean;
+  noSlots: boolean;
 }) {
   const router = useRouter();
   const [confirmed, setConfirmed] = useState(false);
   const [result, setResult] = useState<ApproveInventoryResult | null>(null);
   const [pending, startTransition] = useTransition();
-  const open = ws.tours.reduce(
-    (n, tour) => n + tour.items.filter((i) => i.status === "open").length,
-    0,
-  );
   const a = e.approve;
+  const blockers: { key: string; text: string; href?: string; link?: string }[] = [
+    ...(noSlots ? [{ key: "slots", text: a.noSlots }] : []),
+    ...(openItems > 0
+      ? [{ key: "items", text: a.blockedOpen(openItems), href: "#dogrulama", link: a.openTours }]
+      : []),
+    ...(coverageBlocked
+      ? [{ key: "coverage", text: a.coverageBlocked, href: "#kapsama", link: a.openCoverage }]
+      : []),
+  ];
+  const blocked = blockers.length > 0;
 
   return (
-    <section className={styles.panel} data-testid="approve-inventory">
+    <section className={styles.signoff} data-testid="approve-inventory">
       <h2>{a.title}</h2>
-      {open > 0 && <p className={styles.notice}>{a.blockedOpen(open)}</p>}
-      {coverageBlocked && <p className={styles.notice}>{a.coverageBlocked}</p>}
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={confirmed}
-          onChange={(ev) => setConfirmed(ev.target.checked)}
-          data-testid="approve-confirm"
-        />
-        {a.confirm}
-      </label>
-      <p>
-        <button
-          type="button"
-          className="button"
-          disabled={!confirmed || pending}
+      {blocked ? (
+        <Alert tone="danger" title={a.blockedTitle} testId="approve-blockers">
+          <ul className={styles.list}>
+            {blockers.map((b) => (
+              <li key={b.key}>
+                {b.text} {b.href && <a href={b.href}>{b.link}</a>}
+              </li>
+            ))}
+          </ul>
+        </Alert>
+      ) : (
+        <p className={styles.hint}>{a.ready}</p>
+      )}
+      <Checkbox
+        id="approve-confirm"
+        label={a.confirm}
+        checked={confirmed}
+        disabled={blocked}
+        onChange={(ev) => setConfirmed(ev.target.checked)}
+        data-testid="approve-confirm"
+      />
+      <div>
+        <Button
+          disabled={blocked || !confirmed || pending}
           data-testid="approve-submit"
           onClick={() =>
             startTransition(async () => {
@@ -314,29 +344,28 @@ function ApproveForm({
           }
         >
           {pending ? a.submitting : a.submit}
-        </button>
-      </p>
+        </Button>
+      </div>
       {result?.ok && (
-        <p className={styles.success} role="status" data-testid="approve-result">
+        <Alert tone="success" role="status" testId="approve-result">
           {a.done}
-        </p>
+        </Alert>
       )}
       {result && !result.ok && (
-        <div className={styles.error} role="alert" data-testid="approve-error">
-          <p className={styles.error}>{a.errors[result.error]}</p>
-          {result.noSlots && <p className={styles.error}>{a.noSlots}</p>}
+        <Alert tone="danger" role="alert" title={a.errors[result.error]} testId="approve-error">
+          {result.noSlots && <p>{a.noSlots}</p>}
           {result.openItems && result.openItems.length > 0 && (
-            <p className={styles.error}>{a.openItems(result.openItems.join(", "))}</p>
+            <p>{a.openItems(result.openItems.join(", "))}</p>
           )}
           {result.coverage && (
-            <p className={styles.error}>
+            <p>
               {a.coverageBelow(
                 formatNumber(result.coverage.ratio * 100, 1),
                 formatNumber(result.coverage.threshold * 100, 1),
               )}
             </p>
           )}
-        </div>
+        </Alert>
       )}
     </section>
   );

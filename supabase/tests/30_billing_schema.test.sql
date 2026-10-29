@@ -4,7 +4,7 @@
 -- and 9120..0102 (draft), customer a0..06 with application 9120..0301.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(57);
 
 select testing.reset_to_seed();
 
@@ -19,8 +19,18 @@ select enum_has_labels('public', 'application_status',
   array['draft', 'submitted', 'quoted', 'accepted', 'rejected', 'withdrawn'], 'application statuses');
 select enum_has_labels('public', 'payment_status',
   array['initiated', 'pending_review', 'succeeded', 'failed', 'expired', 'voided'], 'payment statuses');
+select enum_has_labels('public', 'garden_removal_status',
+  array['requested', 'scheduled', 'completed', 'cancelled'], 'garden removal statuses (IP14)');
+select enum_has_labels('public', 'garden_removal_reason',
+  array['sold', 'not_needed', 'dissatisfied', 'cost', 'transfer', 'duplicate', 'other',
+        -- T05: just causes of an ops removal (H20 (c), H36); T08: system rows.
+        'location_misdeclared', 'owner_breach', 'no_authority', 'third_party_objection', 'staff_safety',
+        'payment_default', 'service_withdrawn_district', 'by_agreement', 'period_ended', 'order_terminated',
+        'pilot_ended'],
+  'garden removal reasons (IP14, T05, T08)');
 select enum_has_labels('public', 'consent_kind',
-  array['kvkk_notice', 'explicit_service_improvement', 'explicit_marketing', 'distance_sales', 'pre_information'],
+  array['kvkk_notice', 'explicit_service_improvement', 'explicit_marketing', 'distance_sales', 'pre_information',
+        'early_performance'],
   'consent kinds');
 
 select ok(private.is_valid_tckn('10000000146'), 'a valid TCKN passes');
@@ -97,7 +107,7 @@ select throws_ok(
      from public.service_package where code = 'standart' $$,
   'P0001', 'price_list_not_draft', 'no item is added to a published list');
 select lives_ok(
-  $$ update public.price_list_item set unit_price_kurus = 14000 where price_list_id = '91200000-0000-4000-8000-000000000102' $$,
+  $$ update public.price_list_item set unit_price_kurus = 21000 where price_list_id = '91200000-0000-4000-8000-000000000102' $$,
   'draft items change');
 select throws_ok(
   $$ update public.price_list set status = 'published' where id = '91200000-0000-4000-8000-000000000102' $$,
@@ -115,13 +125,13 @@ insert into public.quote (id, org_id, customer_user_id, application_id, number, 
 values (pg_temp.id(2), 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000006',
   '91200000-0000-4000-8000-000000000301', 'T-2026-900001', '91200000-0000-4000-8000-000000000101', 1,
   '91200000-0000-4000-8000-000000000001', 'standart', 'Standart', 4, true, true, 2000,
-  750000, 0, 750000, 150000, 900000, '{"formula": "pricing-v1"}', current_date + 30);
+  1720000, 0, 1720000, 344000, 2064000, '{"formula": "pricing-v1"}', current_date + 30);
 insert into public.quote_item (id, org_id, quote_id, customer_user_id, line_no, application_garden_id, garden_name,
   area_m2, billable_area_tenths, visits, unit_price_kurus, minimum_fee_kurus, inventory_fee_kurus, visit_amount_kurus,
   line_base_kurus, line_discount_kurus, line_subtotal_kurus, line_vat_kurus, line_total_kurus)
 values (pg_temp.id(3), 'b0000000-0000-4000-8000-000000000001', pg_temp.id(2), 'a0000000-0000-4000-8000-000000000006',
-  1, '91200000-0000-4000-8000-000000000401', 'Nizip Bahçesi', 15000, 150, 4, 12500, 500000, 0, 750000,
-  750000, 0, 750000, 150000, 900000);
+  1, '91200000-0000-4000-8000-000000000401', 'Nizip Bahçesi', 15000, 150, 4, 18000, 1120000, 600000, 1080000,
+  1720000, 0, 1720000, 344000, 2064000);
 
 select throws_ok(
   $$ insert into public.quote (org_id, customer_user_id, application_id, number, price_list_id, price_list_version,
@@ -160,10 +170,10 @@ select throws_ok(
 
 insert into public.service_order (id, org_id, customer_user_id, quote_id, number, total_kurus)
 values (pg_temp.id(4), 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000006',
-        pg_temp.id(2), 'S-2026-900001', 900000);
+        pg_temp.id(2), 'S-2026-900001', 2064000);
 insert into public.service_order_item (id, org_id, order_id, customer_user_id, quote_item_id, line_no, garden_name, amount_kurus)
 values (pg_temp.id(5), 'b0000000-0000-4000-8000-000000000001', pg_temp.id(4), 'a0000000-0000-4000-8000-000000000006',
-        pg_temp.id(3), 1, 'Nizip Bahçesi', 900000);
+        pg_temp.id(3), 1, 'Nizip Bahçesi', 2064000);
 select throws_ok(
   format($$ update public.service_order set refunded_kurus = 1 where id = %L $$, pg_temp.id(4)),
   '23514', null, 'nothing is refunded beyond what was paid');
@@ -177,12 +187,33 @@ select throws_ok(
   format($$ update public.service_order_item set parcel_id = null where id = %L $$, pg_temp.id(5)),
   'P0001', null, 'and keeps it');
 
+-- Payment plan (installments-v1) -------------------------------------------------
+
+insert into public.order_installment (id, org_id, order_id, customer_user_id, seq, kind, amount_kurus, vat_kurus, due_on)
+values (pg_temp.id(6), 'b0000000-0000-4000-8000-000000000001', pg_temp.id(4), 'a0000000-0000-4000-8000-000000000006',
+        1, 'single', 2064000, 344000, current_date);
+select throws_ok(
+  format($$ update public.order_installment set amount_kurus = 1 where id = %L $$, pg_temp.id(6)),
+  'P0001', 'installment_frozen', 'an installment keeps its amount');
+select throws_ok(
+  format($$ update public.order_installment set paid_kurus = 2064000 where id = %L $$, pg_temp.id(6)),
+  '23514', null, 'a fully paid installment is not left pending');
+select throws_ok(
+  format($$ delete from public.order_installment where id = %L $$, pg_temp.id(6)),
+  'P0001', null, 'an installment is never deleted');
+select throws_ok(
+  $$ insert into public.order_installment (org_id, order_id, customer_user_id, seq, kind, amount_kurus, vat_kurus, due_on)
+     values ('b0000000-0000-4000-8000-000000000001', (select id from public.service_order where number = 'S-2026-900001'),
+             'a0000000-0000-4000-8000-000000000006', 2, 'visit', 1, 0, current_date) $$,
+  '23514', null, 'a visit installment names its visit');
+
 -- Payments ----------------------------------------------------------------------
 
 select throws_ok(
-  format($$ insert into public.payment (org_id, order_id, customer_user_id, provider, status, amount_kurus)
+  format($$ insert into public.payment (org_id, order_id, customer_user_id, provider, status, amount_kurus,
+              order_installment_id)
             values ('b0000000-0000-4000-8000-000000000001', %L, 'a0000000-0000-4000-8000-000000000006',
-                    'manual', 'succeeded', 900000) $$, pg_temp.id(4)),
+                    'manual', 'succeeded', 2064000, %L) $$, pg_temp.id(4), pg_temp.id(6)),
   '23514', null, 'a manual payment needs its bank reference, value date and recorder (and a receipt)');
 
 -- Insert-only private tables and the audit log ------------------------------------
@@ -217,7 +248,7 @@ insert into public.quote (id, org_id, customer_user_id, application_id, number, 
 values (pg_temp.id(22), 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000006',
   '91200000-0000-4000-8000-000000000301', 'T-2026-900003', '91200000-0000-4000-8000-000000000101', 1,
   '91200000-0000-4000-8000-000000000001', 'standart', 'Standart', 4, true, true, 2000,
-  750000, 0, 750000, 150000, 900000, '{"formula": "pricing-v1"}', current_date + 30,
+  1720000, 0, 1720000, 344000, 2064000, '{"formula": "pricing-v1"}', current_date + 30,
   'cancelled', pg_temp.id(20), now(), pg_temp.id(20));
 
 select throws_ok(

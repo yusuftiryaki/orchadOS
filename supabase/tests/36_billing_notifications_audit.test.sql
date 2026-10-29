@@ -121,7 +121,7 @@ select public.ops_verify_application_garden('91200000-0000-4000-8000-00000000040
 insert into ids select 'q', public.ops_issue_quote('91200000-0000-4000-8000-000000000301');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 insert into ids select 'o', public.customer_accept_quote(pg_temp.id('q'),
-  '{"distance_sales": "mesafeli-v1-taslak", "pre_information": "onbilgi-v1-taslak"}');
+  '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 
 create temporary table begin1 as
   select public.payment_begin(pg_temp.id('o'), 'a0000000-0000-4000-8000-000000000006', 'fake',
@@ -129,7 +129,8 @@ create temporary table begin1 as
 insert into ids select 'p', (b ->> 'payment_id')::uuid from begin1;
 
 select is((select pg_temp.keys(b) from begin1),
-  pg_temp.sorted(array['payment_id', 'order_id', 'order_number', 'amount_kurus', 'currency', 'items', 'buyer', 'billing']),
+  pg_temp.sorted(array['payment_id', 'order_id', 'order_number', 'amount_kurus', 'currency', 'items', 'buyer',
+    'identity_number_required', 'billing']),
   'payment_begin keys = PAYMENT_BEGIN_KEYS');
 select is((select pg_temp.keys(b -> 'items' -> 0) from begin1),
   pg_temp.sorted(array['payment_item_id', 'line_no', 'name', 'amount_kurus']), 'item keys = PAYMENT_BEGIN_ITEM_KEYS');
@@ -142,8 +143,8 @@ select is((select pg_temp.keys(b -> 'billing') from begin1),
 select is((select b -> 'buyer' ->> 'identity_number' from begin1), '11111111111',
   'the placeholder TCKN while the org does not require it');
 select is((select b -> 'buyer' ->> 'phone' from begin1), '+905550000006', 'the phone of the profile');
-select is((select (b ->> 'amount_kurus')::bigint from begin1), (select total_kurus from public.service_order
-  where id = pg_temp.id('o')), 'the outstanding amount');
+select is((select (b ->> 'amount_kurus')::bigint from begin1), (select amount_kurus from public.order_installment
+  where order_id = pg_temp.id('o') and seq = 1), 'the open amount of the first installment');
 select is((select count(*)::integer from private.payment_billing_snapshot where payment_id = pg_temp.id('p')), 0,
   'payment_begin writes no snapshot');
 
@@ -161,16 +162,15 @@ select is((select pg_temp.keys(to_jsonb(t)) from public.payment_attempts_to_reco
 
 -- With the TCKN required: the real number goes to the provider, the snapshot keeps four digits.
 update public.org_billing_setting set identity_number_required = true where org_id = 'b0000000-0000-4000-8000-000000000001';
-update private.billing_profile set identity_number = '10000000146'
-where user_id = 'a0000000-0000-4000-8000-000000000006';
 create temporary table begin2 as
   select public.payment_begin(pg_temp.id('o'), 'a0000000-0000-4000-8000-000000000006', 'fake',
     'http://127.0.0.1:3100') as b;
 insert into ids select 'p2', (b ->> 'payment_id')::uuid from begin2;
-select is((select b -> 'buyer' ->> 'identity_number' from begin2), '10000000146', 'the real TCKN when required');
+select is((select b -> 'buyer' ->> 'identity_number' from begin2), '11111111111',
+  'T13: no stored TCKN even when required (the payments function adds the typed one)');
 select is((select status::text || '/' || failure_code from public.payment where id = pg_temp.id('p')),
   'expired/superseded', 'the earlier live attempt is superseded');
-select public.payment_attach_token(pg_temp.id('p2'), 'fake_36_token_2', now() + interval '30 minutes');
+select public.payment_attach_token(pg_temp.id('p2'), 'fake_36_token_2', now() + interval '30 minutes', '0146');
 select is((select identity_number_last4 from private.payment_billing_snapshot where payment_id = pg_temp.id('p2')),
   '0146', 'the snapshot keeps the last four digits only');
 
@@ -203,27 +203,38 @@ select is((select array_agg(x order by x) from (
   'every action carries its actor and role explicitly');
 
 -- Housekeeping: a quote past its validity, a reminder three days before the due time.
+-- Both on a pilot parcel of the customer: the served parcel would be refused
+-- (IP14, parcel_in_service).
+insert into public.parcel (id, org_id, name, estimated_area_m2)
+values ('f3600000-0000-4000-8000-000000000011', 'b0000000-0000-4000-8000-000000000001', 'Pilot 36', 15000);
+insert into public.parcel_access (org_id, parcel_id, user_id, role, granted_by)
+values ('b0000000-0000-4000-8000-000000000001', 'f3600000-0000-4000-8000-000000000011',
+  'a0000000-0000-4000-8000-000000000006', 'owner', null);
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 insert into ids select 'q2', public.ops_issue_parcel_quote('b0000000-0000-4000-8000-000000000001',
   'a0000000-0000-4000-8000-000000000006', '91200000-0000-4000-8000-000000000001',
-  array[(select parcel_id from public.application_garden where id = '91200000-0000-4000-8000-000000000401')], false, null);
+  array['f3600000-0000-4000-8000-000000000011'::uuid], false, null);
 insert into ids select 'q3', public.ops_issue_parcel_quote('b0000000-0000-4000-8000-000000000001',
   'a0000000-0000-4000-8000-000000000006', '91200000-0000-4000-8000-000000000001',
-  array[(select parcel_id from public.application_garden where id = '91200000-0000-4000-8000-000000000401')], false, null);
+  array['f3600000-0000-4000-8000-000000000011'::uuid], false, null);
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 insert into ids select 'o3', public.customer_accept_quote(pg_temp.id('q3'),
-  '{"distance_sales": "mesafeli-v1-taslak", "pre_information": "onbilgi-v1-taslak"}');
+  '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 set local session_replication_role = replica;
 update public.quote set valid_until = valid_until - 60 where id = pg_temp.id('q2');
 set local session_replication_role = origin;
-update public.service_order set payment_due_at = now() + interval '2 days' where id = pg_temp.id('o3');
+-- Installment 1 is due today: the due-day reminder (installments-v1).
+update public.order_installment set due_on = (now() at time zone 'Europe/Istanbul')::date
+where order_id = pg_temp.id('o3') and seq = 1;
 select is((select (r ->> 'quotes_expired')::integer || '/' || (r ->> 'reminders_sent')::integer
            from (select private.billing_housekeeping() r) x), '1/1', 'housekeeping expires the quote and reminds once');
 select is((select (r ->> 'reminders_sent')::integer from (select private.billing_housekeeping() r) x), 0,
   'the reminder is not sent twice');
 select is((select actor_role || ':' || coalesce(actor_user_id::text, '-') from public.audit_event
            where action = 'quote.expired' and entity_id = pg_temp.id('q2')), 'system:-', 'expiry by the system');
-select is((select vars ->> 'ref' from public.notification where template = 'payment_reminder' and ref_id = pg_temp.id('o3')),
+select is((select vars ->> 'ref' from public.notification where template = 'payment_reminder'
+            and ref_id = (select md5(i.id::text || ':due')::uuid from public.order_installment i
+                          where i.order_id = pg_temp.id('o3') and i.seq = 1)),
   (select number from public.service_order where id = pg_temp.id('o3')), 'payment_reminder names the order');
 
 select is((select count(*)::integer from public.audit_event
@@ -239,7 +250,7 @@ select is(pg_temp.error_of($$ select public.ops_record_manual_payment(pg_temp.id
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000006');
 select is(pg_temp.error_of($$ select public.customer_save_billing_profile('{"kind": "individual", "first_name": "A",
   "last_name": "B", "identity_number": "12345678901", "address": "Sok. 1", "city": "Gaziantep"}') $$),
-  'invalid_input / identity_number', 'an invalid TCKN is named, never echoed');
+  null, 'T13: a TCKN given with the profile is ignored, never stored or echoed');
 select is(pg_temp.error_of($$ select public.customer_accept_quote(pg_temp.id('q2'), '{}') $$), 'quote_not_open',
   'an expired quote cannot be accepted');
 select is(pg_temp.error_of($$ select public.payment_finalize(pg_temp.id('p2'), 'won', '{}') $$),

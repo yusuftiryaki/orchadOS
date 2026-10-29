@@ -84,12 +84,12 @@ def decode_event_payload(text: str) -> tuple[int, str | None] | None:
 def scan_qr(
     part: VideoPart, first: int, last: int, stride: int, cluster: str, params
 ) -> list[QrObservation]:
-    detector = cv2.QRCodeDetector()
+    detectors = (cv2.QRCodeDetector(), cv2.QRCodeDetectorAruco())
     wanted = set(range(first, last, max(1, stride)))
     bias_ns = round((params.qr_refresh_ms / 2 + params.qr_display_latency_ms) * 1e6)
     obs: list[QrObservation] = []
     for idx, frame in iter_frames(part.path, wanted, start=first, stop=last):
-        text = _detect(detector, frame)
+        text = _detect(detectors, frame)
         decoded = decode_qr_payload(text) if text else None
         if decoded is None:
             continue
@@ -108,13 +108,36 @@ def scan_qr(
     return obs
 
 
-def _detect(detector, frame) -> str:
+def _detect(detectors, frame) -> str:
+    """QR text of a frame, or "".
+
+    The classic detector's finder-pattern search can fail to locate a perfectly
+    sharp code when the surroundings are textured (foliage, soil, compression
+    noise): whether it does depends on the background and the payload, not on
+    the code's quality. On a miss the frame is retried binarised (Otsu), which
+    removes the texture, and then with the ArUco-based detector, which locates
+    the finder patterns differently. Each reading is still validated by the QR
+    error correction and by QR_RE.
+    """
+    detector, fallback = detectors
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    text, _, _ = detector.detectAndDecode(gray)
-    if not text and gray.shape[1] > 2000:  # large frames: retry at half size
-        small = cv2.resize(gray, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
-        text, _, _ = detector.detectAndDecode(small)
-    return text or ""
+    images = [gray]
+    if gray.shape[1] > 2000:  # large frames: retry at half size
+        images.append(cv2.resize(gray, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA))
+    for img in images:
+        text, _, _ = detector.detectAndDecode(img)
+        if text:
+            return text
+    for img in images:
+        _, binary = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        text, _, _ = detector.detectAndDecode(binary)
+        if text:
+            return text
+    for img in images:
+        text, _, _ = fallback.detectAndDecode(img)
+        if text:
+            return text
+    return ""
 
 
 # --- clock fit -----------------------------------------------------------------------

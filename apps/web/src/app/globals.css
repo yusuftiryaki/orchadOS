@@ -1,57 +1,135 @@
-/* orchadOS design tokens and base styles. Components use the tokens; CSS
-   modules add layout. Light theme only: reports are printed and the map
-   colours are tuned for a light background. */
+/* orchadOS design tokens and base styles (docs/tasarim-sistemi.md).
+   Components use the semantic tokens (--color-*, --space-*, --text-*); the
+   palette (--palette-*) is only referenced here and in the landing figure.
+   Light theme only: reports are printed, the map colours are tuned for a
+   light background and owners read the portal outdoors. */
 
 :root {
-  /* Colour */
-  --color-bg: #f5f6f2;
+  color-scheme: light;
+
+  /* Palette: Antep soil, pistachio kernel and ripe hull ------------------- */
+  --palette-toprak: #2b2420; /* soil ink: text */
+  --palette-fistik: #3b6a1e; /* kernel green: actions, links */
+  --palette-fistik-dark: #2f5617;
+  --palette-taze: #b5cf6b; /* fresh kernel: fills, never text */
+  --palette-taze-soft: #e9f0dc;
+  --palette-kabuk: #a3375a; /* ripe hull: the one highlight */
+  --palette-kabuk-soft: #f6e4ea;
+  --palette-tarla: #eadbcb; /* red soil plate (landing figure) */
+  --palette-tarla-line: #d6bfa9;
+  --palette-kul: #f4f5ef; /* page ground */
+
+  /* Colour: surfaces and text */
+  --color-bg: var(--palette-kul);
   --color-surface: #ffffff;
-  --color-surface-2: #f1f3ed;
-  --color-surface-3: #e8ebe3;
-  --color-text: #17201a;
-  --color-text-2: #3a453c;
-  --color-muted: #5f6a61;
-  --color-border: #e1e5dc;
-  --color-border-strong: #c9cfc2;
-  --color-accent: #2f6b2a;
-  --color-accent-hover: #255a21;
-  --color-accent-soft: #e7f0e1;
+  --color-surface-2: #ecede6;
+  --color-surface-3: #e2e4da;
+  --color-text: var(--palette-toprak);
+  --color-text-2: #463d36;
+  --color-muted: #5e5a4f;
+  --color-border: #dcded4;
+  --color-border-strong: #b9bcae;
+
+  /* Colour: actions */
+  --color-accent: var(--palette-fistik);
+  --color-accent-hover: var(--palette-fistik-dark);
+  --color-accent-soft: var(--palette-taze-soft);
+  /* Table row under the pointer: the selection green, faint. */
+  --color-row-hover: rgb(233 240 220 / 45%);
   --color-accent-contrast: #ffffff;
-  --color-danger: #c0362c;
-  --color-danger-soft: #fdecea;
-  --color-warning: #a86206;
-  --color-warning-soft: #fff4dc;
-  --color-info: #1f63b5;
-  --color-info-soft: #e7f0fb;
-  --color-focus: #4c8f3f;
+  --color-highlight: var(--palette-kabuk);
+  --color-highlight-soft: var(--palette-kabuk-soft);
+  --color-focus: var(--palette-toprak);
 
-  /* Shape and depth */
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 14px;
+  /* Colour: status (text colour is AA on its -soft background and on white) */
+  --color-success: #2b6a2e;
+  --color-success-soft: #e6f1dd;
+  --color-warning: #7c5a06;
+  --color-warning-soft: #fff3d6;
+  --color-warning-border: #ecd391;
+  --color-danger: #a3301f;
+  --color-danger-hover: #87271a;
+  --color-danger-soft: #fce9e4;
+  --color-info: #1f5a99;
+  --color-info-soft: #e5eef8;
+  --color-neutral: #4f5550;
+  --color-neutral-soft: #ecede8;
+
+  /* Colour: tree classes (docs/metodoloji.md §5). Same hues as the map
+     (src/lib/map/tree-style.ts); used as dots with a dark ring, never as
+     text colour. */
+  --class-healthy: #2e9e44;
+  --class-attention: #e3b505;
+  --class-problem: #d9480f;
+  --class-dead: #5c3d2e;
+  --class-absent: #868e96;
+  --class-unassessed: #1c7ed6;
+  --class-ring: rgb(43 36 32 / 55%);
+
+  /* Shape and depth: surfaces are separated by borders; shadows only lift
+     what floats (menus, toasts, dialogs). */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
   --radius-pill: 999px;
-  --shadow-sm: 0 1px 2px rgb(23 32 26 / 6%);
-  --shadow: 0 1px 2px rgb(23 32 26 / 5%), 0 4px 16px rgb(23 32 26 / 6%);
-  --shadow-lg: 0 8px 32px rgb(23 32 26 / 12%);
+  --shadow-sm: 0 1px 0 rgb(43 36 32 / 4%);
+  --shadow: 0 2px 8px rgb(43 36 32 / 10%);
+  --shadow-lg: 0 12px 40px rgb(43 36 32 / 18%);
 
-  /* Space */
+  /* Space: 4px base */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 16px;
   --space-4: 24px;
   --space-5: 32px;
   --space-6: 48px;
+  --space-7: 64px;
+  --space-8: 96px;
 
-  /* Type */
+  /* Type: Atkinson Hyperlegible Next for everything, Atkinson Hyperlegible
+     Mono only for identifiers and measurements (tree codes, coordinates,
+     hashes). Scale ≈ 1.25 from 16px. */
   --font-sans:
-    var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+    var(--font-atkinson), system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  --font-mono: var(--font-atkinson-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   --text-xs: 12px;
-  --text-sm: 13px;
-  --text-base: 15px;
-  --text-lg: 17px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
   --text-xl: 20px;
-  --text-2xl: 26px;
-  --header-height: 60px;
+  --text-2xl: 25px;
+  --text-3xl: 31px;
+  --text-4xl: 39px;
+  --text-5xl: 49px;
+  --leading: 1.55;
+  --leading-tight: 1.15;
+  --measure: 68ch;
+
+  /* Controls */
+  --control-height: 44px;
+  --control-height-sm: 36px;
+  --header-height: 64px;
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration: 200ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Staff variant: data-dense desktop screens (ofis, operasyon, uzman, back
+   office). Set by AppShell variant="staff". */
+[data-density="compact"] {
+  --text-base: 14px;
+  --text-sm: 13px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 22px;
+  --leading: 1.45;
+  --control-height: 36px;
+  --control-height-sm: 30px;
+  --header-height: 52px;
+  font-size: var(--text-base);
+  line-height: var(--leading);
 }
 
 * {
@@ -72,21 +150,23 @@ body {
   color: var(--color-text);
   font-family: var(--font-sans);
   font-size: var(--text-base);
-  line-height: 1.55;
+  line-height: var(--leading);
 }
 
 ::selection {
-  background: var(--color-accent-soft);
+  background: var(--palette-taze);
+  color: var(--palette-toprak);
 }
 
 a {
   color: var(--color-accent);
-  text-underline-offset: 2px;
+  text-underline-offset: 3px;
   text-decoration-thickness: 1px;
 }
 
 a:hover {
   color: var(--color-accent-hover);
+  text-decoration-thickness: 2px;
 }
 
 h1,
@@ -96,23 +176,22 @@ h4 {
   line-height: 1.25;
   margin: 0 0 var(--space-3);
   color: var(--color-text);
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  text-wrap: balance;
 }
 
 h1 {
   font-size: var(--text-2xl);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  letter-spacing: -0.015em;
 }
 
 h2 {
   font-size: var(--text-xl);
-  font-weight: 650;
 }
 
 h3 {
   font-size: var(--text-base);
-  font-weight: 650;
 }
 
 p {
@@ -129,8 +208,18 @@ hr {
   margin: var(--space-4) 0;
 }
 
+code,
+kbd,
+samp,
+.code {
+  font-family: var(--font-mono);
+  font-size: 0.94em;
+}
+
+/* Keyboard focus: a dark ring with a gap, visible on white, on the ground
+   and on green buttons. */
 :focus-visible {
-  outline: 2px solid var(--color-focus);
+  outline: 3px solid var(--color-focus);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -148,20 +237,20 @@ textarea {
 input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]),
 select,
 textarea {
-  min-height: 40px;
+  min-height: var(--control-height);
   padding: 8px 12px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   background-color: var(--color-surface);
   box-shadow: var(--shadow-sm);
   transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+    border-color var(--duration-fast),
+    box-shadow var(--duration-fast);
   max-width: 100%;
 }
 
 textarea {
-  min-height: 80px;
+  min-height: 88px;
   line-height: 1.5;
   resize: vertical;
 }
@@ -169,7 +258,7 @@ textarea {
 select {
   appearance: none;
   padding-right: 36px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%235f6a61' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%235e5a4f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   cursor: pointer;
@@ -186,7 +275,26 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgb(47 107 42 / 18%);
+  box-shadow: 0 0 0 3px rgb(59 106 30 / 22%);
+}
+
+input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"]
+  ):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--color-danger);
 }
 
 input:disabled,
@@ -200,15 +308,15 @@ textarea:disabled {
 input[type="checkbox"],
 input[type="radio"] {
   accent-color: var(--color-accent);
-  width: 16px;
-  height: 16px;
-  margin: 0 6px 0 0;
+  width: 18px;
+  height: 18px;
+  margin: 0 8px 0 0;
   vertical-align: -3px;
   cursor: pointer;
 }
 
 label {
-  font-weight: 500;
+  font-weight: 600;
 }
 
 fieldset {
@@ -219,12 +327,12 @@ fieldset {
 }
 
 legend {
-  font-weight: 600;
+  font-weight: 700;
   padding: 0 var(--space-1);
 }
 
 ::placeholder {
-  color: #8a948b;
+  color: #7b776c;
 }
 
 /* Tables ------------------------------------------------------------------- */
@@ -235,7 +343,7 @@ table {
 }
 
 th {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text-2);
 }
 
@@ -243,7 +351,7 @@ th {
 
 summary {
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-accent);
 }
 
@@ -273,51 +381,75 @@ summary {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
-  box-shadow: var(--shadow-sm);
 }
 
-/* Buttons ------------------------------------------------------------------ */
+/* Visually hidden, still read by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Buttons: the one button style of the app. <Button> and <ButtonLink>
+   (src/components/ui/button.tsx) render these classes; older screens use
+   them directly. -------------------------------------------------------- */
 
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 40px;
+  min-height: var(--control-height);
   border: 1px solid var(--color-accent);
   background: var(--color-accent);
   color: var(--color-accent-contrast);
-  border-radius: var(--radius-sm);
-  padding: 8px 16px;
-  font-weight: 600;
-  font-size: 14px;
+  border-radius: var(--radius);
+  padding: 8px 18px;
+  font-weight: 700;
+  font-size: var(--text-sm);
   line-height: 1.2;
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
-  box-shadow: var(--shadow-sm);
   transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s,
-    box-shadow 0.15s;
+    background var(--duration-fast),
+    border-color var(--duration-fast),
+    color var(--duration-fast);
 }
 
 .button:hover {
   background: var(--color-accent-hover);
   border-color: var(--color-accent-hover);
   color: var(--color-accent-contrast);
+  text-decoration: none;
 }
 
 .button:active {
   transform: translateY(1px);
 }
 
-.button:disabled,
-.button[aria-disabled="true"] {
-  opacity: 0.55;
+/* Disabled reads as unavailable at a glance: a flat grey surface, muted text
+   (5.3:1 on surface-3, AA) and a plain border, for every variant. :is() keeps
+   it above the variants and their :hover. Quiet stays transparent. */
+.button:is(:disabled, [aria-disabled="true"]),
+.button:is(:disabled, [aria-disabled="true"]):hover {
+  background: var(--color-surface-3);
+  border-color: var(--color-border-strong);
+  color: var(--color-muted);
   cursor: not-allowed;
   transform: none;
+}
+
+.button-quiet:is(:disabled, [aria-disabled="true"]),
+.button-quiet:is(:disabled, [aria-disabled="true"]):hover {
+  background: transparent;
+  border-color: transparent;
 }
 
 .button-secondary {
@@ -332,14 +464,43 @@ summary {
   color: var(--color-text);
 }
 
+.button-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-accent);
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.button-quiet:hover {
+  background: var(--color-accent-soft);
+  border-color: transparent;
+  color: var(--color-accent-hover);
+}
+
 .button-danger {
   background: var(--color-danger);
   border-color: var(--color-danger);
 }
 
 .button-danger:hover {
-  background: #a42c23;
-  border-color: #a42c23;
+  background: var(--color-danger-hover);
+  border-color: var(--color-danger-hover);
+}
+
+.button-sm {
+  min-height: var(--control-height-sm);
+  padding: 4px 12px;
+}
+
+.button-lg {
+  min-height: 52px;
+  padding: 12px 24px;
+  font-size: var(--text-base);
+}
+
+.button-block {
+  width: 100%;
 }
 
 /* Text ---------------------------------------------------------------------- */
@@ -350,6 +511,19 @@ summary {
 
 .error {
   color: var(--color-danger);
+}
+
+/* Motion: everything respects the reader's setting. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media print {

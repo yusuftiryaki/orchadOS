@@ -5,8 +5,9 @@ import type { Client } from "@/lib/supabase/types";
 // Questions on a tree or a finding: the owner (or viewer) asks, the expert
 // answers, either side may follow up. Every query runs as the signed-in user,
 // so row level security decides which threads come back: owners and viewers
-// their parcels, expert and ops their org, field staff none
-// (supabase/migrations/20261023130100_questions.sql).
+// only the threads they started (and their replies; demo tour threads to demo
+// visitors), expert and ops their org, field staff none
+// (supabase/migrations/20261104100000_qa_gnss_visibility.sql, T23, H22, H32).
 //
 // The text is the owner's free text: it is shown to the people in the thread
 // and never sent anywhere else (no LLM, no AI worker table).
@@ -182,12 +183,23 @@ export async function listThreads(
 }
 
 export type QuestionWriteError =
-  "empty" | "too_long" | "invalid_target" | "forbidden" | "edit_window" | "write_failed";
+  | "empty"
+  | "too_long"
+  | "invalid_target"
+  | "forbidden"
+  | "edit_window"
+  | "write_failed"
+  // A demo visitor (docs/demo-turu.md §6.3).
+  | "demo_read_only"
+  // A removed garden while its reports stay open (docs/bahce-yonetimi.md §5.4).
+  | "parcel_read_only";
 
 export type QuestionWriteResult =
   { ok: true; id: string } | { ok: false; error: QuestionWriteError };
 
-function writeError(error: { code?: string }): QuestionWriteResult {
+export function writeError(error: { code?: string; message?: string }): QuestionWriteResult {
+  if (error.message === "demo_read_only") return { ok: false, error: "demo_read_only" };
+  if (error.message === "parcel_read_only") return { ok: false, error: "parcel_read_only" };
   if (error.code === "42501") return { ok: false, error: "forbidden" };
   if (error.code === "55000") return { ok: false, error: "edit_window" };
   if (error.code === "23503" || error.code === "23514")

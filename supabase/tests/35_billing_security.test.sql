@@ -80,12 +80,17 @@ insert into ip12_fn values
   ('public.ops_extend_payment_due(uuid,date)', 'authenticated'),
   ('public.ops_terminate_order(uuid,text)', 'authenticated'),
   ('public.payment_begin(uuid,uuid,text,text)', 'service_role'),
-  ('public.payment_attach_token(uuid,text,timestamp with time zone)', 'service_role'),
+  ('public.payment_attach_token(uuid,text,timestamp with time zone,text)', 'service_role'),
   ('public.payment_by_token(text)', 'service_role'),
   ('public.payment_record_event(text,text,text,uuid,uuid,boolean,integer,text,jsonb)', 'service_role'),
   ('public.payment_finalize(uuid,text,jsonb)', 'service_role'),
   ('public.payment_attempts_to_reconcile(integer)', 'service_role'),
-  ('public.ops_record_manual_payment(uuid,bigint,date,text,text)', 'authenticated'),
+  ('public.ops_record_manual_payment(uuid,bigint,date,text,text,uuid)', 'authenticated'),
+  -- Payment plan (installments-v1)
+  ('public.quote_installment_plan(uuid)', 'authenticated'),
+  ('public.ops_order_installments(uuid)', 'authenticated'),
+  ('public.ops_overdue_installments(uuid,integer,integer)', 'authenticated'),
+  ('public.ops_allow_unpaid_visit(uuid,text)', 'authenticated'),
   ('public.ops_void_manual_payment(uuid,text)', 'authenticated'),
   ('public.ops_resolve_payment_review(uuid,boolean,text,text)', 'authenticated'),
   ('public.receipt_data(uuid)', 'authenticated'),
@@ -133,7 +138,10 @@ select is((select count(*)::integer from pg_proc p
 select is((select array_agg(p.oid::regprocedure::text order by 1) from pg_proc p
            where p.pronamespace = 'private'::regnamespace
              and p.proname in ('price_lines', 'activate_order', 'create_customer_parcel', 'open_system_refund',
-               'enqueue_billing_notification', 'billing_housekeeping', 'dispatch_payment_reconcile')
+               'enqueue_billing_notification', 'billing_housekeeping', 'dispatch_payment_reconcile',
+               -- IP14
+               'price_lines_v2', 'write_addon_quote', 'complete_garden_removal', 'open_removal_refunds',
+               'removal_calculation', 'garden_removal_housekeeping', 'enqueue_garden_notification')
              and (has_function_privilege('anon', p.oid, 'EXECUTE') or has_function_privilege('authenticated', p.oid, 'EXECUTE'))),
   null, 'private helpers are closed to API users');
 
@@ -170,7 +178,7 @@ select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 insert into ids select 'q', public.ops_issue_quote('f3500000-0000-4000-8000-000000000001');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 insert into ids select 'o', public.customer_accept_quote(pg_temp.id('q'),
-  '{"distance_sales": "mesafeli-v1-taslak", "pre_information": "onbilgi-v1-taslak"}');
+  '{"distance_sales": "mesafeli-v5-taslak", "pre_information": "onbilgi-v5-taslak"}');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 insert into ids select 'p', public.ops_record_manual_payment(pg_temp.id('o'), 1000, current_date, 'EFT-35-1');
 insert into ids select 'r', (public.ops_request_refund(pg_temp.id('p'), 500, 'goodwill'))[1];
@@ -256,7 +264,7 @@ select is(pg_temp.error_of($$ select public.receipt_data(pg_temp.id('p')) $$),
   'permission denied for function receipt_data', 'anon reads no receipt');
 select ok((select count(*) from public.public_package_prices()) > 0, 'anon reads the public prices');
 select is((select sum(line_total_kurus)::bigint from public.price_preview('91200000-0000-4000-8000-000000000001',
-  array[20000]::numeric[])), 1200000::bigint, 'and a preview');
+  array[20000]::numeric[])), 2448000::bigint, 'and a preview');
 select is(pg_temp.error_of($$ select * from public.price_preview('91200000-0000-4000-8000-0000000000ff', array[1000]::numeric[]) $$),
   'not_found', 'an unknown package is not found');
 reset role;

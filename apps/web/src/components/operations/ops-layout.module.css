@@ -1,0 +1,44 @@
+/* The operations section: grouped navigation beside the screen from 1024px,
+   above it on narrower screens. Pages render <main className="page">; here
+   it loses its own width and centring, the layout gives both. */
+
+.layout {
+  max-width: var(--shell-width, 1440px);
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-3) var(--space-6);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.content {
+  min-width: 0;
+}
+
+.content :global(main.page) {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Older flow content inside main keeps its own margins out of the gap. */
+.content :global(main.page) > :where(header, h1, h2, h3, p, ul, form, section, div, nav) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: var(--space-5);
+    padding: var(--space-4) var(--space-4) var(--space-7);
+  }
+}
+
+@media (max-width: 599px) {
+  .layout {
+    padding: var(--space-2) var(--space-3) var(--space-5);
+  }
+}

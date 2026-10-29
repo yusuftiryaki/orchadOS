@@ -421,6 +421,19 @@ SEND_SMS_HOOK_SECRET = "v1,whsec_p0oE1FH7E5tlPpCmuVnDZv5oL5cKXPNnx86jQcdd5HY="
 # phone hashes; the header secret that lets the Next server pass the client IP.
 SIGNUP_HASH_SECRET = "signup-hash-local"
 SIGNUP_PROXY_SECRET = "signup-proxy-local"
+# No Turnstile locally and in CI: without TURNSTILE_SECRET_KEY customer-signup
+# refuses every sign-up unless this is "1". Never set on a hosted project.
+SIGNUP_TURNSTILE_DISABLED = "1"
+# The self-hosted robot check (docs/hukuk/kararlar.md H03, T12;
+# supabase/functions/_shared/captcha.ts). Locally the provider is altcha so
+# the tests can solve challenges: with SIGNUP_TURNSTILE_DISABLED a sent token
+# is checked and a missing one passes (customer-signup "optional", demo-start
+# "if_sent" in dev). Hosted projects keep Turnstile unless the privacy text
+# names the self-hosted check (docs/deployment.md). demo-start reads only
+# DEMO_CAPTCHA_PROVIDER (unset: Turnstile), never CAPTCHA_PROVIDER.
+CAPTCHA_PROVIDER = "altcha"
+DEMO_CAPTCHA_PROVIDER = "altcha"
+ALTCHA_HMAC_KEY = "altcha-local-hmac-key-0123456789abcdef"
 # pg_cron calls (signup cleanup, payment reconcile); Vault orchados_cron_secret.
 ORCHADOS_CRON_SECRET = "cron-local"
 # Payments: the fake provider, allowed locally only (never on the pilot).
@@ -429,6 +442,11 @@ PAYMENT_FAKE_ALLOWED = "1"
 PAYMENT_CALLBACK_URL = "http://127.0.0.1:54321/functions/v1/payment-callback"
 PAYMENT_RETURN_ORIGINS = "http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:3100,http://localhost:3100"
 FAKE_WEBHOOK_SECRET = "fake-webhook-local"
+# Demo tour (IP13, docs/demo-turu.md §7, §13): "dev" opens demo-start locally
+# and in CI (Turnstile only with TURNSTILE_SECRET_KEY, unset here). Unset on
+# every hosted project except the demo project ("public", live Turnstile key)
+# and a short test-project smoke test; never on the pilot (deploy-db-pilot).
+ORCHADOS_DEMO_MODE = "dev"
 
 # Portal accounts for the operations screens; see the function's header.
 [functions.invite-user]
@@ -451,10 +469,14 @@ verify_jwt = false
 verify_jwt = false
 
 # Card payments (IP12-B): start (customer token), refund (ops token) and
-# reconcile (cron secret), each checked in code. The three payment functions
-# stay enabled: until B's code is merged their index.ts is a 501 placeholder
-# (the CLI refuses to start without one); on merge B's version replaces it.
+# reconcile (cron secret), each checked in code. See the function's header.
 [functions.payments]
+verify_jwt = false
+
+# Demo tour (IP13): start runs before there is an account (Turnstile, the
+# proxy secret and the database's limits decide); cleanup checks the cron
+# secret in code. See the function's header.
+[functions.demo-start]
 verify_jwt = false
 
 # The provider's browser return (cross-site POST, no session); the result is

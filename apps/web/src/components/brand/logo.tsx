@@ -1,13 +1,26 @@
-// The orchadOS mark: a pistachio leaf in a rounded square.
+// The orchadOS mark: a planting grid seen from above, three rows of trees;
+// one tree is picked out in the ripe-hull colour, as the portal picks out
+// the tree you open.
 export function LogoMark({ size = 28 }: { size?: number }) {
+  const dots = [];
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 3; col++) {
+      const picked = row === 1 && col === 2;
+      dots.push(
+        <circle
+          key={`${row}-${col}`}
+          cx={9 + col * 7}
+          cy={9 + row * 7}
+          r={picked ? 3.3 : 2.6}
+          fill={picked ? "#e48aa4" : "#b5cf6b"}
+        />,
+      );
+    }
+  }
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden focusable="false">
-      <rect width="32" height="32" rx="9" fill="#2f6b2a" />
-      <path
-        d="M9 22.5c0-7.5 5.5-13 14-13.5-.4 8.6-5.9 14-13.5 14-.2 0-.5 0-.5-.5Z"
-        fill="#b9dc8f"
-      />
-      <path d="M9.6 22.4 18.5 13.5" stroke="#2f6b2a" strokeWidth="1.6" strokeLinecap="round" />
+      <rect width="32" height="32" rx="7" fill="#3b6a1e" />
+      {dots}
     </svg>
   );
 }

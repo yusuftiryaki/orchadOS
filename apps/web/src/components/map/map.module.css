@@ -1,0 +1,92 @@
+/* Shared look of the MapLibre maps (docs/haritalar.md). Applied next to each
+   map's own class on the container. Only design tokens (src/app/globals.css);
+   the colours inside the map are MapLibre paint values from
+   src/lib/map/tree-style.ts, which mirror the same tokens. */
+
+.base {
+  position: relative;
+  background: var(--color-surface-2);
+}
+
+.base :global(.maplibregl-canvas):focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: -3px;
+}
+
+.base :global(.maplibregl-ctrl-group) {
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border-strong);
+}
+
+.base :global(.maplibregl-ctrl-group button) {
+  width: 36px;
+  height: 36px;
+}
+
+.base :global(.maplibregl-ctrl-group button + button) {
+  border-top-color: var(--color-border);
+}
+
+.base :global(.maplibregl-ctrl-group button:focus-visible),
+.base :global(.maplibregl-ctrl-attrib-button:focus-visible),
+.base :global(.maplibregl-ctrl-attrib a:focus-visible) {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+.base :global(.maplibregl-ctrl-scale) {
+  color: var(--color-text);
+  border-color: var(--color-text);
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  font-size: var(--text-xs);
+}
+
+/* Attribution: legible, and its links read as links without colour (axe
+   link-in-text-block). The text itself stays as the tile provider wants it. */
+.base :global(.maplibregl-ctrl-attrib) {
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+}
+
+.base :global(.maplibregl-ctrl-attrib a) {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.base :global(.maplibregl-ctrl-attrib a:hover) {
+  color: var(--color-accent-hover);
+}
+
+/* Touch screens: finger-sized buttons (WCAG 2.5.5). */
+@media (pointer: coarse), (max-width: 640px) {
+  .base :global(.maplibregl-ctrl-group button) {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* Phones: the scale bar moves to the top left, so the attribution pill
+   (bottom right, nearly full width when open) never covers it. */
+@media (max-width: 640px) {
+  .base :global(.maplibregl-ctrl-bottom-left) {
+    top: 0;
+    bottom: auto;
+  }
+
+  .base :global(.maplibregl-ctrl-bottom-left .maplibregl-ctrl-scale) {
+    margin: var(--space-2) 0 0 var(--space-2);
+  }
+}
+
+/* Under the map: a degraded basemap, a browser without WebGL, an empty map
+   (ui Alert, map-status.tsx). */
+.status {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}

@@ -1,10 +1,14 @@
 "use client";
 
-import type { GeoJSONSource, Map as MapLibreMap, MapMouseEvent } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef, useState } from "react";
-import { basemapStyle } from "@/lib/map/basemap";
+import type { MapMouseEvent } from "maplibre-gl";
+import { useEffect, useMemo, useRef } from "react";
+import { MapStatus } from "@/components/map/map-status";
+import mapStyles from "@/components/map/map.module.css";
+import { useMapLibre } from "@/components/map/use-maplibre";
+import { collection, EMPTY_COLLECTION, feature, ringOutline } from "@/lib/map/features";
 import { boundsOf, type Position } from "@/lib/map/geo";
+import { syncSelection } from "@/lib/map/selection";
+import { MAP_COLORS, MARKER_COLORS } from "@/lib/map/tree-style";
 import type { LatLon } from "@/lib/office/local-frame";
 import type { ZoneGeometry } from "@/lib/office/inventory-workspace";
 import styles from "./inventory.module.css";
@@ -12,8 +16,10 @@ import styles from "./inventory.module.css";
 // Map of a saved inventory: boundary (and the owner's declared one, faint),
 // slots (tree, interstitial tree, empty slot), infrastructure, the panorama
 // track and a geometry being drawn. Built once; every overlay is a GeoJSON
-// source whose data is replaced when its prop changes. Used by the office
-// workspace, the expert's approval screen and the owner's boundary card.
+// source whose data is replaced when its prop changes; the selection is a
+// feature state, so selecting does not resend thousands of slots. Used by
+// the office workspace, the expert's approval screen and the owner's
+// boundary card.
 
 export interface InventoryMapSlot {
   id: string;
@@ -21,7 +27,7 @@ export interface InventoryMapSlot {
   position: LatLon;
   state: "tree" | "interstitial" | "empty";
   selected: boolean;
-  // Drawn with an orange ring (verification item, coding problem).
+  // Drawn with a warning ring (verification item, coding problem).
   flagged: boolean;
 }
 
@@ -34,30 +40,36 @@ export interface InventoryMapZone {
 type Geo = GeoJSON.FeatureCollection;
 
 const SLOT_LAYER = "slots";
-const EMPTY: Geo = { type: "FeatureCollection", features: [] };
+const EMPTY: Geo = EMPTY_COLLECTION;
+// Stable defaults: a fresh [] on every render would resend the source data.
+const NO_SLOTS: InventoryMapSlot[] = [];
+const NO_ZONES: InventoryMapZone[] = [];
+const NO_TRACK: LatLon[] = [];
 
 const pos = (p: LatLon): Position => [p.lon, p.lat];
 
-function feature(geometry: GeoJSON.Geometry, properties: object = {}): GeoJSON.Feature {
-  return { type: "Feature", geometry, properties };
-}
-
-function collection(features: GeoJSON.Feature[]): Geo {
-  return { type: "FeatureCollection", features };
-}
-
 function ringLine(ring: LatLon[] | null | undefined): Geo {
-  if (!ring || ring.length < 2) return EMPTY;
-  const closed = [...ring.map(pos), pos(ring[0])];
-  return collection([feature({ type: "LineString", coordinates: closed })]);
+  return ringOutline(ring?.map(pos));
+}
+
+// Slot features without the selection (a feature state, below).
+export function inventorySlotData(slots: InventoryMapSlot[]): Geo {
+  return collection(
+    slots.map((s) =>
+      feature(
+        { type: "Point", coordinates: pos(s.position) },
+        { id: s.id, code: s.code, state: s.state, flagged: s.flagged },
+      ),
+    ),
+  );
 }
 
 export function InventoryMap({
   boundary,
   declaredBoundary,
-  slots = [],
-  zones = [],
-  track = [],
+  slots = NO_SLOTS,
+  zones = NO_ZONES,
+  track = NO_TRACK,
   draft = null,
   showCodes = false,
   height,
@@ -82,8 +94,6 @@ export function InventoryMap({
   label: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
-  const [ready, setReady] = useState(false);
   const handlers = useRef({ onMapClick, onSlotClick });
   const initial = useRef({ boundary, declaredBoundary, slots, track });
 
@@ -91,53 +101,42 @@ export function InventoryMap({
     handlers.current = { onMapClick, onSlotClick };
   }, [onMapClick, onSlotClick]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let map: MapLibreMap | null = null;
-
-    import("maplibre-gl").then((maplibregl) => {
-      const container = containerRef.current;
-      if (cancelled || !container) return;
-      maplibregl.setWorkerUrl(
-        new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).toString(),
-      );
-      const init = initial.current;
-      const bounds = boundsOf(
-        [
-          ...(init.boundary ?? []),
-          ...(init.declaredBoundary ?? []),
-          ...init.slots.map((s) => s.position),
-          ...init.track,
-        ].map(pos),
-      );
-      const m = new maplibregl.Map({
-        container,
-        style: basemapStyle(process.env.NEXT_PUBLIC_MAP_STYLE_URL),
-        bounds: bounds ?? undefined,
-        fitBoundsOptions: { padding: 24, maxZoom: 20 },
-        center: bounds ? undefined : [37.38, 37.07],
-        zoom: bounds ? undefined : 10,
-        maxZoom: 23,
-        doubleClickZoom: false,
-        canvasContextAttributes: { preserveDrawingBuffer: true },
-      });
-      map = m;
-      mapRef.current = m;
-      m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-      m.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
-      // Test hook, as in ParcelMap and OfficeMap.
-      (container as HTMLDivElement & { __map?: MapLibreMap }).__map = m;
-
-      m.on("load", () => {
-        for (const id of ["declared", "boundary", "track", "zones", "slots", "draft"]) {
+  const state = useMapLibre(
+    containerRef,
+    {
+      label,
+      overlaySources: ["declared", "boundary", "track", "zones", "slots", "draft"],
+      options: () => {
+        const init = initial.current;
+        const bounds = boundsOf(
+          [
+            ...(init.boundary ?? []),
+            ...(init.declaredBoundary ?? []),
+            ...init.slots.map((s) => s.position),
+            ...init.track,
+          ].map(pos),
+        );
+        return {
+          bounds: bounds ?? undefined,
+          fitBoundsOptions: { padding: 24, maxZoom: 20 },
+          center: bounds ? undefined : [37.38, 37.07],
+          zoom: bounds ? undefined : 10,
+          maxZoom: 23,
+          doubleClickZoom: false,
+          canvasContextAttributes: { preserveDrawingBuffer: true },
+        };
+      },
+      onStyle: (m) => {
+        for (const id of ["declared", "boundary", "track", "zones", "draft"]) {
           m.addSource(id, { type: "geojson", data: EMPTY });
         }
+        m.addSource("slots", { type: "geojson", data: EMPTY, promoteId: "id" });
         m.addLayer({
           id: "declared",
           type: "line",
           source: "declared",
           paint: {
-            "line-color": "#868e96",
+            "line-color": MAP_COLORS.muted,
             "line-width": 2,
             "line-dasharray": [3, 2],
             "line-opacity": 0.7,
@@ -147,13 +146,13 @@ export function InventoryMap({
           id: "boundary",
           type: "line",
           source: "boundary",
-          paint: { "line-color": "#4f7a28", "line-width": 3 },
+          paint: { "line-color": MAP_COLORS.accent, "line-width": 3 },
         });
         m.addLayer({
           id: "track",
           type: "line",
           source: "track",
-          paint: { "line-color": "#74c0fc", "line-width": 1.5 },
+          paint: { "line-color": MAP_COLORS.info, "line-width": 1.5 },
         });
         m.addLayer({
           id: "zone-lines",
@@ -161,7 +160,7 @@ export function InventoryMap({
           source: "zones",
           filter: ["==", ["geometry-type"], "LineString"],
           paint: {
-            "line-color": ["match", ["get", "kind"], "fence", "#795548", "#1c7ed6"],
+            "line-color": ["match", ["get", "kind"], "fence", MAP_COLORS.muted, MAP_COLORS.ink],
             "line-width": 3,
             "line-dasharray": [
               "match",
@@ -179,8 +178,8 @@ export function InventoryMap({
           filter: ["==", ["geometry-type"], "Point"],
           paint: {
             "circle-radius": 6,
-            "circle-color": "#1c7ed6",
-            "circle-stroke-color": "#ffffff",
+            "circle-color": MAP_COLORS.ink,
+            "circle-stroke-color": MAP_COLORS.surface,
             "circle-stroke-width": 2,
           },
         });
@@ -194,27 +193,29 @@ export function InventoryMap({
               "match",
               ["get", "state"],
               "tree",
-              "#2b8a3e",
+              MARKER_COLORS.healthy,
               "interstitial",
-              "#94d82d",
-              "rgba(0,0,0,0)",
+              MAP_COLORS.interstitial,
+              MARKER_COLORS.empty,
             ],
             "circle-stroke-color": [
               "case",
-              ["get", "selected"],
-              "#000000",
+              ["boolean", ["feature-state", "selected"], false],
+              MAP_COLORS.highlight,
               ["get", "flagged"],
-              "#f08c00",
+              MAP_COLORS.warning,
               ["==", ["get", "state"], "empty"],
-              "#c92a2a",
-              "#ffffff",
+              MAP_COLORS.emptyRing,
+              MAP_COLORS.ring,
             ],
             "circle-stroke-width": [
               "case",
-              ["get", "selected"],
+              ["boolean", ["feature-state", "selected"], false],
               3,
-              ["any", ["get", "flagged"], ["==", ["get", "state"], "empty"]],
+              ["get", "flagged"],
               2,
+              ["==", ["get", "state"], "empty"],
+              1.5,
               1,
             ],
           },
@@ -230,13 +231,17 @@ export function InventoryMap({
             "text-offset": [0, 1.2],
             visibility: "none",
           },
-          paint: { "text-halo-color": "#ffffff", "text-halo-width": 1.5 },
+          paint: {
+            "text-color": MAP_COLORS.ink,
+            "text-halo-color": MAP_COLORS.surface,
+            "text-halo-width": 1.5,
+          },
         });
         m.addLayer({
           id: "draft-line",
           type: "line",
           source: "draft",
-          paint: { "line-color": "#e8590c", "line-width": 2, "line-dasharray": [2, 1] },
+          paint: { "line-color": MAP_COLORS.highlight, "line-width": 2, "line-dasharray": [2, 1] },
         });
         m.addLayer({
           id: "draft-points",
@@ -245,8 +250,8 @@ export function InventoryMap({
           filter: ["==", ["geometry-type"], "Point"],
           paint: {
             "circle-radius": 4,
-            "circle-color": "#e8590c",
-            "circle-stroke-color": "#ffffff",
+            "circle-color": MAP_COLORS.highlight,
+            "circle-stroke-color": MAP_COLORS.surface,
             "circle-stroke-width": 1,
           },
         });
@@ -267,29 +272,19 @@ export function InventoryMap({
         m.on("mouseleave", SLOT_LAYER, () => {
           m.getCanvas().style.cursor = "";
         });
-        setReady(true);
-        container.setAttribute("data-map-ready", "true");
-      });
-    });
-
-    return () => {
-      cancelled = true;
-      map?.remove();
-      mapRef.current = null;
-    };
-  }, []);
-
-  const set = (id: string, data: Geo) => {
-    (mapRef.current?.getSource(id) as GeoJSONSource | undefined)?.setData(data);
-  };
+      },
+    },
+    [],
+  );
+  const { mapRef, ready, setData: set } = state;
 
   useEffect(() => {
     if (ready) set("boundary", ringLine(boundary));
-  }, [ready, boundary]);
+  }, [ready, set, boundary]);
 
   useEffect(() => {
     if (ready) set("declared", ringLine(declaredBoundary));
-  }, [ready, declaredBoundary]);
+  }, [ready, set, declaredBoundary]);
 
   useEffect(() => {
     if (!ready) return;
@@ -299,33 +294,43 @@ export function InventoryMap({
         ? collection([feature({ type: "LineString", coordinates: track.map(pos) })])
         : EMPTY,
     );
-  }, [ready, track]);
+  }, [ready, set, track]);
 
   useEffect(() => {
     if (ready)
       set("zones", collection(zones.map((z) => feature(z.geometry, { id: z.id, kind: z.kind }))));
-  }, [ready, zones]);
+  }, [ready, set, zones]);
 
+  // Slot data only changes when a slot moves, changes state or is flagged;
+  // the selection goes through feature state.
+  const slotKey = useMemo(
+    () =>
+      slots
+        .map((s) => `${s.id}|${s.position.lat}|${s.position.lon}|${s.state}|${s.flagged}|${s.code}`)
+        .join(";"),
+    [slots],
+  );
+  const slotsRef = useRef(slots);
   useEffect(() => {
-    if (!ready) return;
-    set(
-      "slots",
-      collection(
-        slots.map((s) =>
-          feature(
-            { type: "Point", coordinates: pos(s.position) },
-            { id: s.id, code: s.code, state: s.state, selected: s.selected, flagged: s.flagged },
-          ),
-        ),
-      ),
-    );
-  }, [ready, slots]);
+    slotsRef.current = slots;
+  });
+  useEffect(() => {
+    if (ready) set("slots", inventorySlotData(slotsRef.current));
+  }, [ready, set, slotKey]);
+
+  const selectedIds = useMemo(() => slots.filter((s) => s.selected).map((s) => s.id), [slots]);
+  const shownSelection = useRef<string[]>([]);
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!ready || !m) return;
+    shownSelection.current = syncSelection(m, "slots", shownSelection.current, selectedIds);
+  }, [ready, mapRef, selectedIds]);
 
   useEffect(() => {
     if (ready) {
       mapRef.current?.setLayoutProperty("slot-codes", "visibility", showCodes ? "visible" : "none");
     }
-  }, [ready, showCodes]);
+  }, [ready, mapRef, showCodes]);
 
   useEffect(() => {
     if (!ready) return;
@@ -342,16 +347,19 @@ export function InventoryMap({
         ...coords.map((c) => feature({ type: "Point", coordinates: c })),
       ]),
     );
-  }, [ready, draft]);
+  }, [ready, set, draft]);
 
   return (
-    <div
-      ref={containerRef}
-      className={styles.map}
-      style={height ? { height } : undefined}
-      data-testid={testId}
-      aria-label={label}
-      role="region"
-    />
+    <>
+      <div
+        ref={containerRef}
+        className={`${styles.map} ${mapStyles.base}`}
+        style={height ? { height } : undefined}
+        data-testid={testId}
+        aria-label={label}
+        role="region"
+      />
+      <MapStatus state={state} testId={`${testId}-status`} />
+    </>
   );
 }

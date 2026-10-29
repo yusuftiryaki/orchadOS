@@ -4,6 +4,10 @@ import { useState, useTransition } from "react";
 import { formatDate, t } from "@/lib/i18n";
 import type { EditResult } from "@/lib/office/inventory-edits";
 import type { WorkspaceItem, WorkspaceTour } from "@/lib/office/inventory-workspace";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { statusTone } from "@/components/ui/status";
+import { cell, Table } from "@/components/ui/table";
 import styles from "./inventory.module.css";
 
 // Verification tours of a parcel and their items. Until the field app has the
@@ -28,51 +32,54 @@ export function VerificationTours({
 }) {
   if (tours.length === 0) return null;
   return (
-    <div className={styles.panel} data-testid="verification-tours">
+    <section className={styles.panel} data-testid="verification-tours">
       <h2>{v.tours}</h2>
-      {canRecord && <p className="muted">{v.applyNote}</p>}
+      {canRecord && <p className={styles.hint}>{v.applyNote}</p>}
       {tours.map((tour) => {
         const open = tour.items.filter((i) => i.status === "open").length;
         return (
-          <section key={tour.id} data-testid="verification-tour" data-session-id={tour.id}>
-            <h3>
-              {v.tourTitle(
-                formatDate(tour.plannedDate ?? tour.createdAt),
-                t.office.sessionStatus[tour.status],
-              )}
-            </h3>
-            <p className="muted" data-testid="tour-progress">
-              {v.progress(open, tour.items.length)}
-            </p>
-            <div className={styles.tableWrap}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>{v.columns.code}</th>
-                    <th>{v.columns.reasons}</th>
-                    <th>{v.columns.note}</th>
-                    <th>{v.columns.status}</th>
-                    <th>{v.columns.result}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tour.items.map((item) => (
-                    <ItemRow
-                      key={item.id}
-                      item={item}
-                      canRecord={canRecord}
-                      canClose={canClose}
-                      onRecord={onRecord}
-                      onClose={onClose}
-                    />
-                  ))}
-                </tbody>
-              </table>
+          <section
+            key={tour.id}
+            className={styles.tour}
+            data-testid="verification-tour"
+            data-session-id={tour.id}
+          >
+            <div className={styles.tourHead}>
+              <h3>{v.tourTitle(formatDate(tour.plannedDate ?? tour.createdAt))}</h3>
+              <Badge tone={statusTone(tour.status, "visit")}>
+                {t.office.sessionStatus[tour.status]}
+              </Badge>
+              <span className={styles.status} data-testid="tour-progress">
+                {v.progress(open, tour.items.length)}
+              </span>
             </div>
+            <Table>
+              <thead>
+                <tr>
+                  <th>{v.columns.code}</th>
+                  <th>{v.columns.reasons}</th>
+                  <th>{v.columns.note}</th>
+                  <th>{v.columns.status}</th>
+                  <th>{v.columns.result}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tour.items.map((item) => (
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    canRecord={canRecord}
+                    canClose={canClose}
+                    onRecord={onRecord}
+                    onClose={onClose}
+                  />
+                ))}
+              </tbody>
+            </Table>
           </section>
         );
       })}
-    </div>
+    </section>
   );
 }
 
@@ -107,23 +114,23 @@ function ItemRow({
   const editable = item.status !== "closed" && (canRecord || (canClose && item.status === "open"));
   return (
     <tr data-code={item.code} data-status={item.status}>
-      <td>{item.code}</td>
+      <td className={cell.code}>{item.code}</td>
       <td>
         <span className={styles.chips}>
           {item.reasons.map((r) => (
-            <span key={r} className={styles.chip}>
-              {t.inventory.reasons[r]}
-            </span>
+            <Badge key={r}>{t.inventory.reasons[r]}</Badge>
           ))}
         </span>
       </td>
       <td>{item.note ?? ""}</td>
-      <td className={styles[`status_${item.status}`]}>{t.inventory.itemStatus[item.status]}</td>
+      <td>
+        <Badge tone={statusTone(item.status)}>{t.inventory.itemStatus[item.status]}</Badge>
+      </td>
       <td>
         {item.status !== "open" && (
           <div>
             {item.status === "checked" && <strong>{v.result(item.treePresent)}</strong>}
-            {item.resultNote && <div className="muted">{item.resultNote}</div>}
+            {item.resultNote && <div className={styles.hint}>{item.resultNote}</div>}
           </div>
         )}
         {editable && (
@@ -151,7 +158,7 @@ function ItemRow({
               </div>
             )}
             <input
-              className={styles.small}
+              className={styles.cellInput}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder={canRecord ? v.resultNote : v.closeNote}
@@ -160,25 +167,25 @@ function ItemRow({
             />
             <span className={styles.inline}>
               {canRecord && (
-                <button
-                  type="button"
-                  className={`button ${styles.small}`}
+                <Button
+                  size="sm"
+                  variant="secondary"
                   disabled={pending || present === ""}
                   onClick={() => run(() => onRecord(item.id, present === "yes", note))}
                 >
                   {v.record}
-                </button>
+                </Button>
               )}
               {canClose && item.status === "open" && (
-                <button
-                  type="button"
-                  className={`button button-secondary ${styles.small}`}
+                <Button
+                  size="sm"
+                  variant="quiet"
                   disabled={pending || note.trim() === ""}
                   onClick={() => run(() => onClose(item.id, note))}
                   title={v.closeNote}
                 >
                   {v.close}
-                </button>
+                </Button>
               )}
             </span>
             {error && (

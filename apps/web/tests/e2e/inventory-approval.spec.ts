@@ -55,7 +55,7 @@ async function clickSlot(page: Page, testId: string, code: string, shift = false
 test("office sets tree attributes and runs the verification tour", async ({ page }) => {
   await login(page, T.users.field);
   await page.goto(`/ofis/parsel/${T.parcel}`);
-  await page.getByRole("link", { name: "Özellikler, altyapı, sınır ve doğrulama" }).click();
+  await page.getByRole("link", { name: "Envanteri düzenle" }).click();
   await expect(page).toHaveURL(WORKSPACE);
 
   // Attributes: row 1 in bulk, then S2-3 picked on the map.
@@ -149,6 +149,10 @@ test("expert approves the inventory", async ({ page }) => {
   await expect(summary.getByTestId("summary-ungrafted")).toContainText("1");
   await expect(summary.getByTestId("summary-age-productive")).toContainText("2");
   await expect(page.getByTestId("coding-checks")).toContainText("Sorun bulunmadı.");
+  // The gate at the top: nothing blocks the signature.
+  await expect(page.getByTestId("gate-items")).toContainText("Yok");
+  await expect(page.getByTestId("gate-coding")).toContainText("Sorun yok");
+  await expect(page.getByTestId("approve-blockers")).toHaveCount(0);
   await expect(page.getByTestId("verification-tours").locator("tbody tr")).toHaveCount(3);
 
   // The expert corrects one tree before signing.
@@ -176,10 +180,10 @@ test("a viewer cannot approve the boundary; the owner does", async ({ page }) =>
   await login(page, T.users.viewer);
   await page.goto(`/portal/parsel/${T.parcel}`);
   let card = page.getByTestId("boundary-card");
-  await expect(card.getByTestId("boundary-source")).toContainText("Sürüm 2 · Saha ölçümü");
+  await expect(card.getByTestId("boundary-source")).toContainText("Sürüm 2, saha ölçümü");
   await expect(card.getByTestId("boundary-area")).toContainText("500 m²");
   await expect(card.getByTestId("boundary-area")).toContainText("0,5 dönüm");
-  await expect(card).toContainText("tapu ya da mülkiyet sınırı değildir");
+  await expect(card).toContainText("resmi bir sınır belirlemez");
   await expect(card.getByTestId("boundary-awaiting")).toContainText(
     "Sınırı sadece parsel sahibi onaylayabilir.",
   );
@@ -199,6 +203,9 @@ test("a viewer cannot approve the boundary; the owner does", async ({ page }) =>
 
   await expect(card.getByTestId("boundary-approve")).toBeDisabled();
   await card.getByTestId("boundary-confirm").check();
+  // T16: the seed org asks the boundary declaration as well.
+  await expect(card.getByTestId("boundary-approve")).toBeDisabled();
+  await card.getByTestId("boundary-declaration").check();
   await card.getByTestId("boundary-approve").click();
   await expect(card.getByTestId("boundary-approved")).toContainText("Siz");
   await expect(card.getByTestId("boundary-approved")).toContainText("tarihinde onayladı");

@@ -49,7 +49,8 @@ REGISTRY = [
     _row("trunk_base_scale", "scale", ALL, smin=0, smax=3),
     _row("pruning_status", "category", ("winter",), cats=("done", "partial", "not_done")),
     _row("crown_density_scale", "scale", ("spring", "summer"), smin=0, smax=3),
-    _row("frost_damage_scale", "scale", ("spring",), smin=0, smax=3),
+    # Winter since methodology-v0.2 (late March); expert only, the AI skips it.
+    _row("frost_damage_scale", "scale", ("winter", "spring"), smin=0, smax=3),
     _row("pest_sign_severity", "category", ("spring", "summer"), cats=("none", "mild", "marked")),
     _row(
         "pest_sign_type",
@@ -67,8 +68,8 @@ REGISTRY = [
     ),
     _row("dried_leaves_attached", "boolean", ("spring", "summer", "harvest")),
     _row("harvest_complete", "boolean", ("harvest",)),
-    _row("branch_break", "boolean", ("harvest",)),
-    _row("theft_trace", "boolean", ("harvest",), subjects=("parcel",)),
+    _row("branch_break", "boolean", ("summer", "harvest")),
+    _row("theft_trace", "boolean", ("summer", "harvest"), subjects=("parcel",)),
     _row("crown_diameter", "numeric", ("spring", "summer")),
     _row("dead_branch_present", "boolean", ("winter", "spring")),
     _row("pruned", "boolean", ("winter",)),

@@ -1,0 +1,31 @@
+/* KVKK requests (/operasyon/kvkk). Tokens only. */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.end {
+  align-items: flex-end;
+}
+
+.secondary {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+/* The applicant's own words, line breaks kept; long enough to read. */
+.message {
+  white-space: pre-wrap;
+  min-width: 16rem;
+  max-width: 40ch;
+}
+
+.statusForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}

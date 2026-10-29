@@ -1,0 +1,232 @@
+name: demo-data
+
+# Loads, enables or disables the demo tour dataset (docs/demo-turu.md §10.4) on the
+# hosted test or demo project. Manual only; there is no pilot option.
+#
+# - load: build the synthetic media (or reuse an earlier run's build artifact),
+#   load it with `orchados-pipeline demo load --target remote --verify`. The demo
+#   project always gets --demo-only: a project with any other org is refused.
+# - enable / disable: only the registry switch; nothing is built.
+#
+# SQL goes through psql with the project's database password over the session
+# pooler (GitHub runners have no IPv6, so never db.<ref>.supabase.co); media go
+# through the Storage API with the anon key as the demo org's ops persona. The
+# service role key is not used.
+#
+# The job runs in the GitHub Environment named after the project (`test` or
+# `demo`), like deploy-db and deploy-db-demo: each has a deployment branch rule
+# of main only and holds that project's secrets (docs/demo-turu.md §10.4);
+# missing secrets fail the job. While the test project hosts the demo
+# (repository variable DEMO_HOST=test, docs/demo-turu.md §15.1), project=demo
+# resolves to the test project: the `test` environment and its secrets,
+# without --demo-only (the test site's orgs live there too). Secrets are given
+# only to the steps that need them, never to installs or third-party actions.
+# A reused build must come from a run of this workflow on main.
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: "Hosted project"
+        type: choice
+        options: [test, demo]
+        default: test
+      action:
+        description: "load, enable or disable"
+        type: choice
+        options: [load, enable, disable]
+        default: load
+      dry_run:
+        description: "load: run the SQL and roll it back (nothing written)"
+        type: boolean
+        default: false
+      reuse_build_run_id:
+        description: "load: id of an earlier demo-data run whose build artifact to reuse"
+        type: string
+        required: false
+
+concurrency:
+  # By the database actually written: project=demo on the shared host is test.
+  group: demo-data-${{ (inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'demo' || 'test' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read # download-artifact from another run
+
+jobs:
+  demo-data:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: ${{ (inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'demo' || 'test' }}
+    env:
+      PROJECT: ${{ inputs.project }}
+      # The project actually written: project=demo on the shared host is test.
+      TARGET: ${{ (inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'demo' || 'test' }}
+      SHARED: ${{ inputs.project == 'demo' && vars.DEMO_HOST == 'test' }}
+      ACTION: ${{ inputs.action }}
+      BUILD_DIR: services/pipeline/.demo-build/v1-full
+    steps:
+      # The target's own secrets only: the names are string literals, so a missing
+      # DEMO_ secret is empty and never falls back to test. Only DEMO_HOST=test (a
+      # repository variable, set on purpose) points project=demo at the test project.
+      - name: Check the project's secrets
+        id: guard
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_PROJECT_REF' || 'SUPABASE_PROJECT_REF'] }}
+          PGPASSWORD: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_DB_PASSWORD' || 'SUPABASE_DB_PASSWORD'] }}
+          SUPABASE_URL: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_URL' || 'SUPABASE_URL'] }}
+          SUPABASE_ANON_KEY: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_ANON_KEY' || 'SUPABASE_ANON_KEY'] }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$PROJECT_REF" ] || [ -z "$PGPASSWORD" ] || [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Secrets for the $PROJECT project are missing in the $TARGET environment (docs/demo-turu.md §10.4)."
+            exit 1
+          fi
+          if [ "$SHARED" = "true" ]; then
+            echo "::notice::DEMO_HOST=test: project=demo is the test project (docs/demo-turu.md §15.1)."
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.ready == 'true'
+
+      - uses: pnpm/action-setup@v4
+        if: steps.guard.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+        if: steps.guard.outputs.ready == 'true'
+
+      - name: Link project
+        if: steps.guard.outputs.ready == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_PROJECT_REF' || 'SUPABASE_PROJECT_REF'] }}
+          PGPASSWORD: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_DB_PASSWORD' || 'SUPABASE_DB_PASSWORD'] }}
+        run: pnpm exec supabase link --project-ref "$PROJECT_REF" --password "$PGPASSWORD"
+
+      - name: Session pooler address
+        if: steps.guard.outputs.ready == 'true'
+        run: |
+          if [ ! -s supabase/.temp/pooler-url ]; then
+            echo "::error::supabase/.temp/pooler-url is missing after supabase link; cannot reach the database over IPv4."
+            exit 1
+          fi
+          url=$(tr -d '\n' < supabase/.temp/pooler-url)
+          # Transaction mode (6543) -> session mode (5432): the load is one long transaction.
+          url=$(printf '%s' "$url" | sed -E 's#:6543/#:5432/#')
+          case "$url" in
+            *:5432/*) ;;
+            *) echo "::error::unexpected pooler address (no port 5432)"; exit 1 ;;
+          esac
+          echo "DEMO_DB_URL=$url" >> "$GITHUB_ENV"
+          psql --version
+
+      - uses: astral-sh/setup-uv@v6
+        if: steps.guard.outputs.ready == 'true'
+        with:
+          enable-cache: true
+          cache-dependency-glob: services/pipeline/uv.lock
+
+      - name: Install the pipeline
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: services/pipeline
+        run: uv sync --locked
+
+      # Only a build of this workflow, dispatched on main in this repository: any other
+      # run (a branch, a PR) could carry an artifact with altered bytes or manifest.
+      - name: Check the reused run
+        if: steps.guard.outputs.ready == 'true' && inputs.action == 'load' && inputs.reuse_build_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.reuse_build_run_id }}
+        run: |
+          case "$RUN_ID" in
+            '' | *[!0-9]*) echo "::error::reuse_build_run_id must be a numeric run id"; exit 1 ;;
+          esac
+          got=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" \
+            --jq '[.path, .head_branch, .event, .head_repository.full_name] | join(" ")')
+          want=".github/workflows/demo-data.yml main workflow_dispatch $GITHUB_REPOSITORY"
+          if [ "$got" != "$want" ]; then
+            echo "::error::run $RUN_ID is not a demo-data run dispatched on main ($got)"
+            exit 1
+          fi
+
+      - name: Download an earlier build
+        if: steps.guard.outputs.ready == 'true' && inputs.action == 'load' && inputs.reuse_build_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: demo-build-full
+          path: ${{ env.BUILD_DIR }}
+          run-id: ${{ inputs.reuse_build_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Build the synthetic media (full profile)
+        if: steps.guard.outputs.ready == 'true' && inputs.action == 'load' && inputs.reuse_build_run_id == ''
+        working-directory: services/pipeline
+        run: uv run orchados-pipeline demo build --profile full
+
+      - name: Size limit (150 MB)
+        if: steps.guard.outputs.ready == 'true' && inputs.action == 'load'
+        run: |
+          bytes=$(du -sb "$BUILD_DIR/files" | cut -f1)
+          echo "build: $((bytes / 1000000)) MB in $(find "$BUILD_DIR/files" -maxdepth 1 -type f | wc -l) files"
+          if [ "$bytes" -gt 150000000 ]; then
+            echo "::error::the demo build is over 150 MB"
+            exit 1
+          fi
+
+      # Kept so a partial load can be resumed with the same bytes (reuse_build_run_id).
+      - uses: actions/upload-artifact@v4
+        if: steps.guard.outputs.ready == 'true' && inputs.action == 'load'
+        with:
+          name: demo-build-full
+          path: ${{ env.BUILD_DIR }}
+          retention-days: 30
+          include-hidden-files: true
+
+      - name: Load
+        if: steps.guard.outputs.ready == 'true' && inputs.action == 'load'
+        working-directory: services/pipeline
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          PGPASSWORD: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_DB_PASSWORD' || 'SUPABASE_DB_PASSWORD'] }}
+          SUPABASE_URL: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_URL' || 'SUPABASE_URL'] }}
+          SUPABASE_ANON_KEY: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_ANON_KEY' || 'SUPABASE_ANON_KEY'] }}
+        run: |
+          args=(demo load --target remote --profile full --build "$GITHUB_WORKSPACE/$BUILD_DIR" --verify)
+          # A separate demo project holds the demo org only; the shared test project does not.
+          if [ "$PROJECT" = "demo" ] && [ "$SHARED" != "true" ]; then args+=(--demo-only); fi
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          set -o pipefail
+          uv run orchados-pipeline "${args[@]}" 2>&1 | tee "$RUNNER_TEMP/demo-load.log"
+
+      - name: ${{ inputs.action }}
+        if: steps.guard.outputs.ready == 'true' && inputs.action != 'load'
+        working-directory: services/pipeline
+        env:
+          PGPASSWORD: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_DB_PASSWORD' || 'SUPABASE_DB_PASSWORD'] }}
+          SUPABASE_URL: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_URL' || 'SUPABASE_URL'] }}
+          SUPABASE_ANON_KEY: ${{ secrets[(inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'DEMO_SUPABASE_ANON_KEY' || 'SUPABASE_ANON_KEY'] }}
+        run: |
+          set -o pipefail
+          uv run orchados-pipeline demo "$ACTION" --target remote 2>&1 | tee "$RUNNER_TEMP/demo-load.log"
+
+      - name: Summary
+        if: always() && steps.guard.outputs.ready == 'true'
+        run: |
+          {
+            echo "### demo-data: $ACTION on $PROJECT$([ "$SHARED" = "true" ] && echo " (the test project, DEMO_HOST=test)")"
+            if [ -f "$RUNNER_TEMP/demo-load.log" ]; then
+              echo '```'
+              grep -E '^(rows inserted|  [a-z]+\.|files:|verify|already loaded|demo (enabled|disabled)|dry run|warning|error)' "$RUNNER_TEMP/demo-load.log" || true
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -20,18 +20,18 @@ Bağlam: [MVP.md](MVP.md), [veri-modeli.md](veri-modeli.md), [deployment.md](dep
 | Alan | İP12'de |
 | --- | --- |
 | Site | `/`, nasıl çalışır, paketler ve fiyatlar, SSS, iletişim, hukuk sayfaları |
-| Kayıt ve giriş | Ad soyad, Türkiye cep telefonu (SMS ile doğrulanır), e-posta ve parola, Turnstile. KVKK aydınlatma onayı ve iki açık rıza, sürümüyle |
+| Kayıt ve giriş | Ad soyad, Türkiye cep telefonu (SMS ile doğrulanır), e-posta ve parola, Turnstile. KVKK aydınlatma teyidi (okundu) ve isteğe bağlı açık rızalar, sürümüyle (bugün sorulan yok; hukuk/kararlar.md H06, H31) |
 | Başvuru | 1–10 bahçe: konum, beyan edilen alan (dönüm), sulama, yetki dayanağı ve giriş izni. Paket seçimi ve fiyat önizleme |
 | Teklif | Doğrulanmış alan ve yayımlı fiyat listesiyle hesaplanır. Girdileri dondurulur, geçerlilik süresi ve indirim içerir |
-| Sipariş ve ödeme | Checkout Form (3DS, tek çekim), havale kaydı, makbuz (PDF), ödeme geçmişi, iade ve iptal, mutabakat |
+| Sipariş ve ödeme | Ziyaret başına ödeme planı (§5.6): ilk yıl envanter ödemesi ve paketteki ziyaret sayısı kadar ziyaret ödemesi; her ödeme ayrı bir Checkout Form (3DS, tek çekim) işlemi ya da havale. Havale kaydı, ödeme başına makbuz (PDF), ödeme geçmişi, iade ve iptal, mutabakat |
 | Hesap | İletişim bilgisi (ad, e-posta, iletişim tercihi), fatura profili, rıza yönetimi |
-| Yenileme | Hizmet yılı biten siparişe yenileme teklifi |
+| Yenileme | Hizmet yılı biten siparişe yenileme teklifi. İP14'ten sonra yenileme, ek siparişle eklenen bahçeler dahil dönemin hizmetteki bütün bahçelerini kapsar ([bahce-yonetimi.md](bahce-yonetimi.md) §4.1 adım 8) |
 | Back office | Başvurular, teklifler, siparişler, ödemeler, iadeler, fiyatlar, ayarlar, denetim kaydı. Müşteri görünümü mevcut Sahipler listesine eklenir |
 | Bildirim | Teklif hazır, başvuru sonucu, ödeme alındı, iade yapıldı, ödeme hatırlatma (mevcut kuyruk) |
 
 **Kapsam dışı:**
 - e-Arşiv ve e-Fatura (makbuz fatura değildir)
-- Kart saklama, abonelik, otomatik çekim, taksit (ayarı hazır)
+- Kart saklama, abonelik, otomatik çekim, kart taksiti (`IYZICO_ENABLED_INSTALLMENTS`, ayarı hazır). Ziyaret başına ödeme planı (§5.6) kart taksiti değildir; kart taksiti kapsam dışı kalır (hukuk/kararlar.md H35)
 - E-posta kanalı (SMTP yok)
 - Telefon numarası değiştirme
 - Yabancı uyruklu müşteri
@@ -62,13 +62,11 @@ Bağlam: [MVP.md](MVP.md), [veri-modeli.md](veri-modeli.md), [deployment.md](dep
 - **Para kuruş cinsinden `bigint` tutulur, yanında `currency = 'TRY'`.** KDV satır bazında hesaplanır.
 - **TCKN varsayılan olarak toplanmaz** (KVKK md.4, veri en aza indirme).
     - iyzico'ya `identityNumber = "11111111111"` gönderilir. Bu, iyzico'dan yazılı teyit bekleyen bir pilot kapısıdır (§15).
-    - iyzico gerçek numara isterse `org_billing_setting.identity_number_required = true` yapılır. TCKN o zaman yalnızca `private.billing_profile` içinde durur. Ödeme anlık görüntüsüne yalnızca son 4 hane yazılır. Pilottan önce şifreleme ya da yazılı risk kabulü gerekir (§19).
+    - iyzico gerçek numara isterse `org_billing_setting.identity_number_required = true` yapılır. TCKN o zaman yalnızca `private.billing_profile` içinde durur. Ödeme anlık görüntüsüne yalnızca son 4 hane yazılır. Bayrak açılmadan önce TCKN'nin saklanmadan iletilmesi ya da şifreli saklanması gerekir; yazılı risk kabulü yeterli değildir (hukuk/kararlar.md H16, T13).
     - Şirket müşteride unvan, vergi dairesi ve VKN istenir.
-- **Yapay zekâ için yurt dışı aktarımı İP12'de rızaya bağlanmaz.**
-    - Hukuki dayanak avukatın kararıdır (hukuk/README soru 2).
+- **Yapay zekâ için yurt dışı aktarım rızaya bağlanmaz.** Dayanak, sağlayıcıyla imzalanıp Kurum'a bildirilen standart sözleşmedir (hukuk/kararlar.md H02). ai-worker, standart sözleşme kaydı tanımlı değilse gerçek veriyle yurt dışındaki sağlayıcıyı çağırmaz (`ORCHADOS_AI_TRANSFER_SAFEGUARD`; [services/ai-worker/README.md](../services/ai-worker/README.md#yurt-dışı-aktarım-kapısı)).
     - Kayıt formunda ve portalda bu konuda bir kutu yoktur. Aktarım aydınlatma metninde anlatılır.
-    - Avukat açık rıza derse ayrı bir iş açılır: önce ai-worker'a rıza denetimi eklenir, kutu ondan sonra açılır. İşlevi olmayan bir rıza düğmesi yayımlanmaz.
-    - "Hizmetin geliştirilmesi" ve "tanıtım" rızaları kaydedilir. Bugün bu amaçlarla hiçbir işlem yapılmıyor; ileride yapacak her iş `my_consents` sonucunu denetlemek zorundadır.
+    - Hizmetin geliştirilmesi rızası sorulmaz; Şirket içi geliştirme meşru menfaate dayanır (hukuk/kararlar.md H31). Tanıtım onayı İYS'den sonra sorulur (H06). Eski kayıtlar silinmez, dayanak olarak kullanılmaz. İşlevi olmayan bir rıza düğmesi yayımlanmaz (`MARKETING_CONSENT_ENABLED`, `apps/web/src/lib/legal/consents.ts`).
 - **Kişisel veri `private` şemada tutulur.** Müşterinin görebildiği `public` tablolarda iç sütunlar **sütun yetkisiyle** gizlenir (§6.8).
 - **Denetim kaydı `public.audit_event`, ekleme-yalnız.** Aktör ve rolü her fonksiyon açıkça verir.
 - **Bildirimler mevcut `public.notification` kuyruğundan gider.**
@@ -107,8 +105,8 @@ flowchart LR
 1. **Site.** `/` oturum yoksa landing sayfasıdır, oturum varsa kullanıcıyı kendi bölümüne yönlendirir (§9.2). Kayıt bağlantıları `ORCHADOS_SIGNUP_ENABLED=1` olunca görünür.
 2. **Kayıt (§7).**
     - **Form alanları:** ad soyad, cep telefonu (`+905…`), e-posta, parola (en az 8 karakter), iletişim tercihi.
-    - **Onaylar:** zorunlu aydınlatma onayı; isteğe bağlı ve işaretsiz iki açık rıza (hizmetin geliştirilmesi, tanıtım iletileri); Turnstile.
-    - **Akış:** `register` çağrılır, ardından kod gönderilir (`requestSignupCode`: `signInWithOtp`, yeni hesapta `signup_disabled` gelirse `auth.resend({type: "sms"})`; §7 web akışı). Kod `verifyOtp` ile doğrulanır, sonra `complete` çağrılır ve kullanıcı `/portal`'a gider.
+    - **Onaylar:** zorunlu aydınlatma teyidi (okundu); isteğe bağlı ve işaretsiz tanıtım onayı yalnızca İYS'den sonra (hukuk/kararlar.md H06; hizmetin geliştirilmesi rızası sorulmaz, H31); Turnstile.
+    - **Akış:** `register` çağrılır, ardından kod gönderilir (`sendAccountCode`: `signInWithOtp`, yeni hesapta `signup_disabled` gelirse biletle `customer-signup` `send_code`; §7 web akışı). Kod `verifyOtp` ile doğrulanır, sonra `complete` çağrılır ve kullanıcı `/portal`'a gider.
 3. **Başvuru.**
     - Müşteri başına org'da tek açık taslak olur.
     - Bahçe başına: ad, il, ilçe, köy, haritadan konum (zorunlu), isteğe bağlı kaba sınır, alan, sulama, ağaç sayısı, yetki dayanağı, isteğe bağlı tapu, giriş izni (zorunlu), erişim notu, saha kişisi.
@@ -117,24 +115,26 @@ flowchart LR
 5. **Ops incelemesi.** Ops her bahçenin alanını doğrular (gerekirse sınırı yeniden çizer). Sonra teklifi önizler ve verir: girdiler kopyalanır, geçerlilik varsayılan 30 gündür, isteğe bağlı indirim için açıklama zorunludur. Müşteriye `quote_ready` ya da `application_rejected` gider.
 6. **Teklif onayı.** Üç koşul gerekir:
     - fatura profili tam olmalı,
-    - aydınlatma onayı kayıtlı olmalı,
+    - aydınlatma teyidi kayıtlı olmalı,
     - Ön Bilgilendirme ve Mesafeli Hizmet Sözleşmesi onayları verilmeli.
 
-    Kabulde sipariş `S-2026-000123` açılır. Toplam 0 ise sipariş hemen aktifleşir.
-7. **Ödeme.**
-    - **Kart:** `payments`/`start` çağrılır ve tarayıcı iyzico'ya gider. Dönüşte `payment-callback` sonucu iyzico'dan yeniden sorgular, `payment_finalize` çağırır ve 303 ile `/portal/odeme/[id]`'ye yönlendirir. Webhook ve 10 dakikalık mutabakat yedek kanaldır.
-    - **Havale:** IBAN ve referans gösterilir. Ops kaydeder; kısmi havale kabul edilir.
+    Kabulde sipariş `S-2026-000123` ve ödeme planı (§5.6) açılır. Teklif sayfası planı kabulden önce gösterir (`quote_installment_plan`). Toplam 0 ise sipariş hemen aktifleşir.
+7. **Ödeme.** Her ödeme planın bir ödemesini öder (§5.6).
+    - **Kart:** `payments`/`start` çağrılır ve tarayıcı iyzico'ya gider; tutar sıradaki açık ödemenin açık tutarıdır. Dönüşte `payment-callback` sonucu iyzico'dan yeniden sorgular, `payment_finalize` çağırır ve 303 ile `/portal/odeme/[id]`'ye yönlendirir. Webhook ve 10 dakikalık mutabakat yedek kanaldır.
+    - **Havale:** IBAN, referans ve sıradaki ödemenin tutarı gösterilir. Ops kaydeder: bir ödemeye ya da açık ödemelere sırayla (her ödemeye ayrı ödeme satırı ve makbuz); kısmi havale kabul edilir.
     - Başarılı her ödemeye makbuz numarası verilir (`M-…`) ve `payment_received` bildirimi gider.
-8. **Aktivasyon.** `private.activate_order` tek işlemde şunları yapar:
+8. **Aktivasyon.** Sipariş planın ilk ödemesi (ilk yıl envanter, yenilemede ilk ziyaret ödemesi) ödenince etkinleşir. `private.activate_order` tek işlemde şunları yapar:
     - bahçe başına parsel (`registered`) oluşturur, kaba sınırı v1 `owner_declared` olarak ve `parcel_detail`'ı yazar,
     - sahip erişimini verir,
-    - hizmet dönemini 1 yıl olarak yazar.
+    - hizmet dönemini 1 yıl olarak yazar,
+    - açık ziyaret ödemelerinin pencerelerini ve son günlerini hizmet dönemine göre yeniden hesaplar (son günler öne alınmaz).
 
     Envanter planlanınca mevcut tetikleyici parseli `inventory_planned` yapar.
 9. **Yenileme.**
     - Bitime 45 günden az kalan sipariş panoda görünür.
     - Ops `ops_issue_parcel_quote(..., p_first_year => false, p_renewal_of_order_id)` ile teklif verir. Yeni hizmet dönemi eski bitişten 1 gün sonra başlar.
     - Pilotta ops'un açtığı mevcut parseller de aynı fonksiyonla, `p_first_year => true` vererek ilk siparişlerini alır.
+    - **İP14:** Dönem başına tek yenileme vardır. Temel sipariş yenilenir; ek siparişler yenilenmez, bahçeleri aynı teklife girer. İki ayrı dönemi olan müşteride dönemler yenileme zamanında ek teklifle birleştirilir ([bahce-yonetimi.md](bahce-yonetimi.md) §4.1 adım 8, §4.4).
 10. **İade ve iptal.**
     - Ödemeden önce sipariş iptal edilir.
     - Ödemeden sonra iade yolu: aynı gün ve tam tutarda `void`, diğer durumlarda kalem bazında `refund`, havalede `manual`.
@@ -169,16 +169,18 @@ flowchart LR
 | Geçiş | Fonksiyon | Koşul |
 | --- | --- | --- |
 | → `awaiting_payment` | `customer_accept_quote` | Toplam 0 ise doğrudan `active` |
-| `→ active` | `private.activate_order` (`payment_finalize` ya da `ops_record_manual_payment` içinden) | `paid_kurus >= total_kurus` |
+| `→ active` | `private.activate_order` (`payment_finalize` ya da `ops_record_manual_payment` içinden) | Planın ilk ödemesi (pencere sonunda düşmemiş ilk ödeme) ödendi (`private.order_activatable`); toplam 0 ise hemen |
 | `→ cancelled` | `customer_cancel_order`, `ops_cancel_order` | Başarılı ödeme yok (`has_payments`) ve canlı deneme yok (`payment_in_progress`) |
 | `active → completed` | housekeeping | `service_end` < bugün |
 | `active → terminated` | `ops_terminate_order` | Not zorunlu |
+
+> **İP14:** Siparişe, teklife, başvuruya ve parsele eklenen yeni geçişler (ek sipariş, `addon_base_closed`, `garden_removed`, `all_gardens_removed`, `base_terminated`, `customer_revision`) [bahce-yonetimi.md](bahce-yonetimi.md) §8.4'te listelenir.
 
 **Canlı deneme:** `provider <> 'manual'` olan ve şu iki durumdan birindeki ödeme satırı.
 - `pending_review`
 - `initiated` ya da `expired`, ve `token_expires_at > now()`
 
-Ödeme süresi (`payment_due_at`) dolunca sipariş kendiliğinden iptal olmaz. Bitimden 3 gün önce bir kez hatırlatma gider.
+Ödeme süresi (`payment_due_at`, planın ilk ödemesinin son günü) dolunca sipariş kendiliğinden iptal olmaz. Hatırlatmalar ödeme başınadır (§5.6). Sona eren sipariş (iptal, fesih, tamamlanma) ödenmemiş ödemelerini iptal eder; ops'un ödemesiz ziyarete izin verdiği ödeme kalır.
 
 ### 5.4 Ödeme
 
@@ -194,9 +196,10 @@ flowchart LR
 
 **`payment_finalize` kuralları:**
 - **Karşılaştırma:** Sağlayıcının bildirdiği tutar, para birimi, `conversationId` ve `basketId`, **ödeme satırıyla** (`amount_kurus`, `id`, `order_id`) karşılaştırılır; asla siparişle karşılaştırılmaz.
+- **Taksit:** Her ödeme satırı tam olarak bir plan ödemesine bağlıdır (`order_installment_id`). Başarılı ödeme önce o ödemenin açık tutarına yazılır; alamadığı kısım iade edilir: hiçbir şey alamadıysa ve sipariş ya da ödeme kapalıysa `order_closed`, değilse `overpayment` (§5.6).
 - **Başarı ama uyuşmazlık:** Sağlayıcı SUCCESS der ama değerler uyuşmazsa sonuç `pending_review` olur (`failure_code = amount_mismatch | reference_mismatch`). Sistem `provider_mismatch` nedenli bir `void` iadesi açar ve ödeme panoda görünür. Sonuç `failed` **yazılmaz**.
 - **Kapalı sipariş:** Başarılı ödeme `cancelled`, `terminated` ya da `completed` bir siparişe düşerse tam tutarlı `order_closed` iadesi açılır.
-- **Fazla ödeme:** Ödeme sipariş toplamını aşarsa aşan kısım (`paid_kurus − total_kurus`) için `overpayment` iadesi açılır.
+- **Fazla ödeme:** Ödeme, ödediği plan ödemesinin açık tutarını aşarsa aşan kısım için `overpayment` iadesi açılır (örneğin aynı ödeme hem kartla hem havaleyle ödendiyse).
 - **Yinelenen çağrı:** Son durumdaki bir satıra yeniden çağrı bir şey değiştirmez.
 - **Sahte sağlayıcı:** `provider = 'fake'` olan ödeme, `allow_fake_payments` açık değilse başarılı yazılmaz (`fake_payments_disabled`).
 
@@ -216,6 +219,34 @@ flowchart LR
 - **Yeniden deneme:** `failed → processing` geçişinde tavan yeniden denetlenir.
 - **Tutar güncellemesi:** `refunded_kurus` alanları yalnızca `succeeded`'a geçişte ve bir kez artar; artış koşullu güncellemeden dönen satıra bağlıdır.
 - **Zaman aşımı:** Kart iadesi idempotent değildir. Bu yüzden satır API çağrısından önce `processing` yapılır. 15 dakikadan uzun süren `processing` ops'a "belirsiz" olarak gösterilir.
+
+### 5.6 Ödeme planı (`installments-v1`)
+
+Ürün sahibi kararı (28 Ekim 2026): ilk yıl envanter ücreti teklif onayında tek çekimle önden ödenir; kalan yıllık tutar paketteki periyodik ziyaret sayısı kadar ödemeye bölünür (Temel 2, Standart 4, Kapsamlı 6). Bu kart taksiti değildir: her ödeme ayrı bir tek çekim kart işlemi ya da havaledir; faiz, vade farkı ya da ücret yoktur. Hukuki çerçeve: [hukuk/kararlar.md](hukuk/kararlar.md) H35 (yapay zekâ ajanlarının kararı); müşteriye dönük metinlerde "taksit" değil "ödeme planı", "envanter ödemesi", "ziyaret ödemesi", "ilk ödeme" yazılır.
+
+**Plan (tek kaynak SQL: `private.installment_schedule`).**
+- **Satır payları:** Her teklif satırında envanter payı = envanter ücreti − envanter ücretinin indirim payı (`round(fee × discount_bp / 10000)`), üstüne KDV (`round(net × vat_rate_bp / 10000)`), en fazla satır toplamı. Satırın geri kalanı satırdaki ziyaret sayısı kadar parçaya bölünür: `floor(kalan / n)`, kuruş farkı son parçaya. KDV de aynı biçimde bölünür.
+- **Ödemeler:** Envanter payı olan teklifte 1. ödeme envanter ödemesidir (satırların envanter payları toplamı). Ziyaret ödemesi k, satırların k'ncı parçalarının toplamıdır. Toplamı 0 olan ödeme oluşmaz. Planın toplamı teklif toplamına, her ödeme kendi satır paylarına eşittir (kabulde denetlenir: `installment_plan_mismatch`).
+- **Pencereler:** `public.package_visit_windows(V)`, sözleşme Ek-2 (v5) ve [fiyatlandirma.md](fiyatlandirma.md) §1: Kış 15 Ara–15 Şub, Uyanma 10–31 Mar, İlkbahar 15 Nis–15 May, Yaz 1–25 Tem, Hasat öncesi 1–20 Ağu, Hasat (Kapsamlı'da "Hasat sonrası") 15 Eyl–31 Eki. Temel: Kış, Hasat; Standart: Kış, İlkbahar, Yaz, Hasat; Kapsamlı: altısı. Ziyaret k, hizmet döneminde başlangıcı dönemin içinde kalan k'ncı penceredir (`private.installment_windows`); dönemde yeterli pencere yoksa eksik ziyaretler dönemin ilk gününe konur, penceresiz paket sayısında ziyaretler döneme eşit aralıkla yayılır.
+- **Son günler:** İlk ödeme ödeme süresi içinde (kabul + `payment_due_days`; ek siparişte en geç son ek günü). Ziyaret ödemesi k'nın son günü pencerenin başlangıcından `installment_lead_days` (varsayılan 14, yalnızca SQL; teklif `inputs.installments.lead_days` ile dondurur) gün öncesidir; bu gün kabul gününden önceyse kabul günüdür. Envanteri olmayan siparişin ilk ödemesi (yenileme) ödeme süresinden önce istenmez, ek siparişte ödeme süresinde istenir. Son günler sıradan önceye düşmez. `due_rule`: `payment_period`, `window`, `acceptance`.
+- **Kayıt:** Kabulde `private.create_order_installments` planı `order_installment` ve `order_installment_item` tablolarına yazar; siparişin `payment_due_at` değeri ilk ödemenin son gününden önceyse ileri alınır. Teklif `inputs.installments = {formula: 'installments-v1', lead_days}` taşır (`quote_installment_terms` tetikleyicisi). Etkinleşmede açık ziyaret ödemeleri hizmet dönemine göre yeniden zamanlanır (`private.reschedule_installments`; tutarlar değişmez).
+- **Eski siparişler:** Bu işten önceki her siparişin toplamı tek bir `single` ödemedir (migration'daki geri doldurma); ödemeleri ona bağlanır.
+
+**Ödeme.**
+- **Kart:** `payment_begin` sıradaki açık ödemenin açık tutarını çeker; satırı ödemeye bağlar (`order_installment_id`). Ödenebilir: ödeme bekleyen ya da aktif sipariş ve açık ödeme.
+- **Havale:** `ops_record_manual_payment(..., p_installment_id default null)`: ödeme verilirse en fazla onun açık tutarı; verilmezse tutar açık ödemelere sırayla dağıtılır, her ödemeye ayrı ödeme satırı ve makbuz (aynı banka referansı); dönüş ilk ödeme satırıdır. Sahip son günü gelmemiş ödemeleri önceden yapabilir (erken ödeme, H35).
+- **Tamamlama** (`private.complete_payment`): sipariş → ödeme → plan ödemesi kilit sırasıyla; ödeme, plan ödemesine en fazla açık tutarı kadar yazılır (satır paylarına satır sırasıyla). İlk ödeme ödenince sipariş etkinleşir. `payment_finalize`'ın idempotentlik ve uyuşmazlık kuralları (§5.4) aynen geçerlidir; sağlayıcının tutarı ödeme satırıyla karşılaştırılır.
+- **İade:** Ödeme bekleyen siparişin ödemesinden yapılan iade (fazla ödeme, `order_closed` ve uyuşmazlık iadeleri hariç) plan ödemesini o kadar yeniden açar; aktif siparişte iade (yapılamayan ziyaret, çıkarma, iyi niyet) plan ödemesini açmaz. Havale düzeltmesi (`ops_void_manual_payment`) yazılan tutarı geri alır.
+
+**Ziyaret planlama.** Ödenmemiş ziyaret ödemesinin ziyareti planlanmaz (`installment_unpaid`, `session_guard_installment`): planlanan gün bir ziyaret ödemesinin penceresindeyse o ödeme ödenmiş olmalıdır; pencere dışındaki günde ziyaret, dönemdeki önceki periyodik ziyaret günlerine göre sayılır ve k'ncı açık ödemeye bakılır. Ops, Sahip'in yazılı talebi ya da onayıyla ve not yazarak izin verebilir (`ops_allow_unpaid_visit`; denetim kaydı `order.unpaid_visit_allowed`); o ödeme borç olarak kalır. Durum değişikliği hiçbir zaman reddedilmez (saha uygulaması). Şirket'in yeniden taraması planlanırken sıradaki ödeme açıksa izin gerekir (bilinen sınır).
+
+**Pencere sonunda düşme (H35, T28).** Gece işi, penceresi biten ve ödenmemiş ziyaret ödemesini `window_passed` nedeniyle iptal eder (aktif siparişler ve başlamış yenilemeler; izinli olanlar hariç). Düşen ödeme istenmez ve hatırlatılmaz; sonradan gelen ödeme `order_closed` iadesiyle geri döner. Düşen ödeme etkinleşmeyi engellemez: pencere sonunda düşmemiş ilk ödeme belirleyicidir.
+
+**Hatırlatma.** Her açık ödemeye son gününden 7 gün önce (son 7 günde oluşturulduysa gönderilmez) ve son gününde (kaçan gece işi için en geç 3 gün sonra) birer `payment_reminder`; ilk bildirimin `ref_id`'si ödeme kimliği, ikincisininki `md5('<id>:due')` uuid'i. SMS tutar içermez (§12).
+
+**Ödenmeme.** Otomatik fesih yoktur; faiz, masraf ve muacceliyet yoktur. Son gününden 30 gün geçen açık ödemeler panoda (`installments_overdue`) ve sipariş listesinde (`ops_overdue_installments`) görünür. Fesih kılavuzdaki uyarı adımlarından sonra `ops_terminate_order` ile yapılır (T30). Sipariş sona erince (iptal, fesih, tamamlanma) ödenmemiş ödemeler iptal edilir (`order_cancelled`, `order_terminated`, `order_completed`); ödemesiz ziyaret izni olanlar kalır.
+
+**Bahçe çıkarma ve cayma** ([bahce-yonetimi.md](bahce-yonetimi.md) §7): satırın ödenmemiş payı iadeden önce iptal edilir; yalnızca ödenen tutar iade edilir.
 
 ## 6. Veri modeli
 
@@ -282,6 +313,7 @@ Sütunlar sözleşmedir. Aşağıda yalnızca önemli check'ler gösterildi. A1 
 ```sql
 public.org_billing_setting (org_id pk → org, accepts_signups bool default false,
   allow_fake_payments bool default false,          -- yalnızca SQL ile açılır; ops ayar fonksiyonu yazmaz
+  legal_gate_enforced bool not null default false, -- T21 üretim kapısı; yalnızca SQL ile (pilot)
   identity_number_required bool default false,     -- iyzico gerçek TCKN isterse
   legal_name, tax_office, tax_number ~'^[0-9]{10}$', mersis_number ~'^[0-9]{16}$', address, phone, email,
   bank_name, iban ~'^TR[0-9]{24}$', iban_holder,
@@ -441,7 +473,7 @@ private.document_sequence (org_id, kind in ('B','T','S','M','I'), year, last_val
 - `round` numeric üzerinde yarımı yukarı yuvarlar.
 - Geçerli liste: `status = 'published'` ve `valid_from <= d` olanların en büyük sürümü.
 - Paketin listede kalemi yoksa `package_not_priced`.
-- **Örnek (seed fiyatları):** 20 dönüm, standart paket. 4 × 200 × 12.500 / 10 = 1.000.000 kuruş. KDV %20 ile toplam **1.200.000 kuruş** (12.000,00 TL).
+- **Örnek (lansman fiyatları, seed; [fiyatlandirma.md](fiyatlandirma.md)):** 20 dönüm, standart paket. 4 × 200 × 18.000 / 10 = 1.440.000 kuruş; en az ücret 1.120.000'i geçer. İlk yıl envanter 600.000 eklenir: taban 2.040.000, KDV %20 ile toplam **2.448.000 kuruş** (24.480,00 TL). Sonraki yıllarda envanter yoktur: 1.728.000 kuruş (17.280,00 TL). 10 dönümde ziyaret tutarı 720.000 en az ücretin altında kalır; yıllık 1.120.000, KDV dahil 1.344.000 kuruş.
 - `quote.inputs` dondurulan girdileri saklar: `price_list_id`, `version`, `valid_from`, paket alanları, her bahçenin alanı ve alanın kaynağı (`verified` / `boundary` / `estimated`), `formula = 'pricing-v1'`.
 
 ### 6.7 Belge numaraları
@@ -479,7 +511,7 @@ Satır politikası sütunları korumaz. Bu yüzden müşteri tablolarında `revo
 
 - **Ops iç sütunları nasıl okur:** `ops_billing_internal(p_entity_type text, p_entity_id uuid) returns jsonb` ile (A2). Tür değerleri: `application`, `application_garden`, `quote`, `order`, `payment`, `refund`. Kullanıcı kimlikleri `{id, name}` biçiminde döner.
 - **Web tarafı `select("*")` kullanmaz.** A1, `apps/web/src/lib/billing/columns.ts` dosyasında `BILLING_COLUMNS` (`as const` sütun listeleri) dışa verir. D ve E bunu kullanır.
-- **`anon` yetkileri:** Main'de `anon` rolü zaten `phone_login_allowed` ve `phone_login_record_failure` çağırabiliyor. İP12 `anon`'a yalnızca `public_package_prices()` ve `price_preview(...)` fonksiyonlarını ekler. İkisi de yalnızca kaydı açık org'un aktif paketlerini ve yayımlı fiyatlarını döner.
+- **`anon` yetkileri:** Main'de `anon` rolü zaten `phone_login_allowed` ve `phone_login_record_failure(p_phone, p_ticket default null)` çağırabiliyor (auth sertleştirmesi: bekleyen, telefonu doğrulanmamış self-servis kaydın biletiyle girilen yanlış kod sayılmaz). İP12 `anon`'a yalnızca `public_package_prices()` ve `price_preview(...)` fonksiyonlarını ekler. İkisi de yalnızca kaydı açık org'un aktif paketlerini ve yayımlı fiyatlarını döner.
 - **Testler:**
     - `ops_note` seçen müşteri 42501 alır.
     - `anon` ve `authenticated` rollerinin yeni tablolarda insert, update ve delete yetkisi yoktur.
@@ -489,6 +521,8 @@ Satır politikası sütunları korumaz. Bu yüzden müşteri tablolarında `revo
 
 Adlar, parametreler ve dönüşler sözleşmedir. Sütun ayrıntıları A1/A2'nin tip üretiminden okunur.
 
+> **İP14:** Bazı fonksiyonlar aynı imzayla yeniden yazılır; aralarında `payment_begin`, `private.activate_order`, `ops_terminate_order` ve `ops_orders` (dönüşüne `addon_of_order_id` eklenir) vardır. Tam liste ve değişiklikler: [bahce-yonetimi.md](bahce-yonetimi.md) §9.6 "Aynı imzayla yeniden yazılanlar". Bu bölümdeki kurallar orada yazılanlar dışında geçerlidir.
+
 **Yardımcılar (`private`):**
 - `audit`, `next_document_number`, `signup_org_id`, `is_valid_tckn`, `price_lines`
 - `activate_order(p_order_id)`: idempotent.
@@ -496,7 +530,11 @@ Adlar, parametreler ve dönüşler sözleşmedir. Sütun ayrıntıları A1/A2'ni
 - `open_system_refund(p_payment_id, p_amount_kurus, p_reason)`: Tutar tam ve ödeme aynı gün ise `void` açar. Değilse son kalemden geriye doğru kalem bazında `refund` satırları açar.
 - `enqueue_billing_notification`
 - `billing_housekeeping() returns jsonb` (A2): teklif süre dolumu, hatırlatma, `completed`, 7 günden eski ve `payment_id` taşımayan `payment_event` satırlarının silinmesi.
-- `signup_housekeeping() returns jsonb` (A1): 24 saati geçen, tamamlanmamış ve hesabının telefonu doğrulanmamış `customer_signup` satırlarını ve 2 günden eski `signup_attempt` satırlarını siler. Telefonu doğrulanmış ama `complete` çağrısı yarım kalmış kayıt silinmez: kullanıcı telefon koduyla girip `complete`'i yeniden çağırabilir.
+- `signup_housekeeping() returns jsonb` (A1): 24 saati geçen, tamamlanmamış, incelemede olmayan (`review_required_at` boş) ve hesabının telefonu doğrulanmamış `customer_signup` satırlarını ve 2 günden eski `signup_attempt` satırlarını siler. Karantinadaki satır ops çözene kadar kalır. Telefonu doğrulanmış ama `complete` çağrısı yarım kalmış kayıt silinmez, `review_reason = 'unfinished'` ile ops incelemesine işaretlenir (`signups_flagged`). Kullanıcı biletiyle ya da parolasıyla (§7.5) `complete`'i yeniden çağırabilir.
+- `signup_quarantine(p_user_id uuid, p_reason text)` (§7.5): sahip profili olmayan self-servis hesabın telefon onayını kaldırır, oturumlarını siler, bekleyen kaydı `review_required_at` / `review_reason` (`delete_failed`, `unproven_code`, `unfinished`) ile işaretler.
+- `is_customer_account(p_user_id uuid) returns boolean` (§7.5): self-servis hesap, sahip profili ya da parsel erişimi.
+- `customer_account_guard()` (§7.5): `auth.users` BEFORE UPDATE tetikleyicisi. Personel olmayan hesabın `phone`/`phone_change` değişikliği ve personelin bekleyen numara dışındaki telefon yazımı `phone_change_locked` (42501); self-servis hesabın `recovery_token` (sihirli bağlantı, e-posta kodu, parola sıfırlama) ve e-posta değişikliği `email_code_locked` (42501).
+- `change_account_phone(p_user_id uuid, p_phone text) returns void` (§7.5): yalnızca ops, SQL düzenleyiciden (hiçbir API rolüne verilmez). Telefonu yazar ve doğrulanmış sayar; müşteri ve sahip hesabının telefonu yalnızca böyle değişir. Hatalar: `invalid_input`, `not_found`.
 - `dispatch_signup_cleanup()`, `dispatch_payment_reconcile()`: Vault'tan adres ve `orchados_cron_secret` okur; ikisi de varsa pg_net ile POST eder, yoksa hiçbir şey yapmaz.
 
 **Herkese açık (`anon` ve `authenticated`, A2):**
@@ -511,9 +549,20 @@ Adlar, parametreler ve dönüşler sözleşmedir. Sütun ayrıntıları A1/A2'ni
     - `started_at`: bekleyen kaydın yazıldığı an (yoksa hesabın açıldığı an); bayat hesabın bekleme süresi buna göre hesaplanır (§7.1).
     - `matched_by` değerleri `email`, `phone` (Auth, `+` olmadan) ya da `profile_phone` (kayıt org'unda başka kullanıcının `owner_profile` telefonu).
 - `signup_prepare(p_user_id, p_full_name, p_email, p_phone, p_contact_preference, p_consents jsonb, p_ip_hash) returns void`: `invalid_input` (detail alan).
+- `signup_set_ticket(p_user_id uuid, p_ticket_hash text) returns void`: `register`'ın (ya da `claim`'in) biletinin SHA-256'sını tamamlanmamış bekleyen kayda yazar; satır yoksa `invalid_input`.
+- `signup_ticket_users(p_ticket_hash text) returns setof uuid`: bileti taşıyan tamamlanmamış kayıtların hesabı (aynı tarayıcının yeni `register`'ı).
+- `signup_owner_check(p_user_id uuid, p_ticket_hash text, p_password boolean) returns text` (§7.5): `ok`, `no_pending`, `already_completed`, `mismatch` (aynı işlemde `delete_failed` ile karantinaya alır, sonra çağıran hesabı siler) ya da `refused` (biletsiz eski satır burada karantinaya alınır).
+- `signup_code_grant(p_phone text, p_ticket text) returns text` (§7.5, `send_code`): `granted`, `refused`, `too_soon` (dakikada bir) ya da `too_many` (kayıt başına altı). `granted` bekleyen kayda 30 saniyelik izin bırakır.
+- `signup_code_release(p_phone text) returns void` (§7.5, `send_code`): Auth yanıt verince izni kaldırır.
+- `signup_sms_allowed(p_user_id uuid) returns boolean` (§7.5, Send SMS hook'u): tamamlanmamış self-servis kaydın telefon doğrulama kodu için `signup_code_grant` izni gerekir; izni tüketmez. Diğer herkes için `true`.
+- `signup_sms_sent(p_user_id uuid) returns void` (§7.5, Send SMS hook'u): sağlayıcı kodu gönderdikten sonra izni tüketir.
+- `account_phone_change_allowed(p_user_id uuid) returns boolean` (§7.5, Send SMS hook'u): telefon değiştirme kodu yalnızca personel hesabına gider (`private.is_staff_account`: rolü olan, müşteri ya da sahip olmayan hesap).
+- `signup_review_user_ids() returns setof uuid` (§7.3): incelemedeki bekleyen kayıtların hesapları; `cleanup` bunları silmez.
 - `signup_complete(p_user_id uuid, p_code_at timestamptz) returns text`: `completed`, `already_completed`, `no_pending` ya da `phone_mismatch`.
     - `p_code_at`: oturumu açan telefon kodunun zamanı (JWT `amr`). Bekleyen kayıt satırı kilitlenir; hesap self-servis değilse, telefonu doğrulanmamışsa, Auth telefonu bekleyen kayıttaki telefon değilse ya da kod bekleyen kayıttan eskiyse `phone_mismatch` döner ve hiçbir şey yazılmaz.
     - Oluşturduğu kayıtlar: `owner_profile` (KVKK alanlarıyla), üç `consent_record` (`kvkk_notice` ve iki `explicit_*`), denetim kaydı.
+    - **T27:** Sorulmayan açık rıza türü (`private.explicit_consent_asked`: `explicit_service_improvement` hiçbir zaman, `explicit_marketing` yalnızca `marketing_consent_enabled` açıkken) bekleyen kayıtta `true` olsa da `false` yazılır. `customer-signup` (`_shared/signup.ts` `parseRegister`) iki bayrağı da her zaman `false`'a zorlar; doğrudan Edge POST'u hiçbir rıza açamaz.
+    - **T21:** `signup_prepare`, `kvkk_notice_version` değerini kayıtlı güncel KVKK sürümü değilse `invalid_input` (detail `kvkk_notice_version`) ile reddeder.
 
 **Müşteri (`authenticated`):**
 
@@ -522,8 +571,9 @@ A1'de:
 - `customer_save_billing_profile(p_profile jsonb)`: TCKN yalnızca gerekli ise istenir.
 - `customer_update_contact(p_full_name text, p_email text, p_contact_preference text) returns void`: İletişim e-postasını değiştirir; giriş e-postası değişmez.
 - `my_consents()`, `customer_set_consent(p_kind text, p_granted boolean, p_text_version text)`:
-    - `explicit_*` türleri verilir ya da geri alınır.
-    - `kvkk_notice` yalnızca `granted = true` ile kabul edilir ve `owner_profile` KVKK alanlarını günceller.
+    - `explicit_*` türleri verilir ya da geri alınır. **T27:** `granted = true`, sorulmayan bir tür için `consent_not_asked` (P0001, detail tür) ile reddedilir: `explicit_service_improvement` her zaman, `explicit_marketing` `org_billing_setting.marketing_consent_enabled` açılana kadar. Geri alma (`false`) hiçbir zaman reddedilmez ve yalnızca biçim denetiminden geçer. Portal bu kodu kendi "bu izin şu anda verilemiyor" metniyle (`consent_unavailable`) gösterir.
+    - `kvkk_notice` yalnızca `granted = true` ile kabul edilir ve `owner_profile` KVKK alanlarını günceller. **T21:** Sürüm kayıtlı güncel KVKK sürümü olmalıdır, değilse `invalid_input` (detail `text_version`).
+    - **Eski kayıtlar:** T27'den önce açılmış `granted = true` `explicit_*` satırları kanıt olarak saklanır (ekleme-yalnız), ama hiçbir işlemenin dayanağı olarak kullanılmaz. Seed'deki müşterinin eski `explicit_service_improvement` satırı bunu örnekler.
 - `customer_create_application(p_package_id) returns uuid`: `not_customer`.
 - `customer_set_application_package(p_application_id, p_package_id, p_customer_note default null)`
 - `customer_save_application_garden(p_application_id, p_garden jsonb, p_detail jsonb, p_garden_id default null) returns uuid`
@@ -536,8 +586,13 @@ A1'de:
 
 A2'de:
 - `customer_accept_quote(p_quote_id, p_consents jsonb) returns uuid`
-    - `p_consents = {distance_sales, pre_information}` (sürüm metinleri).
-    - Hatalar: `quote_not_open`, `quote_expired`, `billing_profile_incomplete`, `consent_required` (detail `kvkk_notice` | tür).
+    - `p_consents`, `distance_sales`, `pre_information` ve isteğe bağlı `early_performance` (T03) için iki biçimden birini alır (bir sürüm boyunca ikisi de geçerli; web önce eski biçimi gönderir):
+        - `{"distance_sales": "mesafeli-v4-taslak", …}`: sunucu kayıtlı şablon özetini yazar.
+        - `{"distance_sales": {"version": "…", "sha256": "<64 hex>", "display_sha256": "<64 hex>"}, …}`: `sha256` kayıtlı özete eşit olmalıdır; `display_sha256` isteğe bağlıdır, biçimi denetlenir ve olduğu gibi saklanır (§20).
+    - Sürüm kayıtlı güncel sürüm değilse ya da özet tutmazsa `legal_text_outdated` (P0001, detail tür). Biçimsiz ya da eksik zorunlu tür `consent_required`.
+    - `early_performance` hiçbir zaman zorunlu değildir; yoksa, `null` ya da `false` ise satır yazılmaz. Varsa ayrı bir `consent_record` (granted, `quote_acceptance`, teklif ve sipariş kimliği, `text_sha256`) yazılır; sürümü yanında gösterilen `distance_sales` sürümüdür.
+    - Üretim kapısı (T21, §9.4): etkin olduğu org'da `legal_texts_not_final` (P0001, detail ilk neden).
+    - Hatalar: `quote_not_open`, `quote_expired`, `billing_profile_incomplete`, `consent_required` (detail `kvkk_notice` | tür), `legal_text_outdated`, `legal_texts_not_final`, `invalid_input` (detail `<tür>.display_sha256`).
 - `customer_decline_quote(p_quote_id, p_request_revision default false, p_note default null)`
 - `customer_cancel_order(p_order_id)`: `has_payments`, `payment_in_progress`.
 - `customer_payment_instructions(p_order_id)` → `(bank_name, iban, iban_holder, reference, outstanding_kurus, currency, payment_due_at)`
@@ -548,7 +603,7 @@ A2'de:
 
 A1'de:
 - `ops_billing_setting(p_org_id)`
-- `ops_save_billing_setting(p_org_id, p_settings jsonb)`: `allow_fake_payments` anahtarını kabul etmez.
+- `ops_save_billing_setting(p_org_id, p_settings jsonb)`: `allow_fake_payments`, `marketing_consent_enabled` (T27), `inventory_reuse_months` (T18) ve `legal_gate_enforced` (T21) anahtarlarını kabul etmez (yalnızca SQL). T21 ile `kep_address`, `site_domain` (küçük harfli alan adı) ve `kvkk_email` alır.
 - `ops_save_package(p_org_id, p_package jsonb) returns uuid`
 - `ops_create_price_list_draft(p_org_id, p_copy_from_id default null) returns uuid`
 - `ops_save_price_list_draft(p_price_list_id, p_valid_from, p_vat_rate_bp, p_note, p_items jsonb)`: `price_list_not_draft`.
@@ -569,7 +624,7 @@ A2'de:
 - `ops_issue_quote(p_application_id, p_proposed_service_start default null, p_valid_days default null, p_discount_bp default 0, p_discount_note default null, p_note_to_customer default null) returns uuid`
 - `ops_issue_parcel_quote(p_org_id, p_customer_user_id, p_package_id, p_parcel_ids uuid[], p_first_year, p_proposed_service_start, p_renewal_of_order_id default null, p_valid_days default null, p_discount_bp default 0, p_discount_note default null, p_note_to_customer default null) returns uuid`
 - `ops_orders(...)`, `ops_cancel_order(p_order_id, p_note default null)`, `ops_extend_payment_due(p_order_id, p_due_on)`, `ops_terminate_order(p_order_id, p_note)`
-- `ops_record_manual_payment(p_order_id, p_amount_kurus, p_value_date, p_bank_reference, p_note default null) returns uuid`: `amount_exceeds_balance`, `payment_in_progress`.
+- `ops_record_manual_payment(p_order_id, p_amount_kurus, p_value_date, p_bank_reference, p_note default null, p_installment_id default null) returns uuid`: `amount_exceeds_balance`, `payment_in_progress`, `invalid_input` (`installment_id`), `installment_not_open`. Bir plan ödemesine ya da açık ödemelere sırayla (§5.6).
 - `ops_void_manual_payment(p_payment_id, p_note)`: `order_active`.
 - `ops_resolve_payment_review(p_payment_id, p_succeeded boolean, p_provider_ref text, p_note default null)`: Yalnızca dolandırıcılık incelemesi için; uyuşmazlık kodlu satırları reddeder.
 - `ops_payments(...)`, `ops_payment_events(p_payment_id)`
@@ -581,8 +636,9 @@ A2'de:
 - `ops_audit_events(p_org_id, p_entity_type default null, p_entity_id default null, p_action_prefix default null, p_limit default 200)`
 
 **Ödeme (`service_role`, A2; Edge sözleşmesi B'nin `_shared/payments/db.ts` dosyasında):**
-- `payment_begin(p_order_id, p_user_id, p_provider, p_return_origin) returns jsonb`
-    - Hatalar: `not_found`, `order_not_payable`, `billing_profile_incomplete`, `fake_payments_disabled`.
+- `payment_begin(p_order_id, p_user_id, p_provider, p_return_origin) returns jsonb`: sıradaki açık plan ödemesinin açık tutarı (§5.6).
+    - Hatalar: `not_found`, `order_not_payable`, `payment_in_progress` (incelemede bir kart denemesi var), `billing_profile_incomplete`, `fake_payments_disabled`.
+    - Alıcının kullanılabilir bir e-postası yoksa (sırayla fatura profili, iletişim, hesap e-postası; boş metin yok sayılır) `billing_profile_incomplete`, detail `email` döner ve deneme yazılmaz: sağlayıcı `buyer.email` ister. Yalnızca telefonla kayıtlı müşteri kartla ödemek için fatura bilgilerine e-posta ekler; portal formu bu durumda e-postayı zorunlu gösterir. Havale etkilenmez.
     - Süresi dolmamış `initiated` denemeleri `expired` yapar (`superseded`).
     - Döner: `{payment_id, order_id, order_number, amount_kurus, currency, items[{payment_item_id, line_no, name, amount_kurus}], buyer{id, first_name, last_name, identity_number, email, phone, address, district, city, country, postal_code, registered_at}, billing{contact_name, address, city, country, postal_code}}`
     - `identity_number` gerçek değer ya da `"11111111111"` olur. Anlık görüntü yazılmaz.
@@ -604,34 +660,39 @@ Mesaj kısa bir koddur. `detail` yalnızca alan adını taşır, değeri taşım
 
 | SQLSTATE | Kodlar |
 | --- | --- |
-| 42501 | `forbidden` |
+| 42501 | `forbidden`, `contract_document_immutable` (T04: `contract-documents` nesnesi değiştirilemez ya da silinemez) |
 | P0002 | `not_found` |
 | 22023 | `invalid_input`, `boundary_invalid`, `consent_required`, `item_required` |
 | 23505 | `exists` |
 | P0001 | `not_customer`, `application_not_draft`, `application_not_open`, `application_incomplete`, `too_many_gardens`, `garden_not_verified`, `no_price_list`, `package_not_priced`, `price_list_not_draft`, `price_list_incomplete`, `valid_from_in_past`, `quote_not_open`, `quote_expired`, `billing_profile_incomplete`, `order_not_payable`, `has_payments`, `payment_in_progress`, `order_active`, `amount_exceeds_balance`, `refund_exceeds_payment`, `refund_not_open`, `fake_payments_disabled`, `signup_closed`, `too_many_attempts`, `state_changed` |
+| P0001 (ödeme planı, §5.6) | `installment_unpaid` (ödenmemiş ziyaret ödemesinin ziyareti planlanamaz), `installment_not_open`, `installment_frozen` (plan satırının tutarı ve kimliği değişmez), `installment_plan_mismatch` (plan toplamı tutmadı; olmamalı) |
+| P0001 (hukuk takip işleri) | `consent_not_asked` (T27, detail tür), `legal_text_outdated` (T21, detail tür), `legal_texts_not_final` (T21, detail `distance_sales_draft` \| `pre_information_draft` \| `kvkk_notice_not_final` \| `company_info_incomplete`), `withdrawal_period_open` (T03, [bahce-yonetimi.md](bahce-yonetimi.md) §9.7), `order_not_active` (T04) |
 | 55000 | `payment_not_open` |
 
 ### 6.11 Tetikleyiciler ve cron
 
 **Koruma tetikleyicileri:** `price_list_guard`, `price_list_item_guard`, `quote_guard`, `service_order_item_guard`.
 
-**Ekleme-yalnız (`private.forbid_mutation`):** `quote_item`, `audit_event`, `consent_record`, `payment_event`, `payment_billing_snapshot`.
+**Ödeme planı (§5.6, §6.14):** `quote_installment_terms` (teklif eklenirken `inputs.installments`), `order_installment_guard` (plan satırı silinmez, tutarı değişmez, ödenmiş ya da iptal edilmiş satır açılmaz; havale düzeltmesi hariç), `service_order_close_installments` (sona eren siparişin ödenmemiş ödemeleri), `session_guard_installment` (ödenmemiş ziyaret ödemesinin ziyareti).
+
+**Ekleme-yalnız (`private.forbid_mutation`):** `quote_item`, `audit_event`, `consent_record`, `payment_event`, `payment_billing_snapshot`, `contract_document` (T04).
 
 **pg_cron işleri:**
 
 | İş | Zaman | Sahip |
 | --- | --- | --- |
 | `signup-housekeeping` + `signup-cleanup` | Saatte bir | A1 |
-| `billing-housekeeping` | `0 0 * * *` | A2 |
+| `billing-housekeeping` | `0 0 * * *` | A2; plan ödemesi hatırlatmaları ve pencere sonunda düşme (§5.6) |
 | `reconcile-payments` | `*/10 * * * *` | A2 |
 
 ### 6.12 Seed (A1, yalnızca yerel)
 
-- **Ayarlar:** `org_billing_setting` için `accepts_signups = true`, `allow_fake_payments = true`, `identity_number_required = false`, örnek unvan ve sahte IBAN.
-- **Paketler:** `standart` (`91200000-0000-4000-8000-000000000001`, 4 ziyaret) ve `ekonomik` (`…0002`, 3 ziyaret).
+- **Ayarlar:** `org_billing_setting` için `accepts_signups = true`, `allow_fake_payments = true`, `legal_gate_enforced = false` (varsayılan; üretim kapısı kapalı), `identity_number_required = false`, örnek unvan, sahte IBAN, örnek KEP adresi ve `orchados.example` alan adı (şirket bilgileri tam: altbilgi ve hukuki metinler doldurulur). `marketing_consent_enabled = false` (T27; web sabiti `MARKETING_CONSENT_ENABLED` da kapalı; ona ihtiyaç duyan test kendi işleminde açar).
+- **Paketler** (lansman listesi, [fiyatlandirma.md](fiyatlandirma.md)): `temel` (`…0002`, 2 ziyaret, sıra 1), `standart` (`91200000-0000-4000-8000-000000000001`, 4 ziyaret, sıra 2), `kapsamli` (`…0003`, 6 ziyaret, sıra 3). Üçünde `includes_inventory = true`.
 - **Fiyat listeleri:**
-    - v1 (`…0101`): yayımlı, `valid_from = 2026-10-01`, KDV 2000 bp. Kalemler: standart birim 12500, minimum 500000; ekonomik birim 13000, minimum 450000; envanter 0. Önce taslak olarak yazılır, kalemler eklenir, sonra yayımlanır.
-    - v2 (`…0102`): taslak.
+    - v1 (`…0101`): yayımlı, `valid_from = 2026-10-01`, KDV 2000 bp. Kalemler (birim / minimum / envanter, kuruş): temel 20800 / 560000 / 600000, standart 18000 / 1120000 / 600000, kapsamli 16800 / 1600000 / 600000. Önce taslak olarak yazılır, kalemler eklenir, sonra yayımlanır.
+    - v2 (`…0102`): taslak, `valid_from = 2027-01-01`, ~%15 artış (örnek): temel 23900 / 644000, standart 20700 / 1288000, kapsamli 19300 / 1840000; envanter 690000.
+    - Sipariş, ödeme ve çıkarma mekaniğini sınayan pgTAP dosyaları (46, 48, 49) lansman fiyatlarına bağlı değildir: `testing.use_round_prices()` işlem içinde yuvarlak fiyatlı bir liste yayımlar (standart 12500 / 500000 / 0).
 - **Müşteri kullanıcısı:** `customer@example.com` (`a0000000-0000-4000-8000-000000000006`), parola `orchados-dev`.
     - Bu kullanıcı `USERS` listesine **eklenmez**; `fixtures.ts`'de ayrı bir `CUSTOMER` sabiti ve `signInCustomer()` olur.
     - Profili: telefon `+905550000006`, whatsapp, `kvkk-v1-taslak`. Bireysel fatura profili (TCKN yok). Üç rıza kaydı.
@@ -642,6 +703,40 @@ Mesaj kısa bir koddur. `detail` yalnızca alan adını taşır, değeri taşım
 - `testing.purge_billing_users(p_user_ids uuid[])`: `customer_user_id`, `user_id` ve `subject_id` sütunlarından siler; tetikleyiciler kapalıdır.
 - `local-db.ts` içine `purgeBillingUsers(ids)` eklenir.
 - `27_testing_purge.test.sql` güncellenir.
+
+### 6.14 Ödeme planı tabloları ve fonksiyonları (`installments-v1`)
+
+Migration'lar: `20261104100950_visit_installments.sql`, `20261104101000_installment_visits_removals.sql`. Kurallar §5.6'da.
+
+```sql
+public.installment_kind  = ('inventory', 'visit', 'single')
+public.installment_status = ('pending', 'paid', 'cancelled')
+
+public.order_installment (id, org_id, order_id, customer_user_id, seq 1..13, kind, visit_no 1..12 (yalnızca visit),
+  window_code, window_name, window_start, window_end, amount_kurus > 0, vat_kurus, paid_kurus, cancelled_kurus,
+  currency, due_on, status, paid_at, cancelled_at, cancel_reason, reminder_sent_at, due_reminder_sent_at,
+  visit_override_at, visit_override_by [iç], visit_override_note [iç],
+  unique(order_id, seq), unique(order_id, visit_no),
+  check (paid + cancelled <= amount), check (pending ⇔ paid + cancelled < amount), check (paid ⇒ paid_kurus > 0))
+public.order_installment_item (id, org_id, installment_id, order_id, customer_user_id, order_item_id, amount_kurus,
+  vat_kurus, paid_kurus, cancelled_kurus, unique(installment_id, order_item_id))
+public.payment.order_installment_id not null → order_installment (ödemenin ödediği plan ödemesi)
+public.org_billing_setting.installment_lead_days 0..60, default 14 (yalnızca SQL)
+```
+
+- Açık tutar = `amount − cancelled − paid`. Plan satırları ve satır payları silinmez; tutarları değişmez. Demo ve hesap kilitleri bağlıdır. Müşteri kendi satırlarını okur; `visit_override_by` ve `visit_override_note` iç sütundur (`BILLING_COLUMNS`).
+- **Fonksiyonlar:**
+    - `public.package_visit_windows(p_year_visits)` (`anon`, `authenticated`): paket pencereleri; `apps/web/src/lib/billing/installments.ts` aynasıdır (entegrasyon testi denetler).
+    - `public.quote_installment_plan(p_quote_id)` (`authenticated`): teklif bugün onaylansa oluşacak plan; teklifin müşterisi ya da org'un ops'u; başkasına satır dönmez.
+    - `public.ops_order_installments(p_order_id)`: plan, gecikme günü ve iç izin sütunları (`visit_override_by` `{id, name}`).
+    - `public.ops_overdue_installments(p_org_id, p_min_days default 30, p_limit default 200)`: en az o kadar gün geciken açık ödemeler.
+    - `public.ops_allow_unpaid_visit(p_installment_id, p_note)`: ödemesiz ziyaret izni (not ≤ 500); `installment_not_open`, `invalid_input` (`note`).
+    - `ops_billing_summary` dönüşüne `installments_overdue` eklendi (30+ gün).
+    - `receipt_data` anahtarlarına `plan_installment {seq, count, kind, visit_no, window_name, due_on}` eklendi.
+    - `customer_payment_instructions.outstanding_kurus` ve `payment_due_at` sıradaki açık ödemenin açık tutarı ve son günüdür.
+    - Yardımcılar: `private.installment_windows`, `private.installment_schedule`, `private.quote_plan_period`, `private.quote_payment_due_on`, `private.create_order_installments`, `private.order_activatable`, `private.installment_due`, `private.credit_installment`, `private.uncredit_installment`, `private.next_open_installment`, `private.reschedule_installments`, `private.installment_blocking_visit` (`authz` sarmalayıcısıyla), `private.cut_line_installments`, `private.close_order_installments`.
+- **Denetim:** `order.installments_created`, `order.installments_rescheduled`, `order.installments_cancelled`, `order.installment_lapsed`, `order.unpaid_visit_allowed`; ödeme denetim kayıtları `installment_id` ve `installment_seq` taşır.
+- **Testler:** pgTAP `58_visit_installments` (plan, yuvarlama, son günler, lansman örnekleri, kabul, kart ve havale, idempotentlik, planlama engeli ve izni, pencere sonunda düşme, hatırlatmalar, gecikme listesi, fesih, çıkarma ve cayma, ek sipariş, sütun yetkileri); `33_orders_payments` plan üzerinden; entegrasyon `billing-db` (eşzamanlılık: aynı ödeme için kart ve havale), `payments-flow` (müşteri 1. sonra 2. ödemeyi kartla öder), `payments-contract`, `legal-followups` (pencere aynası). Sipariş ve iade mekaniğini tam ödenmiş siparişle sınayan pgTAP dosyaları (46, 48, 49, 52, 53, 54, 55) `testing.use_single_installment(order)` ile eski (tek ödemeli) siparişi kurar.
 
 ## 7. Kayıt: `customer-signup` Edge Function (A1)
 
@@ -660,8 +755,15 @@ x-orchados-proxy-secret: <SIGNUP_PROXY_SECRET>   (yalnızca Next sunucusu; varsa
 409 {"error":"email_taken"} | {"error":"phone_registered"}
 429 {"error":"too_many_attempts"}   503 {"error":"signup_closed"}   500 {"error":"failed"}
 
-{ "action":"complete" }  Authorization: Bearer <kullanıcı access token>
-200 {"status":"completed"|"already_completed"|"no_pending"}   401 {"error":"unauthorized"}   403 {"error":"phone_not_verified"}
+{ "action":"send_code", "phone":"+905321234567", "ticket" }   (web'in kod adımı, sunucudan)
+200 {}   (izin verilse de verilmese de, kod gitse de gitmese de; en az 1,5 sn)   400 {"error":"invalid_input","field"}
+
+{ "action":"complete", "ticket"? }  Authorization: Bearer <kullanıcı access token>
+200 {"status":"completed"|"already_completed"|"no_pending"}   401 {"error":"unauthorized"}
+403 {"error":"phone_not_verified"|"signup_mismatch"|"demo_read_only"}
+
+{ "action":"claim" }  Authorization: Bearer <parolayla açılmış oturumun access token'ı>
+200 {"ticket"} | {"status":"no_pending"}   401   403 {"error":"password_required"|"demo_read_only"}
 
 { "action":"cleanup" }   x-orchados-cron-secret: <ORCHADOS_CRON_SECRET>
 200 {"deleted": n}   401
@@ -670,7 +772,7 @@ x-orchados-proxy-secret: <SIGNUP_PROXY_SECRET>   (yalnızca Next sunucusu; varsa
 ### 7.1 `register`
 
 1. **Doğrulama.** Ad 2–120 karakter, telefon `^\+905[0-9]{9}$`, e-posta, parola en az 8 karakter, sürüm biçimleri.
-2. **Turnstile.** `TURNSTILE_SECRET_KEY` varsa `captcha_token` siteverify ile doğrulanır; yoksa adım atlanır (yerel ve CI).
+2. **Turnstile.** `TURNSTILE_SECRET_KEY` varsa `captcha_token` siteverify ile doğrulanır. Yoksa kayıt kapalıdır (503 `signup_closed`, fail closed); yalnızca yerel yığın ve CI `SIGNUP_TURNSTILE_DISABLED=1` ile adımı atlar (`supabase/config.toml`). Barındırılan projede bu değişken asla tanımlanmaz.
 3. **IP.** Proxy sırrı tutarsa (sabit zamanlı karşılaştırma) gövdedeki `client_ip` kullanılır. Tutmazsa `cf-connecting-ip`, o da yoksa `x-forwarded-for`'un ilk değeri.
 4. **Oran sınırı.** `ip_hash`, `phone_hash` ve `email_hash` (küçük harfli e-posta) = hex(HMAC-SHA256(`SIGNUP_HASH_SECRET`, değer)). Ardından `signup_register_attempt` çağrılır.
 5. **Eşleşmeler.** `signup_find_account` sonucuna göre:
@@ -684,12 +786,13 @@ x-orchados-proxy-secret: <SIGNUP_PROXY_SECRET>   (yalnızca Next sunucusu; varsa
 ### 7.2 `complete`
 
 1. Kullanıcı `/auth/v1/user` üzerinden okunur.
-2. JWT `amr` dizisinde `otp` ya da `sms` yöntemli öğe aranır; `phone_confirmed_at` dolu olmalıdır. Yoksa 403.
-3. `signup_complete(p_user_id, p_code_at)` en yeni kod zamanıyla çağrılır. Kodun bekleyen kayıttan sonra alındığını ve Auth'taki doğrulanmış telefonun bekleyen kayıttaki telefon olduğunu o denetler; `phone_mismatch` dönerse 403 `phone_not_verified`.
+2. JWT `amr` dizisinde `otp` ya da `sms` yöntemli, zamanı `phone_confirmed_at` ile en çok 2 saniye farklı öğe aranır (`latestPhoneCodeAt`). GoTrue e-posta kodunu ve sihirli bağlantıyı da `otp` diye kaydeder; telefon onayını yalnızca telefon kodu damgalar. Yoksa 403 `phone_not_verified`.
+3. `signup_owner_check` her istekte çalışır (§7.5); bilet yokluğu denetimi atlatmaz. `mismatch` gelirse hesap önce aynı işlemde karantinaya alınır, sonra silinir (iki deneme; olmazsa karantina kalır ve logda `ALERT` satırı çıkar). `refused` ya da `mismatch` 403 `signup_mismatch` döner.
+4. `signup_complete(p_user_id, p_code_at)` en yeni kod zamanıyla çağrılır. Kodun bekleyen kayıttan sonra alındığını ve Auth'taki doğrulanmış telefonun bekleyen kayıttaki telefon olduğunu o denetler; `phone_mismatch` dönerse 403 `phone_not_verified`.
 
 ### 7.3 `cleanup`
 
-Saatlik çalışır. 24 saati geçmiş, telefonu doğrulanmamış self-servis hesapları Admin API ile siler.
+Saatlik çalışır. 24 saati geçmiş, telefonu doğrulanmamış self-servis hesapları Admin API ile siler. Bekleyen kaydı incelemede olanları (`signup_review_user_ids`) silmez.
 
 ### 7.4 Kurallar
 
@@ -698,11 +801,24 @@ Saatlik çalışır. 24 saati geçmiş, telefonu doğrulanmamış self-servis he
     - Senaryo: Saldırgan kurbanın e-postasıyla kaydolur. Ops kurbanı bu e-postayla davet edince `ops_find_user_id` hesabı döndürmez, Auth 422 verir ve `invite-user` 409 `conflict` döner.
     - A1 bu senaryoyu entegrasyon testiyle, hissedar onayı için de pgTAP ile kanıtlar.
 
+### 7.5 Hesap ön-ele-geçirme önlemi (PR #93 incelemesi, iki tur; auth sertleştirmesi)
+
+Senaryo: saldırgan kurbanın telefonu, kendi e-postası ve parolasıyla kaydolur ve kurbanın telefonu o hesapta doğrulamasını bekler. Doğrulanırsa kurbanın telefonla girişi saldırganın parolasını bildiği hesaba düşer. Önlemler:
+
+- **Bilet.** `register`'ın her 200 yanıtı bir bilet taşır; web onu `httpOnly` bir çerezde tutar (HTTPS'te `__Host-` önekli, `Path=/`). Yalnızca hesap açan kaydın bilet özeti saklanır.
+- **Gönderim izni (Auth katmanı).** Kod adımı sunucudan `customer-signup` `send_code`'u çağırır. Fonksiyon servis rolüyle `signup_code_grant(phone, ticket)` çağırır (dakikada bir, kayıt başına altı), bekleyen kayda 30 saniyelik izin bırakır, kodu aynı istekte Auth'tan ister ve Auth yanıt verince izni kaldırır (`signup_code_release`). Send SMS hook'u tamamlanmamış self-servis kaydın telefon doğrulama kodunu yalnızca bu izin varken gönderir (`signup_sms_allowed`) ve izni gönderim başarılı olunca tüketir (`signup_sms_sent`). Auth'un herkese açık `/auth/v1/resend` ucu izinsiz çağrılırsa SMS gitmez, hook boş `200` döner (H33). Auth o zaman da yeni kodu saklar ve kayıt sahibinin elindeki kod geçersizleşir. Bu, kabul edilen bir ödünleşimdir (deployment.md): hata dönmek eski kodu korurdu ama numarayı ayırt ettirirdi. Kayıt sahibinin kendi biletiyle girdiği yanlış kodlar kilide sayılmaz.
+- **Telefon değişikliği.** Personel dışındaki hesaplarda (müşteri, sahip, izleyici, rolü ve parseli olmayan hesap) telefon Auth üzerinden değişmez (`customer_account_guard`); ops `private.change_account_phone` kullanır. Personel telefonu yalnızca yeni numaraya giden kodla onaylayarak değiştirir. GoTrue v2.197 hook'a `sms_type` göndermez; hook kodu her zaman Auth'un hedef numarasına (`sms.phone`) yollar ve hedef `user.new_phone` ise bunu telefon değişikliği sayar, hiçbir zaman mevcut numaraya göndermez.
+- **E-posta kodu yok.** Self-servis hesap e-posta giriş kodu, sihirli bağlantı ya da e-posta değişikliği alamaz (`customer_account_guard`). `complete` ayrıca `amr` zamanını `phone_confirmed_at` ile karşılaştırır (§7.2).
+- **Sahiplik kanıtı.** Her `complete` (web'de `/kayit`, `/kayit/dogrula` ve `/`) çerezdeki bileti gönderir. Bekleyen kayıt bu bileti taşımalıdır ya da oturum hesabın parolasıyla açılmış olmalıdır (`amr` içinde `password`). `verifyOtp` oturumu kodun oturumuyla değiştirir; bu yüzden `/kayit/dogrula` kodu istemeden önce parola oturumuyla `claim` çağırır ve yeni bir bilet alır.
+- **Kapalı başarısızlık.** Kanıtsız kod, tamamlanmamış self-servis kayıtta telefonu doğrulanmış bırakmaz. Biletli kayıt önce karantinaya alınır (telefon onayı kaldırılır, oturumlar kapanır, satır `delete_failed` ile işaretlenir), sonra silinir; silme olmazsa karantina kalır. Karantinadaki satırı ne `signup_housekeeping` ne `cleanup` siler. Biletten önce yazılmış satır (`ticket_hash IS NULL`) aynı şekilde karantinaya alınır (`unproven_code`). Auth her kod girişinde `phone_confirmed_at`'i yeniden damgaladığı için "daha önce doğrulanmış" ayrımı yapılmaz.
+- **Kurtarma.** Reddedilen tamamlama oturumu kapatır ve `/giris?kayit=yarim`'e gider: kaydı başlatan kişi e-posta ve parolasıyla girip telefonunu `/kayit/dogrula`'da doğrular; hesabı silinmişse yeniden kayıt olur. "Yeniden kayıt olun" tek başına gösterilmez.
+- Testler: `account-takeover.test.ts` ve `customer-signup.test.ts` (asıl saldırı, doğrudan `resend`, `/giris` telefon girişi, çerez sabitleme ve eşzamanlı iki kayıt, eski satır ve döngüsüz kurtarma; auth sertleştirmesi: telefon değişikliği, telefon değiştirme kodunun alıcısı, e-posta kodu oturumu, izin yetkisi ve sınırı, karantinanın korunması, `resend` ile kilitleme), pgTAP `57_signup_owner_proof` ve `69_auth_hardening`.
+
 **Web akışı (C):**
 1. Server action `register` çağırır; proxy sırrı başlığı ve `x-forwarded-for` bilgisi gönderilir.
-2. `phone_login_allowed`, ardından `requestSignupCode(supabase.auth, phone)` (`apps/web/src/lib/billing/signup-code.ts`, A1). Önce `signInWithOtp({phone, options: {shouldCreateUser: false, channel: "sms"}})` dener. Yeni açılan hesabın telefonu henüz doğrulanmadığı için GoTrue bunu kayıt sayar ve `signup_disabled` (422) döner; o zaman `auth.resend({type: "sms", phone})` telefon doğrulama kodunu gönderir. Telefonu doğrulanmış hesapta (numaranın sahibi yeniden kaydoluyor) `signInWithOtp` kodu gönderir. Yalnız `signInWithOtp` çağırmak yeni kayıtta hiç SMS göndermez. Yeniden gönderme düğmesi de aynı yardımcıyı kullanır.
-3. `verifyOtp` (başarısızlıkta `phone_login_record_failure`).
-4. `complete` çağrılır. `completed` gelirse `/portal`'a, diğer durumlarda `/`'a gidilir.
+2. `phone_login_allowed`, ardından `sendAccountCode(supabase, phone, {ticket})` (`apps/web/src/lib/signup/send-code.ts`). Önce `signInWithOtp({phone, options: {shouldCreateUser: false, channel: "sms"}})` dener. Yeni açılan hesabın telefonu henüz doğrulanmadığı için GoTrue bunu kayıt sayar ve `signup_disabled` (422) döner; o zaman biletle `customer-signup` `send_code` telefon doğrulama kodunu sunucu tarafında ister (§7.5). Telefonu doğrulanmış hesapta (numaranın sahibi yeniden kaydoluyor) `signInWithOtp` kodu gönderir. Biletsiz numara kod almaz. Yeniden gönderme düğmesi de aynı yardımcıyı kullanır.
+3. `verifyOtp` (başarısızlıkta `phone_login_record_failure`, bilet varsa `p_ticket` ile).
+4. `complete` biletle çağrılır. `completed` gelirse `/portal`'a gidilir; `signup_mismatch` gelirse oturum kapatılır ve `/giris?kayit=yarim`'e gidilir; diğer durumlarda `/`'a gidilir.
 
 ## 8. Ödeme katmanı (B)
 
@@ -772,7 +888,7 @@ export function choosePaymentProvider(id, env, fetchImpl?): PaymentProvider | nu
 ```
 POST /functions/v1/payments
 {action:"start", order_id, return_origin, client_ip}  (müşteri JWT)
-  → 200 {payment_id, redirect_url} | 400 invalid_input | 401 | 404 | 409 order_not_payable|billing_profile_incomplete | 502 provider_error | 503 payments_disabled
+  → 200 {payment_id, redirect_url} | 400 invalid_input | 401 | 404 | 409 order_not_payable|payment_in_progress|billing_profile_incomplete (e-posta eksikse field:"email") | 502 provider_error | 503 payments_disabled
 {action:"refund", refund_id}  (ops JWT)
   → 200 {status:"succeeded"|"failed", kind, failure_code?, retryable?} | 403 | 404 | 409 refund_not_open | 503
 {action:"reconcile"}  x-orchados-cron-secret  → 200 {checked, finalized} | 401
@@ -855,22 +971,40 @@ POST /functions/v1/payment-webhook  → 200 {ok:true} | 401 {error:"invalid_sign
 
 ## 9. Site (C)
 
-- **Yollar:** `src/app/(site)/` altında `/`, `/nasil-calisir`, `/paketler`, `/sss`, `/iletisim`, `/kvkk`, `/acik-riza`, `/gizlilik`, `/mesafeli-satis`, `/on-bilgilendirme`, `/iade`, `/kayit`, `/kayit/dogrula`. Ayrıca `robots` ve `sitemap`; `ORCHADOS_SITE_INDEXABLE=1` olmadıkça her şey `Disallow`.
+- **Yollar:** `src/app/(site)/` altında `/`, `/nasil-calisir`, `/paketler`, `/sss`, `/iletisim`, `/kvkk`, `/acik-riza`, `/gizlilik`, `/mesafeli-satis`, `/on-bilgilendirme`, `/iade`, `/bahcede-bulunanlar`, `/kayit`, `/kayit/dogrula`. Ayrıca `robots` ve `sitemap`; `ORCHADOS_SITE_INDEXABLE=1` olmadıkça her şey `Disallow`.
+- **`/paketler`:** `public_package_prices()` ile yürürlükteki listenin paketlerini gösterir. Tutarlar tüketiciye **KDV dahil** gösterilir (yıllık dönüm başı, ziyaret başı birim, en az ücret, ilk yıl envanter ücreti). Her pakette 20 dönüm örneği `price_preview` ile hesaplanır: yıllık ve ilk yıl (envanterle) toplam.
 - **Hukuk metinleri:** `src/lib/legal/` altında; sürüm adı `-taslak` ile bitiyorsa üstte bant görünür.
 
   ```ts
-  LEGAL_TEXT_VERSIONS = { kvkk_notice: "kvkk-v1-taslak", explicit_consent: "riza-v1-taslak", privacy: "gizlilik-v1-taslak",
-    distance_sales: "mesafeli-v1-taslak", pre_information: "onbilgi-v1-taslak", refund_policy: "iade-v1-taslak" }
+  LEGAL_TEXT_VERSIONS = { kvkk_notice: "kvkk-v2-taslak", explicit_consent: "riza-v2-taslak", privacy: "gizlilik-v2-taslak",
+    distance_sales: "mesafeli-v4-taslak", pre_information: "onbilgi-v4-taslak", refund_policy: "iade-v4-taslak",
+    field_notice: "bahcede-v1-taslak" }
   ```
+
+  Üç metin İP14'te v2'ye geçti ([bahce-yonetimi.md](bahce-yonetimi.md) §18); hukuki kararlarla ([hukuk/kararlar.md](hukuk/kararlar.md#surum)) bütün metinler bir sürüm ilerledi ve sahada karşılaşılan kişiler için `bahcede-v1-taslak` (`/bahcede-bulunanlar`) eklendi. Önceki sürümler (v1, sözleşme metinlerinde v2) `docs/hukuk/arsiv/` altında durur; kural [hukuk/README.md](hukuk/README.md)'de. Yeni kayıtlar bu sürümlerle açılır; eski kayıtlar kendi sürümünü korur.
 - **`/` davranışı:**
     1. Oturum yoksa landing.
     2. Varsayılan bölüm varsa oraya yönlendirme.
-    3. Yoksa `complete` çağrılır: `completed` gelirse `/portal`, `phone_not_verified` gelirse doğrulama kartı.
+    3. Yoksa `complete` çerezdeki biletle çağrılır: `completed` gelirse `/portal`, `phone_not_verified` gelirse doğrulama kartı, `signup_mismatch` gelirse `/kayit/yarim` (oturumu kapatır, `/giris?kayit=yarim`).
     4. Diğer durumlarda `noRoles` kartı.
 - **Proxy:** `isPublicPath(path)` (`src/lib/site/public-paths.ts`). `/portal`, `/makbuz` ve `/odeme/sahte` girişe kapalıdır.
 - **Roller:** `UserRoles.customer`. `loadUserRoles`, `my_owner_profile` çağrısıyla belirler.
 - **Görünüm:** CSS Modules, açık tema, mobil önce, görsel varlık yok.
 - **Turnstile:** `NEXT_PUBLIC_TURNSTILE_SITE_KEY` varsa widget görünür.
+
+### 9.3 Şirket bilgileri (T21, hukuk/kararlar.md H34)
+
+- **Tek ayar:** Satıcının unvanı, MERSİS, açık adresi, telefonu, e-postası, KEP adresi, vergi dairesi ve numarası ile alan adı `org_billing_setting`'dedir (`legal_name`, `mersis_number`, `address`, `phone`, `email`, `kep_address`, `tax_office`, `tax_number`, `site_domain`; isteğe bağlı `kvkk_email`, boşsa `kvkk@` + alan adı). `/operasyon/ayarlar`'da düzenlenir. Bunların hepsi doluysa bilgiler **tamdır** (`private.company_info_complete`).
+- **`public_company_info()`** (`anon`, `authenticated`): yalnızca bu şirket alanları ve `complete`. Satıcı kuralı (`private.seller_org_id`, belirleyici): `private.demo_org`'daki her org yok sayılır; kayıt org'u (`signup_org_id`) varsa ve demo değilse o; yoksa `org_billing_setting` satırı olan tek demo olmayan org; o da yoksa satıcı yoktur (bütün alanlar `null`, `complete = false`). Paylaşılan test barındırıcısında demo org'u hiçbir zaman satıcı olmaz.
+- **Gösterim:** Site altbilgisi (`components/site/site-footer.tsx`) ve hukuki metinler (`legal-page.tsx`) bilgiler tamsa onları gösterir; değilse ya da fonksiyon henüz yoksa bugünkü yer tutucular kalır. Yer tutucular `src/lib/legal/company-placeholders.ts` ile yalnızca gösterimde doldurulur; `legal.ts` taslaklarla aynı kalır. Sözleşmedeki "**Hizmet alan:**" satırının alıcı yer tutucuları ([Ad soyad], [adres], [telefon], [e-posta]) şirket bilgisi değildir; sipariş başına doldurulur (§20).
+
+### 9.4 Hukuki metin kaydı ve üretim kapısı (T21)
+
+- **Kayıt:** `private.legal_text_version (kind, version, sha256, is_current, is_final, created_at)`. `kind`, `LEGAL_TEXT_VERSIONS` anahtarları ve `early_performance` (teklif kabulündeki kutu); her türün tek bir güncel satırı vardır ve onun `sha256` değeri şablon özetidir (§20). `is_final`, sürüm `-taslak` ile bitmiyorsa doğrudur. Önceki sürümler (arşiv dosyası olanlar) özetsiz, güncel olmayan satırlardır. İstemci okuyamaz; `registered_legal_text_versions()` (`anon`, `authenticated`) satırları döner. Ops KVKK aydınlatma kaydında (sahip formu, hissedar onayı) sürümü bu listeden seçer; eski serbest metin değerleri olduğu gibi kalır.
+- **Kural:** Her metin değişikliği ya da sürüm artışı (yayında "-taslak" ekinin kaldırılması dahil), aynı PR'da `private.register_legal_text(kind, version, sha256)` çağıran bir migration taşır. `text-hash.test.ts` ve `legal-followups.test.ts` bu migration olmadan kırılır. deploy-db ile Vercel yayını arasında veritabanı yeni sürümü bilir, eski web eski sürümü gönderir: kabul `legal_text_outdated` ile reddedilir (güvenli tarafta) ve sayfa müşteriden yenilemesini ister.
+- **Her projede doğrulama:** `customer_accept_quote` iki sözleşme metninin kayıtlı güncel sürümle gelmesini ister (`legal_text_outdated`); `customer_set_consent('kvkk_notice', …)` ve kayıt fonksiyonları kayıtlı güncel KVKK sürümünü ister.
+- **Üretim kapısı:** `private.legal_gate_active(org)` = `org_billing_setting.legal_gate_enforced` (varsayılan kapalı, yalnızca SQL ile açılır; ops ayar fonksiyonu yazmaz). Pilot, yayın şartları tamamlanınca açar ([deployment.md](deployment.md) "Hukuki metin kapısı"); yerel, CI, barındırılan test projesi ve demoda kapalıdır. Sahte ödeme ayarından çıkarılmaz: test projesinde sahte kilitler kapalıyken (iyzico sandbox) de teklif kabul edilir. Etkinken `customer_accept_quote` şu nedenlerle `legal_texts_not_final` döner (sıra ile): `distance_sales_draft`, `pre_information_draft` (güncel kayıtlı sürüm taslak), `kvkk_notice_not_final` (müşterinin son KVKK kaydı kayıtlı bir son sürüm değil), `company_info_incomplete` (§9.3). Kapı istemcinin gönderdiği metne ya da saklı değerin ekine değil, kayıttaki `is_final`'a bakar. Arayüz anahtarı yoktur.
+- **`legal_gate_status(p_org_id default null)`** (`authenticated`) → `(active, reasons)`: verilen org'da çağıranın teklifi varsa o org, yoksa müşteri org'u. Teklif sayfası bunu okur; fonksiyon yoksa ya da hata dönerse hiçbir şey göstermez (karar sunucunundur). Kapı kabul düğmesini kapatır, nedenleri yazar ve `kvkk_notice_not_final` için güncel aydınlatma metninin "okudum" teyidini ("Kaydet") orada sunar.
 
 ## 10. Müşteri portalı (D)
 
@@ -880,12 +1014,12 @@ POST /functions/v1/payment-webhook  → 200 {ok:true} | 401 {error:"invalid_sign
 | --- | --- |
 | `/portal` | Bahçeler ve müşteri kartları; hiçbir şey yoksa "Bahçenizi kaydedin" |
 | `/portal/basvuru`, `/yeni`, `/[id]`, `/[id]/bahce/yeni`, `/[id]/bahce/[gardenId]` | Başvuru, bahçe formu (`BoundaryDrawMap`), önizleme |
-| `/portal/teklif/[id]` | Satırlar, onaylar, kabul, revize, vazgeç |
+| `/portal/teklif/[id]` | Satırlar (ek teklifte H19 dökümü), onaylar, isteğe bağlı erken başlama kutusu (T03), üretim kapısı ve KVKK teyidi (T21), kabul, revize, vazgeç. Kabul ve ret işlemleri `app/portal/teklif/[id]/actions.ts`'dedir |
 | `/portal/siparis`, `/[id]` | Kartla öde (bayrak açıksa), havale bilgisi, iptal |
 | `/portal/odeme`, `/[id]` | Geçmiş; sonuç sayfası 10 sn'de bir yenilenir |
 | `/portal/hesap` | İletişim formu (`customer_update_contact`), özetler |
 | `/portal/hesap/fatura` | Fatura profili. `?geri=` değeri `safeNextPath` (`src/app/giris/login-methods.ts`) ile süzülür |
-| `/portal/hesap/izinler` | İki açık rıza; eksikse aydınlatma onayı |
+| `/portal/hesap/izinler` | Sorulan isteğe bağlı izinler (bugün yok); daha önce verilmiş olanlar yalnızca geri alınabilir; eksikse aydınlatma teyidi |
 | `/makbuz/[paymentId]` | PDF (`@react-pdf/renderer`), `private, no-store` |
 
 Tablo okumaları `BILLING_COLUMNS` ile yapılır.
@@ -907,7 +1041,7 @@ Yeni bölüm ya da rol açılmaz; ops rolü kullanılır.
 | `/operasyon/iade` | İşle, havale iadesi, iptal, elle sonuç (kartta sağlayıcı referansı zorunlu) |
 | `/operasyon/fiyat/**` | Paketler ve fiyat listeleri |
 | `/operasyon/denetim-kaydi` | Denetim kaydı |
-| `/operasyon/ayarlar` | Faturalama ayarları, kayıt anahtarı. `allow_fake_payments` yalnızca gösterilir, düzenlenemez |
+| `/operasyon/ayarlar` | Faturalama ayarları, kayıt anahtarı, şirket bilgileri (KEP, alan adı, KVKK e-postası; tamlık durumu). `allow_fake_payments`, `marketing_consent_enabled` ve `inventory_reuse_months` yalnızca gösterilir, düzenlenemez |
 
 ## 12. Bildirimler (A2)
 
@@ -917,9 +1051,14 @@ Yeni bölüm ya da rol açılmaz; ops rolü kullanılır.
 | `application_rejected` | Ret | B-… | `/portal/basvuru/<id>` | `{ref} numaralı başvurunuz sonuçlandı. Ayrıntı: {link}` |
 | `payment_received` | Ödeme başarılı | M-… | `/portal/odeme/<id>` | `{ref} numaralı ödemeniz alındı, teşekkür ederiz. Makbuz: {link}` |
 | `refund_completed` | İade başarılı | I-… | `/portal/odeme/<payment_id>` | `{ref} numaralı iadeniz yapıldı; hesabınıza yansıması bankanıza göre birkaç gün sürebilir: {link}` |
-| `payment_reminder` | Bitimden 3 gün önce, bir kez | S-… | `/portal/siparis/<id>` | `{ref} numaralı siparişinizin ödemesi bekleniyor: {link}` |
+| `payment_reminder` | Her açık plan ödemesinin son gününden 7 gün önce ve son gününde, birer kez (§5.6) | S-… | `/portal/siparis/<id>` | `orchadOS: {ref} numaralı siparişinizde bir ödemenin son günü yaklaştı. Tarih ve tutar portalınızda: {link} Ödeme yapılmadan ilgili hizmet planlanmaz; faiz ya da ek ücret alınmaz.` (H35 (f)) |
+| `contract_ready` (T04) | Siparişin iki kabul belgesi kaydedilince, sipariş başına bir kez | S-… | `/portal/hesap/sozlesmeler` | `orchadOS: {ref} numaralı siparişinizin sözleşmesi ve ön bilgilendirme formu portalınızda: {link}` |
+| `addon_order_closed` (T18) | Para tutan ek sipariş dönemi kapandığı için iptal edilince | S-… | `/portal/siparis/<id>` | `orchadOS: {ref} numaralı ek siparişiniz, hizmet dönemi kapandığı için iptal edildi. Ödediğiniz tutar 14 gün içinde aynı yöntemle, masrafsız iade edilir: {link}` |
+| `withdrawal_received` (T03) | Cayma kaydedilince (portal ya da ops) | C-… | `/portal/parsel/<id>` | [bahce-yonetimi.md](bahce-yonetimi.md) §10 |
+| `garden_transfer_reports` (T23, H22) | Neden devir olan çıkarma açılınca (çıkış gününden önce) | C-… | `/portal/parsel/<id>` | `orchadOS: {bahçenizin} devir nedeniyle hizmetten çıkışı planlandı ({ref}). Raporlara erişim çıkış gününde kapanır; o güne kadar raporlarınızı indirebilirsiniz, sonrasında kopyası talebiniz üzerine verilir: {link}` |
+| `visit_scheduled` (T07, H15, H01) | Envanter ya da periyodik ziyaret en az 3 gün sonrasına planlanınca ya da taşınınca; parselin bütün sahiplerine, ziyaret ve gün başına bir kez (`visit_notice_sms_enabled`) | — (ziyaret) | `/portal/parsel/<id>` | `orchadOS: {bahçenizin} denetim ziyareti {gün} günü yapılacak. Bahçede çalışan ya da bulunacak kişilere görüntü alınacağını iletmenizi rica ederiz; bilgi: {site}/bahcede-bulunanlar Erteleme ve ayrıntı: {link}` |
 
-Alıcı yalnızca müşteridir. Tutar ve red nedeni SMS'e yazılmaz.
+Alıcı yalnızca müşteridir (`visit_scheduled`: parselin sahipleri). Tutar ve red nedeni SMS'e yazılmaz. Hepsi hizmet iletisidir, tanıtım içermez (H06; `messaging.test.ts`). `visit_scheduled` rapor şablonları gibi parsel ve ziyareti taşır (`session_id`, değişkenler `date`, `path`, `parcel_name`); gönderimler `private.visit_notice`'a da yazılır.
 
 ## 13. Ortam değişkenleri
 
@@ -928,7 +1067,8 @@ Alıcı yalnızca müşteridir. Tutar ve red nedeni SMS'e yazılmaz.
 | `ORCHADOS_SIGNUP_ENABLED`, `ORCHADOS_PAYMENTS_ENABLED`, `ORCHADOS_SITE_INDEXABLE`, `ORCHADOS_SITE_URL` | Web | Bayraklar |
 | `PAYMENT_FAKE_CHECKOUT` | Web | Yalnızca yerel, CI ve test projesi |
 | `SIGNUP_PROXY_SECRET` | Web (sunucu) + Edge | Yerelde `signup-proxy-local`. Asla `NEXT_PUBLIC` olmaz |
-| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Web / Edge | Pilotta zorunlu |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Web / Edge | Pilotta zorunlu. Edge secret'ı yoksa `customer-signup` kayıt almaz |
+| `SIGNUP_TURNSTILE_DISABLED` | Edge | `1` yalnızca yerel ve CI (`config.toml`); barındırılan projede **asla** |
 | `SIGNUP_HASH_SECRET` | Edge | IP ve telefon özeti; yerelde `signup-hash-local` |
 | `ORCHADOS_CRON_SECRET` | Edge + Vault `orchados_cron_secret` | Reconcile ve cleanup; yerelde `cron-local` |
 | `PAYMENT_PROVIDER` | Edge | `fake` ya da `iyzico`; boşsa 503 |
@@ -958,6 +1098,7 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
     - E: `back-office`.
 - **E2E:** C `site-*`, D `customer-journey`, E `back-office-*`.
 - **Sandbox:** CI dışında, elle; liste `deployment.md`'de.
+- **Ödeme planı (§5.6):** test dosyaları ve kapsamı §6.14'te.
 
 ## 15. Yayına alma
 
@@ -967,24 +1108,26 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
     - Turnstile test anahtarları.
 3. **Test projesi, iyzico sandbox:** `PAYMENT_PROVIDER=iyzico`; sahte sağlayıcı kilitleri kapatılır.
 4. **Pilot kapıları:**
-    - avukat onaylı metinler
+    - hukuki metinlerin [yayın şartları](hukuk/kararlar.md#yayin) (sürümlerde "-taslak" eki kalkar)
     - iyzico canlı hesap ve placeholder `identityNumber` için yazılı teyit
     - **Turnstile canlı anahtarları** (zorunlu)
     - Netgsm
     - Vercel Pro ve alan adı
-    - gerçek fiyatlar ve IBAN
+    - IBAN; lansman fiyat listesi back office'te girilip yayımlanır ([deployment.md](deployment.md) › Lansman fiyat listesi)
 
-    `deploy-db-pilot` iki durumda başarısız olur: `PAYMENT_FAKE_ALLOWED` secret'ı varsa ya da `allow_fake_payments` açık bir org varsa. `accepts_signups` açıkken `TURNSTILE_SECRET_KEY` yoksa da başarısız olur.
-5. **Geri alma:** Bayrağı kapatmak ya da `accepts_signups = false` yapmak yeterlidir.
+    `deploy-db-pilot` iki durumda başarısız olur: `PAYMENT_FAKE_ALLOWED` secret'ı varsa ya da `allow_fake_payments` açık bir org varsa. `accepts_signups` açıkken `TURNSTILE_SECRET_KEY`, `SIGNUP_HASH_SECRET` ya da `SIGNUP_PROXY_SECRET` yoksa ya da `SIGNUP_TURNSTILE_DISABLED` tanımlıysa da başarısız olur. Bu denetim yalnızca dağıtımda çalışır; `accepts_signups` sonradan açılsa bile `customer-signup` Turnstile secret'ı olmadan kayıt almaz.
+5. **Geri alma:**
+    - Kayıt: `accepts_signups = false` (`/operasyon/ayarlar` › Dışarıdan kayıt). Sunucu tarafındaki anahtar budur; `customer-signup` herkese açık olduğu için doğrudan istekler de `signup_closed` alır. `ORCHADOS_SIGNUP_ENABLED` bayrağını kapatmak yalnızca `/kayit` arayüzünü gizler, kaydı kapatmaz.
+    - Kart ödemesi: `ORCHADOS_PAYMENTS_ENABLED` kapatılır ya da Edge'de `PAYMENT_PROVIDER` silinir (`payments` 503 döner).
 
 ## 16. İnsan eylemi
 
 | Kim | Ne |
 | --- | --- |
 | Yusuf | iyzico sandbox ve canlı hesap, V3 webhook, Checkout Form içindeki havalenin kapatılması, `identityNumber` teyidi |
-| Avukat | Mesafeli hizmet sözleşmesi, ön bilgilendirme, iade, gizlilik metinleri; yapay zekâ aktarımının hukuki dayanağı; cayma hakkı |
+| Avukat | Karara bağlandı: [hukuk/kararlar.md](hukuk/kararlar.md). Kalan şirket eylemleri T01, T22 |
 | Şirket | Unvan, VKN, MERSİS, IBAN, İYS |
-| Yusuf | Fiyatlar, Vercel Pro, alan adı, Netgsm, Turnstile hesabı |
+| Yusuf | Vercel Pro, alan adı, Netgsm, Turnstile hesabı. Fiyatlar karara bağlandı ([fiyatlandirma.md](fiyatlandirma.md)) |
 
 ## 17. Paralel geliştirme planı
 
@@ -1027,17 +1170,120 @@ Yerel Edge secret'ları ve fonksiyon blokları `supabase/config.toml` dosyasınd
 
 ## 19. Açık sorular ve kabul edilen riskler
 
-- Gerçek fiyatlar, envanter ücreti, ziyaret sayısı.
-- Hizmet bölgesi.
+- ~~Gerçek fiyatlar, envanter ücreti, ziyaret sayısı~~: karara bağlandı (28 Ekim), lansman fiyat listesi [fiyatlandirma.md](fiyatlandirma.md). Kapsamlı paketin altı ziyaretlik takvimi de [fiyatlandirma.md](fiyatlandirma.md) §1'de.
+- ~~Hizmet bölgesi~~: karara bağlandı (28 Ekim, ürün sahibi): hizmet bölgesi belirtilmez; başvuruyu ops değerlendirir. Metinler bölge vaat etmez ve bölge adı vermez; konuma göre ret yazılı iç ölçüte göre yapılır (hukuk/kararlar.md H36).
 - Süreler.
-- Taksit.
-- iyzico placeholder `identityNumber` teyidi. Gerçek TCKN gerekirse şifreleme ya da yazılı risk kabulü.
-- Yapay zekâ aktarımının hukuki dayanağı.
-- E-posta doğrulanmıyor: `email_taken` ve `phone_registered` hesap varlığını açığa çıkarır; kabul edildi.
+- ~~Taksit~~: karara bağlandı (28 Ekim, ürün sahibi): ziyaret başına ödeme planı (§5.6; hukuk/kararlar.md H35). Kart taksiti kapsam dışı kalır.
+- iyzico placeholder `identityNumber` teyidi. Gerçek TCKN gerekirse TCKN'nin saklanmadan iletilmesi ya da şifreli saklanması; yazılı risk kabulü yeterli değildir (hukuk/kararlar.md H16).
+- ~~Yapay zekâ aktarımının hukuki dayanağı~~: karara bağlandı, standart sözleşme (hukuk/kararlar.md H02, T01).
+- E-posta doğrulanmıyor: `email_taken` ve `phone_registered` hesap varlığını açığa çıkarır; kabul edildi. Hukuki değerlendirme (hukuk/kararlar.md H33): pilotta kabul edilebilir; genel lansmandan önce düzeltilir (T19).
 - Barındırılan projede GoTrue'nun saatlik SMS sınırı, kötüye kullanımda telefonla girişi herkes için durdurabilir. Turnstile ve telefon başına sınır bunu azaltır.
 - Önizleme adresi kalıbı test projesinde bir yönlendirme riski taşır; yalnızca iç test kullanıcıları içindir.
+- **Yenilenmeyen üyelikte erişim:** Dönemi biten ve yenilenmeyen müşterinin parsel erişimi bugün kapanmaz. İP14'te yalnızca hizmetten çıkarılan bahçede erişim 90 gün sonra kalkar. Karara bağlandı: 12/4 bütün sona erme hallerine uygulanır; T08 ilk dönem bitişinden önce ([hukuk/kararlar.md](hukuk/kararlar.md) H23; [bahce-yonetimi.md](bahce-yonetimi.md) §1, §19).
 - Pilot sonrası işler:
     - eşik üstü havale ve iadelerde dört göz onayı
     - ayrı `finance` rolü
     - KVKK silme ve anonimleştirme
     - İYS
+
+## 20. Sözleşme belgeleri (T04)
+
+Bu bölüm, siparişe özel sözleşme belgelerinin veri katmanının sözleşmesidir ([hukuk/kararlar.md](hukuk/kararlar.md) H12, H13, H18, T04). PDF'leri dalga 2'deki iş (`claude/hukuk-t04-sozlesme-belgeleri`) üretir, yükler ve gösterir; yalnızca buradaki tablolar, fonksiyonlar, özet yardımcısı (`src/lib/legal/text-hash.ts`), şirket yer tutucusu yardımcısı (`src/lib/legal/company-placeholders.ts`) ve ek teklif dökümü yardımcısı (`src/lib/billing/addon-breakdown.ts`) kullanılır.
+
+### 20.1 Özetlerin anlamı (bütün dalgalar için sabit)
+
+| Alan | Anlamı |
+| --- | --- |
+| `consent_record.text_sha256` | Sürümlü şablonun SHA-256'sı: `legal_text_version.sha256` ile ve arşiv sabitleriyle doğrulanır |
+| `consent_record.display_sha256` | Müşterinin gördüğü, siparişe göre doldurulmuş metnin SHA-256'sı (dalga 2'nin sayfası gönderir) |
+| `contract_document.sha256` | Saklanan PDF'in SHA-256'sı |
+
+**Şablon özeti (`text-hash.ts`):** Metnin `legal.ts`'deki blokları (şirket ya da sipariş yer tutucuları doldurulmadan), her nesnenin anahtarları kod birimine göre sıralanmış, boşluksuz, dizeler `JSON.stringify` kaçışıyla (Türkçe harfler olduğu gibi) yazılmış JSON olarak; UTF-8 baytlarının küçük harfli onaltılık SHA-256'sı. Erken başlama kutusu tek paragraf bloğu olarak özetlenir: `[{"kind":"p","text":<kutu metni>}]`. Güncel sürümlerin özetleri taslaklardan türetilen metinle eşleşir (`text-hash.test.ts`); `docs/hukuk/arsiv/` altındaki her dosya dosya SHA-256'sıyla sabitlenir, bir arşiv sürümü sessizce değişemez ("arşiv ile sürüm eşleşmesi testi").
+
+### 20.2 `p_consents` nesne biçimi
+
+`customer_accept_quote` (§6.9) `{tür: {version, sha256, display_sha256?}}` biçimini alır. `version` güncel kayıtlı sürüm, `sha256` onun kayıtlı şablon özeti olmalıdır (`legal_text_outdated`). `display_sha256` doldurulmuş gösterimin özetidir; biçimi denetlenir, kayıtla karşılaştırılmaz. Dalga 1'de web eski dize biçimini gönderiyordu; dalga 2'den beri teklif sayfası nesne biçimini `display_sha256` ile gönderir (§20.7). Erken başlama kutusunun doldurulmuş bir gösterimi yoktur: `{version, sha256}` gönderilir.
+
+### 20.3 Tablo
+
+`private.contract_document` (ekleme-yalnız, RLS açık, istemci erişimi yok; demo yazma ve hesap koruması bağlı):
+
+| Sütun | Anlamı |
+| --- | --- |
+| `id`, `org_id`, `customer_user_id`, `quote_id`, `order_id` | Belgenin siparişi |
+| `kind` | `pre_information`, `distance_sales` (kabulde) ya da `withdrawal_confirmation` (sipariş etkinleşince; cayma süresinin somut son gününü yazan belge) |
+| `text_version`, `text_sha256` | Kayıtlı şablon sürümü (`pre_information` için ön bilgilendirme, diğerleri için sözleşme) ve özeti |
+| `storage_path` | `{org_id}/{order_id}/{kind}.pdf` (`contract-documents` kovasında) |
+| `sha256`, `size_bytes` | PDF'in özeti ve boyutu (en fazla 20 MB) |
+| `generator` | PDF'i üreten kod sürümü |
+| `consent_ids` | Siparişin ilgili onay satırları: `pre_information` için ön bilgilendirme onayı; diğerleri için `distance_sales` ve varsa `early_performance`. `consent_record` güncellenmez |
+| `created_at` | |
+
+`(order_id, kind)` tekildir.
+
+### 20.4 Kova ve değiştirilemezlik
+
+- `contract-documents` kovası özeldir (yalnızca `application/pdf`, en fazla 20 MB). İstemci yükleyemez, değiştiremez, silemez. Okuma: siparişin müşterisi ve org'un ops'u (demo ziyaretçi hiçbir zaman).
+- `storage.objects` üzerindeki `contract_documents_immutable` tetikleyicisi bu kovadaki her `UPDATE` ve `DELETE`'i reddeder (`contract_document_immutable`, 42501); Storage API'nin hizmet rolüyle yaptığı upsert, taşıma ve silme de reddedilir. Yerel yığında normal bir yüklemenin geçtiği, ikinci yüklemenin (upsert), taşımanın ve silmenin reddedildiği denendi. Barındırılan projede tetikleyici oluşturma yetkisi yoksa migration uyarı yazıp geçer ve `private.contract_documents_guarded()` `false` döner; o zaman kural bu belgedir ve indirme okuyucuları SHA-256'yı denetler.
+- **Saklama:** Onay tarihinden itibaren 10 yıl (H12). İleride saklama süresi işi (T10, 2028) bu nesneleri yalnızca kayıt altına alınan, denetimli bir istisnayla kaldırır; tetikleyici olağan yolu kapalı tutar. Test temizliği tetikleyicileri kapatarak siler (`testing.purge_*`).
+
+### 20.5 Fonksiyonlar
+
+- `service_register_contract_document(p_order_id, p_kind, p_text_version, p_text_sha256, p_storage_path, p_sha256, p_size_bytes, p_generator) returns uuid` (yalnızca `service_role`; dalga 2'nin Edge Function'ı nesneyi önce yükler, demo claim'ini reddeder):
+    - Siparişi, türü, sürümü ve şablon özetini, yolu ve depodaki nesnenin varlığını ve boyutunu denetler. Sürüm, siparişin kabul ettiği sürümdür (siparişin o metin türündeki ilk onay kaydı: ön bilgilendirme belgesi için `pre_information`, diğerleri için `distance_sales`; H12 "arşiv ile sürüm eşleşmesi"); başka bir kayıtlı sürüm `invalid_input` `text_version`. Özet o onay kaydının `text_sha256`'sı, yoksa kayıttaki özettir; ikisi de yoksa (T04'ten önce arşivlenmiş bir sürümle kabul edilmiş sipariş) belge kaydedilemez (`text_sha256`). Demo org ya da demo hesabı için `demo_read_only`; `withdrawal_confirmation` etkinleşmeden `order_not_active`.
+    - Aynı sipariş ve tür için aynı PDF (aynı `sha256`) yeniden kaydedilirse mevcut satırı döner; başka bir PDF `exists`.
+    - Siparişin iki kabul belgesi de kaydedilince `contract_ready` SMS'ini kuyruğa koyar (S-…, `/portal/hesap/sozlesmeler`; sipariş başına bir kez).
+- `my_contract_documents()` (müşteri; demo ziyaretçi `demo_read_only`): `(id, order_id, order_number, quote_id, kind, text_version, text_sha256, storage_path, sha256, size_bytes, created_at)`.
+- `ops_contract_documents(p_order_id)` (org'un ops'u): ek olarak `generator`, `consent_ids`.
+- `ops_orders_missing_contract_documents()` (ops; çağıranın ops olduğu org'lar, demo org'lar hariç): `(order_id, org_id, order_number, customer_user_id, status, accepted_at, activated_at, missing text[])`. Kabul edilmiş her siparişte eksik `pre_information`/`distance_sales`, etkinleşmiş siparişte eksik `withdrawal_confirmation`; yalnızca kaydedilebilecek belgeler (kabul edilen sürümün özeti biliniyor, `private.contract_document_registrable`). T04'ten önce özetsiz arşiv sürümüyle kabul edilmiş siparişin o belgesi listelenmez, böylece dalga 2'nin yeniden denemesi kaydedilemeyecek satırda dönmez. Dalga 2 ops listesini ve yeniden denemeyi bunun üzerine kurar.
+
+### 20.6 Kişisel veri
+
+`contract_document` müşteri kimliği ve sipariş bağlantısı taşır; PDF'ler alıcının adını, adresini ve iletişim bilgilerini içerir. KVKK betikleri için kural: saklama süresi (onaydan 10 yıl, H12, H25) dolmadan silinmez ya da anonimleştirilmez; süre dolunca nesne ve satır birlikte, kayıt altına alınan bir işlemle silinir.
+
+### 20.7 Akış (dalga 2)
+
+**Teklif sayfasında doldurulmuş metinler (H12, H13 (c)).** `/portal/teklif/[id]`, açık teklifte kabul kutularından önce Ön Bilgilendirme Formu'nu ve Mesafeli Hizmet Sözleşmesi'ni bu teklifin bilgileriyle doldurulmuş olarak gösterir (sözleşme açılır bir bölümde). Her belge önce siparişin kendi bölümünü taşır: teklif ve (varsa) sipariş numarası, sipariş türü (ilk, ek, yenileme; ek ve yenilemede "ayrı bir mesafeli sözleşmedir", Madde 8D/7 ve 12/2), hizmet veren (`public_company_info`, eksikse yer tutucular), hizmet alan (fatura profili ve iletişim bilgisi; T.C. kimlik numarası yazılmaz), paket, hizmet dönemi, ziyaret hakkı, son geçerlilik günü, tutarlar, indirim, KDV, toplam, cayma kuralı (ödemeden önce kural; onayla etkinleşen sıfır tutarlı teklifte son gün; etkin siparişte somut son gün), metin sürümleri, Ek-1 bahçe satırları (o tarihteki satırlar, H18) ve ek teklifte H19 dökümü (`addon-breakdown.ts`). Ardından `legal.ts`'teki kayıtlı şablon gelir: şirket yer tutucuları dalga 1 yardımcısıyla, sözleşmenin "**Hizmet alan:**" satırı alıcının bilgileriyle doldurulur. Sözleşmenin sonuna sipariş numarasıyla Ek-7 örnek cayma formu eklenir. Taslak sürüm ya da eksik şirket bilgisi görünür bir "TASLAK" işareti taşır. Erken başlama tercihi belgeye yazılmaz; kanıtı onay kaydıdır (`consent_ids`). Kod: `src/lib/contracts/render.ts`.
+
+**`display_sha256`.** Sayfanın gösterdiği belge nesnesinin (`{blocks, draft, kind, orderNumber, title, version}`) şablon özetiyle aynı kanonik JSON'u (anahtarlar sıralı, boşluksuz, UTF-8) üzerinden SHA-256 (`src/lib/contracts/display-hash.ts`). Sayfa çerçevenin içinde bunlardan başka bir şey göstermez. Özetler formda gizli alan olarak gider; `acceptQuoteAction` (`app/portal/teklif/[id]/actions.ts`) aynı okumalarla belgeleri yeniden üretir, özetler tutmazsa (teklif, fatura profili, şirket bilgisi ya da gün değişmişse) hiçbir şey kabul edilmez ve sayfa "metin değişti" uyarısıyla yeniden gösterilir. Tutarsa `customer_accept_quote` nesne biçimiyle çağrılır. Üretim kapısı (T21) ve KVKK yeniden onayı sayfada aynen durur.
+
+**PDF'ler.** `src/lib/pdf/contract-pdf.tsx` aynı blokları basar: her sayfada sürüm adı, sipariş numarası ve "Sayfa x/y"; taslakta her sayfada "TASLAK". Aynı girdi ve oluşturma tarihi aynı baytları verir; oluşturma tarihi kabul anıdır (`service_order.created_at`; cayma bildiriminde etkinleşme anı), bu yüzden yeniden deneme aynı PDF'i üretir. Üç tür: `pre_information`, `distance_sales` (kabulde) ve `withdrawal_confirmation` (sipariş etkinleşince; ödeme günü ve cayma süresinin somut son günü, son gün dahil, H13 8B/1). Üreten kod sürümü `generator` = `web-contract-pdf-v1`.
+
+**Kabul anlık görüntüsü (PR #94 inceleme düzeltmeleri).** Bir siparişin belgeleri hiçbir zaman sonradan canlı okunan bilgilerle ya da `legal.ts`'in o günkü haliyle üretilmez; kabulde müşterinin gördüğü ve onayladığı şeyden üretilir. `acceptQuoteAction` kabulden sonra, teklif sayfasının gösterdiği ve `display_sha256`'sı tutan girdiyi (alıcı, satıcı/şirket bilgisi, konumlarıyla bahçe satırları, teklif, sipariş) ve onaylanan metinleri (sürüm, `text_sha256`, `display_sha256`) bir kez JSON olarak saklar: `{org_id}/{order_id}/acceptance-{SHA-256}.json`, aynı `contract-documents` kovasında, PDF'lerin yanında, içerikle adreslenmiş (ad, baytların özetidir; okurken özet yeniden denetlenir). Kovanın kuralları ona da uygulanır: özel, siparişin müşterisi ve org'un ops'u okur, değiştirilemez ve silinemez; kaydedilmez (`service_register_contract_document` yalnızca `{kind}.pdf` yolunu kabul eder). Kovanın izinli türlerine `application/json`'u `20261103120000_contract_documents_snapshot.sql` ekler (yeni tablo yok). Biçim: `src/lib/contracts/snapshot.ts` (`contract-acceptance-v1`). Kabul belgeleri anlık görüntüdeki siparişle (kabul anındaki haliyle) basılır; cayma bildirimi buna yalnızca siparişin sonradan gelen olgularını ekler (etkinleşme anı, hizmet dönemi). Fatura profili ya da şirket bilgisi kabulden sonra değişse de belge değişmez (H18 "o tarihteki bahçe satırları").
+
+**Sürümler siparişin onayından.** Şablon, anlık görüntüdeki (yani siparişin onay kayıtlarındaki) sürümle seçilir ve onaylanan `text_sha256` ile denetlenir: `src/lib/contracts/templates.ts`. Güncel sürümler `legal.ts`'ten, eski sürümler aynı dosyadaki dondurulmuş arşivden gelir. Ön bilgilendirme ya da sözleşme sürümünü değiştiren (lansmanda "-taslak" ekini kaldıran da) PR, giden sürümün başlığını ve bloklarını bu arşive kopyalar; `templates.test.ts`, kayıtta (`private.register_legal_text`) özeti olan her sürümün o özetle basılabildiğini denetler ve eksikse düşer. Kayıtta özeti olmayan T04 öncesi sürümler (`docs/hukuk/arsiv`) zaten kaydedilemez; o siparişler elle kopya ister. Kayıt fonksiyonu sürümü ve özeti yine siparişin ilk onay kaydıyla karşılaştırır (son güvence).
+
+**Elle kopya.** Otomatik üretilemeyen sipariş "elle kopya gerekiyor" olarak işaretlenir ve otomatik yeniden denemeye ya da toplu üretime alınmaz: anlık görüntü yok (kabulden 15 dakika sonra hâlâ yoksa; klasörden her bakışta çıkarılır), anlık görüntü bozuk, onaylanan sürümün şablonu ya da özeti yok, kayıt sürümü ya da girdiyi reddetti (`version_mismatch`, `invalid_input`) ya da basım hatası. İşaret `{org_id}/{order_id}/manual-copy.json`'dır (`{reason, at}`; kişisel veri yok), değiştirilemez. Müşteri sayfaları bu siparişte "hazırlanıyor" yerine "kopyası talebiniz üzerine verilir" der; ops listesinde ayrı bölümde ("Elle kopya gereken siparişler") görünür. Ops'un sipariş başına "Yeniden dene"si işareti yok sayarak bir kez daha dener (ör. bir hata düzeltmesinden sonra).
+
+**Kim üretir.** PDF'i her zaman Next sunucusu üretir ve `contract-documents` Edge Function'ına gönderir (`supabase/functions/contract-documents/`). İşlev yalnızca `x-orchados-proxy-secret: SIGNUP_PROXY_SECRET` ile çağrılır: Next sunucusunun Edge Function'larla paylaştığı mevcut sır (customer-signup ve demo-start da kullanır; her projede ve yerelde tanımlı). `DEMO_SIGNUP_PROXY_SECRET` kabul edilmez: demo hiçbir zaman belge almaz. `verify_jwt` varsayılan (true) kalır; `config.toml` değişmedi. Üç çağıran türü, gövdedeki bir alana değil belirtece göre:
+
+| Tür | Belirteç | Yetki |
+| --- | --- | --- |
+| Müşteri | Siparişin müşterisinin erişim belirteci | Siparişi kendi belirteciyle okur (`service_order` satır kuralı), mevcut belgeler `my_contract_documents` |
+| Ops | Org'un ops kullanıcısının erişim belirteci | Aynı okuma, mevcut belgeler `ops_contract_documents` (ops değilse reddedilir) |
+| Sistem | Kullanıcı belirteci yok (anon anahtarı) + `x-orchados-sweep: 1` | Yalnızca eksik ve kaydedilebilir belgeler (aşağıdaki ön denetim `ops_orders_missing_contract_documents` kuralıdır). Dalga 3'ün otomatik taraması kullanır (§20.8) |
+
+Gövdede `op` varsa işlev PDF yerine JSON nesnesi saklar: `op: "snapshot"` (kabul anlık görüntüsü; yalnızca siparişin müşterisi, kullanıcı türünde, kabulden en geç 15 dakika sonra; varsa mevcut olan döner, `snapshot_too_late` 409) ve `op: "manual_copy"` (elle kopya işareti; müşteri, org'un ops'u ya da sistem; `reason` sabit listeden). Yanıt `200 {status, object: {name}}`.
+
+Her türde: demo claim'i 403 `demo_read_only`; aynı tür belge varsa olduğu gibi döner (`existing`); PDF'in SHA-256'sı işlevde hesaplanır; nesne hizmet rolüyle upsert olmadan `{org_id}/{order_id}/{kind}.pdf` yoluna yüklenir; sonra `service_register_contract_document` kaydeder ve iki kabul belgesi tamamlanınca `contract_ready` SMS'ini kuyruğa koyar (sipariş başına bir kez). Yüklemeden önce kayıt bir kez boyut 0 ile ön denetim olarak çağrılır: geçerli sipariş, tür, sürüm ve özetle nesne yoksa `invalid_input/storage_path` döner ve ancak o zaman yüklenir; boyut 0 hiçbir zaman kaydedilmez. Kaydı başarısız olmuş önceki bir yüklemenin bıraktığı nesne (`invalid_input/size_bytes`) indirilip özetlenir ve olduğu gibi kaydedilir, asla değiştirilmez. Yanıtlar: 200 `created`/`existing`, 400 `invalid_input`, 401, 403 `demo_read_only`/`forbidden`, 404, 409 `order_not_active`/`version_mismatch`, 500. Yanıtlar ve günlükler kişisel veri ya da PDF taşımaz.
+
+**Ne zaman, yeniden deneme.** `acceptQuoteAction`, `customer_accept_quote` başarılı olunca müşteriyi hemen sipariş sayfasına yönlendirir; anlık görüntüyü saklamak ve iki kabul belgesini üretmek yanıttan sonra arka planda (`next/server` `after()`) müşterinin belirteciyle olur. Kabul hiçbir zaman belge üretimini beklemez; her Edge çağrısında `AbortSignal.timeout` (20 sn) vardır ve zaman aşımı geçici hata sayılır. Başarısız olursa kabul geçerli kalır; sipariş sayfası ve Sözleşmelerim "Belgeler hazırlanıyor" der ve eksik belgeleri yanıttan sonra anlık görüntüden yeniden dener (Sözleşmelerim ziyaret başına en fazla 3 sipariş; elle kopya bekleyenler hiç denenmez). Sipariş etkinleşince (ödeme) cayma bildirimi sipariş sayfasının ya da Sözleşmelerim'in bir sonraki ziyaretinde, ya da ops listesinden üretilir. Kimsenin ziyaret etmediği siparişlerin belgelerini otomatik tarama üretir (§20.8).
+
+**Sözleşmelerim.** `/portal/hesap/sozlesmeler`: `my_contract_documents()` sipariş sipariş; Hesabım'dan, portal menüsünden ve sipariş sayfasından bağlantı. İndirme `/portal/hesap/sozlesmeler/[id]`: müşterinin kendi oturumuyla özel kovadan okunur, kayıtlı SHA-256 ile denetlenir, `Cache-Control: private, no-store`, dosya adı `mesafeli-sozlesme-S-….pdf` gibi.
+
+**Ops.** `/operasyon/siparis` üstte "Sözleşme belgesi eksik siparişler"i (`ops_orders_missing_contract_documents()`) sipariş başına ve toplu "Belgeleri üret" ile gösterir (toplu: tıklama başına en fazla 5 sipariş ve 25 saniyelik bütçe, elle kopya bekleyenler hariç; kalanlar listede kalır); altında ayrı bir "Elle kopya gereken siparişler" bölümü vardır; üretim Next sunucusunda, ops kullanıcısının kendi belirteciyle (ops türü). Sipariş sayfası belgeleri (`ops_contract_documents`) üreten kod sürümüyle listeler ve `/operasyon/siparis/[id]/belge/[docId]` ile indirir (aynı denetimler). Portal erişimi sona ermiş müşteriye talep halinde verilen kopya buradan indirilir (H12).
+
+**SMS.** `contract_ready` bağlantısı `/portal/hesap/sozlesmeler`'dir; kabul belgelerinin ikincisi kaydedilince bir kez gider. E-posta kanalı yoktur (H12).
+
+
+### 20.8 Otomatik tarama (dalga 3)
+
+H12: kabul edilmiş ya da etkinleşmiş her sipariş belgeleriyle biter; kimsenin açmadığı siparişler de (özellikle ödemeden sonra cayma bildirimi). Migration `20261105100500_contract_document_sweep.sql`, rota `src/app/sistem/sozlesme-tarama/route.ts`, kod `src/lib/contracts/sweep.ts`.
+
+1. **pg_cron** `contract-document-sweep` (30 dakikada bir) `private.dispatch_contract_document_sweep()`'i çağırır. Vault'ta `contract_documents_sweep_url` ve `orchados_cron_secret` yoksa hiçbir şey yapmaz. Varsa en çok 5 sipariş seçer (`private.contract_sweep_candidates`): demo dışı, kabulden en az 15 dakika geçmiş, kaydedilebilir eksik belgesi olan (`ops_orders_missing_contract_documents` kuralı), anlık görüntüsü bulunan ve elle kopya işareti olmayan. Rastgele bir bilet üretir, yalnızca SHA-256'sını ve sipariş kimliklerini 10 dakikalığına `private.contract_sweep_ticket`'a yazar ve `pg_net` ile rotaya `{ticket}` gövdesi ve `x-orchados-cron-secret` başlığıyla POST eder.
+2. **Rota** genel yoldur (`src/lib/site/public-paths.ts`; oturum yok). Sırrı `ORCHADOS_CRON_SECRET` ile sabit zamanlı karşılaştırır (yoksa 503, tutmazsa 401). Next sunucusunda servis anahtarı yoktur (deployment.md): rota anon anahtarı ve `x-orchados-sweep-ticket` başlığıyla okur. `public.sweep_contract_orders()` biletin siparişlerini (kimlik, numara, kabul ve etkinleşme anı, dönem, eksik ve mevcut türler; kişisel veri yok) döner; `contract_documents_sweep_select` Storage kuralı yalnızca o siparişlerin anlık görüntüsünü ve elle kopya işaretini okutur (PDF'leri değil). Süresi dolmuş ya da bilinmeyen bilet hiçbir şey açmaz.
+3. Her sipariş `ensureOrderDocuments` ile anlık görüntüden basılır ve Edge Function'ın **sistem** kipiyle yüklenir (her belgeyi yeniden denetler; var olanı döner). Süre bütçesi 35 sn; kalan siparişler bir sonraki çalışmaya kalır. Elle kopya kuralları (§20.7) aynen uygulanır.
+4. Yanıt ve günlükler yalnızca sayıları taşır (`orders`, `created`, `existing`, `failed`, `manualCopy`, `skipped`); kişisel veri ya da sipariş kimliği yazılmaz.
+5. **Testler:** pgTAP `74_contract_document_sweep` (aday seçimi, bilet, kuralın yalnızca biletin anlık görüntüsünü açması, sırlar olmadan no-op); web `tests/integration/contract-sweep.test.ts` (ödemeden sonra kimsenin açmadığı siparişin cayma bildirimi taramayla üretilir, ikinci tarama bir şey üretmez, rota sırrı denetler).
+6. **Barındırılan kurulum** (insan eylemi): Vercel'de `ORCHADOS_CRON_SECRET` (Vault `orchados_cron_secret` ile aynı değer), Vault'ta `contract_documents_sweep_url` = `https://<site>/sistem/sozlesme-tarama` ([deployment.md](deployment.md)).
+

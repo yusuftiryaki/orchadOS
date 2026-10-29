@@ -191,7 +191,7 @@ describe("customer portal payment flow", () => {
         p_areas_m2: [20000],
       }),
     );
-    expect(preview[0].line_total_kurus).toBe(1200000);
+    expect(preview[0].line_total_kurus).toBe(2448000);
 
     check(await c.rpc("customer_submit_application", { p_application_id: state.application }));
     const app = check(
@@ -221,7 +221,7 @@ describe("customer portal payment flow", () => {
         .eq("id", state.quote)
         .single(),
     );
-    expect(quote).toMatchObject({ status: "issued", total_kurus: 1200000, vat_kurus: 200000 });
+    expect(quote).toMatchObject({ status: "issued", total_kurus: 2448000, vat_kurus: 408000 });
 
     // Without the contract consents the acceptance is refused.
     const refused = await customer.client.rpc("customer_accept_quote", {
@@ -242,7 +242,8 @@ describe("customer portal payment flow", () => {
     const instructions = check(
       await customer.client.rpc("customer_payment_instructions", { p_order_id: state.order }),
     )[0];
-    expect(instructions.outstanding_kurus).toBe(1200000);
+    // The payment plan (installments-v1): the inventory first.
+    expect(instructions.outstanding_kurus).toBe(720000);
   });
 
   it("the fake card payment succeeds through start and a cookieless callback", async () => {
@@ -264,7 +265,8 @@ describe("customer portal payment flow", () => {
     const order = check(
       await admin.from("service_order").select("status, paid_kurus").eq("id", state.order).single(),
     );
-    expect(order).toEqual({ status: "active", paid_kurus: 1200000 });
+    // The first payment (inventory) activates the order.
+    expect(order).toEqual({ status: "active", paid_kurus: 720000 });
 
     // The garden became a registered parcel the customer owns.
     const item = check(
@@ -314,7 +316,7 @@ describe("customer portal payment flow", () => {
     const receipt = check(
       await customer.client.rpc("receipt_data", { p_payment_id: state.payment }),
     ) as { receipt_number: string; paid_kurus: number };
-    expect(receipt).toMatchObject({ receipt_number: paid.receipt_number, paid_kurus: 1200000 });
+    expect(receipt).toMatchObject({ receipt_number: paid.receipt_number, paid_kurus: 720000 });
   });
 
   it("finalizing twice more changes nothing", async () => {
@@ -350,6 +352,47 @@ describe("customer portal payment flow", () => {
           .eq("ref_id", state.payment),
       ),
     ).toHaveLength(1);
+  });
+
+  it("the customer then pays the first visit installment by card", async () => {
+    const started = await start(customer.token, state.order);
+    expect(started.status).toBe(200);
+    const second = started.body.payment_id;
+    const redirect = new URL(started.body.redirect_url);
+    expect(redirect.searchParams.get("tutar")).toBe("4320.00");
+    const res = await callback({ token: redirect.searchParams.get("token")!, outcome: "success" });
+    expect(res.status).toBe(303);
+    expect((await paymentRow(second)).status).toBe("succeeded");
+
+    const plan = check(
+      await customer.client
+        .from("order_installment")
+        .select("seq, status, paid_kurus")
+        .eq("order_id", state.order)
+        .order("seq"),
+    );
+    expect(plan.map((r) => r.status)).toEqual(["paid", "paid", "pending", "pending", "pending"]);
+    expect(plan[1].paid_kurus).toBe(432000);
+    const order = check(
+      await serviceClient()
+        .from("service_order")
+        .select("status, paid_kurus")
+        .eq("id", state.order)
+        .single(),
+    );
+    expect(order).toEqual({ status: "active", paid_kurus: 1152000 });
+    const receipt = check(await customer.client.rpc("receipt_data", { p_payment_id: second })) as {
+      plan_installment: { seq: number; count: number; kind: string };
+    };
+    expect(receipt.plan_installment).toMatchObject({ seq: 2, count: 5, kind: "visit" });
+    const activations = check(
+      await serviceClient()
+        .from("audit_event")
+        .select("id")
+        .eq("entity_id", state.order)
+        .eq("action", "order.activated"),
+    );
+    expect(activations).toHaveLength(1);
   });
 
   it("a declined card on a second order leaves it awaiting payment", async () => {

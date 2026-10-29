@@ -1,3 +1,4 @@
+import { CUSTOMER_REMOVAL_REASONS } from "@/lib/billing/types";
 import type { Position } from "@/lib/map/geo";
 import { parseRing, validateRing, type RingError } from "@/lib/operations/geometry";
 import {
@@ -10,6 +11,7 @@ import {
   type Irrigation,
   type Read,
 } from "@/lib/operations/validation";
+import { isUuid } from "@/lib/supabase/query";
 import { isValidTckn } from "./tckn";
 
 // Form parsing of the customer portal (pure, unit tested). Each parser takes a
@@ -240,9 +242,6 @@ export interface BillingProfileInput {
   kind: BillingKind;
   first_name: string;
   last_name: string;
-  // Present only when the org needs it and the customer typed one; an omitted
-  // number keeps the stored one (customer_save_billing_profile).
-  identity_number?: string;
   company_title: string | null;
   tax_office: string | null;
   tax_number: string | null;
@@ -254,11 +253,12 @@ export interface BillingProfileInput {
 }
 
 // The billing profile form → p_profile of customer_save_billing_profile.
-// identityRequired: the org needs a TCKN (my_billing_profile);
-// hasIdentity: one is already stored, so the field may stay empty.
+// emailRequired: the customer has no contact or account e-mail, and card
+// payments need one (payment_begin refuses without it). No TCKN: it is asked
+// at payment time and never stored (T13, parsePaymentIdentity).
 export function parseBillingProfileForm(
   read: Read,
-  { identityRequired, hasIdentity }: { identityRequired: boolean; hasIdentity: boolean },
+  { emailRequired = false }: { emailRequired?: boolean } = {},
 ): Parsed<BillingProfileInput> {
   const errs = new Errors();
   const kind = choice(errs, read, "kind", BILLING_KINDS, true);
@@ -269,7 +269,7 @@ export function parseBillingProfileForm(
   const city = text(errs, read, "city", 100, true);
   const postal = text(errs, read, "postal_code", 5);
   if (postal && !/^[0-9]{5}$/.test(postal)) errs.set("postal_code", "invalid");
-  const email = text(errs, read, "email", 254)?.toLowerCase() ?? null;
+  const email = text(errs, read, "email", 254, emailRequired)?.toLowerCase() ?? null;
   if (email && !EMAIL.test(email)) errs.set("email", "invalid");
 
   let company: string | null = null;
@@ -282,18 +282,6 @@ export function parseBillingProfileForm(
     if (taxNumber && !/^[0-9]{10}$/.test(taxNumber)) errs.set("tax_number", "invalid");
   }
 
-  let identity: string | undefined;
-  if (identityRequired) {
-    const raw = read("identity_number").replace(/\s/g, "");
-    if (raw === "") {
-      if (!hasIdentity) errs.set("identity_number", "required");
-    } else if (!isValidTckn(raw)) {
-      errs.set("identity_number", "invalid");
-    } else {
-      identity = raw;
-    }
-  }
-
   if (errs.any) return { ok: false, errors: errs.errors };
   return {
     ok: true,
@@ -301,7 +289,6 @@ export function parseBillingProfileForm(
       kind: kind!,
       first_name: first!,
       last_name: last!,
-      ...(identity ? { identity_number: identity } : {}),
       company_title: company,
       tax_office: taxOffice,
       tax_number: taxNumber,
@@ -337,4 +324,53 @@ export function parseNote(input: string, max = 1000): string | null | "too_long"
   const v = input.trim();
   if (v === "") return null;
   return v.length > max ? "too_long" : v;
+}
+
+// --------------------------------------------------------------------------
+// Garden removal (IP14, docs/bahce-yonetimi.md §5.1)
+// --------------------------------------------------------------------------
+
+// The reasons a customer may give (transfer and duplicate are ops').
+export const REMOVAL_REASONS = CUSTOMER_REMOVAL_REASONS;
+export type RemovalReason = (typeof REMOVAL_REASONS)[number];
+
+// The customer picks exactly one timing, explicitly (contract 12/3, H20:
+// "varsayılan seçenek yoktur"): immediate ("hemen", the next day), notice
+// (30 days), the period end or, inside the withdrawal period, withdrawal.
+export const REMOVAL_TIMINGS = ["immediate", "notice", "period_end", "withdrawal"] as const;
+export type RemovalTimingChoice = (typeof REMOVAL_TIMINGS)[number];
+
+export interface RemovalForm {
+  reason: RemovalReason;
+  note: string | null;
+  timing: RemovalTimingChoice;
+  // "Bekleyen siparişi iptal et ve devam et" (12/3): the order awaiting
+  // payment that holds the garden, cancelled in the same request.
+  cancelOrderId: string | null;
+}
+
+export function parseRemovalForm(
+  read: Read,
+  opts: { withdrawalOpen: boolean },
+): Parsed<RemovalForm> {
+  const errs = new Errors();
+  const reason = choice(errs, read, "reason", REMOVAL_REASONS, true);
+  const note = text(errs, read, "note", 1000);
+  const timing = choice(errs, read, "timing", REMOVAL_TIMINGS, true);
+  // The withdrawal option is offered only inside the withdrawal window.
+  if (timing === "withdrawal" && !opts.withdrawalOpen) errs.set("timing", "invalid");
+  if (read("confirm") !== "on") errs.set("confirm", "required");
+  const cancelOrderId = read("cancel_order_id");
+  if (cancelOrderId && (!isUuid(cancelOrderId) || read("cancel_pending") !== "on")) {
+    errs.set("cancel_pending", "required");
+  }
+  if (errs.any || !reason || !timing) return { ok: false, errors: errs.errors };
+  return { ok: true, value: { reason, note, timing, cancelOrderId: cancelOrderId || null } };
+}
+
+// T13 (H16): the TCKN typed in at card payment, spaces removed; null when it
+// is not a well-formed number. It is passed on to the payment provider only.
+export function parsePaymentIdentity(value: unknown): string | null {
+  const raw = typeof value === "string" ? value.replace(/\s/g, "") : "";
+  return isValidTckn(raw) ? raw : null;
 }

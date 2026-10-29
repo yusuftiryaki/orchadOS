@@ -33,6 +33,39 @@ describe("boHref", () => {
   });
 });
 
+describe("IP14 routes", () => {
+  it("builds the removal queue, a removal and the add-on quote mode", () => {
+    expect(boHref.removals()).toBe("/operasyon/cikarma");
+    expect(boHref.removals({ durum: "completed" })).toBe("/operasyon/cikarma?durum=completed");
+    expect(boHref.removal("r1")).toBe("/operasyon/cikarma/r1");
+    expect(boHref.removal("r1", { notice: "removal_completed" })).toBe(
+      "/operasyon/cikarma/r1?bilgi=removal_completed",
+    );
+    expect(boHref.newQuote({ ek: "b1" })).toBe("/operasyon/teklif/yeni?ek=b1");
+    expect(boHref.newQuote({ ek: "b1", siparis: "o1" })).toBe(
+      "/operasyon/teklif/yeni?ek=b1&siparis=o1",
+    );
+    expect(boHref.newQuote({ siparis: "o1" })).toBe("/operasyon/teklif/yeni?siparis=o1");
+  });
+
+  it("reads back the IP14 notices and error codes", () => {
+    for (const notice of [
+      "garden_linked",
+      "garden_unlinked",
+      "garden_withdrawn",
+      "removal_requested",
+      "removal_scheduled",
+      "removal_completed",
+      "removal_cancelled",
+    ]) {
+      expect(readBoResult({ bilgi: notice }).notice).toBe(notice);
+    }
+    for (const error of ["parcel_order_pending", "removal_not_due", "garden_changes_closed"]) {
+      expect(readBoResult({ hata: error }).error).toBe(error);
+    }
+  });
+});
+
 describe("readBoResult", () => {
   it("keeps only known codes", () => {
     expect(readBoResult({ bilgi: "quote_issued", hata: "refund_not_open" })).toEqual({

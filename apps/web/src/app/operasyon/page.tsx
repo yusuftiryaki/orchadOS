@@ -1,17 +1,25 @@
 import Link from "next/link";
-import { OpsNav } from "@/components/operations/ops-nav";
-import { ResultNotice } from "@/components/operations/result-notice";
 import { BillingCard } from "@/components/back-office/billing-card";
+import { statusTone } from "@/components/ui/status";
 import { ExpertRequests } from "@/components/operations/expert-requests";
+import { Pagination, pageOf } from "@/components/ui/pagination";
+import { Panel } from "@/components/ui/panel";
+import { QueueList, type QueueItem } from "@/components/operations/queue-list";
+import { ResultNotice } from "@/components/operations/result-notice";
 import { ViewerInvitations } from "@/components/operations/viewer-invitations";
-import { listFollowups } from "@/lib/expert/followups";
-import styles from "@/components/operations/operations.module.css";
 import { VisitTable } from "@/components/operations/visit-table";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Table, cell } from "@/components/ui/table";
 import { requireSection } from "@/lib/auth/session";
-import { formatNumber, t } from "@/lib/i18n";
 import { billingSummary } from "@/lib/back-office/data";
+import { listFollowups } from "@/lib/expert/followups";
+import { formatNumber, t } from "@/lib/i18n";
 import { listFieldStaff, listVisits, opsOrgs } from "@/lib/operations/data";
 import { listViewerInvitations } from "@/lib/operations/invitations";
+import { getKvkkVersions } from "@/lib/operations/kvkk-versions";
 import { opsHref } from "@/lib/operations/urls";
 import {
   countByStatus,
@@ -23,11 +31,16 @@ import {
 } from "@/lib/operations/visits";
 import { listParcels } from "@/lib/parcels";
 import { createClient } from "@/lib/supabase/server";
+import styles from "./dashboard.module.css";
 
 const T = t.operations;
 
-// Operations dashboard: visits by status, upcoming and late work, parcels
-// with their life cycle status; open viewer invitations from owners.
+// A badge tone as a queue tone ("highlight" is not a status tone).
+const queueTone = (tone: BadgeTone): QueueItem["tone"] => (tone === "highlight" ? "info" : tone);
+
+// Operations dashboard: what needs action today first (late work, the
+// customer and payment queues, open requests), then visits by status and the
+// parcels with their life cycle status.
 export default async function Page({
   searchParams,
 }: {
@@ -36,20 +49,25 @@ export default async function Page({
   const user = await requireSection("operasyon");
   const supabase = await createClient();
   const now = new Date();
-  const [visits, parcels, orgs] = await Promise.all([
-    listVisits(supabase),
-    listParcels(supabase),
-    opsOrgs(supabase, user.id),
-  ]);
-  const [staff, followups, invitations, billing] = await Promise.all([
-    listFieldStaff(supabase, orgs),
-    listFollowups(supabase, { statuses: ["open", "planned"] }),
-    listViewerInvitations(
-      supabase,
-      orgs.map((o) => o.id),
-    ),
-    billingSummary(supabase, orgs),
-  ]);
+  const params = await searchParams;
+  // Staff, invitations and the billing summary wait for the orgs only.
+  const orgsP = opsOrgs(supabase, user.id);
+  const [visits, parcels, followups, kvkkVersions, staff, invitations, billing] = await Promise.all(
+    [
+      listVisits(supabase),
+      listParcels(supabase),
+      listFollowups(supabase, { statuses: ["open", "planned"] }),
+      getKvkkVersions(supabase),
+      orgsP.then((orgs) => listFieldStaff(supabase, orgs)),
+      orgsP.then((orgs) =>
+        listViewerInvitations(
+          supabase,
+          orgs.map((o) => o.id),
+        ),
+      ),
+      orgsP.then((orgs) => billingSummary(supabase, orgs)),
+    ],
+  );
   const leads = new Map(staff.map((s) => [s.userId, s.email]));
 
   const counts = countByStatus(visits);
@@ -58,15 +76,71 @@ export default async function Page({
   const lateReasons = new Map(
     overdue.map((o) => [o.visit.id, T.dashboard.overdueReason[o.reason](o.days)]),
   );
+  const parcelPage = pageOf(parcels, params.sayfa);
 
   return (
     <main className="page">
-      <OpsNav current="dashboard" />
-      <h1>{T.dashboard.title}</h1>
-      <ResultNotice params={await searchParams} />
+      <PageHeader
+        title={T.dashboard.title}
+        actions={
+          <>
+            <ButtonLink href={opsHref.newVisit()}>{T.nav.newVisit}</ButtonLink>
+            <ButtonLink variant="secondary" href={opsHref.newOwner()}>
+              {T.nav.newOwner}
+            </ButtonLink>
+            <ButtonLink variant="secondary" href={opsHref.newParcel()}>
+              {T.nav.newParcel}
+            </ButtonLink>
+          </>
+        }
+      />
+      <ResultNotice params={params} />
+
+      {overdue.length > 0 && (
+        <Panel plain title={T.dashboard.overdue} id="overdue">
+          <VisitTable
+            visits={overdue.map((o) => o.visit)}
+            leads={leads}
+            late={lateReasons}
+            testId="overdue-visits"
+          />
+        </Panel>
+      )}
+
       {billing && <BillingCard summary={billing} />}
+
+      <Panel
+        title={T.dashboard.counts}
+        actions={
+          overdue.length === 0 ? (
+            <Badge tone="success">{T.dashboard.noOverdue}</Badge>
+          ) : (
+            <Badge tone="danger">{T.dashboard.overdueCount(overdue.length)}</Badge>
+          )
+        }
+      >
+        <QueueList
+          testId="visit-counts"
+          label={T.dashboard.counts}
+          // A status breakdown, not a work queue: pipeline order, and each
+          // count in its status badge's tone.
+          ordered
+          items={PIPELINE_STATUSES.map((status) => ({
+            key: status,
+            label: t.office.sessionStatus[status],
+            value: counts[status],
+            href: opsHref.visits({ durum: status }),
+            tone: queueTone(statusTone(status, "visit")),
+          }))}
+        />
+      </Panel>
+
       {invitations.length > 0 && (
-        <ViewerInvitations invitations={invitations} today={todayIn(now)} />
+        <ViewerInvitations
+          invitations={invitations}
+          today={todayIn(now)}
+          kvkkVersions={kvkkVersions}
+        />
       )}
       {followups.length > 0 && (
         <ExpertRequests
@@ -76,82 +150,73 @@ export default async function Page({
         />
       )}
 
-      <h2>{T.dashboard.counts}</h2>
-      <ul className={styles.stats} data-testid="visit-counts">
-        {PIPELINE_STATUSES.map((status) => (
-          <li key={status}>
-            <Link
-              className={styles.stat}
-              href={opsHref.visits({ durum: status })}
-              data-status={status}
-            >
-              <span className={styles.statValue}>{formatNumber(counts[status])}</span>
-              {t.office.sessionStatus[status]}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <Panel plain title={T.dashboard.upcoming(UPCOMING_DAYS)} id="upcoming">
+        {upcoming.length === 0 ? (
+          // "Ziyaret planla" is in the page header; no second link here.
+          <EmptyState compact headingLevel={3} title={T.dashboard.noUpcoming} />
+        ) : (
+          <VisitTable visits={upcoming} leads={leads} testId="upcoming-visits" />
+        )}
+      </Panel>
 
-      <h2>{T.dashboard.upcoming(UPCOMING_DAYS)}</h2>
-      {upcoming.length === 0 ? (
-        <p className="muted">{T.dashboard.noUpcoming}</p>
-      ) : (
-        <VisitTable visits={upcoming} leads={leads} testId="upcoming-visits" />
-      )}
-
-      <h2>{T.dashboard.overdue}</h2>
-      {overdue.length === 0 ? (
-        <p className="muted">{T.dashboard.noOverdue}</p>
-      ) : (
-        <VisitTable
-          visits={overdue.map((o) => o.visit)}
-          leads={leads}
-          late={lateReasons}
-          testId="overdue-visits"
-        />
-      )}
-
-      <h2>{T.dashboard.parcels}</h2>
-      {parcels.length === 0 ? (
-        <p className="muted">{T.dashboard.noParcels}</p>
-      ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table} data-testid="parcel-list">
-            <thead>
-              <tr>
-                <th>{t.parcels.columns.name}</th>
-                <th>{t.parcels.columns.location}</th>
-                <th className={styles.number}>{t.parcels.columns.area}</th>
-                <th className={styles.number}>{t.parcels.columns.trees}</th>
-                <th>{T.parcel.lifecycle}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {parcels.map((parcel) => (
-                <tr key={parcel.id} data-parcel-id={parcel.id}>
-                  <td>
-                    <Link href={opsHref.parcel(parcel.id)}>{parcel.name}</Link>
-                  </td>
-                  <td>
-                    {[parcel.village, parcel.district, parcel.province].filter(Boolean).join(", ")}
-                  </td>
-                  <td className={styles.number}>
-                    {parcel.estimated_area_m2 != null &&
-                      `${formatNumber(parcel.estimated_area_m2)} ${t.parcels.areaUnit}`}
-                  </td>
-                  <td className={styles.number}>
-                    {parcel.estimated_tree_count != null &&
-                      formatNumber(parcel.estimated_tree_count)}
-                  </td>
-                  <td>
-                    <span className={styles.badge}>{t.parcels.status[parcel.status]}</span>
-                  </td>
+      <Panel plain title={T.dashboard.parcels} id="parcels">
+        {parcels.length === 0 ? (
+          <EmptyState
+            compact
+            headingLevel={3}
+            title={T.dashboard.noParcels}
+            action={
+              <ButtonLink variant="secondary" size="sm" href={opsHref.newParcel()}>
+                {T.nav.newParcel}
+              </ButtonLink>
+            }
+          />
+        ) : (
+          <>
+            <Table data-testid="parcel-list">
+              <thead>
+                <tr>
+                  <th>{t.parcels.columns.name}</th>
+                  <th>{t.parcels.columns.status}</th>
+                  <th>{t.parcels.columns.location}</th>
+                  <th className={cell.num}>{t.parcels.columns.area}</th>
+                  <th className={cell.num}>{t.parcels.columns.trees}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {parcelPage.rows.map((parcel) => (
+                  <tr key={parcel.id} data-parcel-id={parcel.id}>
+                    <td className={cell.nowrap}>
+                      <Link href={opsHref.parcel(parcel.id)} className={styles.parcelName}>
+                        {parcel.name}
+                      </Link>
+                    </td>
+                    <td>
+                      <Badge tone={statusTone(parcel.status)}>
+                        {t.parcels.status[parcel.status]}
+                      </Badge>
+                    </td>
+                    <td>
+                      {[parcel.village, parcel.district, parcel.province]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </td>
+                    <td className={cell.num}>
+                      {parcel.estimated_area_m2 != null &&
+                        `${formatNumber(parcel.estimated_area_m2)} ${t.parcels.areaUnit}`}
+                    </td>
+                    <td className={cell.num}>
+                      {parcel.estimated_tree_count != null &&
+                        formatNumber(parcel.estimated_tree_count)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+            <Pagination {...parcelPage} href={(p) => `${opsHref.dashboard()}?sayfa=${p}#parcels`} />
+          </>
+        )}
+      </Panel>
     </main>
   );
 }

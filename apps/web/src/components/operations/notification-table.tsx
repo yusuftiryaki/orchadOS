@@ -1,80 +1,103 @@
+import Link from "next/link";
 import { retryNotificationAction } from "@/app/operasyon/bildirimler/actions";
+import { statusTone } from "@/components/ui/status";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Table, cell } from "@/components/ui/table";
 import { t } from "@/lib/i18n";
 import type { NotificationRow } from "@/lib/notifications/data";
 import { errorLabel, formatDateTime } from "@/lib/notifications/format";
 import { opsHref } from "@/lib/operations/urls";
-import Link from "next/link";
-import styles from "./operations.module.css";
+import styles from "./notification-table.module.css";
 
 const T = t.notifications;
 
+// Notification states in the shared status tones (components/ui/status.ts).
 // Notification queue for operations: when, parcel (or the document number of
 // an account message), who (masked phone), what, how, state; failed rows get
-// "Yeniden dene".
+// "Yeniden kuyruğa al". The detail column is left out when no row on the page
+// has a detail.
+const hasDetail = (n: NotificationRow) =>
+  !!n.sentAt ||
+  !!n.sentVia ||
+  (n.status === "pending" && n.attempts > 0) ||
+  (n.status !== "sent" && !!n.lastError) ||
+  n.status === "failed";
+
 export function NotificationTable({ rows, status }: { rows: NotificationRow[]; status: string }) {
+  const detail = rows.some(hasDetail);
   return (
-    <div className={styles.tableWrap}>
-      <table className={styles.table} data-testid="notification-table">
-        <thead>
-          <tr>
-            <th>{T.columns.created}</th>
-            <th>{T.columns.parcel}</th>
-            <th>{T.columns.recipient}</th>
-            <th>{T.columns.template}</th>
-            <th>{T.columns.channel}</th>
-            <th>{T.columns.status}</th>
-            <th>{T.columns.attempts}</th>
-            <th>{T.columns.detail}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((n) => (
-            <tr key={n.id} data-notification-id={n.id}>
-              <td>{formatDateTime(n.createdAt)}</td>
-              <td>
-                {n.parcelId ? (
-                  <Link href={opsHref.parcel(n.parcelId)}>{n.parcelName}</Link>
-                ) : (
-                  <span data-testid="notification-ref">{n.ref ?? "—"}</span>
-                )}
-              </td>
-              <td>
-                {n.recipientName ?? T.noProfile}
-                {n.recipientRole && ` (${T.role[n.recipientRole] ?? n.recipientRole})`}
-                <br />
-                <span className="muted" data-testid="masked-phone">
+    <Table data-testid="notification-table">
+      <thead>
+        <tr>
+          <th className={cell.num}>{T.columns.created}</th>
+          <th>{T.columns.parcel}</th>
+          <th>{T.columns.recipient}</th>
+          <th>{T.columns.template}</th>
+          <th>{T.columns.channel}</th>
+          <th>{T.columns.status}</th>
+          <th className={cell.num}>{T.columns.attempts}</th>
+          {detail && <th>{T.columns.detail}</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((n) => (
+          <tr key={n.id} data-notification-id={n.id} data-status={n.status}>
+            <td className={`${cell.num} ${cell.nowrap}`}>{formatDateTime(n.createdAt)}</td>
+            <td className={cell.nowrap}>
+              {n.parcelId ? (
+                <Link href={opsHref.parcel(n.parcelId)}>{n.parcelName}</Link>
+              ) : (
+                <span className={cell.code} data-testid="notification-ref">
+                  {n.ref ?? "—"}
+                </span>
+              )}
+            </td>
+            <td>
+              <div className={styles.recipient}>
+                <span className={cell.nowrap}>
+                  {n.recipientName ?? T.noProfile}
+                  {n.recipientRole && (
+                    <span className="muted"> ({T.role[n.recipientRole] ?? n.recipientRole})</span>
+                  )}
+                </span>
+                <span className={styles.phone} data-testid="masked-phone">
                   {n.recipientPhone || "—"}
                 </span>
-              </td>
-              <td>{T.template[n.template] ?? n.template}</td>
-              <td>{T.channel[n.channel] ?? n.channel}</td>
+              </div>
+            </td>
+            <td className={cell.nowrap}>{T.template[n.template] ?? n.template}</td>
+            <td className={cell.nowrap}>{T.channel[n.channel] ?? n.channel}</td>
+            <td>
+              <Badge tone={statusTone(n.status)}>{T.status[n.status] ?? n.status}</Badge>
+            </td>
+            <td className={cell.num}>{n.attempts}</td>
+            {detail && (
               <td>
-                <span className={n.status === "failed" ? styles.badgeLate : styles.badge}>
-                  {T.status[n.status]}
-                </span>
+                <div className={styles.detail}>
+                  {n.sentAt && <span>{T.sentAt(formatDateTime(n.sentAt))}</span>}
+                  {n.sentVia && <span className="muted">{T.sentVia(n.sentVia)}</span>}
+                  {n.status === "pending" && n.attempts > 0 && (
+                    <span className="muted">{T.nextAttempt(formatDateTime(n.nextAttemptAt))}</span>
+                  )}
+                  {n.status !== "sent" && n.lastError && (
+                    <span className={styles.error}>{errorLabel(n.lastError)}</span>
+                  )}
+                  {n.status === "failed" && (
+                    <form action={retryNotificationAction}>
+                      <input type="hidden" name="id" value={n.id} />
+                      <input type="hidden" name="durum" value={status} />
+                      <Button variant="secondary" size="sm" type="submit" title={T.retryHint}>
+                        {T.retry}
+                      </Button>
+                    </form>
+                  )}
+                </div>
               </td>
-              <td>{n.attempts}</td>
-              <td>
-                {n.sentAt && <div>{T.sentAt(formatDateTime(n.sentAt))}</div>}
-                {n.sentVia && <div className="muted">{T.sentVia(n.sentVia)}</div>}
-                {n.status === "pending" && n.attempts > 0 && (
-                  <div className="muted">{T.nextAttempt(formatDateTime(n.nextAttemptAt))}</div>
-                )}
-                {n.status !== "sent" && n.lastError && <div>{errorLabel(n.lastError)}</div>}
-                {n.status === "failed" && (
-                  <form action={retryNotificationAction}>
-                    <input type="hidden" name="id" value={n.id} />
-                    <input type="hidden" name="durum" value={status} />
-                    <button className="button" type="submit">
-                      {T.retry}
-                    </button>
-                  </form>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+            )}
+          </tr>
+        ))}
+      </tbody>
+    </Table>
   );
 }

@@ -4,21 +4,33 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { customerListView, type CustomerListView } from "@/components/back-office/customer-rows";
 import { requireSection } from "@/lib/auth/session";
-import { listCustomers, refundKinds } from "@/lib/back-office/data";
+import {
+  applicationCustomer,
+  listCustomers,
+  readMembership,
+  refundKinds,
+  removalLastEffective,
+} from "@/lib/back-office/data";
 import type { BoFormState } from "@/lib/back-office/form-state";
 import {
+  cancelGardenRemoval,
   cancelOrder,
   cancelRefund,
+  completeGardenRemoval,
   completeManualRefund,
   createPriceListDraft,
   deletePriceListDraft,
   extendPaymentDue,
+  issueAddonQuote,
   issueParcelQuote,
   issueQuote,
+  linkGardenParcel,
   processRefund,
   publishPriceList,
   recordManualPayment,
   rejectApplication,
+  recordWithdrawal,
+  requestGardenRemoval,
   requestRefund,
   resolvePaymentReview,
   resolveRefund,
@@ -26,14 +38,20 @@ import {
   savePackage,
   savePriceListDraft,
   saveSetting,
+  scheduleGardenRemoval,
   terminateOrder,
+  allowUnpaidVisit,
   verifyGarden,
   voidManualPayment,
+  withdrawApplicationGarden,
   type BoMutation,
 } from "@/lib/back-office/mutations";
 import { boHref, type BoError } from "@/lib/back-office/urls";
 import {
+  addonQuoting,
   formReader,
+  parseAddonQuote,
+  parseIntInRange,
   parseIsoDate,
   parseManualPayment,
   parseManualRefund,
@@ -44,14 +62,20 @@ import {
   parseQuoteTerms,
   parseRefund,
   parseReject,
+  parseRemovalRequest,
+  parseWithdrawalRecord,
+  parseRemovalSchedule,
   parseResolution,
   parseSettings,
   parseVerify,
+  planRemoveAll,
   type Parsed,
 } from "@/lib/back-office/validation";
+import { formatDate } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { listOwnerProfiles, opsOrgs } from "@/lib/operations/data";
+import { todayIn } from "@/lib/operations/visits";
 import { isUuid } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
 
@@ -181,6 +205,17 @@ export async function issueQuoteAction(_prev: BoFormState, form: FormData): Prom
   const read = formReader(form);
   const applicationId = idOf(read, "application_id");
   if (!applicationId) return notFound;
+  // A member gets a separate period only with the explicit checkbox (IP14
+  // §4.4). Membership is read here, never taken from the form: the page may
+  // be stale, and the database allows the second period (§19).
+  const customer = await applicationCustomer(supabase, applicationId).catch(() => null);
+  if (!customer) return notFound;
+  const membership = await readMembership(supabase, customer.orgId, customer.userId);
+  if ("error" in membership) return failed(membership);
+  // With garden changes closed there is no add-on to choose instead (§2).
+  if (addonQuoting(membership.membership.periods) && read("separate_period") !== "on") {
+    return invalidField("separate_period");
+  }
   const parsed = parsedOr(parseQuoteTerms(read));
   if ("state" in parsed) return parsed.state;
   return then(issueQuote(supabase, applicationId, parsed.value), (quoteId) =>
@@ -220,6 +255,211 @@ export async function issueParcelQuoteAction(
   return then(
     issueParcelQuote(supabase, orgId, customerUserId, parsed.value, renewalOf || null),
     (quoteId) => boHref.quote(quoteId, { notice: "quote_issued" }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Garden membership (IP14, docs/bahce-yonetimi.md §4–§5, §12)
+// ---------------------------------------------------------------------------
+
+// An add-on quote: for an application's gardens (application_id) or for
+// existing parcels (parcel_ids).
+export async function issueAddonQuoteAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const baseOrderId = idOf(read, "base_order_id");
+  if (!baseOrderId) return notFound;
+  const applicationId = read("application_id");
+  if (applicationId && !isUuid(applicationId)) return notFound;
+  const parsed = parsedOr(parseAddonQuote(read, form, applicationId ? "application" : "parcels"));
+  if ("state" in parsed) return parsed.state;
+  return then(
+    issueAddonQuote(supabase, baseOrderId, applicationId || null, parsed.value),
+    (quoteId) => boHref.quote(quoteId, { notice: "quote_issued" }),
+  );
+}
+
+// Links an application garden to the customer's earlier parcel, or (empty
+// parcel_id) removes the link.
+export async function linkGardenAction(_prev: BoFormState, form: FormData): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const applicationId = idOf(read, "application_id");
+  const gardenId = idOf(read, "garden_id");
+  if (!applicationId || !gardenId) return notFound;
+  const parcelId = read("parcel_id");
+  if (parcelId && !isUuid(parcelId)) return notFound;
+  return then(linkGardenParcel(supabase, gardenId, parcelId || null), () =>
+    boHref.application(applicationId, { notice: parcelId ? "garden_linked" : "garden_unlinked" }),
+  );
+}
+
+export async function withdrawGardenAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const applicationId = idOf(read, "application_id");
+  const gardenId = idOf(read, "garden_id");
+  if (!applicationId || !gardenId) return notFound;
+  const note = parsedOr(parseNote(read, true));
+  if ("state" in note) return note.state;
+  return then(withdrawApplicationGarden(supabase, gardenId, note.value!), () =>
+    boHref.application(applicationId, { notice: "garden_withdrawn" }),
+  );
+}
+
+// The setting's access days, carried by the form (the database checks again).
+const settingDays = (read: (name: string) => string) =>
+  parseIntInRange(read("setting_access_days"), 0, 365) ?? 0;
+
+// "Bahçeyi çıkar" on an order line.
+export async function requestRemovalAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const itemId = idOf(read, "order_item_id");
+  if (!itemId) return notFound;
+  const days = { today: todayIn(new Date()), lastDay: parseIsoDate(read("last_day")) };
+  const parsed = parsedOr(parseRemovalRequest(read, days, settingDays(read)));
+  if ("state" in parsed) return parsed.state;
+  return then(requestGardenRemoval(supabase, itemId, parsed.value), (removalId) =>
+    boHref.removal(removalId, { notice: "removal_requested" }),
+  );
+}
+
+// "Cayma bildirimi kaydet" on an order (T03): a withdrawal received by
+// e-mail, KEP or post for the ticked lines, by the day it arrived.
+export async function recordWithdrawalAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const orderId = idOf(read, "order_id");
+  if (!orderId) return notFound;
+  const items = form.getAll("order_item_ids").map(String);
+  const parsed = parsedOr(parseWithdrawalRecord(read, items, todayIn(new Date())));
+  if ("state" in parsed) return parsed.state;
+  return then(recordWithdrawal(supabase, parsed.value), () =>
+    boHref.order(orderId, { notice: "withdrawal_recorded" }),
+  );
+}
+
+// "Tüm bahçeleri çıkar": one removal per garden with an open line (in
+// service, or not started yet: a paid renewal, a later add-on), same day,
+// reason and note; the result of each garden is reported (no redirect).
+export async function removeAllGardensAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const orgId = idOf(read, "org_id");
+  const userId = idOf(read, "user_id");
+  if (!orgId || !userId) return notFound;
+  const parsed = parsedOr(
+    parseRemovalRequest(read, { today: todayIn(new Date()), lastDay: null }, settingDays(read)),
+  );
+  if ("state" in parsed) return parsed.state;
+  const membership = await readMembership(supabase, orgId, userId);
+  if ("error" in membership) return failed(membership);
+  const { gardens } = membership.membership;
+  let lastDays: Map<string, string>;
+  try {
+    lastDays = await removalLastEffective(
+      supabase,
+      userId,
+      gardens.map((g) => g.parcel_id),
+    );
+  } catch {
+    return { error: billingText.errors.write_failed };
+  }
+  const steps = planRemoveAll(gardens, parsed.value.effectiveOn, lastDays);
+  if (steps.length === 0) return { error: B.membership.removeAllNone };
+  const lines: NonNullable<BoFormState["lines"]> = [];
+  for (const step of steps) {
+    const g = step.garden;
+    if ("skipped" in step) {
+      lines.push({ label: g.garden_name, ok: false, text: B.membership.lineSkipped });
+      continue;
+    }
+    const r = await requestGardenRemoval(supabase, g.order_item_id, {
+      ...parsed.value,
+      effectiveOn: step.effectiveOn,
+    });
+    lines.push(
+      !r.ok
+        ? { label: g.garden_name, ok: false, text: failed(r).error! }
+        : {
+            label: g.garden_name,
+            ok: true,
+            text: step.moved
+              ? B.membership.lineMoved(g.order_number, formatDate(step.effectiveOn))
+              : B.membership.lineDone(g.order_number),
+          },
+    );
+  }
+  revalidatePath("/operasyon", "layout");
+  return { error: null, lines };
+}
+
+export async function scheduleRemovalAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const removalId = idOf(read, "removal_id");
+  const requestedOn = parseIsoDate(read("requested_on"));
+  if (!removalId || !requestedOn) return notFound;
+  const days = { today: todayIn(new Date()), lastDay: parseIsoDate(read("last_day")) };
+  const parsed = parsedOr(
+    parseRemovalSchedule(read, days, {
+      requestedOn,
+      reason: read("removal_reason"),
+      accessDays: parseIntInRange(read("current_access_days"), 0, 365) ?? -1,
+      settingAccessDays: settingDays(read),
+    }),
+  );
+  if ("state" in parsed) return parsed.state;
+  return then(scheduleGardenRemoval(supabase, removalId, parsed.value), () =>
+    boHref.removal(removalId, { notice: "removal_scheduled" }),
+  );
+}
+
+export async function completeRemovalAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const removalId = idOf(read, "removal_id");
+  if (!removalId) return notFound;
+  if (read("confirm") !== "on") return invalidField("confirm");
+  return then(completeGardenRemoval(supabase, removalId), () =>
+    boHref.removal(removalId, { notice: "removal_completed" }),
+  );
+}
+
+export async function cancelRemovalAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const removalId = idOf(read, "removal_id");
+  if (!removalId) return notFound;
+  const note = parsedOr(parseNote(read, true));
+  if ("state" in note) return note.state;
+  return then(cancelGardenRemoval(supabase, removalId, note.value!), () =>
+    boHref.removal(removalId, { notice: "removal_cancelled" }),
   );
 }
 
@@ -279,6 +519,22 @@ export async function terminateOrderAction(
   if ("state" in note) return note.state;
   return then(terminateOrder(supabase, orderId, note.value!), () =>
     boHref.order(orderId, { notice: "order_terminated" }),
+  );
+}
+
+export async function allowUnpaidVisitAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const orderId = idOf(read, "order_id");
+  const installmentId = idOf(read, "installment_id");
+  if (!orderId || !installmentId) return notFound;
+  const note = parsedOr(parseNote(read, true));
+  if ("state" in note) return note.state;
+  return then(allowUnpaidVisit(supabase, installmentId, note.value!), () =>
+    boHref.order(orderId, { notice: "unpaid_visit_allowed" }),
   );
 }
 

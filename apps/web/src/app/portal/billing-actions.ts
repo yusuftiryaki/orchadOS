@@ -7,19 +7,35 @@ import { billingFieldOf, billingReasonOf } from "@/lib/billing/errors";
 import { requireSection } from "@/lib/auth/session";
 import { siteFlags } from "@/lib/flags";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
+import {
+  EXPLICIT_CONSENT_KINDS,
+  isExplicitConsentAsked,
+  type ExplicitConsentKind,
+} from "@/lib/legal/consents";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { formValues, type FormState } from "@/lib/operations/form-state";
 import { formReader } from "@/lib/operations/validation";
 import { BILLING_COLUMNS } from "@/lib/billing/columns";
 import type { Payment } from "@/lib/billing/types";
-import { getBillingProfile, liveCardAttempt } from "@/lib/portal-billing/data";
+import {
+  getBillingProfile,
+  getServicePeriods,
+  hasFallbackEmail,
+  liveCardAttempt,
+} from "@/lib/portal-billing/data";
 import { paymentStartError, returnOriginOf, clientIpOf } from "@/lib/portal-billing/payments";
-import { portalHref, safeBackPath, type PortalError } from "@/lib/portal-billing/urls";
+import {
+  portalErrorOf,
+  portalHref,
+  safeBackPath,
+  type PortalError,
+} from "@/lib/portal-billing/urls";
 import {
   parseBillingProfileForm,
   parseContactForm,
   parseGardenForm,
   parseNote,
+  parsePaymentIdentity,
   type PortalFieldError,
 } from "@/lib/portal-billing/validation";
 import { isUuid } from "@/lib/supabase/query";
@@ -31,10 +47,14 @@ import { createClient } from "@/lib/supabase/server";
 // redirect with `?bilgi=` / `?hata=`; the forms that keep typed values use
 // useActionState. Form values are personal data and are never logged.
 
+// A demo visitor has no customer profile and writes nothing (docs/demo-turu.md
+// §6.3): back to the gardens with "Demoda kapalı" before any call.
 async function context() {
-  await requireSection("portal");
+  if ((await requireSection("portal")).demo) redirect(portalHref.home({ hata: "demo_read_only" }));
   return createClient();
 }
+
+const DEMO_CLOSED: FormState = { error: P.errors.demo_read_only, fieldErrors: {}, values: {} };
 
 function idOf(form: FormData, name: string): string {
   const value = formReader(form)(name);
@@ -85,14 +105,48 @@ function failed(
 // Applications
 // ---------------------------------------------------------------------------
 
+type Client = Awaited<ReturnType<typeof createClient>>;
+
+// A member (IP14, docs/bahce-yonetimi.md §4.1) adds gardens only while the
+// switch is on (§2: otherwise ops cannot quote the add-on, so the portal asks
+// the customer to contact the team), and the draft always carries the
+// membership's package.
+async function memberPeriod(supabase: Client) {
+  const { primary } = await getServicePeriods(supabase);
+  return primary;
+}
+
+// An older draft with another package is corrected once.
+// customer_set_application_package rewrites the note too, so the draft's own
+// note goes along. Redirects back to the application on an error.
+async function alignDraftPackage(supabase: Client, applicationId: string, packageId: string) {
+  const { data: draft } = await supabase
+    .from("service_application")
+    .select(BILLING_COLUMNS.service_application)
+    .eq("id", applicationId)
+    .maybeSingle();
+  if (draft?.status !== "draft" || draft.package_id === packageId) return;
+  const { error } = await supabase.rpc("customer_set_application_package", {
+    p_application_id: applicationId,
+    p_package_id: packageId,
+    ...(draft.customer_note ? { p_customer_note: draft.customer_note } : {}),
+  });
+  if (error) redirect(portalHref.application(applicationId, { hata: billingReasonOf(error) }));
+}
+
 export async function createApplicationAction(form: FormData) {
   const supabase = await context();
-  const packageId = idOf(form, "package_id");
+  const primary = await memberPeriod(supabase);
+  if (primary && !primary.garden_changes_enabled) {
+    redirect(portalHref.newApplication({ hata: "garden_changes_closed" }));
+  }
+  const packageId = primary?.package_id ?? idOf(form, "package_id");
   if (!packageId) redirect(portalHref.newApplication({ hata: "invalid_input" }));
   const { data, error } = await supabase.rpc("customer_create_application", {
     p_package_id: packageId,
   });
   if (error || !data) redirect(portalHref.newApplication({ hata: billingReasonOf(error) }));
+  if (primary) await alignDraftPackage(supabase, data, primary.package_id);
   revalidatePath("/portal", "layout");
   redirect(portalHref.application(data, { bilgi: "taslak_acildi" }));
 }
@@ -100,7 +154,9 @@ export async function createApplicationAction(form: FormData) {
 export async function setPackageAction(form: FormData) {
   const supabase = await context();
   const applicationId = idOf(form, "application_id");
-  const packageId = idOf(form, "package_id");
+  // A member's package is locked (IP14): only the note changes.
+  const primary = await memberPeriod(supabase);
+  const packageId = primary?.package_id ?? idOf(form, "package_id");
   const note = parseNote(formReader(form)("customer_note"));
   if (!applicationId) redirect(portalHref.applications({ hata: "not_found" }));
   if (!packageId || note === "too_long") {
@@ -117,6 +173,7 @@ export async function setPackageAction(form: FormData) {
 }
 
 export async function saveGardenAction(_prev: FormState, form: FormData): Promise<FormState> {
+  if ((await requireSection("portal")).demo) return DEMO_CLOSED;
   const supabase = await context();
   const applicationId = idOf(form, "application_id");
   const gardenId = idOf(form, "garden_id");
@@ -148,10 +205,35 @@ export async function removeGardenAction(form: FormData) {
   redirect(portalHref.application(applicationId, { bilgi: "bahce_silindi" }));
 }
 
+// IP14 (§5.5): one garden leaves a submitted or quoted application; an open
+// quote is cancelled and ops quotes again.
+export async function withdrawApplicationGardenAction(form: FormData) {
+  const supabase = await context();
+  const applicationId = idOf(form, "application_id");
+  const gardenId = idOf(form, "garden_id");
+  if (!applicationId || !gardenId) redirect(portalHref.applications({ hata: "not_found" }));
+  if (formReader(form)("confirm") !== "on") {
+    redirect(portalHref.application(applicationId, { hata: "consent_required" }));
+  }
+  const { error } = await supabase.rpc("customer_withdraw_application_garden", {
+    p_garden_id: gardenId,
+  });
+  if (error) redirect(portalHref.application(applicationId, { hata: billingReasonOf(error) }));
+  revalidatePath("/portal", "layout");
+  redirect(portalHref.application(applicationId, { bilgi: "bahce_basvurudan_cikarildi" }));
+}
+
 export async function submitApplicationAction(form: FormData) {
   const supabase = await context();
   const applicationId = idOf(form, "application_id");
   if (!applicationId) redirect(portalHref.applications({ hata: "not_found" }));
+  // A member's draft goes out with the membership's package, even when the
+  // customer never saved the locked package form (§4.1).
+  const primary = await memberPeriod(supabase);
+  if (primary && !primary.garden_changes_enabled) {
+    redirect(portalHref.application(applicationId, { hata: "garden_changes_closed" }));
+  }
+  if (primary) await alignDraftPackage(supabase, applicationId, primary.package_id);
   const { error } = await supabase.rpc("customer_submit_application", {
     p_application_id: applicationId,
   });
@@ -194,47 +276,9 @@ export async function acknowledgeKvkkAction(form: FormData) {
     p_granted: true,
     p_text_version: LEGAL_TEXT_VERSIONS.kvkk_notice,
   });
-  if (error) redirect(go({ hata: billingReasonOf(error) }));
+  if (error) redirect(go({ hata: portalErrorOf(error) }));
   revalidatePath(back);
   redirect(go({ bilgi: "aydinlatma_kaydedildi" }));
-}
-
-export async function acceptQuoteAction(form: FormData) {
-  const supabase = await context();
-  const read = formReader(form);
-  const quoteId = idOf(form, "quote_id");
-  if (!quoteId) redirect(portalHref.home({ hata: "not_found" }));
-  if (read("distance_sales") !== "on" || read("pre_information") !== "on") {
-    redirect(portalHref.quote(quoteId, { hata: "onay_eksik" }));
-  }
-  const { data, error } = await supabase.rpc("customer_accept_quote", {
-    p_quote_id: quoteId,
-    p_consents: {
-      distance_sales: LEGAL_TEXT_VERSIONS.distance_sales,
-      pre_information: LEGAL_TEXT_VERSIONS.pre_information,
-    },
-  });
-  if (error || !data) redirect(portalHref.quote(quoteId, { hata: billingReasonOf(error) }));
-  revalidatePath("/portal", "layout");
-  redirect(portalHref.order(data, { bilgi: "teklif_kabul_edildi" }));
-}
-
-export async function declineQuoteAction(form: FormData) {
-  const supabase = await context();
-  const read = formReader(form);
-  const quoteId = idOf(form, "quote_id");
-  if (!quoteId) redirect(portalHref.home({ hata: "not_found" }));
-  const revision = read("intent") === "revise";
-  const note = parseNote(read("note"));
-  if (note === "too_long") redirect(portalHref.quote(quoteId, { hata: "invalid_input" }));
-  const { error } = await supabase.rpc("customer_decline_quote", {
-    p_quote_id: quoteId,
-    p_request_revision: revision,
-    ...(note ? { p_note: note } : {}),
-  });
-  if (error) redirect(portalHref.quote(quoteId, { hata: billingReasonOf(error) }));
-  revalidatePath("/portal", "layout");
-  redirect(portalHref.quote(quoteId, { bilgi: revision ? "revize_istendi" : "teklif_reddedildi" }));
 }
 
 // ---------------------------------------------------------------------------
@@ -264,6 +308,14 @@ export async function startPaymentAction(form: FormData) {
   const h = await headers();
   const returnOrigin = returnOriginOf(h);
   if (!returnOrigin) redirect(portalHref.order(orderId, { hata: "invalid_input" }));
+  // T13 (H16): the TCKN typed in for this payment goes to the payments
+  // function in the request body only; it is never logged, stored or put in
+  // a URL. The function refuses a missing one when the org needs it.
+  const identityInput = form.get("identity_number");
+  const identity = identityInput === null ? null : parsePaymentIdentity(identityInput);
+  if (identityInput !== null && !identity) {
+    redirect(portalHref.order(orderId, { hata: "identity_number_invalid" }));
+  }
   const { data, error } = await supabase.functions.invoke<{
     payment_id: string;
     redirect_url: string;
@@ -273,6 +325,7 @@ export async function startPaymentAction(form: FormData) {
       order_id: orderId,
       return_origin: returnOrigin,
       client_ip: clientIpOf(h),
+      ...(identity ? { identity_number: identity } : {}),
     },
   });
   if (error || !data?.redirect_url) {
@@ -291,6 +344,21 @@ export async function cancelOrderAction(form: FormData) {
   redirect(portalHref.order(orderId, { bilgi: "siparis_iptal_edildi" }));
 }
 
+// IP14 (§5.5): an order awaiting payment that came from an application is
+// cancelled and its application opens again for a new garden list.
+export async function reviseOrderAction(form: FormData) {
+  const supabase = await context();
+  const orderId = idOf(form, "order_id");
+  if (!orderId) redirect(portalHref.orders({ hata: "not_found" }));
+  if (formReader(form)("confirm") !== "on") {
+    redirect(portalHref.order(orderId, { hata: "consent_required" }));
+  }
+  const { data, error } = await supabase.rpc("customer_revise_order", { p_order_id: orderId });
+  if (error || !data) redirect(portalHref.order(orderId, { hata: billingReasonOf(error) }));
+  revalidatePath("/portal", "layout");
+  redirect(portalHref.application(data, { bilgi: "siparis_duzeltmeye_acildi" }));
+}
+
 // ---------------------------------------------------------------------------
 // Account
 // ---------------------------------------------------------------------------
@@ -299,12 +367,13 @@ export async function saveBillingProfileAction(
   _prev: FormState,
   form: FormData,
 ): Promise<FormState> {
-  const supabase = await context();
+  const user = await requireSection("portal");
+  if (user.demo) return DEMO_CLOSED;
+  const supabase = await createClient();
   const current = await getBillingProfile(supabase);
   if (!current) return { error: P.errors.not_customer, fieldErrors: {}, values: {} };
   const parsed = parseBillingProfileForm(formReader(form), {
-    identityRequired: current.identityNumberRequired,
-    hasIdentity: !!current.identityNumberMasked,
+    emailRequired: !(await hasFallbackEmail(supabase, user.email)),
   });
   // The TCKN is never sent back to the browser, not even after an error.
   const keep = (state: FormState): FormState => ({
@@ -322,6 +391,7 @@ export async function saveBillingProfileAction(
 }
 
 export async function saveContactAction(_prev: FormState, form: FormData): Promise<FormState> {
+  if ((await requireSection("portal")).demo) return DEMO_CLOSED;
   const supabase = await context();
   const parsed = parseContactForm(formReader(form));
   if (!parsed.ok) return invalid(form, parsed.errors);
@@ -335,21 +405,26 @@ export async function saveContactAction(_prev: FormState, form: FormData): Promi
   redirect(portalHref.account({ bilgi: "iletisim_kaydedildi" }));
 }
 
-const EXPLICIT = ["explicit_service_improvement", "explicit_marketing"] as const;
-
+// Withdrawing is always allowed; granting only a consent that is asked
+// (docs/hukuk/kararlar.md H06, H31).
 export async function setConsentAction(form: FormData) {
   const supabase = await context();
   const read = formReader(form);
   const kind = read("kind");
-  if (!(EXPLICIT as readonly string[]).includes(kind)) {
+  if (!(EXPLICIT_CONSENT_KINDS as readonly string[]).includes(kind)) {
     redirect(portalHref.consents({ hata: "invalid_input" }));
+  }
+  const granted = read("granted") === "true";
+  if (granted && !isExplicitConsentAsked(kind as ExplicitConsentKind)) {
+    redirect(portalHref.consents({ hata: "consent_unavailable" }));
   }
   const { error } = await supabase.rpc("customer_set_consent", {
     p_kind: kind,
-    p_granted: read("granted") === "true",
+    p_granted: granted,
     p_text_version: LEGAL_TEXT_VERSIONS.explicit_consent,
   });
-  if (error) redirect(portalHref.consents({ hata: billingReasonOf(error) }));
+  // The database refuses an unasked consent too (consent_not_asked, T27).
+  if (error) redirect(portalHref.consents({ hata: portalErrorOf(error) }));
   revalidatePath(portalHref.consents());
   redirect(portalHref.consents({ bilgi: "izin_kaydedildi" }));
 }

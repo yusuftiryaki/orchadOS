@@ -1,23 +1,32 @@
 import Link from "next/link";
 import { acknowledgeKvkkAction, setConsentAction } from "@/app/portal/billing-actions";
+import styles from "@/components/portal-billing/account.module.css";
 import { PortalResult } from "@/components/portal-billing/result-notice";
-import local from "@/components/portal-billing/portal-billing.module.css";
-import styles from "@/components/portal/portal.module.css";
+import layout from "@/components/portal/page.module.css";
+import { Badge } from "@/components/ui/badge";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
-import { formatDate } from "@/lib/i18n";
+import { formatDate, t } from "@/lib/i18n";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
+import { EXPLICIT_CONSENT_KINDS, isExplicitConsentAsked } from "@/lib/legal/consents";
 import { LEGAL_TEXT_VERSIONS } from "@/lib/legal/versions";
 import { getBillingProfile, getConsents, hasKvkkNotice } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
+import { kvkkFormEnabled } from "@/lib/portal/kvkk-request";
 import { createClient } from "@/lib/supabase/server";
 
 const C = P.consents;
-const EXPLICIT = ["explicit_service_improvement", "explicit_marketing"] as const;
+const K = t.legal.kvkkRequest;
 
-// The two optional explicit consents (give or withdraw at any time) and, when
-// it is missing, the KVKK notice acknowledgement.
+// The optional explicit consents that are asked (give or withdraw at any
+// time), any earlier grant of one that is no longer asked (withdraw only;
+// docs/hukuk/kararlar.md H06, H31) and, when it is missing, the KVKK notice
+// acknowledgement. The wording is legal: only the layout is the portal's.
 export default async function ConsentsPage({
   searchParams,
 }: {
@@ -26,46 +35,42 @@ export default async function ConsentsPage({
   assertCustomer(await requireSection("portal"));
   const supabase = await createClient();
   // The consents of the customer's org: the one the forms below write to.
-  const profile = await getBillingProfile(supabase);
+  // T11: the KVKK application form, while the org has it switched on.
+  const [params, profile, kvkkForm] = await Promise.all([
+    searchParams,
+    getBillingProfile(supabase),
+    kvkkFormEnabled(supabase),
+  ]);
   const consents = await getConsents(supabase, profile?.orgId ?? null);
   const kvkk = consents.get("kvkk_notice");
+  const kvkkDone = hasKvkkNotice(consents) && !!kvkk;
+  const shown = EXPLICIT_CONSENT_KINDS.filter(
+    (kind) => isExplicitConsentAsked(kind) || consents.get(kind)?.granted === true,
+  );
   return (
-    <main className={styles.page}>
-      <h1>{C.title}</h1>
-      <PortalResult params={await searchParams} />
-      <p>
-        {C.lead} <Link href="/acik-riza">{C.explicitLink}</Link>
-      </p>
+    <main className={`${layout.page} ${layout.reading}`}>
+      <PageHeader
+        title={C.title}
+        back={{ href: portalHref.account(), label: P.nav.account }}
+        lead={
+          <>
+            {C.lead} <Link href="/acik-riza">{C.explicitLink}</Link>
+          </>
+        }
+      />
+      <PortalResult params={params} />
 
-      {EXPLICIT.map((kind) => {
-        const record = consents.get(kind);
-        const granted = record?.granted === true;
-        return (
-          <section key={kind} className={styles.section} data-testid={`consent-${kind}`}>
-            <h2>{billingText.consentKind[kind]}</h2>
-            <p>
-              <strong data-testid="consent-state">{granted ? C.granted : C.notGranted}</strong>
-              {record && (
-                <span className="muted">
-                  {" · "}
-                  {C.recorded(formatDate(record.recordedAt), record.textVersion)}
-                </span>
-              )}
-            </p>
-            <form action={setConsentAction}>
-              <input type="hidden" name="kind" value={kind} />
-              <input type="hidden" name="granted" value={granted ? "false" : "true"} />
-              <button className={granted ? "button button-secondary" : "button"} type="submit">
-                {granted ? C.withdraw : C.grant}
-              </button>
-            </form>
-          </section>
-        );
-      })}
-
-      <section className={styles.section} data-testid="consent-kvkk_notice">
-        <h2>{C.kvkkTitle}</h2>
-        {hasKvkkNotice(consents) && kvkk ? (
+      <Panel
+        title={C.kvkkTitle}
+        id="consent-kvkk"
+        testId="consent-kvkk_notice"
+        actions={
+          <Badge tone={kvkkDone ? "success" : "warning"}>
+            {kvkkDone ? C.kvkkRead : C.kvkkUnread}
+          </Badge>
+        }
+      >
+        {kvkkDone && kvkk ? (
           <p>
             {C.kvkkDone(formatDate(kvkk.recordedAt), kvkk.textVersion)}{" "}
             <Link href="/kvkk">{C.kvkkLink}</Link>
@@ -75,23 +80,79 @@ export default async function ConsentsPage({
             <p>
               {C.kvkkMissing} <Link href="/kvkk">{C.kvkkLink}</Link>
             </p>
-            <form action={acknowledgeKvkkAction} className={local.checks}>
+            <form action={acknowledgeKvkkAction} className={styles.form}>
               <input type="hidden" name="geri" value={portalHref.consents()} />
-              <label>
-                <input type="checkbox" name="kvkk_notice" required />
-                <span>
-                  {C.kvkkCheck} <span className="muted">({LEGAL_TEXT_VERSIONS.kvkk_notice})</span>
-                </span>
-              </label>
-              <p>
-                <button className="button" type="submit">
-                  {C.kvkkSubmit}
-                </button>
-              </p>
+              <Checkbox
+                id="consent-kvkk-check"
+                name="kvkk_notice"
+                required
+                label={
+                  <>
+                    {C.kvkkCheck}{" "}
+                    <span className={layout.muted}>({LEGAL_TEXT_VERSIONS.kvkk_notice})</span>
+                  </>
+                }
+              />
+              <div className={layout.actions}>
+                <Button type="submit">{C.kvkkSubmit}</Button>
+              </div>
             </form>
           </>
         )}
-      </section>
+      </Panel>
+
+      <Panel title={C.explicitTitle} id="consent-explicit">
+        {!EXPLICIT_CONSENT_KINDS.some(isExplicitConsentAsked) && (
+          <p className={styles.lead} data-testid="consent-none-asked">
+            {C.noneAsked}
+          </p>
+        )}
+        {shown.length > 0 && (
+          <ul className={layout.rows}>
+            {shown.map((kind) => {
+              const record = consents.get(kind);
+              const granted = record?.granted === true;
+              const asked = isExplicitConsentAsked(kind);
+              return (
+                <li key={kind} data-testid={`consent-${kind}`}>
+                  <div className={layout.rowMain}>
+                    <h3 className={styles.name}>{billingText.consentKind[kind]}</h3>
+                    {record && (
+                      <p className={styles.meta}>
+                        {C.recorded(formatDate(record.recordedAt), record.textVersion)}
+                      </p>
+                    )}
+                    {!asked && <p className={styles.meta}>{C.noLongerAsked}</p>}
+                  </div>
+                  <div className={styles.rowSide}>
+                    <Badge tone={granted ? "success" : "neutral"} testId="consent-state">
+                      {granted ? C.granted : C.notGranted}
+                    </Badge>
+                    <form action={setConsentAction}>
+                      <input type="hidden" name="kind" value={kind} />
+                      <input type="hidden" name="granted" value={granted ? "false" : "true"} />
+                      <Button variant={granted ? "danger" : "secondary"} type="submit">
+                        {granted ? C.withdraw : C.grant}
+                      </Button>
+                    </form>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Panel>
+
+      {kvkkForm && (
+        <Panel title={K.title} id="kvkk-request" testId="kvkk-request-link">
+          <p>{K.linkHint}</p>
+          <div className={layout.actions}>
+            <ButtonLink variant="secondary" href="/portal/hesap/izinler/kvkk-basvurusu">
+              {K.link}
+            </ButtonLink>
+          </div>
+        </Panel>
+      )}
     </main>
   );
 }

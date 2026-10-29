@@ -171,15 +171,15 @@ describe("questions", () => {
     });
   });
 
-  it("owner and viewer see only their parcel's questions", async () => {
-    for (const user of ["owner", "viewer"] as const) {
-      const threads = await listThreads(clients[user], "x");
-      expect(threads).toHaveLength(2);
-      expect(threads.every((t) => t.parcelId === T.parcel)).toBe(true);
-    }
-    const tree = await listThreads(clients.viewer, "x", { parcelId: T.parcel, treeId: T.trees[0] });
+  it("owners and viewers see only their own threads (T23, H32)", async () => {
+    const threads = await listThreads(clients.owner, "x");
+    expect(threads).toHaveLength(2);
+    expect(threads.every((t) => t.parcelId === T.parcel)).toBe(true);
+    const tree = await listThreads(clients.owner, "x", { parcelId: T.parcel, treeId: T.trees[0] });
     expect(tree.map((t) => t.id)).toEqual([questionId]);
     expect(tree[0].treeCode).toBe("S1-1");
+    // The co-owner of the same parcel reads none of the owner's questions.
+    expect(await listThreads(clients.viewer, "x")).toEqual([]);
   });
 
   it("field staff sees no questions and cannot answer", async () => {
