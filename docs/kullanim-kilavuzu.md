@@ -6,6 +6,8 @@ Bu kılavuz orchadOS'un uçtan uca akışını anlatır: bir bahçe sisteme nas�
 
 Değerlendirme kuralları [metodoloji.md](metodoloji.md)'de, ürün tanımı [MVP.md](MVP.md)'de anlatılır.
 
+Ofis ve saha personeli için kısa, adım adım kılavuz: [personel-kilavuzu.md](personel-kilavuzu.md).
+
 > **Durum işaretleri:** Yazılım geliştirme sürüyor. Her adımın yanında bugünkü durumu var:
 > - ✅ **Hazır:** Kullanılabilir, test ediliyor.
 > - 🟡 **Kısmen:** Çalışıyor ama bir parçası eksik ya da geçici bir yolla yapılıyor.
