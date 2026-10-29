@@ -113,7 +113,7 @@ Sahadaki her ziyaret aynı sırayla yürür: görevi aç, ön kontrolü bitir, s
 
 - **Sınır yürüyüşü.** Sahibin ya da yetkilendirdiği kişinin gösterdiği sınır boyunca yürüyün; her köşede uygulamada "Köşe"ye basın, sınır işaretlerini fotoğraflayın.
 - **Sınırı gösteren kişi.** Ekrandaki kısa bilgiyi okuyun; adını ve rolünü (bahçe sahibi, sahibin yakını, işçi / bekçi, komşu, diğer) kaydedin. Telefon numarasını yazmayın.
-- **Doğrulama turu.** Ofis aracı ağaçları kodladıktan sonra telefona bir doğrulama listesi gelir. Listedeki ağaçlara gidin, yakın plan çekin ve soruları cevaplayın. Bu tur ilk periyodik ziyaretle birleştirilebilir.
+- **Doğrulama turu.** Ofis aracı ağaçları kodladıktan sonra telefona bir doğrulama listesi gelir. Listedeki her yere gidin, "Ağaç var" ya da "Ağaç yok" seçin; gerekirse yakın plan çekip not ekleyin. Bu tur ilk periyodik ziyaretle birleştirilebilir.
 
 ### Bahçede bulunan kişiler
 
@@ -153,7 +153,7 @@ Yapılamayan ziyaret ofise döner ve aynı pencerede yeni tarih alır. Uzmanın 
 | --- | --- |
 | Telefonda "Sunucuya ulaşılamadı" yazıyor | Sorun değil. Son indirilen görev listesiyle çalışın; kayıtlar internet olunca gönderilir. |
 | "Kaydedildi. İnternet olunca gönderilecek." | Kayıt telefonda güvende. Akşam Wi-Fi'ye bağlanıp uygulamayı açın. |
-| Kaydedici kaydı durdurdu | SD kart dolu ya da hatalıdır. Kartı değiştirin, başlangıç QR'ından yeniden başlayın, ofise bildirin. |
+| Kaydedici kaydı durdurdu | SD kart dolu ya da hatalıdır. Uygulamanın dediği gibi bitiş QR'ını gösterip kaydı durdurun; kartı değiştirip ofise bildirin. |
 | Ziyaret özetinde atlanan koridor var | Mümkünse o koridoru hemen tarayın; değilse ofise bildirin, gerekirse yeniden tarama planlanır. |
 | Fotoğraf sürekli reddediliyor | Işık yetersiz ya da lens kirli. Lensi silin; şafakta, gün batımında ve kırağı kalkmadan çekmeyin. |
 | Görev telefonda görünmüyor | Ofis ziyareti size atadı mı, tarih doğru mu? İnternete bağlanıp listeyi yenileyin. |
