@@ -14,6 +14,9 @@ on:
       - "scripts/check-migration-order.sh"
       - "scripts/demo-lock-check.sh"
       - "scripts/test-demo-lock-sql.sh"
+      - "scripts/retention-check.sh"
+      - "scripts/provision-pilot-signup.sh"
+      - "scripts/vault-signup-cleanup.sh"
       - "scripts/kvkk/**"
   push:
     branches: [main]
@@ -29,6 +32,9 @@ on:
       - "scripts/check-migration-order.sh"
       - "scripts/demo-lock-check.sh"
       - "scripts/test-demo-lock-sql.sh"
+      - "scripts/retention-check.sh"
+      - "scripts/provision-pilot-signup.sh"
+      - "scripts/vault-signup-cleanup.sh"
       - "scripts/kvkk/**"
 
 concurrency:
@@ -91,8 +97,9 @@ jobs:
       - name: Database tests (pgTAP)
         run: pnpm db:test
 
-      # The demo lock query (scripts/demo-lock-check.sh) on crafted rows; the
-      # ci-scripts mock only returns canned counts.
+      # The demo lock query (scripts/demo-lock-check.sh), the retention query
+      # and the pilot sign-up SQL (scripts/provision-pilot-signup.sh) on
+      # crafted rows; the ci-scripts mocks only return canned counts.
       - name: Demo lock query against the database
         run: scripts/test-demo-lock-sql.sh
 

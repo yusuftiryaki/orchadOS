@@ -317,6 +317,25 @@ export const siteText = {
     closedBody:
       "Kendi hesabınızı açma özelliği yakında açılacak. Şimdilik kayıt için bizimle iletişime geçin.",
     closedContact: "İletişim bilgileri",
+    // What a visitor can do meanwhile; the demo's "Gerçek hesap aç" leads
+    // here while sign-up is closed (docs/demo-turu.md §11.3).
+    closedWaysTitle: "Bu arada",
+    closedWays: {
+      contact: {
+        title: "Bize ulaşın",
+        body: "Bahçeniz için başvurunuzu telefonla ya da e-postayla alıyoruz.",
+      },
+      packages: {
+        title: "Paketleri inceleyin",
+        body: "Yıllık ziyaret sayısını ve dönüm başına fiyatı görün.",
+        link: "Paketler",
+      },
+      demo: {
+        title: "Demoyu deneyin",
+        body: "Örnek bir bahçenin raporunu hesap açmadan gezin.",
+        link: "Demoyu dene",
+      },
+    },
     haveAccount: "Hesabınız var mı?",
     login: "Giriş yap",
     fullName: "Ad soyad",

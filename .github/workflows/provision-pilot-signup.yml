@@ -1,0 +1,117 @@
+name: provision-pilot-signup
+
+# Opens self sign-up on the pilot (IP12; docs/deployment.md › Pilot kaydı açma
+# / kapama), or closes it again (signups=off). Run by hand from `release`
+# after main has been brought into release and deploy-db-pilot is green (the
+# sign-up migrations must be on the pilot):
+#   - Edge secrets of the pilot project: SIGNUP_HASH_SECRET, SIGNUP_PROXY_SECRET,
+#     ORCHADOS_CRON_SECRET (random, kept while every holder has one),
+#     TURNSTILE_SECRET_KEY (live), PORTAL_BASE_URL, Netgsm when the
+#     PILOT_NETGSM_* secrets exist;
+#   - Vault signup_cleanup_url, contract_documents_sweep_url, orchados_cron_secret;
+#   - Vercel orchados-pilot Production variables: ORCHADOS_SIGNUP_ENABLED=1,
+#     NEXT_PUBLIC_TURNSTILE_SITE_KEY, SIGNUP_PROXY_SECRET and
+#     ORCHADOS_CRON_SECRET (sensitive), ORCHADOS_SITE_URL, ORCHADOS_DEMO_URL
+#     (never PAYMENT_FAKE_CHECKOUT);
+#   - accepts_signups on one org, then a production deployment of release;
+#   - the sign-up clean-up check (scripts/retention-check.sh signup, T09).
+# It reports whether sign-up SMS codes reach phones (output sms_ready): the
+# Auth Send SMS hook and Netgsm. Safe to run again.
+#
+# The logic lives in scripts/provision-pilot-signup.sh, tested with mocked
+# APIs by scripts/test-provision-pilot.sh (ci-scripts). Secret values never
+# reach the log or the summary.
+
+on:
+  workflow_dispatch:
+    inputs:
+      signups:
+        description: "on: open self sign-up; off: close it (rollback)"
+        type: choice
+        options: ["on", "off"]
+        default: "on"
+      dry_run:
+        description: "Read only: print what would change"
+        type: boolean
+        default: false
+      org_id:
+        description: "Org that takes the sign-ups (empty: the one that already does, else the only org)"
+        type: string
+        default: ""
+      site_url:
+        description: "Pilot origin (PORTAL_BASE_URL, ORCHADOS_SITE_URL, Turnstile hostname)"
+        type: string
+        default: https://orchados-pilot.vercel.app
+      demo_url:
+        description: "Target of the site's \"Demoyu dene\" links (ORCHADOS_DEMO_URL); empty keeps it"
+        type: string
+        default: https://orchados-demo.vercel.app/demo
+      redeploy:
+        description: "Deploy release on Vercel even when no variable changed"
+        type: boolean
+        default: false
+      init_sms_hook:
+        description: "Set up the Auth Send SMS hook (send-sms) with a new SEND_SMS_HOOK_SECRET when it is not set up"
+        type: boolean
+        default: false
+      require_sms:
+        description: "Fail (writing nothing) when sign-up SMS codes would not reach phones"
+        type: boolean
+        default: false
+
+concurrency:
+  group: provision-pilot-signup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  provision:
+    # A dispatch from another branch would run that branch's script with the
+    # pilot's tokens.
+    if: github.ref == 'refs/heads/release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: pilot
+    outputs:
+      sms_ready: ${{ steps.provision.outputs.sms_ready }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release
+
+      - name: Provision
+        id: provision
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PILOT_SUPABASE_PROJECT_REF: ${{ secrets.PILOT_SUPABASE_PROJECT_REF }}
+          PILOT_SUPABASE_URL: ${{ secrets.PILOT_SUPABASE_URL }}
+          # The test project's public URL (repository level): refused as the pilot.
+          TEST_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: team_0Ga9zPSUlRt15QdLIDp2Jj6W
+          VERCEL_PROJECT_ID: prj_2zdIcl6k9uFm1fXCe2EeZZQlhbIT
+          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          NETGSM_USERCODE: ${{ secrets.PILOT_NETGSM_USERCODE }}
+          NETGSM_PASSWORD: ${{ secrets.PILOT_NETGSM_PASSWORD }}
+          NETGSM_MSGHEADER: ${{ secrets.PILOT_NETGSM_MSGHEADER }}
+          SIGNUPS: ${{ inputs.signups }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          ORG_ID: ${{ inputs.org_id }}
+          SITE_URL: ${{ inputs.site_url }}
+          DEMO_URL: ${{ inputs.demo_url }}
+          REDEPLOY: ${{ inputs.redeploy }}
+          INIT_SMS_HOOK: ${{ inputs.init_sms_hook }}
+          REQUIRE_SMS: ${{ inputs.require_sms }}
+        run: scripts/provision-pilot-signup.sh
+
+      # T09 (docs/hukuk/kararlar.md H25): with sign-ups open, the clean-up of
+      # accounts whose phone is never verified must be able to run.
+      - name: Check the unverified-account clean-up
+        if: ${{ !inputs.dry_run }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.PILOT_SUPABASE_PROJECT_REF }}
+        run: scripts/retention-check.sh signup

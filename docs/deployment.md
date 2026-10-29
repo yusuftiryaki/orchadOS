@@ -26,12 +26,13 @@ Her PR'da değişen bileşenin testleri GitHub Actions'ta otomatik koşar. `main
 | `ci-pipeline` | `services/pipeline/` değişince | ruff, pytest, sentetik oturumla uçtan uca çalıştırma |
 | `ci-firmware` | `firmware/` değişince | Native testler, ESP32 derlemesi; `firmware.bin` 14 gün saklanır |
 | `ci-field` | `apps/field/` değişince | analyze, test, üretilmiş kodun güncelliği. `main`'de ayrıca debug APK derlenir ve 7 gün saklanır |
-| `deploy-db` | `main`'de `supabase/migrations/`, `supabase/functions/` ya da `supabase/config.toml` değişince, ya da elle (yalnızca `main`'den) | `test` ortamında koşar. `supabase db push` ile test projesine migration uygular ve bütün Edge Function'ları dağıtır. Seed uygulanmaz. `DEMO_HOST=test` iken sonunda ortak demo kilitlerini denetler (aşağıda, Ortak barındırma). En sonda kayıt temizliği denetimi (aşağıda, Kısa saklama denetimleri) |
-| `deploy-db-pilot` | `release`'te aynı yollar değişince, ya da elle (yalnızca `release`'ten) | `pilot` ortamında koşar; aynısını pilot projesine yapar. Seed hiçbir zaman uygulanmaz. Önce ödeme, kayıt ve demo kilitlerini denetler (aşağıda, Ödeme ve Demo turu); en sonda kayıt temizliği denetimi (aşağıda, Kısa saklama denetimleri) |
+| `deploy-db` | `main`'de `supabase/migrations/`, `supabase/functions/` ya da `supabase/config.toml` değişince, ya da elle (yalnızca `main`'den) | `test` ortamında koşar. `supabase db push` ile test projesine migration uygular ve bütün Edge Function'ları dağıtır. Seed uygulanmaz. `DEMO_HOST=test` iken sonunda ortak demo kilitlerini denetler (aşağıda, Ortak barındırma). En sonda Vault `signup_cleanup_url`'i yazar ve kayıt temizliğini denetler (aşağıda, Kısa saklama denetimleri) |
+| `deploy-db-pilot` | `release`'te aynı yollar değişince, ya da elle (yalnızca `release`'ten) | `pilot` ortamında koşar; aynısını pilot projesine yapar. Seed hiçbir zaman uygulanmaz. Önce ödeme, kayıt ve demo kilitlerini denetler (aşağıda, Ödeme ve Demo turu); en sonda Vault `signup_cleanup_url`'i yazar ve kayıt temizliğini denetler (aşağıda, Kısa saklama denetimleri) |
+| `provision-pilot-signup` | Yalnızca elle (`workflow_dispatch`, yalnızca `release`'ten) | `pilot` ortamında koşar. Pilotta self-servis kaydı açar ya da kapatır: Edge secret'ları, Vault, Vercel `orchados-pilot` değişkenleri, `accepts_signups`, `release`'in üretim dağıtımı; SMS'in telefona gidip gitmediğini (`sms_ready`) raporlar. Tekrar çalıştırmak güvenlidir (aşağıda, Pilot kaydı açma / kapama) |
 | `deploy-db-demo` | `main`'de aynı yollar değişince, ya da elle (yalnızca `main`'den) | `demo` ortamında koşar; aynısını demo projesine yapar. Önce demo projesinin kilitlerini denetler (aşağıda, Demo turu). Demo projesi açılana kadar iş akışı GitHub'da devre dışıdır. `DEMO_HOST=test` iken `test` ortamında koşar ve yalnızca ortak demo kilitlerini denetler. İki kipte de en sonda GoTrue denetim kaydı temizliğini denetler (aşağıda, Kısa saklama denetimleri) |
 | `demo-data` | Yalnızca elle (`workflow_dispatch`, yalnızca `main`'den) | `test` ya da `demo` ortamında koşar. Demo turu verisini test ya da demo projesine yükler, açar ya da kapatır (aşağıda, Demo turu). `DEMO_HOST=test` iken `project=demo` test projesidir |
 | `provision-demo` | Yalnızca elle (`workflow_dispatch`, yalnızca `main`'den) | `demo` ortamında koşar. Demo turunu test projesinde (`host=test`, şimdilik varsayılan) ya da ayrı Supabase projesinde (`host=separate`) ve Vercel `orchados-demo` projesinde kurar ya da günceller; tekrar çalıştırmak güvenlidir. Migration ve veri yüklemez (aşağıda, Demo turu › Kurulum) |
-| `ci-scripts` | `scripts/provision-demo.sh`, `scripts/demo-lock-check.sh`, `scripts/retention-check.sh`, testleri ya da dağıtım ve demo iş akışları değişince | shellcheck, actionlint ve sahte Supabase/Vercel API'sine karşı `scripts/test-provision-demo.sh` (demo kilitleri ve kısa saklama denetimleri dahil); gönderilen her SQL düz bir Postgres servisinde çalıştırılır (`scripts/test-script-sql.sh`). Kilit ve saklama sorguları ayrıca `ci-db-web`'de yerel Supabase'te hazırlanmış satırlarla denenir (`scripts/test-demo-lock-sql.sh`) |
+| `ci-scripts` | `scripts/provision-demo.sh`, `scripts/provision-pilot-signup.sh`, `scripts/vault-signup-cleanup.sh`, `scripts/demo-lock-check.sh`, `scripts/retention-check.sh`, testleri ya da dağıtım, demo ve pilot kayıt iş akışları değişince | shellcheck, actionlint ve sahte Supabase/Vercel API'sine karşı `scripts/test-provision-demo.sh` (demo kilitleri ve kısa saklama denetimleri dahil) ile `scripts/test-provision-pilot.sh` (pilot kaydı ve `signup_cleanup_url`); gönderilen her SQL düz bir Postgres servisinde çalıştırılır (`scripts/test-script-sql.sh`). Kilit ve saklama sorguları ayrıca `ci-db-web`'de yerel Supabase'te hazırlanmış satırlarla denenir (`scripts/test-demo-lock-sql.sh`) |
 | `keepalive` | Haftada iki kez | Ücretsiz Supabase projelerinin (test, pilot) duraklatılmaması için küçük bir istek. Test adresi yoksa ya da yanıt gelmezse (`000`) başarısız olur |
 
 **Dakika bütçesi:** Private repoda ayda 2.000 dakika ücretsiz. İş akışları sadece ilgili klasör değişince koşar. Firmware araç zinciri ve Flutter önbelleğe alınır.
@@ -44,7 +45,7 @@ Bir projenin veritabanına dokunan her iş, o projenin **GitHub Environment**'ı
 | --- | --- | --- | --- | --- |
 | `test` | Yalnızca `main` | İsteğe bağlı (açılırsa her `deploy-db` bir onay bekler) | `deploy-db`, `demo-data` (`project=test`) | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` |
 | `demo` | Yalnızca `main` | Evet (her `deploy-db-demo` ve `demo-data` bir onay bekler) | `deploy-db-demo`, `demo-data` (`project=demo`) | `SUPABASE_ACCESS_TOKEN`, `DEMO_SUPABASE_PROJECT_REF`, `DEMO_SUPABASE_DB_PASSWORD`, `DEMO_SUPABASE_URL`, `DEMO_SUPABASE_ANON_KEY` |
-| `pilot` | Yalnızca `release` | Evet | `deploy-db-pilot` | `SUPABASE_ACCESS_TOKEN`, `PILOT_SUPABASE_PROJECT_REF`, `PILOT_SUPABASE_DB_PASSWORD` |
+| `pilot` | Yalnızca `release` | Evet | `deploy-db-pilot`, `provision-pilot-signup` | `SUPABASE_ACCESS_TOKEN`, `PILOT_SUPABASE_PROJECT_REF`, `PILOT_SUPABASE_DB_PASSWORD`; `provision-pilot-signup` ayrıca `PILOT_SUPABASE_URL`, `VERCEL_TOKEN`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` ve varsa `PILOT_NETGSM_USERCODE`, `PILOT_NETGSM_PASSWORD`, `PILOT_NETGSM_MSGHEADER` (ortamda ya da repo düzeyinde) |
 
 **Eksik secret işi başarısız kılar;** uyarıyla atlanıp yeşil bitmez. Tek istisna kurulmadan önceki test projesidir ve açıkça seçilir: repo değişkeni `SUPABASE_TEST_PENDING=1` (`gh variable set SUPABASE_TEST_PENDING --body 1`) varken `deploy-db` ve `keepalive`'ın test isteği uyarıyla atlanır. Henüz açılmamış bir demo ya da pilot projesinin iş akışı devre dışı bırakılır (`gh workflow disable deploy-db-demo`), proje açılınca yeniden açılır (`gh workflow enable deploy-db-demo`).
 
@@ -77,16 +78,17 @@ Test projesi öneksiz adları, pilot `PILOT_`, demo (İP13) `DEMO_` önekini kul
 | Değişken | Ne için | Test (`orchados`) | Pilot (`orchados-pilot`) |
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase adresi ve "publishable" (ya da eski "anon") anahtarı | Test projesi | Pilot projesi |
-| `ORCHADOS_SIGNUP_ENABLED` | `1`: `/kayit` ve kayıt bağlantıları görünür. Yalnızca arayüz; kaydı sunucuda `accepts_signups` açar ve kapatır (Ödeme › Geri alma) | Kayıt denenirken `1` | Turnstile kapısı geçilene kadar boş |
+| `ORCHADOS_SIGNUP_ENABLED` | `1`: `/kayit` ve kayıt bağlantıları görünür. Kapalıyken `/kayit` "Kayıt yakında" der ve iletişim, paketler, demo ve giriş bağlantılarını gösterir. Yalnızca arayüz; kaydı sunucuda `accepts_signups` açar ve kapatır (Ödeme › Geri alma) | Kayıt denenirken `1` | `provision-pilot-signup` yazar (`signups=on`: `1`, `off`: silinir) |
 | `ORCHADOS_PAYMENTS_ENABLED` | `1`: portalda "Kartla öde" | Ödeme denenirken `1` | iyzico canlı hesabı ve sandbox listesi tamamlanınca `1` |
 | `PAYMENT_FAKE_CHECKOUT` | `1`: `/odeme/sahte` sayfası (sahte sağlayıcı) | Sahte ödeme denenirken `1` | **Asla tanımlanmaz** |
 | `ORCHADOS_SITE_INDEXABLE` | `1`: `robots.txt` dizinlemeye izin verir, site haritası dolar | Boş | Alan adı bağlanınca `1` |
 | `ORCHADOS_SITE_URL` | `robots.txt` ve site haritasındaki adres (sonda `/` yok). Boşsa `http://localhost:3000` | `https://orchados-orchad-os.vercel.app` | Pilot adresi, alan adı gelince o |
 | `SIGNUP_PROXY_SECRET` | `customer-signup` ile ortak sır; Next sunucusu ziyaretçi IP'sini bununla iletir. Edge'deki değerle **aynı**; yalnızca sunucu, asla `NEXT_PUBLIC` | Rastgele | Rastgele (test projesinden farklı) |
-| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Kayıt formundaki Turnstile widget'ı | Cloudflare test site anahtarı | **Zorunlu**, canlı site anahtarı |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Kayıt formundaki Turnstile widget'ı | Cloudflare test site anahtarı | **Zorunlu**, canlı site anahtarı (`provision-pilot-signup`, GitHub `TURNSTILE_SITE_KEY`'den); anahtarın Cloudflare'deki alan adı listesinde pilot adresi olmalı |
+| `ORCHADOS_DEMO_URL` | Sitenin "Demoyu dene" bağlantılarının hedefi; boşsa bağlantılar çizilmez (aşağıda, Demo turu › Pilot sitesi) | Boş | `https://orchados-demo.vercel.app/demo` (`provision-pilot-signup`) |
 | `NEXT_PUBLIC_CAPTCHA_PROVIDER` | Robot doğrulamasının widget'ı: boş ya da `turnstile` (varsayılan), `altcha` (kendi doğrulamamız). Edge'deki `CAPTCHA_PROVIDER` ile **aynı** olmalı (aşağıda, Robot doğrulaması) | Boş | Boş; değiştirmeden önce gizlilik metni |
 | `NEXT_PUBLIC_MAP_STYLE_URL` | Harita stili (MapLibre). Boşsa geliştirmede doğrudan OSM karoları, üretim derlemesinde kendi karo vekilimiz (`/harita/karo/…`) | Boş (vekil) ya da kendi stilimiz | Boş (vekil) ya da **kendi** sunucumuzdaki stil (aşağıda, Harita altlığı) |
-| `ORCHADOS_CRON_SECRET` | Sözleşme belgesi taramasının (`/sistem/sozlesme-tarama`, T04) sırrı; Vault `orchados_cron_secret` ve Edge `ORCHADOS_CRON_SECRET` ile **aynı** değer. Yalnızca sunucu. Yoksa rota 503 döner, tarama çalışmaz | Vault'taki değer | Vault'taki değer |
+| `ORCHADOS_CRON_SECRET` | Sözleşme belgesi taramasının (`/sistem/sozlesme-tarama`, T04) sırrı; Vault `orchados_cron_secret` ve Edge `ORCHADOS_CRON_SECRET` ile **aynı** değer. Yalnızca sunucu. Yoksa rota 503 döner, tarama çalışmaz | Vault'taki değer | Vault'taki değer (`provision-pilot-signup` üçüne birden yazar, sensitive) |
 | `MAP_TILE_UPSTREAM`, `MAP_TILE_CONTACT` | Karo vekilinin kaynağı (`https://…/{z}/{x}/{y}.png`; boşsa OSM) ve kaynağın gördüğü User-Agent'taki iletişim adresi. Yalnızca sunucu | Boş | Kaynak seçilince; iletişim adresi girilir |
 
 `NEXT_PUBLIC_*` değerleri derlemeye gömülür; değişince yeniden dağıtılır. Değişkenlerin ayrıntısı: `apps/web/README.md`.
@@ -207,7 +209,10 @@ Test projesinde ve demoda açılmaz.
 **Kayıt kapısı:** Kayıt (`accepts_signups`) bir org'da açılmadan önce:
 - Edge: `TURNSTILE_SECRET_KEY` (canlı; kendi doğrulamamızda `ALTCHA_HMAC_KEY`), `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET`, `ORCHADOS_CRON_SECRET`;
 - Vercel: `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (canlı), Edge'dekiyle aynı `SIGNUP_PROXY_SECRET`;
-- Vault: `signup_cleanup_url`, `orchados_cron_secret`.
+- Vault: `signup_cleanup_url`, `orchados_cron_secret`;
+- SMS: kayıt kodu telefona ancak Send SMS hook'u ve Netgsm kuruluysa gider (aşağıda, Pilot kaydı açma / kapama › SMS).
+
+Pilotta bunların hepsini `provision-pilot-signup` iş akışı kurar ve `accepts_signups`'ı en son açar (aşağıda, Pilot kaydı açma / kapama).
 
 **Telefonu doğrulanmamış hesap temizliği zorunludur** ([hukuk/kararlar.md](hukuk/kararlar.md) H25, T09): `pg_cron` işi `signup-cleanup` saatte bir `customer-signup`'ın `cleanup` eylemini çağırır ve telefonunu 24 saatte doğrulamayan self-servis hesapları siler. Barındırılan bir projede kayıt bu temizlik çalışmadan açık kalamaz; `deploy-db` ve `deploy-db-pilot` bunu her dağıtımda denetler (aşağıda, Kısa saklama denetimleri).
 
@@ -349,7 +354,7 @@ Tasarım: [demo-turu.md](demo-turu.md) §3.4, §4, §7, §11–§16. Bahçe sahi
 | `ORCHADOS_SITE_INDEXABLE` | **Tanımlanmaz** | Tanımlansa da `ORCHADOS_MAIN_SITE_URL` varken dizinleme kapalı kalır |
 | `ORCHADOS_SIGNUP_ENABLED`, `ORCHADOS_PAYMENTS_ENABLED`, `PAYMENT_FAKE_CHECKOUT` | Tanımlanmaz | Kayıt ve ödeme asıl sitededir |
 
-**Pilot sitesi:** İP12 sitesi herkese açıldığında `orchados-pilot` projesine `ORCHADOS_DEMO_URL=https://demo.<alan adı>/demo` eklenir. Landing, üst menü, `/giris` ve "Nasıl çalışır" sayfasındaki "Demoyu dene" bağlantıları yalnızca demo adresi çözülebildiğinde (`ORCHADOS_DEMO_URL` ya da aynı dağıtımda `ORCHADOS_DEMO_ENABLED`) çizilir; değişken yoksa hiçbiri görünmez. Pilot Supabase projesine hiçbir demo ayarı girmez.
+**Pilot sitesi:** `orchados-pilot` projesinde `ORCHADOS_DEMO_URL=https://orchados-demo.vercel.app/demo` (alan adı gelince `https://demo.<alan adı>/demo`; `provision-pilot-signup` `demo_url` girdisiyle yazar). Landing, üst menü, `/giris` ve "Nasıl çalışır" sayfasındaki "Demoyu dene" bağlantıları yalnızca demo adresi çözülebildiğinde (`ORCHADOS_DEMO_URL` ya da aynı dağıtımda `ORCHADOS_DEMO_ENABLED`) çizilir; değişken yoksa hiçbiri görünmez. Pilot Supabase projesine hiçbir demo ayarı girmez.
 
 ### Kurulum: `provision-demo` iş akışı
 
@@ -499,7 +504,7 @@ GitHub secret'ları: `test` ortamında `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJEC
 
 [hukuk/kararlar.md](hukuk/kararlar.md) H25, H27, T09. `scripts/retention-check.sh`, Management API'yle (secret adları ve değerlerin sha256 özeti, bir salt okunur sorgu) iki denetim yapar; ikisi de dağıtımdan sonra çalışır ve başarısızlık işi kırmızı bitirir (migration'lar ve fonksiyonlar yine de uygulanmış olur):
 
-- **`signup`** (`deploy-db` test projesinde, `deploy-db-pilot` pilotta): bir org'da `accepts_signups` açıkken şu durumlarda başarısız olur: `pg_cron` işi `signup-cleanup` yok ya da pasif; Vault'ta bir `customer-signup` adresine giden `signup_cleanup_url` yok; Vault `orchados_cron_secret` yok; Edge `ORCHADOS_CRON_SECRET` yok ya da Vault'takiyle aynı değil (özetle karşılaştırılır). Bunlardan biri eksikse `private.dispatch_signup_cleanup()` sessizce hiçbir şey yapmaz ya da fonksiyon 401 döner ve doğrulanmamış hesaplar `auth.users`'ta kalır.
+- **`signup`** (`deploy-db` test projesinde, `deploy-db-pilot` pilotta, `provision-pilot-signup` sonunda): bir org'da `accepts_signups` açıkken şu durumlarda başarısız olur: `pg_cron` işi `signup-cleanup` yok ya da pasif; Vault'ta bir `customer-signup` adresine giden `signup_cleanup_url` yok; Vault `orchados_cron_secret` yok; Edge `ORCHADOS_CRON_SECRET` yok ya da Vault'takiyle aynı değil (özetle karşılaştırılır). Bunlardan biri eksikse `private.dispatch_signup_cleanup()` sessizce hiçbir şey yapmaz ya da fonksiyon 401 döner ve doğrulanmamış hesaplar `auth.users`'ta kalır. Adres gizli değildir ve proje ref'inden çıkar: `deploy-db` ve `deploy-db-pilot` denetimden hemen önce `scripts/vault-signup-cleanup.sh` ile `signup_cleanup_url`'i (`https://<ref>.supabase.co/functions/v1/customer-signup`) yoksa ekler, başka bir yeri gösteriyorsa düzeltir. Cron secret'ına dokunmaz: Edge `ORCHADOS_CRON_SECRET` ya da Vault `orchados_cron_secret` eksikse denetim yine başarısız olur; test projesinde ikisi de yoksa `provision-demo` `host=test init_cron_secret=true` ile, pilotta `provision-pilot-signup` ile kurulur.
 - **`audit`** (`deploy-db-demo`; demoyu barındıran proje: `DEMO_HOST=test` iken test projesi, yoksa demo projesi): `pg_cron` işi `auth-audit-log-purge` yok ya da pasifse ya da `auth.audit_log_entries`'te 31 günden eski satır varsa başarısız olur. Gizlilik metni denetim kayıtlarındaki IP için en fazla 30 gün der; bir gün günlük işin payıdır. İş ve ilk temizlik veritabanı akışının migration'ıyla gelir (T09; `notification-purge`, `auth-session-purge` ile birlikte).
 
 Eksik secret işi başarısız kılar (yukarıda); tek istisna `SUPABASE_TEST_PENDING=1` ile atlanan kurulmamış test projesidir. Sorgular `scripts/test-demo-lock-sql.sh` ile yerel Supabase'te hazırlanmış satırlarla, betik `scripts/test-provision-demo.sh` ile sahte API'ye karşı denenir (`ci-scripts`, `ci-db-web`).
@@ -565,7 +570,7 @@ Gizlilik metni (`gizlilik-v2-taslak` §2 ve §5) sunucu ve altyapı kayıtların
     5. Canlı Turnstile anahtarları `demo` ortamına girilir (`TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`) ve `provision-demo` yeniden çalıştırılır: `ORCHADOS_DEMO_MODE=public` ve site anahtarı yazılır, Vercel bir kez yeniden dağıtır.
     6. `demo-data` `action=enable`; ardından `deploy-db-demo` bir kez daha elle çalıştırılır (açık demo için kilitler).
     7. Alan adı gelince DNS (`demo.<alan adı>`, Vercel → Domains) ve `provision-demo` `demo_url=https://demo.<alan adı>` ile yeniden çalıştırılır. Duman listesi demo adresinde tekrarlanır.
-4. **Pilot sitesi:** İP12 sitesi herkese açılınca `orchados-pilot`'a `ORCHADOS_DEMO_URL`.
+4. **Pilot sitesi:** `orchados-pilot`'a `ORCHADOS_DEMO_URL` ve kayıt (aşağıda, Pilot kaydı açma / kapama).
 
 **Duman listesi** (test projesinde ve demo adresinde, elle):
 - [ ] Başlatma çalışır: ziyaretçi e-posta alan adı (`private.demo_org.visitor_email_domain`, varsayılan `demo.orchados.invalid`) barındırılan GoTrue'dan geçer. Geçmezse null MX kayıtlı (RFC 7505) şirket alt alan adı açılır ve yazılır:
@@ -632,9 +637,65 @@ Bildirimler (`garden_removal_scheduled`, `_rescheduled`, `_cancelled`, `_complet
 ## Pilot ortamı
 
 - **Supabase:** `orchados-pilot`, Frankfurt (`eu-central-1`), Free plan. Medya için 1 GB sınırı var; pilot verisi gelmeden Pro'ya geçilmeli.
-- **Vercel:** `orchados-pilot` projesi, üretim dalı `release`, bölge `fra1`. Başka dallar için derleme yapmaz (Ignored Build Step). Ortam değişkenleri sadece Production'da, pilot projesini gösteriyor. Vercel girişi koruması açık; pilot sahipleri gelince kaldırılır. Hobby plan ticari kullanıma izin vermiyor, önce Pro'ya geçilmeli.
-- **Auth:** Dışarıdan üye olma kapalı. Site URL pilot adresi. Telefonla giriş açık, SMS kancası `send-sms`'te.
-- **Mesajlar:** Gerçek SMS gitmez (`MESSAGE_PROVIDER=record`). Netgsm hesabı açılınca secret'lar girilip bu değişken kaldırılır.
+- **Vercel:** `orchados-pilot` projesi, üretim dalı `release`, bölge `fra1`. Başka dallar için derleme yapmaz (Ignored Build Step). Ortam değişkenleri sadece Production'da, pilot projesini gösteriyor. Site herkese açık olduğu için Vercel girişi koruması yalnızca önizlemeleri kapsar (`provision-pilot-signup` üretimi kapsayan korumada uyarır). Hobby plan ticari kullanıma izin vermiyor, önce Pro'ya geçilmeli.
+- **Auth:** Dışarıdan üye olma kapalı (self-servis hesapları `customer-signup` Admin API ile açar). Site URL pilot adresi. Telefonla giriş açık, SMS kancası `send-sms`'te.
+- **Mesajlar:** Netgsm gelene kadar gerçek SMS gitmez (`MESSAGE_PROVIDER=record`). Netgsm secret'ları GitHub'a girilince `provision-pilot-signup` onları Edge'e yazar ve bu değişkeni kaldırır (aşağıda).
+- **Self-servis kayıt:** 29 Ekim 2026 sahip kararıyla [yayın şartları](hukuk/kararlar.md#yayin) tamamlanmadan açılıyor; hukuki metinler değişmez, teknik kapılar (Turnstile, kayıt secret'ları, doğrulanmamış hesap temizliği, sahte ödeme kilitleri) atlanmaz. `legal_gate_enforced`, `ORCHADOS_PAYMENTS_ENABLED` ve `garden_changes_enabled` kapalı kalır.
+
+### Pilot kaydı açma / kapama
+
+Ziyaretçi yolculuğu: pilot ana sayfası ("Demoyu dene") → demo (https://orchados-demo.vercel.app/demo) → "Gerçek hesap aç" → pilotun `/kayit`'ı. Kayıt kapalıyken `/kayit` "Kayıt yakında" sayfasıdır; iletişim, paketler, demoya dönüş ve giriş bağlantılarını gösterir (`tests/e2e/site-demo-signup.spec.ts`).
+
+Kayıt `.github/workflows/provision-pilot-signup.yml` ile açılır (mantık `scripts/provision-pilot-signup.sh`'te, testi `scripts/test-provision-pilot.sh`). Yalnızca `release`'ten ve `pilot` ortamında koşar; tekrar çalıştırmak güvenlidir.
+
+**Ön koşullar** (iş akışı eksikte hiçbir şey yazmadan başarısız olur):
+1. `main` `release`'e birleşmiş, `deploy-db-pilot` yeşil bitmiş olmalı: kayıt migration'ları (`org_billing_setting`, `signup_code_grant`, etkin `signup-cleanup` işi) pilotta.
+2. GitHub secret'ları: `SUPABASE_ACCESS_TOKEN`, `PILOT_SUPABASE_PROJECT_REF`, `PILOT_SUPABASE_URL`, `VERCEL_TOKEN`, canlı `TURNSTILE_SITE_KEY` ve `TURNSTILE_SECRET_KEY` (Cloudflare test anahtarları reddedilir).
+3. Pilotta kilitler kapalı: Edge'de `PAYMENT_FAKE_ALLOWED`, `SIGNUP_TURNSTILE_DISABLED`, `ORCHADOS_DEMO_MODE` yok; `CAPTCHA_PROVIDER` boş ya da `turnstile`; `allow_fake_payments` açık org yok; Vercel'de `PAYMENT_FAKE_CHECKOUT`, `ORCHADOS_DEMO_ENABLED`, `ORCHADOS_MAIN_SITE_URL`, `SUPABASE_SERVICE_ROLE_KEY` yok; Vercel'in `NEXT_PUBLIC_SUPABASE_URL`'i pilot projesi.
+
+| Girdi | Varsayılan | Not |
+| --- | --- | --- |
+| `signups` | `on` | `on`: kaydı açar; `off`: kapatır (geri alma, aşağıda) |
+| `dry_run` | `false` | `true`: yalnızca okur, ne değişeceğini yazar |
+| `org_id` | Boş | Kaydı alacak org; boşsa kaydı zaten alan org, o da yoksa pilottaki tek org. Birden çok org varken zorunlu |
+| `site_url` | `https://orchados-pilot.vercel.app` | `PORTAL_BASE_URL`, `ORCHADOS_SITE_URL`, sözleşme taraması adresi. Alan adı gelince o |
+| `demo_url` | `https://orchados-demo.vercel.app/demo` | `ORCHADOS_DEMO_URL`; boş bırakılırsa Vercel'deki değer korunur |
+| `redeploy` | `false` | `true`: değişken değişmese de `release` dağıtılır |
+| `init_sms_hook` | `false` | Send SMS hook'u kurulu değilse (kapalı, başka adres ya da Edge secret'ıyla eşleşmeyen sır) `send-sms`'e bağlar ve yeni bir `SEND_SMS_HOOK_SECRET`'ı iki tarafa birden yazar |
+| `require_sms` | `false` | `true`: SMS hazır değilse hiçbir şey yazmadan başarısız olur |
+
+**`signups=on` ne yapar:**
+1. **Edge secret'ları:** `SIGNUP_HASH_SECRET`, `SIGNUP_PROXY_SECRET` (+ Vercel) ve `ORCHADOS_CRON_SECRET` (+ Vault + Vercel) iş içinde rastgele üretilir; tutan taraflardan biri eksikse (cron secret'ında Edge ile Vault'un özeti farklıysa da) yeniden üretilip hepsine aynı çalıştırmada yazılır, yoksa dokunulmaz. `TURNSTILE_SECRET_KEY` (GitHub'dan) ve `PORTAL_BASE_URL` değerin özeti farklıysa yazılır. GitHub'da üç `PILOT_NETGSM_*` secret'ı varsa `NETGSM_USERCODE`, `NETGSM_PASSWORD`, `NETGSM_MSGHEADER` yazılır ve `MESSAGE_PROVIDER=record` silinir.
+2. **Vault:** `signup_cleanup_url`, `contract_documents_sweep_url` (`<site_url>/sistem/sozlesme-tarama`, T04) ve gerektiğinde `orchados_cron_secret`.
+3. **Vercel** (`orchados-pilot`, yalnızca Production): `ORCHADOS_SIGNUP_ENABLED=1`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `ORCHADOS_SITE_URL`, `ORCHADOS_DEMO_URL`, `SIGNUP_PROXY_SECRET` ve `ORCHADOS_CRON_SECRET` (sensitive). `PAYMENT_FAKE_CHECKOUT` ve `ORCHADOS_PAYMENTS_ENABLED` hiçbir zaman yazılmaz.
+4. **Veritabanı:** en son `accepts_signups` seçilen org'da açılır (satır yoksa eklenir).
+5. **Dağıtım:** bir Vercel değişkeni değiştiyse ya da `redeploy=true` ise `release`'in üretim dağıtımı başlatılır (`NEXT_PUBLIC_*` derlemeye gömülür).
+6. **Denetim:** `scripts/retention-check.sh signup` (Kısa saklama denetimleri).
+7. **Özet:** proje, değişenler, `sms_ready`, Auth'un saatlik SMS sınırı (`rate_limit_sms_sent`, proje geneli) ve sahibin denetimleri. Hiçbir secret değeri loga ya da özete yazılmaz; secrets API yalnızca ad ve sha256 özeti verir, Auth yapılandırmasındaki hook sırrı yalnızca özetiyle karşılaştırılır.
+
+**SMS.** Kayıt kodu telefona yalnızca şu durumda gider (`sms_ready=true`): Auth → Hooks → Send SMS açık ve `https://<ref>.supabase.co/functions/v1/send-sms`'i gösteriyor, sırrı Edge `SEND_SMS_HOOK_SECRET` ile aynı (`v1,whsec_<base64>`), Auth'ta telefon sağlayıcısı açık; Edge'de `NETGSM_USERCODE`, `NETGSM_PASSWORD`, `NETGSM_MSGHEADER` üçü de var ve `MESSAGE_PROVIDER` `record` değil (`supabase/functions/_shared/providers.ts`). Değilse kod `private.message_outbox`'a yazılır: kayıt açık görünür ama kimse tamamlayamaz ve doğrulanmamış hesaplar 24 saatte silinir. İş akışı bu durumda `sms_ready=false` çıktısı, özette "SMS is not ready" bölümü ve bir uyarı verir; `require_sms=true` ile başarısız olur. Netgsm sağlayıcısı canlı hesapla henüz denenmedi: ilk gerçek kayıtta Netgsm panelinde gönderim ve `private.message_outbox`'ta satır olmadığı kontrol edilir. `MESSAGE_PROVIDER` silinince bildirimler de (`send-notifications`) gerçek SMS olarak gider.
+
+**Sahibin sağlayacakları:**
+- Netgsm: kullanıcı kodu, parola ve onaylı gönderici başlığı → `gh secret set PILOT_NETGSM_USERCODE --env pilot`, `PILOT_NETGSM_PASSWORD`, `PILOT_NETGSM_MSGHEADER`; ardından iş akışı yeniden.
+- Cloudflare Turnstile: canlı site anahtarının **Hostnames** listesinde `orchados-pilot.vercel.app` (ve alan adı gelince o) olmalı; iş akışı Cloudflare'i değiştiremez. Yoksa widget hata verir ve `customer-signup` `captcha_failed` döner.
+- Şirket bilgileri (T21): `/iletisim` ve "Kayıt yakında" sayfasındaki iletişim bağlantısı şirket bilgileri tamamlanana kadar "yakında" der (`/operasyon/ayarlar`).
+- Vercel Authentication üretimi kapsamamalı (Settings → Deployment Protection, yalnızca önizlemeler); iş akışı kapsıyorsa uyarır.
+
+**Adımlar** (orkestratör):
+```bash
+gh workflow run deploy-db-pilot --ref release                       # main release'e birleştiyse kendiliğinden de koşar
+gh workflow run provision-pilot-signup --ref release -f dry_run=true
+gh workflow run provision-pilot-signup --ref release                # signups=on
+# SMS hook kurulu değilse (özet söyler):
+gh workflow run provision-pilot-signup --ref release -f init_sms_hook=true
+```
+Ardından https://orchados-pilot.vercel.app'te: ana sayfada "Demoyu dene" (demo adresine gider) ve "Kayıt ol"; `/kayit`'ta form ve Turnstile kutusu (tarayıcı konsolunda Turnstile hatası yok); demoda "Gerçek hesap aç" pilotun `/kayit`'ına gider. `sms_ready=true` ise gerçek bir telefonla deneme kaydı: kod gelir, kayıt tamamlanır, `/portal` açılır; sonra deneme hesabı ops tarafından silinir.
+
+**Kapama (geri alma):**
+```bash
+gh workflow run provision-pilot-signup --ref release -f signups=off
+```
+`accepts_signups` kapanır (doğrudan `customer-signup` istekleri de 503 `signup_closed`), Vercel'den `ORCHADOS_SIGNUP_ENABLED` silinir ve `release` yeniden dağıtılır; `/kayit` yeniden "Kayıt yakında" olur. Secret'lar ve Vault olduğu gibi kalır. Acil durumda aynı şey `/operasyon/ayarlar` › Dışarıdan kayıt ile ya da SQL ile anında yapılır: `update public.org_billing_setting set accepts_signups = false where accepts_signups;`
 - **Seed yok:** İşletme ve ilk operasyon kullanıcısı elle açılır; sonraki kayıtlar `/operasyon` ekranlarından yapılır.
 
 ## Test projesindeki kullanıcılar

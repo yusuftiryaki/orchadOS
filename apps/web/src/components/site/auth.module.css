@@ -316,3 +316,22 @@
   font-size: var(--text-lg);
   margin: 0;
 }
+
+/* /kayit while sign-up is closed: the ways forward. */
+.ways {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.ways li {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+}
+
+.ways span {
+  color: var(--color-text-2);
+}
