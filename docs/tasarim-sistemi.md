@@ -303,6 +303,23 @@ Karşılama sayfası (`/`) için ölçüm yapıldı: üretim derlemesi, yerel Su
 - FCP'deki küçük artış ölçümler arasındaki oynamanın içindedir. HTML büyüdü (paket fiyatları ve çizim), LCP ise düştü.
 - Paket fiyatları `/paketler` ile aynı kaynaktan gelir: `public_package_prices`. Sayfaya bir RPC çağrısı eklendi.
 
+### 3. dalga (entegrasyon)
+
+Üretim derlemesi, yerel Supabase (`db:reset` + `db:demo` + `db:demo-tour --profile test` + `office:dev-data`), 390 px, önbelleksiz yükleme, başsız Chromium (yazılımla WebGL); bir ısınmadan sonra beş yüklemenin medyanı. Önce: `main` a3e89713 (#101–#107 birleşmiş hali). JS ve CSS sıkıştırılmamış boyuttur.
+
+| Rota | TTFB | FCP | LCP | TBT | JS (KiB) |
+| --- | --- | --- | --- | --- | --- |
+| `/` | 58 → 23 ms | 184 → 124 ms | 184 → 124 ms | 17 → 1 ms | 534 → 544 |
+| `/portal` | 72 → 52 ms | 156 → 120 ms | 156 → 120 ms | 0 → 0 ms | 549 → 560 |
+| `/portal/parsel/[id]` | 177 → 125 ms | 304 → 228 ms | 304 → 228 ms | 193 → 140 ms | 2159 → 2172 |
+| `/portal/parsel/[id]/gezi` | 138 → 115 ms | 224 → 172 ms | 452 → 388 ms | 330 → 288 ms | 2825 → 2837 |
+| `/operasyon` | 46 → 38 ms | 132 → 120 ms | 132 → 120 ms | 0 → 0 ms | 584 → 595 |
+| `/uzman/ziyaret/[id]` | 121 → 99 ms | 268 → 228 ms | 268 → 228 ms | 47 → 15 ms | 541 → 551 |
+
+- Gerileme yok; süre farklarının çoğu ölçüm oynamasının içinde (sunucu ilk koşuda yeni açılmıştı).
+- JS her sayfada yaklaşık 10 KiB (sıkıştırılmamış) arttı: üç küçük istemci bileşeni (`ScrollBox`, `CurrentIntoView`, site başlığındaki geçerli bağlantı). Sayfalar yine sunucu bileşeni.
+- Önceki PR'ların sayıları başka koşullarda alındı (#101 Lighthouse, #102 ve #104 `data-map-ready` ve ilk panorama karesi, #103 ve #105–#107 TTFB ve load); bu tablo hepsini aynı koşulda karşılaştırır.
+
 ## Notlar
 
 - **Kahraman, ilk deneme:** Açıklama kartı bahçe planının sağ alt köşesine biniyor, sınıf kümesini ve seçili ağacı kapatıyordu. Küme yukarı alındı ve kart planın alt kenarından sarkıtıldı; artık yalnız son sıranın ucunu örtüyor. Telefonda kart planın altında duruyor.
@@ -313,3 +330,5 @@ Karşılama sayfası (`/`) için ölçüm yapıldı: üretim derlemesi, yerel Su
 - **Mevcut ekranlar:** Token değişikliğinden sonra bütün ana rotaların ekran görüntüsü yeniden alındı (portal, ofis, operasyon, uzman, giriş, kayıt). Kırılan yerleşim görülmedi: renkler, yazı ve köşeler yenilendi, yerleşim aynı kaldı. Denetimdeki sorunların çoğu sayfa düzeyindedir ve 2. dalgaya kalır.
 - **Kesilenler:** Kahramanda gerçek demo ekranının görüntüsü kullanılmadı. Harita karoları çevrimdışı ortamda yüklenmiyor; ayrıca bir görüntü dosyası LCP'yi ağırlaştırırdı. Dört özellik kartı da kesildi.
 - **Referans görüntüleri** (`docs/tasarim/`): `karsilama-1440.jpg` ve `karsilama-390.jpg` (ilk ekran), `karsilama-menu-390.jpg` (telefon menüsü), `karsilama-takvim-390.jpg` (paket takvimi).
+- **3. dalga (entegrasyon, 29 Ekim 2026):** Yedi PR'ın her biri kendi alanında yerel yapı taşları yazmıştı. Ekran görüntüsü denetimi (390 ve 1440 px; ziyaretçi, `owner@`, `customer@`, `ops@`, `expert@`, `field@`) aynı durumun alanlara göre başka renk aldığını gösterdi: operasyon panosunda "İncelemede" turuncu, her yerde mavi; "Yayımlandı" mavi, her yerde yeşil; teklif "Açık" portalda sarı, back office'te mavi. Bunun nedeni dört ayrı ton haritasıydı. Ayrıca iki ayrı süzgeç görünümü, üç portal sayfa genişliği, üç ofis genişliği, "Kuru"/"Kurumuş", "Devam et"/"İncele"/"Aç", "Kayıt ol"/"Kayıt olun" gibi farklar vardı. Haritada seçili ağaç siyah, sınıf noktası beyaz halkalıydı; açıklama ise koyu halkalı noktaydı. Hepsi tek kaynağa bağlandı (§Bileşenler, §Kullanım "3. dalgadan sonra"). axe: bütün ana rotalarda (rol başına) WCAG 2.1 A/AA ihlali yok. Önce MapLibre atıf bağlantısında `link-in-text-block` ve back office bahçe haritasında `nested-interactive` vardı.
+- **Boş durum başlığı:** `EmptyState` dize başlığın sonundaki noktayı düşürür. Aynı ileti başka yerde cümle olarak da kullanıldığı için kural bileşende.

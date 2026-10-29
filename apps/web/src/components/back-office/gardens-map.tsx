@@ -148,7 +148,7 @@ export function GardensMap({
         ref={containerRef}
         className={`${styles.drawMap} ${mapStyles.base}`}
         data-testid="gardens-map"
-        role="img"
+        role="region"
         aria-label={label}
       />
       <MapStatus state={state} empty={hasPlaces ? null : t.map.noFeatures} />

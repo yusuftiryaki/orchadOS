@@ -169,7 +169,7 @@ export const portalBillingText = {
   gardens: {
     title: "Bahçelerim",
     lead: "Hizmet alan bahçeleriniz ve durumları.",
-    empty: "Hizmette bahçeniz yok.",
+    empty: "Hizmette bahçeniz yok",
     add: "Bahçe ekle",
     remove: "Hizmetten çıkar",
     open: "Bahçeyi aç",

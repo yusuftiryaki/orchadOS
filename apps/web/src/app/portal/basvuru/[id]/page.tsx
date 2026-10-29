@@ -238,7 +238,7 @@ export default async function ApplicationPage({
       >
         {gardens.length === 0 ? (
           <EmptyState
-            title={A.noGardens.replace(/\.$/, "")}
+            title={A.noGardens}
             headingLevel={3}
             action={canAddGarden && addGarden("primary")}
           >
