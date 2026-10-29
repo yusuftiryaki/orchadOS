@@ -150,7 +150,7 @@ echo "pilot before: $before"
 echo "pilot off:    $off"
 echo "pilot on:     $on"
 seed=b0000000-0000-4000-8000-000000000001
-before=$before after=$on
+after=$on
 expect "pilot: the sign-up migrations are seen" '$b.billing_table == 1 and $b.send_code == 1 and $b.signup_cleanup_jobs == 1'
 expect "pilot: the seed org accepts sign-ups and is the only org" "\$b.signup_org == \"$seed\" and \$b.orgs == 1 and \$b.only_org == \"$seed\" and \$b.org_given == 1"
 before=$off

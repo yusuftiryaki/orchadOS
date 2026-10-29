@@ -203,8 +203,9 @@ fi
 
 # Turnstile (live keys only; customer-signup has no other robot check here).
 if on; then
-  [ -n "${TURNSTILE_SITE_KEY:-}" ] && [ -n "${TURNSTILE_SECRET_KEY:-}" ] ||
+  if [ -z "${TURNSTILE_SITE_KEY:-}" ] || [ -z "${TURNSTILE_SECRET_KEY:-}" ]; then
     fail "TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are both needed to open sign-ups (live keys; docs/deployment.md › Robot doğrulaması)."
+  fi
   for v in TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY; do
     if [[ "${!v}" =~ ^[123]x0+[A-Z]{2}$ ]]; then fail "$v is a Cloudflare test key; the pilot needs a live key."; fi
   done
@@ -278,8 +279,9 @@ signup_org=$(db signup_org)
 [[ "$signup_org" != *,* ]] || fail "more than one org accepts sign-ups on the pilot project."
 target_org=
 if on; then
-  [ "$(db billing_table)" = 1 ] && [ "$(db send_code)" = 1 ] && [ "$(db signup_cleanup_jobs)" != 0 ] ||
+  if [ "$(db billing_table)" != 1 ] || [ "$(db send_code)" != 1 ] || [ "$(db signup_cleanup_jobs)" = 0 ]; then
     fail "the pilot database lacks the sign-up migrations (org_billing_setting, signup_code_grant or an active signup-cleanup job); bring main into release and let deploy-db-pilot finish first."
+  fi
   if [ -n "$signup_org" ]; then
     [ -z "$ORG_ID" ] || [ "$ORG_ID" = "$signup_org" ] ||
       fail "org $signup_org already accepts sign-ups; ORG_ID $ORG_ID differs. Close sign-ups first (SIGNUPS=off) to move them."
