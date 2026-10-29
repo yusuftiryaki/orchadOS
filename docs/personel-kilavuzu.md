@@ -24,7 +24,7 @@ Hesabınızı operasyon açar; e-posta ve parola size ayrıca iletilir. Parolay�
 **Ofis personeli**
 
 1. Bilgisayarda tarayıcıyı açın, pilot adresine (orchados-pilot.vercel.app) gidin ve `/giris`'ten e-posta ve parolanızla girin.
-2. Operasyon rolüyle `/operasyon` panosu açılır. Pano bekleyen işleri sayar: incelenecek başvurular, açık teklifler, geciken ödemeler, iadeler, yaklaşan ve geciken ziyaretler.
+2. Girişte önce "Ofis" bölümü (parsel listesi) açılır; üst menüden "Operasyon"a geçince `/operasyon` panosu gelir. Pano bekleyen işleri sayar: incelenecek başvurular, açık teklifler, geciken ödemeler, iadeler, yaklaşan ve geciken ziyaretler.
 3. Ofis aracı (`/ofis`) geniş ekran ister; iki panoramayı yan yana göreceğiniz bir bilgisayar kullanın.
 
 **Saha personeli**
