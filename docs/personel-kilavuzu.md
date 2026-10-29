@@ -168,6 +168,6 @@ Yapılamayan ziyaret ofise döner ve aynı pencerede yeni tarih alır. Uzmanın 
 
 Sahadaki her sorunu önce operasyona telefonla bildirin; ofis gerekirse yeniden tarama ya da yeni tarih planlar. Uygulama hatasında ekranın fotoğrafını çekin, saati ve hangi bahçede olduğunuzu not edin.
 
-- Operasyon telefonu: _eklenecek_
-- Teknik destek (uygulama ve web): _eklenecek_
+- Operasyon telefonu: 0536 281 77 11
+- Teknik destek (uygulama ve web): 0536 281 77 11
 - Ayrıntılı kurallar: [kullanim-kilavuzu.md](kullanim-kilavuzu.md) (uçtan uca akış) ve [metodoloji.md](metodoloji.md) (değerlendirme kuralları).
