@@ -76,7 +76,7 @@ export function planRowOf(row: PlanSource): PlanRow {
   };
 }
 
-// What an installment pays for: "Envanter ödemesi", "Ziyaret ödemesi · Kış
+// What an installment pays for: "Envanter ödemesi", "Ziyaret ödemesi, Kış
 // (15.12.2026 – 15.02.2027)", or the single payment of an older order.
 export function installmentLabel(row: PlanRow): string {
   if (row.kind === "inventory") return "Envanter ödemesi";
@@ -85,7 +85,7 @@ export function installmentLabel(row: PlanRow): string {
     row.windowStart && row.windowEnd
       ? ` (${formatDate(row.windowStart)} – ${formatDate(row.windowEnd)})`
       : "";
-  return row.windowName ? `Ziyaret ödemesi · ${row.windowName}${window}` : "Ziyaret ödemesi";
+  return row.windowName ? `Ziyaret ödemesi, ${row.windowName}${window}` : "Ziyaret ödemesi";
 }
 
 // The open amount of an installment (0 once paid or cancelled).

@@ -99,15 +99,15 @@ export default async function AccountPage({
         }
       >
         {period && <MembershipCard period={period} />}
-          {showGardens && (
-            <MyGardens
-              gardens={gardens}
-              pilot={pilot}
-              outOfService={outOfService}
-              addHref={changesEnabled ? portalHref.newApplication() : null}
-              changesEnabled={changesEnabled}
-            />
-          )}
+        {showGardens && (
+          <MyGardens
+            gardens={gardens}
+            pilot={pilot}
+            outOfService={outOfService}
+            addHref={changesEnabled ? portalHref.newApplication() : null}
+            changesEnabled={changesEnabled}
+          />
+        )}
         <Panel title={A.contactTitle} description={A.contactLead} id="account-contact">
           <ContactForm
             phone={contact?.phone ?? null}

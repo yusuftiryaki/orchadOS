@@ -105,7 +105,11 @@ export default async function QuotePage({
   const first = plan[0];
 
   return (
-    <main className={`${layout.page} ${layout.reading}`} data-testid="quote" data-status={quote.status}>
+    <main
+      className={`${layout.page} ${layout.reading}`}
+      data-testid="quote"
+      data-status={quote.status}
+    >
       <PageHeader
         title={<NumberedTitle text={Q.title(quote.number)} number={quote.number} />}
         lead={open ? Q.openLead(formatDate(quote.valid_until)) : undefined}
@@ -226,11 +230,7 @@ export default async function QuotePage({
         </div>
         {addon && <p className={`${layout.muted} ${layout.small}`}>{Q.addonVisitsHint}</p>}
         {breakdown && (
-          <Panel
-            title={billingText.addonBreakdown.title}
-            headingLevel={3}
-            testId="quote-breakdown"
-          >
+          <Panel title={billingText.addonBreakdown.title} headingLevel={3} testId="quote-breakdown">
             {breakdown.lines.map((line) => (
               <Stack key={line.lineNo} gap="sm">
                 <h4>{Q.breakdownLine(line.gardenName)}</h4>
@@ -343,12 +343,7 @@ export default async function QuotePage({
           )}
 
           {filled && (
-            <Panel
-              title={C.quote.title}
-              description={C.quote.intro}
-              plain
-              testId="quote-contracts"
-            >
+            <Panel title={C.quote.title} description={C.quote.intro} plain testId="quote-contracts">
               {quote.addon_of_order_id && <Alert tone="info">{C.quote.addonIntro}</Alert>}
               {!quote.addon_of_order_id && quote.renewal_of_order_id && (
                 <Alert tone="info">{C.quote.renewalIntro}</Alert>

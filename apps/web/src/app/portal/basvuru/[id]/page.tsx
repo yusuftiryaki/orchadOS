@@ -103,17 +103,20 @@ export default async function ApplicationPage({
     else previewError = previewResult.error;
   }
 
-  const events: { at: string; text: string }[] = [
+  const events: { at: string; text: string; number?: string }[] = [
     { at: application.created_at, text: A.events.created },
   ];
   if (application.submitted_at)
     events.push({ at: application.submitted_at, text: A.events.submitted });
   for (const q of quotes) {
-    if (q.issued_at) events.push({ at: q.issued_at, text: A.events.quoteIssued(q.number) });
+    if (q.issued_at) {
+      events.push({ at: q.issued_at, text: A.events.quoteIssued(q.number), number: q.number });
+    }
     if (q.decided_at) {
       events.push({
         at: q.decided_at,
         text: A.events.quoteDecided(q.number, billingText.quoteStatus[q.status]),
+        number: q.number,
       });
     }
   }
@@ -407,7 +410,9 @@ export default async function ApplicationPage({
             {events.map((e, i) => (
               <li key={i}>
                 <time dateTime={e.at}>{formatDateTime(e.at)}</time>
-                <span>{e.text}</span>
+                <span>
+                  <NumberedTitle text={e.text} number={e.number ?? null} />
+                </span>
               </li>
             ))}
           </ol>

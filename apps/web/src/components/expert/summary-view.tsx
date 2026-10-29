@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { statusTone } from "@/components/ui/status";
+import { statusTone, severityTone } from "@/components/ui/status";
 import { cell, Table } from "@/components/ui/table";
 import type { Followup } from "@/lib/expert/followups";
 import type { PipelineChecks } from "@/lib/expert/pipeline-checks";
@@ -14,7 +14,7 @@ import { ClassBadge } from "./class-badge";
 import styles from "./expert.module.css";
 import staff from "@/components/staff-page.module.css";
 import { FindingForm } from "./finding-form";
-import { FindingList, SEVERITY_TONE } from "./finding-list";
+import { FindingList } from "./finding-list";
 import { FollowupPanel } from "./followup-panel";
 import { PipelineChecksPanel } from "./pipeline-checks";
 import { PublishForm } from "./publish-form";
@@ -210,7 +210,7 @@ export function SummaryView({
             <div className={styles.itemHead}>
               <span className={styles.muted}>{sm.findingsBySeverity}</span>
               {(["high", "medium", "low", "info"] as const).map((sev) => (
-                <Badge key={sev} tone={SEVERITY_TONE[sev]}>
+                <Badge key={sev} tone={severityTone(sev)}>
                   {t.expert.findings.severities[sev]} {summary.findingsBySeverity[sev]}
                 </Badge>
               ))}

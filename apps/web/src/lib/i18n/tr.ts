@@ -1588,7 +1588,8 @@ export const tr = {
       title: "360° gezi",
       visit: (date: string) => `${date} tarihli denetimin panoramaları`,
       empty: "Henüz panorama yok",
-      emptyBody: "Bu bahçenin panoramaları, uzman incelemesinden geçen ilk denetimden sonra burada açılır.",
+      emptyBody:
+        "Bu bahçenin panoramaları, uzman incelemesinden geçen ilk denetimden sonra burada açılır.",
       mapHint: "Haritada bir noktaya dokunun: en yakın panorama açılır.",
       viewer: "Panorama",
       arrow: "Bu yöne ilerle",

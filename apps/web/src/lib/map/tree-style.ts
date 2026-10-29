@@ -52,8 +52,10 @@ export const MAP_COLORS = {
   muted: "#5e5a4f",
   // Halo, white fill.
   surface: "#ffffff",
-  // Office tool: a slot flagged for verification.
+  // Office tool: a slot flagged for verification; an important finding.
   warning: "#7c5a06",
+  // An urgent finding.
+  danger: "#a3301f",
   // Office tool: panoramas and the scan track.
   info: "#1f5a99",
   // Interstitial tree (between rows): the fresh-kernel green.
@@ -71,6 +73,7 @@ export const MAP_COLOR_TOKENS: Record<MapColor, string> = {
   muted: "--color-muted",
   surface: "--color-surface",
   warning: "--color-warning",
+  danger: "--color-danger",
   info: "--color-info",
   interstitial: "--palette-taze",
 };

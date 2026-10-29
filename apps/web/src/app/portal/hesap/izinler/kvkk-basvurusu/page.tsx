@@ -3,7 +3,8 @@ import { fileKvkkRequestAction } from "@/app/portal/kvkk-actions";
 import styles from "@/components/portal-billing/account.module.css";
 import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
-import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
+import { statusTone } from "@/components/ui/status";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Select, Textarea } from "@/components/ui/field";
@@ -15,13 +16,6 @@ import { KVKK_REQUEST_TYPES, kvkkFormEnabled, myKvkkRequests } from "@/lib/porta
 import { createClient } from "@/lib/supabase/server";
 
 const T = t.legal.kvkkRequest;
-
-const STATUS_TONE: Record<string, BadgeTone> = {
-  open: "info",
-  in_progress: "info",
-  answered: "success",
-  rejected: "danger",
-};
 
 // T11 (H26): the portal KVKK application form, Hesabım › İzinler › KVKK
 // başvurusu. The portal session is the applicant's verified identity
@@ -96,20 +90,20 @@ export default async function Page({
           </EmptyState>
         ) : (
           <div className={panelClass}>
-          <ul className={layout.rows}>
-            {requests.map((r) => (
-              <li key={r.id}>
-                <div className={layout.rowMain}>
-                  <p className={styles.name}>{T.types[r.type] ?? r.type}</p>
-                  <p className={styles.meta}>{formatDate(r.createdAt)}</p>
-                  {!r.settledAt && <p className={styles.meta}>{T.due(formatDate(r.dueAt))}</p>}
-                </div>
-                <Badge tone={STATUS_TONE[r.status] ?? "neutral"}>
-                  {T.status[r.status] ?? r.status}
-                </Badge>
-              </li>
-            ))}
-          </ul>
+            <ul className={layout.rows}>
+              {requests.map((r) => (
+                <li key={r.id}>
+                  <div className={layout.rowMain}>
+                    <p className={styles.name}>{T.types[r.type] ?? r.type}</p>
+                    <p className={styles.meta}>{formatDate(r.createdAt)}</p>
+                    {!r.settledAt && <p className={styles.meta}>{T.due(formatDate(r.dueAt))}</p>}
+                  </div>
+                  <Badge tone={statusTone(r.status, "kvkk")}>
+                    {T.status[r.status] ?? r.status}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </Panel>

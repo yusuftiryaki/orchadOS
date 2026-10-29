@@ -105,9 +105,10 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
               [t.portal.panel.cultivar, tree.cultivar ?? t.tree.unknown],
               [c.inventoryDate, tree.firstSeenAt ? formatDate(tree.firstSeenAt) : t.tree.none],
               ...(tree.status === "lost"
-                ? ([
-                    [c.lostAt, tree.lostAt ? formatDate(tree.lostAt) : v.status.lost],
-                  ] as [string, string][])
+                ? ([[c.lostAt, tree.lostAt ? formatDate(tree.lostAt) : v.status.lost]] as [
+                    string,
+                    string,
+                  ][])
                 : []),
             ]}
           />

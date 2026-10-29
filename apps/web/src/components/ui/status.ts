@@ -78,6 +78,8 @@ export type StatusKind =
   | "garden"
   | "visit"
   | "parcel"
+  | "kvkk"
+  | "viewer"
   | "installment";
 
 // An order or a garden removal that is completed has ended: the service is no
@@ -88,8 +90,25 @@ const FAMILY: Partial<Record<StatusKind, Record<string, BadgeTone>>> = {
   // An installment not yet due is not late: the "Sıradaki" badge beside it
   // carries the warning.
   installment: { pending: "neutral" },
+  // An open KVKK request waits on us; a shareholder's active access is a fact,
+  // not an achievement.
+  kvkk: { open: "info" },
+  viewer: { active: "neutral" },
 };
 
 export function statusTone(status: string, kind?: StatusKind): BadgeTone {
   return (kind && FAMILY[kind]?.[status]) ?? TONES[status] ?? "neutral";
+}
+
+// Finding severity (docs/metodoloji.md §8) as a badge tone, the same in the
+// expert panel, the portal and on the map rings (components/portal/colors.ts).
+const SEVERITY: Record<string, BadgeTone> = {
+  high: "danger",
+  medium: "warning",
+  low: "neutral",
+  info: "info",
+};
+
+export function severityTone(severity: string): BadgeTone {
+  return SEVERITY[severity] ?? "neutral";
 }

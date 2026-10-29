@@ -1,17 +1,11 @@
 import { approveFindingAction, deleteFindingAction } from "@/app/uzman/actions";
-import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { severityTone } from "@/components/ui/status";
 import type { Crop, ReviewFinding } from "@/lib/expert/review";
 import { t } from "@/lib/i18n";
 import styles from "./expert.module.css";
 import { FindingForm } from "./finding-form";
-
-export const SEVERITY_TONE: Record<ReviewFinding["severity"], BadgeTone> = {
-  high: "danger",
-  medium: "warning",
-  low: "neutral",
-  info: "info",
-};
 
 // Findings with edit and delete while the visit is not published.
 export function FindingList({
@@ -38,7 +32,7 @@ export function FindingList({
         <li key={finding.id} className={styles.item} data-finding-id={finding.id}>
           <div className={styles.itemHead}>
             <strong>{f.kinds[finding.kind] ?? finding.kind}</strong>
-            <Badge tone={SEVERITY_TONE[finding.severity]}>{f.severities[finding.severity]}</Badge>
+            <Badge tone={severityTone(finding.severity)}>{f.severities[finding.severity]}</Badge>
             {finding.approvedAt && <Badge tone="success">{f.approved}</Badge>}
             {treeCode && (
               <span className={styles.muted}>

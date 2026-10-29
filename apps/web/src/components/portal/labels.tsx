@@ -12,7 +12,13 @@ export function findingKindLabel(kind: string): string {
 
 // `marked` carries the test id of the tree's latest decision; the rows of
 // the class history show the same badge without it.
-export function ApprovalBadge({ approval, marked = true }: { approval: Approval; marked?: boolean }) {
+export function ApprovalBadge({
+  approval,
+  marked = true,
+}: {
+  approval: Approval;
+  marked?: boolean;
+}) {
   return (
     <span
       className={approval === "expert" ? styles.approvalExpert : styles.approval}

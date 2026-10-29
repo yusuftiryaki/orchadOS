@@ -358,7 +358,7 @@ export function SlotMap({ map }: { map: NonNullable<InventoryReport["map"]> }) {
             stroke={p.state === "empty" ? "var(--color-border-strong)" : "none"}
             strokeWidth={0.25}
           >
-            <title>{`${p.code} · ${r.legend[p.state]}`}</title>
+            <title>{`${p.code}: ${r.legend[p.state]}`}</title>
           </circle>
         ))}
         {[...rowStarts.values()].map((p) => (

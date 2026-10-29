@@ -10,6 +10,7 @@ import { portalBillingText } from "@/lib/i18n/messages/portal-billing";
 import { VIEWER_DECLARATION, type ParcelViewers } from "@/lib/portal/viewers";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { statusTone } from "@/components/ui/status";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { panelClass } from "@/components/ui/panel";
@@ -79,7 +80,9 @@ export function ViewersCard({
                   <strong>{entry.fullName ?? "—"}</strong>
                   <span className={styles.rowMeta}>
                     <span className={`muted ${layout.nowrap}`}>{entry.phone}</span>
-                    <Badge tone={STATUS_TONES[entry.status]}>{v.status[entry.status]}</Badge>
+                    <Badge tone={statusTone(entry.status, "viewer")}>
+                      {v.status[entry.status]}
+                    </Badge>
                     {entry.status !== "active" && (
                       <span className={`muted ${styles.small}`}>{formatDate(entry.createdAt)}</span>
                     )}
@@ -145,4 +148,3 @@ export function ViewersCard({
 }
 
 // "Hissedar" is a role, not an outcome: neutral (docs/tasarim-sistemi.md).
-const STATUS_TONES = { active: "neutral", pending: "info", rejected: "danger" } as const;

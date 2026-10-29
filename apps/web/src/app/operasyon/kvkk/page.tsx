@@ -138,7 +138,7 @@ export default async function Page({
                       <td>
                         {r.settledAt ? (
                           <span className={styles.stack}>
-                            <Badge tone={statusTone(r.status)} testId="kvkk-final">
+                            <Badge tone={statusTone(r.status, "kvkk")} testId="kvkk-final">
                               {T.status[r.status]}
                             </Badge>
                             <span className={styles.secondary}>{O.final}</span>

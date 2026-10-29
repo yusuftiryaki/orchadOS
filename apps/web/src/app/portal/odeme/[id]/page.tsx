@@ -52,7 +52,11 @@ export default async function PaymentPage({
     failed && order && (order.status === "awaiting_payment" || order.status === "active");
 
   return (
-    <main className={`${layout.page} ${layout.reading}`} data-testid="payment" data-status={payment.status}>
+    <main
+      className={`${layout.page} ${layout.reading}`}
+      data-testid="payment"
+      data-status={payment.status}
+    >
       {waiting && <meta httpEquiv="refresh" content="10" />}
       <PageHeader
         title={

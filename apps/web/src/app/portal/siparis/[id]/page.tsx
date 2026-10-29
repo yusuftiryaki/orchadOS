@@ -87,7 +87,11 @@ export default async function OrderPage({
   const lead = awaiting ? O.awaitingLead : order.status === "active" ? O.activeNote : undefined;
 
   return (
-    <main className={`${layout.page} ${layout.reading}`} data-testid="order" data-status={order.status}>
+    <main
+      className={`${layout.page} ${layout.reading}`}
+      data-testid="order"
+      data-status={order.status}
+    >
       <PageHeader
         title={<NumberedTitle text={O.title(order.number)} number={order.number} />}
         lead={lead}

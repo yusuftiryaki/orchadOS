@@ -8,6 +8,7 @@ import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import type { CustomerSummary } from "@/lib/portal-billing/data";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { MembershipCard } from "./membership-card";
+import { NumberedTitle } from "./numbered-title";
 import styles from "./home.module.css";
 
 const H = P.home;
@@ -53,10 +54,15 @@ export function CustomerHome({
       key: `q-${quote.id}`,
       testId: "home-quote",
       title: H.quoteTitle,
-      body: H.quoteBody(
-        quote.number,
-        formatKurus(quote.total_kurus, quote.currency),
-        formatDate(quote.valid_until),
+      body: (
+        <NumberedTitle
+          text={H.quoteBody(
+            quote.number,
+            formatKurus(quote.total_kurus, quote.currency),
+            formatDate(quote.valid_until),
+          )}
+          number={quote.number}
+        />
       ),
       href: portalHref.quote(quote.id),
       action: H.quoteButton,
@@ -68,7 +74,7 @@ export function CustomerHome({
       key: `o-${order.id}`,
       testId: "home-order",
       title: H.orderTitle,
-      body: H.orderBody(order.number),
+      body: <NumberedTitle text={H.orderBody(order.number)} number={order.number} />,
       href: portalHref.order(order.id),
       action: H.orderButton,
       yours: true,
@@ -89,7 +95,9 @@ export function CustomerHome({
     tasks.push({
       key: `a-${application.id}`,
       title: H.reviewTitle,
-      body: H.reviewBody(application.number ?? ""),
+      body: (
+        <NumberedTitle text={H.reviewBody(application.number ?? "")} number={application.number} />
+      ),
       href: portalHref.application(application.id),
       action: H.reviewButton,
       yours: false,
