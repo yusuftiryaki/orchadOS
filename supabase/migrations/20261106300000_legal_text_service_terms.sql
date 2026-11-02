@@ -10,4 +10,4 @@ alter table private.legal_text_version add constraint legal_text_version_kind_ch
   'field_notice', 'early_performance', 'service_terms'));
 
 select private.register_legal_text('service_terms', 'bakim-v1-taslak',
-  'c31fea1a2e1a57e053ff272b75b94460e208686a65da0da0c9ca5a43dcb975ec');
+  '0f035f809af3bc20d4617825ef6709d9329ee4ba2c3cf7b4380dba7672ecf493');

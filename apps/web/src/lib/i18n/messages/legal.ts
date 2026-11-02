@@ -1140,7 +1140,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
         items: [
           "**Hizmet veren:** OBA Bilişim Teknolojileri LTD. [tam unvan: ticaret sicilindeki gibi], [Adres], [Telefon], [E-posta], [KEP adresi], MERSİS [MERSİS].",
           "**Hizmetin temel nitelikleri:** Bahçe'nin kullanım alanındaki yabani otların motorlu tırpanla biçilmesi; kapsam ve kapsam dışı işler 3. bölümdedir. Hizmet bir defalıktır; iş bitince öncesi ve sonrası fotoğrafları portala konur.",
-          "**Toplam fiyat:** Talep formunda KDV dahil toplam tutar ve hesabı (alan, dönüm fiyatı, minimum ücret, KDV) gösterilir ve talebe dondurulur (5. bölüm). Yol, yakıt ya da başka bir ek masraf istenmez.",
+          '**Toplam fiyat:** Talep formunda KDV dahil toplam tutar ve hesabı (alan, dönüm fiyatı, minimum ücret, KDV) gösterilir ve talebe dondurulur (5. bölüm). Hizmetin talep günü yayımlı fiyatı yoksa formda tutar yerine "Fiyat teklifle bildirilir" yazar; KDV dahil toplam tutar Şirket\'in onay bildiriminde yazılır (5. bölüm, 5. fıkra). Yol, yakıt ya da başka bir ek masraf istenmez.',
           "**Ödeme:** İş bittikten sonra, havale/EFT ile ya da Şirket'in işyerinde. Kartla ya da çevrimiçi ödeme yoktur; iş yapılmadan ödeme istenmez.",
           "**İfa tarihi:** Şirket, talebi onaylarken iş tarihini bildirir. Hava ve güvenlik nedeniyle erteleme 7. bölümdedir.",
           "**Cayma hakkı:** Sözleşmenin kurulduğu günden itibaren 14 gün. Biçme, Sahip'in ayrı onayıyla bu süre içinde yapılırsa işe başlandığında cayma hakkı sona erer (Mesafeli Sözleşmeler Yönetmeliği md. 15/1-(h)). Ayrıntı ve iptal koşulları 10. bölümdedir.",
@@ -1203,11 +1203,11 @@ export const legalText: Record<LegalText, LegalDocument> = {
       {
         kind: "ol",
         items: [
-          "Ücret, talep günü katalogda yayımlı dönüm fiyatı, minimum ücret ve KDV oranıyla hesaplanır: ara toplam, Bahçe'nin dönüm cinsinden alanı (her başlamış 100 m² 0,1 dönüm sayılır) ile dönüm fiyatının çarpımıdır, minimum ücretten az olamaz; toplam, ara toplama yürürlükteki oranla KDV eklenerek bulunur. Alan, Bahçe'nin son sınır sürümünün alanıdır; sınır yoksa Sahip'in beyan ettiği alandır.",
+          "Ücret, talep günü yürürlükte olan yayımlı fiyat listesindeki dönüm fiyatı, minimum ücret ve KDV oranıyla hesaplanır: ara toplam, Bahçe'nin dönüm cinsinden alanı (her başlamış 100 m² 0,1 dönüm sayılır) ile dönüm fiyatının çarpımıdır, minimum ücretten az olamaz; toplam, ara toplama yürürlükteki oranla KDV eklenerek bulunur. Alan, Bahçe'nin son sınır sürümünün alanıdır; sınır yoksa Sahip'in beyan ettiği alandır.",
           "Talep formunda gösterilen tutar talebe dondurulur. Şirket kesin tutarı onaylarken bu tutarı yalnızca indirebilir (örneğin sahada daha küçük bir alan biçilecekse). Daha yüksek bir tutar ancak Sahip portalda yeniden onaylarsa geçerli olur; onaylamazsa talep bedelsiz kapanır.",
           "Ödeme, işin tamamlandığının bildirildiği günden itibaren 14 gün içinde havale/EFT ile Şirket'in portalda yazan hesabına (açıklamaya talep numarası yazılarak) ya da Şirket'in işyerinde yapılır. **Saha personeli ödeme almaz.** Fatura Ana Sözleşme'deki gibi ödemeden sonra düzenlenir.",
           "Ödeme süresi geçerse Şirket SMS ile hatırlatır; hatırlatmada tutar yazmaz. Ödenmemiş bir iş varken aynı Sahip'in yeni bakım talebi planlanmayabilir. Şirket'in kanuni hakları saklıdır. Bu ekten doğan borç, denetim hizmetinin ödemelerinden ayrıdır; ödenmemesi denetim ziyaretlerini ve raporlarını etkilemez.",
-          'Bu ekteki fiyat, kataloğun "taslak fiyat" olarak işaretli olduğu dönemde portalda "tahmini" diye gösterilir; dondurma ve 2. fıkra bu dönemde de uygulanır.',
+          'Hizmetin talep günü yürürlükte olan yayımlı fiyat listesinde fiyatı yoksa talep formunda ve portalda tutar gösterilmez, "Fiyat teklifle bildirilir" yazar ve talebe tutar dondurulmaz. Bu durumda Şirket, talebi onaylarken KDV dahil toplam tutarı iş tarihiyle birlikte SMS ile bildirir ve portalda gösterir; 2. fıkradaki üst sınır uygulanmaz. Sahip bildirilen tutarı kabul etmezse talebini 10. bölüme göre bedelsiz iptal edebilir.',
         ],
       },
       {

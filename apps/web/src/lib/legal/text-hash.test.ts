@@ -52,7 +52,7 @@ const CURRENT: Record<RegisteredText, { version: string; sha256: string }> = {
   },
   service_terms: {
     version: "bakim-v1-taslak",
-    sha256: "c31fea1a2e1a57e053ff272b75b94460e208686a65da0da0c9ca5a43dcb975ec",
+    sha256: "0f035f809af3bc20d4617825ef6709d9329ee4ba2c3cf7b4380dba7672ecf493",
   },
   early_performance: {
     version: "mesafeli-v5-taslak",
