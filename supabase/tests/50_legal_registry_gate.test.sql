@@ -31,9 +31,10 @@ select results_eq(
   $$ values ('distance_sales', 'mesafeli-v5-taslak'), ('early_performance', 'mesafeli-v5-taslak'),
             ('explicit_consent', 'riza-v2-taslak'), ('field_notice', 'bahcede-v1-taslak'),
             ('kvkk_notice', 'kvkk-v2-taslak'), ('pre_information', 'onbilgi-v5-taslak'),
-            ('privacy', 'gizlilik-v2-taslak'), ('refund_policy', 'iade-v5-taslak') $$,
+            ('privacy', 'gizlilik-v2-taslak'), ('refund_policy', 'iade-v5-taslak'),
+            ('service_terms', 'bakim-v1-taslak') $$,
   'one current version per kind, equal to LEGAL_TEXT_VERSIONS');
-select is((select count(*)::integer from private.legal_text_version where is_current and sha256 ~ '^[0-9a-f]{64}$'), 8,
+select is((select count(*)::integer from private.legal_text_version where is_current and sha256 ~ '^[0-9a-f]{64}$'), 9,
   'every current version carries its template hash');
 select results_eq(
   $$ select kind, version from private.legal_text_version where not is_current order by kind, version $$,
@@ -65,7 +66,7 @@ select results_eq(
 rollback to savepoint reg;
 
 set local role anon;
-select is((select count(*)::integer from public.registered_legal_text_versions()), 24, 'anyone reads the registered versions');
+select is((select count(*)::integer from public.registered_legal_text_versions()), 25, 'anyone reads the registered versions');
 select throws_ok($$ select * from private.legal_text_version $$, '42501', null, 'the table itself is closed');
 reset role;
 

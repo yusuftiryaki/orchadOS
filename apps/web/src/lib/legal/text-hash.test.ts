@@ -17,7 +17,7 @@ const repo = (path: string) => new URL(`../../../../../${path}`, import.meta.url
 const ALL = Object.keys(LEGAL_TEXT_VERSIONS) as LegalText[];
 
 // The registry (supabase/migrations/20261103100100_legal_text_registry.sql,
-// 20261104101100_legal_texts_v5.sql)
+// 20261104101100_legal_texts_v5.sql, 20261106300000_legal_text_service_terms.sql)
 // holds these hashes; a text change or a version bump needs a new registry
 // migration, and then this record changes with it (the integration test
 // legal-followups.test.ts compares the database too).
@@ -49,6 +49,10 @@ const CURRENT: Record<RegisteredText, { version: string; sha256: string }> = {
   field_notice: {
     version: "bahcede-v1-taslak",
     sha256: "e993ff6d5a947596108d3246f678b040159f6bd81bb9cb2d11755a1234255a47",
+  },
+  service_terms: {
+    version: "bakim-v1-taslak",
+    sha256: "c31fea1a2e1a57e053ff272b75b94460e208686a65da0da0c9ca5a43dcb975ec",
   },
   early_performance: {
     version: "mesafeli-v5-taslak",

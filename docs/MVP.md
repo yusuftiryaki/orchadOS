@@ -349,8 +349,8 @@ Kart iki şeye bakar:
 
 Çevrimiçi ödeme yok.
 
-1. **Talep** (`requested`): Sahip parseli ve tercih ettiği zaman aralığını seçer, not bırakır, hizmet koşullarını onaylar. Teklif tahmini formülle hesaplanıp talebe dondurulur. Sezon dışında aynı form **ön talep** (`pre_request`) açar.
-2. **Planlandı** (`scheduled`): Operasyon tutarı onaylar (gerekirse düzeltir) ve tarih verir. Bu sırada parsel için `mowing` türünde bir saha oturumu açılır; sahibe bildirim gider.
+1. **Talep** (`requested`): Sahip parseli ve tercih ettiği zaman aralığını seçer, not bırakır, ek sözleşmeyi ve ön bilgilendirmeyi onaylar ([bakım hizmeti ek sözleşmesi](hukuk/bakim-hizmeti-ek-sozlesme-taslagi.md), sitede `/bakim-hizmeti`; H37). İsterse işin 14 günlük cayma süresi içinde yapılmasını ister (işaretsiz kutu); istemezse iş en erken talepten 15 gün sonraya planlanır. Teklif tahmini formülle hesaplanıp talebe dondurulur. Talep bir öneridir; sözleşme operasyon tutarı ve tarihi onaylayınca kurulur. Sezon dışında aynı form **ön talep** (`pre_request`) açar; ön talep bağlayıcı değildir.
+2. **Planlandı** (`scheduled`): Operasyon tutarı onaylar ve tarih verir. Tutar dondurulan tahmini aşamaz, yalnız indirilebilir; daha yüksek bir tutar yeni talep ister. Bu sırada parsel için `mowing` türünde bir saha oturumu açılır; sahibe bildirim gider.
 3. **Tamamlandı** (`done`): İşi saha personeli yapar. Operasyon işi kapatırken en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlar: ya yeni yükler (içerik hash'iyle adreslenir, değiştirilemez) ya da aynı parselin yayımlanmış bir ziyaretinden medya seçer. Fotoğraflar parsele bağlıdır; iş kanıtı izleme verisiyle aynı zincirdedir. İş kaydı (`operation`, tür `mowing`, yapan `crew`) oluşur.
 4. **Ödeme**: İşten sonra elle kaydedilir (tutar, yöntem, tarih). Kartla ödeme yok.
 5. **İptal** (`cancelled`): Sahip, planlanan tarihten önceki güne kadar ücretsiz iptal eder; operasyon tamamlanmamış her talebi gerekçeyle iptal edebilir.

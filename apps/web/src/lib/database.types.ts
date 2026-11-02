@@ -3514,6 +3514,7 @@ export type Database = {
           completed_on: string | null;
           created_at: string;
           customer_note: string | null;
+          early_performance_requested: boolean;
           estimate_subtotal_kurus: number;
           estimate_total_kurus: number;
           estimate_vat_kurus: number;
@@ -3555,6 +3556,7 @@ export type Database = {
           completed_on?: string | null;
           created_at?: string;
           customer_note?: string | null;
+          early_performance_requested?: boolean;
           estimate_subtotal_kurus: number;
           estimate_total_kurus: number;
           estimate_vat_kurus: number;
@@ -3595,6 +3597,7 @@ export type Database = {
           completed_on?: string | null;
           created_at?: string;
           customer_note?: string | null;
+          early_performance_requested?: boolean;
           estimate_subtotal_kurus?: number;
           estimate_total_kurus?: number;
           estimate_vat_kurus?: number;
@@ -4770,6 +4773,7 @@ export type Database = {
       };
       customer_request_service: {
         Args: {
+          p_early_performance?: boolean;
           p_note: string;
           p_parcel_id: string;
           p_service_type_id: string;
@@ -6003,6 +6007,7 @@ export type Database = {
           created_at: string;
           customer_note: string;
           district: string;
+          early_performance_requested: boolean;
           estimate_total_kurus: number;
           id: string;
           number: string;

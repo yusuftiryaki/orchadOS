@@ -1106,4 +1106,224 @@ export const legalText: Record<LegalText, LegalDocument> = {
       },
     ],
   },
+  service_terms: {
+    title: "Bakım Hizmetleri Ek Sözleşmesi – Ot Biçme",
+    description:
+      "Portaldan talep edilen ot biçme hizmetinin kapsamı, fiyatı, sorumluluk, iptal ve cayma koşulları; ön bilgilendirme dahil.",
+    source: "docs/hukuk/bakim-hizmeti-ek-sozlesme-taslagi.md",
+    blocks: [
+      {
+        kind: "p",
+        text: 'Bu ek sözleşme, OBA Bilişim Teknolojileri LTD. [tam unvan: ticaret sicilindeki gibi] ("Şirket") ile bahçesi [Bahçe Denetim Hizmeti Sözleşmesi](/mesafeli-satis)\'nin ("Ana Sözleşme") Ek-1\'inde bulunan Sahip arasında, portaldan talep edilen **orchadOS ot biçme hizmetinin** koşullarını düzenler. Her talep ayrı bir ek sözleşmedir. Bu ekte yazılmayan konularda Ana Sözleşme uygulanır; çelişki olursa ot biçme hizmeti için bu ek geçerlidir. Bu ek, denetim hizmetinin kapsamını ve bedelini değiştirmez.',
+      },
+      {
+        kind: "h2",
+        text: "1. Hizmet ve yapan",
+      },
+      {
+        kind: "ul",
+        items: [
+          "Ot biçmeyi, Şirket'in eğitimli saha personeli elle kullanılan **motorlu tırpanla** yapar. Şirket bu ekle robotla ya da insansız bir araçla biçme taahhüt etmez. İleride robotla biçme sunulursa ayrı koşullarla ve Sahip'in ayrıca onayıyla sunulur.",
+          "Hizmeti yalnızca Ana Sözleşme'de Sahip olan kişi talep edebilir; Sahip'in davet ettiği hissedarlar talep edemez. Sahip, Ana Sözleşme Madde 5/1'deki yetki beyanının Bahçe'de ot biçilmesini de kapsadığını beyan eder.",
+        ],
+      },
+      {
+        kind: "h2",
+        text: "2. Ön bilgilendirme",
+      },
+      {
+        kind: "p",
+        text: "Bu bölüm sözleşme kurulmadan önce talep formunda, talebin bilgileriyle birlikte gösterilir ve ayrıca onaylanır.",
+      },
+      {
+        kind: "ul",
+        items: [
+          "**Hizmet veren:** OBA Bilişim Teknolojileri LTD. [tam unvan: ticaret sicilindeki gibi], [Adres], [Telefon], [E-posta], [KEP adresi], MERSİS [MERSİS].",
+          "**Hizmetin temel nitelikleri:** Bahçe'nin kullanım alanındaki yabani otların motorlu tırpanla biçilmesi; kapsam ve kapsam dışı işler 3. bölümdedir. Hizmet bir defalıktır; iş bitince öncesi ve sonrası fotoğrafları portala konur.",
+          "**Toplam fiyat:** Talep formunda KDV dahil toplam tutar ve hesabı (alan, dönüm fiyatı, minimum ücret, KDV) gösterilir ve talebe dondurulur (5. bölüm). Yol, yakıt ya da başka bir ek masraf istenmez.",
+          "**Ödeme:** İş bittikten sonra, havale/EFT ile ya da Şirket'in işyerinde. Kartla ya da çevrimiçi ödeme yoktur; iş yapılmadan ödeme istenmez.",
+          "**İfa tarihi:** Şirket, talebi onaylarken iş tarihini bildirir. Hava ve güvenlik nedeniyle erteleme 7. bölümdedir.",
+          "**Cayma hakkı:** Sözleşmenin kurulduğu günden itibaren 14 gün. Biçme, Sahip'in ayrı onayıyla bu süre içinde yapılırsa işe başlandığında cayma hakkı sona erer (Mesafeli Sözleşmeler Yönetmeliği md. 15/1-(h)). Ayrıntı ve iptal koşulları 10. bölümdedir.",
+          "**Şikâyet ve başvuru:** Portaldan, [Telefon] ya da [E-posta] ile. Tüketici Sahip, Ana Sözleşme Madde 15'e göre tüketici hakem heyetine ya da tüketici mahkemesine başvurabilir.",
+        ],
+      },
+      {
+        kind: "h2",
+        text: "3. Kapsam",
+      },
+      {
+        kind: "p",
+        text: "**Hizmete dahil olanlar:**",
+      },
+      {
+        kind: "ul",
+        items: [
+          "Bahçe'nin kullanım alanında (son sınır sürümü; sınır yoksa Sahip'in haritada gösterdiği alan) ağaç sıraları arasındaki ve ağaç diplerine kadar olan yabani otların biçilmesi.",
+          "Biçilen otun yerinde, toprak üstünde bırakılması.",
+          "İşten önce ve sonra Bahçe'nin fotoğraflanması (8. bölüm).",
+        ],
+      },
+      {
+        kind: "p",
+        text: "**Hizmete dahil olmayanlar:**",
+      },
+      {
+        kind: "ul",
+        items: [
+          "Yabani ot ilacı (herbisit) ya da başka bir ilaç uygulaması.",
+          "Toprak işleme (sürüm, çapa, diskaro), gübreleme, sulama.",
+          "Budama, dip sürgünü ya da kök sürgünü alma, odunsu çalı ve fidanların kesilmesi.",
+          "Biçilen otun toplanması, taşınması ya da yakılması. Ot yakılmaz. Toplama yalnızca ayrıca yazılı olarak anlaşılırsa yapılır.",
+          "Kullanım alanı dışındaki yerler: yol, kanal, hendek, komşu bahçe, sınır duvarı ve çit üstü.",
+          "Personelin güvenliğini tehdit eden ya da motorlu tırpanla güvenle girilemeyen yerler (çok dik eğim, kayalık, kuyu ve çukur çevresi). Bu yerler iş kaydında not edilir.",
+          "Gövdeye ve aşı yerine zarar vermemek için gövde dibinde bırakılabilen dar bir halka. Bu halka biçilmemiş sayılmaz.",
+        ],
+      },
+      {
+        kind: "p",
+        text: "Biçme, otların yeniden büyümeyeceğini ya da bir sonraki ziyarette kısa kalacağını garanti etmez.",
+      },
+      {
+        kind: "h2",
+        text: "4. Talep ve sözleşmenin kurulması",
+      },
+      {
+        kind: "ol",
+        items: [
+          "Sahip, portalda Bahçe'yi ve tercih ettiği zaman aralığını seçer, gizli engelleri (6. bölüm) ve notunu yazar, ön bilgilendirmeyi ve bu eki onaylayarak talep gönderir. Talep, Sahip'in bu koşullarla yaptığı bir sözleşme önerisidir.",
+          "Sahip, Şirket talebi onaylayana kadar talebini istediği zaman bedelsiz geri çekebilir.",
+          "Sözleşme, Şirket'in talebi tutar ve iş tarihiyle onayladığı anda kurulur. Şirket onayı Sahip'e SMS ile bildirir. Talebin bilgileri, onaylanan sürüm, tutar ve tarih portalda değiştirilmeden saklanır ve Sahip tarafından görülebilir.",
+          "Şirket, kapasite, mevsim, erişim ya da güvenlik nedeniyle talebi gerekçesini bildirerek reddedebilir. Reddedilen talep için bir bedel doğmaz.",
+        ],
+      },
+      {
+        kind: "h2",
+        text: "5. Ücret ve ödeme",
+      },
+      {
+        kind: "ol",
+        items: [
+          "Ücret, talep günü katalogda yayımlı dönüm fiyatı, minimum ücret ve KDV oranıyla hesaplanır: ara toplam, Bahçe'nin dönüm cinsinden alanı (her başlamış 100 m² 0,1 dönüm sayılır) ile dönüm fiyatının çarpımıdır, minimum ücretten az olamaz; toplam, ara toplama yürürlükteki oranla KDV eklenerek bulunur. Alan, Bahçe'nin son sınır sürümünün alanıdır; sınır yoksa Sahip'in beyan ettiği alandır.",
+          "Talep formunda gösterilen tutar talebe dondurulur. Şirket kesin tutarı onaylarken bu tutarı yalnızca indirebilir (örneğin sahada daha küçük bir alan biçilecekse). Daha yüksek bir tutar ancak Sahip portalda yeniden onaylarsa geçerli olur; onaylamazsa talep bedelsiz kapanır.",
+          "Ödeme, işin tamamlandığının bildirildiği günden itibaren 14 gün içinde havale/EFT ile Şirket'in portalda yazan hesabına (açıklamaya talep numarası yazılarak) ya da Şirket'in işyerinde yapılır. **Saha personeli ödeme almaz.** Fatura Ana Sözleşme'deki gibi ödemeden sonra düzenlenir.",
+          "Ödeme süresi geçerse Şirket SMS ile hatırlatır; hatırlatmada tutar yazmaz. Ödenmemiş bir iş varken aynı Sahip'in yeni bakım talebi planlanmayabilir. Şirket'in kanuni hakları saklıdır. Bu ekten doğan borç, denetim hizmetinin ödemelerinden ayrıdır; ödenmemesi denetim ziyaretlerini ve raporlarını etkilemez.",
+          'Bu ekteki fiyat, kataloğun "taslak fiyat" olarak işaretli olduğu dönemde portalda "tahmini" diye gösterilir; dondurma ve 2. fıkra bu dönemde de uygulanır.',
+        ],
+      },
+      {
+        kind: "h2",
+        text: "6. Sahip'in yükümlülükleri ve gizli engeller",
+      },
+      {
+        kind: "ol",
+        items: [
+          "Sahip, talepte ve iş gününden önce, otların arasında görülmesi güç olan engelleri bildirir; bildirebiliyorsa sahada işaretler: toprak üstündeki ya da yüzeye yakın damla sulama hortumları ve bağlantıları, yağmurlama başlıkları, borular ve vanalar; büyük taşlar; yeni dikilmiş fidanlar ve aşılı genç ağaçlar; kuyu, çukur, kapak ve havuz kenarları; tel, cam, metal ve benzeri cisimler.",
+          "Sahip, iş günü Bahçe'ye erişimi sağlar (kapı, anahtar, bekçi), mümkünse bir gün önceden sulama yapmaz ve hayvanları Bahçe'den uzak tutar. İş sırasında Bahçe'de bulunacak kişilere (işçi, bekçi, komşu) biçme yapılacağını iletir.",
+          "Erişim Sahip'ten kaynaklanan bir nedenle sağlanamazsa iş yapılmaz ve yeni tarih belirlenir; Sahip'ten bir bedel istenmez. Aynı talepte bu iki kez olursa Şirket talebi kapatabilir.",
+        ],
+      },
+      {
+        kind: "h2",
+        text: "7. İşin yapılması, hava ve erteleme",
+      },
+      {
+        kind: "ol",
+        items: [
+          "Personel işe başlamadan Bahçe'yi gözle kontrol eder, görünen ve bildirilen engellerin çevresinde dikkatli çalışır, gövde ve aşı yerine yaklaşmadan biçer ve yakınına bir kişi geldiğinde motoru durdurur. Personelin iş sağlığı ve güvenliği önlemleri Şirket'e aittir.",
+          "Yağmur ya da ıslak toprak, kuvvetli rüzgâr, aşırı sıcak, kuru otta yangın riskinin yüksek olması ya da resmi makamların makine kullanımını veya tarla işlerini kısıtlaması halinde Şirket işi erteler. Ertelemeyi mümkünse bir gün önce, olmuyorsa iş günü işe başlamadan SMS ile bildirir ve yeni bir tarih önerir. Personelin hastalığı gibi Şirket'ten kaynaklanan nedenlerde de aynısı uygulanır.",
+          "Sahip yeni tarihi kabul etmezse talebini 10. bölüme göre bedelsiz iptal edebilir. İş, hizmetin sezon penceresi içinde yapılamazsa talep bedelsiz kapanır. Erteleme için hiçbir tarafa bedel doğmaz; Ana Sözleşme Madde 13 (mücbir sebep) saklıdır.",
+          "İş başladıktan sonra hava nedeniyle yarım kalırsa kalan kısım ek bedel istenmeden başka bir gün tamamlanır.",
+        ],
+      },
+      {
+        kind: "h2",
+        text: "8. İşin kanıtı ve teslim",
+      },
+      {
+        kind: "ol",
+        items: [
+          'Şirket işi kapatırken Bahçe\'ye en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlar. "Öncesi" fotoğrafı, aynı Bahçe\'nin yayımlanmış bir denetim ziyaretinden seçilmiş olabilir; bu durumda tarihi gösterilir.',
+          "Fotoğraflar Bahçe'nin kayıtlarının parçasıdır: içerik özetiyle saklanır, sonradan değiştirilmez ve Bahçe'nin diğer görüntüleriyle aynı sürelerle saklanır. Sahip ve davet ettiği hissedarlar portalda görür.",
+          "İş tamamlanınca Sahip'e SMS ile bildirim gider. Sahip işte eksik ya da hata görürse bildirimden itibaren 7 gün içinde fotoğrafla portaldan ya da telefonla bildirmesi istenir. Şirket haklı bulunan eksikliği ek bedel istemeden yeniden biçerek giderir ya da bedelden indirir. Bu süre Sahip'in kanuni haklarını kısıtlamaz; tüketici Sahip'in 6502 sayılı Kanun md. 57'deki seçimlik hakları saklıdır. İtiraz sonuçlanana kadar itiraz edilen iş için ödeme hatırlatması gönderilmez.",
+        ],
+      },
+      {
+        kind: "h2",
+        text: "9. Hasar ve sorumluluk",
+      },
+      {
+        kind: "ol",
+        items: [
+          "Şirket, personelinin işi yaparken kendi kusuruyla verdiği zarardan kanuna göre sorumludur; örneğin motorlu tırpanın gövdeye, aşı yerine, fidana ya da bildirilen veya görünür bir damla sulama hortumuna verdiği zarar.",
+          "Şirket, 6. bölüme göre bildirilmemiş ve özen gösterildiğinde de görülemeyecek engellere personelin kusuru olmadan verilen zarardan sorumlu değildir. Zarara Sahip'in bildirmemesi de katkıda bulunduysa tazminat kanuna göre indirilir. Şirket, gizli engellerin motorlu tırpana verdiği zarar için Sahip'ten bedel istemez.",
+          "**Hasar bildirimi:** Sahip, fark ettiği hasarı iş tamamlandı bildiriminden itibaren 7 gün içinde, fotoğrafla portaldan, [Telefon] ya da [E-posta] ile bildirir. Geç bildirim hakkı düşürmez; ancak zararın biçmeden doğduğunun ispatını zorlaştırabilir. Şirket bildirime 7 gün içinde yanıt verir; gerekirse yerinde bakar. Sorumlu olduğu zararı, aynı nitelikte parçayla onararak (örneğin hortum ve bağlantı) ya da belgelenmiş onarım veya yerine koyma bedelini ödeyerek giderir.",
+          "**Sahip tacir Sahip ise (Ana Sözleşme Madde 1): Şirket'in hafif kusurundan doğan sorumluluğu, ilgili talep için ödenen ya da ödenecek bedelle sınırlıdır ve dolaylı zararları (kâr kaybı, ürün değeri kaybı) kapsamaz. Bu sınırlama kast ve ağır kusurda, ölüm ve bedensel zararlarda uygulanmaz.** Tüketici Sahip için parasal bir sınır yoktur.",
+          "Şirket, otların yeniden büyümesinden, biçmeden bağımsız ürün kaybından ve Bahçe'deki hastalık ve zararlıların sonuçlarından sorumlu değildir.",
+        ],
+      },
+      {
+        kind: "h2",
+        text: "10. İptal ve cayma",
+      },
+      {
+        kind: "ol",
+        items: [
+          "**Sahip'in iptali:** Sahip, iş tarihinden önceki günün sonuna kadar talebini portaldan bedelsiz iptal edebilir. İş günü, personel işe başlamadan telefonla yapılan iptal için de bedel istenmez.",
+          "**Cayma hakkı:** Sahip, sözleşmenin kurulduğu günden (Şirket'in onayı) itibaren 14 gün içinde gerekçe göstermeden ve cezai şart ödemeden cayabilir. Cayma bildirimi portaldaki iptalle, [E-posta], [KEP] ya da [Adres]'e yazılı olarak yapılır; Ana Sözleşme Ek-7'deki örnek cayma formu, hizmet satırına talep numarası yazılarak kullanılabilir. Ödeme iş yapılmadan alınmadığı için caymada iade edilecek bir tutar doğmaz; yanlışlıkla ödeme yapılmışsa 14 gün içinde aynı yöntemle iade edilir.",
+          '**Biçmenin cayma süresi içinde yapılması:** Talep formunda ayrı ve işaretsiz şu kutu bulunur: "☐ Ot biçmenin 14 günlük cayma süresi dolmadan yapılmasını istiyorum. Personel işe başladığında cayma hakkımın sona ereceğini biliyorum. Bu kutuyu işaretlemezsem iş, cayma süresi dolduktan sonraki bir güne planlanır." Kutu işaretlenmezse Şirket işi cayma süresinin bitiminden önceki bir güne planlamaz. Kutu işaretlenir ve iş başlarsa cayma hakkı Mesafeli Sözleşmeler Yönetmeliği md. 15/1-(h) uyarınca sona erer.',
+          "**Başlamış iş:** İş başladıktan sonra Sahip işi durdurursa yalnızca biçilen alana düşen bedel (toplam tutarın biçilen alan oranındaki payı) istenir.",
+          "**Şirket'in iptali:** Şirket, talebi 6. bölümdeki erişim sorunu, 7. bölümdeki sezon sonu ya da personelin güvenliğini tehdit eden bir durum nedeniyle gerekçesini bildirerek iptal edebilir. Şirket'in iptalinde Sahip'ten bedel istenmez.",
+          "Bahçe Ana Sözleşme Madde 12'ye göre hizmetten çıkarılırsa ya da Ana Sözleşme sona ererse Bahçe'nin henüz yapılmamış talepleri bedelsiz kapanır. Tamamlanmış işin ödemesi ve bu ekteki sorumluluk hükümleri sürer.",
+          "Tacir Sahip'e de bu bölümdeki haklar aynı koşullarla sözleşmeye dayanarak tanınır.",
+        ],
+      },
+      {
+        kind: "h2",
+        text: "11. Gelecek sezon için ön talep",
+      },
+      {
+        kind: "ol",
+        items: [
+          "Sezon dışında açılan **ön talep**, Sahip'in gelecek sezonda bu hizmetle ilgilendiğini bildirmesidir. Sözleşme ya da sözleşme önerisi değildir; tarafları bağlamaz, Şirket'e iş yapma, Sahip'e ödeme yükümlülüğü getirmez.",
+          "Ön talepte fiyat ve tarih taahhüt edilmez. Sezon açılınca hizmet portalda talep edilebilir olarak görünür; Sahip o günün fiyatıyla ve bu ekin o günkü sürümüyle ayrıca talep gönderir.",
+          "Sahip ön talebini istediği zaman geri çekebilir. Şirket, hizmet ve sezon başına ön talep sayılarını yalnızca toplu olarak, talebi planlamak için kullanır.",
+        ],
+      },
+      {
+        kind: "h2",
+        text: "12. Bağımsızlık",
+      },
+      {
+        kind: "ol",
+        items: [
+          "Şirket bağımsız bir denetim hizmeti verir. Bakım hizmeti almak ya da almamak denetim bulgularını, puanları, bahçe karnesini ve uzman değerlendirmesini değiştirmez; denetim aynı yöntemle yapılır ve rapor uzman tarafından eskisi gibi imzalanır.",
+          'Raporun bakım uyumu satırı (yabani ot, budama, toprak işleme) Şirket\'in kendi yaptığı bir işi kapsıyorsa rapor bunu tarihiyle açıkça yazar; örneğin "Bu dönemde yabani ot biçmeyi orchadOS yaptı (tarih)". Uzman da incelemede aynı uyarıyı görür.',
+          "Portaldaki ot biçme önerisi, yayımlanmış bir denetim ziyaretindeki gözleme ve mevsime dayanan bir hizmet önerisidir; uzmanın bulgusu ya da tavsiyesi değildir. Sahip bakım işini başka birine de yaptırabilir.",
+        ],
+      },
+      {
+        kind: "h2",
+        text: "13. Kişisel veriler",
+      },
+      {
+        kind: "ol",
+        items: [
+          "Talep, iş ve ödeme kayıtları ile fotoğraflar sözleşmenin kurulması ve ifası amacıyla, [Kişisel Verilerin İşlenmesine İlişkin Aydınlatma Metni](/kvkk)'ne uygun olarak işlenir.",
+          "Fotoğraflarda Bahçe'de bulunan kişiler tesadüfen görünebilir. Bu görüntüler için [Bahçede Bulunan Kişiler İçin Aydınlatma Metni](/bahcede-bulunanlar) ve Ana Sözleşme Madde 9 uygulanır. Bakım işinin fotoğrafları yapay zekâ ön değerlendirmesine gönderilmez ve tanıtımda kullanılmaz.",
+          "Şirket yalnızca Sahip'in açtığı talebe ilişkin durum bildirimlerini (planlandı, tamamlandı, iptal) SMS ile gönderir; bunlar hizmet iletisidir, tanıtım içermez ve tutar yazmaz. Ot biçme önerisi yalnızca portalda gösterilir; öneri için SMS, e-posta ya da başka bir ileti gönderilmez.",
+        ],
+      },
+      {
+        kind: "h2",
+        text: "14. Diğer hükümler",
+      },
+      {
+        kind: "ol",
+        items: [
+          "Tebligat ve iletişimde Ana Sözleşme Madde 14, uyuşmazlıklarda Madde 15 uygulanır.",
+          "Bu ekin her talepte onaylanan sürümü, talep kaydıyla birlikte saklanır ve Sahip'in portalında görülebilir.",
+        ],
+      },
+    ],
+  },
 };

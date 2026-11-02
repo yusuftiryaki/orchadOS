@@ -38,10 +38,18 @@
 --    ops_record_service_payment, ops_update_service_type, ops_service_demand
 --    (pre-requests per service and season).
 --
+-- Legal rules (docs/hukuk/kararlar.md H37): the request is an offer; the
+-- contract is made when ops confirms the amount and the day (scheduled).
+-- Ops may confirm the frozen estimate or less, never more (a higher price
+-- needs a new request). Without the owner's early-performance request the
+-- day is at the earliest 15 days after the request (14-day withdrawal
+-- period). The accepted terms version must be the current service_terms.
+--
 -- Error codes: not_found (P0002), forbidden and demo_read_only (42501),
 -- invalid_input (22023, detail names the field), services_disabled,
 -- service_inactive, area_unknown, request_open, invalid_status,
--- too_late_to_cancel, proof_missing, payment_recorded (P0001).
+-- too_late_to_cancel, proof_missing, payment_recorded, quote_above_estimate,
+-- withdrawal_period (P0001).
 
 -- ---------------------------------------------------------------------------
 -- 1. Switch and audit entity types
@@ -199,8 +207,13 @@ create table public.service_request (
   season_year integer not null check (season_year between 2000 and 9999),
   preferred_window public.service_window not null default 'flexible',
   customer_note text check (length(customer_note) <= 1000),
-  -- The service terms the owner accepted (legal.ts version string).
+  -- The service terms the owner accepted (legal.ts version string, checked
+  -- against the current service_terms registry row).
   terms_version text not null check (length(terms_version) between 1 and 60),
+  -- kararlar.md H37: the owner asked for the job inside the 14-day withdrawal
+  -- period (unticked by default). Without it the job is dated at the
+  -- earliest 15 days after the request.
+  early_performance_requested boolean not null default false,
   -- What the portal showed when the request was made, if anything.
   recommended_measurement_id uuid references public.measurement (id) on delete set null,
   recommended_weed_height text check (recommended_weed_height in ('short', 'medium', 'tall')),
@@ -368,7 +381,7 @@ create policy service_request_photo_select on public.service_request_photo for s
   using (org_id in (select authz.user_org_ids()) or parcel_id in (select authz.user_parcel_ids('{owner}')));
 grant select (
   id, org_id, parcel_id, service_type_id, number, status, requested_by, season_year, preferred_window,
-  customer_note, terms_version, recommended_measurement_id, recommended_weed_height, area_m2, area_source,
+  customer_note, terms_version, early_performance_requested, recommended_measurement_id, recommended_weed_height, area_m2, area_source,
   price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, price_is_draft, estimate_subtotal_kurus,
   estimate_vat_kurus, estimate_total_kurus, pricing_rule, quote_total_kurus, scheduled_date, session_id,
   operation_id, completed_on, cancelled_at, cancelled_by_role, cancel_reason, payment_received_on,
@@ -792,7 +805,8 @@ create function public.customer_request_service(
   p_service_type_id uuid,
   p_window public.service_window,
   p_note text,
-  p_terms_version text
+  p_terms_version text,
+  p_early_performance boolean default false
 )
 returns uuid
 language plpgsql
@@ -824,7 +838,9 @@ begin
   if not t.active or p.status = 'passive' then
     raise exception 'service_inactive' using errcode = 'P0001';
   end if;
-  if p_terms_version is null or length(btrim(p_terms_version)) not between 1 and 60 then
+  if p_terms_version is null or length(btrim(p_terms_version)) not between 1 and 60
+     or btrim(p_terms_version) is distinct from coalesce(
+       (private.legal_text_current('service_terms')).version, btrim(p_terms_version)) then
     raise exception 'invalid_input' using errcode = '22023', detail = 'terms_version';
   end if;
   if p_note is not null and length(p_note) > 1000 then
@@ -846,14 +862,14 @@ begin
 
   insert into public.service_request (
     org_id, parcel_id, service_type_id, number, status, requested_by, season_year, preferred_window,
-    customer_note, terms_version, recommended_measurement_id, recommended_weed_height,
+    customer_note, terms_version, early_performance_requested, recommended_measurement_id, recommended_weed_height,
     area_m2, area_source, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, price_is_draft,
     estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus
   ) values (
     p.org_id, p.id, t.id, private.next_service_request_number(p.org_id),
     case when v_in_season then 'requested' else 'pre_request' end::public.service_request_status,
     (select auth.uid()), extract(year from private.service_season_start(t, v_today))::integer,
-    coalesce(p_window, 'flexible'), nullif(btrim(p_note), ''), btrim(p_terms_version),
+    coalesce(p_window, 'flexible'), nullif(btrim(p_note), ''), btrim(p_terms_version), coalesce(p_early_performance, false),
     case when private.service_recommended(t, p.id, w.weed_height, w.observed_at, v_today) then w.measurement_id end,
     case when private.service_recommended(t, p.id, w.weed_height, w.observed_at, v_today) then w.weed_height end,
     a.area_m2, a.area_source, t.price_per_donum_kurus, t.minimum_fee_kurus, t.vat_rate_bp, t.price_is_draft,
@@ -862,14 +878,15 @@ begin
   returning * into r;
   perform private.log_service_event(r, null, 'owner', null);
   perform private.audit(r.org_id, (select auth.uid()), 'customer', 'service_request.create', 'service_request', r.id,
-    jsonb_build_object('status', r.status, 'service', t.code, 'season_year', r.season_year));
+    jsonb_build_object('status', r.status, 'service', t.code, 'season_year', r.season_year,
+      'terms_version', r.terms_version, 'early_performance', r.early_performance_requested));
   return r.id;
 exception
   when unique_violation then
     raise exception 'request_open' using errcode = 'P0001';
 end;
 $$;
-comment on function public.customer_request_service(uuid, uuid, public.service_window, text, text) is
+comment on function public.customer_request_service(uuid, uuid, public.service_window, text, text, boolean) is
   'IP15 owner: requests a service for a parcel (pre_request out of season); quote frozen with service-v1.';
 
 -- Owner: cancels an own request before the scheduled day (pre_request,
@@ -949,6 +966,7 @@ returns table (
   payment_method text,
   cancel_reason text,
   cancelled_by_role text,
+  early_performance_requested boolean,
   before_photos integer,
   after_photos integer,
   requester_user_id uuid,
@@ -966,7 +984,7 @@ as $$
     t.id, t.code, t.name, r.season_year, r.preferred_window::text, r.customer_note, r.ops_note,
     r.recommended_weed_height, r.area_m2, r.area_source, r.price_is_draft, r.estimate_total_kurus,
     r.quote_total_kurus, r.scheduled_date, r.completed_on, r.payment_received_on, r.payment_amount_kurus,
-    r.payment_method, r.cancel_reason, r.cancelled_by_role,
+    r.payment_method, r.cancel_reason, r.cancelled_by_role, r.early_performance_requested,
     (select count(*)::integer from public.service_request_photo x where x.request_id = r.id and x.phase = 'before'),
     (select count(*)::integer from public.service_request_photo x where x.request_id = r.id and x.phase = 'after'),
     r.requested_by, op.full_name, op.phone, r.created_at
@@ -1017,6 +1035,17 @@ begin
   end if;
   if p_quote_total_kurus is not null and (p_quote_total_kurus < 0 or p_quote_total_kurus > 100000000000) then
     raise exception 'invalid_input' using errcode = '22023', detail = 'quote_total';
+  end if;
+  -- H37: never above what the owner accepted.
+  if p_quote_total_kurus > r.estimate_total_kurus then
+    raise exception 'quote_above_estimate' using errcode = 'P0001';
+  end if;
+  -- H37: the 14-day withdrawal period runs unless the owner asked for an
+  -- earlier job.
+  if not r.early_performance_requested
+     and p_scheduled_date < (r.created_at at time zone 'Europe/Istanbul')::date + 15 then
+    raise exception 'withdrawal_period' using errcode = 'P0001',
+      detail = to_char((r.created_at at time zone 'Europe/Istanbul')::date + 15, 'YYYY-MM-DD');
   end if;
   if p_note is not null and length(p_note) > 1000 then
     raise exception 'invalid_input' using errcode = '22023', detail = 'note';
@@ -1428,7 +1457,7 @@ declare
 begin
   foreach f in array array[
     'public.service_offers(uuid)',
-    'public.customer_request_service(uuid, uuid, public.service_window, text, text)',
+    'public.customer_request_service(uuid, uuid, public.service_window, text, text, boolean)',
     'public.customer_cancel_service_request(uuid, text)',
     'public.ops_service_requests(public.service_request_status, uuid, integer)',
     'public.ops_schedule_service_request(uuid, date, bigint, text)',

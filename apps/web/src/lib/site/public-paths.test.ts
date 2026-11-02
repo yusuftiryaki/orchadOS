@@ -18,6 +18,7 @@ describe("isPublicPath", () => {
     "/on-bilgilendirme",
     "/iade",
     "/bahcede-bulunanlar",
+    "/bakim-hizmeti",
     "/robots.txt",
     "/sitemap.xml",
     "/demo",

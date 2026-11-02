@@ -2,17 +2,18 @@
 
 22 Ekim 2026 · Yusuf
 
-> **Hukuki kararlar [kararlar.md](kararlar.md)'dedir (28 Ekim 2026) ve metinlere uygulandı.** Ziyaret başına ödeme planı ve hizmet bölgesi kararları (H35, H36) iki bağımsız tüketici hukuku uzmanı yapay zekâ ajanı ile bir uzlaştırıcı yapay zekâ ajanı tarafından verildi; bunlar da lisanslı bir avukatın görüşü değildir. Kararları kullanıcının talimatıyla görevlendirilen hukuk uzmanı bir yapay zekâ ajanı verdi; baro kayıtlı bir avukatın imzalı görüşü değildir. Sürüm adlarındaki "-taslak" eki, [yayın şartları](kararlar.md#yayin) (şirket bilgileri, yurt dışı aktarımda standart sözleşmeler, T03, T04, T09, T21) tamamlanınca kaldırılır. O zamana kadar metinler gerçek bir müşteriye onaylatılmaz.
+> **Hukuki kararlar [kararlar.md](kararlar.md)'dedir (28 Ekim 2026) ve metinlere uygulandı.** Ziyaret başına ödeme planı ve hizmet bölgesi kararları (H35, H36) iki bağımsız tüketici hukuku uzmanı yapay zekâ ajanı ile bir uzlaştırıcı yapay zekâ ajanı tarafından verildi; bunlar da lisanslı bir avukatın görüşü değildir. **Bakım hizmeti (ot biçme) kararı [H37](kararlar.md#h37) (2 Kasım 2026) tek bir hukuk uzmanı yapay zekâ ajanının kararıdır; lisanslı bir avukatın görüşü değildir. Barındırılan projelerde `org_billing_setting.services_enabled` anahtarı, karar ve [bakım hizmeti ek sözleşmesi](bakim-hizmeti-ek-sozlesme-taslagi.md) bir avukatça incelenmeden (T34) açılmaz.** Kararları kullanıcının talimatıyla görevlendirilen hukuk uzmanı bir yapay zekâ ajanı verdi; baro kayıtlı bir avukatın imzalı görüşü değildir. Sürüm adlarındaki "-taslak" eki, [yayın şartları](kararlar.md#yayin) (şirket bilgileri, yurt dışı aktarımda standart sözleşmeler, T03, T04, T09, T21) tamamlanınca kaldırılır. O zamana kadar metinler gerçek bir müşteriye onaylatılmaz.
 
 | Dosya | Ne | Kim imzalar / okur |
 | --- | --- | --- |
-| [kararlar.md](kararlar.md) | Hukuki kararlar (H01–H36), yayın şartları, sürüm planı ve takip işleri (T01–T32) | Ekip |
+| [kararlar.md](kararlar.md) | Hukuki kararlar (H01–H37), yayın şartları, sürüm planı ve takip işleri (T01–T35) | Ekip |
 | [kvkk-aydinlatma-metni.md](kvkk-aydinlatma-metni.md) | KVKK 10. madde aydınlatma metni; sitede `/kvkk` | Sahip ve hissedar; portalda ve sözleşme ekinde (okundu teyidi) |
 | [acik-riza-metni.md](acik-riza-metni.md) | Açık rıza ve ticari elektronik ileti onayı: yalnızca tanıtım iletileri, İYS kaydından sonra sorulur; sitede `/acik-riza` | Sahip, isteğe bağlı |
 | [bahcede-bulunanlar-aydinlatma-metni.md](bahcede-bulunanlar-aydinlatma-metni.md) | Görüntülere girebilen işçi, bekçi, komşu ve yoldan geçenler için aydınlatma; sitede `/bahcede-bulunanlar`, tarama levhasının QR kodu | Bahçede bulunan kişiler |
 | [hizmet-sozlesmesi-taslagi.md](hizmet-sozlesmesi-taslagi.md) | Denetim hizmeti sözleşmesi. Portalda kurulduğunda mesafeli hizmet sözleşmesi (cayma hakkı, yapılamayan ziyaret iadesi, yenileme; v2'den beri birden fazla bahçe, dönem içinde bahçe ekleme ve bahçe bazında çıkarma; v5'ten beri ziyaret başına ödeme planı, Ek-2 paket pencereleri ve Ek-8 ödeme planı); sitede `/mesafeli-satis` | Sahip ve şirket; portalda teklif onayıyla |
 | [on-bilgilendirme-formu-taslagi.md](on-bilgilendirme-formu-taslagi.md) | Mesafeli sözleşme öncesi ön bilgilendirme formu; sitede `/on-bilgilendirme` | Sahip; teklif onayından önce ayrıca onaylanır |
 | [iptal-iade-politikasi-taslagi.md](iptal-iade-politikasi-taslagi.md) | İptal, cayma, bahçe çıkarma ve iade kuralları, sözleşmenin sade özeti; sitede `/iade` | Herkes |
+| [bakim-hizmeti-ek-sozlesme-taslagi.md](bakim-hizmeti-ek-sozlesme-taslagi.md) | Bakım hizmetleri ek sözleşmesi – ot biçme (İP15): kapsam, fiyat, hasar, hava, iptal ve cayma, ön talep, iş kanıtı, bağımsızlık; ön bilgilendirme ve iptal koşulları içinde ([H37](kararlar.md#h37)); sitede `/bakim-hizmeti` | Sahip; portalda her bakım talebinde onaylanır |
 | [gizlilik-cerez-politikasi-taslagi.md](gizlilik-cerez-politikasi-taslagi.md) | Site, portal ve demo turu gizlilik ve çerez politikası; sitede `/gizlilik` | Ziyaretçi ve sahip |
 | [calisan-aydinlatma-metni.md](calisan-aydinlatma-metni.md) | Çalışan ve saha ekibi aydınlatma metni (iç) | Saha personeli ve uzman; işe başlarken |
 | [demo-vitrin-izni.md](demo-vitrin-izni.md) | Demo vitrini için görsel ve veri kullanım izni (iç) | Bahçesi vitrine girecek sahip |
@@ -84,3 +85,9 @@ Tasarım: [docs/bahce-yonetimi.md](../bahce-yonetimi.md) §2, §4–§7, §10, �
 
 24. **Karara bağlandı:** [H35](kararlar.md#h35) — özünde taksitle satış değil; 6502 md. 17–20'nin içeriği ihtiyaten yazılır (Ek-8 ödeme planı, faiz %0, erken ödeme, muacceliyet yok); ödenmeyen ziyaret yapılmaz, pencere ödemesiz biterse ziyaret düşer ve ödemesi istenmez; fesih 30 gün gecikme ve en az 30 günlük uyarıdan sonra; cayma ve iadede yalnızca ödenen tutar iade edilir. **Ziyaret başına ödeme planı.** Plan taksitle satış mı, ön bilgilendirme ne göstermeli, ödenmemenin ve caymanın sonuçları ne?
 25. **Karara bağlandı:** [H36](kararlar.md#h36) — "hizmet bölgesi dışında kalma" sebebi silinir; ilçe ölçütüyle ve 60 günle hizmetten çekilme; başvuruda konuma göre ret yazılı iç ölçütle ve önceden uyarıyla. **Hizmet bölgesi belirtilmemesi.** Bölge vaat edilmeden metinler nasıl yazılır, konuma göre ret uygun mu?
+
+### Bakım hizmeti: ot biçme (İP15, 2 Kasım 2026)
+
+Ürün kararı: [docs/MVP.md](../MVP.md) Modül 6. Sürüm: `bakim-v1-taslak` (yeni metin; diğer metinler değişmedi, atıflar T35 ile sonraki sürümlerine girer).
+
+26. **Karara bağlandı:** [H37](kararlar.md#h37) — ayrı ek sözleşme (ön bilgilendirme ve iptal koşulları içinde); tutar yalnızca indirilebilir; kusur sorumluluğu, tacirde ana sözleşmedeki sınır; önceki güne kadar bedelsiz iptal, 14 gün cayma ve isteğe bağlı erken ifa kutusuyla md. 15/1-(h); ön talep bağlayıcı değil; bağımsızlık açıklaması. **Yapay zekâ kararıdır; `services_enabled` avukat incelemesinden (T34) önce barındırılan projelerde açılmaz.**

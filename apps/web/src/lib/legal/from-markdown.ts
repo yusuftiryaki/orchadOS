@@ -17,6 +17,7 @@ const PUBLIC_PATHS: Record<string, string> = {
   "hizmet-sozlesmesi-taslagi.md": "/mesafeli-satis",
   "on-bilgilendirme-formu-taslagi.md": "/on-bilgilendirme",
   "iptal-iade-politikasi-taslagi.md": "/iade",
+  "bakim-hizmeti-ek-sozlesme-taslagi.md": "/bakim-hizmeti",
 };
 
 function inline(text: string): string {
