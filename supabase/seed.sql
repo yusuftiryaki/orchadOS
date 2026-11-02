@@ -332,13 +332,17 @@ insert into public.service_type (
   season_end_day, recommend_from_weed_height, observation_max_age_days, sort_order
 ) values (
   '91500000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'weed_mowing', 'Yabani ot biçme',
-  'orchadOS ot biçme hizmeti: parseldeki yabani otlar motorlu tırpanla biçilir. Öncesi ve sonrası fotoğrafları parsel kaydına eklenir.',
+  'orchadOS ot biçme hizmeti: parseldeki yabani otları otonom robotumuz MARABA-I biçer. Öncesi ve sonrası fotoğrafları parsel kaydına eklenir.',
   'mowing', 3, 1, 6, 30, 'medium', 60, 10
 );
 insert into public.service_type_season (org_id, service_type_id, species, season_start_month, season_start_day,
   season_end_month, season_end_day)
 select 'b0000000-0000-4000-8000-000000000001', '91500000-0000-4000-8000-000000000001', f.code, 3, 1, 6, 30
 from public.fruit_species f;
+-- The robot models that can do it (robot_model is seeded by its migration).
+insert into public.service_type_robot_model (org_id, service_type_id, robot_model_id, sort_order)
+values ('b0000000-0000-4000-8000-000000000001', '91500000-0000-4000-8000-000000000001',
+  '91600000-0000-4000-8000-000000000001', 10);
 
 -- Launch price list (docs/fiyatlandirma.md, decided 28 October 2026). The
 -- packages include the first-year inventory visit (informational, frozen into

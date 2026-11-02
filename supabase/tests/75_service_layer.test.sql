@@ -232,7 +232,7 @@ insert into ids values ('visit3', pg_temp.published_visit_with_weeds('tall', 0))
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 set local role authenticated;
 insert into ids select 'r0', public.customer_request_service('c0000000-0000-4000-8000-000000000001',
-  '91500000-0000-4000-8000-000000000001', 'asap', null, 'bakim-v1-taslak', true);
+  '91500000-0000-4000-8000-000000000001', 'asap', null, 'bakim-v2-taslak', true);
 select is(
   (select row(status, area_source, num_nulls(price_list_id, price_list_version, price_per_donum_kurus,
               minimum_fee_kurus, vat_rate_bp, estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus))::text
@@ -384,7 +384,7 @@ reset role;
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000002');
 set local role authenticated;
 select is(pg_temp.error_of($$select public.customer_request_service('c0000000-0000-4000-8000-000000000001',
-  '91500000-0000-4000-8000-000000000001', 'asap', null, 'bakim-v1-taslak')$$),
+  '91500000-0000-4000-8000-000000000001', 'asap', null, 'bakim-v2-taslak')$$),
   'P0002 not_found', 'request: a viewer cannot request');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 select is(pg_temp.error_of($$insert into public.service_request (org_id, parcel_id, service_type_id, number, status,
@@ -400,7 +400,7 @@ select is(pg_temp.error_of($$select public.customer_request_service('c0000000-00
   '22023 invalid_input / terms_version', 'request: only the current service terms (H37)');
 insert into ids
 select 'r1', public.customer_request_service('c0000000-0000-4000-8000-000000000001',
-  '91500000-0000-4000-8000-000000000001', 'within_2_weeks', 'Kapı anahtarı komşuda.', 'bakim-v1-taslak', true);
+  '91500000-0000-4000-8000-000000000001', 'within_2_weeks', 'Kapı anahtarı komşuda.', 'bakim-v2-taslak', true);
 select is(
   (select row(status, preferred_window, recommended_weed_height, price_list_id = pg_temp.id('draft'), price_list_version,
               estimate_total_kurus, number ~ '^H-[0-9]{4}-000002$')::text
@@ -408,7 +408,7 @@ select is(
   '(requested,within_2_weeks,tall,t,2,882000,t)',
   'request: in season it is requested, with the frozen estimate, its price list version and the recommendation basis');
 select is(pg_temp.error_of($$select public.customer_request_service('c0000000-0000-4000-8000-000000000001',
-  '91500000-0000-4000-8000-000000000001', 'asap', null, 'bakim-v1-taslak')$$),
+  '91500000-0000-4000-8000-000000000001', 'asap', null, 'bakim-v2-taslak')$$),
   'P0001 request_open', 'request: one open request per parcel and service');
 select is((select state from public.service_offers()), 'open', 'offers: an open request shows on the card');
 select is(pg_temp.error_of($$select ops_note from public.service_request$$),
@@ -519,13 +519,13 @@ select lives_ok(format($$select public.ops_complete_service_request(%L, %L, 'Bit
 reset role;
 select is(
   (select row(r.status, r.completed_on = pg_temp.today(), s.status, o.kind, o.performer, o.session_id = r.session_id,
-              o.details ->> 'by')::text
+              o.details ->> 'by', s.performer)::text
    from public.service_request r
    join public.session s on s.id = r.session_id
    join public.operation o on o.id = r.operation_id
    where r.id = pg_temp.id('r1')),
-  '(done,t,captured,mowing,crew,t,orchados)',
-  'complete: done, the session captured (never published), an operation by the crew for orchadOS');
+  '(done,t,captured,mowing,robot,t,orchados,robot)',
+  'complete: done, the session captured (never published), an operation by the robot (mowing default) for orchadOS');
 select is(
   (select count(*)::integer from public.notification where template = 'service_completed' and ref_id = pg_temp.id('r1')),
   1, 'complete: the owner is notified');
@@ -569,7 +569,7 @@ reset role;
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 set local role authenticated;
 insert into ids select 'r2', public.customer_request_service('c0000000-0000-4000-8000-000000000001',
-  '91500000-0000-4000-8000-000000000001', 'flexible', null, 'bakim-v1-taslak');
+  '91500000-0000-4000-8000-000000000001', 'flexible', null, 'bakim-v2-taslak');
 select is((select recommended_weed_height from public.service_request where id = pg_temp.id('r2')), null,
   'request: no recommendation basis once a job was done after the observation');
 select lives_ok(format($$select public.customer_cancel_service_request(%L, 'Vazgeçtim')$$, pg_temp.id('r2')),
@@ -627,7 +627,7 @@ select is((select row(state, species, in_season, season_start = pg_temp.safe_day
 
 -- Ops cancel needs a reason; a scheduled job on today cannot be cancelled by the owner.
 insert into ids select 'r3', public.customer_request_service('c0000000-0000-4000-8000-000000000001',
-  '91500000-0000-4000-8000-000000000001', 'flexible', null, 'bakim-v1-taslak');
+  '91500000-0000-4000-8000-000000000001', 'flexible', null, 'bakim-v2-taslak');
 select is((select row(status, season_year = extract(year from pg_temp.safe_day(pg_temp.today() + 40)))::text
            from public.service_request where id = pg_temp.id('r3')), '(pre_request,t)',
   'pre-request: out of the species'' season the same form opens a pre-request for the next window');
@@ -645,7 +645,7 @@ set local role authenticated;
 select is((select row(state, open_request_status)::text from public.service_offers()), '(available,pre_request)',
   'pre-request: in season the card offers a request again');
 insert into ids select 'r4', public.customer_request_service('c0000000-0000-4000-8000-000000000001',
-  '91500000-0000-4000-8000-000000000001', 'flexible', null, 'bakim-v1-taslak');
+  '91500000-0000-4000-8000-000000000001', 'flexible', null, 'bakim-v2-taslak');
 reset role;
 select is((select row(status, cancelled_by_role, cancel_reason)::text from public.service_request where id = pg_temp.id('r3')),
   '(cancelled,owner,"Talebe çevrildi")', 'pre-request: replaced by the request, closed with a reason');
@@ -696,7 +696,7 @@ select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 set local role authenticated;
 select is((select count(*)::integer from public.service_offers()), 0, 'switch off: no offers');
 select is(pg_temp.error_of($$select public.customer_request_service('c0000000-0000-4000-8000-000000000001',
-  '91500000-0000-4000-8000-000000000001', 'asap', null, 'bakim-v1-taslak')$$),
+  '91500000-0000-4000-8000-000000000001', 'asap', null, 'bakim-v2-taslak')$$),
   'P0001 services_disabled', 'switch off: no requests');
 select ok(not public.portal_services_enabled(), 'switch off: no Hizmetlerim link');
 reset role;
