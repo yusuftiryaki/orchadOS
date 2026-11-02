@@ -10,6 +10,7 @@ import {
   grantAccess,
   planVisit,
   registerParcel,
+  setParcelSpecies,
   updateVisit,
 } from "@/lib/operations/mutations";
 import type { DetailInput, OwnerInput, ParcelInput } from "@/lib/operations/validation";
@@ -54,6 +55,8 @@ const parcelInput = (over: Partial<ParcelInput> = {}): ParcelInput => ({
   village: null,
   estimatedAreaM2: 9500,
   irrigation: "rainfed",
+  // A non-pilot species: the register form passes the chosen one through.
+  species: "zeytin",
   estimatedTreeCount: 120,
   position: null,
   boundary: RING,
@@ -139,7 +142,11 @@ describe("owner and parcel registration", () => {
     parcels.push(parcelId);
 
     const view = await getParcelOps(ops, parcelId);
-    expect(view?.parcel).toMatchObject({ status: "registered", irrigation: "rainfed" });
+    expect(view?.parcel).toMatchObject({
+      status: "registered",
+      irrigation: "rainfed",
+      species: "zeytin",
+    });
     expect(view?.parcel.position).not.toBeNull();
     expect(view?.boundary).toMatchObject({ version: 1, source: "owner_declared" });
     expect(view?.boundary?.ring).toHaveLength(4);
@@ -299,6 +306,25 @@ describe("owner and parcel registration", () => {
           error: "forbidden",
         });
       }
+    });
+
+    it("cannot change a parcel's species; ops can (unknown codes refused)", async () => {
+      for (const [, client] of others()) {
+        expect(await setParcelSpecies(client, parcelId, "elma")).toEqual({
+          ok: false,
+          error: "forbidden",
+        });
+      }
+      expect(await setParcelSpecies(ops, parcelId, "yok_boyle")).toEqual({
+        ok: false,
+        error: "invalid_input",
+      });
+      expect(await setParcelSpecies(ops, parcelId, "elma")).toEqual({ ok: true, value: undefined });
+      expect((await getParcelOps(ops, parcelId))?.parcel.species).toBe("elma");
+      expect(await setParcelSpecies(ops, parcelId, "zeytin")).toEqual({
+        ok: true,
+        value: undefined,
+      });
     });
 
     it("cannot plan, move or cancel visits", async () => {

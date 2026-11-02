@@ -41,6 +41,7 @@ MVP, kayıttan rapora kadar tek bir uçtan uca döngüyü kapsar. Havadan ve sen
 | Kendi AI modeli | Hayır | Uzman kararları etiketli veri olarak birikir |
 | Ödeme altyapısı | İP12 | Dönüm başına yıllık fiyat, teklif, kartla ödeme (iyzico, 3DS) ve havale; bayraklar kapalıyken birleşir. Açılana kadar faturalandırma elle |
 | Demo turu | İP13 | Bahçe sahibi adayı hesap açmadan, ayrı demo projesinde geçici bir hesapla iki sentetik bahçeyi sahip portalında rehberli turla gezer; demo hiçbir şey yazamaz, PDF'ler "ÖRNEK RAPOR" filigranlı ([demo-turu.md](demo-turu.md)) |
+| Hizmet katmanı: yabani ot biçme | İP15 | Bahçe durumuna ve mevsime göre önerilen, portaldan talep edilen ot biçme hizmeti. İlk sezon köydeki saha personeli motorlu tırpanla yapar; çevrimiçi ödeme yok, iş bitince öncesi/sonrası fotoğraf kanıtı. Robotla biçme sonraki aşama ([Modül 6](#modül-6--hizmet-katmanı-yabani-ot-biçme)) |
 
 ## Roller
 
@@ -317,6 +318,73 @@ Genel durum skoru için öneri: sınıf ağırlıklarının ortalaması (Sağlı
 **7. Bildirimler:** "Rapor hazır" bildirimi gider. Kritik bir bulgu, uzman onaylar onaylamaz raporu beklemeden bildirilir. Bildirimler SMS ya da WhatsApp ile portal linki olarak gönderilir.
 
 **8. Soru bırakma:** Sahip bir ağaca ya da bulguya soru yazar, uzman cevaplar. MVP'de basit bir yorum dizisi olarak tasarlanır.
+
+## Modül 6 – Hizmet katmanı: yabani ot biçme
+
+2 Kasım 2026 kararı (İP15). orchadOS bütün meyve bahçeleri için bir denetim hizmetidir; Gaziantep'teki Antep fıstığı bahçeleri yalnızca pilottur. Hizmet katmanı da meyve türünden bağımsız tasarlandı.
+
+**Neden.** Saha görüşmelerinde bahçe sahipleri yalnız izlemeye pek istekli olmadı; aynı hizmetin üstüne yabani ot biçme ve toprak işleme gibi işler eklenince ilgilendiler. Uzun vadeli hedef, bahçedeki her işin orchadOS üzerinden hizmet olarak alınması. İlk adım: MVP'ye tek bir hizmetle (yabani ot biçme) bir hizmet katmanı eklemek. Sahip, bahçesinin durumuna ve mevsime göre bu hizmeti önerilmiş olarak görür ve portaldan talep eder.
+
+**Kapsam.** Yalnızca *orchadOS ot biçme hizmeti*. Katalog genel tasarlandı: toprak işleme ya da budama gibi yeni bir hizmet, şema değişmeden kataloğa bir satır olarak eklenir. Bugün kataloğa yalnız ot biçme girer.
+
+**Kim yapar.** İlk sezon işi, köyde zaten yaşayan saha personelimiz motorlu tırpanla yapar. Maliyet modeli: günlük 2.500 TL yevmiye, yol masrafı neredeyse sıfır. Maraba robotu (MARABA-I) hazır değil, yalnızca simülasyonda doğrulandı. Arayüzde, dokümanlarda ve sözleşmede robotla biçme vaat edilmez; robot, olgunlaştıkça sonraki aşamalarda devreye girecek bir plan olarak anlatılır ([vizyon.md](vizyon.md)). İş kaydı (`public.operation`) bugünden `performer` alanını taşır, robota geçişte şema değişmez.
+
+### Öneri mantığı
+
+Kart iki şeye bakar:
+
+1. **Gözlem.** Saha personeli ilkbahar ve yaz ziyaretlerinde parsel için bir kez "Bahçede yabani ot ne boyda?" sorusunu cevaplar: kısa (bileğe kadar), orta (dize kadar), uzun (dizi aşıyor). Kod `weed_height`, parsel öznesi, sınıf değerleri `short`, `medium`, `tall` ([metodoloji.md](metodoloji.md)). Cevap, ziyaret yayımlanınca sahibe görünür; öneri yalnız yayımlanmış ziyaretin gözlemine dayanır.
+2. **Mevsim takvimi.** Her hizmetin bir varsayılan sezon penceresi vardır (ot biçme için 1 Mart – 30 Haziran) ve meyve türüne göre ayrı bir pencere alabilir (`service_type_season`; bugün her tür için 1 Mart – 30 Haziran yüklü). Kart ve ön talep, bahçenin meyve türünün penceresine bakar. Pencereler katalogda (`/operasyon/hizmet/katalog`) ayarlanır.
+
+| Durum | Portalda |
+| --- | --- |
+| Sezon içinde, son gözlem eşiğin üstünde (varsayılan: orta ya da uzun), gözlem 60 günden eski değil ve gözlemden sonra biçme yapılmamış | Öneri kartı: "Bahçenizde ot uzun." ve tutar (yayımlı fiyat yoksa "Fiyat teklifle bildirilir"), "Talep et" |
+| Sezon içinde, öneri tetiklenmemiş | Hizmet listede "talep edilebilir" olarak durur |
+| Sezon dışında | "Gelecek sezon için ön talep bırakın" kartı |
+| Açık bir talep var | Kart talebin durumunu gösterir, yeni talep açılmaz |
+
+Ön talepler talep doğrulamasının da ölçüsüdür: back office hizmet ve sezon başına ön talep sayısını gösterir.
+
+### Akış
+
+Çevrimiçi ödeme yok.
+
+1. **Talep** (`requested`): Sahip parseli ve tercih ettiği zaman aralığını seçer, not bırakır, ek sözleşmeyi ve ön bilgilendirmeyi onaylar ([bakım hizmeti ek sözleşmesi](hukuk/bakim-hizmeti-ek-sozlesme-taslagi.md), sitede `/bakim-hizmeti`; H37). İsterse işin 14 günlük cayma süresi içinde yapılmasını ister (işaretsiz kutu); istemezse iş en erken talepten 15 gün sonraya planlanır. Yayımlı fiyat listesinde hizmetin fiyatı varsa tutar formülle hesaplanır ve listenin sürümüyle birlikte talebe sabitlenir; fiyat yoksa talepte tutar yoktur. Talep bir öneridir; sözleşme operasyon tutarı ve tarihi onaylayınca kurulur. Sezon dışında aynı form **ön talep** (`pre_request`) açar; ön talep bağlayıcı değildir.
+2. **Planlandı** (`scheduled`): Operasyon tutarı onaylar ve tarih verir. Sabitlenen bir tutar varsa onaylanan tutar onu aşamaz, yalnız indirilebilir; daha yüksek bir tutar yeni talep ister. Talepte tutar yoksa (fiyatsız hizmet) operasyon tutarı elle girer; girmeden planlanamaz. Bu sırada parsel için `mowing` türünde bir saha oturumu açılır; sahibe bildirim gider.
+3. **Tamamlandı** (`done`): İşi saha personeli yapar. Operasyon işi kapatırken en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlar: ya yeni yükler (içerik hash'iyle adreslenir, değiştirilemez) ya da aynı parselin yayımlanmış bir ziyaretinden medya seçer. Fotoğraflar parsele bağlıdır; iş kanıtı izleme verisiyle aynı zincirdedir. İş kaydı (`operation`, tür `mowing`, yapan `crew`) oluşur.
+4. **Ödeme**: İşten sonra elle kaydedilir (tutar, yöntem, tarih). Kartla ödeme yok.
+5. **İptal** (`cancelled`): Sahip, planlanan tarihten önceki güne kadar ücretsiz iptal eder; operasyon tamamlanmamış her talebi gerekçeyle iptal edebilir.
+
+Her durum değişikliği ayrı bir satırda tarihçeye yazılır (`service_request_event`).
+
+### Fiyat
+
+**Fiyat henüz belirlenmedi** (sahip kararı, 2 Kasım 2026). Fiyat katalogda değil, paketlerle aynı **sürümlü fiyat listesinde** tutulur ([musteri-yonetimi.md](musteri-yonetimi.md) §6.6): bir taslağın "Hizmet fiyatları" bölümünde hizmet başına dönüm fiyatı ve minimum ücret (KDV hariç; KDV listenin oranı) girilir, liste yayımlanınca değişmez (`price_list_service_item`). Geçerli fiyat, bugün yürürlükte olan yayımlı listenin (başlangıcı bugünden sonra olmayan en yüksek sürüm) fiyatıdır. Formül, abonelik fiyatıyla aynı yuvarlamayı kullanır (`service-v1`):
+
+`ara toplam = max(ceil(alan_m² / 100) × dönüm fiyatı / 10, minimum ücret)`, `toplam = ara toplam + KDV`.
+
+Alan, parselin son sınır sürümünün alanıdır; sınır yoksa sahibin beyan ettiği alan.
+
+- **Fiyat varsa:** Kart ve talep formu tutarı (KDV dahil) ve küçük yazıyla fiyat listesi sürümünü gösterir. Talep, tutarı ve sürümü sabitler; sonradan yayımlanan yeni sürüm açık talebi değiştirmez.
+- **Fiyat yoksa** (bugünkü durum; lansman listesinde hizmet satırı yok): Portal hiçbir rakam göstermez; kartta ve formda **"Fiyat teklifle bildirilir"** yazar. Talep ve ön talep yine açılır. Operasyon planlarken tutarı elle girer; sahibe iş günü SMS ile bildirilir (mesajda tutar yoktur), tutar portaldaki talep sayfasında görünür; iş en erken ertesi güne konur ve sahip iş gününden önceki güne kadar ücretsiz iptal edebilir. Ön talep bağlayıcı değildir ve planlanamaz: sezon açılınca sahip aynı formla talebe çevirir (ön talep kapanır, yeni talep o günün fiyatıyla ve iki onayla açılır). Gün değişirse sahibe yeniden SMS gider; yeni gün de en erken ertesi gündür ve onaylanmış tutar artırılamaz.
+
+Maliyet varsayımları (yevmiye, bir işçinin günde biçtiği alan) sahadan ölçülünce fiyat bir taslağa girilip yayımlanır.
+
+### Bağımsızlık
+
+orchadOS kendini bağımsız denetçi olarak satar. Bakım uyumu satırı (budama, toprak işleme, yabani ot) orchadOS'un kendi yaptığı bir işi içeriyorsa karne bunu açıkça yazar: "Bu dönemde yabani ot biçmeyi orchadOS yaptı (tarih)". Rapor kendi işimizi sessizce notlandırmaz. Uzman incelemesinde de aynı uyarı görünür; uzman imza akışı değişmez.
+
+### Robot uygunluğu
+
+Operasyon ve saha personeli her parsel için robot uygunluk notları tutar: eğim (düz, hafif, dik), taşlılık (az, orta, çok), en alçak dal yüksekliği (cm) ve serbest not. Bu notlar ileride maraba'nın önce hangi bahçelere gideceğini seçmek için kullanılır; sahibe gösterilmez.
+
+### Bildirim
+
+Durum değişiklikleri (planlandı, tamamlandı, iptal) mevcut SMS/WhatsApp kuyruğuna yazılır. Bunlar sahibin aldığı hizmete ilişkin hizmet iletileridir ([hukuk/kararlar.md](hukuk/kararlar.md) H06). Öneri için mesaj gönderilmez: yeni bir hizmeti öneren SMS ticari elektronik iletidir ve İYS onayı ister; İYS entegrasyonu olmadığı için öneri yalnız portalda, sahip rapora girdiğinde görünür. Sağlayıcı ayarlı değilse mesajlar kuyrukta bekler; akış durmaz. Değişkenler yalnız parsel adı, tarih, talep numarası ve portal yoludur; tutar gönderilmez.
+
+### Anahtar ve hukuk
+
+Hizmet katmanı `org_billing_setting.services_enabled` anahtarıyla açılır. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır. Bakım hizmeti için sözleşme eki, ön bilgilendirme ve iptal koşulları taslak olarak `docs/hukuk/`'tadır.
 
 ## Veri modeli
 

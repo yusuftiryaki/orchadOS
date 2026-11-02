@@ -19,7 +19,7 @@ void main() {
   test('protocol versions (methodology v0.2)', () {
     expect(
       [for (final s in Season.values) CloseupProtocol.forSeason(s).version],
-      ['winter-v0.2', 'spring-v0.1', 'summer-v0.2', 'harvest-v0.1'],
+      ['winter-v0.2', 'spring-v0.2', 'summer-v0.3', 'harvest-v0.1'],
     );
   });
 
@@ -70,17 +70,49 @@ void main() {
     ]);
   });
 
-  test('parcel questions: the fence gap, summer only', () {
-    expect(
-      [
-        for (final q in CloseupProtocol.summer.parcelQuestions)
-          (q.metricCode, q.text),
-      ],
-      [('fence_breach_present', 'Tel ya da çitte yeni açılmış geçit var mı?')],
-    );
-    for (final s in [Season.winter, Season.spring, Season.harvest]) {
+  test('parcel questions: fence gap in summer, weed height in spring and '
+      'summer', () {
+    List<(String, String)> parcel(CloseupProtocol p) => [
+      for (final q in p.parcelQuestions) (q.metricCode, q.text),
+    ];
+    const weeds = ('weed_height', 'Bahçede yabani ot ne boyda?');
+    expect(parcel(CloseupProtocol.spring), [weeds]);
+    expect(parcel(CloseupProtocol.summer), [
+      ('fence_breach_present', 'Tel ya da çitte yeni açılmış geçit var mı?'),
+      weeds,
+    ]);
+    for (final s in [Season.winter, Season.harvest]) {
       expect(CloseupProtocol.forSeason(s).parcelQuestions, isEmpty);
     }
+  });
+
+  test('weed height is a category parcel question', () {
+    for (final p in [CloseupProtocol.spring, CloseupProtocol.summer]) {
+      final q = p.parcelQuestions.last as CategoryQuestion;
+      expect(q.metricCode, 'weed_height');
+      expect(
+        [for (final o in q.options) (o.code, o.label)],
+        [
+          ('short', 'Kısa (bileğe kadar)'),
+          ('medium', 'Orta (dize kadar)'),
+          ('tall', 'Uzun (dizi aşıyor)'),
+        ],
+      );
+      expect(
+        [for (final c in q.choices) c.$1],
+        const [
+          CategoryAnswer('short'),
+          CategoryAnswer('medium'),
+          CategoryAnswer('tall'),
+        ],
+      );
+      // Not a tree question.
+      expect([
+        for (final t in p.questions) t.metricCode,
+      ], isNot(contains('weed_height')));
+    }
+    final fence = CloseupProtocol.summer.parcelQuestions.first;
+    expect(fence, isA<YesNoQuestion>());
   });
 
   test('basal sprouts is a category question', () {

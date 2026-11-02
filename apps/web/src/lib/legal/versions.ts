@@ -19,7 +19,12 @@ export const LEGAL_TEXT_VERSIONS = {
   pre_information: "onbilgi-v5-taslak",
   refund_policy: "iade-v5-taslak",
   field_notice: "bahcede-v1-taslak",
+  service_terms: "bakim-v1-taslak",
 } as const;
+
+// The maintenance-service addendum (mowing; docs/hukuk/kararlar.md H37),
+// shown at /bakim-hizmeti and recorded with every service request.
+export const SERVICE_TERMS_VERSION = LEGAL_TEXT_VERSIONS.service_terms;
 
 export type LegalText = keyof typeof LEGAL_TEXT_VERSIONS;
 

@@ -20,6 +20,9 @@ import { formatNumber, t } from "@/lib/i18n";
 import { listFieldStaff, listVisits, opsOrgs } from "@/lib/operations/data";
 import { listViewerInvitations } from "@/lib/operations/invitations";
 import { getKvkkVersions } from "@/lib/operations/kvkk-versions";
+import { opsServicesText } from "@/lib/i18n/messages/ops-services";
+import { serviceDemand } from "@/lib/operations/service-data";
+import { serviceHref } from "@/lib/operations/services";
 import { opsHref } from "@/lib/operations/urls";
 import {
   countByStatus,
@@ -52,8 +55,8 @@ export default async function Page({
   const params = await searchParams;
   // Staff, invitations and the billing summary wait for the orgs only.
   const orgsP = opsOrgs(supabase, user.id);
-  const [visits, parcels, followups, kvkkVersions, staff, invitations, billing] = await Promise.all(
-    [
+  const [visits, parcels, followups, kvkkVersions, staff, invitations, billing, demand] =
+    await Promise.all([
       listVisits(supabase),
       listParcels(supabase),
       listFollowups(supabase, { statuses: ["open", "planned"] }),
@@ -66,8 +69,9 @@ export default async function Page({
         ),
       ),
       orgsP.then((orgs) => billingSummary(supabase, orgs)),
-    ],
-  );
+      // IP15: open service requests (weed mowing).
+      serviceDemand(supabase),
+    ]);
   const leads = new Map(staff.map((s) => [s.userId, s.email]));
 
   const counts = countByStatus(visits);
@@ -108,6 +112,39 @@ export default async function Page({
       )}
 
       {billing && <BillingCard summary={billing} />}
+
+      {demand.length > 0 && (
+        <Panel
+          title={opsServicesText.title}
+          actions={
+            <ButtonLink variant="secondary" size="sm" href={serviceHref.queue()}>
+              {opsServicesText.nav}
+            </ButtonLink>
+          }
+        >
+          <QueueList
+            testId="service-counts"
+            label={opsServicesText.title}
+            items={(["requested", "scheduled", "pre_request"] as const).map((status) => ({
+              key: status,
+              label: opsServicesText.status[status],
+              value: demand.reduce(
+                (n, d) =>
+                  n +
+                  (status === "requested"
+                    ? d.requested
+                    : status === "scheduled"
+                      ? d.scheduled
+                      : d.pre_requests),
+                0,
+              ),
+              href: serviceHref.queue({ durum: status }),
+              tone:
+                status === "pre_request" ? "neutral" : status === "requested" ? "warning" : "info",
+            }))}
+          />
+        </Panel>
+      )}
 
       <Panel
         title={T.dashboard.counts}

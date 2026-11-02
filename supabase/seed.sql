@@ -300,7 +300,7 @@ insert into public.org_billing_setting (
   tax_number, mersis_number, address, phone, email, bank_name, iban, iban_holder, updated_by,
   garden_changes_enabled, kep_address, site_domain,
   coowner_notice_flow_enabled, boundary_declaration_required, kvkk_request_form_enabled,
-  visit_notice_sms_enabled, service_end_access_flow_enabled
+  visit_notice_sms_enabled, service_end_access_flow_enabled, services_enabled
 ) values (
   'b0000000-0000-4000-8000-000000000001', true, true, false, 'orchadOS Denetim Hizmetleri A.Ş. (örnek)',
   'Şahinbey', '1234567890', '0123456789012345', 'Örnek Mah. Fıstık Cad. No: 1, Şahinbey, Gaziantep',
@@ -317,8 +317,28 @@ insert into public.org_billing_setting (
   true, true, true,
   -- Wave 3 (T07 visit_scheduled message, T08 service-end access flow): on
   -- locally; off on hosted projects until switched on in SQL.
-  true, true
+  true, true,
+  -- IP15 service layer (weed mowing): on everywhere by default (owner
+  -- decision, 2 November 2026).
+  true
 );
+
+-- IP15 service catalogue: weed mowing. No price yet (owner decision of
+-- 2 November 2026): the launch price list below has no service row, so the
+-- portal shows "Fiyat teklifle bildirilir". Season 1 March - 30 June for
+-- every fruit species.
+insert into public.service_type (
+  id, org_id, code, name, description, operation_kind, season_start_month, season_start_day, season_end_month,
+  season_end_day, recommend_from_weed_height, observation_max_age_days, sort_order
+) values (
+  '91500000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'weed_mowing', 'Yabani ot biçme',
+  'orchadOS ot biçme hizmeti: parseldeki yabani otlar motorlu tırpanla biçilir. Öncesi ve sonrası fotoğrafları parsel kaydına eklenir.',
+  'mowing', 3, 1, 6, 30, 'medium', 60, 10
+);
+insert into public.service_type_season (org_id, service_type_id, species, season_start_month, season_start_day,
+  season_end_month, season_end_day)
+select 'b0000000-0000-4000-8000-000000000001', '91500000-0000-4000-8000-000000000001', f.code, 3, 1, 6, 30
+from public.fruit_species f;
 
 -- Launch price list (docs/fiyatlandirma.md, decided 28 October 2026). The
 -- packages include the first-year inventory visit (informational, frozen into

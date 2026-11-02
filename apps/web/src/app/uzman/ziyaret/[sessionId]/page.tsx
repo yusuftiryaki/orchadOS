@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { bulkMessages } from "@/components/expert/bulk-approve";
 import { ReviewView } from "@/components/expert/review-view";
+import { OwnWorkNotice } from "@/components/services/own-work-notice";
 import { requireSection } from "@/lib/auth/session";
 import { followupMessage, listFollowups } from "@/lib/expert/followups";
 import { loadReview, loadTreeDetail } from "@/lib/expert/review";
@@ -8,6 +9,7 @@ import { matchesFilter } from "@/lib/expert/summary";
 import { parseFilter } from "@/lib/expert/urls";
 import { t } from "@/lib/i18n";
 import { createMediaSigner } from "@/lib/media/signer";
+import { loadOwnWork } from "@/lib/services/data";
 import { createClient } from "@/lib/supabase/server";
 
 // Tree-by-tree review of one visit: ?filtre= list filter, ?agac= selected tree.
@@ -30,11 +32,12 @@ export default async function Page({
     ctx.trees.find((tree) => tree.id === query.agac) ??
     ctx.trees.find((tree) => matchesFilter(tree, filter)) ??
     null;
-  const [detail, followups] = await Promise.all([
+  const [detail, followups, ownWork] = await Promise.all([
     selected
       ? loadTreeDetail(supabase, ctx, selected.id, createMediaSigner(supabase, { scope: user.id }))
       : null,
     listFollowups(supabase, { parcelIds: [ctx.session.parcelId] }),
+    loadOwnWork(supabase, ctx.session.parcelId, ctx.session.time),
   ]);
 
   const r = t.expert.review;
@@ -62,6 +65,7 @@ export default async function Page({
       messages={{ error, findingError, saved: query.kayit === "1", bulk: bulkMessages(query) }}
       followups={followups}
       followupMessage={followupMessage(query)}
+      notice={<OwnWorkNotice days={ownWork} />}
     />
   );
 }

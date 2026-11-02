@@ -6,6 +6,7 @@ import { INVENTORY_POINT_COLORS, type InventoryReport } from "@/lib/portal/inven
 import { BoundaryFooter, Bullets, Footer, Header, SampleWatermark, sampleInfo } from "./parts";
 import type { PdfOptions } from "./report-pdf";
 import { pdf, registerFonts } from "./theme";
+import { hasPistachioMethodology } from "@/lib/species";
 
 // The owner's inventory report as a PDF: the same sections and texts as the
 // portal page (components/portal/inventory-report.tsx).
@@ -173,7 +174,9 @@ export function InventoryDocument({
               {`${r.cultivars}: ${report.structure.cultivars.map((x) => `${x.name} (${x.trees})`).join(", ")}`}
             </Text>
           )}
-          <Text style={pdf.muted}>{r.sexNote}</Text>
+          {hasPistachioMethodology(report.parcel.species) && (
+            <Text style={pdf.muted}>{r.sexNote}</Text>
+          )}
         </View>
 
         <View style={pdf.section}>

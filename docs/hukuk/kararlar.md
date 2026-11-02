@@ -4,6 +4,8 @@
 
 > **H35 ve H36 (28 Ekim 2026, ziyaret başına ödeme planı ve hizmet bölgesi):** Ürün sahibinin talimatıyla iki bağımsız tüketici hukuku uzmanı yapay zekâ ajanı görüş verdi; üçüncü bir uzlaştırıcı ajan görüşleri karşılaştırıp karar verdi. Bu kararlar da **yapay zekâ ajanlarının kararıdır, baro kayıtlı bir avukatın imzalı görüşü değildir**; talimat gereği nihai olarak uygulanır.
 >
+> **H37 (2 Kasım 2026, bakım hizmeti: ot biçme):** Kullanıcının talimatıyla **tek bir** tüketici hukuku uzmanı yapay zekâ ajanı karar verdi; ikinci görüş ve uzlaştırıcı yok. Bu karar **lisanslı bir avukatın görüşü değildir**. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır. Karar ve [bakım hizmeti ek sözleşmesi](bakim-hizmeti-ek-sozlesme-taslagi.md) yine baro kayıtlı bir avukatça incelenecek.
+>
 > **Bu kararları kim verdi?** Kullanıcı (Yusuf) şu talimatı verdi: “Hukuk ile ilgili sorular olursa hukuk uzmanı bir ajan yarat ve ondan aldığın kararları doğru kabul ederek ilerle.” Bu belgedeki kararları, bu talimatla görevlendirilen hukuk uzmanı bir yapay zekâ ajanı verdi. Ajan iki bağımsız uzman görüşünü karşılaştırdı. Uzmanların birleştiği yerde ortak görüşü benimsedi; ayrıştıkları yerde gerekçesiyle karar verdi. Talimat gereği kararlar doğru kabul edilir ve **nihai olarak uygulanır**. Kararlar baro kayıtlı bir avukatın imzalı görüşü değildir. Mali müşavirin alanına giren ayrıntılar (fatura belge türleri, eşikler) ayrıca belirtilmiştir.
 
 Kaynak sorular: [README.md](README.md)'deki “Avukata sorulacaklar” listesi (1–23) ve taslaklarla tasarım dokümanları karşılaştırılarak türetilen sorular (H25–H34). Kullanıcının sabit kararları ([bahce-yonetimi.md](../bahce-yonetimi.md) §2) değiştirilmedi: fiyat formülü ve orantı, tek bahçe için cayma ve kesintiler, 90 gün salt okunur erişim. Kararlar bu çerçevenin içinde verildi.
@@ -55,6 +57,7 @@ Kaynak sorular: [README.md](README.md)'deki “Avukata sorulacaklar” listesi (
 - [H34 – Diğer yer tutucular ve şirket bilgileri](#h34)
 - [H35 – Ödeme planı](#h35)
 - [H36 – Hizmet bölgesi](#h36)
+- [H37 – Bakım hizmeti: ot biçme ek sözleşmesi](#h37)
 - [Takip işleri](#takip)
 
 <a id="yayin"></a>
@@ -67,6 +70,7 @@ Aşağıdakilerin hepsi tamamlanmadan hiçbir metinden “-taslak” eki kaldır
 3. **Sistem:** T03 (erken başlama onayı), T04 (siparişe özel sözleşme PDF'i), T09 (kısa saklama temizlikleri), T21 (üretim kapısı), T28 (pencere sonunda düşen ziyaret ödemesi) ve T29 (ödeme planı PDF'te ve ön bilgilendirmede) üretimdedir.
 4. **Bahçe ekleme ve çıkarma:** Ayrıca T05 ve T18 üretimdedir.
 5. **Tanıtım iletisi onayı:** Kutu yalnızca İYS kaydı ve entegrasyonundan sonra açılır (H06). Sorulmayan rızayı veritabanı ve Edge tarafı da reddeder (T27).
+6. **Bakım hizmeti (ot biçme):** Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır. Gerçek müşteriye sunmadan önce yukarıdaki 1. ve 2. maddeler, T33 ve T34 tamamlanır (H37); bunlar anahtarın önkoşulu değildir.
 
 **Acil not:** Barındırılan projelerde bugün gerçek kişisel veri varsa 2. madde gecikmeksizin yerine getirilir. O tarihe kadar gerçek bahçe görüntüsü yurt dışındaki yapay zekâ sağlayıcısına gönderilmez; bunu ai-worker kapısı sağlar (H02; `ORCHADOS_AI_TRANSFER_SAFEGUARD`, [services/ai-worker/README.md](../../services/ai-worker/README.md#yurt-dışı-aktarım-kapısı)).
 
@@ -94,6 +98,12 @@ Aşağıdakilerin hepsi tamamlanmadan hiçbir metinden “-taslak” eki kaldır
 | Mesafeli hizmet sözleşmesi | mesafeli-v4-taslak | mesafeli-v5-taslak | arsiv/hizmet-sozlesmesi-taslagi-v4.md |
 | Ön bilgilendirme formu | onbilgi-v4-taslak | onbilgi-v5-taslak | arsiv/on-bilgilendirme-formu-taslagi-v4.md |
 | İptal ve iade politikası | iade-v4-taslak | iade-v5-taslak | arsiv/iptal-iade-politikasi-taslagi-v4.md |
+
+**Bakım hizmeti (2 Kasım 2026, H37):** Yeni metin; diğer metinler değişmedi (atıflar T35 ile sonraki sürümlerine girer).
+
+| Metin | Eski sürüm | Yeni sürüm | Arşiv dosyası |
+| --- | --- | --- | --- |
+| Bakım hizmetleri ek sözleşmesi – ot biçme (yeni; sitede `/bakim-hizmeti`; ön bilgilendirme ve iptal koşulları içinde) | — | bakim-v1-taslak | — |
 
 Sürümsüz yeni iç belgeler: [kvkk-basvuru-proseduru.md](kvkk-basvuru-proseduru.md), [saklama-imha-politikasi.md](saklama-imha-politikasi.md), [yurt-disi-aktarim-kaydi.md](yurt-disi-aktarim-kaydi.md).
 
@@ -354,6 +364,7 @@ Sürümsüz yeni iç belgeler: [kvkk-basvuru-proseduru.md](kvkk-basvuru-prosedur
 **Soru.** Hizmet SMS'leri onaysız ve İYS kaydı olmadan gönderilebilir mi? Tanıtım rızası KVKK açık rızası olarak mı, ETK onayı olarak mı kurgulanmalı? İkisi aynı kutuda olabilir mi? İYS pilotta zorunlu mu? Tacirde fark var mı?
 
 **Karar.**
+- **H37 ile eklendi (2 Kasım 2026):** Bakım hizmetinde (ot biçme) yalnızca Sahip'in açtığı talebe ilişkin `service_scheduled`, `service_completed` ve `service_cancelled` iletileri hizmet iletisidir. Ot biçme önerisi ticari elektronik iletidir; İYS'den önce gönderilmez, yalnızca portalda gösterilir ([H37](#h37)).
 - **Hizmet iletileri:** Önceden onay ve İYS kaydı olmadan gönderilebilir. Kapsam:
     - rapor hazır, kritik bulgu, ziyaret tarihi,
     - teklif hazır, başvuru sonucu, yenileme teklifi hazır,
@@ -1776,6 +1787,61 @@ Sözcük düzeyindeki diğer değişiklikler (bağlayıcı; yerleri 2. bölümde
 
 ---
 
+<a id="h37"></a>
+## H37 – Bakım hizmeti: ot biçme ek sözleşmesi
+
+> Bu kararı **tek bir yapay zekâ ajanı** verdi (ikinci görüş ve uzlaştırıcı yok); lisanslı bir avukatın görüşü değildir. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır.
+
+**Soru.** [MVP.md](../MVP.md) Modül 6 (İP15) ile portaldan talep edilen ücretli bir bakım hizmeti (yabani ot biçme) eklendi. İlk sezon işi köydeki saha personelimiz motorlu tırpanla yapar; çevrimiçi ödeme yoktur, ödeme işten sonra elle alınır. (a) Hukuki biçim ne olmalı: ana sözleşmenin yeni sürümü mü, ayrı bir ek mi? (b) Kapsam ve fiyat nasıl yazılmalı; talepte dondurulan tahmini tutar ops'ça düzeltilebilir mi? (c) Motorlu tırpanın gövdeye, aşıya ya da damla sulama hortumuna verdiği zarardan sorumluluk ve sınırı ne olmalı? (d) Hava ve erteleme? (e) "Planlanan tarihten önceki güne kadar ücretsiz iptal" ile 14 günlük cayma hakkı ve Mesafeli Sözleşmeler Yönetmeliği md. 15/1-(h) istisnası nasıl bağdaştırılır? (f) Sezon dışındaki ön talep bağlayıcı mı? (g) İş kanıtı fotoğrafları ve KVKK? (h) Bağımsız denetçinin kendi yaptığı bakım işini denetlemesi nasıl açıklanmalı?
+
+**Karar.**
+- **(a) Biçim:** Ayrı, sürümlü bir metin: [Bakım Hizmetleri Ek Sözleşmesi – Ot Biçme](bakim-hizmeti-ek-sozlesme-taslagi.md) (`bakim-v1-taslak`, sitede `/bakim-hizmeti`). Ön bilgilendirme (2. bölüm) ve iptal koşulları (10. bölüm) aynı belgededir. Her talep ayrı bir mesafeli hizmet sözleşmesidir ve Ana Sözleşme'ye ektir; Ana Sözleşme, ön bilgilendirme formu ve iade politikası bu işte değiştirilmez (v6'ya geçmek, arşiv ve şablon dondurma gerektirirdi; atıflar T35 ile sonraki sürümlerine girer). Talep formunda iki ayrı zorunlu onay (ön bilgilendirmeyi okudum; ek sözleşmeyi onaylıyorum) ve bir isteğe bağlı erken ifa kutusu bulunur. Talebi yalnızca Ana Sözleşme'deki Sahip açar; hissedar açamaz.
+- **Sözleşmenin kurulması:** Sahip'in talebi sözleşme önerisidir; Şirket onaylayana kadar bedelsiz geri çekilir. Sözleşme Şirket'in tutar ve tarihle onayıyla (`scheduled`) kurulur ve SMS ile bildirilir. Talep bilgileri, sürüm, tutar ve tarih portalda değiştirilmeden saklanır.
+- **(b) Kapsam ve fiyat:**
+    - Kapsam yalnızca kullanım alanındaki yabani otun motorlu tırpanla biçilmesidir. Herbisit, toprak işleme, budama, dip sürgünü, otun toplanması ya da yakılması, alan dışı yerler ve güvenle girilemeyen yerler kapsam dışıdır. Biçilen ot yerinde kalır; toplama yalnızca ayrıca yazılı anlaşmayla yapılır. Robotla biçme hiçbir metinde vaat edilmez.
+    - Fiyat formülle yazılır (alan × dönüm fiyatı, minimum ücret, KDV); rakam yazılmaz, çünkü fiyat sürümlü fiyat listesindedir ve her değişiklik sürüm artırırdı. KDV dahil toplam talep formunda gösterilir ve talebe dondurulur.
+    - **Fiyatsız hizmet (sahip kararı, 2 Kasım 2026):** Fiyat henüz belirlenmedi; yürürlükteki yayımlı fiyat listesinde hizmetin fiyatı yoksa formda tutar yerine "Fiyat teklifle bildirilir" yazar, talebe tutar dondurulmaz. Şirket onaylarken KDV dahil toplam tutarı iş tarihiyle SMS ile bildirir; indirme kuralı (üst sınır) uygulanmaz; Sahip tutarı kabul etmezse 10. bölüme göre bedelsiz iptal eder (ek sözleşme 2. bölüm "Toplam fiyat", 5/1 ve 5/5). Avukata açık soru (T34): bu durumda toplam fiyat sözleşme kurulmadan önce Sahip'e gösterilmemiş olur (Yönetmelik md. 5/1-(c)); onay bildirimini kabul edilmesi gereken bir teklife çevirmek ya da erken ifa kutusu işaretliyken fiyatsız işi bildirimden en az bir gün sonraya planlamak gerekebilir. Ara önlem olarak sistem fiyatsız işi en erken onay gününün ertesine planlatır (`ops_schedule_service_request`, `invalid_input / scheduled_date`); böylece Sahip tutarı öğrendikten sonra bedelsiz iptal hakkı en az bir gün açık kalır. Teklife çevirme sorusu avukatta.
+    - **Ops kesin tutarı yalnızca indirebilir.** Daha yüksek tutar ancak Sahip'in portalda yeniden onayıyla geçerlidir; onay yoksa talep bedelsiz kapanır. Tüketicinin onaylamadığı bir bedel istenemez.
+    - Ödeme işten sonra, tamamlandı bildiriminden itibaren 14 gün içinde havale/EFT ile ya da işyerinde yapılır. Saha personeli ödeme almaz. Bakım borcu denetim hizmetini etkilemez; ödenmemiş iş varken yeni bakım talebi planlanmayabilir.
+- **(c) Hasar:**
+    - Şirket personelinin kusuruyla verdiği zarardan kanuna göre sorumludur (TBK md. 112, 116: yardımcı kişi). Tüketici Sahip için parasal sınır yoktur. Tacir Sahip için Ana Sözleşme Madde 11/3 ile aynı sınır: hafif kusurda o talebin bedeli, dolaylı zarar hariç; kast, ağır kusur, ölüm ve bedensel zararda sınır yok.
+    - Sahip gizli engelleri (damla hattı, taş, fidan, kuyu ve çukur, tel ve benzeri) talepte bildirir. Bildirilmemiş ve özenle de görülemeyecek engele kusursuz verilen zarardan Şirket sorumlu değildir; bildirmeme zarara katkıda bulunduysa tazminat indirilir (TBK md. 52). Gizli engelin makineye verdiği zarar Sahip'ten istenmez.
+    - Hasar bildirimi 7 gün içinde fotoğrafla istenir; **hak düşürücü değildir**, yalnızca ispatı kolaylaştırır. Şirket 7 gün içinde yanıt verir; onarır ya da belgelenmiş bedeli öder.
+    - İşteki eksiklik için de 7 günlük bildirim yalnızca bir istektir; 6502 md. 57'deki seçimlik haklar saklıdır.
+- **(d) Hava ve erteleme:** Yağmur, ıslak toprak, kuvvetli rüzgâr, aşırı sıcak, kuru otta yangın riski ve resmi kısıtlamalar erteleme sebebidir. Bildirim mümkünse bir gün önce, olmuyorsa işe başlamadan SMS ile; yeni tarih önerilir. Sahip kabul etmezse bedelsiz iptal eder; sezon penceresi biterse talep bedelsiz kapanır. Erteleme hiçbir tarafa bedel doğurmaz. Yarım kalan iş ek bedelsiz tamamlanır. Ot yakılmaz.
+- **(e) İptal ve cayma:**
+    - Sahip, iş tarihinden önceki günün sonuna kadar portaldan, iş günü de işe başlanmadan telefonla bedelsiz iptal eder. Sahip'ten kaynaklanan erişim sorununda boşa gidiş bedeli istenmez; aynı talepte ikinci kez olursa Şirket talebi kapatabilir. Boşa gidiş bedeli, küçük bir işte cezai şart niteliği taşır ve tüketici aleyhine haksız şart riski doğurur; yol masrafı da neredeyse sıfırdır.
+    - Kanuni cayma süresi sözleşmenin kurulduğu günden (Şirket onayı) 14 gündür (Yönetmelik md. 9). Ot biçme md. 15/1-(g)'deki "belirli tarihte yapılması gereken" sözleşmelerden değildir; bu bent sınırlı sayılmış işler içindir (konaklama, taşıma, araç kiralama, yiyecek-içecek, eğlence).
+    - Bu nedenle H11'deki kurgu uygulanır: talep formunda **ayrı, işaretsiz ve isteğe bağlı** erken ifa kutusu. Kutu yoksa iş cayma süresinin bitiminden önceki bir güne planlanmaz. Kutu varsa ve işe başlanırsa kanuni cayma hakkı md. 15/1-(h) uyarınca sona erer. Ana sözleşmedeki gibi ayrıca bir sözleşmesel cayma hakkı tanınmaz: ödeme işten önce alınmadığından ve işe başlanana kadar bedelsiz iptal zaten açık olduğundan Sahip'in kaybettiği bir şey yoktur.
+    - İşe başlandıktan sonra Sahip işi durdurursa yalnızca biçilen alanın oransal bedeli istenir.
+    - Bahçe hizmetten çıkarılırsa ya da Ana Sözleşme sona ererse yapılmamış talepler bedelsiz kapanır. Tacir Sahip'e de aynı haklar sözleşmeyle tanınır (H10).
+- **(f) Ön talep:** Sözleşme de sözleşme önerisi de değildir; fiyat ve tarih taahhüdü yoktur, kimseyi bağlamaz, istendiği an geri çekilir. Sezon açılınca hizmet yalnızca portalda talep edilebilir görünür; SMS gönderilmez. Ön talep sayıları yalnızca toplu olarak kullanılır.
+- **İletiler (H06'nın genişletilmesi):** Ot biçme önerisi yeni bir hizmetin tanıtımıdır (çapraz satış) ve H06'ya göre ticari elektronik iletidir; İYS kaydı ve entegrasyonu olmadığı için **öneri iletisi gönderilmez**, öneri yalnızca portaldaki öneri kartında görünür. H06'daki hizmet iletileri listesine yalnızca Sahip'in açtığı talebe ilişkin üç durum iletisi eklenir: `service_scheduled` (planlandı; sözleşmenin kurulduğunu bildirir), `service_completed` (tamamlandı), `service_cancelled` (iptal). Bunlar Sahip'in talebine dayanan işlem iletileridir (Ticari İletişim ve Ticari Elektronik İletiler Hakkında Yönetmelik md. 6/1); tanıtım içermez, tutar yazmaz. `service_recommended` gibi bir şablon kuyruğa yazılmaz.
+- **(g) İş kanıtı ve KVKK:** En az bir öncesi ve bir sonrası fotoğrafı Bahçe kaydına bağlanır, değiştirilmez ve Bahçe'nin diğer görüntüleriyle aynı sürelerle saklanır (H25). Hukuki sebep sözleşmenin ifasıdır (md. 5/2-c); tesadüfen görünen kişiler için meşru menfaat ve katmanlı aydınlatma (H01) aynen uygulanır. Mevcut aydınlatma metninin 4. amacı ("sözleşmenin kurulması, ifası") bu işlemi kapsar; metin bu işte değiştirilmez, bildirim listesine bakım bildirimleri T35 ile eklenir. Bakım fotoğrafları yapay zekâ sağlayıcısına gönderilmez (aydınlatma metni yalnızca panorama kesitlerini sayar) ve tanıtımda kullanılmaz.
+- **(h) Bağımsızlık:** Bakım hizmeti almak ya da almamak bulguları, puanları, karneyi ve uzman değerlendirmesini değiştirmez. Bakım uyumu satırı Şirket'in kendi işini kapsıyorsa rapor bunu tarihiyle açıkça yazar ("Bu dönemde yabani ot biçmeyi orchadOS yaptı (tarih)"); uzman da uyarıyı görür ve eskisi gibi imzalar. Portaldaki öneri kartı uzmanın bulgusu değil, hizmet önerisidir; Sahip işi başkasına da yaptırabilir. Bu açıklama yapılmazsa denetim raporu ile satılan hizmet arasındaki çıkar çatışması gizlenmiş olur ve yanıltıcı ticari uygulama riski doğar.
+
+**Dayanak.** 6502 md. 4, 5, 48, 57; Mesafeli Sözleşmeler Yönetmeliği md. 5, 6, 9, 11, 12, 15/1-(g) ve (h); Haksız Şartlar Yönetmeliği md. 5 ve Ek; Ticari Reklam ve Haksız Ticari Uygulamalar Yönetmeliği (yanıltıcı ve eksik bilgi); TBK md. 6–8 (öneri ve kabul), 49, 52, 112, 114–116, 179–182 (cezai şart); 6563 sayılı Kanun md. 6 ve Ticari İletişim ve Ticari Elektronik İletiler Hakkında Yönetmelik md. 6/1; 6698 md. 4, 5/2-c ve f, 10; 6331 sayılı İş Sağlığı ve Güvenliği Kanunu (personel güvenliği Şirket'te); H01, H06, H08, H10, H11, H12, H15, H25.
+
+**Gerekçe.**
+- Ayrı ek, büyük metinleri yeniden sürümlemeden ve şablon arşivine dokunmadan hizmeti düzenler; her talep kendi sürümünü ve özetini taşır. Tek belgede ön bilgilendirme ile sözleşmenin birlikte durması, iki ayrı onay alındığı sürece md. 5 ve 6'yı karşılar.
+- Ödeme işten sonra alındığı için tüketicinin parasal riski küçüktür; bu yüzden H11'deki sözleşmesel cayma hakkı ve kesinti kurgusuna gerek yoktur. Yine de istisna yalnızca tüketicinin ayrı onayıyla ve işe başlanınca işler; planlama kuralı bunu sağlar.
+- Hasarda kanunun sorumluluk düzeni korunur; tüketiciye karşı sınırlama haksız şart riskidir (H08). Gizli engel beyanı sorumluluğu kaldırmaz, kusur ve özen değerlendirmesinin olgusal temelini kurar.
+- Tutarın yalnızca indirilebilmesi, "tahmini" fiyatla talep alıp sonradan daha yükseğini istemenin yanıltıcı fiyat sayılmasını önler.
+- Uzlaştırma yoktur; karar tek ajanındır. Belirsiz kalan noktalar avukata bırakıldı (T34): tek belgede iki onayın yeterliliği, kalıcı veri saklayıcısı olarak portal kaydı ile SMS'in yeterliliği (H12'nin PDF kuralı bu küçük işte orantısız görüldü), KDV oranı.
+
+**Metin değişikliği.**
+- Yeni metin: [bakim-hizmeti-ek-sozlesme-taslagi.md](bakim-hizmeti-ek-sozlesme-taslagi.md) (`bakim-v1-taslak`); sitede `/bakim-hizmeti` (`legal.ts` anahtarı `service_terms`). 2 Kasım 2026'da, metin yayımlanmadan (PR birleşmeden) aynı sürümde değişti: fiyat katalogdan sürümlü fiyat listesine taşındı, "taslak fiyat / tahmini" fıkrası (5/5) fiyatsız hizmet fıkrasıyla değiştirildi, 2. bölüm "Toplam fiyat" buna göre tamamlandı; şablon özeti yeniden kaydedildi (`20261106300000_legal_text_service_terms.sql`).
+- Talep formundaki erken ifa kutusu metni ek sözleşmenin 10/3'ündeki gibidir: “☐ Ot biçmenin 14 günlük cayma süresi dolmadan yapılmasını istiyorum. Personel işe başladığında cayma hakkımın sona ereceğini biliyorum. Bu kutuyu işaretlemezsem iş, cayma süresi dolduktan sonraki bir güne planlanır.”
+- Diğer metinler bu işte değişmez (T35).
+
+**Sistem değişikliği.**
+- **Bu iş:**
+    - `apps/web/src/lib/legal/versions.ts`: `service_terms: "bakim-v1-taslak"` ve `SERVICE_TERMS_VERSION`; `legal.ts` yansısı ve eşitlik testi; `/bakim-hizmeti` sayfası (herkese açık; altbilgiye ve site haritasına hizmet açılınca eklenir).
+    - Kayıt: `supabase/migrations/20261106300000_legal_text_service_terms.sql` (`service_terms` türü ve şablon özeti).
+- **T33, T34, T35** ([Takip işleri](#takip)).
+
+---
+
 <a id="takip"></a>
 ## Takip işleri
 
@@ -1815,3 +1881,6 @@ Bu belgeyle birlikte yapılan PR yalnızca metinleri ve küçük değişiklikler
 | T30 | Ödenmeme nedeniyle fesih: uyarı kaydı ve SMS'i (≥30 gün; son günü ve sonucu yazar); uyarı süresi dolmadan ya da ödeme iptal edilmişken ödeme nedenli fesih ya da çıkarma kapalı; yeni çıkarma nedeni `payment_default` (T05). Ödemesiz ziyaret izninde Sahip talebinin kanalı ve tarihi zorunlu alan; talepsiz yapılmış ödemesiz ziyaretin ödemesini iptal eden ops işlemi | H35 | Pilot sırasında, ödeme nedeniyle ilk fesihten önce; o zamana kadar kılavuz kuralı |
 | T31 | Alan düzeltmesinde (Md. 6/3) ödenmemiş ziyaret ödemelerinin yeni alana göre kısmen iptali (`cancelled_kurus`, satır payları dahil) ve ödenmiş fazlanın iadesi; denetim kaydı | H35 | İlk alan düzeltmesinden önce; o zamana kadar geliştirici eliyle, denetim kaydıyla |
 | T32 | Ek teklif dökümündeki kalan pencereler (`contract_visit_windows`, `remaining_visit_windows`, `visit-windows.ts`) Ek-2 v5'in gün aralıklarına ve paket eşlemesine (`package_visit_windows`) geçirilir; bugün ay düzeyinde dört pencere sayılıyor | H19, H35 | `garden_changes_enabled` öncesi |
+| T33 | Bakım talebi (ot biçme) sistem işleri: talep formunda iki ayrı zorunlu onay (ön bilgilendirme, ek sözleşme) ve isteğe bağlı erken ifa kutusu; talep kaydında `terms_version` = `private.legal_text_current('service_terms')` ve erken ifa kaydı; kutu yoksa iş tarihi en erken onay günü + 15; kesin tutar dondurulan tutarı aşamaz (aşarsa Sahip'in portal onayı); onay SMS'i sözleşmenin kurulduğunu bildirir ve talep özeti (sürüm, alan, tutar, tarih) portalda değişmeden görünür; gizli engel alanı; portal iptali iş gününden önceki günün sonuna kadar, işe başlandıktan sonra oransal bedel; bahçe çıkarılınca ve Ana Sözleşme bitince açık talepler kapanır; hasar ve eksiklik bildirimi kaydı; öneri için SMS ya da başka ileti gönderilmez (`service_recommended` şablonu kuyruğa yazılmaz), yalnızca `service_scheduled`, `service_completed`, `service_cancelled`; bakım fotoğrafları yapay zekâya gönderilmez; karnede ve uzman incelemesinde "orchadOS yaptı" açıklaması | H37 | Gerçek müşteriden ilk talep alınmadan önce (anahtarın önkoşulu değil; anahtar 2 Kasım 2026'dan beri her ortamda açık) |
+| T34 | Avukat incelemesi: H37 ve ek sözleşme (tek belgede iki onay, kalıcı veri saklayıcısı, md. 15/1-(h) kurgusu, hasar ve tacir sınırı); mali müşavirle ot biçme KDV oranı ve fatura; motorlu tırpan işleri için üçüncü şahıs sorumluluk sigortası; saha personeline motorlu tırpan İSG eğitimi ve koruyucu donanım | H37 | Gerçek müşteriden ilk talep alınmadan önce (anahtarın önkoşulu değil; anahtar 2 Kasım 2026'dan beri her ortamda açık) |
+| T35 | Sonraki sürüm artırımlarında atıflar: Ana Sözleşme Ekler listesine ve Md. 2'ye bakım eki; ön bilgilendirmedeki "Kapsam dışı: bahçe bakımı" maddesine "ayrı ek sözleşmeyle sunulan bakım hizmetleri hariç"; iade politikasına kısa bakım bölümü; KVKK aydınlatma metni bildirim listesine bakım talebi ve durum bildirimleri; bahçede bulunanlar metnine bakım işi fotoğrafları; çalışan aydınlatma metnine bakım işi | H37 | İlgili metnin bir sonraki sürümünde |

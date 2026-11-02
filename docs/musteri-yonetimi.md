@@ -331,6 +331,11 @@ public.price_list (id, org_id, version int null, status price_list_status defaul
 public.price_list_item (id, org_id, price_list_id, package_id, unit_price_kurus > 0, minimum_fee_kurus >= 0, inventory_fee_kurus >= 0,
   unique(price_list_id, package_id))
   -- price_list_item_guard: yalnızca üst liste taslakken yazılır (seed önce taslak yazar, sonra yayımlar)
+public.price_list_service_item (id, org_id, price_list_id, service_type_id, unit_price_kurus > 0, minimum_fee_kurus >= 0,
+  unique(price_list_id, service_type_id))
+  -- İP15 hizmet fiyatları (ot biçme; MVP.md Modül 6, veri-modeli.md "Hizmet katmanı"): aynı guard, ops okur,
+  -- ops_save_price_list_service_items yazar, taslak kopyası bunları da alır. Satır zorunlu değildir: satırı olmayan
+  -- hizmet o sürümde fiyatsızdır (portal "Fiyat teklifle bildirilir"); yayın için hizmet fiyatı aranmaz.
 
 public.service_application (id, org_id, customer_user_id → auth.users restrict, number unique ~'^B-[0-9]{4}-[0-9]{6}$',
   status default 'draft', package_id, customer_note ≤1000, rejection_reason, ops_note ≤2000 [iç],

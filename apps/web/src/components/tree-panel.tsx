@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ClassBadge } from "@/components/ui/badge";
 import { formatDate, t } from "@/lib/i18n";
 import type { SlotProperties } from "@/lib/parcels";
+import { hasPistachioMethodology } from "@/lib/species";
 import styles from "./tree-panel.module.css";
 
 export function TreePanel({ slot, onClose }: { slot: SlotProperties; onClose: () => void }) {
@@ -35,8 +36,19 @@ export function TreePanel({ slot, onClose }: { slot: SlotProperties; onClose: ()
             <dd>{v.status[tree.status]}</dd>
             <dt>{t.tree.health}</dt>
             <dd>{v.health[health]}</dd>
-            <dt>{t.tree.sex}</dt>
-            <dd>{v.sex[tree.sex]}</dd>
+            {tree.speciesLabel && (
+              <>
+                <dt>{t.species.treeSpecies}</dt>
+                <dd data-testid="tree-species">{tree.speciesLabel}</dd>
+              </>
+            )}
+            {/* Tree sex: pistachio only (lib/species.ts). */}
+            {hasPistachioMethodology(tree.species) && (
+              <>
+                <dt>{t.tree.sex}</dt>
+                <dd>{v.sex[tree.sex]}</dd>
+              </>
+            )}
             <dt>{t.tree.graft}</dt>
             <dd>{v.graft[tree.graft]}</dd>
             <dt>{t.tree.ageClass}</dt>

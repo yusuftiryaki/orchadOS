@@ -90,6 +90,22 @@ Envanter her bahçenin ağaç haritasını bir kez çıkarır; sonraki ziyaretle
 | KVKK (`/operasyon/kvkk`) | Kişisel veri başvuruları, 30 gün sayacı |
 | Personel (`/operasyon/personel`) | Ad ve unvan; uzmanın unvanı raporda görünür |
 | Fiyat (`/operasyon/fiyat`) | Paketler ve fiyat listeleri; yayımlanan liste değişmez, kopyalanır |
+| Hizmet talepleri (`/operasyon/hizmet`) | Ot biçme talepleri ve ön talepler; planlama, kapanış, ödeme |
+
+### Hizmet talepleri: yabani ot biçme (`/operasyon/hizmet`)
+
+Sahip, bahçesi için ot biçme hizmetini portaldan talep eder. İşi köydeki saha personeli motorlu tırpanla yapar; sahibe robotla biçme sözü verilmez. Hizmet katmanı `services_enabled` anahtarıyla açılır. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır.
+
+1. **Planlayın.** Kuyrukta talebi açın: parsel, alan, sahibin tercih ettiği zaman ve talepte sabitlenen tutar (fiyat listesi sürümüyle) görünür. Tutarı onaylayın (yalnız indirebilirsiniz) ve tarih verin. Talep günü yayımlı fiyat yoksa talepte tutar yoktur ("fiyatsız"): tutarı siz elle girersiniz, girmeden planlanmaz; tutar sahibin portalındaki talep sayfasında görünür (SMS'te tutar yoktur). Parsel için biçme oturumu açılır, sahibe gün SMS ile gider. Günü değiştirirseniz sahibe yeniden SMS gider; yeni gün en erken yarındır ve onayladığınız tutarı artıramazsınız. Sezon dışındaki ön talepler ayrı sayılır ve planlanamaz (bağlayıcı değildir); sezon açılınca sahip aynı formla talebe çevirir, sizinle görüşmesi de bunun içindir.
+2. **Kapatın.** İş bitince en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlayın: saha personelinin çektiklerini yükleyin ya da aynı parselin yayımlanmış bir ziyaretinden fotoğraf seçin. Yüklenen fotoğraf değiştirilemez; yanlışsa yenisini bağlayın.
+3. **Ödemeyi kaydedin.** Tutar, yöntem (nakit, havale, diğer) ve tarih. Kartla ödeme yoktur.
+4. **İptal.** Sahip planlanan tarihten önceki güne kadar portaldan iptal eder; siz tamamlanmamış her talebi gerekçe yazarak iptal edebilirsiniz.
+
+**Fiyat** (`/operasyon/fiyat`): Hizmet fiyatı paketlerle aynı sürümlü fiyat listesindedir. Bir taslağın "Hizmet fiyatları" bölümüne dönüm fiyatını ve minimum ücreti (TL, KDV hariç) girin, kaydedin, listeyi yayımlayın. Fiyatı boş bırakılan hizmet fiyatsızdır: portal rakam göstermez, "Fiyat teklifle bildirilir" yazar. Fiyat henüz belirlenmedi; lansman listesinde hizmet satırı yok. Yeni sürüm açık talepleri değiştirmez.
+
+**Katalog** (`/operasyon/hizmet/katalog`): Varsayılan sezon penceresi, meyve türüne göre sezon (tablo ve "Bir türün sezonunu değiştir" formu), öneri eşiği ve hizmetin sunulup sunulmadığı. Sayfa, hizmeti bugün hangi fiyat listesi sürümünün fiyatlandırdığını ya da "Yayımlı fiyat listesinde fiyat yok — tutar teklifte elle girilir" bilgisini gösterir.
+
+**Robot uygunluk notları** (parsel sayfası): Her parsel için eğim (düz, hafif, dik), taşlılık (az, orta, çok), en alçak dal yüksekliği (cm) ve kısa not. Saha personelinin sahada gördüklerini de buraya işleyin. Sahip görmez; ileride robotun önce hangi bahçelere gideceğini seçmek için kullanılır.
 
 ## Saha personeli
 
@@ -107,7 +123,7 @@ Sahadaki her ziyaret aynı sırayla yürür: görevi aç, ön kontrolü bitir, s
 5. **Başlangıç QR.** "Başlangıç QR"a dokunup telefondaki saat QR'ını 360° kameraya okutun. Bu adım video ile GPS zamanını eşler; atlanmaz.
 6. **Tarama.** Motosikletle önce sıralar boyunca, sonra dik koridorlar, en son kenarlar. Sorunlu bir ağaç görürseniz "Sorun gördüm"e dokunup ağacı seçin; yakın plan listesine eklenir.
 7. **Bitiş QR ve kaydı durdurun.** Bitiş QR'ını kameraya gösterin, "Kaydı durdur", sonra kameradaki videoyu da durdurun.
-8. **Yakın plan.** Listedeki her ağaçta mevsime göre 2–3 fotoğraf çekin ve evet/hayır sorularını cevaplayın. Göremediğiniz bir şey için "Göremedim" seçin; isterseniz sesli not ekleyin. Bulanık ya da karanlık fotoğrafı uygulama reddeder; "Yeniden çek". Fotoğraflar yalnızca uygulama içinden çekilir.
+8. **Yakın plan.** Listenin başında bahçenin tamamı için sorular bir kez gelir; ilkbahar ve yazda "Bahçede yabani ot ne boyda?": **kısa** (bileğe kadar), **orta** (dize kadar), **uzun** (dizi aşıyor). Bahçenin genelini düşünün; bilemiyorsanız "Göremedim". Sonra listedeki her ağaçta mevsime göre 2–3 fotoğraf çekin ve evet/hayır sorularını cevaplayın. Göremediğiniz bir şey için "Göremedim" seçin; isterseniz sesli not ekleyin. Bulanık ya da karanlık fotoğrafı uygulama reddeder; "Yeniden çek". Fotoğraflar yalnızca uygulama içinden çekilir.
 9. **Ziyareti bitirin.** Ziyaret özetinde kapsama, atlanan koridorlar ve yakın plan sayısı görünür. Hava, kamera seri numarası ve sahadaki sorunları not edin, "Bahçede rastlanan kişilere sözlü bilgi verildi mi?" sorusunu cevaplayın ve "Ziyareti bitir".
 10. **Kartları ofise getirin.** Kameranın hafıza kartı ve kaydedicinin SD kartı elden ofise gider. Ham video telefondan gönderilmez.
 
@@ -116,6 +132,15 @@ Sahadaki her ziyaret aynı sırayla yürür: görevi aç, ön kontrolü bitir, s
 - **Sınır yürüyüşü.** Sahibin ya da yetkilendirdiği kişinin gösterdiği sınır boyunca yürüyün; her köşede uygulamada "Köşe"ye basın, sınır işaretlerini fotoğraflayın.
 - **Sınırı gösteren kişi.** Ekrandaki kısa bilgiyi okuyun; adını ve rolünü (bahçe sahibi, sahibin yakını, işçi / bekçi, komşu, diğer) kaydedin. Telefon numarasını yazmayın.
 - **Doğrulama turu.** Ofis aracı ağaçları kodladıktan sonra telefona bir doğrulama listesi gelir. Listedeki her yere gidin, "Ağaç var" ya da "Ağaç yok" seçin; gerekirse yakın plan çekip not ekleyin. Bu tur ilk periyodik ziyaretle birleştirilebilir.
+
+### Ot biçme işi
+
+Ofis size bir ot biçme işi verdiğinde (tarih ve bahçe ofisten gelir):
+
+1. Biçmeye başlamadan bahçeyi birkaç noktadan fotoğraflayın ("öncesi").
+2. Motorlu tırpanla biçin. Ağaç gövdelerine, sulama hortumlarına ve aşı yerlerine dikkat edin.
+3. Bitince aynı noktalardan yeniden fotoğraflayın ("sonrası") ve fotoğrafları ofise iletin; ofis işi kapatırken bunları bağlar.
+4. Bahçenin eğimini, taşlılığını ve en alçak dalların yüksekliğini ofise söyleyin; ofis bunları parselin robot uygunluk notuna yazar.
 
 ### Bahçede bulunan kişiler
 

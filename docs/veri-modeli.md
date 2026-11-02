@@ -44,10 +44,10 @@ erDiagram
 | Varlık | Temel alanlar |
 | --- | --- |
 | Org | Kiracı: işletme, kooperatif, sigorta vb. |
-| Parcel | Sahibin kullandığı bahçe bölümü; tapu referansı opsiyonel |
+| Parcel | Sahibin kullandığı bahçe bölümü; tapu referansı opsiyonel; ana meyve türü (bkz. [Meyve türü](#meyve-türü)) |
 | Boundary | Poligon, kaynak, sürüm, sahip onayı |
 | Slot (yer) | Kod (S5-12, S5-12a), konum, sıra, pozisyon |
-| Tree | Kalıcı kimlik, bağlı olduğu yer, cinsiyet, aşı, gövde yapısı (tek/çok gövdeli), çeşit, ilk görülme, durum |
+| Tree | Kalıcı kimlik, bağlı olduğu yer, cinsiyet (yalnız Antep fıstığı), aşı, gövde yapısı (tek/çok gövdeli), çeşit, isteğe bağlı tür (karışık bahçe), ilk görülme, durum |
 | Zone | Ağaç dışı alanlar: hücre, geçilmez bölge, giriş noktası, sulama hattı |
 
 `Tree` kimliği hiç değişmez. Ağaç kurursa durumu değişir; yerine yeni ağaç dikilirse aynı yere yeni bir `Tree` kaydı bağlanır.
@@ -95,6 +95,7 @@ Her ürün, hangi ham kayıttan ve hangi hat sürümüyle üretildiğini bilir. 
 | `fractal_dimension` | — | QSM, kutu sayma | Kış | Hayır (araştırma) |
 | `fruit_load_scale` | 0–3 | personel, AI görsel, uzman | Yaz | Evet |
 | `canopy_temp_delta` | °C | termal | Yaz | Değerlendirilecek |
+| `weed_height` | kısa / orta / uzun (parsel) | personel sorusu | İlkbahar, yaz | Evet |
 
 Yeni bir ölçüm türü eklemek, bu tabloya bir satır eklemek demektir.
 
@@ -363,6 +364,50 @@ Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) H01, H12, H15, H20, H21, H22, H
 **Kullanılmış ziyaret (`private.visit_usage`):** Faturalanan ziyaretler (§ İP14) artı 8A/3'e göre yapılmış sayılanlar, eksi raporu yayımlanamayanlar (`report_lost`). Çıkarma hesabı ve Bahçelerim'deki ziyaret sayısı bunu okur.
 
 **Erişim (T08, T09):** Hizmet sonu penceresi çıkarmanın salt okunur dönemini ve erişim kaldırmasını kullanır. Pencere kapanınca ve parsele hiçbir satır hizmet vermiyorsa `parcel_detail.site_contact_phone` (ve müşterinin başvuru kopyası) silinir.
+
+## Meyve türü
+
+orchadOS bütün meyve bahçelerine hizmet verir; Antep fıstığı pilottur. Tür bahçe (parsel) düzeyinde tutulur, karışık bahçede ağaç düzeyinde ayrıca işaretlenir. Migration: `20261106090000_fruit_species`.
+
+| Tablo / sütun | Ne tutar |
+| --- | --- |
+| `fruit_species` | Tür sözlüğü: `code` (ör. `antep_fistigi`, `zeytin`, `nar`, `diger`), Türkçe `name`, `has_methodology`, `active`, `sort_order`. Yalnız migration'la yazılır; herkes (giriş yapmamış ziyaretçi dahil) okur. Bugün `has_methodology` yalnız `antep_fistigi` için `true` |
+| `parcel.species` | Bahçenin ana türü, zorunlu. Mevcut parseller pilotun türüyle (`antep_fistigi`) dolduruldu; sütunun varsayılanı da odur, ama formlar seçimi zorunlu tutar ve önceden seçili değer göstermez. Yalnız ops değiştirir (`parcel_update`) |
+| `tree.species` | İsteğe bağlı tür (karışık bahçe): `null` = parselin türü. Saha personeli, uzman ve ops yazar (`tree_update`); ofis envanter düzenleyicisinde “Parselin türü (X)” varsayılandır |
+| `application_garden.species` | Başvurudaki bahçe için müşterinin seçtiği tür; etkinleşmede (`private.create_customer_parcel`) parsele kopyalanır |
+| `tree_species(tree_id)` | Ağacın geçerli türü: kendi türü, yoksa parselinki (çağıranın satır yetkisiyle) |
+| `service_type_season` | Bir hizmetin tür başına sezon penceresi; satır yoksa `service_type`'taki varsayılan pencere geçer (bkz. aşağıda "Hizmet katmanı") |
+
+**Kurallar:**
+- **Çeşit tür değildir:** `tree.cultivar` çeşittir (ör. Siirt, Kırmızı); tür `species`'tir.
+- **Fonksiyonlar:** `register_parcel` (`p_parcel ->> 'species'`), `customer_save_application_garden` (`p_garden ->> 'species'`) ve `private.create_customer_parcel` türü taşır. Listede olmayan ya da etkin olmayan kod `invalid_input`, ayrıntı `species` ile reddedilir. Türü belirtmeyen eski çağrılar: başvuru bahçesinde mevcut tür, yoksa `antep_fistigi`.
+- **Metodoloji:** Antep fıstığına özgü alanlar (ağaç cinsiyeti, erkek ağaç oranı bulgusu, fıstık zararlı türleri, polen ve beyaz pul soruları, erken boşaltılmış salkım) yalnız geçerli türü `antep_fistigi` olan ağaç ve parsellerde sorulur ve gösterilir. Diğer türler genel izleme alır ([metodoloji.md](metodoloji.md#kapsam-meyve-türü)). Web uygulamasında kural tek yerdedir: `apps/web/src/lib/species.ts`.
+
+## Hizmet katmanı: yabani ot biçme (İP15)
+
+Ürün kararı: [MVP.md](MVP.md#modül-6--hizmet-katmanı-yabani-ot-biçme). Katalog meyve türünden ve hizmetten bağımsızdır: yeni bir hizmet (toprak işleme, budama) şema değişmeden `service_type`'a bir satır olarak eklenir. İş kaydı mevcut `operation` tablosudur; `performer` bugün `crew`, robota geçişte şema değişmez.
+
+| Tablo / sütun | Ne tutar |
+| --- | --- |
+| `service_type` | Org başına hizmet kataloğu, hizmet türü başına bir satır: `code` (ör. `weed_mowing`), ad, açıklama, `operation_kind` (mevcut `operation_kind` enum'u, ör. `mowing`), varsayılan sezon penceresi (`season_start_month`/`_day`, `season_end_month`/`_day`; yıl sonunu aşabilir, 29 Şubat seçilemez), `recommend_from_weed_height` (`medium` ya da `tall`), `observation_max_age_days` (varsayılan 60), `active`, `sort_order`, `updated_by`/`updated_at`. Fiyat tutmaz. Yalnız `weed_mowing` yüklenir, fiyatsız |
+| `service_type_season` | Bir hizmetin meyve türüne göre sezon penceresi: `service_type_id`, `species` (→ `fruit_species`), başlangıç ve bitiş ay/gün, `updated_by`/`updated_at`; birincil anahtar (`service_type_id`, `species`). Satırı olmayan tür hizmetin varsayılan penceresini kullanır. Her tür için 1 Mart – 30 Haziran yüklenir. Yazma yalnız `ops_save_service_season` ile (ops; demo reddedilir) |
+| `price_list_service_item` | Bir fiyat listesi sürümünde hizmet fiyatı: `price_list_id`, `service_type_id`, `unit_price_kurus` (dönüm başına, KDV hariç), `minimum_fee_kurus` (KDV hariç); KDV listenin `vat_rate_bp`'sidir. `price_list_item` gibi yalnız liste taslakken yazılır (`price_list_item_guard`), yalnız ops okur. Yazma `ops_save_price_list_service_items(liste, [{service_type_id, unit_price_kurus, minimum_fee_kurus?}])` ile (taslağın hizmet fiyatlarını değiştirir; boş dizi hepsini fiyatsız bırakır); `ops_create_price_list_draft` kopyalarken bunları da alır. Satır yoksa hizmet o sürümde fiyatsızdır. Lansman listesinde satır yok |
+| `service_request` | Bir sahibin bir parsel ve bir hizmet için talebi (`H-YYYY-NNNNN`). Durum `service_request_status`: `pre_request`, `requested`, `scheduled`, `done`, `cancelled`. Talep eden, `season_year`, `preferred_window` (`asap`, `within_2_weeks`, `within_month`, `flexible`), sahibin notu, `terms_version`. Talepte sabitlenen teklif: `area_m2`, `area_source` (`boundary` ya da `declared`), fiyatın geldiği yayımlı liste (`price_list_id`, `price_list_version`), `price_per_donum_kurus`, `minimum_fee_kurus`, `vat_rate_bp`, ara toplam, KDV ve toplam (kuruş), `pricing_rule` (`service-v1`). Bu sekiz fiyat sütunu ya hep doludur ya hep boştur (hizmet talep günü fiyatsızdı). Ops'un onayladığı `quote_total_kurus`, `scheduled_date`, `session_id`, `operation_id`, `completed_on`, `cancelled_by_role` ve gerekçe, ödeme (`payment_received_on`, `payment_amount_kurus`, `payment_method`: `cash`, `transfer`, `other`), `ops_note`, öneri dayanağı (tetikleyen ölçümün kimliği ve ot boyu; varsa) |
+| `service_request_event` | Durum tarihçesi, ekleme-yalnız: `from_status`, `to_status`, yapan, `actor_role`, not, `created_at` |
+| `service_request_photo` | İş kanıtı: bir `asset`'i (tür `photo`, içerik hash'iyle adreslenir, ekleme-yalnız) talebe `phase` (`before` ya da `after`) ile bağlar. Fotoğraf ya işin biçme oturumuna yüklenmiş bir asset'tir ya da aynı parselin yayımlanmış bir ziyaretinin medyasına bağlantıdır |
+| `parcel_robot_note` | Parsel başına bir satır robot uygunluk notu: `slope` (`flat`, `gentle`, `steep`), `stoniness` (`low`, `medium`, `high`), `lowest_branch_cm`, not, `updated_by`/`updated_at` |
+| `metric_definition` | `weed_height`: kategori (`short`, `medium`, `tall`), özne parsel, dönemler ilkbahar ve yaz, karnede gösterilir. Saha sorusu ziyaret başına bir kez sorulur ([metodoloji.md](metodoloji.md)) |
+| `org_billing_setting.services_enabled` | Hizmet katmanının anahtarı. Yalnızca SQL; varsayılanı `true`. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır. |
+| `notification_template` | `service_scheduled`, `service_completed`, `service_cancelled`; `ref_id` talebin kimliğidir. Öneri için mesaj yoktur: yeni hizmet öneren SMS ticari elektronik iletidir ve İYS onayı ister (hukuk/kararlar.md H06); öneri yalnız portalda görünür |
+
+**Kurallar:**
+- **Biçme oturumu:** Talep planlanınca parsel için `mowing` türünde bir `session` açılır ve talebe bağlanır. Bu oturum hiçbir zaman `published` olmaz; sahibin portalında denetim ziyareti olarak görünmez. İş bitince `operation` satırı (tür `mowing`, yapan `crew`) yazılır ve talebe bağlanır.
+- **Fiyat (`service-v1`):** Fiyat sürümlü fiyat listesindedir (`price_list_service_item`); geçerli olan, gün itibarıyla yürürlükteki yayımlı listedir (`private.current_price_list`: başlangıcı o günden sonra olmayan en yüksek sürüm; `private.service_price`). `ara toplam = max(ceil(alan_m² / 100) × dönüm fiyatı / 10, minimum ücret)`, üstüne listenin KDV'si; yuvarlama abonelik fiyatıyla aynıdır ([musteri-yonetimi.md](musteri-yonetimi.md) §6.6). Alan son sınır sürümünden, yoksa beyandan gelir. Tutar ve liste sürümü talep anında sabitlenir; sonradan yayımlanan sürüm talebi değiştirmez. Ops tutarı planlarken `quote_total_kurus` ile onaylar; sabitlenen tutarı aşamaz (H37).
+- **Fiyatsız hizmet:** Yürürlükteki listede hizmetin satırı yoksa `service_offers` tutar ve sürüm döndürmez (portal "Fiyat teklifle bildirilir" yazar), talep fiyat sütunları boş açılır ve `ops_schedule_service_request` tutarsız çağrıyı `invalid_input` (ayrıntı `quote_total`) ile reddeder: ops tutarı elle girer. Onaylanmış tutar varsa yeni gün aynı tutarı korur.
+- **Sezon:** Kart, öneri ve ön talep bahçenin meyve türünün penceresini kullanır (`private.service_type_for_species`: `service_type_season` satırı, yoksa varsayılan). Talebin `season_year`'ı bu pencerenin başladığı yıldır.
+- **Öneri:** Yalnız yayımlanmış ziyaretin `weed_height` ölçümüne dayanır; sezon penceresi, eşik (`recommend_from_weed_height`), gözlemin yaşı (`observation_max_age_days`) ve gözlemden sonra biçme yapılıp yapılmadığı denetlenir.
+- **Görünürlük:** Sahip kendi taleplerini ve tarihçesini görür; bağlı fotoğrafların `asset` satırlarını `asset` üzerindeki ek bir okuma politikasıyla okur (biçme oturumu yayımlanmasa da). `ops_note` sahibe gösterilmez. `parcel_robot_note`'u org üyeleri okur, `field_staff` ve `ops` yazar; sahibe gösterilmez.
+- **Medya değiştirilemez:** Kanıt fotoğrafı güncellenmez; yanlış fotoğraf yerine yenisi bağlanır.
 
 ## MVP tablolarından geçiş
 

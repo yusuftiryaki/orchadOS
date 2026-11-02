@@ -94,6 +94,8 @@ as $$
   delete from public.measurement_evidence
     where measurement_id = any(p_measurements) or asset_id = any(p_assets);
   delete from public.finding_evidence where finding_id = any(p_findings) or asset_id = any(p_assets);
+  -- Proof photos of service requests (IP15) that link a purged asset.
+  delete from public.service_request_photo where asset_id = any(p_assets);
   delete from public.question_reply where question_id in
     (select id from public.question where finding_id = any(p_findings));
   delete from public.question where finding_id = any(p_findings);

@@ -22,6 +22,7 @@ import { Badge, ClassDot } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
 import styles from "./parcel.module.css";
+import { hasPistachioMethodology } from "@/lib/species";
 
 // Health map with class filter, legend and a side panel for the selected tree
 // or finding. The panel links to the full tree card. A visit selector shows the
@@ -377,8 +378,19 @@ function TreePanel({
                 <dd>{formatDate(tree.assessedVisitTime)}</dd>
               </>
             )}
-            <dt>{p.sex}</dt>
-            <dd>{v.sex[tree.sex]}</dd>
+            {tree.speciesLabel && (
+              <>
+                <dt>{t.species.treeSpecies}</dt>
+                <dd data-testid="tree-species">{tree.speciesLabel}</dd>
+              </>
+            )}
+            {/* Tree sex: pistachio only (lib/species.ts). */}
+            {hasPistachioMethodology(tree.species) && (
+              <>
+                <dt>{p.sex}</dt>
+                <dd>{v.sex[tree.sex]}</dd>
+              </>
+            )}
             <dt>{p.graft}</dt>
             <dd>{v.graft[tree.graft]}</dd>
             <dt>{p.ageClass}</dt>

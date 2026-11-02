@@ -2,10 +2,22 @@
 // through `t` (src/lib/i18n/index.ts). A second language is a second file with
 // the same shape (`Messages`).
 
+import { opsServicesText } from "./messages/ops-services";
+
 export const tr = {
   app: {
     name: "orchadOS",
     tagline: "Antep fıstığı bahçeleri için bağımsız denetim",
+  },
+  // Fruit species (lib/species.ts). The methodology is Antep pistachio's; the
+  // other species get generic monitoring until the agronomist defines theirs.
+  species: {
+    label: "Meyve türü",
+    genericMonitoring: "Genel izleme — bu tür için metodoloji henüz yok",
+    genericMonitoringNote:
+      "Bu tür için metodoloji henüz yok: envanter, panorama turu, genel sağlık, bakım ve ot izlenir; Antep fıstığına özgü sorular (cinsiyet, erkek ağaç oranı) sorulmaz.",
+    treeSpecies: "Tür",
+    parcelDefault: (name: string) => `Parselin türü (${name})`,
   },
   // Shared design system components (src/components/ui).
   ui: {
@@ -900,6 +912,7 @@ export const tr = {
     saved: "Kaydedildi.",
     cancel: "Vazgeç",
     optional: "isteğe bağlı",
+    choose: "Seçin",
     org: "İşletme",
     owners: {
       title: "Sahipler ve hissedarlar",
@@ -958,6 +971,11 @@ export const tr = {
       areaDonum: "Tahmini alan (dönüm)",
       areaHint: "1 dönüm = 1.000 m². Birini girin, öbürü hesaplanır.",
       irrigation: "Sulama",
+      species: "Meyve türü",
+      speciesHint: "Bahçedeki ana tür; farklı ağaçlar envanterde ağaç bazında işaretlenir.",
+      speciesChangeHint:
+        "Ağaç bazındaki tür işaretleri (karışık bahçe) değişmez; işaretsiz ağaçlar yeni türü alır.",
+      speciesSave: "Türü kaydet",
       treeCount: "Tahmini ağaç sayısı",
       position: "Kaba konum",
       lat: "Enlem",
@@ -1108,6 +1126,7 @@ export const tr = {
       cancelled: "Ziyaret iptal edildi.",
       passive: "Parsel pasif: izleme bitti.",
       resumed: "İzleme sürüyor; parsel ziyaretlerine göre yaşam döngüsüne döndü.",
+      species_saved: "Meyve türü kaydedildi.",
       invitation_approved: "Hissedar eklendi; telefonla (SMS koduyla) portala girebilir.",
       invitation_rejected: "Davet reddedildi; sahip portalda görür.",
       followups_planned: "İstekler ziyarete bağlandı.",
@@ -1155,6 +1174,8 @@ export const tr = {
       write_failed: "Kaydedilemedi. Lütfen tekrar deneyin.",
       no_org: "Operasyon rolünüz olan bir işletme yok.",
     },
+    // IP15 service layer (weed mowing): lib/i18n/messages/ops-services.ts.
+    services: opsServicesText,
   },
   portal: {
     gardens: {
@@ -1505,10 +1526,12 @@ export const tr = {
         higher: (mean: string, date: string) =>
           `Geçen yılın aynı ziyaretinden (${date}, ortalama ${mean}) yüksek: var yılı görünümü.`,
         lower: (mean: string, date: string) =>
-          `Geçen yılın aynı ziyaretinden (${date}, ortalama ${mean}) düşük: yok yılı görünümü. Antep fıstığında bu olağandır.`,
+          `Geçen yılın aynı ziyaretinden (${date}, ortalama ${mean}) düşük: yok yılı görünümü.`,
         similar: (mean: string, date: string) =>
           `Geçen yılın aynı ziyaretine (${date}, ortalama ${mean}) yakın.`,
       },
+      // After the "lower" trend, pistachio parcels only (lib/species.ts).
+      fruitLowerPistachio: "Antep fıstığında bu olağandır.",
       fruitNone: "Meyve yükü yaz ziyaretinde ölçülür.",
       audit: "Denetim güveni",
       auditLine: (panoramas: number, closeUps: number) =>
@@ -1696,12 +1719,15 @@ export const tr = {
       apply: "Seçilenlere uygula",
       applied: (n: number) => `${n} ağaç güncellendi.`,
       noTrees: "Bu parselde aktif ağaç yok.",
+      parcelSpecies: "Parselin türü",
+      notApplicable: "—",
       columns: {
         select: "Seç",
         code: "Kod",
         ageClass: "Büyüklük sınıfı",
         graft: "Aşı",
         stemForm: "Gövde yapısı",
+        species: "Tür",
         sex: "Cinsiyet",
       },
     },
@@ -2006,6 +2032,8 @@ export const tr = {
         "Bahçede kayda değer sayıda boş yer var. Yeniden dikim isterseniz uzmanımız uygun yerleri gösterebilir.",
       ungrafted:
         "Bazı ağaçlar aşısız görünüyor. Aşısız ağaçlar fıstık vermez; aşılatmak isteyip istemediğinizi düşünebilirsiniz.",
+      ungrafted_generic:
+        "Bazı ağaçlar aşısız görünüyor. Aşılatmak isteyip istemediğinizi bahçıvanınızla konuşabilirsiniz.",
       uncertain_trees:
         "Bazı ağaçlar görüntüden kesin belirlenemedi; ilk ziyarette yerinde bakılacak.",
       coverage_below_threshold: "Kapsama eşiğin altında kaldı; uzman sayımı bu haliyle kabul etti.",
@@ -2040,6 +2068,10 @@ export const tr = {
     one_sided: "Tek taraflı",
     top_down: "Tepeden aşağı",
     top_dead_base_alive: "Üstü kuru, dibi canlı",
+    // weed_height (IP15): parcel-level field question.
+    short: "Kısa",
+    medium: "Orta",
+    tall: "Uzun",
   } as Record<string, string>,
   notifications: {
     nav: "Bildirimler",
@@ -2091,6 +2123,9 @@ export const tr = {
       contract_ready: "Sözleşme belgeleri hazır",
       addon_order_closed: "Ek sipariş iptal edildi",
       viewer_invited: "Hissedar daveti",
+      service_scheduled: "Hizmet günü bildirimi",
+      service_completed: "Hizmet tamamlandı",
+      service_cancelled: "Hizmet talebi iptal edildi",
     } as Record<string, string>,
     channel: {
       sms: "SMS",

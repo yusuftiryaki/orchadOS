@@ -14,14 +14,20 @@ export default async function Layout({ children }: { children: React.ReactNode }
   // T15 (H30): an ops-opened owner or an invited co-owner first records that
   // they read the KVKK notice; the portal shows the notice in place of every
   // page until then. Never for a demo visitor.
-  const notice = demo ? null : await noticeStatus(await createClient());
+  const supabase = demo ? null : await createClient();
+  const notice = supabase ? await noticeStatus(supabase) : null;
+  // IP15: the "Hizmetlerim" link only for owners of a parcel whose org has
+  // the service layer on.
+  const services = supabase
+    ? ((await supabase.rpc("portal_services_enabled")).data ?? false)
+    : false;
   return (
     // The wrapper lets the portal's print styles hide the shared header.
     <div className={styles.portal}>
       {demo ? (
         <DemoShell info={demo}>{children}</DemoShell>
       ) : (
-        <PortalShell user={user}>
+        <PortalShell user={user} services={services}>
           {/* The header links to applications, orders and the account only
               for users with an owner profile (customer), including pilot
               owners and co-owners ops gave one. A co-owner (viewer) without a

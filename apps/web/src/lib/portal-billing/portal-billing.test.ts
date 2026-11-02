@@ -72,6 +72,7 @@ const GARDEN = {
   village: "Kayalar",
   area_donum: "20",
   irrigation: "rainfed",
+  species: "nar",
   estimated_tree_count: "300",
   lon: "37.8",
   lat: "37.01",
@@ -99,6 +100,7 @@ describe("garden form", () => {
         "village",
         "declared_area_m2",
         "irrigation",
+        "species",
         "estimated_tree_count",
         "lon",
         "lat",
@@ -121,6 +123,7 @@ describe("garden form", () => {
     );
     expect(parsed.value.garden).toMatchObject({
       declared_area_m2: 20000,
+      species: "nar",
       estimated_tree_count: 300,
       lon: 37.8,
       lat: 37.01,
@@ -132,13 +135,14 @@ describe("garden form", () => {
     });
   });
 
-  it("requires the name, area, map location and entry permission", () => {
+  it("requires the name, area, fruit species, map location and entry permission", () => {
     const parsed = parseGardenForm(reader({}));
     expect(parsed).toEqual({
       ok: false,
       errors: {
         name: "required",
         area_donum: "required",
+        species: "required",
         position: "required",
         authorization_basis: "required",
         entry_permission: "required",
@@ -163,6 +167,15 @@ describe("garden form", () => {
     expect(ring.ok ? null : ring.errors.boundary).toBe("too_few");
     const noBoundary = parseGardenForm(reader({ ...GARDEN, boundary: "" }));
     expect(noBoundary.ok && noBoundary.value.garden.boundary).toBeNull();
+  });
+
+  it("requires a fruit species code (no default; the database checks it is listed)", () => {
+    const missing = parseGardenForm(reader({ ...GARDEN, species: "" }));
+    expect(missing).toEqual({ ok: false, errors: { species: "required" } });
+    const bad = parseGardenForm(reader({ ...GARDEN, species: "Nar ağacı" }));
+    expect(bad).toEqual({ ok: false, errors: { species: "invalid" } });
+    const olive = parseGardenForm(reader({ ...GARDEN, species: "zeytin" }));
+    expect(olive.ok && olive.value.garden.species).toBe("zeytin");
   });
 
   it("never puts a typed value into an error", () => {

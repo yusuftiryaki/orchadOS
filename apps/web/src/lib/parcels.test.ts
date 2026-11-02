@@ -10,6 +10,8 @@ const tree = (id: string, status: "active" | "lost" = "active") => ({
   cultivar: "Kırmızı",
   status,
   firstSeenAt: "2026-10-10T07:00:00+00:00",
+  species: "antep_fistigi",
+  speciesLabel: null,
 });
 
 const slot = (id: string, trees: SlotInput["trees"], position: unknown = point): SlotInput => ({

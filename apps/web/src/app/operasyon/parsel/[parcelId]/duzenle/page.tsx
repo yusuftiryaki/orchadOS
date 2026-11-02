@@ -5,6 +5,7 @@ import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 import { getParcelOps, opsOrgs } from "@/lib/operations/data";
 import { opsHref } from "@/lib/operations/urls";
+import { loadFruitSpecies } from "@/lib/species";
 import { createClient } from "@/lib/supabase/server";
 
 const T = t.operations;
@@ -15,9 +16,10 @@ export default async function Page({ params }: { params: Promise<{ parcelId: str
   const user = await requireSection("operasyon");
   const { parcelId } = await params;
   const supabase = await createClient();
-  const [ops, orgs] = await Promise.all([
+  const [ops, orgs, species] = await Promise.all([
     getParcelOps(supabase, parcelId),
     opsOrgs(supabase, user.id),
+    loadFruitSpecies(supabase),
   ]);
   if (!ops) notFound();
   const { parcel, detail } = ops;
@@ -30,6 +32,7 @@ export default async function Page({ params }: { params: Promise<{ parcelId: str
       />
       <ParcelForm
         orgs={orgs}
+        species={species}
         parcelId={parcel.id}
         initial={{
           name: parcel.name,
@@ -38,6 +41,7 @@ export default async function Page({ params }: { params: Promise<{ parcelId: str
           village: str(parcel.village),
           area_m2: str(parcel.estimated_area_m2),
           irrigation: parcel.irrigation,
+          species: parcel.species,
           tree_count: str(parcel.estimated_tree_count),
           lat: parcel.position ? String(parcel.position[1]) : "",
           lon: parcel.position ? String(parcel.position[0]) : "",

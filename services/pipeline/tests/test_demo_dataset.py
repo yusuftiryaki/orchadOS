@@ -37,6 +37,10 @@ def test_fixed_ids_and_tour(ds):
     assert tour["tree_id"] == ds.tree("A", "S3-6").id
     assert tour["session_id"] == ids.A_SCAN_2026 and tour["previous_session_id"] == ids.A_SCAN_2025
     assert tour["inventory_session_id"] == ids.A_INVENTORY and tour["parcel_id"] == ids.PARCEL_A
+    # Version 2: B's mowing job (session, request).
+    assert ids.B_MOWING_2026 == "de200000-0000-4000-8000-000000000006"
+    assert ids.B_MOWING_2026_REQUEST == "de300000-0000-4000-8000-000000000001"
+    assert tour["service_request_id"] == ids.B_MOWING_2026_REQUEST
 
 
 def test_derived_ids_use_the_namespace():
@@ -146,3 +150,48 @@ def test_findings_and_questions(ds):
     assert {q.author for q in dataset.QUESTIONS} == {ids.OWNER, ids.VIEWER}
     assert sum(q.tree == "S3-6" for q in dataset.QUESTIONS) == 1
     assert sum(q.finding is not None for q in dataset.QUESTIONS) == 1
+
+
+def test_versions_are_cumulative():
+    """Version 2 adds the service layer; version 1 rows keep their ids and seeds."""
+    assert dataset.DATASET_VERSION == 2 and dataset.SEED_VERSION == 1
+    assert dataset.SERVICES_VERSION == 2
+    assert sqlgen.SERVICE_TYPE_ID == ids.did("service_type", "weed_mowing", version=2)
+
+
+def test_service_catalogue_is_unpriced():
+    """Prices live in the price list (price_list_service_item); the demo has none."""
+    assert not {
+        "price_per_donum_kurus",
+        "minimum_fee_kurus",
+        "vat_rate_bp",
+        "price_is_draft",
+    } & set(dataset.SERVICE_TYPE)
+    assert dataset.SERVICE_SEASON == (3, 1, 6, 30)
+    t = dataset.SERVICE_TYPE
+    assert (t["season_start_month"], t["season_start_day"]) == dataset.SERVICE_SEASON[:2]
+    assert (t["season_end_month"], t["season_end_day"]) == dataset.SERVICE_SEASON[2:]
+    assert dataset.DEMO_SPECIES == "antep_fistigi"
+
+
+def test_service_job_timeline(ds):
+    """Requested in season after B's inventory, done before B's scan, paid after."""
+    (job,) = dataset.SERVICE_JOBS
+    inv, scan = ds.visit("B-INV26"), ds.visit("B-SCN26")
+    t = dataset.SERVICE_TYPE
+    day = job.requested_at.date()
+    assert (t["season_start_month"], t["season_start_day"]) <= (day.month, day.day)
+    assert (day.month, day.day) <= (t["season_end_month"], t["season_end_day"])
+    assert inv.published_at < job.requested_at < job.scheduled_at < job.work_start < job.done_at
+    assert job.done_at < scan.start
+    assert job.scheduled_date == job.completed_on == job.work_start.date().isoformat()
+    assert job.completed_on <= job.payment_on < TODAY.date().isoformat()
+    # H37: within the withdrawal period only on the owner's early-performance request.
+    assert job.early_performance or (job.work_start - job.requested_at).days >= 15
+    assert all(job.work_start <= p.time <= job.done_at for p in job.photos)
+    assert [p.phase for p in job.photos] == ["before", "after"]
+    # Unpriced: ops entered the amount (3.000 TL, VAT included) when scheduling.
+    assert job.quote_total_kurus == 300000
+    assert (job.id, job.request_id) == (ids.B_MOWING_2026, ids.B_MOWING_2026_REQUEST)
+    assert ds.tour()["service_request_id"] == ids.B_MOWING_2026_REQUEST
+    assert dataset.WEED_HEIGHTS["B-SCN26"] == "short" and dataset.WEED_HEIGHTS["A-SCN26"] == "tall"

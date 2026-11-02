@@ -39,8 +39,8 @@ class CloseupListScreen extends ConsumerWidget {
         ? null
         : CloseupProtocol.forSeason(task.season);
     final parcelQuestions = sessionId == null
-        ? const <YesNoQuestion>[]
-        : protocol?.parcelQuestions ?? const <YesNoQuestion>[];
+        ? const <CloseupQuestion>[]
+        : protocol?.parcelQuestions ?? const <CloseupQuestion>[];
     final answered = sessionId == null || parcelQuestions.isEmpty
         ? const <String>{}
         : ref.watch(parcelAnswersProvider(sessionId)).value ?? const {};
@@ -142,9 +142,9 @@ class CloseupListScreen extends ConsumerWidget {
   }
 }
 
-/// A question about the whole parcel (e.g. a new gap in the fence), answered
-/// once while walking the parcel. A newer answer is a new record; the
-/// expert reads the newest.
+/// A question about the whole parcel (e.g. a new gap in the fence, the weed
+/// height), answered once while walking the parcel. A newer answer is a new
+/// record; the expert reads the newest.
 class _ParcelQuestionCard extends StatelessWidget {
   const _ParcelQuestionCard({
     required this.question,
@@ -152,70 +152,89 @@ class _ParcelQuestionCard extends StatelessWidget {
     required this.onAnswer,
   });
 
-  final YesNoQuestion question;
+  final CloseupQuestion question;
   final bool answered;
   final ValueChanged<StaffAnswer> onAnswer;
 
+  /// Key suffix of a seen answer: `yes`/`no`, or the category code.
+  static String _keyOf(StaffAnswer a) => switch (a) {
+    YesNoAnswer(:final value) => value ? 'yes' : 'no',
+    CategoryAnswer(:final code) => code,
+    UnseenAnswer() => 'unseen',
+  };
+
+  Widget _choice(StaffAnswer value, String label) => OutlinedButton(
+    key: Key('parcel-q-${question.metricCode}-${_keyOf(value)}'),
+    style: OutlinedButton.styleFrom(
+      minimumSize: const Size.fromHeight(60),
+      textStyle: const TextStyle(fontSize: 20),
+    ),
+    onPressed: () => onAnswer(value),
+    child: Text(label),
+  );
+
   @override
-  Widget build(BuildContext context) => Card(
-    key: Key('parcel-q-${question.metricCode}'),
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(
-                answered ? Icons.check_circle : Icons.fence,
-                size: 36,
-                color: answered ? Colors.green.shade700 : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Parsel: ${question.text}',
-                  style: const TextStyle(fontSize: 20),
-                ),
-              ),
-            ],
-          ),
-          if (!answered) ...[
-            const SizedBox(height: 8),
+  Widget build(BuildContext context) {
+    final choices = question.choices;
+    return Card(
+      key: Key('parcel-q-${question.metricCode}'),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             Row(
               children: [
-                for (final (i, (value, label)) in question.choices.indexed) ...[
-                  if (i > 0) const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton(
-                      key: Key(
-                        'parcel-q-${question.metricCode}-'
-                        '${(value as YesNoAnswer).value ? 'yes' : 'no'}',
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(60),
-                        textStyle: const TextStyle(fontSize: 20),
-                      ),
-                      onPressed: () => onAnswer(value),
-                      child: Text(label),
-                    ),
+                Icon(
+                  answered
+                      ? Icons.check_circle
+                      : switch (question) {
+                          YesNoQuestion() => Icons.fence,
+                          CategoryQuestion() => Icons.grass,
+                        },
+                  size: 36,
+                  color: answered ? Colors.green.shade700 : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Parsel: ${question.text}',
+                    style: const TextStyle(fontSize: 20),
                   ),
-                ],
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              key: Key('parcel-q-${question.metricCode}-unseen'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(52),
-                textStyle: const TextStyle(fontSize: 20),
+            if (!answered) ...[
+              const SizedBox(height: 8),
+              // Yes/no side by side; categories (longer labels) one per row.
+              if (question is YesNoQuestion)
+                Row(
+                  children: [
+                    for (final (i, (value, label)) in choices.indexed) ...[
+                      if (i > 0) const SizedBox(width: 8),
+                      Expanded(child: _choice(value, label)),
+                    ],
+                  ],
+                )
+              else
+                for (final (i, (value, label)) in choices.indexed) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  _choice(value, label),
+                ],
+              const SizedBox(height: 8),
+              OutlinedButton(
+                key: Key('parcel-q-${question.metricCode}-unseen'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  textStyle: const TextStyle(fontSize: 20),
+                ),
+                onPressed: () => onAnswer(const UnseenAnswer()),
+                child: const Text('Göremedim'),
               ),
-              onPressed: () => onAnswer(const UnseenAnswer()),
-              child: const Text('Göremedim'),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

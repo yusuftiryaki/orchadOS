@@ -42,7 +42,19 @@ export type AccountTemplate =
 // The co-owner invitation (kararlar.md T15, H32): parcel name and portal path
 // only; the KVKK notice link is the site's fixed /kvkk page.
 export type InviteTemplate = "viewer_invited";
-export type Template = ReportTemplate | VisitTemplate | AccountTemplate | InviteTemplate;
+// Service layer (docs/MVP.md Module 6): status changes of a service request
+// the owner made (H-… number, the day, the parcel name). Never an amount. No
+// template recommends a service: that would be a commercial message (H06).
+export type ServiceTemplate =
+  | "service_scheduled"
+  | "service_completed"
+  | "service_cancelled";
+export type Template =
+  | ReportTemplate
+  | VisitTemplate
+  | AccountTemplate
+  | InviteTemplate
+  | ServiceTemplate;
 
 export interface TemplateVars {
   parcel_name?: unknown;
@@ -190,6 +202,36 @@ export function renderNotification(
     return {
       ok: true,
       body: `orchadOS: ${gardenOf} denetim ziyareti ${day} günü yapılacak. Bahçede çalışan ya da bulunacak kişilere görüntü alınacağını iletmenizi rica ederiz; bilgi: ${notice} Erteleme ve ayrıntı: ${link}`,
+    };
+  }
+  if (
+    template === "service_scheduled" ||
+    template === "service_completed" ||
+    template === "service_cancelled"
+  ) {
+    const parcel = typeof vars.parcel_name === "string" ? vars.parcel_name.trim() : "";
+    const link = typeof vars.path === "string" ? portalLink(portalBaseUrl, vars.path) : null;
+    const gardenOf = parcel ? `${parcel} adlı bahçenizde` : "bahçenizde";
+    if (!link) return { ok: false, error: "invalid_link" };
+    const ref = typeof vars.ref === "string" ? vars.ref.trim() : "";
+    if (!/^H-\d{4}-\d{6}$/.test(ref)) return { ok: false, error: "invalid_vars" };
+    const day = typeof vars.date === "string" ? formatDayTr(vars.date) : null;
+    if (template === "service_scheduled") {
+      if (!day) return { ok: false, error: "invalid_vars" };
+      return {
+        ok: true,
+        body: `orchadOS: ${gardenOf} ot biçme işi (${ref}) ${day} günü için planlandı. Bir gün öncesine kadar ücretsiz iptal edebilirsiniz: ${link}`,
+      };
+    }
+    if (template === "service_completed") {
+      return {
+        ok: true,
+        body: `orchadOS: ${gardenOf} ot biçme işi (${ref}) tamamlandı. Öncesi ve sonrası fotoğrafları portalınızda: ${link}`,
+      };
+    }
+    return {
+      ok: true,
+      body: `orchadOS: ${gardenOf} ot biçme talebiniz (${ref}) iptal edildi. Ayrıntı: ${link}`,
     };
   }
   if (isAccountTemplate(template)) {

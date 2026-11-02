@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
+import { servicesText as S } from "@/lib/i18n/messages/services";
 import type { ParcelReport } from "@/lib/portal/data";
 import { share } from "@/lib/portal/score";
+import { longDate } from "@/lib/services/format";
 import { Panel } from "@/components/ui/panel";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
+import { hasPistachioMethodology } from "@/lib/species";
 
 // "Boyut boyut" rows of the report card (docs/MVP.md Module 5, parsel
 // karnesi): inventory, orchard structure, health, spatial pattern, care,
@@ -23,6 +26,7 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
   const pct = (n: number, total: number) => String(share(n, total) ?? 0);
   const audit = report.audit;
   const a = t.portal.audit;
+  const pistachio = hasPistachioMethodology(report.parcel.species);
 
   return (
     <Panel title={d.title} headingLevel={3} testId="dimensions">
@@ -52,17 +56,22 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
           )}
         </Row>
         <Row label={d.structure} id="structure">
-          <p>
-            {d.sexLine(structure.female, structure.male, structure.unknownSex)}
-            {structure.femalesPerMale !== null && structure.ratioAdvice && (
-              <>
-                {"; "}
-                <strong>{d.ratio(formatNumber(structure.femalesPerMale, 1))}</strong>,{" "}
-                {d.ratioAdvice[structure.ratioAdvice]}
-              </>
-            )}
-          </p>
-          {structure.femalesPerMale === null && <p className="muted">{d.ratioUnknown}</p>}
+          {/* Sex and the male/female ratio: pistachio only (lib/species.ts). */}
+          {pistachio && (
+            <p data-testid="structure-sex">
+              {d.sexLine(structure.female, structure.male, structure.unknownSex)}
+              {structure.femalesPerMale !== null && structure.ratioAdvice && (
+                <>
+                  {"; "}
+                  <strong>{d.ratio(formatNumber(structure.femalesPerMale, 1))}</strong>,{" "}
+                  {d.ratioAdvice[structure.ratioAdvice]}
+                </>
+              )}
+            </p>
+          )}
+          {pistachio && structure.femalesPerMale === null && (
+            <p className="muted">{d.ratioUnknown}</p>
+          )}
           <p>
             {d.ungrafted(structure.ungrafted)}; {d.ages.toLocaleLowerCase("tr")}:{" "}
             {(Object.keys(structure.ages) as (keyof typeof structure.ages)[])
@@ -107,7 +116,20 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
           {care.sprouts && (
             <p>{d.sprouts(care.sprouts.dense, care.sprouts.few, care.sprouts.total)}</p>
           )}
-          {!care.pruning && !care.harvest && !care.sprouts && <p className="muted">{d.careNone}</p>}
+          {care.weedHeight && (
+            <p data-testid="care-weed-height">
+              {S.care.weedHeight(S.weedHeight[care.weedHeight])}{" "}
+              <span className={`${layout.muted} ${layout.small}`}>({S.care.weedHelp})</span>
+            </p>
+          )}
+          {!care.pruning && !care.harvest && !care.sprouts && !care.weedHeight && (
+            <p className="muted">{d.careNone}</p>
+          )}
+          {care.ownWork.length > 0 && (
+            <p className={styles.ownWork} data-testid="care-own-work">
+              <strong>{S.care.ownWork(care.ownWork.map(longDate).join(", "))}</strong>
+            </p>
+          )}
         </Row>
         <Row label={d.pests} id="pests">
           {pests ? (
@@ -145,6 +167,7 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
                     formatNumber(fruitLoad.previousYear.mean, 1),
                     formatDate(fruitLoad.previousYear.time),
                   )}
+                  {pistachio && fruitLoad.trend === "lower" && ` ${d.fruitLowerPistachio}`}
                 </p>
               )}
             </>

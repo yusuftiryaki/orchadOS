@@ -95,6 +95,10 @@ export const portalBillingText = {
     entry_permission: {
       required: "Ekibimizin bahçeye girebilmesi için izin vermelisiniz.",
     },
+    species: {
+      required: "Bahçedeki ana meyve türünü seçin.",
+      invalid: "Listeden bir meyve türü seçin.",
+    },
     identity_number: {
       invalid: "T.C. kimlik numarası geçersiz.",
     },
@@ -117,6 +121,7 @@ export const portalBillingText = {
     entry_permission: "entry_permission",
     site_contact_phone: "site_contact_phone",
     estimated_tree_count: "estimated_tree_count",
+    species: "species",
   } as Record<string, string>,
   save: "Kaydet",
   saving: "Kaydediliyor…",
@@ -396,6 +401,9 @@ export const portalBillingText = {
     village: "Köy / mahalle",
     areaDonum: "Alan (dönüm)",
     areaHint: "Tapudaki ya da bildiğiniz alan; 1 dönüm = 1.000 m². Ondalık için virgül: 12,5",
+    species: "Meyve türü",
+    speciesHint:
+      "Bahçedeki ana tür. Karışık bahçede çoğunluktaki türü seçin; farklı ağaçları envanterde ayrıca işaretleriz.",
     irrigation: "Sulama",
     irrigationValues: { irrigated: "Sulu", rainfed: "Kuru (yağışa bağlı)", unknown: "Bilmiyorum" },
     trees: "Tahmini ağaç sayısı",

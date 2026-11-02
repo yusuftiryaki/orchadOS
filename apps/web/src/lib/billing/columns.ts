@@ -17,7 +17,7 @@ export const BILLING_COLUMNS = {
   service_application:
     "id, org_id, customer_user_id, number, status, package_id, customer_note, rejection_reason, submitted_at, decided_at, created_at, updated_at",
   application_garden:
-    "id, org_id, application_id, customer_user_id, sort_order, name, province, district, village, declared_area_m2, irrigation, estimated_tree_count, position, position_uncertainty_m, boundary, verified_area_m2, verified_at, parcel_id, created_at, updated_at, withdrawn_at",
+    "id, org_id, application_id, customer_user_id, sort_order, name, province, district, village, declared_area_m2, irrigation, estimated_tree_count, position, position_uncertainty_m, boundary, verified_area_m2, verified_at, parcel_id, created_at, updated_at, withdrawn_at, species",
   quote:
     "id, org_id, customer_user_id, application_id, renewal_of_order_id, number, status, price_list_id, price_list_version, package_id, package_code, package_name, periodic_visits_per_year, includes_inventory, first_year, vat_rate_bp, discount_bp, discount_note, base_kurus, discount_kurus, subtotal_kurus, vat_kurus, total_kurus, currency, inputs, proposed_service_start, valid_until, note_to_customer, issued_at, decided_at, created_at, updated_at, addon_of_order_id",
   quote_item:
@@ -39,7 +39,7 @@ export const BILLING_COLUMNS = {
   price_list_item:
     "id, org_id, price_list_id, package_id, unit_price_kurus, minimum_fee_kurus, inventory_fee_kurus, created_at, updated_at",
   org_billing_setting:
-    "org_id, accepts_signups, allow_fake_payments, identity_number_required, legal_name, tax_office, tax_number, mersis_number, address, phone, email, bank_name, iban, iban_holder, payment_due_days, quote_valid_days, renewal_notice_days, updated_by, created_at, updated_at, garden_changes_enabled, addon_min_days, removal_notice_days, removal_access_days, removal_refund_mode, marketing_consent_enabled, kep_address, site_domain, kvkk_email, inventory_reuse_months, legal_gate_enforced, coowner_notice_flow_enabled, boundary_declaration_required, kvkk_request_form_enabled, installment_lead_days, visit_notice_sms_enabled, service_end_access_flow_enabled",
+    "org_id, accepts_signups, allow_fake_payments, identity_number_required, legal_name, tax_office, tax_number, mersis_number, address, phone, email, bank_name, iban, iban_holder, payment_due_days, quote_valid_days, renewal_notice_days, updated_by, created_at, updated_at, garden_changes_enabled, addon_min_days, removal_notice_days, removal_access_days, removal_refund_mode, marketing_consent_enabled, kep_address, site_domain, kvkk_email, inventory_reuse_months, legal_gate_enforced, coowner_notice_flow_enabled, boundary_declaration_required, kvkk_request_form_enabled, installment_lead_days, visit_notice_sms_enabled, service_end_access_flow_enabled, services_enabled",
   audit_event:
     "id, org_id, actor_user_id, actor_role, action, entity_type, entity_id, details, created_at",
   // IP14 (docs/bahce-yonetimi.md §9.5): without the internal ops_note,
