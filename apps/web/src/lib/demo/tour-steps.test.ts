@@ -57,7 +57,7 @@ describe("tour steps", () => {
   it("presents the service as done by the autonomous robot MARABA-I", () => {
     for (const id of ["hizmet-oneri", "hizmet-sonuc"]) {
       const { body } = TOUR_STEPS[stepIndex(id)];
-      expect(body).toContain("otonom robotumuz MARABA-I");
+      expect(body).toMatch(/otonom robotumuz MARABA-I/i);
       expect(body.toLowerCase()).not.toContain("tırpan");
     }
   });

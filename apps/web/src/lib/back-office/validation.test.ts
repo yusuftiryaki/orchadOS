@@ -248,7 +248,12 @@ describe("forms", () => {
       ok: true,
       value: {
         items: [
-          { service_type_id: "a", robot_model_id: null, unit_price_kurus: 37_500, minimum_fee_kurus: 0 },
+          {
+            service_type_id: "a",
+            robot_model_id: null,
+            unit_price_kurus: 37_500,
+            minimum_fee_kurus: 0,
+          },
         ],
       },
     });
@@ -281,8 +286,18 @@ describe("forms", () => {
       ok: true,
       value: {
         items: [
-          { service_type_id: "a", robot_model_id: null, unit_price_kurus: 37_500, minimum_fee_kurus: 0 },
-          { service_type_id: "a", robot_model_id: "m", unit_price_kurus: 45_000, minimum_fee_kurus: 300_000 },
+          {
+            service_type_id: "a",
+            robot_model_id: null,
+            unit_price_kurus: 37_500,
+            minimum_fee_kurus: 0,
+          },
+          {
+            service_type_id: "a",
+            robot_model_id: "m",
+            unit_price_kurus: 45_000,
+            minimum_fee_kurus: 300_000,
+          },
         ],
       },
     });
@@ -291,7 +306,12 @@ describe("forms", () => {
       ok: true,
       value: {
         items: [
-          { service_type_id: "a", robot_model_id: "m", unit_price_kurus: 45_000, minimum_fee_kurus: 0 },
+          {
+            service_type_id: "a",
+            robot_model_id: "m",
+            unit_price_kurus: 45_000,
+            minimum_fee_kurus: 0,
+          },
         ],
       },
     });
@@ -301,9 +321,11 @@ describe("forms", () => {
     });
     // A model of a service not in the form is ignored.
     expect(
-      parsePriceListServiceItems(reader({ svc_unit_b_m: "1" }), ["a"], [
-        { serviceTypeId: "b", robotModelId: "m" },
-      ]),
+      parsePriceListServiceItems(
+        reader({ svc_unit_b_m: "1" }),
+        ["a"],
+        [{ serviceTypeId: "b", robotModelId: "m" }],
+      ),
     ).toEqual({ ok: true, value: { items: [] } });
   });
 

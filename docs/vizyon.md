@@ -18,13 +18,17 @@ Bu doküman bir yön belirler, takvim vermez. Ürün kapsamı için [MVP.md](MVP
 
 **Uzmanın rolü ortadan kalkmaz, değişir.** Model rutin vakaları üstlendikçe uzman; sınır vakalara, modelin denetimine ve rapor imzasına odaklanır. Bağımsız denetim iddiası, imzayı taşıyan bir insana dayanmaya devam eder.
 
-## Hizmet katmanı: elle başlayan, robotla büyüyen işler
+## Hizmet katmanı: robot filosu ile bahçe sahiplerini buluşturan platform
 
 Saha görüşmelerinde bahçe sahipleri yalnız izlemeye pek istekli olmadı; bahçedeki işler hizmet olarak eklenince ilgilendiler. Hizmet katmanı bu yüzden izleme ile robotlar arasındaki ticari köprü: sahip hizmeti satın alır, izleme işin yapıldığını kanıtlar. Öncesi ve sonrası fotoğrafları parsele bağlıdır ve denetim verisiyle aynı zincirde durur ([MVP.md](MVP.md#modül-6--hizmet-katmanı-yabani-ot-biçme), Modül 6).
 
-- **Bugün elle:** İlk hizmet yabani ot biçme. İşi köyde yaşayan saha personelimiz motorlu tırpanla yapar. Katalog meyve türünden bağımsızdır; yeni bir hizmet şemaya dokunmadan bir satır olarak eklenir.
-- **Robot olgunlaştıkça robot işi:** Maraba robotu (MARABA-I) bugün yalnızca simülasyonda doğrulandı; robotla biçme vaat edilmez. Robot sahada kendini kanıtladıkça aynı talepler robot işine dönüşür. İş kaydı bugünden işi kimin yaptığını (`performer`) tutar, geçişte şema değişmez.
-- **Robot önce nereye gider:** Operasyon ve saha personeli her parsel için robot uygunluk notları tutar: eğim, taşlılık, en alçak dal yüksekliği. Bu notlar maraba'nın ilk gideceği bahçeleri seçmek için kullanılır.
+Sahip kararıyla (2 Kasım 2026) orchadOS bir **robot filosu ↔ bahçe sahibi eşleştirme platformuna** dönüşür:
+
+- **İşi robot yapar:** İlk hizmet yabani ot biçme; işi otonom robotumuz MARABA-I yapar. Sahibe hizmet yalnız böyle anlatılır. Katalog meyve türünden bağımsızdır; yeni bir hizmet şemaya dokunmadan bir satır olarak eklenir.
+- **Sahip robotu seçer, fiyat yeteneğe göre:** Her hizmeti yapabilen robot modelleri kataloğa bağlıdır. Sahip talepte robotu seçer; fiyat listesi hizmet ve robot modeli başına fiyat taşıyabilir, modelin kendi fiyatı yoksa "tüm robotlar" fiyatı geçerlidir. Yeteneği farklı bir robot (daha geniş biçme, dik eğim, taşlı zemin) farklı fiyatlanabilir.
+- **MARABA-I ilk model:** Bugün katalogda tek model MARABA-I'dir; işleteni orchadOS'tur. Robot modelinin işleten org alanı boş olabilir; boş, orchadOS'un kendisi demektir. İleride üçüncü taraf işletmeciler kendi robot modelleriyle aynı katalogda yer alabilir; sahip hepsi arasından seçer, iş kanıtı ve denetim aynı zincirde kalır.
+- **İç gerçek kayıtlıdır:** Robot işi gözetim altında yapar; ulaşamadığı kısımları saha ekibi tamamlayabilir. İş kaydı ve iş oturumu işi kimin yaptığını (`performer`: robot ya da saha ekibi) tutar; bu iç kayıttır, sahibe gösterilmez.
+- **Robot nerede çalışır:** Operasyon ve saha personeli her parsel için robot uygunluk notları tutar: eğim, taşlılık, en alçak dal yüksekliği. Notlar robotun nerede güvenle çalışabileceğini ve hangi kısımları saha ekibinin tamamlaması gerektiğini planlamak için kullanılır.
 
 ## Bölgesel işletme modeli: mobil robot birimleri
 
@@ -186,7 +190,7 @@ Görev ve veri düzeyinde birlikte çalışma fizibil. Farklı üreticilerin rob
 2. **Birleşik kit:** LiDAR eklenir. İlk kış iskelet denemesi kendi bahçende yapılır, sonuçlar elle ölçümle karşılaştırılır.
 3. **Kendi modeller:** Ağaç tespiti, sınıflandırma ve ölçüm modelleri işleme istasyonunda çalışır; LLM sadece belirsiz vakalara gider.
 4. **Robotla tarama:** Kit hoverboard robotuna ya da başka bir platforma takılır. Operatör başına 2–4 robot hedeflenir.
-5. **Hizmetten robotla biçmeye:** Ot biçme hizmeti bugün elle yapılır. Maraba sahada olgunlaştıkça, robot uygunluk notlarına göre seçilen bahçelerde işi robot üstlenir; partner üreticilerin robotları da görev katmanı ve veri sözleşmesi üzerinden katılabilir.
+5. **Robot filosu platformu:** Ot biçmeyi otonom robot MARABA-I yapar; sahip robotu seçer, fiyat robotun yeteneğine göre belirlenir. Sonraki adımda partner üreticilerin ve üçüncü taraf işletmecilerin robot modelleri aynı kataloğa girer; görev katmanı ve veri sözleşmesi üzerinden katılırlar.
 6. **Toprak işleme ve ilaçlama:** Mevcut makinelere otonomi kitleri ve mevzuata uygun reçete ve kayıt süreçleriyle. En son aşama.
 
 ## Bugünden yapılacak hazırlıklar

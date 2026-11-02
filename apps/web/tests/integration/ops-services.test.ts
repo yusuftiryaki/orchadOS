@@ -548,9 +548,10 @@ describe("service request back office", () => {
         "session",
       ).data,
     ).toEqual({ performer: "crew" });
-    expect(
-      (await data.getServiceRequest(ops.client, requestId))?.row,
-    ).toMatchObject({ robot_model_name: "MARABA-I", performer: "crew" });
+    expect((await data.getServiceRequest(ops.client, requestId))?.row).toMatchObject({
+      robot_model_name: "MARABA-I",
+      performer: "crew",
+    });
 
     view = await data.getServiceRequest(ops.client, requestId);
     expect(view?.events.map((e) => e.to_status)).toEqual([

@@ -94,18 +94,18 @@ Envanter her bahçenin ağaç haritasını bir kez çıkarır; sonraki ziyaretle
 
 ### Hizmet talepleri: yabani ot biçme (`/operasyon/hizmet`)
 
-Sahip, bahçesi için ot biçme hizmetini portaldan talep eder. İşi köydeki saha personeli motorlu tırpanla yapar; sahibe robotla biçme sözü verilmez. Hizmet katmanı `services_enabled` anahtarıyla açılır. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır.
+Sahip, bahçesi için ot biçme hizmetini portaldan talep eder ve işi yapacak robotu seçer (bugün tek model MARABA-I). İşi otonom robotumuz MARABA-I saha personelinin gözetiminde yapar; robotun ulaşamadığı ya da güvenle çalışamadığı kısımları saha ekibi tamamlar. Sahiple konuşurken hizmeti yalnız "otonom robotumuz MARABA-I" ile anlatın, başka bir yöntem adı vermeyin. İşi gerçekte kimin yaptığını işi kapatırken iç kayda yazarsınız; sahip bunu görmez. Hizmet katmanı `services_enabled` anahtarıyla açılır. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır.
 
-1. **Planlayın.** Kuyrukta talebi açın: parsel, alan, sahibin tercih ettiği zaman ve talepte sabitlenen tutar (fiyat listesi sürümüyle) görünür. Tutarı onaylayın (yalnız indirebilirsiniz) ve tarih verin. Talep günü yayımlı fiyat yoksa talepte tutar yoktur ("fiyatsız"): tutarı siz elle girersiniz, girmeden planlanmaz; tutar sahibin portalındaki talep sayfasında görünür (SMS'te tutar yoktur). Parsel için biçme oturumu açılır, sahibe gün SMS ile gider. Günü değiştirirseniz sahibe yeniden SMS gider; yeni gün en erken yarındır ve onayladığınız tutarı artıramazsınız. Sezon dışındaki ön talepler ayrı sayılır ve planlanamaz (bağlayıcı değildir); sezon açılınca sahip aynı formla talebe çevirir, sizinle görüşmesi de bunun içindir.
-2. **Kapatın.** İş bitince en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlayın: saha personelinin çektiklerini yükleyin ya da aynı parselin yayımlanmış bir ziyaretinden fotoğraf seçin. Yüklenen fotoğraf değiştirilemez; yanlışsa yenisini bağlayın.
+1. **Planlayın.** Kuyrukta talebi açın: parsel, alan, sahibin seçtiği robot, tercih ettiği zaman ve talepte sabitlenen tutar (fiyat listesi sürümüyle) görünür. Tutarı onaylayın (yalnız indirebilirsiniz) ve tarih verin. Talep günü yayımlı fiyat yoksa talepte tutar yoktur ("fiyatsız"): tutarı siz elle girersiniz, girmeden planlanmaz; tutar sahibin portalındaki talep sayfasında görünür (SMS'te tutar yoktur). Parsel için biçme oturumu açılır (yapan: robot), sahibe gün SMS ile gider. Günü değiştirirseniz sahibe yeniden SMS gider; yeni gün en erken yarındır ve onayladığınız tutarı artıramazsınız. Sezon dışındaki ön talepler ayrı sayılır ve planlanamaz (bağlayıcı değildir); sezon açılınca sahip aynı formla talebe çevirir, sizinle görüşmesi de bunun içindir.
+2. **Kapatın.** İş bitince en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlayın: saha personelinin çektiklerini yükleyin ya da aynı parselin yayımlanmış bir ziyaretinden fotoğraf seçin. Yüklenen fotoğraf değiştirilemez; yanlışsa yenisini bağlayın. "İşi kim yaptı?" sorusunu cevaplayın: Robot seçili gelir; işin tamamını ya da çoğunu saha ekibi yaptıysa Saha ekibi'ni seçin. Seçim iş kaydına ve oturuma yazılır, kuyrukta ve talep sayfasında "Yapan" olarak görünür; sahip görmez.
 3. **Ödemeyi kaydedin.** Tutar, yöntem (nakit, havale, diğer) ve tarih. Kartla ödeme yoktur.
 4. **İptal.** Sahip planlanan tarihten önceki güne kadar portaldan iptal eder; siz tamamlanmamış her talebi gerekçe yazarak iptal edebilirsiniz.
 
-**Fiyat** (`/operasyon/fiyat`): Hizmet fiyatı paketlerle aynı sürümlü fiyat listesindedir. Bir taslağın "Hizmet fiyatları" bölümüne dönüm fiyatını ve minimum ücreti (TL, KDV hariç) girin, kaydedin, listeyi yayımlayın. Fiyatı boş bırakılan hizmet fiyatsızdır: portal rakam göstermez, "Fiyat teklifle bildirilir" yazar. Fiyat henüz belirlenmedi; lansman listesinde hizmet satırı yok. Yeni sürüm açık talepleri değiştirmez.
+**Fiyat** (`/operasyon/fiyat`): Hizmet fiyatı paketlerle aynı sürümlü fiyat listesindedir. Bir taslağın "Hizmet fiyatları" bölümüne dönüm fiyatını ve minimum ücreti (TL, KDV hariç) girin, kaydedin, listeyi yayımlayın. Her hizmetin bir "Tüm robotlar" satırı ve hizmeti yapabilen her robot modeli için bir satırı vardır: modele ayrı fiyat girerseniz o robotu seçen talep bu fiyatı alır, modelin satırı boşsa "Tüm robotlar" fiyatı geçer. Hiç fiyatı olmayan hizmet fiyatsızdır: portal rakam göstermez, "Fiyat teklifle bildirilir" yazar. Fiyat henüz belirlenmedi; lansman listesinde hizmet satırı yok. Yeni sürüm açık talepleri değiştirmez.
 
 **Katalog** (`/operasyon/hizmet/katalog`): Varsayılan sezon penceresi, meyve türüne göre sezon (tablo ve "Bir türün sezonunu değiştir" formu), öneri eşiği ve hizmetin sunulup sunulmadığı. Sayfa, hizmeti bugün hangi fiyat listesi sürümünün fiyatlandırdığını ya da "Yayımlı fiyat listesinde fiyat yok — tutar teklifte elle girilir" bilgisini gösterir.
 
-**Robot uygunluk notları** (parsel sayfası): Her parsel için eğim (düz, hafif, dik), taşlılık (az, orta, çok), en alçak dal yüksekliği (cm) ve kısa not. Saha personelinin sahada gördüklerini de buraya işleyin. Sahip görmez; ileride robotun önce hangi bahçelere gideceğini seçmek için kullanılır.
+**Robot uygunluk notları** (parsel sayfası): Her parsel için eğim (düz, hafif, dik), taşlılık (az, orta, çok), en alçak dal yüksekliği (cm) ve kısa not. Saha personelinin sahada gördüklerini de buraya işleyin. Sahip görmez; robotun bahçede nerede güvenle çalışabileceğini ve hangi kısımları saha ekibinin tamamlaması gerektiğini planlamak için kullanılır.
 
 ## Saha personeli
 
@@ -135,12 +135,13 @@ Sahadaki her ziyaret aynı sırayla yürür: görevi aç, ön kontrolü bitir, s
 
 ### Ot biçme işi
 
-Ofis size bir ot biçme işi verdiğinde (tarih ve bahçe ofisten gelir):
+Ofis size bir ot biçme işi verdiğinde (tarih ve bahçe ofisten gelir). Bu bölüm iç talimattır; sahiple konuşurken işi yalnız "otonom robotumuz MARABA-I" ile anlatın.
 
 1. Biçmeye başlamadan bahçeyi birkaç noktadan fotoğraflayın ("öncesi").
-2. Motorlu tırpanla biçin. Ağaç gövdelerine, sulama hortumlarına ve aşı yerlerine dikkat edin.
-3. Bitince aynı noktalardan yeniden fotoğraflayın ("sonrası") ve fotoğrafları ofise iletin; ofis işi kapatırken bunları bağlar.
-4. Bahçenin eğimini, taşlılığını ve en alçak dalların yüksekliğini ofise söyleyin; ofis bunları parselin robot uygunluk notuna yazar.
+2. Robotu (MARABA-I) bahçeye kurun ve işi gözetimde yaptırın; robot uygunluk notunda dik ya da taşlı diye işaretli yerlere dikkat edin. Robot çalışırken bahçedeki kişileri robotun alanından uzak tutun.
+3. Robotun ulaşamadığı ya da güvenle çalışamadığı kısımları (ağaç diplerine çok yakın yerler, dik ya da çok taşlı köşeler) motorlu tırpanla tamamlayın. Ağaç gövdelerine, sulama hortumlarına ve aşı yerlerine dikkat edin.
+4. Bitince aynı noktalardan yeniden fotoğraflayın ("sonrası") ve fotoğrafları ofise iletin; ofis işi kapatırken bunları bağlar. İşin tamamını ya da çoğunu ekip yaptıysa ofise söyleyin; ofis işi kapatırken "Saha ekibi" seçer.
+5. Robotun nerede zorlandığını, bahçenin eğimini, taşlılığını ve en alçak dalların yüksekliğini ofise söyleyin; ofis bunları parselin robot uygunluk notuna yazar.
 
 ### Bahçede bulunan kişiler
 

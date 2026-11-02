@@ -391,7 +391,12 @@ describe("service prices from the versioned price list", () => {
     const view = await bo.getPriceList(ops.client, v2.id);
     expect(view?.serviceTypes.map((t) => t.id)).toEqual([TYPE]);
     expect(view?.serviceItems).toEqual([
-      { service_type_id: TYPE, robot_model_id: null, unit_price_kurus: 37500, minimum_fee_kurus: 250000 },
+      {
+        service_type_id: TYPE,
+        robot_model_id: null,
+        unit_price_kurus: 37500,
+        minimum_fee_kurus: 250000,
+      },
     ]);
     // Published: read only.
     const refused = await mutations.savePriceListServiceItems(ops.client, v2.id, { items: [] });
@@ -402,7 +407,12 @@ describe("service prices from the versioned price list", () => {
       "copy",
     );
     expect((await bo.getPriceList(ops.client, copy as string))?.serviceItems).toEqual([
-      { service_type_id: TYPE, robot_model_id: null, unit_price_kurus: 37500, minimum_fee_kurus: 250000 },
+      {
+        service_type_id: TYPE,
+        robot_model_id: null,
+        unit_price_kurus: 37500,
+        minimum_fee_kurus: 250000,
+      },
     ]);
     // The form: TL excluding VAT; an empty price leaves the service unpriced.
     const read = (values: Record<string, string>) => (name: string) => values[name] ?? "";
@@ -413,7 +423,14 @@ describe("service prices from the versioned price list", () => {
     expect(parsed).toEqual({
       ok: true,
       value: {
-        items: [{ service_type_id: TYPE, robot_model_id: null, unit_price_kurus: 41250, minimum_fee_kurus: 260000 }],
+        items: [
+          {
+            service_type_id: TYPE,
+            robot_model_id: null,
+            unit_price_kurus: 41250,
+            minimum_fee_kurus: 260000,
+          },
+        ],
       },
     });
     expect(parsePriceListServiceItems(read({ [`svc_min_${TYPE}`]: "100" }), [TYPE])).toEqual({
@@ -427,7 +444,12 @@ describe("service prices from the versioned price list", () => {
       ok: true,
     });
     expect((await bo.getPriceList(ops.client, copy as string))?.serviceItems).toEqual([
-      { service_type_id: TYPE, robot_model_id: null, unit_price_kurus: 41250, minimum_fee_kurus: 260000 },
+      {
+        service_type_id: TYPE,
+        robot_model_id: null,
+        unit_price_kurus: 41250,
+        minimum_fee_kurus: 260000,
+      },
     ]);
     const empty = parsePriceListServiceItems(read({}), [TYPE]);
     expect(empty).toEqual({ ok: true, value: { items: [] } });
@@ -472,7 +494,12 @@ describe("service prices from the versioned price list", () => {
     // Empty model row: only the any-robot row is saved.
     expect(await run(boActions.saveServicePricesAction, form)).toMatch(/^redirect /);
     expect((await bo.getPriceList(ops.client, listId))?.serviceItems).toEqual([
-      { service_type_id: TYPE, robot_model_id: null, unit_price_kurus: 37500, minimum_fee_kurus: 250000 },
+      {
+        service_type_id: TYPE,
+        robot_model_id: null,
+        unit_price_kurus: 37500,
+        minimum_fee_kurus: 250000,
+      },
     ]);
     expect(
       await run(boActions.saveServicePricesAction, {
@@ -482,7 +509,12 @@ describe("service prices from the versioned price list", () => {
       }),
     ).toMatch(/^redirect /);
     expect((await bo.getPriceList(ops.client, listId))?.serviceItems).toEqual([
-      { service_type_id: TYPE, robot_model_id: null, unit_price_kurus: 37500, minimum_fee_kurus: 250000 },
+      {
+        service_type_id: TYPE,
+        robot_model_id: null,
+        unit_price_kurus: 37500,
+        minimum_fee_kurus: 250000,
+      },
       {
         service_type_id: TYPE,
         robot_model_id: MARABA,

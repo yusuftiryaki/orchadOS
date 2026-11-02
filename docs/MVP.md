@@ -41,7 +41,7 @@ MVP, kayıttan rapora kadar tek bir uçtan uca döngüyü kapsar. Havadan ve sen
 | Kendi AI modeli | Hayır | Uzman kararları etiketli veri olarak birikir |
 | Ödeme altyapısı | İP12 | Dönüm başına yıllık fiyat, teklif, kartla ödeme (iyzico, 3DS) ve havale; bayraklar kapalıyken birleşir. Açılana kadar faturalandırma elle |
 | Demo turu | İP13 | Bahçe sahibi adayı hesap açmadan, ayrı demo projesinde geçici bir hesapla iki sentetik bahçeyi sahip portalında rehberli turla gezer; demo hiçbir şey yazamaz, PDF'ler "ÖRNEK RAPOR" filigranlı ([demo-turu.md](demo-turu.md)) |
-| Hizmet katmanı: yabani ot biçme | İP15 | Bahçe durumuna ve mevsime göre önerilen, portaldan talep edilen ot biçme hizmeti. İlk sezon köydeki saha personeli motorlu tırpanla yapar; çevrimiçi ödeme yok, iş bitince öncesi/sonrası fotoğraf kanıtı. Robotla biçme sonraki aşama ([Modül 6](#modül-6--hizmet-katmanı-yabani-ot-biçme)) |
+| Hizmet katmanı: yabani ot biçme | İP15 | Bahçe durumuna ve mevsime göre önerilen, portaldan talep edilen ot biçme hizmeti. İşi otonom robotumuz MARABA-I yapar; sahip talepte robotu seçer, fiyat robotun yeteneğine göre değişebilir. Çevrimiçi ödeme yok, iş bitince öncesi/sonrası fotoğraf kanıtı ([Modül 6](#modül-6--hizmet-katmanı-yabani-ot-biçme)) |
 
 ## Roller
 
@@ -327,7 +327,11 @@ Genel durum skoru için öneri: sınıf ağırlıklarının ortalaması (Sağlı
 
 **Kapsam.** Yalnızca *orchadOS ot biçme hizmeti*. Katalog genel tasarlandı: toprak işleme ya da budama gibi yeni bir hizmet, şema değişmeden kataloğa bir satır olarak eklenir. Bugün kataloğa yalnız ot biçme girer.
 
-**Kim yapar.** İlk sezon işi, köyde zaten yaşayan saha personelimiz motorlu tırpanla yapar. Maliyet modeli: günlük 2.500 TL yevmiye, yol masrafı neredeyse sıfır. Maraba robotu (MARABA-I) hazır değil, yalnızca simülasyonda doğrulandı. Arayüzde, dokümanlarda ve sözleşmede robotla biçme vaat edilmez; robot, olgunlaştıkça sonraki aşamalarda devreye girecek bir plan olarak anlatılır ([vizyon.md](vizyon.md)). İş kaydı (`public.operation`) bugünden `performer` alanını taşır, robota geçişte şema değişmez.
+**Kim yapar.** İşi otonom robotumuz MARABA-I yapar (sahip kararı, 2 Kasım 2026). orchadOS böylece bir robot filosu ile bahçe sahiplerini buluşturan bir platforma dönüşür: sahip, işi hangi robotun yapacağını seçer; fiyat robotun yeteneklerine göre değişebilir. MARABA-I ilk modeldir ([vizyon.md](vizyon.md)).
+
+- **Robot modelleri** genel bir katalogdur (`robot_model`: ad, işleten org ya da orchadOS, kısa tanım, yetenekler, görsel). Hangi modelin hangi hizmeti yapabildiği hizmet başına tutulur (`service_type_robot_model`). Talep formunda sahip, hizmeti yapabilen modeller arasından birini seçer (varsayılan: listenin ilki); seçilen model talebe yazılır (`service_request.robot_model_id`).
+- **Sahibe anlatım:** Arayüzde, dokümanlarda, sözleşmede ve personelin sahiple konuşmasında hizmet yalnız "otonom robotumuz MARABA-I" ile anlatılır; başka bir yöntem adı geçmez.
+- **İç gerçek:** Robot işi gözetim altında yapar; robotun ulaşamadığı ya da güvenle çalışamadığı kısımları saha ekibi tamamlayabilir. İşi kimin yaptığı iç kayıtta doğru tutulur: iş kaydı (`public.operation`) ve iş oturumu `performer` alanını taşır; ot biçmede varsayılan `robot`tur, operasyon işi kapatırken işin tamamını ya da çoğunu saha ekibi yaptıysa `crew` seçer. Bu bilgi sahibe gösterilmez.
 
 ### Öneri mantığı
 
@@ -350,8 +354,8 @@ Kart iki şeye bakar:
 Çevrimiçi ödeme yok.
 
 1. **Talep** (`requested`): Sahip parseli ve tercih ettiği zaman aralığını seçer, not bırakır, ek sözleşmeyi ve ön bilgilendirmeyi onaylar ([bakım hizmeti ek sözleşmesi](hukuk/bakim-hizmeti-ek-sozlesme-taslagi.md), sitede `/bakim-hizmeti`; H37). İsterse işin 14 günlük cayma süresi içinde yapılmasını ister (işaretsiz kutu); istemezse iş en erken talepten 15 gün sonraya planlanır. Yayımlı fiyat listesinde hizmetin fiyatı varsa tutar formülle hesaplanır ve listenin sürümüyle birlikte talebe sabitlenir; fiyat yoksa talepte tutar yoktur. Talep bir öneridir; sözleşme operasyon tutarı ve tarihi onaylayınca kurulur. Sezon dışında aynı form **ön talep** (`pre_request`) açar; ön talep bağlayıcı değildir.
-2. **Planlandı** (`scheduled`): Operasyon tutarı onaylar ve tarih verir. Sabitlenen bir tutar varsa onaylanan tutar onu aşamaz, yalnız indirilebilir; daha yüksek bir tutar yeni talep ister. Talepte tutar yoksa (fiyatsız hizmet) operasyon tutarı elle girer; girmeden planlanamaz. Bu sırada parsel için `mowing` türünde bir saha oturumu açılır; sahibe bildirim gider.
-3. **Tamamlandı** (`done`): İşi saha personeli yapar. Operasyon işi kapatırken en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlar: ya yeni yükler (içerik hash'iyle adreslenir, değiştirilemez) ya da aynı parselin yayımlanmış bir ziyaretinden medya seçer. Fotoğraflar parsele bağlıdır; iş kanıtı izleme verisiyle aynı zincirdedir. İş kaydı (`operation`, tür `mowing`, yapan `crew`) oluşur.
+2. **Planlandı** (`scheduled`): Operasyon tutarı onaylar ve tarih verir. Sabitlenen bir tutar varsa onaylanan tutar onu aşamaz, yalnız indirilebilir; daha yüksek bir tutar yeni talep ister. Talepte tutar yoksa (fiyatsız hizmet) operasyon tutarı elle girer; girmeden planlanamaz. Bu sırada parsel için `mowing` türünde bir saha oturumu açılır (yapan: `robot`); sahibe bildirim gider.
+3. **Tamamlandı** (`done`): İşi seçilen robot yapar. Operasyon işi kapatırken "İşi kim yaptı?" sorusunu cevaplar (Robot varsayılan; Saha ekibi) ve en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlar: ya yeni yükler (içerik hash'iyle adreslenir, değiştirilemez) ya da aynı parselin yayımlanmış bir ziyaretinden medya seçer. Fotoğraflar parsele bağlıdır; iş kanıtı izleme verisiyle aynı zincirdedir. İş kaydı (`operation`, tür `mowing`, yapan `robot` ya da `crew`, `details.robot_model`) oluşur; oturumun yapanı da aynı olur.
 4. **Ödeme**: İşten sonra elle kaydedilir (tutar, yöntem, tarih). Kartla ödeme yok.
 5. **İptal** (`cancelled`): Sahip, planlanan tarihten önceki güne kadar ücretsiz iptal eder; operasyon tamamlanmamış her talebi gerekçeyle iptal edebilir.
 
@@ -365,10 +369,12 @@ Her durum değişikliği ayrı bir satırda tarihçeye yazılır (`service_reque
 
 Alan, parselin son sınır sürümünün alanıdır; sınır yoksa sahibin beyan ettiği alan.
 
+**Robota göre fiyat.** Fiyat listesinde bir hizmetin "Tüm robotlar" satırı (`robot_model_id` boş) ve isteğe bağlı olarak robot modeli başına ayrı satırları olabilir. Bir talebin fiyatı, seçilen modelin kendi satırıdır; yoksa "Tüm robotlar" satırı; o da yoksa hizmet fiyatsızdır. Kart, varsayılan modelin fiyatını; talep formu her modelin kendi tahminini gösterir (`service_robot_offers`).
+
 - **Fiyat varsa:** Kart ve talep formu tutarı (KDV dahil) ve küçük yazıyla fiyat listesi sürümünü gösterir. Talep, tutarı ve sürümü sabitler; sonradan yayımlanan yeni sürüm açık talebi değiştirmez.
 - **Fiyat yoksa** (bugünkü durum; lansman listesinde hizmet satırı yok): Portal hiçbir rakam göstermez; kartta ve formda **"Fiyat teklifle bildirilir"** yazar. Talep ve ön talep yine açılır. Operasyon planlarken tutarı elle girer; sahibe iş günü SMS ile bildirilir (mesajda tutar yoktur), tutar portaldaki talep sayfasında görünür; iş en erken ertesi güne konur ve sahip iş gününden önceki güne kadar ücretsiz iptal edebilir. Ön talep bağlayıcı değildir ve planlanamaz: sezon açılınca sahip aynı formla talebe çevirir (ön talep kapanır, yeni talep o günün fiyatıyla ve iki onayla açılır). Gün değişirse sahibe yeniden SMS gider; yeni gün de en erken ertesi gündür ve onaylanmış tutar artırılamaz.
 
-Maliyet varsayımları (yevmiye, bir işçinin günde biçtiği alan) sahadan ölçülünce fiyat bir taslağa girilip yayımlanır.
+Maliyet varsayımları sahadan ölçülünce fiyat bir taslağa girilip yayımlanır.
 
 ### Bağımsızlık
 
@@ -376,7 +382,7 @@ orchadOS kendini bağımsız denetçi olarak satar. Bakım uyumu satırı (budam
 
 ### Robot uygunluğu
 
-Operasyon ve saha personeli her parsel için robot uygunluk notları tutar: eğim (düz, hafif, dik), taşlılık (az, orta, çok), en alçak dal yüksekliği (cm) ve serbest not. Bu notlar ileride maraba'nın önce hangi bahçelere gideceğini seçmek için kullanılır; sahibe gösterilmez.
+Operasyon ve saha personeli her parsel için robot uygunluk notları tutar: eğim (düz, hafif, dik), taşlılık (az, orta, çok), en alçak dal yüksekliği (cm) ve serbest not. Notlar, robotun bahçede nerede güvenle çalışabileceğini ve hangi kısımları saha ekibinin tamamlaması gerektiğini planlamak için kullanılır; sahibe gösterilmez.
 
 ### Bildirim
 
