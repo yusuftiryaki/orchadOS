@@ -6,8 +6,11 @@ import { LocalFrame } from "@/lib/office/local-frame";
 import { CLASS_ORDER, distributionTotal, type Distribution } from "@/lib/portal/classes";
 import { approverLine } from "@/lib/portal/approver";
 import type { ParcelReport } from "@/lib/portal/data";
+import type { CareDimension } from "@/lib/portal/dimensions";
 import type { MetricSummaryRow } from "@/lib/portal/metrics";
 import { scoreRulesFor, share } from "@/lib/portal/score";
+import { servicesText } from "@/lib/i18n/messages/services";
+import { longDate } from "@/lib/services/format";
 import { BoundaryFooter, Bullets, Footer, Header, SampleWatermark, sampleInfo } from "./parts";
 import { COLORS, pdf, registerFonts } from "./theme";
 
@@ -217,6 +220,8 @@ export function ReportDocument({
           )}
         </View>
 
+        {report.dimensions && <CarePdf care={report.dimensions.care} />}
+
         {report.metrics.length > 0 && (
           <View style={pdf.section}>
             <Text style={pdf.h2}>{r.metricsTitle}</Text>
@@ -234,6 +239,50 @@ export function ReportDocument({
         <Footer left={`${t.inventoryReport.generated(formatDate(now.toISOString()))}`} />
       </Page>
     </Document>
+  );
+}
+
+// "Bakım uyumu" as on the card (components/portal/dimensions.tsx), with the
+// weed height and, when orchadOS mowed in the window before the visit, the
+// independence note (docs/MVP.md Module 6, "Bağımsızlık").
+function CarePdf({ care }: { care: CareDimension }) {
+  const d = t.portal.dimensions;
+  const lines = [
+    care.pruning &&
+      d.pruning(
+        pct(care.pruning.done, care.pruning.total),
+        care.pruning.done,
+        care.pruning.partial,
+        care.pruning.notDone,
+      ),
+    care.harvest &&
+      d.harvest(
+        pct(care.harvest.complete, care.harvest.total),
+        care.harvest.complete,
+        care.harvest.total,
+      ),
+    care.sprouts && d.sprouts(care.sprouts.dense, care.sprouts.few, care.sprouts.total),
+    care.weedHeight &&
+      `${servicesText.care.weedHeight(servicesText.weedHeight[care.weedHeight])} (${servicesText.care.weedHelp})`,
+  ].filter((line): line is string => typeof line === "string");
+  return (
+    <View style={pdf.section} wrap={false}>
+      <Text style={pdf.h2}>{d.care}</Text>
+      {lines.length > 0 ? <Bullets items={lines} /> : <Text style={pdf.muted}>{d.careNone}</Text>}
+      {care.ownWork.length > 0 && (
+        <Text
+          style={{
+            marginTop: 4,
+            paddingLeft: 8,
+            borderLeftWidth: 3,
+            borderLeftColor: COLORS.accent,
+            fontWeight: 700,
+          }}
+        >
+          {servicesText.care.ownWork(care.ownWork.map(longDate).join(", "))}
+        </Text>
+      )}
+    </View>
   );
 }
 

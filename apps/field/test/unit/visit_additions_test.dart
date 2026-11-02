@@ -107,6 +107,7 @@ void main() {
         metrics: {
           'problem_seen': 'md-problem_seen',
           'fence_breach_present': 'md-fence',
+          'weed_height': 'md-weeds',
         },
       );
       await repo.createSession(
@@ -150,7 +151,7 @@ void main() {
         parcelId: parcelId,
         metricCode: 'fence_breach_present',
         answer: const YesNoAnswer(true),
-        methodVersion: 'summer-v0.2',
+        methodVersion: 'summer-v0.3',
       );
       expect(await answered.first, {'fence_breach_present'});
       await worker().syncNow();
@@ -159,14 +160,14 @@ void main() {
       expect(row['value_boolean'], true);
       expect(row['parcel_id'], parcelId);
       expect(row.containsKey('tree_id'), isFalse);
-      expect(row['method_version'], 'summer-v0.2');
+      expect(row['method_version'], 'summer-v0.3');
 
       await repo.saveParcelAnswer(
         sessionId: visitId,
         parcelId: parcelId,
         metricCode: 'other_parcel_question',
         answer: const UnseenAnswer(),
-        methodVersion: 'summer-v0.2',
+        methodVersion: 'summer-v0.3',
       );
       expect(await answered.first, {
         'fence_breach_present',
@@ -181,6 +182,32 @@ void main() {
       expect(data['parcel_id'], parcelId);
       expect(data['metric_codes'], ['other_parcel_question']);
       expect(data.containsKey('tree_id'), isFalse);
+    });
+
+    test('a category parcel answer syncs as value_category', () async {
+      final answered = repo.watchParcelAnswers(visitId);
+      await repo.saveParcelAnswer(
+        sessionId: visitId,
+        parcelId: parcelId,
+        metricCode: 'weed_height',
+        answer: const CategoryAnswer('medium'),
+        methodVersion: 'spring-v0.2',
+      );
+      expect(await answered.first, {'weed_height'});
+      final local = (await repo.measurements(visitId)).single;
+      expect(local.subjectType, 'parcel');
+      expect(local.subjectId, parcelId);
+      expect(local.valueText, 'medium');
+      expect(local.valueBoolean, isNull);
+      await worker().syncNow();
+      final row = server.table('measurement').values.single;
+      expect(row['metric_definition_id'], 'md-weeds');
+      expect(row['value_category'], 'medium');
+      expect(row.containsKey('value_boolean'), isFalse);
+      expect(row['parcel_id'], parcelId);
+      expect(row.containsKey('tree_id'), isFalse);
+      expect(row['source'], 'staff');
+      expect(row['method_version'], 'spring-v0.2');
     });
 
     test('the visit log sends its weather to the visit row', () async {

@@ -65,8 +65,11 @@ from .dataset import (
     DATASET_VERSION,
     PRODUCER,
     PRODUCER_VERSION,
+    SEED_VERSION,
+    SERVICE_JOBS,
     Dataset,
     Frame,
+    ServiceJob,
     Visit,
     load,
     rng,
@@ -131,7 +134,7 @@ def gps_ns(t: datetime) -> int:
 
 def raw_sha(visit: Visit, name: str) -> str:
     """Content hash of a raw file that stays on the (synthetic) station."""
-    return sha256_bytes(f"{DATASET_NAME}:v{DATASET_VERSION}:raw:{visit.key}:{name}".encode())
+    return sha256_bytes(f"{DATASET_NAME}:v{SEED_VERSION}:raw:{visit.key}:{name}".encode())
 
 
 def raw_files(visit: Visit) -> list[tuple[str, FileRole, int]]:
@@ -319,7 +322,7 @@ class FileEntry:
     parcel: str
     org: str
     session: str
-    kind: str  # panorama | preview | tree_crop | closeup
+    kind: str  # panorama | preview | tree_crop | closeup | service_photo
 
     def as_dict(self) -> dict:
         return dict(self.__dict__)
@@ -334,7 +337,13 @@ class Builder:
         (out / "files").mkdir(parents=True, exist_ok=True)
 
     def add(
-        self, data: bytes, key: str, mime: str, size: tuple[int, int], visit: Visit, kind: str
+        self,
+        data: bytes,
+        key: str,
+        mime: str,
+        size: tuple[int, int],
+        visit: Visit | ServiceJob,
+        kind: str,
     ) -> FileRef:
         sha = sha256_bytes(data)
         if sha in self.files:
@@ -653,6 +662,38 @@ def build_closeups(ds: Dataset, b: Builder) -> list[dict]:
     return out
 
 
+def build_service_photos(b: Builder) -> list[dict]:
+    """Before and after photos of the demo's mowing jobs (docs/MVP.md Module 6), filed
+    under the job's session like the photos ops_add_service_photo registers."""
+    out = []
+    for job in SERVICE_JOBS:
+        for photo in job.photos:
+            key = photo.key(job)
+            img = closeups.render_service_photo(photo.scene, job.key, key, b.profile.closeup)
+            ref = b.add(
+                encode(img, ".jpg", b.profile.jpeg_quality),
+                key,
+                "image/jpeg",
+                b.profile.closeup,
+                job,
+                "service_photo",
+            )
+            out.append(
+                {
+                    "key": key,
+                    "job": job.key,
+                    "session_id": job.id,
+                    "phase": photo.phase,
+                    "scene": photo.scene,
+                    "sha256": ref.sha256,
+                    "bytes": ref.size,
+                    "mime": "image/jpeg",
+                    "time": photo.time.isoformat(),
+                }
+            )
+    return out
+
+
 def manifest_sha(manifest: dict) -> str:
     body = {k: v for k, v in manifest.items() if k != "dataset_sha256"}
     return sha256_bytes(canonical_json(body).encode("utf-8"))
@@ -692,6 +733,7 @@ def build(
             continue
         runs.append(build_visit(ds, v, b, workers))
     photos = build_closeups(ds, b)
+    service_photos = build_service_photos(b)
     manifest = {
         "dataset": DATASET_NAME,
         "version": DATASET_VERSION,
@@ -703,6 +745,7 @@ def build(
         "files": [f.as_dict() for f in sorted(b.files.values(), key=lambda f: f.key)],
         "runs": runs,
         "closeups": photos,
+        "service_photos": service_photos,
     }
     manifest["dataset_sha256"] = manifest_sha(manifest)
     mpath.write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")

@@ -131,6 +131,18 @@ const _sootyMould = YesNoQuestion(
   text: 'Yaprakta siyah is var mı?',
 );
 
+/// Parcel question of spring-v0.2 and summer-v0.3: weed height across the
+/// parcel, once per visit.
+const _weedHeight = CategoryQuestion(
+  metricCode: 'weed_height',
+  text: 'Bahçede yabani ot ne boyda?',
+  options: [
+    CategoryOption('short', 'Kısa (bileğe kadar)'),
+    CategoryOption('medium', 'Orta (dize kadar)'),
+    CategoryOption('tall', 'Uzun (dizi aşıyor)'),
+  ],
+);
+
 /// Close-up shots and questions of one season (docs/uzman-ajan-onerileri.md,
 /// 1.5 and 4.2). Shots go from far to near: crown first.
 class CloseupProtocol {
@@ -152,8 +164,9 @@ class CloseupProtocol {
 
   /// Questions about the whole parcel, answered once per visit on the
   /// close-up list (methodology v0.2). A seen answer is a staff measurement
-  /// without a tree (subject parcel).
-  final List<YesNoQuestion> parcelQuestions;
+  /// without a tree (subject parcel): yes/no in `value_boolean`, a category
+  /// in `value_category`.
+  final List<CloseupQuestion> parcelQuestions;
 
   /// Shots to take with [extra] open or closed.
   List<ShotSpec> shotsWith({required bool extraOpen}) => [
@@ -272,7 +285,7 @@ class CloseupProtocol {
   );
 
   static const spring = CloseupProtocol(
-    version: 'spring-v0.1',
+    version: 'spring-v0.2',
     shots: [
       _crown,
       ShotSpec(
@@ -312,10 +325,12 @@ class CloseupProtocol {
       _honeydew,
       _sootyMould,
     ],
+    // spring-v0.2: weed height (parcel question).
+    parcelQuestions: [_weedHeight],
   );
 
   static const summer = CloseupProtocol(
-    version: 'summer-v0.2',
+    version: 'summer-v0.3',
     shots: [
       _crown,
       ShotSpec(
@@ -374,6 +389,8 @@ class CloseupProtocol {
         metricCode: 'fence_breach_present',
         text: 'Tel ya da çitte yeni açılmış geçit var mı?',
       ),
+      // summer-v0.3: weed height.
+      _weedHeight,
     ],
   );
 

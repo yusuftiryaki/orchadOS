@@ -105,6 +105,19 @@ describe("legal texts", () => {
     expect(text("privacy")).toContain("en geç 20 dakika");
   });
 
+  // docs/hukuk/kararlar.md H37: mowing by hand, never a robot promise; the
+  // audit stays independent; the early-performance box sits in the text.
+  it("covers the mowing service addendum (H37)", () => {
+    const t = text("service_terms");
+    expect(t).toContain("**motorlu tırpanla**");
+    expect(t).toContain("robotla ya da insansız bir araçla biçme taahhüt etmez");
+    expect(t).toContain("12. Bağımsızlık");
+    expect(t).toContain("Bu dönemde yabani ot biçmeyi orchadOS yaptı (tarih)");
+    expect(t).toContain("md. 15/1-(h)");
+    expect(t).toContain("☐ Ot biçmenin 14 günlük cayma süresi dolmadan yapılmasını istiyorum.");
+    expect(t).toContain("](/bahcede-bulunanlar)");
+  });
+
   it("names the field notice page in the KVKK notice (H01)", () => {
     expect(text("kvkk_notice")).toContain("](/bahcede-bulunanlar)");
     expect(text("field_notice")).toContain("5/2-f");

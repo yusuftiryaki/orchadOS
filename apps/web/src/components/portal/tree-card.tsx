@@ -19,6 +19,7 @@ import { Panel } from "@/components/ui/panel";
 import { Table } from "@/components/ui/table";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
+import { hasPistachioMethodology } from "@/lib/species";
 
 // Tree card: identity, latest class and who gave it, class and measurement
 // history per visit, photos per visit and direction, findings.
@@ -99,7 +100,13 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
             rows={[
               [c.code, tree.code],
               [c.slotKind, v.slotKind[tree.slotKind]],
-              [t.portal.panel.sex, v.sex[tree.sex]],
+              ...(tree.speciesLabel
+                ? ([[t.species.treeSpecies, tree.speciesLabel]] as [string, string][])
+                : []),
+              // Tree sex: pistachio only (lib/species.ts).
+              ...(hasPistachioMethodology(tree.species)
+                ? ([[t.portal.panel.sex, v.sex[tree.sex]]] as [string, string][])
+                : []),
               [t.portal.panel.graft, v.graft[tree.graft]],
               [t.portal.panel.ageClass, v.ageClass[tree.ageClass]],
               [t.portal.panel.cultivar, tree.cultivar ?? t.tree.unknown],

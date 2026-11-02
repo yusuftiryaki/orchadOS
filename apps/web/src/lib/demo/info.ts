@@ -7,6 +7,8 @@ export interface DemoTour {
   session_id?: string;
   previous_session_id?: string;
   inventory_session_id?: string;
+  // Dataset version 2: the done mowing job of parcel B (hizmet-sonuc step).
+  service_request_id?: string;
 }
 
 export interface DemoInfo {
@@ -30,6 +32,7 @@ export function parseDemoInfo(value: unknown): DemoInfo | null {
       "session_id",
       "previous_session_id",
       "inventory_session_id",
+      "service_request_id",
     ] as const) {
       const item = (v.tour as Record<string, unknown>)[key];
       if (str(item)) tour[key] = item;

@@ -5,6 +5,7 @@ import { boundaryProblem, nextBoundaryVersion, ringToEwkt, type BoundaryProblem 
 import type { LatLon } from "./local-frame";
 import { INFRASTRUCTURE_KINDS, LINE_ZONE_KINDS, POINT_ZONE_KINDS } from "./inventory-workspace";
 import { VERIFICATION_REASONS, type VerificationReason } from "./verification-candidates";
+import { SPECIES_CODE_RE } from "@/lib/species";
 
 // Writes of the inventory workspace (office) and the approval screen
 // (expert), as the signed-in user. Row level security and the database
@@ -50,6 +51,8 @@ function dbError(error: { message: string; code?: string; details?: string | nul
     return fail(error.message as EditError, error.details ?? undefined);
   }
   if (error.code === "42501") return fail("forbidden");
+  // A foreign key (e.g. an unlisted fruit species code).
+  if (error.code === "23503") return fail("invalid_input");
   if (/inventory .*is approved/.test(error.message)) return fail("frozen", error.message);
   return fail("write_failed", error.message);
 }
@@ -96,6 +99,8 @@ export interface TreeAttributes {
   graft?: Enums["graft_status"];
   stemForm?: Enums["stem_form"];
   sex?: Enums["tree_sex"];
+  // Fruit species override (mixed orchards); null: back to the parcel's.
+  species?: string | null;
 }
 
 const AGE: Enums["age_class"][] = ["sapling", "young", "productive", "old", "unknown"];
@@ -126,6 +131,15 @@ export async function setTreeAttributes(
   if (attrs.sex !== undefined) {
     if (!SEX.includes(attrs.sex as Enums["tree_sex"])) return fail("invalid_input");
     patch.sex = attrs.sex as Enums["tree_sex"];
+  }
+  if (attrs.species !== undefined) {
+    if (
+      attrs.species !== null &&
+      !(typeof attrs.species === "string" && SPECIES_CODE_RE.test(attrs.species))
+    ) {
+      return fail("invalid_input");
+    }
+    patch.species = attrs.species;
   }
   if (
     !isUuid(r.parcelId) ||

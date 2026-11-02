@@ -30,6 +30,7 @@ import { listBoundaryPointers, type BoundaryPointer } from "@/lib/operations/leg
 import { officePanoramaSources } from "@/lib/office/panorama-source";
 import { sourceOfSet } from "@/lib/office/panoramas";
 import { createClient } from "@/lib/supabase/server";
+import { SpeciesNotice } from "@/components/species-notice";
 
 const e = t.inventory.expert;
 
@@ -92,6 +93,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
           </>
         }
       />
+      <SpeciesNotice species={ws.parcel.species} />
       <div className={styles.gateRow}>
         <Gate checks={checks} coverage={coverage} openItems={openItems} pointers={pointers} />
         {approved ? (

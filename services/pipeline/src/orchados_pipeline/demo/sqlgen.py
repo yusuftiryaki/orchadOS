@@ -9,7 +9,12 @@ Insert order (no notification is ever queued):
     4b boundaries, slots, trees, zones: after the sessions, since a boundary and a
        tree name the inventory visit (foreign keys)
     5 inventory chain, captures, assets, lineage
-    6 measurements, assessments, findings and their evidence
+    6 measurements, assessments, findings and their evidence (and the field
+       question weed_height)
+    6b service layer: the billing setting with services_enabled, the weed mowing
+       catalogue row (no price: the demo org has no price list) and its season per
+       fruit species, the done job of parcel B (operation, request, history, proof
+       photos) and the robot notes (docs/MVP.md Module 6; dataset version 2)
     7 viewer profile, parcel_access
     8 questions and replies, under their authors' claims
     9 the registry row (loaded_at null), when private.demo_org exists
@@ -39,12 +44,25 @@ from .build import frame_pose
 from .dataset import (
     CAMERA_HEIGHT_M,
     DATASET_VERSION,
+    DEMO_SPECIES,
+    FIELD_PROTOCOL,
+    FIELD_QUESTION_METHOD,
     METHODOLOGY,
+    PRICING_RULE,
     QUESTIONS,
+    ROBOT_NOTES,
+    SEASON_OF_MONTH,
+    SERVICE_JOBS,
+    SERVICE_SEASON,
+    SERVICE_TERMS_VERSION,
+    SERVICE_TYPE,
+    SERVICES_VERSION,
     UNSURE_LABELS,
     VERIFICATION,
+    WEED_HEIGHTS,
     ZONES,
     Dataset,
+    ServiceJob,
     Visit,
     inventory_values,
     tree_values,
@@ -58,6 +76,7 @@ STEPS = (
     "layout",
     "chain",
     "results",
+    "services",
     "access",
     "questions",
     "registry",
@@ -74,7 +93,6 @@ TOKEN_COLUMNS = (
     "reauthentication_token",
 )
 BANNED_UNTIL = "2999-01-01 00:00:00+00"
-SEASON_OF_MONTH = {6: "summer", 7: "summer"}
 
 
 class Raw(str):
@@ -209,6 +227,14 @@ FALLBACK_METRICS = {
         ("tree_visible", "category", ("winter", "spring", "summer", "harvest"), "hidden"),
     )
 }
+FALLBACK_METRICS["weed_height"] = Metric(
+    metric_id_fallback("weed_height"),
+    "weed_height",
+    "category",
+    ("spring", "summer"),
+    "shown",
+    ("parcel",),
+)
 
 
 def portal_codes(metrics: dict[str, Metric], season: str) -> list[str]:
@@ -578,6 +604,7 @@ def parcels(script: Script, ds: Dataset) -> None:
                 "village": p.village,
                 "estimated_area_m2": round(p.area_m2 * 1.04),
                 "irrigation": p.irrigation,
+                "species": DEMO_SPECIES,
                 "estimated_tree_count": p.estimated_tree_count,
                 "status": "active_monitoring",
                 "position": _point(clat, clon),
@@ -707,6 +734,35 @@ def sessions(script: Script, ds: Dataset) -> None:
                 "published_by": ids.EXPERT if v.published_at else None,
                 "scan_platform": "walk" if v.frames else None,
                 "camera_height_m": CAMERA_HEIGHT_M if v.frames else None,
+            },
+        )
+    for job in SERVICE_JOBS:
+        # As ops_schedule_service_request opens it and ops_complete_service_request
+        # closes it: captured, never published (not an audit visit).
+        script.insert(
+            "sessions",
+            "public.session",
+            {
+                "id": job.id,
+                "org_id": ids.ORG_ID,
+                "parcel_id": job.parcel.id,
+                "kind": "mowing",
+                "performer": "crew",
+                "status": "captured",
+                "planned_date": job.completed_on,
+                "started_at": job.work_start,
+                "ended_at": None,
+                "methodology_version": None,
+                "rig_id": None,
+                "lead_user_id": ids.FIELD,
+                "weather": None,
+                "notes": f"Hizmet işi {job.number}",
+                "created_by": ids.OPS,
+                "created_at": job.scheduled_at,
+                "published_at": None,
+                "published_by": None,
+                "scan_platform": None,
+                "camera_height_m": None,
             },
         )
 
@@ -910,6 +966,8 @@ def results(ctx: Context) -> None:
                 for code, value in inventory_values(v, t).items():
                     _measure(ctx, v, t, code, value, allowed, measured, [])
             continue
+        if v.key in WEED_HEIGHTS:
+            weed_question(ctx, v, WEED_HEIGHTS[v.key])
         classes = ds.classes(v)
         for t in ds.trees[p.key]:
             crops = [r["id"] for r in _assets(cat, "tree_crop", t.id)]
@@ -1065,6 +1123,274 @@ def _measure(
     return mid
 
 
+def weed_question(ctx: Context, v: Visit, height: str) -> str:
+    """The field question "Bahçede yabani ot ne boyda?" as the field app writes it:
+    parcel subject, method field_question, the season's protocol version, staff."""
+    season = SEASON_OF_MONTH[v.start.month]
+    m = ctx.metrics.get("weed_height")
+    if m is None:
+        raise ValueError("metric weed_height is not registered (service layer migration)")
+    if season not in m.valid_seasons or "parcel" not in m.subject_kinds:
+        raise ValueError(f"{v.key}: weed_height is not a parcel metric valid in {season}")
+    mid = ids.did("measurement", f"{v.key}:parcel:weed_height", SERVICES_VERSION)
+    ctx.script.insert(
+        "results",
+        "public.measurement",
+        {
+            "id": mid,
+            "org_id": ids.ORG_ID,
+            "parcel_id": v.parcel.id,
+            "tree_id": None,
+            "metric_definition_id": m.id,
+            "value_scale": None,
+            "value_category": height,
+            "value_boolean": None,
+            "uncertainty": None,
+            "confidence": None,
+            "method": FIELD_QUESTION_METHOD,
+            "method_version": FIELD_PROTOCOL[season],
+            "params_hash": None,
+            "source": "staff",
+            "session_id": v.id,
+            "measured_at": v.start + timedelta(minutes=15),
+            "recorded_by": ids.FIELD,
+        },
+    )
+    return mid
+
+
+# ---------------------------------------------------------------------------------------
+# Service layer (docs/MVP.md Module 6)
+# ---------------------------------------------------------------------------------------
+
+SERVICE_TYPE_ID = ids.did("service_type", SERVICE_TYPE["code"], SERVICES_VERSION)
+PROOF_PIPELINE = ("service-proof", "v1")  # as ops_add_service_photo registers a photo
+
+
+def services(ctx: Context) -> None:
+    """The service layer switched on for the demo org, its catalogue row and season
+    per fruit species, the done mowing job of parcel B with its history and proof
+    photos, and the robot notes.
+
+    No price list: the service is unpriced, so the portal shows "Fiyat teklifle
+    bildirilir" and the done job carries only the amount ops entered.
+
+    Rows are written as the ops functions would leave them; nothing goes through the
+    functions, which refuse demo orgs and would queue messages. The billing setting
+    only turns the service layer on: sign-ups and fake payments stay off (the demo
+    billing guard refuses them).
+    """
+    s, ds = ctx.script, ctx.ds
+    o = ids.ORG_ID
+    s.insert(
+        "services",
+        "public.org_billing_setting",
+        {
+            "org_id": o,
+            "accepts_signups": False,
+            "allow_fake_payments": False,
+            "services_enabled": True,
+            "created_at": CREATED,
+            "updated_at": CREATED,
+        },
+        conflict="org_id",
+    )
+    s.insert(
+        "services",
+        "public.service_type",
+        {
+            "id": SERVICE_TYPE_ID,
+            "org_id": o,
+            **SERVICE_TYPE,
+            "created_at": CREATED,
+            "updated_at": CREATED,
+        },
+    )
+    # The season per fruit species, for every species there is (as the migration
+    # seeds it for other orgs): a set-based insert, so a species added later is
+    # covered too.
+    sm, sd, em, ed = SERVICE_SEASON
+    s.raw["services"].append(
+        "\\echo @insert public.service_type_season\n"
+        "insert into public.service_type_season (org_id, service_type_id, species, "
+        "season_start_month, season_start_day, season_end_month, season_end_day, updated_at)\n"
+        f"select {lit(o)}, {lit(SERVICE_TYPE_ID)}, f.code, {sm}, {sd}, {em}, {ed}, {lit(CREATED)}\n"
+        "from public.fruit_species f\n"
+        "on conflict (service_type_id, species) do nothing;\n"
+    )
+    photos = {p["key"]: p for p in ctx.manifest.get("service_photos", [])}
+    for job in SERVICE_JOBS:
+        service_job(ctx, job, photos)
+    for key, (slope, stoniness, branch, note) in ROBOT_NOTES.items():
+        p = ds.parcel(key)
+        s.insert(
+            "services",
+            "public.parcel_robot_note",
+            {
+                "parcel_id": p.id,
+                "org_id": o,
+                "slope": slope,
+                "stoniness": stoniness,
+                "lowest_branch_cm": branch,
+                "note": note,
+                "updated_by": ids.FIELD,
+                "created_at": CREATED,
+            },
+            conflict="parcel_id",
+        )
+
+
+def _boundary_area(parcel_key: str) -> Raw:
+    """The quote's area: the parcel's boundary (version 1), as parcel_service_area reads it."""
+    bid = ids.did("boundary", f"{parcel_key}:1")
+    return Raw(
+        f"(select round(b.area_m2::numeric, 2) from public.boundary b where b.id = {lit(bid)})"
+    )
+
+
+def service_job(ctx: Context, job: ServiceJob, photos: dict[str, dict]) -> None:
+    s = ctx.script
+    o, p = ids.ORG_ID, job.parcel
+    assets: list[tuple[str, str]] = []  # (phase, asset id)
+    for photo in job.photos:
+        f = photos.get(photo.key(job))
+        if f is None:
+            raise ValueError(f"build has no service photo {photo.key(job)}; rebuild it")
+        aid = ids.did("asset", f["key"], SERVICES_VERSION)
+        lat, lon = p.to_latlon(p.length_m * 0.4, p.row_spacing_m * 1.5)
+        s.insert(
+            "services",
+            "public.asset",
+            {
+                "id": aid,
+                "org_id": o,
+                "parcel_id": p.id,
+                "session_id": job.id,
+                "kind": "photo",
+                "tree_id": None,
+                "uri": media_uri(media_key(o, p.id, f["sha256"])),
+                "content_hash": f["sha256"],
+                "byte_size": f["bytes"],
+                "mime_type": f["mime"],
+                "position": _point(lat, lon),
+                "position_uncertainty_m": 5.0,
+                "pipeline": PROOF_PIPELINE[0],
+                "pipeline_version": PROOF_PIPELINE[1],
+                "produced_at": datetime.fromisoformat(f["time"]),
+                "created_at": job.done_at - timedelta(minutes=20),
+            },
+        )
+        assets.append((photo.phase, aid))
+    s.insert(
+        "services",
+        "public.operation",
+        {
+            "id": job.operation_id,
+            "org_id": o,
+            "parcel_id": p.id,
+            "session_id": job.id,
+            "kind": SERVICE_TYPE["operation_kind"],
+            "performer": "crew",
+            "performed_by": None,
+            "started_at": job.work_start,
+            "area_m2": _boundary_area(p.key),
+            "details": {
+                "service_request_id": job.request_id,
+                "service_request_number": job.number,
+                "service_code": SERVICE_TYPE["code"],
+                "by": "orchados",
+            },
+            "notes": None,
+            "created_by": ids.OPS,
+            "created_at": job.done_at,
+        },
+    )
+    s.insert(
+        "services",
+        "public.service_request",
+        {
+            "id": job.request_id,
+            "org_id": o,
+            "parcel_id": p.id,
+            "service_type_id": SERVICE_TYPE_ID,
+            "number": job.number,
+            "status": "done",
+            "requested_by": ids.OWNER,
+            "season_year": job.season_year,
+            "preferred_window": job.preferred_window,
+            "customer_note": job.customer_note,
+            "terms_version": SERVICE_TERMS_VERSION,
+            "early_performance_requested": job.early_performance,
+            "recommended_measurement_id": None,
+            "recommended_weed_height": None,
+            "area_m2": _boundary_area(p.key),
+            "area_source": "boundary",
+            # Unpriced at the request: no price list, no frozen estimate (all eight
+            # null, as customer_request_service leaves them).
+            "price_list_id": None,
+            "price_list_version": None,
+            "price_per_donum_kurus": None,
+            "minimum_fee_kurus": None,
+            "vat_rate_bp": None,
+            "estimate_subtotal_kurus": None,
+            "estimate_vat_kurus": None,
+            "estimate_total_kurus": None,
+            "pricing_rule": PRICING_RULE,
+            "quote_total_kurus": job.quote_total_kurus,
+            "scheduled_date": job.scheduled_date,
+            "session_id": job.id,
+            "operation_id": job.operation_id,
+            "completed_on": job.completed_on,
+            "payment_received_on": job.payment_on,
+            "payment_amount_kurus": job.quote_total_kurus,
+            "payment_method": job.payment_method,
+            "payment_recorded_by": ids.OPS,
+            "created_at": job.requested_at,
+            "updated_at": job.done_at,
+        },
+    )
+    for n, (frm, to, actor, role, at) in enumerate(
+        (
+            (None, "requested", ids.OWNER, "owner", job.requested_at),
+            ("requested", "scheduled", ids.OPS, "ops", job.scheduled_at),
+            ("scheduled", "done", ids.OPS, "ops", job.done_at),
+        )
+    ):
+        s.insert(
+            "services",
+            "public.service_request_event",
+            {
+                "id": ids.did("service_request_event", f"{job.key}:{n}", SERVICES_VERSION),
+                "org_id": o,
+                "parcel_id": p.id,
+                "request_id": job.request_id,
+                "from_status": frm,
+                "to_status": to,
+                "actor_user_id": actor,
+                "actor_role": role,
+                "note": None,
+                "created_at": at,
+            },
+        )
+    for phase, aid in assets:
+        s.insert(
+            "services",
+            "public.service_request_photo",
+            {
+                "id": ids.did(
+                    "service_request_photo", f"{job.key}:{aid}:{phase}", SERVICES_VERSION
+                ),
+                "org_id": o,
+                "parcel_id": p.id,
+                "request_id": job.request_id,
+                "asset_id": aid,
+                "phase": phase,
+                "linked_by": ids.OPS,
+                "created_at": job.done_at - timedelta(minutes=20),
+            },
+        )
+
+
 def access(script: Script, ds: Dataset) -> None:
     a, b = ds.parcel("A"), ds.parcel("B")
     script.insert(
@@ -1182,6 +1508,7 @@ def generate(ds: Dataset, build: Path, manifest: dict, metrics: dict[str, Metric
     inventory_chain(ctx)
     closeup_captures(ctx)
     results(ctx)
+    services(ctx)
     access(script, ds)
     questions(script, ds)
     registry(

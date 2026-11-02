@@ -21,6 +21,7 @@ import {
 } from "@/lib/operations/geometry";
 import { AUTHORIZATION_BASES, IRRIGATION } from "@/lib/operations/validation";
 import { portalHref } from "@/lib/portal-billing/urls";
+import type { FruitSpecies } from "@/lib/species";
 import s from "./billing.module.css";
 
 const G = P.garden;
@@ -41,10 +42,13 @@ export function GardenForm({
   applicationId,
   gardenId,
   initial,
+  species,
 }: {
   applicationId: string;
   gardenId?: string;
   initial: Record<string, string>;
+  // public.fruit_species, in display order (loadFruitSpecies).
+  species: FruitSpecies[];
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(
     saveGardenAction,
@@ -97,6 +101,28 @@ export function GardenForm({
             className={s.wide}
           >
             <Input name="name" defaultValue={v("name")} required maxLength={120} />
+          </Field>
+          <Field
+            id="f-species"
+            label={G.species}
+            hint={G.speciesHint}
+            error={err("species")}
+            className={s.wide}
+          >
+            {/* No preselection on a new garden: the customer chooses. */}
+            <Select
+              name="species"
+              defaultValue={v("species")}
+              required
+              data-testid="garden-species"
+            >
+              <option value="">{P.choose}</option>
+              {species.map((x) => (
+                <option key={x.code} value={x.code}>
+                  {x.name}
+                </option>
+              ))}
+            </Select>
           </Field>
           <Field id="f-province" label={G.province} error={err("province")} optional={P.optional}>
             <Input name="province" defaultValue={v("province")} />

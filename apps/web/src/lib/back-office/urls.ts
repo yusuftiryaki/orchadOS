@@ -27,6 +27,8 @@ export const BO_NOTICES = [
   "price_list_published",
   "draft_deleted",
   "settings_saved",
+  // IP15 (docs/MVP.md Module 6)
+  "service_prices_saved",
   // IP14 (docs/bahce-yonetimi.md §12)
   "garden_linked",
   "garden_unlinked",

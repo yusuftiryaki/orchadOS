@@ -15,7 +15,8 @@
     "web:test": "pnpm --filter web test",
     "web:e2e": "pnpm --filter web test:e2e",
     "web:lint": "pnpm --filter web lint && pnpm --filter web format:check && pnpm --filter web typecheck",
-    "web:typegen": "pnpm --filter web typegen"
+    "web:typegen": "pnpm --filter web typegen",
+    "kilavuz:screens": "pnpm --filter web exec playwright test -c playwright.kilavuz.config.ts && node apps/web/scripts/kilavuz-optimize.mjs"
   },
   "devDependencies": {
     "supabase": "2.121.0"

@@ -17,6 +17,8 @@ Gaziantep'teki Antep fıstığı bahçe sahipleri için bağımsız, kanıta day
 ## Dokümanlar
 
 - [MVP geliştirme planı](docs/plan.md): İş paketleri, kilometre taşları (ilk kış raporları 8 Mart 2027), geride kalınırsa kesilecekler.
+- [Personel kullanım kılavuzu](docs/personel-kilavuzu.md): Ofis (operasyon, ofis aracı) ve saha personelinin günlük işi, adım adım; sık sorunlar.
+- [Ekran ekran kullanım kılavuzu](docs/kilavuz/README.md): Ofis ve saha personelinin kullandığı her ekran, ekran görüntüleri ve numaralı açıklamalarla; ofis aracında gövde üçgenlemenin adım adım örneği.
 - [Geliştirme ortamı](docs/gelistirme-ortami.md): `core` ve `mobile` devcontainer'ları, yerel Supabase, ESP32 ve telefon bağlantısı.
 - [MVP dokümanı](docs/MVP.md): Ürün tanımı, kapsam, modüller (kayıt, envanter, periyodik tarama, değerlendirme, portal), veri modeli, yol haritası.
 - [Teknik mimari ve maliyet fizibilitesi](docs/teknik-mimari.md): Ölçeklenebilir mimari, veri hacmi, depolama, veritabanı, işlem gücü, LLM maliyeti, KVKK.

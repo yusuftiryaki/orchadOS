@@ -36,9 +36,11 @@ const PORTAL_PAGES = [
   "Sözleşmelerim",
   "Hesabım",
 ];
+const OWNER_PAGES = [...PORTAL_PAGES.slice(0, 4), "Hizmetlerim", ...PORTAL_PAGES.slice(4)];
 
 const LANDING: [string, string, string, string[]][] = [
-  ["owner@example.com", "/portal", "Hesap", PORTAL_PAGES],
+  // IP15: owners of a parcel with the service layer on also get Hizmetlerim.
+  ["owner@example.com", "/portal", "Hesap", OWNER_PAGES],
   ["viewer@example.com", "/portal", "Hesap", PORTAL_PAGES],
   ["field@example.com", "/ofis", "Bölümler", ["Ofis"]],
   ["expert@example.com", "/uzman", "Bölümler", ["Uzman paneli"]],

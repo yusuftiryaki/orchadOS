@@ -4,6 +4,7 @@ import type { SessionUser } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 import { contractsText as C } from "@/lib/i18n/messages/contracts";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
+import { servicesText } from "@/lib/i18n/messages/services";
 import { PortalFrame, type PortalLink } from "./portal-frame";
 import styles from "./portal-shell.module.css";
 
@@ -12,7 +13,16 @@ import styles from "./portal-shell.module.css";
 // sections the user may open (a team member who is also a customer) follow
 // at the end of the same row, so the header never shows two competing
 // "Bahçelerim" links (docs/tasarim-sistemi.md §Denetim, Portal).
-export function PortalShell({ user, children }: { user: SessionUser; children: React.ReactNode }) {
+export function PortalShell({
+  user,
+  services = false,
+  children,
+}: {
+  user: SessionUser;
+  // IP15: the caller owns a parcel with the service layer on.
+  services?: boolean;
+  children: React.ReactNode;
+}) {
   const others: PortalLink[] = accessibleSections(user.roles)
     .filter((s) => s !== "portal")
     .map((s) => ({ href: `/${s}`, label: t.sections[s] }));
@@ -22,11 +32,19 @@ export function PortalShell({ user, children }: { user: SessionUser; children: R
         { href: "/portal/basvuru", label: P.nav.applications },
         { href: "/portal/siparis", label: P.nav.orders },
         { href: "/portal/odeme", label: P.nav.payments },
+        // IP15: service requests (weed mowing), for owners with the switch on.
+        ...(services ? [{ href: "/portal/hizmetler", label: servicesText.nav }] : []),
         { href: "/portal/hesap/sozlesmeler", label: C.list.navLabel },
         { href: "/portal/hesap", label: P.nav.account },
         ...others,
       ]
-    : [{ href: "/portal", label: t.sections.portal }, ...others];
+    : [
+        { href: "/portal", label: t.sections.portal },
+        // An owner without a customer profile (a pilot owner) may request
+        // services too; a co-owner has nothing there.
+        ...(services ? [{ href: "/portal/hizmetler", label: servicesText.nav }] : []),
+        ...others,
+      ];
   const initial = (user.email ?? "?").slice(0, 1).toLocaleUpperCase("tr-TR");
   return (
     <PortalFrame

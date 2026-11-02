@@ -83,6 +83,9 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
   // 3. A garden with its location and rough boundary on the map.
   await page.getByRole("link", { name: "Bahçe ekle", exact: true }).click();
   await page.getByLabel("Bahçe adı").fill("Yolculuk bahçesi");
+  // No preselection: the customer chooses the fruit species.
+  await expect(page.getByLabel("Meyve türü")).toHaveValue("");
+  await page.getByLabel("Meyve türü").selectOption("zeytin");
   await page.getByLabel("İlçe").fill("Nizip");
   await page.getByLabel("Alan (dönüm)").fill("20");
   await page.getByLabel("Bahçe üzerindeki yetkiniz").selectOption("title_holder");
@@ -98,6 +101,7 @@ test("a new visitor signs up, applies, accepts the quote and pays by card", asyn
   await expect(page.getByRole("alert").filter({ hasText: "izin vermelisiniz" })).toBeVisible();
   await expect(page.getByLabel("Bahçe adı")).toHaveValue("Yolculuk bahçesi");
   await expect(page.getByLabel("Bahçe üzerindeki yetkiniz")).toHaveValue("title_holder");
+  await expect(page.getByLabel("Meyve türü")).toHaveValue("zeytin");
   await expect(page.getByTestId("boundary-points")).toHaveText("4 nokta");
   await page
     .getByLabel(

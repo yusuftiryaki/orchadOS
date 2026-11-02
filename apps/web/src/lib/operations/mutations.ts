@@ -1,5 +1,6 @@
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import type { Position } from "@/lib/map/geo";
+import { SPECIES_CODE_RE } from "@/lib/species";
 import { isUuid } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
 import type { DetailInput, OwnerInput, ParcelInput, VisitInput } from "./validation";
@@ -219,6 +220,7 @@ export async function registerParcel(
       village: parcel.village,
       estimated_area_m2: parcel.estimatedAreaM2,
       irrigation: parcel.irrigation,
+      species: parcel.species,
       estimated_tree_count: parcel.estimatedTreeCount,
       lon: parcel.position?.lon ?? null,
       lat: parcel.position?.lat ?? null,
@@ -249,6 +251,7 @@ export async function updateParcel(
       village: parcel.village,
       estimated_area_m2: parcel.estimatedAreaM2,
       irrigation: parcel.irrigation,
+      species: parcel.species,
       estimated_tree_count: parcel.estimatedTreeCount,
       position: parcel.position
         ? `SRID=4326;POINT(${parcel.position.lon} ${parcel.position.lat})`
@@ -325,6 +328,25 @@ export async function setParcelPassive(
   });
   if (error) return fail(reasonOf(error));
   return ok(data);
+}
+
+// The main fruit species of a parcel (docs/veri-modeli.md "Meyve türü").
+// Ops only: the parcel_update policy lets no one else write; a code missing
+// from public.fruit_species fails the foreign key.
+export async function setParcelSpecies(
+  supabase: Client,
+  parcelId: string,
+  species: string,
+): Promise<OpsResult> {
+  if (!isUuid(parcelId) || !SPECIES_CODE_RE.test(species)) return fail("invalid_input");
+  const { data, error } = await supabase
+    .from("parcel")
+    .update({ species })
+    .eq("id", parcelId)
+    .select("id");
+  if (error) return fail(error.code === "23503" ? "invalid_input" : reasonOf(error));
+  if (data.length === 0) return fail("forbidden");
+  return ok(undefined);
 }
 
 // ---------------------------------------------------------------------------

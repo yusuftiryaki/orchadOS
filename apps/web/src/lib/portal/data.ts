@@ -14,6 +14,7 @@ import {
 import type { HealthClass, MarkerState } from "@/lib/map/tree-style";
 import { createMediaSigner, type PublicMirror } from "@/lib/media/signer";
 import { fetchLatestAssessments, listParcels, type ParcelSummary } from "@/lib/parcels";
+import { loadOwnWork } from "@/lib/services/data";
 import type { Client } from "@/lib/supabase/types";
 import {
   approvalOf,
@@ -71,6 +72,7 @@ import type { MapVisit } from "./map-layers";
 import { sessionTime, sortVisitsNewestFirst, type VisitRow } from "./sessions";
 import { panoramaFrames } from "./panorama-frames";
 import type { TourPanorama } from "./tour";
+import { effectiveSpecies, treeSpeciesLabel } from "@/lib/species";
 
 // Data for the owner portal. Every query runs as the signed-in user, so row
 // level security decides what comes back: owners and viewers read results of
@@ -256,6 +258,9 @@ export async function listPortalParcels(supabase: Client): Promise<PortalParcel[
 
 export interface PortalTreeInfo {
   id: string;
+  // Effective fruit species; its name when it differs from the parcel's.
+  species: string;
+  speciesLabel: string | null;
   sex: Enums["tree_sex"];
   graft: Enums["graft_status"];
   ageClass: Enums["age_class"];
@@ -352,7 +357,7 @@ export async function getParcelReport(
   const { data: parcel, error: parcelError } = await supabase
     .from("parcel")
     .select(
-      "id, name, province, district, village, estimated_area_m2, estimated_tree_count, status",
+      "id, name, province, district, village, estimated_area_m2, estimated_tree_count, status, species",
     )
     .eq("id", parcelId)
     .maybeSingle();
@@ -376,7 +381,7 @@ export async function getParcelReport(
         supabase
           .from("slot")
           .select(
-            "id, code, kind, row_no, position::json, tree(id, sex, graft, age_class, cultivar, status, first_seen_at, lost_at)",
+            "id, code, kind, row_no, position::json, tree(id, sex, graft, age_class, cultivar, status, first_seen_at, lost_at, species)",
           )
           .eq("parcel_id", parcelId)
           .order("row_no")
@@ -465,6 +470,8 @@ export async function getParcelReport(
         tree: tree
           ? {
               id: tree.id,
+              species: effectiveSpecies(tree, parcel),
+              speciesLabel: treeSpeciesLabel(tree.species, parcel.species),
               sex: tree.sex,
               graft: tree.graft,
               ageClass: tree.age_class,
@@ -573,10 +580,12 @@ export async function getParcelReport(
           .order("id")
           .range(from, to),
       );
-    const [defs, rows, yearBeforeRows] = await Promise.all([
+    const [defs, rows, yearBeforeRows, ownWork] = await Promise.all([
       metricDefinitions(supabase),
       measurementsOf(latest.id),
       yearBefore ? measurementsOf(yearBefore.id) : Promise.resolve([]),
+      // IP15 independence: orchadOS mowing before this visit.
+      loadOwnWork(supabase, parcelId, latest.time),
     ]);
     metrics = summarizeMetrics(defs, rows);
     audit = auditConfidence(
@@ -601,7 +610,7 @@ export async function getParcelReport(
         previous ? { time: previous.time, classes: classesOf(previous.id) } : null,
       ),
       structure: structureDimension(dimensionSlots),
-      care: careDimension(values),
+      care: careDimension(values, ownWork),
       pests: pestDimension(values, rowOfTree),
       fruitLoad: fruitLoadDimension(
         values,
@@ -750,11 +759,14 @@ export interface PhotoItem {
 }
 
 export interface TreeCard {
-  parcel: { id: string; name: string };
+  parcel: { id: string; name: string; species: string };
   tree: {
     id: string;
     code: string;
     slotKind: Enums["slot_kind"];
+    // Effective fruit species; its name when it differs from the parcel's.
+    species: string;
+    speciesLabel: string | null;
     sex: Enums["tree_sex"];
     graft: Enums["graft_status"];
     ageClass: Enums["age_class"];
@@ -799,7 +811,7 @@ export async function getTreeCard(
   const { data: tree, error: treeError } = await supabase
     .from("tree")
     .select(
-      "id, sex, graft, age_class, cultivar, status, first_seen_at, lost_at, slot!inner(code, kind), parcel!inner(id, name)",
+      "id, sex, graft, age_class, cultivar, status, first_seen_at, lost_at, species, slot!inner(code, kind), parcel!inner(id, name, species)",
     )
     .eq("id", treeId)
     .eq("parcel_id", parcelId)
@@ -938,7 +950,7 @@ export async function getTreeCard(
   }
 
   const slot = tree.slot as unknown as { code: string | null; kind: Enums["slot_kind"] };
-  const parcel = tree.parcel as unknown as { id: string; name: string };
+  const parcel = tree.parcel as unknown as { id: string; name: string; species: string };
   const findings = sortFindings(
     findingRows.map((f) => ({
       id: f.id,
@@ -961,6 +973,8 @@ export async function getTreeCard(
       id: tree.id,
       code: slot.code ?? "",
       slotKind: slot.kind,
+      species: effectiveSpecies(tree, parcel),
+      speciesLabel: treeSpeciesLabel(tree.species, parcel.species),
       sex: tree.sex,
       graft: tree.graft,
       ageClass: tree.age_class,

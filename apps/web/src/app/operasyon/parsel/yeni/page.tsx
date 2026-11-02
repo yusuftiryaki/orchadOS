@@ -5,6 +5,7 @@ import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 import { listOwnerProfiles, opsOrgs } from "@/lib/operations/data";
 import { opsHref } from "@/lib/operations/urls";
+import { loadFruitSpecies } from "@/lib/species";
 import { createClient } from "@/lib/supabase/server";
 
 const T = t.operations;
@@ -16,10 +17,11 @@ export default async function Page({
 }) {
   const user = await requireSection("operasyon");
   const supabase = await createClient();
-  const [orgs, profiles, { sahip }] = await Promise.all([
+  const [orgs, profiles, { sahip }, species] = await Promise.all([
     opsOrgs(supabase, user.id),
     listOwnerProfiles(supabase),
     searchParams,
+    loadFruitSpecies(supabase),
   ]);
   const owner = profiles.find((p) => p.id === sahip);
 
@@ -35,6 +37,7 @@ export default async function Page({
       ) : (
         <ParcelForm
           orgs={orgs}
+          species={species}
           owners={profiles.map((p) => ({ id: p.id, orgId: p.org_id, name: p.full_name }))}
           initial={{
             owner_profile_id: owner?.id ?? "",

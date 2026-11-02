@@ -18,6 +18,7 @@ import { officePanoramaSources } from "@/lib/office/panorama-source";
 import { sourceOfSet, type PanoramaSetInfo, type PanoramaSource } from "@/lib/office/panoramas";
 import { UUID_RE } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
+import { SpeciesNotice } from "@/components/species-notice";
 
 // Inventory workspace of one parcel (after the triangulation tool saved the
 // slots): tree attributes, infrastructure, boundary, verification tour.
@@ -70,6 +71,7 @@ export default async function Page({
   return (
     <main className={`${staff.wide} ${styles.page}`}>
       <PageHeader back={back} title={o.title} lead={o.lead} />
+      <SpeciesNotice species={ws.parcel.species} />
       {approvedAt && (
         <Alert tone="success" testId="inventory-approved">
           <p>{o.approved(formatDate(approvedAt))}</p>

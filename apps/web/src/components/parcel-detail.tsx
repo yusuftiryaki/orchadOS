@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import type { Section } from "@/lib/auth/roles";
 import { t } from "@/lib/i18n";
 import { getParcelMap } from "@/lib/parcels";
+import { hasPistachioMethodology, speciesName } from "@/lib/species";
 import { createClient } from "@/lib/supabase/server";
 import { ParcelExplorer } from "./parcel-explorer";
 import { statusTone } from "@/components/ui/status";
@@ -42,6 +43,15 @@ export async function ParcelDetail({
               {data.boundary
                 ? t.parcel.boundaryVersion(data.boundary.version)
                 : t.parcel.noBoundary}
+            </Badge>
+            {/* Species; other than the pilot's: generic monitoring (lib/species.ts). */}
+            <Badge
+              tone={hasPistachioMethodology(data.parcel.species) ? "neutral" : "warning"}
+              testId="parcel-species-badge"
+            >
+              {hasPistachioMethodology(data.parcel.species)
+                ? speciesName(data.parcel.species)
+                : `${speciesName(data.parcel.species)}: ${t.species.genericMonitoring}`}
             </Badge>
             <span className="muted" data-testid="parcel-slot-count">
               {slots > 0 ? t.parcel.slotCount(slots, data.activeTreeCount) : t.parcel.noSlots}

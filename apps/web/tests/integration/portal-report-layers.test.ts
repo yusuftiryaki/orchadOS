@@ -82,7 +82,13 @@ describe("report card dimensions", () => {
     });
     // PUB: S1-1 attention and S2-1 problem, in different 10 m cells.
     expect(dims.pattern).toMatchObject({ issues: 2, cellsWithIssues: 2 });
-    expect(dims.care).toEqual({ pruning: null, harvest: null, sprouts: null });
+    expect(dims.care).toEqual({
+      pruning: null,
+      harvest: null,
+      sprouts: null,
+      weedHeight: null,
+      ownWork: [],
+    });
     expect(dims.pests).toBeNull();
     expect(dims.fruitLoad).toBeNull();
     expect(report.latest?.publishedAt).not.toBeNull();

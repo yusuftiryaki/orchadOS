@@ -14,6 +14,7 @@ import {
   parseManualPayment,
   parsePackage,
   parsePriceListDraft,
+  parsePriceListServiceItems,
   parseQuoteTerms,
   parseReject,
   parseRemovalRequest,
@@ -222,6 +223,39 @@ describe("forms", () => {
     expect(
       parsePackage(reader({ code: "abc", name: "a", periodic_visits_per_year: "13" })),
     ).toEqual({ ok: false, field: "periodic_visits_per_year" });
+  });
+
+  it("service prices of a draft: TL per dönüm, empty price leaves the service unpriced", () => {
+    expect(
+      parsePriceListServiceItems(
+        reader({ svc_unit_a: "375", svc_min_a: "2.500", svc_unit_b: "" }),
+        ["a", "b"],
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        items: [{ service_type_id: "a", unit_price_kurus: 37_500, minimum_fee_kurus: 250_000 }],
+      },
+    });
+    expect(parsePriceListServiceItems(reader({ svc_unit_a: "375" }), ["a"])).toEqual({
+      ok: true,
+      value: { items: [{ service_type_id: "a", unit_price_kurus: 37_500, minimum_fee_kurus: 0 }] },
+    });
+    expect(parsePriceListServiceItems(reader({}), ["a"])).toEqual({
+      ok: true,
+      value: { items: [] },
+    });
+    expect(parsePriceListServiceItems(reader({ svc_unit_a: "0" }), ["a"])).toEqual({
+      ok: false,
+      field: "svc_unit_a",
+    });
+    expect(parsePriceListServiceItems(reader({ svc_min_a: "100" }), ["a"])).toEqual({
+      ok: false,
+      field: "svc_unit_a",
+    });
+    expect(parsePriceListServiceItems(reader({ svc_unit_a: "1", svc_min_a: "-1" }), ["a"])).toEqual(
+      { ok: false, field: "svc_min_a" },
+    );
   });
 
   it("price list draft: TL per package, empty unit price leaves it out", () => {

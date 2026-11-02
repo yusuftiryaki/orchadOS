@@ -166,6 +166,7 @@ describe("parcel form", () => {
         village: "",
         area_donum: "12,5",
         irrigation: "rainfed",
+        species: "zeytin",
         tree_count: "240",
         lat: "37,0215",
         lon: "37.795",
@@ -182,6 +183,7 @@ describe("parcel form", () => {
         village: null,
         estimatedAreaM2: 12500,
         irrigation: "rainfed",
+        species: "zeytin",
         estimatedTreeCount: 240,
         position: { lat: 37.0215, lon: 37.795, uncertaintyM: 100 },
         boundary: SQUARE,
@@ -191,7 +193,9 @@ describe("parcel form", () => {
   });
 
   it("m² wins over dönüm; irrigation defaults to unknown", () => {
-    const result = parseParcelForm(reader({ name: "A", area_m2: "9500", area_donum: "1" }));
+    const result = parseParcelForm(
+      reader({ name: "A", area_m2: "9500", area_donum: "1", species: "antep_fistigi" }),
+    );
     expect(result.ok && result.value).toMatchObject({
       estimatedAreaM2: 9500,
       irrigation: "unknown",
@@ -214,6 +218,7 @@ describe("parcel form", () => {
       errors: {
         name: "required",
         area_m2: "invalid",
+        species: "required",
         tree_count: "invalid",
         lat: "invalid",
         lon: "invalid",
@@ -221,6 +226,15 @@ describe("parcel form", () => {
         owner_profile_id: "invalid",
       },
     });
+  });
+});
+
+describe("parcel form species", () => {
+  it("is required and must look like a species code", () => {
+    const missing = parseParcelForm(reader({ name: "A" }));
+    expect(missing.ok ? null : missing.errors.species).toBe("required");
+    const bad = parseParcelForm(reader({ name: "A", species: "Zeytin!" }));
+    expect(bad.ok ? null : bad.errors.species).toBe("invalid");
   });
 });
 

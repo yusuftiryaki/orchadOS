@@ -12,11 +12,19 @@ Bu doküman bir yön belirler, takvim vermez. Ürün kapsamı için [MVP.md](MVP
 | --- | --- | --- |
 | Robotla tarama (sadece algılama) | Yüksek | Bahçeye fiziksel müdahale yok, hata maliyeti düşük, bugünkü teknolojiyle yapılabilir |
 | ML ile değerlendirme | Yüksek, kademeli | Uzman kararları biriktikçe model önce ön elemeyi, sonra rutin vakaları üstlenir |
-| Yabani ot biçme | Orta | Bağ ve meyve bahçesinde ticari örnekleri var; taşlı, eğimli arazi ve alçak dallar zorlaştırıyor |
+| Yabani ot biçme | Orta | Bağ ve meyve bahçesinde ticari örnekleri var; taşlı, eğimli arazi ve alçak dallar zorlaştırıyor. Hizmet olarak bugün elle başlıyor (aşağıda) |
 | Toprak işleme | Düşük | Ağır çekiş gücü gerekiyor; mevcut traktörlere takılan otonomi kitleri daha gerçekçi |
 | İlaçlama | Teknik orta, hukuken zor | Bitki koruma ürünleri reçeteyle uygulanıyor; sürüklenme ve yanlış uygulamada sorumluluk ağır. En son aşama |
 
 **Uzmanın rolü ortadan kalkmaz, değişir.** Model rutin vakaları üstlendikçe uzman; sınır vakalara, modelin denetimine ve rapor imzasına odaklanır. Bağımsız denetim iddiası, imzayı taşıyan bir insana dayanmaya devam eder.
+
+## Hizmet katmanı: elle başlayan, robotla büyüyen işler
+
+Saha görüşmelerinde bahçe sahipleri yalnız izlemeye pek istekli olmadı; bahçedeki işler hizmet olarak eklenince ilgilendiler. Hizmet katmanı bu yüzden izleme ile robotlar arasındaki ticari köprü: sahip hizmeti satın alır, izleme işin yapıldığını kanıtlar. Öncesi ve sonrası fotoğrafları parsele bağlıdır ve denetim verisiyle aynı zincirde durur ([MVP.md](MVP.md#modül-6--hizmet-katmanı-yabani-ot-biçme), Modül 6).
+
+- **Bugün elle:** İlk hizmet yabani ot biçme. İşi köyde yaşayan saha personelimiz motorlu tırpanla yapar. Katalog meyve türünden bağımsızdır; yeni bir hizmet şemaya dokunmadan bir satır olarak eklenir.
+- **Robot olgunlaştıkça robot işi:** Maraba robotu (MARABA-I) bugün yalnızca simülasyonda doğrulandı; robotla biçme vaat edilmez. Robot sahada kendini kanıtladıkça aynı talepler robot işine dönüşür. İş kaydı bugünden işi kimin yaptığını (`performer`) tutar, geçişte şema değişmez.
+- **Robot önce nereye gider:** Operasyon ve saha personeli her parsel için robot uygunluk notları tutar: eğim, taşlılık, en alçak dal yüksekliği. Bu notlar maraba'nın ilk gideceği bahçeleri seçmek için kullanılır.
 
 ## Bölgesel işletme modeli: mobil robot birimleri
 
@@ -178,7 +186,7 @@ Görev ve veri düzeyinde birlikte çalışma fizibil. Farklı üreticilerin rob
 2. **Birleşik kit:** LiDAR eklenir. İlk kış iskelet denemesi kendi bahçende yapılır, sonuçlar elle ölçümle karşılaştırılır.
 3. **Kendi modeller:** Ağaç tespiti, sınıflandırma ve ölçüm modelleri işleme istasyonunda çalışır; LLM sadece belirsiz vakalara gider.
 4. **Robotla tarama:** Kit hoverboard robotuna ya da başka bir platforma takılır. Operatör başına 2–4 robot hedeflenir.
-5. **Robotla biçme:** Partner üreticilerle, görev katmanı ve veri sözleşmesi üzerinden.
+5. **Hizmetten robotla biçmeye:** Ot biçme hizmeti bugün elle yapılır. Maraba sahada olgunlaştıkça, robot uygunluk notlarına göre seçilen bahçelerde işi robot üstlenir; partner üreticilerin robotları da görev katmanı ve veri sözleşmesi üzerinden katılabilir.
 6. **Toprak işleme ve ilaçlama:** Mevcut makinelere otonomi kitleri ve mevzuata uygun reçete ve kayıt süreçleriyle. En son aşama.
 
 ## Bugünden yapılacak hazırlıklar

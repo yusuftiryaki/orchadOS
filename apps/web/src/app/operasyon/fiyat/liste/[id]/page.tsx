@@ -4,6 +4,7 @@ import {
   deleteDraftAction,
   publishDraftAction,
   saveDraftAction,
+  saveServicePricesAction,
 } from "@/app/operasyon/back-office-actions";
 import { ActionForm } from "@/components/back-office/action-form";
 import { Badges } from "@/components/back-office/money-ui";
@@ -50,8 +51,9 @@ export default async function Page({
   const supabase = await createClient();
   const [view, query] = await Promise.all([getPriceList(supabase, id), searchParams]);
   if (!view) notFound();
-  const { list: l, items, packages } = view;
+  const { list: l, items, packages, serviceItems, serviceTypes } = view;
   const byPackage = new Map(items.map((i) => [i.package_id, i]));
+  const byService = new Map(serviceItems.map((i) => [i.service_type_id, i]));
   const draft = l.status === "draft";
 
   return (
@@ -145,6 +147,64 @@ export default async function Page({
               </div>
             </ActionForm>
           </Panel>
+          <Panel title={T.services} description={T.servicesHint} testId="price-list-services">
+            {serviceTypes.length === 0 ? (
+              <p>{T.noServices}</p>
+            ) : (
+              <ActionForm action={saveServicePricesAction} testId="price-list-services-form">
+                <input type="hidden" name="price_list_id" value={l.id} />
+                <Table>
+                  <thead>
+                    <tr>
+                      <th>{T.service}</th>
+                      <th className={cell.num}>{T.serviceUnitPrice}</th>
+                      <th className={cell.num}>{T.serviceMinimumFee}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {serviceTypes.map((t) => {
+                      const item = byService.get(t.id);
+                      return (
+                        <tr key={t.id} data-service-code={t.code}>
+                          <td>
+                            <input type="hidden" name="service_type_ids" value={t.id} />
+                            <Badges>
+                              <span className={cell.nowrap}>{t.name}</span>
+                              {!t.active && <UiBadge>{T.servicePassive}</UiBadge>}
+                            </Badges>
+                          </td>
+                          <td className={cell.num}>
+                            <input
+                              className={prices.priceInput}
+                              name={`svc_unit_${t.id}`}
+                              aria-label={`${t.name}: ${T.serviceUnitPrice}`}
+                              inputMode="decimal"
+                              placeholder={T.serviceUnpriced}
+                              defaultValue={tl(item?.unit_price_kurus)}
+                            />
+                          </td>
+                          <td className={cell.num}>
+                            <input
+                              className={prices.priceInput}
+                              name={`svc_min_${t.id}`}
+                              aria-label={`${t.name}: ${T.serviceMinimumFee}`}
+                              inputMode="decimal"
+                              defaultValue={tl(item?.minimum_fee_kurus)}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </Table>
+                <div className={styles.actions}>
+                  <Button type="submit" variant="secondary">
+                    {T.saveServices}
+                  </Button>
+                </div>
+              </ActionForm>
+            )}
+          </Panel>
           <div className={prices.finish}>
             <Panel title={T.publishTitle} testId="publish-panel">
               <Consequence>
@@ -226,6 +286,43 @@ export default async function Page({
               </tbody>
             </Table>
           </Panel>
+          {serviceTypes.length > 0 && (
+            <Panel plain title={T.services} description={T.servicesReadOnlyHint}>
+              <Table data-testid="price-list-service-items">
+                <thead>
+                  <tr>
+                    <th>{T.service}</th>
+                    <th className={cell.num}>{T.serviceUnitPrice}</th>
+                    <th className={cell.num}>{T.serviceMinimumFee}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {serviceTypes.map((t) => {
+                    const item = byService.get(t.id);
+                    return (
+                      <tr key={t.id} data-service-code={t.code} data-priced={!!item}>
+                        <td className={cell.nowrap}>{t.name}</td>
+                        {item ? (
+                          <>
+                            <td className={`${cell.num} ${cell.nowrap}`}>
+                              {money(item.unit_price_kurus)}
+                            </td>
+                            <td className={`${cell.num} ${cell.nowrap}`}>
+                              {money(item.minimum_fee_kurus)}
+                            </td>
+                          </>
+                        ) : (
+                          <td colSpan={2} className={cell.num}>
+                            {T.serviceUnpriced}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </Table>
+            </Panel>
+          )}
         </>
       )}
     </main>

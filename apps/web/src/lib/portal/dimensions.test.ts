@@ -175,6 +175,7 @@ const DEFS = [
   "pest_sign_type",
   "fruit_load_scale",
   "basal_sprout_level",
+  "weed_height",
 ].map((code) => def(code, code));
 let n = 0;
 const m = (code: string, treeId: string, value: Partial<MeasurementRow>): MeasurementRow => ({
@@ -210,8 +211,34 @@ describe("measured dimensions", () => {
       pruning: { total: 4, done: 2, partial: 1, notDone: 1 },
       harvest: { total: 2, complete: 1 },
       sprouts: { total: 3, few: 1, dense: 1 },
+      weedHeight: null,
+      ownWork: [],
     });
-    expect(careDimension(new Map())).toEqual({ pruning: null, harvest: null, sprouts: null });
+    expect(careDimension(new Map())).toEqual({
+      pruning: null,
+      harvest: null,
+      sprouts: null,
+      weedHeight: null,
+      ownWork: [],
+    });
+  });
+
+  it("care: the parcel's weed height and orchadOS's own mowing", () => {
+    const parcel = (value: Partial<MeasurementRow>) => ({
+      ...m("weed_height", "x", value),
+      tree_id: null,
+    });
+    const values = valuesByCode(DEFS, [parcel({ value_category: "tall" })]);
+    expect(careDimension(values, ["2027-04-14"])).toMatchObject({
+      weedHeight: "tall",
+      ownWork: ["2027-04-14"],
+    });
+    // A tree-level or unknown value is not the parcel's answer.
+    const odd = valuesByCode(DEFS, [
+      m("weed_height", "a", { value_category: "tall" }),
+      parcel({ value_category: "huge" }),
+    ]);
+    expect(careDimension(odd).weedHeight).toBeNull();
   });
 
   it("pests: severity, types of the signed trees, rows", () => {

@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 
 from .dataset import rng
-from .render import corner_stamp, fbm_tile
+from .render import corner_stamp, fbm_1d, fbm_tile
 
 KINDS = (
     "leaflets",
@@ -262,3 +262,126 @@ def render_closeup(kind: str, key: str, size: tuple[int, int]) -> np.ndarray:
     noise = g.normal(0, 3.0, img.shape).astype(np.float32)
     img = np.clip(img.astype(np.float32) + noise, 0, 255).astype(np.uint8)
     return corner_stamp(img, key)
+
+
+# ---------------------------------------------------------------------------------------
+# Service proof photos (docs/MVP.md Module 6): the same spot before and after mowing
+# ---------------------------------------------------------------------------------------
+
+SERVICE_SCENES = ("grass_tall", "grass_mowed")
+
+
+def _row_view(g: np.random.Generator, w: int, h: int, horizon: int) -> np.ndarray:
+    """Sky, a far hill line and bare soil: a phone photo down a tree row."""
+    img = np.empty((h, w, 3), np.float32)
+    t = np.linspace(0.0, 1.0, horizon, dtype=np.float32)[:, None]
+    zenith, haze = np.array([200, 150, 95], np.float32), np.array([230, 215, 195], np.float32)
+    img[:horizon] = (zenith * (1 - t) + haze * t)[:, None, :]
+    hill = fbm_1d("service:hills", w, 4)
+    tops = (horizon - h * (0.03 + 0.05 * hill)).astype(int)
+    rows = np.arange(h)[:, None]
+    img[(rows >= tops[None, :]) & (rows < horizon)] = (150, 160, 170)
+    tile = fbm_tile("service:soil", 256, 4, 3)
+    n = cv2.resize(tile, (w, h - horizon), interpolation=cv2.INTER_CUBIC)[..., None]
+    soil = np.array([75, 105, 150], np.float32) * (0.75 + 0.5 * n)
+    img[horizon:] = soil
+    return img
+
+
+def _row_trees(g: np.random.Generator, w: int, h: int, horizon: int) -> list[tuple]:
+    """Pistachio trees on both sides of the aisle, shrinking toward the horizon:
+    (base y, trunk box, crown ellipses), far ones first."""
+    cx = w * g.uniform(0.45, 0.55)
+    trees = []
+    for depth in (6.0, 4.0, 2.6, 1.6):
+        for side in (-1, 1):
+            k = 1.0 / depth
+            x = int(cx + side * w * 0.42 * k)
+            base = int(horizon + (h - horizon) * 0.55 * k)
+            trunk_h = int(h * 0.22 * k)
+            tw = max(2, int(w * 0.012 * k))
+            r = int(w * 0.11 * k)
+            crown = []
+            for _ in range(7):
+                c = (
+                    int(x + g.uniform(-0.6, 0.6) * r),
+                    int(base - trunk_h - g.uniform(0.0, 0.7) * r),
+                )
+                col = tuple(float(v) for v in np.array([45, 105, 65]) * g.uniform(0.8, 1.15))
+                crown.append((c, (r, int(r * 0.7)), col))
+            trees.append((base, ((x - tw, base - trunk_h), (x + tw, base)), crown))
+    return sorted(trees, key=lambda t: t[0])
+
+
+def _draw_tree(img: np.ndarray, tree: tuple) -> None:
+    _base, (p0, p1), crown = tree
+    cv2.rectangle(img, p0, p1, (55, 70, 85), -1, cv2.LINE_AA)
+    for c, axes, col in crown:
+        cv2.ellipse(img, c, axes, 0, 0, 360, col, -1, cv2.LINE_AA)
+
+
+def _grass(
+    img: np.ndarray,
+    g: np.random.Generator,
+    w: int,
+    h: int,
+    horizon: int,
+    tall: bool,
+    trees: list[tuple],
+) -> None:
+    """Grass blades and trees, far to near; tall: knee high, mowed: stubble with
+    windrows of cut straw."""
+    count = int(w * h / (110 if tall else 260))
+    ys = np.sort(horizon + (h - horizon) * np.sqrt(g.random(count)))
+    pending = list(trees)
+    for y in ys:
+        while pending and pending[0][0] <= y:
+            _draw_tree(img, pending.pop(0))
+        s = (y - horizon) / (h - horizon)  # 0 at the horizon, 1 at the camera
+        x = g.uniform(0, w)
+        length = h * s * (g.uniform(0.12, 0.32) if tall else g.uniform(0.008, 0.025))
+        lean = g.normal(0, 0.25) * length
+        straw = g.random() < (0.55 if tall else 0.7)
+        base_col = np.array([60, 160, 175] if straw else [55, 140, 95], np.float32)
+        col = tuple(float(v) for v in base_col * g.uniform(0.75, 1.15))
+        thick = max(1, int(round(w / 700 * (0.5 + s))))
+        cv2.line(
+            img,
+            (int(x), int(y)),
+            (int(x + lean), int(y - length)),
+            col,
+            thick,
+            cv2.LINE_AA,
+        )
+    for tree in pending:
+        _draw_tree(img, tree)
+    if not tall:
+        # Windrows: strips of cut grass lying across the aisle.
+        for k in range(5):
+            y = int(horizon + (h - horizon) * (0.3 + 0.15 * k + g.uniform(-0.03, 0.03)))
+            s = (y - horizon) / (h - horizon)
+            for _ in range(int(40 * (0.3 + s))):
+                c = (int(g.uniform(0, w)), int(y + g.normal(0, h * 0.01 * s)))
+                ax = (max(2, int(w * 0.02 * s)), max(1, int(h * 0.004 * (0.5 + s))))
+                col = tuple(float(v) for v in np.array([95, 175, 195]) * g.uniform(0.8, 1.1))
+                cv2.ellipse(img, c, ax, float(g.normal(0, 10)), 0, 360, col, -1, cv2.LINE_AA)
+
+
+def render_service_photo(scene: str, place: str, key: str, size: tuple[int, int]) -> np.ndarray:
+    """A proof photo of a mowing job, stamped with its key.
+
+    The view (horizon, trees) is seeded by `place`, so the before and after photos of
+    one job show the same spot; the grass and the sensor noise by `key`.
+    """
+    if scene not in SERVICE_SCENES:
+        raise ValueError(f"unknown service photo scene {scene}")
+    w, h = size
+    view = rng(f"service-view:{place}")
+    horizon = int(h * view.uniform(0.34, 0.4))
+    img = _row_view(view, w, h, horizon)
+    trees = _row_trees(view, w, h, horizon)
+    g = rng(f"service-photo:{key}")
+    _grass(img, g, w, h, horizon, scene == "grass_tall", trees)
+    img = cv2.GaussianBlur(img, (0, 0), max(0.6, w / 1600))
+    img += g.normal(0, 3.0, img.shape).astype(np.float32)
+    return corner_stamp(np.clip(img, 0, 255).astype(np.uint8), key)

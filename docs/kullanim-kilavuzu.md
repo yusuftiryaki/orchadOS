@@ -6,6 +6,8 @@ Bu kılavuz orchadOS'un uçtan uca akışını anlatır: bir bahçe sisteme nas�
 
 Değerlendirme kuralları [metodoloji.md](metodoloji.md)'de, ürün tanımı [MVP.md](MVP.md)'de anlatılır.
 
+Ofis ve saha personeli için kısa, adım adım kılavuz: [personel-kilavuzu.md](personel-kilavuzu.md).
+
 > **Durum işaretleri:** Yazılım geliştirme sürüyor. Her adımın yanında bugünkü durumu var:
 > - ✅ **Hazır:** Kullanılabilir, test ediliyor.
 > - 🟡 **Kısmen:** Çalışıyor ama bir parçası eksik ya da geçici bir yolla yapılıyor.
@@ -73,10 +75,11 @@ flowchart TD
 
 Bahçe sahibi hesabını kendisi açıp başvurabilir. Operasyonun telefonla kayıt yolu (bölüm 1) aynen sürer; iki yol aynı sahip listesinde buluşur.
 
-1. **Kayıt ve başvuru (müşteri).** Siteden kaydolur, telefonunu SMS koduyla doğrular. Portalda bahçelerini (konum, beyan edilen alan, isteğe bağlı kaba sınır, yetki dayanağı, giriş izni) ve paketini girer, fiyat önizlemesini görür, başvuruyu gönderir (`B-2026-…`).
+1. **Kayıt ve başvuru (müşteri).** Siteden kaydolur, telefonunu SMS koduyla doğrular. Portalda bahçelerini (konum, beyan edilen alan, **meyve türü**, isteğe bağlı kaba sınır, yetki dayanağı, giriş izni) ve paketini girer, fiyat önizlemesini görür, başvuruyu gönderir (`B-2026-…`).
 2. **İnceleme (operasyon, `/operasyon/basvuru`).**
     - Pano "Müşteri ve ödeme" kartında incelenecek başvuruları, açık teklifleri, geciken ödemeleri, incelemedeki ödemeleri ve açık iadeleri sayar. Son 24 saatte 300'den fazla kayıt denemesi olursa uyarı çıkar.
-    - Başvuru sayfasında bahçeler haritada ve tabloda (beyan edilen ve doğrulanan alan) görünür.
+    - Başvuru sayfasında bahçeler haritada ve tabloda (meyve türü, beyan edilen ve doğrulanan alan) görünür.
+    - **Meyve türü:** Bahçe formunda zorunludur ve önceden seçili gelmez (Antep fıstığı, zeytin, mandalina, nar, …, diğer). Tür etkinleşmede parsele geçer; ops parsel sayfasındaki "Meyve türü" formuyla (ya da "Parseli düzenle" ile) değiştirir. Karışık bahçede farklı türdeki ağaçlar ofis envanter düzenleyicisinde ağaç bazında işaretlenir. Antep fıstığı dışındaki türler genel izleme alır; ofis, uzman ve operasyon ekranları bunu "genel izleme — bu tür için metodoloji henüz yok" diye gösterir ([metodoloji.md](metodoloji.md#kapsam-meyve-türü)).
     - Her bahçe için "Doğrula": alan dönüm olarak girilir; gerekirse sınır haritada yeniden çizilir ve çizilen alan kullanılır. Doğrulama notu iç bilgidir, müşteri görmez.
     - Bütün bahçeler doğrulanınca teklif önizlemesi çıkar (bugün geçerli fiyat listesi). İndirim yüzde olarak girilir; indirim varsa açıklama zorunludur. Aynı köyden komşu bahçeye %10–15 indirim bu alanla verilir (açıklama: "Komşu bahçe indirimi, <köy>"); ayrı bir kurucu indirimi yoktur.
     - "Teklif ver" ya da "Başvuruyu reddet" (neden müşteriye gider, not içte kalır). Müşteriye SMS ile bildirim gider.
@@ -331,7 +334,7 @@ Parsel için `periodic_scan` türünde, `planned` durumda bir ziyaret açılır;
     - Rastgele örneklem
     - Personelin "Sorun gördüm" dedikleri
 
-   Her ağaçta mevsime göre 2–3 çekim yapılır ve evet/hayır soruları cevaplanır. Bulanık ya da karanlık fotoğraf telefonda reddedilir; fotoğraflar sadece uygulama içinden çekilir.
+   Her ağaçta mevsime göre 2–3 çekim yapılır ve evet/hayır soruları cevaplanır. Bulanık ya da karanlık fotoğraf telefonda reddedilir; fotoğraflar sadece uygulama içinden çekilir. Listenin başında parsel soruları bir kez sorulur; ilkbahar ve yazda "Bahçede yabani ot ne boyda?" (kısa, orta, uzun) bunlardan biridir ([metodoloji.md](metodoloji.md) bölüm 7).
 4. **Bitir:** Kayıtlar internet olunca kendiliğinden gönderilir. Hafıza kartı ofise getirilir.
 
 **Bahçede bulunan kişiler** ([hukuk/kararlar.md](hukuk/kararlar.md) H01; envanter ziyaretinde de aynıdır):
@@ -439,6 +442,28 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 | Gezide zamanda gezinme ve bakış yönü; ağaç karnesinde kanıt bilgisi ve hash doğrulaması | ✅ |
 | "Rapor hazır" ve kritik bulgu bildirimleri, operasyonda bildirim listesi | ✅ (gerçek SMS için Netgsm hesabı gerekiyor; o zamana kadar mesajlar kaydediliyor) |
 
+## 4. Hizmet: yabani ot biçme
+
+**Kim:** Sahip, operasyon, saha personeli · **Ürün kararı:** [MVP.md](MVP.md#modül-6--hizmet-katmanı-yabani-ot-biçme)
+
+Denetimin yanında sahip bahçesi için hizmet de alabilir; bugün tek hizmet yabani ot biçmedir. İşi köydeki saha personeli motorlu tırpanla yapar. Çevrimiçi ödeme yoktur. Hizmet katmanı `services_enabled` anahtarıyla açılır. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır.
+
+1. **Öneri (sahip):** Yayımlanan ilkbahar ya da yaz ziyaretinde ot orta ya da uzunsa ve sezon açıksa parsel karnesinde öneri kartı çıkar: "Bahçenizde ot uzun." ve "Talep et". Yayımlı fiyat listesinde hizmetin fiyatı varsa kart tutarı (KDV dahil) ve küçük yazıyla liste sürümünü gösterir; yoksa (bugünkü durum: fiyat henüz belirlenmedi) rakam yerine "Fiyat teklifle bildirilir" yazar. Sezon, bahçenin meyve türüne göredir; sezon dışında kart "Gelecek sezon için ön talep bırakın" der.
+2. **Talep (sahip):** Parsel, tercih edilen zaman aralığı ve not seçilir, hizmet koşulları onaylanır. Talep **Hizmetlerim**'de numarası ve durumuyla görünür; planlanan tarihten önceki güne kadar oradan ücretsiz iptal edilir.
+3. **Planlama (operasyon):** `/operasyon/hizmet` kuyruğunda talep açılır, tutar onaylanır (talepte sabitlenen tutar aşılamaz; talepte tutar yoksa elle girilir) ve tarih verilir. Parsel için biçme oturumu açılır, sahibe bildirim gider. Fiyat, `/operasyon/fiyat`'taki sürümlü fiyat listesinin "Hizmet fiyatları" bölümünde girilir; `/operasyon/hizmet/katalog` sezonu (varsayılan ve meyve türüne göre) ve öneri kuralını düzenler.
+4. **İş (saha personeli):** Biçmeden önce ve sonra parselin fotoğrafını çeker.
+5. **Kapanış (operasyon):** İş kapatılırken en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlanır (yeni yükleme ya da aynı parselin yayımlanmış ziyaretinden medya). Ödeme işten sonra elle kaydedilir (tutar, yöntem, tarih).
+6. **Kanıt (sahip):** Hizmetlerim'de tamamlanan işin tarihini ve öncesi/sonrası fotoğraflarını görür. O dönemin karnesindeki bakım uyumu satırı, biçmeyi orchadOS'un yaptığını açıkça yazar.
+
+**Robot uygunluk notları:** Operasyon, ops parsel sayfasında her parsel için eğim, taşlılık, en alçak dal yüksekliği ve serbest not tutar. Notlar ileride robotun önce hangi bahçelere gideceğini seçmek içindir; sahibe gösterilmez.
+
+| Adım | Durum |
+| --- | --- |
+| Saha sorusu `weed_height` | 🟡 Yazılıyor (İP15) |
+| Öneri kartı, talep, Hizmetlerim, iptal | 🟡 Yazılıyor (İP15) |
+| Hizmet talepleri kuyruğu, katalog, fotoğraf bağlama, ödeme kaydı, robot uygunluk notları | 🟡 Yazılıyor (İP15) |
+| Barındırılan projelerde açılış | ✅ Her ortamda açık (sahip kararı, 2 Kasım 2026); avukat incelemesi (T34) ve fiyat sonra. Fiyat yayımlanana kadar "Fiyat teklifle bildirilir" |
+
 ## Kişisel veri başvuruları ve görüntü gizleme
 
 **Kim:** Operasyon, geliştirici · **Tasarım:** [hukuk/kvkk-basvuru-proseduru.md](hukuk/kvkk-basvuru-proseduru.md)
@@ -455,7 +480,7 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 | Operasyon | Ziyareti planlar, kartları alır, işleme ve yüklemeyi çalıştırır, kaliteyi izler | `/operasyon`, işleme istasyonu |
 | Saha personeli | Tarar, yakın plan çeker, soruları cevaplar; envanterde ofiste gövde üçgenler | Saha uygulaması, `/ofis` |
 | Uzman | İnceler, karar verir, bulgu yazar, imzalar | `/uzman` |
-| Sahip, hissedar | Okur, inceler, gezer | `/portal` |
+| Sahip, hissedar | Okur, inceler, gezer; sahip ot biçme hizmeti talep eder | `/portal` |
 
 ## Demo
 

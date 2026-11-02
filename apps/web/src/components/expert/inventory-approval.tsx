@@ -170,6 +170,8 @@ export function InventoryApproval({
           </section>
           <TreeAttributeEditor
             slots={ws.slots}
+            parcelSpecies={ws.parcel.species}
+            speciesOptions={ws.speciesOptions}
             selected={selected}
             onSelectionChange={setSelected}
             showSex

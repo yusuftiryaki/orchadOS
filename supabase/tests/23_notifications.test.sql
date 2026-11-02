@@ -58,8 +58,9 @@ select enum_has_labels('public', 'notification_template',
         'refund_completed', 'payment_reminder', 'garden_removal_scheduled', 'garden_removal_rescheduled',
         'garden_removal_cancelled', 'garden_removal_completed', 'garden_access_ending',
         'contract_ready', 'withdrawal_received', 'addon_order_closed', 'viewer_invited', 'visit_scheduled',
-        'garden_transfer_reports'],
-  'templates (reports, account and garden messages)');
+        'garden_transfer_reports', 'service_scheduled', 'service_completed',
+        'service_cancelled'],
+  'templates (reports, account, garden and service messages)');
 select has_trigger('public', 'session', 'session_notify_published', 'report trigger');
 select has_trigger('public', 'finding', 'finding_notify_critical', 'critical finding trigger');
 select ok(not has_table_privilege('authenticated', 'public.notification', 'INSERT')

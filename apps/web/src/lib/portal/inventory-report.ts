@@ -9,6 +9,7 @@ import { fetchAll } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
 import { visitApprover, type Approver } from "./approver";
 import { panoramaFrames } from "./panorama-frames";
+import { hasPistachioMethodology } from "@/lib/species";
 
 // Inventory report for the owner (docs/metodoloji.md section 9, "Envanter
 // raporu"; contents from the expert agent's proposal of 27 October 2026,
@@ -30,6 +31,8 @@ export type ReportWarning =
   | "area_differs"
   | "many_empty"
   | "ungrafted"
+  // Other species than the pilot's: the same finding without the pistachio text.
+  | "ungrafted_generic"
   | "uncertain_trees"
   | "coverage_below_threshold"
   | "boundary_unapproved";
@@ -57,6 +60,8 @@ export interface InventoryReport {
     place: string;
     estimatedTreeCount: number | null;
     estimatedAreaM2: number | null;
+    // Main fruit species (lib/species.ts); absent: the pilot species.
+    species?: string;
   };
   // The approved inventory visit; null while the expert has not approved it.
   inventory: {
@@ -180,7 +185,11 @@ export function buildInventoryReport(input: InventoryReportInput): InventoryRepo
   if (input.slots.length > 0 && emptySlots / input.slots.length > NOTABLE_SHARE) {
     warnings.push("many_empty");
   }
-  if (graft.ungrafted > 0) warnings.push("ungrafted");
+  if (graft.ungrafted > 0) {
+    warnings.push(
+      hasPistachioMethodology(input.parcel.species) ? "ungrafted" : "ungrafted_generic",
+    );
+  }
   if (uncertainTrees > 0) warnings.push("uncertain_trees");
   if (input.coverage && !input.coverage.passed) warnings.push("coverage_below_threshold");
   if (input.boundary?.fieldSurvey && !input.boundary.approvedAt) {
@@ -327,7 +336,9 @@ export async function loadInventoryReport(
     loadInventoryWorkspace(supabase, parcelId),
     supabase
       .from("parcel")
-      .select("id, name, province, district, village, estimated_area_m2, estimated_tree_count")
+      .select(
+        "id, name, province, district, village, estimated_area_m2, estimated_tree_count, species",
+      )
       .eq("id", parcelId)
       .maybeSingle(),
   ]);
@@ -393,6 +404,7 @@ export async function loadInventoryReport(
       place: [p.village, p.district, p.province].filter(Boolean).join(", "),
       estimatedTreeCount: p.estimated_tree_count,
       estimatedAreaM2: p.estimated_area_m2,
+      species: p.species,
     },
     inventory: session
       ? {

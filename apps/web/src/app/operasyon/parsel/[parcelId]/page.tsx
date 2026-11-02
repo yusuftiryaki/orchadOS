@@ -4,6 +4,7 @@ import {
   grantAccessAction,
   revokeAccessAction,
   setParcelPassiveAction,
+  setParcelSpeciesAction,
 } from "@/app/operasyon/actions";
 import { Badge, Facts, day } from "@/components/back-office/parts";
 import { statusTone } from "@/components/ui/status";
@@ -40,7 +41,10 @@ import {
 import { m2ToDonum } from "@/lib/operations/geometry";
 import { disputeStatus, listBoundaryPointers, listSuppressions } from "@/lib/operations/legal";
 import { createMediaSigner } from "@/lib/media/signer";
+import { ParcelServices } from "@/components/operations/parcel-services";
+import { getRobotNote, parcelServiceRequests } from "@/lib/operations/service-data";
 import { opsHref } from "@/lib/operations/urls";
+import { hasPistachioMethodology, loadFruitSpecies, speciesName } from "@/lib/species";
 import { createClient } from "@/lib/supabase/server";
 import local from "./parcel.module.css";
 
@@ -74,17 +78,32 @@ export default async function Page({
     );
     return { records, urls };
   });
-  const [orgs, profiles, visits, service, pointers, dispute, staff, suppressions] =
-    await Promise.all([
-      orgsP,
-      listOwnerProfiles(supabase),
-      listVisits(supabase, { parcelId }),
-      parcelService(supabase, parcel.org_id, parcelId),
-      listBoundaryPointers(supabase, parcelId),
-      disputeStatus(supabase, parcelId),
-      orgsP.then((o) => listFieldStaff(supabase, o)),
-      suppressionsP,
-    ]);
+  const [
+    orgs,
+    profiles,
+    visits,
+    service,
+    pointers,
+    dispute,
+    staff,
+    suppressions,
+    serviceRequests,
+    robotNote,
+    species,
+  ] = await Promise.all([
+    orgsP,
+    listOwnerProfiles(supabase),
+    listVisits(supabase, { parcelId }),
+    parcelService(supabase, parcel.org_id, parcelId),
+    listBoundaryPointers(supabase, parcelId),
+    disputeStatus(supabase, parcelId),
+    orgsP.then((o) => listFieldStaff(supabase, o)),
+    suppressionsP,
+    // IP15: weed mowing requests and the robot suitability note.
+    parcelServiceRequests(supabase, parcelId),
+    getRobotNote(supabase, parcelId),
+    loadFruitSpecies(supabase),
+  ]);
   const covering = service.garden;
   const isOps = orgs.some((o) => o.id === parcel.org_id);
   const leads = new Map(staff.map((s) => [s.userId, s.email]));
@@ -218,6 +237,20 @@ export default async function Page({
                   ? `${formatNumber(parcel.estimated_area_m2)} m² (${formatNumber(m2ToDonum(parcel.estimated_area_m2), 1)} dönüm)`
                   : null,
               ],
+              [
+                T.parcel.species,
+                <span key="species" data-testid="parcel-species">
+                  {speciesName(parcel.species)}
+                  {!hasPistachioMethodology(parcel.species) && (
+                    <>
+                      {" "}
+                      <UiBadge tone="warning" testId="generic-monitoring">
+                        {t.species.genericMonitoring}
+                      </UiBadge>
+                    </>
+                  )}
+                </span>,
+              ],
               [T.parcel.irrigation, T.irrigation[parcel.irrigation]],
               [
                 t.parcels.columns.trees,
@@ -250,6 +283,27 @@ export default async function Page({
             <Alert tone="warning">
               <p>{T.parcel.boundaryNote}</p>
             </Alert>
+          )}
+          {isOps && (
+            <form
+              action={setParcelSpeciesAction}
+              className={styles.formRow}
+              data-testid="parcel-species-form"
+            >
+              <input type="hidden" name="parcel_id" value={parcel.id} />
+              <Field label={T.parcel.species} hint={T.parcel.speciesChangeHint}>
+                <select name="species" defaultValue={parcel.species} required>
+                  {species.map((x) => (
+                    <option key={x.code} value={x.code}>
+                      {x.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Button variant="secondary" size="sm" type="submit">
+                {T.parcel.speciesSave}
+              </Button>
+            </form>
           )}
         </Panel>
 
@@ -305,6 +359,13 @@ export default async function Page({
         <Panel title={S.title} testId="parcel-service">
           <Facts rows={serviceRows} />
         </Panel>
+
+        <ParcelServices
+          parcelId={parcel.id}
+          requests={serviceRequests}
+          robotNote={robotNote}
+          params={query}
+        />
 
         <Panel title={T.access.title} id="erisim" testId="parcel-access">
           {access.length === 0 ? (

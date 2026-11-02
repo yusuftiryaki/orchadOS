@@ -1,11 +1,37 @@
-import { demoText } from "@/lib/i18n/messages/demo";
+import { exitDemoAction } from "@/app/(site)/demo/actions";
+import { demoSignupLabel, demoText } from "@/lib/i18n/messages/demo";
 import styles from "./demo.module.css";
 
-// In place of a form a demo visitor cannot use (docs/demo-turu.md §11.5).
-export function DemoNotice({ text = demoText.closed.generic }: { text?: string }) {
+// In place of a form a demo visitor cannot use (docs/demo-turu.md §11.5). With
+// `signupNext` (demoSignupNext()) it also offers "Gerçek hesap aç", which ends
+// the demo like the banner's button does.
+export function DemoNotice({
+  text = demoText.closed.generic,
+  signupNext,
+}: {
+  text?: string;
+  signupNext?: string;
+}) {
+  if (!signupNext) {
+    return (
+      <p className={styles.notice} role="note" data-testid="demo-notice">
+        {text}
+      </p>
+    );
+  }
   return (
-    <p className={styles.notice} role="note" data-testid="demo-notice">
-      {text}
-    </p>
+    <div className={`${styles.notice} ${styles.noticeCta}`} role="note" data-testid="demo-notice">
+      <p>{text}</p>
+      <form action={exitDemoAction}>
+        <input type="hidden" name="next" value={signupNext} />
+        <button
+          type="submit"
+          className={`${styles.bannerButton} ${styles.bannerPrimary}`}
+          data-testid="demo-notice-signup"
+        >
+          {demoSignupLabel(signupNext)}
+        </button>
+      </form>
+    </div>
   );
 }

@@ -21,6 +21,7 @@ import { scanPlatform, type ScanSetup } from "./scan-setup";
 import { seasonOf, sessionTime, type Season } from "./season";
 import { compareSlots, newest, type HealthClass, type ReviewTree } from "./summary";
 import { LEGACY_METHODOLOGY_VERSION } from "@/lib/methodology";
+import { effectiveSpecies, metricApplies, PILOT_SPECIES, treeSpeciesLabel } from "@/lib/species";
 
 // Data access of the expert panel. Every query runs as the signed-in user;
 // row level security decides what the expert sees (their org's sessions).
@@ -131,6 +132,8 @@ export interface ReviewSession extends ScanSetup {
   orgId: string;
   parcelId: string;
   parcelName: string;
+  // Main fruit species of the parcel (lib/species.ts).
+  parcelSpecies: string;
   kind: SessionKind;
   status: SessionStatus;
   time: string;
@@ -144,6 +147,9 @@ export interface ReviewTreeRow extends ReviewTree {
   graft: Enums["graft_status"];
   ageClass: Enums["age_class"];
   cultivar: string | null;
+  // Effective fruit species; its name when it differs from the parcel's.
+  species: string;
+  speciesLabel: string | null;
   // Staff questions (metric codes) whose answer contradicts the AI.
   staffConflicts: string[];
   // The pipeline's presence check of the visit: yes / no / unsure (tree_visible).
@@ -199,7 +205,7 @@ export async function loadReview(
 
   const time = sessionTime(s);
   const [parcel, published, metricRows, treeRows, assessments, findings] = await Promise.all([
-    supabase.from("parcel").select("name").eq("id", s.parcel_id).single(),
+    supabase.from("parcel").select("name, species").eq("id", s.parcel_id).single(),
     supabase
       .from("session")
       .select("id, started_at, planned_date, created_at, scan_platform, camera_height_m")
@@ -211,7 +217,9 @@ export async function loadReview(
     fetchAll((from, to) =>
       supabase
         .from("tree")
-        .select("id, sex, graft, age_class, cultivar, slot(code, row_no, position_no, suffix)")
+        .select(
+          "id, sex, graft, age_class, cultivar, species, slot(code, row_no, position_no, suffix)",
+        )
         .eq("parcel_id", s.parcel_id)
         .eq("status", "active")
         .order("id")
@@ -350,6 +358,8 @@ export async function loadReview(
         graft: t.graft,
         ageClass: t.age_class,
         cultivar: t.cultivar,
+        species: effectiveSpecies(t, parcel.data),
+        speciesLabel: treeSpeciesLabel(t.species, parcel.data?.species),
         staffConflicts: staffConflicts(input, rules),
         treeVisible: input.treeVisible,
       };
@@ -363,6 +373,7 @@ export async function loadReview(
       orgId: s.org_id,
       parcelId: s.parcel_id,
       parcelName: parcel.data?.name ?? "",
+      parcelSpecies: parcel.data?.species ?? PILOT_SPECIES,
       kind: s.kind,
       status: s.status,
       time,
@@ -375,7 +386,11 @@ export async function loadReview(
     rules,
     firstOfSeason,
     previous,
-    metrics: reviewMetrics(allMetrics, season, s.methodology_version),
+    // Pistachio-only questions are left out for other species (generic
+    // monitoring, lib/species.ts).
+    metrics: reviewMetrics(allMetrics, season, s.methodology_version).filter((m) =>
+      metricApplies(m.code, parcel.data?.species),
+    ),
     allMetrics,
     trees,
     findings: findings.map((f) => ({

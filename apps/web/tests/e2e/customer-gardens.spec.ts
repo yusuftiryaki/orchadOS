@@ -171,6 +171,7 @@ test("a member adds a garden, accepts the add-on quote and pays by card", async 
   // 3. The second garden on the map; the preview is prorated.
   await page.getByRole("link", { name: "Bahçe ekle", exact: true }).click();
   await page.getByLabel("Bahçe adı").fill("Ek bahçe");
+  await page.getByLabel("Meyve türü").selectOption("antep_fistigi");
   await page.getByLabel("İlçe").fill("Nizip");
   await page.getByLabel("Alan (dönüm)").fill("12");
   await page.getByLabel("Bahçe üzerindeki yetkiniz").selectOption("title_holder");

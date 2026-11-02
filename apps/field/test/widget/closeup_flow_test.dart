@@ -11,6 +11,7 @@ import 'package:orchados_field/features/closeup/closeup_list_screen.dart';
 import 'package:orchados_field/features/closeup/closeup_protocol.dart';
 import 'package:orchados_field/features/session/session_controller.dart';
 import 'package:orchados_field/features/summary/visit_summary_screen.dart';
+import 'package:orchados_field/features/tasks/field_task.dart';
 import 'package:orchados_field/features/tasks/task_repository.dart';
 
 import '../support/test_app.dart';
@@ -19,14 +20,17 @@ void main() {
   final task = FakeTaskRepository.sampleTasks[0];
   final protocol = CloseupProtocol.forSeason(task.season);
 
-  /// A stopped session on the periodic task, ready for close-ups.
-  Future<TestHarness> stoppedSession(WidgetTester tester) async {
+  /// A stopped session on the periodic task (or [on]), ready for close-ups.
+  Future<TestHarness> stoppedSession(
+    WidgetTester tester, {
+    FieldTask? on,
+  }) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.5;
     addTearDown(tester.view.reset);
     final h = TestHarness();
     final controller = h.container.read(sessionControllerProvider.notifier);
-    controller.selectTask(task);
+    controller.selectTask(on ?? task);
     await tester.runAsync(() async {
       await h.logger.connect();
       expect(await controller.start(), isTrue);
@@ -292,6 +296,86 @@ void main() {
       ...protocol.questions.map((q) => q.metricCode),
       'dead_test_brown_cambium',
     ]);
+    await h.dispose(tester);
+  });
+
+  testWidgets('summer parcel questions: weed height is a category, '
+      '"Göremedim" writes no measurement', (tester) async {
+    final summer = FieldTask(
+      id: 'task-summer',
+      parcelId: task.parcelId,
+      parcelName: task.parcelName,
+      village: task.village,
+      kind: task.kind,
+      season: Season.summer,
+      areaDecare: task.areaDecare,
+      slots: task.slots,
+      boundary: task.boundary,
+      rowAzimuthDeg: task.rowAzimuthDeg,
+      originCorner: task.originCorner,
+      estimatedTreeCount: task.estimatedTreeCount,
+      closeupTrees: task.closeupTrees,
+    );
+    final h = await stoppedSession(tester, on: summer);
+    await tester.pumpWidget(h.wrap(const CloseupListScreen()));
+    await settle(tester);
+
+    for (final q in CloseupProtocol.summer.parcelQuestions) {
+      expect(find.byKey(Key('parcel-q-${q.metricCode}')), findsOneWidget);
+      expect(
+        find.byKey(Key('parcel-q-${q.metricCode}-unseen')),
+        findsOneWidget,
+      );
+    }
+    expect(find.text('Parsel: Bahçede yabani ot ne boyda?'), findsOneWidget);
+    for (final code in ['short', 'medium', 'tall']) {
+      expect(find.byKey(Key('parcel-q-weed_height-$code')), findsOneWidget);
+    }
+    expect(find.text('Orta (dize kadar)'), findsOneWidget);
+    expect(
+      find.byKey(const Key('parcel-q-fence_breach_present-yes')),
+      findsOneWidget,
+    );
+
+    await tapVisible(
+      tester,
+      find.byKey(const Key('parcel-q-weed_height-tall')),
+    );
+    await settle(tester);
+    await tester.pumpAndSettle();
+    // Answered once per visit: the choices are gone.
+    expect(find.byKey(const Key('parcel-q-weed_height-tall')), findsNothing);
+    expect(find.byKey(const Key('parcel-q-weed_height-unseen')), findsNothing);
+    await tapVisible(
+      tester,
+      find.byKey(const Key('parcel-q-fence_breach_present-unseen')),
+    );
+    await settle(tester);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('parcel-q-fence_breach_present-unseen')),
+      findsNothing,
+    );
+
+    final repo = h.container.read(fieldRepositoryProvider);
+    final sessionId = h.container.read(sessionControllerProvider).sessionId!;
+    final measurements = (await tester.runAsync(
+      () => repo.measurements(sessionId),
+    ))!;
+    final weeds = measurements.single;
+    expect(weeds.metricCode, 'weed_height');
+    expect(weeds.valueText, 'tall');
+    expect(weeds.valueBoolean, isNull);
+    expect(weeds.subjectType, 'parcel');
+    expect(weeds.subjectId, summer.parcelId);
+    expect(weeds.source, 'staff');
+    expect(weeds.methodVersion, 'summer-v0.3');
+    final events = (await tester.runAsync(() => repo.events(sessionId)))!;
+    final unseen = events.singleWhere((e) => e.eventType == closeupUnseenEvent);
+    expect(unseen.payload, 'parcel');
+    final data = jsonDecode(unseen.dataJson!) as Map;
+    expect(data['metric_codes'], ['fence_breach_present']);
+    expect(data['method_version'], 'summer-v0.3');
     await h.dispose(tester);
   });
 }

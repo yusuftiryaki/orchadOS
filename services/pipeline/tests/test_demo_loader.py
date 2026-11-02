@@ -46,7 +46,15 @@ def test_the_real_build_passes(built):
 
 @pytest.mark.parametrize(
     "version",
-    ["1, null, null, null, null); alter role authenticator superuser; --", "1", 1.0, True, 2, None],
+    [
+        "2, null, null, null, null); alter role authenticator superuser; --",
+        "2",
+        2.0,
+        True,
+        1,
+        3,
+        None,
+    ],
 )
 def test_version_must_be_a_known_int(copy, version):
     root, manifest = copy

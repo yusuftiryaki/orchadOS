@@ -25,6 +25,7 @@ export const GARDEN = {
   village: "Test",
   declared_area_m2: 20000,
   irrigation: "rainfed",
+  species: "antep_fistigi",
   estimated_tree_count: 300,
   lon: 37.8,
   lat: 37.01,

@@ -15,6 +15,7 @@ const PUBLIC_PREFIXES = [
   "/on-bilgilendirme",
   "/iade",
   "/bahcede-bulunanlar",
+  "/bakim-hizmeti",
   // The demo start page and its exit route (docs/demo-turu.md §11.1).
   "/demo",
   // T04: the contract-document sweep (pg_cron; the cron secret, no session).

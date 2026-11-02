@@ -7,12 +7,17 @@ import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { getApplication } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
+import { loadFruitSpecies } from "@/lib/species";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function NewGardenPage({ params }: { params: Promise<{ id: string }> }) {
   const user = assertCustomer(await requireSection("portal"));
   const { id } = await params;
-  const view = await getApplication(await createClient(), user.id, id);
+  const supabase = await createClient();
+  const [view, species] = await Promise.all([
+    getApplication(supabase, user.id, id),
+    loadFruitSpecies(supabase),
+  ]);
   if (!view) notFound();
   if (view.application.status !== "draft") {
     redirect(portalHref.application(id, { hata: "application_not_draft" }));
@@ -23,7 +28,7 @@ export default async function NewGardenPage({ params }: { params: Promise<{ id: 
         title={P.garden.newTitle}
         back={{ href: portalHref.application(id), label: P.garden.backToApplication }}
       />
-      <GardenForm applicationId={id} initial={{}} />
+      <GardenForm applicationId={id} initial={{}} species={species} />
     </main>
   );
 }
