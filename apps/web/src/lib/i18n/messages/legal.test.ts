@@ -105,12 +105,22 @@ describe("legal texts", () => {
     expect(text("privacy")).toContain("en geç 20 dakika");
   });
 
-  // docs/hukuk/kararlar.md H37: mowing by hand, never a robot promise; the
-  // audit stays independent; the early-performance box sits in the text.
-  it("covers the mowing service addendum (H37)", () => {
+  // docs/hukuk/kararlar.md H37, H38: the Company's autonomous robot mows under
+  // staff supervision, staff may finish what it cannot reach, liability covers
+  // both; the audit stays independent; the early-performance box sits in the text.
+  it("covers the mowing service addendum (H37, H38)", () => {
     const t = text("service_terms");
-    expect(t).toContain("**motorlu tırpanla**");
-    expect(t).toContain("robotla ya da insansız bir araçla biçme taahhüt etmez");
+    expect(t).toContain(
+      "**otonom ot biçme robotu (MARABA-I)** Şirket personelinin gözetiminde yapar",
+    );
+    expect(t).toContain("Robotun güvenle ulaşamadığı kısımları");
+    expect(t).toContain(
+      "Şirket, robotunun ya da personelinin işi yaparken verdiği zarardan kanuna göre sorumludur",
+    );
+    expect(t).toContain("Robotun otonom çalışması Şirket'in sorumluluğunu kaldırmaz.");
+    expect(t).toContain("İşe başlandığında cayma hakkımın sona ereceğini biliyorum.");
+    expect(t).not.toContain("tırpan");
+    expect(t).not.toContain("taahhüt etmez");
     expect(t).toContain("12. Bağımsızlık");
     expect(t).toContain("Bu dönemde yabani ot biçmeyi orchadOS yaptı (tarih)");
     expect(t).toContain("md. 15/1-(h)");

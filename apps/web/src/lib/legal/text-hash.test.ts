@@ -17,7 +17,8 @@ const repo = (path: string) => new URL(`../../../../../${path}`, import.meta.url
 const ALL = Object.keys(LEGAL_TEXT_VERSIONS) as LegalText[];
 
 // The registry (supabase/migrations/20261103100100_legal_text_registry.sql,
-// 20261104101100_legal_texts_v5.sql, 20261106300000_legal_text_service_terms.sql)
+// 20261104101100_legal_texts_v5.sql, 20261106300000_legal_text_service_terms.sql,
+// 20261107200000_legal_text_service_terms_v2.sql)
 // holds these hashes; a text change or a version bump needs a new registry
 // migration, and then this record changes with it (the integration test
 // legal-followups.test.ts compares the database too).
@@ -51,8 +52,8 @@ const CURRENT: Record<RegisteredText, { version: string; sha256: string }> = {
     sha256: "e993ff6d5a947596108d3246f678b040159f6bd81bb9cb2d11755a1234255a47",
   },
   service_terms: {
-    version: "bakim-v1-taslak",
-    sha256: "0f035f809af3bc20d4617825ef6709d9329ee4ba2c3cf7b4380dba7672ecf493",
+    version: "bakim-v2-taslak",
+    sha256: "62957b5d688da0f23265699401d26a947f4ba4e757e0278dd5409ef0687453f8",
   },
   early_performance: {
     version: "mesafeli-v5-taslak",
@@ -64,6 +65,8 @@ const CURRENT: Record<RegisteredText, { version: string; sha256: string }> = {
 // version never changes (the "arşiv ile sürüm eşleşmesi" of T04).
 const ARCHIVE: Record<string, string> = {
   "acik-riza-metni-v1.md": "36d5de83fdd51518ea4f3322bffb9df2505b268c1d645355f67d825f3da46549",
+  "bakim-hizmeti-ek-sozlesme-taslagi-v1.md":
+    "0b999e46963aace8dc5c86d73584138cedcdb1a829d66c0def8032b981fa1f2b",
   "gizlilik-cerez-politikasi-taslagi-v1.md":
     "f826bcc20e57c3a1180f3da6eb44b33c6487879459ad7fe1eda293a0f0814d6b",
   "hizmet-sozlesmesi-taslagi-v1.md":

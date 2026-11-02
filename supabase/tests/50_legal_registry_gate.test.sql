@@ -32,7 +32,7 @@ select results_eq(
             ('explicit_consent', 'riza-v2-taslak'), ('field_notice', 'bahcede-v1-taslak'),
             ('kvkk_notice', 'kvkk-v2-taslak'), ('pre_information', 'onbilgi-v5-taslak'),
             ('privacy', 'gizlilik-v2-taslak'), ('refund_policy', 'iade-v5-taslak'),
-            ('service_terms', 'bakim-v1-taslak') $$,
+            ('service_terms', 'bakim-v2-taslak') $$,
   'one current version per kind, equal to LEGAL_TEXT_VERSIONS');
 select is((select count(*)::integer from private.legal_text_version where is_current and sha256 ~ '^[0-9a-f]{64}$'), 9,
   'every current version carries its template hash');
@@ -46,7 +46,7 @@ select results_eq(
             ('pre_information', 'onbilgi-v3-taslak'), ('pre_information', 'onbilgi-v4-taslak'),
             ('privacy', 'gizlilik-v1-taslak'), ('refund_policy', 'iade-v1-taslak'),
             ('refund_policy', 'iade-v2-taslak'), ('refund_policy', 'iade-v3-taslak'),
-            ('refund_policy', 'iade-v4-taslak') $$,
+            ('refund_policy', 'iade-v4-taslak'), ('service_terms', 'bakim-v1-taslak') $$,
   'the archived versions are registered without a hash');
 select ok(not exists (select 1 from private.legal_text_version where is_final), 'every registered version is a draft today');
 select throws_ok($$ insert into private.legal_text_version (kind, version, sha256, is_current)
@@ -66,7 +66,7 @@ select results_eq(
 rollback to savepoint reg;
 
 set local role anon;
-select is((select count(*)::integer from public.registered_legal_text_versions()), 25, 'anyone reads the registered versions');
+select is((select count(*)::integer from public.registered_legal_text_versions()), 26, 'anyone reads the registered versions');
 select throws_ok($$ select * from private.legal_text_version $$, '42501', null, 'the table itself is closed');
 reset role;
 
