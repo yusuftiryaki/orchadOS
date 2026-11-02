@@ -184,7 +184,10 @@ test("owner requests mowing, ops completes it with proof, owner sees the proof",
   await ops.waitForURL(`**/operasyon/hizmet/${requestId}**`);
 
   const today = istanbulToday();
-  await ops.locator('input[name="scheduled_date"]').fill(today);
+  // Unpriced: the day is at the earliest tomorrow (the amount is new to the owner).
+  await ops
+    .locator('input[name="scheduled_date"]')
+    .fill(shift(today, 1).toISOString().slice(0, 10));
   // The amount is entered by hand (required: no published price).
   await expect(ops.getByTestId("service-no-estimate")).toBeVisible();
   await ops.locator('input[name="quote_total"]').fill("3.000");

@@ -322,7 +322,9 @@ export default async function Page({
         <Panel title={scheduled ? S.rescheduleTitle : S.scheduleTitle}>
           <p className={styles.hint}>{S.scheduleHint}</p>
           <p className={styles.hint} data-testid="service-earliest">
-            {r.early_performance_requested ? S.earlyAllowed : S.earliest(day(earliest))}
+            {r.early_performance_requested && r.estimate_total_kurus !== null
+              ? S.earlyAllowed
+              : S.earliest(day(earliest))}
           </p>
           <ActionForm action={scheduleServiceAction} testId="service-schedule-form">
             <input type="hidden" name="request_id" value={r.id} />

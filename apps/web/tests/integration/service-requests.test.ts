@@ -359,14 +359,30 @@ describe("requests", () => {
   });
 
   it("a job done today: too late to cancel, proof photos signed for the owner", async () => {
+    // Unpriced: the owner learns the amount from the confirmation, so the day
+    // is at the earliest tomorrow (H37 interim measure).
+    const sameDay = await clients.ops.rpc("ops_schedule_service_request", {
+      p_id: requested,
+      p_scheduled_date: today,
+      p_quote_total_kurus: 800_000,
+      p_note: "",
+    });
+    expect(sameDay.error).toMatchObject({ message: "invalid_input", details: "scheduled_date" });
+    const [y, m, d] = today.split("-").map(Number);
+    const tomorrow = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
     ok(
       await clients.ops.rpc("ops_schedule_service_request", {
         p_id: requested,
-        p_scheduled_date: today,
+        p_scheduled_date: tomorrow,
         p_quote_total_kurus: 800_000,
         p_note: "",
       }),
       "schedule",
+    );
+    // The job day arrives (moved by the service role: no API moves a day back).
+    ok(
+      await admin.from("service_request").update({ scheduled_date: today }).eq("id", requested),
+      "job day",
     );
     const late = await clients.owner.rpc("customer_cancel_service_request", {
       p_id: requested,
