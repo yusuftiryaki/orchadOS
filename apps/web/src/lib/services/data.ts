@@ -4,6 +4,13 @@ import { fetchAll, isUuid } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
 import { ownWorkDays, ownWorkQueryRange, OWN_WORK_KINDS } from "./independence";
 import type { ServiceOffer } from "./offers";
+import {
+  ROBOT_MODEL_COLUMNS,
+  robotModelOf,
+  robotOfferOf,
+  type RobotModel,
+  type RobotOffer,
+} from "./robots";
 
 // Reads of the service layer (IP15) as the signed-in user: row level security
 // decides. Owners read their own requests, history and, once a job is done,
@@ -39,17 +46,32 @@ export type ServiceRequestRow = Pick<
   | "cancel_reason"
   | "payment_received_on"
   | "created_at"
+  | "robot_model_id"
 >;
 
 // Not ops_note (internal, not granted to owners) and not who recorded the
 // payment.
 const REQUEST_COLUMNS =
-  "id, parcel_id, service_type_id, number, status, season_year, preferred_window, customer_note, terms_version, early_performance_requested, area_m2, area_source, price_list_version, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus, quote_total_kurus, scheduled_date, session_id, completed_on, cancelled_at, cancelled_by_role, cancel_reason, payment_received_on, created_at";
+  "id, parcel_id, service_type_id, number, status, season_year, preferred_window, customer_note, terms_version, early_performance_requested, area_m2, area_source, price_list_version, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus, quote_total_kurus, scheduled_date, session_id, completed_on, cancelled_at, cancelled_by_role, cancel_reason, payment_received_on, created_at, robot_model_id";
 
 export interface ServiceRequestItem extends ServiceRequestRow {
   parcelName: string;
   serviceName: string;
   serviceCode: string;
+  // The robot model the owner chose, or null (none for the service).
+  robot: RobotModel | null;
+}
+
+// Robot models by id (robot_model is readable by every signed-in user).
+async function robotModels(supabase: Client, ids: (string | null)[]) {
+  const wanted = [...new Set(ids.filter((id): id is string => !!id))];
+  if (wanted.length === 0) return new Map<string, RobotModel>();
+  const { data, error } = await supabase
+    .from("robot_model")
+    .select(ROBOT_MODEL_COLUMNS)
+    .in("id", wanted);
+  if (error) throw error;
+  return new Map((data ?? []).map((row) => [row.id, robotModelOf(row)]));
 }
 
 // Offer cards of every parcel the caller owns, or of one parcel. Empty when
@@ -64,7 +86,31 @@ export async function listServiceOffers(
     parcelId ? { p_parcel_id: parcelId } : {},
   );
   if (error) throw error;
-  return data ?? [];
+  const offers: ServiceOffer[] = data ?? [];
+  const robots = await robotModels(
+    supabase,
+    offers.map((o) => o.robot_model_id),
+  );
+  return offers.map((o) => ({
+    ...o,
+    robot: o.robot_model_id ? (robots.get(o.robot_model_id) ?? null) : null,
+  }));
+}
+
+// The robot models that can do a service on a parcel, each with its own
+// estimate ("Hangi robot yapsın?" on the request form).
+export async function listRobotOffers(
+  supabase: Client,
+  parcelId: string,
+  serviceTypeId: string,
+): Promise<RobotOffer[]> {
+  if (!isUuid(parcelId) || !isUuid(serviceTypeId)) return [];
+  const { data, error } = await supabase.rpc("service_robot_offers", {
+    p_parcel_id: parcelId,
+    p_service_type_id: serviceTypeId,
+  });
+  if (error) throw error;
+  return (data ?? []).map(robotOfferOf);
 }
 
 export async function findServiceOffer(
@@ -80,13 +126,17 @@ export async function findServiceOffer(
 async function withNames(supabase: Client, rows: ServiceRequestRow[]) {
   const parcelIds = [...new Set(rows.map((r) => r.parcel_id))];
   const typeIds = [...new Set(rows.map((r) => r.service_type_id))];
-  const [parcels, types] = await Promise.all([
+  const [parcels, types, robots] = await Promise.all([
     parcelIds.length === 0
       ? Promise.resolve({ data: [], error: null })
       : supabase.from("parcel").select("id, name").in("id", parcelIds),
     typeIds.length === 0
       ? Promise.resolve({ data: [], error: null })
       : supabase.from("service_type").select("id, name, code").in("id", typeIds),
+    robotModels(
+      supabase,
+      rows.map((r) => r.robot_model_id),
+    ),
   ]);
   if (parcels.error) throw parcels.error;
   if (types.error) throw types.error;
@@ -97,6 +147,7 @@ async function withNames(supabase: Client, rows: ServiceRequestRow[]) {
     parcelName: parcelName.get(r.parcel_id) ?? "",
     serviceName: type.get(r.service_type_id)?.name ?? "",
     serviceCode: type.get(r.service_type_id)?.code ?? "",
+    robot: r.robot_model_id ? (robots.get(r.robot_model_id) ?? null) : null,
   }));
 }
 

@@ -1123,7 +1123,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
       {
         kind: "ul",
         items: [
-          "Ot biçmeyi, Şirket'in eğitimli saha personeli elle kullanılan **motorlu tırpanla** yapar. Şirket bu ekle robotla ya da insansız bir araçla biçme taahhüt etmez. İleride robotla biçme sunulursa ayrı koşullarla ve Sahip'in ayrıca onayıyla sunulur.",
+          "Ot biçmeyi, Şirket'in **otonom ot biçme robotu (MARABA-I)** Şirket personelinin gözetiminde yapar. Robotun güvenle ulaşamadığı kısımları (örneğin dik eğim, kayalık, kuyu ve çukur çevresi, çok alçak dalların altı) Şirket'in eğitimli saha personeli el aletleri ya da motorlu ekipmanla tamamlayabilir. İşin bir kısmının personelce tamamlanması bedeli değiştirmez.",
           "Hizmeti yalnızca Ana Sözleşme'de Sahip olan kişi talep edebilir; Sahip'in davet ettiği hissedarlar talep edemez. Sahip, Ana Sözleşme Madde 5/1'deki yetki beyanının Bahçe'de ot biçilmesini de kapsadığını beyan eder.",
         ],
       },
@@ -1139,7 +1139,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
         kind: "ul",
         items: [
           "**Hizmet veren:** OBA Bilişim Teknolojileri LTD. [tam unvan: ticaret sicilindeki gibi], [Adres], [Telefon], [E-posta], [KEP adresi], MERSİS [MERSİS].",
-          "**Hizmetin temel nitelikleri:** Bahçe'nin kullanım alanındaki yabani otların motorlu tırpanla biçilmesi; kapsam ve kapsam dışı işler 3. bölümdedir. Hizmet bir defalıktır; iş bitince öncesi ve sonrası fotoğrafları portala konur.",
+          "**Hizmetin temel nitelikleri:** Bahçe'nin kullanım alanındaki yabani otların Şirket'in otonom robotuyla (MARABA-I), Şirket personelinin gözetiminde biçilmesi; robotun güvenle ulaşamadığı kısımları personel tamamlayabilir. Kapsam ve kapsam dışı işler 3. bölümdedir. Hizmet bir defalıktır; iş bitince öncesi ve sonrası fotoğrafları portala konur.",
           '**Toplam fiyat:** Talep formunda KDV dahil toplam tutar ve hesabı (alan, dönüm fiyatı, minimum ücret, KDV) gösterilir ve talebe dondurulur (5. bölüm). Hizmetin talep günü yayımlı fiyatı yoksa formda tutar yerine "Fiyat teklifle bildirilir" yazar; KDV dahil toplam tutar Şirket\'in onay bildiriminde yazılır (5. bölüm, 5. fıkra). Yol, yakıt ya da başka bir ek masraf istenmez.',
           "**Ödeme:** İş bittikten sonra, havale/EFT ile ya da Şirket'in işyerinde. Kartla ya da çevrimiçi ödeme yoktur; iş yapılmadan ödeme istenmez.",
           "**İfa tarihi:** Şirket, talebi onaylarken iş tarihini bildirir. Hava ve güvenlik nedeniyle erteleme 7. bölümdedir.",
@@ -1175,7 +1175,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
           "Budama, dip sürgünü ya da kök sürgünü alma, odunsu çalı ve fidanların kesilmesi.",
           "Biçilen otun toplanması, taşınması ya da yakılması. Ot yakılmaz. Toplama yalnızca ayrıca yazılı olarak anlaşılırsa yapılır.",
           "Kullanım alanı dışındaki yerler: yol, kanal, hendek, komşu bahçe, sınır duvarı ve çit üstü.",
-          "Personelin güvenliğini tehdit eden ya da motorlu tırpanla güvenle girilemeyen yerler (çok dik eğim, kayalık, kuyu ve çukur çevresi). Bu yerler iş kaydında not edilir.",
+          "Personelin güvenliğini tehdit eden ya da robotun da personelin de güvenle giremediği yerler (örneğin çok dik eğim, kayalık, kuyu ve çukur çevresi). Bu yerler iş kaydında not edilir.",
           "Gövdeye ve aşı yerine zarar vermemek için gövde dibinde bırakılabilen dar bir halka. Bu halka biçilmemiş sayılmaz.",
         ],
       },
@@ -1218,7 +1218,7 @@ export const legalText: Record<LegalText, LegalDocument> = {
         kind: "ol",
         items: [
           "Sahip, talepte ve iş gününden önce, otların arasında görülmesi güç olan engelleri bildirir; bildirebiliyorsa sahada işaretler: toprak üstündeki ya da yüzeye yakın damla sulama hortumları ve bağlantıları, yağmurlama başlıkları, borular ve vanalar; büyük taşlar; yeni dikilmiş fidanlar ve aşılı genç ağaçlar; kuyu, çukur, kapak ve havuz kenarları; tel, cam, metal ve benzeri cisimler.",
-          "Sahip, iş günü Bahçe'ye erişimi sağlar (kapı, anahtar, bekçi), mümkünse bir gün önceden sulama yapmaz ve hayvanları Bahçe'den uzak tutar. İş sırasında Bahçe'de bulunacak kişilere (işçi, bekçi, komşu) biçme yapılacağını iletir.",
+          "Sahip, iş günü Bahçe'ye erişimi sağlar (kapı, anahtar, bekçi), mümkünse bir gün önceden sulama yapmaz ve hayvanları Bahçe'den uzak tutar. İş sırasında Bahçe'de bulunacak kişilere (işçi, bekçi, komşu) biçmenin otonom robotla yapılacağını ve robotun çalıştığı alana yaklaşmamaları gerektiğini iletir.",
           "Erişim Sahip'ten kaynaklanan bir nedenle sağlanamazsa iş yapılmaz ve yeni tarih belirlenir; Sahip'ten bir bedel istenmez. Aynı talepte bu iki kez olursa Şirket talebi kapatabilir.",
         ],
       },
@@ -1229,8 +1229,8 @@ export const legalText: Record<LegalText, LegalDocument> = {
       {
         kind: "ol",
         items: [
-          "Personel işe başlamadan Bahçe'yi gözle kontrol eder, görünen ve bildirilen engellerin çevresinde dikkatli çalışır, gövde ve aşı yerine yaklaşmadan biçer ve yakınına bir kişi geldiğinde motoru durdurur. Personelin iş sağlığı ve güvenliği önlemleri Şirket'e aittir.",
-          "Yağmur ya da ıslak toprak, kuvvetli rüzgâr, aşırı sıcak, kuru otta yangın riskinin yüksek olması ya da resmi makamların makine kullanımını veya tarla işlerini kısıtlaması halinde Şirket işi erteler. Ertelemeyi mümkünse bir gün önce, olmuyorsa iş günü işe başlamadan SMS ile bildirir ve yeni bir tarih önerir. Personelin hastalığı gibi Şirket'ten kaynaklanan nedenlerde de aynısı uygulanır.",
+          "Personel işe başlamadan Bahçe'yi gözle kontrol eder ve robotun çalışacağı alanı belirler. Robot ve personel görünen ve bildirilen engellerin çevresinde dikkatli çalışır, gövde ve aşı yerine yaklaşmadan biçer. Çalışma alanına bir kişi ya da hayvan girerse Şirket robotu ya da makineyi durdurur. Robotun güvenli işletilmesi ve personelin iş sağlığı ve güvenliği önlemleri Şirket'e aittir.",
+          "Yağmur ya da ıslak toprak, kuvvetli rüzgâr, aşırı sıcak, kuru otta yangın riskinin yüksek olması ya da resmi makamların makine kullanımını veya tarla işlerini kısıtlaması halinde Şirket işi erteler. Ertelemeyi mümkünse bir gün önce, olmuyorsa iş günü işe başlamadan SMS ile bildirir ve yeni bir tarih önerir. Robotun arızası ya da personelin hastalığı gibi Şirket'ten kaynaklanan nedenlerde de aynısı uygulanır.",
           "Sahip yeni tarihi kabul etmezse talebini 10. bölüme göre bedelsiz iptal edebilir. İş, hizmetin sezon penceresi içinde yapılamazsa talep bedelsiz kapanır. Erteleme için hiçbir tarafa bedel doğmaz; Ana Sözleşme Madde 13 (mücbir sebep) saklıdır.",
           "İş başladıktan sonra hava nedeniyle yarım kalırsa kalan kısım ek bedel istenmeden başka bir gün tamamlanır.",
         ],
@@ -1254,8 +1254,8 @@ export const legalText: Record<LegalText, LegalDocument> = {
       {
         kind: "ol",
         items: [
-          "Şirket, personelinin işi yaparken kendi kusuruyla verdiği zarardan kanuna göre sorumludur; örneğin motorlu tırpanın gövdeye, aşı yerine, fidana ya da bildirilen veya görünür bir damla sulama hortumuna verdiği zarar.",
-          "Şirket, 6. bölüme göre bildirilmemiş ve özen gösterildiğinde de görülemeyecek engellere personelin kusuru olmadan verilen zarardan sorumlu değildir. Zarara Sahip'in bildirmemesi de katkıda bulunduysa tazminat kanuna göre indirilir. Şirket, gizli engellerin motorlu tırpana verdiği zarar için Sahip'ten bedel istemez.",
+          "Şirket, robotunun ya da personelinin işi yaparken verdiği zarardan kanuna göre sorumludur; örneğin robotun ya da personelin gövdeye, aşı yerine, fidana ya da bildirilen veya görünür bir damla sulama hortumuna verdiği zarar. Robotun otonom çalışması Şirket'in sorumluluğunu kaldırmaz.",
+          "Şirket, 6. bölüme göre bildirilmemiş ve özen gösterildiğinde de görülemeyecek engellere Şirket'in kusuru olmadan verilen zarardan sorumlu değildir. Zarara Sahip'in bildirmemesi de katkıda bulunduysa tazminat kanuna göre indirilir. Şirket, gizli engellerin robota ya da personelin ekipmanına verdiği zarar için Sahip'ten bedel istemez.",
           "**Hasar bildirimi:** Sahip, fark ettiği hasarı iş tamamlandı bildiriminden itibaren 7 gün içinde, fotoğrafla portaldan, [Telefon] ya da [E-posta] ile bildirir. Geç bildirim hakkı düşürmez; ancak zararın biçmeden doğduğunun ispatını zorlaştırabilir. Şirket bildirime 7 gün içinde yanıt verir; gerekirse yerinde bakar. Sorumlu olduğu zararı, aynı nitelikte parçayla onararak (örneğin hortum ve bağlantı) ya da belgelenmiş onarım veya yerine koyma bedelini ödeyerek giderir.",
           "**Sahip tacir Sahip ise (Ana Sözleşme Madde 1): Şirket'in hafif kusurundan doğan sorumluluğu, ilgili talep için ödenen ya da ödenecek bedelle sınırlıdır ve dolaylı zararları (kâr kaybı, ürün değeri kaybı) kapsamaz. Bu sınırlama kast ve ağır kusurda, ölüm ve bedensel zararlarda uygulanmaz.** Tüketici Sahip için parasal bir sınır yoktur.",
           "Şirket, otların yeniden büyümesinden, biçmeden bağımsız ürün kaybından ve Bahçe'deki hastalık ve zararlıların sonuçlarından sorumlu değildir.",
@@ -1268,9 +1268,9 @@ export const legalText: Record<LegalText, LegalDocument> = {
       {
         kind: "ol",
         items: [
-          "**Sahip'in iptali:** Sahip, iş tarihinden önceki günün sonuna kadar talebini portaldan bedelsiz iptal edebilir. İş günü, personel işe başlamadan telefonla yapılan iptal için de bedel istenmez.",
+          "**Sahip'in iptali:** Sahip, iş tarihinden önceki günün sonuna kadar talebini portaldan bedelsiz iptal edebilir. İş günü, işe başlanmadan telefonla yapılan iptal için de bedel istenmez.",
           "**Cayma hakkı:** Sahip, sözleşmenin kurulduğu günden (Şirket'in onayı) itibaren 14 gün içinde gerekçe göstermeden ve cezai şart ödemeden cayabilir. Cayma bildirimi portaldaki iptalle, [E-posta], [KEP] ya da [Adres]'e yazılı olarak yapılır; Ana Sözleşme Ek-7'deki örnek cayma formu, hizmet satırına talep numarası yazılarak kullanılabilir. Ödeme iş yapılmadan alınmadığı için caymada iade edilecek bir tutar doğmaz; yanlışlıkla ödeme yapılmışsa 14 gün içinde aynı yöntemle iade edilir.",
-          '**Biçmenin cayma süresi içinde yapılması:** Talep formunda ayrı ve işaretsiz şu kutu bulunur: "☐ Ot biçmenin 14 günlük cayma süresi dolmadan yapılmasını istiyorum. Personel işe başladığında cayma hakkımın sona ereceğini biliyorum. Bu kutuyu işaretlemezsem iş, cayma süresi dolduktan sonraki bir güne planlanır." Kutu işaretlenmezse Şirket işi cayma süresinin bitiminden önceki bir güne planlamaz. Kutu işaretlenir ve iş başlarsa cayma hakkı Mesafeli Sözleşmeler Yönetmeliği md. 15/1-(h) uyarınca sona erer.',
+          '**Biçmenin cayma süresi içinde yapılması:** Talep formunda ayrı ve işaretsiz şu kutu bulunur: "☐ Ot biçmenin 14 günlük cayma süresi dolmadan yapılmasını istiyorum. İşe başlandığında cayma hakkımın sona ereceğini biliyorum. Bu kutuyu işaretlemezsem iş, cayma süresi dolduktan sonraki bir güne planlanır." Kutu işaretlenmezse Şirket işi cayma süresinin bitiminden önceki bir güne planlamaz. Kutu işaretlenir ve iş başlarsa cayma hakkı Mesafeli Sözleşmeler Yönetmeliği md. 15/1-(h) uyarınca sona erer.',
           "**Başlamış iş:** İş başladıktan sonra Sahip işi durdurursa yalnızca biçilen alana düşen bedel (toplam tutarın biçilen alan oranındaki payı) istenir.",
           "**Şirket'in iptali:** Şirket, talebi 6. bölümdeki erişim sorunu, 7. bölümdeki sezon sonu ya da personelin güvenliğini tehdit eden bir durum nedeniyle gerekçesini bildirerek iptal edebilir. Şirket'in iptalinde Sahip'ten bedel istenmez.",
           "Bahçe Ana Sözleşme Madde 12'ye göre hizmetten çıkarılırsa ya da Ana Sözleşme sona ererse Bahçe'nin henüz yapılmamış talepleri bedelsiz kapanır. Tamamlanmış işin ödemesi ve bu ekteki sorumluluk hükümleri sürer.",

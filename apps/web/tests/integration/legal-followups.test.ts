@@ -51,6 +51,7 @@ describe("legal-text registry (T21)", () => {
     const rows = check(await anonClient().rpc("registered_legal_text_versions"));
     const archived = rows.filter((r) => !r.is_current);
     expect(archived.map((r) => r.version).sort()).toEqual([
+      "bakim-v1-taslak",
       "gizlilik-v1-taslak",
       "iade-v1-taslak",
       "iade-v2-taslak",

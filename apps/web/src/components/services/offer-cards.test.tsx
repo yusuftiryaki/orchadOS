@@ -15,6 +15,18 @@ const offer = (over: Partial<ServiceOffer>): ServiceOffer =>
     season_start: "2027-03-01",
     price_list_version: 2,
     estimate_total_kurus: 882_000,
+    robot_model_id: "r1",
+    robot_model_code: "maraba_i",
+    robot_model_name: "MARABA-I",
+    robot: {
+      id: "r1",
+      code: "maraba_i",
+      name: "MARABA-I",
+      shortDescription: "orchadOS tarama kitini taşıyan otonom bahçe robotu",
+      capabilities: ["Misinalı biçme kafası"],
+      imagePath: "/robots/maraba-dijital-ikiz.jpg",
+      drawingPath: "/robots/maraba-i.svg",
+    },
     ...over,
   }) as ServiceOffer;
 
@@ -32,7 +44,11 @@ describe("service offer cards", () => {
       />,
     );
     expect(html).toContain("Bahçe hizmetleri");
-    expect(html).toContain("motorlu tırpan");
+    expect(html).toContain("Biçmeyi otonom robotumuz MARABA-I yapar.");
+    expect(html).not.toContain("tırpan");
+    // Each card names the robot that does the job.
+    expect(html.match(/data-testid="robot-badge"/g)).toHaveLength(2);
+    expect(html).toContain("Otonom robot · MARABA-I");
     expect(html).toContain("Kuzey Bahçe");
     expect(html).toContain('data-state="pre_request"');
     expect(html).toContain('href="/portal/hizmetler/yeni?parsel=p1&amp;hizmet=t1"');
@@ -53,5 +69,12 @@ describe("service offer cards", () => {
     expect(html).toContain('data-priced="false"');
     expect(html).not.toMatch(/\d TL/);
     expect(html).toContain("Talep et");
+  });
+
+  it("no robot model for the service: no badge", () => {
+    const html = renderToStaticMarkup(
+      <ServiceOffers offers={[offer({ robot: null, robot_model_id: null })]} today="2027-05-02" />,
+    );
+    expect(html).not.toContain('data-testid="robot-badge"');
   });
 });

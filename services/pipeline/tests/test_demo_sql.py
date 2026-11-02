@@ -62,8 +62,32 @@ def test_steps_in_order(generated):
 
 def test_no_delete_or_update_of_domain_rows(generated):
     _ds, _m, _script, sql = generated
-    assert not re.search(r"^\s*(delete|update|truncate)\b", sql, flags=re.M | re.I)
+    # The only updates: version 3's upgrade of the version 2 rows it changed.
+    upgrade = sqlgen.robot_upgrade()
+    assert sql.count(upgrade) == 1
+    rest = sql.replace(upgrade, "")
+    assert not re.search(r"^\s*(delete|update|truncate)\b", rest, flags=re.M | re.I)
     assert "status = 'published'" not in sql  # sessions are inserted published, never updated
+
+
+def test_robot_upgrade_names_each_row_and_is_idempotent():
+    """Each update names one row by id and changes it only while it still differs."""
+    upgrade = sqlgen.robot_upgrade()
+    updates = re.findall(r"^update .*?;$", upgrade, flags=re.M | re.S)
+    (job,) = dataset.SERVICE_JOBS
+    assert [re.match(r"update (\S+)", u).group(1) for u in updates] == [
+        "public.service_type",
+        "public.session",
+        "public.operation",
+        "public.service_request",
+    ]
+    for u, row in zip(
+        updates,
+        (sqlgen.SERVICE_TYPE_ID, job.id, job.operation_id, job.request_id),
+        strict=True,
+    ):
+        assert f"where id = '{row}' and " in u and "is distinct from" in u
+    assert not re.search(r"\b(delete|truncate|status)\b", upgrade, flags=re.I)
 
 
 def test_personas_have_empty_tokens_and_a_finite_ban(generated):
@@ -106,6 +130,15 @@ def test_service_layer_rows(generated):
     _ds, manifest, script, sql = generated
     (st,) = _rows(script, "services", "public.service_type")
     assert st["org_id"] == ids.ORG_ID and st["code"] == "weed_mowing"
+    # Version 3: the service names the robot, never another method.
+    assert "otonom robotumuz MARABA-I" in st["description"] and "tırpan" not in sql
+    (link,) = _rows(script, "services", "public.service_type_robot_model")
+    assert (link["org_id"], link["service_type_id"], link["robot_model_id"]) == (
+        ids.ORG_ID,
+        st["id"],
+        dataset.ROBOT_MODEL_ID,
+    )
+    assert "on conflict (service_type_id, robot_model_id) do nothing" in sql
     assert st["id"] == ids.did("service_type", "weed_mowing", version=2)
     # Unpriced: no price column, no price list (prices live in price_list_service_item).
     assert not {
@@ -128,8 +161,9 @@ def test_service_layer_rows(generated):
     (req,) = _rows(script, "services", "public.service_request")
     assert req["parcel_id"] == ids.PARCEL_B and req["status"] == "done"
     assert re.fullmatch(r"H-2026-\d{6}", req["number"])
-    assert req["terms_version"] == "bakim-v1-taslak" and req["pricing_rule"] == "service-v1"
+    assert req["terms_version"] == "bakim-v2-taslak" and req["pricing_rule"] == "service-v1"
     assert req["id"] == ids.B_MOWING_2026_REQUEST
+    assert req["robot_model_id"] == dataset.ROBOT_MODEL_ID
     # Unpriced at the request: the eight price and estimate columns all null.
     for c in (
         "price_list_id",
@@ -159,17 +193,20 @@ def test_service_layer_rows(generated):
     assert [e["created_at"] for e in events] == sorted(e["created_at"] for e in events)
 
     (op,) = _rows(script, "services", "public.operation")
-    assert (op["kind"], op["performer"], op["session_id"]) == ("mowing", "crew", job.id)
+    # Version 3: the robot did the job (internal truth, as
+    # ops_complete_service_request records it by default for mowing).
+    assert (op["kind"], op["performer"], op["session_id"]) == ("mowing", "robot", job.id)
     assert op["details"] == {
         "service_request_id": job.request_id,
         "service_request_number": req["number"],
         "service_code": "weed_mowing",
         "by": "orchados",
+        "robot_model": "maraba_i",
     }
 
     sessions = _rows(script, "sessions", "public.session")
     (mow,) = [s for s in sessions if s["kind"] == "mowing"]
-    assert mow["id"] == job.id and mow["status"] == "captured"
+    assert mow["id"] == job.id and mow["status"] == "captured" and mow["performer"] == "robot"
     assert mow["published_at"] is None and mow["published_by"] is None
 
     assets = {a["id"]: a for a in _rows(script, "services", "public.asset")}
@@ -198,6 +235,7 @@ def test_service_layer_rows(generated):
     order = [
         "public.org_billing_setting",
         "public.service_type",
+        "public.service_type_robot_model",
         "public.asset",
         "public.operation",
         "public.service_request ",

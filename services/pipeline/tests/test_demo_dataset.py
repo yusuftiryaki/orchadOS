@@ -153,10 +153,22 @@ def test_findings_and_questions(ds):
 
 
 def test_versions_are_cumulative():
-    """Version 2 adds the service layer; version 1 rows keep their ids and seeds."""
-    assert dataset.DATASET_VERSION == 2 and dataset.SEED_VERSION == 1
-    assert dataset.SERVICES_VERSION == 2
+    """Version 2 adds the service layer, version 3 the robot; earlier rows keep their
+    ids and seeds."""
+    assert dataset.DATASET_VERSION == 3 and dataset.SEED_VERSION == 1
+    assert dataset.SERVICES_VERSION == 2 and dataset.ROBOT_VERSION == 3
     assert sqlgen.SERVICE_TYPE_ID == ids.did("service_type", "weed_mowing", version=2)
+
+
+def test_the_robot_does_the_mowing():
+    """Owner decision of 2 November 2026: the service is presented as done by the
+    autonomous robot MARABA-I and never names another method."""
+    description = dataset.SERVICE_TYPE["description"]
+    assert "otonom robotumuz MARABA-I" in description
+    assert "tırpan" not in description.lower()
+    assert dataset.ROBOT_MODEL_CODE == "maraba_i"
+    for job in dataset.SERVICE_JOBS:
+        assert job.performer == "robot" and job.robot_model_id == dataset.ROBOT_MODEL_ID
 
 
 def test_service_catalogue_is_unpriced():

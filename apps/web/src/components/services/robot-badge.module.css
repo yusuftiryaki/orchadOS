@@ -1,0 +1,195 @@
+/* The robot badge and its card (robot-badge.tsx). The badge is a quiet
+   control, not a status: framed, 6 px corners, 44 px tall. The card floats
+   (the one place with a shadow) under the badge, kept inside the viewport. */
+
+.root {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  max-width: 100%;
+  padding: 0 var(--space-3) 0 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
+}
+
+.trigger:hover,
+.trigger[aria-expanded="true"] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+
+.icon {
+  flex: none;
+  color: var(--color-accent);
+}
+
+/* List rows: a smaller face, the same 44 px hit area. */
+.compact .trigger {
+  position: relative;
+  min-height: 32px;
+  padding: 0 10px 0 8px;
+  gap: 6px;
+  font-size: var(--text-xs);
+}
+
+.compact .trigger::after {
+  content: "";
+  position: absolute;
+  inset: -6px 0;
+}
+
+.compact .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.card {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  z-index: 30;
+  width: min(22rem, calc(100vw - 2 * var(--space-3)));
+  transform: translateX(var(--shift, 0px));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  text-align: left;
+  white-space: normal;
+}
+
+.card[hidden] {
+  display: none;
+}
+
+.figure {
+  position: relative;
+  margin: 0;
+  background: var(--color-surface-2);
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 786 / 456;
+  object-fit: cover;
+}
+
+/* "Temsili görsel" on the image: a plain label, readable on the dark render. */
+.caption {
+  position: absolute;
+  left: var(--space-2);
+  bottom: var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-2);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.body {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.head {
+  display: grid;
+  gap: 2px;
+}
+
+.kind {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.description {
+  margin: 0;
+  color: var(--color-text-2);
+}
+
+.listTitle {
+  margin: var(--space-1) 0 0;
+  font-weight: 600;
+}
+
+.list {
+  margin: 0;
+  padding-left: 1.2em;
+  display: grid;
+  gap: 2px;
+  color: var(--color-text-2);
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  font-weight: 600;
+}
+
+.close {
+  min-height: var(--control-height);
+  margin-left: auto;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger {
+    transition: none;
+  }
+}

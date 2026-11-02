@@ -660,8 +660,20 @@ export async function getPackage(supabase: Client, id: string): Promise<ServiceP
 
 export interface PriceListServiceItem {
   service_type_id: string;
+  // IP15: the robot model the price is for; null: any robot (the fallback).
+  robot_model_id: string | null;
   unit_price_kurus: number;
   minimum_fee_kurus: number;
+}
+
+// A robot model that can do a service (service_type_robot_model): a price
+// row of its own may be entered for it.
+export interface PriceListServiceRobot {
+  service_type_id: string;
+  robot_model_id: string;
+  code: string;
+  name: string;
+  active: boolean;
 }
 
 export interface PriceListServiceType {
@@ -679,6 +691,8 @@ export interface PriceListView {
   // catalogue; a service without an item is unpriced in this version.
   serviceItems: PriceListServiceItem[];
   serviceTypes: PriceListServiceType[];
+  // The robot models of each service, in their order.
+  serviceRobots: PriceListServiceRobot[];
 }
 
 export async function getPriceList(supabase: Client, id: string): Promise<PriceListView | null> {
@@ -687,7 +701,7 @@ export async function getPriceList(supabase: Client, id: string): Promise<PriceL
     await supabase.from("price_list").select(BILLING_COLUMNS.price_list).eq("id", id).maybeSingle(),
   ) as PriceList | null;
   if (!list) return null;
-  const [items, packages, serviceItems, serviceTypes] = await Promise.all([
+  const [items, packages, serviceItems, serviceTypes, serviceRobots] = await Promise.all([
     supabase
       .from("price_list_item")
       .select(BILLING_COLUMNS.price_list_item)
@@ -700,14 +714,20 @@ export async function getPriceList(supabase: Client, id: string): Promise<PriceL
       .order("code"),
     supabase
       .from("price_list_service_item")
-      .select("service_type_id, unit_price_kurus, minimum_fee_kurus")
-      .eq("price_list_id", id),
+      .select("service_type_id, robot_model_id, unit_price_kurus, minimum_fee_kurus")
+      .eq("price_list_id", id)
+      .order("robot_model_id", { nullsFirst: true }),
     supabase
       .from("service_type")
       .select("id, code, name, active")
       .eq("org_id", list.org_id)
       .order("sort_order")
       .order("code"),
+    supabase
+      .from("service_type_robot_model")
+      .select("service_type_id, robot_model_id, sort_order, robot_model(code, name, active)")
+      .eq("org_id", list.org_id)
+      .order("sort_order"),
   ]);
   return {
     list,
@@ -715,6 +735,19 @@ export async function getPriceList(supabase: Client, id: string): Promise<PriceL
     packages: check(packages) as ServicePackage[],
     serviceItems: check(serviceItems) as PriceListServiceItem[],
     serviceTypes: check(serviceTypes) as PriceListServiceType[],
+    serviceRobots: (
+      check(serviceRobots) as {
+        service_type_id: string;
+        robot_model_id: string;
+        robot_model: { code: string; name: string; active: boolean } | null;
+      }[]
+    ).map((r) => ({
+      service_type_id: r.service_type_id,
+      robot_model_id: r.robot_model_id,
+      code: r.robot_model?.code ?? "",
+      name: r.robot_model?.name ?? "",
+      active: r.robot_model?.active ?? false,
+    })),
   };
 }
 

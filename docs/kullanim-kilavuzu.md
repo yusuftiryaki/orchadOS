@@ -446,16 +446,16 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 
 **Kim:** Sahip, operasyon, saha personeli · **Ürün kararı:** [MVP.md](MVP.md#modül-6--hizmet-katmanı-yabani-ot-biçme)
 
-Denetimin yanında sahip bahçesi için hizmet de alabilir; bugün tek hizmet yabani ot biçmedir. İşi köydeki saha personeli motorlu tırpanla yapar. Çevrimiçi ödeme yoktur. Hizmet katmanı `services_enabled` anahtarıyla açılır. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır.
+Denetimin yanında sahip bahçesi için hizmet de alabilir; bugün tek hizmet yabani ot biçmedir. İşi otonom robotumuz MARABA-I yapar; sahip talepte işi yapacak robotu seçer (bugün tek model MARABA-I), fiyat robota göre değişebilir. Sahibe hizmet yalnız böyle anlatılır. Çevrimiçi ödeme yoktur. Hizmet katmanı `services_enabled` anahtarıyla açılır. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır.
 
 1. **Öneri (sahip):** Yayımlanan ilkbahar ya da yaz ziyaretinde ot orta ya da uzunsa ve sezon açıksa parsel karnesinde öneri kartı çıkar: "Bahçenizde ot uzun." ve "Talep et". Yayımlı fiyat listesinde hizmetin fiyatı varsa kart tutarı (KDV dahil) ve küçük yazıyla liste sürümünü gösterir; yoksa (bugünkü durum: fiyat henüz belirlenmedi) rakam yerine "Fiyat teklifle bildirilir" yazar. Sezon, bahçenin meyve türüne göredir; sezon dışında kart "Gelecek sezon için ön talep bırakın" der.
-2. **Talep (sahip):** Parsel, tercih edilen zaman aralığı ve not seçilir, hizmet koşulları onaylanır. Talep **Hizmetlerim**'de numarası ve durumuyla görünür; planlanan tarihten önceki güne kadar oradan ücretsiz iptal edilir.
-3. **Planlama (operasyon):** `/operasyon/hizmet` kuyruğunda talep açılır, tutar onaylanır (talepte sabitlenen tutar aşılamaz; talepte tutar yoksa elle girilir) ve tarih verilir. Parsel için biçme oturumu açılır, sahibe bildirim gider. Fiyat, `/operasyon/fiyat`'taki sürümlü fiyat listesinin "Hizmet fiyatları" bölümünde girilir; `/operasyon/hizmet/katalog` sezonu (varsayılan ve meyve türüne göre) ve öneri kuralını düzenler.
-4. **İş (saha personeli):** Biçmeden önce ve sonra parselin fotoğrafını çeker.
-5. **Kapanış (operasyon):** İş kapatılırken en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlanır (yeni yükleme ya da aynı parselin yayımlanmış ziyaretinden medya). Ödeme işten sonra elle kaydedilir (tutar, yöntem, tarih).
+2. **Talep (sahip):** Parsel, robot, tercih edilen zaman aralığı ve not seçilir, hizmet koşulları onaylanır. Talep **Hizmetlerim**'de numarası ve durumuyla görünür; planlanan tarihten önceki güne kadar oradan ücretsiz iptal edilir.
+3. **Planlama (operasyon):** `/operasyon/hizmet` kuyruğunda talep (seçilen robotla) açılır, tutar onaylanır (talepte sabitlenen tutar aşılamaz; talepte tutar yoksa elle girilir) ve tarih verilir. Parsel için biçme oturumu açılır, sahibe bildirim gider. Fiyat, `/operasyon/fiyat`'taki sürümlü fiyat listesinin "Hizmet fiyatları" bölümünde "Tüm robotlar" için ve istenirse robot modeli başına girilir; `/operasyon/hizmet/katalog` sezonu (varsayılan ve meyve türüne göre) ve öneri kuralını düzenler.
+4. **İş (robot, saha personelinin gözetiminde):** Robot biçer; personel biçmeden önce ve sonra parselin fotoğrafını çeker, robotun ulaşamadığı kısımları tamamlar.
+5. **Kapanış (operasyon):** İş kapatılırken en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlanır (yeni yükleme ya da aynı parselin yayımlanmış ziyaretinden medya) ve "İşi kim yaptı?" cevaplanır (Robot varsayılan; işin tamamını ya da çoğunu saha ekibi yaptıysa Saha ekibi). Bu iç kayıttır, sahibe gösterilmez. Ödeme işten sonra elle kaydedilir (tutar, yöntem, tarih).
 6. **Kanıt (sahip):** Hizmetlerim'de tamamlanan işin tarihini ve öncesi/sonrası fotoğraflarını görür. O dönemin karnesindeki bakım uyumu satırı, biçmeyi orchadOS'un yaptığını açıkça yazar.
 
-**Robot uygunluk notları:** Operasyon, ops parsel sayfasında her parsel için eğim, taşlılık, en alçak dal yüksekliği ve serbest not tutar. Notlar ileride robotun önce hangi bahçelere gideceğini seçmek içindir; sahibe gösterilmez.
+**Robot uygunluk notları:** Operasyon, ops parsel sayfasında her parsel için eğim, taşlılık, en alçak dal yüksekliği ve serbest not tutar. Notlar robotun bahçede nerede güvenle çalışabileceğini ve hangi kısımları saha ekibinin tamamlaması gerektiğini planlamak içindir; sahibe gösterilmez.
 
 | Adım | Durum |
 | --- | --- |

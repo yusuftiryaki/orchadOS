@@ -32,7 +32,7 @@ export const demoText = {
       "Ağaç karnesi: fotoğraf kanıtı ve hash doğrulaması",
       "Bulgular, uzman açıklamaları ve önerileri, örnek soru-cevaplar",
       "Envanter raporu ve iki PDF",
-      "Bahçe hizmetleri: ot biçme önerisi ve öncesi-sonrası fotoğraflı tamamlanmış bir iş",
+      "Bahçe hizmetleri: otonom robotumuz MARABA-I ile ot biçme önerisi ve öncesi-sonrası fotoğraflı tamamlanmış bir iş",
     ],
     dataTitle: "Veriler hakkında",
     data: [
@@ -163,11 +163,11 @@ export const demoText = {
       },
       "hizmet-oneri": {
         title: "Hizmet önerisi",
-        body: "Bahçenizin durumuna ve mevsime göre iş öneriyoruz. Son ziyarette otun boyunu not ettik; ot biçme talebini buradan açabilirsiniz. Sezon dışında bağlayıcı olmayan bir ön talep bırakılır.",
+        body: "Bahçenizin durumuna ve mevsime göre iş öneriyoruz. Son ziyarette otun boyunu not ettik; ot biçme talebini buradan açabilirsiniz. Otları otonom robotumuz MARABA-I biçer. Sezon dışında bağlayıcı olmayan bir ön talep bırakılır.",
       },
       "hizmet-sonuc": {
         title: "Yapılan işin kanıtı",
-        body: "Yapılan iş öncesi ve sonrası fotoğrafla kanıtlanır. Fotoğraflar parsel kaydına eklenir; tutar, ödeme ve iş tarihçesi aynı sayfada.",
+        body: "Otonom robotumuz MARABA-I'nin yaptığı iş öncesi ve sonrası fotoğrafla kanıtlanır. Fotoğraflar parsel kaydına eklenir; tutar, ödeme ve iş tarihçesi aynı sayfada.",
       },
       pdf: {
         title: "PDF rapor",

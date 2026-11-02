@@ -1,6 +1,7 @@
 import type { Database } from "@/lib/database.types";
 import { servicesText as S } from "@/lib/i18n/messages/services";
 import { dayMonthLocative, formatTl, shortDate } from "./format";
+import type { RobotModel } from "./robots";
 import { serviceHref } from "./urls";
 
 // The offer cards of the portal (IP15, docs/MVP.md Module 6, "Öneri
@@ -26,9 +27,17 @@ type Nullable =
   | "measurement_id"
   | "open_request_id"
   | "open_request_status"
-  | "open_request_number";
+  | "open_request_number"
+  // No robot model can do the service.
+  | "robot_model_id"
+  | "robot_model_code"
+  | "robot_model_name";
 export type ServiceOffer = Omit<OfferRow, Nullable> & {
   [K in Nullable]: OfferRow[K] | null;
+} & {
+  // The robot of robot_model_id for the badge (data.ts loads it); absent or
+  // null: no badge.
+  robot?: RobotModel | null;
 };
 export type OfferState = "recommended" | "available" | "pre_request" | "open";
 
@@ -51,6 +60,8 @@ export interface OfferCard {
   // Pre-request: only "Fiyat teklifle bildirilir" when unpriced (a pre-request
   // commits to no price either way). Open: none.
   price: OfferPrice | null;
+  // The robot that does the job (the open request's, else the default one).
+  robot: RobotModel | null;
   action: { label: string; href: string };
 }
 
@@ -132,6 +143,7 @@ export function offerCard(offer: ServiceOffer, today: string): OfferCard | null 
     parcelId: offer.parcel_id,
     parcelName: offer.parcel_name,
     serviceTypeId: offer.service_type_id,
+    robot: offer.robot ?? null,
   };
   const request = {
     label: S.card.request,

@@ -234,12 +234,28 @@ describe("forms", () => {
     ).toEqual({
       ok: true,
       value: {
-        items: [{ service_type_id: "a", unit_price_kurus: 37_500, minimum_fee_kurus: 250_000 }],
+        items: [
+          {
+            service_type_id: "a",
+            robot_model_id: null,
+            unit_price_kurus: 37_500,
+            minimum_fee_kurus: 250_000,
+          },
+        ],
       },
     });
     expect(parsePriceListServiceItems(reader({ svc_unit_a: "375" }), ["a"])).toEqual({
       ok: true,
-      value: { items: [{ service_type_id: "a", unit_price_kurus: 37_500, minimum_fee_kurus: 0 }] },
+      value: {
+        items: [
+          {
+            service_type_id: "a",
+            robot_model_id: null,
+            unit_price_kurus: 37_500,
+            minimum_fee_kurus: 0,
+          },
+        ],
+      },
     });
     expect(parsePriceListServiceItems(reader({}), ["a"])).toEqual({
       ok: true,
@@ -256,6 +272,61 @@ describe("forms", () => {
     expect(parsePriceListServiceItems(reader({ svc_unit_a: "1", svc_min_a: "-1" }), ["a"])).toEqual(
       { ok: false, field: "svc_min_a" },
     );
+  });
+
+  it("service prices per robot model: own row preferred, empty falls back to all robots", () => {
+    const robots = [{ serviceTypeId: "a", robotModelId: "m" }];
+    expect(
+      parsePriceListServiceItems(
+        reader({ svc_unit_a: "375", svc_unit_a_m: "450", svc_min_a_m: "3.000" }),
+        ["a"],
+        robots,
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        items: [
+          {
+            service_type_id: "a",
+            robot_model_id: null,
+            unit_price_kurus: 37_500,
+            minimum_fee_kurus: 0,
+          },
+          {
+            service_type_id: "a",
+            robot_model_id: "m",
+            unit_price_kurus: 45_000,
+            minimum_fee_kurus: 300_000,
+          },
+        ],
+      },
+    });
+    // Only a model's own price: no any-robot row.
+    expect(parsePriceListServiceItems(reader({ svc_unit_a_m: "450" }), ["a"], robots)).toEqual({
+      ok: true,
+      value: {
+        items: [
+          {
+            service_type_id: "a",
+            robot_model_id: "m",
+            unit_price_kurus: 45_000,
+            minimum_fee_kurus: 0,
+          },
+        ],
+      },
+    });
+    expect(parsePriceListServiceItems(reader({ svc_min_a_m: "100" }), ["a"], robots)).toEqual({
+      ok: false,
+      field: "svc_unit_a_m",
+    });
+    // A model of a service not in the form is ignored.
+    expect(
+      parsePriceListServiceItems(
+        reader({ svc_unit_b_m: "1" }),
+        ["a"],
+        [{ serviceTypeId: "b", robotModelId: "m" }],
+      ),
+    ).toEqual({ ok: true, value: { items: [] } });
   });
 
   it("price list draft: TL per package, empty unit price leaves it out", () => {

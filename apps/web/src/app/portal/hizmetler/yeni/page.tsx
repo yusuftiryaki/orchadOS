@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DemoNotice } from "@/components/demo/demo-notice";
 import { demoSignupNext } from "@/components/demo/demo-shell";
 import layout from "@/components/portal/page.module.css";
+import { RobotBadge } from "@/components/services/robot-badge";
 import styles from "@/components/services/services.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -16,10 +17,11 @@ import { demoText } from "@/lib/i18n/messages/demo";
 import { servicesText as S } from "@/lib/i18n/messages/services";
 import { SERVICE_TERMS_VERSION } from "@/lib/legal/versions";
 import { istanbulToday } from "@/lib/portal-billing/gardens";
-import { findServiceOffer } from "@/lib/services/data";
+import { findServiceOffer, listRobotOffers } from "@/lib/services/data";
 import { dayMonthLocative, formatTl, vatPercent } from "@/lib/services/format";
 import { offerCard, offerEstimate, serviceShortName } from "@/lib/services/offers";
 import { NOTE_MAX, SERVICE_WINDOWS, serviceErrorText } from "@/lib/services/requests";
+import { defaultRobotOffer, type RobotOffer } from "@/lib/services/robots";
 import { serviceHref } from "@/lib/services/urls";
 import { createClient } from "@/lib/supabase/server";
 import { requestServiceAction } from "../actions";
@@ -33,7 +35,10 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 // its area and where the area comes from, the estimate the request freezes
 // (with its price list version) or, when the published price list has no
 // price for the service, "Fiyat teklifle bildirilir" and no number; the preferred
-// window, a note for hidden obstacles, and in season two separate required
+// window, the robot that does the job ("Hangi robot yapsın?": one radio card
+// per model of service_robot_offers, each with its own estimate; the default
+// model is preselected and the summary shows its amounts), a note for hidden
+// obstacles, and in season two separate required
 // consents (ön bilgilendirme, ek sözleşme) plus the optional, unticked
 // early-performance box of the addendum's section 10/3. Out of season the
 // same form leaves a non-binding pre-request (addendum §11) without the
@@ -47,7 +52,10 @@ export default async function NewServiceRequestPage({
   const [query, supabase] = await Promise.all([searchParams, createClient()]);
   const parcelId = first(query.parsel) ?? "";
   const serviceTypeId = first(query.hizmet) ?? "";
-  const offer = await findServiceOffer(supabase, parcelId, serviceTypeId);
+  const [offer, robotOffers] = await Promise.all([
+    findServiceOffer(supabase, parcelId, serviceTypeId),
+    listRobotOffers(supabase, parcelId, serviceTypeId),
+  ]);
   const error = serviceErrorText(first(query.hata));
   // A demo visitor sent the form (docs/demo-turu.md §11.5).
   const demoRefused = user.demo && first(query.hata) === "demo_read_only";
@@ -79,7 +87,12 @@ export default async function NewServiceRequestPage({
   const card = offerCard(offer, today);
   const back = { href: `/portal/parsel/${offer.parcel_id}`, label: F.back };
   const opens = dayMonthLocative(offer.season_start);
-  const price = offerEstimate(offer);
+  // The summary shows the preselected model's amounts (the database's
+  // default model, as service_offers prices it); with more than one model
+  // each card names its own amount.
+  const chosen =
+    robotOffers.find((o) => o.robot.id === offer.robot_model_id) ?? defaultRobotOffer(robotOffers);
+  const price = chosen ? chosen.estimate : offerEstimate(offer);
 
   return (
     <main className={`${layout.page} ${layout.reading}`} data-testid="service-request-form">
@@ -159,6 +172,9 @@ export default async function NewServiceRequestPage({
           <form action={requestServiceAction} className={styles.form}>
             <input type="hidden" name="parcel_id" value={offer.parcel_id} />
             <input type="hidden" name="service_type_id" value={offer.service_type_id} />
+            {robotOffers.length > 0 && (
+              <RobotChoice offers={robotOffers} chosenId={chosen?.robot.id ?? null} />
+            )}
             <Field id="s-window" label={F.windowLabel} hint={F.windowHint}>
               <Select name="window" defaultValue="flexible">
                 {SERVICE_WINDOWS.map((w) => (
@@ -230,5 +246,59 @@ export default async function NewServiceRequestPage({
         </Panel>
       )}
     </main>
+  );
+}
+
+// "Hangi robot yapsın?": a real radio per model (name robot_model_id), the
+// chosen one preselected, each card with the robot badge and its own price.
+function RobotChoice({ offers, chosenId }: { offers: RobotOffer[]; chosenId: string | null }) {
+  const several = offers.length > 1;
+  return (
+    <fieldset
+      className={styles.robots}
+      data-testid="service-request-robots"
+      aria-describedby={several ? "s-robot-hint" : undefined}
+    >
+      <legend>{F.robotTitle}</legend>
+      {several && (
+        <p id="s-robot-hint" className={styles.hint}>
+          {F.robotHint}
+        </p>
+      )}
+      <div className={styles.robotOptions}>
+        {offers.map((o) => {
+          const id = `s-robot-${o.robot.code}`;
+          return (
+            <div key={o.robot.id} className={styles.robotOption} data-robot-code={o.robot.code}>
+              <label htmlFor={id} className={styles.robotLabel}>
+                <input
+                  type="radio"
+                  id={id}
+                  name="robot_model_id"
+                  value={o.robot.id}
+                  defaultChecked={o.robot.id === chosenId}
+                  required
+                />
+                <span className={styles.robotText}>
+                  <span className={styles.robotName}>
+                    {o.robot.name}
+                    {several && o.isDefault && (
+                      <span className={styles.meta}> · {F.robotDefault}</span>
+                    )}
+                  </span>
+                  <span className={styles.robotDesc}>{o.robot.shortDescription}</span>
+                  <span className={styles.robotPrice} data-testid="service-robot-price">
+                    {o.estimate ? F.robotPrice(formatTl(o.estimate.total)) : F.robotNoPrice}
+                  </span>
+                </span>
+              </label>
+              <div className={styles.robot}>
+                <RobotBadge robot={o.robot} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }

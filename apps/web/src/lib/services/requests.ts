@@ -1,5 +1,6 @@
 import type { Database } from "@/lib/database.types";
 import { servicesText as S } from "@/lib/i18n/messages/services";
+import { isUuid } from "@/lib/supabase/query";
 
 // Service requests of the owner (IP15): form parsing, the database's reason
 // codes, what may be cancelled and which amount to show. Pure; unit tested.
@@ -29,6 +30,7 @@ export const SERVICE_ERRORS = [
   "terms_outdated",
   "note_too_long",
   "reason_too_long",
+  "robot_model",
   "invalid_input",
   "consent_missing",
   "cancel_confirm_missing",
@@ -54,6 +56,7 @@ export function serviceErrorOf(
     if (error.details === "terms_version") return "terms_outdated";
     if (error.details === "note") return "note_too_long";
     if (error.details === "reason") return "reason_too_long";
+    if (error.details === "robot_model") return "robot_model";
     return "invalid_input";
   }
   if (KNOWN.has(message)) return message as ServiceError;
@@ -77,6 +80,9 @@ export interface RequestForm {
   window: ServiceWindow;
   note: string;
   earlyPerformance: boolean;
+  // The robot model the owner chose; null: none on the form (the database
+  // then takes the service's default model).
+  robotModelId: string | null;
 }
 
 // The request form. In season both consents are required (H37: ön
@@ -89,6 +95,10 @@ export function parseRequestForm(
   const window = read("window");
   const note = read("note").trim();
   if (note.length > NOTE_MAX) return { ok: false, error: "note_too_long" };
+  // Whether the model can do the service is the database's to say
+  // (customer_request_service, invalid_input robot_model); here only its form.
+  const robot = read("robot_model_id").trim();
+  if (robot !== "" && !isUuid(robot)) return { ok: false, error: "robot_model" };
   if (inSeason && (read("pre_information") !== "on" || read("terms") !== "on")) {
     return { ok: false, error: "consent_missing" };
   }
@@ -100,6 +110,7 @@ export function parseRequestForm(
         : "flexible",
       note,
       earlyPerformance: inSeason && read("early_performance") === "on",
+      robotModelId: robot === "" ? null : robot.toLowerCase(),
     },
   };
 }

@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000" font-family="'DM Sans', Arial, sans-serif">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#DCE8E0"/>
+      <stop offset="1" stop-color="#F5F2E8"/>
+    </linearGradient>
+    <linearGradient id="soil" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#D9CDAE"/>
+      <stop offset="1" stop-color="#BFA97C"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2F6B3A"/>
+      <stop offset="1" stop-color="#1B3A2F"/>
+    </linearGradient>
+    <linearGradient id="alu" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9AA3A0"/>
+      <stop offset="0.5" stop-color="#E4E8E6"/>
+      <stop offset="1" stop-color="#9AA3A0"/>
+    </linearGradient>
+    <radialGradient id="canopy" cx="0.4" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#A8C256"/>
+      <stop offset="1" stop-color="#5E8A3A"/>
+    </radialGradient>
+  </defs>
+
+  <!-- background -->
+  <rect width="1600" height="1000" fill="url(#sky)"/>
+  <rect y="720" width="1600" height="280" fill="url(#soil)"/>
+  <!-- weeds strip -->
+  <g fill="#8FA65A" opacity="0.7">
+    <path d="M0 930 Q40 905 60 930 Q90 900 120 930 Q150 908 180 930 Q200 912 230 930 L230 940 L0 940 Z"/>
+    <path d="M760 930 Q790 908 810 930 Q840 902 870 930 Q900 910 930 930 Q960 904 990 930 Q1020 912 1050 930 L1050 940 L760 940 Z"/>
+  </g>
+
+  <!-- background pistachio trees (far row) -->
+  <g opacity="0.55">
+    <rect x="96" y="660" width="12" height="80" fill="#6B5034"/>
+    <ellipse cx="102" cy="630" rx="78" ry="58" fill="url(#canopy)"/>
+    <rect x="296" y="668" width="11" height="72" fill="#6B5034"/>
+    <ellipse cx="302" cy="640" rx="70" ry="52" fill="url(#canopy)"/>
+  </g>
+  <!-- near trees framing the corridor -->
+  <g>
+    <rect x="107" y="560" width="26" height="370" fill="#5A4129"/>
+    <ellipse cx="120" cy="470" rx="160" ry="125" fill="url(#canopy)"/>
+  </g>
+  <line x1="0" y1="930" x2="1600" y2="930" stroke="#9C8660" stroke-width="2"/>
+
+  <g transform="translate(200,0)">
+  <!-- ===== MARABA-I, side view, scale 400 px/m, x=0 at 560, front to the right ===== -->
+  <!-- ground shadow -->
+  <ellipse cx="560" cy="932" rx="170" ry="9" fill="#000" opacity="0.18"/>
+
+  <!-- casters (front and rear, x = ±0.28 m) -->
+  <rect x="444" y="894" width="8" height="18" fill="#3A3F3C"/>
+  <circle cx="448" cy="912" r="18" fill="#2A2E2C"/>
+  <rect x="668" y="894" width="8" height="18" fill="#3A3F3C"/>
+  <circle cx="672" cy="912" r="18" fill="#2A2E2C"/>
+
+  <!-- chassis 0.70 x 0.18 m -->
+  <rect x="420" y="822" width="280" height="72" rx="10" fill="url(#body)"/>
+  <rect x="432" y="832" width="120" height="30" rx="4" fill="#163026"/>
+  <text x="440" y="853" font-size="18" font-weight="700" fill="#A8C256">MARABA-I</text>
+  <rect x="566" y="840" width="110" height="38" rx="4" fill="#23493A"/>
+  <text x="574" y="864" font-size="15" fill="#C9D8CC">36 V · 10S</text>
+
+  <!-- hub motor wheel (hoverboard, r = 0.0825 m) -->
+  <circle cx="560" cy="897" r="33" fill="#1E2220"/>
+  <circle cx="560" cy="897" r="22" fill="#5C6662"/>
+  <circle cx="560" cy="897" r="7" fill="#C9D0CD"/>
+
+  <!-- front bumper -->
+  <rect x="702" y="856" width="14" height="44" rx="5" fill="#D9922B"/>
+
+  <!-- front camera -->
+  <rect x="696" y="832" width="16" height="16" rx="3" fill="#2A2E2C"/>
+  <circle cx="710" cy="840" r="4" fill="#7FB3D5"/>
+
+  <!-- planned trimmer head (dashed = not built yet) -->
+  <path d="M700 888 L736 912" stroke="#3A3F3C" stroke-width="5" stroke-dasharray="7 5" fill="none"/>
+  <ellipse cx="742" cy="918" rx="36" ry="7" fill="none" stroke="#3A3F3C" stroke-width="3" stroke-dasharray="7 5"/>
+
+  <!-- e-stop -->
+  <rect x="444" y="808" width="8" height="14" fill="#3A3F3C"/>
+  <ellipse cx="448" cy="806" rx="15" ry="7" fill="#D23B2E"/>
+  <rect x="436" y="812" width="24" height="6" fill="#E8C547"/>
+
+  <!-- robot's own magnetometer mast (x = -0.15 m, ~0.63 m) -->
+  <rect x="498" y="690" width="4" height="132" fill="url(#alu)"/>
+  <rect x="488" y="676" width="24" height="14" rx="3" fill="#2A2E2C"/>
+
+  <!-- kit socket plate (x = 0.11 m) and M16 socket -->
+  <rect x="560" y="814" width="92" height="8" rx="2" fill="#B8BFBC"/>
+  <circle cx="660" cy="818" r="7" fill="#2A2E2C" stroke="#B8BFBC" stroke-width="2"/>
+
+  <!-- orchadOS scan kit: base box, mast, GNSS antenna, 360 camera at ~2.0 m -->
+  <rect x="580" y="776" width="52" height="38" rx="5" fill="#E8E2D0" stroke="#9C9580" stroke-width="2"/>
+  <path d="M632 800 Q652 800 656 812" stroke="#2A2E2C" stroke-width="3" fill="none"/>
+  <rect x="602" y="150" width="8" height="626" fill="url(#alu)"/>
+  <rect x="610" y="196" width="40" height="5" fill="#9AA3A0"/>
+  <ellipse cx="660" cy="194" rx="26" ry="9" fill="#F2F0EA" stroke="#6E7672" stroke-width="2"/>
+  <rect x="594" y="104" width="24" height="48" rx="10" fill="#1E2220"/>
+  <circle cx="606" cy="120" r="7" fill="#3E6E8E" stroke="#C9D0CD" stroke-width="2"/>
+
+  <!-- ===== labels ===== -->
+  <g font-size="26" fill="#11261F">
+    <line x1="620" y1="124" x2="900" y2="124" stroke="#5A665F" stroke-width="1.5"/>
+    <circle cx="620" cy="124" r="4" fill="#5A665F"/>
+    <text x="910" y="133">360° kamera (~2,0 m)</text>
+
+    <line x1="686" y1="194" x2="900" y2="194" stroke="#5A665F" stroke-width="1.5"/>
+    <circle cx="686" cy="194" r="4" fill="#5A665F"/>
+    <text x="910" y="203">RTK GNSS anteni</text>
+
+    <line x1="610" y1="420" x2="900" y2="420" stroke="#5A665F" stroke-width="1.5"/>
+    <circle cx="610" cy="420" r="4" fill="#5A665F"/>
+    <text x="910" y="429">Kit direği (alüminyum)</text>
+
+    <line x1="632" y1="782" x2="900" y2="600" stroke="#5A665F" stroke-width="1.5"/>
+    <circle cx="632" cy="782" r="4" fill="#5A665F"/>
+    <text x="910" y="609">Kit kutusu: Raspberry Pi 5, akü</text>
+
+    <line x1="667" y1="818" x2="900" y2="660" stroke="#5A665F" stroke-width="1.5"/>
+    <circle cx="667" cy="818" r="4" fill="#5A665F"/>
+    <text x="910" y="669">Kit soketi: M16 fiş, kimlik çipi</text>
+
+    <line x1="712" y1="840" x2="900" y2="720" stroke="#5A665F" stroke-width="1.5"/>
+    <circle cx="712" cy="840" r="4" fill="#5A665F"/>
+    <text x="910" y="729">Ön kamera</text>
+
+    <line x1="716" y1="878" x2="900" y2="780" stroke="#5A665F" stroke-width="1.5"/>
+    <circle cx="716" cy="878" r="4" fill="#5A665F"/>
+    <text x="910" y="789">Çarpma tamponu</text>
+
+    <line x1="778" y1="918" x2="900" y2="840" stroke="#5A665F" stroke-width="1.5"/>
+    <circle cx="778" cy="918" r="4" fill="#5A665F"/>
+    <text x="910" y="849">Misinalı biçme kafası (planlı)</text>
+  </g>
+  <g font-size="26" fill="#11261F" text-anchor="end">
+    <line x1="488" y1="683" x2="330" y2="683" stroke="#5A665F" stroke-width="1.5"/>
+    <circle cx="488" cy="683" r="4" fill="#5A665F"/>
+    <text x="320" y="692">Manyetometre</text>
+
+    <line x1="434" y1="806" x2="330" y2="780" stroke="#5A665F" stroke-width="1.5"/>
+    <circle cx="434" cy="806" r="4" fill="#5A665F"/>
+    <text x="320" y="789">Acil stop</text>
+
+    <line x1="530" y1="900" x2="330" y2="980" stroke="#5A665F" stroke-width="1.5"/>
+    <circle cx="530" cy="900" r="4" fill="#5A665F"/>
+    <text x="320" y="989">Hoverboard hub motoru</text>
+  </g>
+
+  </g>
+
+  <!-- title -->
+  <text x="60" y="96" font-family="'Domine', Georgia, serif" font-size="64" font-weight="700" fill="#11261F">MARABA-I</text>
+  <text x="60" y="140" font-size="28" fill="#3D4A43">orchadOS tarama kitini taşıyan</text>
+  <text x="60" y="176" font-size="28" fill="#3D4A43">otonom bahçe robotu</text>
+  <text x="1540" y="985" font-size="20" fill="#5A665F" text-anchor="end">Temsili görsel · yan görünüş, ölçekli · kesikli çizgi: planlı</text>
+</svg>

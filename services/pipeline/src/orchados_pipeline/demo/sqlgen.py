@@ -50,6 +50,8 @@ from .dataset import (
     METHODOLOGY,
     PRICING_RULE,
     QUESTIONS,
+    ROBOT_MODEL_CODE,
+    ROBOT_MODEL_ID,
     ROBOT_NOTES,
     SEASON_OF_MONTH,
     SERVICE_JOBS,
@@ -747,7 +749,8 @@ def sessions(script: Script, ds: Dataset) -> None:
                 "org_id": ids.ORG_ID,
                 "parcel_id": job.parcel.id,
                 "kind": "mowing",
-                "performer": "crew",
+                # Version 3: the robot did the job (internal; never shown to the owner).
+                "performer": job.performer,
                 "status": "captured",
                 "planned_date": job.completed_on,
                 "started_at": job.work_start,
@@ -1169,8 +1172,9 @@ PROOF_PIPELINE = ("service-proof", "v1")  # as ops_add_service_photo registers a
 
 def services(ctx: Context) -> None:
     """The service layer switched on for the demo org, its catalogue row and season
-    per fruit species, the done mowing job of parcel B with its history and proof
-    photos, and the robot notes.
+    per fruit species, the robot model that can do it (MARABA-I, version 3), the
+    done mowing job of parcel B with its history and proof photos, and the robot
+    notes.
 
     No price list: the service is unpriced, so the portal shows "Fiyat teklifle
     bildirilir" and the done job carries only the amount ops entered.
@@ -1218,6 +1222,20 @@ def services(ctx: Context) -> None:
         "from public.fruit_species f\n"
         "on conflict (service_type_id, species) do nothing;\n"
     )
+    # Version 3: MARABA-I can do the demo org's mowing (as the robot fleet migration
+    # links the weed mowing row of every org that had one).
+    s.insert(
+        "services",
+        "public.service_type_robot_model",
+        {
+            "org_id": o,
+            "service_type_id": SERVICE_TYPE_ID,
+            "robot_model_id": ROBOT_MODEL_ID,
+            "sort_order": 10,
+            "created_at": CREATED,
+        },
+        conflict="service_type_id, robot_model_id",
+    )
     photos = {p["key"]: p for p in ctx.manifest.get("service_photos", [])}
     for job in SERVICE_JOBS:
         service_job(ctx, job, photos)
@@ -1238,6 +1256,36 @@ def services(ctx: Context) -> None:
             },
             conflict="parcel_id",
         )
+    s.raw["services"].append(robot_upgrade())
+
+
+def robot_upgrade() -> str:
+    """Version 3 on a target loaded with version 2: the inserts above skip the rows
+    that exist, so the four mutable rows version 3 changed are brought up to date
+    here (docs/demo-turu.md §10.3). Each update names its row by id and touches it
+    only when it still differs, so on a fresh load and on a rerun nothing changes.
+    The only updates of the script; none of these tables is append-only.
+    """
+    out = [
+        "-- version 3 upgrade (robot fleet): rows of version 2 this version changed",
+        f"update public.service_type set description = {lit(SERVICE_TYPE['description'])}\n"
+        f"where id = {lit(SERVICE_TYPE_ID)} "
+        f"and description is distinct from {lit(SERVICE_TYPE['description'])};",
+    ]
+    for job in SERVICE_JOBS:
+        out += [
+            f"update public.session set performer = {lit(job.performer)}\n"
+            f"where id = {lit(job.id)} and performer is distinct from {lit(job.performer)};",
+            f"update public.operation set performer = {lit(job.performer)},\n"
+            f"  details = details || jsonb_build_object('robot_model', {lit(ROBOT_MODEL_CODE)})\n"
+            f"where id = {lit(job.operation_id)} and (\n"
+            f"  performer is distinct from {lit(job.performer)}\n"
+            f"  or details ->> 'robot_model' is distinct from {lit(ROBOT_MODEL_CODE)});",
+            f"update public.service_request set robot_model_id = {lit(job.robot_model_id)}\n"
+            f"where id = {lit(job.request_id)} "
+            f"and robot_model_id is distinct from {lit(job.robot_model_id)};",
+        ]
+    return "\n".join(out) + "\n"
 
 
 def _boundary_area(parcel_key: str) -> Raw:
@@ -1290,7 +1338,7 @@ def service_job(ctx: Context, job: ServiceJob, photos: dict[str, dict]) -> None:
             "parcel_id": p.id,
             "session_id": job.id,
             "kind": SERVICE_TYPE["operation_kind"],
-            "performer": "crew",
+            "performer": job.performer,
             "performed_by": None,
             "started_at": job.work_start,
             "area_m2": _boundary_area(p.key),
@@ -1299,6 +1347,7 @@ def service_job(ctx: Context, job: ServiceJob, photos: dict[str, dict]) -> None:
                 "service_request_number": job.number,
                 "service_code": SERVICE_TYPE["code"],
                 "by": "orchados",
+                "robot_model": ROBOT_MODEL_CODE,
             },
             "notes": None,
             "created_by": ids.OPS,
@@ -1347,6 +1396,7 @@ def service_job(ctx: Context, job: ServiceJob, photos: dict[str, dict]) -> None:
             "payment_recorded_by": ids.OPS,
             "created_at": job.requested_at,
             "updated_at": job.done_at,
+            "robot_model_id": job.robot_model_id,
         },
     )
     for n, (frm, to, actor, role, at) in enumerate(

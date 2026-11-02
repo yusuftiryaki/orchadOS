@@ -99,7 +99,7 @@ Demoda görünen portal ekranları:
     - Sentetik ve damgalı olduğu için gizli değildir.
     - İmzasız ve uzun önbellekli adresler egress'i ve sunucu işini azaltır.
     - Asıl kopya, içerik adresli kuralla `media` kovasında durur.
-- **Demo verisi kalıcı ve sürümlüdür.** Barındırılan projede ekleme-yalnız tablolardan satır silinemez. Bu yüzden veri sabit kimliklerle bir kez yüklenir; yeni bir sürüm yalnızca yeni satır ekler.
+- **Demo verisi kalıcı ve sürümlüdür.** Barındırılan projede ekleme-yalnız tablolardan satır silinemez. Bu yüzden veri sabit kimliklerle bir kez yüklenir; yeni bir sürüm yalnızca yeni satır ekler (ekleme-yalnız olmayan tablolardaki tek istisna sürüm 3'ün dört güncellemesidir, §10.3).
 - **Servis anahtarı Supabase'den çıkmaz.**
     - Yükleyici SQL'i projenin veritabanı parolasıyla psql üzerinden çalıştırır. Bu parola, dağıtım iş akışlarının zaten kullandığı secret'tır.
     - Medyayı demo org'unun operasyon kişisiyle yükler. Bu kişiye o çalıştırma için geçici bir parola verilir ve yükleme bitince silinir.
@@ -519,7 +519,7 @@ IP okuma, proxy sırrı ve HMAC için `_shared/signup.ts` kullanılır.
 | Operasyon (yükleyici) kişisi | `…000000000005` | `ornek-operasyon@…` |
 | A envanter 2025-06-10 / A tarama 2025-07-15 / A tarama 2026-07-14 | `de200000-0000-4000-8000-00000000000{1,2,3}` | |
 | B envanter 2026-06-09 / B tarama 2026-07-16 | `de200000-0000-4000-8000-00000000000{4,5}` | |
-| B ot biçme işi 2026-06-24 (`mowing` oturumu; sürüm 2) | `de200000-0000-4000-8000-000000000006` | |
+| B ot biçme işi 2026-06-24 (`mowing` oturumu; sürüm 2, robot sürüm 3) | `de200000-0000-4000-8000-000000000006` | |
 | B ot biçme talebi (`service_request`; sürüm 2) | `de300000-0000-4000-8000-000000000001` | `H-2026-000001` |
 
 - **Kişiler (persona):**
@@ -539,9 +539,9 @@ IP okuma, proxy sırrı ve HMAC için `_shared/signup.ts` kullanılır.
     - A'nın envanter oturumu
     - B'nin tamamlanmış ot biçme talebi (`service_request_id`, sürüm 2; `hizmet-sonuc` adımı)
 
-### 8.2 İçerik (sürüm 2)
+### 8.2 İçerik (sürüm 3)
 
-Sürüm 1 aşağıdaki tablonun İP15 satırları dışındaki her şeydir; sürüm 2 hizmet katmanını ekler (§10.3).
+Sürüm 1 aşağıdaki tablonun İP15 satırları dışındaki her şeydir; sürüm 2 hizmet katmanını ekler, sürüm 3 işi otonom robot MARABA-I'ye verir (§10.3).
 
 | | A "Örnek Bahçe – Kuzey" | B "Örnek Bahçe – Dere" |
 | --- | --- | --- |
@@ -561,8 +561,8 @@ Sürüm 1 aşağıdaki tablonun İP15 satırları dışındaki her şeydir; sür
 | Hissedarlar | "Örnek Hissedar" (viewer). Bekleyen davet yoktur: `viewer_invitation.phone` zorunludur ve E.164 biçimindedir, demo verisinde ise telefon bulunmaz | Yok |
 | Meyve türü (sürüm 2) | `parcel.species` = `antep_fistigi`, açıkça yazılır; ağaçlarda tür geçersiz kılma yok | Aynı |
 | Yabani ot (İP15) | 2026 taramasında saha sorusu `weed_height` = uzun (parsel öznesi, `field_question`, `summer-v0.3`, personel) | 2026 taramasında `weed_height` = kısa (biçmeden üç hafta sonra) |
-| Hizmet kartı (İP15) | Ot biçme kartı her gün satın alınabilir durumdadır: sezonda "talep edilebilir", sezon dışında "ön talep" (açık talep yok). Fiyat yok: "Fiyat teklifle bildirilir". Turun `hizmet-oneri` adımı | Aynı kart (B'nin işi tamamlandı, açık talebi yok) |
-| Ot biçme işi (İP15) | Yok | `H-2026-000001` (§8.1), tamamlandı: 2026-06-15 talep (erken ifa istendi), 06-16 planlandı, 06-24 yapıldı, 06-26 havaleyle ödendi. Talep anında fiyat yoktu: sekiz fiyat ve tahmin sütunu boş; tutarı operasyon planlarken girdi (3.000 TL, KDV dahil), ödeme bu tutarla kayıtlı. `mowing` oturumu (`captured`, hiç yayımlanmaz), `operation` (`crew`, `details.by = orchados`), tarihçe (talep → planlandı → tamamlandı), öncesi ve sonrası birer kanıt fotoğrafı. B'nin karnesinde bakım satırı "bu bakımı orchadOS yaptı" notunu gösterir (iş 2026-07-16 ziyaretinden önceki 365 günde). Turun `hizmet-sonuc` adımı |
+| Hizmet kartı (İP15) | Ot biçme kartı her gün satın alınabilir durumdadır: sezonda "talep edilebilir", sezon dışında "ön talep" (açık talep yok). Fiyat yok: "Fiyat teklifle bildirilir". Katalog açıklaması işi "otonom robotumuz MARABA-I" yapar diye anlatır; MARABA-I hizmetin tek robot modelidir (`service_type_robot_model`, sürüm 3). Turun `hizmet-oneri` adımı | Aynı kart (B'nin işi tamamlandı, açık talebi yok) |
+| Ot biçme işi (İP15) | Yok | `H-2026-000001` (§8.1), tamamlandı: 2026-06-15 talep (erken ifa istendi), 06-16 planlandı, 06-24 yapıldı, 06-26 havaleyle ödendi. Talep anında fiyat yoktu: sekiz fiyat ve tahmin sütunu boş; tutarı operasyon planlarken girdi (3.000 TL, KDV dahil), ödeme bu tutarla kayıtlı. Sahip MARABA-I'yi seçmiş (`robot_model_id`), işi robot yapmış: `mowing` oturumu (`captured`, hiç yayımlanmaz, `performer = robot`), `operation` (`robot`, `details.by = orchados`, `details.robot_model = maraba_i`; sürüm 3), tarihçe (talep → planlandı → tamamlandı), öncesi ve sonrası birer kanıt fotoğrafı. B'nin karnesinde bakım satırı "bu bakımı orchadOS yaptı" notunu gösterir (iş 2026-07-16 ziyaretinden önceki 365 günde). Turun `hizmet-sonuc` adımı |
 | Robot notu (İP15) | düz, taş az, en alçak dal 60 cm | hafif eğim, taş orta, 45 cm |
 
 **Planlanmış iş yok:** Demoda "planlandı" durumunda bir talep yoktur. Tarihler sabit ve geçmişte olduğu için (§8.3) planlanmış bir işin günü ya geçmişte görünür ya da kısa sürede geçmişe düşer ve iş sonsuza dek açık kalırdı. Açık bir talep o parselin kartını da "açık talep"e çevirir ve satın alınabilir kartı gizler. Hizmetlerim bu yüzden yalnızca tamamlanmış işi gösterir.
@@ -601,7 +601,7 @@ A'nın 2026 bulgu türleri: kuruyan dal, gövde yarası ve zamk akıntısı, yap
     4. oturumlar, doğrudan yayımlanmış ya da onaylı olarak (durum güncellemesi yok)
     5. envanter zinciri, kayıtlar, asset'ler, kaynak bağları
     6. ölçümler, değerlendirmeler, bulgular ve kanıt bağları
-    7. hizmet katmanı: ödeme ayarı (`services_enabled`), katalog satırı, tür başına sezonlar, B'nin ot biçme işi (kanıt asset'leri, `operation`, talep, tarihçe, fotoğraf bağları), robot notları
+    7. hizmet katmanı: ödeme ayarı (`services_enabled`), katalog satırı, tür başına sezonlar, hizmetin robot modeli (MARABA-I), B'nin ot biçme işi (kanıt asset'leri, `operation`, talep, tarihçe, fotoğraf bağları), robot notları; sonda sürüm 3'ün sürüm 2 satırlarını güncelleyen dört `update`'i (§10.3)
     8. hissedar profili, `parcel_access`
     9. en son sorular ve cevaplar
     10. kayıt satırı (`loaded_at` null)
@@ -728,7 +728,7 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
         - cevaplı sorular
         - panoramalı ve onaylı envanter
         - A'nın son taramasında yapı, bakım, zararlı ve meyve yükü kodlarının ağaç başına ölçümleri
-        - hizmet kartı (`service_offers`): iki parselde de ot biçme, A'da ot boyu "uzun"; durum önerilen, talep edilebilir ya da ön talep (güne bağlı, açık talep değil); fiyatsız; tür `antep_fistigi`
+        - hizmet kartı (`service_offers`): iki parselde de ot biçme, A'da ot boyu "uzun"; durum önerilen, talep edilebilir ya da ön talep (güne bağlı, açık talep değil); fiyatsız; tür `antep_fistigi`; robot modeli `maraba_i`
         - A'nın son yayımlanmış `weed_height` gözlemi
         - B'de tutarı girilmiş, o tutarla ödenmiş, tamamlanmış talep (turun `service_request_id`'si), tarihçesi talep → planlandı → tamamlandı, sahibin okuyabildiği en az bir öncesi ve bir sonrası fotoğrafı ve bunların `media` nesneleri
         - B'nin bakım notu: son yayımlanmış ziyaretinden önceki 365 günde orchadOS'un yaptığı bir `mowing` işi
@@ -736,10 +736,10 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
         - Her `storage://` adresinin iki kovada da nesnesi var.
         - Kişilerin parolası boş (`coalesce(encrypted_password,'') = ''`), yasakları ileri tarihte ve token sütunları dolu (NULL değil).
         - Tek `org_billing_setting` satırı: yalnız `services_enabled` açık.
-        - Katalog satırı veri kümesindekiyle aynı; her meyve türü için bir sezon satırı (1 Mart–30 Haziran); demo org'unda hizmet fiyatı (`price_list_service_item`) yok.
+        - Katalog satırı veri kümesindekiyle aynı (açıklama robotu anlatır); her meyve türü için bir sezon satırı (1 Mart–30 Haziran); hizmetin robot modelleri yalnız `maraba_i`; demo org'unda hizmet fiyatı (`price_list_service_item`) yok.
         - İki parselin türü `antep_fistigi`.
         - Talepler fiyatsız: sekiz fiyat ve tahmin sütunu boş, alan sınır alanı, planlanmış ya da tamamlanmış işte tutar var.
-        - Tamamlanan iş `ops_complete_service_request`'in bıraktığı gibi: `operation` (`mowing`, `crew`, `details.service_request_id`), `captured` `mowing` oturumu, öncesi ve sonrası bağı. Hiçbir iş oturumu yayımlanmış değil.
+        - Tamamlanan iş `ops_complete_service_request`'in mowing için varsayılanıyla bıraktığı gibi: talepte `robot_model_id` = MARABA-I, `operation` (`mowing`, `robot`, `details.service_request_id`, `details.robot_model = maraba_i`), `captured` ve `performer = robot` `mowing` oturumu, öncesi ve sonrası bağı. Hiçbir iş oturumu yayımlanmış değil.
         - İki robot notu.
         - `public.notification`'da demo org'u için 0 satır var.
 
@@ -747,9 +747,10 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
 
 - **Aynı build:** İkinci çalıştırma hiçbir satır eklemez ve hiçbir dosya yüklemez.
 - **Yeniden derleme:** Başka bir makinede derlenen kopya farklı bayt üretebilir. Bu yüzden barındırılan projede ön kontrol sürüme ve doğrulamaya bakar, baytlara bakmaz. Yarım kalan bir yükleme yalnızca aynı derlemeyle tamamlanır. Derleme bu yüzden iş akışı artefaktı olarak saklanır.
-- **Yeni sürüm:** Yeni sürüm yeni satırlar ekler. Önceki sürümün satırlarına dokunmaz, çünkü veri ekleme-yalnızdır. Yükleyici hedef sürüme kadar bütün sürümleri sırayla uygular.
+- **Yeni sürüm:** Yeni sürüm yeni satırlar ekler. Ekleme-yalnız tabloların satırlarına (medya, ölçüm) hiçbir sürüm dokunmaz. Yükleyici hedef sürüme kadar bütün sürümleri sırayla uygular. Tek istisna sürüm 3'tür: değiştirdiği dört satır ekleme-yalnız olmayan tablolardadır ve sürüm 2 yüklü bir hedefte `on conflict do nothing` onları atlayacağı için betiğin hizmet adımı sonunda kimliğiyle adlanmış dört `update` çalışır (`sqlgen.robot_upgrade`). Her biri satırı yalnız hâlâ farklıysa değiştirir; temiz yüklemede ve yeniden çalıştırmada hiçbir şey değişmez.
 - **Birikimli sürümler:** Bir sürümün veri kümesi öncekilerin bütün satırlarını aynı kimliklerle ve aynı medya tohumlarıyla (`SEED_VERSION = 1`) içerir, üstüne kendi satırlarını (`v<sürüm>` kimlikli) ekler; her ekleme `on conflict do nothing`'dir. Son sürümü yüklemek bu yüzden bütün sürümleri sırayla uygulamakla aynıdır. Yükleyici yalnızca `DATASET_VERSION`'ı derler ve uygular (`VERSIONS == (DATASET_VERSION,)`); eski bir sürümle kayıtlı hedefe yalnız satır eklenir ve kayıt satırının sürümü yükselir. Medya baytları başka bir makinede farklı çıkarsa §10.2'deki bayt denetimi yine durdurur.
 - **Sürüm 2 (İP15):** Hizmet katmanı: tür başına sezonlarıyla fiyatsız katalog satırı, `weed_height` ölçümleri, B'nin tamamlanmış ot biçme işi (kanıt fotoğraflarıyla), robot notları, parsellerin türü. Kayıt satırının `tour` alanına `service_request_id` eklenir.
+- **Sürüm 3 (İP15, robot filosu; sahip kararı 2 Kasım 2026):** Ot biçmeyi otonom robot MARABA-I yapar. Yeni satır: demo org'unun `weed_mowing` satırı için `service_type_robot_model` (MARABA-I; robot modeli migration'ın tohumladığı genel bir kayıttır, demo verisi değildir). Değişen sürüm 2 satırları: katalog açıklaması ("parseldeki yabani otları otonom robotumuz MARABA-I biçer"), işin oturumu ve `operation`'ı (`performer = robot`, `details.robot_model = maraba_i`), talep (`robot_model_id`). Kimliği türetilen yeni satır yoktur; `ROBOT_VERSION = 3` yalnız belgeler. Medya değişmez.
 
 ### 10.4 Barındırılan projeler
 
@@ -898,8 +899,8 @@ Gerçek bir bahçe demo parseli olarak doğrudan **kaydedilmez**. Kaydedilseydi 
 | 6 | `agac` | `/portal/parsel/{A}/agac/{tree}` | `tree-card`, `photo-evidence`, `hash-check` |
 | 7 | `ziyaret` | `/portal/parsel/{A}?ziyaret={previous_session}` | `visit-select`, `parcel-map` (yalnızca harita seçilen ziyareti izler; karne son ziyareti gösterir) |
 | 8 | `envanter` | `/portal/parsel/{A}/envanter` | `inventory-report` |
-| 9 | `hizmet-oneri` | `/portal/parsel/{A}` | `service-offers`: ot biçme kartı ve talep düğmesi. "Bahçenizin durumuna ve mevsime göre iş öneriyoruz" |
-| 10 | `hizmet-sonuc` | `/portal/hizmetler/{service_request_id}` | `service-request-proof`: B'nin tamamlanmış işinin öncesi ve sonrası fotoğrafları. "Yapılan iş öncesi ve sonrası fotoğrafla kanıtlanır". `tour.service_request_id` yoksa (sürüm 1) adım atlanır |
+| 9 | `hizmet-oneri` | `/portal/parsel/{A}` | `service-offers`: ot biçme kartı ve talep düğmesi. "Bahçenizin durumuna ve mevsime göre iş öneriyoruz … Otları otonom robotumuz MARABA-I biçer" |
+| 10 | `hizmet-sonuc` | `/portal/hizmetler/{service_request_id}` | `service-request-proof`: B'nin tamamlanmış işinin öncesi ve sonrası fotoğrafları. "Otonom robotumuz MARABA-I'nin yaptığı iş öncesi ve sonrası fotoğrafla kanıtlanır". Hizmeti anlatan adımlar işi yalnız robota verir, başka bir yöntem adı geçmez. `tour.service_request_id` yoksa (sürüm 1) adım atlanır |
 | 11 | `pdf` | `/portal/parsel/{A}` | `report-pdf` |
 | 12 | `son` | Herhangi bir sayfa | Kapanış kartı: "Gerçek hesap aç" (bantla aynı kural: hedef `/iletisim` ise "Bize ulaşın"), "Paketleri gör" |
 

@@ -734,7 +734,15 @@ export async function saveServicePricesAction(
   const serviceTypeIds = form
     .getAll("service_type_ids")
     .filter((v): v is string => typeof v === "string" && isUuid(v));
-  const parsed = parsedOr(parsePriceListServiceItems(read, serviceTypeIds));
+  // "<service>_<robot model>" pairs of the per-model rows.
+  const robots = form
+    .getAll("service_robot_keys")
+    .filter((v): v is string => typeof v === "string")
+    .map((v) => v.split("_"))
+    .filter(([s, m, ...rest]) => rest.length === 0 && isUuid(s) && isUuid(m))
+    .filter(([s]) => serviceTypeIds.includes(s))
+    .map(([serviceTypeId, robotModelId]) => ({ serviceTypeId, robotModelId }));
+  const parsed = parsedOr(parsePriceListServiceItems(read, serviceTypeIds, robots));
   if ("state" in parsed) return parsed.state;
   return then(savePriceListServiceItems(supabase, listId, parsed.value), () =>
     boHref.priceList(listId, { notice: "service_prices_saved" }),
