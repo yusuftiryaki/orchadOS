@@ -6,6 +6,8 @@
 >
 > **H37 (2 Kasım 2026, bakım hizmeti: ot biçme):** Kullanıcının talimatıyla **tek bir** tüketici hukuku uzmanı yapay zekâ ajanı karar verdi; ikinci görüş ve uzlaştırıcı yok. Bu karar **lisanslı bir avukatın görüşü değildir**. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır. Karar ve [bakım hizmeti ek sözleşmesi](bakim-hizmeti-ek-sozlesme-taslagi.md) yine baro kayıtlı bir avukatça incelenecek.
 >
+> **H38 (2 Kasım 2026, robotla ot biçme):** Sahip kararı üzerine yine **tek bir** tüketici hukuku uzmanı yapay zekâ ajanı karar verdi; ikinci görüş ve uzlaştırıcı yok. Bu karar **lisanslı bir avukatın görüşü değildir**; avukat incelemesi T34'e girer. H37'nin "işi personel motorlu tırpanla yapar, robotla biçme vaat edilmez" kısmının yerini alır.
+>
 > **Bu kararları kim verdi?** Kullanıcı (Yusuf) şu talimatı verdi: “Hukuk ile ilgili sorular olursa hukuk uzmanı bir ajan yarat ve ondan aldığın kararları doğru kabul ederek ilerle.” Bu belgedeki kararları, bu talimatla görevlendirilen hukuk uzmanı bir yapay zekâ ajanı verdi. Ajan iki bağımsız uzman görüşünü karşılaştırdı. Uzmanların birleştiği yerde ortak görüşü benimsedi; ayrıştıkları yerde gerekçesiyle karar verdi. Talimat gereği kararlar doğru kabul edilir ve **nihai olarak uygulanır**. Kararlar baro kayıtlı bir avukatın imzalı görüşü değildir. Mali müşavirin alanına giren ayrıntılar (fatura belge türleri, eşikler) ayrıca belirtilmiştir.
 
 Kaynak sorular: [README.md](README.md)'deki “Avukata sorulacaklar” listesi (1–23) ve taslaklarla tasarım dokümanları karşılaştırılarak türetilen sorular (H25–H34). Kullanıcının sabit kararları ([bahce-yonetimi.md](../bahce-yonetimi.md) §2) değiştirilmedi: fiyat formülü ve orantı, tek bahçe için cayma ve kesintiler, 90 gün salt okunur erişim. Kararlar bu çerçevenin içinde verildi.
@@ -58,6 +60,7 @@ Kaynak sorular: [README.md](README.md)'deki “Avukata sorulacaklar” listesi (
 - [H35 – Ödeme planı](#h35)
 - [H36 – Hizmet bölgesi](#h36)
 - [H37 – Bakım hizmeti: ot biçme ek sözleşmesi](#h37)
+- [H38 – Ot biçmeyi otonom robotun yapması](#h38)
 - [Takip işleri](#takip)
 
 <a id="yayin"></a>
@@ -104,6 +107,12 @@ Aşağıdakilerin hepsi tamamlanmadan hiçbir metinden “-taslak” eki kaldır
 | Metin | Eski sürüm | Yeni sürüm | Arşiv dosyası |
 | --- | --- | --- | --- |
 | Bakım hizmetleri ek sözleşmesi – ot biçme (yeni; sitede `/bakim-hizmeti`; ön bilgilendirme ve iptal koşulları içinde) | — | bakim-v1-taslak | — |
+
+**Robotla ot biçme (2 Kasım 2026, H38):** Hüküm değişti; yalnızca bakım eki. Diğer metinler değişmedi.
+
+| Metin | Eski sürüm | Yeni sürüm | Arşiv dosyası |
+| --- | --- | --- | --- |
+| Bakım hizmetleri ek sözleşmesi – ot biçme | bakim-v1-taslak | bakim-v2-taslak | arsiv/bakim-hizmeti-ek-sozlesme-taslagi-v1.md |
 
 Sürümsüz yeni iç belgeler: [kvkk-basvuru-proseduru.md](kvkk-basvuru-proseduru.md), [saklama-imha-politikasi.md](saklama-imha-politikasi.md), [yurt-disi-aktarim-kaydi.md](yurt-disi-aktarim-kaydi.md).
 
@@ -1790,6 +1799,8 @@ Sözcük düzeyindeki diğer değişiklikler (bağlayıcı; yerleri 2. bölümde
 <a id="h37"></a>
 ## H37 – Bakım hizmeti: ot biçme ek sözleşmesi
 
+> **H38 ile değişti (2 Kasım 2026):** Bu karardaki "işi personel motorlu tırpanla yapar" ve "robotla biçme hiçbir metinde vaat edilmez" hükümlerinin yerini [H38](#h38) aldı: biçmeyi Şirket'in otonom robotu (MARABA-I) personel gözetiminde yapar (`bakim-v2-taslak`). Aşağıdaki metin `bakim-v1-taslak` için verilen karar olarak korunur; diğer hükümleri yürürlüktedir.
+
 > Bu kararı **tek bir yapay zekâ ajanı** verdi (ikinci görüş ve uzlaştırıcı yok); lisanslı bir avukatın görüşü değildir. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır.
 
 **Soru.** [MVP.md](../MVP.md) Modül 6 (İP15) ile portaldan talep edilen ücretli bir bakım hizmeti (yabani ot biçme) eklendi. İlk sezon işi köydeki saha personelimiz motorlu tırpanla yapar; çevrimiçi ödeme yoktur, ödeme işten sonra elle alınır. (a) Hukuki biçim ne olmalı: ana sözleşmenin yeni sürümü mü, ayrı bir ek mi? (b) Kapsam ve fiyat nasıl yazılmalı; talepte dondurulan tahmini tutar ops'ça düzeltilebilir mi? (c) Motorlu tırpanın gövdeye, aşıya ya da damla sulama hortumuna verdiği zarardan sorumluluk ve sınırı ne olmalı? (d) Hava ve erteleme? (e) "Planlanan tarihten önceki güne kadar ücretsiz iptal" ile 14 günlük cayma hakkı ve Mesafeli Sözleşmeler Yönetmeliği md. 15/1-(h) istisnası nasıl bağdaştırılır? (f) Sezon dışındaki ön talep bağlayıcı mı? (g) İş kanıtı fotoğrafları ve KVKK? (h) Bağımsız denetçinin kendi yaptığı bakım işini denetlemesi nasıl açıklanmalı?
@@ -1798,7 +1809,7 @@ Sözcük düzeyindeki diğer değişiklikler (bağlayıcı; yerleri 2. bölümde
 - **(a) Biçim:** Ayrı, sürümlü bir metin: [Bakım Hizmetleri Ek Sözleşmesi – Ot Biçme](bakim-hizmeti-ek-sozlesme-taslagi.md) (`bakim-v1-taslak`, sitede `/bakim-hizmeti`). Ön bilgilendirme (2. bölüm) ve iptal koşulları (10. bölüm) aynı belgededir. Her talep ayrı bir mesafeli hizmet sözleşmesidir ve Ana Sözleşme'ye ektir; Ana Sözleşme, ön bilgilendirme formu ve iade politikası bu işte değiştirilmez (v6'ya geçmek, arşiv ve şablon dondurma gerektirirdi; atıflar T35 ile sonraki sürümlerine girer). Talep formunda iki ayrı zorunlu onay (ön bilgilendirmeyi okudum; ek sözleşmeyi onaylıyorum) ve bir isteğe bağlı erken ifa kutusu bulunur. Talebi yalnızca Ana Sözleşme'deki Sahip açar; hissedar açamaz.
 - **Sözleşmenin kurulması:** Sahip'in talebi sözleşme önerisidir; Şirket onaylayana kadar bedelsiz geri çekilir. Sözleşme Şirket'in tutar ve tarihle onayıyla (`scheduled`) kurulur ve SMS ile bildirilir. Talep bilgileri, sürüm, tutar ve tarih portalda değiştirilmeden saklanır.
 - **(b) Kapsam ve fiyat:**
-    - Kapsam yalnızca kullanım alanındaki yabani otun motorlu tırpanla biçilmesidir. Herbisit, toprak işleme, budama, dip sürgünü, otun toplanması ya da yakılması, alan dışı yerler ve güvenle girilemeyen yerler kapsam dışıdır. Biçilen ot yerinde kalır; toplama yalnızca ayrıca yazılı anlaşmayla yapılır. Robotla biçme hiçbir metinde vaat edilmez.
+    - Kapsam yalnızca kullanım alanındaki yabani otun motorlu tırpanla biçilmesidir. Herbisit, toprak işleme, budama, dip sürgünü, otun toplanması ya da yakılması, alan dışı yerler ve güvenle girilemeyen yerler kapsam dışıdır. Biçilen ot yerinde kalır; toplama yalnızca ayrıca yazılı anlaşmayla yapılır. Robotla biçme hiçbir metinde vaat edilmez (H38 ile kaldırıldı: biçmeyi otonom robot yapar).
     - Fiyat formülle yazılır (alan × dönüm fiyatı, minimum ücret, KDV); rakam yazılmaz, çünkü fiyat sürümlü fiyat listesindedir ve her değişiklik sürüm artırırdı. KDV dahil toplam talep formunda gösterilir ve talebe dondurulur.
     - **Fiyatsız hizmet (sahip kararı, 2 Kasım 2026):** Fiyat henüz belirlenmedi; yürürlükteki yayımlı fiyat listesinde hizmetin fiyatı yoksa formda tutar yerine "Fiyat teklifle bildirilir" yazar, talebe tutar dondurulmaz. Şirket onaylarken KDV dahil toplam tutarı iş tarihiyle SMS ile bildirir; indirme kuralı (üst sınır) uygulanmaz; Sahip tutarı kabul etmezse 10. bölüme göre bedelsiz iptal eder (ek sözleşme 2. bölüm "Toplam fiyat", 5/1 ve 5/5). Avukata açık soru (T34): bu durumda toplam fiyat sözleşme kurulmadan önce Sahip'e gösterilmemiş olur (Yönetmelik md. 5/1-(c)); onay bildirimini kabul edilmesi gereken bir teklife çevirmek ya da erken ifa kutusu işaretliyken fiyatsız işi bildirimden en az bir gün sonraya planlamak gerekebilir. Ara önlem olarak sistem fiyatsız işi en erken onay gününün ertesine planlatır (`ops_schedule_service_request`, `invalid_input / scheduled_date`); böylece Sahip tutarı öğrendikten sonra bedelsiz iptal hakkı en az bir gün açık kalır. Teklife çevirme sorusu avukatta.
     - **Ops kesin tutarı yalnızca indirebilir.** Daha yüksek tutar ancak Sahip'in portalda yeniden onayıyla geçerlidir; onay yoksa talep bedelsiz kapanır. Tüketicinin onaylamadığı bir bedel istenemez.
@@ -1831,7 +1842,7 @@ Sözcük düzeyindeki diğer değişiklikler (bağlayıcı; yerleri 2. bölümde
 
 **Metin değişikliği.**
 - Yeni metin: [bakim-hizmeti-ek-sozlesme-taslagi.md](bakim-hizmeti-ek-sozlesme-taslagi.md) (`bakim-v1-taslak`); sitede `/bakim-hizmeti` (`legal.ts` anahtarı `service_terms`). 2 Kasım 2026'da, metin yayımlanmadan (PR birleşmeden) aynı sürümde değişti: fiyat katalogdan sürümlü fiyat listesine taşındı, "taslak fiyat / tahmini" fıkrası (5/5) fiyatsız hizmet fıkrasıyla değiştirildi, 2. bölüm "Toplam fiyat" buna göre tamamlandı; şablon özeti yeniden kaydedildi (`20261106300000_legal_text_service_terms.sql`).
-- Talep formundaki erken ifa kutusu metni ek sözleşmenin 10/3'ündeki gibidir: “☐ Ot biçmenin 14 günlük cayma süresi dolmadan yapılmasını istiyorum. Personel işe başladığında cayma hakkımın sona ereceğini biliyorum. Bu kutuyu işaretlemezsem iş, cayma süresi dolduktan sonraki bir güne planlanır.”
+- Talep formundaki erken ifa kutusu metni ek sözleşmenin 10/3'ündeki gibidir: “☐ Ot biçmenin 14 günlük cayma süresi dolmadan yapılmasını istiyorum. Personel işe başladığında cayma hakkımın sona ereceğini biliyorum. Bu kutuyu işaretlemezsem iş, cayma süresi dolduktan sonraki bir güne planlanır.” (v1; v2'deki metin [H38](#h38)'de.)
 - Diğer metinler bu işte değişmez (T35).
 
 **Sistem değişikliği.**
@@ -1839,6 +1850,38 @@ Sözcük düzeyindeki diğer değişiklikler (bağlayıcı; yerleri 2. bölümde
     - `apps/web/src/lib/legal/versions.ts`: `service_terms: "bakim-v1-taslak"` ve `SERVICE_TERMS_VERSION`; `legal.ts` yansısı ve eşitlik testi; `/bakim-hizmeti` sayfası (herkese açık; altbilgiye ve site haritasına hizmet açılınca eklenir).
     - Kayıt: `supabase/migrations/20261106300000_legal_text_service_terms.sql` (`service_terms` türü ve şablon özeti).
 - **T33, T34, T35** ([Takip işleri](#takip)).
+
+---
+
+<a id="h38"></a>
+## H38 – Ot biçmeyi otonom robotun yapması
+
+> Bu kararı **tek bir yapay zekâ ajanı** verdi (ikinci görüş ve uzlaştırıcı yok); lisanslı bir avukatın görüşü değildir. Avukat incelemesi T34'e girer. [H37](#h37)'nin yalnızca "kim yapar" kısmının yerini alır; H37'nin diğer hükümleri yürürlüktedir.
+
+**Soru.** Sahip kararı (2 Kasım 2026): müşteriye işin motorlu tırpanla yapıldığı söylenmeyecek. Ürün varsayımı: lansmanda Maraba robotu (MARABA-I) hazırdır ve ot biçme hizmeti Şirket'in otonom robotunun işi olarak sunulur. `bakim-v1-taslak` ise işi personelin motorlu tırpanla yaptığını ve robotla biçmenin vaat edilmediğini yazıyor. Ek sözleşme her durumda doğru ve yanıltıcı olmayacak biçimde nasıl yazılmalı; sorumluluk ve güvenlik nasıl düzenlenmeli?
+
+**Karar.**
+- Biçmeyi Şirket'in otonom ot biçme robotu (MARABA-I) **Şirket personelinin gözetiminde** yapar. Robotun güvenle ulaşamadığı kısımları (dik eğim, kayalık, kuyu ve çukur çevresi, çok alçak dalların altı) personel el aletleri ya da motorlu ekipmanla tamamlayabilir; bu, bedeli değiştirmez. Belirli bir aletin adı (tırpan) yöntem olarak yazılmaz; personelin kısmi katkısı da gizlenmez.
+- Ön bilgilendirmedeki "Hizmetin temel nitelikleri" aynı cümleyle yazılır (Yönetmelik md. 5/1-(a)). Kapsam dışı: robotun da personelin de güvenle giremediği yerler.
+- **Sorumluluk:** Şirket, robotunun ya da personelinin işi yaparken verdiği zarardan kanuna göre sorumludur; robotun otonom çalışması sorumluluğu kaldırmaz. Gizli engelde Şirket'in kusuru yoksa sorumluluk yoktur (önceki "personelin kusuru" ifadesi "Şirket'in kusuru" oldu, çünkü robotun kendi kusuru olmaz). Tacir sınırı ve tüketicide sınırsızlık aynen kalır.
+- **Güvenlik (kısa):** Personel işe başlamadan Bahçe'yi kontrol eder ve robotun çalışma alanını belirler; çalışma alanına kişi ya da hayvan girerse Şirket robotu ya da makineyi durdurur. Sahip, Bahçe'de bulunacak kişilere biçmenin otonom robotla yapılacağını ve robotun çalıştığı alana yaklaşmamaları gerektiğini iletir. Robot arızası Şirket'ten kaynaklanan erteleme sebebidir; arıza halinde iş, Sahip'e söylenmeden başka yöntemle yapılmaz, ertelenir.
+- **Erken ifa kutusu (10/3)** "Personel işe başladığında" yerine "İşe başlandığında" der; 10/1'deki iş günü iptali de "işe başlanmadan". Cayma hakkının sona ermesi md. 15/1-(h) gereği ifanın başlamasına bağlıdır; ifayı kimin başlattığı önemli değildir.
+- Sürüm `bakim-v2-taslak`; v1 arşivlenir. v1 ile açılmış talepler kendi sürümünü taşır.
+
+**Dayanak.** 6502 md. 48; Mesafeli Sözleşmeler Yönetmeliği md. 5/1-(a), 15/1-(h); Ticari Reklam ve Haksız Ticari Uygulamalar Yönetmeliği (yanıltıcı ve eksik bilgi); TBK md. 112, 116 (yardımcı kişi), 52; 6331 sayılı İş Sağlığı ve Güvenliği Kanunu; H37.
+
+**Gerekçe.**
+- Hizmetin aslî niteliği robotla biçmedir; personelin tamamlayıcı işi açıkça yazılmazsa "her şeyi robot yapar" izlenimi, yazılır ama tırpan yöntem olarak gösterilirse sahip kararı ve ürün gerçeği karşılanmaz. İkisini birlikte yazmak her durumda doğrudur.
+- Robot bir araçtır; zarardan Şirket kendi borcu olarak (TBK md. 112) ve personel için yardımcı kişi olarak (md. 116) sorumludur. Otonomluk bir sorumluluk istisnası gibi okunmasın diye açıkça yazıldı.
+- Güvenlik satırı otonom bir makinenin üçüncü kişilere yakın çalışması nedeniyle gereklidir; Sahip'e yeni bir külfet değil, mevcut "kişilere bildir" yükümlülüğünün içeriği eklenir.
+
+**Metin değişikliği.**
+- [bakim-hizmeti-ek-sozlesme-taslagi.md](bakim-hizmeti-ek-sozlesme-taslagi.md) `bakim-v2-taslak`: değişen bölümler 1, 2 (temel nitelikler), 3 (kapsam dışı), 6/2, 7/1, 7/2, 9/1, 9/2, 10/1, 10/3. Önceki metin [arsiv/bakim-hizmeti-ek-sozlesme-taslagi-v1.md](arsiv/bakim-hizmeti-ek-sozlesme-taslagi-v1.md).
+- Talep formundaki erken ifa kutusu metni: “☐ Ot biçmenin 14 günlük cayma süresi dolmadan yapılmasını istiyorum. İşe başlandığında cayma hakkımın sona ereceğini biliyorum. Bu kutuyu işaretlemezsem iş, cayma süresi dolduktan sonraki bir güne planlanır.”
+
+**Sistem değişikliği.**
+- **Bu iş:** `versions.ts` (`service_terms: "bakim-v2-taslak"`), `legal.ts` yansısı ve testleri; kayıt `supabase/migrations/20261107200000_legal_text_service_terms_v2.sql`; talep formunun erken ifa kutusu (`services.ts`, `form.earlyCheck`) yukarıdaki metne eşitlenir; portal ve kılavuzlardaki "motorlu tırpanla yapar" ifadeleri kaldırılır.
+- **T34 (genişler)**, **T36** ([Takip işleri](#takip)).
 
 ---
 
@@ -1882,5 +1925,6 @@ Bu belgeyle birlikte yapılan PR yalnızca metinleri ve küçük değişiklikler
 | T31 | Alan düzeltmesinde (Md. 6/3) ödenmemiş ziyaret ödemelerinin yeni alana göre kısmen iptali (`cancelled_kurus`, satır payları dahil) ve ödenmiş fazlanın iadesi; denetim kaydı | H35 | İlk alan düzeltmesinden önce; o zamana kadar geliştirici eliyle, denetim kaydıyla |
 | T32 | Ek teklif dökümündeki kalan pencereler (`contract_visit_windows`, `remaining_visit_windows`, `visit-windows.ts`) Ek-2 v5'in gün aralıklarına ve paket eşlemesine (`package_visit_windows`) geçirilir; bugün ay düzeyinde dört pencere sayılıyor | H19, H35 | `garden_changes_enabled` öncesi |
 | T33 | Bakım talebi (ot biçme) sistem işleri: talep formunda iki ayrı zorunlu onay (ön bilgilendirme, ek sözleşme) ve isteğe bağlı erken ifa kutusu; talep kaydında `terms_version` = `private.legal_text_current('service_terms')` ve erken ifa kaydı; kutu yoksa iş tarihi en erken onay günü + 15; kesin tutar dondurulan tutarı aşamaz (aşarsa Sahip'in portal onayı); onay SMS'i sözleşmenin kurulduğunu bildirir ve talep özeti (sürüm, alan, tutar, tarih) portalda değişmeden görünür; gizli engel alanı; portal iptali iş gününden önceki günün sonuna kadar, işe başlandıktan sonra oransal bedel; bahçe çıkarılınca ve Ana Sözleşme bitince açık talepler kapanır; hasar ve eksiklik bildirimi kaydı; öneri için SMS ya da başka ileti gönderilmez (`service_recommended` şablonu kuyruğa yazılmaz), yalnızca `service_scheduled`, `service_completed`, `service_cancelled`; bakım fotoğrafları yapay zekâya gönderilmez; karnede ve uzman incelemesinde "orchadOS yaptı" açıklaması | H37 | Gerçek müşteriden ilk talep alınmadan önce (anahtarın önkoşulu değil; anahtar 2 Kasım 2026'dan beri her ortamda açık) |
-| T34 | Avukat incelemesi: H37 ve ek sözleşme (tek belgede iki onay, kalıcı veri saklayıcısı, md. 15/1-(h) kurgusu, hasar ve tacir sınırı); mali müşavirle ot biçme KDV oranı ve fatura; motorlu tırpan işleri için üçüncü şahıs sorumluluk sigortası; saha personeline motorlu tırpan İSG eğitimi ve koruyucu donanım | H37 | Gerçek müşteriden ilk talep alınmadan önce (anahtarın önkoşulu değil; anahtar 2 Kasım 2026'dan beri her ortamda açık) |
+| T34 | Avukat incelemesi: H37 ve ek sözleşme (tek belgede iki onay, kalıcı veri saklayıcısı, md. 15/1-(h) kurgusu, hasar ve tacir sınırı); mali müşavirle ot biçme KDV oranı ve fatura; robot ve personel işleri için üçüncü şahıs sorumluluk sigortası (H38); saha personeline robot gözetimi ve motorlu ekipman için İSG eğitimi ve koruyucu donanım | H37, H38 | Gerçek müşteriden ilk talep alınmadan önce (anahtarın önkoşulu değil; anahtar 2 Kasım 2026'dan beri her ortamda açık) |
 | T35 | Sonraki sürüm artırımlarında atıflar: Ana Sözleşme Ekler listesine ve Md. 2'ye bakım eki; ön bilgilendirmedeki "Kapsam dışı: bahçe bakımı" maddesine "ayrı ek sözleşmeyle sunulan bakım hizmetleri hariç"; iade politikasına kısa bakım bölümü; KVKK aydınlatma metni bildirim listesine bakım talebi ve durum bildirimleri; bahçede bulunanlar metnine bakım işi fotoğrafları; çalışan aydınlatma metnine bakım işi | H37 | İlgili metnin bir sonraki sürümünde |
+| T36 | Robotla biçme: robotun algılayıcılarının (kamera, LiDAR ve benzeri) kişi görüntüsü ya da konum kaydedip kaydetmediği belirlenir; kaydediyorsa bahçede bulunanlar ve KVKK aydınlatma metinlerine eklenir (H01); robotun makine emniyeti uygunluğu (Makine Emniyeti Yönetmeliği, CE) ve ürün sorumluluğu sigortası mali müşavir ve avukatla gözden geçirilir | H38 | Gerçek müşteriden ilk robotlu işten önce |

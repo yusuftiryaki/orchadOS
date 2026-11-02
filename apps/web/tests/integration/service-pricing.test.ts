@@ -19,7 +19,9 @@ import { serviceClient, signIn } from "./fixtures";
 // - a request keeps its price list version and amounts after a new version is
 //   published (quote freezing), and ops may not confirm above it (H37);
 // - the price list editor reads and writes the service prices of a draft; a
-//   copy of a list takes them along.
+//   copy of a list takes them along;
+// - a robot model's own price row wins over the any-robot row (IP15 robot
+//   fleet); an empty model row falls back.
 
 const state = vi.hoisted(() => ({
   client: null as unknown,
@@ -38,6 +40,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => state.client
 vi.mock("@/lib/auth/session", () => ({ requireSection: async () => state.user }));
 
 const actions = await import("@/app/operasyon/hizmet/actions");
+const boActions = await import("@/app/operasyon/back-office-actions");
 const opsData = await import("@/lib/operations/service-data");
 const bo = await import("@/lib/back-office/data");
 const mutations = await import("@/lib/back-office/mutations");
@@ -51,6 +54,8 @@ const ORG = id("f9610000", 1);
 const PARCEL = id("f9620000", 1);
 const TYPE = id("f9630000", 1);
 const PACKAGE = id("f9640000", 1);
+// The seeded robot model (supabase/migrations/20261107100000_robot_fleet.sql).
+const MARABA = "91600000-0000-4000-8000-000000000001";
 
 let admin: Client;
 let ops: { client: Client; userId: string };
@@ -386,7 +391,12 @@ describe("service prices from the versioned price list", () => {
     const view = await bo.getPriceList(ops.client, v2.id);
     expect(view?.serviceTypes.map((t) => t.id)).toEqual([TYPE]);
     expect(view?.serviceItems).toEqual([
-      { service_type_id: TYPE, unit_price_kurus: 37500, minimum_fee_kurus: 250000 },
+      {
+        service_type_id: TYPE,
+        robot_model_id: null,
+        unit_price_kurus: 37500,
+        minimum_fee_kurus: 250000,
+      },
     ]);
     // Published: read only.
     const refused = await mutations.savePriceListServiceItems(ops.client, v2.id, { items: [] });
@@ -397,7 +407,12 @@ describe("service prices from the versioned price list", () => {
       "copy",
     );
     expect((await bo.getPriceList(ops.client, copy as string))?.serviceItems).toEqual([
-      { service_type_id: TYPE, unit_price_kurus: 37500, minimum_fee_kurus: 250000 },
+      {
+        service_type_id: TYPE,
+        robot_model_id: null,
+        unit_price_kurus: 37500,
+        minimum_fee_kurus: 250000,
+      },
     ]);
     // The form: TL excluding VAT; an empty price leaves the service unpriced.
     const read = (values: Record<string, string>) => (name: string) => values[name] ?? "";
@@ -408,7 +423,14 @@ describe("service prices from the versioned price list", () => {
     expect(parsed).toEqual({
       ok: true,
       value: {
-        items: [{ service_type_id: TYPE, unit_price_kurus: 41250, minimum_fee_kurus: 260000 }],
+        items: [
+          {
+            service_type_id: TYPE,
+            robot_model_id: null,
+            unit_price_kurus: 41250,
+            minimum_fee_kurus: 260000,
+          },
+        ],
       },
     });
     expect(parsePriceListServiceItems(read({ [`svc_min_${TYPE}`]: "100" }), [TYPE])).toEqual({
@@ -422,7 +444,12 @@ describe("service prices from the versioned price list", () => {
       ok: true,
     });
     expect((await bo.getPriceList(ops.client, copy as string))?.serviceItems).toEqual([
-      { service_type_id: TYPE, unit_price_kurus: 41250, minimum_fee_kurus: 260000 },
+      {
+        service_type_id: TYPE,
+        robot_model_id: null,
+        unit_price_kurus: 41250,
+        minimum_fee_kurus: 260000,
+      },
     ]);
     const empty = parsePriceListServiceItems(read({}), [TYPE]);
     expect(empty).toEqual({ ok: true, value: { items: [] } });
@@ -432,5 +459,102 @@ describe("service prices from the versioned price list", () => {
 
     // The owner reads no service price rows (ops only); only the offer's amount.
     expect((await owner.client.from("price_list_service_item").select("id")).data).toEqual([]);
+  });
+
+  it("a robot model's own price wins over the any-robot price; an empty one falls back", async () => {
+    // MARABA-I can do this org's mowing (the seed links only the seed org's).
+    check(
+      await admin
+        .from("service_type_robot_model")
+        .insert({ org_id: ORG, service_type_id: TYPE, robot_model_id: MARABA, sort_order: 10 }),
+      "service_type_robot_model",
+    );
+    const { data: draft } = check(
+      await ops.client.rpc("ops_create_price_list_draft", { p_org_id: ORG, p_copy_from_id: v2.id }),
+      "copy",
+    );
+    const listId = draft as string;
+    expect((await bo.getPriceList(ops.client, listId))?.serviceRobots).toEqual([
+      {
+        service_type_id: TYPE,
+        robot_model_id: MARABA,
+        code: "maraba_i",
+        name: "MARABA-I",
+        active: true,
+      },
+    ]);
+    const form = {
+      price_list_id: listId,
+      service_type_ids: TYPE,
+      service_robot_keys: `${TYPE}_${MARABA}`,
+      [`svc_unit_${TYPE}`]: "375",
+      [`svc_min_${TYPE}`]: "2.500",
+      [`svc_unit_${TYPE}_${MARABA}`]: "",
+    };
+    // Empty model row: only the any-robot row is saved.
+    expect(await run(boActions.saveServicePricesAction, form)).toMatch(/^redirect /);
+    expect((await bo.getPriceList(ops.client, listId))?.serviceItems).toEqual([
+      {
+        service_type_id: TYPE,
+        robot_model_id: null,
+        unit_price_kurus: 37500,
+        minimum_fee_kurus: 250000,
+      },
+    ]);
+    expect(
+      await run(boActions.saveServicePricesAction, {
+        ...form,
+        [`svc_unit_${TYPE}_${MARABA}`]: "450",
+        [`svc_min_${TYPE}_${MARABA}`]: "3.000",
+      }),
+    ).toMatch(/^redirect /);
+    expect((await bo.getPriceList(ops.client, listId))?.serviceItems).toEqual([
+      {
+        service_type_id: TYPE,
+        robot_model_id: null,
+        unit_price_kurus: 37500,
+        minimum_fee_kurus: 250000,
+      },
+      {
+        service_type_id: TYPE,
+        robot_model_id: MARABA,
+        unit_price_kurus: 45000,
+        minimum_fee_kurus: 300000,
+      },
+    ]);
+    // A model that cannot do the service is refused by the function.
+    const refused = await mutations.savePriceListServiceItems(ops.client, listId, {
+      items: [
+        {
+          service_type_id: TYPE,
+          robot_model_id: "91600000-0000-4000-8000-000000000999",
+          unit_price_kurus: 1,
+          minimum_fee_kurus: 0,
+        },
+      ],
+    });
+    expect(refused).toMatchObject({ ok: false });
+
+    check(await ops.client.rpc("ops_publish_price_list", { p_price_list_id: listId }), "publish");
+    // The portal prices the default model (MARABA-I) with its own row; the
+    // catalogue shows the any-robot price.
+    expect(await offer()).toMatchObject({
+      robot_model_code: "maraba_i",
+      price_per_donum_kurus: 45000,
+      minimum_fee_kurus: 300000,
+    });
+    const { data: robots } = check(
+      await owner.client.rpc("service_robot_offers", {
+        p_parcel_id: PARCEL,
+        p_service_type_id: TYPE,
+      }),
+      "service_robot_offers",
+    );
+    expect(robots?.map((r) => [r.code, r.is_default, r.price_per_donum_kurus])).toEqual([
+      ["maraba_i", true, 45000],
+    ]);
+    expect(
+      (await opsData.currentServicePricing(ops.client, ORG, today)).prices.get(TYPE),
+    ).toMatchObject({ unitPriceKurus: 37500, minimumFeeKurus: 250000 });
   });
 });

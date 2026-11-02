@@ -77,3 +77,26 @@
   font-size: var(--text-base);
   font-weight: 600;
 }
+
+/* Complete form: who did the job (radio group). */
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.choice legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+  font-weight: 600;
+}
+
+.choiceOption {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}

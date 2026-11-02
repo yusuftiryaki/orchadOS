@@ -200,6 +200,7 @@ export async function completeServiceAction(
     p_id: id,
     p_done_on: parsed.value.doneOn,
     p_note: parsed.value.note as string,
+    p_performer: parsed.value.performer,
   });
   return settle(id, error, "completed");
 }

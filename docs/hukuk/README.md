@@ -6,7 +6,7 @@
 
 | Dosya | Ne | Kim imzalar / okur |
 | --- | --- | --- |
-| [kararlar.md](kararlar.md) | Hukuki kararlar (H01–H37), yayın şartları, sürüm planı ve takip işleri (T01–T35) | Ekip |
+| [kararlar.md](kararlar.md) | Hukuki kararlar (H01–H38), yayın şartları, sürüm planı ve takip işleri (T01–T36) | Ekip |
 | [kvkk-aydinlatma-metni.md](kvkk-aydinlatma-metni.md) | KVKK 10. madde aydınlatma metni; sitede `/kvkk` | Sahip ve hissedar; portalda ve sözleşme ekinde (okundu teyidi) |
 | [acik-riza-metni.md](acik-riza-metni.md) | Açık rıza ve ticari elektronik ileti onayı: yalnızca tanıtım iletileri, İYS kaydından sonra sorulur; sitede `/acik-riza` | Sahip, isteğe bağlı |
 | [bahcede-bulunanlar-aydinlatma-metni.md](bahcede-bulunanlar-aydinlatma-metni.md) | Görüntülere girebilen işçi, bekçi, komşu ve yoldan geçenler için aydınlatma; sitede `/bahcede-bulunanlar`, tarama levhasının QR kodu | Bahçede bulunan kişiler |
@@ -88,6 +88,6 @@ Tasarım: [docs/bahce-yonetimi.md](../bahce-yonetimi.md) §2, §4–§7, §10, �
 
 ### Bakım hizmeti: ot biçme (İP15, 2 Kasım 2026)
 
-Ürün kararı: [docs/MVP.md](../MVP.md) Modül 6. Sürüm: `bakim-v1-taslak` (yeni metin; diğer metinler değişmedi, atıflar T35 ile sonraki sürümlerine girer).
+Ürün kararı: [docs/MVP.md](../MVP.md) Modül 6. Sürüm: `bakim-v2-taslak` (v1 yeni metindi; v2'de biçmeyi otonom robot MARABA-I personel gözetiminde yapar, [H38](kararlar.md#h38); v1 `arsiv/bakim-hizmeti-ek-sozlesme-taslagi-v1.md`. Diğer metinler değişmedi, atıflar T35 ile sonraki sürümlerine girer).
 
 26. **Karara bağlandı:** [H37](kararlar.md#h37) — ayrı ek sözleşme (ön bilgilendirme ve iptal koşulları içinde); tutar yalnızca indirilebilir; kusur sorumluluğu, tacirde ana sözleşmedeki sınır; önceki güne kadar bedelsiz iptal, 14 gün cayma ve isteğe bağlı erken ifa kutusuyla md. 15/1-(h); ön talep bağlayıcı değil; bağımsızlık açıklaması. **Yapay zekâ kararıdır. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır.**

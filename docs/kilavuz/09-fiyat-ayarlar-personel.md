@@ -114,7 +114,7 @@ Kural: "Birim fiyatı boş bırakılan paket listeye girmez. Yayımlamak için h
 4. "Minimum ücret (TL)".
 5. "Envanter ücreti (TL, ilk yıl)".
 6. "Taslağı kaydet". ("Not" alanı isteğe bağlıdır.)
-6a. "Hizmet fiyatları" (İP15, hizmet katmanı açıkken): ot biçme gibi her hizmet için "Dönüm fiyatı (TL, KDV hariç)" ve "Minimum ücret (TL, KDV hariç)"; KDV listenin oranıdır. Kendi düğmesiyle kaydedilir: "Hizmet fiyatlarını kaydet". Fiyatı boş bırakılan hizmet bu sürümde fiyatsızdır: portalda rakam yerine "Fiyat teklifle bildirilir" yazar, operasyon tutarı planlarken elle girer. Yayın için hizmet fiyatı gerekmez. Yayımlı listede bu bölüm salt okunur; fiyatsız satırda "Fiyatsız (teklifle)" yazar.
+6a. "Hizmet fiyatları" (İP15, hizmet katmanı açıkken): ot biçme gibi her hizmet için "Dönüm fiyatı (TL, KDV hariç)" ve "Minimum ücret (TL, KDV hariç)"; KDV listenin oranıdır. Her hizmetin bir "Tüm robotlar" satırı ve hizmeti yapabilen her robot modeli için bir satırı ("Robot: MARABA-I") vardır. Robot satırına fiyat girilirse o robotu seçen talep bu fiyatı alır; boş robot satırı "Tüm robotlar" fiyatını kullanır. Kendi düğmesiyle kaydedilir: "Hizmet fiyatlarını kaydet". Hiç fiyatı olmayan hizmet bu sürümde fiyatsızdır: portalda rakam yerine "Fiyat teklifle bildirilir" yazar, operasyon tutarı planlarken elle girer. Yayın için hizmet fiyatı gerekmez. Yayımlı listede bu bölüm salt okunur; fiyatsız satırda "Fiyatsız (teklifle)" yazar.
 7. "Yayımla" bölümündeki onay kutusu: "Fiyatları ve başlangıç tarihini kontrol ettim; liste bundan sonra değiştirilemez."
 8. "Listeyi yayımla".
 9. "Taslağı sil" (açılır bölüm): "Taslak ve girilen fiyatlar silinir. Yayımlanmış listeler ve verilmiş teklifler etkilenmez."

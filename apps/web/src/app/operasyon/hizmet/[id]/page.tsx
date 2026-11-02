@@ -37,7 +37,9 @@ import {
 } from "@/lib/operations/service-data";
 import {
   PAYMENT_METHODS,
+  PERFORMERS,
   PROOF_PHOTO_TYPES,
+  defaultPerformer,
   earliestServiceDate,
   readServiceNotice,
   serviceHref,
@@ -90,6 +92,9 @@ export default async function Page({
   // the amount (ops_schedule_service_request requires it then).
   const quoteMax = r.estimate_total_kurus;
   const estimated = quoteMax != null;
+  // Who did the job: robot for mowing by default (the service is presented
+  // to the owner as done by the robot); ops picks the field crew when it did.
+  const performerDefault = defaultPerformer(r.service_type?.operation_kind);
 
   const record = (
     <>
@@ -97,6 +102,12 @@ export default async function Page({
         <Facts
           rows={[
             [S.service, row.service_name],
+            [
+              S.robotModel,
+              <span key="robot" data-testid="service-robot-model">
+                {row.robot_model_name ?? S.noRobotModel}
+              </span>,
+            ],
             [
               S.parcelLabel,
               <span key="p">
@@ -131,6 +142,16 @@ export default async function Page({
             [S.scheduledDate, day(r.scheduled_date)],
             ...(r.completed_on
               ? ([[S.completedOn, day(r.completed_on)]] as [string, string][])
+              : []),
+            ...(r.status === "done" && row.performer
+              ? ([
+                  [
+                    S.performerLabel,
+                    <span key="performer" data-testid="service-performer">
+                      {S.performer[row.performer] ?? row.performer}
+                    </span>,
+                  ],
+                ] as [string, ReactNode][])
               : []),
             ...(r.cancelled_at
               ? ([
@@ -410,6 +431,22 @@ export default async function Page({
                 required
               />
             </Field>
+            <fieldset className={styles.choice} data-testid="service-performer-choice">
+              <legend>{S.performerQuestion}</legend>
+              {PERFORMERS.map((p) => (
+                <label key={p} className={styles.choiceOption}>
+                  <input
+                    type="radio"
+                    name="performer"
+                    value={p}
+                    defaultChecked={p === performerDefault}
+                    required
+                  />
+                  {S.performer[p]}
+                </label>
+              ))}
+              <p className={styles.hint}>{S.performerHint}</p>
+            </fieldset>
             <Field label={S.note} optional>
               <textarea id="service-complete-note" name="note" maxLength={1000} rows={2} />
             </Field>

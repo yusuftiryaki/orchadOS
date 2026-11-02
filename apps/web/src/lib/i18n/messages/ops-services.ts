@@ -25,6 +25,9 @@ export const opsServicesText = {
   areaSource: { boundary: "ölçülen sınır", declared: "sahibin beyanı" } as Record<string, string>,
   actor: { owner: "Sahip", ops: "Operasyon", system: "Sistem" } as Record<string, string>,
   phase: { before: "Öncesi", after: "Sonrası" } as Record<string, string>,
+  // Who actually did the job (back office only; the owner is told the
+  // autonomous robot MARABA-I does the service).
+  performer: { robot: "Robot", crew: "Saha ekibi" } as Record<string, string>,
 
   // Queue
   filters: "Süzgeç",
@@ -62,6 +65,10 @@ export const opsServicesText = {
   noName: "Sahip kaydı yok",
   early: "Erken ifa istendi",
   open: "İncele",
+  // The robot model the owner chose, under the service name.
+  robotLine: (name: string) => `Robot: ${name}`,
+  // Done jobs: who did it.
+  performedBy: (who: string) => `Yapan: ${who}`,
 
   // Demand
   demandTitle: "Talep ve ön talepler",
@@ -85,6 +92,9 @@ export const opsServicesText = {
   backToQueue: "Hizmet talepleri",
   facts: "Talep",
   service: "Hizmet",
+  robotModel: "Seçilen robot",
+  noRobotModel: "Robot seçilmedi",
+  performerLabel: "İşi yapan (sahip görmez)",
   parcelLabel: "Parsel",
   requester: "Talep eden",
   phone: "Telefon",
@@ -164,6 +174,9 @@ export const opsServicesText = {
   completeTitle: "İşi kapat",
   completeHint:
     "İş bittiyse yapıldığı günü girin. Parsele bir biçme işlemi kaydı yazılır ve sahibe SMS gider.",
+  performerQuestion: "İşi kim yaptı?",
+  performerHint:
+    "İç kayıt: iş kaydına ve oturuma yazılır, sahip görmez. İşin tamamını ya da çoğunu saha ekibi yaptıysa Saha ekibi seçin.",
   proofHint: "Önce en az bir öncesi ve bir sonrası fotoğrafı bağlayın.",
   doneOn: "Yapıldığı gün",
   complete: "İşi tamamlandı olarak kapat",
@@ -246,6 +259,9 @@ export const opsServicesText = {
     slope: "Eğim",
     stoniness: "Taşlılık",
     lowest_branch_cm: "En alçak dal",
+    performer: "İşi kim yaptı",
+    robot_model: "Robot",
+    robot_model_id: "Robot",
   } as Record<string, string>,
 
   // Catalogue
@@ -318,7 +334,7 @@ export const opsServicesText = {
   },
   robot: {
     title: "Robot uygunluk notu",
-    lead: "İleride robotun önce gideceği bahçeleri seçmek için tutulan saha notu. Sahip görmez; sahibe robotla iş sözü verilmez.",
+    lead: "Robotun bu bahçede nerede güvenle çalışabileceğini ve hangi kısımları saha ekibinin tamamlaması gerektiğini planlamak için tutulan saha notu. Sahip görmez.",
     slope: "Eğim",
     slopes: { flat: "Düz", gentle: "Hafif eğimli", steep: "Dik" } as Record<string, string>,
     stoniness: "Taşlılık",

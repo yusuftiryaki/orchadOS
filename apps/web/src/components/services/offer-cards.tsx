@@ -4,11 +4,13 @@ import { Panel } from "@/components/ui/panel";
 import { servicesText as S } from "@/lib/i18n/messages/services";
 import { offerCards, type ServiceOffer } from "@/lib/services/offers";
 import { serviceHref } from "@/lib/services/urls";
+import { RobotBadge } from "./robot-badge";
 import styles from "./services.module.css";
 
 // The service cards of the portal (IP15, docs/MVP.md Module 6): one card per
 // owned parcel and service, in the state public.service_offers gives
-// (recommended, available, pre_request, open). Nothing when there is no row:
+// (recommended, available, pre_request, open), with the robot that does the
+// job (the open request's model, else the default one). Nothing when there is no row:
 // the switch is off, the reader is a co-owner, or no area is known. A demo
 // visitor sees the cards; the form they lead to writes nothing.
 export function ServiceOffers({
@@ -52,6 +54,11 @@ export function ServiceOffers({
               {card.lines.map((line) => (
                 <p key={line}>{line}</p>
               ))}
+              {card.robot && (
+                <div className={styles.robot}>
+                  <RobotBadge robot={card.robot} />
+                </div>
+              )}
               {card.price && (
                 <p
                   className={styles.price}

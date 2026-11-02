@@ -6,8 +6,9 @@ authenticated`, i.e. through row level security, and counts what the owner
 portal needs, the service card (unpriced, buyable) and the done mowing job with
 its proof photos and the own-work note included. Part two runs as postgres: media
 objects, persona lockdown, a billing setting that only switches the service layer
-on, the catalogue row and its seasons, no service price, the job's rows, the
-parcels' species, no notification. One read-only transaction, rolled back.
+on, the catalogue row and its seasons, the robot model that can do it, no
+service price, the job's rows (done by the robot MARABA-I), the parcels' species,
+no notification. One read-only transaction, rolled back.
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ from . import ids
 from .dataset import (
     DEMO_SPECIES,
     FEATURED,
+    ROBOT_MODEL_CODE,
+    ROBOT_MODEL_ID,
     SERVICE_JOBS,
     SERVICE_SEASON,
     SERVICE_TERMS_VERSION,
@@ -88,7 +91,7 @@ select json_build_object(
     select coalesce(json_agg(json_build_object('parcel_id', o.parcel_id, 'code', o.service_code,
       'state', o.state, 'weed_height', o.weed_height, 'species', o.species,
       'priced', o.price_per_donum_kurus is not null or o.estimate_total_kurus is not null,
-      'open', o.open_request_id is not null)), '[]')
+      'open', o.open_request_id is not null, 'robot', o.robot_model_code)), '[]')
     from public.service_offers() o),
   'weed_a', (
     select m.value_category from public.measurement m
@@ -191,14 +194,23 @@ select json_build_object(
         r.vat_rate_bp, r.estimate_subtotal_kurus, r.estimate_vat_kurus, r.estimate_total_kurus) <> 8
       or r.area_m2 is distinct from (select a.area_m2 from private.parcel_service_area(r.parcel_id) a)
       or (r.status in ('scheduled', 'done') and coalesce(r.quote_total_kurus, 0) <= 0))),
-  -- Done jobs written as ops_complete_service_request leaves them.
+  -- The robot models that can do the demo org's mowing (version 3).
+  'service_robot_models', (
+    select coalesce(json_agg(m.code order by sm.sort_order, m.code), '[]')
+    from public.service_type_robot_model sm
+    join public.robot_model m on m.id = sm.robot_model_id and m.active
+    join public.service_type t on t.id = sm.service_type_id and t.code = {lit(SERVICE_TYPE["code"])}
+    where sm.org_id = {lit(ORG)}),
+  -- Done jobs written as ops_complete_service_request leaves them: the robot did
+  -- the job with the model the owner chose (version 3; internal truth).
   'done_jobs', (
     select count(*) from public.service_request r
     join public.operation op on op.id = r.operation_id and op.session_id = r.session_id
-      and op.kind = 'mowing' and op.performer = 'crew' and op.details ->> 'service_request_id' = r.id::text
-      and op.details ->> 'by' = 'orchados'
+      and op.kind = 'mowing' and op.performer = 'robot' and op.details ->> 'service_request_id' = r.id::text
+      and op.details ->> 'by' = 'orchados' and op.details ->> 'robot_model' = {lit(ROBOT_MODEL_CODE)}
     join public.session s on s.id = r.session_id and s.kind = 'mowing' and s.status = 'captured'
-    where r.org_id = {lit(ORG)} and r.status = 'done'
+      and s.performer = 'robot'
+    where r.org_id = {lit(ORG)} and r.status = 'done' and r.robot_model_id = {lit(ROBOT_MODEL_ID)}
       and exists (select 1 from public.service_request_photo p where p.request_id = r.id and p.phase = 'before')
       and exists (select 1 from public.service_request_photo p where p.request_id = r.id and p.phase = 'after')),
   'published_job_sessions', (
@@ -312,9 +324,10 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
             and mine[0]["state"] in OFFER_STATES
             and not mine[0]["open"]
             and not mine[0]["priced"]
-            and mine[0]["species"] == DEMO_SPECIES,
+            and mine[0]["species"] == DEMO_SPECIES
+            and mine[0]["robot"] == ROBOT_MODEL_CODE,
             f"parcel {name}: service card {mine}, expected one unpriced card in "
-            f"{', '.join(OFFER_STATES)}",
+            f"{', '.join(OFFER_STATES)} for {ROBOT_MODEL_CODE}",
         )
         if name == "A" and mine:
             need(mine[0]["weed_height"] == WEED_HEIGHTS["A-SCN26"], "parcel A card: weed height")
@@ -342,7 +355,16 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
         admin["bad_quotes"] == 0,
         f"{admin['bad_quotes']} service requests with an estimate, another area or no amount",
     )
-    need(admin["done_jobs"] >= 1, "no done job with operation, captured mowing session and photos")
+    need(
+        admin["done_jobs"] >= 1,
+        "no done job with operation, captured mowing session and photos, done by the robot "
+        f"{ROBOT_MODEL_CODE}",
+    )
+    need(
+        admin["service_robot_models"] == [ROBOT_MODEL_CODE],
+        f"robot models of the demo mowing {admin['service_robot_models']}, "
+        f"expected [{ROBOT_MODEL_CODE!r}]",
+    )
     need(admin["published_job_sessions"] == 0, "a service job session is published")
     need(admin["robot_notes"] == 2, f"{admin['robot_notes']} robot notes, expected 2")
     need(admin["notifications"] == 0, f"{admin['notifications']} notifications for the demo org")

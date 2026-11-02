@@ -28,7 +28,9 @@ select tables_are(
     'service_type', 'service_type_season', 'price_list_service_item', 'service_request', 'service_request_event',
     'service_request_photo', 'parcel_robot_note',
     -- Fruit species lookup (global, like metric_definition).
-    'fruit_species'
+    'fruit_species',
+    -- Robot fleet (IP15): global robot models and the models of a service.
+    'robot_model', 'service_type_robot_model'
   ],
   'public has exactly the MVP tables'
 );
@@ -70,7 +72,7 @@ select is(
 select is(
   (select count(*) from information_schema.tables t
    where t.table_schema = 'public' and t.table_type = 'BASE TABLE'
-     and t.table_name not in ('org', 'metric_definition', 'fruit_species')
+     and t.table_name not in ('org', 'metric_definition', 'fruit_species', 'robot_model')
      and not exists (select 1 from information_schema.columns c
                      where c.table_schema = 'public' and c.table_name = t.table_name and c.column_name = 'org_id')),
   0::bigint,

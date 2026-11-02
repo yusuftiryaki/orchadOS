@@ -1,8 +1,20 @@
 import { describe, expect, it } from "vitest";
+import { servicesText as S } from "@/lib/i18n/messages/services";
 import { offerCard, offerCards, type ServiceOffer } from "./offers";
+import type { RobotModel } from "./robots";
 
 const PARCEL = "c0000000-0000-4000-8000-000000000001";
 const TYPE = "91500000-0000-4000-8000-000000000001";
+
+const ROBOT: RobotModel = {
+  id: "91600000-0000-4000-8000-000000000001",
+  code: "maraba_i",
+  name: "MARABA-I",
+  shortDescription: "orchadOS tarama kitini taşıyan otonom bahçe robotu",
+  capabilities: ["Misinalı biçme kafası"],
+  imagePath: "/robots/maraba-dijital-ikiz.jpg",
+  drawingPath: "/robots/maraba-i.svg",
+};
 
 const offer = (over: Partial<ServiceOffer> = {}): ServiceOffer => ({
   parcel_id: PARCEL,
@@ -31,6 +43,10 @@ const offer = (over: Partial<ServiceOffer> = {}): ServiceOffer => ({
   open_request_id: null,
   open_request_status: null,
   open_request_number: null,
+  robot_model_id: ROBOT.id,
+  robot_model_code: ROBOT.code,
+  robot_model_name: ROBOT.name,
+  robot: ROBOT,
   ...over,
 });
 
@@ -139,15 +155,27 @@ describe("service offer cards", () => {
     expect(offerCard(offer({ state: "whatever" }), "2027-05-02")).toBeNull();
   });
 
-  it("never promises a robot", () => {
-    const states = ["recommended", "available", "pre_request", "open"];
-    for (const state of states) {
-      const text = offerCard(
+  it("names the autonomous robot MARABA-I and never the tırpan", () => {
+    // Owner decision of 2 November 2026: the job is presented as done by the
+    // autonomous robot; the portal never says how else it is done.
+    const copy = [S.card.lead, S.form.lead, S.robot.badge(ROBOT.name)];
+    for (const text of copy) expect(text).toContain("MARABA-I");
+    expect(S.card.lead).toContain("otonom robotumuz MARABA-I");
+    const all = JSON.stringify(S, (_k, v: unknown) =>
+      typeof v === "function" ? (v as (...a: string[]) => string)("x", "y", "z") : v,
+    ).toLocaleLowerCase("tr");
+    expect(all).not.toContain("tırpan");
+    expect(all).not.toContain("saha ekib");
+    for (const state of ["recommended", "available", "pre_request", "open"]) {
+      const card = offerCard(
         offer({ state, weed_height: "tall", observed_at: "2027-04-14T07:00:00Z" }),
         "2027-05-02",
-      )!.lines.join(" ");
-      expect(text.toLocaleLowerCase("tr")).not.toContain("robot");
+      )!;
+      expect(card.robot?.name).toBe("MARABA-I");
+      expect(card.lines.join(" ").toLocaleLowerCase("tr")).not.toContain("tırpan");
     }
+    // No model can do the service: no badge.
+    expect(offerCard(offer({ robot: null, robot_model_id: null }), "2027-05-02")!.robot).toBeNull();
   });
 
   it("orders recommendations first, then open requests, offers, pre-requests", () => {

@@ -1,12 +1,17 @@
 # ruff: noqa: E501 - Turkish texts of the dataset read better unwrapped
-"""The demo dataset, version 2 (docs/demo-turu.md §8): parcels, slots, trees, visits,
+"""The demo dataset, version 3 (docs/demo-turu.md §8): parcels, slots, trees, visits,
 their per-tree classes and values, findings, close-ups and questions (version 1),
-and the service layer (version 2: weed observations, the weed mowing catalogue
-row and its season per fruit species, a done mowing job with proof photos).
+the service layer (version 2: weed observations, the weed mowing catalogue row
+and its season per fruit species, a done mowing job with proof photos) and the
+robot fleet (version 3: the mowing is done by the autonomous robot MARABA-I; the
+catalogue row names it, the robot model can do the service, the done job carries
+the model and the robot as its performer).
 
-Versions are cumulative: version 2 holds every row of version 1 with the same ids
-and the same media seeds, plus its own rows, whose ids carry v2 (ids.did). Loading
-version 2 onto a version 1 target only adds rows (docs/demo-turu.md §10.3).
+Versions are cumulative: version 3 holds every row of versions 1 and 2 with the
+same ids and the same media seeds, plus its own rows, whose ids carry their
+version (ids.did). Loading version 2 onto a version 1 target only adds rows;
+version 3 adds the robot model link and brings the four mutable rows of version
+2 it changed up to date (docs/demo-turu.md §10.3).
 
 Pure and deterministic: every random choice is seeded from (SEED_VERSION, key)
 (rng()). The renderer (render.py) draws what this module says, the SQL emitter
@@ -32,12 +37,15 @@ from ..geo import LocalFrame
 from . import ids
 
 DATASET_NAME = "orchados-demo"
-DATASET_VERSION = 2
+DATASET_VERSION = 3
 # Media and value seeds stay those of version 1, so the rows and files of version
 # 1 come out the same in every later version (cumulative versions, §10.3).
 SEED_VERSION = 1
 # The version that introduced the service layer rows: their derived ids.
 SERVICES_VERSION = 2
+# The version that made the robot the performer of the service (IP15 robot fleet,
+# owner decision of 2 November 2026). It adds no row with a derived id.
+ROBOT_VERSION = 3
 # Fruit species of the demo parcels (public.fruit_species): pistachio, the
 # species the methodology covers.
 DEMO_SPECIES = "antep_fistigi"
@@ -925,15 +933,17 @@ FIELD_PROTOCOL = {"spring": "spring-v0.2", "summer": "summer-v0.3"}
 SEASON_OF_MONTH = {6: "summer", 7: "summer"}
 FIELD_QUESTION_METHOD = "field_question"
 
-# The demo org's catalogue row, as the migration seeds it for other orgs
-# (20261106100100_service_layer.sql skips demo orgs). No price: prices live in the
-# versioned price list (price_list_service_item) and the demo org has none, so the
-# portal shows "Fiyat teklifle bildirilir" and ops enters the amount of a job.
+# The demo org's catalogue row, as the migrations seed it for other orgs
+# (20261106100100_service_layer.sql skips demo orgs; the description as
+# 20261107100000_robot_fleet.sql has it: the service is presented as done by the
+# autonomous robot MARABA-I). No price: prices live in the versioned price list
+# (price_list_service_item) and the demo org has none, so the portal shows "Fiyat
+# teklifle bildirilir" and ops enters the amount of a job.
 SERVICE_TYPE = {
     "code": "weed_mowing",
     "name": "Yabani ot biçme",
-    "description": "orchadOS ot biçme hizmeti: parseldeki yabani otlar motorlu tırpanla biçilir. "
-    "Öncesi ve sonrası fotoğrafları parsel kaydına eklenir.",
+    "description": "orchadOS ot biçme hizmeti: parseldeki yabani otları otonom robotumuz "
+    "MARABA-I biçer. Öncesi ve sonrası fotoğrafları parsel kaydına eklenir.",
     "operation_kind": "mowing",
     "season_start_month": 3,
     "season_start_day": 1,
@@ -946,9 +956,14 @@ SERVICE_TYPE = {
 # Season window of the service per fruit species (public.service_type_season), as
 # the migration seeds it: 1 March - 30 June for every species in public.fruit_species.
 SERVICE_SEASON = (3, 1, 6, 30)
-# Service terms the owner accepted (20261106300000_legal_text_service_terms.sql).
-SERVICE_TERMS_VERSION = "bakim-v1-taslak"
+# Service terms the owner accepted (20261107200000_legal_text_service_terms_v2.sql).
+SERVICE_TERMS_VERSION = "bakim-v2-taslak"
 PRICING_RULE = "service-v1"
+# The robot model that does the mowing (public.robot_model, a global lookup seeded
+# by 20261107100000_robot_fleet.sql; not demo data): linked to the demo org's
+# catalogue row (public.service_type_robot_model) and chosen on the done job.
+ROBOT_MODEL_ID = "91600000-0000-4000-8000-000000000001"
+ROBOT_MODEL_CODE = "maraba_i"
 
 
 @dataclass(frozen=True)
@@ -963,13 +978,16 @@ class ServicePhoto:
 
 @dataclass(frozen=True)
 class ServiceJob:
-    """A done weed mowing job: request, schedule, the crew's day, proof photos, payment.
+    """A done weed mowing job: request, schedule, the robot's day, proof photos, payment.
 
     In the 2026 season, after B's inventory and
     before its July scan; the request needs the walked boundary's area. The
     service was not priced, so the request froze no estimate and ops entered the
     amount when scheduling. The owner asked for an early job inside the 14-day
-    withdrawal period (H37), so the day is nine days after the request.
+    withdrawal period (H37), so the day is nine days after the request. The owner
+    chose MARABA-I (the service's only model) and the robot did the job (version 3):
+    the operation and the job session record the robot as the performer, as
+    ops_complete_service_request does by default for mowing.
     """
 
     key: str
@@ -995,6 +1013,9 @@ class ServiceJob:
     # are filed under it) and the request (the guided tour opens its page).
     id: str
     request_id: str
+    # Version 3: the robot model the owner chose and who did the job (internal).
+    robot_model_id: str = ROBOT_MODEL_ID
+    performer: str = "robot"
 
     @property
     def operation_id(self) -> str:

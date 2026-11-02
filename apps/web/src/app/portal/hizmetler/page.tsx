@@ -1,5 +1,6 @@
 import Link from "next/link";
 import layout from "@/components/portal/page.module.css";
+import { RobotBadge } from "@/components/services/robot-badge";
 import styles from "@/components/services/services.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,7 @@ import { serviceHref } from "@/lib/services/urls";
 import { createClient } from "@/lib/supabase/server";
 
 // "Hizmetlerim" (IP15): the owner's service requests and pre-requests, newest
-// first: number, garden, service, state, the date that matters for the state
+// first: number, garden, service, the robot, state, the date that matters for the state
 // and the amount (the confirmed one, else the frozen estimate, else "Fiyat
 // teklifle bildirilir" when the service had no published price). Row level
 // security shows owners their parcels' requests; a co-owner sees none.
@@ -70,6 +71,7 @@ export default async function ServiceRequestsPage({
                     </span>
                   </div>
                   <div className={styles.rowSide}>
+                    {r.robot && <RobotBadge robot={r.robot} compact />}
                     <Badge tone={statusTone(r.status)}>{S.status[r.status]}</Badge>
                     <span className={styles.amount} data-testid="service-request-amount">
                       {amount ? (

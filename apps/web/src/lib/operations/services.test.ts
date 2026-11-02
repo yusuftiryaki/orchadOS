@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { Constants } from "@/lib/database.types";
 import { opsServicesText } from "@/lib/i18n/messages/ops-services";
 import {
+  PERFORMERS,
   SERVICE_ERRORS,
   SERVICE_STATUSES,
+  defaultPerformer,
   earliestServiceDate,
   istanbulDay,
   parseCancel,
@@ -187,15 +189,42 @@ describe("parseSchedule", () => {
 });
 
 describe("other request forms", () => {
-  it("parseComplete: a day not in the future", () => {
-    expect(parseComplete(reader({ done_on: "2026-11-02" }), "2026-11-02")).toEqual({
+  it("parseComplete: a day not in the future and who did the job", () => {
+    expect(
+      parseComplete(reader({ done_on: "2026-11-02", performer: "robot" }), "2026-11-02"),
+    ).toEqual({
       ok: true,
-      value: { doneOn: "2026-11-02", note: null },
+      value: { doneOn: "2026-11-02", note: null, performer: "robot" },
     });
-    expect(parseComplete(reader({ done_on: "2026-11-03" }), "2026-11-02")).toMatchObject({
+    expect(
+      parseComplete(
+        reader({ done_on: "2026-11-02", performer: "crew", note: "Dik köşe" }),
+        "2026-11-02",
+      ),
+    ).toEqual({
+      ok: true,
+      value: { doneOn: "2026-11-02", note: "Dik köşe", performer: "crew" },
+    });
+    expect(
+      parseComplete(reader({ done_on: "2026-11-03", performer: "robot" }), "2026-11-02"),
+    ).toMatchObject({ ok: false, field: "done_on" });
+    // Required (the form preselects the default); only the enum's values.
+    expect(parseComplete(reader({ done_on: "2026-11-02" }), "2026-11-02")).toMatchObject({
       ok: false,
-      field: "done_on",
+      field: "performer",
     });
+    expect(
+      parseComplete(reader({ done_on: "2026-11-02", performer: "tractor" }), "2026-11-02"),
+    ).toMatchObject({ ok: false, field: "performer" });
+    expect(S.fields.performer).toBeTruthy();
+  });
+
+  it("performers: the database enum; robot by default for mowing", () => {
+    expect([...PERFORMERS].sort()).toEqual([...Constants.public.Enums.performer_kind].sort());
+    expect(defaultPerformer("mowing")).toBe("robot");
+    expect(defaultPerformer("tillage")).toBe("crew");
+    expect(defaultPerformer(null)).toBe("crew");
+    for (const p of PERFORMERS) expect(S.performer[p]).toBeTruthy();
   });
 
   it("parseCancel: a reason is required", () => {

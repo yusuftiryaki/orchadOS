@@ -1,7 +1,9 @@
 // Service layer of the owner portal (IP15, docs/MVP.md Module 6): the offer
 // cards, the request form, "Hizmetlerim" and the request page, and the
-// independence note on the care row (decision 5). Product rules: the work is
-// done by our field staff with a motorlu tırpan (never promise robot mowing);
+// independence note on the care row (decision 5). Product rules (owner
+// decision of 2 November 2026): the job is presented as done by our
+// autonomous robot (MARABA-I today) and the owner picks the robot; the portal
+// never says how else the work is done (the addendum carries that nuance);
 // the recommendation is shown only in the portal (docs/hukuk/kararlar.md H37).
 
 import type { Database } from "@/lib/database.types";
@@ -35,7 +37,7 @@ export const servicesText = {
 
   card: {
     title: "Bahçe hizmetleri",
-    lead: "İşi köydeki saha ekibimiz motorlu tırpanla yapar. Öneri, yayımlanmış son ziyaretteki gözleme ve mevsime dayanır; uzman bulgusu değildir. İşi başkasına da yaptırabilirsiniz.",
+    lead: "Biçmeyi otonom robotumuz MARABA-I yapar. Öneri, yayımlanmış son ziyaretteki gözleme ve mevsime dayanır; uzman bulgusu değildir. İşi başkasına da yaptırabilirsiniz.",
     // The amount when the published price list prices the service.
     price: (amount: string) => `${amount}, KDV dahil`,
     priceListVersion: (version: number) => `Fiyat listesi sürüm ${version}`,
@@ -59,7 +61,7 @@ export const servicesText = {
     title: (service: string) => `${service} talebi`,
     preTitle: (service: string) => `${service} için ön talep`,
     back: "Bahçeye dön",
-    lead: "İşi köydeki saha ekibimiz motorlu tırpanla yapar. Talebiniz bir öneridir: tutarı ve iş gününü onayladığımızda sözleşme kurulur ve size SMS ile bildiririz. Ödeme iş bittikten sonra, havale/EFT ile ya da işyerimizde yapılır; çevrimiçi ödeme yoktur.",
+    lead: "Biçmeyi otonom robotumuz MARABA-I yapar. Talebiniz bir öneridir: tutarı ve iş gününü onayladığımızda sözleşme kurulur ve size SMS ile bildiririz. Ödeme iş bittikten sonra, havale/EFT ile ya da işyerimizde yapılır; çevrimiçi ödeme yoktur.",
     preLead: (opens: string) =>
       `Sezon dışındayız. Ön talep, gelecek sezon bu hizmetle ilgilendiğinizi bildirir; bağlayıcı değildir, fiyat ve tarih taahhüdü içermez. Sezon ${opens} açılınca sizi arar, talebinizi o günün fiyatıyla birlikte konuşuruz. Ön talebinizi istediğiniz zaman geri çekebilirsiniz.`,
     summaryTitle: "Bahçe ve tutar",
@@ -84,6 +86,11 @@ export const servicesText = {
     preEstimateNote:
       "Bugünkü fiyatla hesaplanmış yaklaşık tutardır. Ön talepte fiyat taahhüt edilmez; sezon açılınca güncel fiyatı ayrıca onaylarsınız.",
     roundingNote: "Her başlamış 100 m² 0,1 dönüm sayılır.",
+    robotTitle: "Hangi robot yapsın?",
+    robotHint: "Tutar seçtiğiniz robota göre hesaplanır.",
+    robotPrice: (amount: string) => `Tahmini ${amount}, KDV dahil`,
+    robotNoPrice: "Fiyat teklifle bildirilir",
+    robotDefault: "Önerilen",
     windowLabel: "Ne zaman yapılsın?",
     windowHint: "Tercihinizdir; kesin günü size biz bildiririz.",
     noteLabel: "Notunuz",
@@ -105,7 +112,7 @@ export const servicesText = {
     // Section 10/3 of the addendum, word for word (docs/hukuk/
     // bakim-hizmeti-ek-sozlesme-taslagi.md); a change needs a new version.
     earlyCheck:
-      "Ot biçmenin 14 günlük cayma süresi dolmadan yapılmasını istiyorum. Personel işe başladığında cayma hakkımın sona ereceğini biliyorum. Bu kutuyu işaretlemezsem iş, cayma süresi dolduktan sonraki bir güne planlanır.",
+      "Ot biçmenin 14 günlük cayma süresi dolmadan yapılmasını istiyorum. İşe başlandığında cayma hakkımın sona ereceğini biliyorum. Bu kutuyu işaretlemezsem iş, cayma süresi dolduktan sonraki bir güne planlanır.",
     preTermsNote:
       "Ön talep ek sözleşmenin 11. bölümüne göre yapılır; sözleşme ya da sözleşme önerisi değildir.",
     submit: "Talebi gönder",
@@ -145,6 +152,7 @@ export const servicesText = {
     summaryTitle: "Talep",
     parcel: "Bahçe",
     service: "Hizmet",
+    robot: "Robot",
     window: "Tercih edilen zaman",
     note: "Notunuz",
     early: "Cayma süresi içinde yapılsın",
@@ -164,7 +172,7 @@ export const servicesText = {
     paid: (date: string) => `Ödeme alındı (${date})`,
     payLater: "İş bitince ödenir",
     paymentHow:
-      "Ödeme, iş tamamlandı bildiriminden itibaren 14 gün içinde havale/EFT ile (açıklamaya talep numarasını yazın) ya da işyerimizde yapılır. Saha ekibi ödeme almaz.",
+      "Ödeme, iş tamamlandı bildiriminden itibaren 14 gün içinde havale/EFT ile (açıklamaya talep numarasını yazın) ya da işyerimizde yapılır. Bahçede ödeme alınmaz.",
     historyTitle: "Durum geçmişi",
     created: "Talep açıldı",
     by: { owner: "sizin tarafınızdan", ops: "ekibimiz tarafından", system: "sistem" } as Record<
@@ -221,6 +229,8 @@ export const servicesText = {
     cancel_confirm_missing: "İptal için onay kutusunu işaretleyin.",
     demo_read_only:
       "Demoda kapalı: gerçek hesabınızda ot biçme talep edebilir ve iptal edebilirsiniz.",
+    robot_model:
+      "Seçtiğiniz robot bu hizmeti şu anda yapamıyor. Listeden başka bir robot seçip yeniden gönderin.",
     not_found: "Talep, bahçe ya da hizmet bulunamadı. Bahçe sayfanızdan yeniden deneyin.",
     invalid_status: "Talebin durumu değişti; bu işlem artık yapılamaz. Sayfayı yenileyin.",
     too_late_to_cancel:
@@ -228,6 +238,19 @@ export const servicesText = {
     forbidden: "Bu işlemi yalnızca bahçenin sahibi yapabilir.",
     write_failed: "Kaydedilemedi. Bağlantınızı kontrol edip yeniden deneyin; sürerse bizi arayın.",
   } as Record<string, string>,
+
+  // The robot badge and its card (components/services/robot-badge.tsx).
+  robot: {
+    badge: (name: string) => `Otonom robot · ${name}`,
+    kind: "Otonom robot",
+    imageAlt: (name: string) =>
+      `${name}: ağaç sıraları arasında dört tekerlekli otonom bahçe robotu, dijital ikiz çizimi`,
+    imageCaption: "Temsili görsel",
+    drawing: "Teknik çizim",
+    newTab: "(yeni sekmede açılır)",
+    capabilities: "Özellikleri",
+    close: "Kapat",
+  },
 
   // Care row of the report card, the PDF report and the expert review.
   care: {

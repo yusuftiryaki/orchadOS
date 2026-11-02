@@ -2626,6 +2626,7 @@ export type Database = {
           minimum_fee_kurus: number;
           org_id: string;
           price_list_id: string;
+          robot_model_id: string | null;
           service_type_id: string;
           unit_price_kurus: number;
           updated_at: string;
@@ -2637,6 +2638,7 @@ export type Database = {
           minimum_fee_kurus?: number;
           org_id: string;
           price_list_id: string;
+          robot_model_id?: string | null;
           service_type_id: string;
           unit_price_kurus: number;
           updated_at?: string;
@@ -2647,6 +2649,7 @@ export type Database = {
           minimum_fee_kurus?: number;
           org_id?: string;
           price_list_id?: string;
+          robot_model_id?: string | null;
           service_type_id?: string;
           unit_price_kurus?: number;
           updated_at?: string;
@@ -2665,6 +2668,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "price_list";
             referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "price_list_service_item_robot_model_id_fkey";
+            columns: ["robot_model_id"];
+            isOneToOne: false;
+            referencedRelation: "robot_model";
+            referencedColumns: ["id"];
           },
           {
             foreignKeyName: "price_list_service_item_service_type_id_org_id_fkey";
@@ -3246,6 +3256,57 @@ export type Database = {
           },
         ];
       };
+      robot_model: {
+        Row: {
+          active: boolean;
+          capabilities: string[];
+          code: string;
+          created_at: string;
+          id: string;
+          image_path: string | null;
+          name: string;
+          operator_org_id: string | null;
+          short_description: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          active?: boolean;
+          capabilities?: string[];
+          code: string;
+          created_at?: string;
+          id?: string;
+          image_path?: string | null;
+          name: string;
+          operator_org_id?: string | null;
+          short_description: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          capabilities?: string[];
+          code?: string;
+          created_at?: string;
+          id?: string;
+          image_path?: string | null;
+          name?: string;
+          operator_org_id?: string | null;
+          short_description?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "robot_model_operator_org_id_fkey";
+            columns: ["operator_org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sensor: {
         Row: {
           created_at: string;
@@ -3639,6 +3700,7 @@ export type Database = {
           recommended_measurement_id: string | null;
           recommended_weed_height: string | null;
           requested_by: string | null;
+          robot_model_id: string | null;
           scheduled_date: string | null;
           season_year: number;
           service_type_id: string;
@@ -3682,6 +3744,7 @@ export type Database = {
           recommended_measurement_id?: string | null;
           recommended_weed_height?: string | null;
           requested_by?: string | null;
+          robot_model_id?: string | null;
           scheduled_date?: string | null;
           season_year: number;
           service_type_id: string;
@@ -3724,6 +3787,7 @@ export type Database = {
           recommended_measurement_id?: string | null;
           recommended_weed_height?: string | null;
           requested_by?: string | null;
+          robot_model_id?: string | null;
           scheduled_date?: string | null;
           season_year?: number;
           service_type_id?: string;
@@ -3767,6 +3831,13 @@ export type Database = {
             columns: ["recommended_measurement_id"];
             isOneToOne: false;
             referencedRelation: "tree_latest_measurement";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_request_robot_model_id_fkey";
+            columns: ["robot_model_id"];
+            isOneToOne: false;
+            referencedRelation: "robot_model";
             referencedColumns: ["id"];
           },
           {
@@ -3948,6 +4019,46 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "org";
             referencedColumns: ["id"];
+          },
+        ];
+      };
+      service_type_robot_model: {
+        Row: {
+          created_at: string;
+          org_id: string;
+          robot_model_id: string;
+          service_type_id: string;
+          sort_order: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          org_id: string;
+          robot_model_id: string;
+          service_type_id: string;
+          sort_order?: number;
+        };
+        Update: {
+          created_at?: string;
+          org_id?: string;
+          robot_model_id?: string;
+          service_type_id?: string;
+          sort_order?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_type_robot_model_robot_model_id_fkey";
+            columns: ["robot_model_id"];
+            isOneToOne: false;
+            referencedRelation: "robot_model";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_type_robot_model_service_type_id_org_id_fkey";
+            columns: ["service_type_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_type";
+            referencedColumns: ["id", "org_id"];
           },
         ];
       };
@@ -4937,6 +5048,7 @@ export type Database = {
           p_early_performance?: boolean;
           p_note: string;
           p_parcel_id: string;
+          p_robot_model_id?: string;
           p_service_type_id: string;
           p_terms_version: string;
           p_window: Database["public"]["Enums"]["service_window"];
@@ -5339,7 +5451,12 @@ export type Database = {
         Returns: undefined;
       };
       ops_complete_service_request: {
-        Args: { p_done_on: string; p_id: string; p_note: string };
+        Args: {
+          p_done_on: string;
+          p_id: string;
+          p_note: string;
+          p_performer?: Database["public"]["Enums"]["performer_kind"];
+        };
         Returns: undefined;
       };
       ops_contract_documents: {
@@ -6194,6 +6311,7 @@ export type Database = {
           payment_amount_kurus: number;
           payment_method: string;
           payment_received_on: string;
+          performer: string;
           preferred_window: string;
           price_list_version: number;
           quote_total_kurus: number;
@@ -6201,6 +6319,9 @@ export type Database = {
           requester_name: string;
           requester_phone: string;
           requester_user_id: string;
+          robot_model_code: string;
+          robot_model_id: string;
+          robot_model_name: string;
           scheduled_date: string;
           season_year: number;
           service_code: string;
@@ -6747,6 +6868,9 @@ export type Database = {
           parcel_name: string;
           price_list_version: number;
           price_per_donum_kurus: number;
+          robot_model_code: string;
+          robot_model_id: string;
+          robot_model_name: string;
           season_end: string;
           season_start: string;
           service_code: string;
@@ -6771,6 +6895,25 @@ export type Database = {
           p_text_version: string;
         };
         Returns: string;
+      };
+      service_robot_offers: {
+        Args: { p_parcel_id: string; p_service_type_id: string };
+        Returns: {
+          capabilities: string[];
+          code: string;
+          estimate_subtotal_kurus: number;
+          estimate_total_kurus: number;
+          estimate_vat_kurus: number;
+          image_path: string;
+          is_default: boolean;
+          minimum_fee_kurus: number;
+          name: string;
+          price_list_version: number;
+          price_per_donum_kurus: number;
+          robot_model_id: string;
+          short_description: string;
+          vat_rate_bp: number;
+        }[];
       };
       signup_code_grant: { Args: { p_phone: string; p_ticket: string }; Returns: string };
       signup_code_release: { Args: { p_phone: string }; Returns: undefined };

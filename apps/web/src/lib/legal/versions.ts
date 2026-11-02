@@ -19,7 +19,7 @@ export const LEGAL_TEXT_VERSIONS = {
   pre_information: "onbilgi-v5-taslak",
   refund_policy: "iade-v5-taslak",
   field_notice: "bahcede-v1-taslak",
-  service_terms: "bakim-v1-taslak",
+  service_terms: "bakim-v2-taslak",
 } as const;
 
 // The maintenance-service addendum (mowing; docs/hukuk/kararlar.md H37),

@@ -51,9 +51,22 @@ export default async function Page({
   const supabase = await createClient();
   const [view, query] = await Promise.all([getPriceList(supabase, id), searchParams]);
   if (!view) notFound();
-  const { list: l, items, packages, serviceItems, serviceTypes } = view;
+  const { list: l, items, packages, serviceItems, serviceTypes, serviceRobots } = view;
   const byPackage = new Map(items.map((i) => [i.package_id, i]));
-  const byService = new Map(serviceItems.map((i) => [i.service_type_id, i]));
+  // Service price rows by "<service>" (any robot) or "<service>_<robot model>".
+  const byService = new Map(
+    serviceItems.map((i) => [
+      i.robot_model_id ? `${i.service_type_id}_${i.robot_model_id}` : i.service_type_id,
+      i,
+    ]),
+  );
+  // Per service: the any-robot row, then a row per robot model that can do it.
+  const serviceRows = serviceTypes.flatMap((t) => [
+    { type: t, key: t.id, robot: null as (typeof serviceRobots)[number] | null },
+    ...serviceRobots
+      .filter((r) => r.service_type_id === t.id)
+      .map((r) => ({ type: t, key: `${t.id}_${r.robot_model_id}`, robot: r })),
+  ]);
   const draft = l.status === "draft";
 
   return (
@@ -162,32 +175,38 @@ export default async function Page({
                     </tr>
                   </thead>
                   <tbody>
-                    {serviceTypes.map((t) => {
-                      const item = byService.get(t.id);
+                    {serviceRows.map(({ type: t, key, robot }) => {
+                      const item = byService.get(key);
+                      const label = `${t.name} (${robot ? robot.name : T.anyRobot})`;
                       return (
-                        <tr key={t.id} data-service-code={t.code}>
+                        <tr
+                          key={key}
+                          data-service-code={t.code}
+                          data-robot-model={robot?.code ?? ""}
+                        >
                           <td>
-                            <input type="hidden" name="service_type_ids" value={t.id} />
-                            <Badges>
-                              <span className={cell.nowrap}>{t.name}</span>
-                              {!t.active && <UiBadge>{T.servicePassive}</UiBadge>}
-                            </Badges>
+                            {robot ? (
+                              <input type="hidden" name="service_robot_keys" value={key} />
+                            ) : (
+                              <input type="hidden" name="service_type_ids" value={t.id} />
+                            )}
+                            <ServiceRowName type={t} robot={robot} />
                           </td>
                           <td className={cell.num}>
                             <input
                               className={prices.priceInput}
-                              name={`svc_unit_${t.id}`}
-                              aria-label={`${t.name}: ${T.serviceUnitPrice}`}
+                              name={`svc_unit_${key}`}
+                              aria-label={`${label}: ${T.serviceUnitPrice}`}
                               inputMode="decimal"
-                              placeholder={T.serviceUnpriced}
+                              placeholder={robot ? T.robotFallback : T.serviceUnpriced}
                               defaultValue={tl(item?.unit_price_kurus)}
                             />
                           </td>
                           <td className={cell.num}>
                             <input
                               className={prices.priceInput}
-                              name={`svc_min_${t.id}`}
-                              aria-label={`${t.name}: ${T.serviceMinimumFee}`}
+                              name={`svc_min_${key}`}
+                              aria-label={`${label}: ${T.serviceMinimumFee}`}
                               inputMode="decimal"
                               defaultValue={tl(item?.minimum_fee_kurus)}
                             />
@@ -297,11 +316,20 @@ export default async function Page({
                   </tr>
                 </thead>
                 <tbody>
-                  {serviceTypes.map((t) => {
-                    const item = byService.get(t.id);
+                  {serviceRows.map(({ type: t, key, robot }) => {
+                    const item = byService.get(key);
+                    // A robot row without its own price uses the any-robot row.
+                    if (robot && !item) return null;
                     return (
-                      <tr key={t.id} data-service-code={t.code} data-priced={!!item}>
-                        <td className={cell.nowrap}>{t.name}</td>
+                      <tr
+                        key={key}
+                        data-service-code={t.code}
+                        data-robot-model={robot?.code ?? ""}
+                        data-priced={!!item}
+                      >
+                        <td>
+                          <ServiceRowName type={t} robot={robot} />
+                        </td>
                         {item ? (
                           <>
                             <td className={`${cell.num} ${cell.nowrap}`}>
@@ -326,5 +354,24 @@ export default async function Page({
         </>
       )}
     </main>
+  );
+}
+
+// A service price row's name: the service, and "Tüm robotlar" or the robot
+// model the row is for.
+function ServiceRowName({
+  type,
+  robot,
+}: {
+  type: { name: string; active: boolean };
+  robot: { name: string; active: boolean } | null;
+}) {
+  return (
+    <Badges>
+      <span className={cell.nowrap}>{type.name}</span>
+      <span className={cell.nowrap}>{robot ? T.robotRow(robot.name) : T.anyRobot}</span>
+      {!type.active && !robot && <UiBadge>{T.servicePassive}</UiBadge>}
+      {robot && !robot.active && <UiBadge>{T.robotPassive}</UiBadge>}
+    </Badges>
   );
 }

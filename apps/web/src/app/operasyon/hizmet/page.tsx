@@ -151,6 +151,11 @@ export default async function Page({
                   <td className={`${cell.code} ${cell.nowrap}`}>
                     <Link href={serviceHref.request(r.id)}>{r.number}</Link>
                     <span className={styles.sub}>{r.service_name}</span>
+                    {r.robot_model_name && (
+                      <span className={styles.sub} data-testid="service-robot-model">
+                        {S.robotLine(r.robot_model_name)}
+                      </span>
+                    )}
                   </td>
                   <td className={cell.nowrap}>
                     <Link href={opsHref.parcel(r.parcel_id)}>{r.parcel_name}</Link>
@@ -172,6 +177,11 @@ export default async function Page({
                     <span className={styles.badges}>
                       <Badge tone={statusTone(r.status)}>{S.status[r.status] ?? r.status}</Badge>
                       {r.early_performance_requested && <Badge>{S.early}</Badge>}
+                      {r.status === "done" && r.performer && (
+                        <Badge testId="service-performer">
+                          {S.performedBy(S.performer[r.performer] ?? r.performer)}
+                        </Badge>
+                      )}
                     </span>
                   </td>
                   <td>{S.window[r.preferred_window] ?? r.preferred_window}</td>
