@@ -182,7 +182,7 @@ export const siteText = {
       "Hesap açmak ücretsizdir. Ödemeyi, ekibimiz alanı doğrulayıp teklif gönderdikten sonra, teklifi onaylarsanız yaparsınız.",
     ctaSignup: "Kayıt ol",
     outOfScope: [
-      "Bakım, ilaçlama, budama gibi bahçe işleri",
+      "İlaçlama, budama gibi bahçe işleri (yabani ot biçme ayrı hizmet olarak alınabilir)",
       "Hastalık teşhisi ve laboratuvar analizi",
       "Verim ya da gelir tahmini ve garantisi",
       "Mülkiyet ve tapu sınırı tespiti",
