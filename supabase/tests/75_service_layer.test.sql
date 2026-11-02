@@ -13,7 +13,7 @@
 -- (91200000-..0101, VAT 20 %) has no service row. One transaction.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(128);
+select plan(129);
 
 select testing.reset_to_seed();
 
@@ -244,6 +244,9 @@ select is(pg_temp.error_of(format($$select public.ops_schedule_service_request(%
   'unpriced: ops cannot schedule without entering the amount');
 select is((select row(price_list_version, estimate_total_kurus)::text from public.ops_service_requests()
            where id = pg_temp.id('r0')), '(,)', 'unpriced: the queue shows no price list version and no estimate');
+select is(pg_temp.error_of(format($$select public.ops_schedule_service_request(%L, %L, 1234500, null)$$,
+  pg_temp.id('r0'), pg_temp.today())), '22023 invalid_input / scheduled_date',
+  'unpriced: the day is at the earliest tomorrow (the owner learns the amount from the confirmation)');
 select lives_ok(format($$select public.ops_schedule_service_request(%L, %L, 1234500, null)$$,
   pg_temp.id('r0'), pg_temp.today() + 3), 'unpriced: ops schedules with the amount entered by hand (no cap)');
 select lives_ok(format($$select public.ops_schedule_service_request(%L, %L, null, null)$$,

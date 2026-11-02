@@ -1194,6 +1194,12 @@ begin
   if r.estimate_total_kurus is null and coalesce(p_quote_total_kurus, r.quote_total_kurus) is null then
     raise exception 'invalid_input' using errcode = '22023', detail = 'quote_total';
   end if;
+  -- The owner first learns the amount from this confirmation: the day is at
+  -- the earliest tomorrow, so the free cancellation (until the day before)
+  -- stays open even with early performance (kararlar.md H37).
+  if r.estimate_total_kurus is null and p_scheduled_date <= private.istanbul_today() then
+    raise exception 'invalid_input' using errcode = '22023', detail = 'scheduled_date';
+  end if;
   -- H37: never above what the owner accepted.
   if p_quote_total_kurus > r.estimate_total_kurus then
     raise exception 'quote_above_estimate' using errcode = 'P0001';
