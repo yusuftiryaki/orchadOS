@@ -6,7 +6,9 @@ import { boHref } from "@/lib/back-office/urls";
 import { t } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { visitsText } from "@/lib/i18n/messages/visits";
+import { opsServicesText } from "@/lib/i18n/messages/ops-services";
 import { notificationsHref } from "@/lib/notifications/urls";
+import { serviceHref } from "@/lib/operations/services";
 import { opsHref } from "@/lib/operations/urls";
 import styles from "./ops-nav.module.css";
 
@@ -28,6 +30,8 @@ const groups: { label: string; items: Item[] }[] = [
       // A parcel belongs to its owner's record; the dashboard only lists them.
       { href: opsHref.owners(), label: T.owners, also: ["/operasyon/parsel"] },
       { href: opsHref.visits(), label: T.visits },
+      // IP15: weed mowing requests and the service catalogue.
+      { href: serviceHref.queue(), label: opsServicesText.nav },
       { href: notificationsHref(), label: t.notifications.nav },
     ],
   },

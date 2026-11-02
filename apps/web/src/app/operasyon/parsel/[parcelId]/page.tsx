@@ -40,6 +40,8 @@ import {
 import { m2ToDonum } from "@/lib/operations/geometry";
 import { disputeStatus, listBoundaryPointers, listSuppressions } from "@/lib/operations/legal";
 import { createMediaSigner } from "@/lib/media/signer";
+import { ParcelServices } from "@/components/operations/parcel-services";
+import { getRobotNote, parcelServiceRequests } from "@/lib/operations/service-data";
 import { opsHref } from "@/lib/operations/urls";
 import { createClient } from "@/lib/supabase/server";
 import local from "./parcel.module.css";
@@ -74,17 +76,30 @@ export default async function Page({
     );
     return { records, urls };
   });
-  const [orgs, profiles, visits, service, pointers, dispute, staff, suppressions] =
-    await Promise.all([
-      orgsP,
-      listOwnerProfiles(supabase),
-      listVisits(supabase, { parcelId }),
-      parcelService(supabase, parcel.org_id, parcelId),
-      listBoundaryPointers(supabase, parcelId),
-      disputeStatus(supabase, parcelId),
-      orgsP.then((o) => listFieldStaff(supabase, o)),
-      suppressionsP,
-    ]);
+  const [
+    orgs,
+    profiles,
+    visits,
+    service,
+    pointers,
+    dispute,
+    staff,
+    suppressions,
+    serviceRequests,
+    robotNote,
+  ] = await Promise.all([
+    orgsP,
+    listOwnerProfiles(supabase),
+    listVisits(supabase, { parcelId }),
+    parcelService(supabase, parcel.org_id, parcelId),
+    listBoundaryPointers(supabase, parcelId),
+    disputeStatus(supabase, parcelId),
+    orgsP.then((o) => listFieldStaff(supabase, o)),
+    suppressionsP,
+    // IP15: weed mowing requests and the robot suitability note.
+    parcelServiceRequests(supabase, parcelId),
+    getRobotNote(supabase, parcelId),
+  ]);
   const covering = service.garden;
   const isOps = orgs.some((o) => o.id === parcel.org_id);
   const leads = new Map(staff.map((s) => [s.userId, s.email]));
@@ -305,6 +320,13 @@ export default async function Page({
         <Panel title={S.title} testId="parcel-service">
           <Facts rows={serviceRows} />
         </Panel>
+
+        <ParcelServices
+          parcelId={parcel.id}
+          requests={serviceRequests}
+          robotNote={robotNote}
+          params={query}
+        />
 
         <Panel title={T.access.title} id="erisim" testId="parcel-access">
           {access.length === 0 ? (

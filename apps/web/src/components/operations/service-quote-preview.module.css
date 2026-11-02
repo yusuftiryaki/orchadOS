@@ -1,0 +1,56 @@
+/* The price preview beside the catalogue form. Tokens only. */
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-2);
+}
+
+.title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.area input {
+  max-width: 10rem;
+}
+
+.lines {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.lines div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.lines dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.total {
+  font-weight: 700;
+}
+
+.invalid,
+.rule {
+  margin: 0;
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+}

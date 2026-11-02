@@ -2,15 +2,17 @@ import { CustomerHome } from "@/components/portal-billing/customer-home";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import { GardenList, type GardenBadge } from "@/components/portal/garden-list";
 import layout from "@/components/portal/page.module.css";
+import { ServiceOffers } from "@/components/services/offer-cards";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { getCustomerSummary } from "@/lib/portal-billing/data";
-import { gardenBadge } from "@/lib/portal-billing/gardens";
+import { gardenBadge, istanbulToday } from "@/lib/portal-billing/gardens";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { listPortalParcels } from "@/lib/portal/data";
+import { listServiceOffers } from "@/lib/services/data";
 import { createClient } from "@/lib/supabase/server";
 
 // The portal home answers "how are my gardens and what needs me": a
@@ -23,10 +25,12 @@ export default async function Page({
 }) {
   const user = await requireSection("portal");
   const supabase = await createClient();
-  const [parcels, summary, params] = await Promise.all([
+  const [parcels, summary, params, offers] = await Promise.all([
     listPortalParcels(supabase),
     user.roles.customer && !user.demo ? getCustomerSummary(supabase, user.id) : null,
     searchParams,
+    // IP15: service cards of every owned garden (none for co-owners).
+    listServiceOffers(supabase),
   ]);
   // IP14: a member adds gardens from the list's heading too; each of the
   // customer's gardens carries its service state.
@@ -62,6 +66,7 @@ export default async function Page({
       ) : (
         gardens
       )}
+      <ServiceOffers offers={offers} today={istanbulToday()} showParcel />
     </main>
   );
 }

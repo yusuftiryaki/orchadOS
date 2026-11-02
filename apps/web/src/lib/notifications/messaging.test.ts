@@ -377,7 +377,12 @@ describe("transfer: download your reports (T23, H22)", () => {
 });
 
 describe("service requests (IP15, H06 service messages)", () => {
-  const vars = { ref: "H-2026-000003", date: "2027-04-14", path: "/portal/hizmetler/r1", parcel_name: "Kuzey" };
+  const vars = {
+    ref: "H-2026-000003",
+    date: "2027-04-14",
+    path: "/portal/hizmetler/r1",
+    parcel_name: "Kuzey",
+  };
 
   it("scheduled: number, day and the free cancellation until the day before", () => {
     expect(renderNotification("service_scheduled", vars, BASE)).toEqual({
@@ -389,13 +394,21 @@ describe("service requests (IP15, H06 service messages)", () => {
   it("completed and cancelled link the request; no amount anywhere", () => {
     const done = renderNotification("service_completed", vars, BASE);
     expect(done.ok && done.body).toMatch(/tamamlandı. Öncesi ve sonrası fotoğrafları portalınızda/);
-    const cancelled = renderNotification("service_cancelled", { ...vars, parcel_name: undefined }, BASE);
-    expect(cancelled.ok && cancelled.body).toMatch(/^orchadOS: bahçenizde ot biçme talebiniz \(H-2026-000003\) iptal edildi/);
+    const cancelled = renderNotification(
+      "service_cancelled",
+      { ...vars, parcel_name: undefined },
+      BASE,
+    );
+    expect(cancelled.ok && cancelled.body).toMatch(
+      /^orchadOS: bahçenizde ot biçme talebiniz \(H-2026-000003\) iptal edildi/,
+    );
     for (const out of [done, cancelled]) expect(out.ok && out.body).not.toMatch(/TL|₺/);
   });
 
   it("needs an H- number, the day when scheduled and a portal path", () => {
-    expect(renderNotification("service_scheduled", { ...vars, ref: "T-2026-000003" }, BASE)).toEqual({
+    expect(
+      renderNotification("service_scheduled", { ...vars, ref: "T-2026-000003" }, BASE),
+    ).toEqual({
       ok: false,
       error: "invalid_vars",
     });

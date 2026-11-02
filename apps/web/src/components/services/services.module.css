@@ -1,0 +1,191 @@
+/* Service layer of the portal (IP15): offer cards, the request form, the
+   request page with its before / after proof. Phone first. */
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  min-width: 0;
+}
+
+/* A recommendation reads first: the accent edge marks it. */
+.recommended {
+  border-left: 4px solid var(--color-accent);
+}
+
+.cardBody {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 24ch;
+}
+
+.cardBody > p {
+  margin: 0;
+}
+
+.parcel {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.lead {
+  margin: 0;
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 479px) {
+  .card > :global(.button) {
+    flex: 1 1 100%;
+  }
+}
+
+/* The form: groups of fields and the consent boxes. */
+.form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.checks {
+  display: grid;
+  gap: var(--space-3);
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.checks > legend {
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+}
+
+/* Before / after side by side; stacked on the narrowest phones. */
+.proof {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 560px) {
+  .proof {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.phase {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+
+.phase > h3 {
+  margin: 0;
+  font-size: var(--text-base);
+}
+
+.photo {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.photo img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.photo figcaption {
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-sm);
+  color: var(--color-text-2);
+}
+
+/* A SHA-256 is 64 hex digits: it wraps anywhere rather than widen the page. */
+.hash {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.timeline li {
+  display: grid;
+  gap: 0 var(--space-3);
+}
+
+.timeline time {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (min-width: 560px) {
+  .timeline li {
+    grid-template-columns: 18ch minmax(0, 1fr);
+  }
+}
+
+.rowSide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.meta {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}

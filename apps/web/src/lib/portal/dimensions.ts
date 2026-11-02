@@ -160,9 +160,20 @@ export interface CareDimension {
   harvest: { total: number; complete: number } | null;
   // Basal sprouts: trees with a value, and those with few / dense sprouts.
   sprouts: { total: number; few: number; dense: number } | null;
+  // Weed height of the parcel (field question weed_height, once per visit,
+  // spring and summer; IP15).
+  weedHeight: "short" | "medium" | "tall" | null;
+  // Days (YYYY-MM-DD) of weed mowing orchadOS itself did in the window before
+  // the visit (lib/services/independence.ts): the row then says so.
+  ownWork: string[];
 }
 
-export function careDimension(values: Map<string, MeasurementRow[]>): CareDimension {
+const WEED_HEIGHTS = ["short", "medium", "tall"] as const;
+
+export function careDimension(
+  values: Map<string, MeasurementRow[]>,
+  ownWork: string[] = [],
+): CareDimension {
   const pruningRows = (values.get("pruning_status") ?? []).filter((r) => r.tree_id);
   const harvestRows = (values.get("harvest_complete") ?? []).filter(
     (r) => r.tree_id && r.value_boolean !== null,
@@ -172,7 +183,13 @@ export function careDimension(values: Map<string, MeasurementRow[]>): CareDimens
   );
   const count = (v: string) => pruningRows.filter((r) => r.value_category === v).length;
   const sprouts = (v: string) => sproutRows.filter((r) => r.value_category === v).length;
+  // Parcel-level: no tree. pickMeasurements left one row per source rank.
+  const weed = (values.get("weed_height") ?? []).find(
+    (r) => !r.tree_id && (WEED_HEIGHTS as readonly string[]).includes(r.value_category ?? ""),
+  );
   return {
+    weedHeight: (weed?.value_category as CareDimension["weedHeight"]) ?? null,
+    ownWork,
     pruning:
       pruningRows.length > 0
         ? {

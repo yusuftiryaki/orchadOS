@@ -33,6 +33,7 @@ export function SummaryView({
   followups = [],
   followupMessage,
   checks,
+  notice = null,
 }: {
   ctx: ReviewContext;
   findingError: string | null;
@@ -43,6 +44,8 @@ export function SummaryView({
   followupMessage?: { saved: boolean; error: string | null };
   // Coverage and presence check of the processing pipeline.
   checks?: PipelineChecks;
+  // Read-only information about the visit (IP15 independence note).
+  notice?: React.ReactNode;
 }) {
   const sm = t.expert.summary;
   const s = ctx.session;
@@ -58,6 +61,7 @@ export function SummaryView({
   return (
     <main className={`page ${staff.page} ${styles.page}`} data-testid="summary-page">
       <VisitHeader ctx={ctx} back={{ href: reviewHref(s.id), label: sm.back }} />
+      {notice && <div className={styles.notices}>{notice}</div>}
       {(published || findingError) && (
         <div className={styles.notices}>
           {published && (

@@ -1,3 +1,4 @@
+import { loadOwnWork } from "@/lib/services/data";
 import type { Database } from "@/lib/database.types";
 import {
   boundsOf,
@@ -573,10 +574,12 @@ export async function getParcelReport(
           .order("id")
           .range(from, to),
       );
-    const [defs, rows, yearBeforeRows] = await Promise.all([
+    const [defs, rows, yearBeforeRows, ownWork] = await Promise.all([
       metricDefinitions(supabase),
       measurementsOf(latest.id),
       yearBefore ? measurementsOf(yearBefore.id) : Promise.resolve([]),
+      // IP15 independence: orchadOS mowing before this visit.
+      loadOwnWork(supabase, parcelId, latest.time),
     ]);
     metrics = summarizeMetrics(defs, rows);
     audit = auditConfidence(
@@ -601,7 +604,7 @@ export async function getParcelReport(
         previous ? { time: previous.time, classes: classesOf(previous.id) } : null,
       ),
       structure: structureDimension(dimensionSlots),
-      care: careDimension(values),
+      care: careDimension(values, ownWork),
       pests: pestDimension(values, rowOfTree),
       fruitLoad: fruitLoadDimension(
         values,

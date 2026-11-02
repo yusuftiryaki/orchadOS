@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
+import { servicesText as S } from "@/lib/i18n/messages/services";
 import type { ParcelReport } from "@/lib/portal/data";
 import { share } from "@/lib/portal/score";
+import { longDate } from "@/lib/services/format";
 import { Panel } from "@/components/ui/panel";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
@@ -107,7 +109,20 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
           {care.sprouts && (
             <p>{d.sprouts(care.sprouts.dense, care.sprouts.few, care.sprouts.total)}</p>
           )}
-          {!care.pruning && !care.harvest && !care.sprouts && <p className="muted">{d.careNone}</p>}
+          {care.weedHeight && (
+            <p data-testid="care-weed-height">
+              {S.care.weedHeight(S.weedHeight[care.weedHeight])}{" "}
+              <span className={`${layout.muted} ${layout.small}`}>({S.care.weedHelp})</span>
+            </p>
+          )}
+          {!care.pruning && !care.harvest && !care.sprouts && !care.weedHeight && (
+            <p className="muted">{d.careNone}</p>
+          )}
+          {care.ownWork.length > 0 && (
+            <p className={styles.ownWork} data-testid="care-own-work">
+              <strong>{S.care.ownWork(care.ownWork.map(longDate).join(", "))}</strong>
+            </p>
+          )}
         </Row>
         <Row label={d.pests} id="pests">
           {pests ? (

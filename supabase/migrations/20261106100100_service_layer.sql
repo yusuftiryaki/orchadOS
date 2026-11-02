@@ -1434,6 +1434,9 @@ comment on function public.ops_service_demand() is
 -- ---------------------------------------------------------------------------
 
 revoke all on function private.valid_month_day(smallint, smallint) from public;
+-- Called by the check constraints of service_type: every role that writes the
+-- table (service role, the loader) evaluates it.
+grant execute on function private.valid_month_day(smallint, smallint) to authenticated, service_role;
 revoke all on function private.touch_robot_note() from public;
 revoke all on function private.services_enabled(uuid) from public;
 revoke all on function private.service_in_season(public.service_type, date) from public;

@@ -57,6 +57,8 @@ const TONES: Record<string, BadgeTone> = {
   // neutral
   draft: "neutral",
   registered: "neutral",
+  // A service pre-request (IP15): out of season, waits for the season to open.
+  pre_request: "neutral",
   cancelled: "neutral",
   withdrawn: "neutral",
   superseded: "neutral",

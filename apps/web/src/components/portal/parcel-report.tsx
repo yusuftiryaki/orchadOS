@@ -57,6 +57,7 @@ export function ParcelReportView({
   demo = false,
   pdfLimit = false,
   serviceCard = null,
+  serviceOffers = null,
   upcomingVisits = null,
   removedUntil = null,
 }: {
@@ -76,6 +77,9 @@ export function ParcelReportView({
   // IP14: the paying owner's "Hizmet" card, and the last day the reports of
   // a removed garden stay open (a band for everyone).
   serviceCard?: ReactNode;
+  // IP15: the owner's service cards (weed mowing): recommendation, offer,
+  // pre-request or the open request.
+  serviceOffers?: ReactNode;
   // T07: the owner's planned visits.
   upcomingVisits?: ReactNode;
   removedUntil?: string | null;
@@ -164,6 +168,8 @@ export function ParcelReportView({
           <p>{r.noResultsNext}</p>
         </EmptyState>
       )}
+
+      {serviceOffers}
 
       {nav.length > 2 && (
         <nav aria-label={r.onThisPage} className={`${styles.sectionNav} ${styles.noPrint}`}>

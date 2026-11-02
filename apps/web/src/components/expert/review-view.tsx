@@ -130,6 +130,7 @@ export function ReviewView({
   messages,
   followups = [],
   followupMessage,
+  notice = null,
 }: {
   ctx: ReviewContext;
   filter: Filter;
@@ -139,6 +140,8 @@ export function ReviewView({
   // Follow-up requests of the parcel (filtered to the selected tree here).
   followups?: Followup[];
   followupMessage?: { saved: boolean; error: string | null };
+  // Read-only information about the visit (IP15 independence note).
+  notice?: React.ReactNode;
 }) {
   const r = t.expert.review;
   const s = ctx.session;
@@ -174,6 +177,7 @@ export function ReviewView({
           </ButtonLink>
         }
       />
+      {notice && <div className={styles.notices}>{notice}</div>}
       {(messages.error || messages.findingError) && (
         <div className={styles.notices}>
           {messages.error && (

@@ -2,6 +2,8 @@
 // through `t` (src/lib/i18n/index.ts). A second language is a second file with
 // the same shape (`Messages`).
 
+import { opsServicesText } from "./messages/ops-services";
+
 export const tr = {
   app: {
     name: "orchadOS",
@@ -1155,6 +1157,8 @@ export const tr = {
       write_failed: "Kaydedilemedi. Lütfen tekrar deneyin.",
       no_org: "Operasyon rolünüz olan bir işletme yok.",
     },
+    // IP15 service layer (weed mowing): lib/i18n/messages/ops-services.ts.
+    services: opsServicesText,
   },
   portal: {
     gardens: {
@@ -2040,6 +2044,10 @@ export const tr = {
     one_sided: "Tek taraflı",
     top_down: "Tepeden aşağı",
     top_dead_base_alive: "Üstü kuru, dibi canlı",
+    // weed_height (IP15): parcel-level field question.
+    short: "Kısa",
+    medium: "Orta",
+    tall: "Uzun",
   } as Record<string, string>,
   notifications: {
     nav: "Bildirimler",
@@ -2091,6 +2099,9 @@ export const tr = {
       contract_ready: "Sözleşme belgeleri hazır",
       addon_order_closed: "Ek sipariş iptal edildi",
       viewer_invited: "Hissedar daveti",
+      service_scheduled: "Hizmet günü bildirimi",
+      service_completed: "Hizmet tamamlandı",
+      service_cancelled: "Hizmet talebi iptal edildi",
     } as Record<string, string>,
     channel: {
       sms: "SMS",
