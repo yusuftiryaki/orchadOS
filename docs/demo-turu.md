@@ -415,7 +415,7 @@ Anahtar eksikse rehberli tur o adımı atlar.
     - Demo ziyaretinden LLM'e hiçbir şey gitmez.
 - **Müşteri profili:**
     - Demo hesabı için `owner_profile`, `billing_profile`, rıza ya da kayıt satırı oluşmaz. Erişim kapsamı tetikleyicileri bunu servis rolüne karşı da garanti eder.
-    - Demo org'unda `org_billing_setting` yoktur, bu yüzden `private.signup_org_id()` demo org'unu hiçbir zaman seçmez.
+    - Demo org'unun `org_billing_setting` satırı yalnızca hizmet katmanını açar (`services_enabled`); `accepts_signups` ve `allow_fake_payments` kapalıdır ve açılamaz (`demo_billing_forbidden`). Bu yüzden `private.signup_org_id()` demo org'unu hiçbir zaman seçmez; `private.seller_org_id()` demo org'larını zaten saymaz.
 
 ## 7. `demo-start` Edge Function (A)
 
@@ -553,6 +553,9 @@ IP okuma, proxy sırrı ve HMAC için `_shared/signup.ts` kullanılır.
 | Uzman notları | Her bulguda uzman açıklaması ve önerisi (`finding.description`, `finding.recommendation`), parsel düzeyindekiler dahil. Soru dizilerinde uzman cevapları | Bulgularda açıklama ve öneri |
 | Sorular | 2 dizi: biri ağaçta, biri parsel düzeyindeki bir bulguda. Sahip ve hissedar sorar, uzman cevaplar | Yok |
 | Hissedarlar | "Örnek Hissedar" (viewer). Bekleyen davet yoktur: `viewer_invitation.phone` zorunludur ve E.164 biçimindedir, demo verisinde ise telefon bulunmaz | Yok |
+| Yabani ot (İP15) | 2026 taramasında saha sorusu `weed_height` = uzun (parsel öznesi, `field_question`, `summer-v0.3`, personel). Portalda ot biçme kartı | 2026 taramasında `weed_height` = kısa (biçmeden üç hafta sonra) |
+| Ot biçme işi (İP15) | Yok | `H-2026-000001`, tamamlandı: 2026-06-15 talep (erken ifa istendi), 06-16 planlandı, 06-24 yapıldı, 06-26 havaleyle ödendi; tahmin `service-v1` ile donduruldu (sınır alanı ~1,36 dönüm, minimum ücret: 2.500 TL + KDV = 3.000 TL), tutar onaylanan tahmin. `mowing` oturumu (`captured`, hiç yayımlanmaz), `operation` (`crew`), tarihçe (talep → planlandı → tamamlandı), öncesi ve sonrası birer kanıt fotoğrafı |
+| Robot notu (İP15) | düz, taş az, en alçak dal 60 cm | hafif eğim, taş orta, 45 cm |
 
 **Neden yaz ziyareti:**
 - Parsel karnesinin zararlı ve meyve yükü satırları yalnızca ilkbahar ve yaz metriklerinden gelir: `pest_sign_*` ilkbahar ve yaz, `fruit_load_scale` yaz.
@@ -576,7 +579,9 @@ A'nın 2026 bulgu türleri: kuruyan dal, gövde yarası ve zamk akıntısı, yap
 - **Ham kayıtlar:** Ham kayıt satırlarının (`capture`: video, GNSS) adresi `station://orchados-demo/synthetic/...` biçimindedir. Bu adres tarayıcıya hiç sunulmaz.
 - **Kişisel veri:** Kişi adı yalnızca "Örnek …" biçimindedir. Telefon yoktur. E-postalar yalnızca `.invalid` alan adındadır. `private.parcel_detail` (ada/parsel) boş kalır.
 - **Konum:** Konumlar temsilîdir. Gaziantep'te kırsal bir nokta seçilir ve bant "konum temsilîdir" der.
-- **Ödeme ayarı:** Demo org'unun `org_billing_setting` satırı olmaz.
+- **Ödeme ayarı:** Demo org'unun tek `org_billing_setting` satırı yalnızca hizmet katmanını açar: `services_enabled = true`, `accepts_signups` ve `allow_fake_payments` kapalı. Hizmet kataloğu satırı (`weed_mowing`, taslak fiyat: dönüm 375 TL, minimum 2.500 TL, KDV %20, sezon 1 Mart–30 Haziran, eşik orta, 60 gün) yükleyiciden gelir; migration'ın tohumu demo org'larını atlar.
+- **Hizmet satırları (İP15):** Talep, tarihçe, iş kaydı, kanıt bağları ve `mowing` oturumu, operasyon fonksiyonlarının bırakacağı biçimde doğrudan yazılır. Fonksiyonlar kullanılmaz: demo org'unu reddederler ve bildirim kuyruğa yazarlar. Kanıt fotoğrafları `photo` türünde, işin oturumunda, `service-proof`/`v1` asset'leridir (`ops_add_service_photo` ile aynı).
+- **Tarih ve öneri kartı:** Ziyaretler geçmişte sabittir; yükleme tarihine göre kaydırılmaz. Kartın durumu güne bağlıdır: sezon dışında "ön talep", sezonda "talep edilebilir" (A'nın Temmuz 2026 gözlemi 60 günden eskidir). "Önerilen" durumu demoda hiçbir gün iddia edilmez; doğrulama kartın üç durumdan birinde (açık talep değil) var olduğuna bakar. Veri doğru kalır: uzun ot gözlemi kartta yine görünür.
 - **Ekleme sırası:**
     1. kişiler, org, üyelikler
     2. düzenek, sensör, kalibrasyon
@@ -584,9 +589,10 @@ A'nın 2026 bulgu türleri: kuruyan dal, gövde yarası ve zamk akıntısı, yap
     4. oturumlar, doğrudan yayımlanmış ya da onaylı olarak (durum güncellemesi yok)
     5. envanter zinciri, kayıtlar, asset'ler, kaynak bağları
     6. ölçümler, değerlendirmeler, bulgular ve kanıt bağları
-    7. hissedar profili, `parcel_access`
-    8. en son sorular ve cevaplar
-    9. kayıt satırı (`loaded_at` null)
+    7. hizmet katmanı: ödeme ayarı (`services_enabled`), katalog satırı, B'nin ot biçme işi (kanıt asset'leri, `operation`, talep, tarihçe, fotoğraf bağları), robot notları
+    8. hissedar profili, `parcel_access`
+    9. en son sorular ve cevaplar
+    10. kayıt satırı (`loaded_at` null)
 
   Bu sıra hiçbir bildirim oluşturmaz. Doğrulama, `public.notification`'da demo org'u için 0 satır bekler.
 - **Satır kurucuları:** Asset, capture, asset_source, kapsama ve varlık satırları `orchados_pipeline.upload`'daki kurucularla üretilir: `panorama_pose`, `crop_pose`, `_asset_row`, `presence_payload`, `coverage_payload`. Tercihen SQL üreten bir `Catalog` uygulamasıyla `upload_run` olduğu gibi kullanılır. Satırlar elle yazılmaz.
@@ -631,6 +637,7 @@ A'nın 2026 bulgu türleri: kuruyan dal, gövde yarası ve zamk akıntısı, yap
 - **Damga:**
     - Nadirde, düzeneğin durduğu yerde bir disk ve "orchadOS SENTETIK ORNEK" yazısı. ASCII'dir, çünkü `cv2.putText` Türkçe karakter çizemez.
     - Kesitlerde ve fotoğraflarda köşede küçük bir damga ve asset anahtarının kısa hali.
+- **Ot biçme kanıtı (İP15):** Bir sıra arasından telefonla çekilmiş gibi iki fotoğraf: önce diz boyu ot, sonra biçilmiş anız ve tırmıklanmış ot şeritleri. Görüş (ufuk, ağaçlar) işe göre tohumlanır, böylece öncesi ve sonrası aynı yeri gösterir. Boyut yakın planla aynıdır; köşede damga vardır.
 - **Yakın plan fotoğraflar:** Ayrı makro sahneler: yaprakçıklar, gövde ve zamk damlası, kuru sürgün, boş meyve salkımı, psil lekesi. Her biri bir bulgu türüne bağlıdır ve yakın plan protokolünün `capture` alanlarını taşır.
 - **Belirlenimcilik:**
     - Bütün rastgelelik `(sürüm, anahtar)` ile tohumlanır.
@@ -709,10 +716,16 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
         - cevaplı sorular
         - panoramalı ve onaylı envanter
         - A'nın son taramasında yapı, bakım, zararlı ve meyve yükü kodlarının ağaç başına ölçümleri
+        - hizmet kartı (`service_offers`): iki parselde de ot biçme, A'da ot boyu "uzun"; durum önerilen, talep edilebilir ya da ön talep (güne bağlı, açık talep değil)
+        - A'nın son yayımlanmış `weed_height` gözlemi
+        - B'de ödenmiş, tamamlanmış talep, tarihçesi talep → planlandı → tamamlandı, sahibin okuyabildiği en az bir öncesi ve bir sonrası fotoğrafı ve bunların `media` nesneleri
     - Postgres olarak şunlar denetlenir:
         - Her `storage://` adresinin iki kovada da nesnesi var.
         - Kişilerin parolası boş (`coalesce(encrypted_password,'') = ''`), yasakları ileri tarihte ve token sütunları dolu (NULL değil).
-        - `org_billing_setting` yok.
+        - Tek `org_billing_setting` satırı: yalnız `services_enabled` açık.
+        - Katalog satırı veri kümesindeki taslak fiyatla aynı; talebin dondurulmuş tahmini `private.service_quote` ile ve sınır alanıyla tutarlı, onaylanan tutar tahmini aşmıyor.
+        - Tamamlanan iş `ops_complete_service_request`'in bıraktığı gibi: `operation` (`mowing`, `crew`, `details.service_request_id`), `captured` `mowing` oturumu, öncesi ve sonrası bağı. Hiçbir iş oturumu yayımlanmış değil.
+        - İki robot notu.
         - `public.notification`'da demo org'u için 0 satır var.
 
 ### 10.3 İdempotentlik ve sürümler
@@ -870,6 +883,8 @@ Gerçek bir bahçe demo parseli olarak doğrudan **kaydedilmez**. Kaydedilseydi 
 | 8 | `envanter` | `/portal/parsel/{A}/envanter` | `inventory-report` |
 | 9 | `pdf` | `/portal/parsel/{A}` | `report-pdf` |
 | 10 | `son` | Herhangi bir sayfa | Kapanış kartı: "Gerçek hesap aç" (bantla aynı kural: hedef `/iletisim` ise "Bize ulaşın"), "Paketleri gör" |
+
+Hizmet katmanı (İP15) için henüz adım yoktur: veri yüklüdür (§8.2), portaldaki hizmet kartı ve Hizmetlerim bileşenleri birleşince bir adım eklenir.
 
 Yeni test kimlikleri:
 - `demo-banner`, `demo-start`, `demo-exit`, `demo-signup`, `demo-notice`

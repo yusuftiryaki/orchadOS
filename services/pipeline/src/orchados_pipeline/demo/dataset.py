@@ -18,6 +18,7 @@ import hashlib
 import math
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from fractions import Fraction
 from functools import cached_property
 
 import numpy as np
@@ -895,6 +896,171 @@ VERIFICATION = {
     "B-VER26": (("S4-8", ("empty_slot",), False, "Yer boş."),),
 }
 UNSURE_LABELS = {("A", "S4-12")}
+
+
+# ---------------------------------------------------------------------------------------
+# Service layer: weed mowing (docs/MVP.md Module 6, IP15)
+# ---------------------------------------------------------------------------------------
+
+# The field question "Bahçede yabani ot ne boyda?" (weed_height, parcel subject),
+# answered once in spring and summer visits; by visit key. A's tall weeds match the
+# north strip finding; B was mowed three weeks before its scan.
+WEED_HEIGHTS = {"A-SCN26": "tall", "B-SCN26": "short"}
+# Field protocol of the question by season (apps/field closeup_protocol.dart).
+FIELD_PROTOCOL = {"spring": "spring-v0.2", "summer": "summer-v0.3"}
+# Months of the visits in this dataset; season.ts: June-July summer.
+SEASON_OF_MONTH = {6: "summer", 7: "summer"}
+FIELD_QUESTION_METHOD = "field_question"
+
+# The demo org's catalogue row: the draft launch price of docs/MVP.md Module 6, as
+# the migration seeds it for other orgs (20261106100100_service_layer.sql skips
+# demo orgs).
+SERVICE_TYPE = {
+    "code": "weed_mowing",
+    "name": "Yabani ot biçme",
+    "description": "orchadOS ot biçme hizmeti: parseldeki yabani otlar motorlu tırpanla biçilir. "
+    "Öncesi ve sonrası fotoğrafları parsel kaydına eklenir.",
+    "operation_kind": "mowing",
+    "price_per_donum_kurus": 37500,
+    "minimum_fee_kurus": 250000,
+    "vat_rate_bp": 2000,
+    "price_is_draft": True,
+    "season_start_month": 3,
+    "season_start_day": 1,
+    "season_end_month": 6,
+    "season_end_day": 30,
+    "recommend_from_weed_height": "medium",
+    "observation_max_age_days": 60,
+    "sort_order": 10,
+}
+# Service terms the owner accepted (20261106300000_legal_text_service_terms.sql).
+SERVICE_TERMS_VERSION = "bakim-v1-taslak"
+PRICING_RULE = "service-v1"
+
+
+def _round_half_up(x: Fraction) -> int:
+    """Postgres round() of a positive numeric: half away from zero."""
+    return math.floor(x + Fraction(1, 2))
+
+
+def service_quote(
+    area_m2: float, price_per_donum_kurus: int, minimum_fee_kurus: int, vat_rate_bp: int
+) -> tuple[int, int, int]:
+    """private.service_quote (service-v1): max(ceil(area/100) x price / 10, minimum) + VAT.
+
+    Exact arithmetic, as Postgres numeric; returns (subtotal, vat, total) in kuruş.
+    """
+    if area_m2 <= 0 or price_per_donum_kurus <= 0 or minimum_fee_kurus < 0:
+        raise ValueError("invalid quote input")
+    if not 0 <= vat_rate_bp <= 10000:
+        raise ValueError("invalid VAT rate")
+    area = Fraction(_round_half_up(Fraction(area_m2) * 100), 100)
+    tenths = math.ceil(area / 100)
+    subtotal = max(_round_half_up(Fraction(tenths * price_per_donum_kurus, 10)), minimum_fee_kurus)
+    vat = _round_half_up(Fraction(subtotal * vat_rate_bp, 10000))
+    return subtotal, vat, subtotal + vat
+
+
+def polygon_area_m2(points: tuple[tuple[float, float], ...]) -> float:
+    """Shoelace area of a local-metre polygon (the boundary's geography area within cm²)."""
+    s = 0.0
+    for (x0, y0), (x1, y1) in zip(points, points[1:] + points[:1], strict=True):
+        s += x0 * y1 - x1 * y0
+    return abs(s) / 2
+
+
+@dataclass(frozen=True)
+class ServicePhoto:
+    phase: str  # before | after
+    scene: str  # closeups.SERVICE_SCENES
+    time: datetime
+
+    def key(self, job: ServiceJob) -> str:
+        return f"{job.short}-{self.phase.upper()}"
+
+
+@dataclass(frozen=True)
+class ServiceJob:
+    """A done weed mowing job: request, schedule, the crew's day, proof photos, payment.
+
+    In the 2026 season, after B's inventory (the quote needs the walked boundary) and
+    before its July scan. The owner asked for an early job inside the 14-day
+    withdrawal period (H37), so the day is nine days after the request.
+    """
+
+    key: str
+    short: str  # stamp prefix of its photos
+    parcel: ParcelSpec
+    number: str
+    requested_at: datetime
+    preferred_window: str
+    customer_note: str | None
+    early_performance: bool
+    scheduled_at: datetime  # ops confirmed the amount and the day
+    scheduled_date: str
+    work_start: datetime  # the job day at 08:00 Turkey time (ops_complete_service_request)
+    done_at: datetime  # ops closed the job
+    completed_on: str
+    payment_on: str
+    payment_method: str
+    photos: tuple[ServicePhoto, ...]
+
+    @property
+    def id(self) -> str:
+        """The job's session (kind mowing): media are filed under it."""
+        return ids.did("session", self.key)
+
+    @property
+    def request_id(self) -> str:
+        return ids.did("service_request", self.key)
+
+    @property
+    def operation_id(self) -> str:
+        return ids.did("operation", self.key)
+
+    @property
+    def season_year(self) -> int:
+        return self.requested_at.year
+
+    def quote(self) -> tuple[int, int, int]:
+        t = SERVICE_TYPE
+        return service_quote(
+            polygon_area_m2(self.parcel.boundary),
+            t["price_per_donum_kurus"],
+            t["minimum_fee_kurus"],
+            t["vat_rate_bp"],
+        )
+
+
+SERVICE_JOBS = (
+    ServiceJob(
+        key="B-MOW26",
+        short="B26M",
+        parcel=PARCEL_B,
+        number="H-2026-000001",
+        requested_at=utc("2026-06-15 07:20"),
+        preferred_window="asap",
+        customer_note="Otlar dizi geçti; hasattan önce biçilmesini istiyoruz.",
+        early_performance=True,
+        scheduled_at=utc("2026-06-16 08:05"),
+        scheduled_date="2026-06-24",
+        work_start=utc("2026-06-24 05:00"),
+        done_at=utc("2026-06-24 15:30"),
+        completed_on="2026-06-24",
+        payment_on="2026-06-26",
+        payment_method="transfer",
+        photos=(
+            ServicePhoto("before", "grass_tall", utc("2026-06-24 05:12")),
+            ServicePhoto("after", "grass_mowed", utc("2026-06-24 08:41")),
+        ),
+    ),
+)
+
+# Robot suitability notes per parcel (staff only): slope, stoniness, lowest branch.
+ROBOT_NOTES = {
+    "A": ("flat", "low", 60, "Sıralar düz, koridorlar geniş; kuzey kenarda ot yoğun."),
+    "B": ("gentle", "medium", 45, "Dereye doğru hafif eğim; kuyu çevresinde taş var."),
+}
 
 
 # ---------------------------------------------------------------------------------------

@@ -46,6 +46,7 @@ def test_full_profile_estimate_is_at_most_150_mb(fresh_build):
         "tree_crop": full.crop**2 / test.crop**2,
         "closeup": full.closeup[0] * full.closeup[1] / (test.closeup[0] * test.closeup[1]),
     }
+    ratio["service_photo"] = ratio["closeup"]
     estimate = sum(f["bytes"] * ratio[f["kind"]] ** 0.75 for f in manifest["files"])
     assert estimate <= 150_000_000, f"full profile estimate {estimate / 1e6:.0f} MB"
 
@@ -80,8 +81,10 @@ def test_sizes_match_the_profile(fresh_build):
         "preview": p.preview,
         "tree_crop": (p.crop, p.crop),
         "closeup": p.closeup,
+        "service_photo": p.closeup,
     }
-    for f in manifest["files"][::25]:
+    proof = [f for f in manifest["files"] if f["kind"] == "service_photo"]
+    for f in manifest["files"][::25] + proof:
         img = cv2.imread(str(root / "files" / f["sha256"]), cv2.IMREAD_COLOR)
         assert (img.shape[1], img.shape[0]) == want[f["kind"]] == (f["width"], f["height"])
 
@@ -144,6 +147,36 @@ def test_closeups(kind):
     again = closeups.render_closeup(kind, f"T-{kind}", (400, 300))
     assert np.array_equal(img, again)
     assert kind in closeups.SHOT_CODE
+
+
+def test_service_photos_show_the_same_spot_before_and_after():
+    """Same view (trees, horizon) from the job, different grass; deterministic."""
+    size = (400, 300)
+    before = closeups.render_service_photo("grass_tall", "JOB", "JOB-BEFORE", size)
+    after = closeups.render_service_photo("grass_mowed", "JOB", "JOB-AFTER", size)
+    assert before.shape == after.shape == (300, 400, 3)
+    assert np.array_equal(
+        before, closeups.render_service_photo("grass_tall", "JOB", "JOB-BEFORE", size)
+    )
+    sky = slice(0, 60)
+    assert np.abs(before[sky].astype(int) - after[sky].astype(int)).mean() < 6
+    # Tall grass covers the ground with blades: far more fine detail near the camera.
+    ground = slice(200, 260)
+
+    def edges(img):
+        return cv2.Laplacian(cv2.cvtColor(img[ground], cv2.COLOR_BGR2GRAY), cv2.CV_32F).var()
+
+    assert edges(before) > 1.5 * edges(after)
+    with pytest.raises(ValueError):
+        closeups.render_service_photo("snow", "JOB", "K", size)
+
+
+def test_build_has_the_proof_photos(fresh_build):
+    _root, manifest, _s = fresh_build
+    photos = manifest["service_photos"]
+    assert {p["phase"] for p in photos} == {"before", "after"}
+    kinds = {f["sha256"]: f["kind"] for f in manifest["files"]}
+    assert all(kinds[p["sha256"]] == "service_photo" for p in photos)
 
 
 def test_sun_is_up_in_the_morning_of_july():

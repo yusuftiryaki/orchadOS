@@ -146,3 +146,33 @@ def test_findings_and_questions(ds):
     assert {q.author for q in dataset.QUESTIONS} == {ids.OWNER, ids.VIEWER}
     assert sum(q.tree == "S3-6" for q in dataset.QUESTIONS) == 1
     assert sum(q.finding is not None for q in dataset.QUESTIONS) == 1
+
+
+def test_service_quote_matches_service_v1():
+    """The cases of supabase/tests/75_service_layer.test.sql."""
+    assert dataset.service_quote(20000, 37500, 250000, 2000) == (750000, 150000, 900000)
+    assert dataset.service_quote(3000, 37500, 250000, 2000) == (250000, 50000, 300000)
+    assert dataset.service_quote(2050.4, 100000, 0, 2000)[0] == 210000
+    with pytest.raises(ValueError):
+        dataset.service_quote(0, 37500, 0, 2000)
+
+
+def test_service_job_timeline(ds):
+    """Requested in season after B's inventory, done before B's scan, paid after."""
+    (job,) = dataset.SERVICE_JOBS
+    inv, scan = ds.visit("B-INV26"), ds.visit("B-SCN26")
+    t = dataset.SERVICE_TYPE
+    day = job.requested_at.date()
+    assert (t["season_start_month"], t["season_start_day"]) <= (day.month, day.day)
+    assert (day.month, day.day) <= (t["season_end_month"], t["season_end_day"])
+    assert inv.published_at < job.requested_at < job.scheduled_at < job.work_start < job.done_at
+    assert job.done_at < scan.start
+    assert job.scheduled_date == job.completed_on == job.work_start.date().isoformat()
+    assert job.completed_on <= job.payment_on < TODAY.date().isoformat()
+    # H37: within the withdrawal period only on the owner's early-performance request.
+    assert job.early_performance or (job.work_start - job.requested_at).days >= 15
+    assert all(job.work_start <= p.time <= job.done_at for p in job.photos)
+    assert [p.phase for p in job.photos] == ["before", "after"]
+    # B is ~1.36 dönüm: the minimum fee applies.
+    assert job.quote() == (250000, 50000, 300000)
+    assert dataset.WEED_HEIGHTS["B-SCN26"] == "short" and dataset.WEED_HEIGHTS["A-SCN26"] == "tall"

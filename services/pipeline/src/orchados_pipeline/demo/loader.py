@@ -461,9 +461,10 @@ def _put_mirror(client: SupabaseClient, key: str, path: Path, mime: str) -> bool
 
 
 def _read_back(client: SupabaseClient, build: Path, files: list[dict], mirror: bool) -> None:
-    """A panorama, a crop and a close-up: their stored bytes hash to their names."""
+    """A panorama, a crop, a close-up and a proof photo: their stored bytes hash to
+    their names."""
     sample = []
-    for kind in ("panorama", "preview", "tree_crop", "closeup"):
+    for kind in ("panorama", "preview", "tree_crop", "closeup", "service_photo"):
         f = next((f for f in files if f["kind"] == kind), None)
         if f:
             sample.append(f)

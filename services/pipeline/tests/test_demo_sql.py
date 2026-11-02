@@ -82,10 +82,138 @@ def test_personas_have_empty_tokens_and_a_finite_ban(generated):
         assert r["email"].endswith("@demo.orchados.invalid")
 
 
-def test_no_viewer_invitation_or_billing(generated):
-    _ds, _m, _script, sql = generated
-    assert "viewer_invitation" not in sql and "org_billing_setting" not in sql
+def _rows(script, step: str, table: str) -> list[dict]:
+    return [
+        dict(zip(st.columns, r, strict=True))
+        for st in script.steps[step]
+        if st.table == table
+        for r in st.rows
+    ]
+
+
+def test_no_viewer_invitation_and_billing_only_switches_services_on(generated):
+    _ds, _m, script, sql = generated
+    assert "viewer_invitation" not in sql
     assert "message_outbox" not in sql and "public.notification" not in sql
+    (setting,) = _rows(script, "services", "public.org_billing_setting")
+    assert setting["org_id"] == ids.ORG_ID and setting["services_enabled"] is True
+    assert setting["accepts_signups"] is False and setting["allow_fake_payments"] is False
+    assert sql.count("insert into public.org_billing_setting ") == 1
+
+
+def test_service_layer_rows(generated):
+    """docs/MVP.md Module 6: catalogue row, a done job of parcel B, robot notes."""
+    _ds, manifest, script, sql = generated
+    (st,) = _rows(script, "services", "public.service_type")
+    assert st["org_id"] == ids.ORG_ID and st["code"] == "weed_mowing"
+    assert (st["price_per_donum_kurus"], st["minimum_fee_kurus"], st["vat_rate_bp"]) == (
+        37500,
+        250000,
+        2000,
+    )
+    assert (st["season_start_month"], st["season_start_day"]) == (3, 1)
+    assert (st["season_end_month"], st["season_end_day"]) == (6, 30)
+    assert st["recommend_from_weed_height"] == "medium" and st["observation_max_age_days"] == 60
+
+    (job,) = dataset.SERVICE_JOBS
+    (req,) = _rows(script, "services", "public.service_request")
+    assert req["parcel_id"] == ids.PARCEL_B and req["status"] == "done"
+    assert re.fullmatch(r"H-2026-\d{6}", req["number"])
+    assert req["terms_version"] == "bakim-v1-taslak" and req["pricing_rule"] == "service-v1"
+    assert req["estimate_subtotal_kurus"] + req["estimate_vat_kurus"] == req["estimate_total_kurus"]
+    assert req["quote_total_kurus"] <= req["estimate_total_kurus"]
+    assert req["payment_amount_kurus"] == req["quote_total_kurus"]
+    assert req["payment_received_on"] >= req["completed_on"] == req["scheduled_date"]
+    assert "public.boundary" in req["area_m2"] and req["area_source"] == "boundary"
+    assert req["session_id"] == job.id and req["operation_id"] == job.operation_id
+    assert job.scheduled_date < job.completed_on or job.scheduled_date == job.completed_on
+    assert job.completed_on < dataset.TODAY.date().isoformat()
+
+    events = _rows(script, "services", "public.service_request_event")
+    assert [(e["from_status"], e["to_status"]) for e in events] == [
+        (None, "requested"),
+        ("requested", "scheduled"),
+        ("scheduled", "done"),
+    ]
+    assert [e["created_at"] for e in events] == sorted(e["created_at"] for e in events)
+
+    (op,) = _rows(script, "services", "public.operation")
+    assert (op["kind"], op["performer"], op["session_id"]) == ("mowing", "crew", job.id)
+    assert op["details"] == {
+        "service_request_id": job.request_id,
+        "service_request_number": req["number"],
+        "service_code": "weed_mowing",
+        "by": "orchados",
+    }
+
+    sessions = _rows(script, "sessions", "public.session")
+    (mow,) = [s for s in sessions if s["kind"] == "mowing"]
+    assert mow["id"] == job.id and mow["status"] == "captured"
+    assert mow["published_at"] is None and mow["published_by"] is None
+
+    assets = {a["id"]: a for a in _rows(script, "services", "public.asset")}
+    links = _rows(script, "services", "public.service_request_photo")
+    assert {lk["phase"] for lk in links} == {"before", "after"}
+    files = {f["sha256"]: f for f in manifest["files"]}
+    for lk in links:
+        a = assets[lk["asset_id"]]
+        assert a["kind"] == "photo" and a["session_id"] == job.id and a["tree_id"] is None
+        assert (
+            a["uri"]
+            == f"storage://media/org/{ids.ORG_ID}/parcel/{ids.PARCEL_B}/" + a["content_hash"]
+        )
+        assert files[a["content_hash"]]["kind"] == "service_photo"
+        assert (a["pipeline"], a["pipeline_version"]) == ("service-proof", "v1")
+    assert {p["sha256"] for p in manifest["service_photos"]} == {
+        a["content_hash"] for a in assets.values()
+    }
+
+    notes = _rows(script, "services", "public.parcel_robot_note")
+    assert {(n["parcel_id"], n["slope"], n["stoniness"], n["lowest_branch_cm"]) for n in notes} == {
+        (ids.PARCEL_A, "flat", "low", 60),
+        (ids.PARCEL_B, "gentle", "medium", 45),
+    }
+    # Children after their parents within the step.
+    order = [
+        "public.org_billing_setting",
+        "public.service_type",
+        "public.asset",
+        "public.operation",
+        "public.service_request ",
+        "public.service_request_event",
+        "public.service_request_photo",
+    ]
+    services = sql[sql.index("-- step: services") : sql.index("-- step: access")]
+    pos = [services.index(f"insert into {t}") for t in order]
+    assert pos == sorted(pos)
+
+
+def test_weed_question_is_a_parcel_staff_answer(generated):
+    _ds, _m, script, _sql = generated
+    weed = sqlgen.FALLBACK_METRICS["weed_height"].id
+    rows = [
+        r
+        for r in _rows(script, "results", "public.measurement")
+        if r["metric_definition_id"] == weed
+    ]
+    by_session = {r["session_id"]: r for r in rows}
+    assert set(by_session) == {ids.A_SCAN_2026, ids.B_SCAN_2026}
+    a = by_session[ids.A_SCAN_2026]
+    assert a["value_category"] == "tall" and a["tree_id"] is None
+    assert (a["method"], a["method_version"], a["source"]) == (
+        "field_question",
+        "summer-v0.3",
+        "staff",
+    )
+    assert by_session[ids.B_SCAN_2026]["value_category"] == "short"
+
+
+def test_weed_question_needs_the_metric(generated):
+    ds, manifest, _script, _sql = generated
+    metrics = {k: v for k, v in sqlgen.FALLBACK_METRICS.items() if k != "weed_height"}
+    root = demo_build.build_dir(demo_build.DEFAULT_ROOT, "test")
+    with pytest.raises(ValueError, match="weed_height"):
+        sqlgen.generate(ds, root, manifest, metrics)
 
 
 def test_crop_poses_follow_the_interface(generated):
@@ -163,6 +291,9 @@ def test_measurements_are_in_season_and_versioned(generated):
     for r in rows:
         m = by_id[r["metric_definition_id"]]
         assert "summer" in m.valid_seasons
+        if m.code == "weed_height":
+            assert r["method_version"] == dataset.FIELD_PROTOCOL["summer"]
+            continue
         assert r["method_version"] in (dataset.METHODOLOGY, dataset.PRODUCER_VERSION)
         if r["source"] == "algorithm":
             assert r["method"] == "orchados-demo" and m.code == "tree_visible"

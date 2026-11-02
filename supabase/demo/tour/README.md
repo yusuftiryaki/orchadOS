@@ -22,6 +22,11 @@ Ayrı bir demo org'u, kurgusal kişiler ve iki parsel. Görüntüler sentetiktir
 | Yakın plan | 9 ağaçta 2–3 fotoğraf (bulgusu olan ağaçlar) | 2 ağaçta 1–2 |
 | Sorular | `S3-6`'da sahip sorar, parsel düzeyindeki sulama bulgusunda hissedar sorar; ikisini de uzman cevaplar | Yok |
 | Hissedar | "Örnek Hissedar" (viewer, A); bekleyen davet yok (`viewer_invitation.phone` zorunlu) | Yok |
+| Yabani ot (İP15) | 2026 taramasında `weed_height` = uzun (saha sorusu, `summer-v0.3`); portalda ot biçme kartı | 2026 taramasında kısa |
+| Ot biçme işi (İP15) | Yok | `H-2026-000001` tamamlandı ve ödendi (2026-06-15 talep, 06-24 iş): `mowing` oturumu (`captured`), `operation` (`crew`), tarihçe, öncesi/sonrası sentetik fotoğraf; tahmin `service-v1` (minimum ücret, 3.000 TL KDV dahil) |
+| Robot notu (İP15) | düz / az / 60 cm | hafif / orta / 45 cm |
+
+Hizmet katmanı (İP15): demo org'unun `org_billing_setting` satırı yalnızca `services_enabled` açar (kayıt ve sahte ödeme kapalı), katalog satırı `weed_mowing` yükleyiciden gelir (migration'ın tohumu demo org'larını atlar). Ziyaretler geçmişte sabit olduğundan kart güne göre "ön talep" (sezon dışı) ya da "talep edilebilir" (sezonda; gözlem 60 günden eski) durumundadır; demo "önerilen" durumunu iddia etmez, doğrulama kartın var olduğuna bakar.
 
 Öne çıkan ağaç **`S3-6`**: 2025'te sağlıklı, 2026'da sorunlu; kuru dal bulgusu, üç yakın plan, soru dizisi.
 
@@ -35,7 +40,7 @@ Yükleyici metrik listesini yükleme anında `metric_definition`'dan okur ve yaz
 
 | Ne | Kimlik |
 | --- | --- |
-| Demo org'u "orchadOS Demo (örnek veri)" | `de000000-0000-4000-8000-000000000001` (`org_billing_setting` satırı yok) |
+| Demo org'u "orchadOS Demo (örnek veri)" | `de000000-0000-4000-8000-000000000001` (`org_billing_setting` yalnız `services_enabled = true`) |
 | Parsel A / B | `de100000-0000-4000-8000-00000000000{1,2}` |
 | Sahip, hissedar, uzman, saha, operasyon kişileri | `de900000-0000-4000-8000-00000000000{1..5}`, `ornek-sahip@`, `ornek-hissedar@`, `ornek-uzman@`, `ornek-saha@`, `ornek-operasyon@demo.orchados.invalid` |
 | A envanter / A 2025 / A 2026 / B envanter / B 2026 | `de200000-0000-4000-8000-00000000000{1..5}` |
