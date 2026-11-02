@@ -103,7 +103,7 @@ export const siteText = {
       },
     ],
     independence:
-      "Veriyi bahçenizdeki işçiler ya da bekçi değil, kendi eğitimli personelimiz toplar. Yapay zekâ yalnızca ön değerlendirme yapar; kararı ve imzayı ziraat mühendisi verir.",
+      "Veriyi eğitimli uzman personelimiz toplar. Yapay zekâ yalnızca ön değerlendirme yapar; kararı ve imzayı ziraat mühendisi verir.",
     stepsTitle: "Nasıl başlar?",
     steps: [
       {
@@ -186,7 +186,7 @@ export const siteText = {
       "Hastalık teşhisi ve laboratuvar analizi",
       "Verim ya da gelir tahmini ve garantisi",
       "Mülkiyet ve tapu sınırı tespiti",
-      "Bekçilik",
+      "Güvenlik ve sürekli gözetim",
     ],
   },
   packages: {
@@ -247,7 +247,7 @@ export const siteText = {
       },
       {
         q: "Bahçeye kim gidiyor?",
-        a: "Eğitimli kendi saha personelimiz. Bahçenizdeki işçiler ya da bekçi veri toplamaz; bu, raporun bağımsızlığı için önemlidir.",
+        a: "Eğitimli uzman saha personelimiz. Veriyi yalnızca kendi personelimiz toplar; bu, raporun bağımsızlığı için önemlidir.",
       },
       {
         q: "Hava yüzünden bir ziyaret yapılamazsa ne olur?",
