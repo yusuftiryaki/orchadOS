@@ -1281,9 +1281,13 @@ def robot_upgrade() -> str:
             f"where id = {lit(job.operation_id)} and (\n"
             f"  performer is distinct from {lit(job.performer)}\n"
             f"  or details ->> 'robot_model' is distinct from {lit(ROBOT_MODEL_CODE)});",
-            f"update public.service_request set robot_model_id = {lit(job.robot_model_id)}\n"
-            f"where id = {lit(job.request_id)} "
-            f"and robot_model_id is distinct from {lit(job.robot_model_id)};",
+            # The robot's job is done under the robot addendum (bakim-v2-taslak), as on
+            # a fresh load of version 3; version 2 wrote the v1 terms.
+            f"update public.service_request set robot_model_id = {lit(job.robot_model_id)},\n"
+            f"  terms_version = {lit(SERVICE_TERMS_VERSION)}\n"
+            f"where id = {lit(job.request_id)} and (\n"
+            f"  robot_model_id is distinct from {lit(job.robot_model_id)}\n"
+            f"  or terms_version is distinct from {lit(SERVICE_TERMS_VERSION)});",
         ]
     return "\n".join(out) + "\n"
 

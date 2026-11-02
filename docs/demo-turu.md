@@ -700,6 +700,7 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
         - Manifest hash'i kayıttakiyle aynıysa yükleme kaldığı yerden devam eder.
         - Farklıysa durulur. Mesaj şunu söyler: önceki çalıştırmanın derleme artefaktını kullan (`reuse_build_run_id`) ya da sürümü artır.
     - Yerelde farklı profil ya da bayt bulunursa `pnpm db:reset` ya da `--reset-local` önerilir. Bu denetim "zaten yüklü" kısayolundan önce yapılır.
+    - Barındırılan projede hedefte bu derlemede olmayan medya baytları yalnız tamamlanmış bir yüklemenin (`loaded_at` dolu, sürüm ≤ `DATASET_VERSION`) üstünde kabul edilir: başka bir runner'da yapılmış eski sürüm yüklemesinin yükseltmesi ya da ondan sonraki bir yeniden çalıştırma (§10.3). Yükleyici kaç dosyanın eski baytlarıyla kaldığını yazar. Yarım kalmış ilk yüklemede (`loaded_at` boş) başka bayt hatadır ve o yüklemenin derlemesi (`reuse_build_run_id`) istenir.
     - Operasyon kişisinin kilidi her çalıştırmanın başında yeniden konur (kuru çalıştırma hariç); `verify` ve `enable` de önce kilitler. Medya yüklendikten sonra öldürülen bir çalıştırmanın açık bıraktığı kişi böylece kendiliğinden kapanır.
     - Kayıt tablosu yoksa (A birleşmeden önce): yerelde uyarı verilir ve kayıt adımı atlanır; `remote` reddedilir.
 3. **Tek SQL işlemi (postgres):**
@@ -710,12 +711,12 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
     1. Yüklenecek her dosyanın baytları adındaki hash'le, nesne yolu `org/<uuid>/parcel/<uuid>/<sha256>` biçimiyle yeniden denetlenir.
     2. Operasyon kişisine o çalıştırmaya özel rastgele bir parola verilir ve yasağı kalkar. `updated_at = now()` yazılır; A'nın bakım görevi son bir saatte değişen kişiyi yeniden yasaklamaz.
     3. Kişi GoTrue parola girişiyle oturum açar.
-    4. Eksik nesneler iki kovaya yüklenir:
+    4. Yalnız demo org'unun satırlarının (`asset`, `capture`) adresini verdiği dosyalar yüklenir; satırı daha önce başka baytla yüklenmiş dosyanın bu derlemedeki kopyası yüklenmez (yetim nesne olmaz). Satırların adresini verdiği bir nesne ne depoda ne bu derlemede varsa (başka derlemeyle yarım kalmış yükleme) kişi açılmadan durulur. Eksik nesneler iki kovaya yüklenir:
         - `media` kovasına `org/<org>/parcel/<parcel>/<sha256>` yoluyla
         - aynı yolla `demo-media` kovasına, `cache-control: max-age=31536000` ile
 
        Zaten varsa geçilir.
-    5. Örnek dosyalar geri okunup hash'leri doğrulanır.
+    5. Satırların adresini verdiği örnek dosyalar geri okunup hash'leri doğrulanır.
     6. `finally` bloğunda parola boşaltılır ve yasak `2999-01-01` olarak geri konur.
 5. **Kayıt:** `loaded_at`, `tour`, `dataset_sha256` yazılır. `demo_parcel` satırları: A=1, B=2, ikisi de etkin.
 6. **Doğrulama (`--verify`):**
@@ -746,11 +747,11 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
 ### 10.3 İdempotentlik ve sürümler
 
 - **Aynı build:** İkinci çalıştırma hiçbir satır eklemez ve hiçbir dosya yüklemez.
-- **Yeniden derleme:** Başka bir makinede derlenen kopya farklı bayt üretebilir. Bu yüzden barındırılan projede ön kontrol sürüme ve doğrulamaya bakar, baytlara bakmaz. Yarım kalan bir yükleme yalnızca aynı derlemeyle tamamlanır. Derleme bu yüzden iş akışı artefaktı olarak saklanır.
+- **Yeniden derleme:** Başka bir makinede derlenen kopya farklı bayt üretebilir: OpenCV'nin float çekirdekleri (`GaussianBlur`, `resize`) işlemciye göre AVX2, AVX-512 ya da IPP koduna dağıtılır ve sonuç son bitte değişir (2 Kasım 2026: AVX2 kapalıyken 524 dosyanın 36'sı başka bayt). GitHub runner'larının işlemcisi koşudan koşuya değişir. Bu yüzden barındırılan projede ön kontrol sürüme ve doğrulamaya bakar; tamamlanmış bir yüklemenin üstünde baytlar hata sayılmaz (§10.2). Satırlar kimlikle eklendiği için (`on conflict do nothing`) önceden yüklenmiş satır depoladığı baytları göstermeye devam eder; medya değiştirilmez. Yarım kalan bir yükleme yalnızca aynı derlemeyle tamamlanır. Derleme bu yüzden iş akışı artefaktı olarak saklanır.
 - **Yeni sürüm:** Yeni sürüm yeni satırlar ekler. Ekleme-yalnız tabloların satırlarına (medya, ölçüm) hiçbir sürüm dokunmaz. Yükleyici hedef sürüme kadar bütün sürümleri sırayla uygular. Tek istisna sürüm 3'tür: değiştirdiği dört satır ekleme-yalnız olmayan tablolardadır ve sürüm 2 yüklü bir hedefte `on conflict do nothing` onları atlayacağı için betiğin hizmet adımı sonunda kimliğiyle adlanmış dört `update` çalışır (`sqlgen.robot_upgrade`). Her biri satırı yalnız hâlâ farklıysa değiştirir; temiz yüklemede ve yeniden çalıştırmada hiçbir şey değişmez.
-- **Birikimli sürümler:** Bir sürümün veri kümesi öncekilerin bütün satırlarını aynı kimliklerle ve aynı medya tohumlarıyla (`SEED_VERSION = 1`) içerir, üstüne kendi satırlarını (`v<sürüm>` kimlikli) ekler; her ekleme `on conflict do nothing`'dir. Son sürümü yüklemek bu yüzden bütün sürümleri sırayla uygulamakla aynıdır. Yükleyici yalnızca `DATASET_VERSION`'ı derler ve uygular (`VERSIONS == (DATASET_VERSION,)`); eski bir sürümle kayıtlı hedefe yalnız satır eklenir ve kayıt satırının sürümü yükselir. Medya baytları başka bir makinede farklı çıkarsa §10.2'deki bayt denetimi yine durdurur.
+- **Birikimli sürümler:** Bir sürümün veri kümesi öncekilerin bütün satırlarını aynı kimliklerle ve aynı medya tohumlarıyla (`SEED_VERSION = 1`) içerir, üstüne kendi satırlarını (`v<sürüm>` kimlikli) ekler; her ekleme `on conflict do nothing`'dir. Son sürümü yüklemek bu yüzden bütün sürümleri sırayla uygulamakla aynıdır. Yükleyici yalnızca `DATASET_VERSION`'ı derler ve uygular (`VERSIONS == (DATASET_VERSION,)`); eski bir sürümle kayıtlı hedefe yalnız satır eklenir ve kayıt satırının sürümü yükselir. Medya dosyalarının anahtarları (satır kimliklerini verir) sürümden sürüme korunur; sürüm 2'nin 524 anahtarı test olarak sabitlenmiştir (`tests/data/demo_v2_media_keys.txt`). Baytları işlemciye bağlıdır (yukarıda); yerelde aynı makinede derlenen sürümler bayt bayt aynıdır.
 - **Sürüm 2 (İP15):** Hizmet katmanı: tür başına sezonlarıyla fiyatsız katalog satırı, `weed_height` ölçümleri, B'nin tamamlanmış ot biçme işi (kanıt fotoğraflarıyla), robot notları, parsellerin türü. Kayıt satırının `tour` alanına `service_request_id` eklenir.
-- **Sürüm 3 (İP15, robot filosu; sahip kararı 2 Kasım 2026):** Ot biçmeyi otonom robot MARABA-I yapar. Yeni satır: demo org'unun `weed_mowing` satırı için `service_type_robot_model` (MARABA-I; robot modeli migration'ın tohumladığı genel bir kayıttır, demo verisi değildir). Değişen sürüm 2 satırları: katalog açıklaması ("parseldeki yabani otları otonom robotumuz MARABA-I biçer"), işin oturumu ve `operation`'ı (`performer = robot`, `details.robot_model = maraba_i`), talep (`robot_model_id`). Kimliği türetilen yeni satır yoktur; `ROBOT_VERSION = 3` yalnız belgeler. Medya değişmez.
+- **Sürüm 3 (İP15, robot filosu; sahip kararı 2 Kasım 2026):** Ot biçmeyi otonom robot MARABA-I yapar. Yeni satır: demo org'unun `weed_mowing` satırı için `service_type_robot_model` (MARABA-I; robot modeli migration'ın tohumladığı genel bir kayıttır, demo verisi değildir). Değişen sürüm 2 satırları: katalog açıklaması ("parseldeki yabani otları otonom robotumuz MARABA-I biçer"), işin oturumu ve `operation`'ı (`performer = robot`, `details.robot_model = maraba_i`), talep (`robot_model_id` ve `terms_version` = `bakim-v2-taslak`, robotu anlatan ek sözleşme; temiz sürüm 3 yüklemesi de bunu yazar ve doğrulama bunu bekler). Kimliği türetilen yeni satır yoktur; `ROBOT_VERSION = 3` yalnız belgeler. Medya değişmez.
 
 ### 10.4 Barındırılan projeler
 
@@ -771,9 +772,9 @@ Adımlar:
 2. `supabase link` yapılır ve havuz adresi kurulur.
 3. `load` için:
     1. `uv sync --locked`
-    2. derleme ya da artefaktın indirilmesi
+    2. derleme ya da artefaktın indirilmesi; ikisi de sürüm taşımayan tek klasöre (`BUILD_DIR`, `demo build --out`): boyut sınırı, artefakt ve yükleme aynı klasörü okur (klasör adındaki sürüm sürüm 2'de eskimiş, artefakt saklanmamıştı)
     3. boyut sınırı (150 MB)
-    4. artefaktın yüklenmesi (30 gün saklanır)
+    4. artefaktın yüklenmesi (30 gün saklanır; dosya yoksa iş başarısız olur)
     5. `demo load --target remote --verify`; `demo` projesinde ayrıca `--demo-only`
 4. `enable` ve `disable` için yalnızca ilgili komut çalışır; derleme yapılmaz.
 5. Özet `$GITHUB_STEP_SUMMARY`'ye yazılır: satır sayıları, dosyalar, MB.
