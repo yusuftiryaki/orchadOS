@@ -18,7 +18,7 @@ Gaziantep'teki Antep fıstığı bahçe sahiplerine, bahçeye gitmeden bahçeler
 - **Ölçtüğünü söyle, ölçmediğini iddia etme.** Her gösterge tanımlı bir ölçeğe ve görünür bir kanıta dayanır.
 - **Her bulgu kaynağına izlenebilir.** Karneden ağaca, ağaçtan fotoğrafa, fotoğraftan zamana, konuma ve çekene inilir.
 - **Belirsizlik açıkça gösterilir.** Tahminler aralıkla, karnenin kendisi de denetim güveniyle verilir.
-- **Bağımsızlık.** Veriyi kendi personelimiz toplar; sahibin işçileri ya da bekçisi toplamaz.
+- **Bağımsızlık.** Veriyi eğitimli uzman personelimiz toplar.
 
 ## MVP kapsamı
 
