@@ -1,4 +1,3 @@
-import { loadOwnWork } from "@/lib/services/data";
 import type { Database } from "@/lib/database.types";
 import {
   boundsOf,
@@ -15,6 +14,7 @@ import {
 import type { HealthClass, MarkerState } from "@/lib/map/tree-style";
 import { createMediaSigner, type PublicMirror } from "@/lib/media/signer";
 import { fetchLatestAssessments, listParcels, type ParcelSummary } from "@/lib/parcels";
+import { loadOwnWork } from "@/lib/services/data";
 import type { Client } from "@/lib/supabase/types";
 import {
   approvalOf,

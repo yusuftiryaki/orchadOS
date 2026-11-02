@@ -47,7 +47,6 @@ export const servicesText = {
     request: "Talep et",
     preRequestAction: "Ön talep bırak",
     showRequest: "Talebi gör",
-    parcel: (name: string) => name,
     allRequests: "Hizmetlerim",
   },
 
