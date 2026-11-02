@@ -3,10 +3,11 @@
 
 Part one runs under the owner persona's claims with `set local role
 authenticated`, i.e. through row level security, and counts what the owner
-portal needs, the service card and the done mowing job with its proof photos
-included. Part two runs as postgres: media objects, persona lockdown, a billing
-setting that only switches the service layer on, the job's rows, no
-notification. One read-only transaction, rolled back.
+portal needs, the service card (unpriced, buyable) and the done mowing job with
+its proof photos and the own-work note included. Part two runs as postgres: media
+objects, persona lockdown, a billing setting that only switches the service layer
+on, the catalogue row and its seasons, no service price, the job's rows, the
+parcels' species, no notification. One read-only transaction, rolled back.
 """
 
 from __future__ import annotations
@@ -14,14 +15,27 @@ from __future__ import annotations
 import json
 
 from . import ids
-from .dataset import FEATURED, SERVICE_TERMS_VERSION, SERVICE_TYPE, WEED_HEIGHTS, Dataset
+from .dataset import (
+    DEMO_SPECIES,
+    FEATURED,
+    SERVICE_JOBS,
+    SERVICE_SEASON,
+    SERVICE_TERMS_VERSION,
+    SERVICE_TYPE,
+    WEED_HEIGHTS,
+    Dataset,
+)
 from .sqlgen import TOKEN_COLUMNS, lit
 
 # Card states of public.service_offers without an open request. Which one the
 # portal shows depends on the day: the visits are fixed in the past, so out of
 # season it is pre_request, in season available (the July 2026 observation is
-# older than observation_max_age_days); never claimed to be "recommended".
+# older than observation_max_age_days); never claimed to be "recommended". Either
+# way the card leads to the request form: no request is open on either parcel.
 OFFER_STATES = ("recommended", "available", "pre_request")
+# The own-work note (apps/web/src/lib/services/independence.ts): orchadOS mowing
+# in the 365 days up to the visit.
+OWN_WORK_WINDOW_DAYS = 365
 
 A, B = ids.PARCEL_A, ids.PARCEL_B
 ORG = ids.ORG_ID
@@ -72,7 +86,9 @@ select json_build_object(
   -- IP15 service layer: the card and the done job, as the owner reads them.
   'service_offers', (
     select coalesce(json_agg(json_build_object('parcel_id', o.parcel_id, 'code', o.service_code,
-      'state', o.state, 'weed_height', o.weed_height)), '[]')
+      'state', o.state, 'weed_height', o.weed_height, 'species', o.species,
+      'priced', o.price_per_donum_kurus is not null or o.estimate_total_kurus is not null,
+      'open', o.open_request_id is not null)), '[]')
     from public.service_offers() o),
   'weed_a', (
     select m.value_category from public.measurement m
@@ -82,7 +98,21 @@ select json_build_object(
     order by m.measured_at desc limit 1),
   'done_requests_b', (
     select count(*) from public.service_request r where r.parcel_id = {lit(B)} and r.status = 'done'
-      and r.payment_received_on is not null and r.terms_version = {lit(SERVICE_TERMS_VERSION)}),
+      and r.payment_received_on is not null and r.terms_version = {lit(SERVICE_TERMS_VERSION)}
+      and r.quote_total_kurus > 0 and r.payment_amount_kurus = r.quote_total_kurus),
+  'tour_request', (
+    select count(*) from public.service_request r where r.id = {lit(SERVICE_JOBS[0].request_id)}
+      and r.parcel_id = {lit(B)} and r.status = 'done'),
+  -- The own-work note of B's care row: an orchadOS mowing job the owner reads, in
+  -- the window before B's latest published visit.
+  'own_work_b', (
+    select count(*) from public.operation op
+    join lateral (
+      select s.started_at from public.session s where s.parcel_id = {lit(B)} and s.status = 'published'
+      order by s.started_at desc limit 1) v on true
+    where op.parcel_id = {lit(B)} and op.kind = 'mowing' and op.details ->> 'by' = 'orchados'
+      and op.started_at <= v.started_at
+      and op.started_at > v.started_at - interval '{OWN_WORK_WINDOW_DAYS} days'),
   'request_history_b', (
     select coalesce(json_agg(e.to_status order by e.created_at), '[]') from public.service_request_event e
     join public.service_request r on r.id = e.request_id where r.parcel_id = {lit(B)} and r.status = 'done'),
@@ -140,15 +170,27 @@ select json_build_object(
     select row_to_json(x) from (
       select {", ".join(SERVICE_TYPE)}, active from public.service_type
       where org_id = {lit(ORG)} and code = {lit(SERVICE_TYPE["code"])}) x),
-  -- The frozen estimate follows service-v1 on the boundary's area.
+  -- The season per fruit species: one row for every species, all the same window.
+  'seasons', (
+    select count(*) from public.service_type_season s
+    join public.service_type t on t.id = s.service_type_id and t.code = {lit(SERVICE_TYPE["code"])}
+    where s.org_id = {lit(ORG)}
+      and (s.season_start_month, s.season_start_day, s.season_end_month, s.season_end_day)
+        = ({", ".join(str(x) for x in SERVICE_SEASON)})),
+  'species', (select count(*) from public.fruit_species),
+  -- No service price: the demo org has no price list rows for its services.
+  'service_prices', (select count(*) from public.price_list_service_item where org_id = {lit(ORG)}),
+  'parcel_species', (
+    select coalesce(json_agg(species order by id), '[]') from public.parcel where org_id = {lit(ORG)}),
+  -- Unpriced requests: no frozen estimate (all eight columns null), the amount ops
+  -- entered, the boundary's area.
   'bad_quotes', (
     select count(*) from public.service_request r
-    cross join lateral private.service_quote(r.area_m2, r.price_per_donum_kurus, r.minimum_fee_kurus, r.vat_rate_bp) q
     where r.org_id = {lit(ORG)} and (
-      (q.subtotal_kurus, q.vat_kurus, q.total_kurus) is distinct from
-        (r.estimate_subtotal_kurus, r.estimate_vat_kurus, r.estimate_total_kurus)
+      num_nulls(r.price_list_id, r.price_list_version, r.price_per_donum_kurus, r.minimum_fee_kurus,
+        r.vat_rate_bp, r.estimate_subtotal_kurus, r.estimate_vat_kurus, r.estimate_total_kurus) <> 8
       or r.area_m2 is distinct from (select a.area_m2 from private.parcel_service_area(r.parcel_id) a)
-      or r.quote_total_kurus > r.estimate_total_kurus)),
+      or (r.status in ('scheduled', 'done') and coalesce(r.quote_total_kurus, 0) <= 0))),
   -- Done jobs written as ops_complete_service_request leaves them.
   'done_jobs', (
     select count(*) from public.service_request r
@@ -252,12 +294,27 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
         st is not None and st["active"] and {k: st[k] for k in SERVICE_TYPE} == SERVICE_TYPE,
         f"demo org weed mowing catalogue row: {st}",
     )
+    need(
+        admin["seasons"] == admin["species"] > 0,
+        f"{admin['seasons']} season rows of the demo service, expected one per species "
+        f"({admin['species']}) with {SERVICE_SEASON}",
+    )
+    need(admin["service_prices"] == 0, "the demo org has a service price (expected unpriced)")
+    need(
+        admin["parcel_species"] == [DEMO_SPECIES, DEMO_SPECIES],
+        f"demo parcel species {admin['parcel_species']}, expected {DEMO_SPECIES}",
+    )
     offers = owner["service_offers"]
     for parcel, name in ((A, "A"), (B, "B")):
         mine = [o for o in offers if o["parcel_id"] == parcel and o["code"] == SERVICE_TYPE["code"]]
         need(
-            len(mine) == 1 and mine[0]["state"] in OFFER_STATES,
-            f"parcel {name}: service card {mine}, expected one in {', '.join(OFFER_STATES)}",
+            len(mine) == 1
+            and mine[0]["state"] in OFFER_STATES
+            and not mine[0]["open"]
+            and not mine[0]["priced"]
+            and mine[0]["species"] == DEMO_SPECIES,
+            f"parcel {name}: service card {mine}, expected one unpriced card in "
+            f"{', '.join(OFFER_STATES)}",
         )
         if name == "A" and mine:
             need(mine[0]["weed_height"] == WEED_HEIGHTS["A-SCN26"], "parcel A card: weed height")
@@ -265,7 +322,9 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
         owner["weed_a"] == WEED_HEIGHTS["A-SCN26"],
         f"parcel A: latest published weed_height {owner['weed_a']!r}",
     )
-    need(owner["done_requests_b"] >= 1, "parcel B: no paid done service request")
+    need(owner["done_requests_b"] >= 1, "parcel B: no paid done service request with a quote")
+    need(owner["tour_request"] == 1, "the tour's service request is not B's done job")
+    need(owner["own_work_b"] >= 1, "parcel B: no orchadOS mowing before its latest visit")
     need(
         owner["request_history_b"] == ["requested", "scheduled", "done"],
         f"parcel B: request history {owner['request_history_b']}",
@@ -280,7 +339,8 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
         "parcel B: proof photo objects the owner cannot read",
     )
     need(
-        admin["bad_quotes"] == 0, f"{admin['bad_quotes']} service requests off the service-v1 rule"
+        admin["bad_quotes"] == 0,
+        f"{admin['bad_quotes']} service requests with an estimate, another area or no amount",
     )
     need(admin["done_jobs"] >= 1, "no done job with operation, captured mowing session and photos")
     need(admin["published_job_sessions"] == 0, "a service job session is published")

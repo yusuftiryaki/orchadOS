@@ -12,8 +12,9 @@ Insert order (no notification is ever queued):
     6 measurements, assessments, findings and their evidence (and the field
        question weed_height)
     6b service layer: the billing setting with services_enabled, the weed mowing
-       catalogue row, the done job of parcel B (operation, request, history, proof
-       photos) and the robot notes (docs/MVP.md Module 6)
+       catalogue row (no price: the demo org has no price list) and its season per
+       fruit species, the done job of parcel B (operation, request, history, proof
+       photos) and the robot notes (docs/MVP.md Module 6; dataset version 2)
     7 viewer profile, parcel_access
     8 questions and replies, under their authors' claims
     9 the registry row (loaded_at null), when private.demo_org exists
@@ -43,6 +44,7 @@ from .build import frame_pose
 from .dataset import (
     CAMERA_HEIGHT_M,
     DATASET_VERSION,
+    DEMO_SPECIES,
     FIELD_PROTOCOL,
     FIELD_QUESTION_METHOD,
     METHODOLOGY,
@@ -51,8 +53,10 @@ from .dataset import (
     ROBOT_NOTES,
     SEASON_OF_MONTH,
     SERVICE_JOBS,
+    SERVICE_SEASON,
     SERVICE_TERMS_VERSION,
     SERVICE_TYPE,
+    SERVICES_VERSION,
     UNSURE_LABELS,
     VERIFICATION,
     WEED_HEIGHTS,
@@ -600,6 +604,7 @@ def parcels(script: Script, ds: Dataset) -> None:
                 "village": p.village,
                 "estimated_area_m2": round(p.area_m2 * 1.04),
                 "irrigation": p.irrigation,
+                "species": DEMO_SPECIES,
                 "estimated_tree_count": p.estimated_tree_count,
                 "status": "active_monitoring",
                 "position": _point(clat, clon),
@@ -1127,7 +1132,7 @@ def weed_question(ctx: Context, v: Visit, height: str) -> str:
         raise ValueError("metric weed_height is not registered (service layer migration)")
     if season not in m.valid_seasons or "parcel" not in m.subject_kinds:
         raise ValueError(f"{v.key}: weed_height is not a parcel metric valid in {season}")
-    mid = ids.did("measurement", f"{v.key}:parcel:weed_height")
+    mid = ids.did("measurement", f"{v.key}:parcel:weed_height", SERVICES_VERSION)
     ctx.script.insert(
         "results",
         "public.measurement",
@@ -1158,13 +1163,17 @@ def weed_question(ctx: Context, v: Visit, height: str) -> str:
 # Service layer (docs/MVP.md Module 6)
 # ---------------------------------------------------------------------------------------
 
-SERVICE_TYPE_ID = ids.did("service_type", SERVICE_TYPE["code"])
+SERVICE_TYPE_ID = ids.did("service_type", SERVICE_TYPE["code"], SERVICES_VERSION)
 PROOF_PIPELINE = ("service-proof", "v1")  # as ops_add_service_photo registers a photo
 
 
 def services(ctx: Context) -> None:
-    """The service layer switched on for the demo org, its catalogue row, the done
-    mowing job of parcel B with its history and proof photos, and the robot notes.
+    """The service layer switched on for the demo org, its catalogue row and season
+    per fruit species, the done mowing job of parcel B with its history and proof
+    photos, and the robot notes.
+
+    No price list: the service is unpriced, so the portal shows "Fiyat teklifle
+    bildirilir" and the done job carries only the amount ops entered.
 
     Rows are written as the ops functions would leave them; nothing goes through the
     functions, which refuse demo orgs and would queue messages. The billing setting
@@ -1196,6 +1205,18 @@ def services(ctx: Context) -> None:
             "created_at": CREATED,
             "updated_at": CREATED,
         },
+    )
+    # The season per fruit species, for every species there is (as the migration
+    # seeds it for other orgs): a set-based insert, so a species added later is
+    # covered too.
+    sm, sd, em, ed = SERVICE_SEASON
+    s.raw["services"].append(
+        "\\echo @insert public.service_type_season\n"
+        "insert into public.service_type_season (org_id, service_type_id, species, "
+        "season_start_month, season_start_day, season_end_month, season_end_day, updated_at)\n"
+        f"select {lit(o)}, {lit(SERVICE_TYPE_ID)}, f.code, {sm}, {sd}, {em}, {ed}, {lit(CREATED)}\n"
+        "from public.fruit_species f\n"
+        "on conflict (service_type_id, species) do nothing;\n"
     )
     photos = {p["key"]: p for p in ctx.manifest.get("service_photos", [])}
     for job in SERVICE_JOBS:
@@ -1230,13 +1251,12 @@ def _boundary_area(parcel_key: str) -> Raw:
 def service_job(ctx: Context, job: ServiceJob, photos: dict[str, dict]) -> None:
     s = ctx.script
     o, p = ids.ORG_ID, job.parcel
-    subtotal, vat, total = job.quote()
     assets: list[tuple[str, str]] = []  # (phase, asset id)
     for photo in job.photos:
         f = photos.get(photo.key(job))
         if f is None:
             raise ValueError(f"build has no service photo {photo.key(job)}; rebuild it")
-        aid = ids.did("asset", f["key"])
+        aid = ids.did("asset", f["key"], SERVICES_VERSION)
         lat, lon = p.to_latlon(p.length_m * 0.4, p.row_spacing_m * 1.5)
         s.insert(
             "services",
@@ -1285,7 +1305,6 @@ def service_job(ctx: Context, job: ServiceJob, photos: dict[str, dict]) -> None:
             "created_at": job.done_at,
         },
     )
-    t = SERVICE_TYPE
     s.insert(
         "services",
         "public.service_request",
@@ -1306,21 +1325,24 @@ def service_job(ctx: Context, job: ServiceJob, photos: dict[str, dict]) -> None:
             "recommended_weed_height": None,
             "area_m2": _boundary_area(p.key),
             "area_source": "boundary",
-            "price_per_donum_kurus": t["price_per_donum_kurus"],
-            "minimum_fee_kurus": t["minimum_fee_kurus"],
-            "vat_rate_bp": t["vat_rate_bp"],
-            "price_is_draft": t["price_is_draft"],
-            "estimate_subtotal_kurus": subtotal,
-            "estimate_vat_kurus": vat,
-            "estimate_total_kurus": total,
+            # Unpriced at the request: no price list, no frozen estimate (all eight
+            # null, as customer_request_service leaves them).
+            "price_list_id": None,
+            "price_list_version": None,
+            "price_per_donum_kurus": None,
+            "minimum_fee_kurus": None,
+            "vat_rate_bp": None,
+            "estimate_subtotal_kurus": None,
+            "estimate_vat_kurus": None,
+            "estimate_total_kurus": None,
             "pricing_rule": PRICING_RULE,
-            "quote_total_kurus": total,
+            "quote_total_kurus": job.quote_total_kurus,
             "scheduled_date": job.scheduled_date,
             "session_id": job.id,
             "operation_id": job.operation_id,
             "completed_on": job.completed_on,
             "payment_received_on": job.payment_on,
-            "payment_amount_kurus": total,
+            "payment_amount_kurus": job.quote_total_kurus,
             "payment_method": job.payment_method,
             "payment_recorded_by": ids.OPS,
             "created_at": job.requested_at,
@@ -1338,7 +1360,7 @@ def service_job(ctx: Context, job: ServiceJob, photos: dict[str, dict]) -> None:
             "services",
             "public.service_request_event",
             {
-                "id": ids.did("service_request_event", f"{job.key}:{n}"),
+                "id": ids.did("service_request_event", f"{job.key}:{n}", SERVICES_VERSION),
                 "org_id": o,
                 "parcel_id": p.id,
                 "request_id": job.request_id,
@@ -1355,7 +1377,9 @@ def service_job(ctx: Context, job: ServiceJob, photos: dict[str, dict]) -> None:
             "services",
             "public.service_request_photo",
             {
-                "id": ids.did("service_request_photo", f"{job.key}:{aid}:{phase}"),
+                "id": ids.did(
+                    "service_request_photo", f"{job.key}:{aid}:{phase}", SERVICES_VERSION
+                ),
                 "org_id": o,
                 "parcel_id": p.id,
                 "request_id": job.request_id,

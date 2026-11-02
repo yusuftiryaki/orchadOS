@@ -699,6 +699,36 @@ export function parsePriceListDraft(
   return ok({ validFrom, vatRateBp, note: note.value ?? "", items });
 }
 
+export interface PriceListServiceItemsInput {
+  items: { service_type_id: string; unit_price_kurus: number; minimum_fee_kurus: number }[];
+}
+
+// The "Hizmet fiyatları" part of the draft editor (IP15): one row per service
+// type (`svc_unit_<id>` per dönüm, `svc_min_<id>` minimum fee, TL, VAT
+// excluded). An empty price leaves the service unpriced in this version: the
+// portal then shows "Fiyat teklifle bildirilir" and ops enters the amount. A
+// minimum fee without a price is a mistake.
+export function parsePriceListServiceItems(
+  read: Reader,
+  serviceTypeIds: string[],
+): Parsed<PriceListServiceItemsInput> {
+  const items: PriceListServiceItemsInput["items"] = [];
+  for (const id of serviceTypeIds) {
+    const unitText = read(`svc_unit_${id}`);
+    const minText = read(`svc_min_${id}`);
+    if (!unitText) {
+      if (minText) return bad(`svc_unit_${id}`);
+      continue;
+    }
+    const unit = parseAmount(unitText);
+    if (unit == null) return bad(`svc_unit_${id}`);
+    const min = parseAmount(minText || "0", { allowZero: true });
+    if (min == null) return bad(`svc_min_${id}`);
+    items.push({ service_type_id: id, unit_price_kurus: unit, minimum_fee_kurus: min });
+  }
+  return ok({ items });
+}
+
 const SETTING_TEXTS = [
   ["legal_name", 200],
   ["tax_office", 100],

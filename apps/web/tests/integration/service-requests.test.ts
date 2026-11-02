@@ -24,8 +24,11 @@ import { png } from "./portal-fixture";
 // org (seed owner and viewer); testing.purge_parcels removes its requests,
 // insert-only history, photos, job sessions, operations, notifications and
 // media. The seed's weed mowing row is moved in and out of season through
-// ops_update_service_type (service_role cannot write the season columns: their
-// check calls a private function) and restored afterwards.
+// ops_update_service_type and ops_save_service_season (the test parcel is a
+// pistachio orchard, whose own season row overrides the default) and restored
+// afterwards. The seed leaves the service unpriced: offers and requests carry
+// no estimate ("Fiyat teklifle bildirilir"); the priced flow is in
+// service-pricing.test.ts.
 
 const ORG = SEED.org;
 const PARCEL = "f9150000-0000-4000-8000-000000000101";
@@ -40,6 +43,7 @@ const admin = serviceClient();
 const clients = {} as Record<Who, Client>;
 const ids = {} as Record<Who, string>;
 let seedType: Database["public"]["Tables"]["service_type"]["Row"];
+let seedSeason: Database["public"]["Tables"]["service_type_season"]["Row"];
 
 const today = istanbulToday();
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
@@ -57,10 +61,6 @@ async function setSeason(start: [number, number], end: [number, number]) {
   ok(
     await clients.ops.rpc("ops_update_service_type", {
       p_id: TYPE,
-      p_price_per_donum_kurus: t.price_per_donum_kurus,
-      p_minimum_fee_kurus: t.minimum_fee_kurus,
-      p_vat_rate_bp: t.vat_rate_bp,
-      p_price_is_draft: t.price_is_draft,
       p_season_start_month: start[0],
       p_season_start_day: start[1],
       p_season_end_month: end[0],
@@ -70,6 +70,17 @@ async function setSeason(start: [number, number], end: [number, number]) {
       p_active: t.active,
     }),
     "ops_update_service_type",
+  );
+  ok(
+    await clients.ops.rpc("ops_save_service_season", {
+      p_service_type_id: TYPE,
+      p_species: "antep_fistigi",
+      p_season_start_month: start[0],
+      p_season_start_day: start[1],
+      p_season_end_month: end[0],
+      p_season_end_day: end[1],
+    }),
+    "ops_save_service_season",
   );
 }
 
@@ -81,13 +92,22 @@ beforeAll(async () => {
     ids[who] = s.userId;
   }
   seedType = ok(await admin.from("service_type").select("*").eq("id", TYPE).single(), "type").data!;
+  seedSeason = ok(
+    await admin
+      .from("service_type_season")
+      .select("*")
+      .eq("service_type_id", TYPE)
+      .eq("species", "antep_fistigi")
+      .single(),
+    "season",
+  ).data!;
   ok(
     await admin.from("parcel").insert({
       id: PARCEL,
       org_id: ORG,
       name: "Portal Hizmet Test Bahçesi",
       status: "active_monitoring",
-      // 19.6 dönüm declared: 196 tenths × 375 TL / 10 = 7.350 TL + 20 % VAT = 8.820 TL.
+      // 19.6 dönüm declared (196 tenths); no estimate while unpriced.
       estimated_area_m2: 19_600,
     }),
     "parcel",
@@ -171,6 +191,17 @@ afterAll(async () => {
       [t.season_end_month, t.season_end_day],
     );
   }
+  // setSeason wrote the default into the pistachio row too; put that back.
+  if (seedSeason) {
+    await clients.ops.rpc("ops_save_service_season", {
+      p_service_type_id: TYPE,
+      p_species: "antep_fistigi",
+      p_season_start_month: seedSeason.season_start_month,
+      p_season_start_day: seedSeason.season_start_day,
+      p_season_end_month: seedSeason.season_end_month,
+      p_season_end_day: seedSeason.season_end_day,
+    });
+  }
   await purgeParcels([PARCEL]);
 }, 60_000);
 
@@ -198,10 +229,13 @@ describe("service offers", () => {
       weed_height: "tall",
       area_m2: 19_600,
       area_source: "declared",
-      estimate_subtotal_kurus: 735_000,
-      estimate_vat_kurus: 147_000,
-      estimate_total_kurus: 882_000,
-      price_is_draft: true,
+      species: "antep_fistigi",
+      // The seed's launch list has no mowing price: no amount at all.
+      price_list_version: null,
+      price_per_donum_kurus: null,
+      estimate_subtotal_kurus: null,
+      estimate_vat_kurus: null,
+      estimate_total_kurus: null,
     });
     expect(await listServiceOffers(clients.owner, PARCEL)).toHaveLength(1);
   });
@@ -296,7 +330,8 @@ describe("requests", () => {
       serviceName: "Yabani ot biçme",
       preferred_window: "within_2_weeks",
       customer_note: "Damla sulama hortumu sıranın dibinde.",
-      estimate_total_kurus: 882_000,
+      price_list_version: null,
+      estimate_total_kurus: null,
       quote_total_kurus: null,
       terms_version: SERVICE_TERMS_VERSION,
       early_performance_requested: true,

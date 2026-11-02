@@ -3,7 +3,6 @@ import {
   parseAmount,
   parseIntInRange,
   parseIsoDate,
-  percentToBp,
   type Reader,
 } from "@/lib/back-office/validation";
 import { opsServicesText } from "@/lib/i18n/messages/ops-services";
@@ -135,11 +134,19 @@ export interface ScheduleInput {
 }
 
 // Day and amount: the day not before today (or the earliest day of the
-// withdrawal period), at most a year ahead; the amount in TL, VAT included,
-// at most the frozen estimate (H37).
+// withdrawal period), at most a year ahead; the amount in TL, VAT included.
+// With a frozen estimate the amount is optional and at most the estimate
+// (H37). Without one (no published price at the request: "Fiyat teklifle
+// bildirilir") ops enters it by hand, unless an amount was already confirmed
+// (moving the day keeps it).
 export function parseSchedule(
   read: Reader,
-  context: { today: string; earliest: string; estimateTotalKurus: number },
+  context: {
+    today: string;
+    earliest: string;
+    estimateTotalKurus: number | null;
+    quoteTotalKurus?: number | null;
+  },
 ): ServiceParsed<ScheduleInput> {
   const date = parseIsoDate(read("scheduled_date"));
   if (!date || date < context.today || date > addDays(context.today, 365)) {
@@ -152,7 +159,11 @@ export function parseSchedule(
   if (read("quote_total")) {
     quote = parseAmount(read("quote_total"), { allowZero: true });
     if (quote == null) return bad("quote_total");
-    if (quote > context.estimateTotalKurus) return { ok: false, error: "quote_above_estimate" };
+    if (context.estimateTotalKurus !== null && quote > context.estimateTotalKurus) {
+      return { ok: false, error: "quote_above_estimate" };
+    }
+  } else if (context.estimateTotalKurus === null && (context.quoteTotalKurus ?? null) === null) {
+    return bad("quote_total");
   }
   const note = text(read, "note", 1000);
   if (!note.ok) return note;
@@ -226,15 +237,14 @@ export function proofPhotoPath(orgId: string, parcelId: string, sha256: string):
 // Catalogue
 // ---------------------------------------------------------------------------
 
-export interface ServiceTypeInput {
-  pricePerDonumKurus: number;
-  minimumFeeKurus: number;
-  vatRateBp: number;
-  priceIsDraft: boolean;
+export interface SeasonInput {
   seasonStartMonth: number;
   seasonStartDay: number;
   seasonEndMonth: number;
   seasonEndDay: number;
+}
+
+export interface ServiceTypeInput extends SeasonInput {
   recommendFromWeedHeight: "medium" | "tall" | null;
   observationMaxAgeDays: number;
   active: boolean;
@@ -250,13 +260,9 @@ export function validMonthDay(month: number, day: number): boolean {
 
 const checked = (read: Reader, name: string) => read(name) === "on" || read(name) === "true";
 
-export function parseServiceType(read: Reader): ServiceParsed<ServiceTypeInput> {
-  const price = parseAmount(read("price"));
-  if (price == null || price > 10_000_000_000) return bad("price");
-  const minimum = read("minimum_fee") ? parseAmount(read("minimum_fee"), { allowZero: true }) : 0;
-  if (minimum == null || minimum > 10_000_000_000) return bad("minimum_fee");
-  const vat = read("vat_rate") ? percentToBp(read("vat_rate")) : null;
-  if (vat == null) return bad("vat_rate");
+// A season window from season_start_month / _day and season_end_month /
+// _day: valid in every year, start and end differ (it may wrap the year end).
+export function parseSeason(read: Reader): ServiceParsed<SeasonInput> {
   const startMonth = parseIntInRange(read("season_start_month"), 1, 12);
   const startDay = parseIntInRange(read("season_start_day"), 1, 31);
   const endMonth = parseIntInRange(read("season_end_month"), 1, 12);
@@ -272,6 +278,19 @@ export function parseServiceType(read: Reader): ServiceParsed<ServiceTypeInput> 
   ) {
     return bad("season");
   }
+  return ok({
+    seasonStartMonth: startMonth,
+    seasonStartDay: startDay,
+    seasonEndMonth: endMonth,
+    seasonEndDay: endDay,
+  });
+}
+
+// The catalogue row: default season, recommendation rule, active. Prices are
+// not here: they live in the price list (Fiyat listesi, "Hizmet fiyatları").
+export function parseServiceType(read: Reader): ServiceParsed<ServiceTypeInput> {
+  const season = parseSeason(read);
+  if (!season.ok) return season;
   const recommend = read("recommend_from");
   if (recommend !== "" && recommend !== "medium" && recommend !== "tall") {
     return bad("recommend_from");
@@ -279,18 +298,24 @@ export function parseServiceType(read: Reader): ServiceParsed<ServiceTypeInput> 
   const maxAge = parseIntInRange(read("observation_max_age_days"), 1, 365);
   if (maxAge == null) return bad("observation_max_age_days");
   return ok({
-    pricePerDonumKurus: price,
-    minimumFeeKurus: minimum,
-    vatRateBp: vat,
-    priceIsDraft: checked(read, "price_is_draft"),
-    seasonStartMonth: startMonth,
-    seasonStartDay: startDay,
-    seasonEndMonth: endMonth,
-    seasonEndDay: endDay,
+    ...season.value,
     recommendFromWeedHeight: recommend === "" ? null : recommend,
     observationMaxAgeDays: maxAge,
     active: checked(read, "active"),
   });
+}
+
+export interface SpeciesSeasonInput extends SeasonInput {
+  species: string;
+}
+
+// The season window of a service for one fruit species.
+export function parseSpeciesSeason(read: Reader): ServiceParsed<SpeciesSeasonInput> {
+  const species = read("species");
+  if (!/^[a-z][a-z0-9_]{1,31}$/.test(species)) return bad("species");
+  const season = parseSeason(read);
+  if (!season.ok) return season;
+  return ok({ species, ...season.value });
 }
 
 // ---------------------------------------------------------------------------
@@ -352,6 +377,7 @@ export const SERVICE_NOTICES = [
   "cancelled",
   "payment_recorded",
   "type_saved",
+  "season_saved",
   "robot_note_saved",
 ] as const;
 export type ServiceNotice = (typeof SERVICE_NOTICES)[number];

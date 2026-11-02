@@ -11,7 +11,7 @@ import { DEMO_TOUR_READY } from "./global-setup";
 import { collectErrors, COUNT_GL, glContexts, viewerTextures } from "./panorama-helpers";
 
 // The demo tour end to end (docs/demo-turu.md §14): landing → /demo → start →
-// the real owner portal with the banner and the ten guided steps, real
+// the real owner portal with the banner and the twelve guided steps, real
 // synthetic media from demo-media, watermarked PDFs, no write forms, expiry,
 // exit, and a real user who is never signed out by /demo/bitti. Runs on the
 // dataset of `pnpm db:demo-tour --profile test` (global setup) with
@@ -21,7 +21,11 @@ test.describe.configure({ mode: "serial" });
 test.skip(!process.env[DEMO_TOUR_READY], "demo tour dataset not loaded (needs uv)");
 
 const PARCEL_A = "de100000-0000-4000-8000-000000000001";
+const PARCEL_B = "de100000-0000-4000-8000-000000000002";
+// Parcel B's done mowing job (docs/demo-turu.md §8.1, dataset version 2).
+const MOWING_JOB = "de300000-0000-4000-8000-000000000001";
 const REPORT = `/portal/parsel/${PARCEL_A}`;
+const DEMO_ORG = "de000000-0000-4000-8000-000000000001";
 const MARKER = "orchadOS ornek rapor";
 
 const env = resolveSupabaseEnv();
@@ -63,11 +67,11 @@ const step = (page: Page) => page.getByTestId("guided-tour");
 
 async function expectStep(page: Page, id: string, n: number, targets: string[]) {
   await expect(step(page)).toHaveAttribute("data-step", id, { timeout: 20_000 });
-  await expect(page.getByTestId("tour-counter")).toHaveText(`${n} / 10`);
+  await expect(page.getByTestId("tour-counter")).toHaveText(`${n} / ${STEPS.length}`);
   for (const target of targets) await expect(page.getByTestId(target).first()).toBeAttached();
 }
 
-// The ten steps in order, with the targets each one outlines.
+// The twelve steps in order, with the targets each one outlines.
 const STEPS: [string, string[]][] = [
   ["bahceler", ["parcel-list"]],
   ["gezi", ["tour-viewer", "tour-visit"]],
@@ -77,6 +81,8 @@ const STEPS: [string, string[]][] = [
   ["agac", ["tree-card", "photo-evidence", "hash-check"]],
   ["ziyaret", ["visit-select", "parcel-map"]],
   ["envanter", ["inventory-report"]],
+  ["hizmet-oneri", ["service-offers"]],
+  ["hizmet-sonuc", ["service-request-proof"]],
   ["pdf", ["report-pdf"]],
   ["son", ["demo-banner"]],
 ];
@@ -85,7 +91,32 @@ const STEPS: [string, string[]][] = [
 // live region outside the card names the step.
 async function expectFocusOnStep(page: Page, n: number) {
   await expect(step(page).getByRole("heading")).toBeFocused();
-  await expect(page.getByTestId("tour-announcer")).toContainText(`${n} / 10`);
+  await expect(page.getByTestId("tour-announcer")).toContainText(`${n} / ${STEPS.length}`);
+}
+
+// Both proof columns show a loaded photo from the public demo-media mirror.
+async function expectProofPhotos(page: Page) {
+  const proof = page.getByTestId("service-request-proof");
+  const images = proof.locator("img");
+  await expect(images).toHaveCount(2);
+  for (const img of await images.all()) {
+    await expect(img).toHaveAttribute("src", /\/storage\/v1\/object\/public\/demo-media\//);
+    await img.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.naturalWidth))
+      .toBeGreaterThan(0);
+  }
+  await expect(proof).toContainText("Öncesi");
+  await expect(proof).toContainText("Sonrası");
+}
+
+async function demoRequests(): Promise<number> {
+  const { count, error } = await admin
+    .from("service_request")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", DEMO_ORG);
+  if (error) throw error;
+  return count ?? 0;
 }
 
 test.afterAll(async () => {
@@ -172,17 +203,36 @@ test("a visitor starts the demo from the landing page and takes the guided tour"
   await expect(page).toHaveURL(`${REPORT}/envanter?tur=envanter`);
   await page.getByTestId("tour-next").click();
 
-  // 9 pdf
-  await expectStep(page, "pdf", 9, ["report-pdf"]);
-  await page.getByTestId("tour-prev").click();
-  await expectStep(page, "envanter", 8, ["inventory-report"]);
-  await expectFocusOnStep(page, 8);
-  await page.keyboard.press("ArrowRight");
-  await expectStep(page, "pdf", 9, ["report-pdf"]);
+  // 9 hizmet-oneri: parcel A's mowing card, buyable on any day (in season a
+  // request, out of season a pre-request; no request is open), unpriced.
+  await expectStep(page, "hizmet-oneri", 9, ["service-offers"]);
+  await expect(page).toHaveURL(`${REPORT}?tur=hizmet-oneri`);
+  const offer = page.locator(`[data-testid="service-offer"][data-offer-parcel-id="${PARCEL_A}"]`);
+  await expect(offer).toHaveCount(1);
+  expect(["recommended", "available", "pre_request"]).toContain(
+    await offer.getAttribute("data-state"),
+  );
+  await expect(offer.getByTestId("service-offer-action")).toBeVisible();
   await page.getByTestId("tour-next").click();
 
-  // 10 son: the closing card on the same page
-  await expectStep(page, "son", 10, ["demo-banner"]);
+  // 10 hizmet-sonuc: B's done job, before and after photos from the mirror
+  await expectStep(page, "hizmet-sonuc", 10, ["service-request-proof"]);
+  await expect(page).toHaveURL(`/portal/hizmetler/${MOWING_JOB}?tur=hizmet-sonuc`);
+  await expect(page.getByTestId("service-request-status")).toContainText("Tamamlandı");
+  await expectProofPhotos(page);
+  await page.getByTestId("tour-next").click();
+
+  // 11 pdf
+  await expectStep(page, "pdf", 11, ["report-pdf"]);
+  await page.getByTestId("tour-prev").click();
+  await expectStep(page, "hizmet-sonuc", 10, ["service-request-proof"]);
+  await expectFocusOnStep(page, 10);
+  await page.keyboard.press("ArrowRight");
+  await expectStep(page, "pdf", 11, ["report-pdf"]);
+  await page.getByTestId("tour-next").click();
+
+  // 12 son: the closing card on the same page
+  await expectStep(page, "son", 12, ["demo-banner"]);
   await expect(page.getByTestId("tour-signup")).toBeVisible();
   await expect(page.getByTestId("tour-packages")).toHaveAttribute("href", "/paketler");
   await page.keyboard.press("Escape");
@@ -266,6 +316,65 @@ test("'Gerçek hesap aç' ends the demo and opens sign-up", async ({ page }) => 
   await expect(page).toHaveURL("/giris?next=%2Fportal");
 });
 
+test("services: the request form writes nothing, the done job shows its proof", async ({
+  page,
+}) => {
+  await startDemo(page);
+  const before = await demoRequests();
+
+  // The offer card's button opens the real request form, unpriced.
+  await page.goto(REPORT);
+  const offer = page.locator(`[data-testid="service-offer"][data-offer-parcel-id="${PARCEL_A}"]`);
+  await offer.getByTestId("service-offer-action").click();
+  await expect(page).toHaveURL(/\/portal\/hizmetler\/yeni\?/);
+  await expect(page.getByTestId("service-request-summary")).toContainText(
+    "Fiyat teklifle bildirilir",
+  );
+  await expect(page.getByTestId("demo-notice")).toHaveCount(0);
+
+  // Sending it (in season the two consents first) shows the demo notice
+  // with "Gerçek hesap aç"; no row is written.
+  for (const name of ["pre_information", "terms"]) {
+    const box = page.locator(`input[name="${name}"]`);
+    if (await box.count()) await box.check();
+  }
+  await page.getByTestId("service-request-submit").click();
+  await expect(page).toHaveURL(/hata=demo_read_only/);
+  const notice = page.getByTestId("demo-notice");
+  await expect(notice).toContainText("Demoda talep gönderilmez");
+  await expect(notice).toContainText("ot biçme talep edin");
+  await expect(page.getByTestId("service-request-error")).toHaveCount(0);
+  await expect(notice.getByTestId("demo-notice-signup")).toBeVisible();
+  expect(await demoRequests()).toBe(before);
+
+  // Hizmetlerim lists the done job; its page has the amount, the payment and
+  // the before / after photos.
+  await page.goto("/portal/hizmetler");
+  await expect(page.getByText("H-2026-000001")).toBeVisible();
+  await page.goto(`/portal/hizmetler/${MOWING_JOB}`);
+  await expect(page.getByTestId("service-request-quote")).toContainText("3.000");
+  await expect(page.getByTestId("service-request-payment")).toBeVisible();
+  await expect(page.getByTestId("service-request-cancel-submit")).toHaveCount(0);
+  await expectProofPhotos(page);
+
+  // Parcel B's care row says orchadOS did the mowing before the visit.
+  await page.goto(`/portal/parsel/${PARCEL_B}`);
+  await expect(page.getByTestId("care-own-work")).toBeVisible();
+
+  // "Gerçek hesap aç" on the notice ends the demo like the banner's button.
+  await page.goto(`${REPORT}`);
+  await offer.getByTestId("service-offer-action").click();
+  for (const name of ["pre_information", "terms"]) {
+    const box = page.locator(`input[name="${name}"]`);
+    if (await box.count()) await box.check();
+  }
+  await page.getByTestId("service-request-submit").click();
+  await page.getByTestId("demo-notice-signup").click();
+  await expect(page).toHaveURL("/kayit");
+  await page.goto("/portal");
+  await expect(page).toHaveURL("/giris?next=%2Fportal");
+});
+
 test("a real user stays signed in after /demo/bitti", async ({ page }) => {
   await page.goto("/giris");
   await page.getByLabel("E-posta").fill("owner@example.com");
@@ -283,7 +392,7 @@ test("a real user stays signed in after /demo/bitti", async ({ page }) => {
   await expect(page.getByTestId("demo-banner")).toHaveCount(0);
 });
 
-test("phone size: all ten steps fit, and a closed tour restarts", async ({ browser }) => {
+test("phone size: all twelve steps fit, and a closed tour restarts", async ({ browser }) => {
   test.setTimeout(180_000);
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();

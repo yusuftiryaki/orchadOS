@@ -111,14 +111,20 @@ describe("cancellation", () => {
 });
 
 describe("amount and date of a request", () => {
-  it("shows the confirmed amount, else the estimate", () => {
+  it("shows the confirmed amount, else the frozen estimate, else none (unpriced)", () => {
     expect(requestAmount({ quote_total_kurus: null, estimate_total_kurus: 882_000 })).toEqual({
       kurus: 882_000,
-      estimate: true,
+      confirmed: false,
     });
     expect(requestAmount({ quote_total_kurus: 800_000, estimate_total_kurus: 882_000 })).toEqual({
       kurus: 800_000,
-      estimate: false,
+      confirmed: true,
+    });
+    // No published price at the request: nothing until ops enters the amount.
+    expect(requestAmount({ quote_total_kurus: null, estimate_total_kurus: null })).toBeNull();
+    expect(requestAmount({ quote_total_kurus: 650_000, estimate_total_kurus: null })).toEqual({
+      kurus: 650_000,
+      confirmed: true,
     });
   });
 

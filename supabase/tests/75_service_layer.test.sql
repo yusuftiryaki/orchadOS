@@ -1,16 +1,19 @@
 -- Service layer, weed mowing (IP15, docs/MVP.md Module 6): the weed_height
--- question, the quote rule service-v1, the season calendar, the
--- recommendation rule (observation + season; portal only, no message), status transitions
--- (pre_request, requested, scheduled, done, cancelled) with history, proof
--- photos and their visibility, manual payment, notifications, the switch,
--- demand counts, RLS of requests and robot notes.
+-- question, the quote rule service-v1, the season calendar (default and per
+-- fruit species), the recommendation rule (observation + season; portal only,
+-- no message), prices from the versioned price list (unpriced: no estimate,
+-- ops enters the amount; quotes frozen with the list version), status
+-- transitions (pre_request, requested, scheduled, done, cancelled) with
+-- history, proof photos and their visibility, manual payment, notifications,
+-- the switch, demand counts, RLS of requests and robot notes.
 -- Seed: org b0..01 (services on), ops a0..05, field staff a0..03, owner a0..01
--- and viewer a0..02 of parcel c0..01 (boundary v2 ≈ 19 590.5 m²), catalogue
--- row weed_mowing 91500000-..01 (37 500 kuruş per dönüm, minimum 250 000,
--- VAT 20 %, 1 March – 30 June, from medium). One transaction.
+-- and viewer a0..02 of parcel c0..01 (antep_fistigi; boundary v2 ≈ 19 590.5
+-- m²), catalogue row weed_mowing 91500000-..01 (1 March – 30 June for every
+-- species, from medium) without a price: the published launch list v1
+-- (91200000-..0101, VAT 20 %) has no service row. One transaction.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(74);
+select plan(128);
 
 select testing.reset_to_seed();
 
@@ -51,7 +54,48 @@ begin
     season_start_month = extract(month from v_from), season_start_day = extract(day from v_from),
     season_end_month = extract(month from v_to), season_end_day = extract(day from v_to)
   where id = '91500000-0000-4000-8000-000000000001';
+  -- The seed has a row per species; they follow the default here.
+  update public.service_type_season set
+    season_start_month = extract(month from v_from), season_start_day = extract(day from v_from),
+    season_end_month = extract(month from v_to), season_end_day = extract(day from v_to)
+  where service_type_id = '91500000-0000-4000-8000-000000000001';
 end;
+$$;
+
+-- A day of the year that exists in every year (29 February -> 1 March).
+create function pg_temp.safe_day(p_day date) returns date language sql immutable
+as $$ select case when extract(month from p_day) = 2 and extract(day from p_day) = 29 then p_day + 1 else p_day end $$;
+
+-- Ops: a published price list copied from p_from (packages and services),
+-- with the given weed_mowing price (null: none) and validity date. Returns
+-- its id. Runs as the ops user; ends as postgres.
+create function pg_temp.publish_list(p_from uuid, p_unit bigint, p_min bigint, p_valid_from date)
+returns uuid language plpgsql
+as $$
+declare
+  v_id uuid;
+begin
+  perform pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+  set local role authenticated;
+  v_id := public.ops_create_price_list_draft('b0000000-0000-4000-8000-000000000001', p_from);
+  perform public.ops_save_price_list_service_items(v_id, case when p_unit is null then '[]'::jsonb else
+    jsonb_build_array(jsonb_build_object('service_type_id', '91500000-0000-4000-8000-000000000001',
+      'unit_price_kurus', p_unit, 'minimum_fee_kurus', p_min)) end);
+  reset role;
+  update public.price_list set valid_from = p_valid_from where id = v_id;
+  set local role authenticated;
+  perform public.ops_publish_price_list(v_id);
+  reset role;
+  return v_id;
+end;
+$$;
+
+-- The price weed_mowing resolves to on p_day, as text.
+create function pg_temp.price_on(p_day date) returns text language sql stable
+as $$
+  select row(sp.price_list_version, sp.unit_price_kurus, sp.minimum_fee_kurus, sp.vat_rate_bp)::text
+  from public.service_type t left join lateral private.service_price(t, p_day) sp on true
+  where t.id = '91500000-0000-4000-8000-000000000001'
 $$;
 
 -- A published periodic visit of the seed parcel with a weed_height answer.
@@ -93,6 +137,10 @@ select is((select q.subtotal_kurus from private.service_quote(2050.4, 100000, 0,
   210000::bigint, 'quote: area in tenths of a dönüm, rounded up');
 select is(pg_temp.error_of($$select private.service_quote(0, 37500, 0, 2000)$$),
   '22023 invalid_input / quote', 'quote: no area, no quote');
+select is((select row(q.*)::text from private.service_quote(20000, null, null, 2000) q), '(,,)',
+  'quote: an unpriced service has no estimate');
+select is((select row(q.*)::text from private.service_quote(null, 37500, 250000, 2000) q), '(,,)',
+  'quote: nor an unknown area');
 
 select ok(private.service_in_season(t, '2027-03-01') and private.service_in_season(t, '2027-06-30')
           and not private.service_in_season(t, '2027-07-01') and not private.service_in_season(t, '2027-02-28'),
@@ -106,9 +154,9 @@ select is(private.service_season_start(t, '2027-05-10'), '2027-03-01'::date,
 from public.service_type t where t.id = '91500000-0000-4000-8000-000000000001';
 
 -- A window across the year end (November – February).
-insert into public.service_type (org_id, code, name, operation_kind, price_per_donum_kurus, season_start_month,
+insert into public.service_type (org_id, code, name, operation_kind, season_start_month,
   season_start_day, season_end_month, season_end_day, active)
-values ('b0000000-0000-4000-8000-000000000001', 'wrap_test', 'Kış işi', 'other', 1000, 11, 1, 2, 28, false);
+values ('b0000000-0000-4000-8000-000000000001', 'wrap_test', 'Kış işi', 'other', 11, 1, 2, 28, false);
 select ok(
   private.service_in_season(w, '2026-12-31') and private.service_in_season(w, '2027-01-15')
   and not private.service_in_season(w, '2027-03-01')
@@ -136,15 +184,19 @@ select ok(not private.service_recommended(t, 'c0000000-0000-4000-8000-0000000000
   'recommendation: an observation older than 60 days does not trigger')
 from public.service_type t where t.id = '91500000-0000-4000-8000-000000000001';
 
--- Portal offers, out of season: a pre-request card with the frozen formula.
+-- Portal offers, out of season and unpriced: a pre-request card without an
+-- amount ("Fiyat teklifle bildirilir").
 select pg_temp.set_season(false);
+select is(pg_temp.price_on(pg_temp.today()), '(,,,)',
+  'price: the published launch list has no service price: unpriced');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 set local role authenticated;
 select is(
-  (select row(state, area_source, estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus, price_is_draft)::text
+  (select row(state, area_source, species, price_list_version, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp,
+              estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus)::text
    from public.service_offers()),
-  '(pre_request,boundary,735000,147000,882000,t)',
-  'offers: out of season the owner sees a pre-request with the estimate of boundary v2 (196 tenths)');
+  '(pre_request,boundary,antep_fistigi,,,,,,,)',
+  'offers: out of season and unpriced the owner sees a pre-request without an amount');
 reset role;
 
 -- In season, a fresh tall observation from a published visit: recommended.
@@ -174,6 +226,145 @@ reset role;
 insert into ids values ('visit3', pg_temp.published_visit_with_weeds('tall', 0));
 
 -- ---------------------------------------------------------------------------
+-- Unpriced request: ops enters the amount
+-- ---------------------------------------------------------------------------
+
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+set local role authenticated;
+insert into ids select 'r0', public.customer_request_service('c0000000-0000-4000-8000-000000000001',
+  '91500000-0000-4000-8000-000000000001', 'asap', null, 'bakim-v1-taslak', true);
+select is(
+  (select row(status, area_source, num_nulls(price_list_id, price_list_version, price_per_donum_kurus,
+              minimum_fee_kurus, vat_rate_bp, estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus))::text
+   from public.service_request where id = pg_temp.id('r0')),
+  '(requested,boundary,8)', 'unpriced: the request is made without a price, price list version or estimate');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+select is(pg_temp.error_of(format($$select public.ops_schedule_service_request(%L, %L, null, null)$$,
+  pg_temp.id('r0'), pg_temp.today() + 3)), '22023 invalid_input / quote_total',
+  'unpriced: ops cannot schedule without entering the amount');
+select is((select row(price_list_version, estimate_total_kurus)::text from public.ops_service_requests()
+           where id = pg_temp.id('r0')), '(,)', 'unpriced: the queue shows no price list version and no estimate');
+select lives_ok(format($$select public.ops_schedule_service_request(%L, %L, 1234500, null)$$,
+  pg_temp.id('r0'), pg_temp.today() + 3), 'unpriced: ops schedules with the amount entered by hand (no cap)');
+select lives_ok(format($$select public.ops_schedule_service_request(%L, %L, null, null)$$,
+  pg_temp.id('r0'), pg_temp.today() + 4), 'unpriced: moving the day keeps the amount already entered');
+select is((select row(status, quote_total_kurus, scheduled_date = pg_temp.today() + 4, estimate_total_kurus)::text
+           from public.service_request where id = pg_temp.id('r0')),
+  '(scheduled,1234500,t,)', 'unpriced: scheduled with the manual amount, still without an estimate');
+select lives_ok(format($$select public.ops_cancel_service_request(%L, 'Fiyat kabul edilmedi')$$, pg_temp.id('r0')),
+  'unpriced: ops cancels (the slot is free for the priced flow below)');
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- Price list: service prices, publication, resolution
+-- ---------------------------------------------------------------------------
+
+-- A published list is final: no service price is added, changed or removed.
+select is(pg_temp.error_of($$insert into public.price_list_service_item (org_id, price_list_id, service_type_id,
+  unit_price_kurus) values ('b0000000-0000-4000-8000-000000000001', '91200000-0000-4000-8000-000000000101',
+  '91500000-0000-4000-8000-000000000001', 37500)$$),
+  'P0001 price_list_not_draft', 'price list item: not written on a published list');
+
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+set local role authenticated;
+insert into ids select 'draft', public.ops_create_price_list_draft('b0000000-0000-4000-8000-000000000001',
+  '91200000-0000-4000-8000-000000000101');
+select is(pg_temp.error_of($$select public.ops_save_price_list_service_items(
+  '91200000-0000-4000-8000-000000000101', '[]')$$), 'P0001 price_list_not_draft',
+  'save service prices: not on a published list');
+select is(pg_temp.error_of($$insert into public.price_list_service_item (org_id, price_list_id, service_type_id,
+  unit_price_kurus) select 'b0000000-0000-4000-8000-000000000001', v, '91500000-0000-4000-8000-000000000001', 1
+  from ids where k = 'draft'$$),
+  '42501 permission denied for table price_list_service_item', 'price list item: no direct write, even for ops');
+select is(pg_temp.error_of(format($$select public.ops_save_price_list_service_items(%L, '{}')$$, pg_temp.id('draft'))),
+  '22023 invalid_input / items', 'save service prices: an array');
+select is(pg_temp.error_of(format($$select public.ops_save_price_list_service_items(%L,
+  '[{"service_type_id": "x", "unit_price_kurus": 1}]')$$, pg_temp.id('draft'))),
+  '22023 invalid_input / service_type_id', 'save service prices: a uuid');
+select is(pg_temp.error_of(format($$select public.ops_save_price_list_service_items(%L,
+  '[{"service_type_id": "91500000-0000-4000-8000-0000000000ff", "unit_price_kurus": 1}]')$$, pg_temp.id('draft'))),
+  '22023 invalid_input / service_type_id', 'save service prices: a service of the list''s org');
+select is(pg_temp.error_of(format($$select public.ops_save_price_list_service_items(%L,
+  '[{"service_type_id": "91500000-0000-4000-8000-000000000001", "unit_price_kurus": 1},
+    {"service_type_id": "91500000-0000-4000-8000-000000000001", "unit_price_kurus": 2}]')$$, pg_temp.id('draft'))),
+  '22023 invalid_input / service_type_id', 'save service prices: each service once');
+select is(pg_temp.error_of(format($$select public.ops_save_price_list_service_items(%L,
+  '[{"service_type_id": "91500000-0000-4000-8000-000000000001"}]')$$, pg_temp.id('draft'))),
+  '22023 invalid_input / unit_price_kurus', 'save service prices: the price per dönüm is required');
+select is(pg_temp.error_of(format($$select public.ops_save_price_list_service_items(%L,
+  '[{"service_type_id": "91500000-0000-4000-8000-000000000001", "unit_price_kurus": 0}]')$$, pg_temp.id('draft'))),
+  '22023 invalid_input / unit_price_kurus', 'save service prices: a positive price');
+select is(pg_temp.error_of(format($$select public.ops_save_price_list_service_items(%L,
+  '[{"service_type_id": "91500000-0000-4000-8000-000000000001", "unit_price_kurus": 100.5}]')$$, pg_temp.id('draft'))),
+  '22023 invalid_input / unit_price_kurus', 'save service prices: whole kuruş');
+select is(pg_temp.error_of(format($$select public.ops_save_price_list_service_items(%L,
+  '[{"service_type_id": "91500000-0000-4000-8000-000000000001", "unit_price_kurus": 100, "minimum_fee_kurus": -1}]')$$,
+  pg_temp.id('draft'))), '22023 invalid_input / minimum_fee_kurus', 'save service prices: no negative minimum fee');
+select lives_ok(format($$select public.ops_save_price_list_service_items(%L,
+  '[{"service_type_id": "91500000-0000-4000-8000-000000000001", "unit_price_kurus": 37500, "minimum_fee_kurus": 250000}]')$$,
+  pg_temp.id('draft')), 'save service prices: ops prices weed mowing in the draft');
+select is((select row(unit_price_kurus, minimum_fee_kurus)::text from public.price_list_service_item
+           where price_list_id = pg_temp.id('draft')), '(37500,250000)', 'save service prices: stored, ops read them');
+-- Other roles.
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000003');
+select is(pg_temp.error_of(format($$select public.ops_save_price_list_service_items(%L, '[]')$$, pg_temp.id('draft'))),
+  '42501 forbidden', 'save service prices: not for field staff');
+select is((select count(*)::integer from public.price_list_service_item), 0, 'service prices: only ops read them');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+select is(pg_temp.error_of(format($$select public.ops_save_price_list_service_items(%L, '[]')$$, pg_temp.id('draft'))),
+  'P0002 not_found', 'save service prices: not for owners');
+select set_config('request.jwt.claims', json_build_object('sub', 'a0000000-0000-4000-8000-000000000005',
+  'role', 'authenticated', 'app_metadata', json_build_object('demo', true))::text, true);
+select is(pg_temp.error_of(format($$select public.ops_save_price_list_service_items(%L, '[]')$$, pg_temp.id('draft'))),
+  '42501 demo_read_only', 'save service prices: refused to a demo session');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+reset role;
+
+-- A draft does not price anything.
+select is(pg_temp.price_on(pg_temp.today()), '(,,,)', 'price: a draft list is ignored');
+
+-- Published (valid from today): version 2 prices the service.
+update public.price_list set valid_from = pg_temp.today() where id = pg_temp.id('draft');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+set local role authenticated;
+select is(public.ops_publish_price_list(pg_temp.id('draft')), 2, 'publish: the draft becomes version 2');
+reset role;
+select is(pg_temp.price_on(pg_temp.today()), '(2,37500,250000,2000)',
+  'price: the published list in force prices the service (VAT of the list)');
+select is(pg_temp.price_on(pg_temp.today() - 1), '(,,,)', 'price: not before the list is valid (v1 has none)');
+select is(pg_temp.error_of(format($$update public.price_list_service_item set unit_price_kurus = 1
+  where price_list_id = %L$$, pg_temp.id('draft'))), 'P0001 price_list_not_draft',
+  'price list item: a published service price never changes');
+select is(pg_temp.error_of(format($$delete from public.price_list_service_item where price_list_id = %L$$,
+  pg_temp.id('draft'))), 'P0001 price_list_not_draft', 'price list item: nor is it removed');
+
+-- A copy of a list takes its service prices.
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+set local role authenticated;
+insert into ids select 'copy', public.ops_create_price_list_draft('b0000000-0000-4000-8000-000000000001',
+  pg_temp.id('draft'));
+select is((select row(service_type_id, unit_price_kurus, minimum_fee_kurus)::text from public.price_list_service_item
+           where price_list_id = pg_temp.id('copy')),
+  '(91500000-0000-4000-8000-000000000001,37500,250000)', 'draft copy: the service prices are copied');
+select lives_ok(format($$select public.ops_save_price_list_service_items(%L, '[]')$$, pg_temp.id('copy')),
+  'save service prices: an empty array leaves the services unpriced');
+select is((select count(*)::integer from public.price_list_service_item where price_list_id = pg_temp.id('copy')), 0,
+  'save service prices: the draft has none now');
+select lives_ok(format($$select public.ops_delete_price_list_draft(%L)$$, pg_temp.id('copy')), 'the copy is dropped');
+reset role;
+
+-- The portal shows the estimate and the list version.
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+set local role authenticated;
+select is(
+  (select row(state, price_list_version, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, estimate_subtotal_kurus,
+              estimate_vat_kurus, estimate_total_kurus)::text
+   from public.service_offers()),
+  '(recommended,2,37500,250000,2000,735000,147000,882000)',
+  'offers: priced, the estimate of boundary v2 (196 tenths) with the price list version');
+reset role;
+
+-- ---------------------------------------------------------------------------
 -- Request, schedule, proof, complete, payment
 -- ---------------------------------------------------------------------------
 
@@ -184,10 +375,9 @@ select is(pg_temp.error_of($$select public.customer_request_service('c0000000-00
   'P0002 not_found', 'request: a viewer cannot request');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 select is(pg_temp.error_of($$insert into public.service_request (org_id, parcel_id, service_type_id, number, status,
-  season_year, terms_version, area_m2, area_source, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, price_is_draft,
-  estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus) values ('b0000000-0000-4000-8000-000000000001',
+  season_year, terms_version, area_m2, area_source) values ('b0000000-0000-4000-8000-000000000001',
   'c0000000-0000-4000-8000-000000000001', '91500000-0000-4000-8000-000000000001', 'H-x', 'requested', 2027, 'x',
-  1, 'declared', 1, 0, 0, true, 0, 0, 0)$$),
+  1, 'declared')$$),
   '42501 permission denied for table service_request', 'request: no direct insert');
 select is(pg_temp.error_of($$select public.customer_request_service('c0000000-0000-4000-8000-000000000001',
   '91500000-0000-4000-8000-000000000001', 'asap', null, '')$$),
@@ -199,16 +389,45 @@ insert into ids
 select 'r1', public.customer_request_service('c0000000-0000-4000-8000-000000000001',
   '91500000-0000-4000-8000-000000000001', 'within_2_weeks', 'Kapı anahtarı komşuda.', 'bakim-v1-taslak', true);
 select is(
-  (select row(status, preferred_window, recommended_weed_height, estimate_total_kurus, number ~ '^H-[0-9]{4}-000001$')::text
+  (select row(status, preferred_window, recommended_weed_height, price_list_id = pg_temp.id('draft'), price_list_version,
+              estimate_total_kurus, number ~ '^H-[0-9]{4}-000002$')::text
    from public.service_request where id = pg_temp.id('r1')),
-  '(requested,within_2_weeks,tall,882000,t)',
-  'request: in season it is requested, with the frozen estimate and the recommendation basis');
+  '(requested,within_2_weeks,tall,t,2,882000,t)',
+  'request: in season it is requested, with the frozen estimate, its price list version and the recommendation basis');
 select is(pg_temp.error_of($$select public.customer_request_service('c0000000-0000-4000-8000-000000000001',
   '91500000-0000-4000-8000-000000000001', 'asap', null, 'bakim-v1-taslak')$$),
   'P0001 request_open', 'request: one open request per parcel and service');
 select is((select state from public.service_offers()), 'open', 'offers: an open request shows on the card');
 select is(pg_temp.error_of($$select ops_note from public.service_request$$),
   '42501 permission denied for table service_request', 'request: the owner does not read the ops note');
+reset role;
+
+-- Quote freezing: a new version (valid today) prices the service higher; the
+-- request keeps version 2 and its amounts, new offers use version 3.
+insert into ids select 'v3', pg_temp.publish_list(pg_temp.id('draft'), 40000, 300000, pg_temp.today());
+select is(pg_temp.price_on(pg_temp.today()), '(3,40000,300000,2000)',
+  'price: the highest published version in force wins');
+select is(
+  (select row(price_list_id = pg_temp.id('draft'), price_list_version, price_per_donum_kurus, minimum_fee_kurus,
+              vat_rate_bp, estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus)::text
+   from public.service_request where id = pg_temp.id('r1')),
+  '(t,2,37500,250000,2000,735000,147000,882000)', 'freeze: the request keeps its price list version and amounts');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+set local role authenticated;
+select is((select row(state, price_list_version, estimate_total_kurus)::text from public.service_offers()),
+  '(open,3,940800)', 'freeze: the card prices from version 3 (196 tenths x 400 TL + VAT)');
+reset role;
+-- A later version (valid in 30 days) is not in force yet.
+select pg_temp.publish_list(pg_temp.id('v3'), 50000, 300000, pg_temp.today() + 30);
+select is(pg_temp.price_on(pg_temp.today()) || ' ' || pg_temp.price_on(pg_temp.today() + 30),
+  '(3,40000,300000,2000) (4,50000,300000,2000)', 'price: a newer version applies from its valid_from');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+set local role authenticated;
+select is((select price_list_version from public.ops_service_requests() where id = pg_temp.id('r1')), 2,
+  'queue: ops sees the frozen price list version');
+reset role;
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+set local role authenticated;
 
 -- The viewer does not see the request.
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000002');
@@ -344,14 +563,61 @@ select lives_ok(format($$select public.customer_cancel_service_request(%L, 'Vazg
   'cancel: the owner cancels a requested job');
 reset role;
 
--- Ops cancel needs a reason; a scheduled job on today cannot be cancelled by the owner.
-select pg_temp.set_season(false);
+-- ---------------------------------------------------------------------------
+-- Season per fruit species
+-- ---------------------------------------------------------------------------
+
+-- ops_save_service_season: ops only, valid species and window, no demo.
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 set local role authenticated;
+select is(pg_temp.error_of($$select public.ops_save_service_season('91500000-0000-4000-8000-000000000001', 'zeytin',
+  9::smallint, 1::smallint, 10::smallint, 31::smallint)$$), 'P0002 not_found', 'season per species: not for owners');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000003');
+select is(pg_temp.error_of($$select public.ops_save_service_season('91500000-0000-4000-8000-000000000001', 'zeytin',
+  9::smallint, 1::smallint, 10::smallint, 31::smallint)$$), '42501 forbidden', 'season per species: not for field staff');
+select set_config('request.jwt.claims', json_build_object('sub', 'a0000000-0000-4000-8000-000000000005',
+  'role', 'authenticated', 'app_metadata', json_build_object('demo', true))::text, true);
+select is(pg_temp.error_of($$select public.ops_save_service_season('91500000-0000-4000-8000-000000000001', 'zeytin',
+  9::smallint, 1::smallint, 10::smallint, 31::smallint)$$), '42501 demo_read_only',
+  'season per species: refused to a demo session');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+select is(pg_temp.error_of($$select public.ops_save_service_season('91500000-0000-4000-8000-000000000001', 'muz',
+  9::smallint, 1::smallint, 10::smallint, 31::smallint)$$), '22023 invalid_input / species',
+  'season per species: a known species');
+select is(pg_temp.error_of($$select public.ops_save_service_season('91500000-0000-4000-8000-000000000001', 'zeytin',
+  2::smallint, 29::smallint, 10::smallint, 31::smallint)$$), '22023 invalid_input / season',
+  'season per species: a day valid in every year');
+select is(pg_temp.error_of($$select public.ops_save_service_season('91500000-0000-4000-8000-000000000001', 'zeytin',
+  9::smallint, 1::smallint, 9::smallint, 1::smallint)$$), '22023 invalid_input / season',
+  'season per species: start and end differ');
+select is(pg_temp.error_of($$update public.service_type_season set season_end_day = 1$$),
+  '42501 permission denied for table service_type_season', 'season per species: no direct write');
+-- Olives: a window starting in 40 days; pistachio stays in season.
+select lives_ok(format($$select public.ops_save_service_season('91500000-0000-4000-8000-000000000001', 'zeytin',
+  %s::smallint, %s::smallint, %s::smallint, %s::smallint)$$,
+  extract(month from pg_temp.safe_day(pg_temp.today() + 40)), extract(day from pg_temp.safe_day(pg_temp.today() + 40)),
+  extract(month from pg_temp.safe_day(pg_temp.today() + 80)), extract(day from pg_temp.safe_day(pg_temp.today() + 80))),
+  'season per species: ops sets the olive window');
+select is((select count(*)::integer from public.service_type_season
+           where service_type_id = '91500000-0000-4000-8000-000000000001' and species = 'zeytin'
+             and updated_by = 'a0000000-0000-4000-8000-000000000005'), 1, 'season per species: one row, updated by ops');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+select is((select row(state, species)::text from public.service_offers()), '(available,antep_fistigi)',
+  'season per species: the pistachio parcel is in season');
+reset role;
+update public.parcel set species = 'zeytin' where id = 'c0000000-0000-4000-8000-000000000001';
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+set local role authenticated;
+select is((select row(state, species, in_season, season_start = pg_temp.safe_day(pg_temp.today() + 40))::text
+           from public.service_offers()), '(pre_request,zeytin,f,t)',
+  'season per species: the same parcel as an olive orchard is out of season, its window starts in 40 days');
+
+-- Ops cancel needs a reason; a scheduled job on today cannot be cancelled by the owner.
 insert into ids select 'r3', public.customer_request_service('c0000000-0000-4000-8000-000000000001',
   '91500000-0000-4000-8000-000000000001', 'flexible', null, 'bakim-v1-taslak');
-select is((select status::text from public.service_request where id = pg_temp.id('r3')), 'pre_request',
-  'pre-request: out of season the same form opens a pre-request');
+select is((select row(status, season_year = extract(year from pg_temp.safe_day(pg_temp.today() + 40)))::text
+           from public.service_request where id = pg_temp.id('r3')), '(pre_request,t)',
+  'pre-request: out of the species'' season the same form opens a pre-request for the next window');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 select is(pg_temp.error_of(format($$select public.ops_schedule_service_request(%L, %L, null, null)$$,
   pg_temp.id('r3'), pg_temp.today() + 14)),
@@ -376,7 +642,7 @@ select is((select count(*)::integer from public.session s join public.service_re
 
 select is(
   (select row(sum(done), sum(cancelled), sum(total))::text from public.ops_service_demand()),
-  '(1,2,3)', 'demand: counts per service and season');
+  '(1,3,4)', 'demand: counts per service and season');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 select is((select count(*)::integer from public.ops_service_demand()), 0, 'demand: ops only');
 select is((select count(*)::integer from public.ops_service_requests()), 0, 'queue: ops only');

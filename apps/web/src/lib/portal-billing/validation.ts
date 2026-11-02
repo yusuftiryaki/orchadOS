@@ -11,6 +11,7 @@ import {
   type Irrigation,
   type Read,
 } from "@/lib/operations/validation";
+import { SPECIES_CODE_RE } from "@/lib/species";
 import { isUuid } from "@/lib/supabase/query";
 import { isValidTckn } from "./tckn";
 
@@ -111,6 +112,8 @@ export interface GardenInput {
     village: string | null;
     declared_area_m2: number;
     irrigation: Irrigation;
+    // Main fruit species (public.fruit_species code; the database checks it).
+    species: string;
     estimated_tree_count: number | null;
     lon: number;
     lat: number;
@@ -162,6 +165,12 @@ export function parseGardenForm(read: Read): Parsed<GardenInput> {
 
   const irrigation = choice(errs, read, "irrigation", IRRIGATION, false) ?? "unknown";
 
+  // Required, no default: the customer chooses (the options come from
+  // public.fruit_species; an unlisted code comes back as detail 'species').
+  const species = read("species").trim();
+  if (species === "") errs.set("species", "required");
+  else if (!SPECIES_CODE_RE.test(species)) errs.set("species", "invalid");
+
   let trees: number | null = null;
   const treesRaw = read("estimated_tree_count").replace(/[\s.]/g, "");
   if (treesRaw !== "") {
@@ -206,6 +215,7 @@ export function parseGardenForm(read: Read): Parsed<GardenInput> {
         village,
         declared_area_m2: area as number,
         irrigation,
+        species,
         estimated_tree_count: trees,
         lon: lon!,
         lat: lat!,

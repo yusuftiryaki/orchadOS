@@ -37,6 +37,7 @@ import {
   revealIdentityNumber,
   savePackage,
   savePriceListDraft,
+  savePriceListServiceItems,
   saveSetting,
   scheduleGardenRemoval,
   terminateOrder,
@@ -59,6 +60,7 @@ import {
   parsePackage,
   parseParcelQuote,
   parsePriceListDraft,
+  parsePriceListServiceItems,
   parseQuoteTerms,
   parseRefund,
   parseReject,
@@ -100,9 +102,12 @@ const PRICE_FIELDS: Record<string, string> = {
   unit: "unit_price_kurus",
   min: "minimum_fee_kurus",
   inv: "inventory_fee_kurus",
+  // IP15: the service rows (svc_unit_<id>, svc_min_<id>).
+  svc_unit: "service_unit_price_kurus",
+  svc_min: "minimum_fee_kurus",
 };
 function fieldLabel(field: string): string {
-  const kind = /^(unit|min|inv)_/.exec(field)?.[1];
+  const kind = /^(svc_unit|svc_min|unit|min|inv)_/.exec(field)?.[1];
   return B.fields[kind ? PRICE_FIELDS[kind] : field] ?? field;
 }
 
@@ -714,6 +719,25 @@ export async function saveDraftAction(_prev: BoFormState, form: FormData): Promi
   if ("state" in parsed) return parsed.state;
   return then(savePriceListDraft(supabase, listId, parsed.value), () =>
     boHref.priceList(listId, { notice: "draft_saved" }),
+  );
+}
+
+// IP15: the "Hizmet fiyatları" part of a draft.
+export async function saveServicePricesAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const { supabase } = await context();
+  const read = formReader(form);
+  const listId = idOf(read, "price_list_id");
+  if (!listId) return notFound;
+  const serviceTypeIds = form
+    .getAll("service_type_ids")
+    .filter((v): v is string => typeof v === "string" && isUuid(v));
+  const parsed = parsedOr(parsePriceListServiceItems(read, serviceTypeIds));
+  if ("state" in parsed) return parsed.state;
+  return then(savePriceListServiceItems(supabase, listId, parsed.value), () =>
+    boHref.priceList(listId, { notice: "service_prices_saved" }),
   );
 }
 

@@ -23,6 +23,7 @@ export const NOTICES = [
   "missed_visit_saved",
   "missed_outcome_saved",
   "reconciliation_resolved",
+  "species_saved",
 ] as const;
 export type Notice = (typeof NOTICES)[number];
 

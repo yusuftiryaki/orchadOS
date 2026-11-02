@@ -65,6 +65,7 @@ from .dataset import (
     DATASET_VERSION,
     PRODUCER,
     PRODUCER_VERSION,
+    SEED_VERSION,
     SERVICE_JOBS,
     Dataset,
     Frame,
@@ -133,7 +134,7 @@ def gps_ns(t: datetime) -> int:
 
 def raw_sha(visit: Visit, name: str) -> str:
     """Content hash of a raw file that stays on the (synthetic) station."""
-    return sha256_bytes(f"{DATASET_NAME}:v{DATASET_VERSION}:raw:{visit.key}:{name}".encode())
+    return sha256_bytes(f"{DATASET_NAME}:v{SEED_VERSION}:raw:{visit.key}:{name}".encode())
 
 
 def raw_files(visit: Visit) -> list[tuple[str, FileRole, int]]:

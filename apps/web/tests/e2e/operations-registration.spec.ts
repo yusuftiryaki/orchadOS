@@ -116,6 +116,7 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   await parcelForm.getByLabel("Tahmini alan (dönüm)").fill("9,5");
   await expect(parcelForm.getByLabel("Tahmini alan (m²)")).toHaveValue("9500");
   await parcelForm.getByLabel("Sulama").selectOption("rainfed");
+  await parcelForm.getByLabel("Meyve türü").selectOption("antep_fistigi");
   await parcelForm.getByLabel("Tahmini ağaç sayısı").fill("120");
   await expect(page.getByTestId("boundary-note")).toHaveText(
     "Fiili kullanım sınırıdır, mülkiyet iddiası değildir.",

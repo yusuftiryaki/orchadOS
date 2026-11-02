@@ -65,6 +65,9 @@ alter table public.application_garden
   add column species text not null default 'antep_fistigi' references public.fruit_species (code);
 comment on column public.application_garden.species is 'Main fruit species declared at sign-up; copied to the parcel.';
 create index application_garden_species_idx on public.application_garden (species);
+-- application_garden has column grants (internal columns hidden); the species
+-- is public to the customer and ops (BILLING_COLUMNS.application_garden).
+grant select (species) on public.application_garden to authenticated;
 
 -- Effective species of a tree.
 create function public.tree_species(p_tree_id uuid)

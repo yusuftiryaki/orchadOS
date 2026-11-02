@@ -126,15 +126,48 @@ export function cancelTooLate(
   );
 }
 
-// The amount to show: the confirmed one when ops set it, else the frozen
-// estimate (an estimate while the price is a draft or not yet confirmed).
+// The amount to show: the confirmed one when ops set it, else the estimate
+// frozen at the request (not confirmed yet), else none: the service had no
+// published price ("Fiyat teklifle bildirilir").
 export function requestAmount(request: {
   quote_total_kurus: number | null;
-  estimate_total_kurus: number;
-}): { kurus: number; estimate: boolean } {
-  return request.quote_total_kurus !== null
-    ? { kurus: request.quote_total_kurus, estimate: false }
-    : { kurus: request.estimate_total_kurus, estimate: true };
+  estimate_total_kurus: number | null;
+}): { kurus: number; confirmed: boolean } | null {
+  if (request.quote_total_kurus !== null) {
+    return { kurus: request.quote_total_kurus, confirmed: true };
+  }
+  return request.estimate_total_kurus !== null
+    ? { kurus: request.estimate_total_kurus, confirmed: false }
+    : null;
+}
+
+// The estimate frozen at the request with its price list version, or null
+// when the service had no published price then (the database sets all of
+// these or none).
+export function requestEstimate(request: {
+  price_list_version: number | null;
+  vat_rate_bp: number | null;
+  estimate_subtotal_kurus: number | null;
+  estimate_vat_kurus: number | null;
+  estimate_total_kurus: number | null;
+}): { version: number; vatRateBp: number; subtotal: number; vat: number; total: number } | null {
+  const {
+    price_list_version: version,
+    vat_rate_bp: vatRateBp,
+    estimate_subtotal_kurus: subtotal,
+    estimate_vat_kurus: vat,
+    estimate_total_kurus: total,
+  } = request;
+  if (
+    version === null ||
+    vatRateBp === null ||
+    subtotal === null ||
+    vat === null ||
+    total === null
+  ) {
+    return null;
+  }
+  return { version, vatRateBp, subtotal, vat, total };
 }
 
 // The date a list row leads with.

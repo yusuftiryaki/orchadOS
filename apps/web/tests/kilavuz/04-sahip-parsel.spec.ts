@@ -115,6 +115,7 @@ test("yeni parsel kaydı", async ({ page }) => {
   await form.getByLabel(/^Köy/).fill("Deneme Köyü");
   await form.getByLabel("Tahmini alan (dönüm)").fill("11");
   await form.getByLabel("Sulama").selectOption("rainfed");
+  await form.getByLabel("Meyve türü").selectOption("antep_fistigi");
   await form.getByLabel("Tahmini ağaç sayısı").fill("160");
   await clickOnMap(page.getByTestId("boundary-map"), RING);
   await expect(page.getByTestId("boundary-points")).toHaveText("4 köşe");

@@ -4,6 +4,7 @@ import { Field, Select, Textarea } from "@/components/ui/field";
 import { FINDING_KINDS, SEVERITIES } from "@/lib/expert/findings";
 import type { Crop, ReviewFinding } from "@/lib/expert/review";
 import { t } from "@/lib/i18n";
+import { findingKindApplies } from "@/lib/species";
 import { directionLabel } from "./crop-grid";
 import styles from "./expert.module.css";
 
@@ -15,6 +16,7 @@ export function FindingForm({
   finding,
   evidenceOptions,
   submitLabel,
+  species,
 }: {
   sessionId: string;
   treeId: string | null;
@@ -22,10 +24,13 @@ export function FindingForm({
   finding?: ReviewFinding;
   evidenceOptions: Crop[];
   submitLabel: string;
+  // Fruit species of the tree or parcel: pistachio-only kinds are left out
+  // for other species (lib/species.ts). Absent: the pilot species.
+  species?: string;
 }) {
   const f = t.expert.findings;
   // Keep an unknown stored kind selectable when editing.
-  const kinds: string[] = [...FINDING_KINDS];
+  const kinds: string[] = FINDING_KINDS.filter((k) => findingKindApplies(k, species));
   if (finding && !kinds.includes(finding.kind)) kinds.push(finding.kind);
   const id = `finding-${finding?.id ?? `new-${treeId ?? "parcel"}`}`;
 

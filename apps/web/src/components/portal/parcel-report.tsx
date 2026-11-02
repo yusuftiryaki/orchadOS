@@ -38,6 +38,7 @@ import type { ParcelViewers } from "@/lib/portal/viewers";
 import { ViewersCard } from "./viewers-card";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
+import { speciesName } from "@/lib/species";
 
 // The garden's report card, built to answer "how is my garden and what needs
 // my attention" on a phone: the state of the latest published visit, what
@@ -119,6 +120,9 @@ export function ParcelReportView({
         lead={placeOf(report) ?? undefined}
         meta={
           <>
+            <span className={`${layout.small} ${layout.muted}`} data-testid="parcel-species">
+              {t.species.label}: {speciesName(report.parcel.species)}
+            </span>
             <span className={`${layout.small} ${layout.muted}`}>
               {report.boundary
                 ? t.parcel.boundaryVersion(report.boundary.version)

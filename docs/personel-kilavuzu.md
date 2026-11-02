@@ -96,12 +96,14 @@ Envanter her bahçenin ağaç haritasını bir kez çıkarır; sonraki ziyaretle
 
 Sahip, bahçesi için ot biçme hizmetini portaldan talep eder. İşi köydeki saha personeli motorlu tırpanla yapar; sahibe robotla biçme sözü verilmez. Hizmet katmanı `services_enabled` anahtarıyla açılır.
 
-1. **Planlayın.** Kuyrukta talebi açın: parsel, alan, sahibin tercih ettiği zaman ve tahmini tutar görünür. Tutarı onaylayın (gerekirse düzeltin) ve tarih verin. Parsel için biçme oturumu açılır, sahibe SMS gider. Sezon dışındaki ön talepler ayrı sayılır; sezon açılınca sahiple görüşülür.
+1. **Planlayın.** Kuyrukta talebi açın: parsel, alan, sahibin tercih ettiği zaman ve talepte sabitlenen tutar (fiyat listesi sürümüyle) görünür. Tutarı onaylayın (yalnız indirebilirsiniz) ve tarih verin. Talep günü yayımlı fiyat yoksa talepte tutar yoktur ("fiyatsız"): tutarı siz elle girersiniz, girmeden planlanmaz; sahibe tutar ve gün SMS ile gider. Parsel için biçme oturumu açılır, sahibe SMS gider. Sezon dışındaki ön talepler ayrı sayılır; sezon açılınca sahiple görüşülür.
 2. **Kapatın.** İş bitince en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlayın: saha personelinin çektiklerini yükleyin ya da aynı parselin yayımlanmış bir ziyaretinden fotoğraf seçin. Yüklenen fotoğraf değiştirilemez; yanlışsa yenisini bağlayın.
 3. **Ödemeyi kaydedin.** Tutar, yöntem (nakit, havale, diğer) ve tarih. Kartla ödeme yoktur.
 4. **İptal.** Sahip planlanan tarihten önceki güne kadar portaldan iptal eder; siz tamamlanmamış her talebi gerekçe yazarak iptal edebilirsiniz.
 
-**Katalog** (`/operasyon/hizmet/katalog`): Dönüm fiyatı, minimum ücret, KDV oranı, sezon penceresi ve öneri eşiği. Bugünkü fiyat taslaktır (dönüm başına 375 TL + KDV, en az 2.500 TL + KDV); portalda "tahmini" yazar. Fiyat değişince eski talepler değişmez.
+**Fiyat** (`/operasyon/fiyat`): Hizmet fiyatı paketlerle aynı sürümlü fiyat listesindedir. Bir taslağın "Hizmet fiyatları" bölümüne dönüm fiyatını ve minimum ücreti (TL, KDV hariç) girin, kaydedin, listeyi yayımlayın. Fiyatı boş bırakılan hizmet fiyatsızdır: portal rakam göstermez, "Fiyat teklifle bildirilir" yazar. Fiyat henüz belirlenmedi; lansman listesinde hizmet satırı yok. Yeni sürüm açık talepleri değiştirmez.
+
+**Katalog** (`/operasyon/hizmet/katalog`): Varsayılan sezon penceresi, meyve türüne göre sezon (tablo ve "Bir türün sezonunu değiştir" formu), öneri eşiği ve hizmetin sunulup sunulmadığı. Sayfa, hizmeti bugün hangi fiyat listesi sürümünün fiyatlandırdığını ya da "Yayımlı fiyat listesinde fiyat yok — tutar teklifte elle girilir" bilgisini gösterir.
 
 **Robot uygunluk notları** (parsel sayfası): Her parsel için eğim (düz, hafif, dik), taşlılık (az, orta, çok), en alçak dal yüksekliği (cm) ve kısa not. Saha personelinin sahada gördüklerini de buraya işleyin. Sahip görmez; ileride robotun önce hangi bahçelere gideceğini seçmek için kullanılır.
 

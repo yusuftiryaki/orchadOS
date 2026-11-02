@@ -32,11 +32,12 @@ export const demoText = {
       "Ağaç karnesi: fotoğraf kanıtı ve hash doğrulaması",
       "Bulgular, uzman açıklamaları ve önerileri, örnek soru-cevaplar",
       "Envanter raporu ve iki PDF",
+      "Bahçe hizmetleri: ot biçme önerisi ve öncesi-sonrası fotoğraflı tamamlanmış bir iş",
     ],
     dataTitle: "Veriler hakkında",
     data: [
       "Bahçeler, kişiler, ölçümler ve görüntüler sentetiktir; konum temsilîdir. Gerçek bir bahçeye ait değildir.",
-      "Demoda hiçbir şey kaydedilmez: soru gönderme, davet ve onay düğmeleri kapalıdır.",
+      "Demoda hiçbir şey kaydedilmez: soru, davet, onay ve hizmet talebi gönderilmez.",
       "Oturum 3 saat sürer; sonra kendiliğinden kapanır ve hesap silinir.",
     ],
     privacyTitle: "Gizlilik",
@@ -102,6 +103,8 @@ export const demoText = {
     viewers: closed("hissedarlarınızı davet edebilir ve çıkarabilirsiniz"),
     boundary: closed("ölçülen sınırı onaylayabilirsiniz"),
     billing: closed("başvuru, teklif ve ödeme işlemleri yapılabilir"),
+    // The service request form is shown as it is; sending it lands here.
+    services: "Demoda talep gönderilmez. Kayıt olun, kendi bahçeniz için ot biçme talep edin.",
     images: "Bu demo oturumunun görüntü sınırına ulaşıldı. Yeni bir demo başlatabilirsiniz.",
     pdfLimit: "Bu demo oturumunun PDF sınırına ulaşıldı. Yeni bir demo başlatabilirsiniz.",
   },
@@ -157,6 +160,14 @@ export const demoText = {
       envanter: {
         title: "Envanter raporu",
         body: "İlk ziyarette çıkarılan ağaç envanteri: yerler, eksik ve boş yerler, dişi/erkek ve yaş dağılımı, panorama güveni ve kapsama.",
+      },
+      "hizmet-oneri": {
+        title: "Hizmet önerisi",
+        body: "Bahçenizin durumuna ve mevsime göre iş öneriyoruz. Son ziyarette otun boyunu not ettik; ot biçme talebini buradan açabilirsiniz. Sezon dışında bağlayıcı olmayan bir ön talep bırakılır.",
+      },
+      "hizmet-sonuc": {
+        title: "Yapılan işin kanıtı",
+        body: "Yapılan iş öncesi ve sonrası fotoğrafla kanıtlanır. Fotoğraflar parsel kaydına eklenir; tutar, ödeme ve iş tarihçesi aynı sayfada.",
       },
       pdf: {
         title: "PDF rapor",

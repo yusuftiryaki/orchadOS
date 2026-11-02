@@ -51,9 +51,11 @@ export const opsServicesText = {
     photos: "Fotoğraf (öncesi / sonrası)",
     payment: "Ödeme",
   },
-  estimate: "tahmini",
+  // An amount frozen at the request, not confirmed yet.
+  estimate: "talepte",
   quote: "onaylanan",
-  draftPrice: "Taslak fiyat",
+  // No published price at the request: ops enters the amount.
+  noEstimate: "fiyatsız, tutar girilecek",
   paid: "Ödeme alındı",
   unpaid: "Ödeme bekleniyor",
   noPhone: "Telefon yok",
@@ -99,7 +101,12 @@ export const opsServicesText = {
   termsVersion: "Kabul edilen şartlar",
   area: "Alan",
   areaValue: (m2: string, donum: string, source: string) => `${m2} m² (${donum} dönüm, ${source})`,
-  estimateTitle: "Tahmini tutar (talepte donduruldu)",
+  estimateTitle: "Talepte sabitlenen tutar",
+  priceListVersion: "Fiyat listesi",
+  priceListVersionValue: (version: number) => `Sürüm ${version} (talep günü yayımlıydı)`,
+  noEstimateTitle: "Tutar",
+  noEstimateBody:
+    'Talep günü yayımlı fiyat listesinde bu hizmetin fiyatı yoktu; sahibe "Fiyat teklifle bildirilir" gösterildi. Tutarı planlarken elle girin.',
   pricePerDonum: "Dönüm fiyatı (KDV hariç)",
   minimumFee: "Minimum ücret (KDV hariç)",
   subtotal: "Ara toplam",
@@ -113,19 +120,22 @@ export const opsServicesText = {
   cancelReason: "İptal gerekçesi",
   payment: "Ödeme",
   paymentValue: (amount: string, method: string, day: string) => `${amount}, ${method}, ${day}`,
-  draftNote:
-    "Fiyat taslak: sahibe tahmini tutar olarak gösterildi. Gerçek fiyat sahadan gelince katalogdan güncellenir; bu talebin tutarı değişmez.",
 
   scheduleTitle: "Planla",
   rescheduleTitle: "Tarihi değiştir",
   scheduleHint:
-    "Tutarı ve günü onayladığınızda sözleşme kurulur (H37) ve sahibe SMS gider. Tutar, sahibin kabul ettiği tahmini tutarı aşamaz; daha yüksek bir fiyat için sahibin yeni talep vermesi gerekir.",
+    "Tutarı ve günü onayladığınızda sözleşme kurulur (H37) ve sahibe SMS gider. Tutar, sahibin talepte gördüğü tutarı aşamaz; daha yüksek bir fiyat için sahibin yeni talep vermesi gerekir.",
   earliest: (day: string) =>
     `Sahip erken ifa istemedi: iş en erken ${day} gününe planlanabilir (talepten 15 gün sonra).`,
   earlyAllowed: "Sahip erken ifa istedi: bugünden itibaren bir gün seçebilirsiniz.",
   date: "Gün",
   amount: "Onaylanan tutar (TL, KDV dahil)",
-  amountHint: (max: string) => `En fazla ${max}. Boş bırakılırsa tahmini tutar onaylanır.`,
+  amountHint: (max: string) => `En fazla ${max}. Boş bırakılırsa talepteki tutar onaylanır.`,
+  // Unpriced request: the amount is required.
+  manualAmount: "Tutar (TL, KDV dahil; elle girilir)",
+  manualAmountHint:
+    "Talep günü yayımlı fiyat yoktu, bu yüzden tutarı siz girersiniz. Sahibe bu tutar ve iş günü SMS ile bildirilir.",
+  manualAmountKeep: (amount: string) => `Onaylanan tutar: ${amount}. Boş bırakılırsa aynı kalır.`,
   note: "İç not",
   schedule: "Tutarı ve günü onayla",
   reschedule: "Yeni günü kaydet",
@@ -183,7 +193,9 @@ export const opsServicesText = {
     completed: "İş kapatıldı; sahibe bildirildi.",
     cancelled: "Talep iptal edildi; sahibe bildirildi.",
     payment_recorded: "Ödeme kaydedildi.",
-    type_saved: "Katalog kaydedildi. Yeni fiyat yalnızca yeni taleplere uygulanır.",
+    type_saved:
+      "Katalog kaydedildi. Yeni sezon ve öneri kuralı yeni kartlara ve taleplere uygulanır.",
+    season_saved: "Türün sezonu kaydedildi.",
     robot_note_saved: "Robot uygunluk notu kaydedildi.",
   } as Record<string, string>,
 
@@ -195,7 +207,7 @@ export const opsServicesText = {
     invalid_status: "Talebin durumu bu işleme uygun değil. Sayfayı yenileyip yeniden deneyin.",
     proof_missing: "İşi kapatmak için en az bir öncesi ve bir sonrası fotoğrafı bağlayın.",
     quote_above_estimate:
-      "Tutar, sahibin talepte kabul ettiği tahmini tutarı aşamaz. Daha yüksek bir fiyat için sahibin yeni bir talep vermesi gerekir.",
+      "Tutar, sahibin talepte gördüğü tutarı aşamaz. Daha yüksek bir fiyat için sahibin yeni bir talep vermesi gerekir.",
     withdrawal_period:
       "Sahip erken ifa istemedi; cayma süresi bitmeden iş planlanamaz. Talepten en az 15 gün sonrasını seçin.",
     payment_recorded: "Bu talebin ödemesi zaten kaydedilmiş.",
@@ -213,7 +225,8 @@ export const opsServicesText = {
   fieldError: (field: string) => `Düzeltilecek alan: ${field}.`,
   fields: {
     scheduled_date: "Gün",
-    quote_total: "Onaylanan tutar",
+    quote_total: "Tutar",
+    species: "Meyve türü",
     note: "İç not",
     phase: "Aşama",
     file: "Fotoğraf",
@@ -226,9 +239,6 @@ export const opsServicesText = {
     amount: "Alınan tutar",
     method: "Yöntem",
     received_on: "Ödeme günü",
-    price: "Dönüm fiyatı",
-    minimum_fee: "Minimum ücret",
-    vat_rate: "KDV oranı",
     season: "Sezon",
     recommend_from: "Öneri eşiği",
     observation_max_age_days: "Gözlemin en fazla yaşı",
@@ -241,18 +251,23 @@ export const opsServicesText = {
   // Catalogue
   catalog: {
     title: "Hizmet kataloğu",
-    lead: "Hizmetlerin dönüm fiyatı, minimum ücreti, KDV oranı, sezonu ve öneri kuralı. Fiyat değişince açık talepler değişmez; yeni talepler yeni fiyatla hesaplanır.",
-    draftWarning:
-      'Bugünkü fiyat taslaktır (dönüm başına 375 TL + KDV, en az 2.500 TL + KDV). Gerçek fiyat ve bir işçinin günde kaç dönüm biçtiği sahadan gelir; ilk işlerden sonra güncelleyin ve "Taslak fiyat" işaretini kaldırın. Taslak fiyat portalda "tahmini" yazar.',
+    lead: "Hizmetlerin sezonu (varsayılan ve meyve türüne göre), öneri kuralı ve portalda sunulup sunulmadığı. Fiyat burada değil, sürümlü fiyat listesinde girilir.",
     empty: "Bu işletmede hizmet tanımı yok",
     code: "Kod",
     active: "Sunuluyor",
     passive: "Sunulmuyor",
-    edit: (name: string) => `${name}: düzenle`,
-    price: "Dönüm fiyatı (TL, KDV hariç)",
-    minimumFee: "Minimum ücret (TL, KDV hariç)",
-    vatRate: "KDV oranı (%)",
-    draft: 'Taslak fiyat (portalda "tahmini" yazar)',
+    unpricedBadge: "Fiyatsız",
+    priceTitle: "Fiyat",
+    pricedBy: (version: number) => `Yayımlı fiyat listesi sürüm ${version}`,
+    perDonum: (price: string) => `${price} / dönüm`,
+    minimum: (price: string) => `en az ${price} (KDV hariç)`,
+    unpriced: "Yayımlı fiyat listesinde fiyat yok — tutar teklifte elle girilir",
+    priceWhere:
+      'Fiyat, fiyat listesinin "Hizmet fiyatları" bölümünde girilir: taslak açın, fiyatı girin, yayımlayın. Açık talepler, talep günü sabitlenen fiyatla kalır.',
+    priceLink: "Paketler ve fiyatlar",
+    defaultSeason: "Varsayılan sezon",
+    defaultSeasonHint:
+      "Kendi sezonu girilmemiş meyve türleri bu sezonu kullanır. Bir türün sezonu aşağıdaki tablodan değiştirilir.",
     seasonStart: "Sezon başı",
     seasonEnd: "Sezon sonu",
     month: "Ay",
@@ -266,11 +281,17 @@ export const opsServicesText = {
     activeLabel: "Portalda sunuluyor",
     save: "Kataloğu kaydet",
     season: (start: string, end: string) => `${start} – ${end}`,
-    perDonum: (price: string) => `${price} / dönüm`,
-    previewTitle: "Fiyat önizlemesi",
+    speciesTitle: (service: string) => `${service}: meyve türüne göre sezon`,
+    speciesLead:
+      "Portal kartı ve ön talep, bahçenin meyve türünün sezonuna göre açılır. Sezon dışındaki bahçe ön talep bırakır.",
+    species: "Meyve türü",
+    window: "Sezon",
+    fromDefault: "varsayılan",
+    speciesEdit: "Bir türün sezonunu değiştir",
+    speciesSave: "Türün sezonunu kaydet",
+    previewTitle: "Fiyat önizlemesi (yayımlı liste)",
     previewArea: "Alan (dönüm)",
-    previewLines: (area: string) => `${area} dönüm için`,
-    previewInvalid: "Fiyat, minimum ücret ve KDV oranını kontrol edin.",
+    previewInvalid: "Alanı dönüm olarak girin.",
     previewRule:
       "Alan dönümün onda birine yukarı yuvarlanır; ara toplam en az minimum ücrettir; KDV ara toplama eklenir (fiyat kuralı service-v1).",
   },

@@ -13,7 +13,7 @@ const offer = (over: Partial<ServiceOffer>): ServiceOffer =>
     state: "available",
     in_season: true,
     season_start: "2027-03-01",
-    price_is_draft: true,
+    price_list_version: 2,
     estimate_total_kurus: 882_000,
     ...over,
   }) as ServiceOffer;
@@ -38,5 +38,20 @@ describe("service offer cards", () => {
     expect(html).toContain('href="/portal/hizmetler/yeni?parsel=p1&amp;hizmet=t1"');
     expect(html).toContain("Ön talep bırak");
     expect(html).toContain('href="/portal/hizmetler"');
+    expect(html).toContain("8.820 TL, KDV dahil");
+    expect(html).toContain("Fiyat listesi sürüm 2");
+  });
+
+  it("unpriced: 'Fiyat teklifle bildirilir' and no amount", () => {
+    const html = renderToStaticMarkup(
+      <ServiceOffers
+        offers={[offer({ estimate_total_kurus: null, price_list_version: null })]}
+        today="2027-05-02"
+      />,
+    );
+    expect(html).toContain("Fiyat teklifle bildirilir");
+    expect(html).toContain('data-priced="false"');
+    expect(html).not.toMatch(/\d TL/);
+    expect(html).toContain("Talep et");
   });
 });

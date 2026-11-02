@@ -19,6 +19,7 @@ import { FollowupPanel } from "./followup-panel";
 import { PipelineChecksPanel } from "./pipeline-checks";
 import { PublishForm } from "./publish-form";
 import { VisitHeader } from "./review-view";
+import { SpeciesNotice } from "@/components/species-notice";
 
 // Codes listed before "and N more"; the review page's filter shows them all.
 const UNREVIEWED_SHOWN = 60;
@@ -61,6 +62,7 @@ export function SummaryView({
   return (
     <main className={`page ${staff.page} ${styles.page}`} data-testid="summary-page">
       <VisitHeader ctx={ctx} back={{ href: reviewHref(s.id), label: sm.back }} />
+      <SpeciesNotice species={s.parcelSpecies} />
       {notice && <div className={styles.notices}>{notice}</div>}
       {(published || findingError) && (
         <div className={styles.notices}>
@@ -236,6 +238,7 @@ export function SummaryView({
                   returnPath={returnPath}
                   evidenceOptions={[]}
                   submitLabel={t.expert.findings.addParcel}
+                  species={s.parcelSpecies}
                 />
               </details>
             )}

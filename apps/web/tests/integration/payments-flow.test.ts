@@ -162,6 +162,8 @@ describe("customer portal payment flow", () => {
       village: "Test",
       area_donum: "20",
       irrigation: "rainfed",
+      // A non-pilot species: copied to the parcel on activation.
+      species: "kayisi",
       estimated_tree_count: "300",
       lon: "37.8",
       lat: "37.01",
@@ -278,9 +280,9 @@ describe("customer portal payment flow", () => {
     );
     expect(item.parcel_id).toBeTruthy();
     const parcel = check(
-      await admin.from("parcel").select("status").eq("id", item.parcel_id!).single(),
+      await admin.from("parcel").select("status, species").eq("id", item.parcel_id!).single(),
     );
-    expect(parcel.status).toBe("registered");
+    expect(parcel).toEqual({ status: "registered", species: "kayisi" });
     const access = check(
       await admin
         .from("parcel_access")

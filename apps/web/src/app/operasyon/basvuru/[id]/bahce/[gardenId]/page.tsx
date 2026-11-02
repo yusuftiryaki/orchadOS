@@ -13,6 +13,7 @@ import { formatNumber, t } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { maskPhone } from "@/lib/notifications/phone";
 import { ringAreaM2 } from "@/lib/operations/geometry";
+import { speciesName } from "@/lib/species";
 import { createClient } from "@/lib/supabase/server";
 
 const B = backOfficeText;
@@ -60,6 +61,7 @@ export default async function Page({
             ],
             [T.verifiedBy, userName(internal.verified_by) ?? B.none],
             [T.verificationNote, (internal.verification_note as string | null) ?? B.none],
+            [T.species, speciesName(g.species)],
             [T.irrigation, g.irrigation ? t.operations.irrigation[g.irrigation] : B.none],
             [
               T.trees,

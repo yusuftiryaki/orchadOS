@@ -8,6 +8,7 @@ import { EMPTY_FORM, type FormState } from "@/lib/operations/form-state";
 import { donumToM2, m2ToDonum } from "@/lib/operations/geometry";
 import { opsHref } from "@/lib/operations/urls";
 import { AUTHORIZATION_BASES, IRRIGATION, parseDecimal } from "@/lib/operations/validation";
+import type { FruitSpecies } from "@/lib/species";
 import type { DrawMode } from "./boundary-draw-map";
 import { BoundaryEditor } from "./boundary-editor";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -29,11 +30,14 @@ export function ParcelForm({
   owners,
   parcelId,
   initial,
+  species,
 }: {
   orgs: { id: string; name: string }[];
   owners?: { id: string; orgId: string; name: string }[];
   parcelId?: string;
   initial: ParcelFormValues;
+  // public.fruit_species, in display order (loadFruitSpecies).
+  species: FruitSpecies[];
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(
     parcelId ? updateParcelAction : registerParcelAction,
@@ -132,6 +136,21 @@ export function ParcelForm({
               {IRRIGATION.map((i) => (
                 <option key={i} value={i}>
                   {T.irrigation[i]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={T.parcel.species} error={err("species")} hint={T.parcel.speciesHint}>
+            <select
+              name="species"
+              defaultValue={v("species")}
+              required
+              data-testid="parcel-species"
+            >
+              <option value="">{T.choose}</option>
+              {species.map((x) => (
+                <option key={x.code} value={x.code}>
+                  {x.name}
                 </option>
               ))}
             </select>

@@ -16,7 +16,7 @@ import httpx
 import pytest
 from supabase_util import SKIP_REASON, local_env, service_role_key
 
-from orchados_pipeline.demo import ids, loader
+from orchados_pipeline.demo import dataset, ids, loader
 from orchados_pipeline.hashing import sha256_bytes
 from orchados_pipeline.media import media_key
 from orchados_pipeline.supabase import SupabaseClient
@@ -251,11 +251,12 @@ def test_registry_and_enable_disable(loaded):
     st = loader.state(db)
     if not st.registry:
         pytest.skip("private.demo_org does not exist yet (stream A)")
-    assert st.row and st.row["loaded_at"] and st.row["dataset_version"] == 1
+    assert st.row and st.row["loaded_at"] and st.row["dataset_version"] == dataset.DATASET_VERSION
     tour = json.loads(
         db.query(f"select tour::text from private.demo_org where org_id = '{ORG}';")[0]
     )
     assert tour["session_id"] == ids.A_SCAN_2026 and tour["parcel_id"] == ids.PARCEL_A
+    assert tour["service_request_id"] == ids.B_MOWING_2026_REQUEST
     enabled = f"select enabled from private.demo_org where org_id = '{ORG}';"
     loader.enable(db, log=lambda _m: None)
     assert db.query(enabled) == ["t"]

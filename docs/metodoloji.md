@@ -14,8 +14,13 @@ Her ölçüm, değerlendirme ve rapor üretildiği metodoloji sürümünü taş�
 >
 > **Kabul (27 Ekim 2026):** İşletme, uzman ajanın önerilerini pilot için yeterli buldu ve bu sürümü kabul etti. Öneriler **bir ziraat mühendisi tarafından doğrulanmadı**; kaynak ya da saha ölçümüne dayanmıyor. Pilotta uzmanın düzeltmeleri, AI ile uyum ölçümü ve sahiplerin geri bildirimi bu kuralları sınar; değişiklikler yeni bir sürümle (`methodology-v0.2` ya da `v1`) gelir. Referans fotoğrafların hiçbiri henüz yok; listesi [Ek A](#ek-a--hazırlanacak-referans-fotoğraflar)'da.
 
+## Kapsam: meyve türü
+
+orchadOS bütün meyve bahçelerine hizmet verir; bu metodoloji **Antep fıstığı** içindir (pilot). Başka türler (zeytin, narenciye, nar, kayısı vb.; liste [veri-modeli.md](veri-modeli.md#meyve-türü)) için metodoloji, bir ziraat mühendisi o türün kurallarını tanımlayana kadar yoktur. O zamana kadar bu bahçeler **genel izleme** alır: envanter, panorama turu, genel sağlık sınıfı, bakım uyumu ve yabani ot. Fıstığa özgü kısımlar sorulmaz ve gösterilmez: ağaç cinsiyeti ve erkek ağaç oranı, fıstık zararlı türleri (psilla, tomurcuk kurdu, kokarca), polen ve beyaz pul soruları, erken boşaltılmış salkım sapı, "aşısız ağaç fıstık vermez" gibi metinler. Ofis, uzman ve operasyon ekranları bu bahçeleri "genel izleme — bu tür için metodoloji henüz yok" diye işaretler. Karışık bahçede tür ağaç düzeyinde işaretlenir; kural ağacın geçerli türüne göre uygulanır.
+
 ## İçindekiler
 
+- [Kapsam: meyve türü](#kapsam-meyve-türü)
 1. [İlkeler](#1-ilkeler)
 2. [Ziyaretler ve mevsimler](#2-ziyaretler-ve-mevsimler)
 3. [Ağaç kimliği ve özellikleri](#3-ağaç-kimliği-ve-özellikleri)

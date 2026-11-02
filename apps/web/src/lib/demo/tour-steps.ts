@@ -44,6 +44,15 @@ export const TOUR_STEPS: readonly TourStep[] = [
     ["visit-select", "parcel-map"],
   ),
   step("envanter", (ctx) => parcel(ctx, "/envanter"), ["inventory-report"]),
+  // The service layer (IP15): the offer card on the parcel page (its button
+  // opens the request form, which writes nothing in the demo), then the done
+  // job with its before / after photos.
+  step("hizmet-oneri", (ctx) => parcel(ctx), ["service-offers"]),
+  step(
+    "hizmet-sonuc",
+    (ctx) => (ctx.service_request_id ? `/portal/hizmetler/${ctx.service_request_id}` : null),
+    ["service-request-proof"],
+  ),
   step("pdf", (ctx) => parcel(ctx), ["report-pdf"]),
   step("son", () => null, ["demo-banner"], { anyPage: true }),
 ];

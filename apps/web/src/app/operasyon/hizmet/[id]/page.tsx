@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import {
   cancelServiceAction,
@@ -51,7 +52,7 @@ const S = opsServicesText;
 const NONE = "—";
 
 // Kuruş → the TL value of an amount field ("9000,00").
-const tl = (kurus: number) => formatKurus(kurus).replace(/\s*₺$/, "");
+const tl = (kurus: number | null) => (kurus == null ? "" : formatKurus(kurus).replace(/\s*₺$/, ""));
 
 // One service request (IP15): what was asked and the frozen estimate, the
 // proof photos, the history; the actions its status allows (schedule or move
@@ -85,6 +86,10 @@ export default async function Page({
   const before = photos.filter((p) => p.phase === "before");
   const after = photos.filter((p) => p.phase === "after");
   const proofReady = before.length > 0 && after.length > 0;
+  // Null when the service had no published price at the request: ops enters
+  // the amount (ops_schedule_service_request requires it then).
+  const quoteMax = r.estimate_total_kurus;
+  const estimated = quoteMax != null;
 
   const record = (
     <>
@@ -154,10 +159,10 @@ export default async function Page({
         />
       </Panel>
 
-      <Panel title={S.estimateTitle} testId="service-estimate">
-        {r.price_is_draft && (
-          <Alert tone="warning">
-            <p>{S.draftNote}</p>
+      <Panel title={estimated ? S.estimateTitle : S.noEstimateTitle} testId="service-estimate">
+        {!estimated && (
+          <Alert tone="info" testId="service-no-estimate">
+            <p>{S.noEstimateBody}</p>
           </Alert>
         )}
         <Facts
@@ -170,11 +175,21 @@ export default async function Page({
                 S.areaSource[r.area_source] ?? r.area_source,
               ),
             ],
-            [S.pricePerDonum, money(r.price_per_donum_kurus)],
-            [S.minimumFee, money(r.minimum_fee_kurus)],
-            [S.subtotal, money(r.estimate_subtotal_kurus)],
-            [S.vat(bpToPercent(r.vat_rate_bp)), money(r.estimate_vat_kurus)],
-            [S.total, money(r.estimate_total_kurus)],
+            ...((estimated
+              ? [
+                  [
+                    S.priceListVersion,
+                    <span key="v" data-testid="service-price-list-version">
+                      {S.priceListVersionValue(r.price_list_version as number)}
+                    </span>,
+                  ],
+                  [S.pricePerDonum, money(r.price_per_donum_kurus)],
+                  [S.minimumFee, money(r.minimum_fee_kurus)],
+                  [S.subtotal, money(r.estimate_subtotal_kurus)],
+                  [S.vat(bpToPercent(r.vat_rate_bp ?? 0)), money(r.estimate_vat_kurus)],
+                  [S.total, money(r.estimate_total_kurus)],
+                ]
+              : []) as [string, ReactNode][]),
             [S.quoteTotal, money(r.quote_total_kurus)],
           ]}
         />
@@ -301,7 +316,6 @@ export default async function Page({
     </>
   );
 
-  const quoteMax = r.estimate_total_kurus;
   const actions = (
     <>
       {open && (
@@ -325,14 +339,36 @@ export default async function Page({
                 required
               />
             </Field>
-            <Field label={S.amount} hint={S.amountHint(money(quoteMax))}>
-              <input
-                id="service-quote-total"
-                name="quote_total"
-                inputMode="decimal"
-                defaultValue={tl(r.quote_total_kurus ?? quoteMax)}
-              />
-            </Field>
+            {quoteMax != null ? (
+              <Field label={S.amount} hint={S.amountHint(money(quoteMax))}>
+                <input
+                  id="service-quote-total"
+                  name="quote_total"
+                  inputMode="decimal"
+                  defaultValue={tl(r.quote_total_kurus ?? quoteMax)}
+                />
+              </Field>
+            ) : (
+              // No published price at the request: the amount is entered by
+              // hand (required until one is confirmed; then a new day keeps it).
+              <Field
+                label={S.manualAmount}
+                hint={
+                  r.quote_total_kurus != null
+                    ? `${S.manualAmountHint} ${S.manualAmountKeep(money(r.quote_total_kurus))}`
+                    : S.manualAmountHint
+                }
+              >
+                <input
+                  id="service-quote-total"
+                  name="quote_total"
+                  inputMode="decimal"
+                  defaultValue={r.quote_total_kurus != null ? tl(r.quote_total_kurus) : ""}
+                  required={r.quote_total_kurus == null}
+                  data-manual-amount="true"
+                />
+              </Field>
+            )}
             <Field label={S.note} optional>
               <textarea
                 id="service-schedule-note"
@@ -454,7 +490,7 @@ export default async function Page({
             <Badge tone={statusTone(r.status)} testId="service-status">
               {S.status[r.status] ?? r.status}
             </Badge>
-            {r.price_is_draft && <Badge tone="warning">{S.draftPrice}</Badge>}
+            {!estimated && <Badge tone="warning">{S.noEstimate}</Badge>}
             {r.early_performance_requested && <Badge>{S.early}</Badge>}
             {r.payment_received_on && <Badge tone="success">{S.paid}</Badge>}
           </span>

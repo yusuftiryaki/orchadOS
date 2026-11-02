@@ -25,7 +25,10 @@ select tables_are(
     'application_garden', 'quote', 'quote_item', 'service_order', 'service_order_item', 'payment',
     'payment_item', 'refund', 'audit_event', 'garden_removal', 'order_installment', 'order_installment_item',
     -- Service layer (IP15, docs/MVP.md Module 6).
-    'service_type', 'service_request', 'service_request_event', 'service_request_photo', 'parcel_robot_note'
+    'service_type', 'service_type_season', 'price_list_service_item', 'service_request', 'service_request_event',
+    'service_request_photo', 'parcel_robot_note',
+    -- Fruit species lookup (global, like metric_definition).
+    'fruit_species'
   ],
   'public has exactly the MVP tables'
 );
@@ -67,7 +70,7 @@ select is(
 select is(
   (select count(*) from information_schema.tables t
    where t.table_schema = 'public' and t.table_type = 'BASE TABLE'
-     and t.table_name not in ('org', 'metric_definition')
+     and t.table_name not in ('org', 'metric_definition', 'fruit_species')
      and not exists (select 1 from information_schema.columns c
                      where c.table_schema = 'public' and c.table_name = t.table_name and c.column_name = 'org_id')),
   0::bigint,

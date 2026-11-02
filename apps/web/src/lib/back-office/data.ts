@@ -658,10 +658,27 @@ export async function getPackage(supabase: Client, id: string): Promise<ServiceP
   ) as ServicePackage | null;
 }
 
+export interface PriceListServiceItem {
+  service_type_id: string;
+  unit_price_kurus: number;
+  minimum_fee_kurus: number;
+}
+
+export interface PriceListServiceType {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+}
+
 export interface PriceListView {
   list: PriceList;
   items: PriceListItem[];
   packages: ServicePackage[];
+  // IP15: service prices of this version (ops only) and the org's service
+  // catalogue; a service without an item is unpriced in this version.
+  serviceItems: PriceListServiceItem[];
+  serviceTypes: PriceListServiceType[];
 }
 
 export async function getPriceList(supabase: Client, id: string): Promise<PriceListView | null> {
@@ -670,7 +687,7 @@ export async function getPriceList(supabase: Client, id: string): Promise<PriceL
     await supabase.from("price_list").select(BILLING_COLUMNS.price_list).eq("id", id).maybeSingle(),
   ) as PriceList | null;
   if (!list) return null;
-  const [items, packages] = await Promise.all([
+  const [items, packages, serviceItems, serviceTypes] = await Promise.all([
     supabase
       .from("price_list_item")
       .select(BILLING_COLUMNS.price_list_item)
@@ -681,11 +698,23 @@ export async function getPriceList(supabase: Client, id: string): Promise<PriceL
       .eq("org_id", list.org_id)
       .order("sort_order")
       .order("code"),
+    supabase
+      .from("price_list_service_item")
+      .select("service_type_id, unit_price_kurus, minimum_fee_kurus")
+      .eq("price_list_id", id),
+    supabase
+      .from("service_type")
+      .select("id, code, name, active")
+      .eq("org_id", list.org_id)
+      .order("sort_order")
+      .order("code"),
   ]);
   return {
     list,
     items: check(items) as PriceListItem[],
     packages: check(packages) as ServicePackage[],
+    serviceItems: check(serviceItems) as PriceListServiceItem[],
+    serviceTypes: check(serviceTypes) as PriceListServiceType[],
   };
 }
 

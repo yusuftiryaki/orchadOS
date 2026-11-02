@@ -22,11 +22,12 @@ Ayrı bir demo org'u, kurgusal kişiler ve iki parsel. Görüntüler sentetiktir
 | Yakın plan | 9 ağaçta 2–3 fotoğraf (bulgusu olan ağaçlar) | 2 ağaçta 1–2 |
 | Sorular | `S3-6`'da sahip sorar, parsel düzeyindeki sulama bulgusunda hissedar sorar; ikisini de uzman cevaplar | Yok |
 | Hissedar | "Örnek Hissedar" (viewer, A); bekleyen davet yok (`viewer_invitation.phone` zorunlu) | Yok |
-| Yabani ot (İP15) | 2026 taramasında `weed_height` = uzun (saha sorusu, `summer-v0.3`); portalda ot biçme kartı | 2026 taramasında kısa |
-| Ot biçme işi (İP15) | Yok | `H-2026-000001` tamamlandı ve ödendi (2026-06-15 talep, 06-24 iş): `mowing` oturumu (`captured`), `operation` (`crew`), tarihçe, öncesi/sonrası sentetik fotoğraf; tahmin `service-v1` (minimum ücret, 3.000 TL KDV dahil) |
+| Meyve türü (sürüm 2) | `antep_fistigi` | Aynı |
+| Yabani ot (İP15) | 2026 taramasında `weed_height` = uzun (saha sorusu, `summer-v0.3`); portalda ot biçme kartı (fiyatsız, her gün talep ya da ön talep) | 2026 taramasında kısa; aynı kart |
+| Ot biçme işi (İP15) | Yok | `H-2026-000001` (talep `de300000-…-000000000001`, oturum `de200000-…-000000000006`) tamamlandı ve ödendi (2026-06-15 talep, 06-24 iş): `mowing` oturumu (`captured`), `operation` (`crew`), tarihçe, öncesi/sonrası sentetik fotoğraf. Talepte fiyat yoktu (tahmin sütunları boş); tutarı operasyon girdi: 3.000 TL KDV dahil. Karnede "bu bakımı orchadOS yaptı" notu |
 | Robot notu (İP15) | düz / az / 60 cm | hafif / orta / 45 cm |
 
-Hizmet katmanı (İP15): demo org'unun `org_billing_setting` satırı yalnızca `services_enabled` açar (kayıt ve sahte ödeme kapalı), katalog satırı `weed_mowing` yükleyiciden gelir (migration'ın tohumu demo org'larını atlar). Ziyaretler geçmişte sabit olduğundan kart güne göre "ön talep" (sezon dışı) ya da "talep edilebilir" (sezonda; gözlem 60 günden eski) durumundadır; demo "önerilen" durumunu iddia etmez, doğrulama kartın var olduğuna bakar.
+Hizmet katmanı (İP15, veri sürümü 2): demo org'unun `org_billing_setting` satırı yalnızca `services_enabled` açar (kayıt ve sahte ödeme kapalı), katalog satırı `weed_mowing` ve her meyve türü için sezonu (1 Mart–30 Haziran) yükleyiciden gelir (migration'ın tohumu demo org'larını atlar). Fiyat listesi yoktur: portal "Fiyat teklifle bildirilir" gösterir. Planlanmış iş yoktur: sabit geçmiş tarihlerle günü geçmiş ve sonsuza dek açık kalırdı. Ziyaretler geçmişte sabit olduğundan kart güne göre "ön talep" (sezon dışı) ya da "talep edilebilir" (sezonda; gözlem 60 günden eski) durumundadır; demo "önerilen" durumunu iddia etmez, doğrulama kartın var olduğuna bakar.
 
 Öne çıkan ağaç **`S3-6`**: 2025'te sağlıklı, 2026'da sorunlu; kuru dal bulgusu, üç yakın plan, soru dizisi.
 
@@ -75,6 +76,6 @@ Secret'lar: test projesi `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPAB
 
 ## Sürümler
 
-Veri ekleme-yalnızdır ve sabit kimliklerle bir kez yüklenir. Ön kontrol sürüme bakar: sürüm kayıtlı ve `loaded_at` doluysa doğrulama geçtiğinde "already loaded" yazılır (baytlar karşılaştırılmaz; başka makinede derlenen kopya farklı bayt üretebilir). Yarım kalan bir yükleme yalnız aynı derlemeyle (`dataset_sha256`, iş akışında `reuse_build_run_id`) tamamlanır. Yeni bir sürüm (ör. 2027 ziyareti) yalnız yeni satır ekler, sürüm 1'e dokunmaz; yükleyici hedef sürüme kadar bütün sürümleri sırayla uygular (`loader.VERSIONS`). Kimlik anahtarına sürüm girer (`v2:…`), aynı nesnenin yeni sürümü yeni kimliktir.
+Veri ekleme-yalnızdır ve sabit kimliklerle bir kez yüklenir. Ön kontrol sürüme bakar: sürüm kayıtlı ve `loaded_at` doluysa doğrulama geçtiğinde "already loaded" yazılır (baytlar karşılaştırılmaz; başka makinede derlenen kopya farklı bayt üretebilir). Yarım kalan bir yükleme yalnız aynı derlemeyle (`dataset_sha256`, iş akışında `reuse_build_run_id`) tamamlanır. Yeni bir sürüm yalnız yeni satır ekler, öncekilere dokunmaz. Sürümler birikimlidir: bugünkü sürüm **2**, sürüm 1'in bütün satırlarını aynı kimlik ve medya tohumlarıyla (`SEED_VERSION = 1`) içerir, hizmet katmanını ekler; son sürümü yüklemek bütün sürümleri sırayla uygulamaktır (`loader.VERSIONS == (DATASET_VERSION,)`). Kimlik anahtarına satırı getiren sürüm girer (`v2:…`), aynı nesnenin yeni sürümü yeni kimliktir.
 
 İleride gerçek bir vitrin bahçesi (`dataset_source = showcase`) yeni bir sürüm olarak eklenebilir; derlemesi repo dışına yazılır (docs/demo-turu.md §10.5).

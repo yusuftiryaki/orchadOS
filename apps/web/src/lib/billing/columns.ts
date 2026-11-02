@@ -17,7 +17,7 @@ export const BILLING_COLUMNS = {
   service_application:
     "id, org_id, customer_user_id, number, status, package_id, customer_note, rejection_reason, submitted_at, decided_at, created_at, updated_at",
   application_garden:
-    "id, org_id, application_id, customer_user_id, sort_order, name, province, district, village, declared_area_m2, irrigation, estimated_tree_count, position, position_uncertainty_m, boundary, verified_area_m2, verified_at, parcel_id, created_at, updated_at, withdrawn_at",
+    "id, org_id, application_id, customer_user_id, sort_order, name, province, district, village, declared_area_m2, irrigation, estimated_tree_count, position, position_uncertainty_m, boundary, verified_area_m2, verified_at, parcel_id, created_at, updated_at, withdrawn_at, species",
   quote:
     "id, org_id, customer_user_id, application_id, renewal_of_order_id, number, status, price_list_id, price_list_version, package_id, package_code, package_name, periodic_visits_per_year, includes_inventory, first_year, vat_rate_bp, discount_bp, discount_note, base_kurus, discount_kurus, subtotal_kurus, vat_kurus, total_kurus, currency, inputs, proposed_service_start, valid_until, note_to_customer, issued_at, decided_at, created_at, updated_at, addon_of_order_id",
   quote_item:

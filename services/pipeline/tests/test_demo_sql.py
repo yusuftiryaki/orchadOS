@@ -106,11 +106,20 @@ def test_service_layer_rows(generated):
     _ds, manifest, script, sql = generated
     (st,) = _rows(script, "services", "public.service_type")
     assert st["org_id"] == ids.ORG_ID and st["code"] == "weed_mowing"
-    assert (st["price_per_donum_kurus"], st["minimum_fee_kurus"], st["vat_rate_bp"]) == (
-        37500,
-        250000,
-        2000,
-    )
+    assert st["id"] == ids.did("service_type", "weed_mowing", version=2)
+    # Unpriced: no price column, no price list (prices live in price_list_service_item).
+    assert not {
+        "price_per_donum_kurus",
+        "minimum_fee_kurus",
+        "vat_rate_bp",
+        "price_is_draft",
+    } & set(st)
+    assert "insert into public.price_list" not in sql
+    # The season per fruit species, for every species in the lookup.
+    services = sql[sql.index("-- step: services") : sql.index("-- step: access")]
+    season = services[services.index("insert into public.service_type_season") :]
+    assert "from public.fruit_species f" in season and f"'{st['id']}'" in season
+    assert "f.code, 3, 1, 6, 30," in season
     assert (st["season_start_month"], st["season_start_day"]) == (3, 1)
     assert (st["season_end_month"], st["season_end_day"]) == (6, 30)
     assert st["recommend_from_weed_height"] == "medium" and st["observation_max_age_days"] == 60
@@ -120,8 +129,20 @@ def test_service_layer_rows(generated):
     assert req["parcel_id"] == ids.PARCEL_B and req["status"] == "done"
     assert re.fullmatch(r"H-2026-\d{6}", req["number"])
     assert req["terms_version"] == "bakim-v1-taslak" and req["pricing_rule"] == "service-v1"
-    assert req["estimate_subtotal_kurus"] + req["estimate_vat_kurus"] == req["estimate_total_kurus"]
-    assert req["quote_total_kurus"] <= req["estimate_total_kurus"]
+    assert req["id"] == ids.B_MOWING_2026_REQUEST
+    # Unpriced at the request: the eight price and estimate columns all null.
+    for c in (
+        "price_list_id",
+        "price_list_version",
+        "price_per_donum_kurus",
+        "minimum_fee_kurus",
+        "vat_rate_bp",
+        "estimate_subtotal_kurus",
+        "estimate_vat_kurus",
+        "estimate_total_kurus",
+    ):
+        assert req[c] is None, c
+    assert req["quote_total_kurus"] == job.quote_total_kurus == 300000
     assert req["payment_amount_kurus"] == req["quote_total_kurus"]
     assert req["payment_received_on"] >= req["completed_on"] == req["scheduled_date"]
     assert "public.boundary" in req["area_m2"] and req["area_source"] == "boundary"
@@ -183,7 +204,6 @@ def test_service_layer_rows(generated):
         "public.service_request_event",
         "public.service_request_photo",
     ]
-    services = sql[sql.index("-- step: services") : sql.index("-- step: access")]
     pos = [services.index(f"insert into {t}") for t in order]
     assert pos == sorted(pos)
 
@@ -327,3 +347,26 @@ def test_no_phone_numbers_or_real_addresses_in_the_sql(generated):
     assert not re.search(r"\+\d{8,15}|\b0?5\d{2}[ -]?\d{3}[ -]?\d{2}[ -]?\d{2}\b", text)
     emails = set(re.findall(r"[\w.+-]+@[\w.-]+", text))
     assert emails and all(e.endswith("@demo.orchados.invalid") for e in emails)
+
+
+def test_parcels_are_pistachio(generated):
+    _ds, _m, script, _sql = generated
+    parcels = _rows(script, "parcels", "public.parcel")
+    assert {p["id"]: p["species"] for p in parcels} == {
+        ids.PARCEL_A: "antep_fistigi",
+        ids.PARCEL_B: "antep_fistigi",
+    }
+
+
+def test_service_rows_carry_version_2_ids(generated):
+    """Rows added by dataset version 2 derive their ids with v2; version 1 rows keep v1."""
+    _ds, _m, script, _sql = generated
+    (job,) = dataset.SERVICE_JOBS
+    (op,) = _rows(script, "services", "public.operation")
+    assert op["id"] == ids.did("operation", job.key, version=2)
+    events = _rows(script, "services", "public.service_request_event")
+    assert [e["id"] for e in events] == [
+        ids.did("service_request_event", f"{job.key}:{n}", version=2) for n in range(3)
+    ]
+    for a in _rows(script, "services", "public.asset"):
+        assert a["id"] in {ids.did("asset", p.key(job), version=2) for p in job.photos}

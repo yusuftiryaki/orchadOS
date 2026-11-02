@@ -37,6 +37,10 @@ def test_fixed_ids_and_tour(ds):
     assert tour["tree_id"] == ds.tree("A", "S3-6").id
     assert tour["session_id"] == ids.A_SCAN_2026 and tour["previous_session_id"] == ids.A_SCAN_2025
     assert tour["inventory_session_id"] == ids.A_INVENTORY and tour["parcel_id"] == ids.PARCEL_A
+    # Version 2: B's mowing job (session, request).
+    assert ids.B_MOWING_2026 == "de200000-0000-4000-8000-000000000006"
+    assert ids.B_MOWING_2026_REQUEST == "de300000-0000-4000-8000-000000000001"
+    assert tour["service_request_id"] == ids.B_MOWING_2026_REQUEST
 
 
 def test_derived_ids_use_the_namespace():
@@ -148,13 +152,26 @@ def test_findings_and_questions(ds):
     assert sum(q.finding is not None for q in dataset.QUESTIONS) == 1
 
 
-def test_service_quote_matches_service_v1():
-    """The cases of supabase/tests/75_service_layer.test.sql."""
-    assert dataset.service_quote(20000, 37500, 250000, 2000) == (750000, 150000, 900000)
-    assert dataset.service_quote(3000, 37500, 250000, 2000) == (250000, 50000, 300000)
-    assert dataset.service_quote(2050.4, 100000, 0, 2000)[0] == 210000
-    with pytest.raises(ValueError):
-        dataset.service_quote(0, 37500, 0, 2000)
+def test_versions_are_cumulative():
+    """Version 2 adds the service layer; version 1 rows keep their ids and seeds."""
+    assert dataset.DATASET_VERSION == 2 and dataset.SEED_VERSION == 1
+    assert dataset.SERVICES_VERSION == 2
+    assert sqlgen.SERVICE_TYPE_ID == ids.did("service_type", "weed_mowing", version=2)
+
+
+def test_service_catalogue_is_unpriced():
+    """Prices live in the price list (price_list_service_item); the demo has none."""
+    assert not {
+        "price_per_donum_kurus",
+        "minimum_fee_kurus",
+        "vat_rate_bp",
+        "price_is_draft",
+    } & set(dataset.SERVICE_TYPE)
+    assert dataset.SERVICE_SEASON == (3, 1, 6, 30)
+    t = dataset.SERVICE_TYPE
+    assert (t["season_start_month"], t["season_start_day"]) == dataset.SERVICE_SEASON[:2]
+    assert (t["season_end_month"], t["season_end_day"]) == dataset.SERVICE_SEASON[2:]
+    assert dataset.DEMO_SPECIES == "antep_fistigi"
 
 
 def test_service_job_timeline(ds):
@@ -173,6 +190,8 @@ def test_service_job_timeline(ds):
     assert job.early_performance or (job.work_start - job.requested_at).days >= 15
     assert all(job.work_start <= p.time <= job.done_at for p in job.photos)
     assert [p.phase for p in job.photos] == ["before", "after"]
-    # B is ~1.36 dönüm: the minimum fee applies.
-    assert job.quote() == (250000, 50000, 300000)
+    # Unpriced: ops entered the amount (3.000 TL, VAT included) when scheduling.
+    assert job.quote_total_kurus == 300000
+    assert (job.id, job.request_id) == (ids.B_MOWING_2026, ids.B_MOWING_2026_REQUEST)
+    assert ds.tour()["service_request_id"] == ids.B_MOWING_2026_REQUEST
     assert dataset.WEED_HEIGHTS["B-SCN26"] == "short" and dataset.WEED_HEIGHTS["A-SCN26"] == "tall"

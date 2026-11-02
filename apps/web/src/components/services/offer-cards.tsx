@@ -52,6 +52,16 @@ export function ServiceOffers({
               {card.lines.map((line) => (
                 <p key={line}>{line}</p>
               ))}
+              {card.price && (
+                <p
+                  className={styles.price}
+                  data-testid="service-offer-price"
+                  data-priced={card.price.priced}
+                >
+                  {card.price.text}
+                  {card.price.note && <span className={styles.priceNote}>{card.price.note}</span>}
+                </p>
+              )}
             </div>
             <ButtonLink
               variant={card.state === "open" ? "quiet" : "secondary"}

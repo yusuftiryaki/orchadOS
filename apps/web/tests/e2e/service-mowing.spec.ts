@@ -9,8 +9,11 @@ import { resolveSupabaseEnv } from "../local-supabase";
 // ticked; ops confirms the amount and today's date, uploads a before and an
 // after photo and closes the job; the owner sees the job done with both proof
 // photos. A fresh parcel of the seed org is used (owner@ as owner) and the
-// seed catalogue row's season is moved around today for the run, then both
-// are put back.
+// seed catalogue row's season (the default and the pistachio row, the
+// parcel's species) is moved around today for the run, then both are put
+// back. The seed leaves mowing unpriced (owner decision of 2 November 2026):
+// the card and the form say "Fiyat teklifle bildirilir", the request freezes
+// no amount and ops enters it by hand when scheduling.
 
 const PASSWORD = "orchados-dev";
 const ORG = "b0000000-0000-4000-8000-000000000001";
@@ -30,6 +33,7 @@ type Season = Pick<
   "season_start_month" | "season_start_day" | "season_end_month" | "season_end_day"
 >;
 let original: Season | null = null;
+let originalPistachio: Season | null = null;
 let parcelId = "";
 
 const istanbulToday = () =>
@@ -70,18 +74,30 @@ test.beforeAll(async () => {
     .single();
   if (error) throw error;
   original = row;
+  const pistachio = await admin
+    .from("service_type_season")
+    .select("season_start_month, season_start_day, season_end_month, season_end_day")
+    .eq("service_type_id", SERVICE)
+    .eq("species", "antep_fistigi")
+    .single();
+  if (pistachio.error) throw pistachio.error;
+  originalPistachio = pistachio.data;
   const from = shift(istanbulToday(), -10);
   const to = shift(istanbulToday(), 10);
-  const season = await admin
-    .from("service_type")
-    .update({
-      season_start_month: from.getUTCMonth() + 1,
-      season_start_day: from.getUTCDate(),
-      season_end_month: to.getUTCMonth() + 1,
-      season_end_day: to.getUTCDate(),
-    })
-    .eq("id", SERVICE);
+  const inSeason = {
+    season_start_month: from.getUTCMonth() + 1,
+    season_start_day: from.getUTCDate(),
+    season_end_month: to.getUTCMonth() + 1,
+    season_end_day: to.getUTCDate(),
+  };
+  const season = await admin.from("service_type").update(inSeason).eq("id", SERVICE);
   if (season.error) throw season.error;
+  const own = await admin
+    .from("service_type_season")
+    .update(inSeason)
+    .eq("service_type_id", SERVICE)
+    .eq("species", "antep_fistigi");
+  if (own.error) throw own.error;
 
   const parcel = await admin
     .from("parcel")
@@ -93,6 +109,7 @@ test.beforeAll(async () => {
       village: "Örnek Köyü",
       estimated_area_m2: 5000,
       status: "active_monitoring",
+      species: "antep_fistigi",
     })
     .select("id")
     .single();
@@ -107,6 +124,13 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   if (parcelId) await purgeParcels([parcelId]);
   if (original) await admin.from("service_type").update(original).eq("id", SERVICE);
+  if (originalPistachio) {
+    await admin
+      .from("service_type_season")
+      .update(originalPistachio)
+      .eq("service_type_id", SERVICE)
+      .eq("species", "antep_fistigi");
+  }
 });
 
 test("owner requests mowing, ops completes it with proof, owner sees the proof", async ({
@@ -117,9 +141,16 @@ test("owner requests mowing, ops completes it with proof, owner sees the proof",
   const owner = await ownerContext.newPage();
   await login(owner, "owner@example.com", "/portal");
   await owner.goto(`/portal/parsel/${parcelId}`);
+  // Unpriced: no number on the card.
+  const price = owner.getByTestId("service-offer-price").first();
+  await expect(price).toHaveText("Fiyat teklifle bildirilir");
   await owner.getByRole("link", { name: "Talep et" }).first().click();
   await owner.waitForURL(/\/portal\/hizmetler\/yeni/);
   await expect(owner.getByText(PARCEL_NAME).first()).toBeVisible();
+  await expect(owner.getByTestId("service-request-no-price")).toContainText(
+    "Fiyat teklifle bildirilir",
+  );
+  await expect(owner.getByTestId("service-request-totals")).toHaveCount(0);
   await owner.locator('select[name="window"]').selectOption("within_2_weeks");
   await owner.locator('textarea[name="note"]').fill("Damla hattı 3. sırada.");
   await owner.locator('input[name="pre_information"]').check();
@@ -131,12 +162,16 @@ test("owner requests mowing, ops completes it with proof, owner sees the proof",
 
   const { data: request } = await admin
     .from("service_request")
-    .select("number, status, early_performance_requested, estimate_total_kurus")
+    .select("number, status, early_performance_requested, estimate_total_kurus, price_list_version")
     .eq("id", requestId)
     .single();
-  expect(request).toMatchObject({ status: "requested", early_performance_requested: true });
-  // 5 000 m²: 50 tenths x 375 TL = 1 875 TL, below the minimum: 2 500 TL + 20 % VAT.
-  expect(request!.estimate_total_kurus).toBe(300000);
+  expect(request).toMatchObject({
+    status: "requested",
+    early_performance_requested: true,
+    // No published mowing price: nothing is frozen.
+    estimate_total_kurus: null,
+    price_list_version: null,
+  });
 
   await owner.goto("/portal/hizmetler");
   await expect(owner.getByText(request!.number)).toBeVisible();
@@ -150,6 +185,9 @@ test("owner requests mowing, ops completes it with proof, owner sees the proof",
 
   const today = istanbulToday();
   await ops.locator('input[name="scheduled_date"]').fill(today);
+  // The amount is entered by hand (required: no published price).
+  await expect(ops.getByTestId("service-no-estimate")).toBeVisible();
+  await ops.locator('input[name="quote_total"]').fill("3.000");
   await ops.getByRole("button", { name: "Tutarı ve günü onayla" }).click();
   await expect(ops.getByText("Tutar ve gün onaylandı; sahibe bildirildi.")).toBeVisible();
 

@@ -8,6 +8,7 @@ import { getApplication, getGardenDetail } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
 import { m2ToDonumText } from "@/lib/portal-billing/validation";
+import { loadFruitSpecies } from "@/lib/species";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function EditGardenPage({
@@ -20,9 +21,10 @@ export default async function EditGardenPage({
   const supabase = await createClient();
   // Read together; the detail is used only once the garden is found on the
   // caller's own application (the function checks the caller as well).
-  const [view, detail] = await Promise.all([
+  const [view, detail, species] = await Promise.all([
     getApplication(supabase, user.id, id),
     getGardenDetail(supabase, gardenId),
+    loadFruitSpecies(supabase),
   ]);
   const garden = view?.gardens.find((g) => g.id === gardenId);
   if (!view || !garden) notFound();
@@ -36,6 +38,7 @@ export default async function EditGardenPage({
     village: garden.village ?? "",
     area_donum: m2ToDonumText(Number(garden.declared_area_m2)),
     irrigation: garden.irrigation,
+    species: garden.species,
     estimated_tree_count:
       garden.estimated_tree_count != null ? String(garden.estimated_tree_count) : "",
     lon: garden.position ? String(garden.position[0]) : "",
@@ -58,7 +61,7 @@ export default async function EditGardenPage({
         title={P.garden.editTitle(garden.name)}
         back={{ href: portalHref.application(id), label: P.garden.backToApplication }}
       />
-      <GardenForm applicationId={id} gardenId={gardenId} initial={initial} />
+      <GardenForm applicationId={id} gardenId={gardenId} initial={initial} species={species} />
     </main>
   );
 }

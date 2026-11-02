@@ -24,6 +24,7 @@ import { formatTl, longDate, vatPercent } from "@/lib/services/format";
 import {
   REASON_MAX,
   canCancel,
+  requestEstimate,
   cancelTooLate,
   serviceErrorText,
   serviceNoticeText,
@@ -36,7 +37,8 @@ const D = S.detail;
 const F = S.form;
 
 // One service request (IP15): what was asked and accepted (terms version,
-// frozen estimate), the confirmed amount and day, payment, the status
+// the estimate frozen with its price list version, or none when the service
+// had no published price), the confirmed amount and day, payment, the status
 // history (service_request_event), the cancellation while it is free, and
 // once the job is done the before / after photos with their date and content
 // hash. Owners only (row level security); not found for anyone else.
@@ -62,6 +64,7 @@ export default async function ServiceRequestPage({
   const error = serviceErrorText(query.hata);
   const cancellable = canCancel(r, today);
   const done = r.status === "done";
+  const estimate = requestEstimate(r);
   const before = photos.filter((p) => p.phase === "before");
   const after = photos.filter((p) => p.phase === "after");
 
@@ -119,17 +122,28 @@ export default async function ServiceRequestPage({
         />
       </Panel>
 
-      <Panel title={D.estimateTitle} testId="service-request-amounts">
-        <Facts
-          variant="summary"
-          rows={[
-            [F.subtotal, formatTl(r.estimate_subtotal_kurus)],
-            [F.vat(vatPercent(r.vat_rate_bp)), formatTl(r.estimate_vat_kurus)],
-          ]}
-          total={[F.total, formatTl(r.estimate_total_kurus)]}
-        />
-        {r.price_is_draft && r.quote_total_kurus === null && (
-          <p className={styles.hint}>{F.draftNote}</p>
+      <Panel title={estimate ? D.estimateTitle : D.amountTitle} testId="service-request-amounts">
+        {estimate ? (
+          <>
+            <Facts
+              variant="summary"
+              rows={[
+                [F.subtotal, formatTl(estimate.subtotal)],
+                [F.vat(vatPercent(estimate.vatRateBp)), formatTl(estimate.vat)],
+              ]}
+              total={[F.total, formatTl(estimate.total)]}
+            />
+            <p className={styles.hint}>
+              {r.quote_total_kurus === null && `${F.frozenNote} `}
+              <span data-testid="service-request-price-list">
+                {F.priceListNote(estimate.version)}
+              </span>
+            </p>
+          </>
+        ) : (
+          <p className={styles.hint} data-testid="service-request-no-price">
+            {D.noEstimate}
+          </p>
         )}
         <Facts
           rows={[

@@ -23,10 +23,10 @@ export type ServiceRequestRow = Pick<
   | "early_performance_requested"
   | "area_m2"
   | "area_source"
+  | "price_list_version"
   | "price_per_donum_kurus"
   | "minimum_fee_kurus"
   | "vat_rate_bp"
-  | "price_is_draft"
   | "estimate_subtotal_kurus"
   | "estimate_vat_kurus"
   | "estimate_total_kurus"
@@ -44,7 +44,7 @@ export type ServiceRequestRow = Pick<
 // Not ops_note (internal, not granted to owners) and not who recorded the
 // payment.
 const REQUEST_COLUMNS =
-  "id, parcel_id, service_type_id, number, status, season_year, preferred_window, customer_note, terms_version, early_performance_requested, area_m2, area_source, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, price_is_draft, estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus, quote_total_kurus, scheduled_date, session_id, completed_on, cancelled_at, cancelled_by_role, cancel_reason, payment_received_on, created_at";
+  "id, parcel_id, service_type_id, number, status, season_year, preferred_window, customer_note, terms_version, early_performance_requested, area_m2, area_source, price_list_version, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus, quote_total_kurus, scheduled_date, session_id, completed_on, cancelled_at, cancelled_by_role, cancel_reason, payment_received_on, created_at";
 
 export interface ServiceRequestItem extends ServiceRequestRow {
   parcelName: string;

@@ -36,10 +36,14 @@ export const servicesText = {
   card: {
     title: "Bahçe hizmetleri",
     lead: "İşi köydeki saha ekibimiz motorlu tırpanla yapar. Öneri, yayımlanmış son ziyaretteki gözleme ve mevsime dayanır; uzman bulgusu değildir. İşi başkasına da yaptırabilirsiniz.",
-    price: (amount: string, draft: boolean) => `${amount}, KDV dahil${draft ? ", tahmini" : ""}`,
+    // The amount when the published price list prices the service.
+    price: (amount: string) => `${amount}, KDV dahil`,
+    priceListVersion: (version: number) => `Fiyat listesi sürüm ${version}`,
+    // No price for the service in the published price list (owner decision of
+    // 2 November 2026): no number anywhere, ops gives the amount.
+    noPrice: "Fiyat teklifle bildirilir",
     recommended: (weed: string, date: string) => `Bahçenizde ot ${weed} (son ziyaret: ${date}).`,
-    offer: (service: string, price: string) => `${service}: ${price}.`,
-    available: (service: string, price: string) => `${service} hizmeti: ${price}.`,
+    offer: (service: string) => `${service} hizmetini bu bahçe için talep edebilirsiniz.`,
     preRequest: (service: string, opens: string) =>
       `${service} sezonu ${opens} açılıyor. Gelecek sezon için ön talep bırakın; bağlayıcı değildir.`,
     open: (service: string, number: string, status: string) =>
@@ -69,8 +73,14 @@ export const servicesText = {
     subtotal: "Ara toplam",
     vat: (rate: string) => `KDV (%${rate})`,
     total: "Toplam (KDV dahil)",
-    draftNote:
-      "Fiyat tahminidir. Talep anındaki tutar talebinize sabitlenir; onaylarken yalnızca indirebiliriz, artıramayız.",
+    frozenNote:
+      "Talep anındaki tutar talebinize sabitlenir; onaylarken yalnızca indirebiliriz, artıramayız.",
+    priceListNote: (version: number) => `Yayımlı fiyat listesi, sürüm ${version}.`,
+    noPriceTitle: "Fiyat teklifle bildirilir",
+    noPriceNote:
+      "Bu hizmetin fiyatı henüz yayımlanmadı. Talebinizi aldıktan sonra tutarı ve iş gününü size SMS ile bildiririz. İş gününden önceki günün sonuna kadar ücretsiz iptal edebilirsiniz.",
+    preNoPriceNote:
+      "Bu hizmetin fiyatı henüz yayımlanmadı. Ön talepte fiyat taahhüt edilmez; sezon açılınca tutarı size ayrıca bildiririz.",
     preEstimateNote:
       "Bugünkü fiyatla hesaplanmış yaklaşık tutardır. Ön talepte fiyat taahhüt edilmez; sezon açılınca güncel fiyatı ayrıca onaylarsınız.",
     roundingNote: "Her başlamış 100 m² 0,1 dönüm sayılır.",
@@ -85,6 +95,9 @@ export const servicesText = {
     termsLink: "Bakım Hizmetleri Ek Sözleşmesi – Ot Biçme (yeni sekmede açılır)",
     preInformationCheck:
       "Ek sözleşmenin 2. bölümündeki ön bilgilendirmeyi okudum; talep bilgilerini ve toplam tutarı gördüm.",
+    // Unpriced: there is no total to have seen.
+    preInformationCheckNoPrice:
+      "Ek sözleşmenin 2. bölümündeki ön bilgilendirmeyi okudum; talep bilgilerini gördüm. Tutarın bana teklifle bildirileceğini biliyorum.",
     termsCheck: "Bakım Hizmetleri Ek Sözleşmesi'ni onaylıyorum.",
     version: (v: string) => `sürüm ${v}`,
     earlyTitle: "İşin cayma süresi içinde yapılması (isteğe bağlı)",
@@ -122,7 +135,8 @@ export const servicesText = {
     scheduledOn: (date: string) => `İş günü: ${date}`,
     doneOn: (date: string) => `Yapıldı: ${date}`,
     cancelledOn: (date: string) => `İptal: ${date}`,
-    estimate: "tahmini",
+    // An amount frozen at the request that ops has not confirmed yet.
+    notConfirmed: "onay bekliyor",
   },
 
   detail: {
@@ -139,6 +153,9 @@ export const servicesText = {
     terms: "Onaylanan koşullar",
     area: "Alan",
     estimateTitle: "Talepte sabitlenen tutar",
+    amountTitle: "Tutar",
+    noEstimate:
+      "Talep anında bu hizmet için yayımlanmış bir fiyat yoktu: fiyat teklifle bildirilir. Tutarı iş gününü onaylarken size bildiririz.",
     confirmed: "Onaylanan tutar (KDV dahil)",
     notConfirmed: "Tutarı ve iş gününü onayladığımızda burada görünür.",
     scheduled: "İş günü",
@@ -193,7 +210,7 @@ export const servicesText = {
     service_inactive:
       "Bu hizmet şu anda bu bahçe için sunulmuyor. Hizmetten çıkarılan bir bahçe için talep açılamaz.",
     area_unknown:
-      "Bahçenizin alanı bilinmediği için tutar hesaplanamadı. Bizi arayın; alanı birlikte belirleyelim.",
+      "Bahçenizin alanı bilinmediği için talep açılamadı. Bizi arayın; alanı birlikte belirleyelim.",
     terms_outdated:
       "Hizmet koşulları güncellendi. Sayfayı yenileyip güncel koşulları onaylayarak yeniden gönderin.",
     note_too_long: "Not en fazla 1000 karakter olabilir. Kısaltıp yeniden gönderin.",

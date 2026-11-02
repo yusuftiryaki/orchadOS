@@ -15,28 +15,40 @@ const offer = (over: Partial<ServiceOffer> = {}): ServiceOffer => ({
   in_season: true,
   season_start: "2027-03-01",
   season_end: "2027-06-30",
-  weed_height: null as unknown as string,
-  observed_at: null as unknown as string,
-  measurement_id: null as unknown as string,
+  weed_height: null,
+  observed_at: null,
+  measurement_id: null,
   area_m2: 19_600,
   area_source: "boundary",
+  species: "antep_fistigi",
+  price_list_version: 2,
   price_per_donum_kurus: 37_500,
   minimum_fee_kurus: 250_000,
   vat_rate_bp: 2000,
-  price_is_draft: true,
   estimate_subtotal_kurus: 735_000,
   estimate_vat_kurus: 147_000,
   estimate_total_kurus: 882_000,
-  open_request_id: null as unknown as string,
-  open_request_status: null as unknown as string,
-  open_request_number: null as unknown as string,
+  open_request_id: null,
+  open_request_status: null,
+  open_request_number: null,
   ...over,
 });
 
 const NEW = `/portal/hizmetler/yeni?parsel=${PARCEL}&hizmet=${TYPE}`;
 
+// The service has no price in the published price list in force.
+const UNPRICED = {
+  price_list_version: null,
+  price_per_donum_kurus: null,
+  minimum_fee_kurus: null,
+  vat_rate_bp: null,
+  estimate_subtotal_kurus: null,
+  estimate_vat_kurus: null,
+  estimate_total_kurus: null,
+} as const;
+
 describe("service offer cards", () => {
-  it("recommended: the observation, then the price with VAT and the estimate mark", () => {
+  it("recommended: the observation, the offer, then the price with VAT and its list version", () => {
     const card = offerCard(
       offer({ state: "recommended", weed_height: "tall", observed_at: "2027-04-14T07:00:00Z" }),
       "2027-05-02",
@@ -45,8 +57,9 @@ describe("service offer cards", () => {
       state: "recommended",
       lines: [
         "Bahçenizde ot uzun (son ziyaret: 14 Nisan).",
-        "Ot biçme: 8.820 TL, KDV dahil, tahmini.",
+        "Ot biçme hizmetini bu bahçe için talep edebilirsiniz.",
       ],
+      price: { text: "8.820 TL, KDV dahil", note: "Fiyat listesi sürüm 2", priced: true },
       action: { label: "Talep et", href: NEW },
     });
     const medium = offerCard(
@@ -56,16 +69,33 @@ describe("service offer cards", () => {
     expect(medium?.lines[0]).toBe("Bahçenizde ot orta boyda (son ziyaret: 14 Nisan).");
   });
 
-  it("a final price is not an estimate", () => {
-    const card = offerCard(offer({ price_is_draft: false }), "2027-05-02");
-    expect(card?.lines).toEqual(["Ot biçme hizmeti: 8.820 TL, KDV dahil."]);
+  it("no draft or estimate wording on a priced card", () => {
+    const card = offerCard(offer(), "2027-05-02")!;
+    const text = [...card.lines, card.price?.text, card.price?.note].join(" ");
+    expect(text).not.toMatch(/tahmini|taslak/i);
   });
 
   it("available: the service with its price", () => {
     expect(offerCard(offer(), "2027-05-02")).toMatchObject({
-      lines: ["Ot biçme hizmeti: 8.820 TL, KDV dahil, tahmini."],
+      lines: ["Ot biçme hizmetini bu bahçe için talep edebilirsiniz."],
+      price: { text: "8.820 TL, KDV dahil", note: "Fiyat listesi sürüm 2" },
       action: { label: "Talep et", href: NEW },
     });
+  });
+
+  it("unpriced: no number, 'Fiyat teklifle bildirilir', and the request still opens", () => {
+    for (const state of ["recommended", "available"]) {
+      const card = offerCard(
+        offer({ ...UNPRICED, state, weed_height: "tall", observed_at: "2027-04-14T07:00:00Z" }),
+        "2027-05-02",
+      )!;
+      expect(card.price).toEqual({ text: "Fiyat teklifle bildirilir", note: null, priced: false });
+      expect(card.action).toEqual({ label: "Talep et", href: NEW });
+      expect([...card.lines, card.price?.text].join(" ")).not.toMatch(/\d+(\.\d{3})* TL/);
+    }
+    const pre = offerCard(offer({ ...UNPRICED, state: "pre_request" }), "2026-11-02")!;
+    expect(pre.price?.text).toBe("Fiyat teklifle bildirilir");
+    expect(pre.action.label).toBe("Ön talep bırak");
   });
 
   it("pre_request: when the season opens, non-binding, no price", () => {
@@ -80,6 +110,8 @@ describe("service offer cards", () => {
       action: { label: "Ön talep bırak", href: NEW },
     });
     expect(card?.lines.join(" ")).not.toContain("TL");
+    // Priced: a pre-request commits to no price, so the card shows none.
+    expect(card?.price).toBeNull();
   });
 
   it("open: the request's state and a link to it", () => {
@@ -94,6 +126,7 @@ describe("service offer cards", () => {
     );
     expect(card).toMatchObject({
       lines: ["Ot biçme talebiniz H-2027-000004: Planlandı."],
+      price: null,
       action: { label: "Talebi gör", href: "/portal/hizmetler/a1" },
     });
   });
@@ -102,7 +135,7 @@ describe("service offer cards", () => {
     expect(
       offerCard(offer({ service_code: "tillage", service_name: "Toprak işleme" }), "2027-05-02")
         ?.lines,
-    ).toEqual(["Toprak işleme hizmeti: 8.820 TL, KDV dahil, tahmini."]);
+    ).toEqual(["Toprak işleme hizmetini bu bahçe için talep edebilirsiniz."]);
     expect(offerCard(offer({ state: "whatever" }), "2027-05-02")).toBeNull();
   });
 

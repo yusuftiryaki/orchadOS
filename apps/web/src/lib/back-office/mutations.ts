@@ -13,6 +13,7 @@ import type {
   PackageInput,
   ParcelQuoteInput,
   PriceListDraftInput,
+  PriceListServiceItemsInput,
   QuoteTermsInput,
   RefundInput,
   RemovalRequestInput,
@@ -437,6 +438,21 @@ export async function savePriceListDraft(
       p_valid_from: input.validFrom as string,
       p_vat_rate_bp: input.vatRateBp,
       p_note: input.note,
+      p_items: input.items as unknown as Json,
+    }),
+  );
+}
+
+// IP15: the service prices of a draft (replaces them; an empty list leaves
+// every service unpriced).
+export async function savePriceListServiceItems(
+  supabase: Client,
+  priceListId: string,
+  input: PriceListServiceItemsInput,
+) {
+  return result(
+    await supabase.rpc("ops_save_price_list_service_items", {
+      p_price_list_id: priceListId,
       p_items: input.items as unknown as Json,
     }),
   );

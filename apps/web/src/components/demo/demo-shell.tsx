@@ -19,12 +19,19 @@ export function demoUntil(iso: string): string {
   }).format(new Date(iso));
 }
 
+// Where "Gerçek hesap aç" goes after the demo ends (exitDemoAction's next):
+// sign-up on a demo host or while sign-up is open here, else the contact page.
+export function demoSignupNext(): string {
+  const { mainSiteUrl, signupEnabled } = siteFlags();
+  return mainSiteUrl || signupEnabled ? "/kayit" : "/iletisim";
+}
+
 // The portal shell of a demo visitor (docs/demo-turu.md §11.3): the banner,
 // the brand and "Bahçelerim (örnek)", the guided tour. No e-mail, no avatar,
 // no billing navigation.
 export function DemoShell({ info, children }: { info: DemoInfo; children: React.ReactNode }) {
-  const { mainSiteUrl, signupEnabled } = siteFlags();
-  const signupNext = mainSiteUrl || signupEnabled ? "/kayit" : "/iletisim";
+  const { mainSiteUrl } = siteFlags();
+  const signupNext = demoSignupNext();
   const packagesHref = `${mainSiteUrl ?? ""}/paketler`;
   return (
     <>

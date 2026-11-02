@@ -195,9 +195,34 @@ describe("application gardens", () => {
         details: "entry_permission",
       },
     );
+    expect((await save({ ...GARDEN, species: "muz_degil" })).error).toMatchObject({
+      message: "invalid_input",
+      details: "species",
+    });
     const phone = await save(GARDEN, { ...GARDEN_DETAIL, site_contact_phone: "0532 999 88 77" });
     expect(phone.error).toMatchObject({ message: "invalid_input", details: "site_contact_phone" });
     noValue(phone.error, "999");
+  });
+
+  it("keeps the chosen fruit species; a save without one keeps the garden's", async () => {
+    const id = check(await save({ ...GARDEN, name: "Zeytinlik", species: "zeytin" }));
+    const species = async () =>
+      check(
+        await customer.client.from("application_garden").select("species").eq("id", id).single(),
+      ).species;
+    expect(await species()).toBe("zeytin");
+    const withoutSpecies: { [key: string]: Json | undefined } = { ...GARDEN };
+    delete withoutSpecies.species;
+    check(
+      await customer.client.rpc("customer_save_application_garden", {
+        p_application_id: application,
+        p_garden: { ...withoutSpecies, name: "Zeytinlik" },
+        p_detail: GARDEN_DETAIL,
+        p_garden_id: id,
+      }),
+    );
+    expect(await species()).toBe("zeytin");
+    check(await customer.client.rpc("customer_remove_application_garden", { p_garden_id: id }));
   });
 
   it("keeps the private detail out of the garden row and allows ten gardens", async () => {

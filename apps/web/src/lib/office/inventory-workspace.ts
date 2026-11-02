@@ -2,6 +2,7 @@ import type { Database } from "@/lib/database.types";
 import type { CheckSlot } from "@/lib/expert/inventory-checks";
 import { isPoint, isPolygon } from "@/lib/map/geo";
 import { fetchAll, UUID_RE } from "@/lib/supabase/query";
+import { loadFruitSpecies, type FruitSpecies } from "@/lib/species";
 import type { Client } from "@/lib/supabase/types";
 import type { LatLon } from "./local-frame";
 import type { CandidateSlot, VerificationReason } from "./verification-candidates";
@@ -21,6 +22,8 @@ export interface WorkspaceTree {
   ageClass: Enums["age_class"];
   stemForm: Enums["stem_form"];
   cultivar: string | null;
+  // Fruit species override (mixed orchards); null or absent: the parcel's.
+  species?: string | null;
 }
 
 export interface WorkspaceSlot extends CheckSlot, Omit<CandidateSlot, "treeId" | "position"> {
@@ -83,7 +86,16 @@ export interface WorkspaceSession {
 }
 
 export interface InventoryWorkspace {
-  parcel: { id: string; orgId: string; name: string; status: Enums["parcel_status"] };
+  parcel: {
+    id: string;
+    orgId: string;
+    name: string;
+    status: Enums["parcel_status"];
+    // Main fruit species (lib/species.ts).
+    species: string;
+  };
+  // public.fruit_species for the tree species override, in display order.
+  speciesOptions: FruitSpecies[];
   // The approved inventory session if there is one, else the newest open one.
   inventorySession: WorkspaceSession | null;
   approved: boolean;
@@ -124,7 +136,7 @@ function sessionTime(s: {
 }
 
 const SLOT_COLUMNS =
-  "id, code, row_no, position_no, suffix, kind, position::json, position_uncertainty_m, tree(id, sex, graft, age_class, stem_form, cultivar, status)";
+  "id, code, row_no, position_no, suffix, kind, position::json, position_uncertainty_m, tree(id, sex, graft, age_class, stem_form, cultivar, status, species)";
 
 // Null when the parcel does not exist or the user may not see it.
 export async function loadInventoryWorkspace(
@@ -134,13 +146,13 @@ export async function loadInventoryWorkspace(
   if (!UUID_RE.test(parcelId)) return null;
   const { data: parcel, error } = await supabase
     .from("parcel")
-    .select("id, org_id, name, status")
+    .select("id, org_id, name, status, species")
     .eq("id", parcelId)
     .maybeSingle();
   if (error) throw error;
   if (!parcel) return null;
 
-  const [slotRows, boundaries, zones, sessions, items, unsure] = await Promise.all([
+  const [slotRows, boundaries, zones, sessions, items, unsure, speciesOptions] = await Promise.all([
     fetchAll((from, to) =>
       supabase
         .from("slot")
@@ -194,6 +206,7 @@ export async function loadInventoryWorkspace(
         .order("id")
         .range(from, to),
     ),
+    loadFruitSpecies(supabase),
   ]);
   for (const r of [boundaries, sessions]) if (r.error) throw r.error;
 
@@ -219,6 +232,7 @@ export async function loadInventoryWorkspace(
             ageClass: tree.age_class,
             stemForm: tree.stem_form,
             cultivar: tree.cultivar,
+            species: tree.species,
           }
         : null,
     };
@@ -268,7 +282,14 @@ export async function loadInventoryWorkspace(
     }));
 
   return {
-    parcel: { id: parcel.id, orgId: parcel.org_id, name: parcel.name, status: parcel.status },
+    parcel: {
+      id: parcel.id,
+      orgId: parcel.org_id,
+      name: parcel.name,
+      status: parcel.status,
+      species: parcel.species,
+    },
+    speciesOptions,
     inventorySession: inventory
       ? {
           id: inventory.id,

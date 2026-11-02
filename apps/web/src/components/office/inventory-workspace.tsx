@@ -375,6 +375,8 @@ export function InventoryWorkspaceView({
           {tab === "attributes" && (
             <TreeAttributeEditor
               slots={ws.slots}
+              parcelSpecies={ws.parcel.species}
+              speciesOptions={ws.speciesOptions}
               selected={selected}
               onSelectionChange={setSelected}
               onApply={async (treeIds, attributes) => {

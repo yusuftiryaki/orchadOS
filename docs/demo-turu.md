@@ -383,6 +383,7 @@ Anahtar eksikse rehberli tur o adımı atlar.
 | Kayıt tamamlama (`customer-signup` `complete`) | Edge demo claim'ini görünce 403 `demo_read_only` döner. Erişim kapsamı tetikleyicisi | `/kayit` önce demodan çıkarır |
 | Rızalar, iletişim bilgisi, fatura profili | `not_customer`, tetikleyici, erişim kapsamı | `/portal/hesap` açılmaz |
 | Makbuz (`/makbuz/[id]`, `receipt_data`) | Satır olmadığı için 404 | Link yok |
+| Hizmet talebi ve iptali (`customer_request_service`, `customer_cancel_service_request`; İP15) | Sunucu eylemleri (`app/portal/hizmetler/actions.ts`) önce `user.demo`'ya bakar ve istemci açmadan `?hata=demo_read_only` ile sayfasına döner. RPC'ler `assert_not_demo`; tetikleyici | Talep formu gerçek haliyle açılır; gönderince form sayfasında "Demoda talep gönderilmez…" notu ve "Gerçek hesap aç" düğmesi çıkar (§11.5). Tamamlanmış işte iptal bölümü yoktur |
 | Hesap değişikliği (GoTrue `PUT /auth/v1/user`: e-posta, telefon, parola, metaveri) | Hesap kilidi (§6.2); GoTrue isteği hata döner. Yerelde Mailpit e-postayı yakalar, ama değişiklik zaten reddedilir. Barındırılan projede onaylar açıktır ve varsayılan SMTP yalnızca ekip adreslerine teslim eder. `send-sms` kancası demo hesabına kod göndermez (ek katman). Hesap süre sonunda silinir | Hesap ekranı yok |
 | Medya yükleme (`storage.objects`) | Var olan ops ve saha politikaları ve kısıtlayıcı politika. `demo-media` kovasına yalnızca demo org'unun ops kişisi yükler | Yok |
 | Bildirim (`notification`) | `enqueue_notifications` demo org'larını atlar; tetikleyici | Yok |
@@ -518,6 +519,8 @@ IP okuma, proxy sırrı ve HMAC için `_shared/signup.ts` kullanılır.
 | Operasyon (yükleyici) kişisi | `…000000000005` | `ornek-operasyon@…` |
 | A envanter 2025-06-10 / A tarama 2025-07-15 / A tarama 2026-07-14 | `de200000-0000-4000-8000-00000000000{1,2,3}` | |
 | B envanter 2026-06-09 / B tarama 2026-07-16 | `de200000-0000-4000-8000-00000000000{4,5}` | |
+| B ot biçme işi 2026-06-24 (`mowing` oturumu; sürüm 2) | `de200000-0000-4000-8000-000000000006` | |
+| B ot biçme talebi (`service_request`; sürüm 2) | `de300000-0000-4000-8000-000000000001` | `H-2026-000001` |
 
 - **Kişiler (persona):**
     - `auth.users` ve `auth.identities` satırlarıdır; seed.sql'deki kalıp izlenir.
@@ -527,15 +530,18 @@ IP okuma, proxy sırrı ve HMAC için `_shared/signup.ts` kullanılır.
     - `banned_until = '2999-01-01 00:00:00+00'`. Değer sonludur: Postgres'in `infinity` değeri GoTrue'nun Go zaman tipine okunamaz.
     - Hiçbiri giriş yapamaz. Tek istisna, yükleme sırasında operasyon kişisidir (§10.2). Bir çalıştırma yarıda ölürse housekeeping bir saat sonra yasağı ve boş parolayı geri koyar.
     - Yalnızca hissedar kişisinin bir `owner_profile` satırı vardır; bu satır hissedarlar kartında ad göstermek içindir.
-- **Öteki satırlar:** Kimlikleri `uuid5(de0f0000-0000-5000-8000-000000000000, "v<sürüm>:<tür>:<anahtar>")` ile türetilir.
+- **Öteki satırlar:** Kimlikleri `uuid5(de0f0000-0000-5000-8000-000000000000, "v<sürüm>:<tür>:<anahtar>")` ile türetilir. `<sürüm>` satırı getiren veri sürümüdür: sürüm 1'in satırları `v1`, sürüm 2'nin hizmet katmanı satırları (katalog, sezonlar, `weed_height` ölçümleri, işin `operation`'ı, tarihçesi, kanıt asset'leri ve bağları) `v2` taşır.
 - **Tur:** Yükleyici `private.demo_org.tour` alanına şunları yazar:
     - A parseli
     - öne çıkan ağaç
     - A'nın 2026 taraması (`session_id`)
     - A'nın 2025 taraması (`previous_session_id`)
     - A'nın envanter oturumu
+    - B'nin tamamlanmış ot biçme talebi (`service_request_id`, sürüm 2; `hizmet-sonuc` adımı)
 
-### 8.2 İçerik (sürüm 1)
+### 8.2 İçerik (sürüm 2)
+
+Sürüm 1 aşağıdaki tablonun İP15 satırları dışındaki her şeydir; sürüm 2 hizmet katmanını ekler (§10.3).
 
 | | A "Örnek Bahçe – Kuzey" | B "Örnek Bahçe – Dere" |
 | --- | --- | --- |
@@ -553,9 +559,13 @@ IP okuma, proxy sırrı ve HMAC için `_shared/signup.ts` kullanılır.
 | Uzman notları | Her bulguda uzman açıklaması ve önerisi (`finding.description`, `finding.recommendation`), parsel düzeyindekiler dahil. Soru dizilerinde uzman cevapları | Bulgularda açıklama ve öneri |
 | Sorular | 2 dizi: biri ağaçta, biri parsel düzeyindeki bir bulguda. Sahip ve hissedar sorar, uzman cevaplar | Yok |
 | Hissedarlar | "Örnek Hissedar" (viewer). Bekleyen davet yoktur: `viewer_invitation.phone` zorunludur ve E.164 biçimindedir, demo verisinde ise telefon bulunmaz | Yok |
-| Yabani ot (İP15) | 2026 taramasında saha sorusu `weed_height` = uzun (parsel öznesi, `field_question`, `summer-v0.3`, personel). Portalda ot biçme kartı | 2026 taramasında `weed_height` = kısa (biçmeden üç hafta sonra) |
-| Ot biçme işi (İP15) | Yok | `H-2026-000001`, tamamlandı: 2026-06-15 talep (erken ifa istendi), 06-16 planlandı, 06-24 yapıldı, 06-26 havaleyle ödendi; tahmin `service-v1` ile donduruldu (sınır alanı ~1,36 dönüm, minimum ücret: 2.500 TL + KDV = 3.000 TL), tutar onaylanan tahmin. `mowing` oturumu (`captured`, hiç yayımlanmaz), `operation` (`crew`), tarihçe (talep → planlandı → tamamlandı), öncesi ve sonrası birer kanıt fotoğrafı |
+| Meyve türü (sürüm 2) | `parcel.species` = `antep_fistigi`, açıkça yazılır; ağaçlarda tür geçersiz kılma yok | Aynı |
+| Yabani ot (İP15) | 2026 taramasında saha sorusu `weed_height` = uzun (parsel öznesi, `field_question`, `summer-v0.3`, personel) | 2026 taramasında `weed_height` = kısa (biçmeden üç hafta sonra) |
+| Hizmet kartı (İP15) | Ot biçme kartı her gün satın alınabilir durumdadır: sezonda "talep edilebilir", sezon dışında "ön talep" (açık talep yok). Fiyat yok: "Fiyat teklifle bildirilir". Turun `hizmet-oneri` adımı | Aynı kart (B'nin işi tamamlandı, açık talebi yok) |
+| Ot biçme işi (İP15) | Yok | `H-2026-000001` (§8.1), tamamlandı: 2026-06-15 talep (erken ifa istendi), 06-16 planlandı, 06-24 yapıldı, 06-26 havaleyle ödendi. Talep anında fiyat yoktu: sekiz fiyat ve tahmin sütunu boş; tutarı operasyon planlarken girdi (3.000 TL, KDV dahil), ödeme bu tutarla kayıtlı. `mowing` oturumu (`captured`, hiç yayımlanmaz), `operation` (`crew`, `details.by = orchados`), tarihçe (talep → planlandı → tamamlandı), öncesi ve sonrası birer kanıt fotoğrafı. B'nin karnesinde bakım satırı "bu bakımı orchadOS yaptı" notunu gösterir (iş 2026-07-16 ziyaretinden önceki 365 günde). Turun `hizmet-sonuc` adımı |
 | Robot notu (İP15) | düz, taş az, en alçak dal 60 cm | hafif eğim, taş orta, 45 cm |
+
+**Planlanmış iş yok:** Demoda "planlandı" durumunda bir talep yoktur. Tarihler sabit ve geçmişte olduğu için (§8.3) planlanmış bir işin günü ya geçmişte görünür ya da kısa sürede geçmişe düşer ve iş sonsuza dek açık kalırdı. Açık bir talep o parselin kartını da "açık talep"e çevirir ve satın alınabilir kartı gizler. Hizmetlerim bu yüzden yalnızca tamamlanmış işi gösterir.
 
 **Neden yaz ziyareti:**
 - Parsel karnesinin zararlı ve meyve yükü satırları yalnızca ilkbahar ve yaz metriklerinden gelir: `pest_sign_*` ilkbahar ve yaz, `fruit_load_scale` yaz.
@@ -579,9 +589,11 @@ A'nın 2026 bulgu türleri: kuruyan dal, gövde yarası ve zamk akıntısı, yap
 - **Ham kayıtlar:** Ham kayıt satırlarının (`capture`: video, GNSS) adresi `station://orchados-demo/synthetic/...` biçimindedir. Bu adres tarayıcıya hiç sunulmaz.
 - **Kişisel veri:** Kişi adı yalnızca "Örnek …" biçimindedir. Telefon yoktur. E-postalar yalnızca `.invalid` alan adındadır. `private.parcel_detail` (ada/parsel) boş kalır.
 - **Konum:** Konumlar temsilîdir. Gaziantep'te kırsal bir nokta seçilir ve bant "konum temsilîdir" der.
-- **Ödeme ayarı:** Demo org'unun tek `org_billing_setting` satırı yalnızca hizmet katmanını açar: `services_enabled = true`, `accepts_signups` ve `allow_fake_payments` kapalı. Hizmet kataloğu satırı (`weed_mowing`, taslak fiyat: dönüm 375 TL, minimum 2.500 TL, KDV %20, sezon 1 Mart–30 Haziran, eşik orta, 60 gün) yükleyiciden gelir; migration'ın tohumu demo org'larını atlar.
+- **Ödeme ayarı:** Demo org'unun tek `org_billing_setting` satırı yalnızca hizmet katmanını açar: `services_enabled = true`, `accepts_signups` ve `allow_fake_payments` kapalı. Hizmet kataloğu satırı (`weed_mowing`, sezon 1 Mart–30 Haziran, eşik orta, 60 gün) ve her meyve türü için sezon satırı (`service_type_season`, `fruit_species`'teki bütün türler, 1 Mart–30 Haziran; küme olarak eklenir, sonradan eklenen bir tür de kapsanır) yükleyiciden gelir; migration'ın tohumu demo org'larını atlar.
+- **Fiyat yok:** Demo org'unun fiyat listesi ve `price_list_service_item` satırı yoktur. Hizmet fiyatsızdır: portal "Fiyat teklifle bildirilir" gösterir, tutar yalnızca tamamlanmış işte operasyonun girdiği tutardır (`quote_total_kurus`).
 - **Hizmet satırları (İP15):** Talep, tarihçe, iş kaydı, kanıt bağları ve `mowing` oturumu, operasyon fonksiyonlarının bırakacağı biçimde doğrudan yazılır. Fonksiyonlar kullanılmaz: demo org'unu reddederler ve bildirim kuyruğa yazarlar. Kanıt fotoğrafları `photo` türünde, işin oturumunda, `service-proof`/`v1` asset'leridir (`ops_add_service_photo` ile aynı).
-- **Tarih ve öneri kartı:** Ziyaretler geçmişte sabittir; yükleme tarihine göre kaydırılmaz. Kartın durumu güne bağlıdır: sezon dışında "ön talep", sezonda "talep edilebilir" (A'nın Temmuz 2026 gözlemi 60 günden eskidir). "Önerilen" durumu demoda hiçbir gün iddia edilmez; doğrulama kartın üç durumdan birinde (açık talep değil) var olduğuna bakar. Veri doğru kalır: uzun ot gözlemi kartta yine görünür.
+- **Tarih ve öneri kartı:** Ziyaretler geçmişte sabittir; yükleme tarihine göre kaydırılmaz. Kartın durumu güne bağlıdır: sezon dışında "ön talep", sezonda "talep edilebilir" (A'nın Temmuz 2026 gözlemi 60 günden eskidir). "Önerilen" durumu demoda hiçbir gün iddia edilmez; doğrulama kartın üç durumdan birinde (açık talep değil) var olduğuna bakar. İki parselde de açık talep olmadığı için kart her gün bir talep ya da ön talep formuna götürür. Veri doğru kalır: uzun ot gözlemi kartta yine görünür.
+- **Kendi işimiz notu:** Karnenin bakım satırındaki not (`lib/services/independence.ts`) gerçek güne değil ziyaret gününe bakar: ziyaretten önceki 365 gündeki işler. B'nin 2026-06-24 işi 2026-07-16 ziyaretinin penceresindedir; not her gün görünür.
 - **Ekleme sırası:**
     1. kişiler, org, üyelikler
     2. düzenek, sensör, kalibrasyon
@@ -589,7 +601,7 @@ A'nın 2026 bulgu türleri: kuruyan dal, gövde yarası ve zamk akıntısı, yap
     4. oturumlar, doğrudan yayımlanmış ya da onaylı olarak (durum güncellemesi yok)
     5. envanter zinciri, kayıtlar, asset'ler, kaynak bağları
     6. ölçümler, değerlendirmeler, bulgular ve kanıt bağları
-    7. hizmet katmanı: ödeme ayarı (`services_enabled`), katalog satırı, B'nin ot biçme işi (kanıt asset'leri, `operation`, talep, tarihçe, fotoğraf bağları), robot notları
+    7. hizmet katmanı: ödeme ayarı (`services_enabled`), katalog satırı, tür başına sezonlar, B'nin ot biçme işi (kanıt asset'leri, `operation`, talep, tarihçe, fotoğraf bağları), robot notları
     8. hissedar profili, `parcel_access`
     9. en son sorular ve cevaplar
     10. kayıt satırı (`loaded_at` null)
@@ -716,14 +728,17 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
         - cevaplı sorular
         - panoramalı ve onaylı envanter
         - A'nın son taramasında yapı, bakım, zararlı ve meyve yükü kodlarının ağaç başına ölçümleri
-        - hizmet kartı (`service_offers`): iki parselde de ot biçme, A'da ot boyu "uzun"; durum önerilen, talep edilebilir ya da ön talep (güne bağlı, açık talep değil)
+        - hizmet kartı (`service_offers`): iki parselde de ot biçme, A'da ot boyu "uzun"; durum önerilen, talep edilebilir ya da ön talep (güne bağlı, açık talep değil); fiyatsız; tür `antep_fistigi`
         - A'nın son yayımlanmış `weed_height` gözlemi
-        - B'de ödenmiş, tamamlanmış talep, tarihçesi talep → planlandı → tamamlandı, sahibin okuyabildiği en az bir öncesi ve bir sonrası fotoğrafı ve bunların `media` nesneleri
+        - B'de tutarı girilmiş, o tutarla ödenmiş, tamamlanmış talep (turun `service_request_id`'si), tarihçesi talep → planlandı → tamamlandı, sahibin okuyabildiği en az bir öncesi ve bir sonrası fotoğrafı ve bunların `media` nesneleri
+        - B'nin bakım notu: son yayımlanmış ziyaretinden önceki 365 günde orchadOS'un yaptığı bir `mowing` işi
     - Postgres olarak şunlar denetlenir:
         - Her `storage://` adresinin iki kovada da nesnesi var.
         - Kişilerin parolası boş (`coalesce(encrypted_password,'') = ''`), yasakları ileri tarihte ve token sütunları dolu (NULL değil).
         - Tek `org_billing_setting` satırı: yalnız `services_enabled` açık.
-        - Katalog satırı veri kümesindeki taslak fiyatla aynı; talebin dondurulmuş tahmini `private.service_quote` ile ve sınır alanıyla tutarlı, onaylanan tutar tahmini aşmıyor.
+        - Katalog satırı veri kümesindekiyle aynı; her meyve türü için bir sezon satırı (1 Mart–30 Haziran); demo org'unda hizmet fiyatı (`price_list_service_item`) yok.
+        - İki parselin türü `antep_fistigi`.
+        - Talepler fiyatsız: sekiz fiyat ve tahmin sütunu boş, alan sınır alanı, planlanmış ya da tamamlanmış işte tutar var.
         - Tamamlanan iş `ops_complete_service_request`'in bıraktığı gibi: `operation` (`mowing`, `crew`, `details.service_request_id`), `captured` `mowing` oturumu, öncesi ve sonrası bağı. Hiçbir iş oturumu yayımlanmış değil.
         - İki robot notu.
         - `public.notification`'da demo org'u için 0 satır var.
@@ -732,7 +747,9 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
 
 - **Aynı build:** İkinci çalıştırma hiçbir satır eklemez ve hiçbir dosya yüklemez.
 - **Yeniden derleme:** Başka bir makinede derlenen kopya farklı bayt üretebilir. Bu yüzden barındırılan projede ön kontrol sürüme ve doğrulamaya bakar, baytlara bakmaz. Yarım kalan bir yükleme yalnızca aynı derlemeyle tamamlanır. Derleme bu yüzden iş akışı artefaktı olarak saklanır.
-- **Yeni sürüm:** Sürüm 2 yeni satırlar ekler, ör. bir 2027 ziyareti. Sürüm 1'e dokunmaz, çünkü veri ekleme-yalnızdır. Yükleyici hedef sürüme kadar bütün sürümleri sırayla uygular. Bu, sürüme göre veri kümesi ve derleme gerektirir; sürüm 2 gelene kadar yükleyici yalnızca `DATASET_VERSION`'ı uygular ve `VERSIONS == (DATASET_VERSION,)` olduğunu iddia eder.
+- **Yeni sürüm:** Yeni sürüm yeni satırlar ekler. Önceki sürümün satırlarına dokunmaz, çünkü veri ekleme-yalnızdır. Yükleyici hedef sürüme kadar bütün sürümleri sırayla uygular.
+- **Birikimli sürümler:** Bir sürümün veri kümesi öncekilerin bütün satırlarını aynı kimliklerle ve aynı medya tohumlarıyla (`SEED_VERSION = 1`) içerir, üstüne kendi satırlarını (`v<sürüm>` kimlikli) ekler; her ekleme `on conflict do nothing`'dir. Son sürümü yüklemek bu yüzden bütün sürümleri sırayla uygulamakla aynıdır. Yükleyici yalnızca `DATASET_VERSION`'ı derler ve uygular (`VERSIONS == (DATASET_VERSION,)`); eski bir sürümle kayıtlı hedefe yalnız satır eklenir ve kayıt satırının sürümü yükselir. Medya baytları başka bir makinede farklı çıkarsa §10.2'deki bayt denetimi yine durdurur.
+- **Sürüm 2 (İP15):** Hizmet katmanı: tür başına sezonlarıyla fiyatsız katalog satırı, `weed_height` ölçümleri, B'nin tamamlanmış ot biçme işi (kanıt fotoğraflarıyla), robot notları, parsellerin türü. Kayıt satırının `tour` alanına `service_request_id` eklenir.
 
 ### 10.4 Barındırılan projeler
 
@@ -867,7 +884,7 @@ Gerçek bir bahçe demo parseli olarak doğrudan **kaydedilmez**. Kaydedilseydi 
 - **Mekanik:**
     - Hedef `document.querySelector('[data-testid=…]')` ile bulunur, `scrollIntoView({block: "center"})` ile görünüme alınır ve dış çizgiyle vurgulanır.
     - Kart modal değildir. Masaüstünde hedefin yanında, mobilde alt sayfa olarak açılır.
-    - Kontroller "Geri / İleri / Turu kapat"; sayaç "3 / 10".
+    - Kontroller "Geri / İleri / Turu kapat"; sayaç "3 / 12".
     - Klavye: Esc kapatır, ok tuşları adım değiştirir. `aria-live="polite"`.
     - Hedef bulunamazsa adım atlanır. Panorama tam ekrandayken kart gizlenir.
 
@@ -881,13 +898,15 @@ Gerçek bir bahçe demo parseli olarak doğrudan **kaydedilmez**. Kaydedilseydi 
 | 6 | `agac` | `/portal/parsel/{A}/agac/{tree}` | `tree-card`, `photo-evidence`, `hash-check` |
 | 7 | `ziyaret` | `/portal/parsel/{A}?ziyaret={previous_session}` | `visit-select`, `parcel-map` (yalnızca harita seçilen ziyareti izler; karne son ziyareti gösterir) |
 | 8 | `envanter` | `/portal/parsel/{A}/envanter` | `inventory-report` |
-| 9 | `pdf` | `/portal/parsel/{A}` | `report-pdf` |
-| 10 | `son` | Herhangi bir sayfa | Kapanış kartı: "Gerçek hesap aç" (bantla aynı kural: hedef `/iletisim` ise "Bize ulaşın"), "Paketleri gör" |
+| 9 | `hizmet-oneri` | `/portal/parsel/{A}` | `service-offers`: ot biçme kartı ve talep düğmesi. "Bahçenizin durumuna ve mevsime göre iş öneriyoruz" |
+| 10 | `hizmet-sonuc` | `/portal/hizmetler/{service_request_id}` | `service-request-proof`: B'nin tamamlanmış işinin öncesi ve sonrası fotoğrafları. "Yapılan iş öncesi ve sonrası fotoğrafla kanıtlanır". `tour.service_request_id` yoksa (sürüm 1) adım atlanır |
+| 11 | `pdf` | `/portal/parsel/{A}` | `report-pdf` |
+| 12 | `son` | Herhangi bir sayfa | Kapanış kartı: "Gerçek hesap aç" (bantla aynı kural: hedef `/iletisim` ise "Bize ulaşın"), "Paketleri gör" |
 
-Hizmet katmanı (İP15) için henüz adım yoktur: veri yüklüdür (§8.2), portaldaki hizmet kartı ve Hizmetlerim bileşenleri birleşince bir adım eklenir.
+Hizmet adımları denetim adımlarından sonra, PDF'ten önce gelir. Hedefleri hizmet bileşenlerinin var olan test kimlikleridir; yeni kimlik eklenmedi.
 
 Yeni test kimlikleri:
-- `demo-banner`, `demo-start`, `demo-exit`, `demo-signup`, `demo-notice`
+- `demo-banner`, `demo-start`, `demo-exit`, `demo-signup`, `demo-notice`, `demo-notice-signup`
 - `landing-demo`, `header-demo`, `login-demo`
 - `guided-tour`, `tour-next`, `tour-prev`, `tour-close`
 
@@ -897,6 +916,7 @@ Görüntü durumu için `tour-viewer` öğesinde zaten bulunan nitelikler kullan
 
 - **Sunucu eylemleri:** Sahip eylemleri (`parsel/[parcelId]/actions.ts`) ve `billing-actions.ts` önce `user.demo`'ya bakar ve "Demoda kapalı" sonucunu döner. Veritabanından gelen `demo_read_only` de aynı mesaja çevrilir.
 - **Bileşenler:** `question-threads`, `viewers-card` ve `boundary-card` bir `demo` prop'u alır. Bu prop varken formların yerine `demo-notice` çizilir; okuma görünümü aynı kalır.
+- **Hizmet talebi (İP15):** Ziyaretçi talep formunu (`/portal/hizmetler/yeni`) gerçek haliyle görür: alan, "Fiyat teklifle bildirilir", tercih edilen zaman, not, sezonda iki onay kutusu ve gönder düğmesi. Gönderince `requestServiceAction` istemci açmadan `?hata=demo_read_only` ile forma döner; form hata kutusu yerine `demo-notice` gösterir: "Demoda talep gönderilmez. Kayıt olun, kendi bahçeniz için ot biçme talep edin." ve "Gerçek hesap aç" (`demo-notice-signup`, bantla aynı kural ve `exitDemoAction`). Metin `demoText.closed.services`. İptal eylemi de aynı yolla reddeder. Eylem katmanı testi (§20) hizmet eylemlerini de kapsar.
 
 ### 11.6 PDF ve medya
 
@@ -1030,7 +1050,7 @@ Veritabanı ayarları ortam değişkeni değildir; `private.demo_org` satırınd
 - **E2E (C), `demo-tour.spec.ts`:** Global setup `pnpm db:demo-tour --profile test --reset-local` çalıştırır; CI'da `uv` kurulur. Senaryo:
     1. landing CTA → `/demo` → başlat
     2. bant görünür
-    3. rehberli turun 10 adımı
+    3. rehberli turun 12 adımı
     4. gezide `data-loaded="true"`; `data-image` "placeholder" değil; görüntü `demo-media` adresinden gelir
     5. ağaç karnesinde hash doğrulaması geçer
     6. karnede boyutlar görünür
@@ -1256,6 +1276,6 @@ Akışların birleşen koddaki sapmaları; yukarıdaki bölümler tasarım olara
 - **Görüntü sınırı:** `signTourImagesAction` sınır aşılınca boş nesne yerine her kimlik için `null` döner; boş nesne gezi bileşeninde aynı görüntüleri sonsuza dek yeniden isterdi. Görüntüler yer tutucuyla açılır; ayrı bir not gösterilmez.
 - **Bant:** Telefonda tek satır kalsın diye "Turu başlat" yalnızca 720 px ve üstünde bantta görünür; telefonda aynı düğme kabuk başlığında, "Bahçelerim (örnek)"in yanındadır (`demo-tour-start-mobile`), böylece kapatılan tur her zaman yeniden açılır. Yazdırmada bandın metni basılır, düğmeleri basılmaz.
 - **Rehberli tur:** Masaüstünde kart, hedefin sağında ya da solunda yer varsa yanına, yoksa sağ alta yerleşir; mobilde alt sayfadır. Hedefler 8 saniye içinde bulunamazsa adım, gidiş yönünde atlanır. Kapatınca `?tur` adresten kaldırılır; yeni bir demo başlatılınca "kapatıldı" bilgisi silinir. Kart adımlar arasında takılı kalır (yeni adımın hedefleri aranırken `aria-busy`), böylece klavye odağı kaybolmaz; ziyaretçinin başlattığı adım değişikliğinde odak kart başlığına geçer. `aria-live` bölgesi kartın dışında sürekli durur ve her adımı duyurur. Ok tuşları ve Esc yalnızca odak kartın içindeyken ya da sayfada odaklı bir öğe yokken tura gider; harita, 360° gezi ve öteki bileşenler kendi tuşlarını korur.
-- **Eylem katmanı testi:** `src/app/portal/demo-actions.test.ts` parsel ve faturalama modüllerinin bütün dışa açık eylemlerini demo kullanıcısıyla çağırır; her biri istemci açmadan `demo_read_only` ile reddetmelidir. Sonradan eklenen bir eylem de otomatik olarak kapsanır.
+- **Eylem katmanı testi:** `src/app/portal/demo-actions.test.ts` parsel, faturalama ve hizmet talebi (`hizmetler/actions.ts`) modüllerinin bütün dışa açık eylemlerini demo kullanıcısıyla çağırır; her biri istemci açmadan `demo_read_only` ile reddetmelidir. Sonradan eklenen bir eylem de otomatik olarak kapsanır.
 - **Gizlilik metni:** Demo paragrafı artık `gizlilik-v2-taslak` metninin "5. Demo turu" bölümüdür ([hukuk/gizlilik-cerez-politikasi-taslagi.md](hukuk/gizlilik-cerez-politikasi-taslagi.md), [hukuk/kararlar.md](hukuk/kararlar.md) H27); `/gizlilik` sayfası onu diğer bölümlerle birlikte gösterir, ayrı bir `demoText.privacy` yoktur. Yayını [yayın şartlarına](hukuk/kararlar.md#yayin) bağlıdır.
 - **E2E:** `demo-tour.spec.ts`, global kurulumun `ORCHADOS_E2E_DEMO_TOUR` ortam değişkeniyle çalışır; veri yüklenemezse yerelde atlanır, CI'da kurulum başarısız olur.

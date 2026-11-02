@@ -20,6 +20,8 @@ import { CropCompare, CropGrid } from "./crop-grid";
 import { DecisionPanel } from "./decision-panel";
 import styles from "./expert.module.css";
 import staff from "@/components/staff-page.module.css";
+import { SpeciesNotice } from "@/components/species-notice";
+import { hasPistachioMethodology } from "@/lib/species";
 import { FindingForm } from "./finding-form";
 import { FindingList } from "./finding-list";
 import { FollowupPanel } from "./followup-panel";
@@ -177,6 +179,7 @@ export function ReviewView({
           </ButtonLink>
         }
       />
+      <SpeciesNotice species={s.parcelSpecies} />
       {notice && <div className={styles.notices}>{notice}</div>}
       {(messages.error || messages.findingError) && (
         <div className={styles.notices}>
@@ -371,7 +374,13 @@ export function ReviewView({
                   <h3>{r.attributes}</h3>
                   <Facts
                     rows={[
-                      [t.tree.sex, t.tree.values.sex[selected.sex]],
+                      ...(selected.speciesLabel
+                        ? ([[t.species.treeSpecies, selected.speciesLabel]] as [string, string][])
+                        : []),
+                      // Tree sex: pistachio only (lib/species.ts).
+                      ...(hasPistachioMethodology(selected.species)
+                        ? ([[t.tree.sex, t.tree.values.sex[selected.sex]]] as [string, string][])
+                        : []),
                       [t.tree.graft, t.tree.values.graft[selected.graft]],
                       [t.tree.ageClass, t.tree.values.ageClass[selected.ageClass]],
                       [t.tree.cultivar, selected.cultivar ?? t.tree.unknown],
@@ -421,6 +430,7 @@ export function ReviewView({
                               returnPath={returnPath}
                               evidenceOptions={detail.crops.current}
                               submitLabel={t.expert.findings.add}
+                              species={selected.species}
                             />
                           </details>
                         )}

@@ -12,6 +12,7 @@ import {
   type Position,
 } from "@/lib/map/geo";
 import { markerState, type HealthClass, type MarkerState } from "@/lib/map/tree-style";
+import { effectiveSpecies, treeSpeciesLabel } from "@/lib/species";
 import { fetchAll, UUID_RE } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
 
@@ -30,13 +31,14 @@ export type ParcelSummary = Pick<
   | "estimated_area_m2"
   | "estimated_tree_count"
   | "status"
+  | "species"
 >;
 
 export async function listParcels(supabase: Client): Promise<ParcelSummary[]> {
   const { data, error } = await supabase
     .from("parcel")
     .select(
-      "id, name, province, district, village, estimated_area_m2, estimated_tree_count, status",
+      "id, name, province, district, village, estimated_area_m2, estimated_tree_count, status, species",
     )
     .order("name");
   if (error) throw error;
@@ -53,6 +55,10 @@ export interface TreeInfo {
   status: Enums["tree_status"];
   firstSeenAt: string | null;
   health: HealthClass | null;
+  // Effective fruit species (the tree's override, else the parcel's) and its
+  // name when it differs from the parcel's (lib/species.ts).
+  species: string;
+  speciesLabel: string | null;
 }
 
 export interface SlotProperties {
@@ -82,7 +88,7 @@ export async function getParcelMap(
   const { data: parcel, error: parcelError } = await supabase
     .from("parcel")
     .select(
-      "id, name, province, district, village, estimated_area_m2, estimated_tree_count, status",
+      "id, name, province, district, village, estimated_area_m2, estimated_tree_count, status, species",
     )
     .eq("id", parcelId)
     .maybeSingle();
@@ -101,7 +107,7 @@ export async function getParcelMap(
       supabase
         .from("slot")
         .select(
-          "id, code, kind, position::json, tree(id, sex, graft, age_class, stem_form, cultivar, status, first_seen_at)",
+          "id, code, kind, position::json, tree(id, sex, graft, age_class, stem_form, cultivar, status, first_seen_at, species)",
         )
         .eq("parcel_id", parcelId)
         .order("row_no")
@@ -137,6 +143,8 @@ export async function getParcelMap(
         cultivar: tree.cultivar,
         status: tree.status,
         firstSeenAt: tree.first_seen_at,
+        species: effectiveSpecies(tree, parcel),
+        speciesLabel: treeSpeciesLabel(tree.species, parcel.species),
       })),
     })),
     latestHealth,

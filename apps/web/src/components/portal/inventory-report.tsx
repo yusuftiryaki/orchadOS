@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
+import { hasPistachioMethodology } from "@/lib/species";
 
 // Owner's inventory report (src/lib/portal/inventory-report.ts): sections in
 // the order of the expert agent's proposal, plain language, counts only.
@@ -214,7 +215,8 @@ export function InventoryReportView({
                 />
               )}
             </div>
-            <p className="muted">{r.sexNote}</p>
+            {/* Tree sex: pistachio only (lib/species.ts). */}
+            {hasPistachioMethodology(report.parcel.species) && <p className="muted">{r.sexNote}</p>}
           </section>
 
           <section className={layout.section} aria-labelledby="gozlem">

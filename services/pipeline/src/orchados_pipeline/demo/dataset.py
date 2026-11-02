@@ -1,8 +1,14 @@
 # ruff: noqa: E501 - Turkish texts of the dataset read better unwrapped
-"""The demo dataset, version 1 (docs/demo-turu.md §8): parcels, slots, trees, visits,
-their per-tree classes and values, findings, close-ups and questions.
+"""The demo dataset, version 2 (docs/demo-turu.md §8): parcels, slots, trees, visits,
+their per-tree classes and values, findings, close-ups and questions (version 1),
+and the service layer (version 2: weed observations, the weed mowing catalogue
+row and its season per fruit species, a done mowing job with proof photos).
 
-Pure and deterministic: every random choice is seeded from (version, key)
+Versions are cumulative: version 2 holds every row of version 1 with the same ids
+and the same media seeds, plus its own rows, whose ids carry v2 (ids.did). Loading
+version 2 onto a version 1 target only adds rows (docs/demo-turu.md §10.3).
+
+Pure and deterministic: every random choice is seeded from (SEED_VERSION, key)
 (rng()). The renderer (render.py) draws what this module says, the SQL emitter
 (sqlgen.py) writes the same facts as rows.
 
@@ -18,7 +24,6 @@ import hashlib
 import math
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from fractions import Fraction
 from functools import cached_property
 
 import numpy as np
@@ -27,7 +32,15 @@ from ..geo import LocalFrame
 from . import ids
 
 DATASET_NAME = "orchados-demo"
-DATASET_VERSION = 1
+DATASET_VERSION = 2
+# Media and value seeds stay those of version 1, so the rows and files of version
+# 1 come out the same in every later version (cumulative versions, §10.3).
+SEED_VERSION = 1
+# The version that introduced the service layer rows: their derived ids.
+SERVICES_VERSION = 2
+# Fruit species of the demo parcels (public.fruit_species): pistachio, the
+# species the methodology covers.
+DEMO_SPECIES = "antep_fistigi"
 # Producer of every algorithmic row and file: pipeline name and version.
 PRODUCER = "orchados-demo"
 PRODUCER_VERSION = "1"
@@ -39,8 +52,8 @@ TODAY = datetime(2026, 10, 28, tzinfo=UTC)
 CLASSES = ("healthy", "attention", "problem", "dead", "absent")
 
 
-def rng(key: str, version: int = DATASET_VERSION) -> np.random.Generator:
-    """Generator seeded from (dataset version, key)."""
+def rng(key: str, version: int = SEED_VERSION) -> np.random.Generator:
+    """Generator seeded from (seed version, key)."""
     digest = hashlib.sha256(f"{DATASET_NAME}:v{version}:{key}".encode()).digest()
     return np.random.default_rng(int.from_bytes(digest[:8], "little"))
 
@@ -912,19 +925,16 @@ FIELD_PROTOCOL = {"spring": "spring-v0.2", "summer": "summer-v0.3"}
 SEASON_OF_MONTH = {6: "summer", 7: "summer"}
 FIELD_QUESTION_METHOD = "field_question"
 
-# The demo org's catalogue row: the draft launch price of docs/MVP.md Module 6, as
-# the migration seeds it for other orgs (20261106100100_service_layer.sql skips
-# demo orgs).
+# The demo org's catalogue row, as the migration seeds it for other orgs
+# (20261106100100_service_layer.sql skips demo orgs). No price: prices live in the
+# versioned price list (price_list_service_item) and the demo org has none, so the
+# portal shows "Fiyat teklifle bildirilir" and ops enters the amount of a job.
 SERVICE_TYPE = {
     "code": "weed_mowing",
     "name": "Yabani ot biçme",
     "description": "orchadOS ot biçme hizmeti: parseldeki yabani otlar motorlu tırpanla biçilir. "
     "Öncesi ve sonrası fotoğrafları parsel kaydına eklenir.",
     "operation_kind": "mowing",
-    "price_per_donum_kurus": 37500,
-    "minimum_fee_kurus": 250000,
-    "vat_rate_bp": 2000,
-    "price_is_draft": True,
     "season_start_month": 3,
     "season_start_day": 1,
     "season_end_month": 6,
@@ -933,40 +943,12 @@ SERVICE_TYPE = {
     "observation_max_age_days": 60,
     "sort_order": 10,
 }
+# Season window of the service per fruit species (public.service_type_season), as
+# the migration seeds it: 1 March - 30 June for every species in public.fruit_species.
+SERVICE_SEASON = (3, 1, 6, 30)
 # Service terms the owner accepted (20261106300000_legal_text_service_terms.sql).
 SERVICE_TERMS_VERSION = "bakim-v1-taslak"
 PRICING_RULE = "service-v1"
-
-
-def _round_half_up(x: Fraction) -> int:
-    """Postgres round() of a positive numeric: half away from zero."""
-    return math.floor(x + Fraction(1, 2))
-
-
-def service_quote(
-    area_m2: float, price_per_donum_kurus: int, minimum_fee_kurus: int, vat_rate_bp: int
-) -> tuple[int, int, int]:
-    """private.service_quote (service-v1): max(ceil(area/100) x price / 10, minimum) + VAT.
-
-    Exact arithmetic, as Postgres numeric; returns (subtotal, vat, total) in kuruş.
-    """
-    if area_m2 <= 0 or price_per_donum_kurus <= 0 or minimum_fee_kurus < 0:
-        raise ValueError("invalid quote input")
-    if not 0 <= vat_rate_bp <= 10000:
-        raise ValueError("invalid VAT rate")
-    area = Fraction(_round_half_up(Fraction(area_m2) * 100), 100)
-    tenths = math.ceil(area / 100)
-    subtotal = max(_round_half_up(Fraction(tenths * price_per_donum_kurus, 10)), minimum_fee_kurus)
-    vat = _round_half_up(Fraction(subtotal * vat_rate_bp, 10000))
-    return subtotal, vat, subtotal + vat
-
-
-def polygon_area_m2(points: tuple[tuple[float, float], ...]) -> float:
-    """Shoelace area of a local-metre polygon (the boundary's geography area within cm²)."""
-    s = 0.0
-    for (x0, y0), (x1, y1) in zip(points, points[1:] + points[:1], strict=True):
-        s += x0 * y1 - x1 * y0
-    return abs(s) / 2
 
 
 @dataclass(frozen=True)
@@ -983,8 +965,10 @@ class ServicePhoto:
 class ServiceJob:
     """A done weed mowing job: request, schedule, the crew's day, proof photos, payment.
 
-    In the 2026 season, after B's inventory (the quote needs the walked boundary) and
-    before its July scan. The owner asked for an early job inside the 14-day
+    In the 2026 season, after B's inventory and
+    before its July scan; the request needs the walked boundary's area. The
+    service was not priced, so the request froze no estimate and ops entered the
+    amount when scheduling. The owner asked for an early job inside the 14-day
     withdrawal period (H37), so the day is nine days after the request.
     """
 
@@ -1003,33 +987,22 @@ class ServiceJob:
     completed_on: str
     payment_on: str
     payment_method: str
+    # The amount ops entered when scheduling (VAT included): the service had no
+    # price in a published price list, so the request froze no estimate.
+    quote_total_kurus: int
     photos: tuple[ServicePhoto, ...]
-
-    @property
-    def id(self) -> str:
-        """The job's session (kind mowing): media are filed under it."""
-        return ids.did("session", self.key)
-
-    @property
-    def request_id(self) -> str:
-        return ids.did("service_request", self.key)
+    # Fixed ids (docs/demo-turu.md §8.1): the job's session (kind mowing, media
+    # are filed under it) and the request (the guided tour opens its page).
+    id: str
+    request_id: str
 
     @property
     def operation_id(self) -> str:
-        return ids.did("operation", self.key)
+        return ids.did("operation", self.key, SERVICES_VERSION)
 
     @property
     def season_year(self) -> int:
         return self.requested_at.year
-
-    def quote(self) -> tuple[int, int, int]:
-        t = SERVICE_TYPE
-        return service_quote(
-            polygon_area_m2(self.parcel.boundary),
-            t["price_per_donum_kurus"],
-            t["minimum_fee_kurus"],
-            t["vat_rate_bp"],
-        )
 
 
 SERVICE_JOBS = (
@@ -1049,10 +1022,13 @@ SERVICE_JOBS = (
         completed_on="2026-06-24",
         payment_on="2026-06-26",
         payment_method="transfer",
+        quote_total_kurus=300000,
         photos=(
             ServicePhoto("before", "grass_tall", utc("2026-06-24 05:12")),
             ServicePhoto("after", "grass_mowed", utc("2026-06-24 08:41")),
         ),
+        id=ids.B_MOWING_2026,
+        request_id=ids.B_MOWING_2026_REQUEST,
     ),
 )
 
@@ -1101,11 +1077,13 @@ class Dataset:
             "session_id": ids.A_SCAN_2026,
             "previous_session_id": ids.A_SCAN_2025,
             "inventory_session_id": ids.A_INVENTORY,
+            # Version 2: the done mowing job of parcel B (guided tour, hizmet-sonuc).
+            "service_request_id": SERVICE_JOBS[0].request_id,
         }
 
 
 def load(version: int = DATASET_VERSION) -> Dataset:
-    if version != 1:
+    if version != DATASET_VERSION:
         raise ValueError(f"unknown demo dataset version {version}")
     slots, trees = {}, {}
     for p in PARCELS:

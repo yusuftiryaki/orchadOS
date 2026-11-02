@@ -70,3 +70,10 @@
   align-items: flex-end;
   gap: var(--space-3);
 }
+
+/* Catalogue: the sub-sections of a service (price, default season). */
+.subTitle {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--text-base);
+  font-weight: 600;
+}

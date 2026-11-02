@@ -40,10 +40,13 @@ REPO = PIPELINE_ROOT.parents[1]
 CONTAINER = os.environ.get("DEMO_DB_CONTAINER", "supabase_db_orchados")
 MIRROR = "demo-media"
 CACHE_CONTROL = "max-age=31536000"
-# Dataset versions. Applying several in order (docs/demo-turu.md §10.3) needs a
-# per-version dataset and build; until v2 exists only DATASET_VERSION is loaded.
-VERSIONS = (1,)
-assert VERSIONS == (DATASET_VERSION,), "multi-version loading is not implemented"
+# Dataset versions (docs/demo-turu.md §10.3). Versions are cumulative: version 2
+# holds every row of version 1 with the same ids and media seeds, plus its own
+# rows (ids v2), and every insert is "on conflict do nothing". Loading the latest
+# version is therefore applying all versions in order, and a target registered
+# at an older version only gains rows. Only DATASET_VERSION is built and loaded.
+VERSIONS = (2,)
+assert VERSIONS == (DATASET_VERSION,), "the loader applies the latest (cumulative) version"
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 KEY = re.compile(rf"^org/{UUID}/parcel/{UUID}/[0-9a-f]{{64}}$")

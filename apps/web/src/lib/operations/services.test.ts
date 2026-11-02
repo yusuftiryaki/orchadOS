@@ -11,6 +11,7 @@ import {
   parsePayment,
   parseRobotNote,
   parseSchedule,
+  parseSpeciesSeason,
   parseServiceType,
   proofPhotoIssue,
   proofPhotoPath,
@@ -121,6 +122,25 @@ describe("parseSchedule", () => {
     ).toMatchObject({ ok: true, value: { quoteTotalKurus: 900000 } });
   });
 
+  it("unpriced (no frozen estimate): the amount is required, any amount, kept on a new day", () => {
+    const unpriced = { ...context, estimateTotalKurus: null };
+    expect(parseSchedule(reader({ scheduled_date: "2026-11-20" }), unpriced)).toEqual({
+      ok: false,
+      error: "invalid_input",
+      field: "quote_total",
+    });
+    expect(
+      parseSchedule(reader({ scheduled_date: "2026-11-20", quote_total: "12.345" }), unpriced),
+    ).toMatchObject({ ok: true, value: { quoteTotalKurus: 1234500 } });
+    // Already confirmed: moving the day keeps it (null to the function).
+    expect(
+      parseSchedule(reader({ scheduled_date: "2026-11-21" }), {
+        ...unpriced,
+        quoteTotalKurus: 1234500,
+      }),
+    ).toMatchObject({ ok: true, value: { quoteTotalKurus: null } });
+  });
+
   it("names the bad field", () => {
     for (const [values, field] of [
       [{ scheduled_date: "" }, "scheduled_date"],
@@ -201,10 +221,6 @@ describe("other request forms", () => {
 
 describe("parseServiceType", () => {
   const values = {
-    price: "375",
-    minimum_fee: "2.500",
-    vat_rate: "20",
-    price_is_draft: "on",
     season_start_month: "3",
     season_start_day: "1",
     season_end_month: "6",
@@ -214,14 +230,10 @@ describe("parseServiceType", () => {
     active: "on",
   };
 
-  it("reads TL excluding VAT, percent and the season", () => {
+  it("reads the default season, the recommendation rule and active (no prices)", () => {
     expect(parseServiceType(reader(values))).toEqual({
       ok: true,
       value: {
-        pricePerDonumKurus: 37500,
-        minimumFeeKurus: 250000,
-        vatRateBp: 2000,
-        priceIsDraft: true,
         seasonStartMonth: 3,
         seasonStartDay: 1,
         seasonEndMonth: 6,
@@ -232,33 +244,54 @@ describe("parseServiceType", () => {
       },
     });
     expect(
-      parseServiceType(
-        reader({ ...values, price_is_draft: "", active: "", recommend_from: "", minimum_fee: "" }),
-      ),
-    ).toMatchObject({
+      parseServiceType(reader({ ...values, active: "", recommend_from: "", price: "375" })),
+    ).toEqual({
       ok: true,
-      value: {
-        priceIsDraft: false,
-        active: false,
-        recommendFromWeedHeight: null,
-        minimumFeeKurus: 0,
-      },
+      value: expect.objectContaining({ active: false, recommendFromWeedHeight: null }),
     });
+    const parsed = parseServiceType(reader({ ...values, price: "375" }));
+    expect(parsed.ok && "pricePerDonumKurus" in parsed.value).toBe(false);
   });
 
   it("names the bad field", () => {
     for (const [patch, field] of [
-      [{ price: "0" }, "price"],
-      [{ minimum_fee: "-1" }, "minimum_fee"],
-      [{ vat_rate: "101" }, "vat_rate"],
-      [{ vat_rate: "" }, "vat_rate"],
       [{ season_end_month: "2", season_end_day: "29" }, "season"],
       [{ season_end_month: "3", season_end_day: "1" }, "season"],
+      [{ season_start_month: "" }, "season"],
       [{ recommend_from: "short" }, "recommend_from"],
       [{ observation_max_age_days: "366" }, "observation_max_age_days"],
     ] as const) {
       expect(parseServiceType(reader({ ...values, ...patch }))).toMatchObject({ ok: false, field });
     }
+  });
+
+  it("parseSpeciesSeason: a species code and a window", () => {
+    expect(
+      parseSpeciesSeason(
+        reader({
+          species: "zeytin",
+          season_start_month: "11",
+          season_start_day: "1",
+          season_end_month: "2",
+          season_end_day: "28",
+        }),
+      ),
+    ).toEqual({
+      ok: true,
+      value: {
+        species: "zeytin",
+        seasonStartMonth: 11,
+        seasonStartDay: 1,
+        seasonEndMonth: 2,
+        seasonEndDay: 28,
+      },
+    });
+    expect(parseSpeciesSeason(reader({ ...values, species: "Zeytin" }))).toMatchObject({
+      field: "species",
+    });
+    expect(
+      parseSpeciesSeason(reader({ ...values, species: "zeytin", season_end_day: "31" })),
+    ).toMatchObject({ field: "season" });
   });
 
   it("knows the valid month days", () => {

@@ -1,4 +1,5 @@
 import type { Position } from "@/lib/map/geo";
+import { SPECIES_CODE_RE } from "@/lib/species";
 import { isUuid } from "@/lib/supabase/query";
 import { donumToM2, parseRing, validateRing, type RingError } from "./geometry";
 import { isIsoDate, isVisitKind, type VisitKind } from "./visits";
@@ -205,6 +206,7 @@ export const PARCEL_FIELDS = [
   "area_m2",
   "area_donum",
   "irrigation",
+  "species",
   "tree_count",
   "lat",
   "lon",
@@ -221,6 +223,8 @@ export interface ParcelInput {
   village: string | null;
   estimatedAreaM2: number | null;
   irrigation: Irrigation;
+  // Main fruit species (public.fruit_species code; the database checks it).
+  species: string;
   estimatedTreeCount: number | null;
   position: { lon: number; lat: number; uncertaintyM: number } | null;
   boundary: Position[] | null;
@@ -248,6 +252,11 @@ export function parseParcelForm(read: Read): Parsed<ParcelInput, ParcelField> {
   else if (typeof donum === "number") estimatedAreaM2 = Math.round(donumToM2(donum) * 100) / 100;
 
   const irrigation = choice(errs, read, "irrigation", IRRIGATION, false) ?? "unknown";
+
+  // Required, no default on a new parcel (the options are public.fruit_species).
+  const species = read("species").trim();
+  if (species === "") errs.set("species", "required");
+  else if (!SPECIES_CODE_RE.test(species)) errs.set("species", "invalid");
 
   let estimatedTreeCount: number | null = null;
   const trees = read("tree_count").trim();
@@ -296,6 +305,7 @@ export function parseParcelForm(read: Read): Parsed<ParcelInput, ParcelField> {
       village,
       estimatedAreaM2,
       irrigation,
+      species,
       estimatedTreeCount,
       position,
       boundary,

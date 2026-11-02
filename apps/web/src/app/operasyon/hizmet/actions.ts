@@ -16,6 +16,7 @@ import {
   parseRobotNote,
   parseSchedule,
   parseServiceType,
+  parseSpeciesSeason,
   proofPhotoIssue,
   proofPhotoPath,
   serviceErrorText,
@@ -71,7 +72,7 @@ async function readTerms(supabase: Awaited<ReturnType<typeof createClient>>, id:
   const { data } = await supabase
     .from("service_request")
     .select(
-      "id, org_id, parcel_id, status, created_at, early_performance_requested, estimate_total_kurus",
+      "id, org_id, parcel_id, status, created_at, early_performance_requested, estimate_total_kurus, quote_total_kurus",
     )
     .eq("id", id)
     .maybeSingle();
@@ -92,6 +93,7 @@ export async function scheduleServiceAction(
     today,
     earliest: earliestServiceDate(request, today),
     estimateTotalKurus: request.estimate_total_kurus,
+    quoteTotalKurus: request.quote_total_kurus,
   });
   if (!parsed.ok) return fail(parsed);
   const { error } = await supabase.rpc("ops_schedule_service_request", {
@@ -249,10 +251,6 @@ export async function updateServiceTypeAction(
   const v = parsed.value;
   const { error } = await supabase.rpc("ops_update_service_type", {
     p_id: id,
-    p_price_per_donum_kurus: v.pricePerDonumKurus,
-    p_minimum_fee_kurus: v.minimumFeeKurus,
-    p_vat_rate_bp: v.vatRateBp,
-    p_price_is_draft: v.priceIsDraft,
     p_season_start_month: v.seasonStartMonth,
     p_season_start_day: v.seasonStartDay,
     p_season_end_month: v.seasonEndMonth,
@@ -264,6 +262,31 @@ export async function updateServiceTypeAction(
   if (error) return fail(serviceFailureOf(error));
   const org = read("org");
   done(serviceHref.catalog("type_saved", isUuid(org) ? org : null));
+}
+
+// The season window of a service for one fruit species (catalogue page).
+export async function saveServiceSeasonAction(
+  _prev: BoFormState,
+  form: FormData,
+): Promise<BoFormState> {
+  const supabase = await context();
+  const read = formReader(form);
+  const id = read("service_type_id");
+  if (!isUuid(id)) return notFound;
+  const parsed = parseSpeciesSeason(read);
+  if (!parsed.ok) return fail(parsed);
+  const v = parsed.value;
+  const { error } = await supabase.rpc("ops_save_service_season", {
+    p_service_type_id: id,
+    p_species: v.species,
+    p_season_start_month: v.seasonStartMonth,
+    p_season_start_day: v.seasonStartDay,
+    p_season_end_month: v.seasonEndMonth,
+    p_season_end_day: v.seasonEndDay,
+  });
+  if (error) return fail(serviceFailureOf(error));
+  const org = read("org");
+  done(serviceHref.catalog("season_saved", isUuid(org) ? org : null));
 }
 
 // Robot suitability note of a parcel, written directly under row level

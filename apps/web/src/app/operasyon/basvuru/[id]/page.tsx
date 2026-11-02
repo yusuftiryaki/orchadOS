@@ -52,6 +52,7 @@ import { formatNumber, t } from "@/lib/i18n";
 import { backOfficeText } from "@/lib/i18n/messages/back-office";
 import { billingText } from "@/lib/i18n/messages/billing";
 import { opsHref } from "@/lib/operations/urls";
+import { speciesName } from "@/lib/species";
 import { createClient } from "@/lib/supabase/server";
 
 const B = backOfficeText;
@@ -321,6 +322,7 @@ export default async function Page({
               <tr>
                 <th>{T.garden}</th>
                 <th>{T.location}</th>
+                <th>{T.species}</th>
                 <th className={cell.num}>{T.declared}</th>
                 <th className={cell.num}>{T.verifiedArea}</th>
                 <th className={q.anchor}>
@@ -346,6 +348,7 @@ export default async function Page({
                     )}
                   </td>
                   <td>{[g.village, g.district, g.province].filter(Boolean).join(", ")}</td>
+                  <td data-testid="garden-species">{speciesName(g.species)}</td>
                   <td className={cell.num}>{formatDonum(Number(g.declared_area_m2))}</td>
                   <td className={cell.num}>
                     {g.verified_area_m2 != null ? (

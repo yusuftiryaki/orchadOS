@@ -10,6 +10,12 @@ import { Constants } from "@/lib/database.types";
 import { t } from "@/lib/i18n";
 import type { EditResult, TreeAttributes } from "@/lib/office/inventory-edits";
 import type { WorkspaceSlot } from "@/lib/office/inventory-workspace";
+import {
+  effectiveSpecies,
+  hasPistachioMethodology,
+  speciesName,
+  type FruitSpecies,
+} from "@/lib/species";
 import styles from "./inventory.module.css";
 
 // Tree attributes of a saved inventory (MVP Module 2, step 6): age class,
@@ -17,11 +23,16 @@ import styles from "./inventory.module.css";
 // Bulk selection: a whole row, everything shown, or trees clicked on the map
 // (the selection is the parent's, shared with the map). The office sets the
 // first values; the expert corrects them (and the sex, later in spring).
+// Fruit species: the parcel's by default; a tree of another species in a mixed
+// orchard gets an override. The sex is asked for pistachio trees only
+// (lib/species.ts).
 
 type Enums = Database["public"]["Enums"];
 const E = Constants.public.Enums;
 const a = t.inventory.attributes;
 const values = t.tree.values;
+// The bulk species choice that clears the override (not a species code).
+const PARCEL_SPECIES = "__parcel";
 
 export function TreeAttributeEditor({
   slots,
@@ -29,6 +40,8 @@ export function TreeAttributeEditor({
   onSelectionChange,
   onApply,
   showSex = false,
+  parcelSpecies,
+  speciesOptions,
 }: {
   slots: WorkspaceSlot[];
   // Selected slot ids.
@@ -36,12 +49,16 @@ export function TreeAttributeEditor({
   onSelectionChange: (next: Set<string>) => void;
   onApply: (treeIds: string[], attributes: TreeAttributes) => Promise<EditResult>;
   showSex?: boolean;
+  parcelSpecies: string;
+  speciesOptions: FruitSpecies[];
 }) {
   const [row, setRow] = useState<number | "all">("all");
   const [ageClass, setAgeClass] = useState<Enums["age_class"] | "">("");
   const [graft, setGraft] = useState<Enums["graft_status"] | "">("");
   const [stemForm, setStemForm] = useState<Enums["stem_form"] | "">("");
   const [sex, setSex] = useState<Enums["tree_sex"] | "">("");
+  // "" keeps, PARCEL_SPECIES clears the override, a code sets it.
+  const [species, setSpecies] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
   const idBase = useId();
@@ -67,6 +84,7 @@ export function TreeAttributeEditor({
       ...(graft ? { graft } : {}),
       ...(stemForm ? { stemForm } : {}),
       ...(sex ? { sex } : {}),
+      ...(species ? { species: species === PARCEL_SPECIES ? null : species } : {}),
     };
     setMessage(null);
     startTransition(async () => {
@@ -84,7 +102,13 @@ export function TreeAttributeEditor({
 
   if (withTrees.length === 0) return <p className="muted">{a.noTrees}</p>;
 
-  const nothingToApply = !ageClass && !graft && !stemForm && !sex;
+  const nothingToApply = !ageClass && !graft && !stemForm && !sex && !species;
+  const pistachio = (s: WorkspaceSlot) =>
+    hasPistachioMethodology(effectiveSpecies(s.tree, { species: parcelSpecies }));
+  // Sex: pistachio parcels only (a pistachio tree in another orchard is rare
+  // enough to be set from the expert's tree view).
+  const sexShown = showSex && hasPistachioMethodology(parcelSpecies);
+  const sexColumn = withTrees.some(pistachio);
   const bulk: {
     key: string;
     label: string;
@@ -121,7 +145,19 @@ export function TreeAttributeEditor({
       set: (x) => setStemForm(x as Enums["stem_form"] | ""),
       testId: "bulk-stem",
     },
-    ...(showSex
+    {
+      key: "species",
+      label: a.columns.species,
+      value: species,
+      options: [PARCEL_SPECIES, ...speciesOptions.map((x) => x.code)],
+      names: {
+        [PARCEL_SPECIES]: t.species.parcelDefault(speciesName(parcelSpecies)),
+        ...Object.fromEntries(speciesOptions.map((x) => [x.code, x.name])),
+      },
+      set: setSpecies,
+      testId: "bulk-species",
+    },
+    ...(sexShown
       ? [
           {
             key: "sex",
@@ -226,7 +262,8 @@ export function TreeAttributeEditor({
               <th>{a.columns.ageClass}</th>
               <th>{a.columns.graft}</th>
               <th>{a.columns.stemForm}</th>
-              <th>{a.columns.sex}</th>
+              <th>{a.columns.species}</th>
+              {sexColumn && <th>{a.columns.sex}</th>}
             </tr>
           </thead>
           <tbody>
@@ -250,7 +287,14 @@ export function TreeAttributeEditor({
                 <td>{values.ageClass[s.tree!.ageClass]}</td>
                 <td>{values.graft[s.tree!.graft]}</td>
                 <td>{values.stemForm[s.tree!.stemForm]}</td>
-                <td>{values.sex[s.tree!.sex]}</td>
+                <td data-testid="tree-species">
+                  {s.tree!.species && s.tree!.species !== parcelSpecies ? (
+                    speciesName(s.tree!.species)
+                  ) : (
+                    <span className="muted">{a.parcelSpecies}</span>
+                  )}
+                </td>
+                {sexColumn && <td>{pistachio(s) ? values.sex[s.tree!.sex] : a.notApplicable}</td>}
               </tr>
             ))}
           </tbody>

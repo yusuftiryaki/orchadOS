@@ -19,6 +19,7 @@ import {
   recordVisitPhoneNotice,
   revokeAccess,
   setParcelPassive,
+  setParcelSpecies,
   updateOwner,
   updateParcel,
   updateVisit,
@@ -296,6 +297,21 @@ export async function setParcelPassiveAction(form: FormData) {
       parcelId,
       result.ok ? { notice: passive ? "passive" : "resumed" } : { error: result.error },
     ),
+  );
+}
+
+// The main fruit species (a small form on the parcel page). A demo session
+// writes nothing.
+export async function setParcelSpeciesAction(form: FormData) {
+  const { user, supabase } = await context();
+  const read = formReader(form);
+  const parcelId = read("parcel_id");
+  if (!isUuid(parcelId)) redirect(opsHref.dashboard());
+  if (user.demo) redirect(opsHref.parcel(parcelId, { error: "forbidden" }));
+  const result = await setParcelSpecies(supabase, parcelId, read("species").trim());
+  revalidatePath(opsHref.parcel(parcelId));
+  redirect(
+    opsHref.parcel(parcelId, result.ok ? { notice: "species_saved" } : { error: result.error }),
   );
 }
 

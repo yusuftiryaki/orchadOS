@@ -5,7 +5,9 @@ import type { QueueFilters } from "./services";
 // Reads of the service layer's back office (IP15) as the signed-in ops user:
 // the queue and demand functions (ops of the org only), the request row
 // (owner-visible columns; the internal note comes from the queue function),
-// its history and proof photos, the catalogue and the robot notes.
+// its history and proof photos, the catalogue with its season per fruit
+// species and the prices of the published price list in force, and the robot
+// notes.
 
 type Fns = Database["public"]["Functions"];
 export type ServiceQueueRow = Fns["ops_service_requests"]["Returns"][number];
@@ -48,8 +50,93 @@ export async function listServiceTypes(
   return data ?? [];
 }
 
+export interface SpeciesRow {
+  code: string;
+  name: string;
+  active: boolean;
+}
+export type ServiceSeasonRow = Database["public"]["Tables"]["service_type_season"]["Row"];
+
+// The fruit species (lookup, in their order) for the season table.
+export async function listFruitSpecies(supabase: Client): Promise<SpeciesRow[]> {
+  const { data, error } = await supabase
+    .from("fruit_species")
+    .select("code, name, active")
+    .order("sort_order")
+    .order("code");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function listServiceSeasons(
+  supabase: Client,
+  serviceTypeIds: string[],
+): Promise<ServiceSeasonRow[]> {
+  if (serviceTypeIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("service_type_season")
+    .select("*")
+    .in("service_type_id", serviceTypeIds);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export interface ServicePricing {
+  serviceTypeId: string;
+  priceListId: string;
+  version: number;
+  validFrom: string;
+  unitPriceKurus: number;
+  minimumFeeKurus: number;
+  vatRateBp: number;
+}
+
+// The price of each service in the published price list in force today (the
+// highest published version with valid_from <= today, as
+// private.current_price_list), by service type. A service missing from the
+// map is unpriced: the portal shows "Fiyat teklifle bildirilir" and ops
+// enters the amount. Also the list in force, to name its version.
+export async function currentServicePricing(
+  supabase: Client,
+  orgId: string,
+  today: string,
+): Promise<{
+  list: { id: string; version: number; validFrom: string } | null;
+  prices: Map<string, ServicePricing>;
+}> {
+  const { data: list, error } = await supabase
+    .from("price_list")
+    .select("id, version, valid_from, vat_rate_bp")
+    .eq("org_id", orgId)
+    .eq("status", "published")
+    .lte("valid_from", today)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  const prices = new Map<string, ServicePricing>();
+  if (!list || list.version === null || list.valid_from === null) return { list: null, prices };
+  const { data: items, error: itemError } = await supabase
+    .from("price_list_service_item")
+    .select("service_type_id, unit_price_kurus, minimum_fee_kurus")
+    .eq("price_list_id", list.id);
+  if (itemError) throw itemError;
+  for (const item of items ?? []) {
+    prices.set(item.service_type_id, {
+      serviceTypeId: item.service_type_id,
+      priceListId: list.id,
+      version: list.version,
+      validFrom: list.valid_from,
+      unitPriceKurus: item.unit_price_kurus,
+      minimumFeeKurus: item.minimum_fee_kurus,
+      vatRateBp: list.vat_rate_bp,
+    });
+  }
+  return { list: { id: list.id, version: list.version, validFrom: list.valid_from }, prices };
+}
+
 const REQUEST_COLUMNS =
-  "id, org_id, parcel_id, service_type_id, number, status, season_year, preferred_window, customer_note, terms_version, early_performance_requested, recommended_weed_height, area_m2, area_source, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, price_is_draft, estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus, pricing_rule, quote_total_kurus, scheduled_date, session_id, operation_id, completed_on, cancelled_at, cancelled_by_role, cancel_reason, payment_received_on, payment_amount_kurus, payment_method, created_at";
+  "id, org_id, parcel_id, service_type_id, number, status, season_year, preferred_window, customer_note, terms_version, early_performance_requested, recommended_weed_height, area_m2, area_source, price_list_id, price_list_version, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus, pricing_rule, quote_total_kurus, scheduled_date, session_id, operation_id, completed_on, cancelled_at, cancelled_by_role, cancel_reason, payment_received_on, payment_amount_kurus, payment_method, created_at";
 
 export interface ServicePhoto {
   assetId: string;

@@ -14,7 +14,10 @@ import { SEED, serviceClient, signIn } from "./fixtures";
 // call the ops functions. The requests are on a test parcel of the seed org
 // (removed with testing.purge_parcels: requests, history, photos, the job
 // sessions and operations, notifications and media), with the seed weed
-// mowing row; the catalogue test restores that row.
+// mowing row, which the seed leaves unpriced (no service price in the
+// published launch list: ops enters the amount when scheduling; the priced
+// flow is in service-pricing.test.ts); the catalogue test restores that row
+// and its season per fruit species.
 
 const state = vi.hoisted(() => ({
   client: null as unknown,
@@ -57,6 +60,13 @@ let ops: { client: Client; userId: string };
 let owner: { client: Client; userId: string };
 let viewer: { client: Client; userId: string };
 let seedType: Record<string, unknown>;
+let seedSeasons: {
+  species: string;
+  season_start_month: number;
+  season_start_day: number;
+  season_end_month: number;
+  season_end_day: number;
+}[];
 const today = istanbulToday();
 
 function check<T extends { error: unknown }>(result: T, what: string): T {
@@ -110,7 +120,14 @@ beforeAll(async () => {
     await admin.from("service_type").select("*").eq("id", TYPE).single(),
     "service_type",
   ).data!;
-  // 20 dönüm declared: 20 x 375 TL = 7.500 TL + 20% VAT = 9.000 TL.
+  seedSeasons = check(
+    await admin
+      .from("service_type_season")
+      .select("species, season_start_month, season_start_day, season_end_month, season_end_day")
+      .eq("service_type_id", TYPE),
+    "service_type_season",
+  ).data!;
+  // 20 dönüm declared (no estimate: the seed's mowing price is not decided).
   check(
     await admin.from("parcel").insert({
       id: PARCEL,
@@ -169,10 +186,6 @@ beforeAll(async () => {
 // check calls a private function, so the ops function restores it).
 async function restoreSeedType() {
   const t = seedType as {
-    price_per_donum_kurus: number;
-    minimum_fee_kurus: number;
-    vat_rate_bp: number;
-    price_is_draft: boolean;
     season_start_month: number;
     season_start_day: number;
     season_end_month: number;
@@ -184,10 +197,6 @@ async function restoreSeedType() {
   check(
     await ops.client.rpc("ops_update_service_type", {
       p_id: TYPE,
-      p_price_per_donum_kurus: t.price_per_donum_kurus,
-      p_minimum_fee_kurus: t.minimum_fee_kurus,
-      p_vat_rate_bp: t.vat_rate_bp,
-      p_price_is_draft: t.price_is_draft,
       p_season_start_month: t.season_start_month,
       p_season_start_day: t.season_start_day,
       p_season_end_month: t.season_end_month,
@@ -198,6 +207,19 @@ async function restoreSeedType() {
     }),
     "restore service_type",
   );
+  for (const x of seedSeasons) {
+    check(
+      await ops.client.rpc("ops_save_service_season", {
+        p_service_type_id: TYPE,
+        p_species: x.species,
+        p_season_start_month: x.season_start_month,
+        p_season_start_day: x.season_start_day,
+        p_season_end_month: x.season_end_month,
+        p_season_end_day: x.season_end_day,
+      }),
+      `restore season ${x.species}`,
+    );
+  }
 }
 
 afterAll(async () => {
@@ -222,8 +244,9 @@ describe("service request back office", () => {
       status: "pre_request",
       parcel_name: "Hizmet Test Bahçesi",
       village: "Test Köyü",
-      estimate_total_kurus: 900000,
-      price_is_draft: true,
+      // Unpriced: no estimate, no price list version.
+      estimate_total_kurus: null,
+      price_list_version: null,
       before_photos: 0,
       after_photos: 0,
     });
@@ -235,7 +258,11 @@ describe("service request back office", () => {
     expect(await pre()).toBe(before + 1);
 
     const view = await data.getServiceRequest(ops.client, requestId);
-    expect(view?.request.estimate_subtotal_kurus).toBe(750000);
+    expect(view?.request).toMatchObject({
+      price_list_id: null,
+      price_list_version: null,
+      estimate_subtotal_kurus: null,
+    });
     expect(view?.events.map((e) => e.to_status)).toEqual(["pre_request"]);
   });
 
@@ -251,10 +278,6 @@ describe("service request back office", () => {
       expect(["not_found", "forbidden"]).toContain(error?.message);
       const update = await user.client.rpc("ops_update_service_type", {
         p_id: TYPE,
-        p_price_per_donum_kurus: 1,
-        p_minimum_fee_kurus: 0,
-        p_vat_rate_bp: 0,
-        p_price_is_draft: false,
         p_season_start_month: 1,
         p_season_start_day: 1,
         p_season_end_month: 12,
@@ -264,41 +287,56 @@ describe("service request back office", () => {
         p_active: true,
       });
       expect(["not_found", "forbidden"]).toContain(update.error?.message);
+      const season = await user.client.rpc("ops_save_service_season", {
+        p_service_type_id: TYPE,
+        p_species: "zeytin",
+        p_season_start_month: 1,
+        p_season_start_day: 1,
+        p_season_end_month: 12,
+        p_season_end_day: 31,
+      });
+      expect(["not_found", "forbidden"]).toContain(season.error?.message);
+      const prices = await user.client.rpc("ops_save_price_list_service_items", {
+        p_price_list_id: "91200000-0000-4000-8000-000000000102",
+        p_items: [],
+      });
+      expect(["not_found", "forbidden"]).toContain(prices.error?.message);
     }
     // The viewer does not see commercial rows at all.
     expect((await viewer.client.from("service_request").select("id")).data).toEqual([]);
   });
 
-  it("schedules within the frozen estimate and after the withdrawal period (H37)", async () => {
+  it("schedules an unpriced request with a manual amount, after the withdrawal period (H37)", async () => {
     const earliest = addDays(today, 15);
     expect(
       await run(actions.scheduleServiceAction, {
         request_id: requestId,
         scheduled_date: addDays(today, 3),
+        quote_total: "8.500",
       }),
     ).toBe(`error ${S.withdrawalUntil(formatDate(earliest))}`);
     // The function says the same, with the day in its detail.
     const early = await ops.client.rpc("ops_schedule_service_request", {
       p_id: requestId,
       p_scheduled_date: addDays(today, 3),
-      p_quote_total_kurus: null as unknown as number,
+      p_quote_total_kurus: 850000,
       p_note: null as unknown as string,
     });
     expect(early.error).toMatchObject({ message: "withdrawal_period", details: earliest });
+    // No price was published at the request: the amount is required.
     expect(
       await run(actions.scheduleServiceAction, {
         request_id: requestId,
         scheduled_date: earliest,
-        quote_total: "9.000,01",
       }),
-    ).toBe(`error ${S.errors.quote_above_estimate}`);
-    const above = await ops.client.rpc("ops_schedule_service_request", {
+    ).toBe(`error ${S.errors.invalid_input} ${S.fieldError(S.fields.quote_total)}`);
+    const bare = await ops.client.rpc("ops_schedule_service_request", {
       p_id: requestId,
       p_scheduled_date: earliest,
-      p_quote_total_kurus: 900001,
+      p_quote_total_kurus: null as unknown as number,
       p_note: null as unknown as string,
     });
-    expect(above.error?.message).toBe("quote_above_estimate");
+    expect(bare.error).toMatchObject({ message: "invalid_input", details: "quote_total" });
 
     expect(
       await run(actions.scheduleServiceAction, {
@@ -313,6 +351,7 @@ describe("service request back office", () => {
       status: "scheduled",
       scheduled_date: earliest,
       quote_total_kurus: 850000,
+      estimate_total_kurus: null,
       ops_note: "Ali Usta",
     });
     expect(row.session_id).toBeTruthy();
@@ -497,12 +536,9 @@ describe("service request back office", () => {
     ]);
   });
 
-  it("edits the catalogue in TL excluding VAT", async () => {
+  it("edits the catalogue (no prices) and the season per fruit species", async () => {
     const form = {
       service_type_id: TYPE,
-      price: "400",
-      minimum_fee: "2.600,50",
-      vat_rate: "20",
       season_start_month: "3",
       season_start_day: "1",
       season_end_month: "6",
@@ -519,14 +555,53 @@ describe("service request back office", () => {
     );
     const types = await data.listServiceTypes(ops.client, [ORG]);
     expect(types[0]).toMatchObject({
-      price_per_donum_kurus: 40000,
-      minimum_fee_kurus: 260050,
-      vat_rate_bp: 2000,
-      price_is_draft: false,
       recommend_from_weed_height: "tall",
       observation_max_age_days: 45,
       active: true,
     });
+    expect(types[0]).not.toHaveProperty("price_per_donum_kurus");
+
+    const season = {
+      service_type_id: TYPE,
+      species: "zeytin",
+      season_start_month: "4",
+      season_start_day: "15",
+      season_end_month: "7",
+      season_end_day: "15",
+    };
+    expect(await run(actions.saveServiceSeasonAction, { ...season, species: "Zeytin!" })).toBe(
+      `error ${S.errors.invalid_input} ${S.fieldError(S.fields.species)}`,
+    );
+    expect(await run(actions.saveServiceSeasonAction, { ...season, species: "muz" })).toBe(
+      `error ${S.errors.invalid_input} ${S.fieldError(S.fields.species)}`,
+    );
+    expect(
+      await run(actions.saveServiceSeasonAction, {
+        ...season,
+        season_start_month: "2",
+        season_start_day: "29",
+      }),
+    ).toBe(`error ${S.errors.invalid_input} ${S.fieldError(S.fields.season)}`);
+    expect(await run(actions.saveServiceSeasonAction, season)).toBe(
+      "redirect /operasyon/hizmet/katalog?bilgi=season_saved",
+    );
+    const rows = await data.listServiceSeasons(ops.client, [TYPE]);
+    expect(rows.find((r) => r.species === "zeytin")).toMatchObject({
+      season_start_month: 4,
+      season_start_day: 15,
+      season_end_month: 7,
+      season_end_day: 15,
+      updated_by: ops.userId,
+    });
+    expect(rows.find((r) => r.species === "antep_fistigi")).toMatchObject({
+      season_start_month: 3,
+      season_end_month: 6,
+    });
+    expect((await data.listFruitSpecies(ops.client)).map((s) => s.code)).toContain("zeytin");
+    // The seed's launch list does not price the service.
+    const pricing = await data.currentServicePricing(ops.client, ORG, today);
+    expect(pricing.list?.version).toBeGreaterThanOrEqual(1);
+    expect(pricing.prices.has(TYPE)).toBe(false);
   });
 
   it("saves the robot suitability note; owners cannot write it", async () => {

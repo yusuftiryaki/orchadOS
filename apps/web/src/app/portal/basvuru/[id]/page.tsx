@@ -38,6 +38,7 @@ import type { BillingError } from "@/lib/billing/errors";
 import { listPortalParcels } from "@/lib/portal/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
 import { portalHref } from "@/lib/portal-billing/urls";
+import { speciesName } from "@/lib/species";
 import { createClient } from "@/lib/supabase/server";
 
 const A = P.application;
@@ -259,6 +260,8 @@ export default async function ApplicationPage({
                     <div className={layout.rowMain}>
                       <strong>{g.name}</strong>
                       <span className={layout.small}>
+                        <span data-testid="garden-species">{speciesName(g.species)}</span>
+                        {", "}
                         {place || P.none}
                         {", "}
                         {g.boundary ? A.boundaryDrawn : A.noBoundary}

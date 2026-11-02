@@ -186,13 +186,17 @@ export default async function Page({
                         {money(r.quote_total_kurus)}
                         <span className={styles.sub}>{S.quote}</span>
                       </>
-                    ) : (
+                    ) : r.estimate_total_kurus != null ? (
                       <>
                         {money(r.estimate_total_kurus)}
-                        <span className={styles.sub}>{S.estimate}</span>
+                        <span className={styles.sub}>
+                          {S.estimate}
+                          {r.price_list_version != null && ` · v${r.price_list_version}`}
+                        </span>
                       </>
+                    ) : (
+                      <Badge tone="warning">{S.noEstimate}</Badge>
                     )}
-                    {r.price_is_draft && <Badge tone="warning">{S.draftPrice}</Badge>}
                   </td>
                   <td className={`${cell.num} ${cell.nowrap}`}>
                     {r.status === "done" ? day(r.completed_on) : day(r.scheduled_date)}

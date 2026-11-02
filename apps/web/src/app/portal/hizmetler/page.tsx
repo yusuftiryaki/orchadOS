@@ -18,7 +18,8 @@ import { createClient } from "@/lib/supabase/server";
 
 // "Hizmetlerim" (IP15): the owner's service requests and pre-requests, newest
 // first: number, garden, service, state, the date that matters for the state
-// and the amount (the confirmed one, else the frozen estimate). Row level
+// and the amount (the confirmed one, else the frozen estimate, else "Fiyat
+// teklifle bildirilir" when the service had no published price). Row level
 // security shows owners their parcels' requests; a co-owner sees none.
 export default async function ServiceRequestsPage({
   searchParams,
@@ -70,9 +71,17 @@ export default async function ServiceRequestsPage({
                   </div>
                   <div className={styles.rowSide}>
                     <Badge tone={statusTone(r.status)}>{S.status[r.status]}</Badge>
-                    <span className={styles.amount}>
-                      {formatTl(amount.kurus)}
-                      {amount.estimate && <span className={styles.meta}> ({S.list.estimate})</span>}
+                    <span className={styles.amount} data-testid="service-request-amount">
+                      {amount ? (
+                        <>
+                          {formatTl(amount.kurus)}
+                          {!amount.confirmed && (
+                            <span className={styles.meta}> ({S.list.notConfirmed})</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className={styles.meta}>{S.card.noPrice}</span>
+                      )}
                     </span>
                   </div>
                 </li>

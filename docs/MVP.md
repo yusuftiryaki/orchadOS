@@ -334,11 +334,11 @@ Genel durum skoru için öneri: sınıf ağırlıklarının ortalaması (Sağlı
 Kart iki şeye bakar:
 
 1. **Gözlem.** Saha personeli ilkbahar ve yaz ziyaretlerinde parsel için bir kez "Bahçede yabani ot ne boyda?" sorusunu cevaplar: kısa (bileğe kadar), orta (dize kadar), uzun (dizi aşıyor). Kod `weed_height`, parsel öznesi, sınıf değerleri `short`, `medium`, `tall` ([metodoloji.md](metodoloji.md)). Cevap, ziyaret yayımlanınca sahibe görünür; öneri yalnız yayımlanmış ziyaretin gözlemine dayanır.
-2. **Mevsim takvimi.** Her hizmetin bir sezon penceresi vardır (ot biçme için varsayılan 1 Mart – 30 Haziran). Pencere katalogda hizmet başına ayarlanır.
+2. **Mevsim takvimi.** Her hizmetin bir varsayılan sezon penceresi vardır (ot biçme için 1 Mart – 30 Haziran) ve meyve türüne göre ayrı bir pencere alabilir (`service_type_season`; bugün her tür için 1 Mart – 30 Haziran yüklü). Kart ve ön talep, bahçenin meyve türünün penceresine bakar. Pencereler katalogda (`/operasyon/hizmet/katalog`) ayarlanır.
 
 | Durum | Portalda |
 | --- | --- |
-| Sezon içinde, son gözlem eşiğin üstünde (varsayılan: orta ya da uzun), gözlem 60 günden eski değil ve gözlemden sonra biçme yapılmamış | Öneri kartı: "Bahçenizde ot uzun. Ot biçme: X TL. Talep et" |
+| Sezon içinde, son gözlem eşiğin üstünde (varsayılan: orta ya da uzun), gözlem 60 günden eski değil ve gözlemden sonra biçme yapılmamış | Öneri kartı: "Bahçenizde ot uzun." ve tutar (yayımlı fiyat yoksa "Fiyat teklifle bildirilir"), "Talep et" |
 | Sezon içinde, öneri tetiklenmemiş | Hizmet listede "talep edilebilir" olarak durur |
 | Sezon dışında | "Gelecek sezon için ön talep bırakın" kartı |
 | Açık bir talep var | Kart talebin durumunu gösterir, yeni talep açılmaz |
@@ -349,8 +349,8 @@ Kart iki şeye bakar:
 
 Çevrimiçi ödeme yok.
 
-1. **Talep** (`requested`): Sahip parseli ve tercih ettiği zaman aralığını seçer, not bırakır, ek sözleşmeyi ve ön bilgilendirmeyi onaylar ([bakım hizmeti ek sözleşmesi](hukuk/bakim-hizmeti-ek-sozlesme-taslagi.md), sitede `/bakim-hizmeti`; H37). İsterse işin 14 günlük cayma süresi içinde yapılmasını ister (işaretsiz kutu); istemezse iş en erken talepten 15 gün sonraya planlanır. Teklif tahmini formülle hesaplanıp talebe dondurulur. Talep bir öneridir; sözleşme operasyon tutarı ve tarihi onaylayınca kurulur. Sezon dışında aynı form **ön talep** (`pre_request`) açar; ön talep bağlayıcı değildir.
-2. **Planlandı** (`scheduled`): Operasyon tutarı onaylar ve tarih verir. Tutar dondurulan tahmini aşamaz, yalnız indirilebilir; daha yüksek bir tutar yeni talep ister. Bu sırada parsel için `mowing` türünde bir saha oturumu açılır; sahibe bildirim gider.
+1. **Talep** (`requested`): Sahip parseli ve tercih ettiği zaman aralığını seçer, not bırakır, ek sözleşmeyi ve ön bilgilendirmeyi onaylar ([bakım hizmeti ek sözleşmesi](hukuk/bakim-hizmeti-ek-sozlesme-taslagi.md), sitede `/bakim-hizmeti`; H37). İsterse işin 14 günlük cayma süresi içinde yapılmasını ister (işaretsiz kutu); istemezse iş en erken talepten 15 gün sonraya planlanır. Yayımlı fiyat listesinde hizmetin fiyatı varsa tutar formülle hesaplanır ve listenin sürümüyle birlikte talebe sabitlenir; fiyat yoksa talepte tutar yoktur. Talep bir öneridir; sözleşme operasyon tutarı ve tarihi onaylayınca kurulur. Sezon dışında aynı form **ön talep** (`pre_request`) açar; ön talep bağlayıcı değildir.
+2. **Planlandı** (`scheduled`): Operasyon tutarı onaylar ve tarih verir. Sabitlenen bir tutar varsa onaylanan tutar onu aşamaz, yalnız indirilebilir; daha yüksek bir tutar yeni talep ister. Talepte tutar yoksa (fiyatsız hizmet) operasyon tutarı elle girer; girmeden planlanamaz. Bu sırada parsel için `mowing` türünde bir saha oturumu açılır; sahibe bildirim gider.
 3. **Tamamlandı** (`done`): İşi saha personeli yapar. Operasyon işi kapatırken en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlar: ya yeni yükler (içerik hash'iyle adreslenir, değiştirilemez) ya da aynı parselin yayımlanmış bir ziyaretinden medya seçer. Fotoğraflar parsele bağlıdır; iş kanıtı izleme verisiyle aynı zincirdedir. İş kaydı (`operation`, tür `mowing`, yapan `crew`) oluşur.
 4. **Ödeme**: İşten sonra elle kaydedilir (tutar, yöntem, tarih). Kartla ödeme yok.
 5. **İptal** (`cancelled`): Sahip, planlanan tarihten önceki güne kadar ücretsiz iptal eder; operasyon tamamlanmamış her talebi gerekçeyle iptal edebilir.
@@ -359,11 +359,16 @@ Her durum değişikliği ayrı bir satırda tarihçeye yazılır (`service_reque
 
 ### Fiyat
 
-Katalogda hizmet başına dönüm fiyatı, minimum ücret ve KDV oranı tutulur; back office düzenler. Formül, abonelik fiyatıyla aynı yuvarlamayı kullanır ([musteri-yonetimi.md](musteri-yonetimi.md) §6.6):
+**Fiyat henüz belirlenmedi** (sahip kararı, 2 Kasım 2026). Fiyat katalogda değil, paketlerle aynı **sürümlü fiyat listesinde** tutulur ([musteri-yonetimi.md](musteri-yonetimi.md) §6.6): bir taslağın "Hizmet fiyatları" bölümünde hizmet başına dönüm fiyatı ve minimum ücret (KDV hariç; KDV listenin oranı) girilir, liste yayımlanınca değişmez (`price_list_service_item`). Geçerli fiyat, bugün yürürlükte olan yayımlı listenin (başlangıcı bugünden sonra olmayan en yüksek sürüm) fiyatıdır. Formül, abonelik fiyatıyla aynı yuvarlamayı kullanır (`service-v1`):
 
 `ara toplam = max(ceil(alan_m² / 100) × dönüm fiyatı / 10, minimum ücret)`, `toplam = ara toplam + KDV`.
 
-Alan, parselin son sınır sürümünün alanıdır; sınır yoksa sahibin beyan ettiği alan. Lansman için girilen fiyat **taslaktır** (katalogda "taslak fiyat" işaretli, portalda "tahmini" yazar): dönüm başına 375 TL + KDV, minimum 2.500 TL + KDV (bir yevmiye). Varsayım, bir işçinin motorlu tırpanla günde yaklaşık 8 dönüm biçmesi. Gerçek fiyat ve işçi verimi sahadan gelecek.
+Alan, parselin son sınır sürümünün alanıdır; sınır yoksa sahibin beyan ettiği alan.
+
+- **Fiyat varsa:** Kart ve talep formu tutarı (KDV dahil) ve küçük yazıyla fiyat listesi sürümünü gösterir. Talep, tutarı ve sürümü sabitler; sonradan yayımlanan yeni sürüm açık talebi değiştirmez.
+- **Fiyat yoksa** (bugünkü durum; lansman listesinde hizmet satırı yok): Portal hiçbir rakam göstermez; kartta ve formda **"Fiyat teklifle bildirilir"** yazar. Talep ve ön talep yine açılır. Operasyon planlarken tutarı elle girer; sahibe tutar ve iş günü SMS ile bildirilir, sahip iş gününden önceki güne kadar ücretsiz iptal edebilir.
+
+Maliyet varsayımları (yevmiye, bir işçinin günde biçtiği alan) sahadan ölçülünce fiyat bir taslağa girilip yayımlanır.
 
 ### Bağımsızlık
 
