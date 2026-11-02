@@ -13,13 +13,17 @@ import { resolveSupabaseEnv } from "../local-supabase";
 // parcel's species) is moved around today for the run, then both are put
 // back. The seed leaves mowing unpriced (owner decision of 2 November 2026):
 // the card and the form say "Fiyat teklifle bildirilir", the request freezes
-// no amount and ops enters it by hand when scheduling.
+// no amount and ops enters it by hand when scheduling. The job is presented
+// as done by the autonomous robot MARABA-I: its badge on the card, the
+// form's robot choice (preselected) and the request page.
 
 const PASSWORD = "orchados-dev";
 const ORG = "b0000000-0000-4000-8000-000000000001";
 const OWNER = "a0000000-0000-4000-8000-000000000001";
 const OPS = "a0000000-0000-4000-8000-000000000005";
 const SERVICE = "91500000-0000-4000-8000-000000000001";
+// MARABA-I, the default robot model of weed mowing.
+const MARABA = "91600000-0000-4000-8000-000000000001";
 const run = Date.now().toString(36);
 const PARCEL_NAME = `Biçme Bahçesi ${run}`;
 
@@ -144,6 +148,36 @@ test("owner requests mowing, ops completes it with proof, owner sees the proof",
   // Unpriced: no number on the card.
   const price = owner.getByTestId("service-offer-price").first();
   await expect(price).toHaveText("Fiyat teklifle bildirilir");
+  // The robot badge opens its card by keyboard; Escape closes it and returns
+  // focus to the badge.
+  const badge = owner
+    .getByTestId("service-offer")
+    .first()
+    .getByRole("button", { name: "Otonom robot · MARABA-I" });
+  await expect(badge).toHaveAttribute("aria-expanded", "false");
+  await badge.focus();
+  await owner.keyboard.press("Enter");
+  await expect(badge).toHaveAttribute("aria-expanded", "true");
+  const robotCard = owner.getByRole("dialog", { name: "MARABA-I" });
+  await expect(robotCard).toBeVisible();
+  await expect(robotCard.getByRole("img", { name: /^MARABA-I/ })).toBeVisible();
+  await expect(robotCard.getByText("Temsili görsel")).toBeVisible();
+  await expect(robotCard.getByText("Misinalı biçme kafası")).toBeVisible();
+  await expect(robotCard.getByRole("link", { name: /Teknik çizim/ })).toHaveAttribute(
+    "href",
+    "/robots/maraba-i.svg",
+  );
+  await owner.keyboard.press("Escape");
+  await expect(robotCard).toBeHidden();
+  await expect(badge).toBeFocused();
+  await expect(badge).toHaveAttribute("aria-expanded", "false");
+  // Tabbing back onto the badge opens the card too (keyboard focus).
+  await owner.keyboard.press("Shift+Tab");
+  await owner.keyboard.press("Tab");
+  await expect(badge).toBeFocused();
+  await expect(badge).toHaveAttribute("aria-expanded", "true");
+  await owner.keyboard.press("Escape");
+  await expect(badge).toHaveAttribute("aria-expanded", "false");
   await owner.getByRole("link", { name: "Talep et" }).first().click();
   await owner.waitForURL(/\/portal\/hizmetler\/yeni/);
   await expect(owner.getByText(PARCEL_NAME).first()).toBeVisible();
@@ -151,6 +185,10 @@ test("owner requests mowing, ops completes it with proof, owner sees the proof",
     "Fiyat teklifle bildirilir",
   );
   await expect(owner.getByTestId("service-request-totals")).toHaveCount(0);
+  // "Hangi robot yapsın?": MARABA-I preselected, with its own price line.
+  const robots = owner.getByRole("group", { name: "Hangi robot yapsın?" });
+  await expect(robots.getByRole("radio", { name: /MARABA-I/ })).toBeChecked();
+  await expect(robots.getByTestId("service-robot-price")).toHaveText("Fiyat teklifle bildirilir");
   await owner.locator('select[name="window"]').selectOption("within_2_weeks");
   await owner.locator('textarea[name="note"]').fill("Damla hattı 3. sırada.");
   await owner.locator('input[name="pre_information"]').check();
@@ -162,19 +200,33 @@ test("owner requests mowing, ops completes it with proof, owner sees the proof",
 
   const { data: request } = await admin
     .from("service_request")
-    .select("number, status, early_performance_requested, estimate_total_kurus, price_list_version")
+    .select(
+      "number, status, early_performance_requested, estimate_total_kurus, price_list_version, robot_model_id",
+    )
     .eq("id", requestId)
     .single();
   expect(request).toMatchObject({
     status: "requested",
     early_performance_requested: true,
+    robot_model_id: MARABA,
     // No published mowing price: nothing is frozen.
     estimate_total_kurus: null,
     price_list_version: null,
   });
 
+  await expect(
+    owner.getByTestId("service-request-robot").getByRole("button", {
+      name: "Otonom robot · MARABA-I",
+    }),
+  ).toBeVisible();
+
   await owner.goto("/portal/hizmetler");
   await expect(owner.getByText(request!.number)).toBeVisible();
+  await expect(
+    owner
+      .locator(`li[data-request-id="${requestId}"]`)
+      .getByRole("button", { name: "Otonom robot · MARABA-I" }),
+  ).toBeVisible();
 
   // 2. Ops: confirm, upload proof, close the job.
   const opsContext = await browser.newContext();
@@ -207,8 +259,11 @@ test("owner requests mowing, ops completes it with proof, owner sees the proof",
   }
 
   await ops.locator('input[name="done_on"]').fill(today);
+  // Who did the job (internal): the robot is preselected for mowing.
+  await expect(ops.getByRole("radio", { name: "Robot" })).toBeChecked();
   await ops.getByRole("button", { name: "İşi tamamlandı olarak kapat" }).click();
   await expect(ops.getByText("İş kapatıldı; sahibe bildirildi.")).toBeVisible();
+  await expect(ops.getByTestId("service-performer")).toHaveText("Robot");
 
   const { data: done } = await admin
     .from("service_request")

@@ -183,17 +183,34 @@ export function parseSchedule(
   return ok({ scheduledDate: date, quoteTotalKurus: quote, note: note.value });
 }
 
+// Who actually did the job (public.performer_kind): recorded internally on
+// the operation and the job session, never shown to the owner. The service
+// is presented to the owner as done by the autonomous robot MARABA-I.
+export const PERFORMERS = ["robot", "crew"] as const;
+export type Performer = (typeof PERFORMERS)[number];
+
+// The default performer of a job, as private.service_default_performer:
+// robot for mowing, the field crew otherwise.
+export function defaultPerformer(operationKind: string | null | undefined): Performer {
+  return operationKind === "mowing" ? "robot" : "crew";
+}
+
 export interface CompleteInput {
   doneOn: string;
   note: string | null;
+  performer: Performer;
 }
 
+// The day (not in the future), the internal note and who did the job (the
+// form preselects the default; a value is required).
 export function parseComplete(read: Reader, today: string): ServiceParsed<CompleteInput> {
   const doneOn = parseIsoDate(read("done_on"));
   if (!doneOn || doneOn > today) return bad("done_on");
+  const performer = read("performer");
+  if (!(PERFORMERS as readonly string[]).includes(performer)) return bad("performer");
   const note = text(read, "note", 1000);
   if (!note.ok) return note;
-  return ok({ doneOn, note: note.value });
+  return ok({ doneOn, note: note.value, performer: performer as Performer });
 }
 
 export function parseCancel(read: Reader): ServiceParsed<string> {

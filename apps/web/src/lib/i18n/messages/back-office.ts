@@ -696,13 +696,18 @@ export const backOfficeText = {
     // IP15: service prices (weed mowing first) in the same versioned list.
     services: "Hizmet fiyatları",
     servicesHint:
-      'Ot biçme gibi bahçe hizmetlerinin dönüm fiyatı ve minimum ücreti (TL, KDV hariç; KDV bu listenin oranıdır). Fiyatı boş bırakılan hizmet bu sürümde fiyatsızdır: portalda tutar yerine "Fiyat teklifle bildirilir" yazar ve operasyon tutarı planlarken elle girer. Talepler, o gün geçerli sürümün fiyatını sabitler.',
+      'Ot biçme gibi bahçe hizmetlerinin dönüm fiyatı ve minimum ücreti (TL, KDV hariç; KDV bu listenin oranıdır). "Tüm robotlar" satırı hizmetin genel fiyatıdır; bir robot modeline ayrı fiyat girilirse o robotu seçen talep bu fiyatı alır, boş bırakılan robot satırı genel fiyatı kullanır. Hiç fiyatı olmayan hizmet bu sürümde fiyatsızdır: portalda tutar yerine "Fiyat teklifle bildirilir" yazar ve operasyon tutarı planlarken elle girer. Talepler, o gün geçerli sürümün fiyatını sabitler.',
     servicesReadOnlyHint:
       'Bu sürümde fiyatı olmayan hizmet fiyatsızdır: portalda "Fiyat teklifle bildirilir" yazar, tutarı operasyon girer.',
     service: "Hizmet",
     serviceUnitPrice: "Dönüm fiyatı (TL, KDV hariç)",
     serviceMinimumFee: "Minimum ücret (TL, KDV hariç)",
     serviceUnpriced: "Fiyatsız (teklifle)",
+    // The any-robot row (robot_model_id null) and a robot model's own row.
+    anyRobot: "Tüm robotlar",
+    robotRow: (name: string) => `Robot: ${name}`,
+    robotFallback: "Tüm robotlar fiyatı",
+    robotPassive: "Kullanımda değil",
     servicePassive: "Sunulmuyor",
     saveServices: "Hizmet fiyatlarını kaydet",
     noServices: "Bu işletmede hizmet tanımı yok.",

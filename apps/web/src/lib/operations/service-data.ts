@@ -95,7 +95,9 @@ export interface ServicePricing {
 // highest published version with valid_from <= today, as
 // private.current_price_list), by service type. A service missing from the
 // map is unpriced: the portal shows "Fiyat teklifle bildirilir" and ops
-// enters the amount. Also the list in force, to name its version.
+// enters the amount. The "any robot" price (robot_model_id null; a model's
+// own price, when entered, is preferred for requests of that model). Also the
+// list in force, to name its version.
 export async function currentServicePricing(
   supabase: Client,
   orgId: string,
@@ -119,7 +121,9 @@ export async function currentServicePricing(
   const { data: items, error: itemError } = await supabase
     .from("price_list_service_item")
     .select("service_type_id, unit_price_kurus, minimum_fee_kurus")
-    .eq("price_list_id", list.id);
+    .eq("price_list_id", list.id)
+    // The "any robot" row; a robot model's own row is on the price list page.
+    .is("robot_model_id", null);
   if (itemError) throw itemError;
   for (const item of items ?? []) {
     prices.set(item.service_type_id, {
@@ -136,7 +140,7 @@ export async function currentServicePricing(
 }
 
 const REQUEST_COLUMNS =
-  "id, org_id, parcel_id, service_type_id, number, status, season_year, preferred_window, customer_note, terms_version, early_performance_requested, recommended_weed_height, area_m2, area_source, price_list_id, price_list_version, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus, pricing_rule, quote_total_kurus, scheduled_date, session_id, operation_id, completed_on, cancelled_at, cancelled_by_role, cancel_reason, payment_received_on, payment_amount_kurus, payment_method, created_at";
+  "id, org_id, parcel_id, service_type_id, number, status, season_year, preferred_window, customer_note, terms_version, early_performance_requested, recommended_weed_height, area_m2, area_source, price_list_id, price_list_version, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus, pricing_rule, quote_total_kurus, scheduled_date, session_id, operation_id, completed_on, cancelled_at, cancelled_by_role, cancel_reason, payment_received_on, payment_amount_kurus, payment_method, created_at, robot_model_id, service_type(operation_kind)";
 
 export interface ServicePhoto {
   assetId: string;

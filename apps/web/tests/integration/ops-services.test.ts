@@ -44,6 +44,8 @@ const ORG = SEED.org;
 const PARCEL = id("f9510000", 1);
 // The seed's weed mowing row (supabase/seed.sql).
 const TYPE = "91500000-0000-4000-8000-000000000001";
+// The seeded robot model, linked to the seed's weed mowing.
+const MARABA = "91600000-0000-4000-8000-000000000001";
 const VISIT = id("f9530000", 1);
 const CROP = id("f9540000", 1);
 
@@ -244,6 +246,11 @@ describe("service request back office", () => {
       status: "pre_request",
       parcel_name: "Hizmet Test Bahçesi",
       village: "Test Köyü",
+      // The owner chose no model: the service's default, MARABA-I. No job yet.
+      robot_model_id: MARABA,
+      robot_model_code: "maraba_i",
+      robot_model_name: "MARABA-I",
+      performer: null,
       // Unpriced: no estimate, no price list version.
       estimate_total_kurus: null,
       price_list_version: null,
@@ -397,6 +404,17 @@ describe("service request back office", () => {
       ops_note: "Ali Usta",
     });
     expect(row.session_id).toBeTruthy();
+    // The job session is planned for the robot (mowing); the queue shows it.
+    const session = check(
+      await admin.from("session").select("kind, performer").eq("id", row.session_id!).single(),
+      "session",
+    ).data;
+    expect(session).toEqual({ kind: "mowing", performer: "robot" });
+    expect(
+      (await data.listServiceRequests(ops.client, { status: "scheduled" })).find(
+        (r) => r.id === requestId,
+      ),
+    ).toMatchObject({ robot_model_name: "MARABA-I", performer: "robot" });
     // Moving the day keeps the confirmed amount.
     expect(
       await run(actions.scheduleServiceAction, {
@@ -412,7 +430,11 @@ describe("service request back office", () => {
 
   it("needs before and after photos to close the job", async () => {
     expect(
-      await run(actions.completeServiceAction, { request_id: requestId, done_on: today }),
+      await run(actions.completeServiceAction, {
+        request_id: requestId,
+        done_on: today,
+        performer: "robot",
+      }),
     ).toBe(`error ${S.errors.proof_missing}`);
 
     const bad = new File([Buffer.from("GIF89a")], "a.gif", { type: "image/gif" });
@@ -467,7 +489,11 @@ describe("service request back office", () => {
       }),
     ).toBe(`redirect /operasyon/hizmet/${requestId}?bilgi=photo_unlinked`);
     expect(
-      await run(actions.completeServiceAction, { request_id: requestId, done_on: today }),
+      await run(actions.completeServiceAction, {
+        request_id: requestId,
+        done_on: today,
+        performer: "robot",
+      }),
     ).toBe(`error ${S.errors.proof_missing}`);
     await run(actions.linkServicePhotoAction, {
       request_id: requestId,
@@ -479,22 +505,52 @@ describe("service request back office", () => {
       await run(actions.completeServiceAction, {
         request_id: requestId,
         done_on: addDays(today, 1),
+        performer: "robot",
       }),
     ).toBe(`error ${S.errors.invalid_input} ${S.fieldError(S.fields.done_on)}`);
+    // Who did the job is required, and only robot or crew.
+    for (const performer of ["", "tractor"]) {
+      expect(
+        await run(actions.completeServiceAction, {
+          request_id: requestId,
+          done_on: today,
+          performer,
+        }),
+      ).toBe(`error ${S.errors.invalid_input} ${S.fieldError(S.fields.performer)}`);
+    }
+    // The field crew finished this one (internal truth; the owner is not told).
     expect(
       await run(actions.completeServiceAction, {
         request_id: requestId,
         done_on: today,
         note: "Bitti",
+        performer: "crew",
       }),
     ).toBe(`redirect /operasyon/hizmet/${requestId}?bilgi=completed`);
     const row = await requestRow(requestId);
     expect(row).toMatchObject({ status: "done", completed_on: today });
     const operation = check(
-      await admin.from("operation").select("kind, performer").eq("id", row.operation_id!).single(),
+      await admin
+        .from("operation")
+        .select("kind, performer, details")
+        .eq("id", row.operation_id!)
+        .single(),
       "operation",
     ).data;
-    expect(operation).toEqual({ kind: "mowing", performer: "crew" });
+    expect(operation).toMatchObject({
+      kind: "mowing",
+      performer: "crew",
+      details: { robot_model: "maraba_i", by: "orchados" },
+    });
+    expect(
+      check(
+        await admin.from("session").select("performer").eq("id", row.session_id!).single(),
+        "session",
+      ).data,
+    ).toEqual({ performer: "crew" });
+    expect(
+      (await data.getServiceRequest(ops.client, requestId))?.row,
+    ).toMatchObject({ robot_model_name: "MARABA-I", performer: "crew" });
 
     view = await data.getServiceRequest(ops.client, requestId);
     expect(view?.events.map((e) => e.to_status)).toEqual([
@@ -684,5 +740,80 @@ describe("service request back office", () => {
       ["cancelled", "Yabani ot biçme"],
       ["done", "Yabani ot biçme"],
     ]);
+  });
+
+  it("records the robot as the performer by default for mowing", async () => {
+    check(
+      await ops.client.rpc("ops_save_service_season", {
+        p_service_type_id: TYPE,
+        p_species: "antep_fistigi",
+        p_season_start_month: 1,
+        p_season_start_day: 1,
+        p_season_end_month: 12,
+        p_season_end_day: 31,
+      }),
+      "open season",
+    );
+    try {
+      const robotJob = await requestService("Robotla biçilsin");
+      check(
+        await ops.client.rpc("ops_schedule_service_request", {
+          p_id: robotJob,
+          p_scheduled_date: addDays(today, 15),
+          p_quote_total_kurus: 850000,
+          p_note: null as unknown as string,
+        }),
+        "schedule",
+      );
+      for (const phase of ["before", "after"] as const) {
+        check(
+          await ops.client.rpc("ops_link_service_photo", {
+            p_id: robotJob,
+            p_asset_id: CROP,
+            p_phase: phase,
+          }),
+          `link ${phase}`,
+        );
+      }
+      // No performer given: the function's default.
+      check(
+        await ops.client.rpc("ops_complete_service_request", {
+          p_id: robotJob,
+          p_done_on: today,
+          p_note: null as unknown as string,
+        }),
+        "complete",
+      );
+      const row = await requestRow(robotJob);
+      const operation = check(
+        await admin
+          .from("operation")
+          .select("performer, details")
+          .eq("id", row.operation_id!)
+          .single(),
+        "operation",
+      ).data;
+      expect(operation).toMatchObject({
+        performer: "robot",
+        details: { robot_model: "maraba_i" },
+      });
+      expect(
+        (await data.listServiceRequests(ops.client, { status: "done" })).find(
+          (r) => r.id === robotJob,
+        ),
+      ).toMatchObject({ robot_model_name: "MARABA-I", performer: "robot" });
+    } finally {
+      check(
+        await ops.client.rpc("ops_save_service_season", {
+          p_service_type_id: TYPE,
+          p_species: "antep_fistigi",
+          p_season_start_month: 3,
+          p_season_start_day: 1,
+          p_season_end_month: 6,
+          p_season_end_day: 30,
+        }),
+        "restore season",
+      );
+    }
   });
 });

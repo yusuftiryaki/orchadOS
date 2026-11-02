@@ -700,31 +700,53 @@ export function parsePriceListDraft(
 }
 
 export interface PriceListServiceItemsInput {
-  items: { service_type_id: string; unit_price_kurus: number; minimum_fee_kurus: number }[];
+  items: {
+    service_type_id: string;
+    // Null or absent: any robot (the fallback row).
+    robot_model_id?: string | null;
+    unit_price_kurus: number;
+    minimum_fee_kurus: number;
+  }[];
 }
 
-// The "Hizmet fiyatları" part of the draft editor (IP15): one row per service
-// type (`svc_unit_<id>` per dönüm, `svc_min_<id>` minimum fee, TL, VAT
-// excluded). An empty price leaves the service unpriced in this version: the
-// portal then shows "Fiyat teklifle bildirilir" and ops enters the amount. A
-// minimum fee without a price is a mistake.
+// The "Hizmet fiyatları" part of the draft editor (IP15): per service type an
+// "any robot" row (`svc_unit_<id>` per dönüm, `svc_min_<id>` minimum fee, TL,
+// VAT excluded) and optionally a row per robot model that can do it
+// (`svc_unit_<id>_<model>`, `svc_min_<id>_<model>`), which a request for that
+// model prefers. An empty price leaves the row out: an empty model row falls
+// back to the any-robot row, an empty any-robot row (and no model row) leaves
+// the service unpriced in this version (the portal shows "Fiyat teklifle
+// bildirilir" and ops enters the amount). A minimum fee without a price is a
+// mistake.
 export function parsePriceListServiceItems(
   read: Reader,
   serviceTypeIds: string[],
+  robots: { serviceTypeId: string; robotModelId: string }[] = [],
 ): Parsed<PriceListServiceItemsInput> {
   const items: PriceListServiceItemsInput["items"] = [];
-  for (const id of serviceTypeIds) {
-    const unitText = read(`svc_unit_${id}`);
-    const minText = read(`svc_min_${id}`);
+  const rows = serviceTypeIds.flatMap((id) => [
+    { id, model: null as string | null, key: id },
+    ...robots
+      .filter((r) => r.serviceTypeId === id)
+      .map((r) => ({ id, model: r.robotModelId, key: `${id}_${r.robotModelId}` })),
+  ]);
+  for (const { id, model, key } of rows) {
+    const unitText = read(`svc_unit_${key}`);
+    const minText = read(`svc_min_${key}`);
     if (!unitText) {
-      if (minText) return bad(`svc_unit_${id}`);
+      if (minText) return bad(`svc_unit_${key}`);
       continue;
     }
     const unit = parseAmount(unitText);
-    if (unit == null) return bad(`svc_unit_${id}`);
+    if (unit == null) return bad(`svc_unit_${key}`);
     const min = parseAmount(minText || "0", { allowZero: true });
-    if (min == null) return bad(`svc_min_${id}`);
-    items.push({ service_type_id: id, unit_price_kurus: unit, minimum_fee_kurus: min });
+    if (min == null) return bad(`svc_min_${key}`);
+    items.push({
+      service_type_id: id,
+      robot_model_id: model,
+      unit_price_kurus: unit,
+      minimum_fee_kurus: min,
+    });
   }
   return ok({ items });
 }

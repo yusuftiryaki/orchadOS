@@ -54,6 +54,14 @@ describe("tour steps", () => {
     expect(TOUR_STEPS[stepIndex("hizmet-sonuc")].targets).toEqual(["service-request-proof"]);
   });
 
+  it("presents the service as done by the autonomous robot MARABA-I", () => {
+    for (const id of ["hizmet-oneri", "hizmet-sonuc"]) {
+      const { body } = TOUR_STEPS[stepIndex(id)];
+      expect(body).toContain("otonom robotumuz MARABA-I");
+      expect(body.toLowerCase()).not.toContain("tırpan");
+    }
+  });
+
   it("puts the step into ?tur and keeps the current page for the last step", () => {
     expect(stepUrl(TOUR_STEPS[2], CTX, "/portal")).toBe("/portal/parsel/p1?katman=isi&tur=harita");
     expect(stepUrl(TOUR_STEPS[11], CTX, "/portal/parsel/p1?x=1")).toBe(
