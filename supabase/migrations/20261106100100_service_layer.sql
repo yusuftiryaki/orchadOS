@@ -6,15 +6,23 @@
 -- 2. weed_height: parcel-level field question (short / medium / tall), asked
 --    once per visit in spring and summer.
 -- 3. public.service_type: generic, org-scoped service catalogue. A new
---    service (tillage, pruning) is a new row, not a schema change. Prices in
---    kuruş, VAT excluded, per dönüm, with a minimum fee; a season window per
---    service (it may wrap the year end); the weed threshold and observation
+--    service (tillage, pruning) is a new row, not a schema change. A default
+--    season window per service (it may wrap the year end), overridden per
+--    fruit species by public.service_type_season (seeded 1 March - 30 June
+--    for every species, editable by ops); the weed threshold and observation
 --    age that trigger a recommendation. The migration seeds weed_mowing for
---    existing orgs with a draft price (price_is_draft).
+--    existing orgs without a price.
+--    Prices live in the versioned billing price list: public.
+--    price_list_service_item (per dönüm, VAT excluded, minimum fee) is a child
+--    of public.price_list next to price_list_item, written only while its list
+--    is a draft. The published list in force prices the service; without a
+--    price there the portal shows no amount ("Fiyat teklifle bildirilir"),
+--    requests still work and ops enters the amount when scheduling.
 -- 4. public.service_request (+ service_request_event, append-only history):
 --    pre_request -> requested -> scheduled -> done, or cancelled. The quote
---    is frozen at the request (pricing rule service-v1, the rounding of
---    pricing-v1: tenths of a dönüm); ops confirms the amount and the date.
+--    is frozen at the request with the price list version it came from
+--    (pricing rule service-v1, the rounding of pricing-v1: tenths of a
+--    dönüm); ops confirms the amount and the date.
 --    Scheduling opens a public.session of kind 'mowing' (never published,
 --    so it never shows as an audit visit); completing it writes a
 --    public.operation row (performer crew). Payment is recorded by hand
@@ -35,8 +43,10 @@
 --    customer_cancel_service_request, ops_service_requests (queue),
 --    ops_schedule / ops_complete / ops_cancel_service_request,
 --    ops_add_service_photo, ops_link_service_photo, ops_unlink_service_photo,
---    ops_record_service_payment, ops_update_service_type, ops_service_demand
---    (pre-requests per service and season).
+--    ops_record_service_payment, ops_update_service_type,
+--    ops_save_service_season, ops_save_price_list_service_items,
+--    ops_service_demand (pre-requests per service and season);
+--    ops_create_price_list_draft copies the service prices too.
 --
 -- Legal rules (docs/hukuk/kararlar.md H37): the request is an offer; the
 -- contract is made when ops confirms the amount and the day (scheduled).
@@ -49,7 +59,8 @@
 -- invalid_input (22023, detail names the field), services_disabled,
 -- service_inactive, area_unknown, request_open, invalid_status,
 -- too_late_to_cancel, proof_missing, payment_recorded, quote_above_estimate,
--- withdrawal_period (P0001).
+-- withdrawal_period (P0001). Without a frozen estimate ops must give the
+-- amount (invalid_input, detail quote_total).
 
 -- ---------------------------------------------------------------------------
 -- 1. Switch and audit entity types
@@ -157,12 +168,8 @@ create table public.service_type (
   description text check (length(description) <= 2000),
   -- What the job writes into public.operation when it is done.
   operation_kind public.operation_kind not null,
-  -- Per dönüm (1000 m²), VAT excluded, as price_list_item.
-  price_per_donum_kurus bigint not null check (price_per_donum_kurus > 0),
-  minimum_fee_kurus bigint not null default 0 check (minimum_fee_kurus >= 0),
-  vat_rate_bp integer not null default 2000 check (vat_rate_bp between 0 and 10000),
-  -- A draft price is shown as an estimate ("tahmini") in the portal.
-  price_is_draft boolean not null default true,
+  -- Default season window; public.service_type_season overrides it per
+  -- fruit species.
   season_start_month smallint not null,
   season_start_day smallint not null,
   season_end_month smallint not null,
@@ -184,10 +191,64 @@ create table public.service_type (
   check ((season_start_month, season_start_day) <> (season_end_month, season_end_day))
 );
 comment on table public.service_type is
-  'Service catalogue of an org (IP15): one row per service type (weed mowing first). Price per dönüm excluding VAT, minimum fee, season window, recommendation rule.';
+  'Service catalogue of an org (IP15): one row per service type (weed mowing first). Default season window, recommendation rule. Prices: price_list_service_item.';
 alter table public.service_type enable row level security;
 select private.attach_demo_guard('public.service_type');
 create trigger service_type_touch before update on public.service_type
+for each row execute function private.touch_updated_at();
+
+-- Season window of a service per fruit species (the recommendation and the
+-- pre-request use the parcel's species).
+create table public.service_type_season (
+  org_id uuid not null,
+  service_type_id uuid not null,
+  species text not null references public.fruit_species (code),
+  season_start_month smallint not null,
+  season_start_day smallint not null,
+  season_end_month smallint not null,
+  season_end_day smallint not null,
+  updated_by uuid references auth.users (id) on delete set null,
+  updated_at timestamptz not null default now(),
+  primary key (service_type_id, species),
+  foreign key (service_type_id, org_id) references public.service_type (id, org_id) on delete cascade,
+  check (private.valid_month_day(season_start_month, season_start_day)),
+  check (private.valid_month_day(season_end_month, season_end_day)),
+  check ((season_start_month, season_start_day) <> (season_end_month, season_end_day))
+);
+comment on table public.service_type_season is
+  'Season window of a service per fruit species (IP15); none: the service_type default. Writes through ops_save_service_season.';
+create index service_type_season_org_idx on public.service_type_season (org_id);
+create index service_type_season_species_idx on public.service_type_season (species);
+alter table public.service_type_season enable row level security;
+select private.attach_demo_guard('public.service_type_season');
+create trigger service_type_season_touch before update on public.service_type_season
+for each row execute function private.touch_updated_at();
+
+-- Service prices of a price list version (per dönüm, VAT excluded, as
+-- price_list_item; VAT is the list's). Optional: a published list without a
+-- row for a service leaves the service unpriced.
+create table public.price_list_service_item (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references public.org (id) on delete cascade,
+  price_list_id uuid not null,
+  service_type_id uuid not null,
+  unit_price_kurus bigint not null check (unit_price_kurus > 0),
+  minimum_fee_kurus bigint not null default 0 check (minimum_fee_kurus >= 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (price_list_id, service_type_id),
+  foreign key (price_list_id, org_id) references public.price_list (id, org_id) on delete cascade,
+  foreign key (service_type_id, org_id) references public.service_type (id, org_id)
+);
+comment on table public.price_list_service_item is
+  'Service price (per dönüm, VAT excluded, minimum fee) in a price list version (IP15). Written only while the list is a draft.';
+create index price_list_service_item_service_idx on public.price_list_service_item (service_type_id);
+create index price_list_service_item_org_idx on public.price_list_service_item (org_id);
+alter table public.price_list_service_item enable row level security;
+select private.attach_demo_guard('public.price_list_service_item');
+create trigger price_list_service_item_guard before insert or update or delete on public.price_list_service_item
+for each row execute function private.price_list_item_guard();
+create trigger price_list_service_item_touch before update on public.price_list_service_item
 for each row execute function private.touch_updated_at();
 
 -- ---------------------------------------------------------------------------
@@ -217,16 +278,19 @@ create table public.service_request (
   -- What the portal showed when the request was made, if anything.
   recommended_measurement_id uuid references public.measurement (id) on delete set null,
   recommended_weed_height text check (recommended_weed_height in ('short', 'medium', 'tall')),
-  -- Quote frozen at the request (pricing rule service-v1).
+  -- Quote frozen at the request (pricing rule service-v1) from the published
+  -- price list in force that day. All null when that list has no price for
+  -- the service: ops enters the amount when scheduling.
   area_m2 numeric(12, 2) not null check (area_m2 > 0),
   area_source text not null check (area_source in ('boundary', 'declared')),
-  price_per_donum_kurus bigint not null check (price_per_donum_kurus > 0),
-  minimum_fee_kurus bigint not null check (minimum_fee_kurus >= 0),
-  vat_rate_bp integer not null check (vat_rate_bp between 0 and 10000),
-  price_is_draft boolean not null,
-  estimate_subtotal_kurus bigint not null check (estimate_subtotal_kurus >= 0),
-  estimate_vat_kurus bigint not null check (estimate_vat_kurus >= 0),
-  estimate_total_kurus bigint not null check (estimate_total_kurus >= 0),
+  price_list_id uuid,
+  price_list_version integer check (price_list_version > 0),
+  price_per_donum_kurus bigint check (price_per_donum_kurus > 0),
+  minimum_fee_kurus bigint check (minimum_fee_kurus >= 0),
+  vat_rate_bp integer check (vat_rate_bp between 0 and 10000),
+  estimate_subtotal_kurus bigint check (estimate_subtotal_kurus >= 0),
+  estimate_vat_kurus bigint check (estimate_vat_kurus >= 0),
+  estimate_total_kurus bigint check (estimate_total_kurus >= 0),
   pricing_rule text not null default 'service-v1',
   -- Set by ops when scheduling (VAT included).
   quote_total_kurus bigint check (quote_total_kurus >= 0),
@@ -250,6 +314,9 @@ create table public.service_request (
   foreign key (parcel_id, org_id) references public.parcel (id, org_id),
   foreign key (service_type_id, org_id) references public.service_type (id, org_id),
   foreign key (session_id, parcel_id, org_id) references public.session (id, parcel_id, org_id),
+  foreign key (price_list_id, org_id) references public.price_list (id, org_id),
+  check (num_nulls(price_list_id, price_list_version, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp,
+    estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus) in (0, 8)),
   check (estimate_total_kurus = estimate_subtotal_kurus + estimate_vat_kurus),
   check (status not in ('scheduled', 'done') or (scheduled_date is not null and quote_total_kurus is not null
     and session_id is not null)),
@@ -270,6 +337,7 @@ create index service_request_type_season_idx on public.service_request (service_
 create index service_request_session_idx on public.service_request (session_id);
 create index service_request_operation_idx on public.service_request (operation_id);
 create index service_request_measurement_idx on public.service_request (recommended_measurement_id);
+create index service_request_price_list_idx on public.service_request (price_list_id);
 alter table public.service_request enable row level security;
 select private.attach_demo_guard('public.service_request');
 create trigger service_request_touch before update on public.service_request
@@ -360,16 +428,26 @@ for each row execute function private.touch_robot_note();
 -- Access
 -- ---------------------------------------------------------------------------
 
-revoke all on public.service_type, public.service_request, public.service_request_event,
-  public.service_request_photo, public.parcel_robot_note from anon, authenticated;
-grant all on public.service_type, public.service_request, public.service_request_event,
-  public.service_request_photo, public.parcel_robot_note to service_role;
+revoke all on public.service_type, public.service_type_season, public.price_list_service_item,
+  public.service_request, public.service_request_event, public.service_request_photo, public.parcel_robot_note
+  from anon, authenticated;
+grant all on public.service_type, public.service_type_season, public.price_list_service_item,
+  public.service_request, public.service_request_event, public.service_request_photo, public.parcel_robot_note
+  to service_role;
 
 -- Catalogue: staff of the org, and parcel readers of the org (names and
 -- prices are shown on the portal). Writes through ops_update_service_type.
 create policy service_type_select on public.service_type for select to authenticated
   using (org_id in (select authz.user_org_ids()) or org_id in (select authz.user_parcel_org_ids()));
 grant select on public.service_type to authenticated;
+create policy service_type_season_select on public.service_type_season for select to authenticated
+  using (org_id in (select authz.user_org_ids()) or org_id in (select authz.user_parcel_org_ids()));
+grant select on public.service_type_season to authenticated;
+-- Service prices: as price_list_item, ops only (the portal reads amounts
+-- through service_offers).
+create policy price_list_service_item_select on public.price_list_service_item for select to authenticated
+  using (org_id in (select authz.user_org_ids('{ops}')));
+grant select on public.price_list_service_item to authenticated;
 
 -- Requests, history, photos: owners of the parcel and staff of the org.
 -- Viewers do not see commercial rows. Writes through the functions below.
@@ -382,7 +460,7 @@ create policy service_request_photo_select on public.service_request_photo for s
 grant select (
   id, org_id, parcel_id, service_type_id, number, status, requested_by, season_year, preferred_window,
   customer_note, terms_version, early_performance_requested, recommended_measurement_id, recommended_weed_height, area_m2, area_source,
-  price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, price_is_draft, estimate_subtotal_kurus,
+  price_list_id, price_list_version, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, estimate_subtotal_kurus,
   estimate_vat_kurus, estimate_total_kurus, pricing_rule, quote_total_kurus, scheduled_date, session_id,
   operation_id, completed_on, cancelled_at, cancelled_by_role, cancel_reason, payment_received_on,
   payment_amount_kurus, payment_method, created_at, updated_at
@@ -440,6 +518,53 @@ set search_path = ''
 as $$
   select coalesce((select s.services_enabled from public.org_billing_setting s where s.org_id = p_org_id), false);
 $$;
+
+-- The service row with the season window of p_species (its
+-- service_type_season row, else the service's default window).
+create function private.service_type_for_species(t public.service_type, p_species text)
+returns public.service_type
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  s public.service_type_season;
+begin
+  select * into s from public.service_type_season x where x.service_type_id = t.id and x.species = p_species;
+  if found then
+    t.season_start_month := s.season_start_month;
+    t.season_start_day := s.season_start_day;
+    t.season_end_month := s.season_end_month;
+    t.season_end_day := s.season_end_day;
+  end if;
+  return t;
+end;
+$$;
+
+-- The service's price in the published price list in force on p_on, or all
+-- null (no list, or no price for the service in it).
+create function private.service_price(
+  t public.service_type,
+  p_on date,
+  out price_list_id uuid,
+  out price_list_version integer,
+  out unit_price_kurus bigint,
+  out minimum_fee_kurus bigint,
+  out vat_rate_bp integer
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select l.id, l.version, i.unit_price_kurus, i.minimum_fee_kurus, l.vat_rate_bp
+  from private.current_price_list(t.org_id, p_on) l
+  join public.price_list_service_item i on i.price_list_id = l.id and i.service_type_id = t.id
+  where l.id is not null;
+$$;
+comment on function private.service_price(public.service_type, date) is
+  'IP15: price per dönüm, minimum fee and VAT of a service from the published price list in force (null when unpriced).';
 
 -- Month-day as an integer (MMDD) for season comparisons.
 create function private.service_in_season(t public.service_type, p_day date)
@@ -533,7 +658,11 @@ as $$
 declare
   v_tenths bigint;
 begin
-  if p_area_m2 is null or p_area_m2 <= 0 or p_price_per_donum_kurus is null or p_price_per_donum_kurus <= 0
+  -- Unpriced service or unknown area: no estimate.
+  if p_area_m2 is null or p_price_per_donum_kurus is null then
+    return;
+  end if;
+  if p_area_m2 <= 0 or p_price_per_donum_kurus <= 0
      or p_minimum_fee_kurus is null or p_minimum_fee_kurus < 0
      or p_vat_rate_bp is null or p_vat_rate_bp not between 0 and 10000 then
     raise exception 'invalid_input' using errcode = '22023', detail = 'quote';
@@ -545,7 +674,7 @@ begin
 end;
 $$;
 comment on function private.service_quote(numeric, bigint, bigint, integer) is
-  'IP15 pricing rule service-v1: max(ceil(area_m2/100) x price per dönüm / 10, minimum fee) + VAT, in kuruş.';
+  'IP15 pricing rule service-v1: max(ceil(area_m2/100) x price per dönüm / 10, minimum fee) + VAT, in kuruş; null without a price or area.';
 
 -- Weed height levels in order.
 create function private.weed_level(p_value text)
@@ -732,10 +861,11 @@ returns table (
   measurement_id uuid,
   area_m2 numeric,
   area_source text,
+  species text,
+  price_list_version integer,
   price_per_donum_kurus bigint,
   minimum_fee_kurus bigint,
   vat_rate_bp integer,
-  price_is_draft boolean,
   estimate_subtotal_kurus bigint,
   estimate_vat_kurus bigint,
   estimate_total_kurus bigint,
@@ -753,7 +883,7 @@ declare
 begin
   return query
   with parcels as (
-    select p.id, p.name, p.org_id
+    select p.id, p.name, p.org_id, p.species
     from public.parcel p
     where (p_parcel_id is null or p.id = p_parcel_id)
       and (
@@ -767,23 +897,25 @@ begin
     p.id, p.name, t.id, t.code, t.name, t.description,
     case
       when o.id is not null then 'open'
-      when not private.service_in_season(t, v_today) then 'pre_request'
-      when private.service_recommended(t, p.id, w.weed_height, w.observed_at, v_today) then 'recommended'
+      when not private.service_in_season(ts, v_today) then 'pre_request'
+      when private.service_recommended(ts, p.id, w.weed_height, w.observed_at, v_today) then 'recommended'
       else 'available'
     end,
-    private.service_in_season(t, v_today),
-    private.service_season_start(t, v_today),
-    private.service_season_end(t, private.service_season_start(t, v_today)),
+    private.service_in_season(ts, v_today),
+    private.service_season_start(ts, v_today),
+    private.service_season_end(ts, private.service_season_start(ts, v_today)),
     w.weed_height, w.observed_at, w.measurement_id,
     a.area_m2, a.area_source,
-    t.price_per_donum_kurus, t.minimum_fee_kurus, t.vat_rate_bp, t.price_is_draft,
+    p.species,
+    sp.price_list_version, sp.unit_price_kurus, sp.minimum_fee_kurus, sp.vat_rate_bp,
     q.subtotal_kurus, q.vat_kurus, q.total_kurus,
     o.id, o.status::text, o.number
   from parcels p
   join public.service_type t on t.org_id = p.org_id and t.active
+  cross join lateral private.service_type_for_species(t, p.species) ts
   cross join lateral private.parcel_service_area(p.id) a
-  cross join lateral private.service_quote(a.area_m2, t.price_per_donum_kurus, t.minimum_fee_kurus,
-    t.vat_rate_bp) q
+  left join lateral private.service_price(t, v_today) sp on true
+  cross join lateral private.service_quote(a.area_m2, sp.unit_price_kurus, sp.minimum_fee_kurus, sp.vat_rate_bp) q
   left join lateral private.latest_weed_observation(p.id) w on true
   left join lateral (
     select r.id, r.status, r.number from public.service_request r
@@ -796,7 +928,7 @@ begin
 end;
 $$;
 comment on function public.service_offers(uuid) is
-  'IP15 portal: service cards per owned parcel (state recommended / available / pre_request / open, estimate, latest weed observation).';
+  'IP15 portal: service cards per owned parcel (state recommended / available / pre_request / open; season of the parcel''s species; estimate from the published price list, null when unpriced; latest weed observation).';
 
 -- Portal navigation: the caller owns a parcel of an org with the service
 -- layer switched on (the "Hizmetlerim" link).
@@ -836,6 +968,7 @@ declare
   a record;
   q record;
   w record;
+  sp record;
   r public.service_request;
   v_today date := private.istanbul_today();
   v_in_season boolean;
@@ -873,14 +1006,17 @@ begin
   ) then
     raise exception 'request_open' using errcode = 'P0001';
   end if;
-  select * into q from private.service_quote(a.area_m2, t.price_per_donum_kurus, t.minimum_fee_kurus, t.vat_rate_bp) x;
+  -- Season of the parcel's species; price from the published list in force.
+  t := private.service_type_for_species(t, p.species);
+  select * into sp from private.service_price(t, v_today) x;
+  select * into q from private.service_quote(a.area_m2, sp.unit_price_kurus, sp.minimum_fee_kurus, sp.vat_rate_bp) x;
   select * into w from private.latest_weed_observation(p.id) x;
   v_in_season := private.service_in_season(t, v_today);
 
   insert into public.service_request (
     org_id, parcel_id, service_type_id, number, status, requested_by, season_year, preferred_window,
     customer_note, terms_version, early_performance_requested, recommended_measurement_id, recommended_weed_height,
-    area_m2, area_source, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp, price_is_draft,
+    area_m2, area_source, price_list_id, price_list_version, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp,
     estimate_subtotal_kurus, estimate_vat_kurus, estimate_total_kurus
   ) values (
     p.org_id, p.id, t.id, private.next_service_request_number(p.org_id),
@@ -889,14 +1025,15 @@ begin
     coalesce(p_window, 'flexible'), nullif(btrim(p_note), ''), btrim(p_terms_version), coalesce(p_early_performance, false),
     case when private.service_recommended(t, p.id, w.weed_height, w.observed_at, v_today) then w.measurement_id end,
     case when private.service_recommended(t, p.id, w.weed_height, w.observed_at, v_today) then w.weed_height end,
-    a.area_m2, a.area_source, t.price_per_donum_kurus, t.minimum_fee_kurus, t.vat_rate_bp, t.price_is_draft,
-    q.subtotal_kurus, q.vat_kurus, q.total_kurus
+    a.area_m2, a.area_source, sp.price_list_id, sp.price_list_version, sp.unit_price_kurus, sp.minimum_fee_kurus,
+    sp.vat_rate_bp, q.subtotal_kurus, q.vat_kurus, q.total_kurus
   )
   returning * into r;
   perform private.log_service_event(r, null, 'owner', null);
   perform private.audit(r.org_id, (select auth.uid()), 'customer', 'service_request.create', 'service_request', r.id,
     jsonb_build_object('status', r.status, 'service', t.code, 'season_year', r.season_year,
-      'terms_version', r.terms_version, 'early_performance', r.early_performance_requested));
+      'terms_version', r.terms_version, 'early_performance', r.early_performance_requested,
+      'price_list_version', r.price_list_version, 'estimate_total_kurus', r.estimate_total_kurus));
   return r.id;
 exception
   when unique_violation then
@@ -904,7 +1041,7 @@ exception
 end;
 $$;
 comment on function public.customer_request_service(uuid, uuid, public.service_window, text, text, boolean) is
-  'IP15 owner: requests a service for a parcel (pre_request out of season); quote frozen with service-v1.';
+  'IP15 owner: requests a service for a parcel (pre_request out of season); quote and price list version frozen with service-v1 (none when unpriced).';
 
 -- Owner: cancels an own request before the scheduled day (pre_request,
 -- requested, or scheduled with a day after today).
@@ -973,7 +1110,7 @@ returns table (
   recommended_weed_height text,
   area_m2 numeric,
   area_source text,
-  price_is_draft boolean,
+  price_list_version integer,
   estimate_total_kurus bigint,
   quote_total_kurus bigint,
   scheduled_date date,
@@ -999,7 +1136,7 @@ as $$
   select
     r.id, r.org_id, r.number, r.status::text, r.parcel_id, p.name, p.village, p.district,
     t.id, t.code, t.name, r.season_year, r.preferred_window::text, r.customer_note, r.ops_note,
-    r.recommended_weed_height, r.area_m2, r.area_source, r.price_is_draft, r.estimate_total_kurus,
+    r.recommended_weed_height, r.area_m2, r.area_source, r.price_list_version, r.estimate_total_kurus,
     r.quote_total_kurus, r.scheduled_date, r.completed_on, r.payment_received_on, r.payment_amount_kurus,
     r.payment_method, r.cancel_reason, r.cancelled_by_role, r.early_performance_requested,
     (select count(*)::integer from public.service_request_photo x where x.request_id = r.id and x.phase = 'before'),
@@ -1051,6 +1188,10 @@ begin
     raise exception 'invalid_input' using errcode = '22023', detail = 'scheduled_date';
   end if;
   if p_quote_total_kurus is not null and (p_quote_total_kurus < 0 or p_quote_total_kurus > 100000000000) then
+    raise exception 'invalid_input' using errcode = '22023', detail = 'quote_total';
+  end if;
+  -- Unpriced at the request ("Fiyat teklifle bildirilir"): ops gives the amount.
+  if r.estimate_total_kurus is null and coalesce(p_quote_total_kurus, r.quote_total_kurus) is null then
     raise exception 'invalid_input' using errcode = '22023', detail = 'quote_total';
   end if;
   -- H37: never above what the owner accepted.
@@ -1344,14 +1485,10 @@ begin
 end;
 $$;
 
--- Ops: edits a catalogue row (price, minimum fee, VAT, draft flag, season,
--- recommendation rule, active).
+-- Ops: edits a catalogue row (default season, recommendation rule, active).
+-- Prices are edited in the price list (ops_save_price_list_service_items).
 create function public.ops_update_service_type(
   p_id uuid,
-  p_price_per_donum_kurus bigint,
-  p_minimum_fee_kurus bigint,
-  p_vat_rate_bp integer,
-  p_price_is_draft boolean,
   p_season_start_month smallint,
   p_season_start_day smallint,
   p_season_end_month smallint,
@@ -1374,15 +1511,6 @@ begin
     raise exception 'not_found' using errcode = 'P0002';
   end if;
   perform private.require_ops(t.org_id);
-  if p_price_per_donum_kurus is null or p_price_per_donum_kurus <= 0 or p_price_per_donum_kurus > 10000000000 then
-    raise exception 'invalid_input' using errcode = '22023', detail = 'price';
-  end if;
-  if p_minimum_fee_kurus is null or p_minimum_fee_kurus < 0 or p_minimum_fee_kurus > 10000000000 then
-    raise exception 'invalid_input' using errcode = '22023', detail = 'minimum_fee';
-  end if;
-  if p_vat_rate_bp is null or p_vat_rate_bp not between 0 and 10000 then
-    raise exception 'invalid_input' using errcode = '22023', detail = 'vat_rate';
-  end if;
   if not coalesce(private.valid_month_day(p_season_start_month, p_season_start_day), false)
      or not coalesce(private.valid_month_day(p_season_end_month, p_season_end_day), false)
      or (p_season_start_month, p_season_start_day) = (p_season_end_month, p_season_end_day) then
@@ -1395,9 +1523,7 @@ begin
     raise exception 'invalid_input' using errcode = '22023', detail = 'observation_max_age_days';
   end if;
   update public.service_type x
-  set price_per_donum_kurus = p_price_per_donum_kurus, minimum_fee_kurus = p_minimum_fee_kurus,
-      vat_rate_bp = p_vat_rate_bp, price_is_draft = coalesce(p_price_is_draft, true),
-      season_start_month = p_season_start_month, season_start_day = p_season_start_day,
+  set season_start_month = p_season_start_month, season_start_day = p_season_start_day,
       season_end_month = p_season_end_month, season_end_day = p_season_end_day,
       recommend_from_weed_height = p_recommend_from_weed_height,
       observation_max_age_days = p_observation_max_age_days, active = coalesce(p_active, x.active),
@@ -1405,9 +1531,155 @@ begin
   where x.id = t.id;
   perform private.audit(t.org_id, (select auth.uid()), 'ops', 'service_type.update', 'service_type', t.id,
     jsonb_build_object(
-      'price_per_donum_kurus', p_price_per_donum_kurus, 'minimum_fee_kurus', p_minimum_fee_kurus,
-      'vat_rate_bp', p_vat_rate_bp, 'price_is_draft', p_price_is_draft, 'active', p_active,
+      'active', p_active, 'recommend_from', p_recommend_from_weed_height,
+      'observation_max_age_days', p_observation_max_age_days,
       'season', format('%s-%s..%s-%s', p_season_start_month, p_season_start_day, p_season_end_month, p_season_end_day)));
+end;
+$$;
+
+-- Ops: sets the season window of a service for one fruit species.
+create function public.ops_save_service_season(
+  p_service_type_id uuid,
+  p_species text,
+  p_season_start_month smallint,
+  p_season_start_day smallint,
+  p_season_end_month smallint,
+  p_season_end_day smallint
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  t public.service_type;
+begin
+  perform private.assert_not_demo();
+  select * into t from public.service_type x where x.id = p_service_type_id;
+  if not found or t.org_id not in (select authz.user_org_ids()) then
+    raise exception 'not_found' using errcode = 'P0002';
+  end if;
+  perform private.require_ops(t.org_id);
+  if not exists (select 1 from public.fruit_species s where s.code = p_species) then
+    raise exception 'invalid_input' using errcode = '22023', detail = 'species';
+  end if;
+  if not coalesce(private.valid_month_day(p_season_start_month, p_season_start_day), false)
+     or not coalesce(private.valid_month_day(p_season_end_month, p_season_end_day), false)
+     or (p_season_start_month, p_season_start_day) = (p_season_end_month, p_season_end_day) then
+    raise exception 'invalid_input' using errcode = '22023', detail = 'season';
+  end if;
+  insert into public.service_type_season (org_id, service_type_id, species, season_start_month, season_start_day,
+    season_end_month, season_end_day, updated_by)
+  values (t.org_id, t.id, p_species, p_season_start_month, p_season_start_day, p_season_end_month, p_season_end_day,
+    (select auth.uid()))
+  on conflict (service_type_id, species) do update
+  set season_start_month = excluded.season_start_month, season_start_day = excluded.season_start_day,
+      season_end_month = excluded.season_end_month, season_end_day = excluded.season_end_day,
+      updated_by = excluded.updated_by;
+  perform private.audit(t.org_id, (select auth.uid()), 'ops', 'service_type.season', 'service_type', t.id,
+    jsonb_build_object('species', p_species,
+      'season', format('%s-%s..%s-%s', p_season_start_month, p_season_start_day, p_season_end_month, p_season_end_day)));
+end;
+$$;
+comment on function public.ops_save_service_season(uuid, text, smallint, smallint, smallint, smallint) is
+  'IP15 ops: season window of a service for one fruit species (used by the recommendation and the pre-request).';
+
+-- Ops: replaces the service prices of a price list draft.
+-- p_items: [{service_type_id, unit_price_kurus, minimum_fee_kurus?}]; an empty
+-- array leaves every service unpriced. Errors: not_found, forbidden,
+-- price_list_not_draft, invalid_input (detail: field or items).
+create function public.ops_save_price_list_service_items(p_price_list_id uuid, p_items jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  l public.price_list;
+  v_item jsonb;
+  v_service uuid;
+  v_unit numeric;
+  v_min numeric;
+  v_seen uuid[] := '{}';
+begin
+  perform private.assert_not_demo();
+  l := private.lock_price_list_draft(p_price_list_id);
+  if p_items is null or jsonb_typeof(p_items) <> 'array' then
+    raise exception 'invalid_input' using errcode = '22023', detail = 'items';
+  end if;
+  delete from public.price_list_service_item where price_list_id = l.id;
+  for v_item in select value from jsonb_array_elements(p_items) loop
+    if jsonb_typeof(v_item) <> 'object' then
+      raise exception 'invalid_input' using errcode = '22023', detail = 'items';
+    end if;
+    begin
+      v_service := (v_item ->> 'service_type_id')::uuid;
+    exception when invalid_text_representation then
+      raise exception 'invalid_input' using errcode = '22023', detail = 'service_type_id';
+    end;
+    if v_service is null or v_service = any (v_seen)
+       or not exists (select 1 from public.service_type t where t.id = v_service and t.org_id = l.org_id) then
+      raise exception 'invalid_input' using errcode = '22023', detail = 'service_type_id';
+    end if;
+    v_seen := v_seen || v_service;
+    v_unit := private.input_number(v_item, 'unit_price_kurus', true);
+    v_min := coalesce(private.input_number(v_item, 'minimum_fee_kurus'), 0);
+    if v_unit <> trunc(v_unit) or v_unit <= 0 or v_unit > 1e12 then
+      raise exception 'invalid_input' using errcode = '22023', detail = 'unit_price_kurus';
+    end if;
+    if v_min <> trunc(v_min) or v_min < 0 or v_min > 1e12 then
+      raise exception 'invalid_input' using errcode = '22023', detail = 'minimum_fee_kurus';
+    end if;
+    insert into public.price_list_service_item (org_id, price_list_id, service_type_id, unit_price_kurus,
+      minimum_fee_kurus)
+    values (l.org_id, l.id, v_service, v_unit, v_min);
+  end loop;
+  perform private.audit(l.org_id, (select auth.uid()), 'ops', 'price_list.service_items_saved', 'price_list', l.id,
+    jsonb_build_object('items', jsonb_array_length(p_items)));
+end;
+$$;
+comment on function public.ops_save_price_list_service_items(uuid, jsonb) is
+  'IP15 ops: saves the service prices (per dönüm, minimum fee) of a price list draft.';
+
+-- As in 20261030100400_catalog_applications.sql, and a copy takes the
+-- service prices too.
+create or replace function public.ops_create_price_list_draft(p_org_id uuid, p_copy_from_id uuid default null)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_id uuid;
+  src public.price_list;
+  v_today date := (now() at time zone 'Europe/Istanbul')::date;
+begin
+  perform private.require_ops(p_org_id);
+  if p_copy_from_id is not null then
+    select * into src from public.price_list where id = p_copy_from_id and org_id = p_org_id;
+    if not found then
+      raise exception 'not_found' using errcode = 'P0002';
+    end if;
+  end if;
+  insert into public.price_list (org_id, status, valid_from, vat_rate_bp, note, created_by)
+  values (
+    p_org_id, 'draft',
+    case when src.valid_from >= v_today then src.valid_from end,
+    coalesce(src.vat_rate_bp, 2000), src.note, (select auth.uid())
+  )
+  returning id into v_id;
+  if src.id is not null then
+    insert into public.price_list_item (org_id, price_list_id, package_id, unit_price_kurus, minimum_fee_kurus, inventory_fee_kurus)
+    select p_org_id, v_id, i.package_id, i.unit_price_kurus, i.minimum_fee_kurus, i.inventory_fee_kurus
+    from public.price_list_item i where i.price_list_id = src.id;
+    insert into public.price_list_service_item (org_id, price_list_id, service_type_id, unit_price_kurus,
+      minimum_fee_kurus)
+    select p_org_id, v_id, i.service_type_id, i.unit_price_kurus, i.minimum_fee_kurus
+    from public.price_list_service_item i where i.price_list_id = src.id;
+  end if;
+  perform private.audit(p_org_id, (select auth.uid()), 'ops', 'price_list.draft_created', 'price_list', v_id,
+    jsonb_build_object('copy_from', p_copy_from_id));
+  return v_id;
 end;
 $$;
 
@@ -1461,6 +1733,8 @@ revoke all on function private.service_season_start(public.service_type, date) f
 revoke all on function private.service_season_end(public.service_type, date) from public;
 revoke all on function private.parcel_service_area(uuid) from public;
 revoke all on function private.service_quote(numeric, bigint, bigint, integer) from public;
+revoke all on function private.service_type_for_species(public.service_type, text) from public;
+revoke all on function private.service_price(public.service_type, date) from public;
 revoke all on function private.weed_level(text) from public;
 revoke all on function private.latest_weed_observation(uuid) from public;
 revoke all on function private.service_recommended(public.service_type, uuid, text, timestamptz, date) from public;
@@ -1488,7 +1762,9 @@ begin
     'public.ops_complete_service_request(uuid, date, text)',
     'public.ops_cancel_service_request(uuid, text)',
     'public.ops_record_service_payment(uuid, bigint, text, date)',
-    'public.ops_update_service_type(uuid, bigint, bigint, integer, boolean, smallint, smallint, smallint, smallint, text, integer, boolean)',
+    'public.ops_update_service_type(uuid, smallint, smallint, smallint, smallint, text, integer, boolean)',
+    'public.ops_save_service_season(uuid, text, smallint, smallint, smallint, smallint)',
+    'public.ops_save_price_list_service_items(uuid, jsonb)',
     'public.ops_service_demand()'
   ] loop
     execute format('revoke all on function %s from public, anon', f);
@@ -1498,20 +1774,27 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- Seed: weed mowing for the orgs that exist now, with a draft price
--- (docs/MVP.md Module 6: 375 TL + VAT per dönüm, minimum 2,500 TL + VAT, one
--- day's wage; season 1 March - 30 June). Fresh databases get it from
+-- Seed: weed mowing for the orgs that exist now, without a price (the price
+-- is not decided; it goes into a price list version when it is), season
+-- 1 March - 30 June for every fruit species. Fresh databases get it from
 -- seed.sql; the demo loader adds it to the demo org.
 -- ---------------------------------------------------------------------------
 
 insert into public.service_type (
-  org_id, code, name, description, operation_kind, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp,
-  price_is_draft, season_start_month, season_start_day, season_end_month, season_end_day,
-  recommend_from_weed_height, observation_max_age_days, sort_order
+  org_id, code, name, description, operation_kind, season_start_month, season_start_day, season_end_month,
+  season_end_day, recommend_from_weed_height, observation_max_age_days, sort_order
 )
 select o.id, 'weed_mowing', 'Yabani ot biçme',
   'orchadOS ot biçme hizmeti: parseldeki yabani otlar motorlu tırpanla biçilir. Öncesi ve sonrası fotoğrafları parsel kaydına eklenir.',
-  'mowing', 37500, 250000, 2000, true, 3, 1, 6, 30, 'medium', 60, 10
+  'mowing', 3, 1, 6, 30, 'medium', 60, 10
 from public.org o
 where not private.is_demo_org(o.id)
 on conflict (org_id, code) do nothing;
+
+insert into public.service_type_season (org_id, service_type_id, species, season_start_month, season_start_day,
+  season_end_month, season_end_day)
+select t.org_id, t.id, f.code, 3, 1, 6, 30
+from public.service_type t
+cross join public.fruit_species f
+where t.code = 'weed_mowing' and not private.is_demo_org(t.org_id)
+on conflict (service_type_id, species) do nothing;

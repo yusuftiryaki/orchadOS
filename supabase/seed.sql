@@ -322,17 +322,22 @@ insert into public.org_billing_setting (
   true
 );
 
--- IP15 service catalogue: weed mowing with the draft price of docs/MVP.md
--- Module 6 (375 TL + VAT per dönüm, minimum 2,500 TL + VAT, 1 March - 30 June).
+-- IP15 service catalogue: weed mowing. No price yet (owner decision of
+-- 2 November 2026): the launch price list below has no service row, so the
+-- portal shows "Fiyat teklifle bildirilir". Season 1 March - 30 June for
+-- every fruit species.
 insert into public.service_type (
-  id, org_id, code, name, description, operation_kind, price_per_donum_kurus, minimum_fee_kurus, vat_rate_bp,
-  price_is_draft, season_start_month, season_start_day, season_end_month, season_end_day,
-  recommend_from_weed_height, observation_max_age_days, sort_order
+  id, org_id, code, name, description, operation_kind, season_start_month, season_start_day, season_end_month,
+  season_end_day, recommend_from_weed_height, observation_max_age_days, sort_order
 ) values (
   '91500000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'weed_mowing', 'Yabani ot biçme',
   'orchadOS ot biçme hizmeti: parseldeki yabani otlar motorlu tırpanla biçilir. Öncesi ve sonrası fotoğrafları parsel kaydına eklenir.',
-  'mowing', 37500, 250000, 2000, true, 3, 1, 6, 30, 'medium', 60, 10
+  'mowing', 3, 1, 6, 30, 'medium', 60, 10
 );
+insert into public.service_type_season (org_id, service_type_id, species, season_start_month, season_start_day,
+  season_end_month, season_end_day)
+select 'b0000000-0000-4000-8000-000000000001', '91500000-0000-4000-8000-000000000001', f.code, 3, 1, 6, 30
+from public.fruit_species f;
 
 -- Launch price list (docs/fiyatlandirma.md, decided 28 October 2026). The
 -- packages include the first-year inventory visit (informational, frozen into

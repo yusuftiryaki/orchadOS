@@ -120,6 +120,7 @@ export type Database = {
           position_uncertainty_m: number;
           province: string | null;
           sort_order: number;
+          species: string;
           updated_at: string;
           verification_note: string | null;
           verified_area_m2: number | null;
@@ -146,6 +147,7 @@ export type Database = {
           position_uncertainty_m?: number;
           province?: string | null;
           sort_order?: number;
+          species?: string;
           updated_at?: string;
           verification_note?: string | null;
           verified_area_m2?: number | null;
@@ -171,6 +173,7 @@ export type Database = {
           position_uncertainty_m?: number;
           province?: string | null;
           sort_order?: number;
+          species?: string;
           updated_at?: string;
           verification_note?: string | null;
           verified_area_m2?: number | null;
@@ -200,6 +203,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "parcel";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "application_garden_species_fkey";
+            columns: ["species"];
+            isOneToOne: false;
+            referencedRelation: "fruit_species";
+            referencedColumns: ["code"];
           },
         ];
       };
@@ -1139,6 +1149,31 @@ export type Database = {
           },
         ];
       };
+      fruit_species: {
+        Row: {
+          active: boolean;
+          code: string;
+          has_methodology: boolean;
+          name: string;
+          sort_order: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          active?: boolean;
+          code: string;
+          has_methodology?: boolean;
+          name: string;
+          sort_order?: number;
+        };
+        Update: {
+          active?: boolean;
+          code?: string;
+          has_methodology?: boolean;
+          name?: string;
+          sort_order?: number;
+        };
+        Relationships: [];
+      };
       garden_removal: {
         Row: {
           access_days: number;
@@ -2065,6 +2100,7 @@ export type Database = {
           position_uncertainty_m: number | null;
           province: string | null;
           row_azimuth_deg: number | null;
+          species: string;
           status: Database["public"]["Enums"]["parcel_status"];
           village: string | null;
         };
@@ -2085,6 +2121,7 @@ export type Database = {
           position_uncertainty_m?: number | null;
           province?: string | null;
           row_azimuth_deg?: number | null;
+          species?: string;
           status?: Database["public"]["Enums"]["parcel_status"];
           village?: string | null;
         };
@@ -2104,6 +2141,7 @@ export type Database = {
           position_uncertainty_m?: number | null;
           province?: string | null;
           row_azimuth_deg?: number | null;
+          species?: string;
           status?: Database["public"]["Enums"]["parcel_status"];
           village?: string | null;
         };
@@ -2114,6 +2152,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "org";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "parcel_species_fkey";
+            columns: ["species"];
+            isOneToOne: false;
+            referencedRelation: "fruit_species";
+            referencedColumns: ["code"];
           },
         ];
       };
@@ -2570,6 +2615,62 @@ export type Database = {
             columns: ["price_list_id", "org_id"];
             isOneToOne: false;
             referencedRelation: "price_list";
+            referencedColumns: ["id", "org_id"];
+          },
+        ];
+      };
+      price_list_service_item: {
+        Row: {
+          created_at: string;
+          id: string;
+          minimum_fee_kurus: number;
+          org_id: string;
+          price_list_id: string;
+          service_type_id: string;
+          unit_price_kurus: number;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          id?: string;
+          minimum_fee_kurus?: number;
+          org_id: string;
+          price_list_id: string;
+          service_type_id: string;
+          unit_price_kurus: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          minimum_fee_kurus?: number;
+          org_id?: string;
+          price_list_id?: string;
+          service_type_id?: string;
+          unit_price_kurus?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "price_list_service_item_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "price_list_service_item_price_list_id_org_id_fkey";
+            columns: ["price_list_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "price_list";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "price_list_service_item_service_type_id_org_id_fkey";
+            columns: ["service_type_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_type";
             referencedColumns: ["id", "org_id"];
           },
         ];
@@ -3515,11 +3616,11 @@ export type Database = {
           created_at: string;
           customer_note: string | null;
           early_performance_requested: boolean;
-          estimate_subtotal_kurus: number;
-          estimate_total_kurus: number;
-          estimate_vat_kurus: number;
+          estimate_subtotal_kurus: number | null;
+          estimate_total_kurus: number | null;
+          estimate_vat_kurus: number | null;
           id: string;
-          minimum_fee_kurus: number;
+          minimum_fee_kurus: number | null;
           number: string;
           operation_id: string | null;
           ops_note: string | null;
@@ -3530,8 +3631,9 @@ export type Database = {
           payment_received_on: string | null;
           payment_recorded_by: string | null;
           preferred_window: Database["public"]["Enums"]["service_window"];
-          price_is_draft: boolean;
-          price_per_donum_kurus: number;
+          price_list_id: string | null;
+          price_list_version: number | null;
+          price_per_donum_kurus: number | null;
           pricing_rule: string;
           quote_total_kurus: number | null;
           recommended_measurement_id: string | null;
@@ -3544,7 +3646,7 @@ export type Database = {
           status: Database["public"]["Enums"]["service_request_status"];
           terms_version: string;
           updated_at: string;
-          vat_rate_bp: number;
+          vat_rate_bp: number | null;
         };
         ComputedFields: never;
         Insert: {
@@ -3557,11 +3659,11 @@ export type Database = {
           created_at?: string;
           customer_note?: string | null;
           early_performance_requested?: boolean;
-          estimate_subtotal_kurus: number;
-          estimate_total_kurus: number;
-          estimate_vat_kurus: number;
+          estimate_subtotal_kurus?: number | null;
+          estimate_total_kurus?: number | null;
+          estimate_vat_kurus?: number | null;
           id?: string;
-          minimum_fee_kurus: number;
+          minimum_fee_kurus?: number | null;
           number: string;
           operation_id?: string | null;
           ops_note?: string | null;
@@ -3572,8 +3674,9 @@ export type Database = {
           payment_received_on?: string | null;
           payment_recorded_by?: string | null;
           preferred_window?: Database["public"]["Enums"]["service_window"];
-          price_is_draft: boolean;
-          price_per_donum_kurus: number;
+          price_list_id?: string | null;
+          price_list_version?: number | null;
+          price_per_donum_kurus?: number | null;
           pricing_rule?: string;
           quote_total_kurus?: number | null;
           recommended_measurement_id?: string | null;
@@ -3586,7 +3689,7 @@ export type Database = {
           status: Database["public"]["Enums"]["service_request_status"];
           terms_version: string;
           updated_at?: string;
-          vat_rate_bp: number;
+          vat_rate_bp?: number | null;
         };
         Update: {
           area_m2?: number;
@@ -3598,11 +3701,11 @@ export type Database = {
           created_at?: string;
           customer_note?: string | null;
           early_performance_requested?: boolean;
-          estimate_subtotal_kurus?: number;
-          estimate_total_kurus?: number;
-          estimate_vat_kurus?: number;
+          estimate_subtotal_kurus?: number | null;
+          estimate_total_kurus?: number | null;
+          estimate_vat_kurus?: number | null;
           id?: string;
-          minimum_fee_kurus?: number;
+          minimum_fee_kurus?: number | null;
           number?: string;
           operation_id?: string | null;
           ops_note?: string | null;
@@ -3613,8 +3716,9 @@ export type Database = {
           payment_received_on?: string | null;
           payment_recorded_by?: string | null;
           preferred_window?: Database["public"]["Enums"]["service_window"];
-          price_is_draft?: boolean;
-          price_per_donum_kurus?: number;
+          price_list_id?: string | null;
+          price_list_version?: number | null;
+          price_per_donum_kurus?: number | null;
           pricing_rule?: string;
           quote_total_kurus?: number | null;
           recommended_measurement_id?: string | null;
@@ -3627,7 +3731,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["service_request_status"];
           terms_version?: string;
           updated_at?: string;
-          vat_rate_bp?: number;
+          vat_rate_bp?: number | null;
         };
         Relationships: [
           {
@@ -3642,6 +3746,13 @@ export type Database = {
             columns: ["parcel_id", "org_id"];
             isOneToOne: false;
             referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "service_request_price_list_id_org_id_fkey";
+            columns: ["price_list_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "price_list";
             referencedColumns: ["id", "org_id"];
           },
           {
@@ -3778,13 +3889,10 @@ export type Database = {
           created_at: string;
           description: string | null;
           id: string;
-          minimum_fee_kurus: number;
           name: string;
           observation_max_age_days: number;
           operation_kind: Database["public"]["Enums"]["operation_kind"];
           org_id: string;
-          price_is_draft: boolean;
-          price_per_donum_kurus: number;
           recommend_from_weed_height: string | null;
           season_end_day: number;
           season_end_month: number;
@@ -3793,7 +3901,6 @@ export type Database = {
           sort_order: number;
           updated_at: string;
           updated_by: string | null;
-          vat_rate_bp: number;
         };
         ComputedFields: never;
         Insert: {
@@ -3802,13 +3909,10 @@ export type Database = {
           created_at?: string;
           description?: string | null;
           id?: string;
-          minimum_fee_kurus?: number;
           name: string;
           observation_max_age_days?: number;
           operation_kind: Database["public"]["Enums"]["operation_kind"];
           org_id: string;
-          price_is_draft?: boolean;
-          price_per_donum_kurus: number;
           recommend_from_weed_height?: string | null;
           season_end_day: number;
           season_end_month: number;
@@ -3817,7 +3921,6 @@ export type Database = {
           sort_order?: number;
           updated_at?: string;
           updated_by?: string | null;
-          vat_rate_bp?: number;
         };
         Update: {
           active?: boolean;
@@ -3825,13 +3928,10 @@ export type Database = {
           created_at?: string;
           description?: string | null;
           id?: string;
-          minimum_fee_kurus?: number;
           name?: string;
           observation_max_age_days?: number;
           operation_kind?: Database["public"]["Enums"]["operation_kind"];
           org_id?: string;
-          price_is_draft?: boolean;
-          price_per_donum_kurus?: number;
           recommend_from_weed_height?: string | null;
           season_end_day?: number;
           season_end_month?: number;
@@ -3840,7 +3940,6 @@ export type Database = {
           sort_order?: number;
           updated_at?: string;
           updated_by?: string | null;
-          vat_rate_bp?: number;
         };
         Relationships: [
           {
@@ -3849,6 +3948,58 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "org";
             referencedColumns: ["id"];
+          },
+        ];
+      };
+      service_type_season: {
+        Row: {
+          org_id: string;
+          season_end_day: number;
+          season_end_month: number;
+          season_start_day: number;
+          season_start_month: number;
+          service_type_id: string;
+          species: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          org_id: string;
+          season_end_day: number;
+          season_end_month: number;
+          season_start_day: number;
+          season_start_month: number;
+          service_type_id: string;
+          species: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          org_id?: string;
+          season_end_day?: number;
+          season_end_month?: number;
+          season_start_day?: number;
+          season_start_month?: number;
+          service_type_id?: string;
+          species?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_type_season_service_type_id_org_id_fkey";
+            columns: ["service_type_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_type";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "service_type_season_species_fkey";
+            columns: ["species"];
+            isOneToOne: false;
+            referencedRelation: "fruit_species";
+            referencedColumns: ["code"];
           },
         ];
       };
@@ -4072,6 +4223,7 @@ export type Database = {
           parcel_id: string;
           sex: Database["public"]["Enums"]["tree_sex"];
           slot_id: string;
+          species: string | null;
           status: Database["public"]["Enums"]["tree_status"];
           stem_form: Database["public"]["Enums"]["stem_form"];
         };
@@ -4089,6 +4241,7 @@ export type Database = {
           parcel_id: string;
           sex?: Database["public"]["Enums"]["tree_sex"];
           slot_id: string;
+          species?: string | null;
           status?: Database["public"]["Enums"]["tree_status"];
           stem_form?: Database["public"]["Enums"]["stem_form"];
         };
@@ -4105,6 +4258,7 @@ export type Database = {
           parcel_id?: string;
           sex?: Database["public"]["Enums"]["tree_sex"];
           slot_id?: string;
+          species?: string | null;
           status?: Database["public"]["Enums"]["tree_status"];
           stem_form?: Database["public"]["Enums"]["stem_form"];
         };
@@ -4129,6 +4283,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "slot";
             referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "tree_species_fkey";
+            columns: ["species"];
+            isOneToOne: false;
+            referencedRelation: "fruit_species";
+            referencedColumns: ["code"];
           },
         ];
       };
@@ -5952,6 +6113,21 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_save_price_list_service_items: {
+        Args: { p_items: Json; p_price_list_id: string };
+        Returns: undefined;
+      };
+      ops_save_service_season: {
+        Args: {
+          p_season_end_day: number;
+          p_season_end_month: number;
+          p_season_start_day: number;
+          p_season_start_month: number;
+          p_service_type_id: string;
+          p_species: string;
+        };
+        Returns: undefined;
+      };
       ops_save_staff_profile: {
         Args: { p_full_name: string; p_org_id: string; p_title: string; p_user_id: string };
         Returns: undefined;
@@ -6019,7 +6195,7 @@ export type Database = {
           payment_method: string;
           payment_received_on: string;
           preferred_window: string;
-          price_is_draft: boolean;
+          price_list_version: number;
           quote_total_kurus: number;
           recommended_weed_height: string;
           requester_name: string;
@@ -6086,16 +6262,12 @@ export type Database = {
         Args: {
           p_active: boolean;
           p_id: string;
-          p_minimum_fee_kurus: number;
           p_observation_max_age_days: number;
-          p_price_is_draft: boolean;
-          p_price_per_donum_kurus: number;
           p_recommend_from_weed_height: string;
           p_season_end_day: number;
           p_season_end_month: number;
           p_season_start_day: number;
           p_season_start_month: number;
-          p_vat_rate_bp: number;
         };
         Returns: undefined;
       };
@@ -6573,7 +6745,7 @@ export type Database = {
           open_request_status: string;
           parcel_id: string;
           parcel_name: string;
-          price_is_draft: boolean;
+          price_list_version: number;
           price_per_donum_kurus: number;
           season_end: string;
           season_start: string;
@@ -6581,6 +6753,7 @@ export type Database = {
           service_description: string;
           service_name: string;
           service_type_id: string;
+          species: string;
           state: string;
           vat_rate_bp: number;
           weed_height: string;
@@ -6664,6 +6837,7 @@ export type Database = {
           service_start: string;
         }[];
       };
+      tree_species: { Args: { p_tree_id: string }; Returns: string };
       visit_approver: { Args: { p_session_id: string }; Returns: Json };
       waive_coverage: {
         Args: { p_note: string; p_session_id: string };
