@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DemoNotice } from "@/components/demo/demo-notice";
 import { HashCheck } from "@/components/portal/hash-check";
 import layout from "@/components/portal/page.module.css";
+import { RobotBadge } from "@/components/services/robot-badge";
 import styles from "@/components/services/services.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +37,8 @@ import { cancelServiceRequestAction } from "../actions";
 const D = S.detail;
 const F = S.form;
 
-// One service request (IP15): what was asked and accepted (terms version,
+// One service request (IP15): what was asked and accepted (the robot model,
+// terms version,
 // the estimate frozen with its price list version, or none when the service
 // had no published price), the confirmed amount and day, payment, the status
 // history (service_request_event), the cancellation while it is free, and
@@ -105,6 +107,14 @@ export default async function ServiceRequestPage({
               </Link>,
             ],
             [D.service, r.serviceName],
+            ...(r.robot
+              ? ([
+                  [
+                    D.robot,
+                    <RobotBadge key="robot" robot={r.robot} testId="service-request-robot" />,
+                  ],
+                ] as [string, React.ReactNode][])
+              : []),
             [D.window, S.window[r.preferred_window]],
             [D.note, r.customer_note],
             ...(r.status === "pre_request"

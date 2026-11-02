@@ -6,6 +6,7 @@ import { istanbulToday } from "@/lib/portal-billing/gardens";
 import { getParcelReport } from "@/lib/portal/data";
 import {
   getServiceRequest,
+  listRobotOffers,
   listServiceOffers,
   listServiceRequests,
   loadOwnWork,
@@ -37,6 +38,9 @@ const SLOT = "f9150000-0000-4000-8000-000000000401";
 const TREE = "f9150000-0000-4000-8000-000000000501";
 // The seed's weed mowing row (supabase/seed.sql).
 const TYPE = "91500000-0000-4000-8000-000000000001";
+// MARABA-I, the default (and only) robot model of weed mowing
+// (20261107100000_robot_fleet.sql).
+const MARABA = "91600000-0000-4000-8000-000000000001";
 
 type Who = "owner" | "viewer" | "ops";
 const admin = serviceClient();
@@ -238,6 +242,20 @@ describe("service offers", () => {
       estimate_total_kurus: null,
     });
     expect(await listServiceOffers(clients.owner, PARCEL)).toHaveLength(1);
+    // The robot that does the job, with what the badge shows.
+    expect(offer).toMatchObject({ robot_model_id: MARABA, robot_model_name: "MARABA-I" });
+    expect(offer.robot).toMatchObject({
+      id: MARABA,
+      name: "MARABA-I",
+      imagePath: "/robots/maraba-dijital-ikiz.jpg",
+    });
+    expect(offer.robot?.capabilities.length).toBeGreaterThan(0);
+    // The request form's choice: MARABA-I preselected, unpriced like the offer.
+    const robots = await listRobotOffers(clients.owner, PARCEL, TYPE);
+    expect(robots.map((r) => [r.robot.id, r.isDefault, r.estimate])).toEqual([
+      [MARABA, true, null],
+    ]);
+    expect(await listRobotOffers(clients.viewer, PARCEL, TYPE)).toEqual([]);
   });
 
   it("a co-owner gets no offers", async () => {
@@ -282,6 +300,12 @@ describe("requests", () => {
     const { data, error } = await request("owner", { p_note: "", p_window: "flexible" });
     expect(error).toBeNull();
     preRequest = data!;
+    // No model on the request: the service's default model is stored.
+    const stored = ok(
+      await admin.from("service_request").select("robot_model_id").eq("id", preRequest).single(),
+      "stored model",
+    );
+    expect(stored.data?.robot_model_id).toBe(MARABA);
     expect((await mine("owner"))[0]).toMatchObject({
       state: "open",
       open_request_id: preRequest,
@@ -319,7 +343,16 @@ describe("requests", () => {
 
   it("in season the owner requests; it appears in Hizmetlerim", async () => {
     await setSeason([1, 1], [12, 31]);
-    const { data, error } = await request("owner", { p_early_performance: true });
+    // A model that cannot do the service is refused.
+    const wrong = await request("owner", {
+      p_early_performance: true,
+      p_robot_model_id: "91600000-0000-4000-8000-0000000000ff",
+    });
+    expect(serviceErrorOf(wrong.error)).toBe("robot_model");
+    const { data, error } = await request("owner", {
+      p_early_performance: true,
+      p_robot_model_id: MARABA,
+    });
     expect(error).toBeNull();
     requested = data!;
     const list = (await listServiceRequests(clients.owner)).filter((r) => r.parcel_id === PARCEL);
@@ -335,7 +368,9 @@ describe("requests", () => {
       quote_total_kurus: null,
       terms_version: SERVICE_TERMS_VERSION,
       early_performance_requested: true,
+      robot_model_id: MARABA,
     });
+    expect(list[0].robot).toMatchObject({ id: MARABA, name: "MARABA-I" });
     expect(list[1].status).toBe("cancelled");
     expect((await mine("owner"))[0]).toMatchObject({ state: "open", open_request_id: requested });
   });

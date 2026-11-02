@@ -7,8 +7,8 @@ import { istanbulDay } from "./format";
 // tested.
 //
 // Which jobs count: the operation rows ops_complete_service_request writes
-// when a request is done (performer crew, details.by = 'orchados', the
-// request id in details). They are read from public.operation rather than
+// when a request is done (details.by = 'orchados', the request id in
+// details), whoever performed it. They are read from public.operation rather than
 // service_request because every parcel reader (owner and co-owner) and the
 // org's staff may read operations, while requests are the owner's and staff's
 // only; the report and the PDF look the same for everyone.

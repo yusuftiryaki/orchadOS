@@ -47,6 +47,9 @@ export async function requestServiceAction(form: FormData) {
     p_note: parsed.value.note,
     p_terms_version: SERVICE_TERMS_VERSION,
     p_early_performance: parsed.value.earlyPerformance,
+    // Null: the service's default model (the form always sends one when the
+    // service has robot models).
+    ...(parsed.value.robotModelId ? { p_robot_model_id: parsed.value.robotModelId } : {}),
   });
   if (error || !data) redirect(back(serviceErrorOf(error)));
   revalidatePath("/portal", "layout");

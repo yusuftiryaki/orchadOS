@@ -35,7 +35,12 @@ describe("service request form", () => {
       ),
     ).toEqual({
       ok: true,
-      value: { window: "within_2_weeks", note: "Damla hortumu var", earlyPerformance: false },
+      value: {
+        window: "within_2_weeks",
+        note: "Damla hortumu var",
+        earlyPerformance: false,
+        robotModelId: null,
+      },
     });
     expect(
       parseRequestForm(
@@ -48,7 +53,33 @@ describe("service request form", () => {
   it("a pre-request asks no consent and never early performance", () => {
     expect(
       parseRequestForm(reader({ early_performance: "on", window: "nonsense" }), false),
-    ).toEqual({ ok: true, value: { window: "flexible", note: "", earlyPerformance: false } });
+    ).toEqual({
+      ok: true,
+      value: { window: "flexible", note: "", earlyPerformance: false, robotModelId: null },
+    });
+  });
+
+  it("passes the chosen robot model; only a uuid", () => {
+    const robot = "91600000-0000-4000-8000-000000000001";
+    expect(
+      parseRequestForm(
+        reader({ pre_information: "on", terms: "on", robot_model_id: ` ${robot.toUpperCase()} ` }),
+        true,
+      ),
+    ).toMatchObject({ ok: true, value: { robotModelId: robot } });
+    expect(parseRequestForm(reader({ robot_model_id: robot }), false)).toMatchObject({
+      ok: true,
+      value: { robotModelId: robot },
+    });
+    // None on the form: the database takes the service's default model.
+    expect(parseRequestForm(reader({}), false)).toMatchObject({
+      ok: true,
+      value: { robotModelId: null },
+    });
+    expect(parseRequestForm(reader({ robot_model_id: "maraba_i" }), false)).toEqual({
+      ok: false,
+      error: "robot_model",
+    });
   });
 
   it("refuses a note over 1000 characters", () => {
@@ -87,6 +118,10 @@ describe("service request errors", () => {
     );
     expect(serviceErrorOf({ message: "invalid_input", details: "note" })).toBe("note_too_long");
     expect(serviceErrorOf({ message: "invalid_input", details: "reason" })).toBe("reason_too_long");
+    expect(serviceErrorOf({ message: "invalid_input", details: "robot_model" })).toBe(
+      "robot_model",
+    );
+    expect(serviceErrorText("robot_model")).toContain("robot");
     expect(serviceErrorOf({ message: "invalid_input", details: "x" })).toBe("invalid_input");
     expect(serviceErrorOf({ code: "42501", message: "permission denied" })).toBe("forbidden");
     expect(serviceErrorOf({ code: "XX000", message: "boom" })).toBe("write_failed");
