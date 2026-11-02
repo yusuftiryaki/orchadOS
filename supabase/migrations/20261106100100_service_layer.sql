@@ -1,8 +1,9 @@
 -- IP15 / 2: service layer, first service: weed mowing (docs/MVP.md, Module 6;
 -- docs/veri-modeli.md, "Hizmet katmanı").
 --
--- 1. Switch org_billing_setting.services_enabled (SQL only; off on hosted
---    projects, on in seed.sql) and the audit entity types of this package.
+-- 1. Switch org_billing_setting.services_enabled (SQL only; on by default in
+--    every environment by owner decision of 2 November 2026, ops may turn it
+--    off per org) and the audit entity types of this package.
 -- 2. weed_height: parcel-level field question (short / medium / tall), asked
 --    once per visit in spring and summer.
 -- 3. public.service_type: generic, org-scoped service catalogue. A new
@@ -67,9 +68,9 @@
 -- ---------------------------------------------------------------------------
 
 alter table public.org_billing_setting
-  add column services_enabled boolean not null default false;
+  add column services_enabled boolean not null default true;
 comment on column public.org_billing_setting.services_enabled is
-  'SQL only. IP15: the service layer (weed mowing) in the portal and back office. Off on hosted projects until the legal drafts are reviewed and the price comes from the field.';
+  'SQL only. IP15: the service layer (weed mowing) in the portal and back office. On by default in every environment (owner decision, 2 November 2026: no real customers yet; lawyer review T34 and price follow later). Set false to turn it off for an org.';
 
 -- As in 20261105100100_visit_records.sql, plus services_enabled.
 create or replace function private.billing_setting(p_org_id uuid)
@@ -105,7 +106,7 @@ begin
     r.installment_lead_days := 14;
     r.visit_notice_sms_enabled := false;
     r.service_end_access_flow_enabled := false;
-    r.services_enabled := false;
+    r.services_enabled := true;
   end if;
   return r;
 end;
@@ -516,7 +517,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select coalesce((select s.services_enabled from public.org_billing_setting s where s.org_id = p_org_id), false);
+  select coalesce((select s.services_enabled from public.org_billing_setting s where s.org_id = p_org_id), true);
 $$;
 
 -- The service row with the season window of p_species (its
@@ -896,7 +897,9 @@ begin
   select
     p.id, p.name, t.id, t.code, t.name, t.description,
     case
-      when o.id is not null then 'open'
+      -- An open pre-request is not binding (H37): once the season opens the
+      -- owner turns it into a request through the request form.
+      when o.id is not null and not (o.status = 'pre_request' and private.service_in_season(ts, v_today)) then 'open'
       when not private.service_in_season(ts, v_today) then 'pre_request'
       when private.service_recommended(ts, p.id, w.weed_height, w.observed_at, v_today) then 'recommended'
       else 'available'
@@ -970,6 +973,7 @@ declare
   w record;
   sp record;
   r public.service_request;
+  pr public.service_request;
   v_today date := private.istanbul_today();
   v_in_season boolean;
 begin
@@ -1000,18 +1004,31 @@ begin
   if a.area_m2 is null then
     raise exception 'area_unknown' using errcode = 'P0001';
   end if;
+  -- Season of the parcel's species; price from the published list in force.
+  t := private.service_type_for_species(t, p.species);
+  v_in_season := private.service_in_season(t, v_today);
   if exists (
     select 1 from public.service_request x
-    where x.parcel_id = p.id and x.service_type_id = t.id and x.status in ('pre_request', 'requested', 'scheduled')
+    where x.parcel_id = p.id and x.service_type_id = t.id
+      and (x.status in ('requested', 'scheduled') or (x.status = 'pre_request' and not v_in_season))
   ) then
     raise exception 'request_open' using errcode = 'P0001';
   end if;
-  -- Season of the parcel's species; price from the published list in force.
-  t := private.service_type_for_species(t, p.species);
+  -- In season, an open pre-request (not binding, H37) is closed and replaced
+  -- by this request: a new offer with the terms accepted, the current price
+  -- and a new request day (the withdrawal period counts from it).
+  for pr in
+    update public.service_request x
+    set status = 'cancelled', cancelled_at = now(), cancelled_by_role = 'owner',
+        cancel_reason = 'Talebe çevrildi'
+    where x.parcel_id = p.id and x.service_type_id = t.id and x.status = 'pre_request'
+    returning *
+  loop
+    perform private.log_service_event(pr, 'pre_request', 'owner', 'Talebe çevrildi');
+  end loop;
   select * into sp from private.service_price(t, v_today) x;
   select * into q from private.service_quote(a.area_m2, sp.unit_price_kurus, sp.minimum_fee_kurus, sp.vat_rate_bp) x;
   select * into w from private.latest_weed_observation(p.id) x;
-  v_in_season := private.service_in_season(t, v_today);
 
   insert into public.service_request (
     org_id, parcel_id, service_type_id, number, status, requested_by, season_year, preferred_window,
@@ -1158,7 +1175,8 @@ comment on function public.ops_service_requests(public.service_request_status, u
   'IP15 ops: service request queue with parcel, requester contact and photo counts.';
 
 -- Ops: confirm the quote and set (or move) the date. Opens the job's
--- mowing session the first time. From pre_request, requested or scheduled.
+-- mowing session the first time. From requested or scheduled (a pre_request
+-- is not binding: the owner turns it into a request in season).
 create function public.ops_schedule_service_request(
   p_id uuid,
   p_scheduled_date date,
@@ -1175,12 +1193,14 @@ declare
   t public.service_type;
   v_from public.service_request_status;
   v_session uuid;
+  v_old_date date;
 begin
   perform private.assert_not_demo();
   r := private.service_request_for_ops(p_id);
   perform 1 from public.service_request x where x.id = r.id for update;
   select * into r from public.service_request x where x.id = p_id;
-  if r.status not in ('pre_request', 'requested', 'scheduled') then
+  -- A pre-request is not an offer (H37): the owner turns it into a request first.
+  if r.status not in ('requested', 'scheduled') then
     raise exception 'invalid_status' using errcode = 'P0001';
   end if;
   if p_scheduled_date is null or p_scheduled_date < private.istanbul_today()
@@ -1200,9 +1220,17 @@ begin
   if r.estimate_total_kurus is null and p_scheduled_date <= private.istanbul_today() then
     raise exception 'invalid_input' using errcode = '22023', detail = 'scheduled_date';
   end if;
-  -- H37: never above what the owner accepted.
-  if p_quote_total_kurus > r.estimate_total_kurus then
+  -- H37: never above what the owner accepted, nor above the amount already
+  -- confirmed when the day moves.
+  if p_quote_total_kurus > r.estimate_total_kurus
+     or (r.status = 'scheduled' and p_quote_total_kurus > r.quote_total_kurus) then
     raise exception 'quote_above_estimate' using errcode = 'P0001';
+  end if;
+  -- A moved day is at the earliest tomorrow and is notified again, so the
+  -- owner keeps the free cancellation until the day before.
+  if r.status = 'scheduled' and p_scheduled_date is distinct from r.scheduled_date
+     and p_scheduled_date <= private.istanbul_today() then
+    raise exception 'invalid_input' using errcode = '22023', detail = 'scheduled_date';
   end if;
   -- H37: the 14-day withdrawal period runs unless the owner asked for an
   -- earlier job.
@@ -1217,6 +1245,7 @@ begin
   select * into t from public.service_type x where x.id = r.service_type_id;
   v_from := r.status;
   v_session := r.session_id;
+  v_old_date := r.scheduled_date;
   if v_session is null then
     insert into public.session (org_id, parcel_id, kind, performer, status, planned_date, notes)
     values (r.org_id, r.parcel_id,
@@ -1237,11 +1266,14 @@ begin
     'ops', case when v_from = 'scheduled' then 'Tarih değişti: ' || to_char(p_scheduled_date, 'YYYY-MM-DD') end);
   perform private.audit(r.org_id, (select auth.uid()), 'ops', 'service_request.schedule', 'service_request', r.id,
     jsonb_build_object('from', v_from, 'scheduled_date', p_scheduled_date, 'quote_total_kurus', r.quote_total_kurus));
-  -- A moved date is notified again (one message per request and template
-  -- otherwise: the date is part of neither the key nor the message id).
+  -- One message per request and template (notification_ref_once on the
+  -- request id); a moved date is notified again under a key of its own.
   if v_from <> 'scheduled' then
     perform private.enqueue_service_notification('service_scheduled', r.org_id, r.parcel_id, r.id, r.number,
       p_scheduled_date, '/portal/hizmetler/' || r.id::text);
+  elsif p_scheduled_date is distinct from v_old_date then
+    perform private.enqueue_service_notification('service_scheduled', r.org_id, r.parcel_id, gen_random_uuid(),
+      r.number, p_scheduled_date, '/portal/hizmetler/' || r.id::text);
   end if;
 end;
 $$;

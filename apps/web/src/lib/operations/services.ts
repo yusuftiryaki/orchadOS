@@ -118,13 +118,18 @@ export function earliestServiceDate(
     created_at: string;
     early_performance_requested: boolean;
     estimate_total_kurus?: number | null;
+    status?: string;
   },
   today: string,
 ): string {
   // Unpriced (no frozen estimate): the owner learns the amount from the
   // confirmation, so the day is at the earliest tomorrow and the free
-  // cancellation until the day before stays open (kararlar.md H37).
-  const floor = request.estimate_total_kurus === null ? addDays(today, 1) : today;
+  // cancellation until the day before stays open (kararlar.md H37). A moved
+  // day is notified again and follows the same rule.
+  const floor =
+    request.estimate_total_kurus === null || request.status === "scheduled"
+      ? addDays(today, 1)
+      : today;
   if (request.early_performance_requested) return floor;
   const earliest = addDays(istanbulDay(request.created_at), 15);
   return earliest > floor ? earliest : floor;

@@ -1,6 +1,6 @@
 # Bakım Hizmetleri Ek Sözleşmesi – Ot Biçme
 
-> **Taslak:** Karar [kararlar.md H37](kararlar.md#h37). Bu kararı lisanslı bir avukat değil, yapay zekâ ajanı verdi; barındırılan projelerde `services_enabled` anahtarı avukat incelemesinden (T34) önce açılmaz. Şirket bilgileri doldurulup [yayın şartları](kararlar.md#yayin) tamamlanınca sürüm adındaki "-taslak" eki kaldırılır. Ürün kararı: [docs/MVP.md](../MVP.md) Modül 6.
+> **Taslak:** Karar [kararlar.md H37](kararlar.md#h37). Bu kararı lisanslı bir avukat değil, yapay zekâ ajanı verdi. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır. Şirket bilgileri doldurulup [yayın şartları](kararlar.md#yayin) tamamlanınca sürüm adındaki "-taslak" eki kaldırılır. Ürün kararı: [docs/MVP.md](../MVP.md) Modül 6.
 >
 > Tek belge üç işi görür: Mesafeli Sözleşmeler Yönetmeliği md. 5'teki ön bilgilendirme (2. bölüm), ek sözleşme koşulları (1 ve 3–9, 11–14. bölümler) ve iptal koşulları (10. bölüm). Talep formunda iki ayrı zorunlu onay (ön bilgilendirme ve ek sözleşme) ile 10. bölümdeki isteğe bağlı erken ifa kutusu gösterilir. Sitede `/bakim-hizmeti`.
 

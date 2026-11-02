@@ -446,7 +446,7 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 
 **Kim:** Sahip, operasyon, saha personeli · **Ürün kararı:** [MVP.md](MVP.md#modül-6--hizmet-katmanı-yabani-ot-biçme)
 
-Denetimin yanında sahip bahçesi için hizmet de alabilir; bugün tek hizmet yabani ot biçmedir. İşi köydeki saha personeli motorlu tırpanla yapar. Çevrimiçi ödeme yoktur. Hizmet katmanı `services_enabled` anahtarıyla açılır; barındırılan projelerde kapalıdır.
+Denetimin yanında sahip bahçesi için hizmet de alabilir; bugün tek hizmet yabani ot biçmedir. İşi köydeki saha personeli motorlu tırpanla yapar. Çevrimiçi ödeme yoktur. Hizmet katmanı `services_enabled` anahtarıyla açılır. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır.
 
 1. **Öneri (sahip):** Yayımlanan ilkbahar ya da yaz ziyaretinde ot orta ya da uzunsa ve sezon açıksa parsel karnesinde öneri kartı çıkar: "Bahçenizde ot uzun." ve "Talep et". Yayımlı fiyat listesinde hizmetin fiyatı varsa kart tutarı (KDV dahil) ve küçük yazıyla liste sürümünü gösterir; yoksa (bugünkü durum: fiyat henüz belirlenmedi) rakam yerine "Fiyat teklifle bildirilir" yazar. Sezon, bahçenin meyve türüne göredir; sezon dışında kart "Gelecek sezon için ön talep bırakın" der.
 2. **Talep (sahip):** Parsel, tercih edilen zaman aralığı ve not seçilir, hizmet koşulları onaylanır. Talep **Hizmetlerim**'de numarası ve durumuyla görünür; planlanan tarihten önceki güne kadar oradan ücretsiz iptal edilir.
@@ -462,7 +462,7 @@ Denetimin yanında sahip bahçesi için hizmet de alabilir; bugün tek hizmet ya
 | Saha sorusu `weed_height` | 🟡 Yazılıyor (İP15) |
 | Öneri kartı, talep, Hizmetlerim, iptal | 🟡 Yazılıyor (İP15) |
 | Hizmet talepleri kuyruğu, katalog, fotoğraf bağlama, ödeme kaydı, robot uygunluk notları | 🟡 Yazılıyor (İP15) |
-| Barındırılan projelerde açılış | ⬜ Avukat onayı bekleniyor (fiyat yayımlanmadan da açılabilir: "Fiyat teklifle bildirilir") |
+| Barındırılan projelerde açılış | ✅ Her ortamda açık (sahip kararı, 2 Kasım 2026); avukat incelemesi (T34) ve fiyat sonra. Fiyat yayımlanana kadar "Fiyat teklifle bildirilir" |
 
 ## Kişisel veri başvuruları ve görüntü gizleme
 

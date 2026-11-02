@@ -98,6 +98,19 @@ describe("dates (H37)", () => {
       earliestServiceDate({ ...request, early_performance_requested: false }, "2026-11-02"),
     ).toBe("2026-11-17");
   });
+
+  it("moves a scheduled job at the earliest to the next day (notified again)", () => {
+    const request = {
+      created_at: "2026-11-02T09:00:00Z",
+      early_performance_requested: true,
+      estimate_total_kurus: 900000,
+      status: "scheduled",
+    };
+    expect(earliestServiceDate(request, "2026-11-02")).toBe("2026-11-03");
+    expect(earliestServiceDate({ ...request, status: "requested" }, "2026-11-02")).toBe(
+      "2026-11-02",
+    );
+  });
 });
 
 describe("parseSchedule", () => {

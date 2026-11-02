@@ -306,6 +306,48 @@ describe("service request back office", () => {
     expect((await viewer.client.from("service_request").select("id")).data).toEqual([]);
   });
 
+  it("does not schedule a pre-request; in season the owner turns it into a request (H37)", async () => {
+    const pre = await ops.client.rpc("ops_schedule_service_request", {
+      p_id: requestId,
+      p_scheduled_date: addDays(today, 20),
+      p_quote_total_kurus: 850000,
+      p_note: null as unknown as string,
+    });
+    expect(pre.error?.message).toBe("invalid_status");
+    // The pistachio season opens (the whole year; restored after the suite).
+    check(
+      await ops.client.rpc("ops_save_service_season", {
+        p_service_type_id: TYPE,
+        p_species: "antep_fistigi",
+        p_season_start_month: 1,
+        p_season_start_day: 1,
+        p_season_end_month: 12,
+        p_season_end_day: 31,
+      }),
+      "ops_save_service_season",
+    );
+    const preRequestId = requestId;
+    requestId = await requestService("Otlar diz boyu, sezon açıldı");
+    expect(await requestRow(preRequestId)).toMatchObject({
+      status: "cancelled",
+      cancelled_by_role: "owner",
+      cancel_reason: "Talebe çevrildi",
+    });
+    expect(await requestRow(requestId)).toMatchObject({ status: "requested" });
+    // The seed's season again (the request stays binding).
+    check(
+      await ops.client.rpc("ops_save_service_season", {
+        p_service_type_id: TYPE,
+        p_species: "antep_fistigi",
+        p_season_start_month: 3,
+        p_season_start_day: 1,
+        p_season_end_month: 6,
+        p_season_end_day: 30,
+      }),
+      "ops_save_service_season",
+    );
+  });
+
   it("schedules an unpriced request with a manual amount, after the withdrawal period (H37)", async () => {
     const earliest = addDays(today, 15);
     expect(
@@ -456,7 +498,7 @@ describe("service request back office", () => {
 
     view = await data.getServiceRequest(ops.client, requestId);
     expect(view?.events.map((e) => e.to_status)).toEqual([
-      "pre_request",
+      "requested",
       "scheduled",
       "scheduled",
       "done",
@@ -532,6 +574,8 @@ describe("service request back office", () => {
     expect(messages?.map((m) => m.template).sort()).toEqual([
       "service_cancelled",
       "service_completed",
+      // The moved day is notified again.
+      "service_scheduled",
       "service_scheduled",
     ]);
   });
@@ -634,7 +678,9 @@ describe("service request back office", () => {
     });
 
     const requests = await data.parcelServiceRequests(ops.client, PARCEL);
-    expect(requests.map((r) => [r.status, r.service_type?.name])).toEqual([
+    // The pre-request turned into a request, the done job, the cancelled one.
+    expect(requests.map((r) => [r.status, r.service_type?.name]).sort()).toEqual([
+      ["cancelled", "Yabani ot biçme"],
       ["cancelled", "Yabani ot biçme"],
       ["done", "Yabani ot biçme"],
     ]);

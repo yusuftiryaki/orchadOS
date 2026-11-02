@@ -397,7 +397,7 @@ orchadOS bütün meyve bahçelerine hizmet verir; Antep fıstığı pilottur. T�
 | `service_request_photo` | İş kanıtı: bir `asset`'i (tür `photo`, içerik hash'iyle adreslenir, ekleme-yalnız) talebe `phase` (`before` ya da `after`) ile bağlar. Fotoğraf ya işin biçme oturumuna yüklenmiş bir asset'tir ya da aynı parselin yayımlanmış bir ziyaretinin medyasına bağlantıdır |
 | `parcel_robot_note` | Parsel başına bir satır robot uygunluk notu: `slope` (`flat`, `gentle`, `steep`), `stoniness` (`low`, `medium`, `high`), `lowest_branch_cm`, not, `updated_by`/`updated_at` |
 | `metric_definition` | `weed_height`: kategori (`short`, `medium`, `tall`), özne parsel, dönemler ilkbahar ve yaz, karnede gösterilir. Saha sorusu ziyaret başına bir kez sorulur ([metodoloji.md](metodoloji.md)) |
-| `org_billing_setting.services_enabled` | Hizmet katmanının anahtarı. Yalnızca SQL; barındırılan projelerde `false`, `seed.sql`'de `true` |
+| `org_billing_setting.services_enabled` | Hizmet katmanının anahtarı. Yalnızca SQL; varsayılanı `true`. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır. |
 | `notification_template` | `service_scheduled`, `service_completed`, `service_cancelled`; `ref_id` talebin kimliğidir. Öneri için mesaj yoktur: yeni hizmet öneren SMS ticari elektronik iletidir ve İYS onayı ister (hukuk/kararlar.md H06); öneri yalnız portalda görünür |
 
 **Kurallar:**

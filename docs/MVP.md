@@ -366,7 +366,7 @@ Her durum değişikliği ayrı bir satırda tarihçeye yazılır (`service_reque
 Alan, parselin son sınır sürümünün alanıdır; sınır yoksa sahibin beyan ettiği alan.
 
 - **Fiyat varsa:** Kart ve talep formu tutarı (KDV dahil) ve küçük yazıyla fiyat listesi sürümünü gösterir. Talep, tutarı ve sürümü sabitler; sonradan yayımlanan yeni sürüm açık talebi değiştirmez.
-- **Fiyat yoksa** (bugünkü durum; lansman listesinde hizmet satırı yok): Portal hiçbir rakam göstermez; kartta ve formda **"Fiyat teklifle bildirilir"** yazar. Talep ve ön talep yine açılır. Operasyon planlarken tutarı elle girer; sahibe tutar ve iş günü SMS ile bildirilir, sahip iş gününden önceki güne kadar ücretsiz iptal edebilir.
+- **Fiyat yoksa** (bugünkü durum; lansman listesinde hizmet satırı yok): Portal hiçbir rakam göstermez; kartta ve formda **"Fiyat teklifle bildirilir"** yazar. Talep ve ön talep yine açılır. Operasyon planlarken tutarı elle girer; sahibe iş günü SMS ile bildirilir (mesajda tutar yoktur), tutar portaldaki talep sayfasında görünür; iş en erken ertesi güne konur ve sahip iş gününden önceki güne kadar ücretsiz iptal edebilir. Ön talep bağlayıcı değildir ve planlanamaz: sezon açılınca sahip aynı formla talebe çevirir (ön talep kapanır, yeni talep o günün fiyatıyla ve iki onayla açılır). Gün değişirse sahibe yeniden SMS gider; yeni gün de en erken ertesi gündür ve onaylanmış tutar artırılamaz.
 
 Maliyet varsayımları (yevmiye, bir işçinin günde biçtiği alan) sahadan ölçülünce fiyat bir taslağa girilip yayımlanır.
 
@@ -384,7 +384,7 @@ Durum değişiklikleri (planlandı, tamamlandı, iptal) mevcut SMS/WhatsApp kuyr
 
 ### Anahtar ve hukuk
 
-Hizmet katmanı `org_billing_setting.services_enabled` anahtarıyla açılır: yerelde açık, barındırılan projelerde kapalı. Bakım hizmeti için sözleşme eki, ön bilgilendirme ve iptal koşulları taslak olarak `docs/hukuk/`'tadır; avukat onayı gelmeden anahtar açılmaz.
+Hizmet katmanı `org_billing_setting.services_enabled` anahtarıyla açılır. Sahip kararıyla (2 Kasım 2026) hizmet katmanı her ortamda açık; gerçek müşteri yok. Avukat incelemesi (T34), fiyat ve diğer açık işler sonra yapılır. Bakım hizmeti için sözleşme eki, ön bilgilendirme ve iptal koşulları taslak olarak `docs/hukuk/`'tadır.
 
 ## Veri modeli
 

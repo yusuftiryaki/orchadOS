@@ -316,9 +316,13 @@ export default async function Page({
     </>
   );
 
+  // A pre-request is not binding (H37): it is scheduled only once the owner
+  // has turned it into a request in season.
+  const schedulable = r.status === "requested" || scheduled;
+
   const actions = (
     <>
-      {open && (
+      {schedulable && (
         <Panel title={scheduled ? S.rescheduleTitle : S.scheduleTitle}>
           <p className={styles.hint}>{S.scheduleHint}</p>
           <p className={styles.hint} data-testid="service-earliest">

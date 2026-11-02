@@ -13,7 +13,7 @@
 -- (91200000-..0101, VAT 20 %) has no service row. One transaction.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(129);
+select plan(136);
 
 select testing.reset_to_seed();
 
@@ -251,6 +251,16 @@ select lives_ok(format($$select public.ops_schedule_service_request(%L, %L, 1234
   pg_temp.id('r0'), pg_temp.today() + 3), 'unpriced: ops schedules with the amount entered by hand (no cap)');
 select lives_ok(format($$select public.ops_schedule_service_request(%L, %L, null, null)$$,
   pg_temp.id('r0'), pg_temp.today() + 4), 'unpriced: moving the day keeps the amount already entered');
+select is(pg_temp.error_of(format($$select public.ops_schedule_service_request(%L, %L, 1234501, null)$$,
+  pg_temp.id('r0'), pg_temp.today() + 4)), 'P0001 quote_above_estimate',
+  'reschedule: never above the amount already confirmed');
+select is(pg_temp.error_of(format($$select public.ops_schedule_service_request(%L, %L, null, null)$$,
+  pg_temp.id('r0'), pg_temp.today())), '22023 invalid_input / scheduled_date',
+  'reschedule: a moved day is at the earliest tomorrow');
+select is((select count(*)::integer from public.notification n
+           where n.template = 'service_scheduled' and n.vars->>'ref' = (select number from public.service_request where id = pg_temp.id('r0'))
+             and n.recipient_user_id = 'a0000000-0000-4000-8000-000000000001'),
+  2, 'reschedule: the moved day is notified again');
 select is((select row(status, quote_total_kurus, scheduled_date = pg_temp.today() + 4, estimate_total_kurus)::text
            from public.service_request where id = pg_temp.id('r0')),
   '(scheduled,1234500,t,)', 'unpriced: scheduled with the manual amount, still without an estimate');
@@ -622,30 +632,52 @@ select is((select row(status, season_year = extract(year from pg_temp.safe_day(p
            from public.service_request where id = pg_temp.id('r3')), '(pre_request,t)',
   'pre-request: out of the species'' season the same form opens a pre-request for the next window');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+set local role authenticated;
+select is(pg_temp.error_of(format($$select public.ops_schedule_service_request(%L, %L, 100000, null)$$,
+  pg_temp.id('r3'), pg_temp.today() + 20)), 'P0001 invalid_status',
+  'schedule: a pre-request is not binding (H37), ops cannot schedule it');
+reset role;
+-- The season opens (back to pistachio): the card offers a request again and
+-- the form turns the pre-request into a request.
+update public.parcel set species = 'antep_fistigi' where id = 'c0000000-0000-4000-8000-000000000001';
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+set local role authenticated;
+select is((select row(state, open_request_status)::text from public.service_offers()), '(available,pre_request)',
+  'pre-request: in season the card offers a request again');
+insert into ids select 'r4', public.customer_request_service('c0000000-0000-4000-8000-000000000001',
+  '91500000-0000-4000-8000-000000000001', 'flexible', null, 'bakim-v1-taslak');
+reset role;
+select is((select row(status, cancelled_by_role, cancel_reason)::text from public.service_request where id = pg_temp.id('r3')),
+  '(cancelled,owner,"Talebe çevrildi")', 'pre-request: replaced by the request, closed with a reason');
+select is((select row(status, (select count(*) from public.service_request_event e
+                               where e.request_id = pg_temp.id('r3') and e.to_status = 'cancelled'))::text
+           from public.service_request where id = pg_temp.id('r4')),
+  '(requested,1)', 'pre-request: the request is binding, the conversion is in the history');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 select is(pg_temp.error_of(format($$select public.ops_schedule_service_request(%L, %L, null, null)$$,
-  pg_temp.id('r3'), pg_temp.today() + 14)),
+  pg_temp.id('r4'), pg_temp.today() + 14)),
   'P0001 withdrawal_period / ' || to_char(pg_temp.today() + 15, 'YYYY-MM-DD'),
   'schedule: without the early-performance request not inside the 14-day withdrawal period (H37)');
 reset role;
-update public.service_request set early_performance_requested = true where id = pg_temp.id('r3');
+update public.service_request set early_performance_requested = true where id = pg_temp.id('r4');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 set local role authenticated;
-select lives_ok(format($$select public.ops_schedule_service_request(%L, %L, null, null)$$, pg_temp.id('r3'), pg_temp.today()),
-  'schedule: ops may schedule a pre-request (season opened early)');
+select lives_ok(format($$select public.ops_schedule_service_request(%L, %L, null, null)$$, pg_temp.id('r4'), pg_temp.today()),
+  'schedule: with the early-performance request on the request day');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
-select is(pg_temp.error_of(format($$select public.customer_cancel_service_request(%L, null)$$, pg_temp.id('r3'))),
+select is(pg_temp.error_of(format($$select public.customer_cancel_service_request(%L, null)$$, pg_temp.id('r4'))),
   'P0001 too_late_to_cancel', 'cancel: the owner cannot cancel on the scheduled day');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
-select is(pg_temp.error_of(format($$select public.ops_cancel_service_request(%L, ' ')$$, pg_temp.id('r3'))),
+select is(pg_temp.error_of(format($$select public.ops_cancel_service_request(%L, ' ')$$, pg_temp.id('r4'))),
   '22023 invalid_input / reason', 'cancel: ops gives a reason');
-select lives_ok(format($$select public.ops_cancel_service_request(%L, 'Yağmur')$$, pg_temp.id('r3')),
+select lives_ok(format($$select public.ops_cancel_service_request(%L, 'Yağmur')$$, pg_temp.id('r4')),
   'cancel: ops cancels');
 select is((select count(*)::integer from public.session s join public.service_request r on r.session_id = s.id
-           where r.id = pg_temp.id('r3') and s.status = 'cancelled'), 1, 'cancel: the job session is cancelled');
+           where r.id = pg_temp.id('r4') and s.status = 'cancelled'), 1, 'cancel: the job session is cancelled');
 
 select is(
   (select row(sum(done), sum(cancelled), sum(total))::text from public.ops_service_demand()),
-  '(1,3,4)', 'demand: counts per service and season');
+  '(1,4,5)', 'demand: counts per service and season');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 select is((select count(*)::integer from public.ops_service_demand()), 0, 'demand: ops only');
 select is((select count(*)::integer from public.ops_service_requests()), 0, 'queue: ops only');

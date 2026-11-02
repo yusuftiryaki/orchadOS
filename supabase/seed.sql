@@ -318,7 +318,8 @@ insert into public.org_billing_setting (
   -- Wave 3 (T07 visit_scheduled message, T08 service-end access flow): on
   -- locally; off on hosted projects until switched on in SQL.
   true, true,
-  -- IP15 service layer (weed mowing): on locally, off on hosted projects.
+  -- IP15 service layer (weed mowing): on everywhere by default (owner
+  -- decision, 2 November 2026).
   true
 );
 
