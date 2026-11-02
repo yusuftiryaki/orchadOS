@@ -45,7 +45,7 @@ export function ServiceOffers({
             }
             data-testid="service-offer"
             data-state={card.state}
-            data-parcel-id={card.parcelId}
+            data-offer-parcel-id={card.parcelId}
           >
             <div className={styles.cardBody}>
               {showParcel && <p className={styles.parcel}>{card.parcelName}</p>}

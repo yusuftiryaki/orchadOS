@@ -6339,6 +6339,7 @@ export type Database = {
           viewpoint: Json;
         }[];
       };
+      portal_services_enabled: { Args: Record<PropertyKey, never>; Returns: boolean };
       price_preview: {
         Args: { p_areas_m2: number[]; p_first_year?: boolean; p_package_id: string };
         Returns: {

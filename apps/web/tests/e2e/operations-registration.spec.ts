@@ -196,7 +196,8 @@ test("ops registers an owner and a parcel with its boundary, and plans the inven
   await gate.getByLabel("Aydınlatma metnini okudum.").check();
   await gate.getByRole("button", { name: "Kaydet" }).click();
   await expect(page.getByTestId("notice-gate")).toHaveCount(0);
-  await expect(page.getByText(PARCEL_NAME)).toBeVisible();
+  // The parcel card (the service offer card names the parcel too, IP15).
+  await expect(page.getByRole("heading", { name: PARCEL_NAME })).toBeVisible();
   await expect(page.getByText("Örnek Bahçe 1")).toHaveCount(0);
 });
 

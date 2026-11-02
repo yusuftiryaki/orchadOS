@@ -798,6 +798,23 @@ $$;
 comment on function public.service_offers(uuid) is
   'IP15 portal: service cards per owned parcel (state recommended / available / pre_request / open, estimate, latest weed observation).';
 
+-- Portal navigation: the caller owns a parcel of an org with the service
+-- layer switched on (the "Hizmetlerim" link).
+create function public.portal_services_enabled()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.parcel_access pa
+    where pa.user_id = (select auth.uid()) and pa.role = 'owner' and private.services_enabled(pa.org_id)
+  );
+$$;
+comment on function public.portal_services_enabled() is
+  'IP15 portal: true when the caller owns a parcel of an org with services_enabled.';
+
 -- Owner: request a service (or, out of season, a pre-request for the next
 -- season). Returns the request id.
 create function public.customer_request_service(
@@ -1460,6 +1477,7 @@ declare
 begin
   foreach f in array array[
     'public.service_offers(uuid)',
+    'public.portal_services_enabled()',
     'public.customer_request_service(uuid, uuid, public.service_window, text, text, boolean)',
     'public.customer_cancel_service_request(uuid, text)',
     'public.ops_service_requests(public.service_request_status, uuid, integer)',

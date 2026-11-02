@@ -10,7 +10,7 @@
 -- VAT 20 %, 1 March – 30 June, from medium). One transaction.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(71);
+select plan(74);
 
 select testing.reset_to_seed();
 
@@ -382,6 +382,13 @@ select is((select count(*)::integer from public.ops_service_demand()), 0, 'deman
 select is((select count(*)::integer from public.ops_service_requests()), 0, 'queue: ops only');
 reset role;
 
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+set local role authenticated;
+select ok(public.portal_services_enabled(), 'nav: the owner gets the Hizmetlerim link');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000002');
+select ok(not public.portal_services_enabled(), 'nav: the viewer does not');
+reset role;
+
 -- Switch off: no offers, no requests.
 update public.org_billing_setting set services_enabled = false where org_id = 'b0000000-0000-4000-8000-000000000001';
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
@@ -390,6 +397,7 @@ select is((select count(*)::integer from public.service_offers()), 0, 'switch of
 select is(pg_temp.error_of($$select public.customer_request_service('c0000000-0000-4000-8000-000000000001',
   '91500000-0000-4000-8000-000000000001', 'asap', null, 'bakim-v1-taslak')$$),
   'P0001 services_disabled', 'switch off: no requests');
+select ok(not public.portal_services_enabled(), 'switch off: no Hizmetlerim link');
 reset role;
 
 -- ---------------------------------------------------------------------------
