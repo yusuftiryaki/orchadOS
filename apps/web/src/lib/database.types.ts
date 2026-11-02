@@ -1949,6 +1949,7 @@ export type Database = {
           removal_refund_mode: string;
           renewal_notice_days: number;
           service_end_access_flow_enabled: boolean;
+          services_enabled: boolean;
           site_domain: string | null;
           tax_number: string | null;
           tax_office: string | null;
@@ -1989,6 +1990,7 @@ export type Database = {
           removal_refund_mode?: string;
           renewal_notice_days?: number;
           service_end_access_flow_enabled?: boolean;
+          services_enabled?: boolean;
           site_domain?: string | null;
           tax_number?: string | null;
           tax_office?: string | null;
@@ -2028,6 +2030,7 @@ export type Database = {
           removal_refund_mode?: string;
           renewal_notice_days?: number;
           service_end_access_flow_enabled?: boolean;
+          services_enabled?: boolean;
           site_domain?: string | null;
           tax_number?: string | null;
           tax_office?: string | null;
@@ -2146,6 +2149,51 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "parcel_access_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+        ];
+      };
+      parcel_robot_note: {
+        Row: {
+          created_at: string;
+          lowest_branch_cm: number | null;
+          note: string | null;
+          org_id: string;
+          parcel_id: string;
+          slope: string | null;
+          stoniness: string | null;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          lowest_branch_cm?: number | null;
+          note?: string | null;
+          org_id: string;
+          parcel_id: string;
+          slope?: string | null;
+          stoniness?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          lowest_branch_cm?: number | null;
+          note?: string | null;
+          org_id?: string;
+          parcel_id?: string;
+          slope?: string | null;
+          stoniness?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "parcel_robot_note_parcel_id_org_id_fkey";
             columns: ["parcel_id", "org_id"];
             isOneToOne: false;
             referencedRelation: "parcel";
@@ -3456,6 +3504,351 @@ export type Database = {
           },
         ];
       };
+      service_request: {
+        Row: {
+          area_m2: number;
+          area_source: string;
+          cancel_reason: string | null;
+          cancelled_at: string | null;
+          cancelled_by_role: string | null;
+          completed_on: string | null;
+          created_at: string;
+          customer_note: string | null;
+          estimate_subtotal_kurus: number;
+          estimate_total_kurus: number;
+          estimate_vat_kurus: number;
+          id: string;
+          minimum_fee_kurus: number;
+          number: string;
+          operation_id: string | null;
+          ops_note: string | null;
+          org_id: string;
+          parcel_id: string;
+          payment_amount_kurus: number | null;
+          payment_method: string | null;
+          payment_received_on: string | null;
+          payment_recorded_by: string | null;
+          preferred_window: Database["public"]["Enums"]["service_window"];
+          price_is_draft: boolean;
+          price_per_donum_kurus: number;
+          pricing_rule: string;
+          quote_total_kurus: number | null;
+          recommended_measurement_id: string | null;
+          recommended_weed_height: string | null;
+          requested_by: string | null;
+          scheduled_date: string | null;
+          season_year: number;
+          service_type_id: string;
+          session_id: string | null;
+          status: Database["public"]["Enums"]["service_request_status"];
+          terms_version: string;
+          updated_at: string;
+          vat_rate_bp: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          area_m2: number;
+          area_source: string;
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
+          cancelled_by_role?: string | null;
+          completed_on?: string | null;
+          created_at?: string;
+          customer_note?: string | null;
+          estimate_subtotal_kurus: number;
+          estimate_total_kurus: number;
+          estimate_vat_kurus: number;
+          id?: string;
+          minimum_fee_kurus: number;
+          number: string;
+          operation_id?: string | null;
+          ops_note?: string | null;
+          org_id: string;
+          parcel_id: string;
+          payment_amount_kurus?: number | null;
+          payment_method?: string | null;
+          payment_received_on?: string | null;
+          payment_recorded_by?: string | null;
+          preferred_window?: Database["public"]["Enums"]["service_window"];
+          price_is_draft: boolean;
+          price_per_donum_kurus: number;
+          pricing_rule?: string;
+          quote_total_kurus?: number | null;
+          recommended_measurement_id?: string | null;
+          recommended_weed_height?: string | null;
+          requested_by?: string | null;
+          scheduled_date?: string | null;
+          season_year: number;
+          service_type_id: string;
+          session_id?: string | null;
+          status: Database["public"]["Enums"]["service_request_status"];
+          terms_version: string;
+          updated_at?: string;
+          vat_rate_bp: number;
+        };
+        Update: {
+          area_m2?: number;
+          area_source?: string;
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
+          cancelled_by_role?: string | null;
+          completed_on?: string | null;
+          created_at?: string;
+          customer_note?: string | null;
+          estimate_subtotal_kurus?: number;
+          estimate_total_kurus?: number;
+          estimate_vat_kurus?: number;
+          id?: string;
+          minimum_fee_kurus?: number;
+          number?: string;
+          operation_id?: string | null;
+          ops_note?: string | null;
+          org_id?: string;
+          parcel_id?: string;
+          payment_amount_kurus?: number | null;
+          payment_method?: string | null;
+          payment_received_on?: string | null;
+          payment_recorded_by?: string | null;
+          preferred_window?: Database["public"]["Enums"]["service_window"];
+          price_is_draft?: boolean;
+          price_per_donum_kurus?: number;
+          pricing_rule?: string;
+          quote_total_kurus?: number | null;
+          recommended_measurement_id?: string | null;
+          recommended_weed_height?: string | null;
+          requested_by?: string | null;
+          scheduled_date?: string | null;
+          season_year?: number;
+          service_type_id?: string;
+          session_id?: string | null;
+          status?: Database["public"]["Enums"]["service_request_status"];
+          terms_version?: string;
+          updated_at?: string;
+          vat_rate_bp?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_request_operation_id_fkey";
+            columns: ["operation_id"];
+            isOneToOne: false;
+            referencedRelation: "operation";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_request_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "service_request_recommended_measurement_id_fkey";
+            columns: ["recommended_measurement_id"];
+            isOneToOne: false;
+            referencedRelation: "measurement";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_request_recommended_measurement_id_fkey";
+            columns: ["recommended_measurement_id"];
+            isOneToOne: false;
+            referencedRelation: "tree_latest_measurement";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_request_service_type_id_org_id_fkey";
+            columns: ["service_type_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_type";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "service_request_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      service_request_event: {
+        Row: {
+          actor_role: string;
+          actor_user_id: string | null;
+          created_at: string;
+          from_status: Database["public"]["Enums"]["service_request_status"] | null;
+          id: string;
+          note: string | null;
+          org_id: string;
+          parcel_id: string;
+          request_id: string;
+          to_status: Database["public"]["Enums"]["service_request_status"];
+        };
+        ComputedFields: never;
+        Insert: {
+          actor_role: string;
+          actor_user_id?: string | null;
+          created_at?: string;
+          from_status?: Database["public"]["Enums"]["service_request_status"] | null;
+          id?: string;
+          note?: string | null;
+          org_id: string;
+          parcel_id: string;
+          request_id: string;
+          to_status: Database["public"]["Enums"]["service_request_status"];
+        };
+        Update: {
+          actor_role?: string;
+          actor_user_id?: string | null;
+          created_at?: string;
+          from_status?: Database["public"]["Enums"]["service_request_status"] | null;
+          id?: string;
+          note?: string | null;
+          org_id?: string;
+          parcel_id?: string;
+          request_id?: string;
+          to_status?: Database["public"]["Enums"]["service_request_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_request_event_request_id_parcel_id_org_id_fkey";
+            columns: ["request_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_request";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      service_request_photo: {
+        Row: {
+          asset_id: string;
+          created_at: string;
+          id: string;
+          linked_by: string | null;
+          org_id: string;
+          parcel_id: string;
+          phase: string;
+          request_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          asset_id: string;
+          created_at?: string;
+          id?: string;
+          linked_by?: string | null;
+          org_id: string;
+          parcel_id: string;
+          phase: string;
+          request_id: string;
+        };
+        Update: {
+          asset_id?: string;
+          created_at?: string;
+          id?: string;
+          linked_by?: string | null;
+          org_id?: string;
+          parcel_id?: string;
+          phase?: string;
+          request_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_request_photo_asset_id_parcel_id_org_id_fkey";
+            columns: ["asset_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "asset";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+          {
+            foreignKeyName: "service_request_photo_request_id_parcel_id_org_id_fkey";
+            columns: ["request_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "service_request";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
+      service_type: {
+        Row: {
+          active: boolean;
+          code: string;
+          created_at: string;
+          description: string | null;
+          id: string;
+          minimum_fee_kurus: number;
+          name: string;
+          observation_max_age_days: number;
+          operation_kind: Database["public"]["Enums"]["operation_kind"];
+          org_id: string;
+          price_is_draft: boolean;
+          price_per_donum_kurus: number;
+          recommend_from_weed_height: string | null;
+          season_end_day: number;
+          season_end_month: number;
+          season_start_day: number;
+          season_start_month: number;
+          sort_order: number;
+          updated_at: string;
+          updated_by: string | null;
+          vat_rate_bp: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          active?: boolean;
+          code: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          minimum_fee_kurus?: number;
+          name: string;
+          observation_max_age_days?: number;
+          operation_kind: Database["public"]["Enums"]["operation_kind"];
+          org_id: string;
+          price_is_draft?: boolean;
+          price_per_donum_kurus: number;
+          recommend_from_weed_height?: string | null;
+          season_end_day: number;
+          season_end_month: number;
+          season_start_day: number;
+          season_start_month: number;
+          sort_order?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+          vat_rate_bp?: number;
+        };
+        Update: {
+          active?: boolean;
+          code?: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          minimum_fee_kurus?: number;
+          name?: string;
+          observation_max_age_days?: number;
+          operation_kind?: Database["public"]["Enums"]["operation_kind"];
+          org_id?: string;
+          price_is_draft?: boolean;
+          price_per_donum_kurus?: number;
+          recommend_from_weed_height?: string | null;
+          season_end_day?: number;
+          season_end_month?: number;
+          season_start_day?: number;
+          season_start_month?: number;
+          sort_order?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+          vat_rate_bp?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_type_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "org";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       session: {
         Row: {
           camera_height_m: number | null;
@@ -4328,6 +4721,10 @@ export type Database = {
       };
       customer_cancel_garden_removal: { Args: { p_removal_id: string }; Returns: undefined };
       customer_cancel_order: { Args: { p_order_id: string }; Returns: undefined };
+      customer_cancel_service_request: {
+        Args: { p_id: string; p_reason: string };
+        Returns: undefined;
+      };
       customer_create_application: { Args: { p_package_id?: string }; Returns: string };
       customer_decline_quote: {
         Args: { p_note?: string; p_quote_id: string; p_request_revision?: boolean };
@@ -4368,6 +4765,16 @@ export type Database = {
           p_parcel_id: string;
           p_reason: string;
           p_timing: string;
+        };
+        Returns: string;
+      };
+      customer_request_service: {
+        Args: {
+          p_note: string;
+          p_parcel_id: string;
+          p_service_type_id: string;
+          p_terms_version: string;
+          p_window: Database["public"]["Enums"]["service_window"];
         };
         Returns: string;
       };
@@ -4589,6 +4996,16 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_add_service_photo: {
+        Args: {
+          p_byte_size: number;
+          p_content_hash: string;
+          p_id: string;
+          p_mime_type: string;
+          p_phase: string;
+        };
+        Returns: string;
+      };
       ops_allow_unpaid_visit: {
         Args: { p_installment_id: string; p_note: string };
         Returns: undefined;
@@ -4705,6 +5122,7 @@ export type Database = {
           removal_refund_mode: string;
           renewal_notice_days: number;
           service_end_access_flow_enabled: boolean;
+          services_enabled: boolean;
           site_domain: string | null;
           tax_number: string | null;
           tax_office: string | null;
@@ -4745,6 +5163,7 @@ export type Database = {
       };
       ops_cancel_order: { Args: { p_note?: string; p_order_id: string }; Returns: undefined };
       ops_cancel_refund: { Args: { p_note?: string; p_refund_id: string }; Returns: undefined };
+      ops_cancel_service_request: { Args: { p_id: string; p_reason: string }; Returns: undefined };
       ops_close_boundary_dispute: {
         Args: { p_note?: string; p_parcel_id: string };
         Returns: string;
@@ -4752,6 +5171,10 @@ export type Database = {
       ops_complete_garden_removal: { Args: { p_removal_id: string }; Returns: undefined };
       ops_complete_manual_refund: {
         Args: { p_bank_reference: string; p_completed_on: string; p_refund_id: string };
+        Returns: undefined;
+      };
+      ops_complete_service_request: {
+        Args: { p_done_on: string; p_id: string; p_note: string };
         Returns: undefined;
       };
       ops_contract_documents: {
@@ -5038,6 +5461,10 @@ export type Database = {
       };
       ops_link_application_garden_parcel: {
         Args: { p_garden_id: string; p_parcel_id: string };
+        Returns: undefined;
+      };
+      ops_link_service_photo: {
+        Args: { p_asset_id: string; p_id: string; p_phase: string };
         Returns: undefined;
       };
       ops_media_suppressions: {
@@ -5387,6 +5814,10 @@ export type Database = {
         };
         Returns: string;
       };
+      ops_record_service_payment: {
+        Args: { p_amount_kurus: number; p_id: string; p_method: string; p_received_on: string };
+        Returns: undefined;
+      };
       ops_record_visit_phone_notice: {
         Args: { p_notified_at: string; p_session_id: string };
         Returns: string;
@@ -5531,6 +5962,73 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ops_schedule_service_request: {
+        Args: {
+          p_id: string;
+          p_note: string;
+          p_quote_total_kurus: number;
+          p_scheduled_date: string;
+        };
+        Returns: undefined;
+      };
+      ops_service_demand: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          cancelled: number;
+          done: number;
+          pre_requests: number;
+          requested: number;
+          scheduled: number;
+          season_year: number;
+          service_code: string;
+          service_name: string;
+          service_type_id: string;
+          total: number;
+        }[];
+      };
+      ops_service_requests: {
+        Args: {
+          p_season_year?: number;
+          p_service_type_id?: string;
+          p_status?: Database["public"]["Enums"]["service_request_status"];
+        };
+        Returns: {
+          after_photos: number;
+          area_m2: number;
+          area_source: string;
+          before_photos: number;
+          cancel_reason: string;
+          cancelled_by_role: string;
+          completed_on: string;
+          created_at: string;
+          customer_note: string;
+          district: string;
+          estimate_total_kurus: number;
+          id: string;
+          number: string;
+          ops_note: string;
+          org_id: string;
+          parcel_id: string;
+          parcel_name: string;
+          payment_amount_kurus: number;
+          payment_method: string;
+          payment_received_on: string;
+          preferred_window: string;
+          price_is_draft: boolean;
+          quote_total_kurus: number;
+          recommended_weed_height: string;
+          requester_name: string;
+          requester_phone: string;
+          requester_user_id: string;
+          scheduled_date: string;
+          season_year: number;
+          service_code: string;
+          service_name: string;
+          service_type_id: string;
+          status: string;
+          village: string;
+        }[];
+      };
       ops_set_kvkk_request_status: {
         Args: { p_request_id: string; p_status: string };
         Returns: undefined;
@@ -5562,6 +6060,10 @@ export type Database = {
       };
       ops_terminate_order: { Args: { p_note: string; p_order_id: string }; Returns: undefined };
       ops_unhide_media: { Args: { p_id: string; p_note?: string }; Returns: string };
+      ops_unlink_service_photo: {
+        Args: { p_asset_id: string; p_id: string; p_phase: string };
+        Returns: undefined;
+      };
       ops_update_owner_profile: {
         Args: {
           p_contact_preference: string;
@@ -5572,6 +6074,23 @@ export type Database = {
           p_kvkk_text_version?: string;
           p_phone?: string;
           p_profile_id: string;
+        };
+        Returns: undefined;
+      };
+      ops_update_service_type: {
+        Args: {
+          p_active: boolean;
+          p_id: string;
+          p_minimum_fee_kurus: number;
+          p_observation_max_age_days: number;
+          p_price_is_draft: boolean;
+          p_price_per_donum_kurus: number;
+          p_recommend_from_weed_height: string;
+          p_season_end_day: number;
+          p_season_end_month: number;
+          p_season_start_day: number;
+          p_season_start_month: number;
+          p_vat_rate_bp: number;
         };
         Returns: undefined;
       };
@@ -6031,6 +6550,36 @@ export type Database = {
         };
         Returns: Json;
       };
+      service_offers: {
+        Args: { p_parcel_id?: string };
+        Returns: {
+          area_m2: number;
+          area_source: string;
+          estimate_subtotal_kurus: number;
+          estimate_total_kurus: number;
+          estimate_vat_kurus: number;
+          in_season: boolean;
+          measurement_id: string;
+          minimum_fee_kurus: number;
+          observed_at: string;
+          open_request_id: string;
+          open_request_number: string;
+          open_request_status: string;
+          parcel_id: string;
+          parcel_name: string;
+          price_is_draft: boolean;
+          price_per_donum_kurus: number;
+          season_end: string;
+          season_start: string;
+          service_code: string;
+          service_description: string;
+          service_name: string;
+          service_type_id: string;
+          state: string;
+          vat_rate_bp: number;
+          weed_height: string;
+        }[];
+      };
       service_register_contract_document: {
         Args: {
           p_generator: string;
@@ -6230,7 +6779,10 @@ export type Database = {
         | "addon_order_closed"
         | "viewer_invited"
         | "visit_scheduled"
-        | "garden_transfer_reports";
+        | "garden_transfer_reports"
+        | "service_scheduled"
+        | "service_completed"
+        | "service_cancelled";
       operation_kind:
         | "mowing"
         | "spraying"
@@ -6266,6 +6818,8 @@ export type Database = {
       refund_status: "requested" | "processing" | "succeeded" | "failed" | "cancelled";
       season: "winter" | "spring" | "summer" | "harvest";
       sensor_kind: "camera_360" | "lidar" | "gnss" | "thermal" | "phone_camera" | "imu" | "other";
+      service_request_status: "pre_request" | "requested" | "scheduled" | "done" | "cancelled";
+      service_window: "asap" | "within_2_weeks" | "within_month" | "flexible";
       session_kind:
         | "inventory"
         | "periodic_scan"
@@ -6501,6 +7055,9 @@ export const Constants = {
         "viewer_invited",
         "visit_scheduled",
         "garden_transfer_reports",
+        "service_scheduled",
+        "service_completed",
+        "service_cancelled",
       ],
       operation_kind: [
         "mowing",
@@ -6543,6 +7100,8 @@ export const Constants = {
       refund_status: ["requested", "processing", "succeeded", "failed", "cancelled"],
       season: ["winter", "spring", "summer", "harvest"],
       sensor_kind: ["camera_360", "lidar", "gnss", "thermal", "phone_camera", "imu", "other"],
+      service_request_status: ["pre_request", "requested", "scheduled", "done", "cancelled"],
+      service_window: ["asap", "within_2_weeks", "within_month", "flexible"],
       session_kind: [
         "inventory",
         "periodic_scan",

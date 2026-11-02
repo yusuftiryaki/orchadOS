@@ -333,7 +333,7 @@ Parsel için `periodic_scan` türünde, `planned` durumda bir ziyaret açılır;
     - Rastgele örneklem
     - Personelin "Sorun gördüm" dedikleri
 
-   Her ağaçta mevsime göre 2–3 çekim yapılır ve evet/hayır soruları cevaplanır. Bulanık ya da karanlık fotoğraf telefonda reddedilir; fotoğraflar sadece uygulama içinden çekilir.
+   Her ağaçta mevsime göre 2–3 çekim yapılır ve evet/hayır soruları cevaplanır. Bulanık ya da karanlık fotoğraf telefonda reddedilir; fotoğraflar sadece uygulama içinden çekilir. Listenin başında parsel soruları bir kez sorulur; ilkbahar ve yazda "Bahçede yabani ot ne boyda?" (kısa, orta, uzun) bunlardan biridir ([metodoloji.md](metodoloji.md) bölüm 7).
 4. **Bitir:** Kayıtlar internet olunca kendiliğinden gönderilir. Hafıza kartı ofise getirilir.
 
 **Bahçede bulunan kişiler** ([hukuk/kararlar.md](hukuk/kararlar.md) H01; envanter ziyaretinde de aynıdır):
@@ -441,6 +441,28 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 | Gezide zamanda gezinme ve bakış yönü; ağaç karnesinde kanıt bilgisi ve hash doğrulaması | ✅ |
 | "Rapor hazır" ve kritik bulgu bildirimleri, operasyonda bildirim listesi | ✅ (gerçek SMS için Netgsm hesabı gerekiyor; o zamana kadar mesajlar kaydediliyor) |
 
+## 4. Hizmet: yabani ot biçme
+
+**Kim:** Sahip, operasyon, saha personeli · **Ürün kararı:** [MVP.md](MVP.md#modül-6--hizmet-katmanı-yabani-ot-biçme)
+
+Denetimin yanında sahip bahçesi için hizmet de alabilir; bugün tek hizmet yabani ot biçmedir. İşi köydeki saha personeli motorlu tırpanla yapar. Çevrimiçi ödeme yoktur. Hizmet katmanı `services_enabled` anahtarıyla açılır; barındırılan projelerde kapalıdır.
+
+1. **Öneri (sahip):** Yayımlanan ilkbahar ya da yaz ziyaretinde ot orta ya da uzunsa ve sezon açıksa parsel karnesinde öneri kartı çıkar: "Bahçenizde ot uzun. Ot biçme: X TL. Talep et". Tutar tahminidir. Sezon dışında kart "Gelecek sezon için ön talep bırakın" der.
+2. **Talep (sahip):** Parsel, tercih edilen zaman aralığı ve not seçilir, hizmet koşulları onaylanır. Talep **Hizmetlerim**'de numarası ve durumuyla görünür; planlanan tarihten önceki güne kadar oradan ücretsiz iptal edilir.
+3. **Planlama (operasyon):** `/operasyon/hizmet` kuyruğunda talep açılır, tutar onaylanır (gerekirse düzeltilir) ve tarih verilir. Parsel için biçme oturumu açılır, sahibe bildirim gider. Katalog fiyatı `/operasyon/hizmet/katalog`'da düzenlenir (taslak fiyat işaretiyle).
+4. **İş (saha personeli):** Biçmeden önce ve sonra parselin fotoğrafını çeker.
+5. **Kapanış (operasyon):** İş kapatılırken en az bir "öncesi" ve bir "sonrası" fotoğrafı bağlanır (yeni yükleme ya da aynı parselin yayımlanmış ziyaretinden medya). Ödeme işten sonra elle kaydedilir (tutar, yöntem, tarih).
+6. **Kanıt (sahip):** Hizmetlerim'de tamamlanan işin tarihini ve öncesi/sonrası fotoğraflarını görür. O dönemin karnesindeki bakım uyumu satırı, biçmeyi orchadOS'un yaptığını açıkça yazar.
+
+**Robot uygunluk notları:** Operasyon, ops parsel sayfasında her parsel için eğim, taşlılık, en alçak dal yüksekliği ve serbest not tutar. Notlar ileride robotun önce hangi bahçelere gideceğini seçmek içindir; sahibe gösterilmez.
+
+| Adım | Durum |
+| --- | --- |
+| Saha sorusu `weed_height` | 🟡 Yazılıyor (İP15) |
+| Öneri kartı, talep, Hizmetlerim, iptal | 🟡 Yazılıyor (İP15) |
+| Hizmet talepleri kuyruğu, katalog, fotoğraf bağlama, ödeme kaydı, robot uygunluk notları | 🟡 Yazılıyor (İP15) |
+| Barındırılan projelerde açılış | ⬜ Avukat onayı ve sahadan gerçek fiyat bekleniyor |
+
 ## Kişisel veri başvuruları ve görüntü gizleme
 
 **Kim:** Operasyon, geliştirici · **Tasarım:** [hukuk/kvkk-basvuru-proseduru.md](hukuk/kvkk-basvuru-proseduru.md)
@@ -457,7 +479,7 @@ Her ağacın kesitleri, önceki ziyaretin kesitleri ve personelin cevaplarından
 | Operasyon | Ziyareti planlar, kartları alır, işleme ve yüklemeyi çalıştırır, kaliteyi izler | `/operasyon`, işleme istasyonu |
 | Saha personeli | Tarar, yakın plan çeker, soruları cevaplar; envanterde ofiste gövde üçgenler | Saha uygulaması, `/ofis` |
 | Uzman | İnceler, karar verir, bulgu yazar, imzalar | `/uzman` |
-| Sahip, hissedar | Okur, inceler, gezer | `/portal` |
+| Sahip, hissedar | Okur, inceler, gezer; sahip ot biçme hizmeti talep eder | `/portal` |
 
 ## Demo
 

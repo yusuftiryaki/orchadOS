@@ -23,7 +23,9 @@ select tables_are(
     -- Customers and billing (IP12, docs/musteri-yonetimi.md §6.3).
     'org_billing_setting', 'service_package', 'price_list', 'price_list_item', 'service_application',
     'application_garden', 'quote', 'quote_item', 'service_order', 'service_order_item', 'payment',
-    'payment_item', 'refund', 'audit_event', 'garden_removal', 'order_installment', 'order_installment_item'
+    'payment_item', 'refund', 'audit_event', 'garden_removal', 'order_installment', 'order_installment_item',
+    -- Service layer (IP15, docs/MVP.md Module 6).
+    'service_type', 'service_request', 'service_request_event', 'service_request_photo', 'parcel_robot_note'
   ],
   'public has exactly the MVP tables'
 );
@@ -135,7 +137,9 @@ select set_eq(
         'shoot_tip_dieback_present', 'honeydew_present', 'sooty_mould_present', 'white_flakes_present',
         'green_fruit_drop_present', 'debris_under_tree_present', 'dry_weeds_present',
         -- Close-up protocol of methodology v0.2 (20261103100800_methodology_v02).
-        'dead_test_live_bud', 'early_emptied_cluster_present', 'fence_breach_present'],
+        'dead_test_live_bud', 'early_emptied_cluster_present', 'fence_breach_present',
+        -- Parcel weed height (IP15, 20261106100100_service_layer).
+        'weed_height'],
   'migrations register the metrics from docs/metodoloji.md (Ek B), docs/veri-modeli.md and the field questions'
 );
 

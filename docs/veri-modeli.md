@@ -95,6 +95,7 @@ Her ürün, hangi ham kayıttan ve hangi hat sürümüyle üretildiğini bilir. 
 | `fractal_dimension` | — | QSM, kutu sayma | Kış | Hayır (araştırma) |
 | `fruit_load_scale` | 0–3 | personel, AI görsel, uzman | Yaz | Evet |
 | `canopy_temp_delta` | °C | termal | Yaz | Değerlendirilecek |
+| `weed_height` | kısa / orta / uzun (parsel) | personel sorusu | İlkbahar, yaz | Evet |
 
 Yeni bir ölçüm türü eklemek, bu tabloya bir satır eklemek demektir.
 
@@ -363,6 +364,28 @@ Kararlar: [hukuk/kararlar.md](hukuk/kararlar.md) H01, H12, H15, H20, H21, H22, H
 **Kullanılmış ziyaret (`private.visit_usage`):** Faturalanan ziyaretler (§ İP14) artı 8A/3'e göre yapılmış sayılanlar, eksi raporu yayımlanamayanlar (`report_lost`). Çıkarma hesabı ve Bahçelerim'deki ziyaret sayısı bunu okur.
 
 **Erişim (T08, T09):** Hizmet sonu penceresi çıkarmanın salt okunur dönemini ve erişim kaldırmasını kullanır. Pencere kapanınca ve parsele hiçbir satır hizmet vermiyorsa `parcel_detail.site_contact_phone` (ve müşterinin başvuru kopyası) silinir.
+
+## Hizmet katmanı: yabani ot biçme (İP15)
+
+Ürün kararı: [MVP.md](MVP.md#modül-6--hizmet-katmanı-yabani-ot-biçme). Katalog meyve türünden ve hizmetten bağımsızdır: yeni bir hizmet (toprak işleme, budama) şema değişmeden `service_type`'a bir satır olarak eklenir. İş kaydı mevcut `operation` tablosudur; `performer` bugün `crew`, robota geçişte şema değişmez.
+
+| Tablo / sütun | Ne tutar |
+| --- | --- |
+| `service_type` | Org başına hizmet kataloğu, hizmet türü başına bir satır: `code` (ör. `weed_mowing`), ad, açıklama, `operation_kind` (mevcut `operation_kind` enum'u, ör. `mowing`), `price_per_donum_kurus` ve `minimum_fee_kurus` (KDV hariç), `vat_rate_bp`, `price_is_draft`, sezon penceresi (`season_start_month`/`_day`, `season_end_month`/`_day`; yıl sonunu aşabilir), `recommend_from_weed_height` (`medium` ya da `tall`), `observation_max_age_days` (varsayılan 60), `active`, `sort_order`, `updated_by`/`updated_at`. Yalnız `weed_mowing` yüklenir: taslak fiyat dönüm başına 375 TL + KDV, minimum 2.500 TL + KDV |
+| `service_request` | Bir sahibin bir parsel ve bir hizmet için talebi (`H-YYYY-NNNNN`). Durum `service_request_status`: `pre_request`, `requested`, `scheduled`, `done`, `cancelled`. Talep eden, `season_year`, `preferred_window` (`asap`, `within_2_weeks`, `within_month`, `flexible`), sahibin notu, `terms_version`. Donmuş teklif tahmini: `area_m2`, `area_source` (`boundary` ya da `declared`), `price_per_donum_kurus`, `minimum_fee_kurus`, `vat_rate_bp`, ara toplam, KDV ve toplam (kuruş), `pricing_rule` (`service-v1`). Ops'un onayladığı `quote_total_kurus`, `scheduled_date`, `session_id`, `operation_id`, `completed_on`, `cancelled_by_role` ve gerekçe, ödeme (`payment_received_on`, `payment_amount_kurus`, `payment_method`: `cash`, `transfer`, `other`), `ops_note`, öneri dayanağı (tetikleyen ölçümün kimliği ve ot boyu; varsa) |
+| `service_request_event` | Durum tarihçesi, ekleme-yalnız: `from_status`, `to_status`, yapan, `actor_role`, not, `created_at` |
+| `service_request_photo` | İş kanıtı: bir `asset`'i (tür `photo`, içerik hash'iyle adreslenir, ekleme-yalnız) talebe `phase` (`before` ya da `after`) ile bağlar. Fotoğraf ya işin biçme oturumuna yüklenmiş bir asset'tir ya da aynı parselin yayımlanmış bir ziyaretinin medyasına bağlantıdır |
+| `parcel_robot_note` | Parsel başına bir satır robot uygunluk notu: `slope` (`flat`, `gentle`, `steep`), `stoniness` (`low`, `medium`, `high`), `lowest_branch_cm`, not, `updated_by`/`updated_at` |
+| `metric_definition` | `weed_height`: kategori (`short`, `medium`, `tall`), özne parsel, dönemler ilkbahar ve yaz, karnede gösterilir. Saha sorusu ziyaret başına bir kez sorulur ([metodoloji.md](metodoloji.md)) |
+| `org_billing_setting.services_enabled` | Hizmet katmanının anahtarı. Yalnızca SQL; barındırılan projelerde `false`, `seed.sql`'de `true` |
+| `notification_template` | `service_scheduled`, `service_completed`, `service_cancelled`; `ref_id` talebin kimliğidir. Öneri için mesaj yoktur: yeni hizmet öneren SMS ticari elektronik iletidir ve İYS onayı ister (hukuk/kararlar.md H06); öneri yalnız portalda görünür |
+
+**Kurallar:**
+- **Biçme oturumu:** Talep planlanınca parsel için `mowing` türünde bir `session` açılır ve talebe bağlanır. Bu oturum hiçbir zaman `published` olmaz; sahibin portalında denetim ziyareti olarak görünmez. İş bitince `operation` satırı (tür `mowing`, yapan `crew`) yazılır ve talebe bağlanır.
+- **Fiyat (`service-v1`):** `ara toplam = max(ceil(alan_m² / 100) × dönüm fiyatı / 10, minimum ücret)`, üstüne KDV; yuvarlama abonelik fiyatıyla aynıdır ([musteri-yonetimi.md](musteri-yonetimi.md) §6.6). Alan son sınır sürümünden, yoksa beyandan gelir. Tahmin talep anında dondurulur; katalog fiyatı sonradan değişse de talep değişmez. Ops tutarı planlarken `quote_total_kurus` ile onaylar.
+- **Öneri:** Yalnız yayımlanmış ziyaretin `weed_height` ölçümüne dayanır; sezon penceresi, eşik (`recommend_from_weed_height`), gözlemin yaşı (`observation_max_age_days`) ve gözlemden sonra biçme yapılıp yapılmadığı denetlenir.
+- **Görünürlük:** Sahip kendi taleplerini ve tarihçesini görür; bağlı fotoğrafların `asset` satırlarını `asset` üzerindeki ek bir okuma politikasıyla okur (biçme oturumu yayımlanmasa da). `ops_note` sahibe gösterilmez. `parcel_robot_note`'u org üyeleri okur, `field_staff` ve `ops` yazar; sahibe gösterilmez.
+- **Medya değiştirilemez:** Kanıt fotoğrafı güncellenmez; yanlış fotoğraf yerine yenisi bağlanır.
 
 ## MVP tablolarından geçiş
 
