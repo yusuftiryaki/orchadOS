@@ -128,7 +128,7 @@ def test_service_layer_rows(generated):
     (req,) = _rows(script, "services", "public.service_request")
     assert req["parcel_id"] == ids.PARCEL_B and req["status"] == "done"
     assert re.fullmatch(r"H-2026-\d{6}", req["number"])
-    assert req["terms_version"] == "bakim-v1-taslak" and req["pricing_rule"] == "service-v1"
+    assert req["terms_version"] == "bakim-v2-taslak" and req["pricing_rule"] == "service-v1"
     assert req["id"] == ids.B_MOWING_2026_REQUEST
     # Unpriced at the request: the eight price and estimate columns all null.
     for c in (

@@ -946,8 +946,8 @@ SERVICE_TYPE = {
 # Season window of the service per fruit species (public.service_type_season), as
 # the migration seeds it: 1 March - 30 June for every species in public.fruit_species.
 SERVICE_SEASON = (3, 1, 6, 30)
-# Service terms the owner accepted (20261106300000_legal_text_service_terms.sql).
-SERVICE_TERMS_VERSION = "bakim-v1-taslak"
+# Service terms the owner accepted (20261107200000_legal_text_service_terms_v2.sql).
+SERVICE_TERMS_VERSION = "bakim-v2-taslak"
 PRICING_RULE = "service-v1"
 
 
