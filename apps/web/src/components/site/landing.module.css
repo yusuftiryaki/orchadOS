@@ -1,7 +1,12 @@
-/* Landing page (app/(site)/page.tsx). The boldness is spent on the orchard
-   plate in the hero; every other section is plain text on the ground. */
+/* Landing page (app/(site)/page.tsx). One hero with the orchard plate shown
+   as a product preview, then full-width sections that alternate between the
+   page ground and white, each with the same head (title, lead) and rhythm. */
 
 .landing {
+  overflow-x: clip;
+}
+
+.container {
   max-width: 1120px;
   margin: 0 auto;
   padding: 0 var(--space-3);
@@ -10,25 +15,53 @@
 /* Hero --------------------------------------------------------------------- */
 
 .hero {
+  padding: var(--space-6) 0 var(--space-7);
+}
+
+.heroGrid {
   display: grid;
-  gap: var(--space-5);
-  padding: var(--space-5) 0 var(--space-6);
+  gap: var(--space-6);
+}
+
+.heroText {
+  min-width: 0;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding: 4px 12px 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--color-text-2);
+}
+
+.eyebrow svg {
+  color: var(--color-accent);
+  flex: none;
 }
 
 .title {
-  font-size: var(--text-3xl);
-  line-height: var(--leading-tight);
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 40px;
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   max-width: 14ch;
-  margin-bottom: var(--space-3);
+  margin: 0 0 var(--space-3);
 }
 
 .lead {
   font-size: var(--text-lg);
+  line-height: 1.6;
   color: var(--color-text-2);
-  max-width: 52ch;
-  margin-bottom: var(--space-4);
+  max-width: 46ch;
+  margin: 0 0 var(--space-5);
 }
 
 .ctaRow {
@@ -39,29 +72,115 @@
 
 .ctaRow :global(.button) {
   min-height: 52px;
-  padding: 12px 24px;
+  padding: 12px 28px;
   font-size: var(--text-base);
+}
+
+/* On a phone the calls to action take the full width, one per line. */
+@media (max-width: 599px) {
+  .ctaRow,
+  .closingActions {
+    display: grid;
+  }
 }
 
 .ctaNote {
   margin-top: var(--space-3);
   font-size: var(--text-sm);
   color: var(--color-muted);
-  max-width: 52ch;
+  max-width: 50ch;
 }
 
-/* Orchard plate */
+/* Orchard plate: the portal's health map in an app window ------------------ */
 
 .plate {
   margin: 0;
   min-width: 0;
 }
 
-.plateField {
+.window {
   position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.windowBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.windowDots {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.windowDots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-surface-3);
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
+}
+
+.windowTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+
+.windowTag {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-highlight-soft);
+  color: var(--color-highlight);
+  font-weight: 650;
+}
+
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+
+.chipCount {
+  color: var(--color-muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.plateField {
   background: var(--palette-tarla);
-  border-radius: var(--radius-lg);
-  padding: var(--space-2) var(--space-2) var(--space-1);
+  padding: var(--space-3) var(--space-2) var(--space-2);
 }
 
 .plateSvg {
@@ -79,7 +198,7 @@
 .rowLabel {
   font-family: var(--font-mono);
   font-size: 11px;
-  fill: #6b4f3c;
+  fill: var(--class-dead);
 }
 
 .tree {
@@ -92,14 +211,15 @@
 
 .spot {
   fill: none;
-  stroke: #8a6a55;
+  stroke: var(--class-dead);
+  stroke-opacity: 0.7;
   stroke-width: 1.5;
   stroke-dasharray: 2 2;
 }
 
 @keyframes reveal {
   from {
-    fill: #9aa57c;
+    fill: var(--palette-tarla-line);
   }
 }
 
@@ -131,12 +251,6 @@
   }
 }
 
-@keyframes hang {
-  from {
-    opacity: 0;
-  }
-}
-
 @keyframes appear {
   from {
     opacity: 0;
@@ -144,149 +258,214 @@
   }
 }
 
+/* The picked tree's card: the map's inspector, under the field. */
 .callout {
-  background: var(--color-surface);
-  border-radius: var(--radius);
-  border-top: 4px solid var(--color-highlight);
-  box-shadow: var(--shadow);
+  display: grid;
+  gap: var(--space-2);
   padding: var(--space-3);
-  margin: var(--space-2) 0 var(--space-1);
   animation: appear 300ms var(--ease) both;
-  animation-delay: 1.6s;
+  animation-delay: 1.2s;
 }
 
 .calloutHead {
-  margin: 0 0 var(--space-2);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.calloutLabel {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
 }
 
 .calloutCode {
+  order: -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: var(--text-lg);
   color: var(--color-highlight);
 }
 
+.calloutCode::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--class-attention);
+  box-shadow:
+    0 0 0 1px var(--class-ring),
+    0 0 0 3px var(--color-surface),
+    0 0 0 5px var(--color-highlight);
+  margin: 0 4px 0 2px;
+}
+
 .calloutList {
   margin: 0;
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
 }
 
 .calloutList div {
-  display: grid;
-  grid-template-columns: 5.5em 1fr;
-  gap: var(--space-2);
+  min-width: 0;
 }
 
 .calloutList dt {
+  font-size: var(--text-xs);
   color: var(--color-muted);
 }
 
 .calloutList dd {
   margin: 0;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .plateCaption {
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
   font-size: var(--text-sm);
   color: var(--color-muted);
   max-width: 64ch;
 }
 
 .plateCaption strong {
-  color: var(--color-text);
+  color: var(--color-text-2);
+  font-weight: 600;
 }
 
 @media (min-width: 720px) {
-  /* The card hangs from the plate's lower edge, over the last row only. */
-  .callout {
-    position: absolute;
-    right: var(--space-3);
-    bottom: 0;
-    width: 270px;
-    margin: 0;
-    transform: translateY(calc(100% - 40px));
+  .calloutList {
+    grid-template-columns: repeat(4, minmax(0, auto));
+    justify-content: start;
+    column-gap: var(--space-5);
   }
-  .plateCaption {
-    padding-right: 300px;
-    min-height: 130px;
+  .callout {
+    padding: var(--space-3) var(--space-4);
   }
 }
 
 @media (min-width: 1024px) {
   .hero {
+    padding: var(--space-8) 0;
+  }
+  .heroGrid {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
     align-items: center;
-    gap: var(--space-6);
-    padding: var(--space-7) 0 var(--space-7);
+    gap: var(--space-7);
   }
   .title {
-    font-size: var(--text-5xl);
+    font-size: 56px;
   }
-  .plateCaption {
-    padding-right: 290px;
+  .calloutList {
+    grid-template-columns: repeat(2, minmax(0, auto));
   }
   .callout {
-    animation-name: hang;
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    column-gap: var(--space-5);
+  }
+  .calloutHead {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .calloutCode {
+    order: 0;
   }
 }
 
 /* Sections ----------------------------------------------------------------- */
 
-.band {
-  padding: var(--space-6) 0;
-  border-top: 1px solid var(--color-border);
+.section {
+  padding: var(--space-7) 0;
+}
+
+.surface {
+  background: var(--color-surface);
+  border-block: 1px solid var(--color-border);
+}
+
+.sectionHead {
+  max-width: 640px;
+  margin-bottom: var(--space-5);
 }
 
 .h2 {
   font-size: var(--text-2xl);
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  margin-bottom: var(--space-2);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.2;
+  margin: 0 0 var(--space-2);
 }
 
 .sectionLead {
   color: var(--color-text-2);
   font-size: var(--text-lg);
-  max-width: 60ch;
-  margin-bottom: var(--space-4);
+  line-height: 1.6;
+  margin: 0;
 }
 
+.more {
+  margin: var(--space-4) 0 0;
+}
+
+.more :global(.button),
+.calFoot :global(.button) {
+  margin-left: -10px;
+}
+
+/* What a visit tells: the classes and the parcel report, two cards. */
 .readGrid {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-3);
 }
 
 .legend {
   list-style: none;
   margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--space-3);
-  max-width: 60ch;
+  padding: var(--space-1) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .legend li {
   display: grid;
-  grid-template-columns: 22px 1fr;
+  grid-template-columns: 24px 1fr;
   align-items: baseline;
+  padding: var(--space-3) 0;
+}
+
+.legend li + li {
+  border-top: 1px solid var(--color-border);
 }
 
 .legend li > span:first-child {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   transform: translateY(1px);
 }
 
+.legend li > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
 .legend strong {
-  margin-right: 4px;
+  font-weight: 650;
+}
+
+.legend li > span:last-child > span {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
 }
 
 .report {
-  align-self: start;
-  background: var(--color-surface);
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
@@ -294,71 +473,118 @@
 
 .report h3 {
   font-size: var(--text-lg);
+  margin-bottom: var(--space-3);
 }
 
 .report ul {
+  list-style: none;
   margin: 0;
-  padding-left: 20px;
+  padding: 0;
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
-/* The drill-down from a finding to the photo's time and place: a chain,
-   so the steps are joined by a line. */
+.report li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: start;
+  color: var(--color-text-2);
+}
+
+.report li svg {
+  color: var(--color-accent);
+  margin-top: 2px;
+}
+
+/* The drill-down from a finding to the photo's time and place: four cards
+   joined by arrows on a wide screen, by a line on a phone. */
 .chain {
   list-style: none;
   margin: 0 0 var(--space-4);
   padding: 0;
   display: grid;
-  gap: 0;
-  counter-reset: chain;
+  gap: var(--space-3);
 }
 
 .chain li {
   position: relative;
-  padding: 0 0 var(--space-4) 36px;
-}
-
-.chain li::before {
-  content: "";
-  position: absolute;
-  left: 7px;
-  top: 6px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
   background: var(--color-surface);
-  border: 3px solid var(--color-accent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-4);
 }
 
-.chain li:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  left: 13px;
-  top: 26px;
-  bottom: 4px;
-  width: 2px;
-  background: var(--color-border-strong);
+@media (max-width: 719px) {
+  .chain li {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    column-gap: var(--space-3);
+    padding: var(--space-3);
+  }
+  .chain li > :not(.chainIcon) {
+    grid-column: 2;
+  }
+  .chain .chainIcon {
+    grid-row: 1 / span 2;
+    margin-bottom: 0;
+  }
+}
+
+.chainIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  margin-bottom: var(--space-3);
 }
 
 .chain h3 {
-  margin-bottom: 2px;
+  margin-bottom: var(--space-1);
   font-size: var(--text-lg);
 }
 
 .chain p {
   color: var(--color-text-2);
-  max-width: 36ch;
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+/* The connector to the next card. */
+.chain li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 35px;
+  bottom: -17px;
+  width: 2px;
+  height: 16px;
+  background: var(--color-border-strong);
 }
 
 .independence {
-  max-width: 64ch;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: var(--space-1);
+  align-items: start;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-accent-soft);
   color: var(--color-text);
-  font-weight: 600;
+  font-weight: 550;
 }
 
+.independence svg {
+  color: var(--color-accent);
+  margin-top: 2px;
+}
+
+/* How it starts: four numbered steps. */
 .steps {
-  margin: 0 0 var(--space-4);
+  margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
@@ -367,11 +593,11 @@
 }
 
 .steps li {
-  align-content: start;
   counter-increment: step;
   display: grid;
-  grid-template-columns: 40px 1fr;
+  grid-template-columns: 44px 1fr;
   column-gap: var(--space-2);
+  align-content: start;
 }
 
 .steps li::before {
@@ -382,32 +608,28 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-  font-weight: 800;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-weight: 700;
+  font-size: var(--text-sm);
 }
 
 .steps h3 {
-  margin: 4px 0 2px;
+  margin: 4px 0 var(--space-1);
   font-size: var(--text-lg);
 }
 
 .steps p {
   color: var(--color-text-2);
+  margin: 0;
   max-width: 40ch;
 }
 
-/* Package calendar: twelve months, one row per package. */
+/* Package calendar: one card, twelve months, a row per package. ---------- */
+
 .calendar {
   display: grid;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.calMonths,
-.calRow {
-  display: grid;
-  grid-template-columns: 1fr;
+  gap: var(--space-3);
 }
 
 .calMonths {
@@ -415,11 +637,20 @@
 }
 
 .calRow {
+  display: grid;
+  gap: var(--space-3);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-3);
-  gap: var(--space-3);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-4);
+}
+
+.calName {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0 var(--space-3);
 }
 
 .calName h3 {
@@ -430,83 +661,160 @@
 .calName p {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--color-text-2);
+  color: var(--color-muted);
 }
 
 .calName .calPrice {
-  font-weight: 700;
-  color: var(--color-text);
+  grid-column: 1 / -1;
+  margin-top: var(--space-1);
 }
 
+.calPrice strong {
+  display: block;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The year as a track: a faint dot a month, a green one for each visit. */
 .calStrip {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 3px;
-  align-items: stretch;
+  align-items: start;
+}
+
+.calStrip::before {
+  content: "";
+  position: absolute;
+  left: calc(100% / 24);
+  right: calc(100% / 24);
+  top: 7px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-surface-3);
 }
 
 .calStrip > span {
   position: relative;
-  min-height: 44px;
-  border-radius: 3px;
-  background: var(--color-surface-2);
+  display: grid;
+  justify-items: center;
+  gap: 6px;
 }
 
-.calStrip > .calVisit {
+.calDot {
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+
+.calVisit .calDot {
+  width: 16px;
+  height: 16px;
+  margin-top: 0;
   background: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
 }
 
 .calVisitName {
   display: none;
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 6px;
-  margin: 0 auto;
-  width: fit-content;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  color: var(--color-accent-contrast);
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-  line-height: 1;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  color: var(--color-accent);
 }
 
-.calName .calVisits {
-  margin-top: var(--space-1);
+.calVisits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.calNote {
-  color: var(--color-text-2);
+.calVisits li {
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.calFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.calFoot .calNote {
+  margin: 0;
+  color: var(--color-muted);
   font-size: var(--text-sm);
   max-width: 64ch;
 }
 
 @media (min-width: 720px) {
-  .calMonths {
+  .calendar {
+    gap: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .calMonths,
+  .calRow {
     display: grid;
-    grid-template-columns: 220px repeat(12, minmax(0, 1fr));
-    gap: 3px;
+    grid-template-columns: 230px minmax(0, 1fr);
+  }
+  .calMonths {
+    background: var(--color-surface-2);
+    border-bottom: 1px solid var(--color-border);
     font-size: var(--text-xs);
+    font-weight: 600;
     color: var(--color-muted);
+    padding: var(--space-2) var(--space-4);
+  }
+  .calMonths > span:not(:first-child) {
     text-align: center;
-    padding: 0 var(--space-3);
+  }
+  .calMonths {
+    grid-template-columns: 230px repeat(12, minmax(0, 1fr));
   }
   .calRow {
-    grid-template-columns: 220px 1fr;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
     align-items: center;
     gap: 0;
+    padding: var(--space-4);
   }
-  .calStrip > span {
-    min-height: 100px;
+  .calRow + .calRow {
+    border-top: 1px solid var(--color-border);
+  }
+  .calName {
+    grid-template-columns: 1fr;
+  }
+  .calName .calPrice {
+    margin-top: var(--space-1);
+  }
+  .calStrip {
+    min-height: 56px;
   }
   .calVisitName {
     display: block;
-    font-size: var(--text-xs);
-    bottom: 8px;
   }
-  .calName .calVisits {
+  /* The words are for screen readers on a wide screen. */
+  .calVisits {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -516,68 +824,172 @@
   }
 }
 
-.honest {
-  margin: 0;
-  padding-left: 20px;
+/* What we do not claim ------------------------------------------------------ */
+
+.honestGrid {
   display: grid;
-  gap: var(--space-2);
+  gap: 0;
+}
+
+.honest {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
   max-width: 72ch;
+}
+
+.honest li {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
   color: var(--color-text-2);
+}
+
+.honest li svg {
+  color: var(--color-muted);
+  margin-top: 2px;
+}
+
+/* Closing call to action: the one green band. -------------------------------- */
+
+.closingWrap {
+  padding: var(--space-7) 0 0;
 }
 
 .closing {
   display: grid;
   gap: var(--space-4);
   padding: var(--space-5) var(--space-4);
-  border-radius: var(--radius-lg);
-  background: var(--palette-taze-soft);
+  border-radius: var(--radius-xl);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.closing h2 {
+  color: inherit;
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  margin: 0 0 var(--space-2);
 }
 
 .closing p {
-  max-width: 56ch;
-  color: var(--color-text-2);
+  margin: 0;
+  max-width: 54ch;
+  color: inherit;
+  opacity: 0.88;
+}
+
+.closingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.closingActions :global(.button) {
+  min-height: 52px;
+  padding: 12px 24px;
+  font-size: var(--text-base);
+}
+
+/* On green: the primary button turns white, the secondary is outlined. */
+.closingActions :global(.button):not(:global(.button-secondary)) {
+  background: var(--color-surface);
+  border-color: var(--color-surface);
+  color: var(--color-accent);
+}
+
+.closingActions :global(.button):not(:global(.button-secondary)):hover {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-soft);
+  color: var(--color-accent-hover);
+}
+
+.closingActions :global(.button-secondary) {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--color-accent-contrast) 55%, transparent);
+  color: var(--color-accent-contrast);
+  box-shadow: none;
+}
+
+.closingActions :global(.button-secondary):hover {
+  background: color-mix(in srgb, var(--color-accent-contrast) 12%, transparent);
+  border-color: var(--color-accent-contrast);
+  color: var(--color-accent-contrast);
+}
+
+.closing :focus-visible {
+  outline-color: var(--color-accent-contrast);
 }
 
 @media (min-width: 720px) {
-  .landing {
+  .container {
     padding: 0 var(--space-4);
   }
+  .section {
+    padding: var(--space-8) 0;
+  }
+  .h2,
+  .closing h2 {
+    font-size: var(--text-3xl);
+  }
+  .title {
+    font-size: var(--text-5xl);
+  }
   .readGrid {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    gap: var(--space-6);
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    gap: var(--space-4);
   }
   .chain {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--space-3);
-  }
-  .chain li {
-    padding: 36px var(--space-2) 0 0;
-  }
-  .chain li::before {
-    left: 0;
-    top: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .chain li:not(:last-child)::after {
-    left: 20px;
-    right: -8px;
-    top: 7px;
-    bottom: auto;
-    width: auto;
-    height: 2px;
+    display: none;
   }
   .steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-4) var(--space-5);
+    gap: var(--space-5);
   }
   .closing {
     grid-template-columns: 1fr auto;
     align-items: center;
-    padding: var(--space-5);
+    padding: var(--space-6);
   }
 }
 
 @media (min-width: 1024px) {
+  .title {
+    font-size: 56px;
+  }
+  .chain {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  /* An arrow between neighbours. */
+  .chain li:not(:last-child)::after {
+    display: block;
+    left: auto;
+    right: -13px;
+    top: 50%;
+    bottom: auto;
+    width: 10px;
+    height: 10px;
+    background: none;
+    border-top: 2px solid var(--color-border-strong);
+    border-right: 2px solid var(--color-border-strong);
+    transform: translateY(-50%) rotate(45deg);
+    z-index: 1;
+  }
   .steps {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .honestGrid {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+    gap: var(--space-7);
+    align-items: start;
   }
 }

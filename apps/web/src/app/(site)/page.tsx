@@ -5,6 +5,17 @@ import ls from "@/components/site/landing.module.css";
 import { LEGEND, legendText, OrchardPlate } from "@/components/site/orchard-plate";
 import styles from "@/components/site/site.module.css";
 import { ClassDot } from "@/components/ui/badge";
+import {
+  IconArrowRight,
+  IconCamera360,
+  IconCheck,
+  IconClipboard,
+  IconFileText,
+  IconInfo,
+  IconMapPin,
+  IconShield,
+  IconTree,
+} from "@/components/ui/icons";
 import { defaultSection } from "@/lib/auth/roles";
 import { getSessionUser } from "@/lib/auth/session";
 import { siteFlags } from "@/lib/flags";
@@ -129,48 +140,51 @@ export function Landing({
   return (
     <div className={ls.landing}>
       <section className={ls.hero} aria-labelledby="landing-title">
-        <div className={ls.heroText}>
-          <h1 id="landing-title" className={ls.title}>
-            {l.title}
-          </h1>
-          <p className={ls.lead}>{l.lead}</p>
-          <div className={ls.ctaRow}>
-            {signupEnabled && (
-              <Link href="/kayit" className="button">
-                {l.ctaSignup}
-              </Link>
-            )}
-            {/* The demo is the primary action while sign-up is closed. */}
-            {demoUrl && (
-              <Link
-                href={demoUrl}
-                className={signupEnabled ? "button button-secondary" : "button"}
-                data-testid="landing-demo"
-              >
-                {l.ctaDemo}
-              </Link>
-            )}
-            {!signupEnabled && !demoUrl && (
-              <Link href="/nasil-calisir" className="button">
-                {l.ctaHow}
-              </Link>
-            )}
+        <div className={`${ls.container} ${ls.heroGrid}`}>
+          <div className={ls.heroText}>
+            <p className={ls.eyebrow}>
+              <IconShield size={16} />
+              {t.app.tagline}
+            </p>
+            <h1 id="landing-title" className={ls.title}>
+              {l.title}
+            </h1>
+            <p className={ls.lead}>{l.lead}</p>
+            <div className={ls.ctaRow}>
+              {signupEnabled && (
+                <Link href="/kayit" className="button">
+                  {l.ctaSignup}
+                </Link>
+              )}
+              {/* The demo is the primary action while sign-up is closed. */}
+              {demoUrl && (
+                <Link
+                  href={demoUrl}
+                  className={signupEnabled ? "button button-secondary" : "button"}
+                  data-testid="landing-demo"
+                >
+                  {l.ctaDemo}
+                </Link>
+              )}
+              {!signupEnabled && !demoUrl && (
+                <Link href="/nasil-calisir" className="button">
+                  {l.ctaHow}
+                </Link>
+              )}
+            </div>
+            <p className={ls.ctaNote}>
+              {signupEnabled ? l.signupNote : demoUrl ? l.demoNote : null}{" "}
+              <Link href="/giris">{l.ctaLogin}</Link>
+            </p>
           </div>
-          <p className={ls.ctaNote}>
-            {signupEnabled ? l.signupNote : demoUrl ? l.demoNote : null}{" "}
-            <Link href="/giris">{l.ctaLogin}</Link>
-          </p>
+          <OrchardPlate />
         </div>
-        <OrchardPlate />
       </section>
 
-      <section className={ls.band} aria-labelledby="okuma">
-        <div className={ls.readGrid}>
-          <div>
-            <h2 id="okuma" className={ls.h2}>
-              {l.readTitle}
-            </h2>
-            <p className={ls.sectionLead}>{l.readLead}</p>
+      <section className={`${ls.section} ${ls.surface}`} aria-labelledby="okuma">
+        <div className={ls.container}>
+          <SectionHead id="okuma" title={l.readTitle} lead={l.readLead} />
+          <div className={ls.readGrid}>
             <ul className={ls.legend} aria-label={l.classesLabel}>
               {LEGEND.map((c) => {
                 const { label, help } = legendText(c);
@@ -178,139 +192,181 @@ export function Landing({
                   <li key={c}>
                     <ClassDot value={c} />
                     <span>
-                      <strong>{label}</strong> {help}
+                      <strong>{label}</strong>
+                      <span>{help}</span>
                     </span>
                   </li>
                 );
               })}
             </ul>
-          </div>
-          <div className={ls.report}>
-            <h3>{l.reportTitle}</h3>
-            <ul>
-              {l.report.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
+            <div className={ls.report}>
+              <h3>{l.reportTitle}</h3>
+              <ul>
+                {l.report.map((item) => (
+                  <li key={item}>
+                    <IconCheck size={18} />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className={ls.band} aria-labelledby="kanit">
-        <h2 id="kanit" className={ls.h2}>
-          {l.evidenceTitle}
-        </h2>
-        <p className={ls.sectionLead}>{l.evidenceLead}</p>
-        <ol className={ls.chain}>
-          {l.evidence.map((step) => (
-            <li key={step.title}>
-              <h3>{step.title}</h3>
-              <p>{step.body}</p>
-            </li>
-          ))}
-        </ol>
-        <p className={ls.independence}>{l.independence}</p>
-      </section>
-
-      <section className={ls.band} aria-labelledby="adimlar">
-        <h2 id="adimlar" className={ls.h2}>
-          {l.stepsTitle}
-        </h2>
-        <ol className={ls.steps}>
-          {l.steps.map((step) => (
-            <li key={step.title}>
-              <h3>{step.title}</h3>
-              <p>{step.body}</p>
-            </li>
-          ))}
-        </ol>
-        <p>
-          <Link href="/nasil-calisir">{l.stepsMore}</Link>
-        </p>
-      </section>
-
-      <section className={ls.band} aria-labelledby="takvim">
-        <h2 id="takvim" className={ls.h2}>
-          {l.calendarTitle}
-        </h2>
-        <p className={ls.sectionLead}>{l.calendarLead}</p>
-        {calendar.length > 0 && (
-          <div className={ls.calendar} role="group" aria-label={l.calendarLabel}>
-            <div className={ls.calMonths} aria-hidden>
-              <span />
-              {l.months.map((m) => (
-                <span key={m}>{m}</span>
-              ))}
-            </div>
-            {calendar.map((pkg) => {
-              const visits = PACKAGE_MONTHS[pkg.code];
+      <section className={ls.section} aria-labelledby="kanit">
+        <div className={ls.container}>
+          <SectionHead id="kanit" title={l.evidenceTitle} lead={l.evidenceLead} />
+          <ol className={ls.chain}>
+            {l.evidence.map((step, i) => {
+              const Icon = EVIDENCE_ICONS[i] ?? IconFileText;
               return (
-                <div key={pkg.packageId} className={ls.calRow} data-testid="landing-package">
-                  <div className={ls.calName}>
-                    <h3>{pkg.name}</h3>
-                    <p>{l.visitsPerYear(pkg.periodicVisitsPerYear)}</p>
-                    {/* The strip is a picture; this line says the same in words
-                        (and is the only one on a phone). */}
-                    <p className={ls.calVisits}>
-                      {visits.map((v) => `${v.name} (${l.months[v.month]})`).join(", ")}
-                    </p>
-                    <p className={ls.calPrice}>
-                      {l.perDonum(formatTry(withVatKurus(annualPerDonumKurus(pkg), pkg.vatRateBp)))}
-                    </p>
-                  </div>
-                  <div className={ls.calStrip} aria-hidden>
-                    {l.months.map((m, i) => {
-                      const visit = visits.find((v) => v.month === i);
-                      return (
-                        <span key={m} className={visit ? ls.calVisit : undefined}>
-                          {visit && <span className={ls.calVisitName}>{visit.name}</span>}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
+                <li key={step.title}>
+                  <span className={ls.chainIcon}>
+                    <Icon size={20} />
+                  </span>
+                  <h3>{step.title}</h3>
+                  <p>{step.body}</p>
+                </li>
               );
             })}
-          </div>
-        )}
-        <p className={ls.calNote}>
-          {l.calendarNote} <Link href="/paketler">{l.calendarMore}</Link>
-        </p>
+          </ol>
+          <p className={ls.independence}>
+            <IconShield size={20} />
+            <span>{l.independence}</span>
+          </p>
+        </div>
       </section>
 
-      <section className={ls.band} aria-labelledby="iddia">
-        <h2 id="iddia" className={ls.h2}>
-          {l.honestTitle}
-        </h2>
-        <ul className={ls.honest}>
-          {l.honest.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
+      <section className={`${ls.section} ${ls.surface}`} aria-labelledby="adimlar">
+        <div className={ls.container}>
+          <SectionHead id="adimlar" title={l.stepsTitle} />
+          <ol className={ls.steps}>
+            {l.steps.map((step) => (
+              <li key={step.title}>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
+              </li>
+            ))}
+          </ol>
+          <p className={ls.more}>
+            <Link href="/nasil-calisir" className="button button-quiet">
+              {l.stepsMore}
+              <IconArrowRight size={16} />
+            </Link>
+          </p>
+        </div>
+      </section>
+
+      <section className={ls.section} aria-labelledby="takvim">
+        <div className={ls.container}>
+          <SectionHead id="takvim" title={l.calendarTitle} lead={l.calendarLead} />
+          {calendar.length > 0 && (
+            <div className={ls.calendar} role="group" aria-label={l.calendarLabel}>
+              <div className={ls.calMonths} aria-hidden>
+                <span />
+                {l.months.map((m) => (
+                  <span key={m}>{m}</span>
+                ))}
+              </div>
+              {calendar.map((pkg) => {
+                const visits = PACKAGE_MONTHS[pkg.code];
+                return (
+                  <div key={pkg.packageId} className={ls.calRow} data-testid="landing-package">
+                    <div className={ls.calName}>
+                      <h3>{pkg.name}</h3>
+                      <p>{l.visitsPerYear(pkg.periodicVisitsPerYear)}</p>
+                      <p className={ls.calPrice}>
+                        <strong>
+                          {formatTry(withVatKurus(annualPerDonumKurus(pkg), pkg.vatRateBp))}
+                        </strong>{" "}
+                        {siteText.packages.perDonum}
+                      </p>
+                    </div>
+                    <div className={ls.calStrip} aria-hidden>
+                      {l.months.map((m, i) => {
+                        const visit = visits.find((v) => v.month === i);
+                        return (
+                          <span key={m} className={visit ? ls.calVisit : undefined}>
+                            <span className={ls.calDot} />
+                            {visit && <span className={ls.calVisitName}>{visit.name}</span>}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    {/* The strip is a picture; this line says the same in words
+                        (and names the months on a phone). */}
+                    <ul className={ls.calVisits}>
+                      {visits.map((v) => (
+                        <li key={v.month}>{`${v.name} (${l.months[v.month]})`}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className={ls.calFoot}>
+            <p className={ls.calNote}>{l.calendarNote}</p>
+            <Link href="/paketler" className="button button-quiet">
+              {l.calendarMore}
+              <IconArrowRight size={16} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className={`${ls.section} ${ls.surface}`} aria-labelledby="iddia">
+        <div className={`${ls.container} ${ls.honestGrid}`}>
+          <SectionHead id="iddia" title={l.honestTitle} />
+          <ul className={ls.honest}>
+            {l.honest.map((item) => (
+              <li key={item}>
+                <IconInfo size={20} />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       {(demoUrl || signupEnabled) && (
-        <section className={ls.closing} aria-labelledby="son">
-          <div>
-            <h2 id="son" className={ls.h2}>
-              {demoUrl ? l.closingTitle : l.ctaSignup}
-            </h2>
-            {demoUrl && <p>{l.closingBody}</p>}
-          </div>
-          <div className={ls.ctaRow}>
-            {demoUrl && (
-              <Link href={demoUrl} className="button" data-testid="landing-demo-foot">
-                {l.demoFoot}
-              </Link>
-            )}
-            {signupEnabled && (
-              <Link href="/kayit" className={demoUrl ? "button button-secondary" : "button"}>
-                {l.ctaSignup}
-              </Link>
-            )}
+        <section className={ls.closingWrap} aria-labelledby="son">
+          <div className={ls.container}>
+            <div className={ls.closing}>
+              <div>
+                <h2 id="son">{demoUrl ? l.closingTitle : siteText.how.closingTitle}</h2>
+                <p>{demoUrl ? l.closingBody : siteText.how.closingBody}</p>
+              </div>
+              <div className={ls.closingActions}>
+                {demoUrl && (
+                  <Link href={demoUrl} className="button" data-testid="landing-demo-foot">
+                    {l.demoFoot}
+                  </Link>
+                )}
+                {signupEnabled && (
+                  <Link href="/kayit" className={demoUrl ? "button button-secondary" : "button"}>
+                    {l.ctaSignup}
+                  </Link>
+                )}
+              </div>
+            </div>
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+const EVIDENCE_ICONS = [IconClipboard, IconTree, IconCamera360, IconMapPin];
+
+function SectionHead({ id, title, lead }: { id: string; title: string; lead?: string }) {
+  return (
+    <div className={ls.sectionHead}>
+      <h2 id={id} className={ls.h2}>
+        {title}
+      </h2>
+      {lead && <p className={ls.sectionLead}>{lead}</p>}
     </div>
   );
 }

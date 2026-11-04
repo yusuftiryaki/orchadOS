@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import styles from "@/components/site/pages.module.css";
 import { ButtonLink } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { IconCalendar, IconCheck } from "@/components/ui/icons";
 import { siteFlags } from "@/lib/flags";
 import { formatDate } from "@/lib/i18n";
 import { packageExampleText as E } from "@/lib/i18n/messages/portal-billing";
@@ -38,7 +40,7 @@ export default async function PackagesPage() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
+      <header className={`${styles.head} ${styles.headCenter}`}>
         <h1 className={styles.title}>{p.title}</h1>
         <p className={styles.lead}>{p.lead}</p>
       </header>
@@ -52,23 +54,52 @@ export default async function PackagesPage() {
           <div className={styles.packages}>
             {packages.map((pkg, i) => {
               const example = examples[i];
+              const featured = pkg.code === p.recommendedCode;
               return (
-                <article key={pkg.packageId} className={styles.package} data-testid="package">
-                  <h2>{pkg.name}</h2>
+                <article
+                  key={pkg.packageId}
+                  className={featured ? `${styles.package} ${styles.featured}` : styles.package}
+                  data-testid="package"
+                >
+                  <div className={styles.packageHead}>
+                    <h2>{pkg.name}</h2>
+                    {featured && <Badge tone="success">{p.recommended}</Badge>}
+                  </div>
+                  <p className={styles.description}>{pkg.description}</p>
                   <p className={styles.price}>
                     <span className={styles.priceValue}>
                       {formatTry(withVatKurus(annualPerDonumKurus(pkg), pkg.vatRateBp))}
                     </span>
                     <span className={styles.priceUnit}>{p.perDonum}</span>
                   </p>
-                  <p className={styles.visits}>
-                    {p.visitsPerYear(pkg.periodicVisitsPerYear)}
-                    <span>
-                      {p.perVisit(formatTry(withVatKurus(pkg.unitPriceKurus, pkg.vatRateBp)))}
-                      {pkg.includesInventory && `. ${p.includesInventory}.`}
-                    </span>
-                  </p>
-                  <p className={styles.description}>{pkg.description}</p>
+                  <div>
+                    {signupEnabled ? (
+                      <ButtonLink href="/kayit" variant={featured ? "primary" : "secondary"} block>
+                        {p.choose(pkg.name)}
+                      </ButtonLink>
+                    ) : (
+                      <ButtonLink href="/iletisim" variant="secondary" block>
+                        {p.contactCta}
+                      </ButtonLink>
+                    )}
+                  </div>
+                  <ul className={styles.features}>
+                    <li>
+                      <IconCalendar size={18} />
+                      <span>
+                        <strong>{p.visitsPerYear(pkg.periodicVisitsPerYear)}</strong>
+                        <span>
+                          {p.perVisit(formatTry(withVatKurus(pkg.unitPriceKurus, pkg.vatRateBp)))}
+                        </span>
+                      </span>
+                    </li>
+                    {pkg.includesInventory && (
+                      <li>
+                        <IconCheck size={18} />
+                        <span>{p.includesInventory}</span>
+                      </li>
+                    )}
+                  </ul>
                   <dl className={styles.facts}>
                     <div>
                       <dt>{p.minimumFee}</dt>
@@ -94,20 +125,26 @@ export default async function PackagesPage() {
               );
             })}
           </div>
-          <p className={styles.note}>
+          <p className={`${styles.note} ${styles.packagesNote}`}>
             {p.vatNote(formatVatRate(first.vatRateBp))}{" "}
             {p.priceListNote(first.priceListVersion, formatDate(first.validFrom))}
           </p>
         </>
       )}
 
-      <section className={styles.band} aria-labelledby="fiyat-hesabi">
-        <h2 id="fiyat-hesabi" className={styles.h2}>
-          {p.modelTitle}
-        </h2>
+      <section className={`${styles.band} ${styles.modelGrid}`} aria-labelledby="fiyat-hesabi">
+        <div>
+          <h2 id="fiyat-hesabi" className={styles.h2}>
+            {p.modelTitle}
+          </h2>
+          <p className={styles.sectionLead}>{p.modelLead}</p>
+        </div>
         <ul className={styles.model}>
           {p.model.map((item) => (
-            <li key={item}>{item}</li>
+            <li key={item}>
+              <IconCheck size={18} />
+              <span>{item}</span>
+            </li>
           ))}
         </ul>
       </section>
