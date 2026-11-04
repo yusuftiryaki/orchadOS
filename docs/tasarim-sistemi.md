@@ -17,7 +17,8 @@ Bu belge orchadOS web arayüzünün görsel dilini ve bileşen sözleşmesini tu
 4. [Bileşenler](#bileşenler)
 5. [Kullanım](#kullanım)
 6. [Performans](#performans)
-7. [Notlar](#notlar)
+7. [4. dalga: müşteri ekranlarının sadeleştirilmesi](#4-dalga-müşteri-ekranlarının-sadeleştirilmesi)
+8. [Notlar](#notlar)
 
 ## Denetim
 
@@ -196,7 +197,9 @@ Hepsi `@/components/ui/<dosya>` yolundan tek tek içe aktarılır; toplu dışa 
 | `Toast` | `toast.tsx` (istemci) | Kısa onay için; kendiliğinden kapanır. Okunması gereken hata için `Alert` kullanılır |
 | `EmptyState` | `empty-state.tsx` | Başlık eksik olanı söyler, gövde nedenini ve sonrasını, eylem bir sonraki adıma çağırır |
 | `PageHeader` | `page-header.tsx` | Tek `h1`, giriş metni, durum rozetleri (`meta`), eylemler ve bir üst düzeye dönüş bağlantısı (`back`) |
-| `AppShell` | `app-shell.tsx` | Oturumlu bölüm kabuğu. `variant`: portal ya da staff; `dense`, `nav`, `account`. Telefonda bölüm bağlantıları ikinci satırda yatay kayar; geçerli bağlantı görünüme kaydırılır, sağda daha fazlası varken kenar solar (`current-into-view.tsx`) |
+| `AppShell` | `app-shell.tsx` | Oturumlu bölüm kabuğu. `variant`: portal ya da staff; `dense`, `nav`, `account`. Portal varyantında telefonda bölüm bağlantıları alt sekme çubuğu olur (`NavItem.icon`); personel varyantında ikinci satırda yatay kayar; geçerli bağlantı görünüme kaydırılır, sağda daha fazlası varken kenar solar (`current-into-view.tsx`) |
+| `AccountMenu` | `account-menu.tsx` (istemci) | Oturumlu başlığın hesap köşesi: avatar düğmesi ve açılır panel (açılıp kapanan bir panel; ARIA menüsü değil). Escape, dışarı tıklama ve sayfa geçişi paneli kapatır. Hesap sayfaları, diğer bölümler ve Çıkış buradadır |
+| İkonlar | `icons.tsx` | 24 px ızgaralı çizgi ikonlar (`IconTree`, `IconClipboard`, `IconPackage`, `IconCard`, `IconTool`, `IconUser` …). Her zaman bir metin etiketinin yanında kullanılır ve `aria-hidden`'dır |
 | `Panel`, `panelClass` | `panel.tsx` | Başlıklı bölge: `h2`/`h3` (`headingLevel`), `description`, sağda `actions`, çerçeveli yüzey. `plain` yüzeyi kaldırır (içinde tablo olan bölge). Başlıksız hali yalnız yüzeydir; `section` olmayan öğe (form) için `panelClass` |
 | `Facts`, `factsClass` | `facts.tsx` | Etiket → değer listesi (`dl`). `list`: kayıt ("Paket  Standart"). `summary`: para; değerler sağa hizalı, tabular, `total` çizginin altında. Satırı kendi test kimliğini taşıyorsa `factsClass` |
 | `FilterTabs` | `filter-tabs.tsx` | Listenin süzgeçleri, her biri ayrı URL (`?durum=`): bölmeli denetim, sayılar, `aria-current`. Sekme paneli için `Tabs`, ekranın alt sayfaları için `TabLinks` |
@@ -318,6 +321,38 @@ Karşılama sayfası (`/`) için ölçüm yapıldı: üretim derlemesi, yerel Su
 - Gerileme yok; süre farklarının çoğu ölçüm oynamasının içinde (sunucu ilk koşuda yeni açılmıştı).
 - JS her sayfada yaklaşık 10 KiB (sıkıştırılmamış) arttı: üç küçük istemci bileşeni (`ScrollBox`, `CurrentIntoView`, site başlığındaki geçerli bağlantı). Sayfalar yine sunucu bileşeni.
 - Önceki PR'ların sayıları başka koşullarda alındı (#101 Lighthouse, #102 ve #104 `data-map-ready` ve ilk panorama karesi, #103 ve #105–#107 TTFB ve load); bu tablo hepsini aynı koşulda karşılaştırır.
+
+## 4. dalga: müşteri ekranlarının sadeleştirilmesi
+
+4 Kasım 2026. Kapsam: herkese açık site, giriş ve kayıt, demo, sahip ve müşteri portalı. Personel ekranları yalnız ortak token ve bileşen değişikliklerini aldı.
+
+**Neden:** 3. dalgadan sonra ekranlar tutarlıydı ama kalabalıktı. Müşteri portalının üst menüsünde yedi-sekiz sekme vardı ve telefonda yatay kayıyordu. Parsel karnesi 5.700 piksellik tek bir akıştı. Çizgili sıfırlı yazı tipi tarih ve tutarları eski gösteriyordu. Sayfalarda birden çok birincil düğme vardı. Uzun açıklama metinleri ilk ekranı dolduruyordu.
+
+**Kararlar:**
+
+- **Yazı:** Inter ve JetBrains Mono (§Tipografi).
+- **Yüzey:** Köşeler 8 ve 12 px. Kartlarda ince çerçeve ve `--shadow-card` var. Etiket ağırlıkları düştü (500–600).
+- **Portal gezinmesi:** Üst menüde en çok beş hedef var: Bahçelerim, Başvurularım, Siparişlerim, Ödemelerim, Hizmetlerim. Hesabım, Sözleşmelerim, İzinler, diğer bölümler ve Çıkış hesap menüsünde (`AccountMenu`, avatar düğmesi). Telefonda (<860 px) aynı hedefler ikonlu bir alt sekme çubuğu olur (`AppShell` portal varyantı, `data-bottom-nav`). Portalda sabit alt öğeler (`Toast`, sabit kaydet çubukları, bildirim kapısı) çubuğun üstünde durur: `bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))`.
+- **Bir görünüm, bir birincil eylem.** İkincil eylemler `secondary` ya da `quiet` düğmedir. Metin bağlantısı yalnız düzyazı içinde kullanılır.
+- **Parsel karnesi:** Başlıktan sonra özet kartı ve "Dikkat isteyenler" kartı gelir; birincil eylem bu kartta. Altında yapışkan bölüm sekmeleri var (`SectionNav`, kaydırmayla güncellenir): Özet, Harita, Bulgular, Karne, Ziyaretler, Sorular, Hissedarlar. İçerik aynı sayfada kalır, böylece baskı ve bağlantılar çalışır. Sınır uyarısı bir kez gösterilir. Telefonda ağaç paneli alt sayfa (bottom sheet) görünümündedir.
+- **İş ekranları:** Başvuru, teklif, sipariş, ödeme ve hizmet ekranları tek bir çalışma alanı düzenini paylaşır (`portal-billing/workspace.tsx`). Düzenin parçaları:
+  - `DetailHeader`: durum rozetiyle başlık.
+  - `Lifecycle`: Başvuru → Teklif → Ödeme → Hizmet adımları.
+  - `DetailLayout`: ana sütun ve yapışkan özet kartı. Geri alma eylemleri sonda durur.
+  - `Timeline`: dikey geçmiş.
+  - `listClass`: telefonda karta dönen tablolar.
+  
+  Teklif, ödeme sayfası (checkout) gibi okunur: tutar kartı ve tek kabul düğmesi.
+- **Hesap:** Ayarlar düzeni (`portal-billing/settings-shell.tsx`) kullanılır. Masaüstünde sol alt menü vardır: Profil ve iletişim, Fatura bilgileri, Sözleşmelerim, İzinler. Hesap menüsüyle aynı sırayı izler.
+- **Giriş ve kayıt:** Ortada tek kart var. Yöntemler bölümlü düğmeyle seçilir: E-posta, Telefon. Parola göster/gizle düğmesi (`site/password-input.tsx`) ve bekleme durumlu gönder düğmesi (`site/submit-button.tsx`) eklendi. SMS kodu `one-time-code` alanıyla girilir.
+- **Site:** Açılıştaki bahçe planı bir uygulama penceresi gibi çerçevelendi. Paketler subgrid ile hizalı ve önerilen paket vurgulu. SSS iki sütunlu akordeon. Hukuk metinlerinde yapışkan içindekiler var (`site/legal-toc.tsx`), taslak notu sade bir satır oldu. `legal.ts` içeriği değişmedi.
+- **İkonlar:** `ui/icons.tsx`, 24 px ızgarada ve 1,75 çizgi kalınlığında. İkonlar her zaman bir metin etiketinin yanında durur ve `aria-hidden`'dır.
+
+**Açık konular:**
+
+- Paketler sayfasında "Önerilen" rozeti Standart pakette. Gerekçe: `docs/fiyatlandirma.md` örnekleri Standart'ı kullanıyor. Bu iş kararını ürün sahibi onaylamalı.
+- Demo bandındaki düğmeler 30 px. Bant, demo turu telefon testi için 48 px'in altında kalmalı.
+- Kılavuz ekran görüntüleri (`docs/kilavuz/`) yeni arayüzle yeniden üretilmeli.
 
 ## Notlar
 
