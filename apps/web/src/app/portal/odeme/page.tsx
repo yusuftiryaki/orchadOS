@@ -34,7 +34,7 @@ export default async function PaymentsPage({
         <EmptyState
           title={T.emptyTitle}
           action={
-            <ButtonLink variant="secondary" href={portalHref.orders()}>
+            <ButtonLink href={portalHref.orders()}>
               {T.emptyAction}
             </ButtonLink>
           }

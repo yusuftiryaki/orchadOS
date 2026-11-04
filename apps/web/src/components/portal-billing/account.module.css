@@ -62,7 +62,8 @@
   gap: var(--space-4);
 }
 
-/* A group of fields with a small heading (billing form). */
+/* A group of fields with a small heading (billing form); groups are
+   separated by a hairline. */
 .group {
   display: grid;
   gap: var(--space-3);
@@ -70,6 +71,11 @@
   margin: 0;
   padding: 0;
   min-width: 0;
+}
+
+.group + .group {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
 }
 
 .group > legend,

@@ -377,8 +377,8 @@ fieldset.checks {
     grid-template-columns: 2ch minmax(0, 1fr) auto;
     grid-template-areas:
       "seq what amount"
-      ". due vat"
-      ". status status"
+      ". due due"
+      ". status vat"
       ". action action";
   }
 
@@ -403,6 +403,8 @@ fieldset.checks {
 
   .plan .vat {
     grid-area: vat;
+    justify-self: end;
+    align-self: center;
     font-size: var(--text-xs);
     color: var(--color-muted);
   }
@@ -480,6 +482,13 @@ fieldset.checks {
   .lines .figure {
     grid-column: 1 / -1;
     font-size: var(--text-sm);
+  }
+}
+
+/* The plan's "what" column keeps a readable width on a wide table. */
+@container (min-width: 600px) {
+  .plan .what {
+    min-width: 13rem;
   }
 }
 

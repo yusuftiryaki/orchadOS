@@ -34,6 +34,8 @@ import type { QuestionState } from "./tree-card";
 import { AskQuestionForm, QuestionNotice, QuestionThreads } from "./question-threads";
 import { SEVERITY_TONES } from "./colors";
 import { PrintButton } from "./print-button";
+import { SectionNav, type SectionNavItem } from "./section-nav";
+import { IconCamera360, IconDownload } from "@/components/ui/icons";
 import type { ParcelViewers } from "@/lib/portal/viewers";
 import { ViewersCard } from "./viewers-card";
 import layout from "./page.module.css";
@@ -91,53 +93,85 @@ export function ParcelReportView({
   const hasMap = report.slots.features.length > 0 || report.boundary !== null;
   // H07, T16: the long boundary notice once per report: on the boundary card
   // while the boundary waits for the owner's approval (where it is decided),
-  // otherwise under the health map.
+  // otherwise at the foot of the health map.
   const noticeOnCard = !!boundaryCard?.latest && !boundaryCard.latest.approvedAt;
   const showViewers = viewers?.data.isOwner === true;
   const showQuestions =
     !!questions &&
     (latest !== null || questions.threads.length > 0 || !!questions.readOnly || !!questions.demo);
-  const nav: [string, string][] = [
-    ...(hasMap ? ([["#harita", r.nav.map]] as [string, string][]) : []),
+  // The boundary sits in the report card group once there is a report;
+  // before the first visit it is a section of its own.
+  const boundaryOwn = !!boundaryCard && !latest;
+  const nav: SectionNavItem[] = [
+    ...(latest ? [{ href: "#ozet", label: r.nav.summary }] : []),
+    ...(hasMap ? [{ href: "#harita", label: r.nav.map }] : []),
     ...(latest
-      ? ([
-          ["#bulgular", r.nav.findings],
-          ["#karne", r.nav.details],
-        ] as [string, string][])
+      ? [
+          { href: "#bulgular", label: r.nav.findings },
+          { href: "#karne", label: r.nav.details },
+        ]
       : []),
-    ...(boundaryCard ? ([["#sinir", r.nav.boundary]] as [string, string][]) : []),
-    ...(serviceCard ? ([["#hizmet", r.nav.service]] as [string, string][]) : []),
-    ["#ziyaretler", r.nav.visits],
-    ...(showQuestions ? ([["#sorular", r.nav.questions]] as [string, string][]) : []),
-    ...(showViewers ? ([["#hissedarlar", r.nav.viewers]] as [string, string][]) : []),
+    ...(boundaryOwn ? [{ href: "#sinir", label: r.nav.boundary }] : []),
+    { href: "#ziyaretler", label: r.nav.visits },
+    ...(showQuestions ? [{ href: "#sorular", label: r.nav.questions }] : []),
+    ...(showViewers ? [{ href: "#hissedarlar", label: r.nav.viewers }] : []),
   ];
 
+  const boundary = boundaryCard && (
+    <div className={styles.boundaryGroup}>
+      <BoundaryCardView
+        parcelId={report.parcel.id}
+        card={boundaryCard}
+        demo={demo}
+        notice={noticeOnCard}
+      />
+      {boundaryCard.inventory && (
+        <div className={`${panelClass} ${styles.inventoryPanel}`} data-testid="portal-inventory">
+          <InventorySummaryView
+            summary={boundaryCard.inventory.summary}
+            title={
+              boundaryCard.inventory.approvedAt
+                ? `${t.inventory.portal.inventoryTitle}, ${t.inventory.portal.inventoryApproved(formatDate(boundaryCard.inventory.approvedAt))}`
+                : t.inventory.portal.inventoryTitle
+            }
+          />
+          <div className={`${layout.actions} ${styles.noPrint}`}>
+            <ButtonLink variant="secondary" href={`${base}/envanter`}>
+              {r.inventoryReport}
+            </ButtonLink>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <main className={layout.page}>
+    <main className={`${layout.page} ${styles.report}`}>
       <PageHeader
         back={{ href: "/portal", label: r.back }}
         title={report.parcel.name}
         lead={placeOf(report) ?? undefined}
         meta={
-          <>
-            <span className={`${layout.small} ${layout.muted}`} data-testid="parcel-species">
+          <ul className={styles.metaList}>
+            <li data-testid="parcel-species">
               {t.species.label}: {speciesName(report.parcel.species)}
-            </span>
-            <span className={`${layout.small} ${layout.muted}`}>
+            </li>
+            <li>
               {report.boundary
                 ? t.parcel.boundaryVersion(report.boundary.version)
                 : t.parcel.noBoundary}
-            </span>
-            <span className={`${layout.small} ${layout.muted}`} data-testid="parcel-inventory">
+            </li>
+            <li data-testid="parcel-inventory">
               {t.parcel.slotCount(report.slotCount, report.activeTreeCount)}
-            </span>
-          </>
+            </li>
+          </ul>
         }
         actions={
           (report.visits.length > 0 || latest) && (
             <>
               {report.visits.length > 0 && (
                 <ButtonLink variant="secondary" href={`${base}/gezi`} className={styles.noPrint}>
+                  <IconCamera360 size={18} />
                   {r.tour}
                 </ButtonLink>
               )}
@@ -147,6 +181,7 @@ export function ParcelReportView({
                   href={`${base}/rapor.pdf`}
                   data-testid="report-pdf"
                 >
+                  <IconDownload size={18} />
                   {r.pdf}
                 </a>
               )}
@@ -162,34 +197,27 @@ export function ParcelReportView({
         </Alert>
       )}
 
+      {nav.length > 2 && <SectionNav items={nav} label={r.onThisPage} />}
+
       {latest ? (
-        <>
-          <Summary report={report} base={base} />
-          <Attention report={report} base={base} boundaryCard={boundaryCard ?? null} />
-        </>
+        <section id="ozet" className={styles.group} aria-label={r.nav.summary}>
+          <div className={styles.hero}>
+            <Summary report={report} base={base} />
+            <Attention report={report} base={base} boundaryCard={boundaryCard ?? null} />
+          </div>
+          <Change report={report} base={base} />
+        </section>
       ) : (
         <EmptyState title={r.noResultsTitle} testId="no-results">
           <p>{r.noResultsNext}</p>
         </EmptyState>
       )}
 
-      {serviceOffers}
-
-      {nav.length > 2 && (
-        <nav aria-label={r.onThisPage} className={`${styles.sectionNav} ${styles.noPrint}`}>
-          <ul>
-            {nav.map(([href, label]) => (
-              <li key={href}>
-                <a href={href}>{label}</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
-
       {hasMap && (
-        <section id="harita" className={layout.section} aria-labelledby="harita-baslik">
-          <h2 id="harita-baslik">{r.mapTitle}</h2>
+        <section id="harita" className={styles.group} aria-labelledby="harita-baslik">
+          <div className={styles.groupHead}>
+            <h2 id="harita-baslik">{r.mapTitle}</h2>
+          </div>
           <HealthMap
             key={`${classFilter?.join(",") ?? "all"}|${mapOptions?.layers?.join(",") ?? ""}|${mapOptions?.visitId ?? ""}|${mapOptions?.changed ?? ""}`}
             parcelId={report.parcel.id}
@@ -204,58 +232,49 @@ export function ParcelReportView({
             initialVisitId={mapOptions?.visitId}
             initialChanged={mapOptions?.changed}
             initialLayers={mapOptions?.layers}
+            footer={!noticeOnCard ? <BoundaryNotice /> : null}
           />
-          {!noticeOnCard && <BoundaryNotice />}
         </section>
       )}
 
       {latest && (
         <>
           <Findings findings={report.findings} base={base} />
-          <section id="karne" className={layout.section} aria-labelledby="karne-baslik">
-            <h2 id="karne-baslik">{r.detailsTitle}</h2>
+          <section id="karne" className={styles.group} aria-labelledby="karne-baslik">
+            <div className={styles.groupHead}>
+              <h2 id="karne-baslik">{r.detailsTitle}</h2>
+            </div>
             <Dimensions report={report} base={base} />
             <Metrics metrics={report.metrics} />
+            {boundary && (
+              <div id="sinir" className={styles.anchor}>
+                {boundary}
+              </div>
+            )}
           </section>
         </>
       )}
 
-      {boundaryCard && (
-        <section id="sinir" className={layout.section} aria-labelledby="sinir-baslik">
-          <h2 id="sinir-baslik">{r.boundaryTitle}</h2>
-          <BoundaryCardView
-            parcelId={report.parcel.id}
-            card={boundaryCard}
-            demo={demo}
-            notice={noticeOnCard}
-          />
-          {boundaryCard.inventory && (
-            <div className={panelClass} data-testid="portal-inventory">
-              <InventorySummaryView
-                summary={boundaryCard.inventory.summary}
-                title={
-                  boundaryCard.inventory.approvedAt
-                    ? `${t.inventory.portal.inventoryTitle}, ${t.inventory.portal.inventoryApproved(formatDate(boundaryCard.inventory.approvedAt))}`
-                    : t.inventory.portal.inventoryTitle
-                }
-              />
-              <div className={`${layout.actions} ${styles.noPrint}`}>
-                <ButtonLink variant="secondary" href={`${base}/envanter`}>
-                  {r.inventoryReport}
-                </ButtonLink>
-              </div>
-            </div>
-          )}
+      {boundaryOwn && (
+        <section id="sinir" className={styles.group} aria-labelledby="sinir-baslik">
+          <div className={styles.groupHead}>
+            <h2 id="sinir-baslik">{r.boundaryTitle}</h2>
+          </div>
+          {boundary}
         </section>
       )}
 
-      {serviceCard}
-
-      <section id="ziyaretler" className={layout.section} aria-labelledby="ziyaret-baslik">
-        <h2 id="ziyaret-baslik">{r.visitsTitle}</h2>
-        {upcomingVisits}
-        <History report={report} titled={!!upcomingVisits} />
-      </section>
+      <div id="ziyaretler" className={styles.group}>
+        <section className={styles.group} aria-labelledby="ziyaret-baslik">
+          <div className={styles.groupHead}>
+            <h2 id="ziyaret-baslik">{r.visitsTitle}</h2>
+          </div>
+          {upcomingVisits}
+          <History report={report} titled={!!upcomingVisits} />
+        </section>
+        {serviceCard}
+        {serviceOffers && <div className={styles.offers}>{serviceOffers}</div>}
+      </div>
 
       {showQuestions && <Questions report={report} base={base} questions={questions!} />}
       {showViewers && (
@@ -277,51 +296,55 @@ function placeOf(report: ParcelReport): string | null {
   return place || null;
 }
 
+// The hero of the report: the latest visit's score on the left, how the
+// trees split over the classes on the right (each count opens the map
+// filtered to that class).
 function Summary({ report, base }: { report: ParcelReport; base: string }) {
   const latest = report.latest!;
   const total = distributionTotal(latest.distribution);
   const states: (keyof Distribution)[] = [...CLASS_ORDER, "unassessed"];
   const shown = states.filter((c) => c !== "unassessed" || latest.distribution.unassessed > 0);
   return (
-    <section className={panelClass} aria-labelledby="durum-baslik" data-testid="report-summary">
-      <div className={styles.overview}>
-        <div className={layout.stack}>
-          <div className={styles.overviewHead}>
-            <h2 id="durum-baslik">{r.summaryTitle}</h2>
-            <p>
-              <strong>{r.visitOf(formatDate(latest.time))}</strong>
-            </p>
-            {latest.methodologyVersion && (
-              <p className={`${styles.small} muted`}>{r.methodology(latest.methodologyVersion)}</p>
-            )}
+    <section
+      className={`${panelClass} ${styles.summary}`}
+      aria-labelledby="durum-baslik"
+      data-testid="report-summary"
+    >
+      <div className={styles.summaryHead}>
+        <h2 id="durum-baslik">{r.summaryTitle}</h2>
+        <p className={styles.summaryDate}>{r.visitOf(formatDate(latest.time))}</p>
+        {(latest.methodologyVersion || report.approver) && (
+          <p className={styles.summaryMeta}>
             {report.approver && (
-              <p className="muted" data-testid="report-approver">
-                {approverLine(report.approver)}
-              </p>
+              <span data-testid="report-approver">{approverLine(report.approver)}</span>
             )}
-          </div>
-          <div className={styles.scoreBox} data-testid="score-box">
-            <ScoreLine
-              score={latest.score}
-              change={report.scoreChange}
-              basis={report.scoreBasis}
-              unassessedPct={report.scoreUnassessedPct}
-              size="large"
-            />
-            <details className={`${styles.disclosure} ${styles.noPrint}`}>
-              <summary>{r.scoreHelpTitle}</summary>
-              <p className={styles.small}>
-                {t.portal.score.help}.{" "}
-                {t.portal.score.weights(scoreRulesFor(latest.methodologyVersion))}
-              </p>
-            </details>
-          </div>
+            {latest.methodologyVersion && <span>{r.methodology(latest.methodologyVersion)}</span>}
+          </p>
+        )}
+      </div>
+      <div className={styles.summaryBody}>
+        <div className={styles.scoreBox} data-testid="score-box">
+          <ScoreLine
+            score={latest.score}
+            change={report.scoreChange}
+            basis={report.scoreBasis}
+            unassessedPct={report.scoreUnassessedPct}
+            size="large"
+          />
+          <details className={`${styles.disclosure} ${styles.noPrint}`}>
+            <summary>{r.scoreHelpTitle}</summary>
+            <p className={styles.small}>
+              {t.portal.score.help}.{" "}
+              {t.portal.score.weights(scoreRulesFor(latest.methodologyVersion))}
+            </p>
+          </details>
         </div>
-        <div className={layout.stack}>
-          <p>
+        <div className={styles.distribution}>
+          <p className={styles.treeLine}>
             <strong data-testid="tree-count">{r.treeCount(report.activeTreeCount)}</strong>
-            {"; "}
-            {r.assessedCount(latest.assessedCount, report.activeTreeCount)}
+            <span className="muted">
+              {r.assessedCount(latest.assessedCount, report.activeTreeCount)}
+            </span>
           </p>
           <DistributionBar distribution={latest.distribution} />
           <ul className={styles.counts}>
@@ -359,7 +382,7 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
           </details>
         </div>
       </div>
-      <Change report={report} base={base} />
+      {!report.change && <p className={styles.summaryNote}>{r.changeFirst}</p>}
     </section>
   );
 }
@@ -384,14 +407,18 @@ const SHOWN_CODE_CHIPS = 12;
 const SHOWN_CODES = 4;
 
 function Change({ report, base }: { report: ParcelReport; base: string }) {
-  if (!report.previous || !report.change) {
-    return <p className="muted">{r.changeFirst}</p>;
-  }
+  if (!report.previous || !report.change) return null;
   const { worse, better } = report.change;
   return (
-    <div className={styles.change} data-testid="report-change">
-      <h3>{r.changeTitle}</h3>
-      <p className="muted">{r.changeIntro(formatDate(report.previous.time))}</p>
+    <section
+      className={`${panelClass} ${styles.change}`}
+      data-testid="report-change"
+      aria-labelledby="degisim-baslik"
+    >
+      <div className={styles.changeHead}>
+        <h3 id="degisim-baslik">{r.changeTitle}</h3>
+        <p className="muted">{r.changeIntro(formatDate(report.previous.time))}</p>
+      </div>
       {worse.length === 0 && better.length === 0 ? (
         <p>{r.unchanged}</p>
       ) : (
@@ -405,7 +432,7 @@ function Change({ report, base }: { report: ParcelReport; base: string }) {
           />
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -423,13 +450,14 @@ function ChangeList({
   return (
     <div>
       <h4 className={tone}>{title}</h4>
-      <ul className={styles.plainList}>
+      <ul className={styles.changeList}>
         {items.slice(0, SHOWN_CHANGES).map((c) => (
           <li key={c.treeId}>
-            <Link className={styles.code} href={`${base}/agac/${c.treeId}`}>
+            <Link className={styles.treeChip} href={`${base}/agac/${c.treeId}`}>
               {c.code}
             </Link>{" "}
-            <span className="muted">
+            <span className={styles.changeLine}>
+              <ClassDot value={c.to} />
               {r.changeLine(t.portal.classes[c.from], t.portal.classes[c.to])}
             </span>
           </li>
@@ -483,8 +511,8 @@ function Attention({
     !!boundaryCard?.latest && !boundaryCard.latest.approvedAt && boundaryCard.canApprove;
   if (pressing.length === 0 && worse === 0 && !boundaryPending) {
     return (
-      <Panel title={r.calmTitle} id="dikkat" className={styles.attentionCalm}>
-        <p>{r.calmBody}</p>
+      <Panel title={r.calmTitle} id="dikkat" className={`${styles.attention} ${styles.calm}`}>
+        <p className="muted">{r.calmBody}</p>
       </Panel>
     );
   }
@@ -498,59 +526,66 @@ function Attention({
     ...new Set(pressing.flatMap((f) => (f.treeId ? [stateOf.get(f.treeId)] : []))),
   ].filter((s): s is MarkerState => !!s);
   return (
-    <Panel title={r.attentionTitle} id="dikkat" className={styles.attention}>
+    <Panel
+      title={r.attentionTitle}
+      description={pressing.length > 0 ? r.findingSummary(high, pressing.length - high) : undefined}
+      id="dikkat"
+      className={styles.attention}
+    >
       {pressing.length > 0 && (
-        <>
-          <p>
-            <strong>{r.findingSummary(high, pressing.length - high)}</strong>
-          </p>
-          <ul className={layout.rows}>
-            {bySeverity(pressing).flatMap(([severity, items]) =>
-              byKind(items).map(({ kind, items: group }) => {
-                const trees = group.filter((f) => f.treeId);
-                return (
-                  <li key={`${severity}:${kind}`}>
-                    <div className={layout.rowMain}>
-                      <span className={styles.attentionItem}>
-                        <Badge tone={SEVERITY_TONES[severity]}>{t.portal.severity[severity]}</Badge>
-                        <strong>{findingKindLabel(kind)}</strong>
-                        <span className="muted">{r.kindTrees(group.length)}</span>
-                      </span>
-                      {trees.length > 0 && (
-                        <CodeList findings={trees.slice(0, SHOWN_CODES)} base={base} ids={false}>
-                          {trees.length > SHOWN_CODES && (
-                            <li className={`muted ${styles.codeMore}`}>
-                              {r.moreCodes(trees.length - SHOWN_CODES)}
-                            </li>
-                          )}
-                        </CodeList>
+        <ul className={styles.attentionList}>
+          {bySeverity(pressing).flatMap(([severity, items]) =>
+            byKind(items).map(({ kind, items: group }) => {
+              const trees = group.filter((f) => f.treeId);
+              return (
+                <li key={`${severity}:${kind}`}>
+                  <span className={styles.attentionItem}>
+                    <Badge tone={SEVERITY_TONES[severity]}>{t.portal.severity[severity]}</Badge>
+                    <strong>{findingKindLabel(kind)}</strong>
+                    <span className="muted">{r.kindTrees(group.length)}</span>
+                  </span>
+                  {trees.length > 0 && (
+                    <CodeList
+                      findings={trees.slice(0, SHOWN_CODES)}
+                      base={base}
+                      ids={false}
+                      compact
+                    >
+                      {trees.length > SHOWN_CODES && (
+                        <li className={styles.codeMore}>
+                          {r.moreCodes(trees.length - SHOWN_CODES)}
+                        </li>
                       )}
-                    </div>
-                  </li>
-                );
-              }),
-            )}
-          </ul>
-        </>
+                    </CodeList>
+                  )}
+                </li>
+              );
+            }),
+          )}
+        </ul>
       )}
-      {worse > 0 && (
-        <p>
-          {r.worseSince(worse)} <Link href={`${base}?degisen=1#harita`}>{r.showChanged}</Link>
-        </p>
-      )}
-      {boundaryPending && (
-        <p>
-          {r.boundaryPending} <a href="#sinir">{r.boundaryReview}</a>
-        </p>
+      {(worse > 0 || boundaryPending) && (
+        <ul className={styles.attentionNotes}>
+          {worse > 0 && (
+            <li>
+              {r.worseSince(worse)} <Link href={`${base}?degisen=1#harita`}>{r.showChanged}</Link>
+            </li>
+          )}
+          {boundaryPending && (
+            <li>
+              {r.boundaryPending} <a href="#sinir">{r.boundaryReview}</a>
+            </li>
+          )}
+        </ul>
       )}
       {pressing.length > 0 && (
-        <div className={`${layout.actions} ${styles.noPrint}`}>
+        <div className={`${styles.attentionActions} ${styles.noPrint}`}>
           <ButtonLink
             href={states.length > 0 ? `${base}?sinif=${states.join(",")}#harita` : `${base}#harita`}
           >
             {r.showOnMapFiltered}
           </ButtonLink>
-          <ButtonLink variant="secondary" href="#bulgular">
+          <ButtonLink variant="quiet" href="#bulgular">
             {r.allFindings}
           </ButtonLink>
         </div>
@@ -561,27 +596,27 @@ function Attention({
 
 function Findings({ findings, base }: { findings: FindingItem[]; base: string }) {
   return (
-    <section id="bulgular" className={layout.section} aria-labelledby="bulgu-baslik">
-      <h2 id="bulgu-baslik">{r.findingsTitle}</h2>
+    <section id="bulgular" className={styles.group} aria-labelledby="bulgu-baslik">
+      <div className={styles.groupHead}>
+        <h2 id="bulgu-baslik">{r.findingsTitle}</h2>
+        {findings.length > 0 && <p className={styles.groupLead}>{r.findingsLead}</p>}
+      </div>
       {findings.length === 0 ? (
         <p className="muted">{r.findingsEmpty}</p>
       ) : (
-        <>
-          <p className={layout.sectionLead}>{r.findingsLead}</p>
-          <div className={styles.findingGroups} data-testid="findings">
-            {bySeverity(findings).map(([severity, items]) => (
-              <div key={severity} className={styles.findingGroup}>
-                <h3>
-                  <Badge tone={SEVERITY_TONES[severity]}>{t.portal.severity[severity]}</Badge>
-                  <span className="muted">{formatNumber(items.length)}</span>
-                </h3>
-                {byKind(items).map((group) => (
-                  <KindFindings key={group.kind} group={group} base={base} />
-                ))}
-              </div>
-            ))}
-          </div>
-        </>
+        <div className={styles.findingGroups} data-testid="findings">
+          {bySeverity(findings).map(([severity, items]) => (
+            <div key={severity} className={`${panelClass} ${styles.findingGroup}`}>
+              <h3>
+                <Badge tone={SEVERITY_TONES[severity]}>{t.portal.severity[severity]}</Badge>
+                <span className={styles.findingCount}>{formatNumber(items.length)}</span>
+              </h3>
+              {byKind(items).map((group) => (
+                <KindFindings key={group.kind} group={group} base={base} />
+              ))}
+            </div>
+          ))}
+        </div>
       )}
     </section>
   );
@@ -604,16 +639,18 @@ function KindFindings({ group, base }: { group: KindGroup; base: string }) {
   const shown = items.length <= limit + 3 ? items.length : limit;
   return (
     <div className={styles.findingKind}>
-      <p>
-        <strong>{findingKindLabel(group.kind)}</strong>{" "}
-        <span className="muted">({formatNumber(items.length)})</span>
-      </p>
-      {sameText && <p>{withoutCode(items[0])}</p>}
-      {shared && (
-        <p className={styles.recommendation}>
-          {r.recommendation}: {shared}
+      <div className={styles.findingKindHead}>
+        <p className={styles.findingKindTitle}>
+          <strong>{findingKindLabel(group.kind)}</strong>{" "}
+          <span className="muted">({formatNumber(items.length)})</span>
         </p>
-      )}
+        {sameText && <p>{withoutCode(items[0])}</p>}
+        {shared && (
+          <p className={styles.recommendation}>
+            {r.recommendation}: {shared}
+          </p>
+        )}
+      </div>
       <List findings={items.slice(0, shown)} base={base} shared={!!shared} />
       {items.length > shown && (
         <details className={styles.more}>
@@ -632,18 +669,21 @@ function CodeList({
   findings,
   base,
   ids = true,
+  compact = false,
   children,
 }: {
   findings: FindingItem[];
   base: string;
   shared?: boolean;
+  // Smaller chips in the "Dikkat isteyenler" card.
+  compact?: boolean;
   // The findings list marks its items; the summary above it does not repeat
   // the marks.
   ids?: boolean;
   children?: React.ReactNode;
 }) {
   return (
-    <ul className={styles.codeList}>
+    <ul className={compact ? `${styles.codeList} ${styles.codeListCompact}` : styles.codeList}>
       {findings.map((f) => (
         <li key={f.id} data-finding-id={ids ? f.id : undefined}>
           <Link className={styles.codeChip} href={`${base}/agac/${f.treeId}`}>
@@ -713,7 +753,7 @@ function FindingList({
 
 function Metrics({ metrics }: { metrics: MetricSummaryRow[] }) {
   return (
-    <div className={layout.stack}>
+    <div className={styles.subsection}>
       <h3>{r.metricsTitle}</h3>
       {metrics.length === 0 ? (
         <p className="muted">{r.metricsEmpty}</p>
@@ -789,34 +829,40 @@ function Questions({
 }) {
   const q = t.portal.questions;
   return (
-    <section id="sorular" className={layout.section} aria-labelledby="soru-baslik">
-      <h2 id="soru-baslik">{q.title}</h2>
-      <p className={layout.sectionLead}>{q.parcelHint}</p>
+    <section id="sorular" className={styles.group} aria-labelledby="soru-baslik">
+      <div className={styles.groupHead}>
+        <h2 id="soru-baslik">{q.title}</h2>
+        <p className={styles.groupLead}>{q.parcelHint}</p>
+      </div>
       <QuestionNotice sent={questions.sent} error={questions.error} />
-      <QuestionThreads
-        threads={questions.threads}
-        returnPath={base}
-        replyAction={replyQuestionAction}
-        editAction={editQuestionAction}
-        treeHref={(thread) => (thread.treeId ? `${base}/agac/${thread.treeId}` : null)}
-        demo={questions.demo}
-        readOnly={questions.readOnly}
-      />
-      <AskQuestionForm
-        demo={questions.demo}
-        readOnly={questions.readOnly}
-        parcelId={report.parcel.id}
-        treeId={null}
-        returnPath={base}
-        action={askQuestionAction}
-        title={q.askParcel}
-        targets={report.findings
-          .filter((f) => !f.treeId)
-          .map((f) => ({
-            value: `finding:${f.id}`,
-            label: `${findingKindLabel(f.kind)}: ${shorten(f.description, 60)}`,
-          }))}
-      />
+      <div className={`${panelClass} ${styles.stackCard}`}>
+        <QuestionThreads
+          threads={questions.threads}
+          returnPath={base}
+          replyAction={replyQuestionAction}
+          editAction={editQuestionAction}
+          treeHref={(thread) => (thread.treeId ? `${base}/agac/${thread.treeId}` : null)}
+          demo={questions.demo}
+          readOnly={questions.readOnly}
+          compactEmpty
+        />
+        <AskQuestionForm
+          demo={questions.demo}
+          readOnly={questions.readOnly}
+          parcelId={report.parcel.id}
+          treeId={null}
+          returnPath={base}
+          action={askQuestionAction}
+          title={q.askParcel}
+          secondary
+          targets={report.findings
+            .filter((f) => !f.treeId)
+            .map((f) => ({
+              value: `finding:${f.id}`,
+              label: `${findingKindLabel(f.kind)}: ${shorten(f.description, 60)}`,
+            }))}
+        />
+      </div>
     </section>
   );
 }
@@ -832,7 +878,7 @@ function History({ report, titled }: { report: ParcelReport; titled: boolean }) 
   const c = r.columns;
   if (report.visits.length === 0) return <p className="muted">{r.historyEmpty}</p>;
   return (
-    <div className={layout.stack}>
+    <div className={styles.subsection}>
       {titled && <h3>{r.historyTitle}</h3>}
       <Table data-testid="visit-history" className={styles.history}>
         <thead>

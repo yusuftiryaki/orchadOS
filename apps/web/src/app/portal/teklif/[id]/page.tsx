@@ -9,14 +9,23 @@ import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import { StatusBadge } from "@/components/portal-billing/status-badge";
 import s from "@/components/portal-billing/billing.module.css";
+import {
+  DetailHeader,
+  DetailLayout,
+  Lifecycle,
+  Section,
+  SummaryCard,
+  workClass as w,
+  type FlowNote,
+} from "@/components/portal-billing/workspace";
 import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
 import { Facts, factsClass } from "@/components/ui/facts";
 import { Checkbox, Field, Textarea } from "@/components/ui/field";
 import { Stack } from "@/components/ui/layout";
-import { PageHeader } from "@/components/ui/page-header";
-import { Panel, panelClass } from "@/components/ui/panel";
+import { IconCheck } from "@/components/ui/icons";
+import { Panel } from "@/components/ui/panel";
 import { Table, cell } from "@/components/ui/table";
 import { requireSection } from "@/lib/auth/session";
 import { addonBreakdownOf, breakdownRows, windowsText } from "@/lib/billing/addon-breakdown";
@@ -45,6 +54,7 @@ import { portalHref } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
 
 const Q = P.quote;
+const W = P.work;
 const percent = (bp: number) => String(bp / 100).replace(".", ",");
 
 // A quote: lines, discount, VAT and total (an add-on with its H19 breakdown),
@@ -104,16 +114,18 @@ export default async function QuotePage({
   const canAccept = !!profile?.complete && kvkk && gateReasons.length === 0 && !!filled;
   const first = plan[0];
 
+  const flow: { current: number; note: FlowNote } | null = open
+    ? { current: 1, note: "decide" }
+    : quote.status === "accepted"
+      ? { current: 2, note: "pay" }
+      : null;
+
   return (
-    <main
-      className={`${layout.page} ${layout.reading}`}
-      data-testid="quote"
-      data-status={quote.status}
-    >
-      <PageHeader
+    <main className={layout.page} data-testid="quote" data-status={quote.status}>
+      <DetailHeader
         title={<NumberedTitle text={Q.title(quote.number)} number={quote.number} />}
+        badges={<StatusBadge kind="quote" status={quote.status} testId="quote-status" />}
         lead={open ? Q.openLead(formatDate(quote.valid_until)) : undefined}
-        meta={<StatusBadge kind="quote" status={quote.status} testId="quote-status" />}
         back={
           quote.application_id
             ? { href: portalHref.application(quote.application_id), label: Q.backToApplication }
@@ -133,319 +145,402 @@ export default async function QuotePage({
         </Alert>
       )}
       {!open && <Alert>{Q.closed(billingText.quoteStatus[quote.status])}</Alert>}
+      {flow && <Lifecycle current={flow.current} note={flow.note} />}
 
-      <Panel title={Q.summaryTitle} id="quote-summary">
-        <dl className={factsClass.list}>
-          <FactRow label={Q.package}>{quote.package_name}</FactRow>
-          <FactRow label={Q.visitsLabel}>{Q.visits(quote.periodic_visits_per_year)}</FactRow>
-          <FactRow label={Q.kind}>{quote.first_year ? Q.firstYear : Q.renewal}</FactRow>
-          <FactRow label={Q.validUntil} testId="quote-valid-until">
-            {formatDate(quote.valid_until)}
-          </FactRow>
-          {addon && (
-            <FactRow label={Q.servicePeriod} testId="quote-addon-period">
-              <span className={s.nowrap}>{formatDate(addon.serviceStart)}</span> –{" "}
-              <span className={s.nowrap}>{formatDate(addon.periodEnd)}</span>
-            </FactRow>
-          )}
-          {!addon && quote.proposed_service_start && (
-            <FactRow label={Q.serviceStart}>{formatDate(quote.proposed_service_start)}</FactRow>
-          )}
-          <FactRow label={Q.serviceEnd} testId="quote-service-end">
-            {serviceEnd}
-          </FactRow>
-        </dl>
-        <dl className={factsClass.summary} data-testid="quote-totals">
-          <FactRow label={Q.base}>{formatKurus(quote.base_kurus, currency)}</FactRow>
-          {quote.discount_kurus > 0 && (
-            <FactRow label={Q.discount(percent(quote.discount_bp))}>
-              {formatKurus(-quote.discount_kurus, currency)}
-            </FactRow>
-          )}
-          <FactRow label={Q.subtotal}>{formatKurus(quote.subtotal_kurus, currency)}</FactRow>
-          <FactRow label={Q.vat(percent(quote.vat_rate_bp))}>
-            {formatKurus(quote.vat_kurus, currency)}
-          </FactRow>
-          <FactRow label={Q.total} testId="quote-total" total>
-            {formatKurus(quote.total_kurus, currency)}
-          </FactRow>
-        </dl>
-        {quote.discount_note && (
-          <p className={layout.small}>
-            <strong>{Q.discountNote}:</strong> {quote.discount_note}
-          </p>
-        )}
-      </Panel>
-
-      {quote.note_to_customer && (
-        <Alert tone="info" title={Q.note} testId="quote-note">
-          <p>{quote.note_to_customer}</p>
-        </Alert>
-      )}
-
-      <Panel title={Q.lines} plain>
-        <div className={s.tableBox}>
-          <Table className={`${s.stack} ${s.lines}`} data-testid="quote-lines">
-            <thead>
-              <tr>
-                <th>{Q.garden}</th>
-                <th className={cell.num}>{Q.area}</th>
-                <th className={cell.num}>{Q.visitsCol}</th>
-                <th className={cell.num}>{Q.unitPrice}</th>
-                <th className={cell.num}>{Q.inventoryFee}</th>
-                <th className={cell.num}>{Q.lineTotal}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td className={s.garden}>
-                    {item.garden_name}
-                    {item.visit_amount_kurus < item.minimum_fee_kurus && (
-                      <span className={s.planNote}>{Q.minimumApplied}</span>
-                    )}
-                    {addon && item.inventory_fee_kurus > 0 && (
-                      <span className={s.planNote}>{Q.inventoryIncluded}</span>
-                    )}
-                  </td>
-                  <td className={`${cell.num} ${s.figure}`} data-label={Q.area}>
-                    {formatDonum(Number(item.area_m2))}
-                  </td>
-                  <td className={`${cell.num} ${s.figure}`} data-label={Q.visitsCol}>
-                    {addon ? Q.addonVisits(item.visits, addon.visitsPerYear) : item.visits}
-                  </td>
-                  <td className={`${cell.num} ${s.figure}`} data-label={Q.unitPrice}>
-                    {formatKurus(item.unit_price_kurus, currency)}
-                  </td>
-                  <td className={`${cell.num} ${s.figure}`} data-label={Q.inventoryFee}>
-                    {formatKurus(item.inventory_fee_kurus, currency)}
-                  </td>
-                  <td className={`${cell.num} ${s.lineTotal} ${s.end}`}>
-                    {formatKurus(item.line_base_kurus, currency)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </div>
-        {addon && <p className={`${layout.muted} ${layout.small}`}>{Q.addonVisitsHint}</p>}
-        {breakdown && (
-          <Panel title={billingText.addonBreakdown.title} headingLevel={3} testId="quote-breakdown">
-            {breakdown.lines.map((line) => (
-              <Stack key={line.lineNo} gap="sm">
-                <h4>{Q.breakdownLine(line.gardenName)}</h4>
-                <Facts
-                  variant="summary"
-                  rows={breakdownRows(breakdown, line, currency).map((row) => [
-                    row.label,
-                    row.value,
-                  ])}
-                />
-              </Stack>
-            ))}
-            <dl className={factsClass.list}>
-              <FactRow label={billingText.addonBreakdown.priceList}>
-                {breakdown.priceListName}
+      <DetailLayout
+        asideFirst
+        aside={
+          <SummaryCard
+            id="quote-price"
+            title={W.priceTitle}
+            footer={
+              open && (
+                <a
+                  href="#quote-accept"
+                  className={buttonClass({ variant: "secondary", block: true })}
+                >
+                  {W.toAccept}
+                </a>
+              )
+            }
+          >
+            <dl className={factsClass.summary} data-testid="quote-totals">
+              <FactRow label={Q.base}>{formatKurus(quote.base_kurus, currency)}</FactRow>
+              {quote.discount_kurus > 0 && (
+                <FactRow label={Q.discount(percent(quote.discount_bp))}>
+                  {formatKurus(-quote.discount_kurus, currency)}
+                </FactRow>
+              )}
+              <FactRow label={Q.subtotal}>{formatKurus(quote.subtotal_kurus, currency)}</FactRow>
+              <FactRow label={Q.vat(percent(quote.vat_rate_bp))}>
+                {formatKurus(quote.vat_kurus, currency)}
               </FactRow>
-              <FactRow label={billingText.addonBreakdown.windows} testId="quote-windows">
-                {windowsText(breakdown)}
+              <FactRow label={Q.total} testId="quote-total" total>
+                {formatKurus(quote.total_kurus, currency)}
               </FactRow>
             </dl>
-            <p className={`${layout.muted} ${layout.small}`}>
-              {billingText.addonBreakdown.roundingExample}
-            </p>
-            <p>
-              <strong>{billingText.addonBreakdown.binding}</strong>
-            </p>
-          </Panel>
-        )}
-      </Panel>
-
-      {open && plan.length > 0 && (
-        <Panel
-          title={billingText.plan.title}
-          description={billingText.plan.quoteHint}
-          plain
-          testId="quote-plan"
-        >
-          <InstallmentPlan rows={plan} currency={currency} />
-        </Panel>
-      )}
-
-      {open && (
-        <>
-          <Panel title={Q.billingTitle} plain testId="quote-billing">
-            {profile?.complete ? (
-              <p>
-                {Q.billingComplete} <Link href={portalHref.billing(here)}>{Q.billingEdit}</Link>
+            {quote.discount_note && (
+              <p className={w.fine}>
+                <strong>{Q.discountNote}:</strong> {quote.discount_note}
               </p>
-            ) : (
-              <Alert tone="warning">
-                <p>{Q.billingIncomplete}</p>
-                <p>
-                  <ButtonLink href={portalHref.billing(here)}>{Q.billingFill}</ButtonLink>
-                </p>
-              </Alert>
             )}
-          </Panel>
+            {open && first && (
+              <div className={w.kv}>
+                <span>{`${W.firstPayment}: ${installmentLabel(first)}`}</span>
+                <span>{formatKurus(first.amountKurus, currency)}</span>
+              </div>
+            )}
+            {open && (
+              <div className={w.kv}>
+                <span>{W.validUntil}</span>
+                <span>{formatDate(quote.valid_until)}</span>
+              </div>
+            )}
+          </SummaryCard>
+        }
+      >
+        <Section title={Q.summaryTitle} id="quote-summary">
+          <div className={w.surface}>
+            <dl className={factsClass.list}>
+              <FactRow label={Q.package}>{quote.package_name}</FactRow>
+              <FactRow label={Q.visitsLabel}>{Q.visits(quote.periodic_visits_per_year)}</FactRow>
+              <FactRow label={Q.kind}>{quote.first_year ? Q.firstYear : Q.renewal}</FactRow>
+              <FactRow label={Q.validUntil} testId="quote-valid-until">
+                {formatDate(quote.valid_until)}
+              </FactRow>
+              {addon && (
+                <FactRow label={Q.servicePeriod} testId="quote-addon-period">
+                  <span className={s.nowrap}>{formatDate(addon.serviceStart)}</span> –{" "}
+                  <span className={s.nowrap}>{formatDate(addon.periodEnd)}</span>
+                </FactRow>
+              )}
+              {!addon && quote.proposed_service_start && (
+                <FactRow label={Q.serviceStart}>{formatDate(quote.proposed_service_start)}</FactRow>
+              )}
+              <FactRow label={Q.serviceEnd} testId="quote-service-end">
+                {serviceEnd}
+              </FactRow>
+            </dl>
+          </div>
+          {quote.note_to_customer && (
+            <Alert tone="info" title={Q.note} testId="quote-note">
+              <p>{quote.note_to_customer}</p>
+            </Alert>
+          )}
+        </Section>
 
-          {gateReasons.length > 0 && (
-            <Panel title={Q.gateTitle} plain testId="quote-gate">
-              <Alert tone="warning">
-                <ul>
-                  {gateReasons.map((reason) => (
-                    <li key={reason} data-reason={reason}>
-                      {Q.gateReason[reason]}
-                    </li>
-                  ))}
-                </ul>
-              </Alert>
-              <p className={`${layout.muted} ${layout.small}`}>{Q.gateHint}</p>
+        <Section title={Q.lines} id="quote-lines-section">
+          <div className={s.tableBox}>
+            <Table className={`${s.stack} ${s.lines}`} data-testid="quote-lines">
+              <thead>
+                <tr>
+                  <th>{Q.garden}</th>
+                  <th className={cell.num}>{Q.area}</th>
+                  <th className={cell.num}>{Q.visitsCol}</th>
+                  <th className={cell.num}>{Q.unitPrice}</th>
+                  <th className={cell.num}>{Q.inventoryFee}</th>
+                  <th className={cell.num}>{Q.lineTotal}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.id}>
+                    <td className={s.garden}>
+                      {item.garden_name}
+                      {item.visit_amount_kurus < item.minimum_fee_kurus && (
+                        <span className={s.planNote}>{Q.minimumApplied}</span>
+                      )}
+                      {addon && item.inventory_fee_kurus > 0 && (
+                        <span className={s.planNote}>{Q.inventoryIncluded}</span>
+                      )}
+                    </td>
+                    <td className={`${cell.num} ${s.figure}`} data-label={Q.area}>
+                      {formatDonum(Number(item.area_m2))}
+                    </td>
+                    <td className={`${cell.num} ${s.figure}`} data-label={Q.visitsCol}>
+                      {addon ? Q.addonVisits(item.visits, addon.visitsPerYear) : item.visits}
+                    </td>
+                    <td className={`${cell.num} ${s.figure}`} data-label={Q.unitPrice}>
+                      {formatKurus(item.unit_price_kurus, currency)}
+                    </td>
+                    <td className={`${cell.num} ${s.figure}`} data-label={Q.inventoryFee}>
+                      {formatKurus(item.inventory_fee_kurus, currency)}
+                    </td>
+                    <td className={`${cell.num} ${s.lineTotal} ${s.end}`}>
+                      {formatKurus(item.line_base_kurus, currency)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+          {addon && <p className={w.fine}>{Q.addonVisitsHint}</p>}
+          {breakdown && (
+            <Panel
+              title={billingText.addonBreakdown.title}
+              headingLevel={3}
+              testId="quote-breakdown"
+            >
+              {breakdown.lines.map((line) => (
+                <Stack key={line.lineNo} gap="sm">
+                  <h4>{Q.breakdownLine(line.gardenName)}</h4>
+                  <Facts
+                    variant="summary"
+                    rows={breakdownRows(breakdown, line, currency).map((row) => [
+                      row.label,
+                      row.value,
+                    ])}
+                  />
+                </Stack>
+              ))}
+              <dl className={factsClass.list}>
+                <FactRow label={billingText.addonBreakdown.priceList}>
+                  {breakdown.priceListName}
+                </FactRow>
+                <FactRow label={billingText.addonBreakdown.windows} testId="quote-windows">
+                  {windowsText(breakdown)}
+                </FactRow>
+              </dl>
+              <p className={w.fine}>{billingText.addonBreakdown.roundingExample}</p>
+              <p>
+                <strong>{billingText.addonBreakdown.binding}</strong>
+              </p>
             </Panel>
           )}
+        </Section>
 
-          {(!kvkk || kvkkOutdated) && !kvkkRecordable && (
-            <Panel title={Q.kvkkTitle} plain testId="quote-kvkk">
-              <Alert tone="warning">{Q.kvkkOtherOrg}</Alert>
-            </Panel>
-          )}
+        {open && plan.length > 0 && (
+          <Section
+            title={billingText.plan.title}
+            description={billingText.plan.quoteHint}
+            id="quote-plan-section"
+            testId="quote-plan"
+          >
+            <InstallmentPlan rows={plan} currency={currency} />
+          </Section>
+        )}
 
-          {(!kvkk || kvkkOutdated) && kvkkRecordable && (
-            <Panel title={Q.kvkkTitle} plain testId="quote-kvkk">
-              <form action={acknowledgeKvkkAction} className={`${panelClass} ${s.checks}`}>
-                <input type="hidden" name="geri" value={here} />
-                <p>
-                  {kvkkOutdated ? Q.kvkkCurrentBody : Q.kvkkBody}{" "}
-                  <Link href="/kvkk" target="_blank">
-                    {Q.kvkkLink}
-                  </Link>
-                </p>
-                <Checkbox
-                  id="c-kvkk_notice"
-                  name="kvkk_notice"
-                  required
-                  label={
-                    <>
-                      {Q.kvkkCheck}{" "}
-                      <span className={layout.muted}>
-                        ({Q.version(LEGAL_TEXT_VERSIONS.kvkk_notice)})
-                      </span>
-                    </>
-                  }
+        {open && (
+          <>
+            <Section title={Q.billingTitle} id="quote-billing-section" testId="quote-billing">
+              {profile?.complete ? (
+                <div className={w.item}>
+                  <div className={w.withTile}>
+                    <span className={w.tile}>
+                      <IconCheck />
+                    </span>
+                    <div className={w.rowBody}>
+                      <p className={w.rowTitle}>{Q.billingComplete}</p>
+                    </div>
+                  </div>
+                  <ButtonLink variant="quiet" size="sm" href={portalHref.billing(here)}>
+                    {Q.billingEdit}
+                  </ButtonLink>
+                </div>
+              ) : (
+                <Alert tone="warning">
+                  <p>{Q.billingIncomplete}</p>
+                  <p>
+                    <ButtonLink href={portalHref.billing(here)}>{Q.billingFill}</ButtonLink>
+                  </p>
+                </Alert>
+              )}
+            </Section>
+
+            {gateReasons.length > 0 && (
+              <Section title={Q.gateTitle} id="quote-gate-section" testId="quote-gate">
+                <Alert tone="warning">
+                  <ul>
+                    {gateReasons.map((reason) => (
+                      <li key={reason} data-reason={reason}>
+                        {Q.gateReason[reason]}
+                      </li>
+                    ))}
+                  </ul>
+                </Alert>
+                <p className={w.fine}>{Q.gateHint}</p>
+              </Section>
+            )}
+
+            {(!kvkk || kvkkOutdated) && !kvkkRecordable && (
+              <Section title={Q.kvkkTitle} id="quote-kvkk-section" testId="quote-kvkk">
+                <Alert tone="warning">{Q.kvkkOtherOrg}</Alert>
+              </Section>
+            )}
+
+            {(!kvkk || kvkkOutdated) && kvkkRecordable && (
+              <Section title={Q.kvkkTitle} id="quote-kvkk-section" testId="quote-kvkk">
+                <form action={acknowledgeKvkkAction} className={w.formCard}>
+                  <input type="hidden" name="geri" value={here} />
+                  <div className={w.formCardBody}>
+                    <p>
+                      {kvkkOutdated ? Q.kvkkCurrentBody : Q.kvkkBody}{" "}
+                      <Link href="/kvkk" target="_blank">
+                        {Q.kvkkLink}
+                      </Link>
+                    </p>
+                    <Checkbox
+                      id="c-kvkk_notice"
+                      name="kvkk_notice"
+                      required
+                      label={
+                        <>
+                          {Q.kvkkCheck}{" "}
+                          <span className={layout.muted}>
+                            ({Q.version(LEGAL_TEXT_VERSIONS.kvkk_notice)})
+                          </span>
+                        </>
+                      }
+                    />
+                  </div>
+                  <div className={w.formCardFooter}>
+                    <Button variant="secondary" type="submit">
+                      {Q.kvkkSubmit}
+                    </Button>
+                  </div>
+                </form>
+              </Section>
+            )}
+
+            {filled && (
+              <Section
+                title={C.quote.title}
+                description={C.quote.intro}
+                id="quote-contracts-section"
+                testId="quote-contracts"
+              >
+                {quote.addon_of_order_id && <Alert tone="info">{C.quote.addonIntro}</Alert>}
+                {!quote.addon_of_order_id && quote.renewal_of_order_id && (
+                  <Alert tone="info">{C.quote.renewalIntro}</Alert>
+                )}
+                <FilledDocumentView doc={filled[0].doc} displaySha256={filled[0].hash} />
+                <details className={s.disclosure} data-testid="quote-contract-details">
+                  <summary>{C.quote.showContract}</summary>
+                  <FilledDocumentView doc={filled[1].doc} displaySha256={filled[1].hash} />
+                </details>
+              </Section>
+            )}
+
+            <Section
+              title={Q.acceptTitle}
+              description={W.acceptLead}
+              id="quote-accept"
+              testId="quote-accept"
+            >
+              <form action={acceptQuoteAction} className={`${w.formCard} ${w.accept}`}>
+                <input type="hidden" name="quote_id" value={quote.id} />
+                <input
+                  type="hidden"
+                  name="pre_information_display"
+                  value={filled?.[0].hash ?? ""}
                 />
-                <div className={layout.actions}>
-                  <Button variant="secondary" type="submit">
-                    {Q.kvkkSubmit}
-                  </Button>
+                <input type="hidden" name="distance_sales_display" value={filled?.[1].hash ?? ""} />
+                <div className={w.formCardBody}>
+                  <div className={s.checks}>
+                    <Checkbox
+                      id="c-pre_information"
+                      name="pre_information"
+                      required
+                      label={
+                        <>
+                          {C.quote.preCheck}{" "}
+                          <span className={layout.muted}>
+                            ({Q.version(LEGAL_TEXT_VERSIONS.pre_information)})
+                          </span>
+                        </>
+                      }
+                    />
+                    <Checkbox
+                      id="c-distance_sales"
+                      name="distance_sales"
+                      required
+                      label={
+                        <>
+                          {C.quote.contractCheck}{" "}
+                          <span className={layout.muted}>
+                            ({Q.version(LEGAL_TEXT_VERSIONS.distance_sales)})
+                          </span>
+                        </>
+                      }
+                    />
+                  </div>
+                  <fieldset
+                    className={`${s.checks} ${w.optional}`}
+                    data-testid="quote-early-performance"
+                  >
+                    <legend>{Q.earlyPerformanceTitle}</legend>
+                    <Checkbox
+                      id="c-early_performance"
+                      name="early_performance"
+                      label={
+                        <>
+                          {EARLY_PERFORMANCE_TEXT}{" "}
+                          <span className={layout.muted}>
+                            ({Q.version(LEGAL_TEXT_VERSIONS.distance_sales)})
+                          </span>
+                        </>
+                      }
+                      hint={Q.earlyPerformanceHint}
+                    />
+                  </fieldset>
+                  <Facts
+                    variant="summary"
+                    rows={[
+                      [Q.total, formatKurus(quote.total_kurus, currency)],
+                      ...(first
+                        ? ([
+                            [
+                              `${Q.firstPayment}: ${installmentLabel(first)}`,
+                              formatKurus(first.amountKurus, currency),
+                            ],
+                          ] as [string, string][])
+                        : []),
+                    ]}
+                  />
+                </div>
+                <div className={`${w.formCardFooter} ${w.acceptFooter}`}>
+                  <button
+                    className={`button button-lg ${s.longButton}`}
+                    type="submit"
+                    disabled={!canAccept}
+                  >
+                    {Q.accept}
+                  </button>
+                  {!canAccept && <p>{Q.acceptBlocked}</p>}
+                  <p>{Q.acceptHint}</p>
                 </div>
               </form>
-            </Panel>
-          )}
+            </Section>
 
-          {filled && (
-            <Panel title={C.quote.title} description={C.quote.intro} plain testId="quote-contracts">
-              {quote.addon_of_order_id && <Alert tone="info">{C.quote.addonIntro}</Alert>}
-              {!quote.addon_of_order_id && quote.renewal_of_order_id && (
-                <Alert tone="info">{C.quote.renewalIntro}</Alert>
-              )}
-              <FilledDocumentView doc={filled[0].doc} displaySha256={filled[0].hash} />
-              <details className={s.disclosure} data-testid="quote-contract-details">
-                <summary>{C.quote.showContract}</summary>
-                <FilledDocumentView doc={filled[1].doc} displaySha256={filled[1].hash} />
-              </details>
-            </Panel>
-          )}
-
-          <Panel title={Q.acceptTitle} plain testId="quote-accept">
-            <form action={acceptQuoteAction} className={`${panelClass} ${s.checks}`}>
-              <input type="hidden" name="quote_id" value={quote.id} />
-              <input type="hidden" name="pre_information_display" value={filled?.[0].hash ?? ""} />
-              <input type="hidden" name="distance_sales_display" value={filled?.[1].hash ?? ""} />
-              <Checkbox
-                id="c-pre_information"
-                name="pre_information"
-                required
-                label={
-                  <>
-                    {C.quote.preCheck}{" "}
-                    <span className={layout.muted}>
-                      ({Q.version(LEGAL_TEXT_VERSIONS.pre_information)})
-                    </span>
-                  </>
-                }
-              />
-              <Checkbox
-                id="c-distance_sales"
-                name="distance_sales"
-                required
-                label={
-                  <>
-                    {C.quote.contractCheck}{" "}
-                    <span className={layout.muted}>
-                      ({Q.version(LEGAL_TEXT_VERSIONS.distance_sales)})
-                    </span>
-                  </>
-                }
-              />
-              <fieldset className={s.checks} data-testid="quote-early-performance">
-                <legend>{Q.earlyPerformanceTitle}</legend>
-                <Checkbox
-                  id="c-early_performance"
-                  name="early_performance"
-                  label={
-                    <>
-                      {EARLY_PERFORMANCE_TEXT}{" "}
-                      <span className={layout.muted}>
-                        ({Q.version(LEGAL_TEXT_VERSIONS.distance_sales)})
-                      </span>
-                    </>
-                  }
-                  hint={Q.earlyPerformanceHint}
-                />
-              </fieldset>
-              <Facts
-                variant="summary"
-                rows={[
-                  [Q.total, formatKurus(quote.total_kurus, currency)],
-                  ...(first
-                    ? ([
-                        [
-                          `${Q.firstPayment}: ${installmentLabel(first)}`,
-                          formatKurus(first.amountKurus, currency),
-                        ],
-                      ] as [string, string][])
-                    : []),
-                ]}
-              />
-              <div className={layout.actions}>
-                <button className={`button ${s.longButton}`} type="submit" disabled={!canAccept}>
-                  {Q.accept}
-                </button>
-              </div>
-              {!canAccept && <p className={layout.small}>{Q.acceptBlocked}</p>}
-              <p className={`${layout.muted} ${layout.small}`}>{Q.acceptHint}</p>
-            </form>
-          </Panel>
-
-          <Panel title={Q.declineTitle} plain>
-            <form action={declineQuoteAction} className={s.form}>
-              <input type="hidden" name="quote_id" value={quote.id} />
-              <Field id="f-note" label={Q.revisionNote} hint={Q.revisionHint} optional={P.optional}>
-                <Textarea name="note" rows={2} maxLength={1000} />
-              </Field>
-              <div className={layout.actions}>
-                <Button variant="secondary" type="submit" name="intent" value="revise">
-                  {Q.requestRevision}
-                </Button>
-                <Button variant="quiet" type="submit" name="intent" value="decline">
-                  {Q.decline}
-                </Button>
-              </div>
-              <p className={`${layout.muted} ${layout.small}`}>{Q.declineHint}</p>
-            </form>
-          </Panel>
-        </>
-      )}
+            <Section title={W.quoteOther} id="quote-decline" headingLevel={2}>
+              <form action={declineQuoteAction} className={w.formCard}>
+                <input type="hidden" name="quote_id" value={quote.id} />
+                <div className={w.formCardBody}>
+                  <Field
+                    id="f-note"
+                    label={Q.revisionNote}
+                    hint={Q.revisionHint}
+                    optional={P.optional}
+                  >
+                    <Textarea name="note" rows={2} maxLength={1000} />
+                  </Field>
+                </div>
+                <div className={w.formCardFooter}>
+                  <p>{Q.declineHint}</p>
+                  <div className={w.buttons}>
+                    <Button variant="quiet" type="submit" name="intent" value="decline">
+                      {Q.decline}
+                    </Button>
+                    <Button variant="secondary" type="submit" name="intent" value="revise">
+                      {Q.requestRevision}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </Section>
+          </>
+        )}
+      </DetailLayout>
     </main>
   );
 }

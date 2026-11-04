@@ -6,51 +6,70 @@
   align-items: start;
 }
 
+/* The membership column only when there is one. */
 @media (min-width: 960px) {
-  .top {
-    grid-template-columns: minmax(0, 1fr) 340px;
+  .withAside {
+    grid-template-columns: minmax(0, 1fr) 320px;
   }
 }
 
 .main {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-5);
   align-content: start;
   min-width: 0;
 }
 
-/* Tasks: one bordered list, each row a sentence and its action. Ours (an
-   application under review) sits on the ground, the customer's on white. */
+/* "Sizi bekleyenler": one card, a row per task (icon, sentence, action),
+   rows split by hairlines. The customer's own tasks carry an accent icon;
+   ours (an application under review) a neutral one. */
+.tasksPanel {
+  gap: var(--space-2);
+}
+
 .tasks {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--space-2);
 }
 
 .task {
   display: grid;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  align-items: start;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
 }
 
-.task h3 {
-  font-size: var(--text-lg);
+.task:first-child {
+  border-top: 0;
+  padding-top: var(--space-1);
 }
 
-/* Ours: reported, nothing to do. A quieter surface, never the dashed
-   border of an empty state. */
-.taskOurs {
+.task:last-child {
+  padding-bottom: 0;
+}
+
+.taskIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.taskOurs .taskIcon {
   background: var(--color-surface-2);
+  color: var(--color-muted);
 }
 
 .taskText {
   display: grid;
-  gap: var(--space-1);
+  gap: 2px;
   min-width: 0;
 }
 
@@ -58,18 +77,46 @@
   margin: 0;
 }
 
+.task h3 {
+  font-size: var(--text-base);
+  font-weight: 650;
+}
+
+.taskText p {
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+}
+
+.taskAction {
+  grid-column: 2;
+  justify-self: start;
+}
+
 @media (min-width: 600px) {
   .task {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    padding: var(--space-3) var(--space-4);
+  }
+
+  .taskAction {
+    grid-column: auto;
   }
 }
 
 @media (max-width: 599px) {
-  .task > :global(.button) {
+  .taskAction {
     width: 100%;
   }
+
+  /* Ours: only a link to look, not a big button. */
+  .taskOurs .taskAction {
+    width: auto;
+    padding-inline: 0;
+  }
+}
+
+.gardensBlock {
+  gap: var(--space-3);
 }
 
 .member {

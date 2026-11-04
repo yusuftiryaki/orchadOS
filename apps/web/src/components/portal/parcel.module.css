@@ -43,10 +43,29 @@
   font-variant-numeric: tabular-nums;
 }
 
+.scoreLarge {
+  gap: 2px 6px;
+}
+
+.scoreLarge .scoreLabel {
+  flex-basis: 100%;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-2);
+}
+
 .scoreLarge .scoreValue {
-  font-size: var(--text-4xl);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
+  font-size: var(--text-5xl);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
+}
+
+.scoreLarge [data-testid="score-change"],
+.scoreLarge [data-testid="score-unassessed"] {
+  flex-basis: 100%;
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 
 .bar {
@@ -64,20 +83,174 @@
   height: 100%;
 }
 
-/* Overview: the state of the garden at a glance --------------------------- */
+/* Report page: grouped sections under the sticky "Bu sayfada" tabs ------- */
 
-.overviewHead {
+.report {
+  gap: var(--space-5);
+}
+
+@media (min-width: 720px) {
+  .report {
+    gap: var(--space-6);
+  }
+}
+
+/* The tab row sits right under the header: less room above it. */
+.report > nav:first-of-type {
+  margin-top: calc(-1 * var(--space-3));
+}
+
+/* Header facts: "Meyve türü · Sınır sürümü · 310 yer". */
+.metaList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.metaList > li:not(:last-child)::after {
+  content: "·";
+  margin: 0 var(--space-2);
+  color: var(--color-border-strong);
+}
+
+/* A group of the page that a tab leads to. */
+.group {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+  scroll-margin-top: calc(var(--header-height) + 64px);
+}
+
+.group > * {
+  min-width: 0;
+}
+
+/* #ziyaretler holds several titled blocks; they keep the page rhythm. */
+.group:has(> .group, > section[data-testid]) {
+  gap: var(--space-5);
+}
+
+.anchor {
+  scroll-margin-top: calc(var(--header-height) + 64px);
+}
+
+.groupHead {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.groupHead > * {
+  margin: 0;
+}
+
+.groupHead h2 {
+  font-size: var(--text-xl);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.groupLead {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  max-width: var(--measure);
+}
+
+/* A titled block inside a group (measurements, visit history). */
+.subsection {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.subsection > h3 {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 650;
+}
+
+/* Hero: the latest visit beside what needs attention. */
+.hero {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 960px) {
+  .hero {
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    align-items: stretch;
+  }
+}
+
+.summary {
+  gap: var(--space-4);
+}
+
+.summaryHead {
   display: grid;
   gap: 2px;
 }
 
-.overviewHead > * {
+.summaryHead > * {
   margin: 0;
+}
+
+.summaryHead h2 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-muted);
+  letter-spacing: 0;
+}
+
+.summaryDate {
+  font-size: var(--text-lg);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.summaryMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.summaryMeta > span:not(:last-child)::after {
+  content: "·";
+  margin-left: var(--space-2);
+  color: var(--color-border-strong);
+}
+
+.summaryBody {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 600px) {
+  .summaryBody {
+    grid-template-columns: minmax(180px, 0.8fr) minmax(0, 2fr);
+    align-items: start;
+  }
+}
+
+.summaryNote {
+  margin: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
 }
 
 .scoreBox {
   display: grid;
   gap: var(--space-1);
+  align-content: start;
   padding: var(--space-3);
   border-radius: var(--radius);
   background: var(--color-accent-soft);
@@ -87,18 +260,54 @@
   margin: 0;
 }
 
+.scoreBox .disclosure > summary {
+  min-height: 36px;
+  font-size: var(--text-sm);
+}
+
+.distribution {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.distribution > p {
+  margin: 0;
+}
+
+.treeLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.treeLine strong {
+  font-size: var(--text-base);
+}
+
+.distribution .bar {
+  height: 12px;
+}
+
+.distribution .disclosure > summary {
+  min-height: 36px;
+  font-size: var(--text-sm);
+}
+
 .counts {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-1) var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+  gap: 0 var(--space-3);
 }
 
-@media (min-width: 720px) {
-  .counts {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+@media (max-width: 599px) {
+  .countName {
+    font-size: var(--text-sm);
   }
 }
 
@@ -162,31 +371,95 @@
   margin-bottom: var(--space-2);
 }
 
-/* Change against the previous visit. */
+/* Change against the previous visit (its own card in "Özet"). */
 .change {
-  display: grid;
-  gap: var(--space-2);
-  border-top: 1px solid var(--color-border);
-  padding-top: var(--space-3);
+  gap: var(--space-3);
 }
 
-.change h3 {
+.changeHead {
+  display: grid;
+  gap: 2px;
+}
+
+.changeHead > * {
   margin: 0;
 }
 
-.change p {
+.changeHead h3 {
+  font-size: var(--text-base);
+  font-weight: 650;
+}
+
+.changeHead p {
+  font-size: var(--text-sm);
+}
+
+.change > p {
   margin: 0;
 }
 
 .changeGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-3) var(--space-5);
 }
 
 .changeGrid h4 {
-  margin: 0 0 var(--space-1);
-  font-size: var(--text-base);
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.changeList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.changeList > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.changeLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+}
+
+/* A tree code that opens the tree card (change list, compact code lists). */
+.treeChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
+}
+
+.treeChip:hover {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-text);
+  text-decoration: none;
 }
 
 .plainList {
@@ -200,23 +473,66 @@
 /* What needs attention ----------------------------------------------------- */
 
 .attention {
-  border-left: 4px solid var(--color-danger);
+  gap: var(--space-3);
+  border-top: 3px solid var(--color-danger);
 }
 
-.attentionCalm {
-  border-left: 4px solid var(--color-success);
+.calm {
+  border-top-color: var(--color-success);
 }
 
-.attention h2,
-.attentionCalm h2 {
-  font-size: var(--text-lg);
+.calm p {
+  margin: 0;
+}
+
+.attentionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.attentionList > li {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.attentionList > li:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .attentionItem {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-1) var(--space-2);
+}
+
+.attentionNotes {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  display: grid;
+  gap: var(--space-1);
+  border-radius: var(--radius);
+  background: var(--color-surface-2);
+  font-size: var(--text-sm);
+}
+
+.attentionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+
+@media (max-width: 479px) {
+  .attentionActions > :global(.button) {
+    flex: 1 1 100%;
+  }
 }
 
 .code {
@@ -225,75 +541,81 @@
   white-space: nowrap;
 }
 
-/* In-page navigation ------------------------------------------------------- */
-
-.sectionNav ul {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 2px;
-  display: flex;
-  gap: var(--space-2);
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.sectionNav a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-height);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.sectionNav a:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-2);
-  color: var(--color-text);
-}
-
-/* Health map: map, side panel, controls ----------------------------------- */
+/* Health map: one card with the class filter on top, the map and the
+   selected tree's panel side by side (the panel is a sheet under the map
+   below 960px), the visit and layer controls and the boundary fine print
+   at the foot. ---------------------------------------------------------- */
 
 .explorer {
   display: grid;
   gap: var(--space-3);
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
-    "map"
     "legend"
+    "map"
     "panel"
-    "controls";
+    "controls"
+    "footer";
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+@media (min-width: 720px) {
+  .explorer {
+    padding: 20px;
+  }
 }
 
 @media (min-width: 960px) {
   .explorer {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr) 340px;
     grid-template-areas:
+      "legend legend"
       "map panel"
-      "legend panel"
-      "controls panel";
-    align-items: start;
+      "controls controls"
+      "footer footer";
+    align-items: stretch;
+    column-gap: 20px;
   }
 }
 
 .mapArea {
   grid-area: map;
+  position: relative;
   display: grid;
   gap: var(--space-1);
   min-width: 0;
+}
+
+/* The short boundary caption reads as a label on the map, like the scale
+   (which moves to the top left on a phone; the caption then stays under the
+   map). */
+@media (min-width: 641px) {
+  .mapArea > [data-testid="map-boundary-caption"] {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    right: 64px;
+    justify-self: start;
+    width: fit-content;
+    max-width: calc(100% - 72px);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+    color: var(--color-text-2);
+    box-shadow: var(--shadow-sm);
+    pointer-events: none;
+  }
 }
 
 .map {
   width: 100%;
   height: 60vh;
   min-height: 320px;
-  max-height: 460px;
+  max-height: 440px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   overflow: hidden;
@@ -301,7 +623,7 @@
 
 @media (min-width: 960px) {
   .map {
-    height: 520px;
+    height: 540px;
     max-height: none;
   }
 }
@@ -340,6 +662,9 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
 }
 
 .filter:hover:not(:disabled) {
@@ -386,15 +711,28 @@
   border: 3px solid var(--ring, var(--color-danger));
 }
 
-@media (min-width: 720px) {
-  .filter {
-    min-height: var(--control-height-sm);
-  }
-}
-
 @media (max-width: 719px) {
   .filter {
     min-height: var(--control-height);
+  }
+
+  /* One row of chips that scrolls sideways inside the card. */
+  .legendArea > .legend:first-of-type {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: calc(-1 * var(--space-3));
+    padding: 2px var(--space-3);
+    scrollbar-width: none;
+  }
+
+  .legendArea > .legend:first-of-type > li {
+    flex: none;
+  }
+}
+
+@media (max-width: 479px) {
+  .finding {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -447,6 +785,7 @@
   padding: 0;
   margin-bottom: var(--space-2);
   font-size: var(--text-sm);
+  font-weight: 600;
 }
 
 /* Checkbox with its label beside it (a native label around the input). */
@@ -467,11 +806,39 @@
   grid-column: 2;
 }
 
+/* Fine print at the foot of the map card (the boundary notice). */
+.mapFooter {
+  grid-area: footer;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-muted);
+}
+
+.mapFooterIcon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.mapFooter > p {
+  font-size: var(--text-xs);
+  max-width: none;
+}
+
 /* Side panel of the selected tree or finding. */
 .panelArea {
   grid-area: panel;
   min-width: 0;
-  scroll-margin-top: calc(var(--header-height) + 56px);
+  scroll-margin-top: calc(var(--header-height) + 64px);
+  scroll-margin-bottom: var(--space-3);
+}
+
+@media (max-width: 859px) {
+  :global([data-bottom-nav]) .panelArea {
+    scroll-margin-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
+  }
 }
 
 .mapHint {
@@ -481,26 +848,75 @@
 }
 
 .panelHint {
-  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   color: var(--color-muted);
   font-size: var(--text-sm);
 }
 
+.panelHint p {
+  margin: 0;
+}
+
 @media (min-width: 960px) {
   .panelHint {
-    padding: var(--space-3);
-    border: 1px dashed var(--color-border-strong);
-    border-radius: var(--radius-lg);
+    height: 100%;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    padding: var(--space-4);
+    border-radius: var(--radius);
+    background: var(--color-surface-2);
   }
 }
 
 .panel {
   background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-3);
   display: grid;
   gap: var(--space-3);
+  align-content: start;
+}
+
+/* Below 960px the panel rises from under the map like a bottom sheet. */
+@media (max-width: 959px) {
+  .panelArea:has(> .panel) {
+    position: relative;
+    z-index: 1;
+    margin-top: 0;
+  }
+
+  .panel {
+    position: relative;
+    padding-top: var(--space-4);
+    border-color: var(--color-border-strong);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .panel::before {
+    content: "";
+    position: absolute;
+    top: var(--space-2);
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    margin-left: -18px;
+    border-radius: var(--radius-pill);
+    background: var(--color-border-strong);
+  }
+}
+
+@media (min-width: 960px) {
+  .panel {
+    height: 100%;
+    max-height: 540px;
+    overflow-y: auto;
+    box-shadow: none;
+  }
 }
 
 .panel p {
@@ -600,20 +1016,19 @@
   overflow-wrap: anywhere;
 }
 
-/* Findings ------------------------------------------------------------------ */
+/* Findings: one card per severity, kinds inside it ------------------------ */
 
 .findingGroups {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .findingGroup {
-  display: grid;
-  gap: var(--space-2);
+  gap: 0;
 }
 
 .findingGroup > h3 {
-  margin: 0;
+  margin: 0 0 var(--space-1);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -621,22 +1036,56 @@
   font-size: var(--text-base);
 }
 
-.findingKind {
-  display: grid;
-  gap: var(--space-1);
+.findingCount {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-.findingKind > p {
+.findingKind {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.findingGroup > .findingKind {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.findingGroup > h3 + .findingKind {
+  border-top: 0;
+  padding-top: var(--space-2);
+}
+
+.findingGroup > .findingKind:last-child {
+  padding-bottom: 0;
+}
+
+.findingKind > p,
+.findingKindHead > p {
   margin: 0;
 }
 
+.findingKindHead {
+  display: grid;
+  gap: 2px;
+}
+
+.findingKindHead > p:not(.findingKindTitle) {
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+}
+
+/* A list of findings: hairline rows, code left, text right. */
 .findings {
   list-style: none;
   margin: 0;
   padding: 0;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
   background: var(--color-surface);
+  overflow: hidden;
 }
 
 .findings > li {
@@ -650,18 +1099,20 @@
 /* One finding: tree code (or "Bahçe geneli") and what was seen. */
 .finding {
   display: grid;
-  grid-template-columns: 9ch minmax(0, 1fr);
+  grid-template-columns: 10ch minmax(0, 1fr);
   align-items: baseline;
   gap: 2px var(--space-3);
   min-height: var(--control-height);
   padding: 10px var(--space-3);
   color: var(--color-text);
   text-decoration: none;
+  transition: background var(--duration-fast) var(--ease);
 }
 
 a.finding:hover {
-  background: var(--color-surface-2);
+  background: var(--color-row-hover);
   color: var(--color-text);
+  text-decoration: none;
 }
 
 a.finding:hover .findingWhere {
@@ -669,13 +1120,15 @@ a.finding:hover .findingWhere {
 }
 
 .findingWhere {
-  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--color-accent);
-  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 
 span.findingWhere {
+  font-family: inherit;
   color: var(--color-text);
 }
 
@@ -965,16 +1418,43 @@ span.findingWhere {
 @media (min-width: 880px) {
   .treeTop {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
+    align-items: stretch;
   }
+}
+
+/* Latest class: the hero of the tree card. */
+.treeStatus .className {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+}
+
+.treeStatus .className > span:first-child {
+  width: 18px;
+  height: 18px;
+}
+
+.treeStatus > p {
+  color: var(--color-text-2);
+}
+
+/* Findings of the tree: one card of rows. */
+.treeFindings {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.treeFindings .treeFinding {
+  padding: var(--space-3) 20px;
 }
 
 .timeline {
   display: flex;
   gap: var(--space-1);
   list-style: none;
-  padding: 0 0 var(--space-1);
   margin: 0;
+  padding: var(--space-2) 0 var(--space-1);
+  border-top: 1px solid var(--color-border);
   overflow-x: auto;
 }
 
@@ -1009,6 +1489,7 @@ span.findingWhere {
 .photoRow > h3 {
   margin: 0;
   font-size: var(--text-base);
+  font-weight: 650;
 }
 
 .photoCells {
@@ -1107,7 +1588,6 @@ span.findingWhere {
 
 @media print {
   .noPrint,
-  .sectionNav,
   .controls,
   .legendArea {
     display: none !important;
@@ -1115,7 +1595,24 @@ span.findingWhere {
 
   .explorer {
     grid-template-columns: 1fr;
-    grid-template-areas: "map";
+    grid-template-areas:
+      "map"
+      "footer";
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .summary,
+  .attention,
+  .change,
+  .findingGroup {
+    box-shadow: none;
+    break-inside: avoid;
   }
 
   .map {
@@ -1167,7 +1664,8 @@ span.findingWhere {
   padding-left: 18px;
 }
 
-/* Tree codes of findings with the same text. */
+/* Tree codes of findings with the same text: chips that open the tree card
+   (44px targets on a phone). */
 .codeList {
   list-style: none;
   margin: 0;
@@ -1181,41 +1679,69 @@ span.findingWhere {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 64px;
+  min-width: 60px;
   min-height: var(--control-height);
   padding: 0 var(--space-3);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  background: var(--color-surface);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
 }
 
 .codeChip:hover {
-  background: var(--color-surface-2);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+@media (min-width: 720px) {
+  .codeChip {
+    min-height: 36px;
+  }
+
+  .codeListCompact .codeChip {
+    min-height: 32px;
+    min-width: 52px;
+    padding: 0 var(--space-2);
+  }
+}
+
+.codeListCompact {
+  gap: 6px;
 }
 
 .codeMore {
   align-self: center;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
 }
 
-/* The overview: score on the left, classes on the right on a desktop. */
-.overview {
+/* Boundary and inventory inside "Karne". */
+.boundaryGroup {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 @media (min-width: 960px) {
-  .overview {
+  .boundaryGroup:has(> :nth-child(2)) {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: var(--space-5);
+    align-items: start;
   }
+}
 
-  .overview .counts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.inventoryPanel h2 {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 650;
 }
 
 /* Visit history: fits a phone without scrolling; the methodology column
@@ -1235,4 +1761,62 @@ table.history td:first-child {
   table.history .wide {
     display: none;
   }
+}
+
+/* A card holding a list and, under a hairline, its form (questions,
+   co-owners). */
+.stackCard {
+  gap: 0;
+}
+
+.stackCard > * + * {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.stackCard > form {
+  max-width: none;
+}
+
+.stackCard > form > * {
+  max-width: 640px;
+}
+
+.stackCard > form h3 {
+  font-size: var(--text-base);
+  font-weight: 650;
+}
+
+/* "Henüz soru yok": one quiet line instead of an empty-state block. */
+.emptyLine {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.emptyLine > svg {
+  flex: none;
+  color: var(--color-muted);
+}
+
+/* Service offers in "Ziyaretler": rows in one card, not cards in a card
+   (the offer markup is components/services; only its frame is tuned). */
+.offers:empty {
+  display: none;
+}
+
+.offers [data-testid="service-offer"] {
+  padding: var(--space-3) 0 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  background: none;
+}
+
+.offers [data-testid="service-offer"]:first-child {
+  padding-top: 0;
+  border-top: 0;
 }

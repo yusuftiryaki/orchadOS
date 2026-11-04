@@ -14,8 +14,9 @@ import { AskQuestionForm, QuestionNotice, QuestionThreads } from "./question-thr
 import { Badge, ClassBadge, ClassDot } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Facts } from "@/components/ui/facts";
+import { IconCamera360 } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/page-header";
-import { Panel } from "@/components/ui/panel";
+import { Panel, panelClass } from "@/components/ui/panel";
 import { Table } from "@/components/ui/table";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
@@ -52,13 +53,14 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
             href={`${base}/gezi?agac=${tree.id}`}
             className={styles.noPrint}
           >
+            <IconCamera360 size={18} />
             {t.portal.panel.openTour}
           </ButtonLink>
         }
       />
 
       <div className={styles.treeTop}>
-        <Panel title={c.latest} id="durum">
+        <Panel title={c.latest} id="durum" className={styles.treeStatus}>
           {latest ? (
             <>
               <div className={styles.classLine}>
@@ -122,12 +124,14 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
         </Panel>
       </div>
 
-      <section className={layout.section} aria-labelledby="bulgu-baslik">
-        <h2 id="bulgu-baslik">{c.findings}</h2>
+      <section className={styles.group} aria-labelledby="bulgu-baslik">
+        <div className={styles.groupHead}>
+          <h2 id="bulgu-baslik">{c.findings}</h2>
+        </div>
         {card.findings.length === 0 ? (
           <p className="muted">{c.noFindings}</p>
         ) : (
-          <ul className={styles.findings} data-testid="tree-findings">
+          <ul className={`${styles.findings} ${styles.treeFindings}`} data-testid="tree-findings">
             {card.findings.map((f) => (
               <li key={f.id}>
                 <div className={styles.treeFinding}>
@@ -152,8 +156,10 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
       <Photos card={card} />
 
       {card.classHistory.length > 0 && (
-        <section className={layout.section} aria-labelledby="gecmis-baslik">
-          <h2 id="gecmis-baslik">{c.classHistory}</h2>
+        <section className={styles.group} aria-labelledby="gecmis-baslik">
+          <div className={styles.groupHead}>
+            <h2 id="gecmis-baslik">{c.classHistory}</h2>
+          </div>
           <Table data-testid="class-history">
             <thead>
               <tr>
@@ -182,8 +188,10 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
         </section>
       )}
 
-      <section className={layout.section} aria-labelledby="olcum-baslik">
-        <h2 id="olcum-baslik">{c.measurements}</h2>
+      <section className={styles.group} aria-labelledby="olcum-baslik">
+        <div className={styles.groupHead}>
+          <h2 id="olcum-baslik">{c.measurements}</h2>
+        </div>
         {card.metrics.length === 0 ? (
           <p className="muted">{c.noMeasurements}</p>
         ) : (
@@ -212,37 +220,42 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
         )}
       </section>
 
-      <section id="sorular" className={layout.section} aria-labelledby="soru-baslik">
-        <h2 id="soru-baslik">{t.portal.questions.title}</h2>
-        <p className={layout.sectionLead}>{t.portal.questions.treeHint}</p>
+      <section id="sorular" className={styles.group} aria-labelledby="soru-baslik">
+        <div className={styles.groupHead}>
+          <h2 id="soru-baslik">{t.portal.questions.title}</h2>
+          <p className={styles.groupLead}>{t.portal.questions.treeHint}</p>
+        </div>
         <QuestionNotice sent={questions.sent} error={questions.error} />
-        <QuestionThreads
-          threads={questions.threads}
-          returnPath={`${base}/agac/${tree.id}`}
-          replyAction={replyQuestionAction}
-          editAction={editQuestionAction}
-          demo={questions.demo}
-          readOnly={questions.readOnly}
-        />
-        <AskQuestionForm
-          demo={questions.demo}
-          readOnly={questions.readOnly}
-          parcelId={card.parcel.id}
-          treeId={tree.id}
-          returnPath={`${base}/agac/${tree.id}`}
-          action={askQuestionAction}
-          title={t.portal.questions.ask}
-          targets={[
-            { value: "tree", label: t.portal.questions.targetTree },
-            ...card.findings.map((f) => ({
-              value: `finding:${f.id}`,
-              label: t.portal.questions.targetFinding(
-                findingKindLabel(f.kind),
-                formatDate(f.visitTime),
-              ),
-            })),
-          ]}
-        />
+        <div className={`${panelClass} ${styles.stackCard}`}>
+          <QuestionThreads
+            threads={questions.threads}
+            returnPath={`${base}/agac/${tree.id}`}
+            replyAction={replyQuestionAction}
+            editAction={editQuestionAction}
+            demo={questions.demo}
+            readOnly={questions.readOnly}
+            compactEmpty
+          />
+          <AskQuestionForm
+            demo={questions.demo}
+            readOnly={questions.readOnly}
+            parcelId={card.parcel.id}
+            treeId={tree.id}
+            returnPath={`${base}/agac/${tree.id}`}
+            action={askQuestionAction}
+            title={t.portal.questions.ask}
+            targets={[
+              { value: "tree", label: t.portal.questions.targetTree },
+              ...card.findings.map((f) => ({
+                value: `finding:${f.id}`,
+                label: t.portal.questions.targetFinding(
+                  findingKindLabel(f.kind),
+                  formatDate(f.visitTime),
+                ),
+              })),
+            ]}
+          />
+        </div>
       </section>
     </main>
   );
@@ -288,19 +301,25 @@ function MetricCell({ value }: { value: TreeMetricHistory["values"][number] }) {
 function Photos({ card }: { card: TreeCard }) {
   const visits = card.visits.filter((v) => card.photos[v.id]?.length);
   return (
-    <section className={layout.section} aria-labelledby="foto-baslik">
-      <h2 id="foto-baslik">{c.photos}</h2>
+    <section className={styles.group} aria-labelledby="foto-baslik">
+      <div className={styles.groupHead}>
+        <h2 id="foto-baslik">{c.photos}</h2>
+        {visits.length > 0 && <p className={styles.groupLead}>{c.photosHint}</p>}
+      </div>
       {visits.length === 0 ? (
         <p className="muted">{c.noPhotos}</p>
       ) : (
         <>
-          <p className={layout.sectionLead}>{c.photosHint}</p>
           <div className={styles.photoGrid} data-testid="photo-history">
             {visits.map((visit) => {
               const items = card.photos[visit.id];
               const closeUps = items.filter((p) => p.direction === null);
               return (
-                <div key={visit.id} className={styles.photoRow} data-visit-id={visit.id}>
+                <div
+                  key={visit.id}
+                  className={`${panelClass} ${styles.photoRow}`}
+                  data-visit-id={visit.id}
+                >
                   <h3>{formatDate(visit.time)}</h3>
                   <div
                     className={styles.photoCells}

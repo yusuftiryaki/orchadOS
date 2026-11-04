@@ -12,7 +12,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { statusTone } from "@/components/ui/status";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
+import { IconUsers } from "@/components/ui/icons";
 import { panelClass } from "@/components/ui/panel";
 import { Checkbox, Field, Input } from "@/components/ui/field";
 import layout from "./page.module.css";
@@ -51,12 +51,14 @@ export function ViewersCard({
   return (
     <section
       id="hissedarlar"
-      className={`${layout.section} ${styles.noPrint}`}
+      className={`${styles.group} ${styles.noPrint}`}
       aria-labelledby="hissedar-baslik"
       data-testid="viewers-card"
     >
-      <h2 id="hissedar-baslik">{v.title}</h2>
-      <p className={layout.sectionLead}>{v.hint}</p>
+      <div className={styles.groupHead}>
+        <h2 id="hissedar-baslik">{v.title}</h2>
+        <p className={styles.groupLead}>{v.hint}</p>
+      </div>
       {notice && (
         <Alert tone="success" role="status">
           <p>{notice}</p>
@@ -67,12 +69,15 @@ export function ViewersCard({
           <p>{error}</p>
         </Alert>
       )}
-      {viewers.entries.length === 0 ? (
-        <EmptyState title={v.empty} headingLevel={3}>
-          <p>{v.emptyBody}</p>
-        </EmptyState>
-      ) : (
-        <div className={panelClass}>
+      <div className={`${panelClass} ${styles.stackCard}`}>
+        {viewers.entries.length === 0 ? (
+          <p className={styles.emptyLine}>
+            <IconUsers size={20} />
+            <span>
+              <strong>{v.empty}</strong> <span className="muted">{v.emptyBody}</span>
+            </span>
+          </p>
+        ) : (
           <ul className={layout.rows} data-testid="viewer-list">
             {viewers.entries.map((entry) => (
               <li key={`${entry.kind}:${entry.id}`} data-viewer-status={entry.status}>
@@ -92,7 +97,7 @@ export function ViewersCard({
                   <form action={removeViewerAction} className={styles.inlineForm}>
                     <input type="hidden" name="parcelId" value={parcelId} />
                     <input type="hidden" name="id" value={entry.id} />
-                    <Button variant="danger" type="submit">
+                    <Button variant="danger" size="sm" type="submit">
                       {v.remove}
                     </Button>
                   </form>
@@ -100,7 +105,7 @@ export function ViewersCard({
                   <form action={cancelInvitationAction} className={styles.inlineForm}>
                     <input type="hidden" name="parcelId" value={parcelId} />
                     <input type="hidden" name="id" value={entry.id} />
-                    <Button variant="secondary" type="submit">
+                    <Button variant="secondary" size="sm" type="submit">
                       {v.cancel}
                     </Button>
                   </form>
@@ -108,41 +113,43 @@ export function ViewersCard({
               </li>
             ))}
           </ul>
-        </div>
-      )}
-      {demo ? (
-        <DemoNotice text={demoText.closed.viewers} />
-      ) : readOnly ? (
-        <p className="muted" data-testid="viewers-read-only">
-          {portalBillingText.removal.readOnlyViewers}
-        </p>
-      ) : (
-        <form action={inviteViewerAction} className={styles.form} data-testid="invite-viewer">
-          <h3>{v.inviteTitle}</h3>
-          <input type="hidden" name="parcelId" value={parcelId} />
-          <div className={styles.formRow}>
-            <Field id={`viewer-name-${parcelId}`} label={v.name}>
-              <Input name="name" required maxLength={120} autoComplete="off" />
-            </Field>
-            <Field id={`viewer-phone-${parcelId}`} label={v.phone}>
-              <Input name="phone" type="tel" required maxLength={20} autoComplete="off" />
-            </Field>
-          </div>
-          {viewers.declarationRequired && (
-            <div data-testid="viewer-declaration">
-              <Checkbox
-                id={`viewer-declared-${parcelId}`}
-                name="declared"
-                required
-                label={VIEWER_DECLARATION}
-              />
+        )}
+        {demo ? (
+          <DemoNotice text={demoText.closed.viewers} />
+        ) : readOnly ? (
+          <p className="muted" data-testid="viewers-read-only">
+            {portalBillingText.removal.readOnlyViewers}
+          </p>
+        ) : (
+          <form action={inviteViewerAction} className={styles.form} data-testid="invite-viewer">
+            <h3>{v.inviteTitle}</h3>
+            <input type="hidden" name="parcelId" value={parcelId} />
+            <div className={styles.formRow}>
+              <Field id={`viewer-name-${parcelId}`} label={v.name}>
+                <Input name="name" required maxLength={120} autoComplete="off" />
+              </Field>
+              <Field id={`viewer-phone-${parcelId}`} label={v.phone}>
+                <Input name="phone" type="tel" required maxLength={20} autoComplete="off" />
+              </Field>
             </div>
-          )}
-          <div className={styles.formActions}>
-            <Button type="submit">{v.invite}</Button>
-          </div>
-        </form>
-      )}
+            {viewers.declarationRequired && (
+              <div data-testid="viewer-declaration">
+                <Checkbox
+                  id={`viewer-declared-${parcelId}`}
+                  name="declared"
+                  required
+                  label={VIEWER_DECLARATION}
+                />
+              </div>
+            )}
+            <div className={styles.formActions}>
+              <Button variant="secondary" type="submit">
+                {v.invite}
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
     </section>
   );
 }

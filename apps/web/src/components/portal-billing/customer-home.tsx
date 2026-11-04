@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import layout from "@/components/portal/page.module.css";
 import { ButtonLink } from "@/components/ui/button";
+import { IconAlert, IconClipboard } from "@/components/ui/icons";
 import { Panel } from "@/components/ui/panel";
 import { formatKurus } from "@/lib/billing/money";
 import { formatDate } from "@/lib/i18n";
@@ -121,10 +122,13 @@ export function CustomerHome({
 
   if (tasks.length === 0 && !period && !start) return children ?? null;
   return (
-    <div className={styles.top} data-has-parcels={hasParcels || undefined}>
+    <div
+      className={period ? `${styles.top} ${styles.withAside}` : styles.top}
+      data-has-parcels={hasParcels || undefined}
+    >
       <div className={styles.main}>
         {tasks.length > 0 && (
-          <Panel title={H.tasksTitle} plain id="tasks">
+          <Panel title={H.tasksTitle} id="tasks" className={styles.tasksPanel}>
             <ul className={styles.tasks}>
               {tasks.map((task, i) => (
                 <li
@@ -132,6 +136,9 @@ export function CustomerHome({
                   className={task.yours ? styles.task : `${styles.task} ${styles.taskOurs}`}
                   data-testid={task.testId}
                 >
+                  <span className={styles.taskIcon} aria-hidden>
+                    {task.yours ? <IconAlert size={18} /> : <IconClipboard size={18} />}
+                  </span>
                   <div className={styles.taskText}>
                     <h3>{task.title}</h3>
                     <p>{task.body}</p>
@@ -139,6 +146,7 @@ export function CustomerHome({
                   <ButtonLink
                     href={task.href}
                     variant={i === primary ? "primary" : task.yours ? "secondary" : "quiet"}
+                    className={styles.taskAction}
                   >
                     {task.action}
                   </ButtonLink>
@@ -149,7 +157,7 @@ export function CustomerHome({
         )}
         {start}
         {children && tasks.length > 0 ? (
-          <Panel title={H.gardensTitle} plain id="gardens">
+          <Panel title={H.gardensTitle} plain id="gardens" className={styles.gardensBlock}>
             {children}
           </Panel>
         ) : (

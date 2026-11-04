@@ -1,29 +1,34 @@
-/* "Bahçelerim": one row per garden. Phone: stacked blocks. Desktop: who and
-   where | how it is | what needs attention. The whole row opens the report
-   card (the button's hit area is stretched over the row). */
+/* "Bahçelerim": a grid of garden cards. Each card: who and where with its
+   badges, how it is (score, last visit, class bar and counts) and one
+   "Karneyi aç" button whose hit area is stretched over the card. */
 
 .gardens {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: var(--space-3);
-  container-type: inline-size;
 }
 
 .garden {
   position: relative;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-3);
+  padding: 20px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  transition: border-color var(--duration-fast) var(--ease);
+  box-shadow: var(--shadow-card);
+  transition:
+    border-color var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
 }
 
 .garden:hover {
   border-color: var(--color-border-strong);
+  box-shadow: var(--shadow);
 }
 
 .garden:has(.open:focus-visible) {
@@ -34,36 +39,110 @@
   margin: 0;
 }
 
-.identity,
-.condition {
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.identity {
   display: grid;
-  gap: var(--space-1);
-  align-content: start;
+  gap: 2px;
   min-width: 0;
+  flex: 1 1 18ch;
 }
 
 .name {
-  margin: 0;
-  font-size: var(--text-xl);
-  font-weight: 800;
+  margin: 0 0 2px;
+  font-size: var(--text-lg);
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
+.place {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+}
+
+.place > svg {
+  flex: none;
+  color: var(--color-muted);
+}
+
+.size {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+/* How the garden is: a soft block so the numbers read as one unit. */
 .condition {
+  display: grid;
   gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-surface-2);
+  flex: 1 1 auto;
+}
+
+.conditionTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.conditionTop > p:first-child {
+  flex: 1 1 0;
+  min-width: 12ch;
+}
+
+.lastVisit {
+  flex: none;
+}
+
+/* The score in the card: big but not the report's hero size. */
+.conditionTop [data-testid="health-score"] {
+  font-size: var(--text-3xl);
+}
+
+.lastVisit {
+  display: grid;
+  justify-items: end;
+  gap: 0;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  text-align: right;
+}
+
+.lastVisit strong {
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .noVisit {
-  font-weight: 700;
+  font-weight: 650;
 }
 
-.attention {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+.noVisitBody {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
 }
 
-/* Stretched link: the row is one big target. */
+/* Stretched link: the card is one big target. */
 .open::after {
   content: "";
   position: absolute;
@@ -81,7 +160,7 @@
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-3);
+  gap: 2px var(--space-3);
   font-size: var(--text-sm);
   color: var(--color-text-2);
 }
@@ -97,23 +176,52 @@
   font-variant-numeric: tabular-nums;
 }
 
-@container (max-width: 599px) {
-  .attention > .open {
-    flex: 1 1 100%;
+/* A card as wide as the page (one garden): who | how | open, in a row. */
+@media (min-width: 900px) {
+  .gardens:has(> .garden:only-child) .garden {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+    align-items: center;
+    gap: var(--space-5);
+    padding: var(--space-4);
+  }
+
+  .gardens:has(> .garden:only-child) .head {
+    align-self: start;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .gardens:has(> .garden:only-child) .identity {
+    flex: none;
+  }
+
+  .gardens:has(> .garden:only-child) .badges {
+    justify-content: flex-start;
+  }
+
+  .gardens:has(> .garden:only-child) .open {
+    width: auto;
   }
 }
 
-@container (min-width: 680px) {
-  .garden {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto;
-    align-items: start;
-    gap: var(--space-4);
-    padding: var(--space-4);
-  }
-  .attention {
-    flex-direction: column;
-    align-items: end;
-  }
+.services:empty {
+  display: none;
+}
+
+/* Service offers on the home: rows in one card, not cards in a card (the
+   offer markup is components/services; only its frame is tuned here). */
+.services [data-testid="service-offer"] {
+  padding: var(--space-3) 0 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  background: none;
+}
+
+.services [data-testid="service-offer"]:first-child {
+  padding-top: 0;
+  border-top: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

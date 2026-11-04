@@ -13,14 +13,23 @@ import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import { StatusBadge } from "@/components/portal-billing/status-badge";
 import s from "@/components/portal-billing/billing.module.css";
+import {
+  DetailHeader,
+  DetailLayout,
+  Lifecycle,
+  Section,
+  SummaryCard,
+  Timeline,
+  workClass as w,
+  type FlowNote,
+} from "@/components/portal-billing/workspace";
 import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { factsClass } from "@/components/ui/facts";
 import { Checkbox, Field, Select, Textarea } from "@/components/ui/field";
-import { PageHeader } from "@/components/ui/page-header";
-import { Panel, panelClass } from "@/components/ui/panel";
+import { IconFileText, IconPackage, IconTree } from "@/components/ui/icons";
 import { requireSection } from "@/lib/auth/session";
 import { formatDonum, formatKurus } from "@/lib/billing/money";
 import { formatDate, formatDateTime } from "@/lib/i18n";
@@ -43,6 +52,7 @@ import { createClient } from "@/lib/supabase/server";
 
 const A = P.application;
 const M = P.membership;
+const W = P.work;
 const MAX_GARDENS = 10;
 
 const vatPercent = (bp: number) => String(bp / 100).replace(".", ",");
@@ -140,18 +150,38 @@ export default async function ApplicationPage({
     </ButtonLink>
   );
 
+  // Where the application stands on the way to service (none once it is
+  // closed without an order).
+  const flow: { current: number; note: FlowNote } | null =
+    application.status === "draft"
+      ? { current: 0, note: "draft" }
+      : application.status === "submitted"
+        ? { current: 1, note: "review" }
+        : application.status === "quoted"
+          ? { current: 1, note: openQuote ? "decide" : "review" }
+          : application.status === "accepted"
+            ? { current: 2, note: "pay" }
+            : null;
+  const declared = active.reduce((sum, g) => sum + Number(g.declared_area_m2), 0);
+  const canSubmit = draft && !closed && gardens.length > 0;
+  const submitForm = canSubmit && (
+    <form action={submitApplicationAction} className={w.formTight}>
+      <input type="hidden" name="application_id" value={application.id} />
+      <button className="button button-block" type="submit">
+        {A.submit}
+      </button>
+      <p className={w.fine}>{A.submitHint}</p>
+    </form>
+  );
+
   return (
-    <main
-      className={`${layout.page} ${layout.reading}`}
-      data-testid="application"
-      data-status={application.status}
-    >
-      <PageHeader
+    <main className={layout.page} data-testid="application" data-status={application.status}>
+      <DetailHeader
         title={<NumberedTitle text={A.title(application.number)} number={application.number} />}
-        lead={P.applications.next[application.status]}
-        meta={
+        badges={
           <StatusBadge kind="application" status={application.status} testId="application-status" />
         }
+        lead={P.applications.next[application.status]}
         back={{ href: portalHref.applications(), label: P.applications.title }}
         actions={
           openQuote && (
@@ -165,6 +195,7 @@ export default async function ApplicationPage({
           <p>{A.rejected(billingText.rejectionReason[application.rejection_reason])}</p>
         </Alert>
       )}
+      {flow && <Lifecycle current={flow.current} note={flow.note} />}
 
       {member && <MemberBand period={member} parcels={parcels} />}
       {closed && (
@@ -173,81 +204,201 @@ export default async function ApplicationPage({
         </Alert>
       )}
 
-      <Panel title={A.package} plain>
-        {draft && closed ? (
-          <p data-testid="application-package">{pkg?.name ?? P.none}</p>
-        ) : draft && member && !memberPackage ? (
-          <Alert tone="info" testId="addon-package-unavailable">
-            {M.packageUnavailable}
-          </Alert>
-        ) : draft ? (
-          <form action={setPackageAction} className={`${panelClass} ${s.form}`}>
-            <input type="hidden" name="application_id" value={application.id} />
-            {memberPackage && (
-              <input type="hidden" name="package_id" value={memberPackage.packageId} />
+      <DetailLayout
+        end={
+          open && (
+            <form action={withdrawApplicationAction} className={w.danger}>
+              <input type="hidden" name="application_id" value={application.id} />
+              <div className={w.dangerRow}>
+                <div>
+                  <p className={w.dangerTitle}>{W.dangerTitle}</p>
+                  <p className={w.fine}>{A.withdrawConfirm}</p>
+                </div>
+                <Button variant="secondary" className={w.dangerButton} type="submit">
+                  {A.withdraw}
+                </Button>
+              </div>
+            </form>
+          )
+        }
+        aside={
+          <>
+            {wantsPreview ? (
+              <SummaryCard
+                id="price-preview"
+                title={A.preview}
+                testId="price-preview"
+                footer={submitForm || undefined}
+              >
+                {previewError === "addon_period_too_short" || previewError === "no_membership" ? (
+                  <Alert tone="info" testId="addon-too-short">
+                    {M.periodTooShort}
+                  </Alert>
+                ) : previewError ? (
+                  <Alert tone="warning">{P.errors[previewError]}</Alert>
+                ) : preview ? (
+                  <>
+                    {preview.addon && (
+                      <p className={w.fine} data-testid="addon-preview">
+                        {M.addonPreview(
+                          formatDate(preview.addon.serviceStart),
+                          formatDate(preview.addon.serviceEnd),
+                          preview.addon.visits,
+                          preview.addon.visitsPerYear,
+                        )}
+                      </p>
+                    )}
+                    <dl className={factsClass.summary}>
+                      {preview.lines.map((line) => (
+                        <FactRow
+                          key={line.lineNo}
+                          label={`${active[line.lineNo - 1]?.name ?? A.line(line.lineNo)}, ${formatDonum(line.areaM2)}`}
+                        >
+                          {formatKurus(line.subtotalKurus)}
+                        </FactRow>
+                      ))}
+                      <FactRow label={A.subtotal}>{formatKurus(preview.subtotalKurus)}</FactRow>
+                      <FactRow label={A.vat(vatPercent(preview.vatRateBp))}>
+                        {formatKurus(preview.vatKurus)}
+                      </FactRow>
+                      <FactRow label={A.total} testId="preview-total" total>
+                        {formatKurus(preview.totalKurus)}
+                      </FactRow>
+                    </dl>
+                    <p className={w.fine}>{A.previewNote}</p>
+                  </>
+                ) : (
+                  <p className={w.fine}>{A.previewNone}</p>
+                )}
+              </SummaryCard>
+            ) : (
+              <SummaryCard id="application-summary" title={W.summary}>
+                <div className={w.kv}>
+                  <span>{A.package}</span>
+                  <span>{pkg?.name ?? P.none}</span>
+                </div>
+                <div className={w.kv}>
+                  <span>{A.gardens}</span>
+                  <span>{W.gardens(active.length)}</span>
+                </div>
+                {declared > 0 && (
+                  <div className={w.kv}>
+                    <span>{A.area}</span>
+                    <span>{formatDonum(declared)}</span>
+                  </div>
+                )}
+                <div className={w.kv}>
+                  <span>{W.created}</span>
+                  <span>{formatDate(application.created_at)}</span>
+                </div>
+                {openQuote && (
+                  <div className={w.figure}>
+                    <p className={w.figureLabel}>{A.quoteNumber(openQuote.number)}</p>
+                    <p className={w.figureValue}>
+                      {formatKurus(openQuote.total_kurus, openQuote.currency)}
+                    </p>
+                    <p className={w.figureNote}>
+                      {`${P.quote.validUntil}: ${formatDate(openQuote.valid_until)}`}
+                    </p>
+                  </div>
+                )}
+              </SummaryCard>
             )}
-            <div className={s.grid}>
-              <Field
-                id="f-package_id"
-                label={A.package}
-                hint={memberPackage ? M.packageLocked : undefined}
-              >
-                <Select
-                  name={memberPackage ? "package_locked" : "package_id"}
-                  defaultValue={memberPackage?.packageId ?? application.package_id ?? ""}
-                  disabled={!!memberPackage}
-                  data-testid="package-select"
-                  required
-                >
-                  {(memberPackage ? [memberPackage] : packages).map((p) => (
-                    <option key={p.packageId} value={p.packageId}>
-                      {`${p.name}, ${P.newApplication.visits(p.periodicVisitsPerYear).toLocaleLowerCase("tr")}`}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field
-                id="f-customer_note"
-                label={A.customerNote}
-                hint={A.customerNoteHint}
-                optional={P.optional}
-                className={s.wide}
-              >
-                <Textarea
-                  name="customer_note"
-                  rows={2}
-                  maxLength={1000}
-                  defaultValue={application.customer_note ?? ""}
-                />
-              </Field>
-            </div>
-            <div className={layout.actions}>
-              <Button variant="secondary" type="submit">
-                {memberPackage ? P.save : A.changePackage}
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <p data-testid="application-package">{pkg?.name ?? P.none}</p>
-        )}
-      </Panel>
-
-      <Panel
-        title={A.gardens}
-        plain
-        actions={canAddGarden && gardens.length > 0 && addGarden("secondary")}
+          </>
+        }
       >
-        {gardens.length === 0 ? (
-          <EmptyState
-            title={A.noGardens}
-            headingLevel={3}
-            action={canAddGarden && addGarden("primary")}
-          >
-            <p>{A.gardensEmptyBody}</p>
-          </EmptyState>
-        ) : (
-          <div className={panelClass}>
-            <ul className={layout.rows} data-testid="garden-table">
+        <Section title={A.package} id="application-package">
+          {draft && closed ? (
+            <p className={w.surface} data-testid="application-package">
+              {pkg?.name ?? P.none}
+            </p>
+          ) : draft && member && !memberPackage ? (
+            <Alert tone="info" testId="addon-package-unavailable">
+              {M.packageUnavailable}
+            </Alert>
+          ) : draft ? (
+            <form action={setPackageAction} className={w.formCard}>
+              <input type="hidden" name="application_id" value={application.id} />
+              {memberPackage && (
+                <input type="hidden" name="package_id" value={memberPackage.packageId} />
+              )}
+              <div className={w.formCardBody}>
+                <Field
+                  id="f-package_id"
+                  label={A.package}
+                  hint={memberPackage ? M.packageLocked : undefined}
+                >
+                  <Select
+                    name={memberPackage ? "package_locked" : "package_id"}
+                    defaultValue={memberPackage?.packageId ?? application.package_id ?? ""}
+                    disabled={!!memberPackage}
+                    data-testid="package-select"
+                    required
+                  >
+                    {(memberPackage ? [memberPackage] : packages).map((p) => (
+                      <option key={p.packageId} value={p.packageId}>
+                        {`${p.name}, ${P.newApplication.visits(p.periodicVisitsPerYear).toLocaleLowerCase("tr")}`}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field
+                  id="f-customer_note"
+                  label={A.customerNote}
+                  hint={A.customerNoteHint}
+                  optional={P.optional}
+                >
+                  <Textarea
+                    name="customer_note"
+                    rows={2}
+                    maxLength={1000}
+                    defaultValue={application.customer_note ?? ""}
+                  />
+                </Field>
+              </div>
+              <div className={w.formCardFooter}>
+                <Button variant="secondary" type="submit">
+                  {memberPackage ? P.save : A.changePackage}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className={w.item}>
+              <div className={w.withTile}>
+                <span className={w.tile}>
+                  <IconPackage />
+                </span>
+                <div className={w.rowBody}>
+                  <p className={w.rowTitle} data-testid="application-package">
+                    {pkg?.name ?? P.none}
+                  </p>
+                  {pkg && (
+                    <p className={w.rowMeta}>
+                      {P.newApplication.visits(pkg.periodicVisitsPerYear)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </Section>
+
+        <Section
+          title={A.gardens}
+          id="application-gardens"
+          actions={canAddGarden && gardens.length > 0 && addGarden("secondary")}
+        >
+          {gardens.length === 0 ? (
+            <EmptyState
+              title={A.noGardens}
+              headingLevel={3}
+              compact
+              action={canAddGarden && addGarden("primary")}
+            >
+              <p>{A.gardensEmptyBody}</p>
+            </EmptyState>
+          ) : (
+            <ul className={w.rows} data-testid="garden-table">
               {gardens.map((g) => {
                 const place = [g.village, g.district, g.province].filter(Boolean).join(", ");
                 return (
@@ -257,38 +408,43 @@ export default async function ApplicationPage({
                     data-withdrawn={g.withdrawn_at ? "1" : undefined}
                     className={g.withdrawn_at ? s.withdrawn : undefined}
                   >
-                    <div className={layout.rowMain}>
-                      <strong>{g.name}</strong>
-                      <span className={layout.small}>
-                        <span data-testid="garden-species">{speciesName(g.species)}</span>
-                        {", "}
-                        {place || P.none}
-                        {", "}
-                        {g.boundary ? A.boundaryDrawn : A.noBoundary}
+                    <div className={w.withTile}>
+                      <span className={w.tile}>
+                        <IconTree />
                       </span>
-                      <span className={s.meta}>
-                        <span className={s.nowrap}>
-                          {A.declaredArea(formatDonum(Number(g.declared_area_m2)))}
-                        </span>
-                        {!draft && g.verified_area_m2 != null && (
-                          <>
-                            {", "}
-                            <span className={s.nowrap}>
-                              {A.verifiedAreaText(formatDonum(Number(g.verified_area_m2)))}
-                            </span>
-                          </>
+                      <div className={w.rowBody}>
+                        <p className={w.rowTitle}>{g.name}</p>
+                        <p className={w.rowMeta}>
+                          <span data-testid="garden-species">{speciesName(g.species)}</span>
+                          {" · "}
+                          {place || P.none}
+                          {" · "}
+                          {g.boundary ? A.boundaryDrawn : A.noBoundary}
+                        </p>
+                        <p className={w.rowMeta}>
+                          <span className={s.nowrap}>
+                            {A.declaredArea(formatDonum(Number(g.declared_area_m2)))}
+                          </span>
+                          {!draft && g.verified_area_m2 != null && (
+                            <>
+                              {" · "}
+                              <span className={s.nowrap}>
+                                {A.verifiedAreaText(formatDonum(Number(g.verified_area_m2)))}
+                              </span>
+                            </>
+                          )}
+                        </p>
+                        {g.withdrawn_at && (
+                          <span>
+                            <StatusBadge kind="removal" status="completed">
+                              {A.withdrawn}
+                            </StatusBadge>
+                          </span>
                         )}
-                      </span>
-                      {g.withdrawn_at && (
-                        <span>
-                          <StatusBadge kind="removal" status="completed">
-                            {A.withdrawn}
-                          </StatusBadge>
-                        </span>
-                      )}
+                      </div>
                     </div>
                     {draft && (
-                      <div className={s.rowActions}>
+                      <div className={w.rowEnd}>
                         <ButtonLink
                           variant="secondary"
                           size="sm"
@@ -330,122 +486,56 @@ export default async function ApplicationPage({
                 );
               })}
             </ul>
-          </div>
-        )}
-      </Panel>
-
-      {wantsPreview && (
-        <Panel title={A.preview} plain testId="price-preview">
-          {previewError === "addon_period_too_short" || previewError === "no_membership" ? (
-            <Alert tone="info" testId="addon-too-short">
-              {M.periodTooShort}
-            </Alert>
-          ) : previewError ? (
-            <Alert tone="warning">{P.errors[previewError]}</Alert>
-          ) : preview ? (
-            <div className={panelClass}>
-              {preview.addon && (
-                <p data-testid="addon-preview">
-                  {M.addonPreview(
-                    formatDate(preview.addon.serviceStart),
-                    formatDate(preview.addon.serviceEnd),
-                    preview.addon.visits,
-                    preview.addon.visitsPerYear,
-                  )}
-                </p>
-              )}
-              <dl className={factsClass.summary}>
-                {preview.lines.map((line) => (
-                  <FactRow
-                    key={line.lineNo}
-                    label={`${active[line.lineNo - 1]?.name ?? A.line(line.lineNo)}, ${formatDonum(line.areaM2)}`}
-                  >
-                    {formatKurus(line.subtotalKurus)}
-                  </FactRow>
-                ))}
-                <FactRow label={A.subtotal}>{formatKurus(preview.subtotalKurus)}</FactRow>
-                <FactRow label={A.vat(vatPercent(preview.vatRateBp))}>
-                  {formatKurus(preview.vatKurus)}
-                </FactRow>
-                <FactRow label={A.total} testId="preview-total" total>
-                  {formatKurus(preview.totalKurus)}
-                </FactRow>
-              </dl>
-              <p className={`${layout.muted} ${layout.small}`}>{A.previewNote}</p>
-            </div>
-          ) : (
-            <p className={layout.muted}>{A.previewNone}</p>
           )}
-        </Panel>
-      )}
+        </Section>
 
-      {quotes.length > 0 && (
-        <Panel title={A.quotes} plain>
-          <div className={panelClass}>
-            <ul className={layout.rows}>
+        {quotes.length > 0 && (
+          <Section title={A.quotes} id="application-quotes">
+            <ul className={w.rows}>
               {quotes.map((q) => (
                 <li key={q.id}>
-                  <div className={layout.rowMain}>
-                    <Link href={portalHref.quote(q.id)} className={s.rowTitle}>
-                      {A.quoteNumber(q.number)}
-                    </Link>
-                    {q.status === "issued" && (
-                      <span className={s.meta}>
-                        {`${P.quote.validUntil}: `}
-                        <span className={s.nowrap}>{formatDate(q.valid_until)}</span>
-                      </span>
-                    )}
+                  <div className={w.withTile}>
+                    <span className={w.tile}>
+                      <IconFileText />
+                    </span>
+                    <div className={w.rowBody}>
+                      <Link href={portalHref.quote(q.id)} className={w.rowTitle}>
+                        {A.quoteNumber(q.number)}
+                      </Link>
+                      {q.status === "issued" && (
+                        <p className={w.rowMeta}>
+                          {`${P.quote.validUntil}: `}
+                          <span className={s.nowrap}>{formatDate(q.valid_until)}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className={s.rowSide}>
+                  <div className={w.rowEnd}>
                     <StatusBadge kind="quote" status={q.status} />
                     <span className={s.amount}>{formatKurus(q.total_kurus, q.currency)}</span>
                   </div>
                 </li>
               ))}
             </ul>
-          </div>
-        </Panel>
-      )}
+          </Section>
+        )}
 
-      {!draft && (
-        <Panel title={A.timeline} plain>
-          <ol className={s.timeline} data-testid="application-timeline">
-            {events.map((e, i) => (
-              <li key={i}>
-                <time dateTime={e.at}>{formatDateTime(e.at)}</time>
-                <span>
-                  <NumberedTitle text={e.text} number={e.number ?? null} />
-                </span>
-              </li>
-            ))}
-          </ol>
-        </Panel>
-      )}
-
-      {open && (
-        <section className={s.form}>
-          {draft && !closed && gardens.length > 0 && (
-            <form action={submitApplicationAction} className={s.formTight}>
-              <input type="hidden" name="application_id" value={application.id} />
-              <p className={layout.small}>{A.submitHint}</p>
-              <div className={layout.actions}>
-                <button className="button" type="submit">
-                  {A.submit}
-                </button>
-              </div>
-            </form>
-          )}
-          <form action={withdrawApplicationAction} className={s.formTight}>
-            <input type="hidden" name="application_id" value={application.id} />
-            <div className={layout.actions}>
-              <Button variant="danger" type="submit">
-                {A.withdraw}
-              </Button>
+        {!draft && (
+          <Section title={A.timeline} id="application-history">
+            <div className={w.surface}>
+              <Timeline
+                testId="application-timeline"
+                items={events.map((e, i) => ({
+                  key: i,
+                  at: e.at,
+                  time: formatDateTime(e.at),
+                  content: <NumberedTitle text={e.text} number={e.number ?? null} />,
+                }))}
+              />
             </div>
-            <p className={`${layout.muted} ${layout.small}`}>{A.withdrawConfirm}</p>
-          </form>
-        </section>
-      )}
+          </Section>
+        )}
+      </DetailLayout>
     </main>
   );
 }

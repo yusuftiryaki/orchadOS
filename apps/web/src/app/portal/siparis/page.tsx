@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import { StatusBadge } from "@/components/portal-billing/status-badge";
-import s from "@/components/portal-billing/billing.module.css";
+import { listClass } from "@/components/portal-billing/workspace";
 import layout from "@/components/portal/page.module.css";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { panelClass } from "@/components/ui/panel";
+import { IconChevronRight } from "@/components/ui/icons";
 import { requireSection } from "@/lib/auth/session";
 import { formatKurus } from "@/lib/billing/money";
 import { formatDate } from "@/lib/i18n";
@@ -17,6 +17,7 @@ import { portalHref } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
 
 const O = P.orders;
+const W = P.work;
 
 // The customer's orders, newest first: number, state, service period, total
 // and what is paid.
@@ -38,7 +39,7 @@ export default async function OrdersPage({
         <EmptyState
           title={O.emptyTitle}
           action={
-            <ButtonLink variant="secondary" href={portalHref.applications()}>
+            <ButtonLink href={portalHref.applications()}>
               {O.emptyAction}
             </ButtonLink>
           }
@@ -46,28 +47,48 @@ export default async function OrdersPage({
           <p>{O.emptyBody}</p>
         </EmptyState>
       ) : (
-        <div className={panelClass}>
-          <ul className={layout.rows} data-testid="order-list">
-            {orders.map((o) => (
-              <li key={o.id} data-order-id={o.id}>
-                <div className={layout.rowMain}>
-                  <Link href={portalHref.order(o.id)} className={s.rowTitle}>
-                    {P.order.title(o.number)}
-                  </Link>
-                  {o.service_start && o.service_end && (
-                    <span className={s.meta}>
-                      {O.serviceText(formatDate(o.service_start), formatDate(o.service_end))}
-                    </span>
-                  )}
-                </div>
-                <div className={s.rowSide}>
-                  <StatusBadge kind="order" status={o.status} />
-                  <span className={s.amount}>{formatKurus(o.total_kurus, o.currency)}</span>
-                  <span className={s.meta}>{O.paidOf(formatKurus(o.paid_kurus, o.currency))}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
+        <div className={listClass.box}>
+          <table className={listClass.table} data-testid="order-list">
+            <thead>
+              <tr>
+                <th scope="col">{W.orderCol}</th>
+                <th scope="col">{W.statusCol}</th>
+                <th scope="col">{W.paidCol}</th>
+                <th scope="col" className={listClass.num}>
+                  {W.totalCol}
+                </th>
+                <th scope="col">
+                  <span className="sr-only">{O.open}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((o) => (
+                <tr key={o.id} data-order-id={o.id}>
+                  <td className={listClass.primary}>
+                    <Link href={portalHref.order(o.id)} className={listClass.rowLink}>
+                      {P.order.title(o.number)}
+                    </Link>
+                    {o.service_start && o.service_end && (
+                      <span className={listClass.sub}>
+                        {O.serviceText(formatDate(o.service_start), formatDate(o.service_end))}
+                      </span>
+                    )}
+                  </td>
+                  <td className={listClass.status}>
+                    <StatusBadge kind="order" status={o.status} />
+                  </td>
+                  <td className={listClass.muted} data-label={W.paidCol}>
+                    {formatKurus(o.paid_kurus, o.currency)}
+                  </td>
+                  <td className={listClass.num}>{formatKurus(o.total_kurus, o.currency)}</td>
+                  <td className={listClass.chevron}>
+                    <IconChevronRight size={18} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </main>

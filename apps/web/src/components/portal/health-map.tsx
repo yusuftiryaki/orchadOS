@@ -21,6 +21,8 @@ import { PortalMap, type MapCell, type MapCoverage, type MapSelection } from "./
 import { Badge, ClassDot } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
+import { IconInfo, IconMapPin } from "@/components/ui/icons";
+import { prefersReducedMotion } from "@/lib/map/motion";
 import styles from "./parcel.module.css";
 import { hasPistachioMethodology } from "@/lib/species";
 
@@ -45,6 +47,7 @@ export function HealthMap({
   initialVisitId,
   initialChanged = false,
   initialLayers = [],
+  footer = null,
 }: {
   parcelId: string;
   boundary: PolygonGeometry | null;
@@ -59,6 +62,8 @@ export function HealthMap({
   initialVisitId?: string;
   initialChanged?: boolean;
   initialLayers?: MapLayer[];
+  // Fine print at the foot of the map card (the long boundary notice).
+  footer?: React.ReactNode;
 }) {
   const initialFinding = findings.find((f) => f.id === initialFindingId && f.point);
   const [visible, setVisible] = useState<MarkerState[]>(initialStates ?? MARKER_ORDER);
@@ -167,9 +172,15 @@ export function HealthMap({
 
   const select = useCallback((next: MapSelection) => {
     setSelected(next);
-    // On a phone the panel sits below the map; bring it into view.
-    if (next && window.matchMedia("(max-width: 800px)").matches) {
-      requestAnimationFrame(() => panelRef.current?.scrollIntoView({ behavior: "smooth" }));
+    // Below 960px the panel is a sheet under the map; bring it up into view
+    // without pushing the map out of sight.
+    if (next && window.matchMedia("(max-width: 959px)").matches) {
+      requestAnimationFrame(() =>
+        panelRef.current?.scrollIntoView({
+          behavior: prefersReducedMotion() ? "auto" : "smooth",
+          block: "nearest",
+        }),
+      );
     }
   }, []);
 
@@ -190,7 +201,7 @@ export function HealthMap({
   const allVisible = MARKER_ORDER.every((s) => visible.includes(s));
 
   return (
-    <div className={styles.explorer}>
+    <div className={styles.explorer} data-selected={selected ? "true" : undefined}>
       <div className={styles.mapArea}>
         <PortalMap
           boundary={boundary}
@@ -279,7 +290,10 @@ export function HealthMap({
         ) : finding ? (
           <FindingPanel parcelId={parcelId} finding={finding} onClose={() => setSelected(null)} />
         ) : (
-          <p className={styles.panelHint}>{t.portal.report.mapHint}</p>
+          <div className={styles.panelHint}>
+            <IconMapPin size={20} />
+            <p>{t.portal.report.mapHint}</p>
+          </div>
         )}
       </aside>
       <div className={styles.controls} data-testid="map-controls">
@@ -335,6 +349,12 @@ export function HealthMap({
           </label>
         </fieldset>
       </div>
+      {footer && (
+        <div className={styles.mapFooter}>
+          <IconInfo size={16} className={styles.mapFooterIcon} />
+          {footer}
+        </div>
+      )}
     </div>
   );
 }
