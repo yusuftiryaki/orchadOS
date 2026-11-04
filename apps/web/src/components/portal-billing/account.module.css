@@ -73,9 +73,14 @@
   min-width: 0;
 }
 
+/* A hairline above the group (a border would be cut by the legend). */
 .group + .group {
+  margin-top: var(--space-2);
+  box-shadow: 0 -1px 0 var(--color-border);
+}
+
+.group + .group > legend {
   padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border);
 }
 
 .group > legend,

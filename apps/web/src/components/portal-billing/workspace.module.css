@@ -311,13 +311,9 @@
   margin: 0;
 }
 
-/* Money in a card: smaller rows, the total stays large. */
+/* Money in a card: smaller rows (the total row keeps its own size). */
 .cardBody dl {
   font-size: var(--text-sm);
-}
-
-.cardBody dl > div:last-child > :is(dt, dd) {
-  font-size: var(--text-base);
 }
 
 .cardFooter {
@@ -891,8 +887,13 @@ td.cellNum {
 
 .settings {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   align-items: start;
+}
+
+.settingsNav {
+  min-width: 0;
 }
 
 .settingsNav ul {
@@ -1394,5 +1395,59 @@ h3.rowTitle {
 @media (max-width: 479px) {
   .docRows > li > :global(.button) {
     margin-left: 56px;
+  }
+}
+
+.grow {
+  flex: 1 1 24ch;
+}
+
+/* Rows whose first link covers the row (Hizmetlerim). */
+.linkRows > li {
+  position: relative;
+  transition: background-color var(--duration-fast);
+}
+
+.linkRows > li:hover {
+  background: var(--color-row-hover);
+}
+
+.linkRows > li:first-child {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.linkRows > li:last-child {
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.linkRows > li:only-child {
+  border-radius: var(--radius-lg);
+}
+
+.linkRows :is(a, button):not(.rowLink) {
+  position: relative;
+  z-index: 1;
+}
+
+.linkRows .rowLink {
+  white-space: normal;
+}
+
+.rowExtra {
+  margin-top: var(--space-1);
+}
+
+.rowSide {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-1);
+  text-align: right;
+}
+
+@media (max-width: 479px) {
+  .rowSide {
+    justify-items: start;
+    text-align: left;
+    padding-left: 56px;
   }
 }

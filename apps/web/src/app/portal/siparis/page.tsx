@@ -38,11 +38,7 @@ export default async function OrdersPage({
       {orders.length === 0 ? (
         <EmptyState
           title={O.emptyTitle}
-          action={
-            <ButtonLink href={portalHref.applications()}>
-              {O.emptyAction}
-            </ButtonLink>
-          }
+          action={<ButtonLink href={portalHref.applications()}>{O.emptyAction}</ButtonLink>}
         >
           <p>{O.emptyBody}</p>
         </EmptyState>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DemoNotice } from "@/components/demo/demo-notice";
 import { demoSignupNext } from "@/components/demo/demo-shell";
+import { DetailLayout, SummaryCard, workClass as w } from "@/components/portal-billing/workspace";
 import layout from "@/components/portal/page.module.css";
 import { RobotBadge } from "@/components/services/robot-badge";
 import styles from "@/components/services/services.module.css";
@@ -10,7 +11,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Facts } from "@/components/ui/facts";
 import { Checkbox, Field, Select, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
-import { Panel } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import { formatDonum } from "@/lib/billing/money";
 import { demoText } from "@/lib/i18n/messages/demo";
@@ -95,7 +95,7 @@ export default async function NewServiceRequestPage({
   const price = chosen ? chosen.estimate : offerEstimate(offer);
 
   return (
-    <main className={`${layout.page} ${layout.reading}`} data-testid="service-request-form">
+    <main className={layout.page} data-testid="service-request-form">
       <PageHeader
         title={inSeason ? F.title(name) : F.preTitle(name)}
         lead={inSeason ? F.lead : F.preLead(opens)}
@@ -124,127 +124,140 @@ export default async function NewServiceRequestPage({
         </Alert>
       )}
 
-      <Panel title={F.summaryTitle} testId="service-request-summary">
-        <Facts
-          rows={[
-            [F.parcel, offer.parcel_name],
-            [
-              F.area,
-              F.areaValue(
-                formatDonum(Number(offer.area_m2)),
-                S.areaSource[offer.area_source] ?? offer.area_source,
-              ),
-            ],
-            ...(price
-              ? ([
-                  [F.pricePerDonum, F.pricePerDonumValue(formatTl(price.perDonum))],
-                  [F.minimumFee, F.minimumFeeValue(formatTl(price.minimumFee))],
-                ] as [string, string][])
-              : []),
-          ]}
-        />
-        {price ? (
-          <>
+      <DetailLayout
+        aside={
+          <SummaryCard id="service-summary" title={F.summaryTitle} testId="service-request-summary">
             <Facts
-              variant="summary"
-              testId="service-request-totals"
               rows={[
-                [F.subtotal, formatTl(price.subtotal)],
-                [F.vat(vatPercent(price.vatRateBp)), formatTl(price.vat)],
+                [F.parcel, offer.parcel_name],
+                [
+                  F.area,
+                  F.areaValue(
+                    formatDonum(Number(offer.area_m2)),
+                    S.areaSource[offer.area_source] ?? offer.area_source,
+                  ),
+                ],
+                ...(price
+                  ? ([
+                      [F.pricePerDonum, F.pricePerDonumValue(formatTl(price.perDonum))],
+                      [F.minimumFee, F.minimumFeeValue(formatTl(price.minimumFee))],
+                    ] as [string, string][])
+                  : []),
               ]}
-              total={[F.total, formatTl(price.total)]}
             />
-            <p className={styles.hint}>
-              {inSeason ? F.frozenNote : F.preEstimateNote} {F.roundingNote}{" "}
-              <span data-testid="service-request-price-list">{F.priceListNote(price.version)}</span>
-            </p>
-          </>
-        ) : (
-          <div className={styles.noPrice} data-testid="service-request-no-price">
-            <p className={styles.noPriceTitle}>{F.noPriceTitle}</p>
-            <p className={styles.hint}>{inSeason ? F.noPriceNote : F.preNoPriceNote}</p>
-          </div>
-        )}
-      </Panel>
-
-      {offer.state !== "open" && (
-        <Panel testId="service-request-panel">
-          <form action={requestServiceAction} className={styles.form}>
-            <input type="hidden" name="parcel_id" value={offer.parcel_id} />
-            <input type="hidden" name="service_type_id" value={offer.service_type_id} />
-            {robotOffers.length > 0 && (
-              <RobotChoice offers={robotOffers} chosenId={chosen?.robot.id ?? null} />
-            )}
-            <Field id="s-window" label={F.windowLabel} hint={F.windowHint}>
-              <Select name="window" defaultValue="flexible">
-                {SERVICE_WINDOWS.map((w) => (
-                  <option key={w} value={w}>
-                    {S.window[w]}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field id="s-note" label={F.noteLabel} hint={F.noteHint} optional={F.optional}>
-              <Textarea name="note" rows={4} maxLength={NOTE_MAX} />
-            </Field>
-
-            {inSeason ? (
+            {price ? (
               <>
-                <fieldset className={styles.checks} data-testid="service-request-terms">
-                  <legend>{F.termsTitle}</legend>
-                  <p className={styles.hint}>
-                    {F.termsIntro}{" "}
+                <Facts
+                  variant="summary"
+                  testId="service-request-totals"
+                  rows={[
+                    [F.subtotal, formatTl(price.subtotal)],
+                    [F.vat(vatPercent(price.vatRateBp)), formatTl(price.vat)],
+                  ]}
+                  total={[F.total, formatTl(price.total)]}
+                />
+                <p className={styles.hint}>
+                  {inSeason ? F.frozenNote : F.preEstimateNote} {F.roundingNote}{" "}
+                  <span data-testid="service-request-price-list">
+                    {F.priceListNote(price.version)}
+                  </span>
+                </p>
+              </>
+            ) : (
+              <div className={styles.noPrice} data-testid="service-request-no-price">
+                <p className={styles.noPriceTitle}>{F.noPriceTitle}</p>
+                <p className={styles.hint}>{inSeason ? F.noPriceNote : F.preNoPriceNote}</p>
+              </div>
+            )}
+          </SummaryCard>
+        }
+      >
+        {offer.state !== "open" && (
+          <section
+            className={w.formCard}
+            data-testid="service-request-panel"
+            aria-label={inSeason ? F.title(name) : F.preTitle(name)}
+          >
+            <form action={requestServiceAction}>
+              <div className={`${w.formCardBody} ${styles.form}`}>
+                <input type="hidden" name="parcel_id" value={offer.parcel_id} />
+                <input type="hidden" name="service_type_id" value={offer.service_type_id} />
+                {robotOffers.length > 0 && (
+                  <RobotChoice offers={robotOffers} chosenId={chosen?.robot.id ?? null} />
+                )}
+                <Field id="s-window" label={F.windowLabel} hint={F.windowHint}>
+                  <Select name="window" defaultValue="flexible">
+                    {SERVICE_WINDOWS.map((w) => (
+                      <option key={w} value={w}>
+                        {S.window[w]}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field id="s-note" label={F.noteLabel} hint={F.noteHint} optional={F.optional}>
+                  <Textarea name="note" rows={4} maxLength={NOTE_MAX} />
+                </Field>
+
+                {inSeason ? (
+                  <>
+                    <fieldset className={styles.checks} data-testid="service-request-terms">
+                      <legend>{F.termsTitle}</legend>
+                      <p className={styles.hint}>
+                        {F.termsIntro}{" "}
+                        <Link href="/bakim-hizmeti" target="_blank" rel="noopener">
+                          {F.termsLink}
+                        </Link>
+                      </p>
+                      <Checkbox
+                        id="s-pre_information"
+                        name="pre_information"
+                        required
+                        label={price ? F.preInformationCheck : F.preInformationCheckNoPrice}
+                      />
+                      <Checkbox
+                        id="s-terms"
+                        name="terms"
+                        required
+                        label={
+                          <>
+                            {F.termsCheck}{" "}
+                            <span className={layout.muted}>
+                              ({F.version(SERVICE_TERMS_VERSION)})
+                            </span>
+                          </>
+                        }
+                      />
+                    </fieldset>
+                    <fieldset className={styles.checks} data-testid="service-request-early">
+                      <legend>{F.earlyTitle}</legend>
+                      <Checkbox
+                        id="s-early_performance"
+                        name="early_performance"
+                        label={F.earlyCheck}
+                        hint={F.earlyHint}
+                      />
+                    </fieldset>
+                  </>
+                ) : (
+                  <p className={styles.hint} data-testid="service-request-pre-note">
+                    {F.preTermsNote}{" "}
                     <Link href="/bakim-hizmeti" target="_blank" rel="noopener">
                       {F.termsLink}
                     </Link>
                   </p>
-                  <Checkbox
-                    id="s-pre_information"
-                    name="pre_information"
-                    required
-                    label={price ? F.preInformationCheck : F.preInformationCheckNoPrice}
-                  />
-                  <Checkbox
-                    id="s-terms"
-                    name="terms"
-                    required
-                    label={
-                      <>
-                        {F.termsCheck}{" "}
-                        <span className={layout.muted}>({F.version(SERVICE_TERMS_VERSION)})</span>
-                      </>
-                    }
-                  />
-                </fieldset>
-                <fieldset className={styles.checks} data-testid="service-request-early">
-                  <legend>{F.earlyTitle}</legend>
-                  <Checkbox
-                    id="s-early_performance"
-                    name="early_performance"
-                    label={F.earlyCheck}
-                    hint={F.earlyHint}
-                  />
-                </fieldset>
-              </>
-            ) : (
-              <p className={styles.hint} data-testid="service-request-pre-note">
-                {F.preTermsNote}{" "}
-                <Link href="/bakim-hizmeti" target="_blank" rel="noopener">
-                  {F.termsLink}
-                </Link>
-              </p>
-            )}
-
-            {/* A demo visitor sees the real form; sending it writes nothing
+                )}
+              </div>
+              {/* A demo visitor sees the real form; sending it writes nothing
                 (requestServiceAction answers demo_read_only, shown above). */}
-            <div className={layout.actions}>
-              <Button type="submit" data-testid="service-request-submit">
-                {inSeason ? F.submit : F.preSubmit}
-              </Button>
-            </div>
-          </form>
-        </Panel>
-      )}
+              <div className={w.formCardFooter}>
+                <Button type="submit" data-testid="service-request-submit">
+                  {inSeason ? F.submit : F.preSubmit}
+                </Button>
+              </div>
+            </form>
+          </section>
+        )}
+      </DetailLayout>
     </main>
   );
 }

@@ -8,7 +8,7 @@ import { requireSection } from "@/lib/auth/session";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { getBillingProfile, hasFallbackEmail } from "@/lib/portal-billing/data";
 import { assertCustomer } from "@/lib/portal-billing/session";
-import { portalHref, safeBackPath } from "@/lib/portal-billing/urls";
+import { safeBackPath } from "@/lib/portal-billing/urls";
 import { createClient } from "@/lib/supabase/server";
 
 // The billing profile, read masked through my_billing_profile. `?geri=` is the

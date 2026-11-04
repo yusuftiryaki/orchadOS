@@ -127,7 +127,7 @@ test("the customer reads the filled documents, accepts and downloads them", asyn
 
   // Sözleşmelerim from the account menu.
   await page.getByRole("button", { name: "Hesap menüsü" }).click();
-  await page.getByRole("link", { name: "Sözleşmelerim" }).click();
+  await page.getByRole("link", { name: "Sözleşmelerim", exact: true }).click();
   await expect(page).toHaveURL("/portal/hesap/sozlesmeler");
   const section = page.locator(`[data-testid="contracts-order"][data-order-id="${orderId}"]`);
   await expect(section.locator("li[data-kind]")).toHaveCount(2);
