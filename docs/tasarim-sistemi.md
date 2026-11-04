@@ -1,6 +1,6 @@
 # Tasarım sistemi
 
-28 Ekim 2026 · Arayüz yenileme, 1. dalga; 29 Ekim 2026 · 3. dalga (entegrasyon)
+28 Ekim 2026 · Arayüz yenileme, 1. dalga; 29 Ekim 2026 · 3. dalga (entegrasyon); 4 Kasım 2026 · 4. dalga (müşteri ekranları, sadeleştirme)
 
 Bu belge orchadOS web arayüzünün görsel dilini ve bileşen sözleşmesini tutar. 1. dalgada tasarım sistemi ve karşılama sayfası yapıldı. 2. dalgada portal, personel ekranları (ofis, operasyon, uzman, back office) ve kalan site sayfaları bu belgeye göre yeniden düzenlenir. Bir token ya da bileşen sözleşmesi değişirse önce bu belge güncellenir.
 
@@ -142,20 +142,19 @@ Ağaç sınıfları (`--class-*`) haritanın renkleridir (`src/lib/map/tree-styl
 
 ### Tipografi
 
-- **Aile:** Atkinson Hyperlegible Next (değişken, 200–800) ve Atkinson Hyperlegible Mono. `next/font/google` derleme sırasında indirir ve aynı origin'den sunar; dış istek olmaz. Alt kümeler `latin` + `latin-ext`. Türkçe ğ, ş, ı ve İ `latin-ext`'te, ç, ö ve ü `latin`'de. ğ'nin breve işareti caron'dan (ǧ) ayrı çizilmiştir; ekran görüntüsüyle denetlendi. `display: swap`; mono kesimi önceden yüklenmez.
-- **Sıfır:** Atkinson'da sıfır çizgilidir (0 ile O karışmasın diye) ve kapatılamaz. Bu bir okunabilirlik özelliğidir; 2. dalga sayaçlarda bunun okunuşunu izlemeli.
-- **Ölçek** (≈1,25 oranı, 16 px taban): 12 · 14 · 16 · 18 · 20 · 25 · 31 · 39 · 49 px (`--text-xs` … `--text-5xl`).
+- **Aile (4. dalga):** Inter (değişken) ve JetBrains Mono. 1.–3. dalgada Atkinson Hyperlegible Next kullanılıyordu; çizgili sıfırı kapatılamadığı için sayılar ("2026", "₺20.640,00") eski ve kalabalık görünüyordu (§Notlar). Inter ekran için çizilmiş, x-yüksekliği büyük, tabular rakamlı ve Türkçe harfleri tam bir yüz; telefonda ve güneşte okunurluk korunur. `font-feature-settings: "cv05", "cv08"` küçük l ile büyük I'yı ayırır. `next/font/google` derleme sırasında indirir ve aynı origin'den sunar; dış istek olmaz. Alt kümeler `latin` + `latin-ext`. `display: swap`; mono kesimi önceden yüklenmez ve yalnız kod ve ölçü içindir.
+- **Ölçek** (16 px taban): 12 · 14 · 16 · 18 · 20 · 24 · 30 · 38 · 48 px (`--text-xs` … `--text-5xl`). Sayfa başlığı 30 px (telefonda 24 px), `--tracking-tight` (−0,02em).
 - **Satır:** gövde için 1,55 (`--leading`), büyük başlık için 1,15. Satır uzunluğu en çok 68ch (`--measure`); paragraflar 52–64ch.
-- **Ağırlık:** gövde 400, etiket 600–700, başlık 700–800. Büyük harfli etiket, harf aralıklı küçük etiket ve tek kelimesi renkli başlık kullanılmaz.
+- **Ağırlık:** gövde 400, etiket 500–550, bölüm başlığı 650, sayfa başlığı 700. Büyük harfli etiket, harf aralıklı küçük etiket ve tek kelimesi renkli başlık kullanılmaz.
 
 ### Boşluk, köşe, derinlik, hareket, odak
 
 - **Boşluk:** 4 px tabanlı: 4 · 8 · 16 · 24 · 32 · 48 · 64 · 96 (`--space-1` … `--space-8`). Bölümler arası 48 px, kahraman 64 px.
-- **Köşe hiyerarşisi:** 4 px kontrol ve rozet içi, 6 px düğme ve küçük yüzey, 10 px kart, pafta ve diyalog. Hap biçimi (`--radius-pill`) yalnız durum rozetinde kullanılır.
-- **Derinlik:** Yüzeyleri çerçeve ayırır. Gölge yalnız yüzen öğede kullanılır: menü ve açıklama kartı `--shadow`, diyalog ve toast `--shadow-lg`. Kartlarda gölge yoktur.
+- **Köşe hiyerarşisi (4. dalga):** 6 px küçük öğe (`--radius-sm`), 8 px kontrol ve düğme (`--radius`), 12 px kart, pafta ve diyalog (`--radius-lg`), 16 px büyük yüzey (`--radius-xl`). Hap biçimi (`--radius-pill`) durum rozetinde, avatar menüsünde ve alt sekme çubuğunun etkin işaretinde kullanılır.
+- **Derinlik (4. dalga):** Yüzeyleri ince çerçeve ve neredeyse görünmeyen bir kart gölgesi (`--shadow-card`) ayırır. Düğmelerde `--shadow-sm` var. Yüzen öğeler: menü `--shadow`, diyalog, toast ve hesap menüsü `--shadow-lg`.
 - **Hareket:** 120 ms (renk, çerçeve) ve 200 ms (açılan yüzey) sürer, eğri `--ease`. Sayfada en çok bir koordineli an olur. `prefers-reduced-motion: reduce` bütün animasyon ve geçişleri kapatır (globals.css).
 - **Odak:** Halka 3 px Toprak rengindedir, 2 px boşluk bırakır. Beyazda, zeminde ve yeşil düğmede görünür. Form alanında yeşil çerçeve ve hale eklenir. Odak hiçbir yerde kaldırılmaz.
-- **Dokunma hedefi:** Sitede ve portalda kontrol yüksekliği 44 px, karşılama CTA'sı 52 px.
+- **Dokunma hedefi:** Sitede ve portalda kontrol yüksekliği 44 px, karşılama CTA'sı 52 px, alt sekme çubuğunda 56 px.
 
 ### Personel varyantı
 
