@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { IconArrowLeft } from "./icons";
 import styles from "./page-header.module.css";
 
 // The top of a screen: one h1, an optional lead, state badges (`meta`) and
@@ -22,6 +23,7 @@ export function PageHeader({
       <div className={styles.text}>
         {back && (
           <Link href={back.href} className={styles.back}>
+            <IconArrowLeft size={16} className={styles.backIcon} />
             {back.label}
           </Link>
         )}

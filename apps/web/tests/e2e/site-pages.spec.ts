@@ -19,7 +19,7 @@ const PUBLIC_PAGES: [string, string][] = [
   ["/iade", "İptal ve İade Politikası"],
   ["/bahcede-bulunanlar", "Bahçede Bulunan Kişiler İçin Aydınlatma Metni"],
   ["/kayit", "Kayıt ol"],
-  ["/giris", "Giriş"],
+  ["/giris", "Hesabınıza giriş yapın"],
   // Demo tour (İP13): the build serves /demo (ORCHADOS_DEMO_ENABLED=1).
   ["/demo", "Demoyu deneyin"],
 ];

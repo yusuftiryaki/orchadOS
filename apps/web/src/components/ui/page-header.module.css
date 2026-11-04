@@ -23,8 +23,10 @@
   text-decoration: none;
 }
 
-.back::before {
-  content: "←";
+/* The arrow is an aria-hidden icon: generated content would join the
+   link's accessible name. */
+.backIcon {
+  flex: none;
   transition: transform var(--duration-fast);
 }
 
@@ -33,7 +35,7 @@
   text-decoration: none;
 }
 
-.back:hover::before {
+.back:hover .backIcon {
   transform: translateX(-2px);
 }
 
