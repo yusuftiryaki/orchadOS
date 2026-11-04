@@ -125,11 +125,9 @@ test("the customer reads the filled documents, accepts and downloads them", asyn
   await expect(orderDocs.locator('tr[data-kind="pre_information"]')).toBeVisible();
   await expect(orderDocs.locator('tr[data-kind="distance_sales"]')).toBeVisible();
 
-  // Sözleşmelerim from the portal navigation.
-  await page
-    .getByRole("navigation", { name: "Hesap" })
-    .getByRole("link", { name: "Sözleşmelerim" })
-    .click();
+  // Sözleşmelerim from the account menu.
+  await page.getByRole("button", { name: "Hesap menüsü" }).click();
+  await page.getByRole("link", { name: "Sözleşmelerim" }).click();
   await expect(page).toHaveURL("/portal/hesap/sozlesmeler");
   const section = page.locator(`[data-testid="contracts-order"][data-order-id="${orderId}"]`);
   await expect(section.locator("li[data-kind]")).toHaveCount(2);

@@ -8,14 +8,23 @@
   background: var(--color-surface);
 }
 
+@media (min-width: 720px) {
+  .empty:not(.compact) {
+    justify-items: center;
+    text-align: center;
+    padding: var(--space-6) var(--space-5);
+  }
+}
+
 .empty h2,
 .empty h3 {
   margin: 0;
   font-size: var(--text-lg);
+  font-weight: 650;
 }
 
 .empty p {
-  color: var(--color-text-2);
+  color: var(--color-muted);
   max-width: var(--measure);
   margin: 0;
 }

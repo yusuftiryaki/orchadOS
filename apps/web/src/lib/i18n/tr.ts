@@ -88,6 +88,8 @@ export const tr = {
   nav: {
     logout: "Çıkış",
     sections: "Bölümler",
+    accountMenu: "Hesap menüsü",
+    otherSections: "Diğer bölümler",
   },
   home: {
     noRoles: "Hesabınıza henüz bir rol atanmamış. Lütfen operasyon ekibiyle iletişime geçin.",

@@ -1,5 +1,5 @@
-/* App chrome for the signed-in sections. Portal: owners, phone first.
-   Staff: wide, dense desktop screens. */
+/* App chrome for the signed-in sections. Portal: owners, phone first, with a
+   bottom tab bar on phones. Staff: wide, dense desktop screens. */
 
 .header {
   position: sticky;
@@ -31,9 +31,10 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  min-height: 52px;
-  font-weight: 800;
+  min-height: 56px;
+  font-weight: 700;
   font-size: 17px;
+  letter-spacing: -0.01em;
   text-decoration: none;
   color: var(--color-text);
 }
@@ -46,19 +47,20 @@
 .nav {
   grid-area: nav;
   display: flex;
-  gap: var(--space-1);
+  align-items: center;
+  gap: 2px;
   overflow-x: auto;
   scrollbar-width: none;
   margin: 0 calc(-1 * var(--space-3));
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-3) 8px;
 }
 
 .nav::-webkit-scrollbar {
   display: none;
 }
 
-/* On a phone the links scroll sideways: while more are past the edge the
-   last visible one fades, so it reads as "more this way". */
+/* On a phone the staff links scroll sideways: while more are past the edge
+   the last visible one fades, so it reads as "more this way". */
 @media (max-width: 859px) {
   .nav[data-more] {
     mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
@@ -68,14 +70,18 @@
 .link {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  padding: 0 var(--space-3);
-  border-bottom: 3px solid transparent;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius);
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 500;
   font-size: var(--text-sm);
   white-space: nowrap;
-  color: var(--color-text-2);
+  color: var(--color-muted);
+  transition:
+    background var(--duration-fast),
+    color var(--duration-fast);
 }
 
 .link:hover {
@@ -85,13 +91,21 @@
 }
 
 .link[aria-current="page"] {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+  font-weight: 600;
+}
+
+.icon {
+  display: inline-flex;
+}
+
+.link[aria-current="page"] .icon {
   color: var(--color-accent);
-  border-bottom-color: var(--color-accent);
-  font-weight: 700;
 }
 
 .link:focus-visible {
-  outline-offset: -3px;
+  outline-offset: -2px;
 }
 
 .account {
@@ -117,15 +131,76 @@
   .nav {
     margin: 0;
     padding: 0;
-    align-self: stretch;
   }
-  .link {
-    min-height: 100%;
+}
+
+/* Portal on a phone: the section links become a bottom tab bar. The header
+   keeps the brand and the account menu. No backdrop-filter on the header: it
+   would make the fixed bar position against the header. */
+@media (max-width: 859px) {
+  .portal[data-bottom-nav] .nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    margin: 0;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 0;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -4px 16px rgb(24 22 18 / 4%);
+    overflow: visible;
+    mask-image: none;
+  }
+
+  .portal[data-bottom-nav] .link {
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-height: 56px;
+    padding: 4px 2px;
+    font-size: 11px;
+    font-weight: 500;
+    background: transparent;
+    min-width: 0;
+  }
+
+  .portal[data-bottom-nav] .label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .portal[data-bottom-nav] .link[aria-current="page"] {
+    color: var(--color-accent-hover);
+    background: transparent;
+    font-weight: 600;
+  }
+
+  .portal[data-bottom-nav] .link[aria-current="page"] .icon {
+    background: var(--color-accent-soft);
+  }
+
+  .portal[data-bottom-nav] .icon {
+    padding: 3px 14px;
+    border-radius: var(--radius-pill);
+    transition: background var(--duration-fast);
+  }
+
+  .portal[data-bottom-nav] .main {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
   }
 }
 
 @media print {
   .header {
     display: none;
+  }
+  .portal[data-bottom-nav] .main {
+    padding-bottom: 0;
   }
 }

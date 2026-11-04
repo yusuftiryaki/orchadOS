@@ -78,6 +78,7 @@ export const portalBillingText = {
     orders: "Siparişlerim",
     payments: "Ödemelerim",
     account: "Hesabım",
+    permissions: "İzinler",
   },
   notices,
   errors,
