@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { resendWaitSeconds } from "@/app/(site)/giris/login-methods";
 import styles from "@/components/site/auth.module.css";
+import { PasswordInput } from "@/components/site/password-input";
+import { SubmitButton } from "@/components/site/submit-button";
 import { CaptchaWidget } from "@/components/site/turnstile";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input } from "@/components/ui/field";
 import { t } from "@/lib/i18n";
 import { siteText } from "@/lib/i18n/messages/site";
@@ -26,6 +27,20 @@ function useResendWait(sentAt: number | null): number {
     return () => clearInterval(timer);
   }, [sentAt]);
   return resendWaitSeconds(sentAt, Math.max(now, sentAt ?? 0));
+}
+
+// "Adım 1 / 2": two bars, the first `done` filled, then the step's name.
+function Step({ done, label }: { done: number; label: string }) {
+  return (
+    <p className={styles.step}>
+      <span className={styles.stepBars} aria-hidden>
+        {[0, 1].map((i) => (
+          <span key={i} data-done={i < done ? "" : undefined} />
+        ))}
+      </span>
+      {label}
+    </p>
+  );
 }
 
 export function SignupForm({
@@ -48,79 +63,82 @@ export function SignupForm({
 
   if (state.step === "code" && state.phone) {
     return (
-      <>
-        <p className={styles.step}>{s.stepCode}</p>
-        <div className={styles.sheet}>
-          <div className={styles.form}>
-            <h2 className={styles.sheetTitle}>{s.codeTitle}</h2>
-            {state.notice && (
-              <Alert tone="info" role="status">
-                {state.notice}
+      <div className={styles.card}>
+        <Step done={2} label={s.stepCode} />
+        <div className={styles.form}>
+          <h1 className={styles.title}>{s.codeTitle}</h1>
+          {state.notice && (
+            <Alert tone="info" role="status">
+              {state.notice}
+            </Alert>
+          )}
+          <form action={action} className={styles.form}>
+            <input type="hidden" name="intent" value="verify" />
+            <input type="hidden" name="phone" value={state.phone} />
+            <Field id="signup-code" label={s.code} hint={t.login.phone.codeHint}>
+              <Input
+                name="code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                placeholder="······"
+                className={styles.code}
+                required
+                autoFocus
+              />
+            </Field>
+            {state.error && (
+              <Alert tone="danger" role="alert">
+                {state.error}
               </Alert>
             )}
-            <form action={action} className={styles.form}>
-              <input type="hidden" name="intent" value="verify" />
-              <input type="hidden" name="phone" value={state.phone} />
-              <Field id="signup-code" label={s.code} hint={t.login.phone.codeHint}>
-                <Input
-                  name="code"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  className={styles.code}
-                  required
-                  autoFocus
-                />
-              </Field>
-              {state.error && (
-                <Alert tone="danger" role="alert">
-                  {state.error}
-                </Alert>
-              )}
-              <Button type="submit" block disabled={pending}>
-                {pending ? s.verifying : s.verify}
-              </Button>
-            </form>
-            <div className={styles.secondary}>
-              <form action={action}>
-                <input type="hidden" name="intent" value="resend" />
-                <input type="hidden" name="phone" value={state.phone} />
-                <button
-                  type="submit"
-                  className={styles.textButton}
-                  disabled={wait > 0 || pending}
-                  aria-live="polite"
-                >
-                  {wait > 0 ? s.resendIn(wait) : s.resend}
-                </button>
-              </form>
-              <form action={action}>
-                <input type="hidden" name="intent" value="restart" />
-                <button type="submit" className={styles.textButton} disabled={pending}>
-                  {s.restart}
-                </button>
-              </form>
-            </div>
-          </div>
-          <div className={styles.notes}>
-            <p>
-              {s.codeMissing} <Link href="/giris">{s.codeMissingLogin}</Link>
-            </p>
-            <p>{s.codeExisting}</p>
-          </div>
+            <SubmitButton pending={pending} pendingLabel={s.verifying}>
+              {s.verify}
+            </SubmitButton>
+          </form>
         </div>
-      </>
+        <div className={styles.secondary}>
+          <form action={action}>
+            <input type="hidden" name="intent" value="resend" />
+            <input type="hidden" name="phone" value={state.phone} />
+            <button
+              type="submit"
+              className={styles.textButton}
+              disabled={wait > 0 || pending}
+              aria-live="polite"
+            >
+              {wait > 0 ? s.resendIn(wait) : s.resend}
+            </button>
+          </form>
+          <form action={action}>
+            <input type="hidden" name="intent" value="restart" />
+            <button type="submit" className={styles.textButton} disabled={pending}>
+              {s.restart}
+            </button>
+          </form>
+        </div>
+        <div className={styles.notes}>
+          <p>
+            {s.codeMissing} <Link href="/giris">{s.codeMissingLogin}</Link>
+          </p>
+          <p>{s.codeExisting}</p>
+        </div>
+      </div>
     );
   }
 
   const v = state.values;
   const error = (field: SignupField) => state.fieldErrors[field];
   return (
-    <>
-      <p className={styles.step}>{s.stepForm}</p>
-      <form ref={form} action={action} className={`${styles.sheet} ${styles.form}`} noValidate>
+    <div className={styles.card}>
+      <Step done={1} label={s.stepForm} />
+      <div className={styles.cardHead}>
+        <h1 className={styles.title}>{s.title}</h1>
+        <p className={styles.lead}>{s.subtitle}</p>
+      </div>
+      <form ref={form} action={action} className={styles.form} noValidate>
         <input type="hidden" name="intent" value="register" />
         <Field
           id="full_name"
@@ -159,68 +177,75 @@ export function SignupForm({
           error={error("email")}
           errorTestId="error-email"
         >
-          <Input name="email" type="email" autoComplete="email" defaultValue={v.email} required />
-        </Field>
-        <Field
-          id="password"
-          label={s.password}
-          hint={s.passwordHint}
-          error={error("password")}
-          errorTestId="error-password"
-        >
           <Input
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            minLength={8}
+            name="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            autoCapitalize="none"
+            spellCheck={false}
+            defaultValue={v.email}
             required
           />
         </Field>
-        <Field
-          id="password_repeat"
-          label={s.passwordRepeat}
-          error={error("password_repeat")}
-          errorTestId="error-password_repeat"
-        >
-          <Input name="password_repeat" type="password" autoComplete="new-password" required />
-        </Field>
-        <fieldset
-          className={styles.fieldset}
-          aria-describedby={
-            error("contact_preference")
-              ? "contact_preference-hint contact_preference-error"
-              : "contact_preference-hint"
-          }
-        >
-          <legend className={styles.legend}>{s.contactPreference}</legend>
-          <div className={styles.radios}>
-            {(["whatsapp", "sms"] as const).map((value) => (
-              <label key={value} className={styles.radio}>
-                <input
-                  type="radio"
-                  name="contact_preference"
-                  value={value}
-                  defaultChecked={v.contact_preference === value}
-                />
-                {s.contactPreferences[value]}
-              </label>
-            ))}
-          </div>
-          <p className={styles.hint} id="contact_preference-hint">
-            {s.contactPreferenceHint}
-          </p>
-          {error("contact_preference") && (
-            <p
-              className={styles.error}
-              id="contact_preference-error"
-              data-testid="error-contact_preference"
-            >
-              {error("contact_preference")}
+        <div className={styles.group}>
+          <Field
+            id="password"
+            label={s.password}
+            hint={s.passwordHint}
+            error={error("password")}
+            errorTestId="error-password"
+          >
+            <PasswordInput name="password" autoComplete="new-password" minLength={8} required />
+          </Field>
+          <Field
+            id="password_repeat"
+            label={s.passwordRepeat}
+            error={error("password_repeat")}
+            errorTestId="error-password_repeat"
+          >
+            <PasswordInput name="password_repeat" autoComplete="new-password" required />
+          </Field>
+        </div>
+        <div className={styles.group}>
+          <fieldset
+            className={styles.fieldset}
+            aria-describedby={
+              error("contact_preference")
+                ? "contact_preference-hint contact_preference-error"
+                : "contact_preference-hint"
+            }
+          >
+            <legend className={styles.legend}>{s.contactPreference}</legend>
+            <div className={styles.choices}>
+              {(["whatsapp", "sms"] as const).map((value) => (
+                <label key={value} className={styles.choice}>
+                  <input
+                    type="radio"
+                    name="contact_preference"
+                    value={value}
+                    defaultChecked={v.contact_preference === value}
+                  />
+                  {s.contactPreferences[value]}
+                </label>
+              ))}
+            </div>
+            <p className={styles.hint} id="contact_preference-hint">
+              {s.contactPreferenceHint}
             </p>
-          )}
-        </fieldset>
+            {error("contact_preference") && (
+              <p
+                className={styles.error}
+                id="contact_preference-error"
+                data-testid="error-contact_preference"
+              >
+                {error("contact_preference")}
+              </p>
+            )}
+          </fieldset>
+        </div>
 
-        <div className={styles.consent}>
+        <div className={`${styles.consent} ${styles.group}`}>
           <Checkbox
             id="kvkk_notice"
             name="kvkk_notice"
@@ -275,10 +300,10 @@ export function SignupForm({
             )}
           </Alert>
         )}
-        <Button type="submit" block disabled={pending}>
-          {pending ? s.submitting : s.submit}
-        </Button>
+        <SubmitButton pending={pending} pendingLabel={s.submitting}>
+          {s.submit}
+        </SubmitButton>
       </form>
-    </>
+    </div>
   );
 }

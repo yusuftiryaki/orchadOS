@@ -44,21 +44,24 @@ export const tr = {
   },
   login: {
     title: "Giriş",
+    heading: "Hesabınıza giriş yapın",
     subtitle: "Bahçelerinizin raporlarına ve hesabınıza buradan ulaşırsınız.",
     email: "E-posta",
     password: "Parola",
+    // The visibility toggle beside a password field; aria-pressed says the state.
+    showPassword: "Parolayı göster",
     submit: "Giriş yap",
     submitting: "Giriş yapılıyor…",
     invalidCredentials: "E-posta ya da parola hatalı. Yazımı kontrol edip yeniden deneyin.",
     missingFields: "E-posta ve parola gerekli.",
     methods: {
       label: "Giriş yöntemi",
-      password: "E-posta ve parola",
-      phone: "Telefon ve SMS",
+      password: "E-posta",
+      phone: "Telefon",
     },
-    forgot:
-      "Parolanızı mı unuttunuz? Hesabınızdaki cep telefonuna gelen kodla giriş yapabilirsiniz.",
-    forgotAction: "SMS koduyla girin",
+    // "Parolamı unuttum" opens the phone tab, which then says why.
+    forgot: "Parolanızı unuttuysanız hesabınızdaki cep telefonuna gelen kodla giriş yapın.",
+    forgotAction: "Parolamı unuttum",
     phone: {
       number: "Cep telefonu",
       numberHint: "Hesabınızdaki numara, örneğin 0532 123 45 67",
@@ -1343,9 +1346,10 @@ export const tr = {
       boundaryReview: "Sınırı inceleyin",
       onThisPage: "Bu sayfada",
       nav: {
+        summary: "Özet",
         map: "Harita",
         findings: "Bulgular",
-        details: "Karne ayrıntıları",
+        details: "Karne",
         boundary: "Sınır ve envanter",
         service: "Hizmet",
         visits: "Ziyaretler",

@@ -30,23 +30,23 @@ Web uygulamasının dört bölümü vardır. Hangi bölümleri göreceğinize he
 
 **Ekranın bölümleri**
 
-1. Giriş yöntemi sekmeleri: "E-posta ve parola" ile "Telefon ve SMS".
+1. Giriş yöntemi seçici: "E-posta" ile "Telefon".
 2. "E-posta" alanı.
-3. "Parola" alanı.
-4. "Giriş yap" düğmesi.
-5. "SMS koduyla girin": parolasını unutan kişi hesabındaki cep telefonuna gelen kodla girer.
+3. "Parola" alanı. Sağındaki göz simgesi yazdığınız parolayı gösterir ya da gizler.
+4. "Parolamı unuttum": parolasını unutan kişiyi "Telefon" sekmesine geçirir; hesabındaki cep telefonuna gelen kodla girer.
+5. "Giriş yap" düğmesi.
 
-Sağdaki "Hesabınız yok mu?" kutusu bahçe sahibi adayları içindir (self-servis kayıt). Personel bu kutuyu kullanmaz; personel hesabını operasyon açar.
+Kartın altındaki "Hesabınız yok mu? Kayıt ol" bağlantısı bahçe sahibi adayları içindir (self-servis kayıt). Personel bu kutuyu kullanmaz; personel hesabını operasyon açar.
 
 ### E-posta ve parolayla girmek
 
 1. Tarayıcıda pilot adresini açın ve sağ üstteki "Giriş yap"a tıklayın (ya da adrese `/giris` yazın).
-2. "E-posta ve parola" sekmesinde e-postanızı ve parolanızı yazın.
+2. "E-posta" sekmesinde e-postanızı ve parolanızı yazın.
 3. "Giriş yap"a tıklayın. Düğme kısa bir süre "Giriş yapılıyor…" yazar.
 
 ### SMS koduyla girmek
 
-1. "Telefon ve SMS" sekmesini seçin (ya da "SMS koduyla girin"e tıklayın).
+1. "Telefon" sekmesini seçin (ya da "Parolamı unuttum"a tıklayın).
 2. "Cep telefonu" alanına hesabınızdaki numarayı yazın, örneğin 0532 123 45 67. "SMS kodu gönder"e tıklayın.
 3. Gelen 6 haneli kodu "SMS kodu" alanına yazıp "Giriş yap"a tıklayın.
 4. Kod gelmezse bir süre sonra "Kodu yeniden gönder" açılır. Numara yanlışsa "Numarayı değiştir".
@@ -57,7 +57,7 @@ Gerçek SMS gönderimi barındırılan ortamda SMS sağlayıcısı tanımlıyken
 
 | Mesaj | Ne zaman çıkar | Ne yapmalı |
 | --- | --- | --- |
-| "E-posta ya da parola hatalı. Yazımı kontrol edip yeniden deneyin." | E-posta ya da parola tutmuyor | Büyük/küçük harfe ve boşluklara bakın. Olmazsa SMS koduyla girin ya da operasyondan yeni parola isteyin. |
+| "E-posta ya da parola hatalı. Yazımı kontrol edip yeniden deneyin." | E-posta ya da parola tutmuyor | Büyük/küçük harfe ve boşluklara bakın. Olmazsa "Parolamı unuttum" ile SMS koduyla girin ya da operasyondan yeni parola isteyin. |
 | "E-posta ve parola gerekli." | Alanlardan biri boş | İki alanı da doldurun. |
 | "Geçerli bir cep telefonu numarası girin." | Numara eksik ya da yanlış biçimde | 05 ile başlayan 11 haneyi yazın. |
 | "Kodu 6 rakam olarak girin." | Kod 6 haneden kısa ya da harf içeriyor | SMS'teki 6 rakamı yazın. |

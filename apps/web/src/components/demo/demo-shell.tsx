@@ -40,7 +40,7 @@ export function DemoShell({ info, children }: { info: DemoInfo; children: React.
         <div className={styles.shellInner}>
           <Link href="/portal" className={styles.shellBrand}>
             <LogoMark />
-            <span>{t.app.name}</span>
+            <span className={styles.shellBrandName}>{t.app.name}</span>
           </Link>
           <Link href="/portal" className={styles.shellLink} data-testid="demo-gardens">
             {demoText.shell.gardens}

@@ -58,7 +58,7 @@ test("login: method tabs work with the keyboard and the forgotten-password link"
   page,
 }) => {
   await page.goto("/giris");
-  const password = page.getByRole("tab", { name: "E-posta ve parola" });
+  const password = page.getByRole("tab", { name: "E-posta" });
   const phone = page.getByRole("tab", { name: "Telefon" });
   await expect(password).toHaveAttribute("aria-selected", "true");
   await password.focus();
@@ -69,9 +69,20 @@ test("login: method tabs work with the keyboard and the forgotten-password link"
   await page.keyboard.press("ArrowLeft");
   await expect(password).toHaveAttribute("aria-selected", "true");
 
-  await page.getByRole("button", { name: "SMS koduyla girin" }).click();
+  // The password can be shown and hidden again; the field keeps its label.
+  const field = page.getByLabel("Parola");
+  const reveal = page.getByRole("button", { name: "Parolayı göster" });
+  await expect(field).toHaveAttribute("type", "password");
+  await reveal.click();
+  await expect(field).toHaveAttribute("type", "text");
+  await expect(reveal).toHaveAttribute("aria-pressed", "true");
+  await reveal.click();
+  await expect(field).toHaveAttribute("type", "password");
+
+  await page.getByRole("button", { name: "Parolamı unuttum" }).click();
   await expect(phone).toHaveAttribute("aria-selected", "true");
   await expect(page.getByLabel("Cep telefonu")).toBeVisible();
+  await expect(page.getByText("Parolanızı unuttuysanız")).toBeVisible();
 });
 
 test("legal texts have in-page contents and stack tables on a phone", async ({ browser }) => {

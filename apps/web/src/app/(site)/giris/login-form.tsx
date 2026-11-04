@@ -2,9 +2,11 @@
 
 import { useActionState, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import styles from "@/components/site/auth.module.css";
+import { PasswordInput } from "@/components/site/password-input";
+import { SubmitButton } from "@/components/site/submit-button";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
+import { IconMail, IconPhone } from "@/components/ui/icons";
 import { t } from "@/lib/i18n";
 import {
   requestPhoneCode,
@@ -15,10 +17,10 @@ import {
 } from "./actions";
 import { LOGIN_METHODS, resendWaitSeconds, type LoginMethod } from "./login-methods";
 
-// Two methods as ARIA tabs over one panel. Not the shared Tabs: the panel
-// here is controlled ("SMS koduyla girin" switches it), and the panel takes
-// no aria-labelledby, which would make the tab text ("E-posta ve parola") a
-// second label for "E-posta" and "Parola".
+// Two methods as ARIA tabs (drawn as a segmented control) over one panel.
+// Not the shared Tabs: the panel here is controlled ("Parolamı unuttum"
+// switches it), and the panel takes no aria-labelledby, which would make the
+// tab text ("E-posta") a second label for the "E-posta" field.
 export function LoginForm({
   next,
   initialMethod = "password",
@@ -29,6 +31,8 @@ export function LoginForm({
   const base = useId();
   const methods = LOGIN_METHODS.filter((m) => m.enabled);
   const [method, setMethod] = useState<LoginMethod>(initialMethod);
+  // Set by "Parolamı unuttum": the phone tab then says why it opened.
+  const [forgot, setForgot] = useState(false);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
 
   function onKeyDown(event: KeyboardEvent, index: number) {
@@ -51,7 +55,7 @@ export function LoginForm({
 
   return (
     <div>
-      <div role="tablist" aria-label={t.login.methods.label} className={styles.methods}>
+      <div role="tablist" aria-label={t.login.methods.label} className={styles.segmented}>
         {methods.map(({ id }, i) => (
           <button
             key={id}
@@ -64,17 +68,26 @@ export function LoginForm({
             aria-controls={`${base}-panel`}
             aria-selected={method === id}
             tabIndex={method === id ? 0 : -1}
-            className={styles.method}
+            className={styles.segment}
             onClick={() => setMethod(id)}
             onKeyDown={(e) => onKeyDown(e, i)}
           >
+            {id === "password" ? <IconMail size={18} /> : <IconPhone size={18} />}
             {t.login.methods[id]}
           </button>
         ))}
       </div>
       <div role="tabpanel" id={`${base}-panel`}>
-        {method === "password" && <PasswordForm next={next} onForgot={() => setMethod("phone")} />}
-        {method === "phone" && <PhoneForm next={next} />}
+        {method === "password" && (
+          <PasswordForm
+            next={next}
+            onForgot={() => {
+              setForgot(true);
+              setMethod("phone");
+            }}
+          />
+        )}
+        {method === "phone" && <PhoneForm next={next} forgot={forgot} />}
       </div>
     </div>
   );
@@ -85,34 +98,39 @@ function PasswordForm({ next, onForgot }: { next: string; onForgot: () => void }
     error: null,
   });
 
+  // The error sits above the fields: the first thing read after a refusal.
   return (
-    <>
-      <form action={action} className={styles.form}>
-        <input type="hidden" name="next" value={next} />
-        <Field id="login-email" label={t.login.email}>
-          <Input name="email" type="email" autoComplete="username" required />
-        </Field>
-        <Field id="login-password" label={t.login.password}>
-          <Input name="password" type="password" autoComplete="current-password" required />
-        </Field>
-        {state.error && (
-          <Alert tone="danger" role="alert">
-            {state.error}
-          </Alert>
-        )}
-        <Button type="submit" block disabled={pending}>
-          {pending ? t.login.submitting : t.login.submit}
-        </Button>
-      </form>
-      <div className={styles.notes}>
-        <p>{t.login.forgot}</p>
-        <div>
-          <button type="button" className={styles.textButton} onClick={onForgot}>
-            {t.login.forgotAction}
-          </button>
-        </div>
+    <form action={action} className={styles.form}>
+      <input type="hidden" name="next" value={next} />
+      {state.error && (
+        <Alert tone="danger" role="alert">
+          {state.error}
+        </Alert>
+      )}
+      <Field id="login-email" label={t.login.email}>
+        <Input
+          name="email"
+          type="email"
+          inputMode="email"
+          autoComplete="username"
+          autoCapitalize="none"
+          defaultValue={state.email}
+          spellCheck={false}
+          required
+        />
+      </Field>
+      <Field id="login-password" label={t.login.password}>
+        <PasswordInput name="password" autoComplete="current-password" required />
+      </Field>
+      <div className={styles.forgotRow}>
+        <button type="button" className={styles.textButton} onClick={onForgot}>
+          {t.login.forgotAction}
+        </button>
       </div>
-    </>
+      <SubmitButton pending={pending} pendingLabel={t.login.submitting}>
+        {t.login.submit}
+      </SubmitButton>
+    </form>
   );
 }
 
@@ -135,7 +153,7 @@ function useResendWait(sentAt: number | null): number {
   return resendWaitSeconds(sentAt, Math.max(now, sentAt ?? 0));
 }
 
-function PhoneForm({ next }: { next: string }) {
+function PhoneForm({ next, forgot }: { next: string; forgot: boolean }) {
   const [sent, request, requesting] = useActionState(requestPhoneCode, INITIAL_PHONE);
   const [verified, verify, verifying] = useActionState(verifyPhoneCode, INITIAL_PHONE);
   // The request that the "change number" button left behind.
@@ -148,6 +166,12 @@ function PhoneForm({ next }: { next: string }) {
   if (!onCodeStep) {
     return (
       <form action={request} className={styles.form}>
+        {forgot && <p className={styles.hint}>{t.login.forgot}</p>}
+        {sent.error && (
+          <Alert tone="danger" role="alert">
+            {sent.error}
+          </Alert>
+        )}
         <Field id="login-phone" label={p.number} hint={p.numberHint}>
           <Input
             name="phone"
@@ -158,14 +182,9 @@ function PhoneForm({ next }: { next: string }) {
             required
           />
         </Field>
-        {sent.error && (
-          <Alert tone="danger" role="alert">
-            {sent.error}
-          </Alert>
-        )}
-        <Button type="submit" block disabled={requesting}>
-          {requesting ? p.sending : p.sendCode}
-        </Button>
+        <SubmitButton pending={requesting} pendingLabel={p.sending}>
+          {p.sendCode}
+        </SubmitButton>
       </form>
     );
   }
@@ -191,6 +210,7 @@ function PhoneForm({ next }: { next: string }) {
             autoComplete="one-time-code"
             pattern="[0-9]{6}"
             maxLength={6}
+            placeholder="······"
             className={styles.code}
             required
             autoFocus
@@ -201,9 +221,9 @@ function PhoneForm({ next }: { next: string }) {
             {error}
           </Alert>
         )}
-        <Button type="submit" block disabled={verifying}>
-          {verifying ? p.verifying : p.verify}
-        </Button>
+        <SubmitButton pending={verifying} pendingLabel={p.verifying}>
+          {p.verify}
+        </SubmitButton>
       </form>
       <div className={styles.secondary}>
         <form action={request}>

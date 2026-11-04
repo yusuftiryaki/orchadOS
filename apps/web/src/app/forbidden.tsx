@@ -1,12 +1,14 @@
 import { signOut } from "@/app/actions";
 import { StatusPage } from "@/components/site/status-page";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { IconShield } from "@/components/ui/icons";
 import { t } from "@/lib/i18n";
 
 export default function Forbidden() {
   return (
     <StatusPage
       code="403"
+      icon={<IconShield size={26} />}
       title={t.forbidden.title}
       testId="forbidden"
       // Only a signed-in user without the role sees this page: offer the way

@@ -4,16 +4,19 @@ import { LogoMark } from "@/components/brand/logo";
 import { t } from "@/lib/i18n";
 import styles from "./status-page.module.css";
 
-// A whole-screen message outside any section (404, 403, a failed request): the brand leads
-// home, one heading says what happened, the body what to do, one action.
+// A whole-screen message outside any section (404, 403, a failed request): the
+// brand leads home, a quiet icon and code, one heading says what happened, the
+// body what to do, then the way back.
 export function StatusPage({
   code,
+  icon,
   title,
   children,
   action,
   testId,
 }: {
   code?: string;
+  icon?: ReactNode;
   title: string;
   children: ReactNode;
   action: ReactNode;
@@ -26,8 +29,11 @@ export function StatusPage({
         <span>{t.app.name}</span>
       </Link>
       <div className={styles.body} data-testid={testId}>
-        {/* An empty planting row: the orchard grid with no tree in it. */}
-        <span className={styles.rows} aria-hidden />
+        {icon && (
+          <span className={styles.icon} aria-hidden>
+            {icon}
+          </span>
+        )}
         {code && <p className={styles.code}>{code}</p>}
         <h1>{title}</h1>
         <div className={styles.text}>{children}</div>
