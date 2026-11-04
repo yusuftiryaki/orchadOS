@@ -1348,3 +1348,51 @@ h2.figureLabel {
   font-size: var(--text-sm);
   font-weight: 650;
 }
+
+/* ---- A card with a header row and document rows (Sözleşmelerim). */
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cardHead > h2 {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 650;
+}
+
+.docRows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.docRows > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 20px;
+}
+
+.docRows > li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+h3.rowTitle {
+  margin: 0;
+  font-size: var(--text-base);
+}
+
+@media (max-width: 479px) {
+  .docRows > li > :global(.button) {
+    margin-left: 56px;
+  }
+}
