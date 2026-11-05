@@ -333,6 +333,14 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
           unassessedPct={report.scoreUnassessedPct}
           size="large"
         />
+        {/* The score's explanation stays with the score. */}
+        <details className={`${styles.disclosure} ${styles.noPrint}`}>
+          <summary>{r.scoreHelpTitle}</summary>
+          <p className={styles.small}>
+            {t.portal.score.help}.{" "}
+            {t.portal.score.weights(scoreRulesFor(latest.methodologyVersion))}
+          </p>
+        </details>
       </div>
       <p className={styles.treeLine}>
         <strong data-testid="tree-count">{r.treeCount(report.activeTreeCount)}</strong>
@@ -364,13 +372,6 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
         ))}
       </ul>
       <div className={`${styles.summaryHelp} ${styles.noPrint}`}>
-        <details className={styles.disclosure}>
-          <summary>{r.scoreHelpTitle}</summary>
-          <p className={styles.small}>
-            {t.portal.score.help}.{" "}
-            {t.portal.score.weights(scoreRulesFor(latest.methodologyVersion))}
-          </p>
-        </details>
         <details className={styles.disclosure}>
           <summary>{r.classHelpTitle}</summary>
           <dl className={styles.classHelp}>
