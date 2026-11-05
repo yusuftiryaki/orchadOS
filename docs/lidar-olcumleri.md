@@ -65,7 +65,48 @@ Her aşama `--trees` (varsayılan `<oturum>/trees.json`), `--out` ve `--params` 
 
 ## 4. Taç ölçümleri ve büyüklük sınıfı
 
-_Ajan sonuçlarıyla doldurulacak._
+`orchados-pipeline lidar crown` (`lidar/crown.py`, yöntem `lidar_crown` 0.1.0). Yapraklı dönem için; çıktı `crown.json` (`orchados.lidar_crown/1`).
+
+**Temizleme:** Yerden 0,4 m'nin altı (ot katmanı) kullanılmaz. Noktalar 25 cm'lik voksellere konur, 3 noktadan az olan vokseller atılır, kalanlar komşuluklarına göre (26 komşu) kümelere ayrılır. Ağaç, gövde bölgesine (envanter konumunun 1 m çevresi, yerden 1,5 m'ye kadar) değen en büyük kümedir. Böylece ot, havadaki tekil noktalar ve sınırdan taşan komşu dallar ayıklanır.
+
+**Tanımlar:** Bütün uç değerler "sağlam destek" ile alınır: bir yöndeki en uçtaki noktanın değil, k'inci en uçtaki noktanın konumu (k = en az 8, noktaların ‰0,3'ü). Tek bir gürültü noktası ölçümü büyütmez.
+
+| Ölçüm | Kod | Tanım |
+| --- | --- | --- |
+| Ağaç boyu | `tree_height` | Temizlenmiş ağacın zemin düzleminden en üst (sağlam) yüksekliği |
+| Taç tabanı | (ayrıntıda) | Ağaç 10 cm'lik dilimlere bölünür; genişliği en geniş dilimin %30'una ulaşan ve üstündeki dilim de ulaşan en alt dilim |
+| Taç çapı | `crown_diameter` | Taç noktalarının 36 yatay yöndeki kumpas genişliklerinin ortalaması (iki karşı yöndeki sağlam desteklerin toplamı). En dar ve en geniş genişlik ayrıntıda durur |
+| Taç hacmi | `crown_volume` | Taç noktalarının dışbükey zarfının hacmi (1000 yönde sağlam destek düzlemlerinin kesişimi, ızgarada toplanır). Düzensiz, açık ya da tek taraflı taçta gerçek yaprak hacmini **olduğundan büyük** gösterir |
+| Büyüklük sınıfı | `size_class` | Taç çapından, metodoloji §3 eşikleriyle: < 1,5 m fidan, 1,5–3 m genç, 3–6 m verimli, > 6 m yaşlı. Güven: gerçek çapın önerilen sınıfın içinde olma olasılığı (normal dağılım, çapın belirsizliğiyle), en çok 0,9 |
+
+**Belirsizlik (1σ):** Nokta gürültüsü (`point_sigma_m`), uç değer kuralının duyarlılığı (k yarıya inince ve iki katına çıkınca tahminin oynaması), yönler arası dağılım ve yön kapsamasından gelen pay birleştirilir. Hacmin belirsizliği çap ve taç yüksekliğinin belirsizliğinden yayılır. Zarf modelinin kendi yanlılığı belirsizliğe dahil değildir.
+
+**Kalite:**
+- Yön kapsaması temizlenmiş ağaçta yeniden hesaplanır. 0,6'nın altındaysa durum `one_sided` olur ve yalnız boy yazılır. Sayısal ölçümlerin `confidence`'ı yön kapsamasıdır.
+- 300 noktadan azsa durum `too_few_points` olur. Gövde bölgesine değen küme yoksa `no_points`.
+- **Değen taçlar:** Taç bir komşuya doğru ayırma sınırına 15 cm'den yakın uzanıyorsa not yazılır. Çap ve hacim alt sınırdır ve güvenleri 0,6 ile çarpılır.
+- **Yapraksız bulut:** Taç halkasında üstten bakışta dolu hücre oranı (`foliage_cover`) 0,7'nin altındaysa ağaca `low_foliage` işareti konur ve güvenleri yarıya iner. Parseldeki ağaçların ortancası 0,7'nin altındaysa raporda `leafless_cloud` uyarısı çıkar.
+- Büyüklük sınıfı yalnız durumu `ok` olan ağaçta önerilir.
+
+**Sentetik doğruluk** (tam kapsama, 3 tohum, envanter konum hatası 0,3 m):
+
+| Büyüklük | Boy | Çap | Hacim |
+| --- | --- | --- | --- |
+| Fidan | −%0,4 … %0 | +%0,7 … +%1,8 | +%1,8 … +%2,6 |
+| Genç | −%0,1 … +%0,2 | +%0,5 … +%0,6 | +%1,8 … +%2,0 |
+| Verimli | −%0,2 … %0 | −%0,4 | −%0,7 … −%0,9 |
+| Yaşlı | −%0,3 | −%0,6 | −%1,5 … −%1,6 |
+
+Daha zor bir senaryoda en kötü hatalar: çapta +%1,8, hacimde +%2,8, boyda −%0,6. Senaryo 10 tohumdan oluşuyor; zemin eğimli (%8 ve %5), konum hatası 0,3 m, ot 35 cm, havada tekil noktalar var. Ağaç başına süre 0,15–0,5 sn.
+
+Sentetik ağacın tacı düzgün bir elipsoittir; bu sayılar yöntemin tutarlılığını gösterir, gerçek ağaçtaki doğruluğu değil (§7).
+
+**Bilinen sınırlar:**
+- 0,4 m'nin altına sarkan taç kısmı dikkate alınmaz.
+- Çok seyrek yapraklı fidanda çap yaklaşık %7 düşük okunur.
+- Uç değer kuralı yoğun taç kenarı varsayar; gerçek veride daha büyük bir `tail_min_points` gerekebilir.
+- Değen taç tespiti envanter konumlarına dayanır.
+- Parametreler (`CrownParams`) `--params` ile bir JSON'dan değiştirilir; bilinmeyen alan reddedilir.
 
 ## 5. Kış iskeleti ve budama analizi
 
