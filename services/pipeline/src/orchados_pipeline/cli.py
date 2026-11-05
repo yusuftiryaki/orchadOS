@@ -248,6 +248,10 @@ def main(argv: list[str] | None = None) -> int:
 
     add_demo_parser(sub)
 
+    from .lidar.cli import add_parser as add_lidar_parser
+
+    add_lidar_parser(sub)
+
     pp = sub.add_parser("params", help="print default parameters as JSON")
     pp.add_argument("--hash", action="store_true", help="print only the parameter hash")
 
@@ -259,6 +263,10 @@ def main(argv: list[str] | None = None) -> int:
             from .demo.cli import run as run_demo
 
             return run_demo(args)
+        if args.command == "lidar":
+            from .lidar.cli import run as run_lidar
+
+            return run_lidar(args)
         if args.command == "params":
             p = PipelineParams()
             print(p.params_hash() if args.hash else p.model_dump_json(indent=2))
