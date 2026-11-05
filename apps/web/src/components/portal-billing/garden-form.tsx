@@ -344,13 +344,13 @@ export function GardenForm({
           <p>{state.error}</p>
         </Alert>
       )}
-      <div className={layout.actions}>
-        <button className="button" type="submit" disabled={pending}>
-          {pending ? P.saving : G.submit}
-        </button>
+      <div className={s.stickyEnd}>
         <ButtonLink variant="quiet" href={portalHref.application(applicationId)}>
           {P.cancel}
         </ButtonLink>
+        <button className="button" type="submit" disabled={pending}>
+          {pending ? P.saving : G.submit}
+        </button>
       </div>
     </form>
   );

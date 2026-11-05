@@ -1,4 +1,5 @@
 import { exitDemoAction } from "@/app/(site)/demo/actions";
+import { IconInfo } from "@/components/ui/icons";
 import { demoSignupLabel, demoText } from "@/lib/i18n/messages/demo";
 import styles from "./demo.module.css";
 
@@ -14,13 +15,15 @@ export function DemoNotice({
 }) {
   if (!signupNext) {
     return (
-      <p className={styles.notice} role="note" data-testid="demo-notice">
-        {text}
-      </p>
+      <div className={styles.notice} role="note" data-testid="demo-notice">
+        <IconInfo size={18} />
+        <p>{text}</p>
+      </div>
     );
   }
   return (
     <div className={`${styles.notice} ${styles.noticeCta}`} role="note" data-testid="demo-notice">
+      <IconInfo size={18} />
       <p>{text}</p>
       <form action={exitDemoAction}>
         <input type="hidden" name="next" value={signupNext} />

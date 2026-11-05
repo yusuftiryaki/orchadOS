@@ -188,6 +188,7 @@ test("a viewer cannot approve the boundary; the owner does", async ({ page }) =>
     "Sınırı sadece parsel sahibi onaylayabilir.",
   );
   await expect(card.getByTestId("boundary-approve")).toHaveCount(0);
+  await page.getByRole("button", { name: "Hesap menüsü" }).click();
   await page.getByRole("button", { name: "Çıkış" }).click();
   await page.waitForURL("/giris");
 

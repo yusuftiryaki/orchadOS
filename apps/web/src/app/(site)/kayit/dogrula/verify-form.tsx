@@ -3,8 +3,8 @@
 import { useActionState, useEffect, useState } from "react";
 import { resendWaitSeconds } from "@/app/(site)/giris/login-methods";
 import styles from "@/components/site/auth.module.css";
+import { SubmitButton } from "@/components/site/submit-button";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { t } from "@/lib/i18n";
 import { siteText } from "@/lib/i18n/messages/site";
@@ -34,9 +34,9 @@ export function VerifyForm() {
       <form action={action} className={styles.form}>
         <input type="hidden" name="intent" value="send" />
         {error}
-        <Button type="submit" block disabled={pending}>
-          {pending ? s.submitting : s.verifyPage.sendCode}
-        </Button>
+        <SubmitButton pending={pending} pendingLabel={s.submitting}>
+          {s.verifyPage.sendCode}
+        </SubmitButton>
       </form>
     );
   }
@@ -58,19 +58,25 @@ export function VerifyForm() {
             autoComplete="one-time-code"
             pattern="[0-9]{6}"
             maxLength={6}
+            placeholder="······"
             className={styles.code}
             required
             autoFocus
           />
         </Field>
         {error}
-        <Button type="submit" block disabled={pending}>
-          {pending ? s.verifying : s.verify}
-        </Button>
+        <SubmitButton pending={pending} pendingLabel={s.verifying}>
+          {s.verify}
+        </SubmitButton>
       </form>
       <form action={action} className={styles.secondary}>
         <input type="hidden" name="intent" value="send" />
-        <button type="submit" className={styles.textButton} disabled={wait > 0 || pending}>
+        <button
+          type="submit"
+          className={styles.textButton}
+          disabled={wait > 0 || pending}
+          aria-live="polite"
+        >
           {wait > 0 ? s.resendIn(wait) : s.resend}
         </button>
       </form>

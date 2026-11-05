@@ -5,13 +5,12 @@ import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import { StatusBadge } from "@/components/portal-billing/status-badge";
 import { statusTone } from "@/components/ui/status";
-import s from "@/components/portal-billing/billing.module.css";
+import { DetailHeader, Section, workClass as w } from "@/components/portal-billing/workspace";
 import layout from "@/components/portal/page.module.css";
 import { Alert, type AlertTone } from "@/components/ui/alert";
 import { buttonClass, ButtonLink } from "@/components/ui/button";
 import { Facts, factsClass } from "@/components/ui/facts";
-import { PageHeader } from "@/components/ui/page-header";
-import { Panel, panelClass } from "@/components/ui/panel";
+import { IconDownload } from "@/components/ui/icons";
 import { requireSection } from "@/lib/auth/session";
 import { installmentLabel } from "@/lib/billing/installments";
 import { formatKurus } from "@/lib/billing/money";
@@ -52,13 +51,9 @@ export default async function PaymentPage({
     failed && order && (order.status === "awaiting_payment" || order.status === "active");
 
   return (
-    <main
-      className={`${layout.page} ${layout.reading}`}
-      data-testid="payment"
-      data-status={payment.status}
-    >
+    <main className={layout.page} data-testid="payment" data-status={payment.status}>
       {waiting && <meta httpEquiv="refresh" content="10" />}
-      <PageHeader
+      <DetailHeader
         title={
           payment.receipt_number ? (
             <NumberedTitle
@@ -69,111 +64,118 @@ export default async function PaymentPage({
             T.title
           )
         }
-        meta={<StatusBadge kind="payment" status={payment.status} testId="payment-status" />}
+        badges={<StatusBadge kind="payment" status={payment.status} testId="payment-status" />}
         back={{ href: portalHref.payments(), label: P.payments.title }}
       />
       <PortalResult params={query} />
-      <Alert
-        tone={(tone === "highlight" ? "neutral" : tone) as AlertTone}
-        role="status"
-        testId="payment-result"
-      >
-        {T.results[payment.status]}
-      </Alert>
-      {(payment.receipt_number || retry) && (
-        <div className={layout.actions}>
-          {payment.receipt_number && (
-            <a
-              className={buttonClass()}
-              href={portalHref.receipt(payment.id)}
-              target="_blank"
-              rel="noopener"
-              data-testid="receipt-link"
-            >
-              {T.receipt}
-            </a>
-          )}
-          {retry && <ButtonLink href={portalHref.order(order.id)}>{T.retry}</ButtonLink>}
-        </div>
-      )}
+      <div className={w.narrow}>
+        <Alert
+          tone={(tone === "highlight" ? "neutral" : tone) as AlertTone}
+          role="status"
+          testId="payment-result"
+        >
+          {T.results[payment.status]}
+        </Alert>
 
-      <section className={panelClass} aria-labelledby="payment-facts">
-        <h2 id="payment-facts" className="sr-only">
-          {T.title}
-        </h2>
-        <div className={s.hero}>
-          <p className={`${layout.muted} ${layout.small}`}>{T.amount}</p>
-          <p className={s.dueAmount} data-testid="payment-amount">
-            {formatKurus(payment.amount_kurus, currency)}
-          </p>
-        </div>
-        <dl className={factsClass.list}>
-          {order && (
-            <FactRow label={T.order}>
-              <Link href={portalHref.order(order.id)} className={s.nowrap}>
-                {order.number}
-              </Link>
-            </FactRow>
-          )}
-          {planInstallment && (
-            <FactRow label={T.planInstallment} testId="payment-installment">
-              {T.planInstallmentText(
-                planInstallment.row.seq,
-                planInstallment.count,
-                installmentLabel(planInstallment.row),
+        <section className={`${w.formCard} ${w.objectCard}`} aria-labelledby="payment-facts">
+          <h2 id="payment-facts" className="sr-only">
+            {T.title}
+          </h2>
+          <div className={w.formCardBody}>
+            <div className={w.figure}>
+              <p className={w.figureLabel}>{T.amount}</p>
+              <p className={w.figureValue} data-testid="payment-amount">
+                {formatKurus(payment.amount_kurus, currency)}
+              </p>
+            </div>
+            <dl className={factsClass.list}>
+              {order && (
+                <FactRow label={T.order}>
+                  <Link href={portalHref.order(order.id)} className={w.ident}>
+                    {order.number}
+                  </Link>
+                </FactRow>
               )}
-            </FactRow>
+              {planInstallment && (
+                <FactRow label={T.planInstallment} testId="payment-installment">
+                  {T.planInstallmentText(
+                    planInstallment.row.seq,
+                    planInstallment.count,
+                    installmentLabel(planInstallment.row),
+                  )}
+                </FactRow>
+              )}
+              <FactRow label={T.method}>{billingText.paymentProvider[payment.provider]}</FactRow>
+              <FactRow label={T.date}>
+                {formatDateTime(payment.succeeded_at ?? payment.initiated_at ?? payment.created_at)}
+              </FactRow>
+              {(payment.card_association || payment.card_last4) && (
+                <FactRow label={T.card}>
+                  {T.cardText(payment.card_association, payment.card_last4)}
+                </FactRow>
+              )}
+              {payment.installment != null && payment.installment > 1 && (
+                <FactRow label={T.installment}>{payment.installment}</FactRow>
+              )}
+              {payment.bank_reference && (
+                <FactRow label={T.bankReference}>
+                  <span className={w.ident}>{payment.bank_reference}</span>
+                </FactRow>
+              )}
+              {payment.value_date && (
+                <FactRow label={T.valueDate}>{formatDate(payment.value_date)}</FactRow>
+              )}
+            </dl>
+            {items.length > 0 && (
+              <div className={w.paidBox}>
+                <h3 className={w.subTitle}>{T.itemsTitle}</h3>
+                <Facts
+                  variant="summary"
+                  rows={items.map((item) => [item.name, formatKurus(item.amount_kurus, currency)])}
+                />
+              </div>
+            )}
+          </div>
+          {(payment.receipt_number || retry) && (
+            <div className={w.formCardFooter}>
+              {payment.receipt_number && (
+                <a
+                  className={buttonClass()}
+                  href={portalHref.receipt(payment.id)}
+                  target="_blank"
+                  rel="noopener"
+                  data-testid="receipt-link"
+                >
+                  <IconDownload size={18} />
+                  {T.receipt}
+                </a>
+              )}
+              {retry && <ButtonLink href={portalHref.order(order.id)}>{T.retry}</ButtonLink>}
+            </div>
           )}
-          <FactRow label={T.method}>{billingText.paymentProvider[payment.provider]}</FactRow>
-          <FactRow label={T.date}>
-            {formatDateTime(payment.succeeded_at ?? payment.initiated_at ?? payment.created_at)}
-          </FactRow>
-          {(payment.card_association || payment.card_last4) && (
-            <FactRow label={T.card}>
-              {T.cardText(payment.card_association, payment.card_last4)}
-            </FactRow>
-          )}
-          {payment.installment != null && payment.installment > 1 && (
-            <FactRow label={T.installment}>{payment.installment}</FactRow>
-          )}
-          {payment.bank_reference && (
-            <FactRow label={T.bankReference}>{payment.bank_reference}</FactRow>
-          )}
-          {payment.value_date && (
-            <FactRow label={T.valueDate}>{formatDate(payment.value_date)}</FactRow>
-          )}
-        </dl>
-      </section>
+        </section>
 
-      {items.length > 0 && (
-        <Panel title={T.itemsTitle}>
-          <Facts
-            variant="summary"
-            rows={items.map((item) => [item.name, formatKurus(item.amount_kurus, currency)])}
-          />
-        </Panel>
-      )}
-
-      {refunds.length > 0 && (
-        <Panel title={T.refunds}>
-          <div>
-            <ul className={layout.rows}>
+        {refunds.length > 0 && (
+          <Section title={T.refunds} id="payment-refunds">
+            <ul className={w.rows}>
               {refunds.map((r) => (
                 <li key={r.id}>
-                  <div className={layout.rowMain}>
-                    <span className={s.rowTitle}>{r.number}</span>
-                    <span className={s.meta}>{billingText.refundKind[r.kind]}</span>
+                  <div className={w.rowBody}>
+                    <p className={w.rowTitle}>
+                      <span className={w.ident}>{r.number}</span>
+                    </p>
+                    <p className={w.rowMeta}>{billingText.refundKind[r.kind]}</p>
                   </div>
-                  <div className={s.rowSide}>
+                  <div className={w.rowEnd}>
                     <StatusBadge kind="refund" status={r.status} />
-                    <span className={s.amount}>{formatKurus(r.amount_kurus, r.currency)}</span>
+                    <span className={w.rowAmount}>{formatKurus(r.amount_kurus, r.currency)}</span>
                   </div>
                 </li>
               ))}
             </ul>
-          </div>
-        </Panel>
-      )}
+          </Section>
+        )}
+      </div>
     </main>
   );
 }

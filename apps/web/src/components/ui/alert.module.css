@@ -1,29 +1,26 @@
+/* A soft tinted surface with a tinted hairline; the title carries the tone. */
 .alert {
   display: grid;
-  grid-template-columns: 4px 1fr;
-  gap: 0 var(--space-3);
-  padding: var(--space-3);
-  border-radius: var(--radius);
+  grid-template-columns: 1fr;
+  gap: 2px;
+  padding: 14px var(--space-3);
+  border-radius: var(--radius-lg);
   background: var(--color-neutral-soft);
+  border: 1px solid color-mix(in srgb, var(--tone, var(--color-neutral)) 20%, transparent);
   color: var(--color-text);
+  font-size: var(--text-sm);
   max-width: var(--measure);
 }
 
-.alert::before {
-  content: "";
-  grid-row: 1 / span 2;
-  border-radius: 2px;
-  background: var(--tone, var(--color-neutral));
-}
-
 .title {
-  font-weight: 700;
-  margin: 0 0 2px;
+  font-weight: 600;
+  font-size: var(--text-base);
+  margin: 0;
   color: var(--tone, var(--color-neutral));
 }
 
 .body {
-  grid-column: 2;
+  min-width: 0;
 }
 
 .body > :last-child {
@@ -67,6 +64,13 @@
 .toast > :first-child {
   flex: 1;
   max-width: none;
+}
+
+/* Clear the portal's bottom tab bar on a phone. */
+@media (max-width: 859px) {
+  :global([data-bottom-nav]) .toast {
+    bottom: calc(var(--bottom-nav-height) + var(--space-3) + env(safe-area-inset-bottom));
+  }
 }
 
 @keyframes toastIn {

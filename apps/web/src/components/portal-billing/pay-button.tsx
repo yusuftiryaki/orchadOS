@@ -10,7 +10,7 @@ import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 function Submit() {
   const { pending } = useFormStatus();
   return (
-    <button className="button" type="submit" disabled={pending} data-testid="pay-card">
+    <button className="button button-block" type="submit" disabled={pending} data-testid="pay-card">
       {pending ? P.order.cardPending : P.order.card}
     </button>
   );
@@ -47,9 +47,7 @@ export function PayButton({
           />
         </Field>
       )}
-      <div className={layout.actions}>
-        <Submit />
-      </div>
+      <Submit />
       <p className={`${layout.muted} ${layout.small}`}>{P.order.cardHint}</p>
     </form>
   );

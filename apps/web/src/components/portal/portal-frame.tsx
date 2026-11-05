@@ -7,18 +7,20 @@ import { AppShell } from "@/components/ui/app-shell";
 export interface PortalLink {
   href: string;
   label: string;
+  icon?: ReactNode;
 }
 
 // Which link a portal path belongs to: quotes go with the applications, the
-// parcel pages with the gardens; the longest matching link wins
-// (Sözleşmelerim inside Hesabım). Links outside the portal (other sections)
-// are never current here.
+// parcel pages with the gardens; the longest matching link wins. The account
+// pages (Hesabım, Sözleşmelerim) are in the account menu, so no tab is
+// current there.
 export function currentLink(path: string, links: PortalLink[]): string | null {
   if (path.startsWith("/portal/teklif")) path = "/portal/basvuru";
   const match = links
     .filter((l) => l.href !== "/portal" && (path === l.href || path.startsWith(`${l.href}/`)))
     .sort((a, b) => b.href.length - a.href.length)[0];
   if (match) return match.href;
+  if (path.startsWith("/portal/hesap")) return null;
   return path === "/portal" || path.startsWith("/portal/") ? "/portal" : null;
 }
 

@@ -4,7 +4,7 @@
   align-items: end;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 .text {
@@ -13,25 +13,43 @@
 }
 
 .back {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: 500;
+  color: var(--color-muted);
   margin-bottom: var(--space-2);
   text-decoration: none;
 }
 
+/* The arrow is an aria-hidden icon: generated content would join the
+   link's accessible name. */
+.backIcon {
+  flex: none;
+  transition: transform var(--duration-fast);
+}
+
 .back:hover {
-  text-decoration: underline;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.back:hover .backIcon {
+  transform: translateX(-2px);
 }
 
 .title {
   font-size: var(--text-2xl);
+  font-weight: 800;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.2;
   margin: 0;
 }
 
 .lead {
   margin: var(--space-2) 0 0;
-  color: var(--color-text-2);
+  color: var(--color-muted);
   max-width: var(--measure);
 }
 

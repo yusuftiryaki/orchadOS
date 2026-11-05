@@ -26,6 +26,7 @@ export function DemoBanner({
     <div className={styles.banner} role="region" aria-label={B.label} data-testid="demo-banner">
       <div className={styles.bannerInner}>
         <p className={styles.bannerText}>
+          <span className={styles.tag}>{demoText.shell.label}</span>
           <span className={styles.long}>{B.text(until)}</span>
           <span className={styles.short}>{B.short(until)}</span>
         </p>
@@ -47,7 +48,11 @@ export function DemoBanner({
           </form>
           <form action={exitDemoAction}>
             <input type="hidden" name="next" value="/" />
-            <button type="submit" className={styles.bannerButton} data-testid="demo-exit">
+            <button
+              type="submit"
+              className={`${styles.bannerButton} ${styles.bannerQuiet}`}
+              data-testid="demo-exit"
+            >
               {B.exit}
             </button>
           </form>

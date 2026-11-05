@@ -266,7 +266,7 @@ export function InventoryReportView({
 
           <section className={layout.section} aria-labelledby="sirada">
             <h2 id="sirada">{r.nextTitle}</h2>
-            <div className={panelClass}>
+            <div className={`${layout.stack} ${ir.prose}`}>
               <p>{r.next}</p>
               <h3>{r.youTitle}</h3>
               <p>{r.you}</p>

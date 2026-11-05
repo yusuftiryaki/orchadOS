@@ -47,9 +47,9 @@ export const MAP_COLORS = {
   // Parcel boundary, the boundary being drawn, a customer's gardens.
   accent: "#3b6a1e",
   // Dark marks: other panoramas, infrastructure, a marked location.
-  ink: "#2b2420",
+  ink: "#1f1d1a",
   // Secondary lines: planting rows, declared and earlier boundaries.
-  muted: "#5e5a4f",
+  muted: "#64615a",
   // Halo, white fill.
   surface: "#ffffff",
   // Office tool: a slot flagged for verification; an important finding.

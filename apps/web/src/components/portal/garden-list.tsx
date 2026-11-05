@@ -2,13 +2,14 @@ import type { ReactNode } from "react";
 import { statusTone } from "@/components/ui/status";
 import { Badge, ClassDot } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
+import { ClassPlate } from "@/components/ui/class-plate";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import type { Distribution } from "@/lib/portal/classes";
 import type { PortalParcel } from "@/lib/portal/data";
-import { DistributionBar, ScoreLine } from "./labels";
+import { ScoreLine } from "./labels";
 import styles from "./home.module.css";
-import layout from "./page.module.css";
+import { IconMapPin } from "@/components/ui/icons";
 
 export interface GardenBadge {
   state: string;
@@ -25,9 +26,13 @@ const LEGEND = ["healthy", "attention", "problem", "dead", "absent", "unassessed
 export function GardenList({
   parcels,
   badges = {},
+  primary = false,
 }: {
   parcels: PortalParcel[];
   badges?: Record<string, GardenBadge>;
+  // "Karneyi aç" is the page's main action when nothing else waits on the
+  // customer.
+  primary?: boolean;
 }) {
   const g = t.portal.gardens;
   if (parcels.length === 0) {
@@ -40,47 +45,79 @@ export function GardenList({
   return (
     <ul className={styles.gardens} data-testid="parcel-list" aria-label={g.title}>
       {parcels.map((parcel) => (
-        <GardenRow key={parcel.id} parcel={parcel} badge={badges[parcel.id]} />
+        <GardenRow key={parcel.id} parcel={parcel} badge={badges[parcel.id]} primary={primary} />
       ))}
     </ul>
   );
 }
 
-function GardenRow({ parcel, badge }: { parcel: PortalParcel; badge?: GardenBadge }) {
+// One garden card: the class plate (the garden from above, one dot per
+// ~1% of its trees), name and place, its badges, the last visit's score and
+// class counts, and "Karneyi aç". The whole card is the link's target.
+function GardenRow({
+  parcel,
+  badge,
+  primary,
+}: {
+  parcel: PortalParcel;
+  badge?: GardenBadge;
+  primary: boolean;
+}) {
   const g = t.portal.gardens;
   const place = [parcel.village, parcel.district, parcel.province].filter(Boolean).join(", ");
-  const size = [
-    parcel.estimated_area_m2 != null
-      ? `${formatNumber(parcel.estimated_area_m2)} ${t.parcels.areaUnit}`
-      : null,
-    g.trees(parcel.activeTreeCount),
-  ]
-    .filter(Boolean)
-    .join(", ");
   const visited = parcel.lastVisit && parcel.distribution;
   return (
     <li className={styles.garden} data-parcel-id={parcel.id}>
+      <ClassPlate
+        counts={visited ? parcel.distribution! : {}}
+        size="var(--garden-plate)"
+        className={styles.plate}
+        testId={visited ? "class-bar" : undefined}
+      />
       <div className={styles.identity}>
         <h3 className={styles.name}>{parcel.name}</h3>
-        {place && <p className={layout.muted}>{place}</p>}
-        <p className={`${layout.muted} ${layout.small}`}>{size}</p>
-        {badge && (
-          <p>
-            <Badge tone={statusTone(badge.state, "garden")} testId="garden-state">
-              {badge.text}
-            </Badge>
+        {place && (
+          <p className={styles.place}>
+            <IconMapPin size={16} />
+            <span>{place}</span>
           </p>
+        )}
+        <p className={styles.size}>
+          {parcel.estimated_area_m2 != null && (
+            <span>
+              {formatNumber(parcel.estimated_area_m2)} {t.parcels.areaUnit}
+            </span>
+          )}
+          <span>{g.trees(parcel.activeTreeCount)}</span>
+        </p>
+        {(parcel.urgentFindings > 0 || badge) && (
+          <div className={styles.badges}>
+            {parcel.urgentFindings > 0 && (
+              <Badge tone="danger">{g.urgent(parcel.urgentFindings)}</Badge>
+            )}
+            {badge && (
+              <Badge tone={statusTone(badge.state, "garden")} testId="garden-state">
+                {badge.text}
+              </Badge>
+            )}
+          </div>
         )}
       </div>
       <div className={styles.condition}>
         {visited ? (
           <>
-            <p className={layout.small}>
-              {g.lastVisit}:{" "}
-              <strong data-testid="last-visit">{formatDate(parcel.lastVisit!.time)}</strong>
-            </p>
-            <ScoreLine score={parcel.score} change={parcel.scoreChange} basis={parcel.scoreBasis} />
-            <DistributionBar distribution={parcel.distribution!} />
+            <div className={styles.conditionTop}>
+              <ScoreLine
+                score={parcel.score}
+                change={parcel.scoreChange}
+                basis={parcel.scoreBasis}
+                size="large"
+              />
+              <p className={styles.lastVisit}>
+                <span>{g.lastVisit}</span>
+                <strong data-testid="last-visit">{formatDate(parcel.lastVisit!.time)}</strong>
+              </p>
+            </div>
             <ClassCounts distribution={parcel.distribution!} />
           </>
         ) : (
@@ -88,27 +125,22 @@ function GardenRow({ parcel, badge }: { parcel: PortalParcel; badge?: GardenBadg
             <p className={styles.noVisit} data-testid="last-visit">
               {g.noVisit}
             </p>
-            <p className={`${layout.muted} ${layout.small}`}>{g.noVisitBody}</p>
+            <p className={styles.noVisitBody}>{g.noVisitBody}</p>
           </>
         )}
       </div>
-      <div className={styles.attention}>
-        {parcel.urgentFindings > 0 && (
-          <Badge tone="danger">{g.urgent(parcel.urgentFindings)}</Badge>
-        )}
-        <ButtonLink
-          variant="secondary"
-          href={`/portal/parsel/${parcel.id}`}
-          className={styles.open}
-        >
-          {g.open}
-        </ButtonLink>
-      </div>
+      <ButtonLink
+        variant={primary ? "primary" : "secondary"}
+        href={`/portal/parsel/${parcel.id}`}
+        className={styles.open}
+      >
+        {g.open}
+      </ButtonLink>
     </li>
   );
 }
 
-// The numbers behind the bar, in words: the colour is never the only signal.
+// The numbers behind the plate, in words: the colour is never the only signal.
 function ClassCounts({ distribution }: { distribution: Distribution }): ReactNode {
   const shown = LEGEND.filter((c) => distribution[c] > 0);
   if (shown.length === 0) return null;

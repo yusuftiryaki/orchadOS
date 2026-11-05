@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { TreeClass } from "@/components/ui/badge";
+import { ClassDot, type TreeClass } from "@/components/ui/badge";
 import { t } from "@/lib/i18n";
 import { siteText } from "@/lib/i18n/messages/site";
 import styles from "./landing.module.css";
@@ -77,42 +77,66 @@ export function OrchardPlate() {
     }
   }
 
+  // The sample's own counts, as the map's filter chips show them.
+  const counts = LEGEND.map((c) => ({
+    c,
+    n: Array.from({ length: ROWS * COLS }, (_, i) =>
+      classOf(Math.floor(i / COLS) + 1, (i % COLS) + 1),
+    ).filter((v) => v === c).length,
+  }));
+
   return (
     <figure className={styles.plate}>
-      <div className={styles.plateField}>
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className={styles.plateSvg}
-          role="img"
-          aria-label={p.title}
-        >
-          {Array.from({ length: ROWS }, (_, i) => (
-            <g key={i}>
-              <line
-                x1={LEFT - 6}
-                x2={width - 6}
-                y1={y(i + 1)}
-                y2={y(i + 1)}
-                className={styles.furrow}
-              />
-              <text x={8} y={y(i + 1) + 4} className={styles.rowLabel}>
-                {p.rowLabel(i + 1)}
-              </text>
-            </g>
-          ))}
-          {trees}
-          <circle
-            cx={x(PICKED.col)}
-            cy={y(PICKED.row)}
-            r={14}
-            className={styles.picked}
-            style={{ "--c": PICKED.col } as CSSProperties}
-          />
-          <rect x={LEFT - 14} y={0} width={10} height={height} className={styles.scan} />
-        </svg>
+      {/* The portal's health map, bare: its class filter with the counts,
+          the field, and the picked tree's card. */}
+      <div className={styles.window}>
+        <div className={styles.plateBar} aria-hidden>
+          <ul className={styles.chips}>
+            {counts.map(({ c, n }) => (
+              <li key={c}>
+                <ClassDot value={c} />
+                {legendText(c).label}
+                <span className={styles.chipCount}>{n}</span>
+              </li>
+            ))}
+          </ul>
+          <span className={styles.windowTag}>{p.sample}</span>
+        </div>
+        <div className={styles.plateField}>
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            className={styles.plateSvg}
+            role="img"
+            aria-label={p.title}
+          >
+            {Array.from({ length: ROWS }, (_, i) => (
+              <g key={i}>
+                <line
+                  x1={LEFT - 6}
+                  x2={width - 6}
+                  y1={y(i + 1)}
+                  y2={y(i + 1)}
+                  className={styles.furrow}
+                />
+                <text x={8} y={y(i + 1) + 4} className={styles.rowLabel}>
+                  {p.rowLabel(i + 1)}
+                </text>
+              </g>
+            ))}
+            {trees}
+            <circle
+              cx={x(PICKED.col)}
+              cy={y(PICKED.row)}
+              r={14}
+              className={styles.picked}
+              style={{ "--c": PICKED.col } as CSSProperties}
+            />
+            <rect x={LEFT - 14} y={0} width={10} height={height} className={styles.scan} />
+          </svg>
+        </div>
         <div className={styles.callout}>
           <p className={styles.calloutHead}>
-            <span className="sr-only">{p.treeLabel}: </span>
+            <span className={styles.calloutLabel}>{p.treeLabel}</span>
             <span className={styles.calloutCode}>{p.tree}</span>
           </p>
           <dl className={styles.calloutList}>

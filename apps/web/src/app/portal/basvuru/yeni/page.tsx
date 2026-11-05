@@ -5,6 +5,7 @@ import s from "@/components/portal-billing/billing.module.css";
 import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { ButtonLink } from "@/components/ui/button";
+import { IconCheck } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import { formatKurus } from "@/lib/billing/money";
@@ -44,7 +45,7 @@ export default async function NewApplicationPage({
     : null;
   const shown = primary ? (memberPackage ? [memberPackage] : []) : packages;
   return (
-    <main className={`${layout.page} ${layout.reading}`}>
+    <main className={layout.page}>
       <PageHeader
         title={primary ? M.addTitle : N.title}
         lead={closed ? undefined : primary ? N.memberLead : N.lead}
@@ -92,12 +93,23 @@ export default async function NewApplicationPage({
                 />
                 <span className={s.choiceBody}>
                   <span className={s.choiceName}>{pkg.name}</span>
-                  {pkg.description && <span>{pkg.description}</span>}
+                  <span className={s.choiceVisits}>{N.visits(pkg.periodicVisitsPerYear)}</span>
+                  {pkg.description && <span className={s.choiceText}>{pkg.description}</span>}
                   <span className={s.choiceFacts}>
-                    <span>{N.visits(pkg.periodicVisitsPerYear)}</span>
-                    {pkg.includesInventory && <span>{N.inventory}</span>}
-                    <span>{N.unitPrice(formatKurus(pkg.unitPriceKurus, pkg.currency))}</span>
-                    <span>{N.minimum(formatKurus(pkg.minimumFeeKurus, pkg.currency))}</span>
+                    {pkg.includesInventory && (
+                      <span>
+                        <IconCheck size={16} />
+                        {N.inventory}
+                      </span>
+                    )}
+                    <span>
+                      <IconCheck size={16} />
+                      {N.unitPrice(formatKurus(pkg.unitPriceKurus, pkg.currency))}
+                    </span>
+                    <span>
+                      <IconCheck size={16} />
+                      {N.minimum(formatKurus(pkg.minimumFeeKurus, pkg.currency))}
+                    </span>
                   </span>
                 </span>
               </label>
@@ -114,13 +126,13 @@ export default async function NewApplicationPage({
               {N.locationNote}
             </p>
           )}
-          <div className={layout.actions}>
-            <button className="button" type="submit">
-              {primary ? N.memberSubmit : N.submit}
-            </button>
+          <div className={`${layout.actions} ${s.formEnd}`}>
             <ButtonLink variant="quiet" href={portalHref.applications()}>
               {P.cancel}
             </ButtonLink>
+            <button className="button button-lg" type="submit">
+              {primary ? N.memberSubmit : N.submit}
+            </button>
           </div>
         </form>
       )}

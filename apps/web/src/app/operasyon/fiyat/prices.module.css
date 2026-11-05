@@ -6,7 +6,7 @@
   min-width: 8rem;
   max-width: 12rem;
   text-align: right;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums proportional-nums;
 }
 
 /* Free text in a dense table: wide enough not to wrap word by word. */

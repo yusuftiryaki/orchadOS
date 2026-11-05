@@ -1,60 +1,17 @@
-/* Demo tour (İP13): start page, shell, banner, closed-write notice and the
-   guided tour card. Mobile first, 16px gutter, no horizontal scroll. */
+/* Demo tour (İP13): the shell, the banner, the closed-write notice and the
+   guided tour card. Mobile first, 16px gutter, no horizontal scroll. The
+   start page has its own module (src/app/(site)/demo/demo-page.module.css). */
 
-/* Start page --------------------------------------------------------------- */
-
-.start {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-3) 0;
-}
-
-.start h1 {
-  margin-bottom: var(--space-2);
-}
-
-.start h2 {
-  margin-top: var(--space-4);
-  font-size: 17px;
-}
-
-.start ul {
-  padding-left: 20px;
-}
-
-.startForm {
-  display: grid;
-  gap: var(--space-3);
-  margin-top: var(--space-4);
-  justify-items: start;
-}
-
-.startForm :global(.button) {
-  min-height: 44px;
-  font-size: 15px;
-}
-
-.endedCard {
-  border: 1px solid var(--color-info);
-  background: var(--color-info-soft);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3);
-  margin-bottom: var(--space-4);
-}
-
-.endedCard h2 {
-  margin-top: 0;
-}
-
-/* Shell and banner ----------------------------------------------------------- */
+/* Banner: a slim tinted band above the shell, like a "test mode" strip. On a
+   phone it stays under 48px: the short text and two small buttons. */
 
 .banner {
   position: sticky;
   top: 0;
   z-index: 55;
   background: var(--color-info-soft);
-  color: var(--color-text);
-  border-bottom: 1px solid var(--color-info);
+  color: var(--color-text-2);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .bannerInner {
@@ -63,21 +20,36 @@
   padding: 6px var(--space-3);
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 6px;
   min-width: 0;
 }
 
 .bannerText {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-xs);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.bannerText strong {
-  color: var(--color-info);
+.bannerText > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tag {
+  display: none;
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-info);
+  color: var(--color-surface);
+  font-weight: 600;
 }
 
 .long {
@@ -87,7 +59,7 @@
 .bannerActions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-shrink: 0;
 }
 
@@ -96,36 +68,57 @@
 }
 
 .bannerButton {
-  border: 1px solid var(--color-info);
-  background: transparent;
-  color: var(--color-info);
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
   border-radius: var(--radius-pill);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-xs);
   font-weight: 600;
-  padding: 3px 10px;
+  padding: 0 9px;
   cursor: pointer;
   white-space: nowrap;
   text-decoration: none;
+  transition:
+    background var(--duration-fast),
+    border-color var(--duration-fast);
 }
 
 .bannerButton:hover {
-  background: var(--color-surface);
+  background: var(--color-surface-2);
+  border-color: var(--color-muted);
 }
 
-.bannerPrimary {
-  background: var(--color-info);
-  color: #fff;
+.bannerPrimary,
+.bannerPrimary:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
 }
 
 .bannerPrimary:hover {
-  background: var(--color-info);
-  color: #fff;
-  opacity: 0.9;
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
 }
 
-/* On a phone only "Gerçek hesap aç" and "Demodan çık" stay next to the short
-   text; "Turu başlat" moves to the shell header (.narrow). */
+/* "Demodan çık": the quiet way out. */
+.bannerQuiet,
+.bannerQuiet:hover {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-text-2);
+  padding: 0 4px;
+}
+
+.bannerQuiet:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* On a phone "Turu başlat" moves to the shell header (.narrow). */
 .wide {
   display: none;
 }
@@ -135,6 +128,12 @@
 }
 
 @media (min-width: 720px) {
+  .bannerText {
+    font-size: var(--text-sm);
+  }
+  .tag {
+    display: inline-block;
+  }
   .long {
     display: inline;
   }
@@ -146,6 +145,11 @@
   }
   .narrow {
     display: none;
+  }
+  .bannerButton {
+    font-size: var(--text-sm);
+    min-height: 32px;
+    padding: 0 12px;
   }
 }
 
@@ -167,6 +171,8 @@
   }
 }
 
+/* Shell header: the brand, "Bahçelerim (örnek)", and on a phone the tour. */
+
 .shellHeader {
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -175,56 +181,94 @@
 .shellInner {
   max-width: 1120px;
   margin: 0 auto;
-  padding: var(--space-2) var(--space-3);
+  min-height: 56px;
+  padding: 0 var(--space-3);
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
+  gap: var(--space-4);
+  min-width: 0;
 }
 
 .shellBrand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
   font-weight: 700;
-  font-size: 16px;
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-tight);
   text-decoration: none;
   color: var(--color-text);
 }
 
-.shellLink {
-  font-weight: 600;
-  font-size: 14px;
-  text-decoration: none;
+/* The name beside the mark only where there is room. */
+.shellBrandName {
+  display: none;
 }
 
-/* Closed write paths ----------------------------------------------------------- */
+.shellLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  min-width: 0;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+.shellLink:hover {
+  color: var(--color-accent);
+}
+
+@media (min-width: 420px) {
+  .shellBrandName {
+    display: inline;
+  }
+}
+
+/* Closed write paths: a quiet info note, with "Gerçek hesap aç" when given. */
 
 .notice {
-  border-left: 3px solid var(--color-info);
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  border: 1px solid var(--color-border);
   background: var(--color-info-soft);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 6px;
-  font-size: 14px;
+  color: var(--color-text-2);
+  padding: 12px var(--space-3);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
   margin: var(--space-2) 0;
 }
 
-/* A notice with a way out ("Gerçek hesap aç"): text, then the button. */
+.notice > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-info);
+}
+
+.notice p {
+  margin: 0;
+}
+
 .noticeCta {
-  display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
 }
 
 .noticeCta p {
-  margin: 0;
-  flex: 1 1 16rem;
+  flex: 1 1 14rem;
 }
 
 .noticeCta .bannerButton {
-  font-size: 14px;
-  padding: 6px 14px;
+  font-size: var(--text-sm);
+  min-height: 36px;
+  padding: 0 14px;
 }
 
 /* Guided tour ---------------------------------------------------------------- */

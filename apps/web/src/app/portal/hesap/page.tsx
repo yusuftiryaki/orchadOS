@@ -1,15 +1,13 @@
-import Link from "next/link";
 import { ContactForm } from "@/components/portal-billing/contact-form";
 import { MembershipCard } from "@/components/portal-billing/membership-card";
 import { MyGardens } from "@/components/portal-billing/my-gardens";
 import { PortalResult } from "@/components/portal-billing/result-notice";
-import styles from "@/components/portal-billing/account.module.css";
+import { Setting, SettingsShell } from "@/components/portal-billing/settings-shell";
+import w from "@/components/portal-billing/workspace.module.css";
 import layout from "@/components/portal/page.module.css";
 import { ButtonLink } from "@/components/ui/button";
 import { Facts } from "@/components/ui/facts";
-import { Split } from "@/components/ui/layout";
 import { PageHeader } from "@/components/ui/page-header";
-import { Panel } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import {
@@ -68,47 +66,24 @@ export default async function AccountPage({
   const showGardens = gardens.length > 0 || pilot.length > 0 || outOfService.length > 0 || !!period;
   return (
     <main className={layout.page}>
-      <PageHeader title={A.title} lead={A.lead} />
-      <PortalResult params={params} />
-
-      <Split
-        aside={
-          <>
-            <BillingSummary profile={profile} />
-            <Panel title={A.docsTitle} id="account-docs" testId="account-docs">
-              <ul className={layout.rows}>
-                <li data-testid="account-contracts">
-                  <div className={layout.rowMain}>
-                    <Link className={styles.linkRow} href="/portal/hesap/sozlesmeler">
-                      {A.contractsLink}
-                    </Link>
-                    <p className={styles.meta}>{A.contractsBody}</p>
-                  </div>
-                </li>
-                <li data-testid="account-consents">
-                  <div className={layout.rowMain}>
-                    <Link className={styles.linkRow} href={portalHref.consents()}>
-                      {A.consentsLink}
-                    </Link>
-                    <p className={styles.meta}>{A.consentsBody}</p>
-                  </div>
-                </li>
-              </ul>
-            </Panel>
-          </>
-        }
-      >
-        {period && <MembershipCard period={period} />}
-        {showGardens && (
-          <MyGardens
-            gardens={gardens}
-            pilot={pilot}
-            outOfService={outOfService}
-            addHref={changesEnabled ? portalHref.newApplication() : null}
-            changesEnabled={changesEnabled}
-          />
+      <SettingsShell current="profile">
+        <PageHeader title={A.title} lead={A.lead} />
+        <PortalResult params={params} />
+        {(period || showGardens) && (
+          <div className={w.settingStack}>
+            {period && <MembershipCard period={period} />}
+            {showGardens && (
+              <MyGardens
+                gardens={gardens}
+                pilot={pilot}
+                outOfService={outOfService}
+                addHref={changesEnabled ? portalHref.newApplication() : null}
+                changesEnabled={changesEnabled}
+              />
+            )}
+          </div>
         )}
-        <Panel title={A.contactTitle} description={A.contactLead} id="account-contact">
+        <Setting title={A.contactTitle} description={A.contactLead} id="account-contact">
           <ContactForm
             phone={contact?.phone ?? null}
             initial={{
@@ -117,8 +92,11 @@ export default async function AccountPage({
               contact_preference: contact?.contactPreference ?? "whatsapp",
             }}
           />
-        </Panel>
-      </Split>
+        </Setting>
+        <Setting title={A.billingTitle} id="account-billing" testId="account-billing">
+          <BillingSummary profile={profile} />
+        </Setting>
+      </SettingsShell>
     </main>
   );
 }
@@ -127,9 +105,9 @@ export default async function AccountPage({
 function BillingSummary({ profile }: { profile: BillingProfileView | null }) {
   const place = [profile?.district, profile?.city].filter(Boolean).join(", ");
   return (
-    <Panel title={A.billingTitle} id="account-billing" testId="account-billing">
-      {profile?.hasProfile ? (
-        <>
+    <div className={w.formCard}>
+      <div className={w.formCardBody}>
+        {profile?.hasProfile ? (
           <Facts
             rows={[
               [P.billing.kind, A.billingKind[profile.kind ?? "individual"]],
@@ -139,25 +117,18 @@ function BillingSummary({ profile }: { profile: BillingProfileView | null }) {
               ...(place ? ([[A.billingPlace, place]] as [string, string][]) : []),
             ]}
           />
-          <div className={layout.actions}>
-            <ButtonLink variant="secondary" href={portalHref.billing()}>
-              {A.billingEdit}
-            </ButtonLink>
-          </div>
-        </>
-      ) : (
-        <>
+        ) : (
           <div>
             <p>{A.billingNone}</p>
-            <p className={styles.meta}>{A.billingNoneBody}</p>
+            <p className={w.fine}>{A.billingNoneBody}</p>
           </div>
-          <div className={layout.actions}>
-            <ButtonLink variant="secondary" href={portalHref.billing()}>
-              {P.quote.billingFill}
-            </ButtonLink>
-          </div>
-        </>
-      )}
-    </Panel>
+        )}
+      </div>
+      <div className={w.formCardFooter}>
+        <ButtonLink variant="secondary" href={portalHref.billing()}>
+          {profile?.hasProfile ? A.billingEdit : P.quote.billingFill}
+        </ButtonLink>
+      </div>
+    </div>
   );
 }

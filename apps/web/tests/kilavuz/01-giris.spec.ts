@@ -8,11 +8,11 @@ test("giriş ekranı", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Giriş yap" })).toBeVisible();
   await page.getByLabel("E-posta").fill("ops@example.com");
   await shot(page, "giris/01-giris.png", [
-    { target: page.getByRole("tab", { name: "E-posta ve parola" }), n: 1 },
+    { target: page.getByRole("tab", { name: "E-posta" }), n: 1 },
     { target: page.getByLabel("E-posta"), n: 2 },
     { target: page.getByLabel("Parola"), n: 3 },
-    { target: page.getByRole("button", { name: "Giriş yap" }), n: 4 },
-    { target: page.getByRole("button", { name: "SMS koduyla girin" }), n: 5 },
+    { target: page.getByRole("button", { name: "Parolamı unuttum" }), n: 4 },
+    { target: page.getByRole("button", { name: "Giriş yap" }), n: 5 },
   ]);
 });
 

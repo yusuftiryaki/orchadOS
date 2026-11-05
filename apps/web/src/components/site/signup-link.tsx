@@ -1,16 +1,14 @@
-import { ButtonLink } from "@/components/ui/button";
+import Link from "next/link";
 import { siteText } from "@/lib/i18n/messages/site";
+import styles from "./auth.module.css";
 
-// "Hesabınız yok mu?" beside the login form, only when sign-ups are open.
+// "Hesabınız yok mu? Kayıt ol" under the login card, only when sign-ups are
+// open.
 export function SignupLink({ signupEnabled }: { signupEnabled: boolean }) {
   if (!signupEnabled) return null;
   return (
-    <div data-testid="login-signup-link">
-      <h2>{siteText.login.noAccount}</h2>
-      <p>{siteText.login.signupBody}</p>
-      <ButtonLink href="/kayit" variant="secondary">
-        {siteText.login.signup}
-      </ButtonLink>
-    </div>
+    <p className={styles.below} data-testid="login-signup-link">
+      {siteText.login.noAccount} <Link href="/kayit">{siteText.login.signup}</Link>
+    </p>
   );
 }
