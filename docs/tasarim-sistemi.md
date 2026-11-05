@@ -358,12 +358,15 @@ Karşılama sayfası (`/`) için ölçüm yapıldı: üretim derlemesi, yerel Su
 - **Yaşam döngüsü:** Başvuru → Teklif → Ödeme → Hizmet adımları çizgiyle bağlı noktalarla gösterilir. Biten adım dolu fıstık yeşili, güncel adım kabuk rengi halka, sıradaki adım boş noktadır.
 - **Metin:** Meta öğeleri 16 px aralıkla dizilir. Metin bağlantısına ok eklenmez; ok yalnız bütün satırın bağlantı olduğu listede kullanılır. Numara yalnız gerçek sıralamada kullanılır (Nasıl başlar, kayıt adımları).
 
+**Ürün sahibinin kararları (5 Kasım 2026):**
+
+- Paketler sayfasında "Önerilen" rozeti Standart pakettedir (`docs/fiyatlandirma.md` örnekleri de Standart'ı kullanır).
+- Sınıf paftasında en az bir ağacı olan her sınıf en az bir nokta alır, bu nokta en büyük sınıftan düşülür. Böylece tek bir ağaçlık sınıf da görünür kalır. Oranlar birkaç puan oynayabilir; doğru sayılar paftanın yanında metin olarak yazar.
+
 **Açık konular:**
 
-- Paketler sayfasında "Önerilen" rozeti Standart pakette. Gerekçe: `docs/fiyatlandirma.md` örnekleri Standart'ı kullanıyor. Bu iş kararını ürün sahibi onaylamalı.
 - Demo bandındaki düğmeler 30 px. Bant, demo turu telefon testi için 48 px'in altında kalmalı.
 - Kılavuz ekran görüntüleri (`docs/kilavuz/`) yeni arayüzle yeniden üretilmeli.
-- Sınıf paftasında küçük sınıfa en az bir nokta verilmesi oranı birkaç puan oynatabilir. Katı oran istenirse `plateDots()` değişir.
 
 ## Notlar
 
