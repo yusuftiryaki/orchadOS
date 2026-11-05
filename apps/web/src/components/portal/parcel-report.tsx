@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel, panelClass } from "@/components/ui/panel";
 import { cell, Table } from "@/components/ui/table";
+import { ClassPlate } from "@/components/ui/class-plate";
 import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
 import type { MarkerState } from "@/lib/map/tree-style";
 import { CLASS_ORDER, distributionTotal, type Distribution } from "@/lib/portal/classes";
@@ -23,7 +24,7 @@ import { BoundaryCardView } from "./boundary-card";
 import { BoundaryNotice } from "./boundary-notice";
 import { Dimensions } from "./dimensions";
 import { HealthMap, type MapLayer } from "./health-map";
-import { DistributionBar, findingKindLabel, percent, ScoreLine } from "./labels";
+import { findingKindLabel, percent, ScoreLine } from "./labels";
 import { scoreRulesFor } from "@/lib/portal/score";
 import {
   askQuestionAction,
@@ -296,20 +297,22 @@ function placeOf(report: ParcelReport): string | null {
   return place || null;
 }
 
-// The hero of the report: the latest visit's score on the left, how the
-// trees split over the classes on the right (each count opens the map
-// filtered to that class).
+// The hero of the report, the garden as one object: its class plate (the
+// garden from above), the latest visit's date and approver, the score and
+// how the trees split over the classes (each count opens the map filtered
+// to that class).
 function Summary({ report, base }: { report: ParcelReport; base: string }) {
   const latest = report.latest!;
   const total = distributionTotal(latest.distribution);
   const states: (keyof Distribution)[] = [...CLASS_ORDER, "unassessed"];
   const shown = states.filter((c) => c !== "unassessed" || latest.distribution.unassessed > 0);
   return (
-    <section
-      className={`${panelClass} ${styles.summary}`}
-      aria-labelledby="durum-baslik"
-      data-testid="report-summary"
-    >
+    <section className={styles.summary} aria-labelledby="durum-baslik" data-testid="report-summary">
+      <ClassPlate
+        counts={latest.distribution}
+        size="var(--summary-plate)"
+        className={styles.summaryPlate}
+      />
       <div className={styles.summaryHead}>
         <h2 id="durum-baslik">{r.summaryTitle}</h2>
         <p className={styles.summaryDate}>{r.visitOf(formatDate(latest.time))}</p>
@@ -322,65 +325,60 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
           </p>
         )}
       </div>
-      <div className={styles.summaryBody}>
-        <div className={styles.scoreBox} data-testid="score-box">
-          <ScoreLine
-            score={latest.score}
-            change={report.scoreChange}
-            basis={report.scoreBasis}
-            unassessedPct={report.scoreUnassessedPct}
-            size="large"
-          />
-          <details className={`${styles.disclosure} ${styles.noPrint}`}>
-            <summary>{r.scoreHelpTitle}</summary>
-            <p className={styles.small}>
-              {t.portal.score.help}.{" "}
-              {t.portal.score.weights(scoreRulesFor(latest.methodologyVersion))}
-            </p>
-          </details>
-        </div>
-        <div className={styles.distribution}>
-          <p className={styles.treeLine}>
-            <strong data-testid="tree-count">{r.treeCount(report.activeTreeCount)}</strong>
-            <span className="muted">
-              {r.assessedCount(latest.assessedCount, report.activeTreeCount)}
-            </span>
+      <div className={styles.scoreBox} data-testid="score-box">
+        <ScoreLine
+          score={latest.score}
+          change={report.scoreChange}
+          basis={report.scoreBasis}
+          unassessedPct={report.scoreUnassessedPct}
+          size="large"
+        />
+        <p className={styles.treeLine}>
+          <strong data-testid="tree-count">{r.treeCount(report.activeTreeCount)}</strong>
+          <span className="muted">
+            {r.assessedCount(latest.assessedCount, report.activeTreeCount)}
+          </span>
+        </p>
+      </div>
+      <ul className={styles.counts}>
+        {shown.map((c) => (
+          <li key={c}>
+            <Link
+              className={styles.count}
+              href={`${base}?sinif=${c}#harita`}
+              data-testid={`count-${c}`}
+              title={`${r.showOnMap}: ${t.portal.classes[c]}`}
+            >
+              <span className={styles.countName}>
+                <ClassDot value={c} />
+                {t.portal.classes[c]}
+              </span>
+              <span className={styles.countFigures}>
+                <span className={styles.countValue}>{formatNumber(latest.distribution[c])}</span>{" "}
+                <span className={styles.countShare}>
+                  {r.percent(percent(latest.distribution[c], total))}
+                </span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <div className={`${styles.summaryHelp} ${styles.noPrint}`}>
+        <details className={styles.disclosure}>
+          <summary>{r.scoreHelpTitle}</summary>
+          <p className={styles.small}>
+            {t.portal.score.help}.{" "}
+            {t.portal.score.weights(scoreRulesFor(latest.methodologyVersion))}
           </p>
-          <DistributionBar distribution={latest.distribution} />
-          <ul className={styles.counts}>
+        </details>
+        <details className={styles.disclosure}>
+          <summary>{r.classHelpTitle}</summary>
+          <dl className={styles.classHelp}>
             {shown.map((c) => (
-              <li key={c}>
-                <Link
-                  className={styles.count}
-                  href={`${base}?sinif=${c}#harita`}
-                  data-testid={`count-${c}`}
-                  title={`${r.showOnMap}: ${t.portal.classes[c]}`}
-                >
-                  <span className={styles.countName}>
-                    <ClassDot value={c} />
-                    {t.portal.classes[c]}
-                  </span>
-                  <span className={styles.countFigures}>
-                    <span className={styles.countValue}>
-                      {formatNumber(latest.distribution[c])}
-                    </span>{" "}
-                    <span className={styles.countShare}>
-                      {r.percent(percent(latest.distribution[c], total))}
-                    </span>
-                  </span>
-                </Link>
-              </li>
+              <ClassHelpRow key={c} state={c} />
             ))}
-          </ul>
-          <details className={`${styles.disclosure} ${styles.noPrint}`}>
-            <summary>{r.classHelpTitle}</summary>
-            <dl className={styles.classHelp}>
-              {shown.map((c) => (
-                <ClassHelpRow key={c} state={c} />
-              ))}
-            </dl>
-          </details>
-        </div>
+          </dl>
+        </details>
       </div>
       {!report.change && <p className={styles.summaryNote}>{r.changeFirst}</p>}
     </section>
