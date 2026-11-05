@@ -88,16 +88,22 @@ Her ürün, hangi ham kayıttan ve hangi hat sürümüyle üretildiğini bilir. 
 | Kod | Birim | Yöntemler | Dönem | Karnede |
 | --- | --- | --- | --- | --- |
 | `dead_branch_scale` | 0–3 | personel sorusu, AI görsel, uzman | Tümü | Evet |
-| `crown_diameter` | m | LiDAR, fotogrametri | Yapraklı | Evet |
-| `crown_volume` | m³ | LiDAR | Yapraklı | Evet |
+| `crown_diameter` | m | LiDAR (`lidar_crown`), fotogrametri | Yapraklı | Evet |
+| `crown_volume` | m³ | LiDAR (`lidar_crown`, dışbükey zarf) | Yapraklı | Evet |
+| `tree_height` | m | LiDAR (`lidar_crown`) | Tümü | Değerlendirilecek |
+| `size_class` | fidan / genç / verimli / yaşlı | LiDAR önerisi (`lidar_crown`, taç çapından) | Yapraklı | Hayır (ofis ve uzman için öneri) |
 | `trunk_diameter_h30` | cm | şerit metre, LiDAR silindir uydurma | Tümü | Evet |
-| `scaffold_branch_count` | adet | uzman gözlemi, QSM | Kış | Evet |
-| `fractal_dimension` | — | QSM, kutu sayma | Kış | Hayır (araştırma) |
+| `scaffold_branch_count` | adet | uzman gözlemi, QSM (`lidar_qsm`) | Kış | Evet |
+| `fractal_dimension` | — | QSM, kutu sayma (`lidar_qsm`) | Kış | Hayır (araştırma) |
+| `wood_volume` | m³ | QSM (`lidar_qsm`) | Kış | Hayır (araştırma) |
+| `pruned_wood_volume` | m³ | iki kış taramasının farkı (`lidar_pruning`) | Kış | Hayır (araştırma) |
+| `pruned_wood_fraction` | oran | iki kış taramasının farkı (`lidar_pruning`) | Kış | Hayır (araştırma) |
+| `pruning_cut_count` | adet | iki kış taramasının farkı (`lidar_pruning`) | Kış | Hayır (araştırma) |
 | `fruit_load_scale` | 0–3 | personel, AI görsel, uzman | Yaz | Evet |
 | `canopy_temp_delta` | °C | termal | Yaz | Değerlendirilecek |
 | `weed_height` | kısa / orta / uzun (parsel) | personel sorusu | İlkbahar, yaz | Evet |
 
-Yeni bir ölçüm türü eklemek, bu tabloya bir satır eklemek demektir.
+Yeni bir ölçüm türü eklemek, bu tabloya bir satır eklemek demektir. LiDAR satırlarının yöntemleri ve doğruluğu: [lidar-olcumleri.md](lidar-olcumleri.md). Algoritmanın yazdığı `pruning_status` ve `size_class` birer öneridir; ağacın `age_class` özelliğini ve budama kararını ofis ya da uzman verir.
 
 ## Kurallar
 
