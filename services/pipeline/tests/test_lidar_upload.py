@@ -22,8 +22,10 @@ from orchados_pipeline.lidar.upload import (
     build_payload,
     check_payload,
     load_reports,
+    load_world,
     scan_start,
     summary_lines,
+    upload_world,
 )
 
 SESSION = "11111111-1111-4111-8111-111111111111"
@@ -248,6 +250,91 @@ def test_summary_lines():
     assert lines[2] == f"  {T2} tree_height"
 
 
+# --- world cloud ---------------------------------------------------------------------------
+
+
+def write_world_cloud(out: Path, session=SESSION, parcel=PARCEL) -> None:
+    """A small world.owc + world.json from a synthetic plot, written by the world stage."""
+    import numpy as np
+
+    from orchados_pipeline.lidar.synthetic import make_plot
+    from orchados_pipeline.lidar.world import WorldParams, build_world, write_world
+
+    plot = make_plot(
+        [["young"]], np.random.default_rng(2), leafy=True, session_id=session, parcel_id=parcel
+    )
+    world = build_world(plot.points, plot.meta, plot.positions, [], WorldParams(voxel_m=0.3))
+    write_world(world, out, plot.meta.point_sigma_m)
+
+
+class FakeCatalog:
+    def __init__(self, session=SESSION, parcel=PARCEL):
+        from orchados_pipeline.upload import SessionRow
+
+        self.row = SessionRow(id=session, org_id="o", parcel_id=parcel, status="processed")
+        self.rows: list[dict] = []
+
+    def session(self, session_id):
+        assert session_id == self.row.id
+        return self.row
+
+    def assets(self, session_id, pipeline_version):
+        rows = enumerate(self.rows)
+        return {
+            r["content_hash"]: str(i) for i, r in rows if r["pipeline_version"] == pipeline_version
+        }
+
+    def insert_asset(self, row):
+        self.rows.append(row)
+        return str(len(self.rows))
+
+
+def test_world_cloud_asset_is_content_addressed_timeless_and_idempotent(tmp_path):
+    from orchados_pipeline.media import LocalMediaStore
+
+    out = write_session(tmp_path, {})
+    write_world_cloud(out)
+    world = load_world(out)
+    cat, store = FakeCatalog(), LocalMediaStore(tmp_path / "bucket")
+    assert upload_world(out, world, SESSION, cat, store, log=lambda _m: None) is True
+    assert upload_world(out, world, SESSION, cat, store, log=lambda _m: None) is False
+    (row,) = cat.rows
+    key = f"org/o/parcel/{PARCEL}/{world.sha256}"
+    assert (tmp_path / "bucket" / key).read_bytes() == (out / "world.owc").read_bytes()
+    assert row["kind"] == "world_cloud" and row["uri"] == f"storage://media/{key}"
+    assert row["mime_type"] == "application/vnd.orchados.world-cloud"
+    assert row["content_hash"] == world.sha256 and row["byte_size"] == world.byte_size
+    assert row["pose"] == {
+        "schema": "orchados.world_cloud/1",
+        "point_count": world.header["point_count"],
+        "crs": "local_enu",
+    }
+    assert row["position"].startswith("SRID=4326;POINT(37.3833 37.0662")
+    assert row["position_uncertainty_m"] == 0.015
+    assert row["pipeline"] == "orchados-pipeline"
+    assert row["params_hash"] == world.header["params_hash"]
+    assert "time" not in json.dumps(row)
+    # Another session's cloud is refused.
+    with pytest.raises(LidarUploadError, match="world.owc is for session"):
+        upload_world(out, world, PARCEL, FakeCatalog(session=PARCEL), store)
+
+
+def test_world_cloud_must_match_its_sidecar(tmp_path):
+    out = write_session(tmp_path, {})
+    write_world_cloud(out)
+    (out / "world.owc").write_bytes((out / "world.owc").read_bytes() + b"x")
+    with pytest.raises(LidarUploadError, match="does not match"):
+        load_world(out)
+
+
+def test_dry_run_with_only_a_world_cloud(tmp_path, capsys):
+    out = write_session(tmp_path, {})
+    write_world_cloud(out)
+    assert lidar_upload.run(out, SESSION, dry_run=True, env={}) == 0
+    text = capsys.readouterr().out
+    assert '"kind": "world_cloud"' in text and "nothing uploaded" in text
+
+
 # --- local Supabase ------------------------------------------------------------------------
 
 
@@ -318,6 +405,24 @@ def test_records_against_local_supabase(supabase_env, test_sessions, tmp_path, c
     (out / "crown.json").write_text(json.dumps(crown(session_id, version="0.2.0")))
     assert lidar_upload.run(out, session_id, env=creds(supabase_env)) == 0
     assert "5 created, 3 already recorded" in capsys.readouterr().out
+
+    # The world cloud: object in the media bucket, one asset row; again: nothing new.
+    write_world_cloud(out, session=session_id)
+    assert lidar_upload.run(out, session_id, env=creds(supabase_env)) == 0
+    assert "world cloud: recorded" in capsys.readouterr().out
+    assert lidar_upload.run(out, session_id, env=creds(supabase_env)) == 0
+    assert "world cloud: already recorded" in capsys.readouterr().out
+    (row,) = ops.select(
+        "asset",
+        {
+            "session_id": f"eq.{session_id}",
+            "kind": "eq.world_cloud",
+            "select": "content_hash,mime_type,pose,uri",
+        },
+    )
+    assert row["pose"]["crs"] == "local_enu" and row["mime_type"].endswith("world-cloud")
+    data = ops.storage_download("media", row["uri"].removeprefix("storage://media/"))
+    assert data == (out / "world.owc").read_bytes()
     rows = ops.select("measurement", {"session_id": f"eq.{session_id}", "select": "id"})
     assert len(rows) == 13
     ops.close()

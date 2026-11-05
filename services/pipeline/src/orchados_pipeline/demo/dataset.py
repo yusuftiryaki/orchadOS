@@ -1,13 +1,15 @@
 # ruff: noqa: E501 - Turkish texts of the dataset read better unwrapped
-"""The demo dataset, version 3 (docs/demo-turu.md §8): parcels, slots, trees, visits,
+"""The demo dataset, version 4 (docs/demo-turu.md §8): parcels, slots, trees, visits,
 their per-tree classes and values, findings, close-ups and questions (version 1),
 the service layer (version 2: weed observations, the weed mowing catalogue row
 and its season per fruit species, a done mowing job with proof photos) and the
 robot fleet (version 3: the mowing is done by the autonomous robot MARABA-I; the
 catalogue row names it, the robot model can do the service, the done job carries
-the model and the robot as its performer).
+the model and the robot as its performer) and the 3D world (version 4, İP17:
+a synthetic LiDAR cloud of parcel A's two scans, sampled from the rendered scene
+(lidar.py); its world cloud asset and the crown stage's measurements).
 
-Versions are cumulative: version 3 holds every row of versions 1 and 2 with the
+Versions are cumulative: version 4 holds every row of versions 1 to 3 with the
 same ids and the same media seeds, plus its own rows, whose ids carry their
 version (ids.did). Loading version 2 onto a version 1 target only adds rows;
 version 3 adds the robot model link and brings the four mutable rows of version
@@ -37,7 +39,7 @@ from ..geo import LocalFrame
 from . import ids
 
 DATASET_NAME = "orchados-demo"
-DATASET_VERSION = 3
+DATASET_VERSION = 4
 # Media and value seeds stay those of version 1, so the rows and files of version
 # 1 come out the same in every later version (cumulative versions, §10.3).
 SEED_VERSION = 1
@@ -46,6 +48,9 @@ SERVICES_VERSION = 2
 # The version that made the robot the performer of the service (IP15 robot fleet,
 # owner decision of 2 November 2026). It adds no row with a derived id.
 ROBOT_VERSION = 3
+# The version that added the 3D world (İP17): the world cloud assets and the LiDAR
+# crown measurements of parcel A's scans (lidar.py); their derived ids.
+WORLD_VERSION = 4
 # Fruit species of the demo parcels (public.fruit_species): pistachio, the
 # species the methodology covers.
 DEMO_SPECIES = "antep_fistigi"

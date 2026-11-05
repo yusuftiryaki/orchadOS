@@ -8,7 +8,8 @@ its proof photos and the own-work note included. Part two runs as postgres: medi
 objects, persona lockdown, a billing setting that only switches the service layer
 on, the catalogue row and its seasons, the robot model that can do it, no
 service price, the job's rows (done by the robot MARABA-I), the parcels' species,
-no notification. One read-only transaction, rolled back.
+no notification. Version 4: the owner reads parcel A's world clouds and their
+LiDAR crown measurements; their files are in both buckets (missing_media). One read-only transaction, rolled back.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from .dataset import (
     WEED_HEIGHTS,
     Dataset,
 )
+from .lidar import WORLD_VISITS
 from .sqlgen import TOKEN_COLUMNS, lit
 
 # Card states of public.service_offers without an open request. Which one the
@@ -86,6 +88,18 @@ select json_build_object(
       where m.session_id = {lit(ids.A_SCAN_2026)} and m.tree_id is not null
       group by d.code) x),
   'viewers_a', (select count(*) from public.parcel_access where parcel_id = {lit(A)} and role = 'viewer'),
+  -- Version 4 (İP17 3D world): the world clouds of A's scans and the LiDAR crown
+  -- measurements the tour draws, as the owner reads them.
+  'world_clouds_a', (
+    select count(*) from public.asset a where a.parcel_id = {lit(A)} and a.kind = 'world_cloud'
+      and a.session_id in ({", ".join(lit(ds.visit(k).id) for k in WORLD_VISITS)})
+      and a.mime_type = 'application/vnd.orchados.world-cloud'),
+  'lidar_a26', (
+    select coalesce(json_object_agg(code, n), '{{}}') from (
+      select d.code, count(distinct m.tree_id) as n from public.measurement m
+      join public.metric_definition d on d.id = m.metric_definition_id
+      where m.session_id = {lit(ids.A_SCAN_2026)} and m.source = 'algorithm' and m.method = 'lidar_crown'
+      group by d.code) x),
   -- IP15 service layer: the card and the done job, as the owner reads them.
   'service_offers', (
     select coalesce(json_agg(json_build_object('parcel_id', o.parcel_id, 'code', o.service_code,
@@ -274,6 +288,14 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
         "parcel A structure",
     )
     need(owner["viewers_a"] >= 1, "parcel A has no viewer")
+    need(
+        owner["world_clouds_a"] == len(WORLD_VISITS),
+        f"parcel A: {owner['world_clouds_a']} world clouds the owner reads, expected "
+        f"{len(WORLD_VISITS)} ({', '.join(WORLD_VISITS)})",
+    )
+    lidar = owner["lidar_a26"]
+    for code in ("tree_height", "crown_diameter", "crown_volume", "crown_base_height"):
+        need(lidar.get(code, 0) >= 50, f"A 2026: LiDAR {code} of {lidar.get(code, 0)} trees")
     codes = owner["codes_a26"]
     for code in (
         "basal_sprout_level",

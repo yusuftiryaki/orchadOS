@@ -34,6 +34,8 @@ from ..crops import DIRECTIONS, candidate_views
 from ..gpstime import utc_to_gps_ns
 from ..hashing import canonical_json, sha256_bytes
 from ..imaging import encode, resize
+from ..lidar.world import MEDIA_TYPE as WORLD_MEDIA_TYPE
+from ..lidar.world import WorldReport, encode_world
 from ..models import (
     CoverageReport,
     CropRecord,
@@ -59,6 +61,7 @@ from ..outputs import AssetEntry, CaptureEntry, Lineage, Outputs, PipelineRef
 from ..params import PipelineParams
 from ..projection import gnomonic_crop
 from . import closeups, ids
+from . import lidar as demo_lidar
 from .dataset import (
     CAMERA_HEIGHT_M,
     DATASET_NAME,
@@ -322,7 +325,7 @@ class FileEntry:
     parcel: str
     org: str
     session: str
-    kind: str  # panorama | preview | tree_crop | closeup | service_photo
+    kind: str  # panorama | preview | tree_crop | closeup | service_photo | world_cloud
 
     def as_dict(self) -> dict:
         return dict(self.__dict__)
@@ -485,6 +488,11 @@ def build_visit(ds: Dataset, visit: Visit, b: Builder, workers: int) -> dict:
 
     run = b.out / "runs" / visit.key
     run.mkdir(parents=True, exist_ok=True)
+    for stale in ("crown.json", "world.json"):
+        (run / stale).unlink(missing_ok=True)
+    world = None
+    if visit.key in demo_lidar.WORLD_VISITS:
+        world = build_world(ds, visit, b, list(zip(rendered, records, strict=True)), run)
     write_model(_manifest_model(visit), run / "manifest.json")
     write_model(
         PanoramaSet(producer=producer("panoramas"), panoramas=records, sidecars=[]),
@@ -536,12 +544,72 @@ def build_visit(ds: Dataset, visit: Visit, b: Builder, workers: int) -> dict:
         crops_status="ok" if scan else "inventory_session",
     )
     write_model(out, run / "outputs.json")
-    return {
+    info = {
         "visit": visit.key,
         "session_id": visit.id,
         "panoramas": len(records),
         "crops": len(crop_recs),
         "files": {n: _sha_file(run / n) for n in sorted(os.listdir(run))},
+    }
+    if world is not None:
+        info["world"] = world
+    return info
+
+
+def _rgb(path: Path):
+    img = cv2.imread(str(path), cv2.IMREAD_COLOR)
+    if img is None:
+        raise BuildError(f"{path}: cannot decode the panorama")
+    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+
+def build_world(
+    ds: Dataset, visit: Visit, b: Builder, frames: list[tuple[Frame, PanoramaRecord]], run: Path
+) -> dict:
+    """Synthetic LiDAR of a visit (dataset version 4): the crown stage's crown.json and the
+    world cloud, coloured by the real world stage from the encoded panoramas (the
+    full image where the visit has one), so its colours are the photos' own."""
+    vc = demo_lidar.visit_cloud(ds, visit, ANTENNA_HEIGHT_M)
+    crowns = demo_lidar.crowns(vc)
+    write_model(crowns, run / "crown.json")
+    views = [
+        demo_lidar.camera_view(
+            visit,
+            f.x,
+            f.y,
+            f.heading_deg,
+            lambda sha=rec.image.sha256: _rgb(b.out / "files" / sha),
+        )
+        for f, rec in frames
+    ]
+    world = demo_lidar.world(vc, views, b.profile.name)
+    data = encode_world(world)
+    ref = b.add(data, f"{SHORT[visit.key]}-world", WORLD_MEDIA_TYPE, (0, 0), visit, "world_cloud")
+    report = WorldReport(
+        sha256=ref.sha256,
+        byte_size=ref.size,
+        producer=Producer(
+            pipeline=PRODUCER,
+            version=PRODUCER_VERSION,
+            params_hash=world.header["params_hash"],
+            stage="lidar_world",
+        ),
+        origin_sigma_m=vc.meta.point_sigma_m,
+        header=world.header,
+        stats=world.stats,
+    )
+    write_model(report, run / "world.json")
+    ok = sum(t.status == "ok" for t in crowns.trees)
+    b.log(
+        f"{visit.key}: world cloud {world.header['point_count']} points, {ref.size / 1e3:.0f} KB; "
+        f"crowns of {ok}/{len(crowns.trees)} trees"
+    )
+    return {
+        "sha256": ref.sha256,
+        "point_count": world.header["point_count"],
+        "colorized": world.header["colorized"],
+        "seen_points": world.stats["seen_points"],
+        "crown_trees_ok": ok,
     }
 
 

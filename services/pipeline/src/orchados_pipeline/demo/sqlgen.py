@@ -11,6 +11,8 @@ Insert order (no notification is ever queued):
     5 inventory chain, captures, assets, lineage
     6 measurements, assessments, findings and their evidence (and the field
        question weed_height)
+    6a the 3D world (dataset version 4): the world cloud assets of parcel A's
+       scans (step chain) and the LiDAR crown stage's measurements (step results)
     6b service layer: the billing setting with services_enabled, the weed mowing
        catalogue row (no price: the demo org has no price list) and its season per
        fruit species, the done job of parcel B (operation, request, history, proof
@@ -37,6 +39,8 @@ from pathlib import Path
 from typing import Any
 
 from ..geo import LocalFrame, bearing_deg, wrap180
+from ..lidar.crown import CrownReport
+from ..lidar.world import WorldReport
 from ..media import media_key, media_uri
 from ..upload import SessionRow, UploadOptions, upload_run
 from . import ids
@@ -62,6 +66,7 @@ from .dataset import (
     UNSURE_LABELS,
     VERIFICATION,
     WEED_HEIGHTS,
+    WORLD_VERSION,
     ZONES,
     Dataset,
     ServiceJob,
@@ -229,6 +234,19 @@ FALLBACK_METRICS = {
         ("tree_visible", "category", ("winter", "spring", "summer", "harvest"), "hidden"),
     )
 }
+# LiDAR metrics (20261021180000, 20261107300000, 20261107400000): the crown stage's.
+FALLBACK_METRICS.update(
+    {
+        code: Metric(metric_id_fallback(code), code, vt, tuple(seasons), vis, ("tree",))
+        for code, vt, seasons, vis in (
+            ("tree_height", "numeric", ("winter", "spring", "summer", "harvest"), "shown"),
+            ("crown_diameter", "numeric", ("spring", "summer"), "shown"),
+            ("crown_volume", "numeric", ("spring", "summer"), "shown"),
+            ("crown_base_height", "numeric", ("winter", "spring", "summer", "harvest"), "hidden"),
+            ("size_class", "category", ("winter", "spring", "summer", "harvest"), "hidden"),
+        )
+    }
+)
 FALLBACK_METRICS["weed_height"] = Metric(
     metric_id_fallback("weed_height"),
     "weed_height",
@@ -1126,6 +1144,72 @@ def _measure(
     return mid
 
 
+def world_clouds(ctx: Context) -> None:
+    """The 3D world of the visits with a synthetic LiDAR cloud (dataset version 4).
+
+    The world cloud asset as `lidar upload` records it (lidar/upload.py
+    world_asset_row: kind world_cloud, the cloud origin as position, no time) and the
+    crown stage's measurements of the trees it measured (status ok) as
+    record_lidar_measurements() writes them: source algorithm, method lidar_crown,
+    its version and parameter hash, recorded by ops, measured at the scan's start.
+    """
+    from ..lidar.upload import world_asset_row
+
+    for run in ctx.manifest["runs"]:
+        if "world" not in run:
+            continue
+        v = ctx.ds.visit(run["visit"])
+        folder = ctx.build / "runs" / v.key
+        world = WorldReport.model_validate(json.loads((folder / "world.json").read_text("utf-8")))
+        if world.sha256 != run["world"]["sha256"]:
+            raise ValueError(f"{v.key}: world.json does not match the manifest")
+        row = world_asset_row(world, ids.ORG_ID, v.parcel.id, v.id)
+        key = ctx.keys[world.sha256]
+        ctx.script.insert(
+            "chain",
+            "public.asset",
+            {
+                "id": ids.did("asset", key, WORLD_VERSION),
+                **row,
+                "produced_at": v.end + timedelta(hours=3),
+            },
+        )
+        crowns = CrownReport.model_validate(json.loads((folder / "crown.json").read_text("utf-8")))
+        ok = {t.tree_id for t in crowns.trees if t.status == "ok"}
+        codes = {t.id: t.code for t in ctx.ds.trees[v.parcel.key]}
+        season = SEASON_OF_MONTH[v.start.month]
+        for m in crowns.measurements:
+            if m.tree_id not in ok:
+                continue
+            md = ctx.metrics.get(m.metric)
+            if md is None or season not in md.valid_seasons:
+                raise ValueError(f"{v.key}: metric {m.metric} is unknown or out of season")
+            mkey = f"{v.key}:{codes[m.tree_id]}:{m.metric}:{m.method}"
+            ctx.script.insert(
+                "results",
+                "public.measurement",
+                {
+                    "id": ids.did("measurement", mkey, WORLD_VERSION),
+                    "org_id": ids.ORG_ID,
+                    "parcel_id": v.parcel.id,
+                    "tree_id": m.tree_id,
+                    "metric_definition_id": md.id,
+                    "value_numeric": m.value_numeric,
+                    "value_category": m.value_category,
+                    "unit": m.unit,
+                    "uncertainty": m.uncertainty,
+                    "confidence": m.confidence,
+                    "method": m.method,
+                    "method_version": m.method_version,
+                    "params_hash": crowns.producer.params_hash,
+                    "source": "algorithm",
+                    "session_id": v.id,
+                    "measured_at": v.start,
+                    "recorded_by": ids.OPS,
+                },
+            )
+
+
 def weed_question(ctx: Context, v: Visit, height: str) -> str:
     """The field question "Bahçede yabani ot ne boyda?" as the field app writes it:
     parcel subject, method field_question, the season's protocol version, staff."""
@@ -1562,6 +1646,7 @@ def generate(ds: Dataset, build: Path, manifest: dict, metrics: dict[str, Metric
     inventory_chain(ctx)
     closeup_captures(ctx)
     results(ctx)
+    world_clouds(ctx)
     services(ctx)
     access(script, ds)
     questions(script, ds)

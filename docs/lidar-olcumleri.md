@@ -52,10 +52,13 @@ uv run orchados-pipeline lidar synth /tmp/kis-once --leafless --pruned-copy /tmp
 uv run orchados-pipeline lidar crown /tmp/yaz                     # → /tmp/yaz.processed/lidar/crown.json
 uv run orchados-pipeline lidar skeleton /tmp/kis-once             # → skeleton.json
 uv run orchados-pipeline lidar pruning /tmp/kis-once /tmp/kis-sonra   # → /tmp/kis-sonra.processed/lidar/pruning.json
+uv run orchados-pipeline lidar world /tmp/yaz [--panoramas <çalıştırma>]   # → world.owc + world.json (3D dünya)
 uv run orchados-pipeline lidar upload /tmp/yaz.processed/lidar --session-id <uuid> [--dry-run]
 ```
 
 Her aşama `--trees` (varsayılan `<oturum>/trees.json`), `--out` ve `--params` alır. Raporlar aynı girdi ve parametrelerle bayt bayt aynıdır; zaman damgası taşımaz. Parametre hash'i `producer.params_hash`'te ve her ölçümde durur.
+
+**3D dünya (İP17):** `lidar world` ölçüm yapmaz; kayıtlı buluttan portal gezisinin 3D dünyasında gösterilen renkli, seyreltilmiş bulutu (`world.owc`) üretir. Ağaç ataması bu bölümdeki kuralla aynıdır (§3); renkler oturumun panoramalarından alınır. `lidar upload` dosyayı `world_cloud` asset'i olarak yükler. Biçim: [arayuzler.md](arayuzler.md#3d-dünya-bulutu); özellik: [3d-dunya.md](3d-dunya.md); yöntem: `services/pipeline/README.md`, "LiDAR ölçümleri".
 
 ## 3. Ağaç başına ayırma
 

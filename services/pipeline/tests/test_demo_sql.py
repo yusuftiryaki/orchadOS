@@ -8,7 +8,9 @@ import pytest
 
 from orchados_pipeline.demo import build as demo_build
 from orchados_pipeline.demo import dataset, ids, sqlgen
+from orchados_pipeline.demo import lidar as demo_lidar
 from orchados_pipeline.demo.loader import insert_counts
+from orchados_pipeline.lidar import crown
 
 
 @pytest.fixture(scope="module")
@@ -356,6 +358,10 @@ def test_measurements_are_in_season_and_versioned(generated):
         if m.code == "weed_height":
             assert r["method_version"] == dataset.FIELD_PROTOCOL["summer"]
             continue
+        if r["method"] == "lidar_crown":  # version 4: the crown stage on the LiDAR cloud
+            assert r["source"] == "algorithm" and r["method_version"] == crown.METHOD_VERSION
+            assert r["params_hash"] == crown.CrownParams().params_hash()
+            continue
         assert r["method_version"] in (dataset.METHODOLOGY, dataset.PRODUCER_VERSION)
         if r["source"] == "algorithm":
             assert r["method"] == "orchados-demo" and m.code == "tree_visible"
@@ -412,3 +418,52 @@ def test_service_rows_carry_version_2_ids(generated):
     ]
     for a in _rows(script, "services", "public.asset"):
         assert a["id"] in {ids.did("asset", p.key(job), version=2) for p in job.photos}
+
+
+def test_world_clouds_and_crown_measurements(generated):
+    """Version 4 (İP17 3D world): a world_cloud asset per LiDAR visit as lidar upload
+    records it (no time), and the crown stage's measurements of the trees it measured,
+    as record_lidar_measurements() writes them; ids derived with v4."""
+    ds, manifest, script, _sql = generated
+    assets = [r for r in _rows(script, "chain", "public.asset") if r["kind"] == "world_cloud"]
+    worlds = {r["visit"]: r["world"] for r in manifest["runs"] if "world" in r}
+    assert set(worlds) == set(demo_lidar.WORLD_VISITS)
+    keys = {f["sha256"]: f["key"] for f in manifest["files"]}
+    assert {a["session_id"] for a in assets} == {ds.visit(k).id for k in worlds}
+    for a in assets:
+        assert a["id"] == ids.did("asset", keys[a["content_hash"]], version=4)
+        assert a["mime_type"] == "application/vnd.orchados.world-cloud"
+        assert a["uri"] == (
+            f"storage://media/org/{ids.ORG_ID}/parcel/{ids.PARCEL_A}/{a['content_hash']}"
+        )
+        assert set(a["pose"]) == {"schema", "point_count", "crs"}
+        assert a["pose"]["crs"] == "local_enu" and a["pose"]["point_count"] > 30_000
+        assert a["position"].startswith("SRID=4326;POINT(") and a["position_uncertainty_m"] > 0
+        assert a["tree_id"] is None and a["pipeline"] == "orchados-demo"
+    measurements = _rows(script, "results", "public.measurement")
+    rows = [r for r in measurements if r["method"] == "lidar_crown"]
+    by_id = {m.id: m.code for m in sqlgen.FALLBACK_METRICS.values()}
+    codes = {by_id[r["metric_definition_id"]] for r in rows}
+    assert codes == {
+        "tree_height",
+        "crown_diameter",
+        "crown_volume",
+        "crown_base_height",
+        "size_class",
+    }
+    a26 = [r for r in rows if r["session_id"] == ids.A_SCAN_2026]
+    trees = {r["tree_id"] for r in a26}
+    assert len(trees) >= 60 and ds.tree("A", "S6-2").id not in trees  # cut: a stump
+    for r in rows:
+        code = by_id[r["metric_definition_id"]]
+        tree = next(t for t in ds.trees["A"] if t.id == r["tree_id"])
+        visit = next(v for v in ds.visits if v.id == r["session_id"])
+        assert r["id"] == ids.did(
+            "measurement", f"{visit.key}:{tree.code}:{code}:lidar_crown", version=4
+        )
+        assert r["recorded_by"] == ids.OPS and r["measured_at"] == visit.start
+        if code == "size_class":
+            assert r["value_category"] in ("sapling", "young", "productive", "old")
+            assert r["value_numeric"] is None and r["uncertainty"] is None
+        else:
+            assert r["value_numeric"] > 0 and r["uncertainty"] > 0 and r["unit"] in ("m", "m3")
