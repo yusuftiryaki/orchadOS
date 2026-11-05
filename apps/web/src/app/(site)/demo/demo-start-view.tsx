@@ -26,7 +26,6 @@ export function DemoStartView({
   return (
     <div className={styles.page}>
       <header className={styles.head}>
-        <p className={styles.eyebrow}>{demoText.shell.label}</p>
         <h1 className={styles.title}>{d.title}</h1>
         <p className={styles.lead}>{d.lead}</p>
       </header>

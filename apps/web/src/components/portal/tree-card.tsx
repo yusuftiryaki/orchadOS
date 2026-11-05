@@ -16,7 +16,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Facts } from "@/components/ui/facts";
 import { IconCamera360 } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/page-header";
-import { Panel, panelClass } from "@/components/ui/panel";
+import { Panel } from "@/components/ui/panel";
 import { Table } from "@/components/ui/table";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
@@ -226,7 +226,7 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
           <p className={styles.groupLead}>{t.portal.questions.treeHint}</p>
         </div>
         <QuestionNotice sent={questions.sent} error={questions.error} />
-        <div className={`${panelClass} ${styles.stackCard}`}>
+        <div className={styles.stackCard}>
           <QuestionThreads
             threads={questions.threads}
             returnPath={`${base}/agac/${tree.id}`}
@@ -315,11 +315,7 @@ function Photos({ card }: { card: TreeCard }) {
               const items = card.photos[visit.id];
               const closeUps = items.filter((p) => p.direction === null);
               return (
-                <div
-                  key={visit.id}
-                  className={`${panelClass} ${styles.photoRow}`}
-                  data-visit-id={visit.id}
-                >
+                <div key={visit.id} className={styles.photoRow} data-visit-id={visit.id}>
                   <h3>{formatDate(visit.time)}</h3>
                   <div
                     className={styles.photoCells}

@@ -198,7 +198,7 @@
 
 .counts strong {
   color: var(--color-text);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums proportional-nums;
 }
 
 /* A card as wide as the page (one garden): plate | who | how | open. */

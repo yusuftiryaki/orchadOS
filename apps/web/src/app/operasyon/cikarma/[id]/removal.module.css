@@ -37,7 +37,7 @@
 
 .date strong {
   font-size: var(--text-lg);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums proportional-nums;
   line-height: var(--leading-tight);
 }
 

@@ -130,16 +130,22 @@ export default async function OrderPage({
       <DetailLayout
         asideFirst={!payable}
         aside={
-          <SummaryCard id="order-summary" title={O.summaryTitle}>
+          <SummaryCard
+            id="order-summary"
+            title={O.summaryTitle}
+            quiet={payable}
+            figure={{
+              label: O.total,
+              value: formatKurus(order.total_kurus, currency),
+              testId: "order-total",
+            }}
+          >
             <dl className={factsClass.summary}>
               {items.map((item) => (
                 <FactRow key={item.id} label={item.garden_name}>
                   {formatKurus(item.amount_kurus, currency)}
                 </FactRow>
               ))}
-              <FactRow label={O.total} testId="order-total" total>
-                {formatKurus(order.total_kurus, currency)}
-              </FactRow>
             </dl>
             <div className={w.paidBox}>
               <div className={w.kv}>
@@ -165,10 +171,12 @@ export default async function OrderPage({
             <dl className={`${factsClass.list} ${w.transfer}`}>
               {quote && (
                 <FactRow label={O.quote}>
-                  <Link href={portalHref.quote(quote.id)} className={s.nowrap}>
-                    {quote.number}
-                  </Link>
-                  {` · ${quote.package_name}`}
+                  <span className={w.stackedValue}>
+                    <Link href={portalHref.quote(quote.id)} className={w.ident}>
+                      {quote.number}
+                    </Link>
+                    <span>{quote.package_name}</span>
+                  </span>
                 </FactRow>
               )}
               {order.service_start && order.service_end && (

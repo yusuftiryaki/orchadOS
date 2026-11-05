@@ -62,33 +62,50 @@
   gap: var(--space-4);
 }
 
-/* A group of fields with a small heading (billing form); groups are
-   separated by a hairline. */
+/* A group of fields with a small heading (billing form), set as a
+   settings row: the heading on the left, the fields on the right on a wide
+   screen; groups are separated by a hairline. The legend floats so that it
+   is laid out as ordinary content (a rendered legend sits in the border). */
 .group {
   display: grid;
   gap: var(--space-3);
   border: 0;
+  border-radius: 0;
   margin: 0;
   padding: 0;
   min-width: 0;
 }
 
-/* A hairline above the group (a border would be cut by the legend). */
 .group + .group {
-  margin-top: var(--space-2);
-  box-shadow: 0 -1px 0 var(--color-border);
-}
-
-.group + .group > legend {
   padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
 }
 
 .group > legend,
 .group > h2 {
+  float: left;
+  width: 100%;
   padding: 0;
-  margin: 0 0 var(--space-3);
+  margin: 0;
   font-size: var(--text-base);
   font-weight: 700;
+}
+
+@media (min-width: 1100px) {
+  .group {
+    grid-template-columns: 180px minmax(0, 1fr);
+    column-gap: var(--space-4);
+  }
+
+  .group > legend,
+  .group > h2 {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .group > :not(legend, h2) {
+    grid-column: 2;
+  }
 }
 
 /* Radio options as large targets (Fatura türü). */
@@ -148,7 +165,7 @@
 }
 
 .readonlyValue {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums proportional-nums;
   font-weight: 600;
   white-space: nowrap;
 }

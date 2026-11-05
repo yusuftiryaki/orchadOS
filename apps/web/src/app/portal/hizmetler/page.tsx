@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listClass, workClass as w } from "@/components/portal-billing/workspace";
+import { Meta, listClass, workClass as w } from "@/components/portal-billing/workspace";
 import layout from "@/components/portal/page.module.css";
 import { RobotBadge } from "@/components/services/robot-badge";
 import styles from "@/components/services/services.module.css";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { IconTool } from "@/components/ui/icons";
+import { IconChevronRight } from "@/components/ui/icons";
 import { statusTone } from "@/components/ui/status";
 import { requireSection } from "@/lib/auth/session";
 import { servicesText as S } from "@/lib/i18n/messages/services";
@@ -57,24 +57,23 @@ export default async function ServiceRequestsPage({
             const name = S.shortName[r.serviceCode] ?? r.serviceName;
             return (
               <li key={r.id} data-request-id={r.id} data-status={r.status}>
-                <div className={w.withTile}>
-                  <span className={w.tile}>
-                    <IconTool />
-                  </span>
-                  <div className={w.rowBody}>
-                    <Link href={serviceHref.request(r.id)} className={listClass.rowLink}>
-                      {`${name}: ${r.parcelName}`}
-                    </Link>
-                    <p className={w.rowMeta}>
-                      <span className={layout.nowrap}>{r.number}</span> ·{" "}
-                      {requestDateLine(r, longDate)}
-                    </p>
-                    {r.robot && (
-                      <span className={w.rowExtra}>
-                        <RobotBadge robot={r.robot} compact />
-                      </span>
-                    )}
-                  </div>
+                <div className={w.rowBody}>
+                  <Link href={serviceHref.request(r.id)} className={listClass.rowLink}>
+                    {`${name}: ${r.parcelName}`}
+                  </Link>
+                  <Meta
+                    items={[
+                      <span key="number" className={w.ident}>
+                        {r.number}
+                      </span>,
+                      requestDateLine(r, longDate),
+                    ]}
+                  />
+                  {r.robot && (
+                    <span className={w.rowExtra}>
+                      <RobotBadge robot={r.robot} compact />
+                    </span>
+                  )}
                 </div>
                 <div className={w.rowSide}>
                   <Badge tone={statusTone(r.status)}>{S.status[r.status]}</Badge>
@@ -91,6 +90,7 @@ export default async function ServiceRequestsPage({
                     )}
                   </span>
                 </div>
+                <IconChevronRight size={18} className={w.rowChevron} />
               </li>
             );
           })}

@@ -2,15 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import styles from "@/components/site/pages.module.css";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  IconArrowRight,
-  IconFileText,
-  IconMail,
-  IconMapPin,
-  IconPhone,
-  IconShield,
-  IconUser,
-} from "@/components/ui/icons";
 import { siteText } from "@/lib/i18n/messages/site";
 import { getCompanyInfo } from "@/lib/legal/company-info";
 import { completeCompany } from "@/lib/legal/company-placeholders";
@@ -32,24 +23,18 @@ export default async function ContactPage() {
       </header>
       {company ? (
         <dl className={styles.contact} data-testid="contact-details">
-          <ContactItem icon={<IconPhone />} label={c.phone} main>
+          <ContactItem label={c.phone} main>
             <a href={`tel:${company.phone.replace(/\s/g, "")}`}>{company.phone}</a>
           </ContactItem>
-          <ContactItem icon={<IconMail />} label={c.email} main>
+          <ContactItem label={c.email} main>
             <a href={`mailto:${company.email}`}>{company.email}</a>
           </ContactItem>
-          <ContactItem icon={<IconShield />} label={c.kvkk}>
+          <ContactItem label={c.kvkk}>
             <a href={`mailto:${company.kvkk_email}`}>{company.kvkk_email}</a>
           </ContactItem>
-          <ContactItem icon={<IconFileText />} label={c.kep}>
-            {company.kep_address}
-          </ContactItem>
-          <ContactItem icon={<IconMapPin />} label={c.address}>
-            {company.address}
-          </ContactItem>
-          <ContactItem icon={<IconUser />} label={c.company}>
-            {company.legal_name}
-          </ContactItem>
+          <ContactItem label={c.kep}>{company.kep_address}</ContactItem>
+          <ContactItem label={c.address}>{company.address}</ContactItem>
+          <ContactItem label={c.company}>{company.legal_name}</ContactItem>
         </dl>
       ) : (
         <EmptyState title={c.pendingTitle} testId="contact-pending">
@@ -57,9 +42,8 @@ export default async function ContactPage() {
         </EmptyState>
       )}
       <p className={styles.note}>
-        <Link href="/sss" className="button button-quiet">
+        <Link href="/sss" className={styles.textLink}>
           {c.faqLink}
-          <IconArrowRight size={16} />
         </Link>
       </p>
     </div>
@@ -67,24 +51,17 @@ export default async function ContactPage() {
 }
 
 function ContactItem({
-  icon,
   label,
   main = false,
   children,
 }: {
-  icon: React.ReactNode;
   label: string;
   main?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className={main ? `${styles.contactItem} ${styles.contactMain}` : styles.contactItem}>
-      <dt>
-        <span className={styles.contactIcon} aria-hidden>
-          {icon}
-        </span>
-        {label}
-      </dt>
+      <dt>{label}</dt>
       <dd>{children}</dd>
     </div>
   );

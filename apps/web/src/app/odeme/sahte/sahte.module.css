@@ -32,7 +32,7 @@
 
 .title {
   font-size: var(--text-xl);
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: var(--tracking-tight);
   margin: 0;
 }
@@ -58,9 +58,8 @@
 
 .amount strong {
   font-size: var(--text-3xl);
-  font-weight: 700;
-  letter-spacing: var(--tracking-tight);
-  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 .actions {

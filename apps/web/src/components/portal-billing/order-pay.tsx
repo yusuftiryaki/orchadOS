@@ -59,7 +59,7 @@ export function OrderPay({
                 <span className={s.iban}>{instructions.iban}</span>
               </FactRow>
               <FactRow label={O.reference} testId="bank-reference">
-                {instructions.reference}
+                <span className={w.ident}>{instructions.reference}</span>
               </FactRow>
               <FactRow label={O.amount}>
                 {formatKurus(instructions.outstandingKurus, instructions.currency)}

@@ -41,7 +41,7 @@
 
 .lines dd {
   margin: 0;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums proportional-nums;
 }
 
 .total {

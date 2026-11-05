@@ -67,7 +67,11 @@ export default async function ApplicationsPage({
                 <tr key={a.id} data-application-id={a.id}>
                   <td className={listClass.primary}>
                     <Link href={portalHref.application(a.id)} className={listClass.rowLink}>
-                      {a.number ?? A.draftTitle}
+                      {a.number ? (
+                        <span className={listClass.ident}>{a.number}</span>
+                      ) : (
+                        A.draftTitle
+                      )}
                     </Link>
                     <span className={listClass.sub}>{A.next[a.status]}</span>
                   </td>

@@ -40,7 +40,7 @@ export default async function PackagesPage() {
 
   return (
     <div className={styles.page}>
-      <header className={`${styles.head} ${styles.headCenter}`}>
+      <header className={styles.head}>
         <h1 className={styles.title}>{p.title}</h1>
         <p className={styles.lead}>{p.lead}</p>
       </header>
@@ -141,10 +141,7 @@ export default async function PackagesPage() {
         </div>
         <ul className={styles.model}>
           {p.model.map((item) => (
-            <li key={item}>
-              <IconCheck size={18} />
-              <span>{item}</span>
-            </li>
+            <li key={item}>{item}</li>
           ))}
         </ul>
       </section>

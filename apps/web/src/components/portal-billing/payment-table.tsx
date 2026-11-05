@@ -6,6 +6,7 @@ import { billingText } from "@/lib/i18n/messages/billing";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import type { PaymentRow } from "@/lib/portal-billing/data";
 import { portalHref } from "@/lib/portal-billing/urls";
+import { NumberedTitle } from "./numbered-title";
 import { StatusBadge } from "./status-badge";
 import { listClass } from "./workspace";
 
@@ -13,7 +14,7 @@ const T = P.payments;
 
 // Payments of the customer (all, or one order's), newest first, with the
 // receipt link for the ones that have a receipt number. A table on a wide
-// column, one tappable card per payment on a phone: when and for which
+// column, one tappable row per payment on a phone: when and for which
 // order, the state, the receipt and the amount.
 export function PaymentTable({ payments }: { payments: PaymentRow[] }) {
   return (
@@ -40,9 +41,8 @@ export function PaymentTable({ payments }: { payments: PaymentRow[] }) {
                   {formatDateTime(p.succeeded_at ?? p.initiated_at ?? p.created_at)}
                 </Link>
                 <span className={listClass.sub}>
-                  {[p.order_number, billingText.paymentProvider[p.provider]]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {p.order_number && <span className={listClass.ident}>{p.order_number}</span>}
+                  <span>{billingText.paymentProvider[p.provider]}</span>
                 </span>
               </td>
               <td className={listClass.status}>
@@ -51,7 +51,10 @@ export function PaymentTable({ payments }: { payments: PaymentRow[] }) {
               <td className={listClass.muted}>
                 {p.receipt_number && (
                   <a href={portalHref.receipt(p.id)} target="_blank" rel="noopener">
-                    {T.receiptLink(p.receipt_number)}
+                    <NumberedTitle
+                      text={T.receiptLink(p.receipt_number)}
+                      number={p.receipt_number}
+                    />
                   </a>
                 )}
               </td>

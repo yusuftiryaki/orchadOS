@@ -1,15 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, Schibsted_Grotesk } from "next/font/google";
+import { Hanken_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import { t } from "@/lib/i18n";
 import "./globals.css";
 
 // Self-hosted at build time (next/font). Latin extended carries the Turkish
-// letters (ğ, ş, ı, İ); ç, ö, ü are in latin. Schibsted Grotesk is a
-// sturdy, open grotesque with tabular figures and a plain zero; its heavy
-// weights carry the headlines. IBM Plex Mono is for real identifiers only
+// letters (ğ, ş, ı, İ) and the lira sign (₺); ç, ö, ü are in latin. Hanken
+// Grotesk is a sturdy, open grotesque with a plain zero and a correct ₺
+// (Schibsted Grotesk draws ₺ like £); its heavy weights carry the headlines. IBM Plex Mono is for real identifiers only
 // (tree codes, order numbers, coordinates), so it is not preloaded
 // (docs/tasarim-sistemi.md §Tipografi).
-const sans = Schibsted_Grotesk({
+const sans = Hanken_Grotesk({
   subsets: ["latin", "latin-ext"],
   variable: "--font-sans-face",
   display: "swap",

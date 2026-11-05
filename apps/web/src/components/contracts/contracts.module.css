@@ -1,15 +1,16 @@
 /* The filled contract documents on the quote page and the document lists
    (T04). */
 
+/* The text itself: a framed reading box that scrolls on its own. */
 .document {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: var(--space-3);
   margin-bottom: var(--space-3);
   max-height: 32rem;
   overflow-y: auto;
   overflow-wrap: anywhere;
-  background: var(--color-surface, #fff);
+  background: var(--color-surface);
 }
 
 .document h2 {

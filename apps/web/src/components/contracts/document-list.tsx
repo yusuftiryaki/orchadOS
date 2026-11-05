@@ -44,7 +44,9 @@ export function ContractDocumentTable({
                     {kindLabel(d.kind)}
                   </span>
                   <span className={listClass.sub}>
-                    {`${d.text_version} · ${formatDateTime(d.created_at)} · ${C.list.kb(d.size_bytes)}`}
+                    <span>{d.text_version}</span>
+                    <span>{formatDateTime(d.created_at)}</span>
+                    <span>{C.list.kb(d.size_bytes)}</span>
                   </span>
                 </td>
                 <td className={listClass.status}>

@@ -153,6 +153,12 @@ export default async function QuotePage({
           <SummaryCard
             id="quote-price"
             title={W.priceTitle}
+            figure={{
+              label: Q.total,
+              value: formatKurus(quote.total_kurus, currency),
+              testId: "quote-total",
+              note: open ? `${W.validUntil}: ${formatDate(quote.valid_until)}` : undefined,
+            }}
             footer={
               open && (
                 <a
@@ -175,9 +181,6 @@ export default async function QuotePage({
               <FactRow label={Q.vat(percent(quote.vat_rate_bp))}>
                 {formatKurus(quote.vat_kurus, currency)}
               </FactRow>
-              <FactRow label={Q.total} testId="quote-total" total>
-                {formatKurus(quote.total_kurus, currency)}
-              </FactRow>
             </dl>
             {quote.discount_note && (
               <p className={w.fine}>
@@ -188,12 +191,6 @@ export default async function QuotePage({
               <div className={w.kv}>
                 <span>{`${W.firstPayment}: ${installmentLabel(first)}`}</span>
                 <span>{formatKurus(first.amountKurus, currency)}</span>
-              </div>
-            )}
-            {open && (
-              <div className={w.kv}>
-                <span>{W.validUntil}</span>
-                <span>{formatDate(quote.valid_until)}</span>
               </div>
             )}
           </SummaryCard>
@@ -325,15 +322,11 @@ export default async function QuotePage({
             <Section title={Q.billingTitle} id="quote-billing-section" testId="quote-billing">
               {profile?.complete ? (
                 <div className={w.item}>
-                  <div className={w.withTile}>
-                    <span className={w.tile}>
-                      <IconCheck />
-                    </span>
-                    <div className={w.rowBody}>
-                      <p className={w.rowTitle}>{Q.billingComplete}</p>
-                    </div>
-                  </div>
-                  <ButtonLink variant="quiet" size="sm" href={portalHref.billing(here)}>
+                  <p className={w.okLine}>
+                    <IconCheck size={18} />
+                    {Q.billingComplete}
+                  </p>
+                  <ButtonLink variant="secondary" size="sm" href={portalHref.billing(here)}>
                     {Q.billingEdit}
                   </ButtonLink>
                 </div>

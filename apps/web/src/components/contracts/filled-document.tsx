@@ -108,7 +108,7 @@ export function FilledDocumentView({
     >
       {doc.draft && (
         <p className={styles.draft} role="note" data-testid="filled-draft">
-          {C.pdf.draftMark} · {C.doc.draft}
+          {C.doc.draft}
         </p>
       )}
       <h3 className={styles.title}>{doc.title}</h3>

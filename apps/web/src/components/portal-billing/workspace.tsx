@@ -233,6 +233,7 @@ export const listClass = {
   muted: s.cellMuted,
   chevron: s.cellChevron,
   hideNarrow: s.hideNarrow,
+  ident: s.ident,
 };
 
 // A document number ("B-2026-000001", "S-2026-000003") in the mono face,

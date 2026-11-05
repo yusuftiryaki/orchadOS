@@ -5,7 +5,6 @@ import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import { StatusBadge } from "@/components/portal-billing/status-badge";
 import { statusTone } from "@/components/ui/status";
-import s from "@/components/portal-billing/billing.module.css";
 import { DetailHeader, Section, workClass as w } from "@/components/portal-billing/workspace";
 import layout from "@/components/portal/page.module.css";
 import { Alert, type AlertTone } from "@/components/ui/alert";
@@ -78,7 +77,7 @@ export default async function PaymentPage({
           {T.results[payment.status]}
         </Alert>
 
-        <section className={w.formCard} aria-labelledby="payment-facts">
+        <section className={`${w.formCard} ${w.objectCard}`} aria-labelledby="payment-facts">
           <h2 id="payment-facts" className="sr-only">
             {T.title}
           </h2>
@@ -92,7 +91,7 @@ export default async function PaymentPage({
             <dl className={factsClass.list}>
               {order && (
                 <FactRow label={T.order}>
-                  <Link href={portalHref.order(order.id)} className={s.nowrap}>
+                  <Link href={portalHref.order(order.id)} className={w.ident}>
                     {order.number}
                   </Link>
                 </FactRow>
@@ -119,7 +118,9 @@ export default async function PaymentPage({
                 <FactRow label={T.installment}>{payment.installment}</FactRow>
               )}
               {payment.bank_reference && (
-                <FactRow label={T.bankReference}>{payment.bank_reference}</FactRow>
+                <FactRow label={T.bankReference}>
+                  <span className={w.ident}>{payment.bank_reference}</span>
+                </FactRow>
               )}
               {payment.value_date && (
                 <FactRow label={T.valueDate}>{formatDate(payment.value_date)}</FactRow>
@@ -160,12 +161,14 @@ export default async function PaymentPage({
               {refunds.map((r) => (
                 <li key={r.id}>
                   <div className={w.rowBody}>
-                    <p className={w.rowTitle}>{r.number}</p>
+                    <p className={w.rowTitle}>
+                      <span className={w.ident}>{r.number}</span>
+                    </p>
                     <p className={w.rowMeta}>{billingText.refundKind[r.kind]}</p>
                   </div>
                   <div className={w.rowEnd}>
                     <StatusBadge kind="refund" status={r.status} />
-                    <span className={s.amount}>{formatKurus(r.amount_kurus, r.currency)}</span>
+                    <span className={w.rowAmount}>{formatKurus(r.amount_kurus, r.currency)}</span>
                   </div>
                 </li>
               ))}

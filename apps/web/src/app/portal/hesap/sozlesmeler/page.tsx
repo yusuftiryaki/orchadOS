@@ -1,13 +1,14 @@
 import Link from "next/link";
 import styles from "@/components/portal-billing/account.module.css";
 import { SettingsShell } from "@/components/portal-billing/settings-shell";
+import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { StatusBadge } from "@/components/portal-billing/status-badge";
+import { Meta } from "@/components/portal-billing/workspace";
 import w from "@/components/portal-billing/workspace.module.css";
 import layout from "@/components/portal/page.module.css";
-import { Alert } from "@/components/ui/alert";
 import { buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { IconDownload, IconFileText } from "@/components/ui/icons";
+import { IconAlert, IconDownload, IconInfo } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireSection } from "@/lib/auth/session";
 import {
@@ -91,7 +92,9 @@ export default async function ContractsPage() {
             >
               <div className={w.cardHead}>
                 <h2 id={`order-${order.id}-title`} className={styles.orderTitle}>
-                  <span className={layout.nowrap}>{L.order(order.number)}</span>
+                  <span>
+                    <NumberedTitle text={L.order(order.number)} number={order.number} />
+                  </span>
                   <StatusBadge kind="order" status={order.status} />
                 </h2>
                 <Link className={w.sectionLink} href={portalHref.order(order.id)}>
@@ -106,16 +109,18 @@ export default async function ContractsPage() {
                 </ul>
               )}
               {(preparing.has(order.id) || manualCopy.has(order.id)) && (
-                <div className={w.formCardBody}>
+                <div className={w.cardNote}>
                   {preparing.has(order.id) && (
-                    <Alert tone="info" testId="contracts-preparing">
-                      <p>{L.preparing}</p>
-                    </Alert>
+                    <p data-testid="contracts-preparing">
+                      <IconInfo size={18} />
+                      {L.preparing}
+                    </p>
                   )}
                   {manualCopy.has(order.id) && (
-                    <Alert tone="warning" testId="contracts-manual-copy">
-                      <p>{L.manualCopy}</p>
-                    </Alert>
+                    <p data-testid="contracts-manual-copy" data-tone="warning">
+                      <IconAlert size={18} />
+                      {L.manualCopy}
+                    </p>
                   )}
                 </div>
               )}
@@ -134,21 +139,14 @@ function DocumentRow({ doc }: { doc: ContractDocumentRow }) {
   const name = kindLabel(doc.kind);
   return (
     <li data-kind={doc.kind}>
-      <div className={w.withTile}>
-        <span className={w.tile}>
-          <IconFileText />
-        </span>
-        <div className={w.rowBody}>
-          <h3 className={w.rowTitle}>{name}</h3>
-          {L.about[doc.kind] && <p className={w.rowMeta}>{L.about[doc.kind]}</p>}
-          <p className={w.rowMeta}>
-            {`${formatDateTime(doc.created_at)} · ${doc.text_version} · ${L.kb(doc.size_bytes)}`}
-          </p>
-          <details className={styles.details}>
-            <summary>{L.sha}</summary>
-            <p className={styles.hash}>{doc.sha256}</p>
-          </details>
-        </div>
+      <div className={w.rowBody}>
+        <h3 className={w.rowTitle}>{name}</h3>
+        {L.about[doc.kind] && <p className={w.rowMeta}>{L.about[doc.kind]}</p>}
+        <Meta items={[formatDateTime(doc.created_at), doc.text_version, L.kb(doc.size_bytes)]} />
+        <details className={styles.details}>
+          <summary>{L.sha}</summary>
+          <p className={styles.hash}>{doc.sha256}</p>
+        </details>
       </div>
       <a
         className={buttonClass({ variant: "secondary", size: "sm" })}

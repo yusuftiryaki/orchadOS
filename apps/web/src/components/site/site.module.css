@@ -25,13 +25,13 @@
 
 /* Header ------------------------------------------------------------------- */
 
-/* Sticky and slightly translucent: the page shows faintly through it as it
-   scrolls by (the portal's header is opaque; the site may be lighter). */
+/* Sticky, on the page's own ground and slightly translucent: the page shows
+   faintly through it as it scrolls by; a hairline parts it. */
 .header {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
   backdrop-filter: saturate(180%) blur(16px);
   -webkit-backdrop-filter: saturate(180%) blur(16px);
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
@@ -72,11 +72,12 @@
 }
 
 .navLink {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
+  min-height: 40px;
   padding: 0 12px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   text-decoration: none;
   font-weight: 550;
   font-size: var(--text-sm);
@@ -93,11 +94,21 @@
   text-decoration: none;
 }
 
-/* The current page: a soft green pill. */
+/* The current page: ink, with a short rule under the word. */
 .navLink[aria-current="page"] {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
+  color: var(--color-text);
   font-weight: 650;
+}
+
+.navLink[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-text);
 }
 
 .actions {
@@ -189,16 +200,12 @@
   background: var(--color-surface-2);
 }
 
-.menuLinks a[aria-current="page"] {
-  color: var(--color-accent);
-}
-
 .menuLinks a[aria-current="page"]::after {
   content: "";
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-accent);
+  background: var(--color-text);
 }
 
 .menuActions {
@@ -241,7 +248,7 @@
 .footer {
   margin-top: var(--space-7);
   border-top: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-bg);
   font-size: var(--text-sm);
 }
 

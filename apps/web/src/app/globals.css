@@ -94,7 +94,7 @@
   --space-7: 64px;
   --space-8: 96px;
 
-  /* Type: Schibsted Grotesk for everything, IBM Plex Mono only for real
+  /* Type: Hanken Grotesk for everything, IBM Plex Mono only for real
      identifiers (tree codes, order numbers, coordinates, hashes). */
   --font-sans:
     var(--font-sans-face), system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
@@ -362,7 +362,7 @@ legend {
 
 table {
   border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums proportional-nums;
 }
 
 th {

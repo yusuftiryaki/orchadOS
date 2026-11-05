@@ -181,7 +181,7 @@
   align-self: center;
   font-size: var(--text-sm);
   color: var(--color-text-2);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums proportional-nums;
 }
 
 .narrow {
@@ -217,7 +217,7 @@
 .count,
 .countActive {
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums proportional-nums;
   padding: 0 var(--space-2);
   border-radius: var(--radius-pill);
   font-size: var(--text-xs);
@@ -420,7 +420,7 @@ td input.cellInput {
   margin: 0;
   font-size: var(--text-xl);
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums proportional-nums;
 }
 
 .list {

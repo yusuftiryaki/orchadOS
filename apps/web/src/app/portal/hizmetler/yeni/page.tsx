@@ -296,7 +296,10 @@ function RobotChoice({ offers, chosenId }: { offers: RobotOffer[]; chosenId: str
                   <span className={styles.robotName}>
                     {o.robot.name}
                     {several && o.isDefault && (
-                      <span className={styles.meta}> · {F.robotDefault}</span>
+                      <>
+                        {" "}
+                        <span className={styles.recommended}>{F.robotDefault}</span>
+                      </>
                     )}
                   </span>
                   <span className={styles.robotDesc}>{o.robot.shortDescription}</span>

@@ -10,6 +10,7 @@ import {
   Timeline,
   workClass as w,
 } from "@/components/portal-billing/workspace";
+import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import layout from "@/components/portal/page.module.css";
 import { RobotBadge } from "@/components/services/robot-badge";
 import styles from "@/components/services/services.module.css";
@@ -79,7 +80,7 @@ export default async function ServiceRequestPage({
   return (
     <main className={layout.page} data-testid="service-request" data-status={r.status}>
       <DetailHeader
-        title={D.title(r.number)}
+        title={<NumberedTitle text={D.title(r.number)} number={r.number} />}
         badges={
           <Badge tone={statusTone(r.status)} testId="service-request-status">
             {S.status[r.status]}
@@ -105,6 +106,14 @@ export default async function ServiceRequestPage({
             id="service-request-amount"
             title={estimate ? D.estimateTitle : D.amountTitle}
             testId="service-request-amounts"
+            figure={
+              estimate
+                ? {
+                    label: F.total,
+                    value: formatTl(estimate.total),
+                  }
+                : undefined
+            }
           >
             {estimate ? (
               <>
@@ -114,7 +123,6 @@ export default async function ServiceRequestPage({
                     [F.subtotal, formatTl(estimate.subtotal)],
                     [F.vat(vatPercent(estimate.vatRateBp)), formatTl(estimate.vat)],
                   ]}
-                  total={[F.total, formatTl(estimate.total)]}
                 />
                 <p className={w.fine}>
                   {r.quote_total_kurus === null && `${F.frozenNote} `}

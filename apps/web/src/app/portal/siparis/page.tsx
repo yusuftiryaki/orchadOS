@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PortalResult } from "@/components/portal-billing/result-notice";
+import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { StatusBadge } from "@/components/portal-billing/status-badge";
 import { listClass } from "@/components/portal-billing/workspace";
 import layout from "@/components/portal/page.module.css";
@@ -63,7 +64,7 @@ export default async function OrdersPage({
                 <tr key={o.id} data-order-id={o.id}>
                   <td className={listClass.primary}>
                     <Link href={portalHref.order(o.id)} className={listClass.rowLink}>
-                      {P.order.title(o.number)}
+                      <NumberedTitle text={P.order.title(o.number)} number={o.number} />
                     </Link>
                     {o.service_start && o.service_end && (
                       <span className={listClass.sub}>

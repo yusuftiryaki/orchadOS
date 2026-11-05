@@ -17,6 +17,7 @@ import {
   DetailHeader,
   DetailLayout,
   Lifecycle,
+  Meta,
   Section,
   SummaryCard,
   Timeline,
@@ -29,7 +30,7 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { factsClass } from "@/components/ui/facts";
 import { Checkbox, Field, Select, Textarea } from "@/components/ui/field";
-import { IconFileText, IconPackage, IconTree } from "@/components/ui/icons";
+import { IconChevronRight } from "@/components/ui/icons";
 import { requireSection } from "@/lib/auth/session";
 import { formatDonum, formatKurus } from "@/lib/billing/money";
 import { formatDate, formatDateTime } from "@/lib/i18n";
@@ -229,6 +230,15 @@ export default async function ApplicationPage({
                 title={A.preview}
                 testId="price-preview"
                 footer={submitForm || undefined}
+                figure={
+                  preview && !previewError
+                    ? {
+                        label: A.total,
+                        value: formatKurus(preview.totalKurus),
+                        testId: "preview-total",
+                      }
+                    : undefined
+                }
               >
                 {previewError === "addon_period_too_short" || previewError === "no_membership" ? (
                   <Alert tone="info" testId="addon-too-short">
@@ -261,9 +271,6 @@ export default async function ApplicationPage({
                       <FactRow label={A.vat(vatPercent(preview.vatRateBp))}>
                         {formatKurus(preview.vatKurus)}
                       </FactRow>
-                      <FactRow label={A.total} testId="preview-total" total>
-                        {formatKurus(preview.totalKurus)}
-                      </FactRow>
                     </dl>
                     <p className={w.fine}>{A.previewNote}</p>
                   </>
@@ -272,7 +279,24 @@ export default async function ApplicationPage({
                 )}
               </SummaryCard>
             ) : (
-              <SummaryCard id="application-summary" title={W.summary}>
+              <SummaryCard
+                id="application-summary"
+                title={W.summary}
+                figure={
+                  openQuote
+                    ? {
+                        label: (
+                          <NumberedTitle
+                            text={A.quoteNumber(openQuote.number)}
+                            number={openQuote.number}
+                          />
+                        ),
+                        value: formatKurus(openQuote.total_kurus, openQuote.currency),
+                        note: `${P.quote.validUntil}: ${formatDate(openQuote.valid_until)}`,
+                      }
+                    : undefined
+                }
+              >
                 <div className={w.kv}>
                   <span>{A.package}</span>
                   <span>{pkg?.name ?? P.none}</span>
@@ -291,17 +315,6 @@ export default async function ApplicationPage({
                   <span>{W.created}</span>
                   <span>{formatDate(application.created_at)}</span>
                 </div>
-                {openQuote && (
-                  <div className={w.figure}>
-                    <p className={w.figureLabel}>{A.quoteNumber(openQuote.number)}</p>
-                    <p className={w.figureValue}>
-                      {formatKurus(openQuote.total_kurus, openQuote.currency)}
-                    </p>
-                    <p className={w.figureNote}>
-                      {`${P.quote.validUntil}: ${formatDate(openQuote.valid_until)}`}
-                    </p>
-                  </div>
-                )}
               </SummaryCard>
             )}
           </>
@@ -309,7 +322,7 @@ export default async function ApplicationPage({
       >
         <Section title={A.package} id="application-package">
           {draft && closed ? (
-            <p className={w.surface} data-testid="application-package">
+            <p className={w.packageName} data-testid="application-package">
               {pkg?.name ?? P.none}
             </p>
           ) : draft && member && !memberPackage ? (
@@ -363,22 +376,13 @@ export default async function ApplicationPage({
               </div>
             </form>
           ) : (
-            <div className={w.item}>
-              <div className={w.withTile}>
-                <span className={w.tile}>
-                  <IconPackage />
-                </span>
-                <div className={w.rowBody}>
-                  <p className={w.rowTitle} data-testid="application-package">
-                    {pkg?.name ?? P.none}
-                  </p>
-                  {pkg && (
-                    <p className={w.rowMeta}>
-                      {P.newApplication.visits(pkg.periodicVisitsPerYear)}
-                    </p>
-                  )}
-                </div>
-              </div>
+            <div className={w.rowBody}>
+              <p className={w.packageName} data-testid="application-package">
+                {pkg?.name ?? P.none}
+              </p>
+              {pkg && (
+                <p className={w.rowMeta}>{P.newApplication.visits(pkg.periodicVisitsPerYear)}</p>
+              )}
             </div>
           )}
         </Section>
@@ -408,40 +412,36 @@ export default async function ApplicationPage({
                     data-withdrawn={g.withdrawn_at ? "1" : undefined}
                     className={g.withdrawn_at ? s.withdrawn : undefined}
                   >
-                    <div className={w.withTile}>
-                      <span className={w.tile}>
-                        <IconTree />
-                      </span>
-                      <div className={w.rowBody}>
-                        <p className={w.rowTitle}>{g.name}</p>
-                        <p className={w.rowMeta}>
-                          <span data-testid="garden-species">{speciesName(g.species)}</span>
-                          {" · "}
-                          {place || P.none}
-                          {" · "}
-                          {g.boundary ? A.boundaryDrawn : A.noBoundary}
-                        </p>
-                        <p className={w.rowMeta}>
-                          <span className={s.nowrap}>
+                    <div className={w.rowBody}>
+                      <p className={w.rowTitle}>{g.name}</p>
+                      <Meta
+                        items={[
+                          <span key="species" data-testid="garden-species">
+                            {speciesName(g.species)}
+                          </span>,
+                          place || P.none,
+                          g.boundary ? A.boundaryDrawn : A.noBoundary,
+                        ]}
+                      />
+                      <Meta
+                        items={[
+                          <span key="declared" className={s.nowrap}>
                             {A.declaredArea(formatDonum(Number(g.declared_area_m2)))}
-                          </span>
-                          {!draft && g.verified_area_m2 != null && (
-                            <>
-                              {" · "}
-                              <span className={s.nowrap}>
-                                {A.verifiedAreaText(formatDonum(Number(g.verified_area_m2)))}
-                              </span>
-                            </>
-                          )}
-                        </p>
-                        {g.withdrawn_at && (
-                          <span>
-                            <StatusBadge kind="removal" status="completed">
-                              {A.withdrawn}
-                            </StatusBadge>
-                          </span>
-                        )}
-                      </div>
+                          </span>,
+                          !draft && g.verified_area_m2 != null && (
+                            <span key="verified" className={s.nowrap}>
+                              {A.verifiedAreaText(formatDonum(Number(g.verified_area_m2)))}
+                            </span>
+                          ),
+                        ]}
+                      />
+                      {g.withdrawn_at && (
+                        <span>
+                          <StatusBadge kind="removal" status="completed">
+                            {A.withdrawn}
+                          </StatusBadge>
+                        </span>
+                      )}
                     </div>
                     {draft && (
                       <div className={w.rowEnd}>
@@ -491,28 +491,24 @@ export default async function ApplicationPage({
 
         {quotes.length > 0 && (
           <Section title={A.quotes} id="application-quotes">
-            <ul className={w.rows}>
+            <ul className={`${w.rows} ${w.linkRows}`}>
               {quotes.map((q) => (
                 <li key={q.id}>
-                  <div className={w.withTile}>
-                    <span className={w.tile}>
-                      <IconFileText />
-                    </span>
-                    <div className={w.rowBody}>
-                      <Link href={portalHref.quote(q.id)} className={w.rowTitle}>
-                        {A.quoteNumber(q.number)}
-                      </Link>
-                      {q.status === "issued" && (
-                        <p className={w.rowMeta}>
-                          {`${P.quote.validUntil}: `}
-                          <span className={s.nowrap}>{formatDate(q.valid_until)}</span>
-                        </p>
-                      )}
-                    </div>
+                  <div className={w.rowBody}>
+                    <Link href={portalHref.quote(q.id)} className={w.rowLink}>
+                      <NumberedTitle text={A.quoteNumber(q.number)} number={q.number} />
+                    </Link>
+                    {q.status === "issued" && (
+                      <p className={w.rowMeta}>
+                        {`${P.quote.validUntil}: `}
+                        <span className={s.nowrap}>{formatDate(q.valid_until)}</span>
+                      </p>
+                    )}
                   </div>
                   <div className={w.rowEnd}>
                     <StatusBadge kind="quote" status={q.status} />
-                    <span className={s.amount}>{formatKurus(q.total_kurus, q.currency)}</span>
+                    <span className={w.rowAmount}>{formatKurus(q.total_kurus, q.currency)}</span>
+                    <IconChevronRight size={18} className={w.rowChevron} />
                   </div>
                 </li>
               ))}
@@ -522,17 +518,15 @@ export default async function ApplicationPage({
 
         {!draft && (
           <Section title={A.timeline} id="application-history">
-            <div className={w.surface}>
-              <Timeline
-                testId="application-timeline"
-                items={events.map((e, i) => ({
-                  key: i,
-                  at: e.at,
-                  time: formatDateTime(e.at),
-                  content: <NumberedTitle text={e.text} number={e.number ?? null} />,
-                }))}
-              />
-            </div>
+            <Timeline
+              testId="application-timeline"
+              items={events.map((e, i) => ({
+                key: i,
+                at: e.at,
+                time: formatDateTime(e.at),
+                content: <NumberedTitle text={e.text} number={e.number ?? null} />,
+              }))}
+            />
           </Section>
         )}
       </DetailLayout>

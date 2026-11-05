@@ -333,13 +333,13 @@ function Summary({ report, base }: { report: ParcelReport; base: string }) {
           unassessedPct={report.scoreUnassessedPct}
           size="large"
         />
-        <p className={styles.treeLine}>
-          <strong data-testid="tree-count">{r.treeCount(report.activeTreeCount)}</strong>
-          <span className="muted">
-            {r.assessedCount(latest.assessedCount, report.activeTreeCount)}
-          </span>
-        </p>
       </div>
+      <p className={styles.treeLine}>
+        <strong data-testid="tree-count">{r.treeCount(report.activeTreeCount)}</strong>
+        <span className="muted">
+          {r.assessedCount(latest.assessedCount, report.activeTreeCount)}
+        </span>
+      </p>
       <ul className={styles.counts}>
         {shown.map((c) => (
           <li key={c}>
@@ -408,11 +408,7 @@ function Change({ report, base }: { report: ParcelReport; base: string }) {
   if (!report.previous || !report.change) return null;
   const { worse, better } = report.change;
   return (
-    <section
-      className={styles.change}
-      data-testid="report-change"
-      aria-labelledby="degisim-baslik"
-    >
+    <section className={styles.change} data-testid="report-change" aria-labelledby="degisim-baslik">
       <div className={styles.changeHead}>
         <h3 id="degisim-baslik">{r.changeTitle}</h3>
         <p className="muted">{r.changeIntro(formatDate(report.previous.time))}</p>
