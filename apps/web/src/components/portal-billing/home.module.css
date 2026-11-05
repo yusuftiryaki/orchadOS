@@ -20,51 +20,55 @@
   min-width: 0;
 }
 
-/* "Sizi bekleyenler": one card, a row per task (icon, sentence, action),
-   rows split by hairlines. The customer's own tasks carry an accent icon;
-   ours (an application under review) a neutral one. */
-.tasksPanel {
-  gap: var(--space-2);
+/* A quiet section of the home: a heading, then its content. */
+.section {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
 }
 
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* "Sizi bekleyenler": the tasks as rows of one bordered list (sentence,
+   action), split by hairlines. What waits on the customer carries a green
+   rule on its left; ours (an application under review) none. */
 .tasks {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
 }
 
 .task {
+  position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2) var(--space-3);
   align-items: start;
-  padding: var(--space-3) 0;
+  padding: var(--space-3);
   border-top: 1px solid var(--color-border);
 }
 
 .task:first-child {
   border-top: 0;
-  padding-top: var(--space-1);
 }
 
-.task:last-child {
-  padding-bottom: 0;
-}
-
-.taskIcon {
-  display: inline-grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-}
-
-.taskOurs .taskIcon {
-  background: var(--color-surface-2);
-  color: var(--color-muted);
+.task:not(.taskOurs)::before {
+  content: "";
+  position: absolute;
+  inset: var(--space-3) auto var(--space-3) 0;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--color-accent);
 }
 
 .taskText {
@@ -88,18 +92,14 @@
 }
 
 .taskAction {
-  grid-column: 2;
   justify-self: start;
 }
 
 @media (min-width: 600px) {
   .task {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-  }
-
-  .taskAction {
-    grid-column: auto;
+    padding: var(--space-3) var(--space-4);
   }
 }
 
@@ -113,10 +113,6 @@
     width: auto;
     padding-inline: 0;
   }
-}
-
-.gardensBlock {
-  gap: var(--space-3);
 }
 
 .member {
@@ -173,7 +169,7 @@
   padding: var(--space-5) var(--space-4);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-object);
 }
 
 .start h2 {
@@ -184,14 +180,6 @@
 .start > p {
   max-width: var(--measure);
   color: var(--color-text-2);
-}
-
-/* The orchard grid with no trees: the design system's empty motif. */
-.startGrid {
-  width: 72px;
-  height: 40px;
-  background-image: radial-gradient(circle, var(--color-border-strong) 3px, transparent 3.5px);
-  background-size: 18px 13px;
 }
 
 .steps {

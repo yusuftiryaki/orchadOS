@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import layout from "@/components/portal/page.module.css";
 import { ButtonLink } from "@/components/ui/button";
-import { IconAlert, IconClipboard } from "@/components/ui/icons";
-import { Panel } from "@/components/ui/panel";
+import { ClassPlate } from "@/components/ui/class-plate";
 import { formatKurus } from "@/lib/billing/money";
 import { formatDate } from "@/lib/i18n";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
@@ -128,7 +127,10 @@ export function CustomerHome({
     >
       <div className={styles.main}>
         {tasks.length > 0 && (
-          <Panel title={H.tasksTitle} id="tasks" className={styles.tasksPanel}>
+          <section id="tasks" className={styles.section} aria-labelledby="tasks-title">
+            <h2 id="tasks-title" className={styles.sectionTitle}>
+              {H.tasksTitle}
+            </h2>
             <ul className={styles.tasks}>
               {tasks.map((task, i) => (
                 <li
@@ -136,9 +138,6 @@ export function CustomerHome({
                   className={task.yours ? styles.task : `${styles.task} ${styles.taskOurs}`}
                   data-testid={task.testId}
                 >
-                  <span className={styles.taskIcon} aria-hidden>
-                    {task.yours ? <IconAlert size={18} /> : <IconClipboard size={18} />}
-                  </span>
                   <div className={styles.taskText}>
                     <h3>{task.title}</h3>
                     <p>{task.body}</p>
@@ -153,13 +152,16 @@ export function CustomerHome({
                 </li>
               ))}
             </ul>
-          </Panel>
+          </section>
         )}
         {start}
         {children && tasks.length > 0 ? (
-          <Panel title={H.gardensTitle} plain id="gardens" className={styles.gardensBlock}>
+          <section id="gardens" className={styles.section} aria-labelledby="gardens-title">
+            <h2 id="gardens-title" className={styles.sectionTitle}>
+              {H.gardensTitle}
+            </h2>
             {children}
-          </Panel>
+          </section>
         ) : (
           children
         )}
@@ -196,7 +198,7 @@ function Start({
 }) {
   return (
     <section className={styles.start} data-testid={testId} aria-labelledby={`${testId}-title`}>
-      <span className={styles.startGrid} aria-hidden />
+      <ClassPlate counts={{}} size={64} />
       <h2 id={`${testId}-title`}>{title}</h2>
       <p>{body}</p>
       <ol className={styles.steps}>
