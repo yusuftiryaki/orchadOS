@@ -135,7 +135,7 @@ export const demoText = {
       },
       gezi: {
         title: "360° bahçe gezisi",
-        body: "Bahçede ziyaret günü çekilen panoramalarda gezin. Oklar komşu noktalara götürür, ağaç işaretçileri ağaç karnesini açar; zaman yolculuğu aynı noktanın bir yıl önceki görüntüsünü gösterir.",
+        body: "Bahçede ziyaret günü çekilen panoramalarda gezin. Oklar komşu noktalara götürür; bir ağaç işaretçisine dokununca görüntü o ağaca yakınlaşır, oradan ağaç karnesi açılır. Zaman yolculuğu aynı noktanın bir yıl önceki görüntüsünü gösterir.",
       },
       harita: {
         title: "Sağlık haritası",

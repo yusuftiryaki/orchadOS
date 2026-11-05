@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   ASSET,
   createPortalFixture,
@@ -178,17 +178,61 @@ test("360° tour opens near the tree and walks to the next panorama", async ({ p
   await expect(viewer).toHaveAttribute("data-image", "placeholder");
   await expect(page.getByTestId("tour-placeholder")).toBeVisible();
 
-  // A tree marker opens the tree card.
+  // Walking returned to the overview zoom.
+  expect(await zoomOf(viewer)).toBeCloseTo(20, 0);
+
+  // A tree marker turns to the tree and zooms on it, with its panel.
   await viewer.evaluate((el) =>
     (el as HTMLElement & { __viewer: import("@photo-sphere-viewer/core").Viewer }).__viewer.rotate({
       // S1-2 is south-west of this panorama: azimuth 225°, heading 90°.
+      yaw: (100 * Math.PI) / 180,
+      pitch: 0,
+    }),
+  );
+  await viewer.locator('[data-tree="S1-2"]').click();
+  const panel = page.getByTestId("tour-tree");
+  await expect(panel).toContainText("S1-2");
+  await expect(panel).toHaveAttribute("data-tree-id", treeId("S1-2"));
+  await expect.poll(() => zoomOf(viewer)).toBeGreaterThan(30);
+  await expect.poll(() => yawOf(viewer)).toBeCloseTo(135, 0);
+  await expect(viewer.locator('[data-tree="S1-2"]')).toHaveAttribute("data-focused", "true");
+
+  // Escape goes back to the overview; the panel closes.
+  await page.getByTestId("tour-tree-close").focus();
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect.poll(() => zoomOf(viewer)).toBeCloseTo(20, 0);
+
+  // A double click zooms one step towards that point; the overview button
+  // comes back.
+  const box = (await viewer.boundingBox())!;
+  await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 3);
+  await expect.poll(() => zoomOf(viewer)).toBeCloseTo(50, 0);
+  await page.getByTestId("tour-overview").click();
+  await expect.poll(() => zoomOf(viewer)).toBeCloseTo(20, 0);
+  await expect(page.getByTestId("tour-overview")).toHaveCount(0);
+
+  // The focused tree's panel opens the tree card.
+  await viewer.evaluate((el) =>
+    (el as HTMLElement & { __viewer: import("@photo-sphere-viewer/core").Viewer }).__viewer.rotate({
       yaw: (135 * Math.PI) / 180,
       pitch: 0,
     }),
   );
   await viewer.locator('[data-tree="S1-2"]').click();
+  await page.getByTestId("tour-tree-card").click();
   await expect(page).toHaveURL(`${REPORT}/agac/${treeId("S1-2")}`);
 });
+
+type ViewerEl = HTMLElement & { __viewer: import("@photo-sphere-viewer/core").Viewer };
+
+function zoomOf(viewer: Locator) {
+  return viewer.evaluate((el) => (el as ViewerEl).__viewer.getZoomLevel());
+}
+
+function yawOf(viewer: Locator) {
+  return viewer.evaluate((el) => ((el as ViewerEl).__viewer.getPosition().yaw * 180) / Math.PI);
+}
 
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });

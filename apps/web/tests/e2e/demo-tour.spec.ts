@@ -565,7 +565,8 @@ test.describe("360° tour viewer", () => {
     await expect(viewer).toHaveAttribute("data-loaded", "true");
     await expect(page).toHaveURL(`${TOUR}?panorama=${arrow}`);
 
-    // A tree marker opens the tree card; Back returns to this panorama.
+    // A tree marker zooms on the tree; its panel opens the tree card; Back
+    // returns to this panorama.
     const code = await viewer.locator("[data-tree]").first().getAttribute("data-tree");
     await viewer.evaluate((el, treeCode) => {
       const v = (el as ViewerEl).__viewer;
@@ -580,6 +581,8 @@ test.describe("360° tour viewer", () => {
       v.zoom(100);
     }, code);
     await viewer.locator(`[data-tree="${code}"]`).click();
+    await expect(page.getByTestId("tour-tree")).toContainText(code!);
+    await page.getByTestId("tour-tree-card").click();
     await expect(page).toHaveURL(new RegExp(`${REPORT}/agac/[0-9a-f-]{36}$`));
     await expect(page.getByTestId("tree-card")).toContainText(code!);
     await page.goBack();
