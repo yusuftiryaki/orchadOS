@@ -1,10 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { SubmitButton } from "@/components/site/submit-button";
 import { CaptchaWidget } from "@/components/site/turnstile";
-import styles from "@/components/site/pages.module.css";
+import styles from "./demo-page.module.css";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { demoText, type DemoStartError } from "@/lib/i18n/messages/demo";
 import type { WebCaptchaProvider } from "@/lib/site/captcha";
 import { createClient } from "@/lib/supabase/browser";
@@ -72,9 +72,13 @@ export function DemoStartForm({
           {d.errors[error]}
         </Alert>
       )}
-      <Button type="submit" block disabled={busy} data-testid="demo-start">
-        {opening ? d.opening : pending ? d.starting : label}
-      </Button>
+      <SubmitButton
+        pending={busy}
+        pendingLabel={opening ? d.opening : d.starting}
+        testId="demo-start"
+      >
+        {label}
+      </SubmitButton>
     </form>
   );
 }

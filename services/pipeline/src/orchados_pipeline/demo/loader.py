@@ -26,7 +26,7 @@ from pathlib import Path
 import httpx
 
 from ..hashing import sha256_bytes, sha256_file
-from ..media import SupabaseMediaStore, media_key
+from ..media import URI_PREFIX, SupabaseMediaStore, media_key
 from ..supabase import Conflict, SupabaseClient
 from . import ids
 from .build import PIPELINE_ROOT, generator_hash, manifest_sha
@@ -342,6 +342,7 @@ class LoadReport:
     uploaded: int = 0
     mirrored: int = 0
     existing: int = 0
+    superseded: int = 0  # build files whose rows keep other, earlier stored bytes
     files: int = 0
     megabytes: float = 0.0
     status: str = ""
@@ -353,6 +354,7 @@ class LoadReport:
         out.append(
             f"files: {self.files} ({self.megabytes:.1f} MB); uploaded {self.uploaded} to media, "
             f"{self.mirrored} to {MIRROR}, {self.existing} already there"
+            + (f", {self.superseded} kept from the loaded build" if self.superseded else "")
         )
         if self.status:
             out.append(self.status)
@@ -398,20 +400,41 @@ def upload_media(
     report: LoadReport,
     log: Callable[[str], None],
 ) -> None:
-    """Upload missing objects as the ops persona; its password lives only for this call."""
+    """Upload missing objects as the ops persona; its password lives only for this call.
+
+    Only files the demo org's rows reference are uploaded: after an upgrade over
+    another build (supersedes()) the rows loaded before keep their stored bytes, and
+    this build's other copies of them would be orphans. A referenced object that is
+    neither stored nor in this build (an interrupted load of another build) stops
+    the run before anything is unlocked.
+    """
     existing = set(
         db.query(
             "select bucket_id || ':' || name from storage.objects "
             f"where bucket_id in ('media', '{MIRROR}') and name like 'org/{ids.ORG_ID}/%';"
         )
     )
-    files = manifest["files"]
+    referenced = referenced_keys(db)
+    keys = {_key(f) for f in manifest["files"]}
+    lost = sorted(
+        k
+        for k in referenced - keys
+        if f"media:{k}" not in existing or (mirror and f"{MIRROR}:{k}" not in existing)
+    )
+    if lost:
+        raise LoadError(
+            f"{len(lost)} media objects the demo rows reference are neither stored nor in this "
+            f"build (e.g. {lost[0]}): finish the interrupted load with its build (workflow "
+            "input reuse_build_run_id)"
+        )
+    files = [f for f in manifest["files"] if _key(f) in referenced]
     todo = [
         f
         for f in files
         if f"media:{_key(f)}" not in existing or (mirror and f"{MIRROR}:{_key(f)}" not in existing)
     ]
     report.existing = len(files) - len(todo)
+    report.superseded = len(manifest["files"]) - len(files)
     if not todo:
         log("media: all objects already uploaded")
         return
@@ -442,6 +465,19 @@ def upload_media(
             _read_back(client, build, files, mirror)
     finally:
         relock_ops(db)
+
+
+def referenced_keys(db: Psql) -> set[str]:
+    """Object keys of the demo org's stored media (asset and capture rows, as verify)."""
+    prefix = URI_PREFIX
+    return set(
+        db.query(
+            f"select substr(uri, {len(prefix) + 1}) from public.asset "
+            f"where org_id = {lit(ids.ORG_ID)} and uri like '{prefix}%' "
+            f"union select substr(uri, {len(prefix) + 1}) from public.capture "
+            f"where org_id = {lit(ids.ORG_ID)} and uri like '{prefix}%';"
+        )
+    )
 
 
 def _key(f: dict) -> str:
@@ -502,6 +538,25 @@ on conflict (parcel_id) do update set sort_order = excluded.sort_order, active =
     )
 
 
+def supersedes(target: str, row: dict | None) -> bool:
+    """May the target hold media bytes this build does not have?
+
+    Rendering is not bit-identical across CPUs (OpenCV float kernels dispatch to
+    AVX2, AVX-512 or IPP code), so a hosted project, loaded on whatever runner the
+    workflow got, may hold other bytes for the same rows than a later build. Media
+    are append-only and every row is inserted by id with "on conflict do nothing":
+    the rows already loaded keep the bytes they reference, and upload_media() skips
+    this build's copies of them. Accepted only on a hosted project over a completed
+    load (docs/demo-turu.md §10.3): an upgrade from an older version, or a rerun after
+    one, whose superseded bytes no later build reproduces. Locally, and over an
+    interrupted first load (dataset_sha256 decides that), other bytes stay an error.
+    """
+    if target != "remote" or not row or not row.get("loaded_at"):
+        return False
+    version = row.get("dataset_version")
+    return type(version) is int and version <= DATASET_VERSION
+
+
 def load_demo(
     target: str,
     profile: str = "full",
@@ -555,7 +610,11 @@ def load_demo(
     report.files = len(manifest["files"])
     report.megabytes = sum(f["bytes"] for f in manifest["files"]) / 1e6
     ds = load()
-    hint = "pnpm db:reset or --reset-local" if target == "local" else "a new dataset version"
+    hint = (
+        "pnpm db:reset or --reset-local"
+        if target == "local"
+        else "the build of the interrupted load (workflow input reuse_build_run_id)"
+    )
     other_bytes = LoadError(
         f"the target holds demo media of another profile or build; use {hint} "
         f"(this build: profile {profile})"
@@ -598,8 +657,15 @@ def load_demo(
             )
         else:
             log("resuming a partial load with the same build")
-    if st.asset_hashes and not st.asset_hashes <= hashes:
-        raise other_bytes
+    superseded = st.asset_hashes - hashes
+    if superseded:
+        if not supersedes(target, row):
+            raise other_bytes
+        log(
+            f"loaded at dataset version {row['dataset_version']} by another build: "
+            f"{len(superseded)} stored media files are not in this build; their rows keep "
+            "the stored bytes and this build's copies are not uploaded"
+        )
     mirror = st.mirror and st.registry
 
     # --- SQL (one version: see VERSIONS) ------------------------------------------------

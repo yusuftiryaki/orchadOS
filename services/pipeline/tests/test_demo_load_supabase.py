@@ -10,13 +10,16 @@ stack does not answer.
 from __future__ import annotations
 
 import json
+import shutil
 import uuid
+from pathlib import Path
 
 import httpx
 import pytest
 from supabase_util import SKIP_REASON, local_env, service_role_key
 
-from orchados_pipeline.demo import dataset, ids, loader
+from orchados_pipeline.demo import build as demo_build
+from orchados_pipeline.demo import dataset, ids, loader, sqlgen
 from orchados_pipeline.hashing import sha256_bytes
 from orchados_pipeline.media import media_key
 from orchados_pipeline.supabase import SupabaseClient
@@ -262,3 +265,77 @@ def test_registry_and_enable_disable(loaded):
     assert db.query(enabled) == ["t"]
     loader.disable(db, log=lambda _m: None)
     assert db.query(enabled) == ["f"]
+
+
+def _other_build(tmp: Path, key: str) -> tuple[Path, str, str]:
+    """A copy of the loaded test build in which one file has other bytes, as a build
+    on a runner with another CPU has (rendering is not bit-identical across CPUs)."""
+    src = demo_build.build_dir(demo_build.DEFAULT_ROOT, "test")
+    out = tmp / "other-build"
+    shutil.copytree(src, out)
+    manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+    f = next(f for f in manifest["files"] if f["key"] == key)
+    old = f["sha256"]
+    data = (out / "files" / old).read_bytes() + b"\0"
+    new = sha256_bytes(data)
+    (out / "files" / old).unlink()
+    (out / "files" / new).write_bytes(data)
+    f["sha256"], f["bytes"] = new, len(data)
+    for p in manifest["service_photos"]:
+        if p["sha256"] == old:
+            p["sha256"], p["bytes"] = new, len(data)
+    manifest["dataset_sha256"] = demo_build.manifest_sha(manifest)
+    (out / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return out, old, new
+
+
+def test_hosted_upgrade_keeps_the_bytes_of_the_loaded_build(loaded, tmp_path, monkeypatch):
+    """docs/demo-turu.md §10.3: a hosted project loaded at an older dataset version by a
+    build with other bytes is upgraded; its rows keep their stored media, this build's
+    copies are not uploaded, and verify passes. Locally the same build is refused."""
+    db = loader.Psql("local")
+    st = loader.state(db)
+    if not st.registry:
+        pytest.skip("private.demo_org does not exist yet (stream A)")
+    if shutil.which("psql") is None:
+        pytest.skip("psql is not installed (the remote target uses it)")
+    key = "B26M-AFTER"
+    other, old, new = _other_build(tmp_path, key)
+    with pytest.raises(loader.LoadError, match="db:reset or --reset-local"):
+        loader.load_demo("local", profile="test", build_dir=other, log=_quiet)
+
+    status = loader.local_status()
+    monkeypatch.setenv("DEMO_DB_URL", status["DB_URL"])
+    monkeypatch.setenv("SUPABASE_URL", status["API_URL"])
+    monkeypatch.setenv("SUPABASE_ANON_KEY", status["ANON_KEY"])
+    older = dataset.DATASET_VERSION - 1
+    db.run(f"update private.demo_org set dataset_version = {older} where org_id = '{ORG}';")
+    logs: list[str] = []
+    report = loader.load_demo(
+        "remote", profile="test", build_dir=other, do_verify=True, log=logs.append
+    )
+    note = f"loaded at dataset version {older} by another build: 1 "
+    assert any(m.startswith(note) for m in logs)
+    assert report.superseded == 1 and report.uploaded == 0 and report.mirrored == 0
+    assert loader.state(db).row["dataset_version"] == dataset.DATASET_VERSION
+    stored = db.query(
+        f"select content_hash from public.asset where id = '{ids.did('asset', key, 2)}';"
+    )
+    assert stored == [old]
+    assert db.query(f"select count(*) from storage.objects where name like '%/{new}';") == ["0"]
+    # Now registered at this version: the shortcut, not another byte comparison.
+    again = loader.load_demo("remote", profile="test", build_dir=other, log=_quiet)
+    assert again.status.startswith("already loaded")
+    # A rerun through the SQL path after verify failed is not stuck on those bytes.
+    link = (
+        "delete from public.service_type_robot_model "
+        f"where service_type_id = '{sqlgen.SERVICE_TYPE_ID}';"
+    )
+    db.run(link)
+    logs.clear()
+    third = loader.load_demo(
+        "remote", profile="test", build_dir=other, do_verify=True, log=logs.append
+    )
+    assert "registered as loaded but verify fails: loading again" in logs
+    assert third.inserted.get("public.service_type_robot_model") == 1
+    assert third.superseded == 1 and third.uploaded == 0

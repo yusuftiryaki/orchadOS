@@ -1,6 +1,6 @@
 # Tasarım sistemi
 
-28 Ekim 2026 · Arayüz yenileme, 1. dalga; 29 Ekim 2026 · 3. dalga (entegrasyon)
+28 Ekim 2026 · Arayüz yenileme, 1. dalga; 29 Ekim 2026 · 3. dalga (entegrasyon); 4 Kasım 2026 · 4. dalga (müşteri ekranları, sadeleştirme)
 
 Bu belge orchadOS web arayüzünün görsel dilini ve bileşen sözleşmesini tutar. 1. dalgada tasarım sistemi ve karşılama sayfası yapıldı. 2. dalgada portal, personel ekranları (ofis, operasyon, uzman, back office) ve kalan site sayfaları bu belgeye göre yeniden düzenlenir. Bir token ya da bileşen sözleşmesi değişirse önce bu belge güncellenir.
 
@@ -17,7 +17,8 @@ Bu belge orchadOS web arayüzünün görsel dilini ve bileşen sözleşmesini tu
 4. [Bileşenler](#bileşenler)
 5. [Kullanım](#kullanım)
 6. [Performans](#performans)
-7. [Notlar](#notlar)
+7. [4. dalga: müşteri ekranlarının sadeleştirilmesi](#4-dalga-müşteri-ekranlarının-sadeleştirilmesi)
+8. [Notlar](#notlar)
 
 ## Denetim
 
@@ -142,20 +143,19 @@ Ağaç sınıfları (`--class-*`) haritanın renkleridir (`src/lib/map/tree-styl
 
 ### Tipografi
 
-- **Aile:** Atkinson Hyperlegible Next (değişken, 200–800) ve Atkinson Hyperlegible Mono. `next/font/google` derleme sırasında indirir ve aynı origin'den sunar; dış istek olmaz. Alt kümeler `latin` + `latin-ext`. Türkçe ğ, ş, ı ve İ `latin-ext`'te, ç, ö ve ü `latin`'de. ğ'nin breve işareti caron'dan (ǧ) ayrı çizilmiştir; ekran görüntüsüyle denetlendi. `display: swap`; mono kesimi önceden yüklenmez.
-- **Sıfır:** Atkinson'da sıfır çizgilidir (0 ile O karışmasın diye) ve kapatılamaz. Bu bir okunabilirlik özelliğidir; 2. dalga sayaçlarda bunun okunuşunu izlemeli.
-- **Ölçek** (≈1,25 oranı, 16 px taban): 12 · 14 · 16 · 18 · 20 · 25 · 31 · 39 · 49 px (`--text-xs` … `--text-5xl`).
+- **Aile (4. dalga, 2. geçiş):** Hanken Grotesk (değişken) ve IBM Plex Mono. 1.–3. dalgada Atkinson Hyperlegible Next kullanılıyordu; çizgili sıfırı kapatılamadığı için tarih ve tutarlar kalabalık görünüyordu. 4. dalganın ilk geçişindeki Inter her panelin varsayılan yüzüdür. 2. geçişte denenen Schibsted Grotesk ₺ işaretini £ gibi çiziyordu ve tablo rakamlarında nokta ile virgülü de genişletiyordu. Hanken Grotesk açık ve sağlam bir grotesktir; ₺ doğru çizilir, kalın ağırlıkları başlığı taşır. Plex Mono yalnız gerçek kimlikler içindir: ağaç kodu, başvuru, teklif ve sipariş numarası, koordinat, hash. Tutarlar sans yüzle `lining-nums proportional-nums` yazılır; `tabular-nums` kullanılmaz. `next/font/google` derleme sırasında indirir ve aynı origin'den sunar. Alt kümeler `latin` + `latin-ext`.
+- **Ölçek** (16 px taban): 12 · 14 · 16 · 18 · 20 · 24 · 30 · 38 · 48 px (`--text-xs` … `--text-5xl`). Sayfa başlığı 30 px (telefonda 24 px), `--tracking-tight` (−0,02em).
 - **Satır:** gövde için 1,55 (`--leading`), büyük başlık için 1,15. Satır uzunluğu en çok 68ch (`--measure`); paragraflar 52–64ch.
-- **Ağırlık:** gövde 400, etiket 600–700, başlık 700–800. Büyük harfli etiket, harf aralıklı küçük etiket ve tek kelimesi renkli başlık kullanılmaz.
+- **Ağırlık:** gövde 400, etiket 500–550, bölüm başlığı 650, sayfa başlığı 700. Büyük harfli etiket, harf aralıklı küçük etiket ve tek kelimesi renkli başlık kullanılmaz.
 
 ### Boşluk, köşe, derinlik, hareket, odak
 
 - **Boşluk:** 4 px tabanlı: 4 · 8 · 16 · 24 · 32 · 48 · 64 · 96 (`--space-1` … `--space-8`). Bölümler arası 48 px, kahraman 64 px.
-- **Köşe hiyerarşisi:** 4 px kontrol ve rozet içi, 6 px düğme ve küçük yüzey, 10 px kart, pafta ve diyalog. Hap biçimi (`--radius-pill`) yalnız durum rozetinde kullanılır.
-- **Derinlik:** Yüzeyleri çerçeve ayırır. Gölge yalnız yüzen öğede kullanılır: menü ve açıklama kartı `--shadow`, diyalog ve toast `--shadow-lg`. Kartlarda gölge yoktur.
+- **Köşe hiyerarşisi (4. dalga):** 6 px küçük öğe (`--radius-sm`), 8 px kontrol ve düğme (`--radius`), 12 px kart, pafta ve diyalog (`--radius-lg`), 16 px büyük yüzey (`--radius-xl`). Hap biçimi (`--radius-pill`) durum rozetinde, avatar menüsünde ve alt sekme çubuğunun etkin işaretinde kullanılır.
+- **Derinlik (4. dalga):** Yüzeyleri ince çerçeve ve neredeyse görünmeyen bir kart gölgesi (`--shadow-card`) ayırır. Düğmelerde `--shadow-sm` var. Yüzen öğeler: menü `--shadow`, diyalog, toast ve hesap menüsü `--shadow-lg`.
 - **Hareket:** 120 ms (renk, çerçeve) ve 200 ms (açılan yüzey) sürer, eğri `--ease`. Sayfada en çok bir koordineli an olur. `prefers-reduced-motion: reduce` bütün animasyon ve geçişleri kapatır (globals.css).
 - **Odak:** Halka 3 px Toprak rengindedir, 2 px boşluk bırakır. Beyazda, zeminde ve yeşil düğmede görünür. Form alanında yeşil çerçeve ve hale eklenir. Odak hiçbir yerde kaldırılmaz.
-- **Dokunma hedefi:** Sitede ve portalda kontrol yüksekliği 44 px, karşılama CTA'sı 52 px.
+- **Dokunma hedefi:** Sitede ve portalda kontrol yüksekliği 44 px, karşılama CTA'sı 52 px, alt sekme çubuğunda 56 px.
 
 ### Personel varyantı
 
@@ -197,7 +197,9 @@ Hepsi `@/components/ui/<dosya>` yolundan tek tek içe aktarılır; toplu dışa 
 | `Toast` | `toast.tsx` (istemci) | Kısa onay için; kendiliğinden kapanır. Okunması gereken hata için `Alert` kullanılır |
 | `EmptyState` | `empty-state.tsx` | Başlık eksik olanı söyler, gövde nedenini ve sonrasını, eylem bir sonraki adıma çağırır |
 | `PageHeader` | `page-header.tsx` | Tek `h1`, giriş metni, durum rozetleri (`meta`), eylemler ve bir üst düzeye dönüş bağlantısı (`back`) |
-| `AppShell` | `app-shell.tsx` | Oturumlu bölüm kabuğu. `variant`: portal ya da staff; `dense`, `nav`, `account`. Telefonda bölüm bağlantıları ikinci satırda yatay kayar; geçerli bağlantı görünüme kaydırılır, sağda daha fazlası varken kenar solar (`current-into-view.tsx`) |
+| `AppShell` | `app-shell.tsx` | Oturumlu bölüm kabuğu. `variant`: portal ya da staff; `dense`, `nav`, `account`. Portal varyantında telefonda bölüm bağlantıları alt sekme çubuğu olur (`NavItem.icon`); personel varyantında ikinci satırda yatay kayar; geçerli bağlantı görünüme kaydırılır, sağda daha fazlası varken kenar solar (`current-into-view.tsx`) |
+| `AccountMenu` | `account-menu.tsx` (istemci) | Oturumlu başlığın hesap köşesi: avatar düğmesi ve açılır panel (açılıp kapanan bir panel; ARIA menüsü değil). Escape, dışarı tıklama ve sayfa geçişi paneli kapatır. Hesap sayfaları, diğer bölümler ve Çıkış buradadır |
+| İkonlar | `icons.tsx` | 24 px ızgaralı çizgi ikonlar (`IconTree`, `IconClipboard`, `IconPackage`, `IconCard`, `IconTool`, `IconUser` …). Her zaman bir metin etiketinin yanında kullanılır ve `aria-hidden`'dır |
 | `Panel`, `panelClass` | `panel.tsx` | Başlıklı bölge: `h2`/`h3` (`headingLevel`), `description`, sağda `actions`, çerçeveli yüzey. `plain` yüzeyi kaldırır (içinde tablo olan bölge). Başlıksız hali yalnız yüzeydir; `section` olmayan öğe (form) için `panelClass` |
 | `Facts`, `factsClass` | `facts.tsx` | Etiket → değer listesi (`dl`). `list`: kayıt ("Paket  Standart"). `summary`: para; değerler sağa hizalı, tabular, `total` çizginin altında. Satırı kendi test kimliğini taşıyorsa `factsClass` |
 | `FilterTabs` | `filter-tabs.tsx` | Listenin süzgeçleri, her biri ayrı URL (`?durum=`): bölmeli denetim, sayılar, `aria-current`. Sekme paneli için `Tabs`, ekranın alt sayfaları için `TabLinks` |
@@ -319,6 +321,52 @@ Karşılama sayfası (`/`) için ölçüm yapıldı: üretim derlemesi, yerel Su
 - Gerileme yok; süre farklarının çoğu ölçüm oynamasının içinde (sunucu ilk koşuda yeni açılmıştı).
 - JS her sayfada yaklaşık 10 KiB (sıkıştırılmamış) arttı: üç küçük istemci bileşeni (`ScrollBox`, `CurrentIntoView`, site başlığındaki geçerli bağlantı). Sayfalar yine sunucu bileşeni.
 - Önceki PR'ların sayıları başka koşullarda alındı (#101 Lighthouse, #102 ve #104 `data-map-ready` ve ilk panorama karesi, #103 ve #105–#107 TTFB ve load); bu tablo hepsini aynı koşulda karşılaştırır.
+
+## 4. dalga: müşteri ekranlarının sadeleştirilmesi
+
+4 Kasım 2026. Kapsam: herkese açık site, giriş ve kayıt, demo, sahip ve müşteri portalı. Personel ekranları yalnız ortak token ve bileşen değişikliklerini aldı.
+
+**Neden:** 3. dalgadan sonra ekranlar tutarlıydı ama kalabalıktı. Müşteri portalının üst menüsünde yedi-sekiz sekme vardı ve telefonda yatay kayıyordu. Parsel karnesi 5.700 piksellik tek bir akıştı. Çizgili sıfırlı yazı tipi tarih ve tutarları eski gösteriyordu. Sayfalarda birden çok birincil düğme vardı. Uzun açıklama metinleri ilk ekranı dolduruyordu.
+
+**Kararlar:**
+
+- **Yazı:** Hanken Grotesk ve IBM Plex Mono (§Tipografi).
+- **Yüzey:** Köşeler 8 ve 12 px. Kartlarda ince çerçeve ve `--shadow-card` var. Etiket ağırlıkları düştü (500–600).
+- **Portal gezinmesi:** Üst menüde en çok beş hedef var: Bahçelerim, Başvurularım, Siparişlerim, Ödemelerim, Hizmetlerim. Hesabım, Sözleşmelerim, İzinler, diğer bölümler ve Çıkış hesap menüsünde (`AccountMenu`, avatar düğmesi). Telefonda (<860 px) aynı hedefler ikonlu bir alt sekme çubuğu olur (`AppShell` portal varyantı, `data-bottom-nav`). Portalda sabit alt öğeler (`Toast`, sabit kaydet çubukları, bildirim kapısı) çubuğun üstünde durur: `bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))`.
+- **Bir görünüm, bir birincil eylem.** İkincil eylemler `secondary` ya da `quiet` düğmedir. Metin bağlantısı yalnız düzyazı içinde kullanılır.
+- **Parsel karnesi:** Başlıktan sonra özet kartı ve "Dikkat isteyenler" kartı gelir; birincil eylem bu kartta. Altında yapışkan bölüm sekmeleri var (`SectionNav`, kaydırmayla güncellenir): Özet, Harita, Bulgular, Karne, Ziyaretler, Sorular, Hissedarlar. İçerik aynı sayfada kalır, böylece baskı ve bağlantılar çalışır. Sınır uyarısı bir kez gösterilir. Telefonda ağaç paneli alt sayfa (bottom sheet) görünümündedir.
+- **İş ekranları:** Başvuru, teklif, sipariş, ödeme ve hizmet ekranları tek bir çalışma alanı düzenini paylaşır (`portal-billing/workspace.tsx`). Düzenin parçaları:
+  - `DetailHeader`: durum rozetiyle başlık.
+  - `Lifecycle`: Başvuru → Teklif → Ödeme → Hizmet adımları.
+  - `DetailLayout`: ana sütun ve yapışkan özet kartı. Geri alma eylemleri sonda durur.
+  - `Timeline`: dikey geçmiş.
+  - `listClass`: telefonda karta dönen tablolar.
+  
+  Teklif, ödeme sayfası (checkout) gibi okunur: tutar kartı ve tek kabul düğmesi.
+- **Hesap:** Ayarlar düzeni (`portal-billing/settings-shell.tsx`) kullanılır. Masaüstünde sol alt menü vardır: Profil ve iletişim, Fatura bilgileri, Sözleşmelerim, İzinler. Hesap menüsüyle aynı sırayı izler.
+- **Giriş ve kayıt:** Ortada tek kart var. Yöntemler bölümlü düğmeyle seçilir: E-posta, Telefon. Parola göster/gizle düğmesi (`site/password-input.tsx`) ve bekleme durumlu gönder düğmesi (`site/submit-button.tsx`) eklendi. SMS kodu `one-time-code` alanıyla girilir.
+- **Site:** Açılıştaki bahçe planı bir uygulama penceresi gibi çerçevelendi. Paketler subgrid ile hizalı ve önerilen paket vurgulu. SSS iki sütunlu akordeon. Hukuk metinlerinde yapışkan içindekiler var (`site/legal-toc.tsx`), taslak notu sade bir satır oldu. `legal.ts` içeriği değişmedi.
+- **İkonlar:** `ui/icons.tsx`, 24 px ızgarada ve 1,75 çizgi kalınlığında. İkonlar her zaman bir metin etiketinin yanında durur ve `aria-hidden`'dır.
+
+### 2. geçiş: "her nokta bir ağaç"
+
+`frontend-design` ölçütleriyle yapılan eleştiri iki kalıp buldu. Birincisi kart takımıydı: her bölüm aynı köşeli ve aynı gölgeli bir karttı. İkincisi şablon süsleriydi: " · " ile birleştirilmiş meta satırları, bağlantı sonuna eklenen "→", başlık üstü etiket hapı, renkli kare içinde ikon. Yeni kurallar:
+
+- **Tek cesur öğe: pafta.** Toprak zemin (`--palette-tarla`) üzerinde her noktası bir ağaç olan dikim ızgarası. Karşılamada bahçe planı olarak, portalda sınıf paftası olarak kullanılır (`ui/class-plate.tsx`). Sınıf paftası 10×10 noktadır; her nokta incelenen ağaçların yaklaşık %1'idir. En az bir ağacı olan sınıf en az bir nokta alır. Pafta `aria-hidden`'dır; sayılar metin olarak yanında durur. 404/403 sayfalarında bir ağacı eksik dikim sırası vardır.
+- **Bölüm kart değildir.** Bölüm = başlık + tek satır açıklama + içerik; bölümleri boşluk ya da ince çizgi ayırır. Çerçeve yalnız tablo, form ve satır listesinde kullanılır. Kart içinde kart yoktur.
+- **Görünümde tek nesne kabarır.** Sayfanın konusu olan nesne (bahçe kartı, karne özeti, teklif ya da sipariş tutarı, ödeme kutusu) `--radius-object` (14 px) ve `--shadow` alır. Geri kalan yüzeyler düzdür (`--shadow-card` yalnız bir saç çizgisidir).
+- **Yaşam döngüsü:** Başvuru → Teklif → Ödeme → Hizmet adımları çizgiyle bağlı noktalarla gösterilir. Biten adım dolu fıstık yeşili, güncel adım kabuk rengi halka, sıradaki adım boş noktadır.
+- **Metin:** Meta öğeleri 16 px aralıkla dizilir. Metin bağlantısına ok eklenmez; ok yalnız bütün satırın bağlantı olduğu listede kullanılır. Numara yalnız gerçek sıralamada kullanılır (Nasıl başlar, kayıt adımları).
+
+**Ürün sahibinin kararları (5 Kasım 2026):**
+
+- Paketler sayfasında "Önerilen" rozeti Standart pakettedir (`docs/fiyatlandirma.md` örnekleri de Standart'ı kullanır).
+- Sınıf paftasında en az bir ağacı olan her sınıf en az bir nokta alır, bu nokta en büyük sınıftan düşülür. Böylece tek bir ağaçlık sınıf da görünür kalır. Oranlar birkaç puan oynayabilir; doğru sayılar paftanın yanında metin olarak yazar.
+
+**Açık konular:**
+
+- Demo bandındaki düğmeler 30 px. Bant, demo turu telefon testi için 48 px'in altında kalmalı.
+- Kılavuz ekran görüntüleri (`docs/kilavuz/`) yeni arayüzle yeniden üretilmeli.
 
 ## Notlar
 

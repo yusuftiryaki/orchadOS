@@ -8,7 +8,7 @@ Sık karşılaşılan durumlar ve ne yapılacağı. Her satırda ayrıntının a
 
 | Durum | Ne yapılır | Ayrıntı |
 | --- | --- | --- |
-| "E-posta ya da parola hatalı" | Yazımı kontrol edin; olmazsa "SMS koduyla girin" ya da operasyondan yeni parola isteyin. | [01](01-giris-ve-roller.md#giriş-ekranı) |
+| "E-posta ya da parola hatalı" | Yazımı kontrol edin; olmazsa "Parolamı unuttum" ile SMS koduyla girin ya da operasyondan yeni parola isteyin. | [01](01-giris-ve-roller.md#giriş-ekranı) |
 | Girişten sonra "Operasyon" yerine "Ofis" açıldı | Normal. Uygulama rolünüzün açabildiği ilk bölümü açar; üst menüden "Operasyon"a geçin. | [01](01-giris-ve-roller.md#girişten-sonra-açılan-ekran) |
 | "Bu bölüme erişiminiz yok" | Rolünüz o bölümü açmıyor. Doğru hesapla girdiğinizi kontrol edin; gerekiyorsa operasyondan rol isteyin. | [01](01-giris-ve-roller.md#erişim-yok-sayfası) |
 | "Hesabınıza henüz bir rol atanmamış" | Operasyon hesabınıza rol vermeli. | [01](01-giris-ve-roller.md#girişten-sonra-açılan-ekran) |

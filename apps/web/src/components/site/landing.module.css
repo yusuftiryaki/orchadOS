@@ -1,34 +1,50 @@
-/* Landing page (app/(site)/page.tsx). The boldness is spent on the orchard
-   plate in the hero; every other section is plain text on the ground. */
+/* Landing page (app/(site)/page.tsx). The headline across the page, then the
+   orchard plate: the one bold, elevated thing on it. Everything below sits on
+   the same ground, sections parted by a hairline, each with the same head. */
 
 .landing {
+  overflow-x: clip;
+}
+
+.container {
+  --gutter: var(--space-3);
   max-width: 1120px;
   margin: 0 auto;
-  padding: 0 var(--space-3);
+  padding: 0 var(--gutter);
 }
 
 /* Hero --------------------------------------------------------------------- */
 
 .hero {
-  display: grid;
-  gap: var(--space-5);
-  padding: var(--space-5) 0 var(--space-6);
+  padding: var(--space-6) 0 0;
 }
 
+/* The type is the headline treatment: heavy, tight, no colour. */
 .title {
-  font-size: var(--text-3xl);
-  line-height: var(--leading-tight);
+  font-size: clamp(40px, 10.6vw, 84px);
+  line-height: 0.98;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  max-width: 14ch;
-  margin-bottom: var(--space-3);
+  letter-spacing: -0.045em;
+  max-width: 13ch;
+  margin: 0 0 var(--space-5);
+  text-wrap: balance;
+}
+
+.heroGrid {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.heroText {
+  min-width: 0;
 }
 
 .lead {
   font-size: var(--text-lg);
+  line-height: 1.6;
   color: var(--color-text-2);
-  max-width: 52ch;
-  margin-bottom: var(--space-4);
+  max-width: 44ch;
+  margin: 0 0 var(--space-5);
 }
 
 .ctaRow {
@@ -37,31 +53,100 @@
   gap: var(--space-2) var(--space-3);
 }
 
-.ctaRow :global(.button) {
+.ctaRow :global(.button),
+.closingActions :global(.button) {
   min-height: 52px;
-  padding: 12px 24px;
+  padding: 12px 28px;
   font-size: var(--text-base);
 }
 
-.ctaNote {
-  margin-top: var(--space-3);
-  font-size: var(--text-sm);
-  color: var(--color-muted);
-  max-width: 52ch;
+/* On a phone the calls to action take the full width, one per line. */
+@media (max-width: 599px) {
+  .ctaRow,
+  .closingActions {
+    display: grid;
+  }
 }
 
-/* Orchard plate */
+.ctaNote {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  max-width: 46ch;
+}
+
+/* Orchard plate: the portal's health map, without an app window --------- */
 
 .plate {
   margin: 0;
   min-width: 0;
 }
 
-.plateField {
+/* The one elevated object on the page. */
+.window {
   position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-object);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.plateBar {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.chips {
+  flex: 1;
+  min-width: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+
+.chipCount {
+  color: var(--color-muted);
+  font-weight: 500;
+  font-variant-numeric: lining-nums proportional-nums;
+}
+
+/* "Örnek": the figure is drawn, not measured. */
+.windowTag {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-highlight-soft);
+  color: var(--color-highlight);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.plateField {
   background: var(--palette-tarla);
-  border-radius: var(--radius-lg);
-  padding: var(--space-2) var(--space-2) var(--space-1);
+  padding: var(--space-3) var(--space-2) var(--space-2);
 }
 
 .plateSvg {
@@ -79,7 +164,7 @@
 .rowLabel {
   font-family: var(--font-mono);
   font-size: 11px;
-  fill: #6b4f3c;
+  fill: var(--class-dead);
 }
 
 .tree {
@@ -92,14 +177,15 @@
 
 .spot {
   fill: none;
-  stroke: #8a6a55;
+  stroke: var(--class-dead);
+  stroke-opacity: 0.7;
   stroke-width: 1.5;
   stroke-dasharray: 2 2;
 }
 
 @keyframes reveal {
   from {
-    fill: #9aa57c;
+    fill: var(--palette-tarla-line);
   }
 }
 
@@ -131,12 +217,6 @@
   }
 }
 
-@keyframes hang {
-  from {
-    opacity: 0;
-  }
-}
-
 @keyframes appear {
   from {
     opacity: 0;
@@ -144,221 +224,330 @@
   }
 }
 
+/* The picked tree's card: the map's inspector, under the field. */
 .callout {
-  background: var(--color-surface);
-  border-radius: var(--radius);
-  border-top: 4px solid var(--color-highlight);
-  box-shadow: var(--shadow);
+  display: grid;
+  gap: var(--space-2);
   padding: var(--space-3);
-  margin: var(--space-2) 0 var(--space-1);
   animation: appear 300ms var(--ease) both;
-  animation-delay: 1.6s;
+  animation-delay: 1.2s;
 }
 
 .calloutHead {
-  margin: 0 0 var(--space-2);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.calloutLabel {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
 }
 
 .calloutCode {
+  order: -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-mono);
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--text-lg);
   color: var(--color-highlight);
+}
+
+.calloutCode::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--class-attention);
+  box-shadow:
+    0 0 0 1px var(--class-ring),
+    0 0 0 3px var(--color-surface),
+    0 0 0 5px var(--color-highlight);
+  margin: 0 4px 0 2px;
 }
 
 .calloutList {
   margin: 0;
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
 }
 
 .calloutList div {
-  display: grid;
-  grid-template-columns: 5.5em 1fr;
-  gap: var(--space-2);
+  min-width: 0;
 }
 
 .calloutList dt {
+  font-size: var(--text-xs);
   color: var(--color-muted);
 }
 
 .calloutList dd {
   margin: 0;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .plateCaption {
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
   font-size: var(--text-sm);
   color: var(--color-muted);
   max-width: 64ch;
 }
 
 .plateCaption strong {
-  color: var(--color-text);
+  color: var(--color-text-2);
+  font-weight: 600;
+}
+
+/* On a phone the plate runs edge to edge: the field is the picture. */
+@media (max-width: 719px) {
+  .plate {
+    margin-inline: calc(-1 * var(--space-3));
+  }
+  .window {
+    border-radius: 0;
+    border-inline: 0;
+  }
+  .plateCaption {
+    padding-inline: var(--space-3);
+  }
+  .plateField {
+    padding: var(--space-2) var(--space-1) var(--space-1);
+  }
 }
 
 @media (min-width: 720px) {
-  /* The card hangs from the plate's lower edge, over the last row only. */
-  .callout {
-    position: absolute;
-    right: var(--space-3);
-    bottom: 0;
-    width: 270px;
-    margin: 0;
-    transform: translateY(calc(100% - 40px));
+  .calloutList {
+    grid-template-columns: repeat(4, minmax(0, auto));
+    justify-content: start;
+    column-gap: var(--space-5);
   }
-  .plateCaption {
-    padding-right: 300px;
-    min-height: 130px;
+  .callout {
+    padding: var(--space-3) var(--space-4);
   }
 }
 
 @media (min-width: 1024px) {
   .hero {
-    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-    align-items: center;
-    gap: var(--space-6);
-    padding: var(--space-7) 0 var(--space-7);
+    padding: var(--space-7) 0 var(--space-3);
   }
   .title {
-    font-size: var(--text-5xl);
+    max-width: none;
+    margin-bottom: var(--space-6);
   }
-  .plateCaption {
-    padding-right: 290px;
+  /* The words beside the plate; the plate gets the room. */
+  .heroGrid {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+    align-items: start;
+    gap: var(--space-6);
   }
-  .callout {
-    animation-name: hang;
+  .heroText {
+    padding-top: var(--space-1);
+  }
+  .calloutList {
+    grid-template-columns: repeat(4, minmax(0, auto));
   }
 }
 
 /* Sections ----------------------------------------------------------------- */
 
-.band {
-  padding: var(--space-6) 0;
-  border-top: 1px solid var(--color-border);
+/* One ground; a hairline as wide as the content parts the sections. */
+.section {
+  padding-top: var(--space-6);
+}
+
+.section > .container {
+  padding-top: var(--space-6);
+  background: linear-gradient(var(--color-border), var(--color-border)) top /
+    calc(100% - 2 * var(--gutter)) 1px no-repeat;
+}
+
+.sectionHead {
+  max-width: 640px;
+  margin-bottom: var(--space-5);
 }
 
 .h2 {
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   font-weight: 800;
-  letter-spacing: -0.01em;
-  margin-bottom: var(--space-2);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 0 0 var(--space-2);
 }
 
 .sectionLead {
   color: var(--color-text-2);
   font-size: var(--text-lg);
-  max-width: 60ch;
-  margin-bottom: var(--space-4);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 56ch;
 }
 
+.more {
+  margin: var(--space-4) 0 0;
+}
+
+/* A text link that leads to a page: accent, underlined, a full target. */
+.textLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.textLink:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* What a visit tells: the classes and what the parcel report adds. */
 .readGrid {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-6);
 }
 
-.legend {
+.legend,
+.report ul {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: var(--space-3);
-  max-width: 60ch;
+}
+
+.legend li,
+.report li {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.legend li:last-child,
+.report li:last-child {
+  border-bottom: 1px solid var(--color-border);
 }
 
 .legend li {
   display: grid;
-  grid-template-columns: 22px 1fr;
+  grid-template-columns: 28px 1fr;
   align-items: baseline;
 }
 
 .legend li > span:first-child {
   width: 14px;
   height: 14px;
-  transform: translateY(1px);
+  transform: translateY(2px);
+}
+
+.legend li > span:last-child {
+  display: grid;
+  gap: 2px;
 }
 
 .legend strong {
-  margin-right: 4px;
+  font-weight: 700;
 }
 
-.report {
-  align-self: start;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
+.legend li > span:last-child > span {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
 }
 
 .report h3 {
   font-size: var(--text-lg);
+  font-weight: 700;
+  margin: 0 0 var(--space-3);
 }
 
-.report ul {
-  margin: 0;
-  padding-left: 20px;
-  display: grid;
-  gap: var(--space-2);
+.report li {
+  color: var(--color-text-2);
 }
 
-/* The drill-down from a finding to the photo's time and place: a chain,
-   so the steps are joined by a line. */
+/* The drill-down from a finding to the photo's time and place: dots on one
+   line (a line down the side on a phone, across on a wide screen). */
 .chain {
+  --dot: 14px;
   list-style: none;
-  margin: 0 0 var(--space-4);
+  margin: 0 0 var(--space-6);
   padding: 0;
   display: grid;
-  gap: 0;
-  counter-reset: chain;
+  gap: var(--space-4);
+  position: relative;
 }
 
 .chain li {
   position: relative;
-  padding: 0 0 var(--space-4) 36px;
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  align-items: baseline;
 }
 
-.chain li::before {
-  content: "";
-  position: absolute;
-  left: 7px;
-  top: 6px;
-  width: 14px;
-  height: 14px;
+.chain li > :not(.chainDot) {
+  grid-column: 2;
+}
+
+.chainDot {
+  grid-row: 1;
+  grid-column: 1;
+  justify-self: start;
+  align-self: center;
+  width: var(--dot);
+  height: var(--dot);
   border-radius: 50%;
-  background: var(--color-surface);
-  border: 3px solid var(--color-accent);
+  background: var(--class-healthy);
+  box-shadow:
+    0 0 0 1px var(--class-ring),
+    0 0 0 4px var(--color-bg);
+  position: relative;
+  z-index: 1;
 }
 
+/* The first dot is the plate's picked tree. */
+.chain li:first-child .chainDot {
+  background: var(--class-attention);
+  box-shadow:
+    0 0 0 1px var(--class-ring),
+    0 0 0 3px var(--color-bg),
+    0 0 0 5px var(--color-highlight);
+}
+
+/* The line joining the dots. */
 .chain li:not(:last-child)::after {
   content: "";
   position: absolute;
-  left: 13px;
-  top: 26px;
-  bottom: 4px;
+  left: calc(var(--dot) / 2 - 1px);
+  top: 12px;
+  bottom: calc(-1 * var(--space-4) - 12px);
   width: 2px;
   background: var(--color-border-strong);
 }
 
 .chain h3 {
-  margin-bottom: 2px;
+  margin: 0 0 var(--space-1);
   font-size: var(--text-lg);
+  font-weight: 700;
 }
 
 .chain p {
   color: var(--color-text-2);
+  margin: 0;
   max-width: 36ch;
 }
 
 .independence {
-  max-width: 64ch;
-  color: var(--color-text);
+  margin: 0;
+  font-size: var(--text-lg);
   font-weight: 600;
+  line-height: 1.5;
+  max-width: 62ch;
 }
 
+/* How it starts: four numbered steps. */
 .steps {
-  margin: 0 0 var(--space-4);
+  margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
@@ -367,11 +556,11 @@
 }
 
 .steps li {
-  align-content: start;
   counter-increment: step;
   display: grid;
-  grid-template-columns: 40px 1fr;
+  grid-template-columns: 44px 1fr;
   column-gap: var(--space-2);
+  align-content: start;
 }
 
 .steps li::before {
@@ -382,32 +571,31 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-  font-weight: 800;
+  border: 1.5px solid var(--color-text);
+  color: var(--color-text);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  font-variant-numeric: lining-nums proportional-nums;
 }
 
 .steps h3 {
-  margin: 4px 0 2px;
+  margin: 4px 0 var(--space-1);
   font-size: var(--text-lg);
+  font-weight: 700;
 }
 
 .steps p {
   color: var(--color-text-2);
+  margin: 0;
   max-width: 40ch;
 }
 
-/* Package calendar: twelve months, one row per package. */
+/* Package calendar: twelve months, a row per package. A framed table from
+   720px; rows with hairlines on a phone. ---------------------------------- */
+
 .calendar {
   display: grid;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.calMonths,
-.calRow {
-  display: grid;
-  grid-template-columns: 1fr;
+  border-top: 1px solid var(--color-border);
 }
 
 .calMonths {
@@ -415,98 +603,164 @@
 }
 
 .calRow {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3);
+  display: grid;
   gap: var(--space-3);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.calName {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0 var(--space-3);
 }
 
 .calName h3 {
   margin: 0;
   font-size: var(--text-lg);
+  font-weight: 700;
 }
 
 .calName p {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--color-text-2);
+  color: var(--color-muted);
 }
 
 .calName .calPrice {
-  font-weight: 700;
+  grid-column: 1 / -1;
+  margin-top: var(--space-1);
+}
+
+.calPrice strong {
+  display: block;
+  font-size: var(--text-xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--color-text);
 }
 
+/* The year as a track: a faint dot a month, a green one for each visit. */
 .calStrip {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 3px;
-  align-items: stretch;
+  align-items: start;
+}
+
+.calStrip::before {
+  content: "";
+  position: absolute;
+  left: calc(100% / 24);
+  right: calc(100% / 24);
+  top: 7px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-surface-3);
 }
 
 .calStrip > span {
   position: relative;
-  min-height: 44px;
-  border-radius: 3px;
-  background: var(--color-surface-2);
+  display: grid;
+  justify-items: center;
+  gap: 6px;
 }
 
-.calStrip > .calVisit {
+.calDot {
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+
+.calVisit .calDot {
+  width: 16px;
+  height: 16px;
+  margin-top: 0;
   background: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
 }
 
 .calVisitName {
   display: none;
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 6px;
-  margin: 0 auto;
-  width: fit-content;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  color: var(--color-accent-contrast);
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-  line-height: 1;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  color: var(--color-accent);
 }
 
-.calName .calVisits {
-  margin-top: var(--space-1);
-}
-
-.calNote {
+.calVisits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--space-3);
+  font-size: var(--text-sm);
   color: var(--color-text-2);
+}
+
+.calFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.calFoot .calNote {
+  margin: 0;
+  color: var(--color-muted);
   font-size: var(--text-sm);
   max-width: 64ch;
 }
 
 @media (min-width: 720px) {
-  .calMonths {
+  .calendar {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    overflow: hidden;
+  }
+  .calMonths,
+  .calRow {
     display: grid;
-    grid-template-columns: 220px repeat(12, minmax(0, 1fr));
-    gap: 3px;
+    grid-template-columns: 230px minmax(0, 1fr);
+  }
+  .calMonths {
+    grid-template-columns: 230px repeat(12, minmax(0, 1fr));
+    border-bottom: 1px solid var(--color-border);
     font-size: var(--text-xs);
+    font-weight: 600;
     color: var(--color-muted);
+    padding: var(--space-2) var(--space-4);
+  }
+  .calMonths > span:not(:first-child) {
     text-align: center;
-    padding: 0 var(--space-3);
   }
   .calRow {
-    grid-template-columns: 220px 1fr;
     align-items: center;
     gap: 0;
+    padding: var(--space-4);
   }
-  .calStrip > span {
-    min-height: 100px;
+  .calRow:last-child {
+    border-bottom: 0;
+  }
+  .calName {
+    grid-template-columns: 1fr;
+  }
+  .calStrip {
+    min-height: 56px;
   }
   .calVisitName {
     display: block;
-    font-size: var(--text-xs);
-    bottom: 8px;
   }
-  .calName .calVisits {
+  /* The words are for screen readers on a wide screen. */
+  .calVisits {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -516,68 +770,114 @@
   }
 }
 
-.honest {
-  margin: 0;
-  padding-left: 20px;
+/* What we do not claim: the head beside a plain list --------------------- */
+
+.sideGrid {
   display: grid;
-  gap: var(--space-2);
-  max-width: 72ch;
+  gap: 0;
+}
+
+.honest {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 68ch;
+}
+
+.honest li {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
   color: var(--color-text-2);
 }
+
+.honest li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* Closing call to action: a calm last word, not a slab. ------------------ */
 
 .closing {
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-5) var(--space-4);
-  border-radius: var(--radius-lg);
-  background: var(--palette-taze-soft);
 }
 
-.closing p {
-  max-width: 56ch;
-  color: var(--color-text-2);
+.closing .h2 {
+  font-size: var(--text-4xl);
+  letter-spacing: -0.035em;
+}
+
+.closingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+@media (max-width: 599px) {
+  .closingActions {
+    display: grid;
+  }
 }
 
 @media (min-width: 720px) {
-  .landing {
-    padding: 0 var(--space-4);
+  .container {
+    --gutter: var(--space-4);
+  }
+  .section,
+  .section > .container {
+    padding-top: var(--space-7);
+  }
+  .h2 {
+    font-size: var(--text-4xl);
+  }
+  .closing .h2 {
+    font-size: var(--text-5xl);
   }
   .readGrid {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    gap: var(--space-7);
+  }
+  .steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-5);
+  }
+  .closing {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
     gap: var(--space-6);
   }
+}
+
+@media (min-width: 1024px) {
+  /* The chain runs across: the dots on one line above their words. */
   .chain {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--space-3);
+    gap: var(--space-5);
   }
   .chain li {
-    padding: 36px var(--space-2) 0 0;
+    grid-template-columns: 1fr;
+    align-content: start;
   }
-  .chain li::before {
-    left: 0;
-    top: 0;
+  .chain li > :not(.chainDot) {
+    grid-column: 1;
+  }
+  .chainDot {
+    margin-bottom: var(--space-3);
   }
   .chain li:not(:last-child)::after {
-    left: 20px;
-    right: -8px;
-    top: 7px;
+    left: var(--dot);
+    right: calc(-1 * var(--space-5));
+    top: calc(var(--dot) / 2 - 1px);
     bottom: auto;
     width: auto;
     height: 2px;
   }
   .steps {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-4) var(--space-5);
-  }
-  .closing {
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    padding: var(--space-5);
-  }
-}
-
-@media (min-width: 1024px) {
-  .steps {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .sideGrid {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+    gap: var(--space-7);
+    align-items: start;
   }
 }

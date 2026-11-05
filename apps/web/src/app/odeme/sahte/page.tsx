@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import s from "@/components/portal-billing/billing.module.css";
-import layout from "@/components/portal/page.module.css";
+import { LogoMark } from "@/components/brand/logo";
 import { Alert } from "@/components/ui/alert";
-import { Facts } from "@/components/ui/facts";
+import { buttonClass } from "@/components/ui/button";
+import { t } from "@/lib/i18n";
 import { fakeCheckoutText as text } from "@/lib/i18n/messages/fake-checkout";
 import { supabaseEnv } from "@/lib/env";
+import styles from "./sahte.module.css";
 
 // Stand-in for iyzico's Checkout Form when the Edge Functions run with the fake
 // provider (docs/musteri-yonetimi.md §8.6). Exists only with
@@ -34,23 +35,40 @@ export default async function FakeCheckoutPage({
   const action = `${supabaseEnv().url}/functions/v1/payment-callback`;
 
   return (
-    <main className="centered">
-      <div className={`card ${s.formTight}`}>
-        <h1>{text.title}</h1>
+    <main className={styles.screen}>
+      <div className={styles.card}>
+        <p className={styles.brand}>
+          <LogoMark size={24} />
+          <span>{t.app.name}</span>
+        </p>
+        <h1 className={styles.title}>{text.title}</h1>
         <Alert tone="warning">{text.notice}</Alert>
         {valid ? (
-          <form method="post" action={action} className={s.formTight}>
+          <form method="post" action={action} className={styles.form}>
             <input type="hidden" name="token" value={token} />
-            <Facts variant="summary" rows={[[text.amountLabel, `${amount} ${text.currency}`]]} />
-            <div className={layout.actions}>
-              <button className="button" type="submit" name="outcome" value="success">
+            <div className={styles.amount}>
+              <span>{text.amountLabel}</span>
+              <strong>{`${amount} ${text.currency}`}</strong>
+            </div>
+            <div className={styles.actions}>
+              <button
+                className={buttonClass({ block: true })}
+                type="submit"
+                name="outcome"
+                value="success"
+              >
                 {text.approve}
               </button>
-              <button className="button button-danger" type="submit" name="outcome" value="failure">
+              <button
+                className={buttonClass({ variant: "secondary", block: true })}
+                type="submit"
+                name="outcome"
+                value="failure"
+              >
                 {text.decline}
               </button>
               <button
-                className="button button-secondary"
+                className={buttonClass({ variant: "quiet", block: true })}
                 type="submit"
                 name="outcome"
                 value="review"

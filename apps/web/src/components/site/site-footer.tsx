@@ -25,25 +25,28 @@ export function SiteFooter({ company }: { company?: CompanyFields | null }) {
     <footer className={styles.footer}>
       <div className={styles.footerInner}>
         <div className={styles.footerBrand}>
-          <div className={styles.brand}>
-            <LogoMark size={24} />
+          <Link href="/" className={styles.brand}>
+            <LogoMark size={28} />
             <span>{t.app.name}</span>
-          </div>
-          <p className="muted">{t.app.tagline}</p>
-          {c ? (
-            <div data-testid="footer-company">
-              <FooterLine items={f.companyFilled(c)} />
-              <FooterLine items={f.taxLine(c)} />
-              <FooterLine items={f.contactFilled(c)} />
-            </div>
-          ) : (
-            <>
-              <FooterLine items={f.company} />
-              <FooterLine items={f.contactLine} />
-            </>
-          )}
+          </Link>
+          <p className={styles.footerTagline}>{t.app.tagline}</p>
         </div>
-        <nav aria-label={siteText.nav.label} className={styles.footerLinks}>
+        {c ? (
+          <div className={styles.footerCompany} data-testid="footer-company">
+            <FooterLine items={f.companyFilled(c)} />
+            <FooterLine items={f.taxLine(c)} />
+            <FooterLine items={f.contactFilled(c)} />
+          </div>
+        ) : (
+          <div className={styles.footerCompany}>
+            <FooterLine items={f.company} />
+            <FooterLine items={f.contactLine} />
+          </div>
+        )}
+        <nav
+          aria-label={siteText.nav.label}
+          className={`${styles.footerLinks} ${styles.footerService}`}
+        >
           <p className={styles.footerHeading}>{f.siteHeading}</p>
           {SITE_NAV.map((item) => (
             <Link key={item.href} href={item.href}>
@@ -60,7 +63,11 @@ export function SiteFooter({ company }: { company?: CompanyFields | null }) {
           ))}
         </nav>
       </div>
-      <p className={`${styles.footerNote} ${styles.footerSmall}`}>{f.note}</p>
+      <div className={styles.footerBottom}>
+        <div className={`${styles.footerNote} ${styles.footerSmall}`}>
+          <p>{f.note}</p>
+        </div>
+      </div>
     </footer>
   );
 }

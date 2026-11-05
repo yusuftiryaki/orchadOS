@@ -368,6 +368,30 @@ Kalite ayarları işleme hattının varsayılanlarıyla aynıdır (`PanoramaPara
 
 **Testler:** `tests/test_demo_dataset.py` (kimlikler, kişiler, telefon taraması, mevsim, sınıf dağılımı, nitelikler, erkek oranı, meyve yükü farkı, sezon dışı kod yok), `tests/test_demo_media.py` (test profilinin sıfırdan derlemesi 90 sn'nin altında ve ≤ 10 MB, full tahmini ≤ 150 MB, aynı makinede aynı bayt, ağacın beklenen sütunda olması, nadir ve köşe damgaları, yakın planlar), `tests/test_demo_sql.py` (her eklemede çakışma hedefi, adım sırası, silme/güncelleme yok, kişilerin boş token sütunları ve sonlu yasağı, `pose` alanları, ham kayıt adresleri, mevsim ve sürüm), `tests/test_demo_load_supabase.py` (`supabase` işareti: `--reset-local` ile yükleme, ikinci yükleme değişiklik yapmaz, doğrulama, geçici bir sahiple imzalı adresten ve `demo-media`'dan geri okuma, kişiler, Admin `listUsers`, bildirim yok, varsa kayıt satırı ve açma/kapama). Bu test demo verisini yüklü bırakır; pgTAP `reset_to_seed` ile etkilenmez.
 
+## LiDAR ölçümleri
+
+LiDAR'lı kitin kayıtlı nokta bulutundan ağaç başına ölçümler (İP16, araştırma). Yöntemler, sentetik doğruluk ve açık kararlar: [docs/lidar-olcumleri.md](../../docs/lidar-olcumleri.md). Girdi biçimi (`<oturum>/lidar/cloud.ply` + `cloud.json`): [docs/arayuzler.md](../../docs/arayuzler.md#kayıtlı-nokta-bulutu). Ham MCAP'ten bu bulutu üreten kayıt adımı henüz yok.
+
+```bash
+uv run orchados-pipeline lidar synth /tmp/yaz                       # sentetik yapraklı parsel
+uv run orchados-pipeline lidar synth /tmp/kis --leafless --pruned-copy /tmp/kis-sonra --cuts 3
+uv run orchados-pipeline lidar crown /tmp/yaz                       # crown.json
+uv run orchados-pipeline lidar skeleton /tmp/kis                    # skeleton.json
+uv run orchados-pipeline lidar pruning /tmp/kis /tmp/kis-sonra      # pruning.json (sonraki oturumda)
+uv run orchados-pipeline lidar upload /tmp/yaz.processed/lidar --session-id <uuid> [--dry-run]
+```
+
+| Modül | Ne yapar |
+| --- | --- |
+| `lidar/cloud.py` | PLY okuma/yazma, ağaç başına ayırma (Voronoi, 5 m), ağaç başına zemin düzlemi, yön kapsaması |
+| `lidar/synthetic.py` | Doğruluğu bilinen parametrik fıstık ağaçları (gövde → ana kol → 2. ve 3. sıra, taç zarfı, yaprak kabuğu), budama, küçük parseller |
+| `lidar/crown.py` | `lidar_crown`: `tree_height`, `crown_diameter`, `crown_volume`, `size_class` önerisi |
+| `lidar/skeleton.py` | `lidar_qsm`: kış iskeleti; `scaffold_branch_count`, `wood_volume`, `fractal_dimension` |
+| `lidar/pruning.py` | `lidar_pruning`: iki kış taraması; `pruned_wood_volume`, `pruned_wood_fraction`, `pruning_cut_count`, `pruning_status` önerisi |
+| `lidar/upload.py` | Raporları `record_lidar_measurements` ile `public.measurement`'a yazar (ops kullanıcısı, ortam değişkenleri yükleme ile aynı) |
+
+Çıktılar varsayılan olarak `<oturum>.processed/lidar/` klasörüne yazılır (`--out` ile değişir). Aynı girdi ve parametrelerle bayt bayt aynıdır. Testler: `uv run pytest tests/test_lidar_*.py` (~1 dk; yükleme entegrasyon testi yerel Supabase ister).
+
 ## Insta360 `.insv` kayıtları
 
 `video/` klasörü equirectangular MP4 yerine kameranın ham `.insv` kaydını da alabilir. Bu durumda Insta360 Studio'da dışa aktarma adımına gerek kalmaz:

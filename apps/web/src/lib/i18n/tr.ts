@@ -44,21 +44,24 @@ export const tr = {
   },
   login: {
     title: "Giriş",
+    heading: "Hesabınıza giriş yapın",
     subtitle: "Bahçelerinizin raporlarına ve hesabınıza buradan ulaşırsınız.",
     email: "E-posta",
     password: "Parola",
+    // The visibility toggle beside a password field; aria-pressed says the state.
+    showPassword: "Parolayı göster",
     submit: "Giriş yap",
     submitting: "Giriş yapılıyor…",
     invalidCredentials: "E-posta ya da parola hatalı. Yazımı kontrol edip yeniden deneyin.",
     missingFields: "E-posta ve parola gerekli.",
     methods: {
       label: "Giriş yöntemi",
-      password: "E-posta ve parola",
-      phone: "Telefon ve SMS",
+      password: "E-posta",
+      phone: "Telefon",
     },
-    forgot:
-      "Parolanızı mı unuttunuz? Hesabınızdaki cep telefonuna gelen kodla giriş yapabilirsiniz.",
-    forgotAction: "SMS koduyla girin",
+    // "Parolamı unuttum" opens the phone tab, which then says why.
+    forgot: "Parolanızı unuttuysanız hesabınızdaki cep telefonuna gelen kodla giriş yapın.",
+    forgotAction: "Parolamı unuttum",
     phone: {
       number: "Cep telefonu",
       numberHint: "Hesabınızdaki numara, örneğin 0532 123 45 67",
@@ -88,6 +91,8 @@ export const tr = {
   nav: {
     logout: "Çıkış",
     sections: "Bölümler",
+    accountMenu: "Hesap menüsü",
+    otherSections: "Diğer bölümler",
   },
   home: {
     noRoles: "Hesabınıza henüz bir rol atanmamış. Lütfen operasyon ekibiyle iletişime geçin.",
@@ -1341,9 +1346,10 @@ export const tr = {
       boundaryReview: "Sınırı inceleyin",
       onThisPage: "Bu sayfada",
       nav: {
+        summary: "Özet",
         map: "Harita",
         findings: "Bulgular",
-        details: "Karne ayrıntıları",
+        details: "Karne",
         boundary: "Sınır ve envanter",
         service: "Hizmet",
         visits: "Ziyaretler",
@@ -1572,6 +1578,14 @@ export const tr = {
       photosHint:
         "Her denetimde ağaç aynı yönlerden çekilir; satırlar denetimler, sütunlar yönler.",
       noPhotos: "Bu ağacın fotoğrafı yok.",
+      // LiDAR crown drawing over the crop photos (and the tour).
+      guide: {
+        show: "Ölçüleri göster",
+        hide: "Ölçüleri gizle",
+        caption: "Çizim, tarama sırasında ölçülen değerlerden çizilir; yaklaşıktır.",
+        height: (value: string) => `Boy ${value}`,
+        width: (value: string) => `Taç çapı ${value}`,
+      },
       closeUps: "Yakın plan",
       photoMissing: "Görüntü yok",
       hash: (short: string) => `Parmak izi ${short}`,
@@ -1616,7 +1630,22 @@ export const tr = {
       mapHint: "Haritada bir noktaya dokunun: en yakın panorama açılır.",
       viewer: "Panorama",
       arrow: "Bu yöne ilerle",
-      treeMarker: (code: string) => `${code}: ağaç karnesini aç`,
+      treeMarker: (code: string) => `${code}: ağaca yakınlaş`,
+      // The focused tree's marker: a second tap opens the card.
+      treeMarkerCard: (code: string) => `${code}: ağaç karnesini aç`,
+      zoomHint:
+        "Tekerlekle, iki parmakla ya da çift tıklayarak yakınlaştırın. Bir ağaç işaretçisine dokununca görüntü o ağaca yakınlaşır.",
+      overview: "Genel görünüm",
+      treePanel: (code: string) => `${code} ağacı`,
+      treeDistance: (m: number) => `${m} m uzakta`,
+      // The focused tree's LiDAR crown values in the visit on screen.
+      crown: "Tarama ölçümleri",
+      crownHeight: "Boy",
+      crownDiameter: "Taç çapı",
+      crownVolume: "Taç hacmi",
+      prevTree: "Soldaki ağaç",
+      nextTree: "Sağdaki ağaç",
+      openCard: "Ağaç karnesi",
       timeTravel: "Bu noktayı başka bir denetimde gör",
       noSameSpot: (date: string) =>
         `${date} denetiminde bu noktada panorama yok; o denetimin en yakın panoraması açıldı.`,
@@ -2050,6 +2079,15 @@ export const tr = {
     generated: (date: string) => `Oluşturma: ${date}`,
     page: (n: number, total: number) => `Sayfa ${n} / ${total}`,
   },
+  // Display units of metric_definition.unit codes; codes not listed are shown
+  // as they are, an empty text shows no unit.
+  units: {
+    m2: "m²",
+    m3: "m³",
+    count: "adet",
+    degC: "°C",
+    ratio: "",
+  } as Record<string, string>,
   // Category values of the metric registry (docs/metodoloji.md, Ek B).
   metricCategories: {
     done: "Yapılmış",

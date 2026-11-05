@@ -1,5 +1,9 @@
+/* 404, 403 and a failed request: the brand at the top, one centred message
+   on the calm page ground under a planting row with a gap, the way back. */
+
 .screen {
   min-height: 100vh;
+  min-height: 100dvh;
   max-width: 1120px;
   margin: 0 auto;
   padding: var(--space-3);
@@ -12,8 +16,9 @@
   align-items: center;
   gap: 10px;
   min-height: var(--control-height);
-  font-weight: 800;
+  font-weight: 700;
   font-size: var(--text-lg);
+  letter-spacing: var(--tracking-tight);
   color: var(--color-text);
   text-decoration: none;
   justify-self: start;
@@ -21,42 +26,63 @@
 
 .body {
   align-self: center;
-  max-width: 52ch;
-  padding: var(--space-6) 0;
+  justify-self: center;
+  width: 100%;
+  max-width: 440px;
+  padding: var(--space-6) 0 var(--space-7);
+  display: grid;
+  justify-items: center;
+  text-align: center;
 }
 
-.rows {
-  display: block;
-  width: 108px;
-  height: 40px;
+/* A planting row, one tree missing. */
+.row {
+  width: 120px;
+  height: 24px;
   margin-bottom: var(--space-4);
-  background-image: radial-gradient(circle, var(--color-border-strong) 3px, transparent 3.5px);
-  background-size: 18px 13px;
+}
+
+.tree {
+  fill: var(--class-healthy);
+  stroke: var(--class-ring);
+  stroke-width: 1;
+}
+
+.gap {
+  fill: none;
+  stroke: var(--color-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
 }
 
 .code {
+  margin: 0 0 var(--space-2);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
+  font-weight: 500;
   color: var(--color-muted);
-  margin: 0 0 var(--space-1);
 }
 
 .body h1 {
-  font-size: var(--text-3xl);
+  font-size: var(--text-2xl);
   font-weight: 800;
+  letter-spacing: -0.03em;
   line-height: var(--leading-tight);
   margin: 0 0 var(--space-2);
+  text-wrap: balance;
 }
 
 .text p {
-  color: var(--color-text-2);
+  color: var(--color-muted);
   margin: 0;
+  text-wrap: pretty;
 }
 
 .action {
-  margin-top: var(--space-4);
+  margin-top: var(--space-5);
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-2);
 }
 
@@ -65,6 +91,6 @@
     padding: var(--space-3) var(--space-4);
   }
   .body h1 {
-    font-size: var(--text-4xl);
+    font-size: var(--text-3xl);
   }
 }

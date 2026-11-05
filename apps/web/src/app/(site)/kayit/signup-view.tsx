@@ -1,5 +1,7 @@
 import Link from "next/link";
 import styles from "@/components/site/auth.module.css";
+import { ButtonLink } from "@/components/ui/button";
+import { IconMessage, IconPackage, IconTree } from "@/components/ui/icons";
 import { siteText } from "@/lib/i18n/messages/site";
 import type { WebCaptchaProvider } from "@/lib/site/captcha";
 import { SignupForm } from "./signup-form";
@@ -25,71 +27,82 @@ export function SignupView({
     const w = s.closedWays;
     return (
       <div className={styles.page}>
-        <header className={styles.head} data-testid="signup-closed">
-          <h1 className={styles.title}>{s.closedTitle}</h1>
-          <p className={styles.lead}>{s.closedBody}</p>
-        </header>
-        <section className={`${styles.main} ${styles.sheet}`} aria-labelledby="signup-ways">
-          <h2 id="signup-ways" className={styles.sheetTitle}>
-            {s.closedWaysTitle}
-          </h2>
-          <ul className={styles.ways}>
-            <li>
-              <strong>{w.contact.title}</strong>
-              <span>{w.contact.body}</span>
-              <Link href="/iletisim" className="button" data-testid="signup-closed-contact">
-                {s.closedContact}
-              </Link>
-            </li>
-            <li>
-              <strong>{w.packages.title}</strong>
-              <span>{w.packages.body}</span>
-              <Link href="/paketler" data-testid="signup-closed-packages">
-                {w.packages.link}
-              </Link>
-            </li>
-            {demoUrl && (
-              <li>
-                <strong>{w.demo.title}</strong>
-                <span>{w.demo.body}</span>
-                <Link href={demoUrl} data-testid="signup-closed-demo">
-                  {w.demo.link}
-                </Link>
-              </li>
-            )}
-          </ul>
-          <p className={styles.below}>
-            {s.haveAccount} <Link href="/giris">{s.login}</Link>
-          </p>
-        </section>
+        <div className={styles.column}>
+          <div className={styles.card}>
+            <div className={styles.cardHead} data-testid="signup-closed">
+              <h1 className={styles.title}>{s.closedTitle}</h1>
+              <p className={styles.lead}>{s.closedBody}</p>
+            </div>
+            <section aria-labelledby="signup-ways">
+              <h2 id="signup-ways" className={styles.sheetTitle}>
+                {s.closedWaysTitle}
+              </h2>
+              <ul className={styles.ways}>
+                <li>
+                  <span className={styles.wayIcon} aria-hidden>
+                    <IconMessage />
+                  </span>
+                  <strong>{w.contact.title}</strong>
+                  <span>{w.contact.body}</span>
+                  <ButtonLink href="/iletisim" data-testid="signup-closed-contact">
+                    {s.closedContact}
+                  </ButtonLink>
+                </li>
+                <li>
+                  <span className={styles.wayIcon} aria-hidden>
+                    <IconPackage />
+                  </span>
+                  <strong>{w.packages.title}</strong>
+                  <span>{w.packages.body}</span>
+                  <ButtonLink
+                    href="/paketler"
+                    variant="secondary"
+                    data-testid="signup-closed-packages"
+                  >
+                    {w.packages.link}
+                  </ButtonLink>
+                </li>
+                {demoUrl && (
+                  <li>
+                    <span className={styles.wayIcon} aria-hidden>
+                      <IconTree />
+                    </span>
+                    <strong>{w.demo.title}</strong>
+                    <span>{w.demo.body}</span>
+                    <ButtonLink href={demoUrl} variant="secondary" data-testid="signup-closed-demo">
+                      {w.demo.link}
+                    </ButtonLink>
+                  </li>
+                )}
+              </ul>
+              <p className={`${styles.below} ${styles.cardFoot}`}>
+                {s.haveAccount} <Link href="/giris">{s.login}</Link>
+              </p>
+            </section>
+          </div>
+        </div>
       </div>
     );
   }
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <h1 className={styles.title}>{s.title}</h1>
-        <p className={styles.lead}>{s.subtitle}</p>
-      </header>
-      <div className={styles.main}>
+      <div className={`${styles.column} ${styles.columnWide}`}>
         <SignupForm turnstileSiteKey={turnstileSiteKey} captchaProvider={captchaProvider} />
         <p className={styles.below}>
           {s.haveAccount} <Link href="/giris">{s.login}</Link>
         </p>
       </div>
-      <aside className={styles.aside} aria-labelledby="signup-next">
-        <div>
-          <h2 id="signup-next">{s.asideTitle}</h2>
-          <ol className={styles.next}>
-            {s.asideSteps.map((step) => (
-              <li key={step.title}>
-                <strong>{step.title}</strong>
-                <span>{step.body}</span>
-              </li>
-            ))}
-          </ol>
-          <p>{s.locationNote}</p>
-        </div>
+      <aside className={styles.after} aria-labelledby="signup-next">
+        <h2 id="signup-next">{s.asideTitle}</h2>
+        <ol className={styles.next}>
+          {s.asideSteps.map((step) => (
+            <li key={step.title}>
+              <strong>{step.title}</strong>
+              <span>{step.body}</span>
+            </li>
+          ))}
+        </ol>
+        <p className={styles.afterNote}>{s.locationNote}</p>
       </aside>
     </div>
   );

@@ -27,16 +27,10 @@ test("wrong password shows an error", async ({ page }) => {
 });
 
 // The portal header of a customer (owner profile) lists the portal's own
-// pages under "Hesap" instead of the sections.
-const PORTAL_PAGES = [
-  "Bahçelerim",
-  "Başvurularım",
-  "Siparişlerim",
-  "Ödemelerim",
-  "Sözleşmelerim",
-  "Hesabım",
-];
-const OWNER_PAGES = [...PORTAL_PAGES.slice(0, 4), "Hizmetlerim", ...PORTAL_PAGES.slice(4)];
+// pages under "Hesap" instead of the sections; the account pages are in the
+// account menu.
+const PORTAL_PAGES = ["Bahçelerim", "Başvurularım", "Siparişlerim", "Ödemelerim"];
+const OWNER_PAGES = [...PORTAL_PAGES, "Hizmetlerim"];
 
 const LANDING: [string, string, string, string[]][] = [
   // IP15: owners of a parcel with the service layer on also get Hizmetlerim.
@@ -123,6 +117,7 @@ test("unknown or hidden parcels are 404", async ({ page }) => {
 test("logout ends the session", async ({ page }) => {
   await login(page, "viewer@example.com");
   await expect(page).toHaveURL("/portal");
+  await page.getByRole("button", { name: "Hesap menüsü" }).click();
   await page.getByRole("button", { name: "Çıkış" }).click();
   await expect(page).toHaveURL("/giris");
   await page.goto("/portal");

@@ -35,21 +35,22 @@ export default async function VerifyPhonePage() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <h1 className={styles.title}>{v.title}</h1>
-        <p className={styles.lead}>{!hasPhone ? v.noPhone : needsCode ? v.subtitle : v.done}</p>
-      </header>
-      {hasPhone && (
-        <div className={styles.main}>
-          {needsCode ? (
-            <div className={styles.sheet}>
+      <div className={styles.column}>
+        <div className={styles.card}>
+          <div className={styles.cardHead}>
+            <h1 className={styles.title}>{v.title}</h1>
+            <p className={styles.lead}>{!hasPhone ? v.noPhone : needsCode ? v.subtitle : v.done}</p>
+          </div>
+          {hasPhone &&
+            (needsCode ? (
               <VerifyForm />
-            </div>
-          ) : (
-            <ButtonLink href="/">{v.continue}</ButtonLink>
-          )}
+            ) : (
+              <ButtonLink href="/" block>
+                {v.continue}
+              </ButtonLink>
+            ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }

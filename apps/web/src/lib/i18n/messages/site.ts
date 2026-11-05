@@ -53,7 +53,7 @@ export const siteText = {
   },
   landing: {
     title: "Bahçenize gitmeden, ağaç ağaç görün.",
-    lead: "orchadOS, Antep fıstığı bahçeleri için bağımsız bir denetim hizmetidir. Saha ekibimiz bahçenizi 360° kamerayla sıra sıra tarar; bir ziraat mühendisi her ağacı değerlendirir ve raporu imzalar. Siz sonucu telefonunuzdan, fotoğrafıyla birlikte görürsünüz.",
+    lead: "Saha ekibimiz bahçenizi 360° kamerayla sıra sıra tarar; bir ziraat mühendisi her ağacı değerlendirir ve raporu imzalar. Siz sonucu telefonunuzdan, fotoğrafıyla birlikte görürsünüz.",
     ctaSignup: "Kayıt ol",
     signupNote:
       "Hesap açmak ücretsizdir. Ödemeyi, ekibimizin alanı doğruladığı teklifi onaylayınca yaparsınız.",
@@ -63,6 +63,8 @@ export const siteText = {
     ctaLogin: "Hesabınız varsa giriş yapın",
     plate: {
       title: "Örnek bahçe, kış ziyareti",
+      // Tag on the preview window: the figure is drawn, not measured.
+      sample: "Örnek",
       caption:
         "Her nokta bir ağaç; rengi, uzmanın o ziyarette verdiği sınıf. Satır başındaki kodlar sıraları gösterir. Bu çizim örnektir.",
       tree: "S5-12",
@@ -129,7 +131,6 @@ export const siteText = {
       "Paketler ziyaret sayısıyla ayrılır. Ziyaretler fıstığın yılına göre planlanır: budama, uyanma, meyve tutumu, hasat.",
     calendarLabel: "Paketlerin ziyaret takvimi",
     visitsPerYear: (n: number) => `Yılda ${n} ziyaret`,
-    perDonum: (price: string) => `Dönüm başına yıllık ${price}, KDV dahil`,
     calendarNote:
       "İlk yıl bahçe başına bir kez envanter ücreti eklenir. Küçük bahçelerde en az ücret uygulanır.",
     calendarMore: "Fiyatlar ve örnek hesap",
@@ -216,6 +217,14 @@ export const siteText = {
     includesInventory: "Envanter dahil",
     perDonum: "dönüm başına, yıllık, KDV dahil",
     perVisit: (unit: string) => `Ziyaret başına, dönüm başı ${unit}`,
+    // The package most gardens are quoted with (docs/fiyatlandirma.md uses
+    // Standart for its reference figures).
+    recommended: "Önerilen",
+    recommendedCode: "standart",
+    choose: (name: string) => `${name} ile başlayın`,
+    contactCta: "Teklif isteyin",
+    modelLead:
+      "Kesin tutar, ekibimiz bahçenizin alanını doğruladıktan sonra teklifte yazar. Hesap şöyle yapılır:",
     minimumFee: "En az ücret (bahçe başına, yıllık)",
     inventoryFee: "Envanter ücreti (ilk yıl, bahçe başına)",
     vatNote: (rate: string) => `Fiyatlara %${rate} KDV dahildir; teklifte KDV ayrıca gösterilir.`,
@@ -437,8 +446,6 @@ export const siteText = {
       "Kaydınız tamamlanamadı ve güvenliğiniz için oturumunuz kapatıldı. Bu numarayla kaydı siz başlattıysanız kayıtta kullandığınız e-posta ve parolayla giriş yapın; telefonunuzu oradan doğrularsınız. Giriş yapamıyorsanız yeniden kayıt olabilirsiniz.",
     asideLabel: "Hesabı olmayanlar için",
     noAccount: "Hesabınız yok mu?",
-    signupBody:
-      "Kayıt ücretsizdir. Hesap açtıktan sonra bahçenizi haritada işaretleyip başvurursunuz; ödemeyi teklifi onaylayınca yaparsınız.",
     signup: "Kayıt ol",
     demoBefore: "Önce görmek ister misiniz?",
     tryDemo: "Demoyu dene",

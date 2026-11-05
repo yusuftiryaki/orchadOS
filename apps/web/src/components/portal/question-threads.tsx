@@ -8,6 +8,7 @@ import { findingKindLabel } from "./labels";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { IconMessage } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Select, Textarea } from "@/components/ui/field";
 import styles from "./parcel.module.css";
@@ -42,6 +43,7 @@ export function QuestionThreads({
   showContext = false,
   demo = false,
   readOnly = false,
+  compactEmpty = false,
 }: {
   threads: QuestionThread[];
   returnPath: string;
@@ -52,7 +54,19 @@ export function QuestionThreads({
   showContext?: boolean;
   demo?: boolean;
   readOnly?: boolean;
+  // One quiet line instead of the empty-state block (inside a card).
+  compactEmpty?: boolean;
 }) {
+  if (threads.length === 0 && compactEmpty) {
+    return (
+      <p className={styles.emptyLine} data-testid="questions-empty">
+        <IconMessage size={20} />
+        <span>
+          <strong>{q.empty}</strong> <span className="muted">{q.emptyBody}</span>
+        </span>
+      </p>
+    );
+  }
   if (threads.length === 0) {
     return (
       <EmptyState title={q.empty} headingLevel={3} testId="questions-empty">
@@ -169,6 +183,7 @@ export function AskQuestionForm({
   title,
   demo = false,
   readOnly = false,
+  secondary = false,
 }: {
   parcelId: string;
   treeId: string | null;
@@ -178,6 +193,8 @@ export function AskQuestionForm({
   title: string;
   demo?: boolean;
   readOnly?: boolean;
+  // A secondary submit where the page has its own primary action.
+  secondary?: boolean;
 }) {
   if (demo) return <DemoNotice text={demoText.closed.questions} />;
   if (readOnly) {
@@ -217,7 +234,9 @@ export function AskQuestionForm({
         <Textarea name="body" maxLength={2000} required rows={3} />
       </Field>
       <div className={styles.formActions}>
-        <Button type="submit">{q.ask}</Button>
+        <Button type="submit" variant={secondary ? "secondary" : "primary"}>
+          {q.ask}
+        </Button>
       </div>
     </form>
   );

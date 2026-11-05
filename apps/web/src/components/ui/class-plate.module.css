@@ -1,0 +1,43 @@
+/* The class plate: a 10×10 planting grid on the soil, one dot ≈ 1% of the
+   garden's trees, in the colours and dark ring of the health map. */
+
+.plate {
+  display: block;
+  flex: none;
+  width: var(--plate-size, 112px);
+  height: var(--plate-size, 112px);
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px var(--palette-tarla-line);
+}
+
+.soil {
+  fill: var(--palette-tarla);
+}
+
+.furrow {
+  stroke: var(--palette-tarla-line);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.tree {
+  fill: var(--f);
+  stroke: var(--class-ring);
+  stroke-width: 0.6;
+}
+
+/* A garden without assessed trees: the empty planting rows. */
+.spot {
+  fill: none;
+  stroke: var(--class-dead);
+  stroke-opacity: 0.45;
+  stroke-width: 0.7;
+  stroke-dasharray: 1.2 1.2;
+}
+
+@media print {
+  .plate {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

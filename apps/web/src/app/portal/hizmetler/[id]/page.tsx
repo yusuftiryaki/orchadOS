@@ -2,16 +2,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DemoNotice } from "@/components/demo/demo-notice";
 import { HashCheck } from "@/components/portal/hash-check";
+import {
+  DetailHeader,
+  DetailLayout,
+  Section,
+  SummaryCard,
+  Timeline,
+  workClass as w,
+} from "@/components/portal-billing/workspace";
+import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import layout from "@/components/portal/page.module.css";
 import { RobotBadge } from "@/components/services/robot-badge";
 import styles from "@/components/services/services.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Facts } from "@/components/ui/facts";
+import { Facts, factsClass } from "@/components/ui/facts";
 import { Checkbox, Field, Textarea } from "@/components/ui/field";
-import { PageHeader } from "@/components/ui/page-header";
-import { Panel } from "@/components/ui/panel";
 import { statusTone } from "@/components/ui/status";
 import { requireSection } from "@/lib/auth/session";
 import { formatDonum } from "@/lib/billing/money";
@@ -71,19 +78,15 @@ export default async function ServiceRequestPage({
   const after = photos.filter((p) => p.phase === "after");
 
   return (
-    <main
-      className={`${layout.page} ${layout.reading}`}
-      data-testid="service-request"
-      data-status={r.status}
-    >
-      <PageHeader
-        title={D.title(r.number)}
-        lead={`${name}: ${r.parcelName}`}
-        meta={
+    <main className={layout.page} data-testid="service-request" data-status={r.status}>
+      <DetailHeader
+        title={<NumberedTitle text={D.title(r.number)} number={r.number} />}
+        badges={
           <Badge tone={statusTone(r.status)} testId="service-request-status">
             {S.status[r.status]}
           </Badge>
         }
+        lead={`${name}: ${r.parcelName}`}
         back={{ href: serviceHref.list(), label: D.back }}
       />
       {notice && (
@@ -97,155 +100,212 @@ export default async function ServiceRequestPage({
         </Alert>
       )}
 
-      <Panel title={D.summaryTitle}>
-        <Facts
-          rows={[
-            [
-              D.parcel,
-              <Link key="parcel" href={`/portal/parsel/${r.parcel_id}`}>
-                {r.parcelName}
-              </Link>,
-            ],
-            [D.service, r.serviceName],
-            ...(r.robot
-              ? ([
-                  [
-                    D.robot,
-                    <RobotBadge key="robot" robot={r.robot} testId="service-request-robot" />,
-                  ],
-                ] as [string, React.ReactNode][])
-              : []),
-            [D.window, S.window[r.preferred_window]],
-            [D.note, r.customer_note],
-            ...(r.status === "pre_request"
-              ? []
-              : ([[D.early, r.early_performance_requested ? D.yes : D.no]] as [string, string][])),
-            [D.terms, F.version(r.terms_version)],
-            [
-              D.area,
-              F.areaValue(
-                formatDonum(Number(r.area_m2)),
-                S.areaSource[r.area_source] ?? r.area_source,
-              ),
-            ],
-          ]}
-        />
-      </Panel>
-
-      <Panel title={estimate ? D.estimateTitle : D.amountTitle} testId="service-request-amounts">
-        {estimate ? (
-          <>
-            <Facts
-              variant="summary"
-              rows={[
-                [F.subtotal, formatTl(estimate.subtotal)],
-                [F.vat(vatPercent(estimate.vatRateBp)), formatTl(estimate.vat)],
-              ]}
-              total={[F.total, formatTl(estimate.total)]}
-            />
-            <p className={styles.hint}>
-              {r.quote_total_kurus === null && `${F.frozenNote} `}
-              <span data-testid="service-request-price-list">
-                {F.priceListNote(estimate.version)}
-              </span>
-            </p>
-          </>
-        ) : (
-          <p className={styles.hint} data-testid="service-request-no-price">
-            {D.noEstimate}
-          </p>
-        )}
-        <Facts
-          rows={[
-            [
-              D.confirmed,
-              r.quote_total_kurus !== null ? (
-                <strong data-testid="service-request-quote">{formatTl(r.quote_total_kurus)}</strong>
-              ) : (
-                D.notConfirmed
-              ),
-            ],
-            ...(r.scheduled_date
-              ? ([[D.scheduled, longDate(r.scheduled_date)]] as [string, string][])
-              : []),
-            ...(r.completed_on
-              ? ([[D.completed, longDate(r.completed_on)]] as [string, string][])
-              : []),
-            ...(r.status === "cancelled"
-              ? []
-              : ([
-                  [
-                    D.payment,
-                    <span key="payment" data-testid="service-request-payment">
-                      {r.payment_received_on ? D.paid(longDate(r.payment_received_on)) : D.payLater}
-                    </span>,
-                  ],
-                ] as [string, React.ReactNode][])),
-          ]}
-        />
-        {done && !r.payment_received_on && <p className={styles.hint}>{D.paymentHow}</p>}
-      </Panel>
-
-      {(done || photos.length > 0) && (
-        <Panel title={D.proofTitle} description={D.proofLead} testId="service-request-proof">
-          {photos.length === 0 ? (
-            <p className={styles.hint}>{D.noProof}</p>
-          ) : (
-            <div className={styles.proof}>
-              <ProofColumn title={D.before} photos={before} parcelName={r.parcelName} />
-              <ProofColumn title={D.after} photos={after} parcelName={r.parcelName} />
-            </div>
-          )}
-          {done && <p className={styles.hint}>{D.complaint}</p>}
-        </Panel>
-      )}
-
-      <Panel title={D.historyTitle} testId="service-request-history">
-        <ol className={styles.timeline}>
-          {events.map((e) => (
-            <li key={e.id} data-status={e.toStatus}>
-              <time dateTime={e.createdAt}>{formatDateTime(e.createdAt)}</time>
-              <span>
-                {e.fromStatus === null ? D.created : S.status[e.toStatus]}
-                {D.by[e.actorRole] ? `, ${D.by[e.actorRole]}` : ""}
-                {e.note && e.actorRole !== "system" ? ` (${e.note})` : ""}
-              </span>
-            </li>
-          ))}
-        </ol>
-        {r.status === "cancelled" && r.cancelled_by_role && (
-          <p className={styles.hint}>
-            {D.cancelledBy[r.cancelled_by_role]}
-            {r.cancel_reason ? `. ${D.cancelReasonShown(r.cancel_reason)}` : ""}
-          </p>
-        )}
-      </Panel>
-
-      {cancellable && (
-        <Panel title={D.cancelTitle} description={D.cancelRule} testId="service-request-cancel">
-          {user.demo ? (
-            <DemoNotice text={S.errors.demo_read_only} />
-          ) : (
-            <form action={cancelServiceRequestAction} className={styles.form}>
-              <input type="hidden" name="request_id" value={r.id} />
-              <Field id="s-reason" label={D.cancelReason} optional={F.optional}>
-                <Textarea name="reason" rows={2} maxLength={REASON_MAX} />
-              </Field>
-              <Checkbox id="s-confirm" name="confirm" required label={D.cancelConfirm} />
-              <div className={layout.actions}>
-                <Button variant="danger" type="submit" data-testid="service-request-cancel-submit">
-                  {D.cancelSubmit}
-                </Button>
+      <DetailLayout
+        aside={
+          <SummaryCard
+            id="service-request-amount"
+            title={estimate ? D.estimateTitle : D.amountTitle}
+            testId="service-request-amounts"
+            figure={
+              estimate
+                ? {
+                    label: F.total,
+                    value: formatTl(estimate.total),
+                  }
+                : undefined
+            }
+          >
+            {estimate ? (
+              <>
+                <Facts
+                  variant="summary"
+                  rows={[
+                    [F.subtotal, formatTl(estimate.subtotal)],
+                    [F.vat(vatPercent(estimate.vatRateBp)), formatTl(estimate.vat)],
+                  ]}
+                />
+                <p className={w.fine}>
+                  {r.quote_total_kurus === null && `${F.frozenNote} `}
+                  <span data-testid="service-request-price-list">
+                    {F.priceListNote(estimate.version)}
+                  </span>
+                </p>
+              </>
+            ) : (
+              <p className={w.fine} data-testid="service-request-no-price">
+                {D.noEstimate}
+              </p>
+            )}
+            <dl className={`${factsClass.list} ${w.transfer}`}>
+              <div className={factsClass.fact}>
+                <dt>{D.confirmed}</dt>
+                <dd>
+                  {r.quote_total_kurus !== null ? (
+                    <strong data-testid="service-request-quote">
+                      {formatTl(r.quote_total_kurus)}
+                    </strong>
+                  ) : (
+                    D.notConfirmed
+                  )}
+                </dd>
               </div>
-            </form>
-          )}
-        </Panel>
-      )}
-      {cancelTooLate(r, today) && (
-        <Alert tone="info" testId="service-request-too-late">
-          <p>{D.tooLate}</p>
-        </Alert>
-      )}
+              {r.scheduled_date && (
+                <div className={factsClass.fact}>
+                  <dt>{D.scheduled}</dt>
+                  <dd>{longDate(r.scheduled_date)}</dd>
+                </div>
+              )}
+              {r.completed_on && (
+                <div className={factsClass.fact}>
+                  <dt>{D.completed}</dt>
+                  <dd>{longDate(r.completed_on)}</dd>
+                </div>
+              )}
+              {r.status !== "cancelled" && (
+                <div className={factsClass.fact}>
+                  <dt>{D.payment}</dt>
+                  <dd data-testid="service-request-payment">
+                    {r.payment_received_on ? D.paid(longDate(r.payment_received_on)) : D.payLater}
+                  </dd>
+                </div>
+              )}
+            </dl>
+            {done && !r.payment_received_on && <p className={w.fine}>{D.paymentHow}</p>}
+          </SummaryCard>
+        }
+        end={
+          <>
+            {cancellable && (
+              <section
+                className={w.danger}
+                data-testid="service-request-cancel"
+                aria-labelledby="service-cancel-title"
+              >
+                <h2 id="service-cancel-title" className={w.dangerTitle}>
+                  {D.cancelTitle}
+                </h2>
+                <p className={w.fine}>{D.cancelRule}</p>
+                {user.demo ? (
+                  <DemoNotice text={S.errors.demo_read_only} />
+                ) : (
+                  <form action={cancelServiceRequestAction} className={styles.form}>
+                    <input type="hidden" name="request_id" value={r.id} />
+                    <Field id="s-reason" label={D.cancelReason} optional={F.optional}>
+                      <Textarea name="reason" rows={2} maxLength={REASON_MAX} />
+                    </Field>
+                    <Checkbox id="s-confirm" name="confirm" required label={D.cancelConfirm} />
+                    <div>
+                      <Button
+                        variant="secondary"
+                        className={w.dangerButton}
+                        type="submit"
+                        data-testid="service-request-cancel-submit"
+                      >
+                        {D.cancelSubmit}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </section>
+            )}
+            {cancelTooLate(r, today) && (
+              <Alert tone="info" testId="service-request-too-late">
+                <p>{D.tooLate}</p>
+              </Alert>
+            )}
+          </>
+        }
+      >
+        <Section title={D.summaryTitle} id="service-request-summary">
+          <div className={w.surface}>
+            <Facts
+              rows={[
+                [
+                  D.parcel,
+                  <Link key="parcel" href={`/portal/parsel/${r.parcel_id}`}>
+                    {r.parcelName}
+                  </Link>,
+                ],
+                [D.service, r.serviceName],
+                ...(r.robot
+                  ? ([
+                      [
+                        D.robot,
+                        <RobotBadge key="robot" robot={r.robot} testId="service-request-robot" />,
+                      ],
+                    ] as [string, React.ReactNode][])
+                  : []),
+                [D.window, S.window[r.preferred_window]],
+                [D.note, r.customer_note],
+                ...(r.status === "pre_request"
+                  ? []
+                  : ([[D.early, r.early_performance_requested ? D.yes : D.no]] as [
+                      string,
+                      string,
+                    ][])),
+                [D.terms, F.version(r.terms_version)],
+                [
+                  D.area,
+                  F.areaValue(
+                    formatDonum(Number(r.area_m2)),
+                    S.areaSource[r.area_source] ?? r.area_source,
+                  ),
+                ],
+              ]}
+            />
+          </div>
+        </Section>
+
+        {(done || photos.length > 0) && (
+          <Section
+            title={D.proofTitle}
+            description={D.proofLead}
+            id="service-request-proof-section"
+            testId="service-request-proof"
+          >
+            <div className={w.surface}>
+              {photos.length === 0 ? (
+                <p className={styles.hint}>{D.noProof}</p>
+              ) : (
+                <div className={styles.proof}>
+                  <ProofColumn title={D.before} photos={before} parcelName={r.parcelName} />
+                  <ProofColumn title={D.after} photos={after} parcelName={r.parcelName} />
+                </div>
+              )}
+              {done && <p className={styles.hint}>{D.complaint}</p>}
+            </div>
+          </Section>
+        )}
+
+        <Section
+          title={D.historyTitle}
+          id="service-request-history-section"
+          testId="service-request-history"
+        >
+          <div className={w.surface}>
+            <Timeline
+              items={events.map((e) => ({
+                key: e.id,
+                at: e.createdAt,
+                time: formatDateTime(e.createdAt),
+                content: (
+                  <span data-status={e.toStatus}>
+                    {e.fromStatus === null ? D.created : S.status[e.toStatus]}
+                    {D.by[e.actorRole] ? `, ${D.by[e.actorRole]}` : ""}
+                    {e.note && e.actorRole !== "system" ? ` (${e.note})` : ""}
+                  </span>
+                ),
+              }))}
+            />
+            {r.status === "cancelled" && r.cancelled_by_role && (
+              <p className={styles.hint}>
+                {D.cancelledBy[r.cancelled_by_role]}
+                {r.cancel_reason ? `. ${D.cancelReasonShown(r.cancel_reason)}` : ""}
+              </p>
+            )}
+          </div>
+        </Section>
+      </DetailLayout>
     </main>
   );
 }

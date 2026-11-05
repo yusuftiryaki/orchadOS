@@ -25,23 +25,26 @@
 
 /* Header ------------------------------------------------------------------- */
 
+/* Sticky, on the page's own ground and slightly translucent: the page shows
+   faintly through it as it scrolls by; a hairline parts it. */
 .header {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgb(255 255 255 / 96%);
-  backdrop-filter: saturate(160%) blur(10px);
-  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
 }
 
 .headerInner {
   max-width: 1120px;
   margin: 0 auto;
-  min-height: 60px;
+  min-height: 64px;
   padding: 0 var(--space-3);
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   position: relative;
 }
 
@@ -49,9 +52,10 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-weight: 800;
+  min-height: 44px;
+  font-weight: 700;
   font-size: 18px;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-tight);
   text-decoration: none;
   color: var(--color-text);
   margin-right: auto;
@@ -68,16 +72,20 @@
 }
 
 .navLink {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  min-height: 40px;
   padding: 0 12px;
   border-radius: var(--radius);
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 550;
   font-size: var(--text-sm);
   white-space: nowrap;
   color: var(--color-text-2);
+  transition:
+    background var(--duration-fast),
+    color var(--duration-fast);
 }
 
 .navLink:hover {
@@ -86,18 +94,27 @@
   text-decoration: none;
 }
 
+/* The current page: ink, with a short rule under the word. */
+.navLink[aria-current="page"] {
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+.navLink[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-text);
+}
+
 .actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-/* The current page: accent text over an accent bar, as in the staff shell. */
-.navLink[aria-current="page"] {
-  color: var(--color-accent);
-  font-weight: 700;
-  border-radius: var(--radius) var(--radius) 0 0;
-  box-shadow: inset 0 -3px 0 var(--color-accent);
 }
 
 /* Header items that move into the phone menu. */
@@ -106,60 +123,30 @@
 }
 
 .menuButton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--control-height-sm);
-  padding: 4px 12px;
-  border: 1px solid var(--color-border-strong);
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -6px;
+  padding: 0;
+  border: 0;
   border-radius: var(--radius);
-  background: var(--color-surface);
-  font-weight: 700;
-  font-size: var(--text-sm);
-  cursor: pointer;
-}
-
-.menuIcon,
-.menuIcon::before,
-.menuIcon::after {
-  display: block;
-  width: 14px;
-  height: 2px;
-  border-radius: 1px;
-  background: currentcolor;
-}
-
-.menuIcon {
-  position: relative;
-}
-
-.menuIcon::before,
-.menuIcon::after {
-  content: "";
-  position: absolute;
-  left: 0;
-}
-
-.menuIcon::before {
-  top: -5px;
-}
-
-.menuIcon::after {
-  top: 5px;
-}
-
-.menuIcon[data-open] {
   background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background var(--duration-fast);
 }
 
-.menuIcon[data-open]::before {
-  top: 0;
-  transform: rotate(45deg);
+.menuButton:hover,
+.menuButton[aria-expanded="true"] {
+  background: var(--color-surface-2);
 }
 
-.menuIcon[data-open]::after {
-  top: 0;
-  transform: rotate(-45deg);
+.menuScrim {
+  position: fixed;
+  inset: 64px 0 0;
+  background: color-mix(in srgb, var(--color-text) 28%, transparent);
+  animation: fade var(--duration) var(--ease);
 }
 
 .menuPanel {
@@ -169,8 +156,22 @@
   right: 0;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
-  box-shadow: var(--shadow);
-  padding: var(--space-2) var(--space-3) var(--space-3);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2) var(--space-3) var(--space-4);
+  animation: drop var(--duration) var(--ease);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
 }
 
 .menuLinks {
@@ -180,24 +181,41 @@
 .menuLinks a {
   display: flex;
   align-items: center;
-  min-height: 48px;
-  border-bottom: 1px solid var(--color-border);
-  font-weight: 700;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 0 var(--space-2);
+  margin: 0 calc(-1 * var(--space-2));
+  border-radius: var(--radius);
+  font-weight: 600;
   font-size: var(--text-lg);
   color: var(--color-text);
   text-decoration: none;
 }
 
-.menuLinks a[aria-current="page"] {
-  color: var(--color-accent);
-  box-shadow: inset 3px 0 0 var(--color-accent);
-  padding-left: var(--space-2);
+.menuLinks a + a {
+  border-top: 1px solid var(--color-border);
+}
+
+.menuLinks a:hover {
+  background: var(--color-surface-2);
+}
+
+.menuLinks a[aria-current="page"]::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text);
 }
 
 .menuActions {
   display: grid;
   gap: var(--space-2);
   margin-top: var(--space-3);
+}
+
+.menuActions :global(.button) {
+  min-height: 48px;
 }
 
 @media (min-width: 600px) {
@@ -208,7 +226,6 @@
 
 @media (min-width: 960px) {
   .headerInner {
-    min-height: var(--header-height);
     padding: 0 var(--space-4);
   }
   .nav {
@@ -217,10 +234,11 @@
     margin-right: auto;
   }
   .brand {
-    margin-right: var(--space-4);
+    margin-right: var(--space-5);
   }
   .menuButton,
-  .menuPanel {
+  .menuPanel,
+  .menuScrim {
     display: none;
   }
 }
@@ -230,37 +248,49 @@
 .footer {
   margin-top: var(--space-7);
   border-top: 1px solid var(--color-border);
-  background: var(--color-surface-2);
-  padding: var(--space-5) 0 var(--space-4);
+  background: var(--color-bg);
   font-size: var(--text-sm);
 }
 
 .footerInner {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 0 var(--space-3);
+  padding: var(--space-6) var(--space-3) var(--space-5);
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-}
-
-.footerBrand {
-  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
 }
 
 .footerBrand .brand {
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.footerTagline {
+  color: var(--color-text-2);
+  margin: 0;
+  max-width: 36ch;
+}
+
+/* Company facts: last on a phone, under the brand on a wide screen. */
+.footerCompany {
+  display: grid;
+  gap: 2px;
+  order: 1;
 }
 
 .footerHeading {
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 650;
+  color: var(--color-text);
   margin: 0 0 var(--space-2);
 }
 
+/* Link groups: on a phone, rows with hairlines (44px targets); from 720px a
+   plain column of links. */
 .footerLinks {
   display: grid;
   align-content: start;
+  min-width: 0;
 }
 
 .footerLinks a {
@@ -269,17 +299,21 @@
   min-height: 44px;
   color: var(--color-text-2);
   text-decoration: none;
-}
-
-@media (pointer: fine) and (min-width: 720px) {
-  .footerLinks a {
-    min-height: 32px;
-  }
+  border-top: 1px solid var(--color-border);
 }
 
 .footerLinks a:hover {
   color: var(--color-accent);
-  text-decoration: underline;
+}
+
+/* The service links side by side on a phone: four short words. */
+.footerService {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--space-3);
+}
+
+.footerService .footerHeading {
+  grid-column: 1 / -1;
 }
 
 .footerSmall {
@@ -287,35 +321,67 @@
   color: var(--color-muted);
 }
 
-p.footerSmall {
-  margin-top: var(--space-4);
-}
-
 .footerLine {
   display: flex;
   flex-wrap: wrap;
   gap: 0 var(--space-3);
   list-style: none;
-  margin: 0 0 2px;
+  margin: 0;
   padding: 0;
   max-width: 60ch;
 }
 
+.footerBottom {
+  border-top: 1px solid var(--color-border);
+}
+
 .footerNote {
   max-width: 1120px;
-  margin: var(--space-4) auto 0;
-  padding: 0 var(--space-3);
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-3) var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+}
+
+.footerNote p {
+  margin: 0;
 }
 
 @media (min-width: 720px) {
-  .footerNote {
-    padding: 0 var(--space-4);
-  }
   .footerInner {
-    grid-template-columns: 2fr 1fr 1fr;
-    padding: 0 var(--space-4);
+    grid-template-columns: minmax(0, 5fr) minmax(0, 2fr) minmax(0, 3fr);
+    grid-template-rows: auto 1fr;
+    gap: var(--space-3) var(--space-5);
+    padding: var(--space-7) var(--space-4) var(--space-6);
   }
   .footerBrand {
-    grid-column: auto;
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .footerCompany {
+    grid-column: 1;
+    grid-row: 2;
+    align-content: start;
+  }
+  .footerLinks {
+    grid-row: 1 / span 2;
+  }
+  .footerNote {
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+  .footerService {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .footerLinks a {
+    border-top: 0;
+    min-height: 36px;
+  }
+}
+
+@media (pointer: fine) and (min-width: 720px) {
+  .footerLinks a {
+    min-height: 32px;
   }
 }

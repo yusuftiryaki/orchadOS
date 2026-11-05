@@ -4,7 +4,6 @@ import { servicesText as S } from "@/lib/i18n/messages/services";
 import type { ParcelReport } from "@/lib/portal/data";
 import { share } from "@/lib/portal/score";
 import { longDate } from "@/lib/services/format";
-import { Panel } from "@/components/ui/panel";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
 import { hasPistachioMethodology } from "@/lib/species";
@@ -29,8 +28,9 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
   const pistachio = hasPistachioMethodology(report.parcel.species);
 
   return (
-    <Panel title={d.title} headingLevel={3} testId="dimensions">
-      <ul className={`${layout.rows} ${styles.dimensions}`}>
+    <div className={styles.subsection} data-testid="dimensions">
+      <h3>{d.title}</h3>
+      <ul className={styles.dimensions}>
         <Row label={d.inventory} id="inventory">
           <p>
             {d.inventoryLine(
@@ -205,7 +205,7 @@ export function Dimensions({ report, base }: { report: ParcelReport; base: strin
           {latest.publishedAt && <p>{d.signed(formatDate(latest.publishedAt))}</p>}
         </Row>
       </ul>
-    </Panel>
+    </div>
   );
 }
 

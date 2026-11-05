@@ -1,6 +1,7 @@
 import { CustomerHome } from "@/components/portal-billing/customer-home";
 import { PortalResult } from "@/components/portal-billing/result-notice";
 import { GardenList, type GardenBadge } from "@/components/portal/garden-list";
+import home from "@/components/portal/home.module.css";
 import layout from "@/components/portal/page.module.css";
 import { ServiceOffers } from "@/components/services/offer-cards";
 import { ButtonLink } from "@/components/ui/button";
@@ -42,9 +43,16 @@ export default async function Page({
       badges[garden.parcel_id] = { state: garden.state, text: gardenBadge(garden) };
     }
   }
+  // "Karneyi aç" is the page's primary action unless a quote, an order or a
+  // draft waits on the customer (that task carries it then).
+  const waiting =
+    !!summary &&
+    (summary.openQuotes.length > 0 || summary.awaitingOrders.length > 0 || !!summary.draft);
   // A new customer has no parcel yet: the call to apply says what to do.
   const gardens =
-    parcels.length > 0 || !summary ? <GardenList parcels={parcels} badges={badges} /> : null;
+    parcels.length > 0 || !summary ? (
+      <GardenList parcels={parcels} badges={badges} primary={!waiting} />
+    ) : null;
   return (
     <main className={layout.page}>
       <PageHeader
@@ -66,7 +74,9 @@ export default async function Page({
       ) : (
         gardens
       )}
-      <ServiceOffers offers={offers} today={istanbulToday()} showParcel />
+      <div className={home.services}>
+        <ServiceOffers offers={offers} today={istanbulToday()} showParcel />
+      </div>
     </main>
   );
 }

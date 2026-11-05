@@ -9,6 +9,8 @@ import { phoneCodeError, safeNextPath } from "./login-methods";
 
 export interface LoginState {
   error: string | null;
+  // The typed address, kept in the field after a refusal.
+  email?: string;
 }
 
 export async function signInWithPassword(
@@ -17,11 +19,11 @@ export async function signInWithPassword(
 ): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  if (!email || !password) return { error: t.login.missingFields };
+  if (!email || !password) return { error: t.login.missingFields, email };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: t.login.invalidCredentials };
+  if (error) return { error: t.login.invalidCredentials, email };
 
   redirect(safeNextPath(formData.get("next")));
 }

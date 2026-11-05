@@ -57,7 +57,8 @@ export function Field({
           ? cloneElement(control, {
               id,
               "aria-describedby": describedBy,
-              "aria-invalid": error ? true : undefined,
+              // Keep a control's own `invalid` (e.g. a form-level error).
+              ...(error ? { "aria-invalid": true } : {}),
             })
           : control}
       </div>
@@ -73,18 +74,18 @@ export function Field({
 // Plain controls; globals.css styles them, these exist so screens import one
 // place and can pass `invalid`.
 export function Input({ invalid, ...props }: ComponentProps<"input"> & { invalid?: boolean }) {
-  return <input aria-invalid={invalid || undefined} {...props} />;
+  return <input {...props} aria-invalid={invalid || props["aria-invalid"] || undefined} />;
 }
 
 export function Select({ invalid, ...props }: ComponentProps<"select"> & { invalid?: boolean }) {
-  return <select aria-invalid={invalid || undefined} {...props} />;
+  return <select {...props} aria-invalid={invalid || props["aria-invalid"] || undefined} />;
 }
 
 export function Textarea({
   invalid,
   ...props
 }: ComponentProps<"textarea"> & { invalid?: boolean }) {
-  return <textarea aria-invalid={invalid || undefined} {...props} />;
+  return <textarea {...props} aria-invalid={invalid || props["aria-invalid"] || undefined} />;
 }
 
 // A checkbox with its label beside it; the hint and error sit under the label.

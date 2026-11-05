@@ -14,6 +14,14 @@ import {
   prefetchPanoramas,
   webglAvailable,
 } from "@/lib/panorama/runtime";
+import { psvMarkerConfig, type PanoramaMarker } from "@/lib/panorama/markers";
+import { DEFAULT_FOV, FULL_RES_FOV, zoomForFov, type FovRange } from "@/lib/panorama/zoom";
+
+export type {
+  PanoramaLineMarker,
+  PanoramaMarker,
+  PanoramaPointMarker,
+} from "@/lib/panorama/markers";
 
 // One Photo Sphere Viewer for a sequence of panoramas (office tool, portal
 // tour). The viewer is created once and every panorama goes through
@@ -25,17 +33,6 @@ import {
 // heading), yaw growing to the right, as in the pipeline's sidecar convention.
 
 const RAD = Math.PI / 180;
-// Zoom level (0-100) above which the full-resolution image is loaded.
-export const FULL_RES_ZOOM = 55;
-
-export interface PanoramaMarker {
-  id: string;
-  yawDeg: number;
-  pitchDeg: number;
-  html: string;
-  size: number;
-  tooltip?: string;
-}
 
 export interface ShownPanorama {
   id: string;
@@ -54,7 +51,11 @@ export interface PanoramaViewerOptions {
   lookPitchDeg: number;
   // Turns to the look direction again when it changes (same panorama).
   lookVersion: number;
+  // Zoom a newly shown panorama opens at; null keeps the current zoom.
+  lookZoom?: number | null;
   defaultZoom: number;
+  // Field of view range (zoom 0 and 100); PSV's 30-90° by default.
+  fov?: FovRange;
   markers: PanoramaMarker[];
   // Images to download ahead once the current one is shown.
   preload?: string[];
@@ -81,6 +82,7 @@ export function usePanoramaViewer(options: PanoramaViewerOptions) {
     lookYawDeg,
     lookPitchDeg,
     lookVersion,
+    lookZoom = null,
     defaultZoom,
     markers,
   } = options;
@@ -91,7 +93,10 @@ export function usePanoramaViewer(options: PanoramaViewerOptions) {
   const [broken, setBroken] = useState(() => !webglAvailable());
   const cacheRef = useRef<typeof PsvCache | null>(null);
   const callbacks = useRef(options);
-  const initial = useRef({ lookYawDeg, lookPitchDeg, defaultZoom });
+  const fov = options.fov ?? DEFAULT_FOV;
+  const initial = useRef({ lookYawDeg, lookPitchDeg, defaultZoom, fov });
+  // Zoom level above which the full-resolution image is loaded.
+  const fullResZoom = useRef(zoomForFov(FULL_RES_FOV, fov));
   // What the caller wants shown, what is shown, and what is being loaded.
   const want = useRef({
     panoramaId,
@@ -99,6 +104,7 @@ export function usePanoramaViewer(options: PanoramaViewerOptions) {
     kind,
     yaw: lookYawDeg * RAD,
     pitch: lookPitchDeg * RAD,
+    zoom: lookZoom,
   });
   const displayed = useRef<Displayed | null>(null);
   const loading = useRef<string | null>(null);
@@ -115,7 +121,7 @@ export function usePanoramaViewer(options: PanoramaViewerOptions) {
     const target = full.current;
     const now = displayed.current;
     if (!v || !cache || !target || !now) return;
-    if (now.panoramaId !== target.panoramaId || v.getZoomLevel() < FULL_RES_ZOOM) return;
+    if (now.panoramaId !== target.panoramaId || v.getZoomLevel() < fullResZoom.current) return;
     full.current = null;
     fetchPanorama(target.url, cache)
       .then(() => {
@@ -164,6 +170,8 @@ export function usePanoramaViewer(options: PanoramaViewerOptions) {
           defaultYaw: initial.current.lookYawDeg * RAD,
           defaultPitch: initial.current.lookPitchDeg * RAD,
           defaultZoomLvl: initial.current.defaultZoom,
+          minFov: initial.current.fov.minFov,
+          maxFov: initial.current.fov.maxFov,
           navbar: ["zoom", "move", "fullscreen"],
           loadingTxt: "",
           // Arrow keys only while the viewer has the focus (see onFocus).
@@ -207,7 +215,14 @@ export function usePanoramaViewer(options: PanoramaViewerOptions) {
 
   // A new panorama or image: download it, show it, turn to the look direction.
   useEffect(() => {
-    want.current = { panoramaId, image, kind, yaw: lookYawDeg * RAD, pitch: lookPitchDeg * RAD };
+    want.current = {
+      panoramaId,
+      image,
+      kind,
+      yaw: lookYawDeg * RAD,
+      pitch: lookPitchDeg * RAD,
+      zoom: lookZoom,
+    };
     const v = viewer?.viewer;
     const cache = cacheRef.current;
     if (!v || !cache || !image) return;
@@ -226,7 +241,13 @@ export function usePanoramaViewer(options: PanoramaViewerOptions) {
     fetchPanorama(image, cache)
       .then(() => {
         if (want.current.image !== image) return false;
-        return v.setPanorama(image, { position: look(), transition: false, showLoader: false });
+        const zoom = want.current.zoom;
+        return v.setPanorama(image, {
+          position: look(),
+          ...(zoom === null ? {} : { zoom }),
+          transition: false,
+          showLoader: false,
+        });
       })
       .then((done) => {
         if (done === false || want.current.image !== image) return;
@@ -243,7 +264,7 @@ export function usePanoramaViewer(options: PanoramaViewerOptions) {
         if (loading.current === image) loading.current = null;
       });
     // lookVersion re-runs this when the caller asks for a direction again.
-  }, [viewer, image, kind, panoramaId, lookYawDeg, lookPitchDeg, lookVersion]);
+  }, [viewer, image, kind, panoramaId, lookYawDeg, lookPitchDeg, lookZoom, lookVersion]);
 
   const loaded = shown?.id === panoramaId;
 
@@ -255,16 +276,7 @@ export function usePanoramaViewer(options: PanoramaViewerOptions) {
       plugin.clearMarkers();
       return;
     }
-    plugin.setMarkers(
-      markers.map((m) => ({
-        id: m.id,
-        position: { yaw: m.yawDeg * RAD, pitch: m.pitchDeg * RAD },
-        html: m.html,
-        anchor: "center center",
-        size: { width: m.size, height: m.size },
-        ...(m.tooltip ? { tooltip: { content: m.tooltip, position: "top center" } } : {}),
-      })),
-    );
+    plugin.setMarkers(markers.map(psvMarkerConfig));
   }, [viewer, markers, loaded, shown]);
 
   // Download the likely next images once the current one is on screen.
@@ -286,5 +298,13 @@ export function usePanoramaViewer(options: PanoramaViewerOptions) {
     [viewer],
   );
 
-  return { containerRef, shown, loaded, broken, onFocus, onBlur };
+  return {
+    containerRef,
+    viewer: viewer?.viewer ?? null,
+    shown,
+    loaded,
+    broken,
+    onFocus,
+    onBlur,
+  };
 }

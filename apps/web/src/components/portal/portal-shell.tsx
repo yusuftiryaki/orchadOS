@@ -1,4 +1,15 @@
-import { signOut } from "@/app/actions";
+import { AccountMenu, type AccountMenuLink } from "@/components/ui/account-menu";
+import {
+  IconCard,
+  IconClipboard,
+  IconFileText,
+  IconGrid,
+  IconPackage,
+  IconShield,
+  IconTool,
+  IconTree,
+  IconUser,
+} from "@/components/ui/icons";
 import { accessibleSections } from "@/lib/auth/roles";
 import type { SessionUser } from "@/lib/auth/session";
 import { t } from "@/lib/i18n";
@@ -6,13 +17,12 @@ import { contractsText as C } from "@/lib/i18n/messages/contracts";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import { servicesText } from "@/lib/i18n/messages/services";
 import { PortalFrame, type PortalLink } from "./portal-frame";
-import styles from "./portal-shell.module.css";
 
-// The owner's frame: one navigation row. A customer (owner profile) gets the
-// portal's own pages; a co-owner without a profile only the gardens. Other
-// sections the user may open (a team member who is also a customer) follow
-// at the end of the same row, so the header never shows two competing
-// "Bahçelerim" links (docs/tasarim-sistemi.md §Denetim, Portal).
+// The owner's frame. The header carries at most five top-level destinations
+// (the gardens and the customer's work items); the account pages, contracts,
+// permissions, other sections and "Çıkış" live in the account menu. On a
+// phone the destinations become a bottom tab bar (docs/tasarim-sistemi.md,
+// wave 4).
 export function PortalShell({
   user,
   services = false,
@@ -23,50 +33,43 @@ export function PortalShell({
   services?: boolean;
   children: React.ReactNode;
 }) {
-  const others: PortalLink[] = accessibleSections(user.roles)
+  const others: AccountMenuLink[] = accessibleSections(user.roles)
     .filter((s) => s !== "portal")
-    .map((s) => ({ href: `/${s}`, label: t.sections[s] }));
+    .map((s) => ({ href: `/${s}`, label: t.sections[s], icon: <IconGrid size={18} /> }));
+  const serviceLink: PortalLink[] = services
+    ? [{ href: "/portal/hizmetler", label: servicesText.nav, icon: <IconTool /> }]
+    : [];
   const links: PortalLink[] = user.roles.customer
     ? [
-        { href: "/portal", label: P.nav.gardens },
-        { href: "/portal/basvuru", label: P.nav.applications },
-        { href: "/portal/siparis", label: P.nav.orders },
-        { href: "/portal/odeme", label: P.nav.payments },
+        { href: "/portal", label: P.nav.gardens, icon: <IconTree /> },
+        { href: "/portal/basvuru", label: P.nav.applications, icon: <IconClipboard /> },
+        { href: "/portal/siparis", label: P.nav.orders, icon: <IconPackage /> },
+        { href: "/portal/odeme", label: P.nav.payments, icon: <IconCard /> },
         // IP15: service requests (weed mowing), for owners with the switch on.
-        ...(services ? [{ href: "/portal/hizmetler", label: servicesText.nav }] : []),
-        { href: "/portal/hesap/sozlesmeler", label: C.list.navLabel },
-        { href: "/portal/hesap", label: P.nav.account },
-        ...others,
+        ...serviceLink,
       ]
     : [
-        { href: "/portal", label: t.sections.portal },
+        { href: "/portal", label: t.sections.portal, icon: <IconTree /> },
         // An owner without a customer profile (a pilot owner) may request
         // services too; a co-owner has nothing there.
-        ...(services ? [{ href: "/portal/hizmetler", label: servicesText.nav }] : []),
-        ...others,
+        ...serviceLink,
       ];
-  const initial = (user.email ?? "?").slice(0, 1).toLocaleUpperCase("tr-TR");
+  const accountLinks: AccountMenuLink[] = user.roles.customer
+    ? [
+        { href: "/portal/hesap", label: P.nav.account, icon: <IconUser size={18} /> },
+        {
+          href: "/portal/hesap/sozlesmeler",
+          label: C.list.navLabel,
+          icon: <IconFileText size={18} />,
+        },
+        { href: "/portal/hesap/izinler", label: P.nav.permissions, icon: <IconShield size={18} /> },
+      ]
+    : [];
   return (
     <PortalFrame
       links={links}
       navLabel={user.roles.customer ? P.nav.label : t.nav.sections}
-      account={
-        <>
-          <span className={styles.avatar} aria-hidden title={user.email ?? undefined}>
-            {initial}
-          </span>
-          {/* Six portal links leave no room for the address in the header;
-              the customer finds it on "Hesabım". */}
-          <span className={user.roles.customer ? "sr-only" : styles.email} data-testid="user-email">
-            {user.email}
-          </span>
-          <form action={signOut}>
-            <button className="button button-secondary button-sm" type="submit">
-              {t.nav.logout}
-            </button>
-          </form>
-        </>
-      }
+      account={<AccountMenu email={user.email} links={accountLinks} sections={others} />}
     >
       {children}
     </PortalFrame>

@@ -14,7 +14,8 @@ import { loginMethodParam, safeNextPath } from "./login-methods";
 
 export const metadata: Metadata = { title: t.login.title };
 
-// Inside the site shell, like /kayit: the two are one flow.
+// Inside the site shell, like /kayit: the two are one flow. One centred card;
+// the sign-up and demo links sit under it.
 export default async function LoginPage({
   searchParams,
 }: {
@@ -34,19 +35,17 @@ export default async function LoginPage({
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <h1 className={styles.title}>{t.login.title}</h1>
-        <p className={styles.lead}>{t.login.subtitle}</p>
-      </header>
-      <div className={styles.main}>
+      <div className={styles.column}>
         {kayit === "yarim" && !user?.demo && (
-          <div className={styles.pageAlert}>
-            <Alert tone="warning" role="status" testId="signup-unfinished">
-              <p>{siteText.login.signupUnfinished}</p>
-            </Alert>
-          </div>
+          <Alert tone="warning" role="status" testId="signup-unfinished">
+            <p>{siteText.login.signupUnfinished}</p>
+          </Alert>
         )}
-        <div className={styles.sheet}>
+        <div className={styles.card}>
+          <div className={styles.cardHead}>
+            <h1 className={styles.title}>{t.login.heading}</h1>
+            <p className={styles.lead}>{t.login.subtitle}</p>
+          </div>
           {user?.demo ? (
             <DemoContinue next="/giris" />
           ) : (
@@ -55,13 +54,13 @@ export default async function LoginPage({
             <LoginForm key={method} next={target} initialMethod={method} />
           )}
         </div>
+        {!user?.demo && hasAside && (
+          <aside className={styles.belowGroup} aria-label={siteText.login.asideLabel}>
+            <SignupLink signupEnabled={flags.signupEnabled} />
+            <DemoLink demoUrl={flags.demoUrl} />
+          </aside>
+        )}
       </div>
-      {!user?.demo && hasAside && (
-        <aside className={styles.aside} aria-label={siteText.login.asideLabel}>
-          <SignupLink signupEnabled={flags.signupEnabled} />
-          <DemoLink demoUrl={flags.demoUrl} />
-        </aside>
-      )}
     </div>
   );
 }

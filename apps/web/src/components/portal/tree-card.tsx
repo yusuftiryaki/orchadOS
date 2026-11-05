@@ -1,6 +1,8 @@
-import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
-import type { PhotoItem, TreeCard, TreeMetricHistory } from "@/lib/portal/data";
+import { categoryLabel, formatDate, formatMeasure, t } from "@/lib/i18n";
+import { cropGuide, crownGuide, type FrameGuide } from "@/lib/portal/crown-guide";
+import type { PhotoItem, TreeCard, TreeMetricHistory, VisitCrown } from "@/lib/portal/data";
 import { formatPosition } from "@/lib/portal/evidence";
+import { CROP_FRAME_ASPECT, CropGuideOverlay, CropGuideScope } from "./crop-guide";
 import { SEVERITY_TONES } from "./colors";
 import { HashCheck } from "./hash-check";
 import { ApprovalBadge, findingKindLabel } from "./labels";
@@ -14,6 +16,7 @@ import { AskQuestionForm, QuestionNotice, QuestionThreads } from "./question-thr
 import { Badge, ClassBadge, ClassDot } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Facts } from "@/components/ui/facts";
+import { IconCamera360 } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { Table } from "@/components/ui/table";
@@ -52,13 +55,14 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
             href={`${base}/gezi?agac=${tree.id}`}
             className={styles.noPrint}
           >
+            <IconCamera360 size={18} />
             {t.portal.panel.openTour}
           </ButtonLink>
         }
       />
 
       <div className={styles.treeTop}>
-        <Panel title={c.latest} id="durum">
+        <Panel title={c.latest} id="durum" className={styles.treeStatus}>
           {latest ? (
             <>
               <div className={styles.classLine}>
@@ -122,12 +126,14 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
         </Panel>
       </div>
 
-      <section className={layout.section} aria-labelledby="bulgu-baslik">
-        <h2 id="bulgu-baslik">{c.findings}</h2>
+      <section className={styles.group} aria-labelledby="bulgu-baslik">
+        <div className={styles.groupHead}>
+          <h2 id="bulgu-baslik">{c.findings}</h2>
+        </div>
         {card.findings.length === 0 ? (
           <p className="muted">{c.noFindings}</p>
         ) : (
-          <ul className={styles.findings} data-testid="tree-findings">
+          <ul className={`${styles.findings} ${styles.treeFindings}`} data-testid="tree-findings">
             {card.findings.map((f) => (
               <li key={f.id}>
                 <div className={styles.treeFinding}>
@@ -152,8 +158,10 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
       <Photos card={card} />
 
       {card.classHistory.length > 0 && (
-        <section className={layout.section} aria-labelledby="gecmis-baslik">
-          <h2 id="gecmis-baslik">{c.classHistory}</h2>
+        <section className={styles.group} aria-labelledby="gecmis-baslik">
+          <div className={styles.groupHead}>
+            <h2 id="gecmis-baslik">{c.classHistory}</h2>
+          </div>
           <Table data-testid="class-history">
             <thead>
               <tr>
@@ -182,8 +190,10 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
         </section>
       )}
 
-      <section className={layout.section} aria-labelledby="olcum-baslik">
-        <h2 id="olcum-baslik">{c.measurements}</h2>
+      <section className={styles.group} aria-labelledby="olcum-baslik">
+        <div className={styles.groupHead}>
+          <h2 id="olcum-baslik">{c.measurements}</h2>
+        </div>
         {card.metrics.length === 0 ? (
           <p className="muted">{c.noMeasurements}</p>
         ) : (
@@ -212,37 +222,42 @@ export function TreeCardView({ card, questions }: { card: TreeCard; questions: Q
         )}
       </section>
 
-      <section id="sorular" className={layout.section} aria-labelledby="soru-baslik">
-        <h2 id="soru-baslik">{t.portal.questions.title}</h2>
-        <p className={layout.sectionLead}>{t.portal.questions.treeHint}</p>
+      <section id="sorular" className={styles.group} aria-labelledby="soru-baslik">
+        <div className={styles.groupHead}>
+          <h2 id="soru-baslik">{t.portal.questions.title}</h2>
+          <p className={styles.groupLead}>{t.portal.questions.treeHint}</p>
+        </div>
         <QuestionNotice sent={questions.sent} error={questions.error} />
-        <QuestionThreads
-          threads={questions.threads}
-          returnPath={`${base}/agac/${tree.id}`}
-          replyAction={replyQuestionAction}
-          editAction={editQuestionAction}
-          demo={questions.demo}
-          readOnly={questions.readOnly}
-        />
-        <AskQuestionForm
-          demo={questions.demo}
-          readOnly={questions.readOnly}
-          parcelId={card.parcel.id}
-          treeId={tree.id}
-          returnPath={`${base}/agac/${tree.id}`}
-          action={askQuestionAction}
-          title={t.portal.questions.ask}
-          targets={[
-            { value: "tree", label: t.portal.questions.targetTree },
-            ...card.findings.map((f) => ({
-              value: `finding:${f.id}`,
-              label: t.portal.questions.targetFinding(
-                findingKindLabel(f.kind),
-                formatDate(f.visitTime),
-              ),
-            })),
-          ]}
-        />
+        <div className={styles.stackCard}>
+          <QuestionThreads
+            threads={questions.threads}
+            returnPath={`${base}/agac/${tree.id}`}
+            replyAction={replyQuestionAction}
+            editAction={editQuestionAction}
+            demo={questions.demo}
+            readOnly={questions.readOnly}
+            compactEmpty
+          />
+          <AskQuestionForm
+            demo={questions.demo}
+            readOnly={questions.readOnly}
+            parcelId={card.parcel.id}
+            treeId={tree.id}
+            returnPath={`${base}/agac/${tree.id}`}
+            action={askQuestionAction}
+            title={t.portal.questions.ask}
+            targets={[
+              { value: "tree", label: t.portal.questions.targetTree },
+              ...card.findings.map((f) => ({
+                value: `finding:${f.id}`,
+                label: t.portal.questions.targetFinding(
+                  findingKindLabel(f.kind),
+                  formatDate(f.visitTime),
+                ),
+              })),
+            ]}
+          />
+        </div>
       </section>
     </main>
   );
@@ -255,9 +270,7 @@ function MetricCell({ value }: { value: TreeMetricHistory["values"][number] }) {
     case "numeric":
       return (
         <>
-          {formatNumber(value.value, 1)}
-          {value.unit ? ` ${value.unit}` : ""}
-          {value.uncertainty !== null && ` ±${formatNumber(value.uncertainty, 1)}`}
+          {formatMeasure(value.value, value.unit, value.uncertainty)}
           {source}
         </>
       );
@@ -285,68 +298,112 @@ function MetricCell({ value }: { value: TreeMetricHistory["values"][number] }) {
   }
 }
 
+// The crown drawing of a crop: the visit's LiDAR values seen through the
+// crop's view (null without values, view or image).
+interface PhotoGuide {
+  frame: FrameGuide;
+  heightText: string;
+  widthText: string;
+}
+
+function photoGuide(photo: PhotoItem, crown: VisitCrown | undefined): PhotoGuide | null {
+  if (!photo.url || !photo.view || !crown) return null;
+  const guide = crownGuide(crown.values);
+  if (!guide) return null;
+  const frame = cropGuide(guide, photo.view, crown.cameraHeightM, CROP_FRAME_ASPECT);
+  if (!frame) return null;
+  return {
+    frame,
+    heightText: c.guide.height(formatMeasure(guide.topM, "m")),
+    widthText: c.guide.width(formatMeasure(guide.widthM, "m")),
+  };
+}
+
 function Photos({ card }: { card: TreeCard }) {
   const visits = card.visits.filter((v) => card.photos[v.id]?.length);
+  const guideOf = (photo: PhotoItem | null, visitId: string) =>
+    photo ? photoGuide(photo, card.crowns[visitId]) : null;
+  const guided = visits.some((v) => card.photos[v.id].some((p) => guideOf(p, v.id)));
+  const grid = (
+    <div className={styles.photoGrid} data-testid="photo-history">
+      {visits.map((visit) => {
+        const items = card.photos[visit.id];
+        const closeUps = items.filter((p) => p.direction === null);
+        return (
+          <div key={visit.id} className={styles.photoRow} data-visit-id={visit.id}>
+            <h3>{formatDate(visit.time)}</h3>
+            <div
+              className={styles.photoCells}
+              style={{ "--columns": Math.max(2, card.directions.length) } as React.CSSProperties}
+            >
+              {card.directions.map((direction) => {
+                const photo = items.find((p) => p.direction === direction) ?? null;
+                return (
+                  <Photo
+                    key={direction}
+                    photo={photo}
+                    label={c.directions[direction] ?? direction}
+                    guide={guideOf(photo, visit.id)}
+                  />
+                );
+              })}
+            </div>
+            {closeUps.length > 0 && (
+              <div className={styles.photoCells}>
+                {closeUps.map((p) => (
+                  <Photo key={p.id} photo={p} label={c.closeUps} guide={null} />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
   return (
-    <section className={layout.section} aria-labelledby="foto-baslik">
-      <h2 id="foto-baslik">{c.photos}</h2>
+    <section className={styles.group} aria-labelledby="foto-baslik">
+      <div className={styles.groupHead}>
+        <h2 id="foto-baslik">{c.photos}</h2>
+        {visits.length > 0 && <p className={styles.groupLead}>{c.photosHint}</p>}
+      </div>
       {visits.length === 0 ? (
         <p className="muted">{c.noPhotos}</p>
       ) : (
-        <>
-          <p className={layout.sectionLead}>{c.photosHint}</p>
-          <div className={styles.photoGrid} data-testid="photo-history">
-            {visits.map((visit) => {
-              const items = card.photos[visit.id];
-              const closeUps = items.filter((p) => p.direction === null);
-              return (
-                <div key={visit.id} className={styles.photoRow} data-visit-id={visit.id}>
-                  <h3>{formatDate(visit.time)}</h3>
-                  <div
-                    className={styles.photoCells}
-                    style={
-                      { "--columns": Math.max(2, card.directions.length) } as React.CSSProperties
-                    }
-                  >
-                    {card.directions.map((direction) => {
-                      const photo = items.find((p) => p.direction === direction);
-                      return (
-                        <Photo
-                          key={direction}
-                          photo={photo ?? null}
-                          label={c.directions[direction] ?? direction}
-                        />
-                      );
-                    })}
-                  </div>
-                  {closeUps.length > 0 && (
-                    <div className={styles.photoCells}>
-                      {closeUps.map((p) => (
-                        <Photo key={p.id} photo={p} label={c.closeUps} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </>
+        <>{guided ? <CropGuideScope>{grid}</CropGuideScope> : grid}</>
       )}
     </section>
   );
 }
 
-function Photo({ photo, label }: { photo: PhotoItem | null; label: string }) {
+function Photo({
+  photo,
+  label,
+  guide,
+}: {
+  photo: PhotoItem | null;
+  label: string;
+  guide: PhotoGuide | null;
+}) {
+  // Signed storage URLs: next/image would need every Supabase host configured.
+  // eslint-disable-next-line @next/next/no-img-element
+  const image = photo?.url ? <img src={photo.url} alt={label} loading="lazy" /> : null;
   return (
     <figure className={styles.photo} data-photo-id={photo?.id}>
-      {photo?.url ? (
-        // Signed storage URLs: next/image would need every Supabase host configured.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={photo.url} alt={label} loading="lazy" />
-      ) : (
-        <div className={styles.placeholder} role="img" aria-label={`${label}: ${c.photoMissing}`}>
-          {c.photoMissing}
+      {image && guide ? (
+        <div className={styles.photoFrame}>
+          {image}
+          <CropGuideOverlay
+            guide={guide.frame}
+            heightText={guide.heightText}
+            widthText={guide.widthText}
+          />
         </div>
+      ) : (
+        (image ?? (
+          <div className={styles.placeholder} role="img" aria-label={`${label}: ${c.photoMissing}`}>
+            {c.photoMissing}
+          </div>
+        ))
       )}
       <figcaption>
         <span>{label}</span>

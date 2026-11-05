@@ -15,7 +15,7 @@
 
 .phone {
   color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums proportional-nums;
   white-space: nowrap;
 }
 

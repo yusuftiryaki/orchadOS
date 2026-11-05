@@ -1,13 +1,15 @@
 import Link from "next/link";
 import styles from "@/components/portal-billing/account.module.css";
+import { SettingsShell } from "@/components/portal-billing/settings-shell";
+import { NumberedTitle } from "@/components/portal-billing/numbered-title";
 import { StatusBadge } from "@/components/portal-billing/status-badge";
+import { Meta } from "@/components/portal-billing/workspace";
+import w from "@/components/portal-billing/workspace.module.css";
 import layout from "@/components/portal/page.module.css";
-import { Alert } from "@/components/ui/alert";
 import { buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Facts } from "@/components/ui/facts";
+import { IconAlert, IconDownload, IconInfo } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/page-header";
-import { Panel, panelClass } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import {
   accessTokenOf,
@@ -69,56 +71,64 @@ export default async function ContractsPage() {
   });
 
   return (
-    <main className={`${layout.page} ${layout.reading}`} data-testid="contracts">
-      <PageHeader title={L.title} lead={L.intro} />
-      {orders.length === 0 && (
-        <EmptyState title={L.empty}>
-          <p>{L.emptyBody}</p>
-        </EmptyState>
-      )}
-      {orders.map((order) => {
-        const docs = docsOf(order.id);
-        return (
-          <div key={order.id} data-testid="contracts-order" data-order-id={order.id}>
-            <Panel
-              plain
+    <main className={layout.page} data-testid="contracts">
+      <SettingsShell current="contracts">
+        <PageHeader title={L.title} lead={L.intro} />
+        {orders.length === 0 && (
+          <EmptyState title={L.empty}>
+            <p>{L.emptyBody}</p>
+          </EmptyState>
+        )}
+        {orders.map((order) => {
+          const docs = docsOf(order.id);
+          return (
+            <section
+              key={order.id}
+              className={w.formCard}
+              data-testid="contracts-order"
+              data-order-id={order.id}
               id={`order-${order.id}`}
-              title={
-                <span className={styles.orderTitle}>
-                  <span className={layout.nowrap}>{L.order(order.number)}</span>
+              aria-labelledby={`order-${order.id}-title`}
+            >
+              <div className={w.cardHead}>
+                <h2 id={`order-${order.id}-title`} className={styles.orderTitle}>
+                  <span>
+                    <NumberedTitle text={L.order(order.number)} number={order.number} />
+                  </span>
                   <StatusBadge kind="order" status={order.status} />
-                </span>
-              }
-              actions={
-                <Link className={layout.nowrap} href={portalHref.order(order.id)}>
+                </h2>
+                <Link className={w.sectionLink} href={portalHref.order(order.id)}>
                   {L.openOrder}
                 </Link>
-              }
-            >
+              </div>
               {docs.length > 0 && (
-                <div className={panelClass}>
-                  <ul className={layout.rows} data-testid="contract-documents">
-                    {docs.map((d) => (
-                      <DocumentRow key={d.id} doc={d} />
-                    ))}
-                  </ul>
+                <ul className={w.docRows} data-testid="contract-documents">
+                  {docs.map((d) => (
+                    <DocumentRow key={d.id} doc={d} />
+                  ))}
+                </ul>
+              )}
+              {(preparing.has(order.id) || manualCopy.has(order.id)) && (
+                <div className={w.cardNote}>
+                  {preparing.has(order.id) && (
+                    <p data-testid="contracts-preparing">
+                      <IconInfo size={18} />
+                      {L.preparing}
+                    </p>
+                  )}
+                  {manualCopy.has(order.id) && (
+                    <p data-testid="contracts-manual-copy" data-tone="warning">
+                      <IconAlert size={18} />
+                      {L.manualCopy}
+                    </p>
+                  )}
                 </div>
               )}
-              {preparing.has(order.id) && (
-                <Alert tone="info" testId="contracts-preparing">
-                  <p>{L.preparing}</p>
-                </Alert>
-              )}
-              {manualCopy.has(order.id) && (
-                <Alert tone="warning" testId="contracts-manual-copy">
-                  <p>{L.manualCopy}</p>
-                </Alert>
-              )}
-            </Panel>
-          </div>
-        );
-      })}
-      <p className={`${layout.muted} ${layout.small}`}>{L.copyNote}</p>
+            </section>
+          );
+        })}
+        <p className={w.fine}>{L.copyNote}</p>
+      </SettingsShell>
     </main>
   );
 }
@@ -129,28 +139,23 @@ function DocumentRow({ doc }: { doc: ContractDocumentRow }) {
   const name = kindLabel(doc.kind);
   return (
     <li data-kind={doc.kind}>
-      <div className={layout.rowMain}>
-        <h3 className={styles.name}>{name}</h3>
-        {L.about[doc.kind] && <p className={styles.meta}>{L.about[doc.kind]}</p>}
-        <Facts
-          rows={[
-            [L.created, formatDateTime(doc.created_at)],
-            [L.version, doc.text_version],
-            [L.size, L.kb(doc.size_bytes)],
-          ]}
-        />
+      <div className={w.rowBody}>
+        <h3 className={w.rowTitle}>{name}</h3>
+        {L.about[doc.kind] && <p className={w.rowMeta}>{L.about[doc.kind]}</p>}
+        <Meta items={[formatDateTime(doc.created_at), doc.text_version, L.kb(doc.size_bytes)]} />
         <details className={styles.details}>
           <summary>{L.sha}</summary>
           <p className={styles.hash}>{doc.sha256}</p>
         </details>
       </div>
       <a
-        className={buttonClass({ variant: "secondary" })}
+        className={buttonClass({ variant: "secondary", size: "sm" })}
         href={`/portal/hesap/sozlesmeler/${doc.id}`}
         download
         data-testid="contract-download"
         aria-label={L.downloadPdf(name)}
       >
+        <IconDownload size={16} />
         {L.download}
       </a>
     </li>

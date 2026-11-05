@@ -1,4 +1,5 @@
 import { createMediaSigner, type MediaSigner } from "@/lib/media/signer";
+import { DEFAULT_CAMERA_HEIGHT_M } from "@/lib/portal/crown-guide";
 import { panoramaVariant, poseGpsTimeNs } from "@/lib/media/panorama-variants";
 import { fetchAll, isUuid } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
@@ -17,8 +18,8 @@ import {
 // Every query and every signed URL runs as the signed-in user, so row level
 // security decides what is listed and served.
 
-// When the visit has no recorded camera height: the pipeline's default.
-const DEFAULT_CAMERA_HEIGHT_M = 2.0;
+// When the visit has no recorded camera height: the pipeline's default
+// (DEFAULT_CAMERA_HEIGHT_M, shared with the portal's crown guide).
 
 const PANORAMA_COLUMNS = "id, position::json, position_uncertainty_m, pose, quality_score";
 

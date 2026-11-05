@@ -3,7 +3,8 @@ import { Fragment } from "react";
 import type { LegalBlock, LegalDocument, LegalListItem } from "@/lib/i18n/messages/legal";
 import { siteText } from "@/lib/i18n/messages/site";
 import { isDraftVersion } from "@/lib/legal/versions";
-import { Alert } from "@/components/ui/alert";
+import { IconChevronDown, IconInfo } from "@/components/ui/icons";
+import { LegalToc } from "./legal-toc";
 import styles from "./pages.module.css";
 
 // **bold** and [label](/path); everything else is plain text. [Placeholders]
@@ -148,17 +149,22 @@ export function LegalDocumentView({
   contents?: boolean;
 }) {
   const l = siteText.legal;
+  const draft = isDraftVersion(version);
   const head = (
     <>
       <h1 className={styles.title} id="metin-basi">
         {document.title}
       </h1>
-      <p className={styles.version}>{l.version(version)}</p>
-      {isDraftVersion(version) && (
-        <div role="note" data-testid="draft-banner">
-          <Alert tone="warning">{l.draftBanner}</Alert>
-        </div>
-      )}
+      <div className={styles.docMeta}>
+        <p className={styles.version}>{l.version(version)}</p>
+        {/* A draft is said once, quietly, under the title. */}
+        {draft && (
+          <p role="note" data-testid="draft-banner" className={styles.draftNote}>
+            <IconInfo size={16} />
+            <span>{l.draftBanner}</span>
+          </p>
+        )}
+      </div>
     </>
   );
   const body = document.blocks.map((block, i) => (
@@ -175,32 +181,37 @@ export function LegalDocumentView({
     );
   }
 
-  const sections = document.blocks.flatMap((b) => (b.kind === "h2" ? [plain(b.text)] : []));
-  const links = (
-    <ol>
-      {sections.map((text) => (
-        <li key={text}>
-          <a href={`#${headingId(text)}`}>{text}</a>
-        </li>
-      ))}
-    </ol>
+  const sections = document.blocks.flatMap((b) =>
+    b.kind === "h2" ? [{ id: headingId(plain(b.text)), text: plain(b.text) }] : [],
   );
+  const hasContents = sections.length > 2;
   return (
-    <div className={styles.legal}>
+    <div className={hasContents ? styles.legal : `${styles.legal} ${styles.legalSingle}`}>
       <header className={styles.legalHead}>{head}</header>
-      {sections.length > 2 && (
+      {hasContents && (
         <>
           <details className={`${styles.toc} ${styles.tocFold}`}>
-            <summary>{l.contents}</summary>
-            <nav aria-label={l.contents}>{links}</nav>
+            <summary>
+              <span>{l.contents}</span>
+              <IconChevronDown size={18} />
+            </summary>
+            <nav aria-label={l.contents}>
+              <ol>
+                {sections.map((s) => (
+                  <li key={s.id}>
+                    <a href={`#${s.id}`}>{s.text}</a>
+                  </li>
+                ))}
+              </ol>
+            </nav>
           </details>
           <nav className={`${styles.toc} ${styles.tocColumn}`} aria-label={l.contents}>
             <p className={styles.tocTitle}>{l.contents}</p>
-            {links}
+            <LegalToc sections={sections} />
           </nav>
         </>
       )}
-      <article className={styles.prose} aria-labelledby="metin-basi">
+      <article className={`${styles.prose} ${styles.paper}`} aria-labelledby="metin-basi">
         {body}
         <p className={styles.toTop}>
           <a href="#metin-basi">{l.toTop}</a>

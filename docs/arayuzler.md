@@ -592,6 +592,39 @@ Periyodik ziyaretin yakın plan listesi sunucuda üretilir (`docs/metodoloji.md`
 - **Anlamı:** ağaçta `no` → uzman panelinde zorunlu inceleme (`not_visible`); "Yok" sınıfını yalnız uzman verir. Yerde `yes` → "yeni dikim olabilir" önerisi. Hat boş yerlere yalnız `yes` yazar.
 - AI ön değerlendirmesinin `ai_assessment_detail.tree_visible` alanı ayrıdır; ikisi karıştırılmaz.
 
+## Kayıtlı nokta bulutu
+
+LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdisi ([lidar-olcumleri.md](lidar-olcumleri.md)). Ham MCAP'ten bu bulutu üreten kayıt (LiDAR-inertial SLAM + PPK) henüz yazılmadı; o adım bu iki dosyayı üretmekle yükümlüdür. Sentetik karşılığı `orchados-pipeline lidar synth` yazar.
+
+```
+<oturum>/
+  lidar/
+    cloud.ply      parsel bulutu, yerel doğu/kuzey/yukarı metre
+    cloud.json     bulutun üst bilgisi
+  trees.json       ağaç konumları (kesitlerle aynı biçim)
+```
+
+**`lidar/cloud.ply`:** PLY, `binary_little_endian 1.0`, tek `vertex` öğesi. Zorunlu özellikler `x`, `y`, `z` (`float` ya da `double`), isteğe bağlı `intensity` (`float`, `uchar` ya da `ushort`). Liste özellikleri ve başka öğeler reddedilir. `x` doğu, `y` kuzey, `z` yukarı; birim metre; orijin `cloud.json`'daki noktadır. Yerden ve ottan dönen noktalar bulutta kalır; ayıklamayı hat yapar.
+
+**`lidar/cloud.json`** (`schema: orchados.lidar_cloud/1`):
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `session_id`, `parcel_id` | uuid | Kök `session.json` ile aynı |
+| `origin_lat`, `origin_lon`, `origin_height_m` | sayı | Yerel düzlemin orijini; WGS84, elipsoit yüksekliği (yörüngeyle aynı) |
+| `gps_time_start_ns`, `gps_time_end_ns` | int, boş olabilir | Taramanın GPS zamanı aralığı ([Zaman](#zaman)) |
+| `registration_method`, `registration_version` | metin | Bulutu üreten kayıt yöntemi ve sürümü (ör. `fast_lio2+ppk`, sentetikte `synthetic`) |
+| `point_sigma_m` | sayı | Nokta gürültüsü ve sürüklenmenin 1σ tahmini (m); ölçüm belirsizliklerine girer |
+| `sensor`, `calibration_id` | metin, boş olabilir | Sensör modeli ve kullanılan kalibrasyon kaydı |
+
+- Yerel düzlem `orchados_pipeline.geo.LocalFrame`'dir: parsel boyunda milimetre hatası. İki oturumun bulutları farklı orijinli olabilir; karşılaştırma (budama) enlem/boylam üzerinden yapılır.
+- **Ağaç başına ayırma:** Her nokta en yakın gövdeye verilir (Voronoi) ve gövdeden en çok 5 m uzaktaysa tutulur. Zemin her ağaç için ayrı bir düzlem olarak bulunur (ızgara hücrelerinin en alçak noktalarına, aykırıları atarak). Ağacın yükseklikleri bu düzleme göredir, yerden 25 cm'nin altı atılır.
+- **Saklama:** `cloud.ply` ham kayıttan türetilmiş bir dosyadır; portala çıkmaz ve yalnız personele açıktır (H05). Ham MCAP saha verisidir, repoya girmez.
+
+**LiDAR ölçüm raporları** (`<oturum>.processed/lidar/`): `crown.json` (`orchados.lidar_crown/1`), `skeleton.json` (`orchados.lidar_skeleton/1`), `pruning.json` (`orchados.lidar_pruning/1`). Ortak başlık: `producer` (hat, sürüm, parametre hash'i, aşama), `method`, `method_version`, `session_id`, `parcel_id`, `trees` (ağaç başına nokta sayısı, yön kapsaması, durum: `ok`, `too_few_points`, `one_sided`, `no_points`) ve `measurements`. Bir ölçüm satırı `{tree_id, slot_code, metric, value_numeric | value_category, unit, uncertainty, confidence, method, method_version}` alanlarını taşır. Sayısal değerde belirsizlik zorunludur. Budama raporunda `session_id` sonraki (budama sonrası) oturumdur.
+
+**`record_lidar_measurements(p_session_id, p_payload)`** (yalnız operasyon; `orchados-pipeline lidar upload`) bu satırları `public.measurement`'a `source = algorithm` olarak yazar. Ayrıntısı ve döndürdüğü özet: [lidar-olcumleri.md](lidar-olcumleri.md) §6.
+
 ## Kit kimlik çipi
 
 Tarama kiti robota (`yusuftiryaki/hoverboard`) bir soket üzerinden takılabilir. Kitin fişindeki **DS2431** (1-Wire EEPROM, 128 bayt) kitin manifestini taşır. Robot bu manifesti okur ve kitin frame'lerini (`kit_gnss`, `kit_cam360`, `kit_lidar`) statik TF olarak yayınlar.

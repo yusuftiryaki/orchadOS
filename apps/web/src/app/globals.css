@@ -1,4 +1,4 @@
-/* orchadOS design tokens and base styles (docs/tasarim-sistemi.md).
+/* orchadOS design tokens and base styles (docs/tasarim-sistemi.md, wave 4).
    Components use the semantic tokens (--color-*, --space-*, --text-*); the
    palette (--palette-*) is only referenced here and in the landing figure.
    Light theme only: reports are printed, the map colours are tuned for a
@@ -8,34 +8,34 @@
   color-scheme: light;
 
   /* Palette: Antep soil, pistachio kernel and ripe hull ------------------- */
-  --palette-toprak: #2b2420; /* soil ink: text */
+  --palette-toprak: #1f1d1a; /* soil ink: text */
   --palette-fistik: #3b6a1e; /* kernel green: actions, links */
   --palette-fistik-dark: #2f5617;
   --palette-taze: #b5cf6b; /* fresh kernel: fills, never text */
-  --palette-taze-soft: #e9f0dc;
+  --palette-taze-soft: #eef4e6;
   --palette-kabuk: #a3375a; /* ripe hull: the one highlight */
   --palette-kabuk-soft: #f6e4ea;
   --palette-tarla: #eadbcb; /* red soil plate (landing figure) */
   --palette-tarla-line: #d6bfa9;
-  --palette-kul: #f4f5ef; /* page ground */
+  --palette-kul: #f5f5f0; /* page ground */
 
   /* Colour: surfaces and text */
   --color-bg: var(--palette-kul);
   --color-surface: #ffffff;
-  --color-surface-2: #ecede6;
-  --color-surface-3: #e2e4da;
+  --color-surface-2: #f2f2ee;
+  --color-surface-3: #e7e7e1;
   --color-text: var(--palette-toprak);
-  --color-text-2: #463d36;
-  --color-muted: #5e5a4f;
-  --color-border: #dcded4;
-  --color-border-strong: #b9bcae;
+  --color-text-2: #3f3c37;
+  --color-muted: #64615a;
+  --color-border: #e6e5df;
+  --color-border-strong: #cbc9c0;
 
   /* Colour: actions */
   --color-accent: var(--palette-fistik);
   --color-accent-hover: var(--palette-fistik-dark);
   --color-accent-soft: var(--palette-taze-soft);
   /* Table row under the pointer: the selection green, faint. */
-  --color-row-hover: rgb(233 240 220 / 45%);
+  --color-row-hover: rgb(238 244 230 / 60%);
   --color-accent-contrast: #ffffff;
   --color-highlight: var(--palette-kabuk);
   --color-highlight-soft: var(--palette-kabuk-soft);
@@ -66,15 +66,23 @@
   --class-unassessed: #1c7ed6;
   --class-ring: rgb(43 36 32 / 55%);
 
-  /* Shape and depth: surfaces are separated by borders; shadows only lift
-     what floats (menus, toasts, dialogs). */
-  --radius-sm: 4px;
-  --radius: 6px;
-  --radius-lg: 10px;
+  /* Shape and depth: surfaces are separated by a hairline border and a
+     barely-there shadow (--shadow-card); stronger shadows only lift what
+     floats (menus, toasts, dialogs). */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  /* An object the page is about (a garden, a quote total): one step rounder
+     than a surface. */
+  --radius-object: 14px;
   --radius-pill: 999px;
-  --shadow-sm: 0 1px 0 rgb(43 36 32 / 4%);
-  --shadow: 0 2px 8px rgb(43 36 32 / 10%);
-  --shadow-lg: 0 12px 40px rgb(43 36 32 / 18%);
+  --shadow-sm: 0 1px 2px rgb(24 22 18 / 5%);
+  /* Surfaces are nearly flat: a hairline under the border. Elevation
+     (--shadow) is spent on at most one object per view. */
+  --shadow-card: 0 1px 0 rgb(24 22 18 / 3%);
+  --shadow: 0 4px 12px rgb(24 22 18 / 8%), 0 1px 3px rgb(24 22 18 / 5%);
+  --shadow-lg: 0 16px 48px rgb(24 22 18 / 16%), 0 2px 6px rgb(24 22 18 / 6%);
 
   /* Space: 4px base */
   --space-1: 4px;
@@ -86,29 +94,30 @@
   --space-7: 64px;
   --space-8: 96px;
 
-  /* Type: Atkinson Hyperlegible Next for everything, Atkinson Hyperlegible
-     Mono only for identifiers and measurements (tree codes, coordinates,
-     hashes). Scale ≈ 1.25 from 16px. */
+  /* Type: Hanken Grotesk for everything, IBM Plex Mono only for real
+     identifiers (tree codes, order numbers, coordinates, hashes). */
   --font-sans:
-    var(--font-atkinson), system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
-  --font-mono: var(--font-atkinson-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+    var(--font-sans-face), system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, Menlo, monospace;
   --text-xs: 12px;
   --text-sm: 14px;
   --text-base: 16px;
   --text-lg: 18px;
   --text-xl: 20px;
-  --text-2xl: 25px;
-  --text-3xl: 31px;
-  --text-4xl: 39px;
-  --text-5xl: 49px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+  --text-4xl: 38px;
+  --text-5xl: 48px;
   --leading: 1.55;
   --leading-tight: 1.15;
+  --tracking-tight: -0.025em;
   --measure: 68ch;
 
   /* Controls */
   --control-height: 44px;
   --control-height-sm: 36px;
-  --header-height: 64px;
+  --header-height: 60px;
+  --bottom-nav-height: 64px;
 
   /* Motion */
   --duration-fast: 120ms;
@@ -140,6 +149,7 @@ html {
   -webkit-text-size-adjust: 100%;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 html,
@@ -181,13 +191,26 @@ h4 {
 }
 
 h1 {
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   font-weight: 800;
-  letter-spacing: -0.015em;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.2;
 }
 
 h2 {
   font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+h3 {
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  h1 {
+    font-size: var(--text-2xl);
+  }
 }
 
 h3 {
@@ -240,7 +263,7 @@ textarea {
   min-height: var(--control-height);
   padding: 8px 12px;
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background-color: var(--color-surface);
   box-shadow: var(--shadow-sm);
   transition:
@@ -275,7 +298,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgb(59 106 30 / 22%);
+  box-shadow: 0 0 0 4px rgb(59 106 30 / 16%);
 }
 
 input:not(
@@ -316,12 +339,12 @@ input[type="radio"] {
 }
 
 label {
-  font-weight: 600;
+  font-weight: 550;
 }
 
 fieldset {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: var(--space-3);
   margin: 0;
 }
@@ -332,19 +355,19 @@ legend {
 }
 
 ::placeholder {
-  color: #7b776c;
+  color: #8a877e;
 }
 
 /* Tables ------------------------------------------------------------------- */
 
 table {
   border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums proportional-nums;
 }
 
 th {
-  font-weight: 700;
-  color: var(--color-text-2);
+  font-weight: 600;
+  color: var(--color-muted);
 }
 
 /* Disclosure ---------------------------------------------------------------- */
@@ -380,6 +403,7 @@ summary {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   padding: var(--space-4);
 }
 
@@ -410,17 +434,21 @@ summary {
   background: var(--color-accent);
   color: var(--color-accent-contrast);
   border-radius: var(--radius);
-  padding: 8px 18px;
-  font-weight: 700;
+  padding: 8px 16px;
+  font-weight: 600;
   font-size: var(--text-sm);
   line-height: 1.2;
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 1px 0 rgb(255 255 255 / 12%);
   transition:
     background var(--duration-fast),
     border-color var(--duration-fast),
-    color var(--duration-fast);
+    color var(--duration-fast),
+    box-shadow var(--duration-fast);
 }
 
 .button:hover {
@@ -442,6 +470,7 @@ summary {
   background: var(--color-surface-3);
   border-color: var(--color-border-strong);
   color: var(--color-muted);
+  box-shadow: none;
   cursor: not-allowed;
   transform: none;
 }
@@ -467,6 +496,7 @@ summary {
 .button-quiet {
   background: transparent;
   border-color: transparent;
+  box-shadow: none;
   color: var(--color-accent);
   padding-left: 10px;
   padding-right: 10px;

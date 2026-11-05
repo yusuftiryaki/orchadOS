@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { fileKvkkRequestAction } from "@/app/portal/kvkk-actions";
-import styles from "@/components/portal-billing/account.module.css";
+import { SettingsShell } from "@/components/portal-billing/settings-shell";
+import w from "@/components/portal-billing/workspace.module.css";
 import layout from "@/components/portal/page.module.css";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Select, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
-import { Panel, panelClass } from "@/components/ui/panel";
 import { requireSection } from "@/lib/auth/session";
 import { formatDate, t } from "@/lib/i18n";
 import { KVKK_REQUEST_TYPES, kvkkFormEnabled, myKvkkRequests } from "@/lib/portal/kvkk-request";
@@ -37,66 +37,72 @@ export default async function Page({
   const fieldError = error === "invalid_type" || error === "invalid_message";
 
   return (
-    <main className={`${layout.page} ${layout.reading}`}>
-      <PageHeader
-        title={T.title}
-        lead={T.lead}
-        back={{ href: "/portal/hesap/izinler", label: T.back }}
-      />
-      {notice && (
-        <Alert tone="success" role="status">
-          <p>{T.sent}</p>
-        </Alert>
-      )}
-      {errorText && !fieldError && (
-        <Alert tone="danger" role="alert">
-          <p>{errorText}</p>
-        </Alert>
-      )}
-      <form
-        action={fileKvkkRequestAction}
-        className={`${panelClass} ${styles.form}`}
-        data-testid="kvkk-request-form"
-      >
-        <Field
-          id="kvkk-type"
-          label={T.type}
-          error={error === "invalid_type" ? errorText : undefined}
+    <main className={layout.page}>
+      <SettingsShell current="consents">
+        <PageHeader
+          title={T.title}
+          lead={T.lead}
+          back={{ href: "/portal/hesap/izinler", label: T.back }}
+        />
+        {notice && (
+          <Alert tone="success" role="status">
+            <p>{T.sent}</p>
+          </Alert>
+        )}
+        {errorText && !fieldError && (
+          <Alert tone="danger" role="alert">
+            <p>{errorText}</p>
+          </Alert>
+        )}
+        <form action={fileKvkkRequestAction} className={w.formCard} data-testid="kvkk-request-form">
+          <div className={w.formCardBody}>
+            <Field
+              id="kvkk-type"
+              label={T.type}
+              error={error === "invalid_type" ? errorText : undefined}
+            >
+              <Select name="type" defaultValue="access" required>
+                {KVKK_REQUEST_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {T.types[type]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field
+              id="kvkk-message"
+              label={T.message}
+              hint={T.hint}
+              error={error === "invalid_message" ? errorText : undefined}
+            >
+              <Textarea name="message" required maxLength={2000} rows={6} />
+            </Field>
+          </div>
+          <div className={w.formCardFooter}>
+            <Button type="submit">{T.submit}</Button>
+          </div>
+        </form>
+        <section
+          className={w.section}
+          id="kvkk-requests"
+          data-testid="kvkk-requests"
+          aria-labelledby="kvkk-requests-title"
         >
-          <Select name="type" defaultValue="access" required>
-            {KVKK_REQUEST_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {T.types[type]}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field
-          id="kvkk-message"
-          label={T.message}
-          hint={T.hint}
-          error={error === "invalid_message" ? errorText : undefined}
-        >
-          <Textarea name="message" required maxLength={2000} rows={6} />
-        </Field>
-        <div className={layout.actions}>
-          <Button type="submit">{T.submit}</Button>
-        </div>
-      </form>
-      <Panel title={T.mine} plain id="kvkk-requests" testId="kvkk-requests">
-        {requests.length === 0 ? (
-          <EmptyState title={T.none} headingLevel={3}>
-            <p>{T.noneBody}</p>
-          </EmptyState>
-        ) : (
-          <div className={panelClass}>
-            <ul className={layout.rows}>
+          <h2 id="kvkk-requests-title" className={w.sectionTitle}>
+            {T.mine}
+          </h2>
+          {requests.length === 0 ? (
+            <EmptyState title={T.none} headingLevel={3} compact>
+              <p>{T.noneBody}</p>
+            </EmptyState>
+          ) : (
+            <ul className={w.rows}>
               {requests.map((r) => (
                 <li key={r.id}>
-                  <div className={layout.rowMain}>
-                    <p className={styles.name}>{T.types[r.type] ?? r.type}</p>
-                    <p className={styles.meta}>{formatDate(r.createdAt)}</p>
-                    {!r.settledAt && <p className={styles.meta}>{T.due(formatDate(r.dueAt))}</p>}
+                  <div className={w.rowBody}>
+                    <p className={w.rowTitle}>{T.types[r.type] ?? r.type}</p>
+                    <p className={w.rowMeta}>{formatDate(r.createdAt)}</p>
+                    {!r.settledAt && <p className={w.rowMeta}>{T.due(formatDate(r.dueAt))}</p>}
                   </div>
                   <Badge tone={statusTone(r.status, "kvkk")}>
                     {T.status[r.status] ?? r.status}
@@ -104,9 +110,9 @@ export default async function Page({
                 </li>
               ))}
             </ul>
-          </div>
-        )}
-      </Panel>
+          )}
+        </section>
+      </SettingsShell>
     </main>
   );
 }

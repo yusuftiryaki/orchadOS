@@ -134,3 +134,38 @@ export function labelNavbarButtons(container: HTMLElement) {
     if (title) button.setAttribute("aria-label", title);
   }
 }
+
+export interface ViewTarget {
+  // Degrees from the panorama's centre column (see use-panorama-viewer.ts).
+  yawDeg?: number;
+  pitchDeg?: number;
+  zoom?: number;
+}
+
+// Duration of a programmatic turn or zoom (tree focus, double click,
+// overview), in milliseconds.
+export const VIEW_ANIMATION_MS = 650;
+
+// Turns and zooms the viewer to `target`: a short animation, or at once when
+// the visitor asked for less motion. A drag or a key stops the animation.
+export function animateView(viewer: Viewer, target: ViewTarget, instant = false) {
+  const rad = Math.PI / 180;
+  const position =
+    target.yawDeg === undefined && target.pitchDeg === undefined
+      ? null
+      : {
+          yaw: (target.yawDeg ?? viewer.getPosition().yaw / rad) * rad,
+          pitch: (target.pitchDeg ?? viewer.getPosition().pitch / rad) * rad,
+        };
+  if (instant) {
+    viewer.stopAnimation();
+    if (position) viewer.rotate(position);
+    if (target.zoom !== undefined) viewer.zoom(target.zoom);
+    return;
+  }
+  viewer.animate({
+    ...(position ?? {}),
+    ...(target.zoom === undefined ? {} : { zoom: target.zoom }),
+    speed: VIEW_ANIMATION_MS,
+  });
+}

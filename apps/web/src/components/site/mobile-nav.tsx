@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { IconClose, IconMenu } from "@/components/ui/icons";
 import styles from "./site.module.css";
 
-// The phone menu of the site header: one button that opens the links below
-// the bar. A link click or Escape closes it; focus returns to the button.
+// The phone menu of the site header: one icon button that opens the links
+// below the bar, over a scrim. A link click, a tap on the scrim or Escape
+// closes it; Escape returns focus to the button.
 export function MobileNav({
   openLabel,
   closeLabel,
@@ -44,9 +46,10 @@ export function MobileNav({
         onClick={() => setOpen((v) => !v)}
         data-testid="site-menu"
       >
-        <span className={styles.menuIcon} data-open={open || undefined} aria-hidden />
-        {open ? closeLabel : openLabel}
+        {open ? <IconClose size={22} /> : <IconMenu size={22} />}
+        <span className="sr-only">{open ? closeLabel : openLabel}</span>
       </button>
+      {open && <div className={styles.menuScrim} onClick={() => setOpen(false)} aria-hidden />}
       <div id={panelId} className={styles.menuPanel} hidden={!open} onClick={onPanelClick}>
         {open && children}
       </div>
