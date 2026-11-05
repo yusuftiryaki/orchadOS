@@ -1,33 +1,33 @@
-/* "Bahçelerim": a grid of garden cards. Each card: who and where with its
-   badges, how it is (score, last visit, class bar and counts) and one
-   "Karneyi aç" button whose hit area is stretched over the card. */
+/* "Bahçelerim": a grid of garden cards. A garden is an OBJECT, the only
+   lifted thing on the page: the class plate (the garden from above) as its
+   anchor, who and where with its badges, how it is (score, last visit,
+   class counts) and one "Karneyi aç" button whose hit area is stretched
+   over the card. */
 
 .gardens {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: var(--space-4);
 }
 
 .garden {
+  --garden-plate: 88px;
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: 20px;
+  display: grid;
+  grid-template-columns: var(--garden-plate) minmax(0, 1fr);
+  grid-template-areas:
+    "plate identity"
+    "condition condition"
+    "open open";
+  align-items: start;
+  gap: var(--space-3) var(--space-3);
+  padding: var(--space-3);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  transition:
-    border-color var(--duration-fast) var(--ease),
-    box-shadow var(--duration-fast) var(--ease);
-}
-
-.garden:hover {
-  border-color: var(--color-border-strong);
+  border-radius: var(--radius-object);
   box-shadow: var(--shadow);
 }
 
@@ -39,26 +39,24 @@
   margin: 0;
 }
 
-.head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-2);
+.plate {
+  grid-area: plate;
 }
 
 .identity {
+  grid-area: identity;
   display: grid;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
-  flex: 1 1 18ch;
+  align-content: start;
 }
 
 .name {
-  margin: 0 0 2px;
-  font-size: var(--text-lg);
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .place {
@@ -75,26 +73,30 @@
 }
 
 .size {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
   color: var(--color-muted);
   font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 .badges {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: var(--space-1);
+  margin-top: var(--space-1);
 }
 
-/* How the garden is: a soft block so the numbers read as one unit. */
+/* How the garden is: score and date on one line, the counts under it,
+   split from the identity by a hairline. */
 .condition {
+  grid-area: condition;
   display: grid;
   gap: var(--space-2);
   align-content: start;
-  padding: var(--space-3);
-  border-radius: var(--radius);
-  background: var(--color-surface-2);
-  flex: 1 1 auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
 }
 
 .conditionTop {
@@ -110,16 +112,13 @@
   min-width: 12ch;
 }
 
-.lastVisit {
-  flex: none;
-}
-
 /* The score in the card: big but not the report's hero size. */
 .conditionTop [data-testid="health-score"] {
   font-size: var(--text-3xl);
 }
 
 .lastVisit {
+  flex: none;
   display: grid;
   justify-items: end;
   gap: 0;
@@ -130,7 +129,7 @@
 
 .lastVisit strong {
   color: var(--color-text);
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .noVisit {
@@ -142,16 +141,43 @@
   font-size: var(--text-sm);
 }
 
+.open {
+  grid-area: open;
+}
+
 /* Stretched link: the card is one big target. */
 .open::after {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-object);
 }
 
 .open:focus-visible {
   outline-offset: 2px;
+}
+
+@media (max-width: 599px) {
+  .open {
+    width: 100%;
+  }
+}
+
+@media (min-width: 600px) {
+  .garden {
+    --garden-plate: 112px;
+    padding: var(--space-4);
+    grid-template-areas:
+      "plate identity"
+      "plate condition"
+      "plate open";
+    grid-template-rows: auto 1fr auto;
+    gap: var(--space-3) var(--space-4);
+  }
+
+  .open {
+    justify-self: start;
+  }
 }
 
 .counts {
@@ -176,32 +202,26 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* A card as wide as the page (one garden): who | how | open, in a row. */
+/* A card as wide as the page (one garden): plate | who | how | open. */
 @media (min-width: 900px) {
   .gardens:has(> .garden:only-child) .garden {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+    --garden-plate: 152px;
+    grid-template-columns: var(--garden-plate) minmax(0, 0.9fr) minmax(0, 1.3fr) auto;
+    grid-template-areas: "plate identity condition open";
+    grid-template-rows: auto;
     align-items: center;
     gap: var(--space-5);
     padding: var(--space-4);
   }
 
-  .gardens:has(> .garden:only-child) .head {
-    align-self: start;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-
   .gardens:has(> .garden:only-child) .identity {
-    flex: none;
+    align-self: center;
   }
 
-  .gardens:has(> .garden:only-child) .badges {
-    justify-content: flex-start;
-  }
-
-  .gardens:has(> .garden:only-child) .open {
-    width: auto;
+  .gardens:has(> .garden:only-child) .condition {
+    padding: 0 0 0 var(--space-5);
+    border-top: 0;
+    border-left: 1px solid var(--color-border);
   }
 }
 
@@ -209,10 +229,26 @@
   display: none;
 }
 
-/* Service offers on the home: rows in one card, not cards in a card (the
-   offer markup is components/services; only its frame is tuned here). */
+/* Service offers on the home: a quiet section (heading, lead, then the
+   offers as rows of one bordered list), not a card. The offer markup is
+   components/services; only its frame is tuned here. */
+.services [data-testid="service-offers"] {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.services [data-testid="service-offers"] > ul {
+  gap: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
 .services [data-testid="service-offer"] {
-  padding: var(--space-3) 0 0;
+  padding: var(--space-3);
   border: 0;
   border-top: 1px solid var(--color-border);
   border-radius: 0;
@@ -220,12 +256,11 @@
 }
 
 .services [data-testid="service-offer"]:first-child {
-  padding-top: 0;
   border-top: 0;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .garden {
-    transition: none;
+@media (min-width: 720px) {
+  .services [data-testid="service-offer"] {
+    padding: var(--space-3) var(--space-4);
   }
 }
