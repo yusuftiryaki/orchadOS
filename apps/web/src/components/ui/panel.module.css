@@ -1,5 +1,5 @@
-/* Panel (panel.tsx). A white surface with a hairline border and the faint
-   card shadow. */
+/* Panel (panel.tsx). A flat white surface with a hairline border: a frame
+   for fields and rows, not decoration (docs/tasarim-sistemi.md, 2nd pass). */
 
 .panel,
 .plain {
@@ -51,8 +51,8 @@
 .title {
   margin: 0;
   font-size: var(--text-lg);
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  letter-spacing: -0.015em;
   line-height: 1.3;
 }
 

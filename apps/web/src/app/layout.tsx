@@ -1,21 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { IBM_Plex_Mono, Schibsted_Grotesk } from "next/font/google";
 import { t } from "@/lib/i18n";
 import "./globals.css";
 
 // Self-hosted at build time (next/font). Latin extended carries the Turkish
-// letters (ğ, ş, ı, İ); ç, ö, ü are in latin. Inter is a neutral, highly
-// legible UI face with tabular figures and an open zero; the mono face is for
-// codes and measurements only, so it is not preloaded
+// letters (ğ, ş, ı, İ); ç, ö, ü are in latin. Schibsted Grotesk is a
+// sturdy, open grotesque with tabular figures and a plain zero; its heavy
+// weights carry the headlines. IBM Plex Mono is for real identifiers only
+// (tree codes, order numbers, coordinates), so it is not preloaded
 // (docs/tasarim-sistemi.md §Tipografi).
-const sans = Inter({
+const sans = Schibsted_Grotesk({
   subsets: ["latin", "latin-ext"],
-  variable: "--font-inter",
+  variable: "--font-sans-face",
   display: "swap",
 });
-const mono = JetBrains_Mono({
+const mono = IBM_Plex_Mono({
   subsets: ["latin", "latin-ext"],
-  variable: "--font-jetbrains-mono",
+  weight: ["400", "500", "600"],
+  variable: "--font-mono-face",
   display: "swap",
   preload: false,
 });
