@@ -48,11 +48,11 @@ def test_the_real_build_passes(built):
     "version",
     [
         "3, null, null, null, null); alter role authenticator superuser; --",
-        "3",
-        3.0,
+        "4",
+        4.0,
         True,
-        2,
-        4,
+        3,
+        5,
         None,
     ],
 )

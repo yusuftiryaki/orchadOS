@@ -130,6 +130,17 @@ test("owner goes from the garden list to the report card, the map and the tree c
   await expect(guide).toContainText("Boy 4,4 m");
   await expect(guide).toContainText("Taç çapı 4,6 m");
   await expect(guide.locator('[data-guide="base"]')).toHaveCount(1);
+  // Real coordinates: the frame aspect must reach the server component as a
+  // number (a constant imported from a "use client" module would not).
+  const points = await guide
+    .locator("polyline")
+    .evaluateAll((lines) => lines.map((l) => l.getAttribute("points") ?? ""));
+  expect(points.length).toBeGreaterThan(0);
+  for (const p of points) {
+    expect(p).not.toContain("NaN");
+  }
+  // The vertical height line sits at the crop centre (x = 0.5).
+  expect(await guide.locator('[data-guide="height"]').getAttribute("points")).toMatch(/(^| )0\.5,/);
   await expect(guideOf(ASSET.cropOldN)).toContainText("Boy 4,1 m");
   await expect(guideOf(ASSET.cropOldN).locator('[data-guide="base"]')).toHaveCount(0);
   await expect(guideOf(ASSET.cropPubS)).toHaveCount(0);

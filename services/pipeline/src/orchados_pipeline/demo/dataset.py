@@ -1,17 +1,21 @@
 # ruff: noqa: E501 - Turkish texts of the dataset read better unwrapped
-"""The demo dataset, version 3 (docs/demo-turu.md §8): parcels, slots, trees, visits,
+"""The demo dataset, version 4 (docs/demo-turu.md §8): parcels, slots, trees, visits,
 their per-tree classes and values, findings, close-ups and questions (version 1),
 the service layer (version 2: weed observations, the weed mowing catalogue row
-and its season per fruit species, a done mowing job with proof photos) and the
+and its season per fruit species, a done mowing job with proof photos), the
 robot fleet (version 3: the mowing is done by the autonomous robot MARABA-I; the
 catalogue row names it, the robot model can do the service, the done job carries
-the model and the robot as its performer).
+the model and the robot as its performer) and LiDAR crown measurements (version
+4: tree height, crown diameter, crown volume and crown base of every tree present
+in each scan, measured by the pipeline's crown stage from a synthetic cloud of
+the drawn trees, demo/lidar.py).
 
-Versions are cumulative: version 3 holds every row of versions 1 and 2 with the
+Versions are cumulative: version 4 holds every row of versions 1 to 3 with the
 same ids and the same media seeds, plus its own rows, whose ids carry their
 version (ids.did). Loading version 2 onto a version 1 target only adds rows;
 version 3 adds the robot model link and brings the four mutable rows of version
-2 it changed up to date (docs/demo-turu.md §10.3).
+2 it changed up to date; version 4 only adds measurement rows (docs/demo-turu.md
+§10.3).
 
 Pure and deterministic: every random choice is seeded from (SEED_VERSION, key)
 (rng()). The renderer (render.py) draws what this module says, the SQL emitter
@@ -37,7 +41,7 @@ from ..geo import LocalFrame
 from . import ids
 
 DATASET_NAME = "orchados-demo"
-DATASET_VERSION = 3
+DATASET_VERSION = 4
 # Media and value seeds stay those of version 1, so the rows and files of version
 # 1 come out the same in every later version (cumulative versions, §10.3).
 SEED_VERSION = 1
@@ -46,6 +50,9 @@ SERVICES_VERSION = 2
 # The version that made the robot the performer of the service (IP15 robot fleet,
 # owner decision of 2 November 2026). It adds no row with a derived id.
 ROBOT_VERSION = 3
+# The version that added the LiDAR crown measurements of the scans (IP16, owner
+# display of 5 November 2026): their derived ids. Media do not change.
+LIDAR_VERSION = 4
 # Fruit species of the demo parcels (public.fruit_species): pistachio, the
 # species the methodology covers.
 DEMO_SPECIES = "antep_fistigi"

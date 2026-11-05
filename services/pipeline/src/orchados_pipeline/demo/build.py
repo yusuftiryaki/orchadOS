@@ -7,7 +7,8 @@ Cache layout (services/pipeline/.demo-build/v<version>-<profile>/):
     files/<sha256>           every uploaded file, content addressed
     runs/<visit>/            the pipeline's run files for upload.upload_run():
                              outputs.json, manifest.json, panoramas.json,
-                             crops.json, coverage.json (inventory), presence.json (scans)
+                             crops.json, coverage.json (inventory), presence.json and
+                             crown.json (scans; the LiDAR crown stage's report, version 4)
 
 A run folder points its files at ../../files/<sha256>, so the SQL emitter
 (sqlgen.py) reuses upload_run() as it is: captures, assets, lineage, coverage
@@ -58,7 +59,7 @@ from ..models import (
 from ..outputs import AssetEntry, CaptureEntry, Lineage, Outputs, PipelineRef
 from ..params import PipelineParams
 from ..projection import gnomonic_crop
-from . import closeups, ids
+from . import closeups, ids, lidar
 from .dataset import (
     CAMERA_HEIGHT_M,
     DATASET_NAME,
@@ -500,12 +501,15 @@ def build_visit(ds: Dataset, visit: Visit, b: Builder, workers: int) -> dict:
         ),
         run / "crops.json",
     )
-    for stale in ("coverage.json", "presence.json"):
+    for stale in ("coverage.json", "presence.json", lidar.REPORT_FILE):
         (run / stale).unlink(missing_ok=True)
     if visit.kind == "inventory":
         write_model(_coverage(ds, visit, placeholders), run / "coverage.json")
     if scan:
         write_model(_presence(visit, crop_recs), run / "presence.json")
+        # Version 4: the LiDAR crown stage's report of the scan (demo/lidar.py).
+        b.log(f"{visit.key}: measuring the crowns (synthetic LiDAR)")
+        write_model(lidar.measure_visit(ds, visit, workers), run / lidar.REPORT_FILE)
     captures = [
         CaptureEntry(
             capture_id=video_sha,

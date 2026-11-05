@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { requestDemoStart } from "@/lib/demo/start";
-import { getParcelReport } from "@/lib/portal/data";
+import { crownGuide, cropGuide } from "@/lib/portal/crown-guide";
+import { getParcelReport, getTour, getTreeCard } from "@/lib/portal/data";
 import { loadInventoryReport } from "@/lib/portal/inventory-report";
 import type { Client } from "@/lib/supabase/types";
 import { purgeDemoAttempts, registerDemoOrg } from "../local-db";
@@ -12,6 +13,8 @@ import { anonClient, serviceClient } from "./fixtures";
 
 const ORG = "de000000-0000-4000-8000-000000000001";
 const PARCEL_A = "de100000-0000-4000-8000-000000000001";
+const SCAN_A_2026 = "de200000-0000-4000-8000-000000000003";
+const SCAN_A_2025 = "de200000-0000-4000-8000-000000000002";
 
 const { data: loaded } = await serviceClient().from("org").select("id").eq("id", ORG).maybeSingle();
 
@@ -59,6 +62,51 @@ describe.skipIf(!loaded)("demo dataset", () => {
     // 2026-07-14 against 2025-07-15: the same season.
     expect(report!.scoreBasis).toBe("same_season");
     expect(report!.previous?.time.slice(0, 4)).toBe("2025");
+  });
+
+  it("the featured tree's card carries the LiDAR crown values and its drawing fits the crops", async () => {
+    // Dataset version 4: crown stage values of the drawn trees (demo/lidar.py).
+    const { data: tree, error } = await visitor.client
+      .from("tree")
+      .select("id, slot!inner(code)")
+      .eq("parcel_id", PARCEL_A)
+      .eq("slot.code", "S3-6")
+      .single();
+    if (error) throw error;
+    const card = (await getTreeCard(visitor.client, PARCEL_A, tree.id, visitor.userId))!;
+    const codes = card.metrics.map((m) => m.code);
+    expect(codes).toEqual(
+      expect.arrayContaining(["tree_height", "crown_diameter", "crown_volume"]),
+    );
+    expect(codes).not.toContain("crown_base_height");
+    for (const session of [SCAN_A_2026, SCAN_A_2025]) {
+      const crown = card.crowns[session];
+      expect(crown.cameraHeightM).toBe(2);
+      expect(crown.values.heightM!.value).toBeGreaterThan(3);
+      expect(crown.values.baseM!.value).toBeLessThan(crown.values.heightM!.value);
+      const guide = crownGuide(crown.values)!;
+      const crops = card.photos[session].filter((p) => p.view);
+      expect(crops.length).toBeGreaterThan(0);
+      for (const crop of crops) {
+        const frame = cropGuide(guide, crop.view!, crown.cameraHeightM)!;
+        // The trunk in the middle, the tree top in the upper half of the crop.
+        expect(frame.height[2].x).toBeCloseTo(0.5);
+        expect(frame.height[3].y).toBeGreaterThan(0);
+        expect(frame.height[3].y).toBeLessThan(0.5);
+      }
+    }
+  });
+
+  it("the tour has crown values for the trees of each scan", async () => {
+    const tour = (await getTour(visitor.client, PARCEL_A))!;
+    const scans = tour.visits.filter((v) => [SCAN_A_2026, SCAN_A_2025].includes(v.visit.id));
+    expect(scans).toHaveLength(2);
+    for (const v of scans) {
+      expect(v.cameraHeightM).toBe(2);
+      // Every tree but the cut one (2026) has a height; nearly all a full crown.
+      const withCrown = Object.values(v.crowns).filter((c) => crownGuide(c));
+      expect(withCrown.length).toBeGreaterThan(60);
+    }
   });
 
   it("parcel A's inventory is approved and shows its panoramas", async () => {

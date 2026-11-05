@@ -20,6 +20,7 @@ from supabase_util import SKIP_REASON, local_env, service_role_key
 
 from orchados_pipeline.demo import build as demo_build
 from orchados_pipeline.demo import dataset, ids, loader, sqlgen
+from orchados_pipeline.demo import lidar as demo_lidar
 from orchados_pipeline.hashing import sha256_bytes
 from orchados_pipeline.media import media_key
 from orchados_pipeline.supabase import SupabaseClient
@@ -339,3 +340,66 @@ def test_hosted_upgrade_keeps_the_bytes_of_the_loaded_build(loaded, tmp_path, mo
     assert "registered as loaded but verify fails: loading again" in logs
     assert third.inserted.get("public.service_type_robot_model") == 1
     assert third.superseded == 1 and third.uploaded == 0
+
+
+def _lidar_rows(db: loader.Psql) -> int:
+    return int(
+        db.query(
+            f"select count(*) from public.measurement where org_id = '{ORG}' "
+            "and source = 'algorithm' and method = 'lidar_crown';"
+        )[0]
+    )
+
+
+def test_upgrade_from_version_3_adds_the_lidar_rows(loaded, monkeypatch):
+    """docs/demo-turu.md §10.3: a target loaded at version 3 (no LiDAR rows) gains the
+    crown measurements of version 4 without a reset, as a hosted project does; then a
+    rerun adds nothing. Measurements are insert-only: the rows come with new ids."""
+    db = loader.Psql("local")
+    if not loader.state(db).registry:
+        pytest.skip("private.demo_org does not exist yet (stream A)")
+    root, manifest = demo_build.build("test", log=_quiet)
+    expected = sum(
+        1
+        for v in dataset.load().scans()
+        for m in json.loads((root / "runs" / v.key / "crown.json").read_text("utf-8"))[
+            "measurements"
+        ]
+        if m["metric"] in demo_lidar.CODES and m["value_numeric"] is not None
+    )
+    # Version 3: the same load without the LiDAR rows, registered at version 3.
+    with monkeypatch.context() as m:
+        m.setattr(sqlgen, "lidar_measurements", lambda _ctx: None)
+        loader.load_demo("local", profile="test", reset=True, log=_quiet)
+    assert _lidar_rows(db) == 0
+    db.run(f"update private.demo_org set dataset_version = 3 where org_id = '{ORG}';")
+
+    logs: list[str] = []
+    upgrade = loader.load_demo("local", profile="test", do_verify=True, log=logs.append)
+    inserted = {t: n for t, n in upgrade.inserted.items() if n}
+    assert inserted == {"public.measurement": expected}, inserted
+    assert upgrade.uploaded == 0
+    assert _lidar_rows(db) == expected > 0
+    assert loader.state(db).row["dataset_version"] == dataset.DATASET_VERSION
+    assert any(line.startswith("verify: ok") for line in logs)
+
+    # The featured tree's card values as the owner reads them (RLS).
+    featured = dataset.load().tree(*dataset.FEATURED).id
+    claims = json.dumps({"sub": ids.OWNER, "role": "authenticated"})
+    rows = db.query(
+        "begin;\n"
+        f"select set_config('request.jwt.claims', '{claims}', true);\n"
+        "set local role authenticated;\n"
+        "select d.code || '=' || m.value_numeric from public.measurement m "
+        "join public.metric_definition d on d.id = m.metric_definition_id "
+        f"where m.session_id = '{ids.A_SCAN_2026}' and m.tree_id = '{featured}' "
+        "and m.method = 'lidar_crown' order by d.code;\n"
+        "rollback;"
+    )
+    assert [r.split("=")[0] for r in rows if "=" in r] == sorted(demo_lidar.CODES)
+
+    again = loader.load_demo("local", profile="test", log=_quiet)
+    assert again.status.startswith("already loaded")
+    db.run(f"update private.demo_org set loaded_at = null where org_id = '{ORG}';")
+    rerun = loader.load_demo("local", profile="test", do_verify=True, log=_quiet)
+    assert all(n == 0 for n in rerun.inserted.values()), rerun.inserted
