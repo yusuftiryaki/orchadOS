@@ -5,17 +5,6 @@ import ls from "@/components/site/landing.module.css";
 import { LEGEND, legendText, OrchardPlate } from "@/components/site/orchard-plate";
 import styles from "@/components/site/site.module.css";
 import { ClassDot } from "@/components/ui/badge";
-import {
-  IconArrowRight,
-  IconCamera360,
-  IconCheck,
-  IconClipboard,
-  IconFileText,
-  IconInfo,
-  IconMapPin,
-  IconShield,
-  IconTree,
-} from "@/components/ui/icons";
 import { defaultSection } from "@/lib/auth/roles";
 import { getSessionUser } from "@/lib/auth/session";
 import { siteFlags } from "@/lib/flags";
@@ -140,48 +129,46 @@ export function Landing({
   return (
     <div className={ls.landing}>
       <section className={ls.hero} aria-labelledby="landing-title">
-        <div className={`${ls.container} ${ls.heroGrid}`}>
-          <div className={ls.heroText}>
-            <p className={ls.eyebrow}>
-              <IconShield size={16} />
-              {t.app.tagline}
-            </p>
-            <h1 id="landing-title" className={ls.title}>
-              {l.title}
-            </h1>
-            <p className={ls.lead}>{l.lead}</p>
-            <div className={ls.ctaRow}>
-              {signupEnabled && (
-                <Link href="/kayit" className="button">
-                  {l.ctaSignup}
-                </Link>
-              )}
-              {/* The demo is the primary action while sign-up is closed. */}
-              {demoUrl && (
-                <Link
-                  href={demoUrl}
-                  className={signupEnabled ? "button button-secondary" : "button"}
-                  data-testid="landing-demo"
-                >
-                  {l.ctaDemo}
-                </Link>
-              )}
-              {!signupEnabled && !demoUrl && (
-                <Link href="/nasil-calisir" className="button">
-                  {l.ctaHow}
-                </Link>
-              )}
+        <div className={ls.container}>
+          <h1 id="landing-title" className={ls.title}>
+            {l.title}
+          </h1>
+          <div className={ls.heroGrid}>
+            <div className={ls.heroText}>
+              <p className={ls.lead}>{l.lead}</p>
+              <div className={ls.ctaRow}>
+                {signupEnabled && (
+                  <Link href="/kayit" className="button">
+                    {l.ctaSignup}
+                  </Link>
+                )}
+                {/* The demo is the primary action while sign-up is closed. */}
+                {demoUrl && (
+                  <Link
+                    href={demoUrl}
+                    className={signupEnabled ? "button button-secondary" : "button"}
+                    data-testid="landing-demo"
+                  >
+                    {l.ctaDemo}
+                  </Link>
+                )}
+                {!signupEnabled && !demoUrl && (
+                  <Link href="/nasil-calisir" className="button">
+                    {l.ctaHow}
+                  </Link>
+                )}
+              </div>
+              <p className={ls.ctaNote}>
+                {signupEnabled ? l.signupNote : demoUrl ? l.demoNote : null}{" "}
+                <Link href="/giris">{l.ctaLogin}</Link>
+              </p>
             </div>
-            <p className={ls.ctaNote}>
-              {signupEnabled ? l.signupNote : demoUrl ? l.demoNote : null}{" "}
-              <Link href="/giris">{l.ctaLogin}</Link>
-            </p>
+            <OrchardPlate />
           </div>
-          <OrchardPlate />
         </div>
       </section>
 
-      <section className={`${ls.section} ${ls.surface}`} aria-labelledby="okuma">
+      <section className={ls.section} aria-labelledby="okuma">
         <div className={ls.container}>
           <SectionHead id="okuma" title={l.readTitle} lead={l.readLead} />
           <div className={ls.readGrid}>
@@ -203,10 +190,7 @@ export function Landing({
               <h3>{l.reportTitle}</h3>
               <ul>
                 {l.report.map((item) => (
-                  <li key={item}>
-                    <IconCheck size={18} />
-                    <span>{item}</span>
-                  </li>
+                  <li key={item}>{item}</li>
                 ))}
               </ul>
             </div>
@@ -217,28 +201,22 @@ export function Landing({
       <section className={ls.section} aria-labelledby="kanit">
         <div className={ls.container}>
           <SectionHead id="kanit" title={l.evidenceTitle} lead={l.evidenceLead} />
+          {/* A drill-down, drawn as a row of trees on one line: the first is
+              the plate's picked tree, where a finding starts. */}
           <ol className={ls.chain}>
-            {l.evidence.map((step, i) => {
-              const Icon = EVIDENCE_ICONS[i] ?? IconFileText;
-              return (
-                <li key={step.title}>
-                  <span className={ls.chainIcon}>
-                    <Icon size={20} />
-                  </span>
-                  <h3>{step.title}</h3>
-                  <p>{step.body}</p>
-                </li>
-              );
-            })}
+            {l.evidence.map((step) => (
+              <li key={step.title}>
+                <span className={ls.chainDot} aria-hidden />
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
+              </li>
+            ))}
           </ol>
-          <p className={ls.independence}>
-            <IconShield size={20} />
-            <span>{l.independence}</span>
-          </p>
+          <p className={ls.independence}>{l.independence}</p>
         </div>
       </section>
 
-      <section className={`${ls.section} ${ls.surface}`} aria-labelledby="adimlar">
+      <section className={ls.section} aria-labelledby="adimlar">
         <div className={ls.container}>
           <SectionHead id="adimlar" title={l.stepsTitle} />
           <ol className={ls.steps}>
@@ -250,9 +228,8 @@ export function Landing({
             ))}
           </ol>
           <p className={ls.more}>
-            <Link href="/nasil-calisir" className="button button-quiet">
+            <Link href="/nasil-calisir" className={ls.textLink}>
               {l.stepsMore}
-              <IconArrowRight size={16} />
             </Link>
           </p>
         </div>
@@ -308,48 +285,44 @@ export function Landing({
           )}
           <div className={ls.calFoot}>
             <p className={ls.calNote}>{l.calendarNote}</p>
-            <Link href="/paketler" className="button button-quiet">
+            <Link href="/paketler" className={ls.textLink}>
               {l.calendarMore}
-              <IconArrowRight size={16} />
             </Link>
           </div>
         </div>
       </section>
 
-      <section className={`${ls.section} ${ls.surface}`} aria-labelledby="iddia">
-        <div className={`${ls.container} ${ls.honestGrid}`}>
+      <section className={ls.section} aria-labelledby="iddia">
+        <div className={`${ls.container} ${ls.sideGrid}`}>
           <SectionHead id="iddia" title={l.honestTitle} />
           <ul className={ls.honest}>
             {l.honest.map((item) => (
-              <li key={item}>
-                <IconInfo size={20} />
-                <span>{item}</span>
-              </li>
+              <li key={item}>{item}</li>
             ))}
           </ul>
         </div>
       </section>
 
       {(demoUrl || signupEnabled) && (
-        <section className={ls.closingWrap} aria-labelledby="son">
-          <div className={ls.container}>
-            <div className={ls.closing}>
-              <div>
-                <h2 id="son">{demoUrl ? l.closingTitle : siteText.how.closingTitle}</h2>
-                <p>{demoUrl ? l.closingBody : siteText.how.closingBody}</p>
-              </div>
-              <div className={ls.closingActions}>
-                {demoUrl && (
-                  <Link href={demoUrl} className="button" data-testid="landing-demo-foot">
-                    {l.demoFoot}
-                  </Link>
-                )}
-                {signupEnabled && (
-                  <Link href="/kayit" className={demoUrl ? "button button-secondary" : "button"}>
-                    {l.ctaSignup}
-                  </Link>
-                )}
-              </div>
+        <section className={ls.section} aria-labelledby="son">
+          <div className={`${ls.container} ${ls.closing}`}>
+            <div>
+              <h2 id="son" className={ls.h2}>
+                {demoUrl ? l.closingTitle : siteText.how.closingTitle}
+              </h2>
+              <p className={ls.sectionLead}>{demoUrl ? l.closingBody : siteText.how.closingBody}</p>
+            </div>
+            <div className={ls.closingActions}>
+              {demoUrl && (
+                <Link href={demoUrl} className="button" data-testid="landing-demo-foot">
+                  {l.demoFoot}
+                </Link>
+              )}
+              {signupEnabled && (
+                <Link href="/kayit" className={demoUrl ? "button button-secondary" : "button"}>
+                  {l.ctaSignup}
+                </Link>
+              )}
             </div>
           </div>
         </section>
@@ -357,8 +330,6 @@ export function Landing({
     </div>
   );
 }
-
-const EVIDENCE_ICONS = [IconClipboard, IconTree, IconCamera360, IconMapPin];
 
 function SectionHead({ id, title, lead }: { id: string; title: string; lead?: string }) {
   return (

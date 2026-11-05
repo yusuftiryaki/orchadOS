@@ -87,26 +87,21 @@ export function OrchardPlate() {
 
   return (
     <figure className={styles.plate}>
-      {/* A product preview: the portal's health map in an app window. */}
+      {/* The portal's health map, bare: its class filter with the counts,
+          the field, and the picked tree's card. */}
       <div className={styles.window}>
-        <div className={styles.windowBar} aria-hidden>
-          <span className={styles.windowDots}>
-            <span />
-            <span />
-            <span />
-          </span>
-          <span className={styles.windowTitle}>{p.title}</span>
+        <div className={styles.plateBar} aria-hidden>
+          <ul className={styles.chips}>
+            {counts.map(({ c, n }) => (
+              <li key={c}>
+                <ClassDot value={c} />
+                {legendText(c).label}
+                <span className={styles.chipCount}>{n}</span>
+              </li>
+            ))}
+          </ul>
           <span className={styles.windowTag}>{p.sample}</span>
         </div>
-        <ul className={styles.chips} aria-hidden>
-          {counts.map(({ c, n }) => (
-            <li key={c}>
-              <ClassDot value={c} />
-              {legendText(c).label}
-              <span className={styles.chipCount}>{n}</span>
-            </li>
-          ))}
-        </ul>
         <div className={styles.plateField}>
           <svg
             viewBox={`0 0 ${width} ${height}`}
