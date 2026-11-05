@@ -12,9 +12,6 @@ import styles from "./parcel.module.css";
 
 const g = t.portal.tree.guide;
 
-// The photo frame's width / height (parcel.module.css .photo img: 4 / 3).
-export const CROP_FRAME_ASPECT = 4 / 3;
-
 const points = (list: { x: number; y: number }[]) =>
   list.map((p) => `${round(p.x)},${round(p.y)}`).join(" ");
 const round = (n: number) => Math.round(n * 10_000) / 10_000;
