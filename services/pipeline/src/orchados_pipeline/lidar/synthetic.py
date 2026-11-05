@@ -387,7 +387,7 @@ def make_plot(
         origin_height_m=origin[2],
         registration_method="synthetic",
         registration_version="1",
-        point_sigma_m=0.02,
+        point_sigma_m=0.015,  # matches sample_wood noise
         sensor="synthetic",
     )
     return SyntheticPlot(np.vstack(pts), meta, positions, trees, centers)

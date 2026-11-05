@@ -12,7 +12,10 @@ from pathlib import Path
 
 import numpy as np
 
-from .synthetic import SIZE_PRESETS, make_plot, write_plot_session
+from .synthetic import SIZE_PRESETS, make_plot, prune, write_plot_session
+
+# Session id of the synthetic scan written by synth --pruned-copy.
+PRUNED_SESSION_ID = "00000000-0000-4000-8000-0000000000a2"
 
 
 def default_out(session_dir: Path) -> Path:
@@ -59,15 +62,43 @@ def add_parser(sub) -> None:
     )
     syn.add_argument("--leafless", action="store_true", help="winter scan: wood only")
     syn.add_argument("--seed", type=int, default=1)
+    syn.add_argument(
+        "--pruned-copy",
+        metavar="DEST",
+        help="also write a second winter scan of the same trees after pruning (needs --leafless)",
+    )
+    syn.add_argument("--cuts", type=int, default=3, help="cuts per tree for --pruned-copy")
+    syn.add_argument(
+        "--cut-orders", default="2", help="branch orders to cut, e.g. 2 or 1,2 (default: 2)"
+    )
 
 
 def run(args: argparse.Namespace) -> int:
     cmd = args.lidar_command
     if cmd == "synth":
         sizes = [r.split(",") for r in args.rows.split(";")]
-        plot = make_plot(sizes, np.random.default_rng(args.seed), leafy=not args.leafless)
+        if args.pruned_copy and not args.leafless:
+            raise SystemExit("--pruned-copy needs --leafless (pruning is compared in winter)")
+        rng = np.random.default_rng(args.seed)
+        plot = make_plot(sizes, rng, leafy=not args.leafless)
         write_plot_session(Path(args.dest), plot)
         print(f"{args.dest}: {len(plot.points)} points, {len(plot.positions)} trees")
+        if args.pruned_copy:
+            orders = tuple(int(o) for o in args.cut_orders.split(","))
+            pruned = {
+                tid: prune(t, rng, n_cuts=args.cuts, orders=orders) for tid, t in plot.trees.items()
+            }
+            after = make_plot(
+                sizes,
+                rng,
+                leafy=False,
+                trees_override=pruned,
+                session_id=PRUNED_SESSION_ID,
+                parcel_id=plot.meta.parcel_id,
+            )
+            write_plot_session(Path(args.pruned_copy), after)
+            cuts = sum(len(t.pruned) for t in pruned.values())
+            print(f"{args.pruned_copy}: {len(after.points)} points, {cuts} cuts")
         return 0
     if cmd == "upload":
         from .upload import run as run_upload

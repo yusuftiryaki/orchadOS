@@ -45,10 +45,11 @@ Komutlar (`services/pipeline/`):
 
 ```bash
 uv run orchados-pipeline lidar synth /tmp/yaz                    # sentetik yapraklı parsel bulutu
-uv run orchados-pipeline lidar synth /tmp/kis --leafless          # sentetik kış bulutu
+uv run orchados-pipeline lidar synth /tmp/kis-once --leafless --pruned-copy /tmp/kis-sonra --cuts 3
+                                                                  # kış bulutu + aynı ağaçlar budanmış
 uv run orchados-pipeline lidar crown /tmp/yaz                     # → /tmp/yaz.processed/lidar/crown.json
-uv run orchados-pipeline lidar skeleton /tmp/kis                  # → skeleton.json
-uv run orchados-pipeline lidar pruning /tmp/kis-once /tmp/kis-sonra   # → <sonra>.processed/lidar/pruning.json
+uv run orchados-pipeline lidar skeleton /tmp/kis-once             # → skeleton.json
+uv run orchados-pipeline lidar pruning /tmp/kis-once /tmp/kis-sonra   # → /tmp/kis-sonra.processed/lidar/pruning.json
 uv run orchados-pipeline lidar upload /tmp/yaz.processed/lidar --session-id <uuid> [--dry-run]
 ```
 
@@ -110,7 +111,89 @@ Sentetik ağacın tacı düzgün bir elipsoittir; bu sayılar yöntemin tutarlı
 
 ## 5. Kış iskeleti ve budama analizi
 
-_Ajan sonuçlarıyla doldurulacak._
+Araştırma özelliğidir. Fıstık kışın yaprak döktüğü için kış taramasının bulutunda dal yapısı görünür ([vizyon.md](vizyon.md), "LiDAR ile dal iskeleti"). Grid tarama her ağacı dört koridordan, yaklaşık 4 m'den gördüğü için ağacın arkası da taranır.
+
+### 5.1 Kış iskeleti
+
+`orchados-pipeline lidar skeleton` (`lidar/skeleton.py`, yöntem `lidar_qsm` 0.1.0). Çıktı `skeleton.json` (`orchados.lidar_skeleton/1`). Yöntem, QSM'lerin (nicel yapı modeli) "eş uzaklık dilimleri" yaklaşımının sadeleştirilmiş hâlidir.
+
+1. **Voksel grafiği:** Noktalar 4 cm'lik voksellere konur; komşu vokseller (26 komşu) birbirine bağlanır.
+2. **Kök:** Envanter konumunun 1 m çevresindeki en büyük alçak voksel öbeğidir.
+3. **Dilimler:** Kökten grafik üzerindeki uzaklık (Dijkstra) 8 cm'lik dilimlere bölünür. Her dilimin bağlı kümeleri birer iskelet düğümü olur. Düğümler, en kısa yolların geldiği komşu kümeye bağlanır. 15 cm'den kısa uç çıkıntılar atılır.
+4. **Hiyerarşi:**
+   - **Gövde:** Kökten, alt ağacı en az 0,5 m uzunluğunda iki ya da daha çok kola ayrılan ilk düğüme kadar.
+   - **Ana kollar:** Bu çatalın hemen üstünde (en az 0,3 m ya da iki gövde yarıçapı) gövdeden ayrılan anlamlı kollar.
+   - **Sıra:** Bir dalda en uzun alt ağaca sahip kol dalı sürdürür, diğerleri bir üst sıradan yeni dal başlatır.
+5. **Yarıçap:**
+   - Düğüm noktalarının yerel eksene ortalama kare uzaklığından hesaplanır ve gürültü için düzeltilir.
+   - Gürültü (σ) dal uçlarından tahmin edilir.
+   - Her dala sağlam bir doğrusal incelme oturtulur.
+   - Gürültünün iki katından ince dallarda boru modeli kullanılır: kesit alanı, dalın taşıdığı iskelet uzunluğuyla orantılıdır.
+
+| Ölçüm | Kod | Tanım |
+| --- | --- | --- |
+| Ana kol sayısı | `scaffold_branch_count` | Gövdenin ilk çatalından çıkan ana kollar |
+| Odun hacmi | `wood_volume` | İskelet kenarlarının kesik koni hacimleri ve yerden ilk düğüme kadar gövde silindiri. İnce sürgünler görülmediği için gerçek odun hacminden **azdır** |
+| Fraktal boyut | `fractal_dimension` | Voksel kümesinin 5–80 cm arasında kutu sayma boyutu. Yalnız araştırma |
+| İlk dallanma yüksekliği, 50 cm'de gövde çapı, sıraya göre dal sayısı, toplam iskelet uzunluğu, iskeletin kendisi | (ayrıntıda) | Ölçüm olarak yazılmaz. Gövde çapı ölçüm yüksekliği açık karar (§8). İskelet düğümleri (konum, yarıçap, üst düğüm, sıra, dal) budama analizi ve ileride bir 3D görüntüleyici içindir |
+
+- **Kalite:** Yön kapsaması 0,75'in altındaysa ağaç `one_sided` olur; iskeleti ayrıntıda kalır ama ölçüm yazılmaz.
+- **Yapraklı bulut:** Bulut yapraklı görünüyorsa (tacın içinde kalın gövdeler dışında dağınık nokta payı 0,3'ün üstündeyse) raporda uyarı çıkar. Ölçülen paylar: yapraksız 0–0,06, seyrek yapraklı 0,41–0,60, tam yapraklı 0,74–0,84.
+
+**Sentetik doğruluk** (her büyüklükte 12 tohum, envanter konum hatası yaklaşık 0,3 m):
+
+| Büyüklük | Ana kol sayısı | Odun hacmi | Gövde çapı (50 cm) | Ağaç başına süre |
+| --- | --- | --- | --- | --- |
+| Genç | 12/12 tam | −%26 … +%30 | −%4 … +%9 | 0,03 sn |
+| Verimli | 12/12 tam | −%12 … +%1 | ±%2 | 0,2 sn |
+| Yaşlı | 12/12 tam | −%9 … %0 | −%1 … %0 | 0,6 sn |
+
+- İlk dallanma yüksekliği gerçek çataldan 5–30 cm yukarıda çıkar; kolların gözle ayrıldığı yerdir.
+- Sıraya göre dal sayıları yalnız kabaca doğrudur.
+- Yaşlı bir ağacın `skeleton.json` payı yaklaşık 120 KB'tır.
+
+### 5.2 Budama analizi
+
+`orchados-pipeline lidar pruning <önce> <sonra>` (`lidar/pruning.py`, yöntem `lidar_pruning` 0.1.0). Aynı ağaçların budamadan önceki ve sonraki iki kış taramasını karşılaştırır. Çıktı sonraki oturumun klasöründe `pruning.json` (`orchados.lidar_pruning/1`). Raporun `session_id`'si sonraki taramadır, `before_session_id` öncekini gösterir.
+
+1. **Eşleme:** İki bulut, aynı ağacın envanter enlem/boylamı çevresinden, her biri kendi yerel düzleminde kesilir. Farklı orijinli oturumlar böylece tam eşlenir.
+2. **Hizalama:** Sonraki tarama öncekinin üzerine ağaç başına ICP ile oturtulur (öteleme ve düşey eksen çevresinde dönme). Ziyaretler arası birkaç santimlik kayıt sürüklenmesi giderilir; 3 cm'lik kayma yaklaşık 5 mm içinde bulunur. 0,3 m'den ya da 5°'den büyük düzeltme reddedilir.
+3. **Kesilen odun:**
+   - Önceki taramada olup sonrakinde 8 cm içinde karşılığı olmayan noktalar kesilmiş sayılır.
+   - Önceki iskeletin bir düğümü ve alt ağacı en az %60 kesilmişse orası bir kesimdir.
+   - Kesim, ekseni boyunca kalan oduna kadar izlenir; kesim noktası ve kesim çapı böyle bulunur.
+   - Birbirine 0,5 m'den yakın küçük parçalar birleştirilir.
+4. **Büyüme:** Sonraki taramada olup öncekinde olmayan noktalar ayrı raporlanır, budamaya katılmaz.
+5. **Durum önerisi** (metodoloji §4.3; v0 eşikleri, uzmanın kararlarıyla ayarlanacak):
+   - **`not_done`:** kesim yok.
+   - **`done`:** kesimler ana kolların en az yarısına ulaşıyor **ve** en az 3 kesim ya da odunun en az %10'u alınmış.
+   - **`partial`:** diğer kesimli ağaçlar.
+   - **Güven:** eşiklere uzaklıktan ve sınırdaki kesimlerden gelir.
+
+| Ölçüm | Kod | Birim |
+| --- | --- | --- |
+| Kesilen odun hacmi | `pruned_wood_volume` | m³ (belirsizliği hiçbir zaman sıfır değildir; tespit tabanı eklenir) |
+| Kesilen odun payı | `pruned_wood_fraction` | oran |
+| Kesim sayısı | `pruning_cut_count` | adet |
+| Budama durumu önerisi | `pruning_status` | `done` / `partial` / `not_done`, güvenle |
+
+**Sentetik doğruluk** (verimli ve yaşlı ağaçlar, senaryo başına 12 ağaç, ağaç çifti başına yaklaşık 2 sn):
+
+| Senaryo | Kesim sayısı ±1 | Kesilen hacim, ortanca (aralık) | Durum önerisi |
+| --- | --- | --- | --- |
+| 3 ikinci sıra kesim | %92 | −%39 (−88 … +15) | 10 `done`, 2 `partial` |
+| 1 ana kol kesimi | %100 | −%23 (−41 … −14) | 11 `partial`, 1 `done` |
+| 2 ana kol kesimi | %92 | −%21 (−35 … −14) | 8 `done`, 4 `partial` |
+| 1 ikinci sıra kesim | %100 | −%49 (−100 … +55) | `partial` |
+| Budanmamış (3 cm kaymayla da) | yanlış kesim yok | ≈ 0 | `not_done` |
+
+**Bilinen sınırlar:**
+- **Kesilen hacim sistematik olarak düşük çıkar;** en kötü durum ince tek kesimlerdir. Dilim iskeleti, kesilen dalın kalın dibini komşu bir kola bağlayabilir; bir kesim parçalara bölünebilir ya da dibi kaçabilir. Genç ağaçtaki 0,4 m'den kısa dallar çoğunlukla görülmez.
+- **Sentetik ağaç gerçeğinden kolaydır:** ince sürgün kalabalığı, rüzgâr, taç içinde örtme ve uç alma (heading) kesimlerinden kalan güdükler yoktur. Gerçek taramada yakın kolların birleşmesi daha sık olacaktır.
+- **Kesim sayısı yaklaşık doğru, hacim değil.** Kesim sayısı ve durum önerisi kesilen hacimden daha güvenilirdir; hacim yalnız eğilim göstergesi olarak okunmalı.
+- **Doğrulama:** Ağaç başında ana kol sayımı ve 50 cm gövde çapı, birkaç dalın çapı (gürültü tahmini ve boru modeli geçişi için), budamadan sonra kesim sayısı ve çapları, mümkünse kesilen dalların tartımı (§7).
+
+Parametreler `SkeletonParams` ve `PruningParams`'tadır. `--params` bir JSON alır: `{"skeleton": {...}}`, `{"pruning": {...}}` ya da düz anahtarlar. Budama parametreleri iskelet parametrelerini de içerir.
 
 ## 6. Veritabanı
 
