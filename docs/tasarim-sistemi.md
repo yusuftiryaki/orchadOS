@@ -143,7 +143,7 @@ Ağaç sınıfları (`--class-*`) haritanın renkleridir (`src/lib/map/tree-styl
 
 ### Tipografi
 
-- **Aile (4. dalga):** Inter (değişken) ve JetBrains Mono. 1.–3. dalgada Atkinson Hyperlegible Next kullanılıyordu; çizgili sıfırı kapatılamadığı için sayılar ("2026", "₺20.640,00") eski ve kalabalık görünüyordu (§Notlar). Inter ekran için çizilmiş, x-yüksekliği büyük, tabular rakamlı ve Türkçe harfleri tam bir yüz; telefonda ve güneşte okunurluk korunur. `font-feature-settings: "cv05", "cv08"` küçük l ile büyük I'yı ayırır. `next/font/google` derleme sırasında indirir ve aynı origin'den sunar; dış istek olmaz. Alt kümeler `latin` + `latin-ext`. `display: swap`; mono kesimi önceden yüklenmez ve yalnız kod ve ölçü içindir.
+- **Aile (4. dalga, 2. geçiş):** Hanken Grotesk (değişken) ve IBM Plex Mono. 1.–3. dalgada Atkinson Hyperlegible Next kullanılıyordu; çizgili sıfırı kapatılamadığı için tarih ve tutarlar kalabalık görünüyordu. 4. dalganın ilk geçişindeki Inter her panelin varsayılan yüzüdür. 2. geçişte denenen Schibsted Grotesk ₺ işaretini £ gibi çiziyordu ve tablo rakamlarında nokta ile virgülü de genişletiyordu. Hanken Grotesk açık ve sağlam bir grotesktir; ₺ doğru çizilir, kalın ağırlıkları başlığı taşır. Plex Mono yalnız gerçek kimlikler içindir: ağaç kodu, başvuru, teklif ve sipariş numarası, koordinat, hash. Tutarlar sans yüzle `lining-nums proportional-nums` yazılır; `tabular-nums` kullanılmaz. `next/font/google` derleme sırasında indirir ve aynı origin'den sunar. Alt kümeler `latin` + `latin-ext`.
 - **Ölçek** (16 px taban): 12 · 14 · 16 · 18 · 20 · 24 · 30 · 38 · 48 px (`--text-xs` … `--text-5xl`). Sayfa başlığı 30 px (telefonda 24 px), `--tracking-tight` (−0,02em).
 - **Satır:** gövde için 1,55 (`--leading`), büyük başlık için 1,15. Satır uzunluğu en çok 68ch (`--measure`); paragraflar 52–64ch.
 - **Ağırlık:** gövde 400, etiket 500–550, bölüm başlığı 650, sayfa başlığı 700. Büyük harfli etiket, harf aralıklı küçük etiket ve tek kelimesi renkli başlık kullanılmaz.
@@ -330,7 +330,7 @@ Karşılama sayfası (`/`) için ölçüm yapıldı: üretim derlemesi, yerel Su
 
 **Kararlar:**
 
-- **Yazı:** Inter ve JetBrains Mono (§Tipografi).
+- **Yazı:** Hanken Grotesk ve IBM Plex Mono (§Tipografi).
 - **Yüzey:** Köşeler 8 ve 12 px. Kartlarda ince çerçeve ve `--shadow-card` var. Etiket ağırlıkları düştü (500–600).
 - **Portal gezinmesi:** Üst menüde en çok beş hedef var: Bahçelerim, Başvurularım, Siparişlerim, Ödemelerim, Hizmetlerim. Hesabım, Sözleşmelerim, İzinler, diğer bölümler ve Çıkış hesap menüsünde (`AccountMenu`, avatar düğmesi). Telefonda (<860 px) aynı hedefler ikonlu bir alt sekme çubuğu olur (`AppShell` portal varyantı, `data-bottom-nav`). Portalda sabit alt öğeler (`Toast`, sabit kaydet çubukları, bildirim kapısı) çubuğun üstünde durur: `bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))`.
 - **Bir görünüm, bir birincil eylem.** İkincil eylemler `secondary` ya da `quiet` düğmedir. Metin bağlantısı yalnız düzyazı içinde kullanılır.
@@ -348,11 +348,22 @@ Karşılama sayfası (`/`) için ölçüm yapıldı: üretim derlemesi, yerel Su
 - **Site:** Açılıştaki bahçe planı bir uygulama penceresi gibi çerçevelendi. Paketler subgrid ile hizalı ve önerilen paket vurgulu. SSS iki sütunlu akordeon. Hukuk metinlerinde yapışkan içindekiler var (`site/legal-toc.tsx`), taslak notu sade bir satır oldu. `legal.ts` içeriği değişmedi.
 - **İkonlar:** `ui/icons.tsx`, 24 px ızgarada ve 1,75 çizgi kalınlığında. İkonlar her zaman bir metin etiketinin yanında durur ve `aria-hidden`'dır.
 
+### 2. geçiş: "her nokta bir ağaç"
+
+`frontend-design` ölçütleriyle yapılan eleştiri iki kalıp buldu. Birincisi kart takımıydı: her bölüm aynı köşeli ve aynı gölgeli bir karttı. İkincisi şablon süsleriydi: " · " ile birleştirilmiş meta satırları, bağlantı sonuna eklenen "→", başlık üstü etiket hapı, renkli kare içinde ikon. Yeni kurallar:
+
+- **Tek cesur öğe: pafta.** Toprak zemin (`--palette-tarla`) üzerinde her noktası bir ağaç olan dikim ızgarası. Karşılamada bahçe planı olarak, portalda sınıf paftası olarak kullanılır (`ui/class-plate.tsx`). Sınıf paftası 10×10 noktadır; her nokta incelenen ağaçların yaklaşık %1'idir. En az bir ağacı olan sınıf en az bir nokta alır. Pafta `aria-hidden`'dır; sayılar metin olarak yanında durur. 404/403 sayfalarında bir ağacı eksik dikim sırası vardır.
+- **Bölüm kart değildir.** Bölüm = başlık + tek satır açıklama + içerik; bölümleri boşluk ya da ince çizgi ayırır. Çerçeve yalnız tablo, form ve satır listesinde kullanılır. Kart içinde kart yoktur.
+- **Görünümde tek nesne kabarır.** Sayfanın konusu olan nesne (bahçe kartı, karne özeti, teklif ya da sipariş tutarı, ödeme kutusu) `--radius-object` (14 px) ve `--shadow` alır. Geri kalan yüzeyler düzdür (`--shadow-card` yalnız bir saç çizgisidir).
+- **Yaşam döngüsü:** Başvuru → Teklif → Ödeme → Hizmet adımları çizgiyle bağlı noktalarla gösterilir. Biten adım dolu fıstık yeşili, güncel adım kabuk rengi halka, sıradaki adım boş noktadır.
+- **Metin:** Meta öğeleri 16 px aralıkla dizilir. Metin bağlantısına ok eklenmez; ok yalnız bütün satırın bağlantı olduğu listede kullanılır. Numara yalnız gerçek sıralamada kullanılır (Nasıl başlar, kayıt adımları).
+
 **Açık konular:**
 
 - Paketler sayfasında "Önerilen" rozeti Standart pakette. Gerekçe: `docs/fiyatlandirma.md` örnekleri Standart'ı kullanıyor. Bu iş kararını ürün sahibi onaylamalı.
 - Demo bandındaki düğmeler 30 px. Bant, demo turu telefon testi için 48 px'in altında kalmalı.
 - Kılavuz ekran görüntüleri (`docs/kilavuz/`) yeni arayüzle yeniden üretilmeli.
+- Sınıf paftasında küçük sınıfa en az bir nokta verilmesi oranı birkaç puan oynatabilir. Katı oran istenirse `plateDots()` değişir.
 
 ## Notlar
 
