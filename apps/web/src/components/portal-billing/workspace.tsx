@@ -1,13 +1,14 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { IconCheck } from "@/components/ui/icons";
 import { portalBillingText as P } from "@/lib/i18n/messages/portal-billing";
 import s from "./workspace.module.css";
 
 // Building blocks of the customer's work screens (applications, quotes,
-// orders, payments, services; wave 4): the detail header, the lifecycle
-// stepper, the two-column detail layout with a sticky summary card, the
-// activity timeline and the list frame that turns into cards on a phone.
+// orders, payments, services): the detail header, the lifecycle track, the
+// two-column detail layout with a sticky summary object, plain sections, the
+// activity timeline and the list frame that turns into rows on a phone.
+// Second design pass: sections are not cards; the summary (a quote's total,
+// what an order still owes) is the one raised object of a view.
 
 // The top of a detail screen: back link, the title with its state badge
 // beside it (outside the h1, so the heading reads as the title alone), the
@@ -49,8 +50,10 @@ export function DetailHeader({
 export type StepState = "done" | "current" | "upcoming";
 export type FlowNote = keyof typeof P.flow.notes;
 
-// Application → quote → payment → service. `current` is the index of the
-// step in progress (4: all done); `note` says where that step stands.
+// Application → quote → payment → service as a track of dots: done steps
+// are filled kernel-green, the current one carries the hull ring, the rest
+// are outlined. `current` is the index of the step in progress (4: all
+// done); `note` says where that step stands.
 export function Lifecycle({ current, note }: { current: number; note?: FlowNote }) {
   const F = P.flow;
   return (
@@ -64,9 +67,7 @@ export function Lifecycle({ current, note }: { current: number; note?: FlowNote 
             data-state={state}
             aria-current={state === "current" ? "step" : undefined}
           >
-            <span className={s.stepDot} aria-hidden>
-              {state === "done" ? <IconCheck size={14} /> : i + 1}
-            </span>
+            <span className={s.stepDot} aria-hidden />
             <span className={s.stepText}>
               <span className={s.stepLabel}>{label}</span>
               {state === "current" && note && <span className={s.stepNote}>{F.notes[note]}</span>}
@@ -104,33 +105,57 @@ export function DetailLayout({
   );
 }
 
-// The card of the side column: a heading, figures, the primary action.
+// The summary of the side column: a heading, the figure the view is about
+// (a total, what is due) in large type, the rows behind it and the primary
+// action. It is the one raised object of a view; `quiet` keeps it flat when
+// another object leads the page (the pay box of an order).
 export function SummaryCard({
   title,
+  figure,
   children,
   footer,
   testId,
   id,
+  quiet = false,
 }: {
   title: ReactNode;
-  children: ReactNode;
+  figure?: { label: ReactNode; value: ReactNode; testId?: string; note?: ReactNode };
+  children?: ReactNode;
   footer?: ReactNode;
   testId?: string;
   id: string;
+  quiet?: boolean;
 }) {
   return (
-    <section className={s.card} aria-labelledby={`${id}-title`} data-testid={testId} id={id}>
+    <section
+      className={s.card}
+      data-quiet={quiet || undefined}
+      aria-labelledby={`${id}-title`}
+      data-testid={testId}
+      id={id}
+    >
       <h2 id={`${id}-title`} className={s.cardTitle}>
         {title}
       </h2>
-      <div className={s.cardBody}>{children}</div>
+      {figure && (
+        <div className={s.cardFigure}>
+          <p className={s.figureLabel}>{figure.label}</p>
+          <p className={s.figureValue} data-testid={figure.testId}>
+            {figure.value}
+          </p>
+          {figure.note && <p className={s.figureNote}>{figure.note}</p>}
+        </div>
+      )}
+      {children && <div className={s.cardBody}>{children}</div>}
       {footer && <div className={s.cardFooter}>{footer}</div>}
     </section>
   );
 }
 
-// A titled block of the main column: heading, optional description and
-// actions, then the content (a card, a table, a list).
+// A titled block of the main column: heading, an optional one-line
+// description and actions, then the content. A section is not a card: it is
+// set apart by space; only its content frames itself when it is a table, a
+// form or a list of rows.
 export function Section({
   title,
   description,
@@ -196,7 +221,7 @@ export function Timeline({
 
 // The class names of a list table (Başvurularım, Siparişlerim, Ödemelerim,
 // Hizmetlerim): a framed table on a wide column whose rows become tappable
-// cards under 640px. The first link of a row (`rowLink`) covers the row.
+// stacked rows under 640px. The first link of a row (`rowLink`) covers the row.
 export const listClass = {
   box: s.listBox,
   table: s.list,
@@ -209,6 +234,25 @@ export const listClass = {
   chevron: s.cellChevron,
   hideNarrow: s.hideNarrow,
 };
+
+// A document number ("B-2026-000001", "S-2026-000003") in the mono face,
+// one step smaller than the text around it, never broken across lines.
+export function Ident({ children }: { children: ReactNode }) {
+  return <span className={s.ident}>{children}</span>;
+}
+
+// Items of a meta line ("Antep fıstığı  Kayalar, Nizip  Sınır yok") set
+// apart by space instead of a " · " string; empty items are skipped.
+export function Meta({ items, className }: { items: ReactNode[]; className?: string }) {
+  const shown = items.filter((x) => x !== null && x !== undefined && x !== false && x !== "");
+  return (
+    <p className={`${s.meta}${className ? ` ${className}` : ""}`}>
+      {shown.map((x, i) => (
+        <span key={i}>{x}</span>
+      ))}
+    </p>
+  );
+}
 
 // Class names shared by the work screens.
 export const workClass = s;
