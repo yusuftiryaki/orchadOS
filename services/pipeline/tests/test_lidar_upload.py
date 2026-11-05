@@ -89,6 +89,7 @@ def crown(session=SESSION, version="0.1.0"):
             measurement(T1, "crown_diameter", m, 2.9, unc=0.1, unit="m", version=version),
             measurement(T1, "crown_volume", m, 7.5, unc=1.2, unit="m3", version=version),
             measurement(T1, "size_class", m, category="productive", version=version),
+            measurement(T1, "crown_base_height", m, 0.7, unc=0.03, unit="m", version=version),
             measurement(T2, "tree_height", m, version=version),  # too few points: no value
         ],
         session=session,
@@ -140,7 +141,7 @@ def test_payload_items(tmp_path):
     payload = build_payload(load_reports(out), SESSION, scan_start(out, SESSION))
     assert payload["measured_at"] == gps_ns_to_iso(START_NS)
     items = payload["items"]
-    assert len(items) == 8
+    assert len(items) == 9
     assert items[0] == {
         "tree_id": T1,
         "slot_code": "S1-1",
@@ -155,8 +156,8 @@ def test_payload_items(tmp_path):
     }
     assert items[3]["value_category"] == "productive" and "value_numeric" not in items[3]
     # Not measured: no value at all; the database lists it as skipped.
-    assert not {"value_numeric", "value_category"} & items[4].keys()
-    assert {i["params_hash"] for i in items[5:]} == {"skeleton-hash"}
+    assert not {"value_numeric", "value_category"} & items[5].keys()
+    assert {i["params_hash"] for i in items[6:]} == {"skeleton-hash"}
     assert check_payload(payload) == []
 
 
@@ -226,7 +227,7 @@ def test_dry_run_prints_the_payload_and_signs_in_nowhere(tmp_path, capsys, monke
     assert lidar_upload.run(out, SESSION, dry_run=True, env={}) == 0
     text = capsys.readouterr().out
     body = json.loads(text[: text.rindex("}") + 1])
-    assert body["p_session_id"] == SESSION and len(body["p_payload"]["items"]) == 5
+    assert body["p_session_id"] == SESSION and len(body["p_payload"]["items"]) == 6
     assert "nothing written" in text
 
 
@@ -282,7 +283,7 @@ def test_records_against_local_supabase(supabase_env, test_sessions, tmp_path, c
 
     assert lidar_upload.run(out, session_id, env=creds(supabase_env)) == 0
     text = capsys.readouterr().out
-    assert "7 created, 0 already recorded" in text
+    assert "8 created, 0 already recorded" in text
     assert "1 not measured" in text and T2 in text
 
     rows = ops.select(
@@ -295,7 +296,7 @@ def test_records_against_local_supabase(supabase_env, test_sessions, tmp_path, c
     )
     by_code = {r["metric_definition"]["code"]: r for r in rows}
     assert sorted(by_code) == sorted(
-        ["tree_height", "crown_diameter", "crown_volume", "size_class",
+        ["tree_height", "crown_diameter", "crown_volume", "size_class", "crown_base_height",
          "scaffold_branch_count", "wood_volume", "fractal_dimension"]
     )  # fmt: skip
     h = by_code["tree_height"]
@@ -313,10 +314,10 @@ def test_records_against_local_supabase(supabase_env, test_sessions, tmp_path, c
 
     # Re-running adds nothing; a new crown version adds its rows and keeps the old ones.
     assert lidar_upload.run(out, session_id, env=creds(supabase_env)) == 0
-    assert "0 created, 7 already recorded" in capsys.readouterr().out
+    assert "0 created, 8 already recorded" in capsys.readouterr().out
     (out / "crown.json").write_text(json.dumps(crown(session_id, version="0.2.0")))
     assert lidar_upload.run(out, session_id, env=creds(supabase_env)) == 0
-    assert "4 created, 3 already recorded" in capsys.readouterr().out
+    assert "5 created, 3 already recorded" in capsys.readouterr().out
     rows = ops.select("measurement", {"session_id": f"eq.{session_id}", "select": "id"})
-    assert len(rows) == 11
+    assert len(rows) == 13
     ops.close()

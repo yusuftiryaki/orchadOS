@@ -20,7 +20,8 @@ Bu doküman yöntemleri, doğruluklarını, veritabanına yazılışlarını ve 
 | Kış iskeleti | Var (`lidar skeleton`), araştırma |
 | Budama analizi | Var (`lidar pruning`), araştırma |
 | Ölçümlerin veritabanına yazılması | Var (`lidar upload`, `record_lidar_measurements`) |
-| Uzman panelinde, ofis aracında, portalda gösterim | Yok. Ölçümler `algorithm` kaynağıyla birikir; karneye girmez |
+| Sahibe gösterim | Var (§9): ağaç karnesinde ölçüm tablosu ve kesit fotoğrafları üzerinde çizim, 360° gezide seçilen ağacın değerleri ve çizimi. Sahip kararı (5 Kasım 2026): doğrulama pilotta yapılır, gösterim beklemez |
+| Uzman panelinde, ofis aracında gösterim | Yok |
 | Gerçek ağaçlarda doğrulama | Pilotta, §7 |
 
 **Neden şimdi, kit LiDAR'sızken:** MVP kiti LiDAR'sız ([kit-siparis-listesi.md](kit-siparis-listesi.md)). Yöntemler sentetik verilerle önceden yazılırsa, LiDAR'lı kitin ilk kış taramasında (vizyon aşama 2: "ilk kış iskelet denemesi kendi bahçende") veri doğrudan ölçüme dönüşür ve elle ölçümle karşılaştırma aynı hafta yapılabilir.
@@ -203,19 +204,20 @@ Migration `20261107300000_lidar_measurements.sql`. Yeni tablo yok; ölçümler `
 
 | Kod | Birim | Tür | Mevsim | Karnede |
 | --- | --- | --- | --- | --- |
-| `tree_height` | m | sayı | Tümü | Değerlendirilecek (`under_evaluation`) |
+| `tree_height` | m | sayı | Tümü | Gösterilir (`20261107400000`) |
 | `size_class` | — | kategori: `sapling`, `young`, `productive`, `old` (`age_class` kodları) | Tümü | Gizli (öneri) |
 | `wood_volume` | m³ | sayı | Kış | Gizli (araştırma) |
 | `pruned_wood_volume` | m³ | sayı | Kış | Değerlendirilecek |
 | `pruned_wood_fraction` | oran | sayı | Kış | Değerlendirilecek |
-| `pruning_cut_count` | adet | sayı | Kış | Değerlendirilecek |
+| `pruning_cut_count` | adet | sayı | Kış | Gösterilir (`20261107400000`) |
+| `crown_base_height` | m | sayı | Tümü | Gizli; yalnız çizim için (`20261107400000`) |
 
-"Değerlendirilecek" ve "gizli" metrikler karnede ve uzman formunda görünmez.
+"Değerlendirilecek" ve "gizli" metrikler karnede ve uzman formunda görünmez. Mevcut `crown_diameter`, `crown_volume`, `scaffold_branch_count` ve `pruning_status` zaten gösteriliyordu. Kesilen odun hacmi ve payı sistematik olarak düşük ölçüldüğü için (§5.2) değerlendirmede kalır. Sahip, yayımlanmış ziyaretin bütün ölçüm satırlarını okuyabilir (satır yetkisi `card_visibility`'ye bakmaz); gizli `crown_base_height` bu yüzden çizimde kullanılabilir.
 
 **`record_lidar_measurements(p_session_id, p_payload)`** (yalnız operasyon) → `{created, existing, skipped: [...]}`. `p_payload`: `{measured_at?, items: [{tree_id, slot_code?, metric, value_numeric | value_category, unit?, uncertainty?, confidence?, method, method_version, params_hash?}]}`.
 
 - Demo claim'i ops hesabında bile reddedilir (`demo_read_only`). Yetki ve oturum denetimleri `record_tree_presence` ile aynı.
-- Yöntem ve metrik eşleşmesi sabittir: `lidar_crown` → `tree_height`, `crown_diameter`, `crown_volume`, `size_class`; `lidar_qsm` → `scaffold_branch_count`, `wood_volume`, `fractal_dimension`; `lidar_pruning` → `pruned_wood_volume`, `pruned_wood_fraction`, `pruning_cut_count`, `pruning_status`. Başka bir yöntem ya da metrik reddedilir.
+- Yöntem ve metrik eşleşmesi sabittir: `lidar_crown` → `tree_height`, `crown_diameter`, `crown_volume`, `size_class`, `crown_base_height`; `lidar_qsm` → `scaffold_branch_count`, `wood_volume`, `fractal_dimension`; `lidar_pruning` → `pruned_wood_volume`, `pruned_wood_fraction`, `pruning_cut_count`, `pruning_status`. Başka bir yöntem ya da metrik reddedilir.
 - Ağaç, oturumun parselinin aktif ağacı olmalı. Değer metriğin türüne uymalı, kategori listede olmalı, sayısal değerde belirsizlik zorunlu, birim metriğin birimi olmalı.
 - Değeri olmayan kalem (aşama ağacı ölçemediyse) yazılmaz, `skipped`'e `no_value` gerekçesiyle girer.
 - Satırlar `source = algorithm`, `method`, `method_version`, `params_hash`, `session_id` taşır. `measured_at` yükten (`cloud.json`'daki tarama başlangıcı), yoksa oturum başlangıcından gelir.
@@ -243,6 +245,15 @@ Gerçek ağaçlarda sentetikte olmayan zorluklar beklenir: ince sürgün yoğunl
 
 - **Gövde çapının ölçüm yüksekliği.** Metodoloji §3 gövde çapını yerden yaklaşık 50 cm'de tanımlıyor; metrik kaydındaki kod `trunk_diameter_h30` (30 cm). 1,2 m'deki LiDAR ise görüş açısı yüzünden 4 m'deki gövdeyi ancak 70–80 cm'den yukarıda görür. Bu yüzden LiDAR gövde çapı şimdilik ölçüm olarak yazılmaz; iskelet raporunun ayrıntısında, yüksekliğiyle birlikte durur. Karar seçenekleri: (a) LiDAR'ı alçaltmak ya da eğmek, (b) LiDAR için ayrı bir yükseklik koduyla ayrı metrik, (c) gövde çapını yalnız yakın plan ve şerit metreyle almak.
 - **Montaj ve tarama yöntemi.** LiDAR'lı kit sırt direği için tasarlandı; MVP taraması motosikletle. Motosiklette LiDAR yüksekliği, sürücünün kapattığı sektör ve titreşimin SLAM'a etkisi denenmeli (metodoloji §11, "Yönteme göre ayar").
-- **Kartta gösterim.** `crown_diameter` ve `crown_volume` kayıtta "karnede gösterilir" olarak duruyor; yeni metrikler "değerlendirilecek" ya da gizli. Doğrulamadan önce portal LiDAR ölçümlerini göstermemeli; gösterim kararı §7'den sonra.
+- **Kartta gösterim (karar verildi, 5 Kasım 2026).** Sahip kararıyla taç ölçümleri ve kesim sayısı doğrulama beklenmeden sahibe gösterilir; uzman onayı aranmaz (§9). Pilottaki doğrulama (§7) bir yöntemi yetersiz bulursa metrik `under_evaluation`'a geri alınır ya da yeni yöntem sürümü yazılır; eski değerler sürümleriyle kalır.
 - **Büyüklük sınıfının yazılması.** Öneri ağacın `age_class`'ını değiştirmez. Ofis aracında ya da uzman panelinde "LiDAR önerisi: Verimli (güven 0,9)" gibi gösterilip tek tıkla kabul edilmesi sonraki iş.
 - **KVKK.** Nokta bulutu bahçede bulunan kişilerin şeklini de kaydeder. Bulut yalnız personele açık (H05); portala 3D görünüm gelirse kişilerin bulutun içinden ayıklanması ve aydınlatma metinlerinin güncellenmesi gerekir (robot için açılan T36'nın benzeri).
+
+## 9. Sahibe gösterim
+
+**Karar (5 Kasım 2026, sahip):** LiDAR ölçümleri doğrulama beklenmeden sahibe gösterilir; doğrulama pilotta yapılır (§7). Uzman LiDAR ölçümünü ayrıca onaylamaz: ziyaret yayımlandığında (uzman imzası) ölçümler de sahibe açılır. Çizim taç geometrisinin üç değerine dayanır: ağaç boyu, taç çapı ve taç tabanı yüksekliği.
+
+- **Ağaç karnesi:** Ölçüm tablosunda ağaç boyu, taç çapı, taç hacmi, ana kol sayısı, kesim sayısı ve budama durumu ziyaret ziyaret görünür. Kesit fotoğraflarının üzerine çizim konur. Çizimde gövdeden ağacın tepesine boy çizgisi, taç ortası yüksekliğinde taç çapı ayracı ve taç tabanında kesikli çizgi bulunur. Çizim açılıp kapatılabilir. Altında çizimin tarama sırasında ölçülen değerlerden çizildiği ve yaklaşık olduğu yazar.
+- **360° gezi:** Seçilen ağacın panelinde bakılan ziyaretin değerleri (boy, taç çapı, taç hacmi) görünür. Aynı çizim panoramanın üzerinde yalnız o ağaç için durur. Ziyaretler arasında gezinince değerler ve çizim o ziyarete geçer.
+- **Geometri:** Kesit, kameradan ağaca bakan perspektif görüntüdür. Ağacın yatay uzaklığı, kesitin yukarı bakış açısı ve görüş açısı kesitin `pose`'unda kayıtlıdır; kamera yüksekliği ziyaretin `camera_height_m`'idir. Çizim bu değerlerle, işleme hattının kesit izdüşümünün (`projection.gnomonic_crop`) tersinden hesaplanır. Varsayımlar: ağacın altındaki zemin kameranın durduğu zeminle aynı yükseklikte, taç gövdenin üstünde ortalanmış. Eğimli parselde ya da taç merkezi gövdeden kaymışsa çizim birkaç santimden birkaç desimetreye kadar kayabilir. Bu yüzden çizim yaklaşık diye etiketlenir; değerin kendisi tablodadır.
+- **Gizlilik:** Çizim zaman taşımaz (H05). Nokta bulutunun kendisi sahibe açılmaz.

@@ -114,7 +114,7 @@ from .cloud import TreeCloud, extract_trees, load_session_cloud, load_tree_posit
 from .models import LidarMeasurement, LidarReport, TreeQuality
 
 METHOD = "lidar_crown"
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"  # 0.2.0: adds crown_base_height
 STAGE = "lidar_crown"
 REPORT_FILE = "crown.json"
 
@@ -640,6 +640,14 @@ def measure_tree(
             unit="m3",
             uncertainty=_sigma(sig_v),
             confidence=dm_conf,
+        ),
+        # For drawing the crown on photos and in the tour (portal), not a card value.
+        m(
+            "crown_base_height",
+            value_numeric=_r(base),
+            unit="m",
+            uncertainty=_sigma(math.sqrt(sp * sp + p.slice_m**2 / 12)),
+            confidence=_r(conf_cov),
         ),
     ]
     cls, prob = class_probabilities(diam, sig_d, p)

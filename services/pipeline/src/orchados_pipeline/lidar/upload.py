@@ -39,7 +39,9 @@ RPC = "record_lidar_measurements"
 
 # method -> metric codes it writes (private.lidar_method_metrics()).
 METHOD_METRICS: dict[str, frozenset[str]] = {
-    "lidar_crown": frozenset({"tree_height", "crown_diameter", "crown_volume", "size_class"}),
+    "lidar_crown": frozenset(
+        {"tree_height", "crown_diameter", "crown_volume", "size_class", "crown_base_height"}
+    ),
     "lidar_qsm": frozenset({"scaffold_branch_count", "wood_volume", "fractal_dimension"}),
     "lidar_pruning": frozenset(
         {"pruned_wood_volume", "pruned_wood_fraction", "pruning_cut_count", "pruning_status"}

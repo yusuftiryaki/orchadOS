@@ -501,7 +501,7 @@ Karne, son yayımlanmış ziyaretin özetidir.
 - **Örneklemin %5'e inmesi** ve **meyve yükünün iki yıl önceyle yorumlanması** henüz kodda yok.
 - **Referans fotoğraflar:** Pilot bahçelerden toplanacak (Ek A).
 - **Gövde çapının ölçüm yüksekliği (İP16):** Bölüm 3 gövde çapını yerden yaklaşık 50 cm'de (aşı yerinin üstünde) tanımlıyor; metrik kaydındaki kod `trunk_diameter_h30` (30 cm). 1,2 m'deki LiDAR ise 4 m'deki ağacın gövdesini ancak 70–80 cm'den yukarıda görür ([tarama-kiti.md](tarama-kiti.md)). Karar verilene kadar LiDAR gövde çapı ölçüm olarak yazılmaz, yalnız iskelet raporunun ayrıntısında durur ([lidar-olcumleri.md](lidar-olcumleri.md) §8).
-- **LiDAR ölçümlerinin karneye girmesi (İP16):** Taç çapı, boy ve hacim pilotta referans ağaçlarda elle ölçümle yan yana karşılaştırılmadan karnede gösterilmez ([veri-modeli.md](veri-modeli.md), "Yöntemler arası tutarlılık"). Kış iskeleti ve budama ölçümleri araştırma metriğidir.
+- **LiDAR ölçümlerinin karneye girmesi (İP16):** Sahip kararıyla (5 Kasım 2026) taç çapı, boy, taç hacmi, ana kol sayısı ve kesim sayısı doğrulama beklenmeden karnede gösterilir; uzman bu ölçümleri ayrıca onaylamaz, ziyaretin yayımıyla açılırlar. Pilotta referans ağaçlarda elle ölçümle karşılaştırma yine yapılır ([lidar-olcumleri.md](lidar-olcumleri.md) §7); yetersiz çıkan metrik karneden geri alınır. Kesilen odun hacmi, odun hacmi ve fraktal boyut araştırma metriğidir.
 
 ## Ek A – Hazırlanacak referans fotoğraflar
 

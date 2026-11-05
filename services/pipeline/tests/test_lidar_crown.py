@@ -88,10 +88,15 @@ def test_presets_match_truth(presets_report, size):
     # Away from the thresholds the class is the preset's, with high confidence.
     assert ms["size_class"].value_category == size
     assert ms["size_class"].confidence >= 0.8
-    for metric, unit in (("tree_height", "m"), ("crown_diameter", "m"), ("crown_volume", "m3")):
+    for metric, unit in (
+        ("tree_height", "m"),
+        ("crown_diameter", "m"),
+        ("crown_volume", "m3"),
+        ("crown_base_height", "m"),
+    ):
         m = ms[metric]
         assert m.unit == unit and m.uncertainty > 0 and m.value_category is None
-        assert m.method == "lidar_crown" and m.method_version == "0.1.0"
+        assert m.method == "lidar_crown" and m.method_version == "0.2.0"
     assert ms["size_class"].value_numeric is None and ms["size_class"].unit is None
     assert not report.warnings
 
