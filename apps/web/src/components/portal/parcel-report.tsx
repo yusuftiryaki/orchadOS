@@ -409,7 +409,7 @@ function Change({ report, base }: { report: ParcelReport; base: string }) {
   const { worse, better } = report.change;
   return (
     <section
-      className={`${panelClass} ${styles.change}`}
+      className={styles.change}
       data-testid="report-change"
       aria-labelledby="degisim-baslik"
     >
@@ -604,7 +604,7 @@ function Findings({ findings, base }: { findings: FindingItem[]; base: string })
       ) : (
         <div className={styles.findingGroups} data-testid="findings">
           {bySeverity(findings).map(([severity, items]) => (
-            <div key={severity} className={`${panelClass} ${styles.findingGroup}`}>
+            <div key={severity} className={styles.findingGroup}>
               <h3>
                 <Badge tone={SEVERITY_TONES[severity]}>{t.portal.severity[severity]}</Badge>
                 <span className={styles.findingCount}>{formatNumber(items.length)}</span>
@@ -833,7 +833,7 @@ function Questions({
         <p className={styles.groupLead}>{q.parcelHint}</p>
       </div>
       <QuestionNotice sent={questions.sent} error={questions.error} />
-      <div className={`${panelClass} ${styles.stackCard}`}>
+      <div className={styles.stackCard}>
         <QuestionThreads
           threads={questions.threads}
           returnPath={base}

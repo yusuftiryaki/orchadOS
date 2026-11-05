@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { statusTone } from "@/components/ui/status";
 import { Button } from "@/components/ui/button";
 import { IconUsers } from "@/components/ui/icons";
-import { panelClass } from "@/components/ui/panel";
 import { Checkbox, Field, Input } from "@/components/ui/field";
 import layout from "./page.module.css";
 import styles from "./parcel.module.css";
@@ -69,7 +68,7 @@ export function ViewersCard({
           <p>{error}</p>
         </Alert>
       )}
-      <div className={`${panelClass} ${styles.stackCard}`}>
+      <div className={styles.stackCard}>
         {viewers.entries.length === 0 ? (
           <p className={styles.emptyLine}>
             <IconUsers size={20} />
