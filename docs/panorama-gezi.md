@@ -15,6 +15,7 @@ Panorama biçimi ve yön kuralı için kaynak `services/pipeline/README.md` ("Pa
 | Ortak görünüm | `src/components/panorama/panorama.module.css` | Odak çerçevesi, 44 px araç çubuğu, yükleniyor ve hata notları. Renkler `var(--token, yedek)` biçiminde; tasarım sistemi (`claude/ui-temel`) bu dosyaya dokunmadan tema verebilir |
 | Ofis görüntüleyicisi | `src/components/office/panorama-viewer.tsx` | Üçgenleme aracında iki yuva, uzman onayında bir yuva. Tıklama gövde ışını üretir |
 | Gezi görüntüleyicisi | `src/components/portal/tour-viewer.tsx` | Gezideki tek görüntüleyici; ok ve ağaç işaretçileri, bakış yönü bildirimi; ağaca odaklanma, çift tıklamayla yakınlaştırma, "Genel görünüm" düğmesi; görüntünün üstündeki katmanlar (tam ekranda da görünür) |
+| 3D dünya | `src/components/portal/world-view.tsx`, `world-scene.ts`, `src/lib/world/` | Ziyaretin dünya bulutu varsa "3D dünya" düğmesi; panoramadan buluta geçiş, ölçüler, geri dönüş. Dünya açıkken görüntüleyici sürükleme, tekerlek ve klavyeyi almaz (`interactive`). Ayrıntı: [3d-dunya.md](3d-dunya.md) |
 | Ağaç paneli | `src/components/portal/tour-tree-panel.tsx` | Odaklanılan ağacın kodu, sınıfı ve uzaklığı; soldaki ve sağdaki ağaç, ağaç karnesi, genel görünüm |
 | Yakınlaştırma hesabı (saf) | `src/lib/panorama/zoom.ts` | Yakınlaştırma düzeyi ile görüş alanı arasında çeviri; ağacı çerçeveleyen yakınlaştırma; çift tıklama adımı; soldaki ve sağdaki ağaç |
 | Gezi | `src/components/portal/tour.tsx` | Durum: hangi panorama, hangi ziyaret, imzalı adresler, yeniden deneme, adres çubuğu, adım düğmeleri, harita |

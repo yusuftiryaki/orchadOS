@@ -1050,6 +1050,9 @@ export interface TourVisit {
   cameraHeightM: number;
   // tree id -> LiDAR crown values of the tree in this visit (trees with any).
   crowns: Record<string, CrownValues>;
+  // The visit's 3D world cloud (asset kind world_cloud, docs/3d-dunya.md);
+  // null: the visit has none.
+  worldAssetId: string | null;
 }
 
 export interface TourData {
@@ -1078,6 +1081,10 @@ export async function getTour(supabase: Client, parcelId: string): Promise<TourD
     supabase,
     visits.filter((v) => frames.some((f) => f.sessionId === v.id)).map((v) => v.id),
   );
+  const worlds = await worldCloudsOfVisits(
+    supabase,
+    visits.map((v) => v.id),
+  );
   const tourVisits: TourVisit[] = visits.flatMap((v) => {
     const panoramas: TourPanorama[] = frames
       .filter((f) => f.sessionId === v.id)
@@ -1095,6 +1102,7 @@ export async function getTour(supabase: Client, parcelId: string): Promise<TourD
         panoramas,
         cameraHeightM: cameraHeightOf(v),
         crowns: Object.fromEntries(crowns.get(v.id) ?? []),
+        worldAssetId: worlds.get(v.id)?.id ?? null,
       },
     ];
   });
@@ -1142,6 +1150,47 @@ async function crownsOfVisits(supabase: Client, visitIds: string[]) {
       .range(from, to),
   );
   return crownValuesBySession(defs, rows);
+}
+
+// The newest 3D world cloud of each visit (visit -> asset id and file).
+// Row level security limits parcel readers to published visits.
+async function worldCloudsOfVisits(supabase: Client, visitIds: string[]) {
+  const out = new Map<string, { id: string; uri: string }>();
+  if (visitIds.length === 0) return out;
+  const { data, error } = await supabase
+    .from("asset")
+    .select("id, session_id, uri, produced_at")
+    .eq("kind", "world_cloud")
+    .in("session_id", visitIds)
+    .order("produced_at", { ascending: false })
+    .order("id");
+  if (error) throw error;
+  for (const row of data ?? []) {
+    if (!out.has(row.session_id)) out.set(row.session_id, { id: row.id, uri: row.uri });
+  }
+  return out;
+}
+
+// Signed URL of a published visit's 3D world cloud of the parcel; null when
+// the id is not one (or not visible).
+export async function signWorldCloud(
+  supabase: Client,
+  parcelId: string,
+  assetId: string,
+  scope: string,
+  media: { publicMirror?: PublicMirror } = {},
+): Promise<string | null> {
+  if (!UUID_RE.test(parcelId) || !UUID_RE.test(assetId)) return null;
+  const visitIds = (await publishedVisits(supabase, [parcelId])).map((v) => v.id);
+  const cloud = [...(await worldCloudsOfVisits(supabase, visitIds)).values()].find(
+    (c) => c.id === assetId,
+  );
+  if (!cloud) return null;
+  const urls = await createMediaSigner(supabase, {
+    scope,
+    publicMirror: media.publicMirror,
+  }).signUrls([cloud.uri]);
+  return urls.get(cloud.uri) ?? null;
 }
 
 // Signed URLs for panorama images of a parcel's published visits. Ids that are
