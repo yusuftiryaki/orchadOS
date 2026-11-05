@@ -96,9 +96,9 @@ Her ürün, hangi ham kayıttan ve hangi hat sürümüyle üretildiğini bilir. 
 | `scaffold_branch_count` | adet | uzman gözlemi, QSM (`lidar_qsm`) | Kış | Evet |
 | `fractal_dimension` | — | QSM, kutu sayma (`lidar_qsm`) | Kış | Hayır (araştırma) |
 | `wood_volume` | m³ | QSM (`lidar_qsm`) | Kış | Hayır (araştırma) |
-| `pruned_wood_volume` | m³ | iki kış taramasının farkı (`lidar_pruning`) | Kış | Hayır (araştırma) |
-| `pruned_wood_fraction` | oran | iki kış taramasının farkı (`lidar_pruning`) | Kış | Hayır (araştırma) |
-| `pruning_cut_count` | adet | iki kış taramasının farkı (`lidar_pruning`) | Kış | Hayır (araştırma) |
+| `pruned_wood_volume` | m³ | iki kış taramasının farkı (`lidar_pruning`) | Kış | Değerlendirilecek (araştırma) |
+| `pruned_wood_fraction` | oran | iki kış taramasının farkı (`lidar_pruning`) | Kış | Değerlendirilecek (araştırma) |
+| `pruning_cut_count` | adet | iki kış taramasının farkı (`lidar_pruning`) | Kış | Değerlendirilecek (araştırma) |
 | `fruit_load_scale` | 0–3 | personel, AI görsel, uzman | Yaz | Evet |
 | `canopy_temp_delta` | °C | termal | Yaz | Değerlendirilecek |
 | `weed_height` | kısa / orta / uzun (parsel) | personel sorusu | İlkbahar, yaz | Evet |

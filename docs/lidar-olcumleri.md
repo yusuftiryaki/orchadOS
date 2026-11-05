@@ -73,7 +73,32 @@ _Ajan sonuçlarıyla doldurulacak._
 
 ## 6. Veritabanı
 
-_Ajan sonuçlarıyla doldurulacak._
+Migration `20261107300000_lidar_measurements.sql`. Yeni tablo yok; ölçümler `public.measurement`'a yazılır.
+
+**Yeni metrikler** (konu: ağaç; mevcut `crown_diameter`, `crown_volume`, `scaffold_branch_count`, `fractal_dimension`, `pruning_status` aynen kullanılır):
+
+| Kod | Birim | Tür | Mevsim | Karnede |
+| --- | --- | --- | --- | --- |
+| `tree_height` | m | sayı | Tümü | Değerlendirilecek (`under_evaluation`) |
+| `size_class` | — | kategori: `sapling`, `young`, `productive`, `old` (`age_class` kodları) | Tümü | Gizli (öneri) |
+| `wood_volume` | m³ | sayı | Kış | Gizli (araştırma) |
+| `pruned_wood_volume` | m³ | sayı | Kış | Değerlendirilecek |
+| `pruned_wood_fraction` | oran | sayı | Kış | Değerlendirilecek |
+| `pruning_cut_count` | adet | sayı | Kış | Değerlendirilecek |
+
+"Değerlendirilecek" ve "gizli" metrikler karnede ve uzman formunda görünmez.
+
+**`record_lidar_measurements(p_session_id, p_payload)`** (yalnız operasyon) → `{created, existing, skipped: [...]}`. `p_payload`: `{measured_at?, items: [{tree_id, slot_code?, metric, value_numeric | value_category, unit?, uncertainty?, confidence?, method, method_version, params_hash?}]}`.
+
+- Demo claim'i ops hesabında bile reddedilir (`demo_read_only`). Yetki ve oturum denetimleri `record_tree_presence` ile aynı.
+- Yöntem ve metrik eşleşmesi sabittir: `lidar_crown` → `tree_height`, `crown_diameter`, `crown_volume`, `size_class`; `lidar_qsm` → `scaffold_branch_count`, `wood_volume`, `fractal_dimension`; `lidar_pruning` → `pruned_wood_volume`, `pruned_wood_fraction`, `pruning_cut_count`, `pruning_status`. Başka bir yöntem ya da metrik reddedilir.
+- Ağaç, oturumun parselinin aktif ağacı olmalı. Değer metriğin türüne uymalı, kategori listede olmalı, sayısal değerde belirsizlik zorunlu, birim metriğin birimi olmalı.
+- Değeri olmayan kalem (aşama ağacı ölçemediyse) yazılmaz, `skipped`'e `no_value` gerekçesiyle girer.
+- Satırlar `source = algorithm`, `method`, `method_version`, `params_hash`, `session_id` taşır. `measured_at` yükten (`cloud.json`'daki tarama başlangıcı), yoksa oturum başlangıcından gelir.
+- Aynı oturum, ağaç, metrik, yöntem, sürüm ve parametre hash'iyle ölçüm varsa kalem `existing` sayılır. Yeni yöntem sürümü yeni satır ekler; eski satırlar kalır (ölçümler sürümlüdür). Yük ya hep ya hiç yazılır.
+- **Mevsim denetlenmez.** `valid_seasons` hiçbir ölçüm yolunda zorlanmaz (mevsim takvimi metodoloji sürümüne bağlı). Kışın ölçülen taç çapı da yazılır; taç aşaması yapraksız bulutta rapor düzeyinde uyarı verir, uzman ve ofis aracı ölçümü mevsimiyle okumalıdır.
+
+**Yükleme:** `orchados-pipeline lidar upload <oturum>.processed/lidar --session-id <uuid> [--dry-run]` klasördeki raporları okur, oturum ve parsel tutarlılığını ve yukarıdaki kuralları göndermeden önce yerelde denetler, sonra fonksiyonu ops kullanıcısıyla çağırır (ortam değişkenleri `upload` ile aynı). Budama raporunun oturumu budama **sonrası** taramadır.
 
 ## 7. Doğrulama planı (pilot)
 
