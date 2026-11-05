@@ -57,15 +57,18 @@ select lives_ok($$ select public.payment_attach_token(pg_temp.id('p'), 'fake_66_
 select is((select identity_number_last4 from private.payment_billing_snapshot where payment_id = pg_temp.id('p')), '0146',
   'the snapshot keeps them only');
 
--- No TCKN-shaped value anywhere (11 digits, not starting with 0, not part of a longer number).
+-- No TCKN-shaped value anywhere (11 digits, not starting with 0, not part of a longer
+-- number). Hex letters count as part of the token: a random UUID's last group
+-- holds 11 digits next to a letter in about 0.4% of UUIDs, and the web tests
+-- leave hundreds of UUIDs in audit and outbox rows.
 select is((select count(*)::int from public.audit_event
-           where details::text ~ '(^|[^0-9])[1-9][0-9]{10}([^0-9]|$)'), 0,
+           where details::text ~ '(^|[^0-9a-fA-F])[1-9][0-9]{10}([^0-9a-fA-F]|$)'), 0,
   'no audit row carries a TCKN-shaped number');
 select is((select count(*)::int from (
     select body as t from private.message_outbox
     union all select vars::text from public.notification
     union all select payload::text from private.payment_event) x
-  where x.t ~ '(^|[^0-9])[1-9][0-9]{10}([^0-9]|$)'), 0,
+  where x.t ~ '(^|[^0-9a-fA-F])[1-9][0-9]{10}([^0-9a-fA-F]|$)'), 0,
   'no outbox, notification or payment event row carries one');
 
 select * from finish();
