@@ -144,7 +144,10 @@ select set_eq(
         -- Close-up protocol of methodology v0.2 (20261103100800_methodology_v02).
         'dead_test_live_bud', 'early_emptied_cluster_present', 'fence_breach_present',
         -- Parcel weed height (IP15, 20261106100100_service_layer).
-        'weed_height'],
+        'weed_height',
+        -- LiDAR measurements (20261107300000_lidar_measurements).
+        'tree_height', 'size_class', 'wood_volume', 'pruned_wood_volume', 'pruned_wood_fraction',
+        'pruning_cut_count'],
   'migrations register the metrics from docs/metodoloji.md (Ek B), docs/veri-modeli.md and the field questions'
 );
 
