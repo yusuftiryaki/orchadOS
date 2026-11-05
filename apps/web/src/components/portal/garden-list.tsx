@@ -2,13 +2,14 @@ import type { ReactNode } from "react";
 import { statusTone } from "@/components/ui/status";
 import { Badge, ClassDot } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
+import { ClassPlate } from "@/components/ui/class-plate";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatNumber, t } from "@/lib/i18n";
 import type { Distribution } from "@/lib/portal/classes";
 import type { PortalParcel } from "@/lib/portal/data";
-import { DistributionBar, ScoreLine } from "./labels";
+import { ScoreLine } from "./labels";
 import styles from "./home.module.css";
-import { IconChevronRight, IconMapPin } from "@/components/ui/icons";
+import { IconMapPin } from "@/components/ui/icons";
 
 export interface GardenBadge {
   state: string;
@@ -50,9 +51,9 @@ export function GardenList({
   );
 }
 
-// One garden card: name and place, its service badge, the last visit's
-// score and class bar, an urgent badge and "Karneyi aç". The whole card is
-// the link's target.
+// One garden card: the class plate (the garden from above, one dot per
+// ~1% of its trees), name and place, its badges, the last visit's score and
+// class counts, and "Karneyi aç". The whole card is the link's target.
 function GardenRow({
   parcel,
   badge,
@@ -64,28 +65,31 @@ function GardenRow({
 }) {
   const g = t.portal.gardens;
   const place = [parcel.village, parcel.district, parcel.province].filter(Boolean).join(", ");
-  const size = [
-    parcel.estimated_area_m2 != null
-      ? `${formatNumber(parcel.estimated_area_m2)} ${t.parcels.areaUnit}`
-      : null,
-    g.trees(parcel.activeTreeCount),
-  ]
-    .filter(Boolean)
-    .join(", ");
   const visited = parcel.lastVisit && parcel.distribution;
   return (
     <li className={styles.garden} data-parcel-id={parcel.id}>
-      <div className={styles.head}>
-        <div className={styles.identity}>
-          <h3 className={styles.name}>{parcel.name}</h3>
-          {place && (
-            <p className={styles.place}>
-              <IconMapPin size={16} />
-              <span>{place}</span>
-            </p>
+      <ClassPlate
+        counts={visited ? parcel.distribution! : {}}
+        size="var(--garden-plate)"
+        className={styles.plate}
+        testId={visited ? "class-bar" : undefined}
+      />
+      <div className={styles.identity}>
+        <h3 className={styles.name}>{parcel.name}</h3>
+        {place && (
+          <p className={styles.place}>
+            <IconMapPin size={16} />
+            <span>{place}</span>
+          </p>
+        )}
+        <p className={styles.size}>
+          {parcel.estimated_area_m2 != null && (
+            <span>
+              {formatNumber(parcel.estimated_area_m2)} {t.parcels.areaUnit}
+            </span>
           )}
-          <p className={styles.size}>{size}</p>
-        </div>
+          <span>{g.trees(parcel.activeTreeCount)}</span>
+        </p>
         {(parcel.urgentFindings > 0 || badge) && (
           <div className={styles.badges}>
             {parcel.urgentFindings > 0 && (
@@ -114,7 +118,6 @@ function GardenRow({
                 <strong data-testid="last-visit">{formatDate(parcel.lastVisit!.time)}</strong>
               </p>
             </div>
-            <DistributionBar distribution={parcel.distribution!} />
             <ClassCounts distribution={parcel.distribution!} />
           </>
         ) : (
@@ -130,16 +133,14 @@ function GardenRow({
         variant={primary ? "primary" : "secondary"}
         href={`/portal/parsel/${parcel.id}`}
         className={styles.open}
-        block
       >
         {g.open}
-        <IconChevronRight size={18} />
       </ButtonLink>
     </li>
   );
 }
 
-// The numbers behind the bar, in words: the colour is never the only signal.
+// The numbers behind the plate, in words: the colour is never the only signal.
 function ClassCounts({ distribution }: { distribution: Distribution }): ReactNode {
   const shown = LEGEND.filter((c) => distribution[c] > 0);
   if (shown.length === 0) return null;
