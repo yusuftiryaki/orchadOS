@@ -66,7 +66,9 @@ jobs:
       TARGET: ${{ (inputs.project == 'demo' && vars.DEMO_HOST != 'test') && 'demo' || 'test' }}
       SHARED: ${{ inputs.project == 'demo' && vars.DEMO_HOST == 'test' }}
       ACTION: ${{ inputs.action }}
-      BUILD_DIR: services/pipeline/.demo-build/v1-full
+      # One folder for the build, downloaded or made here, whatever the dataset version:
+      # the size check, the artifact and the load all read it (demo build --out).
+      BUILD_DIR: services/pipeline/.demo-build/workflow-full
     steps:
       # The target's own secrets only: the names are string literals, so a missing
       # DEMO_ secret is empty and never falls back to test. Only DEMO_HOST=test (a
@@ -171,7 +173,7 @@ jobs:
       - name: Build the synthetic media (full profile)
         if: steps.guard.outputs.ready == 'true' && inputs.action == 'load' && inputs.reuse_build_run_id == ''
         working-directory: services/pipeline
-        run: uv run orchados-pipeline demo build --profile full
+        run: uv run orchados-pipeline demo build --profile full --out "$GITHUB_WORKSPACE/$BUILD_DIR"
 
       - name: Size limit (150 MB)
         if: steps.guard.outputs.ready == 'true' && inputs.action == 'load'
@@ -191,6 +193,7 @@ jobs:
           path: ${{ env.BUILD_DIR }}
           retention-days: 30
           include-hidden-files: true
+          if-no-files-found: error
 
       - name: Load
         if: steps.guard.outputs.ready == 'true' && inputs.action == 'load'

@@ -136,16 +136,23 @@ def test_only_the_code_version_is_loaded():
 class FakePsql:
     target = "local"
 
-    def __init__(self, existing: list[str] | None = None):
+    def __init__(self, existing: list[str] | None = None, referenced: list[str] | None = None):
         self.sql: list[str] = []
         self.existing = existing or []
+        self.referenced = referenced or []
 
     def run(self, sql: str, single: bool = True) -> str:
         self.sql.append(sql)
         return ""
 
     def query(self, sql: str) -> list[str]:
-        return list(self.existing)
+        if "storage.objects" in sql:
+            return list(self.existing)
+        return list(self.referenced)
+
+
+def _refs(manifest: dict) -> list[str]:
+    return [loader._key(f) for f in manifest["files"]]
 
 
 class Boom(RuntimeError):
@@ -156,7 +163,7 @@ def test_corrupted_file_is_refused_before_the_persona_is_unlocked(copy, monkeypa
     root, manifest = copy
     victim = root / "files" / manifest["files"][0]["sha256"]
     victim.write_bytes(b"not the synthetic image")
-    db = FakePsql()
+    db = FakePsql(referenced=_refs(manifest))
     monkeypatch.setattr(loader, "SupabaseClient", _no_client)
     with pytest.raises(loader.LoadError, match="do not hash"):
         loader.upload_media(db, ENV, root, manifest, True, loader.LoadReport(), lambda _m: None)
@@ -165,7 +172,7 @@ def test_corrupted_file_is_refused_before_the_persona_is_unlocked(copy, monkeypa
 
 def test_unlock_bumps_updated_at_and_finally_relocks(built, monkeypatch):
     root, manifest = built
-    db = FakePsql()
+    db = FakePsql(referenced=_refs(manifest))
     monkeypatch.setattr(loader, "SupabaseClient", _no_client)
     with pytest.raises(Boom):
         loader.upload_media(db, ENV, root, manifest, True, loader.LoadReport(), lambda _m: None)
@@ -177,7 +184,9 @@ def test_unlock_bumps_updated_at_and_finally_relocks(built, monkeypatch):
 def test_nothing_to_upload_still_leaves_the_lock_to_load_demo(built):
     root, manifest = built
     keys = [loader._key(f) for f in manifest["files"]]
-    db = FakePsql([f"media:{k}" for k in keys] + [f"{loader.MIRROR}:{k}" for k in keys])
+    db = FakePsql(
+        [f"media:{k}" for k in keys] + [f"{loader.MIRROR}:{k}" for k in keys], referenced=keys
+    )
     loader.upload_media(db, ENV, root, manifest, True, loader.LoadReport(), lambda _m: None)
     assert db.sql == []
     loader.relock_ops(db)
@@ -241,3 +250,78 @@ def test_generator_hash_covers_the_core_pipeline_and_params(monkeypatch):
     before = demo_build.generator_hash()
     monkeypatch.setattr(demo_build, "params_hash", lambda: "changed")
     assert demo_build.generator_hash() != before
+
+
+# --- upgrades: earlier media stay addressable, other bytes only on a hosted upgrade ----
+
+V2_KEYS = Path(__file__).parent / "data" / "demo_v2_media_keys.txt"
+
+
+def test_every_media_file_of_version_2_is_still_built(built):
+    """Versions are cumulative (docs/demo-turu.md §10.3): every media file of version 2
+    (its key, which names the asset row) is still in the build, so a version 2 target
+    only gains files. Keys come from the dataset, not from rendering: unlike bytes,
+    they are the same on every CPU."""
+    _root, manifest = built
+    keys = {f["key"] for f in manifest["files"]}
+    v2 = set(V2_KEYS.read_text(encoding="utf-8").split())
+    assert len(v2) == 524
+    assert v2 <= keys, sorted(v2 - keys)[:5]
+
+
+@pytest.mark.parametrize(
+    ("target", "row", "ok"),
+    [
+        ("remote", {"dataset_version": dataset.DATASET_VERSION - 1, "loaded_at": "x"}, True),
+        ("remote", {"dataset_version": 1, "loaded_at": "x"}, True),
+        # a rerun after such an upgrade: no build reproduces the superseded bytes
+        ("remote", {"dataset_version": dataset.DATASET_VERSION, "loaded_at": "x"}, True),
+        ("remote", {"dataset_version": dataset.DATASET_VERSION + 1, "loaded_at": "x"}, False),
+        # an interrupted first load, an unregistered target
+        ("remote", {"dataset_version": dataset.DATASET_VERSION - 1, "loaded_at": None}, False),
+        ("remote", None, False),
+        ("remote", {"dataset_version": "2", "loaded_at": "x"}, False),
+        # locally other bytes are always a db:reset
+        ("local", {"dataset_version": dataset.DATASET_VERSION - 1, "loaded_at": "x"}, False),
+    ],
+)
+def test_only_a_completed_hosted_load_may_hold_other_bytes(target, row, ok):
+    assert loader.supersedes(target, row) is ok
+
+
+def test_superseded_build_files_are_not_uploaded(built):
+    """Rows loaded before keep their bytes: this build's other copy is no orphan."""
+    root, manifest = built
+    keys = _refs(manifest)
+    old = keys[0].rsplit("/", 1)[0] + "/" + "0" * 64  # the row's earlier bytes
+    stored = keys[1:] + [old]
+    db = FakePsql(
+        [f"media:{k}" for k in stored] + [f"{loader.MIRROR}:{k}" for k in stored],
+        referenced=stored,
+    )
+    report = loader.LoadReport()
+    loader.upload_media(db, ENV, root, manifest, True, report, lambda _m: None)
+    assert db.sql == []  # nothing to upload: the persona stays locked
+    assert report.superseded == 1 and report.existing == len(keys) - 1
+
+
+def test_a_referenced_object_neither_stored_nor_built_stops_before_unlock(built, monkeypatch):
+    root, manifest = built
+    keys = _refs(manifest)
+    lost = keys[0].rsplit("/", 1)[0] + "/" + "1" * 64  # an interrupted load's build
+    db = FakePsql(referenced=keys + [lost])
+    monkeypatch.setattr(loader, "SupabaseClient", _no_client)
+    with pytest.raises(loader.LoadError, match="reuse_build_run_id"):
+        loader.upload_media(db, ENV, root, manifest, True, loader.LoadReport(), lambda _m: None)
+    assert db.sql == []
+
+
+def test_workflow_builds_measures_keeps_and_loads_one_folder():
+    """The size check, the kept artifact and the load read the folder the build wrote
+    (a version in BUILD_DIR went stale with version 2: no artifact was kept)."""
+    text = WORKFLOW.read_text(encoding="utf-8")
+    build_dir = re.search(r"\n      BUILD_DIR: (\S+)\n", text).group(1)
+    assert not re.search(r"/v\d+-", build_dir), build_dir
+    assert 'demo build --profile full --out "$GITHUB_WORKSPACE/$BUILD_DIR"' in text
+    assert '--build "$GITHUB_WORKSPACE/$BUILD_DIR"' in text
+    assert "if-no-files-found: error" in text

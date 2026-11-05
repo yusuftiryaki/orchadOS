@@ -87,6 +87,10 @@ def test_robot_upgrade_names_each_row_and_is_idempotent():
         strict=True,
     ):
         assert f"where id = '{row}' and " in u and "is distinct from" in u
+    # Version 2 wrote the v1 terms: the upgraded request names the robot addendum, as
+    # a fresh load of version 3 does (verify checks it).
+    terms = f"terms_version = '{dataset.SERVICE_TERMS_VERSION}'"
+    assert terms in updates[3] and "terms_version is distinct from" in updates[3]
     assert not re.search(r"\b(delete|truncate|status)\b", upgrade, flags=re.I)
 
 
