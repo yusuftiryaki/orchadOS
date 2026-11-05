@@ -6738,6 +6738,7 @@ export type Database = {
       };
       receipt_data: { Args: { p_payment_id: string }; Returns: Json };
       record_coverage_report: { Args: { p_report: Json; p_session_id: string }; Returns: Json };
+      record_lidar_measurements: { Args: { p_payload: Json; p_session_id: string }; Returns: Json };
       record_tree_presence: { Args: { p_payload: Json; p_session_id: string }; Returns: Json };
       record_verification_result: {
         Args: {
