@@ -66,6 +66,9 @@
 }
 
 .viewer {
+  /* Holds the overlays (tree panel, overview button) next to PSV's own
+     container, so they stay in fullscreen. */
+  position: relative;
   width: 100%;
   height: 70vh;
   min-height: 360px;
@@ -163,6 +166,91 @@
   color: var(--chrome-solid);
   cursor: pointer;
   white-space: nowrap;
+}
+
+/* The focused tree: a thicker ring, so it stands out among its neighbours. */
+.treeMarker[data-focused="true"] {
+  box-shadow:
+    0 0 0 2px var(--chrome-text),
+    0 0 0 4px var(--chrome-solid);
+}
+
+/* Overlays over the photo, inside the viewer (TourViewer's children). They
+   sit above the PSV navbar (44 px) and use the dark chrome. */
+.treePanel {
+  composes: chrome from "../panorama/panorama.module.css";
+  position: absolute;
+  z-index: 2;
+  left: var(--space-2);
+  bottom: calc(44px + var(--space-2));
+  max-width: calc(100% - 2 * var(--space-2));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  line-height: var(--leading);
+}
+
+.treePanelTitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+}
+
+.treePanelActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.chromeButton,
+.chromeLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--chrome-text) 60%, transparent);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--chrome-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.chromeButton > span[aria-hidden="true"] {
+  font-size: 1.25em;
+  line-height: 1;
+}
+
+.chromeButton:hover,
+.chromeLink:hover {
+  background: color-mix(in srgb, var(--chrome-text) 15%, transparent);
+}
+
+.chromeButton:focus-visible,
+.chromeLink:focus-visible {
+  outline: 2px solid var(--chrome-focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--chrome-focus-edge);
+}
+
+/* Back to the opening zoom, shown once the visitor has zoomed in. */
+.overviewButton {
+  composes: chromeButton;
+  composes: chrome from "../panorama/panorama.module.css";
+  position: absolute;
+  z-index: 2;
+  right: var(--space-2);
+  bottom: calc(44px + var(--space-2));
 }
 
 /* The class dot of ClassDot: dark ring; an empty slot white with a grey ring. */

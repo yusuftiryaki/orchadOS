@@ -1616,7 +1616,17 @@ export const tr = {
       mapHint: "Haritada bir noktaya dokunun: en yakın panorama açılır.",
       viewer: "Panorama",
       arrow: "Bu yöne ilerle",
-      treeMarker: (code: string) => `${code}: ağaç karnesini aç`,
+      treeMarker: (code: string) => `${code}: ağaca yakınlaş`,
+      // The focused tree's marker: a second tap opens the card.
+      treeMarkerCard: (code: string) => `${code}: ağaç karnesini aç`,
+      zoomHint:
+        "Tekerlekle, iki parmakla ya da çift tıklayarak yakınlaştırın. Bir ağaç işaretçisine dokununca görüntü o ağaca yakınlaşır.",
+      overview: "Genel görünüm",
+      treePanel: (code: string) => `${code} ağacı`,
+      treeDistance: (m: number) => `${m} m uzakta`,
+      prevTree: "Soldaki ağaç",
+      nextTree: "Sağdaki ağaç",
+      openCard: "Ağaç karnesi",
       timeTravel: "Bu noktayı başka bir denetimde gör",
       noSameSpot: (date: string) =>
         `${date} denetiminde bu noktada panorama yok; o denetimin en yakın panoraması açıldı.`,
