@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
+  addLidarFixture,
   ASSET,
   createPortalFixture,
   FINDING,
@@ -22,6 +23,13 @@ test.beforeAll(async () => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   await createPortalFixture(admin as never);
+  // LiDAR crown values of S1-1 (PUB, OLD) and S1-2 (PUB).
+  await addLidarFixture(
+    admin as never,
+    createClient(env.url, env.anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    }) as never,
+  );
 });
 test.afterAll(() => purgePortalFixture());
 
@@ -111,6 +119,32 @@ test("owner goes from the garden list to the report card, the map and the tree c
     .toBe(8);
   await expect(photos.locator(`[data-photo-id="${ASSET.cropPubS}"]`)).toContainText("Görüntü yok");
   await expect(photos.locator("[data-visit-id]")).toHaveCount(2);
+
+  // LiDAR: the crown drawn over the crops (PUB with the crown base, OLD
+  // without), none over a missing image; the values also in the table.
+  const guideOf = (assetId: string) =>
+    photos.locator(`[data-photo-id="${assetId}"] [data-testid="crop-guide"]`);
+  const guide = guideOf(ASSET.cropPubN);
+  await expect(guide).toBeVisible();
+  await expect(guide).toHaveAttribute("aria-hidden", "true");
+  await expect(guide).toContainText("Boy 4,4 m");
+  await expect(guide).toContainText("Taç çapı 4,6 m");
+  await expect(guide.locator('[data-guide="base"]')).toHaveCount(1);
+  await expect(guideOf(ASSET.cropOldN)).toContainText("Boy 4,1 m");
+  await expect(guideOf(ASSET.cropOldN).locator('[data-guide="base"]')).toHaveCount(0);
+  await expect(guideOf(ASSET.cropPubS)).toHaveCount(0);
+  const table = card.getByTestId("measurement-history");
+  await expect(table).toContainText("4,4 ± 0,1 m");
+  await expect(table).toContainText("38,2 ± 3 m³");
+  await expect(table).not.toContainText("Taç tabanı");
+  await expect(card).toContainText("Çizim, tarama sırasında ölçülen değerlerden çizilir");
+  const toggle = card.getByTestId("crop-guide-toggle");
+  await expect(toggle).toHaveText("Ölçüleri gizle");
+  await toggle.click();
+  await expect(guide).toBeHidden();
+  await expect(toggle).toHaveText("Ölçüleri göster");
+  await toggle.click();
+  await expect(guide).toBeVisible();
 });
 
 test("class filter and the parcel-level finding on the map", async ({ page }) => {
@@ -165,6 +199,25 @@ test("360° tour opens near the tree and walks to the next panorama", async ({ p
   // Heading 90°, tree at azimuth 225° → yaw 135°.
   expect((yaw * 180) / Math.PI).toBeCloseTo(135, 0);
   await expect(viewer.locator('[data-tree="S1-1"]')).toHaveCount(1);
+
+  // Focusing S1-1: its LiDAR values in the panel and the crown drawn on the
+  // panorama for that tree only.
+  await viewer.locator('[data-tree="S1-1"]').click();
+  const crown = page.getByTestId("tour-tree-crown");
+  await expect(crown).toContainText("Boy4,4 ± 0,1 m");
+  await expect(crown).toContainText("Taç çapı4,6 ± 0,2 m");
+  await expect(crown).toContainText("Taç hacmi38,2 ± 3 m³");
+  await expect
+    .poll(() => markerIds(viewer))
+    .toEqual(
+      expect.arrayContaining(["crown:height", "crown:bracket", "crown:base", "crown:label:height"]),
+    );
+  await expect(viewer.locator('[data-crown-label="height"]')).toHaveText("Boy 4,4 m");
+  await page.getByTestId("tour-tree-close").click();
+  await expect(crown).toHaveCount(0);
+  await expect.poll(() => markerIds(viewer)).not.toContain("crown:height");
+  // Back at the overview before turning the view (the animation would undo it).
+  await expect.poll(() => zoomOf(viewer)).toBeCloseTo(20, 0);
 
   // The arrow to the panorama 8 m east; its image is missing → placeholder.
   await viewer.evaluate((el) =>
@@ -228,6 +281,18 @@ type ViewerEl = HTMLElement & { __viewer: import("@photo-sphere-viewer/core").Vi
 
 function zoomOf(viewer: Locator) {
   return viewer.evaluate((el) => (el as ViewerEl).__viewer.getZoomLevel());
+}
+
+function markerIds(viewer: Locator) {
+  return viewer.evaluate((el) =>
+    (
+      (el as ViewerEl).__viewer.getPlugin(
+        "markers",
+      ) as import("@photo-sphere-viewer/markers-plugin").MarkersPlugin
+    )
+      .getMarkers()
+      .map((m) => m.id),
+  );
 }
 
 function yawOf(viewer: Locator) {

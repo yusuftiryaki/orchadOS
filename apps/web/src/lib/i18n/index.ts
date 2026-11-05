@@ -14,6 +14,29 @@ export function formatNumber(value: number, maximumFractionDigits = 0): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits }).format(value);
 }
 
+// Display unit of a metric's unit code (m3 → m³, count → adet).
+export function formatUnit(unit: string | null | undefined): string {
+  if (!unit) return "";
+  return t.units[unit] ?? unit;
+}
+
+// A measured value with its uncertainty (1σ; left out when null or zero) and
+// unit: "4,4 ± 0,1 m". The uncertainty is never shown smaller than the last
+// digit of the value (0,04 → 0,1).
+export function formatMeasure(
+  value: number,
+  unit: string | null | undefined,
+  uncertainty: number | null = null,
+  digits = 1,
+): string {
+  let text = formatNumber(value, digits);
+  if (uncertainty !== null && Number.isFinite(uncertainty) && uncertainty > 0) {
+    text += ` ± ${formatNumber(Math.max(uncertainty, 10 ** -digits), digits)}`;
+  }
+  const u = formatUnit(unit);
+  return u ? `${text} ${u}` : text;
+}
+
 export function formatDate(iso: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(
     new Date(iso),

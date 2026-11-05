@@ -14,7 +14,14 @@ import {
   prefetchPanoramas,
   webglAvailable,
 } from "@/lib/panorama/runtime";
+import { psvMarkerConfig, type PanoramaMarker } from "@/lib/panorama/markers";
 import { DEFAULT_FOV, FULL_RES_FOV, zoomForFov, type FovRange } from "@/lib/panorama/zoom";
+
+export type {
+  PanoramaLineMarker,
+  PanoramaMarker,
+  PanoramaPointMarker,
+} from "@/lib/panorama/markers";
 
 // One Photo Sphere Viewer for a sequence of panoramas (office tool, portal
 // tour). The viewer is created once and every panorama goes through
@@ -26,15 +33,6 @@ import { DEFAULT_FOV, FULL_RES_FOV, zoomForFov, type FovRange } from "@/lib/pano
 // heading), yaw growing to the right, as in the pipeline's sidecar convention.
 
 const RAD = Math.PI / 180;
-
-export interface PanoramaMarker {
-  id: string;
-  yawDeg: number;
-  pitchDeg: number;
-  html: string;
-  size: number;
-  tooltip?: string;
-}
 
 export interface ShownPanorama {
   id: string;
@@ -278,16 +276,7 @@ export function usePanoramaViewer(options: PanoramaViewerOptions) {
       plugin.clearMarkers();
       return;
     }
-    plugin.setMarkers(
-      markers.map((m) => ({
-        id: m.id,
-        position: { yaw: m.yawDeg * RAD, pitch: m.pitchDeg * RAD },
-        html: m.html,
-        anchor: "center center",
-        size: { width: m.size, height: m.size },
-        ...(m.tooltip ? { tooltip: { content: m.tooltip, position: "top center" } } : {}),
-      })),
-    );
+    plugin.setMarkers(markers.map(psvMarkerConfig));
   }, [viewer, markers, loaded, shown]);
 
   // Download the likely next images once the current one is on screen.

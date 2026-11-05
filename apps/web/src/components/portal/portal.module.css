@@ -201,6 +201,47 @@
   margin: 0;
 }
 
+/* LiDAR crown values of the focused tree (tour-tree-panel.tsx). */
+.crownFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+  margin: 0;
+}
+
+.crownFacts > div {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.crownFacts dt {
+  opacity: 0.8;
+}
+
+.crownFacts dd {
+  margin: 0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* The crown drawing on the panorama (crownGuideMarkers): not interactive, so
+   the tree markers and the drag under it keep working. */
+.crownInert {
+  pointer-events: none;
+}
+
+.crownLabel {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: rgb(0 0 0 / 0.68);
+  color: #fff;
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .treePanelActions {
   display: flex;
   flex-wrap: wrap;
