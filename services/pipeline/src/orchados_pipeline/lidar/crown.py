@@ -14,11 +14,11 @@ trunk position, z height above the per-tree ground plane):
    are pruned higher for harvest). The other points are binned in voxels
    (``voxel_m``); voxels with fewer than ``voxel_min_points`` points (single
    blades, stray returns) are dropped, the rest are joined with
-   26-connectivity. The largest connected cluster that reaches the trunk region
-   (horizontally within ``seed_radius_m`` of the inventory position, below ``seed_max_height_m``) is the tree; everything
-   else (stray returns, fragments of a neighbour's crown that crossed the
-   Voronoi split without touching this crown) is dropped. No cluster near the
-   trunk -> no_points.
+   26-connectivity. The largest connected cluster that reaches the trunk
+   region (horizontally within ``seed_radius_m`` of the inventory position,
+   below ``seed_max_height_m``) is the tree; everything else (stray returns,
+   fragments of a neighbour's crown that crossed the Voronoi split without
+   touching this crown) is dropped. No cluster near the trunk -> no_points.
 
 2. Robust support. All extents use the robust support function
    h(u) = k-th largest of u . p over the points, k = max(``tail_min_points``,
