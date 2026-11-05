@@ -878,9 +878,29 @@ test.describe("3D world", () => {
     expect(Math.abs((await yawDeg(viewer)) - yawBefore)).toBeLessThan(0.5);
 
     // A tree label opens its measurements.
-    const labels = page.getByTestId("world-labels").getByRole("button");
-    await expect(labels.first()).toBeVisible();
-    const label = labels.filter({ hasText: " m" }).first();
+    // The orbit eases out after the drag: wait until the labels stand still.
+    const labelPlaces = () =>
+      page
+        .getByTestId("world-labels")
+        .locator("button")
+        .evaluateAll((els) => els.map((el) => (el as HTMLElement).style.transform).join("|"));
+    await expect
+      .poll(
+        async () => {
+          const before = await labelPlaces();
+          await page.waitForTimeout(300);
+          return before === (await labelPlaces());
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+
+    // Only the labels nearest to the camera are shown; pick a shown one.
+    const label = page
+      .getByTestId("world-labels")
+      .locator("button:visible", { hasText: " m" })
+      .first();
+    await expect(label).toBeVisible();
     const code = (await label.textContent())!.split(" · ")[0];
     await label.click();
     const panel = page.getByTestId("world-tree");

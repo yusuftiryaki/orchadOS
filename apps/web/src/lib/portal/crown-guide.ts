@@ -27,6 +27,11 @@ const RAD = Math.PI / 180;
 export const DEFAULT_CAMERA_HEIGHT_M = 2.0;
 // Without a crown base, the width bracket sits at this share of the height.
 export const BRACKET_FALLBACK_SHARE = 0.55;
+// The tree card's photo frame, width / height (parcel.module.css .photo
+// img: 4 / 3). Here and not in components/portal/crop-guide.tsx: that is a
+// client module, and a server component importing a value from it gets a
+// client reference instead of the number (every x of the drawing was NaN).
+export const CROP_FRAME_ASPECT = 4 / 3;
 // Half length of the end ticks of the height line and the width bracket.
 export const GUIDE_TICK_M = 0.2;
 

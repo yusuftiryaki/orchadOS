@@ -75,7 +75,7 @@ const WAVE_M = 3;
 // Point size in voxels: covers the gaps between neighbouring points.
 const POINT_VOXELS = 1.8;
 // Labels drawn at once (nearest to the camera).
-const MAX_LABELS = 40;
+const MAX_LABELS = 20;
 // Height the label stands at when the tree has no measured height.
 const DEFAULT_TOP_M = 4;
 const NO_DEPTH = 1e6;
