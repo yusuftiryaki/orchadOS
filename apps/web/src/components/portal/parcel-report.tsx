@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel, panelClass } from "@/components/ui/panel";
 import { cell, Table } from "@/components/ui/table";
-import { categoryLabel, formatDate, formatNumber, t } from "@/lib/i18n";
+import { categoryLabel, formatDate, formatMeasure, formatNumber, t } from "@/lib/i18n";
 import type { MarkerState } from "@/lib/map/tree-style";
 import { CLASS_ORDER, distributionTotal, type Distribution } from "@/lib/portal/classes";
 import { approverLine } from "@/lib/portal/approver";
@@ -746,18 +746,16 @@ function Metrics({ metrics }: { metrics: MetricSummaryRow[] }) {
 function MetricSummaryText({ metric }: { metric: MetricSummaryRow }) {
   const s = metric.summary;
   switch (s.type) {
-    case "numeric": {
-      const unit = s.unit ? ` ${s.unit}` : "";
+    case "numeric":
       return (
         <>
           {r.metricMean(
-            formatNumber(s.mean, 1) + unit,
-            formatNumber(s.min, 1) + unit,
-            formatNumber(s.max, 1) + unit,
+            formatMeasure(s.mean, s.unit),
+            formatMeasure(s.min, s.unit),
+            formatMeasure(s.max, s.unit),
           )}
         </>
       );
-    }
     case "scale":
     case "category":
       return (

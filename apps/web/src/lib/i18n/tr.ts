@@ -1572,6 +1572,14 @@ export const tr = {
       photosHint:
         "Her denetimde ağaç aynı yönlerden çekilir; satırlar denetimler, sütunlar yönler.",
       noPhotos: "Bu ağacın fotoğrafı yok.",
+      // LiDAR crown drawing over the crop photos (and the tour).
+      guide: {
+        show: "Ölçüleri göster",
+        hide: "Ölçüleri gizle",
+        caption: "Çizim, tarama sırasında ölçülen değerlerden çizilir; yaklaşıktır.",
+        height: (value: string) => `Boy ${value}`,
+        width: (value: string) => `Taç çapı ${value}`,
+      },
       closeUps: "Yakın plan",
       photoMissing: "Görüntü yok",
       hash: (short: string) => `Parmak izi ${short}`,
@@ -1624,6 +1632,11 @@ export const tr = {
       overview: "Genel görünüm",
       treePanel: (code: string) => `${code} ağacı`,
       treeDistance: (m: number) => `${m} m uzakta`,
+      // The focused tree's LiDAR crown values in the visit on screen.
+      crown: "Tarama ölçümleri",
+      crownHeight: "Boy",
+      crownDiameter: "Taç çapı",
+      crownVolume: "Taç hacmi",
       prevTree: "Soldaki ağaç",
       nextTree: "Sağdaki ağaç",
       openCard: "Ağaç karnesi",
@@ -2060,6 +2073,15 @@ export const tr = {
     generated: (date: string) => `Oluşturma: ${date}`,
     page: (n: number, total: number) => `Sayfa ${n} / ${total}`,
   },
+  // Display units of metric_definition.unit codes; codes not listed are shown
+  // as they are, an empty text shows no unit.
+  units: {
+    m2: "m²",
+    m3: "m³",
+    count: "adet",
+    degC: "°C",
+    ratio: "",
+  } as Record<string, string>,
   // Category values of the metric registry (docs/metodoloji.md, Ek B).
   metricCategories: {
     done: "Yapılmış",

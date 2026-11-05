@@ -1,4 +1,5 @@
--- LiDAR measurements (20261107300000_lidar_measurements): the new metrics and
+-- LiDAR measurements (20261107300000_lidar_measurements, owner display in
+-- 20261107400000_lidar_owner_display): the new metrics and
 -- record_lidar_measurements() of the pipeline (ops): crown, skeleton and pruning
 -- stage results as algorithm measurements, idempotent for one run, a new method
 -- version adds its own rows; only ops writes, never a demo visitor.
@@ -6,7 +7,7 @@
 -- S8-9 is a lost tree.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(28);
 
 create function pg_temp.as_user(p_id text) returns void language sql
 as $$ select set_config('request.jwt.claims', json_build_object('sub', p_id, 'role', 'authenticated')::text, true) $$;
@@ -51,16 +52,24 @@ select results_eq(
             card_visibility::text, array_to_string(subject_kinds, ',')
      from public.metric_definition
      where code in ('tree_height', 'size_class', 'wood_volume', 'pruned_wood_volume',
-                    'pruned_wood_fraction', 'pruning_cut_count')
+                    'pruned_wood_fraction', 'pruning_cut_count', 'crown_base_height')
        and id = md5('orchados-seed:metric:' || code)::uuid
      order by code $$,
-  $$ values ('pruned_wood_fraction', 'ratio', 'numeric', 'winter', 'under_evaluation', 'tree'),
+  $$ values ('crown_base_height', 'm', 'numeric', 'winter,spring,summer,harvest', 'hidden', 'tree'),
+            ('pruned_wood_fraction', 'ratio', 'numeric', 'winter', 'under_evaluation', 'tree'),
             ('pruned_wood_volume', 'm3', 'numeric', 'winter', 'under_evaluation', 'tree'),
-            ('pruning_cut_count', 'count', 'numeric', 'winter', 'under_evaluation', 'tree'),
+            ('pruning_cut_count', 'count', 'numeric', 'winter', 'shown', 'tree'),
             ('size_class', '-', 'category', 'winter,spring,summer,harvest', 'hidden', 'tree'),
-            ('tree_height', 'm', 'numeric', 'winter,spring,summer,harvest', 'under_evaluation', 'tree'),
+            ('tree_height', 'm', 'numeric', 'winter,spring,summer,harvest', 'shown', 'tree'),
             ('wood_volume', 'm3', 'numeric', 'winter', 'hidden', 'tree') $$,
   'the LiDAR metrics are registered with the seed id rule');
+select results_eq(
+  $$ select code, card_visibility::text from public.metric_definition
+     where code in ('crown_diameter', 'crown_volume', 'scaffold_branch_count', 'pruning_status')
+     order by code $$,
+  $$ values ('crown_diameter', 'shown'), ('crown_volume', 'shown'),
+            ('pruning_status', 'shown'), ('scaffold_branch_count', 'shown') $$,
+  'owner display: the other crown and pruning card metrics are shown');
 select is((select array_to_string(categories, ',') from public.metric_definition where code = 'size_class'),
   'sapling,young,productive,old', 'size_class: the age_class codes without unknown');
 
@@ -164,6 +173,9 @@ select throws_ok(
   $$ select pg_temp.record(pg_temp.item(pg_temp.tree('S1-3'), 'tree_height', 2.0) - 'method_version') $$,
   '22023', 'invalid_input', 'without a method version: refused');
 
+select is(pg_temp.record(pg_temp.item(pg_temp.tree('S1-3'), 'crown_base_height', 0.8))->>'created', '1',
+  'the crown stage records the crown base height (drawing on photos and in the tour)');
+
 -- Who sees it ---------------------------------------------------------------------------
 
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
@@ -171,7 +183,7 @@ select is((select count(*)::int from public.measurement
            where session_id = 'e7800000-0000-4000-8000-000000000001'), 0, 'owners do not see it before publication');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000004');
 select is((select count(*)::int from public.measurement
-           where session_id = 'e7800000-0000-4000-8000-000000000001'), 9, 'the expert sees the results');
+           where session_id = 'e7800000-0000-4000-8000-000000000001'), 10, 'the expert sees the results');
 
 select * from finish();
 rollback;

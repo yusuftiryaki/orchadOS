@@ -147,7 +147,9 @@ select set_eq(
         'weed_height',
         -- LiDAR measurements (20261107300000_lidar_measurements).
         'tree_height', 'size_class', 'wood_volume', 'pruned_wood_volume', 'pruned_wood_fraction',
-        'pruning_cut_count'],
+        'pruning_cut_count',
+        -- Crown base for the owner's drawing (20261107400000_lidar_owner_display).
+        'crown_base_height'],
   'migrations register the metrics from docs/metodoloji.md (Ek B), docs/veri-modeli.md and the field questions'
 );
 

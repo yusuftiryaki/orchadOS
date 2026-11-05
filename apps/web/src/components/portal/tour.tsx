@@ -4,11 +4,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { signTourImagesAction } from "@/app/portal/parsel/[parcelId]/gezi/actions";
 import { DemoNotice } from "@/components/demo/demo-notice";
-import { formatDate, t } from "@/lib/i18n";
+import { formatDate, formatMeasure, t } from "@/lib/i18n";
 import { demoText } from "@/lib/i18n/messages/demo";
 import type { Position } from "@/lib/map/geo";
 import { MARKER_COLORS } from "@/lib/map/tree-style";
 import { adjacentTree } from "@/lib/panorama/zoom";
+import {
+  crownGuide,
+  crownGuideMarkers,
+  DEFAULT_CAMERA_HEIGHT_M,
+  panoramaGuide,
+} from "@/lib/portal/crown-guide";
 import type { TourData } from "@/lib/portal/data";
 import {
   distanceM,
@@ -52,6 +58,8 @@ import styles from "./portal.module.css";
 // panel over the photo shows its class, the trees beside it and its tree
 // card. Walking to another panorama returns to the overview zoom; time
 // travel keeps the zoom and the focused tree, to compare the same tree.
+// When the visit on screen measured the focused tree's crown (LiDAR), the
+// panel lists the values and the panorama shows them drawn on the tree.
 
 const tt = t.portal.tour;
 // PortalMap rebuilds the whole map when `findings` changes identity, and its
@@ -159,6 +167,27 @@ export function Tour({
     [data.trees, current],
   );
   const focused = trees.find((m) => m.tree.id === focus.treeId) ?? null;
+  // The focused tree's crown values in the visit on screen (time travel
+  // switches to that visit's values, or none).
+  const tourVisit = visits[visitIndex] ?? null;
+  const crown = (focused && tourVisit?.crowns[focused.tree.id]) || null;
+  const crownMarkers = useMemo<TourMarker[]>(() => {
+    const guide = crownGuide(crown);
+    if (!guide || !focused) return [];
+    const drawn = panoramaGuide(
+      guide,
+      current,
+      focused.tree.position,
+      tourVisit?.cameraHeightM ?? DEFAULT_CAMERA_HEIGHT_M,
+    );
+    if (!drawn) return [];
+    return crownGuideMarkers(drawn, {
+      heightText: t.portal.tree.guide.height(formatMeasure(guide.topM, "m")),
+      widthText: t.portal.tree.guide.width(formatMeasure(guide.widthM, "m")),
+      inertClass: styles.crownInert,
+      labelClass: styles.crownLabel,
+    });
+  }, [crown, focused, current, tourVisit]);
 
   const markers = useMemo<TourMarker[]>(() => {
     const arrows = neighbours.map((n) => ({
@@ -182,8 +211,9 @@ export function Tour({
         size: 28,
       };
     });
-    return [...arrows, ...treeIcons];
-  }, [neighbours, trees, focus.treeId]);
+    // The crown drawing under the markers, so they stay clickable.
+    return [...crownMarkers, ...arrows, ...treeIcons];
+  }, [neighbours, trees, focus.treeId, crownMarkers]);
 
   // Preload towards where the visitor looks (in 45° steps, not every frame).
   const viewSector = Math.round(viewYaw / 45) * 45;
@@ -362,6 +392,7 @@ export function Tour({
                 <TourTreePanel
                   tree={focused.tree}
                   distanceM={focused.distanceM}
+                  crown={crown}
                   href={treeHref(focused.tree.id)}
                   canStep={trees.length > 1}
                   onStep={stepTree}

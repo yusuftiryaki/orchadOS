@@ -90,7 +90,8 @@ Her ürün, hangi ham kayıttan ve hangi hat sürümüyle üretildiğini bilir. 
 | `dead_branch_scale` | 0–3 | personel sorusu, AI görsel, uzman | Tümü | Evet |
 | `crown_diameter` | m | LiDAR (`lidar_crown`), fotogrametri | Yapraklı | Evet |
 | `crown_volume` | m³ | LiDAR (`lidar_crown`, dışbükey zarf) | Yapraklı | Evet |
-| `tree_height` | m | LiDAR (`lidar_crown`) | Tümü | Değerlendirilecek |
+| `tree_height` | m | LiDAR (`lidar_crown`) | Tümü | Evet |
+| `crown_base_height` | m | LiDAR (`lidar_crown`) | Tümü | Hayır (portalda taç çizimi için) |
 | `size_class` | fidan / genç / verimli / yaşlı | LiDAR önerisi (`lidar_crown`, taç çapından) | Yapraklı | Hayır (ofis ve uzman için öneri) |
 | `trunk_diameter_h30` | cm | şerit metre, LiDAR silindir uydurma | Tümü | Evet |
 | `scaffold_branch_count` | adet | uzman gözlemi, QSM (`lidar_qsm`) | Kış | Evet |
@@ -98,7 +99,7 @@ Her ürün, hangi ham kayıttan ve hangi hat sürümüyle üretildiğini bilir. 
 | `wood_volume` | m³ | QSM (`lidar_qsm`) | Kış | Hayır (araştırma) |
 | `pruned_wood_volume` | m³ | iki kış taramasının farkı (`lidar_pruning`) | Kış | Değerlendirilecek (araştırma) |
 | `pruned_wood_fraction` | oran | iki kış taramasının farkı (`lidar_pruning`) | Kış | Değerlendirilecek (araştırma) |
-| `pruning_cut_count` | adet | iki kış taramasının farkı (`lidar_pruning`) | Kış | Değerlendirilecek (araştırma) |
+| `pruning_cut_count` | adet | iki kış taramasının farkı (`lidar_pruning`) | Kış | Evet |
 | `fruit_load_scale` | 0–3 | personel, AI görsel, uzman | Yaz | Evet |
 | `canopy_temp_delta` | °C | termal | Yaz | Değerlendirilecek |
 | `weed_height` | kısa / orta / uzun (parsel) | personel sorusu | İlkbahar, yaz | Evet |
