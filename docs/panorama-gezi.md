@@ -10,11 +10,13 @@ Panorama biçimi ve yön kuralı için kaynak `services/pipeline/README.md` ("Pa
 
 | Bileşen | Dosya | Görevi |
 | --- | --- | --- |
-| Ortak kanca | `src/components/panorama/use-panorama-viewer.ts` | Photo Sphere Viewer'ı (PSV) bir kez kurar; her panoramayı `setPanorama` ile açar; görüntüyü önce PSV önbelleğine indirir; yakınlaştırınca tam çözünürlüğe geçer; işaretçileri yalnızca gösterilen panoramaya koyar; komşu görüntüleri önceden indirir; klavyeyi yalnızca odakta açar; kapanınca WebGL bağlamını serbest bırakır |
-| Çalışma zamanı | `src/lib/panorama/runtime.ts` | PSV'nin tek seferlik tembel yüklemesi; `fetchPanorama` (PSV önbelleğine indirme, eşzamanlı istekleri birleştirme); `destroyViewer` (`destroy` + `forceContextLoss`); WebGL denetimi; araç çubuğu düğmelerine rol ve ad |
+| Ortak kanca | `src/components/panorama/use-panorama-viewer.ts` | Photo Sphere Viewer'ı (PSV) bir kez kurar; her panoramayı `setPanorama` ile açar; görüntüyü önce PSV önbelleğine indirir; yakınlaştırınca tam çözünürlüğe geçer; görüş alanı aralığı çağırana göre ayarlanır (gezi 10–90°, ofis PSV'nin 30–90°'si); yeni panoramayı istenen yakınlaştırmayla açar; işaretçileri yalnızca gösterilen panoramaya koyar; komşu görüntüleri önceden indirir; klavyeyi yalnızca odakta açar; kapanınca WebGL bağlamını serbest bırakır |
+| Çalışma zamanı | `src/lib/panorama/runtime.ts` | PSV'nin tek seferlik tembel yüklemesi; `fetchPanorama` (PSV önbelleğine indirme, eşzamanlı istekleri birleştirme); `destroyViewer` (`destroy` + `forceContextLoss`); WebGL denetimi; araç çubuğu düğmelerine rol ve ad; `animateView` (kısa dönüş ve yakınlaştırma, az hareket tercihinde anında) |
 | Ortak görünüm | `src/components/panorama/panorama.module.css` | Odak çerçevesi, 44 px araç çubuğu, yükleniyor ve hata notları. Renkler `var(--token, yedek)` biçiminde; tasarım sistemi (`claude/ui-temel`) bu dosyaya dokunmadan tema verebilir |
 | Ofis görüntüleyicisi | `src/components/office/panorama-viewer.tsx` | Üçgenleme aracında iki yuva, uzman onayında bir yuva. Tıklama gövde ışını üretir |
-| Gezi görüntüleyicisi | `src/components/portal/tour-viewer.tsx` | Gezideki tek görüntüleyici; ok ve ağaç işaretçileri, bakış yönü bildirimi |
+| Gezi görüntüleyicisi | `src/components/portal/tour-viewer.tsx` | Gezideki tek görüntüleyici; ok ve ağaç işaretçileri, bakış yönü bildirimi; ağaca odaklanma, çift tıklamayla yakınlaştırma, "Genel görünüm" düğmesi; görüntünün üstündeki katmanlar (tam ekranda da görünür) |
+| Ağaç paneli | `src/components/portal/tour-tree-panel.tsx` | Odaklanılan ağacın kodu, sınıfı ve uzaklığı; soldaki ve sağdaki ağaç, ağaç karnesi, genel görünüm |
+| Yakınlaştırma hesabı (saf) | `src/lib/panorama/zoom.ts` | Yakınlaştırma düzeyi ile görüş alanı arasında çeviri; ağacı çerçeveleyen yakınlaştırma; çift tıklama adımı; soldaki ve sağdaki ağaç |
 | Gezi | `src/components/portal/tour.tsx` | Durum: hangi panorama, hangi ziyaret, imzalı adresler, yeniden deneme, adres çubuğu, adım düğmeleri, harita |
 | Gezi mantığı (saf) | `src/lib/portal/tour-view.ts`, `src/lib/portal/tour.ts` | Açılış noktası, komşular (oklar), imzalanacak ve önceden indirilecek görüntüler, görüntü seçimi ve geri düşüş, pusula yönü, adres |
 | İlk imza | `src/lib/portal/tour-sign.ts`, `src/app/portal/parsel/[parcelId]/gezi/page.tsx` | Sayfa, açılış panoramasının görüntülerini ve komşularının önizlemelerini sunucuda imzalar; gezi bir sunucu turu beklemeden yüklemeye başlar |
@@ -37,7 +39,7 @@ Uzman ve ops portal gezisini açamaz ("Bu bölüme erişiminiz yok"). Başka bir
 ### 1.3 Görüntü yükleme
 
 1. **Gezi açılışı:** Sayfa açılış panoramasını bulur. Önce `?panorama=`, sonra `?agac=`'ya en yakın panorama (ağaca dönük açılır), yoksa en yeni ziyaretin ilk panoraması. Sayfa bu panoramanın önizleme ve tam görüntüsünü, komşularının da önizlemelerini tek çağrıda imzalar. Demo ziyaretçisinde bu çağrı da `demo_hit('sign')` sayacına yazılır.
-2. **Önce önizleme:** Görüntüleyici 2K önizlemeyle açılır. Yakınlaştırma 55'i geçince 4K tam görüntüye geçer; bakış ve yakınlaştırma korunur. Önizleme yoksa doğrudan tam görüntüyle açılır.
+2. **Önce önizleme:** Görüntüleyici 2K önizlemeyle açılır. Görüş alanı 57°'nin altına inince 4K tam görüntüye geçer (ofiste yakınlaştırma 55, gezide yaklaşık 41); bakış ve yakınlaştırma korunur. Önizleme yoksa doğrudan tam görüntüyle açılır.
 3. **İndirme PSV'nin dışında:** Görüntü `fetch` ile indirilir ve PSV'nin önbelleğine (`Cache`, URL anahtarlı, en çok 10 panorama) konur. `setPanorama` yalnızca çözer. Sebebi şu: PSV her `setPanorama` çağrısında kendi yükleyicisinin bütün isteklerini iptal eder. Önceden indirmeler o yükleyiciyle yapılsaydı her geçişte iptal olurdu. Ayrıca başarısız bir indirme PSV'ye hiç ulaşmaz, PSV'nin İngilizce hata kutusu çıkmaz.
 4. **Önceden indirme:** Gösterilen panorama ekrana gelince bakış yönüne en yakın üç komşunun açılış görüntüsü indirilir. Bakış 45°'lik dilimlerle izlenir, her karede yeniden hesaplanmaz.
 5. **İmza tazeleme:** İmzalı URL 15 dakika yaşar (`SIGNED_URL_TTL_S`). Gezi 10 dakikadan eski adresleri yürürken yeniden imzalar. Aynı türden yeni bir URL, gösterilen panoramayı yeniden yüklemez.
@@ -52,9 +54,13 @@ Uzman ve ops portal gezisini açamaz ("Bu bölüme erişiminiz yok"). Başka bir
 - **Haritadan atlama:** Haritada bir noktaya dokunmak en yakın panoramayı açar ve o noktaya döner.
 - **Zaman yolculuğu:** Ziyaret seçimi, öteki ziyarette aynı noktayı (15 m içinde) aynı bakış yönüyle açar. Aynı nokta yoksa en yakın panorama açılır ve bunu söyleyen bir not çıkar.
 - **Adres:** Ziyaretçi ilk kez yürüyünce adres çubuğu `?panorama=<kimlik>` olur (`replaceState`). Böylece yenileme, paylaşılan bağlantı ve ağaç karnesinden tarayıcının Geri düğmesi aynı panoramaya döner. `?agac=` düşer, `?tur=` (rehberli demo turu) korunur. Açılışta adres değişmez. Her adım geçmişe ayrı bir kayıt eklemez; Geri düğmesi gezinin önceki sayfasına gider.
-- **İşaretçiler:** Ağaç işaretçisi (en çok 24 ağaç, 14 m içinde) ağaç karnesini açar. Ağaç kodu HTML olarak kaçışlanır.
-- **Yakınlaştırma, tam ekran, klavye:** Araç çubuğunda yakınlaştırma, dört yön ve tam ekran bulunur; etiketleri Türkçedir, düğmelerin rolü ve adı vardır. Görüntüleyici sekmeyle odaklanır. Odaktayken ok tuşları çevirir, PageUp/PageDown ve +/− yakınlaştırır. Odak başka yerdeyken ok tuşları haritaya, rehberli tura ve formlara kalır.
-- **Telefon:** Tek parmak sürükleyerek çevirir, iki parmak yakınlaştırır. Jiroskopla bakma yoktur. Görüntüleyici 390 px genişlikte yatay kaydırma yaratmaz.
+- **İşaretçiler:** Ağaç işaretçisi (en çok 24 ağaç, 14 m içinde) o ağaca odaklanır (aşağıda). Odaklanılan ağacın işaretçisine yeniden dokunmak ağaç karnesini açar. Ağaç kodu HTML olarak kaçışlanır.
+- **Ağaca odaklanma:** Görüntü kısa bir animasyonla ağaca döner ve tacı (4 m varsayılır) görüntü yüksekliğinin yaklaşık %90'ını dolduracak kadar yakınlaşır: uzaktaki ağaca daha çok, yakındakine daha az. Yakınlaştırma açılış düzeyinin altına inmez. Görüntünün sol altında bir panel çıkar: ağacın kodu, sınıfı ve uzaklığı; "Soldaki ağaç" ve "Sağdaki ağaç" (panoramadaki ağaçlar soldan sağa, uçlarda başa sarar); "Ağaç karnesi"; "Genel görünüm". Odaklanılan ağacın işaretçisi kalın halkayla belirir. Escape ya da "Genel görünüm" açılış yakınlaştırmasına döner ve paneli kapatır. Az hareket tercihinde (`prefers-reduced-motion`) dönüş ve yakınlaştırma anında olur.
+- **Yakınlaştırma:** Gezi PSV'nin varsayılanından daha yakına izin verir: görüş alanı 90°'den 10°'ye kadar daralır (`TOUR_FOV`). Böylece tam görüntüde tek bir dal seçilebilir. Tekerlek, iki parmak, araç çubuğu ve klavye yakınlaştırır; çift tıklama (telefonda çift dokunma) tıklanan noktaya döner ve bir adım (30) yakınlaşır, en yakında açılış düzeyine döner. Açılış düzeyinin belirgin ötesine yakınlaşınca sağ altta "Genel görünüm" düğmesi çıkar. Görüntünün altındaki kısa not bu yolları anlatır.
+- **Yürürken ve zaman yolculuğunda yakınlaştırma:** Başka bir panoramaya yürümek (ok, adım düğmesi, harita) açılış yakınlaştırmasına döner ve ağaç odağını kaldırır. Zaman yolculuğu yakınlaştırmayı ve odaklanılan ağacı korur; aynı ağaç başka bir yılda aynı yakınlıkta karşılaştırılır.
+- **Tam ekran:** Panel ve "Genel görünüm" düğmesi görüntüleyici öğesinin içindedir; tam ekranda da görünür.
+- **Yakınlaştırma, tam ekran, klavye:** Araç çubuğunda yakınlaştırma, dört yön ve tam ekran bulunur; etiketleri Türkçedir, düğmelerin rolü ve adı vardır. Görüntüleyici sekmeyle odaklanır. Odaktayken ok tuşları çevirir, PageUp/PageDown ve +/− yakınlaştırır, Escape ağaç odağından çıkar. Odak başka yerdeyken ok tuşları haritaya, rehberli tura ve formlara kalır.
+- **Telefon:** Tek parmak sürükleyerek çevirir, iki parmak yakınlaştırır, çift dokunma bir adım yakınlaşır. Paneldeki düğmeler 44 px'tir. Jiroskopla bakma yoktur. Görüntüleyici 390 px genişlikte yatay kaydırma yaratmaz.
 
 ### 1.5 Kaynak yönetimi
 
@@ -72,6 +78,7 @@ Birim testleri (Vitest) saf mantığı sınar. Tarayıcı testleri (Playwright) 
 | Dosya | Kapsam |
 | --- | --- |
 | `src/lib/portal/tour-view.test.ts` | Açılış noktası (`?panorama=` başka ziyarette, `?agac=` yönü, bilinmeyen kimlik); komşular ve sıra boyunca yürüme; pusula yönleri; imzalanacak kimlikler; eskimiş URL; görüntü seçimi ve geri düşüş (önizleme → tam → yer tutucu, bekleme); önceden indirme sırası; adres; HTML kaçışlama |
+| `src/lib/panorama/zoom.test.ts` | Yakınlaştırma ile görüş alanı arasında çeviri, tam çözünürlük eşiği, ağacı çerçeveleyen yakınlaştırma (uzaklığa göre, açılış düzeyinin altına inmez), çift tıklama adımı, soldaki ve sağdaki ağaç |
 | `src/lib/panorama/runtime.test.ts` | Önbelleğe indirme, eşzamanlı isteklerin birleşmesi, HTTP ve ağ hataları, yeniden deneme, üretilmiş görüntüler, önceden indirme hatalarının yutulması, bağlam serbest bırakma (`destroy` hata verse de), iptal tanıma |
 | `src/lib/portal/tour-time.test.ts`, `portal.test.ts` ("tour geometry") | Yaw ve pitch hesabı, en yakın panorama, komşular, ağaç işaretçileri, zaman yolculuğu, görüş kaması |
 | `src/lib/office/panoramas.test.ts` | Ofis adresleri, varyantlar, en yakın panorama çifti |
@@ -86,7 +93,7 @@ Birim testleri (Vitest) saf mantığı sınar. Tarayıcı testleri (Playwright) 
 | Klavye: odak dışındayken ok tuşu çevirmez, odaktayken çevirir; PageUp yakınlaştırır | aynı |
 | Yakınlaştırma tam çözünürlüğü yükler; tam ekran açılır ve kapanır | aynı |
 | Adım düğmesi ve ok işaretçisi yürütür, adres `?panorama=` olur | aynı |
-| Ağaç işaretçisi ağaç karnesini açar; Geri aynı panoramaya döner; İleri ve Geri; yenileme (derin bağlantı) | aynı |
+| Ağaç işaretçisi ağaca yakınlaşır, paneli ağaç karnesini açar; Geri aynı panoramaya döner; İleri ve Geri; yenileme (derin bağlantı) | aynı |
 | Eski ziyaret için derin bağlantı; zaman yolculuğu; bilinmeyen kimlik en yeni ziyareti açar | › a deep link opens an older visit… |
 | Geçici hata yeniden denenir; bütün görüntüler 404 olunca yer tutucu ve not çıkar, PSV hata kutusu çıkmaz; bağlantı dönünce sonraki panorama gerçek görüntüyle açılır; yakınlaştırmada tam görüntü hatası önizlemeyi korur; iptal edilen istekler; yavaş görüntüde yükleniyor notu ve `aria-busy`; yavaş imzada önceki görüntü kalır | › missing, refused and slow images… |
 | 24 panorama boyunca tek bağlam, doku sayısı sabit; gezi ile karne arasında 6 gidiş dönüşten sonra canlı WebGL bağlamı artmaz; "Too many active WebGL contexts" uyarısı yoktur | › walking through 24 panoramas… |
@@ -94,7 +101,7 @@ Birim testleri (Vitest) saf mantığı sınar. Tarayıcı testleri (Playwright) 
 | Roller: ops ve uzman erişemez, müşteri ve başka org'un sahibi 404 alır | › the tour opens for the parcel's readers only |
 | Telefon (390 px, dokunmatik): tek parmak çevirir, iki parmak yakınlaştırır, adım düğmeleri ≥ 44 px ve ekrana sığar, dokununca yürür, yatay kaydırma olmaz | › 360° tour on a phone |
 | Rehberli demo turunun gezi adımı (gerçek ayna görüntüleri, sınırda yer tutucu ve not) | `demo-tour.spec.ts` (mevcut) |
-| Sahip portalı: ağaca dönük açılış, önizleme → tam, yer tutucu, ağaç işaretçisi | `portal-owner.spec.ts` (mevcut) |
+| Sahip portalı: ağaca dönük açılış, önizleme → tam, yer tutucu; yürüyünce açılış yakınlaştırması; ağaç işaretçisi ağaca döner ve yakınlaşır, panel ve kalın halka; Escape genel görünüme döner; çift tıklama bir adım yakınlaşır, "Genel görünüm" düğmesi; panelden ağaç karnesi | `portal-owner.spec.ts` › 360° tour opens near the tree… |
 | Ofis: 404'te not; sonraki panorama aynı görüntüleyicide açılır; erişilebilir ad, klavye; 25 adımda tek bağlam ve sabit doku sayısı; konsolda yalnızca istenen 404'ler | `office-tool.spec.ts` › viewers: a missing image… |
 | Ofis: 12 ağaçlık üçgenleme, önizleme → 4K, kayıt (depo ve yerel kaynak); görüntü adreslerine rol denetimi | `office-tool.spec.ts` (mevcut) |
 | Uzman onayında panorama | `inventory-approval.spec.ts` (mevcut) |

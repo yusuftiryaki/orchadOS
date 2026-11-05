@@ -162,6 +162,15 @@ export const ASSET = {
   cropB: id("f8500000", 9),
 } as const;
 
+// Crop view of S1-1 (4, 4) from the panorama at (8, 8), and the camera
+// height of the PUB visit (OLD has none: the default 2 m).
+export const CROP_VIEW = {
+  distanceM: 5.657,
+  pitchDeg: -1.013,
+  fovDeg: 57.2,
+  cameraHeightM: 1.6,
+} as const;
+
 export const FINDING = {
   pubTree: id("f8600000", 1),
   pubParcel: id("f8600000", 2),
@@ -291,7 +300,13 @@ export async function createPortalFixture(admin: Client): Promise<Record<PortalU
     "tree",
   );
 
-  const visit = (sid: string, parcel: string, status: "published" | "in_review", day: string) => ({
+  const visit = (
+    sid: string,
+    parcel: string,
+    status: "published" | "in_review",
+    day: string,
+    cameraHeightM: number | null = null,
+  ) => ({
     id: sid,
     org_id: org,
     parcel_id: parcel,
@@ -300,6 +315,7 @@ export async function createPortalFixture(admin: Client): Promise<Record<PortalU
     planned_date: day,
     started_at: `${day}T06:30:00Z`,
     methodology_version: "methodology-v0",
+    camera_height_m: cameraHeightM,
   });
   check(
     await admin
@@ -307,7 +323,7 @@ export async function createPortalFixture(admin: Client): Promise<Record<PortalU
       .insert(
         [
           visit(PORTAL.visitOld, A, "published", "2026-09-01"),
-          visit(PORTAL.visitPub, A, "published", "2026-10-01"),
+          visit(PORTAL.visitPub, A, "published", "2026-10-01", CROP_VIEW.cameraHeightM),
           visit(PORTAL.visitReview, A, "in_review", "2026-10-15"),
           visit(PORTAL.visitB, B, "published", "2026-10-01"),
         ],
@@ -476,7 +492,19 @@ export async function createPortalFixture(admin: Client): Promise<Record<PortalU
     uri: f.uri,
     content_hash: f.hash,
     mime_type: "image/png",
-    pose: { direction, slot_code: "S1-1" },
+    // The view of S1-1 from the panorama at (8, 8) as the pipeline records
+    // it (services/pipeline upload.py crop_pose).
+    pose: {
+      direction,
+      slot_code: "S1-1",
+      panorama_asset_id: null,
+      distance_m: CROP_VIEW.distanceM,
+      azimuth_deg: 225,
+      yaw_in_panorama_deg: 135,
+      pitch_deg: CROP_VIEW.pitchDeg,
+      fov_deg: CROP_VIEW.fovDeg,
+      score: 0.9,
+    },
     pipeline: "orchados-pipeline",
     pipeline_version: "test",
   });
@@ -551,4 +579,65 @@ export async function createPortalFixture(admin: Client): Promise<Record<PortalU
     );
   }
   return userIds;
+}
+
+// LiDAR crown values (lidar_crown) of S1-1 in PUB (with the crown base) and
+// OLD (without), and of S1-2 in PUB; written by addLidarFixture.
+export const LIDAR = {
+  pub: { height: 4.4, diameter: 4.6, volume: 38.2, base: 1.1 },
+  old: { height: 4.1, diameter: 4.3 },
+  pubS12: { height: 3.2, diameter: 3.4, volume: 17.5, base: 0.9 },
+} as const;
+
+// Adds the crown measurements of LIDAR the way the pipeline does: as an ops
+// user of the org, through record_lidar_measurements (supabase migration
+// 20261107300000). Call after createPortalFixture; `anon` is a fresh client
+// to sign in with.
+export async function addLidarFixture(admin: Client, anon: Client) {
+  const email = "portal-ops@example.test";
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password: PORTAL.password,
+    email_confirm: true,
+  });
+  if (error) throw error;
+  check(
+    await admin
+      .from("membership")
+      .insert({ org_id: PORTAL.org, user_id: data.user.id, role: "ops" }),
+    "membership",
+  );
+  check(await anon.auth.signInWithPassword({ email, password: PORTAL.password }), "sign in");
+
+  const item = (tree: SlotCode, metric: string, value: number | string, uncertainty = 0.1) => ({
+    tree_id: treeId(tree),
+    slot_code: tree,
+    metric,
+    ...(typeof value === "number"
+      ? { value_numeric: value, uncertainty }
+      : { value_category: value }),
+    method: "lidar_crown",
+    method_version: "lidar-crown-test",
+  });
+  const crown = (
+    tree: SlotCode,
+    v: { height: number; diameter: number; volume?: number; base?: number },
+  ) => [
+    item(tree, "tree_height", v.height),
+    item(tree, "crown_diameter", v.diameter, 0.15),
+    ...(v.volume === undefined ? [] : [item(tree, "crown_volume", v.volume, 3)]),
+    ...(v.base === undefined ? [] : [item(tree, "crown_base_height", v.base)]),
+    item(tree, "size_class", "productive"),
+  ];
+  const record = async (session: string, items: ReturnType<typeof item>[]) =>
+    check(
+      await anon.rpc("record_lidar_measurements", {
+        p_session_id: session,
+        p_payload: { items },
+      }),
+      `record_lidar_measurements ${session}`,
+    );
+  await record(PORTAL.visitPub, [...crown("S1-1", LIDAR.pub), ...crown("S1-2", LIDAR.pubS12)]);
+  await record(PORTAL.visitOld, crown("S1-1", LIDAR.old));
+  await anon.auth.signOut();
 }

@@ -14,6 +14,7 @@
 - `docs/bahce-yonetimi.md`: üyelik boyunca bahçe ekleme ve çıkarma (İP14): tek üyelik dönemi, ek sipariş ve orantılı fiyat (`pricing-v2`), bahçe bazında çıkarma, iade (`removal-v1`), salt okunur erişim süresi, `garden_changes_enabled` anahtarı.
 - `docs/demo-turu.md`: demo turu (İP13): ayrı demo projesi, geçici demo hesabı, yazma ve hesap kilitleri, sentetik demo verisi ve yükleyicisi, `demo-data` iş akışı.
 - `docs/hukuk/kararlar.md`: hukuki kararlar (H01–H34), yayın şartları ve takip işleri (T01–T26). Hukuk metinleri `docs/hukuk/`'tadır; sitedeki kopyaları `apps/web/src/lib/i18n/messages/legal.ts` (taslakla eşitliği testle denetlenir).
+- `docs/lidar-olcumleri.md`: LiDAR ölçümleri (İP16, araştırma): kayıtlı nokta bulutundan taç ölçümleri ve büyüklük sınıfı önerisi, kış iskeleti, budama analizi; yöntemler, sentetik doğruluk, doğrulama planı, açık kararlar.
 - `docs/arayuzler.md`: **bileşenler arası sözleşmelerin kaynağı**: oturum klasörü, `events.csv`, iki `session.json`, QR saat kodu, zaman tanımı. Bir biçim değişirse önce burası güncellenir.
 
 ## Yapı
@@ -74,6 +75,7 @@ BLE protokolü, dosya biçimleri ve bağlantı tablosu: `firmware/gnss-logger/RE
 | `uv run orchados-pipeline synth <klasör> --trees-from-db --rows 1-2` | Sentetik sahneyi bir parselin gerçek ağaç konumlarına uydurur |
 | `uv run orchados-pipeline boundary <oturum> [--dry-run]` | Sınır köşelerini (oturum olayları) PPK'lı yörüngeden konumlayıp yeni sınır sürümü yazar; `run --boundary` ile de çalışır. Sentetik sınır yürüyüşü: `synth --boundary-walk` |
 | `uv run orchados-pipeline demo build\|load\|enable\|disable\|verify` | Demo turu verisi: sentetik medya derlemesi (`--profile full\|test`, önbellek `.demo-build/`), yükleme (`--target local\|remote`, `--reset-local`, `--demo-only`, `--dry-run`, `--verify`, `--enable`), açma, kapama, doğrulama. Barındırılan projeler: `demo-data` iş akışı |
+| `uv run orchados-pipeline lidar synth\|crown\|skeleton\|pruning\|upload` | LiDAR ölçümleri (İP16, araştırma): kayıtlı nokta bulutundan (`<oturum>/lidar/cloud.ply`) taç çapı, boy, taç hacmi ve büyüklük sınıfı önerisi; kış iskeleti; iki kış taraması arasında budama; `record_lidar_measurements` ile yükleme. Sentetik çift: `lidar synth <önce> --leafless --pruned-copy <sonra>`. Ayrıntı: `docs/lidar-olcumleri.md` |
 | `uv run orchados-pipeline upload <çalıştırma> --session-id <uuid>` | Çıktıları Supabase'e yükler (ops kullanıcısıyla; ortam değişkenleri README'de). Entegrasyon ve uçtan uca zincir testi (`tests/test_chain_supabase.py`: tarama → yükleme → uzman → yayın → sahip) yerel Supabase ister |
 
 Aşamalar, girdi/çıktı biçimleri ve QR saat kodu biçimi: `services/pipeline/README.md`.

@@ -1584,6 +1584,85 @@ span.findingWhere {
   background: var(--color-surface-2);
 }
 
+/* LiDAR crown drawing over a crop (crop-guide.tsx). The photo is the
+   background, so the colours do not follow the theme: a light line with a
+   dark halo reads on foliage, sky and soil alike. */
+.photoFrame {
+  position: relative;
+}
+
+.photoFrame img {
+  display: block;
+}
+
+.guide {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  pointer-events: none;
+}
+
+.guide svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.guideHalo,
+.guideLine {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.guideHalo {
+  stroke: rgb(0 0 0 / 0.55);
+  stroke-width: 4;
+}
+
+.guideLine {
+  stroke: #ffd84d;
+  stroke-width: 2;
+}
+
+.guideDash {
+  stroke-dasharray: 5 4;
+}
+
+.guideLabel {
+  position: absolute;
+  transform: translate(6px, -2px);
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: rgb(0 0 0 / 0.68);
+  color: #fff;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.guideLabelBelow {
+  transform: translate(6px, 3px);
+}
+
+.guideScope[data-guides="off"] .guide {
+  display: none;
+}
+
+.guideBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.guideBar p {
+  margin: 0;
+}
+
 .placeholder {
   display: grid;
   place-items: center;
@@ -1649,6 +1728,7 @@ span.findingWhere {
 
 @media print {
   .noPrint,
+  .guideBar button,
   .controls,
   .legendArea {
     display: none !important;

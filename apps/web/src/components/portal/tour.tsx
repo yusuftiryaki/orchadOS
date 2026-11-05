@@ -4,10 +4,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { signTourImagesAction } from "@/app/portal/parsel/[parcelId]/gezi/actions";
 import { DemoNotice } from "@/components/demo/demo-notice";
-import { formatDate, t } from "@/lib/i18n";
+import { formatDate, formatMeasure, t } from "@/lib/i18n";
 import { demoText } from "@/lib/i18n/messages/demo";
 import type { Position } from "@/lib/map/geo";
 import { MARKER_COLORS } from "@/lib/map/tree-style";
+import { adjacentTree } from "@/lib/panorama/zoom";
+import {
+  crownGuide,
+  crownGuideMarkers,
+  DEFAULT_CAMERA_HEIGHT_M,
+  panoramaGuide,
+} from "@/lib/portal/crown-guide";
 import type { TourData } from "@/lib/portal/data";
 import {
   distanceM,
@@ -38,13 +45,21 @@ import {
 } from "@/lib/portal/tour-view";
 import { PortalMap } from "./portal-map";
 import { placeholderPanorama } from "./tour-placeholder";
-import { TourViewer, type TourMarker } from "./tour-viewer";
+import { TourTreePanel } from "./tour-tree-panel";
+import { TOUR_DEFAULT_ZOOM, TourViewer, type TourFocus, type TourMarker } from "./tour-viewer";
 import styles from "./portal.module.css";
 
 // 360° tour of the latest published visit: viewer with arrows to the
 // neighbouring panoramas and tree markers, and a map to jump anywhere. The
 // panorama on screen is kept in the address (?panorama=), so a reload, a
 // shared link or the browser's Back from a tree card comes back to it.
+//
+// A tree marker focuses the tree: the viewer turns to it and zooms in, and a
+// panel over the photo shows its class, the trees beside it and its tree
+// card. Walking to another panorama returns to the overview zoom; time
+// travel keeps the zoom and the focused tree, to compare the same tree.
+// When the visit on screen measured the focused tree's crown (LiDAR), the
+// panel lists the values and the panorama shows them drawn on the tree.
 
 const tt = t.portal.tour;
 // PortalMap rebuilds the whole map when `findings` changes identity, and its
@@ -80,7 +95,16 @@ export function Tour({
   const [visitIndex, setVisitIndex] = useState(startPoint.visitIndex);
   const panoramas = visits[visitIndex]?.panoramas ?? data.panoramas;
   const [current, setCurrent] = useState<TourPanorama>(startPoint.panorama);
-  const [look, setLook] = useState({ yaw: startPoint.lookYawDeg, version: 0 });
+  const [look, setLook] = useState<{ yaw: number; zoom: number | null; version: number }>({
+    yaw: startPoint.lookYawDeg,
+    zoom: null,
+    version: 0,
+  });
+  // The focused tree (its id), and the request counter for the viewer.
+  const [focus, setFocus] = useState<{ treeId: string | null; version: number }>({
+    treeId: null,
+    version: 0,
+  });
   // Where the viewer looks now (yaw from the centre column), for the map
   // wedge, time travel and preloading.
   const [viewYaw, setViewYaw] = useState(look.yaw);
@@ -137,6 +161,34 @@ export function Tour({
     kind = "preview";
   }
 
+  // Trees around the current panorama, nearest first.
+  const trees = useMemo(
+    () => treeMarkers(data.trees, current, { maxDistanceM: 14, limit: 24 }),
+    [data.trees, current],
+  );
+  const focused = trees.find((m) => m.tree.id === focus.treeId) ?? null;
+  // The focused tree's crown values in the visit on screen (time travel
+  // switches to that visit's values, or none).
+  const tourVisit = visits[visitIndex] ?? null;
+  const crown = (focused && tourVisit?.crowns[focused.tree.id]) || null;
+  const crownMarkers = useMemo<TourMarker[]>(() => {
+    const guide = crownGuide(crown);
+    if (!guide || !focused) return [];
+    const drawn = panoramaGuide(
+      guide,
+      current,
+      focused.tree.position,
+      tourVisit?.cameraHeightM ?? DEFAULT_CAMERA_HEIGHT_M,
+    );
+    if (!drawn) return [];
+    return crownGuideMarkers(drawn, {
+      heightText: t.portal.tree.guide.height(formatMeasure(guide.topM, "m")),
+      widthText: t.portal.tree.guide.width(formatMeasure(guide.widthM, "m")),
+      inertClass: styles.crownInert,
+      labelClass: styles.crownLabel,
+    });
+  }, [crown, focused, current, tourVisit]);
+
   const markers = useMemo<TourMarker[]>(() => {
     const arrows = neighbours.map((n) => ({
       id: `pano:${n.panorama.id}`,
@@ -146,16 +198,22 @@ export function Tour({
       tooltip: `${tt.arrow} (${Math.round(n.distanceM)} m)`,
       size: 44,
     }));
-    const trees = treeMarkers(data.trees, current, { maxDistanceM: 14, limit: 24 }).map((m) => ({
-      id: `tree:${m.tree.id}`,
-      yawDeg: m.yawDeg,
-      pitchDeg: m.pitchDeg,
-      html: `<div class="${styles.treeMarker}" data-tree="${escapeHtml(m.tree.code)}"><span class="${styles.treeDot}" data-class="${m.tree.state}" style="background:${MARKER_COLORS[m.tree.state]}"></span>${escapeHtml(m.tree.code)}</div>`,
-      tooltip: escapeHtml(`${tt.treeMarker(m.tree.code)} (${t.portal.classes[m.tree.state]})`),
-      size: 28,
-    }));
-    return [...arrows, ...trees];
-  }, [neighbours, data.trees, current]);
+    const treeIcons = trees.map((m) => {
+      const isFocused = m.tree.id === focus.treeId;
+      return {
+        id: `tree:${m.tree.id}`,
+        yawDeg: m.yawDeg,
+        pitchDeg: m.pitchDeg,
+        html: `<div class="${styles.treeMarker}" data-tree="${escapeHtml(m.tree.code)}"${isFocused ? ' data-focused="true"' : ""}><span class="${styles.treeDot}" data-class="${m.tree.state}" style="background:${MARKER_COLORS[m.tree.state]}"></span>${escapeHtml(m.tree.code)}</div>`,
+        tooltip: escapeHtml(
+          `${isFocused ? tt.treeMarkerCard(m.tree.code) : tt.treeMarker(m.tree.code)} (${t.portal.classes[m.tree.state]})`,
+        ),
+        size: 28,
+      };
+    });
+    // The crown drawing under the markers, so they stay clickable.
+    return [...crownMarkers, ...arrows, ...treeIcons];
+  }, [neighbours, trees, focus.treeId, crownMarkers]);
 
   // Preload towards where the visitor looks (in 45° steps, not every frame).
   const viewSector = Math.round(viewYaw / 45) * 45;
@@ -164,12 +222,28 @@ export function Tour({
     [neighbours, viewSector, signed],
   );
 
-  const goTo = useCallback((next: TourPanorama, yaw: number) => {
-    setCurrent(next);
-    setLook((l) => ({ yaw, version: l.version + 1 }));
-    setViewYaw(yaw);
-    setFarNote(null);
-    setMoved(true);
+  // Opens `next` looking at `yaw`. Walking returns to the overview zoom and
+  // drops the tree focus; time travel keeps both (the same tree, another year).
+  const goTo = useCallback(
+    (next: TourPanorama, yaw: number, { keepView = false }: { keepView?: boolean } = {}) => {
+      setCurrent(next);
+      setLook((l) => ({ yaw, zoom: keepView ? null : TOUR_DEFAULT_ZOOM, version: l.version + 1 }));
+      setViewYaw(yaw);
+      setFarNote(null);
+      setMoved(true);
+      // No version bump: the viewer is already turning to the new look.
+      if (!keepView) setFocus((f) => ({ treeId: null, version: f.version }));
+    },
+    [],
+  );
+
+  const treeHref = useCallback(
+    (treeId: string) => `/portal/parsel/${data.parcel.id}/agac/${treeId}`,
+    [data.parcel.id],
+  );
+
+  const focusTree = useCallback((treeId: string | null) => {
+    setFocus((f) => ({ treeId, version: f.version + 1 }));
   }, []);
 
   // The address follows the tour once the visitor moves (not on opening, so
@@ -189,11 +263,11 @@ export function Tour({
       setVisitIndex(index);
       const same = sameSpot(target.panoramas, current, viewYaw);
       if (same) {
-        goTo(same.panorama, same.yawDeg);
+        goTo(same.panorama, same.yawDeg, { keepView: true });
         return;
       }
       const near = nearestPanorama(target.panoramas, current.position) ?? target.panoramas[0];
-      goTo(near, normalize180(current.headingDeg + viewYaw - near.headingDeg));
+      goTo(near, normalize180(current.headingDeg + viewYaw - near.headingDeg), { keepView: true });
       setFarNote(tt.noSameSpot(formatDate(target.visit.time)));
     },
     [visits, current, viewYaw, goTo],
@@ -213,11 +287,33 @@ export function Tour({
         const n = neighbours.find((x) => x.panorama.id === key);
         if (n) walk(n);
       } else if (type === "tree") {
-        router.push(`/portal/parsel/${data.parcel.id}/agac/${key}`);
+        // First tap zooms on the tree; a tap on the focused tree opens its card.
+        if (key === focus.treeId) router.push(treeHref(key));
+        else focusTree(key);
       }
     },
-    [neighbours, walk, router, data.parcel.id],
+    [neighbours, walk, router, treeHref, focus.treeId, focusTree],
   );
+
+  const stepTree = useCallback(
+    (dir: 1 | -1) => {
+      const next = adjacentTree(
+        trees.map((m) => ({ id: m.tree.id, yawDeg: m.yawDeg })),
+        focus.treeId,
+        dir,
+      );
+      if (next) focusTree(next.id);
+    },
+    [trees, focus.treeId, focusTree],
+  );
+
+  // The viewer acts on a new version only (see TourViewer).
+  const viewerFocus: TourFocus = {
+    target: focused
+      ? { yawDeg: focused.yawDeg, pitchDeg: focused.pitchDeg, distanceM: focused.distanceM }
+      : null,
+    version: focus.version,
+  };
 
   const onMapClick = useCallback(
     (point: Position) => {
@@ -281,20 +377,38 @@ export function Tour({
               imageKind={kind}
               fullUrl={fullUrl}
               lookYawDeg={look.yaw}
+              lookZoom={look.zoom}
               lookVersion={look.version}
+              focus={viewerFocus}
               markers={markers}
               preload={preload}
               onMarker={onMarker}
               onLoadError={onLoadError}
               onViewChange={setViewYaw}
+              onEscape={focused ? () => focusTree(null) : undefined}
               label={tt.viewer}
-            />
+            >
+              {focused && (
+                <TourTreePanel
+                  tree={focused.tree}
+                  distanceM={focused.distanceM}
+                  crown={crown}
+                  href={treeHref(focused.tree.id)}
+                  canStep={trees.length > 1}
+                  onStep={stepTree}
+                  onClose={() => focusTree(null)}
+                />
+              )}
+            </TourViewer>
             {kind === "placeholder" && (
               <p className={styles.viewerNote} data-testid="tour-placeholder">
                 {tt.placeholderNote}
               </p>
             )}
           </div>
+          <p className={`muted ${styles.small}`} data-testid="tour-zoom-hint">
+            {tt.zoomHint}
+          </p>
           {neighbours.length > 0 && (
             <nav className={styles.tourSteps} aria-label={tt.steps} data-testid="tour-steps">
               {neighbours.map((n) => (

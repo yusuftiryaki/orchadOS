@@ -90,7 +90,10 @@ describe("expert review", () => {
       "pruning_status",
       "basal_sprout_level",
       "dieback_pattern",
+      // LiDAR metrics shown on the card since 20261107400000_lidar_owner_display.
+      "tree_height",
       "scaffold_branch_count",
+      "pruning_cut_count",
       "trunk_diameter_h30",
     ]);
     expect(ctx!.trees.map((t) => [t.code, t.aiClass, t.previousClass, t.expertClass])).toEqual([

@@ -123,6 +123,7 @@ Büyüklük sınıfı eşikleri (v0.1). Gövde çapı **aşı yerinin üstünde,
 
 - **Çelişki:** Gövde ve taç farklı sınıfa düşerse **taç** kazanır ve not yazılır ("kalın anaç, genç taç"): verimi ve bakım ihtiyacını taç belirler.
 - Sahibe "büyüklük sınıfı" adıyla gösterilir.
+- **LiDAR önerisi (İP16, araştırma):** Kit LiDAR'lıysa yapraklı dönemde işleme hattı her ağacın taç çapını, boyunu ve taç hacmini ölçer ve taç çapından yukarıdaki eşiklerle bir büyüklük sınıfı **önerir** (`size_class`, kaynak `algorithm`, eşiğe yakın değerlerde düşük güven). Öneri ağacın özelliğini değiştirmez; ofis kişisi ya da uzman onaylar. "Yaşlı" sınıfının görünür ölçütleri (oyuk, büyük eski kesimler, gençleştirilmiş taç) geometriden çıkmaz; bu yüzden "Yaşlı" önerisi her zaman kesitle kontrol edilir. Yöntem ve doğruluk: [lidar-olcumleri.md](lidar-olcumleri.md).
 
 ## 4. Ölçekler
 
@@ -499,6 +500,8 @@ Karne, son yayımlanmış ziyaretin özetidir.
 - **Gövde ölçeğinin anlamı değişti:** v0.1'de dip sürgünü `trunk_base_scale`'den çıktı; kod adı aynı kaldı. Ağaç karnesinde v0 ve v0.1 değerleri sürümüyle okunmalı.
 - **Örneklemin %5'e inmesi** ve **meyve yükünün iki yıl önceyle yorumlanması** henüz kodda yok.
 - **Referans fotoğraflar:** Pilot bahçelerden toplanacak (Ek A).
+- **Gövde çapının ölçüm yüksekliği (İP16):** Bölüm 3 gövde çapını yerden yaklaşık 50 cm'de (aşı yerinin üstünde) tanımlıyor; metrik kaydındaki kod `trunk_diameter_h30` (30 cm). 1,2 m'deki LiDAR ise 4 m'deki ağacın gövdesini ancak 70–80 cm'den yukarıda görür ([tarama-kiti.md](tarama-kiti.md)). Karar verilene kadar LiDAR gövde çapı ölçüm olarak yazılmaz, yalnız iskelet raporunun ayrıntısında durur ([lidar-olcumleri.md](lidar-olcumleri.md) §8).
+- **LiDAR ölçümlerinin karneye girmesi (İP16):** Sahip kararıyla (5 Kasım 2026) taç çapı, boy, taç hacmi, ana kol sayısı ve kesim sayısı doğrulama beklenmeden karnede gösterilir; uzman bu ölçümleri ayrıca onaylamaz, ziyaretin yayımıyla açılırlar. Pilotta referans ağaçlarda elle ölçümle karşılaştırma yine yapılır ([lidar-olcumleri.md](lidar-olcumleri.md) §7); yetersiz çıkan metrik karneden geri alınır. Kesilen odun hacmi, odun hacmi ve fraktal boyut araştırma metriğidir.
 
 ## Ek A – Hazırlanacak referans fotoğraflar
 
@@ -542,5 +545,7 @@ Ayrıca saha uygulamasındaki "böyle çek" görselleri: mevsim başına 3 çeki
 | Ağaç görünüyor mu (işleme hattı) | `tree_visible` | Kategori: `yes`, `no`, `unsure` (ağaç ya da boş yer) | Tümü (yapraksız dönemde hep `unsure`) | Var |
 
 Uzman panelinde bir düzeltme için mevsimin ölçeklerinden en az birinin girilmesi gerekir; görüntüden karar verilemeyen ölçek boş bırakılır (bölüm 4).
+
+**LiDAR ölçümleri (İP16, kaynak `algorithm`):** `tree_height`, `crown_diameter`, `crown_volume`, `size_class` (yapraklı dönem, `lidar_crown`); `scaffold_branch_count`, `wood_volume`, `fractal_dimension` (kış, `lidar_qsm`); `pruned_wood_volume`, `pruned_wood_fraction`, `pruning_cut_count`, `pruning_status` önerisi (kış, iki tarama arası, `lidar_pruning`). Ölçek değil, ölçüm ya da öneridirler; genel sınıfı belirlemezler. Ayrıntı: [lidar-olcumleri.md](lidar-olcumleri.md).
 
 `tree_visible` bir ölçek değil, kalite ve envanter sinyalidir: kaynağı `algorithm` (işleme hattı, `crop_greenness`), karnede gösterilmez, genel sınıfı doğrudan belirlemez. "Hayır" ağacı zorunlu incelemeye sokar (bölüm 6); boş bir yerde "evet" yeni dikim önerisidir. AI ön değerlendirmesinin kendi "ağaç görünüyor mu" cevabı ayrı tutulur (`ai_assessment_detail.tree_visible`).

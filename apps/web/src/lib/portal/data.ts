@@ -72,6 +72,14 @@ import type { MapVisit } from "./map-layers";
 import { sessionTime, sortVisitsNewestFirst, type VisitRow } from "./sessions";
 import { panoramaFrames } from "./panorama-frames";
 import type { TourPanorama } from "./tour";
+import {
+  CROWN_METRIC_CODES,
+  crownValuesBySession,
+  cropViewOf,
+  DEFAULT_CAMERA_HEIGHT_M,
+  type CropView,
+  type CrownValues,
+} from "./crown-guide";
 import { effectiveSpecies, treeSpeciesLabel } from "@/lib/species";
 
 // Data for the owner portal. Every query runs as the signed-in user, so row
@@ -83,7 +91,7 @@ import { effectiveSpecies, treeSpeciesLabel } from "@/lib/species";
 type Enums = Database["public"]["Enums"];
 
 const VISIT_COLUMNS =
-  "id, kind, status, planned_date, started_at, created_at, methodology_version, published_at, lead_user_id";
+  "id, kind, status, planned_date, started_at, created_at, methodology_version, published_at, lead_user_id, camera_height_m";
 const ASSESSMENT_COLUMNS =
   "id, tree_id, session_id, source, overall_class, auto_approved, approved_at, assessed_at, created_at";
 const MEASUREMENT_COLUMNS =
@@ -108,6 +116,13 @@ function toVisit(row: VisitRow & { published_at?: string | null }): Visit {
     methodologyVersion: row.methodology_version,
     publishedAt: row.published_at ?? null,
   };
+}
+
+// Camera height above ground of a visit's scan (crown guide); the pipeline's
+// default when the visit did not record one.
+function cameraHeightOf(row: { camera_height_m?: number | null }): number {
+  const h = row.camera_height_m;
+  return typeof h === "number" && Number.isFinite(h) && h > 0 ? h : DEFAULT_CAMERA_HEIGHT_M;
 }
 
 // Published visits of the given parcels, newest first.
@@ -756,6 +771,16 @@ export interface PhotoItem {
   visitTime: string | null;
   position: Position | null;
   takenBy: string | null;
+  // Crops: how the crop looks at the trunk (for the crown guide); null for
+  // close-ups and crops without view parameters.
+  view: CropView | null;
+}
+
+// LiDAR crown values of a tree in one visit, and the visit's camera height:
+// what the crown guide is drawn from.
+export interface VisitCrown {
+  values: CrownValues;
+  cameraHeightM: number;
 }
 
 export interface TreeCard {
@@ -783,6 +808,8 @@ export interface TreeCard {
   // visit id -> crops and close-ups of that visit.
   photos: Record<string, PhotoItem[]>;
   directions: string[];
+  // visit id -> the tree's LiDAR crown values in that visit (visits with any).
+  crowns: Record<string, VisitCrown>;
   findings: (FindingItem & { visitTime: string })[];
 }
 
@@ -934,6 +961,7 @@ export async function getTreeCard(
       visitTime: timeOf.get(a.session_id) ?? null,
       position: pointOf(a.position),
       takenBy: staffCode(leadOf.get(a.session_id)),
+      view: a.kind === "tree_crop" ? cropViewOf(a.pose) : null,
     });
   }
   for (const c of captures) {
@@ -946,7 +974,17 @@ export async function getTreeCard(
       // portal_closeups gives no position (H05).
       position: null,
       takenBy: staffCode(c.captured_by),
+      view: null,
     });
+  }
+
+  // Crown values per visit (hidden metrics included: the base height is
+  // only drawn, not listed).
+  const crowns: Record<string, VisitCrown> = {};
+  for (const [sessionId, byTree] of crownValuesBySession(defs, measurements)) {
+    const values = byTree.get(treeId);
+    const row = visitRows.find((v) => v.id === sessionId);
+    if (values && row) crowns[sessionId] = { values, cameraHeightM: cameraHeightOf(row) };
   }
 
   const slot = tree.slot as unknown as { code: string | null; kind: Enums["slot_kind"] };
@@ -989,6 +1027,7 @@ export async function getTreeCard(
     metrics,
     photos,
     directions: sortDirections(directions),
+    crowns,
     findings,
   };
 }
@@ -1007,6 +1046,10 @@ export interface TourTree {
 export interface TourVisit {
   visit: Visit;
   panoramas: TourPanorama[];
+  // Camera height above ground of the scan (crown guide).
+  cameraHeightM: number;
+  // tree id -> LiDAR crown values of the tree in this visit (trees with any).
+  crowns: Record<string, CrownValues>;
 }
 
 export interface TourData {
@@ -1031,6 +1074,10 @@ export async function getTour(supabase: Client, parcelId: string): Promise<TourD
     supabase,
     visits.map((v) => v.id),
   );
+  const crowns = await crownsOfVisits(
+    supabase,
+    visits.filter((v) => frames.some((f) => f.sessionId === v.id)).map((v) => v.id),
+  );
   const tourVisits: TourVisit[] = visits.flatMap((v) => {
     const panoramas: TourPanorama[] = frames
       .filter((f) => f.sessionId === v.id)
@@ -1041,7 +1088,15 @@ export async function getTour(supabase: Client, parcelId: string): Promise<TourD
         fullAssetId,
         previewAssetId,
       }));
-    return panoramas.length > 0 ? [{ visit: toVisit(v), panoramas }] : [];
+    if (panoramas.length === 0) return [];
+    return [
+      {
+        visit: toVisit(v),
+        panoramas,
+        cameraHeightM: cameraHeightOf(v),
+        crowns: Object.fromEntries(crowns.get(v.id) ?? []),
+      },
+    ];
   });
 
   const trees: TourTree[] = report.slots.features
@@ -1062,6 +1117,31 @@ export async function getTour(supabase: Client, parcelId: string): Promise<TourD
     boundary: report.boundary?.geometry ?? null,
     bounds: report.bounds,
   };
+}
+
+// LiDAR crown values of every tree in the given visits (visit -> tree -> values).
+async function crownsOfVisits(supabase: Client, visitIds: string[]) {
+  if (visitIds.length === 0) return new Map<string, Map<string, CrownValues>>();
+  const { data: defs, error } = await supabase
+    .from("metric_definition")
+    .select("id, code")
+    .in("code", CROWN_METRIC_CODES);
+  if (error) throw error;
+  if (defs.length === 0) return new Map<string, Map<string, CrownValues>>();
+  const rows = await fetchAll<MeasurementRow>((from, to) =>
+    supabase
+      .from("measurement")
+      .select(MEASUREMENT_COLUMNS)
+      .in("session_id", visitIds)
+      .in(
+        "metric_definition_id",
+        defs.map((d) => d.id),
+      )
+      .not("tree_id", "is", null)
+      .order("id")
+      .range(from, to),
+  );
+  return crownValuesBySession(defs, rows);
 }
 
 // Signed URLs for panorama images of a parcel's published visits. Ids that are
