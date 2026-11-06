@@ -59,9 +59,10 @@ describe.skipIf(!loaded)("demo dataset", () => {
     expect(d.pests).not.toBeNull();
     expect(d.fruitLoad?.previousYear).not.toBeNull();
     expect(d.fruitLoad?.trend).toBe("lower");
-    // 2026-07-14 against 2025-07-15: the same season.
+    // 2026-07-14 against 2025-07-15: the same season. The visit before it is the
+    // winter scan after the pruning (dataset version 6, 2026-02-24).
     expect(report!.scoreBasis).toBe("same_season");
-    expect(report!.previous?.time.slice(0, 4)).toBe("2025");
+    expect(report!.previous?.time.slice(0, 7)).toBe("2026-02");
   });
 
   it("the featured tree's card carries the LiDAR crown values and its drawing fits the crops", async () => {

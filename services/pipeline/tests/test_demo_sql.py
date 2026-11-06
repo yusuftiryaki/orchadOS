@@ -11,7 +11,7 @@ from orchados_pipeline.demo import build as demo_build
 from orchados_pipeline.demo import dataset, ids, sqlgen
 from orchados_pipeline.demo import lidar as demo_lidar
 from orchados_pipeline.demo.loader import insert_counts
-from orchados_pipeline.lidar import crown
+from orchados_pipeline.lidar import crown, pruning, skeleton
 
 
 @pytest.fixture(scope="module")
@@ -345,7 +345,12 @@ def test_captures_and_closeups(generated):
 
 
 def test_measurements_are_in_season_and_versioned(generated):
-    _ds, _m, script, _sql = generated
+    ds, _m, script, _sql = generated
+    season = {v.id: v.season for v in ds.visits}
+    winter_methods = {
+        "lidar_qsm": skeleton.METHOD_VERSION,
+        "lidar_pruning": pruning.METHOD_VERSION,
+    }
     rows = [
         dict(zip(st.columns, r, strict=True))
         for st in script.steps["results"]
@@ -355,7 +360,11 @@ def test_measurements_are_in_season_and_versioned(generated):
     by_id = {m.id: m for m in sqlgen.FALLBACK_METRICS.values()}
     for r in rows:
         m = by_id[r["metric_definition_id"]]
-        assert "summer" in m.valid_seasons
+        assert season[r["session_id"]] in m.valid_seasons, (m.code, r["session_id"])
+        if r["method"] in winter_methods:
+            assert r["source"] == "algorithm" and season[r["session_id"]] == "winter"
+            assert r["method_version"] == winter_methods[r["method"]]
+            continue
         if m.code == "weed_height":
             assert r["method_version"] == dataset.FIELD_PROTOCOL["summer"]
             continue
@@ -398,7 +407,7 @@ def test_lidar_crown_measurements(generated):
         assert r["uncertainty"] > 0 and 0 < r["confidence"] <= 1
         assert r["value_numeric"] > 0
         assert "value_scale" not in r and "value_category" not in r
-    for v in ds.scans():
+    for v in ds.summer_scans():
         mine = [r for r in rows if r["session_id"] == v.id]
         assert all(r["measured_at"] == v.start for r in mine)
         present = {t.id for t in demo_lidar.present_trees(ds, v)}
@@ -512,21 +521,111 @@ def test_service_rows_carry_version_2_ids(generated):
 def test_world_clouds(generated):
     """Version 5 (İP17 3D world): a world_cloud asset per LiDAR visit as lidar upload
     records it (no time); ids derived with v5."""
+    from orchados_pipeline.demo import winter as demo_winter
     from orchados_pipeline.demo import world as demo_world
 
     ds, manifest, script, _sql = generated
     assets = [r for r in _rows(script, "chain", "public.asset") if r["kind"] == "world_cloud"]
     worlds = {r["visit"]: r["world"] for r in manifest["runs"] if "world" in r}
-    assert set(worlds) == set(demo_world.WORLD_VISITS)
+    assert set(worlds) == set(demo_world.WORLD_VISITS) | set(demo_winter.WINTER_VISITS)
     keys = {f["sha256"]: f["key"] for f in manifest["files"]}
     assert {a["session_id"] for a in assets} == {ds.visit(k).id for k in worlds}
+    version = {ds.visit(k).id: 5 if k in demo_world.WORLD_VISITS else 6 for k in worlds}
     for a in assets:
-        assert a["id"] == ids.did("asset", keys[a["content_hash"]], version=dataset.WORLD_VERSION)
+        assert a["id"] == ids.did(
+            "asset", keys[a["content_hash"]], version=version[a["session_id"]]
+        )
         assert a["mime_type"] == "application/vnd.orchados.world-cloud"
         assert a["uri"] == (
             f"storage://media/org/{ids.ORG_ID}/parcel/{ids.PARCEL_A}/{a['content_hash']}"
         )
         assert set(a["pose"]) == {"schema", "point_count", "crs"}
-        assert a["pose"]["crs"] == "local_enu" and a["pose"]["point_count"] > 30_000
+        assert a["pose"]["crs"] == "local_enu" and a["pose"]["point_count"] > 20_000
         assert a["position"].startswith("SRID=4326;POINT(") and a["position_uncertainty_m"] > 0
         assert a["tree_id"] is None and a["pipeline"] == "orchados-demo"
+
+
+def test_winter_visits(generated):
+    """Version 6: parcel A's two winter scans with v6 ids for every row of theirs; the
+    expert's winter codes on each tree, an assessment per tree, one crop per tree; the
+    skeleton stage's values on both, the pruning stage's on the scan after it."""
+    import json
+
+    from orchados_pipeline.demo import winter as demo_winter
+
+    ds, manifest, script, _sql = generated
+    root = demo_build.build_dir(demo_build.DEFAULT_ROOT, "test")
+    winter = {v.id: v for v in ds.winter_scans()}
+    sessions = {r["id"]: r for r in _rows(script, "sessions", "public.session")}
+    for sid, v in winter.items():
+        r = sessions[sid]
+        assert (r["status"], r["kind"], r["planned_date"]) == ("published", "periodic_scan", v.day)
+    # The rows a published scan has (their v6 ids: crops, assessments, LiDAR below).
+    for step, table in (
+        ("chain", "public.asset"),
+        ("chain", "public.capture"),
+        ("results", "public.measurement"),
+        ("results", "public.assessment"),
+    ):
+        rows = [r for r in _rows(script, step, table) if r.get("session_id") in winter]
+        assert rows, table
+    crops = [
+        r
+        for r in _rows(script, "chain", "public.asset")
+        if r["session_id"] in winter and r["kind"] == "tree_crop"
+    ]
+    for sid in winter:
+        mine = [c["tree_id"] for c in crops if c["session_id"] == sid]
+        assert sorted(mine) == sorted(t.id for t in ds.trees["A"])  # one per tree
+    keys = {f["sha256"]: f["key"] for f in manifest["files"]}
+    for c in crops:
+        assert c["id"] == ids.did("asset", keys[c["content_hash"]], version=6)
+    assessments = [
+        r for r in _rows(script, "results", "public.assessment") if r["session_id"] in winter
+    ]
+    assert len(assessments) == 2 * len(ds.trees["A"])
+    for a in assessments:
+        v = winter[a["session_id"]]
+        code = next(t.code for t in ds.trees["A"] if t.id == a["tree_id"])
+        assert a["id"] == ids.did("assessment", f"{v.key}:{code}", version=6)
+    rows = [r for r in _rows(script, "results", "public.measurement") if r["session_id"] in winter]
+    by_id = {m.id: m.code for m in sqlgen.FALLBACK_METRICS.values()}
+    expert = {
+        (r["session_id"], by_id[r["metric_definition_id"]]) for r in rows if r["source"] == "expert"
+    }
+    for sid in winter:
+        assert {c for s_, c in expert if s_ == sid} == {
+            "basal_sprout_level",
+            "dead_branch_scale",
+            "dieback_pattern",
+            "frost_damage_scale",
+            "pruning_status",
+            "trunk_base_scale",
+        }
+    lidar = [r for r in rows if r["method"] in ("lidar_qsm", "lidar_pruning")]
+    for sid, v in winter.items():
+        mine = [r for r in lidar if r["session_id"] == sid]
+        report = json.loads((root / "runs" / v.key / "skeleton.json").read_text())
+        ok = {q["tree_id"] for q in report["trees"] if q["status"] == "ok"}
+        sc = {
+            r["tree_id"]
+            for r in mine
+            if by_id[r["metric_definition_id"]] == "scaffold_branch_count"
+        }
+        assert sc == ok and len(ok) >= 0.9 * len(ds.trees["A"])
+        codes = {by_id[r["metric_definition_id"]] for r in mine}
+        pr = {"pruning_cut_count", "pruning_status", "pruned_wood_volume", "pruned_wood_fraction"}
+        if v.key == demo_winter.WINTER_AFTER:
+            assert pr <= codes
+        else:
+            assert not pr & codes
+        for r in mine:
+            code = by_id[r["metric_definition_id"]]
+            t = next(t for t in ds.trees["A"] if t.id == r["tree_id"])
+            assert r["id"] == ids.did("measurement", f"lidar:{v.key}:{t.code}:{code}", version=6)
+            assert r["recorded_by"] == ids.OPS and r["measured_at"] == v.start
+    # Not part of any assessment.
+    linked = {
+        r["measurement_id"] for r in _rows(script, "results", "public.assessment_measurement")
+    }
+    assert not linked & {r["id"] for r in lidar}

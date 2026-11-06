@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { encodeWorldCloud, NO_TREE, parseWorldCloud, WorldCloudError } from "./format";
 import { loadWorldCloud } from "./stream";
+import { winterSummary } from "./skeleton";
 import { growthOf, worldVisits, type WorldVisit } from "./visits";
 import {
   changeSpan,
@@ -267,5 +268,78 @@ describe("growth between visits", () => {
 
   it("lists the visits with a cloud", () => {
     expect(worldVisits(visits).map((v) => v.id)).toEqual(["v26", "v25"]);
+  });
+});
+
+describe("winter skeleton and cuts", () => {
+  const skeleton = {
+    segments: [
+      {
+        a: [0, 0, 0] as [number, number, number],
+        b: [0, 0, 2000] as [number, number, number],
+        radiusMm: 120,
+        tree: 0,
+        kind: 0,
+      },
+      {
+        a: [0, 0, 2000] as [number, number, number],
+        b: [500, 0, 3000] as [number, number, number],
+        radiusMm: 40,
+        tree: 0,
+        kind: 1,
+      },
+    ],
+    cuts: [{ q: [0, 0, 2000] as [number, number, number], diameterMm: 80, tree: 0 }],
+  };
+  const points = Array.from({ length: 30_000 }, (_, i) => ({
+    q: [i % 65536, 0, 0] as [number, number, number],
+    rgb: [1, 2, 3] as [number, number, number],
+    tree: 0,
+  }));
+  const buffer = encodeWorldCloud(HEADER, points, skeleton);
+
+  it("reads the segments and cuts in the cloud's frame", () => {
+    const cloud = parseWorldCloud(buffer);
+    const s = cloud.skeleton!;
+    expect(s.segmentCount).toBe(2);
+    expect(Array.from(s.kind)).toEqual([0, 1]);
+    expect(s.radius[0]).toBeCloseTo(0.12);
+    // q 2000 on z with scale 0.0005 and min -1: 0 m.
+    expect(s.b[2]).toBeCloseTo(0);
+    expect(s.a[0]).toBeCloseTo(-10);
+    expect(s.cutCount).toBe(1);
+    expect(s.cutDiameter[0]).toBeCloseTo(0.08);
+    expect(Array.from(s.cutTree)).toEqual([0]);
+  });
+
+  it("sums the cuts and the pruned length per tree", () => {
+    const summary = winterSummary(parseWorldCloud(buffer))!;
+    expect(summary.segments).toBe(2);
+    expect(summary.prunedSegments).toBe(1);
+    const t = summary.byTree.get(HEADER.trees[0].tree_id)!;
+    expect(t.cuts).toBe(1);
+    // From (-10, -20, 0) to (-9.5, -20, 0.5): 0.707 m.
+    expect(t.prunedLengthM).toBeCloseTo(Math.hypot(0.5, 0.5), 3);
+    expect(winterSummary(parseWorldCloud(encodeWorldCloud(HEADER, points.slice(0, 3))))).toBeNull();
+  });
+
+  it("has none in a summer file", () => {
+    expect(parseWorldCloud(encodeWorldCloud(HEADER, points.slice(0, 3))).skeleton).toBeNull();
+  });
+
+  it("fetches them with one range after the points", async () => {
+    const calls: string[] = [];
+    const fetch = async (_u: string, init: RequestInit) => {
+      const range = (init.headers as Record<string, string>).Range;
+      calls.push(range);
+      const [, a, b] = /bytes=(\d+)-(\d+)/.exec(range)!;
+      return new Response(buffer.slice(Number(a), Math.min(Number(b) + 1, buffer.byteLength)), {
+        status: 206,
+      });
+    };
+    const cloud = await loadWorldCloud("u", { fetch });
+    expect(calls).toHaveLength(8); // header, arrays twice, winter arrays
+    expect(cloud.skeleton!.segmentCount).toBe(2);
+    expect(Array.from(cloud.skeleton!.kind)).toEqual([0, 1]);
   });
 });

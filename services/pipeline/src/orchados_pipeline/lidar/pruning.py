@@ -58,7 +58,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .. import PIPELINE_NAME, __version__
 from ..hashing import hash_object
 from ..models import Model, Producer, write_model
-from .cloud import TreeCloud, extract_trees, load_session_cloud, load_tree_positions
+from .cloud import TreeCloud, extract_trees, load_session_cloud, load_tree_positions, map_trees
 from .models import CloudMeta, LidarMeasurement, LidarReport, TreeQuality
 from .skeleton import (
     CloudRef,
@@ -773,7 +773,9 @@ def make_report(
     before: list[TreeCloud],
     after: list[TreeCloud],
     p: PruningParams,
+    workers: int = 1,
 ) -> PruningReport:
+    """The stage's report; workers > 1 compares the trees in parallel (same result)."""
     warnings: list[str] = []
     if meta_before.parcel_id != meta_after.parcel_id:
         warnings.append(
@@ -782,11 +784,12 @@ def make_report(
     if meta_before.session_id == meta_after.session_id:
         warnings.append("before and after are the same session")
     by_id = {t.tree_id: t for t in before}
-    results = [
-        analyze_tree(by_id[a.tree_id], a, p, meta_before.point_sigma_m, meta_after.point_sigma_m)
+    jobs = [
+        (by_id[a.tree_id], a, p, meta_before.point_sigma_m, meta_after.point_sigma_m)
         for a in after
         if a.tree_id in by_id
     ]
+    results = map_trees(analyze_tree, jobs, workers)
     rejected = sum(
         1 for r in results if r.detail.alignment is not None and not r.detail.alignment.applied
     )

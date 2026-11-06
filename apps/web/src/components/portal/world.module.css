@@ -211,3 +211,21 @@
   border-radius: var(--radius);
   font-size: var(--text-sm);
 }
+
+/* Winter skeleton legend swatches (world-scene.ts WOOD and PRUNED). */
+.swatchWood,
+.swatchPruned {
+  display: inline-block;
+  width: 18px;
+  height: 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.swatchWood {
+  background: #d8c7a6;
+}
+
+.swatchPruned {
+  background: #e2483a;
+}

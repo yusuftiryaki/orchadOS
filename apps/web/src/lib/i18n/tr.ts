@@ -1693,6 +1693,14 @@ export const tr = {
         growth: "Boy değişimi",
         growthSince: (delta: string, since: string) => `${delta} (önceki ölçüm ${since})`,
         noChange: "Değişmedi",
+        // Winter scans (Faz 2b): the branch skeleton and the pruning.
+        skeleton: "Dal iskeleti",
+        skeletonWood: "Dallar (bu tarama)",
+        skeletonPruned: (cuts: number) =>
+          `Kırmızı: önceki kış taramasından bu yana budanan dallar, ${cuts} kesim`,
+        cuts: "Budama",
+        cutsValue: (cuts: number, length: string) => `${cuts} kesim, ${length} dal`,
+        noCuts: "Kesim yok",
         legend: (min: string, max: string) => `${min} – ${max}`,
         unmeasured: "Gri: ölçülmemiş ağaç ve zemin",
         treePanel: (code: string) => `${code} ağacı`,

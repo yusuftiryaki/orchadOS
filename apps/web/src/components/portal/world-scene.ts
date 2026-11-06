@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { CrownGuide } from "@/lib/portal/crown-guide";
-import { NO_TREE, type WorldCloud } from "@/lib/world/format";
+import { NO_TREE, SEGMENT_PRUNED, type WorldCloud, type WorldSkeleton } from "@/lib/world/format";
 import {
   changeSpan,
   depthPanorama,
@@ -96,6 +96,8 @@ interface Layer {
   trees: SceneTree[];
   // How many of its points are drawn (all once shown; animated while switching).
   drawn: number;
+  // Winter scans: the branch skeleton, pruned wood and cuts (Faz 2b).
+  skeleton: THREE.Group | null;
 }
 
 const SWITCH_MS = 1400;
@@ -143,6 +145,7 @@ const POINT_VERTEX = /* glsl */ `
 
 const POINT_FRAGMENT = /* glsl */ `
   uniform float uWaveOn;
+  uniform float uDim;
   varying vec3 vColor;
   varying float vWave;
   varying float vKeep;
@@ -150,7 +153,7 @@ const POINT_FRAGMENT = /* glsl */ `
     if (vKeep < 0.5) discard;
     vec2 c = gl_PointCoord - 0.5;
     if (dot(c, c) > 0.25) discard;
-    vec3 color = mix(vColor, vec3(0.55, 0.95, 1.0), vWave * uWaveOn * 0.85);
+    vec3 color = mix(vColor * uDim, vec3(0.55, 0.95, 1.0), vWave * uWaveOn * 0.85);
     gl_FragColor = vec4(color, 1.0);
   }
 `;
@@ -212,6 +215,7 @@ export class WorldScene {
   private layer: Layer;
   private trees: SceneTree[];
   private mode: ColorMode = "photo";
+  private skeletonOn = true;
   private switching: { from: Layer; to: Layer; start: number } | null = null;
   private frame = 0;
   private phase: "entering" | "world" | "exiting" | "done" = "entering";
@@ -246,6 +250,11 @@ export class WorldScene {
 
     this.camera = new THREE.PerspectiveCamera(options.fovDeg, 1, 0.05, 2000);
     this.applyPose(this.start);
+    // For the winter skeleton's tubes (the points are unlit).
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.6));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+    sun.position.set(30, 60, 20);
+    this.scene.add(sun);
 
     this.layer = this.makeLayer(options.visit);
     this.layers.set(this.layer.key, this.layer);
@@ -390,6 +399,12 @@ export class WorldScene {
     this.dirty = true;
   }
 
+  // Shows or hides the winter skeleton (the points are dimmed behind it).
+  setSkeleton(on: boolean) {
+    this.skeletonOn = on;
+    this.showSkeletons();
+  }
+
   setColorMode(mode: ColorMode) {
     this.mode = mode;
     this.paint(this.layer);
@@ -477,10 +492,11 @@ export class WorldScene {
       uniforms: {
         uOrigin: { value: new THREE.Vector3(...this.eye) },
         uReveal: { value: this.phase === "entering" ? 0 : 1e9 },
-        uSize: { value: Math.max(0.02, cloud.header.voxel_m || 0.04) * POINT_VOXELS },
+        uSize: { value: pointSize(cloud) },
         uScale: { value: this.scale },
         uSelected: { value: -1 },
         uWaveOn: { value: this.phase === "entering" ? 1 : 0 },
+        uDim: { value: 1 },
       },
     });
     const points = new THREE.Points(new THREE.BufferGeometry(), material);
@@ -503,6 +519,7 @@ export class WorldScene {
       treeIndex: new Map(),
       trees: visit.trees,
       drawn: cloud.count,
+      skeleton: null,
     };
     this.fillLayer(layer, cloud);
     this.paint(layer);
@@ -527,6 +544,12 @@ export class WorldScene {
     layer.points.geometry.dispose();
     layer.points.geometry = geometry;
     layer.cloud = cloud;
+    if (cloud.skeleton && !layer.skeleton) {
+      layer.skeleton = buildSkeleton(cloud.skeleton);
+      layer.skeleton.position.copy(layer.points.position);
+      this.scene.add(layer.skeleton);
+      this.showSkeletons();
+    }
     layer.treeIndex = new Map([...cloud.treeIds].map(([index, id]) => [id, index]));
     if (this.selected) {
       layer.material.uniforms.uSelected.value = layer.treeIndex.get(this.selected) ?? -1;
@@ -600,6 +623,19 @@ export class WorldScene {
     }
     s.to.drawn = s.to.cloud.count;
     s.to.points.geometry.setDrawRange(0, s.to.drawn);
+    this.showSkeletons();
+  }
+
+  // The skeleton of the visit on screen, once the world is open.
+  private showSkeletons() {
+    for (const layer of this.layers.values()) {
+      const shown =
+        this.skeletonOn && layer === this.layer && !!layer.skeleton && this.overlayOpacity > 0;
+      if (layer.skeleton) layer.skeleton.visible = shown;
+      // Behind the skeleton the points step back: dimmer and smaller.
+      layer.material.uniforms.uDim.value = shown ? 0.45 : 1;
+      layer.material.uniforms.uSize.value = pointSize(layer.cloud) * (shown ? 0.35 : 1);
+    }
     this.dirty = true;
   }
 
@@ -690,6 +726,10 @@ export class WorldScene {
     this.selectedGroup.visible = opacity > 0;
     this.options.labels.style.opacity = String(opacity);
     this.options.labels.style.visibility = opacity > 0 ? "visible" : "hidden";
+    const wasShown = this.layer.skeleton?.visible ?? false;
+    if (wasShown !== (this.skeletonOn && !!this.layer.skeleton && opacity > 0)) {
+      this.showSkeletons();
+    }
   }
 
   private onResize() {
@@ -883,6 +923,78 @@ export class WorldScene {
     const hit = pickNearest(items, x, y, 48);
     this.options.onSelect(hit?.id ?? null);
   };
+}
+
+const WOOD = 0xd8c7a6;
+const PRUNED = 0xe2483a;
+const CUT = 0xff2d1f;
+// Thinnest tube drawn (the thinnest twigs would vanish at parcel scale).
+const MIN_TUBE_M = 0.012;
+// Smallest cut marker: a ball big enough to find from the overview.
+const CUT_MIN_M = 0.09;
+
+// The winter skeleton as instanced tubes (standing wood, pruned wood) and the
+// cuts as small red balls, in scene axes.
+function buildSkeleton(sk: WorldSkeleton): THREE.Group {
+  const group = new THREE.Group();
+  group.visible = false;
+  const tube = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
+  const up = new THREE.Vector3(0, 1, 0);
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const dir = new THREE.Vector3();
+  const q = new THREE.Quaternion();
+  const m = new THREE.Matrix4();
+  const scale = new THREE.Vector3();
+  for (const kind of [0, SEGMENT_PRUNED]) {
+    const ids: number[] = [];
+    for (let i = 0; i < sk.segmentCount; i++)
+      if ((sk.kind[i] === SEGMENT_PRUNED) === (kind === SEGMENT_PRUNED)) ids.push(i);
+    if (ids.length === 0) continue;
+    const material = new THREE.MeshLambertMaterial({
+      color: kind === SEGMENT_PRUNED ? PRUNED : WOOD,
+      emissive: kind === SEGMENT_PRUNED ? 0x5a0d08 : 0x1c160e,
+    });
+    const mesh = new THREE.InstancedMesh(tube, material, ids.length);
+    ids.forEach((i, n) => {
+      a.set(...sceneOf(sk.a[i * 3], sk.a[i * 3 + 1], sk.a[i * 3 + 2]));
+      b.set(...sceneOf(sk.b[i * 3], sk.b[i * 3 + 1], sk.b[i * 3 + 2]));
+      dir.subVectors(b, a);
+      const length = dir.length();
+      if (length > 0) q.setFromUnitVectors(up, dir.divideScalar(length));
+      const r = Math.max(sk.radius[i], MIN_TUBE_M);
+      scale.set(r, Math.max(length, 1e-4), r);
+      m.compose(a.add(b).multiplyScalar(0.5), q, scale);
+      mesh.setMatrixAt(n, m);
+    });
+    mesh.frustumCulled = false;
+    mesh.userData.kind = kind;
+    group.add(mesh);
+  }
+  if (sk.cutCount > 0) {
+    const ball = new THREE.SphereGeometry(1, 10, 8);
+    const mesh = new THREE.InstancedMesh(
+      ball,
+      new THREE.MeshBasicMaterial({ color: CUT }),
+      sk.cutCount,
+    );
+    for (let i = 0; i < sk.cutCount; i++) {
+      a.set(
+        ...sceneOf(sk.cutPosition[i * 3], sk.cutPosition[i * 3 + 1], sk.cutPosition[i * 3 + 2]),
+      );
+      const r = Math.max(sk.cutDiameter[i] * 0.8, CUT_MIN_M);
+      m.compose(a, q.identity(), scale.set(r, r, r));
+      mesh.setMatrixAt(i, m);
+    }
+    mesh.frustumCulled = false;
+    group.add(mesh);
+  }
+  return group;
+}
+
+// Point size in metres: covers the gaps between neighbouring points.
+function pointSize(cloud: WorldCloud): number {
+  return Math.max(0.02, cloud.header.voxel_m || 0.04) * POINT_VOXELS;
 }
 
 // A horizontal circle as line segments.

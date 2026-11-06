@@ -17,7 +17,7 @@ Bulutun dosya biçimi bileşenler arası bir sözleşmedir: [arayuzler.md](arayu
 | Gezide geçiş efekti, 3D dünya, ağaç ölçüleri, renk kipleri | Var (Faz 1) |
 | Demo turu verisi: sentetik bulut (sürüm 5) ve taç ölçümleri (sürüm 4) | Var |
 | Kademeli yükleme (önce dörtte bir, sonra kalanı), denetimler arası geçiş, boy değişimi kipi | Var (Faz 2) |
-| Kış iskeleti ve budama görünümü | Faz 2b: kış taraması olan sentetik demo verisi ve iskeletin web biçimi gerekiyor (§7) |
+| Kış iskeleti ve budama görünümü | Var (Faz 2b): bulut dosyasında isteğe bağlı iskelet ve kesim dizileri, `lidar world --skeleton --pruning`, 3D dünyada tüpler, kırmızı budanan dallar ve kesim noktaları, demo verisi sürüm 6 (A'nın iki kış taraması) |
 | Oktree ile ayrıntı düzeyi (çok büyük bahçeler) | Faz 2b; gerçek bulut boyutu görülünce karar |
 | Uzman paneli ve ofis aracında 3D dünya | Faz 3 |
 | Gerçek LiDAR verisi | Kayıt adımı (MCAP → bulut) ve LiDAR'lı kit bekleniyor ([lidar-olcumleri.md](lidar-olcumleri.md) §1) |
@@ -42,6 +42,7 @@ Bulutun dosya biçimi bileşenler arası bir sözleşmedir: [arayuzler.md](arayu
 7. **Dünyada gezinme:** Sürükleyerek çevirme, iki parmak ya da tekerlekle yakınlaştırma, sağ tuşla ya da üç parmakla kaydırma vardır (three.js `OrbitControls`). Bir ağaca ya da etiketine dokununca ağacın noktaları sarıya döner. Panelde kodu, sınıfı, boyu, taç çapı, taç hacmi ve taç tabanı yazar. Panelde "Ağaca yaklaş" ve "Ağaç karnesi" düğmeleri bulunur.
 8. **Renk kipleri:** Fotoğraf renkleri (varsayılan), ağaç boyu, taç çapı ve boy değişimi. Ölçü kiplerinde ağaçlar viridis rampasıyla boyanır, zemin ve ölçülmemiş ağaçlar gri olur. Gösterge en küçük ve en büyük değeri yazar.
    - **Boy değişimi (Faz 2):** Her ağacın boyu, o ağacı ölçmüş bir önceki denetimle karşılaştırılır. Kısalan ağaçlar turuncu-kırmızı, değişmeyenler gri, uzayanlar yeşil boyanır. Rampa iki yana simetriktir ve en büyük değişime göre ölçeklenir (en az ±0,1 m). Kip yalnız bakılan denetimde değişim hesaplanabilen bir ağaç varsa sunulur. Panelde "Boy değişimi +0,32 m (önceki ölçüm 15 Tem 2025)" yazar; 1 cm'nin altındaki fark "Değişmedi" olarak gösterilir.
+   - **Kış iskeleti (Faz 2b):** Kış taramasında her ağacın dal iskeleti açık renkli tüplerle çizilir. Kalınlık iskeletin yarıçapıdır; en ince tüp 1,2 cm'dir. Önceki kış taramasından bu yana budanan dallar kırmızı tüplerle, kesim noktaları kırmızı toplarla gösterilir. Üst çubukta "Dal iskeleti" kutusu iskeleti açıp kapatır; iskelet açıkken noktalar soluklaşır. Gösterge kesim sayısını yazar. Ağaç panelinde "Budama: 3 kesim, 2,4 m dal" gibi bir satır çıkar; kesim yoksa "Kesim yok". Bu değerler çizilen geometriden (iskelet ve kesim dizileri) hesaplanır. Ölçüm satırları (`pruning_cut_count`, `pruning_status`) ağaç karnesindedir.
    - **Denetim (Faz 2):** Bulutu olan birden çok denetim varsa üst çubukta denetim seçilir. Seçilen denetimin bulutu ilk kez kademeli indirilir. Eski bulut çözülürken yenisi belirir (1,4 sn). Noktalar karıştırılmış sırada olduğu için ilk `k` noktayı çizmek düzgün bir örnektir; eskinin `k`'sı azalır, yeninin artar. Etiketler, ölçü çizgileri, panel ve renkler seçilen denetimin ölçümlerine geçer. Başka bir oturumun bulutu, kendi orijininden ilk bulutun düzlemine yerleştirilir. Kamera yerinde kalır.
 9. **Geri dönüş:** "Panoramaya dön" ya da Escape ile ölçüler söner. Kamera, ziyaretçinin bıraktığı yerden panoramanın kamerasına iner (1 sn) ve fotoğraf yeniden belirir. Gezi, aynı panoramada ve aynı bakışta kaldığı yerden devam eder.
 
@@ -92,6 +93,7 @@ Ham `point_cloud`, yörünge ve GNSS kayıtları yalnız personele açıktır; b
 | `apps/web/src/lib/world/format.ts` | Dosya okuyucu: başlık, dizi aralıkları, parçalardan bulut kurma (ve testler için yazıcı) |
 | `apps/web/src/lib/world/stream.ts` | Kademeli indirme (aralık istekleri) |
 | `apps/web/src/lib/world/visits.ts` | Bulutu olan denetimler, önceki ölçüme göre boy değişimi |
+| `apps/web/src/lib/world/skeleton.ts` | Kış iskeletinden ağaç başına kesim sayısı ve kesilen dal uzunluğu |
 | `apps/web/src/lib/world/geometry.ts` | Yerel düzlem, sahne eksenleri, zemin ızgarası, derinlik panoraması, geçiş zaman çizelgesi, kamera pozları, renk rampası (saf, birim testli) |
 | `apps/web/src/components/portal/world-scene.ts` | three.js sahnesi: denetim başına nokta katmanı ve dalga gölgelendiricisi, katmanlar arası çözülme, fotoğraf küresi, ölçü çizgileri, etiketler, yörünge denetimi, WebGL bağlamının serbest bırakılması |
 | `apps/web/src/components/portal/world-view.tsx` | İmza, kademeli indirme, denetim seçimi, arayüz katmanı; gezi tarafından dinamik yüklenir |
@@ -106,10 +108,7 @@ Ham `point_cloud`, yörünge ve GNSS kayıtları yalnız personele açıktır; b
 ## 7. Faz 2 ve sonrası
 
 - **Yapıldı (Faz 2):** Kademeli yükleme (dörtte bir, sonra kalanı), denetimler arası geçiş, boy değişimi kipi.
-- **Kış (Faz 2b):** Kış taramasında iskelet düğümleri tüplerle çizilir, budanan dallar kırmızı gösterilir (`skeleton.json`, `pruning.json`). Bunun için gerekenler:
-  - İskeletin ve kesimlerin sahibe açık bir web biçimi (`arayuzler.md`'de yeni bir sözleşme) ve asset türü.
-  - Demoda iki kış taraması: yapraksız çizilen ağaçlar, ikincisinde budanmış dallar (yeni medya, yeni veri sürümü).
-  - Uzman gösterimi: ana kol ve kesim sayısı zaten karnede.
+- **Yapıldı (Faz 2b):** Kış iskeleti ve budama görünümü. Yeni asset türü açılmadı. İskelet ve kesimler aynı `world_cloud` dosyasında isteğe bağlı dizilerdir ([arayuzler.md](arayuzler.md#3d-dünya-bulutu), "Kış iskeleti ve budama"). Web bu dizileri noktalardan sonra tek bir aralık isteğiyle indirir. Parçalar tek bir `InstancedMesh` ile tüp olarak çizilir (altı yüzlü silindir).
 - **Oktree (Faz 2b):** Bir hektarı aşan bahçelerde kademeli yükleme yetmezse yaklaştıkça ayrıntı (COPC/Potree tarzı). Gerçek bulut boyutu görülünce karar verilir.
 - **Demo sınırı:** Sentetik ağaçlar yıllar arasında çizimde büyümez (sürüm 1 medyası değişmez). Bu yüzden demoda boy değişimi çoğunlukla "Değişmedi"dir; kısalan ağaçlar kuruyan ve sorunlu olanlardır.
 - **Personel:** Uzman panelinde ve ofis aracında aynı dünya; büyüklük sınıfı önerisinin tek tıkla kabulü.
@@ -117,7 +116,7 @@ Ham `point_cloud`, yörünge ve GNSS kayıtları yalnız personele açıktır; b
 
 ## 8. Test
 
-- **Birim (Vitest):** `src/lib/world/world.test.ts`. Kapsadığı konular: biçim gidiş dönüşü, hizalama, bozuk dosyaların reddi, işleme hattıyla aynı yerel düzlem, eksenler, zemin, derinlik panoraması, geçişte kameranın fotoğraf gitmeden kıpırdamaması, poz, renk ve seçim. Faz 2'de eklenenler: kademeli indirme (aralıklı, aralıksız ve küçük bulut), bulut orijininin yerleşimi, değişim rampası, önceki ölçüme göre boy değişimi.
+- **Birim (Vitest):** `src/lib/world/world.test.ts`. Kapsadığı konular: biçim gidiş dönüşü, hizalama, bozuk dosyaların reddi, işleme hattıyla aynı yerel düzlem, eksenler, zemin, derinlik panoraması, geçişte kameranın fotoğraf gitmeden kıpırdamaması, poz, renk ve seçim. Faz 2'de eklenenler: kademeli indirme (aralıklı, aralıksız ve küçük bulut), bulut orijininin yerleşimi, değişim rampası, önceki ölçüme göre boy değişimi. Faz 2b: kış dizilerinin okunması, tek aralıkla indirilmesi, ağaç başına kesim ve kesilen uzunluk.
 - **İşleme hattı (pytest):** biçim, belirlenim, taşıyanın atılması, örtülen noktanın örten yüzeyin rengini almaması, ağaç ataması, başlıkta zaman olmaması.
 - **Veritabanı (pgTAP):** `79_world_cloud.test.sql`.
 - **Tarayıcı:** demo verisinde düğme, yükleme, giriş, ağaç seçimi, renk kipleri, boy değişimi, 2025 denetimine geçiş ve geri dönüş (`tests/e2e/demo-tour.spec.ts` › "3D world").

@@ -932,9 +932,18 @@ test.describe("3D world", () => {
     await page.getByTestId("world-visit").selectOption(other!);
     await expect(world2).toHaveAttribute("data-visit", other!);
     await expect(world2).toHaveAttribute("data-pending", "", { timeout: 60_000 });
-    // 2025 has no earlier LiDAR visit: growth is not offered, the photo colours return.
+    // The next visit is the winter scan after the pruning (dataset version 6):
+    // no height measured, so no growth; the branch skeleton with the pruned
+    // wood and its cuts instead (docs/3d-dunya.md, Faz 2b).
     await expect(page.getByTestId("world-mode").locator('option[value="growth"]')).toHaveCount(0);
     await expect(page.getByTestId("world-tree-growth")).toHaveCount(0);
+    await expect(world2).toHaveAttribute("data-winter", "true", { timeout: 60_000 });
+    await expect(page.getByTestId("world-skeleton")).toBeChecked();
+    await expect(page.getByTestId("world-skeleton-legend")).toContainText("kesim");
+    await expect(page.getByTestId("world-tree-cuts")).toBeVisible();
+    await page.getByTestId("world-skeleton").uncheck();
+    await expect(page.getByTestId("world-skeleton-legend")).toHaveCount(0);
+    await page.getByTestId("world-skeleton").check();
     await page.getByTestId("world-visit").selectOption(visitNow!);
     await expect(world2).toHaveAttribute("data-visit", visitNow!);
 

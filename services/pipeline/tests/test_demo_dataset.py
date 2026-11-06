@@ -26,13 +26,17 @@ def ds():
 def test_fixed_ids_and_tour(ds):
     assert ids.ORG_ID == "de000000-0000-4000-8000-000000000001"
     assert [p.id for p in dataset.PARCELS] == [ids.PARCEL_A, ids.PARCEL_B]
-    assert {v.key: v.id for v in ds.visits if not v.key.endswith(("VER25", "VER26"))} == {
+    fixed = [v for v in ds.visits if not v.key.endswith(("VER25", "VER26")) and v.version == 1]
+    assert {v.key: v.id for v in fixed} == {
         "A-INV25": "de200000-0000-4000-8000-000000000001",
         "A-SCN25": "de200000-0000-4000-8000-000000000002",
         "A-SCN26": "de200000-0000-4000-8000-000000000003",
         "B-INV26": "de200000-0000-4000-8000-000000000004",
         "B-SCN26": "de200000-0000-4000-8000-000000000005",
     }
+    # Version 6: the winter visits' ids are derived (v6), not fixed.
+    for key in ("A-WIN26", "A-PRN26"):
+        assert ds.visit(key).id == ids.did("session", key, version=6)
     tour = ds.tour()
     assert tour["tree_id"] == ds.tree("A", "S3-6").id
     assert tour["session_id"] == ids.A_SCAN_2026 and tour["previous_session_id"] == ids.A_SCAN_2025
@@ -69,8 +73,10 @@ def test_scans_a_year_apart_in_summer(ds):
     a25, a26 = ds.visit("A-SCN25"), ds.visit("A-SCN26")
     days = (a26.start - a25.start).days
     assert 300 <= days <= 430  # portal previousYearVisit window
-    for v in ds.scans():
+    for v in ds.summer_scans():
         assert v.start.month in (6, 7) and v.status == "published"
+    for v in ds.scans():
+        assert v.status == "published"
         assert v.published_at > v.end and v.published_at < TODAY
     for v in ds.visits:
         assert v.end < TODAY
@@ -119,10 +125,14 @@ def test_no_out_of_season_metric(ds):
     summer = set(sqlgen.portal_codes(m, "summer"))
     assert {"pest_sign_severity", "fruit_load_scale", "basal_sprout_level"} <= summer
     assert "pruning_status" not in summer and "harvest_complete" not in summer
+    winter = set(sqlgen.portal_codes(m, "winter"))
+    assert {"pruning_status", "dead_branch_scale", "frost_damage_scale"} <= winter
+    assert "fruit_load_scale" not in winter and "pest_sign_severity" not in winter
     for v in ds.scans():
         cls = ds.classes(v)
+        allowed = summer if v.season == "summer" else winter
         for t in ds.trees[v.parcel.key]:
-            assert set(dataset.tree_values(v, t, cls[t.code])) <= summer
+            assert set(dataset.tree_values(v, t, cls[t.code])) <= allowed
     for v in ds.visits:
         if v.kind == "inventory":
             assert set(dataset.INVENTORY_CODES) <= summer
@@ -154,10 +164,15 @@ def test_findings_and_questions(ds):
 
 def test_versions_are_cumulative():
     """Version 2 adds the service layer, version 3 the robot, version 4 the LiDAR crown
-    measurements, version 5 the 3D world; earlier rows keep their ids and seeds."""
-    assert dataset.DATASET_VERSION == 5 and dataset.SEED_VERSION == 1
+    measurements, version 5 the 3D world, version 6 the winter scans; earlier rows keep
+    their ids and seeds."""
+    assert dataset.DATASET_VERSION == 6 and dataset.SEED_VERSION == 1
     assert dataset.SERVICES_VERSION == 2 and dataset.ROBOT_VERSION == 3
     assert dataset.LIDAR_VERSION == 4 and dataset.WORLD_VERSION == 5
+    assert dataset.WINTER_VERSION == 6
+    ds = dataset.load()
+    assert {v.key for v in ds.visits if v.version == 6} == {"A-WIN26", "A-PRN26"}
+    assert all(v.version == 1 for v in ds.visits if v.key not in ("A-WIN26", "A-PRN26"))
     assert sqlgen.SERVICE_TYPE_ID == ids.did("service_type", "weed_mowing", version=2)
 
 
@@ -208,3 +223,40 @@ def test_service_job_timeline(ds):
     assert (job.id, job.request_id) == (ids.B_MOWING_2026, ids.B_MOWING_2026_REQUEST)
     assert ds.tour()["service_request_id"] == ids.B_MOWING_2026_REQUEST
     assert dataset.WEED_HEIGHTS["B-SCN26"] == "short" and dataset.WEED_HEIGHTS["A-SCN26"] == "tall"
+
+
+def test_winter_scans_lie_between_the_summers(ds):
+    """Version 6: two winter scans of parcel A, January and February 2026: A 2026 summer
+    stays the newest visit of the parcel and the tour's visit."""
+    w1, w2 = ds.visit("A-WIN26"), ds.visit("A-PRN26")
+    a25, a26 = ds.visit("A-SCN25"), ds.visit("A-SCN26")
+    assert a25.start < w1.start < w2.start < a26.start
+    assert (w1.season, w2.season) == ("winter", "winter")
+    assert [v.key for v in ds.winter_scans()] == ["A-WIN26", "A-PRN26"]
+    assert max(v.start for v in ds.visits if v.parcel.key == "A") == a26.start
+    assert ds.tour()["session_id"] == a26.id and ds.tour()["previous_session_id"] == a25.id
+    # The same path as the summer scans (time travel keeps the spot); previews only.
+    assert w1.aisles == a26.aisles and not w1.full_variants and not w2.full_variants
+    # The portal's year-before window still finds A 2025 for A 2026 (300-430 days),
+    # and a winter visit is not in it.
+    assert not 300 <= (a26.start - w2.start).days <= 430
+
+
+def test_pruning_plan(ds):
+    """Most productive and old trees get 2-4 cuts, some none; the expert's pruning
+    status follows: not done before the pruning, done or partial after it."""
+    trees = ds.trees["A"]
+    cuts = {t.code: dataset.pruning_cuts(t) for t in trees}
+    grown = [t for t in trees if t.age_class in ("productive", "old")]
+    assert sum(cuts[t.code] >= 2 for t in grown) >= 0.75 * len(grown)
+    assert 3 <= sum(cuts[t.code] == 0 for t in grown) <= 15
+    assert cuts["S4-3"] == 0 and cuts["S3-11"] == 0
+    assert all(c <= 4 for c in cuts.values())
+    w1, w2 = ds.visit("A-WIN26"), ds.visit("A-PRN26")
+    for t in trees:
+        before = dataset.tree_values(w1, t, ds.classes(w1)[t.code])
+        after = dataset.tree_values(w2, t, ds.classes(w2)[t.code])
+        assert before["pruning_status"] == "not_done"
+        assert after["pruning_status"] == dataset.pruning_status(cuts[t.code])
+    assert ds.classes(w1)["S3-6"] == "healthy" and ds.classes(w1)["S4-3"] == "problem"
+    assert all(c != "absent" for c in ds.classes(w2).values())

@@ -9,6 +9,9 @@ rejected with a clear error rather than misread.
 from __future__ import annotations
 
 import json
+import multiprocessing as mp
+import os
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -269,10 +272,15 @@ def nearest_trunk(xy: np.ndarray, centers: np.ndarray) -> tuple[np.ndarray, np.n
     """
     owner = np.empty(len(xy), dtype=np.int64)
     dist = np.empty(len(xy), dtype=np.float64)
-    for s in range(0, len(xy), 200_000):
-        d2 = ((xy[s : s + 200_000, None, :] - centers[None, :, :]) ** 2).sum(-1)
-        owner[s : s + 200_000] = d2.argmin(1)
-        dist[s : s + 200_000] = np.sqrt(d2.min(1))
+    step = 16_384
+    for s in range(0, len(xy), step):
+        # Two 2D squares instead of a 3D difference array: the same sums, in cache.
+        de = xy[s : s + step, 0, None] - centers[None, :, 0]
+        dn = xy[s : s + step, 1, None] - centers[None, :, 1]
+        d2 = de * de + dn * dn
+        k = d2.argmin(1)
+        owner[s : s + step] = k
+        dist[s : s + step] = np.sqrt(np.take_along_axis(d2, k[:, None], 1)[:, 0])
     return owner, dist
 
 
@@ -284,9 +292,16 @@ def tree_ground_planes(
     Coefficients are relative to the trunk: z = c0 + c1 * (e - e_t) + c2 * (n - n_t).
     """
     xy = points[:, :2]
+    # Candidates by an east window first (sorted indices: the same points in the same
+    # order as a mask over the whole cloud, so the same planes, much faster).
+    order = np.argsort(xy[:, 0], kind="stable")
+    xs = xy[order, 0]
     planes = []
     for c in centers:
-        near = ((xy - c) ** 2).sum(1) <= radius_m**2
+        lo = np.searchsorted(xs, c[0] - radius_m, side="left")
+        hi = np.searchsorted(xs, c[0] + radius_m, side="right")
+        idx = np.sort(order[lo:hi])
+        near = idx[((xy[idx] - c) ** 2).sum(1) <= radius_m**2]
         planes.append(ground_plane(xy[near] - c, points[near, 2], ground_cell_m))
     return planes
 
@@ -339,3 +354,27 @@ def extract_trees(
             )
         )
     return out
+
+
+# Thread settings of the BLAS libraries numpy may use (map_trees' workers).
+_BLAS_THREADS = ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS")
+
+
+def map_trees[T](fn: Callable[..., T], jobs: Sequence[tuple], workers: int = 1) -> list[T]:
+    """fn(*job) for every job, in order. With workers > 1 in spawned processes (a fork
+    after OpenCV or a BLAS has started its threads can deadlock), one BLAS thread
+    each; trees are measured independently, so the result does not depend on it."""
+    if workers <= 1 or len(jobs) <= 2:
+        return [fn(*job) for job in jobs]
+    saved = {k: os.environ.get(k) for k in _BLAS_THREADS}
+    os.environ.update({k: "1" for k in _BLAS_THREADS})
+    try:
+        n = min(workers, len(jobs))
+        with mp.get_context("spawn").Pool(n) as pool:
+            return pool.starmap(fn, jobs, chunksize=1)
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v

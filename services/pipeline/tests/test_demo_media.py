@@ -198,7 +198,8 @@ def test_world_clouds(fresh_build):
     root, manifest, _s = fresh_build
     ds = dataset.load()
     worlds = {r["visit"]: r["world"] for r in manifest["runs"] if "world" in r}
-    assert set(worlds) == set(demo_world.WORLD_VISITS)
+    assert set(worlds) == set(demo_world.WORLD_VISITS) | {"A-WIN26", "A-PRN26"}
+    worlds = {k: w for k, w in worlds.items() if k in demo_world.WORLD_VISITS}
     files = {f["sha256"]: f for f in manifest["files"]}
     for key, info in worlds.items():
         v = ds.visit(key)
@@ -222,6 +223,56 @@ def test_world_clouds(fresh_build):
         assert g > r and g > b
         r, g, b = w.color[ground].astype(float).mean(0)
         assert r > b
+
+
+def test_winter_world_clouds(fresh_build):
+    """Version 6: the winter scans' clouds carry the skeleton of the trees the skeleton
+    stage measured, the one after the pruning also the cut wood and the cuts; the
+    pruned trees are the ones the gardener pruned."""
+    import json
+
+    from orchados_pipeline.lidar.world import NO_TREE, read_world
+
+    root, manifest, _s = fresh_build
+    ds = dataset.load()
+    runs = {r["visit"]: r for r in manifest["runs"]}
+    files = {f["sha256"]: f for f in manifest["files"]}
+    index = {t.id: i for i, t in enumerate(ds.trees["A"])}
+    for key in ("A-WIN26", "A-PRN26"):
+        v, info = ds.visit(key), runs[key]["world"]
+        f = files[info["sha256"]]
+        assert f["kind"] == "world_cloud" and f["session"] == v.id and f["bytes"] <= 720_000
+        w = read_world(root / "files" / info["sha256"])
+        h = w.header
+        assert h["session_id"] == v.id and h["colorized"] and h["point_count"] > 20_000
+        assert not any(k in json_text(h) for k in ("time", "gps", "utc"))
+        sk = json.loads((root / "runs" / key / "skeleton.json").read_text())
+        assert h["skeleton"]["params_hash"] == sk["producer"]["params_hash"]
+        ok = {index[q["tree_id"]] for q in sk["trees"] if q["status"] == "ok"}
+        standing = w.segment_kind == 0
+        assert set(np.unique(w.segment_tree[standing]).tolist()) == ok
+        assert h["segment_count"] == info["segments"] > 10_000
+        # Bare wood: no green, brown-grey bark on the tree points.
+        r, g, b = w.color[w.tree != NO_TREE].astype(float).mean(0)
+        assert r >= b and g < r + 20
+        if key == "A-WIN26":
+            assert h["skeleton"]["pruning"] is None and h["cut_count"] == 0
+            assert not (w.segment_kind == 1).any()
+            continue
+        pr = json.loads((root / "runs" / key / "pruning.json").read_text())
+        assert h["skeleton"]["pruning"]["before_session_id"] == ds.visit("A-WIN26").id
+        assert h["cut_count"] == info["cuts"] > 50 and (w.segment_kind == 1).sum() > 500
+        pruned = {t.code for t in ds.trees["A"] if dataset.pruning_cuts(t)}
+        cut_trees = {ds.trees["A"][i].code for i in np.unique(w.cut_tree).tolist()}
+        assert len(cut_trees & pruned) >= 0.9 * len(cut_trees) and len(cut_trees) > 30
+        assert (
+            sum(
+                len(d["cuts"])
+                for d in pr["details"]
+                if any(q["tree_id"] == d["tree_id"] and q["status"] == "ok" for q in pr["trees"])
+            )
+            == h["cut_count"]
+        )
 
 
 def json_text(obj) -> str:
