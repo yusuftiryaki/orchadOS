@@ -507,3 +507,26 @@ def test_service_rows_carry_version_2_ids(generated):
     ]
     for a in _rows(script, "services", "public.asset"):
         assert a["id"] in {ids.did("asset", p.key(job), version=2) for p in job.photos}
+
+
+def test_world_clouds(generated):
+    """Version 5 (İP17 3D world): a world_cloud asset per LiDAR visit as lidar upload
+    records it (no time); ids derived with v5."""
+    from orchados_pipeline.demo import world as demo_world
+
+    ds, manifest, script, _sql = generated
+    assets = [r for r in _rows(script, "chain", "public.asset") if r["kind"] == "world_cloud"]
+    worlds = {r["visit"]: r["world"] for r in manifest["runs"] if "world" in r}
+    assert set(worlds) == set(demo_world.WORLD_VISITS)
+    keys = {f["sha256"]: f["key"] for f in manifest["files"]}
+    assert {a["session_id"] for a in assets} == {ds.visit(k).id for k in worlds}
+    for a in assets:
+        assert a["id"] == ids.did("asset", keys[a["content_hash"]], version=dataset.WORLD_VERSION)
+        assert a["mime_type"] == "application/vnd.orchados.world-cloud"
+        assert a["uri"] == (
+            f"storage://media/org/{ids.ORG_ID}/parcel/{ids.PARCEL_A}/{a['content_hash']}"
+        )
+        assert set(a["pose"]) == {"schema", "point_count", "crs"}
+        assert a["pose"]["crs"] == "local_enu" and a["pose"]["point_count"] > 30_000
+        assert a["position"].startswith("SRID=4326;POINT(") and a["position_uncertainty_m"] > 0
+        assert a["tree_id"] is None and a["pipeline"] == "orchados-demo"

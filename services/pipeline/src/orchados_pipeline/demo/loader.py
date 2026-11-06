@@ -46,9 +46,10 @@ CACHE_CONTROL = "max-age=31536000"
 # the latest version is therefore applying all versions in order, and a target
 # registered at an older version gains rows; version 3 also brings the four
 # mutable version 2 rows it changed up to date (sqlgen.robot_upgrade), version 4
-# adds the LiDAR crown measurements (sqlgen.lidar_measurements). Only
-# DATASET_VERSION is built and loaded.
-VERSIONS = (4,)
+# adds the LiDAR crown measurements (sqlgen.lidar_measurements), version 5 the
+# world cloud assets and their files (sqlgen.world_clouds). Only DATASET_VERSION
+# is built and loaded.
+VERSIONS = (5,)
 assert VERSIONS == (DATASET_VERSION,), "the loader applies the latest (cumulative) version"
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
@@ -503,10 +504,10 @@ def _put_mirror(client: SupabaseClient, key: str, path: Path, mime: str) -> bool
 
 
 def _read_back(client: SupabaseClient, build: Path, files: list[dict], mirror: bool) -> None:
-    """A panorama, a crop, a close-up and a proof photo: their stored bytes hash to
-    their names."""
+    """A panorama, a crop, a close-up, a proof photo and a world cloud: their stored
+    bytes hash to their names."""
     sample = []
-    for kind in ("panorama", "preview", "tree_crop", "closeup", "service_photo"):
+    for kind in ("panorama", "preview", "tree_crop", "closeup", "service_photo", "world_cloud"):
         f = next((f for f in files if f["kind"] == kind), None)
         if f:
             sample.append(f)

@@ -343,18 +343,19 @@ pnpm db:demo-tour [ek argümanlar]     # kökten: demo load --target local --ver
 | `dataset.py` | Sürüm 1: iki parsel, yerler, ağaçlar ve nitelikleri, ziyaretler ve kareleri, ziyaret başına sınıflar ve uzman değerleri, bulgular, yakın planlar, sorular, doğrulama kalemleri. Bütün rastgelelik `(sürüm, anahtar)` ile tohumlanır |
 | `render.py` | Eşdikdörtgen çizici (işleme hattıyla aynı kural: orta sütun `heading_deg`, azimut sağa artar, üst satır zenit). Gökyüzü ve tepeler ziyaret başına bir kez çizilip karenin yönüne kaydırılır; zemin parselin dokusundan `cv2.remap` ile okunur; ağaçlar nesne nesne (elipsoit, silindir) yalnız açısal sınır kutularında z-buffer'la çizilir. Nadirde "orchadOS SENTETIK ORNEK" diski, kesit ve fotoğrafların köşesinde anahtarlı damga |
 | `closeups.py` | Yakın plan makro sahneleri: yaprakçık (sağlıklı, kuru, sararmış), psil lekesi, kuru sürgün, kabuk ve zamk damlası, boş salkım |
-| `build.py` | Derleme önbelleği: `.demo-build/v<sürüm>-<profil>/manifest.json`, `files/<sha256>` ve ziyaret başına işleme hattının çalıştırma dosyaları (`runs/<ziyaret>/outputs.json`, `panoramas.json`, `crops.json`, envanterde `coverage.json`, taramada `presence.json` ve `crown.json`). Kesitler `crops.candidate_views` ve `projection.gnomonic_crop` ile kesilir, kapsama `coverage.compute_coverage` ile hesaplanır. Kareler ayrı süreçlerde (spawn) çizilir |
+| `build.py` | Derleme önbelleği: `.demo-build/v<sürüm>-<profil>/manifest.json`, `files/<sha256>` ve ziyaret başına işleme hattının çalıştırma dosyaları (`runs/<ziyaret>/outputs.json`, `panoramas.json`, `crops.json`, envanterde `coverage.json`, taramada `presence.json` ve `crown.json`, A'nın taramalarında `world.json`). Kesitler `crops.candidate_views` ve `projection.gnomonic_crop` ile kesilir, kapsama `coverage.compute_coverage` ile hesaplanır. Kareler ayrı süreçlerde (spawn) çizilir |
 | `lidar.py` | Veri sürümü 4: taramada her ağacın çizilen görünüşünden (`render.tree_shape`) sentetik LiDAR noktaları ve taç aşamasının (`lidar/crown.py`) raporu (`runs/<tarama>/crown.json`); değerler çizilen ağaca oturur, portalın taç çizimi kesit ve panoramada ağacın üstüne düşer |
 | `sqlgen.py` | Tek SQL işlemi. Capture, asset, kaynak bağı, kapsama raporu ve varlık ölçümleri `upload.upload_run()`'ın kendisiyle, SQL yazan bir `Catalog` (`SqlCatalog`) üzerinden üretilir. LiDAR taç ölçümleri `crown.json`'dan `lidar.upload.build_payload` ve `check_payload` ile. Her eklemede açık çakışma hedefi vardır |
 | `loader.py`, `verify.py` | psql taşıması (yerel: `docker exec … psql`, uzak: `psql "$DEMO_DB_URL"`), ön kontrol, medya yükleme, kayıt satırı, doğrulama, açma/kapama |
+| `world.py` | Sürüm 5 (İP17 3D dünya): A'nın iki taramasına parselin sentetik LiDAR bulutu, panoramaların çizildiği sahneden (`render.visit_shapes`: taç elipsoitleri yaprak boşluklarıyla, gövde ve dallar, kazıklar, düz zemin) örneklenir; gerçek `lidar world` aşaması o ziyaretin kodlanmış panoramalarından renklendirir (`world_cloud` dosyası, `runs/<ziyaret>/world.json`), `sqlgen` asset satırını `lidar upload` ile aynı biçimde yazar. Panoramadan 3D dünyaya geçiş böylece dikişsizdir; taç ölçümleri sürüm 4'ün (`lidar.py`) |
 | `sources.py` | Kaynak bağdaştırıcısı: `synthetic`; ileride `showcase` (repo dışına yazar, henüz yok) |
 
 **Profiller:**
 
 | Profil | Tam panorama | Önizleme | Kesit | Yakın plan | Toplam | Süre (4 çekirdek) |
 | --- | --- | --- | --- | --- | --- | --- |
-| `full` | 3840×1920 WebP (85) | 1920×960 WebP (80) | 1024² JPEG (90) | 1600×1200 JPEG | ~54 MB, 522 dosya | ~3 dk (derleme ve yükleme) |
-| `test` | 1024×512 | 512×256 | 256² | 400×300 | ~5,4 MB | ~30 sn |
+| `full` | 3840×1920 WebP (85) | 1920×960 WebP (80) | 1024² JPEG (90) | 1600×1200 JPEG | ~62 MB, 526 dosya (iki dünya bulutu ~3,5 MB) | ~2 dk derleme (4 çekirdek), ~3 dk yüklemeyle |
+| `test` | 1024×512 | 512×256 | 256² | 400×300 | ~6,2 MB (iki dünya bulutu ~400 KB) | ~35 sn |
 
 Kalite ayarları işleme hattının varsayılanlarıyla aynıdır (`PanoramaParams`, `CropParams`). Önbellek, üreticinin kaynak hash'i (`generator_hash`) ve manifest hash'i tutuyorsa yeniden kullanılır. `generator_hash` bütün `orchados_pipeline` paketinin kaynağını ve `PipelineParams` varsayılanlarının hash'ini kapsar: derleme çekirdek hattı (çıktılar, kesitler, kapsama, izdüşüm) kullanır ve yükleyici çıktıyı `upload` ile okur, bu yüzden hattaki bir değişiklik de yeniden derletir. CI önbellek anahtarı da `services/pipeline/src/**`'yi kapsar.
 
@@ -379,6 +380,7 @@ uv run orchados-pipeline lidar synth /tmp/kis --leafless --pruned-copy /tmp/kis-
 uv run orchados-pipeline lidar crown /tmp/yaz                       # crown.json
 uv run orchados-pipeline lidar skeleton /tmp/kis                    # skeleton.json
 uv run orchados-pipeline lidar pruning /tmp/kis /tmp/kis-sonra      # pruning.json (sonraki oturumda)
+uv run orchados-pipeline lidar world /tmp/yaz [--panoramas <çalıştırma>]  # world.owc + world.json (3D dünya)
 uv run orchados-pipeline lidar upload /tmp/yaz.processed/lidar --session-id <uuid> [--dry-run]
 ```
 
@@ -389,7 +391,8 @@ uv run orchados-pipeline lidar upload /tmp/yaz.processed/lidar --session-id <uui
 | `lidar/crown.py` | `lidar_crown`: `tree_height`, `crown_diameter`, `crown_volume`, `size_class` önerisi |
 | `lidar/skeleton.py` | `lidar_qsm`: kış iskeleti; `scaffold_branch_count`, `wood_volume`, `fractal_dimension` |
 | `lidar/pruning.py` | `lidar_pruning`: iki kış taraması; `pruned_wood_volume`, `pruned_wood_fraction`, `pruning_cut_count`, `pruning_status` önerisi |
-| `lidar/upload.py` | Raporları `record_lidar_measurements` ile `public.measurement`'a yazar (ops kullanıcısı, ortam değişkenleri yükleme ile aynı) |
+| `lidar/world.py` | `lidar_world` (İP17): portalın 3D dünyasının renkli, seyreltilmiş bulutu `world.owc` (biçim: [docs/arayuzler.md](../../docs/arayuzler.md#3d-dünya-bulutu)) ve yan dosyası `world.json`. Taşıyanı (kameranın 1,5 m çevresi, zemin kalır) atar, vokselle (vars. 0,04 m) ve `max_points`'le (vars. 1,5 milyon) seyreltir, her noktaya ağacını verir (`extract_trees` kuralı; zemine 0,25 m'den yakın: 65535), panoramalardan renklendirir: her panorama için noktaların kendisinden kaba bir eşdikdörtgen derinlik tamponu; noktayı gören (örtülmemiş, silüet kenarında değil, nadirde değil, gök rengi değil) en yakın panoramanın pikseli, görülmeyen nokta en yakın renkli komşunun rengi. Panorama yoksa yüksekliğe göre gri, `colorized: false`. Sabit tohumla karıştırılmış sıra, `uint16` nicemleme; zaman alanı yok (H05). `--panoramas`: çalıştırma klasörü, `panoramas.json` ya da `pano-*.json` klasörü; verilmezse `<oturum>.processed` altındaki tek panoramalı çalıştırma. Kamera: poz konumu, yukarı = `pose.height_m − origin_height_m` (parametre `camera_height_m` verilirse yerel zemin + o). Okuyucu: `read_world` |
+| `lidar/upload.py` | Raporları `record_lidar_measurements` ile `public.measurement`'a yazar (ops kullanıcısı, ortam değişkenleri yükleme ile aynı); klasörde `world.owc` varsa onu `media` kovasına yükler ve `world_cloud` asset'i olarak kaydeder (konum bulutun orijini, `pose = {schema, point_count, crs: local_enu}`, zaman yok; tekrar çalıştırmak bir şey yazmaz) |
 
 Çıktılar varsayılan olarak `<oturum>.processed/lidar/` klasörüne yazılır (`--out` ile değişir). Aynı girdi ve parametrelerle bayt bayt aynıdır. Testler: `uv run pytest tests/test_lidar_*.py` (~1 dk; yükleme entegrasyon testi yerel Supabase ister).
 

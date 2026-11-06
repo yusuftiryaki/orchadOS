@@ -47,12 +47,12 @@ def test_the_real_build_passes(built):
 @pytest.mark.parametrize(
     "version",
     [
-        "3, null, null, null, null); alter role authenticator superuser; --",
-        "4",
-        4.0,
+        "5, null, null, null, null); alter role authenticator superuser; --",
+        "5",
+        5.0,
         True,
-        3,
-        5,
+        4,
+        6,
         None,
     ],
 )

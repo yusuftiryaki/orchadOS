@@ -12,6 +12,8 @@ Insert order (no notification is ever queued):
     6 measurements, assessments, findings and their evidence (and the field
        question weed_height); the LiDAR crown measurements of the scans (dataset
        version 4)
+    6a the 3D world (dataset version 5): the world cloud assets of parcel A's
+       scans (step chain)
     6b service layer: the billing setting with services_enabled, the weed mowing
        catalogue row (no price: the demo org has no price list) and its season per
        fruit species, the done job of parcel B (operation, request, history, proof
@@ -38,11 +40,13 @@ from pathlib import Path
 from typing import Any
 
 from ..geo import LocalFrame, bearing_deg, wrap180
-from ..lidar.upload import ReportFile, build_payload, check_payload
+from ..lidar.upload import ReportFile, build_payload, check_payload, world_asset_row
+from ..lidar.world import WorldReport
 from ..media import media_key, media_uri
 from ..upload import SessionRow, UploadOptions, upload_run
 from . import ids
 from . import lidar as demo_lidar
+from . import world as demo_world
 from .build import frame_pose
 from .dataset import (
     CAMERA_HEIGHT_M,
@@ -66,6 +70,7 @@ from .dataset import (
     UNSURE_LABELS,
     VERIFICATION,
     WEED_HEIGHTS,
+    WORLD_VERSION,
     ZONES,
     Dataset,
     ServiceJob,
@@ -1141,6 +1146,30 @@ def _measure(
     return mid
 
 
+def world_clouds(ctx: Context) -> None:
+    """The 3D world of the visits with a synthetic LiDAR cloud (dataset version 5): the
+    world cloud asset as `lidar upload` records it (lidar/upload.py world_asset_row:
+    kind world_cloud, the cloud origin as position, no time)."""
+    for run in ctx.manifest["runs"]:
+        if "world" not in run:
+            continue
+        v = ctx.ds.visit(run["visit"])
+        report = ctx.build / "runs" / v.key / demo_world.REPORT_FILE
+        world = WorldReport.model_validate(json.loads(report.read_text("utf-8")))
+        if world.sha256 != run["world"]["sha256"]:
+            raise ValueError(f"{v.key}: {demo_world.REPORT_FILE} does not match the manifest")
+        row = world_asset_row(world, ids.ORG_ID, v.parcel.id, v.id)
+        ctx.script.insert(
+            "chain",
+            "public.asset",
+            {
+                "id": ids.did("asset", ctx.keys[world.sha256], WORLD_VERSION),
+                **row,
+                "produced_at": v.end + timedelta(hours=3),
+            },
+        )
+
+
 def lidar_measurements(ctx: Context) -> None:
     """Version 4: the LiDAR crown measurements of each scan, as the pipeline's
     `lidar upload` records them (record_lidar_measurements): the crown stage's
@@ -1636,6 +1665,7 @@ def generate(ds: Dataset, build: Path, manifest: dict, metrics: dict[str, Metric
     closeup_captures(ctx)
     results(ctx)
     lidar_measurements(ctx)
+    world_clouds(ctx)
     services(ctx)
     access(script, ds)
     questions(script, ds)

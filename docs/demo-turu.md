@@ -539,9 +539,9 @@ IP okuma, proxy sırrı ve HMAC için `_shared/signup.ts` kullanılır.
     - A'nın envanter oturumu
     - B'nin tamamlanmış ot biçme talebi (`service_request_id`, sürüm 2; `hizmet-sonuc` adımı)
 
-### 8.2 İçerik (sürüm 4)
+### 8.2 İçerik (sürüm 5)
 
-Sürüm 1 aşağıdaki tablonun İP15 ve İP16 satırları dışındaki her şeydir; sürüm 2 hizmet katmanını ekler, sürüm 3 işi otonom robot MARABA-I'ye verir, sürüm 4 LiDAR taç ölçümlerini ekler (§10.3).
+Sürüm 1 aşağıdaki tablonun İP15 ve İP16 satırları dışındaki her şeydir; sürüm 2 hizmet katmanını ekler, sürüm 3 işi otonom robot MARABA-I'ye verir, sürüm 4 LiDAR taç ölçümlerini, sürüm 5 gezinin 3D dünyasını ekler (§10.3).
 
 | | A "Örnek Bahçe – Kuzey" | B "Örnek Bahçe – Dere" |
 | --- | --- | --- |
@@ -554,6 +554,7 @@ Sürüm 1 aşağıdaki tablonun İP15 ve İP16 satırları dışındaki her şey
 | Ölçümler | Her taramada aktif ağaç başına bir ölçüm: yazda geçerli ve portalın okuduğu her ağaç kodu için (§8.3). Meyve yükü ortalaması 2025'te ~2,3, 2026'da ~1,4 (periyodisite; karnede "düşük") | Aynı, tek tarama |
 | Ağaç kesiti | Her taramada aktif ağaç başına iki yön | Ağaç başına bir ya da iki |
 | LiDAR taç ölçümleri (İP16, sürüm 4) | Her taramada yerinde duran her ağaca `tree_height`, `crown_diameter`, `crown_volume` ve gizli `crown_base_height` (`algorithm`, `lidar_crown` `0.2.0`, parametre hash'i, 1σ belirsizlik, güven; ölçüm anı taramanın başı, kaydeden operasyon kişisi). Kesilen ağaçta (`S6-2`, 2026) yok; 2026'da kuru `S4-3`'ün çıplak dalları taç aşamasına tek yanlı görünür, yalnız boyu var. Değerler sentetiktir ama rastgele değildir: aşağıdaki kurala bakın. Ağaç karnesinde değer tablosu ve kesitler üzerinde taç çizimi, 360° gezide seçilen ağacın değerleri ve çizimi | Aynı, tek tarama |
+| 3D dünya (İP17, sürüm 5) | 2025 ve 2026 taramalarında parselin renkli nokta bulutu (`world_cloud`, `application/vnd.orchados.world-cloud`): panoramaların çizildiği sahneden örneklenir, gerçek `lidar world` aşamasıyla o taramanın panoramalarından renklendirilir; zaman taşımaz. Tam profilde ~320 bin nokta, ~3,5 MB; test profilinde ~36 bin nokta, ~400 KB. Gezide "3D dünya" düğmesi ([3d-dunya.md](3d-dunya.md)) | Yok |
 | Yakın plan | ~10 ağaçta 2–3 fotoğraf (bulgusu olan ağaçlar) | ~3 ağaç |
 | Son ziyaretin sınıfları | Yaklaşık: 52 sağlıklı, 9 dikkat, 5 sorunlu, 1 kuru, 2 boş yer, 1 yeni dikim | Çoğu sağlıklı, 2 dikkat, 1 sorunlu |
 | Bulgular | 2026'da ~10, 2025'te ~5 (türler aşağıda) | ~3 |
@@ -604,7 +605,7 @@ A'nın 2026 bulgu türleri: kuruyan dal, gövde yarası ve zamk akıntısı, yap
     3. parseller, sınır, yerler, ağaçlar (nitelikleriyle), bölgeler
     4. oturumlar, doğrudan yayımlanmış ya da onaylı olarak (durum güncellemesi yok)
     5. envanter zinciri, kayıtlar, asset'ler, kaynak bağları
-    6. ölçümler, değerlendirmeler, bulgular ve kanıt bağları; taramaların LiDAR taç ölçümleri (sürüm 4)
+    6. ölçümler, değerlendirmeler, bulgular ve kanıt bağları; taramaların LiDAR taç ölçümleri (sürüm 4); A'nın taramalarının 3D dünya bulutu asset'leri (sürüm 5)
     7. hizmet katmanı: ödeme ayarı (`services_enabled`), katalog satırı, tür başına sezonlar, hizmetin robot modeli (MARABA-I), B'nin ot biçme işi (kanıt asset'leri, `operation`, talep, tarihçe, fotoğraf bağları), robot notları; sonda sürüm 3'ün sürüm 2 satırlarını güncelleyen dört `update`'i (§10.3)
     8. hissedar profili, `parcel_access`
     9. en son sorular ve cevaplar
@@ -734,6 +735,7 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
         - panoramalı ve onaylı envanter
         - A'nın son taramasında yapı, bakım, zararlı ve meyve yükü kodlarının ağaç başına ölçümleri
         - LiDAR taç ölçümleri (sürüm 4): her taramada yerinde duran her ağacın `tree_height`'ı; `crown_diameter`, `crown_volume` ve `crown_base_height` aynı sayıda ve ağaçların en az %90'ında; öne çıkan ağacın A 2026'da boy, çap ve taç tabanı (çizim için)
+        - 3D dünya (sürüm 5): A'nın iki taramasının `world_cloud` asset'i, sahibin okuyabildiği; dosyaları iki kovada da (`missing_media`)
         - hizmet kartı (`service_offers`): iki parselde de ot biçme, A'da ot boyu "uzun"; durum önerilen, talep edilebilir ya da ön talep (güne bağlı, açık talep değil); fiyatsız; tür `antep_fistigi`; robot modeli `maraba_i`
         - A'nın son yayımlanmış `weed_height` gözlemi
         - B'de tutarı girilmiş, o tutarla ödenmiş, tamamlanmış talep (turun `service_request_id`'si), tarihçesi talep → planlandı → tamamlandı, sahibin okuyabildiği en az bir öncesi ve bir sonrası fotoğrafı ve bunların `media` nesneleri
@@ -757,6 +759,7 @@ pnpm db:demo-tour [ek argümanlar]   # kök: demo load --target local --verify -
 - **Birikimli sürümler:** Bir sürümün veri kümesi öncekilerin bütün satırlarını aynı kimliklerle ve aynı medya tohumlarıyla (`SEED_VERSION = 1`) içerir, üstüne kendi satırlarını (`v<sürüm>` kimlikli) ekler; her ekleme `on conflict do nothing`'dir. Son sürümü yüklemek bu yüzden bütün sürümleri sırayla uygulamakla aynıdır. Yükleyici yalnızca `DATASET_VERSION`'ı derler ve uygular (`VERSIONS == (DATASET_VERSION,)`); eski bir sürümle kayıtlı hedefe yalnız satır eklenir ve kayıt satırının sürümü yükselir. Medya dosyalarının anahtarları (satır kimliklerini verir) sürümden sürüme korunur; sürüm 2'nin 524 anahtarı test olarak sabitlenmiştir (`tests/data/demo_v2_media_keys.txt`). Baytları işlemciye bağlıdır (yukarıda); yerelde aynı makinede derlenen sürümler bayt bayt aynıdır.
 - **Sürüm 2 (İP15):** Hizmet katmanı: tür başına sezonlarıyla fiyatsız katalog satırı, `weed_height` ölçümleri, B'nin tamamlanmış ot biçme işi (kanıt fotoğraflarıyla), robot notları, parsellerin türü. Kayıt satırının `tour` alanına `service_request_id` eklenir.
 - **Sürüm 4 (İP16, LiDAR'ın sahibe gösterimi; sahip kararı 5 Kasım 2026):** Üç taramanın LiDAR taç ölçümleri (§8.2): her ağaç ve kod için bir `algorithm` satırı, kimliği `v4:measurement:<tarama>:<yer>:<kod>`. Yalnız ekleme; başka satır değişmez, medya aynıdır. Sürüm 3 yüklü bir hedefte (barındırılan proje) ön kontrol sürümü eski bulur ve SQL'i yeniden çalıştırır: var olan satırlar atlanır, yalnız ölçüm satırları eklenir (test profilinde 677), kayıt satırının sürümü 4 olur. Ölçümler ekleme-yalnız olduğundan kimlikle gelir; aynı sürümün yeniden yüklenmesi hiçbir satır eklemez.
+- **Sürüm 5 (İP17, 3D dünya; sahip kararı 5 Kasım 2026):** A'nın iki taramasına birer `world_cloud` asset'i ve dosyası (§8.2): kimliği `v5:asset:<dosya anahtarı>`. Yalnız ekleme; başka satır ve eski medya değişmez, iki yeni dosya gelir. Sürüm 4 yüklü bir hedefte `load` yalnız bunları ekler.
 - **Sürüm 3 (İP15, robot filosu; sahip kararı 2 Kasım 2026):** Ot biçmeyi otonom robot MARABA-I yapar. Yeni satır: demo org'unun `weed_mowing` satırı için `service_type_robot_model` (MARABA-I; robot modeli migration'ın tohumladığı genel bir kayıttır, demo verisi değildir). Değişen sürüm 2 satırları: katalog açıklaması ("parseldeki yabani otları otonom robotumuz MARABA-I biçer"), işin oturumu ve `operation`'ı (`performer = robot`, `details.robot_model = maraba_i`), talep (`robot_model_id` ve `terms_version` = `bakim-v2-taslak`, robotu anlatan ek sözleşme; temiz sürüm 3 yüklemesi de bunu yazar ve doğrulama bunu bekler). Kimliği türetilen yeni satır yoktur; `ROBOT_VERSION = 3` yalnız belgeler. Medya değişmez.
 
 ### 10.4 Barındırılan projeler

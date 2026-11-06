@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { signTourImagesAction } from "@/app/portal/parsel/[parcelId]/gezi/actions";
@@ -46,8 +47,19 @@ import {
 import { PortalMap } from "./portal-map";
 import { placeholderPanorama } from "./tour-placeholder";
 import { TourTreePanel } from "./tour-tree-panel";
-import { TOUR_DEFAULT_ZOOM, TourViewer, type TourFocus, type TourMarker } from "./tour-viewer";
+import {
+  TOUR_DEFAULT_ZOOM,
+  TourViewer,
+  type TourFocus,
+  type TourMarker,
+  type TourView,
+} from "./tour-viewer";
+import type { WorldStartView, WorldTree } from "./world-view";
 import styles from "./portal.module.css";
+import worldStyles from "./world.module.css";
+
+// The 3D world (three.js scene, cloud reader) loads only when opened.
+const WorldView = dynamic(() => import("./world-view"), { ssr: false });
 
 // 360° tour of the latest published visit: viewer with arrows to the
 // neighbouring panoramas and tree markers, and a map to jump anywhere. The
@@ -60,6 +72,8 @@ import styles from "./portal.module.css";
 // travel keeps the zoom and the focused tree, to compare the same tree.
 // When the visit on screen measured the focused tree's crown (LiDAR), the
 // panel lists the values and the panorama shows them drawn on the tree.
+// When it has a 3D world cloud, a button turns the panorama into the 3D
+// world (world-view.tsx) and back.
 
 const tt = t.portal.tour;
 // PortalMap rebuilds the whole map when `findings` changes identity, and its
@@ -120,6 +134,9 @@ export function Tour({
   const requested = useRef(new Set<string>());
   // A demo session reached its image cap (docs/demo-turu.md §5.3).
   const [capped, setCapped] = useState(images?.capped ?? false);
+  // The open 3D world: the visit's cloud and the view it starts from.
+  const [world, setWorld] = useState<{ assetId: string; start: WorldStartView } | null>(null);
+  const viewRef = useRef<(() => TourView | null) | null>(null);
 
   const neighbours = useMemo(() => tourNeighbours(panoramas, current), [panoramas, current]);
 
@@ -171,6 +188,18 @@ export function Tour({
   // switches to that visit's values, or none).
   const tourVisit = visits[visitIndex] ?? null;
   const crown = (focused && tourVisit?.crowns[focused.tree.id]) || null;
+  const worldAssetId = tourVisit?.worldAssetId ?? null;
+  const worldTrees = useMemo<WorldTree[]>(
+    () =>
+      data.trees.map((tr) => ({
+        id: tr.id,
+        code: tr.code,
+        position: tr.position,
+        state: tr.state,
+        crown: tourVisit?.crowns[tr.id] ?? null,
+      })),
+    [data.trees, tourVisit],
+  );
   const crownMarkers = useMemo<TourMarker[]>(() => {
     const guide = crownGuide(crown);
     if (!guide || !focused) return [];
@@ -307,6 +336,25 @@ export function Tour({
     [trees, focus.treeId, focusTree],
   );
 
+  // Opens the 3D world from the view on screen: the transition starts at
+  // the panorama's exact yaw, pitch and zoom, over the image shown.
+  const openWorld = useCallback(() => {
+    if (!worldAssetId) return;
+    const v = viewRef.current?.();
+    if (!v) return;
+    setWorld({
+      assetId: worldAssetId,
+      start: {
+        position: current.position,
+        headingDeg: current.headingDeg,
+        yawDeg: v.yawDeg,
+        pitchDeg: v.pitchDeg,
+        fovDeg: v.fovDeg,
+        photoUrl: v.kind === "full" && fullUrl ? fullUrl : image,
+      },
+    });
+  }, [worldAssetId, current, fullUrl, image]);
+
   // The viewer acts on a new version only (see TourViewer).
   const viewerFocus: TourFocus = {
     target: focused
@@ -387,17 +435,45 @@ export function Tour({
               onViewChange={setViewYaw}
               onEscape={focused ? () => focusTree(null) : undefined}
               label={tt.viewer}
+              interactive={!world}
+              viewRef={viewRef}
             >
-              {focused && (
-                <TourTreePanel
-                  tree={focused.tree}
-                  distanceM={focused.distanceM}
-                  crown={crown}
-                  href={treeHref(focused.tree.id)}
-                  canStep={trees.length > 1}
-                  onStep={stepTree}
-                  onClose={() => focusTree(null)}
+              {world ? (
+                <WorldView
+                  key={world.assetId}
+                  parcelId={data.parcel.id}
+                  assetId={world.assetId}
+                  start={world.start}
+                  cameraHeightM={tourVisit?.cameraHeightM ?? DEFAULT_CAMERA_HEIGHT_M}
+                  trees={worldTrees}
+                  treeHref={treeHref}
+                  onExit={() => setWorld(null)}
                 />
+              ) : (
+                <>
+                  {focused && (
+                    <TourTreePanel
+                      tree={focused.tree}
+                      distanceM={focused.distanceM}
+                      crown={crown}
+                      href={treeHref(focused.tree.id)}
+                      canStep={trees.length > 1}
+                      onStep={stepTree}
+                      onClose={() => focusTree(null)}
+                    />
+                  )}
+                  {worldAssetId && (
+                    <button
+                      type="button"
+                      className={worldStyles.enter}
+                      onClick={openWorld}
+                      title={tt.world.enterHint}
+                      data-testid="world-enter"
+                    >
+                      <span aria-hidden="true">◈</span> {tt.world.enter}
+                    </button>
+                  )}
+                </>
               )}
             </TourViewer>
             {kind === "placeholder" && (

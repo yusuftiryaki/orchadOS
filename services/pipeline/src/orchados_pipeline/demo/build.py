@@ -35,6 +35,8 @@ from ..crops import DIRECTIONS, candidate_views
 from ..gpstime import utc_to_gps_ns
 from ..hashing import canonical_json, sha256_bytes
 from ..imaging import encode, resize
+from ..lidar.world import MEDIA_TYPE as WORLD_MEDIA_TYPE
+from ..lidar.world import WorldReport, encode_world
 from ..models import (
     CoverageReport,
     CropRecord,
@@ -59,7 +61,7 @@ from ..models import (
 from ..outputs import AssetEntry, CaptureEntry, Lineage, Outputs, PipelineRef
 from ..params import PipelineParams
 from ..projection import gnomonic_crop
-from . import closeups, ids, lidar
+from . import closeups, ids, lidar, world
 from .dataset import (
     CAMERA_HEIGHT_M,
     DATASET_NAME,
@@ -323,7 +325,7 @@ class FileEntry:
     parcel: str
     org: str
     session: str
-    kind: str  # panorama | preview | tree_crop | closeup | service_photo
+    kind: str  # panorama | preview | tree_crop | closeup | service_photo | world_cloud
 
     def as_dict(self) -> dict:
         return dict(self.__dict__)
@@ -501,8 +503,11 @@ def build_visit(ds: Dataset, visit: Visit, b: Builder, workers: int) -> dict:
         ),
         run / "crops.json",
     )
-    for stale in ("coverage.json", "presence.json", lidar.REPORT_FILE):
+    for stale in ("coverage.json", "presence.json", lidar.REPORT_FILE, world.REPORT_FILE):
         (run / stale).unlink(missing_ok=True)
+    cloud = None
+    if visit.key in world.WORLD_VISITS:
+        cloud = build_world(ds, visit, b, list(zip(rendered, records, strict=True)), run)
     if visit.kind == "inventory":
         write_model(_coverage(ds, visit, placeholders), run / "coverage.json")
     if scan:
@@ -540,12 +545,65 @@ def build_visit(ds: Dataset, visit: Visit, b: Builder, workers: int) -> dict:
         crops_status="ok" if scan else "inventory_session",
     )
     write_model(out, run / "outputs.json")
-    return {
+    info = {
         "visit": visit.key,
         "session_id": visit.id,
         "panoramas": len(records),
         "crops": len(crop_recs),
         "files": {n: _sha_file(run / n) for n in sorted(os.listdir(run))},
+    }
+    if cloud is not None:
+        info["world"] = cloud
+    return info
+
+
+def _rgb(path: Path):
+    img = cv2.imread(str(path), cv2.IMREAD_COLOR)
+    if img is None:
+        raise BuildError(f"{path}: cannot decode the panorama")
+    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+
+def build_world(
+    ds: Dataset, visit: Visit, b: Builder, frames: list[tuple[Frame, PanoramaRecord]], run: Path
+) -> dict:
+    """The 3D world of a visit (dataset version 5): a synthetic LiDAR cloud of the
+    rendered scene, coloured by the real world stage from the encoded panoramas (the
+    full image where the visit has one), so its colours are the photos' own."""
+    vc = world.visit_cloud(ds, visit, ANTENNA_HEIGHT_M)
+    views = [
+        world.camera_view(
+            visit,
+            f.x,
+            f.y,
+            f.heading_deg,
+            lambda sha=rec.image.sha256: _rgb(b.out / "files" / sha),
+        )
+        for f, rec in frames
+    ]
+    w = world.world(vc, views, b.profile.name)
+    data = encode_world(w)
+    ref = b.add(data, f"{SHORT[visit.key]}-world", WORLD_MEDIA_TYPE, (0, 0), visit, "world_cloud")
+    report = WorldReport(
+        sha256=ref.sha256,
+        byte_size=ref.size,
+        producer=Producer(
+            pipeline=PRODUCER,
+            version=PRODUCER_VERSION,
+            params_hash=w.header["params_hash"],
+            stage="lidar_world",
+        ),
+        origin_sigma_m=vc.meta.point_sigma_m,
+        header=w.header,
+        stats=w.stats,
+    )
+    write_model(report, run / world.REPORT_FILE)
+    b.log(f"{visit.key}: world cloud {w.header['point_count']} points, {ref.size / 1e3:.0f} KB")
+    return {
+        "sha256": ref.sha256,
+        "point_count": w.header["point_count"],
+        "colorized": w.header["colorized"],
+        "seen_points": w.stats["seen_points"],
     }
 
 

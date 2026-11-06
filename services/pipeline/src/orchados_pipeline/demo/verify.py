@@ -4,6 +4,7 @@
 Part one runs under the owner persona's claims with `set local role
 authenticated`, i.e. through row level security, and counts what the owner
 portal needs, the LiDAR crown values the tree card and the tour draw (version 4),
+the world clouds of the tour's 3D world (version 5),
 the service card (unpriced, buyable) and the done mowing job with its proof
 photos and the own-work note included. Part two runs as postgres: media
 objects, persona lockdown, a billing setting that only switches the service layer
@@ -34,6 +35,7 @@ from .lidar import CODES as LIDAR_CODES
 from .lidar import METHOD as LIDAR_METHOD
 from .lidar import present_trees
 from .sqlgen import TOKEN_COLUMNS, lit
+from .world import WORLD_VISITS
 
 # Card states of public.service_offers without an open request. Which one the
 # portal shows depends on the day: the visits are fixed in the past, so out of
@@ -91,6 +93,11 @@ select json_build_object(
       where m.session_id = {lit(ids.A_SCAN_2026)} and m.tree_id is not null
       group by d.code) x),
   'viewers_a', (select count(*) from public.parcel_access where parcel_id = {lit(A)} and role = 'viewer'),
+  -- Version 5 (İP17 3D world): the world clouds of A's scans, as the owner reads them.
+  'world_clouds_a', (
+    select count(*) from public.asset a where a.parcel_id = {lit(A)} and a.kind = 'world_cloud'
+      and a.session_id in ({", ".join(lit(ds.visit(k).id) for k in WORLD_VISITS)})
+      and a.mime_type = 'application/vnd.orchados.world-cloud'),
   -- Version 4: LiDAR crown values per scan and metric (trees with a value), as
   -- the tree card and the tour read them, and the featured tree's in A 2026.
   'lidar', (
@@ -294,6 +301,11 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
         "parcel A structure",
     )
     need(owner["viewers_a"] >= 1, "parcel A has no viewer")
+    need(
+        owner["world_clouds_a"] == len(WORLD_VISITS),
+        f"parcel A: {owner['world_clouds_a']} world clouds the owner reads, expected "
+        f"{len(WORLD_VISITS)} ({', '.join(WORLD_VISITS)})",
+    )
     codes = owner["codes_a26"]
     for code in (
         "basal_sprout_level",

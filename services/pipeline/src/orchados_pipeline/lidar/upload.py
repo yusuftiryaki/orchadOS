@@ -15,6 +15,11 @@ ops user of the environment (Credentials.ENV, as for ``orchados-pipeline upload`
 - Re-running is safe: a measurement with the same session, tree, metric, method,
   version and parameters is not written again; a new method version adds rows.
 - --dry-run prints the payload and writes nothing.
+- world.owc (lidar world, docs/arayuzler.md "3D dünya bulutu"), when the folder
+  has one with its world.json, is uploaded to the media bucket (content
+  addressed, as upload does) and recorded as an asset of kind world_cloud:
+  position = the cloud origin, pose = {schema, point_count, crs: local_enu}, no
+  time (H05). Re-running finds the object and the row and writes nothing.
 
 The metric list mirrors private.lidar_method_metrics()
 (supabase/migrations/20261107300000_lidar_measurements.sql); the checks here only
@@ -34,6 +39,8 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ..gpstime import gps_ns_to_iso
+from ..hashing import sha256_file
+from ..media import MediaStore, media_key, media_uri
 
 RPC = "record_lidar_measurements"
 
@@ -94,7 +101,7 @@ class ReportFile(_Lenient):
     measurements: list[ReportMeasurement] = Field(default_factory=list)
 
 
-def load_reports(out_dir: Path) -> list[tuple[Path, ReportFile]]:
+def load_reports(out_dir: Path, required: bool = True) -> list[tuple[Path, ReportFile]]:
     """Reports in out_dir with the LidarReport header; other JSON files are left alone."""
     out_dir = Path(out_dir)
     if not out_dir.is_dir():
@@ -111,9 +118,94 @@ def load_reports(out_dir: Path) -> list[tuple[Path, ReportFile]]:
             reports.append((path, ReportFile.model_validate(data)))
         except ValidationError as exc:
             raise LidarUploadError(f"{path.name}: not a LiDAR report: {exc}") from exc
-    if not reports:
+    if not reports and required:
         raise LidarUploadError(f"{out_dir}: no LiDAR reports (crown.json, skeleton.json, ...)")
     return reports
+
+
+# --- world cloud --------------------------------------------------------------------------
+
+
+def load_world(out_dir: Path):
+    """world.json of the folder (WorldReport) if it has one; its world.owc must match it."""
+    from .world import WORLD_FILE, WORLD_META_FILE, WorldReport
+
+    meta = Path(out_dir) / WORLD_META_FILE
+    if not meta.is_file():
+        return None
+    try:
+        world = WorldReport.model_validate(json.loads(meta.read_text(encoding="utf-8")))
+    except (OSError, ValueError) as exc:
+        raise LidarUploadError(f"{WORLD_META_FILE}: {exc}") from exc
+    data = Path(out_dir) / WORLD_FILE
+    if not data.is_file():
+        raise LidarUploadError(f"{WORLD_META_FILE} without its {WORLD_FILE}")
+    if sha256_file(data) != world.sha256 or data.stat().st_size != world.byte_size:
+        raise LidarUploadError(f"{WORLD_FILE} does not match {WORLD_META_FILE} (rerun lidar world)")
+    return world
+
+
+def world_asset_row(world, org_id: str, parcel_id: str, session_id: str) -> dict[str, Any]:
+    """public.asset row of a world cloud (kind world_cloud; no time, docs/arayuzler.md)."""
+    h = world.header
+    key = media_key(org_id, parcel_id, world.sha256)
+    return {
+        "org_id": org_id,
+        "parcel_id": parcel_id,
+        "session_id": session_id,
+        "kind": "world_cloud",
+        "tree_id": None,
+        "uri": media_uri(key),
+        "content_hash": world.sha256,
+        "byte_size": world.byte_size,
+        "mime_type": world.media_type,
+        # The origin of the local frame the positions are in; its uncertainty is the
+        # registration's point sigma.
+        "position": f"SRID=4326;POINT({h['origin_lon']!r} {h['origin_lat']!r})",
+        "position_uncertainty_m": world.origin_sigma_m,
+        "pose": {"schema": h["schema"], "point_count": h["point_count"], "crs": "local_enu"},
+        "quality_score": None,
+        "pipeline": world.producer.pipeline,
+        "pipeline_version": world.producer.version,
+        "params_hash": world.producer.params_hash,
+    }
+
+
+def check_world(world, session_id: str) -> None:
+    if world.header.get("session_id") != session_id:
+        raise LidarUploadError(
+            f"world.owc is for session {world.header.get('session_id')}, not {session_id}"
+        )
+
+
+def upload_world(
+    out_dir: Path,
+    world,
+    session_id: str,
+    catalog,
+    store: MediaStore,
+    log: Callable[[str], None] = print,
+) -> bool:
+    """Object, then row (upload.upload_run's order). True if the row was created."""
+    from .world import WORLD_FILE
+
+    check_world(world, session_id)
+    session = catalog.session(session_id)
+    if world.header.get("parcel_id") != session.parcel_id:
+        raise LidarUploadError(
+            f"world.owc parcel {world.header.get('parcel_id')} differs from the session's "
+            f"{session.parcel_id}"
+        )
+    key = media_key(session.org_id, session.parcel_id, world.sha256)
+    prefix = key.rsplit("/", 1)[0]
+    if key not in store.keys(prefix):
+        store.put(key, Path(out_dir) / WORLD_FILE, world.media_type)
+    if world.sha256 in catalog.assets(session.id, world.producer.version):
+        log(f"world cloud: already recorded ({world.header['point_count']} points)")
+        return False
+    catalog.insert_asset(world_asset_row(world, session.org_id, session.parcel_id, session.id))
+    log(f"world cloud: recorded ({world.header['point_count']} points, {world.byte_size} bytes)")
+    return True
 
 
 def scan_start(out_dir: Path, session_id: str) -> str | None:
@@ -221,26 +313,42 @@ def run(
     from ..supabase import Credentials, SupabaseClient, SupabaseError
 
     try:
-        reports = load_reports(out_dir)
+        world = load_world(out_dir)
+        reports = load_reports(out_dir, required=world is None)
         payload = build_payload(reports, session_id, scan_start(out_dir, session_id))
+        if world is not None:
+            check_world(world, session_id)
     except LidarUploadError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     problems = check_payload(payload)
-    names = ", ".join(p.name for p, _ in reports)
+    names = ", ".join(p.name for p, _ in reports) or "no reports"
     if dry_run:
         log(json.dumps({"p_session_id": session_id, "p_payload": payload}, indent=2))
         log(f"dry run: {len(payload['items'])} measurements from {names}, nothing written")
+        if world is not None:
+            row = world_asset_row(world, "<org_id>", "<parcel_id>", session_id)
+            log(json.dumps({"world_cloud_asset": row}, indent=2))
+            log(f"dry run: world cloud {world.byte_size} bytes, nothing uploaded")
     for p in problems:
         print(f"error: {p}", file=sys.stderr)
     if problems or dry_run:
         return 1 if problems else 0
     try:
         with SupabaseClient.sign_in(Credentials.from_env(env)) as client:
-            result = client.rpc(RPC, {"p_session_id": session_id, "p_payload": payload})
-    except SupabaseError as exc:
+            result = None
+            if payload["items"]:
+                result = client.rpc(RPC, {"p_session_id": session_id, "p_payload": payload})
+            if world is not None:
+                from ..media import SupabaseMediaStore
+                from ..upload import SupabaseCatalog
+
+                catalog, store = SupabaseCatalog(client), SupabaseMediaStore(client)
+                upload_world(out_dir, world, session_id, catalog, store, log)
+    except (SupabaseError, LidarUploadError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
-    for line in summary_lines(result):
-        log(line)
+    if result is not None:
+        for line in summary_lines(result):
+            log(line)
     return 0

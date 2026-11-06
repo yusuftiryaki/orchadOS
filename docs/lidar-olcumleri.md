@@ -22,6 +22,7 @@ Bu doküman yöntemleri, doğruluklarını, veritabanına yazılışlarını ve 
 | Ölçümlerin veritabanına yazılması | Var (`lidar upload`, `record_lidar_measurements`) |
 | Sahibe gösterim | Var (§9): ağaç karnesinde ölçüm tablosu ve kesit fotoğrafları üzerinde çizim, 360° gezide seçilen ağacın değerleri ve çizimi. Sahip kararı (5 Kasım 2026): doğrulama pilotta yapılır, gösterim beklemez |
 | Uzman panelinde, ofis aracında gösterim | Yok |
+| 3D dünya (gezide renkli bulut ve ölçüler) | Var (İP17, `lidar world`; [3d-dunya.md](3d-dunya.md)) |
 | Gerçek ağaçlarda doğrulama | Pilotta, §7 |
 
 **Neden şimdi, kit LiDAR'sızken:** MVP kiti LiDAR'sız ([kit-siparis-listesi.md](kit-siparis-listesi.md)). Yöntemler sentetik verilerle önceden yazılırsa, LiDAR'lı kitin ilk kış taramasında (vizyon aşama 2: "ilk kış iskelet denemesi kendi bahçende") veri doğrudan ölçüme dönüşür ve elle ölçümle karşılaştırma aynı hafta yapılabilir.
@@ -51,10 +52,13 @@ uv run orchados-pipeline lidar synth /tmp/kis-once --leafless --pruned-copy /tmp
 uv run orchados-pipeline lidar crown /tmp/yaz                     # → /tmp/yaz.processed/lidar/crown.json
 uv run orchados-pipeline lidar skeleton /tmp/kis-once             # → skeleton.json
 uv run orchados-pipeline lidar pruning /tmp/kis-once /tmp/kis-sonra   # → /tmp/kis-sonra.processed/lidar/pruning.json
+uv run orchados-pipeline lidar world /tmp/yaz [--panoramas <çalıştırma>]   # → world.owc + world.json (3D dünya)
 uv run orchados-pipeline lidar upload /tmp/yaz.processed/lidar --session-id <uuid> [--dry-run]
 ```
 
 Her aşama `--trees` (varsayılan `<oturum>/trees.json`), `--out` ve `--params` alır. Raporlar aynı girdi ve parametrelerle bayt bayt aynıdır; zaman damgası taşımaz. Parametre hash'i `producer.params_hash`'te ve her ölçümde durur.
+
+**3D dünya (İP17):** `lidar world` ölçüm yapmaz; kayıtlı buluttan portal gezisinin 3D dünyasında gösterilen renkli, seyreltilmiş bulutu (`world.owc`) üretir. Ağaç ataması bu bölümdeki kuralla aynıdır (§3); renkler oturumun panoramalarından alınır. `lidar upload` dosyayı `world_cloud` asset'i olarak yükler. Biçim: [arayuzler.md](arayuzler.md#3d-dünya-bulutu); özellik: [3d-dunya.md](3d-dunya.md); yöntem: `services/pipeline/README.md`, "LiDAR ölçümleri".
 
 ## 3. Ağaç başına ayırma
 
@@ -247,7 +251,7 @@ Gerçek ağaçlarda sentetikte olmayan zorluklar beklenir: ince sürgün yoğunl
 - **Montaj ve tarama yöntemi.** LiDAR'lı kit sırt direği için tasarlandı; MVP taraması motosikletle. Motosiklette LiDAR yüksekliği, sürücünün kapattığı sektör ve titreşimin SLAM'a etkisi denenmeli (metodoloji §11, "Yönteme göre ayar").
 - **Kartta gösterim (karar verildi, 5 Kasım 2026).** Sahip kararıyla taç ölçümleri ve kesim sayısı doğrulama beklenmeden sahibe gösterilir; uzman onayı aranmaz (§9). Pilottaki doğrulama (§7) bir yöntemi yetersiz bulursa metrik `under_evaluation`'a geri alınır ya da yeni yöntem sürümü yazılır; eski değerler sürümleriyle kalır.
 - **Büyüklük sınıfının yazılması.** Öneri ağacın `age_class`'ını değiştirmez. Ofis aracında ya da uzman panelinde "LiDAR önerisi: Verimli (güven 0,9)" gibi gösterilip tek tıkla kabul edilmesi sonraki iş.
-- **KVKK.** Nokta bulutu bahçede bulunan kişilerin şeklini de kaydeder. Bulut yalnız personele açık (H05); portala 3D görünüm gelirse kişilerin bulutun içinden ayıklanması ve aydınlatma metinlerinin güncellenmesi gerekir (robot için açılan T36'nın benzeri).
+- **KVKK (karar verildi, 5 Kasım 2026).** Nokta bulutu bahçede bulunan kişilerin şeklini de kaydedebilir. Sahip kararıyla taramalarda bahçede insan bulunmaz; bu yüzden sahibe bulut gösterilir (İP17, [3d-dunya.md](3d-dunya.md) §2). Ham `cloud.ply` yine yalnız personele açıktır. Sahibe ondan türetilen web bulutu (`world.owc`) açılır. Bu bulut zaman, yörünge ya da kare sırası taşımaz; taşıyan kişi ondan atılır (personel izi, H05).
 
 ## 9. Sahibe gösterim
 

@@ -839,3 +839,99 @@ test.describe("360° tour on a phone", () => {
     expect(errors).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 3D world (docs/3d-dunya.md): the demo's newest visit of parcel A has a world
+// cloud and LiDAR crown measurements (dataset version 4).
+// ---------------------------------------------------------------------------
+
+test.describe("3D world", () => {
+  test("turns the panorama into the cloud, shows a tree's measurements and comes back", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await page.addInitScript(COUNT_GL);
+    const errors = collectErrors(page);
+    const viewer = await openTour(page);
+    const panorama = await viewer.getAttribute("data-panorama");
+    const yawBefore = await yawDeg(viewer);
+
+    const enter = page.getByTestId("world-enter");
+    await expect(enter).toBeVisible();
+    expect((await enter.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await enter.click();
+
+    const world = page.getByRole("region", { name: "3D dünya" });
+    await expect(world).toBeVisible();
+    await expect(world).toBeFocused();
+    await expect(page.getByTestId("world")).toHaveAttribute("data-status", "world", {
+      timeout: 60_000,
+    });
+    await expect(page.getByTestId("world-canvas")).toBeVisible();
+
+    // Dragging the world does not turn the panorama under it.
+    const box = (await page.getByTestId("world-canvas").boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 150, box.y + box.height / 2, { steps: 5 });
+    await page.mouse.up();
+    expect(Math.abs((await yawDeg(viewer)) - yawBefore)).toBeLessThan(0.5);
+
+    // A tree label opens its measurements.
+    // The orbit eases out after the drag: wait until the labels stand still.
+    const labelPlaces = () =>
+      page
+        .getByTestId("world-labels")
+        .locator("button")
+        .evaluateAll((els) => els.map((el) => (el as HTMLElement).style.transform).join("|"));
+    await expect
+      .poll(
+        async () => {
+          const before = await labelPlaces();
+          await page.waitForTimeout(300);
+          return before === (await labelPlaces());
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+
+    // Only the labels nearest to the camera are shown; pick a shown one.
+    const label = page
+      .getByTestId("world-labels")
+      .locator("button:visible", { hasText: " m" })
+      .first();
+    await expect(label).toBeVisible();
+    const code = (await label.textContent())!.split(" · ")[0];
+    await label.click();
+    const panel = page.getByTestId("world-tree");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText(code);
+    await expect(page.getByTestId("world-tree-crown")).toContainText("Boy");
+    await expect(page.getByTestId("world-tree-crown")).toContainText("Taç çapı");
+
+    // Colour by height: a legend with the range.
+    await page.getByTestId("world-mode").selectOption("height");
+    await expect(page.getByTestId("world-legend")).toContainText("m");
+
+    // Escape closes the tree, then the world; the tour is where it was.
+    await page.keyboard.press("Escape");
+    await expect(panel).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("world")).toHaveCount(0, { timeout: 10_000 });
+    await expect(viewer).toHaveAttribute("data-panorama", panorama!);
+    expect(Math.abs((await yawDeg(viewer)) - yawBefore)).toBeLessThan(0.5);
+
+    // Open and close again: no live WebGL context piles up.
+    const before = (await glContexts(page)).live;
+    for (let i = 0; i < 2; i++) {
+      await enter.click();
+      await expect(page.getByTestId("world")).toHaveAttribute("data-status", "world", {
+        timeout: 60_000,
+      });
+      await page.getByTestId("world-back").click();
+      await expect(page.getByTestId("world")).toHaveCount(0, { timeout: 10_000 });
+    }
+    expect((await glContexts(page)).live).toBeLessThanOrEqual(before);
+    expect(errors).toEqual([]);
+  });
+});

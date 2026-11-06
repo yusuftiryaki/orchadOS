@@ -154,10 +154,10 @@ def test_findings_and_questions(ds):
 
 def test_versions_are_cumulative():
     """Version 2 adds the service layer, version 3 the robot, version 4 the LiDAR crown
-    measurements; earlier rows keep their ids and seeds."""
-    assert dataset.DATASET_VERSION == 4 and dataset.SEED_VERSION == 1
+    measurements, version 5 the 3D world; earlier rows keep their ids and seeds."""
+    assert dataset.DATASET_VERSION == 5 and dataset.SEED_VERSION == 1
     assert dataset.SERVICES_VERSION == 2 and dataset.ROBOT_VERSION == 3
-    assert dataset.LIDAR_VERSION == 4
+    assert dataset.LIDAR_VERSION == 4 and dataset.WORLD_VERSION == 5
     assert sqlgen.SERVICE_TYPE_ID == ids.did("service_type", "weed_mowing", version=2)
 
 

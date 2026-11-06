@@ -10,6 +10,7 @@ into per-tree clouds and measures them:
 - crown.py      crown diameter, tree height, crown volume, size class proposal
 - skeleton.py   winter branch skeleton (QSM-style): scaffold branches, wood volume
 - pruning.py    before/after skeleton comparison: what was pruned
+- world.py      coloured, thinned cloud of the portal's 3D world (world.owc)
 """
 
 LIDAR_DIR = "lidar"

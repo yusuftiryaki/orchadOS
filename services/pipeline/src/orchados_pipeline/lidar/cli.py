@@ -37,6 +37,15 @@ def add_parser(sub) -> None:
 
     measuring("crown", "crown diameter, tree height, crown volume, size class proposal")
     measuring("skeleton", "winter branch skeleton: scaffold branches, wood volume (research)")
+    wd = measuring(
+        "world", "coloured, thinned cloud of the portal's 3D world (world.owc + world.json)"
+    )
+    wd.add_argument(
+        "--panoramas",
+        help="panoramas of the scan: a run folder, its panoramas.json or a folder of "
+        "pano-*.json sidecars (default: the only run under <session>.processed with "
+        "panoramas; none: grey by height)",
+    )
     pr = lsub.add_parser("pruning", help="compare two winter skeletons: what was pruned")
     pr.add_argument("before", help="session folder before pruning")
     pr.add_argument("after", help="session folder after pruning")
@@ -47,7 +56,7 @@ def add_parser(sub) -> None:
     up = lsub.add_parser(
         "upload",
         help="record the measurements of crown.json / skeleton.json / pruning.json in "
-        "Supabase (env: as for upload)",
+        "Supabase and upload world.owc as a world_cloud asset (env: as for upload)",
     )
     up.add_argument("out_dir", help="LiDAR output folder (<session>.processed/lidar)")
     up.add_argument("--session-id", required=True, help="public.session id of the scan")
@@ -106,6 +115,17 @@ def run(args: argparse.Namespace) -> int:
         return run_upload(Path(args.out_dir), args.session_id, dry_run=args.dry_run)
     mod = import_module(f".{cmd}", __package__)
     params = args.params and Path(args.params)
+    if cmd == "world":
+        session = Path(args.session)
+        report = mod.run(
+            session,
+            Path(args.trees) if args.trees else session / "trees.json",
+            Path(args.out) if args.out else default_out(session),
+            params,
+            Path(args.panoramas) if args.panoramas else None,
+        )
+        print(mod.summary_line(report))
+        return 0
     if cmd == "pruning":
         after = Path(args.after)
         trees = Path(args.trees) if args.trees else after / "trees.json"

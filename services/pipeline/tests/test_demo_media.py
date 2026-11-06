@@ -11,6 +11,7 @@ import pytest
 
 from orchados_pipeline.demo import build as demo_build
 from orchados_pipeline.demo import closeups, dataset, render
+from orchados_pipeline.demo import world as demo_world
 from orchados_pipeline.demo.dataset import CAMERA_HEIGHT_M
 
 
@@ -37,7 +38,7 @@ def test_full_profile_estimate_is_at_most_150_mb(fresh_build):
     """Scale the test profile's bytes per kind by the pixel ratio of the full profile.
 
     JPEG and WebP bytes grow slower than the pixel count on smooth synthetic
-    content, so this overestimates (the full build is ~54 MB)."""
+    content, so this overestimates (the full build is ~62 MB)."""
     _root, manifest, _s = fresh_build
     test, full = render.PROFILES["test"], render.PROFILES["full"]
     ratio = {
@@ -47,6 +48,9 @@ def test_full_profile_estimate_is_at_most_150_mb(fresh_build):
         "closeup": full.closeup[0] * full.closeup[1] / (test.closeup[0] * test.closeup[1]),
     }
     ratio["service_photo"] = ratio["closeup"]
+    # A world cloud is 11 bytes per point: it grows with the point budget, not 0.75.
+    pts = demo_world.WORLD_PARAMS
+    ratio["world_cloud"] = (pts["full"]["max_points"] / pts["test"]["max_points"]) ** (4 / 3)
     estimate = sum(f["bytes"] * ratio[f["kind"]] ** 0.75 for f in manifest["files"])
     assert estimate <= 150_000_000, f"full profile estimate {estimate / 1e6:.0f} MB"
 
@@ -84,7 +88,8 @@ def test_sizes_match_the_profile(fresh_build):
         "service_photo": p.closeup,
     }
     proof = [f for f in manifest["files"] if f["kind"] == "service_photo"]
-    for f in manifest["files"][::25] + proof:
+    images = [f for f in manifest["files"] if f["kind"] != "world_cloud"]
+    for f in images[::25] + proof:
         img = cv2.imread(str(root / "files" / f["sha256"]), cv2.IMREAD_COLOR)
         assert (img.shape[1], img.shape[0]) == want[f["kind"]] == (f["width"], f["height"])
 
@@ -182,3 +187,44 @@ def test_build_has_the_proof_photos(fresh_build):
 def test_sun_is_up_in_the_morning_of_july():
     az, el = render.sun_position(dataset.utc("2026-07-14 06:30"), 37.14, 37.56)
     assert 60 < az < 110 and 30 < el < 50
+
+
+def test_world_clouds(fresh_build):
+    """Version 5: parcel A's scans carry a world cloud within the test budget, coloured
+    from their panoramas, in the parcel's frame, with the visit's trees and no time."""
+    from orchados_pipeline.demo.build import ANTENNA_HEIGHT_M
+    from orchados_pipeline.lidar.world import NO_TREE, read_world
+
+    root, manifest, _s = fresh_build
+    ds = dataset.load()
+    worlds = {r["visit"]: r["world"] for r in manifest["runs"] if "world" in r}
+    assert set(worlds) == set(demo_world.WORLD_VISITS)
+    files = {f["sha256"]: f for f in manifest["files"]}
+    for key, info in worlds.items():
+        v = ds.visit(key)
+        f = files[info["sha256"]]
+        assert f["kind"] == "world_cloud" and f["session"] == v.id and f["parcel"] == v.parcel.id
+        assert f["bytes"] <= 410_000
+        w = read_world(root / "files" / info["sha256"])
+        h = w.header
+        assert h["session_id"] == v.id and h["parcel_id"] == v.parcel.id
+        assert (h["origin_lat"], h["origin_lon"]) == (v.parcel.origin_lat, v.parcel.origin_lon)
+        assert h["origin_height_m"] == pytest.approx(ANTENNA_HEIGHT_M - CAMERA_HEIGHT_M)
+        assert h["colorized"] and h["point_count"] == info["point_count"] > 30_000
+        assert [t["tree_id"] for t in h["trees"]] == [t.id for t in ds.trees["A"]]
+        assert not any(k in json_text(h) for k in ("time", "gps", "utc"))
+        assert info["seen_points"] > 0.3 * h["point_count"]
+        # The ground at z = 0 (cameras 2 m above it), green crowns, brown soil.
+        ground = w.tree == NO_TREE
+        assert abs(float(np.median(w.position[ground, 2]))) < 0.05
+        crown = (w.tree != NO_TREE) & (w.position[:, 2] > 2.0)
+        r, g, b = w.color[crown].astype(float).mean(0)
+        assert g > r and g > b
+        r, g, b = w.color[ground].astype(float).mean(0)
+        assert r > b
+
+
+def json_text(obj) -> str:
+    import json
+
+    return json.dumps(obj).lower()

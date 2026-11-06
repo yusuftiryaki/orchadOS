@@ -7036,7 +7036,8 @@ export type Database = {
         | "point_cloud"
         | "tree_point_cloud"
         | "photo"
-        | "other";
+        | "other"
+        | "world_cloud";
       billing_party_kind: "individual" | "company";
       boundary_source: "owner_declared" | "field_survey";
       capture_kind: "video_360" | "mcap" | "gnss_raw" | "photo" | "audio_note" | "other";
@@ -7309,6 +7310,7 @@ export const Constants = {
         "tree_point_cloud",
         "photo",
         "other",
+        "world_cloud",
       ],
       billing_party_kind: ["individual", "company"],
       boundary_source: ["owner_declared", "field_survey"],
