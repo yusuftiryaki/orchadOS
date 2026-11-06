@@ -913,6 +913,31 @@ test.describe("3D world", () => {
     await page.getByTestId("world-mode").selectOption("height");
     await expect(page.getByTestId("world-legend")).toContainText("m");
 
+    // Growth since the previous LiDAR measurement (2025): a diverging legend
+    // and the change in the tree's panel.
+    await page.getByTestId("world-mode").selectOption("growth");
+    await expect(page.getByTestId("world-legend")).toContainText("Kısalan");
+    await expect(page.getByTestId("world-tree-growth")).toContainText("önceki ölçüm");
+
+    // Another visit: the 2025 cloud dissolves in, the measurements follow it.
+    const world2 = page.getByTestId("world");
+    const visitNow = await world2.getAttribute("data-visit");
+    const other = await page
+      .getByTestId("world-visit")
+      .locator("option")
+      .evaluateAll(
+        (opts, now) => opts.map((o) => (o as HTMLOptionElement).value).find((v) => v !== now),
+        visitNow,
+      );
+    await page.getByTestId("world-visit").selectOption(other!);
+    await expect(world2).toHaveAttribute("data-visit", other!);
+    await expect(world2).toHaveAttribute("data-pending", "", { timeout: 60_000 });
+    // 2025 has no earlier LiDAR visit: growth is not offered, the photo colours return.
+    await expect(page.getByTestId("world-mode").locator('option[value="growth"]')).toHaveCount(0);
+    await expect(page.getByTestId("world-tree-growth")).toHaveCount(0);
+    await page.getByTestId("world-visit").selectOption(visitNow!);
+    await expect(world2).toHaveAttribute("data-visit", visitNow!);
+
     // Escape closes the tree, then the world; the tour is where it was.
     await page.keyboard.press("Escape");
     await expect(panel).toHaveCount(0);

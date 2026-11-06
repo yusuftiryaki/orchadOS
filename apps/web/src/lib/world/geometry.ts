@@ -360,3 +360,34 @@ export function pickNearest<T extends { x: number; y: number }>(
   }
   return best;
 }
+
+// Diverging ramp for a change between two visits: t = -1 shrank (orange-red),
+// 0 unchanged (grey), 1 grew (green). Returns 0..1 RGB.
+const LOSS: Vec3 = [0.85, 0.36, 0.16];
+const SAME: Vec3 = [0.62, 0.62, 0.6];
+const GAIN: Vec3 = [0.16, 0.68, 0.4];
+
+export function divergingColor(t: number): Vec3 {
+  const x = Math.max(-1, Math.min(1, Number.isFinite(t) ? t : 0));
+  const [a, b] = x < 0 ? [SAME, LOSS] : [SAME, GAIN];
+  const f = Math.abs(x);
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+}
+
+// Half-width of a symmetric legend for changes: the largest change, at least
+// `floor` (so a parcel that barely changed is not painted in full colours).
+export function changeSpan(values: number[], floor = 0.1): number {
+  const v = values.filter(Number.isFinite).map(Math.abs);
+  return Math.max(floor, ...v);
+}
+
+// Offset of another visit's cloud in the scene's frame: its origin seen from
+// the first cloud's origin (east, north, up metres).
+export function originOffset(
+  frame: LocalFrame,
+  frameHeightM: number,
+  origin: { lat: number; lon: number; heightM: number },
+): Vec3 {
+  const [e, n] = toEN(frame, [origin.lon, origin.lat]);
+  return [e, n, origin.heightM - frameHeightM];
+}

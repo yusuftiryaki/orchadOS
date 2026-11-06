@@ -8,16 +8,19 @@ import type { Position } from "@/lib/map/geo";
 import { prefersReducedMotion } from "@/lib/map/motion";
 import type { MarkerState } from "@/lib/map/tree-style";
 import { crownGuide, type CrownMeasure, type CrownValues } from "@/lib/portal/crown-guide";
-import { parseWorldCloud, type WorldCloud } from "@/lib/world/format";
-import { localFrame, toEN } from "@/lib/world/geometry";
-import { WorldScene, type ColorMode, type SceneTree } from "./world-scene";
+import type { WorldCloud } from "@/lib/world/format";
+import { changeSpan, localFrame, toEN, type LocalFrame } from "@/lib/world/geometry";
+import { loadWorldCloud } from "@/lib/world/stream";
+import { growthOf, worldVisits, type Growth, type WorldVisit } from "@/lib/world/visits";
+import { WorldScene, type ColorMode, type SceneTree, type SceneVisit } from "./world-scene";
 import styles from "./world.module.css";
 
-// The 3D world of the visit on screen (docs/3d-dunya.md), over the tour
-// viewer: signs and downloads the visit's world cloud, then hands it to
-// WorldScene, which starts at the panorama's exact view and turns the photo
-// into the cloud. The overlay holds the way back, the colour modes, the
-// selected tree's measurements and the tree labels.
+// The 3D world over the tour viewer (docs/3d-dunya.md): signs and downloads
+// the visit's world cloud (a coarse quarter first, then the rest), hands it
+// to WorldScene, which starts at the panorama's exact view and turns the
+// photo into the cloud. The overlay holds the way back, the visit (another
+// visit's cloud dissolves in), the colour modes (growth since the previous
+// measurement included), the selected tree's measurements and the labels.
 //
 // Loaded on demand (tour.tsx imports it dynamically), so three.js's extra
 // code reaches only those who open the world.
@@ -30,8 +33,9 @@ export interface WorldTree {
   code: string;
   position: Position;
   state: MarkerState;
-  crown: CrownValues | null;
 }
+
+export type { WorldVisit };
 
 export interface WorldStartView {
   // Panorama the visitor stands in, and how they look (yaw from its centre
@@ -49,7 +53,8 @@ type Status = "loading" | "error" | "capped" | "entering" | "world" | "exiting";
 
 export default function WorldView({
   parcelId,
-  assetId,
+  visits,
+  visitId,
   start,
   cameraHeightM,
   trees,
@@ -57,7 +62,10 @@ export default function WorldView({
   onExit,
 }: {
   parcelId: string;
-  assetId: string;
+  // Every visit with crown values or a cloud, newest first.
+  visits: WorldVisit[];
+  // The visit of the panorama on screen (it has a cloud).
+  visitId: string;
   start: WorldStartView;
   cameraHeightM: number;
   trees: WorldTree[];
@@ -68,12 +76,16 @@ export default function WorldView({
   const stageRef = useRef<HTMLDivElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<WorldScene | null>(null);
+  const frameRef = useRef<LocalFrame | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const [status, setStatus] = useState<Status>("loading");
-  const [progress, setProgress] = useState<number | null>(null);
   const [mode, setMode] = useState<ColorMode>("photo");
   const [selected, setSelected] = useState<string | null>(null);
-  // The opening view and callbacks are read once, when the scene is built.
-  const startRef = useRef({ start, cameraHeightM, trees, onExit });
+  // The visit on screen and the one whose cloud is on its way.
+  const [shown, setShown] = useState(visitId);
+  const [pending, setPending] = useState<string | null>(null);
+  // The opening view, data and callbacks are read once, when the scene is built.
+  const startRef = useRef({ start, cameraHeightM, trees, visits, onExit });
   useEffect(() => {
     startRef.current.onExit = onExit;
   });
@@ -82,57 +94,106 @@ export default function WorldView({
     rootRef.current?.focus({ preventScroll: true });
   }, []);
 
-  // Sign, download, parse, build.
+  // A visit's cloud: signed, downloaded coarse then whole, given to the scene.
+  const loadVisit = useCallback(
+    async (id: string, signal: AbortSignal, onCloud: (cloud: WorldCloud) => void) => {
+      const visit = startRef.current.visits.find((v) => v.id === id);
+      if (!visit?.assetId) throw new Error("no cloud");
+      const signed = await signTourWorldAction(parcelId, visit.assetId);
+      if (signal.aborted) return;
+      if (!signed.url) {
+        throw new SignError(signed.capped);
+      }
+      const whole = await loadWorldCloud(signed.url, {
+        signal,
+        onCoarse: (c) => !signal.aborted && onCloud(c),
+      });
+      if (!signal.aborted) onCloud(whole);
+    },
+    [parcelId],
+  );
+
+  const sceneVisit = useCallback((id: string, cloud: WorldCloud): SceneVisit => {
+    const { trees: list, visits: all } = startRef.current;
+    return { key: id, cloud, trees: sceneTrees(frameRef.current!, list, all, id) };
+  }, []);
+
+  // The panorama's visit: the scene is built on its first (coarse) cloud.
   useEffect(() => {
     const abort = new AbortController();
-    let scene: WorldScene | null = null;
-    (async () => {
-      const signed = await signTourWorldAction(parcelId, assetId);
-      if (abort.signal.aborted) return;
-      if (!signed.url) {
-        setStatus(signed.capped ? "capped" : "error");
+    abortRef.current = abort;
+    loadVisit(visitId, abort.signal, (cloud) => {
+      const scene = sceneRef.current;
+      if (scene) {
+        scene.setVisit(sceneVisit(visitId, cloud));
         return;
       }
-      const buffer = await download(signed.url, abort.signal, setProgress);
-      const cloud = parseWorldCloud(buffer);
-      if (abort.signal.aborted || !stageRef.current || !labelsRef.current) return;
-      const { start: view, cameraHeightM: height, trees: list } = startRef.current;
-      scene = new WorldScene({
+      if (!stageRef.current || !labelsRef.current) return;
+      const { start: view, cameraHeightM: height } = startRef.current;
+      const frame = localFrame(cloud.header.origin_lat, cloud.header.origin_lon);
+      frameRef.current = frame;
+      sceneRef.current = new WorldScene({
         container: stageRef.current,
         labels: labelsRef.current,
-        cloud,
+        visit: sceneVisit(visitId, cloud),
+        frame,
         photoUrl: view.photoUrl,
-        eyeEN: toEN(frameOf(cloud), view.position),
+        eyeEN: toEN(frame, view.position),
         headingDeg: view.headingDeg,
         yawDeg: view.yawDeg,
         pitchDeg: view.pitchDeg,
         fovDeg: view.fovDeg,
         cameraHeightM: height,
-        trees: sceneTrees(cloud, list),
         reducedMotion: prefersReducedMotion(),
         labelText,
         onSelect: setSelected,
         onEntered: () => setStatus("world"),
       });
-      sceneRef.current = scene;
       setStatus("entering");
-    })().catch(() => {
-      if (!abort.signal.aborted) setStatus("error");
+    }).catch((error) => {
+      if (abort.signal.aborted) return;
+      setStatus(error instanceof SignError && error.capped ? "capped" : "error");
     });
     return () => {
       abort.abort();
-      scene?.dispose();
+      sceneRef.current?.dispose();
       sceneRef.current = null;
     };
-  }, [parcelId, assetId]);
+  }, [visitId, loadVisit, sceneVisit]);
+
+  // Another visit: its cloud dissolves in (downloaded the first time).
+  const changeVisit = useCallback(
+    (id: string) => {
+      const scene = sceneRef.current;
+      if (!scene || id === shown) return;
+      setShown(id);
+      if (scene.hasVisit(id)) {
+        scene.showVisit(id);
+        return;
+      }
+      setPending(id);
+      const signal = abortRef.current!.signal;
+      let first = true;
+      loadVisit(id, signal, (cloud) => {
+        scene.setVisit(sceneVisit(id, cloud));
+        if (first) {
+          first = false;
+          scene.showVisit(id);
+        }
+      })
+        .then(() => setPending((p) => (p === id ? null : p)))
+        .catch(() => {
+          if (signal.aborted) return;
+          setPending(null);
+          setShown(scene.visitKey);
+        });
+    },
+    [shown, loadVisit, sceneVisit],
+  );
 
   useEffect(() => {
     sceneRef.current?.select(selected);
   }, [selected, status]);
-
-  useEffect(() => {
-    sceneRef.current?.setColorMode(mode);
-  }, [mode, status]);
 
   const exit = useCallback(() => {
     const scene = sceneRef.current;
@@ -145,18 +206,47 @@ export default function WorldView({
     scene.exit(() => startRef.current.onExit());
   }, [status]);
 
+  const shownVisit = visits.find((v) => v.id === shown) ?? null;
+  const choices = useMemo(() => worldVisits(visits), [visits]);
+  const growth = useMemo(
+    () =>
+      new Map(
+        trees.flatMap((x) => {
+          const g = growthOf(visits, shown, x.id);
+          return g ? [[x.id, g] as [string, Growth]] : [];
+        }),
+      ),
+    [trees, visits, shown],
+  );
+  const modes = (Object.keys(tw.modes) as ColorMode[]).filter(
+    (m) => m !== "growth" || growth.size > 0,
+  );
+  // Growth mode on a visit without growth shows the photo colours.
+  const shownMode: ColorMode = mode === "growth" && growth.size === 0 ? "photo" : mode;
+
+  useEffect(() => {
+    sceneRef.current?.setColorMode(shownMode);
+  }, [shownMode, status]);
+
   const tree = useMemo(() => trees.find((x) => x.id === selected) ?? null, [trees, selected]);
   const legend = useMemo(() => {
-    if (mode === "photo") return null;
-    const values = trees
-      .map((x) => (mode === "height" ? x.crown?.heightM : x.crown?.diameterM)?.value)
+    if (shownMode === "photo" || !shownVisit) return null;
+    if (shownMode === "growth") {
+      const span = changeSpan([...growth.values()].map((g) => g.deltaM));
+      return { text: tw.growthLegend(formatMeasure(span, "m", null, 2)), diverging: true };
+    }
+    const values = Object.values(shownVisit.crowns)
+      .map((c) => (shownMode === "height" ? c.heightM : c.diameterM)?.value)
       .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
     if (values.length === 0) return null;
-    return tw.legend(
-      formatMeasure(Math.min(...values), "m"),
-      formatMeasure(Math.max(...values), "m"),
-    );
-  }, [trees, mode]);
+    return {
+      text: tw.legend(
+        formatMeasure(Math.min(...values), "m"),
+        formatMeasure(Math.max(...values), "m"),
+      ),
+      diverging: false,
+    };
+  }, [shownMode, shownVisit, growth]);
 
   const busy = status === "loading" || status === "entering" || status === "exiting";
 
@@ -166,10 +256,12 @@ export default function WorldView({
       className={styles.world}
       role="region"
       aria-label={tw.region}
-      aria-busy={busy}
+      aria-busy={busy || pending !== null}
       tabIndex={-1}
       data-testid="world"
       data-status={status}
+      data-visit={shown}
+      data-pending={pending ?? ""}
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
         // The tour's own Escape (tree focus) must not see it.
@@ -190,15 +282,31 @@ export default function WorldView({
         >
           <span aria-hidden="true">←</span> {tw.back}
         </button>
+        {status === "world" && choices.length > 1 && (
+          <label className={styles.mode}>
+            {tw.visit}
+            <select
+              value={shown}
+              onChange={(e) => changeVisit(e.target.value)}
+              data-testid="world-visit"
+            >
+              {choices.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {status === "world" && (
           <label className={styles.mode}>
             {tw.colorMode}
             <select
-              value={mode}
+              value={shownMode}
               onChange={(e) => setMode(e.target.value as ColorMode)}
               data-testid="world-mode"
             >
-              {(Object.keys(tw.modes) as ColorMode[]).map((m) => (
+              {modes.map((m) => (
                 <option key={m} value={m}>
                   {tw.modes[m]}
                 </option>
@@ -208,15 +316,23 @@ export default function WorldView({
         )}
         {status === "world" && legend && (
           <div className={styles.legend} data-testid="world-legend">
-            <span className={styles.ramp} aria-hidden="true" />
-            <span>{legend}</span>
-            <span>{tw.unmeasured}</span>
+            <span
+              className={legend.diverging ? styles.diverging : styles.ramp}
+              aria-hidden="true"
+            />
+            <span>{legend.text}</span>
+            <span>{legend.diverging ? tw.growthNote : tw.unmeasured}</span>
           </div>
         )}
       </div>
       {status === "loading" && (
         <p className={styles.status} role="status" data-testid="world-loading">
-          {progress === null ? tw.loading : tw.loadingPercent(progress)}
+          {tw.loading}
+        </p>
+      )}
+      {status === "world" && pending && (
+        <p className={styles.note} role="status" data-testid="world-loading-visit">
+          {tw.loadingVisit}
         </p>
       )}
       {(status === "error" || status === "capped") && (
@@ -234,7 +350,10 @@ export default function WorldView({
           <p className={styles.title} aria-live="polite">
             <strong>{tree.code}</strong> <span>{t.portal.classes[tree.state]}</span>
           </p>
-          <CrownFacts crown={tree.crown} />
+          <CrownFacts
+            crown={shownVisit?.crowns[tree.id] ?? null}
+            growth={growth.get(tree.id) ?? null}
+          />
           <div className={styles.actions}>
             <button
               type="button"
@@ -268,7 +387,13 @@ export default function WorldView({
   );
 }
 
-function CrownFacts({ crown }: { crown: CrownValues | null }) {
+class SignError extends Error {
+  constructor(readonly capped: boolean) {
+    super(capped ? "capped" : "not signed");
+  }
+}
+
+function CrownFacts({ crown, growth }: { crown: CrownValues | null; growth: Growth | null }) {
   const rows = (
     [
       [tt.crownHeight, crown?.heightM ?? null, "m"],
@@ -286,58 +411,44 @@ function CrownFacts({ crown }: { crown: CrownValues | null }) {
           <dd>{formatMeasure(m.value, unit, m.uncertainty)}</dd>
         </div>
       ))}
+      {growth && (
+        <div data-testid="world-tree-growth">
+          <dt>{tw.growth}</dt>
+          <dd>{tw.growthSince(signedMeasure(growth.deltaM), growth.since.label)}</dd>
+        </div>
+      )}
     </dl>
   );
 }
 
-function frameOf(cloud: WorldCloud) {
-  return localFrame(cloud.header.origin_lat, cloud.header.origin_lon);
+// "+0,32 m", "−0,10 m"; under a centimetre: no change.
+function signedMeasure(m: number): string {
+  if (Math.abs(m) < 0.005) return tw.noChange;
+  const text = formatMeasure(Math.abs(m), "m", null, 2);
+  return m > 0 ? `+${text}` : `−${text}`;
 }
 
-function sceneTrees(cloud: WorldCloud, trees: WorldTree[]): SceneTree[] {
-  const frame = frameOf(cloud);
-  return trees.map((tree) => ({
-    id: tree.id,
-    code: tree.code,
-    en: toEN(frame, tree.position),
-    guide: crownGuide(tree.crown),
-    heightM: tree.crown?.heightM?.value ?? null,
-    diameterM: tree.crown?.diameterM?.value ?? null,
-  }));
+function sceneTrees(
+  frame: LocalFrame,
+  trees: WorldTree[],
+  visits: WorldVisit[],
+  visitId: string,
+): SceneTree[] {
+  const crowns = visits.find((v) => v.id === visitId)?.crowns ?? {};
+  return trees.map((tree) => {
+    const crown = crowns[tree.id] ?? null;
+    return {
+      id: tree.id,
+      code: tree.code,
+      en: toEN(frame, tree.position),
+      guide: crownGuide(crown),
+      heightM: crown?.heightM?.value ?? null,
+      diameterM: crown?.diameterM?.value ?? null,
+      growthM: growthOf(visits, visitId, tree.id)?.deltaM ?? null,
+    };
+  });
 }
 
 function labelText(tree: SceneTree): string {
   return tree.heightM === null ? tree.code : `${tree.code} · ${formatMeasure(tree.heightM, "m")}`;
-}
-
-// Downloads with progress (percent, when the size is known).
-async function download(
-  url: string,
-  signal: AbortSignal,
-  onProgress: (percent: number | null) => void,
-): Promise<ArrayBuffer> {
-  const response = await fetch(url, { signal });
-  if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
-  const total = Number(response.headers.get("content-length")) || 0;
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let received = 0;
-  let lastPercent = -1;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    received += value.length;
-    if (total > 0) {
-      const percent = Math.min(100, Math.floor((received / total) * 100));
-      if (percent !== lastPercent) onProgress((lastPercent = percent));
-    }
-  }
-  const out = new Uint8Array(received);
-  let offset = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return out.buffer;
 }

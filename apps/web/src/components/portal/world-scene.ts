@@ -3,7 +3,10 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { CrownGuide } from "@/lib/portal/crown-guide";
 import { NO_TREE, type WorldCloud } from "@/lib/world/format";
 import {
+  changeSpan,
   depthPanorama,
+  divergingColor,
+  easeInOut,
   enterState,
   ENTER_MS,
   exitState,
@@ -14,7 +17,9 @@ import {
   lerpPose,
   overviewPose,
   panoramaPose,
+  type LocalFrame,
   pickNearest,
+  originOffset,
   rampColor,
   sceneOf,
   type GroundGrid,
@@ -35,23 +40,39 @@ import {
 // wherever the cloud seen in that direction (a depth panorama of the cloud
 // itself) is nearer than the wave. Once the photo is gone the camera rises
 // to an overview; leaving runs the same backwards.
+//
+// Visits (Faz 2): each visit's cloud is a layer placed by its origin in the
+// first cloud's frame. Switching visits dissolves one into the other: the
+// points are stored shuffled, so drawing the first k of them is an even
+// sample, and the old layer's k shrinks while the new one's grows. A layer
+// can arrive coarse (the first quarter of its points) and be completed later.
 
-export type ColorMode = "photo" | "height" | "diameter";
+export type ColorMode = "photo" | "height" | "diameter" | "growth";
 
 export interface SceneTree {
   id: string;
   code: string;
-  // East, north metres in the cloud's frame.
+  // East, north metres in the scene's frame (the first cloud's).
   en: [number, number];
   guide: CrownGuide | null;
   heightM: number | null;
   diameterM: number | null;
+  // Change of the height since the previous visit that measured the tree.
+  growthM: number | null;
+}
+
+export interface SceneVisit {
+  key: string;
+  cloud: WorldCloud;
+  trees: SceneTree[];
 }
 
 export interface WorldSceneOptions {
   container: HTMLElement;
   labels: HTMLElement;
-  cloud: WorldCloud;
+  // The visit the panorama belongs to; its cloud's origin is the scene's frame.
+  visit: SceneVisit;
+  frame: LocalFrame;
   photoUrl: string | null;
   // The panorama's position in the cloud's frame, and how the visitor looked.
   eyeEN: [number, number];
@@ -60,12 +81,24 @@ export interface WorldSceneOptions {
   pitchDeg: number;
   fovDeg: number;
   cameraHeightM: number;
-  trees: SceneTree[];
   reducedMotion: boolean;
   labelText: (tree: SceneTree) => string;
   onSelect: (treeId: string | null) => void;
   onEntered: () => void;
 }
+
+interface Layer {
+  key: string;
+  cloud: WorldCloud;
+  points: THREE.Points;
+  material: THREE.ShaderMaterial;
+  treeIndex: Map<string, number>;
+  trees: SceneTree[];
+  // How many of its points are drawn (all once shown; animated while switching).
+  drawn: number;
+}
+
+const SWITCH_MS = 1400;
 
 // Depth panorama resolution (a coarse grid is enough for the dissolve).
 const DEPTH_W = 512;
@@ -159,25 +192,27 @@ export class WorldScene {
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
   private readonly controls: OrbitControls;
-  private readonly points: THREE.Points;
-  private readonly pointMaterial: THREE.ShaderMaterial;
   private readonly photoMaterial: THREE.ShaderMaterial;
   private readonly photo: THREE.Mesh;
   private readonly guides = new THREE.Group();
   private readonly guideMaterial: THREE.LineBasicMaterial;
   private readonly dashedMaterial: THREE.LineDashedMaterial;
   private readonly selectedGroup = new THREE.Group();
-  private readonly photoColors: Uint8Array;
-  private readonly treeOfIndex: (SceneTree | null)[];
-  private readonly treeIndex = new Map<string, number>();
   private readonly ground: GroundGrid;
   private readonly start: Pose;
   private readonly overview: Pose;
   private readonly maxReveal: number;
+  private readonly eye: Vec3;
+  private readonly frameHeightM: number;
+  private readonly layers = new Map<string, Layer>();
   private readonly labelEls = new Map<string, HTMLButtonElement>();
   private readonly tops = new Map<string, THREE.Vector3>();
   private readonly resize: ResizeObserver;
   private readonly textures: THREE.Texture[] = [];
+  private layer: Layer;
+  private trees: SceneTree[];
+  private mode: ColorMode = "photo";
+  private switching: { from: Layer; to: Layer; start: number } | null = null;
   private frame = 0;
   private phase: "entering" | "world" | "exiting" | "done" = "entering";
   private phaseStart = 0;
@@ -185,10 +220,13 @@ export class WorldScene {
   private dirty = true;
   private overlayOpacity = 0;
   private selected: string | null = null;
+  private scale = 1;
   private disposed = false;
 
   constructor(private readonly options: WorldSceneOptions) {
-    const { container, cloud } = options;
+    const { container } = options;
+    const cloud = options.visit.cloud;
+    this.frameHeightM = cloud.header.origin_height_m;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setClearColor(BACKGROUND);
@@ -199,52 +237,19 @@ export class WorldScene {
     const [eE, eN] = options.eyeEN;
     const groundZ = groundAt(this.ground, eE, eN);
     const eyeEnu: Vec3 = [eE, eN, groundZ + options.cameraHeightM];
-    const eye = sceneOf(...eyeEnu);
+    this.eye = sceneOf(...eyeEnu);
     const azimuth = options.headingDeg + options.yawDeg;
-    this.start = panoramaPose(eye, azimuth, options.pitchDeg, options.fovDeg);
+    this.start = panoramaPose(this.eye, azimuth, options.pitchDeg, options.fovDeg);
     const extent = Math.hypot(this.ground.cols, this.ground.rows) * this.ground.cell;
-    this.overview = overviewPose(eye, groundZ, azimuth, extent);
+    this.overview = overviewPose(this.eye, groundZ, azimuth, extent);
     this.maxReveal = Math.max(10, farthest(cloud.enu, cloud.count, eyeEnu)) + WAVE_M;
 
     this.camera = new THREE.PerspectiveCamera(options.fovDeg, 1, 0.05, 2000);
     this.applyPose(this.start);
 
-    // Points (scene axes).
-    const positions = new Float32Array(cloud.count * 3);
-    for (let i = 0; i < cloud.count; i++) {
-      positions[i * 3] = cloud.enu[i * 3];
-      positions[i * 3 + 1] = cloud.enu[i * 3 + 2];
-      positions[i * 3 + 2] = -cloud.enu[i * 3 + 1];
-    }
-    this.photoColors = cloud.color;
-    const treeById = new Map(options.trees.map((t) => [t.id, t]));
-    this.treeOfIndex = [];
-    const treeAttr = new Float32Array(cloud.count);
-    for (const [index, id] of cloud.treeIds) {
-      this.treeIndex.set(id, index);
-      this.treeOfIndex[index] = treeById.get(id) ?? null;
-    }
-    for (let i = 0; i < cloud.count; i++)
-      treeAttr[i] = cloud.tree[i] === NO_TREE ? -1 : cloud.tree[i];
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute("aColor", new THREE.BufferAttribute(cloud.color.slice(), 3, true));
-    geometry.setAttribute("aTree", new THREE.BufferAttribute(treeAttr, 1));
-    this.pointMaterial = new THREE.ShaderMaterial({
-      vertexShader: POINT_VERTEX,
-      fragmentShader: POINT_FRAGMENT,
-      uniforms: {
-        uOrigin: { value: new THREE.Vector3(...eye) },
-        uReveal: { value: 0 },
-        uSize: { value: Math.max(0.02, cloud.header.voxel_m || 0.04) * POINT_VOXELS },
-        uScale: { value: 1 },
-        uSelected: { value: -1 },
-        uWaveOn: { value: 1 },
-      },
-    });
-    this.points = new THREE.Points(geometry, this.pointMaterial);
-    this.points.frustumCulled = false;
-    this.scene.add(this.points);
+    this.layer = this.makeLayer(options.visit);
+    this.layers.set(this.layer.key, this.layer);
+    this.trees = options.visit.trees;
 
     // The photo sphere around the panorama's camera.
     const depth = depthPanorama(
@@ -282,7 +287,7 @@ export class WorldScene {
       },
     });
     this.photo = new THREE.Mesh(new THREE.SphereGeometry(500, 96, 48), this.photoMaterial);
-    this.photo.position.set(...eye);
+    this.photo.position.set(...this.eye);
     // Drawn over the points: the photo covers them until the wave passes.
     this.photo.renderOrder = 1;
     this.photo.frustumCulled = false;
@@ -302,10 +307,9 @@ export class WorldScene {
       dashSize: 0.25,
       gapSize: 0.2,
     });
-    this.buildGuides();
     this.scene.add(this.guides);
     this.scene.add(this.selectedGroup);
-    this.buildLabels();
+    this.buildGuides();
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enabled = false;
@@ -332,48 +336,74 @@ export class WorldScene {
   // Public
   // ---------------------------------------------------------------------------
 
-  setColorMode(mode: ColorMode) {
-    const attr = this.points.geometry.getAttribute("aColor") as THREE.BufferAttribute;
-    const out = attr.array as Uint8Array;
-    if (mode === "photo") {
-      out.set(this.photoColors);
-    } else {
-      const value = (t: SceneTree | null) =>
-        (mode === "height" ? t?.heightM : t?.diameterM) ?? null;
-      const values = this.treeOfIndex.map((t) => value(t)).filter((v): v is number => v !== null);
-      const min = values.length ? Math.min(...values) : 0;
-      const max = values.length ? Math.max(...values) : 1;
-      const colorOf = this.treeOfIndex.map((t) => {
-        const v = value(t);
-        if (v === null) return null;
-        return rampColor(max > min ? (v - min) / (max - min) : 0.5).map((c) => Math.round(c * 255));
-      });
-      const { tree } = this.options.cloud;
-      for (let i = 0; i < tree.length; i++) {
-        const c = tree[i] === NO_TREE ? null : colorOf[tree[i]];
-        if (c) {
-          out[i * 3] = c[0];
-          out[i * 3 + 1] = c[1];
-          out[i * 3 + 2] = c[2];
-        } else {
-          // Ground and unmeasured trees: the photo colour, dimmed and greyed.
-          const g =
-            (this.photoColors[i * 3] + this.photoColors[i * 3 + 1] + this.photoColors[i * 3 + 2]) /
-            3;
-          out[i * 3] = out[i * 3 + 1] = out[i * 3 + 2] = Math.round(g * 0.55);
-        }
-      }
+  get visitKey() {
+    return this.layer.key;
+  }
+
+  hasVisit(key: string) {
+    return this.layers.has(key);
+  }
+
+  // A visit's cloud: a new layer (hidden until shown), or the complete cloud of
+  // a layer that arrived coarse.
+  setVisit(visit: SceneVisit) {
+    const old = this.layers.get(visit.key);
+    if (!old) {
+      const layer = this.makeLayer(visit);
+      layer.drawn = 0;
+      layer.points.geometry.setDrawRange(0, 0);
+      layer.points.visible = false;
+      this.layers.set(visit.key, layer);
+      return;
     }
-    attr.needsUpdate = true;
+    const shown = old.drawn === old.cloud.count;
+    this.fillLayer(old, visit.cloud);
+    old.trees = visit.trees;
+    if (shown) old.drawn = old.cloud.count;
+    old.points.geometry.setDrawRange(0, old.drawn);
+    this.paint(old);
+    if (old === this.layer) {
+      this.trees = visit.trees;
+      this.buildGuides();
+    }
+    this.dirty = true;
+  }
+
+  // Dissolves into another visit's cloud; its measurements replace the drawings.
+  showVisit(key: string) {
+    const to = this.layers.get(key);
+    if (!to || to === this.layer) return;
+    const from = this.switching ? this.switching.to : this.layer;
+    if (this.switching) this.finishSwitch();
+    this.layer = to;
+    this.trees = to.trees;
+    to.points.visible = true;
+    this.paint(to);
+    this.buildGuides();
+    this.select(this.selected && to.treeIndex.has(this.selected) ? this.selected : null);
+    if (this.options.reducedMotion || this.phase !== "world") {
+      this.switching = { from, to, start: -Infinity };
+      this.finishSwitch();
+    } else {
+      this.switching = { from, to, start: performance.now() };
+    }
+    this.dirty = true;
+  }
+
+  setColorMode(mode: ColorMode) {
+    this.mode = mode;
+    this.paint(this.layer);
     this.dirty = true;
   }
 
   select(treeId: string | null) {
     this.selected = treeId;
-    const index = treeId === null ? undefined : this.treeIndex.get(treeId);
-    this.pointMaterial.uniforms.uSelected.value = index ?? -1;
+    for (const layer of this.layers.values()) {
+      const index = treeId === null ? undefined : layer.treeIndex.get(treeId);
+      layer.material.uniforms.uSelected.value = index ?? -1;
+    }
     this.selectedGroup.clear();
-    const tree = treeId ? this.options.trees.find((t) => t.id === treeId) : undefined;
+    const tree = treeId ? this.trees.find((t) => t.id === treeId) : undefined;
     if (tree?.guide) {
       const material = new THREE.LineBasicMaterial({ color: GUIDE_SELECTED, depthTest: false });
       this.selectedGroup.add(this.guideLines(tree, material, material, false));
@@ -402,6 +432,7 @@ export class WorldScene {
     if (this.phase === "exiting" || this.phase === "done") return;
     this.onExited = done;
     this.controls.enabled = false;
+    if (this.switching) this.finishSwitch();
     // Fly back from wherever the visitor orbited to.
     this.current = this.poseNow();
     this.phase = "exiting";
@@ -435,6 +466,144 @@ export class WorldScene {
   }
 
   // ---------------------------------------------------------------------------
+  // Layers
+  // ---------------------------------------------------------------------------
+
+  private makeLayer(visit: SceneVisit): Layer {
+    const { cloud } = visit;
+    const material = new THREE.ShaderMaterial({
+      vertexShader: POINT_VERTEX,
+      fragmentShader: POINT_FRAGMENT,
+      uniforms: {
+        uOrigin: { value: new THREE.Vector3(...this.eye) },
+        uReveal: { value: this.phase === "entering" ? 0 : 1e9 },
+        uSize: { value: Math.max(0.02, cloud.header.voxel_m || 0.04) * POINT_VOXELS },
+        uScale: { value: this.scale },
+        uSelected: { value: -1 },
+        uWaveOn: { value: this.phase === "entering" ? 1 : 0 },
+      },
+    });
+    const points = new THREE.Points(new THREE.BufferGeometry(), material);
+    points.frustumCulled = false;
+    // Another visit's cloud sits at its own origin, seen from the first one's.
+    const [dx, dy, dz] = sceneOf(
+      ...originOffset(this.options.frame, this.frameHeightM, {
+        lat: cloud.header.origin_lat,
+        lon: cloud.header.origin_lon,
+        heightM: cloud.header.origin_height_m,
+      }),
+    );
+    points.position.set(dx, dy, dz);
+    this.scene.add(points);
+    const layer: Layer = {
+      key: visit.key,
+      cloud,
+      points,
+      material,
+      treeIndex: new Map(),
+      trees: visit.trees,
+      drawn: cloud.count,
+    };
+    this.fillLayer(layer, cloud);
+    this.paint(layer);
+    return layer;
+  }
+
+  // (Re)fills a layer's geometry from a cloud (the coarse one, then the whole).
+  private fillLayer(layer: Layer, cloud: WorldCloud) {
+    const positions = new Float32Array(cloud.count * 3);
+    for (let i = 0; i < cloud.count; i++) {
+      positions[i * 3] = cloud.enu[i * 3];
+      positions[i * 3 + 1] = cloud.enu[i * 3 + 2];
+      positions[i * 3 + 2] = -cloud.enu[i * 3 + 1];
+    }
+    const treeAttr = new Float32Array(cloud.count);
+    for (let i = 0; i < cloud.count; i++)
+      treeAttr[i] = cloud.tree[i] === NO_TREE ? -1 : cloud.tree[i];
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("aColor", new THREE.BufferAttribute(cloud.color.slice(), 3, true));
+    geometry.setAttribute("aTree", new THREE.BufferAttribute(treeAttr, 1));
+    layer.points.geometry.dispose();
+    layer.points.geometry = geometry;
+    layer.cloud = cloud;
+    layer.treeIndex = new Map([...cloud.treeIds].map(([index, id]) => [id, index]));
+    if (this.selected) {
+      layer.material.uniforms.uSelected.value = layer.treeIndex.get(this.selected) ?? -1;
+    }
+  }
+
+  // The layer's colours in the current mode.
+  private paint(layer: Layer) {
+    const attr = layer.points.geometry.getAttribute("aColor") as THREE.BufferAttribute;
+    const out = attr.array as Uint8Array;
+    const photo = layer.cloud.color;
+    if (this.mode === "photo") {
+      out.set(photo);
+      attr.needsUpdate = true;
+      return;
+    }
+    const byId = new Map(layer.trees.map((t) => [t.id, t]));
+    const colorOf: (number[] | null)[] = [];
+    const value = (t: SceneTree | undefined) =>
+      (this.mode === "height"
+        ? t?.heightM
+        : this.mode === "diameter"
+          ? t?.diameterM
+          : t?.growthM) ?? null;
+    const values = layer.trees.map(value).filter((v): v is number => v !== null);
+    const min = values.length ? Math.min(...values) : 0;
+    const max = values.length ? Math.max(...values) : 1;
+    for (const [index, id] of layer.cloud.treeIds) {
+      const v = value(byId.get(id));
+      if (v === null) continue;
+      const rgb =
+        this.mode === "growth"
+          ? divergingColor(v / changeSpan(values))
+          : rampColor(max > min ? (v - min) / (max - min) : 0.5);
+      colorOf[index] = rgb.map((c) => Math.round(c * 255));
+    }
+    const { tree } = layer.cloud;
+    for (let i = 0; i < tree.length; i++) {
+      const c = tree[i] === NO_TREE ? null : colorOf[tree[i]];
+      if (c) {
+        out[i * 3] = c[0];
+        out[i * 3 + 1] = c[1];
+        out[i * 3 + 2] = c[2];
+      } else {
+        // Ground and unmeasured trees: the photo colour, dimmed and greyed.
+        const g = (photo[i * 3] + photo[i * 3 + 1] + photo[i * 3 + 2]) / 3;
+        out[i * 3] = out[i * 3 + 1] = out[i * 3 + 2] = Math.round(g * 0.55);
+      }
+    }
+    attr.needsUpdate = true;
+  }
+
+  private stepSwitch(now: number) {
+    const s = this.switching!;
+    const p = easeInOut(Math.min(1, (now - s.start) / SWITCH_MS));
+    s.from.drawn = Math.round(s.from.cloud.count * (1 - p));
+    s.to.drawn = Math.round(s.to.cloud.count * p);
+    s.from.points.geometry.setDrawRange(0, s.from.drawn);
+    s.to.points.geometry.setDrawRange(0, s.to.drawn);
+    if (p >= 1) this.finishSwitch();
+  }
+
+  private finishSwitch() {
+    const s = this.switching;
+    if (!s) return;
+    this.switching = null;
+    if (s.from !== s.to) {
+      s.from.drawn = 0;
+      s.from.points.geometry.setDrawRange(0, 0);
+      s.from.points.visible = false;
+    }
+    s.to.drawn = s.to.cloud.count;
+    s.to.points.geometry.setDrawRange(0, s.to.drawn);
+    this.dirty = true;
+  }
+
+  // ---------------------------------------------------------------------------
   // Frame
   // ---------------------------------------------------------------------------
 
@@ -450,7 +619,10 @@ export class WorldScene {
       this.applyState(enterState(ms), this.start, this.overview, true);
       if (ms >= ENTER_MS) {
         this.phase = "world";
-        this.pointMaterial.uniforms.uWaveOn.value = 0;
+        for (const layer of this.layers.values()) {
+          layer.material.uniforms.uWaveOn.value = 0;
+          layer.material.uniforms.uReveal.value = 1e9;
+        }
         this.controls.enabled = true;
         this.options.onEntered();
       }
@@ -464,6 +636,10 @@ export class WorldScene {
         return;
       }
     } else if (this.phase === "world") {
+      if (this.switching) {
+        this.stepSwitch(now);
+        this.dirty = true;
+      }
       if (this.controls.update()) this.dirty = true;
       if (!this.dirty) return;
     } else {
@@ -482,7 +658,7 @@ export class WorldScene {
   // fades back in over the whole view.
   private applyState(state: TransitionState, from: Pose, to: Pose, dissolve: boolean) {
     const reveal = state.reveal * this.maxReveal;
-    this.pointMaterial.uniforms.uReveal.value = reveal;
+    for (const layer of this.layers.values()) layer.material.uniforms.uReveal.value = reveal;
     this.photoMaterial.uniforms.uReveal.value = dissolve ? reveal : 0;
     this.photoMaterial.uniforms.uOpacity.value = state.photo;
     this.photo.visible = state.photo > 0;
@@ -530,9 +706,10 @@ export class WorldScene {
 
   // Pixels per metre at unit distance, in drawing-buffer pixels.
   private updateScale() {
+    if (!this.renderer) return;
     const height = this.renderer.getDrawingBufferSize(new THREE.Vector2()).y;
-    this.pointMaterial.uniforms.uScale.value =
-      height / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
+    this.scale = height / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
+    for (const layer of this.layers.values()) layer.material.uniforms.uScale.value = this.scale;
   }
 
   private loadPhoto(url: string) {
@@ -605,8 +782,14 @@ export class WorldScene {
     return group;
   }
 
+  // The drawings, label places and label texts of the visit on screen.
   private buildGuides() {
-    for (const tree of this.options.trees) {
+    for (const child of [...this.guides.children]) {
+      child.traverse((o) => (o as THREE.LineSegments).geometry?.dispose());
+    }
+    this.guides.clear();
+    this.tops.clear();
+    for (const tree of this.trees) {
       const g = this.groundOf(tree);
       const [x, , z] = sceneOf(tree.en[0], tree.en[1], 0);
       this.tops.set(
@@ -616,19 +799,26 @@ export class WorldScene {
       if (tree.guide)
         this.guides.add(this.guideLines(tree, this.guideMaterial, this.dashedMaterial, true));
     }
-  }
-
-  private buildLabels() {
-    for (const tree of this.options.trees) {
-      const el = document.createElement("button");
-      el.type = "button";
-      el.dataset.tree = tree.code;
-      el.dataset.selected = "false";
+    const ids = new Set(this.trees.map((t) => t.id));
+    for (const [id, el] of this.labelEls) {
+      if (!ids.has(id)) {
+        el.remove();
+        this.labelEls.delete(id);
+      }
+    }
+    for (const tree of this.trees) {
+      let el = this.labelEls.get(tree.id);
+      if (!el) {
+        el = document.createElement("button");
+        el.type = "button";
+        el.dataset.tree = tree.code;
+        el.dataset.selected = "false";
+        el.style.display = "none";
+        el.addEventListener("click", () => this.options.onSelect(tree.id));
+        this.options.labels.appendChild(el);
+        this.labelEls.set(tree.id, el);
+      }
       el.textContent = this.options.labelText(tree);
-      el.style.display = "none";
-      el.addEventListener("click", () => this.options.onSelect(tree.id));
-      this.options.labels.appendChild(el);
-      this.labelEls.set(tree.id, el);
     }
   }
 
@@ -643,7 +833,8 @@ export class WorldScene {
     const v = new THREE.Vector3();
     let count = 0;
     for (const { id, top } of shown) {
-      const el = this.labelEls.get(id)!;
+      const el = this.labelEls.get(id);
+      if (!el) continue;
       v.copy(top).project(this.camera);
       const visible =
         (count < MAX_LABELS || id === this.selected) &&
@@ -677,11 +868,14 @@ export class WorldScene {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     const v = new THREE.Vector3();
+    const byId = new Map(this.trees.map((t) => [t.id, t]));
     const items: { id: string; x: number; y: number }[] = [];
     for (const [id, top] of this.tops) {
+      const tree = byId.get(id);
+      if (!tree) continue;
       // The middle of the tree: halfway between the ground and the top.
       v.copy(top);
-      v.y -= (top.y - this.groundOf(this.options.trees.find((t) => t.id === id)!)) / 2;
+      v.y -= (top.y - this.groundOf(tree)) / 2;
       v.project(this.camera);
       if (v.z < -1 || v.z > 1) continue;
       items.push({ id, x: ((v.x + 1) / 2) * rect.width, y: ((1 - v.y) / 2) * rect.height });

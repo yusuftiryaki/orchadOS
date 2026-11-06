@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { encodeWorldCloud, NO_TREE, parseWorldCloud, WorldCloudError } from "./format";
+import { loadWorldCloud } from "./stream";
+import { growthOf, worldVisits, type WorldVisit } from "./visits";
 import {
+  changeSpan,
   depthPanorama,
+  divergingColor,
   directionOf,
   enterState,
   ENTER_MS,
@@ -10,6 +14,7 @@ import {
   groundAt,
   groundGrid,
   localFrame,
+  originOffset,
   overviewPose,
   pickNearest,
   rampColor,
@@ -155,5 +160,112 @@ describe("world geometry", () => {
     ];
     expect(pickNearest(items, 35, 12, 20)?.id).toBe("b");
     expect(pickNearest(items, 100, 100, 20)).toBeNull();
+  });
+});
+
+describe("progressive download", () => {
+  // A cloud of 50 000 points with distinct coordinates, served with or without ranges.
+  const N = 50_000;
+  const buffer = encodeWorldCloud(
+    HEADER,
+    Array.from({ length: N }, (_, i) => ({
+      q: [i % 65536, (i * 7) % 65536, (i * 13) % 65536] as [number, number, number],
+      rgb: [i % 256, (i >> 8) % 256, 7] as [number, number, number],
+      tree: i % 3 === 0 ? NO_TREE : 0,
+    })),
+  );
+  const server = (ranges: boolean) => {
+    const calls: string[] = [];
+    const fetch = async (_url: string, init: RequestInit) => {
+      const range = (init.headers as Record<string, string>).Range;
+      calls.push(range);
+      if (!ranges) return new Response(buffer.slice(0), { status: 200 });
+      const [, a, b] = /bytes=(\d+)-(\d+)/.exec(range)!;
+      const end = Math.min(Number(b) + 1, buffer.byteLength);
+      return new Response(buffer.slice(Number(a), end), { status: 206 });
+    };
+    return { fetch, calls };
+  };
+
+  it("shows an even quarter first, then the whole cloud", async () => {
+    const { fetch, calls } = server(true);
+    const coarse: number[] = [];
+    const cloud = await loadWorldCloud("u", { fetch, onCoarse: (c) => coarse.push(c.count) });
+    expect(coarse).toEqual([12_500]);
+    expect(cloud.count).toBe(N);
+    expect(calls).toHaveLength(7); // header, three arrays twice
+    const whole = parseWorldCloud(buffer);
+    expect(Array.from(cloud.enu.slice(-6))).toEqual(Array.from(whole.enu.slice(-6)));
+    expect(Array.from(cloud.color.slice(30_000, 30_009))).toEqual(
+      Array.from(whole.color.slice(30_000, 30_009)),
+    );
+    expect(Array.from(cloud.tree.slice(-4))).toEqual(Array.from(whole.tree.slice(-4)));
+  });
+
+  it("takes the whole file from a server without ranges", async () => {
+    const { fetch, calls } = server(false);
+    let coarse = 0;
+    const cloud = await loadWorldCloud("u", { fetch, onCoarse: () => coarse++ });
+    expect(cloud.count).toBe(N);
+    expect(calls).toHaveLength(1);
+    expect(coarse).toBe(0);
+  });
+
+  it("loads a small cloud in one step", async () => {
+    const small = encodeWorldCloud(HEADER, [{ q: [1, 2, 3], rgb: [4, 5, 6], tree: 0 }]);
+    const fetch = async (_u: string, init: RequestInit) => {
+      const [, a, b] = /bytes=(\d+)-(\d+)/.exec((init.headers as Record<string, string>).Range)!;
+      return new Response(small.slice(Number(a), Math.min(Number(b) + 1, small.byteLength)), {
+        status: 206,
+      });
+    };
+    let coarse = 0;
+    const cloud = await loadWorldCloud("u", { fetch, onCoarse: () => coarse++ });
+    expect(cloud.count).toBe(1);
+    expect(coarse).toBe(0);
+  });
+});
+
+describe("visits and change", () => {
+  it("paints change from orange-red through grey to green", () => {
+    expect(divergingColor(0)).toEqual([0.62, 0.62, 0.6]);
+    const close = (a: number[], b: number[]) => a.forEach((v, i) => expect(v).toBeCloseTo(b[i]));
+    close(divergingColor(-1), [0.85, 0.36, 0.16]);
+    close(divergingColor(1), [0.16, 0.68, 0.4]);
+    expect(divergingColor(5)).toEqual(divergingColor(1));
+    expect(changeSpan([0.02, -0.03])).toBe(0.1);
+    expect(changeSpan([0.3, -0.5])).toBe(0.5);
+  });
+
+  it("places another visit's cloud by its origin", () => {
+    const frame = localFrame(37.07, 37.38);
+    expect(originOffset(frame, 850, { lat: 37.07, lon: 37.38, heightM: 850 })).toEqual([0, 0, 0]);
+    const [e, n, u] = originOffset(frame, 850, { lat: 37.0709, lon: 37.3812, heightM: 851.5 });
+    expect(e).toBeCloseTo(106.716, 2);
+    expect(n).toBeCloseTo(99.881, 2);
+    expect(u).toBeCloseTo(1.5);
+  });
+});
+
+describe("growth between visits", () => {
+  const m = (value: number) => ({ value, uncertainty: 0.05 });
+  const crown = (h: number) => ({ heightM: m(h), diameterM: m(3), volumeM3: null, baseM: null });
+  const visits: WorldVisit[] = [
+    { id: "v26", label: "2026", assetId: "a26", crowns: { t1: crown(4.3), t2: crown(3) } },
+    { id: "inv", label: "inv", assetId: null, crowns: {} },
+    { id: "v25", label: "2025", assetId: "a25", crowns: { t1: crown(4.0) } },
+  ];
+
+  it("measures from the newest earlier visit that measured the tree", () => {
+    const g = growthOf(visits, "v26", "t1")!;
+    expect(g.deltaM).toBeCloseTo(0.3);
+    expect(g.since.id).toBe("v25");
+    expect(growthOf(visits, "v26", "t2")).toBeNull();
+    expect(growthOf(visits, "v25", "t1")).toBeNull();
+    expect(growthOf(visits, "nope", "t1")).toBeNull();
+  });
+
+  it("lists the visits with a cloud", () => {
+    expect(worldVisits(visits).map((v) => v.id)).toEqual(["v26", "v25"]);
   });
 });
