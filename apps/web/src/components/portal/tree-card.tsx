@@ -1,8 +1,13 @@
 import { categoryLabel, formatDate, formatMeasure, t } from "@/lib/i18n";
-import { cropGuide, crownGuide, type FrameGuide } from "@/lib/portal/crown-guide";
+import {
+  CROP_FRAME_ASPECT,
+  cropGuide,
+  crownGuide,
+  type FrameGuide,
+} from "@/lib/portal/crown-guide";
 import type { PhotoItem, TreeCard, TreeMetricHistory, VisitCrown } from "@/lib/portal/data";
 import { formatPosition } from "@/lib/portal/evidence";
-import { CROP_FRAME_ASPECT, CropGuideOverlay, CropGuideScope } from "./crop-guide";
+import { CropGuideOverlay, CropGuideScope } from "./crop-guide";
 import { SEVERITY_TONES } from "./colors";
 import { HashCheck } from "./hash-check";
 import { ApprovalBadge, findingKindLabel } from "./labels";

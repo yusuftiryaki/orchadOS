@@ -37,6 +37,35 @@ def add_parser(sub) -> None:
 
     measuring("crown", "crown diameter, tree height, crown volume, size class proposal")
     measuring("skeleton", "winter branch skeleton: scaffold branches, wood volume (research)")
+    wd = measuring(
+        "world", "coloured, thinned cloud of the portal's 3D world (world.owc + world.json)"
+    )
+    wd.add_argument(
+        "--panoramas",
+        help="panoramas of the scan: a run folder, its panoramas.json or a folder of "
+        "pano-*.json sidecars (default: the only run under <session>.processed with "
+        "panoramas; none: grey by height)",
+    )
+    wd.add_argument(
+        "--skeleton",
+        help="the scan's skeleton.json (lidar skeleton): writes the branch skeleton "
+        "(default: <session>.processed/lidar/skeleton.json if present)",
+    )
+    wd.add_argument(
+        "--pruning",
+        help="pruning.json with this scan as the scan after pruning: writes the cut wood "
+        "and the cuts (default: <session>.processed/lidar/pruning.json if present)",
+    )
+    wd.add_argument(
+        "--before-skeleton",
+        help="skeleton.json of the scan before pruning (default: looked up by its session "
+        "id among the sessions next to this one)",
+    )
+    wd.add_argument(
+        "--no-skeleton",
+        action="store_true",
+        help="leave the skeleton and pruning out even if the reports are there",
+    )
     pr = lsub.add_parser("pruning", help="compare two winter skeletons: what was pruned")
     pr.add_argument("before", help="session folder before pruning")
     pr.add_argument("after", help="session folder after pruning")
@@ -47,7 +76,7 @@ def add_parser(sub) -> None:
     up = lsub.add_parser(
         "upload",
         help="record the measurements of crown.json / skeleton.json / pruning.json in "
-        "Supabase (env: as for upload)",
+        "Supabase and upload world.owc as a world_cloud asset (env: as for upload)",
     )
     up.add_argument("out_dir", help="LiDAR output folder (<session>.processed/lidar)")
     up.add_argument("--session-id", required=True, help="public.session id of the scan")
@@ -96,6 +125,8 @@ def run(args: argparse.Namespace) -> int:
                 session_id=PRUNED_SESSION_ID,
                 parcel_id=plot.meta.parcel_id,
             )
+            # One inventory for both visits (as from the database): the before scan's.
+            after.positions = plot.positions
             write_plot_session(Path(args.pruned_copy), after)
             cuts = sum(len(t.pruned) for t in pruned.values())
             print(f"{args.pruned_copy}: {len(after.points)} points, {cuts} cuts")
@@ -106,6 +137,32 @@ def run(args: argparse.Namespace) -> int:
         return run_upload(Path(args.out_dir), args.session_id, dry_run=args.dry_run)
     mod = import_module(f".{cmd}", __package__)
     params = args.params and Path(args.params)
+    if cmd == "world":
+        session = Path(args.session)
+        if args.no_skeleton:
+            wood = mod.WoodInputs()
+        else:
+            wood = mod.default_wood(session, default_out(session), print)
+            if args.skeleton:
+                wood.skeleton = Path(args.skeleton)
+            if args.pruning:
+                wood.pruning = Path(args.pruning)
+                wood.before_skeleton = None
+            if args.before_skeleton:
+                wood.before_skeleton = Path(args.before_skeleton)
+            if args.pruning and wood.before_skeleton is None:
+                before_id = mod.read_before_session(wood.pruning)
+                wood.before_skeleton = mod.find_skeleton(session, before_id)
+        report = mod.run(
+            session,
+            Path(args.trees) if args.trees else session / "trees.json",
+            Path(args.out) if args.out else default_out(session),
+            params,
+            Path(args.panoramas) if args.panoramas else None,
+            wood=wood,
+        )
+        print(mod.summary_line(report))
+        return 0
     if cmd == "pruning":
         after = Path(args.after)
         trees = Path(args.trees) if args.trees else after / "trees.json"

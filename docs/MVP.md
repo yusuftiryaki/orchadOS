@@ -37,7 +37,7 @@ MVP, kayıttan rapora kadar tek bir uçtan uca döngüyü kapsar. Havadan ve sen
 | PDF ziyaret raporu ve bildirimler | Var | SMS/WhatsApp ile link |
 | Verim tahmini | Hayır | Yaz ziyaretinde sadece meyve yükü ölçeği |
 | Drone, uydu, IoT sensör | Hayır | v2 ve sonrası |
-| Gerçek 3D model | Hayır | Gezi, Street View tarzı panoramalarla |
+| Gerçek 3D model | Hayır | Gezi, Street View tarzı panoramalarla. LiDAR'lı taramalarda gezi ayrıca ölçülmüş nokta bulutunu 3D dünya olarak gösterir (İP17, araştırma; [3d-dunya.md](3d-dunya.md)); bu bir model değil, bulutun kendisidir |
 | Kendi AI modeli | Hayır | Uzman kararları etiketli veri olarak birikir |
 | Ödeme altyapısı | İP12 | Dönüm başına yıllık fiyat, teklif, kartla ödeme (iyzico, 3DS) ve havale; bayraklar kapalıyken birleşir. Açılana kadar faturalandırma elle |
 | Demo turu | İP13 | Bahçe sahibi adayı hesap açmadan, ayrı demo projesinde geçici bir hesapla iki sentetik bahçeyi sahip portalında rehberli turla gezer; demo hiçbir şey yazamaz, PDF'ler "ÖRNEK RAPOR" filigranlı ([demo-turu.md](demo-turu.md)) |

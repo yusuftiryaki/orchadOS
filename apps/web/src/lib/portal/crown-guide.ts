@@ -233,6 +233,12 @@ export function cropToFrame(
   return { x: (u - 0.5) / frameAspect + 0.5, y: v };
 }
 
+// The tree card's photo frame, width / height (parcel.module.css .photo img:
+// 4 / 3). Kept here, not in the "use client" crop-guide.tsx: a server
+// component importing a constant from a client module gets a client
+// reference, not the number.
+export const CROP_FRAME_ASPECT = 4 / 3;
+
 export interface FrameGuide {
   height: { x: number; y: number }[];
   bracket: { x: number; y: number }[];

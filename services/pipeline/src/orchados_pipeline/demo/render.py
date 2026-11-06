@@ -44,11 +44,16 @@ class Profile:
     full_quality: int
     preview_quality: int
     jpeg_quality: int
+    # Branches thinner than this many pixels of the panorama are not drawn: a ray
+    # hits them only now and then, so they are a few stray pixels at most, and the
+    # winter scans' twigs are most of the render time. 0 draws everything (the full
+    # profile, so its published images do not change).
+    twig_px: float = 0.0
 
 
 PROFILES = {
     "full": Profile("full", (3840, 1920), (1920, 960), 1024, (1600, 1200), 85, 80, 90),
-    "test": Profile("test", (1024, 512), (512, 256), 256, (400, 300), 70, 70, 80),
+    "test": Profile("test", (1024, 512), (512, 256), 256, (400, 300), 70, 70, 80, 0.25),
 }
 
 
@@ -332,8 +337,24 @@ class Scene:
 def visit_shapes(ds: Dataset, visit: Visit) -> list[TreeShape]:
     """What stood in the parcel at the time of the visit (year classes, values)."""
     p = visit.parcel
-    # The parcel's periodic scan of the same year (inventories come a month before it).
-    scan = next(s for s in ds.scans() if s.parcel.key == p.key and s.year == visit.year)
+    if visit.season == "winter":
+        # Version 6: leafless trees (demo/winter.py).
+        from .winter import winter_shape
+
+        shapes = [winter_shape(t, tree_class(visit.key, t.code), visit) for t in ds.trees[p.key]]
+    else:
+        shapes = _summer_shapes(ds, visit)
+    empty = [s for s in ds.slots[p.key] if s.code not in {t.code for t in ds.trees[p.key]}]
+    for i, s in enumerate(empty):
+        if i % 2 == 0:
+            shapes.append(slot_marker(*s.xy))
+    return shapes
+
+
+def _summer_shapes(ds: Dataset, visit: Visit) -> list[TreeShape]:
+    p = visit.parcel
+    # The parcel's summer scan of the same year (inventories come a month before it).
+    scan = next(s for s in ds.summer_scans() if s.parcel.key == p.key and s.year == visit.year)
     shapes = []
     for t in ds.trees[p.key]:
         cls = tree_class(scan.key, t.code)
@@ -342,10 +363,6 @@ def visit_shapes(ds: Dataset, visit: Visit) -> list[TreeShape]:
             cls = {"problem": "attention", "dead": "attention", "absent": "healthy"}.get(cls, cls)
         values = tree_values(scan, t, cls)
         shapes.append(tree_shape(t, cls, values, visit.key))
-    empty = [s for s in ds.slots[p.key] if s.code not in {t.code for t in ds.trees[p.key]}]
-    for i, s in enumerate(empty):
-        if i % 2 == 0:
-            shapes.append(slot_marker(*s.xy))
     return shapes
 
 
@@ -572,8 +589,12 @@ def render(scene: Scene, x: float, y: float, heading_deg: float, label: str) -> 
 
     # --- trees -------------------------------------------------------------------------
     sun = scene.sun.astype(np.float32)
+    twig = scene.profile.twig_px * TAU / W  # branch diameter per metre of distance
     for s in scene.shapes:
         for prim in s.prims:
+            if twig and isinstance(prim, Capsule):
+                if 2 * prim.r < twig * float(np.linalg.norm(prim.center - cam)):
+                    continue
             _draw(img, zbuf, prim, cam, phi0, cphi, sphi, cel, sel, W, H, sun, scene)
 
     out = np.clip(img, 0, 1)

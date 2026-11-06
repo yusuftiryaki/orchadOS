@@ -1,7 +1,7 @@
 import "server-only";
 import type { SessionUser } from "@/lib/auth/session";
 import { demoMediaOptions } from "@/lib/demo/media";
-import { signPanoramaImages } from "@/lib/portal/data";
+import { signPanoramaImages, signWorldCloud } from "@/lib/portal/data";
 import type { createClient } from "@/lib/supabase/server";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
@@ -41,4 +41,32 @@ export async function signTourImages(
     await demoMediaOptions(user),
   );
   return { urls, capped: false };
+}
+
+export interface SignedWorldCloud {
+  url: string | null;
+  capped: boolean;
+}
+
+// Signed URL of a visit's 3D world cloud (docs/3d-dunya.md), with the same
+// rules as the images: the parcel's published visits only, a demo visitor
+// gets the public demo-media address within the session's cap.
+export async function signTourWorld(
+  supabase: Client,
+  user: SessionUser,
+  parcelId: string,
+  assetId: string,
+): Promise<SignedWorldCloud> {
+  if (user.demo) {
+    const { data: allowed } = await supabase.rpc("demo_hit", { p_kind: "sign" });
+    if (allowed !== true) return { url: null, capped: true };
+  }
+  const url = await signWorldCloud(
+    supabase,
+    parcelId,
+    assetId,
+    user.id,
+    await demoMediaOptions(user),
+  );
+  return { url, capped: false };
 }

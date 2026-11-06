@@ -10,7 +10,10 @@ Insert order (no notification is ever queued):
        tree name the inventory visit (foreign keys)
     5 inventory chain, captures, assets, lineage
     6 measurements, assessments, findings and their evidence (and the field
-       question weed_height)
+       question weed_height); the LiDAR crown measurements of the scans (dataset
+       version 4)
+    6a the 3D world (dataset version 5): the world cloud assets of parcel A's
+       scans (step chain)
     6b service layer: the billing setting with services_enabled, the weed mowing
        catalogue row (no price: the demo org has no price list) and its season per
        fruit species, the done job of parcel B (operation, request, history, proof
@@ -37,9 +40,14 @@ from pathlib import Path
 from typing import Any
 
 from ..geo import LocalFrame, bearing_deg, wrap180
+from ..lidar.upload import ReportFile, build_payload, check_payload, world_asset_row
+from ..lidar.world import WorldReport
 from ..media import media_key, media_uri
 from ..upload import SessionRow, UploadOptions, upload_run
 from . import ids
+from . import lidar as demo_lidar
+from . import winter as demo_winter
+from . import world as demo_world
 from .build import frame_pose
 from .dataset import (
     CAMERA_HEIGHT_M,
@@ -47,6 +55,7 @@ from .dataset import (
     DEMO_SPECIES,
     FIELD_PROTOCOL,
     FIELD_QUESTION_METHOD,
+    LIDAR_VERSION,
     METHODOLOGY,
     PRICING_RULE,
     QUESTIONS,
@@ -62,6 +71,7 @@ from .dataset import (
     UNSURE_LABELS,
     VERIFICATION,
     WEED_HEIGHTS,
+    WORLD_VERSION,
     ZONES,
     Dataset,
     ServiceJob,
@@ -227,8 +237,29 @@ FALLBACK_METRICS = {
         ("pest_sign_type", "category", ("spring", "summer"), "shown"),
         ("trunk_base_scale", "scale", ("winter", "spring", "summer", "harvest"), "shown"),
         ("tree_visible", "category", ("winter", "spring", "summer", "harvest"), "hidden"),
+        # Winter (dataset version 6); frost_damage_scale is winter since methodology-v0.2's
+        # registry change (20261103100800).
+        ("frost_damage_scale", "scale", ("spring", "winter"), "shown"),
+        ("pruning_status", "category", ("winter",), "shown"),
+        ("scaffold_branch_count", "numeric", ("winter",), "shown"),
+        ("fractal_dimension", "numeric", ("winter",), "hidden"),
+        ("wood_volume", "numeric", ("winter",), "hidden"),
+        ("pruned_wood_volume", "numeric", ("winter",), "under_evaluation"),
+        ("pruned_wood_fraction", "numeric", ("winter",), "under_evaluation"),
+        ("pruning_cut_count", "numeric", ("winter",), "shown"),
     )
 }
+# The LiDAR crown metrics (20261107300000_lidar_measurements.sql,
+# 20261107400000_lidar_owner_display.sql).
+for _code, _seasons, _vis in (
+    ("tree_height", ("winter", "spring", "summer", "harvest"), "shown"),
+    ("crown_diameter", ("spring", "summer"), "shown"),
+    ("crown_volume", ("spring", "summer"), "shown"),
+    ("crown_base_height", ("winter", "spring", "summer", "harvest"), "hidden"),
+):
+    FALLBACK_METRICS[_code] = Metric(
+        metric_id_fallback(_code), _code, "numeric", _seasons, _vis, ("tree",)
+    )
 FALLBACK_METRICS["weed_height"] = Metric(
     metric_id_fallback("weed_height"),
     "weed_height",
@@ -304,7 +335,7 @@ class SqlCatalog:
         return {}
 
     def insert_capture(self, row: dict[str, Any]) -> str:
-        cid = ids.did("capture", f"{self.visit.key}:{row['metadata']['path']}")
+        cid = self.visit.did("capture", f"{self.visit.key}:{row['metadata']['path']}")
         row = {
             "id": cid,
             **row,
@@ -320,7 +351,7 @@ class SqlCatalog:
 
     def insert_asset(self, row: dict[str, Any]) -> str:
         key = self.keys[row["content_hash"]]
-        aid = ids.did("asset", key)
+        aid = self.visit.did("asset", key)
         row = {"id": aid, **row, "produced_at": self.visit.end + timedelta(hours=3)}
         self.script.insert("chain", "public.asset", row)
         self.asset_rows[aid] = row
@@ -335,7 +366,7 @@ class SqlCatalog:
             self.script.insert(
                 "chain",
                 "public.asset_source",
-                {"id": ids.did("asset_source", f"{r['asset_id']}:{src}"), **r},
+                {"id": self.visit.did("asset_source", f"{r['asset_id']}:{src}"), **r},
             )
 
     def mark_processed(self, session_id: str, from_statuses: Iterable[str]) -> str:
@@ -345,7 +376,7 @@ class SqlCatalog:
         raise AssertionError(f"the visit row already has its scan setup: {values}")
 
     def record_coverage(self, session_id: str, report: dict[str, Any]) -> dict[str, Any]:
-        rid = ids.did("coverage_report", self.visit.key)
+        rid = self.visit.did("coverage_report", self.visit.key)
         self.script.insert(
             "chain",
             "public.coverage_report",
@@ -383,7 +414,7 @@ class SqlCatalog:
         metric = self.metrics["tree_visible"]
         for item in payload["items"]:
             tid = item["tree_id"]
-            mid = ids.did("measurement", f"{self.visit.key}:{tid}:tree_visible")
+            mid = self.visit.did("measurement", f"{self.visit.key}:{tid}:tree_visible")
             self.presence[tid] = mid
             self.script.insert(
                 "results",
@@ -958,8 +989,7 @@ def results(ctx: Context) -> None:
     for v in ds.visits:
         if v.kind == "verification":
             continue
-        season = SEASON_OF_MONTH[v.start.month]
-        allowed = set(portal_codes(ctx.metrics, season))
+        allowed = set(portal_codes(ctx.metrics, v.season))
         cat = ctx.catalogs[v.key]
         p = v.parcel
         measured = v.end + timedelta(days=2, hours=3)
@@ -977,7 +1007,7 @@ def results(ctx: Context) -> None:
             mids = []
             for code, value in tree_values(v, t, classes[t.code]).items():
                 mids.append(_measure(ctx, v, t, code, value, allowed, measured, crops))
-            aid = ids.did("assessment", f"{v.key}:{t.code}")
+            aid = v.did("assessment", f"{v.key}:{t.code}")
             s.insert(
                 "results",
                 "public.assessment",
@@ -1040,7 +1070,7 @@ def results(ctx: Context) -> None:
                     "session_id": v.id,
                     "tree_id": tree.id if tree else None,
                     "zone_id": zone_id(p.key, f.zone) if f.zone else None,
-                    "assessment_id": ids.did("assessment", f"{v.key}:{f.tree}") if tree else None,
+                    "assessment_id": v.did("assessment", f"{v.key}:{f.tree}") if tree else None,
                     "location": _point(*loc[1]) if loc else None,
                     "position_uncertainty_m": 1.0 if loc else None,
                     "kind": f.kind,
@@ -1086,7 +1116,7 @@ def _measure(
             f"{v.key}: metric {code} is not valid in the visit's season or not on the card"
         )
     m = ctx.metrics[code]
-    mid = ids.did("measurement", f"{v.key}:{t.code}:{code}")
+    mid = v.did("measurement", f"{v.key}:{t.code}:{code}")
     vt = m.value_type
     ctx.script.insert(
         "results",
@@ -1124,6 +1154,169 @@ def _measure(
             conflict="measurement_id, asset_id",
         )
     return mid
+
+
+def world_clouds(ctx: Context) -> None:
+    """The 3D world of the visits with a synthetic LiDAR cloud (dataset version 5): the
+    world cloud asset as `lidar upload` records it (lidar/upload.py world_asset_row:
+    kind world_cloud, the cloud origin as position, no time)."""
+    for run in ctx.manifest["runs"]:
+        if "world" not in run:
+            continue
+        v = ctx.ds.visit(run["visit"])
+        report = ctx.build / "runs" / v.key / demo_world.REPORT_FILE
+        world = WorldReport.model_validate(json.loads(report.read_text("utf-8")))
+        if world.sha256 != run["world"]["sha256"]:
+            raise ValueError(f"{v.key}: {demo_world.REPORT_FILE} does not match the manifest")
+        row = world_asset_row(world, ids.ORG_ID, v.parcel.id, v.id)
+        ctx.script.insert(
+            "chain",
+            "public.asset",
+            {
+                # Version 5 brought the summer clouds, version 6 the winter visits' own.
+                "id": ids.did("asset", ctx.keys[world.sha256], max(WORLD_VERSION, v.version)),
+                **row,
+                "produced_at": v.end + timedelta(hours=3),
+            },
+        )
+
+
+def lidar_measurements(ctx: Context) -> None:
+    """Version 4: the LiDAR crown measurements of each scan, as the pipeline's
+    `lidar upload` records them (record_lidar_measurements): the crown stage's
+    report of the build (runs/<scan>/crown.json, demo/lidar.py) through the same
+    payload builder and checks, then one algorithm row per tree and metric with the
+    method, its version and parameter hash, measured at the scan's start, recorded
+    by ops. Only tree_height, crown_diameter, crown_volume and crown_base_height
+    (size_class is a hidden proposal the demo does not show). Not linked to the
+    expert's assessment: the expert does not sign them (lidar-olcumleri.md §9).
+    """
+    ds = ctx.ds
+    for v in ds.summer_scans():
+        path = ctx.build / "runs" / v.key / demo_lidar.REPORT_FILE
+        if not path.is_file():
+            raise ValueError(f"{v.key}: the build has no {demo_lidar.REPORT_FILE}; rebuild it")
+        report = ReportFile.model_validate(json.loads(path.read_text(encoding="utf-8")))
+        payload = build_payload([(path, report)], v.id, v.start.isoformat())
+        problems = check_payload(payload)
+        if problems:
+            raise ValueError(f"{v.key}: {demo_lidar.REPORT_FILE}: {'; '.join(problems)}")
+        season = SEASON_OF_MONTH[v.start.month]
+        trees = {t.id: t for t in ds.trees[v.parcel.key]}
+        for item in payload["items"]:
+            code = item["metric"]
+            if code not in demo_lidar.CODES or item.get("value_numeric") is None:
+                continue
+            m = ctx.metrics.get(code)
+            if m is None or m.value_type != "numeric" or "tree" not in m.subject_kinds:
+                raise ValueError(f"{v.key}: {code} is not a registered numeric tree metric")
+            if season not in m.valid_seasons:
+                raise ValueError(f"{v.key}: metric {code} is not valid in {season}")
+            t = trees.get(item["tree_id"])
+            if t is None:
+                raise ValueError(f"{v.key}: {item['tree_id']} is not a tree of the parcel")
+            ctx.script.insert(
+                "results",
+                "public.measurement",
+                {
+                    "id": ids.did("measurement", f"{v.key}:{t.code}:{code}", LIDAR_VERSION),
+                    "org_id": ids.ORG_ID,
+                    "parcel_id": v.parcel.id,
+                    "tree_id": t.id,
+                    "metric_definition_id": m.id,
+                    "value_numeric": float(item["value_numeric"]),
+                    "unit": item.get("unit"),
+                    "uncertainty": float(item["uncertainty"]),
+                    "confidence": item.get("confidence"),
+                    "method": item["method"],
+                    "method_version": item["method_version"],
+                    "params_hash": item["params_hash"],
+                    "source": "algorithm",
+                    "session_id": v.id,
+                    "measured_at": v.start,
+                    "recorded_by": ids.OPS,
+                },
+            )
+
+
+# Codes of the winter LiDAR stages the demo writes (record_lidar_measurements rules,
+# private.lidar_method_metrics): skeleton on both winter scans, pruning on the scan
+# after the pruning.
+WINTER_LIDAR = {
+    demo_winter.SKELETON_FILE: ("scaffold_branch_count", "wood_volume", "fractal_dimension"),
+    demo_winter.PRUNING_FILE: (
+        "pruning_cut_count",
+        "pruning_status",
+        "pruned_wood_volume",
+        "pruned_wood_fraction",
+    ),
+}
+
+
+def winter_measurements(ctx: Context) -> None:
+    """Version 6: the LiDAR measurements of the winter scans, as `lidar upload`
+    records them (record_lidar_measurements): the skeleton stage's report of each
+    winter scan and the pruning stage's report of the scan after the pruning
+    (runs/<scan>/skeleton.json, pruning.json; demo/winter.py) through the same
+    payload builder and checks; one algorithm row per tree and metric the stage
+    measured (trees whose status is ok), measured at the scan's start, recorded by
+    ops. Not linked to the expert's assessment. The expert's own pruning_status of
+    the same tree is a separate row (expert first on the card, metrics.ts).
+    """
+    ds = ctx.ds
+    for v in ds.winter_scans():
+        files = [demo_winter.SKELETON_FILE]
+        if v.key == demo_winter.WINTER_AFTER:
+            files.append(demo_winter.PRUNING_FILE)
+        trees = {t.id: t for t in ds.trees[v.parcel.key]}
+        for name in files:
+            path = ctx.build / "runs" / v.key / name
+            if not path.is_file():
+                raise ValueError(f"{v.key}: the build has no {name}; rebuild it")
+            report = ReportFile.model_validate(json.loads(path.read_text(encoding="utf-8")))
+            payload = build_payload([(path, report)], v.id, v.start.isoformat())
+            problems = check_payload(payload)
+            if problems:
+                raise ValueError(f"{v.key}: {name}: {'; '.join(problems)}")
+            for item in payload["items"]:
+                code = item["metric"]
+                if code not in WINTER_LIDAR[name]:
+                    continue
+                num, cat = item.get("value_numeric"), item.get("value_category")
+                unc = item.get("uncertainty")
+                if num is None and cat is None:
+                    continue
+                m = ctx.metrics.get(code)
+                if m is None or "tree" not in m.subject_kinds:
+                    raise ValueError(f"{v.key}: {code} is not a registered tree metric")
+                if v.season not in m.valid_seasons:
+                    raise ValueError(f"{v.key}: metric {code} is not valid in {v.season}")
+                t = trees.get(item["tree_id"])
+                if t is None:
+                    raise ValueError(f"{v.key}: {item['tree_id']} is not a tree of the parcel")
+                ctx.script.insert(
+                    "results",
+                    "public.measurement",
+                    {
+                        "id": v.did("measurement", f"lidar:{v.key}:{t.code}:{code}"),
+                        "org_id": ids.ORG_ID,
+                        "parcel_id": v.parcel.id,
+                        "tree_id": t.id,
+                        "metric_definition_id": m.id,
+                        "value_numeric": float(num) if num is not None else None,
+                        "value_category": cat,
+                        "unit": item.get("unit"),
+                        "uncertainty": float(unc) if unc is not None else None,
+                        "confidence": item.get("confidence"),
+                        "method": item["method"],
+                        "method_version": item["method_version"],
+                        "params_hash": item["params_hash"],
+                        "source": "algorithm",
+                        "session_id": v.id,
+                        "measured_at": v.start,
+                        "recorded_by": ids.OPS,
+                    },
+                )
 
 
 def weed_question(ctx: Context, v: Visit, height: str) -> str:
@@ -1562,6 +1755,9 @@ def generate(ds: Dataset, build: Path, manifest: dict, metrics: dict[str, Metric
     inventory_chain(ctx)
     closeup_captures(ctx)
     results(ctx)
+    lidar_measurements(ctx)
+    winter_measurements(ctx)
+    world_clouds(ctx)
     services(ctx)
     access(script, ds)
     questions(script, ds)

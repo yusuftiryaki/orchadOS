@@ -619,11 +619,70 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
 
 - Yerel düzlem `orchados_pipeline.geo.LocalFrame`'dir: parsel boyunda milimetre hatası. İki oturumun bulutları farklı orijinli olabilir; karşılaştırma (budama) enlem/boylam üzerinden yapılır.
 - **Ağaç başına ayırma:** Her nokta en yakın gövdeye verilir (Voronoi) ve gövdeden en çok 5 m uzaktaysa tutulur. Zemin her ağaç için ayrı bir düzlem olarak bulunur (ızgara hücrelerinin en alçak noktalarına, aykırıları atarak). Ağacın yükseklikleri bu düzleme göredir, yerden 25 cm'nin altı atılır.
-- **Saklama:** `cloud.ply` ham kayıttan türetilmiş bir dosyadır; portala çıkmaz ve yalnız personele açıktır (H05). Ham MCAP saha verisidir, repoya girmez.
+- **Saklama:** `cloud.ply` ham kayıttan türetilmiş bir dosyadır; portala çıkmaz ve yalnız personele açıktır (H05). Portal, ondan türetilen zamansız [3D dünya bulutunu](#3d-dünya-bulutu) gösterir. Ham MCAP saha verisidir, repoya girmez.
 
 **LiDAR ölçüm raporları** (`<oturum>.processed/lidar/`): `crown.json` (`orchados.lidar_crown/1`), `skeleton.json` (`orchados.lidar_skeleton/1`), `pruning.json` (`orchados.lidar_pruning/1`). Ortak başlık: `producer` (hat, sürüm, parametre hash'i, aşama), `method`, `method_version`, `session_id`, `parcel_id`, `trees` (ağaç başına nokta sayısı, yön kapsaması, durum: `ok`, `too_few_points`, `one_sided`, `no_points`) ve `measurements`. Bir ölçüm satırı `{tree_id, slot_code, metric, value_numeric | value_category, unit, uncertainty, confidence, method, method_version}` alanlarını taşır. Sayısal değerde belirsizlik zorunludur. Budama raporunda `session_id` sonraki (budama sonrası) oturumdur.
 
 **`record_lidar_measurements(p_session_id, p_payload)`** (yalnız operasyon; `orchados-pipeline lidar upload`) bu satırları `public.measurement`'a `source = algorithm` olarak yazar. Ayrıntısı ve döndürdüğü özet: [lidar-olcumleri.md](lidar-olcumleri.md) §6.
+
+## 3D dünya bulutu
+
+Gezideki 3D dünyanın ([3d-dunya.md](3d-dunya.md)) gösterdiği, sahibe açık, renkli ve seyreltilmiş bulut. Kayıtlı buluttan (`cloud.ply`) ve oturumun panoramalarından `orchados-pipeline lidar world` üretir; web (`apps/web/src/lib/world/format.ts`) okur. Tek dosyadır; bir `asset` satırı (`kind = world_cloud`, `mime_type = application/vnd.orchados.world-cloud`) ve içerik hash'iyle adreslenir.
+
+```
+<oturum>.processed/lidar/world.owc
+```
+
+**Dosya düzeni** (küçük sonlu):
+
+| Bayt | İçerik |
+| --- | --- |
+| 0–3 | Sihirli sözcük `OWC1` (ASCII) |
+| 4–7 | `uint32`: başlık uzunluğu `H` (bayt) |
+| 8 … 8+H | UTF-8 JSON başlık |
+| … | Sıfır dolgu; her dizi, başlıktaki `offset`'ten başlar ve `offset` 4'ün katıdır |
+
+**Başlık** (`schema: orchados.world_cloud/1`):
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `session_id`, `parcel_id` | uuid | Kayıtlı bulutla aynı |
+| `origin_lat`, `origin_lon`, `origin_height_m` | sayı | Kayıtlı bulutun orijini (`cloud.json`); konumlar bu yerel doğu/kuzey/yukarı düzlemdedir (`geo.LocalFrame`) |
+| `point_count` | int | Nokta sayısı `N` |
+| `quantization` | `{min: [x, y, z], scale: [sx, sy, sz]}` | Konum = `min + q × scale` (metre); `q` `uint16` |
+| `voxel_m` | sayı | Seyreltme vokseli (varsayılan 0,04 m) |
+| `arrays` | nesne | `position` (`uint16` × 3), `color` (`uint8` × 3, sRGB), `tree` (`uint16` × 1); her biri `{offset, type, components}`. Bilinmeyen dizi yok sayılır |
+| `trees` | `[{index, tree_id}]` | `tree` dizisindeki sıra numarasının ağaç kimliği. `65535`: ağaca ait değil (zemin, ot, sınır) |
+| `colorized` | bool | Renkler panoramalardan alındıysa `true`; değilse `color` yüksekliğe göre gri tonudur |
+| `method`, `method_version`, `params_hash` | metin | `lidar_world`, sürüm, parametre hash'i |
+| `registration_method`, `registration_version` | metin | Kayıtlı bulutun kaydı (`cloud.json`'dan) |
+
+- **Nokta sırası:** Noktalar sabit tohumla karıştırılmış sıradadır. Dosyanın her ön kısmı bulutun düzgün bir alt örneğidir; web ilk `k` noktayı çizerek ayrıntı düzeyi seçebilir.
+- **Zaman ve iz yok (H05):** Başlık GPS zamanı, tarama aralığı, yörünge ya da kare sırası taşımaz; noktaların zamanı ve yoğunluk dışında taşıyanın izi dosyada yoktur. Taşıyanın kendisi (sensörün 1,5 m çevresi) kayıt adımında ya da bu aşamada atılır.
+- **Renk:** Her nokta, kendisini gören (derinlik tamponuyla örtülmemiş) en yakın panoramanın pikselinden renk alır. Hiçbir panoramanın görmediği nokta en yakın renkli komşusunun rengini alır.
+- **Sürüm:** Biçim değişirse `schema` ve sihirli sözcük birlikte artar; web bilmediği şemayı reddeder.
+
+**Kış iskeleti ve budama (isteğe bağlı, Faz 2b):** Kış taramasının bulutu dal iskeletini ve önceki kış taramasına göre budanan dalları da taşıyabilir. Ek diziler isteğe bağlıdır; onları bilmeyen okuyucu yok sayar, şema `orchados.world_cloud/1` olarak kalır. Ek başlık alanları:
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `segment_count`, `cut_count` | int | İskelet parçası ve kesim sayısı; yoksa 0 |
+| `skeleton` | nesne ya da yok | `{method, method_version, params_hash, pruning: {method, method_version, params_hash, before_session_id} \| null}`; zaman taşımaz |
+
+Ek diziler (konumlar noktalarla aynı nicemlemeyle; sınır kutusu parçaları ve kesimleri de kapsar):
+
+| Dizi | Tür | Anlamı |
+| --- | --- | --- |
+| `segment_a`, `segment_b` | `uint16` × 3 | Parçanın iki ucu (iskelet kenarı: düğüm ile üst düğümü) |
+| `segment_radius` | `uint16` × 1 | Parçanın yarıçapı, milimetre (iki ucun ortalaması) |
+| `segment_tree` | `uint16` × 1 | Ağaç sırası (`trees` ile aynı numaralama) |
+| `segment_kind` | `uint8` × 1 | `0`: bu taramada duran odun; `1`: önceki kış taramasından bu yana kesilmiş (önceki iskeletin kesilen alt ağaçları, hizalamayla bu taramanın düzlemine taşınmış) |
+| `cut_position` | `uint16` × 3 | Kesim noktası (`pruning.json` `cuts[].xyz`, bu taramanın düzleminde) |
+| `cut_diameter` | `uint16` × 1 | Kesim çapı, milimetre |
+| `cut_tree` | `uint16` × 1 | Ağaç sırası |
+
+- Kaynak: `skeleton.json` (`orchados.lidar_skeleton/1`; düğümler ağaç düzleminde, `center_en` ve `ground_z` ile bulut düzlemine çevrilir) ve varsa bu taramayı "sonra" olarak alan `pruning.json` (`orchados.lidar_pruning/1`; kesimler önceki iskeletin düğüm numaralarını taşır, hizalama `alignment` ile ters çevrilir).
+- Yalnız durumu yeterli ağaçlar yazılır (`one_sided` ve noktası az olanlar yok). 5 mm'den kısa parçalar atılır.
 
 ## Kit kimlik çipi
 

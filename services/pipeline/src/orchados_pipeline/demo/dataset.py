@@ -1,26 +1,39 @@
 # ruff: noqa: E501 - Turkish texts of the dataset read better unwrapped
-"""The demo dataset, version 3 (docs/demo-turu.md §8): parcels, slots, trees, visits,
+"""The demo dataset, version 5 (docs/demo-turu.md §8): parcels, slots, trees, visits,
 their per-tree classes and values, findings, close-ups and questions (version 1),
 the service layer (version 2: weed observations, the weed mowing catalogue row
-and its season per fruit species, a done mowing job with proof photos) and the
+and its season per fruit species, a done mowing job with proof photos), the
 robot fleet (version 3: the mowing is done by the autonomous robot MARABA-I; the
 catalogue row names it, the robot model can do the service, the done job carries
-the model and the robot as its performer).
+the model and the robot as its performer) and LiDAR crown measurements (version
+4: tree height, crown diameter, crown volume and crown base of every tree present
+in each scan, measured by the pipeline's crown stage from a synthetic cloud of
+the drawn trees, demo/lidar.py), the 3D world (version 5, İP17: a world cloud
+of parcel A's two scans, sampled from the rendered scene and coloured from its
+panoramas by the pipeline's world stage, demo/world.py) and two winter scans of
+parcel A (version 6, İP17 Faz 2b: leafless trees before and after pruning, with
+the LiDAR skeleton and pruning stages' measurements and world clouds that carry
+the branch skeleton and the cut wood, demo/winter.py).
 
-Versions are cumulative: version 3 holds every row of versions 1 and 2 with the
+Versions are cumulative: version 6 holds every row of versions 1 to 5 with the
 same ids and the same media seeds, plus its own rows, whose ids carry their
 version (ids.did). Loading version 2 onto a version 1 target only adds rows;
 version 3 adds the robot model link and brings the four mutable rows of version
-2 it changed up to date (docs/demo-turu.md §10.3).
+2 it changed up to date; version 4 only adds measurement rows, version 5 only
+the world cloud assets and their files, version 6 only the two winter visits
+with their rows and files (docs/demo-turu.md §10.3).
 
 Pure and deterministic: every random choice is seeded from (SEED_VERSION, key)
 (rng()). The renderer (render.py) draws what this module says, the SQL emitter
 (sqlgen.py) writes the same facts as rows.
 
-Season: both periodic scans are in July (summer). The report card's pest and
+Season: the main periodic scans are in July (summer). The report card's pest and
 fruit load rows come only from spring and summer metrics (pest_sign_*,
 fruit_load_scale), pruning is a winter and harvest_complete a harvest metric
 (public.metric_definition.valid_seasons; apps/web/src/lib/expert/season.ts).
+The winter scans of version 6 (January and February 2026, winter in every
+calendar of test-vectors/season.json) lie between the two summers, so A 2026
+summer stays the newest visit.
 """
 
 from __future__ import annotations
@@ -37,7 +50,7 @@ from ..geo import LocalFrame
 from . import ids
 
 DATASET_NAME = "orchados-demo"
-DATASET_VERSION = 3
+DATASET_VERSION = 6
 # Media and value seeds stay those of version 1, so the rows and files of version
 # 1 come out the same in every later version (cumulative versions, §10.3).
 SEED_VERSION = 1
@@ -46,6 +59,15 @@ SERVICES_VERSION = 2
 # The version that made the robot the performer of the service (IP15 robot fleet,
 # owner decision of 2 November 2026). It adds no row with a derived id.
 ROBOT_VERSION = 3
+# The version that added the LiDAR crown measurements of the scans (IP16, owner
+# display of 5 November 2026): their derived ids. Media do not change.
+LIDAR_VERSION = 4
+# The version that added the 3D world (İP17): the world cloud assets of parcel A's
+# scans (world.py); their derived ids. Earlier media do not change.
+WORLD_VERSION = 5
+# The version that added parcel A's two winter scans (İP17 Faz 2b): the visits, all
+# their rows (ids v6) and files; earlier rows and media do not change.
+WINTER_VERSION = 6
 # Fruit species of the demo parcels (public.fruit_species): pistachio, the
 # species the methodology covers.
 DEMO_SPECIES = "antep_fistigi"
@@ -339,10 +361,20 @@ class Visit:
     full_variants: bool = False
     uploaded: frozenset[int] | None = None  # frame indices with a preview; None: all
     weather: dict = field(default_factory=dict)
+    # Dataset version that brought the visit: the version of its derived row ids.
+    version: int = 1
 
     @property
     def year(self) -> int:
         return self.start.year
+
+    @property
+    def season(self) -> str:
+        return SEASON_OF_MONTH[self.start.month]
+
+    def did(self, kind: str, key: str) -> str:
+        """Id of a row of this visit (ids.did with the visit's version)."""
+        return ids.did(kind, key, self.version)
 
     @cached_property
     def frames(self) -> list[Frame]:
@@ -499,6 +531,36 @@ def _visits() -> list[Visit]:
             step_m=7.0,
             weather={**clear, "temp_c": 32},
         ),
+        # Version 6: parcel A in winter, leafless, before and after the pruning
+        # (demo/winter.py). The same aisles as the summer scans; previews only.
+        Visit(
+            "A-WIN26",
+            ids.did("session", "A-WIN26", WINTER_VERSION),
+            A,
+            "periodic_scan",
+            "published",
+            "2026-01-20",
+            utc("2026-01-20 07:40"),
+            utc("2026-01-20 09:50"),
+            utc("2026-01-23 14:30"),
+            aisles=(0.0, 14.0, 28.0, 42.0),
+            weather={"sky": "clear", "temp_c": 4, "wind": "light"},
+            version=WINTER_VERSION,
+        ),
+        Visit(
+            "A-PRN26",
+            ids.did("session", "A-PRN26", WINTER_VERSION),
+            A,
+            "periodic_scan",
+            "published",
+            "2026-02-24",
+            utc("2026-02-24 07:30"),
+            utc("2026-02-24 09:35"),
+            utc("2026-02-27 11:15"),
+            aisles=(0.0, 14.0, 28.0, 42.0),
+            weather={"sky": "partly_cloudy", "temp_c": 8, "wind": "light"},
+            version=WINTER_VERSION,
+        ),
     ]
 
 
@@ -519,8 +581,20 @@ CLASSES_BY_SCAN = {
         "absent": {"S6-2"},
     },
     "B-SCN26": {"problem": {"S2-5"}, "attention": {"S3-3", "S1-6"}},
+    # Version 6, winter 2026: S4-3 is half dry (dead by the summer), S3-6 still
+    # healthy (its dry branches come in the spring); the pruning changes no class.
+    "A-WIN26": {
+        "problem": {"S4-3", "S5-8"},
+        "attention": {"S2-9", "S6-5", "S1-7"},
+    },
+    "A-PRN26": {
+        "problem": {"S4-3", "S5-8"},
+        "attention": {"S2-9", "S6-5", "S1-7"},
+    },
 }
 FEATURED = ("A", "S3-6")
+# Winter visits (version 6): before and after the pruning.
+WINTER_BEFORE, WINTER_AFTER = "A-WIN26", "A-PRN26"
 
 PEST = {
     "A-SCN25": {"marked": set(), "mild": {"S4-10", "S2-6"}},
@@ -541,10 +615,13 @@ def tree_class(visit_key: str, code: str) -> str:
 def tree_values(visit: Visit, tree: Tree, cls: str) -> dict[str, object]:
     """Expert values of one tree in a periodic scan, by metric code.
 
-    An absent tree gets none (nothing to judge); a male tree no fruit load.
+    An absent tree gets none (nothing to judge); a male tree no fruit load. Winter
+    scans get the winter codes (winter_values).
     """
     if cls == "absent":
         return {}
+    if visit.season == "winter":
+        return winter_values(visit, tree, cls)
     g = rng(f"values:{visit.key}:{tree.code}")
     step = {"healthy": 0, "attention": 1, "problem": 2, "dead": 3}[cls]
     dead_branch = step if step else int(g.random() < 0.12)
@@ -606,6 +683,64 @@ def tree_values(visit: Visit, tree: Tree, cls: str) -> dict[str, object]:
             fruit -= 1
         v["fruit_load_scale"] = fruit
     return v
+
+
+def pruning_cuts(tree: Tree) -> int:
+    """Branches the gardener cut on the tree between the winter scans (version 6).
+
+    Productive and old trees get 2 to 4 thinning cuts, young trees at most one,
+    the sapling, the dying S4-3 and about one in eight of the others none.
+    """
+    if tree.slot.parcel.key != "A" or tree.age_class == "sapling" or tree.code == "S4-3":
+        return 0
+    g = rng(f"pruning:{tree.slot.key}")
+    if g.random() < 0.12:
+        return 0
+    if tree.age_class == "young":
+        return int(g.integers(0, 2))
+    return int(g.integers(2, 5))
+
+
+def pruning_status(cuts: int) -> str:
+    """The expert's pruning_status after the pruning (methodology 4.3)."""
+    return "done" if cuts >= 3 else "partial" if cuts else "not_done"
+
+
+def winter_values(visit: Visit, tree: Tree, cls: str) -> dict[str, object]:
+    """Expert values of one tree in a winter scan (the codes valid in winter that the
+    report card reads, sqlgen.portal_codes): no leaves, no fruit, no pests; pruning
+    not done before the pruning visit."""
+    g = rng(f"values:{visit.key}:{tree.code}")
+    step = {"healthy": 0, "attention": 1, "problem": 2, "dead": 3}[cls]
+    dead_branch = step if step else int(g.random() < 0.08)
+    if tree.age_class == "sapling":
+        dead_branch = 0
+    cuts = pruning_cuts(tree) if visit.key == WINTER_AFTER else 0
+    return {
+        "dead_branch_scale": dead_branch,
+        "trunk_base_scale": (
+            (2 if visit.year == 2026 else 1)
+            if tree.code in GUMMOSIS
+            else 1
+            if cls == "dead" or g.random() < 0.06
+            else 0
+        ),
+        "dieback_pattern": {
+            "healthy": "none",
+            "attention": "tip_dieback",
+            "problem": "one_sided",
+            "dead": "top_down",
+        }[cls],
+        "basal_sprout_level": (
+            "dense"
+            if tree.code in SPROUTS_DENSE or tree.graft == "ungrafted"
+            else "few"
+            if g.random() < 0.2
+            else "none"
+        ),
+        "frost_damage_scale": 0,
+        "pruning_status": pruning_status(cuts),
+    }
 
 
 # Inventory: the expert's first observations (inventory report, "ilk gözlemler").
@@ -929,8 +1064,9 @@ UNSURE_LABELS = {("A", "S4-12")}
 WEED_HEIGHTS = {"A-SCN26": "tall", "B-SCN26": "short"}
 # Field protocol of the question by season (apps/field closeup_protocol.dart).
 FIELD_PROTOCOL = {"spring": "spring-v0.2", "summer": "summer-v0.3"}
-# Months of the visits in this dataset; season.ts: June-July summer.
-SEASON_OF_MONTH = {6: "summer", 7: "summer"}
+# Months of the visits in this dataset; season.ts: June-July summer, January and
+# February winter (every calendar of test-vectors/season.json).
+SEASON_OF_MONTH = {1: "winter", 2: "winter", 6: "summer", 7: "summer"}
 FIELD_QUESTION_METHOD = "field_question"
 
 # The demo org's catalogue row, as the migrations seed it for other orgs
@@ -1083,6 +1219,14 @@ class Dataset:
 
     def scans(self) -> list[Visit]:
         return [v for v in self.visits if v.kind == "periodic_scan"]
+
+    def summer_scans(self) -> list[Visit]:
+        """The leafy scans: crown measurements, fruit, pests (versions 1 to 5)."""
+        return [v for v in self.scans() if v.season == "summer"]
+
+    def winter_scans(self) -> list[Visit]:
+        """Parcel A's winter scans before and after the pruning (version 6)."""
+        return [v for v in self.scans() if v.season == "winter"]
 
     def findings(self, visit_key: str | None = None) -> list[Finding]:
         return [f for f in FINDINGS if visit_key is None or f.visit == visit_key]

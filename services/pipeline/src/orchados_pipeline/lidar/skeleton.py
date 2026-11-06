@@ -80,7 +80,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .. import PIPELINE_NAME, __version__
 from ..hashing import hash_object
 from ..models import Model, Producer, write_model
-from .cloud import TreeCloud, extract_trees, load_session_cloud, load_tree_positions
+from .cloud import TreeCloud, extract_trees, load_session_cloud, load_tree_positions, map_trees
 from .models import CloudMeta, LidarMeasurement, LidarReport, TreeQuality
 
 METHOD = "lidar_qsm"
@@ -1125,8 +1125,11 @@ def cloud_ref(meta: CloudMeta) -> CloudRef:
     )
 
 
-def make_report(meta: CloudMeta, trees: list[TreeCloud], p: SkeletonParams) -> SkeletonReport:
-    results = [analyze_tree(tc, p, meta.point_sigma_m) for tc in trees]
+def make_report(
+    meta: CloudMeta, trees: list[TreeCloud], p: SkeletonParams, workers: int = 1
+) -> SkeletonReport:
+    """The stage's report; workers > 1 measures the trees in parallel (same result)."""
+    results = map_trees(analyze_tree, [(tc, p, meta.point_sigma_m) for tc in trees], workers)
     warnings: list[str] = []
     clutter = [
         r.detail.clutter_fraction

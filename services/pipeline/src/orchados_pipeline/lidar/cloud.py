@@ -9,6 +9,9 @@ rejected with a clear error rather than misread.
 from __future__ import annotations
 
 import json
+import multiprocessing as mp
+import os
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -211,6 +214,36 @@ def ground_plane(points_en: np.ndarray, z: np.ndarray, cell_m: float = 0.5) -> n
     return coef
 
 
+def tree_index(
+    points: np.ndarray,
+    frame: LocalFrame,
+    trees: list[TreePosition],
+    radius_m: float = 5.0,
+    min_height_m: float = 0.25,
+    ground_cell_m: float = 0.5,
+    no_tree: int = -1,
+) -> np.ndarray:
+    """Index into ``trees`` of the tree each point belongs to, by the rule of extract_trees().
+
+    A point belongs to its nearest trunk if it is within radius_m horizontally
+    and at least min_height_m above that tree's ground plane; otherwise (ground,
+    grass, the space between trees beyond radius_m) it gets ``no_tree``.
+    """
+    out = np.full(len(points), no_tree, dtype=np.int64)
+    if not trees or len(points) == 0:
+        return out
+    centers = tree_centers(frame, trees)
+    owner, dist = nearest_trunk(points[:, :2], centers)
+    planes = tree_ground_planes(points, centers, radius_m, ground_cell_m)
+    coef = np.array(planes)  # (T, 3)
+    rel = points[:, :2] - centers[owner]
+    ground = coef[owner, 0] + (rel * coef[owner, 1:]).sum(1)
+    with np.errstate(invalid="ignore"):
+        mine = (dist <= radius_m) & (points[:, 2] - ground >= min_height_m)
+    out[mine] = owner[mine]
+    return out
+
+
 def ground_height(points_en: np.ndarray, z: np.ndarray, radius_m: float, cell_m: float) -> float:
     """Ground height at the origin of points_en (the trunk), from ground_plane()."""
     del radius_m
@@ -224,6 +257,53 @@ def sector_coverage(xy: np.ndarray, sectors: int = 8, min_points: int = 20) -> f
     idx = np.minimum((az / (360.0 / sectors)).astype(int), sectors - 1)
     counts = np.bincount(idx, minlength=sectors)
     return float(np.count_nonzero(counts >= min_points) / sectors)
+
+
+def tree_centers(frame: LocalFrame, trees: list[TreePosition]) -> np.ndarray:
+    """(T, 2) east/north of the inventory trunk positions in the cloud frame."""
+    e, n = frame.to_en(np.array([t.lat for t in trees]), np.array([t.lon for t in trees]))
+    return np.column_stack([e, n]).reshape(-1, 2)
+
+
+def nearest_trunk(xy: np.ndarray, centers: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Index of the nearest trunk per point (Voronoi split) and its horizontal distance.
+
+    Chunks keep memory bounded on large clouds.
+    """
+    owner = np.empty(len(xy), dtype=np.int64)
+    dist = np.empty(len(xy), dtype=np.float64)
+    step = 16_384
+    for s in range(0, len(xy), step):
+        # Two 2D squares instead of a 3D difference array: the same sums, in cache.
+        de = xy[s : s + step, 0, None] - centers[None, :, 0]
+        dn = xy[s : s + step, 1, None] - centers[None, :, 1]
+        d2 = de * de + dn * dn
+        k = d2.argmin(1)
+        owner[s : s + step] = k
+        dist[s : s + step] = np.sqrt(np.take_along_axis(d2, k[:, None], 1)[:, 0])
+    return owner, dist
+
+
+def tree_ground_planes(
+    points: np.ndarray, centers: np.ndarray, radius_m: float, ground_cell_m: float
+) -> list[np.ndarray]:
+    """ground_plane() around each trunk, from the points within radius_m (before the split).
+
+    Coefficients are relative to the trunk: z = c0 + c1 * (e - e_t) + c2 * (n - n_t).
+    """
+    xy = points[:, :2]
+    # Candidates by an east window first (sorted indices: the same points in the same
+    # order as a mask over the whole cloud, so the same planes, much faster).
+    order = np.argsort(xy[:, 0], kind="stable")
+    xs = xy[order, 0]
+    planes = []
+    for c in centers:
+        lo = np.searchsorted(xs, c[0] - radius_m, side="left")
+        hi = np.searchsorted(xs, c[0] + radius_m, side="right")
+        idx = np.sort(order[lo:hi])
+        near = idx[((xy[idx] - c) ** 2).sum(1) <= radius_m**2]
+        planes.append(ground_plane(xy[near] - c, points[near, 2], ground_cell_m))
+    return planes
 
 
 def extract_trees(
@@ -242,23 +322,14 @@ def extract_trees(
     """
     if not trees:
         return []
-    frame = cloud.frame
-    e, n = frame.to_en(np.array([t.lat for t in trees]), np.array([t.lon for t in trees]))
-    centers = np.column_stack([e, n])
+    centers = tree_centers(cloud.frame, trees)
     pts = cloud.points
-    xy = pts[:, :2]
-    # Nearest trunk per point; chunks keep memory bounded on large clouds.
-    owner = np.empty(len(pts), dtype=np.int64)
-    dist = np.empty(len(pts), dtype=np.float64)
-    for s in range(0, len(pts), 200_000):
-        d2 = ((xy[s : s + 200_000, None, :] - centers[None, :, :]) ** 2).sum(-1)
-        owner[s : s + 200_000] = d2.argmin(1)
-        dist[s : s + 200_000] = np.sqrt(d2.min(1))
+    owner, dist = nearest_trunk(pts[:, :2], centers)
+    planes = tree_ground_planes(pts, centers, radius_m, ground_cell_m)
     out: list[TreeCloud] = []
     for i, t in enumerate(trees):
         c = centers[i]
-        near = ((xy - c) ** 2).sum(1) <= radius_m**2
-        plane = ground_plane(xy[near] - c, pts[near, 2], ground_cell_m)
+        plane = planes[i]
         gz = float(plane[0])
         mine = (owner == i) & (dist <= radius_m)
         local = pts[mine] - np.array([c[0], c[1], 0.0])
@@ -283,3 +354,27 @@ def extract_trees(
             )
         )
     return out
+
+
+# Thread settings of the BLAS libraries numpy may use (map_trees' workers).
+_BLAS_THREADS = ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS")
+
+
+def map_trees[T](fn: Callable[..., T], jobs: Sequence[tuple], workers: int = 1) -> list[T]:
+    """fn(*job) for every job, in order. With workers > 1 in spawned processes (a fork
+    after OpenCV or a BLAS has started its threads can deadlock), one BLAS thread
+    each; trees are measured independently, so the result does not depend on it."""
+    if workers <= 1 or len(jobs) <= 2:
+        return [fn(*job) for job in jobs]
+    saved = {k: os.environ.get(k) for k in _BLAS_THREADS}
+    os.environ.update({k: "1" for k in _BLAS_THREADS})
+    try:
+        n = min(workers, len(jobs))
+        with mp.get_context("spawn").Pool(n) as pool:
+            return pool.starmap(fn, jobs, chunksize=1)
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v

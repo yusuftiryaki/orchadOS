@@ -2,12 +2,20 @@
 
 import "@photo-sphere-viewer/core/index.css";
 import "@photo-sphere-viewer/markers-plugin/index.css";
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type ReactNode,
+} from "react";
 import { usePanoramaViewer, type PanoramaMarker } from "@/components/panorama/use-panorama-viewer";
 import { t } from "@/lib/i18n";
 import { prefersReducedMotion } from "@/lib/map/motion";
 import { animateView } from "@/lib/panorama/runtime";
-import { doubleClickZoom, TOUR_FOV, treeFocusZoom } from "@/lib/panorama/zoom";
+import { doubleClickZoom, fovForZoom, TOUR_FOV, treeFocusZoom } from "@/lib/panorama/zoom";
 import type { ImageKind } from "@/lib/portal/tour-view";
 import chrome from "@/components/panorama/panorama.module.css";
 import styles from "./portal.module.css";
@@ -32,6 +40,16 @@ export const TOUR_DEFAULT_PITCH = -5;
 // Zoomed in this far past the overview: offer the way back.
 const ZOOMED_IN_MARGIN = 8;
 
+// How the viewer looks now (the 3D world starts from it).
+export interface TourView {
+  yawDeg: number;
+  pitchDeg: number;
+  // Vertical field of view.
+  fovDeg: number;
+  // Kind of the image on screen ("full" after the zoom switch).
+  kind: string | null;
+}
+
 export interface TourFocus {
   // The tree to turn to and zoom on; null: back to the overview.
   target: { yawDeg: number; pitchDeg: number; distanceM: number } | null;
@@ -55,6 +73,8 @@ export function TourViewer({
   onViewChange,
   onEscape,
   label,
+  interactive = true,
+  viewRef,
   children,
 }: {
   panoramaId: string;
@@ -77,14 +97,19 @@ export function TourViewer({
   // Escape pressed while the viewer (or a control in it) has the focus.
   onEscape?: () => void;
   label: string;
+  // False while an overlay (the 3D world) covers the photo: dragging and the
+  // wheel then belong to the overlay, not to the panorama under it.
+  interactive?: boolean;
+  // Filled with a reader of the current view.
+  viewRef?: MutableRefObject<(() => TourView | null) | null>;
   // Overlays over the photo (e.g. the focused tree's panel).
   children?: ReactNode;
 }) {
   const hintId = useId();
-  const callbacks = useRef({ onMarker, onViewChange });
+  const callbacks = useRef({ onMarker, onViewChange, interactive });
   useEffect(() => {
-    callbacks.current = { onMarker, onViewChange };
-  }, [onMarker, onViewChange]);
+    callbacks.current = { onMarker, onViewChange, interactive };
+  }, [onMarker, onViewChange, interactive]);
   const [zoomedIn, setZoomedIn] = useState(false);
   const { containerRef, viewer, shown, loaded, broken, onFocus, onBlur } = usePanoramaViewer({
     panoramaId,
@@ -117,6 +142,7 @@ export function TourViewer({
       // Double click or double tap on the photo (not on a marker): one step
       // closer, centred on that point.
       viewer.addEventListener("dblclick", ({ data }) => {
+        if (!callbacks.current.interactive) return;
         if ((data.target as Element | null)?.closest?.(".psv-marker")) return;
         animateView(
           viewer,
@@ -130,6 +156,30 @@ export function TourViewer({
       });
     },
   });
+
+  useEffect(() => {
+    if (!viewer) return;
+    viewer.setOptions({ mousemove: interactive, mousewheel: interactive });
+    // Arrow keys belong to the overlay too.
+    if (!interactive) viewer.stopKeyboardControl();
+  }, [viewer, interactive]);
+
+  useEffect(() => {
+    if (!viewRef) return;
+    viewRef.current = () => {
+      if (!viewer) return null;
+      const { yaw, pitch } = viewer.getPosition();
+      return {
+        yawDeg: yaw / (Math.PI / 180),
+        pitchDeg: pitch / (Math.PI / 180),
+        fovDeg: fovForZoom(viewer.getZoomLevel(), TOUR_FOV),
+        kind: shown?.kind ?? null,
+      };
+    };
+    return () => {
+      viewRef.current = null;
+    };
+  }, [viewRef, viewer, shown]);
 
   const overview = useCallback(() => {
     if (!viewer) return;
@@ -179,14 +229,14 @@ export function TourViewer({
         aria-busy={!loaded && !broken}
         role="region"
         tabIndex={broken ? undefined : 0}
-        onFocus={onFocus}
+        onFocus={interactive ? onFocus : undefined}
         onBlur={onBlur}
         onKeyDown={(event) => {
           if (event.key === "Escape" && onEscape) onEscape();
         }}
       >
         {loaded && children}
-        {loaded && zoomedIn && !focus.target && (
+        {loaded && interactive && zoomedIn && !focus.target && (
           <button
             type="button"
             className={styles.overviewButton}
