@@ -274,15 +274,28 @@ def crop_plan(ds: Dataset, visit: Visit, records: list[PanoramaRecord]) -> dict[
 # Rendering (in worker processes)
 # ---------------------------------------------------------------------------------------
 
+# The worker's dataset and the scene of the visit it renders now (one at a time: a
+# full-profile scene is large).
+_DATASET: Dataset | None = None
+_PROFILE = ""
 _SCENE: Scene | None = None
+
+
+def _scene_of(visit_key: str) -> Scene:
+    global _DATASET, _SCENE
+    if _SCENE is None or _SCENE.visit.key != visit_key:
+        _SCENE = None
+        _DATASET = _DATASET or load()
+        _SCENE = make_scene(_DATASET, _DATASET.visit(visit_key), PROFILES[_PROFILE])
+    return _SCENE
 
 
 def _render_frame(job: tuple) -> dict:
     """Render one frame: encoded panorama variants and the crops cut from it."""
-    f, label, crops = job
-    assert _SCENE is not None
-    prof = _SCENE.profile
-    img = render(_SCENE, f.x, f.y, f.heading_deg, label)
+    visit_key, f, label, crops = job
+    scene = _scene_of(visit_key)
+    prof = scene.profile
+    img = render(scene, f.x, f.y, f.heading_deg, label)
     out: dict = {"index": f.index, "files": {}, "crops": []}
     if "full" in f.variants:
         out["files"]["full"] = encode(img, ".webp", prof.full_quality)
@@ -296,30 +309,47 @@ def _render_frame(job: tuple) -> dict:
     return out
 
 
-def _init_worker(visit_key: str, profile: str) -> None:
-    """Spawned worker: single-threaded OpenCV, its own copy of the visit's scene."""
-    global _SCENE
+def _init_worker(profile: str) -> None:
+    """Spawned worker: single-threaded OpenCV; it builds each visit's scene itself."""
+    global _PROFILE
     cv2.setNumThreads(1)
-    ds = load()
-    _SCENE = make_scene(ds, ds.visit(visit_key), PROFILES[profile])
+    _PROFILE = profile
 
 
-def render_visit(
-    ds: Dataset, visit: Visit, profile: Profile, jobs: list[tuple], workers: int
-) -> list[dict]:
-    """Render the jobs; with workers > 1 in spawned processes (a fork after OpenCV has
-    started its thread pool can deadlock), each building the scene itself."""
-    global _SCENE
-    if workers <= 1 or len(jobs) <= 2:
-        _SCENE = make_scene(ds, visit, profile)
-        try:
-            return [_render_frame(j) for j in jobs]
-        finally:
-            _SCENE = None
-    ctx = mp.get_context("spawn")
-    n = min(workers, len(jobs))
-    with ctx.Pool(n, initializer=_init_worker, initargs=(visit.key, profile.name)) as pool:
-        return list(pool.imap(_render_frame, jobs, chunksize=1))
+class Renderer:
+    """Renders a visit's frames; with workers > 1 in spawned processes (a fork after
+    OpenCV has started its thread pool can deadlock). One pool serves the whole build:
+    starting one per visit cost about as much as rendering a small visit."""
+
+    def __init__(self, profile: Profile, workers: int):
+        self.profile = profile
+        self.workers = workers
+        self._pool = None
+
+    def __call__(self, ds: Dataset, visit: Visit, jobs: list[tuple]) -> list[dict]:
+        global _DATASET, _PROFILE, _SCENE
+        jobs = [(visit.key, *j) for j in jobs]
+        if self.workers <= 1 or len(jobs) <= 2:
+            _DATASET, _PROFILE = ds, self.profile.name
+            try:
+                return [_render_frame(j) for j in jobs]
+            finally:
+                _DATASET = _SCENE = None
+        if self._pool is None:
+            ctx = mp.get_context("spawn")
+            self._pool = ctx.Pool(
+                self.workers, initializer=_init_worker, initargs=(self.profile.name,)
+            )
+        return list(self._pool.imap(_render_frame, jobs, chunksize=1))
+
+    def __enter__(self) -> Renderer:
+        return self
+
+    def __exit__(self, *exc) -> None:
+        if self._pool is not None:
+            self._pool.terminate()
+            self._pool.join()
+            self._pool = None
 
 
 # ---------------------------------------------------------------------------------------
@@ -408,7 +438,7 @@ def _manifest_model(visit: Visit) -> Manifest:
     )
 
 
-def build_visit(ds: Dataset, visit: Visit, b: Builder, workers: int) -> dict:
+def build_visit(ds: Dataset, visit: Visit, b: Builder, workers: int, renderer: Renderer) -> dict:
     """Render a visit's panoramas and crops; write its run folder. Returns run info."""
     prof = b.profile
     short = SHORT[visit.key]
@@ -427,7 +457,7 @@ def build_visit(ds: Dataset, visit: Visit, b: Builder, workers: int) -> dict:
     plan = crop_plan(ds, visit, placeholders) if scan else {}
     jobs = [(f, f"{short}-P{f.index:02d}", plan.get(f.index, [])) for f in rendered]
     b.log(f"{visit.key}: rendering {len(jobs)} panoramas ({sum(len(j[2]) for j in jobs)} crops)")
-    results = render_visit(ds, visit, prof, jobs, workers)
+    results = renderer(ds, visit, jobs)
 
     records: list[PanoramaRecord] = []
     crop_recs: list[CropRecord] = []
@@ -856,10 +886,11 @@ def build(
     ds = load()
     b = Builder(target, PROFILES[profile], log)
     runs = []
-    for v in ds.visits:
-        if not v.frames or (visits and v.key not in visits):
-            continue
-        runs.append(build_visit(ds, v, b, workers))
+    with Renderer(b.profile, workers) as renderer:
+        for v in ds.visits:
+            if not v.frames or (visits and v.key not in visits):
+                continue
+            runs.append(build_visit(ds, v, b, workers, renderer))
     photos = build_closeups(ds, b)
     service_photos = build_service_photos(b)
     manifest = {
