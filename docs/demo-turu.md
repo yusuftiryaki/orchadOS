@@ -636,6 +636,8 @@ A'nın 2026 bulgu türleri: kuruyan dal, gövde yarası ve zamk akıntısı, yap
     - İç çizim profilin tam boyutundadır: test 1024×512, full 3840×1920. Önizlemeler ondan küçültülür, kesitler ondan kesilir.
     - Gökyüzü ve zemin numpy ile vektörel çizilir.
     - Ağaçlar nesne başına rasterleştirilir: her elipsoidin ve gövdenin sınır kutusu eşdikdörtgen uzaya izdüşürülür ve z-buffer yalnızca o piksellerde güncellenir. Bütün nesneler üzerinde piksel başına döngü yoktur.
+    - Kış taramalarının yapraksız ağaçları ağaç başına yüzlerce dal silindiridir. Test profili, çapı panoramada 0,25 pikselden ince kalan dalları çizmez (`Profile.twig_px`): ışın onlara ancak arada bir değer, görüntüde birkaç dağınık pikselden fazlası değildirler, ama çizim süresinin çoğunu alırlar. Full profili her dalı çizer; yayımlanan görüntüleri bu yüzden değişmez.
+    - Panoramalar bütün derleme boyunca tek bir işçi havuzunda çizilir; her ziyaret için yeni havuz açmak küçük bir ziyaretin çizimi kadar sürüyordu.
     - Hedef süreler: test profili CI'da 90 saniyenin altında, full profili 10 dakikanın altında.
 - **Gökyüzü:** Ufuktan zenite renk geçişi. Güneş diski ve haresi, çekim tarihi ve saatine göre. Tohumlu fBm gürültüsüyle bulutlar.
 - **Ufuk:** Gürültülü tepe silueti ve uzaklıkla artan pus.

@@ -44,11 +44,16 @@ class Profile:
     full_quality: int
     preview_quality: int
     jpeg_quality: int
+    # Branches thinner than this many pixels of the panorama are not drawn: a ray
+    # hits them only now and then, so they are a few stray pixels at most, and the
+    # winter scans' twigs are most of the render time. 0 draws everything (the full
+    # profile, so its published images do not change).
+    twig_px: float = 0.0
 
 
 PROFILES = {
     "full": Profile("full", (3840, 1920), (1920, 960), 1024, (1600, 1200), 85, 80, 90),
-    "test": Profile("test", (1024, 512), (512, 256), 256, (400, 300), 70, 70, 80),
+    "test": Profile("test", (1024, 512), (512, 256), 256, (400, 300), 70, 70, 80, 0.25),
 }
 
 
@@ -584,8 +589,12 @@ def render(scene: Scene, x: float, y: float, heading_deg: float, label: str) -> 
 
     # --- trees -------------------------------------------------------------------------
     sun = scene.sun.astype(np.float32)
+    twig = scene.profile.twig_px * TAU / W  # branch diameter per metre of distance
     for s in scene.shapes:
         for prim in s.prims:
+            if twig and isinstance(prim, Capsule):
+                if 2 * prim.r < twig * float(np.linalg.norm(prim.center - cam)):
+                    continue
             _draw(img, zbuf, prim, cam, phi0, cphi, sphi, cel, sel, W, H, sun, scene)
 
     out = np.clip(img, 0, 1)
