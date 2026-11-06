@@ -213,6 +213,22 @@ export default function WorldView({
     scene.exit(() => startRef.current.onExit());
   }, [status]);
 
+  // Escape: the selected tree first, then the world.
+  const escape = useCallback(() => {
+    if (selected) setSelected(null);
+    else exit();
+  }, [selected, exit]);
+
+  // A control that disappears (the skeleton box when leaving a winter visit)
+  // drops the focus to the page; Escape must still reach the world.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && event.target === document.body) escape();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [escape]);
+
   const shownVisit = visits.find((v) => v.id === shown) ?? null;
   const shownWinter = winter[shown] ?? null;
   const choices = useMemo(() => worldVisits(visits), [visits]);
@@ -279,8 +295,7 @@ export default function WorldView({
         if (event.key !== "Escape") return;
         // The tour's own Escape (tree focus) must not see it.
         event.stopPropagation();
-        if (selected) setSelected(null);
-        else exit();
+        escape();
       }}
     >
       <div ref={stageRef} className={styles.stage} />

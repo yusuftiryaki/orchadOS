@@ -34,7 +34,7 @@ from .dataset import DATASET_VERSION, Dataset, load
 from .render import PROFILES
 from .sources import SOURCES, build_source
 from .sqlgen import BANNED_UNTIL, Metric, generate, lit
-from .verify import problems, verify_sql
+from .verify import problems, verify_sql, world_file_problems
 
 REPO = PIPELINE_ROOT.parents[1]
 CONTAINER = os.environ.get("DEMO_DB_CONTAINER", "supabase_db_orchados")
@@ -47,9 +47,10 @@ CACHE_CONTROL = "max-age=31536000"
 # registered at an older version gains rows; version 3 also brings the four
 # mutable version 2 rows it changed up to date (sqlgen.robot_upgrade), version 4
 # adds the LiDAR crown measurements (sqlgen.lidar_measurements), version 5 the
-# world cloud assets and their files (sqlgen.world_clouds). Only DATASET_VERSION
-# is built and loaded.
-VERSIONS = (5,)
+# world cloud assets and their files (sqlgen.world_clouds), version 6 parcel A's two
+# winter scans with their rows, LiDAR measurements and files (sqlgen.winter_measurements,
+# demo/winter.py). Only DATASET_VERSION is built and loaded.
+VERSIONS = (6,)
 assert VERSIONS == (DATASET_VERSION,), "the loader applies the latest (cumulative) version"
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
@@ -283,12 +284,24 @@ def metrics(db: Psql) -> dict[str, Metric]:
 # ---------------------------------------------------------------------------------------
 
 
-def verify(db: Psql, ds: Dataset | None = None, log: Callable[[str], None] = print) -> list[str]:
+def verify(
+    db: Psql,
+    ds: Dataset | None = None,
+    log: Callable[[str], None] = print,
+    build: Path | None = None,
+) -> list[str]:
+    """build: the build folder of the load, if any: the winter world clouds' files are
+    read from it (when it holds the stored bytes) to check their skeleton and cuts."""
     ds = ds or load()
     relock_ops(db)
     rows = db.query(verify_sql(ds))
     owner, admin = (json.loads(r) for r in rows if r.startswith("{"))
     found = problems(owner, admin, ds)
+    if build is not None:
+        files, checked = world_file_problems(owner, build)
+        found += files
+        if not checked:
+            log("verify: the winter world clouds' stored bytes are not in this build: not read")
     if found:
         for p in found:
             log(f"verify: {p}")
@@ -645,7 +658,7 @@ def load_demo(
             )
     if row and row.get("dataset_version") == DATASET_VERSION:
         if row.get("loaded_at"):
-            if not verify(db, ds, log):
+            if not verify(db, ds, log, build):
                 report.status = f"already loaded (version {DATASET_VERSION})"
                 log(report.status)
                 if do_enable:
@@ -688,7 +701,7 @@ def load_demo(
     if st.registry:
         finish_registry(db, ds, manifest)
     if do_verify or do_enable:
-        found = verify(db, ds, log)
+        found = verify(db, ds, log, build)
         if found:
             raise LoadError("verify failed")
     if do_enable:

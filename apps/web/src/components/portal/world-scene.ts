@@ -492,7 +492,7 @@ export class WorldScene {
       uniforms: {
         uOrigin: { value: new THREE.Vector3(...this.eye) },
         uReveal: { value: this.phase === "entering" ? 0 : 1e9 },
-        uSize: { value: Math.max(0.02, cloud.header.voxel_m || 0.04) * POINT_VOXELS },
+        uSize: { value: pointSize(cloud) },
         uScale: { value: this.scale },
         uSelected: { value: -1 },
         uWaveOn: { value: this.phase === "entering" ? 1 : 0 },
@@ -632,7 +632,9 @@ export class WorldScene {
       const shown =
         this.skeletonOn && layer === this.layer && !!layer.skeleton && this.overlayOpacity > 0;
       if (layer.skeleton) layer.skeleton.visible = shown;
+      // Behind the skeleton the points step back: dimmer and smaller.
       layer.material.uniforms.uDim.value = shown ? 0.45 : 1;
+      layer.material.uniforms.uSize.value = pointSize(layer.cloud) * (shown ? 0.35 : 1);
     }
     this.dirty = true;
   }
@@ -988,6 +990,11 @@ function buildSkeleton(sk: WorldSkeleton): THREE.Group {
     group.add(mesh);
   }
   return group;
+}
+
+// Point size in metres: covers the gaps between neighbouring points.
+function pointSize(cloud: WorldCloud): number {
+  return Math.max(0.02, cloud.header.voxel_m || 0.04) * POINT_VOXELS;
 }
 
 // A horizontal circle as line segments.

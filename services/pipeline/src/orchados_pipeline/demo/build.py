@@ -8,7 +8,10 @@ Cache layout (services/pipeline/.demo-build/v<version>-<profile>/):
     runs/<visit>/            the pipeline's run files for upload.upload_run():
                              outputs.json, manifest.json, panoramas.json,
                              crops.json, coverage.json (inventory), presence.json and
-                             crown.json (scans; the LiDAR crown stage's report, version 4)
+                             crown.json (summer scans; the LiDAR crown stage's report,
+                             version 4), world.json (the world stage's sidecar,
+                             versions 5 and 6), skeleton.json and pruning.json (the
+                             winter scans' skeleton and pruning stages, version 6)
 
 A run folder points its files at ../../files/<sha256>, so the SQL emitter
 (sqlgen.py) reuses upload_run() as it is: captures, assets, lineage, coverage
@@ -61,7 +64,7 @@ from ..models import (
 from ..outputs import AssetEntry, CaptureEntry, Lineage, Outputs, PipelineRef
 from ..params import PipelineParams
 from ..projection import gnomonic_crop
-from . import closeups, ids, lidar, world
+from . import closeups, ids, lidar, winter, world
 from .dataset import (
     CAMERA_HEIGHT_M,
     DATASET_NAME,
@@ -101,7 +104,16 @@ def source_files() -> list[str]:
     return sorted(f.relative_to(package).as_posix() for f in package.rglob("*.py"))
 
 
-SHORT = {"A-INV25": "A25I", "A-SCN25": "A25", "A-SCN26": "A26", "B-INV26": "B26I", "B-SCN26": "B26"}
+SHORT = {
+    "A-INV25": "A25I",
+    "A-SCN25": "A25",
+    "A-SCN26": "A26",
+    "B-INV26": "B26I",
+    "B-SCN26": "B26",
+    # Version 6: winter 2026 before (W) and after (B, budama) the pruning.
+    "A-WIN26": "A26W",
+    "A-PRN26": "A26B",
+}
 # Ellipsoidal height of the antenna (WGS84): ground ~850 m + geoid ~25 m + pole.
 ANTENNA_HEIGHT_M = 877.4
 PIPELINE_ROOT = Path(__file__).resolve().parents[3]
@@ -228,7 +240,8 @@ class CropJob:
 
 
 def crop_plan(ds: Dataset, visit: Visit, records: list[PanoramaRecord]) -> dict[int, list[CropJob]]:
-    """Best view per (tree, side), then the two best sides of each tree; by frame index."""
+    """Best view per (tree, side), then the two best sides of each tree (a winter scan:
+    the best side only, to keep the build small); by frame index."""
     p = params().crops
     tl = tree_list(ds, visit)
     best: dict[tuple[str, str], tuple[float, PanoramaRecord, dict]] = {}
@@ -242,7 +255,7 @@ def crop_plan(ds: Dataset, visit: Visit, records: list[PanoramaRecord]) -> dict[
         sides = sorted(
             ((best[(tree.tree_id, d)], d) for d in DIRECTIONS if (tree.tree_id, d) in best),
             key=lambda x: -x[0][0],
-        )[:2]
+        )[: 1 if visit.season == "winter" else 2]
         for (score, pano, g), d in sides:
             plan.setdefault(index[pano.panorama_id], []).append(
                 CropJob(
@@ -503,15 +516,20 @@ def build_visit(ds: Dataset, visit: Visit, b: Builder, workers: int) -> dict:
         ),
         run / "crops.json",
     )
-    for stale in ("coverage.json", "presence.json", lidar.REPORT_FILE, world.REPORT_FILE):
-        (run / stale).unlink(missing_ok=True)
+    stale = ("coverage.json", "presence.json", lidar.REPORT_FILE, world.REPORT_FILE)
+    for name in (*stale, winter.SKELETON_FILE, winter.PRUNING_FILE):
+        (run / name).unlink(missing_ok=True)
     cloud = None
+    shown = list(zip(rendered, records, strict=True))
     if visit.key in world.WORLD_VISITS:
-        cloud = build_world(ds, visit, b, list(zip(rendered, records, strict=True)), run)
+        cloud = build_world(ds, visit, b, shown, run)
+    elif visit.key in winter.WINTER_VISITS:
+        cloud = build_winter(ds, visit, b, shown, run, workers)
     if visit.kind == "inventory":
         write_model(_coverage(ds, visit, placeholders), run / "coverage.json")
     if scan:
         write_model(_presence(visit, crop_recs), run / "presence.json")
+    if scan and visit.season == "summer":
         # Version 4: the LiDAR crown stage's report of the scan (demo/lidar.py).
         b.log(f"{visit.key}: measuring the crowns (synthetic LiDAR)")
         write_model(lidar.measure_visit(ds, visit, workers), run / lidar.REPORT_FILE)
@@ -581,7 +599,11 @@ def build_world(
         )
         for f, rec in frames
     ]
-    w = world.world(vc, views, b.profile.name)
+    return _world_file(visit, b, world.world(vc, views, b.profile.name), run, vc.meta)
+
+
+def _world_file(visit: Visit, b: Builder, w, run: Path, meta) -> dict:
+    """world.owc into the build and its sidecar world.json into the run folder."""
     data = encode_world(w)
     ref = b.add(data, f"{SHORT[visit.key]}-world", WORLD_MEDIA_TYPE, (0, 0), visit, "world_cloud")
     report = WorldReport(
@@ -593,7 +615,7 @@ def build_world(
             params_hash=w.header["params_hash"],
             stage="lidar_world",
         ),
-        origin_sigma_m=vc.meta.point_sigma_m,
+        origin_sigma_m=meta.point_sigma_m,
         header=w.header,
         stats=w.stats,
     )
@@ -605,6 +627,41 @@ def build_world(
         "colorized": w.header["colorized"],
         "seen_points": w.stats["seen_points"],
     }
+
+
+def build_winter(
+    ds: Dataset,
+    visit: Visit,
+    b: Builder,
+    frames: list[tuple[Frame, PanoramaRecord]],
+    run: Path,
+    workers: int,
+) -> dict:
+    """A winter scan (dataset version 6): the skeleton stage's report, after the
+    pruning the pruning stage's report, and the world cloud with the wood, coloured
+    from the visit's own panoramas (demo/winter.py)."""
+    after = visit.key == winter.WINTER_AFTER
+    b.log(f"{visit.key}: winter LiDAR (skeleton{', pruning' if after else ''})")
+    skel = winter.skeleton_report(visit, ANTENNA_HEIGHT_M, workers)
+    write_model(skel, run / winter.SKELETON_FILE)
+    if after:
+        write_model(winter.pruning_report(ANTENNA_HEIGHT_M, workers), run / winter.PRUNING_FILE)
+    views = [
+        world.camera_view(
+            visit,
+            f.x,
+            f.y,
+            f.heading_deg,
+            lambda sha=rec.image.sha256: _rgb(b.out / "files" / sha),
+        )
+        for f, rec in frames
+    ]
+    w = winter.world(visit, views, b.profile.name, ANTENNA_HEIGHT_M, workers)
+    info = _world_file(visit, b, w, run, winter.visit_cloud(visit, ANTENNA_HEIGHT_M).meta)
+    info["segments"] = w.header["segment_count"]
+    info["pruned_segments"] = w.stats["pruned_segments"]
+    info["cuts"] = w.header["cut_count"]
+    return info
 
 
 def _sha_file(path: Path) -> str:
@@ -649,14 +706,17 @@ def _presence(visit: Visit, crops: list[CropRecord]) -> PresenceReport:
     for c in crops:
         by_tree.setdefault(c.tree_id or "", []).append(c)
     results = []
+    leafy = visit.season != "winter"
     for tree_id, recs in by_tree.items():
         absent = tree_class(visit.key, recs[0].slot_code) == "absent"
+        # A bare tree: greenness says nothing (presence.tree_decision, leafless_season).
+        state = "absent" if absent else "present" if leafy else "ambiguous"
         views = [
             ViewSignal(
                 direction=r.direction,
                 crop_sha256=r.image.sha256,
                 score=r.score,
-                state="absent" if absent else "present",
+                state=state,
             )
             for r in recs
         ]
@@ -665,8 +725,14 @@ def _presence(visit: Visit, crops: list[CropRecord]) -> PresenceReport:
                 subject="tree",
                 tree_id=tree_id,
                 slot_code=recs[0].slot_code,
-                value="no" if absent else "yes",
-                reason="synthetic scene: tree cut" if absent else "synthetic scene: tree drawn",
+                value=("no" if absent else "yes") if leafy else "unsure",
+                reason=(
+                    "leafless_season"
+                    if not leafy
+                    else "synthetic scene: tree cut"
+                    if absent
+                    else "synthetic scene: tree drawn"
+                ),
                 views=views,
             )
         )
@@ -677,7 +743,7 @@ def _presence(visit: Visit, crops: list[CropRecord]) -> PresenceReport:
         session_id=visit.id,
         parcel_id=visit.parcel.id,
         month=visit.start.month,
-        leafy=True,
+        leafy=leafy,
         status="ok",
         trees=results,
     )

@@ -4,7 +4,8 @@
 Part one runs under the owner persona's claims with `set local role
 authenticated`, i.e. through row level security, and counts what the owner
 portal needs, the LiDAR crown values the tree card and the tour draw (version 4),
-the world clouds of the tour's 3D world (version 5),
+the world clouds of the tour's 3D world (version 5), parcel A's winter scans with
+their world clouds and LiDAR skeleton and pruning values (version 6),
 the service card (unpriced, buyable) and the done mowing job with its proof
 photos and the own-work note included. Part two runs as postgres: media
 objects, persona lockdown, a billing setting that only switches the service layer
@@ -35,7 +36,18 @@ from .lidar import CODES as LIDAR_CODES
 from .lidar import METHOD as LIDAR_METHOD
 from .lidar import present_trees
 from .sqlgen import TOKEN_COLUMNS, lit
+from .winter import WINTER_VISITS
 from .world import WORLD_VISITS
+
+# LiDAR codes of the winter scans (sqlgen.WINTER_LIDAR): the skeleton's on both, the
+# pruning stage's on the scan after the pruning.
+WINTER_SKELETON_CODES = ("scaffold_branch_count", "wood_volume", "fractal_dimension")
+WINTER_PRUNING_CODES = (
+    "pruning_cut_count",
+    "pruning_status",
+    "pruned_wood_volume",
+    "pruned_wood_fraction",
+)
 
 # Card states of public.service_offers without an open request. Which one the
 # portal shows depends on the day: the visits are fixed in the past, so out of
@@ -98,6 +110,35 @@ select json_build_object(
     select count(*) from public.asset a where a.parcel_id = {lit(A)} and a.kind = 'world_cloud'
       and a.session_id in ({", ".join(lit(ds.visit(k).id) for k in WORLD_VISITS)})
       and a.mime_type = 'application/vnd.orchados.world-cloud'),
+  -- Version 6: parcel A's winter scans, their assessments, expert and LiDAR values
+  -- and world clouds, as the owner reads them.
+  'winter_visits', (
+    select coalesce(json_object_agg(id, json_build_object('status', status, 'day', planned_date,
+      'kind', kind)), '{{}}')
+    from public.session where id in ({", ".join(lit(ds.visit(k).id) for k in WINTER_VISITS)})),
+  'winter_assessments', (
+    select coalesce(json_object_agg(session_id, n), '{{}}') from (
+      select session_id, count(distinct tree_id) as n from public.assessment
+      where session_id in ({", ".join(lit(ds.visit(k).id) for k in WINTER_VISITS)})
+      group by session_id) x),
+  'winter_values', (
+    select coalesce(json_object_agg(session_id || ':' || source || ':' || code, n), '{{}}') from (
+      select m.session_id, m.source, d.code, count(distinct m.tree_id) as n from public.measurement m
+      join public.metric_definition d on d.id = m.metric_definition_id
+      where m.session_id in ({", ".join(lit(ds.visit(k).id) for k in WINTER_VISITS)})
+        and m.tree_id is not null
+      group by m.session_id, m.source, d.code) x),
+  'winter_cut_trees', (
+    select count(*) from public.measurement m
+    join public.metric_definition d on d.id = m.metric_definition_id and d.code = 'pruning_cut_count'
+    where m.session_id = {lit(ds.visit(WINTER_VISITS[-1]).id)} and m.source = 'algorithm'
+      and m.value_numeric > 0),
+  'winter_worlds', (
+    select coalesce(json_agg(json_build_object('session_id', a.session_id, 'sha256', a.content_hash,
+      'point_count', (a.pose ->> 'point_count')::int, 'bytes', a.byte_size) order by a.session_id), '[]')
+    from public.asset a where a.parcel_id = {lit(A)} and a.kind = 'world_cloud'
+      and a.mime_type = 'application/vnd.orchados.world-cloud'
+      and a.session_id in ({", ".join(lit(ds.visit(k).id) for k in WINTER_VISITS)})),
   -- Version 4: LiDAR crown values per scan and metric (trees with a value), as
   -- the tree card and the tour read them, and the featured tree's in A 2026.
   'lidar', (
@@ -266,9 +307,10 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
         if not ok:
             out.append(what)
 
+    scans_a = sum(1 for v in ds.scans() if v.parcel.id == A)
     need(
-        owner["published_scans_a"] == 2,
-        f"parcel A: {owner['published_scans_a']} published scans, expected 2",
+        owner["published_scans_a"] == scans_a,
+        f"parcel A: {owner['published_scans_a']} published scans, expected {scans_a}",
     )
     need(
         owner["published_scans_b"] == 1,
@@ -319,7 +361,7 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
     # (the crown stage gives a bare dead tree its height only); the featured tree
     # the full drawing.
     lidar = owner["lidar"]
-    for v in ds.scans():
+    for v in ds.summer_scans():
         present = len(present_trees(ds, v))
         n = {c: lidar.get(f"{v.id}:{c}", 0) for c in LIDAR_CODES}
         need(
@@ -337,6 +379,7 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
         f"featured tree: LiDAR values {owner['lidar_featured']} in A 2026, the crown "
         "drawing needs height, diameter and base",
     )
+    out.extend(winter_problems(owner, ds))
     need(
         admin["missing_media"] == 0,
         f"{admin['missing_media']} storage:// uris without an object in media",
@@ -423,3 +466,72 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
     need(admin["robot_notes"] == 2, f"{admin['robot_notes']} robot notes, expected 2")
     need(admin["notifications"] == 0, f"{admin['notifications']} notifications for the demo org")
     return out
+
+
+def winter_problems(owner: dict, ds: Dataset) -> list[str]:
+    """Version 6: parcel A's winter scans as the owner reads them."""
+    from .dataset import winter_values
+    from .winter import present
+
+    out = []
+    values = owner["winter_values"]
+    worlds = {w["session_id"]: w for w in owner["winter_worlds"]}
+    for key in WINTER_VISITS:
+        v = ds.visit(key)
+        row = owner["winter_visits"].get(v.id)
+        if row != {"status": "published", "day": v.day, "kind": "periodic_scan"}:
+            out.append(f"{key}: visit {row}, expected published periodic_scan on {v.day}")
+            continue
+        trees = present(ds, v)
+        if owner["winter_assessments"].get(v.id, 0) != len(trees):
+            out.append(f"{key}: {owner['winter_assessments'].get(v.id, 0)} assessed trees")
+        codes = set(winter_values(v, trees[0], "healthy"))
+        for code in sorted(codes):
+            n = values.get(f"{v.id}:expert:{code}", 0)
+            if n != len(trees):
+                out.append(f"{key}: {n} trees with an expert {code}, expected {len(trees)}")
+        lidar = WINTER_SKELETON_CODES + (WINTER_PRUNING_CODES if key == WINTER_VISITS[-1] else ())
+        for code in lidar:
+            n = values.get(f"{v.id}:algorithm:{code}", 0)
+            if n < 0.9 * len(trees):
+                out.append(f"{key}: LiDAR {code} for {n} of {len(trees)} trees")
+        w = worlds.get(v.id)
+        if w is None or not w["point_count"]:
+            out.append(f"{key}: no world cloud the owner reads")
+        elif w["bytes"] <= 11 * w["point_count"]:
+            out.append(f"{key}: the world cloud carries no skeleton ({w['bytes']} bytes)")
+    if owner["winter_cut_trees"] < 10:
+        out.append(f"{WINTER_VISITS[-1]}: {owner['winter_cut_trees']} trees with LiDAR cuts")
+    return out
+
+
+def world_file_problems(owner: dict, build) -> tuple[list[str], int]:
+    """The winter world clouds' files of the build (when it holds the stored bytes):
+    the skeleton, and after the pruning the cut wood and the cuts. Returns the
+    problems and how many files were checked."""
+    from pathlib import Path
+
+    from ..lidar.world import KIND_PRUNED, read_world
+
+    out, checked = [], 0
+    last = None
+    for w in owner["winter_worlds"]:
+        path = Path(build) / "files" / w["sha256"]
+        if not path.is_file():
+            continue
+        cloud = read_world(path)
+        checked += 1
+        h = cloud.header
+        if not h.get("segment_count") or h.get("skeleton") is None:
+            out.append(f"world cloud {w['sha256'][:12]}: no skeleton segments")
+            continue
+        if "time" in json.dumps(h).lower():
+            out.append(f"world cloud {w['sha256'][:12]}: a time field in the header")
+        pruning = h["skeleton"].get("pruning")
+        if pruning is not None:
+            last = cloud
+            if not (cloud.segment_kind == KIND_PRUNED).any() or not h.get("cut_count"):
+                out.append(f"world cloud {w['sha256'][:12]}: pruning without cut wood or cuts")
+    if checked == len(owner["winter_worlds"]) and checked and last is None:
+        out.append("no winter world cloud carries the pruning")
+    return out, checked

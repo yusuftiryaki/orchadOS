@@ -49,7 +49,7 @@ def project_to_crop(crop: dict, camera_height_m: float, x: float, z: float) -> t
 
 def test_report_is_the_crown_stage(built):
     root, ds = built
-    for v in ds.scans():
+    for v in ds.summer_scans():
         rep = crown.CrownReport.model_validate(_report(root, v.key))
         assert (rep.method, rep.method_version) == ("lidar_crown", crown.METHOD_VERSION)
         assert rep.producer.params_hash == crown.CrownParams().params_hash()
@@ -68,7 +68,7 @@ def test_measuring_does_not_depend_on_workers(built):
 
 def test_height_is_the_top_of_the_drawn_crown(built):
     root, ds = built
-    for v in ds.scans():
+    for v in ds.summer_scans():
         values = _values(_report(root, v.key))
         classes = ds.classes(v)
         for t in lidar.present_trees(ds, v):
@@ -86,7 +86,7 @@ def test_crown_lines_land_on_the_drawn_tree(built):
     tick at the highest leaves above the trunk, the bracket ends on the crown."""
     root, ds = built
     tops, ends = [], []
-    for v in ds.scans():
+    for v in ds.summer_scans():
         values = _values(_report(root, v.key))
         classes = ds.classes(v)
         crops = json.loads((root / "runs" / v.key / "crops.json").read_text("utf-8"))["crops"]

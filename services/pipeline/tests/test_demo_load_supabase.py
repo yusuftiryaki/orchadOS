@@ -361,7 +361,7 @@ def test_upgrade_from_version_3_adds_the_lidar_rows(loaded, monkeypatch):
     root, manifest = demo_build.build("test", log=_quiet)
     expected = sum(
         1
-        for v in dataset.load().scans()
+        for v in dataset.load().summer_scans()
         for m in json.loads((root / "runs" / v.key / "crown.json").read_text("utf-8"))[
             "measurements"
         ]

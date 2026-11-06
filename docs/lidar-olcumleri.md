@@ -58,7 +58,7 @@ uv run orchados-pipeline lidar upload /tmp/yaz.processed/lidar --session-id <uui
 
 Her aşama `--trees` (varsayılan `<oturum>/trees.json`), `--out` ve `--params` alır. Raporlar aynı girdi ve parametrelerle bayt bayt aynıdır; zaman damgası taşımaz. Parametre hash'i `producer.params_hash`'te ve her ölçümde durur.
 
-**3D dünya (İP17):** `lidar world` ölçüm yapmaz; kayıtlı buluttan portal gezisinin 3D dünyasında gösterilen renkli, seyreltilmiş bulutu (`world.owc`) üretir. Ağaç ataması bu bölümdeki kuralla aynıdır (§3); renkler oturumun panoramalarından alınır. `lidar upload` dosyayı `world_cloud` asset'i olarak yükler. Biçim: [arayuzler.md](arayuzler.md#3d-dünya-bulutu); özellik: [3d-dunya.md](3d-dunya.md); yöntem: `services/pipeline/README.md`, "LiDAR ölçümleri".
+**3D dünya (İP17):** `lidar world` ölçüm yapmaz; kayıtlı buluttan portal gezisinin 3D dünyasında gösterilen renkli, seyreltilmiş bulutu (`world.owc`) üretir. Ağaç ataması bu bölümdeki kuralla aynıdır (§3); renkler oturumun panoramalarından alınır. `lidar upload` dosyayı `world_cloud` asset'i olarak yükler. Biçim: [arayuzler.md](arayuzler.md#3d-dünya-bulutu); özellik: [3d-dunya.md](3d-dunya.md); yöntem: `services/pipeline/README.md`, "LiDAR ölçümleri". Kış taramasında `lidar world`, oturumun `skeleton.json`'u (§5) varsa dal iskeletini, bu taramayı "sonra" alan `pruning.json` ve önceki taramanın `skeleton.json`'u varsa budanan dalları ve kesim noktalarını da dosyaya yazar (İP17 Faz 2b). Demo verisinde iki kış taraması bu aşamaların gerçek çıktılarını taşır ([demo-turu.md](demo-turu.md) §8.2, sürüm 6).
 
 ## 3. Ağaç başına ayırma
 

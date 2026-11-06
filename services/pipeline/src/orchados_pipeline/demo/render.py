@@ -332,8 +332,24 @@ class Scene:
 def visit_shapes(ds: Dataset, visit: Visit) -> list[TreeShape]:
     """What stood in the parcel at the time of the visit (year classes, values)."""
     p = visit.parcel
-    # The parcel's periodic scan of the same year (inventories come a month before it).
-    scan = next(s for s in ds.scans() if s.parcel.key == p.key and s.year == visit.year)
+    if visit.season == "winter":
+        # Version 6: leafless trees (demo/winter.py).
+        from .winter import winter_shape
+
+        shapes = [winter_shape(t, tree_class(visit.key, t.code), visit) for t in ds.trees[p.key]]
+    else:
+        shapes = _summer_shapes(ds, visit)
+    empty = [s for s in ds.slots[p.key] if s.code not in {t.code for t in ds.trees[p.key]}]
+    for i, s in enumerate(empty):
+        if i % 2 == 0:
+            shapes.append(slot_marker(*s.xy))
+    return shapes
+
+
+def _summer_shapes(ds: Dataset, visit: Visit) -> list[TreeShape]:
+    p = visit.parcel
+    # The parcel's summer scan of the same year (inventories come a month before it).
+    scan = next(s for s in ds.summer_scans() if s.parcel.key == p.key and s.year == visit.year)
     shapes = []
     for t in ds.trees[p.key]:
         cls = tree_class(scan.key, t.code)
@@ -342,10 +358,6 @@ def visit_shapes(ds: Dataset, visit: Visit) -> list[TreeShape]:
             cls = {"problem": "attention", "dead": "attention", "absent": "healthy"}.get(cls, cls)
         values = tree_values(scan, t, cls)
         shapes.append(tree_shape(t, cls, values, visit.key))
-    empty = [s for s in ds.slots[p.key] if s.code not in {t.code for t in ds.trees[p.key]}]
-    for i, s in enumerate(empty):
-        if i % 2 == 0:
-            shapes.append(slot_marker(*s.xy))
     return shapes
 
 
