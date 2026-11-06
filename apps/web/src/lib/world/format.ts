@@ -48,16 +48,22 @@ export class WorldCloudError extends Error {}
 
 const BYTES: Record<string, number> = { uint8: 1, uint16: 2 };
 
-export function parseWorldCloud(buffer: ArrayBuffer): WorldCloud {
-  if (buffer.byteLength < 8) throw new WorldCloudError("file too short");
-  const view = new DataView(buffer);
-  const magic = String.fromCharCode(...new Uint8Array(buffer, 0, 4));
+// Bytes the header needs: the magic, its length and the JSON (the arrays start
+// after it). A file shorter than this is not a world cloud.
+export function headerBytes(prefix: ArrayBuffer): number {
+  if (prefix.byteLength < 8) throw new WorldCloudError("file too short");
+  const magic = String.fromCharCode(...new Uint8Array(prefix, 0, 4));
   if (magic !== WORLD_CLOUD_MAGIC) throw new WorldCloudError(`unknown magic ${magic}`);
-  const headerLength = view.getUint32(4, true);
-  if (8 + headerLength > buffer.byteLength) throw new WorldCloudError("header past the end");
+  return 8 + new DataView(prefix).getUint32(4, true);
+}
+
+// The header from the start of the file (at least headerBytes() long).
+export function parseHeader(prefix: ArrayBuffer): WorldCloudHeader {
+  const end = headerBytes(prefix);
+  if (end > prefix.byteLength) throw new WorldCloudError("header past the end");
   let header: WorldCloudHeader;
   try {
-    header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 8, headerLength)));
+    header = JSON.parse(new TextDecoder().decode(new Uint8Array(prefix, 8, end - 8)));
   } catch {
     throw new WorldCloudError("header is not JSON");
   }
@@ -66,33 +72,65 @@ export function parseWorldCloud(buffer: ArrayBuffer): WorldCloud {
   }
   const count = header.point_count;
   if (!Number.isInteger(count) || count < 0) throw new WorldCloudError("bad point_count");
-
-  const array = (name: string, type: string, components: number) => {
+  for (const [name, type, components] of ARRAYS) {
     const spec = header.arrays?.[name];
-    if (!spec || spec.type !== type || spec.components !== components) {
-      throw new WorldCloudError(`array ${name} must be ${type} x ${components}`);
-    }
-    const length = count * components;
     if (
+      !spec ||
+      spec.type !== type ||
+      spec.components !== components ||
       !Number.isInteger(spec.offset) ||
       spec.offset % 4 !== 0 ||
-      spec.offset < 8 + headerLength ||
-      spec.offset + length * BYTES[type] > buffer.byteLength
+      spec.offset < end
     ) {
-      throw new WorldCloudError(`array ${name} out of bounds`);
+      throw new WorldCloudError(`array ${name} must be ${type} x ${components}`);
     }
-    return type === "uint16"
-      ? new Uint16Array(buffer, spec.offset, length)
-      : new Uint8Array(buffer, spec.offset, length);
-  };
-  const q = array("position", "uint16", 3) as Uint16Array;
-  const color = array("color", "uint8", 3) as Uint8Array;
-  const tree = array("tree", "uint16", 1) as Uint16Array;
-
+  }
   const { min, scale } = header.quantization ?? {};
   if (![min, scale].every((v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite))) {
     throw new WorldCloudError("bad quantization");
   }
+  return header;
+}
+
+const ARRAYS: [name: string, type: "uint8" | "uint16", components: number][] = [
+  ["position", "uint16", 3],
+  ["color", "uint8", 3],
+  ["tree", "uint16", 1],
+];
+
+// Byte range [start, end) of the first `count` points of an array (the file is
+// stored in a shuffled order, so any first `count` points are an even sample).
+export function arrayRange(
+  header: WorldCloudHeader,
+  name: "position" | "color" | "tree",
+  from: number,
+  to: number,
+): [number, number] {
+  const [, type, components] = ARRAYS.find((a) => a[0] === name)!;
+  const spec = header.arrays[name];
+  const size = BYTES[type] * components;
+  return [spec.offset + from * size, spec.offset + to * size];
+}
+
+// The first `count` points from the bytes of their three arrays (each starting
+// at its first point; a whole file's arrays or ranged parts of them).
+export function assembleCloud(
+  header: WorldCloudHeader,
+  count: number,
+  bytes: { position: ArrayBuffer; color: ArrayBuffer; tree: ArrayBuffer },
+): WorldCloud {
+  if (count > header.point_count) throw new WorldCloudError("more points than the file has");
+  if (
+    bytes.position.byteLength < count * 6 ||
+    bytes.color.byteLength < count * 3 ||
+    bytes.tree.byteLength < count * 2
+  ) {
+    throw new WorldCloudError("array out of bounds");
+  }
+  const q = new Uint16Array(bytes.position, 0, count * 3);
+  const color = new Uint8Array(bytes.color, 0, count * 3);
+  const tree = new Uint16Array(bytes.tree, 0, count);
+  const { min, scale } = header.quantization;
   const enu = new Float32Array(count * 3);
   for (let i = 0; i < count * 3; i += 3) {
     enu[i] = min[0] + q[i] * scale[0];
@@ -102,6 +140,21 @@ export function parseWorldCloud(buffer: ArrayBuffer): WorldCloud {
   const treeIds = new Map<number, string>();
   for (const t of header.trees ?? []) treeIds.set(t.index, t.tree_id);
   return { header, count, enu, color, tree, treeIds };
+}
+
+export function parseWorldCloud(buffer: ArrayBuffer): WorldCloud {
+  const header = parseHeader(buffer);
+  const n = header.point_count;
+  const slice = (name: "position" | "color" | "tree") => {
+    const [a, b] = arrayRange(header, name, 0, n);
+    if (b > buffer.byteLength) throw new WorldCloudError(`array ${name} out of bounds`);
+    return buffer.slice(a, b);
+  };
+  return assembleCloud(header, n, {
+    position: slice("position"),
+    color: slice("color"),
+    tree: slice("tree"),
+  });
 }
 
 // Builds a file in the same layout (tests and fixtures).

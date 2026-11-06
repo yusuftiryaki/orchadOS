@@ -188,3 +188,26 @@
 .title {
   composes: treePanelTitle from "./portal.module.css";
 }
+
+/* Growth: shrank (orange-red), unchanged (grey), grew (green); see
+   lib/world/geometry.ts divergingColor. */
+.diverging {
+  width: 140px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #d95c29, #9e9e99, #29ad66);
+}
+
+/* Another visit's cloud on its way: a small note, the world stays usable. */
+.note {
+  composes: chrome from "../panorama/panorama.module.css";
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: var(--space-2);
+  transform: translateX(-50%);
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}

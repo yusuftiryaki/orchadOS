@@ -54,7 +54,7 @@ import {
   type TourMarker,
   type TourView,
 } from "./tour-viewer";
-import type { WorldStartView, WorldTree } from "./world-view";
+import type { WorldStartView, WorldTree, WorldVisit } from "./world-view";
 import styles from "./portal.module.css";
 import worldStyles from "./world.module.css";
 
@@ -135,7 +135,7 @@ export function Tour({
   // A demo session reached its image cap (docs/demo-turu.md §5.3).
   const [capped, setCapped] = useState(images?.capped ?? false);
   // The open 3D world: the visit's cloud and the view it starts from.
-  const [world, setWorld] = useState<{ assetId: string; start: WorldStartView } | null>(null);
+  const [world, setWorld] = useState<{ visitId: string; start: WorldStartView } | null>(null);
   const viewRef = useRef<(() => TourView | null) | null>(null);
 
   const neighbours = useMemo(() => tourNeighbours(panoramas, current), [panoramas, current]);
@@ -196,9 +196,18 @@ export function Tour({
         code: tr.code,
         position: tr.position,
         state: tr.state,
-        crown: tourVisit?.crowns[tr.id] ?? null,
       })),
-    [data.trees, tourVisit],
+    [data.trees],
+  );
+  const worldVisitList = useMemo<WorldVisit[]>(
+    () =>
+      visits.map((v) => ({
+        id: v.visit.id,
+        label: formatDate(v.visit.time),
+        assetId: v.worldAssetId,
+        crowns: v.crowns,
+      })),
+    [visits],
   );
   const crownMarkers = useMemo<TourMarker[]>(() => {
     const guide = crownGuide(crown);
@@ -339,11 +348,11 @@ export function Tour({
   // Opens the 3D world from the view on screen: the transition starts at
   // the panorama's exact yaw, pitch and zoom, over the image shown.
   const openWorld = useCallback(() => {
-    if (!worldAssetId) return;
+    if (!worldAssetId || !tourVisit) return;
     const v = viewRef.current?.();
     if (!v) return;
     setWorld({
-      assetId: worldAssetId,
+      visitId: tourVisit.visit.id,
       start: {
         position: current.position,
         headingDeg: current.headingDeg,
@@ -353,7 +362,7 @@ export function Tour({
         photoUrl: v.kind === "full" && fullUrl ? fullUrl : image,
       },
     });
-  }, [worldAssetId, current, fullUrl, image]);
+  }, [worldAssetId, tourVisit, current, fullUrl, image]);
 
   // The viewer acts on a new version only (see TourViewer).
   const viewerFocus: TourFocus = {
@@ -440,9 +449,10 @@ export function Tour({
             >
               {world ? (
                 <WorldView
-                  key={world.assetId}
+                  key={world.visitId}
                   parcelId={data.parcel.id}
-                  assetId={world.assetId}
+                  visits={worldVisitList}
+                  visitId={world.visitId}
                   start={world.start}
                   cameraHeightM={tourVisit?.cameraHeightM ?? DEFAULT_CAMERA_HEIGHT_M}
                   trees={worldTrees}
