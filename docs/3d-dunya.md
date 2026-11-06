@@ -15,7 +15,7 @@ Bulutun dosya biçimi bileşenler arası bir sözleşmedir: [arayuzler.md](arayu
 | `lidar upload` ile `world_cloud` asset'inin yüklenmesi | Var |
 | Veritabanı: `asset_kind` `world_cloud`, sahibe okuma ve imza | Var (migration `20261107500000`, `20261107500100`) |
 | Gezide geçiş efekti, 3D dünya, ağaç ölçüleri, renk kipleri | Var (Faz 1) |
-| Demo turu verisi (sürüm 4): sentetik bulut ve taç ölçümleri | Var |
+| Demo turu verisi: sentetik bulut (sürüm 5) ve taç ölçümleri (sürüm 4) | Var |
 | Oktree ile akıtma, ziyaretler arası büyüme, kış iskeleti ve budama görünümü | Faz 2 |
 | Uzman paneli ve ofis aracında 3D dünya | Faz 3 |
 | Gerçek LiDAR verisi | Kayıt adımı (MCAP → bulut) ve LiDAR'lı kit bekleniyor ([lidar-olcumleri.md](lidar-olcumleri.md) §1) |

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 
 import pytest
@@ -358,13 +359,101 @@ def test_measurements_are_in_season_and_versioned(generated):
         if m.code == "weed_height":
             assert r["method_version"] == dataset.FIELD_PROTOCOL["summer"]
             continue
-        if r["method"] == "lidar_crown":  # version 4: the crown stage on the LiDAR cloud
-            assert r["source"] == "algorithm" and r["method_version"] == crown.METHOD_VERSION
-            assert r["params_hash"] == crown.CrownParams().params_hash()
+        if m.code in demo_lidar.CODES:
+            assert (r["source"], r["method"], r["method_version"]) == (
+                "algorithm",
+                "lidar_crown",
+                crown.METHOD_VERSION,
+            )
             continue
         assert r["method_version"] in (dataset.METHODOLOGY, dataset.PRODUCER_VERSION)
         if r["source"] == "algorithm":
             assert r["method"] == "orchados-demo" and m.code == "tree_visible"
+
+
+def _lidar_rows(script) -> list[dict]:
+    codes = {sqlgen.FALLBACK_METRICS[c].id: c for c in demo_lidar.CODES}
+    return [
+        {**r, "code": codes[r["metric_definition_id"]]}
+        for r in _rows(script, "results", "public.measurement")
+        if r["metric_definition_id"] in codes
+    ]
+
+
+def test_lidar_crown_measurements(generated):
+    """Version 4: the crown stage's four values for every tree present in each scan."""
+    ds, _m, script, _sql = generated
+    rows = _lidar_rows(script)
+    params_hash = crown.CrownParams().params_hash()
+    for r in rows:
+        assert r["id"] == ids.did(
+            "measurement",
+            f"{next(v.key for v in ds.scans() if v.id == r['session_id'])}:"
+            f"{next(t.code for p in 'AB' for t in ds.trees[p] if t.id == r['tree_id'])}:"
+            f"{r['code']}",
+            version=dataset.LIDAR_VERSION,
+        )
+        assert r["params_hash"] == params_hash and r["recorded_by"] == ids.OPS
+        assert r["unit"] == ("m3" if r["code"] == "crown_volume" else "m")
+        assert r["uncertainty"] > 0 and 0 < r["confidence"] <= 1
+        assert r["value_numeric"] > 0
+        assert "value_scale" not in r and "value_category" not in r
+    for v in ds.scans():
+        mine = [r for r in rows if r["session_id"] == v.id]
+        assert all(r["measured_at"] == v.start for r in mine)
+        present = {t.id for t in demo_lidar.present_trees(ds, v)}
+        by_code = {c: {r["tree_id"] for r in mine if r["code"] == c} for c in demo_lidar.CODES}
+        # Every present tree has its height; a bare dead tree (A 2026, S4-3) is
+        # one-sided for the crown stage and gets nothing else.
+        assert by_code["tree_height"] == present
+        dead = {ds.tree(v.parcel.key, c).id for c, k in ds.classes(v).items() if k == "dead"}
+        crowns = present - dead
+        for c in ("crown_diameter", "crown_volume", "crown_base_height"):
+            assert by_code[c] == crowns, (v.key, c)
+    # The absent tree has no measurement.
+    cut = ds.tree("A", "S6-2").id
+    assert not [r for r in rows if r["tree_id"] == cut and r["session_id"] == ids.A_SCAN_2026]
+    # Not part of any assessment (algorithm rows, the expert does not sign them).
+    linked = {
+        r["measurement_id"] for r in _rows(script, "results", "public.assessment_measurement")
+    }
+    assert not linked & {r["id"] for r in rows}
+
+
+def test_lidar_values_fit_the_drawn_trees(generated):
+    """Plausible per size class, the crown base under the top, a tree's values a
+    year apart within a few centimetres when the tree looked the same."""
+    ds, _m, script, _sql = generated
+    vals: dict[tuple[str, str], dict[str, float]] = {}
+    for r in _lidar_rows(script):
+        vals.setdefault((r["session_id"], r["tree_id"]), {})[r["code"]] = r["value_numeric"]
+    a = ds.parcel("A")
+    for (_sid, tid), v in vals.items():
+        t = next(t for p in "AB" for t in ds.trees[p] if t.id == tid)
+        h = v["tree_height"]
+        lo, hi = {
+            "sapling": (0.8, 1.6),
+            "young": (2.2, 3.8),
+            "productive": (3.2, 5.0),
+            "old": (4.0, 5.6),
+        }[t.age_class]
+        assert lo <= h <= hi, (t.code, t.age_class, h)
+        if "crown_diameter" in v:
+            assert 0 < v["crown_base_height"] < h
+            assert 0.4 <= v["crown_diameter"] <= 2 * a.tree_spacing_m / 2
+            assert v["crown_volume"] < math.pi / 6 * v["crown_diameter"] ** 2 * h * 1.5
+    same = 0
+    for t in ds.trees["A"]:
+        if (
+            dataset.tree_class("A-SCN25", t.code)
+            == dataset.tree_class("A-SCN26", t.code)
+            == "healthy"
+        ):
+            v25, v26 = vals[(ids.A_SCAN_2025, t.id)], vals[(ids.A_SCAN_2026, t.id)]
+            assert abs(v25["tree_height"] - v26["tree_height"]) < 0.15, t.code
+            assert abs(v25["crown_diameter"] - v26["crown_diameter"]) < 0.3, t.code
+            same += 1
+    assert same > 40
 
 
 def test_out_of_season_code_is_refused(generated):
@@ -420,18 +509,19 @@ def test_service_rows_carry_version_2_ids(generated):
         assert a["id"] in {ids.did("asset", p.key(job), version=2) for p in job.photos}
 
 
-def test_world_clouds_and_crown_measurements(generated):
-    """Version 4 (İP17 3D world): a world_cloud asset per LiDAR visit as lidar upload
-    records it (no time), and the crown stage's measurements of the trees it measured,
-    as record_lidar_measurements() writes them; ids derived with v4."""
+def test_world_clouds(generated):
+    """Version 5 (İP17 3D world): a world_cloud asset per LiDAR visit as lidar upload
+    records it (no time); ids derived with v5."""
+    from orchados_pipeline.demo import world as demo_world
+
     ds, manifest, script, _sql = generated
     assets = [r for r in _rows(script, "chain", "public.asset") if r["kind"] == "world_cloud"]
     worlds = {r["visit"]: r["world"] for r in manifest["runs"] if "world" in r}
-    assert set(worlds) == set(demo_lidar.WORLD_VISITS)
+    assert set(worlds) == set(demo_world.WORLD_VISITS)
     keys = {f["sha256"]: f["key"] for f in manifest["files"]}
     assert {a["session_id"] for a in assets} == {ds.visit(k).id for k in worlds}
     for a in assets:
-        assert a["id"] == ids.did("asset", keys[a["content_hash"]], version=4)
+        assert a["id"] == ids.did("asset", keys[a["content_hash"]], version=dataset.WORLD_VERSION)
         assert a["mime_type"] == "application/vnd.orchados.world-cloud"
         assert a["uri"] == (
             f"storage://media/org/{ids.ORG_ID}/parcel/{ids.PARCEL_A}/{a['content_hash']}"
@@ -440,30 +530,3 @@ def test_world_clouds_and_crown_measurements(generated):
         assert a["pose"]["crs"] == "local_enu" and a["pose"]["point_count"] > 30_000
         assert a["position"].startswith("SRID=4326;POINT(") and a["position_uncertainty_m"] > 0
         assert a["tree_id"] is None and a["pipeline"] == "orchados-demo"
-    measurements = _rows(script, "results", "public.measurement")
-    rows = [r for r in measurements if r["method"] == "lidar_crown"]
-    by_id = {m.id: m.code for m in sqlgen.FALLBACK_METRICS.values()}
-    codes = {by_id[r["metric_definition_id"]] for r in rows}
-    assert codes == {
-        "tree_height",
-        "crown_diameter",
-        "crown_volume",
-        "crown_base_height",
-        "size_class",
-    }
-    a26 = [r for r in rows if r["session_id"] == ids.A_SCAN_2026]
-    trees = {r["tree_id"] for r in a26}
-    assert len(trees) >= 60 and ds.tree("A", "S6-2").id not in trees  # cut: a stump
-    for r in rows:
-        code = by_id[r["metric_definition_id"]]
-        tree = next(t for t in ds.trees["A"] if t.id == r["tree_id"])
-        visit = next(v for v in ds.visits if v.id == r["session_id"])
-        assert r["id"] == ids.did(
-            "measurement", f"{visit.key}:{tree.code}:{code}:lidar_crown", version=4
-        )
-        assert r["recorded_by"] == ids.OPS and r["measured_at"] == visit.start
-        if code == "size_class":
-            assert r["value_category"] in ("sapling", "young", "productive", "old")
-            assert r["value_numeric"] is None and r["uncertainty"] is None
-        else:
-            assert r["value_numeric"] > 0 and r["uncertainty"] > 0 and r["unit"] in ("m", "m3")

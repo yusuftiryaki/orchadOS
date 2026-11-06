@@ -45,9 +45,11 @@ CACHE_CONTROL = "max-age=31536000"
 # own rows (ids v<version>), and every insert is "on conflict do nothing". Loading
 # the latest version is therefore applying all versions in order, and a target
 # registered at an older version gains rows; version 3 also brings the four
-# mutable version 2 rows it changed up to date (sqlgen.robot_upgrade); version 4
-# only adds rows (the 3D world). Only DATASET_VERSION is built and loaded.
-VERSIONS = (4,)
+# mutable version 2 rows it changed up to date (sqlgen.robot_upgrade), version 4
+# adds the LiDAR crown measurements (sqlgen.lidar_measurements), version 5 the
+# world cloud assets and their files (sqlgen.world_clouds). Only DATASET_VERSION
+# is built and loaded.
+VERSIONS = (5,)
 assert VERSIONS == (DATASET_VERSION,), "the loader applies the latest (cumulative) version"
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"

@@ -7,7 +7,8 @@ Cache layout (services/pipeline/.demo-build/v<version>-<profile>/):
     files/<sha256>           every uploaded file, content addressed
     runs/<visit>/            the pipeline's run files for upload.upload_run():
                              outputs.json, manifest.json, panoramas.json,
-                             crops.json, coverage.json (inventory), presence.json (scans)
+                             crops.json, coverage.json (inventory), presence.json and
+                             crown.json (scans; the LiDAR crown stage's report, version 4)
 
 A run folder points its files at ../../files/<sha256>, so the SQL emitter
 (sqlgen.py) reuses upload_run() as it is: captures, assets, lineage, coverage
@@ -60,8 +61,7 @@ from ..models import (
 from ..outputs import AssetEntry, CaptureEntry, Lineage, Outputs, PipelineRef
 from ..params import PipelineParams
 from ..projection import gnomonic_crop
-from . import closeups, ids
-from . import lidar as demo_lidar
+from . import closeups, ids, lidar, world
 from .dataset import (
     CAMERA_HEIGHT_M,
     DATASET_NAME,
@@ -488,11 +488,6 @@ def build_visit(ds: Dataset, visit: Visit, b: Builder, workers: int) -> dict:
 
     run = b.out / "runs" / visit.key
     run.mkdir(parents=True, exist_ok=True)
-    for stale in ("crown.json", "world.json"):
-        (run / stale).unlink(missing_ok=True)
-    world = None
-    if visit.key in demo_lidar.WORLD_VISITS:
-        world = build_world(ds, visit, b, list(zip(rendered, records, strict=True)), run)
     write_model(_manifest_model(visit), run / "manifest.json")
     write_model(
         PanoramaSet(producer=producer("panoramas"), panoramas=records, sidecars=[]),
@@ -508,12 +503,18 @@ def build_visit(ds: Dataset, visit: Visit, b: Builder, workers: int) -> dict:
         ),
         run / "crops.json",
     )
-    for stale in ("coverage.json", "presence.json"):
+    for stale in ("coverage.json", "presence.json", lidar.REPORT_FILE, world.REPORT_FILE):
         (run / stale).unlink(missing_ok=True)
+    cloud = None
+    if visit.key in world.WORLD_VISITS:
+        cloud = build_world(ds, visit, b, list(zip(rendered, records, strict=True)), run)
     if visit.kind == "inventory":
         write_model(_coverage(ds, visit, placeholders), run / "coverage.json")
     if scan:
         write_model(_presence(visit, crop_recs), run / "presence.json")
+        # Version 4: the LiDAR crown stage's report of the scan (demo/lidar.py).
+        b.log(f"{visit.key}: measuring the crowns (synthetic LiDAR)")
+        write_model(lidar.measure_visit(ds, visit, workers), run / lidar.REPORT_FILE)
     captures = [
         CaptureEntry(
             capture_id=video_sha,
@@ -551,8 +552,8 @@ def build_visit(ds: Dataset, visit: Visit, b: Builder, workers: int) -> dict:
         "crops": len(crop_recs),
         "files": {n: _sha_file(run / n) for n in sorted(os.listdir(run))},
     }
-    if world is not None:
-        info["world"] = world
+    if cloud is not None:
+        info["world"] = cloud
     return info
 
 
@@ -566,14 +567,12 @@ def _rgb(path: Path):
 def build_world(
     ds: Dataset, visit: Visit, b: Builder, frames: list[tuple[Frame, PanoramaRecord]], run: Path
 ) -> dict:
-    """Synthetic LiDAR of a visit (dataset version 4): the crown stage's crown.json and the
-    world cloud, coloured by the real world stage from the encoded panoramas (the
+    """The 3D world of a visit (dataset version 5): a synthetic LiDAR cloud of the
+    rendered scene, coloured by the real world stage from the encoded panoramas (the
     full image where the visit has one), so its colours are the photos' own."""
-    vc = demo_lidar.visit_cloud(ds, visit, ANTENNA_HEIGHT_M)
-    crowns = demo_lidar.crowns(vc)
-    write_model(crowns, run / "crown.json")
+    vc = world.visit_cloud(ds, visit, ANTENNA_HEIGHT_M)
     views = [
-        demo_lidar.camera_view(
+        world.camera_view(
             visit,
             f.x,
             f.y,
@@ -582,8 +581,8 @@ def build_world(
         )
         for f, rec in frames
     ]
-    world = demo_lidar.world(vc, views, b.profile.name)
-    data = encode_world(world)
+    w = world.world(vc, views, b.profile.name)
+    data = encode_world(w)
     ref = b.add(data, f"{SHORT[visit.key]}-world", WORLD_MEDIA_TYPE, (0, 0), visit, "world_cloud")
     report = WorldReport(
         sha256=ref.sha256,
@@ -591,25 +590,20 @@ def build_world(
         producer=Producer(
             pipeline=PRODUCER,
             version=PRODUCER_VERSION,
-            params_hash=world.header["params_hash"],
+            params_hash=w.header["params_hash"],
             stage="lidar_world",
         ),
         origin_sigma_m=vc.meta.point_sigma_m,
-        header=world.header,
-        stats=world.stats,
+        header=w.header,
+        stats=w.stats,
     )
-    write_model(report, run / "world.json")
-    ok = sum(t.status == "ok" for t in crowns.trees)
-    b.log(
-        f"{visit.key}: world cloud {world.header['point_count']} points, {ref.size / 1e3:.0f} KB; "
-        f"crowns of {ok}/{len(crowns.trees)} trees"
-    )
+    write_model(report, run / world.REPORT_FILE)
+    b.log(f"{visit.key}: world cloud {w.header['point_count']} points, {ref.size / 1e3:.0f} KB")
     return {
         "sha256": ref.sha256,
-        "point_count": world.header["point_count"],
-        "colorized": world.header["colorized"],
-        "seen_points": world.stats["seen_points"],
-        "crown_trees_ok": ok,
+        "point_count": w.header["point_count"],
+        "colorized": w.header["colorized"],
+        "seen_points": w.stats["seen_points"],
     }
 
 

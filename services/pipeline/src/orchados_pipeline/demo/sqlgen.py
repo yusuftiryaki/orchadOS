@@ -10,9 +10,10 @@ Insert order (no notification is ever queued):
        tree name the inventory visit (foreign keys)
     5 inventory chain, captures, assets, lineage
     6 measurements, assessments, findings and their evidence (and the field
-       question weed_height)
-    6a the 3D world (dataset version 4): the world cloud assets of parcel A's
-       scans (step chain) and the LiDAR crown stage's measurements (step results)
+       question weed_height); the LiDAR crown measurements of the scans (dataset
+       version 4)
+    6a the 3D world (dataset version 5): the world cloud assets of parcel A's
+       scans (step chain)
     6b service layer: the billing setting with services_enabled, the weed mowing
        catalogue row (no price: the demo org has no price list) and its season per
        fruit species, the done job of parcel B (operation, request, history, proof
@@ -39,11 +40,13 @@ from pathlib import Path
 from typing import Any
 
 from ..geo import LocalFrame, bearing_deg, wrap180
-from ..lidar.crown import CrownReport
+from ..lidar.upload import ReportFile, build_payload, check_payload, world_asset_row
 from ..lidar.world import WorldReport
 from ..media import media_key, media_uri
 from ..upload import SessionRow, UploadOptions, upload_run
 from . import ids
+from . import lidar as demo_lidar
+from . import world as demo_world
 from .build import frame_pose
 from .dataset import (
     CAMERA_HEIGHT_M,
@@ -51,6 +54,7 @@ from .dataset import (
     DEMO_SPECIES,
     FIELD_PROTOCOL,
     FIELD_QUESTION_METHOD,
+    LIDAR_VERSION,
     METHODOLOGY,
     PRICING_RULE,
     QUESTIONS,
@@ -234,19 +238,17 @@ FALLBACK_METRICS = {
         ("tree_visible", "category", ("winter", "spring", "summer", "harvest"), "hidden"),
     )
 }
-# LiDAR metrics (20261021180000, 20261107300000, 20261107400000): the crown stage's.
-FALLBACK_METRICS.update(
-    {
-        code: Metric(metric_id_fallback(code), code, vt, tuple(seasons), vis, ("tree",))
-        for code, vt, seasons, vis in (
-            ("tree_height", "numeric", ("winter", "spring", "summer", "harvest"), "shown"),
-            ("crown_diameter", "numeric", ("spring", "summer"), "shown"),
-            ("crown_volume", "numeric", ("spring", "summer"), "shown"),
-            ("crown_base_height", "numeric", ("winter", "spring", "summer", "harvest"), "hidden"),
-            ("size_class", "category", ("winter", "spring", "summer", "harvest"), "hidden"),
-        )
-    }
-)
+# The LiDAR crown metrics (20261107300000_lidar_measurements.sql,
+# 20261107400000_lidar_owner_display.sql).
+for _code, _seasons, _vis in (
+    ("tree_height", ("winter", "spring", "summer", "harvest"), "shown"),
+    ("crown_diameter", ("spring", "summer"), "shown"),
+    ("crown_volume", ("spring", "summer"), "shown"),
+    ("crown_base_height", ("winter", "spring", "summer", "harvest"), "hidden"),
+):
+    FALLBACK_METRICS[_code] = Metric(
+        metric_id_fallback(_code), _code, "numeric", _seasons, _vis, ("tree",)
+    )
 FALLBACK_METRICS["weed_height"] = Metric(
     metric_id_fallback("weed_height"),
     "weed_height",
@@ -1145,63 +1147,79 @@ def _measure(
 
 
 def world_clouds(ctx: Context) -> None:
-    """The 3D world of the visits with a synthetic LiDAR cloud (dataset version 4).
-
-    The world cloud asset as `lidar upload` records it (lidar/upload.py
-    world_asset_row: kind world_cloud, the cloud origin as position, no time) and the
-    crown stage's measurements of the trees it measured (status ok) as
-    record_lidar_measurements() writes them: source algorithm, method lidar_crown,
-    its version and parameter hash, recorded by ops, measured at the scan's start.
-    """
-    from ..lidar.upload import world_asset_row
-
+    """The 3D world of the visits with a synthetic LiDAR cloud (dataset version 5): the
+    world cloud asset as `lidar upload` records it (lidar/upload.py world_asset_row:
+    kind world_cloud, the cloud origin as position, no time)."""
     for run in ctx.manifest["runs"]:
         if "world" not in run:
             continue
         v = ctx.ds.visit(run["visit"])
-        folder = ctx.build / "runs" / v.key
-        world = WorldReport.model_validate(json.loads((folder / "world.json").read_text("utf-8")))
+        report = ctx.build / "runs" / v.key / demo_world.REPORT_FILE
+        world = WorldReport.model_validate(json.loads(report.read_text("utf-8")))
         if world.sha256 != run["world"]["sha256"]:
-            raise ValueError(f"{v.key}: world.json does not match the manifest")
+            raise ValueError(f"{v.key}: {demo_world.REPORT_FILE} does not match the manifest")
         row = world_asset_row(world, ids.ORG_ID, v.parcel.id, v.id)
-        key = ctx.keys[world.sha256]
         ctx.script.insert(
             "chain",
             "public.asset",
             {
-                "id": ids.did("asset", key, WORLD_VERSION),
+                "id": ids.did("asset", ctx.keys[world.sha256], WORLD_VERSION),
                 **row,
                 "produced_at": v.end + timedelta(hours=3),
             },
         )
-        crowns = CrownReport.model_validate(json.loads((folder / "crown.json").read_text("utf-8")))
-        ok = {t.tree_id for t in crowns.trees if t.status == "ok"}
-        codes = {t.id: t.code for t in ctx.ds.trees[v.parcel.key]}
+
+
+def lidar_measurements(ctx: Context) -> None:
+    """Version 4: the LiDAR crown measurements of each scan, as the pipeline's
+    `lidar upload` records them (record_lidar_measurements): the crown stage's
+    report of the build (runs/<scan>/crown.json, demo/lidar.py) through the same
+    payload builder and checks, then one algorithm row per tree and metric with the
+    method, its version and parameter hash, measured at the scan's start, recorded
+    by ops. Only tree_height, crown_diameter, crown_volume and crown_base_height
+    (size_class is a hidden proposal the demo does not show). Not linked to the
+    expert's assessment: the expert does not sign them (lidar-olcumleri.md §9).
+    """
+    ds = ctx.ds
+    for v in ds.scans():
+        path = ctx.build / "runs" / v.key / demo_lidar.REPORT_FILE
+        if not path.is_file():
+            raise ValueError(f"{v.key}: the build has no {demo_lidar.REPORT_FILE}; rebuild it")
+        report = ReportFile.model_validate(json.loads(path.read_text(encoding="utf-8")))
+        payload = build_payload([(path, report)], v.id, v.start.isoformat())
+        problems = check_payload(payload)
+        if problems:
+            raise ValueError(f"{v.key}: {demo_lidar.REPORT_FILE}: {'; '.join(problems)}")
         season = SEASON_OF_MONTH[v.start.month]
-        for m in crowns.measurements:
-            if m.tree_id not in ok:
+        trees = {t.id: t for t in ds.trees[v.parcel.key]}
+        for item in payload["items"]:
+            code = item["metric"]
+            if code not in demo_lidar.CODES or item.get("value_numeric") is None:
                 continue
-            md = ctx.metrics.get(m.metric)
-            if md is None or season not in md.valid_seasons:
-                raise ValueError(f"{v.key}: metric {m.metric} is unknown or out of season")
-            mkey = f"{v.key}:{codes[m.tree_id]}:{m.metric}:{m.method}"
+            m = ctx.metrics.get(code)
+            if m is None or m.value_type != "numeric" or "tree" not in m.subject_kinds:
+                raise ValueError(f"{v.key}: {code} is not a registered numeric tree metric")
+            if season not in m.valid_seasons:
+                raise ValueError(f"{v.key}: metric {code} is not valid in {season}")
+            t = trees.get(item["tree_id"])
+            if t is None:
+                raise ValueError(f"{v.key}: {item['tree_id']} is not a tree of the parcel")
             ctx.script.insert(
                 "results",
                 "public.measurement",
                 {
-                    "id": ids.did("measurement", mkey, WORLD_VERSION),
+                    "id": ids.did("measurement", f"{v.key}:{t.code}:{code}", LIDAR_VERSION),
                     "org_id": ids.ORG_ID,
                     "parcel_id": v.parcel.id,
-                    "tree_id": m.tree_id,
-                    "metric_definition_id": md.id,
-                    "value_numeric": m.value_numeric,
-                    "value_category": m.value_category,
-                    "unit": m.unit,
-                    "uncertainty": m.uncertainty,
-                    "confidence": m.confidence,
-                    "method": m.method,
-                    "method_version": m.method_version,
-                    "params_hash": crowns.producer.params_hash,
+                    "tree_id": t.id,
+                    "metric_definition_id": m.id,
+                    "value_numeric": float(item["value_numeric"]),
+                    "unit": item.get("unit"),
+                    "uncertainty": float(item["uncertainty"]),
+                    "confidence": item.get("confidence"),
+                    "method": item["method"],
+                    "method_version": item["method_version"],
+                    "params_hash": item["params_hash"],
                     "source": "algorithm",
                     "session_id": v.id,
                     "measured_at": v.start,
@@ -1646,6 +1664,7 @@ def generate(ds: Dataset, build: Path, manifest: dict, metrics: dict[str, Metric
     inventory_chain(ctx)
     closeup_captures(ctx)
     results(ctx)
+    lidar_measurements(ctx)
     world_clouds(ctx)
     services(ctx)
     access(script, ds)

@@ -3,13 +3,14 @@
 
 Part one runs under the owner persona's claims with `set local role
 authenticated`, i.e. through row level security, and counts what the owner
-portal needs, the service card (unpriced, buyable) and the done mowing job with
-its proof photos and the own-work note included. Part two runs as postgres: media
+portal needs, the LiDAR crown values the tree card and the tour draw (version 4),
+the world clouds of the tour's 3D world (version 5),
+the service card (unpriced, buyable) and the done mowing job with its proof
+photos and the own-work note included. Part two runs as postgres: media
 objects, persona lockdown, a billing setting that only switches the service layer
 on, the catalogue row and its seasons, the robot model that can do it, no
 service price, the job's rows (done by the robot MARABA-I), the parcels' species,
-no notification. Version 4: the owner reads parcel A's world clouds and their
-LiDAR crown measurements; their files are in both buckets (missing_media). One read-only transaction, rolled back.
+no notification. One read-only transaction, rolled back.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from . import ids
 from .dataset import (
     DEMO_SPECIES,
     FEATURED,
+    LIDAR_VERSION,
     ROBOT_MODEL_CODE,
     ROBOT_MODEL_ID,
     SERVICE_JOBS,
@@ -29,8 +31,11 @@ from .dataset import (
     WEED_HEIGHTS,
     Dataset,
 )
-from .lidar import WORLD_VISITS
+from .lidar import CODES as LIDAR_CODES
+from .lidar import METHOD as LIDAR_METHOD
+from .lidar import present_trees
 from .sqlgen import TOKEN_COLUMNS, lit
+from .world import WORLD_VISITS
 
 # Card states of public.service_offers without an open request. Which one the
 # portal shows depends on the day: the visits are fixed in the past, so out of
@@ -88,18 +93,26 @@ select json_build_object(
       where m.session_id = {lit(ids.A_SCAN_2026)} and m.tree_id is not null
       group by d.code) x),
   'viewers_a', (select count(*) from public.parcel_access where parcel_id = {lit(A)} and role = 'viewer'),
-  -- Version 4 (İP17 3D world): the world clouds of A's scans and the LiDAR crown
-  -- measurements the tour draws, as the owner reads them.
+  -- Version 5 (İP17 3D world): the world clouds of A's scans, as the owner reads them.
   'world_clouds_a', (
     select count(*) from public.asset a where a.parcel_id = {lit(A)} and a.kind = 'world_cloud'
       and a.session_id in ({", ".join(lit(ds.visit(k).id) for k in WORLD_VISITS)})
       and a.mime_type = 'application/vnd.orchados.world-cloud'),
-  'lidar_a26', (
-    select coalesce(json_object_agg(code, n), '{{}}') from (
-      select d.code, count(distinct m.tree_id) as n from public.measurement m
+  -- Version 4: LiDAR crown values per scan and metric (trees with a value), as
+  -- the tree card and the tour read them, and the featured tree's in A 2026.
+  'lidar', (
+    select coalesce(json_object_agg(session_id || ':' || code, n), '{{}}') from (
+      select m.session_id, d.code, count(distinct m.tree_id) as n from public.measurement m
       join public.metric_definition d on d.id = m.metric_definition_id
-      where m.session_id = {lit(ids.A_SCAN_2026)} and m.source = 'algorithm' and m.method = 'lidar_crown'
-      group by d.code) x),
+      join public.session s on s.id = m.session_id and s.org_id = {lit(ORG)} and s.kind = 'periodic_scan'
+      where m.source = 'algorithm' and m.method = {lit(LIDAR_METHOD)} and m.tree_id is not null
+        and m.value_numeric is not null and d.code in ({", ".join(lit(c) for c in LIDAR_CODES)})
+      group by m.session_id, d.code) x),
+  'lidar_featured', (
+    select coalesce(json_agg(distinct d.code), '[]') from public.measurement m
+    join public.metric_definition d on d.id = m.metric_definition_id
+    where m.session_id = {lit(ids.A_SCAN_2026)} and m.tree_id = {lit(featured)}
+      and m.method = {lit(LIDAR_METHOD)}),
   -- IP15 service layer: the card and the done job, as the owner reads them.
   'service_offers', (
     select coalesce(json_agg(json_build_object('parcel_id', o.parcel_id, 'code', o.service_code,
@@ -293,9 +306,6 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
         f"parcel A: {owner['world_clouds_a']} world clouds the owner reads, expected "
         f"{len(WORLD_VISITS)} ({', '.join(WORLD_VISITS)})",
     )
-    lidar = owner["lidar_a26"]
-    for code in ("tree_height", "crown_diameter", "crown_volume", "crown_base_height"):
-        need(lidar.get(code, 0) >= 50, f"A 2026: LiDAR {code} of {lidar.get(code, 0)} trees")
     codes = owner["codes_a26"]
     for code in (
         "basal_sprout_level",
@@ -305,6 +315,28 @@ def problems(owner: dict, admin: dict, ds: Dataset) -> list[str]:
         "dead_branch_scale",
     ):
         need(codes.get(code, 0) > 0, f"A 2026: no {code} values")
+    # Version 4: every tree present in a scan has a height, and nearly all a crown
+    # (the crown stage gives a bare dead tree its height only); the featured tree
+    # the full drawing.
+    lidar = owner["lidar"]
+    for v in ds.scans():
+        present = len(present_trees(ds, v))
+        n = {c: lidar.get(f"{v.id}:{c}", 0) for c in LIDAR_CODES}
+        need(
+            n["tree_height"] == present,
+            f"{v.key}: {n['tree_height']} trees with a LiDAR tree_height, expected {present} "
+            f"(dataset version {LIDAR_VERSION})",
+        )
+        need(
+            n["crown_diameter"] == n["crown_volume"] == n["crown_base_height"]
+            and n["crown_diameter"] >= 0.9 * present,
+            f"{v.key}: LiDAR crown values {n} for {present} trees",
+        )
+    need(
+        {"tree_height", "crown_diameter", "crown_base_height"} <= set(owner["lidar_featured"]),
+        f"featured tree: LiDAR values {owner['lidar_featured']} in A 2026, the crown "
+        "drawing needs height, diameter and base",
+    )
     need(
         admin["missing_media"] == 0,
         f"{admin['missing_media']} storage:// uris without an object in media",

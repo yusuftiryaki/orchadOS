@@ -11,7 +11,7 @@ import pytest
 
 from orchados_pipeline.demo import build as demo_build
 from orchados_pipeline.demo import closeups, dataset, render
-from orchados_pipeline.demo import lidar as demo_lidar
+from orchados_pipeline.demo import world as demo_world
 from orchados_pipeline.demo.dataset import CAMERA_HEIGHT_M
 
 
@@ -49,7 +49,7 @@ def test_full_profile_estimate_is_at_most_150_mb(fresh_build):
     }
     ratio["service_photo"] = ratio["closeup"]
     # A world cloud is 11 bytes per point: it grows with the point budget, not 0.75.
-    pts = demo_lidar.WORLD_PARAMS
+    pts = demo_world.WORLD_PARAMS
     ratio["world_cloud"] = (pts["full"]["max_points"] / pts["test"]["max_points"]) ** (4 / 3)
     estimate = sum(f["bytes"] * ratio[f["kind"]] ** 0.75 for f in manifest["files"])
     assert estimate <= 150_000_000, f"full profile estimate {estimate / 1e6:.0f} MB"
@@ -190,7 +190,7 @@ def test_sun_is_up_in_the_morning_of_july():
 
 
 def test_world_clouds(fresh_build):
-    """Version 4: parcel A's scans carry a world cloud within the test budget, coloured
+    """Version 5: parcel A's scans carry a world cloud within the test budget, coloured
     from their panoramas, in the parcel's frame, with the visit's trees and no time."""
     from orchados_pipeline.demo.build import ANTENNA_HEIGHT_M
     from orchados_pipeline.lidar.world import NO_TREE, read_world
@@ -198,7 +198,7 @@ def test_world_clouds(fresh_build):
     root, manifest, _s = fresh_build
     ds = dataset.load()
     worlds = {r["visit"]: r["world"] for r in manifest["runs"] if "world" in r}
-    assert set(worlds) == set(demo_lidar.WORLD_VISITS)
+    assert set(worlds) == set(demo_world.WORLD_VISITS)
     files = {f["sha256"]: f for f in manifest["files"]}
     for key, info in worlds.items():
         v = ds.visit(key)
