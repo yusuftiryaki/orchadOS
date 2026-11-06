@@ -29,7 +29,37 @@ export interface WorldCloudHeader {
   colorized: boolean;
   method: string;
   method_version: string;
+  // Winter scans (Faz 2b): branch skeleton segments and pruning cuts.
+  segment_count?: number;
+  cut_count?: number;
+  skeleton?: {
+    method: string;
+    method_version: string;
+    pruning: { method: string; method_version: string; before_session_id: string } | null;
+  } | null;
 }
+
+// The branch skeleton of a winter scan and the wood pruned since the previous
+// one (docs/arayuzler.md, "Kış iskeleti ve budama"), in the cloud's frame.
+export interface WorldSkeleton {
+  segmentCount: number;
+  // Segment ends, east/north/up metres (x0 y0 z0 x1 …).
+  a: Float32Array;
+  b: Float32Array;
+  // Metres.
+  radius: Float32Array;
+  tree: Uint16Array;
+  // 0 standing wood, 1 removed since the previous winter scan.
+  kind: Uint8Array;
+  cutCount: number;
+  cutPosition: Float32Array;
+  // Metres.
+  cutDiameter: Float32Array;
+  cutTree: Uint16Array;
+}
+
+export const SEGMENT_STANDING = 0;
+export const SEGMENT_PRUNED = 1;
 
 export interface WorldCloud {
   header: WorldCloudHeader;
@@ -42,6 +72,8 @@ export interface WorldCloud {
   tree: Uint16Array;
   // Tree index -> tree id.
   treeIds: Map<number, string>;
+  // Winter scans only; null when the file has none (or it is not loaded yet).
+  skeleton?: WorldSkeleton | null;
 }
 
 export class WorldCloudError extends Error {}
@@ -142,6 +174,92 @@ export function assembleCloud(
   return { header, count, enu, color, tree, treeIds };
 }
 
+// The optional winter arrays: name, type, components, which count they follow.
+const SKELETON_ARRAYS: [string, "uint8" | "uint16", number, "segment" | "cut"][] = [
+  ["segment_a", "uint16", 3, "segment"],
+  ["segment_b", "uint16", 3, "segment"],
+  ["segment_radius", "uint16", 1, "segment"],
+  ["segment_tree", "uint16", 1, "segment"],
+  ["segment_kind", "uint8", 1, "segment"],
+  ["cut_position", "uint16", 3, "cut"],
+  ["cut_diameter", "uint16", 1, "cut"],
+  ["cut_tree", "uint16", 1, "cut"],
+];
+
+function skeletonCounts(header: WorldCloudHeader) {
+  const segment = header.segment_count ?? 0;
+  const cut = header.cut_count ?? 0;
+  if (![segment, cut].every((n) => Number.isInteger(n) && n >= 0)) {
+    throw new WorldCloudError("bad segment_count or cut_count");
+  }
+  return { segment, cut };
+}
+
+// Byte range [start, end) of the winter arrays (they close the file); null
+// when the file has none.
+export function skeletonRange(header: WorldCloudHeader): [number, number] | null {
+  const counts = skeletonCounts(header);
+  if (counts.segment === 0 && counts.cut === 0) return null;
+  let start = Infinity;
+  let end = 0;
+  for (const [name, type, components, of] of SKELETON_ARRAYS) {
+    const spec = header.arrays?.[name];
+    const n = counts[of];
+    if (n === 0) continue;
+    if (!spec || spec.type !== type || spec.components !== components || spec.offset % 4 !== 0) {
+      throw new WorldCloudError(`array ${name} must be ${type} x ${components}`);
+    }
+    start = Math.min(start, spec.offset);
+    end = Math.max(end, spec.offset + n * components * BYTES[type]);
+  }
+  return [start, end];
+}
+
+// The winter arrays from `bytes`, which hold the file from offset `base`.
+export function assembleSkeleton(
+  header: WorldCloudHeader,
+  bytes: ArrayBuffer,
+  base: number,
+): WorldSkeleton {
+  const counts = skeletonCounts(header);
+  const { min, scale } = header.quantization;
+  const get = (name: string, type: "uint8" | "uint16", components: number, n: number) => {
+    if (n === 0) return type === "uint16" ? new Uint16Array(0) : new Uint8Array(0);
+    const at = header.arrays[name].offset - base;
+    const length = n * components;
+    if (at < 0 || at + length * BYTES[type] > bytes.byteLength) {
+      throw new WorldCloudError(`array ${name} out of bounds`);
+    }
+    return type === "uint16"
+      ? new Uint16Array(bytes.slice(at, at + length * 2))
+      : new Uint8Array(bytes.slice(at, at + length));
+  };
+  const enu = (q: Uint16Array) => {
+    const out = new Float32Array(q.length);
+    for (let i = 0; i < q.length; i += 3) {
+      out[i] = min[0] + q[i] * scale[0];
+      out[i + 1] = min[1] + q[i + 1] * scale[1];
+      out[i + 2] = min[2] + q[i + 2] * scale[2];
+    }
+    return out;
+  };
+  const metres = (mm: Uint16Array) => Float32Array.from(mm, (v) => v / 1000);
+  const s = counts.segment;
+  const c = counts.cut;
+  return {
+    segmentCount: s,
+    a: enu(get("segment_a", "uint16", 3, s) as Uint16Array),
+    b: enu(get("segment_b", "uint16", 3, s) as Uint16Array),
+    radius: metres(get("segment_radius", "uint16", 1, s) as Uint16Array),
+    tree: get("segment_tree", "uint16", 1, s) as Uint16Array,
+    kind: get("segment_kind", "uint8", 1, s) as Uint8Array,
+    cutCount: c,
+    cutPosition: enu(get("cut_position", "uint16", 3, c) as Uint16Array),
+    cutDiameter: metres(get("cut_diameter", "uint16", 1, c) as Uint16Array),
+    cutTree: get("cut_tree", "uint16", 1, c) as Uint16Array,
+  };
+}
+
 export function parseWorldCloud(buffer: ArrayBuffer): WorldCloud {
   const header = parseHeader(buffer);
   const n = header.point_count;
@@ -150,59 +268,100 @@ export function parseWorldCloud(buffer: ArrayBuffer): WorldCloud {
     if (b > buffer.byteLength) throw new WorldCloudError(`array ${name} out of bounds`);
     return buffer.slice(a, b);
   };
-  return assembleCloud(header, n, {
+  const cloud = assembleCloud(header, n, {
     position: slice("position"),
     color: slice("color"),
     tree: slice("tree"),
   });
+  cloud.skeleton = skeletonRange(header) ? assembleSkeleton(header, buffer, 0) : null;
+  return cloud;
 }
 
-// Builds a file in the same layout (tests and fixtures).
+// Builds a file in the same layout (tests and fixtures). The winter arrays
+// are written when `skeleton` is given.
+export interface EncodedSkeleton {
+  segments: {
+    a: [number, number, number];
+    b: [number, number, number];
+    radiusMm: number;
+    tree: number;
+    kind: number;
+  }[];
+  cuts: { q: [number, number, number]; diameterMm: number; tree: number }[];
+}
+
 export function encodeWorldCloud(
   header: Omit<WorldCloudHeader, "arrays" | "point_count" | "schema">,
   points: { q: [number, number, number]; rgb: [number, number, number]; tree: number }[],
+  skeleton?: EncodedSkeleton,
 ): ArrayBuffer {
   const n = points.length;
+  const arrays: [string, "uint8" | "uint16", number, number[]][] = [
+    ["position", "uint16", 3, points.flatMap((p) => p.q)],
+    ["color", "uint8", 3, points.flatMap((p) => p.rgb)],
+    ["tree", "uint16", 1, points.map((p) => p.tree)],
+  ];
+  const extra: Record<string, unknown> = {};
+  if (skeleton) {
+    const sg = skeleton.segments;
+    const ct = skeleton.cuts;
+    extra.segment_count = sg.length;
+    extra.cut_count = ct.length;
+    arrays.push(
+      ["segment_a", "uint16", 3, sg.flatMap((x) => x.a)],
+      ["segment_b", "uint16", 3, sg.flatMap((x) => x.b)],
+      ["segment_radius", "uint16", 1, sg.map((x) => x.radiusMm)],
+      ["segment_tree", "uint16", 1, sg.map((x) => x.tree)],
+      ["segment_kind", "uint8", 1, sg.map((x) => x.kind)],
+      ["cut_position", "uint16", 3, ct.flatMap((x) => x.q)],
+      ["cut_diameter", "uint16", 1, ct.map((x) => x.diameterMm)],
+      ["cut_tree", "uint16", 1, ct.map((x) => x.tree)],
+    );
+  }
   const align = (x: number) => Math.ceil(x / 4) * 4;
   const draft = (offsets: number[]) =>
     new TextEncoder().encode(
       JSON.stringify({
         ...header,
+        ...extra,
         schema: WORLD_CLOUD_SCHEMA,
         point_count: n,
-        arrays: {
-          position: { offset: offsets[0], type: "uint16", components: 3 },
-          color: { offset: offsets[1], type: "uint8", components: 3 },
-          tree: { offset: offsets[2], type: "uint16", components: 1 },
-        },
+        arrays: Object.fromEntries(
+          arrays.map(([name, type, components], i) => [
+            name,
+            { offset: offsets[i], type, components },
+          ]),
+        ),
       }),
     );
   // Offsets depend on the header length, which depends on the offsets:
   // iterate to the fixed point (a few rounds at most).
-  let offsets = [0, 0, 0];
+  let offsets = arrays.map(() => 0);
   let json = draft(offsets);
   for (;;) {
-    const p0 = align(8 + json.length);
-    const p1 = align(p0 + n * 6);
-    const next = [p0, p1, align(p1 + n * 3)];
+    const next: number[] = [];
+    let at = align(8 + json.length);
+    for (const [, type, , values] of arrays) {
+      next.push(at);
+      at = align(at + values.length * BYTES[type]);
+    }
     if (next.every((v, i) => v === offsets[i])) break;
     offsets = next;
     json = draft(offsets);
   }
-  const [p0, p1, p2] = offsets;
-  const total = align(p2 + n * 2);
+  const last = arrays.length - 1;
+  const total = align(offsets[last] + arrays[last][3].length * BYTES[arrays[last][1]]);
   const buffer = new ArrayBuffer(total);
   const bytes = new Uint8Array(buffer);
   bytes.set(new TextEncoder().encode(WORLD_CLOUD_MAGIC), 0);
   new DataView(buffer).setUint32(4, json.length, true);
   bytes.set(json, 8);
-  const pos = new Uint16Array(buffer, p0, n * 3);
-  const col = new Uint8Array(buffer, p1, n * 3);
-  const tr = new Uint16Array(buffer, p2, n);
-  points.forEach((p, i) => {
-    pos.set(p.q, i * 3);
-    col.set(p.rgb, i * 3);
-    tr[i] = p.tree;
+  arrays.forEach(([, type, , values], i) => {
+    const view =
+      type === "uint16"
+        ? new Uint16Array(buffer, offsets[i], values.length)
+        : new Uint8Array(buffer, offsets[i], values.length);
+    view.set(values);
   });
   return buffer;
 }

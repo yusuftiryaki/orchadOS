@@ -662,6 +662,28 @@ Gezideki 3D dünyanın ([3d-dunya.md](3d-dunya.md)) gösterdiği, sahibe açık,
 - **Renk:** Her nokta, kendisini gören (derinlik tamponuyla örtülmemiş) en yakın panoramanın pikselinden renk alır. Hiçbir panoramanın görmediği nokta en yakın renkli komşusunun rengini alır.
 - **Sürüm:** Biçim değişirse `schema` ve sihirli sözcük birlikte artar; web bilmediği şemayı reddeder.
 
+**Kış iskeleti ve budama (isteğe bağlı, Faz 2b):** Kış taramasının bulutu dal iskeletini ve önceki kış taramasına göre budanan dalları da taşıyabilir. Ek diziler isteğe bağlıdır; onları bilmeyen okuyucu yok sayar, şema `orchados.world_cloud/1` olarak kalır. Ek başlık alanları:
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `segment_count`, `cut_count` | int | İskelet parçası ve kesim sayısı; yoksa 0 |
+| `skeleton` | nesne ya da yok | `{method, method_version, params_hash, pruning: {method, method_version, params_hash, before_session_id} \| null}`; zaman taşımaz |
+
+Ek diziler (konumlar noktalarla aynı nicemlemeyle; sınır kutusu parçaları ve kesimleri de kapsar):
+
+| Dizi | Tür | Anlamı |
+| --- | --- | --- |
+| `segment_a`, `segment_b` | `uint16` × 3 | Parçanın iki ucu (iskelet kenarı: düğüm ile üst düğümü) |
+| `segment_radius` | `uint16` × 1 | Parçanın yarıçapı, milimetre (iki ucun ortalaması) |
+| `segment_tree` | `uint16` × 1 | Ağaç sırası (`trees` ile aynı numaralama) |
+| `segment_kind` | `uint8` × 1 | `0`: bu taramada duran odun; `1`: önceki kış taramasından bu yana kesilmiş (önceki iskeletin kesilen alt ağaçları, hizalamayla bu taramanın düzlemine taşınmış) |
+| `cut_position` | `uint16` × 3 | Kesim noktası (`pruning.json` `cuts[].xyz`, bu taramanın düzleminde) |
+| `cut_diameter` | `uint16` × 1 | Kesim çapı, milimetre |
+| `cut_tree` | `uint16` × 1 | Ağaç sırası |
+
+- Kaynak: `skeleton.json` (`orchados.lidar_skeleton/1`; düğümler ağaç düzleminde, `center_en` ve `ground_z` ile bulut düzlemine çevrilir) ve varsa bu taramayı "sonra" olarak alan `pruning.json` (`orchados.lidar_pruning/1`; kesimler önceki iskeletin düğüm numaralarını taşır, hizalama `alignment` ile ters çevrilir).
+- Yalnız durumu yeterli ağaçlar yazılır (`one_sided` ve noktası az olanlar yok). 5 mm'den kısa parçalar atılır.
+
 ## Kit kimlik çipi
 
 Tarama kiti robota (`yusuftiryaki/hoverboard`) bir soket üzerinden takılabilir. Kitin fişindeki **DS2431** (1-Wire EEPROM, 128 bayt) kitin manifestini taşır. Robot bu manifesti okur ve kitin frame'lerini (`kit_gnss`, `kit_cam360`, `kit_lidar`) statik TF olarak yayınlar.

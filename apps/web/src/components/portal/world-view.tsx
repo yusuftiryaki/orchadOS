@@ -11,6 +11,7 @@ import { crownGuide, type CrownMeasure, type CrownValues } from "@/lib/portal/cr
 import type { WorldCloud } from "@/lib/world/format";
 import { changeSpan, localFrame, toEN, type LocalFrame } from "@/lib/world/geometry";
 import { loadWorldCloud } from "@/lib/world/stream";
+import { winterSummary, type TreeWinter, type WinterSummary } from "@/lib/world/skeleton";
 import { growthOf, worldVisits, type Growth, type WorldVisit } from "@/lib/world/visits";
 import { WorldScene, type ColorMode, type SceneTree, type SceneVisit } from "./world-scene";
 import styles from "./world.module.css";
@@ -84,6 +85,9 @@ export default function WorldView({
   // The visit on screen and the one whose cloud is on its way.
   const [shown, setShown] = useState(visitId);
   const [pending, setPending] = useState<string | null>(null);
+  // Winter scans: their skeleton and cuts (known once the whole cloud is in).
+  const [winter, setWinter] = useState<Record<string, WinterSummary>>({});
+  const [skeletonOn, setSkeletonOn] = useState(true);
   // The opening view, data and callbacks are read once, when the scene is built.
   const startRef = useRef({ start, cameraHeightM, trees, visits, onExit });
   useEffect(() => {
@@ -108,7 +112,10 @@ export default function WorldView({
         signal,
         onCoarse: (c) => !signal.aborted && onCloud(c),
       });
-      if (!signal.aborted) onCloud(whole);
+      if (signal.aborted) return;
+      onCloud(whole);
+      const summary = winterSummary(whole);
+      if (summary) setWinter((w) => ({ ...w, [id]: summary }));
     },
     [parcelId],
   );
@@ -207,6 +214,7 @@ export default function WorldView({
   }, [status]);
 
   const shownVisit = visits.find((v) => v.id === shown) ?? null;
+  const shownWinter = winter[shown] ?? null;
   const choices = useMemo(() => worldVisits(visits), [visits]);
   const growth = useMemo(
     () =>
@@ -227,6 +235,10 @@ export default function WorldView({
   useEffect(() => {
     sceneRef.current?.setColorMode(shownMode);
   }, [shownMode, status]);
+
+  useEffect(() => {
+    sceneRef.current?.setSkeleton(skeletonOn);
+  }, [skeletonOn, status, winter]);
 
   const tree = useMemo(() => trees.find((x) => x.id === selected) ?? null, [trees, selected]);
   const legend = useMemo(() => {
@@ -262,6 +274,7 @@ export default function WorldView({
       data-status={status}
       data-visit={shown}
       data-pending={pending ?? ""}
+      data-winter={shownWinter ? "true" : "false"}
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
         // The tour's own Escape (tree focus) must not see it.
@@ -314,6 +327,30 @@ export default function WorldView({
             </select>
           </label>
         )}
+        {status === "world" && shownWinter && (
+          <label className={styles.mode}>
+            <input
+              type="checkbox"
+              checked={skeletonOn}
+              onChange={(e) => setSkeletonOn(e.target.checked)}
+              data-testid="world-skeleton"
+            />
+            {tw.skeleton}
+          </label>
+        )}
+        {status === "world" && shownWinter && skeletonOn && (
+          <div className={styles.legend} data-testid="world-skeleton-legend">
+            <span>
+              <span className={styles.swatchWood} aria-hidden="true" /> {tw.skeletonWood}
+            </span>
+            {shownWinter.pruning && (
+              <span>
+                <span className={styles.swatchPruned} aria-hidden="true" />{" "}
+                {tw.skeletonPruned(shownWinter.cuts)}
+              </span>
+            )}
+          </div>
+        )}
         {status === "world" && legend && (
           <div className={styles.legend} data-testid="world-legend">
             <span
@@ -353,6 +390,8 @@ export default function WorldView({
           <CrownFacts
             crown={shownVisit?.crowns[tree.id] ?? null}
             growth={growth.get(tree.id) ?? null}
+            winter={shownWinter ? (shownWinter.byTree.get(tree.id) ?? null) : undefined}
+            pruning={shownWinter?.pruning ?? false}
           />
           <div className={styles.actions}>
             <button
@@ -393,7 +432,18 @@ class SignError extends Error {
   }
 }
 
-function CrownFacts({ crown, growth }: { crown: CrownValues | null; growth: Growth | null }) {
+function CrownFacts({
+  crown,
+  growth,
+  winter,
+  pruning,
+}: {
+  crown: CrownValues | null;
+  growth: Growth | null;
+  // A winter scan's skeleton facts of the tree (undefined: not a winter scan).
+  winter?: TreeWinter | null;
+  pruning: boolean;
+}) {
   const rows = (
     [
       [tt.crownHeight, crown?.heightM ?? null, "m"],
@@ -402,7 +452,18 @@ function CrownFacts({ crown, growth }: { crown: CrownValues | null; growth: Grow
       [tw.crownBase, crown?.baseM ?? null, "m"],
     ] as [string, CrownMeasure | null, string][]
   ).filter((r): r is [string, CrownMeasure, string] => r[1] !== null);
-  if (rows.length === 0) return <p>{tw.noMeasurements}</p>;
+  const winterRow =
+    winter !== undefined && pruning ? (
+      <div data-testid="world-tree-cuts">
+        <dt>{tw.cuts}</dt>
+        <dd>
+          {winter && winter.cuts > 0
+            ? tw.cutsValue(winter.cuts, formatMeasure(winter.prunedLengthM, "m"))
+            : tw.noCuts}
+        </dd>
+      </div>
+    ) : null;
+  if (rows.length === 0 && !winterRow) return <p>{tw.noMeasurements}</p>;
   return (
     <dl className={styles.facts} aria-label={tt.crown} data-testid="world-tree-crown">
       {rows.map(([label, m, unit]) => (
@@ -411,6 +472,7 @@ function CrownFacts({ crown, growth }: { crown: CrownValues | null; growth: Grow
           <dd>{formatMeasure(m.value, unit, m.uncertainty)}</dd>
         </div>
       ))}
+      {winterRow}
       {growth && (
         <div data-testid="world-tree-growth">
           <dt>{tw.growth}</dt>

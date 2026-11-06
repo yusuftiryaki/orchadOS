@@ -1,9 +1,11 @@
 import {
   arrayRange,
   assembleCloud,
+  assembleSkeleton,
   headerBytes,
   parseHeader,
   parseWorldCloud,
+  skeletonRange,
   WorldCloudError,
   type WorldCloud,
   type WorldCloudHeader,
@@ -69,17 +71,32 @@ export async function loadWorldCloud(url: string, options: LoadOptions = {}): Pr
     return { position: buffers[0], color: buffers[1], tree: buffers[2] };
   };
 
+  // A winter scan's skeleton and cuts close the file: one range after the points.
+  const withSkeleton = async (cloud: WorldCloud) => {
+    const range = skeletonRange(header);
+    if (!range) {
+      cloud.skeleton = null;
+      return cloud;
+    }
+    const r = await get(...range);
+    if (!r.ranged) throw new WorldCloudError("the server stopped answering ranges");
+    cloud.skeleton = assembleSkeleton(header, r.buffer, range[0]);
+    return cloud;
+  };
+
   const share = options.share ?? COARSE_SHARE;
   const k = n <= MIN_COARSE_POINTS ? n : Math.min(n, Math.ceil(n * share));
   const head = await part(0, k);
-  if (k === n) return assembleCloud(header, n, head);
+  if (k === n) return withSkeleton(assembleCloud(header, n, head));
   options.onCoarse?.(assembleCloud(header, k, head));
   const rest = await part(k, n);
-  return assembleCloud(header, n, {
-    position: concat(head.position, rest.position),
-    color: concat(head.color, rest.color),
-    tree: concat(head.tree, rest.tree),
-  });
+  return withSkeleton(
+    assembleCloud(header, n, {
+      position: concat(head.position, rest.position),
+      color: concat(head.color, rest.color),
+      tree: concat(head.tree, rest.tree),
+    }),
+  );
 }
 
 function concat(a: ArrayBuffer, b: ArrayBuffer): ArrayBuffer {
