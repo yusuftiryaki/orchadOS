@@ -11,6 +11,9 @@ import {
   startReview,
 } from "@/lib/expert/decisions";
 import { createFinding, deleteFinding, updateFinding } from "@/lib/expert/findings";
+import { isSizeClass } from "@/lib/lidar/size-class";
+import { signStaffWorldCloud } from "@/lib/lidar/staff";
+import { setTreeAttributes } from "@/lib/office/inventory-edits";
 import { approveFinding, cancelFollowup, requestFollowup } from "@/lib/expert/followups";
 import { parseFilter, reviewHref, safeReturnPath, summaryHref, withParam } from "@/lib/expert/urls";
 import { editMessage, replyToQuestion, type QuestionWriteResult } from "@/lib/portal/questions";
@@ -211,4 +214,43 @@ export async function approveFindingAction(form: FormData) {
   const back = safeReturnPath(text(form, "return"), sessionId);
   const result = await approveFinding(await createClient(), text(form, "findingId"));
   redirect(withParam(back, "bulgu_hata", result.ok ? null : "write_failed"));
+}
+
+// LiDAR size class suggestion of the tree review (docs/3d-dunya.md §9.2):
+// the tree's recorded age class becomes the suggested one.
+export async function acceptSizeClassAction(form: FormData) {
+  await requireSection("uzman");
+  const sessionId = text(form, "sessionId");
+  const treeId = text(form, "treeId");
+  const filter = parseFilter(text(form, "filter"));
+  const sizeClass = text(form, "sizeClass");
+  const supabase = await createClient();
+  const result = isSizeClass(sizeClass)
+    ? await setTreeAttributes(supabase, {
+        parcelId: text(form, "parcelId"),
+        treeIds: [treeId],
+        attributes: { ageClass: sizeClass },
+      })
+    : { ok: false as const };
+  revalidatePath(`/uzman/ziyaret/${sessionId}`);
+  redirect(
+    withParam(
+      reviewHref(sessionId, { tree: treeId, filter }),
+      "lidar",
+      result.ok ? "ok" : "failed",
+    ),
+  );
+}
+
+// Signed URL of one of the parcel's 3D world clouds (components/staff/staff-world.tsx).
+export async function signStaffWorldAction(
+  parcelId: unknown,
+  assetId: unknown,
+): Promise<{ url: string | null; capped: boolean }> {
+  const user = await requireSection("uzman");
+  if (typeof parcelId !== "string" || typeof assetId !== "string") {
+    return { url: null, capped: false };
+  }
+  const url = await signStaffWorldCloud(await createClient(), parcelId, assetId, user.id);
+  return { url, capped: false };
 }

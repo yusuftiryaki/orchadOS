@@ -12,6 +12,8 @@ import {
   setTreeAttributes,
   type EditResult,
 } from "@/lib/office/inventory-edits";
+import { isSizeClass } from "@/lib/lidar/size-class";
+import { signStaffWorldCloud } from "@/lib/lidar/staff";
 import { createClient } from "@/lib/supabase/server";
 import type { Client } from "@/lib/supabase/types";
 
@@ -63,4 +65,32 @@ export async function recordVerificationResultAction(input: unknown) {
 
 export async function closeVerificationItemAction(input: unknown) {
   return run(input, closeVerificationItem);
+}
+
+// The 3D world of the workspace (components/staff/staff-world.tsx): a
+// signed URL of one of the parcel's clouds, and accepting a tree's LiDAR
+// size class suggestion (docs/3d-dunya.md §9.3).
+export async function signOfficeWorldAction(
+  parcelId: unknown,
+  assetId: unknown,
+): Promise<{ url: string | null; capped: boolean }> {
+  const user = await requireSection("ofis");
+  if (typeof parcelId !== "string" || typeof assetId !== "string") {
+    return { url: null, capped: false };
+  }
+  const url = await signStaffWorldCloud(await createClient(), parcelId, assetId, user.id);
+  return { url, capped: false };
+}
+
+export async function acceptSizeClassAction(
+  parcelId: unknown,
+  treeId: unknown,
+  sizeClass: unknown,
+): Promise<{ ok: boolean }> {
+  if (!isSizeClass(sizeClass)) return { ok: false };
+  const result = await run(
+    { parcelId, treeIds: [treeId], attributes: { ageClass: sizeClass } },
+    setTreeAttributes,
+  );
+  return { ok: result.ok };
 }

@@ -560,3 +560,9 @@ td input.cellInput {
 .scroll th:first-child:has(:global(.sr-only)) {
   width: 1%;
 }
+
+/* LiDAR size class suggestion that differs from the recorded class. */
+.suggestionDiffers {
+  font-weight: 600;
+  color: var(--color-warning);
+}

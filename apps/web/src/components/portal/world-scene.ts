@@ -47,7 +47,11 @@ import {
 // sample, and the old layer's k shrinks while the new one's grows. A layer
 // can arrive coarse (the first quarter of its points) and be completed later.
 
-export type ColorMode = "photo" | "height" | "diameter" | "growth";
+export type ColorMode = "photo" | "height" | "diameter" | "growth" | "sizeClass";
+
+// Staff (Faz 3): how the tree's LiDAR size class suggestion compares with its
+// recorded class (docs/3d-dunya.md §9.4); null: no suggestion.
+export type SizeFlag = "match" | "differs";
 
 export interface SceneTree {
   id: string;
@@ -59,6 +63,7 @@ export interface SceneTree {
   diameterM: number | null;
   // Change of the height since the previous visit that measured the tree.
   growthM: number | null;
+  sizeFlag?: SizeFlag | null;
 }
 
 export interface SceneVisit {
@@ -82,6 +87,9 @@ export interface WorldSceneOptions {
   fovDeg: number;
   cameraHeightM: number;
   reducedMotion: boolean;
+  // Staff (Faz 3): no panorama to start from; the world opens straight in the
+  // overview and closes at once.
+  startOverview?: boolean;
   labelText: (tree: SceneTree) => string;
   onSelect: (treeId: string | null) => void;
   onEntered: () => void;
@@ -116,6 +124,11 @@ const DEFAULT_TOP_M = 4;
 const NO_DEPTH = 1e6;
 const BACKGROUND = 0x0d1b24;
 const GUIDE = 0xffffff;
+// Size class mode (sRGB bytes): the suggestion differs / matches.
+const FLAG_COLORS: Record<SizeFlag, readonly number[]> = {
+  differs: [245, 140, 40],
+  match: [90, 185, 120],
+};
 const GUIDE_SELECTED = 0xffcf4d;
 
 const POINT_VERTEX = /* glsl */ `
@@ -405,6 +418,18 @@ export class WorldScene {
     this.showSkeletons();
   }
 
+  // Staff: the size class flags changed (a suggestion was accepted).
+  setSizeFlags(flags: Record<string, SizeFlag>) {
+    for (const layer of this.layers.values()) {
+      layer.trees = layer.trees.map((t) => ({ ...t, sizeFlag: flags[t.id] ?? null }));
+    }
+    this.trees = this.layer.trees;
+    if (this.mode === "sizeClass") {
+      for (const layer of this.layers.values()) this.paint(layer);
+    }
+    this.dirty = true;
+  }
+
   setColorMode(mode: ColorMode) {
     this.mode = mode;
     this.paint(this.layer);
@@ -452,7 +477,7 @@ export class WorldScene {
     this.current = this.poseNow();
     this.phase = "exiting";
     this.phaseStart = performance.now();
-    if (this.options.reducedMotion) this.phaseStart -= EXIT_MS;
+    if (this.instant) this.phaseStart -= EXIT_MS;
   }
 
   dispose() {
@@ -568,12 +593,16 @@ export class WorldScene {
     }
     const byId = new Map(layer.trees.map((t) => [t.id, t]));
     const colorOf: (number[] | null)[] = [];
-    const value = (t: SceneTree | undefined) =>
+    const value = (t: SceneTree | undefined): number | null =>
       (this.mode === "height"
         ? t?.heightM
         : this.mode === "diameter"
           ? t?.diameterM
           : t?.growthM) ?? null;
+    if (this.mode === "sizeClass") {
+      this.paintFlags(layer);
+      return;
+    }
     const values = layer.trees.map(value).filter((v): v is number => v !== null);
     const min = values.length ? Math.min(...values) : 0;
     const max = values.length ? Math.max(...values) : 1;
@@ -595,6 +624,33 @@ export class WorldScene {
         out[i * 3 + 2] = c[2];
       } else {
         // Ground and unmeasured trees: the photo colour, dimmed and greyed.
+        const g = (photo[i * 3] + photo[i * 3 + 1] + photo[i * 3 + 2]) / 3;
+        out[i * 3] = out[i * 3 + 1] = out[i * 3 + 2] = Math.round(g * 0.55);
+      }
+    }
+    attr.needsUpdate = true;
+  }
+
+  // Size class mode: differing suggestions orange, matching ones green, the
+  // rest (and the ground) greyed photo colours.
+  private paintFlags(layer: Layer) {
+    const attr = layer.points.geometry.getAttribute("aColor") as THREE.BufferAttribute;
+    const out = attr.array as Uint8Array;
+    const photo = layer.cloud.color;
+    const flags = new Map(layer.trees.map((t) => [t.id, t.sizeFlag ?? null]));
+    const colorOf: (readonly number[] | null)[] = [];
+    for (const [index, id] of layer.cloud.treeIds) {
+      const flag = flags.get(id);
+      colorOf[index] = flag ? FLAG_COLORS[flag] : null;
+    }
+    const { tree } = layer.cloud;
+    for (let i = 0; i < tree.length; i++) {
+      const c = tree[i] === NO_TREE ? null : colorOf[tree[i]];
+      if (c) {
+        out[i * 3] = c[0];
+        out[i * 3 + 1] = c[1];
+        out[i * 3 + 2] = c[2];
+      } else {
         const g = (photo[i * 3] + photo[i * 3 + 1] + photo[i * 3 + 2]) / 3;
         out[i * 3] = out[i * 3 + 1] = out[i * 3 + 2] = Math.round(g * 0.55);
       }
@@ -646,12 +702,17 @@ export class WorldScene {
   // Pose the exit starts from.
   private current: Pose | null = null;
 
+  // No transition: reduced motion, or a world opened without a panorama.
+  private get instant() {
+    return this.options.reducedMotion || !!this.options.startOverview;
+  }
+
   private readonly tick = () => {
     if (this.disposed) return;
     this.frame = requestAnimationFrame(this.tick);
     const now = performance.now();
     if (this.phase === "entering") {
-      const ms = this.options.reducedMotion ? ENTER_MS : now - this.phaseStart;
+      const ms = this.instant ? ENTER_MS : now - this.phaseStart;
       this.applyState(enterState(ms), this.start, this.overview, true);
       if (ms >= ENTER_MS) {
         this.phase = "world";

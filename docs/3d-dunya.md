@@ -19,8 +19,8 @@ Bulutun dosya biçimi bileşenler arası bir sözleşmedir: [arayuzler.md](arayu
 | Kademeli yükleme (önce dörtte bir, sonra kalanı), denetimler arası geçiş, boy değişimi kipi | Var (Faz 2) |
 | Kış iskeleti ve budama görünümü | Var (Faz 2b): bulut dosyasında isteğe bağlı iskelet ve kesim dizileri, `lidar world --skeleton --pruning`, 3D dünyada tüpler, kırmızı budanan dallar ve kesim noktaları, demo verisi sürüm 6 (A'nın iki kış taraması) |
 | Oktree ile ayrıntı düzeyi (çok büyük bahçeler) | Faz 2b; gerçek bulut boyutu görülünce karar |
-| Uzman paneli ve ofis aracında 3D dünya | Faz 3 |
-| Gerçek LiDAR verisi | Kayıt adımı (MCAP → bulut) ve LiDAR'lı kit bekleniyor ([lidar-olcumleri.md](lidar-olcumleri.md) §1) |
+| Uzman paneli ve ofis çalışma alanında 3D dünya, büyüklük sınıfı önerisinin kabulü | Var (Faz 3, §9) |
+| Gerçek LiDAR verisi | Karar (11 Kasım 2026): kit LiDAR'lı yapılır. Kayıt adımı (MCAP → bulut) ve kitin kendisi bekleniyor ([lidar-olcumleri.md](lidar-olcumleri.md) §1) |
 
 [MVP.md](MVP.md)'de "Gerçek 3D model" kapsam dışıdır. 3D dünya bir model değil, ölçülmüş bulutun kendisidir ve ayrı bir iş paketidir ([plan.md](plan.md), İP17).
 
@@ -79,7 +79,7 @@ flowchart LR
 | Kim | Dünya bulutu satırı | Dosya |
 | --- | --- | --- |
 | Sahip, hissedar, demo ziyaretçisi | Yayımlanmış ziyaretlerinin bulutu (`asset_parcel_reader_kinds`, `asset_select`) | İmzalanır (`authz.parcel_reader_media_object`); demoda herkese açık `demo-media` aynası, `demo_hit('sign')` sayacıyla |
-| Kurum personeli | Hepsi | Hepsi |
+| Kurum personeli | Hepsi, incelemedeki ziyaretler dahil | Hepsi; uzman panelinde ve ofis çalışma alanında personel imzasıyla (§9) |
 | Başkası | Hiçbiri | Hiçbiri |
 
 Ham `point_cloud`, yörünge ve GNSS kayıtları yalnız personele açıktır; bu değişmedi. pgTAP: `supabase/tests/79_world_cloud.test.sql`.
@@ -111,7 +111,7 @@ Ham `point_cloud`, yörünge ve GNSS kayıtları yalnız personele açıktır; b
 - **Yapıldı (Faz 2b):** Kış iskeleti ve budama görünümü. Yeni asset türü açılmadı. İskelet ve kesimler aynı `world_cloud` dosyasında isteğe bağlı dizilerdir ([arayuzler.md](arayuzler.md#3d-dünya-bulutu), "Kış iskeleti ve budama"). Web bu dizileri noktalardan sonra tek bir aralık isteğiyle indirir. Parçalar tek bir `InstancedMesh` ile tüp olarak çizilir (altı yüzlü silindir).
 - **Oktree (Faz 2b):** Bir hektarı aşan bahçelerde kademeli yükleme yetmezse yaklaştıkça ayrıntı (COPC/Potree tarzı). Gerçek bulut boyutu görülünce karar verilir.
 - **Demo sınırı:** Sentetik ağaçlar yıllar arasında çizimde büyümez (sürüm 1 medyası değişmez). Bu yüzden demoda boy değişimi çoğunlukla "Değişmedi"dir; kısalan ağaçlar kuruyan ve sorunlu olanlardır.
-- **Personel:** Uzman panelinde ve ofis aracında aynı dünya; büyüklük sınıfı önerisinin tek tıkla kabulü.
+- **Yapıldı (Faz 3):** Uzman panelinde ve ofis çalışma alanında aynı dünya; büyüklük sınıfı önerisinin tek tıkla kabulü (§9).
 - **Gerçek veri:** Kayıt adımından gelen ilk bulutta renklendirme hizası (kamera-LiDAR kalibrasyonu, zaman eşlemesi) ve zemin kestiriminin sağlamlığı denenir.
 
 ## 8. Test
@@ -120,3 +120,56 @@ Ham `point_cloud`, yörünge ve GNSS kayıtları yalnız personele açıktır; b
 - **İşleme hattı (pytest):** biçim, belirlenim, taşıyanın atılması, örtülen noktanın örten yüzeyin rengini almaması, ağaç ataması, başlıkta zaman olmaması.
 - **Veritabanı (pgTAP):** `79_world_cloud.test.sql`.
 - **Tarayıcı:** demo verisinde düğme, yükleme, giriş, ağaç seçimi, renk kipleri, boy değişimi, 2025 denetimine geçiş ve geri dönüş (`tests/e2e/demo-tour.spec.ts` › "3D world").
+- **Faz 3 (personel):** birim `src/lib/lidar/lidar.test.ts` (en yeni öneri, durumlar, düşük güven, toplu uygulamanın gruplaması, ağaç başına LiDAR değerleri) ve `world.test.ts` › "overview start"; entegrasyon `tests/integration/staff-lidar.test.ts` (uzmanın ağaç değerleri ve önerisi, incelemedeki ziyaretin bulutu, personel imzası ve dosyanın okunması, sahibe incelemedeki ziyaretten hiçbir şey gitmemesi, kabul); tarayıcı `tests/e2e/staff-lidar.spec.ts` (uzman: LiDAR bloğu, ağaçla açılan dünya, büyüklük sınıfı kipi, kabul; ofis: tablo sütunu, dünyadan uygulama, düşük güvenin uygulanmaması, uyuşmayanları seçip toplu uygulama). Test verisi: `tests/e2e/lidar-fixtures.ts` (ölçümler `record_lidar_measurements` ile, küçük sentetik bulut).
+
+## 9. Faz 3: personel ekranları
+
+**Karar (11 Kasım 2026, sahip):** Kit LiDAR'lı yapılır. LiDAR verisi pilotun ilk taramasından itibaren gelir; bu yüzden personelin bu veriyi kullanması öne alındı. Önceki durumda LiDAR ölçümleri ve 3D dünya yalnız sahip portalında ve demoda vardı; ofis aracı ve uzman paneli LiDAR verisini hiç okumuyordu.
+
+Faz 3 yeni tablo, migration ya da yetki eklemez. Personel bulut satırlarını ve dosyalarını zaten okuyabiliyordu (§5). Büyüklük sınıfının kabulü, ağacın `age_class` alanını ofisin ve uzmanın zaten kullandığı satır yetkisiyle (`tree_update`) yazar.
+
+### 9.1 Büyüklük sınıfı önerisi
+
+- **Kaynak:** Ağacın parseldeki en yeni `size_class` ölçümü (`lidar_crown`, kaynak `algorithm`). Personel incelemedeki ziyaretlerin ölçümlerini de görür. Aynı ziyarette birden çok satır varsa en yenisi alınır.
+- **Gösterim:** "LiDAR önerisi: Verimli (güven 0,9)", ölçüldüğü tarama tarihiyle. Öneri kayıtlı sınıftan farklıysa vurgulanır. Kayıtlı sınıf "bilinmiyor" ise her öneri farklı sayılır.
+- **Düşük güven:** Güveni 0,5'in altındaki öneri (tek taraftan görülmüş, değen ya da yapraksız taç; [lidar-olcumleri.md](lidar-olcumleri.md) §4) gösterilir ama tek tıkla kabul ve toplu uygulama ona kapalıdır. Kişi sınıfı yine elle seçebilir.
+- **Kabul:** Ağacın `age_class`'ı önerilen sınıf olur. Ölçüm satırı değişmez; öneri ile kayıtlı sınıf ayrı kalır. Böylece pilotta önerinin ofis kişisinin verdiği sınıfla uyumu ölçülebilir ([lidar-olcumleri.md](lidar-olcumleri.md) §7).
+
+### 9.2 Uzman paneli
+
+- **Ağaç incelemesi:** Değer varsa "LiDAR ölçümleri" bloğu çıkar. Bu ziyaretin ve önceki ziyaretin LiDAR değerleri yan yanadır: ağaç boyu, taç çapı, taç hacmi, ana kol sayısı, kesim sayısı, budama durumu. Altında büyüklük sınıfı önerisi, kayıtlı sınıf ve öneri farklıysa "Öneriyi kabul et" düğmesi bulunur. Değerler yalnız LiDAR'ın (`algorithm`) değerleridir. Uzmanın kendi girdiği değer karar panelinde kalır ve kaynak önceliğiyle sahibe gidenin önüne geçer ([lidar-olcumleri.md](lidar-olcumleri.md) §9).
+- **3D dünya:** Parselin bulutu olan bir ziyareti varsa ziyaret başlığında "3D dünya" düğmesi çıkar. Dünya bu ziyaretin bulutuyla açılır; bu ziyaretin bulutu yoksa parselin en yeni bulutuyla. Seçili ağaç varsa kamera ona uçar ve ağaç seçili gelir. Ağaç panelinde "Bu ağacı incele" bağlantısı inceleme sayfasında o ağacı açar.
+
+### 9.3 Ofis çalışma alanı
+
+- **Ağaç özellikleri sekmesi:** Tabloda "LiDAR önerisi" sütunu vardır. "Öneriyle uyuşmayanları seç" düğmesi, önerisi kayıtlı sınıftan farklı ve güveni yeterli ağaçları seçer. "LiDAR önerisini uygula" seçili ağaçların her birine kendi önerisini yazar; önerisi olmayan ya da güveni düşük ağaçlar atlanır ve sayısı yazılır.
+- **3D dünya:** Sekme çubuğunun üstündeki "3D dünya" düğmesi parselin en yeni bulutunu açar. Ağaç panelinde kayıtlı sınıf, öneri ve "Öneriyi uygula" düğmesi bulunur.
+
+### 9.4 Personel dünyası
+
+Sahibin dünyasıyla aynı bileşendir (`world-view.tsx`, `world-scene.ts`). Farkları:
+
+- **Panoramasız açılış:** Dünya bir panoramadan değil, doğrudan genel görünümde açılır (az hareket tercihindeki gibi). Kamera, bulutun güney kenarının ortasından kuzeye bakan noktanın gerisindedir. "Kapat" ya da Escape dünyayı hemen kapatır.
+- **Bütün ziyaretler:** Denetim seçicide parselin bulutu olan bütün ziyaretleri bulunur. Yayımlanmamış olanların yanında "incelemede" yazar. Bulutu olan tek ziyaret varsa seçici yerine üst çubukta o ziyaretin adı yazar; panorama olmadığı için bulutun hangi taramadan geldiği böylece görünür.
+- **İmza:** Personel imzası (`createMediaSigner`, kullanıcı kapsamı). Sunucu yalnız o parselin bir `world_cloud` asset'ini imzalar.
+- **Renk kipi "Büyüklük sınıfı":** Yalnız personelde vardır. Önerisi kayıtlı sınıftan farklı ağaçlar turuncu, aynı olanlar yeşil, önerisi olmayanlar gri boyanır. Öneri bakılan denetimin değil, ağacın en yeni önerisidir (§9.1).
+- **Ağaç paneli:** Ölçülerin altında kayıtlı sınıf ve öneri satırı vardır. Uzmanda inceleme bağlantısı, ofiste "Öneriyi uygula" düğmesi bulunur.
+
+### 9.5 Kod
+
+| Dosya | Görevi |
+| --- | --- |
+| `apps/web/src/lib/lidar/size-class.ts` | Ağaç başına en yeni öneri, uyuşmazlık, kabul edilebilirlik (saf, birim testli) |
+| `apps/web/src/lib/lidar/facts.ts` | Ağaç başına ziyaretin LiDAR değerleri (yalnız `algorithm`, en yenisi; saf) |
+| `apps/web/src/lib/lidar/staff.ts` | Personel verisi: ziyaretlerin LiDAR değerleri, bulutlar, ağaç konumları, öneriler; personel imzası |
+| `apps/web/src/components/staff/staff-world.tsx` | Düğme ve tam ekran katman; `WorldView`'ı personel seçenekleriyle açar |
+| `apps/web/src/components/portal/world-view.tsx`, `world-scene.ts` | Ortak dünya: imzalama, ağaç bağlantısı ve panel satırları dışarıdan; `start` yoksa genel görünümle açılış (`startOverview`, `lib/world/geometry.ts` › `overviewStart`); "Büyüklük sınıfı" kipi |
+| `apps/web/src/components/expert/lidar-block.tsx` | Ağaç incelemesindeki LiDAR bloğu ve öneri kabulü |
+| `apps/web/src/components/office/tree-attribute-editor.tsx` | Ofiste öneri sütunu, uyuşmayanları seçme, önerileri uygulama |
+| `apps/web/src/app/uzman/actions.ts`, `app/ofis/parsel/[parcelId]/envanter/duzenle/actions.ts` | Öneri kabulü (`setTreeAttributes`) ve personel imzası eylemleri |
+
+### 9.6 Sonraki işler
+
+- **Konum denetimi:** Buluttaki gövde ile envanter konumunun karşılaştırılması (üçgenlemeyi doğrulamak ya da yerine geçmek). Bulutun ağaç ataması bugün envanter konumuna dayandığı için bu ayrı bir yöntem ister; gerçek bulut gelince tasarlanır.
+- **Ofis üçgenleme aracında dünya:** Envanter kaydedilmeden önce ağaç ataması yoktur; bulutun bu aşamada nasıl kullanılacağı gerçek veriyle karar verilir.
+

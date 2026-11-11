@@ -21,11 +21,13 @@ Bu doküman yöntemleri, doğruluklarını, veritabanına yazılışlarını ve 
 | Budama analizi | Var (`lidar pruning`), araştırma |
 | Ölçümlerin veritabanına yazılması | Var (`lidar upload`, `record_lidar_measurements`) |
 | Sahibe gösterim | Var (§9): ağaç karnesinde ölçüm tablosu ve kesit fotoğrafları üzerinde çizim, 360° gezide seçilen ağacın değerleri ve çizimi. Sahip kararı (5 Kasım 2026): doğrulama pilotta yapılır, gösterim beklemez |
-| Uzman panelinde, ofis aracında gösterim | Yok |
+| Uzman panelinde, ofis çalışma alanında gösterim | Var (İP17 Faz 3, [3d-dunya.md](3d-dunya.md) §9): uzmanın ağaç incelemesinde LiDAR ölçümleri, ofiste öneri sütunu, ikisinde de 3D dünya ve büyüklük sınıfı önerisinin tek tıkla kabulü |
 | 3D dünya (gezide renkli bulut ve ölçüler) | Var (İP17, `lidar world`; [3d-dunya.md](3d-dunya.md)) |
 | Gerçek ağaçlarda doğrulama | Pilotta, §7 |
 
-**Neden şimdi, kit LiDAR'sızken:** MVP kiti LiDAR'sız ([kit-siparis-listesi.md](kit-siparis-listesi.md)). Yöntemler sentetik verilerle önceden yazılırsa, LiDAR'lı kitin ilk kış taramasında (vizyon aşama 2: "ilk kış iskelet denemesi kendi bahçende") veri doğrudan ölçüme dönüşür ve elle ölçümle karşılaştırma aynı hafta yapılabilir.
+**Karar (11 Kasım 2026, sahip):** Kit LiDAR'lı yapılır. Bu yüzden kayıt adımı (MCAP → SLAM + PPK → `cloud.ply`) artık araştırma değil, gerçek verinin önündeki iş; LiDAR parçaları sipariş listesine eklenmeli ([kit-siparis-listesi.md](kit-siparis-listesi.md)).
+
+**Neden önceden, kit LiDAR'sızken:** İlk MVP kiti LiDAR'sız planlanmıştı ([kit-siparis-listesi.md](kit-siparis-listesi.md)). Yöntemler sentetik verilerle önceden yazılırsa, LiDAR'lı kitin ilk kış taramasında (vizyon aşama 2: "ilk kış iskelet denemesi kendi bahçende") veri doğrudan ölçüme dönüşür ve elle ölçümle karşılaştırma aynı hafta yapılabilir.
 
 ## 2. Veri akışı
 
@@ -250,7 +252,7 @@ Gerçek ağaçlarda sentetikte olmayan zorluklar beklenir: ince sürgün yoğunl
 - **Gövde çapının ölçüm yüksekliği.** Metodoloji §3 gövde çapını yerden yaklaşık 50 cm'de tanımlıyor; metrik kaydındaki kod `trunk_diameter_h30` (30 cm). 1,2 m'deki LiDAR ise görüş açısı yüzünden 4 m'deki gövdeyi ancak 70–80 cm'den yukarıda görür. Bu yüzden LiDAR gövde çapı şimdilik ölçüm olarak yazılmaz; iskelet raporunun ayrıntısında, yüksekliğiyle birlikte durur. Karar seçenekleri: (a) LiDAR'ı alçaltmak ya da eğmek, (b) LiDAR için ayrı bir yükseklik koduyla ayrı metrik, (c) gövde çapını yalnız yakın plan ve şerit metreyle almak.
 - **Montaj ve tarama yöntemi.** LiDAR'lı kit sırt direği için tasarlandı; MVP taraması motosikletle. Motosiklette LiDAR yüksekliği, sürücünün kapattığı sektör ve titreşimin SLAM'a etkisi denenmeli (metodoloji §11, "Yönteme göre ayar").
 - **Kartta gösterim (karar verildi, 5 Kasım 2026).** Sahip kararıyla taç ölçümleri ve kesim sayısı doğrulama beklenmeden sahibe gösterilir; uzman onayı aranmaz (§9). Pilottaki doğrulama (§7) bir yöntemi yetersiz bulursa metrik `under_evaluation`'a geri alınır ya da yeni yöntem sürümü yazılır; eski değerler sürümleriyle kalır.
-- **Büyüklük sınıfının yazılması.** Öneri ağacın `age_class`'ını değiştirmez. Ofis aracında ya da uzman panelinde "LiDAR önerisi: Verimli (güven 0,9)" gibi gösterilip tek tıkla kabul edilmesi sonraki iş.
+- **Büyüklük sınıfının yazılması (yapıldı, İP17 Faz 3).** Öneri ağacın `age_class`'ını kendiliğinden değiştirmez. Ofis çalışma alanında ve uzman panelinde "LiDAR önerisi: Verimli (güven 0,9)" diye gösterilir ve tek tıkla kabul edilir; güveni 0,5'in altındaki öneri kabule kapalıdır ([3d-dunya.md](3d-dunya.md) §9.1).
 - **KVKK (karar verildi, 5 Kasım 2026).** Nokta bulutu bahçede bulunan kişilerin şeklini de kaydedebilir. Sahip kararıyla taramalarda bahçede insan bulunmaz; bu yüzden sahibe bulut gösterilir (İP17, [3d-dunya.md](3d-dunya.md) §2). Ham `cloud.ply` yine yalnız personele açıktır. Sahibe ondan türetilen web bulutu (`world.owc`) açılır. Bu bulut zaman, yörünge ya da kare sırası taşımaz; taşıyan kişi ondan atılır (personel izi, H05).
 
 ## 9. Sahibe gösterim

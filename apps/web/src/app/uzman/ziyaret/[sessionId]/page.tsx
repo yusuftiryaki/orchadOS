@@ -8,6 +8,7 @@ import { loadReview, loadTreeDetail } from "@/lib/expert/review";
 import { matchesFilter } from "@/lib/expert/summary";
 import { parseFilter } from "@/lib/expert/urls";
 import { t } from "@/lib/i18n";
+import { loadStaffWorld, loadTreeLidar } from "@/lib/lidar/staff";
 import { createMediaSigner } from "@/lib/media/signer";
 import { loadOwnWork } from "@/lib/services/data";
 import { createClient } from "@/lib/supabase/server";
@@ -32,12 +33,15 @@ export default async function Page({
     ctx.trees.find((tree) => tree.id === query.agac) ??
     ctx.trees.find((tree) => matchesFilter(tree, filter)) ??
     null;
-  const [detail, followups, ownWork] = await Promise.all([
+  const visitIds = [ctx.session.id, ...(ctx.previous ? [ctx.previous.id] : [])];
+  const [detail, followups, ownWork, lidar, world] = await Promise.all([
     selected
       ? loadTreeDetail(supabase, ctx, selected.id, createMediaSigner(supabase, { scope: user.id }))
       : null,
     listFollowups(supabase, { parcelIds: [ctx.session.parcelId] }),
     loadOwnWork(supabase, ctx.session.parcelId, ctx.session.time),
+    selected ? loadTreeLidar(supabase, ctx.session.parcelId, visitIds, selected.id) : null,
+    loadStaffWorld(supabase, ctx.session.parcelId),
   ]);
 
   const r = t.expert.review;
@@ -65,6 +69,9 @@ export default async function Page({
       messages={{ error, findingError, saved: query.kayit === "1", bulk: bulkMessages(query) }}
       followups={followups}
       followupMessage={followupMessage(query)}
+      lidar={lidar}
+      lidarMessage={typeof query.lidar === "string" ? query.lidar : null}
+      world={world}
       notice={<OwnWorkNotice days={ownWork} />}
     />
   );

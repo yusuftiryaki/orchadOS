@@ -4,6 +4,8 @@
 
 Bu liste, MVP'de kullanılacak **LiDAR'sız** tarama kitinin parça parça sipariş listesidir. Kitte 360° kamera, RTK GNSS alıcısı ve ESP32 GNSS kaydedici bulunur; motosiklete monte bir direkte taşınır. Kitin tasarımı [tarama-kiti.md](tarama-kiti.md)'de, kaydedicinin bağlantı tablosu [firmware/gnss-logger/README.md](../firmware/gnss-logger/README.md)'de anlatılıyor.
 
+> **Karar (11 Kasım 2026, sahip): kit LiDAR'lı yapılır.** Bu liste LiDAR'sız ilk kiti anlatıyor. LiDAR'lı kitin ek parçaları (LiDAR ve dahili IMU, Raspberry Pi 5, SSD'ler, PTP için Ethernet, güç) [tarama-kiti.md](tarama-kiti.md)'deki tasarıma göre bu listeye eklenmeli (açık iş, [plan.md](plan.md)). Montaj yüksekliği ve motosiklette deneme: [lidar-olcumleri.md](lidar-olcumleri.md) §8.
+
 **Neden şimdi?** Kit, takvimin kritik yolunda ([plan.md](plan.md)). 20 Aralık'taki Kapı 1'e kadar teknik denemelerin yapılması gerekiyor (İP3). Yurt dışından gelen parçalar 2–4 hafta sürebilir. Bu yüzden kitin Kasım ortasında elde olması gerekiyor.
 
 > **Fiyatlar:** Yaklaşık uluslararası fiyatlardır ve doğrulanmadı. Türkiye'ye getirmede gümrük, KDV ve kur farkı belirgin bir artış yapabilir. Sipariş öncesi güncel fiyatı ve Türkiye distribütörünü kontrol et.
