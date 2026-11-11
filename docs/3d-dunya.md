@@ -20,6 +20,7 @@ Bulutun dosya biçimi bileşenler arası bir sözleşmedir: [arayuzler.md](arayu
 | Kış iskeleti ve budama görünümü | Var (Faz 2b): bulut dosyasında isteğe bağlı iskelet ve kesim dizileri, `lidar world --skeleton --pruning`, 3D dünyada tüpler, kırmızı budanan dallar ve kesim noktaları, demo verisi sürüm 6 (A'nın iki kış taraması) |
 | Oktree ile ayrıntı düzeyi (çok büyük bahçeler) | Faz 2b; gerçek bulut boyutu görülünce karar |
 | Uzman paneli ve ofis çalışma alanında 3D dünya, büyüklük sınıfı önerisinin kabulü | Var (Faz 3, §9) |
+| Bahçede gezinme: göz hizasında yürüme kipi, zemindeki panorama noktaları ve birine iniş | Var (§10) |
 | Gerçek LiDAR verisi | Karar (11 Kasım 2026): kit LiDAR'lı yapılır. Kayıt adımı (MCAP → bulut) ve kitin kendisi bekleniyor ([lidar-olcumleri.md](lidar-olcumleri.md) §1) |
 
 [MVP.md](MVP.md)'de "Gerçek 3D model" kapsam dışıdır. 3D dünya bir model değil, ölçülmüş bulutun kendisidir ve ayrı bir iş paketidir ([plan.md](plan.md), İP17).
@@ -39,7 +40,7 @@ Bulutun dosya biçimi bileşenler arası bir sözleşmedir: [arayuzler.md](arayu
 4. **Tarama dalgası (0,1–1,5 sn):** Kameradan dışarı doğru parlak bir halka yayılır. Halka kameranın yakınında yavaş, uzakta hızlı ilerler; ilk ağaçların noktalara dönüştüğü görülür. Halkanın geçtiği yerde noktalar belirir. Fotoğraf, o yönde görülen bulut halkadan yakın olduğu yerlerde silinir. Bunun için bulutun panoramadan görünen derinliği (512 × 256 eşdikdörtgen) bir kez hesaplanır. Gökyüzü fotoğraf olarak kalır ve 1,0–1,5 sn arasında söner.
 5. **Yükseliş (1,5–2,8 sn):** Fotoğraf tamamen gidince kamera yükselir. Hedef, bakılan yönde 12–40 m ileride zemindeki bir noktadır. Kamera onun 28–90 m gerisinde ve 38° yukarıdadır. Kamera ancak fotoğraf gittikten sonra hareket eder. Böylece fotoğraf hiçbir zaman paralaksla kaymaz.
 6. **Ölçüler (1,9–2,7 sn):** Her ölçülmüş ağaçta gövdeden tepeye boy çizgisi, taç ortasında taç çapı halkası ve taç tabanında kesikli halka belirir. En yakın 20 ağacın etiketinde kod ve boy yazar.
-7. **Dünyada gezinme:** Sürükleyerek çevirme, iki parmak ya da tekerlekle yakınlaştırma, sağ tuşla ya da üç parmakla kaydırma vardır (three.js `OrbitControls`). Bir ağaca ya da etiketine dokununca ağacın noktaları sarıya döner. Panelde kodu, sınıfı, boyu, taç çapı, taç hacmi ve taç tabanı yazar. Panelde "Ağaca yaklaş" ve "Ağaç karnesi" düğmeleri bulunur.
+7. **Dünyada gezinme:** Sürükleyerek çevirme, iki parmak ya da tekerlekle yakınlaştırma, sağ tuşla ya da üç parmakla kaydırma vardır (three.js `OrbitControls`). Göz hizasında yürüme ve panorama noktalarına iniş §10'dadır. Bir ağaca ya da etiketine dokununca ağacın noktaları sarıya döner. Panelde kodu, sınıfı, boyu, taç çapı, taç hacmi ve taç tabanı yazar. Panelde "Ağaca yaklaş" ve "Ağaç karnesi" düğmeleri bulunur.
 8. **Renk kipleri:** Fotoğraf renkleri (varsayılan), ağaç boyu, taç çapı ve boy değişimi. Ölçü kiplerinde ağaçlar viridis rampasıyla boyanır, zemin ve ölçülmemiş ağaçlar gri olur. Gösterge en küçük ve en büyük değeri yazar.
    - **Boy değişimi (Faz 2):** Her ağacın boyu, o ağacı ölçmüş bir önceki denetimle karşılaştırılır. Kısalan ağaçlar turuncu-kırmızı, değişmeyenler gri, uzayanlar yeşil boyanır. Rampa iki yana simetriktir ve en büyük değişime göre ölçeklenir (en az ±0,1 m). Kip yalnız bakılan denetimde değişim hesaplanabilen bir ağaç varsa sunulur. Panelde "Boy değişimi +0,32 m (önceki ölçüm 15 Tem 2025)" yazar; 1 cm'nin altındaki fark "Değişmedi" olarak gösterilir.
    - **Kış iskeleti (Faz 2b):** Kış taramasında her ağacın dal iskeleti açık renkli tüplerle çizilir. Kalınlık iskeletin yarıçapıdır; en ince tüp 1,2 cm'dir. Önceki kış taramasından bu yana budanan dallar kırmızı tüplerle, kesim noktaları kırmızı toplarla gösterilir. Üst çubukta "Dal iskeleti" kutusu iskeleti açıp kapatır; iskelet açıkken noktalar soluklaşır. Gösterge kesim sayısını yazar. Ağaç panelinde "Budama: 3 kesim, 2,4 m dal" gibi bir satır çıkar; kesim yoksa "Kesim yok". Bu değerler çizilen geometriden (iskelet ve kesim dizileri) hesaplanır. Ölçüm satırları (`pruning_cut_count`, `pruning_status`) ağaç karnesindedir.
@@ -116,6 +117,8 @@ Ham `point_cloud`, yörünge ve GNSS kayıtları yalnız personele açıktır; b
 
 ## 8. Test
 
+- **Gezinme (§10):** birim `src/lib/world/walk.test.ts` (yürüme adımı, koşma, çapraz hız, dönüş, sınırlar, çift tıklanan noktaya yürüme, bakış ve eğim sınırı, zemine ışın, en yakın nokta, yön dönüşümü); tarayıcı `demo-tour.spec.ts` › "3D world" › "walks at eye level…" (yürüme kipi, düğme boyutları, tuşlarla yürüme, yön düğmesiyle dönme, kuşbakışına dönüş, en yakın panoramaya iniş ve gezinin orada sürmesi) ve `staff-lidar.spec.ts` (personelde yürüme kipi, panorama noktası yok).
+
 - **Birim (Vitest):** `src/lib/world/world.test.ts`. Kapsadığı konular: biçim gidiş dönüşü, hizalama, bozuk dosyaların reddi, işleme hattıyla aynı yerel düzlem, eksenler, zemin, derinlik panoraması, geçişte kameranın fotoğraf gitmeden kıpırdamaması, poz, renk ve seçim. Faz 2'de eklenenler: kademeli indirme (aralıklı, aralıksız ve küçük bulut), bulut orijininin yerleşimi, değişim rampası, önceki ölçüme göre boy değişimi. Faz 2b: kış dizilerinin okunması, tek aralıkla indirilmesi, ağaç başına kesim ve kesilen uzunluk.
 - **İşleme hattı (pytest):** biçim, belirlenim, taşıyanın atılması, örtülen noktanın örten yüzeyin rengini almaması, ağaç ataması, başlıkta zaman olmaması.
 - **Veritabanı (pgTAP):** `79_world_cloud.test.sql`.
@@ -172,4 +175,36 @@ Sahibin dünyasıyla aynı bileşendir (`world-view.tsx`, `world-scene.ts`). Far
 
 - **Konum denetimi:** Buluttaki gövde ile envanter konumunun karşılaştırılması (üçgenlemeyi doğrulamak ya da yerine geçmek). Bulutun ağaç ataması bugün envanter konumuna dayandığı için bu ayrı bir yöntem ister; gerçek bulut gelince tasarlanır.
 - **Ofis üçgenleme aracında dünya:** Envanter kaydedilmeden önce ağaç ataması yoktur; bulutun bu aşamada nasıl kullanılacağı gerçek veriyle karar verilir.
+
+## 10. Bahçede gezinme
+
+**İstek (11 Kasım 2026, sahip):** 3D dünyada panoramadaki gibi bahçenin içinde gezinmek. Önceki dünya yalnız kuşbakışıydı: kamera bir noktanın çevresinde döner, zeminin altına inmez; dünyadan başka bir panorama noktasına geçilemez. İki yol birlikte yapıldı.
+
+### 10.1 Panorama noktaları
+
+- Gezide, bakılan denetimin her panorama noktası zeminde beyaz bir halka olarak durur (yarıçap 0,32–0,5 m). Denetim değişince halkalar o denetimin noktalarına geçer.
+- **İniş:** Bir halkaya tıklayınca kamera, o noktada panorama kamerasının yüksekliğine (zemin + ziyaretin `camera_height_m`'i) şu anki bakış yönüyle iner (1,1 sn; az hareket tercihinde anında). Ölçüler ve etiketler bu sırada söner. Sonra dünya kapanır ve gezi o denetimde, o panoramada, aynı yöne bakarak sürer. Adres o panoramayı gösterir.
+- **Seçim:** Tıklamaya en yakın halka 28 px, en yakın ağaç 48 px içinde aranır. İkisi de varsa ekranda tıklamaya daha yakın olan kazanır.
+- **Klavye ve ekran okuyucu:** Üst çubuktaki "En yakın panoramaya in" düğmesi, kuşbakışında bakılan yere, yürürken durulan yere en yakın noktaya iner.
+- Personel dünyasında gezi ve panorama noktası yoktur; düğme ve halkalar çıkmaz.
+
+### 10.2 Yürüme kipi
+
+- **Geçiş:** Üst çubuktaki "Yürü" düğmesi kamerayı kuşbakışının baktığı yere, göz hizasına (zemin + 1,6 m) indirir; yön korunur, bakış yataya iner (0,9 sn). "Kuşbakışı" aynı yönle yukarıya ve geriye çıkarır. Kuşbakışında zemine çift tıklamak da o noktada yürümeye başlatır.
+- **Bakış:** Sürükleyerek etrafa bakılır. Eğim ±80° ile sınırlıdır; görüş açısı 70°.
+- **Yürüme:** W/S ya da ↑/↓ ileri geri, A/D yana adım, ←/→ dönüş (90°/sn), Shift koşma. Hız 3 m/sn, koşarken 7,5 m/sn. Çapraz yürüme tek yönden hızlı değildir. Kamera zemini izler (2 m'lik zemin ızgarası) ve bulutun sınırından çıkmaz. Ağaçların içinden geçilebilir; çarpışma yoktur.
+- **Çift tıklama:** Zemine çift tıklayınca oraya yürünür ve yüz o yöne döner. "Ağaca yaklaş" yürürken ağacın 4 m önüne kadar yürütür.
+- **Telefon:** Sağ altta dört düğmeli yön takımı vardır: ileri, geri, sola dön, sağa dön. Basılı tutulunca yürür ya da döner. Klavyeyle basılınca kısa bir adım atılır. Düğmeler 44 px'tir.
+- **Odak:** Tuşlar dünya bölgesine odak varken çalışır. Seçim kutularında (denetim, renk) ok tuşları kutuya kalır. Pencere odağı kaybedince yürüme durur. Escape yine önce seçili ağacı, sonra dünyayı kapatır.
+
+**Uyarı:** Bulut fotoğraf değil, nokta kümesidir; göz hizasından ve yakından seyrek görünür. Gerçek LiDAR bulutunda nokta yoğunluğu ve nokta boyutu göz hizası için yeniden ayarlanabilir.
+
+### 10.3 Kod
+
+| Dosya | Görevi |
+| --- | --- |
+| `apps/web/src/lib/world/walk.ts` | Yürüme adımı, noktaya yürüme, bakış, sınırlar, zemine ışın, en yakın nokta (saf, birim testli) |
+| `apps/web/src/components/portal/world-scene.ts` | Gezinme durumu (`orbit`/`walk`), uçuşlar (kip geçişi, iniş), halkalar (`InstancedMesh`), sürükleyerek bakış, çift tıklama |
+| `apps/web/src/components/portal/world-view.tsx` | "Yürü"/"Kuşbakışı", "En yakın panoramaya in", yön takımı (`PadButton`), tuşlar, inişte `onExit({ visitId, panoramaId, azimuthDeg })` |
+| `apps/web/src/components/portal/tour.tsx` | Denetimlerin panorama noktalarını dünyaya verir; inişte o denetime ve panoramaya geçer |
 

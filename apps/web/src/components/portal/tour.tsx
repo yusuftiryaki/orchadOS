@@ -57,7 +57,13 @@ import {
   type TourMarker,
   type TourView,
 } from "./tour-viewer";
-import type { WorldStartView, WorldTree, WorldVisit } from "./world-view";
+import type {
+  WorldExitTarget,
+  WorldStartView,
+  WorldTree,
+  WorldViewpoint,
+  WorldVisit,
+} from "./world-view";
 import styles from "./portal.module.css";
 import worldStyles from "./world.module.css";
 
@@ -212,6 +218,17 @@ export function Tour({
       })),
     [visits],
   );
+  // Every visit's panorama viewpoints: rings in the 3D world to fly down into.
+  const worldViewpoints = useMemo<Record<string, WorldViewpoint[]>>(
+    () =>
+      Object.fromEntries(
+        visits.map((v) => [
+          v.visit.id,
+          v.panoramas.map((p) => ({ id: p.id, position: p.position })),
+        ]),
+      ),
+    [visits],
+  );
   const crownMarkers = useMemo<TourMarker[]>(() => {
     const guide = crownGuide(crown);
     if (!guide || !focused) return [];
@@ -322,6 +339,21 @@ export function Tour({
       setFarNote(tt.noSameSpot(formatDate(target.visit.time)));
     },
     [visits, current, viewYaw, goTo],
+  );
+
+  // Leaving the 3D world: back to the panorama it was opened from, or down
+  // into the viewpoint picked there (that visit, looking the same way).
+  const leaveWorld = useCallback(
+    (target?: WorldExitTarget) => {
+      setWorld(null);
+      if (!target) return;
+      const index = visits.findIndex((v) => v.visit.id === target.visitId);
+      const next = visits[index]?.panoramas.find((p) => p.id === target.panoramaId);
+      if (!next) return;
+      if (index !== visitIndex) setVisitIndex(index);
+      goTo(next, normalize180(target.azimuthDeg - next.headingDeg));
+    },
+    [visits, visitIndex, goTo],
   );
 
   // Keep looking the way we were walking.
@@ -470,7 +502,8 @@ export function Tour({
                   start={world.start}
                   cameraHeightM={tourVisit?.cameraHeightM ?? DEFAULT_CAMERA_HEIGHT_M}
                   trees={worldTrees}
-                  onExit={() => setWorld(null)}
+                  viewpoints={worldViewpoints}
+                  onExit={leaveWorld}
                 />
               ) : (
                 <>

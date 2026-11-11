@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import { formatMeasure, t } from "@/lib/i18n";
 import type { Position } from "@/lib/map/geo";
 import { prefersReducedMotion } from "@/lib/map/motion";
@@ -12,9 +21,11 @@ import { changeSpan, localFrame, overviewStart, toEN, type LocalFrame } from "@/
 import { loadWorldCloud } from "@/lib/world/stream";
 import { winterSummary, type TreeWinter, type WinterSummary } from "@/lib/world/skeleton";
 import { growthOf, worldVisits, type Growth, type WorldVisit } from "@/lib/world/visits";
+import { NO_INPUT, type WalkInput } from "@/lib/world/walk";
 import {
   WorldScene,
   type ColorMode,
+  type Navigation,
   type SceneTree,
   type SceneVisit,
   type SizeFlag,
@@ -49,6 +60,19 @@ export interface WorldTree {
 
 export type { WorldVisit };
 
+// A panorama viewpoint of the tour, drawn as a ring in the world.
+export interface WorldViewpoint {
+  id: string;
+  position: Position;
+}
+
+// Where the world was left for: a panorama of a visit, looking along azimuth.
+export interface WorldExitTarget {
+  visitId: string;
+  panoramaId: string;
+  azimuthDeg: number;
+}
+
 export interface SignedWorld {
   url: string | null;
   // A demo session reached its image cap.
@@ -82,6 +106,7 @@ export default function WorldView({
   focusTreeId = null,
   backLabel = tw.back,
   hint = tw.hint,
+  viewpoints,
   onExit,
 }: {
   // Every visit with crown values or a cloud, newest first.
@@ -105,7 +130,10 @@ export default function WorldView({
   focusTreeId?: string | null;
   backLabel?: string;
   hint?: string;
-  onExit: () => void;
+  // The tour: visit id -> its panorama viewpoints; a ring flies down into one.
+  viewpoints?: Record<string, WorldViewpoint[]>;
+  // With a target when a viewpoint was picked (the tour opens that panorama).
+  onExit: (target?: WorldExitTarget) => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -129,6 +157,11 @@ export default function WorldView({
     startRef.current.sign = sign;
   });
   const focusRef = useRef(focusTreeId);
+  // Overview or walk, and what the keys and the direction pad ask for.
+  const [nav, setNav] = useState<Navigation>("orbit");
+  const keysRef = useRef(new Set<string>());
+  const padRef = useRef<Partial<WalkInput>>({});
+  const shownRef = useRef(visitId);
 
   useEffect(() => {
     rootRef.current?.focus({ preventScroll: true });
@@ -194,6 +227,8 @@ export default function WorldView({
         startOverview: !view,
         labelText,
         onSelect: setSelected,
+        onViewpoint: (id) => descendRef.current(id),
+        onNavigation: setNav,
         onEntered: () => {
           setStatus("world");
           const focus = focusRef.current;
@@ -248,6 +283,76 @@ export default function WorldView({
   useEffect(() => {
     sceneRef.current?.select(selected);
   }, [selected, status]);
+
+  // Flies down into a panorama viewpoint; the tour goes on there.
+  const descend = useCallback((viewpointId: string) => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    const visit = shownRef.current;
+    setSelected(null);
+    setStatus("exiting");
+    scene.descend(viewpointId, (azimuthDeg) =>
+      startRef.current.onExit({ visitId: visit, panoramaId: viewpointId, azimuthDeg }),
+    );
+  }, []);
+  const descendRef = useRef(descend);
+
+  // The rings of the visit on screen.
+  useEffect(() => {
+    shownRef.current = shown;
+    const scene = sceneRef.current;
+    const frame = frameRef.current;
+    if (!scene || !frame || !viewpoints) return;
+    scene.setViewpoints(
+      (viewpoints[shown] ?? []).map((v) => ({ id: v.id, en: toEN(frame, v.position) })),
+    );
+  }, [shown, status, viewpoints]);
+  const hasViewpoints = (viewpoints?.[shown]?.length ?? 0) > 0;
+
+  // Keys and the direction pad drive the walk.
+  const pushWalkInput = useCallback(() => {
+    const k = keysRef.current;
+    const pad = padRef.current;
+    const axis = (plus: boolean, minus: boolean) => (plus ? 1 : 0) - (minus ? 1 : 0);
+    const input: WalkInput = {
+      forward:
+        axis(k.has("w") || k.has("arrowup"), k.has("s") || k.has("arrowdown")) + (pad.forward ?? 0),
+      strafe: axis(k.has("d"), k.has("a")),
+      turn: axis(k.has("arrowright"), k.has("arrowleft")) + (pad.turn ?? 0),
+      run: k.has("shift"),
+    };
+    sceneRef.current?.setWalkInput(input);
+  }, []);
+
+  const toggleNav = useCallback(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    const next: Navigation = nav === "walk" ? "orbit" : "walk";
+    keysRef.current.clear();
+    padRef.current = {};
+    scene.setWalkInput(NO_INPUT);
+    scene.setNavigation(next);
+    setNav(next);
+  }, [nav]);
+
+  // Letting go of the keys elsewhere (the window losing focus) stops walking.
+  useEffect(() => {
+    const stop = () => {
+      keysRef.current.clear();
+      padRef.current = {};
+      sceneRef.current?.setWalkInput(NO_INPUT);
+    };
+    window.addEventListener("blur", stop);
+    return () => window.removeEventListener("blur", stop);
+  }, []);
+
+  const setPadInput = useCallback(
+    (input: Partial<WalkInput>) => {
+      padRef.current = input;
+      pushWalkInput();
+    },
+    [pushWalkInput],
+  );
 
   const exit = useCallback(() => {
     const scene = sceneRef.current;
@@ -346,11 +451,26 @@ export default function WorldView({
       data-visit={shown}
       data-pending={pending ?? ""}
       data-winter={shownWinter ? "true" : "false"}
+      data-nav={nav}
       onKeyDown={(event) => {
-        if (event.key !== "Escape") return;
-        // The tour's own Escape (tree focus) must not see it.
+        if (event.key === "Escape") {
+          // The tour's own Escape (tree focus) must not see it.
+          event.stopPropagation();
+          escape();
+          return;
+        }
+        if (nav !== "walk" || status !== "world" || isFormField(event.target)) return;
+        const key = event.key.toLowerCase();
+        if (!WALK_KEYS.has(key)) return;
+        event.preventDefault();
         event.stopPropagation();
-        escape();
+        keysRef.current.add(key);
+        pushWalkInput();
+      }}
+      onKeyUp={(event) => {
+        const key = event.key.toLowerCase();
+        if (!keysRef.current.delete(key)) return;
+        pushWalkInput();
       }}
     >
       <div ref={stageRef} className={styles.stage} />
@@ -365,6 +485,31 @@ export default function WorldView({
         >
           <span aria-hidden="true">←</span> {backLabel}
         </button>
+        {status === "world" && (
+          <button
+            type="button"
+            className={styles.button}
+            onClick={toggleNav}
+            aria-pressed={nav === "walk"}
+            title={nav === "walk" ? tw.overviewHint : tw.walkHint}
+            data-testid="world-walk"
+          >
+            {nav === "walk" ? tw.overview : tw.walk}
+          </button>
+        )}
+        {status === "world" && hasViewpoints && (
+          <button
+            type="button"
+            className={styles.button}
+            onClick={() => {
+              const id = sceneRef.current?.nearestViewpointId();
+              if (id) descend(id);
+            }}
+            data-testid="world-nearest-panorama"
+          >
+            {tw.nearestPanorama}
+          </button>
+        )}
         {status === "world" && choices.length > 1 && (
           <label className={styles.mode}>
             {tw.visit}
@@ -502,10 +647,53 @@ export default function WorldView({
           </div>
         </section>
       )}
-      {status === "world" && !tree && (
-        <p className={styles.caption} data-testid="world-caption">
-          {hint} {tw.caption}
-        </p>
+      {status === "world" && (nav === "walk" || !tree) && (
+        // Bottom right, stacked: the pad above the caption (they never overlap).
+        <div className={styles.corner}>
+          {nav === "walk" && (
+            <div
+              className={styles.pad}
+              role="group"
+              aria-label={tw.pad.label}
+              data-testid="world-pad"
+            >
+              <PadButton
+                className={styles.padUp}
+                label={tw.pad.forward}
+                symbol="▲"
+                input={{ forward: 1 }}
+                onInput={setPadInput}
+              />
+              <PadButton
+                className={styles.padLeft}
+                label={tw.pad.left}
+                symbol="⟲"
+                input={{ turn: -1 }}
+                onInput={setPadInput}
+              />
+              <PadButton
+                className={styles.padRight}
+                label={tw.pad.right}
+                symbol="⟳"
+                input={{ turn: 1 }}
+                onInput={setPadInput}
+              />
+              <PadButton
+                className={styles.padDown}
+                label={tw.pad.back}
+                symbol="▼"
+                input={{ forward: -1 }}
+                onInput={setPadInput}
+              />
+            </div>
+          )}
+          {!tree && (
+            <p className={styles.caption} data-testid="world-caption">
+              {nav === "walk" ? tw.walkCaption : hint} {hasViewpoints && tw.viewpointHint}{" "}
+              {tw.caption}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
@@ -600,4 +788,61 @@ function sceneTrees(
 
 function labelText(tree: SceneTree): string {
   return tree.heightM === null ? tree.code : `${tree.code} · ${formatMeasure(tree.heightM, "m")}`;
+}
+
+// A direction pad button: walks or turns while held; a keyboard press takes
+// one short step.
+function PadButton({
+  className,
+  label,
+  symbol,
+  input,
+  onInput,
+}: {
+  className: string;
+  label: string;
+  symbol: string;
+  input: Partial<WalkInput>;
+  onInput: (input: Partial<WalkInput>) => void;
+}) {
+  const stop = () => onInput({});
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-label={label}
+      title={label}
+      onPointerDown={(event: ReactPointerEvent<HTMLButtonElement>) => {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        onInput(input);
+      }}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
+        if (event.detail !== 0) return;
+        onInput(input);
+        window.setTimeout(stop, 300);
+      }}
+    >
+      <span aria-hidden="true">{symbol}</span>
+    </button>
+  );
+}
+
+// Keys the walk listens to (lower case).
+const WALK_KEYS = new Set([
+  "w",
+  "a",
+  "s",
+  "d",
+  "arrowup",
+  "arrowdown",
+  "arrowleft",
+  "arrowright",
+  "shift",
+]);
+
+function isFormField(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  return !!el && ["SELECT", "INPUT", "TEXTAREA"].includes(el.tagName);
 }

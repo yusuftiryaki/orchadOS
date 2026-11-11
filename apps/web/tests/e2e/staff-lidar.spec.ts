@@ -100,6 +100,13 @@ test("expert sees the LiDAR values, opens the 3D world and accepts the suggestio
   await expect(page.getByTestId("world-card")).toHaveText("Bu ağacı incele");
   // One visit has a cloud: its name stands in the bar.
   await expect(page.getByTestId("world-visit-label")).toContainText("incelemede");
+  // Walking at eye level; no tour, so no panorama viewpoints.
+  await expect(page.getByTestId("world-nearest-panorama")).toHaveCount(0);
+  await page.getByTestId("world-walk").click();
+  await expect(page.getByTestId("world")).toHaveAttribute("data-nav", "walk");
+  await expect(page.getByTestId("world-pad")).toBeVisible();
+  await page.getByTestId("world-walk").click();
+  await expect(page.getByTestId("world")).toHaveAttribute("data-nav", "orbit");
   await page.getByTestId("world-mode").selectOption({ label: "Büyüklük sınıfı" });
   await expect(page.getByTestId("world-legend")).toContainText("Turuncu");
   await page.getByTestId("world-back").click();
