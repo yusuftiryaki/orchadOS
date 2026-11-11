@@ -98,7 +98,8 @@ test("expert sees the LiDAR values, opens the 3D world and accepts the suggestio
   // The expert accepts in the review, not in the world.
   await expect(page.getByTestId("world-accept")).toHaveCount(0);
   await expect(page.getByTestId("world-card")).toHaveText("Bu ağacı incele");
-  await expect(page.getByTestId("world-visit")).toContainText("incelemede");
+  // One visit has a cloud: its name stands in the bar.
+  await expect(page.getByTestId("world-visit-label")).toContainText("incelemede");
   await page.getByTestId("world-mode").selectOption({ label: "Büyüklük sınıfı" });
   await expect(page.getByTestId("world-legend")).toContainText("Turuncu");
   await page.getByTestId("world-back").click();
@@ -150,7 +151,9 @@ test("office applies LiDAR suggestions from the 3D world and the attribute table
   await expect(page.getByTestId("attribute-selected")).toHaveText("1 ağaç seçili");
   await page.getByRole("button", { name: "Görünenlerin hepsini seç" }).click();
   await page.getByTestId("apply-suggestions").click();
-  await expect(page.getByRole("status")).toContainText("1 ağaca öneri uygulandı; 2 ağaç atlandı");
+  await expect(page.getByTestId("tree-attributes").getByRole("status")).toContainText(
+    "1 ağaca öneri uygulandı; 2 ağaç atlandı",
+  );
   await expect(row("S1-1")).toContainText("Genç");
   await expect(row("S1-1").getByTestId("tree-suggestion")).toHaveAttribute("data-state", "match");
   await expect(row("S1-2")).toContainText("Verimli");

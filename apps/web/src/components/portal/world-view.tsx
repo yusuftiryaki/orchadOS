@@ -381,6 +381,12 @@ export default function WorldView({
             </select>
           </label>
         )}
+        {status === "world" && choices.length === 1 && !start && (
+          // Staff: no panorama tells which visit the cloud is from.
+          <span className={styles.mode} data-testid="world-visit-label">
+            {tw.visit}: {choices[0].label}
+          </span>
+        )}
         {status === "world" && (
           <label className={styles.mode}>
             {tw.colorMode}

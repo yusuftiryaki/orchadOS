@@ -150,7 +150,7 @@ Faz 3 yeni tablo, migration ya da yetki eklemez. Personel bulut satırlarını v
 Sahibin dünyasıyla aynı bileşendir (`world-view.tsx`, `world-scene.ts`). Farkları:
 
 - **Panoramasız açılış:** Dünya bir panoramadan değil, doğrudan genel görünümde açılır (az hareket tercihindeki gibi). Kamera, bulutun güney kenarının ortasından kuzeye bakan noktanın gerisindedir. "Kapat" ya da Escape dünyayı hemen kapatır.
-- **Bütün ziyaretler:** Denetim seçicide parselin bulutu olan bütün ziyaretleri bulunur. Yayımlanmamış olanların yanında "incelemede" yazar.
+- **Bütün ziyaretler:** Denetim seçicide parselin bulutu olan bütün ziyaretleri bulunur. Yayımlanmamış olanların yanında "incelemede" yazar. Bulutu olan tek ziyaret varsa seçici yerine üst çubukta o ziyaretin adı yazar; panorama olmadığı için bulutun hangi taramadan geldiği böylece görünür.
 - **İmza:** Personel imzası (`createMediaSigner`, kullanıcı kapsamı). Sunucu yalnız o parselin bir `world_cloud` asset'ini imzalar.
 - **Renk kipi "Büyüklük sınıfı":** Yalnız personelde vardır. Önerisi kayıtlı sınıftan farklı ağaçlar turuncu, aynı olanlar yeşil, önerisi olmayanlar gri boyanır. Öneri bakılan denetimin değil, ağacın en yeni önerisidir (§9.1).
 - **Ağaç paneli:** Ölçülerin altında kayıtlı sınıf ve öneri satırı vardır. Uzmanda inceleme bağlantısı, ofiste "Öneriyi uygula" düğmesi bulunur.
