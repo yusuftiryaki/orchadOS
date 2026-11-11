@@ -16,6 +16,7 @@
 - `docs/hukuk/kararlar.md`: hukuki kararlar (H01–H34), yayın şartları ve takip işleri (T01–T26). Hukuk metinleri `docs/hukuk/`'tadır; sitedeki kopyaları `apps/web/src/lib/i18n/messages/legal.ts` (taslakla eşitliği testle denetlenir).
 - `docs/3d-dunya.md`: 3D dünya (İP17): gezide panoramadan LiDAR bulutuna geçiş, sahibe açık zamansız web bulutu (`world_cloud`, `lidar world`), geçiş efekti, renk kipleri, Faz 2–3.
 - `docs/lidar-olcumleri.md`: LiDAR ölçümleri (İP16, araştırma): kayıtlı nokta bulutundan taç ölçümleri ve büyüklük sınıfı önerisi, kış iskeleti, budama analizi; yöntemler, sentetik doğruluk, doğrulama planı, açık kararlar.
+- `docs/girisimcilik/`: TÜBİTAK BiGG (1812) ve KOSGEB Girişimci Destek Programı başvuruları: program kuralları ve takvimler, uygunluk soruları, iş fikri, iş planı, KOSGEB proje formu, finansal plan, sunum ve video, kontrol listesi. Giriş: `README.md`.
 - `docs/arayuzler.md`: **bileşenler arası sözleşmelerin kaynağı**: oturum klasörü, `events.csv`, iki `session.json`, QR saat kodu, zaman tanımı. Bir biçim değişirse önce burası güncellenir.
 
 ## Yapı
