@@ -77,6 +77,7 @@ Envanter her bahçenin ağaç haritasını bir kez çıkarır; sonraki ziyaretle
 2. Her ağacın gövdesine iki farklı panoramada tıklayın; yazılım konumu hesaplar (ağaç başına yaklaşık 10 saniye). Uyarı çıkarsa başka bir panorama çifti seçin.
 3. Yazılım sıraları oturtur ve kod verir (S5-12, ara ağaç S5-12a). Ağaç beklenen ama bulunmayan yerler "boş yer" olur. Yaş, aşı ve altyapıyı da burada işaretleyin.
 4. Doğrulama listesine bakın (belirsiz ağaçlar, boş yerler, "emin değilim" işaretlileri), sonra "Kaydet" sekmesinde "Veritabanına kaydet". Liste saha personelinin doğrulama turu olur.
+5. LiDAR taraması olan bahçede envanter çalışma alanının "Ağaç özellikleri" sekmesinde "LiDAR önerisi" sütunu çıkar: taramanın taç çapından önerdiği büyüklük sınıfı ve güveni. "Öneriyle uyuşmayanları seç" ve "Seçilenlere LiDAR önerisini uygula" ile farklı olanları bir kerede düzeltin; güveni düşük öneriler uygulanmaz, onlara panoramadan bakın. Sayfanın üstündeki "3D dünya" düğmesi bahçenin LiDAR bulutunu açar; bir ağaca tıklayınca kayıtlı sınıf ve öneri görünür, "Öneriyi uygula" ile kaydedilir ([3d-dunya.md](3d-dunya.md) §9).
 
 ### Günlük takip
 
