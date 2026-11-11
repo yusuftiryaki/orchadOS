@@ -902,6 +902,8 @@ test.describe("3D world", () => {
     // The pad turns while held.
     before = await labelPlaces();
     const right = pad.getByRole("button", { name: "Sağa dön" });
+    // Not covered by the caption (hover fails on a covered element).
+    await right.hover();
     const box = (await right.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();

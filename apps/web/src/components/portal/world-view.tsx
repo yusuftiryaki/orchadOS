@@ -647,42 +647,53 @@ export default function WorldView({
           </div>
         </section>
       )}
-      {status === "world" && nav === "walk" && (
-        <div className={styles.pad} role="group" aria-label={tw.pad.label} data-testid="world-pad">
-          <PadButton
-            className={styles.padUp}
-            label={tw.pad.forward}
-            symbol="▲"
-            input={{ forward: 1 }}
-            onInput={setPadInput}
-          />
-          <PadButton
-            className={styles.padLeft}
-            label={tw.pad.left}
-            symbol="⟲"
-            input={{ turn: -1 }}
-            onInput={setPadInput}
-          />
-          <PadButton
-            className={styles.padRight}
-            label={tw.pad.right}
-            symbol="⟳"
-            input={{ turn: 1 }}
-            onInput={setPadInput}
-          />
-          <PadButton
-            className={styles.padDown}
-            label={tw.pad.back}
-            symbol="▼"
-            input={{ forward: -1 }}
-            onInput={setPadInput}
-          />
+      {status === "world" && (nav === "walk" || !tree) && (
+        // Bottom right, stacked: the pad above the caption (they never overlap).
+        <div className={styles.corner}>
+          {nav === "walk" && (
+            <div
+              className={styles.pad}
+              role="group"
+              aria-label={tw.pad.label}
+              data-testid="world-pad"
+            >
+              <PadButton
+                className={styles.padUp}
+                label={tw.pad.forward}
+                symbol="▲"
+                input={{ forward: 1 }}
+                onInput={setPadInput}
+              />
+              <PadButton
+                className={styles.padLeft}
+                label={tw.pad.left}
+                symbol="⟲"
+                input={{ turn: -1 }}
+                onInput={setPadInput}
+              />
+              <PadButton
+                className={styles.padRight}
+                label={tw.pad.right}
+                symbol="⟳"
+                input={{ turn: 1 }}
+                onInput={setPadInput}
+              />
+              <PadButton
+                className={styles.padDown}
+                label={tw.pad.back}
+                symbol="▼"
+                input={{ forward: -1 }}
+                onInput={setPadInput}
+              />
+            </div>
+          )}
+          {!tree && (
+            <p className={styles.caption} data-testid="world-caption">
+              {nav === "walk" ? tw.walkCaption : hint} {hasViewpoints && tw.viewpointHint}{" "}
+              {tw.caption}
+            </p>
+          )}
         </div>
-      )}
-      {status === "world" && !tree && (
-        <p className={styles.caption} data-testid="world-caption">
-          {nav === "walk" ? tw.walkCaption : hint} {hasViewpoints && tw.viewpointHint} {tw.caption}
-        </p>
       )}
     </div>
   );
