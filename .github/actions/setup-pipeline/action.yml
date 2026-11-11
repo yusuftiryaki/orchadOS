@@ -1,0 +1,52 @@
+name: Set up the processing pipeline
+description: >
+  RTKLIB from a cached .deb, uv and services/pipeline's dependencies, and the
+  caches of the demo tour build and the office tool's synthetic panoramas
+  (both built by services/pipeline for the web tests).
+
+runs:
+  using: composite
+  steps:
+    # RTKLIB depends on libc6 only, so the cached .deb installs offline: an
+    # unreachable Ubuntu mirror (11 November 2026) no longer fails the job.
+    - name: Cache the RTKLIB package
+      id: rtklib-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/rtklib-deb
+        key: rtklib-deb-${{ runner.os }}-${{ runner.arch }}-noble-v1
+
+    - name: Download RTKLIB
+      if: steps.rtklib-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        mkdir -p ~/.cache/rtklib-deb
+        cd ~/.cache/rtklib-deb
+        sudo apt-get update -o Acquire::Retries=3
+        apt-get download -o Acquire::Retries=3 rtklib
+
+    - name: Install RTKLIB
+      shell: bash
+      run: sudo dpkg -i ~/.cache/rtklib-deb/rtklib_*.deb
+
+    - uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: services/pipeline/uv.lock
+
+    - name: Install pipeline dependencies
+      shell: bash
+      working-directory: services/pipeline
+      run: uv sync --locked
+
+    - name: Cache the demo tour build
+      uses: actions/cache@v4
+      with:
+        path: services/pipeline/.demo-build
+        key: demo-build-${{ hashFiles('services/pipeline/src/**', 'services/pipeline/uv.lock') }}
+
+    - name: Cache the office tool's synthetic panoramas
+      uses: actions/cache@v4
+      with:
+        path: apps/web/.dev-data/e2e
+        key: office-e2e-${{ hashFiles('services/pipeline/src/**', 'services/pipeline/uv.lock', 'apps/web/scripts/office-dev-data.mjs') }}
