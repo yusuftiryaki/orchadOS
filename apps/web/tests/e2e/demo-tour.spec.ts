@@ -846,6 +846,85 @@ test.describe("360° tour on a phone", () => {
 // ---------------------------------------------------------------------------
 
 test.describe("3D world", () => {
+  test("walks at eye level and flies down into a panorama viewpoint", async ({ page }) => {
+    test.setTimeout(180_000);
+    const errors = collectErrors(page);
+    const viewer = await openTour(page);
+    expect(page.url()).not.toContain("panorama=");
+    await page.getByTestId("world-enter").click();
+    const world = page.getByTestId("world");
+    await expect(world).toHaveAttribute("data-status", "world", { timeout: 60_000 });
+    await expect(world).toHaveAttribute("data-nav", "orbit");
+
+    // Where the tree labels stand: they move whenever the camera does.
+    const labelPlaces = () =>
+      page
+        .getByTestId("world-labels")
+        .locator("button")
+        .evaluateAll((els) => els.map((el) => (el as HTMLElement).style.transform).join("|"));
+    const settle = () =>
+      expect
+        .poll(
+          async () => {
+            const before = await labelPlaces();
+            await page.waitForTimeout(300);
+            return before === (await labelPlaces());
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true);
+
+    // Down to eye level.
+    const walk = page.getByTestId("world-walk");
+    await expect(walk).toHaveText("Yürü");
+    await walk.click();
+    await expect(world).toHaveAttribute("data-nav", "walk");
+    await expect(walk).toHaveAttribute("aria-pressed", "true");
+    await expect(walk).toHaveText("Kuşbakışı");
+    await expect(page.getByTestId("world-caption")).toContainText("W/S");
+    const pad = page.getByTestId("world-pad");
+    await expect(pad).toBeVisible();
+    for (const button of await pad.getByRole("button").all()) {
+      const box = (await button.boundingBox())!;
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+    await settle();
+
+    // The keys walk.
+    let before = await labelPlaces();
+    await page.keyboard.down("w");
+    await page.waitForTimeout(700);
+    await page.keyboard.up("w");
+    await settle();
+    expect(await labelPlaces()).not.toBe(before);
+
+    // The pad turns while held.
+    before = await labelPlaces();
+    const right = pad.getByRole("button", { name: "Sağa dön" });
+    const box = (await right.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(600);
+    await page.mouse.up();
+    await settle();
+    expect(await labelPlaces()).not.toBe(before);
+
+    // Back up to the overview, then down into the nearest panorama: the tour
+    // goes on there (the address now names it).
+    await walk.click();
+    await expect(world).toHaveAttribute("data-nav", "orbit");
+    await expect(pad).toHaveCount(0);
+    await settle();
+    await page.getByTestId("world-nearest-panorama").click();
+    await expect(page.getByTestId("world")).toHaveCount(0, { timeout: 10_000 });
+    await expect(viewer).toHaveAttribute("data-loaded", "true", { timeout: 30_000 });
+    const landed = await viewer.getAttribute("data-panorama");
+    expect(landed).toBeTruthy();
+    await expect.poll(() => page.url()).toContain(`panorama=${landed}`);
+    expect(errors).toEqual([]);
+  });
+
   test("turns the panorama into the cloud, shows a tree's measurements and comes back", async ({
     page,
   }) => {

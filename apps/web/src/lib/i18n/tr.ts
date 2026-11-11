@@ -1687,7 +1687,7 @@ export const tr = {
         visit: "Denetim",
         error: "3D dünya açılamadı. Panoramaya dönüp yeniden deneyebilirsiniz.",
         capped: "Bu demo oturumunda açılabilecek görüntü sınırına ulaşıldı.",
-        hint: "Sürükleyerek çevirin, iki parmakla ya da tekerlekle yakınlaştırın, sağ tuşla ya da üç parmakla kaydırın. Bir ağaca dokununca ölçüleri açılır.",
+        hint: "Sürükleyerek çevirin, iki parmakla ya da tekerlekle yakınlaştırın, sağ tuşla ya da üç parmakla kaydırın. Bir ağaca dokununca ölçüleri açılır. Zemine çift tıklayınca o noktada yürümeye başlarsınız.",
         colorMode: "Renk",
         modes: {
           photo: "Fotoğraf renkleri",
@@ -1716,6 +1716,23 @@ export const tr = {
         noMeasurements: "Bu ağaç bu taramada ölçülmedi.",
         flyTo: "Ağaca yaklaş",
         close: "Kapat",
+        // Moving around (docs/3d-dunya.md §10).
+        walk: "Yürü",
+        walkHint: "Göz hizasına inip bahçede yürüyün",
+        overview: "Kuşbakışı",
+        overviewHint: "Bahçeye yukarıdan bakmaya dönün",
+        walkCaption:
+          "Sürükleyerek etrafa bakın. W/S ya da ↑/↓ ile ileri geri yürüyün, A/D ile yana adım atın, ←/→ ile dönün, Shift ile hızlanın. Zemine çift tıklayınca oraya yürürsünüz.",
+        viewpointHint:
+          "Zemindeki beyaz halkalar panorama noktalarıdır; birine tıklayınca o noktanın panoramasına inersiniz.",
+        nearestPanorama: "En yakın panoramaya in",
+        pad: {
+          label: "Yürüme yönü",
+          forward: "İleri yürü",
+          back: "Geri yürü",
+          left: "Sola dön",
+          right: "Sağa dön",
+        },
         caption:
           "Nokta bulutu LiDAR taramasından, renkleri panoramalardan gelir. Ölçüler tarama sırasında hesaplanan değerlerdir; çizimler yaklaşıktır.",
       },

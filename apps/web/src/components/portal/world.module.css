@@ -229,3 +229,58 @@
 .swatchPruned {
   background: #e2483a;
 }
+
+/* Walk mode: the direction pad, bottom right above the caption (hold to
+   walk or turn; docs/3d-dunya.md §10). */
+.pad {
+  position: absolute;
+  z-index: 2;
+  right: var(--space-2);
+  bottom: calc(var(--space-2) + 72px);
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(2, 44px);
+  gap: 4px;
+  touch-action: none;
+}
+
+.padButton {
+  composes: chromeButton from "./portal.module.css";
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.padUp {
+  composes: padButton;
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.padLeft {
+  composes: padButton;
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.padDown {
+  composes: padButton;
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.padRight {
+  composes: padButton;
+  grid-column: 3;
+  grid-row: 2;
+}
+
+/* On a narrow screen the caption is hidden; the pad sits lower. */
+@media (max-width: 640px) {
+  .pad {
+    bottom: var(--space-2);
+  }
+}

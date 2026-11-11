@@ -27,6 +27,20 @@ import {
   type TransitionState,
   type Vec3,
 } from "@/lib/world/geometry";
+import {
+  azimuthOfScene,
+  look,
+  nearestViewpoint,
+  NO_INPUT,
+  rayToGround,
+  stepToward,
+  WALK_EYE_M,
+  walkStep,
+  isMoving,
+  type Bounds,
+  type WalkInput,
+  type WalkState,
+} from "@/lib/world/walk";
 
 // The 3D world of a visit (docs/3d-dunya.md): the coloured LiDAR cloud, the
 // photo of the panorama the visitor stood in, and the measured crowns drawn
@@ -46,6 +60,12 @@ import {
 // points are stored shuffled, so drawing the first k of them is an even
 // sample, and the old layer's k shrinks while the new one's grows. A layer
 // can arrive coarse (the first quarter of its points) and be completed later.
+//
+// Moving around (docs/3d-dunya.md §10): the overview orbits (OrbitControls);
+// the walk mode puts the camera at eye height on the ground, looks around by
+// dragging and walks with the keys, the direction pad or a double click. The
+// tour's panorama viewpoints stand on the ground as rings; picking one flies
+// the camera down into it and the tour goes on in that panorama.
 
 export type ColorMode = "photo" | "height" | "diameter" | "growth" | "sizeClass";
 
@@ -65,6 +85,14 @@ export interface SceneTree {
   growthM: number | null;
   sizeFlag?: SizeFlag | null;
 }
+
+// A panorama viewpoint of the tour (east, north metres in the scene's frame).
+export interface SceneViewpoint {
+  id: string;
+  en: [number, number];
+}
+
+export type Navigation = "orbit" | "walk";
 
 export interface SceneVisit {
   key: string;
@@ -92,6 +120,10 @@ export interface WorldSceneOptions {
   startOverview?: boolean;
   labelText: (tree: SceneTree) => string;
   onSelect: (treeId: string | null) => void;
+  // A viewpoint ring was clicked (the tour flies down into it).
+  onViewpoint?: (viewpointId: string) => void;
+  // The scene switched to the walk by itself (a double click in the overview).
+  onNavigation?: (nav: Navigation) => void;
   onEntered: () => void;
 }
 
@@ -109,6 +141,18 @@ interface Layer {
 }
 
 const SWITCH_MS = 1400;
+// Between the overview and the walk; flying down into a panorama.
+const NAV_MS = 900;
+const DESCEND_MS = 1100;
+// Field of view while walking.
+const WALK_FOV = 70;
+// Viewpoint rings on the ground (radii, metres) and how near a click must be.
+const RING_INNER_M = 0.32;
+const RING_OUTER_M = 0.5;
+const VIEWPOINT_PICK_PX = 28;
+const TREE_PICK_PX = 48;
+// Double click in the overview: one walks there.
+const WALK_IN_MARGIN_M = 1;
 
 // Depth panorama resolution (a coarse grid is enough for the dissolve).
 const DEPTH_W = 512;
@@ -230,8 +274,22 @@ export class WorldScene {
   private mode: ColorMode = "photo";
   private skeletonOn = true;
   private switching: { from: Layer; to: Layer; start: number } | null = null;
+  private nav: Navigation = "orbit";
+  private walk: WalkState = { e: 0, n: 0, yawDeg: 0, pitchDeg: 0 };
+  private walkInput: WalkInput = NO_INPUT;
+  private walkTarget: [number, number] | null = null;
+  private walkAfter: (() => void) | null = null;
+  private readonly bounds: Bounds;
+  // A camera flight inside the world (overview <-> walk, down into a panorama).
+  private flight: { from: Pose; to: Pose; start: number; ms: number; done: () => void } | null =
+    null;
+  private lastTick = 0;
+  private viewpoints: SceneViewpoint[] = [];
+  private viewpointMesh: THREE.InstancedMesh | null = null;
+  private readonly ringGeometry: THREE.RingGeometry;
+  private readonly ringMaterial: THREE.MeshBasicMaterial;
   private frame = 0;
-  private phase: "entering" | "world" | "exiting" | "done" = "entering";
+  private phase: "entering" | "world" | "exiting" | "descending" | "done" = "entering";
   private phaseStart = 0;
   private onExited: (() => void) | null = null;
   private dirty = true;
@@ -251,6 +309,21 @@ export class WorldScene {
     container.appendChild(this.renderer.domElement);
 
     this.ground = groundGrid(cloud.enu, cloud.tree, cloud.count);
+    this.bounds = {
+      minE: this.ground.minE,
+      minN: this.ground.minN,
+      maxE: this.ground.minE + this.ground.cols * this.ground.cell,
+      maxN: this.ground.minN + this.ground.rows * this.ground.cell,
+    };
+    this.ringGeometry = new THREE.RingGeometry(RING_INNER_M, RING_OUTER_M, 32);
+    this.ringGeometry.rotateX(-Math.PI / 2);
+    this.ringMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
     const [eE, eN] = options.eyeEN;
     const groundZ = groundAt(this.ground, eE, eN);
     const eyeEnu: Vec3 = [eE, eN, groundZ + options.cameraHeightM];
@@ -345,7 +418,10 @@ export class WorldScene {
     });
 
     this.renderer.domElement.addEventListener("pointerdown", this.onPointerDown);
+    this.renderer.domElement.addEventListener("pointermove", this.onPointerMove);
+    this.renderer.domElement.addEventListener("pointerup", this.onPointerUp);
     this.renderer.domElement.addEventListener("click", this.onCanvasClick);
+    this.renderer.domElement.addEventListener("dblclick", this.onDoubleClick);
     this.resize = new ResizeObserver(() => this.onResize());
     this.resize.observe(container);
     this.onResize();
@@ -454,10 +530,24 @@ export class WorldScene {
     this.dirty = true;
   }
 
-  // Flies the camera over a tree and keeps orbiting around it.
+  // Flies the camera over a tree and keeps orbiting around it; walking, walks
+  // up to it.
   flyTo(treeId: string) {
     const top = this.tops.get(treeId);
     if (!top) return;
+    if (this.nav === "walk") {
+      const te = top.x;
+      const tn = -top.z;
+      const d = Math.hypot(te - this.walk.e, tn - this.walk.n);
+      if (d < 0.1) return;
+      // Stop a few metres short, facing the tree.
+      const stop = Math.max(0, d - 4) / d;
+      this.walkTo([
+        this.walk.e + (te - this.walk.e) * stop,
+        this.walk.n + (tn - this.walk.n) * stop,
+      ]);
+      return;
+    }
     const target = top.clone();
     target.y -= 1.5;
     const offset = this.camera.position.clone().sub(this.controls.target);
@@ -469,9 +559,12 @@ export class WorldScene {
   }
 
   exit(done: () => void) {
-    if (this.phase === "exiting" || this.phase === "done") return;
+    if (this.phase === "exiting" || this.phase === "descending" || this.phase === "done") return;
     this.onExited = done;
     this.controls.enabled = false;
+    this.flight = null;
+    this.walkInput = NO_INPUT;
+    this.walkTarget = null;
     if (this.switching) this.finishSwitch();
     // Fly back from wherever the visitor orbited to.
     this.current = this.poseNow();
@@ -480,14 +573,185 @@ export class WorldScene {
     if (this.instant) this.phaseStart -= EXIT_MS;
   }
 
+  // ---------------------------------------------------------------------------
+  // Moving around
+  // ---------------------------------------------------------------------------
+
+  get navigation(): Navigation {
+    return this.nav;
+  }
+
+  // Overview <-> walk. Walking starts where the overview looks (the orbit's
+  // target on the ground), facing the same way; the overview comes back
+  // above and behind where one walked.
+  setNavigation(nav: Navigation, done?: () => void) {
+    if (this.phase !== "world" || nav === this.nav || this.flight) return;
+    const from = this.poseNow();
+    if (nav === "walk") {
+      const t = this.controls.target;
+      const dir = this.camera.getWorldDirection(new THREE.Vector3());
+      this.walk = {
+        e: t.x,
+        n: -t.z,
+        yawDeg: azimuthOfScene([dir.x, dir.y, dir.z]),
+        pitchDeg: 0,
+      };
+      [this.walk.e, this.walk.n] = [
+        Math.min(this.bounds.maxE, Math.max(this.bounds.minE, this.walk.e)),
+        Math.min(this.bounds.maxN, Math.max(this.bounds.minN, this.walk.n)),
+      ];
+      this.controls.enabled = false;
+      this.nav = "walk";
+      this.fly(from, this.walkPose(), NAV_MS, () => done?.());
+    } else {
+      const eye = this.walkEye();
+      const groundY = groundAt(this.ground, this.walk.e, this.walk.n);
+      const extent = Math.hypot(this.ground.cols, this.ground.rows) * this.ground.cell;
+      const to = overviewPose(eye, groundY, this.walk.yawDeg, extent);
+      this.walkInput = NO_INPUT;
+      this.walkTarget = null;
+      this.nav = "orbit";
+      this.fly(from, to, NAV_MS, () => {
+        this.controls.target.set(...to.target);
+        this.controls.enabled = true;
+        this.controls.update();
+        done?.();
+      });
+    }
+  }
+
+  // Keys and the direction pad while walking.
+  setWalkInput(input: WalkInput) {
+    this.walkInput = input;
+    if (isMoving(input)) this.walkTarget = null;
+    this.dirty = true;
+  }
+
+  // The tour's panorama viewpoints of the visit on screen, drawn as rings.
+  setViewpoints(viewpoints: SceneViewpoint[]) {
+    this.viewpoints = viewpoints;
+    if (this.viewpointMesh) {
+      this.scene.remove(this.viewpointMesh);
+      this.viewpointMesh.dispose();
+      this.viewpointMesh = null;
+    }
+    if (viewpoints.length > 0) {
+      const mesh = new THREE.InstancedMesh(this.ringGeometry, this.ringMaterial, viewpoints.length);
+      const m = new THREE.Matrix4();
+      viewpoints.forEach((v, i) => {
+        const [x, , z] = sceneOf(v.en[0], v.en[1], 0);
+        m.makeTranslation(x, groundAt(this.ground, v.en[0], v.en[1]) + 0.06, z);
+        mesh.setMatrixAt(i, m);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 2;
+      this.viewpointMesh = mesh;
+      this.scene.add(mesh);
+    }
+    this.dirty = true;
+  }
+
+  // The viewpoint nearest to where one looks (the overview) or stands (walk).
+  nearestViewpointId(): string | null {
+    const [e, n] =
+      this.nav === "walk"
+        ? [this.walk.e, this.walk.n]
+        : [this.controls.target.x, -this.controls.target.z];
+    return nearestViewpoint(this.viewpoints, e, n)?.id ?? null;
+  }
+
+  // Flies down into a viewpoint at the panorama camera's height, looking the
+  // way the camera looks now; `done` gets that azimuth (the tour opens the
+  // panorama there).
+  descend(viewpointId: string, done: (azimuthDeg: number) => void) {
+    if (this.phase !== "world") return;
+    const v = this.viewpoints.find((x) => x.id === viewpointId);
+    if (!v) return;
+    const from = this.poseNow();
+    const dir = this.camera.getWorldDirection(new THREE.Vector3());
+    const azimuth = azimuthOfScene([dir.x, dir.y, dir.z]);
+    const ground = groundAt(this.ground, v.en[0], v.en[1]);
+    const eye = sceneOf(v.en[0], v.en[1], ground + this.options.cameraHeightM);
+    const to = panoramaPose(eye, azimuth, 0, this.options.fovDeg);
+    this.controls.enabled = false;
+    this.walkInput = NO_INPUT;
+    this.walkTarget = null;
+    if (this.switching) this.finishSwitch();
+    this.phase = "descending";
+    this.flight = {
+      from,
+      to,
+      start: performance.now() - (this.options.reducedMotion ? DESCEND_MS : 0),
+      ms: DESCEND_MS,
+      done: () => {
+        this.phase = "done";
+        done(azimuth);
+      },
+    };
+    this.dirty = true;
+  }
+
+  private fly(from: Pose, to: Pose, ms: number, done: () => void) {
+    this.flight = {
+      from,
+      to,
+      start: performance.now() - (this.options.reducedMotion ? ms : 0),
+      ms,
+      done,
+    };
+    this.dirty = true;
+  }
+
+  private walkEye(): Vec3 {
+    const g = groundAt(this.ground, this.walk.e, this.walk.n);
+    return sceneOf(this.walk.e, this.walk.n, g + WALK_EYE_M);
+  }
+
+  private walkPose(): Pose {
+    return panoramaPose(this.walkEye(), this.walk.yawDeg, this.walk.pitchDeg, WALK_FOV);
+  }
+
+  private walkTo(target: [number, number], after?: () => void) {
+    this.walkTarget = [
+      Math.min(this.bounds.maxE, Math.max(this.bounds.minE, target[0])),
+      Math.min(this.bounds.maxN, Math.max(this.bounds.minN, target[1])),
+    ];
+    this.walkAfter = after ?? null;
+    this.dirty = true;
+  }
+
+  // One frame of walking (keys, pad or a walk to a point).
+  private stepWalk(dtS: number): boolean {
+    if (this.walkTarget) {
+      const { state, arrived } = stepToward(this.walk, this.walkTarget, dtS);
+      this.walk = state;
+      if (arrived) {
+        this.walkTarget = null;
+        const after = this.walkAfter;
+        this.walkAfter = null;
+        after?.();
+      }
+      return true;
+    }
+    if (!isMoving(this.walkInput)) return false;
+    this.walk = walkStep(this.walk, this.walkInput, dtS, this.bounds);
+    return true;
+  }
+
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
     cancelAnimationFrame(this.frame);
     this.resize.disconnect();
     this.renderer.domElement.removeEventListener("pointerdown", this.onPointerDown);
+    this.renderer.domElement.removeEventListener("pointermove", this.onPointerMove);
+    this.renderer.domElement.removeEventListener("pointerup", this.onPointerUp);
     this.renderer.domElement.removeEventListener("click", this.onCanvasClick);
+    this.renderer.domElement.removeEventListener("dblclick", this.onDoubleClick);
     this.controls.dispose();
+    this.ringGeometry.dispose();
+    this.ringMaterial.dispose();
     this.scene.traverse((object) => {
       const mesh = object as THREE.Mesh;
       mesh.geometry?.dispose();
@@ -732,16 +996,40 @@ export class WorldScene {
         this.onExited?.();
         return;
       }
-    } else if (this.phase === "world") {
+    } else if (this.phase === "world" || this.phase === "descending") {
+      const dt = this.lastTick ? (now - this.lastTick) / 1000 : 0;
       if (this.switching) {
         this.stepSwitch(now);
         this.dirty = true;
       }
-      if (this.controls.update()) this.dirty = true;
+      if (this.flight) {
+        const f = this.flight;
+        const p = Math.min(1, (now - f.start) / f.ms);
+        this.applyPose(lerpPose(f.from, f.to, easeInOut(p)));
+        if (this.phase === "descending") this.setOverlay(1 - p);
+        if (p >= 1) {
+          // Flying down into a panorama ends the world.
+          const landed = this.phase === "descending";
+          this.flight = null;
+          f.done();
+          if (landed) {
+            this.render();
+            return;
+          }
+        }
+        this.dirty = true;
+      } else if (this.nav === "walk") {
+        if (this.stepWalk(dt)) this.dirty = true;
+        if (this.dirty) this.applyPose(this.walkPose());
+      } else if (this.controls.update()) {
+        this.dirty = true;
+      }
+      this.lastTick = now;
       if (!this.dirty) return;
     } else {
       return;
     }
+    this.lastTick = now;
     this.render();
   };
 
@@ -775,6 +1063,10 @@ export class WorldScene {
 
   private poseNow(): Pose {
     const p = this.camera.position;
+    if (this.nav === "walk" || this.flight) {
+      const d = this.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(10).add(p);
+      return { position: [p.x, p.y, p.z], target: [d.x, d.y, d.z], fovDeg: this.camera.fov };
+    }
     const t = this.controls.target;
     return { position: [p.x, p.y, p.z], target: [t.x, t.y, t.z], fovDeg: this.camera.fov };
   }
@@ -784,6 +1076,7 @@ export class WorldScene {
     this.guideMaterial.opacity = 0.85 * opacity;
     this.dashedMaterial.opacity = 0.7 * opacity;
     this.guides.visible = opacity > 0;
+    this.ringMaterial.opacity = 0.8 * opacity;
     this.selectedGroup.visible = opacity > 0;
     this.options.labels.style.opacity = String(opacity);
     this.options.labels.style.visibility = opacity > 0 ? "visible" : "hidden";
@@ -958,11 +1251,37 @@ export class WorldScene {
 
   private readonly onPointerDown = (event: PointerEvent) => {
     this.down = { x: event.clientX, y: event.clientY };
+    this.dragFrom = { x: event.clientX, y: event.clientY };
+    if (this.nav === "walk" && this.phase === "world") {
+      this.renderer.domElement.setPointerCapture?.(event.pointerId);
+    }
   };
 
-  // A click (not the end of a drag) picks the tree nearest to it on screen.
+  private dragFrom: { x: number; y: number } | null = null;
+
+  // Walking: dragging looks around.
+  private readonly onPointerMove = (event: PointerEvent) => {
+    if (this.nav !== "walk" || this.phase !== "world" || this.flight || !this.dragFrom) return;
+    if (event.buttons === 0) {
+      this.dragFrom = null;
+      return;
+    }
+    const dx = event.clientX - this.dragFrom.x;
+    const dy = event.clientY - this.dragFrom.y;
+    this.dragFrom = { x: event.clientX, y: event.clientY };
+    const height = this.options.container.clientHeight;
+    this.walk = look(this.walk, dx, dy, height, this.camera.fov);
+    this.dirty = true;
+  };
+
+  private readonly onPointerUp = () => {
+    this.dragFrom = null;
+  };
+
+  // A click (not the end of a drag) picks the viewpoint ring or the tree
+  // nearest to it on screen; a ring wins when it is the nearer one.
   private readonly onCanvasClick = (event: MouseEvent) => {
-    if (this.phase !== "world") return;
+    if (this.phase !== "world" || this.flight) return;
     const down = this.down;
     if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6) return;
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -981,8 +1300,59 @@ export class WorldScene {
       if (v.z < -1 || v.z > 1) continue;
       items.push({ id, x: ((v.x + 1) / 2) * rect.width, y: ((1 - v.y) / 2) * rect.height });
     }
-    const hit = pickNearest(items, x, y, 48);
-    this.options.onSelect(hit?.id ?? null);
+    const tree = pickNearest(items, x, y, TREE_PICK_PX);
+    if (this.options.onViewpoint && this.viewpoints.length > 0) {
+      const rings: { id: string; x: number; y: number }[] = [];
+      for (const vp of this.viewpoints) {
+        const [vx, , vz] = sceneOf(vp.en[0], vp.en[1], 0);
+        v.set(vx, groundAt(this.ground, vp.en[0], vp.en[1]), vz).project(this.camera);
+        if (v.z < -1 || v.z > 1) continue;
+        rings.push({
+          id: vp.id,
+          x: ((v.x + 1) / 2) * rect.width,
+          y: ((1 - v.y) / 2) * rect.height,
+        });
+      }
+      const ring = pickNearest(rings, x, y, VIEWPOINT_PICK_PX);
+      const dRing = ring ? Math.hypot(ring.x - x, ring.y - y) : Infinity;
+      const dTree = tree ? Math.hypot(tree.x - x, tree.y - y) : Infinity;
+      if (ring && dRing <= dTree) {
+        this.options.onViewpoint(ring.id);
+        return;
+      }
+    }
+    this.options.onSelect(tree?.id ?? null);
+  };
+
+  // A double click on the ground walks there (from the overview: one walks in
+  // at that point).
+  private readonly onDoubleClick = (event: MouseEvent) => {
+    if (this.phase !== "world" || this.flight) return;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, this.camera);
+    const o = ray.ray.origin;
+    const d = ray.ray.direction;
+    const hit = rayToGround([o.x, -o.z, o.y], [d.x, -d.z, d.y], (e, n) =>
+      groundAt(this.ground, e, n),
+    );
+    if (!hit) return;
+    if (this.nav === "walk") {
+      this.walkTo(hit);
+      return;
+    }
+    // Into the walk at the clicked point, facing away from the camera.
+    const target = this.controls.target;
+    target.set(hit[0], groundAt(this.ground, hit[0], hit[1]), -hit[1]);
+    const back = this.camera.position.clone().sub(target);
+    const len = Math.hypot(back.x, back.z) || 1;
+    target.x += (-back.x / len) * WALK_IN_MARGIN_M;
+    target.z += (-back.z / len) * WALK_IN_MARGIN_M;
+    this.setNavigation("walk", () => this.options.onNavigation?.("walk"));
   };
 }
 
