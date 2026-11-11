@@ -11,6 +11,7 @@ on:
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/ci-db-web.yml"
+      - ".github/actions/**"
       - "scripts/check-migration-order.sh"
       - "scripts/demo-lock-check.sh"
       - "scripts/test-demo-lock-sql.sh"
@@ -29,6 +30,7 @@ on:
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/ci-db-web.yml"
+      - ".github/actions/**"
       - "scripts/check-migration-order.sh"
       - "scripts/demo-lock-check.sh"
       - "scripts/test-demo-lock-sql.sh"
@@ -46,10 +48,15 @@ concurrency:
 env:
   SUPABASE_INTERNAL_IMAGE_REGISTRY: docker.io
 
+# The checks run side by side (docs/deployment.md, "CI"): static checks without
+# a database, the database and integration tests, and the browser tests in
+# groups balanced by their run times, each group on its own runner with its
+# own local Supabase. The last job, db-web, gathers them under the check name
+# the pull requests have always shown.
 jobs:
-  db-web:
+  static:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -78,15 +85,31 @@ jobs:
           git fetch --no-tags --depth=1 origin "$BASE_REF"
           scripts/check-migration-order.sh FETCH_HEAD
 
-      - uses: pnpm/action-setup@v4
+      - uses: ./.github/actions/setup-web
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
+      - name: Lint, format, typecheck
+        run: pnpm web:lint
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Unit tests
+        run: pnpm --filter web test:unit
+
+      - name: Build
+        run: pnpm web:build
+
+  db:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # Supabase listens on 54320-54329 (supabase/config.toml), inside Linux's
+      # ephemeral port range: an image pull's outgoing connection can take
+      # 54322 first and the database fails to bind it ("address already in
+      # use", 11 November 2026). Reserved ports are never handed out.
+      - name: Keep Supabase's ports out of the ephemeral range
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
+
+      - uses: ./.github/actions/setup-web
 
       - name: Start local Supabase
         run: pnpm db:start
@@ -108,54 +131,69 @@ jobs:
           pnpm web:typegen
           git diff --exit-code -- apps/web/src/lib/database.types.ts
 
-      - name: Lint, format, typecheck
-        run: pnpm web:lint
-
-      - name: Build
-        run: pnpm web:build
-
-      # The demo tour dataset (IP13, docs/demo-turu.md §10) and the office
-      # tool's synthetic panoramas are built by services/pipeline: with uv here,
-      # demo-dataset.test.ts, demo-tour.spec.ts and office-tool.spec.ts run.
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          cache-dependency-glob: services/pipeline/uv.lock
-
-      - name: Install pipeline dependencies
-        working-directory: services/pipeline
-        run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends rtklib
-          uv sync --locked
-
-      - name: Cache the demo tour build
-        uses: actions/cache@v4
-        with:
-          path: services/pipeline/.demo-build
-          key: demo-build-${{ hashFiles('services/pipeline/src/**', 'services/pipeline/uv.lock') }}
-
-      - name: Cache the office tool's synthetic panoramas
-        uses: actions/cache@v4
-        with:
-          path: apps/web/.dev-data/e2e
-          key: office-e2e-${{ hashFiles('services/pipeline/src/**', 'services/pipeline/uv.lock', 'apps/web/scripts/office-dev-data.mjs') }}
+      # The demo tour dataset (IP13, docs/demo-turu.md §10) is built by
+      # services/pipeline: with it, demo-dataset.test.ts runs.
+      - uses: ./.github/actions/setup-pipeline
 
       - name: Load the demo tour dataset
         run: pnpm db:demo-tour --profile test --reset-local
 
-      - name: Unit and integration tests
-        run: pnpm web:test
+      - name: Integration tests
+        run: pnpm --filter web test:integration
 
       # Order independence: rows the web tests leave behind must not break pgTAP.
       - name: Database tests after the web tests
         run: pnpm db:test
 
+  e2e:
+    name: e2e (${{ matrix.group }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      # Groups balanced by run time (about 3.5 minutes of tests each on
+      # 11 November 2026). E2E_ONLY runs the listed spec files, E2E_SKIP
+      # leaves them out (apps/web/playwright.config.ts); the last group skips
+      # the others' files, so a new spec file runs there without being listed.
+      matrix:
+        include:
+          - group: tour
+            only: demo-tour.spec.ts,staff-screens.spec.ts,customer-journey.spec.ts
+            skip: ""
+          - group: maps-office
+            only: maps.spec.ts,office-tool.spec.ts,portal-owner.spec.ts,operations-ui.spec.ts,portal-parcel-a11y.spec.ts
+            skip: ""
+          - group: rest
+            only: ""
+            skip: demo-tour.spec.ts,staff-screens.spec.ts,customer-journey.spec.ts,maps.spec.ts,office-tool.spec.ts,portal-owner.spec.ts,operations-ui.spec.ts,portal-parcel-a11y.spec.ts
+    steps:
+      - uses: actions/checkout@v4
+
+      # Supabase listens on 54320-54329 (supabase/config.toml), inside Linux's
+      # ephemeral port range: an image pull's outgoing connection can take
+      # 54322 first and the database fails to bind it ("address already in
+      # use", 11 November 2026). Reserved ports are never handed out.
+      - name: Keep Supabase's ports out of the ephemeral range
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
+
+      - uses: ./.github/actions/setup-web
+
+      # A fresh stack: start applies the migrations and the seed.
+      - name: Start local Supabase
+        run: pnpm db:start
+
+      # The demo tour dataset and the office tool's synthetic panoramas (the
+      # global setup of the browser tests builds and loads them).
+      - uses: ./.github/actions/setup-pipeline
+
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install --with-deps chromium
 
       - name: Browser tests
+        env:
+          E2E_ONLY: ${{ matrix.only }}
+          E2E_SKIP: ${{ matrix.skip }}
         run: |
-          pnpm db:reset
           pnpm web:e2e
           pnpm db:test
 
@@ -163,6 +201,26 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.group }}
           path: apps/web/playwright-report
           retention-days: 7
+
+  # The check name pull requests and branch rules know: green only when every
+  # job above is.
+  db-web:
+    if: always()
+    needs: [static, db, e2e]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Every job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do
+            if [ "$r" != "success" ]; then
+              echo "::error::a db-web job did not pass ($RESULTS)"
+              exit 1
+            fi
+          done
