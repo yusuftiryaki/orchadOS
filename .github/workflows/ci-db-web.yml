@@ -102,6 +102,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Supabase listens on 54320-54329 (supabase/config.toml), inside Linux's
+      # ephemeral port range: an image pull's outgoing connection can take
+      # 54322 first and the database fails to bind it ("address already in
+      # use", 11 November 2026). Reserved ports are never handed out.
+      - name: Keep Supabase's ports out of the ephemeral range
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
+
       - uses: ./.github/actions/setup-web
 
       - name: Start local Supabase
@@ -161,6 +168,13 @@ jobs:
             skip: demo-tour.spec.ts,staff-screens.spec.ts,customer-journey.spec.ts,maps.spec.ts,office-tool.spec.ts,portal-owner.spec.ts,operations-ui.spec.ts,portal-parcel-a11y.spec.ts
     steps:
       - uses: actions/checkout@v4
+
+      # Supabase listens on 54320-54329 (supabase/config.toml), inside Linux's
+      # ephemeral port range: an image pull's outgoing connection can take
+      # 54322 first and the database fails to bind it ("address already in
+      # use", 11 November 2026). Reserved ports are never handed out.
+      - name: Keep Supabase's ports out of the ephemeral range
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
 
       - uses: ./.github/actions/setup-web
 
