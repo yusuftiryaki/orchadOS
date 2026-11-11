@@ -19,6 +19,9 @@ import { sourceOfSet, type PanoramaSetInfo, type PanoramaSource } from "@/lib/of
 import { UUID_RE } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
 import { SpeciesNotice } from "@/components/species-notice";
+import { StaffWorldButton } from "@/components/staff/staff-world";
+import { loadSizeSuggestions, loadStaffWorld } from "@/lib/lidar/staff";
+import { acceptSizeClassAction, signOfficeWorldAction } from "./actions";
 
 // Inventory workspace of one parcel (after the triangulation tool saved the
 // slots): tree attributes, infrastructure, boundary, verification tour.
@@ -37,9 +40,11 @@ export default async function Page({
   const sources = officePanoramaSources(supabase, user.id);
   // The panorama sets (for the scan track) are listed while the workspace
   // loads; they are only used when the parcel exists.
-  const [ws, setLists] = await Promise.all([
+  const [ws, setLists, suggestions, world] = await Promise.all([
     loadInventoryWorkspace(supabase, parcelId),
     Promise.all(sources.map((s) => s.listSets(parcelId))),
+    loadSizeSuggestions(supabase, parcelId),
+    loadStaffWorld(supabase, parcelId),
   ]);
   if (!ws) notFound();
 
@@ -70,7 +75,20 @@ export default async function Page({
   const approvedAt = ws.approved ? (ws.inventorySession?.publishedAt ?? null) : null;
   return (
     <main className={`${staff.wide} ${styles.page}`}>
-      <PageHeader back={back} title={o.title} lead={o.lead} />
+      <PageHeader
+        back={back}
+        title={o.title}
+        lead={o.lead}
+        actions={
+          world && (
+            <StaffWorldButton
+              world={world}
+              sign={signOfficeWorldAction}
+              accept={acceptSizeClassAction}
+            />
+          )
+        }
+      />
       <SpeciesNotice species={ws.parcel.species} />
       {approvedAt && (
         <Alert tone="success" testId="inventory-approved">
@@ -81,6 +99,7 @@ export default async function Page({
         ws={ws}
         track={track}
         canDeleteZones={user.roles.orgRoles.includes("ops")}
+        suggestions={Object.fromEntries(suggestions)}
         initialTab={
           WORKSPACE_TABS.includes(tab as WorkspaceTab) ? (tab as WorkspaceTab) : "attributes"
         }

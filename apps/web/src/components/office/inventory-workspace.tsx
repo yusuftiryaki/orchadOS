@@ -43,6 +43,7 @@ import {
 } from "@/lib/office/verification-candidates";
 import { InventoryMap, type InventoryMapSlot } from "./inventory-map";
 import { InventoryMapLegend } from "./inventory-summary";
+import type { SizeSuggestion } from "@/lib/lidar/size-class";
 import { TreeAttributeEditor } from "./tree-attribute-editor";
 import { VerificationTours } from "./verification-panel";
 import styles from "./inventory.module.css";
@@ -75,11 +76,14 @@ export function InventoryWorkspaceView({
   track,
   canDeleteZones,
   initialTab,
+  suggestions,
 }: {
   ws: InventoryWorkspace;
   track: LatLon[];
   canDeleteZones: boolean;
   initialTab: WorkspaceTab;
+  // tree id -> its newest LiDAR size class suggestion (docs/3d-dunya.md §9.3).
+  suggestions?: Record<string, SizeSuggestion>;
 }) {
   const router = useRouter();
   const parcelId = ws.parcel.id;
@@ -377,6 +381,7 @@ export function InventoryWorkspaceView({
               slots={ws.slots}
               parcelSpecies={ws.parcel.species}
               speciesOptions={ws.speciesOptions}
+              suggestions={suggestions}
               selected={selected}
               onSelectionChange={setSelected}
               onApply={async (treeIds, attributes) => {

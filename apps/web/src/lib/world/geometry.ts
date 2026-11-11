@@ -293,6 +293,29 @@ export function overviewPose(
   };
 }
 
+// Where a world opened without a panorama starts (staff, docs/3d-dunya.md
+// §9.4): the middle of the cloud's southern edge, looking north, so the
+// overview pose shows the parcel ahead. East, north metres; null for an
+// empty cloud.
+export function overviewStart(
+  enu: Float32Array,
+  count: number,
+): { eyeEN: [number, number]; headingDeg: number } | null {
+  let minE = Infinity;
+  let maxE = -Infinity;
+  let minN = Infinity;
+  for (let i = 0; i < count; i++) {
+    const e = enu[i * 3];
+    const n = enu[i * 3 + 1];
+    if (!Number.isFinite(e) || !Number.isFinite(n)) continue;
+    if (e < minE) minE = e;
+    if (e > maxE) maxE = e;
+    if (n < minN) minN = n;
+  }
+  if (!Number.isFinite(minE)) return null;
+  return { eyeEN: [(minE + maxE) / 2, minN], headingDeg: 0 };
+}
+
 export function lerpPose(a: Pose, b: Pose, t: number): Pose {
   const mix = (x: Vec3, y: Vec3): Vec3 => [
     x[0] + (y[0] - x[0]) * t,

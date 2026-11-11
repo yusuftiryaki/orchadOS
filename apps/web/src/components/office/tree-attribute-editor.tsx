@@ -7,7 +7,13 @@ import { Field, Select } from "@/components/ui/field";
 import { cell, Table } from "@/components/ui/table";
 import type { Database } from "@/lib/database.types";
 import { Constants } from "@/lib/database.types";
-import { t } from "@/lib/i18n";
+import { formatNumber, t } from "@/lib/i18n";
+import {
+  canAccept,
+  suggestionState,
+  suggestionUpdates,
+  type SizeSuggestion,
+} from "@/lib/lidar/size-class";
 import type { EditResult, TreeAttributes } from "@/lib/office/inventory-edits";
 import type { WorkspaceSlot } from "@/lib/office/inventory-workspace";
 import {
@@ -26,6 +32,9 @@ import styles from "./inventory.module.css";
 // Fruit species: the parcel's by default; a tree of another species in a mixed
 // orchard gets an override. The sex is asked for pistachio trees only
 // (lib/species.ts).
+// LiDAR (docs/3d-dunya.md §9.3): the size class the crown stage suggests,
+// next to the recorded class; the trees whose suggestion differs can be
+// selected and the suggestions applied in one go.
 
 type Enums = Database["public"]["Enums"];
 const E = Constants.public.Enums;
@@ -42,6 +51,7 @@ export function TreeAttributeEditor({
   showSex = false,
   parcelSpecies,
   speciesOptions,
+  suggestions = {},
 }: {
   slots: WorkspaceSlot[];
   // Selected slot ids.
@@ -51,6 +61,8 @@ export function TreeAttributeEditor({
   showSex?: boolean;
   parcelSpecies: string;
   speciesOptions: FruitSpecies[];
+  // tree id -> its newest LiDAR size class suggestion.
+  suggestions?: Record<string, SizeSuggestion>;
 }) {
   const [row, setRow] = useState<number | "all">("all");
   const [ageClass, setAgeClass] = useState<Enums["age_class"] | "">("");
@@ -70,6 +82,36 @@ export function TreeAttributeEditor({
   );
   const shown = row === "all" ? withTrees : withTrees.filter((s) => s.rowNo === row);
   const selectedTrees = withTrees.filter((s) => selected.has(s.id));
+
+  const suggestionMap = useMemo(() => new Map(Object.entries(suggestions)), [suggestions]);
+  const hasSuggestions = suggestionMap.size > 0;
+  const stateOf = (s: WorkspaceSlot) =>
+    suggestionState(suggestionMap.get(s.tree!.id), s.tree!.ageClass);
+  const mismatched = withTrees.filter((s) => canAccept(stateOf(s)));
+
+  const applySuggestions = () => {
+    const { byClass, skipped } = suggestionUpdates(
+      selectedTrees.map((s) => ({ id: s.tree!.id, ageClass: s.tree!.ageClass })),
+      suggestionMap,
+    );
+    setMessage(null);
+    if (byClass.size === 0) {
+      setMessage({ ok: false, text: a.nothingToApply });
+      return;
+    }
+    startTransition(async () => {
+      let updated = 0;
+      for (const [ageClass, ids] of byClass) {
+        const result = await onApply(ids, { ageClass });
+        if (!result.ok) {
+          setMessage({ ok: false, text: t.inventory.errors[result.error] ?? result.error });
+          return;
+        }
+        updated += ids.length;
+      }
+      setMessage({ ok: true, text: a.suggestionsApplied(updated, skipped) });
+    });
+  };
 
   const toggle = (id: string) => {
     const next = new Set(selected);
@@ -245,6 +287,31 @@ export function TreeAttributeEditor({
           </Button>
         </div>
       </fieldset>
+      {hasSuggestions && (
+        <fieldset className={styles.bulk} data-testid="lidar-suggestions">
+          <legend>{a.lidarTitle}</legend>
+          <p className={styles.hint}>{a.lidarHint}</p>
+          <div className={styles.bulkFields}>
+            <Button
+              variant="secondary"
+              onClick={() =>
+                onSelectionChange(new Set([...selected, ...mismatched.map((s) => s.id)]))
+              }
+              disabled={mismatched.length === 0}
+              data-testid="select-mismatched"
+            >
+              {a.selectMismatched(mismatched.length)}
+            </Button>
+            <Button
+              onClick={applySuggestions}
+              disabled={pending || selectedTrees.length === 0}
+              data-testid="apply-suggestions"
+            >
+              {a.applySuggestions}
+            </Button>
+          </div>
+        </fieldset>
+      )}
       {message && (
         <Alert tone={message.ok ? "success" : "danger"} role={message.ok ? "status" : "alert"}>
           {message.text}
@@ -260,6 +327,7 @@ export function TreeAttributeEditor({
               </th>
               <th>{a.columns.code}</th>
               <th>{a.columns.ageClass}</th>
+              {hasSuggestions && <th>{a.columns.lidar}</th>}
               <th>{a.columns.graft}</th>
               <th>{a.columns.stemForm}</th>
               <th>{a.columns.species}</th>
@@ -285,6 +353,9 @@ export function TreeAttributeEditor({
                 </td>
                 <td className={cell.code}>{s.code}</td>
                 <td>{values.ageClass[s.tree!.ageClass]}</td>
+                {hasSuggestions && (
+                  <SuggestionCell slot={s} state={stateOf(s)} map={suggestionMap} />
+                )}
                 <td>{values.graft[s.tree!.graft]}</td>
                 <td>{values.stemForm[s.tree!.stemForm]}</td>
                 <td data-testid="tree-species">
@@ -301,5 +372,34 @@ export function TreeAttributeEditor({
         </Table>
       </div>
     </section>
+  );
+}
+
+function SuggestionCell({
+  slot,
+  state,
+  map,
+}: {
+  slot: WorkspaceSlot;
+  state: ReturnType<typeof suggestionState>;
+  map: Map<string, SizeSuggestion>;
+}) {
+  const suggestion = map.get(slot.tree!.id);
+  return (
+    <td
+      data-testid="tree-suggestion"
+      data-state={state}
+      className={state === "differs" ? styles.suggestionDiffers : undefined}
+      title={t.staffWorld.states[state]}
+    >
+      {suggestion ? (
+        t.staffWorld.suggestionValue(
+          values.ageClass[suggestion.sizeClass],
+          suggestion.confidence === null ? null : formatNumber(suggestion.confidence, 2),
+        )
+      ) : (
+        <span className="muted">{t.staffWorld.states.none}</span>
+      )}
+    </td>
   );
 }
