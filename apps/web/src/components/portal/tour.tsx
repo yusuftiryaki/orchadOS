@@ -3,7 +3,10 @@
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { signTourImagesAction } from "@/app/portal/parsel/[parcelId]/gezi/actions";
+import {
+  signTourImagesAction,
+  signTourWorldAction,
+} from "@/app/portal/parsel/[parcelId]/gezi/actions";
 import { DemoNotice } from "@/components/demo/demo-notice";
 import { formatDate, formatMeasure, t } from "@/lib/i18n";
 import { demoText } from "@/lib/i18n/messages/demo";
@@ -279,6 +282,16 @@ export function Tour({
     (treeId: string) => `/portal/parsel/${data.parcel.id}/agac/${treeId}`,
     [data.parcel.id],
   );
+  // The 3D world signs clouds as the owner and links trees to their card.
+  const parcelId = data.parcel.id;
+  const signWorld = useCallback(
+    (assetId: string) => signTourWorldAction(parcelId, assetId),
+    [parcelId],
+  );
+  const worldTreeLink = useCallback(
+    (treeId: string) => ({ href: treeHref(treeId), label: tt.openCard }),
+    [treeHref],
+  );
 
   const focusTree = useCallback((treeId: string | null) => {
     setFocus((f) => ({ treeId, version: f.version + 1 }));
@@ -450,13 +463,13 @@ export function Tour({
               {world ? (
                 <WorldView
                   key={world.visitId}
-                  parcelId={data.parcel.id}
+                  sign={signWorld}
+                  treeLink={worldTreeLink}
                   visits={worldVisitList}
                   visitId={world.visitId}
                   start={world.start}
                   cameraHeightM={tourVisit?.cameraHeightM ?? DEFAULT_CAMERA_HEIGHT_M}
                   trees={worldTrees}
-                  treeHref={treeHref}
                   onExit={() => setWorld(null)}
                 />
               ) : (

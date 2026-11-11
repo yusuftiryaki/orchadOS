@@ -17,6 +17,7 @@ import {
   localFrame,
   originOffset,
   overviewPose,
+  overviewStart,
   pickNearest,
   rampColor,
   sceneOf,
@@ -341,5 +342,13 @@ describe("winter skeleton and cuts", () => {
     expect(calls).toHaveLength(8); // header, arrays twice, winter arrays
     expect(cloud.skeleton!.segmentCount).toBe(2);
     expect(Array.from(cloud.skeleton!.kind)).toEqual([0, 1]);
+  });
+});
+
+describe("overview start (staff)", () => {
+  it("stands at the middle of the southern edge, looking north", () => {
+    const enu = new Float32Array([-10, 5, 0, 30, -20, 1, 4, 40, 2, NaN, -99, 0]);
+    expect(overviewStart(enu, 4)).toEqual({ eyeEN: [10, -20], headingDeg: 0 });
+    expect(overviewStart(new Float32Array(), 0)).toBeNull();
   });
 });

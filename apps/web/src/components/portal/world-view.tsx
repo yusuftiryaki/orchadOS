@@ -1,19 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { signTourWorldAction } from "@/app/portal/parsel/[parcelId]/gezi/actions";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatMeasure, t } from "@/lib/i18n";
 import type { Position } from "@/lib/map/geo";
 import { prefersReducedMotion } from "@/lib/map/motion";
 import type { MarkerState } from "@/lib/map/tree-style";
 import { crownGuide, type CrownMeasure, type CrownValues } from "@/lib/portal/crown-guide";
 import type { WorldCloud } from "@/lib/world/format";
-import { changeSpan, localFrame, toEN, type LocalFrame } from "@/lib/world/geometry";
+import { changeSpan, localFrame, overviewStart, toEN, type LocalFrame } from "@/lib/world/geometry";
 import { loadWorldCloud } from "@/lib/world/stream";
 import { winterSummary, type TreeWinter, type WinterSummary } from "@/lib/world/skeleton";
 import { growthOf, worldVisits, type Growth, type WorldVisit } from "@/lib/world/visits";
-import { WorldScene, type ColorMode, type SceneTree, type SceneVisit } from "./world-scene";
+import {
+  WorldScene,
+  type ColorMode,
+  type SceneTree,
+  type SceneVisit,
+  type SizeFlag,
+} from "./world-scene";
 import styles from "./world.module.css";
 
 // The 3D world over the tour viewer (docs/3d-dunya.md): signs and downloads
@@ -25,18 +30,30 @@ import styles from "./world.module.css";
 //
 // Loaded on demand (tour.tsx imports it dynamically), so three.js's extra
 // code reaches only those who open the world.
+//
+// The staff screens (Faz 3, components/staff/staff-world.tsx) open the same
+// world without a panorama (`start` null: straight in the overview), with
+// their own signing, tree link and panel rows, and the size class colour mode.
 
 const tw = t.portal.tour.world;
 const tt = t.portal.tour;
+const COLOR_MODES: ColorMode[] = ["photo", "height", "diameter", "growth"];
 
 export interface WorldTree {
   id: string;
   code: string;
   position: Position;
-  state: MarkerState;
+  // Health class of the tree, shown in the panel (the owner's tour).
+  state?: MarkerState;
 }
 
 export type { WorldVisit };
+
+export interface SignedWorld {
+  url: string | null;
+  // A demo session reached its image cap.
+  capped: boolean;
+}
 
 export interface WorldStartView {
   // Panorama the visitor stands in, and how they look (yaw from its centre
@@ -53,24 +70,41 @@ export interface WorldStartView {
 type Status = "loading" | "error" | "capped" | "entering" | "world" | "exiting";
 
 export default function WorldView({
-  parcelId,
   visits,
   visitId,
   start,
   cameraHeightM,
   trees,
-  treeHref,
+  sign,
+  treeLink,
+  treeExtra,
+  sizeFlags,
+  focusTreeId = null,
+  backLabel = tw.back,
+  hint = tw.hint,
   onExit,
 }: {
-  parcelId: string;
   // Every visit with crown values or a cloud, newest first.
   visits: WorldVisit[];
   // The visit of the panorama on screen (it has a cloud).
   visitId: string;
-  start: WorldStartView;
+  // Null: no panorama, the world opens in the overview (staff).
+  start: WorldStartView | null;
   cameraHeightM: number;
   trees: WorldTree[];
-  treeHref: (treeId: string) => string;
+  // Signed URL of a visit's cloud.
+  sign: (assetId: string) => Promise<SignedWorld>;
+  // The selected tree's link (tree card, expert review), if any.
+  treeLink?: (treeId: string) => { href: string; label: string } | null;
+  // Extra rows and actions of the selected tree's panel (staff).
+  treeExtra?: (treeId: string) => ReactNode;
+  // Staff: tree id -> how its size class suggestion compares with the
+  // recorded class; offers the size class colour mode.
+  sizeFlags?: Record<string, SizeFlag>;
+  // Selected and flown to once the world is open.
+  focusTreeId?: string | null;
+  backLabel?: string;
+  hint?: string;
   onExit: () => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -89,10 +123,12 @@ export default function WorldView({
   const [winter, setWinter] = useState<Record<string, WinterSummary>>({});
   const [skeletonOn, setSkeletonOn] = useState(true);
   // The opening view, data and callbacks are read once, when the scene is built.
-  const startRef = useRef({ start, cameraHeightM, trees, visits, onExit });
+  const startRef = useRef({ start, cameraHeightM, trees, visits, onExit, sign, sizeFlags });
   useEffect(() => {
     startRef.current.onExit = onExit;
+    startRef.current.sign = sign;
   });
+  const focusRef = useRef(focusTreeId);
 
   useEffect(() => {
     rootRef.current?.focus({ preventScroll: true });
@@ -103,7 +139,7 @@ export default function WorldView({
     async (id: string, signal: AbortSignal, onCloud: (cloud: WorldCloud) => void) => {
       const visit = startRef.current.visits.find((v) => v.id === id);
       if (!visit?.assetId) throw new Error("no cloud");
-      const signed = await signTourWorldAction(parcelId, visit.assetId);
+      const signed = await startRef.current.sign(visit.assetId);
       if (signal.aborted) return;
       if (!signed.url) {
         throw new SignError(signed.capped);
@@ -117,12 +153,12 @@ export default function WorldView({
       const summary = winterSummary(whole);
       if (summary) setWinter((w) => ({ ...w, [id]: summary }));
     },
-    [parcelId],
+    [],
   );
 
   const sceneVisit = useCallback((id: string, cloud: WorldCloud): SceneVisit => {
-    const { trees: list, visits: all } = startRef.current;
-    return { key: id, cloud, trees: sceneTrees(frameRef.current!, list, all, id) };
+    const { trees: list, visits: all, sizeFlags: flags } = startRef.current;
+    return { key: id, cloud, trees: sceneTrees(frameRef.current!, list, all, id, flags) };
   }, []);
 
   // The panorama's visit: the scene is built on its first (coarse) cloud.
@@ -139,22 +175,33 @@ export default function WorldView({
       const { start: view, cameraHeightM: height } = startRef.current;
       const frame = localFrame(cloud.header.origin_lat, cloud.header.origin_lon);
       frameRef.current = frame;
+      // Without a panorama: the middle of the cloud's southern edge.
+      const overview = view ? null : overviewStart(cloud.enu, cloud.count);
+      if (!view && !overview) throw new Error("empty cloud");
       sceneRef.current = new WorldScene({
         container: stageRef.current,
         labels: labelsRef.current,
         visit: sceneVisit(visitId, cloud),
         frame,
-        photoUrl: view.photoUrl,
-        eyeEN: toEN(frame, view.position),
-        headingDeg: view.headingDeg,
-        yawDeg: view.yawDeg,
-        pitchDeg: view.pitchDeg,
-        fovDeg: view.fovDeg,
+        photoUrl: view?.photoUrl ?? null,
+        eyeEN: view ? toEN(frame, view.position) : overview!.eyeEN,
+        headingDeg: view?.headingDeg ?? overview!.headingDeg,
+        yawDeg: view?.yawDeg ?? 0,
+        pitchDeg: view?.pitchDeg ?? 0,
+        fovDeg: view?.fovDeg ?? 60,
         cameraHeightM: height,
         reducedMotion: prefersReducedMotion(),
+        startOverview: !view,
         labelText,
         onSelect: setSelected,
-        onEntered: () => setStatus("world"),
+        onEntered: () => {
+          setStatus("world");
+          const focus = focusRef.current;
+          if (focus && sceneRef.current) {
+            setSelected(focus);
+            sceneRef.current.flyTo(focus);
+          }
+        },
       });
       setStatus("entering");
     }).catch((error) => {
@@ -242,7 +289,7 @@ export default function WorldView({
       ),
     [trees, visits, shown],
   );
-  const modes = (Object.keys(tw.modes) as ColorMode[]).filter(
+  const modes = [...COLOR_MODES, ...(sizeFlags ? (["sizeClass"] as ColorMode[]) : [])].filter(
     (m) => m !== "growth" || growth.size > 0,
   );
   // Growth mode on a visit without growth shows the photo colours.
@@ -256,9 +303,16 @@ export default function WorldView({
     sceneRef.current?.setSkeleton(skeletonOn);
   }, [skeletonOn, status, winter]);
 
+  // Staff: a suggestion accepted in the panel recolours its tree.
+  useEffect(() => {
+    startRef.current.sizeFlags = sizeFlags;
+    if (sizeFlags) sceneRef.current?.setSizeFlags(sizeFlags);
+  }, [sizeFlags, status]);
+
   const tree = useMemo(() => trees.find((x) => x.id === selected) ?? null, [trees, selected]);
   const legend = useMemo(() => {
     if (shownMode === "photo" || !shownVisit) return null;
+    if (shownMode === "sizeClass") return { text: t.staffWorld.sizeLegend, diverging: null };
     if (shownMode === "growth") {
       const span = changeSpan([...growth.values()].map((g) => g.deltaM));
       return { text: tw.growthLegend(formatMeasure(span, "m", null, 2)), diverging: true };
@@ -277,6 +331,7 @@ export default function WorldView({
   }, [shownMode, shownVisit, growth]);
 
   const busy = status === "loading" || status === "entering" || status === "exiting";
+  const link = tree ? (treeLink?.(tree.id) ?? null) : null;
 
   return (
     <div
@@ -308,7 +363,7 @@ export default function WorldView({
           disabled={status === "exiting"}
           data-testid="world-back"
         >
-          <span aria-hidden="true">←</span> {tw.back}
+          <span aria-hidden="true">←</span> {backLabel}
         </button>
         {status === "world" && choices.length > 1 && (
           <label className={styles.mode}>
@@ -336,7 +391,7 @@ export default function WorldView({
             >
               {modes.map((m) => (
                 <option key={m} value={m}>
-                  {tw.modes[m]}
+                  {m === "sizeClass" ? t.staffWorld.sizeMode : tw.modes[m]}
                 </option>
               ))}
             </select>
@@ -368,12 +423,18 @@ export default function WorldView({
         )}
         {status === "world" && legend && (
           <div className={styles.legend} data-testid="world-legend">
-            <span
-              className={legend.diverging ? styles.diverging : styles.ramp}
-              aria-hidden="true"
-            />
-            <span>{legend.text}</span>
-            <span>{legend.diverging ? tw.growthNote : tw.unmeasured}</span>
+            {legend.diverging === null ? (
+              <span>{legend.text}</span>
+            ) : (
+              <>
+                <span
+                  className={legend.diverging ? styles.diverging : styles.ramp}
+                  aria-hidden="true"
+                />
+                <span>{legend.text}</span>
+                <span>{legend.diverging ? tw.growthNote : tw.unmeasured}</span>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -400,7 +461,7 @@ export default function WorldView({
           data-tree-id={tree.id}
         >
           <p className={styles.title} aria-live="polite">
-            <strong>{tree.code}</strong> <span>{t.portal.classes[tree.state]}</span>
+            <strong>{tree.code}</strong> {tree.state && <span>{t.portal.classes[tree.state]}</span>}
           </p>
           <CrownFacts
             crown={shownVisit?.crowns[tree.id] ?? null}
@@ -408,6 +469,7 @@ export default function WorldView({
             winter={shownWinter ? (shownWinter.byTree.get(tree.id) ?? null) : undefined}
             pruning={shownWinter?.pruning ?? false}
           />
+          {treeExtra?.(tree.id)}
           <div className={styles.actions}>
             <button
               type="button"
@@ -417,9 +479,11 @@ export default function WorldView({
             >
               {tw.flyTo}
             </button>
-            <Link href={treeHref(tree.id)} className={styles.link} data-testid="world-card">
-              {tt.openCard}
-            </Link>
+            {link && (
+              <Link href={link.href} className={styles.link} data-testid="world-card">
+                {link.label}
+              </Link>
+            )}
             <button
               type="button"
               className={styles.button}
@@ -434,7 +498,7 @@ export default function WorldView({
       )}
       {status === "world" && !tree && (
         <p className={styles.caption} data-testid="world-caption">
-          {tw.hint} {tw.caption}
+          {hint} {tw.caption}
         </p>
       )}
     </div>
@@ -510,6 +574,7 @@ function sceneTrees(
   trees: WorldTree[],
   visits: WorldVisit[],
   visitId: string,
+  sizeFlags: Record<string, SizeFlag> | undefined,
 ): SceneTree[] {
   const crowns = visits.find((v) => v.id === visitId)?.crowns ?? {};
   return trees.map((tree) => {
@@ -522,6 +587,7 @@ function sceneTrees(
       heightM: crown?.heightM?.value ?? null,
       diameterM: crown?.diameterM?.value ?? null,
       growthM: growthOf(visits, visitId, tree.id)?.deltaM ?? null,
+      sizeFlag: sizeFlags?.[tree.id] ?? null,
     };
   });
 }

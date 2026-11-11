@@ -559,6 +559,14 @@ export const tr = {
         none: "Karar yok",
       },
       attributes: "Ağaç özellikleri",
+      lidar: {
+        title: "LiDAR ölçümleri",
+        note: "Tarama sırasında hesaplanan değerler; uzman onayı aranmaz. Karar panelinde sizin girdiğiniz değer sahibe gidenin önüne geçer.",
+        metric: "Ölçüm",
+        current: (date: string) => `Bu ziyaret, ${date}`,
+        previous: (date: string) => `Önceki ziyaret, ${date}`,
+        none: "—",
+      },
       crops: "Kesitler",
       cropsHint: "Aynı yönden çekilen kesitler yan yana. Konum kameranın durduğu noktadır.",
       currentCrops: (date: string) => `Bu ziyaret, ${date}`,
@@ -1713,6 +1721,33 @@ export const tr = {
       },
     },
   },
+  // The 3D world and the LiDAR size class suggestion on the staff screens
+  // (expert panel, office workspace; docs/3d-dunya.md §9).
+  staffWorld: {
+    enter: "3D dünya",
+    enterHint: "Parselin LiDAR bulutunu ve ağaç ölçülerini 3D olarak aç",
+    close: "Kapat",
+    unpublished: (date: string) => `${date} (incelemede)`,
+    recorded: "Kayıtlı sınıf",
+    suggestion: "LiDAR önerisi",
+    suggestionValue: (cls: string, confidence: string | null) =>
+      confidence === null ? cls : `${cls} (güven ${confidence})`,
+    suggestionScan: (date: string) => `${date} taramasından`,
+    states: {
+      none: "Öneri yok",
+      match: "Kayıtlı sınıfla aynı",
+      differs: "Kayıtlı sınıftan farklı",
+      low: "Güven düşük; tek tıkla kabul edilmez",
+    },
+    accept: "Öneriyi kabul et",
+    apply: "Öneriyi uygula",
+    accepted: (cls: string) => `Kayıtlı sınıf “${cls}” oldu.`,
+    acceptFailed: "Sınıf kaydedilemedi. Yeniden deneyin.",
+    review: "Bu ağacı incele",
+    sizeMode: "Büyüklük sınıfı",
+    sizeLegend: "Turuncu: öneri kayıtlı sınıftan farklı · Yeşil: aynı · Gri: öneri yok",
+    hint: "Sürükleyerek çevirin, tekerlekle yakınlaştırın, sağ tuşla kaydırın. Bir ağaca tıklayınca ölçüleri ve büyüklük sınıfı önerisi açılır.",
+  },
   // After triangulation: office workspace (attributes, infrastructure,
   // boundary, verification tour), expert's inventory approval, owner's
   // boundary card (MVP Module 2, steps 6-10).
@@ -1793,10 +1828,21 @@ export const tr = {
       noTrees: "Bu parselde aktif ağaç yok.",
       parcelSpecies: "Parselin türü",
       notApplicable: "—",
+      lidarTitle: "LiDAR önerisi",
+      lidarHint:
+        "LiDAR taramasının taç çapından önerdiği büyüklük sınıfı. Güveni düşük öneri tek tıkla uygulanmaz; sınıfı yine elle seçebilirsiniz.",
+      selectMismatched: (n: number) => `Öneriyle uyuşmayanları seç (${n})`,
+      applySuggestions: "Seçilenlere LiDAR önerisini uygula",
+      suggestionsApplied: (n: number, skipped: number) =>
+        skipped > 0
+          ? `${n} ağaca öneri uygulandı; ${skipped} ağaç atlandı (öneri yok ya da güveni düşük).`
+          : `${n} ağaca öneri uygulandı.`,
+      nothingToApply: "Seçilen ağaçlarda uygulanacak öneri yok.",
       columns: {
         select: "Seç",
         code: "Kod",
         ageClass: "Büyüklük sınıfı",
+        lidar: "LiDAR önerisi",
         graft: "Aşı",
         stemForm: "Gövde yapısı",
         species: "Tür",

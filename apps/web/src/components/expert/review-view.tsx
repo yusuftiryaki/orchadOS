@@ -29,6 +29,10 @@ import { ReviewShortcuts } from "./review-shortcuts";
 import { SavedToast } from "./saved-toast";
 import { SessionStatusBadge } from "./status";
 import { ValuesList } from "./values-list";
+import { LidarBlock } from "./lidar-block";
+import { StaffWorldButton } from "@/components/staff/staff-world";
+import { signStaffWorldAction } from "@/app/uzman/actions";
+import type { StaffWorld, TreeLidar } from "@/lib/lidar/staff";
 
 export interface ReviewMessages {
   error: string | null;
@@ -133,6 +137,9 @@ export function ReviewView({
   followups = [],
   followupMessage,
   notice = null,
+  lidar = null,
+  lidarMessage = null,
+  world = null,
 }: {
   ctx: ReviewContext;
   filter: Filter;
@@ -144,6 +151,11 @@ export function ReviewView({
   followupMessage?: { saved: boolean; error: string | null };
   // Read-only information about the visit (IP15 independence note).
   notice?: React.ReactNode;
+  // The selected tree's LiDAR values and size class suggestion (Faz 3).
+  lidar?: TreeLidar | null;
+  lidarMessage?: string | null;
+  // The parcel's 3D world; null when no visit has a cloud.
+  world?: StaffWorld | null;
 }) {
   const r = t.expert.review;
   const s = ctx.session;
@@ -174,9 +186,20 @@ export function ReviewView({
         ctx={ctx}
         back={{ href: "/uzman", label: r.back }}
         actions={
-          <ButtonLink variant="secondary" href={summaryHref(s.id)}>
-            {r.summaryLink}
-          </ButtonLink>
+          <>
+            {world && (
+              <StaffWorldButton
+                world={world}
+                visitId={s.id}
+                focusTreeId={selected?.id ?? null}
+                sign={signStaffWorldAction}
+                reviewSessionId={s.id}
+              />
+            )}
+            <ButtonLink variant="secondary" href={summaryHref(s.id)}>
+              {r.summaryLink}
+            </ButtonLink>
+          </>
         }
       />
       <SpeciesNotice species={s.parcelSpecies} />
@@ -348,6 +371,21 @@ export function ReviewView({
                   </>
                 )}
               </section>
+
+              {lidar && (
+                <LidarBlock
+                  parcelId={s.parcelId}
+                  sessionId={s.id}
+                  treeId={selected.id}
+                  filter={filter}
+                  ageClass={selected.ageClass}
+                  visit={{ id: s.id, time: s.time }}
+                  previous={ctx.previous}
+                  lidar={lidar}
+                  metrics={ctx.allMetrics}
+                  message={lidarMessage}
+                />
+              )}
 
               <div className={styles.blockColumns}>
                 <section className={styles.block} data-testid="previous-expert">
