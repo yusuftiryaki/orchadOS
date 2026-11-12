@@ -475,7 +475,7 @@ export default function WorldView({
     >
       <div ref={stageRef} className={styles.stage} />
       <div ref={labelsRef} className={styles.labels} data-testid="world-labels" />
-      <div className={styles.bar}>
+      <div className={styles.bar} data-world-chrome>
         <button
           type="button"
           className={styles.button}
@@ -606,6 +606,7 @@ export default function WorldView({
       )}
       {status === "world" && tree && (
         <section
+          data-world-chrome
           className={styles.panel}
           aria-label={tw.treePanel(tree.code)}
           data-testid="world-tree"
@@ -649,7 +650,7 @@ export default function WorldView({
       )}
       {status === "world" && (nav === "walk" || !tree) && (
         // Bottom right, stacked: the pad above the caption (they never overlap).
-        <div className={styles.corner}>
+        <div className={styles.corner} data-world-chrome>
           {nav === "walk" && (
             <div
               className={styles.pad}

@@ -39,7 +39,7 @@ Bulutun dosya biçimi bileşenler arası bir sözleşmedir: [arayuzler.md](arayu
 3. **İlk kare panoramanın aynısı:** 3D kamera, panoramanın kamerasıyla aynı yerde durur. Bakış yönü, eğimi ve dikey görüş açısı da aynıdır (PSV'den okunur). Ekrandaki fotoğraf kameranın çevresindeki bir kürenin üzerine çizilir. Bu yüzden ilk karede bir şey değişmiş görünmez.
 4. **Tarama dalgası (0,1–1,5 sn):** Kameradan dışarı doğru parlak bir halka yayılır. Halka kameranın yakınında yavaş, uzakta hızlı ilerler; ilk ağaçların noktalara dönüştüğü görülür. Halkanın geçtiği yerde noktalar belirir. Fotoğraf, o yönde görülen bulut halkadan yakın olduğu yerlerde silinir. Bunun için bulutun panoramadan görünen derinliği (512 × 256 eşdikdörtgen) bir kez hesaplanır. Gökyüzü fotoğraf olarak kalır ve 1,0–1,5 sn arasında söner.
 5. **Yükseliş (1,5–2,8 sn):** Fotoğraf tamamen gidince kamera yükselir. Hedef, bakılan yönde 12–40 m ileride zemindeki bir noktadır. Kamera onun 28–90 m gerisinde ve 38° yukarıdadır. Kamera ancak fotoğraf gittikten sonra hareket eder. Böylece fotoğraf hiçbir zaman paralaksla kaymaz.
-6. **Ölçüler (1,9–2,7 sn):** Her ölçülmüş ağaçta gövdeden tepeye boy çizgisi, taç ortasında taç çapı halkası ve taç tabanında kesikli halka belirir. En yakın 20 ağacın etiketinde kod ve boy yazar.
+6. **Ölçüler (1,9–2,7 sn):** Her ölçülmüş ağaçta gövdeden tepeye boy çizgisi, taç ortasında taç çapı halkası ve taç tabanında kesikli halka belirir. Etiketlerde kod ve boy yazar; hangi ağaçların etiketlendiği bulunulan yere göre değişir (§10.3).
 7. **Dünyada gezinme:** Sürükleyerek çevirme, iki parmak ya da tekerlekle yakınlaştırma, sağ tuşla ya da üç parmakla kaydırma vardır (three.js `OrbitControls`). Göz hizasında yürüme ve panorama noktalarına iniş §10'dadır. Bir ağaca ya da etiketine dokununca ağacın noktaları sarıya döner. Panelde kodu, sınıfı, boyu, taç çapı, taç hacmi ve taç tabanı yazar. Panelde "Ağaca yaklaş" ve "Ağaç karnesi" düğmeleri bulunur.
 8. **Renk kipleri:** Fotoğraf renkleri (varsayılan), ağaç boyu, taç çapı ve boy değişimi. Ölçü kiplerinde ağaçlar viridis rampasıyla boyanır, zemin ve ölçülmemiş ağaçlar gri olur. Gösterge en küçük ve en büyük değeri yazar.
    - **Boy değişimi (Faz 2):** Her ağacın boyu, o ağacı ölçmüş bir önceki denetimle karşılaştırılır. Kısalan ağaçlar turuncu-kırmızı, değişmeyenler gri, uzayanlar yeşil boyanır. Rampa iki yana simetriktir ve en büyük değişime göre ölçeklenir (en az ±0,1 m). Kip yalnız bakılan denetimde değişim hesaplanabilen bir ağaç varsa sunulur. Panelde "Boy değişimi +0,32 m (önceki ölçüm 15 Tem 2025)" yazar; 1 cm'nin altındaki fark "Değişmedi" olarak gösterilir.
@@ -199,10 +199,24 @@ Sahibin dünyasıyla aynı bileşendir (`world-view.tsx`, `world-scene.ts`). Far
 
 **Uyarı:** Bulut fotoğraf değil, nokta kümesidir; göz hizasından ve yakından seyrek görünür. Gerçek LiDAR bulutunda nokta yoğunluğu ve nokta boyutu göz hizası için yeniden ayarlanabilir.
 
-### 10.3 Kod
+### 10.3 Etiketler ve seçim
+
+**İstek (12 Kasım 2026, sahip):** Etiket ve seçim kameranın yerinden bağımsızdı. Yürürken ya da bir ağaca yaklaşmışken ekranda çok fazla etiket vardı ve bakılan ağacın arkasındaki ağaç yanlışlıkla seçilebiliyordu. Önceki kural: kameraya en yakın 20 ağacın etiketi; tıklamaya ekranda en yakın ağacın gövde ortası (48 px içinde).
+
+- **Yakın kip:** yürürken, ya da kuşbakışında kamera baktığı noktaya 25 m'den yakınken ("Ağaca yaklaş" kamerayı 10–18 m'ye getirir). Yalnız çevredeki ağaçlar etiketlenir ve seçilebilir: yürürken durulan yerin 15 m, yaklaşınca bakılan noktanın 10 m çevresi. En çok 8 etiket gösterilir, kameraya en yakınlar önce.
+- **Uzak kip (kuşbakışı):** bütün ağaçlar seçilebilir. Etiketi, kameraya daha yakın bir ağacın etiketiyle çakışmayan her ağaç etiketlenir (en çok 80). Böylece yukarıdan bakınca sığdığı kadar çok ağaç görünür, etiketler üst üste binmez.
+- **Seçili ağaç:** ekrandaysa etiketi her iki kipte de görünür.
+- **Önden arkaya seçim:** Her ağacın ekrandaki silueti zeminden tepeye uzanır, genişliği taç çapı kadardır; ölçülmemiş ağaçta 1,5 m yarıçap varsayılır. Tıklama birden çok siluete düşerse kameraya en yakın ağaç seçilir. Bakılan ağacın arkasındaki ağaç böylece onun içinden seçilemez. Hiçbir siluete düşmeyen tıklama, ortası 24 px içindeki ağacı seçer.
+- **Panorama halkası:** halka ile ağaç arasında kameraya yakın olan kazanır. Yakın kipte yalnız çevredeki halkalar seçilebilir.
+- **Uzun ağaç:** tepesi ekran dışında kalsa da gövdesi ekrandaysa ağaç seçilebilir; etiketi görünmez.
+- **Denetimler altında etiket yok:** Üst çubuk, ağaç paneli ve köşedeki yürüme düğmeleri ile açıklamanın kapladığı yere etiket konmaz; orada okunamaz ve tıklanamaz. Seçili ağacın etiketi de oraya düşünce gizlenir. Bu alanlar `data-world-chrome` ile işaretlidir.
+- Etiket katmanı kipini `data-scope` (`near`, `far`) ile gösterir; tarayıcı testi buna bakar.
+
+### 10.4 Kod
 
 | Dosya | Görevi |
 | --- | --- |
+| `apps/web/src/lib/world/labels.ts` | Yakın/uzak kip, gösterilecek etiketler (çakışma elemesi), önden arkaya seçim (saf, birim testli; §10.3) |
 | `apps/web/src/lib/world/walk.ts` | Yürüme adımı, noktaya yürüme, bakış, sınırlar, zemine ışın, en yakın nokta (saf, birim testli) |
 | `apps/web/src/components/portal/world-scene.ts` | Gezinme durumu (`orbit`/`walk`), uçuşlar (kip geçişi, iniş), halkalar (`InstancedMesh`), sürükleyerek bakış, çift tıklama |
 | `apps/web/src/components/portal/world-view.tsx` | "Yürü"/"Kuşbakışı", "En yakın panoramaya in", yön takımı (`PadButton`), tuşlar, inişte `onExit({ visitId, panoramaId, azimuthDeg })` |

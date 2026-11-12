@@ -874,6 +874,27 @@ test.describe("3D world", () => {
         )
         .toBe(true);
 
+    // Labels follow where one is (docs/3d-dunya.md §10.3): from above every
+    // tree whose label fits; close to a tree or walking, a few around.
+    const labels = page.getByTestId("world-labels");
+    const shownLabels = () => labels.locator("button:visible").count();
+    await settle();
+    await expect(labels).toHaveAttribute("data-scope", "far");
+    const fromAbove = await shownLabels();
+    expect(fromAbove).toBeGreaterThan(8);
+
+    // Close to a tree: only the trees around it, the chosen one among them.
+    const first = labels.locator("button:visible", { hasText: " m" }).first();
+    const code = (await first.getAttribute("data-tree"))!;
+    await first.click();
+    await page.getByTestId("world-fly").click();
+    await settle();
+    await expect(labels).toHaveAttribute("data-scope", "near");
+    expect(await shownLabels()).toBeLessThanOrEqual(8);
+    await expect(labels.locator(`button[data-tree="${code}"]`)).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("world-tree")).toHaveCount(0);
+
     // Down to eye level.
     const walk = page.getByTestId("world-walk");
     await expect(walk).toHaveText("Yürü");
@@ -890,6 +911,8 @@ test.describe("3D world", () => {
       expect(box.height).toBeGreaterThanOrEqual(44);
     }
     await settle();
+    await expect(labels).toHaveAttribute("data-scope", "near");
+    expect(await shownLabels()).toBeLessThanOrEqual(8);
 
     // The keys walk.
     let before = await labelPlaces();
@@ -918,6 +941,7 @@ test.describe("3D world", () => {
     await expect(world).toHaveAttribute("data-nav", "orbit");
     await expect(pad).toHaveCount(0);
     await settle();
+    await expect(labels).toHaveAttribute("data-scope", "far");
     await page.getByTestId("world-nearest-panorama").click();
     await expect(page.getByTestId("world")).toHaveCount(0, { timeout: 10_000 });
     await expect(viewer).toHaveAttribute("data-loaded", "true", { timeout: 30_000 });
