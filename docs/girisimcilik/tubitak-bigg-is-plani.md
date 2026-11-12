@@ -20,9 +20,9 @@ Teknolojik doğrulama dönemi 12 aydır. Takvim, destek başlangıcı 1 Ocak 202
 
 ### B.1 Girişimcinin yetenek ve birikimi
 
-[DOLDURULACAK: öğrenim; iş deneyimi; yazılım, gömülü sistem ve veri işleme deneyimi; bahçe sahipliği ya da bölgeyle bağ; kısa, orta ve uzun vadeli hedefler; katıldığı programlar.]
+[DOLDURULACAK: girişimcinin (Furkan ya da Berkay) öğrenimi, deneyimi, bölgeyle bağı; hızlandırmada üstlendiği işler (müşteri görüşmeleri, pazar ve finans); kısa, orta ve uzun vadeli hedefleri; katıldığı programlar ve yarışmalar.]
 
-Önerilen vurgu: orchadOS'un bütün yazılım yığını (web portalı ve uzman paneli, Android saha uygulaması, Python işleme hattı, ESP32 firmware'i, veritabanı ve yetki kuralları, yapay zekâ servisi) girişimci tarafından tasarlandı ve geliştirildi; ürün, fiyatlandırma, hukuki çerçeve ve operasyon kararları belgelenmiş durumda.
+Önerilen vurgu: girişimci, teknik kurucu ortakla (Yusuf, bilgisayar mühendisi) birlikte çalışan bir ekibin iş tarafını yürütür. orchadOS'un bütün yazılım yığını (web portalı ve uzman paneli, Android saha uygulaması, Python işleme hattı, ESP32 firmware'i, veritabanı ve yetki kuralları, yapay zekâ servisi) ekipte tasarlandı ve geliştirildi; ürün, fiyatlandırma, hukuki çerçeve ve operasyon kararları belgelenmiş durumda. Girişimci teknik ayrıntıya da hâkim olmalı: panel ve mentörler soracak.
 
 ### B.2 İş fikrinin kısa tanıtımı
 
@@ -155,17 +155,18 @@ Not: Kış ziyareti Aralık–Şubat, ilkbahar Nisan–Mayıs, yaz Temmuz, hasat
 
 | Kişi | Görev | Süre | Özgeçmiş |
 | --- | --- | --- | --- |
-| [DOLDURULACAK] | Girişimci; proje yöneticisi, yazılım | 12 ay, tam zamanlı | [DOLDURULACAK] |
-| [DOLDURULACAK] | Yazılım ve saha mühendisi (işleme hattı, kit, saha) | 12 ay | [DOLDURULACAK: işe alınacak; aranan nitelik: bilgisayar, harita ya da elektronik mühendisliği] |
+| Furkan ya da Berkay | Girişimci; proje yöneticisi, iş geliştirme, finans | 12 ay, tam zamanlı | [DOLDURULACAK] |
+| Yusuf | Teknik kurucu ortak; yazılım, işleme hattı, kit | 12 ay | [DOLDURULACAK; çalışma biçimi ve süresi [README.md](README.md) §6 D1'in cevabına göre] |
+| Diğer öğrenci | Saha operasyonu ve ölçüm doğrulaması | [DOLDURULACAK: yarı zamanlı] | [DOLDURULACAK] |
 | [DOLDURULACAK] | Danışman ziraat mühendisi | Yarı zamanlı, hizmet alımı | [DOLDURULACAK] |
 | [DOLDURULACAK] | Saha personeli | Ziyaret başına yevmiye | Lansman köyünde, eğitimli |
 
 ## Bölüm E: Kurulacak işin niteliği
 
 - **E.1 Şirket türü:** Anonim şirket. 1812 Mükemmeliyet Mührü için zorunlu (girişimcinin kurucu ortak olduğu, Türkiye'de yerleşik A.Ş.); ileride yatırım turları ve pay devri için de uygun.
-- **E.2 Pay dağılımı:** [DOLDURULACAK: girişimci ve varsa ortaklar; BiGG Fonu %3, devam yatırımıyla en çok %5]. Yönetim, yazılım ve operasyon girişimcide; muhasebe dış hizmet.
+- **E.2 Pay dağılımı:** [DOLDURULACAK: kurucular sözleşmesine göre girişimci, Yusuf ve diğer öğrenci; BiGG Fonu %3, devam yatırımıyla en çok %5]. Yönetim ve iş geliştirme girişimcide, yazılım ve teknik altyapı Yusuf'ta, saha operasyonu diğer öğrencide; muhasebe dış hizmet. Sonraki KOSGEB başvurusu için girişimcinin en az %50 payı ya da şirketin teknogirişim rozeti gerekir ([README.md](README.md) §1).
 - **E.3 İzin, ruhsat, tescil:** Ticaret sicili tescili ve MERSİS; vergi dairesi; SGK işyeri kaydı; ETBİS kaydı (elektronik ticaret); İYS kaydı (ticari ileti, isteğe bağlı rıza kutuları açılırsa); KVKK aydınlatma ve standart sözleşme bildirimi (yurt dışı aktarım, imzadan sonra 5 iş günü); TÜRKPATENT marka başvurusu; ödeme kuruluşu üye işyeri sözleşmesi. Teknolojik doğrulama için özel izin gerekmez; bahçeye giriş sahibin yazılı izniyle. [DOLDURULACAK: mali müşavirden süre ve maliyet.]
-- **Fikri mülkiyet devri:** Kaynak kodu, veri modeli, metodoloji, alan adı ve marka başvurusu yatırımdan önce şirkete bedelsiz devredilir. [DOLDURULACAK: bugün OBA Bilişim adına işletilen pilot ve sözleşmelerin devri.]
+- **Fikri mülkiyet devri:** Kaynak kodu, veri modeli, metodoloji, alan adı ve marka başvurusu yatırımdan önce şirkete bedelsiz devredilir. Kod bugün Yusuf'ta; şirket kurulunca bedelsiz devredilir ([README.md](README.md) §5).
 
 ## Bölüm F: Pazar analizi
 

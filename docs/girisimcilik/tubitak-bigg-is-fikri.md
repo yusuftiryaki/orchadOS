@@ -4,7 +4,7 @@
 
 Hızlandırma programına başvuru PRODİS üzerinden, seçilen uygulayıcı kuruluşun formuyla yapılır; form kuruluştan kuruluşa değişir. Uygulayıcı kuruluş başvuruyu dört boyutta, her biri 10 üzerinden puanlar ve her boyuttan **en az 7** ister ([programlar.md](programlar.md) §1.4). Bu taslak o dört boyuta göre yazıldı; formdaki sorular bu bölümlerden doldurulur.
 
-Başvurmadan önce: [README.md](README.md) §2'deki S1 (ortaklık), S5 (öğrenim) ve S6 (tam zamanlılık) cevaplanmış olmalı.
+Başvuruyu girişimci olarak Furkan ya da Berkay yapar; diğer iki kişi ekip üyesi olarak özgeçmişleriyle eklenir ([README.md](README.md) §1, §4). Başvurmadan önce [README.md](README.md) §6'daki D1 sorusu uygulayıcı kuruluşa sorulmuş olmalı.
 
 ## Künye
 
@@ -13,8 +13,8 @@ Başvurmadan önce: [README.md](README.md) §2'deki S1 (ortaklık), S5 (öğreni
 | İş fikri adı | orchadOS: Antep fıstığı bahçeleri için ağaç ağaç, kanıta dayalı bağımsız denetim |
 | Tematik alan | 1.6 Sürdürülebilir Tarım ve Beslenme › Akıllı ve Temiz Tarım; Bitki Sağlığı |
 | Teknoloji alanları | Görüntü işleme, LiDAR nokta bulutu işleme, RTK/PPK GNSS konumlama, yapay zekâ ile görsel ön değerlendirme, web ve mobil yazılım |
-| Girişimci | [DOLDURULACAK: ad soyad, üniversite, bölüm, mezuniyet yılı] |
-| Ekip | [DOLDURULACAK: ortak girişimciler, danışman ziraat mühendisi] |
+| Girişimci | [DOLDURULACAK: Furkan ya da Berkay; üniversite, bölüm, sınıf] |
+| Ekip | Yusuf (bilgisayar mühendisi; ürün ve yazılım), [Furkan ya da Berkay], [DOLDURULACAK: danışman ziraat mühendisi] |
 | Hızlandırma programı | [DOLDURULACAK: örn. BİGG4FUTURE ya da BİGG AGROFOODSTART] |
 
 ## Kısa özet (≈150 kelime)
@@ -72,12 +72,13 @@ orchadOS Standart paketi 20 dönümde dönüm başına yılda 720 TL (KDV hariç
 
 | Kişi | Rol | Yetkinlik |
 | --- | --- | --- |
-| [DOLDURULACAK: kurucu] | Kurucu; ürün, yazılım, operasyon | [DOLDURULACAK: öğrenim, iş deneyimi, yazılım ve elektronik geçmişi, bölgeyle bağı; orchadOS'un bütün bileşenlerini (web, mobil, işleme hattı, firmware, veritabanı) geliştirdi] |
+| Furkan ya da Berkay (başvuran) | Girişimci; iş geliştirme, müşteri görüşmeleri, finans ve operasyon | [DOLDURULACAK: bölüm, sınıf, varsa deneyim; bölgeyle bağı] |
+| Yusuf | Teknik kurucu; ürün ve yazılım | Bilgisayar mühendisi; orchadOS'un bütün bileşenlerini (web portalı, saha uygulaması, işleme hattı, firmware, veritabanı, yapay zekâ servisi) tasarladı ve geliştirdi. [DOLDURULACAK: iş deneyimi] |
+| Diğer öğrenci | Saha operasyonu, kalite ve ölçüm doğrulaması | [DOLDURULACAK: bölüm, sınıf] |
 | [DOLDURULACAK] | Danışman ziraat mühendisi | Antep fıstığı bahçe yönetimi; metodolojiyi kesinleştirir, raporları imzalar |
 | [DOLDURULACAK] | Saha personeli | Lansman köyünde yaşıyor; eğitimli ve sertifikalı tarar |
-| [DOLDURULACAK] | (varsa) ortak girişimci | [DOLDURULACAK] |
 
-Ekipteki boşluk ve plan: Lisanslı ziraat mühendisi henüz bağlanmadı ([MVP.md](../MVP.md) açık sorular); hızlandırma süresinde danışmanlık sözleşmesi yapılacak. Satış ve köy ilişkileri kurucuda; ikinci kişi saha ve operasyon tarafına alınacak.
+Ekip bugün gönüllü çalışıyor; BiGG yatırımıyla girişimci ve bir mühendis maaşlı hale gelir ([finansal-plan.md](finansal-plan.md) §8.1). Ekipteki boşluk: lisanslı ziraat mühendisi henüz bağlanmadı ([MVP.md](../MVP.md) açık sorular); hızlandırma süresinde danışmanlık sözleşmesi yapılacak.
 
 ## 4. Ön hazırlık çalışmalarının yeterliliği
 

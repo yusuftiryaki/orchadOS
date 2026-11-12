@@ -86,7 +86,7 @@ Başlangıç yatırım sermayesi tablosu (AGY112 I.1, ilk yıl):
 | --- | --- | --- |
 | Kira-depozito | 0 | Ofis yok; işleme bulutta, ekipman kurucuda |
 | Makine ve teçhizat | 330.000 | Kit, baz istasyonu, işleme bilgisayarı |
-| Kuruluş işlemleri ve harçlar | [DOLDURULACAK] | Anonim şirket kuruluşu (Yol B); mali müşavirden teklif |
+| Kuruluş işlemleri ve harçlar | [DOLDURULACAK] | Anonim şirket kuruluşu ([README.md](README.md) Yol 1); mali müşavirden teklif |
 | Genel giderler | 20.000 | Sarf, yedek kart ve SSD |
 | Beklenmeyen giderler | 35.000 | ~%10 |
 | **Toplam sabit yatırım** | **385.000 + kuruluş** | |
@@ -113,16 +113,16 @@ KOSGEB İş Geliştirme Desteği faizsiz olduğu için finansman gideri sıfırd
 | **Yıllık nakit ihtiyacı** | **−1.403.000** | **−1.463.000** | **−1.397.500** | **−416.500** |
 | Kümülatif | −1.403.000 | −2.866.000 | −4.263.500 | −4.680.000 |
 
-Dört yılda **~4,7 milyon TL** dış finansman gerekir. İki yol için finansman yapısı (AGY112 "İşletme Finansman Yapısı" tablosu bunlardan doldurulur):
+Dört yılda **~4,7 milyon TL** dış finansman gerekir. İki program için finansman yapısı ([README.md](README.md) §3: Yol 1'de önce BiGG, sonra KOSGEB; Yol 2'de yalnız KOSGEB) (AGY112 "İşletme Finansman Yapısı" tablosu bunlardan doldurulur):
 
-| Kaynak | Yol A (KOSGEB) | Yol B (BiGG) |
+| Kaynak | KOSGEB | BiGG |
 | --- | --- | --- |
 | Program | KOSGEB İş Geliştirme: **2.250.000 TL** (geri ödemeli, faizsiz; +250.000 TL genç girişimciye). Proje giderinin %80'i, harcandıkça ödenir | BiGG Fonu: **1.350.000 TL** (%3 hisse); tetikleyiciyle **1.350.000 TL** devam yatırımı |
 | Özkaynak | [DOLDURULACAK] | [DOLDURULACAK] |
 | Melek yatırımcı ya da tohum turu | 2029'da ~1,5–2 milyon TL | 2029'da ~1,5–2 milyon TL (BiGG devam yatırımının tetikleyicisi olur) |
 | Diğer | TÜBİTAK 1507 hibesi (Ar-Ge giderleri için) | TÜBİTAK 1507 hibesi |
 
-Geri ödeme (Yol A): Proje 24 ay sürer, geri ödemeler bitişten 12 ay sonra başlar. Proje 2027 ortasında başlarsa geri ödeme 2030 ortasında başlar. Taksit sayısı ve teminat türü Yönerge'nin geri ödeme maddelerinden okunacak [DOLDURULACAK].
+Geri ödeme (KOSGEB İş Geliştirme): Proje 24 ay sürer, geri ödemeler bitişten 12 ay sonra başlar. Proje 2027 ortasında başlarsa geri ödeme 2030 ortasında başlar. Taksit sayısı ve teminat türü Yönerge'nin geri ödeme maddelerinden okunacak [DOLDURULACAK].
 
 ## 8. Program bütçeleri
 
@@ -130,7 +130,7 @@ Geri ödeme (Yol A): Proje 24 ay sürer, geri ödemeler bitişten 12 ay sonra ba
 
 | Kalem | Tutar (TL) | Açıklama |
 | --- | --- | --- |
-| Personel | 720.000 | Girişimci ve bir yazılım/saha mühendisi, 12 ay, kişi başı aylık brüt 30.000 TL |
+| Personel | 720.000 | İki tam zamanlı kişi, 12 ay, kişi başı aylık brüt 30.000 TL: girişimci ve teknik kurucu ortak (ya da işe alınacak bir mühendis); bugün gönüllü olan ekip maaşlı hale gelir |
 | Alet, teçhizat, yazılım | 330.000 | LiDAR'lı tarama kiti (144.000), RTK baz istasyonu (36.000), GPU'lu işleme bilgisayarı (150.000) |
 | Malzeme ve sarf | 36.000 | Hafıza kartları, SSD, bataryalar, mekanik yedekler |
 | Hizmet alımı | 170.000 | Ziraat mühendisi danışmanlığı: metodoloji v1 ve referans ölçümler (90.000); hukuk: KVKK ve sözleşmeler (60.000); GNSS düzeltme verisi ve ölçüm hizmeti (20.000) |
