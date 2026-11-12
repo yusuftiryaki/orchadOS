@@ -15,9 +15,22 @@ const supabaseEnv = {
   SIGNUP_PROXY_SECRET: "signup-proxy-local",
 };
 const portOf = (origin: string) => new URL(origin).port;
+// CI runs the browser tests in groups on separate runners
+// (.github/workflows/ci-db-web.yml): E2E_ONLY lists the spec files a group
+// runs, E2E_SKIP the ones it leaves out (comma separated file names).
+const specFiles = (value: string | undefined) =>
+  (value ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .map((name) => `**/${name}`);
+const only = specFiles(process.env.E2E_ONLY);
+const skip = specFiles(process.env.E2E_SKIP);
 
 export default defineConfig({
   testDir: "tests/e2e",
+  ...(only.length > 0 ? { testMatch: only } : {}),
+  ...(skip.length > 0 ? { testIgnore: skip } : {}),
   globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: false,
   workers: 1,
