@@ -1,81 +1,171 @@
 # Girişimcilik Destekleri: TÜBİTAK ve KOSGEB Başvuruları
 
-11 Kasım 2026 · Yusuf
+11 Kasım 2026 · Yusuf (12 Kasım 2026: ekip bilgisine göre yollar yeniden planlandı)
 
-orchadOS ile TÜBİTAK ve KOSGEB girişimcilik desteklerine başvurmak için gereken belgelerin taslakları bu klasörde. Program kuralları resmi çağrı metinlerinden, yönergelerden ve formlardan okundu ([programlar.md](programlar.md)). Taslaklar repodaki ürün, plan ve fiyat belgelerine dayanır; kişisel bilgiler ve kurucunun vereceği kararlar `[DOLDURULACAK: ...]` ile işaretli.
+orchadOS ile TÜBİTAK ve KOSGEB girişimcilik desteklerine başvurmak için gereken belgelerin taslakları bu klasörde. Program kuralları resmi çağrı metinlerinden, yönergelerden ve formlardan okundu ([programlar.md](programlar.md)). Taslaklar repodaki ürün, plan ve fiyat belgelerine dayanır; kişisel bilgiler ve ekibin vereceği kararlar `[DOLDURULACAK: ...]` ile işaretli.
 
-> **Önce okuyun:** İki programın şartları orchadOS'un bugünkü yapısıyla çatışabilir. TÜBİTAK BiGG, hızlandırma programına kabul gününde **hiçbir şirkette ortak olmamayı** ve yatırımdan sonra **yalnızca yeni şirkette tam zamanlı çalışmayı** şart koşuyor. Pilot bugün OBA Bilişim Teknolojileri LTD. adına işletiliyor ve plan haftada ~20 saatlik bir yan proje varsayıyor. Bu yüzden hangi yoldan gidileceği kurucunun kararı (§2).
+## 1. Bugünkü durum (12 Kasım 2026)
 
-## 1. Hangi programlar
+- **Şirket yok.** OBA Bilişim Teknolojileri henüz kurulmadı; hukuk metinlerinde ve pilot ortamında adı yer tutucu olarak geçiyor.
+- **Ekip üç kişi, gönüllü çalışıyor:**
 
-| Program | Ne verir | orchadOS için durum | Sıradaki pencere |
+| Kişi | Durum | BiGG'e başvurabilir mi | KOSGEB'de "genç girişimci" mi | KOSGEB İş Kurma'da girişimci olabilir mi |
+| --- | --- | --- | --- | --- |
+| Yusuf | Bilgisayar mühendisi, 35 yaş üstü, **şahıs şirketi var** | **Hayır**, şahıs şirketi hızlandırmaya kabul gününe kadar kapatılmazsa | Hayır | **Hayır**: kuruluştan önceki 3 yılda şahıs firması olan girişimci İş Kurma'ya başvuramaz (şirket "dijital şirket" sayılırsa bu şart aranmaz, §6) |
+| Furkan | İşletme öğrencisi, 35 yaş altı, ortaklığı yok | **Evet** (kayıtlı öğrenci) | Evet | Evet |
+| Berkay | Kimya mühendisliği öğrencisi, 35 yaş altı, ortaklığı yok | **Evet** (kayıtlı öğrenci) | Evet | Evet |
+
+Bu tablodan çıkan üç sonuç:
+
+1. **BiGG başvurusunu Furkan ya da Berkay yapmalı.** BiGG'de PRODİS başvurusunu tek bir girişimci yapar; diğerleri ekip üyesi olarak özgeçmişleriyle eklenir. Yasak yalnız başvuru yapan kişi için yazılı: "hızlandırma programına kabul edildiği tarih itibarıyla herhangi bir işletmenin ortaklık yapısında yer alan kişiler başvuru yapamaz". Girişimci, sonradan kurulacak anonim şirketin kurucu ortağı olur.
+2. **Furkan ve Berkay hiçbir şirkette ortak olmamalı;** en azından başvuracak olan, hızlandırma programına kabul edilene kadar. Bu yüzden BiGG düşünülüyorsa şirket kabul gününden önce kurulmaz ya da başvuracak kişi ona ortak olmaz.
+3. **KOSGEB'in genç girişimci avantajları da Furkan ya da Berkay üzerinden gelir:** İş Geliştirme üst limitine +250.000 TL, İş Kurma performans desteği (8 brüt asgari ücret, geri ödemesiz), faiz/kâr payı desteği. Buna karşılık KOSGEB'de girişimcinin şirkette **en az %50 payı ve tek başına temsil yetkisi** olmalıdır. Şirket teknogirişim rozeti alırsa bu iki şart aranmaz (§6).
+
+## 2. Programlar
+
+| Program | Ne verir | Bu ekip için | Sıradaki pencere |
 | --- | --- | --- | --- |
-| **TÜBİTAK 1812 BiGG Yatırım** | %3 hisse karşılığı 1.350.000 TL; sonra 1.350.000 TL'ye kadar devam yatırımı | Uygun konu (tematik alan 1.6 Sürdürülebilir Tarım). Uygunluk ortaklık ve tam zamanlılık şartlarına bağlı | Önce bir hızlandırma programı (sürekli açık); Aşama 2: **25 Oca – 12 Şub 2027** ya da **26 Tem – 13 Ağu 2027** |
-| **KOSGEB İş Geliştirme Desteği** | 2.250.000 TL'ye kadar (+250.000 TL genç girişimciye), %80, geri ödemeli, faizsiz, 24 ay | NACE 62 ile uygun. Şirketin 3 yaşından küçük, kurucunun payının en az %50 olması gerekir | 2027 dönemleri duyurulmadı (2026'da Nisan ve Ekim'de açıldı) |
-| **KOSGEB İş Kurma Desteği** | Genç girişimciye 8 brüt asgari ücret, geri ödemesiz | Yalnız şirket 1 yaşından küçükse ya da 16 Aralık 2024 ve sonrasında kurulduysa; ikinci durumda **son gün 31 Aralık 2026** | Sürekli açık |
-| TÜBİTAK 1507 KOBİ Ar-Ge Başlangıç | Şirketin ilk Ar-Ge projesine hibe | Şirket kurulduktan sonraki adım | 2026-2 kapanıyor (25 Kasım'a uzatıldığı bildiriliyor); 2027 çağrıları |
+| **TÜBİTAK 1812 BiGG Yatırım** | %3 hisse karşılığı 1.350.000 TL; tetikleyiciyle 1.350.000 TL'ye kadar devam yatırımı | Girişimci Furkan ya da Berkay | Hızlandırma programları sürekli açık; Aşama 2: 25 Oca – 12 Şub 2027 ya da **26 Tem – 13 Ağu 2027** |
+| **KOSGEB İş Kurma** | Genç girişimciye performans desteği: 24 ayda 8 brüt asgari ücret, geri ödemesiz | Şirket kurulduktan sonraki 1 yıl içinde; girişimci Furkan ya da Berkay | Sürekli açık |
+| **KOSGEB İş Geliştirme** | 2.250.000 TL + 250.000 TL (genç girişimci), %80, geri ödemeli, faizsiz, 24 ay | Şirket kurulduktan sonraki 3 yıl içinde; NACE 62 ya da 63 | 2027 dönemleri duyurulmadı |
+| TÜBİTAK 1507 KOBİ Ar-Ge Başlangıç | Şirketin ilk Ar-Ge projesine hibe | Şirket kurulduktan sonra | 2027 çağrıları |
+| TEKNOFEST Tarım Teknolojileri Yarışması | Ödül; ilk üç derece BiGG iş planına **+5 puan** | Furkan ve Berkay üniversite takımı olarak | 2026'da başvurular 15 Ocak – 20 Şubat arasıydı; 2027 duyurusu beklenecek |
+| TÜBİTAK 2209-A (öğrenci araştırma projesi) | Küçük bütçeli araştırma desteği, danışman öğretim üyesiyle | Furkan ya da Berkay; örneğin LiDAR ölçümlerinin doğrulanması | 2026 çağrısı 11 Kasım'da kapandı; sonraki çağrı ~Ekim 2027 |
 
-Kapanmış ya da uygun olmayan programlar ve gerekçeleri: [programlar.md](programlar.md) §4.
+Kurallar ve kaynaklar: [programlar.md](programlar.md).
 
-## 2. Uygunluk: önce cevaplanacak sorular
+## 3. Yollar
 
-Bunlar başvuru yolunu belirler. Cevaplar bu belgeye yazılmalı.
+### Yol 1 (önerilen): önce BiGG, şirket mühürden sonra, ardından KOSGEB
 
-| # | Soru | Neden önemli | Cevap |
+**Fikir:** Furkan (ya da Berkay) girişimci olarak bir hızlandırma programına girer. Şirket, Mükemmeliyet Mührü alınınca anonim şirket olarak kurulur. Ardından aynı şirket KOSGEB'in İş Kurma ve İş Geliştirme desteklerine başvurur. Destekler üst üste biner.
+
+BiGG'de iki ayrı başvuru vardır ve takvimleri farklıdır:
+
+- **Aşama 1, hızlandırma programı:** Başvuru PRODİS'ten, uygulayıcı kuruluşun açtığı döneme yapılır. Kuruluşlar 31 Temmuz 2028'e kadar sürekli dönem açar; bir dönem ~3 ay sürer. **Hemen başvurulur.**
+- **Aşama 2, iş planının TÜBİTAK'a sunulması:** Yalnız hızlandırmayı bitirip uygulayıcı kuruluşun onayını alan girişimci başvurabilir. TÜBİTAK yılda iki sabit pencere açar: 2027-1 (25 Oca – 12 Şub 2027) ve 2027-2 (26 Tem – 13 Ağu 2027). Onay, verildiği günden itibaren 12 ay içinde açılan herhangi bir pencerede kullanılabilir.
+
+Hangi pencereye yetişileceği, hızlandırmanın ne zaman biteceğine bağlıdır:
+
+| Senaryo | Hızlandırma | Aşama 2 | Sonuç | Şirket | Destek başlangıcı |
+| --- | --- | --- | --- | --- | --- |
+| **Hızlı** | Kasım–Aralık 2026'da başlayan ve 12 Şubat 2027'den önce biten bir dönem bulunursa (örneğin bir kuruluşun 2027-1'e yetişen dönemi 23 Kas 2026 – 12 Şub 2027, son başvurusu 8 Kasım'dı; başka kuruluşların dönemleri sorulmalı) | 25 Oca – 12 Şub 2027 | 26–30 Nis 2027 | 30 Haz 2027'ye kadar | **1 Tem 2027** |
+| **Olası** | Bahar 2027 dönemi | 26 Tem – 13 Ağu 2027 | 1–5 Kas 2027 | 31 Ara 2027'ye kadar | **1 Oca 2028** |
+
+| Ne zaman | Adım |
+| --- | --- |
+| Hemen (Kasım 2026) | Girişimcinin seçimi; PRODİS kaydı; BİGG4FUTURE (Gaziantep Teknopark ortaklı), BİGG AGROFOODSTART (tarım odaklı) ve diğer kuruluşlara **hâlâ başvuru alan ve Şubat'tan önce biten bir dönem** sorulur; §6'daki sorular; kurucular sözleşmesi (§5); KOSGEB eğitimleri |
+| Hızlandırmaya kabul | Kabul gününde başvuran hiçbir işletmede ortak değildir; **şirket kurulmaz**. Pilot ücretsiz yürür (Kapı 1: 20 Aralık 2026, ilk raporlar: 8 Mart 2027) |
+| Ocak–Şubat 2027 | TEKNOFEST Tarım Teknolojileri başvurusu (Furkan ve Berkay) |
+| Hızlandırma süresince | Eğitim, mentör, müşteri görüşmeleri (etik kurul onayıyla), iş planı ([tubitak-bigg-is-plani.md](tubitak-bigg-is-plani.md)) |
+| Aşama 2 penceresi | İş planı PRODİS'ten TÜBİTAK'a |
+| Mühürden sonra | Anonim şirket (§4'teki ekip yapısına göre); BiGG Fonu %3; kod ve markanın şirkete devri; girişimci şirkette tam zamanlı |
+| Destekten sonra | Teknogirişim rozeti başvurusu; KOSGEB İş Kurma (kuruluştan 1 yıl içinde); KOSGEB İş Geliştirme; TÜBİTAK 1507 |
+
+**Toplam potansiyel:** BiGG 1.350.000 TL (+1.350.000 TL devam) + KOSGEB İş Geliştirme 2.500.000 TL (geri ödemeli) + İş Kurma performans desteği + 1507 hibesi.
+
+**Artıları:** İlk para geri ödenmez; mentörlük ve yatırımcı ağı; BiGG desteği gönüllü ekibi maaşlı hale getirebilir; ikincil kaynaklara göre BiGG desteği teknogirişim rozetinin ölçütlerinden biri (§6, D3) ve rozet KOSGEB'deki pay ve temsil şartlarını kaldırır.
+
+**Eksileri ve riskler:**
+- İlk para hızlı senaryoda Temmuz 2027'de, olası senaryoda Ocak 2028'de gelir; o zamana kadar ekip gönüllü kalır.
+- Girişimci, pay sahibi olduğu sürece yalnız bu şirket için çalışmayı taahhüt eder (öğrencilik engel değil; başka işte çalışmak, danışmanlık vermek yasak).
+- Şirket olmadığı için 2027'de pilotta para alınamaz (hukuk metinleri şirket bilgisi olmadan teklif kabulünü engelliyor, H34). Para gerekirse geçici olarak Yusuf'un şahıs şirketi fatura keser; bu durumda kod ve müşteri ilişkisi yazılı olarak sonradan şirkete devredilecek biçimde kurulur.
+- Mühür alınamazsa Yol 2'ye geçilir (hızlı senaryoda Mayıs 2027'de, olası senaryoda Kasım 2027'de); hazırlanan iş planı KOSGEB başvurusunda kullanılır.
+
+### Yol 2: şirketi şimdi kur, önce KOSGEB
+
+**Fikir:** Şirket Aralık 2026'da kurulur. KOSGEB girişimcisi Furkan ya da Berkay olur: genç girişimci avantajları onun üzerinden gelir. Bunun için o kişinin en az %50 payı ve tek başına temsil yetkisi olması gerekir.
+
+| Ne zaman | Adım |
+| --- | --- |
+| Kasım–Aralık 2026 | Kurucular sözleşmesi; geleneksel ve ileri girişimci eğitimleri; şirket kuruluşu (NACE 62.01 ya da 63.11); KOSGEB Veri Tabanı kaydı, İşletme Beyanı |
+| Ocak 2027 | KOSGEB İş Kurma başvurusu (performans desteği: her 3 ayda en az 1 brüt asgari ücret satış ve 90 prim günü) |
+| 2027'nin ilk İş Geliştirme dönemi | İş Geliştirme başvurusu ([kosgeb-basvurusu.md](kosgeb-basvurusu.md)); jüri sunumu |
+| 2027–2028 | TÜBİTAK 1507 |
+
+**Artıları:** Hızlı; şirket 2027 başından fatura keser, pilot ücretli olabilir; İş Geliştirme parası 2027 ortasında gelmeye başlar.
+
+**Eksileri ve riskler:**
+- **BiGG kapanır:** Şirketin ortağı olan Furkan ya da Berkay BiGG'e başvuramaz. Ortak olmayan diğeri başvurabilir, ama BiGG yeni bir anonim şirket ve bütün hakların ona devrini ister. Bu, kurulan şirketle çatışır.
+- KOSGEB desteği geri ödemelidir ve teminat ister.
+- %50 pay ve tek başına temsil yetkisi 20–21 yaşındaki bir öğrenciye verilir. Destek boyunca (24 ay) pay %50'nin altına düşemez. Kurucular sözleşmesi bunu dengelemeli ya da önce teknogirişim rozeti alınmalı (§6).
+
+### Yol 3: Yusuf girişimci
+
+Yusuf şahıs şirketini hızlandırmaya kabul gününden önce kapatır ve BiGG girişimcisi olur. Yatırımdan sonra yalnız bu şirkette tam zamanlı çalışması gerekir. KOSGEB İş Kurma'da şahıs şirketi 3 yıl boyunca engel olmaya devam eder; İş Geliştirme'de engel değildir ama genç girişimci avantajları kaybedilir. Ekipte iki uygun öğrenci varken bu yol yalnız Yusuf tam zamanlıya geçmek isterse ve öğrenciler girişimci olmak istemezse anlamlıdır.
+
+### Öneri
+
+**Yol 1.** Ekip zaten gönüllü çalışıyor ve gerçek müşteri yok, yani bir yıl bekleyerek kaybedilen gelir yok. Bu süre ön hazırlık puanını artıran saha kanıtıyla geçer: Kapı 1, ilk raporlar, müşteri görüşmeleri. İlk ve en büyük para geri ödenmez ve sonra KOSGEB'le birleştirilebilir. Yol 2 ise BiGG kapısını kalıcı olarak kapatır.
+
+Yol 1'in iki ön şartı var:
+- Girişimci olacak öğrenci, 2028'den itibaren şirkette tam zamanlı rol almaya gerçekten hazır olmalı.
+- Yusuf'un yazılım haklarının şirkete devri ve karşılığı yazılı olarak kararlaştırılmalı (§5). 12 Kasım kararıyla Yusuf ortak olmadığı için eski D1 sorusu düştü.
+
+İkisinden biri olmazsa Yol 2 seçilir.
+
+## 4. Girişimci kim olmalı (Yol 1 ve Yol 2 için)
+
+**Karar (12 Kasım 2026): Furkan.** Seçimde bakılan ölçütler:
+
+| Ölçüt | Not |
+| --- | --- |
+| Bağlılık ve zaman | Hızlandırmada yüz yüze eğitim ve haftalık görevler; destek başladıktan sonra şirkette tam zamanlı rol; kalan öğrenim süresi |
+| Rol uyumu | İşletme öğrencisi pazar, müşteri ve finans bölümlerini doğal olarak üstlenir. Kimya mühendisliği bugünkü teknolojiyle doğrudan örtüşmüyor; saha operasyonu ve ileride toprak, yaprak ve ilaçlama tarafı için değerli |
+| Panelde savunma | Girişimci teknik ayrıntıya hâkim olmalı (KOSGEB jürisi bunu ayrıca puanlar); Yusuf teknik danışman olarak yanında yer alır |
+
+### Ekip yapısı: kim ortak, kim çalışan
+
+Girişimci şirkette kurucu ortak olmak zorunda; diğer ikisinin ortak olması zorunlu değil. Üç seçenek:
+
+| Yapı | BiGG | KOSGEB | Risk |
 | --- | --- | --- | --- |
-| S1 | Kurucunun OBA Bilişim Teknolojileri LTD.'deki payı ve temsil yetkisi nedir? | BiGG: hızlandırmaya kabul gününde **herhangi bir şirkette ortaklık** başvuruyu engeller. KOSGEB: pay en az %50 ve münferit temsil gerekir | [DOLDURULACAK] |
-| S2 | OBA Bilişim'in ticaret siciline tescil tarihi nedir? | KOSGEB İş Geliştirme 3 yıl, İş Kurma 1 yıl (16.12.2024 sonrası kurulduysa 31.12.2026'ya kadar) | [DOLDURULACAK] |
-| S3 | OBA Bilişim'in İşletme Beyanındaki NACE kodu nedir? | İş Geliştirme yalnız C, 61, 62, 63, 72. orchadOS için 62.01 (bilgisayar programlama) ya da 63.11 (veri işleme) uygun | [DOLDURULACAK] |
-| S4 | Kurucu başvuru gününde 35 yaşından küçük mü? | KOSGEB'de +250.000 TL, performans desteği, faiz/kâr payı desteği | [DOLDURULACAK] |
-| S5 | Kurucunun en yüksek öğrenimi ve mezuniyet yılı? | BiGG: ön lisans ve üstü öğrenci ya da mezun olmak gerekir | [DOLDURULACAK] |
-| S6 | Kurucu destek süresince orchadOS'ta tam zamanlı çalışabilir mi? | BiGG: zorunlu (başka işte çalışmak, danışmanlık vermek yasak). KOSGEB: kurul "yönetim becerisi" ve "personel" maddelerinde bakar | [DOLDURULACAK] |
-| S7 | orchadOS kodunun ve markasının hakları kimde: kurucuda mı, OBA Bilişim'de mi? | BiGG: bütün haklar yeni anonim şirkete devredilir | [DOLDURULACAK] |
-| S8 | Başka kurucu ortak olacak mı? Kim, payı ne, BiGG şartlarını sağlıyor mu? | Ekip yetkinliği iki programda da puanlanır; BiGG'de şartları sağlayan bir ortak girişimci olabilir | [DOLDURULACAK] |
-| S9 | Kurucu KOSGEB geleneksel ve ileri girişimci eğitimlerini tamamladı mı? | Başvurudan önce şart | [DOLDURULACAK] |
+| **A. Üçü kurucu ortak** (girişimci çoğunlukta) | Ekip panelde güçlü görünür. Yusuf'un şahıs şirketiyle ortak olup olamayacağı soruludur (§6, D1) | Girişimcinin en az %50 payı ve tek başına temsil yetkisi olmalı (rozetle aranmaz). Ortaklar KOSGEB personel desteğinden yararlanamaz | D1'in cevabı "hayır" olursa yapı değişir |
+| **B. Furkan tek kurucu, Yusuf ve Berkay çalışan** | D1 sorusu ortadan kalkar; başvuru ve şirket en sade hali. Panel, bütün teknolojiyi geliştiren kişinin pay sahibi olmamasını "kilit kişi riski" olarak sorabilir | Furkan bütün şartları sağlar. Çalışanlar ortak olmadığı için İş Geliştirme'de personel desteği alabilir (Yusuf bilişim personeli olarak: aylık prime esas kazancın %80'i, üst limit brüt asgari ücretin işverene maliyetinin 4 katı) | Yusuf kodunu, sahibi olmadığı bir şirkete bedelsiz devreder; karşılığı yazılı bir pay vaadi ya da opsiyon olmalı (§5). KOSGEB personel desteği, personelin yalnız destek alan işletmede sigortalı olmasını ister: Yusuf'un şahıs şirketinden gelen Bağ-Kur kaydı ve varsa başka işyerindeki sigortası buna engel olabilir (§6, D7) |
+| **C. Furkan ve Berkay ortak, Yusuf çalışan ya da danışman** | Öğrenciler ortaklık yasağına takılmaz; D1 ortadan kalkar | Furkan en az %50 ile girişimci; Berkay personel desteği alamaz, Yusuf alabilir (D7'ye bağlı) | B'deki pay vaadi sorunu Yusuf için geçerli |
 
-## 3. İki yol
+**Karar (12 Kasım 2026):** Girişimci Furkan. Yusuf ortak olmayacak, teknik danışman olarak çalışacak; bu yüzden yapı B ya da C geçerli, A düştü. Berkay'ın ortak (C) mı, çalışan (B) mı olacağı açık. Yusuf danışman olduğu için KOSGEB personel desteği ona uygulanmaz; danışmanlığı hizmet alımı olarak ödenir. Yazılım haklarının devri ve karşılığı (danışmanlık ücreti, lisans bedeli ya da ileride pay) yazılı olmalı; ileride pay verilecekse BiGG Fonu'nun yatırım sözleşmesinin pay devirlerine bakışı uygulayıcı kuruluşa ve avukata sorulmalı (D8). Hızlandırma başvurusu: [tubitak-bigg-is-fikri.md](tubitak-bigg-is-fikri.md).
 
-### Yol A (önerilen): mevcut şirketle KOSGEB, ardından TÜBİTAK 1507
+## 5. Kurucular sözleşmesi (her yolda önce bu)
 
-S1–S3 uygunsa (kurucu payı en az %50, münferit temsil, şirket 3 yaşından küçük, NACE 62/63):
+Başvurudan önce yazılı olmalı; avukatla:
 
-1. **Hemen:** KOSGEB'de ileri girişimci eğitimini (ve İş Kurma düşünülüyorsa geleneksel eğitimi) tamamlamak; İşletme Beyanını güncellemek; Findeks İDR almak.
-2. **31 Aralık 2026'ya kadar:** Şirket 16 Aralık 2024 ve sonrasında kurulduysa ve kurucu gençse İş Kurma Desteği'ne başvurmak ([kosgeb-basvurusu.md](kosgeb-basvurusu.md) §B). Performans desteğinin her dönem için satış ve 90 prim günü şartını sağlayabilecek misiniz, önce bakın; reddedilen tekrar başvuramaz.
-3. **2027'nin ilk İş Geliştirme dönemi:** [kosgeb-basvurusu.md](kosgeb-basvurusu.md) §A ile başvuru; video ve jüri sunumu [sunum-ve-video.md](sunum-ve-video.md).
-4. **2027:** Şirket olarak TÜBİTAK 1507'ye ön kayıt ve LiDAR ölçümleri ya da ağaç tespit modeli projesi.
+- Roller ve karar alma (kim ne yapar, kim neyi tek başına imzalar).
+- Pay planı ve **hak ediş takvimi** (vesting): örneğin 4 yıl, 1 yıl bekleme. Gönüllü emek ve ayrılan kurucu durumları.
+- **Fikri mülkiyet:** Kodun bugün kimde olduğu (Yusuf kişisel olarak mı, şahıs şirketi mi); şirket kurulunca bedelsiz devri. BiGG bunu yatırımdan önce şart koşar.
+- BiGG'in %3–5 fon payı ve KOSGEB'in "girişimci en az %50" şartı için pay senaryoları (rozetli ve rozetsiz).
+- Yusuf'un şahıs şirketinin orchadOS ile ilişkisi (rekabet, geçici faturalama).
+- Ortak olmayan ekip üyeleri için (yapı B ve C): çalışma sözleşmesi, ücret ya da gönüllülük, ileride pay devri ya da opsiyon vaadi ve koşulları.
 
-Artısı: mevcut yapı bozulmaz; pilotla aynı şirket ilerler; KOSGEB tutarı daha yüksektir. Eksisi: KOSGEB geri ödemelidir ve teminat ister; BiGG'in yatırımcı ağı ve mentörlüğü kaybedilir.
+## 6. Doğrulanacak sorular
 
-### Yol B: TÜBİTAK BiGG
+| # | Soru | Kime | Neden |
+| --- | --- | --- | --- |
+| ~~D1~~ | *(12 Kasım: Yusuf ortak olmayacağı için düştü)* Girişimci öğrenciyken, şahıs şirketi olan bir ekip üyesi (Yusuf) kurulacak anonim şirkete kurucu ortak olabilir mi? Tam zamanlılık taahhüdü ona da uygulanır mı? | Uygulayıcı kuruluş, `bigg@tubitak.gov.tr` | Uygulama Esasları ve çağrı yalnız başvuranı kısıtlıyor; Yatırım ve Pay Sahipleri Sözleşmesi örneği okunmalı |
+| D2 | Şirket, mühürden önce (hızlandırma sırasında) kurulabilir mi? | Uygulayıcı kuruluş | Pilotta erken faturalama imkânı |
+| D3 | Teknogirişim rozetinin yenilikçilik ölçütleri neler; BiGG desteği ya da teknoparkta yer almak yeterli mi? | Sanayi ve Teknoloji Bakanlığı; 3 Temmuz 2025 tarihli yönetmelik | Rozet KOSGEB'de %50 pay, tek başına temsil ve şirket yaşı şartlarını kaldırır, +10 puan verir |
+| D4 | "Dijital şirket" tanımı nedir; orchadOS şirketi bu tanıma uyar mı? | Mali müşavir; Sanayi ve Teknoloji Bakanlığı | KOSGEB İş Kurma'da eğitim, %50 pay ve önceki firma şartları kalkar; Yusuf da girişimci olabilir. Tek bir ikincil kaynağa göre 2026'daki bir kanunla geldi; doğrulanmadı |
+| D5 | Yusuf'un şahıs şirketinin kuruluş tarihi ve NACE kodu | Yusuf | 3 yaşından küçük ve NACE 62 ise şahıs şirketi KOSGEB İş Geliştirme'ye kendisi başvurabilir (genç avantajı yok; BiGG ile çatışır) |
+| D6 | Öğrenci ortağın Bağ-Kur ve prim günü durumu; limited ya da anonim şirket seçimi | Mali müşavir | İş Kurma performans desteği her 3 ayda 90 prim günü ister |
+| ~~D7~~ | *(12 Kasım: Yusuf danışman olacağı için düştü; Berkay çalışan olursa onun için geçerli)* Şahıs şirketi (Bağ-Kur) olan ve varsa başka bir işte sigortalı çalışan Yusuf, kurulacak şirkette KOSGEB personel desteği alacak çalışan olabilir mi? | Mali müşavir, KOSGEB müdürlüğü | Yönerge: proje süresince personelin yalnız destek alan işletmede sigorta kaydı olmalı (md. 9/5) |
+| D8 | Yusuf'a yazılım devrinin karşılığı olarak sonradan pay verilmesi BiGG yatırım sözleşmesine ve KOSGEB'in %50 şartına uyar mı? | Uygulayıcı kuruluş, avukat | Teknolojiyi geliştiren kişinin pay vaadinin güvenceye alınması |
 
-Kurucu hızlandırmaya kabul gününden önce bütün şirket ortaklıklarından çıkabiliyor ve tam zamanlı çalışabiliyorsa, ya da şartları sağlayan bir ortak girişimci olacaksa:
+## 7. Belgeler
 
-1. **Kasım–Aralık 2026:** PRODİS'e kayıt; BİGG4FUTURE (Gaziantep) ya da BİGG AGROFOODSTART (tarım odaklı) gibi bir hızlandırma programının açık dönemine başvuru ([tubitak-bigg-is-fikri.md](tubitak-bigg-is-fikri.md)).
-2. **Kabul gününden önce:** ortaklık durumunun temizlenmesi (avukat ve mali müşavirle).
-3. **Hızlandırma süresince:** iş planı ([tubitak-bigg-is-plani.md](tubitak-bigg-is-plani.md)), bahçe sahibi görüşmeleri için etik kurul başvurusu.
-4. **2027-2 (26 Tem – 13 Ağu 2027):** Aşama 2 başvurusu. Mühür alınırsa anonim şirket, sözleşmeler, 1 Ocak 2028'de destek başlangıcı.
-5. Fikri mülkiyet ve pilotun yeni şirkete devri; OBA Bilişim'in hizmet sözleşmelerinin devri ya da sona erdirilmesi.
+| Belge | Ne için |
+| --- | --- |
+| [programlar.md](programlar.md) | Kurallar, formlar, takvimler, kaynaklar |
+| [tubitak-bigg-is-fikri.md](tubitak-bigg-is-fikri.md) | BiGG hızlandırma programı başvurusu (Yol 1) |
+| [tubitak-bigg-is-plani.md](tubitak-bigg-is-plani.md) | BiGG Aşama 2 iş planı (Yol 1) |
+| [kosgeb-basvurusu.md](kosgeb-basvurusu.md) | KOSGEB İş Geliştirme formu ve İş Kurma II. Bölüm (Yol 1'de 2028, Yol 2'de 2027) |
+| [finansal-plan.md](finansal-plan.md) | Varsayımlar, 4 yıllık tahmin, iki programın bütçeleri |
+| [sunum-ve-video.md](sunum-ve-video.md) | KOSGEB videosu, jüri sunumu, BiGG sunum dosyası |
+| [kontrol-listesi.md](kontrol-listesi.md) | Hesaplar, ön şartlar, ekler, son günler |
 
-Artısı: geri ödenmeyen (hisse karşılığı) yatırım, yatırımcı ağı, mentörlük, TÜBİTAK onayının itibarı. Eksisi: şirket yapısının baştan kurulması, tam zamanlılık, %3–5 hisse, 2028'den önce para gelmemesi.
-
-**İki yol birlikte:** Yol B'deki yeni anonim şirket kurulduktan sonra KOSGEB İş Geliştirme'ye başvurabilir (NACE 62, kurucu payı en az %50). Ancak BiGG'in tam zamanlılık ve hak devri şartları OBA Bilişim'de orchadOS işinin sürmesini engeller. Yol A ile başlayıp sonradan Yol B'ye geçmek ise kurucunun OBA Bilişim'deki ortaklığından çıkmasını gerektirir; KOSGEB desteği sürerken girişimcinin payı %50'nin altına düşemeyeceği için bu, 24 aylık destek boyunca fiilen kapalıdır.
-
-## 4. Belgeler
-
-| Belge | Ne için | Kim kullanır |
-| --- | --- | --- |
-| [programlar.md](programlar.md) | Kurallar, formlar, takvimler, kaynaklar | Hepsi |
-| [tubitak-bigg-is-fikri.md](tubitak-bigg-is-fikri.md) | BiGG hızlandırma programı başvurusu (Aşama 1), dört değerlendirme boyutuna göre | Yol B |
-| [tubitak-bigg-is-plani.md](tubitak-bigg-is-plani.md) | BiGG Aşama 2 iş planı (AGY112 yapısı): teknolojik doğrulama, iş paketleri, pazar, pazarlama, işletme, finans | Yol B |
-| [kosgeb-basvurusu.md](kosgeb-basvurusu.md) | KOSGEB İş Geliştirme Proje Başvuru Formu (bütün bölümler) ve İş Kurma II. Bölüm | Yol A |
-| [finansal-plan.md](finansal-plan.md) | Varsayımlar, 4 yıllık satış ve gider tahmini, nakit akışı, kâra geçiş, iki programın bütçeleri | Hepsi |
-| [sunum-ve-video.md](sunum-ve-video.md) | KOSGEB tanıtım videosu senaryosu, jüri sunumu, BiGG sunum dosyası akışı | Hepsi |
-| [kontrol-listesi.md](kontrol-listesi.md) | Hesaplar, ön şartlar, ekler, son günler | Hepsi |
-
-## 5. Yazarken uyulan kurallar
+## 8. Yazarken uyulan kurallar
 
 - **Ölçülmeyeni iddia etme.** Bugün gerçek müşteri yok; kit monte edilmedi; saha denemeleri (İP3) ve ilk raporlar (Kapı 2, 8 Mart 2027) önümüzde. Yazılımın büyük kısmı hazır ve sentetik veriyle test edildi. Taslaklar bunu açıkça söyler; değerlendirici "ön hazırlık" ve "uygulanabilirlik" puanını buna göre verir, abartı ise jüride ve izlemede geri döner.
-- **Robot:** MARABA-I bugün simülasyonda doğrulandı. Ot biçme hizmeti robotun işi olarak sunulur ([vizyon.md](../vizyon.md)); başvurularda robot geliştirilmekte olan bir yetenek olarak anlatılır, sahada kanıtlanmış gibi yazılmaz.
-- **Metodoloji ve hukuk:** Metodoloji ve paket takvimi yapay zekâ uzman ajanlarının kararlarıdır, hukuk metinleri avukat onayı bekliyor ([hukuk/kararlar.md](../hukuk/kararlar.md)). Taslaklar bunları "lisanslı uzmanla kesinleşecek" diye anlatır ve ziraat mühendisi danışmanlığını bütçeye koyar.
-- **Rakamlar:** Fiyatlar [fiyatlandirma.md](../fiyatlandirma.md), maliyet ve ölçek [teknik-mimari.md](../teknik-mimari.md), kit [tarama-kiti.md](../tarama-kiti.md) ve [kit-siparis-listesi.md](../kit-siparis-listesi.md) kaynaklıdır. Tahminler tahmin diye yazılır.
-- **Kişisel veri:** Kurucu kimliği, T.C. kimlik numarası, iletişim bilgileri ve özgeçmiş repoya girmez; formlara başvuru sırasında doldurulur.
+- **Robot:** MARABA-I bugün simülasyonda doğrulandı. Başvurularda geliştirilmekte olan bir yetenek olarak anlatılır, sahada kanıtlanmış gibi yazılmaz.
+- **Metodoloji ve hukuk:** Metodoloji ve paket takvimi yapay zekâ uzman ajanlarının kararlarıdır, hukuk metinleri avukat onayı bekliyor ([hukuk/kararlar.md](../hukuk/kararlar.md)). Taslaklar bunları "lisanslı uzmanla kesinleşecek" diye anlatır.
+- **Rakamlar:** Fiyatlar [fiyatlandirma.md](../fiyatlandirma.md), maliyet ve ölçek [teknik-mimari.md](../teknik-mimari.md), kit [tarama-kiti.md](../tarama-kiti.md) kaynaklıdır. Tahminler tahmin diye yazılır.
+- **Kişisel veri:** Ekip üyelerinin soyadı, yaşı, T.C. kimlik numarası, iletişim bilgileri ve özgeçmişi repoya girmez; yalnız uygunluğu belirleyen durum (35 yaş altı/üstü, öğrenci, ortaklık) yazılır. Formlar başvuru sırasında doldurulur.

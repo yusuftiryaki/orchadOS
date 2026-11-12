@@ -4,7 +4,7 @@
 
 İki form var: **A. İş Geliştirme Desteği Proje Başvuru Formu** (asıl başvuru) ve **B. İş Kurma Desteği II. Bölüm** (yalnız şirket şartları sağlıyorsa). Başlıklar ve sıralar KOSGEB'in Ekim–Kasım 2026 formlarıyla aynıdır ([programlar.md](programlar.md) §2). Proje Bilgi Dokümanı (2.1–2.9) KOSGEB'in Word şablonuna kopyalanır, başlıklar silinmeden kutulara yazılır ve PDF olarak yüklenir.
 
-Başvuran işletme: OBA Bilişim Teknolojileri LTD. ([README.md](README.md) Yol A). Başvurmadan önce [README.md](README.md) §2'deki S1–S4 ve S9 cevaplanmış, [kontrol-listesi.md](kontrol-listesi.md)'deki ön şartlar tamamlanmış olmalı.
+Başvuran işletme: kurulacak şirket (adı yer tutucu olarak OBA Bilişim Teknolojileri). Girişimci, genç girişimci avantajları için Furkan'dır ve şirkette en az %50 payı ve tek başına temsil yetkisi olmalıdır; şirketin teknogirişim rozeti varsa bu iki şart aranmaz. Yusuf'un şahıs şirketi onu İş Kurma'da girişimci olmaktan çıkarır ([README.md](README.md) §1). Zamanlama: Yol 2'de 2027, Yol 1'de BiGG'den sonra 2028. Başvurmadan önce [kontrol-listesi.md](kontrol-listesi.md)'deki ön şartlar tamamlanmış olmalı.
 
 ---
 
@@ -14,7 +14,7 @@ Başvuran işletme: OBA Bilişim Teknolojileri LTD. ([README.md](README.md) Yol 
 
 | Alan | Değer |
 | --- | --- |
-| İşletme ünvanı | OBA Bilişim Teknolojileri LTD. [DOLDURULACAK: tam ünvan] |
+| İşletme ünvanı | [DOLDURULACAK: kurulacak şirketin tam ünvanı] |
 | Vergi no | [DOLDURULACAK] |
 | Yetkili | [DOLDURULACAK] |
 | Projenin adı | Antep Fıstığı Bahçelerinde Ağaç Düzeyinde Dijital Denetim Hizmetinin Sahaya ve Pazara Çıkarılması |
