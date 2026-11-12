@@ -32,6 +32,7 @@ import {
   labelScope,
   pickTree,
   type LabelScope,
+  type Rect,
   type TreeOnScreen,
 } from "@/lib/world/labels";
 import {
@@ -1282,13 +1283,30 @@ export class WorldScene {
     return out;
   }
 
+  // Where the world's own controls (marked data-world-chrome in
+  // world-view.tsx) cover the stage: no label goes there.
+  private coveredAreas(): Rect[] {
+    const root = this.options.container.parentElement;
+    if (!root) return [];
+    const base = this.options.container.getBoundingClientRect();
+    return [...root.querySelectorAll<HTMLElement>("[data-world-chrome]")].map((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        left: r.left - base.left,
+        right: r.right - base.left,
+        top: r.top - base.top,
+        bottom: r.bottom - base.top,
+      };
+    });
+  }
+
   private placeLabels() {
     if (this.overlayOpacity <= 0) return;
     const w = this.options.container.clientWidth;
     const h = this.options.container.clientHeight;
     const scope = this.scope();
     const trees = this.treesOnScreen(w, h);
-    const shown = chooseLabels(trees, scope, this.selected);
+    const shown = chooseLabels(trees, scope, this.selected, this.coveredAreas());
     const rank = new Map(shown.map((id, i) => [id, i]));
     const byId = new Map(trees.map((t) => [t.id, t]));
     this.options.labels.dataset.scope = scope.kind;

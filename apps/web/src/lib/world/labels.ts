@@ -24,6 +24,15 @@ export const LABEL_H_PX = 26;
 const HIT_SLACK_PX = 6;
 const FALLBACK_PX = 24;
 
+// A screen area the world's own controls cover (CSS pixels): a label there
+// could be neither read nor clicked.
+export interface Rect {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
 export type LabelScope = { kind: "near"; radiusM: number } | { kind: "far" };
 
 export interface TreeOnScreen {
@@ -56,14 +65,32 @@ function inScope(tree: TreeOnScreen, scope: LabelScope): boolean {
   return scope.kind === "far" || tree.focusDistM <= scope.radiusM;
 }
 
+// A label stands centred above its anchor.
+function labelRect(t: { x: number; y: number }): Rect {
+  return {
+    left: t.x - LABEL_W_PX / 2,
+    right: t.x + LABEL_W_PX / 2,
+    top: t.y - LABEL_H_PX,
+    bottom: t.y,
+  };
+}
+
+function intersects(a: Rect, b: Rect): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
 // The labels to draw, nearest first. The selected tree's label is always
-// drawn when it is on screen.
+// drawn when it is on screen. No label is drawn under the world's controls
+// (`covered`).
 export function chooseLabels(
   trees: TreeOnScreen[],
   scope: LabelScope,
   selectedId: string | null,
+  covered: Rect[] = [],
 ): string[] {
-  const visible = trees.filter((t) => t.inView).sort((a, b) => a.depth - b.depth);
+  const visible = trees
+    .filter((t) => t.inView && !covered.some((c) => intersects(labelRect(t), c)))
+    .sort((a, b) => a.depth - b.depth);
   const selected = visible.find((t) => t.id === selectedId) ?? null;
   const out: string[] = selected ? [selected.id] : [];
   if (scope.kind === "near") {

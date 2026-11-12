@@ -78,6 +78,14 @@ describe("chooseLabels", () => {
     expect(chooseLabels(trees, FAR, "behind-front")).toEqual(["behind-front", "apart"]);
   });
 
+  it("draws no label under the world's controls", () => {
+    const trees = [tree("under-bar", { x: 100, y: 30 }), tree("free", { x: 400, y: 300 })];
+    const bar = { left: 0, right: 300, top: 0, bottom: 60 };
+    expect(chooseLabels(trees, FAR, null, [bar])).toEqual(["free"]);
+    // Even the selected one: it could not be clicked there.
+    expect(chooseLabels(trees, NEAR, "under-bar", [bar])).toEqual(["free"]);
+  });
+
   it("far: at most a cap of labels", () => {
     const trees = Array.from({ length: FAR_MAX_LABELS + 20 }, (_, i) =>
       tree(`t${i}`, { x: i * LABEL_W_PX * 2, depth: i }),

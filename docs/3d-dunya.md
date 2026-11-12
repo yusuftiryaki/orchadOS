@@ -209,6 +209,7 @@ Sahibin dünyasıyla aynı bileşendir (`world-view.tsx`, `world-scene.ts`). Far
 - **Önden arkaya seçim:** Her ağacın ekrandaki silueti zeminden tepeye uzanır, genişliği taç çapı kadardır; ölçülmemiş ağaçta 1,5 m yarıçap varsayılır. Tıklama birden çok siluete düşerse kameraya en yakın ağaç seçilir. Bakılan ağacın arkasındaki ağaç böylece onun içinden seçilemez. Hiçbir siluete düşmeyen tıklama, ortası 24 px içindeki ağacı seçer.
 - **Panorama halkası:** halka ile ağaç arasında kameraya yakın olan kazanır. Yakın kipte yalnız çevredeki halkalar seçilebilir.
 - **Uzun ağaç:** tepesi ekran dışında kalsa da gövdesi ekrandaysa ağaç seçilebilir; etiketi görünmez.
+- **Denetimler altında etiket yok:** Üst çubuk, ağaç paneli ve köşedeki yürüme düğmeleri ile açıklamanın kapladığı yere etiket konmaz; orada okunamaz ve tıklanamaz. Seçili ağacın etiketi de oraya düşünce gizlenir. Bu alanlar `data-world-chrome` ile işaretlidir.
 - Etiket katmanı kipini `data-scope` (`near`, `far`) ile gösterir; tarayıcı testi buna bakar.
 
 ### 10.4 Kod
