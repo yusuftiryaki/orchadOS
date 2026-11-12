@@ -28,6 +28,13 @@ import {
   type Vec3,
 } from "@/lib/world/geometry";
 import {
+  chooseLabels,
+  labelScope,
+  pickTree,
+  type LabelScope,
+  type TreeOnScreen,
+} from "@/lib/world/labels";
+import {
   azimuthOfScene,
   look,
   nearestViewpoint,
@@ -150,7 +157,8 @@ const WALK_FOV = 70;
 const RING_INNER_M = 0.32;
 const RING_OUTER_M = 0.5;
 const VIEWPOINT_PICK_PX = 28;
-const TREE_PICK_PX = 48;
+// Crown radius of a tree without a measured one (its pick silhouette).
+const DEFAULT_CROWN_RADIUS_M = 1.5;
 // Double click in the overview: one walks there.
 const WALK_IN_MARGIN_M = 1;
 
@@ -161,8 +169,6 @@ const DEPTH_H = 256;
 const WAVE_M = 3;
 // Point size in voxels: covers the gaps between neighbouring points.
 const POINT_VOXELS = 1.8;
-// Labels drawn at once (nearest to the camera).
-const MAX_LABELS = 20;
 // Height the label stands at when the tree has no measured height.
 const DEFAULT_TOP_M = 4;
 const NO_DEPTH = 1e6;
@@ -1216,34 +1222,86 @@ export class WorldScene {
     }
   }
 
+  // Where one stands (walking) or looks (the orbit's target), east/north.
+  private focusEN(): [number, number] {
+    if (this.nav === "walk") return [this.walk.e, this.walk.n];
+    return [this.controls.target.x, -this.controls.target.z];
+  }
+
+  // Near (walking, or orbiting close to a tree) or far (from above): which
+  // labels show and which trees a click can pick (lib/world/labels.ts).
+  private scope(): LabelScope {
+    return labelScope(this.nav, this.camera.position.distanceTo(this.controls.target));
+  }
+
+  // Every tree on screen: its label anchor (the top), its silhouette from
+  // the ground to the top and as wide as its crown, its camera distance and
+  // its distance from where one stands or looks.
+  private treesOnScreen(w: number, h: number): TreeOnScreen[] {
+    const byId = new Map(this.trees.map((t) => [t.id, t]));
+    const camera = this.camera.position;
+    const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
+    const [fe, fn] = this.focusEN();
+    const v = new THREE.Vector3();
+    const px = (p: THREE.Vector3) => {
+      v.copy(p).project(this.camera);
+      return { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h, nx: v.x, ny: v.y, z: v.z };
+    };
+    const onScreen = (p: { nx: number; ny: number; z: number }) =>
+      p.z > -1 && p.z < 1 && Math.abs(p.nx) < 1.05 && Math.abs(p.ny) < 1.05;
+    const out: TreeOnScreen[] = [];
+    for (const [id, top] of this.tops) {
+      const tree = byId.get(id);
+      if (!tree) continue;
+      const g = this.groundOf(tree);
+      const crown = tree.guide ? tree.guide.widthM / 2 : DEFAULT_CROWN_RADIUS_M;
+      const mid = new THREE.Vector3(top.x, (top.y + g) / 2, top.z);
+      const a = px(top);
+      const b = px(new THREE.Vector3(top.x, g, top.z));
+      const m = px(mid);
+      const side = px(mid.clone().addScaledVector(right, crown));
+      const half = Math.max(10, Math.abs(side.x - m.x));
+      const box = {
+        left: m.x - half,
+        right: m.x + half,
+        top: Math.min(a.y, b.y),
+        bottom: Math.max(a.y, b.y),
+      };
+      const inFront = m.z > -1 && m.z < 1;
+      out.push({
+        id,
+        x: a.x,
+        y: a.y,
+        depth: camera.distanceTo(mid),
+        focusDistM: Math.hypot(top.x - fe, -top.z - fn),
+        inView: onScreen(a),
+        boxInView: inFront && box.right > 0 && box.left < w && box.bottom > 0 && box.top < h,
+        box,
+      });
+    }
+    return out;
+  }
+
   private placeLabels() {
     if (this.overlayOpacity <= 0) return;
     const w = this.options.container.clientWidth;
     const h = this.options.container.clientHeight;
-    const camPos = this.camera.position;
-    const shown = [...this.tops.entries()]
-      .map(([id, top]) => ({ id, top, d: top.distanceTo(camPos) }))
-      .sort((a, b) => a.d - b.d);
-    const v = new THREE.Vector3();
-    let count = 0;
-    for (const { id, top } of shown) {
-      const el = this.labelEls.get(id);
-      if (!el) continue;
-      v.copy(top).project(this.camera);
-      const visible =
-        (count < MAX_LABELS || id === this.selected) &&
-        v.z > -1 &&
-        v.z < 1 &&
-        Math.abs(v.x) < 1.05 &&
-        Math.abs(v.y) < 1.05;
-      if (!visible) {
+    const scope = this.scope();
+    const trees = this.treesOnScreen(w, h);
+    const shown = chooseLabels(trees, scope, this.selected);
+    const rank = new Map(shown.map((id, i) => [id, i]));
+    const byId = new Map(trees.map((t) => [t.id, t]));
+    this.options.labels.dataset.scope = scope.kind;
+    for (const [id, el] of this.labelEls) {
+      const i = rank.get(id);
+      const t = byId.get(id);
+      if (i === undefined || !t) {
         el.style.display = "none";
         continue;
       }
-      count++;
       el.style.display = "";
-      el.style.transform = `translate(-50%, -100%) translate(${((v.x + 1) / 2) * w}px, ${((1 - v.y) / 2) * h}px)`;
-      el.style.zIndex = String(1000 - count);
+      el.style.transform = `translate(-50%, -100%) translate(${t.x}px, ${t.y}px)`;
+      el.style.zIndex = String(1000 - i);
     }
   }
 
@@ -1278,8 +1336,10 @@ export class WorldScene {
     this.dragFrom = null;
   };
 
-  // A click (not the end of a drag) picks the viewpoint ring or the tree
-  // nearest to it on screen; a ring wins when it is the nearer one.
+  // A click (not the end of a drag) picks what is in front: the front-most
+  // tree whose silhouette it falls in, or a viewpoint ring nearer to the
+  // camera than that tree. Walking or close to a tree, only what is around
+  // can be picked (lib/world/labels.ts).
   private readonly onCanvasClick = (event: MouseEvent) => {
     if (this.phase !== "world" || this.flight) return;
     const down = this.down;
@@ -1287,36 +1347,30 @@ export class WorldScene {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const v = new THREE.Vector3();
-    const byId = new Map(this.trees.map((t) => [t.id, t]));
-    const items: { id: string; x: number; y: number }[] = [];
-    for (const [id, top] of this.tops) {
-      const tree = byId.get(id);
-      if (!tree) continue;
-      // The middle of the tree: halfway between the ground and the top.
-      v.copy(top);
-      v.y -= (top.y - this.groundOf(tree)) / 2;
-      v.project(this.camera);
-      if (v.z < -1 || v.z > 1) continue;
-      items.push({ id, x: ((v.x + 1) / 2) * rect.width, y: ((1 - v.y) / 2) * rect.height });
-    }
-    const tree = pickNearest(items, x, y, TREE_PICK_PX);
+    const scope = this.scope();
+    const tree = pickTree(this.treesOnScreen(rect.width, rect.height), x, y, scope);
     if (this.options.onViewpoint && this.viewpoints.length > 0) {
-      const rings: { id: string; x: number; y: number }[] = [];
+      const v = new THREE.Vector3();
+      const [fe, fn] = this.focusEN();
+      const rings: { id: string; x: number; y: number; depth: number }[] = [];
       for (const vp of this.viewpoints) {
+        if (scope.kind === "near" && Math.hypot(vp.en[0] - fe, vp.en[1] - fn) > scope.radiusM) {
+          continue;
+        }
         const [vx, , vz] = sceneOf(vp.en[0], vp.en[1], 0);
-        v.set(vx, groundAt(this.ground, vp.en[0], vp.en[1]), vz).project(this.camera);
+        v.set(vx, groundAt(this.ground, vp.en[0], vp.en[1]), vz);
+        const depth = v.distanceTo(this.camera.position);
+        v.project(this.camera);
         if (v.z < -1 || v.z > 1) continue;
         rings.push({
           id: vp.id,
           x: ((v.x + 1) / 2) * rect.width,
           y: ((1 - v.y) / 2) * rect.height,
+          depth,
         });
       }
       const ring = pickNearest(rings, x, y, VIEWPOINT_PICK_PX);
-      const dRing = ring ? Math.hypot(ring.x - x, ring.y - y) : Infinity;
-      const dTree = tree ? Math.hypot(tree.x - x, tree.y - y) : Infinity;
-      if (ring && dRing <= dTree) {
+      if (ring && (!tree || ring.depth < tree.depth)) {
         this.options.onViewpoint(ring.id);
         return;
       }
