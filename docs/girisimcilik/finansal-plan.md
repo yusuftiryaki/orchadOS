@@ -130,7 +130,7 @@ Geri ödeme (KOSGEB İş Geliştirme): Proje 24 ay sürer, geri ödemeler bitiş
 
 | Kalem | Tutar (TL) | Açıklama |
 | --- | --- | --- |
-| Personel | 720.000 | İki tam zamanlı kişi, 12 ay, kişi başı aylık brüt 30.000 TL: girişimci ve teknik kurucu ortak (ya da işe alınacak bir mühendis); bugün gönüllü olan ekip maaşlı hale gelir |
+| Personel | 720.000 | İki tam zamanlı kişi, 12 ay, kişi başı aylık brüt 30.000 TL: girişimci (Furkan) ve işe alınacak bir yazılım/saha mühendisi; bugün gönüllü olan ekip maaşlı hale gelir. Yusuf'un teknik danışmanlığı [DOLDURULACAK: hizmet alımı satırına ya da bu satırdan kaydırılarak] |
 | Alet, teçhizat, yazılım | 330.000 | LiDAR'lı tarama kiti (144.000), RTK baz istasyonu (36.000), GPU'lu işleme bilgisayarı (150.000) |
 | Malzeme ve sarf | 36.000 | Hafıza kartları, SSD, bataryalar, mekanik yedekler |
 | Hizmet alımı | 170.000 | Ziraat mühendisi danışmanlığı: metodoloji v1 ve referans ölçümler (90.000); hukuk: KVKK ve sözleşmeler (60.000); GNSS düzeltme verisi ve ölçüm hizmeti (20.000) |

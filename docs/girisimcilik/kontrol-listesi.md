@@ -19,7 +19,7 @@ Hesaplar, ön şartlar, ekler ve son günler. Tarihler [programlar.md](programla
 ## 2. TÜBİTAK BiGG (1812): Yol 1
 
 **Ön şartlar**
-- [ ] Başvuran girişimci (Furkan ya da Berkay) ön lisans ve üstü öğrenci ya da mezun
+- [ ] Başvuran girişimci (Furkan) ön lisans ve üstü öğrenci ya da mezun
 - [ ] Başvuran girişimci hızlandırma programına kabul gününde hiçbir sermaye şirketinde ya da şahıs işletmesinde ortaklık yok (halka açık şirket payları hariç)
 - [ ] Daha önce Teknogirişim Sermayesi ya da 1512/1812 2. aşama desteği alınmadı
 - [ ] Yatırımdan sonra tam zamanlı çalışma ve başka iş yapmama taahhüdü verilebilir
@@ -27,6 +27,10 @@ Hesaplar, ön şartlar, ekler ve son günler. Tarihler [programlar.md](programla
 
 **Adımlar**
 - [ ] PRODİS'te girişimci kaydı (`eteydeb.tubitak.gov.tr`), e-Devlet ile
+- [ ] Aday kuruluşlara sorular gönderildi ve cevaplar alındı ([tubitak-bigg-is-fikri.md](tubitak-bigg-is-fikri.md) §2); tek bir programa karar verildi (aynı anda yalnız bir başvuru)
+- [ ] İş fikri adı kesinleşti (sonradan değiştirilemez)
+- [ ] Yusuf'un taahhüt mektubu imzalandı; Furkan, Berkay ve Yusuf'un özgeçmiş formları dolduruldu
+- [ ] Ürün ekran görüntüleri ve demo turu bağlantısı tek PDF'te
 - [ ] Açık dönemi olan hızlandırma programının seçimi: BİGG4FUTURE, BİGG AGROFOODSTART ya da başka; dönem tarihleri ve iş fikri formu kuruluştan
 - [ ] İş fikri başvurusu ([tubitak-bigg-is-fikri.md](tubitak-bigg-is-fikri.md)) ve PRODİS taahhütnamesinin imzalanıp kuruluşa verilmesi
 - [ ] Hızlandırma: açılış eğitimi, 7 modül, mentör görevleri, iş kliniği

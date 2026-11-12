@@ -100,19 +100,19 @@ Yusuf şahıs şirketini hızlandırmaya kabul gününden önce kapatır ve BiGG
 
 Yol 1'in iki ön şartı var:
 - Girişimci olacak öğrenci, 2028'den itibaren şirkette tam zamanlı rol almaya gerçekten hazır olmalı.
-- §6'daki ilk soru ("Şahıs şirketi olan Yusuf girişimci olmadan kurucu ortak olabilir mi?") uygulayıcı kuruluştan **evet** diye dönmeli.
+- Yusuf'un yazılım haklarının şirkete devri ve karşılığı yazılı olarak kararlaştırılmalı (§5). 12 Kasım kararıyla Yusuf ortak olmadığı için eski D1 sorusu düştü.
 
 İkisinden biri olmazsa Yol 2 seçilir.
 
 ## 4. Girişimci kim olmalı (Yol 1 ve Yol 2 için)
 
-Furkan ya da Berkay; ekip kararı. Değerlendirilecekler:
+**Karar (12 Kasım 2026): Furkan.** Seçimde bakılan ölçütler:
 
 | Ölçüt | Not |
 | --- | --- |
 | Bağlılık ve zaman | Hızlandırmada yüz yüze eğitim ve haftalık görevler; destek başladıktan sonra şirkette tam zamanlı rol; kalan öğrenim süresi |
 | Rol uyumu | İşletme öğrencisi pazar, müşteri ve finans bölümlerini doğal olarak üstlenir. Kimya mühendisliği bugünkü teknolojiyle doğrudan örtüşmüyor; saha operasyonu ve ileride toprak, yaprak ve ilaçlama tarafı için değerli |
-| Panelde savunma | Girişimci teknik ayrıntıya hâkim olmalı (KOSGEB jürisi bunu ayrıca puanlar); Yusuf ekip üyesi olarak yanında yer alır |
+| Panelde savunma | Girişimci teknik ayrıntıya hâkim olmalı (KOSGEB jürisi bunu ayrıca puanlar); Yusuf teknik danışman olarak yanında yer alır |
 
 ### Ekip yapısı: kim ortak, kim çalışan
 
@@ -124,7 +124,7 @@ Girişimci şirkette kurucu ortak olmak zorunda; diğer ikisinin ortak olması z
 | **B. Furkan tek kurucu, Yusuf ve Berkay çalışan** | D1 sorusu ortadan kalkar; başvuru ve şirket en sade hali. Panel, bütün teknolojiyi geliştiren kişinin pay sahibi olmamasını "kilit kişi riski" olarak sorabilir | Furkan bütün şartları sağlar. Çalışanlar ortak olmadığı için İş Geliştirme'de personel desteği alabilir (Yusuf bilişim personeli olarak: aylık prime esas kazancın %80'i, üst limit brüt asgari ücretin işverene maliyetinin 4 katı) | Yusuf kodunu, sahibi olmadığı bir şirkete bedelsiz devreder; karşılığı yazılı bir pay vaadi ya da opsiyon olmalı (§5). KOSGEB personel desteği, personelin yalnız destek alan işletmede sigortalı olmasını ister: Yusuf'un şahıs şirketinden gelen Bağ-Kur kaydı ve varsa başka işyerindeki sigortası buna engel olabilir (§6, D7) |
 | **C. Furkan ve Berkay ortak, Yusuf çalışan ya da danışman** | Öğrenciler ortaklık yasağına takılmaz; D1 ortadan kalkar | Furkan en az %50 ile girişimci; Berkay personel desteği alamaz, Yusuf alabilir (D7'ye bağlı) | B'deki pay vaadi sorunu Yusuf için geçerli |
 
-**Öneri:** D1'in cevabı "evet" ise A; "hayır" ise B ya da C, yanında Yusuf için yazılı bir pay devri ya da opsiyon sözleşmesiyle. BiGG Fonu'nun yatırım sözleşmesi pay devirlerini kısıtlayabilir; ileride Yusuf'a pay verilecekse bunun nasıl yapılacağı uygulayıcı kuruluşa ve avukata sorulmalı.
+**Karar (12 Kasım 2026):** Girişimci Furkan. Yusuf ortak olmayacak, teknik danışman olarak çalışacak; bu yüzden yapı B ya da C geçerli, A düştü. Berkay'ın ortak (C) mı, çalışan (B) mı olacağı açık. Yusuf danışman olduğu için KOSGEB personel desteği ona uygulanmaz; danışmanlığı hizmet alımı olarak ödenir. Yazılım haklarının devri ve karşılığı (danışmanlık ücreti, lisans bedeli ya da ileride pay) yazılı olmalı; ileride pay verilecekse BiGG Fonu'nun yatırım sözleşmesinin pay devirlerine bakışı uygulayıcı kuruluşa ve avukata sorulmalı (D8). Hızlandırma başvurusu: [tubitak-bigg-is-fikri.md](tubitak-bigg-is-fikri.md).
 
 ## 5. Kurucular sözleşmesi (her yolda önce bu)
 
@@ -141,14 +141,14 @@ Başvurudan önce yazılı olmalı; avukatla:
 
 | # | Soru | Kime | Neden |
 | --- | --- | --- | --- |
-| D1 | Girişimci öğrenciyken, şahıs şirketi olan bir ekip üyesi (Yusuf) kurulacak anonim şirkete kurucu ortak olabilir mi? Tam zamanlılık taahhüdü ona da uygulanır mı? | Uygulayıcı kuruluş, `bigg@tubitak.gov.tr` | Uygulama Esasları ve çağrı yalnız başvuranı kısıtlıyor; Yatırım ve Pay Sahipleri Sözleşmesi örneği okunmalı |
+| ~~D1~~ | *(12 Kasım: Yusuf ortak olmayacağı için düştü)* Girişimci öğrenciyken, şahıs şirketi olan bir ekip üyesi (Yusuf) kurulacak anonim şirkete kurucu ortak olabilir mi? Tam zamanlılık taahhüdü ona da uygulanır mı? | Uygulayıcı kuruluş, `bigg@tubitak.gov.tr` | Uygulama Esasları ve çağrı yalnız başvuranı kısıtlıyor; Yatırım ve Pay Sahipleri Sözleşmesi örneği okunmalı |
 | D2 | Şirket, mühürden önce (hızlandırma sırasında) kurulabilir mi? | Uygulayıcı kuruluş | Pilotta erken faturalama imkânı |
 | D3 | Teknogirişim rozetinin yenilikçilik ölçütleri neler; BiGG desteği ya da teknoparkta yer almak yeterli mi? | Sanayi ve Teknoloji Bakanlığı; 3 Temmuz 2025 tarihli yönetmelik | Rozet KOSGEB'de %50 pay, tek başına temsil ve şirket yaşı şartlarını kaldırır, +10 puan verir |
 | D4 | "Dijital şirket" tanımı nedir; orchadOS şirketi bu tanıma uyar mı? | Mali müşavir; Sanayi ve Teknoloji Bakanlığı | KOSGEB İş Kurma'da eğitim, %50 pay ve önceki firma şartları kalkar; Yusuf da girişimci olabilir. Tek bir ikincil kaynağa göre 2026'daki bir kanunla geldi; doğrulanmadı |
 | D5 | Yusuf'un şahıs şirketinin kuruluş tarihi ve NACE kodu | Yusuf | 3 yaşından küçük ve NACE 62 ise şahıs şirketi KOSGEB İş Geliştirme'ye kendisi başvurabilir (genç avantajı yok; BiGG ile çatışır) |
 | D6 | Öğrenci ortağın Bağ-Kur ve prim günü durumu; limited ya da anonim şirket seçimi | Mali müşavir | İş Kurma performans desteği her 3 ayda 90 prim günü ister |
-| D7 | Şahıs şirketi (Bağ-Kur) olan ve varsa başka bir işte sigortalı çalışan Yusuf, kurulacak şirkette KOSGEB personel desteği alacak çalışan olabilir mi? | Mali müşavir, KOSGEB müdürlüğü | Yönerge: proje süresince personelin yalnız destek alan işletmede sigorta kaydı olmalı (md. 9/5) |
-| D8 | Ekip yapısı B ya da C'de Yusuf'a sonradan pay verilmesi BiGG yatırım sözleşmesine ve KOSGEB'in %50 şartına uyar mı? | Uygulayıcı kuruluş, avukat | Teknolojiyi geliştiren kişinin pay vaadinin güvenceye alınması |
+| ~~D7~~ | *(12 Kasım: Yusuf danışman olacağı için düştü; Berkay çalışan olursa onun için geçerli)* Şahıs şirketi (Bağ-Kur) olan ve varsa başka bir işte sigortalı çalışan Yusuf, kurulacak şirkette KOSGEB personel desteği alacak çalışan olabilir mi? | Mali müşavir, KOSGEB müdürlüğü | Yönerge: proje süresince personelin yalnız destek alan işletmede sigorta kaydı olmalı (md. 9/5) |
+| D8 | Yusuf'a yazılım devrinin karşılığı olarak sonradan pay verilmesi BiGG yatırım sözleşmesine ve KOSGEB'in %50 şartına uyar mı? | Uygulayıcı kuruluş, avukat | Teknolojiyi geliştiren kişinin pay vaadinin güvenceye alınması |
 
 ## 7. Belgeler
 
