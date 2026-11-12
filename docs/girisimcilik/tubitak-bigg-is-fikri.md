@@ -50,11 +50,38 @@ PRODİS'te **aynı anda yalnız bir programa** başvurulabilir. Diğerleri, kuru
 | --- | --- | --- | --- |
 | BİGG AGROFOODSTART (4250043) | Mersin Agropark Tarım ve Gıda İhtisas TGB; Tarım ve Orman Bakanlığı Alata Bahçe Kültürleri Araştırma Enstitüsü | **En iyi konu uyumu:** tarım ve gıda odaklı, bahçe kültürleri uzmanlığı | Mersin; açılış için uzun yol |
 | BİGG ASSİST (4250045) | İzmir Teknoloji Geliştirme Bölgesi, İnci Holding, İzmir Ekonomi Üniversitesi | Genel teknoloji | İzmir; Berkay'a yakın, Muğla'dan ~3 saat |
-| BİGG AKDENİZ (4250051) | Antalya Teknokent | Genel teknoloji; Antalya'da tarım güçlü | Antalya; Yusuf'a yakın |
+| BİGG AKDENİZ (4250051) | Antalya Teknokent ve Akdeniz Üniversitesi; CARETTA Ön Kuluçka | Genel teknoloji; teknokentin bir tarım teknokenti de var. Ayrıntı aşağıda | Antalya; Yusuf'a yakın, Muğla'dan ~4,5 saat |
 | BİGG4FUTURE (4250032) | Çukurova TGB; tabloda Gaziantep TGB ve Hasan Kalyoncu Üniversitesi de geçiyor | Pazarın olduğu bölge; Gaziantep'te yerel ağ | Gaziantep; en uzak, ama müşteri görüşmeleri ve saha için değerli |
 | BİGGSİNERJİ (4250057) | Dokuz Eylül Teknoloji Geliştirme, İzmir Biyotıp ve Genom Merkezi, Yaşar Üniversitesi | Ortakları sağlık ağırlıklı; uyum zayıf görünüyor | İzmir |
 
-**Öneri:** Önce AGROFOODSTART ve BİGG4FUTURE'a (konu ve pazar), sonra BİGG ASSİST ve BİGG AKDENİZ'e (yakınlık) aşağıdaki soruları e-postayla sorun. Başvuruyu, Şubat'tan önce biten açık dönemi olan ve konu uyumu en iyi kuruluşa yapın. Hiçbirinde açık dönem yoksa bahar dönemini en iyi uyumlu kuruluşta bekleyin.
+**Öneri:** Ekip BİGG AKDENİZ'i tercih ediyor (aşağıda); uygun bir seçim, hedef 2027-2 olur. 2027-1'e (destek Temmuz 2027) yetişmek önemliyse önce diğer kuruluşlara Şubat'tan önce biten açık dönemleri sorulabilir. Aynı anda yalnız bir başvuru yapılabildiği için karar başvurudan önce verilir.
+
+### BİGG AKDENİZ (Antalya Teknokent)
+
+Ekibin 12 Kasım tercihi. Programın kendi sitesinden okunanlar ([bigg.akdeniz.edu.tr](https://bigg.akdeniz.edu.tr/), "Neden BİGG Akdeniz" ve 7 Ekim 2026 duyurusu):
+
+- **Süreç:** Çevrim içi kayıt ve PRODİS başvurusu → şekil değerlendirmesi → **ilk jüriye yüz yüze sunum** (5 dakika anlatım, 5 dakika soru) → başarılı olanlar CARETTA Ön Kuluçka'ya kabul edilir ve hızlandırmaya başlar.
+- **Ön kuluçka (şirket kurulmadan):** CARETTA'nın bütün girişimcilik etkinliklerine katılım, iş modeli, iş planı ve gelir modeli eğitimleri, CARETTA mentorları. Teknokentin TTO'su ön kuluçkadaki girişimcilere ücretsiz hizmet verir (teknokent kataloğu).
+- **Kuluçka (şirket kurulduktan sonra):** TÜBİTAK desteği alınırsa Antalya Teknokent kuluçka merkezinde ofis imkânı. Kuluçka ve teknokent firması olmanın ücretleri ve şartları teknokentin yıllık başvuru kılavuzunda; 2026 kılavuzu teyit edilmeli (2025'te kuluçka başvuru ücreti 6.000 TL + KDV idi).
+- **Takvim:** 2027-1 çağrısına giden dönemin başvurusu **25 Ekim 2026'da kapandı**. Teknokentin duyurular sayfasında bir sonraki dönemin bağlantısı var, tarihleri sorulmalı. Bu kuruluşla gerçekçi hedef **2027-2**: hızlandırma bahar 2027, Aşama 2 Temmuz–Ağustos 2027, destek 1 Ocak 2028.
+- **Artısı:** Yusuf Antalya'da olduğu için yüz yüze mentör görüşmelerine ve teknokentteki etkinliklere katılabilir; şirket kurulunca teknokentte ofis, ekosistem ve tarım teknokenti bağlantısı.
+- **Eksisi:** Konu uyumu AGROFOODSTART kadar doğrudan değil; Şubat'tan önce biten bir dönemi olmadığı için en erken 2027-2.
+- **İletişim:** CARETTA Ön Kuluçka, `info@antalyateknokent.com.tr`, 0242 310 15 60. Aşağıdaki sorulara ek olarak sorulacaklar: sonraki dönemin tarihleri; ilk jüri sunumunun tarihi ve yeri; tarım teknokentinde mentör ya da ofis imkânı; teknokent firması olarak şirketin Antalya'da, girişimcinin Muğla'da olmasının sorun olup olmadığı.
+
+### Yusuf'un rolü: iletişimi Yusuf yürütebilir mi?
+
+**Hayır, girişimcinin yerine geçemez; yanında yer alır.** Program ve TÜBİTAK değerlendirmesi girişimciyi ölçer:
+
+- İlk jüri sunumunu, açılış eğitimini, haftalık modül görevlerini, mentör görüşmelerini ve nihai iş planı sunumunu **Furkan** yapar. Kuruluş, programa katılmayan ya da görevlerini yerine getirmeyen girişimciyi programdan çıkarabilir (PRODİS kılavuzu §1.4).
+- Aşama 2'de panel ve BiGG Fonu girişimciyi değerlendirir; yatırımdan sonra girişimci şirkette tam zamanlı çalışır. Programın arkasında danışmanın olduğu izlenimi, "ekip yetkinliği" ve "yapılabilirlik" puanını düşürür.
+
+**Yusuf'un yapabilecekleri:**
+- Ekip üyesi olarak çevrim içi oturumlara katılmak (kuruluşa sorulmalı).
+- Teknik modülü (Modül 3: teknoloji hazırlık seviyesi, teknik doğrulama planı, fikri mülkiyet) ve iş kliniğindeki teknik görüşmeleri birlikte hazırlamak.
+- Antalya'daki yüz yüze mentör görüşmelerine ve etkinliklere Furkan'la birlikte ya da Furkan'ın katılamadığı ikincil toplantılara katılmak.
+- Furkan'ı demo ve teknik sorulara hazırlamak.
+
+**Önerilen düzen:** Kuruluşla yazışma ve bütün resmi işler Furkan'da (PRODİS e-postası da onun). Haftalık 30 dakikalık bir ekip toplantısıyla görevler bölüşülür. Furkan; ilk jüri, açılış ve kapanış için Antalya'ya gelir (yılda birkaç yolculuk).
 
 **Kuruluşlara sorulacaklar:**
 1. Şu an başvuru alan bir döneminiz var mı? Başlangıç ve bitiş tarihleri? 2027-1 penceresine (12 Şubat 2027) yetişiyor mu?
