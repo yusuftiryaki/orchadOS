@@ -69,7 +69,10 @@ PRODİS'te **aynı anda yalnız bir programa** başvurulabilir. Diğerleri, kuru
 
 1. Furkan e-Devlet ile PRODİS'e (`eteydeb.tubitak.gov.tr`) **Girişimci** rolüyle girer; "Hızlandırma Çağrıları" sekmesinde il filtresiyle açık çağrıları listeler.
 2. **Genel bilgiler:** telefon, e-posta (resmi yazışma adresi olur), öğrencilik durumu "Öğrenci"; üniversite ve bölüm YÖK'ten gelir. Gelmezse e-Devlet öğrenci belgesi yüklenir. **Özgeçmiş formu** indirilir, doldurulur, PDF yüklenir.
-3. **İş fikri adı:** sonradan değiştirilemez. Öneri: **"orchadOS: Antep Fıstığı Bahçelerinde LiDAR ve 360° Görüntüyle Ağaç Düzeyinde Uzaktan Denetim"**.
+3. **İş fikri adı:** sonradan değiştirilemez; iş planı ve şirket bu adla anılır. Öneri: **"orchadOS: Meyve Bahçeleri için Ağaç Düzeyinde Dijital İzleme ve Robotik Bahçe Hizmetleri Platformu"**.
+   - **Neden geniş:** Ad vizyonu taşır: bütün meyve bahçeleri, dijital izleme ve robotik hizmetler. "Antep fıstığı", "LiDAR" ya da "360° kamera" bugünkü ilk pazar ve ilk araçlardır; adda olurlarsa şirket büyüdükçe dar kalır. Yazılım buna hazır: veri modelinde meyve türü bir alan, ölçümler sensörden bağımsız, oturumlar tarama, biçme ve ilaçlama türlerini, robot ya da ekip yapanı tutuyor; hizmet kataloğunda ilk robot modeli (MARABA-I) tanımlı ([veri-modeli.md](../veri-modeli.md), [vizyon.md](../vizyon.md)).
+   - **Neden fazla geniş değil:** Panel iş planını "uygunluk ve yapılabilirlik" ölçütüyle de puanlar. Metin bu yüzden ilk adımı somut tutar: ilk pazar Gaziantep'te Antep fıstığı, ilk hizmet ağaç düzeyinde denetim, robot ise yol haritasında. Robot bugün simülasyonda doğrulandı; adda "robotik" olması 12 aylık doğrulamada robot vaadi demek değildir, metin bunu açıkça söyler (§5.1).
+   - **Alternatifler:** Robotik vurgusu riskli bulunursa "orchadOS: Meyve Bahçeleri için Yapay Zekâ Destekli, Ağaç Düzeyinde Dijital İzleme Platformu". Somut bir dijital ikiz vurgusu istenirse "orchadOS: Meyve Bahçelerinin Ağaç Düzeyinde Dijital İkizi ve Otonom Bahçe Hizmetleri". Uygulayıcı kuruluşun mentörüne başvurudan önce sorulabilir.
 4. **İş fikri başvuru dokümanı:** Kuruluşun Word şablonu indirilir. §5'teki metin şablonun sorularına göre yerleştirilir, PDF yüklenir.
 5. **Ekler:** Ekip üyelerinin özgeçmiş formları (Berkay, Yusuf) ve §6'daki belgeler, PDF.
 6. **Gönder**, ardından taahhütname ve ön yazı indirilir, Furkan imzalar, kuruluşa teslim edilir.
@@ -78,9 +81,10 @@ PRODİS'te **aynı anda yalnız bir programa** başvurulabilir. Diğerleri, kuru
 
 | Alan | Değer |
 | --- | --- |
-| İş fikri adı | orchadOS: Antep Fıstığı Bahçelerinde LiDAR ve 360° Görüntüyle Ağaç Düzeyinde Uzaktan Denetim |
-| Tematik alan | 1.6 Sürdürülebilir Tarım ve Beslenme › Akıllı ve Temiz Tarım; Bitki Sağlığı |
-| Teknoloji alanları | Görüntü işleme, LiDAR nokta bulutu işleme, RTK/PPK GNSS konumlama, yapay zekâ ile görsel ön değerlendirme, web ve mobil yazılım |
+| İş fikri adı | orchadOS: Meyve Bahçeleri için Ağaç Düzeyinde Dijital İzleme ve Robotik Bahçe Hizmetleri Platformu |
+| Tematik alan | 1.6 Sürdürülebilir Tarım ve Beslenme › Akıllı ve Temiz Tarım; Bitki Sağlığı (robotik kısım için yedek: 1.2 Akıllı Üretim Sistemleri › Robotik/Otomasyon) |
+| İlk pazar | Gaziantep'te Antep fıstığı bahçeleri |
+| Teknoloji alanları | Görüntü işleme, LiDAR nokta bulutu işleme, RTK/PPK GNSS konumlama, yapay zekâ ile görsel ön değerlendirme, web ve mobil yazılım; yol haritasında tarım robotları ve filo yönetimi |
 | Girişimci | Furkan, işletme öğrencisi [DOLDURULACAK: üniversite, sınıf, beklenen mezuniyet] |
 | Ekip | Berkay, kimya mühendisliği öğrencisi [DOLDURULACAK: üniversite, sınıf]; Yusuf, bilgisayar mühendisi, teknik danışman |
 | Danışmanlar | Yusuf (teknik); [DOLDURULACAK: ziraat mühendisi] (metodoloji) |
@@ -92,7 +96,7 @@ Kuruluşun şablonundaki sorular genelde bu dört boyutu izler; metin "biz" dili
 
 ### Kısa özet (≈150 kelime)
 
-Gaziantep ve çevresindeki Antep fıstığı bahçelerinin sahipleri çoğunlukla bahçeden uzakta yaşıyor. Bahçe hisseli, işleri yevmiyeciler yapıyor; sahip ağaç sayısını, sınırı, budamanın ya da hasadın nasıl yapıldığını göremiyor. orchadOS bahçeyi yılda 2–6 kez sırt tipi bir tarama kitiyle (RTK GNSS, 360° kamera, LiDAR) koridor koridor tarıyor. Yazılımımız her ağacı santimetre düzeyinde konumlanmış bir kimlikle eşleştiriyor. Ağacın dört yönden fotoğraf kesitlerini çıkarıyor; LiDAR'dan taç çapı, boy, taç hacmi, kışın dal iskeleti ve budama ölçümlerini hesaplıyor. Yapay zekâ ön değerlendirme yapıyor, ziraat mühendisi onaylayıp imzalıyor. Sahip, bahçesinin karnesini, sağlık haritasını, ağaç ağaç geçmişini, 360° gezisini ve 3D modelini web portalında görüyor. Hizmet yıllık abonelikle, dönüm başına fiyatlanıyor. Yazılımın büyük kısmı hazır ve bir pilot ortamında yayında. Hızlandırma programında müşteri ve saha doğrulamasını yapıp yatırıma hazır bir iş planı çıkarmak istiyoruz.
+orchadOS, meyve bahçelerini ağaç ağaç dijital olarak izleyen ve bahçe işlerini zamanla robotlara devreden bir platform. İlk pazarımız Antep fıstığı: Gaziantep ve çevresindeki bahçelerin sahipleri çoğunlukla bahçeden uzakta yaşıyor. Bahçe hisseli, işleri yevmiyeciler yapıyor; sahip ağaç sayısını, sınırı, budamanın ya da hasadın nasıl yapıldığını göremiyor. orchadOS bahçeyi yılda 2–6 kez sırt tipi bir tarama kitiyle (RTK GNSS, 360° kamera, LiDAR) koridor koridor tarıyor. Yazılımımız her ağacı santimetre düzeyinde konumlanmış bir kimlikle eşleştiriyor. Ağacın dört yönden fotoğraf kesitlerini çıkarıyor; LiDAR'dan taç çapı, boy, taç hacmi, kışın dal iskeleti ve budama ölçümlerini hesaplıyor. Yapay zekâ ön değerlendirme yapıyor, ziraat mühendisi onaylayıp imzalıyor. Sahip, bahçesinin karnesini, sağlık haritasını, ağaç ağaç geçmişini, 360° gezisini ve 3D modelini web portalında görüyor. Hizmet yıllık abonelikle, dönüm başına fiyatlanıyor. Yazılımın büyük kısmı hazır ve bir pilot ortamında yayında. Hızlandırma programında müşteri ve saha doğrulamasını yapıp yatırıma hazır bir iş planı çıkarmak istiyoruz.
 
 ### 5.1 İş fikrinin içeriği ve niteliği
 
@@ -102,7 +106,9 @@ Gaziantep ve çevresindeki Antep fıstığı bahçelerinin sahipleri çoğunlukl
 - Verim yıldan yıla çok oynuyor: 2024'te 383 bin ton, 2025'te don ve kuraklıkla %61,5 düşüş. Sahip kaybın nedenini (don, kuraklık, bakımsızlık, hırsızlık) ayıramıyor.
 - Bugün sahibin elindeki seçenekler kanıt üretmiyor: bekçi ya da komşunun sözü, uydu izleme (parsel düzeyinde bitki örtüsü indeksi, ağaç yok), tek seferlik bilirkişi ya da değerleme raporu.
 
-**Çözüm.** Periyodik, ağaç düzeyinde, kanıtı gösterilebilen bağımsız denetim:
+**Vizyon ve ilk adım.** Hedefimiz meyve bahçelerinde her ağacın kimliğiyle izlendiği, değerlendirmenin giderek yapay zekâya, saha işlerinin giderek robotlara geçtiği bir platform. Kişi taşıyan tarama kiti ile robot aynı veriyi üretir; bahçe haritası aynı zamanda robot haritasıdır. Bu yolda ilk adımı, denetime en çok ihtiyaç duyulan ve bizim bölgeyi tanıdığımız yerde atıyoruz: Gaziantep'te Antep fıstığı bahçeleri ve ağaç düzeyinde bağımsız denetim. İkinci adım bahçe hizmetleridir: ilk hizmet yabani ot biçme, işi otonom robotumuz MARABA-I yapacak (bugün simülasyonda doğrulandı). Sonra diğer meyve türleri (zeytin, ceviz, badem, fındık) ve diğer bölgeler gelir.
+
+**Çözüm (ilk ürün).** Periyodik, ağaç düzeyinde, kanıtı gösterilebilen bağımsız denetim:
 1. **Envanter (bir kez):** Sınır sahada işaretlenir, bahçe ızgara biçiminde taranır, her ağacın gövde konumu iki panoramadan üçgenlenir; her ağaç sıra ve numarayla kodlanır.
 2. **Periyodik ziyaret (yılda 2–6):** Aynı ızgara taranır. Yazılım her ağacı envanterdeki kimliğine eşleştirir, dört yönden kesit üretir, LiDAR bulutundan ölçüm alır.
 3. **Değerlendirme:** Yapay zekâ kalite kontrolü ve görsel ön etiket yapar (teşhis değil); uzman inceler, düzeltir ve raporu imzalar.

@@ -11,7 +11,7 @@ Teknolojik doğrulama dönemi 12 aydır. Takvim, destek başlangıcı 1 Ocak 202
 | Alan | Değer |
 | --- | --- |
 | A.1 Girişimci | [DOLDURULACAK: ad soyad, iletişim, üniversite/fakülte/bölüm, mezuniyet ayı ve yılı] |
-| A.2 İş fikri adı ve numarası | orchadOS: Antep fıstığı bahçeleri için ağaç ağaç, kanıta dayalı bağımsız denetim · [DOLDURULACAK: PRODİS iş fikri no] |
+| A.2 İş fikri adı ve numarası | orchadOS: Meyve Bahçeleri için Ağaç Düzeyinde Dijital İzleme ve Robotik Bahçe Hizmetleri Platformu (hızlandırma başvurusundaki adla aynı olmalı; [tubitak-bigg-is-fikri.md](tubitak-bigg-is-fikri.md) §3) · [DOLDURULACAK: PRODİS iş fikri no] |
 | A.2 Teknolojik doğrulama süresi ve bütçesi | 12 ay · 1.350.000 TL ([finansal-plan.md](finansal-plan.md) §8.1) |
 | A.2 Tematik alan | 1.6 Sürdürülebilir Tarım ve Beslenme › Akıllı ve Temiz Tarım |
 | A.3 Teknoloji grubu | Bilgi ve iletişim teknolojileri: görüntü işleme, nokta bulutu işleme, GNSS konumlama, yapay zekâ; tarım teknolojileri |
