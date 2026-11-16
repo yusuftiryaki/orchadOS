@@ -50,6 +50,47 @@ def test_logger_card(tmp_path):
         plan(card, "s-2", "logger-card")
 
 
+def test_kit_ssd_maps_session_to_root(tmp_path):
+    ssd = tmp_path / "ssd"
+    s = ssd / "sessions" / "S-1"
+    (s / "gnss").mkdir(parents=True)
+    (s / "lidar" / "raw" / "bag").mkdir(parents=True)
+    (s / "gnss" / "session.json").write_text(
+        json.dumps({"session_id": "S-1", "parcel_id": "P-12", "recorder": "kit-recorder"})
+    )
+    (s / "gnss" / "gnss.ubx").write_bytes(b"x")
+    (s / "gnss" / "events.csv").write_text("e")
+    (s / "lidar" / "raw" / "bag" / "bag_0.mcap").write_bytes(b"y")
+    (s / "lidar" / "raw" / "bag" / "metadata.yaml").write_text("m")
+    (s / "lidar" / "raw" / "recording.json").write_text("{}")
+    (ssd / "sessions" / "other" / "gnss").mkdir(parents=True)
+    (ssd / "sessions" / "other" / "gnss" / "gnss.ubx").write_bytes(b"z")
+    (ssd / "lost+found").mkdir()
+    p = plan(ssd, "S-1")
+    assert p.layout == "kit-ssd"
+    assert [f.rel for f in p.files] == [
+        "gnss/events.csv",
+        "gnss/gnss.ubx",
+        "gnss/session.json",
+        "lidar/raw/bag/bag_0.mcap",
+        "lidar/raw/bag/metadata.yaml",
+        "lidar/raw/recording.json",
+    ]
+    assert (p.session_id, p.parcel_id, p.org_id) == ("S-1", "P-12", None)
+
+
+def test_kit_ssd_explicit_layout_needs_gnss_folder(tmp_path):
+    ssd = tmp_path / "ssd"
+    (ssd / "sessions" / "S-1").mkdir(parents=True)
+    (ssd / "sessions" / "S-1" / "gnss.ubx").write_bytes(b"u")
+    # A logger card layout (no gnss/ subfolder) is still detected as logger-card.
+    assert plan(ssd, "S-1").layout == "logger-card"
+    with pytest.raises(SourceError, match="sessions/S-1/gnss/"):
+        plan(ssd, "S-1", "kit-ssd")
+    with pytest.raises(SourceError, match="sessions/S-2/gnss/"):
+        plan(ssd, "S-2", "kit-ssd")
+
+
 def test_camera_card(tmp_path):
     card = tmp_path / "cam"
     d = card / "DCIM" / "Camera01"

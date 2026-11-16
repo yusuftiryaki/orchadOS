@@ -4,7 +4,10 @@ Layouts (``--layout``, ``auto`` detects them in this order):
 
 - ``session``: a session folder (docs/arayuzler.md "Oturum klasörü"); every file
   at its relative path.
-- ``logger-card``: the GNSS logger's microSD; ``sessions/<session_id>/*`` -> ``gnss/*``.
+- ``kit-ssd``: the kit recorder's (Raspberry Pi) SSD; ``sessions/<session_id>/*`` -> the
+  session root at the same relative paths (``gnss/...``, ``lidar/raw/...``). Detected
+  when ``sessions/<session_id>/gnss/`` exists.
+- ``logger-card``: the ESP32 GNSS logger's microSD; ``sessions/<session_id>/*`` -> ``gnss/*``.
 - ``camera-card``: the 360° camera's card; camera originals under ``DCIM/`` ->
   ``camera/<path under DCIM>``. Input of the desktop stitching step (Windows
   machine); the pipeline itself reads ``video/*.mp4``.
@@ -20,7 +23,7 @@ from pathlib import Path
 
 from .manifest import ManifestError, check_rel
 
-LAYOUTS = ("auto", "session", "logger-card", "camera-card", "video")
+LAYOUTS = ("auto", "session", "kit-ssd", "logger-card", "camera-card", "video")
 # Camera originals worth keeping; low-resolution proxies (.lrv) and thumbnails are not.
 CAMERA_SUFFIXES = {".insv", ".insp", ".mp4", ".mov", ".jpg", ".jpeg", ".dng"}
 JUNK = {"system volume information", "$recycle.bin", "thumbs.db", "desktop.ini", "lost+found"}
@@ -72,6 +75,8 @@ def _read_ids(path: Path) -> dict:
 def detect(root: Path, session_id: str) -> str:
     if (root / "session.json").is_file() or (root / "gnss").is_dir() or (root / "video").is_dir():
         return "session"
+    if (root / "sessions" / session_id / "gnss").is_dir():
+        return "kit-ssd"
     if (root / "sessions" / session_id).is_dir():
         return "logger-card"
     if (root / "DCIM").is_dir():
@@ -79,8 +84,8 @@ def detect(root: Path, session_id: str) -> str:
     if any(p.suffix.lower() == ".mp4" for p in root.glob("*")):
         return "video"
     raise SourceError(
-        f"{root}: not a session folder, logger card (sessions/{session_id}/), camera card "
-        "(DCIM/) or a folder of MP4s; pass --layout"
+        f"{root}: not a session folder, kit SSD (sessions/{session_id}/gnss/), logger card "
+        f"(sessions/{session_id}/), camera card (DCIM/) or a folder of MP4s; pass --layout"
     )
 
 
@@ -102,6 +107,12 @@ def plan(root: Path, session_id: str, layout: str = "auto") -> SourcePlan:
         for k in ("session_id", "parcel_id"):
             if logger.get(k) and ids.get(k) and logger[k] != ids[k]:
                 raise SourceError(f"{k} differs between session.json and gnss/session.json")
+    elif layout == "kit-ssd":
+        src = root / "sessions" / session_id
+        if not (src / "gnss").is_dir():
+            raise SourceError(f"{root}: no sessions/{session_id}/gnss/ folder on the kit SSD")
+        files = [SourceFile(p, rel) for p, rel in _visible_files(src)]
+        ids = _read_ids(src / "gnss" / "session.json")
     elif layout == "logger-card":
         src = root / "sessions" / session_id
         if not src.is_dir():
