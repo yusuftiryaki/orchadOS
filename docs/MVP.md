@@ -450,7 +450,7 @@ Mimari tek kişinin yönetebileceği biçimde tasarlandı: yönetilen bir backen
 | GNSS kaydedici | ESP32 + microSD | — | LiDAR'sız kitte Raspberry Pi gerekmez |
 | Güç ve depolama | Batarya, kamera için microSD kartlar | — | Video kameranın kartıyla ofise gelir |
 
-Kitin ayrıntılı tasarımı, LiDAR'lı sürümü ve maliyeti [tarama-kiti.md](tarama-kiti.md) dosyasında.
+Kitin ayrıntılı tasarımı, LiDAR'lı sürümü ve maliyeti [tarama-kiti.md](tarama-kiti.md) dosyasında. Alınan parçalar (16 Kasım 2026): Insta360 X4 Air, Radiolink RTK F9P, Unitree 4D LiDAR L2, kamera kartı ve kayıt SSD'si; liste [kit-siparis-listesi.md](kit-siparis-listesi.md)'de.
 
 Kit sökülüp takılabilir tasarlanır; aynı kit ileride traktöre, ATV'ye ya da motosiklete de bağlanabilir. MVP'de tarama yürüyerek yapılır.
 

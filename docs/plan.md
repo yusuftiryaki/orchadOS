@@ -153,7 +153,7 @@ Yazılım M2 ve M3'ün gerektirdiklerinin büyük kısmını karşılıyor; takv
 1. **Kapı 1 (20 Aralık) için kit ve İP3:** kit montajı; firmware'in gerçek donanımda denenmesi; telefonda BLE ile kaydedici; gerçek `.insv` deneme çekimi; tek koridor taraması, PPK, QR ile zaman eşleme ve gövde üçgenleme doğruluğu; ısınma testi. Kalan dış işler aşağıda (kit siparişi, TUSAGA-Aktif, uzman görüşmesi, pilot sahipler).
 2. **Yayına alma (insan eylemi):** İP13 demo projesi ve `ORCHADOS_DEMO_URL`; İP14 anahtarı (avukat onayı, T05, T18, T32); İP15 fiyatı ve T33–T36; iyzico sandbox kontrol listesi; Netgsm hesabı ve Turnstile alan adı listesi; Vercel Pro, medya deposu (Supabase Pro), alan adı.
 3. **İP9:** gerçek Claude API ile ilk deneme ve eşik kalibrasyonu (kış etiketleri gelince, ilkbahar denetiminden önce).
-4. **LiDAR'lı kit (karar 11 Kasım 2026):** LiDAR parçalarının sipariş listesine eklenmesi ([kit-siparis-listesi.md](kit-siparis-listesi.md), [tarama-kiti.md](tarama-kiti.md)); kayıt adımı (MCAP → SLAM + PPK → `cloud.ply`), artık gerçek verinin önündeki iş; motosiklette montaj ve titreşim denemesi; gövde çapı ölçüm yüksekliği kararı. Personel ekranları (İP17 Faz 3) tamam (PR #134); bahçede gezinme bu dalda; sonra oktree ve konum denetimi.
+4. **LiDAR'lı kit (karar 11 Kasım 2026):** ana parçalar alındı (16 Kasım: Unitree 4D LiDAR L2, Radiolink RTK F9P, Insta360 X4 Air, kart ve SSD; liste ve kalanlar [kit-siparis-listesi.md](kit-siparis-listesi.md), tasarım [tarama-kiti.md](tarama-kiti.md)); gelen parçaların ilk gün doğrulamaları (alıcıda PPS ve ham veri, LiDAR sürücüsünün Pi 5'te çalışması, kameranın dış beslemeyle iki saatlik kaydı); kayıt adımı (MCAP → SLAM + PPK → `cloud.ply`), artık gerçek verinin önündeki iş; motosiklette montaj ve titreşim denemesi; gövde çapı ölçüm yüksekliği kararı. Personel ekranları (İP17 Faz 3) tamam (PR #134); bahçede gezinme bu dalda; sonra oktree ve konum denetimi.
 
 **Sıradaki işler (26 Ekim 2026; çalışma artık yerel makinede, ağır doğrulama CI'da)**
 
@@ -209,7 +209,7 @@ Toplam yaklaşık 55 gün (İP9 hariç).
 
 Bunlar takvimi bekletebilecek, başkasına bağlı işler. İlk iki hafta içinde başlatılmalı:
 
-- [ ] Kit parçalarının siparişi (ithalat ve gümrükle 2–4 hafta). Liste: `docs/kit-siparis-listesi.md`
+- [ ] Kit parçalarının siparişi. Ana parçalar yurt içinden alındı (16 Kasım 2026): 360° kamera, LiDAR, RTK alıcı ve anteni, kamera kartı, SSD. Kalanlar: Raspberry Pi 5, güç, mekanik, baz verisi için ikinci alıcı ya da TUSAGA-Aktif. Liste: `docs/kit-siparis-listesi.md`
 - [x] 360° kamera üreticisinin SDK başvurusu (SDK geldi, PR #34)
 - [ ] TUSAGA-Aktif (CORS-TR) abonelik başvurusu, ya da kendi baz istasyonu kararı
 - [ ] Uzman (ziraat mühendisi) ile ön görüşme

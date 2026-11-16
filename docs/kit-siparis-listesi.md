@@ -1,33 +1,56 @@
-# Kit Sipariş Listesi: LiDAR'sız MVP Kiti
+# Kit Sipariş Listesi
 
-21 Ekim 2026 · Yusuf
+21 Ekim 2026 · Yusuf · son güncelleme 16 Kasım 2026 (ana parçalar alındı)
 
-Bu liste, MVP'de kullanılacak **LiDAR'sız** tarama kitinin parça parça sipariş listesidir. Kitte 360° kamera, RTK GNSS alıcısı ve ESP32 GNSS kaydedici bulunur; motosiklete monte bir direkte taşınır. Kitin tasarımı [tarama-kiti.md](tarama-kiti.md)'de, kaydedicinin bağlantı tablosu [firmware/gnss-logger/README.md](../firmware/gnss-logger/README.md)'de anlatılıyor.
+Bu liste, MVP'de kullanılacak tarama kitinin parça parça sipariş listesidir. Kitte 360° kamera, RTK GNSS alıcısı, LiDAR, kayıt bilgisayarı (Raspberry Pi 5) ve ESP32 GNSS kaydedici bulunur; motosiklete monte bir direkte taşınır. Kitin tasarımı [tarama-kiti.md](tarama-kiti.md)'de, kaydedicinin bağlantı tablosu [firmware/gnss-logger/README.md](../firmware/gnss-logger/README.md)'de anlatılıyor.
 
-> **Karar (11 Kasım 2026, sahip): kit LiDAR'lı yapılır.** Bu liste LiDAR'sız ilk kiti anlatıyor. LiDAR'lı kitin ek parçaları (LiDAR ve dahili IMU, Raspberry Pi 5, SSD'ler, PTP için Ethernet, güç) [tarama-kiti.md](tarama-kiti.md)'deki tasarıma göre bu listeye eklenmeli (açık iş, [plan.md](plan.md)). Montaj yüksekliği ve motosiklette deneme: [lidar-olcumleri.md](lidar-olcumleri.md) §8.
+> **Karar (11 Kasım 2026, sahip): kit LiDAR'lı yapılır.** Liste ilk yazıldığında LiDAR'sız kiti anlatıyordu; LiDAR'lı kitin ek parçaları [bölüm 7](#7-lidarlı-kitin-ek-parçaları)'de. Montaj yüksekliği ve motosiklette deneme: [lidar-olcumleri.md](lidar-olcumleri.md) §8.
 
-**Neden şimdi?** Kit, takvimin kritik yolunda ([plan.md](plan.md)). 20 Aralık'taki Kapı 1'e kadar teknik denemelerin yapılması gerekiyor (İP3). Yurt dışından gelen parçalar 2–4 hafta sürebilir. Bu yüzden kitin Kasım ortasında elde olması gerekiyor.
+## Durum: alınanlar (16 Kasım 2026)
 
-> **Fiyatlar:** Yaklaşık uluslararası fiyatlardır ve doğrulanmadı. Türkiye'ye getirmede gümrük, KDV ve kur farkı belirgin bir artış yapabilir. Sipariş öncesi güncel fiyatı ve Türkiye distribütörünü kontrol et.
+Hepsi yurt içinden alındı. Fiyatlar ilan fiyatıdır (KDV dahil); ödenen tutar farklı olabilir.
+
+| # | Parça | Alınan | Adet | İlan fiyatı | Not |
+| --- | --- | --- | --- | --- | --- |
+| 1.1–1.3 | RTK alıcı, anten, anten kablosu | Radiolink RTK F9P Rover Kit (alıcı + ANT-M7 anten + kablo) | 1 | 24.753 TL | u-blox F9P, çift bant (L1/L2), USB-C, 2 UART, dahili pusula. PPS çıkışının yeri ve ham gözlem kaydı gelince doğrulanacak |
+| 1.4 | 360° kamera | Insta360 X4 Air, Standard Bundle | 1 | 18.599 TL | 8K 30 fps, çift 1/1,8" sensör, kayıt başına tek `.insv` dosyası |
+| 1.5 | Kamera microSD kartı | SanDisk High Endurance 256 GB (V30, UHS-I) | 1 | 3.184 TL | Tek ziyareti alır (aşağıdaki karar) |
+| 7.1 | LiDAR | Unitree 4D LiDAR L2 | 1 | Kayıtlı değil | 360° × 90° (negatif açı kipinde 96°), saniyede 64.000 nokta, dahili IMU, 12 V |
+| 7.4 | Kayıt SSD'si | Lexar SL300 512 GB (USB 3.2 Gen 2) | 1 | 3.999 TL | 15'ten fazla ziyaretin LiDAR kaydını alır |
+
+**Karar (16 Kasım 2026, sahip): MVP kiti tek ziyareti taşır.** Tek kamera kartı ve tek SSD alındı; kart her ziyaretten sonra ofiste aktarılıp boşaltılır. Listede iki kart ve iki SSD öneren satırlar pilot sonrasına kaldı. Aynı gün iki bahçe taranacaksa ikinci bir kart gerekir.
+
+**Kalanlar, kısaca:** baz verisi için ikinci alıcı ya da TUSAGA-Aktif (karar 2); Raspberry Pi 5 ve bağlantıları (bölüm 7); kaydedici elektroniği (bölüm 2); güç (bölüm 3); mekanik (bölüm 4). Gelen parçalarda ilk gün yapılacak denemeler [Doğrulanacaklar](#doğrulanacaklar)'da.
+
+**Neden şimdi?** Kit, takvimin kritik yolunda ([plan.md](plan.md)). 20 Aralık'taki Kapı 1'e kadar teknik denemelerin yapılması gerekiyor (İP3). Ana parçalar yurt içinden alındığı için ithalat beklemesi kalmadı; kalan parçalar da yurt içinden bulunabilir.
+
+> **Fiyatlar:** Alınmamış parçaların fiyatları yaklaşık uluslararası fiyatlardır ve doğrulanmadı. Türkiye'de KDV ve kur farkı belirgin bir artış yapabilir. Alınan parçaların ilan fiyatları yukarıdaki tabloda.
 
 ## Sipariş öncesi üç karar
 
-| Karar | Seçenekler | Önerim |
+| Karar | Seçenekler | Önerim ve sonuç |
 | --- | --- | --- |
-| **1. 360° kamera modeli** | Insta360 X serisi (X5) · Ricoh Theta X · GoPro Max 2 | **Insta360 X5**: görüntü kalitesi ağaç değerlendirmesi için önemli. SDK pilot için şart değil: pilotta videolar Insta360 Studio'dan elle birleştirilmiş (equirectangular) olarak dışa aktarılır, SDK (Linux Media SDK, başvuruyla) sonra otomasyon için. **Yedek:** Ricoh Theta X kamerada birleştirip equirectangular MP4 kaydeder, API'si açık belgeli; SDK gerekmez ama sensörü küçük |
-| **2. PPK için baz verisi** | TUSAGA-Aktif (CORS-TR) aboneliği · Kendi baz istasyonu (ikinci bir RTK alıcısı) | **İkinci bir alıcı al.** Pilotta referans sıra ölçümü için zaten gerekiyor ([MVP.md](MVP.md) Modül 2). Aynı alıcı, TUSAGA başvurusu sonuçlanana kadar baz istasyonu olarak da çalışır |
+| **1. 360° kamera modeli** | Insta360 X serisi · Ricoh Theta X · GoPro Max 2 | **Karar verildi: Insta360 X4 Air alındı.** İlk öneri X5'ti; X4 Air aynı 8K çözünürlüğü verir, sensörü biraz küçüktür (1/1,8"). İşleme hattının `.insv` yolu tek dosyalı kayıtları destekler ve X4 Air tek dosya üretir; elimizdeki Linux Media SDK (3.1.5) X4 Air'i destekler. İki dosyalı X3 bu yüzden seçilmedi |
+| **2. PPK için baz verisi** | TUSAGA-Aktif (CORS-TR) aboneliği · Kendi baz istasyonu (ikinci bir RTK alıcısı) | **Açık.** Tek alıcı alındı; baz verisi olmadan PPK yapılamaz. İlk öneri ikinci bir alıcıydı: pilotta referans sıra ölçümü için zaten gerekiyor ([MVP.md](MVP.md) Modül 2) ve TUSAGA başvurusu sonuçlanana kadar baz istasyonu olarak çalışır. Radiolink'te baz ve gezici aynı donanımdır, yalnız ayarı farklıdır; ikinci bir Rover Kit baz olarak kullanılabilir |
 | **3. Akü sistemi** | Makita, Bosch, DeWalt 18 V | **Türkiye'de en kolay bulunanı.** Bataryalar ve şarj aleti sahada yedeklenebilmeli. Seçilen markanın "akü adaptörü" (akü yuvasından kablo çıkışı) bulunabilmeli |
 
 ## 1. Uzun teslim süreli parçalar (ilk hafta sipariş)
 
 | # | Parça | Adet | Özellik | Nereden | Yaklaşık fiyat |
 | --- | --- | --- | --- | --- | --- |
-| 1.1 | **RTK alıcı kartı, ZED-F9P** | 2 | u-blox ZED-F9P; UART1 TX/RX ve TIMEPULSE (PPS) pinlerine erişim; SMA anten girişi. Örnek: ArduSimple simpleRTK2B ya da SparkFun GPS-RTK2 | ArduSimple (İspanya), SparkFun ya da Türkiye distribütörü | 200–280 $ / adet |
-| 1.2 | **Çok bantlı GNSS anteni** (L1/L2 ya da L1/L5) | 2 | Direk üstüne vidalı, IP67, yer düzlemi içinde (survey ya da helisel tip) | Alıcıyla aynı satıcı | 70–200 $ / adet |
-| 1.3 | Anten kablosu | 2 | SMA, 1–3 m, düşük kayıplı (RG174 yerine RG316 ya da daha iyisi) | Alıcıyla aynı satıcı | 10–20 $ / adet |
-| 1.4 | **360° kamera** | 1 | Karar 1'e göre; en az 5,7K, 30 fps; dış besleme ile kayıt yapabilmeli | Türkiye distribütörü | 450–600 $ |
-| 1.5 | Kamera microSD kartı | 2 | 512 GB, V30, kameranın önerdiği listede olsun | Yurt içi | 40–60 $ / adet |
-| 1.6 | Kamera yedek bataryası | 2 | Orijinal | Distribütör | 30–50 $ / adet |
+| 1.1 | **RTK alıcı kartı, ZED-F9P** | 2 | u-blox ZED-F9P; UART1 TX/RX ve TIMEPULSE (PPS) pinlerine erişim; SMA anten girişi | **1 adet alındı:** Radiolink RTK F9P. İkincisi karar 2'ye bağlı | 200–280 $ / adet |
+| 1.2 | **Çok bantlı GNSS anteni** (L1/L2 ya da L1/L5) | 2 | Direk üstüne vidalı, IP67, yer düzlemi içinde (survey ya da helisel tip) | **1 adet alındı:** ANT-M7, Rover Kit'in içinde (IP67) | 70–200 $ / adet |
+| 1.3 | Anten kablosu | 2 | SMA, 1–3 m, düşük kayıplı (RG174 yerine RG316 ya da daha iyisi) | **1 adet alındı:** Rover Kit'in içinde; boyu direğe yetiyor mu, gelince ölçülecek | 10–20 $ / adet |
+| 1.4 | **360° kamera** | 1 | Karar 1'e göre; en az 5,7K, 30 fps; dış besleme ile kayıt yapabilmeli | **Alındı:** Insta360 X4 Air | 450–600 $ |
+| 1.5 | Kamera microSD kartı | 2 | UHS-I, V30, exFAT, en çok 1 TB (Insta360'ın şartı; UHS-II kart kullanılmaz). 8K'da ziyaret başına ~108–132 GB | **1 adet alındı:** SanDisk High Endurance 256 GB. İkincisi pilot sonrasına | 40–60 $ / adet |
+| 1.6 | Kamera yedek bataryası | 2 | Orijinal | Alınmadı. Kamera kayıt sırasında aküden beslenebiliyorsa gerekmez (3.4); beslenemiyorsa şart, çünkü tek batarya 8K'da ~88 dakika dayanır | 30–50 $ / adet |
+
+**Radiolink RTK F9P hakkında bilinenler** (üreticinin sayfası ve kılavuzu; parça gelince doğrulanacak):
+- Modül u-blox F9P; GPS L1C/A ve L2C, GLONASS, Galileo, BeiDou, QZSS. Protokoller NMEA, UBX ve RTCM 3.
+- Besleme 4,5–6 V. Bağlantılar: USB-C, UART1 (I2C ile aynı fişte: 5 V, RX, TX, SCL, SDA, GND), UART2.
+- Zaman darbesi (PPS) teknik özelliklerde var, ama hangi konnektörde olduğu belgelenmemiş. Kaydedici firmware'i de Pi'ın saati de PPS'e dayanıyor; konnektörde yoksa modülün TIMEPULSE ayağından tel çıkarmak gerekir.
+- Dahili pusula (IST8310) I2C hattındadır; bizim kullanımımızda gerekmez.
+- Alıcı drone uçuş kontrolcüleri için ayarlı gelir. PPK için ham gözlem mesajları (UBX-RXM-RAWX, SFRBX) u-center ile açılmalıdır; kaydedici firmware'i bunları açılışta kendisi de ister ([firmware/gnss-logger/README.md](../firmware/gnss-logger/README.md)).
 
 **İkinci alıcının ve antenin görevleri:**
 - **Baz istasyonu:** Envanter ve taramalarda bahçe kenarında sabit bir noktaya kurulur. Ham kaydını bir ikinci ESP32 kaydedici alır (bölüm 2'deki yedek setle).
@@ -36,6 +59,8 @@ Bu liste, MVP'de kullanılacak **LiDAR'sız** tarama kitinin parça parça sipar
 ## 2. Kaydedici elektroniği (yurt içi, hızlı)
 
 Bağlantılar `firmware/gnss-logger/README.md`'deki tabloya göre. Her kalemden bir set kit için, bir set baz istasyonu için, bir set de yedek.
+
+LiDAR'lı kitte tasarım GNSS kaydını Raspberry Pi'a veriyor ([tarama-kiti.md](tarama-kiti.md)). Pi'ın kayıt yazılımı henüz yok; saha uygulaması bugün ESP32 kaydediciyle (Bluetooth) çalışıyor. Bu yüzden Kapı 1 denemeleri ESP32 kaydediciyle yapılabilir ve bu bölüm geçerliliğini korur; baz istasyonu için de ayrıca gerekir.
 
 | # | Parça | Adet | Özellik | Yaklaşık fiyat |
 | --- | --- | --- | --- | --- |
@@ -57,9 +82,9 @@ Bağlantılar `firmware/gnss-logger/README.md`'deki tabloya göre. Her kalemden 
 | 3.1 | 18 V alet aküsü | 3 | 5 Ah; karar 3'teki marka. İkisi kit, biri baz istasyonu | 50–90 $ / adet |
 | 3.2 | Şarj aleti | 1 | Aynı marka, hızlı şarj | 40–70 $ |
 | 3.3 | Akü adaptörü (akü yuvası → kablo) | 2 | Aynı marka; sigortalı tercih | 10–20 $ / adet |
-| 3.4 | USB-C PD modülü (18 V giriş) | 1 | Kamerayı kayıt sırasında aküden beslemek için; kameranın şarj gücüne uygun (≥ 20 W) | 10–20 $ |
+| 3.4 | USB-C PD modülü (18 V giriş) | 1 | Kamerayı kayıt sırasında aküden beslemek için; kameranın şarj gücüne uygun (≥ 20 W). X4 Air'in kayıt sırasında beslenebildiği önce masada denenecek | 10–20 $ |
 
-**Güç hesabı:** Kaydedici, alıcı ve kamera birlikte ~7 W çeker; iki saatlik tarama ~15 Wh eder. 5 Ah'lık 18 V akü ~90 Wh taşıdığı için bir akü günlük işi rahatça karşılar.
+**Güç hesabı:** Kaydedici, alıcı ve kamera birlikte ~7 W çeker; iki saatlik tarama ~15 Wh eder. LiDAR (10 W), Raspberry Pi (7 W) ve SSD (3 W) eklenince toplam ~26 W, iki saatte ~52 Wh olur. 5 Ah'lık 18 V akü ~90 Wh taşıdığı için bir akü bir taramayı karşılar.
 
 ## 4. Mekanik: motosiklet montajı ve direk
 
@@ -99,6 +124,26 @@ Kit, `yusuftiryaki/hoverboard` robotuna bir soketle takılabilir. Sözleşme rob
 
 **Kit tabanı:** Robotun montaj plakasında kitin tabanını tek yönde ve ortalanmış oturtan bir anahtar (pim ya da asimetrik delik deseni) olacak. Biçimi plaka ile birlikte kesinleşecek; kit tabanı tasarlanırken buna yer bırakılır.
 
+## 7. LiDAR'lı kitin ek parçaları
+
+Tasarım ve L2'nin teknik değerleri: [tarama-kiti.md](tarama-kiti.md#lidar-unitree-4d-lidar-l2).
+
+| # | Parça | Adet | Özellik | Durum | Yaklaşık fiyat |
+| --- | --- | --- | --- | --- | --- |
+| 7.1 | **LiDAR** | 1 | Unitree 4D LiDAR L2. Kutusunda güç adaptörü, seri bağlantı modülü ve veri kablosu gelir | **Alındı** | Üretici liste fiyatı 419 $ |
+| 7.2 | **Raspberry Pi 5, 8 GB** | 1 | Aktif soğutucu, saat pili (RTC), kutu | Alınacak | 120–150 $ |
+| 7.3 | Pi sistem kartı (microSD) | 1 | 32–128 GB, "high endurance" ya da endüstriyel | Alınacak | 10–20 $ |
+| 7.4 | **Kayıt SSD'si** (USB 3) | 1 | Lexar SL300 512 GB | **Alındı** | 3.999 TL |
+| 7.5 | DC-DC düşürücü, 18 V → 12 V | 1 | Çıkış 12 V, en az 1,5 A; LiDAR için. Fiş DC 3,5 × 1,35 mm | Alınacak | 3–8 $ |
+| 7.6 | DC-DC düşürücü, 18 V → 5 V, 5 A | 1 | Pi için. Pi 5, 5 A'lık kaynağı tanımazsa USB çıkış akımını kısar; SSD için `usb_max_current_enable=1` gerekebilir | Alınacak | 8–15 $ |
+| 7.7 | Ethernet kablosu | 1 | Kısa (0,3–0,5 m), Cat5e; LiDAR'ın RJ45 ucu ile Pi arasına | Alınacak | 2–5 $ |
+| 7.8 | USB-C veri kablosu | 1 | Kısa; RTK alıcısından Pi'a ham GNSS | Alınacak | 3–6 $ |
+| 7.9 | PPS teli ve seviye koruması | 1 set | Alıcının PPS çıkışından Pi'ın GPIO'suna; 3,3 V seviyesi ölçülerek | Alınacak | 1–3 $ |
+| 7.10 | LiDAR bağlantı plakası | 1 | 4 × M3 delik (derinlik 6 mm); direğe kelepçeli, titreşim sönümlü. LiDAR'ın dört yanında hava boşluğu kalmalı | Yapılacak | 10–20 $ |
+| 7.11 | Kalibrasyon hedefi | 1 | Kamera–LiDAR kalibrasyonu için baskılı hedef | Yapılacak | 30–60 $ |
+
+**SSD'nin bağlantısı:** USB-C fişi titreşimde gevşeyebilir; SSD kutunun içine sabitlenir ve kablo gerilimsiz bağlanır.
+
 ## Toplam
 
 | Grup | Yaklaşık |
@@ -113,17 +158,17 @@ Kit, `yusuftiryaki/hoverboard` robotuna bir soketle takılabilir. Sözleşme rob
 
 Kit tek başına, yani ikinci alıcı, anteni, baz kaydedicisi, üçüncü akü ve jalon olmadan, ~1.250–2.100 $ tutar. Bu, belirlenen 2.000 $ hedefinin içinde. Aradaki ~450–800 $, baz istasyonu ve pilot referans ölçümünün maliyeti.
 
+Bu toplam ilk tahmindir: LiDAR'sız kit içindir ve uluslararası fiyatlara dayanır. LiDAR'lı kitin ek parçaları (bölüm 7) buna dahil değildir. Alınan beş parçadan fiyatı kayıtlı dördünün ilan fiyatları toplamı 50.535 TL'dir; LiDAR'ın fiyatı kayıtlı değil.
+
 İşleme istasyonu (İP11) bu listede yok, ayrı bir karar.
 
 ## Sipariş sırası
 
-1. **Bu hafta:**
-    - Kamera modelini seç (karar 1), SDK başvurusunu yap.
-    - RTK alıcıları ve antenler (1.1–1.3): en uzun teslim süresi bunlarda.
-    - TUSAGA-Aktif başvurusu (karar 2'den bağımsız; sonuçlanınca baz istasyonu yedek olur).
-2. **Bu hafta, yurt içi:**
-    - Kamera, kartlar, yedek pil (1.4–1.6)
-    - Elektronik (bölüm 2), güç (bölüm 3)
+1. **Yapıldı (16 Kasım):** kamera, kamera kartı, RTK alıcısı ve anteni, LiDAR, SSD. SDK başvurusu daha önce sonuçlandı.
+2. **Şimdi:**
+    - Baz verisi kararı (karar 2): ikinci alıcı ya da TUSAGA-Aktif başvurusu.
+    - Raspberry Pi 5 ve bağlantıları (bölüm 7).
+    - Elektronik (bölüm 2), güç (bölüm 3).
 3. **Alıcılar gelmeden:**
     - Kaydediciyi geliştirme masasında kur ve firmware'i flaşla.
     - `firmware/gnss-logger/README.md`'deki donanım testlerinin GNSS gerektirmeyenlerini yap: SD, LED, BLE ve telefonla bağlantı.
@@ -137,8 +182,10 @@ Kit tek başına, yani ikinci alıcı, anteni, baz kaydedicisi, üçüncü akü 
 
 ## Doğrulanacaklar
 
-- [ ] Seçilen kameranın jiroskop verisini dışa aktarma ve SDK erişimi
-- [ ] Kameranın dış beslemeyle iki saat kesintisiz kayıt yapabilmesi; ısınma
-- [ ] ZED-F9P kartında UART1 ve TIMEPULSE pinlerinin 3,3 V seviyesi; bazı kartlar 5 V çıkış verir
-- [ ] Motosiklet titreşiminin panorama netliğine etkisi; gerekirse ek sönümleme ya da daha düşük hız
-- [ ] Güncel fiyatlar ve Türkiye'ye getirme maliyeti
+Parça parça ayrıntılı liste [tarama-kiti.md](tarama-kiti.md#doğrulanacaklar)'de. Parçalar gelince ilk gün:
+
+- [ ] **Radiolink RTK F9P:** PPS çıkışının yeri; UART ve PPS pinlerinin 3,3 V seviyesi; u-center ile ham gözlem (RAWX, SFRBX) çıkışı; açık gökyüzünde ilk fix ve çift bant sinyali
+- [ ] **Insta360 X4 Air:** kayıt sırasında USB-C'den beslenerek iki saat kesintisiz 8K kayıt ve ısınma; SanDisk 256 GB kartla kart hızı uyarısı çıkmaması; gerçek `.insv` dosyasının işleme hattından geçmesi ve jiroskop verisi
+- [ ] **Unitree L2:** masada adaptörüyle ilk nokta bulutu; negatif açı kipinin açılması; sürücünün Raspberry Pi 5'te çalışması
+- [ ] Motosiklet titreşiminin panorama netliğine ve LiDAR yörüngesine etkisi; gerekirse ek sönümleme ya da daha düşük hız
+- [ ] Kalan parçaların güncel fiyatları
