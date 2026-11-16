@@ -10,7 +10,8 @@ import 'protocol/command_result.dart';
 import 'protocol/gnss_command.dart';
 import 'protocol/gnss_status.dart';
 
-/// In-memory stand-in for the ESP32 logger.
+/// In-memory stand-in for the ESP32 logger, or with [kit] for the kit
+/// recorder on the Raspberry Pi.
 ///
 /// It decodes the same bytes the real device would receive and answers with
 /// encoded status messages, so the protocol code runs end to end. Used by
@@ -24,8 +25,13 @@ class FakeGnssLogger extends GnssLoggerBase {
     this.position,
     this.path,
     GnssStatus? initialStatus,
+    KitStatus? kit,
     super.commandTimeout,
-  }) : _status = initialStatus ?? healthyStatus;
+  }) : _kit = kit,
+       // The Pi does not measure the battery and sends 0.
+       _status =
+           initialStatus ??
+           (kit == null ? healthyStatus : healthyStatus.copyWith(batteryMv: 0));
 
   final Clock clock;
 
@@ -57,6 +63,7 @@ class FakeGnssLogger extends GnssLoggerBase {
   bool unresponsive = false;
 
   GnssStatus _status;
+  KitStatus? _kit;
   Timer? _timer;
   final Set<String> _sessionsOnCard = {};
 
@@ -90,6 +97,20 @@ class FakeGnssLogger extends GnssLoggerBase {
     tick();
   }
 
+  /// Kit recorder extension sent with every status (77-byte form); null
+  /// imitates the ESP32.
+  KitStatus? get kit => _kit;
+
+  /// Replaces the simulated kit state (e.g. a failed pre-check item or an
+  /// alert). While recording, [KitStatus.overrides] is kept from the start.
+  set kit(KitStatus? k) {
+    final current = _kit;
+    _kit = k == null || current == null || !_status.recording
+        ? k
+        : k.copyWith(overrides: current.overrides);
+    tick();
+  }
+
   @override
   String? get deviceName =>
       connection == GnssConnection.connected ? 'orchados-gnss-FAKE' : null;
@@ -120,6 +141,11 @@ class FakeGnssLogger extends GnssLoggerBase {
     final at = position;
     if (_status.recording) {
       _status = _status.copyWith(bytesWritten: _status.bytesWritten + 6000);
+      final k = _kit;
+      // The demo build shows the MCAP growing; tests set the numbers.
+      if (autoTick && k != null && k.lidarState == LidarState.streaming) {
+        _kit = k.copyWith(lidarWrittenMib: k.lidarWrittenMib + 5);
+      }
     }
     final gpsNs = (utcToGpsUs(now) + phoneClockErrorMs * 1000) * 1000;
     var status = withTime ? _status.copyWith(gpsTimeNs: gpsNs) : _status;
@@ -134,6 +160,7 @@ class FakeGnssLogger extends GnssLoggerBase {
     final bytes = status.encode(
       includeGpsTime: withTime,
       includePosition: at != null,
+      kit: _kit,
     );
     onStatusBytes(bytes, now);
   }
@@ -156,20 +183,38 @@ class FakeGnssLogger extends GnssLoggerBase {
   CommandResult _apply(GnssCommandDecode decoded) {
     final command = decoded.command;
     if (command == null) return decoded.result;
+    final kit = _kit;
     switch (command) {
-      case StartSession(:final sessionId):
+      case StartSession(:final sessionId, :final overrideMask):
+        // The ESP32 firmware takes no override byte.
+        if (kit == null && overrideMask != null) return CommandResult.malformed;
         if (_status.recording) return CommandResult.alreadyRecording;
         if (!_status.sdPresent) return CommandResult.sdMissing;
         if (_status.sdLowSpace) return CommandResult.sdFull;
         if (_status.sdError) return CommandResult.sdError;
+        final mask = overrideMask ?? 0;
+        // Order of the kit recorder (docs/arayuzler.md): a failed item that
+        // is not overridden refuses the start before the session folder.
+        if (kit != null && KitCheck.toMask(kit.precheckFail) & ~mask != 0) {
+          return CommandResult.precheckFailed;
+        }
         if (!_sessionsOnCard.add(sessionId)) {
           return CommandResult.sessionExists;
         }
         _status = _status.copyWith(recording: true, bytesWritten: 0);
+        if (kit != null) {
+          _kit = kit.copyWith(
+            overrides: KitCheck.fromMask(mask),
+            lidarGapCount: 0,
+            lidarLongestGapS: 0,
+            lidarWrittenMib: 0,
+          );
+        }
         return CommandResult.ok;
       case StopSession():
         if (!_status.recording) return CommandResult.notRecording;
         _status = _status.copyWith(recording: false);
+        if (kit != null) _kit = kit.copyWith(overrides: const []);
         return CommandResult.ok;
       case MarkEvent():
         return _status.recording

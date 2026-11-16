@@ -22,6 +22,7 @@ import 'features/auth/auth_repository.dart';
 import 'features/gnss/ble_gnss_logger.dart';
 import 'features/gnss/fake_gnss_logger.dart';
 import 'features/gnss/gnss_logger.dart';
+import 'features/gnss/protocol/gnss_status.dart';
 import 'features/tasks/sample_parcel.dart';
 import 'features/tasks/task_repository.dart';
 
@@ -31,10 +32,13 @@ import 'features/tasks/task_repository.dart';
 ///   offline development users and sample tasks, and nothing is uploaded.
 /// - `FAKE_GNSS=true`: simulated logger instead of BLE (emulator, demos); it
 ///   walks the corridors of the synthetic sample parcel and sends positions.
+/// - `FAKE_KIT=true` (with `FAKE_GNSS`): the simulated logger is the kit
+///   recorder (Raspberry Pi), with LiDAR and clock state.
 /// - `FAKE_CAMERA=true`: synthetic photos instead of the camera (demos).
 const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const _supabaseKey = String.fromEnvironment('SUPABASE_KEY');
 const _fakeGnss = bool.fromEnvironment('FAKE_GNSS');
+const _fakeKit = bool.fromEnvironment('FAKE_KIT');
 const _fakeCamera = bool.fromEnvironment('FAKE_CAMERA');
 
 Future<void> main() async {
@@ -68,7 +72,11 @@ Future<void> _start() async {
 
   final docs = await getApplicationDocumentsDirectory();
   final GnssLogger logger = _fakeGnss
-      ? FakeGnssLogger(autoTick: true, path: sampleWalk(start: DateTime.now()))
+      ? FakeGnssLogger(
+          autoTick: true,
+          path: sampleWalk(start: DateTime.now()),
+          kit: _fakeKit ? const KitStatus() : null,
+        )
       : BleGnssLogger();
 
   runApp(

@@ -89,4 +89,102 @@ void main() {
     logger.onStatusBytes([1, 2, 3], DateTime.now());
     expect(logger.lastStatus, same(before));
   });
+
+  group('kit recorder', () {
+    test('start_session sends override byte only to the kit', () async {
+      // ESP32: the byte is never sent (the firmware would answer malformed).
+      await logger.connect();
+      expect(
+        await logger.startSession(
+          sessionId: 'S-1',
+          parcelId: 'P',
+          overrideMask: 0x01,
+        ),
+        CommandResult.ok,
+      );
+      final esp = logger.receivedCommands.single as StartSession;
+      expect(esp.overrideMask, isNull);
+
+      final kit = FakeGnssLogger(
+        kit: const KitStatus(precheckFail: [KitCheck.clock]),
+      );
+      addTearDown(kit.dispose);
+      await kit.connect();
+      expect(kit.lastStatus!.status.isKit, isTrue);
+      expect(
+        await kit.startSession(
+          sessionId: 'S-1',
+          parcelId: 'P',
+          overrideMask: 0x04,
+        ),
+        CommandResult.ok,
+      );
+      expect((kit.receivedCommands.single as StartSession).overrideMask, 0x04);
+      expect(kit.lastStatus!.status.kit!.overrides, [KitCheck.clock]);
+      expect(await kit.stopSession(), CommandResult.ok);
+      expect(kit.lastStatus!.status.kit!.overrides, isEmpty);
+    });
+
+    test('the fake ESP32 rejects an override byte like the firmware', () async {
+      await logger.connect();
+      // ignore: invalid_use_of_protected_member
+      await logger.writeCommand(
+        const StartSession(
+          seq: 9,
+          sessionId: 'S-1',
+          parcelId: 'P',
+          overrideMask: 1,
+        ).encode(),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(logger.lastStatus!.status.lastCmdResult, CommandResult.malformed);
+      expect(logger.lastStatus!.status.recording, isFalse);
+    });
+
+    test('kit refuses start with failed pre-check unless overridden', () async {
+      final kit = FakeGnssLogger(
+        kit: const KitStatus(precheckFail: [KitCheck.lidar]),
+      );
+      addTearDown(kit.dispose);
+      await kit.connect();
+      // The kit reports no battery voltage.
+      expect(kit.lastStatus!.status.batteryMv, 0);
+      expect(
+        await kit.startSession(sessionId: 'S-1', parcelId: 'P'),
+        CommandResult.precheckFailed,
+      );
+      expect(
+        await kit.startSession(
+          sessionId: 'S-1',
+          parcelId: 'P',
+          overrideMask: 0x04,
+        ),
+        CommandResult.precheckFailed,
+      );
+      expect(
+        await kit.startSession(
+          sessionId: 'S-1',
+          parcelId: 'P',
+          overrideMask: 0x01,
+        ),
+        CommandResult.ok,
+      );
+    });
+
+    test('a failed SSD or receiver cannot be overridden', () async {
+      final kit = FakeGnssLogger(
+        kit: const KitStatus(precheckFail: [KitCheck.ssd]),
+      );
+      addTearDown(kit.dispose);
+      await kit.connect();
+      expect(
+        await kit.startSession(
+          sessionId: 'S-1',
+          parcelId: 'P',
+          overrideMask: 0x07,
+        ),
+        CommandResult.precheckFailed,
+      );
+    });
+  });
 }
