@@ -96,7 +96,7 @@ Uzantı:
 
 ---
 
-### Task 1: Sözleşme: arayuzler.md ve firmware README notu
+### Task 1: Sözleşme: arayuzler.md ve firmware README notu (tamamlandı)
 
 **Files:**
 - Modify: `docs/arayuzler.md` (giriş paragrafı; "Oturum klasörü"; "`gnss/events.csv`"; "`gnss/session.json`"; "BLE protokolü"; yeni alt bölüm "Kit kaydedicisi (Raspberry Pi)")
@@ -105,13 +105,13 @@ Uzantı:
 **Interfaces:**
 - Produces: yukarıdaki "Durum mesajı kit uzantısı" bölümünün tamamı, Türkçe ve arayuzler.md üslubuyla. Sonraki her görev bu bölüme dayanır.
 
-- [ ] **Step 1:** Oturum klasörü ağacına `lidar/raw/bag/*.mcap`, `lidar/raw/bag/metadata.yaml` (ros2 bag'in çıktısı) ve `lidar/raw/recording.json` ekle (tasarımdaki `lidar/raw/<session_id>_<n>.mcap` adı, ros2 bag'in kendi adlandırmasıyla değişti); tabloya satır: üreten "kit kaydedicisi (Pi)", "SSD'nin `/sessions/<session_id>/` klasörü olduğu gibi oturum köküne kopyalanır", zorunlu değil. `gnss/*` satırını "ESP32 ya da kit kaydedicisi" yap; Pi'da kopyanın köke gittiğini yaz.
-- [ ] **Step 2:** `events.csv` bölümüne yeni olay türlerini ve payload'larını ekle; `esp_micros` ve çapa sütunlarının Pi'da monotonik saat (`CLOCK_MONOTONIC`, µs) ve son PPS kenarı anlamına geldiğini yaz. Saat kilitli değilken `gps_time_ns` ve çapa boş.
-- [ ] **Step 3:** `gnss/session.json` bölümüne Pi eklentilerini ekle (yukarıdaki liste).
-- [ ] **Step 4:** BLE bölümüne kit uzantısı tablosunu, ön kontrol maskesini, atlama baytını ve `precheck_failed` (10) kodunu ekle; `recording.json` şemasını "Kit kaydedicisi" alt bölümüne yaz; eşik tablosunu da oraya koy.
-- [ ] **Step 5:** README'nin başına: "Kitte artık Raspberry Pi kayıt yazılımı (`services/kit-recorder/`) kullanılıyor; aynı protokolü konuşur. Uzantılar docs/arayuzler.md'de. Bu firmware repoda referans ve yedek olarak kalır."
-- [ ] **Step 6:** `grep -n "precheck_failed\|recorder_kind\|lidar/raw" docs/arayuzler.md` üç terimi de bulmalı.
-- [ ] **Step 7: Commit** — `git commit -m "Interfaces: kit recorder (Pi) status extension, events and session files"`
+- [x] **Step 1:** Oturum klasörü ağacına `lidar/raw/bag/*.mcap`, `lidar/raw/bag/metadata.yaml` (ros2 bag'in çıktısı) ve `lidar/raw/recording.json` ekle (tasarımdaki `lidar/raw/<session_id>_<n>.mcap` adı, ros2 bag'in kendi adlandırmasıyla değişti); tabloya satır: üreten "kit kaydedicisi (Pi)", "SSD'nin `/sessions/<session_id>/` klasörü olduğu gibi oturum köküne kopyalanır", zorunlu değil. `gnss/*` satırını "ESP32 ya da kit kaydedicisi" yap; Pi'da kopyanın köke gittiğini yaz.
+- [x] **Step 2:** `events.csv` bölümüne yeni olay türlerini ve payload'larını ekle; `esp_micros` ve çapa sütunlarının Pi'da monotonik saat (`CLOCK_MONOTONIC`, µs) ve son PPS kenarı anlamına geldiğini yaz. Saat kilitli değilken `gps_time_ns` ve çapa boş.
+- [x] **Step 3:** `gnss/session.json` bölümüne Pi eklentilerini ekle (yukarıdaki liste).
+- [x] **Step 4:** BLE bölümüne kit uzantısı tablosunu, ön kontrol maskesini, atlama baytını ve `precheck_failed` (10) kodunu ekle; `recording.json` şemasını "Kit kaydedicisi" alt bölümüne yaz; eşik tablosunu da oraya koy.
+- [x] **Step 5:** README'nin başına: "Kitte artık Raspberry Pi kayıt yazılımı (`services/kit-recorder/`) kullanılıyor; aynı protokolü konuşur. Uzantılar docs/arayuzler.md'de. Bu firmware repoda referans ve yedek olarak kalır."
+- [x] **Step 6:** `grep -n "precheck_failed\|recorder_kind\|lidar/raw" docs/arayuzler.md` üç terimi de bulmalı.
+- [x] **Step 7: Commit** — `git commit -m "Interfaces: kit recorder (Pi) status extension, events and session files"`
 
 ### Task 2: kit-recorder paketi, GPS zamanı ve UBX
 

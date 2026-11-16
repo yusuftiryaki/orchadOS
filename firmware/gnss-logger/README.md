@@ -1,5 +1,7 @@
 # firmware/gnss-logger
 
+> **Not (16 Kasım 2026):** LiDAR'lı kitte kayıt Raspberry Pi'daki kayıt servisiyle (`services/kit-recorder/`) yapılıyor; ESP32 kitten çıktı. Pi aynı BLE protokolünü konuşur ve aynı dosyaları yazar; eklentileri [docs/arayuzler.md → Kit kaydedicisi](../../docs/arayuzler.md#kit-kaydedicisi-raspberry-pi)'nde. Bu firmware ve bu README protokolün ve dosya biçimlerinin kaynağı olarak repoda kalır.
+
 ESP32 GNSS kaydedici (PlatformIO, Arduino framework). LiDAR'sız tarama kitinde Raspberry Pi'ın yerini alır: RTK alıcısının (u-blox ZED-F9P) ham verisini (UBX) ve PPS zamanını microSD karta yazar, olayları (oturum başlangıcı/bitişi, sınır köşesi, QR saat işareti) kaydeder ve personelin telefonuna Bluetooth Low Energy (BLE) ile durum gönderir. Konumlar sonradan PPK ile santimetreye düzeltilir.
 
 İş paketi: İP2. Bkz. [docs/tarama-kiti.md](../../docs/tarama-kiti.md), [docs/MVP.md](../../docs/MVP.md) Modül 2 ve 3.
