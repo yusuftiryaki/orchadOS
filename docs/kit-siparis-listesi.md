@@ -8,14 +8,14 @@ Bu liste, MVP'de kullanılacak tarama kitinin parça parça sipariş listesidir.
 
 ## Durum: alınanlar (16 Kasım 2026)
 
-Hepsi yurt içinden alındı. Fiyatlar ilan fiyatıdır (KDV dahil); ödenen tutar farklı olabilir.
+Hepsi yurt içinden alındı. Fiyatlar sipariş tutarlarıdır (KDV dahil); toplam **77.805 TL**.
 
-| # | Parça | Alınan | Adet | İlan fiyatı | Not |
+| # | Parça | Alınan | Adet | Ödenen | Not |
 | --- | --- | --- | --- | --- | --- |
-| 1.1–1.3 | RTK alıcı, anten, anten kablosu | Radiolink RTK F9P Rover Kit (alıcı + ANT-M7 anten + kablo) | 1 | 24.753 TL | u-blox F9P, çift bant (L1/L2), USB-C, 2 UART, dahili pusula. PPS çıkışının yeri ve ham gözlem kaydı gelince doğrulanacak |
+| 1.1–1.3 | RTK alıcı, anten, anten kablosu | Radiolink RTK F9P Rover Kit (alıcı + ANT-M7 anten + kablo) | 1 | 24.753,04 TL | u-blox F9P, çift bant (L1/L2), USB-C, 2 UART, dahili pusula. PPS çıkışının yeri ve ham gözlem kaydı gelince doğrulanacak |
 | 1.4 | 360° kamera | Insta360 X4 Air, Standard Bundle | 1 | 18.599 TL | 8K 30 fps, çift 1/1,8" sensör, kayıt başına tek `.insv` dosyası |
 | 1.5 | Kamera microSD kartı | SanDisk High Endurance 256 GB (V30, UHS-I) | 1 | 3.184 TL | Tek ziyareti alır (aşağıdaki karar) |
-| 7.1 | LiDAR | Unitree 4D LiDAR L2 | 1 | Kayıtlı değil | 360° × 90° (negatif açı kipinde 96°), saniyede 64.000 nokta, dahili IMU, 12 V |
+| 7.1 | LiDAR | Unitree 4D LiDAR L2 | 1 | 27.270 TL | 360° × 90° (negatif açı kipinde 96°), saniyede 64.000 nokta, dahili IMU, 12 V |
 | 7.4 | Kayıt SSD'si | Lexar SL300 512 GB (USB 3.2 Gen 2) | 1 | 3.999 TL | 15'ten fazla ziyaretin LiDAR kaydını alır |
 
 **Karar (16 Kasım 2026, sahip): MVP kiti tek ziyareti taşır.** Tek kamera kartı ve tek SSD alındı; kart her ziyaretten sonra ofiste aktarılıp boşaltılır. Listede iki kart ve iki SSD öneren satırlar pilot sonrasına kaldı. Aynı gün iki bahçe taranacaksa ikinci bir kart gerekir.
@@ -24,7 +24,7 @@ Hepsi yurt içinden alındı. Fiyatlar ilan fiyatıdır (KDV dahil); ödenen tut
 
 **Neden şimdi?** Kit, takvimin kritik yolunda ([plan.md](plan.md)). 20 Aralık'taki Kapı 1'e kadar teknik denemelerin yapılması gerekiyor (İP3). Ana parçalar yurt içinden alındığı için ithalat beklemesi kalmadı; kalan parçalar da yurt içinden bulunabilir.
 
-> **Fiyatlar:** Alınmamış parçaların fiyatları yaklaşık uluslararası fiyatlardır ve doğrulanmadı. Türkiye'de KDV ve kur farkı belirgin bir artış yapabilir. Alınan parçaların ilan fiyatları yukarıdaki tabloda.
+> **Fiyatlar:** Alınmamış parçaların fiyatları yaklaşık uluslararası fiyatlardır ve doğrulanmadı. Türkiye'de KDV ve kur farkı belirgin bir artış yapabilir. Alınan parçaların sipariş tutarları yukarıdaki tabloda.
 
 ## Sipariş öncesi üç karar
 
@@ -130,7 +130,7 @@ Tasarım ve L2'nin teknik değerleri: [tarama-kiti.md](tarama-kiti.md#lidar-unit
 
 | # | Parça | Adet | Özellik | Durum | Yaklaşık fiyat |
 | --- | --- | --- | --- | --- | --- |
-| 7.1 | **LiDAR** | 1 | Unitree 4D LiDAR L2. Kutusunda güç adaptörü, seri bağlantı modülü ve veri kablosu gelir | **Alındı** | Üretici liste fiyatı 419 $ |
+| 7.1 | **LiDAR** | 1 | Unitree 4D LiDAR L2. Kutusunda güç adaptörü, seri bağlantı modülü ve veri kablosu gelir | **Alındı** | 27.270 TL |
 | 7.2 | **Raspberry Pi 5, 8 GB** | 1 | Aktif soğutucu, saat pili (RTC), kutu | Alınacak | 120–150 $ |
 | 7.3 | Pi sistem kartı (microSD) | 1 | 32–128 GB, "high endurance" ya da endüstriyel | Alınacak | 10–20 $ |
 | 7.4 | **Kayıt SSD'si** (USB 3) | 1 | Lexar SL300 512 GB | **Alındı** | 3.999 TL |
@@ -158,7 +158,7 @@ Tasarım ve L2'nin teknik değerleri: [tarama-kiti.md](tarama-kiti.md#lidar-unit
 
 Kit tek başına, yani ikinci alıcı, anteni, baz kaydedicisi, üçüncü akü ve jalon olmadan, ~1.250–2.100 $ tutar. Bu, belirlenen 2.000 $ hedefinin içinde. Aradaki ~450–800 $, baz istasyonu ve pilot referans ölçümünün maliyeti.
 
-Bu toplam ilk tahmindir: LiDAR'sız kit içindir ve uluslararası fiyatlara dayanır. LiDAR'lı kitin ek parçaları (bölüm 7) buna dahil değildir. Alınan beş parçadan fiyatı kayıtlı dördünün ilan fiyatları toplamı 50.535 TL'dir; LiDAR'ın fiyatı kayıtlı değil.
+Bu toplam ilk tahmindir: LiDAR'sız kit içindir ve uluslararası fiyatlara dayanır. LiDAR'lı kitin ek parçaları (bölüm 7) buna dahil değildir. Alınan beş parçanın sipariş tutarları toplamı 77.805 TL'dir (KDV dahil).
 
 İşleme istasyonu (İP11) bu listede yok, ayrı bir karar.
 

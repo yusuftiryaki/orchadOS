@@ -199,15 +199,16 @@ Değerler `public.calibration` kaydının `extrinsics.kit_mount` alanına girili
 
 ## Maliyet
 
-**Alınan parçalar** (16 Kasım 2026, yurt içi; ilan fiyatları, KDV dahil):
+**Alınan parçalar** (16 Kasım 2026, yurt içi; sipariş tutarları, KDV dahil):
 
-| Parça | İlan fiyatı |
+| Parça | Ödenen |
 | --- | --- |
-| Unitree 4D LiDAR L2 | Kayıtlı değil (üreticinin liste fiyatı 419 $) |
-| Radiolink RTK F9P Rover Kit (alıcı + ANT-M7 anten + kablo) | 24.753 TL |
+| Unitree 4D LiDAR L2 | 27.270 TL |
+| Radiolink RTK F9P Rover Kit (alıcı + ANT-M7 anten + kablo) | 24.753,04 TL |
 | Insta360 X4 Air (Standard Bundle) | 18.599 TL |
 | Lexar SL300 512 GB taşınabilir SSD | 3.999 TL |
 | SanDisk High Endurance 256 GB microSD | 3.184 TL |
+| **Toplam** | **77.805 TL** |
 
 **İlk tahmin** (17 Ekim 2026; Mid-360, iki SSD ve iki kartla). Yaklaşık uluslararası fiyatlardır, doğrulanmamıştır. Türkiye'de gümrük, KDV ve kur nedeniyle belirgin şekilde yüksek olabilir. Raspberry Pi, güç, mekanik ve kalibrasyon satırları hâlâ alınacaklar için geçerlidir.
 
