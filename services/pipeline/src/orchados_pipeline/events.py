@@ -1,5 +1,8 @@
 """Parser for the GNSS logger's events.csv (İP2 format, see docs/arayuzler.md).
 
+Written by the ESP32 logger or the kit recorder (Raspberry Pi); the kit recorder
+uses the same columns, `esp_micros` being its monotonic clock.
+
 UTF-8, RFC 4180, with a mandatory header row:
 
     esp_micros,gps_time_ns,event_type,payload,pps_esp_micros,pps_gps_time_ns
@@ -29,7 +32,21 @@ COLUMNS = (
 )
 LEGACY_COLUMNS = COLUMNS[:4]
 KNOWN_TYPES = frozenset(
-    {"session_start", "session_stop", "corner", "qr_sync", "pps_lost", "pps_regained", "sd_error"}
+    {
+        "session_start",
+        "session_stop",
+        "corner",
+        "qr_sync",
+        "pps_lost",
+        "pps_regained",
+        "sd_error",
+        # Kit recorder (Raspberry Pi) only.
+        "lidar_lost",
+        "lidar_regained",
+        "gnss_lost",
+        "gnss_regained",
+        "precheck_override",
+    }
 )
 # Recompute GPS time from a stale anchor only this far away. The ESP32 crystal
 # (±40 ppm) drifts at most ~2.4 ms over 60 s, well below the QR resolution.
