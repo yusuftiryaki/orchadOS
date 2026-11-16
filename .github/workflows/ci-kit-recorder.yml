@@ -1,0 +1,51 @@
+name: ci-kit-recorder
+
+on:
+  pull_request:
+    paths:
+      - "services/kit-recorder/**"
+      - ".github/workflows/ci-kit-recorder.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/kit-recorder/**"
+      - ".github/workflows/ci-kit-recorder.yml"
+
+concurrency:
+  group: ci-kit-recorder-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kit-recorder:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/kit-recorder
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint and format
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      # No Raspberry Pi, LiDAR, ROS 2 or Bluetooth here: the recorder runs on
+      # fakes (fake receiver, LiDAR, clock, SSD). rclpy and bless are imported
+      # lazily and only on the Pi.
+      - name: Tests
+        run: uv run pytest -q
+
+      - name: Setup script syntax
+        run: |
+          if [ -f setup/install.sh ]; then
+            bash -n setup/install.sh
+            shellcheck setup/install.sh
+          fi
