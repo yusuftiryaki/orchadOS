@@ -33,3 +33,13 @@ def make_healthy(t: int = 10_000_000, lidar_last: int | None = None, **changes) 
 @pytest.fixture
 def healthy():
     return make_healthy
+
+
+@pytest.fixture
+def rig(tmp_path):
+    """A recorder on fakes (fakes.FakeRig), warmed up so every pre-check passes."""
+    from orchados_recorder.fakes import FakeRig
+
+    r = FakeRig(tmp_path / "ssd")
+    r.run(seconds=3)
+    return r
