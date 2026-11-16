@@ -238,6 +238,64 @@ class SerialTransport:
             raise OSError(str(exc)) from exc
 
 
+class QueuedTransport:
+    """Reads the inner transport in a background thread.
+
+    `read` never blocks, so the recorder's lock is held only while bytes are
+    processed and BLE commands (qr_sync) are stamped without waiting for a
+    serial timeout. `write` and the `reconnected` flag go to the inner transport.
+    """
+
+    def __init__(self, inner: Transport) -> None:
+        import threading
+
+        self.inner = inner
+        self._queue: deque[bytes] = deque()  # unbounded: never drop receiver bytes
+        self._lock = threading.Lock()
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._loop, name="receiver-read", daemon=True)
+        self._thread.start()
+
+    @property
+    def reconnected(self) -> bool:
+        return getattr(self.inner, "reconnected", False)
+
+    @reconnected.setter
+    def reconnected(self, value: bool) -> None:
+        self.inner.reconnected = value
+
+    def _loop(self) -> None:
+        while not self._stop.is_set():
+            try:
+                data = self.inner.read(READ_CHUNK)
+            except Exception as exc:  # keep the reader alive whatever the port does
+                log.warning("receiver read failed: %s", exc)
+                time.sleep(0.1)
+                continue
+            if data:
+                with self._lock:
+                    self._queue.append(data)
+
+    def read(self, max_bytes: int) -> bytes:
+        with self._lock:
+            if not self._queue:
+                return b""
+            chunks = []
+            size = 0
+            while self._queue and size < max_bytes:
+                chunk = self._queue.popleft()
+                chunks.append(chunk)
+                size += len(chunk)
+        return b"".join(chunks)
+
+    def write(self, data: bytes) -> None:
+        self.inner.write(data)
+
+    def close(self) -> None:
+        self._stop.set()
+        self._thread.join(timeout=1)
+
+
 class FakeTransport:
     """Test transport: a script of reads; answers VALSET with ACK or NAK."""
 

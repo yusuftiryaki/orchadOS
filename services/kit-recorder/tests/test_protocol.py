@@ -17,6 +17,7 @@ from orchados_recorder.protocol import (
     StopSession,
     check_names,
     decode_command,
+    encode_command,
     encode_status,
 )
 
@@ -156,6 +157,17 @@ def test_command_constraints(data, result):
     cmd, seq, res = decode_command(data)
     assert res == result and cmd is None
     assert seq == (data[1] if len(data) >= 2 else None)
+
+
+def test_encode_command_round_trip():
+    for cmd in (
+        StartSession(7, "S-1", "P-12", 0),
+        StartSession(8, "S-1", "P-12", 5),
+        StopSession(9),
+        MarkEvent(10, "qr_sync", "OQ1:1476350122230:S-1"),
+    ):
+        assert decode_command(encode_command(cmd)) == (cmd, cmd.seq, Result.OK)
+    assert encode_command(StartSession(7, "S-1", "P-12")) == bytes.fromhex("010703532d3104502d3132")
 
 
 def test_check_names():

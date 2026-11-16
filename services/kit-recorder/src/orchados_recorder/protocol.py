@@ -264,6 +264,19 @@ class MarkEvent:
 Command = StartSession | StopSession | MarkEvent
 
 
+def encode_command(cmd: Command) -> bytes:
+    """The phone's side, for fakes and tests. The override byte only when set."""
+    if isinstance(cmd, StartSession):
+        sid, pid = cmd.session_id.encode(), cmd.parcel_id.encode()
+        out = bytes([OP_START_SESSION, cmd.seq, len(sid)]) + sid + bytes([len(pid)]) + pid
+        return out + (bytes([cmd.override_mask]) if cmd.override_mask else b"")
+    if isinstance(cmd, StopSession):
+        return bytes([OP_STOP_SESSION, cmd.seq])
+    kind = {v: k for k, v in MARK_TYPES.items()}[cmd.kind]
+    payload = cmd.payload.encode()
+    return bytes([OP_MARK_EVENT, cmd.seq, kind, len(payload)]) + payload
+
+
 def valid_session_id(s: str) -> bool:
     return 1 <= len(s) <= MAX_SESSION_ID_LEN and all(
         c.isascii() and (c.isalnum() or c in "_-") for c in s

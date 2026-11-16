@@ -12,6 +12,7 @@ docs/arayuzler.md, "Kit kaydedicisi" -> "Saat".
 
 from __future__ import annotations
 
+import socket
 import struct
 import subprocess
 import time
@@ -108,6 +109,34 @@ def chrony_sock_sample(unix_ns: int, offset_s: float) -> bytes:
     """
     sec, rem = divmod(unix_ns, _NS)
     return struct.pack("<qqdiiii", sec, rem // 1000, offset_s, 0, 0, 0, CHRONY_SOCK_MAGIC)
+
+
+class ChronySockFeed:
+    """Sends the receiver's time to chrony's SOCK refclock (refid GNSS).
+
+    Each NAV-PVT with a resolved time gives one sample: the local receive time
+    and the offset of the solution's UTC from it. USB latency makes it coarse
+    (tens of ms); it only tells chrony which second the PPS edges belong to.
+    Without chrony (no socket) samples are dropped silently.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self.path = str(path)
+        self._sock: socket.socket | None = None
+
+    def send(self, pvt, rx_unix_ns: int) -> None:
+        utc_ns = pvt.utc_unix_ns()
+        if utc_ns is None:
+            return
+        sample = chrony_sock_sample(rx_unix_ns, (utc_ns - rx_unix_ns) / _NS)
+        try:
+            if self._sock is None:
+                self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+            self._sock.sendto(sample, self.path)
+        except OSError:
+            if self._sock is not None:
+                self._sock.close()
+            self._sock = None
 
 
 class SystemClock:
