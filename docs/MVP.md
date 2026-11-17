@@ -444,11 +444,11 @@ Mimari tek kişinin yönetebileceği biçimde tasarlandı: yönetilen bir backen
 | --- | --- | --- | --- |
 | 360° kamera | Insta360 X serisi ya da benzeri | 400–600 $ | SDK erişimi ve dışa aktarım formatı satın almadan önce kontrol edilmeli |
 | RTK GNSS alıcısı ve anten | u-blox ZED-F9P tabanlı (ör. ArduSimple) | 300–500 $ | PPK için ham veri kaydeder |
-| Düzeltme verisi | TUSAGA-Aktif (CORS-TR) aboneliği | Açık soru | PPK için istasyon verisi |
+| Düzeltme verisi | TUSAGA-Aktif (CORS-TR) aboneliği | Açık soru | PPK için istasyon verisi. Karar (16 Kasım 2026): baz verisi TUSAGA-Aktif'ten; kendi baz istasyonu kurulmaz |
 | Direk ve bağlantı | Sırt çantası direği, titreşim sönümleyici | — | Kamera ve anten aynı direkte |
 | Android telefon | Orta segment | — | Saha uygulaması ve yakın plan |
-| GNSS kaydedici | ESP32 + microSD | — | LiDAR'sız kitte Raspberry Pi gerekmez |
-| Güç ve depolama | Batarya, kamera için microSD kartlar | — | Video kameranın kartıyla ofise gelir |
+| Kayıt bilgisayarı | Raspberry Pi 5 (kit kaydedicisi) | — (elde var) | LiDAR'ı, ham GNSS'i ve PPS'i SSD'ye kaydeder; telefona Bluetooth ile durum gönderir. Kayıt yazılımı `services/kit-recorder/`. ESP32 kaydedici kitten çıktı (16 Kasım 2026) |
+| Güç ve depolama | Batarya, kamera için microSD kart, kayıt SSD'si | — | Video kameranın kartıyla, LiDAR ve GNSS kaydı SSD ile ofise gelir |
 
 Kitin ayrıntılı tasarımı, LiDAR'lı sürümü ve maliyeti [tarama-kiti.md](tarama-kiti.md) dosyasında. Alınan parçalar (16 Kasım 2026): Insta360 X4 Air, Radiolink RTK F9P, Unitree 4D LiDAR L2, kamera kartı ve kayıt SSD'si; liste [kit-siparis-listesi.md](kit-siparis-listesi.md)'de.
 
