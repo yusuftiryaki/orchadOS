@@ -276,3 +276,38 @@ def test_wrong_lidar_mode_blocks_start(rig):
     assert st[30] == Result.PRECHECK_FAILED and st[53] == 2 and st[55] & Check.LIDAR_MODE
     rig.cmd("01 08 03 53 2d 31 04 50 2d 31 32 02")
     assert rig.status()[30] == Result.OK and rig.status()[57] == Check.LIDAR_MODE
+
+
+def test_open_session_is_recovered_when_the_ssd_appears_later(tmp_path):
+    # Boot: the SSD is mounted after the service started (fstab nofail).
+    first = FakeRig(tmp_path / "ssd")
+    first.run(seconds=3)
+    first.cmd(START)
+    first.run(seconds=2)  # the power goes off here
+    rig = FakeRig(tmp_path / "ssd", ssd_status=SsdStatus(False, 0, False))
+    rig.run(seconds=2)
+    assert meta(rig)["stop_reason"] is None  # not looked at: the SSD is not there
+    rig.ssd_status = SsdStatus(True, 400 * 1024, False)
+    rig.run(seconds=1)
+    assert meta(rig)["stop_reason"] == "power_loss" and meta(rig)["stop"] is None
+    rig.run(seconds=2)
+    rig.cmd(START)
+    assert rig.status()[30] == Result.SESSION_EXISTS
+
+
+def test_session_that_could_not_be_closed_is_closed_when_the_ssd_returns(rig, monkeypatch):
+    rig.cmd(START)
+    rig.run(seconds=2)
+    writer = rig.recorder.writer
+
+    def gone(*_a, **_kw):
+        raise OSError(5, "Input/output error")
+
+    for name in ("event", "close", "write_recording_json"):
+        monkeypatch.setattr(writer, name, gone)
+    rig.ssd_status = SsdStatus(False, 0, False)
+    rig.run(seconds=1)
+    assert not rig.recorder.recording and meta(rig)["stop_reason"] is None
+    rig.ssd_status = SsdStatus(True, 400 * 1024, False)
+    rig.run(seconds=1)
+    assert meta(rig)["stop_reason"] == "sd_error"

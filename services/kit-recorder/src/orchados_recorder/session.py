@@ -16,6 +16,7 @@ import csv
 import io
 import json
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -230,13 +231,16 @@ class SessionWriter:
                 pass
 
 
-def recover_open_sessions(root: Path) -> list[str]:
+def recover_open_sessions(root: Path, reasons: Mapping[str, str] | None = None) -> list[str]:
     """Close sessions the power cut left open: stop_reason "power_loss".
 
-    `stop` stays null (as on the ESP32 after a power cut; the pipeline requires
-    esp_micros in a stop time, so none is made up), `gnss_bytes` is the size of
-    gnss.ubx and events.csv is not touched. Returns the closed session ids.
+    `reasons` gives another stop_reason for sessions the recorder stopped but
+    could not close (the SSD was gone); "power_loss" for the rest. `stop` stays
+    null (as on the ESP32 after a power cut; the pipeline requires esp_micros in a
+    stop time, so none is made up), `gnss_bytes` is the size of gnss.ubx and
+    events.csv is not touched. Returns the closed session ids.
     """
+    reasons = reasons or {}
     sessions = Path(root) / "sessions"
     if not sessions.is_dir():
         return []
@@ -249,11 +253,12 @@ def recover_open_sessions(root: Path) -> list[str]:
         if not isinstance(meta, dict) or meta.get("stop_reason") is not None:
             continue
         ubx = meta_path.parent / "gnss.ubx"
-        meta["stop_reason"] = "power_loss"
+        sid = meta.get("session_id") or meta_path.parent.parent.name
+        meta["stop_reason"] = reasons.get(sid, "power_loss")
         meta["gnss_bytes"] = ubx.stat().st_size if ubx.exists() else 0
         try:
             write_json_atomic(meta_path, meta)
         except OSError:
             continue
-        closed.append(meta.get("session_id") or meta_path.parent.parent.name)
+        closed.append(sid)
     return closed

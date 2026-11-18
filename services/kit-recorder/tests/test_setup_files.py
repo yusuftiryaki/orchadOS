@@ -122,3 +122,13 @@ def test_put_block_replaces_the_file_by_rename(tmp_path):
     assert _run_put_block(target, block) == 0
     text = target.read_text()
     assert "pps-gpio" not in text and text.count("# >>> orchados kit-recorder >>>") == 1
+
+
+def test_recorder_unit_is_ordered_after_the_ssd_mount_but_does_not_need_it():
+    # Power-loss recovery looks at the SSD at start: wait for the boot-time mount
+    # (or its 10 s device timeout), but keep running without the SSD.
+    unit = (SETUP / "orchados-recorder.service").read_text()
+    after = next(line for line in unit.splitlines() if line.startswith("After="))
+    assert "mnt-orchados\\x2dssd.mount" in after.split("=", 1)[1].split()
+    for key in ("RequiresMountsFor=", "BindsTo=", "Requires=", "PartOf="):
+        assert not any(line.startswith(key) for line in unit.splitlines())

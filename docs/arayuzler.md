@@ -117,7 +117,7 @@ Kit kaydedicisi aynı dosyayı aynı alanlarla yazar (`format_version` 1), şu f
 | `precheck_overrides` | Atlanan ön kontrol maddeleri listesi (`lidar`, `lidar_mode`, `clock`); boş olabilir (yeni alan) |
 | `clock_state_at_start` | `pps`, `coarse` ya da `unlocked` (yeni alan; [Kit kaydedicisi](#kit-kaydedicisi-raspberry-pi)) |
 | `receiver.port` | `"USB"`; `receiver.baud` ve `receiver.detected_baud` `null` |
-| `stop_reason` | Ek değer `power_loss`: Pi kapanmamış bir oturumla açıldı. `stop` `null` kalır (ESP32'de güç kesintisindeki gibi) |
+| `stop_reason` | Ek değer `power_loss`: Pi kapanmamış bir oturumla açıldı ya da SSD kapanmamış bir oturumla bağlandı. `stop` `null` kalır (ESP32'de güç kesintisindeki gibi). SSD kayıt sırasında çıkarıldığı için kapanış yazılamadıysa SSD geri takılınca `sd_error` yazılır, `stop` yine `null` |
 
 ### Kök `session.json` (saha uygulaması ve operasyon yazar)
 

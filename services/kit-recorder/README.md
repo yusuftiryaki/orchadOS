@@ -121,7 +121,7 @@ sudo mkfs.ext4 -L ORCHADOS-SSD /dev/sdX1    # bölüm yoksa önce: sudo parted /
 sudo mount /mnt/orchados-ssd
 ```
 
-- Açılıştan sonra takılan SSD de kendiliğinden bağlanır (udev kuralı). Çıkarmadan önce servis durdurulur ve SSD ayrılır: `sudo systemctl stop orchados-recorder && sudo umount /mnt/orchados-ssd`. Kayıt sürerken çıkarılırsa oturum `sd_error` ile kapanır.
+- Açılıştan sonra takılan SSD de kendiliğinden bağlanır (udev kuralı). Çıkarmadan önce servis durdurulur ve SSD ayrılır: `sudo systemctl stop orchados-recorder && sudo umount /mnt/orchados-ssd`. Kayıt sürerken çıkarılırsa oturum `sd_error` ile kapanır; dosyalar o an yazılamadıysa SSD geri takılınca `gnss/session.json`'a `stop_reason: sd_error` yazılır (`stop` `null` kalır).
 - Oturumlar `/mnt/orchados-ssd/sessions/<session_id>/` altındadır (`gnss/`, `lidar/raw/`).
 
 ## PPS teli
@@ -155,8 +155,8 @@ sudo mount /mnt/orchados-ssd
 
 ## Servis
 
-- `orchados-recorder.service` root olarak çalışır (BlueZ reklamı, alıcının seri portu, `/sys/class/pps`, chrony soketi). `After=unilidar.service chrony.service bluetooth.service`; bunlardan biri başlamasa da servis çalışır, eksik olan ön kontrolde görünür.
-- `Restart=always`: servis çökerse 2 sn sonra yeniden başlar. Açık bir oturum varsa onu `power_loss` ile kapatır ve **kendiliğinden yeni kayıt başlatmaz**; aynı `session_id` ile yeniden başlatma `session_exists` alır. Kayıt sürerken BLE bağlantısının kopması kaydı durdurmaz.
+- `orchados-recorder.service` root olarak çalışır (BlueZ reklamı, alıcının seri portu, `/sys/class/pps`, chrony soketi). `After=unilidar.service chrony.service bluetooth.service` ve SSD'nin bağlama birimi (`mnt-orchados\x2dssd.mount`, yalnız sıralama); bunlardan biri başlamasa ya da SSD takılı olmasa da servis çalışır, eksik olan ön kontrolde görünür.
+- `Restart=always`: servis çökerse 2 sn sonra yeniden başlar. Açık bir oturum varsa onu `power_loss` ile kapatır ve **kendiliğinden yeni kayıt başlatmaz**. Bu denetim SSD her bağlandığında (açılışta ya da sonradan takılınca, kayıt yokken) yapılır; aynı `session_id` ile yeniden başlatma `session_exists` alır. Kayıt sürerken BLE bağlantısının kopması kaydı durdurmaz.
 - `systemctl stop` (SIGTERM) açık oturumu `command` ile kapatır. `KillMode=mixed`: SIGTERM yalnız servise gider; servis `ros2 bag`'i SIGINT ile durdurur, böylece son MCAP parçası düzgün kapanır.
 - Günlükler: `journalctl -u orchados-recorder` (son açılıştan beri: `-b`, canlı: `-f`).
 

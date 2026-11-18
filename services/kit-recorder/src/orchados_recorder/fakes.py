@@ -114,6 +114,7 @@ class FakeRig:
         clock: FakeClock | None = None,
         bag_bytes_per_s: int = 4096,
         version: str | None = None,
+        ssd_status: SsdStatus | None = None,
     ) -> None:
         self.ssd = Path(ssd)
         self.ssd.mkdir(parents=True, exist_ok=True)
@@ -122,7 +123,7 @@ class FakeRig:
         self.lidar = FakeLidarMonitor(self.clock)
         self.popen = FakePopen()
         self.bag = BagRecorder(LidarConfig(), popen=self.popen)
-        self.ssd_status = SsdStatus(present=True, free_mib=400 * 1024, error=False)
+        self.ssd_status = ssd_status or SsdStatus(present=True, free_mib=400 * 1024, error=False)
         self.bag_bytes_per_s = bag_bytes_per_s
         self.receiver_sending = True
         deps = Deps(

@@ -133,13 +133,9 @@ class Recorder:
         self._session_pps = False
         self._session_meta: dict = {}
 
-        try:
-            closed = recover_open_sessions(deps.ssd_mount)
-        except OSError as exc:
-            log.warning("cannot look for open sessions: %s", exc)
-            closed = []
-        for sid in closed:
-            log.warning("session %s was left open (power loss); closed as power_loss", sid)
+        # Sessions this process stopped but could not close (SSD gone): their
+        # stop_reason, written when the SSD is back.
+        self._unclosed: dict[str, str] = {}
 
         self.receiver.configure(timeout_s=deps.receiver_timeout_s)
         self.deps.lidar.apply_mode()
@@ -200,7 +196,12 @@ class Recorder:
             self._imu_total += s.imu_messages
 
     def _probe(self, write_test: bool) -> None:
+        was_present = self.ssd.present
         self.ssd = self.deps.probe_ssd(self.deps.ssd_mount, write_test=write_test)
+        if self.ssd.present and not was_present and not self.recording:
+            # At start and whenever the SSD comes (back): the mount may come
+            # after the service (fstab nofail), so this is not done only once.
+            self._recover()
         if (
             write_test
             and self._write_error_us is not None
@@ -209,6 +210,18 @@ class Recorder:
             and self.clock.now_mono_us() - self._write_error_us >= SD_ERROR_HOLD_S * _US
         ):
             self._write_error_us = None
+
+    def _recover(self) -> None:
+        """Close the sessions left open on the SSD (power_loss, or the reason of a
+        stop whose files could not be written)."""
+        try:
+            closed = recover_open_sessions(self.deps.ssd_mount, reasons=self._unclosed)
+        except OSError as exc:
+            log.warning("cannot look for open sessions: %s", exc)
+            return
+        for sid in closed:
+            reason = self._unclosed.pop(sid, "power_loss")
+            log.warning("session %s was left open; closed as %s", sid, reason)
 
     def _snapshot(self) -> Snapshot:
         now = self._now()
@@ -469,6 +482,7 @@ class Recorder:
             ok = False
         if not ok:
             self._write_error_us = stop.mono_us
+            self._unclosed[writer.session_id] = reason
         self.health = None
         self.overrides = Check(0)
         self.alerts = Alert(0)
