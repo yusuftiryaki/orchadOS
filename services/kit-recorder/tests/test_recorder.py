@@ -311,3 +311,22 @@ def test_session_that_could_not_be_closed_is_closed_when_the_ssd_returns(rig, mo
     rig.ssd_status = SsdStatus(True, 400 * 1024, False)
     rig.run(seconds=1)
     assert meta(rig)["stop_reason"] == "sd_error"
+
+
+def test_stop_time_is_taken_before_the_bag_is_stopped(rig, monkeypatch):
+    # ros2 bag may take up to ~15 s to close its last segment.
+    rig.cmd(START)
+    rig.run(seconds=2)
+    stop_bag = rig.bag.stop
+
+    def slow_stop(*a, **kw):
+        rig.clock.advance_us(12_000_000)
+        stop_bag(*a, **kw)
+
+    monkeypatch.setattr(rig.bag, "stop", slow_stop)
+    before = rig.clock.now_mono_us()
+    rig.cmd("02 09")
+    assert meta(rig)["stop"]["esp_micros"] == before
+    assert events(rig)[-1][0] == str(before)
+    rec = json.loads((rig.ssd / "sessions/S-1/lidar/raw/recording.json").read_text())
+    assert rec["stop_gps_ns"] == meta(rig)["stop"]["gps_time_ns"]

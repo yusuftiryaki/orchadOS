@@ -433,11 +433,12 @@ class Recorder:
             return False
         self.writer = None
         ok = True
+        # The stop time is now: closing the bag's last segment can take ~15 s.
+        stop = self._now()
         try:
             self.deps.bag.stop()
         except Exception as exc:
             log.error("cannot stop ros2 bag: %s", exc)
-        stop = self._now()
         health.finish(stop.mono_us, stop.gps_ns)
         self.gap_count = health.gap_count
         self.longest_gap_s = health.longest_gap_s
