@@ -1,7 +1,8 @@
 # orchadOS kit recorder: BLE server, GNSS receiver, LiDAR recording, sessions on the SSD.
 # Runs as root: BlueZ advertising, the receiver's serial port, /sys/class/pps and
 # chrony's socket. A clean stop (SIGTERM) closes an open session with stop_reason
-# "command"; after a power loss the next start closes it with "power_loss".
+# "command", a crash of the service with "service_error"; after a power loss the
+# next start closes it with "power_loss".
 #
 # After= the SSD's mount unit (/mnt/orchados-ssd): with fstab nofail the mount is
 # not ordered before local-fs.target, and the power-loss recovery at start looks

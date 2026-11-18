@@ -68,7 +68,7 @@ esp_micros,gps_time_ns,event_type,payload,pps_esp_micros,pps_gps_time_ns
 | Olay | `payload` |
 | --- | --- |
 | `session_start` | `parcel_id=<parsel>` |
-| `session_stop` | `command`, `sd_full` ya da `sd_error` |
+| `session_stop` | `command`, `sd_full` ya da `sd_error`; kit kaydedicisinde ayrıca `service_error` |
 | `corner` | Telefondan gelen metin (köşe numarası) |
 | `qr_sync` | Telefonun o anda gösterdiği QR'ın **metninin tamamı** (aşağıda) |
 | `pps_lost`, `pps_regained` | Boş |
@@ -104,7 +104,7 @@ Kaynak: [firmware/gnss-logger/README.md → `session.json`](../firmware/gnss-log
 | `receiver` | nesne | Alıcı yapılandırması: `model`, `port`, `baud`, `meas_period_ms`, `rawx_rate_hz`, `nav_pvt_rate_hz`, `messages`, `nmea`, `timepulse_grid`, `config_status` (`ok`, `no_response`, `nak`, `invalid_settings`), `detected_baud` |
 | `gps_utc_leap_seconds` | int | 18 |
 | `start`, `stop` | nesne | `esp_micros`, `gps_time_ns` (eşleme yoksa `null`), `utc` (eşleme yoksa `null`). `stop` güç kesintisinde `null` kalır |
-| `stop_reason` | str | `command`, `sd_full`, `sd_error`; kit kaydedicisinde ayrıca `power_loss` (aşağıda) |
+| `stop_reason` | str | `command`, `sd_full`, `sd_error`; kit kaydedicisinde ayrıca `power_loss` ve `service_error` (aşağıda) |
 | `gnss_bytes` | int | `gnss.ubx`'e yazılan bayt |
 | `dropped_bytes` | int | Tampon taşmasıyla atılan bayt |
 
@@ -121,7 +121,7 @@ Kit kaydedicisi aynı dosyayı aynı alanlarla yazar (`format_version` 1), şu f
 | `receiver.port` | `"USB"`; `receiver.baud` ve `receiver.detected_baud` `null` |
 | `receiver.config_status` | Oturum başındaki durum. Yapılandırma `ok` olmadıkça (alıcı servisten sonra takıldı, ACK kaçtı) servis 5 sn'de bir yeniden dener; USB her açılışında yeniden yapılandırır |
 | `dropped_bytes` | Alıcı oturum sırasında yeniden yapılandırılırken ACK beklenirken okunup kaydedilmeyen bayt |
-| `stop_reason` | Ek değer `power_loss`: Pi kapanmamış bir oturumla açıldı ya da SSD kapanmamış bir oturumla bağlandı. `stop` `null` kalır (ESP32'de güç kesintisindeki gibi). SSD kayıt sırasında çıkarıldığı için kapanış yazılamadıysa SSD geri takılınca `sd_error` yazılır, `stop` yine `null` |
+| `stop_reason` | Ek değer `power_loss`: Pi kapanmamış bir oturumla açıldı ya da SSD kapanmamış bir oturumla bağlandı. `stop` `null` kalır (ESP32'de güç kesintisindeki gibi). SSD kayıt sırasında çıkarıldığı için kapanış yazılamadıysa SSD geri takılınca `sd_error` yazılır, `stop` yine `null`. Ek değer `service_error`: kayıt servisi beklenmedik bir hatayla sona erdi ve açık oturumu kapattı (`stop` dolu; `systemctl stop` ise `command` yazar) |
 
 ### Kök `session.json` (saha uygulaması ve operasyon yazar)
 

@@ -446,6 +446,11 @@ class Recorder:
         log.info("session %s started (overrides: %s)", cmd.session_id, check_names(overrides))
         return Result.OK
 
+    def stop_session(self, reason: str) -> bool:
+        """Close the open session (the service is stopping); False if there was
+        none or its files could not be written."""
+        return self._stop(reason)
+
     def _stop_command(self) -> Result:
         if not self.recording:
             return Result.NOT_RECORDING
