@@ -71,7 +71,7 @@ esp_micros,gps_time_ns,event_type,payload,pps_esp_micros,pps_gps_time_ns
 | `corner` | Telefondan gelen metin (köşe numarası) |
 | `qr_sync` | Telefonun o anda gösterdiği QR'ın **metninin tamamı** (aşağıda) |
 | `pps_lost`, `pps_regained` | Boş |
-| `sd_error` | `gnss_write`, `events_write` ya da `sd_full`; kit kaydedicisinde ayrıca `lidar_write` |
+| `sd_error` | `gnss_write`, `events_write` ya da `sd_full`; kit kaydedicisinde ayrıca `lidar_write` (LiDAR kayıt süreci öldü) ve `ssd_lost` (kayıt sırasında SSD çıkarıldı ya da durumu okunamıyor; SSD gitmişse satır yazılamamış olabilir) |
 | `lidar_lost`, `lidar_regained` | Boş. Yalnız kit kaydedicisi: LiDAR verisi 3 sn kesildi / geri geldi |
 | `gnss_lost`, `gnss_regained` | Boş. Yalnız kit kaydedicisi: alıcıdan 3 sn veri gelmedi (USB koptu) / geri geldi |
 | `precheck_override` | Yalnız kit kaydedicisi, `session_start`'tan hemen sonra: atlanan ön kontrol maddeleri `;` ile (ör. `lidar;clock`) |

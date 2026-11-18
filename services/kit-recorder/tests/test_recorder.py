@@ -147,9 +147,26 @@ def test_ssd_removed_mid_session_stops_with_sd_error(rig):
     st = rig.run(seconds=1)
     assert st[1] == 0 and st[2] & 0x01 == 0
     assert meta(rig)["stop_reason"] == "sd_error"
-    assert events(rig)[-1][2:4] == ["session_stop", "sd_error"]
+    assert [r[2:4] for r in events(rig)][-2:] == [
+        ["sd_error", "ssd_lost"],
+        ["session_stop", "sd_error"],
+    ]
     st = rig.run(seconds=2)  # the service keeps running
     assert st[1] == 0
+
+
+def test_ssd_removed_row_is_best_effort(rig, monkeypatch):
+    rig.cmd(START)
+    rig.run(seconds=2)
+
+    def gone(*_a, **_kw):
+        raise OSError(5, "Input/output error")
+
+    monkeypatch.setattr(rig.recorder.writer, "event", gone)
+    rig.ssd_status = SsdStatus(False, 0, False)
+    st = rig.run(seconds=1)
+    assert st[1] == 0 and st[2] & 0x04  # stopped, SSD error flag
+    assert meta(rig)["stop_reason"] == "sd_error"
 
 
 def test_write_error_stops_with_sd_error(rig, monkeypatch):

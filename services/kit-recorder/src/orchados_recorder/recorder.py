@@ -267,8 +267,7 @@ class Recorder:
     def _tick_recording(self, snap: Snapshot) -> None:
         if not self.ssd.present or self.ssd.error:
             log.error("SSD gone or failing while recording; stopping")
-            self._write_error_us = self.clock.now_mono_us()
-            self._stop("sd_error")
+            self._abort("ssd_lost")
             return
         if self.ssd.free_mib < SSD_STOP_MIB:
             log.error("SSD full; stopping")
@@ -418,12 +417,16 @@ class Recorder:
     def _fail(self, what: str, exc: Exception) -> None:
         """A write failed: sd_error (best effort), then stop with sd_error."""
         log.error("write failed (%s): %s; stopping", what, exc)
+        self._abort(what)
+
+    def _abort(self, what: str) -> None:
+        """An sd_error row (best effort: the SSD may be gone), then stop with sd_error."""
         self._write_error_us = self.clock.now_mono_us()
         if self.writer is None:
             return
         try:
             self.writer.event("sd_error", what, self._now(), self.anchor)
-        except OSError:
+        except (OSError, ValueError):  # ValueError: the file is already closed
             pass
         self._stop("sd_error")
 
