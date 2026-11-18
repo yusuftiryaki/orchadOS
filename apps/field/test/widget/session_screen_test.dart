@@ -587,22 +587,38 @@ void main() {
     await statusArrives(tester);
     expect(h.alertSound.count, 2);
 
-    // A second alert sounds right away; the banner lists both.
+    // A second alert shows at once on the banner and sounds 3 s after the
+    // last sound.
     h.logger.kit = const KitStatus(
       lidarState: LidarState.lost,
       alerts: [KitAlert.lidarSilent, KitAlert.clockUnlocked],
     );
     await statusArrives(tester);
-    expect(h.alertSound.count, 3);
+    expect(h.alertSound.count, 2);
     expect(
       find.text("LiDAR veri göndermiyor · Saat GPS'e kilitli değil"),
       findsOneWidget,
     );
+    for (var i = 0; i < 3; i++) {
+      h.clock.advance(const Duration(seconds: 1));
+      h.logger.tick();
+      await statusArrives(tester);
+    }
+    expect(h.alertSound.count, 3);
 
     // Gone when the alerts clear.
     h.logger.kit = const KitStatus();
     await statusArrives(tester);
     expect(banner, findsNothing);
+    // Back within 10 s of the last sound (a flicker): no sound …
+    h.clock.advance(const Duration(seconds: 2));
+    h.logger.kit = const KitStatus(alerts: [KitAlert.clockUnlocked]);
+    await statusArrives(tester);
+    expect(banner, findsOneWidget);
+    expect(h.alertSound.count, 3);
+    h.logger.kit = const KitStatus();
+    await statusArrives(tester);
+    // … later, with no alert, none either.
     h.clock.advance(const Duration(seconds: 20));
     h.logger.tick();
     await statusArrives(tester);

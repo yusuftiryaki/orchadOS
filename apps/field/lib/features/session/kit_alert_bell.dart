@@ -1,19 +1,29 @@
 import '../gnss/protocol/gnss_status.dart';
 
 /// When the kit's recording alerts sound (docs/arayuzler.md, "Kayıt
-/// sırasında"): once when a new alert appears, again every [repeat] while
-/// any alert lasts. Driven by the status messages (one per second), so the
+/// sırasında"): once when an alert appears, again every [repeat] while any
+/// alert lasts. Driven by the status messages (one per second), so the
 /// phone clock decides and tests can move it.
+///
+/// The bell never rings more often than every [repeat], so a flickering
+/// alert does not ring on every flicker. One exception: a type that has not
+/// rung yet in this recording rings as soon as [newTypeGap] has passed since
+/// the last ring.
 ///
 /// Alerts of a pre-check item the crew overrode do not sound: the kit keeps
 /// them raised for the whole session ([silencedBy]). The banner and the
 /// summary still show them.
 class KitAlertBell {
-  KitAlertBell({this.repeat = const Duration(seconds: 10)});
+  KitAlertBell({
+    this.repeat = const Duration(seconds: 10),
+    this.newTypeGap = const Duration(seconds: 3),
+  });
 
   final Duration repeat;
+  final Duration newTypeGap;
 
-  int _mask = 0;
+  /// Types the bell has rung for in this recording (mask).
+  int _rung = 0;
   DateTime? _lastRing;
   final Set<KitAlert> _seen = {};
 
@@ -47,17 +57,19 @@ class KitAlertBell {
     _seen.addAll(alerts);
     final mask =
         KitAlert.toMask(alerts) & ~KitAlert.toMask(silencedBy(overrides));
-    final fresh = mask & ~_mask != 0;
-    _mask = mask;
-    if (mask == 0) {
-      _lastRing = null;
-      return false;
-    }
+    if (mask == 0) return false;
     final last = _lastRing;
-    if (fresh || last == null || !now.isBefore(last.add(repeat))) {
-      _lastRing = now;
-      return true;
-    }
-    return false;
+    final since = last == null ? null : now.difference(last);
+    final newType = mask & ~_rung != 0;
+    // A phone clock set back must not mute the bell.
+    final ring =
+        since == null ||
+        since.isNegative ||
+        since >= repeat ||
+        (newType && since >= newTypeGap);
+    if (!ring) return false;
+    _lastRing = now;
+    _rung |= mask;
+    return true;
   }
 }

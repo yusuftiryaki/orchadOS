@@ -265,7 +265,7 @@ Atlanan maddeler `gnss/session.json`'da `precheck_overrides`, `events.csv`'de `p
 
 ### Kayıt sırasında
 
-- Uyarılar (`alerts`) durum mesajıyla her saniye gider; saha uygulaması yeni bir uyarıda ses çalar, uyarı sürdükçe 10 sn'de bir tekrarlar ve uyarı bandını gösterir.
+- Uyarılar (`alerts`) durum mesajıyla her saniye gider; saha uygulaması yeni bir uyarıda ses çalar, uyarı sürdükçe 10 sn'de bir tekrarlar ve uyarı bandını gösterir. Ses en sık 10 sn'de bir çalar (gidip gelen uyarı her gelişinde çalmaz); yalnız bu kayıtta henüz çalmamış bir uyarı türü son sesten 3 sn sonra çalabilir.
 - Atlanan maddenin (`overrides`) uyarısı oturum boyunca kalkık kalır; saha uygulaması onun için ses çalmaz, bantta ve özette yine gösterir: `lidar` atlandıysa `lidar_silent` ve `lidar_rate_low`, `clock` atlandıysa `clock_unlocked`. `lidar_mode`'un uyarısı yoktur. `lidar_not_written` susturulmaz: LiDAR sustuğunda kit bu uyarıyı kaldırmaz, uyarı kayıt sürecinin kendisinin bozulduğunu gösterir.
 - `lidar_silent`: 3 sn'dir nokta yok. `lidar_rate_low`: nokta var ama hız beklenenin yarısının altında. `lidar_not_written`: kayıt süreci ölü ya da MCAP 10 sn'dir büyümüyor (oturumun ilk 10 sn'i hariç). `gnss_silent`: 3 sn'dir UBX yok. `clock_unlocked`: saat PPS'e kilitli değil. `ssd_error`: yazma hatası. `ssd_low`: boş alan 20 GiB'ın altında.
 - Kopuşlar kaydı durdurmaz: LiDAR ya da alıcı geri gelince kayıt sürer, boşluk `events.csv`'ye ve `recording.json`'a yazılır. SSD çıkarılırsa ya da yazılamazsa oturum `sd_error`, boş alan 512 MiB'ın altına düşerse `sd_full` ile kapanır.

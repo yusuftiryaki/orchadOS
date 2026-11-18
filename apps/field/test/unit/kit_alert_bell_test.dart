@@ -24,6 +24,50 @@ void main() {
     expect(run(bell, 0, 25, (_) => [KitAlert.ssdLow]), [0, 10, 20]);
   });
 
+  test('a flickering alert rings at most every 10 s', () {
+    final bell = KitAlertBell();
+    // On every other second.
+    final rings = run(
+      bell,
+      0,
+      30,
+      (s) => s.isEven ? [KitAlert.lidarRateLow] : const [],
+    );
+    expect(rings, [0, 10, 20, 30]);
+  });
+
+  test('an alert back after a quiet spell rings at once', () {
+    final bell = KitAlertBell();
+    expect(run(bell, 0, 2, (_) => [KitAlert.gnssSilent]), [0]);
+    expect(run(bell, 3, 14, (_) => const []), isEmpty);
+    expect(run(bell, 15, 15, (_) => [KitAlert.gnssSilent]), [15]);
+  });
+
+  test('a new alert type rings early, but not right after a ring', () {
+    final bell = KitAlertBell();
+    expect(run(bell, 0, 0, (_) => [KitAlert.lidarSilent]), [0]);
+    // A new type 1 s later waits until 3 s after the last ring …
+    final both = [KitAlert.lidarSilent, KitAlert.gnssSilent];
+    expect(run(bell, 1, 12, (_) => both), [3]);
+    // … then both repeat together, 10 s after that ring.
+    expect(run(bell, 13, 13, (_) => both), [13]);
+  });
+
+  test('a type that already rang does not ring early again', () {
+    final bell = KitAlertBell();
+    expect(run(bell, 0, 0, (_) => [KitAlert.gnssSilent]), [0]);
+    expect(run(bell, 4, 4, (_) => [KitAlert.gnssSilent, KitAlert.ssdLow]), [4]);
+    // gnss_silent clears and comes back 5 s after the last ring: no sound.
+    expect(run(bell, 5, 6, (_) => [KitAlert.ssdLow]), isEmpty);
+    expect(
+      run(bell, 7, 13, (_) => [KitAlert.gnssSilent, KitAlert.ssdLow]),
+      isEmpty,
+    );
+    expect(run(bell, 14, 14, (_) => [KitAlert.gnssSilent, KitAlert.ssdLow]), [
+      14,
+    ]);
+  });
+
   test('overridden items do not ring but are kept for the summary', () {
     final bell = KitAlertBell();
     const overrides = [KitCheck.lidar, KitCheck.clock];
