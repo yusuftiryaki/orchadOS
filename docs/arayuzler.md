@@ -261,7 +261,7 @@ Fix durumu ön kontrol maddesi değildir (saha uygulaması kendi ön kontrolünd
 
 **`start_session` atlama baytı:** `01 seq len session_id len parcel_id [override_mask]`. Bayt yoksa maske 0'dır; ESP32 fazla baytı `malformed` saydığı için saha uygulaması bu baytı yalnız `recorder_kind` 1 olan kaydediciye gönderir. Maskede `0x07` dışında bir bit varsa sonuç `invalid_argument` (3). Kit kaydedicisinde `start_session` sırası: kayıttaysa `already_recording`; SSD yoksa `sd_missing`, boş alan yetmiyorsa `sd_full`, SSD hatasıysa `sd_error`; geçmeyen ve maskede olmayan madde varsa **`precheck_failed` (10)**; oturum klasörü varsa `session_exists`; yoksa `ok`.
 
-Atlanan maddeler `gnss/session.json`'da `precheck_overrides`, `events.csv`'de `precheck_override` olayı ve durumda `overrides` olarak görünür.
+Kit maskeyi başlatma anındaki kendi ön kontrolünde geçmeyen maddelerle keser; bu yüzden saha uygulaması ekibin onayladığı bütün atlanabilir maddeleri gönderir (son durumda geçmiş olsalar da) ve başlangıç olayına kitin uyguladığını (durumdaki `overrides`) yazar. Atlanan maddeler `gnss/session.json`'da `precheck_overrides`, `events.csv`'de `precheck_override` olayı ve durumda `overrides` olarak görünür.
 
 ### Kayıt sırasında
 
