@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orchados_field/app/providers.dart';
 import 'package:orchados_field/app/theme.dart';
+import 'package:orchados_field/core/audio/alert_sound.dart';
 import 'package:orchados_field/core/db/database.dart';
+import 'package:orchados_field/core/device/wakelock.dart';
 import 'package:orchados_field/core/media/field_camera.dart';
 import 'package:orchados_field/core/media/media_store.dart';
 import 'package:orchados_field/core/media/synthetic_photo.dart';
@@ -34,7 +36,9 @@ class TestHarness {
        db = AppDatabase(NativeDatabase.memory()),
        camera = FakeFieldCamera(script: photos, openResult: cameraOpenResult),
        media = MemoryMediaStore(),
-       beeper = FakeBeeper() {
+       beeper = FakeBeeper(),
+       alertSound = FakeAlertSound(),
+       wakelock = FakeWakelock() {
     // Each test opens its own in-memory database.
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
     logger = FakeGnssLogger(
@@ -51,6 +55,8 @@ class TestHarness {
         cameraProvider.overrideWithValue(camera),
         mediaStoreProvider.overrideWithValue(media),
         beeperProvider.overrideWithValue(beeper),
+        alertSoundProvider.overrideWithValue(alertSound),
+        wakelockProvider.overrideWithValue(wakelock),
         // Same check, on the test isolate so that fake time controls it.
         photoQualityCheckerProvider.overrideWithValue(
           const PhotoQualityChecker(useIsolate: false),
@@ -71,6 +77,8 @@ class TestHarness {
   final FakeFieldCamera camera;
   final MemoryMediaStore media;
   final FakeBeeper beeper;
+  final FakeAlertSound alertSound;
+  final FakeWakelock wakelock;
 
   /// Sync target; null = no server (offline development build).
   final SyncServer? server;

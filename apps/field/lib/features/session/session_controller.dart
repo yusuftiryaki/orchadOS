@@ -22,6 +22,7 @@ import '../route/route_view.dart';
 import '../summary/visit_log.dart';
 import '../tasks/closeup_selection.dart';
 import '../tasks/field_task.dart';
+import 'kit_alert_bell.dart';
 
 enum SessionPhase { idle, starting, recording, stopping, stopped }
 
@@ -101,9 +102,18 @@ class SessionState {
     this.objections = 0,
     this.pointerName,
     this.pointerRole,
+    this.kitAtStop,
+    this.kitAlertsSeen = const [],
   });
 
   final FieldTask? task;
+
+  /// Kit recorder status just before the stop (LiDAR summary); null for the
+  /// ESP32 and before the stop.
+  final KitStatus? kitAtStop;
+
+  /// Kit alerts seen during the recording.
+  final List<KitAlert> kitAlertsSeen;
 
   /// Newest "sözlü bilgi" answer of this recording; null until given.
   final VerbalNotice? verbalNotice;
@@ -159,6 +169,8 @@ class SessionState {
     int? objections,
     String? pointerName,
     PointerRole? pointerRole,
+    KitStatus? kitAtStop,
+    List<KitAlert>? kitAlertsSeen,
   }) => SessionState(
     task: task ?? this.task,
     phase: phase ?? this.phase,
@@ -176,6 +188,8 @@ class SessionState {
     objections: objections ?? this.objections,
     pointerName: pointerName ?? this.pointerName,
     pointerRole: pointerRole ?? this.pointerRole,
+    kitAtStop: kitAtStop ?? this.kitAtStop,
+    kitAlertsSeen: kitAlertsSeen ?? this.kitAlertsSeen,
   );
 }
 
@@ -196,6 +210,8 @@ class SessionController extends Notifier<SessionState> {
 
   CoverageTracker? _tracker;
   StreamSubscription<GnssStatusSample>? _track;
+  StreamSubscription<GnssStatusSample>? _alerts;
+  KitAlertBell? _bell;
   RouteGuide? _guide;
   StopGoWalk? _stopGo;
   double? _crewAzimuthDeg;
@@ -246,11 +262,28 @@ class SessionController extends Notifier<SessionState> {
 
     state = state.copyWith(coverage: _view(tracker));
     _track = logger.statusStream.listen(onStatus);
+
+    // Kit recorder alerts: sound on a new one, again every 10 s while any
+    // lasts (the banner reads the status itself).
+    final bell = _bell = KitAlertBell();
+    void onAlerts(GnssStatusSample s) {
+      final kit = s.status.kit;
+      if (kit == null || !ref.mounted) return;
+      if (bell.update(kit.alerts, ref.read(clockProvider).now())) {
+        ref.read(alertSoundProvider).play().ignore();
+      }
+    }
+
+    final last = logger.lastStatus;
+    if (last != null) onAlerts(last);
+    _alerts = logger.statusStream.listen(onAlerts);
   }
 
   void _stopTrack() {
     _track?.cancel();
     _track = null;
+    _alerts?.cancel();
+    _alerts = null;
   }
 
   static CoverageView _view(CoverageTracker t) => CoverageView(
@@ -881,7 +914,11 @@ class SessionController extends Notifier<SessionState> {
       error: () => null,
     );
     final time = _now();
-    final result = await ref.read(gnssLoggerProvider).stopSession();
+    final logger = ref.read(gnssLoggerProvider);
+    // The kit's counters of this recording, for the summary (the status is
+    // all the phone sees of the LiDAR recording).
+    final kitAtStop = logger.lastStatus?.status.kit;
+    final result = await logger.stopSession();
     if (!ref.mounted) return false;
     if (!result.isOk && result != CommandResult.notRecording) {
       state = state.copyWith(
@@ -932,7 +969,12 @@ class SessionController extends Notifier<SessionState> {
       stopGpsTimeMs: time.gpsTimeMs,
     );
     if (!ref.mounted) return true;
-    state = state.copyWith(phase: SessionPhase.stopped, busy: false);
+    state = state.copyWith(
+      phase: SessionPhase.stopped,
+      busy: false,
+      kitAtStop: kitAtStop,
+      kitAlertsSeen: _bell?.seen,
+    );
     return true;
   }
 

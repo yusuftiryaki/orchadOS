@@ -19,7 +19,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orchados_field/app/providers.dart';
 import 'package:orchados_field/app/theme.dart';
+import 'package:orchados_field/core/audio/alert_sound.dart';
 import 'package:orchados_field/core/db/database.dart';
+import 'package:orchados_field/core/device/wakelock.dart';
 import 'package:orchados_field/core/geo/geo.dart';
 import 'package:orchados_field/core/media/field_camera.dart';
 import 'package:orchados_field/core/media/media_store.dart';
@@ -135,6 +137,8 @@ class ShotHarness {
         cameraProvider.overrideWithValue(camera),
         mediaStoreProvider.overrideWithValue(media),
         beeperProvider.overrideWithValue(FakeBeeper()),
+        alertSoundProvider.overrideWithValue(FakeAlertSound()),
+        wakelockProvider.overrideWithValue(FakeWakelock()),
         photoQualityCheckerProvider.overrideWithValue(
           const PhotoQualityChecker(useIsolate: false),
         ),

@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../core/device/wakelock.dart';
 import '../../core/ui/widgets.dart';
 import '../boundary/boundary_screen.dart';
 import '../closeup/closeup_list_screen.dart';
 import '../coverage/coverage_card.dart';
 import '../gnss/gnss_panel.dart';
+import '../gnss/protocol/gnss_status.dart';
 import '../notice/notice_widgets.dart';
 import '../qr_clock/qr_clock_screen.dart';
 import '../route/route_card.dart';
+import '../summary/kit_summary.dart';
 import '../summary/visit_summary_screen.dart';
 import '../tasks/field_task.dart';
 import 'session_controller.dart';
@@ -27,6 +30,10 @@ class SessionScreen extends ConsumerWidget {
     final loggerStatus = ref.watch(gnssStatusProvider).value?.status;
     final loggerStopped =
         state.isRecording && loggerStatus != null && !loggerStatus.recording;
+    // Kit recorder alerts, shown while they last (the controller sounds them).
+    final kitAlerts = state.isRecording
+        ? loggerStatus?.kit?.alerts ?? const <KitAlert>[]
+        : const <KitAlert>[];
 
     ref.listen(sessionControllerProvider.select((s) => s.error), (_, error) {
       if (error != null) {
@@ -41,44 +48,50 @@ class SessionScreen extends ConsumerWidget {
     void openBoundary() => Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => const BoundaryScreen()));
 
-    return PopScope(
-      // Leaving while recording would orphan the logger session.
-      canPop: state.phase == SessionPhase.idle,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(task?.parcelName ?? 'Oturum'),
-          automaticallyImplyLeading: state.phase == SessionPhase.idle,
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const GnssConnectBar(),
-              const GnssPanel(showRecording: true),
-              if (loggerStopped)
-                Card(
-                  color: Colors.red.shade50,
-                  child: const ListTile(
-                    leading: Icon(Icons.warning, color: Colors.red, size: 36),
-                    title: Text(
-                      'Kaydedici kaydı durdurdu (SD kart dolu ya da hatalı). '
-                      'Bitiş QR’ını gösterip oturumu durdurun.',
+    return KeepScreenOn(
+      on:
+          state.phase == SessionPhase.recording ||
+          state.phase == SessionPhase.stopping,
+      child: PopScope(
+        // Leaving while recording would orphan the logger session.
+        canPop: state.phase == SessionPhase.idle,
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(task?.parcelName ?? 'Oturum'),
+            automaticallyImplyLeading: state.phase == SessionPhase.idle,
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (kitAlerts.isNotEmpty) _KitAlertBanner(kitAlerts),
+                const GnssConnectBar(),
+                const GnssPanel(showRecording: true),
+                if (loggerStopped)
+                  Card(
+                    color: Colors.red.shade50,
+                    child: const ListTile(
+                      leading: Icon(Icons.warning, color: Colors.red, size: 36),
+                      title: Text(
+                        'Kaydedici kaydı durdurdu (SD kart dolu ya da hatalı). '
+                        'Bitiş QR’ını gösterip oturumu durdurun.',
+                      ),
                     ),
                   ),
+                if (state.isRecording && state.route != null) const RouteCard(),
+                if (state.coverage != null) const CoverageCard(),
+                const SizedBox(height: 16),
+                ..._actions(
+                  context,
+                  ref,
+                  state,
+                  controller,
+                  openQr,
+                  openBoundary,
                 ),
-              if (state.isRecording && state.route != null) const RouteCard(),
-              if (state.coverage != null) const CoverageCard(),
-              const SizedBox(height: 16),
-              ..._actions(
-                context,
-                ref,
-                state,
-                controller,
-                openQr,
-                openBoundary,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -183,6 +196,16 @@ class SessionScreen extends ConsumerWidget {
             leading: Icon(Icons.check_circle, color: Colors.green, size: 40),
             title: Text('Kayıt durdu. Kameradaki videoyu da durdurun.'),
           ),
+          if (state.kitAtStop != null)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: KitStopSummary(
+                  kit: state.kitAtStop,
+                  alerts: state.kitAlertsSeen,
+                ),
+              ),
+            ),
           const FieldInstructionCard(),
           if (state.task?.isInventory ?? false) ...[
             gap,
@@ -263,6 +286,75 @@ Future<void> _pickProblemTree(
       SnackBar(content: Text('${picked.code} yakın plan listesine eklendi')),
     );
   }
+}
+
+/// Live alerts of the kit recorder, in the alert colour, while they last.
+class _KitAlertBanner extends StatelessWidget {
+  const _KitAlertBanner(this.alerts);
+
+  final List<KitAlert> alerts;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    key: const Key('kit-alert-banner'),
+    color: StatusLine.colorFor(Health.bad),
+    child: ListTile(
+      minTileHeight: 72,
+      leading: const Icon(Icons.warning, color: Colors.white, size: 36),
+      title: Text(
+        alerts.map((a) => a.label).join(' · '),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ),
+  );
+}
+
+/// Keeps the phone's screen on while [on] and until it leaves the screen
+/// (the phone sits on the handlebar; there is no background service).
+class KeepScreenOn extends ConsumerStatefulWidget {
+  const KeepScreenOn({super.key, required this.on, required this.child});
+
+  final bool on;
+  final Widget child;
+
+  @override
+  ConsumerState<KeepScreenOn> createState() => _KeepScreenOnState();
+}
+
+class _KeepScreenOnState extends ConsumerState<KeepScreenOn> {
+  late final Wakelock _wakelock = ref.read(wakelockProvider);
+  bool _enabled = false;
+
+  void _apply() {
+    if (widget.on == _enabled) return;
+    _enabled = widget.on;
+    (_enabled ? _wakelock.enable() : _wakelock.disable()).ignore();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _apply();
+  }
+
+  @override
+  void didUpdateWidget(KeepScreenOn oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _apply();
+  }
+
+  @override
+  void dispose() {
+    if (_enabled) _wakelock.disable().ignore();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _Step extends StatelessWidget {

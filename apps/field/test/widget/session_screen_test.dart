@@ -23,6 +23,7 @@ Future<TestHarness> openSession(
   bool provideGpsTime = true,
   int phoneClockErrorMs = 0,
   bool inventory = true,
+  KitStatus? kit,
 }) async {
   tester.view.physicalSize = const Size(1080, 2400);
   tester.view.devicePixelRatio = 2.5;
@@ -30,6 +31,7 @@ Future<TestHarness> openSession(
   final h = TestHarness(
     provideGpsTime: provideGpsTime,
     phoneClockErrorMs: phoneClockErrorMs,
+    kit: kit,
   );
   h.container
       .read(sessionControllerProvider.notifier)
@@ -44,6 +46,13 @@ Future<TestHarness> openSession(
 Future<void> answerNotice(WidgetTester tester) async {
   await tapVisible(tester, find.byKey(const Key('check-notice-sign-yes')));
   await tapVisible(tester, find.byKey(const Key('check-notice-badge-yes')));
+  await tester.pump();
+}
+
+/// Lets a status notification reach the screen (logger stream, then the
+/// status provider).
+Future<void> statusArrives(WidgetTester tester) async {
+  await tester.pump();
   await tester.pump();
 }
 
@@ -536,6 +545,109 @@ void main() {
     );
     expect(h.logger.receivedCommands.whereType<StartSession>(), hasLength(1));
 
+    await h.dispose(tester);
+  });
+
+  testWidgets('kit alert shows a banner and plays once, again after 10 s', (
+    tester,
+  ) async {
+    final h = await openSession(
+      tester,
+      inventory: false,
+      kit: const KitStatus(),
+    );
+    final banner = find.byKey(const Key('kit-alert-banner'));
+    expect(h.wakelock.enabled, isFalse);
+    await tapVisible(tester, find.byKey(const Key('session-start')));
+    await settle(tester);
+    expect(h.wakelock.enabled, isTrue, reason: 'screen on while recording');
+    expect(banner, findsNothing);
+    expect(h.alertSound.count, 0);
+
+    h.logger.kit = const KitStatus(
+      lidarState: LidarState.lost,
+      alerts: [KitAlert.lidarSilent],
+    );
+    await statusArrives(tester);
+    expect(banner, findsOneWidget);
+    expect(find.text('LiDAR veri göndermiyor'), findsOneWidget);
+    expect(h.alertSound.count, 1);
+
+    // The same alert, every second: no new sound before 10 s.
+    for (var i = 0; i < 9; i++) {
+      h.clock.advance(const Duration(seconds: 1));
+      h.logger.tick();
+      await statusArrives(tester);
+    }
+    expect(h.alertSound.count, 1);
+    h.clock.advance(const Duration(seconds: 1));
+    h.logger.tick();
+    await statusArrives(tester);
+    expect(h.alertSound.count, 2);
+
+    // A second alert sounds right away; the banner lists both.
+    h.logger.kit = const KitStatus(
+      lidarState: LidarState.lost,
+      alerts: [KitAlert.lidarSilent, KitAlert.clockUnlocked],
+    );
+    await statusArrives(tester);
+    expect(h.alertSound.count, 3);
+    expect(
+      find.text("LiDAR veri göndermiyor · Saat GPS'e kilitli değil"),
+      findsOneWidget,
+    );
+
+    // Gone when the alerts clear.
+    h.logger.kit = const KitStatus();
+    await statusArrives(tester);
+    expect(banner, findsNothing);
+    h.clock.advance(const Duration(seconds: 20));
+    h.logger.tick();
+    await statusArrives(tester);
+    expect(h.alertSound.count, 3);
+
+    await showQr(tester, 'session-start-qr');
+    await showQr(tester, 'session-end-qr');
+    await tapVisible(tester, find.byKey(const Key('session-stop')));
+    await settle(tester);
+    expect(h.wakelock.enabled, isFalse, reason: 'released after the stop');
+    // The summary keeps what was seen.
+    expect(
+      find.text("LiDAR veri göndermiyor, Saat GPS'e kilitli değil"),
+      findsOneWidget,
+    );
+    await h.dispose(tester);
+  });
+
+  testWidgets('ESP32 session shows no LiDAR line and plays no alert', (
+    tester,
+  ) async {
+    final h = await openSession(tester, inventory: false);
+    await tapVisible(tester, find.byKey(const Key('session-start')));
+    await settle(tester);
+    expect(h.wakelock.enabled, isTrue);
+    expect(find.text('LiDAR'), findsNothing);
+    expect(find.text('Batarya'), findsOneWidget);
+    await showQr(tester, 'session-start-qr');
+    await showQr(tester, 'session-end-qr');
+    await tapVisible(tester, find.byKey(const Key('session-stop')));
+    await settle(tester);
+    expect(h.container.read(sessionControllerProvider).kitAtStop, isNull);
+    expect(find.byKey(const Key('kit-summary')), findsNothing);
+    expect(find.text('LiDAR'), findsNothing);
+    expect(h.alertSound.count, 0);
+    expect(h.wakelock.enabled, isFalse);
+    await h.dispose(tester);
+  });
+
+  testWidgets('leaving the screen releases the screen', (tester) async {
+    final h = await openSession(tester, inventory: false);
+    await tapVisible(tester, find.byKey(const Key('session-start')));
+    await settle(tester);
+    expect(h.wakelock.enabled, isTrue);
+    await tester.pumpWidget(h.wrap(const SizedBox()));
+    await tester.pump();
+    expect(h.wakelock.enabled, isFalse);
     await h.dispose(tester);
   });
 }
