@@ -111,6 +111,11 @@ class FakeGnssLogger extends GnssLoggerBase {
     tick();
   }
 
+  /// The kit's own re-check at the next `start_session` when it differs
+  /// from the last status (the Pi evaluates the pre-check afresh); becomes
+  /// [kit] at that start.
+  KitStatus? kitAtStart;
+
   @override
   String? get deviceName =>
       connection == GnssConnection.connected ? 'orchados-gnss-FAKE' : null;
@@ -183,9 +188,13 @@ class FakeGnssLogger extends GnssLoggerBase {
   CommandResult _apply(GnssCommandDecode decoded) {
     final command = decoded.command;
     if (command == null) return decoded.result;
-    final kit = _kit;
+    var kit = _kit;
     switch (command) {
       case StartSession(:final sessionId, :final overrideMask):
+        if (kit != null && kitAtStart != null) {
+          kit = _kit = kitAtStart;
+          kitAtStart = null;
+        }
         // The ESP32 firmware takes no override byte.
         if (kit == null && overrideMask != null) return CommandResult.malformed;
         if (_status.recording) return CommandResult.alreadyRecording;
@@ -193,18 +202,18 @@ class FakeGnssLogger extends GnssLoggerBase {
         if (_status.sdLowSpace) return CommandResult.sdFull;
         if (_status.sdError) return CommandResult.sdError;
         final mask = overrideMask ?? 0;
+        final failing = kit == null ? 0 : KitCheck.toMask(kit.precheckFail);
         // Order of the kit recorder (docs/arayuzler.md): a failed item that
         // is not overridden refuses the start before the session folder.
-        if (kit != null && KitCheck.toMask(kit.precheckFail) & ~mask != 0) {
-          return CommandResult.precheckFailed;
-        }
+        if (failing & ~mask != 0) return CommandResult.precheckFailed;
         if (!_sessionsOnCard.add(sessionId)) {
           return CommandResult.sessionExists;
         }
         _status = _status.copyWith(recording: true, bytesWritten: 0);
         if (kit != null) {
           _kit = kit.copyWith(
-            overrides: KitCheck.fromMask(mask),
+            // The kit applies only the items that fail now.
+            overrides: KitCheck.fromMask(mask & failing),
             lidarGapCount: 0,
             lidarLongestGapS: 0,
             lidarWrittenMib: 0,

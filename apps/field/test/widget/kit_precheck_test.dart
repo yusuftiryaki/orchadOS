@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orchados_field/app/providers.dart';
 import 'package:orchados_field/features/checklist/precheck_screen.dart';
+import 'package:orchados_field/features/checklist/scan_setup.dart';
 import 'package:orchados_field/features/gnss/fake_gnss_logger.dart';
 import 'package:orchados_field/features/gnss/protocol/gnss_command.dart';
 import 'package:orchados_field/features/gnss/protocol/gnss_status.dart';
+import 'package:orchados_field/features/notice/field_records.dart';
 import 'package:orchados_field/features/session/session_controller.dart';
 import 'package:orchados_field/features/session/session_screen.dart';
 import 'package:orchados_field/features/tasks/task_repository.dart';
@@ -222,6 +224,98 @@ void main() {
     expect(event.payload, 'parcel_id=${periodicTask.parcelId}');
     final precheck = (jsonDecode(event.dataJson!) as Map)['precheck'] as Map;
     expect(precheck['kit_overrides'], ['clock']);
+    await tester.pump(const Duration(seconds: 5));
+    await h.dispose(tester);
+  });
+
+  /// Overrides the clock on the pre-check, then the clock locks before the
+  /// start.
+  Future<TestHarness> overrideClockThenLock(WidgetTester tester) async {
+    final h = await openPrecheck(
+      tester,
+      kit: const KitStatus(
+        clock: KitClock.unlocked,
+        precheckFail: [KitCheck.clock],
+      ),
+    );
+    await tapVisible(tester, find.byKey(const Key('kit-override-clock')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('kit-override-confirm')));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.byKey(const Key('precheck-continue')));
+    await tester.pumpAndSettle();
+    h.logger.kit = const KitStatus();
+    await tester.pump();
+    expect(h.logger.lastStatus!.status.kit!.precheckFail, isEmpty);
+    return h;
+  }
+
+  Future<Map<String, Object?>?> startPrecheck(
+    WidgetTester tester,
+    TestHarness h,
+  ) async {
+    final repo = h.container.read(fieldRepositoryProvider);
+    final sessionId = h.container.read(sessionControllerProvider).sessionId!;
+    final events = (await tester.runAsync(() => repo.events(sessionId)))!;
+    final event = events.firstWhere((e) => e.eventType == 'session_start');
+    return (jsonDecode(event.dataJson!) as Map)['precheck']
+        as Map<String, Object?>?;
+  }
+
+  testWidgets('a confirmed override goes even if the item passes now', (
+    tester,
+  ) async {
+    final h = await overrideClockThenLock(tester);
+    // The kit evaluates afresh at the start: the clock has lost PPS again.
+    h.logger.kitAtStart = const KitStatus(
+      clock: KitClock.coarse,
+      precheckFail: [KitCheck.clock],
+    );
+    final controller = h.container.read(sessionControllerProvider.notifier);
+    expect(await tester.runAsync(controller.start), isTrue);
+    final start = h.logger.receivedCommands.single as StartSession;
+    expect(start.overrideMask, 0x04);
+    expect(h.logger.lastStatus!.status.kit!.overrides, [KitCheck.clock]);
+    expect((await startPrecheck(tester, h))!['kit_overrides'], ['clock']);
+    await tester.pump(const Duration(seconds: 5));
+    await h.dispose(tester);
+  });
+
+  testWidgets('an override the kit does not need is not recorded', (
+    tester,
+  ) async {
+    final h = await overrideClockThenLock(tester);
+    final controller = h.container.read(sessionControllerProvider.notifier);
+    expect(await tester.runAsync(controller.start), isTrue);
+    final start = h.logger.receivedCommands.single as StartSession;
+    expect(start.overrideMask, 0x04);
+    // The kit applies only failing items.
+    expect(h.logger.lastStatus!.status.kit!.overrides, isEmpty);
+    final precheck = (await startPrecheck(tester, h))!;
+    expect(precheck.containsKey('kit_overrides'), isFalse);
+    await tester.pump(const Duration(seconds: 5));
+    await h.dispose(tester);
+  });
+
+  testWidgets('ESP32 start sends no override byte', (tester) async {
+    final h = await openPrecheck(tester);
+    await tapVisible(tester, find.byKey(const Key('precheck-continue')));
+    await tester.pumpAndSettle();
+    final controller = h.container.read(sessionControllerProvider.notifier);
+    // Even with an override left from a kit pre-check.
+    controller.confirmPrecheck(
+      spraying: SprayingCheck.none,
+      platform: ScanPlatform.walk,
+      cameraHeightM: 1.8,
+      notice: const NoticeSign(sign: true, badge: true),
+      kitOverrides: {KitCheck.clock},
+    );
+    expect(await tester.runAsync(controller.start), isTrue);
+    final start = h.logger.receivedCommands.single as StartSession;
+    // The ESP32 would answer malformed to the extra byte.
+    expect(start.overrideMask, isNull);
+    final precheck = (await startPrecheck(tester, h))!;
+    expect(precheck.containsKey('kit_overrides'), isFalse);
     await tester.pump(const Duration(seconds: 5));
     await h.dispose(tester);
   });

@@ -264,12 +264,14 @@ class SessionController extends Notifier<SessionState> {
     _track = logger.statusStream.listen(onStatus);
 
     // Kit recorder alerts: sound on a new one, again every 10 s while any
-    // lasts (the banner reads the status itself).
+    // lasts, except those of overridden items (the banner reads the status
+    // itself and shows them all).
     final bell = _bell = KitAlertBell();
     void onAlerts(GnssStatusSample s) {
       final kit = s.status.kit;
       if (kit == null || !ref.mounted) return;
-      if (bell.update(kit.alerts, ref.read(clockProvider).now())) {
+      final now = ref.read(clockProvider).now();
+      if (bell.update(kit.alerts, now, overrides: kit.overrides)) {
         ref.read(alertSoundProvider).play().ignore();
       }
     }
@@ -518,17 +520,17 @@ class SessionController extends Notifier<SessionState> {
       busy: true,
       error: () => null,
     );
-    // Overrides go only for items that still fail: one that passes now is
-    // not recorded as skipped. The logger sends the mask to the kit only.
-    final kitFailed = logger.lastStatus?.status.kit?.precheckFail ?? const [];
-    final overrides = [
-      for (final c in kitFailed)
+    // Every confirmed item goes, even one that passed in the last status:
+    // the kit evaluates afresh at the start and applies only the items that
+    // fail then. The logger sends the mask to the kit only.
+    final confirmed = [
+      for (final c in KitCheck.values)
         if (c.overridable && _kitOverrides.contains(c)) c,
     ];
     final result = await logger.startSession(
       sessionId: sessionId,
       parcelId: task.parcelId,
-      overrideMask: overrides.isEmpty ? null : KitCheck.toMask(overrides),
+      overrideMask: confirmed.isEmpty ? null : KitCheck.toMask(confirmed),
     );
     if (!ref.mounted) return false;
     if (!result.isOk) {
@@ -538,7 +540,7 @@ class SessionController extends Notifier<SessionState> {
               for (final c
                   in logger.lastStatus?.status.kit?.precheckFail ??
                       const <KitCheck>[])
-                if (!overrides.contains(c)) c.label,
+                if (!confirmed.contains(c)) c.label,
             ]
           : const <String>[];
       state = state.copyWith(
@@ -550,6 +552,9 @@ class SessionController extends Notifier<SessionState> {
       );
       return false;
     }
+    // What the kit applied (its status after the start): an item that
+    // passed is not recorded as skipped.
+    final overrides = logger.lastStatus?.status.kit?.overrides ?? const [];
     final time = _now();
     final now = ref.read(clockProvider).now();
     await repo.createSession(
