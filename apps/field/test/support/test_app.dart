@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orchados_field/app/providers.dart';
 import 'package:orchados_field/app/theme.dart';
+import 'package:orchados_field/core/audio/alert_sound.dart';
 import 'package:orchados_field/core/db/database.dart';
+import 'package:orchados_field/core/device/wakelock.dart';
 import 'package:orchados_field/core/media/field_camera.dart';
 import 'package:orchados_field/core/media/media_store.dart';
 import 'package:orchados_field/core/media/synthetic_photo.dart';
@@ -15,6 +17,7 @@ import 'package:orchados_field/core/sync/sync_server.dart';
 import 'package:orchados_field/core/time/clock.dart';
 import 'package:orchados_field/features/auth/auth_repository.dart';
 import 'package:orchados_field/features/gnss/fake_gnss_logger.dart';
+import 'package:orchados_field/features/gnss/protocol/gnss_status.dart';
 import 'package:orchados_field/features/route/beeper.dart';
 import 'package:orchados_field/features/tasks/task_repository.dart';
 
@@ -28,17 +31,21 @@ class TestHarness {
     this.server,
     this.connectivity,
     TaskRepository Function(TestHarness h)? tasks,
+    KitStatus? kit,
   }) : clock = FakeClock(DateTime.utc(2026, 12, 3, 8, 30)),
        db = AppDatabase(NativeDatabase.memory()),
        camera = FakeFieldCamera(script: photos, openResult: cameraOpenResult),
        media = MemoryMediaStore(),
-       beeper = FakeBeeper() {
+       beeper = FakeBeeper(),
+       alertSound = FakeAlertSound(),
+       wakelock = FakeWakelock() {
     // Each test opens its own in-memory database.
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
     logger = FakeGnssLogger(
       clock: clock,
       provideGpsTime: provideGpsTime,
       phoneClockErrorMs: phoneClockErrorMs,
+      kit: kit,
     );
     container = ProviderContainer(
       overrides: [
@@ -48,6 +55,8 @@ class TestHarness {
         cameraProvider.overrideWithValue(camera),
         mediaStoreProvider.overrideWithValue(media),
         beeperProvider.overrideWithValue(beeper),
+        alertSoundProvider.overrideWithValue(alertSound),
+        wakelockProvider.overrideWithValue(wakelock),
         // Same check, on the test isolate so that fake time controls it.
         photoQualityCheckerProvider.overrideWithValue(
           const PhotoQualityChecker(useIsolate: false),
@@ -68,6 +77,8 @@ class TestHarness {
   final FakeFieldCamera camera;
   final MemoryMediaStore media;
   final FakeBeeper beeper;
+  final FakeAlertSound alertSound;
+  final FakeWakelock wakelock;
 
   /// Sync target; null = no server (offline development build).
   final SyncServer? server;

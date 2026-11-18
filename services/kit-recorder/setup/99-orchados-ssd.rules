@@ -1,0 +1,3 @@
+# orchadOS kit: mount the recording SSD (file system label ORCHADOS-SSD) when it
+# is plugged in after boot. The mount itself is the fstab line (setup/fstab.append).
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="ORCHADOS-SSD", TAG+="systemd", ENV{SYSTEMD_WANTS}+="orchados-ssd-mount.service"

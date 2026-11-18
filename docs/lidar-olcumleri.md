@@ -25,7 +25,7 @@ Bu doküman yöntemleri, doğruluklarını, veritabanına yazılışlarını ve 
 | 3D dünya (gezide renkli bulut ve ölçüler) | Var (İP17, `lidar world`; [3d-dunya.md](3d-dunya.md)) |
 | Gerçek ağaçlarda doğrulama | Pilotta, §7 |
 
-**Karar (11 Kasım 2026, sahip):** Kit LiDAR'lı yapılır. Bu yüzden kayıt adımı (MCAP → SLAM + PPK → `cloud.ply`) artık araştırma değil, gerçek verinin önündeki iş; LiDAR parçaları sipariş listesine eklenmeli ([kit-siparis-listesi.md](kit-siparis-listesi.md)).
+**Karar (11 Kasım 2026, sahip):** Kit LiDAR'lı yapılır. Bu yüzden kayıt adımı (MCAP → SLAM + PPK → `cloud.ply`) artık araştırma değil, gerçek verinin önündeki iş. LiDAR alındı (16 Kasım 2026): **Unitree 4D LiDAR L2** ([tarama-kiti.md](tarama-kiti.md#lidar-unitree-4d-lidar-l2), [kit-siparis-listesi.md](kit-siparis-listesi.md)). Saniyede 64.000 nokta üretir; yöntemlerin sentetik testleri daha yoğun bir bulut varsayımıyla yapıldıysa parametreler ilk gerçek taramada yeniden ayarlanır (§7).
 
 **Neden önceden, kit LiDAR'sızken:** İlk MVP kiti LiDAR'sız planlanmıştı ([kit-siparis-listesi.md](kit-siparis-listesi.md)). Yöntemler sentetik verilerle önceden yazılırsa, LiDAR'lı kitin ilk kış taramasında (vizyon aşama 2: "ilk kış iskelet denemesi kendi bahçende") veri doğrudan ölçüme dönüşür ve elle ölçümle karşılaştırma aynı hafta yapılabilir.
 
@@ -239,7 +239,7 @@ Metodolojinin kuralı: bir metrik, kendi verimizde doğrulanmadan karneye girmez
 | Ölçüm | Elle referans | Kabul ölçütü (öneri) |
 | --- | --- | --- |
 | Taç çapı | Şerit metreyle iki dik yönde taç izdüşümü, ortalaması | Ortalama sapma ±%5, ağaçların %95'inde ±%10 |
-| Ağaç boyu | Jalon ya da lazer mesafe ölçer / hipsometre | ±15 cm |
+| Ağaç boyu | Şerit metre ve telefonun eğim ölçeri (ağaca yatay mesafe, tepeye ve dibe iki açı); ek donanım alınmaz (karar 18 Kasım 2026) | ±15 cm; elle referansın kendi hatası buna yakın olabilir, eşik pilotun ilk ölçümlerinden sonra gözden geçirilir |
 | Taç hacmi | Doğrudan referans yok; çap ve boydan elipsoit, yöntemler arası tutarlılık için | Sapma belgelenir, karneye girmeden önce karar |
 | Büyüklük sınıfı | Ofis kişisinin kesitlerden verdiği sınıf | Uyum %90, eşiğe yakın vakalar ayrı |
 | Ana kol sayısı | Kışın ağaç başında sayım | Ağaçların %90'ında tam eşleşme |
@@ -249,7 +249,7 @@ Gerçek ağaçlarda sentetikte olmayan zorluklar beklenir: ince sürgün yoğunl
 
 ## 8. Açık kararlar
 
-- **Gövde çapının ölçüm yüksekliği.** Metodoloji §3 gövde çapını yerden yaklaşık 50 cm'de tanımlıyor; metrik kaydındaki kod `trunk_diameter_h30` (30 cm). 1,2 m'deki LiDAR ise görüş açısı yüzünden 4 m'deki gövdeyi ancak 70–80 cm'den yukarıda görür. Bu yüzden LiDAR gövde çapı şimdilik ölçüm olarak yazılmaz; iskelet raporunun ayrıntısında, yüksekliğiyle birlikte durur. Karar seçenekleri: (a) LiDAR'ı alçaltmak ya da eğmek, (b) LiDAR için ayrı bir yükseklik koduyla ayrı metrik, (c) gövde çapını yalnız yakın plan ve şerit metreyle almak.
+- **Gövde çapının ölçüm yüksekliği.** Metodoloji §3 gövde çapını yerden yaklaşık 50 cm'de tanımlıyor; metrik kaydındaki kod `trunk_diameter_h30` (30 cm). 1,2 m'deki LiDAR (Unitree L2, negatif açı kipinde taban düzleminin 6° altına kadar) 4 m'deki gövdeyi ancak yaklaşık 80 cm'den yukarıda görür; 0,9 m'ye alçaltılırsa yaklaşık 50 cm'den ([tarama-kiti.md](tarama-kiti.md#montaj-ve-yükseklikler)). Bu yüzden LiDAR gövde çapı şimdilik ölçüm olarak yazılmaz; iskelet raporunun ayrıntısında, yüksekliğiyle birlikte durur. Karar seçenekleri: (a) LiDAR'ı alçaltmak ya da eğmek, (b) LiDAR için ayrı bir yükseklik koduyla ayrı metrik, (c) gövde çapını yalnız yakın plan ve şerit metreyle almak.
 - **Montaj ve tarama yöntemi.** LiDAR'lı kit sırt direği için tasarlandı; MVP taraması motosikletle. Motosiklette LiDAR yüksekliği, sürücünün kapattığı sektör ve titreşimin SLAM'a etkisi denenmeli (metodoloji §11, "Yönteme göre ayar").
 - **Kartta gösterim (karar verildi, 5 Kasım 2026).** Sahip kararıyla taç ölçümleri ve kesim sayısı doğrulama beklenmeden sahibe gösterilir; uzman onayı aranmaz (§9). Pilottaki doğrulama (§7) bir yöntemi yetersiz bulursa metrik `under_evaluation`'a geri alınır ya da yeni yöntem sürümü yazılır; eski değerler sürümleriyle kalır.
 - **Büyüklük sınıfının yazılması (yapıldı, İP17 Faz 3).** Öneri ağacın `age_class`'ını kendiliğinden değiştirmez. Ofis çalışma alanında ve uzman panelinde "LiDAR önerisi: Verimli (güven 0,9)" diye gösterilir ve tek tıkla kabul edilir; güveni 0,5'in altındaki öneri kabule kapalıdır ([3d-dunya.md](3d-dunya.md) §9.1).

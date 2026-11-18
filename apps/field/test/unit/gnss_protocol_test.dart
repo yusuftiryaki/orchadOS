@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:orchados_field/features/gnss/fake_gnss_logger.dart';
 import 'package:orchados_field/features/gnss/protocol/command_result.dart';
 import 'package:orchados_field/features/gnss/protocol/gnss_command.dart';
 import 'package:orchados_field/features/gnss/protocol/gnss_status.dart';
@@ -225,6 +226,161 @@ void main() {
       expect(GnssStatus.decode(bytes).gpsTimeNs, t);
       final zero = Uint8List.fromList([...vector, 0, 0, 0, 0, 0, 0, 0, 0]);
       expect(GnssStatus.decode(zero).gpsTimeNs, isNull);
+    });
+  });
+
+  group('kit recorder extension', () {
+    // docs/arayuzler.md, "Kit kaydedicisi (Raspberry Pi)".
+    const healthyStatus = FakeGnssLogger.healthyStatus;
+    const kit = KitStatus(
+      lidarState: LidarState.streaming,
+      lidarMode: LidarMode.unknown,
+      clock: KitClock.pps,
+      precheckFail: [KitCheck.clock],
+      alerts: [KitAlert.lidarSilent],
+      overrides: [KitCheck.lidar],
+      lidarPointsPerS: 64000,
+      imuHz: 200,
+      lidarGapCount: 2,
+      lidarLongestGapS: 4,
+      lidarWrittenMib: 900,
+      clockOffsetUs: -12,
+    );
+
+    test('77-byte status decodes the kit extension', () {
+      final bytes = healthyStatus.encode(includePosition: true, kit: kit);
+      expect(bytes.length, 77);
+      expect(bytes[51], 1);
+      final s = GnssStatus.decode(bytes);
+      expect(s.isKit, isTrue);
+      final k = s.kit!;
+      expect(k.lidarState, LidarState.streaming);
+      expect(k.lidarMode, LidarMode.unknown);
+      expect(k.clock, KitClock.pps);
+      expect(k.precheckFail, [KitCheck.clock]);
+      expect(k.alerts, [KitAlert.lidarSilent]);
+      expect(k.overrides, [KitCheck.lidar]);
+      expect(k.lidarPointsPerS, 64000);
+      expect(k.imuHz, 200);
+      expect(k.lidarGapCount, 2);
+      expect(k.lidarLongestGapS, 4);
+      expect(k.lidarWrittenMib, 900);
+      expect(k.clockOffsetUs, -12);
+      // The first 51 bytes are those of the ESP32.
+      expect(s.numSv, healthyStatus.numSv);
+      expect(s.sdFreeMib, healthyStatus.sdFreeMib);
+    });
+
+    test('field offsets follow the contract', () {
+      final bytes = healthyStatus.encode(
+        kit: const KitStatus(
+          lidarState: LidarState.lost,
+          lidarMode: LidarMode.wrong,
+          clock: KitClock.coarse,
+          precheckFail: [KitCheck.lidar, KitCheck.ssd, KitCheck.gnss],
+          alerts: [KitAlert.ssdLow, KitAlert.gnssSilent],
+          overrides: [KitCheck.lidarMode, KitCheck.clock],
+          lidarPointsPerS: 0x01020304,
+          imuHz: 0x0506,
+          lidarGapCount: 0x0708,
+          lidarLongestGapS: 0x090A,
+          lidarWrittenMib: 0x0B0C0D0E,
+          clockOffsetUs: -2,
+        ),
+      );
+      expect(bytes.length, 77);
+      expect(bytes.sublist(51, 59), [1, 2, 2, 1, 0x19, 0x48, 0x06, 0]);
+      expect(bytes.sublist(59, 63), [0x04, 0x03, 0x02, 0x01]);
+      expect(bytes.sublist(63, 65), [0x06, 0x05]);
+      expect(bytes.sublist(65, 67), [0x08, 0x07]);
+      expect(bytes.sublist(67, 69), [0x0A, 0x09]);
+      expect(bytes.sublist(69, 73), [0x0E, 0x0D, 0x0C, 0x0B]);
+      expect(bytes.sublist(73, 77), [0xFE, 0xFF, 0xFF, 0xFF]);
+      expect(GnssStatus.decode(bytes).encode(), bytes);
+    });
+
+    test('51-byte status has no kit extension', () {
+      final s = GnssStatus.decode(healthyStatus.encode(includePosition: true));
+      expect(s.kit, isNull);
+      expect(s.isKit, isFalse);
+    });
+
+    test('the first 51 bytes decode alone, as an older app reads them', () {
+      final bytes = healthyStatus.encode(includePosition: true, kit: kit);
+      final head = GnssStatus.decode(bytes.sublist(0, 51));
+      expect(head.kit, isNull);
+      expect(head.numSv, healthyStatus.numSv);
+      expect(head.encode(includePosition: true), bytes.sublist(0, 51));
+    });
+
+    test('another recorder kind is not read as the kit', () {
+      final bytes = healthyStatus.encode(kit: kit)..[51] = 2;
+      expect(GnssStatus.decode(bytes).kit, isNull);
+    });
+
+    test('masks map to items and back', () {
+      expect(KitCheck.fromMask(0x15), [
+        KitCheck.lidar,
+        KitCheck.clock,
+        KitCheck.gnss,
+      ]);
+      expect(KitCheck.toMask([KitCheck.clock, KitCheck.lidar]), 0x05);
+      expect(KitCheck.overridableMask, 0x07);
+      expect(KitCheck.values.where((c) => c.overridable), [
+        KitCheck.lidar,
+        KitCheck.lidarMode,
+        KitCheck.clock,
+      ]);
+      expect(KitAlert.fromMask(0x41), [KitAlert.lidarSilent, KitAlert.ssdLow]);
+      expect(KitCheck.values.map((c) => c.code), [
+        'lidar',
+        'lidar_mode',
+        'clock',
+        'ssd',
+        'gnss',
+      ]);
+    });
+
+    test('precheck_failed result code', () {
+      expect(CommandResult.fromCode(10), CommandResult.precheckFailed);
+      expect(CommandResult.precheckFailed.message, 'Ön kontrol geçmedi');
+    });
+
+    test('start_session override byte', () {
+      const cmd = StartSession(
+        seq: 7,
+        sessionId: 'S-1',
+        parcelId: 'P-12',
+        overrideMask: 0x05,
+      );
+      expect(cmd.encode(), hex('01 07 03 53 2D 31 04 50 2D 31 32 05'));
+      final d = GnssCommand.decode(hex('01 07 03 53 2D 31 04 50 2D 31 32 05'));
+      expect(d.result, CommandResult.ok);
+      expect((d.command! as StartSession).overrideMask, 0x05);
+      expect(
+        (GnssCommand.decode(hex('01 07 03 53 2D 31 04 50 2D 31 32')).command!
+                as StartSession)
+            .overrideMask,
+        isNull,
+      );
+      expect(
+        GnssCommand.decode(hex('01 07 03 53 2D 31 04 50 2D 31 32 08')).result,
+        CommandResult.invalidArgument,
+      );
+      expect(
+        GnssCommand.decode(hex('01 07 03 53 2D 31 04 50 2D 31 32 01 00'))
+            .result,
+        CommandResult.malformed,
+      );
+      expect(
+        () => const StartSession(
+          seq: 1,
+          sessionId: 'S',
+          parcelId: 'P',
+          overrideMask: 0x08,
+        ).encode(),
+        throwsArgumentError,
+      );
     });
   });
 }

@@ -25,7 +25,9 @@ class GnssStatusSample {
   final DateTime receivedAt;
 }
 
-/// The ESP32 GNSS logger as the app sees it.
+/// The GNSS logger as the app sees it: the ESP32, or the kit recorder on the
+/// Raspberry Pi, which speaks the same protocol and adds the kit extension
+/// to the status (`GnssStatus.kit`).
 ///
 /// The real implementation talks BLE (`FlutterBlueGnssLogger`); tests and the
 /// development build use `FakeGnssLogger`.
@@ -43,9 +45,13 @@ abstract interface class GnssLogger {
   Future<void> connect();
   Future<void> disconnect();
 
+  /// Starts a recording. [overrideMask] lists the kit pre-check items the
+  /// crew overrode ([KitCheck] bits); it goes only to the kit recorder, since
+  /// the ESP32 rejects the extra byte as malformed.
   Future<CommandResult> startSession({
     required String sessionId,
     required String parcelId,
+    int? overrideMask,
   });
   Future<CommandResult> stopSession();
   Future<CommandResult> markEvent(MarkType type, String payload);
@@ -144,9 +150,22 @@ abstract class GnssLoggerBase implements GnssLogger {
   Future<CommandResult> startSession({
     required String sessionId,
     required String parcelId,
-  }) => _send(
-    (seq) => StartSession(seq: seq, sessionId: sessionId, parcelId: parcelId),
-  );
+    int? overrideMask,
+  }) {
+    // Known from the latest status: only the kit appends its extension.
+    final kit = _lastStatus?.status.isKit ?? false;
+    final mask = kit && overrideMask != null && overrideMask != 0
+        ? overrideMask
+        : null;
+    return _send(
+      (seq) => StartSession(
+        seq: seq,
+        sessionId: sessionId,
+        parcelId: parcelId,
+        overrideMask: mask,
+      ),
+    );
+  }
 
   @override
   Future<CommandResult> stopSession() => _send((seq) => StopSession(seq: seq));

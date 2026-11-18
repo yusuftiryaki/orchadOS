@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/audio/alert_sound.dart';
 import '../core/audio/voice_recorder.dart';
 import '../core/db/database.dart';
 import '../core/db/field_repository.dart';
 import '../core/db/outbox.dart';
+import '../core/device/wakelock.dart';
 import '../core/media/field_camera.dart';
 import '../core/media/media_store.dart';
 import '../core/quality/photo_quality.dart';
@@ -56,6 +58,12 @@ final authRepositoryProvider = Provider<AuthRepository>(
 
 /// Beep of the "dur-çek-yürü" mode.
 final beeperProvider = Provider<Beeper>((ref) => const ToneBeeper());
+
+/// Sound of the kit recorder's alerts during a recording.
+final alertSoundProvider = Provider<AlertSound>((ref) => AssetAlertSound());
+
+/// Keeps the screen on while recording.
+final wakelockProvider = Provider<Wakelock>((ref) => const PluginWakelock());
 
 final taskRepositoryProvider = Provider<TaskRepository>(
   (ref) => const FakeTaskRepository(),

@@ -14,6 +14,7 @@ import '../notice/field_records.dart' show blockedVisitPhotoKind;
 import '../notice/notice_widgets.dart';
 import '../session/session_controller.dart';
 import '../sync/sync_status_card.dart';
+import 'kit_summary.dart';
 import 'visit_log.dart';
 
 /// Numbers shown on the visit summary, read back from the local database.
@@ -129,6 +130,13 @@ class VisitSummaryScreen extends ConsumerWidget {
     final task = ref.watch(sessionControllerProvider).task;
     final summary = ref.watch(visitSummaryProvider);
     final sessionId = ref.watch(sessionControllerProvider).sessionId;
+    // LiDAR line of the kit recorder; nothing for the ESP32.
+    final kitAtStop = ref.watch(
+      sessionControllerProvider.select((s) => s.kitAtStop),
+    );
+    final kitAlerts = ref.watch(
+      sessionControllerProvider.select((s) => s.kitAlertsSeen),
+    );
     final verbalNotice = ref.watch(
       sessionControllerProvider.select((s) => s.verbalNotice),
     );
@@ -202,6 +210,7 @@ class VisitSummaryScreen extends ConsumerWidget {
                           ),
                         ..._routeLines(s.route),
                         ..._coverageLines(s.coverage),
+                        KitStopSummary(kit: kitAtStop, alerts: kitAlerts),
                         StatusLine(
                           icon: Icons.park,
                           label: 'Yakın plan ağaç',

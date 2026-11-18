@@ -104,6 +104,16 @@ Depo seçimi `ORCHADOS_STORE_*` ya da `~/.config/orchados/ingest.toml` (s3: AWS/
 
 Sözleşme robot reposunda (`hoverboard/docs/kit-soketi.md`, şema 1); test vektörleri tek taraflı değiştirilmez.
 
+### Kit kaydedicisi (`services/kit-recorder/`)
+| Komut | Ne yapar |
+| --- | --- |
+| `uv sync` / `uv run pytest` | Bağımlılıklar / donanımsız testler (sahte saat, alıcı, LiDAR, SSD) |
+| `uv run orchados-recorder fake-run <klasör> --session-id S-1 --parcel-id P-12 --seconds 20 [--lidar-gap 5]` | Donanımsız, BLE'siz bir oturum yazar (`sessions/<id>/gnss/`, `lidar/raw/`); hat ve yükleme testleri için örnek |
+| `sudo setup/install.sh [--skip-lidar-driver]` | Pi'da (Ubuntu Server 24.04 arm64): ROS 2 Jazzy, L2 sürücüsü, chrony + PPS, BlueZ, SSD bağlama, systemd birimleri; tekrar çalıştırılabilir |
+| `systemctl status orchados-recorder` / `journalctl -u orchados-recorder -f` | Pi'da servis durumu ve günlüğü |
+
+BLE protokolü ve dosyalar ESP32 kaydediciyle aynı, farklar ve kit uzantısı `docs/arayuzler.md` "Kit kaydedicisi (Raspberry Pi)"; kurulum ve işletim `services/kit-recorder/README.md`.
+
 ### Web uygulaması (`apps/web/`)
 Kökte `pnpm install`. Entegrasyon testleri için yerel Supabase çalışıyor ve sıfırlanmış olmalı (`pnpm db:start && pnpm db:reset`).
 

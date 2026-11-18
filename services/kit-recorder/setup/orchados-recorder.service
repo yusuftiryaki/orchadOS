@@ -1,0 +1,30 @@
+# orchadOS kit recorder: BLE server, GNSS receiver, LiDAR recording, sessions on the SSD.
+# Runs as root: BlueZ advertising, the receiver's serial port, /sys/class/pps and
+# chrony's socket. A clean stop (SIGTERM) closes an open session with stop_reason
+# "command", a crash of the service with "service_error"; after a power loss the
+# next start closes it with "power_loss".
+#
+# After= the SSD's mount unit (/mnt/orchados-ssd): with fstab nofail the mount is
+# not ordered before local-fs.target, and the power-loss recovery at start looks
+# at the SSD. Ordering only: no Requires=/BindsTo=/RequiresMountsFor=, the
+# recorder must keep running (and report "no SSD") when the SSD is missing or
+# pulled. An SSD mounted later is noticed by the recorder itself.
+[Unit]
+Description=orchadOS kit recorder
+After=unilidar.service chrony.service bluetooth.service local-fs.target mnt-orchados\x2dssd.mount
+Wants=unilidar.service chrony.service bluetooth.service
+StartLimitIntervalSec=0
+
+[Service]
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/local/bin/orchados-ros-exec /opt/orchados/kit-recorder/.venv/bin/orchados-recorder run --config /etc/orchados/recorder.toml
+Restart=always
+RestartSec=2
+# SIGTERM to the recorder only: it stops its `ros2 bag` child itself (SIGINT,
+# so the last MCAP segment is closed) and then closes the session.
+KillMode=mixed
+TimeoutStopSec=30
+UMask=0022
+
+[Install]
+WantedBy=multi-user.target

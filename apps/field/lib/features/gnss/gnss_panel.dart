@@ -88,17 +88,44 @@ class GnssPanel extends ConsumerWidget {
                 health: ppsHealth(s),
               ),
               StatusLine(
-                icon: Icons.sd_card_outlined,
-                label: 'SD kart',
+                icon: s.isKit ? Icons.storage : Icons.sd_card_outlined,
+                label: storageName(s),
                 value: sdLabel(s),
                 health: sdHealth(s),
               ),
-              StatusLine(
-                icon: Icons.battery_std,
-                label: 'Batarya',
-                value: batteryLabel(s),
-                health: batteryHealth(s),
-              ),
+              if (batteryApplies(s))
+                StatusLine(
+                  icon: Icons.battery_std,
+                  label: 'Batarya',
+                  value: batteryLabel(s),
+                  health: batteryHealth(s),
+                ),
+              if (s.kit case final kit?) ...[
+                StatusLine(
+                  key: const Key('gnss-panel-lidar'),
+                  icon: Icons.radar,
+                  label: 'LiDAR',
+                  value: showRecording && kit.lidarGapCount > 0
+                      ? '${lidarLabel(s)} · ${kit.lidarGapCount} boşluk'
+                      : lidarLabel(s),
+                  health: lidarHealth(s),
+                ),
+                StatusLine(
+                  icon: Icons.av_timer,
+                  label: 'Kit saati',
+                  value: clockLabel(s),
+                  health: clockHealth(s),
+                ),
+                // Overridden items stay visible for the whole recording.
+                if (kit.overrides.isNotEmpty)
+                  StatusLine(
+                    key: const Key('gnss-panel-overrides'),
+                    icon: Icons.warning_amber,
+                    label: 'Atlanan',
+                    value: kit.overrides.map((c) => c.label).join(', '),
+                    health: Health.warn,
+                  ),
+              ],
             ],
             StatusLine(
               icon: Icons.schedule,
