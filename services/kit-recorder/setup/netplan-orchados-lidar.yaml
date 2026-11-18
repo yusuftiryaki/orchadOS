@@ -1,0 +1,12 @@
+# Installed as /etc/netplan/90-orchados-lidar.yaml. The Unitree L2 sends to a
+# fixed host address on its Ethernet (factory default: L2 192.168.1.62, host
+# 192.168.1.2; checked on the hardware, README "L2 sürücüsü"). DHCP stays on so
+# the same port still works on an office network during installation.
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: true
+      optional: true
+      addresses:
+        - 192.168.1.2/24

@@ -1,0 +1,23 @@
+# orchadOS kit recorder: BLE server, GNSS receiver, LiDAR recording, sessions on the SSD.
+# Runs as root: BlueZ advertising, the receiver's serial port, /sys/class/pps and
+# chrony's socket. A clean stop (SIGTERM) closes an open session with stop_reason
+# "command"; after a power loss the next start closes it with "power_loss".
+[Unit]
+Description=orchadOS kit recorder
+After=unilidar.service chrony.service bluetooth.service local-fs.target
+Wants=unilidar.service chrony.service bluetooth.service
+StartLimitIntervalSec=0
+
+[Service]
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/local/bin/orchados-ros-exec /opt/orchados/kit-recorder/.venv/bin/orchados-recorder run --config /etc/orchados/recorder.toml
+Restart=always
+RestartSec=2
+# SIGTERM to the recorder only: it stops its `ros2 bag` child itself (SIGINT,
+# so the last MCAP segment is closed) and then closes the session.
+KillMode=mixed
+TimeoutStopSec=30
+UMask=0022
+
+[Install]
+WantedBy=multi-user.target

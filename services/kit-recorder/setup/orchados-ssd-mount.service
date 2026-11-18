@@ -1,0 +1,8 @@
+# Started by setup/99-orchados-ssd.rules when the SSD appears; mounts it through
+# its fstab line. At boot the fstab line mounts it without this unit.
+[Unit]
+Description=orchadOS: mount the recording SSD (ORCHADOS-SSD)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'mountpoint -q /mnt/orchados-ssd || mount /mnt/orchados-ssd'

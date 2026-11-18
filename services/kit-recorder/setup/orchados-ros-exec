@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Runs a command in the ROS 2 Jazzy environment (and the L2 driver's workspace,
+# if built). Installed as /usr/local/bin/orchados-ros-exec; used by the units.
+set -eo pipefail  # not -u: the ROS setup scripts read unset variables
+
+ROS_WS="${ORCHADOS_ROS_WS:-/opt/orchados/ros2_ws}"
+# shellcheck source=/dev/null
+source /opt/ros/jazzy/setup.bash
+if [[ -f "$ROS_WS/install/setup.bash" ]]; then
+  # shellcheck source=/dev/null
+  source "$ROS_WS/install/setup.bash"
+fi
+# The driver and the recorder talk over DDS on this machine only; keep discovery
+# off the Ethernet the L2 is on.
+export ROS_AUTOMATIC_DISCOVERY_RANGE="${ROS_AUTOMATIC_DISCOVERY_RANGE:-LOCALHOST}"
+exec "$@"
