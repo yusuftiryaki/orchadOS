@@ -347,3 +347,35 @@ def test_stop_time_is_taken_before_the_bag_is_stopped(rig, monkeypatch):
     assert events(rig)[-1][0] == str(before)
     rec = json.loads((rig.ssd / "sessions/S-1/lidar/raw/recording.json").read_text())
     assert rec["stop_gps_ns"] == meta(rig)["stop"]["gps_time_ns"]
+
+
+def test_receiver_not_ready_at_start_is_configured_later(tmp_path):
+    from orchados_recorder.receiver import FakeTransport
+
+    rig = FakeRig(tmp_path / "ssd", transport=FakeTransport(respond_to_valset=None))
+    rig.run(seconds=3)
+    st = rig.status()
+    assert st[3] == 2 and st[55] & Check.GNSS  # no_response; cannot be overridden
+    rig.transport.respond_to_valset = "ack"
+    st = rig.run(seconds=6)
+    assert st[3] == 1 and not st[55] & Check.GNSS
+    rig.cmd(START)
+    assert rig.status()[30] == Result.OK
+    assert meta(rig)["receiver"]["config_status"] == "ok"
+
+
+def test_bytes_lost_to_a_reconfiguration_are_dropped_bytes(rig):
+    rig.cmd(START)
+    rig.run(seconds=2)
+    rig.transport.disconnect()
+    rig.run(seconds=1)
+    rig.transport.reconnect()
+    st = rig.run(seconds=2)
+    dropped = int.from_bytes(st[25:29], "little")
+    assert dropped > 0 and st[2] & 0x10  # data dropped in this session
+    rig.cmd("02 09")
+    assert meta(rig)["dropped_bytes"] == dropped
+    assert int.from_bytes(rig.status()[25:29], "little") == dropped  # kept for the summary
+    rig.cmd("01 0a 03 53 2d 32 04 50 2d 31 32")
+    st = rig.status()
+    assert int.from_bytes(st[25:29], "little") == 0 and not st[2] & 0x10

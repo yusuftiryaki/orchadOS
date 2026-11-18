@@ -125,6 +125,9 @@ class Recorder:
         self.overrides = Check(0)
         self.alerts = Alert(0)
         self.session_gnss_bytes = 0
+        # Receiver bytes lost to a reconfiguration in this session (not in gnss.ubx).
+        self.session_dropped_bytes = 0
+        self._discarded_at_start = 0
         self.bag_bytes = 0
         self.gap_count = 0
         self.longest_gap_s = 0
@@ -252,10 +255,17 @@ class Recorder:
     def pump(self) -> None:
         """Read the receiver; while recording its bytes go to gnss.ubx and the bag."""
         self.receiver.poll()
+        self._count_dropped()
+
+    def _count_dropped(self) -> None:
+        if self.recording:
+            self.session_dropped_bytes = self.receiver.discarded_bytes - self._discarded_at_start
 
     def tick(self) -> bytes:
         """Once a second: health, events, fsync; returns the status message."""
+        self.receiver.retry_configure(timeout_s=self.deps.receiver_timeout_s)
         self.receiver.poll()
+        self._count_dropped()
         self._add_lidar(self.deps.lidar.drain())
         if self.recording:
             self.bag_bytes = self.deps.bag.written_bytes(self.writer.lidar_dir)
@@ -372,6 +382,8 @@ class Recorder:
         self.overrides = overrides
         self.alerts = Alert(0)
         self.session_gnss_bytes = 0
+        self.session_dropped_bytes = 0
+        self._discarded_at_start = self.receiver.discarded_bytes
         self.bag_bytes = 0
         self.gap_count = 0
         self.longest_gap_s = 0
@@ -434,6 +446,7 @@ class Recorder:
         writer, health = self.writer, self.health
         if writer is None:
             return False
+        self._count_dropped()
         self.writer = None
         ok = True
         # The stop time is now: closing the bag's last segment can take ~15 s.
@@ -478,7 +491,7 @@ class Recorder:
                 stop,
                 reason,
                 gnss_bytes=writer.gnss_bytes,
-                dropped_bytes=0,
+                dropped_bytes=self.session_dropped_bytes,
                 anchor=self.anchor,
             )
         except OSError as exc:
@@ -506,6 +519,8 @@ class Recorder:
                 flags |= Flag.SD_LOW_SPACE
         if sd_error:
             flags |= Flag.SD_ERROR
+        if self.session_dropped_bytes:
+            flags |= Flag.DATA_DROPPED
         if locked:
             flags |= Flag.TIME_MAPPED
         if pvt is not None and pvt.gnss_fix_ok:
@@ -535,7 +550,7 @@ class Recorder:
             sd_free_mib=self.ssd.free_mib,
             battery_mv=0,
             fw=_version_tuple(self.version),
-            dropped_bytes=0,
+            dropped_bytes=self.session_dropped_bytes,
             last_cmd_seq=self.last_cmd_seq,
             last_cmd_result=self.last_cmd_result,
             gps_time_ns=unix_ns_to_gps_ns(self.clock.now_unix_ns()) if locked else 0,

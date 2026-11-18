@@ -117,6 +117,8 @@ Kit kaydedicisi aynı dosyayı aynı alanlarla yazar (`format_version` 1), şu f
 | `precheck_overrides` | Atlanan ön kontrol maddeleri listesi (`lidar`, `lidar_mode`, `clock`); boş olabilir (yeni alan) |
 | `clock_state_at_start` | `pps`, `coarse` ya da `unlocked` (yeni alan; [Kit kaydedicisi](#kit-kaydedicisi-raspberry-pi)) |
 | `receiver.port` | `"USB"`; `receiver.baud` ve `receiver.detected_baud` `null` |
+| `receiver.config_status` | Oturum başındaki durum. Yapılandırma `ok` olmadıkça (alıcı servisten sonra takıldı, ACK kaçtı) servis 5 sn'de bir yeniden dener; USB her açılışında yeniden yapılandırır |
+| `dropped_bytes` | Alıcı oturum sırasında yeniden yapılandırılırken ACK beklenirken okunup kaydedilmeyen bayt |
 | `stop_reason` | Ek değer `power_loss`: Pi kapanmamış bir oturumla açıldı ya da SSD kapanmamış bir oturumla bağlandı. `stop` `null` kalır (ESP32'de güç kesintisindeki gibi). SSD kayıt sırasında çıkarıldığı için kapanış yazılamadıysa SSD geri takılınca `sd_error` yazılır, `stop` yine `null` |
 
 ### Kök `session.json` (saha uygulaması ve operasyon yazar)
@@ -222,6 +224,7 @@ LiDAR'lı kitte kayıt bilgisayarı Raspberry Pi 5'tir; ESP32 kaydedici kitten �
 | 4 | `pps_state` | `/sys/class/pps/pps0/assert`'e göre: 0 hiç görülmedi, 1 kilitli (son kenar 1,5 sn'den yeni), 2 kayıp |
 | 12 | `bytes_written` | Bu oturumda `gnss.ubx`'e yazılan bayt (u32'de doyar) |
 | 16 | `sd_free_mib` | SSD'nin boş alanı |
+| 25 | `dropped_bytes` | Bu oturumda alıcı yeniden yapılandırılırken (USB yeniden bağlandı ya da yapılandırma yeniden denendi) okunup `gnss.ubx`'e yazılmayan bayt; oturum bitince özet için kalır |
 | 20 | `battery_mv` | `0`: Pi aküyü ölçmez. Uygulama kaydedici Pi ise akü maddesini atlar |
 | 22–24 | `fw_*` | Kayıt servisinin sürümü |
 | 31 | `gps_time_ns` | Saat PPS'e kilitliyse sistem saatinden GPS zamanı, değilse `0` |
