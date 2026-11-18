@@ -264,12 +264,14 @@ class SessionController extends Notifier<SessionState> {
     _track = logger.statusStream.listen(onStatus);
 
     // Kit recorder alerts: sound on a new one, again every 10 s while any
-    // lasts (the banner reads the status itself).
+    // lasts, except those of overridden items (the banner reads the status
+    // itself and shows them all).
     final bell = _bell = KitAlertBell();
     void onAlerts(GnssStatusSample s) {
       final kit = s.status.kit;
       if (kit == null || !ref.mounted) return;
-      if (bell.update(kit.alerts, ref.read(clockProvider).now())) {
+      final now = ref.read(clockProvider).now();
+      if (bell.update(kit.alerts, now, overrides: kit.overrides)) {
         ref.read(alertSoundProvider).play().ignore();
       }
     }

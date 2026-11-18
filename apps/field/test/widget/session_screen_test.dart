@@ -5,9 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:orchados_field/app/providers.dart';
 import 'package:orchados_field/core/time/gps_clock.dart';
 import 'package:orchados_field/features/checklist/precheck_screen.dart';
+import 'package:orchados_field/features/checklist/scan_setup.dart';
 import 'package:orchados_field/features/gnss/fake_gnss_logger.dart';
 import 'package:orchados_field/features/gnss/protocol/gnss_command.dart';
 import 'package:orchados_field/features/gnss/protocol/gnss_status.dart';
+import 'package:orchados_field/features/notice/field_records.dart';
 import 'package:orchados_field/features/session/session_controller.dart';
 import 'package:orchados_field/features/session/session_screen.dart';
 import 'package:orchados_field/features/tasks/field_task.dart';
@@ -614,6 +616,61 @@ void main() {
     // The summary keeps what was seen.
     expect(
       find.text("LiDAR veri göndermiyor, Saat GPS'e kilitli değil"),
+      findsOneWidget,
+    );
+    await h.dispose(tester);
+  });
+
+  testWidgets('alert of an overridden item shows but does not sound', (
+    tester,
+  ) async {
+    // The PPS wire is not connected: the crew started without the clock.
+    final h = await openSession(
+      tester,
+      inventory: false,
+      kit: const KitStatus(
+        clock: KitClock.coarse,
+        precheckFail: [KitCheck.clock],
+        alerts: [KitAlert.clockUnlocked],
+      ),
+    );
+    h.container
+        .read(sessionControllerProvider.notifier)
+        .confirmPrecheck(
+          spraying: SprayingCheck.none,
+          platform: ScanPlatform.walk,
+          cameraHeightM: 1.8,
+          notice: const NoticeSign(sign: true, badge: true),
+          kitOverrides: {KitCheck.clock},
+        );
+    final banner = find.byKey(const Key('kit-alert-banner'));
+    await tapVisible(tester, find.byKey(const Key('session-start')));
+    await settle(tester);
+    expect(h.logger.lastStatus!.status.kit!.overrides, [KitCheck.clock]);
+    for (var i = 0; i < 30; i++) {
+      h.clock.advance(const Duration(seconds: 1));
+      h.logger.tick();
+      await statusArrives(tester);
+    }
+    expect(banner, findsOneWidget);
+    expect(find.text("Saat GPS'e kilitli değil"), findsOneWidget);
+    expect(h.alertSound.count, 0);
+
+    // Any other alert still sounds.
+    h.logger.kit = const KitStatus(
+      clock: KitClock.coarse,
+      alerts: [KitAlert.clockUnlocked, KitAlert.ssdLow],
+    );
+    await statusArrives(tester);
+    expect(h.alertSound.count, 1);
+
+    await showQr(tester, 'session-start-qr');
+    await showQr(tester, 'session-end-qr');
+    await tapVisible(tester, find.byKey(const Key('session-stop')));
+    await settle(tester);
+    // The summary keeps the silenced alert.
+    expect(
+      find.text("Saat GPS'e kilitli değil, SSD'de yer azaldı"),
       findsOneWidget,
     );
     await h.dispose(tester);
