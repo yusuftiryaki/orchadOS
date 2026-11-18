@@ -490,7 +490,7 @@ class GnssStatus {
       ..setUint8(29, lastCmdSeq)
       ..setUint8(30, lastCmdResult.code ?? CommandResult.none.code!);
     if (includeGpsTime || includePosition || k != null) {
-      b.setUint64(31, includeGpsTime ? gpsTimeNs ?? 0 : 0, Endian.little);
+      b.setUint64(31, gpsTimeNs ?? 0, Endian.little);
     }
     if (includePosition || k != null) {
       b

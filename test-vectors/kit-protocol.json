@@ -1,0 +1,209 @@
+{
+  "_comment": "BLE protocol between the kit recorder (services/kit-recorder, protocol.py) and the field app (apps/field, lib/features/gnss/protocol/). Contract: docs/arayuzler.md, 'Kit kaydedicisi (Raspberry Pi)'. Status fields are wire values (masks and codes as integers). Both sides run every case in their tests; change only together. A command case with \"canonical\": false decodes as given but is not what the encoders produce.",
+  "version": 1,
+  "status": [
+    {
+      "name": "healthy kit, idle, pre-check passes",
+      "fields": {
+        "version": 1,
+        "recording": false,
+        "flags": 105,
+        "rx_config": 1,
+        "pps_state": 1,
+        "fix_type": 3,
+        "carr_soln": 2,
+        "num_sv": 27,
+        "h_acc_mm": 14,
+        "bytes_written": 0,
+        "sd_free_mib": 412000,
+        "battery_mv": 0,
+        "fw": [
+          1,
+          0,
+          0
+        ],
+        "dropped_bytes": 0,
+        "last_cmd_seq": 0,
+        "last_cmd_result": 255,
+        "gps_time_ns": 1447000123456789000,
+        "lat_e7": 371234567,
+        "lon_e7": 373456789,
+        "height_mm": 842310,
+        "recorder_kind": 1,
+        "lidar_state": 1,
+        "lidar_mode": 1,
+        "clock_state": 2,
+        "precheck_fail": 0,
+        "alerts": 0,
+        "overrides": 0,
+        "lidar_points_per_s": 64123,
+        "imu_hz": 200,
+        "lidar_gap_count": 0,
+        "lidar_longest_gap_s": 0,
+        "lidar_written_mib": 0,
+        "clock_offset_us": -3
+      },
+      "hex": "010069010103021b0e000000000000006049060000000100000000000000ff089a961cf2c6141407972016957f421646da0c0001010102000000007bfa0000c8000000000000000000fdffffff"
+    },
+    {
+      "name": "pre-check fails: LiDAR silent, clock unlocked, no SSD; start refused",
+      "fields": {
+        "version": 1,
+        "recording": false,
+        "flags": 0,
+        "rx_config": 0,
+        "pps_state": 0,
+        "fix_type": 0,
+        "carr_soln": 0,
+        "num_sv": 0,
+        "h_acc_mm": 4294967295,
+        "bytes_written": 0,
+        "sd_free_mib": 0,
+        "battery_mv": 0,
+        "fw": [
+          1,
+          0,
+          0
+        ],
+        "dropped_bytes": 0,
+        "last_cmd_seq": 7,
+        "last_cmd_result": 10,
+        "gps_time_ns": 0,
+        "lat_e7": 0,
+        "lon_e7": 0,
+        "height_mm": 0,
+        "recorder_kind": 1,
+        "lidar_state": 0,
+        "lidar_mode": 0,
+        "clock_state": 0,
+        "precheck_fail": 31,
+        "alerts": 0,
+        "overrides": 0,
+        "lidar_points_per_s": 0,
+        "imu_hz": 0,
+        "lidar_gap_count": 0,
+        "lidar_longest_gap_s": 0,
+        "lidar_written_mib": 0,
+        "clock_offset_us": 0
+      },
+      "hex": "0100000000000000ffffffff0000000000000000000001000000000000070a0000000000000000000000000000000000000000010000001f000000000000000000000000000000000000000000"
+    },
+    {
+      "name": "recording with LiDAR and clock overridden, several alerts, gaps",
+      "fields": {
+        "version": 1,
+        "recording": true,
+        "flags": 115,
+        "rx_config": 1,
+        "pps_state": 2,
+        "fix_type": 3,
+        "carr_soln": 1,
+        "num_sv": 19,
+        "h_acc_mm": 230,
+        "bytes_written": 987654321,
+        "sd_free_mib": 19000,
+        "battery_mv": 0,
+        "fw": [
+          1,
+          2,
+          3
+        ],
+        "dropped_bytes": 4096,
+        "last_cmd_seq": 200,
+        "last_cmd_result": 0,
+        "gps_time_ns": 1447000999000000000,
+        "lat_e7": -337000001,
+        "lon_e7": -1512345678,
+        "height_mm": -12345,
+        "recorder_kind": 1,
+        "lidar_state": 2,
+        "lidar_mode": 2,
+        "clock_state": 1,
+        "precheck_fail": 4,
+        "alerts": 127,
+        "overrides": 5,
+        "lidar_points_per_s": 4294967295,
+        "imu_hz": 65535,
+        "lidar_gap_count": 3,
+        "lidar_longest_gap_s": 42,
+        "lidar_written_mib": 123456,
+        "clock_offset_us": -2000000
+      },
+      "hex": "0101730102030113e6000000b168de3a384a0000000001020300100000c80000c607f7bdc71414bfc9e9ebb26fdba5c7cfffff01020201047f0500ffffffffffff03002a0040e20100807be1ff"
+    }
+  ],
+  "commands": [
+    {
+      "name": "start without override byte (ESP32 form)",
+      "hex": "01050e532d323032362d31312d31385f6104502d3132",
+      "result": 0,
+      "command": {
+        "op": "start_session",
+        "seq": 5,
+        "session_id": "S-2026-11-18_a",
+        "parcel_id": "P-12",
+        "override_mask": 0
+      }
+    },
+    {
+      "name": "start with LiDAR and clock overridden",
+      "hex": "010603532d310a50617273656c20332f4205",
+      "result": 0,
+      "command": {
+        "op": "start_session",
+        "seq": 6,
+        "session_id": "S-1",
+        "parcel_id": "Parsel 3/B",
+        "override_mask": 5
+      }
+    },
+    {
+      "name": "start with an explicit zero override byte",
+      "hex": "010903532d3103502d3100",
+      "result": 0,
+      "command": {
+        "op": "start_session",
+        "seq": 9,
+        "session_id": "S-1",
+        "parcel_id": "P-1",
+        "override_mask": 0
+      },
+      "canonical": false
+    },
+    {
+      "name": "stop",
+      "hex": "02ff",
+      "result": 0,
+      "command": {
+        "op": "stop_session",
+        "seq": 255
+      }
+    },
+    {
+      "name": "mark qr_sync",
+      "hex": "0308021b6f72636861646f733a71723a313a31343437303030313233343536",
+      "result": 0,
+      "command": {
+        "op": "mark_event",
+        "seq": 8,
+        "kind": "qr_sync",
+        "payload": "orchados:qr:1:1447000123456"
+      }
+    },
+    {
+      "name": "start overriding the SSD is refused",
+      "hex": "010a03532d3103502d3108",
+      "result": 3
+    },
+    {
+      "name": "start overriding the receiver is refused",
+      "hex": "010b03532d3103502d3110",
+      "result": 3
+    },
+    {
+      "name": "start with two trailing bytes is malformed",
+      "hex": "010c03532d3103502d310101",
+      "result": 1
+    }
+  ]
+}
