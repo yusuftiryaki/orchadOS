@@ -21,7 +21,7 @@ Bulutun dosya biçimi bileşenler arası bir sözleşmedir: [arayuzler.md](arayu
 | Oktree ile ayrıntı düzeyi (çok büyük bahçeler) | Faz 2b; gerçek bulut boyutu görülünce karar |
 | Uzman paneli ve ofis çalışma alanında 3D dünya, büyüklük sınıfı önerisinin kabulü | Var (Faz 3, §9) |
 | Bahçede gezinme: göz hizasında yürüme kipi, zemindeki panorama noktaları ve birine iniş | Var (§10) |
-| Gerçek LiDAR verisi | Karar (11 Kasım 2026): kit LiDAR'lı yapılır. Kayıt adımı (MCAP → bulut) ve kitin kendisi bekleniyor ([lidar-olcumleri.md](lidar-olcumleri.md) §1) |
+| Gerçek LiDAR verisi | Karar (11 Kasım 2026): kit LiDAR'lı yapılır. Kayıt adımı (MCAP → bulut) tasarlandı, uygulaması `claude/lidar-registration` dalında ([lidar-olcumleri.md](lidar-olcumleri.md) §1); kitin kendisi bekleniyor |
 
 [MVP.md](MVP.md)'de "Gerçek 3D model" kapsam dışıdır. 3D dünya bir model değil, ölçülmüş bulutun kendisidir ve ayrı bir iş paketidir ([plan.md](plan.md), İP17).
 
@@ -84,6 +84,8 @@ flowchart LR
 | Başkası | Hiçbiri | Hiçbiri |
 
 Ham `point_cloud`, yörünge ve GNSS kayıtları yalnız personele açıktır; bu değişmedi. pgTAP: `supabase/tests/79_world_cloud.test.sql`.
+
+**LiDAR kaydı kapısı (18 Kasım 2026):** Bulutun bir LiDAR kaydı varsa (`pose.registration_id`), parsel okuyucuları onu yalnız kayıt ziyaretin geçerli kabulüyse (`accepted`) görür; incelemedeki, reddedilmiş ya da yerine yenisi gelmiş kaydın bulutu personelde kalır. Kaydı olmayan bulutlar (demo, sentetik) bugünkü gibi görünür. Kural: [veri-modeli.md](veri-modeli.md#lidar-kaydı-ve-kapısı).
 
 ## 6. Kod
 
@@ -157,6 +159,8 @@ Sahibin dünyasıyla aynı bileşendir (`world-view.tsx`, `world-scene.ts`). Far
 - **İmza:** Personel imzası (`createMediaSigner`, kullanıcı kapsamı). Sunucu yalnız o parselin bir `world_cloud` asset'ini imzalar.
 - **Renk kipi "Büyüklük sınıfı":** Yalnız personelde vardır. Önerisi kayıtlı sınıftan farklı ağaçlar turuncu, aynı olanlar yeşil, önerisi olmayanlar gri boyanır. Öneri bakılan denetimin değil, ağacın en yeni önerisidir (§9.1).
 - **Ağaç paneli:** Ölçülerin altında kayıtlı sınıf ve öneri satırı vardır. Uzmanda inceleme bağlantısı, ofiste "Öneriyi uygula" düğmesi bulunur.
+- **LiDAR kaydı bandı** (tasarlandı, [tasarım](superpowers/specs/2026-11-18-lidar-kayit-adimi-design.md) §5.9): Seçili ziyaretin en yeni LiDAR kaydı (`lidar_registration`) gösterilir. Kayıt `pending_review` ise üstte "LiDAR kaydı incelemede" bandı çıkar: kalite özeti (GNSS sapması, gövde tutarlılığı, kapsama, PPK durumu) ve nedenler. Operasyon rolüne "Kabul et" ve "Reddet" düğmeleri görünür; ret için not istenir (`decide_lidar_registration`). `rejected` kayıtta "LiDAR kaydı reddedildi" ve not, `accepted` kayıtta karar ve karar veren yazar. Ziyaretin önceki kayıtları varsa sayısı ve durumları özetlenir. Personel bekleyen kaydın bulutunu görür; inceleme bunun için var. Kabulden sonra ölçümler ve bulut sahibe hemen açılır ([veri-modeli.md](veri-modeli.md#lidar-kaydı-ve-kapısı)).
+- **Operasyon panosu:** "İncelemede bekleyen LiDAR kayıtları" listesi; her satırda parsel, ziyaret, tarih ve nedenler. Satır personel dünyasını o ziyaretle açar.
 
 ### 9.5 Kod
 
