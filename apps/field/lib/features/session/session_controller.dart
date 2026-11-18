@@ -13,6 +13,7 @@ import '../coverage/coverage.dart';
 import '../gnss/gnss_logger.dart';
 import '../gnss/protocol/command_result.dart';
 import '../gnss/protocol/gnss_command.dart';
+import '../gnss/protocol/gnss_status.dart';
 import '../notice/field_records.dart';
 import '../route/grid_route.dart';
 import '../route/route_guide.dart';
@@ -210,6 +211,7 @@ class SessionController extends Notifier<SessionState> {
     _harvest = null;
     _setup = null;
     _notice = null;
+    _kitOverrides = const {};
     state = SessionState(task: task);
   }
 
@@ -438,18 +440,23 @@ class SessionController extends Notifier<SessionState> {
   HarvestCheck? _harvest;
   ScanSetup? _setup;
   NoticeSign? _notice;
+  Set<KitCheck> _kitOverrides = const {};
 
+  /// [kitOverrides]: kit pre-check items the crew overrode after a
+  /// confirmation (LiDAR, LiDAR mode, clock).
   void confirmPrecheck({
     required SprayingCheck spraying,
     required ScanPlatform platform,
     required double cameraHeightM,
     required NoticeSign notice,
     HarvestCheck? harvest,
+    Set<KitCheck> kitOverrides = const {},
   }) {
     _spraying = spraying;
     _harvest = harvest;
     _setup = ScanSetup(platform: platform, cameraHeightM: cameraHeightM);
     _notice = notice;
+    _kitOverrides = {...kitOverrides};
   }
 
   /// Starts recording on the logger and creates the local session.
@@ -478,16 +485,35 @@ class SessionController extends Notifier<SessionState> {
       busy: true,
       error: () => null,
     );
+    // Overrides go only for items that still fail: one that passes now is
+    // not recorded as skipped. The logger sends the mask to the kit only.
+    final kitFailed = logger.lastStatus?.status.kit?.precheckFail ?? const [];
+    final overrides = [
+      for (final c in kitFailed)
+        if (c.overridable && _kitOverrides.contains(c)) c,
+    ];
     final result = await logger.startSession(
       sessionId: sessionId,
       parcelId: task.parcelId,
+      overrideMask: overrides.isEmpty ? null : KitCheck.toMask(overrides),
     );
     if (!ref.mounted) return false;
     if (!result.isOk) {
+      // The kit names the failed items in its status.
+      final failed = result == CommandResult.precheckFailed
+          ? [
+              for (final c
+                  in logger.lastStatus?.status.kit?.precheckFail ??
+                      const <KitCheck>[])
+                if (!overrides.contains(c)) c.label,
+            ]
+          : const <String>[];
       state = state.copyWith(
         phase: SessionPhase.idle,
         busy: false,
-        error: () => 'Kayıt başlamadı: ${result.message}',
+        error: () =>
+            'Kayıt başlamadı: ${result.message}'
+            '${failed.isEmpty ? '' : ' (${failed.join(', ')})'}',
       );
       return false;
     }
@@ -521,6 +547,9 @@ class SessionController extends Notifier<SessionState> {
       // Also on the start event, so the answers survive a crash before the
       // field_notice_sign row below is written.
       if (notice != null) 'notice': notice.toJson(),
+      // Kit items started without (docs/arayuzler.md, `precheck_overrides`).
+      if (overrides.isNotEmpty)
+        'kit_overrides': [for (final c in overrides) c.code],
     };
     await repo.addEvent(
       sessionId: sessionId,

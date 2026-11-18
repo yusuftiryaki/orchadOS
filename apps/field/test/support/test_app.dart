@@ -15,6 +15,7 @@ import 'package:orchados_field/core/sync/sync_server.dart';
 import 'package:orchados_field/core/time/clock.dart';
 import 'package:orchados_field/features/auth/auth_repository.dart';
 import 'package:orchados_field/features/gnss/fake_gnss_logger.dart';
+import 'package:orchados_field/features/gnss/protocol/gnss_status.dart';
 import 'package:orchados_field/features/route/beeper.dart';
 import 'package:orchados_field/features/tasks/task_repository.dart';
 
@@ -28,6 +29,7 @@ class TestHarness {
     this.server,
     this.connectivity,
     TaskRepository Function(TestHarness h)? tasks,
+    KitStatus? kit,
   }) : clock = FakeClock(DateTime.utc(2026, 12, 3, 8, 30)),
        db = AppDatabase(NativeDatabase.memory()),
        camera = FakeFieldCamera(script: photos, openResult: cameraOpenResult),
@@ -39,6 +41,7 @@ class TestHarness {
       clock: clock,
       provideGpsTime: provideGpsTime,
       phoneClockErrorMs: phoneClockErrorMs,
+      kit: kit,
     );
     container = ProviderContainer(
       overrides: [
