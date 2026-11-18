@@ -1,18 +1,90 @@
 import json
 import shutil
 
+import cv2
+import numpy as np
 import pytest
+from conftest import DATA
 
 from orchados_pipeline.context import RunContext
+from orchados_pipeline.events import read_events
 from orchados_pipeline.hashing import hash_object, sha256_file
 from orchados_pipeline.ingest import IngestError, build_manifest
-from orchados_pipeline.models import FileRole
+from orchados_pipeline.models import FileRole, Manifest, read_model, write_model
 
 
 def _copy(session, tmp_path):
     dst = tmp_path / "s"
     shutil.copytree(session, dst)
     return dst
+
+
+def _kit_session(tmp_path):
+    """The kit recorder fixture (gnss/ only) plus a tiny equirectangular video."""
+    dst = _copy(DATA / "kit_recorder_session", tmp_path)
+    (dst / "video").mkdir()
+    writer = cv2.VideoWriter(
+        str(dst / "video" / "VID_0001.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (64, 32)
+    )
+    for i in range(5):
+        writer.write(np.full((32, 64, 3), 40 * i, dtype=np.uint8))
+    writer.release()
+    return dst
+
+
+def test_kit_recorder_session_passes_ingest(tmp_path):
+    session = _kit_session(tmp_path)
+    m = build_manifest(RunContext.create(session, tmp_path / "out"))
+    assert m.warnings == []
+    assert m.event_counts == {
+        "lidar_lost": 1,
+        "lidar_regained": 1,
+        "precheck_override": 1,
+        "qr_sync": 2,
+        "session_start": 1,
+        "session_stop": 1,
+    }
+    assert m.ubx_frame_counts["NAV-PVT"] > 100
+    assert m.logger is not None
+    # Kit recorder keys are not in the model; they are kept as extra keys.
+    assert m.logger.recorder == "kit-recorder"
+    assert m.logger.precheck_overrides == ["lidar"]
+    assert m.logger.clock_state_at_start == "pps"
+    assert m.logger.receiver["port"] == "USB"
+    assert m.logger.receiver["baud"] is None and m.logger.receiver["detected_baud"] is None
+    # ... and survive the manifest round trip.
+    back = read_model(Manifest, write_model(m, tmp_path / "manifest.json"))
+    assert back.logger.recorder == "kit-recorder"
+
+
+def test_kit_recorder_fixture_follows_the_contract():
+    events = read_events(DATA / "kit_recorder_session" / "gnss" / "events.csv")
+    assert [e.event_type for e in events[:2]] == ["session_start", "precheck_override"]
+    assert events[0].payload == "parcel_id=P-12"
+    assert events[1].payload == "lidar"
+    for e in events:
+        # PPS-locked throughout: every row carries its GPS time and a valid anchor.
+        assert e.gps_time_ns is not None and not e.gps_time_derived
+        assert e.pps_esp_micros is not None and e.pps_gps_time_ns is not None
+        assert e.pps_gps_time_ns % 1_000_000_000 == 0
+        assert e.gps_time_ns == e.pps_gps_time_ns + (e.esp_micros - e.pps_esp_micros) * 1000
+        assert 0 <= e.esp_micros - e.pps_esp_micros < 1_000_000
+
+
+def test_kit_recorder_power_loss_passes_ingest(tmp_path):
+    session = _kit_session(tmp_path)
+    logger_path = session / "gnss" / "session.json"
+    info = json.loads(logger_path.read_text())
+    (session / "gnss" / "session.json").write_text(
+        json.dumps({**info, "stop": None, "stop_reason": "power_loss"})
+    )
+    events = session / "gnss" / "events.csv"
+    lines = events.read_text().splitlines(keepends=True)
+    events.write_text("".join(x for x in lines if ",session_stop," not in x))
+    m = build_manifest(RunContext.create(session, tmp_path / "out"))
+    assert m.logger.stop is None and m.logger.stop_reason == "power_loss"
+    assert m.warnings == ["gnss/session.json: session was not closed (stop is null)"]
+    assert "session_stop" not in m.event_counts
 
 
 def test_manifest_hashes_and_roles(synthetic_session, tmp_path):

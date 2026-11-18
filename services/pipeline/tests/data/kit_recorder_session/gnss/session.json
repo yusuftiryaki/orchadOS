@@ -1,0 +1,42 @@
+{
+  "format_version": 1,
+  "session_id": "kit-00",
+  "parcel_id": "P-12",
+  "firmware_version": "0.1.0",
+  "recorder": "kit-recorder",
+  "receiver": {
+    "model": "ZED-F9P",
+    "port": "USB",
+    "baud": null,
+    "meas_period_ms": 200,
+    "rawx_rate_hz": 1,
+    "nav_pvt_rate_hz": 5,
+    "messages": [
+      "RXM-RAWX",
+      "RXM-SFRBX",
+      "NAV-PVT"
+    ],
+    "nmea": false,
+    "timepulse_grid": "GPS",
+    "config_status": "ok",
+    "detected_baud": null
+  },
+  "gps_utc_leap_seconds": 18,
+  "precheck_overrides": [
+    "lidar"
+  ],
+  "clock_state_at_start": "pps",
+  "start": {
+    "esp_micros": 812345678,
+    "gps_time_ns": 1478854818249877000,
+    "utc": "2026-11-16T09:00:00.249Z"
+  },
+  "stop": {
+    "esp_micros": 842351678,
+    "gps_time_ns": 1478854848255877000,
+    "utc": "2026-11-16T09:00:30.255Z"
+  },
+  "stop_reason": "command",
+  "gnss_bytes": 16100,
+  "dropped_bytes": 0
+}

@@ -21,6 +21,10 @@ from orchados_pipeline.params import SyncParams
 from orchados_pipeline.sync import check_qr_events, decode_event_payload
 
 README = Path(__file__).parents[3] / "firmware" / "gnss-logger" / "README.md"
+INTERFACES = Path(__file__).parents[3] / "docs" / "arayuzler.md"
+# Written only by the kit recorder (Raspberry Pi); documented in docs/arayuzler.md, not
+# in the ESP32 firmware README.
+KIT_ONLY_TYPES = {"lidar_lost", "lidar_regained", "gnss_lost", "gnss_regained", "precheck_override"}
 EVENTS = DATA / "ip2_readme_events.csv"
 LOGGER_SESSION = DATA / "ip2_readme_session.json"
 
@@ -44,8 +48,19 @@ def test_readme_header_and_event_types():
     assert f"```\n{','.join(COLUMNS)}\n```" in text
     from orchados_pipeline.events import KNOWN_TYPES
 
-    for kind in KNOWN_TYPES:
+    for kind in KNOWN_TYPES - KIT_ONLY_TYPES:
         assert f"`{kind}`" in text
+
+
+@pytest.mark.skipif(not INTERFACES.is_file(), reason="docs/arayuzler.md not in this checkout")
+def test_interfaces_doc_lists_every_event_type():
+    from orchados_pipeline.events import KNOWN_TYPES
+
+    text = INTERFACES.read_text(encoding="utf-8")
+    section = text[text.index("## `gnss/events.csv`") : text.index("## İki ayrı oturum dosyası")]
+    assert KIT_ONLY_TYPES <= KNOWN_TYPES
+    for kind in KNOWN_TYPES:
+        assert f"`{kind}`" in section
 
 
 def test_readme_events_parse():
