@@ -1,0 +1,41 @@
+[project]
+name = "orchados-kit-recorder"
+version = "0.1.0"
+description = "Raspberry Pi recorder of the LiDAR scan kit: speaks the ESP32 logger's BLE protocol, writes its gnss/ files and records the LiDAR"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pyserial>=3.5",
+    "bless>=0.3.0",
+]
+
+[project.scripts]
+orchados-recorder = "orchados_recorder.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[tool.uv]
+# Runs on the Pi (Linux) only; bless's Windows pins conflict with bleak's.
+environments = ["sys_platform == 'linux'"]
+
+[tool.uv.build-backend]
+module-name = "orchados_recorder"
+
+[build-system]
+requires = ["uv_build>=0.8,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

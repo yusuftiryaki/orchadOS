@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'command_result.dart';
+import 'gnss_status.dart' show KitCheck;
 
 /// Event types for `mark_event`.
 enum MarkType {
@@ -45,14 +46,26 @@ sealed class GnssCommand {
       case opStartSession:
         final sessionId = reader.string();
         final parcelId = reader.string();
-        if (sessionId == null || parcelId == null || !reader.atEnd) {
+        if (sessionId == null || parcelId == null) {
           return GnssCommandDecode.failure(CommandResult.malformed, seq);
         }
-        if (!isValidSessionId(sessionId) || !isValidParcelId(parcelId)) {
+        // Kit recorder: one optional trailing byte, the override mask.
+        final overrideMask = reader.atEnd ? null : data[reader.pos++];
+        if (!reader.atEnd) {
+          return GnssCommandDecode.failure(CommandResult.malformed, seq);
+        }
+        if (!isValidSessionId(sessionId) ||
+            !isValidParcelId(parcelId) ||
+            (overrideMask != null && !isValidOverrideMask(overrideMask))) {
           return GnssCommandDecode.failure(CommandResult.invalidArgument, seq);
         }
         return GnssCommandDecode.success(
-          StartSession(seq: seq, sessionId: sessionId, parcelId: parcelId),
+          StartSession(
+            seq: seq,
+            sessionId: sessionId,
+            parcelId: parcelId,
+            overrideMask: overrideMask,
+          ),
         );
       case opStopSession:
         if (!reader.atEnd) {
@@ -97,6 +110,10 @@ sealed class GnssCommand {
       s.length <= maxParcelIdLength &&
       s.codeUnits.every((c) => c >= 0x20 && c <= 0x7E);
 
+  /// Only the overridable kit pre-check items ([KitCheck.overridableMask]).
+  static bool isValidOverrideMask(int m) =>
+      m >= 0 && m & ~KitCheck.overridableMask == 0;
+
   /// 0–200 bytes of UTF-8 without control characters.
   static bool isValidPayload(String s) => _isValidPayloadBytes(utf8.encode(s));
 
@@ -115,10 +132,16 @@ final class StartSession extends GnssCommand {
     required int seq,
     required this.sessionId,
     required this.parcelId,
+    this.overrideMask,
   }) : super(seq);
 
   final String sessionId;
   final String parcelId;
+
+  /// Kit pre-check items the crew overrode ([KitCheck] mask), sent as one
+  /// trailing byte. Only the kit recorder understands it; the ESP32 answers
+  /// `malformed`. Null sends the 7+ byte form without it.
+  final int? overrideMask;
 
   @override
   Uint8List encode() {
@@ -129,6 +152,10 @@ final class StartSession extends GnssCommand {
     if (!GnssCommand.isValidParcelId(parcelId)) {
       throw ArgumentError.value(parcelId, 'parcelId');
     }
+    final mask = overrideMask;
+    if (mask != null && !GnssCommand.isValidOverrideMask(mask)) {
+      throw ArgumentError.value(mask, 'overrideMask');
+    }
     final sid = ascii.encode(sessionId);
     final pid = ascii.encode(parcelId);
     return Uint8List.fromList([
@@ -138,11 +165,14 @@ final class StartSession extends GnssCommand {
       ...sid,
       pid.length,
       ...pid,
+      ?mask,
     ]);
   }
 
   @override
-  String toString() => 'StartSession($seq, $sessionId, $parcelId)';
+  String toString() =>
+      'StartSession($seq, $sessionId, $parcelId'
+      '${overrideMask == null ? '' : ', overrides $overrideMask'})';
 }
 
 final class StopSession extends GnssCommand {

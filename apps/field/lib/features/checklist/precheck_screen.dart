@@ -26,6 +26,7 @@ class PrecheckResult {
     this.notice,
     this.harvestAsked = false,
     this.harvest,
+    this.overrides = const {},
   });
 
   final bool connected;
@@ -50,16 +51,44 @@ class PrecheckResult {
   final bool harvestAsked;
   final HarvestCheck? harvest;
 
-  bool get batteryOk => status != null && batteryHealth(status!) == Health.ok;
-  bool get sdOk => status != null && status!.sdReady;
-  bool get gnssOk => status != null && gnssReady(status!);
+  /// Kit pre-check items the crew chose to override, each after an explicit
+  /// confirmation. Only failed, overridable ones count ([kitOverrides]).
+  final Set<KitCheck> overrides;
 
-  /// Every item must pass; the crew cannot skip the checklist.
+  /// The kit recorder does not measure the battery: the item is skipped.
+  bool get batteryOk =>
+      status != null &&
+      (!batteryApplies(status!) || batteryHealth(status!) == Health.ok);
+  bool get sdOk =>
+      status != null && status!.sdReady && kitCheckOk(status!, KitCheck.ssd);
+  bool get gnssOk =>
+      status != null &&
+      gnssReady(status!) &&
+      kitCheckOk(status!, KitCheck.gnss);
+
+  List<KitCheck> get _kitFailed => status?.kit?.precheckFail ?? const [];
+
+  /// Failed kit items that block the start: SSD and receiver always, the
+  /// others unless overridden.
+  Set<KitCheck> get kitBlocking => {
+    for (final c in _kitFailed)
+      if (!c.overridable || !overrides.contains(c)) c,
+  };
+
+  /// Overrides that go to the kit: failed items the crew confirmed.
+  Set<KitCheck> get kitOverrides => {
+    for (final c in _kitFailed)
+      if (c.overridable && overrides.contains(c)) c,
+  };
+
+  /// Every item must pass; the crew cannot skip the checklist. Only the
+  /// kit's LiDAR, LiDAR mode and clock items can be overridden, explicitly.
   bool get allOk =>
       connected &&
       batteryOk &&
       sdOk &&
       gnssOk &&
+      kitBlocking.isEmpty &&
       lensClean &&
       cameraRecording &&
       spraying != null &&
@@ -81,6 +110,13 @@ class PrecheckResult {
 /// session); the others only gate the start. The crew also answers whether
 /// the QR information sign is at the entrance and the badge is visible (H01);
 /// a "no" needs a reason. That goes into a `field_notice_sign` event.
+///
+/// With the kit recorder (Raspberry Pi) the battery item is skipped (the Pi
+/// does not measure it), storage is the SSD, and LiDAR, LiDAR mode and clock
+/// are added from the kit's own pre-check. A failed LiDAR, LiDAR mode or
+/// clock item can be overridden after a confirmation; SSD and receiver
+/// cannot (docs/superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md
+/// §7.1).
 class PrecheckScreen extends ConsumerStatefulWidget {
   const PrecheckScreen({super.key});
 
@@ -98,6 +134,7 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
   bool? _sign;
   bool? _badge;
   final _noticeReason = TextEditingController();
+  final Set<KitCheck> _overrides = {};
 
   /// The parcel's last scan on this phone, if it recorded its setup.
   ScanSetup? _previous;
@@ -130,6 +167,41 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
     });
   }
 
+  /// Turns an override on after the crew confirms it; off right away.
+  Future<void> _setOverride(KitCheck c, bool on) async {
+    if (!on) {
+      setState(() => _overrides.remove(c));
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const Key('kit-override-dialog'),
+        content: Text(
+          kitOverrideQuestion(c),
+          style: const TextStyle(fontSize: 20),
+        ),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(minimumSize: const Size(64, 56)),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Vazgeç', style: TextStyle(fontSize: 18)),
+          ),
+          FilledButton(
+            key: const Key('kit-override-confirm'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(64, 56),
+              backgroundColor: StatusLine.colorFor(Health.warn),
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Yine de başlat', style: TextStyle(fontSize: 18)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) setState(() => _overrides.add(c));
+  }
+
   @override
   Widget build(BuildContext context) {
     final task = ref.watch(sessionControllerProvider).task;
@@ -158,7 +230,9 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
             ),
       harvestAsked: harvestAsked,
       harvest: _harvest,
+      overrides: _overrides,
     );
+    final kit = status?.kit;
     return Scaffold(
       appBar: AppBar(title: Text(task?.parcelName ?? 'Ön kontrol')),
       body: ListView(
@@ -170,17 +244,18 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
           ),
           const SizedBox(height: 12),
           const GnssConnectBar(),
-          _AutoItem(
-            key: const Key('check-battery'),
-            icon: Icons.battery_charging_full,
-            title: 'Batarya',
-            ok: result.batteryOk,
-            detail: status == null ? 'Bilgi yok' : batteryLabel(status),
-          ),
+          if (status == null || batteryApplies(status))
+            _AutoItem(
+              key: const Key('check-battery'),
+              icon: Icons.battery_charging_full,
+              title: 'Batarya',
+              ok: result.batteryOk,
+              detail: status == null ? 'Bilgi yok' : batteryLabel(status),
+            ),
           _AutoItem(
             key: const Key('check-sd'),
-            icon: Icons.sd_card,
-            title: 'SD kart',
+            icon: status?.isKit ?? false ? Icons.storage : Icons.sd_card,
+            title: status == null ? 'SD kart' : storageName(status),
             ok: result.sdOk,
             detail: status == null ? 'Bilgi yok' : sdLabel(status),
           ),
@@ -191,6 +266,15 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
             ok: result.gnssOk,
             detail: status == null ? 'Bilgi yok' : gnssLabel(status),
           ),
+          if (status != null && kit != null)
+            for (final c in KitCheck.values.where((c) => c.overridable))
+              _KitItem(
+                key: Key('check-kit-${c.code}'),
+                check: c,
+                status: status,
+                overridden: result.kitOverrides.contains(c),
+                onOverride: (on) => _setOverride(c, on),
+              ),
           _ManualItem(
             key: const Key('check-lens'),
             icon: Icons.camera,
@@ -256,6 +340,7 @@ class _PrecheckScreenState extends ConsumerState<PrecheckScreen> {
                           cameraHeightM: result.cameraHeightM!,
                           notice: result.notice!,
                           harvest: result.harvest,
+                          kitOverrides: result.kitOverrides,
                         );
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute<void>(
@@ -299,6 +384,89 @@ class _AutoItem extends StatelessWidget {
           color: color,
           size: 36,
         ),
+      ),
+    );
+  }
+}
+
+/// The question before overriding a failed kit item.
+String kitOverrideQuestion(KitCheck c) => switch (c) {
+  KitCheck.lidar =>
+    'LiDAR kaydı olmadan başlatılsın mı? Bu taramada nokta bulutu olmayacak.',
+  KitCheck.lidarMode =>
+    'LiDAR kipi doğrulanamadı. Gövdenin alt kısmı kaydedilmeyebilir. '
+        'Yine de başlatılsın mı?',
+  KitCheck.clock =>
+    "Saat GPS'e kilitli değil. Zaman eşlemesi kaba olacak. "
+        'Yine de başlatılsın mı?',
+  KitCheck.ssd || KitCheck.gnss => throw ArgumentError.value(c, 'check'),
+};
+
+/// A kit pre-check item from the recorder. A failed overridable item gets
+/// a "Yine de başlat" switch; an overridden one shows as a warning.
+class _KitItem extends StatelessWidget {
+  const _KitItem({
+    super.key,
+    required this.check,
+    required this.status,
+    required this.overridden,
+    required this.onOverride,
+  });
+
+  final KitCheck check;
+  final GnssStatus status;
+  final bool overridden;
+  final ValueChanged<bool> onOverride;
+
+  static IconData _icon(KitCheck c) => switch (c) {
+    KitCheck.lidar => Icons.radar,
+    KitCheck.lidarMode => Icons.swap_vert,
+    KitCheck.clock => Icons.timer_outlined,
+    KitCheck.ssd => Icons.storage,
+    KitCheck.gnss => Icons.satellite_alt,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final ok = kitCheckOk(status, check);
+    final health = ok
+        ? Health.ok
+        : overridden
+        ? Health.warn
+        : Health.bad;
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            minTileHeight: 72,
+            leading: Icon(_icon(check), size: 36),
+            title: Text(check.label, style: const TextStyle(fontSize: 20)),
+            subtitle: Text(
+              kitCheckLine(status, check).value,
+              style: const TextStyle(fontSize: 16),
+            ),
+            trailing: Icon(
+              switch (health) {
+                Health.ok => Icons.check_circle,
+                Health.warn => Icons.warning,
+                Health.bad => Icons.cancel,
+              },
+              color: StatusLine.colorFor(health),
+              size: 36,
+            ),
+          ),
+          if (!ok && check.overridable)
+            SwitchListTile(
+              key: Key('kit-override-${check.code}'),
+              minTileHeight: 60,
+              title: const Text(
+                'Yine de başlat',
+                style: TextStyle(fontSize: 18),
+              ),
+              value: overridden,
+              onChanged: onOverride,
+            ),
+        ],
       ),
     );
   }

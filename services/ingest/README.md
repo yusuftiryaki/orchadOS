@@ -32,13 +32,14 @@ uv run ruff check . && uv run ruff format --check .
 | Düzen | Tanıma | Depoya |
 | --- | --- | --- |
 | `session` | Kökte `session.json`, `gnss/` ya da `video/` | Dosyalar göreli yollarıyla |
-| `logger-card` | `sessions/<session_id>/` | `gnss/*` (kartın klasörü olduğu gibi; dosyalar değiştirilmez) |
+| `kit-ssd` | `sessions/<session_id>/gnss/` | Kit kaydedicisinin (Raspberry Pi) SSD'si: `sessions/<session_id>/*` oturum köküne aynı göreli yolla (`gnss/...`, `lidar/raw/...`); kimlikler `sessions/<session_id>/gnss/session.json`'dan |
+| `logger-card` | `sessions/<session_id>/` (içinde `gnss/` yok) | ESP32 kaydedicinin kartı: `gnss/*` (kartın klasörü olduğu gibi; dosyalar değiştirilmez) |
 | `camera-card` | `DCIM/` | `camera/<DCIM altındaki yol>`; sadece `.insv .insp .mp4 .mov .jpg .jpeg .dng`. Düşük çözünürlüklü `.lrv` önizlemeler alınmaz |
 | `video` | Kökte `.mp4` | `video/<ad>`; Insta360 Studio'nun dışa aktardığı klasör |
 
 Gizli dosyalar (`.` ile başlayan) ve işletim sistemi artıkları (`System Volume Information`, `Thumbs.db` ...) yüklenmez.
 
-**Kimlikler:** `org_id` ve `parcel_id` sırayla `--org-id`/`--parcel-id`, kök `session.json` (ve `gnss/session.json`), depodaki oturum dizini kaydından okunur. Kaynaklar çelişirse hata. Kartlar ve dışa aktarılan video `session.json` taşımaz; oturum depoda zaten varsa kimlikler oradan gelir, yoksa seçenekle verilir. `session.json`'daki `session_id` `--session-id` ile aynı olmalıdır.
+**Kimlikler:** `org_id` ve `parcel_id` sırayla `--org-id`/`--parcel-id`, kök `session.json` (ve `gnss/session.json`), depodaki oturum dizini kaydından okunur. Kaynaklar çelişirse hata. Kaydedici kartı ve kit SSD'si yalnız `gnss/session.json` taşır (`org_id` yok); kamera kartı ve dışa aktarılan video hiç `session.json` taşımaz; oturum depoda zaten varsa kimlikler oradan gelir, yoksa seçenekle verilir. `session.json`'daki `session_id` `--session-id` ile aynı olmalıdır.
 
 **Değiştirilemezlik:** Aynı yolda başka içerikli bir dosya reddedilir (`--replace` ile üzerine yazılır). Aynı içerik tekrar yüklenmez.
 
@@ -142,7 +143,7 @@ Ham veri 30 gün tutulur. `prune --older-than 30d` **en yeni nesnesi** 30 günde
 | `test_config.py` | Dosya + ortam çözümü, kimlik bilgisinin reddi, sağlayıcı ön ayarları, doğrulama |
 | `test_transfer.py` | Bant sınırı (sahte saat), saat aralığı, ilerleme/hız/kalan süre, okuyucunun baytı bir kez sayması |
 | `test_manifest.py` | Depo düzeni, kimlik ve yol denetimi, manifestte sadece kimlik/ad/boyut/hash, değiştirilemezlik, parça boyutu |
-| `test_sources.py` | Kaynak düzenleri (oturum, kaydedici kartı, kamera kartı, video klasörü) |
+| `test_sources.py` | Kaynak düzenleri (oturum, kit SSD'si, kaydedici kartı, kamera kartı, video klasörü) |
 | `test_store_contract.py` | Aynı sözleşme her arka uçta (local, MinIO, Azurite): küçük nesne, çok parçalı yükleme, yarıda kesilip devam, değişen dosyanın parçaları kullanmaması |
 | `test_ops.py` | Her arka uçta yükle → yarıda kes → devam et → indir → doğrula; bozulmanın yakalanması; filtreler; kimlikler ve değiştirilemezlik; hash önbelleği; `prune` tarih hesabı (31/30 gün, sonradan eklenen dosya), sahipsiz dizin kaydı |
 | `test_gcs_compat.py` | `gcs` ön ayarının `minio` ile aynı sınıf ve istemci ayarlarını kullandığı; uç noktası MinIO'ya çevrilmiş `gcs` yapılandırmasıyla tam push/pull/verify |

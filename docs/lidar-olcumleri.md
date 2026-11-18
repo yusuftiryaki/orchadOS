@@ -239,7 +239,7 @@ Metodolojinin kuralı: bir metrik, kendi verimizde doğrulanmadan karneye girmez
 | Ölçüm | Elle referans | Kabul ölçütü (öneri) |
 | --- | --- | --- |
 | Taç çapı | Şerit metreyle iki dik yönde taç izdüşümü, ortalaması | Ortalama sapma ±%5, ağaçların %95'inde ±%10 |
-| Ağaç boyu | Jalon ya da lazer mesafe ölçer / hipsometre | ±15 cm |
+| Ağaç boyu | Şerit metre ve telefonun eğim ölçeri (ağaca yatay mesafe, tepeye ve dibe iki açı); ek donanım alınmaz (karar 18 Kasım 2026) | ±15 cm; elle referansın kendi hatası buna yakın olabilir, eşik pilotun ilk ölçümlerinden sonra gözden geçirilir |
 | Taç hacmi | Doğrudan referans yok; çap ve boydan elipsoit, yöntemler arası tutarlılık için | Sapma belgelenir, karneye girmeden önce karar |
 | Büyüklük sınıfı | Ofis kişisinin kesitlerden verdiği sınıf | Uyum %90, eşiğe yakın vakalar ayrı |
 | Ana kol sayısı | Kışın ağaç başında sayım | Ağaçların %90'ında tam eşleşme |

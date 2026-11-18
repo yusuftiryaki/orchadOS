@@ -52,6 +52,204 @@ enum CarrierSolution {
   );
 }
 
+/// A pre-check item of the kit recorder (Raspberry Pi), as a bit of the
+/// `precheck_fail` and `overrides` masks and of the `start_session` override
+/// byte (docs/arayuzler.md, "Ön kontrol ve atlama").
+enum KitCheck {
+  lidar(0x01, 'lidar', 'LiDAR'),
+  lidarMode(0x02, 'lidar_mode', 'LiDAR kipi'),
+  clock(0x04, 'clock', 'Saat (PPS)'),
+  ssd(0x08, 'ssd', 'SSD'),
+  gnss(0x10, 'gnss', 'GNSS alıcısı');
+
+  const KitCheck(this.bit, this.code, this.label);
+  final int bit;
+
+  /// Name in the contract (`gnss/session.json` `precheck_overrides`).
+  final String code;
+  final String label;
+
+  /// Items the crew may override: LiDAR, LiDAR mode and clock. SSD and the
+  /// receiver cannot be skipped.
+  static const int overridableMask = 0x07;
+
+  bool get overridable => bit & overridableMask != 0;
+
+  static List<KitCheck> fromMask(int mask) => [
+    for (final c in values)
+      if (mask & c.bit != 0) c,
+  ];
+
+  static int toMask(Iterable<KitCheck> checks) =>
+      checks.fold(0, (m, c) => m | c.bit);
+}
+
+/// Live alert of the kit recorder during a recording (`alerts`).
+enum KitAlert {
+  lidarSilent(0x01, 'LiDAR veri göndermiyor'),
+  lidarRateLow(0x02, 'LiDAR nokta hızı düşük'),
+  lidarNotWritten(0x04, 'LiDAR kaydı yazılmıyor'),
+  gnssSilent(0x08, 'GNSS alıcısı sustu'),
+  clockUnlocked(0x10, "Saat GPS'e kilitli değil"),
+  ssdError(0x20, 'SSD hatası'),
+  ssdLow(0x40, "SSD'de yer azaldı");
+
+  const KitAlert(this.bit, this.label);
+  final int bit;
+  final String label;
+
+  static List<KitAlert> fromMask(int mask) => [
+    for (final a in values)
+      if (mask & a.bit != 0) a,
+  ];
+
+  static int toMask(Iterable<KitAlert> alerts) =>
+      alerts.fold(0, (m, a) => m | a.bit);
+}
+
+/// `lidar_state`.
+enum LidarState {
+  neverSeen,
+  streaming,
+  lost;
+
+  /// Unknown codes read as "never seen" (no data).
+  static LidarState fromCode(int code) =>
+      code < values.length ? values[code] : neverSeen;
+}
+
+/// `lidar_mode`: whether the negative-angle mode is on.
+enum LidarMode {
+  unknown,
+  ok,
+  wrong;
+
+  static LidarMode fromCode(int code) =>
+      code < values.length ? values[code] : unknown;
+}
+
+/// `clock_state` of the Pi's system clock.
+enum KitClock {
+  unlocked,
+
+  /// Set from the receiver's USB time only (tens of ms).
+  coarse,
+
+  /// Locked to the receiver's PPS by chrony.
+  pps;
+
+  /// Unknown codes read as unlocked.
+  static KitClock fromCode(int code) =>
+      code < values.length ? values[code] : unlocked;
+}
+
+/// Fields the kit recorder (Raspberry Pi) appends to the status (offsets
+/// 51–76; docs/arayuzler.md, "Kit kaydedicisi (Raspberry Pi)"). The defaults
+/// describe a healthy kit.
+class KitStatus {
+  const KitStatus({
+    this.lidarState = LidarState.streaming,
+    this.lidarMode = LidarMode.ok,
+    this.clock = KitClock.pps,
+    this.precheckFail = const [],
+    this.alerts = const [],
+    this.overrides = const [],
+    this.lidarPointsPerS = 64000,
+    this.imuHz = 200,
+    this.lidarGapCount = 0,
+    this.lidarLongestGapS = 0,
+    this.lidarWrittenMib = 0,
+    this.clockOffsetUs = 0,
+  });
+
+  /// `recorder_kind` of the kit recorder.
+  static const int recorderKind = 1;
+
+  final LidarState lidarState;
+  final LidarMode lidarMode;
+  final KitClock clock;
+
+  /// Pre-check items that fail right now.
+  final List<KitCheck> precheckFail;
+  final List<KitAlert> alerts;
+
+  /// Items overridden for this recording; empty when not recording.
+  final List<KitCheck> overrides;
+
+  /// Average over the last 3 s.
+  final int lidarPointsPerS;
+  final int imuHz;
+
+  /// LiDAR gaps of this recording and the longest one (s).
+  final int lidarGapCount;
+  final int lidarLongestGapS;
+
+  /// MiB written to the MCAP recording in this session.
+  final int lidarWrittenMib;
+
+  /// chrony's estimate of the system clock error (µs); 0 when unknown.
+  final int clockOffsetUs;
+
+  KitStatus copyWith({
+    LidarState? lidarState,
+    LidarMode? lidarMode,
+    KitClock? clock,
+    List<KitCheck>? precheckFail,
+    List<KitAlert>? alerts,
+    List<KitCheck>? overrides,
+    int? lidarPointsPerS,
+    int? imuHz,
+    int? lidarGapCount,
+    int? lidarLongestGapS,
+    int? lidarWrittenMib,
+    int? clockOffsetUs,
+  }) => KitStatus(
+    lidarState: lidarState ?? this.lidarState,
+    lidarMode: lidarMode ?? this.lidarMode,
+    clock: clock ?? this.clock,
+    precheckFail: precheckFail ?? this.precheckFail,
+    alerts: alerts ?? this.alerts,
+    overrides: overrides ?? this.overrides,
+    lidarPointsPerS: lidarPointsPerS ?? this.lidarPointsPerS,
+    imuHz: imuHz ?? this.imuHz,
+    lidarGapCount: lidarGapCount ?? this.lidarGapCount,
+    lidarLongestGapS: lidarLongestGapS ?? this.lidarLongestGapS,
+    lidarWrittenMib: lidarWrittenMib ?? this.lidarWrittenMib,
+    clockOffsetUs: clockOffsetUs ?? this.clockOffsetUs,
+  );
+
+  static KitStatus _decode(ByteData b) => KitStatus(
+    lidarState: LidarState.fromCode(b.getUint8(52)),
+    lidarMode: LidarMode.fromCode(b.getUint8(53)),
+    clock: KitClock.fromCode(b.getUint8(54)),
+    precheckFail: KitCheck.fromMask(b.getUint8(55)),
+    alerts: KitAlert.fromMask(b.getUint8(56)),
+    overrides: KitCheck.fromMask(b.getUint8(57)),
+    lidarPointsPerS: b.getUint32(59, Endian.little),
+    imuHz: b.getUint16(63, Endian.little),
+    lidarGapCount: b.getUint16(65, Endian.little),
+    lidarLongestGapS: b.getUint16(67, Endian.little),
+    lidarWrittenMib: b.getUint32(69, Endian.little),
+    clockOffsetUs: b.getInt32(73, Endian.little),
+  );
+
+  void _encode(ByteData b) => b
+    ..setUint8(51, recorderKind)
+    ..setUint8(52, lidarState.index)
+    ..setUint8(53, lidarMode.index)
+    ..setUint8(54, clock.index)
+    ..setUint8(55, KitCheck.toMask(precheckFail))
+    ..setUint8(56, KitAlert.toMask(alerts))
+    ..setUint8(57, KitCheck.toMask(overrides))
+    ..setUint8(58, 0)
+    ..setUint32(59, lidarPointsPerS, Endian.little)
+    ..setUint16(63, imuHz, Endian.little)
+    ..setUint16(65, lidarGapCount, Endian.little)
+    ..setUint16(67, lidarLongestGapS, Endian.little)
+    ..setUint32(69, lidarWrittenMib, Endian.little)
+    ..setInt32(73, clockOffsetUs, Endian.little);
+}
+
 /// Decoded status characteristic of the GNSS logger (protocol version 1).
 ///
 /// Layout: firmware/gnss-logger/README.md, "Durum (39 bayt)". All
@@ -62,6 +260,9 @@ enum CarrierSolution {
 /// Firmware 0.3.0 and later send 51 bytes: the receiver's position (NAV-PVT
 /// `lat`, `lon`, `height` at offsets 39, 43, 47; see [position]), valid when
 /// `flags` bit6 is set.
+///
+/// The kit recorder (Raspberry Pi) sends 77 bytes: the same first 51 bytes
+/// and the kit extension ([kit]). A shorter message is the ESP32.
 class GnssStatus {
   const GnssStatus({
     required this.version,
@@ -84,6 +285,7 @@ class GnssStatus {
     this.latE7,
     this.lonE7,
     this.heightMm,
+    this.kit,
   });
 
   static const int protocolVersion = 1;
@@ -95,6 +297,9 @@ class GnssStatus {
 
   /// Length with the trailing position block (see [position]).
   static const int lengthWithPosition = 51;
+
+  /// Length of the kit recorder's status, with [kit].
+  static const int lengthWithKit = 77;
 
   static const int flagSdPresent = 0x01;
   static const int flagSdLowSpace = 0x02;
@@ -142,6 +347,14 @@ class GnssStatus {
   final int? latE7;
   final int? lonE7;
   final int? heightMm;
+
+  /// Kit recorder extension; null for the ESP32 (a message shorter than 77
+  /// bytes or another `recorder_kind`).
+  final KitStatus? kit;
+
+  /// The recorder is the kit's Raspberry Pi: no battery voltage, LiDAR and
+  /// clock state, pre-check override.
+  bool get isKit => kit != null;
 
   /// Receiver position, when the message carries one, the firmware marks it
   /// valid (bit6) and the receiver has a 2D/3D fix (`gnssFixOK`); null
@@ -204,6 +417,11 @@ class GnssStatus {
       lonE7 = b.getInt32(43, Endian.little);
       heightMm = b.getInt32(47, Endian.little);
     }
+    final kit =
+        bytes.length >= lengthWithKit &&
+            b.getUint8(51) == KitStatus.recorderKind
+        ? KitStatus._decode(b)
+        : null;
     return GnssStatus(
       version: version,
       recording: b.getUint8(1) != 0,
@@ -225,6 +443,7 @@ class GnssStatus {
       latE7: latE7,
       lonE7: lonE7,
       heightMm: heightMm,
+      kit: kit,
     );
   }
 
@@ -232,12 +451,18 @@ class GnssStatus {
   /// tests. With [includeGpsTime] the 39-byte form of firmware 0.2.0+ is
   /// produced, otherwise the 31-byte form of 0.1.0. With [includePosition]
   /// the 51-byte form with the position block (implies the GPS time field).
+  /// With a [kit] extension (or this status's own) the kit recorder's
+  /// 77-byte form (implies the GPS time and position fields).
   Uint8List encode({
     bool includeGpsTime = false,
     bool includePosition = false,
+    KitStatus? kit,
   }) {
+    final k = kit ?? this.kit;
     final out = Uint8List(
-      includePosition
+      k != null
+          ? lengthWithKit
+          : includePosition
           ? lengthWithPosition
           : includeGpsTime
           ? lengthWithGpsTime
@@ -264,15 +489,16 @@ class GnssStatus {
       ..setUint32(25, droppedBytes, Endian.little)
       ..setUint8(29, lastCmdSeq)
       ..setUint8(30, lastCmdResult.code ?? CommandResult.none.code!);
-    if (includeGpsTime || includePosition) {
-      b.setUint64(31, includeGpsTime ? gpsTimeNs ?? 0 : 0, Endian.little);
+    if (includeGpsTime || includePosition || k != null) {
+      b.setUint64(31, gpsTimeNs ?? 0, Endian.little);
     }
-    if (includePosition) {
+    if (includePosition || k != null) {
       b
         ..setInt32(39, latE7 ?? 0, Endian.little)
         ..setInt32(43, lonE7 ?? 0, Endian.little)
         ..setInt32(47, heightMm ?? 0, Endian.little);
     }
+    k?._encode(b);
     return out;
   }
 
@@ -295,6 +521,7 @@ class GnssStatus {
     int? latE7,
     int? lonE7,
     int? heightMm,
+    KitStatus? kit,
   }) => GnssStatus(
     version: version,
     recording: recording ?? this.recording,
@@ -316,5 +543,6 @@ class GnssStatus {
     latE7: latE7 ?? this.latE7,
     lonE7: lonE7 ?? this.lonE7,
     heightMm: heightMm ?? this.heightMm,
+    kit: kit ?? this.kit,
   );
 }

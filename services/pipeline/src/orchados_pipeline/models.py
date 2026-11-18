@@ -72,7 +72,13 @@ class LoggerTimestamp(BaseModel):
 
 
 class LoggerSession(BaseModel):
-    """gnss/session.json, written by the ESP32 GNSS logger (İP2). Unknown keys are kept."""
+    """gnss/session.json, written by the ESP32 GNSS logger (İP2) or the kit recorder.
+
+    Unknown keys are kept. The kit recorder (Raspberry Pi) adds `recorder`
+    ("kit-recorder"; absent means ESP32), `precheck_overrides` and
+    `clock_state_at_start`, writes `receiver.port` "USB" with null bauds, and
+    `stop_reason` "power_loss" with `stop` null (docs/arayuzler.md).
+    """
 
     model_config = ConfigDict(extra="allow")
 

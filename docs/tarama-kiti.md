@@ -6,6 +6,8 @@ Kit, personelin sırtında taşıdığı tek bir direk düzeneğidir. Üzerinde 
 
 > **Güncelleme (16 Kasım 2026): ana parçalar alındı.** Bu doküman artık alınan parçalara göre yazılıdır: LiDAR **Unitree 4D LiDAR L2**, 360° kamera **Insta360 X4 Air**, RTK alıcısı **Radiolink RTK F9P**, kayıt diski **Lexar SL300 512 GB**, kamera kartı **SanDisk High Endurance 256 GB**. İlk tasarım Livox Mid-360 sınıfı bir LiDAR'a göreydi; L2'nin getirdiği farklar (yarım küre görüş alanı, PTP'nin olmaması, daha seyrek bulut) ilgili bölümlerde yazılı. Alınanlar ve kalanlar: [kit-siparis-listesi.md](kit-siparis-listesi.md).
 
+> **Güncelleme (16 Kasım 2026): kayıt yazılımı ve baz verisi.** ESP32 kaydedici kitten çıktı; GNSS kaydını, PPS'i ve telefonla bağlantıyı Pi'daki kayıt servisi üstlendi (`services/kit-recorder/`, [tasarım](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md), sözleşme [arayuzler.md](arayuzler.md#kit-kaydedicisi-raspberry-pi)). Telefon Pi'a Bluetooth ile bağlanır; Pi'ın kendi Wi-Fi ağı ve web ekranı yok. Baz verisi TUSAGA-Aktif'ten gelir; kendi baz istasyonu kurulmaz.
+
 Kitin ne için kullanıldığı ve neden bu sensörlerin seçildiği [vizyon.md](vizyon.md) dosyasında. Bu doküman kitin kendisini tarif eder.
 
 ## Bileşenler ve bağlantılar
@@ -22,7 +24,7 @@ flowchart LR
     DC12 --> LID
     DC5 --> PI
     PI -- "USB 3" --> SSD["Çıkarılabilir SSD"]
-    PI -- "Wi-Fi erişim noktası" --> TEL["Personel telefonu<br/>durum ekranı, QR saat"]
+    PI -- "Bluetooth (BLE): durum, başlat/durdur" --> TEL["Personel telefonu<br/>ön kontrol, uyarılar, QR saat"]
     PD --> CAM["360° kamera, Insta360 X4 Air<br/>kendi microSD kartına kaydeder"]
     TEL -. "QR ile saat işareti" .-> CAM
 ```
@@ -32,10 +34,10 @@ flowchart LR
 | LiDAR: Unitree 4D LiDAR L2 | 3D geometri; dahili IMU ile SLAM | Ayrı bir IMU gerekmez (6 eksen, 500 Hz). Görüş alanı tabanının üstündeki yarım küre: 360° × 90°, negatif açı kipinde 96°. Ayrıntı [aşağıda](#lidar-unitree-4d-lidar-l2) |
 | 360° kamera: Insta360 X4 Air | Panorama, görsel değerlendirme, nokta bulutunu renklendirme | 8K 30 fps, kayıt başına tek `.insv` dosyası. Kendi hafıza kartına kaydeder; içindeki jiroskop verisi zaman eşlemede de kullanılır |
 | RTK GNSS: Radiolink RTK F9P | Mutlak konum, GPS zamanı (PPS), PPK için ham gözlemler | Sahada internet gerekmez; konum sonradan PPK ile düzeltilir. PPS çıkışı ve ham gözlem kaydı parça gelince doğrulanacak |
-| Raspberry Pi 5 (8 GB) | ROS 2 ile kayıt, zaman kaynağı, durum ekranı | Kayıt yapar, ağır işleme yapmaz. Henüz alınmadı |
+| Raspberry Pi 5 (8 GB) | LiDAR ve ham GNSS kaydı, zaman kaynağı; telefona kayıt durumu | Kayıt yapar, ağır işleme yapmaz. Elde var. Kayıt yazılımı: `services/kit-recorder/` ([tasarım](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)) |
 | Çıkarılabilir SSD (USB 3): Lexar SL300 512 GB | LiDAR, IMU ve GNSS kaydı (MCAP) | MVP'de tek SSD; ziyaretten sonra ofiste boşaltılır |
 | Batarya | Tüm kiti besler | Değiştirilebilir alet aküleri: ucuz, sağlam, sahada hızlı değişir |
-| Personel telefonu | Durum ekranı, kayıt başlat/durdur, QR saat göstergesi | Saha uygulamasının bir ekranı olarak |
+| Personel telefonu | Ön kontrol, kayıt başlat/durdur, kayıt sırasında uyarılar, QR saat göstergesi | Saha uygulamasının ekranları; Pi'a Bluetooth ile bağlanır. Taramada gidondaki tutucuda durur, ekranı açıktır |
 
 ## LiDAR: Unitree 4D LiDAR L2
 
@@ -77,10 +79,12 @@ Değerler üreticinin kullanım kılavuzundandır (v1.1); sahada doğrulanmadı.
 | LiDAR verisini almak (Ethernet, ~4 MB/s) | STM32H7 ile mümkün. Ancak LiDAR'ın kontrol protokolünü üreticinin Linux SDK'sı yerine sıfırdan yazmak gerekir | Üreticinin SDK'sı ve ROS 2 sürücüsü hazır |
 | İki saat boyunca ~4 MB/s kesintisiz yazma | SD karta mümkün ama sınırda; USB SSD sürmek zor | USB 3 SSD ile rahat |
 | Kayıt formatı | Ham paketler; sonradan dönüştürme gerekir | Doğrudan MCAP |
-| Wi-Fi durum ekranı, rota kapsaması, sahada kalite kontrolü | Ek bir çip ve ayrı firmware gerekir | Aynı yazılımın parçası |
+| Sahada kalite kontrolü: LiDAR akışını, saat kilidini ve diski izleyip telefona bildirmek | LiDAR verisini mikrodenetleyicide çözmek gerekir | Aynı yazılımın parçası |
 | Robota taşınabilirlik | Ayrı yazılım | Hoverboard robotundaki ROS 2 altyapısının aynısı |
 
 Mikrodenetleyiciyle yapılabilir, ama tasarruf küçük: kart başına ~60–90 $ ve ~5–6 W. Bu, ~2.800 $'lık bir kitin %3'ü kadar ve batarya zaten yetiyor. Buna karşılık LiDAR protokolünü, dosya sistemini ve durum ekranını sıfırdan yazmak aylar sürer. Tek kişilik bir geliştirme için doğru takas Pi.
+
+Aynı nedenle ESP32 kaydedici de kitten çıktı (16 Kasım 2026). Pi zaten kitte olduğu için GNSS kaydını ve PPS'i de üstlenir; ikinci bir kart, ikinci bir hafıza kartı ve iki ayrı kayıt gerekmez. Pi, saha uygulamasına ve işleme hattına ESP32 gibi görünür: aynı Bluetooth protokolü ve aynı `gnss/` dosyaları. ESP32 firmware'i ([firmware/gnss-logger/](../firmware/gnss-logger/)) repoda referans olarak duruyor.
 
 **İleride:** Kit yüzlerce adet üretilirse Pi yerine endüstriyel bir modül (ör. Compute Module 5) ve özel bir taşıyıcı kart düşünülebilir. Zaman hassasiyeti kritikleşirse, hoverboard'daki ESP32 + Pi düzenine benzer şekilde, zamanlama işini küçük bir mikrodenetleyici Pi'ın yanında üstlenebilir. Pi 5'in 4 GB'lık modeli de kayıt için yeterli.
 
@@ -117,7 +121,7 @@ Negatif açı kipi kapalıyken LiDAR kendi yüksekliğinin altını hiç görmez
 
 Tüm sensörlerin zamanı GPS zamanına bağlanır:
 
-1. **Pi'ın saati:** RTK alıcısının PPS sinyali Pi'ın GPIO'suna bağlanır. Pi'ın sistem saati bu sinyalle GPS zamanına kilitlenir (gpsd + chrony).
+1. **Pi'ın saati:** RTK alıcısının PPS sinyali Pi'ın GPIO18'ine bağlanır. Kayıt servisi alıcının zamanını chrony'ye verir, chrony PPS ile kilitlenir; Pi'ın sistem saati böylece GPS zamanına bağlanır. gpsd kullanılmaz, çünkü alıcının seri portunun tek sahibi kayıt servisidir. Ayrıntı: [arayuzler.md](arayuzler.md#saat).
 2. **LiDAR:** L2'nin kılavuzunda PTP ya da PPS girişi yok; LiDAR saatini dışarıdan alamaz. Nokta ve IMU paketleri Pi'a vardıkları anda Pi'ın GPS'e kilitli saatiyle damgalanır. SDK nokta ve IMU mesajlarında LiDAR'ın kendi zaman alanını da veriyor; nokta ile IMU arasındaki eşlemenin buna dayanması ve Pi'a varış gecikmesinden etkilenmemesi beklenir (doğrulanacak). Geriye Ethernet ve işletim sistemi gecikmesi kalır (birkaç milisaniye beklenir, ölçülmedi). 2 ms'lik bir hata yürüme hızında (~1 m/s) 2 mm, motosiklet hızında (~5 m/s) 1 cm konum hatası demek. Sabit kısmı kalibrasyonda ölçülüp düzeltilir.
 3. **360° kamera:** Dışarıdan tetiklenemez, kendi saatiyle kaydeder. İki adımda eşlenir:
     - **Kaba eşleme:** Taramanın başında ve sonunda, telefon Pi'ın saatini QR kod olarak gösterir ve bu QR kameraya okutulur. İki işaret arasındaki saat kayması doğrusal olarak düzeltilir.
@@ -126,19 +130,21 @@ Tüm sensörlerin zamanı GPS zamanına bağlanır:
 ## Sahadan merkeze iş akışı
 
 **Sahada:**
-1. **Kit açılır:** Pi açılır ve kendi Wi-Fi ağını kurar. Telefon bu ağa bağlanıp durum ekranını açar.
+1. **Kit açılır:** Pi açılır ve birkaç dakikada kayda hazır olur; ekran ve klavye bağlanmaz. Telefon Pi'a Bluetooth ile bağlanır; durum saha uygulamasının ön kontrol ekranında görünür.
 2. **Ön kontrol ekranı:**
-    - LiDAR veri akışı
-    - GNSS uydu sayısı ve konum durumu
-    - SSD boş alanı
-    - Batarya seviyesi
+    - LiDAR veri akışı ve negatif açı kipi
+    - GNSS alıcısı (ham veri geliyor mu), uydu sayısı ve konum durumu
+    - Saat (PPS'e kilitli mi)
+    - SSD (takılı, yazılabilir, boş alan)
     - Kameranın kayıtta olduğu (personel onaylar)
+
+    LiDAR ve saat maddeleri geçmezse personel taramayı açık bir onayla yine de başlatabilir; atlanan madde kayda geçer. SSD ve alıcı maddeleri atlanamaz. Pi akü gerilimini ölçmez; akü kit açılmadan kontrol edilir. Ayrıntı: [arayuzler.md](arayuzler.md#ön-kontrol-ve-atlama).
 3. **Kayıt başlar:** Telefondan başlatılır, kamerada video başlatılır. Başlangıç QR'ı okutulur.
-4. **Tarama:** Grid rotası boyunca yürünür. Durum ekranında GNSS izi parsel haritası üzerinde görünür; gezilmemiş koridorlar işaretlidir.
-5. **Bitiş:** Bitiş QR'ı okutulur, kayıtlar durdurulur. Pi, oturum bilgisini yazar: bahçe, personel, ekipman seri numaraları, kalibrasyon sürümü.
+4. **Tarama:** Grid rotası boyunca gidilir. Telefon gidondaki tutucuda durur, ekranı açık ve uygulama öndedir. Ekranda GNSS izi parsel haritası üzerinde görünür; gezilmemiş koridorlar işaretlidir. LiDAR susarsa ya da kayda yazılmazsa, alıcı ya da saat koparsa, SSD sorun verirse telefon sesle ve ekranda uyarır. Kopuşlar kaydı durdurmaz; boşluklar kayda geçer.
+5. **Bitiş:** Bitiş QR'ı okutulur, kayıtlar durdurulur. Telefon kısa bir özet gösterir: süre, LiDAR verisi ve boşluklar, uyarılar. Oturum bilgisi (bahçe, personel, ekipman seri numaraları, kalibrasyon sürümü) saha uygulamasının ve Pi'ın oturum dosyalarına yazılır.
 
 **Merkezde (işleme istasyonu):**
-1. SSD ve kameranın microSD kartı istasyona takılır.
+1. SSD ve kameranın microSD kartı istasyona takılır. SSD'deki oturum klasörü (`gnss/` ve `lidar/`) olduğu gibi oturumun köküne kopyalanır ([arayuzler.md](arayuzler.md#oturum-klasörü)).
 2. Alım betiği dosyaları NAS'a kopyalar, sağlama toplamıyla doğrular ve oturuma bağlar.
 3. Otomatik kalite kontrolü:
     - Tüm veri akışları tam mı?
@@ -148,7 +154,7 @@ Tüm sensörlerin zamanı GPS zamanına bağlanır:
 4. Oturum işleme kuyruğuna girer.
 5. Kalite kontrolü ve işleme başarılı olunca SSD ve kart biçimlendirilip kite geri döner. Ham veri NAS'ta 30 gün kalır.
 
-**Tek ortam seçeneği:** İstenirse gün sonunda kamera USB ile Pi'a bağlanır ve Pi videoları SSD'ye çeker. Bu durumda merkeze sadece SSD gelir. Bunun bedeli, sahada fazladan 15–30 dakikalık kopyalama süresi.
+**Tek ortam seçeneği** (şimdilik yapılmıyor): İstenirse gün sonunda kamera USB ile Pi'a bağlanır ve Pi videoları SSD'ye çeker. Bu durumda merkeze sadece SSD gelir. Bunun bedeli, sahada fazladan 15–30 dakikalık kopyalama süresi.
 
 ## Depolama ve güç hesabı
 
@@ -210,7 +216,7 @@ Değerler `public.calibration` kaydının `extrinsics.kit_mount` alanına girili
 | SanDisk High Endurance 256 GB microSD | 3.184 TL |
 | **Toplam** | **77.805 TL** |
 
-**İlk tahmin** (17 Ekim 2026; Mid-360, iki SSD ve iki kartla). Yaklaşık uluslararası fiyatlardır, doğrulanmamıştır. Türkiye'de gümrük, KDV ve kur nedeniyle belirgin şekilde yüksek olabilir. Raspberry Pi, güç, mekanik ve kalibrasyon satırları hâlâ alınacaklar için geçerlidir.
+**İlk tahmin** (17 Ekim 2026; Mid-360, iki SSD ve iki kartla). Yaklaşık uluslararası fiyatlardır, doğrulanmamıştır. Türkiye'de gümrük, KDV ve kur nedeniyle belirgin şekilde yüksek olabilir. Güç, mekanik ve kalibrasyon satırları hâlâ alınacaklar için geçerlidir; Raspberry Pi 5 elde var. Kalanların güncel listesi ve tutarı [kit-siparis-listesi.md](kit-siparis-listesi.md#toplam)'de.
 
 | Kalem | Yaklaşık fiyat |
 | --- | --- |
@@ -243,7 +249,7 @@ Personel telefonu ve TUSAGA-Aktif (CORS-TR) aboneliği bu toplama dahil değil. 
 **RTK alıcısı (Radiolink RTK F9P):**
 - [ ] PPS (TIMEPULSE) çıkışına erişim. Teknik özelliklerde zaman darbesi var, ama hangi konnektörde olduğu yazmıyor; belgelenen UART1 fişinde yok (5 V, RX, TX, SCL, SDA, GND).
 - [ ] Ham gözlem (UBX-RXM-RAWX, SFRBX) çıkışı u-center ile açılabiliyor ve USB'den kaydedilebiliyor mu?
-- [ ] UART pinlerinin mantık seviyesi (3,3 V bekleniyor).
+- [ ] PPS çıkışının mantık seviyesi (3,3 V bekleniyor; Pi'ın GPIO'su 3,3 V'tur, 5 V ise gerilim bölücü gerekir).
 - [ ] ANT-M7 anteninin çift bantta (L1/L2) yeterli sinyal vermesi.
 
 **Kamera (Insta360 X4 Air):**
@@ -253,6 +259,8 @@ Personel telefonu ve TUSAGA-Aktif (CORS-TR) aboneliği bu toplama dahil değil. 
 
 **Kayıt:**
 - [ ] Pi 5, LiDAR + GNSS kaydını SSD'ye iki saat boyunca veri kaybetmeden yazabiliyor mu? Pi'ın USB akım sınırı SSD'ye yetiyor mu?
+- [ ] PPS Pi'a geliyor mu, chrony PPS'e kilitleniyor mu?
+- [ ] Telefon Pi'ı Bluetooth ile buluyor mu; ön kontrol ve uyarılar çalışıyor mu? Kablo çekip geri takınca kayıt sürüyor mu?
 - [ ] 1,2 m LiDAR yüksekliği gerçek ağaçlarda hem gövdeyi hem tacın üstünü görüyor mu?
 - [ ] Fıstık ağaçlarında ilk dallanma yüksekliği tipik olarak nerede? Gövde ölçüm yüksekliği buna göre belirlenecek.
 - [ ] Bileşenlerin güncel fiyatları ve Türkiye'ye getirme maliyeti.

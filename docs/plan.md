@@ -28,7 +28,7 @@ gantt
     İP1 Veri şeması ve örnek veri      :ip1, 2026-10-27, 2026-11-14
     section Donanım ve deneme
     İP2 Kit siparişi ve teslim süresi  :ip2a, 2026-10-20, 2026-11-15
-    İP2 Kit montajı ve GNSS kaydedici  :ip2b, 2026-11-15, 2026-12-05
+    İP2 Kit montajı ve Pi kaydedici    :ip2b, 2026-11-15, 2026-12-05
     İP3 Teknik denemeler               :ip3, 2026-11-20, 2026-12-20
     Kapı 1                             :milestone, k1, 2026-12-20, 0d
     section Yazılım
@@ -62,7 +62,7 @@ gantt
 | --- | --- | --- | --- | --- |
 | İP0 | Repo ve geliştirme ortamı | P0 | 1,5 gün | Repo iskeleti; `core` ve `mobile` devcontainer'ları açılıyor |
 | İP1 | Veri şeması ve örnek veri | P0 | 3 gün | Hedef veri modelinin MVP alt kümesi migration olarak yazılı; 300 ağaçlı sentetik bir bahçe örnek verisi; satır bazlı yetki kuralları |
-| İP2 | Kit ve GNSS kaydedici | P0 | 5,5 gün | Kit monte; ESP32 ham GNSS'i ve PPS'i microSD'ye kaydediyor; telefona Bluetooth ile durum gönderiyor |
+| İP2 | Kit ve kayıt yazılımı | P0 | 5,5 gün | Kit monte; Pi kayıt yazılımı ham GNSS'i, PPS'i ve LiDAR'ı SSD'ye kaydediyor; telefona Bluetooth ile durum gönderiyor. ESP32 kaydedici kitten çıktı (karar 16 Kasım 2026); firmware repoda referans |
 | İP3 | Teknik denemeler | P0 | 5 gün | Tek koridor taraması; PPK çözümü; QR ile zaman eşleme; ~20 ağaçta gövde üçgenleme ve elle ölçümle karşılaştırma; ısınma testi |
 | İP4 | İşleme hattı v0.1 | P0 | 8 gün | Alım ve doğrulama, PPK, zaman eşleme, kare seçimi, panorama (4K + 2K), ağaç kesitleri, yükleme; komut satırından çalışıyor |
 | İP5 | Ofis üçgenleme aracı | P0 | 6 gün | Harita + iki panorama görünümü; tıklayarak üçgenleme; sıra oturtma, kodlama, boş yerler; doğrulama listesi |
@@ -79,13 +79,14 @@ gantt
 | İP16 | LiDAR ölçümleri | P2 (araştırma) | ~5 gün yazılım + pilotta doğrulama | LiDAR'lı kitin kayıtlı nokta bulutundan ağaç başına: yapraklı dönemde taç çapı, boy, taç hacmi ve büyüklük sınıfı önerisi; kışın dal iskeleti (ana kol sayısı, odun hacmi) ve iki kış taraması arasında budama analizi (kesim sayısı, kesilen odun hacmi, `pruning_status` önerisi). Sentetik ağaçlarla test edilmiş hat aşamaları (`orchados-pipeline lidar ...`), ölçümlerin `record_lidar_measurements` ile `algorithm` kaynaklı yazılması. Sahip kararıyla (5 Kasım 2026) doğrulama beklenmeden karnede ve gezide sahibe gösterilir; pilotta referans ağaçlarda elle ölçümle karşılaştırılır. Kayıt adımı (MCAP → SLAM + PPK → `cloud.ply`) ayrı iş. Tasarım: [lidar-olcumleri.md](lidar-olcumleri.md) |
 | İP17 | 3D dünya | P2 (araştırma) | ~4 gün (Faz 1) | 360° gezide bir düğmeyle panorama fotoğrafı LiDAR bulutuna dönüşür: ilk kare panoramanın aynısı, kameradan yayılan tarama dalgası, kamera yükselir, bahçe 3D görünür, her ağaçta boy, taç çapı ve taç tabanı çizilir, ağaç seçilince ölçüleri, renk kipleri (fotoğraf, boy, taç çapı), aynı panoramaya geri dönüş. Sahibe yalnız türetilmiş, zamansız web bulutu açılır (`world_cloud`). `orchados-pipeline lidar world`, demo verisi sürüm 5. Faz 2: akıtma, ziyaretler arası büyüme, kış iskeleti ve budama; Faz 3: uzman ve ofis. Tasarım: [3d-dunya.md](3d-dunya.md) |
 
-**Durum (11 Kasım 2026)**
+**Durum (16 Kasım 2026)**
 
 | İP | Durum | Not |
 | --- | --- | --- |
 | İP0 | Tamam | Repo iskeleti, `core` ve `mobile` devcontainer'ları, bulut ortamı |
 | İP1 | Tamam (PR #1, #7) | Şema, satır bazlı yetki, sentetik bahçe; yayımlanmamış sonuçlar sahipten gizli; son değerlendirme/ölçüm görünümleri (önce en yeni oturum, aynı oturumda kaynak önceliği); `media` depolama alanı; 173 pgTAP testi |
-| İP2 | Yazılım tamam (PR #2, #7, #22) | Firmware 0.3.0: BLE durum mesajında GPS zamanı ve konum; 74 birim testi, ESP32 derlemesi. Açık: gerçek donanım testleri (README'deki adımlar), kit gelince |
+| İP2 | ESP32 firmware tamam (PR #2, #7, #22), kitten çıktı; kayıt Pi'a geçti | ESP32 firmware 0.3.0 (BLE durum mesajında GPS zamanı ve konum; 74 birim testi) repoda referans; kitte kaydedici artık Raspberry Pi 5 (karar 16 Kasım 2026). Ana parçalar alındı, Pi elde var, kalan siparişler [kit-siparis-listesi.md](kit-siparis-listesi.md)'de. Açık: Pi kayıt yazılımı (aşağıdaki satır), kit montajı, donanım denemeleri |
+| Pi kayıt yazılımı | Yazılım tamam, donanımda denenmedi (`claude/pi-kit-recorder`; PR #143–#146) | Kayıt servisi, Pi kurulum betiği, saha uygulaması, yükleme aracı ve hat; Pi ile uygulama arasındaki BLE ortak test vektörleriyle (`test-vectors/kit-protocol.json`) iki tarafta denetleniyor. Sırada: donanım denemeleri (plan Görev 17). `services/kit-recorder/`: Pi, saha uygulamasına ve işleme hattına ESP32 gibi görünür (aynı BLE protokolü ve `gnss/` dosyaları), buna LiDAR kaydını (MCAP), PPS ile saat kilidini, ön kontrolü ve atlamayı, kayıt sırasında uyarıları ekler; saha uygulamasında LiDAR, saat ve SSD satırları. Sözleşme [arayuzler.md](arayuzler.md#kit-kaydedicisi-raspberry-pi), [tasarım](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md), [plan](superpowers/plans/2026-11-16-pi-kayit-yazilimi.md). Kapı 1 şartı: LiDAR ve GNSS aynı oturumda. İlk teknik risk: L2 sürücüsünün Pi 5'te ROS 2 Jazzy ile çalışması |
 | İP3 | Başlamadı | Teknik denemeler (tek koridor, PPK, QR ile zaman eşleme, gövde üçgenleme doğruluğu, ısınma) kitin montajını bekliyor. Kapı 1'in (20 Aralık) önkoşulu |
 | İP4 | Çekirdek + yükleme tamam (PR #3, #4, #11) | 97 test; `upload` komutu: türetilmiş dosyalar `media` alanına, kayıtlar `capture`/`asset`/`asset_source`'a; ham kayıtlar istasyonda kalır. Açık: gerçek PPK denemesi (İP3), büyük ziyarette yükleme süresi |
 | Entegrasyon | Tamam (PR #4) | Sözleşmeler `docs/arayuzler.md` içinde |
@@ -146,14 +147,14 @@ gantt
 | Dalga 4 | Tamam | İP4 yükleme, İP7, İP8, İP6 senkronizasyon birleşti. Örnek tarama verisi: `pnpm db:demo`. Test ortamı: https://orchados-orchad-os.vercel.app (Vercel koruması açık) |
 | İP6 | v0.3 tamam (PR #6, #8, #20, #21, #24, #26) | BLE protokolü, QR saat, ekran akışı, çevrimdışı kuyruk, gerçek kamera ve cihazda kalite kontrolü; 66 test. Senkronizasyon: sunucudan görevler, sıralı ve tekrar güvenli gönderim, saha personelinin fotoğraf yüklemesi; APK CI'da derleniyor. Envanter sahası: doğrulama turu, sınır köşesi, kapsama; sabit grid rotası ve dur-çek-yürü; test projesine bağlı APK. Açık: telefonda ve gerçek kaydediciyle deneme |
 
-**Sıradaki işler (11 Kasım 2026)**
+**Sıradaki işler (16 Kasım 2026)**
 
-Yazılım M2 ve M3'ün gerektirdiklerinin büyük kısmını karşılıyor; takvimi artık donanım, saha denemeleri ve insan eylemleri belirliyor. 6 Kasım'dan beri açık PR yok.
+Yazılım M2 ve M3'ün gerektirdiklerinin büyük kısmını karşılıyor; takvimi artık donanım, saha denemeleri ve insan eylemleri belirliyor. Kitin Pi kayıt yazılımı `claude/pi-kit-recorder` dalında yazıldı; donanımda denenmeyi bekliyor.
 
-1. **Kapı 1 (20 Aralık) için kit ve İP3:** kit montajı; firmware'in gerçek donanımda denenmesi; telefonda BLE ile kaydedici; gerçek `.insv` deneme çekimi; tek koridor taraması, PPK, QR ile zaman eşleme ve gövde üçgenleme doğruluğu; ısınma testi. Kalan dış işler aşağıda (kit siparişi, TUSAGA-Aktif, uzman görüşmesi, pilot sahipler).
+1. **Kapı 1 (20 Aralık) için kit ve İP3:** Pi kayıt yazılımının donanımda denenmesi (L2 sürücüsü, PPS ve chrony, telefonda BLE, iki saatlik kayıt); kit montajı; gerçek `.insv` deneme çekimi; tek koridor taraması (LiDAR ve GNSS aynı oturumda; yalnız GNSS kaydı Kapı 1'e yetmez), TUSAGA-Aktif verisiyle PPK, QR ile zaman eşleme ve gövde üçgenleme doğruluğu; ısınma testi. Kalan dış işler aşağıda (TUSAGA-Aktif başvurusu, kalan siparişler, uzman görüşmesi, pilot sahipler).
 2. **Yayına alma (insan eylemi):** İP13 demo projesi ve `ORCHADOS_DEMO_URL`; İP14 anahtarı (avukat onayı, T05, T18, T32); İP15 fiyatı ve T33–T36; iyzico sandbox kontrol listesi; Netgsm hesabı ve Turnstile alan adı listesi; Vercel Pro, medya deposu (Supabase Pro), alan adı.
 3. **İP9:** gerçek Claude API ile ilk deneme ve eşik kalibrasyonu (kış etiketleri gelince, ilkbahar denetiminden önce).
-4. **LiDAR'lı kit (karar 11 Kasım 2026):** ana parçalar alındı (16 Kasım: Unitree 4D LiDAR L2, Radiolink RTK F9P, Insta360 X4 Air, kart ve SSD; liste ve kalanlar [kit-siparis-listesi.md](kit-siparis-listesi.md), tasarım [tarama-kiti.md](tarama-kiti.md)); gelen parçaların ilk gün doğrulamaları (alıcıda PPS ve ham veri, LiDAR sürücüsünün Pi 5'te çalışması, kameranın dış beslemeyle iki saatlik kaydı); kayıt adımı (MCAP → SLAM + PPK → `cloud.ply`), artık gerçek verinin önündeki iş; motosiklette montaj ve titreşim denemesi; gövde çapı ölçüm yüksekliği kararı. Personel ekranları (İP17 Faz 3) tamam (PR #134); bahçede gezinme bu dalda; sonra oktree ve konum denetimi.
+4. **LiDAR'lı kit (karar 11 Kasım 2026):** ana parçalar alındı (16 Kasım: Unitree 4D LiDAR L2, Radiolink RTK F9P, Insta360 X4 Air, kart ve SSD; liste ve kalanlar [kit-siparis-listesi.md](kit-siparis-listesi.md), tasarım [tarama-kiti.md](tarama-kiti.md)). Raspberry Pi 5 elde var. Sahip kararları (16 Kasım): baz verisi TUSAGA-Aktif'ten, ikinci alıcı alınmaz; ESP32 kaydedici kitten çıktı, işini Pi yapıyor. Kalan siparişler: güç, mekanik, Pi'ın bağlantıları (DC-DC düşürücüler, kablolar, PPS teli, kutu). Gelen parçaların ilk gün doğrulamaları (alıcıda PPS ve ham veri, LiDAR sürücüsünün Pi 5'te çalışması, kameranın dış beslemeyle iki saatlik kaydı); kayıt adımı (MCAP → SLAM + PPK → `cloud.ply`), artık gerçek verinin önündeki iş; motosiklette montaj ve titreşim denemesi; gövde çapı ölçüm yüksekliği kararı. Personel ekranları (İP17 Faz 3) tamam (PR #134); bahçede gezinme bu dalda; sonra oktree ve konum denetimi.
 
 **Sıradaki işler (26 Ekim 2026; çalışma artık yerel makinede, ağır doğrulama CI'da)**
 
@@ -209,9 +210,9 @@ Toplam yaklaşık 55 gün (İP9 hariç).
 
 Bunlar takvimi bekletebilecek, başkasına bağlı işler. İlk iki hafta içinde başlatılmalı:
 
-- [ ] Kit parçalarının siparişi. Ana parçalar yurt içinden alındı (16 Kasım 2026): 360° kamera, LiDAR, RTK alıcı ve anteni, kamera kartı, SSD. Kalanlar: Raspberry Pi 5, güç, mekanik, baz verisi için ikinci alıcı ya da TUSAGA-Aktif. Liste: `docs/kit-siparis-listesi.md`
+- [ ] Kit parçalarının siparişi. Ana parçalar yurt içinden alındı (16 Kasım 2026): 360° kamera, LiDAR, RTK alıcı ve anteni, kamera kartı, SSD. Raspberry Pi 5 ve sistem kartı elde var. Kalanlar: güç (akü, şarj aleti, adaptör, USB-C PD), mekanik, Pi'ın bağlantıları (DC-DC düşürücüler, Ethernet ve USB-C kabloları, PPS teli, kutu, sigorta). İkinci alıcı ve jalon alınmıyor. Liste: `docs/kit-siparis-listesi.md`
 - [x] 360° kamera üreticisinin SDK başvurusu (SDK geldi, PR #34)
-- [ ] TUSAGA-Aktif (CORS-TR) abonelik başvurusu, ya da kendi baz istasyonu kararı
+- [ ] TUSAGA-Aktif (CORS-TR) abonelik başvurusu. Karar verildi (16 Kasım 2026, sahip): baz verisi TUSAGA-Aktif'ten, kendi baz istasyonu kurulmaz. PPK denemesi (İP3) hesabın açılmasını bekler
 - [ ] Uzman (ziraat mühendisi) ile ön görüşme
 - [ ] 1–4 pilot bahçe sahibinin sözlü onayı; envanter tarihleri
 - [x] KVKK metinleri için hukuki kararlar (28 Ekim, hukuk uzmanı ajan; kullanıcı talimatıyla nihai): `docs/hukuk/kararlar.md`. Kalan şirket eylemleri T01 ve T22 (standart sözleşmeler, şirket bilgileri, ETBİS, İYS)

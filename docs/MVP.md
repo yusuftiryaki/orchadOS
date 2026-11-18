@@ -121,7 +121,10 @@ Envanter, her parselin dijital haritasını bir kez çıkarır. Sonraki tüm tar
 | Doğrulama turu (~30–45 ağaç) | Saha | 30–45 dk |
 | Uzman kontrolü | Uzaktan | 30–50 dk |
 
-**Pilotta referans sıralarla doğrulama:** Her pilot bahçede 2–3 sıra (40–60 ağaç) ayrıca jalon ve ikinci bir RTK alıcısıyla ağaç ağaç ölçülür ve otomatik sonuçla karşılaştırılır.
+**Pilotta referans sıralarla doğrulama:** Her pilot bahçede 2–3 sıra (40–60 ağaç) ağaç ağaç ayrıca ölçülür ve otomatik sonuçla karşılaştırılır. Ek donanım alınmaz (karar 18 Kasım 2026):
+
+- Yakalama, yanlış alarm ve kodlama için ağaçlar sıra sıra yürünerek sayılır ve kodlanır; konum gerekmez.
+- Konum için kitin kendi alıcısı kullanılır. Anten her ağaçta gövdenin aynı yanına, elde ya da eldeki düz bir çubuğa bağlı olarak dik tutulur ve ~30 sn sabit bekletilir. Her ağaçta bir işaret bırakılır; konumlar sınır yürüyüşündeki gibi TUSAGA-Aktif ile PPK'lı yörüngeden çıkarılır. Beklenen hata 10–20 cm; 50 cm'lik konum eşiğini sınamaya yeter.
 
 | Ölçüt | Kabul eşiği |
 | --- | --- |
@@ -131,7 +134,7 @@ Envanter, her parselin dijital haritasını bir kez çıkarır. Sonraki tüm tar
 | Konum hatası | Ağaçların %95'inde 50 cm'nin altında |
 | Kodlama hatası | %1'in altında |
 
-Eşikler tutmazsa yedek yol: otomatik sonuç üzerine tüm ağaçları kapsayan bir saha doğrulama turu. Referans ölçüm için gereken ikinci RTK alıcısı ve jalon (~400–600 $) sadece pilot dönemde kullanılır.
+Eşikler tutmazsa yedek yol: otomatik sonuç üzerine tüm ağaçları kapsayan bir saha doğrulama turu. Referans ölçüm için ek donanım alınmaz; kitin alıcısı kullanılır.
 
 **Kodlama kuralı**
 
@@ -444,11 +447,11 @@ Mimari tek kişinin yönetebileceği biçimde tasarlandı: yönetilen bir backen
 | --- | --- | --- | --- |
 | 360° kamera | Insta360 X serisi ya da benzeri | 400–600 $ | SDK erişimi ve dışa aktarım formatı satın almadan önce kontrol edilmeli |
 | RTK GNSS alıcısı ve anten | u-blox ZED-F9P tabanlı (ör. ArduSimple) | 300–500 $ | PPK için ham veri kaydeder |
-| Düzeltme verisi | TUSAGA-Aktif (CORS-TR) aboneliği | Açık soru | PPK için istasyon verisi |
+| Düzeltme verisi | TUSAGA-Aktif (CORS-TR) aboneliği | Açık soru | PPK için istasyon verisi. Karar (16 Kasım 2026): baz verisi TUSAGA-Aktif'ten; kendi baz istasyonu kurulmaz |
 | Direk ve bağlantı | Sırt çantası direği, titreşim sönümleyici | — | Kamera ve anten aynı direkte |
 | Android telefon | Orta segment | — | Saha uygulaması ve yakın plan |
-| GNSS kaydedici | ESP32 + microSD | — | LiDAR'sız kitte Raspberry Pi gerekmez |
-| Güç ve depolama | Batarya, kamera için microSD kartlar | — | Video kameranın kartıyla ofise gelir |
+| Kayıt bilgisayarı | Raspberry Pi 5 (kit kaydedicisi) | — (elde var) | LiDAR'ı, ham GNSS'i ve PPS'i SSD'ye kaydeder; telefona Bluetooth ile durum gönderir. Kayıt yazılımı `services/kit-recorder/`. ESP32 kaydedici kitten çıktı (16 Kasım 2026) |
+| Güç ve depolama | Batarya, kamera için microSD kart, kayıt SSD'si | — | Video kameranın kartıyla, LiDAR ve GNSS kaydı SSD ile ofise gelir |
 
 Kitin ayrıntılı tasarımı, LiDAR'lı sürümü ve maliyeti [tarama-kiti.md](tarama-kiti.md) dosyasında. Alınan parçalar (16 Kasım 2026): Insta360 X4 Air, Radiolink RTK F9P, Unitree 4D LiDAR L2, kamera kartı ve kayıt SSD'si; liste [kit-siparis-listesi.md](kit-siparis-listesi.md)'de.
 

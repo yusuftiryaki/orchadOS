@@ -62,7 +62,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("push", help="upload a session folder or card")
-    p.add_argument("source", type=Path, help="session folder, logger card, camera card or MP4s")
+    p.add_argument(
+        "source", type=Path, help="session folder, kit SSD, logger card, camera card or MP4s"
+    )
     p.add_argument("--session-id", required=True, help="public.session id (uuid)")
     p.add_argument("--layout", choices=LAYOUTS, default="auto")
     p.add_argument("--org-id", help="org id when the source has no session.json")

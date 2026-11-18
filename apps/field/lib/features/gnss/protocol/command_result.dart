@@ -1,7 +1,8 @@
 /// Result of a logger command.
 ///
-/// Codes 0–9 and 255 come from the firmware (`last_cmd_result`); [timeout],
-/// [disconnected] and [unknown] are produced by the app.
+/// Codes 0–9 and 255 come from the firmware (`last_cmd_result`), 10 only from
+/// the kit recorder (Raspberry Pi); [timeout], [disconnected] and [unknown]
+/// are produced by the app.
 enum CommandResult {
   ok(0, 'Tamam'),
   malformed(1, 'Komut bozuk'),
@@ -13,6 +14,10 @@ enum CommandResult {
   sdFull(7, 'SD kart dolu'),
   sdError(8, 'SD kart hatası'),
   sessionExists(9, 'Bu oturum kartta zaten var'),
+
+  /// Kit recorder: a pre-check item failed and was not overridden; which
+  /// one is in the status (`KitStatus.precheckFail`).
+  precheckFailed(10, 'Ön kontrol geçmedi'),
   none(255, 'Henüz komut yok'),
   timeout(null, 'Kaydedici yanıt vermedi'),
   disconnected(null, 'Kaydedici bağlı değil'),
