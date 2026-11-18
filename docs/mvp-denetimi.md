@@ -57,7 +57,7 @@ Kısaltmalar: `web/` = `apps/web/src/`, `field/` = `apps/field/lib/`, `pipeline/
 | Doğrulama listesi | `verification_item`, `create_verification_tour` | var | |
 | Saha doğrulama turu | `field/features/verification` | var · donanım | |
 | Uzmanın envanter onayı, sahibin sınır onayı | `approve_inventory`, `approve_boundary` | var | |
-| Referans sıralarla doğrulama (pilot) | — | donanım | Yazılım dışı ölçüm; ikinci RTK alıcısı ve jalon |
+| Referans sıralarla doğrulama (pilot) | — | donanım | Yazılım dışı ölçüm; kitin kendi alıcısı ve TUSAGA-Aktif, ek donanım yok (karar 18 Kasım 2026) |
 | Çıktı: envanter özeti (yer, ağaç, boş, ara, aşısız, yaş dağılımı) | `web/lib/expert/inventory-checks.ts`, portal | var | |
 | Çıktı: envanter raporu PDF | `/portal/parsel/<id>/envanter`, `…/envanter/rapor.pdf` | var | Sayım ve harita raporu: kısa özet, uyarılar, kodlu yer haritası, sınır, boş yerler, bahçe yapısı (büyüklük, aşı, gövde yapısı, çeşit), ilk gözlemler (sayı olarak), altyapı, denetim güveni, sıradaki adımlar. Sağlık sınıfı ve skor yok. İçerik uzman ajan önerisi, metodoloji v0.1 olarak kabul edildi |
 | Kabul kriteri: kapsamanın kalite kapısından geçmesi | `approve_inventory`, `waive_coverage`, `coverage_report` | var (kapsama görevi) | Envanter taramasının en yeni kapsama raporu eşiğin altındaysa onay reddedilir; uzman gerekçeyle kabul edebilir (kayıtta kalır). Raporu olmayan eski veride davranış aynı. Envanter kaydedildikten sonra kapsamayı `orchados-pipeline coverage --trees-from-db` + `upload` ile ölçmek operasyonun adımı (`services/pipeline/README.md`) |

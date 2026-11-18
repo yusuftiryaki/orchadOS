@@ -64,7 +64,7 @@ Yaklaşık tutar [Toplam](#toplam)'da. Gelen parçalarda ilk gün yapılacak den
 - Dahili pusula (IST8310) I2C hattındadır; bizim kullanımımızda gerekmez.
 - Alıcı drone uçuş kontrolcüleri için ayarlı gelir. PPK için ham gözlem mesajları (UBX-RXM-RAWX, SFRBX) gerekir; Pi'daki kayıt yazılımı bunları açılışta USB'den kendisi açar. u-center ile elle de açılabilir.
 
-**Baz verisi ve referans ölçüm:** Karar 2 ile ikinci alıcı alınmadı; baz verisi TUSAGA-Aktif'ten gelir. Pilotta referans sıra ölçümü ([MVP.md](MVP.md) Modül 2) ikinci alıcıyı ve bir jalonu varsayıyordu; jalon da listeden çıktı (bölüm 4). Referans ölçümün nasıl yapılacağı açık.
+**Baz verisi ve referans ölçüm:** Karar 2 ile ikinci alıcı alınmadı; baz verisi TUSAGA-Aktif'ten gelir. Pilotta referans sıra ölçümü ([MVP.md](MVP.md) Modül 2) ikinci alıcıyı ve bir jalonu varsayıyordu; ikisi de alınmıyor. Referans ölçüm ek masrafsız, kitin kendi alıcısıyla yapılır (karar 18 Kasım 2026; yöntem MVP.md'de).
 
 ## 2. Kaydedici elektroniği (kitten çıktı)
 

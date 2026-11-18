@@ -121,7 +121,10 @@ Envanter, her parselin dijital haritasını bir kez çıkarır. Sonraki tüm tar
 | Doğrulama turu (~30–45 ağaç) | Saha | 30–45 dk |
 | Uzman kontrolü | Uzaktan | 30–50 dk |
 
-**Pilotta referans sıralarla doğrulama:** Her pilot bahçede 2–3 sıra (40–60 ağaç) ayrıca jalon ve ikinci bir RTK alıcısıyla ağaç ağaç ölçülür ve otomatik sonuçla karşılaştırılır.
+**Pilotta referans sıralarla doğrulama:** Her pilot bahçede 2–3 sıra (40–60 ağaç) ağaç ağaç ayrıca ölçülür ve otomatik sonuçla karşılaştırılır. Ek donanım alınmaz (karar 18 Kasım 2026):
+
+- Yakalama, yanlış alarm ve kodlama için ağaçlar sıra sıra yürünerek sayılır ve kodlanır; konum gerekmez.
+- Konum için kitin kendi alıcısı kullanılır. Anten her ağaçta gövdenin aynı yanına, elde ya da eldeki düz bir çubuğa bağlı olarak dik tutulur ve ~30 sn sabit bekletilir. Her ağaçta bir işaret bırakılır; konumlar sınır yürüyüşündeki gibi TUSAGA-Aktif ile PPK'lı yörüngeden çıkarılır. Beklenen hata 10–20 cm; 50 cm'lik konum eşiğini sınamaya yeter.
 
 | Ölçüt | Kabul eşiği |
 | --- | --- |
@@ -131,7 +134,7 @@ Envanter, her parselin dijital haritasını bir kez çıkarır. Sonraki tüm tar
 | Konum hatası | Ağaçların %95'inde 50 cm'nin altında |
 | Kodlama hatası | %1'in altında |
 
-Eşikler tutmazsa yedek yol: otomatik sonuç üzerine tüm ağaçları kapsayan bir saha doğrulama turu. Referans ölçüm için gereken ikinci RTK alıcısı ve jalon (~400–600 $) sadece pilot dönemde kullanılır.
+Eşikler tutmazsa yedek yol: otomatik sonuç üzerine tüm ağaçları kapsayan bir saha doğrulama turu. Referans ölçüm için ek donanım alınmaz; kitin alıcısı kullanılır.
 
 **Kodlama kuralı**
 
