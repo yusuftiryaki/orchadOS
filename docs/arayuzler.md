@@ -102,7 +102,7 @@ Kaynak: [firmware/gnss-logger/README.md → `session.json`](../firmware/gnss-log
 | `receiver` | nesne | Alıcı yapılandırması: `model`, `port`, `baud`, `meas_period_ms`, `rawx_rate_hz`, `nav_pvt_rate_hz`, `messages`, `nmea`, `timepulse_grid`, `config_status` (`ok`, `no_response`, `nak`, `invalid_settings`), `detected_baud` |
 | `gps_utc_leap_seconds` | int | 18 |
 | `start`, `stop` | nesne | `esp_micros`, `gps_time_ns` (eşleme yoksa `null`), `utc` (eşleme yoksa `null`). `stop` güç kesintisinde `null` kalır |
-| `stop_reason` | str | `command`, `sd_full`, `sd_error` |
+| `stop_reason` | str | `command`, `sd_full`, `sd_error`; kit kaydedicisinde ayrıca `power_loss` (aşağıda) |
 | `gnss_bytes` | int | `gnss.ubx`'e yazılan bayt |
 | `dropped_bytes` | int | Tampon taşmasıyla atılan bayt |
 

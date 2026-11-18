@@ -133,7 +133,7 @@ Uzantı:
   - `ubx.is_ack(msg, cls, msg_id) -> bool | None` (ACK True, NAK False, ilgisizse None)
   - `thresholds.py`: yukarıdaki eşik tablosu, birebir adlar
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_gps_epoch_offset():
@@ -167,10 +167,10 @@ def test_valset_ram_layout():
     assert msg[10:16] == (0x30210001).to_bytes(4, "little") + (200).to_bytes(2, "little")
 ```
 
-- [ ] **Step 2:** `cd services/kit-recorder && uv sync && uv run pytest -q` → FAIL (modül yok).
-- [ ] **Step 3:** Fonksiyonları yaz. NAV-PVT ofsetleri u-blox F9P arayüz tanımına göre (firmware `lib/gnss_core/src/nav_pvt.cpp` aynı ofsetleri kullanır, oradan bak). `carr_soln = (flags >> 6) & 0x3`; `invalid_llh` = `flags3` (ofset 78) bit0.
-- [ ] **Step 4:** `uv run pytest -q && uv run ruff check . && uv run ruff format --check .` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "kit-recorder: package, GPS time and UBX framing"`
+- [x] **Step 2:** `cd services/kit-recorder && uv sync && uv run pytest -q` → FAIL (modül yok).
+- [x] **Step 3:** Fonksiyonları yaz. NAV-PVT ofsetleri u-blox F9P arayüz tanımına göre (firmware `lib/gnss_core/src/nav_pvt.cpp` aynı ofsetleri kullanır, oradan bak). `carr_soln = (flags >> 6) & 0x3`; `invalid_llh` = `flags3` (ofset 78) bit0.
+- [x] **Step 4:** `uv run pytest -q && uv run ruff check . && uv run ruff format --check .` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "kit-recorder: package, GPS time and UBX framing"`
 
 ### Task 3: BLE protokolü: durum ve komutlar
 
@@ -190,7 +190,7 @@ def test_valset_ram_layout():
   - `@dataclass StartSession(seq, session_id, parcel_id, override_mask: int)`, `StopSession(seq)`, `MarkEvent(seq, kind: Literal["corner","qr_sync"], payload: str)`
   - `decode_command(data: bytes) -> tuple[Command | None, int | None, Result]` — (komut, seq, sonuç); kısıtlar README "Komutlar" tablosundaki gibi
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 README_STATUS = bytes.fromhex(
@@ -228,10 +228,10 @@ def test_start_session_override_byte():
     assert decode_command(base + b"\x08")[2] == Result.INVALID_ARGUMENT   # SSD not overridable
     assert decode_command(base + b"\x01\x00")[2] == Result.MALFORMED
 ```
-- [ ] **Step 2:** `uv run pytest tests/test_protocol.py -q` → FAIL.
-- [ ] **Step 3:** `protocol.py`'yi yaz. `Status.idle(**overrides)` testler için tüm alanları sıfır/varsayılanla doldurup verilenleri koyan bir sınıf metodu. u32 alanlar `min(v, 0xFFFFFFFF)`, u16 alanlar `min(v, 0xFFFF)` ile doyar.
-- [ ] **Step 4:** `uv run pytest -q` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "kit-recorder: BLE status and command codec"`
+- [x] **Step 2:** `uv run pytest tests/test_protocol.py -q` → FAIL.
+- [x] **Step 3:** `protocol.py`'yi yaz. `Status.idle(**overrides)` testler için tüm alanları sıfır/varsayılanla doldurup verilenleri koyan bir sınıf metodu. u32 alanlar `min(v, 0xFFFFFFFF)`, u16 alanlar `min(v, 0xFFFF)` ile doyar.
+- [x] **Step 4:** `uv run pytest -q` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "kit-recorder: BLE status and command codec"`
 
 ### Task 4: Oturum dosyaları ve güç kesintisi kurtarma
 
@@ -250,7 +250,7 @@ def test_start_session_override_byte():
     - `lidar_dir: Path`, `write_recording_json(doc: dict) -> None`
   - `recover_open_sessions(root: Path) -> list[str]` — `stop_reason` alanı olmayan ya da `null` olan her oturuma `stop_reason: "power_loss"` ve `gnss_bytes` (dosya boyu) yazar; `stop` `null` kalır (ESP32'de güç kesintisindeki gibi; hattın `LoggerTimestamp`'ı `esp_micros`'u zorunlu tuttuğu için sahte bir zaman yazılmaz); `events.csv`'ye satır eklemez; kapattığı kimlikleri döndürür
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_create_writes_esp32_compatible_files(tmp_path):
@@ -285,10 +285,10 @@ def test_recover_closes_open_session_as_power_loss(tmp_path):
     assert recover_open_sessions(tmp_path) == []
 ```
 
-- [ ] **Step 2:** `uv run pytest tests/test_session.py -q` → FAIL.
-- [ ] **Step 3:** `session.py`'yi yaz. CSV `csv.writer(lineterminator="\n", quoting=csv.QUOTE_MINIMAL)`. `gnss.ubx` ve `events.csv` ekleme kipinde açık tutulur; `maybe_fsync` son fsync'ten bu yana `FSYNC_INTERVAL_S` geçtiyse ikisini de `flush` + `os.fsync` yapar. `session.json` geçici dosyaya yazılıp `os.replace` ile değiştirilir.
-- [ ] **Step 4:** `uv run pytest -q` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "kit-recorder: session files and power-loss recovery"`
+- [x] **Step 2:** `uv run pytest tests/test_session.py -q` → FAIL.
+- [x] **Step 3:** `session.py`'yi yaz. CSV `csv.writer(lineterminator="\n", quoting=csv.QUOTE_MINIMAL)`. `gnss.ubx` ve `events.csv` ekleme kipinde açık tutulur; `maybe_fsync` son fsync'ten bu yana `FSYNC_INTERVAL_S` geçtiyse ikisini de `flush` + `os.fsync` yapar. `session.json` geçici dosyaya yazılıp `os.replace` ile değiştirilir.
+- [x] **Step 4:** `uv run pytest -q` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "kit-recorder: session files and power-loss recovery"`
 
 ### Task 5: Saat (PPS, chrony) ve SSD
 
@@ -308,17 +308,17 @@ def test_recover_closes_open_session_as_power_loss(tmp_path):
   - `class SystemClock` (gerçek: `/sys/class/pps/pps0/assert`, `chronyc -c tracking`, `time.monotonic_ns`, `time.time_ns`) ve `class FakeClock` (testler; alanları elle ayarlanır). İkisi de: `now_mono_us() -> int`, `now_unix_ns() -> int`, `pps_assert() -> tuple[int, int] | None`, `tracking() -> Tracking | None`
   - `ssd.py`: `@dataclass SsdStatus(present: bool, free_mib: int, error: bool)`, `probe_ssd(mount: Path) -> SsdStatus` (mount noktası değilse `present=False`; `.orchados-probe` dosyasına 4 KiB yazıp fsync ve sil; `OSError` → `error=True`; boş alan `shutil.disk_usage`), `ssd_check_ok(s: SsdStatus) -> bool` (`present and not error and free_mib >= SSD_MIN_FREE_START_GIB*1024`)
 
-- [ ] **Step 1: Write the failing tests** — her fonksiyon için birer test; değerler:
+- [x] **Step 1: Write the failing tests** — her fonksiyon için birer test; değerler:
   - `parse_pps_assert("1700000000.123456789#1234\n") == (1_700_000_000_123_456_789, 1234)`
   - `parse_chronyc_tracking("50505300,PPS,1,1700000000.1,-0.000012,...,Normal")` → `Tracking("PPS", -12, True)` (gerçek 14 alanlı satırı testte tam yaz)
   - `classify_clock(Tracking("PPS", 800, True), 0.4) == ClockState.PPS`; `Tracking("PPS", 1500, True), 0.4` → `UNLOCKED`; `Tracking("GNSS", 20000, True), None` → `COARSE`; `None, None` → `UNLOCKED`; `Tracking("PPS", 800, True), 2.0` → `UNLOCKED`
   - `pps_anchor(1_700_000_000_000_200_000, 1_700_000_000_300_000_000, 50_000_000) == Anchor(49_700_200, unix_ns_to_gps_ns(1_700_000_000_000_000_000))`
   - `len(chrony_sock_sample(1_700_000_000_250_000_000, -0.002)) == 40` ve son 4 bayt `0x534F434B` little-endian
   - SSD: `tmp_path` mount değil → `present=False`; `monkeypatch` ile `os.path.ismount` True, `disk_usage` 10 GiB → `ssd_check_ok` False; yazma `PermissionError` → `error=True`
-- [ ] **Step 2:** `uv run pytest tests/test_clock.py tests/test_ssd.py -q` → FAIL.
-- [ ] **Step 3:** Yaz.
-- [ ] **Step 4:** `uv run pytest -q` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "kit-recorder: PPS, chrony and SSD status"`
+- [x] **Step 2:** `uv run pytest tests/test_clock.py tests/test_ssd.py -q` → FAIL.
+- [x] **Step 3:** Yaz.
+- [x] **Step 4:** `uv run pytest -q` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "kit-recorder: PPS, chrony and SSD status"`
 
 ### Task 6: Alıcı: USB üzerinden yapılandırma ve akış
 
@@ -339,7 +339,7 @@ def test_recover_closes_open_session_as_power_loss(tmp_path):
   - `class SerialTransport` (pyserial, `/dev/serial/by-id/usb-u-blox*` ilk eşleşme ya da yapılandırmadaki yol, `timeout=0.1`; USB koparsa `read` `b""` döndürür ve her çağrıda yeniden açmayı dener, `reconnected` bayrağını bir kez True yapar) ve `class FakeTransport` (testler; `script: list[bytes]`, yazılanları biriktirir, VALSET'e ACK/NAK cevabı programlanabilir, `disconnect()` / `reconnect()`)
   - `Receiver.poll()` taşıyıcı yeniden bağlandığında `configure()`'ı yeniden çalıştırır (alıcı yalnız RAM'e yazıldığı için ayarı kaybetmiş olabilir).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_configure_sends_usb_keys_and_waits_for_ack():
@@ -361,10 +361,10 @@ def test_poll_passes_raw_bytes_through_and_decodes_pvt():
     assert b"".join(got) == rawx + pvt and len(pvts) == 1
 ```
 
-- [ ] **Step 2:** `uv run pytest tests/test_receiver.py -q` → FAIL.
-- [ ] **Step 3:** Yaz.
-- [ ] **Step 4:** `uv run pytest -q` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "kit-recorder: receiver configuration over USB and raw stream"`
+- [x] **Step 2:** `uv run pytest tests/test_receiver.py -q` → FAIL.
+- [x] **Step 3:** Yaz.
+- [x] **Step 4:** `uv run pytest -q` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "kit-recorder: receiver configuration over USB and raw stream"`
 
 ### Task 7: LiDAR izleme ve MCAP kaydı
 
@@ -387,7 +387,7 @@ def test_poll_passes_raw_bytes_through_and_decodes_pvt():
     - `written_bytes(out_dir: Path) -> int` (`out_dir/bag/*.mcap` toplamı), `segments(out_dir: Path) -> list[dict]` (`[{file: "bag/bag_0.mcap", bytes}]`)
   - `out_dir` = `SessionWriter.lidar_dir` (`lidar/raw/`); bag `lidar/raw/bag/`'e, `recording.json` `lidar/raw/`'a yazılır.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_bag_command_records_three_topics_as_mcap_segments(tmp_path):
@@ -405,10 +405,10 @@ def test_ros_monitor_requires_rclpy(monkeypatch):
 def test_mode_command_exit_codes(): ...  # use ["sh","-c","exit 0"] / "exit 3" / "exit 1" via a FakeLidarMonitor-free helper `run_mode_command(cmd) -> str`
 ```
 
-- [ ] **Step 2:** `uv run pytest tests/test_lidar.py -q` → FAIL.
-- [ ] **Step 3:** Yaz. `run_mode_command(cmd: list[str]) -> Literal["unknown","ok","wrong"]` ayrı ve test edilebilir bir fonksiyon olsun; `RosLidarMonitor.apply_mode()` onu çağırır ve sonucu saklar.
-- [ ] **Step 4:** `uv run pytest -q` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "kit-recorder: LiDAR monitor and MCAP bag recorder"`
+- [x] **Step 2:** `uv run pytest tests/test_lidar.py -q` → FAIL.
+- [x] **Step 3:** Yaz. `run_mode_command(cmd: list[str]) -> Literal["unknown","ok","wrong"]` ayrı ve test edilebilir bir fonksiyon olsun; `RosLidarMonitor.apply_mode()` onu çağırır ve sonucu saklar.
+- [x] **Step 4:** `uv run pytest -q` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "kit-recorder: LiDAR monitor and MCAP bag recorder"`
 
 ### Task 8: Ön kontrol, canlı uyarılar ve boşluk takibi
 
@@ -427,7 +427,7 @@ def test_mode_command_exit_codes(): ...  # use ["sh","-c","exit 0"] / "exit 3" /
     - `gap_count: int`, `longest_gap_s: int`, `gaps: list[dict]`, `alert_log: list[dict]` (`recording.json` için)
   - Uyarı kuralları: `LIDAR_SILENT` son veri > `LIDAR_SILENT_S`; `LIDAR_RATE_LOW` veri var ama oran düşük; `LIDAR_NOT_WRITTEN` `bag_alive` değil ya da `bag_bytes` `BAG_STALL_S` boyunca artmadı (oturumun ilk `BAG_STALL_S`'i hariç); `GNSS_SILENT`; `CLOCK_UNLOCKED` `clock != PPS`; `SSD_ERROR`; `SSD_LOW` `free_mib < SSD_LOW_GIB*1024`. Bir LiDAR boşluğu `LIDAR_SILENT` başladığı anda açılır, veri gelince kapanır; süre son veriden ilk yeni veriye kadardır.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_precheck_all_pass(): assert precheck_failures(healthy(t=10_000_000)) == Check(0)
@@ -453,10 +453,10 @@ def test_alert_when_bag_bytes_stall_while_points_arrive():
 def test_dead_bag_process_is_not_written(): ...  # bag_alive=False -> LIDAR_NOT_WRITTEN immediately after start window
 ```
 
-- [ ] **Step 2:** `uv run pytest tests/test_health.py -q` → FAIL.
-- [ ] **Step 3:** Yaz. `healthy(...)` test yardımcısı `tests/conftest.py`'de: tüm maddeleri geçen bir `Snapshot` üretip anahtar kelimelerle alan değiştirir.
-- [ ] **Step 4:** `uv run pytest -q` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "kit-recorder: pre-check, live alerts and LiDAR gaps"`
+- [x] **Step 2:** `uv run pytest tests/test_health.py -q` → FAIL.
+- [x] **Step 3:** Yaz. `healthy(...)` test yardımcısı `tests/conftest.py`'de: tüm maddeleri geçen bir `Snapshot` üretip anahtar kelimelerle alan değiştirir.
+- [x] **Step 4:** `uv run pytest -q` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "kit-recorder: pre-check, live alerts and LiDAR gaps"`
 
 ### Task 9: Kayıt çekirdeği (`Recorder`)
 
@@ -481,7 +481,7 @@ def test_dead_bag_process_is_not_written(): ...  # bag_alive=False -> LIDAR_NOT_
     - Kayıtta SSD kaybolur ya da yazma hatası → `close(..., "sd_error")` mümkünse, değilse yalnız durum; boş alan `SSD_STOP_MIB` altı → `"sd_full"`
     - Olay zamanı: saat `PPS` ise `TimeStamp(mono, gps)` + çapa; değilse `TimeStamp(mono, None)`, çapa yok
 
-- [ ] **Step 1: Write the failing tests** (hepsi sahte saat, `FakeTransport`, `FakeLidarMonitor`, sahte `popen` ve `tmp_path` SSD ile)
+- [x] **Step 1: Write the failing tests** (hepsi sahte saat, `FakeTransport`, `FakeLidarMonitor`, sahte `popen` ve `tmp_path` SSD ile)
 
 ```python
 def test_full_session_writes_files_and_status(rig):
@@ -511,10 +511,10 @@ def test_unlocked_clock_events_have_empty_gps_time(rig): ...  # clock COARSE + o
 def test_status_reports_lidar_gap(rig): ...  # silent 5 s mid-session -> st[65:67] == 1, events contain lidar_lost then lidar_regained
 ```
 
-- [ ] **Step 2:** `uv run pytest tests/test_recorder.py -q` → FAIL.
-- [ ] **Step 3:** `recorder.py`'yi yaz. Açılışta `recover_open_sessions(ssd_mount)` çağrılır. `rig` fixture'ı `tests/conftest.py`'de: `Deps`'i sahtelerle kurar, `cmd(hex)`, `run(seconds)` (her saniye 10 `pump` + 1 `tick`, sahte saati ilerletir, sahte alıcıya saniyede bir RAWX ve beş NAV-PVT verir), `status() -> bytes`.
-- [ ] **Step 4:** `uv run pytest -q` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "kit-recorder: recorder core"`
+- [x] **Step 2:** `uv run pytest tests/test_recorder.py -q` → FAIL.
+- [x] **Step 3:** `recorder.py`'yi yaz. Açılışta `recover_open_sessions(ssd_mount)` çağrılır. `rig` fixture'ı `tests/conftest.py`'de: `Deps`'i sahtelerle kurar, `cmd(hex)`, `run(seconds)` (her saniye 10 `pump` + 1 `tick`, sahte saati ilerletir, sahte alıcıya saniyede bir RAWX ve beş NAV-PVT verir), `status() -> bytes`.
+- [x] **Step 4:** `uv run pytest -q` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "kit-recorder: recorder core"`
 
 ### Task 10: BLE sunucusu, komut satırı ve sahte çalışma
 
@@ -532,7 +532,7 @@ def test_status_reports_lidar_gap(rig): ...  # silent 5 s mid-session -> st[65:6
   - CLI: `orchados-recorder run [--config PATH]` (gerçek donanım + BLE), `orchados-recorder fake-run <ssd_dir> --session-id ID --parcel-id ID --seconds N [--lidar-gap S]` (sahte saat ve kaynaklarla bir oturum yazar; BLE yok), `orchados-recorder version`
   - chrony beslemesi `run` içinde: her NAV-PVT'de (geçerli zaman) `chrony_sock_sample` Unix soketine gönderilir.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_device_name(): assert device_name("2C:CF:67:12:1A:2B") == "orchados-gnss-1A2B"
@@ -544,10 +544,10 @@ def test_fake_run_writes_a_session(tmp_path):
     assert "lidar_lost" in events and "lidar_regained" in events
 ```
 
-- [ ] **Step 2:** `uv run pytest tests/test_config.py tests/test_cli.py -q` → FAIL.
-- [ ] **Step 3:** Yaz.
-- [ ] **Step 4:** `uv run pytest -q` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "kit-recorder: BLE server, config and CLI"`
+- [x] **Step 2:** `uv run pytest tests/test_config.py tests/test_cli.py -q` → FAIL.
+- [x] **Step 3:** Yaz.
+- [x] **Step 4:** `uv run pytest -q` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "kit-recorder: BLE server, config and CLI"`
 
 ### Task 11: Pi kurulumu, servisler ve README
 
@@ -566,7 +566,7 @@ def test_fake_run_writes_a_session(tmp_path):
   - `unilidar.service`: L2 ROS 2 sürücüsünü başlatır (`ros2 launch` komutu sürücü derlenince README'deki adımla netleşir); `orchados-recorder.service` `After=unilidar.service chrony.service bluetooth.service`, `Restart=always`
   - `install.sh`: tekrar çalıştırılabilir (`set -euo pipefail`; her adım "zaten yapılmışsa atla"); ROS 2 Jazzy (ros-base), `chrony`, `pps-tools`, `bluez`, `uv`; `/opt/orchados/kit-recorder`'a kurulum; `uv venv --system-site-packages` (rclpy için); journald `SystemMaxUse=200M`; kullanılmayan servisleri kapatma (`snapd`, `unattended-upgrades`); L2 sürücüsünü `~/ros2_ws`'de derleme adımı ayrı bir fonksiyon (`build_unilidar`), başarısızlığı açık bir mesajla bildirir
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 def test_setup_files_pin_contract_values():
@@ -578,10 +578,10 @@ def test_setup_files_pin_contract_values():
     assert "Restart=always" in (s / "orchados-recorder.service").read_text()
 ```
 
-- [ ] **Step 2:** `uv run pytest tests/test_setup_files.py -q` → FAIL.
-- [ ] **Step 3:** Dosyaları yaz. README (Türkçe): kart yazma (Ubuntu Server 24.04 arm64, Raspberry Pi Imager), ilk açılış, `sudo ./install.sh`, SSD'yi `ORCHADOS-SSD` etiketiyle biçimlendirme (`mkfs.ext4 -L ORCHADOS-SSD`), PPS teli (GPIO18, pin 12; 3,3 V; seri direnç), servis günlükleri (`journalctl -u orchados-recorder`), ofiste SSD'nin kopyalanması (`orchados-ingest push <ssd> --session-id <id>`), sahte çalışma. CLAUDE.md'ye komut tablosu: `uv sync` / `uv run pytest`, `uv run orchados-recorder fake-run ...`, Pi'da `sudo setup/install.sh`, `systemctl status orchados-recorder`.
-- [ ] **Step 4:** `uv run pytest -q && bash -n setup/install.sh && (command -v shellcheck && shellcheck setup/install.sh || true)` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "kit-recorder: Pi setup, services and README"`
+- [x] **Step 2:** `uv run pytest tests/test_setup_files.py -q` → FAIL.
+- [x] **Step 3:** Dosyaları yaz. README (Türkçe): kart yazma (Ubuntu Server 24.04 arm64, Raspberry Pi Imager), ilk açılış, `sudo ./install.sh`, SSD'yi `ORCHADOS-SSD` etiketiyle biçimlendirme (`mkfs.ext4 -L ORCHADOS-SSD`), PPS teli (GPIO18, pin 12; 3,3 V; seri direnç), servis günlükleri (`journalctl -u orchados-recorder`), ofiste SSD'nin kopyalanması (`orchados-ingest push <ssd> --session-id <id>`), sahte çalışma. CLAUDE.md'ye komut tablosu: `uv sync` / `uv run pytest`, `uv run orchados-recorder fake-run ...`, Pi'da `sudo setup/install.sh`, `systemctl status orchados-recorder`.
+- [x] **Step 4:** `uv run pytest -q && bash -n setup/install.sh && (command -v shellcheck && shellcheck setup/install.sh || true)` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "kit-recorder: Pi setup, services and README"`
 
 ### Task 12: SSD'nin işleme istasyonuna alınması ve hat
 
@@ -595,7 +595,7 @@ def test_setup_files_pin_contract_values():
 - Consumes: Task 1'deki klasör yapısı; Task 10'un `fake-run` komutu (fixture üretmek için bir kez)
 - Produces: `LAYOUTS` içinde `"kit-ssd"`; `detect`: `sessions/<id>/gnss/` varsa `kit-ssd`, yalnız `sessions/<id>/` varsa `logger-card`. `kit-ssd`: `sessions/<id>/*` → oturum köküne aynı göreli yolla (`gnss/...`, `lidar/raw/...`); kimlikler `sessions/<id>/gnss/session.json`'dan.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 # services/ingest/tests/test_sources.py
@@ -617,10 +617,10 @@ def test_kit_recorder_session_passes_ingest(tmp_path):
 
 (`copy_fixture` ve `ctx_for`: `tests/test_ingest.py`'deki mevcut yardımcıları kullan; yoksa fixture klasörünü `tmp_path`'e kopyalayıp `RunContext` kuran iki küçük fonksiyon yaz.)
 
-- [ ] **Step 2:** `cd services/ingest && uv run pytest -q` ve `cd services/pipeline && uv run pytest tests/test_ingest.py -q` → FAIL.
-- [ ] **Step 3:** Yaz; fixture'ı `cd services/kit-recorder && uv run orchados-recorder fake-run <tmp> --session-id kit-00 --parcel-id <fixture parsel> --seconds 10` ile üret ve yalnız `gnss/`'i kopyala (kök `session.json`'u mevcut fixture'lardan birini örnek alarak yaz).
-- [ ] **Step 4:** İki servisin tüm testleri → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "ingest and pipeline: accept the kit recorder's SSD session"`
+- [x] **Step 2:** `cd services/ingest && uv run pytest -q` ve `cd services/pipeline && uv run pytest tests/test_ingest.py -q` → FAIL.
+- [x] **Step 3:** Yaz; fixture'ı `cd services/kit-recorder && uv run orchados-recorder fake-run <tmp> --session-id kit-00 --parcel-id <fixture parsel> --seconds 10` ile üret ve yalnız `gnss/`'i kopyala (kök `session.json`'u mevcut fixture'lardan birini örnek alarak yaz).
+- [x] **Step 4:** İki servisin tüm testleri → PASS.
+- [x] **Step 5: Commit** — `git commit -m "ingest and pipeline: accept the kit recorder's SSD session"`
 
 ### Task 13: Saha uygulaması: protokol ve sahte kaydedici
 
@@ -640,7 +640,7 @@ def test_kit_recorder_session_passes_ingest(tmp_path):
   - `GnssLogger.startSession({required String sessionId, required String parcelId, int? overrideMask})`; `GnssLoggerBase` maskeyi yalnız `lastStatus?.status.isKit == true` ise gönderir
   - `FakeGnssLogger({..., KitStatus? kit})` — `kit` verilirse 77 baytlık durum üretir; `startSession` maskesini ve `precheckFail`'i Pi gibi değerlendirir
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```dart
 test('77-byte status decodes the kit extension', () {
@@ -672,10 +672,10 @@ test('kit refuses start with failed pre-check unless overridden', () async { ...
 // FakeGnssLogger(kit: KitStatus(precheckFail: [KitCheck.lidar], ...)) -> precheckFailed; with overrideMask 0x01 -> ok
 ```
 
-- [ ] **Step 2:** `cd apps/field && flutter test test/unit/gnss_protocol_test.dart test/unit/gnss_logger_test.dart` → FAIL.
-- [ ] **Step 3:** Yaz. README hex örneği ve mevcut testler değişmeden geçmeli.
-- [ ] **Step 4:** `flutter analyze && flutter test test/unit` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "field: kit recorder status extension and pre-check override"`
+- [x] **Step 2:** `cd apps/field && flutter test test/unit/gnss_protocol_test.dart test/unit/gnss_logger_test.dart` → FAIL.
+- [x] **Step 3:** Yaz. README hex örneği ve mevcut testler değişmeden geçmeli.
+- [x] **Step 4:** `flutter analyze && flutter test test/unit` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "field: kit recorder status extension and pre-check override"`
 
 ### Task 14: Saha uygulaması: ön kontrol ekranı ve atlama
 
@@ -696,15 +696,15 @@ test('kit refuses start with failed pre-check unless overridden', () async { ...
   - SSD ve GNSS alıcısı geçmezse anahtar gösterilmez.
   - `SessionController.confirmPrecheck(..., Set<KitCheck> kitOverrides = const {})`; `start()` maskeyi `startSession`'a geçirir; `session_start` olay verisindeki `precheck` haritasına `'kit_overrides': ['lidar', 'clock']` (boşsa eklenmez).
 
-- [ ] **Step 1: Write the failing widget tests**
+- [x] **Step 1: Write the failing widget tests**
   - `kit with failed clock shows the override switch and blocks start until confirmed`: `FakeGnssLogger(kit: ...precheckFail: [KitCheck.clock])`; başlat düğmesi pasif; anahtara dokun → iletişim kutusu metni görünür; "Yine de başlat" → düğme aktif.
   - `failed SSD has no override`: `precheckFail: [KitCheck.ssd]` → "Yine de başlat" yok.
   - `kit skips the battery item`: `batteryMv: 0` ve kit → akü maddesi engellemez.
   - `override goes to the logger and the start event`: başlatınca sahte kaydediciye giden komutun son baytı `0x04`; yerel `session_start` olayının verisinde `kit_overrides == ['clock']`.
-- [ ] **Step 2:** `flutter test test/widget/kit_precheck_test.dart` → FAIL.
-- [ ] **Step 3:** Yaz.
-- [ ] **Step 4:** `flutter analyze && flutter test` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "field: kit pre-check items and explicit override"`
+- [x] **Step 2:** `flutter test test/widget/kit_precheck_test.dart` → FAIL.
+- [x] **Step 3:** Yaz.
+- [x] **Step 4:** `flutter analyze && flutter test` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "field: kit pre-check items and explicit override"`
 
 ### Task 15: Saha uygulaması: kayıt sırasında uyarı, ekran açık, özet
 
@@ -722,21 +722,21 @@ test('kit refuses start with failed pre-check unless overridden', () async { ...
   - Kayıt sürerken `WakelockPlus.enable()`, durunca ve ekrandan çıkınca `disable()` (Pi ve ESP32 ikisinde de).
   - Durdurma özeti (kit'te): "LiDAR: veri var, 2 boşluk (en uzun 4 sn), 900 MiB" ya da "LiDAR: veri yok"; atlanan maddeler varsa "Atlanan: LiDAR, Saat". ESP32 oturumunda satır yok.
 
-- [ ] **Step 1: Write the failing widget tests**
+- [x] **Step 1: Write the failing widget tests**
   - `kit alert shows a banner and plays once, again after 10 s`: kayıtta sahte durum `alerts: [lidarSilent]` → bant "LiDAR veri göndermiyor", `FakeAlertSound.count == 1`; sahte saat 10 sn ilerler → 2; uyarı kalkınca bant yok.
   - `ESP32 session shows no LiDAR line`: kit'siz kayıt ve özet → "LiDAR" metni yok.
   - `summary shows LiDAR gaps`: durdurmadan önceki kit durumu `lidarGapCount: 2, lidarLongestGapS: 4, lidarWrittenMib: 900` → özet metni yukarıdaki gibi.
-- [ ] **Step 2:** `flutter test test/widget/session_screen_test.dart test/widget/kit_summary_test.dart` → FAIL.
-- [ ] **Step 3:** Yaz. Wakelock çağrıları test ortamında bir sağlayıcı arkasında olsun (`wakelockProvider`), testte sahte.
-- [ ] **Step 4:** `flutter analyze && flutter test` → PASS.
-- [ ] **Step 5: Commit** — `git commit -m "field: kit alerts with sound, screen kept on, LiDAR summary"`
+- [x] **Step 2:** `flutter test test/widget/session_screen_test.dart test/widget/kit_summary_test.dart` → FAIL.
+- [x] **Step 3:** Yaz. Wakelock çağrıları test ortamında bir sağlayıcı arkasında olsun (`wakelockProvider`), testte sahte.
+- [x] **Step 4:** `flutter analyze && flutter test` → PASS.
+- [x] **Step 5: Commit** — `git commit -m "field: kit alerts with sound, screen kept on, LiDAR summary"`
 
 ### Task 16: Belgeler ve sipariş listesi
 
 **Files:**
 - Modify: `docs/kit-siparis-listesi.md`, `docs/tarama-kiti.md`, `docs/MVP.md` (satır 450 civarı "GNSS kaydedici"), `docs/plan.md` (İP2 satırı, ilerleme tablosu, "sırada" listesi, kesme listesi maddesi)
 
-- [ ] **Step 1: kit-siparis-listesi.md:**
+- [x] **Step 1: kit-siparis-listesi.md:**
   - Durum bölümüne: "Elde var: Raspberry Pi 5 8 GB (soğutucu, saat pili, kutu) ve sistem kartı (microSD)".
   - Karar 2: "**Karar verildi (16 Kasım 2026, sahip): TUSAGA-Aktif.** İkinci alıcı ve baz kaydedicisi alınmaz."
   - Bölüm 1: 1.1–1.3 adet 1'e iner (alındı). Bölüm 2 (ESP32 kaydedici elektroniği) kaldırılır; yerine bir cümle: "ESP32 kaydedici kitten çıktı; işini Pi yapıyor ([tasarım](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)). Firmware repoda referans olarak duruyor."
@@ -744,11 +744,11 @@ test('kit refuses start with failed pre-check unless overridden', () async { ...
   - Bölüm 4: 4.7 jalon çıkar.
   - Bölüm 7: 7.2 ve 7.3 "Elde var"; 7.9'a açıklama: "Alıcının zaman darbesi (PPS) çıkışından Pi'ın GPIO18'ine (pin 12) tel; 3,3 V ise seri 100–330 Ω direnç, 5 V ise gerilim bölücü".
   - Toplam tablosu ve "Kalanlar, kısaca" yeniden yazılır; "Sipariş sırası" 2. madde güncellenir.
-- [ ] **Step 2: tarama-kiti.md:** "Zaman senkronizasyonu" 1. madde: gpsd yerine "kayıt servisi alıcının zamanını chrony'ye verir, PPS ile kilitlenir"; "Sahadan merkeze iş akışı" 1. adım: Pi'ın Wi-Fi ağı yerine "telefon Pi'a Bluetooth ile bağlanır, durum saha uygulamasının ön kontrol ekranında"; Raspberry Pi satırında "Henüz alınmadı" → "Elde var"; kayıt yazılımına bağlantı.
-- [ ] **Step 3: MVP.md:** "GNSS kaydedici | ESP32 + microSD" satırı → "Kayıt bilgisayarı | Raspberry Pi 5 (kit kaydedicisi) | ... | ESP32 kaydedici kitten çıktı (16 Kasım 2026)".
-- [ ] **Step 4: plan.md:** İP2 tanımı "Kit monte; Pi kayıt yazılımı ham GNSS'i, PPS'i ve LiDAR'ı SSD'ye kaydediyor; telefona Bluetooth ile durum gönderiyor"; ilerleme tablosuna "Pi kayıt yazılımı" satırı (bu dalın durumu); "sırada" listesinde TUSAGA kararı ve kalan siparişler.
-- [ ] **Step 5:** `grep -n "ESP32" docs/kit-siparis-listesi.md docs/MVP.md docs/plan.md` çıktısını oku; kalan her geçiş "kitten çıktı / referans" anlamında olmalı.
-- [ ] **Step 6: Commit** — `git commit -m "Docs: TUSAGA decision, ESP32 out of the kit, Pi recorder"`
+- [x] **Step 2: tarama-kiti.md:** "Zaman senkronizasyonu" 1. madde: gpsd yerine "kayıt servisi alıcının zamanını chrony'ye verir, PPS ile kilitlenir"; "Sahadan merkeze iş akışı" 1. adım: Pi'ın Wi-Fi ağı yerine "telefon Pi'a Bluetooth ile bağlanır, durum saha uygulamasının ön kontrol ekranında"; Raspberry Pi satırında "Henüz alınmadı" → "Elde var"; kayıt yazılımına bağlantı.
+- [x] **Step 3: MVP.md:** "GNSS kaydedici | ESP32 + microSD" satırı → "Kayıt bilgisayarı | Raspberry Pi 5 (kit kaydedicisi) | ... | ESP32 kaydedici kitten çıktı (16 Kasım 2026)".
+- [x] **Step 4: plan.md:** İP2 tanımı "Kit monte; Pi kayıt yazılımı ham GNSS'i, PPS'i ve LiDAR'ı SSD'ye kaydediyor; telefona Bluetooth ile durum gönderiyor"; ilerleme tablosuna "Pi kayıt yazılımı" satırı (bu dalın durumu); "sırada" listesinde TUSAGA kararı ve kalan siparişler.
+- [x] **Step 5:** `grep -n "ESP32" docs/kit-siparis-listesi.md docs/MVP.md docs/plan.md` çıktısını oku; kalan her geçiş "kitten çıktı / referans" anlamında olmalı.
+- [x] **Step 6: Commit** — `git commit -m "Docs: TUSAGA decision, ESP32 out of the kit, Pi recorder"`
 
 ### Task 17: Donanımda ilk gün (elle, parçalar geldikçe)
 
